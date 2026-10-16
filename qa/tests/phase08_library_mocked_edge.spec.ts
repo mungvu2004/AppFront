@@ -49,6 +49,11 @@ const alertOf = (page: Page) => page.getByText(ALERT, { exact: true });
 test.describe('P08 SCR-34 library mocked edge', () => {
   test.use({ viewport: DESKTOP });
 
+  // A late list/detail refetch can still sit in a route.fetch handler when the test ends (RR2 FL-34L-M2): drop routes, ignore in-flight errors.
+  test.afterEach(async ({ page }) => {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+  });
+
   test('SCR-34 · FL-34L-M1 · [mocked response] list read failures (500, abort, bad shape, 403, 429), loading hold, empty library, engineer 500 and loading; then real list', async ({ page, browser }) => {
     test.setTimeout(150_000);
     await signInAdmin(page, ROUTES.library);

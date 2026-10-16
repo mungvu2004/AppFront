@@ -522,6 +522,32 @@ describe('Lỗi N33 → đúng ô', () => {
     });
   });
 
+  // FL-35T-02 / BUG-P08-034 (R-RR2 evidence: step list E-001..A-011 passed, G-002 awaited a walls GET for 30 s): the walls read
+  // is sent ONCE, when the tab is first selected; going back to walls within staleTime sends no GET (cache), so a stack
+  // spec must listen from before the first tab selection and never wait on the second walls selection.
+  it('[35T-G-002] datasets?family=wallSegmentation: một GET lúc mở tab lần đầu; chọn lại họ trong staleTime không GET', async () => {
+    const client = makeClient({ listJobs: async () => page<TrainingJob>([]) });
+    const { result } = renderTrainingHook(client);
+    await waitFor(() => {
+      expect(result.current.model.state).toBe('empty');
+    });
+    const families = (): string[] => client.listDatasets.mock.calls.map((c) => (c[0] as { family: string }).family);
+
+    act(() => result.current.actions.onSelectTab('datasets'));
+    await waitFor(() => {
+      expect(families()).toEqual(['wallSegmentation']);
+    });
+    act(() => result.current.actions.onSelectDatasetFamily('dimensionReading'));
+    await waitFor(() => {
+      expect(families()).toEqual(['wallSegmentation', 'dimensionReading']);
+    });
+    act(() => result.current.actions.onSelectDatasetFamily('wallSegmentation'));
+    await waitFor(() => {
+      expect(result.current.model.datasets.family).toBe('wallSegmentation');
+    });
+    expect(families()).toEqual(['wallSegmentation', 'dimensionReading']);
+  });
+
   // FL-35T-03 (posts [] -> 1 -> 3 after the form was valid) and FL-35T-12 (creates 7 -> 8 after a click on the
   // radio "mitB1"): a click on a radio of the form submits the form, because the radio is a <button> in a <form>.
   it('[35T-C-002] [35T-C-014] bấm ô chọn họ / model nền trong biểu mẫu không gửi biểu mẫu', async () => {
@@ -568,6 +594,35 @@ describe('Lỗi N33 → đúng ô', () => {
     await waitFor(() => {
       expect(client.createJob).toHaveBeenCalledTimes(1);
     });
+  });
+
+  // FL-35T-11 [35T-A-020] second half (RR2 BUG-P08-033): epochs=0 + Enter sends nothing, dialog stays, the epochs field
+  // shows ITS OWN refusal (NumericField `error || callerError`, useNumericField.ts validate) - not the caller text.
+  it('[35T-A-020] Enter với số vòng = 0: không gửi, hộp thoại còn, nút gửi tắt, lỗi ô số vòng hiện', async () => {
+    const client = makeClient();
+    renderScreen(client);
+    const user = userEvent.setup({ delay: null });
+
+    await user.click(await screen.findByRole('button', { name: 'Tạo lượt huấn luyện' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Tạo lượt huấn luyện' });
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Bắt đầu huấn luyện' })).toBeEnabled();
+    });
+    const epochs = within(dialog).getByLabelText('Số vòng');
+    await user.clear(epochs);
+    await user.type(epochs, '0{Enter}');
+
+    expect(client.createJob).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Tạo lượt huấn luyện' })).toBeInTheDocument();
+    expect(within(dialog).getByText('Giá trị không nhỏ hơn 1.')).toBeInTheDocument(); // catalog-C2.md:107
+    // the field commits after its 800 ms debounce (useNumericField.ts COMMIT_DEBOUNCE_MS): only then the submit goes off
+    await waitFor(
+      () => {
+        expect(within(dialog).getByRole('button', { name: 'Bắt đầu huấn luyện' })).toBeDisabled();
+      },
+      { timeout: 4000 },
+    );
+    expect(client.createJob).not.toHaveBeenCalled();
   });
 });
 

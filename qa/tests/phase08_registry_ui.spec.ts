@@ -29,7 +29,9 @@ const VPS = DESKTOP_VIEWPORTS;
 const MODAL_SHOT = { fullPage: false } as const;
 const VERSIONS = /\/api\/admin\/ml\/model-versions(\?.*)?$/u;
 const DETAIL = /\/api\/admin\/ml\/model-versions\/[^/?]+$/u;
-const ACTIVE_PUT = /\/api\/admin\/ml\/model-families\/[^/]+\/active$/u;
+// Longest label the wire accepts: nameSchema max(80) (src/api/schemas/adminMl.ts:108); 90 chars fail the parse -> error state (RR2 U5). Catalog B-028: ">= 80".
+const LONG_LABEL = 'L'.repeat(80);
+const ACTIVE_PUT =/\/api\/admin\/ml\/model-families\/[^/]+\/active$/u;
 
 test.describe('P08 SCR-36 registry UI', () => {
   test('SCR-36 · FL-36R-U1 · Three families', async ({ page }) => {
@@ -173,7 +175,7 @@ test.describe('P08 SCR-36 registry UI', () => {
           const { metrics: _m, ...rest } = items[0];
           void _m;
           items[0] = { ...rest, evaluationStatus: 'pending' };
-        } else if (items[0] !== undefined) items[0] = { ...items[0], label: 'L'.repeat(90) };
+        } else if (items[0] !== undefined) items[0] = { ...items[0], label: LONG_LABEL };
         if (synthesised) state.synth = items[0];
         delete b.nextCursor;
       });
@@ -236,10 +238,10 @@ test.describe('P08 SCR-36 registry UI', () => {
       }, VPS, MODAL_SHOT);
       expect(state.puts, 'PUT answered by the mock').toBeGreaterThan(0);
     });
-    await test.step('[36R-F-015] label of 90 chars: capture at 4 sizes', async () => {
+    await test.step('[36R-F-015] label of 80 chars (wire max): capture at 4 sizes', async () => {
       await verifyUi(page, 'U08_36R-F-015_registry', async (p) => {
         await open(p, 'long');
-        await expect(p.getByText('L'.repeat(90)).first()).toBeVisible();
+        await expect(p.getByText(LONG_LABEL).first()).toBeVisible();
       }, VPS);
     });
     await test.step('[36R-B-028] truncation: card/table label truncate, detail h2 wraps, no horizontal scroll', async () => {

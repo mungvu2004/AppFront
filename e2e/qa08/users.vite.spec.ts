@@ -53,6 +53,23 @@ test.describe('SCR-37 users read [mocked response]', () => {
     await expect(page.getByRole('tooltip')).toContainText(/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/u);
   });
 
+  test('SCR-37 · FL-37U-06 (37U-G-007) · offline click on another person: the panel shows role=alert [mocked response]', async ({ page, context }) => {
+    await openUsers(page);
+    const aside = page.locator('aside[aria-label="Chi tiết người dùng"]');
+    const rows = page.locator('tbody tr');
+    await rows.filter({ hasText: TARGET.email }).getByRole('button', { name: TARGET.name, exact: true }).click();
+    await expect(aside).toBeVisible();
+
+    const other = rows.filter({ hasNotText: TARGET.email }).first();
+    await context.setOffline(true);
+    try {
+      await other.locator('button').first().click();
+      await expect(aside.getByRole('alert').first()).toBeVisible({ timeout: 10_000 });
+    } finally {
+      await context.setOffline(false);
+    }
+  });
+
   test('SCR-37 · FL-37U-U1 (37U-F-007) · "Xoá" stays centred in rows of different height [mocked response]', async ({ page }) => {
     await openUsers(page);
     const m = await page.locator('tbody tr').evaluateAll((rows) =>

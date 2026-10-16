@@ -7,7 +7,7 @@
  * chiếu bằng cách nhập chính file Python, vì đây là bài kiểm TypeScript và mã Python không
  * nạp được ở đây) — đúng khuôn "kind chép tĩnh vào test kèm nguồn kinds.py:<dòng>" của T5.
  */
-import { QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { createElement } from 'react';
 import type { ReactNode } from 'react';
@@ -200,6 +200,22 @@ describe('SCR-37 đọc — BUG-P08-015/016: trạng thái đọc của panel ch
     act(() => result.current.actions.onSelectUser('u-binh'));
     await waitFor(() => expect(result.current.model.detail?.membershipsState).toEqual({ status: 'ready' }));
     expect(result.current.model.detail?.activitiesState).toEqual({ status: 'ready' });
+  });
+
+  it('[37U-G-007] mất mạng khi mở chi tiết: lượt đọc bị TanStack tạm dừng, panel vẫn báo "error" (không kẹt "loading")', async () => {
+    const { result } = mount(gatewayWith([ADMIN, VIEWER], {}));
+    await waitFor(() => expect(result.current.model.rows).toHaveLength(2));
+    onlineManager.setOnline(false);
+    try {
+      act(() => result.current.actions.onSelectUser('u-binh'));
+      await waitFor(() => expect(result.current.model.detail?.membershipsState?.status).toBe('error'));
+      expect(result.current.model.detail?.activitiesState?.status).toBe('error');
+      // Có mạng lại: lượt đọc chạy tiếp và panel về "ready" (không kẹt lỗi).
+      act(() => onlineManager.setOnline(true));
+      await waitFor(() => expect(result.current.model.detail?.membershipsState).toEqual({ status: 'ready' }));
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it('[37U-C-011] chỉ có mình admin: "empty" ở cả khổ rộng và khổ hẹp (<1024)', async () => {

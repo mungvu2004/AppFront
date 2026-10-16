@@ -53,6 +53,7 @@ function buildActions(): TrainingJobsActions {
     onSelectJob: vi.fn(),
     onSelectTab: vi.fn(),
     onSubmitForm: vi.fn(),
+    onTypeEpochs: vi.fn(),
   };
 }
 

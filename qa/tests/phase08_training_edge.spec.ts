@@ -180,6 +180,11 @@ test.describe('SCR-35 training edge (real)', () => {
     const jobs = list.getByRole('tab', { name: T.tabJobs, exact: true });
     const datasets = list.getByRole('tab', { name: T.tabDatasets, exact: true });
 
+    // The walls read happens at the FIRST selection of the datasets tab = ArrowRight in E-001 (default datasetFamily,
+    // UTJ:397,544-548), not at A-010. G-002 re-selects walls within 30 s (adminMl staleTime, cachePolicy.ts:36,115) and
+    // react-query answers from cache (vitest useTrainingJobs.test.tsx [35T-G-002]), so G-002 checks this response.
+    // RR2 evidence: steps E-001..A-011 passed, G-002 timed out 30 s because the listener was created after E-001.
+    const wallsRead = datasetsRead(page, 'wallSegmentation');
     await test.step('[35T-E-001] Tabs bàn phím', async () => {
       await expect(jobs).toHaveAttribute('aria-selected', 'true');
       await jobs.focus();
@@ -205,9 +210,6 @@ test.describe('SCR-35 training edge (real)', () => {
       await captureEvidence(page, 'E08_35T-B-014_datasets.png', { caption: 'aside with the guide text, no job selected' });
     });
 
-    // The walls read happens HERE (default datasetFamily, UTJ:397,544-548); G-002 re-selects walls within 30 s
-    // (adminMl staleTime, cachePolicy.ts:36,115) and react-query answers from cache, so G-002 checks this response.
-    const wallsRead = datasetsRead(page, 'wallSegmentation');
     await test.step('[35T-A-010] tab "Bộ dữ liệu": ghi chú chỉ xem', async () => {
       await datasets.click();
       await expect.soft(page.getByText(T.dsNote, { exact: true })).toBeVisible();

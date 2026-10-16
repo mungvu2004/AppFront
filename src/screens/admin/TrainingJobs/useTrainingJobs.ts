@@ -391,6 +391,8 @@ export function useTrainingJobs({
   const [formVersionId, setFormVersionId] = useState<string | null>(null);
   const [formBaseModel, setFormBaseModel] = useState<string | null>(null);
   const [formEpochs, setFormEpochs] = useState<number | undefined>(DEFAULT_TRAINING_EPOCHS);
+  /** `null` = không có chữ đang gõ; `undefined` = ô rỗng/chữ. */
+  const [epochsTyped, setEpochsTyped] = useState<number | undefined | null>(null);
   const [formErrors, setFormErrors] = useState<CreateFieldErrors>(NO_FIELD_ERRORS);
   /** Khoá N33 + thân chờ gửi lại: ở hook, không ở biểu mẫu, để sống qua đóng/mở. */
   const pendingCreateRef = useRef<CreateAttempt | null>(null);
@@ -646,6 +648,7 @@ export function useTrainingJobs({
       setFormOpen(false);
       setFormErrors(NO_FIELD_ERRORS);
       setFormEpochs(DEFAULT_TRAINING_EPOCHS);
+      setEpochsTyped(null);
       setActiveTab('jobs');
       setSelectedJobId(job.id);
       setDetailNotice(null);
@@ -657,19 +660,21 @@ export function useTrainingJobs({
     },
   });
 
+  // Số đang gõ (chưa chốt, hoặc bị ô từ chối) thắng số đã chốt: nếu không, "0" + Enter/bấm gửi vẫn gửi số cũ.
+  const epochsNow = epochsTyped === null ? formEpochs : epochsTyped;
   const epochsValid =
-    formEpochs !== undefined &&
-    Number.isInteger(formEpochs) &&
-    formEpochs >= TRAINING_EPOCHS_MIN &&
-    formEpochs <= TRAINING_EPOCHS_MAX;
+    epochsNow !== undefined &&
+    Number.isInteger(epochsNow) &&
+    epochsNow >= TRAINING_EPOCHS_MIN &&
+    epochsNow <= TRAINING_EPOCHS_MAX;
   const canSubmit =
     effectiveVersionId !== null && effectiveBaseModel !== null && epochsValid && !createMutation.isPending;
 
   const onSubmitForm = useCallback((): void => {
-    if (!canSubmit || effectiveVersionId === null || effectiveBaseModel === null || formEpochs === undefined) return;
+    if (!canSubmit || effectiveVersionId === null || effectiveBaseModel === null || epochsNow === undefined) return;
     if (effectiveDatasetId === null) return;
 
-    const body = buildCreateBody(formFamily, effectiveBaseModel, effectiveVersionId, formEpochs);
+    const body = buildCreateBody(formFamily, effectiveBaseModel, effectiveVersionId, epochsNow);
     if (body === null) return;
     const attempt = nextCreateAttempt(pendingCreateRef.current, body, gateway.createKey);
 
@@ -681,7 +686,7 @@ export function useTrainingJobs({
     effectiveVersionId,
     effectiveBaseModel,
     effectiveDatasetId,
-    formEpochs,
+    epochsNow,
     formFamily,
     gateway,
     createMutation,
@@ -905,7 +910,10 @@ export function useTrainingJobs({
         setCancelOpen(false);
         setCancelError(null);
       },
-      onCloseForm: () => setFormOpen(false),
+      onCloseForm: () => {
+        setEpochsTyped(null);
+        setFormOpen(false);
+      },
       onConfirmCancel,
       onFilterFamily: (value) => {
         setCursorRetried(false);
@@ -922,8 +930,10 @@ export function useTrainingJobs({
       onFormDataset,
       onFormEpochs: (value) => {
         setFormEpochs(value);
+        setEpochsTyped(null);
         setFormErrors(NO_FIELD_ERRORS);
       },
+      onTypeEpochs: setEpochsTyped,
       onFormFamily,
       onFormVersion: (value) => {
         setFormVersionId(value);
@@ -931,6 +941,7 @@ export function useTrainingJobs({
       },
       onLoadMore,
       onOpenForm: () => {
+        setEpochsTyped(null);
         setFormErrors(NO_FIELD_ERRORS);
         setFormOpen(true);
       },

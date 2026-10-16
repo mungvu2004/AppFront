@@ -127,10 +127,14 @@ const asAppError = (error: unknown): AppError => {
   return known ? (error as AppError) : toAppError(error);
 };
 
+const OFFLINE_READ_ERROR = { kind: 'network', raw: null, requestId: '', retryable: true };
+
 /** Một lượt đọc của panel chi tiết → trạng thái cho view (BUG-P08-015). */
-function readState(isPending: boolean, error: unknown): DetailReadState {
-  if (error !== null && error !== undefined) {
-    return { status: 'error', label: describeError(toAppError(error)).description };
+function readState(isPending: boolean, error: unknown, isPaused = false): DetailReadState {
+  // Mất mạng: TanStack (`networkMode: 'online'`) TẠM DỪNG lượt đọc chứ không báo lỗi → panel kẹt "loading" (G-007).
+  const failure = error ?? (isPending && isPaused ? OFFLINE_READ_ERROR : null);
+  if (failure !== null && failure !== undefined) {
+    return { status: 'error', label: describeError(toAppError(failure)).description };
   }
 
   return isPending ? { status: 'loading' } : { status: 'ready' };
@@ -933,12 +937,12 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
 
   // Đang tải / lỗi không được rơi về "rỗng" (BUG-P08-015). Lỗi khi đã có dữ liệu cũ: giữ danh sách + báo lỗi.
   const membershipsState = useMemo(
-    () => readState(membershipsQuery.isPending, membershipsQuery.error),
-    [membershipsQuery.isPending, membershipsQuery.error],
+    () => readState(membershipsQuery.isPending, membershipsQuery.error, membershipsQuery.fetchStatus === 'paused'),
+    [membershipsQuery.isPending, membershipsQuery.error, membershipsQuery.fetchStatus],
   );
   const activitiesState = useMemo(
-    () => readState(activityQuery.isPending, activityQuery.error),
-    [activityQuery.isPending, activityQuery.error],
+    () => readState(activityQuery.isPending, activityQuery.error, activityQuery.fetchStatus === 'paused'),
+    [activityQuery.isPending, activityQuery.error, activityQuery.fetchStatus],
   );
 
   const detail = useMemo((): UserDetailModel | null => {

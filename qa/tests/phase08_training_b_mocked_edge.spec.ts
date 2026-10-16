@@ -64,6 +64,7 @@ const T = {
   versionNotFound: 'Không tìm thấy phiên bản này.',
   baseMismatch: 'Model nền không thuộc họ đã chọn.',
   epochs: 'Số vòng phải từ 1 đến 300.',
+  epochsMin: 'Giá trị không nhỏ hơn 1.', // useNumericField.ts:75 (NumericField own refusal)
   formInvalid: 'Biểu mẫu chưa hợp lệ.',
 } as const; // TG:123-135
 
@@ -441,7 +442,9 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       await second.epochs.fill('0');
       await second.epochs.press('Enter');
       await expect(createDialog(page).getByRole('button', { name: SUBMIT, exact: true })).toBeDisabled(); // the mark: invalid state
-      await expect.soft(createDialog(page).getByText(T.epochs).first()).toBeVisible();
+      // Expectation changed: the field refuses 0 itself (catalog-C2.md:107 35T-C-003 "Giá trị không nhỏ hơn 1.", useNumericField.ts:75);
+      // "Số vòng phải từ 1 đến 300." is the 422 text only (catalog-C2.md:113, :182). BUG-P08-033 was the POST sent with the old 50.
+      await expect.soft(createDialog(page).getByText(T.epochsMin, { exact: true })).toBeVisible();
       await expect(createDialog(page)).toBeVisible();
       expect.soft(mock.posts('create')).toHaveLength(before + 1);
       await second.epochs.fill('50');
