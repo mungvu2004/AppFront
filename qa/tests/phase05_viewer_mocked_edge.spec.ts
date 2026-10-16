@@ -193,8 +193,8 @@ test('SCR-23 · FL-23-16 · [mocked response] converter / root failures, no GPU,
       await retryButton(page).click();
       const settled = await settledCaption(page);
       page.off('request', countRetry);
-      // "Thử lại" must re-run the converter load (UPV:377-383 `attempt` in deps): no new request = the browser served the cached
-      // failed module, the retry cannot recover → red (soft).
+      // "Thử lại" must re-request the converter chunk: the browser keeps a failed import() per URL, so after a chunk
+      // failure the hook reloads the page (BUG-646); no new request = the retry cannot recover → red (soft).
       expect.soft(retried, 'toPascal chunk requested again after "Thử lại"').toBeGreaterThan(0);
       // Accepted branch: Chrome may keep the failed module for that URL (e2e/pascal-viewer.spec.ts:745-751), so the retry can
       // land on PASCAL-01 again — but never stays on "đang nạp" (B-V10-04), and the error keeps its way out.
