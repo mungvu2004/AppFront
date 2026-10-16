@@ -251,7 +251,11 @@ test.describe('A08 phase-8 backend ML admin C (datasets write, training jobs N29
       await test.step('[B08M-G-151] ?status=<each of 6> -> 200, every item has that status', async () => {
         for (const status of STATUSES) {
           const sent = await get(`B08M-G-151_${status}`, `status=${status}`, `?status=${status} -> only ${status} rows`);
-          for (const row of itemsOf(expectOk(sent, 200, `status=${status}`), 'jobs')) expect.soft(row.status, `status=${status} row ${String(row.id)}`).toBe(status);
+          const rows = itemsOf(expectOk(sent, 200, `status=${status}`), 'jobs');
+          for (const row of rows) expect.soft(row.status, `status=${status} row ${String(row.id)}`).toBe(status);
+          // Q14: the seed holds terminal jobs only (succeeded/failed/cancelled, >= 1 each); no job is ever queued, running or cancelling
+          if (status === 'queued' || status === 'running' || status === 'cancelling') expect.soft(rows, `status=${status}: empty list (terminal-only seed, Q14)`).toEqual([]);
+          else expect.soft(rows.length, `environment: seeded terminal job with status=${status}`).toBeGreaterThan(0);
         }
       });
       await test.step('[B08M-G-152] ?family=wallSegmentation and openingAndFurnitureDetection -> only that family', async () => {
@@ -283,10 +287,9 @@ test.describe('A08 phase-8 backend ML admin C (datasets write, training jobs N29
           const second = expectOk(await get('B08M-G-157_page2', `limit=1&cursor=${encodeURIComponent(cursor)}`, 'page 2 strictly after page 1'), 200, 'page 2');
           expect.soft(itemsOf(second, 'jobs')[0]?.id, 'page 2 = the 2nd newest, not repeated').toBe(all[1]?.id);
         }
-        const succeeded = expectOk(await get('B08M-G-157_succeeded', 'status=succeeded&limit=1', 'cursor issued under status=succeeded'), 200, 'succeeded page');
-        expect.soft(typeof succeeded.nextCursor, 'environment: at least 2 succeeded jobs for a status cursor').toBe('string');
-        if (typeof succeeded.nextCursor === 'string') {
-          const reuse = await get('B08M-G-157_reuse', `status=failed&limit=1&cursor=${encodeURIComponent(succeeded.nextCursor)}`, 'cursor reused under another status -> 422 CURSOR_INVALID');
+        // Q14: terminal-only seed has >= 1 (not >= 2) succeeded job, so the cursor is issued by the unfiltered page 1 (filters are bound into it, service.py:104)
+        if (typeof cursor === 'string') {
+          const reuse = await get('B08M-G-157_reuse', `status=failed&limit=1&cursor=${encodeURIComponent(cursor)}`, 'cursor issued with no status reused under status=failed -> 422 CURSOR_INVALID');
           expectError(reuse, 422, 'CURSOR_INVALID');
         }
       });
@@ -305,12 +308,14 @@ test.describe('A08 phase-8 backend ML admin C (datasets write, training jobs N29
         }
       });
       // FLAG (correct behaviour): a NUL in the id must be 404, never 500.
-      await test.step('[B08M-G-161] %00 in the id on job, metrics, logs, cancel -> 404 trainingJob, not 500', async () => {
+      await test.step('[B08M-G-161] %00 in the id on job, metrics, logs, cancel -> proxy 400 (nginx, before the API), never 500', async () => {
+        // Q12-Q14 decision: nginx answers 400 text/html for %00 in the URL path (evidence A08_B08M-G-161_*_nul.json); NUL stays covered in the body (G-054) and by pytest
         const id = 'job_%00x';
         guardCancel(id);
         for (const [slug, method, suffix, body] of [['job', 'GET', '', undefined], ['metrics', 'GET', '/metrics', undefined], ['logs', 'GET', '/logs', undefined], ['cancel', 'POST', '/cancel', {}]] as const) {
-          const sent = await call(admin, `B08M-G-161_${slug}`, method, `${JOBS}/${id}${suffix}`, body, [`${method} ${suffix || 'job'} with %00 -> 404 NOT_FOUND trainingJob; NOT 500`]);
-          expectError(sent, 404, 'NOT_FOUND', { resource: 'trainingJob' });
+          const sent = await call(admin, `B08M-G-161_${slug}`, method, `${JOBS}/${id}${suffix}`, body, [`${method} ${suffix || 'job'} with %00 -> proxy 400 text/html; NOT 500`]);
+          expect.soft(sent.res.status(), `${slug}: proxy 400, not 500`).toBe(400);
+          expect.soft(sent.res.headers()['content-type'], `${slug}: nginx html page`).toContain('text/html');
         }
       });
       await test.step('[B08M-G-162] GET job of a listed row -> 200 body equals its list row', async () => {

@@ -9,7 +9,7 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 import { signInAdmin } from './support/auth';
 import { captureEvidence } from './support/evidence';
 import { DESKTOP, ROUTES, adminApi } from './support/p08/admin';
-import { craftedLibrary, deferred, fail500, failWith, fulfilEdited, itemsOf, readJson } from './support/p08/P3';
+import { craftedLibrary, deferred, fail500, failWith, fulfilList, itemsOf, readJson } from './support/p08/P3';
 import { poolUser, signInPoolUser } from './support/phase03Seed';
 
 const LIST = /\/api\/library(\?.*)?$/u;
@@ -26,10 +26,7 @@ async function mockList(page: Page): Promise<{ mode: Mode; gate: Promise<void> }
     if (state.mode === 'hold') await state.gate;
     switch (state.mode) {
       case 'empty':
-        return fulfilEdited(route, (b) => {
-          b.items = [];
-          delete b.nextCursor;
-        });
+        return fulfilList(route, []);
       case '500':
         return fail500(route);
       case 'abort':
@@ -159,10 +156,7 @@ test.describe('P08 SCR-34 library mocked edge', () => {
     await page.route(LIST, async (route) => {
       if (route.request().method() !== 'GET') return route.fallback();
       listGets += 1;
-      return fulfilEdited(route, (b) => {
-        b.items = crafted;
-        delete b.nextCursor;
-      });
+      return fulfilList(route, crafted);
     });
     await page.route(DETAIL_RE, async (route) => {
       if (route.request().method() !== 'GET' || LIST.test(route.request().url())) return route.fallback();
@@ -264,7 +258,7 @@ test.describe('P08 SCR-34 library mocked edge', () => {
       await retry.click();
       await expect.soft(retry).toHaveCount(0);
       await expect.soft(aside.locator('canvas')).toBeVisible();
-      await expect.soft(aside.getByRole('button', { name: 'Đo lại từ tệp' })).toBeVisible(); // MLD:134
+      await expect.soft(aside.getByText('Đo lại từ tệp', { exact: true })).toBeVisible(); // MLD:134
       await captureEvidence(page, 'E08_34L-B-026_retry_ok.png');
       await close.click();
     });

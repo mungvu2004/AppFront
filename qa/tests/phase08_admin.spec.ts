@@ -356,7 +356,10 @@ test('SCR-36 · FL-M-36R-01 · Record, activate candidate, undo, mandatory resto
       await toast.getByRole('button', { name: 'Hoàn tác' }).click();
       const body = (await put).json as FamilyWire;
       expect.soft(body.activeVersionId ?? null).toBe(recordedId);
-      await expect.soft(page.getByText('Đã hoàn tác lượt đổi model', { exact: true })).toBeVisible();
+      // Toast.tsx:171 renders 'title — description' in one span: match by substring inside role=status (announcer excluded).
+      const undone = page.locator('[role="status"]:not([data-announcer])').filter({ hasText: 'Đã hoàn tác lượt đổi model' }); // useModelRegistry.ts:137
+      await expect.soft(undone).toContainText('Đã hoàn tác lượt đổi model');
+      await expect.soft(undone).toContainText(`Đã kích hoạt ${original.label} cho nhận diện cửa và đồ đạc`); // catalog 36R-A-014
       await expect.soft(activeCard()).toContainText(original.label);
       await captureEvidence(page, 'E08_36R-A-014_main.png');
     });

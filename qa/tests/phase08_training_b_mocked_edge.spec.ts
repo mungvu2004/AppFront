@@ -77,7 +77,8 @@ const scroller = (page: Page, name: 'Số đo' | 'Nhật ký'): Locator => secti
 const rowBtn = (page: Page, family: string, cur: number, epochs: number): Locator =>
   page
     .locator('tr, li')
-    .filter({ has: page.getByRole('button', { name: family, exact: true }), hasText: new RegExp(`\\b${cur}/${epochs}\\b`, 'u') })
+    .filter({ has: page.getByRole('button', { name: family, exact: true }) })
+    .filter({ has: page.getByText(`${cur}/${epochs}`, { exact: true }) }) // exact cell: row text concatenates cells ('0000010/50'), so \b never matched
     .getByRole('button', { name: family, exact: true });
 const softly = expect.configure({ soft: true });
 const tick = (page: Page, ms: number): Promise<void> => page.clock.runFor(ms);

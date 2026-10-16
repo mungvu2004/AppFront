@@ -326,7 +326,7 @@ test.describe('E08 SCR-35 training jobs - mocked-response flows (QA-08 P5)', () 
           await expect.soft(table.getByRole('columnheader', { name: h, exact: true })).toBeVisible(); // TDT:30
         }
         await expect.soft(table.getByText('800 / 100 / 100', { exact: true })).toBeVisible();
-        await expect.soft(table.getByText('Tầng đã duyệt', { exact: true })).toBeVisible();
+        await expect.soft(table.getByText('Tầng đã duyệt', { exact: true })).toHaveCount(2); // seq 3 (approvedFloors) + failed seq 1 (versionFixture default source)
         await expect.soft(table.getByText('Bộ dữ liệu công khai', { exact: true })).toBeVisible();
         for (const s of ['Sẵn sàng', 'Đang dựng', 'Hỏng']) await expect.soft(table.getByText(s, { exact: true })).toBeVisible();
         await ev(page, '35T-B-035', 'versions-table');

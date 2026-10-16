@@ -11,7 +11,7 @@
  *   Never run in parallel with UI SCR-36 on the wall family.
  * - FL-B08M-08 stores nothing (every upload is refused); compared against the model-versions id list.
  * - FL-B08M-07 adds 2 `MODEL_ACTIVATE` activity rows per run (not restorable).
- * - FL-B08M-10 creates 3 datasets `${TEST_DATA_PREFIX}b08m-${RUN_ID}-<attempt>-<n>` PERMANENTLY (no delete API, cleanup.mjs has no dataset code): <= 3 per run, listed in the report.
+ * - FL-B08M-10 creates 4 datasets (G-127 setup needs a NEW name: a 409 is not stored, routing.py:276) `${TEST_DATA_PREFIX}b08m-${RUN_ID}-<attempt>-<n>` PERMANENTLY (no delete API, cleanup.mjs has no dataset code): <= 3 per run, listed in the report.
  *
  * ## Real-backend budget per run of this file
  * - `POST /api/auth/login`: 1 admin (`adminApi`, 5 flows = 5 logins; limit 120 / 60 s on the QA stack, 30 BE default).
@@ -131,6 +131,18 @@ test.describe('phase08 ML admin API B', () => {
   test('SCR-36 · FL-B08M-07 · N24 real activation of the wall family with restore', async () => {
     const admin = await adminApi();
     try {
+      // Q13: a wall version is never activated by QA. No active wall version -> skip the real activation (G-061..064), run only the no-write check.
+      const before = familyRow(await readFamilies(admin), WALL);
+      if (!before.activeVersionId) {
+        test.info().annotations.push({ type: 'environment', description: 'no active wall version - Q13, DEBT' });
+        await test.step('[B08M-G-061] SKIPPED real activation (no active wall version, Q13); no-write check: family row readable, nothing written', async () => {
+          const again = familyRow(await readFamilies(admin), WALL);
+          expect.soft(again.family, 'wall family row is listed').toBe(WALL);
+          expect.soft(again.revision, 'revision unchanged: no write happened').toBe(before.revision);
+          expect.soft(again.activeVersionId, 'still no active version').toBeUndefined();
+        });
+        return;
+      }
       await withWallRestore(admin, async (wall) => {
         const R = wall.revision;
         const captured = wall.activeVersionId;
@@ -297,8 +309,11 @@ test.describe('phase08 ML admin API B', () => {
       await test.step('[B08M-G-111] versions of id garbage -> 404 dataset, never 422', async () => {
         expectError(await get('B08M-G-111', 'garbage', `${ML}/datasets/garbage/versions`, '404 NOT_FOUND dataset'), 404, 'NOT_FOUND', undefined, 'dataset');
       });
-      await test.step('[B08M-G-112] versions of an id with %00 -> 404 dataset, not 500', async () => {
-        expectError(await get('B08M-G-112', 'nul', `${ML}/datasets/dst_%00x/versions`, '404 NOT_FOUND dataset; NOT 500'), 404, 'NOT_FOUND', undefined, 'dataset');
+      await test.step('[B08M-G-112] versions of an id with %00 -> proxy 400 (nginx, before the API), never 500', async () => {
+        // Q12-Q14 decision: nginx answers 400 text/html for %00 in the URL path (evidence A08_B08M-G-112_nul.json); NUL stays covered in the body (G-054) and by pytest
+        const sent = await get('B08M-G-112', 'nul', `${ML}/datasets/dst_%00x/versions`, 'proxy 400 text/html for %00 in the path; never 500');
+        expect(sent.res.status(), 'proxy 400, not 500').toBe(400);
+        expect.soft(sent.res.headers()['content-type'], 'nginx html page').toContain('text/html');
       });
       await test.step('[B08M-G-114] versions of a dataset that has some: order and fields', async () => {
         let found: { id: string; rows: Json[] } | undefined;
@@ -403,8 +418,9 @@ test.describe('phase08 ML admin API B', () => {
       });
       await test.step('[B08M-G-127] same Idempotency-Key, different body -> 422 IDEMPOTENCY_KEY_REUSED', async () => {
         const key = { 'Idempotency-Key': randomUUID() };
-        const setup = await post('B08M-G-127', 'idem_setup', { name: n3, family: OPENING }, 'setup: first use of the key (409, name taken)', key);
-        expect.soft(setup.res.status(), 'setup is refused (name taken), creates nothing').toBe(409);
+        // a 409 is not stored (routing.py:276): the setup must succeed (201) with a NEW name so the key is stored with this body
+        const setup = await post('B08M-G-127', 'idem_setup', { name: name(4), family: OPENING }, 'setup: first use of the key with a NEW name (201, key stored)', key);
+        expect.soft(setup.res.status(), 'setup creates a dataset and stores the key').toBe(201);
         const sent = await post('B08M-G-127', 'idem_reused', { name: `${n3}-other`, family: OPENING }, '422 IDEMPOTENCY_KEY_REUSED', key);
         expectError(sent, 422, 'IDEMPOTENCY_KEY_REUSED');
       });

@@ -49,7 +49,7 @@ export async function call(
   options: CallOptions = {},
 ): Promise<Sent> {
   const headers = { ...(options.raw === undefined ? {} : { 'Content-Type': 'application/json' }), ...options.headers };
-  const res = await api.fetch(path, { method, headers, data: options.raw ?? body });
+  const res = await api.fetch(path, { method, headers, data: options.raw === undefined ? body : Buffer.from(options.raw) });
   const parsed = await captureExchange(`A08_${name}.json`, { method, path, body: options.raw ?? body }, res, assertions);
   return { res, status: res.status(), body: parsed };
 }

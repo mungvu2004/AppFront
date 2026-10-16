@@ -1198,6 +1198,8 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
         }
 
         const userId = removeUserId;
+        // Email của tài khoản (BE lưu chữ thường), không phải chữ người dùng gõ khác hoa/thường.
+        const accountEmail = removeConfirm.user?.email ?? removeEmail.trim();
 
         void removeMutation.mutateAsync({ userId, confirmEmail: removeEmail.trim() }).then(
           () => {
@@ -1209,7 +1211,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
               title: USER_MANAGEMENT_TEXT.removedTitle,
               // Xoá hẳn KHÔNG hoàn tác được (A9) — nên thông báo này cố tình không mang
               // `undoTicket`. Đó là lý do nó đã hỏi trước bằng ô gõ lại địa chỉ.
-              description: removeEmail.trim(),
+              description: accountEmail,
             });
           },
           (error: unknown) => {

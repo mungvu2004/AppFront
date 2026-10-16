@@ -222,7 +222,9 @@ test.describe('SCR-37 users write UI', () => {
             await openUsersList(p);
             const row = p.locator('tbody tr, main li').filter({ hasText: 'Quản trị cuối (mock)' }).first();
             await expect(row).toBeVisible();
-            await expect.soft(row.getByText(U.lastAdmin, { exact: true })).toBeVisible();
+            // The reason shows 3x in the row (role cell dd + disable slot + remove slot, BUG-P08-022); F-007 = the action column, remove slot is the last.
+            await expect.soft(row.getByText(U.lastAdmin, { exact: true })).toHaveCount(3);
+            await expect.soft(row.getByText(U.lastAdmin, { exact: true }).last()).toBeVisible();
           });
         } finally {
           await page.unroute('**/api/users*');

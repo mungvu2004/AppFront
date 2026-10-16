@@ -38,7 +38,7 @@ const T = {
   detail: 'Chi tiết lượt huấn luyện',
 } as const;
 const FAMILY = { walls: 'Tách lớp tường', opening: 'Nhận diện cửa và đồ đạc', dim: 'Đọc kích thước' } as const;
-const STATUSES = ['Tất cả', 'Chờ chạy', 'Đang chạy', 'Thành công', 'Hỏng', 'Đang huỷ', 'Đã huỷ'] as const; // UTJ:123
+const STATUSES = ['Tất cả', 'Chờ chạy', 'Đang chạy', 'Xong', 'Hỏng', 'Đang huỷ', 'Đã huỷ'] as const; // useTrainingJobs.ts:124 = vi.json:3645; QD Q11 keeps 'Xong'
 const JOBS_PATH = '/api/admin/ml/training-jobs';
 const DATASETS_PATH = '/api/admin/ml/datasets';
 

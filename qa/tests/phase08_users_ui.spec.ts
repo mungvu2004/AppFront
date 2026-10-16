@@ -208,7 +208,7 @@ test.describe('SCR-37 users UI', () => {
           async (p) => {
             await openUsersList(p);
             await p.getByLabel(SEARCH, { exact: true }).fill(engineer.email);
-            await userRow(p, engineer.email).getByRole('button', { name: engineer.name, exact: true }).click();
+            await userRow(p, engineer.email).getByRole('button', { name: engineer.name }).first().click(); // 768 card name = name + email (Table.tsx:203): non-exact
             const vw = p.viewportSize()?.width ?? 0;
             if (isWide(p)) {
               const aside = p.locator('aside[aria-label="Chi tiết người dùng"]');
@@ -263,7 +263,9 @@ test.describe('SCR-37 users UI', () => {
             await p.goto('/admin/users');
             await expect(p.getByText(FORBIDDEN, { exact: false })).toBeVisible();
             await expect.soft(p.getByRole('alert')).toBeVisible();
-            await expect.soft(p.getByRole('button', { name: MATRIX_BUTTON, exact: true })).toBeVisible();
+            // catalog-C4:145 "alert + ma trận + liên kết": the matrix is inline (UserManagement.tsx:186), no button.
+            await expect.soft(p.getByText('Ma trận quyền theo vai trò', { exact: true })).toBeVisible(); // UserManagement.tsx:52
+            await expect.soft(p.getByRole('list').getByRole('listitem').first()).toBeVisible();
             await expect.soft(p.getByRole('link', { name: 'Về bảng điều khiển', exact: true }).or(p.getByRole('button', { name: 'Về bảng điều khiển', exact: true }))).toBeVisible();
           });
         });

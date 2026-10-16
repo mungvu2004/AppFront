@@ -403,14 +403,18 @@ export function UserManagementDetail({
 
   if (isCollapsed) {
     return (
-      <Drawer
+      <Drawer.Root
         isOpen={detail !== null}
+        label="Chi tiết người dùng"
         onClose={() => {
           actions.onSelectUser(null);
         }}
       >
-        <div className="p-6">{body}</div>
-      </Drawer>
+        <Drawer.Handle />
+        <Drawer.Body>
+          <div className="p-6">{body}</div>
+        </Drawer.Body>
+      </Drawer.Root>
     );
   }
 

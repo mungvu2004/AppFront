@@ -9,6 +9,7 @@ import { ROUTES as APP_ROUTES, pathOf } from '../../../../e2e/fixtures/routes';
 import { waitForApiWhere, type ApiResult } from '../../../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../../../e2e/fullstack/env';
 import { signInAdmin } from '../auth';
+import { adminApi } from './admin';
 import { FAMILY_LABEL, type FamilyId } from './registry';
 
 export const REGISTRY_PATH = APP_ROUTES.adminTrainingModels;
@@ -47,6 +48,8 @@ export const REG = {
   forbiddenBody: 'Chỉ quản trị viên hệ thống xem được model AI.', // MR:39
   headers: ['Nhãn', 'Định dạng', 'Đánh giá', 'Số đo', 'Nguồn', 'Ngày tạo'], // MRV:118-119,215-220
   fields: ['Mã', 'Mã băm', 'Định dạng', 'Số đo', 'Người tạo', 'Ngày tạo'], // UMR:276-292
+  emptyTitle: 'Chưa có phiên bản', // MR:148-149 title, UMR:125
+  emptyWall: 'Họ này chưa có phiên bản nào. Tải trọng số bằng công cụ dòng lệnh, hoặc chờ một lượt huấn luyện xong. Đang dùng đường cổ điển.', // UMR:125-126,337-338 (vi.json:3613-3614), catalog 36R-B-012
   seedNote: 'Số đo trên tập kiểm tổng hợp cố định, không so thẳng với bản huấn luyện.', // UMR:124
 } as const;
 export const EVALUATION_LABEL: Readonly<Record<string, string>> = {
@@ -94,6 +97,10 @@ export const versionRow = (page: Page, label: string): Locator =>
   page.getByRole('row').filter({ has: page.getByRole('button', { name: label, exact: true }) }).first(); // MRV:29-40
 export const detailAside = (page: Page): Locator => page.getByRole('complementary', { name: REG.detailPanel, exact: true });
 
+let oracle: Promise<APIRequestContext> | undefined;
+/** One signed-in admin client per worker (1 login) for oracle GETs; closed with the worker. */
+const oracleApi = (): Promise<APIRequestContext> => (oracle ??= adminApi());
+
 /**
  * Click `family` and return its first versions page (oracle = own GET). Waits on UI state, never on a GET: react-query keeps a
  * family loaded within 30 s (staleTime), so re-selecting fires no request (fix-s4).
@@ -101,7 +108,7 @@ export const detailAside = (page: Page): Locator => page.getByRole('complementar
 export async function selectFamily(page: Page, family: Family): Promise<Json[]> {
   await radio(page, family).click();
   await expect(radio(page, family)).toHaveAttribute('aria-checked', 'true');
-  const res = await page.request.get(VERSIONS, { params: { family } });
+  const res = await (await oracleApi()).get(VERSIONS, { params: { family } }); // page.request has no Bearer (token in memory)
   expect(res.status(), `GET model-versions (${family})`).toBe(200);
   const items = itemsOf(await res.json(), `GET model-versions (${family})`);
   if (items.length > 0) await expect(page.locator('tbody tr')).toHaveCount(items.length);

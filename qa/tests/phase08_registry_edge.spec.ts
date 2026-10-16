@@ -112,8 +112,15 @@ test.describe('E08 SCR-36 registry (real)', () => {
       });
       await test.step('[36R-B-005] table header', async () => {
         const table = page.getByRole('table');
-        for (const h of REG.headers) await expect.soft(table.getByRole('columnheader', { name: h, exact: true })).toBeVisible(); // MRV:118-119
-        await expect.soft(table.locator('th.sr-only, th .sr-only').filter({ hasText: 'Thao tác' })).toHaveCount(1);
+        if (walls.length === 0) {
+          // Q13: stack has no wall versions and none may be activated; catalog 36R-B-012 = empty wall family shows the explanation, no table.
+          await expect.soft(page.getByText(REG.emptyTitle, { exact: true })).toBeVisible();
+          await expect.soft(page.getByText(wallActive === null ? REG.emptyWall : REG.emptyWall.replace(' Đang dùng đường cổ điển.', ''), { exact: true })).toBeVisible();
+          await expect.soft(table).toHaveCount(0);
+        } else {
+          for (const h of REG.headers) await expect.soft(table.getByRole('columnheader', { name: h, exact: true })).toBeVisible(); // MRV:118-119
+          await expect.soft(table.locator('th.sr-only, th .sr-only').filter({ hasText: 'Thao tác' })).toHaveCount(1);
+        }
         await ev(page, '36R-B-005');
       });
       await test.step('[36R-B-006] row cells vs API', async () => {
@@ -443,7 +450,7 @@ test.describe('E08 SCR-36 registry (real)', () => {
     const api = await adminApi();
     const [eng, view] = [await poolUser(api, 'engineer', 'p08-eng'), await poolUser(api, 'viewer', 'p08-view')];
     await api.dispose();
-    const { context: adminCtx, page: adminPage } = await openRegistry(browser);
+    const { context: adminCtx, page: adminPage, walls } = await openRegistry(browser);
     const contexts = [adminCtx];
     const base = readBaseUrl();
     const forbidden = async (user: typeof eng): Promise<{ page: Page; reads: string[] }> => {
@@ -461,7 +468,9 @@ test.describe('E08 SCR-36 registry (real)', () => {
       await test.step('[36R-D-001] admin sees picker, card, table', async () => {
         await expect(picker(adminPage)).toBeVisible();
         await expect(activeCard(adminPage)).toBeVisible();
-        await expect(adminPage.getByRole('table')).toBeVisible();
+        // Q13: no wall versions on the stack -> the wall family shows the empty state instead of the table (catalog 36R-B-012)
+        if (walls.length === 0) await expect(adminPage.getByText(REG.emptyTitle, { exact: true })).toBeVisible();
+        else await expect(adminPage.getByRole('table')).toBeVisible();
         await ev(adminPage, '36R-D-001');
       });
       let engineer: { page: Page; reads: string[] } | undefined;

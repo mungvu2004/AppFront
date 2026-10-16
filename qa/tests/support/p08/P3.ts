@@ -6,7 +6,11 @@ import { expect, type APIRequestContext, type Locator, type Page, type Route } f
 
 import { ROUTES } from '../../../../e2e/fixtures/routes';
 
-export const itemsOf = (json: unknown): Record<string, unknown>[] => (json as { items: Record<string, unknown>[] }).items;
+/** GET /api/library is a BARE ARRAY (phase08_library_api.spec.ts:72). */
+export const itemsOf = (json: unknown): Record<string, unknown>[] => {
+  if (!Array.isArray(json)) throw new Error('environment: GET /api/library did not return a bare array');
+  return json as Record<string, unknown>[];
+};
 
 /** dup-of: flows-C1 craftedLibrary — copies of the first real item (previewless, 900000, 900001 triangles, 120-char name). */
 // dup-of: flows-C1 craftedLibrary craftedLibrary
@@ -53,6 +57,12 @@ const CODES: Record<number, string> = { 403: 'FORBIDDEN', 404: 'NOT_FOUND', 429:
 export const failWith = (route: Route, status: 403 | 404 | 429 | 500): Promise<void> =>
   route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ code: CODES[status], requestId: 'qa-p08-mock' }) });
 export const fail500 = (route: Route): Promise<void> => failWith(route, 500);
+
+/** GET answer for a bare-array endpoint: the real array replaced by `items` (real status/headers kept). */
+export async function fulfilList(route: Route, items: unknown[]): Promise<void> {
+  const real = await route.fetch();
+  await route.fulfill({ response: real, json: items });
+}
 
 /** GET answer = the real body passed through `edit`. */
 export async function fulfilEdited(route: Route, edit: (body: Record<string, unknown>) => void): Promise<void> {
@@ -135,7 +145,7 @@ export async function guardWrites(page: Page): Promise<{ count: () => number }> 
 
 /* ---------------------------------------------------------------- SCR-35 mock fixtures (TrainingJobSchema, adminMl.ts:370) */
 const ULID = (n: number): string => `01HZX${String(n).padStart(2, '0')}ABCDEFGHJKMNPQRSTV`.slice(0, 26).padEnd(26, 'A');
-const AT = '2026-10-14T08:00:00Z';
+const AT = '2026-10-14T08:00:00.000Z'; // isoInstantSchema needs milliseconds (common.ts:32)
 export function jobFixture(n: number, status: 'running' | 'queued' | 'succeeded', epochs = 40): Record<string, unknown> {
   return {
     baseModel: 'mitB0',
@@ -147,7 +157,7 @@ export function jobFixture(n: number, status: 'running' | 'queued' | 'succeeded'
     id: `job_${ULID(n)}`,
     status,
     ...(status === 'queued' ? {} : { startedAt: AT, currentEpoch: 5 }),
-    ...(status === 'succeeded' ? { endedAt: '2026-10-14T08:30:00Z', resultModelVersionId: `mdl_${ULID(n)}` } : {}),
+    ...(status === 'succeeded' ? { endedAt: '2026-10-14T08:30:00.000Z', resultModelVersionId: `mdl_${ULID(n)}` } : {}),
   };
 }
 export const metricPoints = (n: number): Record<string, unknown>[] =>

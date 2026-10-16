@@ -63,7 +63,7 @@ test('SCR-34 · FL-34L-U1 · UI verify real states (default, no match, category 
     await expect.soft(page.getByRole('combobox', { name: 'Danh mục', exact: true }), 'category label capital').toBeVisible();
     await expect.soft(page.getByText('Model nặng', { exact: true }), 'heavy count label capital').toBeVisible();
     // Labels of the detail panel (useModelLibrary.ts:108-109 fieldFileSize / fieldGroup), not the table headers.
-    await rowNames(page).first().click();
+    await rowNames(page).first().getByRole('button').click();
     const aside = page.locator(`aside[aria-label="${DETAIL}"]`);
     await expect(aside).toBeVisible();
     await expect.soft(aside.getByText('Dung lượng', { exact: true }), '"dung lượng" capital').toBeVisible();
@@ -125,7 +125,7 @@ test('SCR-34 · FL-34L-U1 · UI verify real states (default, no match, category 
       'U08_34L-F-005_detail',
       async (p) => {
         await openReady(p);
-        await rowNames(p).first().click();
+        await rowNames(p).first().getByRole('button').click();
         await expect(p.locator(`aside[aria-label="${DETAIL}"]`).or(p.getByRole('dialog', { name: DETAIL, exact: true }))).toBeVisible();
       },
       DESKTOP_VIEWPORTS,
@@ -169,7 +169,13 @@ test('SCR-34 · FL-34L-U2 · [mocked response] UI verify loading, empty, error, 
   await signInAdmin(page, ROUTES.adminModels);
 
   // Real list read once (derives the crafted bodies); GET /api/library is a bare array (flows G-001).
-  const real = (await (await page.request.get('/api/library')).json()) as LibraryItem[];
+  const admin = await adminApi();
+  let real: LibraryItem[];
+  try {
+    real = (await (await admin.get('/api/library')).json()) as LibraryItem[];
+  } finally {
+    await admin.dispose();
+  }
   expect(real.length, 'environment: real library has at least one model to copy').toBeGreaterThan(0);
   const first = real[0] as LibraryItem;
   const { previewUrl, ...base } = first;

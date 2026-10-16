@@ -308,10 +308,11 @@ test.describe('phase 08 · ML admin API · A', () => {
         const sent = await call(admin, 'B08M-G-032', 'garbage', 'GET', `${ML}/model-versions/garbage`, undefined, ['404 NOT_FOUND "modelVersion", never 422']);
         expectError(sent, 404, 'NOT_FOUND', undefined, 'modelVersion');
       });
-      await test.step('[B08M-G-033] id with %00 -> 404 not 500', async () => {
-        // flag: a NUL in a text bind param may make Postgres raise -> 500; correct behaviour is 404
-        const sent = await call(admin, 'B08M-G-033', 'nul', 'GET', `${ML}/model-versions/mdl_x%00`, undefined, ['404 NOT_FOUND "modelVersion"; NOT 500 (a non-JSON 400 would be the proxy, not the BE)']);
-        expectError(sent, 404, 'NOT_FOUND', undefined, 'modelVersion');
+      await test.step('[B08M-G-033] id with %00 -> proxy 400 (nginx, before the API), never 500', async () => {
+        // Q12-Q14 decision: nginx answers 400 text/html for %00 in the URL path (evidence A08_B08M-G-033_nul.json); NUL stays covered in the body (G-054) and by pytest
+        const sent = await call(admin, 'B08M-G-033', 'nul', 'GET', `${ML}/model-versions/mdl_x%00`, undefined, ['proxy 400 text/html for %00 in the path; never 500']);
+        expect(sent.res.status(), 'proxy 400, not 500').toBe(400);
+        expect.soft(sent.res.headers()['content-type'], 'nginx html page').toContain('text/html');
       });
     } finally {
       await admin.dispose();

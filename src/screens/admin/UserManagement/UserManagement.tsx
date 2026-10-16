@@ -235,7 +235,10 @@ export function UserManagement({ model, actions }: UserManagementProps) {
         width={MODAL_WIDTH}
       >
         {/* Tiêu đề hộp đã nói đúng câu này — không lặp làm chú thích (BUG-080). */}
-        <UserManagementPermissionMatrix matrix={model.permissionMatrix} />
+        {/* Hộp không có chân nên thân hộp không có đệm dưới: khung `pb-8` khớp lề `px-8` (BUG-431). */}
+        <div className="pb-8">
+          <UserManagementPermissionMatrix matrix={model.permissionMatrix} />
+        </div>
       </Modal>
     </div>
   );

@@ -223,7 +223,8 @@ export const detail = (page: Page) => page.getByRole('complementary', { name: 'C
 export const selectFamily = (page: Page, family: FamilyId) => picker(page).getByRole('radio', { name: FAMILY_LABEL[family], exact: true }).click();
 /** Reload (the screen opens on the wall family) and optionally wait for a row. */
 export async function fresh(s: MockedSession, label?: string): Promise<void> {
-  await s.page.reload();
+  if (s.page.url() === 'about:blank') await gotoRegistry(s.page); // first call of a flow: nothing to reload yet
+  else await s.page.reload();
   if (label !== undefined) await expect(rowOf(s.page, label)).toBeVisible();
 }
 /** Wait until `log` has an entry matching `re` after index `from`. */

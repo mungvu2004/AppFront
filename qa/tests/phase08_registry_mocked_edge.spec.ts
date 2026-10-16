@@ -117,7 +117,10 @@ test.describe('SCR-36 registry [mocked response]', () => {
         expect.soft((await versions).status(), 'real GET model-versions').toBe(200);
         await expect.soft(page.getByText(READ_TITLE, { exact: true })).toHaveCount(0);
         await expect.soft(picker(page)).toBeVisible();
-        await expect.soft(page.getByRole('table')).toBeVisible();
+        // Q13: the stack's wall family has no versions (none may be activated) -> catalog 36R-B-012 empty state instead of the table
+        const count = ((await (await versions).json()) as { items: unknown[] }).items.length;
+        if (count === 0) await expect.soft(page.getByText('Chưa có phiên bản', { exact: true })).toBeVisible(); // MR:148-149
+        else await expect.soft(page.getByRole('table')).toBeVisible();
         await shot(page, '36R-A-021');
       });
       await test.step('[36R-B-015] loaded page, next refetch fails: rows kept, inline "Thử lại"', async () => {

@@ -114,7 +114,7 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
         await mark.expectNew();
         await expect(field).toHaveValue(typed);
         await expect(rowOf(page, typed)).toHaveCount(0);
-        await expect.soft(toast(page, T.inviteFailed).last()).toContainText(/S/u);
+        await expect.soft(toast(page, T.inviteFailed).last()).toContainText(/\S/u);
         await captureEvidence(page, 'E08_37W-G-002_users_write.png', { caption: '429: toast, text kept, row gone' });
         await page.clock.runFor(120_000); // fires every retry/backoff timer a client could use: the milestone for "no more POST"
         // ⚑ N8: the client must not resend on its own

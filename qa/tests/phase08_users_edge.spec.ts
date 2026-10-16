@@ -493,7 +493,9 @@ test.describe('SCR-37 users (read) edge', () => {
         await list;
         const after = await lastActive(peRow).innerText();
         expect.soft(after.trim(), 'relative text present').not.toBe('');
-        if (!/Chưa hoạt động/u.test(before)) expect.soft(after, 'text moves with the clock (+1 day)').not.toBe(before);
+        // types.ts:28-35: relative only under 1 h; older stamps are absolute 'dd/mm/yyyy hh:mm' and must NOT move with the clock.
+        if (TIMESTAMP_RE.test(before)) expect.soft(after, 'absolute stamp (>1h) stays put').toBe(before);
+        else if (!/Chưa hoạt động/u.test(before)) expect.soft(after, 'relative text moves with the clock (+1 day)').not.toBe(before);
         await lastActive(peRow).locator('span').first().hover();
         await expect.soft(page.getByRole('tooltip')).toContainText(TIMESTAMP_RE);
         await expect.soft(lastActive(userRow(page, invEmail))).toContainText(USR.never);

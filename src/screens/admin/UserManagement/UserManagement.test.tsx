@@ -708,4 +708,22 @@ describe('SCR-37 đọc (phase 08, D-a): BUG-P08-014..021', () => {
 
     expect(document.activeElement).toBe(screen.getByRole('button', { name: openRow.name }));
   });
+
+  it('[37U-F-008] hộp ma trận quyền: hàng cuối có đệm dưới (BUG-431)', async () => {
+    await renderModel({ ...SUCCESS, detail: null, isPermissionReferenceOpen: true });
+    const dialog = screen.getByRole('dialog');
+    const lastRow = within(dialog).getAllByRole('listitem').at(-1) as HTMLElement;
+    let padded = false;
+    for (let node: HTMLElement | null = lastRow.parentElement; node && node !== dialog; node = node.parentElement) {
+      if (/(^|\s)pb-\d/.test(node.className)) padded = true;
+    }
+
+    expect(padded, 'một khung quanh ma trận có pb-*').toBe(true);
+  });
+
+  it('[37U-F-002] 768: Drawer chi tiết có tên truy cập "Chi tiết người dùng"', async () => {
+    await renderModel({ ...withDetail({}), isCollapsed: true });
+
+    expect(screen.getByRole('dialog', { name: 'Chi tiết người dùng' })).toBeTruthy();
+  });
 });
