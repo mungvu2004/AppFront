@@ -296,7 +296,7 @@ test('SCR-34 · FL-34L-04 · detail panel: content, close paths, focus, filter i
   const cell = async (n: number): Promise<string> => (await columnTexts(page, n))[(await shownNames(page)).indexOf(x.name)] ?? '';
   await test.step('[34L-B-020] metadata rows in order', async () => {
     const text = await section('Siêu dữ liệu model').innerText();
-    const at = ['Kích thước bao', 'Số tam giác', 'dung lượng', 'nhóm'].map((l) => text.indexOf(l));
+    const at = ['Kích thước bao', 'Số tam giác', 'Dung lượng', 'Nhóm'].map((l) => text.indexOf(l)); // useModelLibrary.ts:108-109 (sentence case, BUG-595)
     expect.soft(at.every((n, i) => n >= 0 && (i === 0 || n > (at[i - 1] as number))), text).toBe(true);
     for (const v of [boundsLabel(x), await cell(5), await cell(6), await cell(3)]) expect.soft(text).toContain(v);
     await ev(page, '34L-B-020', 'metadata');

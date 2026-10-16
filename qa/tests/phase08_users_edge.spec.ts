@@ -240,7 +240,8 @@ test.describe('SCR-37 users (read) edge', () => {
       });
       await test.step('[37U-A-020] "Dự án tham gia": names, blocked-role note, no select', async () => {
         await expect.soft(region(USR.memberships)).toContainText(small.name);
-        await expect.soft(region(USR.memberships).getByText(USR.membershipBlocked, { exact: true })).toHaveCount(peMemberCount);
+        // BUG-P08-021 (work.md:52, UserManagementDetail.tsx DetailMemberships): the note is said ONCE under the list, not on every card. RR: expected 2 (=cards), received 1.
+        await expect.soft(region(USR.memberships).getByText(USR.membershipBlocked, { exact: true })).toHaveCount(peMemberCount > 0 ? 1 : 0);
         await expect.soft(region(USR.memberships).getByRole('combobox')).toHaveCount(0);
         await captureEvidence(page, 'E08_37U-A-020_users.png');
       });
@@ -594,7 +595,8 @@ test.describe('SCR-37 users (read) edge', () => {
         await captureEvidence(page, 'E08_37U-E-004_users.png');
       });
       await test.step('[37U-E-009] ⚑ "Lần hoạt động cuối" reachable by Tab, tooltip shows absolute time', async () => {
-        const target = peRow.getByRole('cell').nth(3).locator('span').first();
+        // First span in the cell is the Tooltip wrapper (Tooltip.tsx:205, not focusable); the focusable one carries tabindex (RR tab trace: Tab stops on 'span||...').
+        const target = peRow.getByRole('cell').nth(3).locator('span[tabindex="0"]');
         await peRow.getByRole('combobox', { name: `Vai của ${s.pe.name}` }).focus();
         let focused = false;
         for (let i = 0; i < 3 && !focused; i += 1) {

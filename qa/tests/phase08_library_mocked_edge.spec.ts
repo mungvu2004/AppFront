@@ -185,7 +185,7 @@ test.describe('P08 SCR-34 library mocked edge', () => {
     await test.step('[34L-B-017] Detail of a heavy model: "Cảnh báo model nặng"', async () => {
       await row('QA heavy model 900001').getByRole('button').filter({ hasText: /\S/u }).first().click();
       const aside = page.locator('aside[aria-label="Chi tiết model"]');
-      await expect.soft(aside.getByText('Cảnh báo model nặng', { exact: false })).toBeVisible(); // MLD:257-266
+      await expect.soft(aside.getByLabel('Cảnh báo model nặng', { exact: true })).toBeVisible(); // MLD:257-266 (aria-label of the <section>, not text)
       await expect.soft(aside.getByText('Nặng', { exact: true }).first()).toBeVisible();
       await captureEvidence(page, 'E08_34L-B-017_heavy_detail.png');
       await page.keyboard.press('Escape');

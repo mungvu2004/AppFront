@@ -58,7 +58,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { AdminUser, AdminUserList, UserActivity, UserMembership } from '@/api/client';
-import { describeError, toAppError } from '@/lib/errors';
+import { describeError, toAppError, type AppError } from '@/lib/errors';
 import { readWireError } from '@/lib/errors/wireError';
 import { formatCalendarDate, formatClockTime, formatTimestamp } from '@/lib/format/datetime';
 import { formatNumber } from '@/lib/format/number';
@@ -116,6 +116,16 @@ const SKELETON_ROW_COUNT = 8;
 
 /** "Mười thao tác gần nhất" của panel chi tiết, cũng theo hợp đồng (`UserDetailModel`). */
 const ACTIVITY_LIMIT = 10;
+
+/**
+ * Lỗi của lượt ghi đã qua `toAppError` một lần (createOptimisticMutation ném `AppError`): qua lần hai,
+ * mã BE như `USER_NOT_FOUND` không khớp từ khoá nào nên kind rơi về `unknown` và toast nói câu chung
+ * chung (FL-37W-03 G-008). Đã là AppError thì giữ nguyên.
+ */
+const asAppError = (error: unknown): AppError => {
+  const known = typeof error === 'object' && error !== null && 'messageKey' in error && 'recovery' in error;
+  return known ? (error as AppError) : toAppError(error);
+};
 
 /** Một lượt đọc của panel chi tiết → trạng thái cho view (BUG-P08-015). */
 function readState(isPending: boolean, error: unknown): DetailReadState {
@@ -660,7 +670,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
       gateway.notify({
         type: 'user.write-failed',
         title,
-        description: describeError(toAppError(error)).description,
+        description: describeError(asAppError(error)).description,
       });
     },
     [gateway],
@@ -847,7 +857,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
             outcome: 'failure',
             undo: variables.isUndo,
             durationMs: now() - startedAt,
-            errorKind: toAppError(error).kind,
+            errorKind: asAppError(error).kind,
           });
           notifyFailure(USER_MANAGEMENT_TEXT.roleChangeFailedTitle, error);
         },
@@ -1181,7 +1191,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
             // Lượt ghi lạc quan đã bọc lỗi dây thành AppError (field nằm ở `params`) — đọc cả hai dạng.
             const appParams = (error as { params?: { field?: unknown } } | null)?.params;
             if ((readWireError(error)?.field ?? appParams?.field) === 'emails') {
-              setInviteServerError(describeError(toAppError(error)).description);
+              setInviteServerError(describeError(asAppError(error)).description);
             }
             notifyFailure(USER_MANAGEMENT_TEXT.inviteFailedTitle, error);
           },

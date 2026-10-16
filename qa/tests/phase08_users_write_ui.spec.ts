@@ -213,9 +213,12 @@ test.describe('SCR-37 users write UI', () => {
           const real = await route.fetch();
           const body = (await real.json()) as { users: Record<string, unknown>[] };
           // Another active admin (copy of the signed-in row with its own id/email/name) and NOT the own row: isSelf would win over lastAdmin.
+          // A viewer beside it: a list of ONE user is the "only you" empty state (useUserManagement.ts state ladder `users.length <= 1`,
+          // RR evidence U08_37W-F-007 1440: "Chưa có người dùng nào khác", no row), so the last admin needs a second user to be drawn.
           const mine = body.users.find((u) => u.email === adminPool.email);
           const other = { ...mine, id: 'mock-last-admin-0000', email: testEmail('p08-37w-lastadm'), name: 'Quản trị cuối (mock)' };
-          return route.fulfill({ response: real, json: { ...body, users: [other] } });
+          const peer = { ...mine, id: 'mock-viewer-0000', email: testEmail('p08-37w-viewer'), name: 'Người xem (mock)', role: 'viewer' };
+          return route.fulfill({ response: real, json: { ...body, users: [other, peer] } });
         });
         try {
           await verifyDesktop(page, 'U08_37W-F-007_users_write', async (p) => {

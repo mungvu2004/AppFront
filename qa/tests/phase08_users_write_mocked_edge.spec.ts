@@ -96,6 +96,9 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
     const list = getList(page);
     await page.goto(ROUTES.adminUsers);
     await list;
+    await expect(page.locator('tbody tr').first()).toBeVisible(); // DOM sign: the rows are drawn after the GET answers
+    // The shared stack may already hold pending invitees (RR evidence: 1 "Chờ chấp nhận" row before any POST): the baseline is the count now.
+    const pendingBefore = await page.getByText(T.pending, { exact: true }).count();
     const field = page.getByRole('textbox', { name: T.emails, exact: true });
     const send = async (): Promise<void> => {
       await page.getByRole('button', { name: T.submit, exact: true }).click();
@@ -124,7 +127,7 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
       await test.step('[37W-B-007] after the failure: field keeps its text, no extra "Chờ chấp nhận" row', async () => {
         await expect.soft(field).toHaveValue(typed);
         await expect.soft(rowOf(page, typed)).toHaveCount(0);
-        await expect.soft(page.getByText(T.pending, { exact: true })).toHaveCount(0);
+        await expect.soft(page.getByText(T.pending, { exact: true }), 'no extra pending row: same count as before the POST').toHaveCount(pendingBefore);
         await captureEvidence(page, 'E08_37W-B-007_users_write.png');
       });
 

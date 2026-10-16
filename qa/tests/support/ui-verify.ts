@@ -162,8 +162,10 @@ export async function verifyUi(
       await open(page);
     } catch (error) {
       if (test.info().expectedStatus === 'skipped') throw error;
-      // First line of the message, without the ANSI colours Playwright puts in it.
-      openError = (error instanceof Error ? error.message : String(error)).replace(/\u001b\[[0-9;]*m/gu, '').split('\n')[0];
+      // First line plus the `Locator:` line (which element timed out) and the URL, without the ANSI colours Playwright puts in it.
+      // RR phase 08: first line alone ("Timed out ... toBeVisible") hid which locator failed in 6 cases.
+      const lines = (error instanceof Error ? error.message : String(error)).replace(/\u001b\[[0-9;]*m/gu, '').split('\n');
+      openError = [lines[0], lines.find((l) => l.startsWith('Locator:')), `url=${page.url()}`].filter(Boolean).join(' | ');
     }
     // Web fonts change line breaks; measure after they settle.
     await page.evaluate(() => document.fonts.ready.then(() => undefined));

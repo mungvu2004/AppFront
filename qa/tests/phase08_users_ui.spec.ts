@@ -134,12 +134,17 @@ test.describe('SCR-37 users UI', () => {
             rows
               .map((r) => {
                 const b = [...r.querySelectorAll('button')].find((x) => x.textContent?.trim().startsWith('Xoá')); // D evidence rows_<w>.json: button text is doubled ('XoáXoá'), so === never matched (rows=0)
-                return b ? Math.round(b.getBoundingClientRect().top - r.getBoundingClientRect().top) : null;
+                // Row heights differ legitimately (pending rows carry badge + "Gửi lại", long emails wrap: RR top-offsets 41/42/46/56 = row height +0/+8/+28 with a centred button, Table.Cell align-middle),
+                // so "same y" is measured from the row's vertical centre: the button must sit centred in every row (catalog 37U-F-007, BUG-430: the action column must not wander).
+                if (!b) return null;
+                const br = b.getBoundingClientRect();
+                const rr = r.getBoundingClientRect();
+                return Math.round(br.top + br.height / 2 - (rr.top + rr.height / 2));
               })
               .filter((v): v is number => v !== null),
           );
           expect.soft(offsets.length, 'rows with a "Xoá" button').toBeGreaterThanOrEqual(2);
-          expect.soft(new Set(offsets).size, `"Xoá" offset within row equal across rows: ${offsets.join(',')}`).toBe(1);
+          expect.soft(Math.max(...offsets) - Math.min(...offsets), `"Xoá" centre offset from row centre equal across rows (+-1 px): ${offsets.join(',')}`).toBeLessThanOrEqual(1);
         });
       });
 

@@ -4,7 +4,7 @@
  * tiêu điểm về nút đã mở (Modal, A12).
  */
 
-import type { FormEvent } from 'react';
+import type { FormEvent, KeyboardEvent } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Modal } from '@/components/overlay/Modal';
@@ -76,11 +76,18 @@ export function TrainingJobForm({ actions, form }: TrainingJobFormProps) {
     if (submitter !== null && submitter !== undefined && submitter.getAttribute('type') !== 'submit') return;
     actions.onSubmitForm();
   };
+  // Enter trong ô nhập: trình duyệt "bấm" nút MẶC ĐỊNH = <button> đầu tiên không khai type (ô chọn họ), nên
+  // submitter không phải nút gửi và onSubmit bỏ qua (35T-A-020). Tự gửi ở đây và chặn gửi ngầm.
+  const onKeyDown = (event: KeyboardEvent<HTMLFormElement>): void => {
+    if (event.key !== 'Enter' || !(event.target instanceof HTMLInputElement)) return;
+    event.preventDefault();
+    actions.onSubmitForm();
+  };
 
   return (
     <Modal.Root isOpen={form !== null} onClose={actions.onCloseForm} width={560}>
       {form !== null && (
-        <form noValidate onSubmit={onSubmit}>
+        <form noValidate onKeyDown={onKeyDown} onSubmit={onSubmit}>
           <Modal.Header>{TEXT.title}</Modal.Header>
           <Modal.Body>
             <div className="flex flex-col gap-4 pb-2">

@@ -231,9 +231,10 @@ test.describe('SCR-36 registry [mocked response]', () => {
         await shot(page, '36R-C-017');
       });
       await test.step('[36R-B-027] one malformed item: other rows render', async () => {
-        await openOpening([page1[0] ?? {}, page1[1] ?? {}, { id: 'bad', label: 7 }, page1[2] ?? {}]);
+        // 1 bad of 6 = 16.7% <= MAX_INVALID_RATIO 0.2 (decode.ts:7); 1 of 4 (25%) fails the whole read (RR d5f9c7d8: error alert, no table).
+        await openOpening([page1[0] ?? {}, page1[1] ?? {}, { id: 'bad', label: 7 }, page1[2] ?? {}, page2[0] ?? {}, page2[1] ?? {}]);
         await expect.soft(page.getByRole('table')).toBeVisible();
-        await expect.soft(page.getByRole('row')).toHaveCount(4);
+        await expect.soft(page.getByRole('row')).toHaveCount(6);
         await expect.soft(rowOf(page, 'Bản cửa C')).toBeVisible();
         await shot(page, '36R-B-027');
         await s.realRead();

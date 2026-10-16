@@ -33,7 +33,8 @@ interface LibraryItem {
   readonly [key: string]: unknown;
 }
 
-const rowNames = (page: Page) => page.locator('tbody tr td:nth-child(2)'); // ModelLibraryTable (old ui spec libraryNames)
+// Name buttons: table cell (>= 1024) or stacked card (< 1024, ModelLibraryTable.tsx:103-116, no <tbody> there). RR: 768 showed cards only.
+const rowNames = (page: Page) => page.locator('tbody td:nth-child(2) button, ul > li button').filter({ hasText: /\S/u });
 
 /** goto /admin/models and wait for the first GET /api/library (real or mocked answer). */
 async function openLibrary(page: Page): Promise<void> {
@@ -63,7 +64,7 @@ test('SCR-34 · FL-34L-U1 · UI verify real states (default, no match, category 
     await expect.soft(page.getByRole('combobox', { name: 'Danh mục', exact: true }), 'category label capital').toBeVisible();
     await expect.soft(page.getByText('Model nặng', { exact: true }), 'heavy count label capital').toBeVisible();
     // Labels of the detail panel (useModelLibrary.ts:108-109 fieldFileSize / fieldGroup), not the table headers.
-    await rowNames(page).first().getByRole('button').click();
+    await rowNames(page).first().click();
     const aside = page.locator(`aside[aria-label="${DETAIL}"]`);
     await expect(aside).toBeVisible();
     await expect.soft(aside.getByText('Dung lượng', { exact: true }), '"dung lượng" capital').toBeVisible();
@@ -125,7 +126,7 @@ test('SCR-34 · FL-34L-U1 · UI verify real states (default, no match, category 
       'U08_34L-F-005_detail',
       async (p) => {
         await openReady(p);
-        await rowNames(p).first().getByRole('button').click();
+        await rowNames(p).first().click();
         await expect(p.locator(`aside[aria-label="${DETAIL}"]`).or(p.getByRole('dialog', { name: DETAIL, exact: true }))).toBeVisible();
       },
       DESKTOP_VIEWPORTS,
@@ -271,7 +272,8 @@ test('SCR-34 · FL-34L-U2 · [mocked response] UI verify loading, empty, error, 
   });
 
   await test.step('[34L-F-012] detail with a failed preview', async () => {
-    const broken = crafted.map((c) => ({ ...c, previewUrl: 'http://127.0.0.1:1/preview-missing.png' }));
+    // The detail 3D frame fails on `modelUrl` (useModelLibrary.ts:413-425), not on `previewUrl` (row thumbnail only). RR screenshot: frame loaded fine.
+    const broken = crafted.map((c) => ({ ...c, modelUrl: 'http://127.0.0.1:1/model-missing.glb' }));
     await mocked('U08_34L-F-012_failed_preview', answer(200, broken), async (p) => {
       await openCrafted(p);
       await p.getByText('Heavy 900001', { exact: true }).first().click();

@@ -545,6 +545,30 @@ describe('Lỗi N33 → đúng ô', () => {
 
     expect(client.createJob).not.toHaveBeenCalled();
   });
+
+  // FL-35T-11 [35T-A-020] (RR d5f9c7d8): Enter in "Số vòng" never created the job. A browser's implicit submission
+  // clicks the FIRST untyped <button> of the form = the radio "Tách lớp tường" (SegmentedControl has no type), so the
+  // submitter is that radio, not the submit button; the guard of C-002/C-014 dropped it. Enter must submit once.
+  it('[35T-A-020] Enter trong ô Số vòng (nút mặc định là ô chọn họ) gửi đúng một lần', async () => {
+    const client = makeClient();
+    renderScreen(client);
+    const user = userEvent.setup({ delay: null });
+
+    await user.click(await screen.findByRole('button', { name: 'Tạo lượt huấn luyện' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Tạo lượt huấn luyện' });
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Bắt đầu huấn luyện' })).toBeEnabled();
+    });
+    const epochs = within(dialog).getByLabelText('Số vòng');
+    const form = dialog.querySelector('form') as HTMLFormElement;
+    const firstRadio = within(dialog).getAllByRole('radio')[0] as HTMLButtonElement;
+    // What Chrome does on Enter in a text field: keydown, then (unless prevented) a submit whose submitter is the default button.
+    if (fireEvent.keyDown(epochs, { key: 'Enter' })) form.requestSubmit(firstRadio);
+
+    await waitFor(() => {
+      expect(client.createJob).toHaveBeenCalledTimes(1);
+    });
+  });
 });
 
 /* -------------------------------------------------------------------------- */

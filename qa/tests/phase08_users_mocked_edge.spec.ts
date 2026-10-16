@@ -319,7 +319,8 @@ test.describe('A08 SCR-37 users read, mocked responses', () => {
         await seen;
         await expect(panel).toBeVisible();
         await expect.soft(memberships.getByText(T.noMemberships), 'no empty sentence while pending').toHaveCount(0);
-        await expect.soft(memberships.locator('[role="status"], [aria-busy="true"]').first(), 'a loading indicator').toBeVisible();
+        // The region itself carries aria-busy (UserManagementDetail.tsx DetailMemberships; the Skeleton inside is decorative); a descendant-only locator never matches it (RR: not found).
+        await expect.soft(memberships.and(page.locator('[aria-busy="true"]')).or(memberships.locator('[role="status"], [aria-busy="true"]')).first(), 'a loading indicator').toBeVisible();
         await captureEvidence(page, 'E08_37U-B-017_users.png');
         gate.release();
       });

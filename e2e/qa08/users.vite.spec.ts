@@ -52,4 +52,22 @@ test.describe('SCR-37 users read [mocked response]', () => {
     await expect(span).toBeFocused();
     await expect(page.getByRole('tooltip')).toContainText(/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/u);
   });
+
+  test('SCR-37 · FL-37U-U1 (37U-F-007) · "Xoá" stays centred in rows of different height [mocked response]', async ({ page }) => {
+    await openUsers(page);
+    const m = await page.locator('tbody tr').evaluateAll((rows) =>
+      rows.flatMap((r) => {
+        const b = [...r.querySelectorAll('button')].find((x) => x.textContent?.trim().startsWith('Xoá'));
+        if (!b) return [];
+        const br = b.getBoundingClientRect();
+        const rr = r.getBoundingClientRect();
+        return [{ h: Math.round(rr.height), top: Math.round(br.top - rr.top), centre: Math.round(br.top + br.height / 2 - (rr.top + rr.height / 2)) }];
+      }),
+    );
+    expect(m.length).toBeGreaterThanOrEqual(2);
+    const centres = m.map((x) => x.centre);
+    expect(Math.max(...centres) - Math.min(...centres), JSON.stringify(m)).toBeLessThanOrEqual(1);
+    // proof the rows differ in height (so top-offset equality is NOT a valid invariant): printed on failure/in the log
+    console.log('F007 rows', JSON.stringify(m));
+  });
 });

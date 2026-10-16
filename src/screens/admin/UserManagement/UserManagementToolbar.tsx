@@ -116,6 +116,10 @@ export function UserManagementToolbar({ actions, invite, searchRef, summary, too
             hint={invite.hintLabel}
             label={INVITE_EMAILS_LABEL}
             onChange={(event) => actions.onInviteEmailsChange(event.target.value)}
+            // Esc khi đang gõ giữ khối mời (37W-E-003); Esc ngoài ô mới đóng — sổ phím nhận Esc ở window.
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') event.stopPropagation();
+            }}
             placeholder={INVITE_EMAILS_PLACEHOLDER}
             value={invite.rawEmails}
             {...(invite.errorLabel !== null ? { error: invite.errorLabel } : {})}

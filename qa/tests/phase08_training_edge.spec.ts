@@ -196,9 +196,13 @@ test.describe('SCR-35 training edge (real)', () => {
       await captureEvidence(page, 'E08_35T-E-001_datasets.png', { caption: 'Home -> jobs tab selected + focused' });
     });
 
-    await test.step('[35T-B-014] chưa chọn lượt: không có aside chi tiết', async () => {
-      await expect.soft(page.locator(`aside[aria-label="${T.detail}"]`)).toHaveCount(0);
-      await captureEvidence(page, 'E08_35T-B-014_datasets.png', { caption: 'no job detail aside' });
+    await test.step('[35T-B-014] chưa chọn lượt (>=1024): aside chi tiết hiện câu hướng dẫn', async () => {
+      // Expectation changed: catalog-C2.md:73 said "no aside", but catalog-C2.md:181 (⚑) and BUG-P08-009 (TrainingJobs.tsx showsSidePanel,
+      // vitest TrainingJobs.test.tsx "[35T-B-014] detail=null -> aside hiện câu hướng dẫn") settle: the panel shows the guide text.
+      const panel = page.locator(`aside[aria-label="${T.detail}"]`);
+      await expect.soft(panel).toHaveCount(1);
+      await expect.soft(panel.getByText('Chọn một lượt để xem chi tiết.', { exact: true })).toBeVisible(); // TrainingJobDetail.tsx:22
+      await captureEvidence(page, 'E08_35T-B-014_datasets.png', { caption: 'aside with the guide text, no job selected' });
     });
 
     // The walls read happens HERE (default datasetFamily, UTJ:397,544-548); G-002 re-selects walls within 30 s

@@ -115,6 +115,14 @@ test.describe('P08 SCR-35 training UI', () => {
     const two = [jobFixture(2, 'running'), jobFixture(3, 'queued'), jobFixture(4, 'succeeded')];
     const state = { mode: 'ok' as 'ok' | '500', jobs: one, cancels: 0 };
     await mockTraining(page, state);
+    // Catalog 35T-F-009 = "mock cancel 500". A 409 closes the dialog and prints the notice in the aside (useTrainingJobs.ts onError), so
+    // the dialog would hold no error. Registered after mockTraining => matched first.
+    let cancel500 = 0;
+    await page.route(/\/api\/admin\/ml\/training-jobs\/[^/]+\/cancel$/u, async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      cancel500 += 1;
+      return route.fulfill({ body: JSON.stringify({ code: 'INTERNAL', requestId: 'qa-p08-mock' }), contentType: 'application/json', status: 500 });
+    });
     await test.step('[35T-F-004] job detail with metrics and log (panel ≥1024, Drawer <1024), no overflow at 1024 (BUG-584)', async () => {
       const m = await verifyUi(page, 'U08_35T-F-004_training', async (p) => {
         await openTraining(p);
@@ -123,7 +131,9 @@ test.describe('P08 SCR-35 training UI', () => {
         await expect(detail).toBeVisible();
         await expect(detail.getByRole('region', { name: 'Số đo', exact: true })).toBeVisible();
         await expect(detail.getByRole('region', { name: 'Nhật ký', exact: true })).toBeVisible();
-        await expect(detail.getByText('qa-p08 log line 1', { exact: true })).toBeVisible();
+        // The log table follows the tail (TrainingJobDetail.tsx LogsTable scrolls to the bottom) and is virtualised: with 30 lines
+        // (P3 logLines(30)) "line 1" is not in the DOM, the newest line is. RR d5f9c7d8: first row drawn = "line 24".
+        await expect(detail.getByText('qa-p08 log line 30', { exact: true })).toBeVisible();
       }, VPS, MODAL_SHOT);
       expect.soft(m.find((x) => x.viewport.startsWith('1024'))?.horizontalOverflowPx).toBe(0);
     });
@@ -149,13 +159,13 @@ test.describe('P08 SCR-35 training UI', () => {
         await panelOrDrawer(p, 'Chi tiết lượt huấn luyện').getByRole('button', { name: 'Huỷ lượt', exact: true }).click(); // TrainingJobDetail.tsx:23
         const d = p.getByRole('dialog', { name: 'Huỷ lượt huấn luyện này?' });
         await expect(d).toBeVisible();
-        await d.getByRole('button', { name: 'Huỷ lượt', exact: true }).click(); // confirm, answered by the mock (409)
-        await expect(d.getByText('Lượt này vừa kết thúc nên không huỷ được nữa.', { exact: true })).toBeVisible(); // gateway:130
+        await d.getByRole('button', { name: 'Huỷ lượt', exact: true }).click(); // confirm, answered by the mock (500)
+        await expect(d.getByText('Chưa gửi được yêu cầu. Thử lại sau.', { exact: true })).toBeVisible(); // gateway TRAINING_ERROR_TEXT.writeFallback
         const box = await d.boundingBox();
         expect.soft((box?.x ?? 0) + (box?.width ?? 0), 'dialog inside viewport').toBeLessThanOrEqual((p.viewportSize()?.width ?? 0) + 1);
       }, VPS, MODAL_SHOT);
       expect(m.length).toBe(VPS.length);
-      expect(state.cancels, 'cancel answered by the mock only').toBeGreaterThan(0);
+      expect(cancel500, 'cancel answered by the mock only').toBeGreaterThan(0);
     });
     expect(guard.count(), 'no POST training-jobs').toBe(0);
   });

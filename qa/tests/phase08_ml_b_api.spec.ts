@@ -96,8 +96,13 @@ test.describe('phase08 ML admin API B', () => {
       });
       await test.step('[B08M-G-055] wall version sent to the opening family -> 422 MODEL_VERSION_FAMILY_MISMATCH', async () => {
         const wall = versions.find((v) => v.family === WALL);
-        expect.soft(wall, 'environment: a wallSegmentation version').toBeDefined();
-        const sent = await put('B08M-G-055', 'other_family', OPENING, activeBody(opening.revision, wall?.id ?? NO_MODEL_VERSION), '422 MODEL_VERSION_FAMILY_MISMATCH (service.py:99-100)');
+        // Q13: a wall version is never seeded or activated by QA; without one this step skips, keeping a no-write check (G-059 still runs)
+        if (wall === undefined) {
+          test.info().annotations.push({ type: 'environment', description: 'no wall version - Q13, DEBT' });
+          expect(familiesState(await readFamilies(admin)), 'SKIPPED (no wall version, Q13): families unchanged').toBe(familiesState(baseline));
+          return;
+        }
+        const sent = await put('B08M-G-055', 'other_family', OPENING, activeBody(opening.revision, wall.id), '422 MODEL_VERSION_FAMILY_MISMATCH (service.py:99-100)');
         expectError(sent, 422, 'MODEL_VERSION_FAMILY_MISMATCH');
       });
       await test.step('[B08M-G-056] non-onnx version -> 422 MODEL_FORMAT_UNSUPPORTED', async () => {

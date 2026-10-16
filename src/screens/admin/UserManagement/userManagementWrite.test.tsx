@@ -3,12 +3,13 @@
  * Hàng catalog: 37W-C-013/014, 37W-G-015, 37W-G-002, 37W-E-010, 37W-E-004, 37W-C-005, 37W-C-007, 37W-B-006.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, renderHook, screen, waitFor } from '@testing-library/react';
 import { createElement } from 'react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { AdminUser } from '@/api/schemas/users';
+import { describeError, toAppError } from '@/lib/errors';
 import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
 
 import type { UserManagementActions, UserManagementViewModel } from './types';
@@ -166,6 +167,46 @@ describe('BUG-P08-025: mở khối mời đưa focus vào ô email', () => {
     renderWithProviders(<UserManagement actions={noActions()} model={model} />);
 
     expect(screen.getByRole('textbox', { name: 'Email người được mời' })).toHaveFocus();
+  });
+});
+
+describe('FL-37W-01: Esc khi đang gõ trong ô mời', () => {
+  it('[37W-E-003] Esc trong ô email giữ khối mời; Esc ngoài ô đóng khối', () => {
+    const actions = noActions();
+    const model: UserManagementViewModel = {
+      ...USER_MANAGEMENT_SCENARIO_SUCCESS,
+      detail: null,
+      invite: { ...USER_MANAGEMENT_SCENARIO_SUCCESS.invite, isOpen: true },
+    };
+    renderWithProviders(<UserManagement actions={actions} model={model} />);
+
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Email người được mời' }), { key: 'Escape' });
+    expect(actions.onCloseInvite).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Huỷ' }), { key: 'Escape' });
+    expect(actions.onCloseInvite).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('FL-37W-03: đổi vai trên hàng đã bị xoá (404)', () => {
+  it('[37W-G-008] toast lỗi mang câu của kind notFound dù mã BE là USER_NOT_FOUND', async () => {
+    const notify = vi.fn();
+    const error = { kind: 'http', status: 404, code: 'USER_NOT_FOUND', requestId: 'r1', retryable: false, message: 'gone', raw: {} };
+    const { result } = mountHook(
+      fakeGateway([user('me', 'admin'), user('gone', 'viewer')], { changeRole: () => Promise.reject(error), notify }),
+    );
+    await waitFor(() => expect(result.current.model.rows).toHaveLength(2));
+
+    act(() => result.current.actions.onChangeRole('gone', 'engineer'));
+
+    await waitFor(() => expect(notify).toHaveBeenCalled());
+    expect(notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: USER_MANAGEMENT_TEXT.roleChangeFailedTitle,
+        description: describeError(toAppError(error)).description,
+      }),
+    );
+    expect(describeError(toAppError(error)).description).toBe(describeError(toAppError({ ...error, code: undefined })).description); // kind notFound by status, whatever the code
   });
 });
 

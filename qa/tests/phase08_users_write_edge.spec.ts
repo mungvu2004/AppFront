@@ -465,8 +465,14 @@ test.describe('E08 SCR-37 users write (edge)', () => {
         // Toast.tsx:80-90 hover/focus holds the undo window (holdUndoWindows, undoTicket.ts:57; window UNDO_WINDOW_MS 8000, undoTicket.ts:18),
         // so the Tab count below does not race the 8 s timer.
         await toast(page, T.roleChanged).hover();
+        // The toast sits at the end of the DOM, after EVERY row control: the Tab distance is the number of tab stops, not a constant.
+        // RR evidence (copy 0 failed, copy 1 passed, same code): after 40 Tabs focus was still on a combobox row ~10 rows above the toast,
+        // because the shared stack held more pool rows after PU1 in that copy. Bound = tab stops now in the document (+ margin).
+        const tabStops = await page.evaluate(
+          () => document.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])').length,
+        );
         let reached = false;
-        for (let i = 0; i < 40 && !reached; i += 1) {
+        for (let i = 0; i < tabStops + 10 && !reached; i += 1) {
           await page.keyboard.press('Tab');
           reached = await undo.evaluate((el) => el === document.activeElement).catch(() => false);
         }

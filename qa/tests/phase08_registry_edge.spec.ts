@@ -215,16 +215,20 @@ test.describe('E08 SCR-36 registry (real)', () => {
         await ev(page, '36R-E-003');
       });
       await test.step('[36R-E-004] tab order', async () => {
-        await show('wallSegmentation');
+        // RR d5f9c7d8: the real wall family has no version (Q13, tbody absent), so the row stop is checked on the first family that has rows.
+        const tabFamily = FAMILY_ORDER.find((f) => versionsOf[f].length > 0) ?? 'wallSegmentation';
+        await show(tabFamily);
         await page.getByRole('link', { name: REG.related, exact: true }).focus();
         await page.keyboard.press('Tab');
-        await expect.soft(radio(page, 'wallSegmentation'), 'Tab 1 -> picker').toBeFocused(); // MR:91-95
+        await expect.soft(radio(page, tabFamily), 'Tab 1 -> picker').toBeFocused(); // MR:91-95
         await page.keyboard.press('Tab');
         const revert = activeCard(page).getByRole('button', { name: REG.revert, exact: true });
-        if (activeIdOf(families, 'wallSegmentation') !== null) await expect.soft(revert, 'Tab 2 -> revert').toBeFocused();
-        else await expect.soft(revert).toHaveCount(0);
-        await page.keyboard.press('Tab');
-        await expect.soft(page.locator('tbody tr:first-child').locator(':focus'), 'Tab 3 -> first row control').toHaveCount(1);
+        const hasRevert = activeIdOf(families, tabFamily) !== null && tabFamily === 'wallSegmentation'; // revert exists on the wall card only (UMR:247)
+        if (hasRevert) {
+          await expect.soft(revert, 'Tab 2 -> revert').toBeFocused();
+          await page.keyboard.press('Tab');
+        } else await expect.soft(revert).toHaveCount(0);
+        await expect.soft(page.locator('tbody tr:first-child').locator(':focus'), hasRevert ? 'Tab 3 -> first row control' : 'Tab 2 -> first row control').toHaveCount(1);
         await expect.soft(activeCard(page), 'card is not a stop').not.toBeFocused();
         await ev(page, '36R-E-004');
       });
@@ -427,8 +431,9 @@ test.describe('E08 SCR-36 registry (real)', () => {
       await test.step('[36R-A-018] wall revert dialog then "Huỷ"', async () => {
         await selectFamily(page, 'wallSegmentation');
         const revert = activeCard(page).getByRole('button', { name: REG.revert, exact: true });
-        await expect.soft(revert, 'environment: wall has an active version').toHaveCount(1);
-        if ((await revert.count()) === 1) {
+        // Q13 (user decision): never activate/seed a wall version -> no revert button on the real stack; annotate, no fake pass.
+        if ((await revert.count()) === 0) test.info().annotations.push({ type: 'environment', description: 'no active wall version - Q13, DEBT' });
+        else {
           await revert.click(); // UMR:164-166
           const d = page.getByRole('dialog', { name: revertTitle('wallSegmentation'), exact: true });
           await expect.soft(d).toBeVisible();

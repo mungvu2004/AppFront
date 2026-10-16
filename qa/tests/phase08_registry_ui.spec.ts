@@ -21,12 +21,14 @@ import {
   selectFamily,
   versionLabels,
 } from './support/p08/P3';
+import { wireVersion, type FamilyId } from './support/p08/P8';
 import { poolUser, signInPoolUser } from './support/p08/pool';
 import { verifyUi } from './support/ui-verify';
 
 const VPS = DESKTOP_VIEWPORTS;
 const MODAL_SHOT = { fullPage: false } as const;
 const VERSIONS = /\/api\/admin\/ml\/model-versions(\?.*)?$/u;
+const DETAIL = /\/api\/admin\/ml\/model-versions\/[^/?]+$/u;
 const ACTIVE_PUT = /\/api\/admin\/ml\/model-families\/[^/]+\/active$/u;
 
 test.describe('P08 SCR-36 registry UI', () => {
@@ -109,6 +111,12 @@ test.describe('P08 SCR-36 registry UI', () => {
       }, VPS, MODAL_SHOT);
     });
     await test.step('[36R-F-006] revert dialog open (wall): "Quay về đường cổ điển cho tách lớp tường?"', async () => {
+      await openRegistry(page, 'walls');
+      // Q13 (user decision): never activate/seed a wall version -> no revert button on the real stack (RR d5f9c7d8: click timeout x4); annotate, no fake pass.
+      if ((await page.getByRole('button', { name: 'Quay về đường cổ điển', exact: true }).count()) === 0) {
+        test.info().annotations.push({ type: 'environment', description: 'no active wall version - Q13, DEBT' });
+        return;
+      }
       await verifyUi(page, 'U08_36R-F-006_registry', async (p) => {
         await openRegistry(p, 'walls');
         await p.getByRole('button', { name: 'Quay về đường cổ điển', exact: true }).click();
@@ -142,7 +150,7 @@ test.describe('P08 SCR-36 registry UI', () => {
     test.setTimeout(240_000);
     await signInAdmin(page, ROUTES.registry);
     type Mode = 'real' | 'hold' | '500' | 'empty' | 'pending' | 'long';
-    const state = { mode: 'real' as Mode, release: Promise.resolve(), puts: 0, put409: false };
+    const state = { mode: 'real' as Mode, release: Promise.resolve(), puts: 0, put409: false, synth: undefined as Record<string, unknown> | undefined };
     await page.route(VERSIONS, async (route: Route) => {
       if (route.request().method() !== 'GET') return route.fallback();
       if (state.mode === 'hold') {
@@ -153,14 +161,28 @@ test.describe('P08 SCR-36 registry UI', () => {
       if (state.mode === 'real') return route.fallback();
       return fulfilEdited(route, (b) => {
         const items = b.items as Record<string, unknown>[];
+        // RR d5f9c7d8: the real wall family has no version (Q13), so items[0] is undefined and 'pending'/'long' edited nothing:
+        // synthesise the one wire item the state needs, for the family the screen asked for.
+        const synthesised = items.length === 0 && state.mode !== 'empty';
+        if (synthesised) {
+          const family = (new URL(route.request().url()).searchParams.get('family') ?? 'wallSegmentation') as FamilyId;
+          items.push(wireVersion(1, family, 'qa-seed', { status: 'completed' }));
+        }
         if (state.mode === 'empty') b.items = [];
         else if (items[0] !== undefined && state.mode === 'pending') {
           const { metrics: _m, ...rest } = items[0];
           void _m;
           items[0] = { ...rest, evaluationStatus: 'pending' };
         } else if (items[0] !== undefined) items[0] = { ...items[0], label: 'L'.repeat(90) };
+        if (synthesised) state.synth = items[0];
         delete b.nextCursor;
       });
+    });
+    // The synthesised item has no server row: answer its detail read from the same object.
+    await page.route(DETAIL, async (route) => {
+      const id = new URL(route.request().url()).pathname.split('/').pop();
+      if (route.request().method() !== 'GET' || (state.mode !== 'pending' && state.mode !== 'long') || state.synth === undefined || state.synth.id !== id) return route.fallback();
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(state.synth) });
     });
     await page.route(ACTIVE_PUT, async (route) => {
       if (route.request().method() !== 'PUT') return route.fallback();
