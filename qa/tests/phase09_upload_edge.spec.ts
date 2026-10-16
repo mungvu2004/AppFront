@@ -15,7 +15,7 @@ import { CAD, GRAPH } from './support/p03/P10';
 import { PF, PR } from './support/p03/P8';
 import { closeViewer, createCadProject, openViewer, type ViewerSession } from './support/p09/P3';
 import { adminApi, gotoAs, recordWrites } from './support/p09/roles';
-import { createFailedRunProject, createProject, envDrawingPng } from './support/phase03Seed';
+import { createDrawingProject, createFailedRunProject, createProject, envDrawingPng } from './support/phase03Seed';
 
 const FORBIDDEN_TITLE = 'Không có quyền sửa tầng'; // FM:76
 const FORBIDDEN_SENTENCE = 'Vai của bạn chỉ xem được ngăn xếp tầng; mọi thao tác sửa đã được ẩn.'; // UFM:183
@@ -44,7 +44,8 @@ test('SCR-09 · FL-9U-01 · viewer · viewer doc: SCR-09 tang chi-doc', async ({
   const owned: string[] = [];
   let s: ViewerSession | undefined;
   try {
-    const project = await createProject(admin, '9u-01', 2);
+    // Floor 1 holds a drawing (the overlay button needs row.hasDrawing, FloorTableRow.tsx:405); floor 2 stays "Chưa có bản vẽ".
+    const project = await createDrawingProject(admin, '9u-01', envDrawingPng(), ['Tầng 1', 'Tầng 2']);
     const empty = await createProject(admin, '9u-01e', 0);
     owned.push(project.projectId, empty.projectId);
     s = await openViewer(browser, admin, owned);
@@ -76,7 +77,7 @@ test('SCR-09 · FL-9U-01 · viewer · viewer doc: SCR-09 tang chi-doc', async ({
     });
 
     await test.step('[9U-D-004] viewer: "Chưa có bản vẽ" stays, no "Tải lên" link', async () => {
-      await expect.soft(floorRows(page).first().getByText('Chưa có bản vẽ', { exact: true })).toBeVisible(); // FTR:54,57
+      await expect.soft(floorRows(page).filter({ hasText: 'Chưa có bản vẽ' }).first().getByText('Chưa có bản vẽ', { exact: true })).toBeVisible(); // FTR:54,57
       await expect.soft(page.getByRole('link', { name: 'Tải lên', exact: true })).toHaveCount(0); // FTR:334
       await expect.soft(page.getByRole('button', { name: 'Tải lên', exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E09_9U-D-004_no_upload_link.png');
@@ -211,11 +212,15 @@ test('SCR-12 · SCR-13 · FL-9U-03 · viewer · viewer doc: tien trinh + do thi 
   test.setTimeout(240_000);
   const admin = await adminApi();
   let projectId: string | undefined;
+  let failedId: string | undefined;
   let s: ViewerSession | undefined;
   try {
-    const seeded = await createFailedRunProject(admin, '9u-03', 'FILE_CORRUPT');
+    // A failed run renders PipelineFailure, not ProcessingScreen (ProcessingScreen.container.tsx:27-36): tabs/steps/graph need a done run.
+    const seeded = await createPipelineDrawingProject(admin, '9u-03', envDrawingPng());
     projectId = seeded.projectId;
-    s = await openViewer(browser, admin, [projectId]);
+    const failed = await createFailedRunProject(admin, '9u-03f', 'FILE_CORRUPT');
+    failedId = failed.projectId;
+    s = await openViewer(browser, admin, [projectId, failedId]);
     const { page } = s;
     const rec = recordWrites(page);
     const button = (name: string) => page.getByRole('button', { name, exact: true });
@@ -258,7 +263,7 @@ test('SCR-12 · SCR-13 · FL-9U-03 · viewer · viewer doc: tien trinh + do thi 
     });
 
     await test.step('[9U-D-051] viewer, failed run: no three next-step directions', async () => {
-      await page.goto(ROUTES.project.pipeline(projectId!));
+      await page.goto(ROUTES.project.pipeline(failedId!));
       await expect(page.getByRole('alert').filter({ hasText: /không hoàn tất được/u })).toBeVisible({ timeout: 45_000 });
       for (const name of [PF.lower, PF.upload, PF.skip]) await expect.soft(button(name)).toHaveCount(0); // PFT:58-60
       await expect.soft(page.getByRole('group', { name: PF.nextSteps, exact: true })).toHaveCount(0);
@@ -280,7 +285,7 @@ test('SCR-12 · SCR-13 · FL-9U-03 · viewer · viewer doc: tien trinh + do thi 
     });
   } finally {
     await closeViewer(s);
-    if (projectId !== undefined) await deleteSeededProject(admin, projectId);
+    for (const id of [projectId, failedId]) if (id !== undefined) await deleteSeededProject(admin, id);
     await admin.dispose();
   }
 });
@@ -303,7 +308,9 @@ test('SCR-14 · SCR-15 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + do
 
     await test.step('[9U-D-056] viewer, SCR-14: forbidden title + sentence', async () => {
       await gotoAs(page, ROUTES.project.scale(seeded.projectId, seeded.floorId), SCALE_TITLE);
-      await expect(page.getByText(SCALE_SENTENCE, { exact: true })).toBeVisible(); // USC:210
+      // The sentence is drawn twice: visible in the status panel (USC:210) and sr-only on the canvas (ScaleCalibrationCanvas.tsx:63,432).
+      await expect(page.getByText(SCALE_SENTENCE, { exact: true }).and(page.locator(':not(.sr-only)'))).toBeVisible();
+      await expect.soft(page.locator('.sr-only').getByText(SCALE_SENTENCE, { exact: true })).toHaveCount(1);
       await captureEvidence(page, 'E09_9U-D-056_scale_forbidden.png');
     });
 

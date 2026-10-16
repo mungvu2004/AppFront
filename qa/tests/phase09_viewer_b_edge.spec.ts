@@ -6,6 +6,7 @@ import { expect, test } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { captureEvidence } from './support/evidence';
+import { pascalCanvas, viewportReady } from './support/p09/P7';
 import { openRoleSession } from './support/p09/P8';
 import { gotoAs } from './support/p09/roles';
 
@@ -198,7 +199,7 @@ test.describe('Phase 09 viewer edge B', () => {
     try {
       await test.step('[9V-A-001] /3d inspector not locked', async () => {
         await page.goto(ROUTES.project.viewer(s.projectId));
-        await expect(page.getByLabel('Khung nhìn mô hình').first()).toHaveAttribute('aria-busy', 'false', { timeout: 60_000 });
+        await viewportReady(page); // Pascal on /3d (router.tsx:382)
         await expect(page.getByText('Chỉ xem', { exact: true })).toHaveCount(0); // ViewerInspector.tsx:87
         await captureEvidence(page, 'E09_9V-A-001_inspector.png');
       });
@@ -210,7 +211,7 @@ test.describe('Phase 09 viewer edge B', () => {
       });
       await test.step('[9V-A-040] wall edit toggle available (no write)', async () => {
         unknown('9V-A-040', 'wall edit entry control name not traced (useWallGeometryEditor.ts:1073); only no-write asserted');
-        await expect.soft(page.getByLabel('Khung nhìn mô hình').first()).toBeVisible();
+        await expect.soft(pascalCanvas(page)).toBeVisible();
         await captureEvidence(page, 'E09_9V-A-040_wall_edit.png');
       });
       await test.step('[9V-C-001] rule report rerun + confirm visible', async () => {

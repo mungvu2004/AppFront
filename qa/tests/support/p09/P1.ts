@@ -31,7 +31,8 @@ export const COPY = {
   onbViewerNote: 'Vai người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.', // WelcomeScreen.tsx FORBIDDEN_NOTE
   onbStep3: 'Duyệt kết quả và dựng 3D', // useWelcomeScreen.ts:135
   onbSample: 'Xem dự án mẫu', // :139
-  onbTutorialOff: 'Hướng dẫn hai phút chưa sẵn sàng.', // :141
+  onbTutorial: 'Xem hướng dẫn 2 phút', // vi.json:642 (the button's name)
+  onbTutorialOff:'Hướng dẫn hai phút chưa sẵn sàng.', // :141
   onbSkip: 'Bỏ qua', // :142
   accept: 'Chấp nhận', // NG:182
   librarySearch: 'Tìm model', // ModelLibraryToolbar

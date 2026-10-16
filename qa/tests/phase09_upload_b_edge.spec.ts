@@ -108,8 +108,8 @@ test('SCR-09 · SCR-10 · SCR-11 · FL-9U-05 · engineer · engineer ghi tren du
 
     await test.step('[9U-D-035] engineer: "Tiếp tục xử lý" / "Tải bản vẽ khác" on quality', async () => {
       await page.goto(ROUTES.project.quality(projectId));
-      await expect.soft(page.getByText(CONTINUE, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
-      await expect.soft(page.getByText(OTHER_DRAWING, { exact: true }).first()).toBeVisible();
+      await expect.soft(btn(page, CONTINUE)).toBeVisible({ timeout: 20_000 });
+      await expect.soft(btn(page, OTHER_DRAWING)).toBeVisible();
       unknown('9U-D-035 "Tải bản vẽ khác" → /upload navigation not clicked (control role unverified)');
       await ev(page, '9U-D-035', 'engineer_quality_actions');
     });
@@ -274,8 +274,8 @@ test('SCR-09..16 · FL-9U-07 · admin · admin doi chung duong 1 dong/man', asyn
 
     await test.step('[9U-D-037] admin: quality action buttons', async () => {
       await page.goto(ROUTES.project.quality(main.projectId));
-      await expect.soft(page.getByText(CONTINUE, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
-      await expect.soft(page.getByText(OTHER_DRAWING, { exact: true }).first()).toBeVisible();
+      await expect.soft(btn(page, CONTINUE)).toBeVisible({ timeout: 20_000 });
+      await expect.soft(btn(page, OTHER_DRAWING)).toBeVisible();
       await ev(page, '9U-D-037', 'admin_quality_actions');
     });
 
@@ -290,7 +290,7 @@ test('SCR-09..16 · FL-9U-07 · admin · admin doi chung duong 1 dong/man', asyn
       await page.goto(ROUTES.project.pipeline(pf.projectId));
       await expect(page.getByRole('alert').filter({ hasText: FAILED_ALERT })).toBeVisible({ timeout: 45_000 });
       await expect.soft(page.getByText(/không có quyền/iu)).toHaveCount(0);
-      const toggle = page.getByText(TECH, { exact: true }).first();
+      const toggle = btn(page, TECH);
       await expect.soft(toggle).toBeVisible({ timeout: 20_000 });
       await toggle.click();
       await ev(page, '9U-D-049', 'admin_detail');

@@ -82,7 +82,7 @@ export async function seedViewerProject(): Promise<ViewerSeed> {
     viewer = await roleUser(admin, 'viewer', 'authz-b');
     await addProjectMember(admin, seeded.projectId, viewer.email);
     const viewerApi = await apiAs(viewer);
-    const list = await admin.get(`/api/projects/${seeded.projectId}/versions`);
+    const list = await admin.get(`/api/projects/${seeded.projectId}/versions?floorId=${seeded.floors[0]?.id ?? FAKE_ID}`);
     const items = list.ok() ? (((await list.json()) as { items?: { id?: string }[] }).items ?? []) : [];
     const member = viewer;
     return {
@@ -113,7 +113,7 @@ export async function seedMainViewer(): Promise<ViewerSeed & { uploadId: string 
   const undo = await asMember(admin, projectId, viewer);
   try {
     const viewerApi = await apiAs(viewer);
-    const list = await admin.get(`/api/projects/${projectId}/versions`);
+    const list = await admin.get(`/api/projects/${projectId}/versions?floorId=${workFloorId}`);
     expect(list.status(), 'setup: GET versions on main project').toBe(200);
     const versionId = ((await list.json()) as { items?: { id?: string }[] }).items?.[0]?.id;
     expect(versionId, 'setup: main project has a version').toBeTruthy();

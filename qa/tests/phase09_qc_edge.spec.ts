@@ -207,7 +207,7 @@ test.describe('SCR-16..21 viewer read-only QC screens', () => {
       await test.step('[9Q-C-001] câu chỉ-xem dưới danh sách', async () => {
         await openScreen(page, ROUTES.project.dimensions(projectId, workFloorId), page.getByRole('region', { name: DIMS_REGION, exact: true }));
         await expect(options.first()).toBeVisible();
-        await expect(page.getByText(DIM_VIEW_ONLY, { exact: true })).toBeVisible(); // dimensionOcrText.ts:217-219
+        await expect(page.getByText(DIM_VIEW_ONLY, { exact: true }).and(page.locator(':not(.sr-only)'))).toBeVisible(); // dimensionOcrText.ts:217-219; sr-only twin = canvas aria-describedby
         await shot(page, '9Q-C-001', 'view_only_sentence');
       });
       await test.step('[9Q-C-002] không lối vào duyệt bàn phím, không nút duyệt hàng', async () => {
@@ -248,7 +248,7 @@ test.describe('SCR-16..21 viewer read-only QC screens', () => {
       await test.step('[9Q-D-001] tiêu đề + câu chỉ-xem', async () => {
         await openScreen(page, ROUTES.project.grids(fx.floor.projectId, fx.floor.floorId), page.getByRole('region', { name: GRIDS_REGION, exact: true }));
         await expect(page.getByRole('heading', { name: GRID_TITLE, exact: true })).toBeVisible(); // AxisGridManager.tsx:113,186
-        await expect(page.getByText(GRID_VIEW_ONLY, { exact: true })).toBeVisible();
+        await expect(page.getByText(GRID_VIEW_ONLY, { exact: true }).and(page.locator(':not(.sr-only)'))).toBeVisible(); // sr-only twin = canvas aria-describedby
         await expect(rows.first()).toBeVisible();
         await shot(page, '9Q-D-001', 'view_only_alert');
       });

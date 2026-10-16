@@ -8,12 +8,11 @@ import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { captureEvidence } from './support/evidence';
+import { pascalCanvas, viewportReady } from './support/p09/P7';
 import { pinOneMeasurement, withOwnProject } from './support/p09/P9';
 import { adminApi, gotoAs, mainProject, recordWrites, roleUser, signInRole } from './support/p09/roles';
 
 const shot = (page: Page, id: string, slug: string) => captureEvidence(page, `E09_${id}_${slug}.png`);
-const layerPut = (page: Page) =>
-  page.waitForResponse((r) => r.request().method() === 'PUT' && /\/spatial\/layer$/u.test(new URL(r.url()).pathname));
 const ruleConfigPut = (page: Page) =>
   page.waitForResponse((r) => r.request().method() === 'PUT' && /\/rule-config$/u.test(new URL(r.url()).pathname));
 
@@ -21,22 +20,19 @@ test.describe('phase 09 viewer edge (real stack)', () => {
   test('SCR-viewer/25/28/30/32 + ShareDialog · FL-9V-07 · engineer · Ghi thật trên dự án riêng', async ({ browser }) => {
     test.setTimeout(480_000);
     await withOwnProject(browser, 'engineer', 'viewer-c', 'p09-v07', async ({ page, projectId }) => {
-      const room = (n: string) => page.getByRole('textbox', { name: `Tên phòng ${n}` });
-      await test.step('[9V-A-002] engineer đổi tên phòng rồi đổi lại', async () => {
+      await test.step('[9V-A-002] engineer: /3d là Pascal, không còn bảng tên phòng (RoomAreaPanel)', async () => {
+        // Row change (catalog-C4 9V-A-002): /3d mounts the vendored Pascal editor (router.tsx:382, F-15); RoomAreaPanel is not mounted.
+        // Room naming now lives at the rooms layer route (router.tsx:380 RouteRoomLabelReview, RoomLabelNameField.tsx:34), covered by the qc area.
+        test.info().annotations.push({ type: 'row-change', description: '9V-A-002: RoomAreaPanel gone from /3d (router.tsx:382); rename = RoomLabelReview (router.tsx:380)' });
         await page.goto(ROUTES.project.viewer(projectId));
-        await expect(room('Bếp')).toBeEnabled({ timeout: 60_000 }); // RA/useRoomAreaPanel.ts:459-477; label RoomAreaPanel.rows.tsx:153
-        const first = layerPut(page);
-        await room('Bếp').fill('Bếp qa09');
-        await room('Bếp qa09').blur();
-        expect((await first).status()).toBe(200);
-        const back = layerPut(page);
-        await room('Bếp qa09').fill('Bếp');
-        await room('Bếp').blur();
-        expect((await back).status()).toBe(200);
+        await viewportReady(page);
+        await expect(pascalCanvas(page)).toBeVisible();
+        await expect.soft(page.getByRole('textbox', { name: /^Tên phòng /u })).toHaveCount(0);
         await shot(page, '9V-A-002', 'room_rename');
       });
       await test.step('[9V-A-038] HistoryPanel: nút nhảy trạng thái có mặt và bật', async () => {
-        // HP/historyPanelGateway.ts:246; label HistoryPanel.rows.tsx:53 (visible on hover/focus only: attached is enough)
+        // Pascal side panel "Lịch sử thao tác" (pascalViewerTypes.ts:200) hosts HistoryPanel; label HistoryPanel.rows.tsx:53 (hover/focus only: attached is enough)
+        await page.getByRole('button', { name: 'Lịch sử thao tác', exact: true }).click();
         const jump = page.getByRole('button', { name: 'Quay lại trạng thái này' }).first();
         await expect.soft(jump).toBeAttached();
         await expect.soft(jump).toBeEnabled();
@@ -44,7 +40,7 @@ test.describe('phase 09 viewer edge (real stack)', () => {
       });
       await test.step('[9V-B-035] đo: nút ghim bật, không caption chặn', async () => {
         await page.goto(ROUTES.project.measure(projectId));
-        await expect(page.getByLabel('Khung nhìn mô hình')).toHaveAttribute('aria-busy', 'false', { timeout: 60_000 });
+        await viewportReady(page);
         await expect.soft(page.getByRole('alert').filter({ hasText: 'chỉ có quyền xem' })).toHaveCount(0); // useMeasurementTool.ts:202
         await shot(page, '9V-B-035', 'pin_enabled');
       });
@@ -117,7 +113,7 @@ test.describe('phase 09 viewer edge (real stack)', () => {
     await withOwnProject(browser, 'admin', 'viewer-c', 'p09-v08', async ({ page, projectId }) => {
       await test.step('[9V-A-003] viewer 3D tải, không "Chỉ xem"', async () => {
         await page.goto(ROUTES.project.viewer(projectId));
-        await expect(page.getByLabel('Khung nhìn mô hình')).toHaveAttribute('aria-busy', 'false', { timeout: 60_000 });
+        await viewportReady(page); // Pascal on /3d (router.tsx:382)
         await expect(page.getByText('Chỉ xem', { exact: true })).toHaveCount(0); // ViewerInspector.tsx:87
         await shot(page, '9V-A-003', 'admin_viewer');
       });

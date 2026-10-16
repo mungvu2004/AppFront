@@ -6,6 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { permissionMatrix } from '../../src/lib/auth/permissions';
+import { PERMISSION_MATRIX_ROWS } from '../../src/screens/admin/UserManagement/userManagementGateway';
 import { captureEvidence } from './support/evidence';
 import { recordRequests, settle, since } from './support/p09/P10';
 import { attachAdminSnap } from './support/p09/adminSnap';
@@ -39,9 +40,10 @@ const roleSelect = (page: Page, name?: string) =>
   });
 
 // UserManagementPermissionMatrix.tsx: one <li> per permission row, 3 sr-only labels (one per role), allowed cells draw a check mark
-const MATRIX_ROWS = Object.keys(permissionMatrix).length;
-const MATRIX_ALLOWED = Object.values(permissionMatrix).reduce(
-  (n, perms) => n + Object.values(perms).filter(Boolean).length,
+// The screen shows 7 rows by design (types.ts:96 'Bảy dòng'; userManagementGateway.ts:171 PERMISSION_MATRIX_ROWS), not all 10 permissionMatrix keys.
+const MATRIX_ROWS = PERMISSION_MATRIX_ROWS.length;
+const MATRIX_ALLOWED = PERMISSION_MATRIX_ROWS.reduce(
+  (n, row) => n + Object.values(permissionMatrix[row.key]).filter(Boolean).length,
   0,
 );
 const matrixRows = (page: Page) => page.locator('li').filter({ has: page.locator('.sr-only') });
@@ -95,7 +97,7 @@ test('SCR-34/35/36/37 · FL-9A-01 · viewer · four admin screens read-only/forb
   await test.step('[9A-D-004] Enter on the first item opens detail without write actions', async () => {
     await items.first().focus();
     await page.keyboard.press('Enter');
-    const detail = page.getByLabel('Chi tiết model'); // ModelLibraryDetail.tsx:293
+    const detail = page.getByLabel('Chi tiết model', { exact: true }); // ModelLibraryDetail.tsx:293
     await expect.soft(detail).toBeVisible();
     await expect.soft(detail.getByRole('button', { name: WRITE_BUTTON })).toHaveCount(0);
     await captureEvidence(page, '9A-D-004_viewer-library-detail.png');

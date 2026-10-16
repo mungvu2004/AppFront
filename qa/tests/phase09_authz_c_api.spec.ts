@@ -2,14 +2,13 @@
 import { expect, test } from '@playwright/test';
 
 import { expectOpen, firstId } from './support/p09/P13';
-import { adminApi } from './support/p09/roles';
+import { adminApi, roleUser } from './support/p09/roles';
 
 test('API · FL-B09-10 · admin · ma trận quyền BE', async () => {
   test.setTimeout(120_000);
   const api = await adminApi();
-  const meRes = await api.get('/api/me');
-  expect(meRes.status(), 'setup: GET /api/me').toBe(200);
-  const me = (await meRes.json()) as { id: string };
+  // /api/me has no id (MeSchema): use an admin pool user's id for the /api/users/{id}/... reads
+  const me = await roleUser(api, 'admin', 'authz-c');
   const dataset = await firstId(api, '/api/admin/ml/datasets');
   const job = await firstId(api, '/api/admin/ml/training-jobs');
   const modelVersion = await firstId(api, '/api/admin/ml/model-versions');

@@ -73,7 +73,8 @@ export function recordWrites(page: Page): { writes: string[] } {
   const rec = { writes: [] as string[] };
   page.on('request', (req) => {
     const { pathname } = new URL(req.url());
-    if (pathname.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(req.method())) {
+    // /api/auth/refresh = session refresh, not a data write (R1: viewer edges saw only it).
+    if (pathname.startsWith('/api/') && pathname !== '/api/auth/refresh' && !['GET', 'HEAD', 'OPTIONS'].includes(req.method())) {
       rec.writes.push(`${req.method()} ${pathname}`);
     }
   });

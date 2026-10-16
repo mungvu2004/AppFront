@@ -7,6 +7,7 @@ import type { APIRequestContext, Browser, BrowserContext, Page } from '@playwrig
 import { qcLayer, writeLayer } from '../layerSeed';
 import { createPipelineProject, deleteSeededProject, envDrawingPng } from '../phase03Seed';
 import type { PoolUser } from '../phase03Seed';
+import { viewportReady } from './P7';
 import { adminApi, asMember, DESKTOP, roleUser, signInRole, type Role } from './roles';
 
 export interface OwnRun {
@@ -67,9 +68,9 @@ export async function setRole(admin: APIRequestContext, user: PoolUser, role: Ro
   expect(res.status(), `setRole ${role}: ${(await res.text()).slice(0, 200)}`).toBe(200);
 }
 
-/** Waits for the 3D scene to stop being busy. */
+/** Waits for the 3D scene (Pascal on /3d, legacy viewport on /3d/measure): one anchor, see P7 viewportReady. */
 export async function waitScene(page: Page): Promise<void> {
-  await expect(page.getByLabel('Khung nhìn mô hình')).toHaveAttribute('aria-busy', 'false', { timeout: 60_000 });
+  await viewportReady(page);
 }
 
 /** Two scene clicks (M tool) then the pin button: draws and pins one measurement; returns after the POST answered 201. */

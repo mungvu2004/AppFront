@@ -240,6 +240,27 @@ describe('ProjectDashboardView, seven states', () => {
     expect(screen.getByText('Toà nhà HQ Renovation')).toBeInTheDocument();
   });
 
+  it('[9P-B-001] forbidden state shows the viewer role line; [9P-B-002] loading does not', () => {
+    const forbidden = render(<ProjectDashboardView {...PROPS_BY_STATE.forbidden()} />);
+    expect(screen.getByText(/Vai người xem/u)).toBeInTheDocument();
+    forbidden.unmount();
+    render(<ProjectDashboardView {...PROPS_BY_STATE.loading()} canCreate={false} />);
+    expect(screen.queryByText(/Vai người xem/u)).not.toBeInTheDocument();
+  });
+
+  // [9P-F-001] FL-9P-U1: at 768 px the state is `collapsed`, which used to hide the viewer's role line.
+  it('[9P-F-001] shows the viewer role line in the collapsed (narrow) state too', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.collapsed()} canCreate={false} canDelete={false} />);
+
+    expect(screen.getByText(/Vai người xem/u)).toBeInTheDocument();
+  });
+
+  it('[9P-F-001] collapsed with create rights shows no viewer role line', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.collapsed()} />);
+
+    expect(screen.queryByText(/Vai người xem/u)).not.toBeInTheDocument();
+  });
+
   it('never colours a card verified unless the caller already resolved that (A5/A-constraint)', () => {
     render(
       <ProjectDashboardView

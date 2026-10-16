@@ -12,11 +12,11 @@ test('API · FL-B09-11 · không-thành-viên (engineer) · ma trận quyền BE
     const outsider = await roleUser(admin, 'engineer', 'authz-d'); // NOT added as member
     const api = await apiAs(outsider);
     await test.step('[B09-str-002] streams_open_progress', async () => {
-      // oracle: projects/access.py:91 -> 404 NOT_FOUND resource project (not 403; K08)
+      // oracle: drawings/stream_providers.py:44-51 -> 404 NOT_FOUND resource upload (outsider cannot tell 'no access' from 'missing'; not 403)
       const probe = await probeStream(api, `/api/streams/projects/${seeded.projectId}/uploads/${FAKE_UPLOAD_ID}/progress`); // streams/router.py:129-135
       expect(probe.status).toBe(404);
       expect(probe.code).toBe('NOT_FOUND');
-      expect(probe.resource).toBe('project');
+      expect(probe.resource).toBe('upload'); // AppBack apps/api/drawings/stream_providers.py:44-51 (CASE.md S06)
     });
   } finally {
     await deleteSeededProject(admin, seeded.projectId);

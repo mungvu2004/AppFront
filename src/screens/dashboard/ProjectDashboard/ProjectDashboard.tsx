@@ -195,7 +195,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           </div>
         </div>
 
-        {state === 'forbidden' && (
+        {(state === 'forbidden' || (isCollapsed && !props.canCreate)) && (
           <p className="flex items-center gap-2 text-[13px] text-text-secondary">
             <Lock size={14} aria-hidden="true" />
             Vai người xem: chỉ có thể mở dự án, không tạo hoặc xoá được.

@@ -32,9 +32,24 @@ export const RULES_HEADING = 'Kiểm tra luật không gian';
 export const RULES_RERUN = 'Chạy kiểm tra lại';
 export const RULES_CONFIRM = 'Xác nhận đã xử lý';
 
-/** Sure anchor for the 3D screens: the viewport finished its first paint. */
+/** Pascal mount point (PascalViewer.tsx data-testid="pascal-canvas"); /3d mounts the vendored Pascal editor since F-15 (router.tsx:382). */
+export const pascalCanvas = (page: Page) => page.getByTestId('pascal-canvas').locator('canvas').first();
+
+/**
+ * Sure anchor for the 3D screens: /3d = Pascal canvas drawn (the old 'Khung nhìn mô hình' is gone, ViewerViewport.tsx);
+ * /3d/measure still renders the legacy viewport, which reports aria-busy=false when its first paint is done.
+ */
 export async function viewportReady(page: Page): Promise<void> {
-  await expect(page.getByLabel(VIEWER_VIEWPORT)).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
+  const legacy = page.locator(`[aria-label="${VIEWER_VIEWPORT}"][aria-busy="false"]`);
+  await expect(legacy.or(pascalCanvas(page)).first()).toBeVisible({ timeout: 60_000 });
+}
+
+/** Two different scene points = a complete measurement draft (MeasurementTool.tsx:201 shows the pin only when draftComplete). */
+export async function drawTwoPoints(page: Page): Promise<void> {
+  const box = await page.locator('canvas').first().boundingBox();
+  if (box === null) throw new Error('canvas has no bounding box: the 3D scene is not mounted');
+  await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.5);
+  await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.5);
 }
 
 async function canvasCentre(page: Page): Promise<{ x: number; y: number }> {

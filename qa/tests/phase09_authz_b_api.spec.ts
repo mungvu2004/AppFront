@@ -169,13 +169,13 @@ test('API · FL-B09-09 · viewer · ma trận quyền BE', async () => {
   const api = s.viewerApi;
   try {
     await test.step('[B09-ver-003] versions_list_versions', async () => {
-      await expectOpen(api, `/api/projects/${s.projectId}/versions`, 'B09-ver-003_versions_list_versions', { statuses: [200], soft: false });
+      await expectOpen(api, `/api/projects/${s.projectId}/versions?floorId=${s.floorId}`, 'B09-ver-003_versions_list_versions', { statuses: [200], soft: false });
     });
     await test.step('[B09-ver-006] versions_read_version', async () => {
       await expectOpen(api, `/api/projects/${s.projectId}/versions/${s.versionId}`, 'B09-ver-006_versions_read_version', { statuses: [200] });
     });
     await test.step('[B09-ver-009] versions_read_snapshot', async () => {
-      await expectOpen(api, `/api/projects/${s.projectId}/versions/${s.versionId}/snapshot`, 'B09-ver-009_versions_read_snapshot', { statuses: [200] });
+      await expectOpen(api, `/api/projects/${s.projectId}/versions/${s.versionId}/snapshot?floorId=${s.floorId}`, 'B09-ver-009_versions_read_snapshot', { statuses: [200] });
     });
   } finally {
     await s.cleanup();

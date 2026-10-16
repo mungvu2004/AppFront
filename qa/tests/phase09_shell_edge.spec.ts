@@ -175,9 +175,8 @@ test.describe('phase09 shell edge', () => {
       await test.step('[9P-D-103] sample/skip enabled, tutorial aria-disabled', async () => {
         await expect.soft(page.getByRole('button', { name: COPY.onbSample })).toBeEnabled();
         await expect.soft(page.getByRole('button', { name: COPY.onbSkip })).toBeEnabled();
-        const tut = page.getByRole('button', { name: COPY.onbTutorialOff });
-        await expect.soft(tut).toHaveAttribute('aria-disabled', 'true');
-        await expect.soft(tut).not.toHaveAttribute('disabled', /.*/u);
+        const tut = page.getByRole('button', { name: COPY.onbTutorial });
+        await expect.soft(tut).toHaveAttribute('aria-disabled', 'true');        await expect.soft(tut).not.toHaveAttribute('disabled', /.*/u);
         await shot(page, '9P-D-103', 'onb_links');
       });
       await test.step('[9P-B-201] settings read-only line', async () => {

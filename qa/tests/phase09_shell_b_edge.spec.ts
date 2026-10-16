@@ -223,10 +223,12 @@ test.describe('phase09 shell B edge', () => {
         }
         await captureEvidence(page, 'E09_9P-D-302_anon_protected.png');
       });
-      await test.step('[9P-D-307] đường lạ: lý do chưa đăng nhập', async () => {
+      await test.step('[9P-D-307] đường lạ: ẩn danh bị chặn ở cổng → /login?next, thông báo cần đăng nhập', async () => {
+        // Source: phase01_auth_edge.spec.ts:2771 (SessionBootstrap.tsx:288-301): an unknown path is gated BEFORE the router, so no NotFound.
         await page.goto('/duong-dan-la');
-        await expect.soft(page.getByText('Cần đăng nhập để xem trang này', { exact: true })).toBeVisible(); // NF:99
-        await expect.soft(page.getByText('Đăng nhập xong bạn sẽ được đưa lại đúng trang vừa mở.', { exact: true })).toBeVisible();
+        await expect.poll(() => pathOf(page.url())).toBe(loginUrl('/duong-dan-la'));
+        await expect.soft(page.getByText('Hãy đăng nhập để tiếp tục.', { exact: true })).toBeVisible(); // vi.json:201 signInRequired
+        await expect.soft(page.getByText('Cần đăng nhập để xem trang này', { exact: true })).toHaveCount(0);
         await captureEvidence(page, 'E09_9P-D-307_anon_not_found.png');
       });
       await test.step('[9P-D-311] `/thong-bao` → /login?next=%2Fthong-bao', async () => {

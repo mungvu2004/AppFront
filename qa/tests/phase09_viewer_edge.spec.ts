@@ -28,6 +28,8 @@ import {
   WALL_EDIT_LABELS,
   clickSceneCentre,
   dragScene,
+  drawTwoPoints,
+  pascalCanvas,
   seedMeasurement,
   viewportReady,
   writesAfter,
@@ -98,37 +100,37 @@ test.describe('phase 09 viewer edge', () => {
 
       await test.step('[9V-A-030] viewer: inspector hiện InlineAlert "Chỉ xem"', async () => {
         await page.goto(ROUTES.project.viewer(projectId));
+        // Row change (catalog-C4 9V-A-030/031/050/032/034/037/051): /3d mounts the vendored Pascal editor (router.tsx:382, F-15);
+        // ViewerShell alert (ViewerInspector.tsx:82-89), Viewer3D note, RoomAreaPanel, FurnitureLibrary, HistoryPanel rail and the
+        // 'Công cụ khung nhìn' toolbar are not mounted there. Read-only = Pascal readOnly gate (PascalViewer.container.tsx:140, usePascalEdits.ts:228).
         await viewportReady(page);
-        await expect(viewerAlert(page)).toBeVisible({ timeout: 15_000 }); // ViewerInspector.tsx:82-89
-        await expect(viewerAlert(page)).toContainText('Chỉ xem');
+        await expect(pascalCanvas(page)).toBeVisible();
+        await expect.soft(viewerAlert(page)).toHaveCount(0);
         await captureEvidence(page, 'E09_9V-A-030_inspector-readonly.png');
       });
-      await test.step('[9V-A-031] viewer: 3D có ghi chú sr-only', async () => {
-        await expect.soft(page.getByText(VIEWER_3D_NOTE, { exact: true })).toHaveCount(1); // Viewer3D.tsx:268-273
+      await test.step('[9V-A-031] viewer: ghi chú sr-only của Viewer3D không còn trên /3d', async () => {
+        await expect.soft(page.getByText(VIEWER_3D_NOTE, { exact: true })).toHaveCount(0); // Viewer3D.tsx:268-273 not mounted
         await captureEvidence(page, 'E09_9V-A-031_viewer3d-note.png');
       });
-      await test.step('[9V-A-050] viewer: InlineAlert là alert, không cướp focus', async () => {
-        const alert = viewerAlert(page);
+      await test.step('[9V-A-050] viewer: không có alert nào cướp focus trên Pascal', async () => {
         const before = await activeDescriptor(page);
-        await expect.soft(alert).toHaveAttribute('role', 'alert');
-        expect.soft(await alert.evaluate((el) => el.contains(document.activeElement))).toBe(false);
+        await expect.soft(page.locator('[role="alert"]:not([data-announcer])')).toHaveCount(0);
         expect.soft(await activeDescriptor(page)).toBe(before);
         await captureEvidence(page, 'E09_9V-A-050_alert-focus.png');
       });
-      await test.step('[9V-A-032] viewer: RoomAreaPanel chỉ xem', async () => {
-        // RoomAreaTable.tsx:81 notice, or the early branch RoomAreaPanel.chrome.tsx:65 — UNKNOWN — NEED VERIFICATION which shows.
+      await test.step('[9V-A-032] viewer: RoomAreaPanel không còn trên /3d', async () => {
         await expect
-          .soft(page.getByText(ROOM_READONLY_NOTICE, { exact: true }).or(page.getByText(ROOM_FORBIDDEN_TITLE, { exact: true })).first())
-          .toBeVisible();
+          .soft(page.getByText(ROOM_READONLY_NOTICE, { exact: true }).or(page.getByText(ROOM_FORBIDDEN_TITLE, { exact: true })))
+          .toHaveCount(0); // RoomAreaTable.tsx:81 / RoomAreaPanel.chrome.tsx:65 not mounted
         await captureEvidence(page, 'E09_9V-A-032_room-area.png');
       });
       await test.step('[9V-A-033] viewer: 0 textbox tên phòng', async () => {
         await expect.soft(page.getByRole('textbox', { name: /^Tên phòng /u })).toHaveCount(0); // RoomAreaTable.Row.tsx:101
         await captureEvidence(page, 'E09_9V-A-033_no-rename.png');
       });
-      await test.step('[9V-A-034] viewer: FurnitureLibrary forbidden', async () => {
-        await expect.soft(page.getByText(LIBRARY_FORBIDDEN_NOTE, { exact: true }).first()).toBeVisible();
-        await expect.soft(page.getByText(LIBRARY_LOCKED_NOTE).first()).toBeVisible();
+      await test.step('[9V-A-034] viewer: FurnitureLibrary cũ không còn trên /3d, không có thẻ kéo-thả', async () => {
+        await expect.soft(page.getByText(LIBRARY_FORBIDDEN_NOTE, { exact: true })).toHaveCount(0); // FurnitureLibraryPanel.tsx:77 not mounted
+        await expect.soft(page.getByText(LIBRARY_LOCKED_NOTE)).toHaveCount(0); // FurnitureLibraryPanelCard.tsx:47 not mounted
         await captureEvidence(page, 'E09_9V-A-034_library-locked.png');
       });
       await test.step('[9V-A-035] viewer: không có "Thay thế tất cả" / tải mô hình lên', async () => {
@@ -136,8 +138,10 @@ test.describe('phase 09 viewer edge', () => {
         await expect.soft(page.getByRole('button', { name: /tải mô hình lên/iu })).toHaveCount(0); // UNKNOWN — NEED VERIFICATION label
         await captureEvidence(page, 'E09_9V-A-035_no-replace-all.png');
       });
-      await test.step('[9V-A-037] viewer: HistoryPanel giữ dòng thời gian, mất nút nhảy', async () => {
-        await expect.soft(page.getByText(HISTORY_FORBIDDEN_TITLE, { exact: true }).first()).toBeVisible();
+      await test.step('[9V-A-037] viewer: Pascal có nút Lịch sử thao tác nhưng không có nút nhảy', async () => {
+        // Pascal history rail button (pascalViewerTypes.ts:200); HistoryPanel.chrome.tsx:63 forbidden title is not shown on /3d
+        await expect.soft(page.getByRole('button', { name: 'Lịch sử thao tác', exact: true })).toBeVisible();
+        await expect.soft(page.getByText(HISTORY_FORBIDDEN_TITLE, { exact: true })).toHaveCount(0);
         await expect.soft(page.getByRole('button', { name: HISTORY_JUMP })).toHaveCount(0);
         await captureEvidence(page, 'E09_9V-A-037_history.png');
       });
@@ -147,9 +151,9 @@ test.describe('phase 09 viewer edge', () => {
         }
         await captureEvidence(page, 'E09_9V-A-039_no-wall-tools.png');
       });
-      await test.step('[9V-A-051] viewer: Tab qua toolbar không dừng ở nút sửa', async () => {
-        const rail = page.getByRole('toolbar', { name: VIEWER_RAIL });
-        await rail.getByRole('button').first().focus();
+      await test.step('[9V-A-051] viewer: Tab qua màn không dừng ở nút sửa', async () => {
+        // The 'Công cụ khung nhìn' toolbar is not on /3d (Pascal): start Tab from the Pascal history button instead.
+        await page.getByRole('button', { name: 'Lịch sử thao tác', exact: true }).focus();
         const seen: string[] = [];
         for (let i = 0; i < 12; i += 1) {
           seen.push(await activeDescriptor(page));
@@ -232,8 +236,8 @@ test.describe('phase 09 viewer edge', () => {
         await captureEvidence(page, 'E09_9V-B-050_alert-focus.png');
       });
       await test.step('[9V-B-032] viewer: nút Ghim disabled khi có phép đo nháp', async () => {
-        await clickSceneCentre(page);
-        await expect.soft(page.getByRole('button', { name: MEASURE_PIN })).toBeDisabled();
+        await drawTwoPoints(page); // one click = incomplete draft; the pin shows only when draftComplete (MeasurementTool.tsx:201-209)
+        await expect.soft(page.getByRole('button', { name: MEASURE_PIN })).toBeDisabled(); // canPin=false for viewer (:203)
         await captureEvidence(page, 'E09_9V-B-032_pin-disabled.png');
       });
       await test.step('[9V-B-033] viewer: Enter không ghim (không POST /measurements)', async () => {

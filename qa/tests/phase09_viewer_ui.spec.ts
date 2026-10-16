@@ -3,13 +3,15 @@ import { expect, test } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { openAt, uiState, withRoleUi } from './support/p09/P11';
+import { pascalCanvas } from './support/p09/P7';
 
 test('SCR-25..32 · FL-9V-U1 · viewer · verifyUi 4 khổ trạng thái chỉ đọc', async ({ browser }) => {
   test.setTimeout(480_000);
   await withRoleUi(browser, 'viewer', 'ui-viewer', true, async ({ page, projectId }) => {
     const P = ROUTES.project;
     await test.step('[9V-A-060] viewer viewer_inspector 4 kho', async () => {
-      await uiState(page, '9V-A-060', 'viewer_inspector', openAt(P.viewer(projectId), (p) => p.getByText('Bạn đang xem ở vai người xem nên không sửa được mô hình.')), true);
+      // /3d = Pascal since F-15 (router.tsx:382): the ViewerShell alert is gone, the read-only state is the Pascal canvas for a viewer role.
+      await uiState(page, '9V-A-060', 'viewer_inspector', openAt(P.viewer(projectId), (p) => pascalCanvas(p)), true);
     });
     await test.step('[9V-B-060] viewer measure_pin_blocked 4 kho', async () => {
       await uiState(page, '9V-B-060', 'measure_pin_blocked', openAt(P.measure(projectId), (p) => p.getByRole('alert').filter({ hasText: 'Bạn chỉ có quyền xem dự án này' })));
