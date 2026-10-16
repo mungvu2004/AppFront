@@ -130,7 +130,7 @@ export function ShortcutHelp({ isOpen, onClose }: ShortcutHelpProps) {
             variants={dialogVariants}
             transition={{ duration: prefersReducedMotion ? DURATION.fast : DURATION.default, ease: EASE.out }}
             className={cn(
-              'relative bg-bg-surface rounded-[16px] shadow-modal pointer-events-auto',
+              'relative bg-bg-surface rounded-2xl shadow-modal pointer-events-auto',
               'w-full max-w-[480px] max-h-[80vh] overflow-y-auto outline-none'
             )}
           >

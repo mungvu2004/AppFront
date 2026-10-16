@@ -143,7 +143,7 @@ export function FurnitureModelCardTile({
 
           {card.isHeavy && (
             <span className="flex items-start gap-1 text-[13px] leading-[18px] text-state-attention-text">
-              <AlertTriangle className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               {HEAVY_WARNING}
             </span>
           )}

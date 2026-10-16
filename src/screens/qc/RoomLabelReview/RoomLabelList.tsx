@@ -70,7 +70,7 @@ function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus }: 
       aria-label={`${room.codeLabel} · ${nameText} · ${room.areaText} · ${STATUS_LABEL[room.status]}`}
       aria-selected={isSelected}
       className={cn(
-        'flex cursor-pointer items-center gap-2 rounded-[8px] px-2 text-[13px] outline-none',
+        'flex cursor-pointer items-center gap-2 rounded-lg px-2 text-[13px] outline-none',
         ROW_HEIGHT_CLASS,
         'transition-colors duration-120 hover:bg-bg-hover',
         'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent focus-visible:ring-offset-2',

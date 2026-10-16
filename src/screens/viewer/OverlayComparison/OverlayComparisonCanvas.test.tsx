@@ -367,7 +367,7 @@ describe('đường chia đôi', () => {
     const stroke = divider.querySelector<HTMLElement>('span');
 
     expect(stroke?.style.transitionDuration).toBe(`${MOTION_DURATIONS_MS.instant}ms`);
-    expect(stroke?.className).toContain('group-hover:w-[6px]');
+    expect(stroke?.className).toContain('group-hover:w-1.5');
   });
 });
 

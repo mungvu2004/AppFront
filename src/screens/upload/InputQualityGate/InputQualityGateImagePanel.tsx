@@ -72,7 +72,7 @@ const ZOOMED_FRAME_LABEL = 'Bản vẽ đang phóng, cuộn để xem phần cò
 
 /** Khung ảnh không bao giờ rộng quá con số đặc tả đặt ra. */
 const FRAME_CLASSES =
-  'relative w-full max-w-[640px] overflow-hidden rounded-[16px] border border-border-default bg-bg-sunken';
+  'relative w-full max-w-[640px] overflow-hidden rounded-2xl border border-border-default bg-bg-sunken';
 
 const ZOOMED_FRAME_CLASSES =
   'overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent';

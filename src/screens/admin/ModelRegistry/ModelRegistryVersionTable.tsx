@@ -82,7 +82,7 @@ export function ModelRegistryVersionTable({ actions, isCollapsed, rows }: ModelR
       <ul className="flex flex-col gap-2">
         {rows.map((row) => (
           <li
-            className={cn('flex flex-col gap-3 rounded-[8px] border border-border-default p-3', row.isSelected && 'bg-bg-selected')}
+            className={cn('flex flex-col gap-3 rounded-lg border border-border-default p-3', row.isSelected && 'bg-bg-selected')}
             key={row.id}
           >
             <div className="flex items-center justify-between gap-3">

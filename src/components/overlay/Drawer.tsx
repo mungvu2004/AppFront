@@ -219,7 +219,7 @@ function DrawerRoot({ isOpen, onClose, children, size, label }: DrawerRootProps)
                   duration: prefersReducedMotion ? DURATION.fast : DURATION.slow,
                   ease: EASE.default,
                 }}
-                className="relative my-2 mr-2 bg-bg-surface rounded-[16px] shadow-modal pointer-events-auto flex flex-col outline-none overflow-hidden"
+                className="relative my-2 mr-2 bg-bg-surface rounded-2xl shadow-modal pointer-events-auto flex flex-col outline-none overflow-hidden"
                 style={{ width: `${drawerWidth}px` }}
               >
                 {children}

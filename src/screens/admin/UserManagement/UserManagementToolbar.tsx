@@ -57,7 +57,7 @@ export function UserManagementToolbar({ actions, invite, searchRef, summary, too
         <div className="flex flex-wrap items-end gap-4">
           <Input
             ref={searchRef}
-            className="w-[240px]"
+            className="w-60"
             label={SEARCH_LABEL}
             onChange={(event) => actions.onSearchChange(event.target.value)}
             placeholder={SEARCH_PLACEHOLDER}
@@ -110,7 +110,7 @@ export function UserManagementToolbar({ actions, invite, searchRef, summary, too
       </dl>
 
       {invite.isOpen && (
-        <div className="flex flex-col gap-3 rounded-[8px] border border-border-default p-4">
+        <div className="flex flex-col gap-3 rounded-lg border border-border-default p-4">
           <Textarea
             hint={invite.hintLabel}
             label={INVITE_EMAILS_LABEL}

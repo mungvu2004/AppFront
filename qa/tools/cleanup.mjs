@@ -18,8 +18,9 @@ const cfg = JSON.parse(readFileSync(join(SUITE, 'qa.config.json'), 'utf8'));
 const argv = process.argv.slice(2);
 const RUN_ID = argv.includes('--run-id') ? argv[argv.indexOf('--run-id') + 1] : '';
 const DRY = argv.includes('--dry-run');
-if (!/^run-\d+$/u.test(RUN_ID)) {
-  console.error('usage: node tools/cleanup.mjs --run-id run-NN [--dry-run]');
+// qa-phase result folders are pNN-r1 / pNN-rr / pNN-rf / pNN-state; run-NN is the legacy name.
+if (!/^(run-\d+|p\d{2}-(r1|rr|rf|state))$/u.test(RUN_ID)) {
+  console.error('usage: node tools/cleanup.mjs --run-id pNN-r1|pNN-rr|pNN-rf|pNN-state|run-NN [--dry-run]');
   process.exit(2);
 }
 const RUN_DIR = join(cfg.resultsDir, RUN_ID);

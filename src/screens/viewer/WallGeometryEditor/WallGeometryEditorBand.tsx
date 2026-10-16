@@ -24,7 +24,7 @@ export function WallGeometryEditorBand({ band }: WallGeometryEditorBandProps): R
     >
       <span className="truncate text-[13px] font-medium text-text-primary">{band.label}</span>
       <button
-        className={`rounded-[6px] px-2 py-1 text-[13px] font-medium text-accent hover:bg-bg-hover ${BUTTON_FOCUS_CLASS}`}
+        className={`rounded-md px-2 py-1 text-[13px] font-medium text-accent hover:bg-bg-hover ${BUTTON_FOCUS_CLASS}`}
         onClick={band.onDone}
         type="button"
       >

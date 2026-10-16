@@ -43,7 +43,7 @@ export function InlineAlert({
     <div
       role="alert"
       className={cn(
-        'flex flex-wrap items-start gap-x-5 gap-y-2 p-3 rounded-[8px] border',
+        'flex flex-wrap items-start gap-x-5 gap-y-2 p-3 rounded-lg border',
         bgClass,
         borderClass,
         className
@@ -60,7 +60,7 @@ export function InlineAlert({
             </h4>
           )}
           {/* `text-pretty`: không để một từ ("nhập.") đứng riêng ở dòng cuối khi khung hẹp (BUG-087). Chỉ đổi chỗ ngắt dòng. */}
-          <p className={cn('text-pretty text-[14px] leading-relaxed', textClass, !title && 'mt-[1px]')}>
+          <p className={cn('text-pretty text-[14px] leading-relaxed', textClass, !title && 'mt-px')}>
             {message}
           </p>
         </div>

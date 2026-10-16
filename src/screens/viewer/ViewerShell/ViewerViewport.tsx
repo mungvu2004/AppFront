@@ -115,7 +115,7 @@ export function ViewerViewport({
         'relative min-w-0 flex-1 touch-none overflow-hidden bg-canvas-3d',
         /* Dưới `lg` vỏ cuộn dọc nên khung nhìn tự mang chiều cao; từ `lg` nó kéo
            theo dòng ba cột và giữ bề ngang tối thiểu cũ (BUG-369, BUG-385). */
-        'h-[60vh] min-h-[320px] max-md:flex-none lg:h-auto lg:min-h-0 lg:min-w-[480px]',
+        'h-[60vh] min-h-80 max-md:flex-none lg:h-auto lg:min-h-0 lg:min-w-[480px]',
         /* `tabIndex={-1}` cho phép lập trình đưa tiêu điểm vào khung nhìn (liên
            kết bỏ qua, và phím tắt phạm vi canvas). Đưa được tiêu điểm vào thì
            A12 đòi phải THẤY nó, nên viền tiêu điểm đi theo `focus-visible` của
@@ -161,7 +161,7 @@ export function ViewerViewport({
         <span
           aria-hidden="true"
           className={cn(
-            'pointer-events-none absolute z-10 rounded-[6px] px-2 py-1',
+            'pointer-events-none absolute z-10 rounded-md px-2 py-1',
             'border border-accent bg-bg-surface text-[11px] leading-none text-text-primary',
             'opacity-60 transition-opacity duration-120',
           )}

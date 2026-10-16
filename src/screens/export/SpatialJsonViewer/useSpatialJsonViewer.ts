@@ -46,6 +46,7 @@ import {
   flattenJson,
   summariseValidity,
   toRawText,
+  valueAtPath,
   visibleNodes,
 } from './spatialJsonModel';
 import type {
@@ -87,6 +88,9 @@ export interface UseSpatialJsonViewerOptions {
 /** Câu của bộ đếm khi ô tìm kiếm không khớp hàng nào. */
 const NO_MATCH_LABEL = 'Không tìm thấy kết quả';
 
+/** Phản hồi sau khi chép nhánh (31-A-022). */
+const COPIED_NOTICE = 'Đã chép nhánh vào bộ nhớ tạm';
+
 /** Mô hình và hành động của S-36. */
 export type UseSpatialJsonViewerResult = readonly [SpatialJsonViewerModel, SpatialJsonViewerActions];
 
@@ -111,6 +115,7 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [activeTabId, setActiveTabId] = useState<SpatialJsonTabId>('json');
   const [viewMode, setViewMode] = useState<SpatialJsonViewMode>('tree');
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
 
   const allNodes = useMemo(() => flattenJson(graph), [graph]);
   const rawText = useMemo(() => (graph === null ? '' : toRawText(graph)), [graph]);
@@ -147,7 +152,7 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
   );
 
   const entityCount =
-    counts.walls + counts.openings + counts.rooms + counts.furniture + counts.axes + counts.dimensions;
+    counts.walls + counts.openings + counts.rooms + counts.furniture + counts.axes + counts.dimensions + counts.notes;
 
   const state: SevenState = useMemo(() => {
     if (!canView) {
@@ -209,38 +214,6 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
     setExpandedIds(new Set<string>());
   }, []);
 
-  const onSearchChange = useCallback((query: string) => {
-    setSearchQuery(query);
-    setMatchIndex(0);
-  }, []);
-
-  const stepMatch = useCallback(
-    (delta: number) => {
-      setMatchIndex((previous) => {
-        if (matchIds.length === 0) {
-          return 0;
-        }
-
-        return (previous + delta + matchIds.length) % matchIds.length;
-      });
-
-      const nextId = matchIds[(matchIndex + delta + matchIds.length) % Math.max(matchIds.length, 1)];
-
-      if (nextId !== undefined) {
-        setSelectedNodeId(nextId);
-      }
-    },
-    [matchIds, matchIndex],
-  );
-
-  const onNextMatch = useCallback(() => {
-    stepMatch(1);
-  }, [stepMatch]);
-
-  const onPreviousMatch = useCallback(() => {
-    stepMatch(-1);
-  }, [stepMatch]);
-
   /** Chọn một nút mở mọi nút cha của nó — cùng hành vi đặc tả đòi khi bấm một lỗi. */
   const onSelectNode = useCallback((nodeId: string) => {
     setSelectedNodeId(nodeId);
@@ -255,17 +228,93 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
     });
   }, []);
 
-  const onCopyBranch = useCallback(() => {
-    if (onCopy === undefined) {
-      return;
-    }
+  const onSearchChange = useCallback(
+    (query: string) => {
+      setSearchQuery(query);
+      setMatchIndex(0);
 
-    onCopy(rawText);
-  }, [onCopy, rawText]);
+      // Bộ đếm "1 / N" phải nói về hàng đang chọn (31-C-006).
+      const first = findMatches(allNodes, query)[0];
+
+      if (first !== undefined) {
+        onSelectNode(first);
+      }
+    },
+    [allNodes, onSelectNode],
+  );
+
+  const stepMatch = useCallback(
+    (delta: number) => {
+      setMatchIndex((previous) => {
+        if (matchIds.length === 0) {
+          return 0;
+        }
+
+        return (previous + delta + matchIds.length) % matchIds.length;
+      });
+
+      const nextId = matchIds[(matchIndex + delta + matchIds.length) % Math.max(matchIds.length, 1)];
+
+      if (nextId !== undefined) {
+        onSelectNode(nextId);
+      }
+    },
+    [matchIds, matchIndex, onSelectNode],
+  );
+
+  const onNextMatch = useCallback(() => {
+    stepMatch(1);
+  }, [stepMatch]);
+
+  const onPreviousMatch = useCallback(() => {
+    stepMatch(-1);
+  }, [stepMatch]);
+
+  /** `issue.path` là mã thực thể, không phải đường dẫn nút: tìm nút của thực thể rồi chọn (31-A-024). */
+  const onSelectIssue = useCallback(
+    (path: string) => {
+      const target = allNodes.find((node) => node.entityId === path) ?? allNodes.find((node) => node.id === path);
+
+      if (target !== undefined) {
+        setViewMode('tree');
+        onSelectNode(target.id);
+      }
+    },
+    [allNodes, onSelectNode],
+  );
+
+  /** Chép nhánh đang chọn; chưa chọn gì thì chép cả đồ thị. Không cấp `onCopy` thì ghi vào clipboard. */
+  const onCopyBranch = useCallback(() => {
+    const branch = selectedNodeId === null ? undefined : valueAtPath(graph, selectedNodeId);
+    const text = branch === undefined ? rawText : toRawText(branch);
+
+    if (onCopy !== undefined) {
+      onCopy(text);
+      setCopyNotice(COPIED_NOTICE);
+    } else {
+      // Route không có Toast.Provider (BUG-719): phản hồi nằm ngay trong màn, chỉ báo khi ghi thành công.
+      void navigator.clipboard?.writeText(text).then(() => {
+        setCopyNotice(COPIED_NOTICE);
+      }, () => undefined);
+    }
+  }, [graph, onCopy, rawText, selectedNodeId]);
+
+  /** Không cấp `onDownload` thì tải chính chữ thô thành tệp `.json` (31-A-023). */
+  const downloadRaw = useCallback(() => {
+    const url = URL.createObjectURL(new Blob([rawText], { type: 'application/json' }));
+    const anchor = document.createElement('a');
+
+    anchor.href = url;
+    anchor.download = 'spatial.json';
+    anchor.rel = 'noopener';
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }, [rawText]);
 
   const model: SpatialJsonViewerModel = {
     activeTabId,
-    canDownload: onDownload !== undefined,
+    canDownload: canView && graph !== null && state !== 'empty',
+    copyNotice,
     counts,
     countsLabel: describeCounts(counts),
     errorMessage,
@@ -288,12 +337,13 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
     onChangeViewMode: setViewMode,
     onCollapseAll,
     onCopyBranch,
-    onDownload: onDownload ?? null,
+    onDownload: onDownload ?? downloadRaw,
     onExpandAll,
     onNextMatch,
     onPreviousMatch,
     onReopenFloors,
     onSearchChange,
+    onSelectIssue,
     onSelectNode,
     onToggleNode,
   };

@@ -210,6 +210,23 @@ async function renderMain(options: { readonly notifications?: NotificationBus } 
 
   await screen.findAllByRole('table');
 
+  /*
+   * Hai đường nạp đồ thị đua nhau vào kho (effect gieo bộ mẫu và N16 của
+   * `useFloorLayer`); bảng hiện ra ngay khi đường đầu xong. Chờ kho đứng yên
+   * qua vài nhịp để mọi bài đọc số liệu trên đồ thị đã ổn định, không theo
+   * thứ tự chạy của cả bộ.
+   */
+  let settledRef = useStore.getState().spatial;
+  let calmTicks = 0;
+
+  await waitFor(() => {
+    const current = useStore.getState().spatial;
+
+    calmTicks = current === settledRef ? calmTicks + 1 : 0;
+    settledRef = current;
+    expect(calmTicks).toBeGreaterThanOrEqual(5);
+  });
+
   return { container: rendered.container, history, unmount: rendered.unmount } satisfies Rendered;
 }
 
@@ -471,6 +488,10 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
 
     const graphBefore = useStore.getState().spatial;
     const thicknessBefore = THICKNESS_FIXTURE_WALLS.map((wall) => thicknessInStore(wall.id));
+    /* Đợi lượt đếm lên đầu tiên dừng (số đầu = tổng đoạn) rồi mới lấy mốc "trước". */
+    await waitFor(() => {
+      expect(summaryLines(container)[0]).toMatch(new RegExp(`^${String(THICKNESS_FIXTURE_WALLS.length)}\\b`));
+    });
     const summaryBefore = summaryLines(container);
     const rowsBefore = within(container).getAllByRole('row').length;
 
@@ -493,6 +514,11 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
     const after = within(container)
       .getByRole('slider', { name: HIGH_THRESHOLD_LABEL })
       .getAttribute('aria-valuenow');
+    /* Số trong ô chạy đếm lên (BUG-340: một con số trong câu trạng thái) — đợi nó dừng, không đọc giữa chừng. */
+    await waitFor(() => {
+      expect(summaryLines(container)).not.toEqual(summaryBefore);
+    });
+
     const summaryAfter = summaryLines(container);
 
     console.log(
@@ -524,6 +550,31 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
     fireEvent.keyDown(slider, { key: 'ArrowRight' });
 
     expect(history.undoSteps()).toHaveLength(0);
+  }, HEAVY_TEST_TIMEOUT_MS);
+
+  it('[BUG-606] Home trên ngưỡng cao bị kẹp bởi ngưỡng kề, trục không trôi', async () => {
+    const { container } = await renderMain();
+    const valueOf = (name: string): number =>
+      Number(within(container).getByRole('slider', { name }).getAttribute('aria-valuenow'));
+    const midName = `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[220])} và ${lowerFirst(THICKNESS_GROUP_LABELS[330])}`;
+    const minBefore = within(container).getByRole('slider', { name: LOW_THRESHOLD_LABEL }).getAttribute('aria-valuemin');
+
+    fireEvent.keyDown(within(container).getByRole('slider', { name: HIGH_THRESHOLD_LABEL }), { key: 'Home' });
+
+    expect(valueOf(HIGH_THRESHOLD_LABEL)).toBeGreaterThan(valueOf(midName));
+    expect(within(container).getByRole('slider', { name: LOW_THRESHOLD_LABEL }).getAttribute('aria-valuemin')).toBe(minBefore);
+  }, HEAVY_TEST_TIMEOUT_MS);
+
+  it('[BUG-606] rê một cột biểu đồ làm tường của cột đó sáng hơn các tường khác', async () => {
+    const { container } = await renderMain();
+    const opacities = (): Set<string | null> =>
+      new Set([...container.querySelectorAll('aside svg polygon')].map((p) => p.getAttribute('fill-opacity')));
+
+    expect(opacities().size).toBe(1);
+
+    fireEvent.pointerEnter(container.querySelector('section[aria-label] div.items-end') as Element);
+
+    expect(opacities().size).toBeGreaterThan(1);
   }, HEAVY_TEST_TIMEOUT_MS);
 });
 
@@ -650,17 +701,13 @@ describe('P04 cụm C — điều khiển chỉ hiện khi dùng được', () =
     expect(thicknessInStore(target.id)).toBe(330);
   }, HEAVY_TEST_TIMEOUT_MS);
 
-  it('[BUG-611] nhãn tóm tắt không in lại con số đứng ngay trên nó', async () => {
+  it('[BUG-611/340] mỗi ô tóm tắt chỉ có một con số', async () => {
     const { container } = await renderMain();
     const group = within(container).getByRole('group', { name: SUMMARY_GROUP_LABEL });
 
     for (const line of within(group).getAllByRole('status')) {
-      const visible = [...line.childNodes]
-        .filter((node) => !(node instanceof HTMLElement && node.classList.contains('sr-only')))
-        .map((node) => node.textContent ?? '')
-        .join('');
-
-      expect(visible).not.toMatch(/^\d/u);
+      // Mỗi ô có đúng MỘT con số (BUG-340): không số lớn aria-hidden cộng số sr-only.
+      expect((line.textContent ?? '').match(/[0-9]+/gu)).toHaveLength(1);
     }
 
     expect(group.querySelector('.text-state-verified-text')).toBeNull();

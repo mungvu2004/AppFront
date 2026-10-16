@@ -73,7 +73,7 @@ const PANEL_WIDTH = 'w-[400px] max-w-full';
  * `relative` là chỗ neo của hai lớp phủ trạng thái bên trong.
  */
 const PREVIEW_FRAME =
-  'relative h-[240px] w-full overflow-hidden rounded-[8px] border border-border-default bg-canvas-3d';
+  'relative h-60 w-full overflow-hidden rounded-lg border border-border-default bg-canvas-3d';
 
 /** Chữ đều cho mọi con số người đọc nhìn thấy — số tam giác, dung lượng, kích thước bao. */
 const NUMERIC_TEXT = 'font-mono tabular-nums';
@@ -217,7 +217,7 @@ function ModelFields({ fields }: FieldsProps) {
         <FieldRow isLast={index === fields.length - 1} key={field.label} label={field.label}>
           <span
             className={cn(
-              'flex min-h-[36px] items-center text-[14px] text-text-primary',
+              'flex min-h-9 items-center text-[14px] text-text-primary',
               field.isNumeric && NUMERIC_TEXT,
             )}
           >
@@ -255,7 +255,7 @@ function HeavyNotice({ item }: HeavyProps) {
   return (
     <section
       aria-label="Cảnh báo model nặng"
-      className="flex flex-col items-start gap-2 rounded-[8px] bg-bg-sunken p-3"
+      className="flex flex-col items-start gap-2 rounded-lg bg-bg-sunken p-3"
     >
       <Badge variant="attention">Nặng</Badge>
 

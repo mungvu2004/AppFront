@@ -38,7 +38,7 @@ function Boom({ shouldThrow, message = '' }: { shouldThrow: boolean; message?: s
 /** Phần dự phòng — cùng khuôn với `ScreenCrashFallback` trong `src/App.tsx`. */
 function fallback({ report, retry }: ScreenErrorFallback) {
   return (
-    <div className="h-[280px] border border-border-default rounded-[12px] bg-bg-surface overflow-hidden">
+    <div className="h-[280px] border border-border-default rounded-xl bg-bg-surface overflow-hidden">
       <EmptyState
         icon={<div className="w-8 h-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
         title={report.description.title}

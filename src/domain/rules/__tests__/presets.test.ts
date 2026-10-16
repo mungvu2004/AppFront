@@ -12,7 +12,14 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { setRuleEnabled, setRuleSeverity, EMPTY_RULE_CONFIG, resolveRules } from '../config';
+import {
+  setRuleEnabled,
+  setRuleSeverity,
+  setRuleThreshold,
+  EMPTY_RULE_CONFIG,
+  GENERAL_THRESHOLD_CODE,
+  resolveRules,
+} from '../config';
 import { defaultRuleRegistry } from '../defaults';
 import { diffPreset, RULE_PRESETS, type RulePreset } from '../presets';
 import type { RuleCode } from '../registry';
@@ -193,5 +200,15 @@ describe('diffPreset', () => {
     expect(diff.disabledCount).toBe(1);
     expect(diff.changedRuleCount).toBe(2);
     expect(new Set(diff.changedCodes)).toEqual(new Set(['ROOM-HAS-DOOR', 'WALL-DANGLING-END']));
+  });
+});
+
+describe('diffPreset with a shared threshold (29-C-017)', () => {
+  it('counts the change a preset makes by resetting a shared threshold', () => {
+    const edited = setRuleThreshold(EMPTY_RULE_CONFIG, GENERAL_THRESHOLD_CODE, 'general.parallelAngleDeg', 7);
+    const residential = RULE_PRESETS.find((preset) => preset.kind === 'residential')!;
+
+    expect(diffPreset(edited, residential).changedRuleCount).toBeGreaterThan(0);
+    expect(diffPreset(EMPTY_RULE_CONFIG, residential).changedRuleCount).toBe(0);
   });
 });

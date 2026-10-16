@@ -59,6 +59,8 @@ const FOCUS_RING_CLASS =
 
 const SECTION_TITLE = 'Phép đo';
 const EMPTY_HINT = 'Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.';
+/** Không có mô hình thì không mời đo; lớp phủ đã nói vì sao (25-B-017). */
+const NO_MODEL_HINT = 'Chưa có phép đo nào.';
 const UNIT_SELECT_LABEL = 'Đơn vị';
 const COLLAPSE_BUTTON_LABEL = `Thu gọn mục ${SECTION_TITLE}`;
 const STALE_BADGE_TEXT = 'Cần chú ý';
@@ -75,7 +77,7 @@ export interface MeasurementListProps
     | 'unit'
     | 'onUnitChange'
     | 'canPin'
-    | 'pinBlockedCaption'
+    | 'noModel'
     | 'collapsed'
     | 'onToggleCollapsed'
   > {}
@@ -107,6 +109,16 @@ function MeasurementRow({
         'transition-colors duration-fast motion-reduce:transition-none',
         isHighlighted && 'bg-bg-hover',
       )}
+      // Tiêu điểm vào nút của hàng cũng làm nổi hàng, như rê chuột: người dùng bàn
+      // phím Tab tới "Ẩn …" rồi nhấn Delete là xoá được (WCAG 2.1.1, 25-E-015).
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          onHighlight(null);
+        }
+      }}
+      onFocus={() => {
+        onHighlight(measurement.id);
+      }}
       onMouseEnter={() => {
         onHighlight(measurement.id);
       }}
@@ -137,9 +149,9 @@ function MeasurementRow({
         aria-label={measurement.visible ? `Ẩn ${measurement.name}` : `Hiện ${measurement.name}`}
         icon={
           measurement.visible ? (
-            <Eye aria-hidden="true" className="h-[16px] w-[16px]" />
+            <Eye aria-hidden="true" className="h-4 w-4" />
           ) : (
-            <EyeOff aria-hidden="true" className="h-[16px] w-[16px]" />
+            <EyeOff aria-hidden="true" className="h-4 w-4" />
           )
         }
         isActive={!measurement.visible}
@@ -152,7 +164,7 @@ function MeasurementRow({
       {canDelete && (
         <IconButton
           aria-label={`Xoá ${measurement.name}`}
-          icon={<Trash2 aria-hidden="true" className="h-[16px] w-[16px]" />}
+          icon={<Trash2 aria-hidden="true" className="h-4 w-4" />}
           onClick={() => {
             onDelete(measurement.id);
           }}
@@ -173,32 +185,35 @@ export function MeasurementList({
   unit,
   onUnitChange,
   canPin,
-  pinBlockedCaption,
+  noModel,
   collapsed,
   onToggleCollapsed,
 }: MeasurementListProps) {
+  // `px-3` + `px-2` của hàng = 20 px, đúng lề chữ "Thuộc tính" của panel (BUG-377).
   if (collapsed) {
     return (
-      <button
-        aria-label={`Mở mục ${SECTION_TITLE}, ${countLabel}`}
-        className={cn(
-          'flex h-9 w-full items-center justify-between gap-2 rounded-md px-2',
-          'text-[13px] text-text-primary hover:bg-bg-hover',
-          FOCUS_RING_CLASS,
-        )}
-        onClick={onToggleCollapsed}
-        type="button"
-      >
-        <span>{SECTION_TITLE}</span>
-        <Badge noDot variant="neutral">
-          {countLabel}
-        </Badge>
-      </button>
+      <div className="px-3">
+        <button
+          aria-label={`Mở mục ${SECTION_TITLE}, ${countLabel}`}
+          className={cn(
+            'flex h-9 w-full items-center justify-between gap-2 rounded-md px-2',
+            'text-[13px] text-text-primary hover:bg-bg-hover',
+            FOCUS_RING_CLASS,
+          )}
+          onClick={onToggleCollapsed}
+          type="button"
+        >
+          <span>{SECTION_TITLE}</span>
+          <Badge noDot variant="neutral">
+            {countLabel}
+          </Badge>
+        </button>
+      </div>
     );
   }
 
   return (
-    <section aria-label={SECTION_TITLE} className="flex flex-col gap-2">
+    <section aria-label={SECTION_TITLE} className="flex flex-col gap-2 px-3">
       <header className="flex items-center justify-between gap-2 px-2">
         <div className="flex min-w-0 items-baseline gap-2">
           <h3 className="text-[13px] font-medium text-text-primary">{SECTION_TITLE}</h3>
@@ -206,7 +221,7 @@ export function MeasurementList({
         </div>
         <IconButton
           aria-label={COLLAPSE_BUTTON_LABEL}
-          icon={<ChevronDown aria-hidden="true" className="h-[16px] w-[16px]" />}
+          icon={<ChevronDown aria-hidden="true" className="h-4 w-4" />}
           onClick={onToggleCollapsed}
           size="sm"
         />
@@ -223,12 +238,8 @@ export function MeasurementList({
         />
       </div>
 
-      {!canPin && pinBlockedCaption !== null && (
-        <p className="px-2 text-[12px] text-text-secondary">{pinBlockedCaption}</p>
-      )}
-
       {measurements.length === 0 ? (
-        <p className="px-2 text-[13px] text-text-secondary">{EMPTY_HINT}</p>
+        <p className="px-2 text-[13px] text-text-secondary">{noModel ? NO_MODEL_HINT : EMPTY_HINT}</p>
       ) : (
         <ul className="flex flex-col">
           {measurements.map((measurement) => (

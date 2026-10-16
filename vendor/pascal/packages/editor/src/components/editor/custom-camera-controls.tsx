@@ -35,6 +35,7 @@ import {
   acceptsKeyboardPan,
   clearKeyboardPanKeys,
   hasKeyboardPanInput,
+  isActivatableKeyboardTarget,
   isEditableKeyboardTarget,
   isKeyboardPanKey,
   type KeyboardPanState,
@@ -816,7 +817,7 @@ export const CustomCameraControls = ({ paused = false }: { paused?: boolean }) =
       }
 
       if (event.code === 'Space') {
-        if (isEditableKeyboardTarget(event.target)) return
+        if (isEditableKeyboardTarget(event.target) || isActivatableKeyboardTarget(event.target)) return
         event.preventDefault()
         keyState.space = true
         updateNavigationCursor()

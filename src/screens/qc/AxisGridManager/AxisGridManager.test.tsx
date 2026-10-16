@@ -530,6 +530,47 @@ describe('QA-04c SCR-19 trên màn', () => {
     vi.unstubAllGlobals();
   });
 
+  it('[G09] bấm trục rồi nhả với con trỏ gần như đứng yên thì KHÔNG gửi onAxisDrag (không đổi vị trí trục)', () => {
+    const onAxisDrag = vi.fn();
+    const viewModel = axisGridScenarioFor('success');
+    const { container } = renderWithProviders(
+      <AxisGridCanvas
+        canvas={viewModel.canvas}
+        isInteractive
+        onAxisDrag={onAxisDrag}
+        onAxisSelect={() => undefined}
+        viewerRoleNotice={null}
+      />,
+    );
+    const svg = container.querySelector('svg') as SVGSVGElement;
+    const identity = { inverse: () => identity };
+
+    Object.assign(svg, { getScreenCTM: () => identity });
+    vi.stubGlobal(
+      'DOMPoint',
+      class {
+        constructor(
+          readonly x: number,
+          readonly y: number,
+        ) {}
+        matrixTransform(): this {
+          return this;
+        }
+      },
+    );
+
+    const axis = viewModel.canvas.axes.find((item) => item.isVisible);
+    const figure = container.querySelector(`g[aria-label="${axis?.label ?? ''}"]`) as SVGGElement;
+
+    fireEvent.pointerDown(figure, { pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(svg, { pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(svg, { pointerId: 1, clientX: 11, clientY: 11 });
+    fireEvent.pointerUp(svg, { pointerId: 1 });
+
+    expect(onAxisDrag).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
   it('[G20] chưa có giao trục nào để neo: bốn độ lệch đọc "—", không "0 px / 0 mm" như đã đo', () => {
     const origin = axisGridScenarioFor('success').origin;
     const unmeasured = {

@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { WallSchema } from '@/api/schemas/spatial';
 import {
   createSampleBuilding,
   sampleLevelId,
@@ -18,7 +19,7 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 
 import { diffScenes, isEmptyDiff } from '../diff';
 import { createPascalEditCommand, PASCAL_COMMAND_TYPE } from '../fromPascal';
-import { BUILDING_NODE_ID } from '../ids';
+import { appFrontIdOf, BUILDING_NODE_ID } from '../ids';
 import { toPascalScene } from '../toPascal';
 import type { PascalIdBook } from '../toSpatial';
 import type { PascalNode, PascalScene, PascalZoneNode } from '../types';
@@ -185,7 +186,9 @@ describe('createPascalEditCommand', () => {
 
     expect(change?.before?.reviewed).toBe(false);
     expect(change?.after?.reviewed).toBe(true);
-    expect(change?.after?.source).toBe('ai');
+    // catalog-C6 ⚑3: `{ source: 'ai', reviewed: true }` bị `humanOnlyReview` chặn, tầng kẹt.
+    expect(change?.after?.source).toBe('human');
+    expect(WallSchema.safeParse(change?.after).success).toBe(true);
   });
 
   it('A5 — Pascal sửa `reviewed` trong siêu dữ liệu thì lệnh KHÔNG mang dấu ấy về', () => {
@@ -258,6 +261,34 @@ describe('createPascalEditCommand', () => {
     expect(change?.before?.reviewed).toBe(true);
     // Còn bản sau một lượt kéo thì không còn là bức tường người duyệt đã nhìn.
     expect(change?.after?.reviewed).toBe(false);
+  });
+
+  it('23R-C-006 — chỉ đổi tên phòng thì GIỮ dấu xác minh (tên không phải hình học)', () => {
+    const room = createSampleBuilding().rooms[0];
+    const zone = Object.values(baseScene.nodes).find(
+      (node) => node.type === 'zone' && appFrontIdOf('room', node.id) === room?.id,
+    );
+
+    if (room === undefined || zone === undefined || zone.type !== 'zone') {
+      throw new Error('cảnh nền phải có ít nhất một phòng');
+    }
+
+    const reviewedGraph = normalizeSpatial({
+      ...createSampleBuilding(),
+      rooms: createSampleBuilding().rooms.map((candidate, index) =>
+        index === 0 ? { ...candidate, source: 'human' as const, reviewed: true } : candidate,
+      ),
+    });
+    const result = createPascalEditCommand({
+      graph: reviewedGraph,
+      scene: sceneWith(zone.id, { ...zone, name: 'Kho lạnh' }),
+      commit: { origin: 'local', changedNodeIds: [zone.id] },
+      actorId: ACTOR,
+    });
+
+    expect(result.ok).toBe(true);
+    const change = result.ok ? result.data.changes[0] : null;
+    expect(change?.after).toMatchObject({ name: 'Kho lạnh', reviewed: true });
   });
 
   it('3A — kéo một đầu tường kéo theo tường nối: CẢ HAI vào cùng một lệnh', () => {

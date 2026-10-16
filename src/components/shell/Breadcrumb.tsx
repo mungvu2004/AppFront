@@ -63,7 +63,7 @@ export function Breadcrumb({ ariaLabel = NAV_LABEL, items }: BreadcrumbProps) {
                     className={cn(
                       'inline-flex min-h-11 min-w-11 items-center sm:min-h-6 sm:min-w-0 text-[13px] font-medium text-text-secondary leading-none',
                       'hover:text-text-primary transition-colors duration-120',
-                      'rounded-[4px] px-0.5 -mx-0.5',
+                      'rounded px-0.5 -mx-0.5',
                       'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
                       isDropdownOpen && 'text-text-primary'
                     )}
@@ -144,7 +144,7 @@ export function Breadcrumb({ ariaLabel = NAV_LABEL, items }: BreadcrumbProps) {
                     // (BUG-108, run-20); từ 640 px giữ dòng chữ 24 px.
                     'inline-flex min-h-11 min-w-11 items-center sm:min-h-6 sm:min-w-0 text-[13px] font-medium text-text-secondary leading-none',
                     'hover:text-text-primary transition-colors duration-120',
-                    'rounded-[4px] px-0.5 -mx-0.5',
+                    'rounded px-0.5 -mx-0.5',
                     'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2'
                   )}
                 >

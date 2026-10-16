@@ -42,7 +42,7 @@
  * tệ hơn không mở tấm trượt nào".
  */
 
-import { useMemo, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -54,11 +54,14 @@ import {
 } from '@/components/feedback/ScreenErrorBoundary';
 import type { Violation } from '@/domain/rules/registry';
 import { useBreakpoint } from '@/hooks/useAppShell';
+import { useSession } from '@/hooks/useSession';
+import { can } from '@/lib/auth/permissions';
 import { useStore } from '@/store';
 
 import { ViolationDetailContainer } from '../ViolationDetail';
 
 import { RuleReport } from './RuleReport';
+import { sheetFloorId } from './sheetFloorId';
 import type { RuleReportRow } from './types';
 import { useRuleReport } from './useRuleReport';
 
@@ -129,7 +132,11 @@ function toViolation(row: RuleReportRow): Violation {
 function WiredRuleReport(props: WiredRuleReportProps) {
   const [openRowKey, setOpenRowKey] = useState<string | null>(null);
   const activeFloorId = useStore((state) => state.activeFloorId);
+  const graph = useStore((state) => state.spatial);
   const navigate = useNavigate();
+  const rootRef = useRef<HTMLDivElement>(null);
+  // 28V-E-008: hàng đã mở tấm — đóng tấm thì tiêu điểm về nút của hàng đó.
+  const returnFocusKey = useRef<string | null>(null);
 
   const viewProps = useRuleReport({
     projectId: props.projectId,
@@ -143,7 +150,17 @@ function WiredRuleReport(props: WiredRuleReportProps) {
   );
   const openIndex = openRowKey === null ? -1 : allRows.findIndex((row) => row.key === openRowKey);
   const openRow = openIndex === -1 ? null : (allRows[openIndex] ?? null);
-  const floorId = openRow === null ? null : (activeFloorId ?? openRow.levelId);
+  const floorId = openRow === null ? null : sheetFloorId(activeFloorId, openRow.levelId, graph);
+
+  useEffect(() => {
+    const key = returnFocusKey.current;
+    if (openRowKey !== null || key === null) return;
+    returnFocusKey.current = null;
+    const buttons = rootRef.current?.querySelectorAll<HTMLElement>('[data-row-key]') ?? [];
+    for (const button of buttons) {
+      if (button.dataset['rowKey'] === key) button.focus();
+    }
+  }, [openRowKey]);
 
   /**
    * View vẽ liên kết trong ứng dụng bằng `<a href>` thường (story dựng nó ngoài router).
@@ -166,11 +183,12 @@ function WiredRuleReport(props: WiredRuleReportProps) {
   // không cắt thì suốt lượt trượt trang có thêm 285–405 px cuộn ngang và nút
   // trước/sau/đóng nằm ngoài màn (BUG-434). Báo cáo tự cuộn bên trong `h-full`.
   return (
-    <div className="relative h-full overflow-hidden" onClickCapture={onClickCapture}>
+    <div ref={rootRef} className="relative h-full overflow-hidden" onClickCapture={onClickCapture}>
       <RuleReport
         {...viewProps}
         onSelectRow={(rowKey) => {
           viewProps.onSelectRow(rowKey);
+          returnFocusKey.current = rowKey;
           setOpenRowKey(rowKey);
         }}
       />
@@ -181,6 +199,16 @@ function WiredRuleReport(props: WiredRuleReportProps) {
           initialIndex={openIndex}
           onClose={() => {
             setOpenRowKey(null);
+          }}
+          onShownChange={(shown) => {
+            // 28-A-040: hàng đang chọn đi theo tấm (tự chuyển 28V-A-016, J/K). Giữ khoá cũ thì bấm lại
+            // hàng đã mở tấm lúc đầu không đổi `initialIndex` và tấm đứng yên (BUG-728 RF p06-rf).
+            // `returnFocusKey` không đổi: đóng tấm vẫn trả tiêu điểm về hàng đã bấm (28V-E-008).
+            const key = allRows.find((row) => row.entityId === shown.entityId && row.ruleCode === shown.ruleCode)?.key;
+            if (key !== undefined && key !== openRowKey) {
+              viewProps.onSelectRow(key);
+              setOpenRowKey(key);
+            }
           }}
           projectId={props.projectId}
           violations={allRows.map(toViolation)}
@@ -232,10 +260,16 @@ export function RuleReportContainer(props: RuleReportContainerProps) {
 export function RulesRoute() {
   const { projectId } = useParams<{ projectId: string }>();
   const isCompact = useBreakpoint('(width < 1024px)');
+  // 28-D-004 / 28V-D-003: quyền thật của dự án (vai theo dự án, dự phòng vai phiên) —
+  // thiếu nó `canEdit` mặc định true và người xem thấy nút sửa rồi ăn 403 khi lưu.
+  const session = useSession();
+  const storeRoles = useStore((state) => state.userRoles);
+  const roles = storeRoles.length > 0 ? storeRoles : session.roles;
+  const canEdit = can('edit', 'layer', { roles });
 
   return (
     <ProjectSpatialGate projectId={projectId}>
-      <RuleReportContainer isCompact={isCompact} />
+      <RuleReportContainer canEdit={canEdit} isCompact={isCompact} />
     </ProjectSpatialGate>
   );
 }

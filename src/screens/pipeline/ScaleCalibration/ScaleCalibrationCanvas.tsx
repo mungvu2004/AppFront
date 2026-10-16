@@ -35,7 +35,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CSSProperties, KeyboardEvent, PointerEvent, WheelEvent } from 'react';
+import type { KeyboardEvent, PointerEvent } from 'react';
 
 import { dimensionStrokeToken } from '@/components/canvas/materialMap';
 import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
@@ -46,9 +46,8 @@ import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { cssDurationMs } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
-import { CanvasNavigation, ReferenceHandle } from './ScaleCalibrationCanvasControls';
+import { CanvasNavigation, DimensionRowBox, ReferenceHandle } from './ScaleCalibrationCanvasControls';
 import type {
-  DimensionStringRow,
   ImageRatioPoint,
   ReferenceLineEndpoint,
   ScaleCalibrationCanvasProps,
@@ -59,7 +58,6 @@ import type {
 /* -------------------------------------------------------------------------- */
 
 const CANVAS_ARIA_LABEL = 'Bản vẽ đã nắn, kéo để vẽ đường tham chiếu';
-const ROW_ARIA_LABEL_PREFIX = 'Chuỗi kích thước ';
 const FORBIDDEN_DESCRIPTION =
   'Bản vẽ vẫn xem và phóng to được, nhưng không kéo được đường tham chiếu. Nhờ người có quyền sửa dự án đặt tỷ lệ giúp.';
 const FORBIDDEN_DESCRIPTION_ID = 'scale-calibration-canvas-forbidden';
@@ -68,25 +66,17 @@ const FORBIDDEN_DESCRIPTION_ID = 'scale-calibration-canvas-forbidden';
 const WHEEL_ZOOM_STEP = 1.1;
 /** Nút giữa chuột (button === 1), dùng để kéo nền thay vì vẽ. */
 const MIDDLE_MOUSE_BUTTON = 1;
+/** Sai số làm tròn toạ độ con trỏ so với mép khung: kéo đúng mép ảnh không được tính là "ra khỏi khung" (14-C-023). */
+const EDGE_TOLERANCE_PX = 1;
 
 /** Tâm khung ảnh — chỗ Enter trên canvas đặt đoạn mới khi không có chuột (BUG-607). */
 const FRAME_CENTRE: ImageRatioPoint = { x: 0.5, y: 0.5 };
 
 const FRAME_CLASSES =
-  'relative aspect-square w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d';
+  'relative aspect-square w-full overflow-hidden rounded-2xl border border-border-default bg-canvas-2d';
 
 function clampRatio(value: number): number {
   return Math.min(1, Math.max(0, value));
-}
-
-function rowRectStyle(row: DimensionStringRow): CSSProperties {
-  const { min, max } = row.boundingBox;
-  return {
-    left: `${min.x * 100}%`,
-    top: `${min.y * 100}%`,
-    width: `${(max.x - min.x) * 100}%`,
-    height: `${(max.y - min.y) * 100}%`,
-  };
 }
 
 export function ScaleCalibrationCanvas({
@@ -111,6 +101,7 @@ export function ScaleCalibrationCanvas({
     onZoomOut,
   } = actions;
 
+  const frameRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const [contentSize, setContentSize] = useState({ width: 0, height: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -205,13 +196,28 @@ export function ScaleCalibrationCanvas({
         return;
       }
 
+      // Con trỏ đã được "bắt" nên trình duyệt không bắn pointerleave: tự phát hiện con trỏ ra khỏi khung ảnh và huỷ đoạn (14-A-014).
+      const bounds = contentRef.current?.getBoundingClientRect();
+
+      if (
+        bounds !== undefined &&
+        bounds.width > 0 &&
+        (event.clientX < bounds.left - EDGE_TOLERANCE_PX ||
+          event.clientX > bounds.right + EDGE_TOLERANCE_PX ||
+          event.clientY < bounds.top - EDGE_TOLERANCE_PX ||
+          event.clientY > bounds.bottom + EDGE_TOLERANCE_PX)
+      ) {
+        onCancelDrag();
+        return;
+      }
+
       const point = ratioAt(event.clientX, event.clientY);
 
       if (point !== null) {
         onMoveDrag(point, { isAxisLocked: event.shiftKey });
       }
     },
-    [canvas.isInteractive, canvas.referenceLine, isPanning, onMoveCursor, onMoveDrag, onPan, ratioAt],
+    [canvas.isInteractive, canvas.referenceLine, isPanning, onCancelDrag, onMoveCursor, onMoveDrag, onPan, ratioAt],
   );
 
   const handlePointerUp = useCallback(
@@ -244,13 +250,26 @@ export function ScaleCalibrationCanvas({
   }, [canvas.isInteractive, canvas.referenceLine, onCancelDrag, onMoveCursor]);
 
   const handleWheel = useCallback(
-    (event: WheelEvent<HTMLDivElement>) => {
+    (event: globalThis.WheelEvent) => {
       event.preventDefault();
       const factor = event.deltaY < 0 ? WHEEL_ZOOM_STEP : 1 / WHEEL_ZOOM_STEP;
       onZoom(canvas.viewport.zoom * factor, ratioAt(event.clientX, event.clientY));
     },
     [canvas.viewport.zoom, onZoom, ratioAt],
   );
+
+  // React gắn `onWheel` ở gốc cây với passive:true nên preventDefault không có tác dụng và trang cuộn theo (14-E-013): gắn trình nghe gốc không-passive.
+  useEffect(() => {
+    const frame = frameRef.current;
+
+    if (frame === null) {
+      return undefined;
+    }
+
+    frame.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => frame.removeEventListener('wheel', handleWheel);
+  }, [handleWheel]);
 
   const handleGrabEndpoint = useCallback(
     (endpoint: ReferenceLineEndpoint, clientX: number, clientY: number) => {
@@ -322,7 +341,7 @@ export function ScaleCalibrationCanvas({
       onPointerLeave={handlePointerLeave}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onWheel={handleWheel}
+      ref={frameRef}
       role="group"
       tabIndex={canvas.isInteractive ? 0 : undefined}
     >
@@ -348,36 +367,7 @@ export function ScaleCalibrationCanvas({
           ) : null}
 
           {canvas.dimensionRows.map((row) => (
-            <button
-              aria-label={`${ROW_ARIA_LABEL_PREFIX}${row.valueLabel}`}
-              className={cn(
-                'absolute flex items-center justify-center rounded-[4px] border-2 bg-transparent p-0',
-                row.isLowConfidence ? 'border-state-attention' : 'border-accent',
-              )}
-              key={row.id}
-              onBlur={() => onHoverDimensionRow(null)}
-              onClick={() => onSelectDimensionRow(row.id)}
-              onMouseEnter={() => onHoverDimensionRow(row.id)}
-              onMouseLeave={() => onHoverDimensionRow(null)}
-              onFocus={() => onHoverDimensionRow(row.id)}
-              style={{
-                ...rowRectStyle(row),
-                backgroundImage: row.isLowConfidence
-                  ? 'repeating-linear-gradient(45deg, var(--state-attention) 0 1px, transparent 1px 6px)'
-                  : undefined,
-              }}
-              title={row.pixelLengthLabel}
-              type="button"
-            >
-              <span
-                className={cn(
-                  'pointer-events-none whitespace-nowrap font-mono text-[11px]',
-                  row.isLowConfidence ? 'text-state-attention' : 'text-accent',
-                )}
-              >
-                {row.valueLabel}
-              </span>
-            </button>
+            <DimensionRowBox key={row.id} onHover={onHoverDimensionRow} onSelect={onSelectDimensionRow} row={row} />
           ))}
 
           {haloBox !== null ? (

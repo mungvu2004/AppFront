@@ -46,15 +46,28 @@ const thickened = (): PascalScene => {
   };
 };
 
-const mount = (overrides: { readonly readOnly?: boolean; readonly onRejected?: (reason: string) => void } = {}) =>
+const mount = (
+  overrides: {
+    readonly readOnly?: boolean;
+    readonly onRejected?: (reason: string) => void;
+    readonly onMassDelete?: (request: { nodeIds: readonly string[]; reason: string }) => void;
+  } = {},
+) =>
   renderHook(() =>
     usePascalEdits({
       spatial: useStore.getState().spatial,
       loadedScene: SCENE,
       readOnly: overrides.readOnly ?? false,
       onRejected: overrides.onRejected ?? (() => undefined),
+      ...(overrides.onMassDelete === undefined ? {} : { onMassDelete: overrides.onMassDelete }),
     }),
   );
+
+/** Cảnh nền bỏ hẳn mọi tường — đúng thứ `MASS_DELETE_RATIO` tồn tại để chặn. */
+const gutted = (): PascalScene => ({
+  nodes: Object.fromEntries(Object.entries(SCENE.nodes).filter(([, node]) => node.type !== 'wall')),
+  rootNodeIds: SCENE.rootNodeIds,
+});
 
 beforeEach(() => {
   act(() => {
@@ -106,6 +119,18 @@ describe('usePascalEdits', () => {
     const after = useStore.getState().spatial?.byId[wallId];
 
     expect(after !== undefined && 'thicknessMm' in after ? after.thicknessMm : null).toBe(330);
+  });
+
+  it('23H-A-016 — lượt sửa đã vào kho thành một bước trên ngăn lịch sử trả ra cho bảng', async () => {
+    const { result } = mount();
+
+    expect(result.current.history.undoSteps()).toHaveLength(0);
+
+    await act(async () => {
+      await result.current.onSceneCommit(thickened());
+    });
+
+    expect(result.current.history.undoSteps()).toHaveLength(1);
   });
 
   it('C2 — bức tường vừa sửa mất dấu xác minh', async () => {
@@ -163,5 +188,34 @@ describe('usePascalEdits', () => {
 
     expect(useStore.getState().spatial).toBe(before);
     expect(onRejected).toHaveBeenCalledTimes(1);
+  });
+
+  it('23-A-026 — xoá hàng loạt: báo màn mở hộp xác nhận; xác nhận rồi thì đúng lượt xoá ấy được ghi', async () => {
+    const onMassDelete = vi.fn();
+    const { result } = mount({ onMassDelete });
+    const wallIds = Object.values(SCENE.nodes)
+      .filter((node) => node.type === 'wall')
+      .map((node) => node.id);
+
+    expect(result.current.validateCommit(gutted()).ok).toBe(false);
+    expect(onMassDelete).toHaveBeenCalledTimes(1);
+
+    const request = onMassDelete.mock.calls[0]?.[0] as { nodeIds: readonly string[]; reason: string };
+
+    expect(request.nodeIds).toEqual(expect.arrayContaining(wallIds));
+    expect(request.reason).toMatch(/xác nhận/u);
+
+    act(() => {
+      result.current.confirmMassDelete(request.nodeIds);
+    });
+
+    // Editor xoá lại sau khi người dùng bấm "Xoá": cảnh mới, cùng phần xoá.
+    expect(result.current.validateCommit(gutted())).toEqual({ ok: true });
+
+    await act(async () => {
+      expect(await result.current.onSceneCommit(gutted())).toBe(true);
+    });
+
+    expect(useStore.getState().spatial?.byKind.wall ?? []).toHaveLength(0);
   });
 });

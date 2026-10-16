@@ -458,6 +458,30 @@ describe('lệnh bị từ chối phải nói ra vì sao (B-V7-08)', () => {
     expect(refusal?.undoTicket).toBeUndefined();
     expect(mounted.result.current.rooms).toHaveLength(ROOM_LABEL_FIXTURE_TOTAL);
   });
+
+  it('[BUG-605] toast bảo "Sang lớp tường" có nút đi tới lớp tường', async () => {
+    const notifications: NotificationBus = createNotificationBus();
+    const onNavigate = vi.fn();
+    const mounted = await mountSettled({ notifications, onNavigate });
+    const [target, absorbed] = ROOM_LABEL_FIXTURE_ROOMS;
+
+    await act(async () => {
+      mounted.result.current.onMerge(target?.id as RoomId, absorbed?.id as RoomId);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+
+    const action = notifications.list()[0]?.action;
+
+    expect(action?.label).toBe('Sang lớp tường');
+    act(() => {
+      action?.onClick();
+    });
+
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.walls(PROJECT_ID, FLOOR_ID));
+  });
 });
 
 /*

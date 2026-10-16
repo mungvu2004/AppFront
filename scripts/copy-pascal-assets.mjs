@@ -30,6 +30,7 @@
  */
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -94,6 +95,14 @@ const ICON_SOURCE = join('vendor', 'pascal', 'assets', 'icons');
 const ICON_TARGET = join('public', 'icons');
 const ICON_MAX_BYTES = 40_000;
 
+/**
+ * Thư viện đồ đạc của editor (QA-05c B4): `catalog-items.tsx` ghi `/items/<mẫu>/{model.glb,thumbnail.webp}`,
+ * `resolveCdnUrl` ghép thành `/pascal/items/…`. Bản gốc trỏ supabase.co của Pascal — CSP chặn, 111 ảnh vỡ.
+ * Nguồn: `apps/editor/public/items` của `F:/pascal-editor`, chỉ 100 thư mục mà 101 mẫu catalog dùng (200 tệp, 2 010 KiB).
+ */
+const ITEMS_SOURCE = join('vendor', 'pascal', 'assets', 'items');
+const ITEMS_TARGET = join('public', 'pascal', 'items');
+
 /** Đếm đệ quy, để dòng tổng kết nói được số thật chứ không nói "xong". */
 const countFiles = (dir) => {
   let total = 0;
@@ -149,6 +158,9 @@ const referenced = [
 ];
 const missing = referenced.filter((rel) => !existsSync(join(MATERIAL_TARGET, rel)));
 
+rmSync(ITEMS_TARGET, { force: true, recursive: true });
+cpSync(ITEMS_SOURCE, ITEMS_TARGET, { recursive: true });
+
 rmSync(ICON_TARGET, { force: true, recursive: true });
 mkdirSync(ICON_TARGET, { recursive: true });
 const iconsSkipped = [];
@@ -172,6 +184,7 @@ for (const name of basisCopied) {
 }
 
 console.log(`Đã chép ${String(materialCount)} tệp vật liệu Pascal vào ${MATERIAL_TARGET}/`);
+console.log(`Đã chép ${String(countFiles(ITEMS_TARGET))} tệp thư viện đồ đạc vào ${ITEMS_TARGET}/`);
 
 if (missing.length > 0) {
   const materials = [...new Set(missing.map((rel) => rel.split('/')[1]))];

@@ -243,7 +243,8 @@ export function deriveThicknessScreenState(input: {
   readonly hasApplied: boolean;
 }): ThicknessScreenState {
   /* Vai trò KHÔNG đứng trước thu gọn/hỏng/tải/rỗng (BUG-601): người xem lúc đang tải vẫn phải thấy khung xương. */
-  if (input.isCollapsed) {
+  /* 21-B-009: thu gọn lúc đang tải vẫn là khung xương (cột phải của nhánh loading tự lo nút bung lại). */
+  if (input.isCollapsed && !input.isLoading) {
     return 'collapsed';
   }
 
@@ -377,6 +378,7 @@ export function useThicknessStandardization(
 
   const graph = useStore((state) => state.spatial);
   const setSpatial = useStore((state) => state.setSpatial);
+  const loadedFloorCount = useStore((state) => Object.keys(state.floorMeta).length);
   const selectedIds = useStore((state) => state.selectedIds);
   const hoveredId = useStore((state) => state.hoveredId);
   const setSelection = useStore((state) => state.setSelection);
@@ -399,7 +401,17 @@ export function useThicknessStandardization(
     }
   }, [floorId, gateway, graph, projectId, setSpatial]);
 
-  const walls = useMemo(() => wallsOfGraph(graph), [graph]);
+  /*
+   * Kho giữ nhiều tầng khi người dùng nhảy SPA giữa các tầng (S-06): bảng, biểu đồ, xem trước và Áp dụng chỉ nhận
+   * tường của TẦNG NÀY (`levelId === floorId`, quy ước của các màn QC). Kho một tầng — kể cả đồ thị mẫu nhiều
+   * tầng của story/test — giữ nguyên mọi tường.
+   */
+  const walls = useMemo(() => {
+    const all = wallsOfGraph(graph);
+    const hasThisLevel = graph !== null && graph.byKind.level.some((id) => id === floorId);
+
+    return loadedFloorCount > 1 && hasThisLevel ? all.filter((wall) => wall.levelId === floorId) : all;
+  }, [floorId, graph, loadedFloorCount]);
   /* Nhãn tường tính trên mọi tường, nên không trùng dù mã BE hay mã A14 (B-V6-09). */
   const wallCodes = useMemo(() => displayCodesOf(walls.map((wall) => wall.id)), [walls]);
   const levels = useMemo(() => levelsOfGraph(graph), [graph]);
@@ -860,7 +872,8 @@ export function useThicknessStandardization(
     {
       id: 'thicknessStandardization.closeTopLayer',
       combo: 'Escape',
-      scope: 'canvas',
+      /* sidePanel, not canvas: the registry skips canvas for any INPUT target, and the "Đồng ý" checkbox is an INPUT (21-E-007). */
+      scope: 'sidePanel',
       description: THICKNESS_SCREEN_TEXT.escapeShortcut,
       onTrigger: () => {
         if (preview !== null) {

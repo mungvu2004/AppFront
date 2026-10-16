@@ -26,15 +26,18 @@ import {
   MeshLambertMaterial,
   PerspectiveCamera,
   Scene,
+  Vector3,
   type Material,
 } from 'three';
 
+import { boxOfExtent, frameViewpoint } from '@/lib/three/camera/frameObjects';
 import {
   createCameraMode,
   type BuildingExtent,
   type CameraMode,
   type Viewpoint,
 } from '@/lib/three/camera/modes';
+import { PRESET_SETTINGS } from '@/lib/three/camera/presets';
 import { CAMERA_SETTINGS } from '@/lib/three/camera/settings';
 import { sharedMaterialCache } from '@/lib/three/perf/materialCache';
 import { tokenColour, type TokenReader } from '@/lib/three/present/palette';
@@ -81,6 +84,49 @@ function cameraModeOf(frame: ViewerSceneFrame): CameraMode {
 /** Tỉ lệ khung nhìn; 1 khi canvas chưa có kích thước nào để đo. */
 function aspectOf(width: number, height: number): number {
   return width > 0 && height > 0 ? width / height : 1;
+}
+
+/**
+ * Điểm nhìn của sân khấu cho một khung của vỏ. Thuần.
+ *
+ * Hướng và góc chúc lấy từ khung. Điểm ngắm là tâm hộp lưới THẬT cộng vết kéo
+ * màn của bộ điều khiển (`panOffsetM`) — trước đây luôn là tâm hộp, nên kéo màn
+ * không đổi pixel nào. Khoảng cách: đóng khung hộp thật theo tỉ lệ canvas thật
+ * và FOV, chia cho `zoom` của vỏ — vỏ đo theo footprint và tỉ lệ mặc định nên
+ * `distanceM` của nó có thể đặt camera trong mô hình (BUG-650).
+ */
+export function stageViewpoint(
+  frame: ViewerSceneFrame,
+  extent: BuildingExtent,
+  aspect: number,
+): Viewpoint {
+  const offset = frame.panOffsetM ?? [0, 0, 0];
+  const target = extent.centre.clone().add(new Vector3(...offset));
+
+  if (frame.zoom === undefined || !(frame.zoom > 0)) {
+    return {
+      target,
+      azimuthRad: frame.azimuthRad,
+      polarRad: frame.polarRad,
+      distanceM: frame.distanceM,
+    };
+  }
+
+  const framed = frameViewpoint(boxOfExtent(extent), {
+    azimuthRad: frame.azimuthRad,
+    polarRad: frame.polarRad,
+    aspect,
+    paddingFraction: PRESET_SETTINGS.framePaddingFraction,
+    clearanceMarginM: PRESET_SETTINGS.clearanceMarginM,
+    orthographic: frame.isOrthographic,
+  });
+
+  return {
+    target,
+    azimuthRad: frame.azimuthRad,
+    polarRad: frame.polarRad,
+    distanceM: framed.distanceM / frame.zoom,
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -167,18 +213,6 @@ export function createStage(readToken: TokenReader): SceneStage {
   /** Vật liệu gốc của mỗi mesh, để trả lại sau khi bỏ chọn. */
   const baseMaterials = new WeakMap<Mesh, Material>();
 
-  /**
-   * Camera do VỎ lái: hướng, góc chúc và khoảng cách của khung, nhìn vào tâm hộp
-   * bao. `ViewerSceneFrame` không mang điểm ngắm, nên tâm hộp bao là điểm ngắm
-   * duy nhất suy ra được từ khung.
-   */
-  const viewpointOf = (frame: ViewerSceneFrame, extent: BuildingExtent): Viewpoint => ({
-    target: extent.centre,
-    azimuthRad: frame.azimuthRad,
-    polarRad: frame.polarRad,
-    distanceM: frame.distanceM,
-  });
-
   return {
     scene,
     root,
@@ -187,7 +221,11 @@ export function createStage(readToken: TokenReader): SceneStage {
     hoverMaterial,
 
     aimCamera: (frame, extent, width, height) => {
-      createCameraMode(cameraModeOf(frame), viewpointOf(frame, extent), { extent }).applyTo(
+      createCameraMode(
+        cameraModeOf(frame),
+        stageViewpoint(frame, extent, aspectOf(width, height)),
+        { extent },
+      ).applyTo(
         camera,
         aspectOf(width, height),
       );

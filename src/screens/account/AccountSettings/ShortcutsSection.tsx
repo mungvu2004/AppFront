@@ -161,7 +161,7 @@ export function ShortcutsSection({
                     ))}
                   </span>
                 </td>
-                <td className="py-2 align-middle text-[14px] leading-[20px] text-text-primary">
+                <td className="py-2 align-middle text-[14px] leading-5 text-text-primary">
                   {row.description}
                 </td>
               </motion.tr>

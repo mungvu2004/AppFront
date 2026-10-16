@@ -35,7 +35,7 @@
 
 import { readdirSync } from 'node:fs';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { useEffect, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
@@ -906,6 +906,55 @@ describe('ScaleCalibration — QA-04c SCR-14', () => {
     mounted.unmount();
   });
 
+  it('[14-E-013] con lăn trên khung đăng ký trình nghe wheel không-passive để preventDefault có hiệu lực (SCV:270-277)', async () => {
+    measureFrame();
+    const harness = await makeHarness();
+    const wheelOptions: unknown[] = [];
+    const realAdd = HTMLDivElement.prototype.addEventListener;
+    const addSpy = vi.spyOn(HTMLDivElement.prototype, 'addEventListener').mockImplementation(function (
+      this: EventTarget,
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+      options?: boolean | AddEventListenerOptions,
+    ) {
+      if (type === 'wheel' && (this as Element).getAttribute?.('aria-label') === CANVAS_ARIA_LABEL) {
+        wheelOptions.push(options);
+      }
+      realAdd.call(this, type, listener, options);
+    });
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+    addSpy.mockRestore();
+
+    expect(wheelOptions).toContainEqual(expect.objectContaining({ passive: false }));
+
+    mounted.unmount();
+  });
+
+  it('Enter trên nút không bị phím tắt nuốt, mũi tên trên radio không nhích đầu đoạn (BUG-597)', async () => {
+    measureFrame();
+    const harness = await makeHarness();
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+    await act(async () => {
+      mounted.actions().onStartDrag({ x: 0.2, y: 0.2 });
+    });
+    await act(async () => {
+      mounted.actions().onEndDrag({ x: 0.6, y: 0.2 });
+    });
+    const endLeft = handle('Cuối').style.left;
+    const group = screen.getByRole('radiogroup', { name: 'Phạm vi áp tỷ lệ' });
+    const radio = within(group).getAllByRole('radio')[0] as HTMLElement;
+
+    fireEvent.keyDown(radio, { key: 'ArrowRight' });
+    expect(handle('Cuối').style.left).toBe(endLeft);
+
+    const notPrevented = fireEvent.keyDown(screen.getByRole('button', { name: 'Áp dụng tỷ lệ' }), { key: 'Enter' });
+    expect(notPrevented).toBe(true);
+
+    mounted.unmount();
+  });
+
   it('cụm thu phóng lái khung nhìn và không vẽ đoạn mới (BUG-596)', async () => {
     measureFrame();
     const harness = await makeHarness();
@@ -934,6 +983,78 @@ describe('ScaleCalibration — QA-04c SCR-14', () => {
 
     expect(handle('Đầu')).toBeInTheDocument();
     expect(screen.getByText(/^Đoạn quá ngắn/u)).toBeInTheDocument();
+
+    mounted.unmount();
+  });
+
+  it('con trỏ (đã bị bắt) ra khỏi khung giữa lúc kéo thì đoạn bị huỷ (14-A-014)', async () => {
+    measureFrame();
+    const harness = await makeHarness();
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+    const frame = screen.getByRole('group', { name: CANVAS_ARIA_LABEL });
+
+    fireEvent.pointerDown(frame, { button: 0, clientX: 160, clientY: 320, pointerId: 1 });
+    fireEvent.pointerMove(frame, { clientX: 400, clientY: 320, pointerId: 1 });
+    expect(handle('Cuối')).toBeInTheDocument();
+    fireEvent.pointerMove(frame, { clientX: CANVAS_FRAME_PX + 60, clientY: 320, pointerId: 1 });
+
+    expect(screen.queryByRole('button', { name: /^Cuối đoạn tham chiếu/u })).toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('đang kéo đoạn, tiêu điểm ở "Chiều dài thật": Esc vẫn huỷ đoạn (14-E-004, QD-004)', async () => {
+    measureFrame();
+    const harness = await makeHarness();
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+    const frame = screen.getByRole('group', { name: CANVAS_ARIA_LABEL });
+
+    fireEvent.pointerDown(frame, { button: 0, clientX: 160, clientY: 320, pointerId: 1 });
+    fireEvent.pointerMove(frame, { clientX: 400, clientY: 320, pointerId: 1 });
+    expect(handle('Cuối')).toBeInTheDocument();
+    const field = screen.getByLabelText(new RegExp(REAL_LENGTH_LABEL, 'u'));
+    field.focus();
+    fireEvent.keyDown(field, { key: 'Escape', code: 'Escape' });
+
+    expect(screen.queryByRole('button', { name: /^Cuối đoạn tham chiếu/u })).toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('kéo tới đúng mép ảnh (lệch dưới 1px do làm tròn) thì đoạn không bị huỷ (14-C-023)', async () => {
+    measureFrame();
+    const harness = await makeHarness();
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+    const frame = screen.getByRole('group', { name: CANVAS_ARIA_LABEL });
+
+    fireEvent.pointerDown(frame, { button: 0, clientX: 400, clientY: 400, pointerId: 1 });
+    fireEvent.pointerMove(frame, { clientX: CANVAS_FRAME_PX + 0.4, clientY: 400, pointerId: 1 });
+
+    expect(handle('Cuối')).toBeInTheDocument();
+
+    mounted.unmount();
+  });
+
+  it('nhích mũi tên qua mép ảnh thì đầu đoạn bị chặn trong khung (14-C-023)', async () => {
+    measureFrame();
+    const harness = await makeHarness();
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+    await act(async () => {
+      mounted.actions().onStartDrag({ x: 0.5, y: 0.5 });
+    });
+    await act(async () => {
+      mounted.actions().onEndDrag({ x: 1, y: 0.5 });
+    });
+    await act(async () => {
+      mounted.actions().onNudgeEndpoint('end', 'right', 'fine');
+      mounted.actions().onNudgeEndpoint('end', 'right', 'fine');
+    });
+
+    expect(parseFloat(handle('Cuối').style.left)).toBeLessThanOrEqual(100);
 
     mounted.unmount();
   });

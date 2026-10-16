@@ -11,13 +11,15 @@ import { join } from 'node:path';
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { EVIDENCE_DIR, captureEvidence } from './evidence';
+import { EVIDENCE_DIR, captureEvidence, repSuffix } from './evidence';
 
 export const UI_VIEWPORTS = [
   { width: 1440, height: 900 },
+  // Wide desktop (Full HD, > 19"): the layout must use or cap the extra width. Index 0 stays 1440 (specs read
+  // UI_VIEWPORTS[0]). No 375: the web targets desktop + tablet only (user, 2026-10-14).
+  { width: 1920, height: 1080 },
   { width: 1024, height: 768 },
   { width: 768, height: 1024 },
-  { width: 375, height: 812 },
 ] as const;
 
 /**
@@ -174,8 +176,8 @@ export async function verifyUi(
   }
   // Next to the images, so the reviewer reads one small file instead of decoding results.json.
   mkdirSync(EVIDENCE_DIR, { recursive: true });
-  writeFileSync(join(EVIDENCE_DIR, `${name}.json`), JSON.stringify(all, null, 2));
-  await test.info().attach(`${name}.json`, { body: JSON.stringify(all, null, 2), contentType: 'application/json' });
+  writeFileSync(join(EVIDENCE_DIR, `${name}${repSuffix()}.json`), JSON.stringify(all, null, 2));
+  await test.info().attach(`${name}${repSuffix()}.json`,{ body: JSON.stringify(all, null, 2), contentType: 'application/json' });
   for (const m of all) {
     expect.soft(m.openError, `${m.viewport}: the state did not open`).toBeUndefined();
     expect.soft(m.horizontalOverflowPx, `${m.viewport}: page scrolls horizontally`).toBe(0);

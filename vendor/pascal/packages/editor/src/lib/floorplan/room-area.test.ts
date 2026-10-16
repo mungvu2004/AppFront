@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import type { AnyNode } from '@pascal-app/core'
-import { roomAreaRows, roomAreaTable, roomAreaTableToText } from './room-area'
+import { roomArea as vi } from '../../i18n/regions/roomArea'
+import { closedRoomCount, roomAreaRows, roomAreaTable, roomAreaTableToText } from './room-area'
 
 function fixture(): Record<string, AnyNode> {
   const nodes: Record<string, AnyNode> = {}
@@ -213,6 +214,20 @@ describe('roomAreaTable', () => {
     expect(roomAreaTable(fixture(), { levelIds: [] }).total).toBe(48)
   })
 
+  // AppFront 23R-B-007: a clean level must not report another level's broken room.
+  test('the level filter also filters the unmeasurable-room issues', () => {
+    expect(roomAreaTable(fixture(), { levelIds: ['level_2'] }).issues).toEqual([])
+    expect(roomAreaTable(fixture(), { levelIds: ['level_1'] }).issues).toHaveLength(1)
+  })
+
+  // AppFront 23R-C-004: "Tầng 2" before "Tầng 10" — floor order, not string order.
+  test('level groups follow the floor order, not the label order', () => {
+    const nodes = fixture()
+    nodes.level_1 = { ...(nodes.level_1 as object), name: 'Tầng 2', level: 1 } as unknown as AnyNode
+    nodes.level_2 = { ...(nodes.level_2 as object), name: 'Tầng 10', level: 9 } as unknown as AnyNode
+    expect(roomAreaTable(nodes).groups.map((group) => group.label)).toEqual(['Tầng 2', 'Tầng 10'])
+  })
+
   test('the collapsed mode keeps the N largest rooms of the whole table', () => {
     const table = roomAreaTable(fixture(), { limit: 2 })
     const ids = table.groups.flatMap((group) => group.rows.map((row) => row.id))
@@ -260,5 +275,69 @@ describe('roomAreaTableToText', () => {
     expect(lines).toContain('101\tPhòng khách\tỞ\t24 m²')
     expect(lines.filter((line) => line.startsWith('Tổng phụ'))).toHaveLength(2)
     expect(lines.at(-1)).toBe('Tổng diện tích\t\t\t48 m²')
+  })
+})
+
+// AppFront 23R-B-002 (seed RA3, `qa/tests/support/p05/P3.ts` wallsOnly): an
+// 8 x 6 m frame of four 220 mm walls, the left side drawn bottom-up, exactly as
+// AppFront's `toPascalScene` hands it over (metres, `level_<id>` parent).
+describe('closedRoomCount', () => {
+  const frame = (closed: boolean): Record<string, AnyNode> => {
+    const sides: Array<[[number, number], [number, number]]> = [
+      [[0, 0], [8, 0]],
+      [[8, 0], [8, 6]],
+      [[0, 0], [0, 6]],
+      ...(closed ? [[[0, 6], [8, 6]] as [[number, number], [number, number]]] : []),
+    ]
+    const nodes: Record<string, AnyNode> = {
+      level_L1: {
+        object: 'node',
+        id: 'level_L1',
+        type: 'level',
+        name: 'Tầng 1',
+        level: 0,
+        parentId: null,
+        visible: true,
+        metadata: {},
+        children: sides.map((_, i) => `wall_W${i}`),
+      } as unknown as AnyNode,
+    }
+    sides.forEach(([start, end], i) => {
+      nodes[`wall_W${i}`] = {
+        object: 'node',
+        id: `wall_W${i}`,
+        type: 'wall',
+        parentId: 'level_L1',
+        visible: true,
+        metadata: {},
+        children: [],
+        start,
+        end,
+        thickness: 0.22,
+        height: 3,
+      } as unknown as AnyNode
+    })
+    return nodes
+  }
+
+  test('a closed four-wall frame is one closed area', () => {
+    expect(closedRoomCount(frame(true), ['level_L1'])).toBe(1)
+  })
+
+  test('the same frame with its top side missing has none', () => {
+    expect(closedRoomCount(frame(false), ['level_L1'])).toBe(0)
+  })
+
+  test('a level with no walls counts nothing', () => {
+    expect(closedRoomCount(frame(true), ['level_other'])).toBe(0)
+  })
+})
+
+describe('gap check hint', () => {
+  // AppFront 23R-B-004: detection does not create zones, so reopening the panel
+  // shows no new row — the hint must not promise one.
+  test('says what was found and how to get an area row, without promising rows', () => {
+    expect(vi.gapsClosed(1)).toBe('Tìm thấy 1 vòng tường kín — vẽ vùng ở mục Vùng để có hàng diện tích')
+    expect(vi.gapsClosed(1)).not.toContain('mở lại bảng')
   })
 })

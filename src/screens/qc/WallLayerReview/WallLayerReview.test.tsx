@@ -65,6 +65,7 @@ import { useStore } from '@/store';
 import './FloorLayerSaveConfirm';
 import type { WallLayerViewProps } from './types';
 import { WallLayerInspector } from './WallLayerInspector';
+import { WallLayerList } from './WallLayerList';
 import { WallLayerReviewContainer } from './WallLayerReview.container';
 import { WallLayerStatusBar } from './WallLayerStatusBar';
 import { ProvisionalScale, scenarioArgsFor } from './WallLayerReview.stories';
@@ -1027,5 +1028,49 @@ describe('G68 bộ đếm duyệt có vai trò để aria-label được đọc'
     const counter = await screen.findByRole('img', { name: /đã duyệt/ });
 
     expect(counter).toBeTruthy();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [16-D-008] Danh sách của vai Người xem đọc rỗng/đang tải từ dữ liệu.        */
+/* -------------------------------------------------------------------------- */
+
+describe('[16-D-008] danh sách của vai Người xem', () => {
+  const viewerPanel = (overrides: Partial<WallLayerViewProps>): WallLayerViewProps =>
+    ({
+      state: 'forbidden',
+      rows: [],
+      reviewCounter: { reviewed: 0, total: 0 },
+      isViewerRole: true,
+      emptyNotice: null,
+      errorMessage: null,
+      selectedWallId: null,
+      hoveredWallId: null,
+      onSelect: vi.fn(),
+      onHover: vi.fn(),
+      onOpenRowMenu: vi.fn(),
+      ...overrides,
+    }) as unknown as WallLayerViewProps;
+
+  const NO_MATCH = /không có đoạn tường nào khớp bộ lọc/iu;
+
+  it('đang tải: khung skeleton, không câu "không khớp bộ lọc"', () => {
+    renderWithProviders(<WallLayerList panel={viewerPanel({})} flashingWallId={null} onToggleSelect={vi.fn()} />);
+
+    expect(screen.getByRole('status', { name: 'Danh sách đoạn tường' })).toBeInTheDocument();
+    expect(screen.queryByText(NO_MATCH)).not.toBeInTheDocument();
+  });
+
+  it('tầng rỗng: EmptyState, không câu "không khớp bộ lọc"', () => {
+    renderWithProviders(
+      <WallLayerList
+        panel={viewerPanel({ emptyNotice: 'Chưa phát hiện được đoạn tường nào.' })}
+        flashingWallId={null}
+        onToggleSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Chưa có đoạn tường nào')).toBeInTheDocument();
+    expect(screen.queryByText(NO_MATCH)).not.toBeInTheDocument();
   });
 });

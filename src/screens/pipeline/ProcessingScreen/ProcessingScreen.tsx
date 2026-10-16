@@ -98,7 +98,7 @@ function ProcessingActions(props: ProcessingScreenProps) {
       {!props.canCancel ? null : props.isCancelConfirming ? (
         <div
           aria-label={CANCEL_CONFIRM_ARIA_LABEL}
-          className="flex flex-wrap items-center gap-2 rounded-[8px] border border-border-default bg-bg-surface px-3 py-1.5"
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-border-default bg-bg-surface px-3 py-1.5"
           onKeyDown={(event) => {
             if (event.key === 'Escape') {
               props.onDismissCancel();
@@ -204,7 +204,7 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
             <div className="flex flex-col gap-2">
               <ProcessingStepBar prefersReducedMotion={props.prefersReducedMotion} steps={props.steps} />
               <details>
-                <summary className="cursor-pointer select-none min-h-11 rounded-[8px] px-1 py-3 text-[14px] sm:min-h-0 sm:py-2 font-medium text-text-secondary hover:bg-bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+                <summary className="cursor-pointer select-none min-h-11 rounded-lg px-1 py-3 text-[14px] sm:min-h-0 sm:py-2 font-medium text-text-secondary hover:bg-bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
                   {ALL_STEPS_LABEL}
                 </summary>
                 <ProcessingStepList prefersReducedMotion={props.prefersReducedMotion} steps={props.steps} />

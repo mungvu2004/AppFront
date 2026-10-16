@@ -9,7 +9,7 @@
  * đúng hai trạng thái thuộc khối này — **1 rỗng** và **nửa của 3 một phần**.
  */
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { initialsOf } from '@/lib/format/initials';
@@ -63,6 +63,7 @@ function props(overrides: Partial<ProfileSectionProps> = {}): ProfileSectionProp
     flashedField: null,
     rowClassName: DENSITY_ROW_CLASS.comfortable,
     motionOff: false,
+    isStacked: false,
     ...overrides,
   };
 }
@@ -120,6 +121,25 @@ describe('trạng thái 1 — rỗng', () => {
   });
 });
 
+describe('BUG-497, BUG-502 — khổ hẹp: nhãn trên ô, thư dài không đẩy nút ra ngoài thẻ', () => {
+  it('isStacked thì mọi hàng xếp dọc, ô rộng hết thẻ', () => {
+    render(<ProfileSection {...props({ isStacked: true })} />);
+
+    for (const label of ['Họ tên', 'Chức danh', 'Thư điện tử', 'Điện thoại']) {
+      expect(rowOf(label)).toHaveClass('flex-col');
+    }
+  });
+
+  it('ô thư điện tử co được (min-w-0 flex-1) để nút "Đổi thư điện tử" ở lại trong hàng', () => {
+    render(<ProfileSection {...props({ email: `${'a'.repeat(120)}@congty.vn` })} />);
+
+    const button = screen.getByRole('button', { name: 'Đổi thư điện tử' });
+    const wrapper = button.previousElementSibling;
+
+    expect(wrapper).toHaveClass('min-w-0', 'flex-1');
+  });
+});
+
 describe('trạng thái 3 — một phần: ảnh đang tải lên', () => {
   it('nói ra bằng role="status" và khoá ô chọn tệp', () => {
     const { container } = render(<ProfileSection {...props({ isAvatarUploading: true })} />);
@@ -171,6 +191,64 @@ describe('ảnh đại diện: 56, bo tròn, lớp phủ "Đổi ảnh"', () => 
     fireEvent.change(input, { target: { files: [file] } });
 
     expect(onAvatarFileSelected).toHaveBeenCalledWith(file);
+  });
+
+  // Stack p07-rr 16:36Z (E07_33P-A-037_focus-after-esc.json): sau Esc focus ở BODY. Trường hợp ô đang khoá đúng lúc
+  // hộp thoại đóng: trả focus về ô "nơi đã mở" bị khoá thì vô hiệu, focus rơi về <body>; ô mở lại thì phải nhận focus.
+  it('[33P-A-037] hộp thoại đóng lúc ô "Đổi ảnh" còn khoá: ô mở lại thì nhận focus, không để ở <body>', async () => {
+    const open: Partial<ProfileSectionProps> = {
+      avatarReplace: { ...props().avatarReplace, isOpen: true, previewUrl: 'data:image/png;base64,AA' },
+    };
+    const view = render(<ProfileSection {...props(open)} />);
+    const input = screen.getByLabelText('Đổi ảnh');
+    await waitFor(() => {
+      expect(document.activeElement?.closest('[role="dialog"]')).not.toBeNull();
+    });
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    view.rerender(<ProfileSection {...props({ isAvatarUploading: true })} />);
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+    view.rerender(<ProfileSection {...props({})} />);
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input);
+    });
+  });
+
+  it.each(['Huỷ', 'Esc'] as const)('[33P-E-010] chọn ảnh (ô khoá lúc đọc tệp, mất focus) rồi %s thì focus về ô "Đổi ảnh"', async (way) => {
+    const open: Partial<ProfileSectionProps> = {
+      avatarReplace: { ...props().avatarReplace, isOpen: true, previewUrl: 'data:image/png;base64,AA' },
+    };
+    // Như AccountSettings.tsx: liên kết "Về bảng điều khiển" đứng trước khối, là phần tử focus được đầu tiên của trang.
+    const page = (p: Partial<ProfileSectionProps>) => (
+      <>
+        <a href="/">Về bảng điều khiển</a>
+        <ProfileSection {...props(p)} />
+      </>
+    );
+    const view = render(page({}));
+    const input = screen.getByLabelText('Đổi ảnh');
+
+    input.focus();
+    // Hook đọc tệp: ô bị khoá, trình duyệt bỏ focus của ô bị khoá về <body> (jsdom không tự làm).
+    (input as HTMLInputElement).blur(); // jsdom bỏ qua blur() của ô đã khoá, nên bỏ focus trước khi khoá
+    view.rerender(page({ isAvatarUploading: true }));
+    // Đọc xong: ô mở lại và hộp thoại mở cùng lượt.
+    view.rerender(page(open));
+    await waitFor(() => {
+      expect(document.activeElement?.closest('[role="dialog"]')).not.toBeNull();
+    });
+
+    expect(screen.getByRole('dialog').getAttribute('aria-modal')).toBe('true'); // [33P-E-009]
+    if (way === 'Huỷ') {
+      fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+    } else {
+      fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' }); // [33P-A-037]
+    }
+    view.rerender(page({}));
+
+    expect(document.activeElement).toBe(input);
   });
 });
 
@@ -263,14 +341,14 @@ describe('giảm chuyển động', () => {
 });
 
 describe('mật độ hiển thị đổi chiều cao dòng', () => {
-  it('lớp hook truyền xuống thắng min-h-[36px] mà FieldRow khai sẵn', () => {
+  it('lớp hook truyền xuống thắng min-h-9 mà FieldRow khai sẵn', () => {
     render(<ProfileSection {...props({ rowClassName: DENSITY_ROW_CLASS.comfortable })} />);
-    expect(rowOf('Họ tên').className).toContain('min-h-[40px]');
+    expect(rowOf('Họ tên').className).toContain('min-h-10');
 
     cleanup();
 
     render(<ProfileSection {...props({ rowClassName: DENSITY_ROW_CLASS.compact })} />);
-    expect(rowOf('Họ tên').className).toContain('min-h-[36px]');
+    expect(rowOf('Họ tên').className).toMatch(/\bmin-h-9\b/u); // word boundary: `min-h-96` must not pass
   });
 });
 

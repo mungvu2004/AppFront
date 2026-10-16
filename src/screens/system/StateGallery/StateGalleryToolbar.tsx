@@ -203,11 +203,11 @@ export function StateGalleryToolbar({
       </div>
 
       {isPanelOpen && (
-        <div className="flex flex-col gap-2 rounded-[8px] border border-border-default bg-bg-sunken p-3">
+        <div className="flex flex-col gap-2 rounded-lg border border-border-default bg-bg-sunken p-3">
           <div className="flex items-center gap-2">
             <h2 className="text-[14px] font-semibold text-text-primary">{CHECK_TABLE_CAPTION}</h2>
             <p className="text-[13px] text-text-secondary">
-              <kbd className="rounded-[4px] border border-border-default px-1">Esc</kbd> {CLOSE_CHECK_PANEL_HINT}
+              <kbd className="rounded border border-border-default px-1">Esc</kbd> {CLOSE_CHECK_PANEL_HINT}
             </p>
             <Button
               aria-label={CLOSE_CHECK_PANEL}

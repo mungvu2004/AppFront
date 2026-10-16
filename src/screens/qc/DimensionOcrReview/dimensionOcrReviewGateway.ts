@@ -174,16 +174,16 @@ export const DIMENSION_OCR_CAPABILITIES = [
 export type DimensionOcrCapability = (typeof DIMENSION_OCR_CAPABILITIES)[number];
 
 /** Việc trong danh sách trên mà bản cài đặt THẬT chưa làm được. Chỉ được ngắn đi. */
-export const DIMENSION_OCR_MISSING_CAPABILITIES = ['persistDimensionLayer'] as const;
+export const DIMENSION_OCR_MISSING_CAPABILITIES: readonly DimensionOcrCapability[] = [];
 
-export type DimensionOcrMissingCapability = (typeof DIMENSION_OCR_MISSING_CAPABILITIES)[number];
+export type DimensionOcrMissingCapability = 'persistDimensionLayer';
 
 /** Endpoint còn thiếu của từng khả năng, viết nguyên văn cho người nối dây sau. */
 export const DIMENSION_OCR_MISSING_ENDPOINTS: Readonly<
   Record<DimensionOcrMissingCapability, string>
 > = {
   persistDimensionLayer:
-    'ENDPOINTS.spatial.floor chấp nhận Partial<FloorWriteBody> (src/api/client.ts), chỉ mang name/order/elevationMm/heightMm/drawings — không có chỗ cho danh sách Dimension, nên chưa có endpoint ghi lớp kích thước.',
+    'Đã nối (BUG-577): PUT #35 body.dimensions qua useFloorLayerAutosave; chỉ cổng mẫu không có đường lưu.',
 };
 
 /**
@@ -1047,6 +1047,8 @@ export interface DimensionOcrReviewGateway {
   readonly readOcrProgress: (input: ReadDimensionLayerInput) => Promise<DimensionOcrProgress>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: DimensionOcrGraphPort;
+  /** Cổng thật lộ client của nó để tự lưu chung (`useFloorLayerAutosave`) ghi cùng một chỗ với đọc. */
+  readonly apiClient?: ApiClient;
   /** NOT FOUND — `persistDimensionLayer`. Tự lưu nói ra sự thật này, không bịa một lượt lưu. */
   readonly persistDimensionLayer: (
     input: PersistDimensionLayerInput,
@@ -1085,12 +1087,13 @@ export function createDimensionOcrReviewGateway(
   };
 
   return {
+    apiClient,
     supports: {
       readBackground: true,
       readDimensionLayer: true,
       readOcrProgress: true,
       writeDimensionLayer: true,
-      persistDimensionLayer: false,
+      persistDimensionLayer: true,
     },
 
     readBackground: async ({ floorId, projectId, signal }) => {
@@ -1128,7 +1131,8 @@ export function createDimensionOcrReviewGateway(
 
     graph,
 
-    persistDimensionLayer: () => Promise.resolve(unsupported('persistDimensionLayer')),
+    // Lưu thật chạy ở bộ tự lưu lớp chung (PUT #35 mang `dimensions`), không qua cổng này.
+    persistDimensionLayer: () => Promise.resolve({ supported: true, value: undefined }),
 
     actorId: options.actorId ?? DIMENSION_OCR_DEFAULT_ACTOR_ID,
     now: options.now ?? ((): number => Date.now()),
@@ -1154,6 +1158,8 @@ export interface DimensionOcrGatewaySeed {
   readonly withoutImage?: boolean;
   /** `true` thì `persistDimensionLayer` chạy thật (bộ mẫu có đường lưu). */
   readonly canPersist?: boolean;
+  /** Client mà bộ tự lưu chung ghi vào (test rình `writeLayer`); vắng → client thật. */
+  readonly apiClient?: ApiClient;
   readonly actorId?: string;
   readonly now?: () => number;
 }
@@ -1167,6 +1173,7 @@ export function createMockDimensionOcrReviewGateway(
     seed.graph === undefined ? DIMENSION_OCR_SAMPLE_GRAPH : seed.graph;
 
   return {
+    ...(seed.apiClient === undefined ? {} : { apiClient: seed.apiClient }),
     supports: {
       readBackground: true,
       readDimensionLayer: true,

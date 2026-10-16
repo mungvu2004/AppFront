@@ -62,7 +62,7 @@ function EmbedPreview({ embed }: EmbedPreviewProps) {
     embed.coloringOptions.find((option) => option.id === embed.view.coloring)?.label ?? embed.view.coloring;
 
   return (
-    <div className="flex w-[240px] shrink-0 flex-col gap-2">
+    <div className="flex w-60 shrink-0 flex-col gap-2">
       <div className="flex aspect-video w-full flex-col items-center justify-center gap-1 rounded-lg border border-border-default bg-bg-sunken p-3 text-center">
         <ImageOff aria-hidden="true" size={20} className="text-text-muted" />
         <p className="text-xs text-text-muted">Xem trước tĩnh</p>

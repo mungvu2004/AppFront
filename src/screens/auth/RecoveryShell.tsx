@@ -30,11 +30,11 @@ export function RecoveryShell({ title, subtitle, state, children }: RecoveryShel
     >
       <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
         <div className="flex flex-col gap-1">
-          <h1 className="text-[30px] font-semibold leading-[40px] text-text-primary">{title}</h1>
+          <h1 className="text-[30px] font-semibold leading-10 text-text-primary">{title}</h1>
           {subtitle !== undefined && (
             // `text-balance`, không `pretty` như ô nhập và dải báo: phụ đề chỉ một–hai dòng ngắn, chia đều hai
             // dòng đọc dễ hơn lấp đầy dòng đầu; vẫn không để "bạn." một mình ở dòng cuối (BUG-052).
-            <p className="text-balance text-[15px] leading-[24px] text-text-secondary">{subtitle}</p>
+            <p className="text-balance text-[15px] leading-6 text-text-secondary">{subtitle}</p>
           )}
         </div>
         {children}
@@ -90,7 +90,7 @@ export function RecoveryStatus({
   return (
     <div role="status" className="empty:sr-only">
       {success !== null ? (
-        <div className="flex items-start gap-3 rounded-[8px] border border-border-default p-3">
+        <div className="flex items-start gap-3 rounded-lg border border-border-default p-3">
           <Icon aria-hidden="true" className="mt-0.5 h-[18px] w-[18px] shrink-0 text-text-secondary" strokeWidth={2} />
           <p className="text-[14px] leading-relaxed text-text-primary">{success}</p>
         </div>
@@ -123,7 +123,7 @@ export function RecoveryLink({ label, href, onClick }: RecoveryLinkProps) {
         onClick();
       }}
       // Vùng chạm 44 px dưới 640, 24 px từ `sm` — giữ cỡ chữ (BUG-041); ở ngõ cụt đây là lối đi duy nhất.
-      className="inline-flex min-h-[44px] items-center self-start py-1 text-[14px] sm:min-h-6 leading-[20px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
+      className="inline-flex min-h-11 items-center self-start py-1 text-[14px] sm:min-h-6 leading-5 text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
     >
       {label}
     </a>

@@ -6,6 +6,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { NotificationHost } from './components/feedback/NotificationHost';
 import { MotionProvider } from './components/motion';
 import { ServerFeatureFlagSync } from './components/shell/ServerFeatureFlagSync';
+import { ThemeSync } from './hooks/useTheme';
 import { queryClient } from './lib/query/queryClient';
 import { installFeatureFlagDevPanel } from './lib/telemetry/flags';
 import { router } from './routes';
@@ -64,6 +65,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <MotionProvider>
         <ServerFeatureFlagSync />
+        <ThemeSync />
         <RouterProvider router={router} />
         <NotificationHost />
       </MotionProvider>

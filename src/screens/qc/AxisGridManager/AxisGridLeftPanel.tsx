@@ -102,7 +102,7 @@ function AxisGridRow({
         aria-label={axisRowAriaLabel(row)}
         aria-selected={row.isSelected}
         className={cn(
-          'flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[8px] px-2 text-left text-[13px] outline-none',
+          'flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-left text-[13px] outline-none',
           'transition-colors duration-120',
           'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
           row.isSelected ? 'bg-bg-selected text-text-primary' : 'text-text-primary hover:bg-bg-hover',
@@ -193,7 +193,7 @@ export function AxisGridLeftPanel({
   onViewOnDrawing,
 }: AxisGridLeftPanelProps) {
   return (
-    <div className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel max-lg:w-full">
+    <div className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:w-full">
       <div className="flex h-14 shrink-0 items-center px-5">
         <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
       </div>

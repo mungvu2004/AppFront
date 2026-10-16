@@ -1241,6 +1241,10 @@ export const reviewProgressLabel = (reviewed: number, total: number): string =>
 export const layerTreeTotalLabel = (total: number): string =>
   `Tổng ${formatObjectCount(total)} đối tượng`;
 
+/** Chỉ báo đang lọc — "1 / 3 đối tượng" (BUG-402): bộ đếm và tổng vẫn đếm cả tầng. */
+export const filteredCountLabel = (shown: number, total: number): string =>
+  `${formatObjectCount(shown)} / ${formatObjectCount(total)} đối tượng`;
+
 /** Câu của trạng thái một phần — "5 mục dưới ngưỡng tin cậy, đã lọc sẵn". */
 export const lowConfidenceNotice = (count: number): string =>
   `${formatObjectCount(count)} mục dưới ngưỡng tin cậy, đã lọc sẵn`;
@@ -1261,6 +1265,7 @@ export const OBJECT_LAYER_TEXT = {
   /* Người xem VẪN xem được lớp; câu cũ "không có quyền xem" là sai (BUG-601). */
   forbidden: 'Bạn đang xem — không sửa được lớp này.',
   subtypeRefused: 'Chỉ đổi được loại giữa cửa đơn, cửa đôi và cửa sổ.',
+  subtypeSame: 'Đối tượng đã ở đúng loại đó nên không có gì thay đổi.',
   subtypeNeedsWall: 'Gắn đối tượng vào tường trước rồi mới đổi loại.',
   lowConfidenceDone: 'Đã duyệt hết mục dưới ngưỡng.',
   showAll: 'Hiện tất cả',

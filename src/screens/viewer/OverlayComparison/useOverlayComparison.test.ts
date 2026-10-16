@@ -38,6 +38,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
 import { PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
+import { FLOOR_MISSING_TITLE } from '@/screens/qc/shared/floorLayerReadFailure';
 import { appShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createSampleBuilding, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
@@ -46,6 +47,7 @@ import { millimetresPerPixel } from '@/domain/units/scale';
 import { MISSING_VALUE } from '@/lib/format/number';
 import type { HttpError } from '@/lib/http/types';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
+import { queryKeys } from '@/lib/query/queryKeys';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
@@ -294,23 +296,28 @@ interface MountOptions {
   readonly roles?: readonly ProjectRole[];
   readonly forceCollapsed?: boolean;
   readonly onNavigate?: (path: string) => void;
+  /** Điền đệm trước khi hook dựng — như một màn khác đã ghi vào đệm dùng chung. */
+  readonly seedCache?: (queryClient: ReturnType<typeof createTestQueryClient>) => void;
 }
 
 interface Mounted {
   readonly result: { current: UseOverlayComparisonResult };
   readonly unmount: () => void;
+  /** Đổi route (Back/Forward) mà không dựng lại hook. */
+  readonly goToFloor: (floorId: LevelId) => void;
 }
 
 function mountHook(gateway: OverlayComparisonGateway, options: MountOptions = {}): Mounted {
   const queryClient = createTestQueryClient();
+  options.seedCache?.(queryClient);
   const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
     createElement(QueryClientProvider, { client: queryClient }, children);
 
   const rendered = renderHook(
-    () =>
+    ({ floorId }: { floorId: LevelId }) =>
       useOverlayComparison({
         projectId: PROJECT_ID,
-        floorId: options.floorId ?? FLOOR_WITH_SCAN,
+        floorId,
         gateway,
         ...(options.roles !== undefined ? { roles: options.roles } : {}),
         ...(options.forceCollapsed !== undefined
@@ -318,10 +325,14 @@ function mountHook(gateway: OverlayComparisonGateway, options: MountOptions = {}
           : {}),
         ...(options.onNavigate !== undefined ? { onNavigate: options.onNavigate } : {}),
       }),
-    { wrapper },
+    { wrapper, initialProps: { floorId: options.floorId ?? FLOOR_WITH_SCAN } },
   );
 
-  return { result: rendered.result, unmount: rendered.unmount };
+  return {
+    result: rendered.result,
+    unmount: rendered.unmount,
+    goToFloor: (floorId) => rendered.rerender({ floorId }),
+  };
 }
 
 /** Chờ lượt đọc đầu tiên về. Đồng hồ là đồng hồ giả, nên phải tự đẩy thời gian. */
@@ -501,6 +512,22 @@ describe('useOverlayComparison — bảy trạng thái', () => {
     await settle(mounted);
   });
 
+  it('[X4-A-024] đệm đo chất lượng do SCR-11 ghi (khác hình dạng) không làm tầng có bản vẽ thành empty', async () => {
+    const mounted = await mountMeasured({
+      seedCache: (queryClient) => {
+        // Hình dạng SCR-11 (InputQualityGate) ghi: một ImageQualityAssessment, không có `scans`.
+        queryClient.setQueryData(queryKeys.quality.assessment(FLOOR_WITH_SCAN), {
+          floorId: FLOOR_WITH_SCAN,
+          floors: [],
+        });
+      },
+    });
+    const model = mounted.result.current.model;
+
+    expect(model.state).not.toBe('empty');
+    expect(model.scanUrl).not.toBeNull();
+  });
+
   it('tầng không có ảnh gốc là empty, và ba con số là gạch ngang', async () => {
     const mounted = await mountMeasured();
 
@@ -572,6 +599,21 @@ describe('useOverlayComparison — bảy trạng thái', () => {
 
     expect(model.state).toBe('error');
     expect(model.scaleFixHref).toBe(ROUTES.project.scale(PROJECT_ID, FLOOR_WITH_SCAN));
+  });
+
+  it('[G20] tỷ lệ khác nhau chỉ ở tầng chưa có bản vẽ thì không phải xung đột tỷ lệ', async () => {
+    const graph = createSampleBuilding();
+    const floors = graph.levels.map((level, index) => ({
+      ...level,
+      scaleMillimetresPerPixel: millimetresPerPixel(index < 2 ? 12 : 24 * index),
+    }));
+
+    seedStore(floors);
+
+    const mounted = await mountMeasured();
+
+    expect(mounted.result.current.model.state).not.toBe('error');
+    expect(mounted.result.current.model.scaleFixHref).toBeNull();
   });
 
   it('chỉ một số tầng có ảnh là partial, và câu giải thích nói ra con số', async () => {
@@ -808,7 +850,8 @@ describe('useOverlayComparison — QA-04c SCR-22 (BUG-588, 599, 600, 608)', () =
     useStore.getState().setFloors([]);
     const base = await makeGateway();
     const readFloorLayer = vi.fn(() => Promise.reject(new Error('500')));
-    const mounted = mountHook(withOverlayCapabilities(base, { readFloorLayer }));
+    const readFloorScans = vi.fn(base.readFloorScans);
+    const mounted = mountHook(withOverlayCapabilities(base, { readFloorLayer, readFloorScans }));
     await settle(mounted);
     for (let turn = 0; turn < SETTLE_TURNS; turn += 1) {
       await act(async () => {
@@ -818,6 +861,7 @@ describe('useOverlayComparison — QA-04c SCR-22 (BUG-588, 599, 600, 608)', () =
 
     const model = mounted.result.current.model;
     expect(model.state).toBe('error');
+    expect(readFloorScans).not.toHaveBeenCalled(); // G21: N16 gave no floor → no #30
     expect(model.canRetry).toBe(true);
     expect(model.stateNotice).toBe('Không đọc được mô hình của tầng này nên chưa có gì để đối chiếu.');
 
@@ -842,6 +886,20 @@ describe('useOverlayComparison — QA-04c SCR-22 (BUG-588, 599, 600, 608)', () =
       mounted.result.current.actions.selectFloor(FLOOR_WITHOUT_SCAN);
     });
     expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.overlay(PROJECT_ID, FLOOR_WITHOUT_SCAN));
+  });
+
+  it('chọn tầng rồi Back về URL cũ: tầng theo URL, không theo lựa chọn cũ (BUG-600, X4-A-032)', async () => {
+    const mounted = mountHook(await makeGateway({ regions: sampleRegions() }), { floorId: FLOOR_WARPED });
+    await settle(mounted);
+
+    act(() => {
+      mounted.result.current.actions.selectFloor(FLOOR_WITHOUT_SCAN);
+    });
+    expect(mounted.result.current.model.activeFloorId).toBe(FLOOR_WITHOUT_SCAN);
+
+    act(() => mounted.goToFloor(FLOOR_WITHOUT_SCAN)); // URL theo lựa chọn
+    act(() => mounted.goToFloor(FLOOR_WARPED)); // Back
+    expect(mounted.result.current.model.activeFloorId).toBe(FLOOR_WARPED);
   });
 
   it('về toàn cảnh không mất cài đặt; nút xác nhận tắt có lý do; "Khoá căn" ẩn khi chưa có tác dụng (BUG-599)', async () => {
@@ -880,6 +938,15 @@ describe('[G45] người ngoài dự án mở thẳng SCR-22', () => {
     }
 
     expect(mounted.result.current.model.readFailure?.title).toBe(PROJECT_NOT_FOUND_TITLE);
+  });
+});
+
+describe('[X4-A-036 / BUG-326] mã tầng của route không có trong kho', () => {
+  it('kho đã có đồ thị (N15 về trước N16): vẫn là màn "Không mở được tầng này", không rơi về tầng đầu của kho', async () => {
+    const mounted = mountHook(await makeGateway(), { floorId: 'L-QAXMISSING' as LevelId });
+    await settle(mounted);
+
+    expect(mounted.result.current.model.readFailure?.title).toBe(FLOOR_MISSING_TITLE);
   });
 });
 

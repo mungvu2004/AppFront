@@ -96,7 +96,7 @@ function ObjectLayerListRow({
       aria-label={`${row.codeLabel} — ${STATUS_LABEL[row.statusCode]}`}
       aria-selected={isSelected}
       className={cn(
-        'flex cursor-pointer flex-col gap-1 rounded-[8px] px-2 py-1.5 text-[13px] outline-none',
+        'flex cursor-pointer flex-col gap-1 rounded-lg px-2 py-1.5 text-[13px] outline-none',
         'transition-colors duration-120 hover:bg-bg-hover',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         isSelected && 'bg-bg-selected hover:bg-bg-selected',
@@ -137,7 +137,7 @@ function ObjectLayerListRow({
             <Badge variant="attention">{ORPHAN_BADGE}</Badge>
             <button
               className={cn(
-                'rounded-[6px] px-1.5 py-0.5 text-[12px] text-accent',
+                'rounded-md px-1.5 py-0.5 text-[12px] text-accent',
                 'transition-colors duration-120 hover:bg-accent-wash',
                 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
               )}
@@ -202,7 +202,7 @@ function ObjectLayerListGroup({
         aria-expanded={!isCollapsed}
         aria-label={`${isCollapsed ? EXPAND_PREFIX : COLLAPSE_PREFIX}${label}`}
         className={cn(
-          'flex items-center gap-2 rounded-[8px] px-2 py-1.5 text-left text-[13px] text-text-secondary',
+          'flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-text-secondary',
           'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         )}

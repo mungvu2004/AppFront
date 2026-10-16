@@ -279,7 +279,7 @@ export async function createPipelineDrawingProject(api: APIRequestContext, slug:
  * Phase 6 (versions): project `qa-<runId>-<slug>-<uniq>` whose FIRST floor holds `png` (the straight env drawing) and
  * a finished fake-ML run. Only the pipeline creates versions (BE apps/worker/pipeline_persist/service.py:182-198: a
  * "before" + an "after" version; autosave never makes one), so this waits for #8 `completed` and then for N17 to list
- * both — the same calls as `phase06_rules_export_versions_api.spec.ts` pipelineProject. The AI ("after") version stays
+ * both — the same calls as `phase06_api.spec.ts` (support/p06/apiCalls.ts). The AI ("after") version stays
  * "Hiện tại" until the caller writes the layer once (CP-6, `layerSeed.ts` writeLayer). Deletes the project on failure.
  */
 export async function createPipelineProject(
