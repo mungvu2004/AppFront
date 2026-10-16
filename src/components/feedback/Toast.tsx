@@ -120,6 +120,8 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
     // Hoàn tác xong thì toast đã hết việc: rời đi ngay. Không thế thì nó treo tới
     // hết cửa sổ, che nút bên dưới, với một nút "Hoàn tác" không còn gì để làm (B-V4-11).
     const onUndoClick = () => {
+      // Bấm đúp: nút còn trong DOM tới khi toast gỡ xong, lần bấm thứ hai không được hoàn tác lại.
+      if (isExiting && !keepAfterUndo) return;
       if (toast.onUndo) {
         toast.onUndo();
       }
@@ -129,7 +131,8 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
       }
     };
 
-    const isPeek = index > 0;
+    // Toast xếp sau chỉ lộ một vạch 4 px; chuột vào vạch hoặc tiêu điểm tới nút thì nó mở ra để bấm "Hoàn tác".
+    const isPeek = index > 0 && !isHeld;
     // No state = a plain notice, a neutral dot. A5 keeps the green for what a reviewer verified, so it is
     // never the fallback: every toast without a state, errors included, used to wear it (BUG-207).
     const dotColor =

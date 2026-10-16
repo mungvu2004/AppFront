@@ -1,4 +1,4 @@
-import { render, screen, act, fireEvent } from '@testing-library/react';
+import { render, screen, act, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Toast, useToast } from './Toast';
 import { Button } from '../ui/Button';
@@ -334,6 +334,59 @@ describe('Toast.Provider and Toast.Item', () => {
 
     expect(onUndo).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('Đã vô hiệu hoá tài khoản')).not.toBeInTheDocument();
+  });
+
+  it('bấm đúp "Hoàn tác" chỉ chạy lượt hoàn tác một lần (TOAST-DOUBLE-UNDO)', () => {
+    const onUndo = vi.fn();
+    const Single = () => {
+      const { addToast } = useToast();
+      return <Button onClick={() => addToast({ message: 'Đã xoá tường', onUndo })}>Add</Button>;
+    };
+
+    render(
+      <Toast.Provider>
+        <Single />
+      </Toast.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    const undo = screen.getByRole('button', { name: 'Hoàn tác' });
+    fireEvent.click(undo);
+    fireEvent.click(undo);
+
+    expect(onUndo).toHaveBeenCalledTimes(1);
+  });
+
+  it('toast xếp sau mở rộng khi chuột vào hoặc tiêu điểm tới, để bấm được "Hoàn tác" (TOAST-PEEK)', () => {
+    const Two = () => {
+      const { addToast } = useToast();
+      return (
+        <Button
+          onClick={() => {
+            addToast({ message: 'Đã xoá tường A', onUndo: vi.fn() });
+            addToast({ message: 'Đã xoá tường B', onUndo: vi.fn() });
+          }}
+        >
+          Add
+        </Button>
+      );
+    };
+
+    render(
+      <Toast.Provider>
+        <Two />
+      </Toast.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    const peek = screen.getByText('Đã xoá tường A').closest('[role="status"]') as HTMLElement;
+    expect(peek.style.height).toBe('4px');
+    fireEvent.mouseEnter(peek);
+    expect(peek.style.height).toBe('auto');
+    fireEvent.mouseLeave(peek);
+    expect(peek.style.height).toBe('4px');
+    fireEvent.focus(within(peek).getByRole('button', { name: 'Hoàn tác' }));
+    expect(peek.style.height).toBe('auto');
   });
 });
 
