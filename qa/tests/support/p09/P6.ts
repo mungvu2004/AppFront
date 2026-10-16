@@ -2,7 +2,8 @@
 import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 
 import { dismissTour } from '../../../../e2e/fixtures/tour';
-import { createQcProject, deleteProject, type LayerApi, type SeededFloor } from '../layerSeed';
+import { createQcProject, deleteProject, writeDimensions, type LayerApi, type SeededFloor } from '../layerSeed';
+import { dimsFixture } from '../p04/P3';
 
 /** Admin API context already carries its Bearer in extraHTTPHeaders, so no extra headers (layerSeed LayerApi). */
 export const layerApiFrom = (admin: APIRequestContext): LayerApi => ({ request: admin, headers: {} });
@@ -11,6 +12,24 @@ export async function seedQc(admin: APIRequestContext, slug: string): Promise<Se
   const [floor] = await createQcProject(layerApiFrom(admin), slug);
   if (floor === undefined) throw new Error('createQcProject returned no floor');
   return floor;
+}
+
+/**
+ * Three unreviewed AI dimension strings (#M-001..#M-003) along the qcLayer outer walls 0, 1 and 2 (4 m each), written
+ * through #35 `body.dimensions` (BUG-577): 9Q-C-006 edits #M-001, 9Q-C-007 approves #M-002 by keyboard.
+ */
+export async function seedQcDims(admin: APIRequestContext, floor: SeededFloor): Promise<void> {
+  await writeDimensions(layerApiFrom(admin), floor.projectId, floor.floorId, (levelId, wallIds) =>
+    dimsFixture(
+      levelId,
+      [
+        { n: 1, valueMm: 4030, confidence: 0.9, line: [0, -400, 4000, -400], walls: [0] },
+        { n: 2, valueMm: 4000, confidence: 0.9, line: [4000, -400, 8000, -400], walls: [1] },
+        { n: 3, valueMm: 4000, confidence: 0.9, line: [0, 6400, 4000, 6400], walls: [2] },
+      ],
+      wallIds,
+    ),
+  );
 }
 
 export const dropProject = (admin: APIRequestContext, projectId: string): Promise<string | null> =>
