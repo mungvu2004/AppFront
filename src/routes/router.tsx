@@ -2,10 +2,11 @@
  * tức bảng route, nên fast refresh không có gì để làm mới ở đây dù trong file có
  * định nghĩa `UndoShortcuts`. `UndoShortcuts` được xuất có chủ đích: xem docblock
  * của nó — một binding không test được là một binding không ai chứng minh được. */
-import React, { lazy, useCallback, useState } from 'react';
+import React, { lazy, useCallback, useEffect, useState } from 'react';
 import {
   createBrowserRouter,
   Outlet,
+  useLocation,
   type RouteObject,
 } from 'react-router-dom';
 
@@ -312,6 +313,13 @@ export function UndoShortcuts({ children }: { children: React.ReactNode }): Reac
   const closeHelp = useCallback((): void => {
     setIsHelpOpen(false);
   }, []);
+
+  /* Đổi đường dẫn thì đóng bảng (10K-C-009): `UndoShortcuts` bọc mọi route nên
+     `isHelpOpen` sống qua điều hướng; không reset thì bảng nằm lại trên màn mới. */
+  const { pathname } = useLocation();
+  useEffect(() => {
+    setIsHelpOpen(false);
+  }, [pathname]);
 
   useShortcut(UNDO_SHORTCUT);
   useShortcut(REDO_SHORTCUT);

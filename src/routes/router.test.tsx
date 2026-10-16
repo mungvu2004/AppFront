@@ -24,8 +24,8 @@
  *    chạy thật, nên mọi khẳng định "đã đóng" phải qua `waitFor`.
  */
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router-dom';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { createMemoryRouter, MemoryRouter, Outlet, RouterProvider } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useStore } from '@/store';
@@ -98,6 +98,39 @@ describe('[UndoShortcuts] phím ?', () => {
     await findHelpDialog();
 
     pressHelp();
+
+    await waitFor(
+      () => {
+        expect(screen.queryByRole('dialog', { name: 'Phím tắt' })).not.toBeInTheDocument();
+      },
+      { timeout: ASYNC_TIMEOUT_MS },
+    );
+  });
+});
+
+describe('[UndoShortcuts] đổi route khi bảng đang mở (10K-C-009)', () => {
+  it('đóng bảng khi đường dẫn đổi', async () => {
+    const router = createMemoryRouter([
+      {
+        element: (
+          <UndoShortcuts>
+            <Outlet />
+          </UndoShortcuts>
+        ),
+        children: [
+          { path: '/a', element: <div>màn A</div> },
+          { path: '/b', element: <div>màn B</div> },
+        ],
+      },
+    ], { initialEntries: ['/a'] });
+
+    render(<RouterProvider router={router} />);
+    pressHelp();
+    await findHelpDialog();
+
+    await act(async () => {
+      await router.navigate('/b');
+    });
 
     await waitFor(
       () => {
