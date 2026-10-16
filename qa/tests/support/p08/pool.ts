@@ -1,9 +1,9 @@
 /** Phase 08 pool access: every slot goes through `repSlot` so `--repeat-each` copies never share a pool user. */
 import type { APIRequestContext } from '@playwright/test';
-import { poolUser as basePoolUser, type PoolRole, type PoolUser } from './pool';
+import { poolUser as basePoolUser, type PoolRole, type PoolUser } from '../phase03Seed';
 import { repSlot, repSuffix } from '../evidence';
 
-export * from './pool';
+export * from '../phase03Seed';
 
 /** `repSuffix()` that is '' outside a test (test.info() throws there). */
 export const safeSuffix = (): string => {
