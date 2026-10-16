@@ -401,7 +401,9 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
           await expect.soft(railTool(page, label), `key ${key}`).toHaveAttribute('aria-pressed', 'true');
         }
         await pressOnCanvas(page, 'Alt+h');
-        // Pressed state follows the scene (BUG-655); pressed=true after a selection is covered in vitest.
+        // Pressed state follows the scene (BUG-655, QD-005). The "select a wall → Alt+H → pressed" branch has no UI
+        // path here: SCR-25's picker only lands measure points (useMeasurementTool.ts:624-626) and no panel on this
+        // screen calls selectEntity, so it stays in vitest (ViewerShell.test.tsx [25-C-047 · BUG-655]).
         await expect.soft(railTool(page, 'Cô lập (Alt+H)'), 'Alt+H').toHaveAttribute('aria-pressed', 'false');
         await expect.soft(railTool(page, 'Chọn (V)'), 'Alt+H keeps the tool').toHaveAttribute('aria-pressed', 'true');
         await shot(page, '25-C-047', 'tool_keys');
