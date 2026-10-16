@@ -98,7 +98,7 @@ if (!flag('no-build')) {
  *     cases 429) left by an earlier run, admin missing on a rebuilt
  *     stack, .state project absent from a fresh DB. Fails in seconds instead of after a full run. */
 if (!flag('no-build')) {
-  sh(`docker exec f14-redis-broker-1 sh -c "redis-cli -n 2 --scan --pattern 'auth:login:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:auth_login_ip:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:members_add:*' | xargs -r redis-cli -n 2 del"`);
+  sh(`docker exec f14-redis-broker-1 sh -c "redis-cli -n 2 --scan --pattern 'auth:login:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:auth_login_ip:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:members_add:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:users_invite:*' | xargs -r redis-cli -n 2 del"`);
   const secrets = Object.fromEntries(
     readFileSync(cfg.env.secretsFile, 'utf8').split(/\r?\n/u).map((l) => l.replace(/^export\s+/u, '').match(/^([A-Z0-9_]+)=(.*)$/u)).filter(Boolean)
       .map((m) => [m[1], m[2].replace(/^["']|["']$/gu, '')]),
@@ -163,7 +163,7 @@ if (!flag('no-prev') && (!opt('layers', '') || layers.split(',').includes('main'
     const id = String(p).padStart(2, '0');
     if (!layersOf(id).has('main')) continue; // phase 09 has no main spec: its replay was an EMPTY layer, logged as "main red"
     say(`phase ${id} main (chain to a fresh .state project for phase ${NN} main)`);
-    sh(`docker exec f14-redis-broker-1 sh -c "redis-cli -n 2 --scan --pattern 'auth:login:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:auth_login_ip:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:members_add:*' | xargs -r redis-cli -n 2 del"`);
+    sh(`docker exec f14-redis-broker-1 sh -c "redis-cli -n 2 --scan --pattern 'auth:login:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:auth_login_ip:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:members_add:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:users_invite:*' | xargs -r redis-cli -n 2 del"`);
     if (runPhase(['--phase', id, '--run-id', RUN_ID, '--layers', 'main', '--no-typecheck', '--no-watch']) !== 0) say(`phase ${id} main red — phase ${NN} main may fail on state`);
   }
 }
