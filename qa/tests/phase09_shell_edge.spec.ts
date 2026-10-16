@@ -65,8 +65,16 @@ test.describe('phase09 shell edge', () => {
             throw e;
           }
           trail.push({ at: `after focus ${name}`, ...(await snap()) });
-          await page.keyboard.press('Enter');
-          trail.push({ at: `after Enter ${name}`, ...(await snap()) });
+          // D evidence: focus() on a disabled button is a browser no-op, active stayed on "Mở" -> Enter there opened the pipeline.
+          // Enter only counts while the disabled item itself owns focus; otherwise assert it never takes focus.
+          const owner = await menu.getByRole('menuitem', { name }).evaluate((el) => el === document.activeElement);
+          if (owner) {
+            await page.keyboard.press('Enter');
+            trail.push({ at: `after Enter ${name}`, ...(await snap()) });
+          } else {
+            expect.soft(owner, `${name} must not take focus`).toBe(false);
+          }
+          expect.soft(new URL(page.url()).pathname, 'still on dashboard').toBe('/');
           await attachJson(`E09_9P-E-001_focus_trail_${slug}.json`, { trail });
         }
         await expect.soft(page.getByRole('dialog')).toHaveCount(0);

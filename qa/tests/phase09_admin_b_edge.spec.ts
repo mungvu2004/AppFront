@@ -33,11 +33,9 @@ test('SCR-35 · FL-9A-05 · admin · demoted mid-session · forbidden lock', asy
       await attachAdminSnap(page, 'E09_9A-D-017_before-demote.json', net);
       await setRole(admin, flip, 'viewer');
       const before = page.url();
-      // refetch without reload: focus / visibility, then "Thử lại" if offered (useTrainingJobs.ts:569-580)
-      await page.evaluate(() => {
-        window.dispatchEvent(new Event('focus'));
-        document.dispatchEvent(new Event('visibilitychange'));
-      });
+      // jobs list is fresh for 30 s (cachePolicy.ts staleTime) so focus sends no request (R1: net had 1 GET only);
+      // the datasets tab fires a fresh BE read (useTrainingJobs.ts tabDatasetsQuery) -> 403 locks the page (:569-580)
+      await page.getByRole('tab', { name: 'Bộ dữ liệu' }).click(); // TrainingJobs.tsx:33 tabDatasets
       const retry = page.getByRole('button', { name: 'Thử lại' });
       const retryShown = await retry.isVisible();
       if (retryShown) await retry.click();

@@ -358,8 +358,17 @@ test('SCR-34/35/36/37 · FL-9A-04 · admin · positive reference + self guards',
   });
   await test.step('[9A-D-022] version table: activate button present (not clicked)', async () => {
     await settle(page);
+    // R1: first family 'Tách lớp tường' had 0 versions (heading 'Chưa có phiên bản', rowCount 0) -> walk the families until one lists versions
+    const activateBtn = page.getByRole('button', { name: ACTIVATE }).first();
+    const emptyHeading = page.getByRole('heading', { name: 'Chưa có phiên bản', exact: true });
+    const families = page.getByRole('radiogroup', { name: 'Họ model' }).getByRole('radio');
+    for (let i = 0; i < (await families.count()); i += 1) {
+      await families.nth(i).click();
+      await expect(activateBtn.or(emptyHeading).first()).toBeVisible({ timeout: 15_000 });
+      if (await activateBtn.isVisible()) break;
+    }
     await attachAdminSnap(page, 'E09_9A-D-022_registry.json', mlLog.urls());
-    await expect.soft(page.getByRole('button', { name: ACTIVATE }).first()).toBeVisible();
+    await expect.soft(activateBtn).toBeVisible();
     await captureEvidence(page, '9A-D-022_admin-registry-activate.png');
   });
   await test.step('[9A-D-032] users: own row shows role reason, no role select', async () => {

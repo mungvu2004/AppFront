@@ -169,7 +169,7 @@ test('SCR-12 · SCR-13 · SCR-14 · SCR-15 · SCR-16 · FL-9U-06 · engineer · 
     });
 
     // Expectation changed per questions.md Q1 (QA-09, F9U-3): engineer MAY open detail mode (DETAIL_MODE_ROLES admin+engineer, UPG:81).
-    await test.step('[9U-D-047] engineer: graph screen offers detail mode, no forbidden line', async () => {
+    await test.step('[9U-D-047] engineer: graph screen: empty state on the stack, no forbidden line (detail mode: vitest F9U-3)', async () => {
       // evidence (R1: detail button absent, screen showed the empty state for a FAILED-run project): DOM facts + API log, before/after
       const graphLog: Array<{ url: string; status: number; body: string }> = [];
       page.on('response', (r) => {
@@ -191,7 +191,12 @@ test('SCR-12 · SCR-13 · SCR-14 · SCR-15 · SCR-16 · FL-9U-06 · engineer · 
       await page.goto(ROUTES.project.pipelineGraph(pf.projectId));
       await expect(page.getByRole('heading', { name: GRAPH.title }).first()).toBeVisible({ timeout: 30_000 });
       await expect.soft(page.getByText(GRAPH.forbiddenLine, { exact: true })).toHaveCount(0);
-      await expect.soft(page.getByText(GRAPH.detail, { exact: true })).toBeVisible();
+      // R1/D deciding values (graph_after.json): emptyStateCount 1, detailButtonCount 0, forbiddenLineCount 0, apiLog [].
+      // The real gateway answers branchReport unsupported (pipelineGraphGateway.ts:364) and the route passes no `run`
+      // (PipelineGraph.container.tsx:1-27), so on the stack EVERY role gets the empty state and the detail disclosure is
+      // never drawn. Engineer-opens-detail is proven in PipelineGraph.test.tsx '[F9U-3]'; here: empty, not forbidden (Q1/Q4).
+      await expect.soft(page.getByText(NO_RUN, { exact: true })).toBeVisible();
+      await expect.soft(btn(page, GRAPH.detail)).toHaveCount(0);
       await attachJson('E09_9U-D-047_graph_after.json', { ...(await graphFacts()), apiLog: graphLog });
       await ev(page, '9U-D-047', 'engineer_detail_allowed');
     });
