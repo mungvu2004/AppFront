@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 
 import { signedInApi } from './support/api';
-import { captureEvidence } from './support/evidence';
+import { attachJson, captureEvidence } from './support/evidence';
 import { DESKTOP, p11Slot } from './support/p11/common';
 import { adminApi, disposeFreshUser, inviteFreshUser, recordWrites, refreshWithCookieOf, runCleanups, signInAdminFresh, signInFresh } from './support/p11/P11';
 import { poolUser, signInPoolUser, type PoolUser } from './support/phase03Seed';
@@ -33,6 +33,12 @@ async function userRow(page: Page, email: string) {
 }
 
 const shot = (page: Page, id: string, slug: string) => captureEvidence(page, `E11_${id}_${slug}.png`);
+
+/** Evidence only: what the page exposes now (URL, every role=status text + html, writes log), attached before any expect. */
+async function snapshot(page: Page, name: string, writes?: { list(): string[] }): Promise<void> {
+  const statuses = await page.getByRole('status').evaluateAll((els) => els.map((el) => ({ text: el.textContent ?? '', html: el.outerHTML.slice(0, 600) })));
+  await attachJson(name, { url: page.url(), statuses, writes: writes?.list() ?? null });
+}
 
 async function closeAll(contexts: BrowserContext[]): Promise<void> {
   for (const context of contexts) await context.close();
@@ -69,10 +75,12 @@ test.describe('phase 11 · session-b edge', () => {
         await dialog.getByLabel('Địa chỉ thư', { exact: true }).fill(fu4.email);
         const confirm = dialog.getByRole('button', { name: 'Xác nhận xoá vĩnh viễn', exact: true });
         await expect(confirm).toBeEnabled();
+        await snapshot(page, 'E11_11U-C-137_before_confirm.json', writes);
         const deleted = page.waitForResponse((r) => r.request().method() === 'DELETE' && new URL(r.url()).pathname === deletePath);
         await confirm.dblclick(); // UMH:951-953 canConfirm has !isPending
         expect((await deleted).status()).toBe(200);
         await expect(dialog).toBeHidden(); // sure marker before reading the log
+        await snapshot(page, 'E11_11U-C-137_after_confirm.json', writes);
         expect.soft(writes.list().filter((w) => w === `DELETE ${deletePath}`)).toHaveLength(1);
         await shot(page, '11U-C-137', 'double_click_one_delete');
       });
@@ -84,6 +92,7 @@ test.describe('phase 11 · session-b edge', () => {
       });
 
       await test.step('[11U-A-112] toast xoá, không có Hoàn tác', async () => {
+        await snapshot(page, 'E11_11U-A-112_toast_state.json', writes);
         await expect.soft(page.getByText('Đã xoá tài khoản', { exact: true })).toBeVisible(); // UMH:162,1167
         await expect.soft(page.getByText(fu4.email, { exact: true })).toBeVisible(); // description = email
         await expect.soft(page.getByRole('button', { name: /Hoàn tác/u })).toHaveCount(0);

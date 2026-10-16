@@ -10,6 +10,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from '../../e2e/fixtures/tour';
 import { deleteSeededProject } from './support/drawingSeed';
+import { attachJson } from './support/evidence';
 import { createQcProject } from './support/layerSeed';
 import { floorRow } from './support/p03/P4';
 import { withAdminProject } from './support/p03/P10';
@@ -171,7 +172,6 @@ test.describe('SCR-09/10/11/21/25 floors — UI verify (QA-11 P5)', () => {
     await withAdminProject(browser, '11f-u3', 5, async ({ flow, project }) => {
       const { page } = flow;
       let used = 0;
-
       await test.step('[11F-F-201] bảng tầng + toast xoá ở 4 khổ: không tràn, toast không che hàng', async () => {
         const covered: string[] = [];
         await verifyUi(
@@ -229,7 +229,16 @@ test.describe('SCR-09/10/11/21/25 floors — UI verify (QA-11 P5)', () => {
             await expect(region.getByText(/nhóm chuẩn\./u)).toBeVisible();
             // TAB: list shown when unchangedWalls > 0 = rows of accepted groups with exceedsTolerance (gateway:811); the 150 mm wall is 70 mm off 220 (> 30 mm)
             await expect(region.getByText(/^\d+ tường không đổi được:$/u)).toBeVisible();
-            await expect(region.getByText(/^150,0\s*mm$/u), 'row of the 150 mm wall in the list').toBeVisible();
+            // evidence (E): every element the 150 mm matcher hits (strict-mode clash vs absent row) + the text around the list
+            const hits = region.getByText(/^150,0\s*mm$/u);
+            await attachJson('U11_11F-F-301_state.json', {
+              width: p.viewportSize()?.width,
+              url: p.url(),
+              hits150: await hits.count(),
+              hitsTexts: await hits.evaluateAll((els) => els.map((el) => `${el.tagName}.${el.parentElement?.tagName ?? ''} ${(el.parentElement?.textContent ?? '').slice(0, 80)}`)),
+              regionTail: (await region.innerText()).slice(-700),
+            });
+            await expect(region.getByText(/^150,0\s*mm$/u),'row of the 150 mm wall in the list').toBeVisible();
           },
           DESKTOP_VIEWPORTS,
         );

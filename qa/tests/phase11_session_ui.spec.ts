@@ -11,12 +11,20 @@ import { signedInApi } from './support/api';
 import { poolUser, signInPoolUser, type PoolUser } from './support/phase03Seed';
 import { pathOf, unknownProjectId } from './support/p03/P10';
 import { DESKTOP, DESKTOP_VIEWPORTS, p11Slot } from './support/p11/common';
-import { adminPage, cleanAll, disposeFreshUser, inviteFreshUser, signedInPage, userRow } from './support/p11/P13';
+import { adminPage, attachSnapshot, cleanAll, disposeFreshUser, inviteFreshUser, recordApi, signedInPage, userRow } from './support/p11/P13';
 import { verifyUi } from './support/ui-verify';
 
 const SIGN_IN_REQUIRED = 'Hãy đăng nhập để tiếp tục.';
 const SESSION_ENDED = 'Phiên đăng nhập đã kết thúc. Hãy đăng nhập lại.';
 const SELF_BLOCK = 'Bạn không thể tự vô hiệu hoá tài khoản của mình';
+
+/** Evidence probes for 11U-F-174 (UserManagementDetail.tsx:391-425: aside >= lg, Drawer when collapsed, section aria-label). */
+const DETAIL_PROBES = {
+  aside: 'aside[aria-label="Chi tiết người dùng"]',
+  drawer: '[role="dialog"][aria-label="Chi tiết người dùng"]',
+  removeSection: 'section[aria-label="Xoá người dùng"]',
+  selectedRow: 'tr[aria-selected="true"], li[aria-current="true"], [data-selected="true"]',
+};
 
 /** Opens `/admin/users` filtered to `email` (toolbar search `Tìm người dùng`, UserManagementToolbar.tsx:26). */
 async function openUsers(page: Page, email: string): Promise<void> {
@@ -54,14 +62,22 @@ test.describe('SCR-37/38/01 UI', () => {
         }, DESKTOP_VIEWPORTS);
       });
 
+      const hits = recordApi(shown.page);
       await test.step('[11U-F-174] panel chi tiết có mục Xoá người dùng ở 4 khổ', async () => {
         // UserManagementDetail.tsx:231 aria-label "Xoá người dùng"
         await verifyUi(shown.page, 'U11_11U-F-174_detail-panel', async (p) => {
           await openUsers(p, fu.email);
           const row = userRow(p, fu.email);
           // table: the name cell is a button as well (card list: `onSelectUser` button holds name + email)
+          const w = String(p.viewportSize()?.width ?? 0);
+          const mark = hits.length;
+          await attachSnapshot(p, `U11_11U-F-174_before-click-${w}.json`, hits, mark, DETAIL_PROBES);
           await row.getByText(fu.email, { exact: true }).click();
-          await expect(p.getByRole('region', { name: 'Xoá người dùng' })).toBeVisible();
+          try {
+            await expect(p.getByRole('region', { name: 'Xoá người dùng' })).toBeVisible();
+          } finally {
+            await attachSnapshot(p, `U11_11U-F-174_after-click-${w}.json`, hits, mark, DETAIL_PROBES);
+          }
         }, DESKTOP_VIEWPORTS);
       });
 

@@ -9,7 +9,7 @@ import type { APIRequestContext, Browser, BrowserContext, Page } from '@playwrig
 
 import { apiBaseUrl, newApiContext } from '../api';
 import { readAdminCredentials } from '../auth';
-import { TEST_DATA_PREFIX, testEmail } from '../evidence';
+import { TEST_DATA_PREFIX, attachJson, testEmail } from '../evidence';
 import { deleteMails, linkFrom, waitForMail } from '../mailpit';
 import type { PoolRole, PoolUser } from '../phase03Seed';
 
@@ -27,7 +27,7 @@ export async function inviteFreshUser(admin: APIRequestContext, role: PoolRole, 
 export async function inviteEmail(admin: APIRequestContext, role: PoolRole, email: string, name: string): Promise<PoolUser> {
   const since = new Date(Date.now() - 5_000);
   const sent = await admin.post('/api/users/invitations', { data: { emails: [email], role } });
-  expect(sent.status(), `setup: POST /api/users/invitations (${role})`).toBe(201);
+  expect(sent.status(), `setup: POST /api/users/invitations (${role}): ${sent.status() === 201 ? 'ok' : await sent.text()}`).toBe(201);
   const rows = (await sent.json()) as { id?: unknown; email?: unknown }[];
   const id = rows.find((row) => row.email === email)?.id;
   if (typeof id !== 'string') throw new Error(`setup: invitation answer has no row for ${email}`);
@@ -98,6 +98,42 @@ export function recordWrites(page: Page): RecordedWrite[] {
     if (request.method() !== 'GET' && url.pathname.startsWith('/api/')) writes.push({ method: request.method(), path: url.pathname });
   });
   return writes;
+}
+
+export interface ApiHit {
+  readonly method: string;
+  readonly path: string;
+  readonly status: number;
+}
+
+/** Records every `/api/*` response (method, path, status) of `page`; evidence only, never asserted on. */
+export function recordApi(page: Page): ApiHit[] {
+  const hits: ApiHit[] = [];
+  page.on('response', (res) => {
+    const url = new URL(res.url());
+    if (url.pathname.startsWith('/api/')) hits.push({ method: res.request().method(), path: url.pathname, status: res.status() });
+  });
+  return hits;
+}
+
+/**
+ * Evidence snapshot attached BEFORE the expect that may fail: url, viewport, per-probe count + first 120 chars of text,
+ * the API hits since index `since`, and cookie NAMES with expiry (never values). `probes`: key -> CSS selector.
+ */
+export async function attachSnapshot(
+  page: Page,
+  name: string,
+  hits: readonly ApiHit[],
+  since: number,
+  probes: Readonly<Record<string, string>> = {},
+): Promise<void> {
+  const found: Record<string, { count: number; text: string | null }> = {};
+  for (const [key, selector] of Object.entries(probes)) {
+    const loc = page.locator(selector);
+    found[key] = { count: await loc.count(), text: await loc.first().innerText({ timeout: 500 }).then((t) => t.slice(0, 120), () => null) };
+  }
+  const cookies = (await page.context().cookies()).map((c) => ({ name: c.name, expires: c.expires }));
+  await attachJson(name, { url: page.url(), viewport: page.viewportSize(), found, cookies, hitsSince: hits.slice(since), hitsTotal: hits.length });
 }
 
 /** Row of `email` in the users table (>= 1024) or card list (< 1024). */

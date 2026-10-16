@@ -9,7 +9,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { ROUTES, UNKNOWN_PATH } from '../../e2e/fixtures/routes';
 import { signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
-import { captureEvidence } from './support/evidence';
+import { attachJson, captureEvidence } from './support/evidence';
 import { createPipelineProject } from './support/drawingSeed';
 import { createProject, deleteSeededProject, envDrawingPng, removeProjectMember } from './support/phase03Seed';
 import { p11Slot } from './support/p11/common';
@@ -209,7 +209,21 @@ test.describe('phase 11 · project edge B', () => {
             expect(gone.status(), 'setup: DELETE notification project').toBe(200);
             await page.goto(ROUTES.notifications);
             await expect(page).toHaveURL(/\/thong-bao$/u);
-            await page.getByRole('button').filter({ hasText: 'Hệ thống AI đã xử lý xong bản vẽ' }).first().click(); // NotificationRow.tsx:109
+            const rows = page.getByRole('button').filter({ hasText: 'Hệ thống AI đã xử lý xong bản vẽ' });
+            await attachJson('E11_11P-A-042_notif_before.json', {
+              deletedProjectId: notif.projectId,
+              url: page.url(),
+              rowCount: await rows.count(),
+              rowTexts: (await rows.allInnerTexts()).slice(0, 10), // order = which row .first() clicks
+            });
+            await rows.first().click(); // NotificationRow.tsx:109
+            await expect.soft(page).not.toHaveURL(/\/thong-bao$/u); // the click navigated somewhere
+            await attachJson('E11_11P-A-042_notif_after.json', {
+              deletedProjectId: notif.projectId,
+              url: page.url(), // decides: deleted project id in the path, or another (surviving) project
+              pathHasDeletedId: page.url().includes(notif.projectId),
+              gateTitleCount: await page.getByText(P7_TEXT.gateTitle, { exact: true }).count(),
+            });
             await expectMissingState(page, 'notification target', 'gate');
           } finally {
             const notifCleanup = await deleteSeededProject(keepApi, notif.projectId);

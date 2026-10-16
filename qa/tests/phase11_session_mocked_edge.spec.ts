@@ -11,7 +11,10 @@ import { readAdminCredentials } from './support/auth';
 import { captureEvidence } from './support/evidence';
 import { poolUser, signInPoolUser, type PoolUser } from './support/phase03Seed';
 import { DESKTOP, p11Slot } from './support/p11/common';
-import { adminPage, cleanAll, disposeFreshUser, inviteFreshUser, userRow } from './support/p11/P13';
+import { adminPage, attachSnapshot, cleanAll, disposeFreshUser, inviteFreshUser, recordApi, userRow } from './support/p11/P13';
+
+/** Evidence probes for 11U-A-306: which screen `/` draws and whether the refresh cookie still revives the session. */
+const ROOT_PROBES = { heading: 'h1', loginForm: 'form', dashboard: '[data-testid="dashboard"], main' };
 
 test.describe('SCR-37/38 [mocked response]', () => {
   test('SCR-37 · FL-11U-X1 · admin · [mocked response] lỗi khi vô hiệu / xoá', async ({ browser }) => {
@@ -90,6 +93,7 @@ test.describe('SCR-37/38 [mocked response]', () => {
       const pu = await poolUser(admin, 'engineer', p11Slot('session-mock'));
       await signInPoolUser(context, pu);
       const page = await context.newPage();
+      const hits = recordApi(page);
       await page.route('**/api/auth/logout', (route) => route.abort('failed'));
       await test.step('[11U-A-306] logout abort → vẫn /login, mở / → /login', async () => {
         // AccessDenied: navigation sits in `finally` (flows: AD:436-446); local session cleared before the call
@@ -97,8 +101,14 @@ test.describe('SCR-37/38 [mocked response]', () => {
         await page.getByRole('button', { name: 'Đăng nhập bằng tài khoản khác', exact: true }).click();
         await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.login);
         await captureEvidence(page, 'E11_11U-A-306_logout-aborted.png');
+        const mark = hits.length;
+        await attachSnapshot(page, 'E11_11U-A-306_before-open-root.json', hits, mark, ROOT_PROBES);
         await page.goto(ROUTES.dashboard);
-        await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.login);
+        try {
+          await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.login);
+        } finally {
+          await attachSnapshot(page, 'E11_11U-A-306_after-open-root.json', hits, mark, ROOT_PROBES);
+        }
       });
     } finally {
       await cleanAll([

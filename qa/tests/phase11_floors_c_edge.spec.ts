@@ -7,7 +7,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
-import { captureEvidence } from './support/evidence';
+import { attachJson, captureEvidence } from './support/evidence';
 import { layerPathOf } from './support/layerSeed';
 import { DESKTOP } from './support/p11/common';
 import {
@@ -207,6 +207,14 @@ test.describe('SCR-09 floor manager — delete / undo (QA-11 P3)', () => {
           await undoFromToast(page, removed(renamed));
           const post = await nthCall(log, mark, 'POST', floorsRe(projectId));
           expect(post.status).toBe(409); // BE service.py FLOOR_ID_TAKEN
+          // evidence (E): what the 409 body says and which toasts exist at the moment of the check (attached before the expect so it survives a red)
+          await attachJson('E11_11F-B-202_floors.json', {
+            url: page.url(),
+            callsSinceMark: log.slice(mark).map((c) => ({ method: c.method, path: c.path, status: c.status })),
+            post409Json: post.json ?? null,
+            toastsNow: await page.getByRole('status').filter({ hasNot: page.locator('[data-announcer]') }).allInnerTexts(),
+            rowsNow: await page.getByRole('row').allInnerTexts(),
+          });
           await expect.soft(toastWith(page, `${T.persistFailed} — ${T.idTaken}`).first()).toBeVisible(); // UFM:190
           await captureEvidence(page, 'E11_11F-B-202_floors.png');
         });

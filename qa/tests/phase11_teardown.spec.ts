@@ -31,7 +31,7 @@ import { guessFloorFromFileName } from '../../src/lib/upload/validate';
 import { ROUTES, loginUrl, pathOf } from '../../e2e/fixtures/routes';
 import { navigateThenWaitForApi, waitForApi, waitForApiWhere } from '../../e2e/fullstack/apiWatch';
 import { signInAdmin } from './support/auth';
-import { captureEvidence } from './support/evidence';
+import { attachJson, captureEvidence } from './support/evidence';
 import { readState, requireState, updateState } from './support/state';
 
 test.describe.configure({ mode: 'default' });
@@ -390,6 +390,34 @@ test.describe('SCR-09 Floor Manager', () => {
       }
       return matches[0];
     };
+    // Evidence (R1 red: no DELETE seen in 30 s): every write request since the mark, in order, plus what the page shows.
+    const writeLog: string[] = [];
+    page.on('request', (request) => {
+      const path = new URL(request.url()).pathname;
+
+      if (path.startsWith('/api/') && request.method() !== 'GET') writeLog.push(`${request.method()} ${path}`);
+    });
+    let snapSeq = 0;
+    const snapshot = async (phase: string, floorId: string, name: string): Promise<void> => {
+      snapSeq += 1;
+      const rows = await page.getByRole('button', { name: /^Thao tác khác cho tầng /u }).evaluateAll((els) =>
+        els.map((el) => el.getAttribute('aria-label') ?? ''),
+      );
+      const menu = page.getByRole('menu', { name: 'Tùy chọn' });
+
+      await attachJson(`E11_scr09_${String(snapSeq)}_${phase}.json`, {
+        phase,
+        floorId,
+        name,
+        url: page.url(),
+        menuButtonRows: rows,
+        menuOpen: (await menu.count()) > 0,
+        menuItems: await menu.getByRole('menuitem').allTextContents(),
+        toasts: await page.getByRole('status').allTextContents(),
+        dialogs: await page.getByRole('dialog').count(),
+        writesSinceStart: [...writeLog],
+      });
+    };
     const deleteVia = async (floorId: string, name: string): Promise<void> => {
       const removed = waitForApiWhere(
         page,
@@ -398,11 +426,18 @@ test.describe('SCR-09 Floor Manager', () => {
         `DELETE /api/floors/${floorId}`,
       );
 
+      await snapshot('before-menu', floorId, name);
       await page.getByRole('button', { name: `Thao tác khác cho tầng ${name}`, exact: true }).click();
+      await snapshot('menu-open', floorId, name);
       await page.getByRole('menu', { name: 'Tùy chọn' }).getByRole('menuitem', { name: 'Xoá tầng' }).click();
       // G5: hovering the toast pauses its 8 s timer; keep the mouse away.
       await page.mouse.move(0, 0);
-      expect((await removed).response.status(), `DELETE /api/floors/${floorId}`).toBeLessThan(300);
+      await snapshot('after-click', floorId, name);
+      try {
+        expect((await removed).response.status(), `DELETE /api/floors/${floorId}`).toBeLessThan(300);
+      } finally {
+        await snapshot('after-wait', floorId, name);
+      }
     };
 
     const floors = await readFloors();
