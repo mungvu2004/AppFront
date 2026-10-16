@@ -254,7 +254,7 @@ test.describe('phase 09 viewer edge', () => {
       });
       await test.step('[9V-C-030] ⚑ viewer: không thấy/không dùng được Chạy kiểm tra lại', async () => {
         await gotoAs(page, ROUTES.project.rules(projectId), RULES_HEADING);
-        // correct behaviour: a viewer has neither control (useRuleReport.ts:367 has no role gate today => red while the bug lives)
+        // locked for viewer: QA-09 questions.md Q2 (decision "Khoá"); RuleReport.tsx hides rerun, RuleReport.container.tsx:268 passes canEdit
         await expect.soft(page.getByRole('button', { name: RULES_RERUN })).toHaveCount(0);
         await expect.soft(page.getByRole('button', { name: RULES_CONFIRM })).toHaveCount(0);
         await captureEvidence(page, 'E09_9V-C-030_rules-gated.png');
@@ -264,7 +264,7 @@ test.describe('phase 09 viewer edge', () => {
         await expect.soft(rerun).toHaveCount(0);
         const mark = rec.writes.length;
         if ((await rerun.count()) > 0) {
-          // fallback only while the bug lives: still must not write
+          // Q2: the control is absent for viewer; if it ever returns, it still must not write
           await rerun.click();
           await page.waitForLoadState('networkidle');
         }

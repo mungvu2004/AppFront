@@ -168,21 +168,22 @@ test('SCR-12 · SCR-13 · SCR-14 · SCR-15 · SCR-16 · FL-9U-06 · engineer · 
       await ev(page, '9U-D-042', 'engineer_no_cancel');
     });
 
-    await test.step('[9U-D-047] engineer: graph screen shows the forbidden line, no detail/switch', async () => {
+    // Expectation changed per questions.md Q1 (QA-09, F9U-3): engineer MAY open detail mode (DETAIL_MODE_ROLES admin+engineer, UPG:81).
+    await test.step('[9U-D-047] engineer: graph screen offers detail mode, no forbidden line', async () => {
       await page.goto(ROUTES.project.pipelineGraph(pf.projectId));
       await expect(page.getByRole('heading', { name: GRAPH.title }).first()).toBeVisible({ timeout: 30_000 });
-      await expect.soft(page.getByText(GRAPH.forbiddenLine, { exact: true })).toBeVisible(); // PGT forbiddenLine, DETAIL_MODE_ROLES admin only (UPG:80)
-      await expect.soft(btn(page, GRAPH.switch)).toHaveCount(0);
-      await expect.soft(page.getByText(GRAPH.detail, { exact: true })).toHaveCount(0);
-      await ev(page, '9U-D-047', 'engineer_forbidden_detail');
+      await expect.soft(page.getByText(GRAPH.forbiddenLine, { exact: true })).toHaveCount(0);
+      await expect.soft(page.getByText(GRAPH.detail, { exact: true })).toBeVisible();
+      await ev(page, '9U-D-047', 'engineer_detail_allowed');
     });
 
-    await test.step('[9U-D-048] engineer, project never ran: forbidden line, not "Chưa có lượt xử lý nào"', async () => {
+    // Expectation changed per questions.md Q4 (QA-09, F9U-4): empty wins over forbidden (UPG:546-550).
+    await test.step('[9U-D-048] engineer, project never ran: "Chưa có lượt xử lý nào", no forbidden line', async () => {
       await page.goto(ROUTES.project.pipelineGraph(pe.projectId));
       await expect(page.getByRole('heading', { name: GRAPH.title }).first()).toBeVisible({ timeout: 30_000 });
-      await expect.soft(page.getByText(GRAPH.forbiddenLine, { exact: true })).toBeVisible();
-      await expect.soft(page.getByText(NO_RUN, { exact: true })).toHaveCount(0); // forbidden precedes empty (UPG:540-548)
-      await ev(page, '9U-D-048', 'engineer_forbidden_before_empty');
+      await expect.soft(page.getByText(NO_RUN, { exact: true })).toBeVisible();
+      await expect.soft(page.getByText(GRAPH.forbiddenLine, { exact: true })).toHaveCount(0);
+      await ev(page, '9U-D-048', 'engineer_empty_before_forbidden');
     });
 
     await test.step('[9U-D-054] engineer: 3 next-step actions on the failed run', async () => {

@@ -78,6 +78,23 @@ describe('28-D-004 / 28V-D-003 — route lấy quyền thật của người xem
     expect(screen.queryByText('Lựa chọn xử lý')).toBeNull();
   });
 
+  // 9V-C-030/031 (questions.md Q2: khoá cho viewer) — nút chạy lại cũng bị gỡ, như nút xác nhận.
+  it('[9V-C-030] viewer: không có "Chạy kiểm tra lại"', async () => {
+    renderRoute(['viewer']);
+
+    await screen.findByRole('heading', { name: 'Kiểm tra luật không gian' });
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Đang kiểm tra' })).toBeNull();
+    });
+    expect(screen.queryByRole('button', { name: 'Chạy kiểm tra lại' })).toBeNull();
+  });
+
+  it('[9V-C-001] engineer: vẫn có "Chạy kiểm tra lại"', async () => {
+    renderRoute(['engineer']);
+
+    expect(await screen.findByRole('button', { name: 'Chạy kiểm tra lại' })).toBeInTheDocument();
+  });
+
   it('engineer: vẫn có "Xác nhận đã xử lý"', async () => {
     const { container } = renderRoute(['engineer']);
 

@@ -43,7 +43,6 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useSession } from '@/hooks/useSession';
-import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
 import { ModelLibrary } from './ModelLibrary';
@@ -123,12 +122,11 @@ function WiredModelLibrary(props: ModelLibraryContainerProps) {
   const { forceCompact = false, gateway: injectedGateway, onToast } = props;
 
   const session = useSession();
-  const storeRoles = useStore((state) => state.userRoles);
   const mediaIsNarrow = useIsNarrow();
 
-  // Vai theo dự án đang mở là nguồn đúng nhất; phiên đăng nhập là nguồn dự phòng cho tới khi
-  // một dự án được mở — khuôn `VersionHistory.container.tsx:134` và `useExportPanel.ts:277`.
-  const roles: readonly ProjectRole[] = storeRoles.length > 0 ? storeRoles : session.roles;
+  // Thư viện là danh mục toàn hệ thống: quyền theo vai toàn cục (duy nhất) của phiên, không theo
+  // `store.userRoles` của dự án mở trước (QA-09 F-11) — như Training/Registry/Users.
+  const roles: readonly ProjectRole[] = session.roles;
 
   const gateway: ModelLibraryGateway = useMemo(
     () =>

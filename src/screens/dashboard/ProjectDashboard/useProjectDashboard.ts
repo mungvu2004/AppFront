@@ -140,6 +140,8 @@ export interface ProjectDashboardModel {
   readonly state: SevenState;
   readonly canCreate: boolean;
   readonly canDelete: boolean;
+  /** "Xoá" only: BE DELETE /projects/{id} is admin-only, narrower than `canDelete` (which gates rename). */
+  readonly canDeleteProject: boolean;
   readonly canDuplicate: boolean;
   readonly errorMessage: string | null;
   /** False when the failed read was a 403: reading again is refused just the same, so no "Thử lại". */
@@ -413,6 +415,7 @@ export function useProjectDashboard(
 
   const canCreate = can('create', 'project', { roles: [role] });
   const canDelete = can('edit', 'project.settings', { roles: [role] });
+  const canDeleteProject = canDelete && role === 'admin';
 
   // Registry-arbitrated, so it never fires while a search box or the rename
   // field is focused (`isTextEntryTarget`, `shortcutRegistry.ts`).
@@ -507,6 +510,7 @@ export function useProjectDashboard(
     state,
     canCreate,
     canDelete,
+    canDeleteProject,
     canDuplicate: DASHBOARD_CAPABILITIES.supportsDuplicate,
     errorMessage,
     canRetry,

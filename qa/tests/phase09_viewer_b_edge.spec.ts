@@ -174,8 +174,8 @@ test.describe('Phase 09 viewer edge B', () => {
         await captureEvidence(page, 'E09_9V-G-032_select.png');
       });
       await test.step('[9V-G-033] flag: version export button for viewer', async () => {
-        // Correct behaviour: matrix model.export V=false, so the control must be absent (red while VH container ungates it).
-        await expect.soft(page.getByRole('button', { name: VERSION_EXPORT })).toHaveCount(0);
+        // QA-09 questions.md Q3 (decision "Để hiện"): export is client-side, so the button stays visible for viewer; no app change.
+        await expect.soft(page.getByRole('button', { name: VERSION_EXPORT })).toBeVisible();
         await captureEvidence(page, 'E09_9V-G-033_export_flag.png');
       });
       await test.step('[9V-G-034] no restore/label write', async () => {

@@ -77,6 +77,7 @@ function baseProps(): ProjectDashboardViewProps {
     state: 'success',
     canCreate: true,
     canDelete: true,
+    canDeleteProject: true,
     canDuplicate: false,
     errorMessage: null,
     canRetry: true,
@@ -561,6 +562,36 @@ describe('ProjectDashboardView — F-07', () => {
     fireEvent.click(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }));
 
     expect(screen.getByRole('menuitem', { name: 'Đổi tên' })).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  // [9P-C-003] BE DELETE /projects/{id} is admin-only (projects/access.py:95): an engineer can rename but not delete.
+  it('[9P-C-003] khoá "Xoá" khi không phải admin dù vẫn đổi tên được', () => {
+    render(<ProjectDashboardView {...baseProps()} rows={[SAMPLE_ROW]} canDelete canDeleteProject={false} />);
+
+    fireEvent.click(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }));
+
+    expect(screen.getByRole('menuitem', { name: 'Xoá' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('menuitem', { name: 'Đổi tên' })).not.toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('[9P-D-002] viewer: "Đổi tên" và "Xoá" đều khoá, Enter trên "Xoá" không mở hộp xác nhận', () => {
+    render(<ProjectDashboardView {...baseProps()} rows={[SAMPLE_ROW]} canDelete={false} canDeleteProject={false} />);
+
+    fireEvent.click(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }));
+
+    for (const name of ['Đổi tên', 'Xoá']) {
+      expect(screen.getByRole('menuitem', { name })).toHaveAttribute('aria-disabled', 'true');
+    }
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Xoá' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('[9P-C-003] admin: "Xoá" bật', () => {
+    render(<ProjectDashboardView {...baseProps()} rows={[SAMPLE_ROW]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }));
+
+    expect(screen.getByRole('menuitem', { name: 'Xoá' })).not.toHaveAttribute('aria-disabled', 'true');
   });
 });
 

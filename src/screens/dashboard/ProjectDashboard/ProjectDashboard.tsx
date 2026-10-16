@@ -103,7 +103,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
   const showSidebar = !isCollapsed && state !== 'loading' && state !== 'error';
 
   const openMenuFor = (project: ProjectCardModel, x: number, y: number): void =>
-    contextMenu.openMenu(x, y, projectMenuGroups(project, props, props.canDelete, props.canDuplicate));
+    contextMenu.openMenu(x, y, projectMenuGroups(project, props, props.canDelete, props.canDuplicate, props.canDeleteProject));
 
   const renderProjectGrid = (): ReactElement => (
     <div role="list" aria-label="Danh sách dự án" className={GRID_COLUMNS_CLASS}>
