@@ -669,7 +669,7 @@ describe('[34L-C-017] nhãn chữ hoa đầu (luật A6, BUG-595)', () => {
   });
 
   it('nhãn trường chi tiết "Dung lượng" và "Nhóm"', async () => {
-    const { MODEL_LIBRARY_TEXT } = await importFromScreen<typeof import('./useModelLibrary')>('./useModelLibrary');
+    const { MODEL_LIBRARY_TEXT } = await importFromScreen<{ MODEL_LIBRARY_TEXT: Record<string, string> }>('./useModelLibrary');
 
     expect(MODEL_LIBRARY_TEXT.fieldFileSize).toBe('Dung lượng');
     expect(MODEL_LIBRARY_TEXT.fieldGroup).toBe('Nhóm');
