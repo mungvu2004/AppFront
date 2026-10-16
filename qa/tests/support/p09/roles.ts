@@ -6,7 +6,7 @@
  *   const admin = await adminApi();
  *   const viewer = await roleUser(admin, 'viewer', 'nav');              // pool user, slot `p09-nav-viewer`
  *   const { projectId, workFloorId } = mainProject();
- *   const undo = await asMember(admin, projectId, viewer);              // BEFORE the test; undo() in finally
+ *   const undo = await asMember(admin, projectId, viewer);              // BEFORE the test; membership stays for the run
  *   await signInRole(context, viewer);
  *   const rec = recordWrites(page);
  *   await gotoAs(page, `/du-an/${projectId}`, /Bản vẽ/u);               // anchor first, then assert absence
@@ -17,7 +17,7 @@ import type { APIRequestContext, BrowserContext, Page } from '@playwright/test';
 
 import { signedInApi } from '../api';
 import { readAdminCredentials } from '../auth';
-import { poolUser, removeProjectMember, signInPoolUser, type PoolRole, type PoolUser } from '../phase03Seed';
+import { poolUser, signInPoolUser, type PoolRole, type PoolUser } from '../phase03Seed';
 import { requireState } from '../state';
 
 export const DESKTOP_VIEWPORTS = [
@@ -51,21 +51,27 @@ export function mainProject(): { projectId: string; workFloorId: string; project
   };
 }
 
+const KEEP_MEMBERSHIP = async (): Promise<void> => {};
+
 /**
- * Adds `user` to the project and returns the undo. BE N3 answers 201 when new, 200 when already a member
- * (project_members/router.py:42-70): in the 200 case undo is a no-op so a pre-existing membership survives.
+ * Makes `user` a member of the project for the rest of the run; the returned "undo" is a no-op kept for the callers.
+ * Membership is NOT removed: every POST counts against BE `members_add` (60/h per actor, project_members/settings.py:14,
+ * rate limit runs before the 200 "already a member" answer), and gone/re-added memberships raced between --repeat copies
+ * that share a pool slot (p09-rr: 25 cases died on 429). So: read the project's members (#24) and POST only when missing.
+ * A test that needs a FRESH add (e.g. the invite notification of N3) removes the membership itself first.
  */
 export async function asMember(admin: APIRequestContext, projectId: string, user: PoolUser): Promise<() => Promise<void>> {
+  const detail = await admin.get(`/api/projects/${projectId}`);
+  if (detail.ok()) {
+    const { members } = (await detail.json()) as { members?: { id: string }[] };
+    if (members?.some((m) => m.id === user.id)) return KEEP_MEMBERSHIP;
+  }
   const res = await admin.post(`/api/projects/${projectId}/members`, { data: { email: user.email } });
   const status = res.status();
   if (status !== 201 && status !== 200) {
     throw new Error(`asMember: POST members → ${String(status)}: ${(await res.text()).slice(0, 200)}`);
   }
-  if (status === 200) return async () => {};
-  return async () => {
-    const err = await removeProjectMember(admin, projectId, user.id);
-    if (err !== null) throw new Error(`asMember undo: ${err}`);
-  };
+  return KEEP_MEMBERSHIP;
 }
 
 /** `METHOD path` of every non-safe `/api/` request the page sends (assert `writes` is empty for a viewer). */
