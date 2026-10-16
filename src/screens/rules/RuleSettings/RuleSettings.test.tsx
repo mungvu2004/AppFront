@@ -962,6 +962,61 @@ describe('F-10 — useRuleSettings nối N21/N22', () => {
     expect(read).toHaveBeenCalledTimes(1);
   });
 
+  it('29-A-033 (FL-11P-08, SPLIT từ stack): sửa → lưu → "Khôi phục mặc định" → lưu → vé "Hoàn tác" còn hiệu lực và PUT lại bản sửa', async () => {
+    const toasts: RuleSettingsToast[] = [];
+    const { result, replace, read } = setupHook({ onToast: (toast) => toasts.push(toast) });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+    act(() => result.current.onRestoreDefaults());
+    await advance(AFTER_DEBOUNCE_MS);
+    expect(replace).toHaveBeenCalledTimes(2);
+    expect(useStore.getState().ruleConfig.overrides).toEqual({});
+
+    const resetTicket = toasts[1]?.undoTicket;
+    expect(resetTicket?.getStatus()).toBe('active');
+    act(() => {
+      toasts[1]?.onUndo?.();
+    });
+    await advance(AFTER_DEBOUNCE_MS);
+
+    expect(replace).toHaveBeenCalledTimes(3);
+    expect(replace.mock.calls[2]?.[0].body.overrides).toEqual({ 'WALL-THICKNESS': { enabled: false } });
+    expect(replace.mock.calls[2]?.[0].baseVersion).toBe(5);
+    expect(useStore.getState().ruleConfig.overrides).toEqual({ 'WALL-THICKNESS': { enabled: false } });
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it('29-A-035 (FL-11P-08, SPLIT từ stack): bộ luật sẵn rồi reset → hai vé riêng; vé cũ không ghi đè vé mới', async () => {
+    const toasts: RuleSettingsToast[] = [];
+    const { result, replace } = setupHook({ onToast: (toast) => toasts.push(toast) });
+    await advance(0);
+
+    act(() => result.current.onApplyPreset('commercial'));
+    await advance(AFTER_DEBOUNCE_MS);
+    const presetBody = replace.mock.calls[0]?.[0].body.overrides;
+    act(() => result.current.onRestoreDefaults());
+    await advance(AFTER_DEBOUNCE_MS);
+    expect(toasts).toHaveLength(2);
+    expect(replace).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      toasts[1]?.onUndo?.(); // newest ticket (the reset) => back to the preset state
+    });
+    await advance(AFTER_DEBOUNCE_MS);
+    expect(replace).toHaveBeenCalledTimes(3);
+    expect(replace.mock.calls[2]?.[0].body.overrides).toEqual(presetBody);
+
+    // Vé cũ (về mặc định trước bộ sẵn) không được ghi đè trạng thái mới hơn (11P-A-035).
+    expect(toasts[0]?.undoTicket?.getStatus()).toBe('expired');
+    act(() => {
+      toasts[0]?.onUndo?.();
+    });
+    await advance(AFTER_DEBOUNCE_MS);
+    expect(replace).toHaveBeenCalledTimes(3);
+  });
+
   it('BUG-463: refetch nền mang revision mới hơn làm vé cũ hết hạn — "Hoàn tác" không ghi đè bản của người khác', async () => {
     const toasts: RuleSettingsToast[] = [];
     const onDiscardToasts = vi.fn();

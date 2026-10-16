@@ -76,7 +76,7 @@ export const finding = (page: Page, title: string): Locator => report(page).loca
 export const straightenBtn = (page: Page): Locator => page.locator('[data-quality-action="straighten"]'); // UIQ/IQF data attribute (phase03 11-E-009)
 export const cornersBtn = (page: Page): Locator => page.locator('[data-quality-action="corners"]');
 export const straightenDialog = (page: Page): Locator => page.getByRole('dialog', { name: /^Nắn thẳng bản vẽ tầng /u });
-export const cornersDialog = (page: Page): Locator => page.getByRole('dialog', { name: /^Cắt và nắn bản vẽ tầng .* theo bốn góc$/u });
+export const cornersDialog = (page: Page): Locator => page.getByRole('dialog', { name: /^Cắt và nắn bản vẽ tầng .* theo bốn góc\?$/u });
 export const writeBand = (page: Page): Locator => page.getByRole('alert').filter({ hasText: COPY.writeError });
 export const handle = (page: Page, name: string): Locator => page.getByRole('group', { name: COPY.cornerGroup, exact: true }).getByRole('button', { name, exact: true });
 

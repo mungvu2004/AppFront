@@ -1265,6 +1265,30 @@ describe('hoàn tác gọi máy chủ', () => {
     expect(patch).toHaveBeenCalledTimes(2);
   });
 
+  it('[11F-B-202] hoàn tác "Xoá" khi mã tầng đã bị tạo lại: POST 409 → bus giữ câu "Mã tầng đã có"', async () => {
+    const { gateway, add } = spiedGateway();
+    const mounted = await mountSettled({ gateway });
+
+    await act(async () => {
+      mounted.result.current.onRemoveFloor(SECOND_ID);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(levelIds()).not.toContain(SECOND_ID);
+    });
+    await sleep();
+
+    add.mockImplementation(() => wireFailure(409, 'FLOOR_ID_TAKEN'));
+    await undoWithKey(mounted);
+    await waitFor(() => {
+      expect(descriptionsOf(mounted.notifications)).toContain(FLOOR_MANAGER_TEXT.idTaken);
+    });
+
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(levelIds()).not.toContain(SECOND_ID);
+    expect(mounted.notifications.list().some((item) => item.title === FLOOR_MANAGER_TEXT.persistFailedTitle)).toBe(true);
+  });
+
   it('bấm vé khi đã có thao tác mới hơn thì KHÔNG hoàn tác bước khác', async () => {
     const { gateway, add } = spiedGateway();
     const mounted = await mountSettled({ gateway });

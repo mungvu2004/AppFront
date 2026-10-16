@@ -712,6 +712,47 @@ describe('FloorUploadScreen — tệp chọn trước lượt kiểm mạng đ�
     expect(counterStatusText()).toBe('2 / 4 tầng đã có bản vẽ');
   });
 
+  it('[11F-B-001] gỡ tệp duy nhất của tầng: bộ đếm giảm 1 và lý do chặn "chưa có bản vẽ." trở lại', async () => {
+    const gateway = createFloorUploadGateway(createMockApiClient(), {
+      networkMonitor: createNetworkMonitor({ ping: () => new Promise<boolean>(() => undefined) }),
+    });
+
+    renderWithProviders(<FloorUploadScreenContainer gateway={gateway} projectId={PROJECT_ID} />);
+
+    await act(async () => {
+      await clock.advance(SETTLE_STEP_MS);
+      await clock.advance(SETTLE_STEP_MS);
+    });
+
+    const file = new File(['x'], 'mat-bang-tang-2.png', { type: 'image/png' });
+
+    await act(async () => {
+      fireEvent.change(screen.getByTestId(FILE_INPUT_TEST_ID), { target: { files: [file] } });
+      await clock.advance(SETTLE_STEP_MS);
+    });
+
+    for (let elapsed = 0; elapsed < MEASURE_WINDOW_MS; elapsed += SETTLE_STEP_MS * 10) {
+      await act(async () => {
+        await clock.advance(SETTLE_STEP_MS * 10);
+      });
+    }
+
+    expect(counterStatusText()).toBe('2 / 4 tầng đã có bản vẽ');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn của tầng Tầng 2' }));
+      await clock.advance(SETTLE_STEP_MS);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Xoá bản vẽ mat-bang-tang-2.png' }));
+      await clock.advance(SETTLE_STEP_MS);
+    });
+
+    // UFU:985-1010 blockReasons đọc attachmentByFloor: tầng hết tệp thì bộ đếm giảm 1.
+    expect(counterStatusText()).toBe('1 / 4 tầng đã có bản vẽ');
+    expect(document.querySelector('[data-floor-id="L2"]')?.textContent).toContain('Chưa có bản vẽ');
+  });
+
   it('tệp chọn lúc ngoại tuyến thật tự tải khi mạng về, bộ đếm lên 2 / 4 (NO-389)', async () => {
     let reachable = false;
     const monitor = createNetworkMonitor({

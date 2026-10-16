@@ -705,11 +705,14 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
 
       // A8: đúng một vé cho mỗi thay đổi. Cửa sổ 8 giây do chính vé giữ
       // (`UNDO_WINDOW_MS`), nên ở đây không có bộ đếm thời gian nào.
+      // Mỗi thay đổi (và mỗi lần hoàn tác) làm mọi vé cũ hết hạn: vé cũ không ghi đè trạng thái mới hơn (11P-A-035).
+      ticketGenerationRef.current += 1;
       const generation = ticketGenerationRef.current;
       const clock = nowOption ?? Date.now;
       const ticket = createUndoTicket({
         description: label,
         undo: () => {
+          ticketGenerationRef.current += 1;
           result.undo();
           autosave.notifyChange();
         },

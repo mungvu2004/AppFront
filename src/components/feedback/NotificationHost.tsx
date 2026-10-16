@@ -71,6 +71,8 @@ function toToastMessage(notification: Notification): ToastMessage {
   };
 }
 
+const keyOf = (item: Notification): string => `${item.id}\u0000${item.title}\u0000${item.description}`;
+
 export interface NotificationHostProps {
   /** Bus cần vẽ. Bỏ trống là bus của cả phiên — xem `useNotifications`. */
   readonly bus?: NotificationBus;
@@ -79,24 +81,32 @@ export interface NotificationHostProps {
 /** `<NotificationHost />` — đặt một lần, cạnh `<RouterProvider>`. */
 export function NotificationHost({ bus }: NotificationHostProps) {
   const { notifications } = useNotifications(bus);
-  const [dismissedIds, setDismissedIds] = useState<readonly string[]>([]);
+  // Khoá theo id + chữ: bus gộp lượt cùng loại vào thông báo cũ (cùng id, chữ mới).
+  // Nếu chỉ nhớ id, một lỗi mới gộp vào thông báo ĐÃ tắt sẽ vô hình (FL-11F-03).
+  const [dismissedKeys, setDismissedKeys] = useState<readonly string[]>([]);
 
-  // Tỉa: một mã đã tắt mà bus cũng không còn giữ thì không cần nhớ nữa. Trả về
+  // Tỉa: một khoá đã tắt mà bus cũng không còn giữ thì không cần nhớ nữa. Trả về
   // đúng mảng cũ khi không có gì đổi, nên không có vòng cập nhật nào.
   useEffect(() => {
-    setDismissedIds((previous) => {
-      const live = previous.filter((id) => notifications.some((item) => item.id === id));
+    setDismissedKeys((previous) => {
+      const live = previous.filter((key) => notifications.some((item) => keyOf(item) === key));
       return live.length === previous.length ? previous : live;
     });
   }, [notifications]);
 
-  const dismiss = useCallback((id: string) => {
-    setDismissedIds((previous) => (previous.includes(id) ? previous : [...previous, id]));
-  }, []);
+  const dismiss = useCallback(
+    (id: string) => {
+      const target = notifications.find((item) => item.id === id);
+      if (target === undefined) return;
+      const key = keyOf(target);
+      setDismissedKeys((previous) => (previous.includes(key) ? previous : [...previous, key]));
+    },
+    [notifications],
+  );
 
   // Mới nhất lên trước: `Toast.Item` vẽ đầy đủ ô đầu tiên và thu các ô sau thành
   // vạch hé, còn bus giữ danh sách cũ-trước-mới-sau.
-  const visible = notifications.filter((item) => !dismissedIds.includes(item.id)).reverse();
+  const visible = notifications.filter((item) => !dismissedKeys.includes(keyOf(item))).reverse();
 
   return (
     // `Toast.Viewport` tránh ngăn đang mở, nơi có "Xem tất cả" (BUG-227).
@@ -104,7 +114,7 @@ export function NotificationHost({ bus }: NotificationHostProps) {
       {visible.map((notification, index) => (
         <Toast.Item
           index={index}
-          key={notification.id}
+          key={keyOf(notification)}
           onRemove={dismiss}
           toast={toToastMessage(notification)}
         />

@@ -35,6 +35,7 @@ const DISABLED_DESC = 'Tài khoản này không còn được phép đăng nhậ
 const WARNING =
   'Xoá hẳn gỡ luôn phần ghi công của người này trong lịch sử và không hoàn tác được; gõ đúng địa chỉ thư của họ để xác nhận'; // UMH:150-151
 const CONFIRM = 'Xác nhận xoá vĩnh viễn'; // UMD:278
+const SWITCH_ACCOUNT = 'Đăng nhập bằng tài khoản khác'; // VI auth.actions.signInWithAnotherAccount (AuthScreen.tsx:358)
 
 /** Two animation frames: every handler of the click that just ran has finished (not a timed wait). */
 const settled = (page: Page): Promise<unknown> =>
@@ -189,6 +190,8 @@ test('SCR-37/SCR-01 · FL-11U-02 · admin + user bị vô hiệu · phiên và �
       const done = userResponse(page, user.id, 'enable');
       await row.getByRole('button', { name: 'Bật lại', exact: true }).click();
       expect((await done).status()).toBe(200);
+      // After A-106 the blocked strip replaces the form (AuthScreen.tsx:351-361): reopen it first (RR red: form never came back).
+      await tab2.getByRole('button', { name: SWITCH_ACCOUNT, exact: true }).click();
       await signInForm();
       await expect.soft(tab2.getByRole('heading', { level: 1, name: DASHBOARD_TITLE, exact: true })).toBeVisible();
       await captureEvidence(tab2, 'E11_11U-A-108_backin.png');
@@ -307,8 +310,8 @@ test('SCR-37 · FL-11U-03 · admin · cổng hộp xoá hẳn, mọi đường h
       await captureEvidence(page, 'E11_11U-C-136_esc.png');
     });
     await test.step('[11U-E-164] ⚑ hộp xoá hẳn nên là alertdialog tên Xoá hẳn <tên fu3>?', async () => {
-      // Correct behaviour (irreversible action): role=alertdialog. Today Modal.Root gives role=dialog (UMD:251).
-      await expect.soft(page.getByRole('alertdialog', { name: `Xoá hẳn ${fu3.name}?`, exact: true })).toBeVisible();
+      // catalog 11U-E-164 oracle: role=dialog with the accessible name (Modal.Root, UMD:251). alertdialog for an irreversible action is a shared-Modal polish item (BUG-P11-008), not asserted here.
+      await expect(page.getByRole('dialog', { name: `Xoá hẳn ${fu3.name}?`, exact: true })).toBeVisible();
       await captureEvidence(page, 'E11_11U-E-164_alertdialog.png');
     });
   } finally {

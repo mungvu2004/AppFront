@@ -45,19 +45,23 @@ test.describe('phase 11 · project edge B', () => {
         expect.soft(after.status).toBe(200);
       });
 
-      await test.step('[11P-B-011] engineer confirms delete: 403 -> sentence in the dialog, project stays', async () => {
+      await test.step('[11P-B-011] engineer: "Xoá" is locked in the card menu, so no confirm dialog and no DELETE is sent', async () => {
+        // Expectation changed: BUG-P09-001 (BUG-LOG-P09.md:8, fix b044f882) locks "Xoá" for non-admin (projectMenuGroups.ts:25
+        // `isDisabled: !canDeleteProject`), so the confirm -> 403 -> sentence path (UPD:234) is no longer reachable by an engineer.
+        // The direct 403 stays proven by [11P-D-003].
         await page.goto(ROUTES.dashboard);
+        const deletes: string[] = [];
+        page.on('request', (r) => {
+          if (r.method() === 'DELETE' && projectRe(id).test(new URL(r.url()).pathname)) deletes.push(r.url());
+        });
         await page.getByRole('button', { name: `Tuỳ chọn cho ${project.name}`, exact: true }).click(); // ProjectCard:108
-        await page.getByRole('menu', { name: P7_TEXT.cardMenu, exact: true }).getByRole('menuitem', { name: 'Xoá', exact: true }).click(); // projectMenuGroups.ts:25
-        const dialog = page.getByRole('dialog', { name: P7_TEXT.deleteTitle, exact: true });
-        await expect(dialog).toBeVisible();
-        const denied = page.waitForResponse((r) => r.request().method() === 'DELETE' && projectRe(id).test(new URL(r.url()).pathname));
-        await dialog.getByRole('button', { name: P7_TEXT.deleteConfirm, exact: true }).click();
-        expect.soft((await denied).status()).toBe(403);
-        await expect.soft(dialog.getByText(P7_TEXT.deleteForbidden, { exact: true })).toBeVisible(); // UPD:234
-        await captureEvidence(page, ev('11P-B-011', 'd_403'));
-        await dialog.getByRole('button', { name: 'Để nguyên', exact: true }).click();
-        await expect(dialog).toBeHidden();
+        const item = page.getByRole('menu', { name: P7_TEXT.cardMenu, exact: true }).getByRole('menuitem', { name: 'Xoá', exact: true });
+        await expect(item).toBeDisabled();
+        await item.click({ force: true }); // a locked item must not open the dialog
+        await expect.soft(page.getByRole('dialog', { name: P7_TEXT.deleteTitle, exact: true })).toHaveCount(0);
+        expect.soft(deletes).toEqual([]);
+        await captureEvidence(page, ev('11P-B-011', 'd_locked'));
+        await page.keyboard.press('Escape');
         await expect.soft(page.getByRole('button', { name: `Tuỳ chọn cho ${project.name}`, exact: true })).toBeVisible();
       });
 
@@ -207,20 +211,31 @@ test.describe('phase 11 · project edge B', () => {
           // notification = a completed pipeline run (ai_completed, BE pipeline_persist/service.py:169-173) of a project that is then deleted
           const notif = await createPipelineProject(keepApi, 'p11-project-gone-notif', envDrawingPng());
           try {
-            const gone = await keepApi.delete(projectPath(notif.projectId));
-            expect(gone.status(), 'setup: DELETE notification project').toBe(200);
-            // R1 evidence (before.json/after.json): .first() opened another project's row, pathHasDeletedId=false.
-            // Pick the row of the deleted project from the API list (newest first, notifications/router.py:25-29).
-            const inboxJson = (await (await keepApi.get('/api/notifications')).json()) as unknown;
-            const inbox = (Array.isArray(inboxJson) ? inboxJson : ((inboxJson as { items?: unknown[] }).items ?? [])) as {
-              projectId?: string;
-              message?: string;
-            }[];
-            const sameKind = inbox.filter((n) => (n.message ?? '').includes('Hệ thống AI đã xử lý xong bản vẽ'));
+            // RR evidence: after DELETE the API list no longer has the row (setup error "still has a notification row", 2 of 2 copies).
+            // Oracle: soft delete hides the project's notifications at #19 (packages/db/models/notifications.py:4; service.py:56-58
+            // joins Project), so a stale row exists only in a list loaded BEFORE the delete. Load the list, delete, then click.
+            const listInbox = async (): Promise<{ projectId?: string; message?: string }[]> => {
+              const inboxJson = (await (await keepApi.get('/api/notifications')).json()) as unknown;
+              const items = (Array.isArray(inboxJson) ? inboxJson : ((inboxJson as { items?: unknown[] }).items ?? [])) as {
+                projectId?: string;
+                message?: string;
+              }[];
+              return items.filter((n) => (n.message ?? '').includes('Hệ thống AI đã xử lý xong bản vẽ'));
+            };
+            await expect
+              .poll(async () => (await listInbox()).some((n) => n.projectId === notif.projectId), {
+                message: 'setup: the pipeline run notified the project owner before the delete',
+                timeout: 30_000,
+              })
+              .toBe(true);
+            const sameKind = await listInbox(); // newest first, notifications/router.py:25-29
             const mine = sameKind.findIndex((n) => n.projectId === notif.projectId);
             await page.goto(ROUTES.notifications);
             await expect(page).toHaveURL(/\/thong-bao$/u);
             const rows = page.getByRole('button').filter({ hasText: 'Hệ thống AI đã xử lý xong bản vẽ' });
+            await expect(rows).toHaveCount(sameKind.length); // the page holds the list that still has the row
+            const gone = await keepApi.delete(projectPath(notif.projectId));
+            expect(gone.status(), 'setup: DELETE notification project').toBe(200);
             await attachJson('E11_11P-A-042_notif_before.json', {
               deletedProjectId: notif.projectId,
               url: page.url(),

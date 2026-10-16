@@ -93,8 +93,11 @@ test.describe('phase 11 · session-b edge', () => {
 
       await test.step('[11U-A-112] toast xoá, không có Hoàn tác', async () => {
         await snapshot(page, 'E11_11U-A-112_toast_state.json', writes);
-        await expect.soft(page.getByText('Đã xoá tài khoản', { exact: true })).toBeVisible(); // UMH:162,1167
-        await expect.soft(page.getByText(fu4.email, { exact: true })).toBeVisible(); // description = email
+        // Toast renders `title — description` in ONE span (RR snapshot E11_11U-A-112_toast_state.json: "Đã xoá tài khoản — <email>"),
+        // so title and email are asserted on the same role=status element, not as two exact text nodes.
+        const toast = page.getByRole('status').filter({ hasText: 'Đã xoá tài khoản' }); // UMH:188,1234
+        await expect.soft(toast).toBeVisible();
+        await expect.soft(toast).toContainText(fu4.email); // description = email (UMH:1237)
         await expect.soft(page.getByRole('button', { name: /Hoàn tác/u })).toHaveCount(0);
         await shot(page, '11U-A-112', 'toast_no_undo');
       });

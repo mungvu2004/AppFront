@@ -66,7 +66,7 @@ test.describe('phase 11 · floors B edge', () => {
 
       await test.step('[11F-A-102] hộp thoại nắn đúng chữ', async () => { // UIQ:156-160
         const dlg = straightenDialog(page);
-        await expect.soft(dlg).toHaveAccessibleName('Nắn thẳng bản vẽ tầng Tầng 1');
+        await expect.soft(dlg).toHaveAccessibleName('Nắn thẳng bản vẽ tầng Tầng 1?'); // vi.json:857 straightenTitle ends with "?"; useInputQualityGate.test.ts:340
         await expect.soft(dlg).toContainText(COPY.straightenBody);
         await expect.soft(button(dlg, COPY.cancel)).toBeVisible();
         await expect.soft(button(dlg, COPY.confirmStraighten)).toBeVisible();
@@ -132,7 +132,7 @@ test.describe('phase 11 · floors B edge', () => {
         await cornersBtn(page).click(); // "Gửi bốn góc đã chọn" -> dialog
         const dlg = cornersDialog(page);
         await expect(dlg).toBeVisible();
-        await expect.soft(dlg).toHaveAccessibleName('Cắt và nắn bản vẽ tầng Tầng 2 theo bốn góc');
+        await expect.soft(dlg).toHaveAccessibleName('Cắt và nắn bản vẽ tầng Tầng 2 theo bốn góc?'); // vi.json:854 cornersTitle ends with "?"
         await expect.soft(dlg).toContainText(COPY.cornersBody);
         await expect.soft(button(dlg, COPY.confirmCorners)).toBeVisible();
         await captureEvidence(page, 'E11_11F-A-109_floors.png');

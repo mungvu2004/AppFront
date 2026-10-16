@@ -231,7 +231,9 @@ test.describe('P11 project mocked edge', () => {
         await reset.click();
         await answered;
         await expect.soft(page.getByText('Chưa lưu được bộ luật của dự án này.')).toBeVisible(); // ruleSettingsGateway.ts:311
-        await expect.soft(page.getByText(/^Đã lưu/u)).toHaveCount(0); // never claims "saved" (SaveIndicator.tsx:38)
+        // The hidden polite announcer keeps the last "Đã lưu lúc …" of the first save (announcer.ts:65-69 never clears it), so
+        // count the visible indicator only (RR x2: "resolved to 1 element" = the announcer).
+        await expect.soft(page.locator('[role="status"]:not([data-announcer])').filter({ hasText: /^Đã lưu/u })).toHaveCount(0); // never claims "saved" (SaveIndicator.tsx:38)
         await captureEvidence(page, 'E11_11P-B-015_reset_put_5xx.png');
       });
     });

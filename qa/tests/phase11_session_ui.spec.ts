@@ -69,11 +69,12 @@ test.describe('SCR-37/38/01 UI', () => {
         await verifyUi(shown.page, 'U11_11U-F-174_detail-panel', async (p) => {
           await openUsers(p, fu.email);
           const row = userRow(p, fu.email);
-          // table: the name cell is a button as well (card list: `onSelectUser` button holds name + email)
+          // table >= 1024: only the NAME is the select button, the email is a plain span (UserManagementTable.tsx:308-315);
+          // card list < 1024: one button holds name + email (:203-210). RR snapshots: click on the email span did nothing at 1920/1440/1024.
           const w = String(p.viewportSize()?.width ?? 0);
           const mark = hits.length;
           await attachSnapshot(p, `U11_11U-F-174_before-click-${w}.json`, hits, mark, DETAIL_PROBES);
-          await row.getByText(fu.email, { exact: true }).click();
+          await row.getByRole('button', { name: fu.name }).click();
           try {
             await expect(p.getByRole('region', { name: 'Xoá người dùng' })).toBeVisible();
           } finally {

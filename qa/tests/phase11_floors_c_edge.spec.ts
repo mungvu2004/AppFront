@@ -204,6 +204,20 @@ test.describe('SCR-09 floor manager — delete / undo (QA-11 P3)', () => {
           await nthCall(log, mark, 'DELETE', deleteOf(f1.id));
           const readd = await apiAddFloor(api, projectId, { id: f1.id, name: renamed, order: 0, elevationMm: 0, heightMm: 3_000 });
           expect(readd.status, 'API re-creates the same id').toBe(201);
+          // evidence (E), RR2: the one-shot snapshots above/below cannot say WHEN the failure toast comes and goes. Record every DOM change of the
+          // toast stack (ms since now) from before the undo click; the hook side is green (useFloorManager.test.ts [11F-B-202]).
+          await page.evaluate(() => {
+            const store = window as unknown as { __toastLog?: { ms: number; toasts: string[] }[] };
+            const log: { ms: number; toasts: string[] }[] = [];
+            store.__toastLog = log;
+            const t0 = Date.now();
+            const snap = (): void => {
+              const toasts = Array.from(document.querySelectorAll('[role="status"]:not([data-announcer])')).map((el) => (el.textContent ?? '').trim());
+              log.push({ ms: Date.now() - t0, toasts });
+            };
+            new MutationObserver(snap).observe(document.body, { subtree: true, childList: true, characterData: true });
+            snap();
+          });
           await undoFromToast(page, removed(renamed));
           const post = await nthCall(log, mark, 'POST', floorsRe(projectId));
           expect(post.status).toBe(409); // BE service.py FLOOR_ID_TAKEN
@@ -219,6 +233,9 @@ test.describe('SCR-09 floor manager — delete / undo (QA-11 P3)', () => {
           // evidence (E): toasts AFTER the 15 s wait (R1/D snapshot was taken before it): is the failure toast merged into an older same-type one?
           await attachJson('E11_11F-B-202_after.json', {
             toastsAfter: await page.getByRole('status').filter({ hasNot: page.locator('[data-announcer]') }).allInnerTexts(),
+          });
+          await attachJson('E11_11F-B-202_toastlog.json', {
+            changes: await page.evaluate(() => (window as unknown as { __toastLog?: unknown[] }).__toastLog ?? []),
           });
           await captureEvidence(page, 'E11_11F-B-202_floors.png');
         });

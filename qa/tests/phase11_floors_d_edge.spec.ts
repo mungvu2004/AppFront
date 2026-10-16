@@ -83,11 +83,19 @@ test.describe('P4 floors D edge', () => {
         // UNKNOWN - NEED VERIFICATION: "Dung sai" is a spinbutton; 0 mm blocks every deviating segment (TAB:205 totalWalls === unchangedWalls.length).
         const tolerance = zone.getByLabel(THICK.tolerance);
         await tolerance.fill('0');
-        await previewBtn.click();
+        // RR both copies: no preview after the click. The field commits on blur, which re-flows the summary above the button between
+        // mousedown and mouseup, so the click was lost (E11_11F-A-304 shot: tolerance applied, preview closed). Commit first, then click;
+        // the button exists only while no preview is open, so a retry is idempotent. Hook side: useThicknessStandardization.test.ts [11F-A-304].
+        await tolerance.blur();
+        await expect(async () => {
+          if (await previewBtn.isVisible()) await previewBtn.click();
+          await expect(applyBtn).toBeVisible({ timeout: 3_000 });
+        }).toPass({ timeout: 20_000 });
         await expect.soft(applyBtn).toBeDisabled();
         await captureEvidence(page, 'E11_11F-A-304_floors.png');
         await zone.getByRole('button', { name: THICK.cancel, exact: true }).click();
         await tolerance.fill('30');
+        await tolerance.blur(); // commit before the next click (same re-flow as above)
       });
       await test.step('[11F-A-305] reapply with a reviewed wall -> warning, nothing written', async () => {
         const mark = log.length;
@@ -198,8 +206,8 @@ test.describe('P4 floors D edge', () => {
       const trash = (name: string): Locator => page.getByRole('button', { name: `Xoá ${name}`, exact: true }); // MTL:154
       const row = (name: string): Locator =>
         list.getByRole('listitem').filter({ has: page.getByRole('button', { name: `Ẩn ${name}`, exact: true }) });
-      const deleted = (): Promise<{ status(): number }> =>
-        page.waitForResponse((res) => res.request().method() === 'DELETE' && measurementRe(project.projectId).test(new URL(res.url()).pathname));
+      const deleted = (timeout = 30_000): Promise<{ status(): number }> =>
+        page.waitForResponse((res) => res.request().method() === 'DELETE' && measurementRe(project.projectId).test(new URL(res.url()).pathname), { timeout });
       const postsOf = (): number => log.filter((e) => e.method === 'POST' && measurementsRe(project.projectId).test(e.path)).length;
       await page.goto(ROUTES.project.measure(project.projectId));
       await dismissTour(page);
@@ -214,10 +222,16 @@ test.describe('P4 floors D edge', () => {
         await captureEvidence(page, 'E11_11F-A-401_floors.png');
       });
       await test.step('[11F-A-402] Delete key on the hovered row deletes like the button', async () => {
-        await row(names.b).hover(); // MTL:110-115
-        const res = deleted();
-        await page.keyboard.press('Delete'); // UMT:923
-        expect.soft((await res).status()).toBe(204);
+        // RR copy 1: Delete sent no request (hover lost while the list re-flowed after 401). Re-hover + press until the DELETE shows;
+        // a press with no hovered row sends nothing, so retrying never deletes a second row. Key itself: useMeasurementTool.test.tsx:516.
+        let status = 0;
+        await expect(async () => {
+          await row(names.b).hover(); // MTL:110-115
+          const res = deleted(4_000);
+          await page.keyboard.press('Delete'); // UMT:923
+          status = (await res).status();
+        }).toPass({ timeout: 25_000 });
+        expect.soft(status).toBe(204);
         await expect.soft(row(names.b)).toHaveCount(0);
         await captureEvidence(page, 'E11_11F-A-402_floors.png');
       });
@@ -238,6 +252,12 @@ test.describe('P4 floors D edge', () => {
         await captureEvidence(page, 'E11_11F-A-404_floors.png');
       });
       await test.step('[11F-A-405] undo while the id is taken (409) -> renumbered, second POST', async () => {
+        // RR copy 2 (E11_11F-A-404 shot: 4 rows): the 404 press undid the merged a+b ticket, so a exists again and its id is not free.
+        // Delete a again (own toast, new group), THEN take its id through the API.
+        const gone = deleted();
+        await trash(names.a).click();
+        expect((await gone).status()).toBe(204);
+        await expect(row(names.a)).toHaveCount(0);
         const taken = await api.post(`/api/projects/${project.projectId}/measurements`, {
           data: { id: idA, name: n('taken'), mode: 'pointToPoint', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }], rawValueMm: 1000 },
         });

@@ -54,7 +54,7 @@ const FLOORS_FORBIDDEN_NOTICE = 'Vai của bạn chỉ xem được ngăn xếp 
 const THICKNESS_FORBIDDEN_TITLE = 'Không có quyền sửa độ dày tường'; // phase09_roles_matrix.spec.ts:78
 // UNKNOWN — NEED VERIFICATION: catalog quotes measurementToolScenarios.ts:363 ("Bạn không có quyền ghim …"); the live hook
 // (useMeasurementTool.ts:201) says the sentence below. The live text is asserted; the catalog text is attached as JSON.
-const PIN_BLOCKED_LIVE = 'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.';
+const PIN_BLOCKED_LIVE = 'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. Vẫn đo và đọc số bình thường.';
 const PIN_BLOCKED_CATALOG = 'Bạn không có quyền ghim phép đo trong dự án này. Liên hệ quản trị dự án.';
 const STRAIGHTEN = 'Tự động nắn'; // UIQ COPY.straightenAction
 const PICK = 'Chọn góc thủ công'; // UIQ COPY.pickCornersAction
@@ -210,7 +210,10 @@ test.describe('phase 11 floors edge', () => {
         // R1/D screenshot: "nen-t2.png" is matched to Tầng 2 by its name ("Ghép tự động từ tên tệp"), so it never waits in the tray
         await expect(cardSummary(page, t2.id, 'nen-t2.png')).toBeVisible();
         await expect.poll(() => flow.sent.slice(mark).filter((r) => r.method === 'POST' && INIT_RE.test(r.path)).length).toBe(1);
-        await expect.soft(page.getByTestId(COUNTER)).toHaveText(counterText(2, 2)); // UFU:1189-1191 uploading counts
+        // RR value: counter "1 / 2" while the chunk is held. doneCount counts only status "attached" (useFloorUploadScreen.ts doneCount),
+        // so an uploading file does not count. "Counter drops by 1 after removal" is proven in FloorUploadScreen.test.tsx [11F-B-001] (SPLIT);
+        // on the stack a finished upload makes the server list the drawing, so removal cannot lower the counter there (11F-A-009 flag).
+        await expect.soft(page.getByTestId(COUNTER)).toHaveText(counterText(1, 2));
         await removeFromCard(page, t2, 'nen-t2.png');
         await expect(cardSummary(page, t2.id, 'nen-t2.png')).toHaveCount(0);
         await expect.soft(page.getByTestId(COUNTER)).toHaveText(counterText(1, 2)); // UFU:985-1010 blockReasons

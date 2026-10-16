@@ -4,13 +4,13 @@
  * Only fresh sessions of own pool slots (`p11-session-c`); the shared admin session is never signed out.
  * FE: AD = src/screens/AccessDenied, SB = src/routes/SessionBootstrap.tsx:293-306,360-376,406.
  */
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { ROUTES, loginUrl, pathOf } from '../../e2e/fixtures/routes';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
-import { captureEvidence } from './support/evidence';
+import { captureEvidence as capture } from './support/evidence';
 import { poolUser, signInPoolUser } from './support/phase03Seed';
 import { unknownProjectId } from './support/p03/P10';
 import { DESKTOP, p11Slot } from './support/p11/common';
@@ -20,6 +20,16 @@ const SLOT = p11Slot('session-c');
 const DENIED = 'Bạn chưa có quyền truy cập'; // AD:98
 const soft = expect.configure({ soft: true });
 const pathname = (url: string): string => new URL(url).pathname;
+
+/**
+ * FL-11U-08 keeps two tabs in one context. A tab that is not in front produces no new frame, so a 2nd shot of it hangs
+ * (RR: `page.screenshot` 30 s at the 2nd shot of tab A, after tab B was opened; the 1st shot, right after goto, worked).
+ * Bring the tab to front before every shot.
+ */
+async function captureEvidence(page: Page, name: string): Promise<string> {
+  await page.bringToFront();
+  return capture(page, name);
+}
 
 test.describe('SCR-38 / SCR-01 session edge (C)', () => {
   test('SCR-38 · FL-11U-08 · engineer · AccessDenied → logout, two tabs', async ({ browser }) => {

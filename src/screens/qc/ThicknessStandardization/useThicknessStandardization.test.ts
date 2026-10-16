@@ -475,6 +475,29 @@ describe('áp chuẩn hoá', () => {
     expect(thicknessInStore(wallsOfMeasurement(195)[0]?.id as WallId)).toBe(195);
   });
 
+  it('[11F-A-304] dung sai 0 mm rồi xem trước: bảng vẫn mở và mọi đoạn bị chặn (BUG-637)', async () => {
+    const mounted = await mountSettled();
+    const measurements = mounted.result.current.groupRows.map((row) => row.measuredMm);
+
+    act(() => {
+      for (const measuredMm of measurements) {
+        mounted.result.current.onToggleAccepted(measuredMm, true);
+      }
+    });
+    act(() => {
+      mounted.result.current.onChangeTolerance(0);
+    });
+    act(() => {
+      mounted.result.current.onOpenPreview();
+    });
+
+    const preview = mounted.result.current.preview;
+
+    expect(preview).not.toBeNull();
+    expect(preview?.totalWalls).toBeGreaterThan(0);
+    expect(preview?.unchangedWalls.length).toBeGreaterThan(0);
+  });
+
   it('áp ba nhóm cho ĐÚNG MỘT bước lịch sử, và hoàn tác trả về nguyên trạng', async () => {
     const notifications: NotificationBus = createNotificationBus();
     const mounted = await mountSettled({ notifications });

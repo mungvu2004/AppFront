@@ -67,9 +67,9 @@ export async function rowLabels(page: Page): Promise<string[]> {
 /** Pair = exactly `[right, left]`: uncheck all (<= 2), then check both (the right one is the newer). */
 export async function pickPair(page: Page, labels: readonly [string, string]): Promise<void> {
   const checked = versionList(page).getByRole('checkbox', { checked: true });
-  for (let round = 0; round < 2 && (await checked.count()) > 0; round += 1) await checked.first().uncheck(); // versionHistoryCompare.ts togglePick
+  for (let round = 0; round < 2 && (await checked.count()) > 0; round += 1) await checked.first().uncheck({ force: true }); // versionHistoryCompare.ts togglePick; force: the input is `sr-only` in a <label> (Checkbox.tsx:54,68), its painted box intercepts the pointer (RR call log)
   await expect(checked).toHaveCount(0);
-  for (const label of labels) await versionList(page).getByRole('checkbox', { name: `Chọn phiên bản ${label} để so sánh`, exact: true }).check();
+  for (const label of labels) await versionList(page).getByRole('checkbox', { name: `Chọn phiên bản ${label} để so sánh`, exact: true }).check({ force: true });
   await expect(checked).toHaveCount(2);
 }
 
