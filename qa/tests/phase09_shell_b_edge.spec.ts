@@ -261,7 +261,7 @@ test.describe('phase09 shell B edge', () => {
       await signInRole(context, flip);
       const libReadOnly = page.getByText(LIBRARY_READ_ONLY, { exact: false });
       const libAnchor = page
-        .getByLabel('tìm model', { exact: true })
+        .getByLabel('Tìm model', { exact: true })
         .or(page.getByText('Chưa có model nào', { exact: true }))
         .or(page.getByText(FORBIDDEN_TITLE, { exact: true }));
 
