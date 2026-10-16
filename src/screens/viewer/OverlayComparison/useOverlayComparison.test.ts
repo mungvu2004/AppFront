@@ -633,6 +633,50 @@ describe('useOverlayComparison — bảy trạng thái', () => {
     expect(mounted.result.current.model.role).toBe('viewer');
   });
 
+  it('[9U-D-063, Q4b] vai chỉ xem trên tầng thiếu khung vẫn là forbidden kèm câu chỉ-đọc, không phải error', async () => {
+    const mounted = await mountMeasured({ roles: ['viewer'] });
+
+    await act(async () => {
+      mounted.result.current.actions.selectFloor(FLOOR_WARPED);
+      await clock.advance(1);
+    });
+    await settle(mounted);
+
+    const model = mounted.result.current.model;
+
+    expect(model.state).toBe('forbidden');
+    expect(model.stateNotice).toBe('Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.');
+    expect(model.scaleFixHref).toBeNull();
+  });
+
+  it('[9U-D-063, Q4b] vai chỉ xem khi hai tầng lệch tỷ lệ cũng là forbidden', async () => {
+    const graph = createSampleBuilding();
+    seedStore(
+      graph.levels.map((level, index) => ({ ...level, scaleMillimetresPerPixel: millimetresPerPixel(index === 0 ? 12 : 24) })),
+      ['viewer'],
+    );
+
+    const mounted = await mountMeasured({ roles: ['viewer'] });
+
+    expect(mounted.result.current.model.state).toBe('forbidden');
+  });
+
+  it('[Q4b] vai chỉ xem mà lỗi ĐỌC (N16 hỏng) vẫn là error trước forbidden', async () => {
+    useStore.getState().setSpatial(null, null);
+    useStore.getState().setFloors([]);
+    const base = await makeGateway();
+    const readFloorLayer = vi.fn(() => Promise.reject(new Error('500')));
+    const mounted = mountHook(withOverlayCapabilities(base, { readFloorLayer }), { roles: ['viewer'] });
+    await settle(mounted);
+    for (let turn = 0; turn < SETTLE_TURNS; turn += 1) {
+      await act(async () => {
+        await clock.advance(1000);
+      });
+    }
+
+    expect(mounted.result.current.model.state).toBe('error');
+  });
+
   it('khung hẹp là collapsed, và kiểu cạnh nhau bị tắt kèm lý do', async () => {
     const mounted = await mountMeasured({ forceCollapsed: true });
 

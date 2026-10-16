@@ -42,10 +42,9 @@ test('giao diện · FL-9U-U1 · viewer · viewer bo cuc chi-doc o 4 kho', async
         await uiState(page, '9U-F-007', 'scale_forbidden', openAt(P.scale(projectId, floorId), (p) => p.getByRole('heading', { name: 'Bạn không có quyền hiệu chỉnh tỷ lệ' })));
       });
       await test.step('[9U-F-008] viewer bảng cảnh báo', async () => {
-        // RR2 deciding value (U09-9U-F-008 shot @1920, p09-rr): this floor has no frame, so the panel shows the errorFrame notice, not the
-        // forbidden one: useOverlayComparison.ts:695-710 orders loading -> error -> empty -> forbidden, isFrameMissing = error. The forbidden
-        // sentence is proven on a framed floor by phase09_upload_edge.spec.ts 9U-D-063. Anchor: vi.json:2905 errorFrame.
-        await uiState(page, '9U-F-008', 'overlay_readonly_notice', openAt(P.overlay(projectId, floorId), (p) => p.getByText('Không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.')));
+        // Q4b (questions.md:11, useOverlayComparison.ts state memo): this floor has no frame, but a viewer gets 'forbidden' before the
+        // content error (isFrameMissing), so the read-only sentence shows. Anchor: UOC COPY.forbiddenNotice (:128), as phase09_upload_edge 9U-D-063.
+        await uiState(page, '9U-F-008', 'overlay_readonly_notice', openAt(P.overlay(projectId, floorId), (p) => p.getByText('Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.', { exact: true })));
       });
       await test.step('[9U-F-009] viewer cad-confirm forbidden (PC)', async () => {
         // UNKNOWN — NEED VERIFICATION: no CAD (.dxf) seed. The main floor is a PNG: useCadBranchConfirm.ts:601-606 yields 'error'

@@ -5,7 +5,6 @@
 import { expect, test } from '@playwright/test';
 
 import { attachJson } from './support/evidence';
-import { removeProjectMember } from './support/phase03Seed';
 import { COPY, shot, spaGo } from './support/p09/P1';
 import { DESKTOP, adminApi, apiAs, asMember, gotoAs, mainProject, recordWrites, roleUser, signInRole } from './support/p09/roles';
 
@@ -106,10 +105,9 @@ test.describe('phase09 shell edge', () => {
         await shot(page, '9P-G-001', 'summaries');
       });
       await test.step('[9P-A-001] open MP card', async () => {
-        const loaded = page.waitForResponse((res) => new URL(res.url()).pathname === `/api/projects/${projectId}` && res.request().method() === 'GET');
         await page.getByRole('button', { name: `Mở ${projectName}`, exact: true }).click(); // PCT:166
-        expect((await loaded).status()).toBe(200);
-        await expect.soft(page).toHaveURL(new RegExp(`/projects/${projectId}`, 'u'));
+        // The project GET may come from the react-query cache (no request): the visible result (URL) is the signal.
+        await expect(page).toHaveURL(new RegExp(`/projects/${projectId}`, 'u'));
         await expect.soft(page.getByText(COPY.deniedTitle)).toHaveCount(0);
         await shot(page, '9P-A-001', 'open_card');
       });
@@ -165,7 +163,7 @@ test.describe('phase09 shell edge', () => {
     });
   });
 
-  test('SCR-08/Onboarding/Thông báo · FL-9P-03 · viewer', async ({ page, context }) => {
+  test('SCR-08/Onboarding/Thông báo · FL-9P-03 · viewer', async ({ page, context, browser }) => {
     test.setTimeout(240_000);
     const admin = await adminApi();
     const pv = await roleUser(admin, 'viewer', 'shell');
@@ -242,18 +240,25 @@ test.describe('phase09 shell edge', () => {
         await shot(page, '9P-G-201', 'settings_api');
       });
       await test.step('[9P-D-309] /thong-bao: invite has "Chấp nhận" when one exists', async () => {
-        // A read invite has no "Chấp nhận" (notificationCenterGateway.ts:223); asMember keeps the membership, so earlier reads/runs
-        // may have consumed the invite. Re-add once to emit a fresh unread one (one POST, members_add budget).
-        expect(await removeProjectMember(admin, projectId, pv.id), 'remove membership').toBeNull();
-        const add = await admin.post(`/api/projects/${projectId}/members`, { data: { email: pv.email } });
-        expect([200, 201], 'fresh invite POST').toContain(add.status());
-        const listed = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/notifications' && r.request().method() === 'GET');
-        await page.goto('/thong-bao');
-        const body = (await (await listed).json()) as { id: string }[];
-        // asMember(201) emits the invite notification (notifications/invite_sinks.py:21)
-        expect(body.some((n) => JSON.stringify(n).toLowerCase().includes('invite')), 'invite notification seeded').toBe(true);
-        await expect.soft(page.getByRole('button', { name: COPY.accept }).first()).toBeVisible(); // NG:182
-        await shot(page, '9P-D-309', 'notifications');
+        // A read invite has no "Chấp nhận" (notificationCenterGateway.ts:223). The server dedupes the invite per project+user+UTC hour
+        // (invite_sinks.py dedupe_key), so re-adding `pv` within the hour yields NO new row and G-301 marks pv's row read (RR3 png: both rows read).
+        // Own invitee that never marks read: its single invite stays unread across runs (membership is kept by asMember).
+        const pi = await roleUser(admin, 'viewer', 'shell-invite');
+        await asMember(admin, projectId, pi);
+        const inviteApi = await apiAs(pi);
+        await expect
+          .poll(async () => ((await (await inviteApi.get('/api/notifications')).json()) as { kind?: string; isRead?: boolean }[]).some((n) => n.kind === 'projectInvite' && n.isRead === false), { message: 'unread projectInvite exists (API)' })
+          .toBe(true);
+        const inviteCtx = await browser.newContext({ viewport: DESKTOP });
+        try {
+          await signInRole(inviteCtx, pi);
+          const ipage = await inviteCtx.newPage();
+          await ipage.goto('/thong-bao');
+          await expect.soft(ipage.getByRole('button', { name: COPY.accept }).first()).toBeVisible(); // NG:182
+          await shot(ipage, '9P-D-309', 'notifications');
+        } finally {
+          await inviteCtx.close();
+        }
       });
       await test.step('[9P-G-301] GET notifications 200, POST read 204', async () => {
         const api = await apiAs(pv);

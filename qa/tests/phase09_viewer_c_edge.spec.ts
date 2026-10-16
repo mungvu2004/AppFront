@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { attachJson, captureEvidence } from './support/evidence';
-import { clickSceneCentre, pascalCanvas, viewportReady } from './support/p09/P7';
+import { pascalCanvas, viewportReady } from './support/p09/P7';
 import { pinOneMeasurement, withOwnProject } from './support/p09/P9';
 import { adminApi, gotoAs, mainProject, recordWrites, roleUser, signInRole } from './support/p09/roles';
 
@@ -34,7 +34,10 @@ test.describe('phase 09 viewer edge (real stack)', () => {
         // Pascal side panel "Lịch sử thao tác" (pascalViewerTypes.ts:200) hosts HistoryPanel; label HistoryPanel.rows.tsx:53 (hover/focus only: attached is enough)
         // RR2 red: the panel was opened on a fresh project, so it showed "Chưa có bước nào" (history is empty until a commit) and no
         // row had a jump button. Make one real edit first (select at the scene centre, Delete) - the engineer owns this project.
-        await clickSceneCentre(page);
+        // RR3 red (E09_9V-A-038 png): after the centre click + Delete the panel still showed "Chưa có bước nào": the click lands on empty floor
+        // between walls, nothing was selected, so Delete committed nothing (usePascalEdits.ts:160 pushes history only on a scene commit).
+        // Select a real node through the Pascal tree (row "Tường chịu lực 1", visible in that png) so Delete removes it and commits.
+        await page.getByText('Tường chịu lực 1', { exact: true }).first().click();
         await page.keyboard.press('Delete');
         await page.getByRole('button', { name: 'Lịch sử thao tác', exact: true }).click();
         const jump = page.getByRole('button', { name: 'Quay lại trạng thái này' }).first();

@@ -697,8 +697,13 @@ export function useOverlayComparison(
       return 'loading';
     }
 
-    if (hasReadFailed || hasLayerReadFailed || isFrameMissing || hasScaleConflict) {
+    if (hasReadFailed || hasLayerReadFailed) {
       return 'error';
+    }
+
+    // Q4b (9U-D-063): lỗi NỘI DUNG (thiếu khung, lệch tỷ lệ) chỉ người có quyền sửa chữa được; vai chỉ xem thấy câu chỉ-đọc.
+    if (isFrameMissing || hasScaleConflict) {
+      return canEdit ? 'error' : 'forbidden';
     }
 
     if (activeFloorId === null || !activeHasScan) {

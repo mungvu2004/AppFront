@@ -171,7 +171,12 @@ test.describe('Phase 09 viewer edge B', () => {
       });
       await test.step('[9V-G-032] list readable, version selected', async () => {
         const nav = page.getByRole('navigation', { name: VERSION_LIST });
-        await expect(nav.getByRole('checkbox', { checked: true })).toHaveCount(1);
+        // Checkboxes are the compare pair, not a single selection: default pair = 2 newest full versions
+        // (versionHistoryCompare.ts:85 defaultPairOf; VersionList.tsx:80 checked=isSelectedForCompare) -> min(2, rows).
+        // Relation, not absolute count: a parallel copy may add versions on the shared floor.
+        const rows = await nav.getByRole('checkbox').count();
+        expect(rows).toBeGreaterThan(0);
+        await expect(nav.getByRole('checkbox', { checked: true })).toHaveCount(Math.min(2, rows));
         await expect.soft(nav).toBeVisible();
         await captureEvidence(page, 'E09_9V-G-032_select.png');
       });
