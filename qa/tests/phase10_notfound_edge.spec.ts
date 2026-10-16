@@ -233,6 +233,7 @@ test('SCR-39 · FL-10N-03 · admin + anon · đường sâu và ẩn danh', asyn
       await page.goto(deepPath);
       await expect(notFoundHeading(page)).toBeVisible();
       expect(new URL(page.url()).pathname).toBe(deepPath);
+      await captureEvidence(page, 'N10_10N-C-003_deep-path.png');
     });
 
     await test.step('[10N-C-004] route có thật, dự án không có → không phải NotFound', async () => {
@@ -243,6 +244,7 @@ test('SCR-39 · FL-10N-03 · admin + anon · đường sâu và ẩn danh', asyn
       // FloorTable.tsx:213 reuses PROJECT_NOT_FOUND_TITLE (/floors is not wrapped by ProjectSpatialGate).
       await expect(page.getByText(PROJECT_MISSING_TITLE, { exact: true })).toBeVisible();
       await expect.soft(notFoundHeading(page)).toHaveCount(0);
+      await captureEvidence(page, 'N10_10N-C-004_project-missing.png');
     });
 
     await test.step('[10N-D-001] ẩn danh → /login, không thấy NotFound', async () => {
@@ -252,6 +254,7 @@ test('SCR-39 · FL-10N-03 · admin + anon · đường sâu và ẩn danh', asyn
       await expect(anonPage.getByRole('button', { name: 'Đăng nhập', exact: true })).toBeVisible(); // e2e/fixtures/session.ts SIGN_IN_LABEL
       await expect.soft(anonPage.getByText(NOT_FOUND_TITLE, { exact: true })).toHaveCount(0);
       await expect.soft(anonPage.getByText('Cần đăng nhập để xem trang này', { exact: true })).toHaveCount(0); // useNotFound.ts:99
+      await captureEvidence(anonPage, 'N10_10N-D-001_anon-login.png');
     });
   } finally {
     await anon.close();
