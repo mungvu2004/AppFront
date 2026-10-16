@@ -78,7 +78,7 @@ import {
 /* -------------------------------------------------------------------------- */
 
 /** Vai được mở chế độ chi tiết. Xem ghi chú đầu file về khoá `pipeline.inspect`. */
-const DETAIL_MODE_ROLES: readonly ProjectRole[] = ['admin'];
+const DETAIL_MODE_ROLES: readonly ProjectRole[] = ['admin', 'engineer']; // questions.md Q1 (QA-09): engineer may open detail mode
 
 /** `< 1024px` — cùng mốc `ProcessingScreen`, `ScaleCalibration` và `InputQualityGate`. */
 const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
@@ -532,7 +532,7 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
 
   /**
    * Thứ tự xét, cùng khuôn `useProcessingScreen.ts:685`: đang tải → lỗi → không
-   * có quyền → rỗng → thu gọn → một phần → xong.
+   * rỗng → có quyền → thu gọn → một phần → xong.
    *
    * Một chỗ lệch có chủ ý: `empty` xét TRƯỚC `collapsed`. Màn không có gì để kể
    * thì phải nói ra điều đó ở mọi bề rộng, chứ không im lặng đưa ra một sơ đồ
@@ -543,10 +543,10 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
     ? 'loading'
     : failure !== null
       ? 'error'
-      : !canSeeDetail
-        ? 'forbidden'
-        : run === undefined && branchReport === null
-          ? 'empty'
+      : run === undefined && branchReport === null
+        ? 'empty' // questions.md Q4 (QA-09): empty wins over forbidden
+        : !canSeeDetail
+          ? 'forbidden'
           : isCompact
             ? 'collapsed'
             : isMixedBranch || hasBranchFailure || !isEverythingDone

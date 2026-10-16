@@ -47,6 +47,6 @@ describe('Badge', () => {
     const { container } = render(<Badge variant="verified">V</Badge>);
     expect(container.firstChild).toHaveClass('h-[22px]');
     expect(container.firstChild).toHaveClass('text-[13px]');
-    expect(container.firstChild).toHaveClass('rounded-[6px]');
+    expect(container.firstChild).toHaveClass('rounded-md');
   });
 });

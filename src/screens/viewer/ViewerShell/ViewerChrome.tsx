@@ -67,7 +67,7 @@ export function ViewerBreadcrumb({ items }: ViewerBreadcrumbProps) {
             ) : (
               <button
                 className={cn(
-                  'truncate whitespace-nowrap rounded-[6px] px-1 text-[13px] text-text-secondary',
+                  'truncate whitespace-nowrap rounded-md px-1 text-[13px] text-text-secondary',
                   'transition-colors duration-120 hover:text-text-primary',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
                 )}
@@ -112,7 +112,7 @@ function ClusterButton({
       aria-label={label}
       className={cn(
         /* 44 px dưới `sm` (vùng chạm cảm ứng), 28 px từ `sm` — BUG-374. */
-        'flex h-11 w-11 items-center justify-center rounded-[8px] sm:h-7 sm:w-7',
+        'flex h-11 w-11 items-center justify-center rounded-lg sm:h-7 sm:w-7',
         'text-text-secondary transition-colors duration-120 hover:bg-bg-hover',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
       )}
@@ -135,7 +135,7 @@ export function ViewerZoomCluster({
     <div
       aria-label="Cụm thu phóng"
       className={cn(
-        'flex items-center gap-0.5 rounded-[12px] px-1 py-1',
+        'flex items-center gap-0.5 rounded-xl px-1 py-1',
         'border border-border-default bg-bg-surface shadow-float',
       )}
       role="group"
@@ -148,7 +148,7 @@ export function ViewerZoomCluster({
         aria-label={`Mức thu phóng ${zoomLabel}, bấm để về mức chuẩn`}
         className={cn(
           /* Từng không có chiều cao: chỉ cao bằng dòng chữ 11 px (48×17, BUG-374). */
-          'h-11 min-w-[48px] rounded-[8px] px-1 text-[11px] tabular-nums text-text-secondary sm:h-7',
+          'h-11 min-w-12 rounded-lg px-1 text-[11px] tabular-nums text-text-secondary sm:h-7',
           'transition-colors duration-120 hover:bg-bg-hover',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
         )}

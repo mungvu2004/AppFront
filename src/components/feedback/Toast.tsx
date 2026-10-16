@@ -120,6 +120,8 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
     // Hoàn tác xong thì toast đã hết việc: rời đi ngay. Không thế thì nó treo tới
     // hết cửa sổ, che nút bên dưới, với một nút "Hoàn tác" không còn gì để làm (B-V4-11).
     const onUndoClick = () => {
+      // Bấm đúp: nút còn trong DOM tới khi toast gỡ xong, lần bấm thứ hai không được hoàn tác lại.
+      if (isExiting && !keepAfterUndo) return;
       if (toast.onUndo) {
         toast.onUndo();
       }
@@ -129,7 +131,8 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
       }
     };
 
-    const isPeek = index > 0;
+    // Toast xếp sau chỉ lộ một vạch 4 px; chuột vào vạch hoặc tiêu điểm tới nút thì nó mở ra để bấm "Hoàn tác".
+    const isPeek = index > 0 && !isHeld;
     // No state = a plain notice, a neutral dot. A5 keeps the green for what a reviewer verified, so it is
     // never the fallback: every toast without a state, errors included, used to wear it (BUG-207).
     const dotColor =
@@ -145,7 +148,7 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
         aria-live="polite"
         aria-atomic="true"
         className={cn(
-          'relative w-[320px] bg-bg-surface shadow-float rounded-xl overflow-hidden pointer-events-auto transition-all duration-340 animate-toast-enter',
+          'relative w-80 bg-bg-surface shadow-float rounded-xl overflow-hidden pointer-events-auto transition-all duration-340 animate-toast-enter',
           isExiting && 'opacity-0 !h-0 !my-0 !py-0'
         )}
         style={{
@@ -190,7 +193,7 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
         </div>
 
         {/* 2px countdown bar */}
-        <div className="absolute bottom-0 left-0 h-[2px] bg-bg-sunken w-full" aria-hidden="true">
+        <div className="absolute bottom-0 left-0 h-0.5 bg-bg-sunken w-full" aria-hidden="true">
           <div className="h-full bg-accent transition-none" style={{ width: `${progress}%` }} />
         </div>
       </div>
@@ -216,6 +219,9 @@ function ToastViewport({ children }: { children: React.ReactNode }) {
       aria-live="polite"
       className={cn(
         'pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col-reverse items-end gap-2',
+        // Màn có chân dính đáy khung nhìn (`data-sticky-footer`, cao tới ~85 px): toast đứng trên nó
+        // (29-F-010). Không áp khi tờ dưới đang mở hay dưới 640 px — hai chỗ đó toast đã lên mép trên.
+        'sm:[html:has([data-sticky-footer]):not([data-drawer=sheet])_&]:bottom-24',
         '[html[data-drawer=side]_&]:right-[calc(1rem+var(--drawer-inset))]',
         '[html[data-drawer=sheet]_&]:bottom-auto [html[data-drawer=sheet]_&]:top-4',
         'max-sm:bottom-auto max-sm:top-4',

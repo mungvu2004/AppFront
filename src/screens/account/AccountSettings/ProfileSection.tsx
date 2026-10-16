@@ -33,7 +33,7 @@
  * Đây là lỗi của `FieldRow`, và `src/components/**` là thư mục màn này không sửa.
  */
 
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
@@ -107,11 +107,32 @@ export interface ProfileSectionProps {
   readonly rowClassName: string;
   /** Giảm chuyển động đang có hiệu lực. */
   readonly motionOff: boolean;
+  /** Khổ hẹp: nhãn nằm trên ô, ô rộng hết thẻ (BUG-502). */
+  readonly isStacked: boolean;
 }
 
 export function ProfileSection(props: ProfileSectionProps) {
   const { motionOff, rowClassName } = props;
   const avatarInputId = useId();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const isDialogOpen = props.avatarReplace.isOpen;
+  const isAvatarInputDisabled = props.isAvatarUploading === true || props.isAvatarLocked === true;
+  const wasDialogOpen = useRef(false);
+  const owesAvatarFocus = useRef(false);
+
+  // Đóng hộp thoại ảnh lúc ô "Đổi ảnh" còn khoá: bẫy focus trả về ô khoá là vô hiệu, focus nằm ở <body>
+  // (stack p07-rr, sau Esc). Ô mở lại thì nhận focus — chỉ khi focus vẫn ở <body>, không giật focus của ai.
+  useEffect(() => {
+    if (wasDialogOpen.current && !isDialogOpen) owesAvatarFocus.current = true;
+    wasDialogOpen.current = isDialogOpen;
+    if (!owesAvatarFocus.current || isDialogOpen || isAvatarInputDisabled) return;
+    const frame = requestAnimationFrame(() => {
+      owesAvatarFocus.current = false;
+      const active = document.activeElement;
+      if (active === null || active === document.body) avatarInputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isDialogOpen, isAvatarInputDisabled]);
 
   // `duration-260`, không phải `duration-standard`: hai tên cùng giá trị, nhưng
   // `tailwind-merge` chỉ đè được nhóm `duration` khi tên là một con số. Xem chú
@@ -132,6 +153,7 @@ export function ProfileSection(props: ProfileSectionProps) {
           />
           <input
             id={avatarInputId}
+            ref={avatarInputRef}
             type="file"
             accept="image/png,image/jpeg"
             disabled={props.isAvatarUploading || props.isAvatarLocked}
@@ -173,10 +195,10 @@ export function ProfileSection(props: ProfileSectionProps) {
         </p>
       )}
 
-      <AvatarReplaceDialog {...props.avatarReplace} />
+      <AvatarReplaceDialog {...props.avatarReplace} returnFocusRef={avatarInputRef} />
 
       <div className="flex flex-col">
-        <FieldRow label="Họ tên" className={rowClass} flash={flashOf('fullName')}>
+        <FieldRow isStacked={props.isStacked} label="Họ tên" className={rowClass} flash={flashOf('fullName')}>
           <Input
             aria-label="Họ tên"
             value={props.fullName}
@@ -186,7 +208,7 @@ export function ProfileSection(props: ProfileSectionProps) {
           />
         </FieldRow>
 
-        <FieldRow label="Chức danh" className={rowClass} flash={flashOf('jobTitle')}>
+        <FieldRow isStacked={props.isStacked} label="Chức danh" className={rowClass} flash={flashOf('jobTitle')}>
           <Input
             aria-label="Chức danh"
             value={props.jobTitle}
@@ -197,10 +219,17 @@ export function ProfileSection(props: ProfileSectionProps) {
           />
         </FieldRow>
 
-        <FieldRow label="Thư điện tử" className={rowClass}>
+        <FieldRow isStacked={props.isStacked} label="Thư điện tử" className={rowClass}>
           <div className="flex flex-col gap-1">
+            {/* `min-w-0 flex-1`: thư dài cắt "…" trong cột, nút không bị đẩy ra ngoài thẻ (BUG-497). */}
             <div className="flex items-center gap-2">
-              <Input aria-label="Thư điện tử" value={props.email} isReadOnly readOnly />
+              <Input
+                aria-label="Thư điện tử"
+                value={props.email}
+                isReadOnly
+                readOnly
+                wrapperClassName="min-w-0 flex-1"
+              />
               <Button
                 variant="ghost"
                 size="sm"
@@ -216,7 +245,7 @@ export function ProfileSection(props: ProfileSectionProps) {
           </div>
         </FieldRow>
 
-        <FieldRow label="Điện thoại" className={rowClass} flash={flashOf('phone')}>
+        <FieldRow isStacked={props.isStacked} label="Điện thoại" className={rowClass} flash={flashOf('phone')}>
           <Input
             aria-label="Điện thoại"
             type="tel"
@@ -240,7 +269,7 @@ export function ProfileSection(props: ProfileSectionProps) {
           trái của `FieldRow` đã viết nó rồi. Dạng ghép cho phép giữ đúng một
           nhãn nhìn thấy và một `<label htmlFor>` cho trình đọc màn hình.
         */}
-        <FieldRow label="Ngôn ngữ" className={rowClass} flash={flashOf('language')} isLast>
+        <FieldRow isStacked={props.isStacked} label="Ngôn ngữ" className={rowClass} flash={flashOf('language')} isLast>
           <Select.Root
             value={props.language}
             onChange={props.onLanguageChange}

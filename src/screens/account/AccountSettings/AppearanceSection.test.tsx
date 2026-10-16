@@ -71,6 +71,7 @@ function props(overrides: Partial<AppearanceSectionProps> = {}): AppearanceSecti
     flashedField: null,
     rowClassName: DENSITY_ROW_CLASS.comfortable,
     motionOff: false,
+    isStacked: false,
     ...overrides,
   };
 }
@@ -89,6 +90,33 @@ function rowOf(label: string): HTMLElement {
 /* -------------------------------------------------------------------------- */
 /* View.                                                                       */
 /* -------------------------------------------------------------------------- */
+
+describe('BUG-497, BUG-502 — khổ hẹp: nhãn trên điều khiển', () => {
+  it('isStacked thì năm hàng xếp dọc, nhóm "Theo hệ thống" có cả bề rộng thẻ', () => {
+    render(<AppearanceSection {...props({ isStacked: true })} />);
+
+    for (const label of ['Chủ đề', 'Dùng nền tối cho khung nhìn 3D', 'Mật độ hiển thị']) {
+      expect(rowOf(label)).toHaveClass('flex-col');
+    }
+  });
+});
+
+describe('BUG-499, 33R-F-004 — công tắc cùng tâm với nhãn', () => {
+  const SWITCHES = ['Dùng nền tối cho khung nhìn 3D', 'Giảm chuyển động', 'Hiện lưới 100 mm'];
+
+  // jsdom không đo được bố cục: số đo thật (dy <= 4 px) ở e2e/qa07/prefs.vite.spec.ts; đây chỉ giữ lớp `pt-2`.
+  it('cạnh nhau thì cả ba công tắc hạ xuống 8 px (pt-2), xếp dọc thì không', () => {
+    const { rerender } = render(<AppearanceSection {...props()} />);
+    for (const name of SWITCHES) {
+      expect(screen.getByRole('switch', { name }).parentElement).toHaveClass('pt-2');
+    }
+
+    rerender(<AppearanceSection {...props({ isStacked: true })} />);
+    for (const name of SWITCHES) {
+      expect(screen.getByRole('switch', { name }).parentElement).not.toHaveClass('pt-2');
+    }
+  });
+});
 
 describe('năm hàng của khối', () => {
   it('vẽ đủ năm nhãn, viết thường theo A6', () => {
@@ -179,17 +207,18 @@ describe('mật độ hiển thị đổi chiều cao dòng giữa 40 và 36', (
   it('hai bảng khớp nhau, nên con số nghiệm thu và lớp Tailwind không lệch được', () => {
     expect(DENSITY_ROW_HEIGHT_PX.comfortable).toBe(40);
     expect(DENSITY_ROW_HEIGHT_PX.compact).toBe(36);
+    // Lớp thang Tailwind: min-h-N = N x 4px.
     expect(DENSITY_ROW_CLASS.comfortable).toBe(
-      `min-h-[${String(DENSITY_ROW_HEIGHT_PX.comfortable)}px]`,
+      `min-h-${String(DENSITY_ROW_HEIGHT_PX.comfortable / 4)}`,
     );
-    expect(DENSITY_ROW_CLASS.compact).toBe(`min-h-[${String(DENSITY_ROW_HEIGHT_PX.compact)}px]`);
+    expect(DENSITY_ROW_CLASS.compact).toBe(`min-h-${String(DENSITY_ROW_HEIGHT_PX.compact / 4)}`);
   });
 
   it('lớp ấy tới được từng hàng', () => {
     render(<AppearanceSection {...props({ rowClassName: DENSITY_ROW_CLASS.compact })} />);
 
-    expect(rowOf('Chủ đề').className).toContain('min-h-[36px]');
-    expect(rowOf('Mật độ hiển thị').className).toContain('min-h-[36px]');
+    expect(rowOf('Chủ đề').className).toMatch(/\bmin-h-9\b/u); // word boundary: `min-h-96` must not pass
+    expect(rowOf('Mật độ hiển thị').className).toMatch(/\bmin-h-9\b/u);
   });
 
   it('bấm một mức thì báo lên hook', () => {
@@ -548,6 +577,41 @@ describe('R5 — chủ đề ba nhánh trên một store hai nhánh', () => {
     ]);
   });
 
+  it('[33R-A-017] Hoàn tác lần đổi chủ đề ĐẦU TIÊN: radio và <html> về chủ đề trước đó', () => {
+    useStore.getState().setTheme('light');
+
+    const { port } = createPort();
+    const { rerender } = renderWithProviders(<Probe port={port} />);
+
+    act(() => model().appearance.onThemeChange('dark'));
+    expect(model().appearance.theme).toBe('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+
+    // "Hoàn tác" của useAccountSettings trả về bản đã lưu TRƯỚC lần đổi: không có appearance.theme.
+    rerender(<Probe port={createPort({ ...EMPTY_ACCOUNT_DRAFT }).port} />);
+
+    expect(model().appearance.theme).toBe('light');
+    expect(useStore.getState().theme).toBe('light');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+  });
+
+  // Hàng kề của sửa BUG-P07-007: lần đổi SAU lần đầu hoàn tác về bản đã lưu có `theme` (Notes 1: "Later theme changes undo correctly").
+  it('[33R-A-017] lần đổi thứ hai rồi Hoàn tác: về chủ đề của bản đã lưu, không về chủ đề đầu phiên', () => {
+    const { port } = createPort();
+    const { rerender } = renderWithProviders(<Probe port={port} />);
+
+    act(() => model().appearance.onThemeChange('dark'));
+    rerender(<Probe port={createPort({ ...EMPTY_ACCOUNT_DRAFT, appearance: { theme: 'dark' } }).port} />);
+    act(() => model().appearance.onThemeChange('light'));
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+
+    rerender(<Probe port={createPort({ ...EMPTY_ACCOUNT_DRAFT, appearance: { theme: 'dark' } }).port} />);
+
+    expect(model().appearance.theme).toBe('dark');
+    expect(useStore.getState().theme).toBe('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+  });
+
   it('"Theo hệ thống" đọc prefers-color-scheme ngay lượt render đầu', () => {
     stubMatchMedia({ '(prefers-color-scheme: dark)': true });
 
@@ -561,6 +625,27 @@ describe('R5 — chủ đề ba nhánh trên một store hai nhánh', () => {
 
     expect(model().appearance.theme).toBe('system');
     expect(useStore.getState().theme).toBe('dark');
+  });
+
+  // Q2 (questions.md, 2026-10-15 = YES), 33R-C-001: chọn "Theo hệ thống" rồi tải lại vẫn thấy "Theo hệ thống".
+  it('[33R-C-001] chọn "Theo hệ thống" (OS tối) rồi tải lại: khoá lưu "system", radio vẫn là "Theo hệ thống", <html> tối', () => {
+    stubMatchMedia({ '(prefers-color-scheme: dark)': true });
+    useStore.getState().setTheme('light');
+    const first = renderWithProviders(<Probe port={createPort().port} />);
+
+    act(() => model().appearance.onThemeChange('system'));
+    expect(window.localStorage.getItem('app-theme-mode')).toBe('system');
+
+    // Tải lại: cây mới, store về mặc định, bản nháp trống — chỉ còn khoá `app-theme-mode`.
+    first.unmount();
+    document.documentElement.classList.remove('dark');
+    useStore.getState().setThemeChoice('light', false);
+    renderWithProviders(<Probe port={createPort({ ...EMPTY_ACCOUNT_DRAFT }).port} />);
+
+    expect(model().appearance.theme).toBe('system');
+    expect(useStore.getState().theme).toBe('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(window.localStorage.getItem('app-theme-mode')).toBe('system');
   });
 });
 

@@ -11,7 +11,7 @@ import type { ModelLibrarySummaryModel } from './types';
 
 const TOTAL_COUNT_CAPTION = 'Tổng số model';
 const TOTAL_SIZE_CAPTION = 'Tổng dung lượng';
-const HEAVY_COUNT_CAPTION = 'model nặng';
+const HEAVY_COUNT_CAPTION = 'Model nặng';
 
 interface SummaryFigureProps {
   readonly caption: string;

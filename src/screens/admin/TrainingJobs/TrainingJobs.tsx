@@ -39,7 +39,7 @@ const TEXT = {
   detailPanel: 'Chi tiết lượt huấn luyện',
 } as const;
 
-const PANEL = 'rounded-[12px] border border-border-default bg-bg-surface p-5';
+const PANEL = 'rounded-xl border border-border-default bg-bg-surface p-5';
 
 function Header({ model }: { readonly model: TrainingJobsViewModel }) {
   return (
@@ -104,13 +104,13 @@ function LoadingArea({ rowCount }: { readonly rowCount: number }) {
 }
 
 function JobsPanel({ actions, model }: TrainingJobsProps) {
-  const showsSidePanel = !model.isCollapsed && model.detail !== null && model.state !== 'loading';
+  const showsSidePanel = !model.isCollapsed && model.state !== 'loading';
 
   return (
     <div className="flex flex-col gap-4">
       <Toolbar actions={actions} model={model} />
       <div className="flex items-start gap-6">
-        <div className={cn('flex-1', model.isCollapsed ? 'min-w-0' : 'min-w-[640px]')}>
+        <div className="min-w-0 flex-1">
           {model.state === 'loading' ? (
             <LoadingArea rowCount={model.skeletonRowCount} />
           ) : (

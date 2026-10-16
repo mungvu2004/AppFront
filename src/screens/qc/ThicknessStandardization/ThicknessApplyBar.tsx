@@ -111,7 +111,7 @@ export function ThicknessApplyBar({
     <div className="flex flex-col gap-3 border-t border-border-default bg-bg-surface p-4">
       {/* Hai cụm xuống dòng NGUYÊN KHỐI: nút chính luôn ở mép phải cụm của nó (BUG-412). */}
       <div className="flex flex-wrap items-end gap-3">
-        <div className="flex items-end gap-3">
+        <div className="flex min-w-0 max-w-full flex-wrap items-end gap-3">
           <NumericField
             className="w-32"
             label={TOLERANCE_LABEL}
@@ -165,7 +165,7 @@ export function ThicknessApplyBar({
       )}
 
       {preview !== null && (
-        <div className="flex flex-col gap-3 rounded-[8px] border border-border-default bg-bg-sunken p-3">
+        <div className="flex flex-col gap-3 rounded-lg border border-border-default bg-bg-sunken p-3">
           <p className="text-[14px] text-text-primary">{preview.sentence}</p>
 
           {preview.unchangedWalls.length > 0 && (

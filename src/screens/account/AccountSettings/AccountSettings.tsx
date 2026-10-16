@@ -32,10 +32,13 @@
  */
 
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { SaveIndicator } from '@/components/feedback/SaveIndicator';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import viMessages from '@/i18n/vi.json';
+import { ROUTES } from '@/routes/paths';
 
 import { AppearanceSection } from './AppearanceSection';
 import { DangerZone } from './DangerZone';
@@ -54,7 +57,7 @@ import type { AccountSettingsViewModel } from './useAccountSettings';
  * (R-68). Bảy lần lặp lại đoạn `className` này thì lần thứ tám sẽ lệch, nên nó
  * là một hằng, và hằng thì không xuất ra khỏi file.
  */
-const BLOCK_CLASS = 'flex flex-col gap-3 rounded-[12px] bg-bg-surface p-5';
+const BLOCK_CLASS = 'flex flex-col gap-3 rounded-xl bg-bg-surface p-5';
 
 /** Vùng nguy hiểm mang thêm viền, để mắt phân biệt được trước khi kịp đọc chữ. */
 const DANGER_BLOCK_CLASS = `${BLOCK_CLASS} border border-danger-border`;
@@ -76,7 +79,10 @@ interface AccountBlockProps {
  */
 function AccountBlock({ id, title, description, isLoading, tone, children }: AccountBlockProps) {
   return (
-    <section aria-labelledby={id} className={tone === 'danger' ? DANGER_BLOCK_CLASS : BLOCK_CLASS}>
+    <section
+      aria-labelledby={id}
+      aria-busy={isLoading ? true : undefined}
+      className={tone === 'danger' ? DANGER_BLOCK_CLASS : BLOCK_CLASS}>
       <div className="flex flex-col gap-1">
         <h2 id={id} className="text-[15px] font-semibold text-text-primary">
           {title}
@@ -101,13 +107,22 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
       <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6 p-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-1">
+            {/* 33P-A-010: lối ra khỏi trang. Route này nằm ngoài khung ứng dụng nên không có gì khác dẫn về. */}
+            <Link
+              to={ROUTES.dashboard}
+              className="w-fit rounded text-[13px] text-text-secondary underline hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app">
+              {viMessages.account.backToDashboard}
+            </Link>
             <h1 className="text-[20px] font-semibold text-text-primary">Cài đặt tài khoản</h1>
             <p className="text-[13px] text-text-secondary">
               Hồ sơ, giao diện, thông báo, phím tắt và mật khẩu.
             </p>
           </div>
-          {/* A7: không có nút lưu, nên chỉ báo lưu phải nằm ở chỗ mắt tìm cái nút. */}
-          <SaveIndicator saveState={vm.saveState} label={vm.saveLabel} />
+          {/* A7: không có nút lưu, nên chỉ báo lưu phải nằm ở chỗ mắt tìm cái nút. Lỗi tải thì
+              chưa có gì để lưu: không hiện "Chưa có thay đổi" cạnh banner lỗi (BUG-504). */}
+          {vm.errorMessage === null ? (
+            <SaveIndicator saveState={vm.saveState} label={vm.saveLabel} />
+          ) : null}
         </header>
 
         {vm.errorMessage === null ? (

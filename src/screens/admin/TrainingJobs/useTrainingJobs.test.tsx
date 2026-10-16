@@ -4,8 +4,9 @@
  * nhất bị thay. Nhịp hỏi đo bằng đồng hồ giả.
  */
 
-import { QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, renderHook, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -204,7 +205,7 @@ function keyCounter(): () => string {
   };
 }
 
-function renderTrainingHook(client: SpiedClient) {
+function renderTrainingHook(client: SpiedClient, options: { readonly isNarrow?: boolean } = {}) {
   const queryClient = createTestQueryClient();
   const published: NotificationInput[] = [];
   const bus = createNotificationBus();
@@ -219,7 +220,7 @@ function renderTrainingHook(client: SpiedClient) {
   const renders: ReturnType<typeof useTrainingJobs>['model'][] = [];
   const hook = renderHook(
     () => {
-      const value = useTrainingJobs({ gateway });
+      const value = useTrainingJobs({ gateway, ...options });
       renders.push(value.model);
       return value;
     },
@@ -316,6 +317,34 @@ describe('Quyền — không gọi mạng khi không có quyền', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('Khoá idempotency', () => {
+  it('35T-A-021 bấm gửi hai lần khi POST còn treo → chỉ một lệnh tạo', async () => {
+    let release: (value: Result<unknown, HttpError>) => void = () => undefined;
+    const client = makeClient({
+      createJob: (() =>
+        new Promise<Result<unknown, HttpError>>((resolve) => {
+          release = resolve;
+        })) as AdminMlJobsClient['createJob'],
+    });
+    const { result } = renderTrainingHook(client);
+
+    await openReadyForm(result);
+    act(() => {
+      result.current.actions.onSubmitForm();
+      result.current.actions.onSubmitForm();
+    });
+    await waitFor(() => {
+      expect(client.createJob).toHaveBeenCalled();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(client.createJob).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      release(ok(queued(JOB_NEW)));
+    });
+    expect(client.createJob).toHaveBeenCalledTimes(1);
+  });
+
   it('N33 timeout rồi bấm lại cùng thân → cùng khoá', async () => {
     const client = makeClient();
     client.createJob.mockResolvedValueOnce(lost('timeout'));
@@ -492,6 +521,177 @@ describe('Lỗi N33 → đúng ô', () => {
       expect(result.current.model.form?.versionError).toBe('Bộ dữ liệu này chưa có phiên bản sẵn sàng.');
     });
     expect(result.current.model.form?.canSubmit).toBe(false);
+  });
+
+  // FL-35T-06 / 35T-B-041 (D evidence: datasetsGetsAfter 1 == datasetsGetsBefore 1, no alert, tab opened offline).
+  it('[35T-B-041] mất mạng lúc mở tab Bộ dữ liệu: không GET, vẫn báo "Máy chủ đang bận", có mạng thì tự đọc', async () => {
+    const client = makeClient({ listJobs: async () => page<TrainingJob>([]) });
+    const { result } = renderTrainingHook(client);
+    await waitFor(() => {
+      expect(result.current.model.state).toBe('empty');
+    });
+    const gets = client.listDatasets.mock.calls.length;
+
+    onlineManager.setOnline(false);
+    try {
+      act(() => {
+        result.current.actions.onSelectTab('datasets');
+      });
+      await waitFor(() => {
+        expect(result.current.model.state).toBe('error');
+      });
+      expect(result.current.model.errorMessage).toBe(TRAINING_ERROR_TEXT.busy);
+      expect(client.listDatasets.mock.calls.length).toBe(gets);
+    } finally {
+      onlineManager.setOnline(true);
+    }
+    await waitFor(() => {
+      expect(client.listDatasets.mock.calls.length).toBeGreaterThan(gets);
+    });
+  });
+
+  // FL-35T-02 / BUG-P08-034 (R-RR2 evidence: step list E-001..A-011 passed, G-002 awaited a walls GET for 30 s): the walls read
+  // is sent ONCE, when the tab is first selected; going back to walls within staleTime sends no GET (cache), so a stack
+  // spec must listen from before the first tab selection and never wait on the second walls selection.
+  it('[35T-G-002] datasets?family=wallSegmentation: một GET lúc mở tab lần đầu; chọn lại họ trong staleTime không GET', async () => {
+    const client = makeClient({ listJobs: async () => page<TrainingJob>([]) });
+    const { result } = renderTrainingHook(client);
+    await waitFor(() => {
+      expect(result.current.model.state).toBe('empty');
+    });
+    const families = (): string[] => client.listDatasets.mock.calls.map((c) => (c[0] as { family: string }).family);
+
+    act(() => result.current.actions.onSelectTab('datasets'));
+    await waitFor(() => {
+      expect(families()).toEqual(['wallSegmentation']);
+    });
+    act(() => result.current.actions.onSelectDatasetFamily('dimensionReading'));
+    await waitFor(() => {
+      expect(families()).toEqual(['wallSegmentation', 'dimensionReading']);
+    });
+    act(() => result.current.actions.onSelectDatasetFamily('wallSegmentation'));
+    await waitFor(() => {
+      expect(result.current.model.datasets.family).toBe('wallSegmentation');
+    });
+    expect(families()).toEqual(['wallSegmentation', 'dimensionReading']);
+  });
+
+  // FL-35T-03 (posts [] -> 1 -> 3 after the form was valid) and FL-35T-12 (creates 7 -> 8 after a click on the
+  // radio "mitB1"): a click on a radio of the form submits the form, because the radio is a <button> in a <form>.
+  it('[35T-C-002] [35T-C-014] bấm ô chọn họ / model nền trong biểu mẫu không gửi biểu mẫu', async () => {
+    const client = makeClient();
+    renderScreen(client);
+    const user = userEvent.setup({ delay: null });
+
+    await user.click(await screen.findByRole('button', { name: 'Tạo lượt huấn luyện' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Tạo lượt huấn luyện' });
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Bắt đầu huấn luyện' })).toBeEnabled();
+    });
+
+    await user.click(within(dialog).getByRole('radio', { name: 'mitB1' }));
+    expect(within(dialog).getByRole('radio', { name: 'mitB1' })).toBeChecked();
+    await user.click(within(dialog).getByRole('radio', { name: 'Nhận diện cửa và đồ đạc' }));
+    expect(client.createJob).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(within(dialog).getByRole('radio', { name: 'Nhận diện cửa và đồ đạc' })).toBeChecked();
+    });
+
+    expect(client.createJob).not.toHaveBeenCalled();
+  });
+
+  // FL-35T-11 [35T-A-020] (RR d5f9c7d8): Enter in "Số vòng" never created the job. A browser's implicit submission
+  // clicks the FIRST untyped <button> of the form = the radio "Tách lớp tường" (SegmentedControl has no type), so the
+  // submitter is that radio, not the submit button; the guard of C-002/C-014 dropped it. Enter must submit once.
+  it('[35T-A-020] Enter trong ô Số vòng (nút mặc định là ô chọn họ) gửi đúng một lần', async () => {
+    const client = makeClient();
+    renderScreen(client);
+    const user = userEvent.setup({ delay: null });
+
+    await user.click(await screen.findByRole('button', { name: 'Tạo lượt huấn luyện' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Tạo lượt huấn luyện' });
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Bắt đầu huấn luyện' })).toBeEnabled();
+    });
+    const epochs = within(dialog).getByLabelText('Số vòng');
+    const form = dialog.querySelector('form') as HTMLFormElement;
+    const firstRadio = within(dialog).getAllByRole('radio')[0] as HTMLButtonElement;
+    // What Chrome does on Enter in a text field: keydown, then (unless prevented) a submit whose submitter is the default button.
+    if (fireEvent.keyDown(epochs, { key: 'Enter' })) form.requestSubmit(firstRadio);
+
+    await waitFor(() => {
+      expect(client.createJob).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // FL-35T-11 [35T-A-020] second half (RR2 BUG-P08-033): epochs=0 + Enter sends nothing, dialog stays, the epochs field
+  // shows ITS OWN refusal (NumericField `error || callerError`, useNumericField.ts validate) - not the caller text.
+  it('[35T-A-020] Enter với số vòng = 0: không gửi, hộp thoại còn, nút gửi tắt, lỗi ô số vòng hiện', async () => {
+    const client = makeClient();
+    renderScreen(client);
+    const user = userEvent.setup({ delay: null });
+
+    await user.click(await screen.findByRole('button', { name: 'Tạo lượt huấn luyện' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Tạo lượt huấn luyện' });
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Bắt đầu huấn luyện' })).toBeEnabled();
+    });
+    const epochs = within(dialog).getByLabelText('Số vòng');
+    await user.clear(epochs);
+    await user.type(epochs, '0{Enter}');
+
+    expect(client.createJob).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Tạo lượt huấn luyện' })).toBeInTheDocument();
+    expect(within(dialog).getByText('Giá trị không nhỏ hơn 1.')).toBeInTheDocument(); // catalog-C2.md:107
+    // the field commits after its 800 ms debounce (useNumericField.ts COMMIT_DEBOUNCE_MS): only then the submit goes off
+    await waitFor(
+      () => {
+        expect(within(dialog).getByRole('button', { name: 'Bắt đầu huấn luyện' })).toBeDisabled();
+      },
+      { timeout: 4000 },
+    );
+    expect(client.createJob).not.toHaveBeenCalled();
+  });
+
+  // FL-35T-11 [35T-C-012] (BUG-P08-038): two sends lost (abort), then "Số vòng" -> 51 and a click on the submit button
+  // sent no POST on the stack (third.length 0, button enabled). The click's mousedown blurs the field, the blur commits
+  // the number and the commit cleared the form alert: the centred dialog shrank, the button moved up before mouseup, and
+  // the browser dispatched no click. Typing must clear the alert, so the blur changes nothing on screen.
+  it('[35T-C-012] hai lần gửi mất phản hồi, đổi số vòng thành 51 rồi bấm gửi → đúng một POST mới, khoá mới, epochs 51', async () => {
+    const client = makeClient({ createJob: async () => lost('network') });
+    renderScreen(client);
+    const user = userEvent.setup({ delay: null });
+
+    await user.click(await screen.findByRole('button', { name: 'Tạo lượt huấn luyện' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Tạo lượt huấn luyện' });
+    const submit = within(dialog).getByRole('button', { name: 'Bắt đầu huấn luyện' });
+    await waitFor(() => {
+      expect(submit).toBeEnabled();
+    });
+
+    for (const sent of [1, 2]) {
+      await user.click(submit);
+      await waitFor(() => {
+        expect(client.createJob).toHaveBeenCalledTimes(sent);
+        expect(submit).toBeEnabled();
+      });
+    }
+    expect(keyOf(client.createJob, 1)).toBe(keyOf(client.createJob, 0));
+
+    expect(within(dialog).getByText(TRAINING_ERROR_TEXT.busy)).toBeInTheDocument();
+    const epochs = within(dialog).getByLabelText('Số vòng');
+    await user.clear(epochs);
+    await user.type(epochs, '51');
+    // Still focused in the field: the alert is already gone, so the blur of the coming click moves nothing.
+    expect(epochs).toHaveFocus();
+    expect(within(dialog).queryByText(TRAINING_ERROR_TEXT.busy)).not.toBeInTheDocument();
+    await user.click(submit);
+
+    await waitFor(() => {
+      expect(client.createJob).toHaveBeenCalledTimes(3);
+    });
+    expect(client.createJob.mock.calls[2]?.[0].body.epochs).toBe(51);
+    expect(keyOf(client.createJob, 2)).not.toBe(keyOf(client.createJob, 0));
   });
 });
 
@@ -883,5 +1083,81 @@ describe('readAllPages', () => {
     const alwaysInvalid = vi.fn<(cursor: string | undefined) => Promise<CursorList<number>>>().mockRejectedValue(invalid);
     await expect(readAllPages(alwaysInvalid)).rejects.toBe(invalid);
     expect(alwaysInvalid).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Phase 08 — BUG-P08-007 · 35T-C-013: 403 của một lần ghi không khoá cả trang', () => {
+  it('[35T-C-013] N33 403 → hộp đóng, toast lỗi, state không thành forbidden, danh sách còn xem được', async () => {
+    const client = makeClient({ createJob: async () => wireError(403, 'FORBIDDEN') });
+    const { published, result } = renderTrainingHook(client);
+
+    await openReadyForm(result);
+    act(() => result.current.actions.onSubmitForm());
+    await waitFor(() => {
+      expect(result.current.model.form).toBeNull();
+    });
+
+    expect(result.current.model.state).not.toBe('forbidden');
+    expect(result.current.model.rows.length).toBeGreaterThan(0);
+    expect(published).toEqual([
+      expect.objectContaining({ description: TRAINING_ERROR_TEXT.writeForbidden, type: 'trainingJobs.writeForbidden' }),
+    ]);
+  });
+
+  it('[35T-C-013] N35 403 → hộp huỷ đóng, toast lỗi, state không thành forbidden', async () => {
+    const client = makeClient({ cancelJob: async () => wireError(403, 'FORBIDDEN') });
+    const { published, result } = renderTrainingHook(client);
+
+    act(() => result.current.actions.onSelectJob(JOB_A));
+    await waitFor(() => {
+      expect(result.current.model.detail?.fields.length).toBeGreaterThan(0);
+    });
+    act(() => result.current.actions.onRequestCancel());
+    act(() => result.current.actions.onConfirmCancel());
+    await waitFor(() => {
+      expect(client.cancelJob).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(result.current.model.cancelDialog).toBeNull();
+    });
+
+    expect(result.current.model.state).not.toBe('forbidden');
+    expect(published).toEqual([expect.objectContaining({ type: 'trainingJobs.writeForbidden' })]);
+  });
+
+  it('[35T-C-013] 403 từ đọc N32 vẫn là forbidden', async () => {
+    const { result } = renderTrainingHook(makeClient({ listJobs: async () => wireError(403, 'FORBIDDEN') }));
+
+    await waitFor(() => {
+      expect(result.current.model.state).toBe('forbidden');
+    });
+  });
+});
+
+describe('Phase 08 — BUG-P08-008 · 35T-B-009, 35T-F-008: màn hẹp vẫn ra empty/partial', () => {
+  it('[35T-B-009] hẹp + có lượt đang chạy → partial, dải chú ý còn', async () => {
+    const { result } = renderTrainingHook(makeClient(), { isNarrow: true });
+
+    await waitFor(() => {
+      expect(result.current.model.state).toBe('partial');
+    });
+    expect(result.current.model.isCollapsed).toBe(true);
+    expect(result.current.model.partialNotice).not.toBeNull();
+  });
+
+  it('[35T-F-008] hẹp + 0 lượt → empty', async () => {
+    const { result } = renderTrainingHook(makeClient({ listJobs: async () => page<TrainingJob>([]) }), { isNarrow: true });
+
+    await waitFor(() => {
+      expect(result.current.model.state).toBe('empty');
+    });
+  });
+
+  it('hẹp + lượt đã xong → vẫn collapsed', async () => {
+    const { result } = renderTrainingHook(makeClient({ listJobs: async () => page([succeeded(JOB_A)]) }), { isNarrow: true });
+
+    await waitFor(() => {
+      expect(result.current.model.state).toBe('collapsed');
+    });
   });
 });

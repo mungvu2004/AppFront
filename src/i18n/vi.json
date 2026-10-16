@@ -429,6 +429,8 @@
   "account": {
     "title": "Cài đặt tài khoản",
     "description": "Hồ sơ, giao diện, thông báo, phím tắt và mật khẩu.",
+    "backToDashboard": "Về bảng điều khiển",
+    "savedLocalToast": "Đã đổi cài đặt, chỉ giữ trong phiên này.",
     "sections": {
       "profile": "Hồ sơ",
       "appearance": "Giao diện",
@@ -471,6 +473,7 @@
         "confirm": {
           "cancel": "Huỷ",
           "confirmReplace": "Thay ảnh",
+          "confirmSet": "Đặt ảnh",
           "previewAlt": "Ảnh đại diện mới",
           "setBody": "Sau khi đặt chỉ thay được, không gỡ được.",
           "setTitle": "Đặt ảnh đại diện?",
@@ -498,7 +501,8 @@
       "fieldProblems": {
         "fullName": "Họ tên cần từ 1 đến 120 ký tự, không chứa ký tự điều khiển.",
         "jobTitle": "Chức danh tối đa 120 ký tự, không chứa ký tự điều khiển.",
-        "phone": "Số điện thoại tối đa 32 ký tự."
+        "phone": "Số điện thoại tối đa 32 ký tự.",
+        "phoneControl": "Số điện thoại không được chứa ký tự điều khiển hoặc ký tự đảo chiều chữ."
       },
       "jobTitlePlaceholder": "Chưa đặt",
       "localOnly": "Chỉ giữ trong phiên này",
@@ -1634,7 +1638,7 @@
     },
     "canvas": {
       "nothingToDraw": "Chưa có đối tượng nào để vẽ trên mặt bằng.",
-      "readOnlyNotice": "Mặt bằng vẫn xem và phóng to được, nhưng chỉ chọn xem được trong danh sách, không sửa được đối tượng nào. Nhờ người có quyền sửa dự án duyệt giúp.",
+      "readOnlyNotice": "Mặt bằng vẫn xem được, nhưng chỉ chọn xem được trong danh sách, không sửa được đối tượng nào. Nhờ người có quyền sửa dự án duyệt giúp.",
       "backgroundAlt": "Bản vẽ gốc của {{floorName}}, dùng làm nền để đối chiếu lớp đối tượng."
     },
     "attach": {
@@ -2084,8 +2088,7 @@
       "approve": "Duyệt phòng này",
       "approvedBadge": "Đã duyệt",
       "merge": "Gộp phòng",
-      "split": "Tách phòng",
-      "splitMissingPoint": "Bấm lên ranh phòng trên bản vẽ để chọn điểm cắt, rồi quay lại đây để tách phòng."
+      "split": "Tách phòng"
     },
     "fields": {
       "area": "Diện tích",
@@ -2948,6 +2951,7 @@
     "modeSegmentedLabel": "Chọn chế độ đo",
     "empty": "Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.",
     "partialHint": "Chuỗi đo chưa đóng. Chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.",
+    "pinHint": "Đã đủ hai điểm. Nhấn Enter để ghim phép đo, hoặc nhấn Esc để bỏ.",
     "row": {
       "hide": "Ẩn {{name}}",
       "show": "Hiện {{name}}",
@@ -3010,13 +3014,13 @@
       "evaluated": "Tổng số kiểm tra",
       "passed": "Đạt",
       "warnings": "Cảnh báo",
-      "violations": "Vi phạm"
+      "violations": "Nghiêm trọng"
     },
     "filters": {
       "segmentedAriaLabel": "Lọc theo mức độ",
       "segmented": {
         "all": "Tất cả",
-        "violation": "Vi phạm",
+        "violation": "Nghiêm trọng",
         "warning": "Cảnh báo",
         "passed": "Đạt"
       },
@@ -3183,7 +3187,6 @@
       "versionConflict": "Bộ luật vừa được đổi ở nơi khác nên thay đổi của bạn chưa được lưu. Tải lại để xem bản mới nhất."
     },
     "loadFailure": "Không tải được cài đặt bộ luật của dự án này.",
-    "loadingMore": "Đang tải thêm dữ liệu bộ luật…",
     "missingParams": {
       "title": "Thiếu mã dự án",
       "description": "Đường dẫn không mang mã dự án, nên chưa mở được cài đặt bộ luật. Quay lại danh sách dự án rồi chọn lại dự án cần chỉnh."
@@ -4119,9 +4122,9 @@
     "forbiddenTitle": "Không có quyền xem dữ liệu",
     "forbiddenMessage": "Bạn không có quyền xem dữ liệu không gian của dự án này. Hãy hỏi quản trị viên dự án để được cấp quyền xem.",
     "refreshing": "Đang làm mới dữ liệu của bản vẽ này. Phần đang hiện vẫn đúng với lượt tải trước.",
-    "validityOk": "Hợp lệ theo hợp đồng Spatial JSON — 0 lỗi.",
+    "validityOk": "Hợp lệ — 0 lỗi.",
     "validityBroken": "{{critical}} lỗi nghiêm trọng · {{warning}} cảnh báo.",
-    "rawTruncated": "Còn {{count}} dòng nữa. Thu gọn bớt nhánh ở cây bên trái để xem phần bạn cần.",
+    "rawTruncated": "Còn {{count}} dòng nữa. Bấm Tải xuống .json để lấy toàn bộ.",
     "previewEmpty": "Chọn một nút ở cây bên trái để xem chi tiết của nó.",
     "previewValue": "Giá trị",
     "previewChildCount": "Số phần tử",

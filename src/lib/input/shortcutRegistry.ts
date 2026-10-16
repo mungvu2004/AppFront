@@ -225,7 +225,7 @@ export interface ShortcutKeyEvent {
   readonly shiftKey?: boolean;
   /** True while a key auto-repeats; a repeat is not a second press. */
   readonly repeat?: boolean;
-  /** True when the focused widget already answered the key (a radio group's arrows). */
+  /** An earlier listener (a dialog, an embedded editor, a radio group's arrows) already handled it. */
   readonly defaultPrevented?: boolean;
   preventDefault?(): void;
 }
@@ -404,6 +404,20 @@ const isControlActivation = (event: ShortcutKeyEvent, code: ShortcutCode, target
   return ACTIVATABLE_TAGS.has(target.tagName.toUpperCase()) || (role !== null && ACTIVATABLE_ROLES.has(role));
 };
 
+/** `<input>` types that take no typed text: a chord (Mod+Z) over them belongs to the app, not the field (17-E-017). */
+const NON_TEXT_INPUT_TYPES: ReadonlySet<string> = new Set(['radio', 'checkbox', 'button', 'submit', 'reset', 'range', 'image']);
+
+/** Typing, but a Mod chord over a non-text `<input>` (radio, checkbox...) is not typing: there is no field undo to protect. */
+const isTyping = (event: ShortcutKeyEvent, target: ShortcutTarget | null): boolean => {
+  if (!isTextEntryTarget(target)) {
+    return false;
+  }
+
+  const type = target?.tagName.toUpperCase() === 'INPUT' ? target.getAttribute?.('type')?.toLowerCase() : undefined;
+
+  return !((event.ctrlKey === true || event.metaKey === true) && type !== undefined && NON_TEXT_INPUT_TYPES.has(type));
+};
+
 /** The focused element as `isTextEntryTarget` wants it, or null. */
 const targetOf = (event: KeyboardEvent): ShortcutTarget | null => {
   const candidate = event.target as { tagName?: unknown } | null | undefined;
@@ -529,23 +543,38 @@ export function createShortcutRegistry(
     // Typing disables every binding — except Escape, which must reach the
     // global close-top-layer handler from inside a text field exactly as it
     // falls through a modal dialog's own key-swallowing (invariant A12).
-    if (isTextEntryTarget(target) && code !== 'ESCAPE') {
+    // Mod+S is the other exception: it has no text-editing meaning, and "Lưu
+    // ngay" must flush a field being typed in (BUG-P07-001, 33P-A-024).
+    const isSaveCombo =
+      code === 'S' &&
+      (event.ctrlKey === true || event.metaKey === true) &&
+      event.shiftKey !== true &&
+      event.altKey !== true;
+
+    if (isTyping(event, target) && code !== 'ESCAPE' && !isSaveCombo) {
       return false;
     }
 
-    if (MODIFIER_KEY_CODES.has(code)) {
+    // A canvas-scope Enter (pin, confirm) must not swallow Enter on "Ẩn …",
+    // "Thử lại" or a rail button: the focused control answers its own key.
+    // A key an earlier listener already handled (a vendor dialog closing on
+    // Esc, Pascal's own Ctrl+Z) is not offered again: one press, one action
+    // (A12, QA-05c E1-B12 / E1-B13).
+    if (
+      MODIFIER_KEY_CODES.has(code) ||
+      isControlActivation(event, code, target) ||
+      event.defaultPrevented === true
+    ) {
       return false;
     }
 
-    // The focused control answers first: a widget that already handled the key
-    // (arrows inside a radio group) or a lone Enter/Space on a button keeps it.
-    // Escape still falls through — A12's close-top-layer promise (BUG-597).
-    if (code !== 'ESCAPE' && (event.defaultPrevented === true || isControlActivation(event, code, target))) {
-      return false;
-    }
+    // Esc in a text field cancels the field (and may close the layer above via
+    // global); it never reaches the canvas, whose Esc drops a tool or collapses
+    // a view the user is not looking at (23-E-008).
+    const fromTextField = isTyping(event, target);
 
     for (const scope of SCOPE_PRIORITY) {
-      if (!scopeIsActive(scope)) {
+      if (!scopeIsActive(scope) || (fromTextField && scope === 'canvas')) {
         continue;
       }
 

@@ -12,6 +12,7 @@
  * lượt vào sau sẽ thấy dữ liệu của lượt trước.
  */
 
+import { useViewer } from '@pascal-app/viewer';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
@@ -65,5 +66,24 @@ describe('vòng đời khung nhúng Pascal', () => {
 
     const { default: useScene } = await import('@pascal-app/core/store');
     expect(Object.keys(useScene.getState().nodes)).toHaveLength(0);
+  });
+
+  it('24-A-006: mở không có `view=exploded` thì về xếp tầng dù localStorage còn nhớ tách tầng', () => {
+    useViewer.getState().setLevelMode('exploded');
+
+    const handle = mount(host(), { scene: sceneOf() });
+
+    expect(useViewer.getState().levelMode).toBe('stacked');
+    handle.dispose();
+  });
+
+  it('24-A-006: mở có `explodeLevels` thì không bị trả về xếp tầng', () => {
+    useViewer.getState().setLevelMode('exploded');
+
+    const handle = mount(host(), { scene: sceneOf(), explodeLevels: true });
+
+    expect(useViewer.getState().levelMode).toBe('exploded');
+    handle.dispose();
+    useViewer.getState().setLevelMode('stacked');
   });
 });

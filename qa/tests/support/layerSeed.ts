@@ -1,6 +1,6 @@
 /**
  * Own spatial layer for the phase-4 QC and phase-5 3D screens (BUG-346 / BUG-323). Instead of Phase 3's CP-5 work floor
- * (run-22: CP-5 recorded, GET …/spatial/layer 404, so every layer case timed out), `phase04_qc_layers{,_ui}.spec.ts` and
+ * (run-22: CP-5 recorded, GET …/spatial/layer 404, so every layer case timed out), `phase04_pipeline.spec.ts`, `phase04_qc_layers_ui.spec.ts` and
  * `phase05_3d_viewer{,_ui}.spec.ts` create a run-unique `qa-<runId>-…` project through the real API, write its layer through
  * #35 (`PUT /api/projects/:p/floors/:f/spatial/layer`; a fresh floor takes `baseVersion` = its N16 `revision`, 0 —
  * BE spatial_write/writer.py:311-327, the path `phase04_qc_layers_api.spec.ts` and `_edge.spec.ts` already use) and delete
@@ -78,20 +78,44 @@ export async function deleteProject(api: LayerApi, projectId: string): Promise<s
 
 /** Writes `build(levelId)` as the floor's whole layer through #35 at the floor's current revision; returns the saved layer. */
 export async function writeLayer(api: LayerApi, projectId: string, floorId: string, build: (levelId: string) => Json): Promise<Json> {
+  const saved = await putFloorBody(api, projectId, floorId, (levelId) => ({ layer: build(levelId) }));
+  return asRecord(saved.layer, '#35.layer');
+}
+
+/**
+ * Replaces the floor's dimension strings through #35 `body.dimensions` (BUG-577, QD-001) at the current revision.
+ * `build` gets the level id and the floor's wall ids (for `referenceIds`).
+ */
+export async function writeDimensions(
+  api: LayerApi,
+  projectId: string,
+  floorId: string,
+  build: (levelId: string, wallIds: readonly string[]) => Json[],
+): Promise<void> {
+  await putFloorBody(api, projectId, floorId, (levelId, wallIds) => ({ dimensions: build(levelId, wallIds) }));
+}
+
+async function putFloorBody(
+  api: LayerApi,
+  projectId: string,
+  floorId: string,
+  build: (levelId: string, wallIds: readonly string[]) => Json,
+): Promise<Json> {
   const path = layerPathOf(projectId, floorId);
   const read = await api.request.get(path, { headers: api.headers });
   expect(read.status(), `setup: GET ${path} (N16)`).toBe(200);
   const doc = asRecord(await read.json(), 'N16');
   const level = asRecord(doc.level, 'N16.level');
   if (typeof level.id !== 'string') throw new Error('N16.level has no id');
-  const data = { baseVersion: doc.revision, body: { layer: build(level.id) } };
+  const walls = (asRecord(doc.layer, 'N16.layer').walls as Json[] | undefined) ?? [];
+  const data = { baseVersion: doc.revision, body: build(level.id, walls.map((wall) => String(wall.id))) };
   // Our own fixture must be a body the FE itself could send.
   FloorLayerWriteSchema.parse(data);
   const put = await api.request.put(path, { headers: api.headers, data });
   expect(put.status(), `setup: PUT ${path} (#35): ${(await put.text()).slice(0, 300)}`).toBe(200);
   const result = await put.json();
   FloorLayerWriteResultSchema.parse(result);
-  return asRecord(asRecord(result, '#35').layer, '#35.layer');
+  return asRecord(result, '#35');
 }
 
 /* ---- the QC fixture layer (wire shape: src/api/schemas/spatial.ts) ---- */

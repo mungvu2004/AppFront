@@ -423,6 +423,28 @@ describe('B-V2-01 — neo của màn chủ xuất hiện muộn thì tour vẫn 
     });
     late.remove();
   });
+
+  it('[30-A-021] neo đổi chỗ sau khi hiện (nội dung màn chủ nạp muộn) ⇒ vùng neo đi theo neo, không đứng ở chỗ cũ', async () => {
+    const rect = { top: 10, left: 10, width: 40, height: 20 };
+    const resolveAnchor = (id: string) => (id === 'reviewWall' ? { ...rect } : null);
+
+    mountTour({ registry: createShortcutRegistry(), resolveAnchor, forcedState: 'partial', hasModel: true, hostId: 'viewer-shell' });
+    await waitFor(() => {
+      expect(tourProps().steps[0]?.anchorRect).toEqual({ top: 10, left: 10, width: 40, height: 20 });
+    });
+
+    rect.top = 300;
+    const extra = document.createElement('div');
+    await act(async () => {
+      document.body.append(extra);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(tourProps().steps[0]?.anchorRect?.top).toBe(300);
+    });
+    extra.remove();
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -659,6 +681,18 @@ describe('Bỏ qua — Esc và bấm ra nền không hỏi lại, chip quay lạ
 
     expect(onReopen).toHaveBeenCalledTimes(1);
   });
+
+  it('chip "Xem hướng dẫn" mở lại đúng bước đã dừng, không về bước 1 (X4-A-015)', () => {
+    mountTour({ registry: createShortcutRegistry(), resolveAnchor: () => ({ top: 0, left: 0, width: 10, height: 10 }), hasModel: true });
+
+    expect(tourProps().steps.length).toBeGreaterThan(1);
+
+    act(() => tourProps().onJump(1));
+    expect(tourProps().activeIndex).toBe(1);
+    act(() => tourProps().onSkip());
+    act(() => tourProps().onReopen());
+    expect(tourProps().activeIndex).toBe(1);
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -869,7 +903,7 @@ describe('NO-208 — vị trí chip do màn chủ truyền', () => {
       />,
     );
 
-    expect(chipWrapper()?.className).toContain('bottom-[16px] left-1/2 -translate-x-1/2');
+    expect(chipWrapper()?.className).toContain('bottom-4 left-1/2 -translate-x-1/2');
   });
 
   it('theo chipAnchorClassName của màn chủ, và bỏ góc mặc định', () => {
@@ -881,12 +915,39 @@ describe('NO-208 — vị trí chip do màn chủ truyền', () => {
           activeIndex: -1,
           cutout: null,
           isSkipChipVisible: true,
-          chipAnchorClassName: 'right-[16px] top-[16px]',
+          chipAnchorClassName: 'right-4 top-4',
         })}
       />,
     );
 
-    expect(chipWrapper()?.className).toContain('right-[16px] top-[16px]');
-    expect(chipWrapper()?.className).not.toContain('bottom-[16px]');
+    expect(chipWrapper()?.className).toContain('right-4 top-4');
+    expect(chipWrapper()?.className).not.toContain('bottom-4');
+  });
+});
+
+describe('BUG-716: the card plus its dots row must not cover the anchor (placement top)', () => {
+  it('[30-A-021] frame bottom sits GAP above the anchor, dots row included', () => {
+    const anchor: TourRect = { top: 848, left: 1354, width: 61, height: 36 };
+    const SECTION_H = 200;
+    const DOTS_H = 32; // 24px row + 8px margin
+    const original = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function mocked(this: Element): DOMRect {
+      const height =
+        this.tagName === 'SECTION' ? SECTION_H : this.querySelector('section') !== null ? SECTION_H + DOTS_H : 0;
+      return { top: 0, left: 0, right: 320, bottom: height, width: 320, height, x: 0, y: 0, toJSON: noop } as DOMRect;
+    };
+    window.innerHeight = 900;
+    window.innerWidth = 1440;
+    try {
+      const step: TourStepView = { ...buildStep('exportResult'), anchorRect: anchor, placement: 'top' };
+      const { container } = render(
+        <EditorTour {...baseProps({ steps: [step], activeIndex: 0, cutout: anchor })} />,
+      );
+      const frame = container.querySelector('section')?.parentElement as HTMLElement;
+      const bottom = Number.parseFloat(frame.style.top) + SECTION_H + DOTS_H;
+      expect(bottom).toBeLessThanOrEqual(anchor.top);
+    } finally {
+      Element.prototype.getBoundingClientRect = original;
+    }
   });
 });

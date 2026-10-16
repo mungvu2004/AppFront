@@ -56,7 +56,6 @@ import {
   HistoryPanelSkeleton,
   HistoryStepLimitNotice,
   PANEL_CLASS,
-  REGION_LABEL,
   SHEET_CLASS,
   SHEET_REGION_LABEL,
 } from './HistoryPanel.chrome';
@@ -92,7 +91,10 @@ export function HistoryPanel(props: HistoryPanelProps) {
 
   const isSheet = layout === 'sheet';
   const shellClass = isSheet ? SHEET_CLASS : PANEL_CLASS;
-  const regionLabel = isSheet ? SHEET_REGION_LABEL : REGION_LABEL;
+  /* Vỏ `panel` nằm trong vùng bảng mà màn chủ đã đặt tên ("Lịch sử thao tác",
+     `PascalViewer`): đặt thêm tên ở đây là hai vùng lồng nhau hai tên cho một
+     bảng (23H-E-002). Tấm trượt đứng một mình nên giữ tên của nó. */
+  const regionLabel = isSheet ? SHEET_REGION_LABEL : undefined;
 
   if (state === 'collapsed') {
     return (
@@ -166,14 +168,19 @@ export function HistoryPanel(props: HistoryPanelProps) {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-3">
-        <HistoryTimeline
-          canJump={canJump}
-          groups={groups}
-          onHoverItem={onHoverItem}
-          onJumpTo={onJumpTo}
-          onSelectEntity={onSelectEntity}
-          onToggleBatch={onToggleBatch}
-        />
+        {/* Vai xem + 0 bước: thân rỗng dùng chung, không để trơ xương sống (23H-D-003). */}
+        {state === 'forbidden' && groups.length === 0 ? (
+          <HistoryEmpty />
+        ) : (
+          <HistoryTimeline
+            canJump={canJump}
+            groups={groups}
+            onHoverItem={onHoverItem}
+            onJumpTo={onJumpTo}
+            onSelectEntity={onSelectEntity}
+            onToggleBatch={onToggleBatch}
+          />
+        )}
         {/* Đáy danh sách là chỗ những bước cũ hơn sẽ hiện ra, nên nút ở đáy. */}
         {state === 'partial' && partialReason === 'archived' && (
           <HistoryLoadMore onLoadMore={onLoadMore} />

@@ -33,7 +33,7 @@ interface JsonLineProps {
 
 function JsonLine({ line }: JsonLineProps) {
   return (
-    <li className="relative px-3 py-[1px]">
+    <li className="relative px-3 py-px">
       {line.tone === null ? null : <DiffTint tone={line.tone} />}
       <code className="relative block whitespace-pre text-[13px] leading-5 text-text-primary">
         {line.text}

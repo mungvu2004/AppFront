@@ -124,6 +124,12 @@ export interface HistoryStack {
    * back, which is the only case the pipeline produces.
    */
   drop: (entryId: UndoEntryId) => boolean;
+  /**
+   * Takes back the step holding `entryId` even with later steps above it (a toast's
+   * own-step undo). `null`, stack untouched, when the entry is gone or a later step
+   * touched the same entities. An out-of-order undo is not offered for redo.
+   */
+  undoEntry: (entryId: UndoEntryId) => HistoryTransition | null;
   /** Forgets everything, e.g. on opening another drawing. */
   clear: () => void;
 }
@@ -382,6 +388,38 @@ export function createHistoryStack(options: CreateHistoryStackOptions = {}): His
     canRedo: () => redoRecords.length > 0,
     undoSteps: () => undoRecords.map((record) => record.step),
     redoSteps: () => [...redoRecords].reverse().map((record) => record.step),
+
+    undoEntry: (entryId) => {
+      const index = undoRecords.findIndex((record) => record.step.entryIds.includes(entryId));
+      const record = undoRecords[index];
+
+      if (record === undefined) {
+        return null;
+      }
+
+      const idsOf = (step: HistoryStep): string[] =>
+        [...step.undoPatches, ...step.redoPatches].map((patch) =>
+          patch.op === 'add' ? String(patch.entity.id) : String(patch.id),
+        );
+      const mine = new Set(idsOf(record.step));
+
+      if (undoRecords.slice(index + 1).some((later) => idsOf(later.step).some((id) => mine.has(id)))) {
+        return null;
+      }
+
+      undoRecords.splice(index, 1);
+      cutRedoRecords = null;
+      // The redo side was recorded against the stack as it stood; it no longer
+      // lines up once a middle step is gone.
+      redoRecords = [];
+
+      return {
+        direction: 'undo',
+        step: record.step,
+        patches: record.step.undoPatches,
+        selection: record.step.selectionBefore,
+      };
+    },
 
     drop: (entryId) => {
       const topIndex = undoRecords.length - 1;

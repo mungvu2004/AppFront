@@ -210,7 +210,7 @@ export function ViolationFigure(props: ViolationFigureProps) {
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-[12px] border border-border-default bg-bg-sunken">
+      <div className="overflow-hidden rounded-xl border border-border-default bg-bg-sunken">
         {mode === '2d' && props.figure2d !== null ? (
           <ViolationFigurePlan figure2d={props.figure2d} />
         ) : (

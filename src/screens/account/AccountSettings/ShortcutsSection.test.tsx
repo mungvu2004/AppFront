@@ -245,21 +245,88 @@ describe('ô tìm lọc ngay khi gõ', () => {
     expect(result.current.shortcuts.rows.length).toBeGreaterThan(0);
   });
 
-  it('lọc được cả theo tổ hợp phím, không chỉ theo mô tả', () => {
+  // [33R-C-004] Đổi kỳ vọng theo BUG-P07-008 / catalog-C2 33R-C-005 Notes 4: ô tìm chỉ khớp chữ
+  // người dùng THẤY (mặt phím + mô tả). Bản cũ gõ `combo` nội bộ ("ESCAPE") và đòi 1 hàng.
+  it('[33R-C-004] lọc được cả theo mặt phím in ra, không chỉ theo mô tả', () => {
     const { result } = renderHook(() => useAccountTables(port));
-    // Tổ hợp đọc ra từ chính danh sách dẫn xuất — `parseCombo` chuẩn hoá
-    // `Escape` thành `ESCAPE`, và một chuỗi gõ tay ở đây sẽ lệch theo.
     const closeTopLayer = buildShortcutRows().find((row) => row.id === 'global.closeTopLayer');
-    const combo = closeTopLayer?.combo;
+    const printed = closeTopLayer?.keys.join('+');
 
-    expect(combo).toBeDefined();
-    expect(combo).not.toContain('+');
+    expect(printed).toBeDefined();
+    expect(printed).not.toContain('+');
 
     act(() => {
-      result.current.shortcuts.onQueryChange(combo ?? '');
+      result.current.shortcuts.onQueryChange(printed ?? '');
     });
 
     expect(result.current.shortcuts.rows.map((row) => row.id)).toEqual([closeTopLayer?.id]);
+  });
+
+  // Hàng kề của sửa BUG-P07-008 trong cùng bộ lọc (catalog-C2 33R-C-003, -004, -006, -007).
+  it('[33R-C-003] cắt khoảng trắng, "đ" gấp thành "d", không dấu vẫn khớp', () => {
+    const { result } = renderHook(() => useAccountTables(port));
+    const ask = (query: string): readonly string[] => {
+      act(() => {
+        result.current.shortcuts.onQueryChange(query);
+      });
+
+      return result.current.shortcuts.rows.map((row) => row.description);
+    };
+
+    expect(ask('  ctrl  ')).toHaveLength(4);
+    expect(ask('ĐÓNG LỚP')).toHaveLength(1);
+    expect(ask('luu ngay')).toEqual(['Lưu ngay thay vì chờ tự lưu']);
+  });
+
+  it('[33R-C-004] khớp cả mặt phím in ra: "ctrl+shift", "esc", "?"', () => {
+    const { result } = renderHook(() => useAccountTables(port));
+    const ask = (query: string): readonly string[] => {
+      act(() => {
+        result.current.shortcuts.onQueryChange(query);
+      });
+
+      return result.current.shortcuts.rows.map((row) => row.id);
+    };
+
+    expect(ask('ctrl+shift')).toEqual(['global.redo']);
+    expect(ask('esc')).toEqual(['global.closeTopLayer']);
+    expect(ask('?')).toEqual(['global.shortcutHelp']);
+  });
+
+  it('[33R-C-006] [33R-C-007] khớp mọi hàng hay chỉ khoảng trắng: câu đếm là "đang có hiệu lực"', () => {
+    const { result } = renderHook(() => useAccountTables(port));
+    const full = `${String(REGISTRY_COUNT)} phím tắt đang có hiệu lực.`;
+
+    for (const query of ['t', '   ']) {
+      act(() => {
+        result.current.shortcuts.onQueryChange(query);
+      });
+
+      expect(result.current.shortcuts.rows).toHaveLength(REGISTRY_COUNT);
+      expect(result.current.shortcuts.countLabel).toBe(full);
+    }
+  });
+
+  it('[33R-C-005] tên nội bộ người dùng không thấy ("Mod", "ESCAPE") không khớp hàng nào', () => {
+    const { result } = renderHook(() => useAccountTables(port));
+    const rows = buildShortcutRows();
+    // Giá trị lấy từ danh sách dẫn xuất: tên nội bộ trong `combo` mà không mặt phím / mô tả nào in ra.
+    const hidden = ['Mod', 'ESCAPE'];
+    const visible = rows.flatMap((row) => [...row.keys, row.description]).join(' ').toLowerCase();
+
+    for (const word of hidden) {
+      expect(rows.some((row) => row.combo.includes(word))).toBe(true);
+      expect(visible).not.toContain(word.toLowerCase());
+
+      act(() => {
+        result.current.shortcuts.onQueryChange(word.toLowerCase());
+      });
+
+      expect(result.current.shortcuts.rows).toHaveLength(0);
+      expect(result.current.shortcuts.countLabel).toBe(
+        `Đang hiện 0 trong ${String(REGISTRY_COUNT)} phím tắt.`,
+      );
+    }
   });
 
   it('không khớp gì thì trả về danh sách rỗng và một câu đếm nói rõ điều đó', () => {

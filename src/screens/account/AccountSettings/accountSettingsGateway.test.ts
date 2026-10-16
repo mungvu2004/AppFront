@@ -9,7 +9,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiClient } from '@/api/client';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import { ACCOUNT_LANGUAGES, type Me, type UpdateMe } from '@/api/schemas/me';
-import type { HttpError } from '@/lib/http';
+import { createApiClient } from '@/api/client';
+import { createHttpClient, type HttpError } from '@/lib/http';
 
 import { EMPTY_ACCOUNT_DRAFT, type AccountDraft } from './accountDraft';
 import {
@@ -314,7 +315,28 @@ describe('replaceAvatar (N14)', () => {
 
     const result = await createAccountSettingsGateway({ apiClient: client }).replaceAvatar(body);
 
-    expect(replaceAvatar).toHaveBeenCalledWith({ body });
+    expect(replaceAvatar).toHaveBeenCalledWith({ body, failFastOnRateLimit: true });
     expect(result.ok && result.data.avatarUrl).toBe('https://cdn.example.test/avatars/a.png');
+  });
+
+  // BUG-P07-016: the person's click gets the 429 at once; the client ladder must not retry the PUT.
+  it('PUT /me/avatar bị 429: đúng một request, trả kết quả RATE_LIMITED, không thử lại', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ code: 'RATE_LIMITED' }), {
+          headers: { 'Content-Type': 'application/json', 'Retry-After': '1' },
+          status: 429,
+        }),
+      ),
+    );
+    const http = createHttpClient({ baseUrl: 'https://api.example.com', fetchImpl });
+    const gateway = createAccountSettingsGateway({ apiClient: createApiClient(http) });
+
+    const result = await gateway.replaceAvatar({ contentBase64: 'iVBORw0KGgo=', mimeType: 'image/png' });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatchObject({ code: 'RATE_LIMITED', status: 429 });
   });
 });

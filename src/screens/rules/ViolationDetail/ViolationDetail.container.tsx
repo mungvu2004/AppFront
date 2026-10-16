@@ -68,6 +68,8 @@ export interface ViolationDetailContainerProps {
   /** Vỏ ngoài báo màn đang ở chế độ thu gọn. Chuyển thẳng xuống hook, quyết định trạng thái 7. */
   readonly isCompact?: boolean;
   readonly onClose: () => void;
+  /** Vi phạm đang hiển thị đổi (tự chuyển, `J`/`K`) — cha đi theo; xem `useViolationDetail`. */
+  readonly onShownChange?: (violation: Violation) => void;
 }
 
 /**
@@ -80,7 +82,7 @@ export interface ViolationDetailContainerProps {
  */
 function ViolationDetailCrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
-    <div className="absolute right-0 top-0 flex h-full w-[420px] max-w-full items-center justify-center border-l border-border-default bg-bg-surface">
+    <div className="fixed right-0 top-0 z-10 flex h-dvh w-[420px] max-w-full items-center justify-center border-l border-border-default bg-bg-surface">
       <EmptyState
         description={report.description.description}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}
@@ -112,6 +114,7 @@ function WiredViolationDetail(props: WiredViolationDetailProps) {
     projectId: props.projectId,
     floorId: props.floorId,
     onClose: props.onClose,
+    ...(props.onShownChange !== undefined ? { onShownChange: props.onShownChange } : {}),
     ...(props.canEdit !== undefined ? { canEdit: props.canEdit } : {}),
     ...(props.isCompact !== undefined ? { isCompact: props.isCompact } : {}),
   });

@@ -697,12 +697,13 @@ function unreviewedDisplayId(index: number): string {
 }
 
 describe('QA-04c SCR-18 trên màn đã ráp', () => {
-  it('[BUG-577] câu "chưa lưu lên máy chủ" hiện cố định trên màn', async () => {
+  it('[BUG-577] màn hiện trạng thái lưu thật, không còn câu "chưa lưu" cố định', async () => {
     renderState('partial');
 
     await screen.findByRole('group', { name: LIST_LABEL });
 
-    expect(screen.getByText(DIMENSION_OCR_TEXT.screen.unsavedNotice)).toBeInTheDocument();
+    expect(screen.getByTestId('dimension-ocr-save-status')).toBeInTheDocument();
+    expect(screen.queryByText(/chưa lưu lên máy chủ/u)).not.toBeInTheDocument();
   });
 
   it('[BUG-583a] Enter trên một hàng khác chỉ CHỌN nó; Enter lần hai mới duyệt', async () => {
@@ -795,6 +796,31 @@ describe('QA-04c SCR-18 trên màn đã ráp', () => {
     expect(row.getAttribute('aria-selected')).toBe('true');
   });
 
+  it('[18-C-011] xoá trống rồi gõ chữ: Esc trả về giá trị đã chốt, không về ô trống', async () => {
+    const user = userEvent.setup({ delay: null });
+
+    renderState('partial');
+    await screen.findByRole('group', { name: LIST_LABEL });
+
+    const displayId = unreviewedDisplayId(0);
+    const row = rowOf(dimensionEntityIdOf(displayId)) as HTMLElement;
+
+    fireEvent.click(row);
+    const fieldOf = (): HTMLInputElement =>
+      within(row).getByLabelText(`${DIMENSION_OCR_TEXT.row.inputAriaLabelPrefix}#${displayId}`) as HTMLInputElement;
+    const committed = fieldOf().value;
+
+    await user.clear(fieldOf());
+    await user.tab();
+    await user.click(fieldOf());
+    await user.keyboard('abc');
+    await user.tab();
+    await user.click(fieldOf());
+    await user.keyboard('{Escape}');
+
+    expect(fieldOf().value).toBe(committed);
+  });
+
   it('[BUG-610/612] hàng có nút duyệt thật, nhãn trạng thái bằng chữ, câu "Gắn với" không mono', async () => {
     renderState('partial');
     await screen.findByRole('group', { name: LIST_LABEL });
@@ -836,6 +862,19 @@ describe('QA-04c SCR-18 trên màn đã ráp', () => {
       'min-h-11',
     );
   });
+
+  it('[18-D-008] người xem trên tầng rỗng vẫn thấy câu rỗng và liên kết sang hiệu chỉnh tỷ lệ', async () => {
+    emptyStore();
+
+    renderWithProviders(
+      <MemoryRouter>
+        <DimensionOcrReviewContainer {...scenarioArgsFor('empty')} roles={['viewer']} />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(DIMENSION_OCR_TEXT.states.empty.title)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: DIMENSION_OCR_TEXT.states.empty.actionLabel })).toHaveAttribute('href');
+  });
 });
 
 describe('[G01] hàng kích thước vừa panel 400 px ở 1024', () => {
@@ -868,5 +907,46 @@ describe('[G07/G13] khung bản vẽ SCR-18', () => {
     fireEvent.click(screen.getByRole('button', { name: /phóng to/iu }));
 
     expect(layer?.style.transform).toBe('scale(1.1)');
+  });
+});
+
+describe('[G05/G08] tiêu đề trạng thái xong / không có quyền', () => {
+  it('vai chỉ xem thấy tiêu đề "Không có quyền duyệt kích thước" cùng mô tả', async () => {
+    renderState('forbidden');
+    await screen.findAllByRole('option');
+
+    expect(screen.getByText(DIMENSION_OCR_TEXT.states.forbidden.title)).toBeInTheDocument();
+    expect(screen.getAllByText(DIMENSION_OCR_TEXT.states.forbidden.description).length).toBeGreaterThan(0);
+  });
+
+  it('34/34 đã duyệt thì hiện tiêu đề "Tất cả kích thước đã duyệt"', async () => {
+    renderState('success');
+    await screen.findAllByRole('option');
+
+    expect(screen.getByText(DIMENSION_OCR_TEXT.states.done.title)).toBeInTheDocument();
+  });
+});
+
+describe('[9Q-C-007] Esc tắt chế độ duyệt bàn phím đúng như bảng phím hứa', () => {
+  it('ô tự focus, chưa gõ gì: Esc tắt chế độ (gõ dở thì Esc đầu chỉ bỏ sửa, Esc sau tắt)', async () => {
+    const user = userEvent.setup({ delay: null });
+    const registry = createShortcutRegistry();
+
+    renderState('partial', registry);
+    await screen.findByRole('group', { name: LIST_LABEL });
+    fireEvent.click(rowOf(dimensionEntityIdOf(unreviewedDisplayId(0))) as HTMLElement);
+    fireEvent.click(screen.getByRole('button', { name: DIMENSION_OCR_TEXT.keyboard.toggleOnLabel }));
+
+    const section = await screen.findByRole('region', { name: DIMENSION_OCR_TEXT.keyboard.caption });
+    const field = within(section).getByRole('textbox');
+    await waitFor(() => {
+      expect(field).toHaveFocus();
+    });
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: DIMENSION_OCR_TEXT.keyboard.caption })).not.toBeInTheDocument();
+    });
   });
 });

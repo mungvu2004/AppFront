@@ -149,7 +149,7 @@ export function NotificationsSection({
           <tr key={event.id} className="border-b border-border-default last:border-0">
             <th
               scope="row"
-              className="py-2 pr-3 text-[14px] font-normal leading-[20px] text-text-primary"
+              className="py-2 pr-3 text-[14px] font-normal leading-5 text-text-primary"
             >
               {event.label}
             </th>

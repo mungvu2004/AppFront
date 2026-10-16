@@ -29,18 +29,20 @@
  * qa-limits.override.yml). Name projects by catalog id (slug) so leftovers are traceable.
  */
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 import { deflateSync } from 'node:zlib';
 
 import { expect, type APIRequestContext, type Browser, type BrowserContext } from '@playwright/test';
 
 import { ImageQualityAssessmentSchema } from '../../../src/api/schemas/quality';
 import { PIPELINE_TIMEOUT_MS } from '../../../e2e/fullstack/env';
-import { apiBaseUrl, newApiContext } from './api';
+import { apiBaseUrl, newApiContext, signedInApi } from './api';
 import { createDrawingProject, deleteSeededProject, type SeededDrawing } from './drawingSeed';
 import { TEST_DATA_PREFIX, testEmail } from './evidence';
 import { deleteMails, linkFrom, waitForMail } from './mailpit';
+import { readAdminCredentials } from './auth';
+import { inviteWithFallback, loginOrRefresh, mergeWriteJsonFile, readJsonFile, type Answer } from './poolFile';
 
 export {
   createDrawingProject,
@@ -289,14 +291,10 @@ export const USER_POOL_FILE = join(process.env.E2E_RESULTS_DIR ?? 'F:/App/qa-res
 
 type Pool = Record<string, PoolUser>;
 
-const readPool = (): Pool => (existsSync(USER_POOL_FILE) ? (JSON.parse(readFileSync(USER_POOL_FILE, 'utf8')) as Pool) : {});
+const readPool = (): Pool => readJsonFile<Pool>(USER_POOL_FILE);
 
-function writePool(pool: Pool): void {
-  mkdirSync(dirname(USER_POOL_FILE), { recursive: true });
-  const tmp = `${USER_POOL_FILE}.${String(process.pid)}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(pool, null, 2)}\n`, 'utf8');
-  renameSync(tmp, USER_POOL_FILE);
-}
+/** Merges `changes` into the file as it is NOW (other worker processes add slots too), under a lock; see poolFile.ts. */
+const writePool = (changes: Pool): void => mergeWriteJsonFile(USER_POOL_FILE, changes);
 
 /**
  * `true` while `user` still exists: #39 `GET /api/users/:id/memberships` (admin, no rate limit) answers 404 for a
@@ -314,9 +312,27 @@ async function inviteAndAccept(admin: APIRequestContext, role: PoolRole, slot: s
   const email = testEmail(`pool-${role}-${slot}`);
   const name = `${TEST_DATA_PREFIX}pool ${role} ${slot}`;
   const since = new Date(Date.now() - 5_000);
-  const sent = await admin.post('/api/users/invitations', { data: { emails: [email], role } });
-  expect(sent.status(), `setup: POST /api/users/invitations (${role}): ${(await sent.text()).slice(0, 200)}`).toBe(201);
-  const rows = (await sent.json()) as unknown[];
+  const invite = async (inviter: APIRequestContext): Promise<Answer> => {
+    const res = await inviter.post('/api/users/invitations', { data: { emails: [email], role } });
+    return { status: res.status(), text: await res.text() };
+  };
+  // BE: 30 invitations / h PER INVITING USER (users/router.py:32-41) -> on 429 let another active pool admin invite.
+  const sent = await inviteWithFallback(
+    () => invite(admin),
+    Object.values(readPool())
+      .filter((u) => u.role === 'admin')
+      .map((u) => async (): Promise<Answer | null> => {
+        if (!(await stillActive(admin, u))) return null;
+        const other = await signedInApi(u.email, u.password);
+        try {
+          return await invite(other);
+        } finally {
+          await other.dispose();
+        }
+      }),
+  );
+  expect(sent.status, `setup: POST /api/users/invitations (${role}): ${sent.text.slice(0, 200)}`).toBe(201);
+  const rows = JSON.parse(sent.text) as unknown[];
   const id = rows.map((row) => asJson(row, 'invited')).find((row) => row.email === email)?.id;
   if (typeof id !== 'string') throw new Error(`setup: invitation answer has no row for ${email}`);
   const mail = await waitForMail(email, since, 30_000, INVITE_SUBJECT);
@@ -347,17 +363,39 @@ export async function poolUser(admin: APIRequestContext, role: PoolRole, slot = 
   const cached = readPool()[key];
   if (cached && (await stillActive(admin, cached))) return cached;
   const fresh = await inviteAndAccept(admin, role, slot);
-  writePool({ ...readPool(), [key]: fresh });
+  writePool({ [key]: fresh });
   return fresh;
 }
 
 /** Browser session of `user` in `context`: one `POST /api/auth/login` through the context's own cookie jar. */
 export async function signInPoolUser(context: BrowserContext, user: PoolUser): Promise<void> {
-  const res = await context.request.post('/api/auth/login', {
-    data: { email: user.email, password: user.password, rememberMe: false },
-    headers: { Origin: apiBaseUrl() },
-  });
-  expect(res.status(), `setup: POST /api/auth/login as pool ${user.role}`).toBe(204);
+  const login = async (who: PoolUser): Promise<number> =>
+    (
+      await context.request.post('/api/auth/login', {
+        data: { email: who.email, password: who.password, rememberMe: false },
+        headers: { Origin: apiBaseUrl() },
+      })
+    ).status();
+  // 401 for a cached slot = stale password (RF p07: a password flow changed it, restore failed) -> fresh user for the slot.
+  const key = user.id === '' ? undefined : Object.keys(readPool()).find((k) => readPool()[k]?.id === user.id);
+  const refresh =
+    key === undefined
+      ? null
+      : async (): Promise<PoolUser> => {
+          const { email, password } = readAdminCredentials();
+          const admin = await signedInApi(email, password);
+          try {
+            const fresh = await inviteAndAccept(admin, user.role, key.slice(key.indexOf(':') + 1));
+            writePool({ [key]: fresh });
+            return fresh;
+          } finally {
+            await admin.dispose();
+          }
+        };
+  const done = await loginOrRefresh(user, login, refresh);
+  expect(done.status, `setup: POST /api/auth/login as pool ${user.role}`).toBe(204);
+  // The caller keeps using its `user` object (e.g. its password as the "old" one): make it the fresh one.
+  if (done.user !== user) Object.assign(user, done.user);
 }
 
 /** N3 `POST /api/projects/:id/members {email}` → 201 (BE project_members/router.py:42-70); no project role exists. */

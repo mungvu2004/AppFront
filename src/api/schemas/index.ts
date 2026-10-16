@@ -70,8 +70,24 @@ export { MAX_EMAIL_LENGTH };
  */
 export const EmailSchema = z.string().min(1).email().max(MAX_EMAIL_LENGTH);
 
-/** Same ordering, same reason: empty reads as missing, four characters reads as short. */
-export const PasswordSchema = z.string().min(1).min(MIN_PASSWORD_LENGTH);
+/**
+ * Same ordering, same reason: empty reads as missing, four characters reads as short.
+ * Length counts code points, like the BE `min_length` (BUG-P07-010): `z.string().min()`
+ * counts UTF-16 units, so "Aaa1" + two emoji (6 code points) would slip through.
+ */
+export const PasswordSchema = z
+  .string()
+  .min(1)
+  .superRefine((value, ctx) => {
+    if (value !== '' && [...value].length < MIN_PASSWORD_LENGTH) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_small,
+        minimum: MIN_PASSWORD_LENGTH,
+        type: 'string',
+        inclusive: true,
+      });
+    }
+  });
 
 /** Trimmed first, so a name of three spaces is missing rather than present. */
 export const FullNameSchema = z.string().trim().min(1);

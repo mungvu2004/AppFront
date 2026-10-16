@@ -203,6 +203,8 @@ export interface DimensionCompareViewModel {
 
 /** Mọi thứ view canvas nhận. */
 export interface DimensionOcrCanvasProps {
+  /** Câu giải thích khi khung rỗng (BUG-335); vẽ ngay trong khung. */
+  readonly emptyNotice?: string | null;
   readonly chains: readonly DimensionChainViewModel[];
   readonly selectedDimensionId: string | null;
   /** Tỷ lệ mm/px của tầng. */

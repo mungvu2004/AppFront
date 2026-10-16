@@ -225,6 +225,18 @@ describe('CadBranchConfirm — bảy trạng thái (A11, R-63)', () => {
     expect(rendered).toBe(7);
   });
 
+  it('[BUG-P09-014] vai người xem: câu "không có quyền" hiện MỘT lần, hộp thoại không lặp lại', () => {
+    const scenario = scenarioFor('forbidden');
+    const sentence = scenario.model.forbiddenNotice ?? '';
+
+    renderWithProviders(<CadBranchConfirm {...scenario} />);
+
+    expect(sentence).not.toBe('');
+    expect(
+      screen.getAllByText(sentence).filter((node) => node.closest('.sr-only') === null),
+    ).toHaveLength(1);
+  });
+
   it('trạng thái không có quyền: nút "Nhập hình học" biến MẤT, không phải mờ đi', () => {
     renderWithProviders(<CadBranchConfirm {...scenarioFor('forbidden')} />);
 

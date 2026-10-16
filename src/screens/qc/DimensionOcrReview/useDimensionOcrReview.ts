@@ -40,13 +40,12 @@
  * `MOTION_DURATIONS_MS`. Không con số thời lượng nào viết ở màn (R-71). Đặc tả
  * gốc ghi 240 ms; thang chuyển động không có nấc đó, nên theo luật (QĐ-2).
  *
- * ## Không có gì được lưu lên máy chủ — và màn NÓI RA điều đó (BUG-577)
+ * ## Tự lưu thật (BUG-577)
  *
- * Chưa có endpoint ghi lớp kích thước (`DIMENSION_OCR_MISSING_ENDPOINTS`, F-08),
- * nên màn KHÔNG dựng bộ tự lưu: một bộ tự lưu ở đây chỉ chạy tới nhánh
- * `supported: false` rồi báo "Đã lưu lúc HH:mm" cho trình đọc màn hình — nói dối.
- * Thay vào đó: `unsavedNotice` hiện cố định trên màn, và `beforeunload` hỏi
- * trước khi rời trang khi ngăn xếp hoàn tác còn bước (`useLeaveWarning`).
+ * Kích thước đi qua bộ lưu lớp chung như tường/đối tượng: `useFloorLayerAutosave`
+ * gửi PUT #35 với `body.dimensions` (thay cả danh sách), 409 → dải "Tải lại",
+ * `beforeunload` do chính bộ lưu giữ. Nhãn "Đã lưu lúc…" / "Chưa lưu" / lỗi lấy từ
+ * `useSaveIndicator` nên chỉ nói "đã lưu" khi máy chủ đã nhận.
  *
  * ## Bàn phím (A12, R-54, I-01)
  *
@@ -76,7 +75,9 @@ import { displayCodesOf } from '@/domain/spatial/ids';
 import type { Dimension, Level } from '@/domain/spatial/types';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
+import { useFloorLayerAutosave, type FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
+import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useZoomCluster } from '@/hooks/useZoomCluster';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
@@ -111,6 +112,7 @@ import {
   implausibleValueHint,
   levelOfGraph,
   lowConfidenceDimensionsOf,
+  lowConfidenceNotice,
   millimetresPerPixelOf,
   readValueOf,
   reviewCounterOf,
@@ -127,7 +129,6 @@ import {
 } from './dimensionOcrReviewGateway';
 import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
 import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
-import { useLeaveWarning } from '../shared/useLeaveWarning';
 import type {
   DimensionCanvasZoom,
   DimensionCompareViewModel,
@@ -204,8 +205,13 @@ export interface DimensionOcrKeyboardReviewModel {
 
 /** Mọi thứ hook trả về: hợp đồng T3, mở rộng đúng bốn nhóm của QĐ-7. */
 export interface DimensionOcrReviewModel extends DimensionOcrModel {
-  /** Câu "chưa lưu lên máy chủ" (BUG-577). `null` ở vai chỉ xem — vai đó không sửa gì. */
-  readonly unsavedNotice: string | null;
+  /** Nhãn trạng thái lưu thật (BUG-577): "Đã lưu lúc…", "Chưa lưu", lỗi. `null` ở vai chỉ xem. */
+  readonly saveLabel: string | null;
+  readonly saveState: 'saved' | 'dirty' | 'saving' | 'failed' | 'offline' | null;
+  /** Khối lưu (409 → "Tải lại", 403, 422…) — cùng dải với bốn màn QC khác. */
+  readonly saveBlock: FloorLayerSaveBlock | null;
+  /** Câu "N mục dưới ngưỡng tin cậy, đã lọc sẵn" khi bộ lọc mặc định là "cần xem" (18-B-011). */
+  readonly presetNotice?: string | null;
   readonly rows: readonly DimensionOcrRowModel[];
   readonly compare: DimensionOcrCompareModel | null;
   readonly keyboardReview: DimensionOcrKeyboardReviewModel;
@@ -257,7 +263,7 @@ export function deriveScreenState(input: {
   readonly hasPartialOcr: boolean;
   readonly counter: DimensionReviewCounter;
 }): DimensionOcrScreenState {
-  if (input.isViewerRole) {
+  if (input.isViewerRole && !input.isLoading) {
     return 'forbidden';
   }
 
@@ -503,15 +509,24 @@ export function useDimensionOcrReview(
     [],
   );
 
+  const { autosave, saveBlock } = useFloorLayerAutosave({
+    projectId,
+    floorId,
+    ...(gateway.apiClient === undefined ? {} : { apiClient: gateway.apiClient }),
+  });
+  const saveIndicator = useSaveIndicator(autosave);
+
   const dispatchBundle = useMemo<DimensionOcrDispatchDeps>(
     () =>
       createDimensionOcrDispatchDeps({
         graph: storePort,
         selectionBefore: currentSelection,
         selectionAfter: currentSelection,
-        onSynced: () => undefined,
+        onSynced: () => {
+          autosave.notifyChange();
+        },
       }),
-    [storePort],
+    [autosave, storePort],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -548,8 +563,6 @@ export function useDimensionOcrReview(
     applyUndo();
   }, [applyUndo]);
 
-  /* BUG-577: ngăn xếp còn bước là còn việc chỉ sống trong trang này — hỏi trước khi rời. */
-  useLeaveWarning(dispatchBundle.history.canUndo());
 
   /* ---------------------------------------------------------------------- */
   /* Lệnh — mọi hàm sửa đi qua đây, và tắt hẳn ở vai Người xem.               */
@@ -920,7 +933,9 @@ export function useDimensionOcrReview(
     {
       id: 'dimensionOcrReview.closeTopLayer',
       combo: 'Escape',
-      scope: 'canvas',
+      /* Chế độ bàn phím luôn giữ tiêu điểm trong ô nhập, mà sổ phím không đưa Esc từ ô nhập xuống
+         `canvas` (23-E-008): ở `canvas` thì lời hứa "Esc tắt chế độ" của bảng phím không bao giờ tới. */
+      scope: isKeyboardReviewMode ? 'sidePanel' : 'canvas',
       description: DIMENSION_OCR_TEXT.keyboard.keys.esc.description,
       onTrigger: () => {
         if (draftRef.current !== null) {
@@ -989,7 +1004,13 @@ export function useDimensionOcrReview(
 
   return {
     state,
-    unsavedNotice: canEdit ? DIMENSION_OCR_TEXT.screen.unsavedNotice : null,
+    saveLabel: canEdit ? saveIndicator.label : null,
+    saveState: canEdit ? saveIndicator.state : null,
+    saveBlock,
+    presetNotice:
+      filterChoice === null && activeFilter === 'lowConfidence'
+        ? lowConfidenceNotice(lowConfidenceDimensions.length)
+        : null,
     rows,
     chains,
     reviewCounter,

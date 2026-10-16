@@ -26,7 +26,7 @@ import type {
 } from './wallGeometryEditorTypes';
 
 const CODE_BUTTON_CLASS =
-  'rounded-[4px] px-1 font-mono text-[13px] text-text-primary outline-none ' +
+  'rounded px-1 font-mono text-[13px] text-text-primary outline-none ' +
   'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 function VertexCellField({

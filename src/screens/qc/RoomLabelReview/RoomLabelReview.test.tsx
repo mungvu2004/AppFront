@@ -819,3 +819,36 @@ describe('P04 cụm C — thanh tra phòng chỉ mời việc làm được (SCR
     expect(onNavigate).toHaveBeenCalledWith(expect.stringContaining('/walls'));
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* FL-R-03 / 20-D-006: vai Người xem trên tầng không phòng vẫn thấy dải quyền.   */
+/* -------------------------------------------------------------------------- */
+
+describe('[20-D-006] Người xem trên tầng không có phòng', () => {
+  it('thấy câu rỗng VÀ dải "Không có quyền sửa lớp phòng", không có câu bộ lọc', async () => {
+    const viewerRoles = scenarioArgsFor('forbidden').roles ?? [];
+    renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('empty')} roles={viewerRoles} />);
+
+    expect(await screen.findByText(/^Chưa dò ra phòng nào ở tầng này/u)).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Không có quyền sửa lớp phòng');
+    expect(screen.queryByText(/Tắt bộ lọc "Chưa đặt tên"/u)).not.toBeInTheDocument();
+  });
+});
+
+describe('[20-D-007] tầng rỗng vì vòng hở vẫn có lối "Xem tại lớp tường"', () => {
+  it('kịch bản rỗng (vòng hở 62 mm): vùng "Vòng tường hở" có nút sang lớp tường, và chỉ MỘT nút "Kiểm tra lại vòng hở"', async () => {
+    renderState('empty');
+
+    const gapsSection = () => within(screen.getByRole('region', { name: 'Vòng tường hở' }));
+    await waitFor(() => expect(gapsSection().getByRole('button', { name: 'Xem tại lớp tường' })).toBeInTheDocument());
+    expect(screen.getAllByRole('button', { name: 'Kiểm tra lại vòng hở' })).toHaveLength(1);
+  });
+
+  it('vai Người xem trên cùng tầng: cũng có nút sang lớp tường', async () => {
+    const viewerRoles = scenarioArgsFor('forbidden').roles ?? [];
+    renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('empty')} roles={viewerRoles} />);
+
+    const gapsSection = () => within(screen.getByRole('region', { name: 'Vòng tường hở' }));
+    await waitFor(() => expect(gapsSection().getByRole('button', { name: 'Xem tại lớp tường' })).toBeInTheDocument());
+  });
+});

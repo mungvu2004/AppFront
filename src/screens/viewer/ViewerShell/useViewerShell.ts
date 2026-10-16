@@ -241,6 +241,8 @@ export interface UseViewerShellOptions {
   readonly registry?: ShortcutRegistry;
   /** Mở ô tìm đối tượng. Vỏ không tự dựng hộp thoại nào đè lên khung nhìn. */
   readonly onOpenSearch?: () => void;
+  /** Cảnh của màn không tách tầng (màn đo đo trên cao độ thật): khoá thanh "Độ tách" và phím E (BUG-656). */
+  readonly separationDisabled?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -433,6 +435,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     renderScene,
     registry = appShortcutRegistry,
     onOpenSearch,
+    separationDisabled = false,
   } = options;
 
   const reducedMotion = useReducedMotion();
@@ -496,10 +499,20 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     setCameraTick((tick) => tick + 1);
   }, []);
 
-  if (directorRef.current === null) {
-    const initial = viewpointForPreset('perspective', extent, PRESET_SETTINGS.defaultAspect);
+  /* Hộp của MÔ HÌNH (không tính độ tách): đổi thì dựng lại camera đúng khuôn.
+     Lượt render đầu còn đồ thị rỗng (đang nạp) nên hộp là UNIT_EXTENT; camera dựng
+     một lần từ hộp ấy thì giới hạn khoảng cách của chế độ orbit kẹp nó sát mô hình
+     thật — mở màn ở 511–723 % (BUG-582, E2-B1). Kéo độ tách không đổi khoá này. */
+  const modelExtent = extentOf(data, footprint, 0);
+  const modelKey = [...modelExtent.centre.toArray(), ...modelExtent.sizeM.toArray()].join(',');
+  const framedKeyRef = useRef<string | null>(null);
+
+  if (directorRef.current === null || framedKeyRef.current !== modelKey) {
+    framedKeyRef.current = modelKey;
+    const mode = MODE_BY_PRESET[activePresetId];
+    const initial = viewpointForPreset(activePresetId, extent, PRESET_SETTINGS.defaultAspect);
     directorRef.current = new CameraDirector(
-      createCameraMode('orbit', initial, { extent }),
+      createCameraMode(mode, initial, { extent }),
       { extent },
       { reducedMotion },
     );
@@ -850,11 +863,16 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       ]);
     },
     isolateSelection: (): void => {
-      setIsolatedEntityIds((current) => (current === null ? [...selectedIds] : null));
+      // Chưa chọn gì thì không có gì để giữ lại: bật cô lập lúc ấy sẽ ẩn cả mô hình.
+      setIsolatedEntityIds((current) =>
+        current === null && selectedIds.length > 0 ? [...selectedIds] : null,
+      );
     },
     frameSelection,
     toggleSeparation: (): void => {
-      setSeparation((current) => (current > 0 ? 0 : rememberedSeparation));
+      if (!separationDisabled) {
+        setSeparation((current) => (current > 0 ? 0 : rememberedSeparation));
+      }
     },
     activateTool: setActiveToolId,
     openSearch: (): void => {
@@ -888,6 +906,15 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     };
   }, [registry]);
 
+  /* "Cô lập" trên ray là công tắc như Alt+H, không phải một chế độ thay công cụ đang bật (BUG-655). */
+  const onToolChange = useCallback((id: ViewerToolId): void => {
+    if (id === 'isolate') {
+      handlersRef.current?.isolateSelection();
+    } else {
+      setActiveToolId(id);
+    }
+  }, []);
+
   useEffect(() => {
     if (selectedIds.length === 0) {
       return undefined;
@@ -906,11 +933,28 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
 
   const viewpoint = director.viewpoint();
 
+  /** Khuôn chuẩn chia khoảng cách đang đứng; xem {@link zoomLabel}. */
+  const zoomRatio = useMemo(() => {
+    const framed = createCameraMode(
+      MODE_BY_PRESET[activePresetId],
+      viewpointForPreset(activePresetId, extent, PRESET_SETTINGS.defaultAspect),
+      { extent },
+    ).viewpoint();
+
+    return viewpoint.distanceM <= 0 ? 1 : framed.distanceM / viewpoint.distanceM;
+  }, [activePresetId, extent, viewpoint.distanceM]);
+
+  const panX = viewpoint.target.x - extent.centre.x;
+  const panY = viewpoint.target.y - extent.centre.y;
+  const panZ = viewpoint.target.z - extent.centre.z;
+
   const frame = useMemo(
     () => ({
       azimuthRad: viewpoint.azimuthRad,
       polarRad: viewpoint.polarRad,
       distanceM: viewpoint.distanceM,
+      zoom: zoomRatio,
+      panOffsetM: [panX, panY, panZ] as const,
       isOrthographic,
       visibleStoreyIds,
       separation,
@@ -928,6 +972,10 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       viewpoint.azimuthRad,
       viewpoint.polarRad,
       viewpoint.distanceM,
+      zoomRatio,
+      panX,
+      panY,
+      panZ,
       isOrthographic,
       visibleStoreyIds,
       separation,
@@ -1008,16 +1056,12 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
    * đứng đúng chỗ khuôn thì là mức chuẩn, lại gần thì lớn hơn.
    * `formatPercent` của `src/lib/format/number` lo phần chữ, nên view không có
    * phép chia hay `toFixed` nào — thứ `local/no-raw-number` cấm.
+   *
+   * Khuôn chuẩn đi qua chính chế độ camera (giới hạn khoảng cách của nó), vì
+   * camera đóng khung cũng bị kẹp như thế: không kẹp thì màn vừa mở đã ghi
+   * "112,6%" thay vì 100% (25-C-044).
    */
-  const zoomLabel = useMemo(() => {
-    const framed = viewpointForPreset(activePresetId, extent, PRESET_SETTINGS.defaultAspect);
-
-    if (viewpoint.distanceM <= 0) {
-      return formatPercent(1);
-    }
-
-    return formatPercent(framed.distanceM / viewpoint.distanceM);
-  }, [activePresetId, extent, viewpoint.distanceM]);
+  const zoomLabel = useMemo(() => formatPercent(zoomRatio), [zoomRatio]);
 
   const hoverLabel = useMemo(() => {
     if (hoveredId === null || spatial === null) {
@@ -1089,7 +1133,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     railOrientation: isMdUp ? 'vertical' : 'horizontal',
     tools: VIEWER_TOOLS,
     activeToolId,
-    onToolChange: setActiveToolId,
+    onToolChange,
 
     storeys,
     onStoreyActivate,
@@ -1097,6 +1141,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     separation,
     onSeparationChange,
     separationLabel: 'Độ tách',
+    ...(separationDisabled ? { separationDisabled } : {}),
 
     frame,
     sceneActions,

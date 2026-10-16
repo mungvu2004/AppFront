@@ -37,7 +37,7 @@
  *
  * `Input` mang sẵn khung cao 38px của riêng nó và `src/components/**` không sửa
  * được (R-68), nên hàng dùng `min-h-9` — đúng cách `FieldRow.tsx:57` viết
- * `min-h-[36px]` cho cùng loại hàng nhãn/giá trị cao 36.
+ * `min-h-9` cho cùng loại hàng nhãn/giá trị cao 36.
  *
  * ## Thanh tỷ trọng 2px không có phép tính nào
  *
@@ -188,7 +188,7 @@ export function RoomAreaRowItem({
       {/* Thanh tỷ trọng 2px, dính đáy hàng. `scaleX` nhận thẳng 0..1. */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute bottom-0 left-2 right-1 h-[2px] overflow-hidden rounded-full bg-bg-sunken"
+        className="pointer-events-none absolute bottom-0 left-2 right-1 h-0.5 overflow-hidden rounded-full bg-bg-sunken"
       >
         <span
           className="block h-full w-full origin-left rounded-full bg-wall-330"

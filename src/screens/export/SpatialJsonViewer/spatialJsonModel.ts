@@ -228,6 +228,7 @@ export function countEntities(graph: unknown): SpatialJsonCounts {
     dimensions: lengthOf('dimensions'),
     furniture: lengthOf('furniture'),
     levels: lengthOf('levels'),
+    notes: lengthOf('notes'),
     openings: lengthOf('openings'),
     rooms: lengthOf('rooms'),
     walls: lengthOf('walls'),
@@ -244,6 +245,7 @@ export function describeCounts(counts: SpatialJsonCounts): string {
     `${formatNumber(counts.furniture)} đồ đạc`,
     `${formatNumber(counts.axes)} trục`,
     `${formatNumber(counts.dimensions)} kích thước`,
+    `${formatNumber(counts.notes)} ghi chú`,
   ];
 
   return parts.join(' · ');
@@ -252,6 +254,21 @@ export function describeCounts(counts: SpatialJsonCounts): string {
 /** Chữ thô đã thụt lề. Đây cũng là thứ nút sao chép chép đi. */
 export function toRawText(value: unknown): string {
   return JSON.stringify(value, null, RAW_INDENT) ?? '';
+}
+
+/** Giá trị tại đường dẫn của một hàng (`walls[3].id`); `undefined` nếu đường dẫn không dẫn tới đâu. */
+export function valueAtPath(root: unknown, path: string): unknown {
+  let cursor: unknown = root;
+
+  for (const token of path.match(/[^.[\]]+/gu) ?? []) {
+    if (typeof cursor !== 'object' || cursor === null) {
+      return undefined;
+    }
+
+    cursor = (cursor as Record<string, unknown>)[token];
+  }
+
+  return cursor;
 }
 
 /** Số byte UTF-8 của chữ thô — cỡ tệp thật, không phải số ký tự. */
@@ -266,7 +283,7 @@ export function summariseValidity(issues: readonly SpatialJsonIssue[]): SpatialJ
   const isValid = issues.length === 0;
 
   const summary = isValid
-    ? 'Hợp lệ theo hợp đồng Spatial JSON — 0 lỗi.'
+    ? 'Hợp lệ — 0 lỗi.'
     : `${formatNumber(criticalCount)} lỗi nghiêm trọng · ${formatNumber(warningCount)} cảnh báo.`;
 
   return { criticalCount, isValid, issues, summary, warningCount };

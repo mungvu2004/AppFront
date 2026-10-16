@@ -309,3 +309,54 @@ test('collaboration callback failures still report error', async () => {
   expect(writes).toEqual([4])
   expect(statuses).toEqual(['pending', 'saving', 'error'])
 })
+
+/**
+ * AppFront 23-A-025: the host rejects a delete. zundo pushes the pre-write
+ * state onto `pastStates` only AFTER the store's listeners ran, so an undo
+ * from inside the listener popped the entry BEFORE the rejected write — with
+ * no earlier entry it did nothing and the deleted node stayed gone.
+ */
+async function mountWithVerdict(loadedCount: number) {
+  globalThis.window = new EventTarget() as unknown as Window & typeof globalThis
+  useScene.setState({ ...graph(0), readOnly: false })
+  clearSceneHistory()
+  const writes: number[] = []
+  const rejected: string[] = []
+  let controls: ReturnType<typeof useAutoSave> | undefined
+  function Host() {
+    controls = useAutoSave({
+      onSave: async (scene) => {
+        writes.push(Object.keys(scene.nodes).length)
+      },
+      validateCommit: (scene) =>
+        scene.nodes['column_autosave_1' as never] ? { ok: true } : { ok: false, message: 'refused' },
+      onCommitRejected: (message) => rejected.push(message),
+    })
+    return null
+  }
+  renderer = await create(<Host />)
+  useScene.setState(graph(loadedCount))
+  clearSceneHistory()
+  controls!.completeSceneLoad()
+  return { writes, rejected }
+}
+
+test('a rejected delete puts the node back even with no earlier history entry', async () => {
+  const { writes, rejected } = await mountWithVerdict(8)
+  useScene.getState().deleteNode('column_autosave_1' as never)
+  expect(rejected).toEqual(['refused'])
+  expect(useScene.getState().nodes['column_autosave_1' as never]).toBeDefined()
+  await Bun.sleep(1100)
+  expect(writes).toEqual([])
+})
+
+test('a rejected delete keeps the accepted edit made before it', async () => {
+  const { writes, rejected } = await mountWithVerdict(8)
+  agentAddsColumn()
+  useScene.getState().deleteNode('column_autosave_1' as never)
+  expect(rejected).toEqual(['refused'])
+  expect(useScene.getState().nodes['column_autosave_1' as never]).toBeDefined()
+  expect(useScene.getState().nodes['column_agent' as never]).toBeDefined()
+  await Bun.sleep(1100)
+  expect(writes).toEqual([9])
+})

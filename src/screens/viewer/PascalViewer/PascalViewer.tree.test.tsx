@@ -28,7 +28,7 @@
  * nhánh ấy.**
  */
 
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -38,10 +38,14 @@ import { renderWithProviders } from '@/lib/testing/render';
 import { useStore } from '@/store';
 
 import { PascalViewerContainer, PascalViewerRoute } from './PascalViewer.container';
+import { PASCAL_LEAVE_LABEL } from './pascalViewerTypes';
 
 /** Lời trạng thái của màn; lớp cộng tác (S5) có `status` riêng, đứng sau trong DOM. */
 const screenStatus = (): HTMLElement => {
-  const [first] = screen.getAllByRole('status');
+  // Bỏ qua chú thích của thanh hiện diện ở khe đầu màn (23R-F-002): nó đứng trước dòng trạng thái.
+  const first = screen
+    .getAllByRole('status')
+    .find((el) => el.closest('[data-testid="pascal-header-slot"]') === null);
   if (first === undefined) throw new Error('Màn không có vùng trạng thái.');
   return first;
 };
@@ -216,4 +220,26 @@ describe('route: đọc kho qua cổng nạp kho dự án (B-V12-01)', () => {
       vi.unstubAllEnvs();
     }
   });
+
+  it('23-A-004 (BUG-487): có lối ra về quản lý tầng của dự án', () => {
+    act(() => {
+      useStore.getState().setProject(PROJECT);
+      useStore.getState().setSpatialLoading(true);
+    });
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/projects/project-1/3d']}>
+        <Routes>
+          <Route path="/projects/:projectId/3d" element={<PascalViewerRoute />} />
+          <Route path="/projects/:projectId/floors" element={<p>trang tầng</p>} />
+        </Routes>
+      </MemoryRouter>,
+      { keepStore: true },
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: PASCAL_LEAVE_LABEL }));
+
+    expect(screen.getByText('trang tầng')).toBeInTheDocument();
+  });
 });
+

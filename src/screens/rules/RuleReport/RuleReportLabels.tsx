@@ -94,7 +94,7 @@ export const ANY_OPTION = 'all';
 /** The four segments, fixed by the contract. A fifth one would not type-check. */
 export const LEVEL_FILTER_OPTIONS: readonly { label: string; value: RuleReportLevelFilter }[] = [
   { label: 'Tất cả', value: 'all' },
-  { label: 'Vi phạm', value: 'violation' },
+  { label: 'Nghiêm trọng', value: 'violation' },
   { label: 'Cảnh báo', value: 'warning' },
   { label: 'Đạt', value: 'passed' },
 ];

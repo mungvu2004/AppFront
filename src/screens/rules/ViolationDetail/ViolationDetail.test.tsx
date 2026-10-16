@@ -484,6 +484,14 @@ describe('BUG-434 — tấm thu gọn mở trong khung nhìn và nhận tiêu đ
     const panel = screen.getByRole('complementary', { name: 'Chi tiết vi phạm' });
     expect(panel.contains(document.activeElement)).toBe(true);
   });
+
+  it('BUG-735 — khổ rộng: tấm bám khung nhìn (`fixed`, cao 100dvh), đầu tấm không cuộn theo báo cáo dài', () => {
+    renderView(propsFor(scenarioOf('success')));
+
+    const panel = screen.getByRole('complementary', { name: 'Chi tiết vi phạm' });
+    expect(panel).toHaveClass('fixed', 'top-0', 'h-dvh');
+    expect(panel).not.toHaveClass('absolute');
+  });
 });
 
 /* ==========================================================================
@@ -607,6 +615,18 @@ describe('trạng thái 7 "Thu gọn": canvas nhỏ vắng mặt', () => {
     const { container } = renderView(props);
 
     expect(container.querySelector('canvas')).toBeNull();
+  });
+
+  it('[28V-F-006] state=collapsed mà không có cách sửa nào: câu giải thích vẫn hiện', () => {
+    renderView({ ...loadedProps(PARTIAL_ARGS), state: 'collapsed' });
+
+    expect(screen.getByText(/Chưa có cách sửa tự động nào cho vi phạm này/u)).toBeInTheDocument();
+  });
+
+  it('[28V-A-014] state=collapsed sau lượt sửa đạt: câu "Đã sửa xong" vẫn hiện', () => {
+    renderView({ ...loadedProps(SUCCESS_ARGS), state: 'collapsed', resolvedMessage: 'Đã sửa xong; luật X chạy lại.' });
+
+    expect(screen.getByText('Đã sửa xong; luật X chạy lại.')).toBeInTheDocument();
   });
 });
 
@@ -771,6 +791,7 @@ function WiredForFixLoop(props: {
     violations: props.violations,
     initialIndex: 0,
     projectId: FIX_LOOP_PROJECT_ID,
+    canEdit: true,
     floorId: props.floorId,
     onClose: () => undefined,
   });

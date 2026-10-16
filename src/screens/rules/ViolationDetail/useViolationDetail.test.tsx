@@ -1,17 +1,21 @@
+import { useState } from 'react';
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
 import { createDefaultRuleRegistry } from '@/domain/rules/defaults';
 import { runRules } from '@/domain/rules/runner';
-import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, normalizeSpatial } from '@/domain/spatial/normalize';
 import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
+import { appNotificationBus } from '@/hooks/useNotifications';
+import { QueryClient } from '@tanstack/react-query';
 import { createHistoryStack } from '@/lib/commands/history';
 import { getAppAnnouncer } from '@/lib/input/announcer';
 import { LAYER_SAVE_MESSAGES } from '@/lib/autosave/spatialLayerSave';
 import { CLEAN_BUILDING_SCENARIO } from '@/lib/testing/fixtures';
-import { renderWithProviders } from '@/lib/testing/render';
+import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
 import { useStore } from '@/store';
+import { ruleSettingsQueryKey } from '@/screens/rules/RuleSettings';
 
 import { ViolationDetail } from './ViolationDetail';
 import { useViolationDetail } from './useViolationDetail';
@@ -35,6 +39,7 @@ function Wired({ seed }: { readonly seed: ViolationDetailGatewaySeed }) {
     initialIndex: 0,
     onClose: () => undefined,
     projectId: PROJECT,
+    canEdit: true,
     seed,
     violations: [VIOLATION as NonNullable<typeof VIOLATION>],
   });
@@ -116,5 +121,239 @@ describe('useViolationDetail — sửa nhanh đi qua saver lớp tầng (F-04x-1
     });
 
     expect(clear).toHaveBeenCalledTimes(1);
+  });
+
+  it('BUG-732 — lỗi chặn lưu: câu của ống là câu assertive CUỐI CÙNG, chỉ báo "Lưu thất bại" không đè lên', async () => {
+    const apiClient = createMockApiClient();
+    const announce = vi.spyOn(getAppAnnouncer(), 'announce');
+
+    await mount({ apiClient });
+    simulateRemoteLayerEdit(FLOOR_ID);
+    await quickFix();
+    await act(async () => {
+      await flushAutosaves().catch(() => undefined);
+    });
+
+    const assertive = announce.mock.calls.filter((call) => call[1] === 'assertive').map((call) => call[0]);
+
+    expect(assertive.at(-1)).toBe(LAYER_SAVE_MESSAGES.reload);
+    expect(document.querySelector('[data-announcer="assertive"]')?.textContent?.trim()).toBe(LAYER_SAVE_MESSAGES.reload);
+    expect(within(panel()).getByText(/^Lưu thất bại/u)).toBeInTheDocument();
+  });
+});
+
+const SECOND = runRules(GRAPH, { registry: createDefaultRuleRegistry() }).violations.find(
+  (candidate) => candidate.ruleCode === 'FURNITURE-CLASH' && candidate.entityId !== VIOLATION.entityId,
+);
+
+function WiredPair({ seed }: { readonly seed: ViolationDetailGatewaySeed }) {
+  const props = useViolationDetail({
+    floorId: FLOOR_ID,
+    initialIndex: 0,
+    onClose: () => undefined,
+    projectId: PROJECT,
+    canEdit: true,
+    seed,
+    violations: [VIOLATION as NonNullable<typeof VIOLATION>, SECOND as NonNullable<typeof SECOND>],
+  });
+
+  return <ViolationDetail {...props} />;
+}
+
+describe('QA-06b F6 — kết quả sửa thuộc đúng vi phạm vừa sửa', () => {
+  beforeEach(() => {
+    __resetFloorLayerSavers();
+    __resetMockLayerState();
+  });
+
+  afterEach(() => {
+    cleanup();
+    __resetFloorLayerSavers();
+    vi.restoreAllMocks();
+  });
+
+  it('28V-A-011: mô tả hành động nêu mã hiển thị (#F-…), không nêu id thô', async () => {
+    await mount({ apiClient: createMockApiClient() });
+    const code = displayCodeIn(GRAPH, VIOLATION.entityId);
+
+    expect(code).toMatch(/^#F-/u);
+    expect(within(panel()).getByText(`Gỡ đồ đạc ${code} khỏi bản vẽ; hoàn tác được trong tám giây.`)).toBeInTheDocument();
+    expect(panel().textContent).not.toContain(VIOLATION.entityId);
+  });
+
+  it('28V-B-004: đối tượng đã bị xoá thì không còn mời "Xoá đối tượng này" lần hai', async () => {
+    await mount({ apiClient: createMockApiClient() });
+    await quickFix();
+
+    expect(within(panel()).getByText(/^Đã sửa xong/u)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Xoá đối tượng này' })).toBeNull();
+  });
+
+  it('28V-C-004: sau khi tự sang vi phạm kế tiếp, câu "Đã sửa xong" không theo sang', async () => {
+    renderWithProviders(<WiredPair seed={{ apiClient: createMockApiClient() }} />);
+    await act(async () => {
+      useStore.getState().setSpatial(GRAPH, 'v-1', {
+        floorRevisions: Object.fromEntries(GRAPH.byKind.level.map((id) => [id, 0])),
+        projectId: PROJECT,
+      });
+      await vi.dynamicImportSettled();
+    });
+    await quickFix();
+    expect(within(panel()).getByText(/^Đã sửa xong/u)).toBeInTheDocument();
+
+    await waitFor(
+      () => {
+        expect(within(panel()).getByRole('heading', { level: 2 })).toHaveTextContent(SECOND?.message ?? '');
+      },
+      { timeout: 2000 },
+    );
+    expect(within(panel()).queryByText(/^Đã sửa xong/u)).toBeNull();
+  });
+
+  it('28V-A-016: hàng vừa sửa bị báo cáo đẩy xuống cuối thì tấm trượt vẫn sang hàng kế tiếp của thứ tự lúc bấm (stack: sheet ở lại hàng đã sửa)', async () => {
+    const first = VIOLATION as NonNullable<typeof VIOLATION>;
+    const second = SECOND as NonNullable<typeof SECOND>;
+    // Như RuleReport.container: hàng đã xử lý nằm cuối nhóm, cha giữ hàng mở lúc đầu.
+    function Moving() {
+      const gone = useStore((state) => state.spatial?.byId[first.entityId] === undefined);
+      const list = gone ? [second, first] : [first, second];
+      const props = useViolationDetail({
+        floorId: FLOOR_ID,
+        initialIndex: list.indexOf(first),
+        onClose: () => undefined,
+        projectId: PROJECT,
+        canEdit: true,
+        seed: { apiClient: createMockApiClient() },
+        violations: list,
+      });
+      return <ViolationDetail {...props} />;
+    }
+    renderWithProviders(<Moving />);
+    await act(async () => {
+      useStore.getState().setSpatial(GRAPH, 'v-1', {
+        floorRevisions: Object.fromEntries(GRAPH.byKind.level.map((id) => [id, 0])),
+        projectId: PROJECT,
+      });
+      await vi.dynamicImportSettled();
+    });
+    await quickFix();
+
+    await waitFor(
+      () => {
+        expect(within(panel()).getByRole('heading', { level: 2 })).toHaveTextContent(second.message);
+      },
+      { timeout: 2000 },
+    );
+  });
+
+  it('28V-A-016: báo cáo sắp xếp lại sau lượt sửa thì tấm trượt vẫn ở vi phạm đã chuyển tới', async () => {
+    const first = VIOLATION as NonNullable<typeof VIOLATION>;
+    const second = SECOND as NonNullable<typeof SECOND>;
+    // Cha giữ hàng mở lúc đầu (như RuleReport.container): đổi thứ tự chỉ đổi `initialIndex`.
+    function Reorderable() {
+      const [reordered, setReordered] = useState(false);
+      const list = reordered ? [second, first] : [first, second];
+      const props = useViolationDetail({
+        floorId: FLOOR_ID,
+        initialIndex: list.indexOf(first),
+        onClose: () => undefined,
+        projectId: PROJECT,
+        canEdit: true,
+        seed: { apiClient: createMockApiClient() },
+        violations: list,
+      });
+      return (
+        <>
+          <button onClick={() => setReordered(true)} type="button">
+            sắp lại
+          </button>
+          <ViolationDetail {...props} />
+        </>
+      );
+    }
+    renderWithProviders(<Reorderable />);
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Vi phạm kế tiếp' }));
+    expect(within(panel()).getByRole('heading', { level: 2 })).toHaveTextContent(second.message);
+
+    fireEvent.click(screen.getByRole('button', { name: 'sắp lại' }));
+
+    expect(within(panel()).getByRole('heading', { level: 2 })).toHaveTextContent(second.message);
+  });
+
+  it('28V-A-023: hai lượt sửa liên tiếp, vé của lượt sau chỉ trả lại đúng đối tượng của lượt sau', async () => {
+    const second = SECOND as NonNullable<typeof SECOND>;
+    const publish = vi.spyOn(appNotificationBus, 'publish');
+    renderWithProviders(<WiredPair seed={{ apiClient: createMockApiClient() }} />);
+    await act(async () => {
+      useStore.getState().setSpatial(GRAPH, 'v-1', {
+        floorRevisions: Object.fromEntries(GRAPH.byKind.level.map((id) => [id, 0])),
+        projectId: PROJECT,
+      });
+      await vi.dynamicImportSettled();
+    });
+    await quickFix();
+    await waitFor(
+      () => {
+        expect(within(panel()).getByRole('heading', { level: 2 })).toHaveTextContent(second.message);
+      },
+      { timeout: 2000 },
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Xoá đối tượng này' }));
+    });
+    await waitFor(() => {
+      expect(useStore.getState().spatial?.byId[second.entityId]).toBeUndefined();
+    });
+    const ticket = publish.mock.calls.at(-1)?.[0].undoTicket;
+
+    await act(async () => {
+      ticket?.undo();
+    });
+
+    expect(useStore.getState().spatial?.byId[second.entityId]).toBeDefined();
+    expect(useStore.getState().spatial?.byId[VIOLATION.entityId]).toBeUndefined();
+  });
+
+  it('28V-C-005: hoàn tác từ toast làm mới báo cáo luật', async () => {
+    const publish = vi.spyOn(appNotificationBus, 'publish');
+    await mount({ apiClient: createMockApiClient() });
+    await quickFix();
+    const ticket = publish.mock.calls.at(-1)?.[0].undoTicket;
+    expect(ticket).toBeDefined();
+    const invalidate = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+
+    await act(async () => {
+      ticket?.undo();
+    });
+
+    expect(useStore.getState().spatial?.byId[VIOLATION.entityId]).toBeDefined();
+    expect(invalidate).toHaveBeenCalled();
+    // BUG-729 (p06-rf E06r_28V-04_undo-after.json: sheetHasFixedLine true + action offered): the fix is undone,
+    // so the sheet is back to "ready" — no "Đã sửa xong" line next to the action it offers again.
+    expect(within(panel()).queryByText(/^Đã sửa xong/u)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Xoá đối tượng này' })).toBeInTheDocument();
+  });
+
+  it('28V-C-007: tấm trượt kiểm lại theo cấu hình dự án, không theo sổ mặc định', async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(ruleSettingsQueryKey(PROJECT), {
+      revision: 1,
+      config: { overrides: { 'FURNITURE-CLASH': { enabled: false } }, version: 0 },
+    });
+    renderWithProviders(<Wired seed={{ apiClient: createMockApiClient() }} />, { queryClient });
+    await act(async () => {
+      useStore.getState().setSpatial(GRAPH, 'v-1', {
+        floorRevisions: Object.fromEntries(GRAPH.byKind.level.map((id) => [id, 0])),
+        projectId: PROJECT,
+      });
+      await vi.dynamicImportSettled();
+    });
+    await quickFix();
+
+    // Luật bị tắt trong cấu hình dự án thì lượt kiểm lại không chạy nó — không báo "đã sửa xong".
+    expect(within(panel()).queryByText(/^Đã sửa xong/u)).toBeNull();
   });
 });

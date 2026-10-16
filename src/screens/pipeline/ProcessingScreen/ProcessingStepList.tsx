@@ -152,7 +152,7 @@ function StepProgressBar({
           aria-hidden="true"
           className="pointer-events-none absolute inset-y-0 left-0 w-1/4 animate-pipeline-sweep motion-reduce:animate-none"
         >
-          <span className={clsx('absolute inset-y-0 right-0 w-[2px]', STAGE_BAR_CLASS.running)} />
+          <span className={clsx('absolute inset-y-0 right-0 w-0.5', STAGE_BAR_CLASS.running)} />
         </div>
       ) : null}
     </div>
@@ -177,7 +177,7 @@ function StepRow({
     <li className={clsx('flex flex-col gap-2', isChild && 'pl-6')}>
       <div
         className={clsx(
-          'rounded-[8px] border border-border-default p-3 transition-colors duration-slow',
+          'rounded-lg border border-border-default p-3 transition-colors duration-slow',
           isFlashing ? 'bg-bg-flash' : 'bg-bg-surface',
         )}
       >

@@ -6,6 +6,7 @@ import { PanelLeftIcon } from 'lucide-react'
 import * as React from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { hydratedLocalStorage } from './../../../lib/hydrated-local-storage'
 import { Button } from './../../../components/ui/primitives/button'
 import { Input } from './../../../components/ui/primitives/input'
 import { Separator } from './../../../components/ui/primitives/separator'
@@ -64,6 +65,7 @@ export const useSidebarStore = create<SidebarStore>()(
     {
       name: 'sidebar-preferences',
       partialize: (state) => ({ width: state.width, isCollapsed: state.isCollapsed }),
+      storage: hydratedLocalStorage(() => useSidebarStore.persist.hasHydrated()),
       skipHydration: true,
     },
   ),

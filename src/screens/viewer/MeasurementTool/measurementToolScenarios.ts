@@ -284,6 +284,8 @@ const BASE: MeasurementToolProps = {
   onModeChange: NO_OP,
   snap: SNAP_MIDPOINT,
   draft: null,
+  draftComplete: false,
+  noModel: false,
   measurements: READY_MEASUREMENTS,
   countLabel: '5 phép đo',
   highlightedId: null,

@@ -51,7 +51,7 @@ function MetricsTable({ detail }: { readonly detail: JobDetailModel }) {
   const headers = [...METRIC_HEADERS, detail.scoreName, METRIC_TAIL];
 
   return (
-    <div className="h-[320px] overflow-auto rounded-[8px] border border-border-default">
+    <div className="h-80 overflow-auto rounded-lg border border-border-default">
       <Table.Root className="h-auto overflow-visible">
         <Table.Header>
           <Table.Row>
@@ -91,7 +91,7 @@ function LogsTable({ detail }: { readonly detail: JobDetailModel }) {
 
   return (
     <div
-      className="h-[320px] overflow-auto rounded-[8px] border border-border-default"
+      className="h-80 overflow-auto rounded-lg border border-border-default"
       onScroll={(event) => {
         const element = event.currentTarget;
         atBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight <= BOTTOM_SLACK_PX;

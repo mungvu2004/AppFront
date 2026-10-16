@@ -5,6 +5,7 @@
  */
 
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { QueryClient } from '@tanstack/react-query';
@@ -12,6 +13,8 @@ import { QueryClient } from '@tanstack/react-query';
 import type { ApiClient } from '@/api/client';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { Me } from '@/api/schemas/me';
+import { flushAutosaves } from '@/hooks/useAutosave';
+import viMessages from '@/i18n/vi.json';
 import type { HttpError } from '@/lib/http';
 import type { Announcer } from '@/lib/input/announcer';
 import { createNotificationBus } from '@/lib/mutations/notificationBus';
@@ -30,7 +33,13 @@ import {
 import { AvatarReplaceDialog } from './AvatarReplaceDialog';
 import { PasswordSection } from './PasswordSection';
 import { useAccountAuth, type AccountAuthModel } from './useAccountAuth';
-import { ACCOUNT_AUTOSAVE_DEBOUNCE_MS, ACCOUNT_LOCAL_ONLY_LABEL } from './useAccountSettings';
+import { ACCOUNT_STACKED_QUERY } from './useAccountPreferences';
+import {
+  ACCOUNT_AUTOSAVE_DEBOUNCE_MS,
+  ACCOUNT_FIELD_REJECTED_LABEL,
+  ACCOUNT_LOCAL_ONLY_LABEL,
+  ACCOUNT_SAVED_UNDO_TITLE,
+} from './useAccountSettings';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -101,11 +110,17 @@ function fakeAnnouncer(): Announcer & { readonly announce: ReturnType<typeof vi.
   return { announce: vi.fn(), destroy: vi.fn() };
 }
 
+/** Đầu trang có `<Link>` về bảng điều khiển (33P-A-010): màn đầy đủ cần một bộ định tuyến. */
+const renderScreen = (
+  ui: Parameters<typeof renderWithProviders>[0],
+  options?: Parameters<typeof renderWithProviders>[1],
+) => renderWithProviders(<MemoryRouter>{ui}</MemoryRouter>, options);
+
 function mount(
   gateway: AccountSettingsGateway,
   options: { readonly announcer?: Announcer; readonly auth?: AccountAuthGateway } = {},
 ) {
-  const view = renderWithProviders(
+  const view = renderScreen(
     <AccountSettingsContainer
       gateway={gateway}
       authGateway={options.auth ?? authGateway()}
@@ -175,6 +190,10 @@ describe('N12 422 — lỗi buộc vào đúng ô, không thử lại bằng l�
       screen.getByText('Họ tên cần từ 1 đến 120 ký tự, không chứa ký tự điều khiển.'),
     ).toBeTruthy();
     expect(announcer.announce.mock.calls.some((call) => call[1] === 'assertive')).toBe(true);
+    // BUG-503: lỗi nhập không phải lỗi hệ thống — chip và bộ đọc màn hình không hứa "thử lưu lại".
+    expect(screen.getByText(ACCOUNT_FIELD_REJECTED_LABEL)).toBeTruthy();
+    expect(screen.queryByText(/thử lưu lại/)).toBeNull();
+    expect(announcer.announce).toHaveBeenCalledWith(ACCOUNT_FIELD_REJECTED_LABEL, 'assertive');
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(60_000);
@@ -245,7 +264,7 @@ describe('N12 422 — lỗi buộc vào đúng ô, không thử lại bằng l�
 /* -------------------------------------------------------------------------- */
 
 describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
-  it('PNG: bấm "Thay ảnh" mới gửi, thân không có tiền tố data:, ảnh mới và bộ đệm mang URL mới', async () => {
+  it('PNG: bấm "Đặt ảnh" mới gửi, thân không có tiền tố data:, ảnh mới và bộ đệm mang URL mới', async () => {
     const url = 'https://cdn.example.test/avatars/01J0NEW.png';
     const replaceAvatar = vi.fn(() => Promise.resolve({ ok: true as const, data: newMe(url) }));
     const { container, queryClient } = mount(settingsGateway({ replaceAvatar }));
@@ -257,9 +276,11 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
 
     expect(within(dialog).getByText('Đặt ảnh đại diện?')).toBeTruthy();
     expect(within(dialog).getByText('Sau khi đặt chỉ thay được, không gỡ được.')).toBeTruthy();
+    // BUG-501: nhãn nút theo câu hỏi — chưa có ảnh thì không có gì để "thay".
+    expect(within(dialog).queryByRole('button', { name: 'Thay ảnh' })).toBeNull();
     expect(replaceAvatar).not.toHaveBeenCalled();
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Thay ảnh' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đặt ảnh' }));
 
     await waitFor(() => {
       expect(replaceAvatar).toHaveBeenCalledWith({
@@ -290,6 +311,7 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
 
     expect(within(dialog).getByText('Thay ảnh đại diện?')).toBeTruthy();
     expect(within(dialog).getByText('Ảnh cũ không khôi phục được.')).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Thay ảnh' })).toBeTruthy();
   });
 
   it('"Huỷ" không gọi mạng', async () => {
@@ -432,7 +454,7 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
     await loaded();
     pick(container, pngFile());
     fireEvent.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Thay ảnh' }),
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đặt ảnh' }),
     );
 
     expect(await screen.findByText(sentence)).toBeTruthy();
@@ -452,7 +474,7 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
     await loaded();
     pick(container, pngFile());
     fireEvent.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Thay ảnh' }),
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đặt ảnh' }),
     );
     await screen.findByText('Đã thử nhiều lần. Hãy đợi vài phút rồi thử lại.');
 
@@ -479,7 +501,7 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
     await loaded();
     pick(container, pngFile());
     fireEvent.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Thay ảnh' }),
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đặt ảnh' }),
     );
 
     await waitFor(() => {
@@ -498,17 +520,41 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
     await loaded();
     pick(container, pngFile());
     fireEvent.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Thay ảnh' }),
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đặt ảnh' }),
     );
     await waitFor(() => {
       expect(replaceAvatar).toHaveBeenCalledTimes(1);
     });
 
     // Ngủ thật, không đồng hồ giả: debounce (nếu hồi quy làm ảnh lọt vào bản nháp) đã được xếp
-    // bằng `setTimeout` thật lúc bấm "Thay ảnh", cài đồng hồ giả lúc này sẽ không bắn nó.
+    // bằng `setTimeout` thật lúc bấm "Đặt ảnh", cài đồng hồ giả lúc này sẽ không bắn nó.
     await new Promise((resolve) => setTimeout(resolve, ACCOUNT_AUTOSAVE_DEBOUNCE_MS + 200));
 
     expect(save).not.toHaveBeenCalled();
+  });
+});
+
+describe('BUG-497, BUG-502 — route đo mốc khổ hẹp, hai khối xếp nhãn lên trên ô', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'matchMedia');
+  });
+
+  it.each([
+    [true, true],
+    [false, false],
+  ])('(width < 1024px) khớp = %s → hàng "Họ tên" xếp dọc = %s', async (matches, stacked) => {
+    window.matchMedia = ((query: string) => ({
+      matches: query === ACCOUNT_STACKED_QUERY ? matches : false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    })) as unknown as typeof window.matchMedia;
+
+    mount(settingsGateway());
+    const field = await loaded();
+    const row = field.closest('div.flex.items-start');
+
+    expect(row?.classList.contains('flex-col')).toBe(stacked);
   });
 });
 
@@ -654,7 +700,7 @@ describe('N13 — đổi mật khẩu', () => {
     });
   });
 
-  it('rate-limited, 9 giây: formProblem không có chữ số, nút khoá 60 giây rồi mở lại', async () => {
+  it('[33S-A-019] rate-limited, 9 giây: formProblem không có chữ số, nút khoá 900 giây (Q5) rồi mở lại', async () => {
     const model = renderAuth(
       authGateway({ changePassword: failure({ reason: 'rate-limited', retryAfterSeconds: 9 }) }),
     );
@@ -668,8 +714,14 @@ describe('N13 — đổi mật khẩu', () => {
     expect(model.read().password.formProblem).not.toMatch(/\d/);
     expect(model.read().password.canSubmit).toBe(false);
 
+    // Còn khoá ở mốc 60 s cũ (BUG-P07-009): cửa sổ BE là 900 s.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(59_999);
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(model.read().password.canSubmit).toBe(false);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(839_999);
     });
     expect(model.read().password.canSubmit).toBe(false);
 
@@ -680,18 +732,44 @@ describe('N13 — đổi mật khẩu', () => {
     expect(model.read().password.formProblem).toBeNull();
   });
 
-  it('retryAfterSeconds lớn hơn 60 thì khoá theo số đó', async () => {
+  it('[33S-A-020] retryAfterSeconds lớn hơn 900 thì khoá theo số đó', async () => {
     const model = renderAuth(
-      authGateway({ changePassword: failure({ reason: 'rate-limited', retryAfterSeconds: 90 }) }),
+      authGateway({ changePassword: failure({ reason: 'rate-limited', retryAfterSeconds: 1000 }) }),
     );
 
     vi.useFakeTimers();
     await submitPassword(model);
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(900_000);
+    });
+    expect(model.read().password.canSubmit).toBe(false);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100_000);
+    });
+    expect(model.read().password.canSubmit).toBe(true);
+  });
+
+  it('[33S-G-005] 401: không hiện câu "Thử lại sau ít phút", không khoá, không đánh dấu "có thể đã đổi"', async () => {
+    const changePassword = vi
+      .fn<AccountAuthGateway['changePassword']>()
+      .mockImplementationOnce(failure({ reason: 'unauthorized' }))
+      .mockImplementationOnce(failure({ reason: 'wrong-current-password' }));
+    const model = renderAuth(authGateway({ changePassword }));
+
+    await submitPassword(model);
+
+    expect(model.read().password.formProblem).toBeNull();
+    expect(model.read().password.canSubmit).toBe(true);
+
+    await act(async () => {
+      model.read().password.onSubmit();
+      await Promise.resolve();
     });
 
-    expect(model.read().password.canSubmit).toBe(false);
+    await waitFor(() => {
+      expect(model.read().password.currentPasswordProblem).toBe('Mật khẩu hiện tại không đúng.');
+    });
   });
 
   it('unavailable: câu riêng của đổi mật khẩu, không rơi sang câu của khối phiên', async () => {
@@ -825,7 +903,7 @@ describe('vào lại màn khi bộ đệm còn tươi', () => {
       me: { ...createMockApiClient().me, readProfile, updateProfile },
     };
     const open = () =>
-      renderWithProviders(
+      renderScreen(
         <AccountSettingsContainer
           gateway={createAccountSettingsGateway({ apiClient })}
           authGateway={authGateway()}
@@ -883,3 +961,107 @@ describe('BUG-178 — địa chỉ có neo cuộn tới thẻ và đặt tiêu �
   });
 });
 
+
+/* -------------------------------------------------------------------------- */
+/* QA phase 07 — SCR-33 trang: Ctrl+S, toast chỉ-cục-bộ, khung chờ, ký tự điều khiển. */
+/* -------------------------------------------------------------------------- */
+
+function mountWithBus(gateway: AccountSettingsGateway) {
+  const notifications = createNotificationBus();
+  const titles: string[] = [];
+
+  notifications.subscribe((list) => {
+    for (const entry of list) {
+      titles.push(entry.title);
+    }
+  });
+  renderScreen(
+    <AccountSettingsContainer
+      gateway={gateway}
+      authGateway={authGateway()}
+      notifications={notifications}
+    />,
+  );
+
+  return titles;
+}
+
+describe('SCR-33 QA phase 07', () => {
+  it('[33P-A-024] Ctrl+S xả tự lưu ngay, không chờ hết debounce', async () => {
+    const save = vi.fn(() => Promise.resolve(newMe('https://cdn.example.test/k.png')));
+
+    mount(settingsGateway({ save }));
+    const field = await loaded();
+
+    vi.useFakeTimers();
+
+    act(() => {
+      fireEvent.change(field, { target: { value: 'Bình' } });
+    });
+    expect(save).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await flushAutosaves();
+    });
+    // Chưa trôi một mili-giây nào của ACCOUNT_AUTOSAVE_DEBOUNCE_MS.
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('[33P-B-024] lượt lưu chỉ-cục-bộ không bật toast "Đã lưu cài đặt tài khoản."; lưu lên máy chủ thì có', async () => {
+    const save = vi.fn(() => Promise.resolve(newMe('https://cdn.example.test/l.png')));
+    const titles = mountWithBus(settingsGateway({ save }));
+    const field = await loaded();
+
+    vi.useFakeTimers();
+
+    act(() => {
+      fireEvent.click(screen.getByRole('switch', { name: 'Hiện lưới 100 mm' }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText(ACCOUNT_LOCAL_ONLY_LABEL).length).toBeGreaterThan(0);
+    expect(titles).not.toContain(ACCOUNT_SAVED_UNDO_TITLE);
+    // QD-07-1: vẫn có toast hoàn tác, nhưng câu là của lượt chỉ-giữ-trong-phiên.
+    expect(titles).toContain(viMessages.account.savedLocalToast);
+
+    act(() => {
+      fireEvent.change(field, { target: { value: 'Bình' } });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+    });
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(titles).toContain(ACCOUNT_SAVED_UNDO_TITLE);
+  });
+
+  it('[33P-B-002] khung xương lúc tải báo aria-busy="true"', () => {
+    mount(settingsGateway({ read: () => new Promise<AccountDraft>(() => undefined) }));
+
+    expect(document.querySelector('section[aria-busy="true"]')).not.toBeNull();
+  });
+
+  it.each([['\u0007'], ['\u202E']])(
+    '[33P-C-010] điện thoại 422 vì ký tự điều khiển (%j) nói đúng nguyên nhân, không nói "tối đa 32"',
+    async (bad) => {
+      const save = vi
+        .fn<(draft: AccountDraft) => Promise<Me | null>>()
+        .mockRejectedValueOnce(wireHttpError(422, 'VALIDATION', 'phone'));
+
+      mount(settingsGateway({ save }));
+      await loaded();
+
+      vi.useFakeTimers();
+
+      act(() => {
+        fireEvent.change(screen.getByLabelText('Điện thoại'), { target: { value: `0912${bad}` } });
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+      });
+      expect(screen.getByText(viMessages.account.profile.fieldProblems.phoneControl)).toBeTruthy();
+      expect(screen.queryByText(viMessages.account.profile.fieldProblems.phone)).toBeNull();
+    },
+  );
+});

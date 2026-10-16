@@ -188,7 +188,7 @@ export function cssVar(token: string): string {
 
 /** Tối thiểu 640 từ 1280px; dưới 1280 tối thiểu 60vh (như FIX-1506), dưới 1024 lấp vùng 360 px — BUG-317, BUG-404. */
 export const ROOM_LABEL_CANVAS_FRAME_CLASSES =
-  'relative h-full min-h-[320px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3 lg:min-h-[60vh] xl:min-h-[640px]';
+  'relative h-full min-h-80 w-full overflow-hidden rounded-2xl border border-border-default bg-canvas-2d p-3 lg:min-h-[60vh] xl:min-h-[640px]';
 
 /** Độ mờ ảnh nền bản vẽ gốc — cùng mức với `ObjectLayerCanvas` (đặc tả gốc). */
 export const BACKGROUND_IMAGE_OPACITY = 0.2;

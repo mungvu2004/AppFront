@@ -307,7 +307,25 @@ describe('PipelineGraph — nghiệm thu', () => {
     });
   });
 
-  it('vai Kỹ sư không thấy chế độ chi tiết kỹ thuật', async () => {
+  // Expectation changed per questions.md Q1 (QA-09, 2026-10-16): engineer MAY open detail mode; viewer stays blocked.
+  it('vai Xem không thấy chế độ chi tiết kỹ thuật', async () => {
+    renderWithProviders(
+      <PipelineGraphContainer
+        gateway={createMockPipelineGraphGateway()}
+        projectId="project-1"
+        roles={['viewer']}
+      />,
+    );
+
+    expect(
+      await screen.findByText(PIPELINE_GRAPH_TEXT.forbiddenLine),
+    ).toBeTruthy();
+    expect(screen.queryByText(PIPELINE_GRAPH_TEXT.detailDisclosureLabel)).toBeNull();
+    expect(screen.queryByText(PIPELINE_GRAPH_TEXT.switchLabel)).toBeNull();
+  });
+
+  // F9U-3 (questions.md Q1): engineer opens detail mode.
+  it('[F9U-3] vai Kỹ sư thấy khối gấp chi tiết, không bị chặn', async () => {
     renderWithProviders(
       <PipelineGraphContainer
         gateway={createMockPipelineGraphGateway()}
@@ -317,10 +335,24 @@ describe('PipelineGraph — nghiệm thu', () => {
     );
 
     expect(
-      await screen.findByText(PIPELINE_GRAPH_TEXT.forbiddenLine),
+      await screen.findByRole('button', { name: PIPELINE_GRAPH_TEXT.detailDisclosureLabel }),
     ).toBeTruthy();
-    expect(screen.queryByText(PIPELINE_GRAPH_TEXT.detailDisclosureLabel)).toBeNull();
-    expect(screen.queryByText(PIPELINE_GRAPH_TEXT.switchLabel)).toBeNull();
+    expect(screen.queryByText(PIPELINE_GRAPH_TEXT.forbiddenLine)).toBeNull();
+  });
+
+  // F9U-4 (questions.md Q4): empty wins over forbidden.
+  it('[F9U-4] chưa có lượt xử lý thì nói rỗng, kể cả khi vai không có quyền chi tiết', async () => {
+    renderWithProviders(
+      <PipelineGraphContainer
+        gateway={createMockPipelineGraphGateway({
+          supports: { branchReport: false, stageBreakdown: false },
+        })}
+        projectId="project-1"
+        roles={['viewer']}
+      />,
+    );
+
+    expect(await screen.findByText(PIPELINE_GRAPH_TEXT.emptyTitle)).toBeTruthy();
   });
 
   it('vai Quản trị thấy khối gấp, và mở được nó', async () => {

@@ -587,6 +587,8 @@ export interface ObjectLayerReviewModel {
   readonly millimetresPerPixel: MillimetresPerPixel;
   /** "tổng 21 đối tượng" — đã ghép sẵn (A15). */
   readonly layerTotalLabel: string;
+  /** "1 / 3 đối tượng" khi bộ lọc đang ẩn bớt đối tượng; `null` khi danh sách đủ. */
+  readonly filteredLabel: string | null;
   /** "5 mục dưới ngưỡng tin cậy, đã lọc sẵn". `null` khi không có mục nào. */
   readonly partialNotice: string | null;
   /** Màu dữ liệu ĐANG hiện — đúng ba khi bật cả ba lớp, không hơn (P-06). */

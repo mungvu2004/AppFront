@@ -40,7 +40,7 @@
  *   của riêng nó. `local/no-data-layer-in-view` ép phần đó bằng cấu trúc.
  */
 
-import type { FormEvent } from 'react';
+import { useEffect, useId, useRef, type FormEvent } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
@@ -104,7 +104,7 @@ export interface PasswordSectionProps {
 }
 
 /** Thanh sức mạnh: ba ô cao 4px, và một câu chữ cho người không nhìn thấy màu. */
-function StrengthMeter({ level }: { readonly level: PasswordStrengthLevel }) {
+function StrengthMeter({ level, textId }: { readonly level: PasswordStrengthLevel; readonly textId: string }) {
   const rung = STRENGTH_LADDER[level];
 
   return (
@@ -117,18 +117,51 @@ function StrengthMeter({ level }: { readonly level: PasswordStrengthLevel }) {
               // `motion-reduce:transition-none` là nửa còn lại của lời hứa giảm
               // chuyển động: khối phiên tắt hoạt cảnh qua prop `reducedMotion`,
               // còn ô màu này tắt bằng chính CSS, vì nó không có prop nào.
-              'h-[4px] flex-1 rounded-full transition-colors duration-180 motion-reduce:transition-none',
+              'h-1 flex-1 rounded-full transition-colors duration-180 motion-reduce:transition-none',
               slot < rung.steps ? rung.tone : 'bg-bg-sunken',
             )}
           />
         ))}
       </div>
-      <p className="text-[12px] text-text-secondary">Độ mạnh: {rung.word}</p>
+      <p id={textId} aria-live="polite" className="text-[12px] text-text-secondary">
+        Độ mạnh: {rung.word}
+      </p>
     </div>
   );
 }
 
 export function PasswordSection(props: PasswordSectionProps) {
+  const strengthTextId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
+  const wasSubmitting = useRef(false);
+
+  // Khi một lượt gửi xong, các ô vừa được bật lại sau `disabled` nên focus rơi về
+  // <body> (WCAG 2.4.3, BUG-P07-012): đưa nó tới ô lỗi đầu tiên, rồi dải báo, rồi ô đầu.
+  useEffect(() => {
+    const finished = wasSubmitting.current && !props.isSubmitting;
+
+    wasSubmitting.current = props.isSubmitting;
+
+    if (!finished) {
+      return;
+    }
+
+    const form = formRef.current;
+
+    const target =
+      form?.querySelector<HTMLElement>('[aria-invalid="true"]') ??
+      form?.querySelector<HTMLElement>('[data-password-status]') ??
+      form?.querySelector<HTMLElement>('input');
+
+    target?.focus();
+
+    // `focus()` trên ô vừa bật lại sau `disabled` để con trỏ ở 0, nên gõ tiếp bị chèn
+    // vào đầu mật khẩu (BUG-P07-012 / 33S-A-017): đặt con trỏ ở cuối.
+    if (target instanceof HTMLInputElement) {
+      target.setSelectionRange(target.value.length, target.value.length);
+    }
+  }, [props.isSubmitting]);
+
   // Trạng thái 6. Đứng trước mọi thứ khác: khi công ty giữ mật khẩu thì màn này
   // không có ô nào để gõ, và cũng không có gì để kiểm.
   if (props.isManagedExternally) {
@@ -150,7 +183,7 @@ export function PasswordSection(props: PasswordSectionProps) {
   };
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+    <form ref={formRef} className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
       <Input
         label="Mật khẩu hiện tại"
         type="password"
@@ -170,8 +203,11 @@ export function PasswordSection(props: PasswordSectionProps) {
           onChange={(event) => props.onNewPasswordChange(event.target.value)}
           error={props.newPasswordProblem}
           disabled={props.isSubmitting}
+          aria-describedby={props.strength === null ? undefined : strengthTextId}
         />
-        {props.strength === null ? null : <StrengthMeter level={props.strength} />}
+        {props.strength === null ? null : (
+          <StrengthMeter level={props.strength} textId={strengthTextId} />
+        )}
       </div>
 
       <Input
@@ -185,11 +221,21 @@ export function PasswordSection(props: PasswordSectionProps) {
       />
 
       {props.formProblem === null ? null : (
-        <InlineAlert level="attention" message={props.formProblem} />
+        <InlineAlert
+          level="attention"
+          message={props.formProblem}
+          tabIndex={-1}
+          data-password-status=""
+        />
       )}
 
       {props.successMessage === null ? null : (
-        <InlineAlert level="verified" message={props.successMessage} />
+        <InlineAlert
+          level="verified"
+          message={props.successMessage}
+          tabIndex={-1}
+          data-password-status=""
+        />
       )}
 
       <div className="flex justify-end">

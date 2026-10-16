@@ -53,7 +53,7 @@ export function WallThicknessLegend({
     return (
       <div
         className={cn(
-          'absolute bottom-16 left-4 bg-bg-surface rounded-[12px] shadow-float p-2 z-10',
+          'absolute bottom-16 left-4 bg-bg-surface rounded-xl shadow-float p-2 z-10',
           className
         )}
         title="Chú giải độ dày tường"
@@ -69,7 +69,7 @@ export function WallThicknessLegend({
     return (
       <div
         className={cn(
-          'absolute bottom-16 left-4 bg-bg-surface rounded-[12px] shadow-float p-3 z-10 flex flex-col gap-2',
+          'absolute bottom-16 left-4 bg-bg-surface rounded-xl shadow-float p-3 z-10 flex flex-col gap-2',
           className
         )}
         aria-busy="true"
@@ -77,7 +77,7 @@ export function WallThicknessLegend({
       >
         {[...Array(4)].map((_, i) => (
           <div key={`wall-thickness-skeleton-${i}`} className="flex items-center gap-2 px-2 py-1">
-            <div className="w-4 h-4 rounded-[4px] bg-border-default animate-pulse" />
+            <div className="w-4 h-4 rounded bg-border-default animate-pulse" />
             <div className="w-16 h-3 rounded bg-border-default animate-pulse" />
           </div>
         ))}
@@ -90,7 +90,7 @@ export function WallThicknessLegend({
     return (
       <div
         className={cn(
-          'absolute bottom-16 left-4 bg-bg-surface rounded-[12px] shadow-float p-3 z-10',
+          'absolute bottom-16 left-4 bg-bg-surface rounded-xl shadow-float p-3 z-10',
           className
         )}
         role="alert"
@@ -107,7 +107,7 @@ export function WallThicknessLegend({
     return (
       <div
         className={cn(
-          'absolute bottom-16 left-4 bg-bg-surface rounded-[12px] shadow-float p-3 z-10',
+          'absolute bottom-16 left-4 bg-bg-surface rounded-xl shadow-float p-3 z-10',
           className
         )}
       >
@@ -126,7 +126,7 @@ export function WallThicknessLegend({
   return (
     <div
       className={cn(
-        'absolute bottom-16 left-4 bg-bg-surface rounded-[12px] shadow-float p-3 z-10 flex flex-col gap-1',
+        'absolute bottom-16 left-4 bg-bg-surface rounded-xl shadow-float p-3 z-10 flex flex-col gap-1',
         className
       )}
       role="group"

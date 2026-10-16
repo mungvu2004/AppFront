@@ -38,9 +38,9 @@
  *
  * `useTheme()` cho đúng `{theme, toggle}`, và `toggle` không diễn đạt nổi một
  * điều khiển ba nhánh. `ThemeMode` cũng chỉ có `'light' | 'dark'`. Nên theo R5:
- * lựa chọn ba nhánh sống ở MÀN, `'system'` giải ra bằng `matchMedia` ngay tại
- * đây, rồi kết quả hai nhánh hạ xuống store bằng **action** `setTheme` — một
- * action không phải `set()`, nên `local/no-direct-set` không cản. `useTheme()`
+ * lựa chọn ba nhánh (kể cả `'system'`) được giữ nguyên ở store (`themeChoice`, ghi ra
+ * `app-theme-mode`, Q2 / 33R-C-001) bằng **action** `setThemeChoice`, store tự giải ra
+ * light/dark — một action không phải `set()`, nên `local/no-direct-set` không cản. `useTheme()`
  * vẫn được gọi, vì chính effect của nó là thứ gắn lớp `dark` lên `<html>` và
  * ghi `localStorage`.
  *
@@ -66,6 +66,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import type { SelectOption } from '@/components/ui/Select';
+import { useBreakpoint } from '@/hooks/useAppShell';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import type { ApiResult } from '@/api/client';
@@ -143,9 +144,16 @@ export const DENSITY_ROW_HEIGHT_PX: Readonly<Record<DensityChoice, number>> = {
  * nhau; `AppearanceSection.test.tsx` soát đúng điều đó nên chúng không lệch được.
  */
 export const DENSITY_ROW_CLASS: Readonly<Record<DensityChoice, string>> = {
-  comfortable: 'min-h-[40px]',
-  compact: 'min-h-[36px]',
+  comfortable: 'min-h-10',
+  compact: 'min-h-9',
 };
+
+/**
+ * Dưới mốc này hai khối xếp nhãn lên trên ô: cột 40/60 trong thẻ 375 px chỉ còn ~160 px cho ô
+ * và đẩy nút "Đổi thư điện tử", nhóm "Theo hệ thống" ra ngoài màn (BUG-497, BUG-502).
+ * Cùng mốc thu gọn của `RuleSettings`, `RuleReport`.
+ */
+export const ACCOUNT_STACKED_QUERY = '(width < 1024px)';
 
 const EMAIL_REASON_SHORT = 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.';
 const EMAIL_REASON_LONG =
@@ -370,7 +378,12 @@ export function useAccountPreferences(
   const sessionUser = session.user;
   // Chủ đề mặc định là của store (đã đọc từ `localStorage['app-theme-mode']`), không phải 'light':
   // bộ nhớ trống mà mặc định 'light' thì vào màn là ghi đè chủ đề người dùng đang dùng.
-  const storeTheme = useStore((state) => state.theme);
+  // Là LỰA CHỌN (có thể 'system'), không phải chủ đề đã giải: tải lại phải còn "Theo hệ thống" (Q2, 33R-C-001).
+  const storeTheme = useStore((state) => state.themeChoice);
+  // Chủ đề đang dùng TRƯỚC lần đổi chủ đề đầu tiên của phiên: "Hoàn tác" trả về bản đã lưu
+  // không có `theme`, và nếu lúc ấy rơi về `storeTheme` (đã là chủ đề mới) thì hoàn tác
+  // không làm gì (BUG-P07-007, 33R-A-017).
+  const [preEditTheme, setPreEditTheme] = useState<ThemeChoice | null>(null);
 
   const base = useMemo<PreferenceValues>(() => {
     const avatarUrl = savedProfile?.['avatarUrl'];
@@ -381,13 +394,13 @@ export function useAccountPreferences(
       phone: readText(savedProfile, 'phone', ''),
       language: readText(savedProfile, 'language', 'vi'),
       avatarUrl: typeof avatarUrl === 'string' && avatarUrl !== '' ? avatarUrl : null,
-      theme: readChoice(savedAppearance, 'theme', THEME_CHOICES, storeTheme),
+      theme: readChoice(savedAppearance, 'theme', THEME_CHOICES, preEditTheme ?? storeTheme),
       viewportDark: readFlag(savedAppearance, 'viewportDark', false),
       reducedMotion: readFlag(savedAppearance, 'reducedMotion', false),
       showGrid: readFlag(savedAppearance, 'showGrid', true),
       density: readChoice(savedAppearance, 'density', DENSITY_CHOICES, 'comfortable'),
     };
-  }, [savedAppearance, savedProfile, sessionUser, storeTheme]);
+  }, [preEditTheme, savedAppearance, savedProfile, sessionUser, storeTheme]);
 
   // `null` nghĩa là người dùng chưa sửa gì trong lượt này, nên bản đã lưu vẫn là
   // sự thật. Sửa lần đầu thì lấy `base` làm điểm xuất phát — không dùng
@@ -452,6 +465,10 @@ export function useAccountPreferences(
       value: PreferenceValues[keyof PreferenceValues],
       flashKey: AppearanceFieldKey | ProfileFieldKey | null,
     ): void => {
+      if (key === 'theme') {
+        setPreEditTheme((pinned) => pinned ?? base.theme);
+      }
+
       setEdits((current) => ({ ...(current ?? base), [key]: value }));
       port.stage(section, { [key]: value });
 
@@ -475,17 +492,18 @@ export function useAccountPreferences(
   // `localStorage['app-theme-mode']`. Giá trị trả về không dùng — `toggle` chỉ
   // lật hai nhánh, mà điều khiển ở đây có ba.
   useTheme();
-  const setTheme = useStore((state) => state.setTheme);
-  const resolvedTheme = resolveTheme(values.theme, systemPrefersDark);
+  const setThemeChoice = useStore((state) => state.setThemeChoice);
 
   // Chưa sửa gì và bộ nhớ chưa có chủ đề nào thì store vẫn là sự thật: không ghi đè nó.
-  const hasThemeChoice = edits !== null || savedAppearance?.['theme'] !== undefined;
+  const hasThemeChoice =
+    edits !== null || savedAppearance?.['theme'] !== undefined || preEditTheme !== null;
 
   useEffect(() => {
     if (hasThemeChoice) {
-      setTheme(resolvedTheme);
+      // Lưu NGUYÊN lựa chọn ('system' giữ là 'system'); store tự giải ra light/dark.
+      setThemeChoice(values.theme, systemPrefersDark);
     }
-  }, [hasThemeChoice, resolvedTheme, setTheme]);
+  }, [hasThemeChoice, values.theme, systemPrefersDark, setThemeChoice]);
 
   /* ---- Giảm chuyển động ------------------------------------------------ */
 
@@ -602,6 +620,7 @@ export function useAccountPreferences(
 
   const email = sessionUser?.email ?? '';
   const rowClassName = DENSITY_ROW_CLASS[values.density];
+  const isStacked = useBreakpoint(ACCOUNT_STACKED_QUERY);
 
   const profile: ProfileSectionProps = {
     avatarUrl: avatarUrlOverride ?? values.avatarUrl,
@@ -638,6 +657,7 @@ export function useAccountPreferences(
     flashedField: isProfileField(flashedField) ? flashedField : null,
     rowClassName,
     motionOff,
+    isStacked,
   };
 
   const appearance: AppearanceSectionProps = {
@@ -654,6 +674,7 @@ export function useAccountPreferences(
     flashedField: isAppearanceField(flashedField) ? flashedField : null,
     rowClassName,
     motionOff,
+    isStacked,
   };
 
   return { profile, appearance };

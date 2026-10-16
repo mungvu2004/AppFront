@@ -114,7 +114,7 @@ const SCALE = {
   thisFloor: 'Chỉ áp cho tầng này',
   apply: 'Áp dụng tỷ lệ',
   applied: 'Đã áp tỷ lệ cho bản vẽ', // ScaleCalibration.tsx:73; QA-03e BUG-567: also after FRAME_NOT_FOUND (useScaleCalibration.ts:1485)
-} as const; // phase04_qc_layers.spec.ts SCR-14 (ScaleCalibration SP:61)
+} as const; // phase04_pipeline.spec.ts SCR-14 (ScaleCalibration SP:61)
 const QUALITY_CONTINUE = 'Tiếp tục xử lý'; // UIQ:145
 const QUALITY_ACK = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này'; // phase03_pipeline.spec.ts QUALITY_ACK_LABEL
 const GRAPH = {
@@ -133,7 +133,7 @@ const CAD = {
   forbiddenTitle: 'Không có quyền xử lý CAD', // CB:90
   /** UCB:119 — lowercase "liên hệ" after a full stop is the source copy (flow-plan s1315x note); asserted as is. */
   forbiddenSentence:
-    'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền.',
+    'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. Liên hệ quản trị viên để được cấp quyền.',
   errorTitle: 'Không thể đọc tệp CAD', // CB:88
 } as const;
 const READ_ONLY = {

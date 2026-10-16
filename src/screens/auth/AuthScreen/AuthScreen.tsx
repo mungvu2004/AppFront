@@ -220,7 +220,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           type="button"
           disabled={fieldsDisabled}
           onClick={actions.forgotPassword}
-          className="inline-flex min-h-[44px] items-center self-center py-1 text-[13px] sm:min-h-6 leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-11 items-center self-center py-1 text-[13px] sm:min-h-6 leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app disabled:cursor-not-allowed disabled:opacity-50"
         >
           {AUTH_MESSAGES.actions.forgotPassword}
         </button>
@@ -321,10 +321,10 @@ export function AuthScreenView(props: AuthScreenViewProps) {
           <div className="flex flex-col gap-3">
             <PanelsTopLeft aria-hidden="true" className="h-8 w-8 text-accent" strokeWidth={1.5} />
             <div className="flex flex-col gap-1">
-              <h1 className="text-[30px] font-semibold leading-[40px] text-text-primary">
+              <h1 className="text-[30px] font-semibold leading-10 text-text-primary">
                 {isForgot ? AUTH_MESSAGES.forgotPassword.title : AUTH_MESSAGES.tabs.signIn}
               </h1>
-              <p className="text-[15px] leading-[24px] text-text-secondary">
+              <p className="text-[15px] leading-6 text-text-secondary">
                 {isForgot ? AUTH_MESSAGES.forgotPassword.subtitle : AUTH_MESSAGES.brand.subtitle}
               </p>
             </div>
@@ -332,7 +332,7 @@ export function AuthScreenView(props: AuthScreenViewProps) {
 
           {isCollapsed ? (
             <div className="flex flex-col gap-4">
-              <p className="text-[14px] leading-[20px] text-text-secondary">
+              <p className="text-[14px] leading-5 text-text-secondary">
                 {AUTH_MESSAGES.notices.collapsed}
               </p>
               <Button size="lg" fullWidth onClick={expand}>

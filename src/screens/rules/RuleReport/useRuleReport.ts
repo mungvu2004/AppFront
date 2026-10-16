@@ -47,8 +47,8 @@
  */
 
 import { lowerFirst } from '@/lib/format/sentence';
-import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { EMPTY_RULE_CONFIG, type RuleConfig } from '@/domain/rules/config';
@@ -364,7 +364,7 @@ const skippedGroupsOf = (
  * `const props = useRuleReport({ projectId }); return <RuleReport {...props} />;`
  */
 export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProps {
-  const { projectId, canEdit = true, isCompact = false } = options;
+  const { projectId, canEdit = false, isCompact = false } = options;
 
   const navigate = useNavigate();
   const gateway: RuleReportGateway = useMemo(() => createRuleReportGateway(), []);
@@ -409,6 +409,9 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
 
       return runReport(graph, registry, ruleConfig);
     },
+    // Sau một lượt sửa `versionId` đổi → khoá đổi; giữ kết quả cũ trong lúc chạy lại để tấm
+    // trượt không unmount và nhóm "Đã xử lý" không biến mất giữa chừng.
+    placeholderData: keepPreviousData,
     // Khoảng chờ giữa hai lần thử lại, lấy từ thang chuyển động (R-71).
     retryDelay: MOTION_DURATIONS_MS.standard,
   });
@@ -424,35 +427,45 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
    *
    * Repo không có cơ chế nào đánh dấu một vi phạm là "đã xử lý" (xem
    * `ruleReportGateway.ts`, `canDismiss`), nên nguồn trung thực duy nhất là so
-   * hai lượt chạy LIÊN TIẾP của CÙNG một dự án: một hàng có mặt ở lượt trước và
-   * biến mất ở lượt này nghĩa là người dùng vừa sửa xong nó. Bộ lọc không đụng
-   * tới phép so này — hàng biến mất do lọc thì không phải do được sửa, nên phép
-   * so chạy trên danh sách chưa lọc.
+   * lượt chạy này với lượt liền trước của CÙNG một dự án: hàng có mặt ở lượt
+   * trước và biến mất ở lượt này nghĩa là người dùng vừa sửa xong nó. Một lần
+   * sửa có thể gây hai lượt chạy (khoá đổi rồi refetch), nên kết quả được TÍCH
+   * LUỸ: hàng đã xử lý ở lại cho tới khi nó xuất hiện lại hoặc đổi dự án. Bộ lọc
+   * không đụng tới phép so này (so trên danh sách chưa lọc).
    *
    * Trạng thái này SỐNG THEO PHIÊN: rời màn là mất, không có gì được lưu lại. */
-  const previousRunRef = useRef<{
+  const sessionRef = useRef<{
     readonly projectId: string;
-    readonly rows: readonly RuleReportRow[];
+    previous: readonly RuleReportRow[] | null;
+    readonly resolved: Map<string, RuleReportRow>;
   } | null>(null);
 
   const resolvedRows = useMemo<readonly RuleReportRow[]>(() => {
-    const previous = previousRunRef.current;
+    if (sessionRef.current?.projectId !== projectId) {
+      sessionRef.current = { projectId, previous: null, resolved: new Map() };
+    }
+    const session = sessionRef.current;
 
-    if (run === null || previous === null || previous.projectId !== projectId) {
-      return EMPTY_ROWS;
+    if (run === null) {
+      return [...session.resolved.values()];
     }
 
     const currentKeys = new Set(built.rows.map((row) => row.key));
+    // 28-C-014: hàng của luật không chạy ở lượt này (bị tắt ở phiên khác) biến mất
+    // vì cấu hình, không phải vì được sửa — không tính là "đã xử lý".
+    const ranRules = new Set<RuleCode>(run.ranRuleCodes);
 
-    return previous.rows
-      .filter((row) => !currentKeys.has(row.key))
-      .map((row) => ({ ...row, resolved: true }));
-  }, [built, projectId, run]);
-
-  useEffect(() => {
-    if (run !== null) {
-      previousRunRef.current = { projectId, rows: built.rows };
+    for (const key of currentKeys) {
+      session.resolved.delete(key);
     }
+    for (const row of session.previous ?? EMPTY_ROWS) {
+      if (!currentKeys.has(row.key) && ranRules.has(row.ruleCode)) {
+        session.resolved.set(row.key, { ...row, resolved: true });
+      }
+    }
+    session.previous = built.rows;
+
+    return [...session.resolved.values()];
   }, [built, projectId, run]);
 
   /* Bốn con số cùng một đơn vị: LUẬT (BUG-460). Trước đây "Tổng"/"Đạt" đếm luật
@@ -570,9 +583,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   }, [graph, levelNames, projectId, registry, run]);
 
   const status = useMemo<RuleReportStatus>(() => {
-    if (!capabilities.canEdit) {
-      return 'forbidden';
-    }
+    // Người xem đi qua đủ các bậc như người sửa; quyền chỉ khoá hành động (`capabilities.canEdit`).
 
     if (query.isError || configQuery.isLoadingError) {
       return 'error';
@@ -590,9 +601,9 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
       return 'partial';
     }
 
-    return summary.violations > 0 ? 'ready' : 'done';
+    // 28-B-005: cảnh báo/gợi ý cũng là mục cần liệt kê — `done` chỉ khi không còn mục nào.
+    return summary.violations + summary.warnings > 0 ? 'ready' : 'done';
   }, [
-    capabilities.canEdit,
     configQuery.isLoadingError,
     configQuery.isPending,
     graph,

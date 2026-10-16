@@ -67,6 +67,7 @@ export const NOOP_ACTIONS: SpatialJsonViewerActions = {
   onPreviousMatch: () => undefined,
   onReopenFloors: () => undefined,
   onSearchChange: () => undefined,
+  onSelectIssue: () => undefined,
   onSelectNode: () => undefined,
   onToggleNode: () => undefined,
 };
@@ -95,6 +96,7 @@ export function buildSpatialJsonViewerModel(state: SevenState): SpatialJsonViewe
   return {
     activeTabId: 'json',
     canDownload: true,
+    copyNotice: null,
     counts,
     countsLabel: describeCounts(counts),
     errorMessage:

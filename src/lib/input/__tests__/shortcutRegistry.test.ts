@@ -224,13 +224,77 @@ describe('typing guard', () => {
 
       registerGlobalShortcuts(registry, handlers);
 
-      const event = keyEvent('s', { ctrlKey: true });
+      const event = keyEvent('z', { ctrlKey: true });
 
       expect(registry.handleKeyDown(event, { tagName })).toBe(false);
-      expect(handlers.save).not.toHaveBeenCalled();
+      expect(handlers.undo).not.toHaveBeenCalled();
       expect(event.preventDefault).not.toHaveBeenCalled();
     },
   );
+
+  // BUG-P07-001 / 33P-A-024: Ctrl+S has no text-editing meaning, so "Lưu ngay" must run from a field.
+  it.each([
+    ['INPUT', { ctrlKey: true }],
+    ['TEXTAREA', { ctrlKey: true }],
+    ['SELECT', { ctrlKey: true }],
+    ['INPUT', { metaKey: true }],
+  ])('Mod+S reaches the save handler while the focus is in a %s (%j)', (tagName, flags) => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+
+    registerGlobalShortcuts(registry, handlers);
+
+    const event = keyEvent('s', flags);
+
+    expect(registry.handleKeyDown(event, { tagName })).toBe(true);
+    expect(handlers.save).toHaveBeenCalledTimes(1);
+    // The browser's "save page" default stays prevented.
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['plain S', {}],
+    ['Ctrl+Shift+S', { ctrlKey: true, shiftKey: true }],
+    ['Ctrl+Alt+S', { ctrlKey: true, altKey: true }],
+  ])('%s stays blocked while typing', (_name, flags) => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+
+    registerGlobalShortcuts(registry, handlers);
+
+    const event = keyEvent('s', flags);
+
+    expect(registry.handleKeyDown(event, { tagName: 'INPUT' })).toBe(false);
+    expect(handlers.save).not.toHaveBeenCalled();
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it.each([['radio'], ['checkbox'], ['button']])(
+    'Mod+Z still undoes while an <input type=%s> has the focus (17-E-017)',
+    (type) => {
+      const registry = devRegistry();
+      const handlers = globalHandlers();
+
+      registerGlobalShortcuts(registry, handlers);
+
+      const target = { tagName: 'INPUT', getAttribute: (name: string) => (name === 'type' ? type : null) };
+
+      expect(registry.handleKeyDown(keyEvent('z', { ctrlKey: true }), target)).toBe(true);
+      expect(handlers.undo).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('an <input type=text> still counts as a text field for Mod+Z', () => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+
+    registerGlobalShortcuts(registry, handlers);
+
+    const target = { tagName: 'INPUT', getAttribute: (name: string) => (name === 'type' ? 'text' : null) };
+
+    expect(registry.handleKeyDown(keyEvent('z', { ctrlKey: true }), target)).toBe(false);
+    expect(handlers.undo).not.toHaveBeenCalled();
+  });
 
   it('fires nothing inside editable content', () => {
     const registry = devRegistry();
@@ -259,16 +323,33 @@ describe('typing guard', () => {
     expect(handlers.closeTopLayer).toHaveBeenCalledTimes(1);
   });
 
+  it('Escape from a text field skips the canvas scope but still reaches global (23-E-008)', () => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+    const collapse = vi.fn();
+
+    registerGlobalShortcuts(registry, handlers);
+    registry.register({ id: 'canvas.collapse', combo: 'Escape', scope: 'canvas', onTrigger: collapse });
+
+    expect(registry.handleKeyDown(keyEvent('Escape'), { tagName: 'INPUT' })).toBe(true);
+    expect(collapse).not.toHaveBeenCalled();
+    expect(handlers.closeTopLayer).toHaveBeenCalledTimes(1);
+
+    // Outside a text field the canvas still answers first.
+    registry.handleKeyDown(keyEvent('Escape'), null);
+    expect(collapse).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps every other key blocked while typing, Escape included in the check', () => {
     const registry = devRegistry();
     const handlers = globalHandlers();
 
     registerGlobalShortcuts(registry, handlers);
 
-    const event = keyEvent('s', { ctrlKey: true });
+    const event = keyEvent('z', { ctrlKey: true });
 
     expect(registry.handleKeyDown(event, { tagName: 'TEXTAREA' })).toBe(false);
-    expect(handlers.save).not.toHaveBeenCalled();
+    expect(handlers.undo).not.toHaveBeenCalled();
     expect(event.preventDefault).not.toHaveBeenCalled();
   });
 });
@@ -471,6 +552,43 @@ describe('preventDefault', () => {
       expect(registry.handleKeyDown(event, { tagName: 'BUTTON' })).toBe(false);
       expect(event.preventDefault).not.toHaveBeenCalled();
     }
+  });
+
+  it('leaves a lone Enter / Space to a focused button or link over a canvas binding (25-E-011)', () => {
+    const registry = devRegistry();
+    const pin = vi.fn();
+
+    registry.register({ id: 'canvas.pin', combo: 'Enter', scope: 'canvas', onTrigger: pin });
+
+    for (const tagName of ['BUTTON', 'a', 'SUMMARY']) {
+      const event = keyEvent('Enter');
+
+      expect(registry.handleKeyDown(event, { tagName })).toBe(false);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    }
+    expect(pin).not.toHaveBeenCalled();
+
+    // Nothing focused (or the viewport) still pins.
+    expect(registry.handleKeyDown(keyEvent('Enter'), { tagName: 'MAIN' })).toBe(true);
+    expect(registry.handleKeyDown(keyEvent('Enter'), null)).toBe(true);
+    expect(pin).toHaveBeenCalledTimes(2);
+  });
+
+  it('offers nothing an earlier listener already handled (E1-B12, E1-B13)', () => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+    const collapse = vi.fn();
+
+    registerGlobalShortcuts(registry, handlers);
+    registry.register({ id: 'canvas.collapse', combo: 'Escape', scope: 'canvas', onTrigger: collapse });
+
+    const handled = { defaultPrevented: true };
+
+    expect(registry.handleKeyDown({ ...keyEvent('Escape'), ...handled }, null)).toBe(false);
+    expect(registry.handleKeyDown({ ...keyEvent('z', { ctrlKey: true }), ...handled }, null)).toBe(false);
+    expect(collapse).not.toHaveBeenCalled();
+    expect(handlers.undo).not.toHaveBeenCalled();
+    expect(handlers.closeTopLayer).not.toHaveBeenCalled();
   });
 
   it('lets a binding opt out of preventing the default', () => {

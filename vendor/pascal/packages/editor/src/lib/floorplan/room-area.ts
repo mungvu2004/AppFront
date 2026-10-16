@@ -1,5 +1,10 @@
-import type { AnyNode, AnyNodeId, DoorNode, WindowNode, ZoneNode } from '@pascal-app/core'
-import { deriveZoneQuantityReport, resolveAutoZonePolygon, reviewStateOf } from '@pascal-app/core'
+import type { AnyNode, AnyNodeId, DoorNode, WallNode, WindowNode, ZoneNode } from '@pascal-app/core'
+import {
+  deriveZoneQuantityReport,
+  detectSpacesForLevel,
+  resolveAutoZonePolygon,
+  reviewStateOf,
+} from '@pascal-app/core'
 import { formatNumberVi } from '../../i18n/format'
 import { roomArea as vi } from '../../i18n/regions/roomArea'
 
@@ -132,19 +137,28 @@ function countOpenings(
   return { doorCount, windowCount }
 }
 
-/** Every room row in the scene, unsorted and ungrouped. */
-export function roomAreaRows(scene: RoomAreaSceneInput): {
+/**
+ * Every room row in the scene, unsorted and ungrouped. `levelIds` (empty = all)
+ * filters rows AND issues, so a clean level never reports another level's
+ * broken room (AppFront 23R-B-007).
+ */
+export function roomAreaRows(
+  scene: RoomAreaSceneInput,
+  levelIds?: readonly string[],
+): {
   rows: RoomAreaRow[]
   issues: string[]
 } {
   const nodes = normalizeNodes(scene)
   const rows: RoomAreaRow[] = []
   const issues: string[] = []
+  const keepLevel = (levelId: string) =>
+    !levelIds || levelIds.length === 0 || levelIds.includes(levelId)
 
   for (const node of Object.values(nodes)) {
     if (node.type !== 'zone') continue
     const zone = node as ZoneNode
-    if (zone.spaceRole !== 'room') continue
+    if (zone.spaceRole !== 'room' || !keepLevel(zone.parentId ?? '')) continue
 
     const polygon = resolveAutoZonePolygon(zone, (nodeId: AnyNodeId) => nodes[nodeId])
     const resolved = polygon === zone.polygon ? zone : { ...zone, polygon }
@@ -253,6 +267,33 @@ export function levelNamesOf(scene: RoomAreaSceneInput): Map<string, string> {
   return names
 }
 
+/** Level node id → its `level` index (floor order). */
+function levelOrderOf(scene: RoomAreaSceneInput): Map<string, number> {
+  const order = new Map<string, number>()
+  for (const node of Object.values(normalizeNodes(scene))) {
+    if (node.type === 'level') order.set(node.id, (node as { level?: number }).level ?? 0)
+  }
+  return order
+}
+
+/**
+ * Closed wall loops on the given levels (#83 "Kiểm tra khe hở tường").
+ * `detectSpacesForLevel` returns `{ rooms, spaces, ... }`, not an array — the
+ * panel used to read `.length` off that object, got `NaN`, and reported "no
+ * closed area" for every closed frame (AppFront 23R-B-002).
+ */
+export function closedRoomCount(scene: RoomAreaSceneInput, levelIds: readonly string[]): number {
+  const walls = Object.values(normalizeNodes(scene)).filter(
+    (node): node is WallNode => node.type === 'wall',
+  )
+  let rooms = 0
+  for (const id of levelIds) {
+    const levelWalls = walls.filter((wall) => wall.parentId === id)
+    if (levelWalls.length > 0) rooms += detectSpacesForLevel(id, levelWalls).rooms.length
+  }
+  return rooms
+}
+
 /** The whole panel model: grouped rows, subtotals, bands and the grand total. */
 export function roomAreaTable(
   scene: RoomAreaSceneInput,
@@ -261,13 +302,7 @@ export function roomAreaTable(
   const grouping = options.grouping ?? 'level'
   const sort = options.sort ?? 'area-desc'
   const levelNames = levelNamesOf(scene)
-  const { rows: allRows, issues } = roomAreaRows(scene)
-
-  const levelFilter = options.levelIds
-  const filtered =
-    levelFilter && levelFilter.length > 0
-      ? allRows.filter((row) => levelFilter.includes(row.levelId))
-      : allRows
+  const { rows: filtered, issues } = roomAreaRows(scene, options.levelIds)
 
   // The limit means "the N largest rooms in the table", so it is applied to the
   // flat list before grouping — a per-group slice would hide a big room just
@@ -303,7 +338,15 @@ export function roomAreaTable(
       subtotalText: formatArea(subtotal),
     }
   })
-  groups.sort((left, right) => left.label.localeCompare(right.label, 'vi'))
+  // Level groups follow the building's floor order ("Tầng 2" before "Tầng 10",
+  // AppFront 23R-C-004); occupancy groups stay alphabetical.
+  const levelOrder = levelOrderOf(scene)
+  const orderOf = (key: string) => levelOrder.get(key) ?? Number.POSITIVE_INFINITY
+  groups.sort(
+    (left, right) =>
+      (grouping === 'level' ? orderOf(left.key) - orderOf(right.key) : 0) ||
+      left.label.localeCompare(right.label, 'vi'),
+  )
 
   const total = visible.reduce((sum, row) => sum + row.area, 0)
   return {

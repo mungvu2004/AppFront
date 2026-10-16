@@ -86,6 +86,19 @@ describe('filterFurnitureItems', () => {
     expect(filterFurnitureItems(items, { group: 'table', search: 'ban' })).toHaveLength(1)
   })
 
+  test('matches where a word starts; tone marks typed are taken as written (QA-05c E1-B26)', () => {
+    const rows = [
+      item({ id: 'park', name: 'Chỗ đỗ xe', tags: ['urban'] }),
+      item({ id: 'panel', name: 'Bảng điện', tags: [] }),
+      ...items,
+    ]
+    const ids = (search: string) => filterFurnitureItems(rows, { search }).map((row) => row.id)
+    expect(ids('bàn')).toEqual(['desk_1'])
+    expect(ids('ban')).toEqual(['panel', 'desk_1'])
+    expect(ids('urb')).toEqual(['park'])
+    expect(ids('rban')).toEqual([])
+  })
+
   test('an empty search is not a filter', () => {
     expect(filterFurnitureItems(items, { search: '   ' })).toHaveLength(items.length)
   })

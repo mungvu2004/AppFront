@@ -160,6 +160,7 @@ function RowMessage({ row, onSelectRow }: RowContentProps) {
   return (
     <button
       type="button"
+      data-row-key={row.key}
       onClick={() => {
         onSelectRow(row.key);
       }}

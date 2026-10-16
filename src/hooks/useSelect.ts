@@ -34,8 +34,11 @@ export function useSelect<T>({ value, onChange, options, isOpen: controlledIsOpe
   };
 
   const selectOption = (val: T) => {
-    onChange?.(val);
+    // Đóng + trả focus về trigger TRƯỚC onChange: `focus()` lên trigger tự cuộn nó
+    // vào khung nhìn, nên nếu onChange đã cuộn/focus tới nơi khác (RuleSettings ở
+    // 768: nhảy tới thẻ) thì bị kéo ngược lên đầu trang (29-F-009).
     handleClose();
+    onChange?.(val);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

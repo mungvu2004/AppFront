@@ -570,6 +570,35 @@ describe('lượt lưu của editor KHÔNG dựng lại editor (F-15 R3)', () =>
     expect(bench.counts.dispose).toBe(1);
   });
 
+  it('23-C-001 — máy chủ trả lại đúng lớp vừa lưu (bản vẽ mới, cùng nội dung) → KHÔNG setScene', async () => {
+    const bench = counting();
+    const saved = (): SpatialGraph => ({ ...GRAPH, walls: GRAPH.walls.slice(1) });
+    let rerenderWith: (graph: SpatialGraph) => void = () => undefined;
+    const ui = (graph: SpatialGraph) => (
+      <Probe
+        graph={graph}
+        mode="edit"
+        loadMount={bench.loadMount}
+        onSceneCommit={async () => {
+          rerenderWith(saved());
+          return true;
+        }}
+        onResult={() => undefined}
+      />
+    );
+    const view = render(ui(GRAPH));
+    rerenderWith = (graph) => view.rerender(ui(graph));
+
+    await vi.waitFor(() => { expect(bench.counts.mount).toBe(1); }, { timeout: ASYNC_TIMEOUT_MS });
+    await act(() => bench.commit({}));
+    await settle();
+
+    // `replaceFloorLayer` sau PUT 200: kho mới, nội dung y hệt lượt vừa gửi.
+    rerenderWith(saved());
+    await settle();
+    expect(bench.counts).toEqual({ mount: 1, setScene: 0, dispose: 0 });
+  });
+
   it('lượt lưu bị từ chối KHÔNG nuốt thay đổi ngoài kế tiếp', async () => {
     const bench = counting();
     const ui = (graph: SpatialGraph) => (

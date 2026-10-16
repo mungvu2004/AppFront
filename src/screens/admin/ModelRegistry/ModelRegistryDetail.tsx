@@ -31,7 +31,8 @@ export function ModelRegistryDetail({ detail }: { readonly detail: VersionDetail
         <h2 className="min-w-0 flex-1 break-words text-base font-semibold text-text-primary">{detail.title}</h2>
         {detail.evaluationLabel !== null && <Badge variant={detail.evaluationVariant}>{detail.evaluationLabel}</Badge>}
       </div>
-      {detail.failureNote !== null && <InlineAlert level="violation" message={detail.failureNote} />}
+      {detail.errorMessage !== null && <InlineAlert level="violation" message={detail.errorMessage} />}
+      {detail.failureNote !== null &&<InlineAlert level="violation" message={detail.failureNote} />}
       <dl className="flex flex-col gap-3 text-[13px]">
         {detail.fields.map((field) => (
           <div className="flex flex-col gap-1" key={field.label}>

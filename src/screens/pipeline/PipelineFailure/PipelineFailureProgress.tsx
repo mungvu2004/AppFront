@@ -54,7 +54,7 @@ export function PipelineFailureFloorStrip({ floors }: PipelineFailureFloorStripP
         <li
           aria-current={floor.isFailedFloor ? 'true' : undefined}
           className={clsx(
-            'flex items-center gap-2 rounded-[8px] border border-border-default px-3 py-1.5 text-[13px]',
+            'flex items-center gap-2 rounded-lg border border-border-default px-3 py-1.5 text-[13px]',
             floor.isFailedFloor ? 'bg-bg-sunken' : 'bg-bg-surface',
           )}
           key={floor.id}

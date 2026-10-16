@@ -105,6 +105,7 @@ export interface MountModule {
     readonly setScene?: (scene: PascalScene) => void;
     readonly setHighlight?: (nodeIds: readonly string[]) => void;
     readonly frameEntity?: (entityId: string) => boolean;
+    readonly deleteNodes?: (nodeIds: readonly string[]) => void;
   };
 }
 
@@ -145,6 +146,8 @@ export interface UsePascalViewerOptions {
    * một đường dẫn tĩnh trả về `unknown` với `vite-ignore`.
    */
   readonly loadMount?: () => Promise<MountModule>;
+  /** Tải lại trang — "Thử lại" sau khi chunk bộ đổi dữ liệu hỏng. Bài kiểm thay được. */
+  readonly reloadPage?: () => void;
 }
 
 export interface UsePascalViewerResult {
@@ -152,6 +155,8 @@ export interface UsePascalViewerResult {
   readonly canvasRef: React.RefObject<HTMLDivElement | null>;
   /** Đích khuôn camera cho lớp phủ cộng tác — `false` khi khung chưa dựng. */
   readonly sceneTarget: { readonly frameEntity: (entityId: string) => boolean };
+  /** Cho editor xoá node theo mã Pascal — lượt xoá hàng loạt người dùng vừa xác nhận. */
+  readonly deleteNodes: (nodeIds: readonly string[]) => void;
   /** Cảnh đã đẩy sang Pascal — mốc "trước" cho `usePascalEdits`; `null` khi chưa dựng xong. */
   readonly loadedScene: PascalScene | null;
   readonly onRetry: () => void;
@@ -278,6 +283,7 @@ export function usePascalViewer({
   onMeasurementDelete,
   explodeLevels = false,
   mountKey = '',
+  reloadPage = () => window.location.reload(),
 }: UsePascalViewerOptions): UsePascalViewerResult {
   const canvasRef = useRef<HTMLDivElement>(null);
   /* Tay cầm của khung đang chạy; `sceneTarget` đọc nó lúc gọi nên đứng vững qua
@@ -287,10 +293,13 @@ export function usePascalViewer({
     () => ({ frameEntity: (entityId: string) => mountedRef.current?.frameEntity?.(entityId) ?? false }),
     [],
   );
+  const deleteNodes = useCallback((nodeIds: readonly string[]) => mountedRef.current?.deleteNodes?.(nodeIds), []);
 
   const [ready, setReady] = useState(false);
   const [failure, setFailure] = useState<PascalViewerErrorCode | null>(null);
   const [attempt, setAttempt] = useState(0);
+  /** Chunk bộ đổi dữ liệu nạp hỏng: trình duyệt giữ lỗi ấy theo URL, chỉ tải lại trang mới xin lại được (BUG-646). */
+  const converterChunkFailed = useRef(false);
   const [expanded, setExpanded] = useState(false);
   /**
    * Node mà store Pascal dọn đi trong im lặng.
@@ -375,9 +384,21 @@ export function usePascalViewer({
     const echo = echoPending.current;
     echoPending.current = false;
 
-    import('@/lib/pascal/toPascal')
-      .then(({ toPascalScene }) => {
-        if (!cancelled) setResult({ ...toPascalScene(graph), echo });
+    // `diff` nạp cùng lượt: nhập tĩnh thì nó vào chunk của màn bản xem/di động.
+    Promise.all([import('@/lib/pascal/toPascal'), import('@/lib/pascal/diff')])
+      .catch((error: unknown) => {
+        converterChunkFailed.current = true;
+        throw error;
+      })
+      .then(([{ toPascalScene }, { diffScenes, isEmptyDiff }]) => {
+        if (cancelled) return;
+        const converted = toPascalScene(graph);
+        const previous = resultRef.current;
+        /* 23-C-001 — sau PUT 200 `replaceFloorLayer` thay kho bằng đúng lớp vừa
+           gửi: bản vẽ mới, nội dung y hệt, lúc cờ echo đã tắt. Cảnh không đổi
+           so với cảnh editor đang giữ thì không có gì để nạp lại. */
+        const unchanged = previous !== null && isEmptyDiff(diffScenes(previous.scene, converted.scene));
+        setResult({ ...converted, echo: echo || unchanged });
       })
       .catch(() => {
         if (!cancelled) setFailure('PASCAL-01');
@@ -483,7 +504,13 @@ export function usePascalViewer({
     setPascalScene(result.scene);
   }, [result, pascalScene]);
 
+  const reloadPageRef = useRef(reloadPage);
+  reloadPageRef.current = reloadPage;
   const onRetry = useCallback(() => {
+    if (converterChunkFailed.current) {
+      reloadPageRef.current();
+      return;
+    }
     setFailure(null);
     setAttempt((value) => value + 1);
   }, []);
@@ -592,6 +619,7 @@ export function usePascalViewer({
     },
     canvasRef,
     sceneTarget,
+    deleteNodes,
     loadedScene: pascalScene,
     onRetry,
     onExpand,

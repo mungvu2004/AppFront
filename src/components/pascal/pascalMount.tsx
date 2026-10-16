@@ -46,7 +46,14 @@ import type {
   PascalMeasureResult,
   PascalSceneCommit,
 } from './pascalMountTypes';
-import { clearPascalScene, frameEntityInPascal, highlightPascalNodes, type PascalSceneCensus } from './pascalScene';
+import {
+  clearPascalScene,
+  deletePascalNodes,
+  frameEntityInPascal,
+  highlightPascalNodes,
+  type PascalSceneCensus,
+  stackExplodedLevels,
+} from './pascalScene';
 
 /** Cái người gọi cầm về, đủ để sống trọn vòng đời mà không chạm vào Pascal. */
 export interface PascalMountHandle {
@@ -56,6 +63,8 @@ export interface PascalMountHandle {
   readonly frameEntity: (entityId: string) => boolean;
   /** Tô sáng các node theo mã Pascal; mảng rỗng là bỏ tô sáng. */
   readonly setHighlight: (nodeIds: readonly string[]) => void;
+  /** Xoá node theo mã Pascal như nút "Xoá" của editor (lượt xoá hàng loạt đã xác nhận). */
+  readonly deleteNodes: (nodeIds: readonly string[]) => void;
   /** Gỡ gốc React thứ hai và trả store về rỗng. Gọi được nhiều lần. */
   readonly dispose: () => void;
 }
@@ -135,6 +144,8 @@ function injectPascalCss(): void {
  */
 export function mount(element: HTMLElement, options: PascalMountOptions): PascalMountHandle {
   injectPascalCss();
+  // Tách tầng chỉ theo URL của lượt mount này, không theo lượt trước (24-A-006).
+  if (options.explodeLevels !== true) stackExplodedLevels();
   element.classList.add(PASCAL_ROOT_CLASS);
   const root = createRoot(element, {
     onUncaughtError: (error: unknown) => {
@@ -186,6 +197,9 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
     frameEntity: (entityId) => !disposed && frameEntityInPascal(entityId),
     setHighlight: (nodeIds) => {
       if (!disposed) highlightPascalNodes(nodeIds);
+    },
+    deleteNodes: (nodeIds) => {
+      if (!disposed) deletePascalNodes(nodeIds);
     },
     dispose: () => {
       if (disposed) return;

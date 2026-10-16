@@ -54,7 +54,7 @@ export function ProcessingStepBar({ prefersReducedMotion, steps }: ProcessingSte
   }
 
   return (
-    <div aria-label={COMPACT_ARIA_LABEL} className="rounded-[8px] border border-border-default bg-bg-surface p-3" role="group">
+    <div aria-label={COMPACT_ARIA_LABEL} className="rounded-lg border border-border-default bg-bg-surface p-3" role="group">
       <div className="flex items-baseline justify-between gap-2">
         <span className={clsx('text-[14px] font-medium', STAGE_TEXT_CLASS[step.status])}>{step.name}</span>
         {step.remainingLabel !== undefined ? (
@@ -82,7 +82,7 @@ export function ProcessingStepBar({ prefersReducedMotion, steps }: ProcessingSte
             aria-hidden="true"
             className="pointer-events-none absolute inset-y-0 left-0 w-1/4 animate-pipeline-sweep motion-reduce:animate-none"
           >
-            <span className={clsx('absolute inset-y-0 right-0 w-[2px]', STAGE_BAR_CLASS.running)} />
+            <span className={clsx('absolute inset-y-0 right-0 w-0.5', STAGE_BAR_CLASS.running)} />
           </div>
         ) : null}
       </div>

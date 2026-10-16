@@ -18,7 +18,7 @@
  *   không câu nào soạn lại ở đây.
  * - Bắt điểm khi kéo trục: `snapToTargets` (M-03).
  * - Quy đổi mm ↔ px: `Scale` của `src/domain/units/scale.ts`, qua
- *   `gateway.scale`. Không một phép nhân chia đơn vị nào viết tay (R-71, A15).
+ *   `scale`. Không một phép nhân chia đơn vị nào viết tay (R-71, A15).
  * - Định dạng số: `formatLength` / `formatNumber` của `src/lib/format`. Không
  *   `toFixed`, không `toLocaleString` ở bất kỳ đâu trong thư mục màn (A15).
  *
@@ -73,7 +73,7 @@ import {
 import { snapToTargets, type SnapTarget } from '@/domain/units/snap';
 import type { PointMm } from '@/domain/units/compare';
 import { millimetres, type Millimetres } from '@/domain/units/types';
-import { pixels, type Pixels } from '@/domain/units/scale';
+import { millimetresPerPixel, pixels, scaleFromRatio, type Pixels } from '@/domain/units/scale';
 import type { Axis, LevelId } from '@/domain/spatial/types';
 import { toPointMm } from '@/lib/commands/business/shared';
 import type { Command } from '@/lib/commands/types';
@@ -454,6 +454,13 @@ export function useAxisGridManager(
   const level = useMemo(() => levelOf(graph, options.levelId), [graph, options.levelId]);
   const levelId = level?.id ?? null;
 
+  /* R16: ty le THAT cua tang; cong chi giu ty le du phong khi tang chua co. */
+  const levelRatio = level?.scaleMillimetresPerPixel ?? null;
+  const scale = useMemo(
+    () => (levelRatio === null ? gateway.scale : scaleFromRatio(millimetresPerPixel(levelRatio))),
+    [gateway.scale, levelRatio],
+  );
+
   const hasError = floorLayer.error !== null;
   const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
   const isLoading = floorLayer.isPending || graph === null;
@@ -787,7 +794,7 @@ export function useAxisGridManager(
       }
 
       const direction = labelled.axis.direction;
-      const droppedMm = gateway.scale.pixelsToMillimetres(coordinatePx);
+      const droppedMm = scale.pixelsToMillimetres(coordinatePx);
       const along = axisLine(labelled.axis).start;
       const snapped = snapToTargets(
         direction === 'vertical' ? { x: droppedMm, y: along.y } : { x: along.x, y: droppedMm },
@@ -810,13 +817,14 @@ export function useAxisGridManager(
           : buildMoveAxisCommand({ before, coordinateMm, actorId: gateway.actorId }),
       );
     },
-    [axisByRowId, gateway, labelledAxes, previewEntities, rejectWhenTooClose, run, snapTargets],
+    [axisByRowId, gateway, labelledAxes, previewEntities, rejectWhenTooClose, run, scale, snapTargets],
   );
 
   const onAxisRemove = useCallback(
     (axisId: string) => {
       const axis = axisByRowId.get(axisId);
-      const label = axis?.label ?? labelledAxes.find((item) => axisRowId(item.axis.direction, item.label) === axisId)?.label;
+      // The label the row SHOWS (labelAxes relabels after a delete); the stored entity may still carry its old one (BUG-722).
+      const label = labelledAxes.find((item) => axisRowId(item.axis.direction, item.label) === axisId)?.label ?? axis?.label;
 
       if (label === undefined) {
         return;
@@ -831,6 +839,8 @@ export function useAxisGridManager(
         if (!ok) {
           return;
         }
+
+        announce(removeToastDescription(label));
 
         const ticket = createAxisUndoTicket({
           description: removeToastDescription(label),
@@ -848,7 +858,7 @@ export function useAxisGridManager(
         });
       });
     },
-    [applyUndo, axisByRowId, gateway, labelledAxes, notifications, previewEntities, run],
+    [announce, applyUndo, axisByRowId, gateway, labelledAxes, notifications, previewEntities, run],
   );
 
   const onViewOnDrawing = useCallback(
@@ -1077,8 +1087,8 @@ export function useAxisGridManager(
     }
 
     const position = toAxisPosition(originPoint, grid);
-    const offsetXPx = gateway.scale.millimetresToPixels(position.offsetXMm);
-    const offsetYPx = gateway.scale.millimetresToPixels(position.offsetYMm);
+    const offsetXPx = scale.millimetresToPixels(position.offsetXMm);
+    const offsetYPx = scale.millimetresToPixels(position.offsetYMm);
 
     return {
       anchorOptions,
@@ -1093,7 +1103,7 @@ export function useAxisGridManager(
       offsetXMm: position.offsetXMm,
       offsetYMm: position.offsetYMm,
     };
-  }, [anchor, gateway, grid, originPoint]);
+  }, [anchor, grid, originPoint, scale]);
 
   const floors = useMemo<readonly FloorAlignRowViewModel[]>(
     () =>
@@ -1131,14 +1141,14 @@ export function useAxisGridManager(
 
       ghosts.push({
         levelId: other.id,
-        outlinePx: outlineOfBounds(bounds).map((point) => toPixelPoint(point, gateway.scale)),
+        outlinePx: outlineOfBounds(bounds).map((point) => toPixelPoint(point, scale)),
         isVisible: ghostEnabled,
         isHighlighted: hoveredLevelId === other.id,
       });
     }
 
     return ghosts;
-  }, [gateway, ghostEnabled, graph, hoveredLevelId, levelId]);
+  }, [ghostEnabled, graph, hoveredLevelId, levelId, scale]);
 
   const canvas = useMemo<AxisCanvasViewModel>(() => {
     const axes: AxisCanvasAxisViewModel[] = labelledAxes.map((labelled) => {
@@ -1149,8 +1159,8 @@ export function useAxisGridManager(
         id,
         label: labelled.label,
         direction: labelled.axis.direction,
-        startPx: toPixelPoint(line.start, gateway.scale),
-        endPx: toPixelPoint(line.end, gateway.scale),
+        startPx: toPixelPoint(line.start, scale),
+        endPx: toPixelPoint(line.end, scale),
         isVisible: !hiddenRowIds.includes(id),
         isHighlighted: selectedRowId === id,
       };
@@ -1159,19 +1169,19 @@ export function useAxisGridManager(
     return {
       axes,
       origin: {
-        pointPx: toPixelPoint(originPoint, gateway.scale),
+        pointPx: toPixelPoint(originPoint, scale),
         label: AXIS_GRID_TEXT.originCanvasLabel,
       },
       ghostFloors,
-      boundsPx: extent === null ? EMPTY_BOUNDS_PX : toPixelRect(extent, gateway.scale),
+      boundsPx: extent === null ? EMPTY_BOUNDS_PX : toPixelRect(extent, scale),
     };
   }, [
     extent,
-    gateway,
     ghostFloors,
     hiddenRowIds,
     labelledAxes,
     originPoint,
+    scale,
     selectedRowId,
   ]);
 
