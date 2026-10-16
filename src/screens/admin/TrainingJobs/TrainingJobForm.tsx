@@ -4,7 +4,7 @@
  * tiêu điểm về nút đã mở (Modal, A12).
  */
 
-import type { FormEvent, KeyboardEvent } from 'react';
+import type { FormEvent } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Modal } from '@/components/overlay/Modal';
@@ -71,17 +71,6 @@ export interface TrainingJobFormProps {
 export function TrainingJobForm({ actions, form }: TrainingJobFormProps) {
   const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    // Ô chọn (SegmentedControl) là <button> không khai type nên bấm vào là "gửi" form (35T-C-002/C-014):
-    // chỉ nút type="submit" hoặc Enter (submitter null) mới gửi. Gốc ở SegmentedControl dùng chung.
-    const submitter = (event.nativeEvent as SubmitEvent).submitter;
-    if (submitter !== null && submitter !== undefined && submitter.getAttribute('type') !== 'submit') return;
-    actions.onSubmitForm();
-  };
-  // Enter trong ô nhập: trình duyệt "bấm" nút MẶC ĐỊNH = <button> đầu tiên không khai type (ô chọn họ), nên
-  // submitter không phải nút gửi và onSubmit bỏ qua (35T-A-020). Tự gửi ở đây và chặn gửi ngầm.
-  const onKeyDown = (event: KeyboardEvent<HTMLFormElement>): void => {
-    if (event.key !== 'Enter' || !(event.target instanceof HTMLInputElement)) return;
-    event.preventDefault();
     actions.onSubmitForm();
   };
   // Ô số vòng chỉ chốt chữ gõ sau 800 ms và không chốt số bị từ chối: báo từng phím để nút gửi/Enter dựa vào số đang gõ.
@@ -92,7 +81,7 @@ export function TrainingJobForm({ actions, form }: TrainingJobFormProps) {
   return (
     <Modal.Root isOpen={form !== null} onClose={actions.onCloseForm} width={560}>
       {form !== null && (
-        <form noValidate onInput={onInput} onKeyDown={onKeyDown} onSubmit={onSubmit}>
+        <form noValidate onInput={onInput} onSubmit={onSubmit}>
           <Modal.Header>{TEXT.title}</Modal.Header>
           <Modal.Body>
             <div className="flex flex-col gap-4 pb-2">

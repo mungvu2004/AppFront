@@ -642,7 +642,8 @@ test.describe('SCR-37 users (read) edge', () => {
         await context.setOffline(true);
         try {
           await nameButton(userRow(page, otherEmail)).click();
-          await expect.soft(aside.getByRole('alert'), 'panel error while offline').toBeVisible({ timeout: 30_000 });
+          // One alert per failed section (memberships + activity, BUG-P08-015 ReadStateNotice; RF p08-rf: 2 alerts).
+          await expect.soft(aside.getByRole('alert').first(), 'panel error while offline').toBeVisible({ timeout: 30_000 });
           await expect.soft(page.locator('tbody tr').first()).toBeVisible();
           await captureEvidence(page, 'E08_37U-G-007_users.png');
         } finally {

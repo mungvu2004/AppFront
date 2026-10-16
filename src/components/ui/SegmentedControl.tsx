@@ -65,6 +65,7 @@ const SegmentedItem = React.forwardRef<HTMLButtonElement, SegmentedItemProps>(
   ({ value, swatch, isActive = false, layoutId, children, className, ...props }, ref) => (
     <button
       ref={ref}
+      type="button"
       data-value={value}
       role="radio"
       aria-checked={isActive}
