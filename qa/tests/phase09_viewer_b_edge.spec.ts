@@ -8,7 +8,7 @@ import { ROUTES } from '../../e2e/fixtures/routes';
 import { captureEvidence } from './support/evidence';
 import { pascalCanvas, viewportReady } from './support/p09/P7';
 import { openRoleSession } from './support/p09/P8';
-import { gotoAs } from './support/p09/roles';
+import { gotoAs, mainProject } from './support/p09/roles';
 
 const RULE_SETTINGS_HEADING = 'Cài đặt bộ luật không gian'; // RuleSettings.tsx
 const RULE_SETTINGS_READ_ONLY = 'Chỉ quản trị viên đổi được bộ luật; bạn đang xem ở quyền chỉ đọc.'; // ruleSettingsGateway.ts:98
@@ -148,7 +148,8 @@ test.describe('Phase 09 viewer edge B', () => {
       });
 
       await test.step('[9V-G-030] version history read-only reason', async () => {
-        await page.goto(ROUTES.project.versions(s.projectId));
+        // RR2: the default floor (first by order, "Tầng trệt") has no version -> empty state, no list/reason. The work floor holds the pipeline versions (P13.ts:116).
+        await page.goto(`${ROUTES.project.versions(s.projectId)}?floorId=${encodeURIComponent(mainProject().workFloorId)}`); // VersionHistory.container.tsx:206
         await expect(page.getByRole('navigation', { name: VERSION_LIST })).toBeVisible({ timeout: 15_000 });
         await expect.soft(page.getByText(VERSIONS_READ_ONLY, { exact: true })).toBeVisible();
         await captureEvidence(page, 'E09_9V-G-030_readonly.png');

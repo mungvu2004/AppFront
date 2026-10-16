@@ -7,8 +7,8 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
-import { captureEvidence } from './support/evidence';
-import { pascalCanvas, viewportReady } from './support/p09/P7';
+import { attachJson, captureEvidence } from './support/evidence';
+import { clickSceneCentre, pascalCanvas, viewportReady } from './support/p09/P7';
 import { pinOneMeasurement, withOwnProject } from './support/p09/P9';
 import { adminApi, gotoAs, mainProject, recordWrites, roleUser, signInRole } from './support/p09/roles';
 
@@ -32,10 +32,15 @@ test.describe('phase 09 viewer edge (real stack)', () => {
       });
       await test.step('[9V-A-038] HistoryPanel: nút nhảy trạng thái có mặt và bật', async () => {
         // Pascal side panel "Lịch sử thao tác" (pascalViewerTypes.ts:200) hosts HistoryPanel; label HistoryPanel.rows.tsx:53 (hover/focus only: attached is enough)
+        // RR2 red: the panel was opened on a fresh project, so it showed "Chưa có bước nào" (history is empty until a commit) and no
+        // row had a jump button. Make one real edit first (select at the scene centre, Delete) - the engineer owns this project.
+        await clickSceneCentre(page);
+        await page.keyboard.press('Delete');
         await page.getByRole('button', { name: 'Lịch sử thao tác', exact: true }).click();
         const jump = page.getByRole('button', { name: 'Quay lại trạng thái này' }).first();
         await expect.soft(jump).toBeAttached();
         await expect.soft(jump).toBeEnabled();
+        await attachJson('E09_9V-A-038_history-rows.json', { jumpButtons: await page.getByRole('button', { name: 'Quay lại trạng thái này' }).count() });
         await shot(page, '9V-A-038', 'history_jump');
       });
       await test.step('[9V-B-035] đo: nút ghim bật, không caption chặn', async () => {

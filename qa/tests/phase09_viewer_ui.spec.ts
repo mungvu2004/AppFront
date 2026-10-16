@@ -7,7 +7,7 @@ import { pascalCanvas } from './support/p09/P7';
 
 test('SCR-25..32 · FL-9V-U1 · viewer · verifyUi 4 khổ trạng thái chỉ đọc', async ({ browser }) => {
   test.setTimeout(480_000);
-  await withRoleUi(browser, 'viewer', 'ui-viewer', true, async ({ page, projectId }) => {
+  await withRoleUi(browser, 'viewer', 'ui-viewer', true, async ({ page, projectId, floorId }) => {
     const P = ROUTES.project;
     await test.step('[9V-A-060] viewer viewer_inspector 4 kho', async () => {
       // /3d = Pascal since F-15 (router.tsx:382): the ViewerShell alert is gone, the read-only state is the Pascal canvas for a viewer role.
@@ -30,7 +30,9 @@ test('SCR-25..32 · FL-9V-U1 · viewer · verifyUi 4 khổ trạng thái chỉ �
       await uiState(page, '9V-F-060', 'json_viewer', openAt(P.data(projectId), (p) => p.getByText(/"name"|^name$/u)));
     });
     await test.step('[9V-G-060] viewer versions_readonly 4 kho', async () => {
-      await uiState(page, '9V-G-060', 'versions_readonly', openAt(P.versions(projectId), (p) => p.getByText(/Vai trò của bạn trên dự án này chỉ đọc được lịch sử/u)));
+      // RR2: default floor "Tầng trệt" has no version (empty state, no reason); the work floor has the pipeline versions (P13.ts:116).
+      const versionsUrl = `${P.versions(projectId)}?floorId=${encodeURIComponent(floorId)}`; // VersionHistory.container.tsx:206
+      await uiState(page, '9V-G-060', 'versions_readonly', openAt(versionsUrl, (p) => p.getByText(/Vai trò của bạn trên dự án này chỉ đọc được lịch sử/u)));
     });
     await test.step('[9V-H-060] viewer share dialog blocked 4 kho', async () => {
       // feature off: shareLink.ts:354 (SHARE_LINKS_SUPPORTED=false); the forbidden branch returns early (ExportPanel.tsx:207-215),

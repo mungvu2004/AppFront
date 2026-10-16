@@ -35,6 +35,7 @@ import {
   writesAfter,
 } from './support/p09/P7';
 
+const HISTORY_EMPTY_TITLE = 'Chưa có bước nào'; // vi.json:2808, HistoryPanel.chrome.tsx:55
 const viewerAlert = (page: Page) => page.getByRole('alert').filter({ hasText: VIEWER_ONLY_MESSAGE });
 const activeDescriptor = (page: Page): Promise<string> =>
   page.evaluate(() => {
@@ -170,8 +171,14 @@ test.describe('phase 09 viewer edge', () => {
       await test.step('[9V-A-020] viewer: Pascal readOnly từ chối kèm lý do', async () => {
         await clickSceneCentre(page);
         await page.keyboard.press('Delete');
-        // UNKNOWN — NEED VERIFICATION: where usePascalEdits.ts:58 reason surfaces (toast/status) after a rejected commit.
-        await expect.soft(page.getByText(PASCAL_READ_ONLY_REASON).first()).toBeVisible({ timeout: 5_000 });
+        // Re-anchored (RR2 red: reason text never appeared). A viewer holds the editor's read-only lease: the store is locked and edit
+        // tools never fire, so no commit reaches validateCommit and usePascalEdits.ts:58 is never shown (vendor/pascal/NGUON.md:72;
+        // catalog-C4 flag 5: only readOnly stops edits). The edit is refused if the reason shows OR the history stays empty.
+        await page.getByRole('button', { name: 'Lịch sử thao tác', exact: true }).click();
+        await expect
+          .soft(page.getByText(PASCAL_READ_ONLY_REASON).first().or(page.getByText(HISTORY_EMPTY_TITLE, { exact: true })))
+          .toBeVisible({ timeout: 5_000 });
+        await expect.soft(page.getByRole('button', { name: HISTORY_JUMP })).toHaveCount(0);
         await captureEvidence(page, 'E09_9V-A-020_pascal-rejected.png');
       });
       await test.step('[9V-A-021] viewer: Pascal không phát request ghi khi kéo/xoá', async () => {
@@ -281,8 +288,10 @@ test.describe('phase 09 viewer edge', () => {
         await captureEvidence(page, 'E09_9V-C-032_dismiss.png');
       });
       await test.step('[9V-C-033] viewer: ViolationDetail mở được, điều hướng chỉ đọc', async () => {
-        // UNKNOWN — NEED VERIFICATION: row selector (RuleReportGroups.tsx RowMessage button inside a list item with a <code>).
-        const row = page.locator('li').filter({ has: page.locator('code') }).getByRole('button').first();
+        // RR2 red: groups are collapsed (RuleReportGroups.tsx:91 <button aria-expanded>) and rows are table rows (:244-270), not <li>;
+        // the RowMessage button carries data-row-key (:161-163). Expand the first group, then pick its first row message.
+        await page.locator('section h3 button[aria-expanded="false"]').first().click();
+        const row = page.locator('tr button[data-row-key]').first();
         await expect(row, 'violation row selector').toBeVisible();
         await row.click();
         await expect.soft(page.getByRole('button', { name: /^Vi phạm (trước|sau)$/u }).first()).toBeVisible(); // ViolationDetail.tsx:158-166

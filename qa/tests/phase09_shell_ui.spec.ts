@@ -21,10 +21,13 @@ test('SCR-05 · FL-9P-U1 · viewer · bốn khổ', async ({ browser }) => {
           await openAt(ROUTES.project.settings(projectId), (p) => p.getByText(/Vai hiện tại chỉ xem được cài đặt/u))(p);
           // Narrow widths (768) collapse the tab list into the 'Nhóm cài đặt' combobox (ProjectSettings.tsx:114, test :479); vi.json:304.
           const tabBtn = p.getByRole('tab', { name });
+          const group = p.getByRole('combobox', { name: 'Nhóm cài đặt' });
+          // The read-only line renders before the tab list: wait for whichever control exists, then branch (never count() on a first paint).
+          await expect(tabBtn.or(group).first()).toBeVisible();
           if (await tabBtn.count()) {
             await tabBtn.click();
           } else {
-            await p.getByRole('combobox', { name: 'Nhóm cài đặt' }).click();
+            await group.click();
             await p.getByRole('option', { name }).click();
           }
           await expect(p.getByText(/Vai hiện tại chỉ xem được cài đặt/u).first()).toBeVisible();

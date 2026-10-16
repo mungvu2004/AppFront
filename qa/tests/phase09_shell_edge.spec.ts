@@ -5,6 +5,7 @@
 import { expect, test } from '@playwright/test';
 
 import { attachJson } from './support/evidence';
+import { removeProjectMember } from './support/phase03Seed';
 import { COPY, shot, spaGo } from './support/p09/P1';
 import { DESKTOP, adminApi, apiAs, asMember, gotoAs, mainProject, recordWrites, roleUser, signInRole } from './support/p09/roles';
 
@@ -87,7 +88,8 @@ test.describe('phase09 shell edge', () => {
       await test.step('[9P-C-001] N outside inputs opens no create dialog', async () => {
         await page.locator('body').click({ position: { x: 5, y: 5 } });
         await page.keyboard.press('n'); // UPD:420 enabled: canCreate
-        await page.waitForLoadState('networkidle');
+        // milestone instead of a load state (client-side action): the dashboard is still the viewer's dashboard.
+        await expect(page.getByText(COPY.viewerLine, { exact: true })).toBeVisible();
         await expect.soft(page.getByRole('dialog')).toHaveCount(0);
         await shot(page, '9P-C-001', 'key_n');
       });
@@ -240,6 +242,11 @@ test.describe('phase09 shell edge', () => {
         await shot(page, '9P-G-201', 'settings_api');
       });
       await test.step('[9P-D-309] /thong-bao: invite has "Chấp nhận" when one exists', async () => {
+        // A read invite has no "Chấp nhận" (notificationCenterGateway.ts:223); asMember keeps the membership, so earlier reads/runs
+        // may have consumed the invite. Re-add once to emit a fresh unread one (one POST, members_add budget).
+        expect(await removeProjectMember(admin, projectId, pv.id), 'remove membership').toBeNull();
+        const add = await admin.post(`/api/projects/${projectId}/members`, { data: { email: pv.email } });
+        expect([200, 201], 'fresh invite POST').toContain(add.status());
         const listed = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/notifications' && r.request().method() === 'GET');
         await page.goto('/thong-bao');
         const body = (await (await listed).json()) as { id: string }[];

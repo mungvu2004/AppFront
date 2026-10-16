@@ -282,8 +282,10 @@ test('SCR-12 · SCR-13 · FL-9U-03 · viewer · viewer doc: tien trinh + do thi 
     await test.step('[9U-D-053] viewer, failed run: Vietnamese warning with error code still readable', async () => {
       const alert = page.getByRole('alert').filter({ hasText: /không hoàn tất được/u });
       await expect.soft(alert).toContainText(PF.fileCorrupt);
-      // UNKNOWN — NEED VERIFICATION: exact placement of "Mã lỗi: …" (search the page, not only the alert)
-      await expect.soft(page.getByText(/Mã lỗi: /u).first()).toBeVisible();
+      // RR2 deciding value (E09_9U-D-053 shot): PipelineFailure prints the bare code "FILE_CORRUPT" (small mono, right-aligned), no "Mã lỗi: " prefix:
+      // PipelineFailureAlert.tsx:157 {reason.codeLabel}, pipelineFailureText.ts:200-201 codeLabel = code (+ " · yêu cầu <id>"), doc PipelineFailureAlert.tsx:33-37.
+      // The prefix "Mã lỗi: " (vi.json:1426) belongs to CAD/Scale screens. Catalog 9U-D-053 wording is loose; the code stays readable for the viewer.
+      await expect.soft(page.getByText('FILE_CORRUPT', { exact: true }).first()).toBeVisible();
       await captureEvidence(page, 'E09_9U-D-053_error_with_code.png');
     });
   } finally {
@@ -319,7 +321,8 @@ test('SCR-14 · SCR-15 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + do
 
     await test.step('[9U-D-057] viewer, SCR-14: drawing visible, canvas not draggable, no request', async () => {
       await expect.soft(page.getByRole('img', { name: `Bản vẽ đã nắn của ${seeded.floorName}` })).toBeVisible();
-      const canvas = page.getByRole('img', { name: 'Bản vẽ đã nắn, kéo để vẽ đường tham chiếu' }); // ScaleCalibrationCanvas.tsx:70
+      // The canvas frame is role="group" with this aria-label in every mode (ScaleCalibrationCanvas.tsx:336-346); only the inner <img alt> is an img.
+      const canvas = page.getByRole('group', { name: 'Bản vẽ đã nắn, kéo để vẽ đường tham chiếu' });
       await expect(canvas).toBeVisible();
       const box = (await canvas.boundingBox())!;
       await page.mouse.move(box.x + 40, box.y + 40);

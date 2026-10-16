@@ -44,9 +44,9 @@ const USERS_API = /^\/api\/users$/u;
 const WRITE_BUTTON = /tải lên|sửa|chỉnh|xoá|xóa/iu;
 const LOG_PATTERN = /^\/api\/(admin\/ml\/|users$|library)/u;
 
-// UserManagementTable.tsx:59 `Vai của <name>` (Select.Label sr-only)
+// UserManagementTable.tsx:59 `Vai của <name>` (Select.Label sr-only); Select.tsx:136 trigger is role=combobox, not button (RR2: 0 matches)
 const roleSelect = (page: Pick<Page, 'getByRole'>, name?: string) =>
-  page.getByRole('button', {
+  page.getByRole('combobox', {
     name: new RegExp(name === undefined ? '^Vai của ' : `^Vai của ${name}`, 'u'),
   });
 
