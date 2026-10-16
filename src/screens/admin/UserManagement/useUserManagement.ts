@@ -1245,6 +1245,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
       queryClient,
       rawEmails,
       removeConfirm.canConfirm,
+      removeConfirm.user?.email,
       removeEmail,
       removeMutation,
       removeUserId,
