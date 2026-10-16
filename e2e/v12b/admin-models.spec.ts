@@ -45,7 +45,7 @@ test.describe('engineer (vai mặc định, goto thẳng)', () => {
     await expect(page.getByText('Không tìm thấy model phù hợp.')).toBeVisible();
     await expect(figure(page, 'Tổng số model')).toHaveText(/Tổng số model\s*0$/u);
     await expect(figure(page, 'Tổng dung lượng')).toHaveText(/Tổng dung lượng\s*0 B$/u);
-    await expect(figure(page, 'Model nặng')).toHaveText(/model nặng\s*0$/u);
+    await expect(figure(page, 'Model nặng')).toHaveText(/Model nặng\s*0$/u);
 
     await search(page).fill('');
     await expect(figure(page, 'Tổng số model')).toHaveText(new RegExp(`Tổng số model\\s*${MODEL_COUNT}$`, 'u'));
