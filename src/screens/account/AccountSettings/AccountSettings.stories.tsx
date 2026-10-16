@@ -13,6 +13,7 @@
  */
 
 import type { Meta, StoryObj } from '@storybook/react';
+import { MemoryRouter } from 'react-router-dom';
 
 import { AccountSettings } from './AccountSettings';
 import type { NotificationEventModel } from './NotificationsSection';
@@ -25,6 +26,8 @@ const meta = {
   component: AccountSettings,
   parameters: { layout: 'fullscreen' },
   tags: ['autodocs'],
+  // Đầu trang có <Link> về bảng điều khiển (33P-A-010): cần một bộ định tuyến.
+  decorators: [(Story) => <MemoryRouter><Story /></MemoryRouter>],
 } satisfies Meta<typeof AccountSettings>;
 
 export default meta;
@@ -93,6 +96,7 @@ const base: AccountSettingsViewModel = {
       flashedField: null,
       rowClassName: DENSITY_ROW_CLASS.comfortable,
       motionOff: false,
+      isStacked: false,
     },
     appearance: {
       theme: 'light',
@@ -108,6 +112,7 @@ const base: AccountSettingsViewModel = {
       flashedField: null,
       rowClassName: DENSITY_ROW_CLASS.comfortable,
       motionOff: false,
+      isStacked: false,
     },
   },
   tables: {

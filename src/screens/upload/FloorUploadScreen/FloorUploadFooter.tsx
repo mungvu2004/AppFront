@@ -73,10 +73,10 @@ export function FloorUploadFooter({ footer, blockNotice, onSubmit, rootRef }: Fl
   const counterTail = footer.counterLabel.slice(footer.counterLabel.indexOf(COUNTER_SEPARATOR));
 
   return (
-    <div ref={rootRef} className="sticky bottom-0 z-20 flex flex-col gap-3 rounded-[12px] border border-border-default bg-bg-surface p-5">
+    <div ref={rootRef} className="sticky bottom-0 z-20 flex flex-col gap-3 rounded-xl border border-border-default bg-bg-surface p-5">
       {blockNotice !== null && (
         <div
-          className="flex flex-col gap-1 rounded-[8px] bg-state-attention-tint p-3"
+          className="flex flex-col gap-1 rounded-lg bg-state-attention-tint p-3"
           data-testid={BLOCK_NOTICE_TEST_ID}
           role="alert"
         >

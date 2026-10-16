@@ -44,7 +44,7 @@ function PendingDetail({ actions, model }: ConnectionStatesProps) {
         ) : null}
 
         {model.droppedLabel !== null ? (
-          <p className="rounded-[8px] bg-state-violation-tint px-3 py-2 text-[13px] leading-[18px] text-state-violation-text">
+          <p className="rounded-lg bg-state-violation-tint px-3 py-2 text-[13px] leading-[18px] text-state-violation-text">
             {model.droppedLabel}
           </p>
         ) : null}
@@ -56,7 +56,7 @@ function PendingDetail({ actions, model }: ConnectionStatesProps) {
             {model.pendingRows.map((row) => (
               <li
                 key={row.id}
-                className="flex h-9 items-center gap-3 rounded-[8px] px-3 hover:bg-bg-hover"
+                className="flex h-9 items-center gap-3 rounded-lg px-3 hover:bg-bg-hover"
               >
                 <span className="flex-1 truncate text-[14px] leading-5 text-text-primary">
                   {row.label}
@@ -146,7 +146,7 @@ export function ConnectionStates({ actions, model }: ConnectionStatesProps) {
         aria-label={model.headline}
         className="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay"
       >
-        <div className="flex w-[420px] flex-col gap-5 rounded-[12px] bg-bg-surface p-6 shadow-modal">
+        <div className="flex w-[420px] flex-col gap-5 rounded-xl bg-bg-surface p-6 shadow-modal">
           <p className="text-[19px] font-medium leading-7 text-text-primary">{model.headline}</p>
           <p className="text-[15px] leading-6 text-text-secondary">
             Những thay đổi này vẫn được giữ nguyên trong máy của bạn. Đăng nhập lại là chúng được gửi đi

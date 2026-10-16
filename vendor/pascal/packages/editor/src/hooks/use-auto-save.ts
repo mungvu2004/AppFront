@@ -248,7 +248,7 @@ export function useAutoSave({
 
     executeSaveRef.current = executeSave
 
-    const unsubscribe = useScene.subscribe((state) => {
+    const unsubscribe = useScene.subscribe((state, previous) => {
       if (isLoadingSceneRef.current) {
         lastNodesSnapshot = JSON.stringify(state.nodes)
         storedNodeCount.trackLoadedGraph(Object.keys(state.nodes).length)
@@ -282,8 +282,13 @@ export function useAutoSave({
       if (!changed) return
 
       // 6A — the host's rule check runs on the edited graph BEFORE the edit is
-      // adopted. A rejection undoes the operation through the normal history
-      // stack, so the user keeps their redo and nothing bypasses the store.
+      // adopted. A rejection puts back the graph from just before the write.
+      // NOT `temporal.undo()`: zundo pushes the pre-write state onto
+      // `pastStates` only after the store's listeners ran, so an undo from here
+      // popped the entry BEFORE this write — it reverted an earlier accepted
+      // edit, or did nothing on an empty history and left the rejected write in
+      // place (AppFront 23-A-025). History is paused so the restore adds no
+      // entry and the rejected write, now a no-op, records none either.
       const validate = validateCommitRef.current
       if (validate && !isRevertingRef.current) {
         const verdict = validate({
@@ -296,9 +301,19 @@ export function useAutoSave({
 
         if (!verdict.ok) {
           isRevertingRef.current = true
+          const history = useScene.temporal.getState()
+          const tracking = history.isTracking
+          if (tracking) history.pause()
           try {
-            useScene.temporal.getState().undo()
+            useScene.setState({
+              nodes: previous.nodes,
+              rootNodeIds: previous.rootNodeIds,
+              collections: previous.collections,
+              materials: previous.materials,
+              installedPlugins: previous.installedPlugins,
+            })
           } finally {
+            if (tracking) useScene.temporal.getState().resume()
             isRevertingRef.current = false
           }
           lastNodesSnapshot = JSON.stringify(useScene.getState().nodes)

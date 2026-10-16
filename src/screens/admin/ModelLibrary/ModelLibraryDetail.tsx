@@ -43,6 +43,7 @@
  */
 
 import { Box, X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Badge } from '@/components/ui/Badge';
@@ -73,7 +74,7 @@ const PANEL_WIDTH = 'w-[400px] max-w-full';
  * `relative` là chỗ neo của hai lớp phủ trạng thái bên trong.
  */
 const PREVIEW_FRAME =
-  'relative h-[240px] w-full overflow-hidden rounded-[8px] border border-border-default bg-canvas-3d';
+  'relative h-60 w-full overflow-hidden rounded-lg border border-border-default bg-canvas-3d';
 
 /** Chữ đều cho mọi con số người đọc nhìn thấy — số tam giác, dung lượng, kích thước bao. */
 const NUMERIC_TEXT = 'font-mono tabular-nums';
@@ -217,7 +218,7 @@ function ModelFields({ fields }: FieldsProps) {
         <FieldRow isLast={index === fields.length - 1} key={field.label} label={field.label}>
           <span
             className={cn(
-              'flex min-h-[36px] items-center text-[14px] text-text-primary',
+              'flex min-h-9 items-center text-[14px] text-text-primary',
               field.isNumeric && NUMERIC_TEXT,
             )}
           >
@@ -255,7 +256,7 @@ function HeavyNotice({ item }: HeavyProps) {
   return (
     <section
       aria-label="Cảnh báo model nặng"
-      className="flex flex-col items-start gap-2 rounded-[8px] bg-bg-sunken p-3"
+      className="flex flex-col items-start gap-2 rounded-lg bg-bg-sunken p-3"
     >
       <Badge variant="attention">Nặng</Badge>
 
@@ -280,6 +281,19 @@ export function ModelLibraryDetail({ actions, model }: ModelLibraryDetailProps) 
   // mở. Đăng ký qua `shortcutRegistry` (R-54), không `addEventListener('keydown')`; và đăng
   // ký ở view chứ không ở hook, để `Escape` không bị nhận hai lần trên cùng một tổ hợp —
   // cùng lý do đã ghi tại `ViolationDetail.tsx:294-299`.
+  // Focus (BUG-P08-005): mở -> vào tiêu đề panel; đóng -> trả về nút/hàng đã mở nó.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    const opener = document.activeElement;
+    headingRef.current?.focus();
+
+    return () => {
+      if (opener instanceof HTMLElement && opener.isConnected) {
+        opener.focus();
+      }
+    };
+  }, []);
+
   useShortcut({
     combo: 'Escape',
     description: 'Đóng panel chi tiết model',
@@ -298,7 +312,11 @@ export function ModelLibraryDetail({ actions, model }: ModelLibraryDetailProps) 
     >
       <header className="flex items-start gap-2">
         {/* `h2` vì panel là một vùng trong trang đã có `h1`; thứ bậc đọc không nhảy cấp. */}
-        <h2 className="min-w-0 flex-1 break-words text-base font-semibold text-text-primary">
+        <h2
+          className="min-w-0 flex-1 break-words text-base font-semibold text-text-primary outline-none"
+          ref={headingRef}
+          tabIndex={-1}
+        >
           {model.item.name}
         </h2>
 

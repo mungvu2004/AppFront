@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { NumericField } from '@/components/ui/NumericField';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Select } from '@/components/ui/Select';
+import { parseNumber } from '@/lib/format/number';
 
 import type { FormModel, Option, TrainableFamilyId, TrainingJobsActions } from './types';
 
@@ -72,11 +73,15 @@ export function TrainingJobForm({ actions, form }: TrainingJobFormProps) {
     event.preventDefault();
     actions.onSubmitForm();
   };
+  // Ô số vòng chỉ chốt chữ gõ sau 800 ms và không chốt số bị từ chối: báo từng phím để nút gửi/Enter dựa vào số đang gõ.
+  const onInput = (event: FormEvent<HTMLFormElement>): void => {
+    if (event.target instanceof HTMLInputElement) actions.onTypeEpochs(parseNumber(event.target.value));
+  };
 
   return (
     <Modal.Root isOpen={form !== null} onClose={actions.onCloseForm} width={560}>
       {form !== null && (
-        <form noValidate onSubmit={onSubmit}>
+        <form noValidate onInput={onInput} onSubmit={onSubmit}>
           <Modal.Header>{TEXT.title}</Modal.Header>
           <Modal.Body>
             <div className="flex flex-col gap-4 pb-2">

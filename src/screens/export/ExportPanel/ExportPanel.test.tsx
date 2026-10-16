@@ -513,3 +513,18 @@ describe('B-V12-06 — link "sửa" của khối kiểm tra trước đi qua rou
     expect(onFollowFix).not.toHaveBeenCalled();
   });
 });
+
+// 30-F-013 (BUG-445): ô tên tệp cắt bằng `truncate` ở 1024/768 — tên đầy đủ phải đọc được qua `title`.
+describe('Tệp đã xuất — tên dài', () => {
+  it('ô tên tệp mang title là tên đầy đủ', async () => {
+    const ExportPanelView = await loadExportPanelView();
+    const fileName = `${'ten-tep-rat-dai-'.repeat(6)}.pdf`;
+    render(
+      <ExportPanelView
+        {...buildExportPanelProps('success', { exportedFiles: [buildSampleExportedFile({ fileName })] })}
+      />,
+    );
+
+    expect(screen.getByText(fileName)).toHaveAttribute('title', fileName);
+  });
+});

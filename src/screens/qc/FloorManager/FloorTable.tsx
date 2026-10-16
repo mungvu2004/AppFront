@@ -248,7 +248,7 @@ export function FloorTable({
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-auto rounded-[8px] border border-border-default">
+      <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-border-default">
         <Table.Root>
           <Table.Header className={isStacked ? 'hidden' : undefined}>
             <tr>

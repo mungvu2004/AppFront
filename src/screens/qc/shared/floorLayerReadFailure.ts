@@ -37,6 +37,19 @@ export interface FloorLayerReadState {
   readonly refetch: () => void;
 }
 
+/** Tầng của route không tồn tại (N16 404, hoặc kho đã nạp mà không có tầng đó) → một lối về Quản lý tầng. */
+export function floorMissingFailureOf(
+  projectId: string,
+  onNavigate: ((path: string) => void) | undefined,
+): FloorLayerReadFailure {
+  return {
+    title: FLOOR_MISSING_TITLE,
+    description: FLOOR_MISSING_DESCRIPTION,
+    actionLabel: BACK_TO_FLOORS_LABEL,
+    onAction: () => onNavigate?.(ROUTES.project.floors(projectId)),
+  };
+}
+
 /**
  * `null` khi đã có tài liệu (lượt đọc lại hỏng không xoá màn đang dùng) hoặc không lỗi.
  * 404 dự án → về danh sách dự án; 404 khác (tầng) → về Quản lý tầng; lỗi khác → "Thử lại".
@@ -62,12 +75,7 @@ export function floorLayerReadFailureOf(
   }
 
   if (wire?.status === 404) {
-    return {
-      title: FLOOR_MISSING_TITLE,
-      description: FLOOR_MISSING_DESCRIPTION,
-      actionLabel: BACK_TO_FLOORS_LABEL,
-      onAction: () => onNavigate?.(ROUTES.project.floors(projectId)),
-    };
+    return floorMissingFailureOf(projectId, onNavigate);
   }
 
   const { title, description } = describeError(toAppError(floorLayer.error));

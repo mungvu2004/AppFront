@@ -42,6 +42,7 @@ export function VersionLabelDialog({ initialValue, isOpen, onClose, onSubmit, ve
             hint="Để trống rồi bấm Gắn nhãn là gỡ nhãn."
             defaultValue={initialValue}
             maxLength={MAX_LABEL_LENGTH}
+            data-autofocus
           />
         </Modal.Body>
         <Modal.Footer>

@@ -63,7 +63,7 @@ function StateFrame({ entry, isSpacingGridVisible }: StateFrameProps) {
     <figure className="flex flex-col gap-1.5">
       {/* Nhãn trạng thái ĐẶT PHÍA TRÊN khung. */}
       <figcaption className="flex items-baseline gap-2">
-        <span className="text-[14px] font-medium leading-[20px] text-text-primary">{entry.label}</span>
+        <span className="text-[14px] font-medium leading-5 text-text-primary">{entry.label}</span>
         <span
           className={[
             'text-[13px] leading-[18px]',
@@ -76,7 +76,7 @@ function StateFrame({ entry, isSpacingGridVisible }: StateFrameProps) {
 
       <div
         className={[
-          'relative flex h-[148px] items-center justify-center overflow-hidden rounded-[8px] border',
+          'relative flex h-[148px] items-center justify-center overflow-hidden rounded-lg border',
           isMissing
             ? 'border-state-attention bg-state-attention-tint'
             : 'border-border-default bg-bg-sunken',
@@ -97,7 +97,7 @@ function StateFrame({ entry, isSpacingGridVisible }: StateFrameProps) {
         ) : (
           <p className="relative flex flex-col items-center gap-1 px-3 text-center">
             <span className="text-[13px] leading-[18px] text-text-secondary">{STORY_NAME_LABEL}</span>
-            <code className="rounded-[4px] bg-bg-surface px-1.5 py-0.5 text-[13px] text-text-primary">
+            <code className="rounded bg-bg-surface px-1.5 py-0.5 text-[13px] text-text-primary">
               {entry.storyExportName}
             </code>
           </p>

@@ -321,11 +321,16 @@ const BUDGETS_KIB = {
  * số này do người thi công đặt từ số đo, **không phải** một quyết định đã được
  * duyệt: `docs/pascal/00-quyet-dinh.md` ghi T4.2 (2) là câu **chưa hỏi**. Đổi
  * chúng là việc của người duyệt, và nới để cho qua thì vẫn là nới.
+ *
+ * QA-05c B4 (2026-10-14, CHỜ người duyệt): thư viện đồ đạc tự host thêm `pascal/items` 200 tệp,
+ * 1 999,1 KiB — tài sản đo lại 9 827,5 KiB (`pascal` 8 525,5 + `basis` 569,6 + `icons` 732,4).
+ * `assets` 8 000 → 11 000 và `total` 30 000 → 33 000 giữ lại dư ~12 % như trên. Không duyệt thì
+ * phương án lùi là bỏ GLB/ảnh thẻ khỏi catalog (thư viện rỗng), không phải nới CSP.
  */
 const PASCAL_BUDGETS_KIB = {
   code: 22_000,
-  assets: 8_000,
-  total: 30_000,
+  assets: 11_000,
+  total: 33_000,
 };
 
 /** Ba thư mục hợp thành vách ngăn, sau khi `vite build` chép `public/` vào `dist/`. */

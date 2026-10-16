@@ -97,6 +97,7 @@ import {
 } from '@/lib/tools/toolMachine';
 import type { MeasurementRecord } from '@/types/measurement';
 import type { ProjectRole } from '@/types/project';
+import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
 // Nhập THẲNG module thay vì qua cửa nhập của ViewerShell — xem ghi chú cùng
 // lý do trong `useMeasurementToolScene.ts`.
@@ -199,7 +200,7 @@ const SCENE_FAILED_MESSAGE = 'Chưa dựng được mô hình để đo. Bấm t
 
 /** Trạng thái 6: có quyền xem, không có quyền ghim. */
 const PIN_BLOCKED_CAPTION =
-  'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.';
+  'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. Vẫn đo và đọc số bình thường.';
 
 /** Câu của toast hoàn tác — cửa sổ tám giây do chính vé mang (`UNDO_WINDOW_MS`). */
 const DELETE_NOTIFICATION_TYPE = 'measurementTool.deleteMeasurement';
@@ -288,6 +289,8 @@ export interface UseMeasurementToolOptions {
   readonly notifications?: NotificationBus;
   /** Tầng đang soát, để lọc mồi bắt điểm. Vắng mặt thì lấy mồi của cả mô hình. */
   readonly levelId?: string | null;
+  /** Điều hướng của router; có mặt thì breadcrumb bấm được (route không có AppShell, 25-A-003). */
+  readonly onNavigate?: (to: string) => void;
 }
 
 /**
@@ -604,9 +607,9 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   /* Con trỏ và cú chấm đọc trạng thái mới nhất qua ref: picker được dựng một
      lần cho mỗi lượt bắn tia và không được dựng lại theo từng lượt vẽ. */
-  const latest = useRef({ isMeasuring, snapPoint, project });
+  const latest = useRef({ isMeasuring, snapPoint, project, mode, pickCount: picks.length });
   useEffect(() => {
-    latest.current = { isMeasuring, snapPoint, project };
+    latest.current = { isMeasuring, snapPoint, project, mode, pickCount: picks.length };
   });
 
   const picker = useMemo(() => {
@@ -634,6 +637,13 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
         if (event.type === 'hover') {
           setCursor({ point: snapped.point, px: event.pointer, snap: snapped.snap });
 
+          return;
+        }
+
+        // Chế độ hai điểm đủ điểm thì cú chấm thêm bị bỏ: giá trị và bản ghim chỉ
+        // dùng hai điểm đầu, nên vẽ điểm thứ ba là nói dối (25-C-022).
+        const { mode: liveMode, pickCount } = latest.current;
+        if (liveMode !== 'floorArea' && pickCount >= REQUIRED_POINTS[liveMode]) {
           return;
         }
 
@@ -785,6 +795,8 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   /** Cờ của MỌI thao tác ghi (ghim, xoá — B-V9-41), không riêng ghim. */
   const canPin = shell.state !== 'forbidden';
+  /** Đã nạp xong mà không có tầng nào: không có mô hình để mời đo (25-B-017). */
+  const noModel = shell.state !== 'loading' && shell.storeys.length === 0;
 
   /* Điểm của bản nháp chỉ bị bỏ khi `saveMeasurement` xong: hỏng thì chúng còn
      nguyên đó, cùng một câu lỗi, và người dùng ghim lại được. */
@@ -977,6 +989,8 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
       },
       snap: cursor.snap,
       draft,
+      draftComplete: draftRow !== null,
+      noModel,
       measurements: rows,
       countLabel: measurementCountLabel(rows.length),
       highlightedId,
@@ -1003,6 +1017,8 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
       mode,
       cursor.snap,
       draft,
+      draftRow,
+      noModel,
       rows,
       highlightedId,
       onToggleVisibility,
@@ -1027,8 +1043,28 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   const viewerState = viewerStateOf(state, shell.state, mountedScene.building);
 
+  const { onNavigate } = options;
+  const projectCrumb = shell.breadcrumbs[0];
+  const breadcrumbs = useMemo(
+    () => [
+      {
+        id: 'project',
+        label: projectCrumb?.label ?? 'Dự án',
+        onClick: onNavigate && ((): void => onNavigate(ROUTES.dashboard)),
+      },
+      {
+        id: 'viewer',
+        label: 'Mô hình 3D',
+        onClick: onNavigate && ((): void => onNavigate(ROUTES.project.viewer(projectId))),
+      },
+      { id: 'measure', label: 'Công cụ đo' },
+    ],
+    [projectCrumb?.label, onNavigate, projectId],
+  );
+
   return {
     ...shell,
+    breadcrumbs,
     state: viewerState,
     // Vỏ chỉ biết lượt nạp của nó; cảnh của màn đo dựng riêng, nên câu "đã dựng
     // xong" của vỏ phải nhường khi khung nhìn còn đang dựng (NO-388) hay đã dựng
@@ -1047,7 +1083,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
       unit: toolProps.unit,
       onUnitChange: toolProps.onUnitChange,
       canPin: toolProps.canPin,
-      pinBlockedCaption: toolProps.pinBlockedCaption,
+      noModel: toolProps.noModel,
       collapsed: toolProps.collapsed,
       onToggleCollapsed: toolProps.onToggleCollapsed,
     }),

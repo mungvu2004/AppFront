@@ -58,7 +58,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { AdminUser, AdminUserList, UserActivity, UserMembership } from '@/api/client';
-import { describeError, toAppError } from '@/lib/errors';
+import { describeError, toAppError, type AppError } from '@/lib/errors';
+import { readWireError } from '@/lib/errors/wireError';
 import { formatCalendarDate, formatClockTime, formatTimestamp } from '@/lib/format/datetime';
 import { formatNumber } from '@/lib/format/number';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
@@ -86,6 +87,7 @@ import {
 import {
   FILTER_ALL,
   type BreadcrumbItemModel,
+  type DetailReadState,
   type InviteFormModel,
   type PermissionMatrixModel,
   type RemoveConfirmModel,
@@ -115,6 +117,29 @@ const SKELETON_ROW_COUNT = 8;
 /** "Mười thao tác gần nhất" của panel chi tiết, cũng theo hợp đồng (`UserDetailModel`). */
 const ACTIVITY_LIMIT = 10;
 
+/**
+ * Lỗi của lượt ghi đã qua `toAppError` một lần (createOptimisticMutation ném `AppError`): qua lần hai,
+ * mã BE như `USER_NOT_FOUND` không khớp từ khoá nào nên kind rơi về `unknown` và toast nói câu chung
+ * chung (FL-37W-03 G-008). Đã là AppError thì giữ nguyên.
+ */
+const asAppError = (error: unknown): AppError => {
+  const known = typeof error === 'object' && error !== null && 'messageKey' in error && 'recovery' in error;
+  return known ? (error as AppError) : toAppError(error);
+};
+
+const OFFLINE_READ_ERROR = { kind: 'network', raw: null, requestId: '', retryable: true };
+
+/** Một lượt đọc của panel chi tiết → trạng thái cho view (BUG-P08-015). */
+function readState(isPending: boolean, error: unknown, isPaused = false): DetailReadState {
+  // Mất mạng: TanStack (`networkMode: 'online'`) TẠM DỪNG lượt đọc chứ không báo lỗi → panel kẹt "loading" (G-007).
+  const failure = error ?? (isPending && isPaused ? OFFLINE_READ_ERROR : null);
+  if (failure !== null && failure !== undefined) {
+    return { status: 'error', label: describeError(toAppError(failure)).description };
+  }
+
+  return isPending ? { status: 'loading' } : { status: 'ready' };
+}
+
 /** Điểm ngắt bố cục hẹp — bảng thành thẻ, panel thành lớp phủ (hợp đồng, mục Đ-7). */
 export const COLLAPSE_BREAKPOINT_PX = 1024;
 
@@ -136,6 +161,7 @@ export const USER_MANAGEMENT_TEXT = {
   neverActive: 'Chưa hoạt động lần nào',
   selfRoleBlocked: 'Bạn không thể tự đổi vai của mình',
   selfDisableBlocked: 'Bạn không thể tự vô hiệu hoá tài khoản của mình',
+  selfRemoveBlocked: 'Bạn không thể tự xoá tài khoản của mình',
   lastAdminBlocked: 'Đây là quản trị cuối cùng, hệ thống cần ít nhất một người giữ vai này',
   forbidden:
     'Vai của bạn chưa quản lý được người dùng nên danh sách tài khoản không hiện; bảng dưới đây cho biết mỗi vai làm được những việc gì',
@@ -334,7 +360,12 @@ function buildRow(user: AdminUser, context: RowContext): UserRowModel {
     justChanged: context.justChangedIds.includes(user.id),
     roleChangeBlockedReason,
     disableBlockedReason,
-    removeBlockedReason: lastAdmin ? USER_MANAGEMENT_TEXT.lastAdminBlocked : null,
+    // BUG-P08-022: tự xoá bị BE chặn (422 USER_SELF_MODIFICATION) — `isSelf` thắng `lastAdmin`.
+    removeBlockedReason: isSelf
+      ? USER_MANAGEMENT_TEXT.selfRemoveBlocked
+      : lastAdmin
+        ? USER_MANAGEMENT_TEXT.lastAdminBlocked
+        : null,
   };
 }
 
@@ -483,6 +514,9 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
   const [isInviteOpen, setInviteOpen] = useState(false);
   const [rawEmails, setRawEmails] = useState('');
   const [inviteRole, setInviteRole] = useState<ProjectRole>('viewer');
+  /** BUG-P08-027: lỗi máy chủ gắn vào field `emails` — hiện ở chính ô nhập, tắt khi sửa chữ. */
+  const [inviteServerError, setInviteServerError] = useState<string | null>(null);
+  const inviteInFlightRef = useRef(false);
   const [removeUserId, setRemoveUserId] = useState<string | null>(null);
   const [removeEmail, setRemoveEmail] = useState('');
   /** Hàng vừa đổi vai xong: nền nháy đúng một nhịp `MOTION_DURATIONS_MS.slow` rồi tắt. */
@@ -640,7 +674,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
       gateway.notify({
         type: 'user.write-failed',
         title,
-        description: describeError(toAppError(error)).description,
+        description: describeError(asAppError(error)).description,
       });
     },
     [gateway],
@@ -827,7 +861,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
             outcome: 'failure',
             undo: variables.isUndo,
             durationMs: now() - startedAt,
-            errorKind: toAppError(error).kind,
+            errorKind: asAppError(error).kind,
           });
           notifyFailure(USER_MANAGEMENT_TEXT.roleChangeFailedTitle, error);
         },
@@ -901,6 +935,16 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
     [activityQuery.data],
   );
 
+  // Đang tải / lỗi không được rơi về "rỗng" (BUG-P08-015). Lỗi khi đã có dữ liệu cũ: giữ danh sách + báo lỗi.
+  const membershipsState = useMemo(
+    () => readState(membershipsQuery.isPending, membershipsQuery.error, membershipsQuery.fetchStatus === 'paused'),
+    [membershipsQuery.isPending, membershipsQuery.error, membershipsQuery.fetchStatus],
+  );
+  const activitiesState = useMemo(
+    () => readState(activityQuery.isPending, activityQuery.error, activityQuery.fetchStatus === 'paused'),
+    [activityQuery.isPending, activityQuery.error, activityQuery.fetchStatus],
+  );
+
   const detail = useMemo((): UserDetailModel | null => {
     if (selectedUserId === null) {
       return null;
@@ -908,8 +952,10 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
 
     const user = rowById.get(selectedUserId);
 
-    return user === undefined ? null : { user, memberships, activities };
-  }, [selectedUserId, rowById, memberships, activities]);
+    return user === undefined
+      ? null
+      : { user, memberships, membershipsState, activities, activitiesState };
+  }, [selectedUserId, rowById, memberships, membershipsState, activities, activitiesState]);
 
   /* ---- Mời người dùng --------------------------------------------------- */
 
@@ -929,9 +975,10 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
         parsedEmails.invalidEmails.length === 0,
       hintLabel: USER_MANAGEMENT_TEXT.inviteHint,
       ...inviteFeedback(parsedEmails),
+      ...(inviteServerError !== null ? { errorLabel: inviteServerError } : {}),
       isSubmitting: inviteMutation.isPending,
     }),
-    [isInviteOpen, rawEmails, parsedEmails, inviteRole, canManage, inviteMutation.isPending],
+    [isInviteOpen, rawEmails, parsedEmails, inviteRole, canManage, inviteMutation.isPending, inviteServerError],
   );
 
   /* ---- Xoá hẳn: bắt gõ đúng địa chỉ (A9) -------------------------------- */
@@ -989,11 +1036,12 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
     if (errorLabel !== null) {
       return 'error';
     }
-    if (isCollapsed) {
-      return 'collapsed';
-    }
+    // `empty` trước `collapsed`: dưới 1024 vẫn phải thấy "Chưa có người dùng nào khác" (BUG-P08-016, 37U-C-011).
     if (users.length <= 1) {
       return 'empty';
+    }
+    if (isCollapsed) {
+      return 'collapsed';
     }
 
     return pendingInviteCount > 0 ? 'partial' : 'success';
@@ -1110,15 +1158,22 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
       onCloseInvite: (): void => {
         setInviteOpen(false);
         setRawEmails('');
+        setInviteServerError(null);
       },
-      onInviteEmailsChange: setRawEmails,
+      onInviteEmailsChange: (value: string): void => {
+        setRawEmails(value);
+        setInviteServerError(null);
+      },
       onInviteRoleChange: setInviteRole,
       onSubmitInvite: (): void => {
         const { validEmails } = parseInviteEmails(rawEmails);
 
-        if (validEmails.length === 0) {
+        // 37W-B-001: a double-click holds the same handler for both clicks and `isPending` lags a render, so the 2nd
+        // click queued a 2nd lifecycle behind the 1st (2 POSTs). The ref flips at once.
+        if (validEmails.length === 0 || inviteInFlightRef.current) {
           return;
         }
+        inviteInFlightRef.current = true;
 
         const variables: InviteVariables = {
           emails: validEmails,
@@ -1137,9 +1192,16 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
             });
           },
           (error: unknown) => {
+            // Lượt ghi lạc quan đã bọc lỗi dây thành AppError (field nằm ở `params`) — đọc cả hai dạng.
+            const appParams = (error as { params?: { field?: unknown } } | null)?.params;
+            if ((readWireError(error)?.field ?? appParams?.field) === 'emails') {
+              setInviteServerError(describeError(asAppError(error)).description);
+            }
             notifyFailure(USER_MANAGEMENT_TEXT.inviteFailedTitle, error);
           },
-        );
+        ).finally(() => {
+          inviteInFlightRef.current = false;
+        });
       },
       onOpenRemove: (userId): void => {
         setRemoveUserId(userId);
@@ -1156,6 +1218,8 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
         }
 
         const userId = removeUserId;
+        // Email của tài khoản (BE lưu chữ thường), không phải chữ người dùng gõ khác hoa/thường.
+        const accountEmail = removeConfirm.user?.email ?? removeEmail.trim();
 
         void removeMutation.mutateAsync({ userId, confirmEmail: removeEmail.trim() }).then(
           () => {
@@ -1167,7 +1231,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
               title: USER_MANAGEMENT_TEXT.removedTitle,
               // Xoá hẳn KHÔNG hoàn tác được (A9) — nên thông báo này cố tình không mang
               // `undoTicket`. Đó là lý do nó đã hỏi trước bằng ô gõ lại địa chỉ.
-              description: removeEmail.trim(),
+              description: accountEmail,
             });
           },
           (error: unknown) => {
@@ -1195,6 +1259,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
       queryClient,
       rawEmails,
       removeConfirm.canConfirm,
+      removeConfirm.user?.email,
       removeEmail,
       removeMutation,
       removeUserId,

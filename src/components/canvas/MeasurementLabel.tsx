@@ -122,7 +122,7 @@ export function MeasurementLabel({
         <span
           className={cn(
             'block font-mono text-[13px] text-text-primary leading-none',
-            'px-2 py-1 rounded-[6px]',
+            'px-2 py-1 rounded-md',
             // Nền bg-surface 92% opacity
             'bg-bg-surface-92',
             // Viền hairline nhẹ

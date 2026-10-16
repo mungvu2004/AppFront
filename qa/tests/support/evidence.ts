@@ -5,6 +5,12 @@ import { expect, test, type Page } from '@playwright/test';
 
 /** `<E2E_RESULTS_DIR>/<E2E_RUN_ID>/evidence/` — same root as the reports in `playwright.config.ts`. */
 export const RUN_ID = process.env.E2E_RUN_ID ?? 'run-01';
+/**
+ * Slot part for users whose state can never be restored (avatar set, rate bucket spent): `RUN_ID` alone is reused by
+ * every round of a phase (fixed folder names pNN-rr, pNN-rf), so a second rerun met the avatar of the first
+ * (phase 07, p07-rr after RF). The process stamp makes it fresh per invocation; one invitation per such test and run.
+ */
+export const RUN_FRESH = `${RUN_ID}-${Date.now().toString(36)}`;
 export const EVIDENCE_DIR = join(process.env.E2E_RESULTS_DIR ?? 'F:/App/qa-results', RUN_ID, 'evidence');
 
 /** `qa.config.json` `rules` — the run's test-data prefix and mail domain (Mailpit catches that domain). */
@@ -26,6 +32,25 @@ export function testEmail(slug: string): string {
   const unique = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   return `${TEST_DATA_PREFIX}${slug}-${unique}@${TEST_EMAIL_DOMAIN}`;
 }
+
+/**
+ * `--repeat-each` copies of one test run in parallel (RR: 4 workers): same evidence file (EBUSY), same pool user (429 buckets).
+ * `''` for copy 0 (RF and R1 keep today's names), `-rep<N>` for copy N > 0.
+ */
+export const repSuffix = (): string => {
+  const index = test.info().repeatEachIndex;
+  return index > 0 ? `-rep${String(index)}` : '';
+};
+/** `slot` + `-rep<N>`; a slot that already carries it (it went through another helper) is left alone. */
+export const repSlot = (slot: string): string => {
+  const suffix = repSuffix();
+  return suffix === '' || slot.endsWith(suffix) ? slot : `${slot}${suffix}`;
+};
+/** `<id>_<slug>.png` / `.json` → `<id>_<slug>-rep<N>.png` for copy N > 0. */
+export const repName = (name: string): string => {
+  const suffix = repSuffix();
+  return suffix === '' ? name : name.replace(/(\.[a-z]+)$/u, `${suffix}$1`);
+};
 
 const EVIDENCE_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*\.png$/u;
 const JSON_EVIDENCE_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*\.json$/u;
@@ -187,6 +212,7 @@ export async function captureEvidence(
   if (!EVIDENCE_NAME.test(name)) {
     throw new Error(`Evidence name "${name}" does not match the Master Matrix pattern (<id>_<slug>.png)`);
   }
+  name = repName(name); // repeat copy N > 0 shoots its own file (the pattern still holds: `-rep<N>` is [A-Za-z0-9_-])
   if (takenThisProcess.has(name)) {
     throw new Error(`Evidence "${name}" was already captured by another step in this run`);
   }

@@ -320,7 +320,7 @@ export function NotificationBell({ unreadBadge, isOpen, onToggle, bellNudgeToken
         <Badge
           variant="neutral"
           noDot
-          className="absolute -right-1 -top-1 h-[16px] px-1 text-[11px] leading-none"
+          className="absolute -right-1 -top-1 h-4 px-1 text-[11px] leading-none"
         >
           {unreadBadge}
         </Badge>

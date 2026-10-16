@@ -182,6 +182,19 @@ function TableHead({
       )}
       aria-sort={ariaSort}
       onClick={isSortable ? handleSort : undefined}
+      // Keyboard sort (BUG-P08-004): focusable + Enter/Space, same handler as the click.
+      tabIndex={isSortable ? 0 : undefined}
+      onKeyDown={
+        isSortable
+          ? (event) => {
+              props.onKeyDown?.(event);
+              if (!event.defaultPrevented && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault();
+                handleSort?.();
+              }
+            }
+          : undefined
+      }
       // Every `Table.Head` sits in a `thead`: `scope` makes it a columnheader for every reader, not
       // only the ones that infer it from the position (BUG-115). A row header passes `scope="row"`.
       scope="col"

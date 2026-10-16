@@ -95,7 +95,7 @@ export const ComboboxSearch = forwardRef<HTMLInputElement, Omit<React.InputHTMLA
     return (
       <div className="p-2 border-b border-border-default">
         <div className="relative flex items-center">
-          <Search className="absolute left-2.5 h-[16px] w-[16px] text-text-muted pointer-events-none" aria-hidden="true" />
+          <Search className="absolute left-2.5 h-4 w-4 text-text-muted pointer-events-none" aria-hidden="true" />
           <input
             ref={mergedRef}
             id={searchId}
@@ -104,7 +104,7 @@ export const ComboboxSearch = forwardRef<HTMLInputElement, Omit<React.InputHTMLA
             aria-controls={listboxId}
             aria-expanded={true}
             className={cn(
-              'h-[36px] w-full rounded-lg bg-bg-sunken pl-9 pr-3 text-[14px] text-text-primary outline-none',
+              'h-9 w-full rounded-lg bg-bg-sunken pl-9 pr-3 text-[14px] text-text-primary outline-none',
               'focus:ring-2 focus:ring-accent',
               className
             )}
@@ -172,7 +172,7 @@ export const ComboboxItem = forwardRef<HTMLDivElement, ComboboxItemProps>(
         aria-selected={isSelected}
         tabIndex={-1}
         className={cn(
-          'flex h-[36px] cursor-pointer items-center justify-between rounded-lg px-3 text-[14px]',
+          'flex h-9 cursor-pointer items-center justify-between rounded-lg px-3 text-[14px]',
           'transition-colors duration-120',
           isSelected ? 'bg-bg-selected text-accent font-medium' : 'text-text-primary hover:bg-bg-hover',
           isHighlighted && !isSelected && 'bg-bg-hover',

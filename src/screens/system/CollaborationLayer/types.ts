@@ -168,6 +168,12 @@ export interface CollaborationLayerProps {
    * (`e2e/viewer3d.spec.ts` P2, `subtree intercepts pointer events`).
    */
   readonly presenceAnchorClassName?: string;
+  /**
+   * Khe ngoài lớp phủ (vd đầu màn `PascalViewer`) để đặt thanh hiện diện vào bằng portal,
+   * khi màn chủ không có góc canvas nào trống: Pascal có nút ở cả bốn góc (23R-F-002).
+   * Vắng ⇒ nổi trên canvas như cũ; `null` ⇒ khe chưa gắn, chưa vẽ thanh.
+   */
+  readonly presenceContainer?: HTMLElement | null | undefined;
 }
 
 /** Cổng dữ liệu. Hook gọi cổng; view không biết cổng tồn tại. */

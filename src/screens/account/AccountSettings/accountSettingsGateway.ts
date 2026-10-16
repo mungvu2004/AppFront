@@ -170,7 +170,8 @@ export function createAccountSettingsGateway(
 
     replaceAvatar: async (input) => {
       try {
-        return await (await getClient()).me.replaceAvatar({ body: input });
+        // BUG-P07-016: người bấm "Đặt ảnh" nhận ngay câu hạn mức, không chờ thang thử lại 429 của client.
+        return await (await getClient()).me.replaceAvatar({ body: input, failFastOnRateLimit: true });
       } catch (error) {
         // Nạp lười client hỏng: vẫn là một kết quả, không ném trôi.
         return { ok: false, error: toAppError(error) };

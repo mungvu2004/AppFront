@@ -180,7 +180,7 @@ export function OverlayComparisonCanvasDivider({
       tabIndex={isInteractive ? 0 : -1}
     >
       <span
-        className="w-[4px] bg-accent group-hover:w-[6px] group-focus-visible:w-[6px]"
+        className="w-1 bg-accent group-hover:w-1.5 group-focus-visible:w-1.5"
         style={{ transitionDuration: hoverDuration, transitionProperty: 'width' }}
       />
     </div>

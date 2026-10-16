@@ -69,7 +69,7 @@ export function NotificationRow({
 
   return (
     <motion.li
-      className="group relative flex min-h-[64px] items-start gap-3 rounded-md px-2 py-3"
+      className="group relative flex min-h-16 items-start gap-3 rounded-md px-2 py-3"
       initial={isArrived ? { opacity: 0, y: -12 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: durationSeconds('standard') }}
@@ -84,7 +84,7 @@ export function NotificationRow({
         />
       )}
 
-      <span className="relative mt-2 flex w-[6px] shrink-0 items-center justify-center">
+      <span className="relative mt-2 flex w-1.5 shrink-0 items-center justify-center">
         <motion.span
           aria-hidden="true"
           className="rounded-full bg-accent"
@@ -109,7 +109,7 @@ export function NotificationRow({
         <button
           type="button"
           onClick={() => onItemAction(item)}
-          className="flex min-h-6 rounded text-left text-[15px] leading-[20px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface max-sm:min-h-11"
+          className="flex min-h-6 rounded text-left text-[15px] leading-5 text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface max-sm:min-h-11"
         >
           <span>
             {!item.isRead && <span className="sr-only">{`${UNREAD_SR_HINT}. `}</span>}

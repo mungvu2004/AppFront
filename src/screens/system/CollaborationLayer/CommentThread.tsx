@@ -158,7 +158,7 @@ function CommentPopoverContent({ comment, canWrite, titleId, onClose, onFrameCom
   return (
     <>
       <div className="flex items-start justify-between gap-2">
-        <h3 id={titleId} className="text-[15px] font-medium leading-[20px] text-text-primary">
+        <h3 id={titleId} className="text-[15px] font-medium leading-5 text-text-primary">
           {OBJECT_LABEL} <code className="font-mono">{comment.objectId}</code>
         </h3>
         <IconButton
@@ -227,7 +227,7 @@ function CommentList({ comments, canWrite, isCollapsed, onClose, onFrameComment 
           isCollapsed ? 'flex-col items-stretch' : 'items-center justify-between',
         )}
       >
-        <h2 id={titleId} className="text-[15px] font-semibold leading-[20px] text-text-primary">
+        <h2 id={titleId} className="text-[15px] font-semibold leading-5 text-text-primary">
           {LIST_LABEL}
         </h2>
         <IconButton
@@ -260,7 +260,7 @@ function CommentList({ comments, canWrite, isCollapsed, onClose, onFrameComment 
                   ROW_FOCUS_STYLES,
                 )}
               >
-                <span className="text-[15px] leading-[20px] text-text-primary">
+                <span className="text-[15px] leading-5 text-text-primary">
                   {OBJECT_LABEL} <code className="font-mono">{comment.objectId}</code>
                 </span>
                 <span className="text-[13px] leading-[18px] text-text-muted">

@@ -102,13 +102,6 @@ export const keyRDescription = 'Bật hoặc tắt chế độ duyệt bàn phí
 /** Mô tả Mod+Z trong sổ phím: hoàn tác bằng ngăn xếp của chính màn (BUG-582). */
 export const keyUndoDescription = 'Hoàn tác thay đổi kích thước gần nhất';
 
-/**
- * Câu nói thật khi chưa có endpoint ghi lớp kích thước (F-08, BUG-577): mọi lần
- * duyệt và sửa chỉ nằm trong trang đang mở.
- */
-export const unsavedNotice =
-  'Kích thước chưa lưu lên máy chủ — tải lại trang sẽ mất các lần duyệt và sửa.';
-
 /** Nhãn trạng thái của một hàng (BUG-610): chữ đi kèm chấm màu, không chấm trơn. */
 export const rowStatusReviewedLabel = 'Đã duyệt';
 export const rowStatusUnreviewedLabel = 'Chưa duyệt';
@@ -235,7 +228,6 @@ export const DIMENSION_OCR_TEXT = {
     title: 'Đọc kích thước OCR',
     breadcrumb: 'Dự án > Đọc kích thước OCR',
     description: 'Đối chiếu số OCR đọc được với ảnh cắt gốc, sửa số sai rồi duyệt từng chuỗi.',
-    unsavedNotice,
     canvasEmptyNotice,
     canvasAriaLabel,
     dimensionListAriaLabel,

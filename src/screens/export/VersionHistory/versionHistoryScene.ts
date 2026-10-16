@@ -99,6 +99,7 @@ export function unavailableReasonOf(
   canShowCurrentModel3d: boolean,
   graph: NormalizedSpatial | null,
   scene: SceneConversion,
+  oldVersionLabel: string | null = null,
 ): string | null {
   if (!canShowCurrentModel3d) {
     return NO_SCENE_REASON;
@@ -107,7 +108,10 @@ export function unavailableReasonOf(
     return NO_MODEL_REASON;
   }
   if (scene.failed || scene.scene === null) {
-    return BROKEN_MODEL_REASON;
+    // Cảnh đang dựng là của bản cũ đã chọn (B-019): nói đúng bản ấy, không đổ cho mô hình hiện tại.
+    return oldVersionLabel === null
+      ? BROKEN_MODEL_REASON
+      : `Phiên bản ${oldVersionLabel} chưa dựng được thành cảnh, nên tab này để trống`;
   }
 
   return null;
@@ -148,7 +152,12 @@ export function buildVisualModel(input: VisualModelInput): VisualDiffModel {
 
   return {
     isAvailable,
-    unavailableReason: unavailableReasonOf(capabilities.canShowCurrentModel3d, graph, scene),
+    unavailableReason: unavailableReasonOf(
+      capabilities.canShowCurrentModel3d,
+      graph,
+      scene,
+      input.isOldVersion === true ? leftVersionLabel : null,
+    ),
     isBuilding: isAvailable && input.isFetchingDiff,
     caption:
       input.isOldVersion === true && leftVersionLabel !== null

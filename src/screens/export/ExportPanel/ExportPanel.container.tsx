@@ -220,11 +220,15 @@ function ExportPanelRouteBody() {
 export function ExportPanelRoute() {
   const { projectId } = useParams<{ projectId: string }>();
 
+  // Khung `h-dvh`: không vỏ nào cấp chiều cao cho route này, thiếu nó thì `h-full` của màn ra
+  // auto và chân dính nằm giữa trang thay vì đáy khung nhìn (QA-06b K1, khuôn BUG-520).
   return (
-    <Toast.Provider>
-      <ProjectSpatialGate projectId={projectId}>
-        <ExportPanelRouteBody />
-      </ProjectSpatialGate>
-    </Toast.Provider>
+    <div className="h-dvh">
+      <Toast.Provider>
+        <ProjectSpatialGate projectId={projectId}>
+          <ExportPanelRouteBody />
+        </ProjectSpatialGate>
+      </Toast.Provider>
+    </div>
   );
 }

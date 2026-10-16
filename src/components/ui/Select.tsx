@@ -101,7 +101,7 @@ const SelectLabel = forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLL
       <label
         ref={ref}
         htmlFor={triggerId}
-        className={cn('mb-2 text-[14px] font-medium leading-[20px] text-text-secondary', className)}
+        className={cn('mb-2 text-[14px] font-medium leading-5 text-text-secondary', className)}
         {...props}
       >
         {children}
@@ -284,7 +284,7 @@ const SelectItem = forwardRef<HTMLDivElement, SelectItemProps>(
         aria-selected={isSelected}
         tabIndex={-1}
         className={cn(
-          'flex h-[36px] cursor-pointer items-center justify-between rounded-lg px-3 text-[14px]',
+          'flex h-9 cursor-pointer items-center justify-between rounded-lg px-3 text-[14px]',
           'transition-colors duration-120',
           isSelected
             ? 'bg-bg-selected text-accent font-medium'

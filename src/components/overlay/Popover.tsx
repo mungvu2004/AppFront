@@ -211,7 +211,7 @@ export function Popover({
           animate={{ opacity: 1, y: 0, transition: ENTER_TRANSITION }}
           exit={{ opacity: 0, transition: EXIT_TRANSITION }}
           className={cn(
-            'flex flex-col gap-3 rounded-[12px] bg-bg-surface p-3 shadow-float outline-none',
+            'flex flex-col gap-3 rounded-xl bg-bg-surface p-3 shadow-float outline-none',
             className,
           )}
           style={

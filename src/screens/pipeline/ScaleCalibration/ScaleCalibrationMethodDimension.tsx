@@ -91,7 +91,7 @@ export function ScaleCalibrationMethodDimension({ actions, dimension }: ScaleCal
                 aria-label={`${ROW_ARIA_LABEL_PREFIX}${row.valueLabel} ${UNIT_MM}`}
                 aria-selected={isSelected}
                 className={clsx(
-                  'flex w-full items-center gap-2 rounded-[8px] border px-3 py-2 text-left outline-none transition-colors duration-standard',
+                  'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left outline-none transition-colors duration-standard',
                   'hover:bg-bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
                   isSelected ? 'border-accent bg-accent-wash' : 'border-border-default bg-bg-surface',
                   row.isLowConfidence && 'bg-state-attention-tint',

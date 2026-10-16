@@ -18,7 +18,7 @@
 
 import { createElement, type ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { alignFloors, type FloorAlignmentReport } from '@/domain/axes/alignFloors';
@@ -30,6 +30,7 @@ import { pixels } from '@/domain/units/scale';
 import { millimetres, type Millimetres } from '@/domain/units/types';
 import type { Announcer } from '@/lib/input/announcer';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
+import { NotificationHost } from '@/components/feedback/NotificationHost';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
@@ -296,6 +297,28 @@ describe('căn chỉnh tự động giữa các tầng', () => {
     expect(mounted.result.current.historyStepCount()).toBe(stepsBefore);
   });
 
+  it('[G12] căn tự động chỉ dời trục, không đụng tường (autosave sẽ PUT tường)', async () => {
+    const graph = createAxisGridSampleGraph({ floors: ALIGNABLE_FLOORS });
+    const mounted = await mountSettled({ gateway: createMockAxisGridManagerGateway({ graph }) });
+    const wallsOf = (): string => {
+      const current = storeGraph();
+
+      return JSON.stringify((current?.byKind.wall ?? []).map((id) => current?.byId[id]));
+    };
+    const wallsBefore = wallsOf();
+    const axesBefore = axisCoordinates(storeGraph());
+
+    await act(async () => {
+      mounted.result.current.onAutoAlign();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(axisCoordinates(storeGraph())).not.toEqual(axesBefore);
+    });
+
+    expect(wallsOf()).toBe(wallsBefore);
+  });
+
   it('phát toast có vé hoàn tác sau khi căn tự động (A8)', async () => {
     const graph = createAxisGridSampleGraph({ floors: ALIGNABLE_FLOORS });
     const notifications = createNotificationBus();
@@ -386,6 +409,30 @@ describe('khoảng cách tối thiểu giữa hai trục', () => {
     });
 
     expect(mounted.result.current.spacingViolation).toBeNull();
+  });
+
+  it('[BUG-595/G10] sau nhiều lượt kéo, MỘT Ctrl+Z trả đúng vị trí trước lượt kéo cuối', async () => {
+    const mounted = await mountSettled();
+    const drag = async (mm: number): Promise<void> => {
+      await act(async () => {
+        mounted.result.current.onAxisDrag(
+          axisRowId('vertical', '2'),
+          AXIS_GRID_FIXTURE_SCALE.millimetresToPixels(millimetres(mm)),
+        );
+        await Promise.resolve();
+      });
+    };
+
+    await drag(150);
+    await drag(400);
+    const afterSecond = axisCoordinates(storeGraph());
+
+    await drag(650);
+    expect(axisCoordinates(storeGraph())).not.toEqual(afterSecond);
+
+    await pressKey(mounted.registry, 'z', { ctrlKey: true });
+
+    expect(axisCoordinates(storeGraph())).toEqual(afterSecond);
   });
 });
 
@@ -713,6 +760,160 @@ describe('QA-04c SCR-19', () => {
       expect(rowsOf(mounted)).toHaveLength(before.length - 1);
     });
     expect(mounted.result.current.historyStepCount()).toBe(1);
+  });
+
+  it('[19-A-006] xoá một trục đã lưu: toast "Đã xoá trục X." có vé hoàn tác còn hiệu lực', async () => {
+    const notifications = createNotificationBus();
+    const mounted = await mountSettled({ notifications });
+    const target = rowsOf(mounted)[0];
+
+    expect(target).toBeDefined();
+
+    await act(async () => {
+      mounted.result.current.onAxisRemove(target?.id ?? '');
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+    expect(notifications.list()[0]?.undoTicket?.getStatus()).toBe('active');
+    expect(notifications.list()[0]?.title).toMatch(/^Đã xoá trục /u);
+  });
+
+  it('[19-A-011] xoá lần hai sau khi toast đầu đã đóng (8 s): lại hiện một toast mới có vé hoàn tác', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] });
+    const notifications = createNotificationBus();
+    render(createElement(NotificationHost, { bus: notifications }));
+    const mounted = await mountSettled({ notifications });
+    const remove = async (): Promise<void> => {
+      const target = rowsOf(mounted)[0];
+
+      expect(target).toBeDefined();
+      await act(async () => {
+        mounted.result.current.onAxisRemove(target?.id ?? '');
+        await Promise.resolve();
+      });
+    };
+
+    await remove();
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+    expect(screen.getByText(/^Đã xoá trục /u)).toBeTruthy();
+    await act(async () => {
+      vi.advanceTimersByTime(9000); // UNDO_WINDOW_MS = 8000
+      await Promise.resolve();
+    });
+    expect(notifications.list()).toHaveLength(0);
+
+    await remove();
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+    expect(notifications.list()[0]?.undoTicket?.getStatus()).toBe('active');
+    expect(screen.getByText(/^Đã xoá trục /u)).toBeTruthy();
+  });
+
+  it('[19-A-011] xoá, Mod+Z, xoá lại trong 5 s rồi đợi toast gộp hết: lần xoá kế vẫn hiện toast mới', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] });
+    const notifications = createNotificationBus();
+    render(createElement(NotificationHost, { bus: notifications }));
+    const mounted = await mountSettled({ notifications });
+    const remove = async (): Promise<void> => {
+      const target = rowsOf(mounted)[0];
+
+      expect(target).toBeDefined();
+      await act(async () => {
+        mounted.result.current.onAxisRemove(target?.id ?? '');
+        await Promise.resolve();
+      });
+    };
+    const advance = async (ms: number): Promise<void> => {
+      await act(async () => {
+        vi.advanceTimersByTime(ms);
+        await Promise.resolve();
+      });
+    };
+
+    await remove();
+    await advance(3000);
+    await act(async () => {
+      mounted.result.current.onUndo();
+      await Promise.resolve();
+    });
+    await remove(); // inside the 5 s group window of the first toast
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+    await advance(9000);
+    expect(notifications.list()).toHaveLength(0);
+
+    await remove();
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+    expect(screen.getByText(/^Đã xoá trục /u)).toBeTruthy();
+  });
+
+  it('[19-A-011] xoá hết các trục của một nhóm, mỗi lần cách 9 s: lần nào cũng hiện toast, kể cả trục cuối', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] });
+    const notifications = createNotificationBus();
+    render(createElement(NotificationHost, { bus: notifications }));
+    const mounted = await mountSettled({ notifications });
+    const firstGroupRows = () => mounted.result.current.viewModel.groups.find((group) => group.rows.length > 0)?.rows ?? [];
+    const guard = firstGroupRows().length;
+
+    expect(guard).toBeGreaterThan(0);
+
+    for (let step = 0; step < guard; step += 1) {
+      const target = firstGroupRows()[0];
+
+      await act(async () => {
+        mounted.result.current.onAxisRemove(target?.id ?? '');
+        await Promise.resolve();
+      });
+      await waitFor(() => {
+        expect(notifications.list()).toHaveLength(1);
+      });
+      expect(screen.getByText(/^Đã xoá trục /u)).toBeTruthy();
+      await act(async () => {
+        vi.advanceTimersByTime(9000);
+        await Promise.resolve();
+      });
+      expect(notifications.list()).toHaveLength(0);
+    }
+  });
+
+  it('[19-A-011, BUG-722] xoá lần hai: toast gọi trục bằng nhãn đang hiện trên hàng, không bằng nhãn cũ trong kho', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] });
+    const notifications = createNotificationBus();
+    const mounted = await mountSettled({ notifications });
+    const firstGroupRows = () => mounted.result.current.viewModel.groups.find((group) => group.rows.length > 0)?.rows ?? [];
+    const titles: string[] = [];
+    const shown: string[] = [];
+
+    for (let step = 0; step < 2; step += 1) {
+      const target = firstGroupRows()[0];
+
+      expect(target).toBeDefined();
+      shown.push(`Đã xoá trục ${target?.label ?? ''}.`);
+      await act(async () => {
+        mounted.result.current.onAxisRemove(target?.id ?? '');
+        await Promise.resolve();
+      });
+      await waitFor(() => {
+        expect(notifications.list()).toHaveLength(1);
+      });
+      titles.push(notifications.list()[0]?.title ?? '');
+      await act(async () => {
+        vi.advanceTimersByTime(9000); // UNDO_WINDOW_MS = 8000; same-type toasts merge within 5 s
+        await Promise.resolve();
+      });
+    }
+
+    // the rows relabel after the first delete (labelAxes), so the second click is on a row that SHOWS the first label again
+    expect(titles).toEqual(shown);
   });
 
   it('[BUG-594] kéo một trục của bản xem trước: có tác dụng ngay, một bước hoàn tác', async () => {

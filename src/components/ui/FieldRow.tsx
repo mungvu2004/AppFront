@@ -21,6 +21,11 @@ export interface FieldRowProps extends React.HTMLAttributes<HTMLDivElement> {
    * columns share a 20 px line, so the first lines sit level (nợ B #3, BUG-121).
    */
   isText?: boolean;
+  /**
+   * Narrow screen: the label sits above the value and both take the full width, so a 375 px
+   * card does not squeeze the value into a ~160 px column (BUG-497, BUG-502).
+   */
+  isStacked?: boolean;
 }
 
 export function FieldRow({
@@ -33,6 +38,7 @@ export function FieldRow({
   flash,
   collapsed,
   isText,
+  isStacked,
   className,
   ...props
 }: FieldRowProps) {
@@ -42,7 +48,7 @@ export function FieldRow({
     return (
       <div
         className={cn(
-          'flex items-start min-h-[36px] py-2',
+          'flex items-start min-h-9 py-2',
           !isLast && 'border-b border-border-default',
           className
         )}
@@ -61,7 +67,8 @@ export function FieldRow({
   return (
     <div
       className={cn(
-        'flex items-start min-h-[36px] py-2 transition-colors duration-340',
+        'flex items-start min-h-9 py-2 transition-colors duration-340',
+        isStacked && 'flex-col gap-1',
         !isLast && 'border-b border-border-default',
         flash && 'bg-accent-wash',
         isReadOnly && 'opacity-60',
@@ -71,16 +78,16 @@ export function FieldRow({
     >
       {/*
         Nhãn 13 px, căn giữa trong đúng ô 36 px của giá trị (\`h-9\`) — \`pt-[9px]\` cũ lệch ~5 px so với
-        giá trị căn giữa, và nhãn 14 px đậm trông to hơn giá trị (BUG-613).
+        giá trị căn giữa, và nhãn 14 px đậm trông to hơn giá trị (BUG-613). Xếp dọc (\`isStacked\`): nhãn ở trên, rộng hết.
       */}
-      <div className={cn('w-[40%] flex-shrink-0 pr-4', !isText && 'flex min-h-[36px] items-center')}>
-        <span className="text-[13px] leading-[20px] text-text-secondary">
+      <div className={cn('flex-shrink-0', isStacked ? 'w-full' : ['w-[40%] pr-4', !isText && 'flex min-h-9 items-center'])}>
+        <span className="text-[13px] leading-5 text-text-secondary">
           {label}
         </span>
       </div>
-      <div className={cn('w-[60%] flex-shrink-0', isText && 'leading-[20px]')}>
+      <div className={cn(isStacked ? 'w-full' : 'w-[60%]', 'flex-shrink-0', isText && 'leading-5')}>
         {isMixed ? (
-          <span className="flex h-[36px] items-center text-[14px] text-text-muted">—</span>
+          <span className="flex h-9 items-center text-[14px] text-text-muted">—</span>
         ) : (
           children
         )}

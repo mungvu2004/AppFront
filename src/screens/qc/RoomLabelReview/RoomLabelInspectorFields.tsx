@@ -130,7 +130,7 @@ export function RoomLabelConfidenceBlock({
       ) : (
         <div
           aria-label={crop.alt}
-          className="shrink-0 overflow-hidden rounded-[8px] border border-border-default bg-bg-sunken"
+          className="shrink-0 overflow-hidden rounded-lg border border-border-default bg-bg-sunken"
           role="img"
           style={
             {
@@ -165,12 +165,12 @@ export function RoomLabelNoticeList({ notices }: RoomLabelNoticeListProps) {
       <h4 className="text-[12px] font-semibold uppercase tracking-wide text-text-muted">{NOTICES_TITLE}</h4>
       <ul className="flex flex-col gap-2">
         {notices.map((notice) => (
-          <li className="flex flex-col gap-1 rounded-[8px] bg-bg-sunken px-2.5 py-2" key={notice.ruleCode}>
+          <li className="flex flex-col gap-1 rounded-lg bg-bg-sunken px-2.5 py-2" key={notice.ruleCode}>
             <span className="text-[12px] font-semibold text-text-secondary">{notice.ruleName}</span>
             <p className="text-[13px] text-text-primary">{notice.message}</p>
             <p className="text-[13px] text-text-secondary">{notice.suggestion}</p>
             <a
-              className="inline-flex min-h-6 w-fit items-center rounded-[4px] text-[13px] text-accent underline outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              className="inline-flex min-h-6 w-fit items-center rounded text-[13px] text-accent underline outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               href={notice.ruleRouteHref}
             >
               {NOTICE_LINK_LABEL}

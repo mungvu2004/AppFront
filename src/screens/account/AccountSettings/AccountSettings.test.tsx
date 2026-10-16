@@ -13,10 +13,13 @@
 
 import { readFileSync } from 'node:fs';
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render as renderRaw, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NotificationHost } from '@/components/feedback/NotificationHost';
+import viMessages from '@/i18n/vi.json';
+import { useStore } from '@/store';
 import { createNotificationBus } from '@/lib/mutations/notificationBus';
 import { CONTRAST_MINIMUM_BODY, checkContrast, parsePalette } from '@/lib/coloring/legend';
 import type { ColorTokenName } from '@/lib/coloring/scales';
@@ -27,7 +30,7 @@ import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
-import { renderWithProviders } from '@/lib/testing/render';
+import { renderWithProviders as renderBare } from '@/lib/testing/render';
 import {
   SEVEN_STATES,
   createSevenStateScenarios,
@@ -49,6 +52,7 @@ import {
 import { NOTIFICATION_CHANNELS, buildShortcutRows } from './useAccountTables';
 import {
   ACCOUNT_AUTOSAVE_DEBOUNCE_MS,
+  ACCOUNT_SAVED_UNDO_TITLE,
   toSaveState,
   type AccountSettingsViewModel,
 } from './useAccountSettings';
@@ -79,6 +83,11 @@ vi.mock('./useAccountPreferences', async () => {
     },
   };
 });
+
+/** Đầu trang có `<Link>` về bảng điều khiển (33P-A-010), nên mọi lần vẽ màn cần một bộ định tuyến. */
+const renderWithProviders = (ui: Parameters<typeof renderBare>[0]) =>
+  renderBare(<MemoryRouter>{ui}</MemoryRouter>);
+const render = (ui: Parameters<typeof renderRaw>[0]) => renderRaw(<MemoryRouter>{ui}</MemoryRouter>);
 
 beforeEach(() => {
   mockCapturedPort = null;
@@ -144,6 +153,22 @@ describe('khung của màn', () => {
     expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
   });
 
+  it('[33P-A-010] đầu trang có liên kết thật về bảng điều khiển, đứng trước h1, với bàn phím tới được', async () => {
+    const { gateway } = createRecordingGateway();
+
+    renderWithProviders(<AccountSettingsContainer gateway={gateway} />);
+
+    const exit = await screen.findByRole('link', { name: viMessages.account.backToDashboard });
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Cài đặt tài khoản' });
+
+    expect(exit.getAttribute('href')).toBe(ROUTES.dashboard);
+    expect(exit.getAttribute('href')).toBe('/');
+    expect(exit.tabIndex).toBeGreaterThanOrEqual(0);
+    // Liên kết nằm trong <header> cùng h1 và đứng trước nó trong thứ tự đọc/Tab.
+    expect(exit.closest('header')).toBe(h1.closest('header'));
+    expect(exit.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('chuỗi hiển thị là tiếng Việt có dấu, và cây render tiếp cận được', async () => {
     const { gateway } = createRecordingGateway();
 
@@ -195,6 +220,8 @@ describe('lỗi đọc cấp trang', () => {
 
     expect(screen.queryByRole('heading', { level: 2, name: 'Hồ sơ' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Thử lại' })).toBeTruthy();
+    // BUG-504: chưa tải được thì không có gì để lưu — không chip "Chưa có thay đổi" cạnh banner lỗi.
+    expect(screen.queryByText('Chưa có thay đổi')).toBeNull();
   });
 });
 
@@ -370,6 +397,53 @@ describe('B-V12b-03 — sửa hồ sơ có toast "Hoàn tác", và hoàn tác gh
 
     expect(undoButtons()).toHaveLength(1);
   });
+
+  // QD-07-1: lượt chỉ-giữ-trong-phiên có toast "Hoàn tác" với câu riêng (không nói "Đã lưu").
+  async function mountEmpty() {
+    const { gateway } = createRecordingGateway();
+    const bus = createNotificationBus({ now: () => Date.now() });
+
+    renderWithProviders(
+      <>
+        <AccountSettingsContainer gateway={gateway} notifications={bus} />
+        <NotificationHost bus={bus} />
+      </>,
+    );
+    await advanceUntil(() => screen.queryByRole('switch', { name: 'Hiện lưới 100 mm' }) !== null);
+  }
+
+  it('[33R-A-016] đổi công tắc "Hiện lưới 100 mm" có toast riêng và Hoàn tác trả công tắc về cũ', async () => {
+    await mountEmpty();
+    const grid = (): HTMLElement => screen.getByRole('switch', { name: 'Hiện lưới 100 mm' });
+
+    expect(grid()).toBeChecked();
+    fireEvent.click(grid());
+    expect(grid()).not.toBeChecked();
+    await advance(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+
+    expect(screen.getByText(viMessages.account.savedLocalToast)).toBeInTheDocument();
+    expect(screen.queryByText(ACCOUNT_SAVED_UNDO_TITLE)).toBeNull();
+    expect(undoButtons()).toHaveLength(1);
+
+    fireEvent.click(undoButtons()[0] as HTMLElement);
+    await advance(0);
+    expect(grid()).toBeChecked();
+  });
+
+  it('[33R-A-017] Hoàn tác lần đổi chủ đề đầu tiên trả radio và <html> về chủ đề trước đó', async () => {
+    useStore.getState().setTheme('light');
+    await mountEmpty();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Tối' }));
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    await advance(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+    expect(screen.getByText(viMessages.account.savedLocalToast)).toBeInTheDocument();
+
+    fireEvent.click(undoButtons()[0] as HTMLElement);
+    await advance(0);
+    expect(screen.getByRole('radio', { name: 'Sáng' })).toBeChecked();
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+  });
 });
 
 /* ========================================================================== */
@@ -475,6 +549,7 @@ function vmFor(
         flashedField: isPartial ? 'fullName' : null,
         rowClassName: DENSITY_ROW_CLASS.comfortable,
         motionOff,
+        isStacked: false,
       },
       appearance: {
         theme: 'light',
@@ -490,6 +565,7 @@ function vmFor(
         flashedField: null,
         rowClassName: DENSITY_ROW_CLASS.comfortable,
         motionOff,
+        isStacked: false,
       },
     },
     tables: {

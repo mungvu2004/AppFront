@@ -88,6 +88,8 @@ function FormatCard({ format, isLoading, blockedCaption, onSelect }: FormatCardP
       type="button"
       role="radio"
       aria-checked={format.isSelected}
+      // Roving tabindex: chỉ thẻ đang chọn nằm trong thứ tự Tab, mũi tên đi giữa các thẻ.
+      tabIndex={format.isSelected ? 0 : -1}
       onClick={() => {
         onSelect(format.id);
       }}
@@ -141,7 +143,30 @@ export function ExportPanelFormats({
   onSelectFormat,
 }: ExportPanelFormatsProps) {
   return (
-    <div role="radiogroup" aria-label="Định dạng xuất" className="flex flex-col gap-3">
+    <div
+      role="radiogroup"
+      aria-label="Định dạng xuất"
+      className="flex flex-col gap-3"
+      onKeyDown={(event) => {
+        const step =
+          event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : 0;
+
+        if (step === 0 || formats.length === 0) {
+          return;
+        }
+
+        event.preventDefault();
+        const radios = event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]');
+        const current = Array.from(radios).findIndex((radio) => radio === document.activeElement);
+        const next = (Math.max(current, 0) + step + formats.length) % formats.length;
+        const target = formats[next];
+
+        if (target !== undefined) {
+          onSelectFormat(target.id);
+          radios[next]?.focus();
+        }
+      }}
+    >
       {formats.map((format) => (
         <FormatCard
           key={format.id}

@@ -153,11 +153,21 @@ export interface UserActivityRowModel {
   readonly objectHref: string | null;
 }
 
+/** Trạng thái đọc một phần của panel chi tiết (BUG-P08-015): đang tải / lỗi kèm câu / xong. */
+export type DetailReadState =
+  | { readonly status: 'ready' }
+  | { readonly status: 'loading' }
+  | { readonly status: 'error'; readonly label: string };
+
 export interface UserDetailModel {
   readonly user: UserRowModel;
   readonly memberships: readonly UserMembershipRowModel[];
+  /** Vắng = `ready`. */
+  readonly membershipsState?: DetailReadState;
   /** Mười thao tác gần nhất. */
   readonly activities: readonly UserActivityRowModel[];
+  /** Vắng = `ready`. */
+  readonly activitiesState?: DetailReadState;
 }
 
 /* ── Thanh công cụ và dải tóm tắt ─────────────────────────────────────────────────────── */

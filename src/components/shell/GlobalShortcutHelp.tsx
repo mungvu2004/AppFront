@@ -190,7 +190,7 @@ export function GlobalShortcutHelp({ isOpen, onClose }: GlobalShortcutHelpProps)
               ease: EASE.out,
             }}
             className={cn(
-              'relative bg-bg-surface rounded-[16px] shadow-modal pointer-events-auto',
+              'relative bg-bg-surface rounded-2xl shadow-modal pointer-events-auto',
               'w-full max-w-[480px] max-h-[80vh] overflow-y-auto',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
               'focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',

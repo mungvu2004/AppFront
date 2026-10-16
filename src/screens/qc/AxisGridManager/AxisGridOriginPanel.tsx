@@ -63,7 +63,7 @@ function OffsetFieldRow({ label, text, suffix, isLast = false }: OffsetFieldRowP
   return (
     /* BUG-613: giá trị là chữ, không phải ô 36 px — `isText` cho nhãn và số chung một dòng 20 px. */
     <FieldRow isLast={isLast} isText label={label}>
-      <span className="flex items-center gap-0.5 font-mono text-[14px] leading-[20px] tabular-nums text-text-primary">
+      <span className="flex items-center gap-0.5 font-mono text-[14px] leading-5 tabular-nums text-text-primary">
         <span>{text}</span>
         <span className="text-text-secondary">{suffix}</span>
       </span>
@@ -84,7 +84,7 @@ export function AxisGridOriginPanel({
   const isUnmeasured = origin.anchorOptions.length === 0;
 
   return (
-    <div className="flex w-[344px] shrink-0 flex-col gap-4 rounded-[12px] bg-bg-surface p-5 shadow-panel max-lg:w-full">
+    <div className="flex w-[344px] shrink-0 flex-col gap-4 rounded-xl bg-bg-surface p-5 shadow-panel max-lg:w-full">
       <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
 
       {unavailableNotice !== null ? (

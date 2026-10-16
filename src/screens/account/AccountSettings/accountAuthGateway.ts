@@ -55,7 +55,7 @@ export type AccountAuthFailure =
 
 /** Lỗi của N13. `retryAfterSeconds` chỉ có khi `rate-limited` mà máy chủ kèm số giây. */
 export interface ChangePasswordFailure {
-  readonly reason: 'wrong-current-password' | 'rate-limited' | 'unavailable';
+  readonly reason: 'wrong-current-password' | 'rate-limited' | 'unauthorized' | 'unavailable';
   readonly retryAfterSeconds?: number;
 }
 
@@ -186,6 +186,11 @@ export function createAccountAuthGateway(
               : {}),
           },
         };
+      }
+
+      // 401: phiên bị thu hồi giữa chừng; lớp phiên xử lý, không phải "không khả dụng".
+      if (wire?.status === 401) {
+        return { ok: false, error: { reason: 'unauthorized' } };
       }
 
       return { ok: false, error: { reason: 'unavailable' } };

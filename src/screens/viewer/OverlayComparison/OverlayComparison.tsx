@@ -89,13 +89,13 @@ const ZOOM_BUTTON_STEP = 1.25;
 
 /** Nút chữ của liên kết lỗi: cùng khuôn `DimensionOcrReview.tsx` (A1, A2). */
 const ERROR_LINK_CLASS_NAME =
-  'self-center rounded-[6px] px-1.5 py-0.5 text-[13px] text-accent ' +
+  'self-center rounded-md px-1.5 py-0.5 text-[13px] text-accent ' +
   'transition-colors duration-120 hover:bg-accent-wash ' +
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
 /** Chữ thường của trạng thái đang tải: không có màu nào trong ba màu A4 phù hợp. */
 const LOADING_NOTICE_CLASS_NAME =
-  'rounded-[8px] bg-bg-surface px-3 py-2 text-center text-[13px] text-text-secondary shadow-overlay';
+  'rounded-lg bg-bg-surface px-3 py-2 text-center text-[13px] text-text-secondary shadow-overlay';
 
 /**
  * Mức màu của khối thông báo nổi, đúng ba màu của A4.
@@ -168,7 +168,7 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
       // Dưới 1024 bảng số liệu xuống dưới canvas: cạnh nhau thì canvas còn quá hẹp cho thanh công cụ (BUG-318, BUG-327).
       // Cao bằng khung nhìn: route nằm trong `ScreenMain` (display: contents) không cho `h-full` một chiều
       // cao, nên màn co theo panel (~290 px ở 1024) và canvas còn 0 px dưới 1024 (QA-04 nợ B-3).
-      className="relative flex h-screen min-h-0 w-full flex-col bg-bg-app lg:flex-row"
+      className="relative flex h-screen min-h-0 w-full flex-col overflow-x-clip bg-bg-app lg:flex-row"
       role="region"
     >
       {/* Dưới 1024 thanh công cụ nằm TRÊN canvas (trong luồng), không đè ~45% khung vẽ ở 375 (BUG-634). */}

@@ -177,7 +177,7 @@ export function AppShell({
       {/* ── Liên kết bỏ qua — phần tử focus đầu tiên của trang ─────────── */}
       <a
         href={`#${SKIP_LINK.targetDomId}`}
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:px-3 focus:py-2 focus:rounded-[8px] focus:bg-bg-surface focus:text-text-primary focus:shadow-panel focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 outline-none text-[13px]"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:px-3 focus:py-2 focus:rounded-lg focus:bg-bg-surface focus:text-text-primary focus:shadow-panel focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 outline-none text-[13px]"
         style={{ zIndex: Z_INDEX.toast }}
       >
         {SKIP_LINK.label}
@@ -185,14 +185,14 @@ export function AppShell({
 
       {/* ── Top bar ─────────────────────────────────────────────── 56px ── */}
       <header
-        className="h-[56px] shrink-0 flex items-center px-4 gap-3 w-full"
+        className="h-14 shrink-0 flex items-center px-4 gap-3 w-full"
         data-region="topBar"
         id={FOCUS_REGIONS.topBar.domId}
         aria-label={FOCUS_REGIONS.topBar.label}
       >
         {/* Logo */}
         <div
-          className="w-8 h-8 bg-accent rounded-[8px] flex items-center justify-center shrink-0"
+          className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center shrink-0"
           aria-hidden="true"
         >
           <Box className="w-[18px] h-[18px] text-white" />
@@ -236,7 +236,7 @@ export function AppShell({
 
         {/* ── Rail icon ── 56px ── */}
         <div
-          className="w-[56px] shrink-0 flex flex-col items-center py-2 gap-1"
+          className="w-14 shrink-0 flex flex-col items-center py-2 gap-1"
           role="toolbar"
           data-region="toolbar"
           id={FOCUS_REGIONS.toolbar.domId}
@@ -262,7 +262,7 @@ export function AppShell({
 
         {/* ── Canvas ── flex-1 min-w-[640px] ── */}
         <main
-          className="flex-1 min-w-[640px] bg-bg-surface rounded-[12px] shadow-panel overflow-hidden relative outline-none"
+          className="flex-1 min-w-[640px] bg-bg-surface rounded-xl shadow-panel overflow-hidden relative outline-none"
           data-region="canvas"
           id={FOCUS_REGIONS.canvas.domId}
           aria-label={FOCUS_REGIONS.canvas.label}

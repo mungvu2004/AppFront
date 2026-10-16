@@ -75,7 +75,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                 without the CSS — jsdom in a unit test, an extension parsing the
                 DOM — otherwise computes the button's name as its label twice
                 over ("Thu hồi Thu hồi"). Saying it here makes the two agree. */}
-            <span aria-hidden="true" className="invisible flex items-center gap-[8px]">
+            <span aria-hidden="true" className="invisible flex items-center gap-2">
               {leadIcon && <span className="w-[18px] shrink-0" />}
               <span className="whitespace-nowrap">{children}</span>
               {iconAfter && <span className="w-[18px] shrink-0" />}
@@ -83,7 +83,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             </span>
 
             {/* Visible content */}
-            <span className="absolute inset-0 flex items-center justify-center gap-[8px]">
+            <span className="absolute inset-0 flex items-center justify-center gap-2">
               {loading ? (
                 <Loader2 className="h-[18px] w-[18px] shrink-0 animate-spin" />
               ) : (

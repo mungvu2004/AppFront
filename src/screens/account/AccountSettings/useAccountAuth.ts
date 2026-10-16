@@ -204,8 +204,13 @@ export interface AccountAuthModel {
   readonly danger: DangerZoneProps | null;
 }
 
-/** Giây khoá nút đổi mật khẩu sau 429, tối thiểu — Retry-After của máy chủ bị kẹp ≤ 10 s. */
-export const PASSWORD_LOCK_MIN_SECONDS = 60;
+/**
+ * Giây khoá nút đổi mật khẩu sau 429, tối thiểu = cửa sổ giới hạn của BE (900 s,
+ * `apps/api/me/router.py:45-46`). Retry-After của máy chủ bị kẹp 1..10 s (W9,
+ * `packages/core/errors.py:26`) nên FE không đọc được phần còn lại từ header
+ * (QA-07 questions.md Q5, BUG-P07-009).
+ */
+export const PASSWORD_LOCK_MIN_SECONDS = 900;
 
 const MS_PER_SECOND = 1000;
 
@@ -413,6 +418,12 @@ export function useAccountAuth(options: UseAccountAuthOptions = {}): AccountAuth
         }
 
         const { reason, retryAfterSeconds } = result.error;
+
+        // 401: phiên đã chết. Lớp phiên (`session.ts` handleAuthError) đưa về /login;
+        // ở đây không bịa câu "thử lại sau ít phút" (BUG-P07-013).
+        if (reason === 'unauthorized') {
+          return;
+        }
 
         if (reason === 'wrong-current-password') {
           setServerProblem(

@@ -31,7 +31,7 @@
  */
 
 import { useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
@@ -88,6 +88,8 @@ export interface MeasurementToolContainerProps {
   readonly mountScene?: UseMeasurementToolOptions['mountScene'];
   /** Cảnh đã lắp sẵn; thắng `mountScene` khi có mặt. */
   readonly scene?: UseMeasurementToolOptions['scene'];
+  /** Điều hướng của router — breadcrumb là lối ra duy nhất của route này (25-A-003). */
+  readonly onNavigate?: UseMeasurementToolOptions['onNavigate'];
 }
 
 /** Cùng khuôn `ExplodedViewCrashFallback` — R-62, chữ lấy từ `report.description`. */
@@ -138,6 +140,7 @@ function WiredMeasurementTool(props: MeasurementToolContainerProps) {
     ...(props.onOpenSearch !== undefined ? { onOpenSearch: props.onOpenSearch } : {}),
     ...(props.mountScene !== undefined ? { mountScene: props.mountScene } : {}),
     ...(props.scene !== undefined ? { scene: props.scene } : {}),
+    ...(props.onNavigate !== undefined ? { onNavigate: props.onNavigate } : {}),
   });
 
   return <ViewerShell {...shellProps} />;
@@ -165,6 +168,7 @@ export function MeasurementToolContainer(props: MeasurementToolContainerProps) {
  */
 export function MeasurementToolRoute() {
   const { projectId: id } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
   // Cùng luật nhà mẫu với `/3d` và Pascal; gọi trước câu trả sớm (luật hook).
   const spatial = useStore(selectViewerSpatial);
 
@@ -185,7 +189,7 @@ export function MeasurementToolRoute() {
   return (
     <div className="h-dvh">
       <ProjectSpatialGate projectId={id} wrapFallbackInMain>
-        <MeasurementToolContainer projectId={id} spatial={spatial} />
+        <MeasurementToolContainer onNavigate={navigate} projectId={id} spatial={spatial} />
       </ProjectSpatialGate>
     </div>
   );

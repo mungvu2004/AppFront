@@ -176,6 +176,8 @@ export interface TrainingJobsActions {
   readonly onFormVersion: (versionId: string) => void;
   readonly onFormBaseModel: (baseModel: string) => void;
   readonly onFormEpochs: (epochs: number | undefined) => void;
+  /** Chữ đang gõ ở "Số vòng", từng phím: ô chỉ chốt sau 800 ms và không chốt số bị từ chối, nên gửi dựa vào số cũ (35T-A-020). */
+  readonly onTypeEpochs: (epochs: number | undefined) => void;
   readonly onSubmitForm: () => void;
   readonly onRequestCancel: () => void;
   readonly onConfirmCancel: () => void;

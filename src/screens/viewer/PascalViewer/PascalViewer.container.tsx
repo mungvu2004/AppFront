@@ -11,16 +11,11 @@
  * `src/App.tsx` dùng.
  */
 
-import { AlertCircle } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
-import { EmptyState } from '@/components/feedback/EmptyState';
 import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
-import {
-  ScreenErrorBoundary,
-  type ScreenErrorFallback,
-} from '@/components/feedback/ScreenErrorBoundary';
+import { ScreenErrorBoundary } from '@/components/feedback/ScreenErrorBoundary';
 import type { ApiClient } from '@/api/client';
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { SpatialGraph } from '@/domain/spatial/types';
@@ -49,25 +44,19 @@ import { useStore } from '@/store';
 
 import { PascalViewer } from './PascalViewer';
 import {
+  CrashFallback,
+  LazyFloorLayerSaveConfirm,
+  PascalHistoryPanelSlot,
+  PascalMassDeleteDialog,
+} from './PascalViewerOverlays';
+import {
   PASCAL_HISTORY_TOASTS,
   PASCAL_SIDE_PANEL_LABELS,
   type PascalSidePanel,
   type PascalSidePanelId,
 } from './pascalViewerTypes';
-import { usePascalEdits } from './usePascalEdits';
+import { usePascalEdits, type PascalMassDeleteRequest } from './usePascalEdits';
 import { usePascalViewer, type UsePascalViewerOptions } from './usePascalViewer';
-
-/*
- * Bảng lịch sử nạp muộn, và đó là một phép đo chứ không phải thói quen: ngân
- * sách `routeChunk` là 280 KiB, `HistoryPanel` là ~4 000 dòng, còn bảng chỉ
- * dựng khi người dùng mở nó. Nhập tĩnh là bắt mọi lượt mở `/3d` trả tiền cho
- * một bảng phần lớn phiên không ai bấm tới.
- */
-const LazyHistoryPanel = lazy(() =>
-  import('@/screens/viewer/HistoryPanel').then((module) => ({
-    default: module.HistoryPanelContainer,
-  })),
-);
 
 /** Loại thông báo của một lượt sửa bị chặn — toast gom theo loại. */
 export const PASCAL_REJECTED_NOTIFICATION_TYPE = 'pascal.edit.rejected';
@@ -122,22 +111,6 @@ export interface PascalViewerContainerProps {
   readonly apiClient?: Pick<ApiClient, 'spatial'> | undefined;
 }
 
-/** Thứ người dùng thấy thay cho màn đã sập. Chữ lấy thẳng từ `report.description`. */
-function CrashFallback({ report, retry }: ScreenErrorFallback) {
-  return (
-    <div className="flex h-full items-center justify-center bg-bg-app">
-      <EmptyState
-        icon={<AlertCircle aria-hidden="true" />}
-        title={report.description.title}
-        description={report.description.description}
-        {...(report.retryable
-          ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
-          : {})}
-      />
-    </div>
-  );
-}
-
 function PascalViewerBody({
   apiClient,
   graph,
@@ -157,7 +130,8 @@ function PascalViewerBody({
   /* `/3d?tool=measure` (route đo cũ chuyển hướng về đây). Đọc thẳng URL một lần
      thay vì `useSearchParams`, để thân màn không bắt buộc nằm trong `<Router>`. */
   const initialTool = useMemo(
-    () => (new URLSearchParams(window.location.search).get('tool') === 'measure' ? 'measure' : undefined),
+    () =>
+      new URLSearchParams(window.location.search).get('tool') === 'measure' ? 'measure' : undefined,
     [],
   );
 
@@ -217,7 +191,8 @@ function PascalViewerBody({
   /* Câu lưu của màn lấy từ bộ tự lưu AppFront — lưu THẬT xong mới "Đã lưu lúc
      HH:MM". Trạng thái lưu nội bộ của editor Pascal không còn lên màn. */
   const saveLabel =
-    floorSave.saveBlock?.message ?? (indicator.state === 'saved' ? floorSave.label : indicator.label);
+    floorSave.saveBlock?.message ??
+    (indicator.state === 'saved' ? floorSave.label : indicator.label);
 
   useEffect(() => {
     if (indicator.state !== 'failed') return;
@@ -233,11 +208,17 @@ function PascalViewerBody({
      dựng nó trong một hiệu ứng, nên nó về qua state sau một nhịp —
      `usePascalEdits` chịu được `null` và chỉ bỏ qua lượt ghi đến trước mốc ấy. */
   const [loadedScene, setLoadedScene] = useState<PascalScene | null>(null);
-  const { onSceneCommit, validateCommit } = usePascalEdits({
+  /* Lượt xoá hàng loạt cổng vừa chặn (editor đã trả đối tượng về) — chờ người dùng xác nhận. */
+  const [massDelete, setMassDelete] = useState<PascalMassDeleteRequest | null>(null);
+  const { onSceneCommit, validateCommit, confirmMassDelete, history } = usePascalEdits({
     spatial,
     loadedScene,
     readOnly: isReadOnly,
     onRejected,
+    onMassDelete: setMassDelete,
+    /* Bước trên bảng lịch sử mang người đang đăng nhập — bảng đọc "tôi" từ cùng
+       phiên, nên bước của mình hiện là "Bạn" chứ không là một người lạ. */
+    ...(session.user?.id === undefined ? {} : { actorId: session.user.id }),
   });
 
   /* #25 "Lưu làm khuôn mẫu": cùng lời gọi `propertyTemplates.create` màn cũ dùng.
@@ -255,7 +236,15 @@ function PascalViewerBody({
     });
   }, []);
 
-  const { viewModel, canvasRef, sceneTarget, loadedScene: viewerScene, onRetry, onExpand } = usePascalViewer({
+  const {
+    viewModel,
+    canvasRef,
+    sceneTarget,
+    deleteNodes,
+    loadedScene: viewerScene,
+    onRetry,
+    onExpand,
+  } = usePascalViewer({
     graph,
     mode: 'edit',
     readOnly: isReadOnly,
@@ -283,15 +272,11 @@ function PascalViewerBody({
       {
         id: 'history',
         label: PASCAL_SIDE_PANEL_LABELS.history,
-        render: () => (
-          <Suspense fallback={<p className="p-3 text-sm text-text-muted">Đang mở bảng…</p>}>
-            <LazyHistoryPanel />
-          </Suspense>
-        ),
+        render: () => <PascalHistoryPanelSlot history={history} />,
       },
       ...(extraPanels ?? []),
     ],
-    [extraPanels],
+    [extraPanels, history],
   );
 
   /* A12/#46 — Esc đóng lớp trên cùng, và khi một bảng phụ đang mở thì bảng ấy
@@ -310,7 +295,8 @@ function PascalViewerBody({
   );
 
   /* #37 — phím của màn đi qua registry chung, nên lượt trùng phím nào cũng bị
-     `shortcutRegistry` báo ra thay vì im lặng đè lên nhau. */
+     `shortcutRegistry` báo ra thay vì im lặng đè lên nhau. Đây là chủ DUY NHẤT
+     của Ctrl+H: bảng lịch sử không tự đăng ký phím này nữa (23H-A-009). */
   useShortcut({
     id: 'pascalViewer.sidePanel.history',
     combo: 'Ctrl+H',
@@ -319,19 +305,45 @@ function PascalViewerBody({
     onTrigger: () => setActivePanel((current) => (current === 'history' ? null : 'history')),
   });
 
+  const saveConfirm = floorSave.saveBlock?.confirm ?? null;
+  // Thanh hiện diện ra đầu màn: góc nào của canvas cũng có nút Pascal (23R-F-002, BUG-623).
+  const [presenceSlot, setPresenceSlot] = useState<HTMLDivElement | null>(null);
+
   return (
-    <PascalViewer
-      viewModel={{ ...viewModel, saveLabel }}
-      canvasRef={canvasRef}
-      onRetry={onRetry}
-      onExpand={onExpand}
-      onLeave={onLeave}
-      onReprocess={onReprocess}
-      panels={panels}
-      activePanel={activePanel}
-      onPanelChange={setActivePanel}
-      sceneOverlay={<CollaborationLayerContainer scene={sceneTarget} />}
-    />
+    <>
+      <PascalViewer
+        viewModel={{ ...viewModel, saveLabel }}
+        onSaveReload={floorSave.saveBlock?.onReload}
+        canvasRef={canvasRef}
+        onRetry={onRetry}
+        onExpand={onExpand}
+        onLeave={onLeave}
+        onReprocess={onReprocess}
+        panels={panels}
+        activePanel={activePanel}
+        onPanelChange={setActivePanel}
+        headerSlotRef={setPresenceSlot}
+        sceneOverlay={
+          <CollaborationLayerContainer presenceContainer={presenceSlot} scene={sceneTarget} />
+        }
+      />
+      {saveConfirm !== null && (
+        <Suspense fallback={null}>
+          <LazyFloorLayerSaveConfirm confirm={saveConfirm} />
+        </Suspense>
+      )}
+      {massDelete !== null && (
+        <PascalMassDeleteDialog
+          request={massDelete}
+          onClose={() => setMassDelete(null)}
+          onConfirm={(nodeIds) => {
+            setMassDelete(null);
+            confirmMassDelete(nodeIds);
+            deleteNodes(nodeIds);
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -387,17 +399,19 @@ export function PascalViewerRoute() {
   const graph = useMemo(() => (spatial === null ? null : denormalizeSpatial(spatial)), [spatial]);
 
   /* Màn đứng một mình dưới router, không vỏ nào cấp chiều cao: thiếu `h-screen`
-     thì `h-full` của khung ra 0 và cả màn co về `min-h-[24rem]` — đo 1440×900:
+     thì `h-full` của khung ra 0 và cả màn co về `min-h-96` — đo 1440×900:
      trang 384 px, hộp dựng 192 px (B-V10-02). Bọc ở đây chứ không ở `Frame`, để
      chỗ nhúng màn vào bố cục khác vẫn tự quyết chiều cao. */
   return (
     <div className="h-screen">
       <ProjectSpatialGate projectId={projectId}>
-        {/* Không còn `onLeave`: màn này LÀ `/3d` sau F-15, nên "về màn xem 3D"
-            sẽ trỏ về chính nó. Lối đi tiếp của trạng thái rỗng thì vẫn thật. */}
+        {/* Lối ra về quản lý tầng của dự án, để `/3d` không là ngõ cụt (BUG-487). */}
         <PascalViewerContainer
           graph={graph}
           projectId={projectId}
+          onLeave={
+            projectId === undefined ? undefined : () => navigate(ROUTES.project.floors(projectId))
+          }
           onReprocess={
             projectId === undefined ? undefined : () => navigate(ROUTES.project.pipeline(projectId))
           }

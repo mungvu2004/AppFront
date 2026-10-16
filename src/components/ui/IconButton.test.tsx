@@ -4,6 +4,16 @@ import { IconButton } from './IconButton';
 import { Settings } from 'lucide-react';
 
 describe('IconButton', () => {
+  it('defaults to type=button so it never submits an enclosing form (32-A-024)', () => {
+    render(<IconButton icon={<Settings size={18} />} aria-label="Cài đặt" />);
+    expect(screen.getByRole('button')).toHaveAttribute('type', 'button');
+  });
+
+  it('keeps an explicit type=submit', () => {
+    render(<IconButton icon={<Settings size={18} />} aria-label="Gửi" type="submit" />);
+    expect(screen.getByRole('button')).toHaveAttribute('type', 'submit');
+  });
+
   it('renders with required aria-label', () => {
     render(<IconButton icon={<Settings size={18} />} aria-label="Cài đặt" />);
     expect(screen.getByRole('button', { name: 'Cài đặt' })).toBeInTheDocument();

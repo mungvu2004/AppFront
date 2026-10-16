@@ -86,6 +86,15 @@ describe('changePassword (N13)', () => {
     });
   });
 
+  it('[33S-G-005] 401 thành unauthorized, không rơi vào unavailable', async () => {
+    const gateway = createAccountAuthGateway({ apiClient: clientFailing(wireError(401)) });
+
+    expect(await gateway.changePassword(INPUT)).toEqual({
+      ok: false,
+      error: { reason: 'unauthorized' },
+    });
+  });
+
   it('mã lạ và 5xx thành unavailable', async () => {
     expect(
       await createAccountAuthGateway({

@@ -199,7 +199,7 @@ function DiscardPrompt(props: CreateProjectModalViewProps & { readonly cancelRef
   return (
     <div
       role="alert"
-      className="flex basis-full flex-col gap-3 rounded-[8px] border border-state-attention bg-state-attention-tint p-3"
+      className="flex basis-full flex-col gap-3 rounded-lg border border-state-attention bg-state-attention-tint p-3"
     >
       <div className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 shrink-0 text-state-attention" size={18} strokeWidth={2} aria-hidden="true" />
@@ -269,7 +269,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
         <Modal.Header>
           <span id={TITLE_ID}>Tạo dự án mới</span>
         </Modal.Header>
-        <Modal.Body className="px-6 py-6 min-h-[320px]">
+        <Modal.Body className="px-6 py-6 min-h-80">
           <InlineAlert
             level="attention"
             title="Không có quyền tạo dự án"
@@ -300,7 +300,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
       </Modal.Header>
       {/* scroll-pt-10: the floor table's sticky 40 px header covered the field Shift+Tab or a 422 scrolled to
           (WCAG 2.4.11); scroll-pb-6 keeps it off the bottom fade too. */}
-      <Modal.Body className="px-4 sm:px-6 pt-0 min-h-[320px] scroll-pt-10 scroll-pb-6">
+      <Modal.Body className="px-4 sm:px-6 pt-0 min-h-80 scroll-pt-10 scroll-pb-6">
         <div className="mb-4 flex flex-col gap-2">
           <div className="flex items-baseline gap-2">
             <p className="text-[13px] font-semibold leading-[18px] text-text-primary">{props.stepLabel}</p>

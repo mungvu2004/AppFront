@@ -100,6 +100,7 @@ export interface SpatialJsonCounts {
   readonly furniture: number;
   readonly axes: number;
   readonly dimensions: number;
+  readonly notes: number;
 }
 
 /** Toàn bộ thứ view cần để vẽ. Không hàm, không đối tượng miền. */
@@ -140,6 +141,8 @@ export interface SpatialJsonViewerModel {
   readonly forbiddenMessage: string | null;
   /** Nút "Tải xuống .json" chỉ hiện khi nơi gọi cấp đường sang S-34. */
   readonly canDownload: boolean;
+  /** Dòng phản hồi sau "Sao chép nhánh"; `null` khi chưa chép. */
+  readonly copyNotice: string | null;
 }
 
 /** Mọi thứ người dùng bấm được. Không hành động nào sửa dữ liệu. */
@@ -148,6 +151,8 @@ export interface SpatialJsonViewerActions {
   readonly onExpandAll: () => void;
   readonly onCollapseAll: () => void;
   readonly onSelectNode: (nodeId: string) => void;
+  /** Bấm một hàng lỗi: `path` là mã thực thể; chọn nút cây của nó và cuộn tới. */
+  readonly onSelectIssue: (path: string) => void;
   readonly onSearchChange: (query: string) => void;
   readonly onNextMatch: () => void;
   readonly onPreviousMatch: () => void;

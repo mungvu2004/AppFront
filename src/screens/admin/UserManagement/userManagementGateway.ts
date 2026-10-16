@@ -329,7 +329,8 @@ export function parseInviteEmails(rawEmails: string): ParsedInviteEmails {
 
     const target = EmailSchema.safeParse(candidate).success ? validEmails : invalidEmails;
 
-    if (!target.includes(candidate)) {
+    // BUG-P08-026: BE gộp theo email chuẩn hoá (chữ thường) — giữ lần gặp đầu.
+    if (!target.some((seen) => seen.toLowerCase() === candidate.toLowerCase())) {
       target.push(candidate);
     }
   }
@@ -487,11 +488,11 @@ export function createUserManagementGateway(
       unwrap(usersApi.disable({ userId })),
     enableUser: async (userId: string): Promise<AdminUser> => unwrap(usersApi.enable({ userId })),
     inviteUsers: async ({ emails, role }: InviteRequest): Promise<readonly AdminUser[]> =>
-      unwrap(usersApi.invite({ body: { emails: [...emails], role } })),
+      unwrap(usersApi.invite({ body: { emails: [...emails], role }, failFastOnRateLimit: true })),
     removeUser: async ({ confirmEmail, userId }: RemoveRequest): Promise<AdminUser> =>
       unwrap(usersApi.remove({ body: { confirmEmail, userId } })),
     resendInvite: async (userId: string): Promise<AdminUser> =>
-      unwrap(usersApi.resendInvite({ userId })),
+      unwrap(usersApi.resendInvite({ userId, failFastOnRateLimit: true })),
     createWriteTicket: (ticketOptions: CreateUndoTicketOptions): UndoTicket =>
       createUndoTicket({ now, ...ticketOptions }),
     notify: (input: NotificationInput): void => {

@@ -21,6 +21,7 @@
  *    viết tay trong file này.
  */
 
+import { describeUsage } from '@/domain/rooms/classify';
 import type {
   Axis,
   Building,
@@ -324,7 +325,13 @@ const slabNodeOf = (room: Room, levelNodeId: PascalNodeId): PascalSlabNode => ({
   },
 });
 
-const zoneNodeOf = (room: Room, levelNodeId: PascalNodeId): PascalZoneNode => ({
+/**
+ * Phòng thành `zone`. `occupancy`/`ceilingHeight` phải ghi tay: vắng thì lược đồ
+ * Pascal điền `''`/2,7 m, và bảng "Diện tích phòng" gom mọi phòng vào "Chưa đặt
+ * công năng" với chiều cao sai (23R-A-014/020). `Room` không có số phòng nên
+ * `roomNumber` để mặc định.
+ */
+const zoneNodeOf = (room: Room, levelNodeId: PascalNodeId, levelHeightMm: number): PascalZoneNode => ({
   object: 'node',
   id: toPascalId('zone', room.id),
   type: 'zone',
@@ -333,6 +340,8 @@ const zoneNodeOf = (room: Room, levelNodeId: PascalNodeId): PascalZoneNode => ({
   polygon: room.outline.map((point): PascalPoint2 => [metresOf(point.x), metresOf(point.y)]),
   spaceRole: 'room',
   boundaryWallIds: room.wallIds.map((wallId) => toPascalId('wall', wallId)),
+  occupancy: describeUsage(room.usage),
+  ceilingHeight: metresOf(levelHeightMm),
   metadata: {
     appfront: originOf(room, { usage: room.usage, areaM2: room.areaM2 }),
   },
@@ -496,7 +505,7 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
     orderedLevels.filter((level) => isUsable(level.elevationMm, level.heightMm)),
   );
   const levelNodeIdOf = new Map<string, PascalNodeId>();
-  /* Chiều cao tầng, cho đúng một nơi cần: cái thang dựng cao trọn tầng. */
+  /* Chiều cao tầng: cái thang dựng cao trọn tầng, và trần của phòng. */
   const levelHeightMmOf = new Map<string, number>();
   let elevationIndex = 0;
 
@@ -576,8 +585,9 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
 
   for (const room of graph.rooms) {
     const levelNodeId = levelNodeIdOf.get(room.levelId);
+    const levelHeightMm = levelHeightMmOf.get(room.levelId);
 
-    if (levelNodeId === undefined) {
+    if (levelNodeId === undefined || levelHeightMm === undefined) {
       skipped.push(skip(room.id, 'phòng', `Phòng thuộc tầng ${room.levelId} mà tầng ấy không có trong bản vẽ.`));
       continue;
     }
@@ -592,7 +602,7 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
       continue;
     }
 
-    for (const node of [zoneNodeOf(room, levelNodeId), slabNodeOf(room, levelNodeId)]) {
+    for (const node of [zoneNodeOf(room, levelNodeId, levelHeightMm), slabNodeOf(room, levelNodeId)]) {
       nodes[node.id] = node;
       adopt(levelNodeId, node.id);
     }

@@ -53,7 +53,7 @@ import type {
 } from './types';
 
 /** Dưới ngưỡng này bảng thành thẻ, cột phải thành `Drawer`. */
-export const COLLAPSE_BREAKPOINT_PX = 1024;
+export const COLLAPSE_BREAKPOINT_PX = 1072; // 32+640+24+344+32: bố cục 2 cột tràn ngang ở 1024 (BUG-P08-012)
 
 /** Tám hàng khung xương lúc đang tải; kịch bản và story dùng chung số này. */
 export const SKELETON_ROW_COUNT = 8;

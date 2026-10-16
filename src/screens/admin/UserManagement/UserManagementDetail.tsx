@@ -34,6 +34,8 @@
 
 import { UserRound, X } from 'lucide-react';
 
+import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { Skeleton } from '@/components/feedback/Skeleton';
 import { Drawer } from '@/components/overlay/Drawer';
 import { Modal } from '@/components/overlay/Modal';
 import { Avatar } from '@/components/ui/Avatar';
@@ -48,6 +50,7 @@ import type { ProjectRole } from '@/types/project';
 
 import { UserManagementPermissionMatrix } from './UserManagementPermissionMatrix';
 import type {
+  DetailReadState,
   RemoveConfirmModel,
   RoleOption,
   UserActivityRowModel,
@@ -60,6 +63,7 @@ import type {
 const PANEL_WIDTH = 'w-[400px] max-w-full';
 const EMPTY_LABEL = 'Chọn một người để xem chi tiết';
 const PERMISSION_CAPTION = 'Ma trận quyền theo vai trò';
+const READY_STATE: DetailReadState = { status: 'ready' };
 
 /* -------------------------------------------------------------------------- */
 /* Trạng thái chưa chọn ai.                                                    */
@@ -120,51 +124,81 @@ interface MembershipsProps {
   readonly memberships: readonly UserMembershipRowModel[];
   readonly roleOptions: readonly RoleOption[];
   readonly userId: string;
+  readonly state: DetailReadState;
   readonly onChangeMembershipRole: UserManagementActions['onChangeMembershipRole'];
+}
+
+/** Đang tải / lỗi của một phần (BUG-P08-015): khung xương hoặc InlineAlert, không bao giờ câu "rỗng". */
+function ReadStateNotice({ state }: { readonly state: DetailReadState }) {
+  if (state.status === 'loading') {
+    return <Skeleton className="h-12" preset="block" />;
+  }
+  if (state.status === 'error') {
+    return <InlineAlert level="violation" message={state.label} />;
+  }
+
+  return null;
 }
 
 function DetailMemberships({
   memberships,
   onChangeMembershipRole,
   roleOptions,
+  state,
   userId,
 }: MembershipsProps) {
   const selectOptions = roleOptions.map((option) => ({ label: option.label, value: option.role }));
+  // Cùng một câu cho mọi dự án: nói MỘT lần dưới danh sách, không lặp mỗi thẻ (BUG-P08-021).
+  const sharedBlockedReason =
+    memberships.find((membership) => membership.roleChangeBlockedReason !== null)
+      ?.roleChangeBlockedReason ?? null;
 
   return (
-    <section aria-label="Dự án tham gia" className="flex flex-col gap-3">
+    <section
+      aria-busy={state.status === 'loading'}
+      aria-label="Dự án tham gia"
+      className="flex flex-col gap-3"
+    >
       <h3 className="text-[13px] font-medium text-text-secondary">Dự án tham gia</h3>
 
-      {memberships.length === 0 ? (
-        <p className="text-[13px] text-text-muted">Người này chưa tham gia dự án nào</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {memberships.map((membership) => (
-            <li
-              className="flex flex-col gap-2 rounded-[8px] border border-border-default p-3"
-              key={membership.projectId}
-            >
-              <span className="truncate text-[14px] text-text-primary">
-                {membership.projectName}
-              </span>
+      <ReadStateNotice state={state} />
 
-              {membership.roleChangeBlockedReason !== null ? (
-                <p className="text-[13px] text-text-secondary">
-                  {membership.roleChangeBlockedReason}
-                </p>
-              ) : (
-                <Select
-                  label={`vai trong ${membership.projectName}`}
-                  onChange={(value) => {
-                    onChangeMembershipRole(userId, membership.projectId, value as ProjectRole);
-                  }}
-                  options={selectOptions}
-                  value={membership.role}
-                />
-              )}
-            </li>
-          ))}
-        </ul>
+      {memberships.length === 0 ? (
+        state.status === 'ready' && (
+          <p className="text-[13px] text-text-muted">Người này chưa tham gia dự án nào</p>
+        )
+      ) : (
+        <>
+          <ul className="flex flex-col gap-3">
+            {memberships.map((membership) => (
+              <li
+                className="flex flex-col gap-2 rounded-lg border border-border-default p-3"
+                key={membership.projectId}
+              >
+                <span
+                  className="truncate text-[14px] text-text-primary"
+                  title={membership.projectName}
+                >
+                  {membership.projectName}
+                </span>
+
+                {membership.roleChangeBlockedReason === null && (
+                  <Select
+                    label={`vai trong ${membership.projectName}`}
+                    onChange={(value) => {
+                      onChangeMembershipRole(userId, membership.projectId, value as ProjectRole);
+                    }}
+                    options={selectOptions}
+                    value={membership.role}
+                  />
+                )}
+              </li>
+            ))}
+          </ul>
+          {sharedBlockedReason !== null && (
+            <p className="text-[13px] text-text-secondary">{sharedBlockedReason}</p>
+          )}
+        </>
       )}
     </section>
   );
@@ -191,15 +225,22 @@ function ActivityObjectLink({ activity }: { readonly activity: UserActivityRowMo
 
 interface ActivitiesProps {
   readonly activities: readonly UserActivityRowModel[];
+  readonly state: DetailReadState;
 }
 
-function DetailActivities({ activities }: ActivitiesProps) {
+function DetailActivities({ activities, state }: ActivitiesProps) {
   return (
-    <section aria-label="Hoạt động gần đây" className="flex flex-col gap-3">
+    <section
+      aria-busy={state.status === 'loading'}
+      aria-label="Hoạt động gần đây"
+      className="flex flex-col gap-3"
+    >
       <h3 className="text-[13px] font-medium text-text-secondary">Hoạt động gần đây</h3>
 
+      <ReadStateNotice state={state} />
+
       {activities.length === 0 ? (
-        <p className="text-[13px] text-text-muted">Chưa có hoạt động nào</p>
+        state.status === 'ready' && <p className="text-[13px] text-text-muted">Chưa có hoạt động nào</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {activities.map((activity) => (
@@ -223,18 +264,24 @@ function DetailActivities({ activities }: ActivitiesProps) {
 
 interface RemoveSectionProps {
   readonly onOpenRemove: () => void;
+  /** BUG-P08-022: lý do không xoá được (mình / quản trị cuối) — hiện chữ thay nút, như ở hàng. */
+  readonly blockedReason: string | null;
 }
 
-function DetailRemoveSection({ onOpenRemove }: RemoveSectionProps) {
+function DetailRemoveSection({ blockedReason, onOpenRemove }: RemoveSectionProps) {
   return (
     <section
       aria-label="Xoá người dùng"
-      className="flex flex-col items-start gap-2 rounded-[8px] border border-border-default p-3"
+      className="flex flex-col items-start gap-2 rounded-lg border border-border-default p-3"
     >
       <p className="text-[13px] text-text-secondary">Xoá hẳn người dùng này khỏi hệ thống.</p>
-      <Button onClick={onOpenRemove} size="sm" variant="danger">
-        Xoá
-      </Button>
+      {blockedReason !== null ? (
+        <p className="text-[13px] text-text-secondary">{blockedReason}</p>
+      ) : (
+        <Button onClick={onOpenRemove} size="sm" variant="danger">
+          Xoá
+        </Button>
+      )}
     </section>
   );
 }
@@ -311,14 +358,16 @@ function DetailBody({ actions, detail, permissionMatrix, roleOptions }: DetailBo
 
       <DetailMemberships
         memberships={detail.memberships}
+        state={detail.membershipsState ?? READY_STATE}
         onChangeMembershipRole={actions.onChangeMembershipRole}
         roleOptions={roleOptions}
         userId={detail.user.id}
       />
 
-      <DetailActivities activities={detail.activities} />
+      <DetailActivities activities={detail.activities} state={detail.activitiesState ?? READY_STATE} />
 
       <DetailRemoveSection
+        blockedReason={detail.user.removeBlockedReason}
         onOpenRemove={() => {
           actions.onOpenRemove(detail.user.id);
         }}
@@ -354,14 +403,18 @@ export function UserManagementDetail({
 
   if (isCollapsed) {
     return (
-      <Drawer
+      <Drawer.Root
         isOpen={detail !== null}
+        label="Chi tiết người dùng"
         onClose={() => {
           actions.onSelectUser(null);
         }}
       >
-        <div className="p-6">{body}</div>
-      </Drawer>
+        <Drawer.Handle />
+        <Drawer.Body>
+          <div className="p-6">{body}</div>
+        </Drawer.Body>
+      </Drawer.Root>
     );
   }
 
