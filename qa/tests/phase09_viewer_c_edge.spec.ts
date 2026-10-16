@@ -65,8 +65,12 @@ test.describe('phase 09 viewer edge (real stack)', () => {
       await test.step('[9V-C-034] "Xác nhận đã xử lý" xong không lỗi', async () => {
         await gotoAs(page, ROUTES.project.rules(projectId), 'Kiểm tra luật không gian');
         const confirm = page.getByRole('button', { name: 'Xác nhận đã xử lý' }); // RuleReport.tsx:358
-        await expect(confirm).toBeEnabled({ timeout: 30_000 }); // disabled while violations > 0 (RuleReport.tsx:353)
-        await confirm.click();
+        // RF red: the seeded own project has 4 criticals (png: "4 Nghiêm trọng"), so confirm is DISABLED by design
+        // (RuleReport.tsx:353 disabled={summary.violations > 0}; useRuleReport.ts:680; phase06 28-A-025). Button PRESENT = engineer canEdit
+        // (RuleReport.tsx:279; viewer gets none, RuleReport.qa06.test.tsx:77). Enabled-click path with 0 findings: phase06 28-A-024.
+        await expect(confirm).toBeVisible({ timeout: 30_000 });
+        await expect.soft(confirm).toBeDisabled();
+        await expect.soft(page.getByRole('button', { name: 'Chạy kiểm tra lại' })).toBeVisible();
         await expect.soft(page.getByRole('alert')).toHaveCount(0);
         await shot(page, '9V-C-034', 'confirm');
       });

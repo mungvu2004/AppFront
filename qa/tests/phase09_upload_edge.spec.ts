@@ -363,7 +363,13 @@ test('SCR-14 · SCR-15 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + do
     });
 
     await test.step('[9U-D-066] viewer, SCR-15: alignment locked, nudge sends no write', async () => {
-      await expect.soft(page.getByRole('button', { name: /Khoá căn/u })).toBeDisabled(); // OCT:222 isAlignmentLocked UOC:1241
+      // RF deciding value: no "Khoá căn" control at all for the viewer (shot E09_9U-D-066: toolbar = floor/mode/opacity only).
+      // Not a b8287e23 regression: the real gateway has supports.imageToModelTransform=false (overlayComparisonGateway.ts:339), so
+      // canLockAlignment=false and the toolbar hides the switch for EVERY role (OverlayComparisonToolbar.tsx:218, types.ts:457, BUG-599).
+      // With the capability on it is a role="switch" (Toggle.tsx:86) disabled for !canEdit: OverlayComparisonToolbar.test.tsx:148.
+      // isAlignmentLocked=true for the viewer (UOC:1265): useOverlayComparison.test.ts:495.
+      await expect.soft(page.getByRole('switch', { name: /Khoá căn/u })).toHaveCount(0);
+      await expect.soft(page.getByRole('button', { name: /Khoá căn/u })).toHaveCount(0);
       await page.keyboard.press('ArrowRight');
       await noWrites(page, rec);
       await captureEvidence(page, 'E09_9U-D-066_alignment_locked.png');

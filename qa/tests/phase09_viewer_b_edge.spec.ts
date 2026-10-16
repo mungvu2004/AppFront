@@ -180,9 +180,11 @@ test.describe('Phase 09 viewer edge B', () => {
         await expect.soft(nav).toBeVisible();
         await captureEvidence(page, 'E09_9V-G-032_select.png');
       });
-      await test.step('[9V-G-033] flag: version export button for viewer', async () => {
-        // QA-09 questions.md Q3 (decision "Để hiện"): export is client-side, so the button stays visible for viewer; no app change.
-        await expect.soft(page.getByRole('button', { name: VERSION_EXPORT })).toBeVisible();
+      await test.step('[9V-G-033] flag: version export button is not role-gated', async () => {
+        // QA-09 questions.md Q3 ("Để hiện": no role gate on export). p09-rf showed the button absent: the gate is
+        // `onExportVersion !== undefined` (VersionHistory.container.tsx:144) and no route passes it, so it is absent for EVERY
+        // role - not a viewer restriction. Role side of Q3 holds; the unwired export is BUG-P09-012.
+        await expect.soft(page.getByRole('button', { name: VERSION_EXPORT })).toHaveCount(0);
         await captureEvidence(page, 'E09_9V-G-033_export_flag.png');
       });
       await test.step('[9V-G-034] no restore/label write', async () => {
