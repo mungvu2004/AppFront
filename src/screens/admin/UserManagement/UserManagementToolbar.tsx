@@ -112,6 +112,7 @@ export function UserManagementToolbar({ actions, invite, searchRef, summary, too
       {invite.isOpen && (
         <div className="flex flex-col gap-3 rounded-lg border border-border-default p-4">
           <Textarea
+            autoFocus
             hint={invite.hintLabel}
             label={INVITE_EMAILS_LABEL}
             onChange={(event) => actions.onInviteEmailsChange(event.target.value)}

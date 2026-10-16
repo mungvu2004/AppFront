@@ -204,7 +204,7 @@ function keyCounter(): () => string {
   };
 }
 
-function renderTrainingHook(client: SpiedClient) {
+function renderTrainingHook(client: SpiedClient, options: { readonly isNarrow?: boolean } = {}) {
   const queryClient = createTestQueryClient();
   const published: NotificationInput[] = [];
   const bus = createNotificationBus();
@@ -219,7 +219,7 @@ function renderTrainingHook(client: SpiedClient) {
   const renders: ReturnType<typeof useTrainingJobs>['model'][] = [];
   const hook = renderHook(
     () => {
-      const value = useTrainingJobs({ gateway });
+      const value = useTrainingJobs({ gateway, ...options });
       renders.push(value.model);
       return value;
     },
@@ -883,5 +883,81 @@ describe('readAllPages', () => {
     const alwaysInvalid = vi.fn<(cursor: string | undefined) => Promise<CursorList<number>>>().mockRejectedValue(invalid);
     await expect(readAllPages(alwaysInvalid)).rejects.toBe(invalid);
     expect(alwaysInvalid).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Phase 08 — BUG-P08-007 · 35T-C-013: 403 của một lần ghi không khoá cả trang', () => {
+  it('[35T-C-013] N33 403 → hộp đóng, toast lỗi, state không thành forbidden, danh sách còn xem được', async () => {
+    const client = makeClient({ createJob: async () => wireError(403, 'FORBIDDEN') });
+    const { published, result } = renderTrainingHook(client);
+
+    await openReadyForm(result);
+    act(() => result.current.actions.onSubmitForm());
+    await waitFor(() => {
+      expect(result.current.model.form).toBeNull();
+    });
+
+    expect(result.current.model.state).not.toBe('forbidden');
+    expect(result.current.model.rows.length).toBeGreaterThan(0);
+    expect(published).toEqual([
+      expect.objectContaining({ description: TRAINING_ERROR_TEXT.writeForbidden, type: 'trainingJobs.writeForbidden' }),
+    ]);
+  });
+
+  it('[35T-C-013] N35 403 → hộp huỷ đóng, toast lỗi, state không thành forbidden', async () => {
+    const client = makeClient({ cancelJob: async () => wireError(403, 'FORBIDDEN') });
+    const { published, result } = renderTrainingHook(client);
+
+    act(() => result.current.actions.onSelectJob(JOB_A));
+    await waitFor(() => {
+      expect(result.current.model.detail?.fields.length).toBeGreaterThan(0);
+    });
+    act(() => result.current.actions.onRequestCancel());
+    act(() => result.current.actions.onConfirmCancel());
+    await waitFor(() => {
+      expect(client.cancelJob).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(result.current.model.cancelDialog).toBeNull();
+    });
+
+    expect(result.current.model.state).not.toBe('forbidden');
+    expect(published).toEqual([expect.objectContaining({ type: 'trainingJobs.writeForbidden' })]);
+  });
+
+  it('[35T-C-013] 403 từ đọc N32 vẫn là forbidden', async () => {
+    const { result } = renderTrainingHook(makeClient({ listJobs: async () => wireError(403, 'FORBIDDEN') }));
+
+    await waitFor(() => {
+      expect(result.current.model.state).toBe('forbidden');
+    });
+  });
+});
+
+describe('Phase 08 — BUG-P08-008 · 35T-B-009, 35T-F-008: màn hẹp vẫn ra empty/partial', () => {
+  it('[35T-B-009] hẹp + có lượt đang chạy → partial, dải chú ý còn', async () => {
+    const { result } = renderTrainingHook(makeClient(), { isNarrow: true });
+
+    await waitFor(() => {
+      expect(result.current.model.state).toBe('partial');
+    });
+    expect(result.current.model.isCollapsed).toBe(true);
+    expect(result.current.model.partialNotice).not.toBeNull();
+  });
+
+  it('[35T-F-008] hẹp + 0 lượt → empty', async () => {
+    const { result } = renderTrainingHook(makeClient({ listJobs: async () => page<TrainingJob>([]) }), { isNarrow: true });
+
+    await waitFor(() => {
+      expect(result.current.model.state).toBe('empty');
+    });
+  });
+
+  it('hẹp + lượt đã xong → vẫn collapsed', async () => {
+    const { result } = renderTrainingHook(makeClient({ listJobs: async () => page([succeeded(JOB_A)]) }), { isNarrow: true });
+
+    await waitFor(() => {
+      expect(result.current.model.state).toBe('collapsed');
+    });
   });
 });

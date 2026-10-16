@@ -324,8 +324,8 @@ test.describe('E08 SCR-37 users write (edge)', () => {
         await expect.soft(userRow(page, e1)).toHaveCount(1);
         await ev(page, '37W-C-008');
       });
-      await test.step('[37W-B-006] han con: Gui lai', async () => {
-        await expect.soft(userRow(page, e1).getByRole('button', { name: new RegExp(T.resend) }), 'N3: an unexpired invite should offer "Gửi lại"').toHaveCount(1);
+      await test.step('[37W-B-006] han con: Gui lai (Q5: moi hang cho)', async () => {
+        await expect.soft(userRow(page, e1).getByRole('button', { name: new RegExp(T.resend) }), 'Q5 (questions.md): every pending row offers "Gửi lại", expired or not').toHaveCount(1);
         await ev(page, '37W-B-006');
       });
       await test.step('[37W-C-007] moi email cua PU6', async () => {

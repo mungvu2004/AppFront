@@ -26,7 +26,7 @@
  * thuộc việc có đang mở panel chi tiết hay không.
  */
 import { ShieldCheck, UserPlus } from 'lucide-react';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -57,10 +57,11 @@ const GENERIC_ERROR_MESSAGE = 'Đã có lỗi xảy ra.';
 const RETRY_BUTTON_LABEL = 'Thử lại';
 const MODAL_WIDTH = 720;
 
-function BreadcrumbLink({ item }: { readonly item: BreadcrumbItemModel }) {
+/** `isCurrent`: chỉ mục cuối của breadcrumb là trang hiện tại, mục tổ tiên không href vẫn là chữ thường (BUG-P08-014). */
+function BreadcrumbLink({ item, isCurrent = true }: { readonly item: BreadcrumbItemModel; readonly isCurrent?: boolean }) {
   if (item.href === null) {
     return (
-      <span aria-current="page" className="text-text-primary">
+      <span aria-current={isCurrent ? 'page' : undefined} className="text-text-primary">
         {item.label}
       </span>
     );
@@ -80,12 +81,17 @@ function UserManagementBreadcrumb({ items }: { readonly items: readonly Breadcru
         {items.map((item, index) => (
           <li className="flex items-center gap-1.5" key={item.label}>
             {index > 0 && <span aria-hidden="true">›</span>}
-            <BreadcrumbLink item={item} />
+            <BreadcrumbLink isCurrent={index === items.length - 1} item={item} />
           </li>
         ))}
       </ol>
     </nav>
   );
+}
+
+/** Màn có đúng một `h1` (BUG-P08-020): đọc được cho trình đọc màn hình, tên màn = mục cuối breadcrumb. */
+function ScreenHeading({ items }: { readonly items: readonly BreadcrumbItemModel[] }) {
+  return <h1 className="sr-only">{items[items.length - 1]?.label}</h1>;
 }
 
 function renderContent(model: UserManagementViewModel, actions: UserManagementActions) {
@@ -128,8 +134,23 @@ export function UserManagement({ model, actions }: UserManagementProps) {
   // "Xoá tìm kiếm và bộ lọc" nằm trong khối không-khớp, khối ấy biến mất ngay khi bấm: đưa tiêu điểm về ô
   // tìm, đừng để nó rơi về `body` (BUG-082, A12).
   const searchRef = useRef<HTMLInputElement>(null);
+  // Nút đã mở chi tiết: đóng (Esc/nút X) thì tiêu điểm về đó, không rơi về `body` (BUG-P08-019, 37U-E-006).
+  const openerRef = useRef<HTMLElement | null>(null);
+  const isDetailOpen = model.detail !== null;
+  useEffect(() => {
+    if (isDetailOpen) return;
+    const opener = openerRef.current;
+    openerRef.current = null;
+    if (opener?.isConnected === true) opener.focus();
+  }, [isDetailOpen]);
   const contentActions: UserManagementActions = {
     ...actions,
+    onSelectUser: (userId) => {
+      if (userId !== null && document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
+        openerRef.current = document.activeElement;
+      }
+      actions.onSelectUser(userId);
+    },
     onClearSearch: () => {
       actions.onClearSearch();
       searchRef.current?.focus();
@@ -159,6 +180,7 @@ export function UserManagement({ model, actions }: UserManagementProps) {
   if (model.state === 'forbidden') {
     return (
       <div className={SCREEN_CONTAINER_CLASS}>
+        <ScreenHeading items={model.breadcrumbItems} />
         <UserManagementBreadcrumb items={model.breadcrumbItems} />
         <InlineAlert level="attention" message={model.forbiddenLabel} />
         <UserManagementPermissionMatrix captionLabel={PERMISSION_MATRIX_CAPTION} matrix={model.permissionMatrix} />
@@ -169,6 +191,7 @@ export function UserManagement({ model, actions }: UserManagementProps) {
 
   return (
     <div className={SCREEN_CONTAINER_CLASS}>
+      <ScreenHeading items={model.breadcrumbItems} />
       <div className="flex items-center justify-between gap-4">
         <UserManagementBreadcrumb items={model.breadcrumbItems} />
         <Button

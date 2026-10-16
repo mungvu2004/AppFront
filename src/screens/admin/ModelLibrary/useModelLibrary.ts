@@ -105,8 +105,8 @@ export const MODEL_LIBRARY_TEXT = {
   loadFailed: 'Không đọc được danh mục model',
   fieldBounds: 'Kích thước bao',
   fieldTriangles: 'Số tam giác',
-  fieldFileSize: 'dung lượng',
-  fieldGroup: 'nhóm',
+  fieldFileSize: 'Dung lượng',
+  fieldGroup: 'Nhóm',
 } as const;
 
 /* -------------------------------------------------------------------------- */
@@ -504,14 +504,15 @@ export function useModelLibrary(options: UseModelLibraryOptions): ModelLibraryRe
   const isLibraryEmpty = !listQuery.isPending && errorMessage === null && items.length === 0;
 
   const state = useMemo((): SevenState => {
-    if (!gateway.capabilities.canManage) {
-      return 'forbidden';
-    }
+    // Đọc thư viện mở cho mọi vai (Q1): tải/lỗi đứng trước "chỉ xem" (BUG-P08-002).
     if (listQuery.isPending) {
       return 'loading';
     }
     if (errorMessage !== null) {
       return 'error';
+    }
+    if (!gateway.capabilities.canManage) {
+      return 'forbidden';
     }
     if (isNarrow) {
       return 'collapsed';

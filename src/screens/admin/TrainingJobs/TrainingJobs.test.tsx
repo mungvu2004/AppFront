@@ -291,3 +291,19 @@ describe('Hộp thoại A9 và biểu mẫu', () => {
     expect(within(dialog).getByRole('button', { name: 'Bắt đầu huấn luyện' })).toBeDisabled();
   });
 });
+
+describe('Phase 08 — BUG-P08-009 · 35T-B-014: panel chi tiết khi chưa chọn lượt (>= 1024)', () => {
+  it('[35T-B-014] detail=null → aside hiện câu hướng dẫn', () => {
+    renderView({ ...TRAINING_JOBS_SCENARIO_SUCCESS, detail: null });
+
+    const panel = screen.getByRole('complementary', { name: 'Chi tiết lượt huấn luyện' });
+    expect(within(panel).getByText('Chọn một lượt để xem chi tiết.')).toBeInTheDocument();
+  });
+
+  it('[35T-B-014] màn hẹp, detail=null → không aside, không Drawer mở', () => {
+    renderView({ ...TRAINING_JOBS_SCENARIO_COLLAPSED, detail: null });
+
+    expect(screen.queryByRole('complementary', { name: 'Chi tiết lượt huấn luyện' })).toBeNull();
+    expect(screen.queryByText('Chọn một lượt để xem chi tiết.')).toBeNull();
+  });
+});

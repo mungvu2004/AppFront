@@ -117,9 +117,12 @@ function StatusCell({ actions, row }: StatusCellProps) {
           <span>{INVITE_EXPIRED_LABEL}</span>
         </div>
       )}
-      {row.inviteExpired && row.canResendInvite && (
+      {row.canResendInvite && (
+        // Q5 (questions.md): "Gửi lại" ở MỌI hàng chờ, BE cho gửi lại mọi lời mời đang chờ.
+        // BUG-P08-024: tên truy cập nêu người nhận để các nút cùng chữ phân biệt được.
         // Link chữ, nhưng vùng chạm 44 px dưới 640 và 24 px từ đó — như link chữ của màn đăng nhập (BUG-077, BUG-041).
         <button
+          aria-label={`${RESEND_INVITE_LABEL} lời mời cho ${row.email}`}
           className={cn(
             'inline-flex min-h-11 items-center text-left text-[13px] font-medium text-accent hover:underline sm:min-h-6',
             FOCUS_RING,
@@ -223,7 +226,7 @@ function UserManagementCardList({ actions, roleOptions, rows }: UserListProps) {
               <dt className="text-text-secondary">{HEADER_LAST_ACTIVE}</dt>
               <dd>
                 <Tooltip label={row.lastActiveExactLabel}>
-                  <span>{row.lastActiveLabel}</span>
+                  <span className={FOCUS_RING} tabIndex={0}>{row.lastActiveLabel}</span>
                 </Tooltip>
               </dd>
             </div>
@@ -327,7 +330,7 @@ export function UserManagementTable({
             {withSecondary && (
               <Table.Cell className={WRAP_CELL}>
                 <Tooltip label={row.lastActiveExactLabel}>
-                  <span>{row.lastActiveLabel}</span>
+                  <span className={FOCUS_RING} tabIndex={0}>{row.lastActiveLabel}</span>
                 </Tooltip>
               </Table.Cell>
             )}

@@ -27,6 +27,7 @@ import {
   isForbiddenError,
 } from './modelRegistryErrors';
 import { canManageModels } from './modelRegistryGateway';
+import { COLLAPSE_BREAKPOINT_PX } from './useModelRegistry';
 
 vi.mock('@/lib/versioning/conflict', () => ({ resolveConflict: vi.fn() }));
 
@@ -700,5 +701,80 @@ describe('relatedLink — F-12', () => {
     cleanup();
     renderWithProviders(<ModelRegistryContainer client={makeClient()} now={() => NOW} relatedLink={null} />);
     expect(screen.queryByRole('link', { name: 'Lượt huấn luyện' })).toBeNull();
+  });
+});
+
+describe('Chi tiết bản — chọn lại và lỗi đọc (BUG-P08-010, BUG-P08-013)', () => {
+  it('[36R-A-009] bấm lại nhãn đang chọn bỏ chọn: aria-pressed=false, chi tiết về câu gợi ý', async () => {
+    renderScreen(makeClient());
+    await chooseFamily('Đọc kích thước');
+
+    const label = await screen.findByRole('button', { name: 'Đọc số tải lên' });
+    fireEvent.click(label);
+    expect(await screen.findByRole('complementary', { name: 'Chi tiết phiên bản' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Đọc số tải lên' })).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đọc số tải lên' }));
+
+    expect(screen.getByRole('button', { name: 'Đọc số tải lên' })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(screen.getByRole('complementary', { name: 'Chi tiết phiên bản' })).getByText('Chọn một phiên bản để xem chi tiết.')).toBeInTheDocument();
+  });
+
+  it('[36R-B-021] GET chi tiết 404 khi hàng còn trong danh sách: trường danh sách vẫn hiện kèm câu lỗi', async () => {
+    renderScreen(makeClient({ readVersion: async () => wireError(404, 'NOT_FOUND', 'modelVersion') }));
+    await chooseFamily('Đọc kích thước');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Đọc số tải lên' }));
+    const panel = await screen.findByRole('complementary', { name: 'Chi tiết phiên bản' });
+
+    expect(await within(panel).findByText(MODEL_REGISTRY_ERROR_TEXT.versionNotFound)).toBeInTheDocument();
+    expect(within(panel).getByText('CER 0,083', { selector: 'dd' })).toBeInTheDocument();
+  });
+});
+
+describe('Bề rộng 1024 (36R-F-013, BUG-P08-012)', () => {
+  it('ngưỡng thu gọn không thấp hơn bề rộng nội dung 2 cột: 32+640+24+344+32', () => {
+    expect(COLLAPSE_BREAKPOINT_PX).toBeGreaterThanOrEqual(32 + 640 + 24 + 344 + 32);
+  });
+});
+
+describe('Chọn bản — hàng xóm của 36R-A-009', () => {
+  it('[36R-A-008] bấm nhãn thứ hai: nhãn đầu aria-pressed=false, nhãn hai true, h2 đổi', async () => {
+    renderScreen(makeClient());
+    await chooseFamily('Đọc kích thước');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Đọc số tải lên' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Đọc số thử nghiệm' }));
+
+    expect(screen.getByRole('button', { name: 'Đọc số tải lên' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Đọc số thử nghiệm' })).toHaveAttribute('aria-pressed', 'true');
+    const panel = screen.getByRole('complementary', { name: 'Chi tiết phiên bản' });
+    expect(await within(panel).findByRole('heading', { level: 2, name: 'Đọc số thử nghiệm' })).toBeInTheDocument();
+  });
+
+  it('[36R-A-006] đổi họ xoá bản đã chọn: chi tiết về câu gợi ý', async () => {
+    renderScreen(makeClient());
+    await chooseFamily('Đọc kích thước');
+    fireEvent.click(await screen.findByRole('button', { name: 'Đọc số tải lên' }));
+    await screen.findByRole('heading', { level: 2, name: 'Đọc số tải lên' });
+
+    await chooseFamily('Nhận diện cửa và đồ đạc');
+
+    const panel = await screen.findByRole('complementary', { name: 'Chi tiết phiên bản' });
+    expect(within(panel).getByText('Chọn một phiên bản để xem chi tiết.')).toBeInTheDocument();
+  });
+
+  it('[36R-A-022] khổ hẹp: Esc đóng ngăn kéo, nhãn aria-pressed=false', async () => {
+    renderWithProviders(<ModelRegistryContainer client={makeClient()} forceCompact now={() => NOW} />);
+    await chooseFamily('Đọc kích thước');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Đọc số tải lên' }));
+    expect(await screen.findByRole('dialog', { name: 'Chi tiết phiên bản' })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Đọc số tải lên' })).toHaveAttribute('aria-pressed', 'false');
+    });
   });
 });

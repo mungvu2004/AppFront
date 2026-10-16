@@ -641,3 +641,71 @@ describe('trạng thái 6: capabilities.canManage === false thì hiện readOnly
     expect(props.model.readOnlyReason).toBeNull();
   });
 });
+
+/* ==========================================================================
+ * QA-08 (BUG-P08-001/003/006): nút thử lại, nhãn chữ hoa đầu, h1 duy nhất.
+ * ========================================================================== */
+
+describe('[34L-B-004] lỗi đọc thư viện có nút "Thử lại" gọi retryLoad', () => {
+  it('state=error: bấm "Thử lại" gọi actions.retryLoad một lần', async () => {
+    const ModelLibraryView = await loadModelLibraryView();
+    const actions = buildActions();
+
+    renderWithProviders(<ModelLibraryView actions={actions} model={buildBaseModel('error')} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+
+    expect(actions.retryLoad).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('[34L-C-017] nhãn chữ hoa đầu (luật A6, BUG-595)', () => {
+  it('thanh công cụ: "Tìm model"; dải tóm tắt: "Model nặng"', async () => {
+    const ModelLibraryView = await loadModelLibraryView();
+
+    renderWithProviders(<ModelLibraryView {...buildModelLibraryProps('success')} />);
+
+    expect(screen.getByLabelText('Tìm model')).toBeTruthy();
+    expect(screen.getByText('Model nặng')).toBeTruthy();
+  });
+
+  it('nhãn trường chi tiết "Dung lượng" và "Nhóm"', async () => {
+    const { MODEL_LIBRARY_TEXT } = await importFromScreen<typeof import('./useModelLibrary')>('./useModelLibrary');
+
+    expect(MODEL_LIBRARY_TEXT.fieldFileSize).toBe('Dung lượng');
+    expect(MODEL_LIBRARY_TEXT.fieldGroup).toBe('Nhóm');
+  });
+});
+
+describe('[34L-E-009] màn có đúng một h1 ở mọi trạng thái đã dựng khung', () => {
+  it.each(['success', 'loading', 'error', 'empty', 'forbidden'] as const)('state %s: một h1 "Thư viện model"', async (state) => {
+    const ModelLibraryView = await loadModelLibraryView();
+
+    renderWithProviders(<ModelLibraryView {...buildModelLibraryProps(state)} />);
+    const headings = screen.getAllByRole('heading', { level: 1 });
+
+    expect(headings).toHaveLength(1);
+    expect(headings[0]?.textContent).toBe('Thư viện model');
+  });
+});
+
+describe('[34L-E-007] focus theo panel chi tiết (BUG-P08-005)', () => {
+  it('mở: focus vào tiêu đề panel; đóng: focus về nút hàng đã mở', async () => {
+    const ModelLibraryView = await loadModelLibraryView();
+    const closed = buildModelLibraryProps('success');
+    const row = firstRowOf(closed);
+    const opened = { ...closed, model: { ...closed.model, detail: buildDetail(row) } };
+
+    const view = renderWithProviders(<ModelLibraryView {...closed} />);
+    const opener = screen.getByRole('button', { name: row.name });
+    opener.focus();
+    expect(document.activeElement).toBe(opener);
+
+    view.rerender(<ModelLibraryView {...opened} />);
+    const panel = screen.getByRole('complementary', { name: 'Chi tiết model' });
+    expect(document.activeElement).toBe(panel.querySelector('h2'));
+
+    view.rerender(<ModelLibraryView {...closed} />);
+    expect(screen.queryByRole('complementary', { name: 'Chi tiết model' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: row.name }));
+  });
+});

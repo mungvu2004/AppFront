@@ -26,6 +26,7 @@
  */
 
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { useState } from 'react';
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -273,7 +274,8 @@ describe('Hành động bị chặn (Đ-8): hiện câu giải thích tại ch�
     renderWithProviders(<UserManagementView actions={USER_MANAGEMENT_ACTIONS} model={model} />);
 
     expect(screen.getByText(selfRow.roleChangeBlockedReason as string)).toBeTruthy();
-    expect(screen.getByText(lastAdminRow.removeBlockedReason as string)).toBeTruthy();
+    // BUG-P08-022 / 37W-C-014: panel chi tiết nay cũng nêu lý do chặn xoá nên câu có thể hiện ở hàng VÀ panel.
+    expect(screen.getAllByText(lastAdminRow.removeBlockedReason as string).length).toBeGreaterThan(0);
   });
 });
 
@@ -433,7 +435,7 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
     for (const isCollapsed of [false, true]) {
       const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_PARTIAL, detail: null, isCollapsed };
       const { unmount } = renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
-      const links = await screen.findAllByRole('button', { name: 'Gửi lại' });
+      const links = await screen.findAllByRole('button', { name: /^Gửi lại lời mời cho / }); // BUG-P08-024: tên nêu người nhận
       for (const link of links) expect(link).toHaveClass('inline-flex', 'min-h-11', 'sm:min-h-6');
       expect(screen.queryByRole('button', { name: 'gửi lại' })).toBeNull();
       unmount();
@@ -576,3 +578,134 @@ describe('avatar ở tấm chi tiết', () => {
   });
 });
 
+
+describe('SCR-37 đọc (phase 08, D-a): BUG-P08-014..021', () => {
+  const SUCCESS = USER_MANAGEMENT_SCENARIO_SUCCESS;
+
+  function withDetail(patch: Partial<NonNullable<UserManagementViewModel['detail']>>): UserManagementViewModel {
+    expect(SUCCESS.detail, 'kịch bản success cần một người đang được chọn').not.toBeNull();
+
+    return { ...SUCCESS, isCollapsed: false, detail: { ...(SUCCESS.detail as NonNullable<typeof SUCCESS.detail>), ...patch } };
+  }
+
+  async function renderModel(model: UserManagementViewModel) {
+    const UserManagementView = await loadUserManagementView();
+
+    return renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
+  }
+
+  it('[37U-A-002] breadcrumb: đúng một aria-current, ở mục cuối', async () => {
+    // Như hook thật dựng (useUserManagement.ts:1229-1232): cả hai mục đều href null.
+    const breadcrumbItems = SUCCESS.breadcrumbItems.map((item) => ({ ...item, href: null }));
+    const { container } = await renderModel({ ...SUCCESS, breadcrumbItems });
+    const nav = container.querySelector('nav[aria-label]') as HTMLElement;
+    const current = nav.querySelectorAll('[aria-current]');
+    const last = breadcrumbItems[breadcrumbItems.length - 1];
+
+    expect(current).toHaveLength(1);
+    expect(current[0]?.textContent).toBe(last?.label);
+  });
+
+  it('[37U-E-012] màn có đúng một h1', async () => {
+    await renderModel(SUCCESS);
+
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it('[37U-E-012] h1 cũng có ở trạng thái không có quyền', async () => {
+    await renderModel(USER_MANAGEMENT_SCENARIO_FORBIDDEN);
+
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it('[37U-A-020] câu chú thích vai nói đúng một lần cho cả danh sách dự án', async () => {
+    const reason = 'Câu thử về vai trong dự án';
+    const base = SUCCESS.detail?.memberships ?? [];
+    const memberships = base.map((membership) => ({ ...membership, roleChangeBlockedReason: reason }));
+    expect(memberships.length).toBeGreaterThan(1);
+    await renderModel(withDetail({ memberships }));
+
+    expect(screen.getAllByText(reason)).toHaveLength(1);
+  });
+
+  it('[37U-C-006] tên dự án dài có title đủ tên', async () => {
+    const longName = 'Dự án có tên rất dài '.repeat(6).trim();
+    const first = SUCCESS.detail?.memberships[0];
+    expect(first).toBeDefined();
+    await renderModel(withDetail({ memberships: [{ ...(first as NonNullable<typeof first>), projectName: longName }] }));
+
+    expect(screen.getAllByText(longName).some((node) => node.getAttribute('title') === longName)).toBe(true);
+  });
+
+  it('[37U-E-009] giờ tuyệt đối: ô "Lần hoạt động cuối" focus được bằng bàn phím', async () => {
+    const model: UserManagementViewModel = { ...SUCCESS, detail: null, isCollapsed: false, selectedUserId: null };
+    await renderModel(model);
+    const label = model.rows[1]?.lastActiveLabel as string;
+    const node = screen.getAllByText(label)[0] as HTMLElement;
+
+    expect(node.getAttribute('tabindex')).toBe('0');
+  });
+
+  it('[37U-B-017] memberships/activity đang tải: có chỉ báo tải, không nháy câu "rỗng"', async () => {
+    await renderModel(withDetail({ memberships: [], activities: [], membershipsState: { status: 'loading' }, activitiesState: { status: 'loading' } }));
+
+    expect(screen.queryByText('Người này chưa tham gia dự án nào')).toBeNull();
+    expect(screen.queryByText('Chưa có hoạt động nào')).toBeNull();
+    expect(screen.getByRole('region', { name: 'Dự án tham gia' }).getAttribute('aria-busy')).toBe('true');
+    expect(screen.getByRole('region', { name: 'Hoạt động gần đây' }).getAttribute('aria-busy')).toBe('true');
+  });
+
+  it('[37U-B-015/016, G-005] lỗi đọc: hiện câu lỗi, không nói "rỗng"', async () => {
+    await renderModel(
+      withDetail({
+        memberships: [],
+        activities: [],
+        membershipsState: { status: 'error', label: 'Lỗi đọc dự án thử' },
+        activitiesState: { status: 'error', label: 'Lỗi đọc hoạt động thử' },
+      }),
+    );
+
+    expect(screen.getByText('Lỗi đọc dự án thử')).toBeTruthy();
+    expect(screen.getByText('Lỗi đọc hoạt động thử')).toBeTruthy();
+    expect(screen.queryByText('Người này chưa tham gia dự án nào')).toBeNull();
+    expect(screen.queryByText('Chưa có hoạt động nào')).toBeNull();
+  });
+
+  it('[37U-G-007] lỗi khi đã có danh sách: báo lỗi và giữ danh sách', async () => {
+    const kept = SUCCESS.detail?.memberships[0]?.projectName as string;
+    await renderModel(withDetail({ membershipsState: { status: 'error', label: 'Mất mạng thử' } }));
+
+    expect(screen.getByText('Mất mạng thử')).toBeTruthy();
+    expect(screen.getAllByText(kept).length).toBeGreaterThan(0);
+  });
+
+  it('[37U-E-006] đóng chi tiết bằng Esc: tiêu điểm về nút tên đã mở', async () => {
+    const UserManagementView = await loadUserManagementView();
+    const detailUserId = SUCCESS.detail?.user.id as string;
+    const openRow = SUCCESS.rows.find((row) => row.id === detailUserId) as UserManagementViewModel['rows'][number];
+
+    function Harness() {
+      const [selected, setSelected] = useState<string | null>(null);
+      const model: UserManagementViewModel = {
+        ...SUCCESS,
+        isCollapsed: false,
+        selectedUserId: selected,
+        detail: selected === null ? null : SUCCESS.detail,
+      };
+
+      return <UserManagementView actions={buildActions({ onSelectUser: setSelected })} model={model} />;
+    }
+
+    renderWithProviders(<Harness />);
+    const nameButton = screen.getByRole('button', { name: openRow.name });
+    nameButton.focus();
+    fireEvent.click(nameButton);
+    // Tiêu điểm rời nút tên (người dùng Tab sang nút đóng) rồi Esc: nút đóng bị gỡ, tiêu điểm phải về nút tên.
+    screen.getByRole('button', { name: 'Đóng chi tiết người dùng' }).focus();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Đóng chi tiết người dùng' })).toBeNull());
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: openRow.name }));
+  });
+});

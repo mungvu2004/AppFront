@@ -104,7 +104,7 @@ function LoadingArea({ rowCount }: { readonly rowCount: number }) {
 }
 
 function JobsPanel({ actions, model }: TrainingJobsProps) {
-  const showsSidePanel = !model.isCollapsed && model.detail !== null && model.state !== 'loading';
+  const showsSidePanel = !model.isCollapsed && model.state !== 'loading';
 
   return (
     <div className="flex flex-col gap-4">

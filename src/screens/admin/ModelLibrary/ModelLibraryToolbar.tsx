@@ -14,9 +14,9 @@ import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/S
 
 import type { LibraryFilterId, ModelLibraryActions, ModelLibraryModel, ModelLibraryViewMode } from './types';
 
-const SEARCH_LABEL = 'tìm model';
+const SEARCH_LABEL = 'Tìm model';
 const SEARCH_PLACEHOLDER = 'Tìm theo tên model...';
-const CATEGORY_LABEL = 'danh mục';
+const CATEGORY_LABEL = 'Danh mục';
 const VIEW_MODE_LABEL = 'Chế độ xem';
 
 const VIEW_MODE_OPTIONS: readonly SegmentedControlOption<ModelLibraryViewMode>[] = [

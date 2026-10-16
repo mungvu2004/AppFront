@@ -18,8 +18,8 @@
  *
  * ## Bậc thang bảy trạng thái
  *
- * `loading` (phiên chưa rõ) → `forbidden` → `loading` → `error` → `collapsed` → `empty` (tab
- * đang mở rỗng, không lọc) → `partial` (có lượt chưa kết thúc) → `success`.
+ * `loading` (phiên chưa rõ) → `forbidden` → `loading` → `error` → `empty` (tab đang mở
+ * rỗng, không lọc) → `partial` (có lượt chưa kết thúc) → `collapsed` (màn hẹp) → `success`.
  */
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -580,10 +580,10 @@ export function useTrainingJobs({
     if (!isAdmin || writeForbidden || isForbiddenByServer) return 'forbidden';
     if (isTabLoading) return 'loading';
     if (tabReadError !== null) return 'error';
-    if (isNarrow) return 'collapsed';
     if (isTabEmpty) return 'empty';
+    if (activeTab === 'jobs' && activeCount > 0) return 'partial';
 
-    return activeTab === 'jobs' && activeCount > 0 ? 'partial' : 'success';
+    return isNarrow ? 'collapsed' : 'success';
   }, [
     isSessionUnknown,
     isAdmin,
@@ -598,6 +598,15 @@ export function useTrainingJobs({
   ]);
 
   /* ---- Tạo -------------------------------------------------------------- */
+
+  // 403 của MỘT lần ghi: chỉ đóng hộp + báo lỗi, vẫn xem được (35T-C-013). 403 khi đọc mới khoá trang.
+  const notifyWriteForbidden = (): void => {
+    gateway.notify({
+      description: TRAINING_ERROR_TEXT.writeForbidden,
+      title: TRAINING_ERROR_TEXT.writeForbiddenTitle,
+      type: 'trainingJobs.writeForbidden',
+    });
+  };
 
   const createMutation = useMutation({
     mutationFn: (variables: CreateVariables) =>
@@ -614,7 +623,7 @@ export function useTrainingJobs({
 
       if (isForbiddenError(error)) {
         setFormOpen(false);
-        setWriteForbidden(true);
+        notifyWriteForbidden();
         return;
       }
 
@@ -681,7 +690,7 @@ export function useTrainingJobs({
     onError: (error, jobId) => {
       if (isForbiddenError(error)) {
         setCancelOpen(false);
-        setWriteForbidden(true);
+        notifyWriteForbidden();
         return;
       }
 

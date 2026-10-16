@@ -129,3 +129,88 @@ describe('onClearSearch — BUG-082: lối thoát của khối không-khớp', (
     expect(result.current.model.rows).toHaveLength(2);
   });
 });
+
+describe('SCR-37 đọc — BUG-P08-015/016: trạng thái đọc của panel chi tiết và ô rỗng khổ hẹp', () => {
+  const NOW = Date.parse('2026-10-09T08:00:00Z');
+  const ADMIN: AdminUser = { email: 'an.pham@appfront.vn', id: 'u-an', lastActiveAt: null, name: 'Phạm An', projectCount: 0, role: 'admin', status: 'active' };
+  const VIEWER: AdminUser = { email: 'binh.nguyen@appfront.vn', id: 'u-binh', lastActiveAt: null, name: 'Nguyễn Bình', projectCount: 0, role: 'viewer', status: 'active' };
+
+  function gatewayWith(users: AdminUser[], overrides: Partial<UserManagementGateway>): UserManagementGateway {
+    const unused = (): Promise<never> => Promise.reject(new Error('Bài này không ghi.'));
+    return {
+      capabilities: { canManageUsers: true },
+      currentUserId: 'u-an',
+      currentUserEmail: ADMIN.email,
+      permissionMatrix: buildPermissionMatrix(),
+      listUsers: () => Promise.resolve({ total: users.length, users }),
+      readMemberships: () => Promise.resolve([]),
+      readActivity: () => Promise.resolve([]),
+      changeRole: unused,
+      disableUser: unused,
+      enableUser: unused,
+      inviteUsers: unused,
+      removeUser: unused,
+      resendInvite: unused,
+      createWriteTicket: () => {
+        throw new Error('Bài này không ghi.');
+      },
+      notify: () => undefined,
+      trackRoleChange: () => undefined,
+      createOptimisticId: () => 'tam-1',
+      now: () => NOW,
+      ...overrides,
+    };
+  }
+
+  function mount(gateway: UserManagementGateway, isNarrow = false) {
+    const queryClient = createTestQueryClient();
+    const wrapper = ({ children }: { readonly children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    return renderHook(() => useUserManagement({ gateway, isNarrow }), { wrapper });
+  }
+
+  it('[37U-B-017] memberships/activity chưa có dữ liệu: trạng thái "loading", không phải rỗng', async () => {
+    const never = (): Promise<never> => new Promise<never>(() => undefined);
+    const { result } = mount(gatewayWith([ADMIN, VIEWER], { readMemberships: never, readActivity: never }));
+    await waitFor(() => expect(result.current.model.rows).toHaveLength(2));
+    act(() => result.current.actions.onSelectUser('u-binh'));
+    await waitFor(() => expect(result.current.model.detail).not.toBeNull());
+    expect(result.current.model.detail?.membershipsState).toEqual({ status: 'loading' });
+    expect(result.current.model.detail?.activitiesState).toEqual({ status: 'loading' });
+  });
+
+  it('[37U-B-015/016, G-005] memberships 404 và activity 500: trạng thái "error" kèm câu lỗi', async () => {
+    const { result } = mount(
+      gatewayWith([ADMIN, VIEWER], {
+        readMemberships: () => Promise.reject(new Error('404 không thấy')),
+        readActivity: () => Promise.reject(new Error('500 hỏng')),
+      }),
+    );
+    await waitFor(() => expect(result.current.model.rows).toHaveLength(2));
+    act(() => result.current.actions.onSelectUser('u-binh'));
+    await waitFor(() => expect(result.current.model.detail?.membershipsState?.status).toBe('error'));
+    await waitFor(() => expect(result.current.model.detail?.activitiesState?.status).toBe('error'));
+    const state = result.current.model.detail?.membershipsState;
+    expect(state?.status === 'error' && state.label.length > 0).toBe(true);
+  });
+
+  it('[37U-B-015] đọc xong: trạng thái "ready"', async () => {
+    const { result } = mount(gatewayWith([ADMIN, VIEWER], {}));
+    await waitFor(() => expect(result.current.model.rows).toHaveLength(2));
+    act(() => result.current.actions.onSelectUser('u-binh'));
+    await waitFor(() => expect(result.current.model.detail?.membershipsState).toEqual({ status: 'ready' }));
+    expect(result.current.model.detail?.activitiesState).toEqual({ status: 'ready' });
+  });
+
+  it('[37U-C-011] chỉ có mình admin: "empty" ở cả khổ rộng và khổ hẹp (<1024)', async () => {
+    const wide = mount(gatewayWith([ADMIN], {}), false);
+    await waitFor(() => expect(wide.result.current.model.state).toBe('empty'));
+    const narrow = mount(gatewayWith([ADMIN], {}), true);
+    await waitFor(() => expect(narrow.result.current.model.state).toBe('empty'));
+  });
+
+  it('[37U-C-011] khổ hẹp có người khác: vẫn "collapsed"', async () => {
+    const narrow = mount(gatewayWith([ADMIN, VIEWER], {}), true);
+    await waitFor(() => expect(narrow.result.current.model.state).toBe('collapsed'));
+  });
+});

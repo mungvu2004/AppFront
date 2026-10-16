@@ -395,7 +395,9 @@ const OTHER_ADMIN_ACTIVITIES: readonly UserActivityRowModel[] = [
 const OTHER_ADMIN_DETAIL: UserDetailModel = {
   user: OTHER_ADMIN_ROW,
   memberships: OTHER_ADMIN_MEMBERSHIPS,
+  membershipsState: { status: 'ready' },
   activities: OTHER_ADMIN_ACTIVITIES,
+  activitiesState: { status: 'ready' },
 };
 
 /* ==========================================================================
