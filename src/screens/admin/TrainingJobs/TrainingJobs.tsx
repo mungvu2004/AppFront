@@ -110,7 +110,7 @@ function JobsPanel({ actions, model }: TrainingJobsProps) {
     <div className="flex flex-col gap-4">
       <Toolbar actions={actions} model={model} />
       <div className="flex items-start gap-6">
-        <div className={cn('flex-1', model.isCollapsed ? 'min-w-0' : 'min-w-[640px]')}>
+        <div className="min-w-0 flex-1">
           {model.state === 'loading' ? (
             <LoadingArea rowCount={model.skeletonRowCount} />
           ) : (

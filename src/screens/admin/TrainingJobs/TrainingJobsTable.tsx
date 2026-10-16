@@ -72,7 +72,7 @@ function Cards({ actions, rows }: { readonly actions: TrainingJobsActions; reado
 
 function Rows({ actions, rows }: { readonly actions: TrainingJobsActions; readonly rows: readonly JobRowModel[] }) {
   return (
-    <Table.Root>
+    <Table.Root className="[&>table]:min-w-[640px]">
       <Table.Header>
         <Table.Row>
           {HEADERS.map((header) => (
