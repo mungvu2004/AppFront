@@ -494,9 +494,11 @@ test.describe('E08 SCR-37 users write (edge)', () => {
         const before = rec.writes().filter((w) => w.startsWith('PATCH')).length;
         await sel(pu2).focus();
         await page.keyboard.press('Enter');
-        await page.keyboard.press('ArrowDown');
+        // useSelect.ts:44-82: DOM focus stays on the trigger, the highlight starts on the current role (Ky su, index 1),
+        // ArrowUp moves it to Quan tri (index 0), Enter picks the highlighted one. Options have tabIndex -1 and no key handler,
+        // so focusing an option by script (old code) made Enter a no-op: test mechanics, not an app bug.
+        await page.keyboard.press('ArrowUp');
         await snap(page, 'E08_37W-E-006-before-pick', { writes: rec.writes(), pu2: pu2.id }); // listbox open? which option is active?
-        await page.getByRole('option', { name: ROLE.admin, exact: true }).focus();
         const patch = nextResponse(page, 'PATCH', re(`${USERS}/${pu2.id}/role`), [200]);
         await page.keyboard.press('Enter');
         await snap(page, 'E08_37W-E-006-after-enter', { writes: rec.writes(), pu2: pu2.id }); // did the PATCH leave? did the list close?

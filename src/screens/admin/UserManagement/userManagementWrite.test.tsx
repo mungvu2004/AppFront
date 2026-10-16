@@ -202,3 +202,46 @@ describe('BUG-P08-027: lỗi field "emails" gắn vào ô nhập', () => {
     expect(result.current.model.invite.errorLabel).toBeNull();
   });
 });
+
+describe('FL-37W-02: bấm đúp "Gửi lời mời"', () => {
+  it('[37W-B-001] hai lần bấm liền nhau chỉ gửi MỘT lượt mời', async () => {
+    let answer: (users: readonly AdminUser[]) => void = () => undefined;
+    const inviteUsers = vi.fn(() => new Promise<readonly AdminUser[]>((resolve) => { answer = resolve; })); // held, then answered
+    const { result } = mountHook(
+      fakeGateway([user('me', 'admin')], { inviteUsers, createWriteTicket: () => { throw new Error('x'); } }),
+    );
+    await waitFor(() => expect(result.current.model.rows).toHaveLength(1));
+    act(() => {
+      result.current.actions.onOpenInvite();
+      result.current.actions.onInviteEmailsChange('moi@x.test');
+    });
+    const { onSubmitInvite } = result.current.actions; // the handler a double-click holds for both clicks
+
+    act(() => {
+      onSubmitInvite();
+      onSubmitInvite();
+    });
+    await waitFor(() => expect(inviteUsers).toHaveBeenCalled());
+    act(() => answer([user('moi', 'viewer', { status: 'pending' })]));
+    // the mutation queue runs a 2nd lifecycle after the 1st answers: on the wire that is the 2nd POST (evidence postCount 2)
+    await waitFor(() => expect(result.current.model.invite.isOpen).toBe(false)); // 1st answered: form closed
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); }); // let the queued 2nd lifecycle start if it exists
+    expect(inviteUsers).toHaveBeenCalledTimes(1);
+  });
+
+  it('[37W-A-003] sau khi một lượt mời lỗi, bấm gửi lại vẫn gửi được (cờ đang gửi đã nhả)', async () => {
+    const inviteUsers = vi.fn(() => Promise.reject(new Error('boom')));
+    const { result } = mountHook(fakeGateway([user('me', 'admin')], { inviteUsers }));
+    await waitFor(() => expect(result.current.model.rows).toHaveLength(1));
+    act(() => {
+      result.current.actions.onOpenInvite();
+      result.current.actions.onInviteEmailsChange('moi@x.test');
+    });
+    act(() => result.current.actions.onSubmitInvite());
+    await waitFor(() => expect(inviteUsers).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(result.current.model.invite.isSubmitting).toBe(false));
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    act(() => result.current.actions.onSubmitInvite());
+    await waitFor(() => expect(inviteUsers).toHaveBeenCalledTimes(2));
+  });
+});

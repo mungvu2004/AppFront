@@ -502,6 +502,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
   const [inviteRole, setInviteRole] = useState<ProjectRole>('viewer');
   /** BUG-P08-027: lỗi máy chủ gắn vào field `emails` — hiện ở chính ô nhập, tắt khi sửa chữ. */
   const [inviteServerError, setInviteServerError] = useState<string | null>(null);
+  const inviteInFlightRef = useRef(false);
   const [removeUserId, setRemoveUserId] = useState<string | null>(null);
   const [removeEmail, setRemoveEmail] = useState('');
   /** Hàng vừa đổi vai xong: nền nháy đúng một nhịp `MOTION_DURATIONS_MS.slow` rồi tắt. */
@@ -1153,9 +1154,12 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
       onSubmitInvite: (): void => {
         const { validEmails } = parseInviteEmails(rawEmails);
 
-        if (validEmails.length === 0) {
+        // 37W-B-001: a double-click holds the same handler for both clicks and `isPending` lags a render, so the 2nd
+        // click queued a 2nd lifecycle behind the 1st (2 POSTs). The ref flips at once.
+        if (validEmails.length === 0 || inviteInFlightRef.current) {
           return;
         }
+        inviteInFlightRef.current = true;
 
         const variables: InviteVariables = {
           emails: validEmails,
@@ -1181,7 +1185,9 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
             }
             notifyFailure(USER_MANAGEMENT_TEXT.inviteFailedTitle, error);
           },
-        );
+        ).finally(() => {
+          inviteInFlightRef.current = false;
+        });
       },
       onOpenRemove: (userId): void => {
         setRemoveUserId(userId);

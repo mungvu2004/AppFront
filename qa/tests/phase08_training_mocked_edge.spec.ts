@@ -272,7 +272,7 @@ test.describe('E08 SCR-35 training jobs - mocked-response flows (QA-08 P5)', () 
         await ev(page, '35T-B-041', 'offline');
         mock.on.datasets = () => ok({ items: [] });
         await context.setOffline(false);
-        await page.getByRole('button', { name: RETRY, exact: true }).click();
+        // back online TanStack resumes the paused read itself (vitest [35T-B-041]), so "Thử lại" may already be gone
         await expect.soft(page.getByText('Chưa có bộ dữ liệu', { exact: true })).toBeVisible();
       });
 

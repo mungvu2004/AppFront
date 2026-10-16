@@ -70,6 +70,10 @@ export interface TrainingJobFormProps {
 export function TrainingJobForm({ actions, form }: TrainingJobFormProps) {
   const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
+    // Ô chọn (SegmentedControl) là <button> không khai type nên bấm vào là "gửi" form (35T-C-002/C-014):
+    // chỉ nút type="submit" hoặc Enter (submitter null) mới gửi. Gốc ở SegmentedControl dùng chung.
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    if (submitter !== null && submitter !== undefined && submitter.getAttribute('type') !== 'submit') return;
     actions.onSubmitForm();
   };
 

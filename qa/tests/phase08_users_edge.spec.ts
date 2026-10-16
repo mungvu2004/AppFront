@@ -469,10 +469,11 @@ test.describe('SCR-37 users (read) edge', () => {
       const peRow = userRow(page, s.pe.email);
       const lastActive = (row: typeof peRow) => row.getByRole('cell').nth(3);
 
-      await test.step('[37U-B-013] clock right after invite: no "expired", no "Gửi lại"', async () => {
+      await test.step('[37U-B-013] clock right after invite: no "expired", but "Gửi lại" present (Q5)', async () => {
         await expect(invRow).toContainText(STATUS_LABEL.pending);
         await expect.soft(invRow).not.toContainText(USR.expired);
-        await expect.soft(invRow.getByRole('button', { name: USR.resend, exact: true })).toHaveCount(0);
+        // Q5 (questions.md, user answer 2026-10-16): resend on EVERY pending row; BUG-P08-024: aria-label "Gửi lại lời mời cho <email>" (UserManagementTable.tsx:125)
+        await expect.soft(invRow.getByRole('button', { name: `${USR.resend} lời mời cho ${invEmail}`, exact: true })).toHaveCount(1);
         await captureEvidence(page, 'E08_37U-B-013_users.png');
       });
       await test.step('[37U-B-012] clock = expiry + 1 min: "Lời mời đã hết hạn" + "Gửi lại" (not clicked)', async () => {
@@ -482,7 +483,7 @@ test.describe('SCR-37 users (read) edge', () => {
         await list;
         await expect.soft(invRow).toContainText(STATUS_LABEL.pending);
         await expect.soft(invRow).toContainText(USR.expired);
-        await expect.soft(invRow.getByRole('button', { name: USR.resend, exact: true })).toBeVisible();
+        await expect.soft(invRow.getByRole('button', { name: `${USR.resend} lời mời cho ${invEmail}`, exact: true })).toBeVisible(); // Q5 + BUG-P08-024
         await captureEvidence(page, 'E08_37U-B-012_users.png');
       });
       await test.step('[37U-A-033] last activity: relative text + absolute tooltip; never active = "Chưa hoạt động lần nào"', async () => {
@@ -518,7 +519,7 @@ test.describe('SCR-37 users (read) edge', () => {
   });
 
   test('SCR-37 · FL-37U-06 · Bàn phím, a11y, số request, ngoại tuyến', async ({ page, context }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(300_000); // Tab walk crosses ~700 stops on a 155-row list
     const s = await seed37U();
     try {
       await signInAdmin(page);
@@ -557,7 +558,9 @@ test.describe('SCR-37 users (read) edge', () => {
         let reached = false;
         const stops: string[] = [];
         const rowInfo = await page.locator('tbody tr').evaluateAll((rs, email) => ({ rows: rs.length, peIndex: rs.findIndex((r) => r.textContent?.includes(email)) }), s.pe.email);
-        for (let i = 0; i < 40 && !reached; i += 1) {
+        // D evidence E08_37U-E-001_tab_trace.json: rows=155, peIndex=140, 5 stops per row (name, role, last activity, Vô hiệu hoá, Xoá) => 140*5 > 40 stops = mechanics, loop was too short
+        const maxStops = Math.max(40, (rowInfo.peIndex + 1) * 6 + 10);
+        for (let i = 0; i < maxStops && !reached; i += 1) {
           await page.keyboard.press('Tab');
           reached = await nameBtn.evaluate((el) => el === document.activeElement);
           stops.push(await page.evaluate(() => { const a = document.activeElement; return a ? `${a.tagName.toLowerCase()}|${a.getAttribute('aria-label') ?? ''}|${(a.textContent ?? '').trim().slice(0, 40)}` : 'none'; }));

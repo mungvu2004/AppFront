@@ -133,7 +133,7 @@ test.describe('SCR-37 users UI', () => {
           const offsets = await p.locator('tbody tr').filter({ hasNotText: lng.email }).evaluateAll((rows) => // long row excluded: it is taller
             rows
               .map((r) => {
-                const b = [...r.querySelectorAll('button')].find((x) => x.textContent?.trim() === 'Xoá');
+                const b = [...r.querySelectorAll('button')].find((x) => x.textContent?.trim().startsWith('Xoá')); // D evidence rows_<w>.json: button text is doubled ('XoáXoá'), so === never matched (rows=0)
                 return b ? Math.round(b.getBoundingClientRect().top - r.getBoundingClientRect().top) : null;
               })
               .filter((v): v is number => v !== null),

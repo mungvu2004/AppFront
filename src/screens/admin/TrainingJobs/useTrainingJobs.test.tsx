@@ -4,8 +4,9 @@
  * nhất bị thay. Nhịp hỏi đo bằng đồng hồ giả.
  */
 
-import { QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, renderHook, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -492,6 +493,57 @@ describe('Lỗi N33 → đúng ô', () => {
       expect(result.current.model.form?.versionError).toBe('Bộ dữ liệu này chưa có phiên bản sẵn sàng.');
     });
     expect(result.current.model.form?.canSubmit).toBe(false);
+  });
+
+  // FL-35T-06 / 35T-B-041 (D evidence: datasetsGetsAfter 1 == datasetsGetsBefore 1, no alert, tab opened offline).
+  it('[35T-B-041] mất mạng lúc mở tab Bộ dữ liệu: không GET, vẫn báo "Máy chủ đang bận", có mạng thì tự đọc', async () => {
+    const client = makeClient({ listJobs: async () => page<TrainingJob>([]) });
+    const { result } = renderTrainingHook(client);
+    await waitFor(() => {
+      expect(result.current.model.state).toBe('empty');
+    });
+    const gets = client.listDatasets.mock.calls.length;
+
+    onlineManager.setOnline(false);
+    try {
+      act(() => {
+        result.current.actions.onSelectTab('datasets');
+      });
+      await waitFor(() => {
+        expect(result.current.model.state).toBe('error');
+      });
+      expect(result.current.model.errorMessage).toBe(TRAINING_ERROR_TEXT.busy);
+      expect(client.listDatasets.mock.calls.length).toBe(gets);
+    } finally {
+      onlineManager.setOnline(true);
+    }
+    await waitFor(() => {
+      expect(client.listDatasets.mock.calls.length).toBeGreaterThan(gets);
+    });
+  });
+
+  // FL-35T-03 (posts [] -> 1 -> 3 after the form was valid) and FL-35T-12 (creates 7 -> 8 after a click on the
+  // radio "mitB1"): a click on a radio of the form submits the form, because the radio is a <button> in a <form>.
+  it('[35T-C-002] [35T-C-014] bấm ô chọn họ / model nền trong biểu mẫu không gửi biểu mẫu', async () => {
+    const client = makeClient();
+    renderScreen(client);
+    const user = userEvent.setup({ delay: null });
+
+    await user.click(await screen.findByRole('button', { name: 'Tạo lượt huấn luyện' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Tạo lượt huấn luyện' });
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Bắt đầu huấn luyện' })).toBeEnabled();
+    });
+
+    await user.click(within(dialog).getByRole('radio', { name: 'mitB1' }));
+    expect(within(dialog).getByRole('radio', { name: 'mitB1' })).toBeChecked();
+    await user.click(within(dialog).getByRole('radio', { name: 'Nhận diện cửa và đồ đạc' }));
+    expect(client.createJob).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(within(dialog).getByRole('radio', { name: 'Nhận diện cửa và đồ đạc' })).toBeChecked();
+    });
+
+    expect(client.createJob).not.toHaveBeenCalled();
   });
 });
 

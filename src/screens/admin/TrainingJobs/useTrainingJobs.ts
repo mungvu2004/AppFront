@@ -360,6 +360,7 @@ interface CreateVariables {
 }
 
 const NO_DATASETS: readonly Dataset[] = [];
+const OFFLINE_READ_ERROR = { kind: 'network', raw: null, requestId: '', retryable: true };
 
 const versionsOf = (data: readonly DatasetVersion[] | undefined): readonly DatasetVersion[] => data ?? [];
 
@@ -563,7 +564,11 @@ export function useTrainingJobs({
   const isSilentCursorRetry = isCursorInvalidError(jobsQuery.error) && !cursorRetried;
   const jobsReadError = jobsQuery.data === undefined ? jobsQuery.error : null;
   const loadMoreError = jobsQuery.isFetchNextPageError && !isSilentCursorRetry ? jobsQuery.error : null;
-  const tabReadError = activeTab === 'jobs' ? jobsReadError : tabDatasetsQuery.error;
+  // Mất mạng lúc mở: TanStack (`networkMode: 'online'`) TẠM DỪNG lượt đọc chứ không báo lỗi, màn
+  // sẽ đứng ở "trống" (35T-B-041, cùng gốc BUG-551). Coi như mất kết nối: câu "Máy chủ đang bận".
+  const tabQuery = activeTab === 'jobs' ? jobsQuery : tabDatasetsQuery;
+  const pausedReadError = tabQuery.isPending && tabQuery.fetchStatus === 'paused' ? OFFLINE_READ_ERROR : null;
+  const tabReadError = (activeTab === 'jobs' ? jobsReadError : tabDatasetsQuery.error) ?? pausedReadError;
   const isForbiddenByServer = [jobsQuery.error, jobQuery.error, tabDatasetsQuery.error].some(isForbiddenError);
 
   // 403 giữa chừng: chốt `forbidden` và tắt MỌI truy vấn (`enabled`), không hỏi tiếp sau màn

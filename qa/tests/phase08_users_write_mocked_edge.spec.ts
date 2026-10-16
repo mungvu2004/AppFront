@@ -188,8 +188,11 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
     await page.route(idRe('disable'), (route) => fail(route, next(disableHow)));
     await page.route(idRe('enable'), (route) => fail(route, next(enableHow)));
     const patches = requestLog(page, 'PATCH', idRe('role'));
-    await signInAdmin(page, ROUTES.adminUsers);
+    // Install BEFORE the page loads: notificationBus.ts:89 captures `Date.now` at module load. Installed after load (old order) the bus kept
+    // the REAL clock, runFor(8 s) did not move it, and the 2nd same-type error (<5 s real, groupWindowMs 5000) merged into the dismissed 1st
+    // toast: evidence FL-37W-M2 toast2-after has the PATCH in writesSinceMark and toasts [] (toast1 passed).
     await page.clock.install(); // markToast runs the fake clock; every later page.goto keeps it
+    await signInAdmin(page, ROUTES.adminUsers);
     const select = (): Locator => rowOf(page, email).getByRole('combobox', { name: `Vai của ${name}`, exact: true });
     const change = async (to: string): Promise<void> => {
       const asked = page.waitForRequest((r) => r.method() === 'PATCH' && idRe('role').test(r.url()));
@@ -314,16 +317,18 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
     });
     await page.route(DELETE_RE, (route) => (route.request().method() === 'DELETE' ? fail(route, how) : route.fallback()));
     const deletes = requestLog(page, 'DELETE', DELETE_RE);
+    await page.clock.install(); // before the page loads (same cause as M2: the bus captures Date.now at module load)
     await signInAdmin(page, ROUTES.adminUsers);
-    await page.clock.install();
     const selfRow = rowOf(page, String(self.email));
     const dialogOf = (n: string): Locator => page.getByRole('dialog', { name: `Xoá hẳn ${n}?`, exact: true });
     try {
       await test.step('[37W-C-012] last admin -> role / disable / delete blocked with the last-admin reason', async () => {
         await expect(selfRow).toBeVisible();
         // UMB RowActions:145-158 + UMH buildRow:289-337: on the OWN row the self reason takes precedence for role and disable
-        // (selfRoleBlocked / selfDisableBlocked); the last-admin sentence is the span that replaces the "Xoá" button.
-        await expect(selfRow.getByText(T.lastAdmin, { exact: true })).toBeVisible();
+        // (selfRoleBlocked / selfDisableBlocked). The "Xoá" slot: BUG-P08-022 (useUserManagement.ts:349-355, test userManagementWrite.test.tsx
+        // [37W-F-007]) decided isSelf wins over lastAdmin because BE answers 422 USER_SELF_MODIFICATION, so the own row shows
+        // selfRemoveBlocked (useUserManagement.ts:150); the last-admin sentence stays for ANOTHER row (not in this mocked list).
+        await expect(selfRow.getByText('Bạn không thể tự xoá tài khoản của mình', { exact: true })).toBeVisible();
         await expect(selfRow.getByRole('button', { name: T.remove, exact: true })).toHaveCount(0);
         await expect.soft(selfRow.getByRole('button', { name: T.disable, exact: true })).toHaveCount(0);
         await expect.soft(selfRow.getByText('Bạn không thể tự vô hiệu hoá tài khoản của mình', { exact: true })).toBeVisible();
