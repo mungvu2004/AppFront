@@ -137,6 +137,7 @@ export function ViewerShell(props: ViewerShellProps) {
           <>
             <ViewerToolRail
               activeToolId={activeToolId}
+              isolateActive={frame.isolatedEntityIds !== null}
               onToolChange={onToolChange}
               orientation={railOrientation}
               tools={tools}
@@ -172,6 +173,7 @@ export function ViewerShell(props: ViewerShellProps) {
             <div className={cn('absolute left-2 top-2 rounded-xl bg-bg-surface-90 shadow-float')}>
               <ViewerToolRail
                 activeToolId={activeToolId}
+                isolateActive={frame.isolatedEntityIds !== null}
                 onToolChange={onToolChange}
                 orientation={railOrientation}
                 tools={tools}

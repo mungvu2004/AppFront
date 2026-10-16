@@ -874,3 +874,19 @@ describe('useMeasurementTool — dự án 0 tầng không mời đo (25-B-017)',
     expect(screen.queryByText(/Nhấn M rồi chọn hai điểm/u)).toBeNull();
   });
 });
+
+describe('useMeasurementTool — màn đo không tách tầng (25-A-019 · BUG-656)', () => {
+  it('thanh "Độ tách" bị khoá và phím E không đổi độ tách', () => {
+    const registry = createShortcutRegistry({ isDev: false });
+
+    renderHook({ mountScene: sceneSpy().mount, registry });
+
+    const slider = screen.getByRole('slider');
+
+    expect(slider).toBeDisabled();
+    act(() => {
+      registry.handleKeyDown({ key: 'e' }, null);
+    });
+    expect(slider).toHaveValue('0');
+  });
+});

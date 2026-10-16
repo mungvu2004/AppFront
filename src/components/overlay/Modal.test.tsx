@@ -1,5 +1,6 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { useState } from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Modal } from './Modal';
 
@@ -130,5 +131,42 @@ describe('Modal.Root', () => {
 
       expect(document.activeElement).toBe(field);
     }
+  });
+});
+
+describe('Modal.Root — Esc ngay khi hộp thoại vừa hiện (BUG-P07-021)', () => {
+  it('mở từ một cập nhật không rời rạc (FileReader, hẹn giờ): Esc trước lượt hiệu ứng thụ động vẫn đóng', async () => {
+    const onClose = vi.fn();
+    let open: () => void = () => undefined;
+
+    function Opener() {
+      const [isOpen, setOpen] = useState(false);
+      open = () => setOpen(true);
+      return (
+        <Modal.Root isOpen={isOpen} onClose={onClose} titleId="modal-esc-title">
+          <Modal.Header>
+            <span id="modal-esc-title">tiêu đề</span>
+          </Modal.Header>
+        </Modal.Root>
+      );
+    }
+
+    render(<Opener />);
+
+    // Bấm Esc ở vi tác vụ đầu tiên sau khi hộp thoại vào DOM: React đã commit (người dùng đã thấy nó)
+    // nhưng chưa chạy hiệu ứng thụ động — đúng khung hình mà stack làm mất phím.
+    const pressed = new Promise<void>((resolve) => {
+      const observer = new MutationObserver(() => {
+        if (document.querySelector('[role="dialog"]') === null) return;
+        observer.disconnect();
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        resolve();
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
+    setTimeout(() => open(), 0);
+    await pressed;
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

@@ -1135,6 +1135,55 @@ describe('phím của ray công cụ', () => {
 
     unmount();
   });
+
+  it('[25-C-047 · BUG-655] Alt+H và nút "Cô lập" là một công tắc: nút sáng theo cảnh, công cụ đang bật giữ nguyên', () => {
+    const wall = VIEWER_FIXTURE_WALLS[0];
+
+    if (wall === undefined) {
+      throw new Error('bộ mẫu cần ít nhất một bức tường');
+    }
+
+    const { result, unmount } = renderWithRegistry();
+    const view = (): ReturnType<typeof render> =>
+      render(
+        <MemoryRouter>
+          <ViewerShell {...result.current} />
+        </MemoryRouter>,
+      );
+    const isolatePressed = (): string | null => {
+      const rendered = view();
+      const pressed = within(rendered.container)
+        .getAllByRole('button', { name: 'Cô lập (Alt+H)' })[0]
+        ?.getAttribute('aria-pressed');
+      rendered.unmount();
+      return pressed ?? null;
+    };
+
+    // Chưa chọn gì: cô lập không có gì để giữ, nên không ẩn cả mô hình.
+    act(() => {
+      result.current.onToolChange('isolate');
+    });
+    expect(result.current.frame.isolatedEntityIds).toBeNull();
+
+    act(() => {
+      result.current.onToolChange('measure');
+      result.current.sceneActions.selectEntity(wall.id, false);
+    });
+    act(() => {
+      result.current.onToolChange('isolate');
+    });
+    expect(result.current.frame.isolatedEntityIds).toEqual([wall.id]);
+    expect(result.current.activeToolId).toBe('measure');
+    expect(isolatePressed()).toBe('true');
+
+    act(() => {
+      result.current.onToolChange('isolate');
+    });
+    expect(result.current.frame.isolatedEntityIds).toBeNull();
+    expect(isolatePressed()).toBe('false');
+
+    unmount();
+  });
 });
 
 describe('[VS-16] một bức tường, một mã (B-V8-05)', () => {

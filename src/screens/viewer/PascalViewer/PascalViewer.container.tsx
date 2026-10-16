@@ -324,7 +324,11 @@ function PascalViewerBody({
         onPanelChange={setActivePanel}
         headerSlotRef={setPresenceSlot}
         sceneOverlay={
-          <CollaborationLayerContainer presenceContainer={presenceSlot} scene={sceneTarget} />
+          <CollaborationLayerContainer
+            presenceContainer={presenceSlot}
+            scene={sceneTarget}
+            canWrite={!isReadOnly}
+          />
         }
       />
       {saveConfirm !== null && (

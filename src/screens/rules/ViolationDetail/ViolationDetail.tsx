@@ -99,8 +99,12 @@ export interface ViolationDetailSaveProps {
 
 type ViolationDetailViewProps = ViolationDetailBaseProps & ViolationDetailSaveProps;
 
-/** Rộng 420 theo đặc tả. Phần còn lại của màn hình là mô hình, và nó ở đó cả lúc này. */
-const PANEL_SIDE = 'absolute right-0 top-0 h-full w-[420px] border-l';
+/**
+ * Rộng 420 theo đặc tả. Phần còn lại của màn hình là mô hình, và nó ở đó cả lúc này. `fixed`
+ * theo khung nhìn như tấm đáy: báo cáo dài cuộn theo tài liệu, nên tấm `absolute top-0` mở ở đầu
+ * tài liệu — đầu tấm (tiêu đề, trước/kế, Đóng) nằm ngoài màn khi hàng bấm ở cuối (BUG-735).
+ */
+const PANEL_SIDE = 'fixed right-0 top-0 h-dvh w-[420px] border-l';
 
 /**
  * Trạng thái 7: cùng tấm trượt ấy, đến từ cạnh dưới, cao vừa đủ để đọc. `fixed` theo khung

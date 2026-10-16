@@ -347,26 +347,17 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await eye(page, 'tầng 2').click(); // local only: put it back (whatever the label is now)
       });
 
-      await test.step('[25-A-019] ⚑ slider "Độ tách" -> 0,8: value changes AND the canvas changes (storeys apart)', async () => {
-        const before = await settledCanvas(page);
-        await slider.fill('0.8');
-        await expect.soft(slider).toHaveValue('0.8');
-        // MSS:188-229: the measure scene ignores frame.separation -> red while the bug is there.
-        await canvasChanged(page, before, 'separation 0.8');
+      // BUG-656: the measure scene keeps storeys at true elevation (points snap to real geometry), so the
+      // shell locks "Độ tách" and key E here instead of moving a slider that changes nothing.
+      await test.step('[25-A-019] slider "Độ tách" is locked on the measure screen (value 0)', async () => {
+        await expect.soft(slider).toBeDisabled();
+        await expect.soft(slider).toHaveValue('0');
         await shot(page, '25-A-019', 'separation');
       });
 
-      await test.step('[25-C-042] key E toggles 0 <-> last non-zero (0,8); after a reload the default is 0,5', async () => {
+      await test.step('[25-C-042] key E changes nothing on the measure screen', async () => {
         await pressOnCanvas(page, 'e');
         await expect.soft(slider).toHaveValue('0');
-        await pressOnCanvas(page, 'e');
-        await expect.soft(slider).toHaveValue('0.8');
-        await pressOnCanvas(page, 'e');
-        await expect.soft(slider).toHaveValue('0');
-        await openMeasure(page, projectId);
-        await expect.soft(slider).toHaveValue('0');
-        await pressOnCanvas(page, 'e');
-        await expect.soft(slider, 'SEPARATION_STEP default').toHaveValue('0.5');
         await shot(page, '25-C-042', 'key_e');
       });
 
@@ -377,12 +368,17 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await shot(page, '25-C-043', 'slider_bounds');
       });
 
-      await test.step('[25-A-020] each of the six rail tools: exactly one pressed', async () => {
-        for (const label of RAIL_LABELS) {
+      // BUG-655: "Cô lập" is a toggle on the scene (like Alt+H), not a sixth mode; with nothing selected it has
+      // nothing to keep, so it stays off (unit: ViewerShell.test.tsx [25-C-047 · BUG-655]).
+      await test.step('[25-A-020] each of the five mode tools: exactly one pressed; "Cô lập" with no selection stays off', async () => {
+        for (const label of RAIL_LABELS.slice(0, 5)) {
           await railTool(page, label).click();
           await expect.soft(railTool(page, label), label).toHaveAttribute('aria-pressed', 'true');
           await expect.soft(toolRail(page).locator('button[aria-pressed="true"]'), `only ${label}`).toHaveCount(1);
         }
+        await railTool(page, 'Cô lập (Alt+H)').click();
+        await expect.soft(railTool(page, 'Cô lập (Alt+H)')).toHaveAttribute('aria-pressed', 'false');
+        await expect.soft(railTool(page, 'Chọn (V)'), 'mode tool kept').toHaveAttribute('aria-pressed', 'true');
         await shot(page, '25-A-020', 'rail_tools');
       });
 
@@ -392,7 +388,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await shot(page, '25-E-002', 'toolbar');
       });
 
-      await test.step('[25-C-047] ⚑ keys R / H / M / C / V press their tool; Alt+H presses "Cô lập (Alt+H)"', async () => {
+      await test.step('[25-C-047] keys R / H / M / C / V press their tool; Alt+H with no selection leaves the tool as is', async () => {
         const keyed: readonly (readonly [string, string])[] = [
           ['r', 'Quay quanh mô hình (R)'],
           ['h', 'Kéo màn (H)'],
@@ -405,8 +401,11 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
           await expect.soft(railTool(page, label), `key ${key}`).toHaveAttribute('aria-pressed', 'true');
         }
         await pressOnCanvas(page, 'Alt+h');
-        // VSS:184-192: Alt+H runs isolateSelection and leaves the tool as is -> red while the bug is there.
-        await expect.soft(railTool(page, 'Cô lập (Alt+H)'), 'Alt+H').toHaveAttribute('aria-pressed', 'true');
+        // Pressed state follows the scene (BUG-655, QD-005). The "select a wall → Alt+H → pressed" branch has no UI
+        // path here: SCR-25's picker only lands measure points (useMeasurementTool.ts:624-626) and no panel on this
+        // screen calls selectEntity, so it stays in vitest (ViewerShell.test.tsx [25-C-047 · BUG-655]).
+        await expect.soft(railTool(page, 'Cô lập (Alt+H)'), 'Alt+H').toHaveAttribute('aria-pressed', 'false');
+        await expect.soft(railTool(page, 'Chọn (V)'), 'Alt+H keeps the tool').toHaveAttribute('aria-pressed', 'true');
         await shot(page, '25-C-047', 'tool_keys');
       });
 

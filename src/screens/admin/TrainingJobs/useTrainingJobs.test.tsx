@@ -652,6 +652,47 @@ describe('Lỗi N33 → đúng ô', () => {
     );
     expect(client.createJob).not.toHaveBeenCalled();
   });
+
+  // FL-35T-11 [35T-C-012] (BUG-P08-038): two sends lost (abort), then "Số vòng" -> 51 and a click on the submit button
+  // sent no POST on the stack (third.length 0, button enabled). The click's mousedown blurs the field, the blur commits
+  // the number and the commit cleared the form alert: the centred dialog shrank, the button moved up before mouseup, and
+  // the browser dispatched no click. Typing must clear the alert, so the blur changes nothing on screen.
+  it('[35T-C-012] hai lần gửi mất phản hồi, đổi số vòng thành 51 rồi bấm gửi → đúng một POST mới, khoá mới, epochs 51', async () => {
+    const client = makeClient({ createJob: async () => lost('network') });
+    renderScreen(client);
+    const user = userEvent.setup({ delay: null });
+
+    await user.click(await screen.findByRole('button', { name: 'Tạo lượt huấn luyện' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Tạo lượt huấn luyện' });
+    const submit = within(dialog).getByRole('button', { name: 'Bắt đầu huấn luyện' });
+    await waitFor(() => {
+      expect(submit).toBeEnabled();
+    });
+
+    for (const sent of [1, 2]) {
+      await user.click(submit);
+      await waitFor(() => {
+        expect(client.createJob).toHaveBeenCalledTimes(sent);
+        expect(submit).toBeEnabled();
+      });
+    }
+    expect(keyOf(client.createJob, 1)).toBe(keyOf(client.createJob, 0));
+
+    expect(within(dialog).getByText(TRAINING_ERROR_TEXT.busy)).toBeInTheDocument();
+    const epochs = within(dialog).getByLabelText('Số vòng');
+    await user.clear(epochs);
+    await user.type(epochs, '51');
+    // Still focused in the field: the alert is already gone, so the blur of the coming click moves nothing.
+    expect(epochs).toHaveFocus();
+    expect(within(dialog).queryByText(TRAINING_ERROR_TEXT.busy)).not.toBeInTheDocument();
+    await user.click(submit);
+
+    await waitFor(() => {
+      expect(client.createJob).toHaveBeenCalledTimes(3);
+    });
+    expect(client.createJob.mock.calls[2]?.[0].body.epochs).toBe(51);
+    expect(keyOf(client.createJob, 2)).not.toBe(keyOf(client.createJob, 0));
+  });
 });
 
 /* -------------------------------------------------------------------------- */

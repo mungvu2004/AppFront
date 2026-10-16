@@ -16,9 +16,11 @@ import {
   openSelect,
   pressSpaceOn,
   seedQc,
+  seedQcDims,
   statusBarUndo,
   waitLayerPut,
 } from './support/p09/P6';
+import { approveButton, compareBar, DIM, dimCode, dimId, field, keyboardSection, panel, selectRow } from './support/p04/P3';
 import { adminApi, apiAs, asMember, DESKTOP, recordWrites, roleUser, signInRole } from './support/p09/roles';
 
 const ev = (id: string, slug: string): string => `E09_${id}_${slug}.png`;
@@ -35,6 +37,7 @@ test('SCR-16..21 · FL-9Q-07 · engineer · sửa được trên dự án riêng
   const admin = await adminApi();
   const engineer = await roleUser(admin, 'engineer', 'qc-b');
   const qe = await seedQc(admin, 'p09-qe');
+  await seedQcDims(admin, qe);
   const qn = await seedQc(admin, 'p09-qn');
   const undoMember = await asMember(admin, qe.projectId, engineer);
   const context = await browser.newContext({ viewport: DESKTOP });
@@ -135,19 +138,39 @@ test('SCR-16..21 · FL-9Q-07 · engineer · sửa được trên dự án riêng
     });
 
     await test.step('[9Q-C-006] engineer sửa giá trị một kích thước và duyệt', async () => {
-      // UNKNOWN — NEED VERIFICATION / DỞ: qcLayer seeds no dimension strings (OCR-only) and flows say "PUT 200" while
-      // dimensionOcrText.ts:110 (BUG-577, F-08) says edits are local. Soft red until a dimension seed exists.
-      await page.goto(ROUTES.project.dimensions(qe.projectId, qe.floorId));
-      await expect(page.getByText('Chưa đọc được chuỗi kích thước nào', { exact: true }).or(dimRows.first()).first()).toBeVisible({ timeout: 15_000 });
-      test.info().annotations.push({ type: 'DỞ', description: '9Q-C-006: no dimension seed' });
-      expect.soft(await dimRows.count(), '9Q-C-006: dimension rows seeded').toBeGreaterThan(0);
+      // seedQcDims wrote #M-001..#M-003 through #35 body.dimensions (BUG-577); edits now save (useFloorLayerAutosave).
+      await openLayerScreen(page, ROUTES.project.dimensions(qe.projectId, qe.floorId), qe, DIM.screen);
+      await expect(dimRows).toHaveCount(3);
+      await selectRow(page, 1);
+      await field(page, 1).fill('4050');
+      await expect(compareBar(page)).toHaveText(/4\.050 mm/u); // the 800 ms field commit reached the draft (18-A-009)
+      const put = waitLayerPut(page, qe);
+      await field(page, 1).press('Enter'); // override + approve
+      const saved = await put;
+      expect(saved.status(), 'PUT layer').toBe(200);
+      const sent = (saved.request().postDataJSON() as { body: { dimensions?: { id: string; reviewed: boolean; overrideValueMm?: number; valueMm: number }[] } })
+        .body.dimensions?.find((d) => d.id === dimId(1));
+      expect.soft(sent?.reviewed, '#M-001 sent reviewed').toBe(true);
+      expect.soft(sent?.overrideValueMm ?? sent?.valueMm, '#M-001 sent 4050 mm').toBe(4050);
+      await expect.soft(approveButton(page, 1)).toHaveCount(0);
       await captureEvidence(page, ev('9Q-C-006', 'engineer_dims_edit'));
     });
 
     await test.step('[9Q-C-007] engineer duyệt bàn phím: R bật, Enter duyệt, Esc thoát', async () => {
-      // UNKNOWN — NEED VERIFICATION / DỞ: shortcut semantics unverified and no dimension seed; not reported as pass.
-      test.info().annotations.push({ type: 'DỞ', description: '9Q-C-007: no dimension seed' });
-      expect.soft(await dimRows.count(), '9Q-C-007: dimension rows seeded').toBeGreaterThan(0);
+      await selectRow(page, 2);
+      await panel(page).getByText(DIM.keyboardHint).click(); // focus off the field: R is the screen's key (canEdit)
+      await page.keyboard.press('r');
+      await expect(keyboardSection(page)).toBeVisible();
+      await expect(field(page, 2)).toBeFocused();
+      const put = waitLayerPut(page, qe);
+      await field(page, 2).press('Enter'); // approve, next row
+      expect((await put).status(), 'PUT layer').toBe(200);
+      await expect.soft(keyboardSection(page).getByText(dimCode(3), { exact: true })).toBeVisible();
+      // Nothing typed: Esc leaves keyboard mode (legend "Bỏ sửa, bấm lần nữa để tắt chế độ"). Red on images before the
+      // BUG-P09-016 fix: the binding sat in `canvas`, which an Esc from the always-focused field never reaches.
+      await field(page, 3).press('Escape');
+      await expect(keyboardSection(page)).toHaveCount(0);
+      await expect.soft(page.getByRole('button', { name: DIM.keyboardOn, exact: true })).toBeVisible();
       await captureEvidence(page, ev('9Q-C-007', 'engineer_dims_keys'));
     });
 

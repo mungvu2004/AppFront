@@ -314,4 +314,30 @@ test.describe('SCR-28V [mocked response] violation sheet (phase 06 debt)', () =>
       });
     }
   });
+
+  // BUG-735: the report scrolls with the document; a sheet opened on a row near the end had its head (title, prev/next,
+  // close) above the viewport because it was `absolute top-0` in the report root.
+  test('SCR-28 · BUG-735 · sheet opened on the last row of a scrolled report keeps its head in the viewport', async ({ page }) => {
+    for (const viewport of [
+      { width: 1920, height: 600 },
+      { width: 1440, height: 600 },
+      { width: 1024, height: 600 },
+    ]) {
+      await test.step(`${String(viewport.width)}: last row → title and "Đóng" inside the viewport`, async () => {
+        await page.setViewportSize(viewport);
+        await openSeeded(page);
+        await openClashRows(page);
+        const last = page.locator('button[data-row-key]').last();
+        await last.scrollIntoViewIfNeeded();
+        expect(await page.evaluate(() => window.scrollY), 'the document scrolled to reach the last row').toBeGreaterThan(0);
+        await last.click();
+        await expect(sheet(page)).toBeVisible();
+        for (const part of [sheetTitle(page), sheet(page).getByRole('button', { name: /^Đóng/u }).first()]) {
+          const box = await part.boundingBox();
+          expect(box !== null && box.y >= 0 && box.y + box.height <= viewport.height, `${String(viewport.width)}: in the viewport`).toBe(true);
+        }
+        await test.info().attach(`BUG-735_${String(viewport.width)}.png`, { body: await page.screenshot(), contentType: 'image/png' });
+      });
+    }
+  });
 });

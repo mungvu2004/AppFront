@@ -22,6 +22,7 @@ import {
 import { useViewer } from '@pascal-app/viewer'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { hydratedLocalStorage } from '../lib/hydrated-local-storage'
 import {
   CONTINUATION_PROFILES,
   type ContinuationContext,
@@ -1612,6 +1613,7 @@ const useEditor = create<EditorState>()(
         referenceFloorOffset: state.referenceFloorOffset,
         referenceFloorOpacity: state.referenceFloorOpacity,
       }),
+      storage: hydratedLocalStorage(() => useEditor.persist.hasHydrated()),
       skipHydration: true,
     },
   ),

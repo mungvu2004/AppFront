@@ -933,7 +933,9 @@ export function useDimensionOcrReview(
     {
       id: 'dimensionOcrReview.closeTopLayer',
       combo: 'Escape',
-      scope: 'canvas',
+      /* Chế độ bàn phím luôn giữ tiêu điểm trong ô nhập, mà sổ phím không đưa Esc từ ô nhập xuống
+         `canvas` (23-E-008): ở `canvas` thì lời hứa "Esc tắt chế độ" của bảng phím không bao giờ tới. */
+      scope: isKeyboardReviewMode ? 'sidePanel' : 'canvas',
       description: DIMENSION_OCR_TEXT.keyboard.keys.esc.description,
       onTrigger: () => {
         if (draftRef.current !== null) {

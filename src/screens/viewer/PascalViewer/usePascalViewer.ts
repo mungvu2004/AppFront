@@ -146,6 +146,8 @@ export interface UsePascalViewerOptions {
    * một đường dẫn tĩnh trả về `unknown` với `vite-ignore`.
    */
   readonly loadMount?: () => Promise<MountModule>;
+  /** Tải lại trang — "Thử lại" sau khi chunk bộ đổi dữ liệu hỏng. Bài kiểm thay được. */
+  readonly reloadPage?: () => void;
 }
 
 export interface UsePascalViewerResult {
@@ -281,6 +283,7 @@ export function usePascalViewer({
   onMeasurementDelete,
   explodeLevels = false,
   mountKey = '',
+  reloadPage = () => window.location.reload(),
 }: UsePascalViewerOptions): UsePascalViewerResult {
   const canvasRef = useRef<HTMLDivElement>(null);
   /* Tay cầm của khung đang chạy; `sceneTarget` đọc nó lúc gọi nên đứng vững qua
@@ -295,6 +298,8 @@ export function usePascalViewer({
   const [ready, setReady] = useState(false);
   const [failure, setFailure] = useState<PascalViewerErrorCode | null>(null);
   const [attempt, setAttempt] = useState(0);
+  /** Chunk bộ đổi dữ liệu nạp hỏng: trình duyệt giữ lỗi ấy theo URL, chỉ tải lại trang mới xin lại được (BUG-646). */
+  const converterChunkFailed = useRef(false);
   const [expanded, setExpanded] = useState(false);
   /**
    * Node mà store Pascal dọn đi trong im lặng.
@@ -381,6 +386,10 @@ export function usePascalViewer({
 
     // `diff` nạp cùng lượt: nhập tĩnh thì nó vào chunk của màn bản xem/di động.
     Promise.all([import('@/lib/pascal/toPascal'), import('@/lib/pascal/diff')])
+      .catch((error: unknown) => {
+        converterChunkFailed.current = true;
+        throw error;
+      })
       .then(([{ toPascalScene }, { diffScenes, isEmptyDiff }]) => {
         if (cancelled) return;
         const converted = toPascalScene(graph);
@@ -495,7 +504,13 @@ export function usePascalViewer({
     setPascalScene(result.scene);
   }, [result, pascalScene]);
 
+  const reloadPageRef = useRef(reloadPage);
+  reloadPageRef.current = reloadPage;
   const onRetry = useCallback(() => {
+    if (converterChunkFailed.current) {
+      reloadPageRef.current();
+      return;
+    }
     setFailure(null);
     setAttempt((value) => value + 1);
   }, []);
