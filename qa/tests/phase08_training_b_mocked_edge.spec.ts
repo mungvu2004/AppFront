@@ -21,6 +21,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { signInAdmin } from './support/auth';
 import { captureEvidence } from './support/evidence';
+import { attachState } from './support/p08/P4';
 import {
   cursorFeed,
   datasetFixture,
@@ -558,8 +559,11 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
     await test.step('[35T-C-014] editing a field after the error clears it', async () => {
       await fail(wireError(422, 'TRAINING_BASE_MODEL_MISMATCH'));
       await expect(dialog.getByText(T.baseMismatch)).toBeVisible();
+      // E evidence: radios (which base model is checked) and POST count before/after the edit; a late response re-sets the error
+      await attachState(page, 'E08_35T-C-014_before.json', { creates: mock.posts('create').length });
       await dialog.getByText('mitB1', { exact: true }).click();
       await expect.soft(dialog.getByText(T.baseMismatch)).toBeHidden();
+      await attachState(page, 'E08_35T-C-014_after.json', { creates: mock.posts('create').length });
     });
 
     await test.step('[35T-E-010] field errors are announced with role="alert"', async () => {

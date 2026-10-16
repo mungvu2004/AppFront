@@ -49,6 +49,7 @@ import {
   recordWrites,
   sessionOf,
   slot,
+  snap,
   str,
   toast,
   userRow,
@@ -236,6 +237,8 @@ test.describe('E08 SCR-37 users write (edge)', () => {
         refreshes.push(rec.listReads() - r0);
         successes += 1;
         postCount = rec.writes().filter((w) => w === `POST ${INVITATIONS}`).length;
+        // evidence (before the expects): which requests the double-click really sent, and the submit state while held
+        await snap(page, 'E08_37W-B-001-dblclick', { writes: rec.writes(), bodies: rec.bodies(), postCount, loadingDuringHold, optimisticName, successes });
         expect(postBody).toEqual({ emails: [e1], role: 'viewer' });
         await expect(box).toHaveCount(0);
         await expect(toast(page, T.invitedTitle)).toContainText(e1);
@@ -492,9 +495,11 @@ test.describe('E08 SCR-37 users write (edge)', () => {
         await sel(pu2).focus();
         await page.keyboard.press('Enter');
         await page.keyboard.press('ArrowDown');
+        await snap(page, 'E08_37W-E-006-before-pick', { writes: rec.writes(), pu2: pu2.id }); // listbox open? which option is active?
         await page.getByRole('option', { name: ROLE.admin, exact: true }).focus();
         const patch = nextResponse(page, 'PATCH', re(`${USERS}/${pu2.id}/role`), [200]);
         await page.keyboard.press('Enter');
+        await snap(page, 'E08_37W-E-006-after-enter', { writes: rec.writes(), pu2: pu2.id }); // did the PATCH leave? did the list close?
         expect((await patch).response.request().postDataJSON()).toEqual({ role: 'admin', userId: pu2.id });
         expect.soft(rec.writes().filter((w) => w.startsWith('PATCH')).length - before).toBe(1);
         await ev(page, '37W-E-006');

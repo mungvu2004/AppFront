@@ -553,10 +553,15 @@ test.describe('SCR-37 users (read) edge', () => {
         await expect.soft(page.getByRole('button', { name: USR.invite, exact: true })).toBeFocused();
         const nameBtn = nameButton(peRow);
         let reached = false;
+        const stops: string[] = [];
+        const rowInfo = await page.locator('tbody tr').evaluateAll((rs, email) => ({ rows: rs.length, peIndex: rs.findIndex((r) => r.textContent?.includes(email)) }), s.pe.email);
         for (let i = 0; i < 40 && !reached; i += 1) {
           await page.keyboard.press('Tab');
           reached = await nameBtn.evaluate((el) => el === document.activeElement);
+          stops.push(await page.evaluate(() => { const a = document.activeElement; return a ? `${a.tagName.toLowerCase()}|${a.getAttribute('aria-label') ?? ''}|${(a.textContent ?? '').trim().slice(0, 40)}` : 'none'; }));
         }
+        // deciding value: peIndex x ~3 stops per row > 40 => mechanics (loop too short); else a real tab-order gap in `stops`
+        await attachJson('E08_37U-E-001_tab_trace.json', { reached, ...rowInfo, stops });
         expect.soft(reached, 'a row name button is reached by Tab after "Mời người dùng"').toBe(true);
         await page.keyboard.press('Tab');
         await expect.soft(peRow.getByRole('combobox', { name: `Vai của ${s.pe.name}` })).toBeFocused();

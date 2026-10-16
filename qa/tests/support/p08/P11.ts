@@ -8,9 +8,30 @@ import type { APIRequestContext, Browser, BrowserContext, Locator, Page, Request
 
 import { waitForApiWhere } from '../../../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../../../e2e/fullstack/env';
+import { attachJson } from '../evidence';
 import { signInPoolUser, type PoolUser } from '../phase03Seed';
 import { DESKTOP, ROUTES } from './admin';
 import { pickOption, type Json } from './users';
+
+/**
+ * E-step evidence (shared by users_write edge + mocked_edge): what the screen exposes right now, attached as JSON BEFORE the
+ * expect so it survives a failure. `id` e.g. `E08_37W-E-006-after`; `extra` = request log / values the caller holds.
+ */
+export async function snap(page: Page, id: string, extra: Record<string, unknown> = {}): Promise<void> {
+  const state = await page.evaluate(() => {
+    const text = (e: Element): string => (e.textContent ?? '').trim().slice(0, 160);
+    const a = document.activeElement;
+    return {
+      activeElement: a ? `${a.tagName.toLowerCase()} role=${a.getAttribute('role') ?? ''} label=${a.getAttribute('aria-label') ?? ''} text=${text(a).slice(0, 40)}` : null,
+      expanded: [...document.querySelectorAll('[aria-expanded="true"]')].map((e) => e.getAttribute('aria-label') ?? text(e).slice(0, 40)),
+      options: [...document.querySelectorAll('[role="option"]')].map(text),
+      toasts: [...document.querySelectorAll('[role="status"]')].map(text),
+      dialogs: document.querySelectorAll('[role="dialog"]').length,
+      firstRows: [...document.querySelectorAll('tbody tr')].slice(0, 6).map((r) => text(r).slice(0, 80)),
+    };
+  });
+  await attachJson(`${id}_users_write.json`, { url: page.url(), ...state, ...extra });
+}
 
 export const USERS = '/api/users';
 export const INVITATIONS = '/api/users/invitations';

@@ -7,7 +7,7 @@
 import { expect, test } from '@playwright/test';
 import type { APIRequestContext, Page } from '@playwright/test';
 
-import { captureEvidence } from './support/evidence';
+import { attachJson, captureEvidence } from './support/evidence';
 import { adminApi } from './support/p08/admin';
 import { asPoolUser, inviteUser, isWide, longEmail, openUsersList, pickOption, poolAdminApi, removeUser, userRow, verifyDesktop } from './support/p08/P4';
 import { poolUser, type PoolUser } from './support/phase03Seed';
@@ -124,6 +124,12 @@ test.describe('SCR-37 users UI', () => {
           await openUsersList(p);
           const w = p.viewportSize()?.width ?? 0;
           if (w !== 1440 && w !== 1024) return;
+          // evidence (E step): what the rows hold at the moment of measuring; decides race (rows=0) vs blocked-reason text vs label mismatch
+          await attachJson(`U08_37U-F-007_users_rows_${w}.json`, {
+            rows: await p.locator('tbody tr').count(),
+            skeleton: await p.locator('[aria-busy="true"]').count(),
+            firstActionCells: await p.locator('tbody tr').evaluateAll((rs) => rs.slice(0, 6).map((r) => ({ buttons: [...r.querySelectorAll('button')].map((b) => (b.textContent ?? '').trim()), lastCell: (r.lastElementChild?.textContent ?? '').trim().slice(0, 80) }))),
+          });
           const offsets = await p.locator('tbody tr').filter({ hasNotText: lng.email }).evaluateAll((rows) => // long row excluded: it is taller
             rows
               .map((r) => {

@@ -3,6 +3,7 @@
  * Exports: USERS_RE, USER_ID_RE, json, deferred, wireError, realUsers, requestLog.
  */
 import { expect, type APIRequestContext, type Page, type Request, type Route } from '@playwright/test';
+import { snap } from './P11';
 import type { Json } from './users';
 
 export { type Json };
@@ -50,14 +51,26 @@ export function requestLog(page: Page, method: string, re: RegExp): { readonly c
  * (Toast.tsx UNDO_WINDOW_MS). So "a new toast" is proven by clearing the old ones first: `markToast` runs the (installed) fake
  * clock 8 s, asserts none is left, and `expectNew()` then needs the toast with `text` to show. Install `page.clock` first.
  */
+let markSeq = 0;
 export async function markToast(page: Page, text: string): Promise<{ readonly expectNew: (soft?: boolean) => Promise<void> }> {
   const toasts = page.getByRole('status').filter({ hasText: text });
   await page.clock.runFor(8_000);
   await expect(toasts, 'previous toasts are gone before the action').toHaveCount(0);
+  const writes: string[] = []; // every non-GET request since the mark: proves whether the action reached the wire
+  page.on('request', (r) => {
+    if (r.method() !== 'GET' && r.url().includes('/api/')) writes.push(`${r.method()} ${new URL(r.url()).pathname}`);
+  });
+  const n = (markSeq += 1);
+  await snap(page, `E08_toast${String(n)}-before`, { expecting: text });
   return {
     expectNew: async (soft = false) => {
       const check = soft ? expect.soft(toasts.last(), `toast "${text}"`) : expect(toasts.last(), `toast "${text}"`);
-      await check.toBeVisible();
+      try {
+        await check.toBeVisible();
+      } finally {
+        // After the wait, in finally: shows what the screen held when the toast was (not) found, and survives a hard failure.
+        await snap(page, `E08_toast${String(n)}-after`, { expecting: text, writesSinceMark: [...writes] });
+      }
     },
   };
 }

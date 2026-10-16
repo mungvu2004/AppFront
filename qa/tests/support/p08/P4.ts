@@ -8,7 +8,7 @@ import type { Locator, Page } from '@playwright/test';
 
 import { poolUser, type PoolUser } from '../phase03Seed';
 import { signedInApi } from '../api';
-import { TEST_DATA_PREFIX, testEmail } from '../evidence';
+import { TEST_DATA_PREFIX, attachJson, testEmail } from '../evidence';
 import { heading, openAdmin } from './admin';
 
 /** goto /admin/training/jobs, main read 200, h1 visible. Returns the parsed list body. */
@@ -16,6 +16,27 @@ export async function openTraining(page: Page): Promise<unknown> {
   const body = await openAdmin(page, 'jobs');
   await expect(heading(page, 'jobs')).toBeVisible();
   return body;
+}
+
+/**
+ * E-step evidence (qa-phase step E): what the screen exposes right now, attached BEFORE the expect that may fail.
+ * `name` is `<id>_<slug>.json`; `extra` carries the request log / mock counts the caller owns.
+ */
+export async function attachState(page: Page, name: string, extra: Record<string, unknown> = {}): Promise<void> {
+  const dom = await page.evaluate(() => {
+    const text = (e: Element): string => (e.textContent ?? '').trim().replace(/\s+/gu, ' ');
+    const all = (sel: string): Element[] => [...document.querySelectorAll(sel)];
+    return {
+      alerts: all('[role=alert]').map(text),
+      busy: all('[aria-busy="true"]').length,
+      dialogs: all('[role=dialog]').map((e) => `${e.getAttribute('aria-label') ?? ''}|${text(e).slice(0, 160)}`),
+      radios: all('[role=radio]').map((e) => `${text(e)}|${String(e.getAttribute('aria-checked'))}`),
+      rows: all('tr, li').map((e) => text(e).slice(0, 80)).slice(0, 12),
+      tabs: all('[role=tab]').map((e) => `${text(e)}|${String(e.getAttribute('aria-selected'))}`),
+      url: location.pathname + location.search,
+    };
+  });
+  await attachJson(name, { ...dom, ...extra });
 }
 
 /** Records every request whose URL matches `pred`; `stop()` detaches. */

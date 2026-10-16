@@ -13,7 +13,7 @@ import { signInAdmin } from './support/auth';
 import { attachJson, captureEvidence } from './support/evidence';
 import { typeHeight } from './support/numeric-field';
 import { DESKTOP, ROUTES, adminApi, openAdmin, signInAdminUser } from './support/p08/admin';
-import { openTraining, pickOption, recordRequests } from './support/p08/P4';
+import { attachState, openTraining, pickOption, recordRequests } from './support/p08/P4';
 import { poolUser } from './support/phase03Seed';
 
 const T = {
@@ -327,9 +327,12 @@ test.describe('SCR-35 training edge (real)', () => {
       await test.step('[35T-C-004] "Bắt đầu huấn luyện" disabled khi thiếu phiên bản; Enter không gửi', async () => {
         const submit = dialog.getByRole('button', { name: T.submit, exact: true });
         // environment: the real stack has no ready dataset version -> disabled (asserted, never skipped).
+        // E evidence: POSTs seen so far + submit/disabled state before and after Enter (which step sends the 3 POSTs?)
+        await attachState(page, 'E08_35T-C-004_before.json', { posts: posts.list(), submitDisabled: await submit.isDisabled() });
         await expect.soft(submit, 'environment: no ready dataset version expected on the real stack').toBeDisabled();
         await epochs.press('Enter');
         await expect(dialog).toBeVisible();
+        await attachState(page, 'E08_35T-C-004_after.json', { posts: posts.list(), submitDisabled: await submit.isDisabled() });
         await captureEvidence(page, 'E08_35T-C-004_form.png', { caption: 'submit disabled, Enter sends nothing' });
       });
 
@@ -347,6 +350,7 @@ test.describe('SCR-35 training edge (real)', () => {
       // Certain mark: the reload read comes after anything the form could have sent.
       await page.unroute(`**${JOBS_PATH}`);
       await openAdmin(page, 'jobs');
+      await attachJson('E08_35T-C-004_end.json', { posts: posts.list() });
       expect.soft(posts.list(), 'no POST /api/admin/ml/training-jobs was attempted').toEqual([]);
       posts.stop();
     }

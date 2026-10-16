@@ -15,6 +15,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { captureEvidence } from './support/evidence';
 import { DETAIL, ROUTES, heading, panel } from './support/p08/admin';
+import { attachState } from './support/p08/P4';
 import {
   aborted,
   adminSession,
@@ -261,8 +262,13 @@ test.describe('E08 SCR-35 training jobs - mocked-response flows (QA-08 P5)', () 
         // offline = browser offline AND the mock aborts (a routed request may bypass the offline emulation)
         mock.on.datasets = () => aborted;
         await context.setOffline(true);
+        // E evidence: datasets GETs seen before the click (> 0 = answered at page load, cache may hide the offline error)
+        const datasetsGets = (): number => mock.count('GET', /^datasets$/u);
+        const getsBefore = datasetsGets();
+        await attachState(page, 'E08_35T-B-041_before.json', { datasetsGets: getsBefore, strayPaths: mock.stray.map((c) => c.path) });
         await openDatasetsTab(page);
         await expect.soft(page.getByText(BUSY, { exact: true })).toBeVisible({ timeout: 20_000 }); // TJG:160-164
+        await attachState(page, 'E08_35T-B-041_after.json', { datasetsGetsAfter: datasetsGets(), datasetsGetsBefore: getsBefore });
         await ev(page, '35T-B-041', 'offline');
         mock.on.datasets = () => ok({ items: [] });
         await context.setOffline(false);
