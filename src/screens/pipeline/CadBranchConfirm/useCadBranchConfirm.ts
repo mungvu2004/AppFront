@@ -896,11 +896,9 @@ export function useCadBranchConfirm(
         isRememberChoiceChecked: canRememberChoice && isRememberChecked,
         canRememberChoice,
         isCadChoiceDisabled,
-        cadChoiceDisabledReason: isCadChoiceDisabled
-          ? (state === 'forbidden'
-              ? COPY.forbiddenNotice
-              : (failure?.sentence ?? null))
-          : null,
+        // Không quyền: câu đầy đủ đã ở băng trạng thái, hộp thoại không lặp lại (BUG-P09-014).
+        cadChoiceDisabledReason:
+          isCadChoiceDisabled && state !== 'forbidden' ? (failure?.sentence ?? null) : null,
       },
       mapping: isStageTwoOpen ? { layers, roleOptions, hoveredLayerId } : null,
       preview: isStageTwoOpen

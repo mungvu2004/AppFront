@@ -413,6 +413,14 @@ describe('useCadBranchConfirm — người dùng luôn quay về nhánh AI đư�
     expect(mounted.result.current.resolvedBranch).toBe('ai');
   });
 
+  it('[BUG-P09-014] không có quyền: khoá nhánh CAD nhưng lý do chỉ ở băng trạng thái, không lặp trong hộp thoại', async () => {
+    const mounted = await mountInState('forbidden');
+
+    expect(mounted.result.current.model.dialog.isCadChoiceDisabled).toBe(true);
+    expect(mounted.result.current.model.dialog.cadChoiceDisabledReason).toBeNull();
+    expect(mounted.result.current.model.forbiddenNotice).not.toBeNull();
+  });
+
   it('trạng thái Lỗi khoá nhánh CAD và nói rõ vì sao, nhưng vẫn để lại nhánh AI', async () => {
     const mounted = await mountInState('error');
 

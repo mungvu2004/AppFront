@@ -7,6 +7,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
+import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from '../../e2e/fixtures/tour';
 import { attachJson, captureEvidence } from './support/evidence';
 import { pascalCanvas, viewportReady } from './support/p09/P7';
 import { pinOneMeasurement, withOwnProject } from './support/p09/P9';
@@ -111,9 +112,15 @@ test.describe('phase 09 viewer edge (real stack)', () => {
         await shot(page, '9V-G-002', 'restore');
       });
       await test.step('[9V-E-035] xuất .json: tải về bắt được', async () => {
-        await page.goto(ROUTES.project.export(projectId));
-        // UNKNOWN — NEED VERIFICATION: option role/name for ".json" and the file name pattern (ExportPanel).
-        await page.getByRole('radio', { name: /json/iu }).first().check();
+        await gotoAs(page, ROUTES.project.export(projectId), 'Xuất bản vẽ');
+        // RR4 red (copy 2, rr4 repeat1 png + results.json): EditorTour card "Lấy tệp mang đi" (1/1) opened on the export screen and its
+        // backdrop (div.pointer-events-auto.fixed.bg-bg-overlay, z-40) intercepted every click of check() for 30 s. The tour shows on the
+        // first visit of each fresh context (localStorage key system-editor-tour-seen:<user>:export-panel), mounting a beat after the
+        // panel: copy 1 clicked before it mounted, copy 2 after. Dismiss it with the product button (e2e/fixtures/tour.ts) first.
+        await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
+        const json = page.getByRole('radio', { name: /json/iu }).first(); // ExportPanelFormats.tsx:89 custom radio (button role=radio)
+        await json.click();
+        await expect(json).toHaveAttribute('aria-checked', 'true');
         const dl = page.waitForEvent('download', { timeout: 30_000 });
         await page.getByRole('button', { name: 'Xuất', exact: true }).click();
         expect.soft((await dl).suggestedFilename()).toMatch(/\.json$/u);

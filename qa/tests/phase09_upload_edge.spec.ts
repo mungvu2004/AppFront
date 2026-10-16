@@ -383,8 +383,10 @@ test('SCR-14 · SCR-15 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + do
     await test.step('[9U-D-072] viewer, SCR-16: forbidden title + sentence', async () => {
       await page.goto(ROUTES.project.cadConfirm(cad.projectId, cad.floors[0]!.id));
       await expect(page.getByRole('heading', { name: CAD.forbiddenTitle })).toBeVisible(); // CB:97
-      // visible copy + its sr-only twin (p09-rr strict mode): assert the visible one
-      await expect(page.getByText(CAD.forbiddenNotice, { exact: true }).and(page.locator(':not(.sr-only)'))).toBeVisible(); // UCB:119
+      // BUG-P09-014: exactly ONE visible copy (the sr-only twin is not counted)
+      const visibleNotice = page.getByText(CAD.forbiddenNotice, { exact: true }).and(page.locator(':not(.sr-only)'));
+      await expect(visibleNotice).toHaveCount(1); // UCB:119
+      await expect(visibleNotice).toBeVisible();
       await captureEvidence(page, 'E09_9U-D-072_cad_forbidden.png');
     });
 
