@@ -317,6 +317,34 @@ describe('Quyền — không gọi mạng khi không có quyền', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('Khoá idempotency', () => {
+  it('35T-A-021 bấm gửi hai lần khi POST còn treo → chỉ một lệnh tạo', async () => {
+    let release: (value: Result<unknown, HttpError>) => void = () => undefined;
+    const client = makeClient({
+      createJob: (() =>
+        new Promise<Result<unknown, HttpError>>((resolve) => {
+          release = resolve;
+        })) as AdminMlJobsClient['createJob'],
+    });
+    const { result } = renderTrainingHook(client);
+
+    await openReadyForm(result);
+    act(() => {
+      result.current.actions.onSubmitForm();
+      result.current.actions.onSubmitForm();
+    });
+    await waitFor(() => {
+      expect(client.createJob).toHaveBeenCalled();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(client.createJob).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      release(ok(queued(JOB_NEW)));
+    });
+    expect(client.createJob).toHaveBeenCalledTimes(1);
+  });
+
   it('N33 timeout rồi bấm lại cùng thân → cùng khoá', async () => {
     const client = makeClient();
     client.createJob.mockResolvedValueOnce(lost('timeout'));

@@ -396,6 +396,7 @@ export function useTrainingJobs({
   const [formErrors, setFormErrors] = useState<CreateFieldErrors>(NO_FIELD_ERRORS);
   /** Khoá N33 + thân chờ gửi lại: ở hook, không ở biểu mẫu, để sống qua đóng/mở. */
   const pendingCreateRef = useRef<CreateAttempt | null>(null);
+  const createInFlightRef = useRef(false);
 
   const [datasetFamily, setDatasetFamily] = useState<DatasetFamilyId>('wallSegmentation');
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null);
@@ -618,6 +619,9 @@ export function useTrainingJobs({
   const createMutation = useMutation({
     mutationFn: (variables: CreateVariables) =>
       gateway.createJob({ body: variables.body, idempotencyKey: variables.key }),
+    onSettled: () => {
+      createInFlightRef.current = false;
+    },
     onError: (error, variables) => {
       if (isResponseLost(error)) {
         // Không biết máy chủ đã nhận chưa: giữ khoá, và đọc lại danh sách ngay.
@@ -676,6 +680,9 @@ export function useTrainingJobs({
 
     const body = buildCreateBody(formFamily, effectiveBaseModel, effectiveVersionId, epochsNow);
     if (body === null) return;
+    // 35T-A-021: nhấp đúp dùng cùng một handler, `isPending` trễ một lượt render -> ref đổi ngay.
+    if (createInFlightRef.current) return;
+    createInFlightRef.current = true;
     const attempt = nextCreateAttempt(pendingCreateRef.current, body, gateway.createKey);
 
     pendingCreateRef.current = attempt;
