@@ -49,7 +49,7 @@ test('SCR-34 · FL-34L-01 · search and category logic, summary strip, one GET',
   await test.step('[34L-B-010] no match: summary zeros', async () => {
     await expect.soft(summaryValue(page, 'Tổng số model')).toHaveText('0');
     await expect.soft(summaryValue(page, 'Tổng dung lượng')).toHaveText(formatFileSize(0));
-    await expect.soft(summaryValue(page, 'model nặng')).toHaveText('0');
+    await expect.soft(summaryValue(page, 'Model nặng')).toHaveText('0');
     await ev(page, '34L-B-010', 'zeros');
   });
   await selectCategory(page, 'all');
@@ -496,7 +496,7 @@ test('SCR-34 · FL-34L-08 · admin gate and accessible names/landmarks', async (
     await ev(page, '34L-D-001', 'full');
   });
   await test.step('[34L-E-001] search accessible name', async () => {
-    await expect.soft(page.getByRole('textbox', { name: 'tìm model', exact: true })).toBeVisible();
+    await expect.soft(page.getByRole('textbox', { name: 'Tìm model', exact: true })).toBeVisible();
     await ev(page, '34L-E-001', 'search');
   });
   await test.step('[34L-E-002] category accessible name', async () => {

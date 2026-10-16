@@ -61,8 +61,8 @@ export async function openLibrary(page: Page, navigate: () => Promise<unknown>):
   return { items: body as Item[], status: res.status(), search: new URL(res.url()).search };
 }
 
-export const searchBox = (page: Page): Locator => page.getByRole('textbox', { name: 'tìm model', exact: true });
-export const categoryBox = (page: Page): Locator => page.getByRole('combobox', { name: 'danh mục', exact: true });
+export const searchBox = (page: Page): Locator => page.getByRole('textbox', { name: 'Tìm model', exact: true });
+export const categoryBox = (page: Page): Locator => page.getByRole('combobox', { name: 'Danh mục', exact: true });
 export const viewRadio = (page: Page, name: 'Bảng' | 'Lưới'): Locator =>
   page.locator(`[aria-label="${TEXT.viewMode}"]`).getByRole('radio', { name, exact: true });
 export const head = (page: Page, name: string): Locator => page.getByRole('columnheader', { name, exact: true });

@@ -120,7 +120,7 @@ test('SCR-34 · FL-M-34L-01 · open, search, category, sort, grid, detail + Esc'
   });
 
   await test.step('[34L-A-003] category narrows the rows, options read "<label> (<count>)"', async () => {
-    const category = page.getByRole('combobox', { name: 'danh mục', exact: true });
+    const category = page.getByRole('combobox', { name: 'Danh mục', exact: true });
     await pickOption(category, new RegExp(`^${escapeRegExp(group)} \\(\\d+\\)$`, 'u'));
     await expect
       .poll(async () => (await rows.locator('td:nth-child(3)').allInnerTexts()).every((t) => t.trim() === group), { message: `every row is in "${group}"` })

@@ -98,7 +98,7 @@ test.describe('P08 SCR-34 library mocked edge', () => {
       await test.step('[34L-B-005] List network failure (aborted): alert, no toolbar', async () => {
         await reload('abort');
         await expect.soft(alertOf(page)).toBeVisible();
-        await expect.soft(page.getByLabel('tìm model', { exact: true })).toHaveCount(0);
+        await expect.soft(page.getByLabel('Tìm model', { exact: true })).toHaveCount(0);
         await captureEvidence(page, 'E08_34L-B-005_abort.png');
       });
       await test.step('[34L-B-006] Wrong shape fails FE decode: read error, not a crash', async () => {
@@ -137,7 +137,7 @@ test.describe('P08 SCR-34 library mocked edge', () => {
       });
       state.mode = 'real';
       await page.goto(ROUTES.library);
-      await expect(page.getByLabel('tìm model', { exact: true })).toBeVisible(); // ends on a real answer
+      await expect(page.getByLabel('Tìm model', { exact: true })).toBeVisible(); // ends on a real answer
     } finally {
       await eng.close();
       await admin.dispose();

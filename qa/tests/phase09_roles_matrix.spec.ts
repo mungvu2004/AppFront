@@ -119,7 +119,7 @@ const PIPELINE_GRAPH_FORBIDDEN_LINE =
   'Chế độ chi tiết kỹ thuật chỉ mở cho vai quản trị, nên phần đó và nút đổi nhánh không hiện ở đây.';
 /** useModelLibrary.ts:103; ModelLibraryToolbar.tsx "tìm model"; mock model "bàn ăn sáu chỗ" (client.ts) */
 const LIBRARY_READ_ONLY = 'Vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện';
-const LIBRARY_SEARCH = 'tìm model';
+const LIBRARY_SEARCH = 'Tìm model';
 const LIBRARY_SAMPLE_MODEL = 'bàn ăn sáu chỗ';
 /** useProjectSettings.ts:494 */
 const SETTINGS_DANGER_TAB = 'Vùng nguy hiểm';

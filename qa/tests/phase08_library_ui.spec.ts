@@ -17,7 +17,7 @@ import { verifyUi } from './support/ui-verify';
 
 const LIBRARY_PATH = '**/api/library';
 const SEARCH = /^tìm model$/iu; // ModelLibraryToolbar.tsx:17
-const CATEGORY = 'danh mục'; // ModelLibraryToolbar.tsx:19
+const CATEGORY = 'Danh mục'; // ModelLibraryToolbar.tsx:19
 const NO_MATCH = 'Không tìm thấy model phù hợp.'; // ModelLibraryTable.tsx:31
 const DETAIL = 'Chi tiết model'; // ModelLibraryDetail.tsx:293
 const EMPTY_TITLE = 'Chưa có model nào'; // ModelLibrary.tsx:39
