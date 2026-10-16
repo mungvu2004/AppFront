@@ -16,7 +16,7 @@
  * with forty bindings still has exactly one listener.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import {
   appShortcutRegistry,
   buildGlobalShortcuts,
@@ -97,13 +97,16 @@ export function useShortcut(
 
   const onTriggerRef = useRef(definition.onTrigger);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     onTriggerRef.current = definition.onTrigger;
   });
 
   const { id, combo, scope, description, allowRepeat, preventDefault } = definition;
 
-  useEffect(() => {
+  // Layout, not passive: a binding must be live the moment its UI is on screen. A dialog opened by a
+  // non-discrete update (FileReader, timer) is painted before passive effects run, and an Esc in that
+  // frame found no dialog binding and was lost (BUG-P07-021).
+  useLayoutEffect(() => {
     if (!enabled) {
       return undefined;
     }
@@ -148,7 +151,8 @@ export function useShortcutScope(
   const registry = options.registry ?? appShortcutRegistry;
   const active = options.active ?? true;
 
-  useEffect(() => {
+  // Layout for the same reason as `useShortcut`: the dialog floor is modal from its first painted frame.
+  useLayoutEffect(() => {
     if (!active) {
       return undefined;
     }
