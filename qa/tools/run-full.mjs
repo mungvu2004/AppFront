@@ -94,10 +94,11 @@ if (!flag('no-build')) {
   }
 }
 
-/* 1b. env preflight (QA-04 run-041: 3 invalid runs = 1h15): login locks left by an earlier run, admin missing on a rebuilt
+/* 1b. env preflight (QA-04 run-041: 3 invalid runs = 1h15): login locks + the members_add quota (60/h per actor, p09-rr: 21
+ *     cases 429) left by an earlier run, admin missing on a rebuilt
  *     stack, .state project absent from a fresh DB. Fails in seconds instead of after a full run. */
 if (!flag('no-build')) {
-  sh(`docker exec f14-redis-broker-1 sh -c "redis-cli -n 2 --scan --pattern 'auth:login:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:auth_login_ip:*' | xargs -r redis-cli -n 2 del"`);
+  sh(`docker exec f14-redis-broker-1 sh -c "redis-cli -n 2 --scan --pattern 'auth:login:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:auth_login_ip:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:members_add:*' | xargs -r redis-cli -n 2 del"`);
   const secrets = Object.fromEntries(
     readFileSync(cfg.env.secretsFile, 'utf8').split(/\r?\n/u).map((l) => l.replace(/^export\s+/u, '').match(/^([A-Z0-9_]+)=(.*)$/u)).filter(Boolean)
       .map((m) => [m[1], m[2].replace(/^["']|["']$/gu, '')]),
@@ -156,7 +157,7 @@ if (!flag('no-prev') && layers.split(',').includes('main') && Number(NN) > 1) {
   for (let p = 1; p <= Number(prev); p += 1) {
     const id = String(p).padStart(2, '0');
     say(`phase ${id} main (chain to a fresh .state project for phase ${NN} main)`);
-    sh(`docker exec f14-redis-broker-1 sh -c "redis-cli -n 2 --scan --pattern 'auth:login:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:auth_login_ip:*' | xargs -r redis-cli -n 2 del"`);
+    sh(`docker exec f14-redis-broker-1 sh -c "redis-cli -n 2 --scan --pattern 'auth:login:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:auth_login_ip:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:members_add:*' | xargs -r redis-cli -n 2 del"`);
     if (runPhase(['--phase', id, '--run-id', RUN_ID, '--layers', 'main', '--no-typecheck', '--no-watch']) !== 0) say(`phase ${id} main red — phase ${NN} main may fail on state`);
   }
 }
