@@ -170,10 +170,29 @@ test('SCR-12 · SCR-13 · SCR-14 · SCR-15 · SCR-16 · FL-9U-06 · engineer · 
 
     // Expectation changed per questions.md Q1 (QA-09, F9U-3): engineer MAY open detail mode (DETAIL_MODE_ROLES admin+engineer, UPG:81).
     await test.step('[9U-D-047] engineer: graph screen offers detail mode, no forbidden line', async () => {
+      // evidence (R1: detail button absent, screen showed the empty state for a FAILED-run project): DOM facts + API log, before/after
+      const graphLog: Array<{ url: string; status: number; body: string }> = [];
+      page.on('response', (r) => {
+        const url = r.url();
+        if (!url.includes('/api/') || !/pipeline|run|branch|compar|stage|upload/u.test(url)) return;
+        void r.text().then((t) => graphLog.push({ url: url.replace(/^https?:\/\/[^/]+/u, ''), status: r.status(), body: t.slice(0, 400) }), () => undefined);
+      });
+      const graphFacts = async (): Promise<Record<string, unknown>> => ({
+        url: page.url(),
+        projectId: pf.projectId,
+        uploadId: pf.uploadId,
+        detailButtonCount: await page.getByRole('button', { name: GRAPH.detail, exact: true }).count(),
+        emptyStateCount: await page.getByText(NO_RUN, { exact: false }).count(),
+        forbiddenLineCount: await page.getByText(GRAPH.forbiddenLine, { exact: true }).count(),
+        headings: await page.getByRole('heading').allInnerTexts(),
+        requestsSinceMark: graphLog.length,
+      });
+      await attachJson('E09_9U-D-047_graph_before.json', await graphFacts());
       await page.goto(ROUTES.project.pipelineGraph(pf.projectId));
       await expect(page.getByRole('heading', { name: GRAPH.title }).first()).toBeVisible({ timeout: 30_000 });
       await expect.soft(page.getByText(GRAPH.forbiddenLine, { exact: true })).toHaveCount(0);
       await expect.soft(page.getByText(GRAPH.detail, { exact: true })).toBeVisible();
+      await attachJson('E09_9U-D-047_graph_after.json', { ...(await graphFacts()), apiLog: graphLog });
       await ev(page, '9U-D-047', 'engineer_detail_allowed');
     });
 

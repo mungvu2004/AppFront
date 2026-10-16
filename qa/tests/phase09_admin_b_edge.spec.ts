@@ -7,6 +7,7 @@ import { expect, test } from '@playwright/test';
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { attachJson, captureEvidence } from './support/evidence';
 import { setRole } from './support/p09/P9';
+import { attachAdminSnap } from './support/p09/adminSnap';
 import { adminApi, roleUser, signInRole } from './support/p09/roles';
 
 test('SCR-35 · FL-9A-05 · admin · demoted mid-session · forbidden lock', async ({ browser }) => {
@@ -29,6 +30,7 @@ test('SCR-35 · FL-9A-05 · admin · demoted mid-session · forbidden lock', asy
       await page.goto(ROUTES.adminTrainingJobs);
       await expect(page.getByRole('button', { name: 'Tạo lượt huấn luyện' })).toBeVisible({ timeout: 30_000 }); // TrainingJobs.tsx:36 real admin content
       await expect(forbidden(page)).toHaveCount(0);
+      await attachAdminSnap(page, 'E09_9A-D-017_before-demote.json', net);
       await setRole(admin, flip, 'viewer');
       const before = page.url();
       // refetch without reload: focus / visibility, then "Thử lại" if offered (useTrainingJobs.ts:569-580)
@@ -37,7 +39,9 @@ test('SCR-35 · FL-9A-05 · admin · demoted mid-session · forbidden lock', asy
         document.dispatchEvent(new Event('visibilitychange'));
       });
       const retry = page.getByRole('button', { name: 'Thử lại' });
-      if (await retry.isVisible()) await retry.click();
+      const retryShown = await retry.isVisible();
+      if (retryShown) await retry.click();
+      await attachAdminSnap(page, 'E09_9A-D-017_after-focus.json', [`retryShown=${retryShown}`, ...net]);
       try {
         await expect(forbidden(page)).toBeVisible({ timeout: 15_000 });
       } catch (error) {

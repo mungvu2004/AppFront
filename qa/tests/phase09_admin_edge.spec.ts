@@ -8,6 +8,7 @@ import { ROUTES } from '../../e2e/fixtures/routes';
 import { permissionMatrix } from '../../src/lib/auth/permissions';
 import { captureEvidence } from './support/evidence';
 import { recordRequests, settle, since } from './support/p09/P10';
+import { attachAdminSnap } from './support/p09/adminSnap';
 import { adminApi, apiAs, DESKTOP, gotoAs, roleUser, signInRole } from './support/p09/roles';
 
 test.use({ viewport: DESKTOP });
@@ -312,6 +313,7 @@ test('SCR-34/35/36/37 · FL-9A-04 · admin · positive reference + self guards',
   await signInRole(context, me);
   const forbiddenHeading = page.getByRole('heading', { name: FORBIDDEN_TITLE, exact: true });
   const ownRow = page.getByRole('row').filter({ hasText: me.email });
+  const mlLog = recordRequests(page, /^\/api\/admin\/ml\//u);
 
   await test.step('[9A-D-007] library: no read-only banner, list visible', async () => {
     await page.goto(ROUTES.adminModels);
@@ -342,6 +344,8 @@ test('SCR-34/35/36/37 · FL-9A-04 · admin · positive reference + self guards',
     await captureEvidence(page, '9A-D-024_admin-registry.png');
   });
   await test.step('[9A-D-022] version table: activate button present (not clicked)', async () => {
+    await settle(page);
+    await attachAdminSnap(page, 'E09_9A-D-022_registry.json', mlLog.urls());
     await expect.soft(page.getByRole('button', { name: ACTIVATE }).first()).toBeVisible();
     await captureEvidence(page, '9A-D-022_admin-registry-activate.png');
   });

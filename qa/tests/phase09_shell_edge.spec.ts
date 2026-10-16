@@ -4,6 +4,7 @@
  */
 import { expect, test } from '@playwright/test';
 
+import { attachJson } from './support/evidence';
 import { COPY, shot, spaGo } from './support/p09/P1';
 import { DESKTOP, adminApi, apiAs, asMember, gotoAs, mainProject, recordWrites, roleUser, signInRole } from './support/p09/roles';
 
@@ -44,9 +45,29 @@ test.describe('phase09 shell edge', () => {
       });
       await test.step('[9P-E-001] Enter on disabled item does nothing; Tab skips absent button', async () => {
         const menu = page.getByRole('menu');
-        for (const name of ['Đổi tên', 'Xoá']) {
-          await menu.getByRole('menuitem', { name }).focus();
+        // evidence (R1 red: locator.focus timed out, page ended on the pipeline screen): who owns focus + URL around each Enter.
+        const snap = (): Promise<Record<string, unknown>> =>
+          page.evaluate(() => {
+            const a = document.activeElement;
+            return {
+              url: location.pathname,
+              active: a === null ? null : { tag: a.tagName, role: a.getAttribute('role'), text: (a.textContent ?? '').trim().slice(0, 40), disabled: a.hasAttribute('disabled'), ariaDisabled: a.getAttribute('aria-disabled') },
+              items: [...document.querySelectorAll('[role="menuitem"]')].map((i) => ({ text: (i.textContent ?? '').trim(), disabled: i.hasAttribute('disabled'), ariaDisabled: i.getAttribute('aria-disabled'), tabindex: i.getAttribute('tabindex') })),
+            };
+          });
+        const trail: Record<string, unknown>[] = [{ at: 'start', ...(await snap()) }];
+        for (const [slug, name] of [['doi-ten', 'Đổi tên'], ['xoa', 'Xoá']] as const) {
+          try {
+            await menu.getByRole('menuitem', { name }).focus({ timeout: 3_000 });
+          } catch (e) {
+            trail.push({ at: `focus ${name} failed`, error: String(e).slice(0, 120), ...(await snap()) });
+            await attachJson(`E09_9P-E-001_focus_trail_${slug}_failed.json`, { trail });
+            throw e;
+          }
+          trail.push({ at: `after focus ${name}`, ...(await snap()) });
           await page.keyboard.press('Enter');
+          trail.push({ at: `after Enter ${name}`, ...(await snap()) });
+          await attachJson(`E09_9P-E-001_focus_trail_${slug}.json`, { trail });
         }
         await expect.soft(page.getByRole('dialog')).toHaveCount(0);
         await expect.soft(page.getByRole('textbox', { name: `Đổi tên ${projectName}` })).toHaveCount(0); // PCT:127
