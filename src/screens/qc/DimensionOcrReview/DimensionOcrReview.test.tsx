@@ -926,3 +926,27 @@ describe('[G05/G08] tiêu đề trạng thái xong / không có quyền', () => 
     expect(screen.getByText(DIMENSION_OCR_TEXT.states.done.title)).toBeInTheDocument();
   });
 });
+
+describe('[9Q-C-007] Esc tắt chế độ duyệt bàn phím đúng như bảng phím hứa', () => {
+  it('ô tự focus, chưa gõ gì: Esc tắt chế độ (gõ dở thì Esc đầu chỉ bỏ sửa, Esc sau tắt)', async () => {
+    const user = userEvent.setup({ delay: null });
+    const registry = createShortcutRegistry();
+
+    renderState('partial', registry);
+    await screen.findByRole('group', { name: LIST_LABEL });
+    fireEvent.click(rowOf(dimensionEntityIdOf(unreviewedDisplayId(0))) as HTMLElement);
+    fireEvent.click(screen.getByRole('button', { name: DIMENSION_OCR_TEXT.keyboard.toggleOnLabel }));
+
+    const section = await screen.findByRole('region', { name: DIMENSION_OCR_TEXT.keyboard.caption });
+    const field = within(section).getByRole('textbox');
+    await waitFor(() => {
+      expect(field).toHaveFocus();
+    });
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: DIMENSION_OCR_TEXT.keyboard.caption })).not.toBeInTheDocument();
+    });
+  });
+});

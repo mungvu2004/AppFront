@@ -166,7 +166,9 @@ test('SCR-16..21 · FL-9Q-07 · engineer · sửa được trên dự án riêng
       await field(page, 2).press('Enter'); // approve, next row
       expect((await put).status(), 'PUT layer').toBe(200);
       await expect.soft(keyboardSection(page).getByText(dimCode(3), { exact: true })).toBeVisible();
-      await field(page, 3).press('Escape'); // no draft: Esc leaves keyboard mode (useDimensionOcrReview closeTopLayer)
+      // Nothing typed: Esc leaves keyboard mode (legend "Bỏ sửa, bấm lần nữa để tắt chế độ"). Red on images before the
+      // BUG-P09-016 fix: the binding sat in `canvas`, which an Esc from the always-focused field never reaches.
+      await field(page, 3).press('Escape');
       await expect(keyboardSection(page)).toHaveCount(0);
       await expect.soft(page.getByRole('button', { name: DIM.keyboardOn, exact: true })).toBeVisible();
       await captureEvidence(page, ev('9Q-C-007', 'engineer_dims_keys'));
