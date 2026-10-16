@@ -10,7 +10,7 @@ import type { APIRequestContext, Page } from '@playwright/test';
 import { attachJson, captureEvidence } from './support/evidence';
 import { adminApi } from './support/p08/admin';
 import { asPoolUser, inviteUser, isWide, longEmail, openUsersList, pickOption, poolAdminApi, removeUser, userRow, verifyDesktop } from './support/p08/P4';
-import { poolUser, type PoolUser } from './support/phase03Seed';
+import { poolUser, type PoolUser } from './support/p08/pool';
 
 const SEARCH = 'Tìm người dùng';
 const MATRIX_BUTTON = 'Xem ma trận quyền';

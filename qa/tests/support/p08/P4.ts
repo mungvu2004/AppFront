@@ -6,7 +6,7 @@
 import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 
-import { poolUser, type PoolUser } from '../phase03Seed';
+import { poolUser, type PoolUser } from './pool';
 import { signedInApi } from '../api';
 import { TEST_DATA_PREFIX, attachJson, testEmail } from '../evidence';
 import { heading, openAdmin } from './admin';

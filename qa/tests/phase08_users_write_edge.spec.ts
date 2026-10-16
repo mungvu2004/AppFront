@@ -24,7 +24,7 @@ import { adminApi, holdResponse } from './support/p08/admin';
 import { signedInApi } from './support/api';
 import { TEST_DATA_PREFIX, captureEvidence, testEmail } from './support/evidence';
 import { waitForMail } from './support/mailpit';
-import { addProjectMember, createProject, deleteSeededProject, poolUser, removeProjectMember, type PoolUser } from './support/phase03Seed';
+import { addProjectMember, createProject, deleteSeededProject, poolUser, removeProjectMember, type PoolUser } from './support/p08/pool';
 import {
   INVITATIONS,
   ROLE,

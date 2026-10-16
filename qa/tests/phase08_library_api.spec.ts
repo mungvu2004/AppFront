@@ -17,7 +17,7 @@ import { expect, request as pwRequest, test, type APIRequestContext, type APIRes
 import { LibraryItemSchema } from '../../src/api/schemas/library';
 import { captureExchange, newApiContext, signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
-import { poolUser } from './support/phase03Seed';
+import { poolUser } from './support/p08/pool';
 
 type Json = Record<string, unknown>;
 

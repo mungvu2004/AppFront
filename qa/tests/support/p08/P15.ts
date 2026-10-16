@@ -8,6 +8,7 @@ import { expect, test, type APIRequestContext, type APIResponse } from '@playwri
 
 import { captureExchange } from './../api';
 import { RUN_ID, TEST_DATA_PREFIX } from './../evidence';
+import { safeSuffix } from './pool';
 import { ML, NO_JOB, NO_DATASET, NO_DATASET_VERSION, OPENING, asJson, type Json } from './mlApi';
 
 export { ML, NO_JOB, NO_DATASET, NO_DATASET_VERSION, OPENING, asJson, type Json };
@@ -40,7 +41,7 @@ export const note = (description: string): void => {
 };
 
 /** Dataset name `${TEST_DATA_PREFIX}b08m-${RUN_ID}-<time36>-<n>` (S4: unique suffix per call). */
-export const datasetName = (n: number): string => `${TEST_DATA_PREFIX}b08m-${RUN_ID}-${Date.now().toString(36)}-${n}`; // unique per call: no delete API, a rerun/retry must not 409
+export const datasetName = (n: number): string => `${TEST_DATA_PREFIX}b08m-${RUN_ID}-${Date.now().toString(36)}${safeSuffix()}-${n}`; // unique per call: no delete API, a rerun/retry must not 409
 
 const ULID_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** `count` distinct well-formed `prj_<ULID>` ids that no row carries (all start with 0). */

@@ -11,7 +11,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { loginUrl, pathOf } from '../../e2e/fixtures/routes';
 import { readBaseUrl } from '../../e2e/fullstack/env';
-import { poolUser, signInPoolUser } from './support/phase03Seed';
+import { poolUser, signInPoolUser } from './support/p08/pool';
 import { captureEvidence } from './support/evidence';
 import { adminApi } from './support/p08/admin';
 import {

@@ -35,7 +35,7 @@ import { ROUTES as APP_ROUTES } from '../../../../e2e/fixtures/routes';
 import { navigateThenWaitForApi } from '../../../../e2e/fullstack/apiWatch';
 import { signedInApi } from '../api';
 import { readAdminCredentials } from '../auth';
-import { poolUser, signInPoolUser, type PoolRole, type PoolUser } from '../phase03Seed';
+import { poolUser, signInPoolUser, type PoolRole, type PoolUser } from './pool';
 
 /* ---------------------------------------------------------------- viewports */
 

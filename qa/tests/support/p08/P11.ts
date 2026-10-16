@@ -9,7 +9,7 @@ import type { APIRequestContext, Browser, BrowserContext, Locator, Page, Request
 import { waitForApiWhere } from '../../../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../../../e2e/fullstack/env';
 import { attachJson } from '../evidence';
-import { signInPoolUser, type PoolUser } from '../phase03Seed';
+import { signInPoolUser, type PoolUser } from './pool';
 import { DESKTOP, ROUTES } from './admin';
 import { pickOption, type Json } from './users';
 

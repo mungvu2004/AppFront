@@ -23,6 +23,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 
 import { TEST_DATA_PREFIX, RUN_ID } from './support/evidence';
+import { safeSuffix } from './support/p08/pool';
 import { adminApi } from './support/p08/admin';
 import {
   DIMENSION,
@@ -367,7 +368,7 @@ test.describe('phase08 ML admin API B', () => {
   test('SCR-34 · FL-B08M-10 · dataset create: 201, 409 name collisions, idempotency, paging', async () => {
     const admin = await adminApi();
     try {
-      const attempt = Date.now().toString(36); // datasets cannot be deleted: a unique token per run keeps reruns/retries from 409
+      const attempt = `${Date.now().toString(36)}${safeSuffix()}`; // datasets cannot be deleted: a unique token per run keeps reruns/retries from 409
       const name = (n: number | string): string => `${TEST_DATA_PREFIX}b08m-${RUN_ID}-${attempt}-${n}`;
       const post = (id: string, slug: string, body: Json, why: string, headers?: Record<string, string>) =>
         call(admin, id, slug, 'POST', `${ML}/datasets`, body, [why], headers ? { headers } : {});

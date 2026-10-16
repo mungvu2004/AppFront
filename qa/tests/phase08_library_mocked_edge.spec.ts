@@ -10,7 +10,7 @@ import { signInAdmin } from './support/auth';
 import { captureEvidence } from './support/evidence';
 import { DESKTOP, ROUTES, adminApi } from './support/p08/admin';
 import { craftedLibrary, deferred, fail500, failWith, fulfilList, itemsOf, readJson } from './support/p08/P3';
-import { poolUser, signInPoolUser } from './support/phase03Seed';
+import { poolUser, signInPoolUser } from './support/p08/pool';
 
 const LIST = /\/api\/library(\?.*)?$/u;
 const DETAIL_RE = /\/api\/library\/[^/?]+(\?.*)?$/u;

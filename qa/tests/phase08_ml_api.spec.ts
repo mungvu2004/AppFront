@@ -36,7 +36,7 @@ import {
   type MlRoute,
   type Sent,
 } from './support/p08/P13';
-import { poolUser } from './support/phase03Seed';
+import { poolUser } from './support/p08/pool';
 
 const ENV = 'environment: ';
 const DIM = 'dimensionReading'; // versionId:null on a non-wall family is still 422 (service.py:150-152)

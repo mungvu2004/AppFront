@@ -21,7 +21,7 @@ import {
   selectFamily,
   versionLabels,
 } from './support/p08/P3';
-import { poolUser, signInPoolUser } from './support/phase03Seed';
+import { poolUser, signInPoolUser } from './support/p08/pool';
 import { verifyUi } from './support/ui-verify';
 
 const VPS = DESKTOP_VIEWPORTS;

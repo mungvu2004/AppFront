@@ -17,7 +17,7 @@ import { readBaseUrl } from '../../e2e/fullstack/env';
 import { readAdminCredentials, signInAdmin } from './support/auth';
 import { captureEvidence } from './support/evidence';
 import { adminApi, recordActiveVersions, restoreActiveVersions } from './support/p08/admin';
-import { poolUser } from './support/phase03Seed';
+import { poolUser } from './support/p08/pool';
 import { readState, updateState } from './support/state';
 
 test.describe.configure({ mode: 'serial' });

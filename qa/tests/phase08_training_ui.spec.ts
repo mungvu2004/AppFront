@@ -10,7 +10,7 @@ import { signInAdmin } from './support/auth';
 import { typeHeight } from './support/numeric-field';
 import { DESKTOP_VIEWPORTS, ROUTES, adminApi } from './support/p08/admin';
 import { jobFixture, mockTraining, openCreateForm, openTraining, panelOrDrawer, panelRows } from './support/p08/P3';
-import { poolUser, signInPoolUser } from './support/phase03Seed';
+import { poolUser, signInPoolUser } from './support/p08/pool';
 import { verifyUi } from './support/ui-verify';
 
 const JOBS = /\/api\/admin\/ml\/training-jobs(\?.*)?$/u;

@@ -12,7 +12,7 @@ import { adminApi } from './support/p08/admin';
 import { asPoolUser, longEmail, openUsersList, pickOption, poolAdminApi, removeUser, userRow, verifyDesktop } from './support/p08/P4';
 import { testEmail } from './support/evidence';
 import { deleteMails, waitForMail } from './support/mailpit';
-import { poolUser, type PoolUser } from './support/phase03Seed';
+import { poolUser, type PoolUser } from './support/p08/pool';
 
 const U = {
   invite: 'Mời người dùng', // UMT:31

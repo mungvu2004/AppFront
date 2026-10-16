@@ -16,7 +16,7 @@ import { loginUrl, pathOf } from '../../e2e/fixtures/routes';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { TEST_DATA_PREFIX, attachJson, captureEvidence, testEmail } from './support/evidence';
 import { signInAdmin } from './support/auth';
-import { addProjectMember, deleteSeededProject, createProject, signInPoolUser, type PoolUser } from './support/phase03Seed';
+import { addProjectMember, deleteSeededProject, createProject, signInPoolUser, type PoolUser } from './support/p08/pool';
 import { BREADCRUMB_NAV, DESKTOP, MODAL, ROUTES, dialog, panel } from './support/p08/admin';
 import {
   ALL_CELLS,

@@ -14,7 +14,7 @@ import { attachJson, captureEvidence } from './support/evidence';
 import { typeHeight } from './support/numeric-field';
 import { DESKTOP, ROUTES, adminApi, openAdmin, signInAdminUser } from './support/p08/admin';
 import { attachState, openTraining, pickOption, recordRequests } from './support/p08/P4';
-import { poolUser } from './support/phase03Seed';
+import { poolUser } from './support/p08/pool';
 
 const T = {
   tabs: 'Phần của trang huấn luyện',

@@ -10,7 +10,7 @@ import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { signInAdmin } from './support/auth';
-import { poolUser, signInPoolUser } from './support/phase03Seed';
+import { poolUser, signInPoolUser } from './support/p08/pool';
 import { adminApi, holdResponse } from './support/p08/admin';
 import {
   TEXT, bodyRows, boundsLabel, categoryBox, columnTexts, detailAside, ev, expectRows, foldForSearch, formatFileSize, formatNumber,

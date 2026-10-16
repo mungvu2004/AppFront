@@ -23,7 +23,7 @@ import { ROUTES } from '../../e2e/fixtures/routes';
 import { signedInApi } from './support/api';
 import { readAdminCredentials, signInAdmin } from './support/auth';
 import { captureEvidence, testEmail } from './support/evidence';
-import { poolUser } from './support/phase03Seed';
+import { poolUser } from './support/p08/pool';
 import { DESKTOP } from './support/p08/admin';
 import { USERS_RE, json, markToast, realUsers, requestLog, wireError, type Json } from './support/p08/P10';
 

@@ -7,7 +7,7 @@ import { expect } from '@playwright/test';
 import type { APIRequestContext, Locator, Page, Request } from '@playwright/test';
 
 import { signedInApi } from '../api';
-import { poolUser, type PoolUser } from '../phase03Seed';
+import { poolUser, type PoolUser } from './pool';
 import { adminApi } from './admin';
 import { pickOption, type Json } from './users';
 

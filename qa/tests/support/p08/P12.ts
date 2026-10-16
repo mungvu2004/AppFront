@@ -10,7 +10,7 @@ import { apiBaseUrl, captureExchange, newApiContext, signedInApi } from '../api'
 import { readAdminCredentials } from '../auth';
 import { testEmail } from '../evidence';
 import { deleteMails, linkFrom, waitForMail } from '../mailpit';
-import { poolUser, type PoolRole, type PoolUser } from '../phase03Seed';
+import { poolUser, type PoolRole, type PoolUser } from './pool';
 
 export type Json = Record<string, unknown>;
 export const INVITE_SUBJECT = 'Lời mời tham gia AppBack';
