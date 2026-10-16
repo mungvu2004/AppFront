@@ -940,7 +940,12 @@ export function useTrainingJobs({
         setEpochsTyped(null);
         setFormErrors(NO_FIELD_ERRORS);
       },
-      onTypeEpochs: setEpochsTyped,
+      // Gõ là xoá lỗi luôn, đừng đợi lúc chốt: chốt chạy khi ô mất tiêu điểm, tức ở mousedown của nút gửi; lỗi
+      // biến mất lúc ấy làm hộp thoại (căn giữa) co lại, nút trượt khỏi con trỏ trước mouseup, không có click (BUG-P08-038).
+      onTypeEpochs: (value) => {
+        setEpochsTyped(value);
+        setFormErrors(NO_FIELD_ERRORS);
+      },
       onFormFamily,
       onFormVersion: (value) => {
         setFormVersionId(value);
