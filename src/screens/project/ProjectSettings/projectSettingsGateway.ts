@@ -553,7 +553,8 @@ export function createProjectSettingsGateway(client: ApiClient): ProjectSettings
     },
 
     deleteProject: async ({ projectId }) => {
-      const result = await client.projects.delete({ projectId });
+      // `idempotent`: a retry after a lost 200 replays the answer instead of 404 (FL-11P-06).
+      const result = await client.projects.delete({ projectId, idempotent: true });
 
       // `projects.delete` trả về `Project` vừa xoá; nơi gọi chỉ cần biết nó xong.
       if (!result.ok) {

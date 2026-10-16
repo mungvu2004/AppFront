@@ -9,9 +9,9 @@ import { ROUTES } from '../../e2e/fixtures/routes';
 import { signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
 import { captureEvidence } from './support/evidence';
-import { poolUser, signInPoolUser, type PoolUser } from './support/phase03Seed';
+import { poolUser, signInPoolUser } from './support/phase03Seed';
 import { DESKTOP, p11Slot } from './support/p11/common';
-import { adminPage, attachSnapshot, cleanAll, disposeFreshUser, inviteFreshUser, recordApi, userRow } from './support/p11/P13';
+import { adminPage, attachSnapshot, cleanAll, recordApi, userRow } from './support/p11/P13';
 
 /** Evidence probes for 11U-A-306: which screen `/` draws and whether the refresh cookie still revives the session. */
 const ROOT_PROBES = { heading: 'h1', loginForm: 'form', dashboard: '[data-testid="dashboard"], main' };
@@ -21,10 +21,10 @@ test.describe('SCR-37/38 [mocked response]', () => {
     test.setTimeout(180_000);
     const creds = readAdminCredentials();
     const admin = await signedInApi(creds.email, creds.password);
-    let fuRef: PoolUser | null = null;
     let view: Awaited<ReturnType<typeof adminPage>> | null = null;
     try {
-      const fu = (fuRef = await inviteFreshUser(admin, 'engineer', 'mock1'));
+      // pool user, no invite (rate limit 30/h per admin): both writes are answered by the mock, the user is never changed
+      const fu = await poolUser(admin, 'engineer', p11Slot('session-mock'));
       const shown = (view = await adminPage(browser));
       const page = shown.page;
       // one-shot 500s: `route.fulfill` once, then `route.fallback` (the real call) — removed with unroute at the end.
@@ -77,7 +77,6 @@ test.describe('SCR-37/38 [mocked response]', () => {
     } finally {
       await cleanAll([
         async () => { if (view !== null) await view.context.close(); },
-        async () => { if (fuRef !== null) await disposeFreshUser(admin, fuRef); },
         () => admin.dispose(),
       ]);
     }
@@ -95,7 +94,7 @@ test.describe('SCR-37/38 [mocked response]', () => {
       const page = await context.newPage();
       const hits = recordApi(page);
       await page.route('**/api/auth/logout', (route) => route.abort('failed'));
-      await test.step('[11U-A-306] logout abort → vẫn /login, mở / → /login', async () => {
+      await test.step('[11U-A-306] logout abort → vẫn /login; mở / → cookie còn nên vào lại', async () => {
         // AccessDenied: navigation sits in `finally` (flows: AD:436-446); local session cleared before the call
         await page.goto(ROUTES.accessDenied);
         await page.getByRole('button', { name: 'Đăng nhập bằng tài khoản khác', exact: true }).click();
@@ -105,7 +104,8 @@ test.describe('SCR-37/38 [mocked response]', () => {
         await attachSnapshot(page, 'E11_11U-A-306_before-open-root.json', hits, mark, ROOT_PROBES);
         await page.goto(ROUTES.dashboard);
         try {
-          await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.login);
+          // oracle: logout never reached the server, so the refresh cookie lives and the reload revives the session (D evidence E11_11U-A-306_after-open-root.json: POST /api/auth/refresh 200)
+          await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.dashboard);
         } finally {
           await attachSnapshot(page, 'E11_11U-A-306_after-open-root.json', hits, mark, ROOT_PROBES);
         }

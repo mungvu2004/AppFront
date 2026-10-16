@@ -14,6 +14,7 @@ import { ROUTES } from '../../e2e/fixtures/routes';
 import { attachJson, captureEvidence } from './support/evidence';
 import { createProject, createSkewedDrawingProject, envDrawingPng, uploadDrawing, type SeededFloorRow } from './support/phase03Seed';
 import { INIT_RE, makePdf, writesSince } from './support/p03/P5';
+import { skewedEnvPng } from './support/p03/P7';
 import { DESKTOP, p11Slot } from './support/p11/common';
 import {
   adminApi,
@@ -206,7 +207,8 @@ test.describe('phase 11 floors edge', () => {
         });
         const mark = flow.sent.length;
         await pick(page, { name: 'nen-t2.png', mimeType: 'image/png', buffer: envDrawingPng() });
-        await assignFromTray(page, 'nen-t2.png', t2.name);
+        // R1/D screenshot: "nen-t2.png" is matched to Tầng 2 by its name ("Ghép tự động từ tên tệp"), so it never waits in the tray
+        await expect(cardSummary(page, t2.id, 'nen-t2.png')).toBeVisible();
         await expect.poll(() => flow.sent.slice(mark).filter((r) => r.method === 'POST' && INIT_RE.test(r.path)).length).toBe(1);
         await expect.soft(page.getByTestId(COUNTER)).toHaveText(counterText(2, 2)); // UFU:1189-1191 uploading counts
         await removeFromCard(page, t2, 'nen-t2.png');
@@ -252,7 +254,7 @@ test.describe('phase 11 floors edge', () => {
   test('SCR-10/11/09/21/25 · FL-11F-06 · viewer · vai xem: không điều khiển phá huỷ ở 5 màn', async ({ browser }) => {
     test.setTimeout(420_000);
     const admin = await adminApi();
-    const seeded = await createSkewedDrawingProject(admin, '11f-06', envDrawingPng()); // measured floor with SKEW_DETECTED
+    const seeded = await createSkewedDrawingProject(admin, '11f-06', await skewedEnvPng(browser, 8)); // measured floor with SKEW_DETECTED
     let member: MemberFlow | undefined;
     try {
       member = await startMember(browser, admin, 'viewer', SLOT, [seeded.projectId]);

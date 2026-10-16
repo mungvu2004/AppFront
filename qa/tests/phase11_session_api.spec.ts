@@ -167,15 +167,18 @@ test.describe('users + session API', () => {
       const s3Cookies = await cookieHeader(s3);
       let logout1: APIResponse | null = null;
 
-      await test.step('[11U-G-342] ⚑ logout với Origin lạ: 403 ORIGIN_MISMATCH và không xoá cookie khi chưa thu hồi', async () => {
-        // oracle: core/origin.py:53-56 (403 ORIGIN_MISMATCH); auth/router.py:288-293 clears cookies WITHOUT revoke_by_cookie (bug while open)
+      await test.step('[11U-G-342] logout với Origin lạ: 403 ORIGIN_MISMATCH + Set-Cookie xoá cookie, phiên KHÔNG thu hồi', async () => {
+        // decided behaviour: AppBack/docs/charter/BE-00.md:246 ("403 vẫn kèm Set-Cookie xoá hai cookie (không thu hồi ở server)");
+        // core/origin.py:53-56 (403 ORIGIN_MISMATCH); auth/router.py:288-293 clears cookies WITHOUT revoke_by_cookie
         const res = await s3.post('/api/auth/logout', { headers: { Origin: EVIL_ORIGIN } });
         expect(res.status()).toBe(403);
         expect(await codeOf(res)).toBe('ORIGIN_MISMATCH');
         const clears = setCookies(res).some((cookie) => CLEARS_COOKIE.test(cookie));
         const after = await replay('/api/auth/refresh', s3Cookies);
-        await captureExchange('A11_11U-G-342_logout-evil-origin.json', { method: 'POST', path: '/api/auth/logout' }, res, ['403 ORIGIN_MISMATCH', `cookie cleared by response: ${String(clears)}`, `refresh with old cookie afterwards: ${String(after.status())} (today 200)`]);
-        expect(clears, 'không xoá cookie khi phiên chưa thu hồi').toBe(false);
+        await captureExchange('A11_11U-G-342_logout-evil-origin.json', { method: 'POST', path: '/api/auth/logout' }, res, ['403 ORIGIN_MISMATCH', `cookie cleared by response: ${String(clears)}`, `refresh with old cookie afterwards: ${String(after.status())} (session not revoked: 200)`]);
+        expect(clears, 'Set-Cookie xoá cookie (BE-00.md:246)').toBe(true);
+        expect(setCookies(res).filter((cookie) => CLEARS_COOKIE.test(cookie)).length, 'cả hai cookie bị xoá').toBeGreaterThanOrEqual(2);
+        expect(after.status(), 'refresh token vẫn sống: phiên không bị thu hồi').toBe(200);
       });
 
       await test.step('[11U-A-309] S1 logout; phiên S2 vẫn refresh được', async () => {
@@ -215,27 +218,26 @@ test.describe('users + session API', () => {
   test('api · FL-11U-A4 · user thường · DELETE /api/me và GET /api/me/sessions chưa có', async () => {
     test.setTimeout(90_000);
     const admin = await adminApi();
-    let fu: PoolUser | null = null;
     let fuApi: APIRequestContext | null = null;
     try {
-      fu = await inviteFreshUser(admin, 'engineer', 'api4');
+      // pool user, no invite (rate limit 30/h per admin): both calls are read-only while the routes do not exist
+      const fu = await poolUser(admin, 'engineer', p11Slot('session-api'));
       const api = await signedInApi(fu.email, fu.password);
       fuApi = api;
-      await test.step('[11U-G-211] DELETE /api/me → 405, GET /api/me/sessions → 404', async () => {
+      await test.step('[11U-G-211] DELETE /api/me → 404|405, GET /api/me/sessions → 404', async () => {
         // MR (users/me router) only has GET/PATCH /me and PUT /me/avatar
         const del = await api.delete('/api/me');
         const sessions = await api.get('/api/me/sessions');
-        // oracle: me/router.py:109,137 (no DELETE on /me → 405); core/errors.py:54-57 maps 404 and 405 to NOT_FOUND
-        expect(del.status()).toBe(405);
+        // oracle: catalog-C3:122 (404 hoặc 405); core/errors.py:54-57 maps 404 and 405 to NOT_FOUND
+        expect([404, 405], `DELETE /api/me → ${del.status()}`).toContain(del.status());
         expect(await codeOf(del)).toBe('NOT_FOUND');
         expect(sessions.status()).toBe(404);
         expect(await codeOf(sessions)).toBe('NOT_FOUND');
-        await captureExchange('A11_11U-G-211_me-sessions.json', { method: 'GET', path: '/api/me/sessions' }, sessions, ['404 NOT_FOUND', 'DELETE /api/me is 405 NOT_FOUND']);
+        await captureExchange('A11_11U-G-211_me-sessions.json', { method: 'GET', path: '/api/me/sessions' }, sessions, ['404 NOT_FOUND', `DELETE /api/me is ${del.status()} NOT_FOUND`]);
       });
     } finally {
       await cleanAll([
         async () => { if (fuApi !== null) await fuApi.dispose(); },
-        async () => { if (fu !== null) await disposeFreshUser(admin, fu); },
         () => admin.dispose(),
       ]);
     }

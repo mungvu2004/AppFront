@@ -136,7 +136,7 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
       await test.step('[11P-A-025] phục hồi xoá mọi sửa lớp sau bản đích: lớp = nội dung bản đích', async () => {
         await pickPair(page, [t1, t2]);
         await restoreButton(page).click();
-        const done = waitForApi(page, 'POST', restorePathRe(projectId), [200]);
+        const done = waitForApi(page, 'POST', restorePathRe(projectId), [201]);
         await confirmDialog(page).getByRole('button', { name: 'Phục hồi', exact: true }).click();
         await done;
         await expect(toastRegion(page)).toContainText('Đã phục hồi phiên bản');
@@ -149,7 +149,7 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
         const before = (await rowLabels(page)).length;
         await pickPair(page, [t1, t2]);
         await restoreButton(page).click();
-        const done = waitForApi(page, 'POST', restorePathRe(projectId), [200]);
+        const done = waitForApi(page, 'POST', restorePathRe(projectId), [201]);
         await confirmDialog(page).getByRole('button', { name: 'Phục hồi', exact: true }).click();
         await done;
         await expect.soft(toastRegion(page)).toContainText('Phiên bản này trùng với hiện trạng'); // UVH:433
@@ -161,7 +161,7 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
         await openVersions(page, projectId, floorId);
         await pickPair(page, [t2, older]);
         await restoreButton(page).click();
-        const done = waitForApi(page, 'POST', restorePathRe(projectId), [200]);
+        const done = waitForApi(page, 'POST', restorePathRe(projectId), [201]);
         await confirmDialog(page).getByRole('button', { name: 'Phục hồi', exact: true }).click();
         await done;
         await expect(undoButton(page).first()).toBeVisible();
@@ -176,7 +176,7 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
         await openVersions(page, projectId, floorId);
         await pickPair(page, [t2, older]);
         await restoreButton(page).click();
-        const done = waitForApi(page, 'POST', restorePathRe(projectId), [200]);
+        const done = waitForApi(page, 'POST', restorePathRe(projectId), [201]);
         await confirmDialog(page).getByRole('button', { name: 'Phục hồi', exact: true }).click();
         await done;
         await expect(undoButton(page).first()).toBeVisible();
@@ -192,7 +192,7 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
         await pickPair(page, [t1, t2]);
         await restoreButton(page).click();
         const before = restores();
-        const done = waitForApi(page, 'POST', restorePathRe(projectId), [200]);
+        const done = waitForApi(page, 'POST', restorePathRe(projectId), [201]);
         await confirmDialog(page).getByRole('button', { name: 'Phục hồi', exact: true }).dblclick();
         await done;
         await expect(toastRegion(page)).toContainText('Đã phục hồi phiên bản');
@@ -207,7 +207,7 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
         const revision = (await readLayer(api, projectId, floorId)).revision;
         await pickPair(page, [t2, older]);
         await restoreButton(page).click();
-        const done = waitForApi(page, 'POST', restorePathRe(projectId), [200]);
+        const done = waitForApi(page, 'POST', restorePathRe(projectId), [201]);
         await confirmDialog(page).getByRole('button', { name: 'Phục hồi', exact: true }).click();
         const { response } = await done;
         restoreRequest = response.request();
@@ -302,8 +302,10 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
         await expect(restoreDefaults(page)).toHaveCount(0);
         let reached = false;
         await page.locator('body').click({ position: { x: 1, y: 1 } });
-        for (let press = 0; press < 40 && !reached; press += 1) {
-          await page.keyboard.press('Tab');
+        // The toast viewport is last in the DOM (Toast.tsx:215) behind ~100 rule controls and the 8 s undo window runs
+        // meanwhile (R1: Tab x40 ended on the first threshold input, toast gone), so walk the ring backwards from the page start.
+        for (let press = 0; press < 10 && !reached; press += 1) {
+          await page.keyboard.press('Shift+Tab');
           reached = await undoButton(page).first().evaluate((el) => el === document.activeElement);
         }
         expect(reached, 'toast "Hoàn tác" reached with Tab').toBe(true);

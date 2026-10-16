@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import type { ApiResult } from '@/api/client';
+import type { ApiClient, ApiResult } from '@/api/client';
 
 import {
   createProjectSettingsGateway,
@@ -409,5 +409,17 @@ describe('removeMember và deleteProject', () => {
     const { gateway } = await setup();
 
     expect(await gateway.deleteProject({ projectId: PROJECT_ID })).toEqual({ ok: true, data: undefined });
+  });
+
+  // FL-11P-06 / 11P-C-010: the DELETE must carry an Idempotency-Key (client.ts:405 adds it when `idempotent`), so a
+  // retry after a lost 200 is replayed instead of answering 404.
+  it('xoá dự án gửi idempotent: true (khoá Idempotency-Key)', async () => {
+    const { server } = await setup();
+    const del = vi.fn<ApiClient['projects']['delete']>(async () => ({ ok: true, data: server.project }));
+    const withDelete = createProjectSettingsGateway({ ...server.client, projects: { ...server.client.projects, delete: del } });
+
+    await withDelete.deleteProject({ projectId: PROJECT_ID });
+
+    expect(del).toHaveBeenCalledWith({ projectId: PROJECT_ID, idempotent: true });
   });
 });

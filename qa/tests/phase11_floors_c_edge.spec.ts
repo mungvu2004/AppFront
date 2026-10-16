@@ -216,6 +216,10 @@ test.describe('SCR-09 floor manager — delete / undo (QA-11 P3)', () => {
             rowsNow: await page.getByRole('row').allInnerTexts(),
           });
           await expect.soft(toastWith(page, `${T.persistFailed} — ${T.idTaken}`).first()).toBeVisible(); // UFM:190
+          // evidence (E): toasts AFTER the 15 s wait (R1/D snapshot was taken before it): is the failure toast merged into an older same-type one?
+          await attachJson('E11_11F-B-202_after.json', {
+            toastsAfter: await page.getByRole('status').filter({ hasNot: page.locator('[data-announcer]') }).allInnerTexts(),
+          });
           await captureEvidence(page, 'E11_11F-B-202_floors.png');
         });
 

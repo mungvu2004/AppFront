@@ -40,6 +40,12 @@ const layerWrites = (log: readonly { method: string; path: string }[], mark: num
   log.slice(mark).filter((entry) => entry.method === 'PUT' && layerPutRe.test(entry.path)).length;
 const region = (page: Page): Locator => page.getByRole('region', { name: THICK.screen, exact: true });
 const toasts = (page: Page): Locator => page.getByRole('region', { name: TOASTS, exact: true });
+/** sr-only checkbox: the custom box's svg intercepts pointer events (R1/D `locator.check` log), so tick it by keyboard like phase04 pressSpaceOn. */
+async function accept(page: Page, box: Locator): Promise<void> {
+  await box.focus();
+  await page.keyboard.press('Space');
+  await expect(box).toBeChecked();
+}
 
 test.describe('P4 floors D edge', () => {
   test('SCR-21 · FL-11F-04 · engineer · chuẩn hoá độ dày: xem trước, áp, hoàn tác', async ({ browser }) => {
@@ -57,7 +63,7 @@ test.describe('P4 floors D edge', () => {
       await dismissTour(page);
       await expect(page.getByRole('heading', { name: THICK.screen })).toBeVisible();
       await expect(zone.getByText(THICK.measured200)).toHaveCount(3);
-      await zone.getByRole('checkbox', { name: THICK.accept }).first().check();
+      await accept(page, zone.getByRole('checkbox', { name: THICK.accept }).first());
 
       await test.step('[11F-A-302] "Xem trước" opens the table, writes nothing', async () => {
         const mark = log.length;
@@ -136,7 +142,7 @@ test.describe('P4 floors D edge', () => {
         await captureEvidence(page, 'E11_11F-A-310_floors.png');
       });
       await test.step('[11F-A-311] Mod+Z in the screen = "Hoàn tác"', async () => {
-        await zone.getByRole('checkbox', { name: THICK.accept }).first().check();
+        await accept(page, zone.getByRole('checkbox', { name: THICK.accept }).first());
         await previewBtn.click();
         await applyBtn.click();
         await expect.soft(toasts(page).getByText(THICK.applied)).toBeVisible();
@@ -145,7 +151,7 @@ test.describe('P4 floors D edge', () => {
         await captureEvidence(page, 'E11_11F-A-311_floors.png');
       });
       await test.step('[11F-A-312] undo after a newer step is refused, nothing changes', async () => {
-        await zone.getByRole('checkbox', { name: THICK.accept }).first().check();
+        await accept(page, zone.getByRole('checkbox', { name: THICK.accept }).first());
         await previewBtn.click();
         await applyBtn.click(); // apply 1
         await expect(toasts(page).getByText(THICK.applied)).toHaveCount(1);
@@ -216,7 +222,8 @@ test.describe('P4 floors D edge', () => {
         await captureEvidence(page, 'E11_11F-A-402_floors.png');
       });
       await test.step('[11F-A-403] undo toast copy', async () => {
-        await expect.soft(page.getByText(`Hoàn tác xoá "${names.a}"`)).toBeVisible(); // MUT:176
+        // a and b were deleted inside the group window: same-type toasts merge and show the newest title (b)
+        await expect.soft(page.getByText(`Hoàn tác xoá "${names.b}"`)).toBeVisible(); // MUT:176 + notificationBus.ts publish
         await expect.soft(page.getByRole('button', { name: MT.undo, exact: true }).first()).toBeVisible();
         await captureEvidence(page, 'E11_11F-A-403_floors.png');
       });

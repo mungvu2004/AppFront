@@ -483,14 +483,14 @@ export function createUserManagementGateway(
     readActivity: async (userId: string, signal?: AbortSignal): Promise<readonly UserActivity[]> =>
       run(userActivityQueryOptions(usersApi, userId), signal),
     changeRole: async ({ role, userId }: ChangeRoleRequest): Promise<AdminUser> =>
-      unwrap(usersApi.changeRole({ body: { role, userId } })),
+      unwrap(usersApi.changeRole({ body: { role, userId }, idempotent: true })),
     disableUser: async (userId: string): Promise<AdminUser> =>
-      unwrap(usersApi.disable({ userId })),
-    enableUser: async (userId: string): Promise<AdminUser> => unwrap(usersApi.enable({ userId })),
+      unwrap(usersApi.disable({ userId, idempotent: true })),
+    enableUser: async (userId: string): Promise<AdminUser> => unwrap(usersApi.enable({ userId, idempotent: true })),
     inviteUsers: async ({ emails, role }: InviteRequest): Promise<readonly AdminUser[]> =>
       unwrap(usersApi.invite({ body: { emails: [...emails], role }, failFastOnRateLimit: true })),
     removeUser: async ({ confirmEmail, userId }: RemoveRequest): Promise<AdminUser> =>
-      unwrap(usersApi.remove({ body: { confirmEmail, userId } })),
+      unwrap(usersApi.remove({ body: { confirmEmail, userId }, idempotent: true })),
     resendInvite: async (userId: string): Promise<AdminUser> =>
       unwrap(usersApi.resendInvite({ userId, failFastOnRateLimit: true })),
     createWriteTicket: (ticketOptions: CreateUndoTicketOptions): UndoTicket =>

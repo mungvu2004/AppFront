@@ -71,6 +71,7 @@ import {
   isTransientSettingsError,
   partialSaveSentence,
   problemKeyOfError,
+  readSettingsError,
   rejectionOf,
   SETTINGS_SENTENCES,
   type SettingsProblemKey,
@@ -732,6 +733,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
   const [dangerConfirmationText, setDangerConfirmationText] = useState('');
   const [dangerFailure, setDangerFailure] = useState<string | null>(null);
   const [isDangerRunning, setDangerRunning] = useState(false);
+  const dangerInFlightRef = useRef(false);
 
   // Bản sao đồng bộ của state mà logic lưu đọc: một lượt chạy tiếp ngay sau lượt
   // trước (engine xếp hàng) có thể xảy ra trước khi React kịp vẽ lại.
@@ -1220,6 +1222,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
 
   const runDeleteAllFloors = (): void => {
     void gateway.deleteAllFloors({ projectId }).then((result) => {
+      dangerInFlightRef.current = false;
       setDangerRunning(false);
 
       if (!result.ok) {
@@ -1247,9 +1250,13 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
 
   const runDeleteProject = (): void => {
     void gateway.deleteProject({ projectId }).then((result) => {
+      dangerInFlightRef.current = false;
       setDangerRunning(false);
 
-      if (!result.ok) {
+      // 404: already deleted elsewhere (or a keyed retry after a lost 200) - the screen's wish is met (FL-11P-06).
+      const alreadyGone = !result.ok && readSettingsError(result.error).status === 404;
+
+      if (!result.ok && !alreadyGone) {
         setDangerFailure(describeError(toAppError(result.error)).description);
         return;
       }
@@ -1277,7 +1284,9 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
       dangerConfirmationText.trim() === dangerConfirmationExpected.trim());
 
   const confirmDanger = (): void => {
-    if (!canConfirmDanger || pendingDanger === null) return;
+    // 11P-C-004: a double click holds this closure for both clicks and `isDangerRunning` lags a render; the ref flips at once.
+    if (!canConfirmDanger || pendingDanger === null || dangerInFlightRef.current) return;
+    dangerInFlightRef.current = true;
 
     setDangerRunning(true);
     setDangerFailure(null);

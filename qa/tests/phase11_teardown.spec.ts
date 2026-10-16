@@ -403,7 +403,7 @@ test.describe('SCR-09 Floor Manager', () => {
       const rows = await page.getByRole('button', { name: /^Thao tác khác cho tầng /u }).evaluateAll((els) =>
         els.map((el) => el.getAttribute('aria-label') ?? ''),
       );
-      const menu = page.getByRole('menu', { name: 'Tùy chọn' });
+      const menu = page.getByRole('menu', { name: 'Tuỳ chọn' });
 
       await attachJson(`E11_scr09_${String(snapSeq)}_${phase}.json`, {
         phase,
@@ -429,7 +429,7 @@ test.describe('SCR-09 Floor Manager', () => {
       await snapshot('before-menu', floorId, name);
       await page.getByRole('button', { name: `Thao tác khác cho tầng ${name}`, exact: true }).click();
       await snapshot('menu-open', floorId, name);
-      await page.getByRole('menu', { name: 'Tùy chọn' }).getByRole('menuitem', { name: 'Xoá tầng' }).click();
+      await page.getByRole('menu', { name: 'Tuỳ chọn' }).getByRole('menuitem', { name: 'Xoá tầng' }).click();
       // G5: hovering the toast pauses its 8 s timer; keep the mouse away.
       await page.mouse.move(0, 0);
       await snapshot('after-click', floorId, name);

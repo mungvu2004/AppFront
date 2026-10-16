@@ -69,4 +69,52 @@ describe('[37W-A-018] toast xoá hẳn', () => {
     expect(removeUser).toHaveBeenCalledWith({ userId: 'u-binh', confirmEmail: 'BINH.NGUYEN@APPFRONT.VN' });
     expect(notify).toHaveBeenCalledWith(expect.objectContaining({ type: 'user.remove', description: 'binh.nguyen@appfront.vn' }));
   });
+
+  it('[11U-A-112] bấm xác nhận hai lần liền chỉ gửi MỘT lượt xoá (FL-11U-04)', async () => {
+    const notify = vi.fn();
+    const removeUser = vi.fn(() => Promise.resolve(USERS[1] as AdminUser));
+    const unused = (): Promise<never> => Promise.reject(new Error('Bài này không ghi.'));
+    const gateway: UserManagementGateway = {
+      capabilities: { canManageUsers: true },
+      currentUserId: 'u-an',
+      currentUserEmail: 'an.pham@appfront.vn',
+      permissionMatrix: buildPermissionMatrix(),
+      listUsers: () => Promise.resolve({ total: USERS.length, users: USERS }),
+      readMemberships: () => Promise.resolve([]),
+      readActivity: () => Promise.resolve([]),
+      changeRole: unused,
+      disableUser: unused,
+      enableUser: unused,
+      inviteUsers: unused,
+      removeUser,
+      resendInvite: unused,
+      createWriteTicket: () => {
+        throw new Error('Bài này không ghi.');
+      },
+      notify,
+      trackRoleChange: () => undefined,
+      createOptimisticId: () => 'tam-1',
+      now: () => NOW,
+    };
+    const queryClient = createTestQueryClient();
+    const wrapper = ({ children }: { readonly children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    const { result } = renderHook(() => useUserManagement({ gateway }), { wrapper });
+    await waitFor(() => expect(result.current.model.rows).toHaveLength(2));
+
+    act(() => {
+      result.current.actions.onOpenRemove('u-binh');
+    });
+    act(() => {
+      result.current.actions.onRemoveEmailChange('binh.nguyen@appfront.vn');
+    });
+    const confirm = result.current.actions.onConfirmRemove;
+    act(() => {
+      confirm();
+      confirm();
+    });
+
+    await waitFor(() => expect(notify).toHaveBeenCalled());
+    expect(removeUser).toHaveBeenCalledTimes(1);
+  });
 });

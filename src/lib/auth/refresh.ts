@@ -16,6 +16,7 @@ import {
   getSessionState,
   setAuthenticatedSession,
   setServerUnreachable,
+  setSessionRevoked,
 } from './state';
 import type { AuthUser, RefreshSessionPayload } from './types';
 
@@ -311,6 +312,16 @@ const endSessionLocally = (): void => {
   });
 };
 
+/** 401 body `{code: 'SESSION_REVOKED'}` (AppBack auth/sessions.py:452) - also under `error` for the envelope form. */
+const readRevoked = async (response: Response): Promise<boolean> => {
+  try {
+    const body = (await response.clone().json()) as { code?: unknown; error?: { code?: unknown } } | null;
+    return (body?.code ?? body?.error?.code) === 'SESSION_REVOKED';
+  } catch {
+    return false;
+  }
+};
+
 /** Phiên đã chết ở phía máy chủ (401) — mọi thẻ đều phải biết. */
 const createRefreshFailure = (): void => {
   const { broadcastChannelName } = getAuthConfig();
@@ -467,6 +478,7 @@ export const refreshSingleFlight = async (
         }
 
         if (response.status === UNAUTHENTICATED_STATUS) {
+          setSessionRevoked(await readRevoked(response));
           createRefreshFailure();
           return false;
         }

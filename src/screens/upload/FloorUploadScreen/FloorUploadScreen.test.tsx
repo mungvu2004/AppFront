@@ -953,6 +953,16 @@ describe('FloorUploadScreenView — QA-03e', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Chọn tệp' }));
   });
 
+  // FL-11F-U1 / 11F-F-001: Toast.tsx:224 lifts toasts above `[data-sticky-footer]`; without it the toast covers "Bắt đầu xử lý".
+  it('[11F-F-001] chân trang dính mang data-sticky-footer, cả khi blockNotice hiện (toast đứng trên nó)', () => {
+    const view = renderWithProviders(<FloorUploadScreenView {...trayScenario()} />);
+    expect(screen.getByRole('button', { name: 'Bắt đầu xử lý' }).closest('[data-sticky-footer]')).not.toBeNull();
+    view.unmount();
+    renderWithProviders(<FloorUploadScreenView {...blockedScenario(2)} />);
+    const notice = screen.getByTestId(BLOCK_NOTICE_TEST_ID);
+    expect(notice.closest('[data-sticky-footer]')).not.toBeNull();
+  });
+
   // BUG-526: the sticky footer covered the focused control, and the last card's menu.
   it('tiêu điểm rơi dưới chân trang dính thì trang cuộn lên đủ chỗ (BUG-526)', () => {
     renderWithProviders(<FloorUploadScreenView {...trayScenario()} />);

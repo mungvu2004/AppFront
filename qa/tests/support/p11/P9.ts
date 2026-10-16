@@ -67,7 +67,15 @@ export const ruleConfigApiRe = (id: string): RegExp => new RegExp(`^/api/project
 export async function openSettingsTab(page: Page, projectId: string, tab: string): Promise<void> {
   await page.goto(ROUTES.project.settings(projectId));
   const tabButton = page.getByRole('tablist', { name: DANGER.tablist }).getByRole('tab', { name: tab, exact: true });
-  await expect(tabButton).toBeVisible();
+  // <1024 px: the strip becomes a Select (ProjectSettings.tsx:112, role=combobox labelled by the same group name).
+  const picker = page.getByRole('combobox', { name: DANGER.tablist });
+  await expect(tabButton.or(picker)).toBeVisible();
+  if (await picker.isVisible()) {
+    await picker.click();
+    await page.getByRole('option', { name: tab, exact: true }).click();
+    await expect(picker).toContainText(tab);
+    return;
+  }
   await tabButton.click();
   await expect(tabButton).toHaveAttribute('aria-selected', 'true');
 }

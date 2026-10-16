@@ -517,6 +517,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
   /** BUG-P08-027: lỗi máy chủ gắn vào field `emails` — hiện ở chính ô nhập, tắt khi sửa chữ. */
   const [inviteServerError, setInviteServerError] = useState<string | null>(null);
   const inviteInFlightRef = useRef(false);
+  const removeInFlightRef = useRef(false);
   const [removeUserId, setRemoveUserId] = useState<string | null>(null);
   const [removeEmail, setRemoveEmail] = useState('');
   /** Hàng vừa đổi vai xong: nền nháy đúng một nhịp `MOTION_DURATIONS_MS.slow` rồi tắt. */
@@ -1213,9 +1214,11 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
       },
       onRemoveEmailChange: setRemoveEmail,
       onConfirmRemove: (): void => {
-        if (removeUserId === null || !removeConfirm.canConfirm) {
+        // FL-11U-04: a double click re-enters before `isPending` renders; the ref flips at once (same as invite).
+        if (removeUserId === null || !removeConfirm.canConfirm || removeInFlightRef.current) {
           return;
         }
+        removeInFlightRef.current = true;
 
         const userId = removeUserId;
         // Email của tài khoản (BE lưu chữ thường), không phải chữ người dùng gõ khác hoa/thường.
@@ -1237,7 +1240,9 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
           (error: unknown) => {
             notifyFailure(USER_MANAGEMENT_TEXT.removeFailedTitle, error);
           },
-        );
+        ).finally(() => {
+          removeInFlightRef.current = false;
+        });
       },
       onOpenPermissionReference: (): void => {
         setPermissionReferenceOpen(true);

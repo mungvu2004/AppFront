@@ -122,7 +122,8 @@ export function createProjectsGateway(client: Pick<ApiClient, 'projects' | 'proj
       if (!result.ok) throw result.error;
     },
     remove: async (projectId) => {
-      const result = await client.projects.delete({ projectId });
+      // `idempotent`: Idempotency-Key header, so a retry after a lost 200 replays instead of 404 (FL-11P-06).
+      const result = await client.projects.delete({ projectId, idempotent: true });
       if (!result.ok) throw result.error;
     },
   };

@@ -812,6 +812,92 @@ describe('ProjectSettings đã nối dây', () => {
     expect(onProjectDeleted).toHaveBeenCalledWith('Đã xoá dự án.');
   });
 
+  /** Mở hộp "Xoá dự án" và gõ đúng tên; trả nút xác nhận. */
+  async function openDeleteProjectDialog(): Promise<HTMLElement> {
+    const expectedName = nameField().value;
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Vùng nguy hiểm' }));
+    await tick(MOTION_SETTLE_MS);
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá dự án' }));
+    await tick(MOTION_SETTLE_MS);
+
+    const dialog = within(screen.getByRole('dialog'));
+    fireEvent.change(dialog.getByRole('textbox', { name: 'Gõ lại tên dự án để xác nhận' }), { target: { value: expectedName } });
+
+    return dialog.getByRole('button', { name: 'Xoá dự án' });
+  }
+
+  // 11P-C-004 (FL-11P-06 sibling): a double click holds the same handler for both clicks and `isDangerRunning` lags a
+  // render, so the 2nd click sent a 2nd DELETE. The ref flips at once (same cure as useUserManagement invite).
+  it('11P-C-004: bấm đúp "Xoá dự án" chỉ gửi đúng 1 lượt xoá', async () => {
+    const gateway = spyGateway({ deleteProject: () => new Promise(() => undefined) });
+    await mountSettings({ gateway, projectId: 'project-double', roles: ['admin'], onProjectDeleted: vi.fn() });
+    const confirm = await openDeleteProjectDialog();
+
+    act(() => {
+      fireEvent.click(confirm);
+      fireEvent.click(confirm);
+    });
+    await tick(MOTION_SETTLE_MS);
+
+    expect(gateway.deleteProject).toHaveBeenCalledTimes(1);
+  });
+
+  // Sibling rows of the same hook (confirmDanger): the guard must release after a failure and cover "Xoá mọi tầng" too.
+  it('11P-B-002/B-003: xoá dự án hỏng 500 giữ hộp mở, không rời màn, bấm lại gửi lượt mới (cờ chạy được nhả)', async () => {
+    const onProjectDeleted = vi.fn();
+    const gateway = spyGateway({ deleteProject: async () => ({ ok: false, error: httpError(500, 'INTERNAL') }) });
+    await mountSettings({ gateway, projectId: 'project-500', roles: ['admin'], onProjectDeleted });
+    const confirm = await openDeleteProjectDialog();
+
+    fireEvent.click(confirm);
+    await tick(MOTION_SETTLE_MS);
+
+    expect(gateway.deleteProject).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(onProjectDeleted).not.toHaveBeenCalled();
+    expect(confirm).toBeEnabled();
+
+    fireEvent.click(confirm);
+    await tick(MOTION_SETTLE_MS);
+
+    expect(gateway.deleteProject).toHaveBeenCalledTimes(2);
+  });
+
+  it('11P-C-004 (xoá mọi tầng): bấm đúp "Xoá mọi tầng" chỉ gửi đúng 1 lượt', async () => {
+    const gateway = spyGateway({ deleteAllFloors: () => new Promise(() => undefined) });
+    await mountSettings({ gateway, projectId: 'project-double-floors', roles: ['admin'] });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Vùng nguy hiểm' }));
+    await tick(MOTION_SETTLE_MS);
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá mọi tầng' }));
+    await tick(MOTION_SETTLE_MS);
+    const confirm = within(screen.getByRole('dialog')).getByRole('button', { name: 'Xoá mọi tầng' });
+
+    act(() => {
+      fireEvent.click(confirm);
+      fireEvent.click(confirm);
+    });
+    await tick(MOTION_SETTLE_MS);
+
+    expect(gateway.deleteAllFloors).toHaveBeenCalledTimes(1);
+  });
+
+  // 11P-B-012 / FL-11P-06: DELETE answered 404 (already deleted elsewhere, or a keyed retry after a lost 200) means the
+  // wish is met: leave the screen as for a 200 instead of a failure sentence.
+  it('11P-B-012: xoá dự án nhận 404 coi như đã xoá, rời màn như 200', async () => {
+    const onProjectDeleted = vi.fn();
+    const gateway = spyGateway({ deleteProject: async () => ({ ok: false, error: httpError(404, 'NOT_FOUND') }) });
+    await mountSettings({ gateway, projectId: 'project-gone', roles: ['admin'], onProjectDeleted });
+    const confirm = await openDeleteProjectDialog();
+
+    fireEvent.click(confirm);
+    await tick(MOTION_SETTLE_MS);
+
+    expect(onProjectDeleted).toHaveBeenCalledTimes(1);
+    expect(onProjectDeleted).toHaveBeenCalledWith('Đã xoá dự án.');
+  });
+
   // BUG-207: a toast that reports floors left behind is a warning, not a plain notice.
   it('xoá mọi tầng còn sót tầng: toast mang trạng thái attention; xoá hết thì không (BUG-207)', async () => {
     const toasts: ToastRecord[] = [];

@@ -72,7 +72,13 @@ export async function inviteFreshUser(admin: APIRequestContext, role: PoolRole, 
   const email = testEmail(`p11-session-${slug}`);
   const name = `${TEST_DATA_PREFIX}p11 session ${slug}`;
   const since = new Date(Date.now() - 5_000);
-  const sent = await admin.post('/api/users/invitations', { data: { emails: [email], role } });
+  let sent = await admin.post('/api/users/invitations', { data: { emails: [email], role } });
+  // FL-11U-02/03: the invite quota (rl:users_invite) is shared by the whole file; on 429 wait Retry-After (cap 60 s), retry x3.
+  for (let attempt = 0; attempt < 3 && sent.status() === 429; attempt += 1) {
+    const waitSeconds = Math.min(Number(sent.headers()['retry-after']) || 20, 60);
+    await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000)); // fixed-wait-ok: server rate-limit window
+    sent = await admin.post('/api/users/invitations', { data: { emails: [email], role } });
+  }
   expect(sent.status(), `setup: POST /api/users/invitations (${role}): ${(await sent.text()).slice(0, 200)}`).toBe(201);
   const rows = (await sent.json()) as Array<{ id?: unknown; email?: unknown }>;
   const id = rows.find((row) => row.email === email)?.id;

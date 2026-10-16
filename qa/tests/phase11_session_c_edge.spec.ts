@@ -41,7 +41,8 @@ test.describe('SCR-38 / SCR-01 session edge (C)', () => {
         await expect(b.getByRole('heading', { level: 1, name: 'Dự án của tôi', exact: true })).toBeVisible();
         await a.goto(ROUTES.accessDenied);
         await expect(a.getByText(DENIED, { exact: true })).toBeVisible();
-        await expect(a.getByText('Bạn đang đăng nhập bằng', { exact: false })).toContainText(user.email); // AD:105
+        // AD:136 the email is a sibling <span> of the label span: assert on their shared parent.
+        await expect(a.getByText('Bạn đang đăng nhập bằng', { exact: false }).locator('..')).toContainText(user.email); // AD:105
         await expect(
           a.getByText('Nội dung ở đường dẫn này đang giới hạn người xem, nên nó chưa mở ra cho tài khoản của bạn.', { exact: true }),
         ).toBeVisible(); // AD:101
@@ -143,9 +144,10 @@ test.describe('SCR-38 / SCR-01 session edge (C)', () => {
       const page = await context.newPage();
       const target = ROUTES.project.viewer(unknownProjectId());
 
-      await test.step('[11U-A-403] guest "/" goes to bare /login', async () => {
+      await test.step('[11U-A-403] guest "/" goes to /login?next=%2F, no notice', async () => {
         await page.goto(ROUTES.dashboard);
-        await expect.poll(() => pathOf(page.url())).toBe(ROUTES.login);
+        // phase01_auth*.spec.ts + phase09_shell_b_edge.spec.ts:205 pin /login?next=%2F; SB:301-303 only drops the notice.
+        await expect.poll(() => pathOf(page.url())).toBe(loginUrl(ROUTES.dashboard));
         await expect(page.getByLabel('Thư điện tử', { exact: true })).toBeVisible();
         await expect(page.getByText(SIGN_IN_REQUIRED, { exact: true })).toHaveCount(0);
         await expect(page.getByText(SESSION_ENDED, { exact: true })).toHaveCount(0);

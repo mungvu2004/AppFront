@@ -97,15 +97,18 @@ test.describe('Phase 11 · destroy API (floors, project, members, users)', () =>
         expect.soft(del.status()).toBe(200);
       });
 
-      await test.step('[B11-flr-019] DELETE F2 twice with the same Idempotency-Key -> 200 identical, F2 gone', async () => {
+      // Decided (questions.md FL-B11-01; BE-00.md:345, floors/router.py:26, core/routing.py:169): replay after delete = 404 by design.
+      await test.step('[B11-flr-019] DELETE F2 twice with the same Idempotency-Key -> 200, replay 404 NOT_FOUND floor, F2 gone', async () => {
         const key = idemKey('flr');
         const one = await send(admin, 'DELETE', `/api/floors/${f2}`, undefined, { 'Idempotency-Key': key });
         const two = await send(admin, 'DELETE', `/api/floors/${f2}`, undefined, { 'Idempotency-Key': key });
         await evi('B11-flr-019', 'first', 'DELETE', `/api/floors/${f2}`, null, one, ['200']);
-        await evi('B11-flr-019', 'replay', 'DELETE', `/api/floors/${f2}`, null, two, ['200 same body as first']);
+        await evi('B11-flr-019', 'replay', 'DELETE', `/api/floors/${f2}`, null, two, ['404 NOT_FOUND resource floor']);
         expect.soft(one.status()).toBe(200);
-        expect.soft(two.status()).toBe(200);
-        expect.soft(await two.json()).toEqual(await one.json());
+        expect.soft(two.status()).toBe(404);
+        const replay = await bodyOf(two);
+        expect.soft(replay.code).toBe('NOT_FOUND');
+        expect.soft(replay.resource).toBe('floor');
         const list = (await (await admin.get(floorsPath)).json()) as unknown[];
         expect.soft(IDS(list).filter((id) => id === f2)).toHaveLength(0);
       });
@@ -166,18 +169,20 @@ test.describe('Phase 11 · destroy API (floors, project, members, users)', () =>
         expect.soft([a.status(), b.status()].sort()).toEqual([200, 404]);
       });
 
-      await test.step('[B11-prj-021] DELETE P1 twice with the same Idempotency-Key -> 200, identical, has P1 name', async () => {
+      // Decided (questions.md FL-B11-02; BE-00.md:345, projects/access.py:90, core/routing.py:169): replay after delete = 404 by design.
+      await test.step('[B11-prj-021] DELETE P1 twice with the same Idempotency-Key -> 200 with P1 name, replay 404 NOT_FOUND project', async () => {
         const key = idemKey('prj');
         const path = `/api/projects/${pid}`;
         const one = await send(admin, 'DELETE', path, undefined, { 'Idempotency-Key': key });
         const two = await send(admin, 'DELETE', path, undefined, { 'Idempotency-Key': key });
         await evi('B11-prj-021', 'first', 'DELETE', path, null, one, ['200']);
-        await evi('B11-prj-021', 'replay', 'DELETE', path, null, two, ['200 same body']);
+        await evi('B11-prj-021', 'replay', 'DELETE', path, null, two, ['404 NOT_FOUND resource project']);
         expect.soft(one.status()).toBe(200);
-        expect.soft(two.status()).toBe(200);
-        const first = await one.json();
-        expect.soft(await two.json()).toEqual(first);
-        expect.soft(asObj(first).name).toBe(p1.name);
+        expect.soft(two.status()).toBe(404);
+        const replay = await bodyOf(two);
+        expect.soft(replay.code).toBe('NOT_FOUND');
+        expect.soft(replay.resource).toBe('project');
+        expect.soft(asObj(await one.json()).name).toBe(p1.name);
       });
 
       await test.step('[B11-prj-010] GET P1 (admin, viewer) -> 404 NOT_FOUND project', async () => {

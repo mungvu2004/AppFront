@@ -89,6 +89,7 @@ export const getSessionState = (): SessionState => sessionState;
 export const getSessionSnapshot = (): SessionSnapshot => sessionSnapshot;
 
 export const setAuthenticatedSession = (payload: RefreshSessionPayload): void => {
+  sessionRevoked = false;
   updateSessionState({
     accessToken: payload.accessToken,
     expiresAt: payload.expiresAt,
@@ -132,6 +133,16 @@ export const setUnknownSession = (): void => {
 
 export const hasRefreshFailure = (): boolean => sessionState.refreshFailed;
 
+/**
+ * FL-11U-05: the server said SESSION_REVOKED (401 body of the refresh) - the session existed and was ended,
+ * unlike a guest's plain 401. Set BEFORE the anonymous transition so the gate reads it in the same render.
+ */
+let sessionRevoked = false;
+export const setSessionRevoked = (value: boolean): void => {
+  sessionRevoked = value;
+};
+export const isSessionRevoked = (): boolean => sessionRevoked;
+
 export const getAccessTokenValue = (): string | null => sessionState.accessToken;
 
 export const getRequestAbortSignal = (): AbortSignal => requestAbortController.signal;
@@ -144,6 +155,7 @@ export const cancelActiveRequests = (message: string): void => {
 
 export const resetAuthState = (): void => {
   authConfig = null;
+  sessionRevoked = false;
   listeners.clear();
   sessionState = initialState();
   sessionSnapshot = {

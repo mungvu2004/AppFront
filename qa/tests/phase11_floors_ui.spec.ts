@@ -172,6 +172,7 @@ test.describe('SCR-09/10/11/21/25 floors — UI verify (QA-11 P5)', () => {
     await withAdminProject(browser, '11f-u3', 5, async ({ flow, project }) => {
       const { page } = flow;
       let used = 0;
+      const gone = new Set<string>();
       await test.step('[11F-F-201] bảng tầng + toast xoá ở 4 khổ: không tràn, toast không che hàng', async () => {
         const covered: string[] = [];
         await verifyUi(
@@ -188,7 +189,8 @@ test.describe('SCR-09/10/11/21/25 floors — UI verify (QA-11 P5)', () => {
             const toast = toastWith(p, `Đã xoá tầng ${doomed.name}.`).first(); // FGW:586
             await expect(toast).toBeVisible();
             const toastBox = await toast.boundingBox();
-            for (const other of project.floors.filter((f) => f.id !== doomed.id)) {
+            gone.add(doomed.id);
+            for (const other of project.floors.filter((f) => !gone.has(f.id))) { // floors deleted at earlier widths no longer have a row (boundingBox would wait 30 s)
               if (intersects(toastBox, await floorRow(p, other.name).boundingBox())) covered.push(`${String(p.viewportSize()?.width)}:${other.name}`);
             }
             expect(await overflowX(p)).toBe(0);
@@ -238,7 +240,8 @@ test.describe('SCR-09/10/11/21/25 floors — UI verify (QA-11 P5)', () => {
               hitsTexts: await hits.evaluateAll((els) => els.map((el) => `${el.tagName}.${el.parentElement?.tagName ?? ''} ${(el.parentElement?.textContent ?? '').slice(0, 80)}`)),
               regionTail: (await region.innerText()).slice(-700),
             });
-            await expect(region.getByText(/^150,0\s*mm$/u),'row of the 150 mm wall in the list').toBeVisible();
+            // hits150 = 2 in R1/D: the table cell (TD) and the list row (SPAN); only the SPAN is the list row
+            await expect(region.getByText(/^150,0\s*mm$/u).and(region.locator('span')), 'row of the 150 mm wall in the list').toBeVisible();
           },
           DESKTOP_VIEWPORTS,
         );

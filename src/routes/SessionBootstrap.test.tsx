@@ -649,6 +649,32 @@ describe('SessionBootstrap', () => {
     });
   });
 
+  it('[11U-A-107] khởi động mà lượt gia hạn trả 401 SESSION_REVOKED thì /login mang lý do sessionEnded (FL-11U-05)', async () => {
+    await configureAppSession({
+      fetchImpl: async () =>
+        new Response(JSON.stringify({ code: 'SESSION_REVOKED' }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 401,
+        }),
+    });
+
+    renderAt('/projects/p1/3d');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('man-dang-nhap')).toHaveAttribute('data-notice', 'sessionEnded');
+    });
+  });
+
+  it('[11U-A-403] khách chưa từng có phiên (401 trơn) vẫn nhận signInRequired, không phải sessionEnded', async () => {
+    await configureAppSession({ fetchImpl: async () => new Response(null, { status: 401 }) });
+
+    renderAt('/projects/p1/3d');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('man-dang-nhap')).toHaveAttribute('data-notice', 'signInRequired');
+    });
+  });
+
   it('người khác đăng nhập vào thì màn con gắn lại, không mang dữ liệu người cũ sang', async () => {
     const server = createFakeServer('u1');
     await configureAppSession({ fetchImpl: server.fetchImpl });

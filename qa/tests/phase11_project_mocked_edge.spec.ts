@@ -115,7 +115,7 @@ test.describe('P11 project mocked edge', () => {
         await captureEvidence(page, 'E11_11P-B-003_delete_403.png');
         await dialog.getByRole('button', { name: DANGER.keep, exact: true }).click();
         await expect(dialog).toBeHidden();
-        expect(writes.all.filter((w) => w.startsWith('DELETE /api/projects/')).length, 'only the mocked project DELETEs were sent').toBe(3);
+        expect(writes.all.filter((w) => w.startsWith('DELETE /api/projects/')).length, 'only the mocked project DELETEs were sent').toBe(2); // B-001 (held, released as 500) + B-003 (403); B-002 only reads the B-001 result
       });
 
       await test.step('[11P-B-004] một DELETE tầng hỏng giữa chừng → toast attention; tầng hỏng còn trong danh sách', async () => {
@@ -210,14 +210,21 @@ test.describe('P11 project mocked edge', () => {
       });
 
       await test.step('[11P-B-015] PUT sau reset trả 5xx: tự lưu báo lỗi, UI không giả "đã lưu"', async () => {
+        // Only the PUT after the reset is refused: a reset that lands back on the saved config sends nothing (hasUnsavedEdits,
+        // useRuleSettings.ts:566), so the toggle is first saved for real (R1 evidence: no PUT, indicator "Chưa có thay đổi").
+        let refusePut = false;
         await routeMethod(page, ruleConfigApiRe(projectId), 'PUT', async (route) => {
-          await route.fulfill(json(500, { detail: 'qa mocked rule-config 500' }));
+          if (refusePut) await route.fulfill(json(500, { detail: 'qa mocked rule-config 500' }));
+          else await route.continue();
         });
         const loaded = page.waitForResponse((r) => r.request().method() === 'GET' && ruleConfigApiRe(projectId).test(new URL(r.url()).pathname) && r.status() === 200);
         await page.goto(ROUTES.project.ruleSettings(projectId));
         await loaded;
         await expect(page.getByRole('heading', { name: RS.heading, level: 2 })).toBeVisible();
+        const firstSave = page.waitForResponse((r) => r.request().method() === 'PUT' && ruleConfigApiRe(projectId).test(new URL(r.url()).pathname) && r.ok());
         await page.getByRole('switch', { name: 'Bật hoặc tắt cả nhóm: hình học', exact: true }).click(); // RSG:67
+        await firstSave; // autosave 800 ms (A7) really saved the toggle
+        refusePut = true;
         const reset = page.getByRole('button', { name: RS.restoreDefaults, exact: true }); // RS:328
         await expect(reset).toBeVisible();
         const answered = page.waitForResponse((r) => r.request().method() === 'PUT' && ruleConfigApiRe(projectId).test(new URL(r.url()).pathname) && r.status() === 500);
@@ -270,6 +277,8 @@ test.describe('P11 project mocked edge', () => {
         const restore = page.getByRole('button', { name: VH.restore, exact: true });
         await expect(restore).toBeEnabled();
         await restore.click();
+        // flushFirst runs only after the restore dialog is confirmed (useVersionHistory.ts:416), so the discard dialog follows it.
+        await page.getByRole('dialog').getByRole('button', { name: VH.restoreConfirm, exact: true }).click(); // VHM:541
         const discard = page.getByRole('dialog').filter({ hasText: 'còn thay đổi chưa lưu được' }); // VHM:525
         await expect(discard).toBeVisible();
         for (const vp of DESKTOP_VIEWPORTS) {

@@ -43,7 +43,8 @@ test.describe('SCR-37/38/01 UI', () => {
     let view: Awaited<ReturnType<typeof adminPage>> | null = null;
     try {
       const fu = (fuRef = await inviteFreshUser(admin, 'engineer', 'ui1'));
-      const fu2 = (fu2Ref = await inviteFreshUser(admin, 'engineer', 'ui1b'));
+      // pool viewer (slot name keeps the 'p11-session-ui1' search below valid), no 2nd invite (30/h rate limit); re-enabled in finally
+      const fu2 = (fu2Ref = await poolUser(admin, 'viewer', p11Slot('session-ui1')));
       const shown = (view = await adminPage(browser));
       const off = await admin.post(`/api/users/${fu2.id}/disable`, { data: {} });
       expect(off.status(), 'setup: disable fu2').toBe(200);
@@ -105,7 +106,9 @@ test.describe('SCR-37/38/01 UI', () => {
       await cleanAll([
         async () => { if (view !== null) await view.context.close(); },
         async () => { if (fuRef !== null) await disposeFreshUser(admin, fuRef); },
-        async () => { if (fu2Ref !== null) await disposeFreshUser(admin, fu2Ref); },
+        async () => {
+          if (fu2Ref !== null) expect((await admin.post(`/api/users/${fu2Ref.id}/enable`, { data: {} })).status(), 'cleanup: enable pool user').toBe(200);
+        },
         () => admin.dispose(),
       ]);
     }

@@ -16,6 +16,7 @@ import { DESKTOP } from './common';
 
 export const P7_TEXT = {
   dangerTab: 'Vùng nguy hiểm', // UPS:532-537 TAB_LABELS.danger
+  membersTab: 'Thành viên', // UPS:535 TAB_LABELS.members ("Gỡ" lives here, MembersTab.tsx:69)
   readOnlyLine: 'Vai hiện tại chỉ xem được cài đặt, không sửa và không xoá.', // PS:84
   backToProjects: 'Về danh sách dự án', // PS BACK_TO_PROJECTS_LABEL; NFT dashboardLabel
   retry: 'Thử lại', // PS:61-64

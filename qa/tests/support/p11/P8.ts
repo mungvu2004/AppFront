@@ -81,7 +81,7 @@ export async function openVersions(page: Page, projectId: string, floorId: strin
   await expect(versionList(page).getByRole('listitem').first()).toBeVisible();
 }
 
-/** POST restore of the version with `sequence` (N17 list), at the floor's current layer revision; expects 200. */
+/** POST restore of the version with `sequence` (N17 list), at the floor's current layer revision; expects 201 (versions/router.py:64; 200 only on replay). */
 export async function restoreViaApi(api: LayerApi, projectId: string, floorId: string, sequence: number): Promise<void> {
   const list = await api.request.get(`/api/projects/${projectId}/versions?floorId=${encodeURIComponent(floorId)}`, { headers: api.headers });
   expect(list.status(), 'setup: GET versions (N17)').toBe(200);
@@ -93,5 +93,5 @@ export async function restoreViaApi(api: LayerApi, projectId: string, floorId: s
     headers: api.headers,
     data: { baseVersion: revision, body: { floorId } }, // client.ts:1469
   });
-  expect(res.status(), `setup: POST restore v${String(sequence)}: ${(await res.text()).slice(0, 200)}`).toBe(200);
+  expect(res.status(), `setup: POST restore v${String(sequence)}: ${(await res.text()).slice(0, 200)}`).toBe(201);
 }

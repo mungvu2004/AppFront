@@ -185,7 +185,8 @@ describe('createProjectsGateway rename / remove', () => {
     const gateway = createProjectsGateway(clientWith(vi.fn(), { delete: del }));
 
     await gateway.remove(ID_A);
-    expect(del).toHaveBeenCalledWith({ projectId: ID_A });
+    // FL-11P-06 / 11P-C-010: idempotent -> Idempotency-Key header (client.ts:405); a retry after a lost 200 is replayed.
+    expect(del).toHaveBeenCalledWith({ projectId: ID_A, idempotent: true });
 
     const gone = httpError(404, 'NOT_FOUND');
     del.mockResolvedValueOnce({ ok: false, error: gone });

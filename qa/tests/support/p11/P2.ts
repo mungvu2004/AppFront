@@ -89,7 +89,9 @@ export async function openQuality(page: Page, projectId: string): Promise<void> 
 export function recordWrites(page: Page): { readonly list: Request[] } {
   const list: Request[] = [];
   page.on('request', (r) => {
-    if (r.method() !== 'GET' && new URL(r.url()).pathname.startsWith('/api/')) list.push(r);
+    const { pathname } = new URL(r.url());
+    // /api/auth/refresh is the silent token renewal (POST), not a user write: R1/D showed it in the log after the dialog opened
+    if (r.method() !== 'GET' && pathname.startsWith('/api/') && pathname !== '/api/auth/refresh') list.push(r);
   });
   return { list };
 }

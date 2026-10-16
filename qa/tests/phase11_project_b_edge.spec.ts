@@ -31,8 +31,9 @@ test.describe('phase 11 · project edge B', () => {
       await test.step('[11P-D-002] engineer: no "Vùng nguy hiểm" tab, has "Gỡ {name}"', async () => {
         await page.goto(ROUTES.project.settings(id)); // UPS:1360 tabs
         await expect(page.getByRole('heading', { name: P7_TEXT.settingsTitle, exact: true })).toBeVisible();
-        await expect(page.getByRole('button', { name: /^Gỡ / }).first()).toBeVisible(); // MT:68-74 props.canEdit
         await expect(page.getByRole('tab', { name: P7_TEXT.dangerTab, exact: true })).toHaveCount(0);
+        await page.getByRole('tab', { name: P7_TEXT.membersTab, exact: true }).click(); // "Gỡ" lives in the members tab (MembersTab.tsx:69)
+        await expect(page.getByRole('button', { name: /^Gỡ / }).first()).toBeVisible(); // MT:68-74 props.canEdit
         await captureEvidence(page, ev('11P-D-002', 'eng_nodanger'));
       });
 
@@ -96,6 +97,7 @@ test.describe('phase 11 · project edge B', () => {
         await expect(page.getByRole('heading', { name: P7_TEXT.settingsTitle, exact: true })).toBeVisible();
         await expect(page.getByText(P7_TEXT.readOnlyLine, { exact: true })).toBeVisible(); // PS:84 (!canEdit)
         await expect(page.getByRole('tab', { name: P7_TEXT.dangerTab, exact: true })).toHaveCount(0);
+        await page.getByRole('tab', { name: P7_TEXT.membersTab, exact: true }).click(); // members listed here, so "no Gỡ" is meaningful
         await expect(page.getByRole('button', { name: /^Gỡ / })).toHaveCount(0); // MT:68
         await captureEvidence(page, ev('11P-B-009', 'viewer_forb'));
       });
@@ -103,7 +105,7 @@ test.describe('phase 11 · project edge B', () => {
       await test.step('[11P-D-008] viewer history: no restore/label buttons, reason sentence', async () => {
         // seed: pipeline run completed = 2 versions (BE pipeline_persist/service.py:184,193) + CP-6 layer write (withPoolMember 'pipeline')
         await page.goto(`${ROUTES.project.versions(id)}?floorId=${floorId}`);
-        await expect(page.getByRole('button', { name: /^Chọn phiên bản .* để so sánh$/u }).first()).toBeVisible(); // VersionList.tsx:84
+        await expect(page.getByRole('checkbox', { name: /^Chọn phiên bản .* để so sánh$/u }).first()).toBeVisible(); // VersionList.tsx:84 (Checkbox)
         await expect(page.getByText(P7_TEXT.viewerHistoryReason, { exact: true })).toBeVisible(); // VHM:493-494
         await expect.soft(page.getByRole('button', { name: 'Phục hồi phiên bản này', exact: true })).toHaveCount(0); // VersionHistory.tsx:189
         await expect.soft(page.getByRole('button', { name: /Gắn nhãn/u })).toHaveCount(0);
@@ -207,6 +209,15 @@ test.describe('phase 11 · project edge B', () => {
           try {
             const gone = await keepApi.delete(projectPath(notif.projectId));
             expect(gone.status(), 'setup: DELETE notification project').toBe(200);
+            // R1 evidence (before.json/after.json): .first() opened another project's row, pathHasDeletedId=false.
+            // Pick the row of the deleted project from the API list (newest first, notifications/router.py:25-29).
+            const inboxJson = (await (await keepApi.get('/api/notifications')).json()) as unknown;
+            const inbox = (Array.isArray(inboxJson) ? inboxJson : ((inboxJson as { items?: unknown[] }).items ?? [])) as {
+              projectId?: string;
+              message?: string;
+            }[];
+            const sameKind = inbox.filter((n) => (n.message ?? '').includes('Hệ thống AI đã xử lý xong bản vẽ'));
+            const mine = sameKind.findIndex((n) => n.projectId === notif.projectId);
             await page.goto(ROUTES.notifications);
             await expect(page).toHaveURL(/\/thong-bao$/u);
             const rows = page.getByRole('button').filter({ hasText: 'Hệ thống AI đã xử lý xong bản vẽ' });
@@ -214,9 +225,12 @@ test.describe('phase 11 · project edge B', () => {
               deletedProjectId: notif.projectId,
               url: page.url(),
               rowCount: await rows.count(),
-              rowTexts: (await rows.allInnerTexts()).slice(0, 10), // order = which row .first() clicks
+              apiRowCount: sameKind.length,
+              rowIndexOfDeletedProject: mine, // -1 = the deleted project has no row at all
+              rowTexts: (await rows.allInnerTexts()).slice(0, 10),
             });
-            await rows.first().click(); // NotificationRow.tsx:109
+            expect(mine, 'setup: the deleted project still has a notification row').toBeGreaterThanOrEqual(0);
+            await rows.nth(mine).click(); // NotificationRow.tsx:109
             await expect.soft(page).not.toHaveURL(/\/thong-bao$/u); // the click navigated somewhere
             await attachJson('E11_11P-A-042_notif_after.json', {
               deletedProjectId: notif.projectId,

@@ -33,7 +33,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { ScreenMain } from '@/components/shell/ScreenMain';
 import { Button } from '@/components/ui/Button';
-import { getOptionalAuthConfig, getSessionSnapshot, subscribeSession } from '@/lib/auth/state';
+import { getOptionalAuthConfig, getSessionSnapshot, isSessionRevoked, subscribeSession } from '@/lib/auth/state';
 import type { SessionStatus } from '@/lib/auth/types';
 import { cssDurationMs } from '@/lib/motion/tokens';
 
@@ -369,7 +369,11 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
    * giá trị suy từ lượt vẽ trước chứ không phải một trạng thái riêng, nên nó là
    * `useRef` chứ không phải `useState` — không có lượt vẽ thừa nào.
    */
-  if (previousStatus.current === 'authenticated' && session.status === 'anonymous') {
+  // FL-11U-05: a boot refresh refused with SESSION_REVOKED also ended a session (never authenticated here).
+  if (
+    session.status === 'anonymous' &&
+    (previousStatus.current === 'authenticated' || isSessionRevoked())
+  ) {
     sessionEnded.current = true;
   } else if (session.status === 'authenticated') {
     sessionEnded.current = false;
