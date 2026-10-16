@@ -504,6 +504,8 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     gateway: shellGateway,
     spatial,
     renderScene,
+    // Cảnh đo dựng tầng ở cao độ thật và điểm đo bám hình thật: không tách tầng (BUG-656).
+    separationDisabled: true,
     ...(options.roles !== undefined ? { roles: options.roles } : {}),
     ...(options.isDev !== undefined ? { isDev: options.isDev } : {}),
     ...(options.registry !== undefined ? { registry: options.registry } : {}),

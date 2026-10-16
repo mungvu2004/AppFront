@@ -241,6 +241,8 @@ export interface UseViewerShellOptions {
   readonly registry?: ShortcutRegistry;
   /** Mở ô tìm đối tượng. Vỏ không tự dựng hộp thoại nào đè lên khung nhìn. */
   readonly onOpenSearch?: () => void;
+  /** Cảnh của màn không tách tầng (màn đo đo trên cao độ thật): khoá thanh "Độ tách" và phím E (BUG-656). */
+  readonly separationDisabled?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -433,6 +435,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     renderScene,
     registry = appShortcutRegistry,
     onOpenSearch,
+    separationDisabled = false,
   } = options;
 
   const reducedMotion = useReducedMotion();
@@ -860,11 +863,16 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       ]);
     },
     isolateSelection: (): void => {
-      setIsolatedEntityIds((current) => (current === null ? [...selectedIds] : null));
+      // Chưa chọn gì thì không có gì để giữ lại: bật cô lập lúc ấy sẽ ẩn cả mô hình.
+      setIsolatedEntityIds((current) =>
+        current === null && selectedIds.length > 0 ? [...selectedIds] : null,
+      );
     },
     frameSelection,
     toggleSeparation: (): void => {
-      setSeparation((current) => (current > 0 ? 0 : rememberedSeparation));
+      if (!separationDisabled) {
+        setSeparation((current) => (current > 0 ? 0 : rememberedSeparation));
+      }
     },
     activateTool: setActiveToolId,
     openSearch: (): void => {
@@ -897,6 +905,15 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       }
     };
   }, [registry]);
+
+  /* "Cô lập" trên ray là công tắc như Alt+H, không phải một chế độ thay công cụ đang bật (BUG-655). */
+  const onToolChange = useCallback((id: ViewerToolId): void => {
+    if (id === 'isolate') {
+      handlersRef.current?.isolateSelection();
+    } else {
+      setActiveToolId(id);
+    }
+  }, []);
 
   useEffect(() => {
     if (selectedIds.length === 0) {
@@ -1116,7 +1133,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     railOrientation: isMdUp ? 'vertical' : 'horizontal',
     tools: VIEWER_TOOLS,
     activeToolId,
-    onToolChange: setActiveToolId,
+    onToolChange,
 
     storeys,
     onStoreyActivate,
@@ -1124,6 +1141,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     separation,
     onSeparationChange,
     separationLabel: 'Độ tách',
+    ...(separationDisabled ? { separationDisabled } : {}),
 
     frame,
     sceneActions,

@@ -42,9 +42,17 @@ export interface ViewerToolRailProps {
   readonly activeToolId: ViewerToolId;
   readonly onToolChange: (id: ViewerToolId) => void;
   readonly orientation: 'horizontal' | 'vertical';
+  /** "Cô lập" là công tắc chứ không phải chế độ: sáng theo cảnh, không theo `activeToolId` (BUG-655). */
+  readonly isolateActive?: boolean;
 }
 
-export function ViewerToolRail({ tools, activeToolId, onToolChange, orientation }: ViewerToolRailProps) {
+export function ViewerToolRail({
+  tools,
+  activeToolId,
+  onToolChange,
+  orientation,
+  isolateActive = false,
+}: ViewerToolRailProps) {
   return (
     <div
       aria-label="Công cụ khung nhìn"
@@ -55,13 +63,14 @@ export function ViewerToolRail({ tools, activeToolId, onToolChange, orientation 
     >
       {tools.map((tool) => {
         const Icon = TOOL_ICONS[tool.id];
+        const isPressed = tool.id === 'isolate' ? isolateActive : tool.id === activeToolId;
 
         return (
           <IconButton
             aria-label={`${tool.label} (${tool.keyLabel})`}
-            aria-pressed={tool.id === activeToolId}
+            aria-pressed={isPressed}
             icon={<Icon aria-hidden="true" className="h-[18px] w-[18px]" />}
-            isActive={tool.id === activeToolId}
+            isActive={isPressed}
             key={tool.id}
             onClick={(): void => {
               onToolChange(tool.id);
