@@ -393,33 +393,34 @@ describe('Toast.Provider and Toast.Item', () => {
 // BUG-227 follow-up: a screen's own Toast.Provider (AccountSettings, ModelLibrary, VersionHistory…) sat in the
 // bottom-right corner over an open drawer's footer. The viewport now steps aside like NotificationHost's.
 describe('Toast.Provider viewport', () => {
-  it('steps aside from an open drawer: left of a side panel, to the top over a sheet', () => {
+  // UI-P04A-001: at the bottom-right the toast covered the primary action (Áp dụng tỷ lệ, Xem trước, Hoàn tác of the
+  // row). It now sits top-right, under the 56 px top bar (h-14 + 16 px), and still steps aside for drawers.
+  it('sits top-right under the top bar and steps aside from an open drawer', () => {
     render(<Toast.Provider><span /></Toast.Provider>);
 
     const region = screen.getByRole('region', { name: 'Thông báo' });
     expect(region).toHaveClass(
-      'bottom-4',
+      'top-[4.5rem]',
       'right-4',
       '[html[data-drawer=side]_&]:right-[calc(1rem+var(--drawer-inset))]',
-      '[html[data-drawer=sheet]_&]:bottom-auto',
       '[html[data-drawer=sheet]_&]:top-4',
     );
+    expect(region).not.toHaveClass('bottom-4');
   });
 
-  // 29-F-010: a viewport-pinned sticky footer (RuleSettings, ExportPanel) sat under the toast.
-  it('stands above a sticky footer from 640 px up, except over a sheet', () => {
+  // 29-F-010 asked the toast to stand above a sticky footer; at the top it never meets one, so no bottom rule is left.
+  it('has no bottom placement rules left (sticky footers are not covered)', () => {
     render(<Toast.Provider><span /></Toast.Provider>);
 
-    expect(screen.getByRole('region', { name: 'Thông báo' })).toHaveClass(
-      'sm:[html:has([data-sticky-footer]):not([data-drawer=sheet])_&]:bottom-24',
-    );
+    const classes = screen.getByRole('region', { name: 'Thông báo' }).className;
+    expect(classes).not.toMatch(/bottom-/u);
   });
 
-  // BUG-512: at 375 px the bottom-right toast covered the "Ghi chú" field being typed in.
-  it('moves to the top edge below 640 px', () => {
+  // BUG-512: at 375 px the bottom-right toast covered the "Ghi chú" field being typed in; it keeps the tight top edge.
+  it('keeps the tight top edge below 640 px', () => {
     render(<Toast.Provider><span /></Toast.Provider>);
 
-    expect(screen.getByRole('region', { name: 'Thông báo' })).toHaveClass('max-sm:bottom-auto', 'max-sm:top-4');
+    expect(screen.getByRole('region', { name: 'Thông báo' })).toHaveClass('max-sm:top-4');
   });
 
   // BUG-605: a refusal toast carries a way out.

@@ -207,10 +207,11 @@ ToastItem.displayName = 'Toast.Item';
 // ─── Toast.Viewport ───────────────────────────────────────────────────────────
 
 /**
- * Vùng neo toast, dùng chung cho `Toast.Provider` và `NotificationHost`. Ngăn đang mở
- * (`Drawer` đặt `data-drawer` lên <html>) chiếm góc dưới-phải, nơi có nút chân của nó:
- * ngăn bên → toast lùi sang trái ngăn; tờ dưới 1024 px → toast lên mép trên (BUG-227).
- * Dưới 640 px toast cũng lên mép trên: ở dưới nó che ô đang gõ, như "Ghi chú" (BUG-512).
+ * Vùng neo toast, dùng chung cho `Toast.Provider` và `NotificationHost`. Nằm góc TRÊN-phải, dưới thanh đầu
+ * trang (`h-14` = 3,5 rem, cộng 1 rem): ở góc dưới-phải toast che nút chính của màn vừa thao tác (Áp dụng tỷ lệ,
+ * Xem trước, Hoàn tác — UI-P04A-001), và chân dính đáy khung nhìn (29-F-010) thì chỉ né được bằng một luật riêng.
+ * Ngăn bên đang mở (`Drawer` đặt `data-drawer` lên <html>) → toast lùi sang trái ngăn; tờ dưới 1024 px và dưới
+ * 640 px → toast sát mép trên (BUG-227, BUG-512).
  */
 function ToastViewport({ children }: { children: React.ReactNode }) {
   return (
@@ -218,13 +219,10 @@ function ToastViewport({ children }: { children: React.ReactNode }) {
       aria-label="Thông báo"
       aria-live="polite"
       className={cn(
-        'pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col-reverse items-end gap-2',
-        // Màn có chân dính đáy khung nhìn (`data-sticky-footer`, cao tới ~85 px): toast đứng trên nó
-        // (29-F-010). Không áp khi tờ dưới đang mở hay dưới 640 px — hai chỗ đó toast đã lên mép trên.
-        'sm:[html:has([data-sticky-footer]):not([data-drawer=sheet])_&]:bottom-24',
+        'pointer-events-none fixed right-4 top-[4.5rem] z-50 flex flex-col items-end gap-2',
         '[html[data-drawer=side]_&]:right-[calc(1rem+var(--drawer-inset))]',
-        '[html[data-drawer=sheet]_&]:bottom-auto [html[data-drawer=sheet]_&]:top-4',
-        'max-sm:bottom-auto max-sm:top-4',
+        '[html[data-drawer=sheet]_&]:top-4',
+        'max-sm:top-4',
       )}
       role="region"
     >
