@@ -196,8 +196,11 @@ describe('R-72 — expectVietnamese trên cây render thật', () => {
       <UserManagementView actions={USER_MANAGEMENT_ACTIONS} model={USER_MANAGEMENT_SCENARIO_SUCCESS} />,
     );
 
+    // Email vẫn là ngoại lệ, nhưng `EmailText` cắt nó thành mảnh (hoang. | bao@ | example. | com) để xuống dòng đẹp:
+    // mảnh kết thúc bằng `@` hoặc `.` và tên miền cấp cao của dữ liệu mẫu (`com`) là phần còn lại của email, không phải chữ.
     expectVietnamese(container, {
-      ignore: [/^https?:\/\//u, /^[\w.+-]+@[\w-]+\.[\w.-]+$/u],
+      allowWords: ['com'],
+      ignore: [/^https?:\/\//u, /^[\w.+-]+@[\w-]+\.[\w.-]+$/u, /^[\w.+-]+[@.]$/u],
     });
   });
 });

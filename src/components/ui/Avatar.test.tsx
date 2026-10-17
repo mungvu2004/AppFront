@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { Avatar, AvatarStack } from './Avatar';
 
@@ -76,5 +76,25 @@ describe('Avatar.Stack', () => {
     const items = [...screen.getByRole('group').children] as HTMLElement[];
 
     expect(items.map((item) => item.style.marginLeft)).toEqual(['0px', '-2px', '-2px', '-2px']);
+  });
+});
+
+describe('Avatar.Root — ảnh lỗi', () => {
+  it('ảnh tải hỏng thì rơi về chữ tắt, không để icon ảnh vỡ', () => {
+    render(<Avatar alt="Phạm An" initials="PA" src="https://cdn.example.test/het-han.png" />);
+
+    fireEvent.error(screen.getByRole('img'));
+
+    expect(screen.queryByRole('img')).toBeNull();
+    expect(screen.getByText('PA')).toBeInTheDocument();
+  });
+
+  it('đổi sang một ảnh khác thì thử tải lại', () => {
+    const { rerender } = render(<Avatar initials="PA" src="https://cdn.example.test/hong.png" />);
+    fireEvent.error(screen.getByRole('img'));
+
+    rerender(<Avatar initials="PA" src="https://cdn.example.test/moi.png" />);
+
+    expect(screen.getByRole('img')).toHaveAttribute('src', 'https://cdn.example.test/moi.png');
   });
 });

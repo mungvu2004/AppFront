@@ -28,6 +28,7 @@ import { initialsOf } from '@/lib/format/initials';
 import { cn } from '@/lib/utils';
 import type { ProjectRole } from '@/types/project';
 
+import { EmailText } from './EmailText';
 import type { RoleOption, UserManagementActions, UserManagementTableProps, UserRowModel } from './types';
 
 const HEADER_USER = 'Người dùng';
@@ -206,7 +207,9 @@ function UserManagementCardList({ actions, roleOptions, rows }: UserListProps) {
               type="button"
             >
               <p className="font-medium text-text-primary [overflow-wrap:anywhere]">{row.name}</p>
-              <p className="text-[13px] text-text-secondary [overflow-wrap:anywhere]">{row.email}</p>
+              <p className="text-[13px] text-text-secondary [overflow-wrap:anywhere]">
+                <EmailText email={row.email} />
+              </p>
             </button>
           </div>
           {/* Dưới dòng tên, không cạnh nó: cạnh nhau thì email chỉ còn ~110 px và bị cắt (BUG-075). */}
@@ -312,7 +315,9 @@ export function UserManagementTable({
                   >
                     {row.name}
                   </button>
-                  <span className="text-[13px] text-text-secondary [overflow-wrap:anywhere]">{row.email}</span>
+                  <span className="text-[13px] text-text-secondary [overflow-wrap:anywhere]">
+                    <EmailText email={row.email} />
+                  </span>
                   {!withSecondary && (
                     <div className="pt-1">
                       <StatusCell actions={actions} row={row} />
