@@ -222,10 +222,11 @@ export function ModelLibraryTable({ actions, model }: ModelLibraryTableProps) {
               <Table.Cell className={ROW_HEIGHT}>
                 <ModelPreviewThumb onRetry={actions.retryPreviewImage} row={row} sizeClassName="h-8 w-8" />
               </Table.Cell>
-              <Table.Cell className={ROW_HEIGHT}>
+              <Table.Cell className={ROW_HEIGHT} truncate>
                 <button
-                  className={cn('text-left font-medium text-text-primary', FOCUS_RING)}
+                  className={cn('block max-w-full truncate text-left font-medium text-text-primary', FOCUS_RING)}
                   onClick={() => actions.openDetail(row.id)}
+                  title={row.name}
                   type="button"
                 >
                   {row.name}

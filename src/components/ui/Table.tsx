@@ -5,6 +5,7 @@ import { motion } from '../motion';
 import { ChevronUp, ChevronDown, AlertCircle, Inbox } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Checkbox } from './Checkbox';
+import { TableCell } from './TableCell';
 import { EmptyState } from '../feedback/EmptyState';
 import { durationSeconds } from '../../lib/motion';
 import { Skeleton } from '../feedback/Skeleton';
@@ -215,28 +216,6 @@ function TableHead({
   );
 }
 TableHead.displayName = 'Table.Head';
-
-// ─── Table.Cell ───────────────────────────────────────────────────────────────
-
-interface TableCellProps extends React.TdHTMLAttributes<HTMLTableCellElement> {
-  sticky?: boolean;
-}
-
-function TableCell({ className, children, sticky, ...props }: TableCellProps) {
-  return (
-    <td
-      className={twMerge(
-        'h-10 px-3 align-middle text-text-primary whitespace-nowrap',
-        sticky && 'sticky left-0 z-10 bg-inherit',
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </td>
-  );
-}
-TableCell.displayName = 'Table.Cell';
 
 // ─── Table.Skeleton ───────────────────────────────────────────────────────────
 

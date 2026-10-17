@@ -428,3 +428,47 @@ describe('Table.Head sortable is keyboard operable', () => {
     expect(onSort).not.toHaveBeenCalled();
   });
 });
+
+describe('Table.Cell — tên dài và cột hành động', () => {
+  const renderCells = (cell: React.ReactNode) =>
+    render(
+      <Table.Root>
+        <Table.Body>
+          <Table.Row>{cell}</Table.Row>
+        </Table.Body>
+      </Table.Root>,
+    );
+
+  it('truncate cắt chữ dài bằng dấu … và giữ nguyên chữ đầy đủ trong tooltip', () => {
+    renderCells(<Table.Cell truncate>Mô hình nhận dạng tường phiên bản rất dài</Table.Cell>);
+
+    const cell = screen.getByRole('cell');
+    expect(cell.className).toContain('truncate');
+    expect(cell.className).toContain('max-w-');
+    expect(cell.getAttribute('title')).toBe('Mô hình nhận dạng tường phiên bản rất dài');
+  });
+
+  it('truncate không đè title do nơi gọi đã đặt', () => {
+    renderCells(
+      <Table.Cell title="Tên riêng" truncate>
+        Chữ hiển thị
+      </Table.Cell>,
+    );
+
+    expect(screen.getByRole('cell').getAttribute('title')).toBe('Tên riêng');
+  });
+
+  it('ô thường không bị cắt và không có tooltip thừa', () => {
+    renderCells(<Table.Cell>Tên</Table.Cell>);
+
+    const cell = screen.getByRole('cell');
+    expect(cell.className).not.toContain('truncate');
+    expect(cell.hasAttribute('title')).toBe(false);
+  });
+
+  it('stickyEnd ghim ô vào mép phải để nút hành động không trôi khỏi khung nhìn', () => {
+    renderCells(<Table.Cell stickyEnd>Xoá</Table.Cell>);
+
+    expect(screen.getByRole('cell').className).toContain('sticky right-0');
+  });
+});

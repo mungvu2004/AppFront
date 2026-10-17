@@ -134,7 +134,7 @@ export function ModelRegistryVersionTable({ actions, isCollapsed, rows }: ModelR
             <Table.Cell className="font-mono tabular-nums">{row.metricLabel}</Table.Cell>
             <Table.Cell className="text-text-secondary">{row.sourceLabel}</Table.Cell>
             <Table.Cell className="text-text-secondary">{row.createdLabel}</Table.Cell>
-            <Table.Cell>
+            <Table.Cell stickyEnd>
               <ActivateControl actions={actions} row={row} />
             </Table.Cell>
           </Table.Row>
