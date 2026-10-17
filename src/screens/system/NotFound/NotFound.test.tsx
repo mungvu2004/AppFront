@@ -209,3 +209,11 @@ describe('BÀI NGHIỆM THU — mã lỗi có mặt, chọn được, và không
     expect(occurrences).toHaveLength(1);
   });
 });
+
+describe('[UI-P01A-005] 404 căn giữa theo chiều dọc', () => {
+  it('khung trang có chiều cao tối thiểu riêng, không phụ thuộc cha có chiều cao hay không', () => {
+    const { container } = renderNotFound(createNotFoundVm('success'));
+
+    expect((container.firstElementChild as HTMLElement).className).toContain('min-h-[max(100%,70dvh)]');
+  });
+});

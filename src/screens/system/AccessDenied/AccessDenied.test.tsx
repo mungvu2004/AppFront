@@ -358,3 +358,28 @@ describe('avatar chủ dự án', () => {
   });
 });
 
+
+describe('[UI-P01A-003] hành động chính của trang 403 trông như nút', () => {
+  it('"Về danh sách dự án" là nút nổi (không ghost trong suốt) khi trang không có nút vào dự án', () => {
+    const vm = { ...createAccessDeniedVm('forbidden'), enterProject: null };
+    renderAccessDenied(vm);
+
+    const button = screen.getByRole('button', { name: vm.backToProjects.label });
+    expect(button.className).not.toContain('bg-transparent');
+  });
+
+  it('khi có nút vào dự án, "Về danh sách dự án" nhường vai chính và có viền (secondary)', () => {
+    const base = createAccessDeniedVm('forbidden');
+    const vm = { ...base, enterProject: { label: 'Vào dự án', onActivate: vi.fn() } };
+    renderAccessDenied(vm);
+
+    const button = screen.getByRole('button', { name: vm.backToProjects.label });
+    expect(button.className).not.toContain('bg-transparent');
+  });
+
+  it('khung trang căn giữa theo chiều dọc ngay cả khi cha không có chiều cao', () => {
+    const { container } = renderAccessDenied(createAccessDeniedVm('forbidden'));
+
+    expect((container.firstElementChild as HTMLElement).className).toContain('min-h-[max(100%,70dvh)]');
+  });
+});

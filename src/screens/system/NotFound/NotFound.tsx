@@ -92,7 +92,8 @@ export function NotFound({
   const hasRecentProjects = visibleProjects.length > 0;
 
   return (
-    <div className="flex min-h-full w-full items-center justify-center bg-bg-app px-6 py-16">
+    // `max(100%, 70dvh)`: cha không có chiều cao thì `min-h-full` về 0 và nội dung dính mép trên (UI-P01A-005).
+    <div className="flex min-h-[max(100%,70dvh)] w-full items-center justify-center bg-bg-app px-6 py-16">
       <style>{STYLE_TEXT}</style>
       <div
         className={cn(

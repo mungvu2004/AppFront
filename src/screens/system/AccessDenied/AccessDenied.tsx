@@ -113,7 +113,8 @@ export function AccessDenied({
   const showOwnerPanel = capabilities.canShowOwner && owner !== null;
 
   return (
-    <div className="flex min-h-full w-full items-center justify-center bg-bg-app px-6 py-16">
+    // `max(100%, 70dvh)`: cha không có chiều cao thì `min-h-full` về 0 và nội dung dính mép trên (UI-P01A-005).
+    <div className="flex min-h-[max(100%,70dvh)] w-full items-center justify-center bg-bg-app px-6 py-16">
       <style>{STYLE_TEXT}</style>
       <div
         className={cn('flex flex-col items-center text-center', isCompact ? 'gap-4' : 'gap-6')}
@@ -197,7 +198,8 @@ export function AccessDenied({
         )}
 
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button variant="ghost" onClick={backToProjects.onActivate}>
+          {/* Hành động chính của màn là một nút thật, không phải chữ trơn (UI-P01A-003): nổi nhất khi không có lối vào dự án. */}
+          <Button variant={enterProject === null ? 'primary' : 'secondary'} onClick={backToProjects.onActivate}>
             {backToProjects.label}
           </Button>
           {enterProject !== null && (
