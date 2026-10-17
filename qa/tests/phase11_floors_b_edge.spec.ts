@@ -183,7 +183,7 @@ test.describe('phase 11 · floors B edge', () => {
         const dlg = straightenDialog(page);
         await expect(dlg).toBeVisible();
         await expect.soft(dlg).toHaveAttribute('aria-modal', 'true');
-        await expect.soft(dlg).toHaveAccessibleName('Nắn thẳng bản vẽ tầng Tầng 4');
+        await expect.soft(dlg).toHaveAccessibleName('Nắn thẳng bản vẽ tầng Tầng 4?'); // vi.json:857 straightenTitle = "...{{name}}?" (RR2: Received "...Tầng 4?")
         for (let i = 0; i < 5; i += 1) {
           await page.keyboard.press('Tab');
           expect.soft(await inside(dlg), `Tab ${String(i + 1)} stays inside`).toBe(true);

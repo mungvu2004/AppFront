@@ -1017,6 +1017,27 @@ describe('F-10 — useRuleSettings nối N21/N22', () => {
     expect(replace).toHaveBeenCalledTimes(3);
   });
 
+  it('29-A-035 (FL-11P-08, bus thật): bộ luật sẵn rồi reset → bus giữ HAI thông báo, mỗi cái một vé; vé cũ đã hết hạn', async () => {
+    const { createNotificationBus } = await import('@/lib/mutations/notificationBus');
+    const bus = createNotificationBus();
+    const { result } = setupHook({
+      // Cùng cách màn container đẩy toast vào bus (RuleSettings.container.tsx publishRuleSettingsToast).
+      onToast: (toast) => bus.publish({ type: 'rule-settings', title: toast.message, description: '', undoTicket: toast.undoTicket }),
+      onDiscardToasts: () => bus.withdraw('rule-settings'),
+    });
+    await advance(0);
+
+    act(() => result.current.onApplyPreset('commercial'));
+    await advance(AFTER_DEBOUNCE_MS);
+    act(() => result.current.onRestoreDefaults());
+    await advance(AFTER_DEBOUNCE_MS);
+
+    const listed = bus.list();
+    expect(listed.map((item) => item.undoTicket !== undefined)).toEqual([true, true]); // 2 thông báo, không gộp thành 1
+    expect(listed[0]?.undoTicket?.getStatus()).toBe('expired');
+    expect(listed[1]?.undoTicket?.getStatus()).toBe('active');
+  });
+
   it('BUG-463: refetch nền mang revision mới hơn làm vé cũ hết hạn — "Hoàn tác" không ghi đè bản của người khác', async () => {
     const toasts: RuleSettingsToast[] = [];
     const onDiscardToasts = vi.fn();

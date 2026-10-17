@@ -1289,6 +1289,36 @@ describe('hoàn tác gọi máy chủ', () => {
     expect(mounted.notifications.list().some((item) => item.title === FLOOR_MANAGER_TEXT.persistFailedTitle)).toBe(true);
   });
 
+  it('[11F-B-202] bấm vé GỘP "Hoàn tác 2 thay đổi": con đầu 409 → câu "Mã tầng đã có" còn lại, không bị câu "không còn là gần nhất" đè', async () => {
+    const { gateway, add } = spiedGateway();
+    const mounted = await mountSettled({ gateway });
+
+    for (const id of [SECOND_ID, ROOF_ID]) {
+      await act(async () => {
+        mounted.result.current.onRemoveFloor(id);
+        await Promise.resolve();
+      });
+      await waitFor(() => {
+        expect(levelIds()).not.toContain(id);
+      });
+    }
+    await sleep();
+
+    const grouped = mounted.notifications.list().find((item) => item.undoTicket !== undefined);
+
+    add.mockImplementation(() => wireFailure(409, 'FLOOR_ID_TAKEN'));
+    await act(async () => {
+      grouped?.undoTicket?.undo();
+      await Promise.resolve();
+    });
+    await sleep();
+
+    const failure = mounted.notifications.list().find((item) => item.title === FLOOR_MANAGER_TEXT.persistFailedTitle);
+
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(failure?.description).toBe(FLOOR_MANAGER_TEXT.idTaken);
+  });
+
   it('bấm vé khi đã có thao tác mới hơn thì KHÔNG hoàn tác bước khác', async () => {
     const { gateway, add } = spiedGateway();
     const mounted = await mountSettled({ gateway });

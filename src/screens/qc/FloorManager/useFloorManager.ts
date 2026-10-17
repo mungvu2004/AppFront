@@ -757,9 +757,18 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     [announce, notifications],
   );
 
+  /**
+   * Đếm lần đã nói "ghi máy chủ không xong". Vé GỘP chạy mọi vé con liền nhau; con đầu
+   * thất bại (409 ...) thì con sau thấy đỉnh sổ đã đổi và nói "không còn là gần nhất",
+   * ĐÈ lên câu lý do thật (cùng loại thông báo, cùng ô, BUG 11F-B-202). Con sau chỉ im
+   * khi có một lần thất bại xảy ra trong lúc nó xếp hàng.
+   */
+  const failureCountRef = useRef(0);
+
   /** Nói ra một lượt ghi máy chủ KHÔNG xong — cấm im lặng, cấm bịa một lượt lưu. */
   const reportFailure = useCallback(
     (error: unknown): void => {
+      failureCountRef.current += 1;
       say(FLOOR_MANAGER_TEXT.persistFailedTitle, floorErrorSentence(error));
     },
     [say],
@@ -984,8 +993,10 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
    * bước đó không còn ở đỉnh thì KHÔNG hoàn tác bước khác.
    */
   const applyUndo = useCallback(
-    (expectedStepId?: UndoEntryId): Promise<boolean> =>
-      runExclusive(queueKey, async (): Promise<boolean> => {
+    (expectedStepId?: UndoEntryId): Promise<boolean> => {
+      const failuresAtCall = failureCountRef.current;
+
+      return runExclusive(queueKey, async (): Promise<boolean> => {
         if (!canEdit) {
           return false;
         }
@@ -1002,7 +1013,9 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         }
 
         if (expectedStepId !== undefined && step.id !== expectedStepId) {
-          say(FLOOR_MANAGER_TEXT.undoRefusedTitle, FLOOR_MANAGER_TEXT.undoNotLatest);
+          if (failureCountRef.current === failuresAtCall) {
+            say(FLOOR_MANAGER_TEXT.undoRefusedTitle, FLOOR_MANAGER_TEXT.undoNotLatest);
+          }
 
           return false;
         }
@@ -1055,7 +1068,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         reportFailure(error);
 
         return false;
-      }),
+      });
+    },
     [
       canEdit,
       dispatchBundle,

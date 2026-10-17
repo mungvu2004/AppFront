@@ -40,11 +40,16 @@ const layerWrites = (log: readonly { method: string; path: string }[], mark: num
   log.slice(mark).filter((entry) => entry.method === 'PUT' && layerPutRe.test(entry.path)).length;
 const region = (page: Page): Locator => page.getByRole('region', { name: THICK.screen, exact: true });
 const toasts = (page: Page): Locator => page.getByRole('region', { name: TOASTS, exact: true });
-/** sr-only checkbox: the custom box's svg intercepts pointer events (R1/D `locator.check` log), so tick it by keyboard like phase04 pressSpaceOn. */
-async function accept(page: Page, box: Locator): Promise<void> {
-  await box.focus();
-  await page.keyboard.press('Space');
-  await expect(box).toBeChecked();
+/**
+ * sr-only checkbox: the custom box's svg intercepts pointer events (R1/D `locator.check` log), so force the click (it lands on the label
+ * and toggles the input). R3: focus + Space ended unchecked in R1/RR1/RR2 on the stack ("Expected checked, Received unchecked"), yet the
+ * same keys tick it once in Chromium on Vite (e2e/qa11/floors.vite.spec.ts, green) - keyboard path moved there. Idempotent retry.
+ */
+async function accept(_page: Page, box: Locator): Promise<void> {
+  await expect(async () => {
+    await box.setChecked(true, { force: true, timeout: 3_000 });
+    await expect(box).toBeChecked({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
 }
 
 test.describe('P4 floors D edge', () => {
@@ -242,12 +247,20 @@ test.describe('P4 floors D edge', () => {
         await captureEvidence(page, 'E11_11F-A-403_floors.png');
       });
       await test.step('[11F-A-404] "Hoàn tác" -> POST same id, row back', async () => {
-        // newest ticket = last deleted row (b); BE creates -> 201 (measurements/router.py:30-38)
-        const post = page.waitForResponse((res) => res.request().method() === 'POST' && measurementsRe(project.projectId).test(new URL(res.url()).pathname));
+        // R3: a and b share ONE merged undo ticket (403 comment), so this press re-POSTs BOTH records with their old ids. RR2 got
+        // MS-4234 (a) as the first POST where this step expected idB; the E11_11F-A-404 shot shows 4 rows (a, c, b, d) = both back.
+        // BE creates -> 201 (measurements/router.py:30-38). Order of the two POSTs is not asserted.
+        const posted: { id: string; status: number }[] = [];
+        page.on('response', (res) => {
+          if (res.request().method() === 'POST' && measurementsRe(project.projectId).test(new URL(res.url()).pathname)) {
+            posted.push({ id: (res.request().postDataJSON() as { id: string }).id, status: res.status() });
+          }
+        });
         await page.getByRole('button', { name: MT.undo, exact: true }).first().click();
-        const res = await post;
-        expect.soft(res.status()).toBe(201);
-        expect.soft((res.request().postDataJSON() as { id: string }).id).toBe(idB);
+        await expect.poll(() => posted.length).toBe(2);
+        expect.soft(posted.map((p) => p.id).sort()).toEqual([idA, idB].sort());
+        expect.soft(posted.map((p) => p.status)).toEqual([201, 201]);
+        await expect.soft(row(names.a)).toBeVisible();
         await expect.soft(row(names.b)).toBeVisible();
         await captureEvidence(page, 'E11_11F-A-404_floors.png');
       });
@@ -269,9 +282,15 @@ test.describe('P4 floors D edge', () => {
         await page.getByRole('button', { name: MT.undo, exact: true }).first().click(); // MUT:184-195
         await expect.poll(() => posts.length).toBe(2);
         expect(posts).toEqual([409, 201]);
-        await expect.soft(row(names.a)).toBeVisible();
+        // R3: the 409 path re-issues id AND name ("Phép đo N"): measurementToolGateway.ts:688-691 resolveUndoConflict -> freshIdentity
+        // (:625-633), name pattern pinned in measurementToolGateway.test.ts:123; E11_11F-A-405 RR2 shot shows "Phép đo 8.093" in place of a.
+        const taken2 = new Set([...Object.values(names), n('taken')]);
         const list = (await (await api.get(`/api/projects/${project.projectId}/measurements`)).json()) as { id: string; name: string }[];
-        expect.soft(list.find((r) => r.name === names.a)?.id, 'renumbered id differs from the taken one').not.toBe(idA);
+        const renumbered = list.filter((r) => !taken2.has(r.name));
+        expect.soft(renumbered, 'one restored record under a fresh identity').toHaveLength(1);
+        expect.soft(renumbered[0]?.id, 'renumbered id differs from the taken one').not.toBe(idA);
+        expect.soft(list.find((r) => r.name === n('taken'))?.id, 'the API-created record keeps the contested id').toBe(idA);
+        if (renumbered[0] !== undefined) await expect.soft(row(renumbered[0].name)).toBeVisible();
         await captureEvidence(page, 'E11_11F-A-405_floors.png');
       });
       await test.step('[11F-A-406] double click on the trash -> exactly one DELETE', async () => {

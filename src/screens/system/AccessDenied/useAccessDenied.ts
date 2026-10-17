@@ -444,7 +444,9 @@ export function useAccessDenied(options: UseAccessDeniedOptions = {}): AccessDen
     const from = `${location.pathname}${location.search}`;
 
     void signOut().finally(() => {
-      navigate(ROUTES.login, { state: { from } });
+      // `notice` as the session gate gives it (SessionBootstrap.tsx:300): this navigation replaces the gate's own,
+      // so without it the tab that signed out shows no "session ended" sentence (11U-A-402).
+      navigate(ROUTES.login, { state: { from, notice: 'sessionEnded' } });
     });
   }, [navigate, location.pathname, location.search]);
 

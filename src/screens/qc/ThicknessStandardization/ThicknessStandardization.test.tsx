@@ -48,6 +48,7 @@
  */
 
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { lowerFirst } from '@/lib/format/sentence';
 
@@ -819,5 +820,19 @@ describe('[BUG-326] đọc lớp hỏng thay cả màn bằng một trạng thá
     expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.floors(PROJECT_ID));
     expect(screen.getByText(FLOOR_MISSING_TITLE)).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: HISTOGRAM_SECTION_LABEL })).toBeNull();
+  });
+});
+
+/* R3 FL-11F-04 (R1/RR1/RR2 stack): focus + Space on the sr-only "Đồng ý" box ended unchecked (Checkbox keydown toggle + native keyup click = two toggles). */
+describe('[11F-A-302] phím Space tích ô "Đồng ý" đúng một lần', () => {
+  it('focus + Space: ô chuyển sang tích và vẫn tích', async () => {
+    await renderMain();
+    const user = userEvent.setup({ delay: null });
+    const box = screen.getByRole('checkbox', { name: new RegExp(`tường ${String(THREE_MEASUREMENTS[0])} mm`, 'u') });
+
+    expect(box).not.toBeChecked();
+    box.focus();
+    await user.keyboard(' ');
+    expect(box).toBeChecked();
   });
 });
