@@ -164,9 +164,14 @@ test.describe('P4 floors D edge', () => {
         await captureEvidence(page, 'E11_11F-A-311_floors.png');
       });
       await test.step('[11F-A-312] undo after a newer step is refused, nothing changes', async () => {
-        await accept(page, zone.getByRole('checkbox', { name: THICK.accept }).first());
-        await previewBtn.click();
-        await applyBtn.click(); // apply 1
+        // RR3 evidence (screenshot at the red: all 4 walls "220 mm" incl. the reviewed one, preview empty "Mọi đoạn tường đã ở đúng nhóm chuẩn"):
+        // the plain "Xem trước" (UTS:733 onOpenPreview) applies EVERY accepted wall, reviewed ones too, so apply 1 had already standardized
+        // the reviewed wall and "Áp lại" had nothing to warn about. Apply 1 must leave the reviewed wall: use the "Loại tường đã duyệt"
+        // path (UTS:826-837), the one 307 proves.
+        await zone.getByRole('button', { name: THICK.reapply, exact: true }).click();
+        await zone.getByRole('button', { name: THICK.exclude, exact: true }).click();
+        await expect(applyBtn).toBeVisible();
+        await applyBtn.click(); // apply 1 (unreviewed walls only)
         await expect(toasts(page).getByText(THICK.applied)).toHaveCount(1);
         await zone.getByRole('button', { name: THICK.reapply, exact: true }).click();
         await zone.getByRole('button', { name: THICK.applyAll, exact: true }).click();

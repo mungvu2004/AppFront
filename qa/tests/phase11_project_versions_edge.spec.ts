@@ -65,8 +65,11 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
       expect(new Set([second.ids.join(), third.ids.join(), fourth.ids.join()]).size, 'three distinct layers').toBe(3);
       flow = await openFlow(browser, admin, { viewport: DESKTOP });
       const { page } = flow;
+      // openFlow's own 'dialog' listener only records, so the page never auto-dismisses: the beforeunload prompt of the dirty walls page
+      // (11P-A-029, failed PUT) hung the next page.goto for 30 s (RR3). Accept it: leaving is the intent ("fresh load drops the dirty store").
+      page.on('dialog', (dialog) => { void dialog.accept(); });
       const writes = recordWrites(page);
-      const restores = (): number => writes.filter((r) => r.method() === 'POST' && restorePathRe(projectId).test(new URL(r.url()).pathname)).length;
+      const restores =(): number => writes.filter((r) => r.method() === 'POST' && restorePathRe(projectId).test(new URL(r.url()).pathname)).length;
       await page.clock.install(); // before the first goto: ticket windows use Date.now (undoTicket.ts:81)
 
       await test.step('[11P-A-021] nút "Phục hồi phiên bản này" bật cho bản không phải Hiện tại, ẩn cho bản hiện tại', async () => {
@@ -368,6 +371,9 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
         await resetViaClick();
         await expect(undoButton(page).first()).toBeVisible();
         const mark = puts();
+        // The pointer still rests on the sticky-footer button (RS:321) where the new toast lands: hover HOLDS an undo toast and its
+        // ticket clock by design (Toast.tsx:79-90, BUG-571), so the newest toast never expired (RR3: count 3 -> 1, stuck at 1). Park the pointer first.
+        await page.mouse.move(1, 1);
         await page.clock.fastForward(9_000); // UNDO_WINDOW_MS (ticket reads Date.now, URS:693)
         await expect.soft(undoButton(page)).toHaveCount(0);
         expect.soft(puts(), 'no PUT after expiry').toBe(mark);

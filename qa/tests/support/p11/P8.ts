@@ -67,10 +67,16 @@ export async function rowLabels(page: Page): Promise<string[]> {
 /** Pair = exactly `[right, left]`: uncheck all (<= 2), then check both (the right one is the newer). */
 export async function pickPair(page: Page, labels: readonly [string, string]): Promise<void> {
   const checked = versionList(page).getByRole('checkbox', { checked: true });
-  for (let round = 0; round < 2 && (await checked.count()) > 0; round += 1) await checked.first().uncheck({ force: true }); // versionHistoryCompare.ts togglePick; force: the input is `sr-only` in a <label> (Checkbox.tsx:54,68), its painted box intercepts the pointer (RR call log)
-  await expect(checked).toHaveCount(0);
-  for (const label of labels) await versionList(page).getByRole('checkbox', { name: `Chọn phiên bản ${label} để so sánh`, exact: true }).check({ force: true });
-  await expect(checked).toHaveCount(2);
+  // RR3: after the client-side hop (11P-A-029) the pick state was reset to the default pair (v6, v5) between two clicks (pickedPair state
+  // cleared by a remount/re-hydration, useVersionHistory.ts:140-145), so the 3rd row was `disabled` (isPickable, pickedCount = 2). Redo the whole
+  // pick until the pair holds; each attempt still asserts the end state, so a pair that never sticks still fails.
+  await expect(async () => {
+    for (let round = 0; round < 2 && (await checked.count()) > 0; round += 1) await checked.first().uncheck({ force: true, timeout: 3_000 }); // versionHistoryCompare.ts togglePick; force: the input is `sr-only` in a <label> (Checkbox.tsx:54,68), its painted box intercepts the pointer (RR call log)
+    await expect(checked).toHaveCount(0, { timeout: 2_000 });
+    for (const label of labels) await versionList(page).getByRole('checkbox', { name: `Chọn phiên bản ${label} để so sánh`, exact: true }).check({ force: true, timeout: 3_000 });
+    await expect(checked).toHaveCount(2, { timeout: 2_000 });
+    await expect(versionList(page).getByRole('checkbox', { checked: true, name: `Chọn phiên bản ${labels[0]} để so sánh`, exact: true })).toHaveCount(1, { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
 }
 
 export const confirmDialog = (page: Page): Locator => page.getByRole('dialog');

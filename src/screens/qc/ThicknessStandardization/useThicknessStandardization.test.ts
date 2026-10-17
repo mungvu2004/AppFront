@@ -890,6 +890,29 @@ describe('áp dụng lại bộ lọc', () => {
     }
   });
 
+  it('[11F-A-312] "Xem trước" thường áp cả tường đã duyệt, nên áp lại sau đó không còn gì để cảnh báo', async () => {
+    const mounted = await mountSettled();
+    const measurements = [...new Set(REVIEWED_AND_CHANGEABLE.map((wall) => wall.thicknessMm))];
+
+    acceptAndPreview(mounted, measurements);
+    await act(async () => {
+      mounted.result.current.onApplyPreview();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mounted.history.undoSteps()).toHaveLength(1);
+    });
+
+    for (const wall of REVIEWED_AND_CHANGEABLE) {
+      expect(thicknessInStore(wall.id)).toBe(standardizeThickness(wall.thicknessMm).standardized);
+    }
+
+    act(() => {
+      mounted.result.current.onReapplyFilter(false);
+    });
+    expect(mounted.result.current.reapplyWarning).toBeNull();
+  });
+
   it('[21-E-007] Esc đóng bảng xem trước rồi cảnh báo, kể cả khi tiêu điểm đang ở ô tích (INPUT)', async () => {
     const shortcutRegistry = createShortcutRegistry();
     const mounted = await mountSettled({ shortcutRegistry });

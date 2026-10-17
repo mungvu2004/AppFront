@@ -273,8 +273,11 @@ test.describe('SCR-09 floor manager — delete / undo (QA-11 P3)', () => {
         await test.step('[11F-E-201] keyboard: kebab → "Xoá tầng" with Enter; toast "Hoàn tác" reachable by Tab', async () => {
           const added = await apiAddFloor(api, projectId, { name: 'Tầng K', order: 0, elevationMm: 0, heightMm: 3_000 });
           expect(added.status).toBe(201);
+          // RR3 evidence: deleting the ONLY floor draws the empty state (FT:193-203), which has no toolbar switch (FT:321). Keep a second floor.
+          const keeper = await apiAddFloor(api, projectId, { name: 'Tầng L', order: 1, elevationMm: 3_000, heightMm: 3_000 });
+          expect(keeper.status).toBe(201);
           await page.goto(ROUTES.project.floors(projectId));
-          await expect(floorRows(page)).toHaveCount(1);
+          await expect(floorRows(page)).toHaveCount(2);
           await kebab(page, 'Tầng K').focus();
           await page.keyboard.press('Enter');
           const item = page.getByRole('menu', { name: MENU_NAME }).getByRole('menuitem', { name: REMOVE, exact: true });
