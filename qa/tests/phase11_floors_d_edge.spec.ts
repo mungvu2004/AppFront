@@ -39,7 +39,8 @@ const measurementRe = (pid: string): RegExp => new RegExp(`^/api/projects/${pid}
 const layerWrites = (log: readonly { method: string; path: string }[], mark: number): number =>
   log.slice(mark).filter((entry) => entry.method === 'PUT' && layerPutRe.test(entry.path)).length;
 const region = (page: Page): Locator => page.getByRole('region', { name: THICK.screen, exact: true });
-const toasts = (page: Page): Locator => page.getByRole('region', { name: TOASTS, exact: true });
+// two "Thông báo" regions exist (Toast.Provider in main + NotificationHost); take the one holding a toast (role=status)
+const toasts = (page: Page): Locator => page.getByRole('region', { name: TOASTS, exact: true }).filter({ has: page.getByRole('status') });
 /**
  * sr-only checkbox: the custom box's svg intercepts pointer events (R1/D `locator.check` log), so force the click (it lands on the label
  * and toggles the input). R3: focus + Space ended unchecked in R1/RR1/RR2 on the stack ("Expected checked, Received unchecked"), yet the
@@ -173,12 +174,17 @@ test.describe('P4 floors D edge', () => {
         await expect(applyBtn).toBeVisible();
         await applyBtn.click(); // apply 1 (unreviewed walls only)
         await expect(toasts(page).getByText(THICK.applied)).toHaveCount(1);
+        // RR4 evidence (screenshot at the red: ONE toast "Chuẩn hoá độ dày 1 tường." = the 2nd apply's title): same-type publishes inside 5 s
+        // fold into one toast with a combined ticket (notificationBus.ts:8,83-84,157-186), so apply 2 swallowed apply 1's toast and no
+        // "newer step" refusal can exist. Let the window pass so each apply keeps its own ticket (precedent phase04_rooms_edge.spec.ts:437).
+        await page.waitForTimeout(5_300); // fixed-wait-ok: real clock on the stack; notificationBus DEFAULT_GROUP_WINDOW_MS 5000
         await zone.getByRole('button', { name: THICK.reapply, exact: true }).click();
         await zone.getByRole('button', { name: THICK.applyAll, exact: true }).click();
         await zone.getByRole('button', { name: THICK.apply, exact: true }).click(); // apply 2 (the reviewed wall)
         await expect(toasts(page).getByText(THICK.applied)).toHaveCount(2);
         const mark = log.length;
-        await toasts(page).getByRole('button', { name: THICK.undo, exact: true }).first().click(); // ticket of apply 1
+        // ticket of apply 1: the older toast is a peek under the newest one, so a pointer click would land on apply 2 (phase03 P3.ts:251-260)
+        await toasts(page).getByRole('button', { name: THICK.undo, exact: true }).first().dispatchEvent('click');
         // history.ts:451-454, emitted at useThicknessStandardization.ts:650-654
         await expect(toasts(page).getByText('Chưa hoàn tác: đã có 1 thay đổi sau thay đổi này. Dùng Ctrl+Z để hoàn tác lần lượt.')).toBeVisible();
         expect(layerWrites(log, mark), 'no layer write after the refusal').toBe(0);

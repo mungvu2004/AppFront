@@ -15,7 +15,10 @@ export const CHECKBOX_RE = /^Chọn phiên bản (.+) để so sánh$/u; // Vers
 
 export const versionList = (page: Page): Locator => page.getByRole('navigation', { name: 'Danh sách phiên bản', exact: true });
 export const restoreButton = (page: Page): Locator => page.getByRole('button', { name: 'Phục hồi phiên bản này', exact: true }); // VH:~185
-export const toastRegion = (page: Page): Locator => page.getByRole('region', { name: 'Thông báo', exact: true }); // Toast.tsx:215
+// Toast.tsx:215 - two "Thông báo" regions exist (one inside main from Toast.Provider, one from NotificationHost; RR4 strict-mode error);
+// the intended one is whichever holds a toast (role=status, Toast.tsx:147).
+export const toastRegion = (page: Page): Locator =>
+  page.getByRole('region', { name: 'Thông báo', exact: true }).filter({ has: page.getByRole('status') });
 export const undoButton = (page: Page): Locator => toastRegion(page).getByRole('button', { name: 'Hoàn tác', exact: true });
 export const restoreDefaults = (page: Page): Locator => page.getByRole('button', { name: 'Khôi phục mặc định', exact: true }); // RS:327
 export const footerText = (page: Page): Locator => page.getByText('Cấu hình đã khác mặc định.', { exact: true }); // RS:326
