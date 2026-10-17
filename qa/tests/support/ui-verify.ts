@@ -94,7 +94,18 @@ function measure(target: typeof TARGET_PX): Omit<UiMetrics, 'viewport'> {
     const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
     return hit !== null && (el === hit || el.contains(hit));
   };
-  const layered = controls.filter(onTop);
+  // A control whose own box lies wholly outside an ancestor that clips (`overflow: hidden|clip`) cannot be seen or clicked:
+  // the 4 px "peek" strips of stacked toasts keep an invisible "Hoàn tác" whose 81×20 box sits over the next toast.
+  const clippedAway = (el: Element): boolean => {
+    const r = el.getBoundingClientRect();
+    for (let p = el.parentElement; p !== null && p !== document.body; p = p.parentElement) {
+      if (!/hidden|clip/u.test(`${getComputedStyle(p).overflowX} ${getComputedStyle(p).overflowY}`)) continue;
+      const c = p.getBoundingClientRect();
+      if (Math.min(r.right, c.right) - Math.max(r.left, c.left) <= 2 || Math.min(r.bottom, c.bottom) - Math.max(r.top, c.top) <= 2) return true;
+    }
+    return false;
+  };
+  const layered = controls.filter(onTop).filter((el) => !clippedAway(el));
   const overlaps: string[] = [];
   for (let i = 0; i < layered.length; i += 1) {
     for (let j = i + 1; j < layered.length; j += 1) {
