@@ -31,6 +31,7 @@ import { useEffect, useRef } from 'react';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Modal } from '@/components/overlay/Modal';
+import { PageHeader } from '@/components/shell/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { useShortcut } from '@/hooks/useShortcut';
 
@@ -89,9 +90,9 @@ function UserManagementBreadcrumb({ items }: { readonly items: readonly Breadcru
   );
 }
 
-/** Màn có đúng một `h1` (BUG-P08-020): đọc được cho trình đọc màn hình, tên màn = mục cuối breadcrumb. */
+/** Màn có đúng một `h1` (BUG-P08-020), nhìn thấy được cùng bậc các màn admin khác; tên màn = mục cuối breadcrumb. */
 function ScreenHeading({ items }: { readonly items: readonly BreadcrumbItemModel[] }) {
-  return <h1 className="sr-only">{items[items.length - 1]?.label}</h1>;
+  return <PageHeader title={items[items.length - 1]?.label ?? ''} />;
 }
 
 function renderContent(model: UserManagementViewModel, actions: UserManagementActions) {
@@ -180,8 +181,8 @@ export function UserManagement({ model, actions }: UserManagementProps) {
   if (model.state === 'forbidden') {
     return (
       <div className={SCREEN_CONTAINER_CLASS}>
-        <ScreenHeading items={model.breadcrumbItems} />
         <UserManagementBreadcrumb items={model.breadcrumbItems} />
+        <ScreenHeading items={model.breadcrumbItems} />
         <InlineAlert level="attention" message={model.forbiddenLabel} />
         <UserManagementPermissionMatrix captionLabel={PERMISSION_MATRIX_CAPTION} matrix={model.permissionMatrix} />
         <BreadcrumbLink item={model.backLink} />
@@ -191,7 +192,6 @@ export function UserManagement({ model, actions }: UserManagementProps) {
 
   return (
     <div className={SCREEN_CONTAINER_CLASS}>
-      <ScreenHeading items={model.breadcrumbItems} />
       <div className="flex items-center justify-between gap-4">
         <UserManagementBreadcrumb items={model.breadcrumbItems} />
         <Button
@@ -203,6 +203,7 @@ export function UserManagement({ model, actions }: UserManagementProps) {
           {PERMISSION_REFERENCE_BUTTON_LABEL}
         </Button>
       </div>
+      <ScreenHeading items={model.breadcrumbItems} />
 
       <UserManagementToolbar
         actions={actions}

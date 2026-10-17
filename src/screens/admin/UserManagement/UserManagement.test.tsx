@@ -618,6 +618,15 @@ describe('SCR-37 đọc (phase 08, D-a): BUG-P08-014..021', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
+  it('[UI-P08A-007] h1 nhìn thấy được ở cả hai trạng thái, không giấu bằng sr-only', async () => {
+    const { unmount } = await renderModel(SUCCESS);
+    expect(screen.getByRole('heading', { level: 1 }).className).not.toContain('sr-only');
+    unmount();
+
+    await renderModel(USER_MANAGEMENT_SCENARIO_FORBIDDEN);
+    expect(screen.getByRole('heading', { level: 1 }).className).not.toContain('sr-only');
+  });
+
   it('[37U-A-020] câu chú thích vai nói đúng một lần cho cả danh sách dự án', async () => {
     const reason = 'Câu thử về vai trong dự án';
     const base = SUCCESS.detail?.memberships ?? [];
