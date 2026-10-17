@@ -334,6 +334,7 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
         await resetViaClick();
         await expect.soft(page.getByRole('dialog')).toHaveCount(0);
         await expect.soft(toastRegion(page)).toContainText('Đã trả bộ luật về mặc định.'); // URS:1079-1081
+        await expect.soft(page.getByText('23/25 luật đang bật')).toBeVisible(); // settled count, not mid run-up
         await captureEvidence(page, 'E11_11P-A-031_no_confirm.png');
       });
 
@@ -353,6 +354,8 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
         await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 2 })).toBeVisible();
         await expect.soft(footerText(page)).toHaveCount(0); // server config is the default again
         await expect.soft(restoreDefaults(page)).toHaveCount(0);
+        // BUG-P11-028: the header count runs up for 260 ms (useCountUp); wait for the settled value before the shot.
+        await expect.soft(page.getByText('23/25 luật đang bật')).toBeVisible();
         await captureEvidence(page, 'E11_11P-A-032_put_get.png');
       });
 
