@@ -400,6 +400,7 @@ export function useObjectLayerReview(
     projectId,
     floorId,
     options.onNavigate,
+    canEdit,
   );
   const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
 
@@ -501,7 +502,8 @@ export function useObjectLayerReview(
     () => lowConfidenceObjectsOf(objects, confidenceThreshold),
     [confidenceThreshold, objects],
   );
-  const lowConfidenceOnly = lowConfidenceChoice ?? lowConfidenceObjects.length > 0;
+  /* Mở màn với lọc TẮT: số trên nhóm khớp số trong danh sách (G4a-37); dòng "N mục dưới ngưỡng" vẫn mời bật. */
+  const lowConfidenceOnly = lowConfidenceChoice ?? false;
 
   const solidWalls = useMemo(() => solidWallsOf(graph, level), [graph, level]);
   const graphWalls = useMemo(() => graphWallsOf(graph, level), [graph, level]);
@@ -1230,11 +1232,11 @@ export function useObjectLayerReview(
   }, []);
 
   const onToggleLowConfidenceOnly = useCallback(() => {
-    setLowConfidenceChoice((previous) => !(previous ?? true));
+    setLowConfidenceChoice((previous) => !(previous ?? false));
   }, []);
 
   /* ---------------------------------------------------------------------- */
-  /* Nhóm loại đang chọn — `D`/`W`/`F` và ba ô 1/2/3.                         */
+  /* Nhóm loại đang chọn — `C`/`S`/`N` và ba ô 1/2/3.                         */
   /* ---------------------------------------------------------------------- */
 
   const selectedObject = selectedObjectId === null ? null : objectById(selectedObjectId);
@@ -1293,7 +1295,7 @@ export function useObjectLayerReview(
   useShortcut(
     {
       id: 'objectLayerReview.layer.door',
-      combo: 'D',
+      combo: 'C',
       scope: 'canvas',
       description: OBJECT_LAYER_TEXT.shortcutLayer,
       onTrigger: () => onSelectLayer('door'),
@@ -1303,7 +1305,7 @@ export function useObjectLayerReview(
   useShortcut(
     {
       id: 'objectLayerReview.layer.window',
-      combo: 'W',
+      combo: 'S',
       scope: 'canvas',
       description: OBJECT_LAYER_TEXT.shortcutLayer,
       onTrigger: () => onSelectLayer('window'),
@@ -1313,7 +1315,7 @@ export function useObjectLayerReview(
   useShortcut(
     {
       id: 'objectLayerReview.layer.furniture',
-      combo: 'F',
+      combo: 'N',
       scope: 'canvas',
       description: OBJECT_LAYER_TEXT.shortcutLayer,
       onTrigger: () => onSelectLayer('furniture'),
@@ -1520,6 +1522,8 @@ export function useObjectLayerReview(
   const tokens = useMemo(() => dataLayerTokens(layerVisibility), [layerVisibility]);
   /* Tầng đã đọc xong mà không có đoạn tường nào: không có chỗ đặt cửa (BUG-422). */
   const hasNoWall = !isLoading && !hasError && graphWalls.length === 0;
+  /* Tầng chưa có bản vẽ: đừng bảo "duyệt tường trước" — tường cũng trống (N2-07). */
+  const hasNoDrawing = hasNoWall && backgroundQuery.data !== undefined && backgroundQuery.data.imageUrl === null;
   const { onNavigate } = options;
 
   /*
@@ -1567,7 +1571,9 @@ export function useObjectLayerReview(
     emptyNotice:
       reviewCounter.total === 0 && !isLoading && !hasError
         ? hasNoWall
-          ? OBJECT_LAYER_TEXT.emptyNoWall
+          ? hasNoDrawing
+            ? OBJECT_LAYER_TEXT.emptyNoDrawing
+            : OBJECT_LAYER_TEXT.emptyNoWall
           : OBJECT_LAYER_TEXT.emptyExplanation
         : null,
     errorMessage: hasError
@@ -1639,7 +1645,9 @@ export function useObjectLayerReview(
     onAddManually,
     onOpenWallLayer:
       hasNoWall && onNavigate !== undefined
-        ? () => onNavigate(ROUTES.project.walls(projectId, floorId))
+        ? hasNoDrawing
+          ? () => onNavigate(ROUTES.project.floors(projectId))
+          : () => onNavigate(ROUTES.project.walls(projectId, floorId))
         : null,
     saveBlock,
     provisionalScaleNotice,

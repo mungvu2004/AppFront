@@ -4,7 +4,7 @@
  * loại/loại con đang chọn — đó là trạng thái nghiệp vụ do hook (T5) sở
  * hữu, đi vào qua `activeLayer`/`activeSubtype`. View KHÔNG tự đăng ký phím
  * tắt (`addEventListener` hay `useShortcut`) — T5 làm việc đó qua
- * `shortcutRegistry`; ở đây chỉ hiển thị gợi ý phím bằng {@link Kbd}.
+ * `shortcutRegistry`; ở đây chỉ hiển thị gợi ý phím bằng chữ nhỏ dưới nút, kèm tooltip (G4a-25).
  *
  * ## Vì sao mỗi nhóm chỉ có tối đa BA nút loại con
  *
@@ -42,7 +42,6 @@ import {
 } from 'lucide-react';
 
 import { IconButton } from '@/components/ui/IconButton';
-import { Kbd } from '@/components/ui/Kbd';
 
 import {
   OBJECT_LAYER_LABELS,
@@ -65,9 +64,9 @@ interface LayerToolDef {
 }
 
 const LAYER_TOOLS: readonly LayerToolDef[] = [
-  { icon: DoorOpen, id: 'door', kbd: 'D' },
-  { icon: Blinds, id: 'window', kbd: 'W' },
-  { icon: Armchair, id: 'furniture', kbd: 'F' },
+  { icon: DoorOpen, id: 'door', kbd: 'C' },
+  { icon: Blinds, id: 'window', kbd: 'S' },
+  { icon: Armchair, id: 'furniture', kbd: 'N' },
 ];
 
 /**
@@ -137,9 +136,8 @@ export function ObjectLayerToolRail({
                   isActive={isActive}
                   onClick={() => onSelectLayer(tool.id)}
                   size="lg"
-                  tooltip={false}
                 />
-                <Kbd>{tool.kbd}</Kbd>
+                <span aria-hidden="true" className="font-mono text-[10px] leading-none text-text-muted">{tool.kbd}</span>
               </div>
             );
           })}
@@ -167,9 +165,8 @@ export function ObjectLayerToolRail({
                       isActive={isActive}
                       onClick={() => onSelectSubtypeSlot(slot)}
                       size="lg"
-                      tooltip={false}
-                    />
-                    <Kbd>{slot}</Kbd>
+                        />
+                    <span aria-hidden="true" className="font-mono text-[10px] leading-none text-text-muted">{slot}</span>
                   </div>
                 );
               })}

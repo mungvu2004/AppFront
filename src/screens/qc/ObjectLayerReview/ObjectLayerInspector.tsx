@@ -389,7 +389,8 @@ function ObjectInspectorBody({
       </div>
 
       {!isViewerRole && (
-        <div className="mt-auto flex flex-col gap-2 px-5 pt-4">
+        /* Dính đáy panel để nút duyệt luôn thấy ở 1440×900; nút xoá tách xa nút duyệt (G4a-27). Xoá có toast hoàn tác (A8), nên không hỏi. */
+        <div className="sticky bottom-0 mt-auto flex flex-col gap-4 bg-bg-surface px-5 pb-3 pt-4">
           <Button
             disabled={inspector.reviewed}
             fullWidth

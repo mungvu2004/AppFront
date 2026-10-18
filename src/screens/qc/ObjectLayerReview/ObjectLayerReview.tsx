@@ -42,6 +42,7 @@ import { cn } from '@/lib/utils';
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame } from '../shared/QcScreenFrame';
 
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
@@ -50,6 +51,7 @@ import { ObjectLayerLeftPanel } from './ObjectLayerLeftPanel';
 import { ObjectLayerList } from './ObjectLayerList';
 import { ObjectLayerStatusBar } from './ObjectLayerStatusBar';
 import { ObjectLayerToolRail } from './ObjectLayerToolRail';
+import { OBJECT_LAYER_TEXT } from './objectLayerReviewGateway';
 import type { ObjectLayerReviewModel } from './objectLayerTypes';
 
 /**
@@ -60,7 +62,10 @@ import type { ObjectLayerReviewModel } from './objectLayerTypes';
  * callback điều hướng nào — R-73 cấm prop tuỳ chọn không ai truyền, và một lối
  * ra không có trong đặc tả thì không được bịa ra ở đây.
  */
-export type ObjectLayerReviewViewProps = ObjectLayerReviewModel;
+export type ObjectLayerReviewViewProps = ObjectLayerReviewModel & {
+  /** Breadcrumb dự án › tầng › lớp + thanh lớp ở đầu màn (N0-01, N2-06). */
+  readonly floorNav?: Omit<QcFloorNavProps, 'layer'>;
+};
 
 /* Chuỗi tiếng Việt tĩnh — chép từ `.orca-notes/S13-SPEC-GOC.md` phần IV (A6). */
 
@@ -100,7 +105,13 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
     /* Người xem không thêm được gì: không đưa nút "Thêm thủ công" chết (BUG-601). */
     const action =
       model.onOpenWallLayer !== null
-        ? { label: OPEN_WALL_LAYER_ACTION, onClick: model.onOpenWallLayer }
+        ? {
+            label:
+              model.emptyNotice === OBJECT_LAYER_TEXT.emptyNoDrawing
+                ? OBJECT_LAYER_TEXT.openFloorsAction
+                : OPEN_WALL_LAYER_ACTION,
+            onClick: model.onOpenWallLayer,
+          }
         : model.isViewerRole
           ? null
           : { label: EMPTY_ACTION, onClick: model.onAddManually };
@@ -174,6 +185,7 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
 
       <ObjectLayerList
         collapsedGroups={model.collapsedGroups}
+        isFiltered={model.filteredLabel !== null}
         onAttachToNearestWall={model.onAttachToNearestWall}
         onHover={model.onHover}
         onSelect={model.onSelect}
@@ -236,6 +248,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
   if (model.readFailure != null) {
     return (
       <QcScreenFrame label={SCREEN_ARIA_LABEL}>
+        {model.floorNav != null && <QcFloorNav {...model.floorNav} layer="objects" />}
         <FloorLayerReadFailureScreen failure={model.readFailure} />
       </QcScreenFrame>
     );
@@ -243,6 +256,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
 
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
+      {model.floorNav != null && <QcFloorNav {...model.floorNav} layer="objects" />}
       {model.saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={model.saveBlock} />

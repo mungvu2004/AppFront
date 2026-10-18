@@ -54,6 +54,9 @@ const FREE_STANDING = 'Đứng tự do';
 const SEARCH_LABEL = 'Tìm mã';
 const SEARCH_PLACEHOLDER = 'Tìm mã, ví dụ D-007';
 const EMPTY_GROUP = 'Chưa có đối tượng nào trong nhóm này';
+/* Rỗng vì bộ lọc hoặc ô tìm, không phải vì chưa có (G4a-26, G4a-37). */
+const EMPTY_FILTERED = 'Không có đối tượng nào khớp bộ lọc hoặc ô tìm đang dùng';
+const CLEAR_SEARCH = 'Xoá ô tìm';
 const EXPAND_PREFIX = 'Mở nhóm ';
 const COLLAPSE_PREFIX = 'Gấp nhóm ';
 
@@ -172,6 +175,7 @@ function ObjectLayerListRow({
 /* -------------------------------------------------------------------------- */
 
 interface ObjectLayerListGroupProps {
+  readonly isFiltered: boolean;
   readonly layer: ObjectLayerId;
   readonly rows: readonly ObjectListRowViewModel[];
   readonly isCollapsed: boolean;
@@ -183,6 +187,7 @@ interface ObjectLayerListGroupProps {
 }
 
 function ObjectLayerListGroup({
+  isFiltered,
   layer,
   rows,
   isCollapsed,
@@ -228,7 +233,7 @@ function ObjectLayerListGroup({
       {isCollapsed ? null : (
         <div aria-label={label} className="flex flex-col gap-0.5 pl-2" id={bodyId} role="listbox">
           {rows.length === 0 ? (
-            <p className="px-2 py-3 text-[12px] text-text-muted">{EMPTY_GROUP}</p>
+            <p className="px-2 py-3 text-[12px] text-text-muted">{isFiltered ? EMPTY_FILTERED : EMPTY_GROUP}</p>
           ) : (
             rows.map((row) => (
               <ObjectLayerListRow
@@ -253,6 +258,7 @@ function ObjectLayerListGroup({
 
 export function ObjectLayerList({
   collapsedGroups,
+  isFiltered = false,
   onAttachToNearestWall,
   onHover,
   onSelect,
@@ -270,14 +276,25 @@ export function ObjectLayerList({
     <div aria-label={LIST_LABEL} className="flex flex-col gap-1" role="group">
       <Input
         aria-label={SEARCH_LABEL}
+        className="text-[13px]"
         onChange={(event) => setCodeQuery(event.target.value)}
         placeholder={SEARCH_PLACEHOLDER}
         type="search"
         value={codeQuery}
       />
+      {needle === '' ? null : (
+        <button
+          className="self-start rounded px-2 py-0.5 text-[12px] text-accent hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+          onClick={() => setCodeQuery('')}
+          type="button"
+        >
+          {CLEAR_SEARCH}
+        </button>
+      )}
       {OBJECT_LAYER_IDS.map((layer) => (
         <ObjectLayerListGroup
           isCollapsed={collapsedGroups[layer]}
+          isFiltered={isFiltered || needle !== ''}
           key={layer}
           layer={layer}
           onAttachToNearestWall={onAttachToNearestWall}

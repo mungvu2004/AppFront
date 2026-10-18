@@ -1245,9 +1245,9 @@ export const layerTreeTotalLabel = (total: number): string =>
 export const filteredCountLabel = (shown: number, total: number): string =>
   `${formatObjectCount(shown)} / ${formatObjectCount(total)} đối tượng`;
 
-/** Câu của trạng thái một phần — "5 mục dưới ngưỡng tin cậy, đã lọc sẵn". */
+/** Câu của trạng thái một phần — "5 mục dưới ngưỡng tin cậy". */
 export const lowConfidenceNotice = (count: number): string =>
-  `${formatObjectCount(count)} mục dưới ngưỡng tin cậy, đã lọc sẵn`;
+  `${formatObjectCount(count)} mục dưới ngưỡng tin cậy`;
 
 /**
  * Mọi chuỗi cố định người dùng đọc, đúng một chỗ (R-71).
@@ -1279,6 +1279,9 @@ export const OBJECT_LAYER_TEXT = {
   addNoWall: 'Tầng này chưa có đoạn tường nào để đặt đối tượng mới lên.',
   emptyNoWall:
     'Tầng này chưa có đoạn tường nào, nên chưa có chỗ đặt cửa hay cửa sổ. Duyệt lớp tường trước rồi quay lại đây.',
+  emptyNoDrawing:
+    'Tầng này chưa có bản vẽ, nên chưa có tường hay cửa nào để duyệt. Tải bản vẽ cho tầng ở Quản lý tầng rồi quay lại đây.',
+  openFloorsAction: 'Về Quản lý tầng',
   addRefused: 'Không thêm được đối tượng vào tường.',
   shortcutLayer: 'Đặt nhóm loại cho đối tượng đang chọn',
   shortcutSubtype: 'Đổi loại trong nhóm đang chọn',

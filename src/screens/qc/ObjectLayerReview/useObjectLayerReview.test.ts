@@ -367,20 +367,17 @@ describe('[NGHIEM-3] tổng số đối tượng', () => {
     mounted.unmount();
   });
 
-  it('năm mục dưới ngưỡng tin cậy được lọc sẵn ở trạng thái một phần', async () => {
+  it('[G4a-37] mở màn với lọc tắt; bật "chỉ dưới ngưỡng" thì còn năm mục', async () => {
     const mounted = await mountSettled();
 
-    console.log(`mục dưới ngưỡng tin cậy: ${mounted.result.current.rows.length}`);
-
     expect(mounted.result.current.state).toBe('partial');
-    expect(mounted.result.current.isLowConfidenceOnly).toBe(true);
-    expect(mounted.result.current.partialNotice).toBe('5 mục dưới ngưỡng tin cậy, đã lọc sẵn');
-    expect(mounted.result.current.rows).toHaveLength(OBJECT_LAYER_FIXTURE_LOW_CONFIDENCE);
+    expect(mounted.result.current.isLowConfidenceOnly).toBe(false);
+    expect(mounted.result.current.partialNotice).toBe('5 mục dưới ngưỡng tin cậy');
+    expect(mounted.result.current.rows).toHaveLength(21);
 
-    /* Tắt bộ lọc thì cả 21 hàng quay lại — bộ đếm cây lớp không đổi bao giờ. */
     await run(() => mounted.result.current.onToggleLowConfidenceOnly());
 
-    expect(mounted.result.current.rows).toHaveLength(21);
+    expect(mounted.result.current.rows).toHaveLength(OBJECT_LAYER_FIXTURE_LOW_CONFIDENCE);
     expect(mounted.result.current.counts.total).toBe(21);
 
     mounted.unmount();
@@ -778,13 +775,13 @@ describe('bàn phím và vùng chọn', () => {
   it('D / W / F đặt nhóm loại qua SỔ PHÍM THẬT', async () => {
     const mounted = await mountSettled();
 
-    await pressKey(mounted.registry, 'W');
+    await pressKey(mounted.registry, 'S');
     expect(mounted.result.current.activeLayer).toBe('window');
 
-    await pressKey(mounted.registry, 'F');
+    await pressKey(mounted.registry, 'N');
     expect(mounted.result.current.activeLayer).toBe('furniture');
 
-    await pressKey(mounted.registry, 'D');
+    await pressKey(mounted.registry, 'C');
     expect(mounted.result.current.activeLayer).toBe('door');
 
     mounted.unmount();
@@ -794,7 +791,7 @@ describe('bàn phím và vùng chọn', () => {
     const mounted = await mountSettled();
 
     await run(() => mounted.result.current.onSelect('D-004'));
-    await pressKey(mounted.registry, 'W');
+    await pressKey(mounted.registry, 'S');
     expect(mounted.result.current.activeLayer).toBe('window');
 
     await run(() => mounted.result.current.onSelect('F-002'));
@@ -807,7 +804,7 @@ describe('bàn phím và vùng chọn', () => {
     const mounted = await mountSettled();
 
     await run(() => mounted.result.current.onSelect('D-004'));
-    await pressKey(mounted.registry, 'D');
+    await pressKey(mounted.registry, 'C');
     await pressKey(mounted.registry, '2');
 
     await waitFor(() => {
@@ -1259,7 +1256,7 @@ describe('danh sách dựng từ đồ thị (B-V6-13)', () => {
     expect(id).toMatch(/^F-\d{3}$/u);
     expect(mounted.result.current.counts.total).toBe(OBJECT_LAYER_FIXTURE_OBJECTS.length + 1);
 
-    await run(() => mounted.result.current.onToggleLowConfidenceOnly());
+    /* Lọc dưới ngưỡng mở màn đã TẮT (G4a-37): không cần bấm tắt. */
     const row = mounted.result.current.rows.find((candidate) => candidate.id === id);
 
     expect(row?.statusCode).not.toBe('attention');

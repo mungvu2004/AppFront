@@ -24,6 +24,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouse
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
+import { useCanvasPan } from '@/components/canvas/useCanvasPan';
 import type { ContextMenuGroup } from '@/hooks/useContextMenu';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
@@ -35,7 +36,7 @@ import {
   OBJECT_CANVAS_FRAME_CLASSES,
   OBJECT_CANVAS_READ_ONLY_ID,
   OBJECT_CANVAS_TEXT,
-  SYMBOL_STROKE_WIDTH_PX,
+  OBJECT_LAYER_STROKE_STYLES,
   SYMBOL_WASH_OPACITY,
   WALL_IDLE_TOKEN,
   buildObjectContextMenuItems,
@@ -92,6 +93,7 @@ function ObjectSymbolFigure({
     depth: placement.depthPx,
   });
   const token = objectLayerColorToken(placement.layer);
+  const strokeStyle = OBJECT_LAYER_STROKE_STYLES[placement.layer];
   const previousShapeRef = useRef(`${placement.subtype}/${placement.swing}`);
   const [isMorphing, setIsMorphing] = useState(false);
 
@@ -151,8 +153,8 @@ function ObjectSymbolFigure({
               fill="none"
               key={stroke.id}
               stroke={token}
-              strokeDasharray={stroke.dashArray ?? undefined}
-              strokeWidth={isSelected || isHovered ? SYMBOL_STROKE_WIDTH_PX * 2 : SYMBOL_STROKE_WIDTH_PX}
+              strokeDasharray={stroke.dashArray ?? strokeStyle.dashArray ?? undefined}
+              strokeWidth={isSelected || isHovered ? strokeStyle.widthPx * 2 : strokeStyle.widthPx}
               vectorEffect="non-scaling-stroke"
             />
           ))}
@@ -202,6 +204,16 @@ export function ObjectLayerCanvas({
   wallOutlines,
 }: ObjectLayerCanvasViewProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
+  /* Kéo bản vẽ: chuột giữa hoặc giữ Space + kéo (G4a-28, G4b-08; P06 mục 1). */
+  const pan = useCanvasPan();
+  const setPanEl = pan.ref;
+  const setFrameRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      frameRef.current = element;
+      setPanEl(element);
+    },
+    [setPanEl],
+  );
 
   /* Khổ hộp đệm lên hook — "vừa khung" (BUG-403) cần biết khung rộng bao nhiêu. */
   useEffect(() => {
@@ -282,11 +294,13 @@ export function ObjectLayerCanvas({
       aria-label={OBJECT_CANVAS_TEXT.canvasLabel}
       className={OBJECT_CANVAS_FRAME_CLASSES}
       onMouseLeave={() => onHover(null)}
-      ref={frameRef}
+      ref={setFrameRef}
       role="group"
+      style={pan.isPanning ? { cursor: 'grabbing' } : pan.spaceHeld ? { cursor: 'grab' } : undefined}
+      {...pan.handlers}
     >
       {/* Ảnh nền, `<svg>` và lớp phủ đứng ở pixel KHUNG do hook tính (BUG-403). */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0" style={{ transform: pan.transform }}>
         {backgroundImageUrl === null ? (
           <div aria-hidden="true" className="absolute inset-0 bg-bg-sunken" />
         ) : (

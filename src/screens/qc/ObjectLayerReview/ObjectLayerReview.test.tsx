@@ -267,9 +267,9 @@ describe('B-V6-10 — chọn nhóm bằng chuột ngay từ đầu', () => {
     renderState('success');
 
     const rail = screen.getByRole('toolbar', { name: TOOL_RAIL_LABEL });
-    const door = within(rail).getByRole('button', { name: 'Chọn nhóm cửa đi (phím D)' });
+    const door = within(rail).getByRole('button', { name: 'Chọn nhóm cửa đi (phím C)' });
 
-    for (const name of ['Chọn nhóm cửa đi (phím D)', 'Chọn nhóm cửa sổ (phím W)', 'Chọn nhóm nội thất (phím F)']) {
+    for (const name of ['Chọn nhóm cửa đi (phím C)', 'Chọn nhóm cửa sổ (phím S)', 'Chọn nhóm nội thất (phím N)']) {
       expect(within(rail).getByRole('button', { name })).toBeEnabled();
     }
 

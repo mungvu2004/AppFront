@@ -487,7 +487,7 @@ export interface ObjectLayerStatusBarProps {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Thanh công cụ — phím D/W/F đặt nhóm, 1/2/3 đổi loại trong nhóm.             */
+/* Thanh công cụ — phím C/S/N đặt nhóm (G4a-25: không trùng W "Vẽ tường"), 1/2/3 đổi loại trong nhóm.             */
 /* -------------------------------------------------------------------------- */
 
 /** Mọi thứ thanh công cụ nhận. */

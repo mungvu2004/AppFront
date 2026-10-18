@@ -11,6 +11,7 @@ import {
   OBJECT_CANVAS_COLOR_COUNT_TEST_ID,
   OBJECT_CANVAS_TEXT,
   OBJECT_LAYER_COLOR_TOKENS,
+  OBJECT_LAYER_STROKE_STYLES,
   visibleDataColorTokens,
 } from './objectLayerSymbols';
 import { OBJECT_LAYER_IDS, OBJECT_LAYER_LABELS, type ObjectLayerVisibility } from './objectLayerTypes';
@@ -33,8 +34,13 @@ export function ObjectLayerCanvasLegend({
         <span className="flex items-center gap-1.5 text-[12px] text-text-secondary" key={layer}>
           <span
             aria-hidden="true"
-            className="h-3 w-3 rounded-sm border border-border-default-50"
-            style={{ backgroundColor: OBJECT_LAYER_COLOR_TOKENS[layer] }}
+            className="h-3 w-3 rounded-sm border-2"
+            style={{
+              backgroundColor: OBJECT_LAYER_COLOR_TOKENS[layer],
+              borderColor: OBJECT_LAYER_COLOR_TOKENS[layer],
+              borderStyle: OBJECT_LAYER_STROKE_STYLES[layer].legendBorder,
+              ...(layer === 'window' ? { backgroundColor: 'transparent' } : {}),
+            }}
           />
           {OBJECT_LAYER_LABELS[layer]}
         </span>
