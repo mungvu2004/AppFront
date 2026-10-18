@@ -1,7 +1,7 @@
 /**
  * Phần chuẩn bị CHỈ dành cho test chạy trong DOM.
  *
- * File này tách khỏi `vitest.setup.ts` để test thuần — `src/domain/**`, và mọi
+ * File này tách khỏi `src/test/setup.ts` để test thuần — `src/domain/**`, và mọi
  * module trong `src/lib` không chạm DOM — không phải trả giá cho nó. Số đo trên
  * `src/domain` (1.148 bài, 36 file) trước khi tách:
  *
@@ -11,7 +11,7 @@
  * đây — bộ so khớp của `jest-dom`, trần `waitFor` của testing-library, và bản vá
  * `window.scrollTo` — đều vô nghĩa với một hàm hình học thuần.
  *
- * `vitest.setup.ts` nạp file này bằng `import()` có điều kiện, nên với môi
+ * `src/test/setup.ts` nạp file này bằng `import()` có điều kiện, nên với môi
  * trường `node` nó không được nạp chút nào.
  *
  * ## Vì sao phần store nằm trong `beforeAll` chứ không ở tầng module

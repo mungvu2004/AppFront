@@ -792,7 +792,7 @@ T5 + T6 xong  →  T7 ráp: index.ts, container, route, i18n, bài kiểm màn
 ### Khoá i18n — ai cần thì ghi ra file mảnh
 
 `src/i18n/vi.json` là **của T7**. T5/T6 cần thêm khoá thì ghi vào
-`notes/floor-manager/i18n.fragment.json`, T7 trộn vào khối `floorManager`.
+`docs/notes/floor-manager/i18n.fragment.json`, T7 trộn vào khối `floorManager`.
 (Nhắc: `vi.json` **không phải bảng dịch lúc chạy** — chuỗi viết thẳng tiếng Việt trong mã; file
 đó là **từ điển để kiểm tra**, dùng bởi `lib/testing/expectVietnamese.ts:25-31`.)
 
@@ -907,7 +907,7 @@ lệ hoa đầu chữ là **nhãn nút**, **tiêu đề cột** và **tên riên
 > mà `validateChangeLevelElevation` trả về — hàm đó đã soạn sẵn câu tiếng Việt gọi tên cả hai
 > tầng và nêu cả hai cao độ (xem [mục H](#h-ký-hiệu-domain-đã-xác-minh--not-found--cần-tra)).
 > Khoá trên chỉ dùng khi domain không trả câu nào cho trường hợp cụ thể; T5 quyết định sau khi
-> đọc `notes/floor-manager/domain.md`.
+> đọc `docs/notes/floor-manager/domain.md`.
 
 ---
 
@@ -915,7 +915,7 @@ lệ hoa đầu chữ là **nhãn nút**, **tiêu đề cột** và **tên riên
 
 Tôi **không có** ghi chú của T1/T2/T3 (chạy song song). Bảng dưới là kết quả grep của chính
 lượt này — đã xác minh tận file và số dòng. Chỗ nào chưa chắc thì ghi
-`<<lấy từ notes/floor-manager/domain.md>>` kèm ký hiệu cần tra.
+`<<lấy từ docs/notes/floor-manager/domain.md>>` kèm ký hiệu cần tra.
 
 **Hợp đồng kiểu ở mục B đứng vững mà không cần biết một tên hàm domain nào** — nó chỉ nói về
 hình dạng view-model. Bảng này là để T5 nối dây, không phải để T6 chờ.
@@ -973,15 +973,15 @@ export const FLOOR_MANAGER_MISSING_CAPABILITIES = [
 
 `readFloorQcProgress` để trong danh sách nhưng **chưa xếp vào nợ** — xem mục kế.
 
-### Cần tra — `<<lấy từ notes/floor-manager/domain.md>>` (5 khoản)
+### Cần tra — `<<lấy từ docs/notes/floor-manager/domain.md>>` (5 khoản)
 
 | Cần ký hiệu nào | Vì sao chưa chắc |
 |---|---|
-| `<<lấy từ notes/floor-manager/domain.md>>` — **hàm/khoá đọc TIẾN ĐỘ QC của một tầng** | `queryKeys.progress.byFloor(floorId)` có thật (`queryKeys.ts:82`), nhưng `ProgressWireInput` (`src/api/contracts.ts:117-125`) mang `status/step/progressPercent` — đó là tiến độ **đường ống xử lý**, không phải tiến độ **người duyệt**. Nếu domain không có tiến độ QC riêng thì `readFloorQcProgress` phải vào bản kê nợ, và cột 9 hiện `"—"` ở màn thật |
-| `<<lấy từ notes/floor-manager/domain.md>>` — **cách đếm số tường và số phòng của một tầng** | CẤM TUYỆT ĐỐI *"không tự đếm đối tượng"*. `queryKeys.space.byFloor` và `queryKeys.room.byFloor` có thật, nhưng T5 phải lấy con số từ **hàm đếm của tầng dữ liệu**, không viết `walls.filter(...).length` trong hook. Cần tên hàm/selector chính thức |
-| `<<lấy từ notes/floor-manager/domain.md>>` — **cách đọc số bản vẽ của một tầng** | `FloorPayload.drawings?: Drawing[]` có thật (`src/api/contracts.ts:89`); cần biết selector/normalizer chính thức thay vì đọc mảng thô |
-| `<<lấy từ notes/floor-manager/domain.md>>` — **`CommandContext` và `dispatch` dựng ở đâu cho màn tầng** | `AxisGridManager` dựng `createAxisGridDispatchDeps` trong cổng của chính nó. Cần biết S-16 có cổng dùng chung không, hay `floorManagerGateway.ts` dựng lại |
-| `<<lấy từ notes/floor-manager/domain.md>>` — **`Building.datumElevationMm`, ai đặt** | `restack` của `createReorderLevelsCommand` dồn cao độ **bắt đầu từ `context.graph.building.datumElevationMm`**. Với bộ mẫu ở mục D (tầng thấp nhất ở `-3000`), mốc chuẩn phải là `-3000` thì bật "Tự động tính cao độ" mới không dịch cả toà nhà lên. T5 phải xác nhận trước khi nối công tắc đó |
+| `<<lấy từ docs/notes/floor-manager/domain.md>>` — **hàm/khoá đọc TIẾN ĐỘ QC của một tầng** | `queryKeys.progress.byFloor(floorId)` có thật (`queryKeys.ts:82`), nhưng `ProgressWireInput` (`src/api/contracts.ts:117-125`) mang `status/step/progressPercent` — đó là tiến độ **đường ống xử lý**, không phải tiến độ **người duyệt**. Nếu domain không có tiến độ QC riêng thì `readFloorQcProgress` phải vào bản kê nợ, và cột 9 hiện `"—"` ở màn thật |
+| `<<lấy từ docs/notes/floor-manager/domain.md>>` — **cách đếm số tường và số phòng của một tầng** | CẤM TUYỆT ĐỐI *"không tự đếm đối tượng"*. `queryKeys.space.byFloor` và `queryKeys.room.byFloor` có thật, nhưng T5 phải lấy con số từ **hàm đếm của tầng dữ liệu**, không viết `walls.filter(...).length` trong hook. Cần tên hàm/selector chính thức |
+| `<<lấy từ docs/notes/floor-manager/domain.md>>` — **cách đọc số bản vẽ của một tầng** | `FloorPayload.drawings?: Drawing[]` có thật (`src/api/contracts.ts:89`); cần biết selector/normalizer chính thức thay vì đọc mảng thô |
+| `<<lấy từ docs/notes/floor-manager/domain.md>>` — **`CommandContext` và `dispatch` dựng ở đâu cho màn tầng** | `AxisGridManager` dựng `createAxisGridDispatchDeps` trong cổng của chính nó. Cần biết S-16 có cổng dùng chung không, hay `floorManagerGateway.ts` dựng lại |
+| `<<lấy từ docs/notes/floor-manager/domain.md>>` — **`Building.datumElevationMm`, ai đặt** | `restack` của `createReorderLevelsCommand` dồn cao độ **bắt đầu từ `context.graph.building.datumElevationMm`**. Với bộ mẫu ở mục D (tầng thấp nhất ở `-3000`), mốc chuẩn phải là `-3000` thì bật "Tự động tính cao độ" mới không dịch cả toà nhà lên. T5 phải xác nhận trước khi nối công tắc đó |
 
 **Không ai được bịa một endpoint, một hằng số, hay một công thức để lấp bất kỳ ô nào ở trên**
 (R-69: thiếu logic thì DỪNG và hỏi bằng `orca orchestration ask`; CẤM stub, CẤM TODO).

@@ -1,7 +1,7 @@
 /**
  * Biến môi trường và các trần thời gian của chuỗi FE + BE (F-14).
  *
- * `readBaseUrl()` không ném: `playwright.fullstack.config.ts` gọi nó ngay lúc nạp, và
+ * `readBaseUrl()` không ném: `e2e/fullstack/playwright.config.ts` gọi nó ngay lúc nạp, và
  * `--list` phải chạy được khi chưa đặt biến nào. `readFullstackEnv()` chỉ được gọi ở
  * `globalSetup` và trong thân test, không ở cấp module.
  */

@@ -1,5 +1,5 @@
 /**
- * The one line in `vitest.setup.ts`, checked against the real store.
+ * The one line in `src/test/setup.ts`, checked against the real store.
  *
  * `createStoreReset` is unit-tested in `src/lib/testing/__tests__/helpers.test.tsx`
  * against a plain zustand store, because `src/lib/**` may not import
@@ -25,7 +25,7 @@ import { useStore } from '../index';
 /**
  * What the store boots with.
  *
- * Read while this module is being collected — after `vitest.setup.ts` has taken
+ * Read while this module is being collected — after `src/test/setup.ts` has taken
  * its snapshot and before any test has changed anything — so the two agree by
  * construction rather than by a number written down twice.
  */
@@ -43,7 +43,7 @@ function firstSampleWall(): Wall {
   return wall;
 }
 
-describe('the wiring in vitest.setup.ts, against the real store', () => {
+describe('the wiring in src/test/setup.ts, against the real store', () => {
   it('puts the state back before a render, and leaves the actions working', () => {
     useStore.getState().setZoom(BOOT_ZOOM + 1);
     useStore.getState().setPanelOpen('left', !BOOT_LEFT_PANEL_OPEN);

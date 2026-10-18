@@ -508,7 +508,7 @@ describe('SessionGate — mất kết nối khi đang đăng nhập', () => {
  * `AbortSignal` của jsdom — mà `Request` ở đây là bản của Node, nên nó từ chối
  * chính cái signal ấy và lượt điều hướng chết lặng, không đổi địa chỉ, không
  * ném ở chỗ nào bài kiểm thấy được. Chữa ở tầng môi trường thì phải sửa
- * `vitest.setup.ts`, file khối [12] cấm chạm.
+ * `src/test/setup.ts`, file khối [12] cấm chạm.
  *
  * `MemoryRouter` + `Routes` chạy đúng cùng một cây: cùng `matchPath`, cùng
  * `useLocation`, cùng `<Navigate>`. Thứ duy nhất khác là tầng dữ liệu mà cổng

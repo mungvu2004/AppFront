@@ -1944,9 +1944,9 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 - **Gốc:** `floorManagerGateway.ts` — 34 phòng khai `areaM2 = SAMPLE_TOTAL_AREA_M2 / 34` (7,31) mà đường
   bao 4000×4250 mm (17,00 m²); màn nhập hằng A14 cho một bộ không phải A14.
 - **Sửa:** `SAMPLE_ROOM_DEPTH_MM = 1830`, `SAMPLE_LAST_ROOM_DEPTH_MM = 1760` (33 × 7,32 + 7,04 = 248,60 m²
-  mỗi tầng, nguồn `notes/floor-manager/blueprint.md`); `areaM2 = computeArea(outline)`; xoá
+  mỗi tầng, nguồn `docs/notes/floor-manager/blueprint.md`); `areaM2 = computeArea(outline)`; xoá
   `sampleRoomAreaM2` và import `__fixtures__`. Chữ "A14" bỏ khỏi chú thích cổng/fixture, ghi chú
-  `notes/floor-manager/{blueprint,ui}.md` · commit `bc955839`.
+  `docs/notes/floor-manager/{blueprint,ui}.md` · commit `bc955839`.
 
 ### B-V7-42 · Mã có tiền tố loại nhưng không có thực thể ra nhãn rác (`W-MISSING1AA` → `#W-MISSIN`)
 

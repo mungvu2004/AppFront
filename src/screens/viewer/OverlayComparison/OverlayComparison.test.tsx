@@ -24,7 +24,7 @@
  * là seam thật giữa hai worker cùng xanh khi đứng riêng, và cách vá theo đúng
  * khuôn mọi màn có canvas của repo — `ScaleCalibration.test.tsx:158-213`,
  * `WallLayerReview.test.tsx`, `RoomLabelReview.test.tsx` — là mỗi test cấp màn
- * tự gắn bản giả rồi tự gỡ, chứ không đặt vào `vitest.setup.ts` chung.
+ * tự gắn bản giả rồi tự gỡ, chứ không đặt vào `src/test/setup.ts` chung.
  */
 
 import { cleanup, fireEvent, screen } from '@testing-library/react';

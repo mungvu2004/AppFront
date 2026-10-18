@@ -30,7 +30,7 @@
  * `src/lib/**` may not import `src/store/**` — mục 0.4, and ESLint enforces it —
  * for a good reason: everything under `src/lib` is meant to be a pure function
  * of what it is given. A test harness is not an exception worth carving; it is
- * a case for injection. Wire it once, in `vitest.setup.ts`:
+ * a case for injection. Wire it once, in `src/test/setup.ts`:
  *
  * ```ts
  * import { configureTestProviders, createStoreReset } from '@/lib/testing/render';
@@ -57,7 +57,7 @@ import viMessages from '@/i18n/vi.json';
 import { createQueryClient } from '@/lib/query/queryClient';
 
 /**
- * Dấu hiệu cho `vitest.setup.dom.ts` biết tệp đang chạy có dùng bộ dựng này.
+ * Dấu hiệu cho `src/test/setup.dom.ts` biết tệp đang chạy có dùng bộ dựng này.
  *
  * Phần nối store của bộ chuẩn bị — `configureTestProviders({ resetStore: … })`
  * — phải biết cả `src/lib/testing` và `src/store`, nên nó nằm ở đó. Nhưng làm
@@ -66,13 +66,13 @@ import { createQueryClient } from '@/lib/query/queryClient';
  * `src/i18n/vi.json` qua chính file này (84–155 ms), kể cả tệp `src/api` hay
  * `src/lib/upload` không render một dòng nào.
  *
- * Nên `vitest.setup.dom.ts` dời phần ấy xuống `beforeAll` và đọc dấu hiệu này:
+ * Nên `src/test/setup.dom.ts` dời phần ấy xuống `beforeAll` và đọc dấu hiệu này:
  * nó được đặt lúc module này được tính, tức lúc tệp test được collect — xong
  * trước `beforeAll` và trước bài đầu tiên. Thấy dấu thì hai `await import(...)`
  * chỉ là một lượt tra bộ nhớ đệm; không thấy thì không có gì để reset, vì không
  * ai gọi `renderWithProviders`.
  *
- * Chuỗi được viết lại ở `vitest.setup.dom.ts` thay vì `import` từ đây, vì chính
+ * Chuỗi được viết lại ở `src/test/setup.dom.ts` thay vì `import` từ đây, vì chính
  * dòng `import` ấy là thứ cả cơ chế này tồn tại để tránh.
  */
 (globalThis as Record<string, unknown>)['__appfrontTestHarnessLoaded'] = true;
@@ -136,7 +136,7 @@ let config: TestProviderConfig = {};
 /**
  * Wire the harness up once, for the whole suite.
  *
- * Belongs in `vitest.setup.ts`. Calling it again replaces the previous
+ * Belongs in `src/test/setup.ts`. Calling it again replaces the previous
  * configuration rather than merging into it, so a test that needs something
  * different for one render should pass it to {@link renderWithProviders} instead.
  */

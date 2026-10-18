@@ -9,7 +9,7 @@ import {
 
 /* QA phase suite (E2E-TEST-PLAN.md v2). Chạy từ thư mục `qa/`:
    `npx playwright test tests/phase01_auth.spec.ts --headed`.
-   Tách khỏi `playwright.config.ts` gốc (testDir `./e2e`, mock) và `playwright.fullstack.config.ts`
+   Tách khỏi `playwright.config.ts` gốc (testDir `./e2e`, mock) và `e2e/fullstack/playwright.config.ts`
    (F-14) để không đổi hai bộ đang có. Track A mặc định là compose (`E2E_FULLSTACK_BASE_URL`);
    file Track B (mock) tự `test.use({ baseURL: MOCK_BASE_URL })`. Một worker, tuần tự: các phase
    dùng chung một dự án thật qua `tests/.state/runtime-session.json`. */

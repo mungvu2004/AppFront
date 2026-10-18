@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm pascal && vite",
+    "dev:be": "pnpm pascal && vite --mode be --port 18080 --strictPort",
     "build": "pnpm pascal && tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
@@ -20,7 +21,7 @@
     "verify": "node scripts/verify.mjs",
     "e2e": "node scripts/run-playwright.mjs --reporter=line",
     "e2e:visual": "node scripts/run-playwright.mjs --update-snapshots --reporter=line",
-    "e2e:fullstack": "playwright test -c playwright.fullstack.config.ts",
+    "e2e:fullstack": "playwright test -c e2e/fullstack/playwright.config.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "pascal:assets": "node scripts/copy-pascal-assets.mjs",

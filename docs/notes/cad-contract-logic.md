@@ -482,7 +482,7 @@ logic nghiệp vụ nói riêng cho CAD phải được dựng mới ở tầng 
 
 ## Chạy đủ ba lệnh
 
-Task này CHỈ viết `notes/cad-contract-logic.md` — không sửa mã TypeScript nào.
+Task này CHỈ viết `docs/notes/cad-contract-logic.md` — không sửa mã TypeScript nào.
 Vẫn chạy đủ ba lệnh để chứng minh không làm hỏng cây (kết quả dán tại thời điểm
 khảo sát, HEAD `bac231b`):
 

@@ -254,7 +254,7 @@ export default defineConfig({
     hookTimeout: 30_000,
 
     globals: true,
-    setupFiles: './vitest.setup.ts',
+    setupFiles: './src/test/setup.ts',
     // `vendor/**` giữ mã Pascal đã chép vào (`vendor/pascal/NGUON.md`). Bài
     // kiểm của họ chạy bằng `bun test`, không bằng vitest, và chúng cần bộ
     // công cụ riêng — để vitest tự nhặt chúng là chuốc lấy một rừng đỏ không
@@ -279,6 +279,8 @@ export default defineConfig({
         // chạy trong mọi test nhưng không có gì để bảo đảm về nó ngoài việc các
         // test khác xanh.
         'src/lib/testing/**',
+        // File setup của vitest (nạp trước mọi tệp test).
+        'src/test/**',
         // Dữ liệu demo cho 9 màn demo, không phải mã sản phẩm. `spatial.ts` là
         // 1.612 dòng hằng số: chỉ cần một file import nó là toàn bộ được tính
         // "đã phủ 100%", nên nó bơm 1.610 câu lệnh dễ dãi vào tử số và làm con

@@ -208,7 +208,7 @@ viết vào file.
  * tính giao điểm.
  *
  * Hai chỗ trong file này được khai để CHỊU ĐƯỢC THAY ĐỔI, xem
- * `notes/wall-geometry-editor/contract-screen.md` mục 7:
+ * `docs/notes/wall-geometry-editor/contract-screen.md` mục 7:
  * {@link WallGeometryEditorContent.comparisonChip} nhận `null` như một câu trả
  * lời hợp lệ, và {@link WallGeometrySnapModel.kinds} là một DANH SÁCH chứ không
  * phải bốn trường cứng.

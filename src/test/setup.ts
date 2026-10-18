@@ -15,10 +15,12 @@
  * bị DOM không bị nạp ở đó — `import()` động chứ không phải `import` tĩnh, vì
  * một `import` tĩnh vẫn chạy dù nhánh không vào.
  *
- * Đây là lý do file `vitest.setup.dom.ts` tồn tại tách riêng, chứ không phải vì
+ * Đây là lý do file `src/test/setup.dom.ts` tồn tại tách riêng, chứ không phải vì
  * nó có gì khác biệt.
  */
 
 if (typeof window !== 'undefined') {
-  await import('./vitest.setup.dom');
+  await import('./setup.dom');
 }
+
+export {};
