@@ -9,7 +9,6 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { WallSchema } from '@/api/schemas/spatial';
 import {
   createSampleBuilding,
   sampleLevelId,
@@ -167,14 +166,17 @@ describe('createPascalEditCommand', () => {
     expect(result.ok ? '' : result.error.reasons[0]).toMatch(/^Tường cao 1,00 m, thấp hơn đỉnh ô mở/);
   });
 
-  it('A5 — bấm "Duyệt" mà không đổi hình học thì lệnh mang `reviewed: true`', () => {
+  it('A5 — chỉ đổi `reviewed` trong `metadata.appfront` thì không có lệnh: duyệt ở màn QC', () => {
     const wall = baseScene.nodes[firstWallId];
 
     if (wall === undefined || wall.type !== 'wall') {
       throw new Error('cảnh nền phải có ít nhất một tường');
     }
 
-    const approved = { ...wall, review: { ...wall.review, reviewed: true } };
+    const origin = wall.metadata?.appfront;
+    if (origin === undefined) throw new Error('tường nền thiếu `metadata.appfront`');
+
+    const approved = { ...wall, metadata: { appfront: { ...origin, reviewed: true, source: 'human' as const } } };
     const result = createPascalEditCommand({
       graph,
       scene: sceneWith(firstWallId, approved),
@@ -182,13 +184,8 @@ describe('createPascalEditCommand', () => {
       actorId: ACTOR,
     });
 
-    const change = result.ok ? result.data.changes[0] : null;
-
-    expect(change?.before?.reviewed).toBe(false);
-    expect(change?.after?.reviewed).toBe(true);
-    // catalog-C6 ⚑3: `{ source: 'ai', reviewed: true }` bị `humanOnlyReview` chặn, tầng kẹt.
-    expect(change?.after?.source).toBe('human');
-    expect(WallSchema.safeParse(change?.after).success).toBe(true);
+    expect(result.ok).toBe(false);
+    expect(result.ok ? null : result.error.code).toBe('PASCAL_NO_CHANGE');
   });
 
   it('A5 — Pascal sửa `reviewed` trong siêu dữ liệu thì lệnh KHÔNG mang dấu ấy về', () => {

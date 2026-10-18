@@ -1,11 +1,7 @@
 /**
- * Trạng thái duyệt đi sang Pascal thành trường `review` hạng nhất, và về lại;
- * cộng bề rộng bao nội thất khi người dùng kéo `scale` trong Pascal (#21).
- *
- * Hai thứ này đi cùng một bài vì cùng một lý do: cái mà Pascal **sửa được**
- * phải là cái mà lượt về **đọc**. Panel "Kiểm duyệt" ghi vào `review`, tay cầm
- * kéo ghi vào `scale` — đọc `metadata.appfront` cho cả hai là đọc lại bản lượt
- * đi và mất trắng thao tác vừa rồi.
+ * Trạng thái duyệt đi sang Pascal chỉ trong `metadata.appfront` (Pascal gốc không
+ * có trường `review` hạng nhất); cộng bề rộng bao nội thất khi người dùng kéo
+ * `scale` trong Pascal (#21) — tay cầm kéo ghi vào `scale`, lượt về phải đọc nó.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -63,74 +59,56 @@ const withAddedNode = (scene: PascalScene, node: PascalNode): PascalScene => {
   };
 };
 
-describe('trường `review` của Pascal', () => {
-  it('mọi node AppFront gắn đều mang đủ ba trường', () => {
-    const scene = sceneOf();
-    const owned = Object.values(scene.nodes).filter(
-      (node) => node.metadata?.appfront !== undefined,
-    );
-
-    expect(owned.length).toBeGreaterThan(0);
-    for (const node of owned) {
-      expect(node.review, node.id).toBeDefined();
-      expect(typeof node.review?.reviewed, node.id).toBe('boolean');
-      expect(typeof node.review?.confidence, node.id).toBe('number');
-      expect(node.review?.source === 'ai' || node.review?.source === 'human', node.id).toBe(true);
+describe('trạng thái duyệt chỉ đi qua `metadata.appfront`', () => {
+  it('không node nào mang trường `review` lạ — Pascal gốc bỏ khoá không khai', () => {
+    for (const node of Object.values(sceneOf().nodes)) {
+      expect('review' in node, node.id).toBe(false);
     }
   });
 
-  it('`review` khớp với `metadata.appfront` của cùng node', () => {
-    const wall = firstOfType(sceneOf(), 'wall');
-    const origin = wall.metadata?.appfront;
+  it('`metadata.appfront` mang đủ ba trường duyệt', () => {
+    const owned = Object.values(sceneOf().nodes).filter((node) => node.metadata?.appfront !== undefined);
 
-    expect(wall.review).toEqual({
-      reviewed: origin?.reviewed,
-      confidence: origin?.confidence,
-      source: origin?.source,
-    });
+    expect(owned.length).toBeGreaterThan(0);
+    for (const node of owned) {
+      const origin = node.metadata?.appfront;
+      expect(typeof origin?.reviewed, node.id).toBe('boolean');
+      expect(typeof origin?.confidence, node.id).toBe('number');
+      expect(origin?.source === 'ai' || origin?.source === 'human', node.id).toBe(true);
+    }
   });
 
-  // A5: cú bấm "Duyệt" trong Pascal ghi vào `review`, và lượt về phải thấy nó.
-  it('người duyệt bấm "Duyệt" trong Pascal thì lượt về mang `reviewed: true`', () => {
+  it('lượt về đọc `reviewed` từ `metadata.appfront`', () => {
     const scene = sceneOf();
     const zone = firstOfType(scene, 'zone');
     const origin = zone.metadata?.appfront;
 
     if (origin === undefined) throw new Error('Vùng mẫu thiếu `metadata.appfront`.');
 
-    const unreviewed = withNode(scene, {
-      ...zone,
-      review: { ...zone.review, reviewed: false },
-      metadata: { appfront: { ...origin, reviewed: false } },
-    });
+    const roomOf = (reviewed: boolean) =>
+      toSpatialGraph(withNode(scene, { ...zone, metadata: { appfront: { ...origin, reviewed } } })).graph.rooms.find(
+        (room) => room.id === zone.id.slice(5),
+      );
 
-    const before = toSpatialGraph(unreviewed).graph.rooms.find((room) => room.id === zone.id.slice(5));
-    expect(before?.reviewed).toBe(false);
-
-    // Chỉ `review` đổi — `metadata.appfront` vẫn là bản cũ, như khi Pascal ghi.
-    const approved = withNode(unreviewed, {
-      ...zone,
-      review: { ...zone.review, reviewed: true },
-      metadata: { appfront: { ...origin, reviewed: false } },
-    });
-    const after = toSpatialGraph(approved).graph.rooms.find((room) => room.id === zone.id.slice(5));
-
-    expect(after?.reviewed).toBe(true);
+    expect(roomOf(false)?.reviewed).toBe(false);
+    expect(roomOf(true)?.reviewed).toBe(true);
   });
 
   it('node Pascal tự đẻ (id nanoid) không mang được dấu duyệt về', () => {
     const scene = sceneOf();
     const zone = firstOfType(scene, 'zone');
+    const origin = zone.metadata?.appfront;
+
+    if (origin === undefined) throw new Error('Vùng mẫu thiếu `metadata.appfront`.');
+
     const foreign = withAddedNode(scene, {
       ...zone,
       id: 'zone_x7h2k9qp',
       name: 'Phòng Pascal vừa vẽ',
-      review: { reviewed: true, confidence: 1, source: 'human' },
+      metadata: { appfront: { ...origin, reviewed: true, source: 'human' } },
     });
 
-    const minted = toSpatialGraph(foreign).graph.rooms.find(
-      (room) => room.name === 'Phòng Pascal vừa vẽ',
-    );
+    const minted = toSpatialGraph(foreign).graph.rooms.find((room) => room.name === 'Phòng Pascal vừa vẽ');
 
     expect(minted).toBeDefined();
     expect(minted?.reviewed).toBe(false);

@@ -213,11 +213,8 @@ const SWING_DIRECTIONS: readonly SwingDirection[] = ['left', 'right', 'double', 
  * đó đúng là `AUTHORED_BY_HAND`.
  */
 const reviewOf = (node: PascalNode, trusted: boolean): ReviewMetadata => {
-  // `review` trước `metadata.appfront`: `review` là trường hạng nhất mà trình
-  // soạn Pascal ghi thẳng vào (panel "Kiểm duyệt"), nên khi người duyệt vừa
-  // bấm "Duyệt" thì nó là bản mới, còn `metadata.appfront` vẫn là bản lượt đi
-  // đã gắn. Đọc sai thứ tự là mất đúng cú bấm vừa rồi.
-  const origin = node.review ?? node.metadata?.appfront;
+  // Chỉ `metadata.appfront`: Pascal gốc không có trường `review` hạng nhất (zod bỏ khoá lạ).
+  const origin = node.metadata?.appfront;
 
   if (!trusted || origin === undefined) {
     return { ...AUTHORED_BY_HAND };
