@@ -10,7 +10,7 @@ import { type ReactNode, StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { usePascalProjectBridge } from './bridge';
-import { BackToProjectCard } from './BackToProjectCard';
+import { BackToProjectCard, ProjectStepsCard } from './BackToProjectCard';
 import Home from './upstream/page';
 // CSS của trang (Tailwind 4, không bọc phạm vi) — bản dựng xuất thành `/assets/pascal/style.css`.
 import './pascal.css';
@@ -50,7 +50,12 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
   const onLoad = bridge.onLoad as unknown as () => Promise<SceneGraph>;
   return (
     <Home
-      backCard={<BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} />}
+      backCard={
+        <>
+          <BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} />
+          <ProjectStepsCard projectId={projectId} />
+        </>
+      }
       onLoad={onLoad}
       {...(readOnly ? {} : { onSave: bridge.onSave })}
       projectId={projectId}
