@@ -53,6 +53,8 @@
 
 import type { RefObject } from 'react';
 
+import type { QcFloorNavProps } from '../../qc/shared/QcFloorNav';
+
 import type {
   ManualCalibrationReason,
   MillimetresPerPixel,
@@ -711,6 +713,8 @@ export interface ScaleCalibrationActions {
 export interface ScaleCalibrationProps {
   readonly model: ScaleCalibrationViewModel;
   readonly actions: ScaleCalibrationActions;
+  /** Đầu chung Dự án › Tầng › Lớp + thanh lớp (N2-04, G4b-29). Chỉ route thật truyền (cần Router). */
+  readonly floorNav?: Omit<QcFloorNavProps, 'layer'> | undefined;
 }
 
 /** Props của `ScaleCalibrationCanvas` — canvas giữa, bo 16, thụt 12. */

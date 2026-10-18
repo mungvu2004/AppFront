@@ -63,7 +63,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { isEntityOfKind } from '@/domain/spatial/normalize';
 import { ORTHOGONAL_LOCK_STEP_DEG } from '@/domain/measure/constraints';
@@ -184,7 +184,7 @@ const COPY = {
     'OCR không tìm thấy chuỗi kích thước nào trên bản vẽ này. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.',
   tooFewSamples: 'Chưa đủ chuỗi kích thước để suy ra tỷ lệ, nên phải đặt bằng tay.',
   lowConfidenceInference: 'Độ tin cậy chung còn thấp, nên tỷ lệ phải được xác nhận bằng tay.',
-  realLengthPlaceholder: '4800',
+  realLengthPlaceholder: 'Ví dụ 4800',
   realLengthNoHint: 'Không có chuỗi kích thước nào gần đoạn này để gợi ý.',
   realLengthInvalid: 'Chiều dài thật phải là một số lớn hơn 0, ví dụ 4800.',
   referenceTooShort:
@@ -194,7 +194,7 @@ const COPY = {
   crossCheckDoorWidth: 'Bề rộng cửa đi điển hình',
   crossCheckLargestRoomArea: 'Diện tích phòng lớn nhất',
   recalculationCaption: 'Đổi tỷ lệ sẽ tính lại mọi kích thước dẫn xuất của bản vẽ này.',
-  scopeAllFloors: 'Áp cho mọi tầng',
+  scopeAllFloors: 'Áp cho mọi tầng có bản vẽ',
   scopeThisFloor: 'Chỉ áp cho tầng này',
   shortcutCancelDrag: 'Huỷ đoạn đang kéo',
   shortcutUndoApplying: 'Hoàn tác lần áp đang gửi',
@@ -223,11 +223,15 @@ const COPY = {
   scaleConflict: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất rồi áp lại tỷ lệ.',
   allFloorsReadFailed: 'Không tải được danh sách tầng để áp tỷ lệ.',
   allFloorsMessage:
-    'Tỷ lệ sẽ được coi là do bạn chọn; các tầng này không nắn hay cắt lại bản vẽ được nữa, trừ khi tải bản vẽ mới.',
+    'Tầng chưa có bản vẽ sẽ không được áp. Sau khi áp, bước nắn và cắt bản vẽ của các tầng này sẽ khoá lại; muốn nắn lại thì tải bản vẽ mới.',
   allFloorsConfirm: 'Áp cho mọi tầng',
   allFloorsCancel: 'Huỷ',
   undoProvisional: 'Đã đặt lại tỷ lệ cũ; tỷ lệ này nay được coi là tỷ lệ bạn chọn.',
 } as const;
+
+/** G4b-14: toast nói tỷ lệ vừa lưu, không lặp tên nút. Ví dụ `"Đã áp tỷ lệ 12 mm/px cho 2 tầng"`. */
+const appliedToastTitle = (ratioLabel: string, floorCount: number): string =>
+  floorCount > 1 ? `Đã áp tỷ lệ ${ratioLabel} cho ${floorCount} tầng` : `Đã áp tỷ lệ ${ratioLabel} cho tầng này`;
 
 /** Ví dụ `"Áp tỷ lệ này cho 3 tầng có bản vẽ?"`. */
 const allFloorsTitle = (count: string): string => `Áp tỷ lệ này cho ${count} tầng có bản vẽ?`;
@@ -1292,7 +1296,12 @@ export function useScaleCalibration(
    * những tầng máy chủ đã nhận. Mốc của nhánh hoàn tác đặt TRƯỚC `commit`, để lượt
    * `handleSave` mà chính `commit` này hẹn không gửi lại tỷ lệ vừa lưu.
    */
+  const queryClient = useQueryClient();
   const commitSaved = useCallback((levelIds: readonly string[], ratio: MillimetresPerPixel) => {
+    // N2-03/N2-09: QC screens read `scaleStatus` from the layer query; refresh it so the provisional
+    // banner and room areas update right after the save.
+    // refetchType 'none': mark stale only, so this screen's own layer query does not refetch mid-undo.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.layer.byFloor.root(), refetchType: 'none' });
     const spatial = useStore.getState().spatial;
     const marks = ratioMarksFor(projectIdRef.current);
     const patches: SpatialPatch[] = [];
@@ -1323,12 +1332,12 @@ export function useScaleCalibration(
       // bus only; `Toast.Provider`'s `useUndoableToast` bridge is not mounted there (14-A-026), so publish it here.
       appNotificationBus.publish({
         type: 'scale-applied',
-        title: COPY.applyCommitLabel,
+        title: appliedToastTitle(formatScaleDensity(ratio), patches.length),
         description: '',
         undoTicket: createUndoTicket({ description: COPY.applyCommitLabel, undo }),
       });
     }
-  }, []);
+  }, [queryClient]);
 
   /** Ghi nhớ tỷ lệ tạm của tầng trước khi gửi — hoàn tác về nó thì nói câu của bước 5. */
   const rememberProvisional = useCallback((id: string) => {
@@ -1827,7 +1836,8 @@ export function useScaleCalibration(
   /* Chạy số 260 ms cho nhãn tỷ lệ sau khi áp (C2).                          */
   /* ---------------------------------------------------------------------- */
 
-  const displayRatio = storedRatio ?? proposedRatio;
+  // G4b-13: "Tỷ lệ hiện tại" and the status bar show only the SAVED ratio; the proposal stays in step 3 until applied.
+  const displayRatio = storedRatio;
   const countedScale = useCountUp(displayRatio ?? 0, { reducedMotion: prefersReducedMotion });
   const currentScaleLabel =
     displayRatio === null

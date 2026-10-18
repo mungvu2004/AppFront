@@ -61,6 +61,7 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerReadFailureScreen } from '../../qc/shared/FloorLayerReadFailureScreen';
+import { QcFloorNav } from '../../qc/shared/QcFloorNav';
 import { QC_BODY_CLASS, QcScreenFrame } from '../../qc/shared/QcScreenFrame';
 import { FloorLayerSaveBanner } from '../../qc/WallLayerReview/FloorLayerSaveBanner';
 
@@ -135,7 +136,7 @@ function messageFor(model: ScaleCalibrationViewModel): string | null {
   }
 }
 
-export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
+export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationProps) {
   const { onCanvasSizeChange } = actions;
   const canvasHostRef = useRef<HTMLDivElement | null>(null);
   const applyButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -188,6 +189,7 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
   if (model.readFailure != null) {
     return (
       <QcScreenFrame label={SCREEN_ARIA_LABEL}>
+        {floorNav !== undefined && <QcFloorNav {...floorNav} layer="scale" />}
         <FloorLayerReadFailureScreen failure={model.readFailure} />
       </QcScreenFrame>
     );
@@ -195,13 +197,12 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
 
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row lg:items-stretch">
+      {floorNav !== undefined && <QcFloorNav {...floorNav} layer="scale" />}
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch md:overflow-hidden">
         <div className={cn('flex min-w-0 flex-1 flex-col', QC_BODY_CLASS)}>
           {/* Xung đột 409 / tầng khoá lưu: có "Tải lại", không thì mọi lượt áp sau hỏng im lặng (BUG-598). */}
           <FloorLayerSaveBanner saveBlock={model.saveBlock ?? null} />
-          {model.provisionalScaleNotice !== undefined && (
-            <InlineAlert level="attention" message={model.provisionalScaleNotice} />
-          )}
+          {/* G4b-11: no "Tỷ lệ tạm — hãy hiệu chỉnh" strip here — the user is already on the calibration screen. */}
           {noticeLevel !== null && noticeMessage !== null && (
             <section aria-label={NOTICE_REGION_ARIA_LABEL} className="flex flex-col gap-2">
               <InlineAlert
@@ -234,7 +235,7 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
 
           <section
             aria-label={CANVAS_REGION_ARIA_LABEL}
-            className="min-h-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken"
+            className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-2xl bg-bg-sunken [container-type:size]"
             ref={canvasHostRef}
           >
             <ScaleCalibrationCanvas

@@ -45,7 +45,11 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useSession } from '@/hooks/useSession';
+import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
+
+import { levelsOf } from '../../qc/FloorManager/floorManagerGateway';
+import type { QcFloorNavProps } from '../../qc/shared/QcFloorNav';
 
 import { ScaleCalibration } from './ScaleCalibration';
 import { createAppScaleCalibrationGateway } from './scaleCalibrationGateway';
@@ -73,6 +77,8 @@ export interface ScaleCalibrationContainerProps {
   readonly gateway?: ScaleCalibrationGateway;
   /** Ép panel thu gọn — cho story hoặc test muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /** Breadcrumb + thanh lớp; chỉ route thật truyền vì `QcFloorNav` cần Router. */
+  readonly floorNav?: Omit<QcFloorNavProps, 'layer'>;
 }
 
 /** Cùng khuôn `ProcessingScreenCrashFallback` — R-62. */
@@ -104,7 +110,9 @@ function WiredScaleCalibration(props: ScaleCalibrationContainerProps) {
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
   });
 
-  return <ScaleCalibration actions={screenProps.actions} model={screenProps.model} />;
+  return (
+    <ScaleCalibration actions={screenProps.actions} floorNav={props.floorNav} model={screenProps.model} />
+  );
 }
 
 /** `<ScaleCalibrationContainer projectId={...} floorId={...} />` — màn thật, đã nối. */
@@ -132,6 +140,12 @@ function ScaleCalibrationRouteBody({
   roles: readonly ProjectRole[];
 }) {
   const navigate = useNavigate();
+  const spatial = useStore((state) => state.spatial);
+  // N2-04: name the floor being calibrated and let the user switch floor (keeps the "scale" layer).
+  const floors = useMemo(
+    () => levelsOf(spatial).map((level) => ({ id: level.id, label: level.name })),
+    [spatial],
+  );
   const handleNavigate = useCallback(
     (path: string) => {
       navigate(path);
@@ -142,6 +156,7 @@ function ScaleCalibrationRouteBody({
   return (
     <ScaleCalibrationContainer
       floorId={floorId}
+      floorNav={{ floorId, floors, projectId }}
       onNavigate={handleNavigate}
       projectId={projectId}
       roles={roles}

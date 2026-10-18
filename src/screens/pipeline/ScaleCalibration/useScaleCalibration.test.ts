@@ -809,7 +809,7 @@ describe('useScaleCalibration — áp mọi tầng (A9)', () => {
     expect(mounted.result.current.model.allFloorsConfirm).toEqual({
       title: 'Áp tỷ lệ này cho 3 tầng có bản vẽ?',
       message:
-        'Tỷ lệ sẽ được coi là do bạn chọn; các tầng này không nắn hay cắt lại bản vẽ được nữa, trừ khi tải bản vẽ mới.',
+        'Tầng chưa có bản vẽ sẽ không được áp. Sau khi áp, bước nắn và cắt bản vẽ của các tầng này sẽ khoá lại; muốn nắn lại thì tải bản vẽ mới.',
       confirmLabel: 'Áp cho mọi tầng',
       cancelLabel: 'Huỷ',
     });
@@ -1340,7 +1340,8 @@ describe('useScaleCalibration — review-1 F3 (P2-4, P2-5, Nit-3)', () => {
     const harness = await makeHarness();
     let toast: Notification | undefined;
     const unsubscribe = appNotificationBus.subscribe((all) => {
-      toast = all.find((n) => n.title === 'Áp dụng tỷ lệ') ?? toast;
+      // G4b-14: the toast names the applied ratio instead of repeating the button label.
+      toast = all.find((n) => n.title.startsWith('Đã áp tỷ lệ ') && n.title.endsWith(' cho tầng này')) ?? toast;
     });
     const mounted = await mountAndApply(harness);
 
@@ -1702,7 +1703,7 @@ describe('[14-A-026] toast "Hoàn tác" sau khi áp tỉ lệ (A8) đi qua bus t
     // Capture on publish: the fake clock inside `settleAsync` may run the 8 s window out before we look.
     let toast: Notification | undefined;
     const unsubscribe = appNotificationBus.subscribe((all) => {
-      toast = all.find((n) => n.title === 'Áp dụng tỷ lệ') ?? toast;
+      toast = all.find((n) => n.title.startsWith('Đã áp tỷ lệ ')) ?? toast;
     });
 
     await act(async () => {

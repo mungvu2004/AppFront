@@ -73,7 +73,8 @@ const EDGE_TOLERANCE_PX = 1;
 const FRAME_CENTRE: ImageRatioPoint = { x: 0.5, y: 0.5 };
 
 const FRAME_CLASSES =
-  'relative aspect-square w-full overflow-hidden rounded-2xl border border-border-default bg-canvas-2d';
+  // G4b-10: square that fits the host's width AND height (host is a size container), so the zoom bar stays on screen.
+  'relative aspect-square w-[min(100cqw,100cqh)] shrink-0 overflow-hidden rounded-2xl border border-border-default bg-canvas-2d';
 
 function clampRatio(value: number): number {
   return Math.min(1, Math.max(0, value));

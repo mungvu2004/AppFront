@@ -560,10 +560,10 @@ describe('ScaleCalibration — bảy trạng thái (A11, R-63)', () => {
     }
   });
 
-  it('tỷ lệ tạm: dải chú ý trên canvas, không thêm trạng thái', () => {
+  it('tỷ lệ tạm: không vẽ dải "hãy hiệu chỉnh" ngay trên màn hiệu chỉnh (G4b-11)', () => {
     renderWithProviders(<ScaleCalibration {...provisionalScaleScenario()} />);
 
-    expect(screen.getByText('Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.')).toBeInTheDocument();
+    expect(screen.queryByText('Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.')).toBeNull();
   });
 
   it('hỏi trước khi áp mọi tầng: hộp thoại A9 có câu, nút đồng ý và huỷ gọi đúng hành động', () => {

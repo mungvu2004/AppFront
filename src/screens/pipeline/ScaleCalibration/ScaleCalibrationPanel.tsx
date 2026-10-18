@@ -68,13 +68,14 @@ const SCOPE_ARIA_LABEL = 'Phạm vi áp tỷ lệ';
 
 const PANEL_CONTAINER_CLASSES = clsx(
   'flex w-full flex-col border-t border-border-default bg-bg-surface',
-  'lg:w-[344px] lg:flex-shrink-0 lg:border-t-0 lg:border-l',
+  // G4b-10/G4b-12: from 768 the panel sits beside the drawing and scrolls on its own; the page does not scroll.
+  'md:w-[344px] md:flex-shrink-0 md:overflow-y-auto md:border-t-0 md:border-l lg:w-[344px]',
 );
 
 /** Thu gọn thì cột co về 48 px chỉ còn nút "Bung bảng" — canvas `flex-1` rộng ra (BUG-609, như SCR-16). */
 const COLLAPSED_CONTAINER_CLASSES = clsx(
   'flex w-full justify-end border-t border-border-default bg-bg-surface p-2',
-  'lg:w-12 lg:flex-shrink-0 lg:flex-col lg:items-center lg:justify-start lg:border-t-0 lg:border-l',
+  'md:w-12 md:flex-shrink-0 md:flex-col md:items-center md:justify-start md:border-t-0 md:border-l lg:w-12',
 );
 
 /** Cùng bảng ánh xạ mà `ScaleCalibrationMethodReference` dùng — cảnh báo ở màn này luôn `'attention'`. */
@@ -121,7 +122,7 @@ export function ScaleCalibrationPanel({
         </Button>
       </header>
 
-      <div className="flex flex-col gap-6 px-4 py-4">
+      <div className="flex flex-col gap-6 px-4 pt-4 pb-24">
         <section aria-label={CURRENT_SCALE_TITLE} className="flex flex-col gap-1">
           <h3 className="text-[13px] font-medium text-text-secondary">{CURRENT_SCALE_TITLE}</h3>
           {isLoading ? (
