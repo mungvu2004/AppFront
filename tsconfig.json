@@ -24,6 +24,12 @@
       "next/image": [
         "./vendor/pascal/shims/next-image.tsx"
       ],
+      "@iconify/react": [
+        "./vendor/pascal/packages/editor/node_modules/@iconify/react"
+      ],
+      "@radix-ui/react-tooltip": [
+        "./vendor/pascal/packages/editor/node_modules/@radix-ui/react-tooltip"
+      ],
       "next/link": [
         "./vendor/pascal/shims/next-link.tsx"
       ]
