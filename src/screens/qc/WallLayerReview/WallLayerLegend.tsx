@@ -43,12 +43,6 @@ import type { WallLayerLegendLevels } from './wallLayerHatch';
 /** Mục cho tường ngoài ba băng chuẩn (BUG-416). */
 const OTHER_THICKNESS_LABEL = 'Khác';
 
-/**
- * Ở `collapsed` ray công cụ nổi ở góc trái trên khung (`left-4`, rộng 56 px) và chú giải ở góc
- * trái dưới cao ~150 px: khung thấp (1024, 375) là chúng chồng nhau, chú giải che nút "Mở lại hai
- * panel" (BUG-398). Dời chú giải sang phải đúng bề ngang ray — bằng `style`, không thêm lớp CSS.
- */
-const COLLAPSED_RAIL_CLEARANCE = { position: 'absolute', left: 64, top: 0, bottom: 0 } as const;
 
 /**
  * Bộ trạng thái của `WallThicknessLegend`.
@@ -73,9 +67,13 @@ const LEGEND_STATE: Readonly<Record<WallLayerScreenState, ThicknessLegendState>>
   loading: 'loading',
   partial: 'partial',
   error: 'error',
-  success: 'success',
-  forbidden: 'success',
-  collapsed: 'success',
+  /*
+   * Cùng một bản vẽ thì cùng một chú giải: mọi trạng thái có tường đều chỉ liệt kê các băng độ dày
+   * thật sự có trên tầng — trước đây thu gọn / xong / người xem hiện đủ cả thang 5 mục (G4a-20).
+   */
+  success: 'partial',
+  forbidden: 'partial',
+  collapsed: 'partial',
 };
 
 export interface WallLayerLegendProps {
@@ -91,16 +89,14 @@ export interface WallLayerLegendProps {
 }
 
 export function WallLayerLegend({ state, isWallLayerVisible, levels }: WallLayerLegendProps) {
-  const legend = (
+  /* Ray không còn nổi trên canvas ở `collapsed` (G4a-20): chú giải không cần né nó nữa. */
+  return (
     <WallThicknessLegend
       availableLevels={[...levels.levels]}
-      /* Khối bọc ở `collapsed` rộng 0: không cho chữ "110 mm" gãy dòng theo nó. */
       className="whitespace-nowrap"
       isVisible={isWallLayerVisible}
       otherLabel={levels.hasUnbanded ? OTHER_THICKNESS_LABEL : undefined}
       state={LEGEND_STATE[state]}
     />
   );
-
-  return state === 'collapsed' ? <div style={COLLAPSED_RAIL_CLEARANCE}>{legend}</div> : legend;
 }

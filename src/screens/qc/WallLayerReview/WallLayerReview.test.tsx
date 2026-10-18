@@ -860,7 +860,7 @@ describe('đợt sửa P04 — SCR-16', () => {
     expect(panel?.className).not.toContain('h-[560px]');
   });
 
-  it('[BUG-621][BUG-639] dưới 1280 panel trái không cắt đáy; tên tầng dài có title', async () => {
+  it('[BUG-621][BUG-639] dưới 1024 panel trái không cắt đáy; tên tầng dài có title', async () => {
     renderState('partial');
 
     const tree = await screen.findByRole('tree', { name: 'Cây lớp' });
@@ -869,7 +869,7 @@ describe('đợt sửa P04 — SCR-16', () => {
 
     expect(panel?.className.split(' ')).not.toContain('overflow-hidden');
     expect(listRegion?.className.split(' ')).not.toContain('flex-1');
-    expect(listRegion?.className.split(' ')).toContain('xl:flex-1');
+    expect(listRegion?.className.split(' ')).toContain('lg:flex-1');
 
     for (const floorButton of within(screen.getByRole('navigation', { name: /tầng/iu })).getAllByRole('button')) {
       expect(floorButton.querySelector('[title]')?.getAttribute('title')).toBe(floorButton.textContent);
@@ -963,6 +963,50 @@ describe('đợt sửa P04 — SCR-16', () => {
 
     expect(document.activeElement?.getAttribute('role')).toBe('radio');
     expect(document.activeElement?.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('[G4a-16] ?wall= trong URL mở sẵn đúng đoạn, bỏ chọn thì xoá tham số', async () => {
+    const wallId = WALL_LAYER_FIXTURE_WALLS[1]?.id ?? '';
+    const before = window.location.href;
+
+    window.history.replaceState(null, '', `?wall=${wallId}`);
+
+    try {
+      renderState('partial');
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Chọn một đoạn tường trên bản vẽ/u)).toBeNull();
+      });
+      expect(new URLSearchParams(window.location.search).get('wall')).toBe(wallId);
+    } finally {
+      window.history.replaceState(null, '', before);
+    }
+  });
+
+  it('[G4a-13] độ dày ngoài ba mức: panel ghi rõ độ dày hiện tại', () => {
+    const wall = {
+      id: WALL_LAYER_FIXTURE_WALLS[0]?.id,
+      codeLabel: '#W-002',
+      thicknessMm: 100,
+      lengthLabel: '4.250,00 mm',
+      heightLabel: '3,00 m',
+      confidence: 0.71,
+      kindLabel: 'Tường gạch',
+      advanced: { elevationOffsetLabel: '0', startPointLabel: '0', endPointLabel: '0' },
+    };
+    const { rerender } = renderWithProviders(
+      <WallLayerInspector panel={inspectorPanel({ inspector: wall } as Partial<WallLayerViewProps>)} />,
+    );
+
+    expect(screen.getByText(/Độ dày hiện tại/u).textContent).toContain('100 mm');
+
+    rerender(
+      <WallLayerInspector
+        panel={inspectorPanel({ inspector: { ...wall, thicknessMm: 220 } } as Partial<WallLayerViewProps>)}
+      />,
+    );
+
+    expect(screen.queryByText(/Độ dày hiện tại/u)).toBeNull();
   });
 
   it('[BUG-604] menu chuột phải của tường ĐÃ duyệt không đưa "Duyệt" chết', async () => {

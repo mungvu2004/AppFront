@@ -46,6 +46,8 @@ const ELEVATION_OFFSET_LABEL = 'Lệch Z';
 const START_POINT_LABEL = 'Toạ độ đầu';
 const END_POINT_LABEL = 'Toạ độ cuối';
 const THICKNESS_ARIA_LABEL = 'Độ dày tường';
+const CURRENT_THICKNESS_PREFIX = 'Độ dày hiện tại: ';
+const NON_STANDARD_SUFFIX = ' (không chuẩn, chọn một mức để đổi)';
 const APPROVE_LABEL = 'Duyệt đoạn này';
 const SKIP_LABEL = 'Bỏ qua';
 const EMPTY_MESSAGE = 'Chọn một đoạn tường trên bản vẽ hoặc trong danh sách để xem chi tiết.';
@@ -140,6 +142,14 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
                 }))}
                 value={String(inspector.thicknessMm)}
               />
+            )}
+            {/* Độ dày ngoài ba mức thì không ô nào sáng: nói rõ đoạn này đang dày bao nhiêu (G4a-13). */}
+            {!(thicknessChoices as readonly number[]).includes(inspector.thicknessMm) && (
+              <p className="pt-2 text-[13px] text-text-secondary">
+                {CURRENT_THICKNESS_PREFIX}
+                <span className="font-mono text-text-primary">{inspector.thicknessMm} mm</span>
+                {NON_STANDARD_SUFFIX}
+              </p>
             )}
           </div>
 

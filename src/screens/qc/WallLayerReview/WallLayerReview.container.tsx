@@ -72,7 +72,7 @@
  * của màn này.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -97,6 +97,9 @@ import { useWallLayerReview } from './useWallLayerReview';
 
 /** Mã màn, cho ranh giới lỗi và cho nhật ký — một chỗ viết duy nhất (R-71). */
 export const WALL_LAYER_REVIEW_SCREEN_ID = 'wall-layer-review';
+
+/** Tham số URL mang đoạn tường đang chọn (G4a-16). */
+const WALL_QUERY_KEY = 'wall';
 
 const MISSING_PARAMS_TITLE = 'Thiếu mã dự án hoặc mã tầng';
 /** Giữa cạnh dưới như mặc định, nhưng cao hơn thanh trạng thái của màn (BUG-397) — lớp CSS có sẵn. */
@@ -188,6 +191,47 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
   });
 
+  /*
+   * Đoạn đang chọn nằm trong URL (`?wall=`): chia sẻ / quay lại được đúng đoạn, kể cả khi chọn trên
+   * bản vẽ (G4a-16). `history.replaceState` thẳng — không thêm mục lịch sử cho mỗi lần J/K, và màn
+   * không cần nằm trong một Router.
+   */
+  const pendingUrlWallRef = useRef(new URLSearchParams(window.location.search).get(WALL_QUERY_KEY));
+  const { rows, selectedWallId, onSelect, state: panelState } = panel;
+
+  useEffect(() => {
+    const wanted = pendingUrlWallRef.current;
+
+    if (wanted === null || panelState === 'loading') {
+      return;
+    }
+
+    pendingUrlWallRef.current = null;
+    const row = rows.find((candidate) => candidate.id === wanted);
+
+    if (row !== undefined && row.id !== selectedWallId) {
+      onSelect(row.id);
+    }
+  }, [rows, selectedWallId, onSelect, panelState]);
+
+  useEffect(() => {
+    if (pendingUrlWallRef.current !== null) {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+
+    if (selectedWallId === null) {
+      url.searchParams.delete(WALL_QUERY_KEY);
+    } else {
+      url.searchParams.set(WALL_QUERY_KEY, selectedWallId);
+    }
+
+    if (url.href !== window.location.href) {
+      window.history.replaceState(window.history.state, '', url);
+    }
+  }, [selectedWallId]);
+
   const { onNavigate, projectId, floorId } = props;
   const onNavigateLayer = useCallback(
     (layer: WallLayerOtherKind) => {
@@ -227,7 +271,8 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
       toolRail={toolRail}
     />
     {/* Màn lỗi đọc không có ray công cụ hay canvas để dạy: không mở hướng dẫn đè lên nó (BUG-622). */}
-    {readFailure === null && (
+    {/* Hướng dẫn chờ dữ liệu tải xong: không bật lên che đúng chỗ đang tải (G4a-02). */}
+    {readFailure === null && panel.state !== 'loading' && (
       /* Chip "Xem hướng dẫn" đứng TRÊN thanh trạng thái (64 px), không vắt qua viền của nó (BUG-397). */
       <EditorTourContainer chipAnchorClassName={TOUR_CHIP_ANCHOR} hostId="wall-layer-review" />
     )}

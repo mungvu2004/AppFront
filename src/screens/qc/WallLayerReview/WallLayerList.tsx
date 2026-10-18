@@ -139,6 +139,7 @@ function WallLayerListRow({
     <div
       aria-label={`${row.codeLabel} — ${STATUS_DOT_LABEL[row.statusCode]}`}
       aria-selected={isSelected}
+      data-wall-id={row.id}
       className={cn(
         /* Một hàng vừa 240 px của panel 280 (mã 48 · độ dày ~75 · tin cậy 84 · dấu 14 · khe 4): không gì tràn mép phải (BUG-396). */
         'absolute inset-x-0 top-0 flex h-10 cursor-pointer items-center gap-1 overflow-hidden px-2 text-[13px] outline-none',
@@ -268,6 +269,26 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLay
     // 180ms ("fast"): trình duyệt tự điều khiển `behavior: 'smooth'`, API gốc
     // không nhận tham số mili-giây — không có số thời lượng nào để viết ra.
     rowVirtualizer.scrollToIndex(index, { align: 'auto', behavior: 'smooth' });
+
+    /*
+     * Focus đang ở một hàng khác (J/K, bấm trên bản vẽ) thì đi theo hàng được chọn — không để
+     * viền focus ở dòng cũ và nền chọn ở dòng mới cùng "nổi" (G4a-16).
+     */
+    const container = containerRef.current;
+
+    if (container === null || !container.contains(document.activeElement)) {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      const target = container.querySelector<HTMLElement>(`[data-wall-id="${selectedWallId}"]`);
+
+      if (target !== null && target !== document.activeElement) {
+        target.focus({ preventScroll: true });
+      }
+    });
+
+    return () => cancelAnimationFrame(frame);
   }, [selectedWallId, rows, rowVirtualizer]);
 
   // Ref bọc ngoài LUÔN gắn vào một div ở cùng vị trí cây, bất kể nhánh nào bên

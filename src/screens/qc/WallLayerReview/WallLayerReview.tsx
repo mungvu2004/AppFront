@@ -40,7 +40,7 @@
  * | `error`     | `InlineAlert` trong panel trái; đọc lớp hỏng khi chưa có tài liệu → cả màn là `FloorLayerReadFailureScreen` (BUG-326) |
  * | `success`   | panel trái hiện nút "Sang lớp Cửa và nội thất"                    |
  * | `forbidden` | ray ẩn công cụ sửa; thanh tra bỏ viền + một câu giải thích         |
- * | `collapsed` | hai panel ẩn; ray công cụ nổi trên canvas                          |
+ * | `collapsed` | hai panel ẩn; ray công cụ vẫn đứng cạnh canvas (G4a-20)            |
  *
  * Không nhánh nào khiến view trả `null` — canvas, ray công cụ và thanh trạng
  * thái luôn được vẽ, nên màn trắng (thất bại duy nhất A11 tồn tại để chặn)
@@ -159,13 +159,8 @@ export function WallLayerReview({
         xuống dòng (\`order-*\` trên gốc của chúng), cả vùng cuộn dọc — không cuộn ngang (BUG-317).
       */}
       <div className="relative flex min-h-0 flex-1 flex-wrap content-start gap-2 overflow-y-auto p-2 xl:flex-nowrap xl:overflow-visible">
-        {isCollapsed ? (
-          <div className="absolute left-4 top-4 z-10 rounded-xl bg-bg-surface shadow-panel">
-            <WallLayerToolRail {...toolRail} readOnly={panel.isViewerRole} />
-          </div>
-        ) : (
-          <WallLayerToolRail {...toolRail} readOnly={panel.isViewerRole} />
-        )}
+        {/* Thu gọn: ray vẫn đứng trong luồng cạnh bản vẽ, không nổi đè lên nét vẽ (G4a-20). */}
+        <WallLayerToolRail {...toolRail} readOnly={panel.isViewerRole} />
 
         {!isCollapsed && (
           <WallLayerLeftPanel
