@@ -35,7 +35,26 @@ import type { VersionHistoryProps } from './types';
 export function VersionHistory({ model, actions }: VersionHistoryProps) {
   // Bản bên phải; chỉ tích một bản thì chính bản ấy, nút phục hồi không tắt vô cớ (BUG-470).
   const reviewedVersionId = model.compare.rightVersionId ?? model.compare.leftVersionId;
-  const reviewedRow = model.rows.find((row) => row.id === reviewedVersionId) ?? null;
+  const rowOf = (id: string | null) => model.rows.find((row) => row.id === id) ?? null;
+  const reviewedRow = rowOf(reviewedVersionId);
+  const { leftVersionId, rightVersionId, totals } = model.compare;
+  // G5-23: hai bản được tích mà bản bên phải là "Hiện tại" → phục hồi nhắm bản còn lại, nút không biến mất.
+  const otherRow = reviewedVersionId === rightVersionId ? rowOf(leftVersionId) : null;
+  const restoreRow =
+    reviewedRow?.isCurrent === true && otherRow !== null && otherRow.isCurrent !== true && !otherRow.isMetadataOnly
+      ? otherRow
+      : reviewedRow;
+  const restoreVersionId = restoreRow?.id ?? null;
+  // G5-19: khi bản kia là "Hiện tại", vùng so sánh chính là bản xem trước của lượt phục hồi.
+  const comparedWithCurrent = [leftVersionId, rightVersionId].some(
+    (id) => id !== restoreVersionId && rowOf(id)?.isCurrent === true,
+  );
+  const restoreImpact =
+    !comparedWithCurrent || restoreVersionId === null
+      ? null
+      : restoreVersionId === rightVersionId
+        ? { added: totals.added, removed: totals.removed, changed: totals.changed }
+        : { added: totals.removed, removed: totals.added, changed: totals.changed };
   const [isLabelOpen, setIsLabelOpen] = useState(false);
   const footerRef = useRef<HTMLDivElement>(null);
   const awaitingRestoreFocus = useRef(false);
@@ -148,6 +167,10 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
           />
         ) : (
           <div className="flex w-[360px] shrink-0 flex-col border-r border-border-default">
+            {/* N3-03: luật "tối đa hai bản" phải nói ra, không để ô xám tự giải thích. */}
+            <p className="px-3 pb-2 text-[13px] text-text-secondary">
+              Tích hai phiên bản để so sánh. Đã đủ hai thì bỏ tích một bản để chọn bản khác.
+            </p>
             <VersionList
               groups={model.groups}
               onToggleCompareSelection={actions.toggleCompareSelection}
@@ -168,6 +191,13 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
       <div ref={footerRef} tabIndex={-1} data-sticky-footer="" className="sticky bottom-0 flex flex-col gap-3 border-t border-border-default bg-bg-app pt-3 lg:flex-row lg:items-center">
         <div className="flex flex-1 flex-col gap-1">
           <p className="text-[13px] text-text-secondary">{model.restoreCaption}</p>
+          {reviewedRow !== null && (
+            <p className="text-[13px] tabular-nums text-text-primary">
+              {restoreRow !== null && restoreRow.id !== reviewedRow.id
+                ? `Gắn nhãn, xuất: ${reviewedRow.label} · Phục hồi: ${restoreRow.label}`
+                : `Các nút bên phải áp dụng cho ${reviewedRow.label}`}
+            </p>
+          )}
           {model.canRestore && reviewedVersionId === null && (
             <p className="text-[13px] text-text-tertiary">Chọn một phiên bản để phục hồi.</p>
           )}
@@ -195,13 +225,13 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
               Gắn nhãn phiên bản này
             </Button>
           )}
-          {model.canRestore && reviewedRow?.isCurrent !== true && reviewedRow?.isMetadataOnly !== true && (
+          {model.canRestore && restoreRow?.isCurrent !== true && restoreRow?.isMetadataOnly !== true && (
             <Button
               variant="secondary"
-              disabled={reviewedVersionId === null}
+              disabled={restoreVersionId === null}
               onClick={() => {
-                if (reviewedVersionId !== null) {
-                  actions.requestRestore(reviewedVersionId);
+                if (restoreVersionId !== null) {
+                  actions.requestRestore(restoreVersionId);
                 }
               }}
             >
@@ -217,6 +247,16 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
           <p>{model.restoreConfirm.reassurance}</p>
           {model.restoreConfirm.targetVersionLabel !== null && (
             <p className="tabular-nums text-text-secondary">{model.restoreConfirm.targetVersionLabel}</p>
+          )}
+          {restoreImpact === null ? (
+            <p className="text-[13px] text-text-secondary">
+              Chưa xem trước thay đổi: tích thêm bản "Hiện tại" để so sánh trước khi phục hồi.
+            </p>
+          ) : (
+            <p className="flex items-center gap-1.5 tabular-nums text-text-primary">
+              {restoreImpact.removed > 0 && <AlertTriangle size={14} aria-hidden="true" />}
+              {`So với hiện tại: thêm ${String(restoreImpact.added)}, xoá ${String(restoreImpact.removed)}, sửa ${String(restoreImpact.changed)} đối tượng.`}
+            </p>
           )}
         </Modal.Body>
         <Modal.Footer>

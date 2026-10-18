@@ -24,7 +24,8 @@ describe('F4', () => {
     });
     renderWithProviders(<VersionHistory {...props} />);
     fireEvent.click(screen.getByRole('combobox', { name: 'Phiên bản' }));
-    expect(screen.queryByText(/v99/)).toBeNull();
+    expect(screen.queryByRole('option', { name: /v99/ })).toBeNull();
+    expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: 'Phục hồi phiên bản này' })).toBeNull();
   });
 
@@ -75,5 +76,26 @@ describe('F4', () => {
     renderWithProviders(<VersionLabelDialog isOpen versionLabel="v2" initialValue="" onSubmit={() => undefined} onClose={() => undefined} />);
     const input = await screen.findByRole('textbox', { name: 'Nhãn' });
     await vi.waitFor(() => expect(document.activeElement).toBe(input));
+  });
+
+  it('G5-19/G5-23: tích bản cũ + "Hiện tại" → nút Phục hồi vẫn hiện, nhắm bản cũ; hộp xác nhận báo số đối tượng mất', () => {
+    const requestRestore = vi.fn();
+    const base = buildVersionHistoryProps('success');
+    const [current, old] = [SAMPLE_ROWS[0]!, SAMPLE_ROWS[1]!];
+    const rows = [{ ...current, isCurrent: true }, { ...old, isCurrent: false }];
+    const totals = { ...base.model.compare.totals, added: 28, removed: 0, changed: 0 };
+    const props = buildVersionHistoryProps(
+      'success',
+      {
+        rows,
+        compare: { ...base.model.compare, leftVersionId: old.id, rightVersionId: current.id, totals },
+        restoreConfirm: { ...base.model.restoreConfirm, isOpen: true },
+      },
+      { requestRestore },
+    );
+    renderWithProviders(<VersionHistory {...props} />);
+    expect(screen.getByText(/So với hiện tại: thêm 0, xoá 28, sửa 0/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Phục hồi phiên bản này', hidden: true }));
+    expect(requestRestore).toHaveBeenCalledWith(old.id);
   });
 });
