@@ -14,11 +14,12 @@ import { PROJECT_STATUS_FILTER_OPTIONS, type ProjectStatusCounts, type ProjectSt
 
 export interface DashboardSidebarProps {
   readonly statusCounts: ProjectStatusCounts;
+  readonly countsHidden?: boolean;
   readonly statusFilter: ProjectStatusFilter;
   readonly onStatusFilterChange: (value: ProjectStatusFilter) => void;
 }
 
-export function DashboardSidebar({ statusCounts, statusFilter, onStatusFilterChange }: DashboardSidebarProps) {
+export function DashboardSidebar({ statusCounts, countsHidden = false, statusFilter, onStatusFilterChange }: DashboardSidebarProps) {
   return (
     <aside className="flex w-full shrink-0 flex-col gap-4 lg:w-[260px]">
       <div className="flex flex-col gap-1 rounded-xl border border-border-default bg-bg-surface p-2">
@@ -36,7 +37,7 @@ export function DashboardSidebar({ statusCounts, statusFilter, onStatusFilterCha
               )}
             >
               <span>{option.label}</span>
-              <span className={isActive ? 'text-white' : 'text-text-muted'}>{statusCounts[option.value]}</span>
+              <span className={isActive ? 'text-white' : 'text-text-muted'}>{countsHidden ? '–' : statusCounts[option.value]}</span>
             </button>
           );
         })}

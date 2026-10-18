@@ -23,6 +23,9 @@
  * Safari drops the table roles once `display` changes). Each stacked cell says its column itself, below `sm` only.
  */
 
+import { Box, MoreHorizontal } from 'lucide-react';
+
+import { CONTEXT_MENU_WIDTH } from '@/components/canvas/ContextMenu';
 import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
 
@@ -33,6 +36,7 @@ export interface ProjectTableProps {
   readonly renamingId: string | null;
   readonly renameDraft: string;
   readonly onOpen: (id: string) => void;
+  readonly onOpenViewer: (id: string) => void;
   readonly onMenu: (project: ProjectCardModel, x: number, y: number) => void;
   readonly onRenameChange: (value: string) => void;
   readonly onRenameCommit: () => void;
@@ -48,7 +52,7 @@ function StackedLabel({ children }: { readonly children: string }) {
   return <span className="sr-only sm:hidden">{`${children}: `}</span>;
 }
 
-export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, onRenameChange, onRenameCommit, onRenameCancel }: ProjectTableProps) {
+export function ProjectTable({ rows, onOpenViewer, renamingId, renameDraft, onOpen, onMenu, onRenameChange, onRenameCommit, onRenameCancel }: ProjectTableProps) {
   return (
     <Table.Root className="max-sm:[&_table]:block max-sm:[&_tbody]:block max-sm:[&_thead]:hidden">
       <Table.Header>
@@ -58,6 +62,7 @@ export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, on
           <Table.Head className="hidden sm:table-cell">Chi tiết</Table.Head>
           <Table.Head>Tiến độ duyệt</Table.Head>
           <Table.Head className="hidden sm:table-cell">Cập nhật</Table.Head>
+          <Table.Head><span className="sr-only">Thao tác</span></Table.Head>
         </tr>
       </Table.Header>
       <Table.Body>
@@ -113,6 +118,37 @@ export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, on
             <Table.Cell className={`text-text-muted max-sm:ml-auto ${CELL_STACKED}`}>
               <StackedLabel>Cập nhật</StackedLabel>
               {project.updatedLabel}
+            </Table.Cell>
+            <Table.Cell className={`max-sm:ml-auto ${CELL_STACKED}`}>
+              <div className="flex items-center justify-end gap-1">
+                {project.hasPlan && (
+                  <button
+                    type="button"
+                    aria-label={`Xem 3D ${project.name}`}
+                    title="Xem mô hình 3D"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onOpenViewer(project.id);
+                    }}
+                    className="flex h-7 items-center gap-1 rounded-full bg-bg-sunken px-2.5 text-[12px] font-medium text-text-secondary hover:bg-accent hover:text-white"
+                  >
+                    <Box size={14} aria-hidden="true" />
+                    3D
+                  </button>
+                )}
+                <button
+                  type="button"
+                  aria-label={`Tuỳ chọn cho ${project.name}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    const anchor = event.currentTarget.getBoundingClientRect();
+                    onMenu(project, anchor.right - CONTEXT_MENU_WIDTH, anchor.bottom + 4);
+                  }}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                >
+                  <MoreHorizontal size={16} aria-hidden="true" />
+                </button>
+              </div>
             </Table.Cell>
           </Table.Row>
         ))}

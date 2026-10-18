@@ -88,7 +88,8 @@ const base: ProjectDashboardViewProps = {
   searchQuery: '',
   statusFilter: 'all',
   sortBy: 'updated',
-  statusCounts: { all: 3, processing: 1, qc: 1, done: 1 },
+  statusCounts: { all: 3, noplan: 0, processing: 1, qc: 1, done: 1 },
+  totalProjects: 3,
   pulseKey: 0,
   shouldStagger: true,
   rows: [hqRenovation, sunriseBlockB, bacNinhFactory],
@@ -116,6 +117,7 @@ const base: ProjectDashboardViewProps = {
   retryLoad: noop,
   duplicateProject: noop,
   openProjectViewer: noop,
+  openProjectPage: noop,
 };
 
 /** thành công — ba dự án mẫu, một mỗi trạng thái pipeline. */

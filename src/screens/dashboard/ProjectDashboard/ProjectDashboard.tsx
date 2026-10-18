@@ -74,7 +74,7 @@ const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
   partial: 'một phần',
   error: 'lỗi',
   success: 'thành công',
-  forbidden: 'Không có quyền',
+  forbidden: 'Danh sách dự án, chế độ chỉ xem.',
   collapsed: 'thu gọn',
 };
 /**
@@ -90,7 +90,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
   const { state, rows, errorMessage, pendingDeleteId, pendingDeleteName, shouldStagger, statusCounts, unreadNotice, deleteErrorMessage } = props;
   const contextMenu = useContextMenu();
   const isCollapsed = state === 'collapsed';
-  const showSidebar = !isCollapsed && state !== 'loading' && state !== 'error';
+  const showSidebar = !isCollapsed && state !== 'loading';
 
   const openMenuFor = (project: ProjectCardModel, x: number, y: number): void =>
     contextMenu.openMenu(x, y, projectMenuGroups(project, props, props.canDelete, props.canDuplicate, props.canDeleteProject));
@@ -125,6 +125,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
             <h1 className="text-[20px] font-semibold text-text-primary">Dự án của tôi</h1>
             {/* Every state that has a list says how many it shows — "0 dự án" for a search with no match
                 included: dropping the line there made the whole column jump up 11 px (BUG-117). */}
+            {state === 'error' && <div aria-hidden="true" className="h-5" />}
             {state !== 'loading' && state !== 'error' && <p className="text-[13px] text-text-secondary">{rows.length} dự án</p>}
             {/* Its line held while loading, so the toolbar and everything under it stay put (BUG-228). */}
             {state === 'loading' && (
@@ -194,7 +195,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
         <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
           {state === 'loading' && <DashboardSidebarSkeleton />}
           {showSidebar && (
-            <DashboardSidebar statusCounts={statusCounts} statusFilter={props.statusFilter} onStatusFilterChange={props.setStatusFilter} />
+            <DashboardSidebar statusCounts={statusCounts} countsHidden={state === 'error'} statusFilter={props.statusFilter} onStatusFilterChange={props.setStatusFilter} />
           )}
 
           <main className="flex min-w-0 flex-1 flex-col gap-5">
@@ -212,7 +213,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                 message={errorMessage ?? 'Đã có lỗi xảy ra.'}
                 {...(props.canRetry ? { action: { label: 'Thử lại', onClick: props.retryLoad, variant: 'secondary' as const } } : {})}
               />
-            ) : rows.length === 0 && statusCounts.all === 0 && unreadNotice === null ? (
+            ) : rows.length === 0 && props.totalProjects === 0 && unreadNotice === null ? (
               // Never had a project — the `empty` rule of `useProjectDashboard`, read from the counts and not
               // from `state`: below 1024 px a filter or search with no match is `collapsed`, not `partial` (BUG-111).
               <EmptyState
@@ -242,6 +243,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                     renamingId={props.renamingId}
                     renameDraft={props.renameDraft}
                     onOpen={(id) => props.openProject(id, 'row')}
+                    onOpenViewer={props.openProjectViewer}
                     onMenu={openMenuFor}
                     onRenameChange={props.setRenameDraft}
                     onRenameCommit={props.commitRename}

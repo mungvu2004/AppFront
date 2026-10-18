@@ -74,10 +74,11 @@ import {
 
 export type ProjectViewMode = 'grid' | 'table';
 export type ProjectSortOption = 'updated' | 'name' | 'floors' | 'area';
-export type ProjectStatusFilter = 'all' | DashboardProject['status'];
+export type ProjectStatusFilter = 'all' | 'noplan' | DashboardProject['status'];
 
 export const PROJECT_STATUS_FILTER_OPTIONS: ReadonlyArray<{ value: ProjectStatusFilter; label: string }> = [
   { value: 'all', label: 'Tất cả' },
+  { value: 'noplan', label: 'Chưa có bản vẽ' },
   { value: 'processing', label: 'Đang xử lý' },
   { value: 'qc', label: 'Cần QC' },
   { value: 'done', label: 'Hoàn thành' },
@@ -131,6 +132,7 @@ export interface ProjectCardModel {
 
 export interface ProjectStatusCounts {
   readonly all: number;
+  readonly noplan: number;
   readonly processing: number;
   readonly qc: number;
   readonly done: number;
@@ -151,6 +153,8 @@ export interface ProjectDashboardModel {
   readonly statusFilter: ProjectStatusFilter;
   readonly sortBy: ProjectSortOption;
   readonly statusCounts: ProjectStatusCounts;
+  /** Số dự án không tính tìm kiếm: 0 nghĩa là chưa từng có dự án. */
+  readonly totalProjects: number;
   readonly pulseKey: number;
   readonly shouldStagger: boolean;
   readonly rows: readonly ProjectCardModel[];
@@ -175,6 +179,8 @@ export interface ProjectDashboardActions {
   readonly openProject: (id: string, source: ProjectOpenSource) => void;
   /** Thẳng tới khung nhìn 3D, bỏ qua bước đang dở mà `openProject` chọn. */
   readonly openProjectViewer: (id: string) => void;
+  /** Tới thẳng một trang của dự án từ menu thẻ: xuất, thành viên, cài đặt. */
+  readonly openProjectPage: (id: string, page: 'export' | 'members' | 'settings') => void;
   readonly startRename: (id: string) => void;
   readonly setRenameDraft: (value: string) => void;
   readonly commitRename: () => void;
@@ -207,6 +213,12 @@ function derivedStatusOf(project: DashboardProject): TelemetryPipelineStatus {
   const isFullyReviewed = project.wallsTotalCount > 0 && project.wallsReviewedCount >= project.wallsTotalCount;
   if (isFullyReviewed) return 'done';
   return project.status === 'processing' ? 'processing' : 'qc';
+}
+
+/** Khoá lọc/đếm: dự án chưa có tường nào và chưa xong bước xử lý là "chưa có bản vẽ", không phải "đang xử lý". */
+function filterKeyOf(project: DashboardProject): ProjectStatusFilter {
+  const status = derivedStatusOf(project);
+  return status === 'processing' && project.wallsTotalCount === 0 ? 'noplan' : status;
 }
 
 const RENAME_RANGE_MESSAGE = `Tên dự án cần từ ${String(PROJECT_NAME_MIN_LENGTH)} đến ${String(PROJECT_NAME_MAX_LENGTH)} ký tự.`;
@@ -315,7 +327,7 @@ export function useProjectDashboard(
     () =>
       allProjects.filter((project) => {
         if (normalizedQuery !== '' && !project.name.normalize('NFC').toLowerCase().includes(normalizedQuery)) return false;
-        if (statusFilter !== 'all' && derivedStatusOf(project) !== statusFilter) return false;
+        if (statusFilter !== 'all' && filterKeyOf(project) !== statusFilter) return false;
         return true;
       }),
     [allProjects, normalizedQuery, statusFilter],
@@ -355,7 +367,9 @@ export function useProjectDashboard(
       sortedProjects.map((project) => {
         const status = derivedStatusOf(project);
         const statusVariant = status === 'done' ? 'verified' : status === 'processing' ? 'neutral' : 'attention';
-        const statusLabel = status === 'done' ? 'Hoàn thành' : status === 'processing' ? 'Đang xử lý' : 'Cần QC';
+        const hasPlan = project.wallsTotalCount > 0;
+        // Chưa có bản vẽ nào thì chưa có gì để xử lý: không gắn "Đang xử lý" (G1-17, G3-02).
+        const statusLabel = !hasPlan && status === 'processing' ? 'Chưa có bản vẽ' : status === 'done' ? 'Hoàn thành' : status === 'processing' ? 'Đang xử lý' : 'Cần QC';
         const reviewed = formatNumber(project.wallsReviewedCount, { grouping: false });
         const total = formatNumber(project.wallsTotalCount, { grouping: false });
         const progressRatio = project.wallsTotalCount > 0 ? project.wallsReviewedCount / project.wallsTotalCount : 0;
@@ -372,24 +386,28 @@ export function useProjectDashboard(
           progressPercentLabel: formatPercent(progressRatio, { fractionDigits: 0 }),
           members: project.members,
           planVariant: project.planVariant,
-          hasPlan: project.wallsTotalCount > 0,
+          hasPlan,
         };
       }),
     [sortedProjects, now],
   );
 
   const statusCounts = useMemo<ProjectStatusCounts>(() => {
+    let noplan = 0;
     let processing = 0;
     let qc = 0;
     let done = 0;
+    // Đếm theo ô tìm kiếm, để số ở cột lọc khớp với danh sách (G1-26).
     for (const project of allProjects) {
-      const status = derivedStatusOf(project);
-      if (status === 'processing') processing += 1;
+      if (normalizedQuery !== '' && !project.name.normalize('NFC').toLowerCase().includes(normalizedQuery)) continue;
+      const status = filterKeyOf(project);
+      if (status === 'noplan') noplan += 1;
+      else if (status === 'processing') processing += 1;
       else if (status === 'qc') qc += 1;
       else done += 1;
     }
-    return { all: allProjects.length, processing, qc, done };
-  }, [allProjects]);
+    return { all: noplan + processing + qc + done, noplan, processing, qc, done };
+  }, [allProjects, normalizedQuery]);
 
   // The cause and the next step, under the view's "Không tải được danh sách dự án" heading — the old
   // fallback repeated that heading word for word, and `Error.message` could be raw English (BUG-130).
@@ -441,6 +459,15 @@ export function useProjectDashboard(
 
   const openProjectViewer = (id: string): void => {
     const path = ROUTES.project.viewer(id);
+    if (options.onOpenProject) {
+      options.onOpenProject(path);
+    } else {
+      navigate(path);
+    }
+  };
+
+  const openProjectPage = (id: string, page: 'export' | 'members' | 'settings'): void => {
+    const path = page === 'export' ? ROUTES.project.export(id) : page === 'members' ? `${ROUTES.project.settings(id)}?tab=members` : ROUTES.project.settings(id);
     if (options.onOpenProject) {
       options.onOpenProject(path);
     } else {
@@ -530,6 +557,7 @@ export function useProjectDashboard(
     statusFilter,
     sortBy,
     statusCounts,
+    totalProjects: allProjects.length,
     pulseKey,
     shouldStagger: !hasEnteredOnce,
     rows,
@@ -553,6 +581,7 @@ export function useProjectDashboard(
     },
     openProject,
     openProjectViewer,
+    openProjectPage,
     startRename,
     setRenameDraft,
     commitRename,

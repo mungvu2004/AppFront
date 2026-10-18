@@ -99,7 +99,7 @@ function baseProps(): ProjectDashboardViewProps {
     searchQuery: '',
     statusFilter: 'all',
     sortBy: 'updated',
-    statusCounts: { all: 0, processing: 0, qc: 0, done: 0 },
+    totalProjects: 0, statusCounts: { all: 0, noplan: 0, processing: 0, qc: 0, done: 0 },
     pulseKey: 0,
     shouldStagger: false,
     rows: [],
@@ -117,6 +117,7 @@ function baseProps(): ProjectDashboardViewProps {
     clearFilters: noop,
     openProject: noop,
     openProjectViewer: noop,
+    openProjectPage: noop,
     startRename: noop,
     setRenameDraft: noop,
     commitRename: noop,
@@ -133,7 +134,7 @@ function baseProps(): ProjectDashboardViewProps {
 const PROPS_BY_STATE: Readonly<Record<(typeof SEVEN_STATES)[number], () => ProjectDashboardViewProps>> = {
   empty: () => ({ ...baseProps(), state: 'empty', rows: [] }),
   loading: () => ({ ...baseProps(), state: 'loading', rows: [] }),
-  partial: () => ({ ...baseProps(), state: 'partial', rows: [], searchQuery: 'không tồn tại', statusCounts: { all: 1, processing: 0, qc: 1, done: 0 } }),
+  partial: () => ({ ...baseProps(), state: 'partial', rows: [], searchQuery: 'không tồn tại', totalProjects: 1, statusCounts: { all: 1, noplan: 0, processing: 0, qc: 1, done: 0 } }),
   error: () => ({ ...baseProps(), state: 'error', errorMessage: 'không kết nối được máy chủ' }),
   success: () => ({ ...baseProps(), state: 'success', rows: [SAMPLE_ROW] }),
   forbidden: () => ({ ...baseProps(), state: 'forbidden', canCreate: false, canDelete: false, rows: [SAMPLE_ROW] }),
@@ -351,7 +352,8 @@ describe('ProjectDashboardView, seven states', () => {
 
     const cells = within(screen.getByRole('row', { name: new RegExp(SAMPLE_ROW.name, 'u') })).getAllByRole('cell');
     expect(cells[0]?.textContent).toBe(SAMPLE_ROW.name);
-    const shownBelowSm = cells.filter((cell) => !cell.className.split(' ').includes('hidden')).map((cell) => cell.textContent);
+    // Ô cuối là nút 3D và "…", không có chữ cột.
+    const shownBelowSm = cells.slice(0, -1).filter((cell) => !cell.className.split(' ').includes('hidden')).map((cell) => cell.textContent);
     // review-1 #19: the header row is hidden below `sm`, so each stacked cell names its column (sr-only, `sm:hidden`).
     expect(shownBelowSm).toEqual([
       SAMPLE_ROW.name,
@@ -415,7 +417,7 @@ describe('ProjectDashboardView, seven states', () => {
     const rail = container.querySelector('aside');
 
     expect(rail?.children).toHaveLength(1);
-    expect(within(rail as HTMLElement).getAllByRole('button')).toHaveLength(4);
+    expect(within(rail as HTMLElement).getAllByRole('button')).toHaveLength(5);
     expect(screen.queryByText('Tổng dự án')).not.toBeInTheDocument();
   });
 
@@ -585,7 +587,7 @@ describe('ProjectDashboardView — F-07', () => {
 
     fireEvent.click(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }));
 
-    expect(screen.getByRole('menuitem', { name: 'Đổi tên' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('menuitem', { name: /^Đổi tên/ })).toHaveAttribute('aria-disabled', 'true');
   });
 
   // [9P-C-003] BE DELETE /projects/{id} is admin-only (projects/access.py:95): an engineer can rename but not delete.
@@ -594,7 +596,7 @@ describe('ProjectDashboardView — F-07', () => {
 
     fireEvent.click(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }));
 
-    expect(screen.getByRole('menuitem', { name: 'Xoá' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('menuitem', { name: /^Xoá/ })).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByRole('menuitem', { name: 'Đổi tên' })).not.toHaveAttribute('aria-disabled', 'true');
   });
 
@@ -603,10 +605,10 @@ describe('ProjectDashboardView — F-07', () => {
 
     fireEvent.click(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }));
 
-    for (const name of ['Đổi tên', 'Xoá']) {
+    for (const name of [/^Đổi tên/, /^Xoá/]) {
       expect(screen.getByRole('menuitem', { name })).toHaveAttribute('aria-disabled', 'true');
     }
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Xoá' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Xoá/ }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

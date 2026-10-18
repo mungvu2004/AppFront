@@ -9,7 +9,7 @@ import type { ProjectCardModel, ProjectDashboardActions } from './useProjectDash
  */
 export function projectMenuGroups(
   project: ProjectCardModel,
-  actions: Pick<ProjectDashboardActions, 'openProject' | 'openProjectViewer' | 'startRename' | 'requestDelete' | 'duplicateProject'>,
+  actions: Pick<ProjectDashboardActions, 'openProject' | 'openProjectViewer' | 'openProjectPage' | 'startRename' | 'requestDelete' | 'duplicateProject'>,
   canEdit: boolean,
   canDuplicate: boolean,
   canDeleteProject: boolean,
@@ -23,8 +23,12 @@ export function projectMenuGroups(
         ...(canDuplicate
           ? [{ id: 'duplicate', label: 'Nhân bản', action: () => actions.duplicateProject(project.id) }]
           : []),
-        { id: 'rename', label: 'Đổi tên', isDisabled: !canEdit, action: () => actions.startRename(project.id) },
-        { id: 'delete', label: 'Xoá', isDestructive: true, isDisabled: !canDeleteProject, action: () => actions.requestDelete(project.id) },
+        { id: 'export', label: 'Xuất', action: () => actions.openProjectPage(project.id, 'export') },
+        { id: 'members', label: 'Thành viên', action: () => actions.openProjectPage(project.id, 'members') },
+        { id: 'settings', label: 'Cài đặt', action: () => actions.openProjectPage(project.id, 'settings') },
+        // Mục mờ nói rõ vì sao (G2-24).
+        { id: 'rename', label: canEdit ? 'Đổi tên' : 'Đổi tên (cần quyền chỉnh sửa)', isDisabled: !canEdit, action: () => actions.startRename(project.id) },
+        { id: 'delete', label: canDeleteProject ? 'Xoá' : 'Xoá (chỉ quản trị viên)', isDestructive: true, isDisabled: !canDeleteProject, action: () => actions.requestDelete(project.id) },
       ],
     },
   ];
