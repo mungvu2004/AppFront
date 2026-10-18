@@ -45,7 +45,6 @@ import type {
   PascalNode,
   PascalNodeId,
   PascalPoint2,
-  PascalReview,
   PascalSiteNode,
   PascalSlabNode,
   PascalStructuralGridNode,
@@ -131,30 +130,6 @@ const originOf = (
   reviewed: entity.reviewed,
   ...(fields === undefined ? {} : { fields }),
 });
-
-/**
- * Trường `review` hạng nhất, dẫn ra từ chính `metadata.appfront` vừa gắn.
- *
- * Làm thành **một lượt trên cây đã dựng** thay vì thêm `review:` vào tám chỗ
- * gọi `originOf`: tám chỗ thì chỉ cần một chỗ quên là một bức tường đi sang
- * Pascal không có trạng thái duyệt, và không có phép kiểm nào bắt được. Ở đây
- * thì không node nào có `metadata.appfront` mà thiếu `review`, theo cấu trúc.
- */
-const withReviewField = (nodes: Record<PascalNodeId, PascalNode>): void => {
-  for (const [id, node] of Object.entries(nodes)) {
-    const origin = node.metadata?.appfront;
-
-    if (origin === undefined) continue;
-
-    const review: PascalReview = {
-      reviewed: origin.reviewed,
-      confidence: origin.confidence,
-      source: origin.source,
-    };
-
-    nodes[id] = { ...node, review };
-  }
-};
 
 const skip = (id: string, kind: string, reason: string): SkippedEntity => ({ id, kind, reason });
 
@@ -702,7 +677,6 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
     polygon: sitePolygonOf(nodes),
   };
 
-  withReviewField(nodes);
 
   return { scene: { nodes, rootNodeIds: [SITE_NODE_ID] }, skipped };
 };
