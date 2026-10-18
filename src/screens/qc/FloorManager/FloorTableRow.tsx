@@ -211,7 +211,7 @@ export function FloorTableRow({
 
   return (
     <tr
-      aria-label={`${row.name}, cao độ ${row.elevationText}, cao ${row.heightText}, ${row.hasDrawing ? `${row.qcProgressText} đã kiểm` : NEEDS_DRAWING_ROW_SUFFIX}`}
+      aria-label={`${row.name}, cao độ ${row.elevationText}, cao ${row.heightText}, ${row.hasDrawing ? `điểm chất lượng ${row.qcProgressText}` : NEEDS_DRAWING_ROW_SUFFIX}`}
       aria-selected={row.isSelected}
       className={cn(
         'h-10 border-b border-border-default-50 outline-none transition-colors duration-120',

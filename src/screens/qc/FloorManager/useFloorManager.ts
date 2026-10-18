@@ -182,6 +182,8 @@ export const FLOOR_MANAGER_TEXT = {
   viewerEmptyNotice: 'Khi người có quyền sửa thêm tầng, ngăn xếp tầng sẽ hiện ở đây.',
   forbiddenNotice: 'Vai của bạn chỉ xem được ngăn xếp tầng; mọi thao tác sửa đã được ẩn.',
   drawingsMissing: 'Chưa có bản vẽ',
+  heightRefusedTitle: 'Chưa đổi được chiều cao tầng',
+  heightTooLow: 'Chiều cao tầng không nhỏ hơn 2 m. Nhập lại một giá trị từ 2 m trở lên.',
   persistFailedTitle: 'Chưa lưu được thay đổi tầng',
   shortcutUndo: 'Hoàn tác thay đổi tầng gần nhất',
   uploadDrawingHint:
@@ -231,6 +233,9 @@ export function floorErrorSentence(error: unknown): string {
 
   return describeError(toAppError(error)).description;
 }
+
+/** Chiều cao tầng tối thiểu, cùng ngưỡng với hộp thoại tạo dự án. */
+const MIN_FLOOR_HEIGHT_MM = 2000;
 
 /** Đơn vị của cột "Cao độ (m)" và "Chiều cao (m)": một chữ số sau dấu phẩy. */
 const METRE_FRACTION_DIGITS = 1;
@@ -1147,6 +1152,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
    * nhánh: con số vẫn luôn là con số trong mô hình.
    */
   const onToggleAutoElevation = useCallback(() => {
+    // Câu lỗi cao độ cũ không còn đúng sau khi cao độ được tính lại (G3-19).
+    setDuplicateElevation(null);
     setIsAutoElevation((previous) => !previous);
   }, []);
 
@@ -1332,6 +1339,13 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
 
       clearDraft();
 
+      // Nói ngưỡng thay vì để máy chủ từ chối rồi quay về giá trị cũ (G3-18).
+      if (valueMm < MIN_FLOOR_HEIGHT_MM) {
+        say(FLOOR_MANAGER_TEXT.heightRefusedTitle, FLOOR_MANAGER_TEXT.heightTooLow);
+
+        return;
+      }
+
       void executeStep((fresh) => {
         const built = createChangeFloorHeightCommands({ levelId, heightMm: valueMm }, fresh);
 
@@ -1493,6 +1507,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
 
   const onReorderFloors = useCallback(
     (floorIdsBottomUp: readonly string[]) => {
+      setDuplicateElevation(null);
       void executeStep((context) => {
         const result = createReorderLevelsCommand(
           { levelIds: floorIdsBottomUp.map((id) => id as LevelId) },

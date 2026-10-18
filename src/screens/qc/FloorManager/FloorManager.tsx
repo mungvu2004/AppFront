@@ -76,6 +76,7 @@ const SCREEN_DESCRIPTION =
   'Xem cao độ, chiều cao và tiến độ của từng tầng, rồi sắp xếp lại ngăn xếp nếu cần.';
 const EXPAND_SECTION_LABEL = 'Hiện lát cắt';
 const OPEN_VIEWER_LABEL = 'Xong, xem mô hình 3D →';
+const VIEWER_LOCKED_HINT = 'Nút xem mô hình 3D mở khi có ít nhất một tầng có bản vẽ.';
 const FORBIDDEN_NOTICE_TITLE = 'Không có quyền sửa tầng';
 const UNSUPPORTED_NOTICES_TITLE = 'Một số thay đổi chưa được lưu';
 
@@ -145,6 +146,11 @@ export function FloorManager(props: FloorManagerViewProps) {
           </div>
         </div>
         <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
+        {props.onOpenViewer3d !== undefined && state !== 'loading' && !props.rows.some((row) => row.hasDrawing) && (
+          <p className="text-[13px] text-text-secondary" role="status">
+            {VIEWER_LOCKED_HINT}
+          </p>
+        )}
       </header>
 
       {forbiddenNotice === null ? null : (
@@ -159,7 +165,7 @@ export function FloorManager(props: FloorManagerViewProps) {
       )}
 
       {/* Một dải cho mọi khoản chưa lưu được, không một tiêu đề cộng một dải mỗi câu (BUG-287). */}
-      {isLoadError || unsupportedNotices.length === 0 ? null : (
+      {isLoadError || state === 'loading' || props.rows.length === 0 || unsupportedNotices.length === 0 ? null : (
         <div className="mx-auto w-full max-w-[1120px] shrink-0 px-8 pb-2">
           <InlineAlert
             level="attention"

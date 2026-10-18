@@ -828,7 +828,7 @@ describe('lối vào các màn duyệt lớp của tầng', () => {
       'Trục & gốc toạ độ',
       'Tên phòng',
       'Độ dày tường',
-      'Hiệu chỉnh tỉ lệ',
+      'Hiệu chỉnh tỷ lệ',
     ]);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Tên phòng' }));
     expect(onOpenFloorScreen).toHaveBeenCalledWith(expect.any(String), 'rooms');
@@ -841,11 +841,11 @@ describe('menu "Thêm" ở đầu màn: lối vào màn cấp dự án', () => {
 
     renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onOpenProjectScreen={onOpenProjectScreen} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm màn của dự án' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Các màn của dự án' }));
 
     const items = await screen.findAllByRole('menuitem');
 
-    expect(items.map((item) => item.textContent)).toEqual(['Dữ liệu không gian', 'Lịch sử phiên bản', 'Sơ đồ xử lý']);
+    expect(items.map((item) => item.textContent)).toEqual(['Dữ liệu dự án', 'Lịch sử phiên bản', 'Sơ đồ xử lý']);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Lịch sử phiên bản' }));
     expect(onOpenProjectScreen).toHaveBeenCalledWith('versions');
   });

@@ -27,8 +27,8 @@ export function ProjectMoreMenu({ onOpen }: { readonly onOpen: (screen: ProjectM
 
   return (
     <>
-      <Button aria-haspopup="menu" aria-label="Thêm màn của dự án" onClick={open} size="sm" variant="ghost">
-        Thêm ▾
+      <Button aria-haspopup="menu" aria-label="Các màn của dự án" onClick={open} size="sm" variant="ghost">
+        Màn dự án ▾
       </Button>
       <ContextMenu groups={menu.groups} isVisible={menu.isVisible} onClose={menu.closeMenu} position={menu.position} />
     </>

@@ -469,7 +469,7 @@ export const FLOOR_COLUMN_LABELS = {
   walls: 'Tường',
   rooms: 'Phòng',
   area: 'Diện tích',
-  qc: 'Tiến độ QC',
+  qc: 'Điểm chất lượng',
   actions: 'Hành động',
 } as const;
 
@@ -481,14 +481,14 @@ export const FLOOR_REVIEW_SCREENS = [
   { id: 'grids', label: 'Trục & gốc toạ độ' },
   { id: 'rooms', label: 'Tên phòng' },
   { id: 'thickness', label: 'Độ dày tường' },
-  { id: 'scale', label: 'Hiệu chỉnh tỉ lệ' },
+  { id: 'scale', label: 'Hiệu chỉnh tỷ lệ' },
 ] as const;
 
 export type FloorReviewScreen = (typeof FLOOR_REVIEW_SCREENS)[number]['id'];
 
 /** Màn cấp dự án mà menu "Thêm" ở đầu màn dẫn tới; khoá trùng tên builder `ROUTES.project.*`. */
 export const PROJECT_MORE_SCREENS = [
-  { id: 'data', label: 'Dữ liệu không gian' },
+  { id: 'data', label: 'Dữ liệu dự án' },
   { id: 'versions', label: 'Lịch sử phiên bản' },
   { id: 'pipelineGraph', label: 'Sơ đồ xử lý' },
 ] as const;

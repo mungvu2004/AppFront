@@ -22,7 +22,7 @@
  *
  * `mono-lg` KHÔNG có thật trong repo (T3 xác nhận NOT FOUND, `tailwind.config.ts`
  * không khai `fontFamily`/`mono-lg` nào). Tổng chiều cao ở đầu cột dùng lớp chữ
- * đều lớn nhất ĐANG CHẠY THẬT trong repo: `font-mono text-[24px]`, đúng class
+ * đều lớn nhất ĐANG CHẠY THẬT trong repo: `tabular-nums text-[24px]`, đúng class
  * `ScaleCalibrationMethodReference.tsx:142` đã dùng.
  */
 
@@ -79,7 +79,7 @@ function ElevationScale({ ticks }: { readonly ticks: FloorSectionCutProps['eleva
           key={tick.id}
           style={{ insetBlockEnd: tick.offsetCssPercent }}
         >
-          <span className="font-mono text-[11px] leading-none text-text-muted">{tick.labelText}</span>
+          <span className="tabular-nums text-[11px] leading-none text-text-muted">{tick.labelText}</span>
           <span aria-hidden="true" className="h-px w-1.5 bg-border-default" />
         </div>
       ))}
@@ -144,7 +144,7 @@ export function FloorSectionCut({
       <header className="flex shrink-0 items-start justify-between gap-2">
         <div>
           <p className="text-[12px] text-text-muted">{SECTION_TITLE}</p>
-          <p className="font-mono text-[24px] leading-tight text-text-primary">{totalHeightText}</p>
+          <p className="tabular-nums text-[24px] leading-tight text-text-primary">{totalHeightText}</p>
           <p className="text-[11px] text-text-muted">{TOTAL_HEIGHT_LABEL}</p>
         </div>
         <button
