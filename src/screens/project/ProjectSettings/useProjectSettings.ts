@@ -1189,9 +1189,15 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     [snapshot],
   );
 
+  const soleAdminId = useMemo(() => {
+    const admins = (snapshot?.members ?? []).filter((member) => member.role === 'admin');
+    return admins.length === 1 ? (admins[0]?.id ?? null) : null;
+  }, [snapshot]);
+
   const {
     setMemberEmail,
     addMember,
+    inviteMember,
     requestRemoveMember,
     confirmRemoveMember,
     cancelRemoveMember,
@@ -1202,6 +1208,8 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     canEdit,
     queryClient,
     memberNames,
+    soleAdminId,
+    canInvite: canDelete,
     currentUserId: options.currentUserId,
     now: options.now,
     onToast: options.onToast,
@@ -1491,6 +1499,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     cancelReload: () => setReloadDialogOpen(false),
     setMemberEmail,
     addMember,
+    inviteMember,
     requestRemoveMember,
     confirmRemoveMember,
     cancelRemoveMember,

@@ -52,9 +52,14 @@ function tabProps(overrides: Partial<MembersTabProps> = {}): MembersTabProps {
     requestRemoveMember: noop,
     confirmRemoveMember: noop,
     cancelRemoveMember: noop,
+    inviteEmail: null,
+    isInvitingMember: false,
+    inviteMember: noop,
     ...overrides,
   };
 }
+
+const SECOND_ADMIN = { ...ENGINEER_USER, id: 'usr_admin_2', name: 'Admin Hai', email: 'admin2@example.com', role: 'admin' as const };
 
 describe('MembersTab (view)', () => {
   it('không còn câu "chỉ để xem trong bản này"', () => {
@@ -128,6 +133,7 @@ describe('MembersTab (view)', () => {
             confirmLabel: 'Gỡ',
             cancelLabel: 'Để nguyên',
             isRunning: false,
+            isBlocked: false,
           },
         })}
       />,
@@ -223,6 +229,18 @@ describe('thành viên trong useProjectSettings', () => {
     });
   }
 
+  it('G2-15: người vừa thêm hiện ngay trong danh sách, không chờ tải lại', async () => {
+    const server = await createFakeServer();
+    const hook = await mount(server);
+
+    // Chặn lượt tải lại: dòng mới phải đến từ bộ đệm vừa ghi, không từ máy chủ.
+    hook.invalidate.mockResolvedValue(undefined);
+    await addEmail(hook, 'newcomer@example.com');
+
+    expect(hook.result.current.members.map((member) => member.name)).toContain('Newcomer');
+    expect(hook.result.current.memberCountLabel).toBe('3 thành viên');
+  });
+
   it('thêm thật: toast nói rõ hậu quả, vô hiệu hoá chi tiết dự án, hoàn tác gọi N4', async () => {
     const server = await createFakeServer();
     const hook = await mount(server);
@@ -238,9 +256,7 @@ describe('thành viên trong useProjectSettings', () => {
 
     const toast = hook.onToast.mock.calls[0]?.[0] as { message: string; onUndo?: () => void };
 
-    expect(toast.message).toBe(
-      'Đã thêm Newcomer; hoàn tác sẽ gỡ người này, thông báo mời đã gửi không thu hồi được.',
-    );
+    expect(toast.message).toBe('Đã thêm Newcomer vào dự án.');
     expect(invalidatedKeys(hook.invalidate)).toContainEqual(queryKeys.project.detail(PROJECT_ID));
     expect(hook.result.current.memberEmail).toBe('');
 
@@ -267,14 +283,46 @@ describe('thành viên trong useProjectSettings', () => {
     expect(hook.onToast.mock.calls.at(-1)?.[0]).toEqual({ message: 'Không gỡ lại được người vừa thêm.', state: 'violation' });
   });
 
-  it('MEMBER_USER_UNAVAILABLE: câu "chưa có tài khoản đang hoạt động", không toast', async () => {
+  it('N4-02: quản trị hệ thống mời ngay tại chỗ, mời xong thêm luôn vào dự án', async () => {
+    const server = await createFakeServer();
+    const hook = await mount(server);
+
+    server.membersAdd.mockResolvedValueOnce({ ok: false, error: httpError(422, 'MEMBER_USER_UNAVAILABLE') });
+    await addEmail(hook, 'newcomer@example.com');
+
+    expect(hook.result.current.inviteEmail).toBe('newcomer@example.com');
+
+    await act(async () => {
+      hook.result.current.inviteMember();
+      await clock.flushMicrotasks();
+    });
+
+    expect(server.membersAdd).toHaveBeenCalledTimes(2);
+    expect(hook.result.current.inviteEmail).toBeNull();
+    expect((hook.onToast.mock.calls.at(-1)?.[0] as { message: string }).message).toBe(
+      'Đã mời và thêm Newcomer vào dự án (chờ họ chấp nhận lời mời).',
+    );
+  });
+
+  it('N4-02: kỹ sư không thấy lối mời', async () => {
+    const server = await createFakeServer();
+    const hook = await mount(server, { roles: ['engineer'] });
+
+    server.membersAdd.mockResolvedValueOnce({ ok: false, error: httpError(422, 'MEMBER_USER_UNAVAILABLE') });
+    await addEmail(hook, 'ghost@example.com');
+
+    expect(hook.result.current.inviteEmail).toBeNull();
+  });
+
+  it('MEMBER_USER_UNAVAILABLE: câu chỉ đường mời (N4-02), không toast', async () => {
     const server = await createFakeServer();
     const hook = await mount(server);
 
     server.membersAdd.mockResolvedValueOnce({ ok: false, error: httpError(422, 'MEMBER_USER_UNAVAILABLE') });
     await addEmail(hook, 'ghost@example.com');
 
-    expect(hook.result.current.memberError).toBe(viMessages.project.settings.members.unavailable);
+    expect(hook.result.current.memberError).toMatch(/^Không thêm được: chưa có tài khoản nào dùng email này\./u);
+    expect(hook.result.current.memberError).toContain('Quản trị › Người dùng');
     expect(hook.onToast).not.toHaveBeenCalled();
   });
 
@@ -431,7 +479,7 @@ describe('thành viên trong useProjectSettings', () => {
   });
 
   it('gỡ chính mình: hộp thoại nói mất quyền xem, xong thì gọi callback về dashboard', async () => {
-    const server = await createFakeServer();
+    const server = await createFakeServer({ members: [ADMIN_USER, SECOND_ADMIN] });
     const onSelfRemoved = vi.fn();
     const hook = await mount(server, { currentUserId: ADMIN_USER.id, onSelfRemoved });
 
@@ -451,7 +499,7 @@ describe('thành viên trong useProjectSettings', () => {
   });
 
   it('MEMBER_LAST_EDITOR: lỗi hiện trong hộp thoại, hộp giữ nguyên, không điều hướng', async () => {
-    const server = await createFakeServer();
+    const server = await createFakeServer({ members: [ADMIN_USER, SECOND_ADMIN] });
     const onSelfRemoved = vi.fn();
     const hook = await mount(server, { currentUserId: ADMIN_USER.id, onSelfRemoved });
 
@@ -466,6 +514,25 @@ describe('thành viên trong useProjectSettings', () => {
 
     expect(hook.result.current.memberRemoveDialog?.error).toBe(viMessages.project.settings.members.lastEditor);
     expect(onSelfRemoved).not.toHaveBeenCalled();
+  });
+
+  it('G3-13: quản trị viên duy nhất thì hộp thoại chặn, không có nút Gỡ, không gọi máy chủ', async () => {
+    const server = await createFakeServer();
+    const hook = await mount(server, { currentUserId: ADMIN_USER.id });
+
+    act(() => {
+      hook.result.current.requestRemoveMember(ADMIN_USER.id);
+    });
+
+    expect(hook.result.current.memberRemoveDialog).toMatchObject({ isBlocked: true, cancelLabel: 'Đóng' });
+    expect(hook.result.current.memberRemoveDialog?.message).toContain('quản trị viên duy nhất');
+
+    await act(async () => {
+      hook.result.current.confirmRemoveMember();
+      await clock.flushMicrotasks();
+    });
+
+    expect(server.membersRemove).not.toHaveBeenCalled();
   });
 
   it('404 member: coi như đã gỡ', async () => {

@@ -149,6 +149,8 @@ export interface ProjectSettingsGateway {
   readonly update: (input: UpdateProjectSettingsInput) => Promise<ProjectSettingsUpdateResult>;
   readonly addMember: (input: AddProjectMemberInput) => Promise<ApiResult<AddProjectMemberOutcome>>;
   readonly removeMember: (input: RemoveProjectMemberInput) => Promise<ApiResult<ProjectSettingsMember>>;
+  /** N4-02: mời một email vào hệ thống (cùng API của Quản trị › Người dùng), vai Người xem. */
+  readonly inviteUser: (input: { readonly email: string }) => Promise<ApiResult<void>>;
   readonly deleteAllFloors: (input: DeleteAllFloorsInput) => Promise<ApiResult<DeleteAllFloorsResult>>;
   readonly deleteProject: (input: DeleteProjectInput) => Promise<ApiResult<void>>;
 }
@@ -452,6 +454,12 @@ export function createProjectSettingsGateway(client: ApiClient): ProjectSettings
       }
 
       return { snapshot, failures };
+    },
+
+    inviteUser: async ({ email }) => {
+      const result = await client.users.invite({ body: { emails: [email], role: 'viewer' }, failFastOnRateLimit: true });
+
+      return result.ok ? { ok: true, data: undefined } : result;
     },
 
     addMember: async ({ projectId, email }) => {

@@ -33,6 +33,9 @@ export type MembersTabProps = Pick<
   | 'memberRemoveDialog'
   | 'setMemberEmail'
   | 'addMember'
+  | 'inviteEmail'
+  | 'isInvitingMember'
+  | 'inviteMember'
   | 'requestRemoveMember'
   | 'confirmRemoveMember'
   | 'cancelRemoveMember'
@@ -54,7 +57,11 @@ export function MembersTab(props: MembersTabProps) {
         />
       ) : (
         <div className="flex flex-col gap-3">
-          <p className="text-[13px] text-text-secondary">{props.memberCountLabel}</p>
+          <p className="text-[13px] text-text-secondary">
+            <span>{props.memberCountLabel}</span>
+            {/* N4-03: vai là vai toàn hệ thống, chưa có vai riêng theo dự án — nói rõ đổi ở đâu. */}
+            <span> · Vai là vai trên toàn hệ thống, quản trị viên đổi ở Quản trị › Người dùng.</span>
+          </p>
           <ul className="flex flex-col divide-y divide-border-default rounded-lg border border-border-default">
             {props.members.map((member) => (
               <li key={member.id} className="flex items-center gap-3 px-3 py-2">

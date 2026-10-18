@@ -354,7 +354,7 @@
         "removeSelfMessage": "Bạn sẽ mất quyền xem dự án này. Muốn quay lại phải nhờ người khác thêm lại.",
         "removeTitle": "Gỡ {{name}} khỏi dự án?",
         "removed": "Đã gỡ {{name}} khỏi dự án.",
-        "unavailable": "Không thêm được: địa chỉ này chưa có tài khoản đang hoạt động.",
+        "unavailable": "Không thêm được: chưa có tài khoản nào dùng email này. Quản trị viên mời người này ở Quản trị › Người dùng › Mời người dùng, rồi thêm lại ở đây.",
         "undoAdd": "Hoàn tác việc thêm thành viên",
         "undoAddFailed": "Không gỡ lại được người vừa thêm.",
         "emptyTitle": "Chưa có thành viên nào",

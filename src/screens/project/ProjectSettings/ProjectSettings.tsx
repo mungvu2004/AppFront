@@ -57,7 +57,8 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
   const { state } = props;
   const isCollapsed = state === 'collapsed';
   // Lỗi tải thì không có gì để lưu: viên "Chưa có thay đổi" tích xanh đọc như "ổn" (BUG-078).
-  const showSaveIndicator = state !== 'error';
+  // G2-16: thẻ Thành viên không qua tự lưu (thêm/gỡ có kết quả ngay), viên trạng thái lưu ở đây gây hiểu nhầm.
+  const showSaveIndicator = state !== 'error' && props.activeTab !== 'members';
   // 404 thì thử lại vô ích — lối ra là danh sách dự án; lỗi khác chỉ có "Thử lại" khi thử lại được.
   const loadErrorAction =
     props.isProjectMissing && props.backToProjects !== null

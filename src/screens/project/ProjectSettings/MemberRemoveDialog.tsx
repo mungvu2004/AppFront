@@ -35,9 +35,11 @@ export function MemberRemoveDialog({ dialog, onConfirm, onCancel }: MemberRemove
         <Button variant="ghost" onClick={onCancel} disabled={dialog?.isRunning === true}>
           {dialog?.cancelLabel}
         </Button>
-        <Button variant="danger" onClick={onConfirm} loading={dialog?.isRunning === true}>
-          {dialog?.confirmLabel}
-        </Button>
+        {dialog?.isBlocked !== true && (
+          <Button variant="danger" onClick={onConfirm} loading={dialog?.isRunning === true}>
+            {dialog?.confirmLabel}
+          </Button>
+        )}
       </Modal.Footer>
     </Modal.Root>
   );

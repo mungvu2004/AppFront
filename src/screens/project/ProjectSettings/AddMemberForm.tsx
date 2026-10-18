@@ -12,12 +12,21 @@ import type { MembersTabProps } from './MembersTab';
 
 export type AddMemberFormProps = Pick<
   MembersTabProps,
-  'memberEmail' | 'memberError' | 'isAddingMember' | 'isAddMemberLocked' | 'setMemberEmail' | 'addMember'
+  | 'memberEmail'
+  | 'memberError'
+  | 'isAddingMember'
+  | 'isAddMemberLocked'
+  | 'setMemberEmail'
+  | 'addMember'
+  | 'inviteEmail'
+  | 'isInvitingMember'
+  | 'inviteMember'
 >;
 
 export function AddMemberForm(props: AddMemberFormProps) {
   return (
-    <form
+    <div className="flex flex-col gap-2">
+      <form
       className="flex items-start gap-2"
       noValidate
       onSubmit={(event) => {
@@ -45,6 +54,15 @@ export function AddMemberForm(props: AddMemberFormProps) {
       >
         Thêm thành viên
       </Button>
-    </form>
+      </form>
+      {/* N4-02: quản trị hệ thống mời được ngay, không phải tự tìm sang Quản trị › Người dùng. */}
+      {props.inviteEmail !== null && (
+        <div>
+          <Button type="button" variant="secondary" size="sm" loading={props.isInvitingMember} onClick={props.inviteMember}>
+            Mời người này vào hệ thống
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

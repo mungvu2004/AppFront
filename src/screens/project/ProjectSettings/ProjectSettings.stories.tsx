@@ -131,6 +131,9 @@ const base: ProjectSettingsViewProps = {
   setDangerConfirmationText: noop,
   confirmDanger: noop,
   cancelDanger: noop,
+  inviteEmail: null,
+  isInvitingMember: false,
+  inviteMember: noop,
 };
 
 /** rỗng — dự án chưa có tầng nào, nên vùng nguy hiểm chỉ còn một việc. */
@@ -262,6 +265,7 @@ export const RemoveMemberDialog: Story = {
       confirmLabel: 'Gỡ',
       cancelLabel: 'Để nguyên',
       isRunning: false,
+      isBlocked: false,
     },
   },
 };

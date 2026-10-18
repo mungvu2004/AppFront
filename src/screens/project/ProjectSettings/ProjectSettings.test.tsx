@@ -174,6 +174,9 @@ function baseProps(): ProjectSettingsViewProps {
     setDangerConfirmationText: noop,
     confirmDanger: noop,
     cancelDanger: noop,
+    inviteEmail: null,
+    isInvitingMember: false,
+    inviteMember: noop,
   };
 }
 
@@ -600,6 +603,7 @@ function spyGateway(overrides: Partial<ProjectSettingsGateway> = {}) {
     removeMember: vi.fn(overrides.removeMember ?? real.removeMember),
     deleteAllFloors: vi.fn(overrides.deleteAllFloors ?? real.deleteAllFloors),
     deleteProject: vi.fn(overrides.deleteProject ?? real.deleteProject),
+    inviteUser: vi.fn(overrides.inviteUser ?? real.inviteUser),
   };
 }
 

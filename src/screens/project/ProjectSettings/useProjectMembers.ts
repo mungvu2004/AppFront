@@ -18,8 +18,9 @@ import type { ApiError } from '@/api/client';
 import { describeError, toAppError } from '@/lib/errors';
 import { createUndoTicket } from '@/lib/mutations/undoTicket';
 import { applyInvalidation } from '@/lib/query/invalidation';
+import { queryKeys } from '@/lib/query/queryKeys';
 
-import type { ProjectSettingsGateway } from './projectSettingsGateway';
+import type { ProjectSettingsGateway, ProjectSettingsMember, ProjectSettingsSnapshot } from './projectSettingsGateway';
 import { readSettingsError } from './settingsErrors';
 
 /** Khoá nút thêm tối thiểu khi gặp 429 (hạn mức theo giờ nên số giây của máy chủ chỉ là sàn). */
@@ -29,13 +30,17 @@ const MS_PER_SECOND = 1_000;
 const SENTENCES = {
   emailRequired: 'Chưa nhập địa chỉ email.',
   alreadyMember: 'Người này đã là thành viên.',
-  unavailable: 'Không thêm được: địa chỉ này chưa có tài khoản đang hoạt động.',
+  // N4-02: tài khoản đã được mời (chờ chấp nhận) vẫn thêm được, nên không nói "đang hoạt động".
+  unavailable:
+    'Không thêm được: chưa có tài khoản nào dùng email này. Quản trị viên mời người này ở Quản trị › Người dùng › Mời người dùng, rồi thêm lại ở đây.',
   badEmail: 'Địa chỉ email chưa đúng.',
   rateLimited: 'Bạn đã thêm nhiều thành viên trong giờ này; hãy thử lại sau.',
   lastEditor: 'Không gỡ được: dự án cần ít nhất một người sửa được cài đặt.',
   undoDescription: 'Hoàn tác việc thêm thành viên',
   undoFailed: 'Không gỡ lại được người vừa thêm.',
   keep: 'Để nguyên',
+  close: 'Đóng',
+  invitedPending: 'Đã gửi lời mời; thêm vào dự án sau khi họ chấp nhận.',
   remove: 'Gỡ',
 } as const;
 
@@ -46,6 +51,8 @@ export interface MemberRemoveDialogModel {
   readonly confirmLabel: string;
   readonly cancelLabel: string;
   readonly isRunning: boolean;
+  /** G3-13: gỡ người quản trị duy nhất thì chặn hẳn, nút xác nhận bị ẩn. */
+  readonly isBlocked: boolean;
 }
 
 export interface ProjectMembersModel {
@@ -53,12 +60,16 @@ export interface ProjectMembersModel {
   readonly memberError: string | null;
   readonly isAddingMember: boolean;
   readonly isAddMemberLocked: boolean;
+  /** N4-02: email vừa bị từ chối vì chưa có tài khoản, khi người dùng là quản trị hệ thống (mời được). */
+  readonly inviteEmail: string | null;
+  readonly isInvitingMember: boolean;
   readonly memberRemoveDialog: MemberRemoveDialogModel | null;
 }
 
 export interface ProjectMembersActions {
   readonly setMemberEmail: (value: string) => void;
   readonly addMember: () => void;
+  readonly inviteMember: () => void;
   readonly requestRemoveMember: (userId: string) => void;
   readonly confirmRemoveMember: () => void;
   readonly cancelRemoveMember: () => void;
@@ -71,6 +82,10 @@ export interface UseProjectMembersOptions {
   readonly queryClient: QueryClient;
   /** Tên các thành viên hiện có, để đặt tên người trong hộp thoại và toast. */
   readonly memberNames: Readonly<Record<string, string>>;
+  /** G3-13: id của quản trị viên duy nhất (nếu dự án chỉ có một), để chặn gỡ người đó. */
+  readonly soleAdminId?: string | null | undefined;
+  /** N4-02: quản trị hệ thống mời được email chưa có tài khoản ngay tại đây. */
+  readonly canInvite?: boolean | undefined;
   readonly currentUserId?: string | undefined;
   readonly now?: (() => number) | undefined;
   readonly onToast?:
@@ -81,6 +96,7 @@ export interface UseProjectMembersOptions {
 
 interface RemoveTarget {
   readonly id: string;
+  readonly isSoleAdmin: boolean;
   readonly name: string;
   readonly isSelf: boolean;
 }
@@ -127,6 +143,8 @@ export function useProjectMembers(
   const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [isRemoving, setRemoving] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState<string | null>(null);
+  const [isInvitingMember, setInvitingMember] = useState(false);
   const lockTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(
@@ -135,6 +153,14 @@ export function useProjectMembers(
     },
     [],
   );
+
+  // G2-15: ghi ngay vào bộ đệm của màn (khoá `projectSettingsQueryKey`, viết tay để tránh vòng import)
+  // để dòng mới hiện liền, không chờ lượt tải lại (~2 s trên máy thật).
+  const patchMembers = (update: (members: readonly ProjectSettingsMember[]) => readonly ProjectSettingsMember[]): void => {
+    queryClient.setQueryData<ProjectSettingsSnapshot>([...queryKeys.project.detail(projectId), 'settings'], (snapshot) =>
+      snapshot === undefined ? snapshot : { ...snapshot, members: update(snapshot.members) },
+    );
+  };
 
   const invalidate = (operation: 'addProjectMember' | 'removeProjectMember'): void => {
     applyInvalidation(queryClient, operation, { projectId });
@@ -169,6 +195,7 @@ export function useProjectMembers(
 
     setAddingMember(true);
     setMemberError(null);
+    setInviteEmail(null);
 
     void gateway.addMember({ projectId, email }).then((result) => {
       setAddingMember(false);
@@ -176,6 +203,10 @@ export function useProjectMembers(
       if (!result.ok) {
         const failure = addFailureSentence(result.error);
         setMemberError(failure.sentence);
+
+        if (failure.sentence === SENTENCES.unavailable && options.canInvite === true) {
+          setInviteEmail(email);
+        }
 
         if (failure.lockSeconds !== null) {
           lockAddButton(failure.lockSeconds);
@@ -189,9 +220,42 @@ export function useProjectMembers(
         return;
       }
 
-      const { member } = result.data;
+      finishAdd(result.data.member, `Đã thêm ${result.data.member.name} vào dự án.`);
+    });
+  };
+
+  const inviteMember = (): void => {
+    if (!canEdit || inviteEmail === null || isInvitingMember) return;
+
+    const email = inviteEmail;
+    setInvitingMember(true);
+
+    void gateway.inviteUser({ email }).then(async (invited) => {
+      if (!invited.ok) {
+        setInvitingMember(false);
+        setMemberError(addFailureSentence(invited.error).sentence);
+        return;
+      }
+
+      // Người đã mời (chờ chấp nhận) thêm được vào dự án ngay; máy chủ không cho thì báo chờ.
+      const added = await gateway.addMember({ projectId, email });
+      setInvitingMember(false);
+      setInviteEmail(null);
+      setMemberError(null);
+
+      if (added.ok && !added.data.alreadyMember) {
+        finishAdd(added.data.member, `Đã mời và thêm ${added.data.member.name} vào dự án (chờ họ chấp nhận lời mời).`);
+        return;
+      }
 
       setMemberEmailState('');
+      options.onToast?.({ message: SENTENCES.invitedPending });
+    });
+  };
+
+  function finishAdd(member: ProjectSettingsMember, message: string): void {
+      setMemberEmailState('');
+      patchMembers((members) => (members.some((row) => row.id === member.id) ? members : [...members, member]));
       invalidate('addProjectMember');
 
       const ticket = createUndoTicket({
@@ -199,6 +263,7 @@ export function useProjectMembers(
         undo: () => {
           void removeMemberById(member.id).then((undone) => {
             if (undone.ok) {
+              patchMembers((members) => members.filter((row) => row.id !== member.id));
               invalidate('removeProjectMember');
             } else {
               options.onToast?.({ message: SENTENCES.undoFailed, state: 'violation' });
@@ -209,19 +274,20 @@ export function useProjectMembers(
       });
 
       options.onToast?.({
-        message: `Đã thêm ${member.name}; hoàn tác sẽ gỡ người này, thông báo mời đã gửi không thu hồi được.`,
+        // G2-16: câu ngắn để không bị cắt; nút "Hoàn tác" tự nói là gỡ lại người này.
+        message,
         onUndo: () => {
           ticket.undo();
         },
       });
-    });
-  };
+  }
 
   const requestRemoveMember = (userId: string): void => {
     if (!canEdit) return;
 
     setRemoveTarget({
       id: userId,
+      isSoleAdmin: userId === options.soleAdminId,
       name: options.memberNames[userId] ?? '',
       isSelf: userId === options.currentUserId,
     });
@@ -235,7 +301,7 @@ export function useProjectMembers(
   };
 
   const confirmRemoveMember = (): void => {
-    if (removeTarget === null || isRemoving) return;
+    if (removeTarget === null || isRemoving || removeTarget.isSoleAdmin) return;
 
     const target = removeTarget;
     setRemoving(true);
@@ -261,6 +327,7 @@ export function useProjectMembers(
         return;
       }
 
+      patchMembers((members) => members.filter((row) => row.id !== target.id));
       invalidate('removeProjectMember');
       options.onToast?.({ message: `Đã gỡ ${target.name} khỏi dự án.` });
     });
@@ -270,14 +337,19 @@ export function useProjectMembers(
     removeTarget === null
       ? null
       : {
-          title: `Gỡ ${removeTarget.name} khỏi dự án?`,
-          message: removeTarget.isSelf
+          title: removeTarget.isSoleAdmin
+            ? `Chưa gỡ được ${removeTarget.name}`
+            : `Gỡ ${removeTarget.name} khỏi dự án?`,
+          message: removeTarget.isSoleAdmin
+            ? `${removeTarget.name} là quản trị viên duy nhất của dự án. Gỡ người này thì dự án không còn ai quản trị. Hãy thêm một quản trị viên khác trước.`
+            : removeTarget.isSelf
             ? 'Bạn sẽ mất quyền xem dự án này. Muốn quay lại phải nhờ người khác thêm lại.'
             : 'Người này sẽ không còn truy cập được dự án. Muốn quay lại phải thêm lại.',
           error: removeError,
           confirmLabel: SENTENCES.remove,
-          cancelLabel: SENTENCES.keep,
+          cancelLabel: removeTarget.isSoleAdmin ? SENTENCES.close : SENTENCES.keep,
           isRunning: isRemoving,
+          isBlocked: removeTarget.isSoleAdmin,
         };
 
   return {
@@ -285,12 +357,16 @@ export function useProjectMembers(
     memberError,
     isAddingMember,
     isAddMemberLocked,
+    inviteEmail,
+    isInvitingMember,
     memberRemoveDialog,
     setMemberEmail: (value) => {
       setMemberEmailState(value);
       setMemberError(null);
+      setInviteEmail(null);
     },
     addMember,
+    inviteMember,
     requestRemoveMember,
     confirmRemoveMember,
     cancelRemoveMember,
