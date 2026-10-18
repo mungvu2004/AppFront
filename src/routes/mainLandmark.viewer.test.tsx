@@ -14,7 +14,7 @@ import type * as ScreenErrorBoundaryModule from '@/components/feedback/ScreenErr
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { ROUTE_PATTERNS } from './paths';
-import { concretePath, outsideRoutes, productRoutes, VIEWER_PATHS } from './mainLandmarkHarness';
+import { concretePath, leafRoutes, outsideRoutes, productRoutes, VIEWER_PATHS } from './mainLandmarkHarness';
 
 vi.setConfig({ testTimeout: 30_000 });
 
@@ -78,7 +78,7 @@ describe('[router] vỏ chờ chunk của route ngoài nhóm', () => {
   it.each(groupOutside)('$path: lúc chờ chunk vẫn đúng một main', async ({ path: pattern }) => {
     vi.resetModules();
     const fresh = await import('./router');
-    const leaf = (fresh.routes[0]?.children ?? []).find((route) => route.path === pattern);
+    const leaf = leafRoutes(fresh.routes).find((route) => route.path === pattern);
     if (leaf === undefined) throw new Error(`thiếu route ${pattern}`);
     const router = createMemoryRouter([{ element: <Outlet />, children: [leaf] }], {
       initialEntries: [concretePath(pattern)],

@@ -1,10 +1,11 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 import { MOCK_NOTIFICATIONS } from '@/api/__mocks__/client';
 import { setAuthenticatedSession, setUnknownSession } from '@/lib/auth/state';
 import { renderWithProviders } from '@/lib/testing/render';
+import { AppLayout } from '@/routes/AppLayout';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
@@ -18,6 +19,19 @@ import type { NotificationCenterGateway } from '@/screens/system/NotificationCen
 // Chuông thật dựng cổng thông báo thật, mà jsdom không có `EventSource` — và ranh
 // giới lỗi của chuông sẽ nuốt lỗi ấy, để bài hỏng mà không ai thấy. Khuôn
 // `NotificationCenterRoute.test.tsx`.
+/** Chuông và avatar nằm ở header chung (`AppLayout`), không còn trong màn danh sách. */
+function renderDashboardInLayout() {
+  return renderWithProviders(
+    <MemoryRouter initialEntries={['/']}>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<ProjectDashboardRoute />} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
 vi.mock('@/screens/system/NotificationCenter/notificationCenterGateway', async (importActual) => {
   const actual = await importActual<typeof NotificationGatewayModule>();
   const items = MOCK_NOTIFICATIONS.map((wire) => actual.toNotificationItemVm(wire, Date.now()));
@@ -102,6 +116,7 @@ function baseProps(): ProjectDashboardViewProps {
     setViewMode: noop,
     clearFilters: noop,
     openProject: noop,
+    openProjectViewer: noop,
     startRename: noop,
     setRenameDraft: noop,
     commitRename: noop,
@@ -485,11 +500,7 @@ describe('ProjectDashboardRoute', () => {
   });
 
   it('bấm chuông "Thông báo" mở tấm trượt thông báo (B-V3-08)', async () => {
-    renderWithProviders(
-      <MemoryRouter initialEntries={['/']}>
-        <ProjectDashboardRoute />
-      </MemoryRouter>,
-    );
+    renderDashboardInLayout();
 
     const bell = await screen.findByRole('button', { name: 'Thông báo' });
     expect(bell).toHaveAttribute('aria-expanded', 'false');
@@ -504,11 +515,7 @@ describe('ProjectDashboardRoute', () => {
   it('vẽ chữ viết tắt của người đang đăng nhập lên avatar tài khoản', async () => {
     setAuthenticatedSession({ accessToken: 't', expiresAt: Date.now() + 3_600_000, roles: [], user: { id: 'u', name: 'Nguyễn Thu Hà' } });
     try {
-      renderWithProviders(
-        <MemoryRouter initialEntries={['/']}>
-          <ProjectDashboardRoute />
-        </MemoryRouter>,
-      );
+      renderDashboardInLayout();
 
       expect(await screen.findByLabelText('Tài khoản của bạn')).toHaveTextContent('NH');
     } finally {
@@ -524,11 +531,7 @@ describe('ProjectDashboardRoute', () => {
       user: { id: 'u', name: '', email: 'thuha@example.com' },
     });
     try {
-      renderWithProviders(
-        <MemoryRouter initialEntries={['/']}>
-          <ProjectDashboardRoute />
-        </MemoryRouter>,
-      );
+      renderDashboardInLayout();
 
       expect(await screen.findByLabelText('Tài khoản của bạn')).toHaveTextContent('TH');
     } finally {
@@ -621,5 +624,18 @@ describe('ProjectDashboardView — khe chuông', () => {
     render(<MemoryRouter><ProjectDashboardView {...baseProps()} /></MemoryRouter>);
 
     expect(screen.queryAllByRole('button', { name: 'Thông báo' })).toHaveLength(0);
+  });
+});
+
+describe('ProjectDashboardView — xem 3D', () => {
+  it('nút "3D" trên thẻ mở thẳng khung nhìn 3D, không mở bước đang dở', () => {
+    const openProject = vi.fn();
+    const openProjectViewer = vi.fn();
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} openProject={openProject} openProjectViewer={openProjectViewer} />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /^Xem 3D / })[0]!);
+
+    expect(openProjectViewer).toHaveBeenCalledOnce();
+    expect(openProject).not.toHaveBeenCalled();
   });
 });

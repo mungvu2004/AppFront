@@ -173,6 +173,8 @@ export interface ProjectDashboardActions {
   readonly setViewMode: (value: ProjectViewMode) => void;
   readonly clearFilters: () => void;
   readonly openProject: (id: string, source: ProjectOpenSource) => void;
+  /** Thẳng tới khung nhìn 3D, bỏ qua bước đang dở mà `openProject` chọn. */
+  readonly openProjectViewer: (id: string) => void;
   readonly startRename: (id: string) => void;
   readonly setRenameDraft: (value: string) => void;
   readonly commitRename: () => void;
@@ -437,6 +439,15 @@ export function useProjectDashboard(
     }
   };
 
+  const openProjectViewer = (id: string): void => {
+    const path = ROUTES.project.viewer(id);
+    if (options.onOpenProject) {
+      options.onOpenProject(path);
+    } else {
+      navigate(path);
+    }
+  };
+
   const startRename = (id: string): void => {
     const project = projectById.get(id);
     if (project === undefined) return;
@@ -541,6 +552,7 @@ export function useProjectDashboard(
       setStatusFilter('all');
     },
     openProject,
+    openProjectViewer,
     startRename,
     setRenameDraft,
     commitRename,

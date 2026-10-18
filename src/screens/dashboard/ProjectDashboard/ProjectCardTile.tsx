@@ -9,7 +9,7 @@
  * showing rooms that do not exist (BUG-119).
  */
 
-import { ArrowUpRight, Building2, Clock, FileImage, MoreHorizontal } from 'lucide-react';
+import { ArrowUpRight, Box, Building2, Clock, FileImage, MoreHorizontal } from 'lucide-react';
 
 import { CONTEXT_MENU_WIDTH } from '@/components/canvas/ContextMenu';
 import { motion } from '@/components/motion';
@@ -43,6 +43,7 @@ export interface ProjectCardTileProps {
   readonly renamingId: string | null;
   readonly renameDraft: string;
   readonly onOpen: (id: string) => void;
+  readonly onOpenViewer: (id: string) => void;
   readonly onMenu: (project: ProjectCardModel, x: number, y: number) => void;
   readonly onRenameChange: (value: string) => void;
   readonly onRenameCommit: () => void;
@@ -56,6 +57,7 @@ export function ProjectCardTile({
   renamingId,
   renameDraft,
   onOpen,
+  onOpenViewer,
   onMenu,
   onRenameChange,
   onRenameCommit,
@@ -161,6 +163,22 @@ export function ProjectCardTile({
             <Clock size={11} aria-hidden="true" />
             {project.updatedLabel}
           </span>
+          {/* Chỉ khi đã có mặt bằng: chưa dò được tường thì chưa có gì để dựng 3D. */}
+          {project.hasPlan && (
+            <button
+              type="button"
+              aria-label={`Xem 3D ${project.name}`}
+              title="Xem mô hình 3D"
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenViewer(project.id);
+              }}
+              className="flex h-11 shrink-0 items-center gap-1 rounded-full bg-bg-sunken px-3 text-[12px] font-medium text-text-secondary hover:bg-accent hover:text-white sm:h-7 sm:px-2.5"
+            >
+              <Box size={14} aria-hidden="true" />
+              3D
+            </button>
+          )}
           <button
             type="button"
             aria-label={`Mở ${project.name}`}

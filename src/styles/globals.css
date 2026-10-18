@@ -316,3 +316,10 @@
 /* Nút xoá (×) gốc của ô tìm kiếm cách chữ đã gõ 8 px, mọi ô `type="search"` (BUG-117). Một quy tắc
    chung thay cho lớp tuỳ biến `[&::-webkit-search-cancel-button]:ml-2` ở từng nơi gọi. */
 input[type='search']::-webkit-search-cancel-button { margin-left: 8px; }
+
+/* Vùng dưới header chung (`routes/AppLayout.tsx`): màn nào tự đặt chiều cao bằng cả khung nhìn
+   thì lấy chiều cao vùng này thay vào — một quy tắc thay cho sửa từng màn để chừa chỗ header. */
+[data-app-content] .h-dvh,
+[data-app-content] .h-screen { height: 100%; }
+[data-app-content] .min-h-screen,
+[data-app-content] .min-h-dvh { min-height: 100%; }

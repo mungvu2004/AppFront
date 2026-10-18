@@ -3,7 +3,10 @@
  * phẳng hoá cùng cha của nó, và đường cụ thể hoá tham số. Tách ra đây để mỗi
  * tệp test chỉ còn phần dựng/kiểm của nhóm mình — xem PERF-01 FE-6.
  */
+import { isValidElement } from 'react';
 import type { RouteObject } from 'react-router-dom';
+
+import { ScreenMain } from '@/components/shell/ScreenMain';
 
 import { ROUTE_PATTERNS } from './paths';
 import { routes } from './router';
@@ -39,21 +42,27 @@ export const REDIRECT_PATHS: readonly string[] = [
   ROUTE_PATTERNS.projectExploded,
 ];
 
-const rootChildren: RouteObject[] = routes[0]?.children ?? [];
-/* Phẳng hoá nhóm bọc `<main>` để lấy lại từng route lá cùng với cha của nó. */
+/* Phẳng hoá cây route để lấy lại từng route lá cùng với nhóm `<ScreenMain>` bọc nó (nếu có).
+   Nhóm không path khác (khung header `AppLayout`) trong suốt: nó không mang `<main>`. */
+const isMainGroup = (route: RouteObject): boolean =>
+  isValidElement(route.element) && route.element.type === ScreenMain;
+
+/** Mọi route lá có path của một cây, kể cả nằm sâu trong nhóm không path. */
+export function leafRoutes(list: readonly RouteObject[]): RouteObject[] {
+  return list.flatMap((route) => (route.path === undefined ? leafRoutes(route.children ?? []) : [route]));
+}
+
 export const productRoutes: ProductRoute[] = [];
-for (const route of rootChildren) {
-  const group = route.path === undefined ? route : undefined;
-  for (const leaf of group?.children ?? [route]) {
-    if (
-      leaf.path !== undefined &&
-      !DEMO_PATHS.includes(leaf.path) &&
-      !REDIRECT_PATHS.includes(leaf.path)
-    ) {
-      productRoutes.push({ path: leaf.path, leaf, parent: group });
+function collect(list: readonly RouteObject[], group: RouteObject | undefined): void {
+  for (const route of list) {
+    if (route.path === undefined) {
+      collect(route.children ?? [], isMainGroup(route) ? route : group);
+    } else if (!DEMO_PATHS.includes(route.path) && !REDIRECT_PATHS.includes(route.path)) {
+      productRoutes.push({ path: route.path, leaf: route, parent: group });
     }
   }
 }
+collect(routes[0]?.children ?? [], undefined);
 
 export const outsideRoutes: ProductRoute[] = productRoutes.filter(
   ({ parent }) => parent === undefined,

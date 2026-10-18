@@ -25,7 +25,7 @@
  * `createUuid` from it.)
  */
 
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactElement } from 'react';
 import { AlertCircle, FolderPlus, Lock, Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -36,7 +36,6 @@ import { Toast, useToast } from '@/components/feedback/Toast';
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { motion } from '@/components/motion';
 import { Modal } from '@/components/overlay/Modal';
-import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
@@ -84,16 +83,7 @@ const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
  */
 const GRID_COLUMNS_CLASS = 'grid grid-cols-1 gap-5 sm:grid-cols-2 min-[1440px]:grid-cols-3 min-[1920px]:grid-cols-4';
 
-export interface ProjectDashboardViewProps extends ProjectDashboardModel, ProjectDashboardActions {
-  /**
-   * Chuông thông báo đã nối, do container cắm vào — view không nhập gì từ
-   * NotificationCenter. Khe trống thì không vẽ chuông nào: một nút không làm gì
-   * mà vẫn nằm trong thứ tự Tab là thứ A2 chặn (B-V3-08).
-   */
-  readonly notificationBell?: ReactNode | undefined;
-  /** Chữ viết tắt của người đang đăng nhập, cho avatar tài khoản; thiếu thì vòng tròn để trống. */
-  readonly accountInitials?: string | undefined;
-}
+export type ProjectDashboardViewProps = ProjectDashboardModel & ProjectDashboardActions;
 
 /** The dashboard as a function of its props — rendered directly by tests and stories. */
 export function ProjectDashboardView(props: ProjectDashboardViewProps) {
@@ -116,6 +106,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           renamingId={props.renamingId}
           renameDraft={props.renameDraft}
           onOpen={(id) => props.openProject(id, 'card')}
+          onOpenViewer={props.openProjectViewer}
           onMenu={openMenuFor}
           onRenameChange={props.setRenameDraft}
           onRenameCommit={props.commitRename}
@@ -127,38 +118,6 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-bg-app">
-      {/* Below `sm` the search box takes a row of its own: logo + 320 px box + bell, avatar and
-          "Dự án mới" on one non-wrapping row was 524 px wide at 375 (BUG-109). */}
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border-default bg-bg-surface px-4 py-2 sm:h-14 sm:flex-nowrap sm:px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-wash text-accent" aria-hidden="true">
-          <FolderPlus size={18} />
-        </div>
-        <Input
-          type="search"
-          aria-label="Tìm dự án"
-          value={props.searchQuery}
-          onChange={(event) => props.setSearchQuery(event.target.value)}
-          placeholder="Tìm dự án theo tên..."
-          // The 8 px after the icon is the icon's margin, not the input's padding, so the field's own edge sits 8 px
-          // clear of the icon. A scrolled query is still cut mid-glyph at that edge (")A-RUN…" read as a glyph under
-          // the icon, BUG-169), so while scrolled the first 12 px fade out: the cut reads as "more text this way".
-          prefix={<Search size={16} aria-hidden="true" className="mr-1" />}
-          onScroll={(event) => event.currentTarget.toggleAttribute('data-scrolled', event.currentTarget.scrollLeft > 0)}
-          // The browser's own clear (×) button gets its 8 px gap from globals.css (BUG-117).
-          className="pl-0 data-[scrolled]:[mask-image:linear-gradient(to_right,transparent,black_12px)]"
-          wrapperClassName="order-last w-full max-w-full sm:order-none sm:w-80"
-        />
-        <div className="ml-auto flex items-center gap-3">
-          {props.notificationBell}
-          <Avatar alt="Tài khoản của bạn" {...(props.accountInitials ? { initials: props.accountInitials } : {})} />
-          {props.canCreate && (
-            <Button variant="primary" size="sm" iconBefore={<Plus size={16} aria-hidden="true" />} onClick={props.createProject} shortcut="N">
-              Dự án mới
-            </Button>
-          )}
-        </div>
-      </header>
-
       {/* 16 px gutters below `sm`: 32 px left the 375 px status strip 311 px for 324 px of tabs (BUG-154). */}
       <div className="mx-auto flex w-full max-w-[1920px] flex-1 flex-col gap-6 p-4 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -174,7 +133,20 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              type="search"
+              aria-label="Tìm dự án"
+              value={props.searchQuery}
+              onChange={(event) => props.setSearchQuery(event.target.value)}
+              placeholder="Tìm dự án theo tên..."
+              // The 8 px after the icon is the icon's margin, not the input's padding (BUG-169); while scrolled
+              // the first 12 px fade out so a cut glyph reads as "more text this way".
+              prefix={<Search size={16} aria-hidden="true" className="mr-1" />}
+              onScroll={(event) => event.currentTarget.toggleAttribute('data-scrolled', event.currentTarget.scrollLeft > 0)}
+              className="pl-0 data-[scrolled]:[mask-image:linear-gradient(to_right,transparent,black_12px)]"
+              wrapperClassName="w-full sm:w-72"
+            />
             <Select
               options={PROJECT_SORT_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
               value={props.sortBy}
@@ -192,6 +164,11 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
               value={props.viewMode}
               onChange={props.setViewMode}
             />
+            {props.canCreate && (
+              <Button variant="primary" size="sm" iconBefore={<Plus size={16} aria-hidden="true" />} onClick={props.createProject} shortcut="N">
+                Dự án mới
+              </Button>
+            )}
           </div>
         </div>
 
@@ -320,12 +297,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
   );
 }
 
-export interface ProjectDashboardProps extends Omit<UseProjectDashboardOptions, 'onOpenProject' | 'onToast'> {
-  /** Chuyển thẳng xuống view — xem {@link ProjectDashboardViewProps.notificationBell}. */
-  readonly notificationBell?: ReactNode | undefined;
-  /** Chuyển thẳng xuống view — xem {@link ProjectDashboardViewProps.accountInitials}. */
-  readonly accountInitials?: string | undefined;
-}
+export type ProjectDashboardProps = Omit<UseProjectDashboardOptions, 'onOpenProject' | 'onToast'>;
 
 /**
  * Wires the hook to the router and whichever `Toast.Provider` is nearest, then
@@ -337,7 +309,7 @@ export interface ProjectDashboardProps extends Omit<UseProjectDashboardOptions, 
  * two lines down. Two independent `Toast.Provider`s would each draw their own
  * fixed-position stack in the same corner (R-73's container/props boundary).
  */
-export function ProjectDashboardConnected({ notificationBell, accountInitials, ...options }: ProjectDashboardProps) {
+export function ProjectDashboardConnected(options: ProjectDashboardProps) {
   const navigate = useNavigate();
   const { addToast } = useToast();
 
@@ -347,7 +319,7 @@ export function ProjectDashboardConnected({ notificationBell, accountInitials, .
     onToast: addToast,
   });
 
-  return <ProjectDashboardView {...model} {...actions} notificationBell={notificationBell} accountInitials={accountInitials} />;
+  return <ProjectDashboardView {...model} {...actions} />;
 }
 
 /** `ProjectDashboard`, standalone — its own `Toast.Provider`. For stories, tests and the demo picker; the real route is `ProjectDashboardRoute` (`./ProjectDashboard.container`). */

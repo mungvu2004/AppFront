@@ -20,6 +20,7 @@ import {
 } from '@/lib/input/shortcutRegistry';
 import { useStore } from '@/store';
 
+import { AppLayout } from './AppLayout';
 import { ROUTE_PATTERNS } from './paths';
 import { ExplodedViewRedirect, PascalViewerRedirect } from './viewerRedirects';
 import { RouteErrorScreen } from './RouteErrorScreen';
@@ -355,52 +356,58 @@ export const routes: RouteObject[] = [
       { path: ROUTE_PATTERNS.login, element: suspendedOutsideMain(<RouteAuth />) },
       { path: ROUTE_PATTERNS.invitationAccept, element: suspendedOutsideMain(<RouteInvitationAccept />) },
       { path: ROUTE_PATTERNS.passwordReset, element: suspendedOutsideMain(<RoutePasswordReset />) },
-      { path: ROUTE_PATTERNS.dashboard, element: suspendedOutsideMain(<RouteDashboard />) },
-      { path: ROUTE_PATTERNS.projectExploded, element: <ExplodedViewRedirect /> },
-      { path: ROUTE_PATTERNS.projectMeasure, element: suspendedOutsideMain(<RouteMeasurementTool />) },
       // Màn di động: route MỚI, không thay chỗ một route tạm nào (R-66).
       { path: ROUTE_PATTERNS.mobileViewer, element: suspendedOutsideMain(<RouteMobileViewer />) },
       ...STATE_GALLERY_DEV_ONLY_ROUTES,
-      /* Nhóm màn không tự có `<main>`: một landmark chung ở đây thay vì ba mươi chỗ
-         (FIX-381). Màn đã có `<main>` riêng đứng NGOÀI nhóm để không lồng `<main>`. */
+      /* Mọi màn sau đăng nhập: header chung + thanh bước dự án (`AppLayout`). */
       {
-        element: (
-          <ScreenMain>
-            <Outlet />
-          </ScreenMain>
-        ),
+        element: <AppLayout />,
         children: [
-          { path: ROUTE_PATTERNS.accessDenied, element: suspended(<RouteAccessDenied />) },
-          { path: ROUTE_PATTERNS.onboarding, element: suspended(<RouteOnboarding />) },
-          { path: ROUTE_PATTERNS.projectSettings, element: suspended(<RouteProjectSettings />) },
-          { path: ROUTE_PATTERNS.projectUpload, element: suspended(<RouteFloorUpload />) },
-          { path: ROUTE_PATTERNS.projectQuality, element: suspended(<RouteInputQualityGate />) },
-          { path: ROUTE_PATTERNS.projectPipeline, element: suspended(<RouteProcessing />) },
-          { path: ROUTE_PATTERNS.projectPipelineGraph, element: suspended(<RoutePipelineGraph />) },
-          { path: ROUTE_PATTERNS.projectScale, element: suspended(<RouteScaleCalibration />) },
-          { path: ROUTE_PATTERNS.projectOverlay, element: suspended(<RouteOverlayComparison />) },
-          { path: ROUTE_PATTERNS.projectCadConfirm, element: suspended(<RouteCadBranchConfirm />) },
-          { path: ROUTE_PATTERNS.projectWalls, element: suspended(<RouteWallLayerReview />) },
-          { path: ROUTE_PATTERNS.projectObjects, element: suspended(<RouteObjectLayerReview />) },
-          { path: ROUTE_PATTERNS.projectDimensions, element: suspended(<RouteDimensionOcrReview />) },
-          { path: ROUTE_PATTERNS.projectGrids, element: suspended(<RouteAxisGridManager />) },
-          { path: ROUTE_PATTERNS.projectRooms, element: suspended(<RouteRoomLabelReview />) },
-          { path: ROUTE_PATTERNS.projectFloors, element: suspended(<RouteFloorManager />) },
-          { path: ROUTE_PATTERNS.projectThickness, element: suspended(<RouteThicknessStandardization />) },
-          { path: ROUTE_PATTERNS.projectViewer, element: suspended(<RoutePascalViewer />) },
-          { path: ROUTE_PATTERNS.projectViewerPascal, element: <PascalViewerRedirect /> },
-          { path: ROUTE_PATTERNS.projectRules, element: suspended(<RouteRules />) },
-          { path: ROUTE_PATTERNS.projectRuleSettings, element: suspended(<RouteRuleSettings />) },
-          { path: ROUTE_PATTERNS.projectExport, element: suspended(<RouteExportPanel />) },
-          { path: ROUTE_PATTERNS.projectData, element: suspended(<RouteSpatialJsonViewer />) },
-          { path: ROUTE_PATTERNS.projectVersions, element: suspended(<RouteVersionHistory />) },
-          { path: ROUTE_PATTERNS.adminModels, element: suspended(<RouteModelLibrary />) },
-          { path: ROUTE_PATTERNS.adminTrainingJobs, element: suspended(<RouteTrainingJobs />) },
-          { path: ROUTE_PATTERNS.adminTrainingModels, element: suspended(<RouteModelRegistry />) },
-          { path: ROUTE_PATTERNS.adminUsers, element: suspended(<RouteUserManagement />) },
-          { path: ROUTE_PATTERNS.account, element: suspended(<RouteAccountSettings />) },
-          { path: ROUTE_PATTERNS.notifications, element: suspended(<RouteNotificationCenter />) },
-          { path: ROUTE_PATTERNS.notFound, element: suspended(<RouteNotFound />) },
+          { path: ROUTE_PATTERNS.dashboard, element: suspendedOutsideMain(<RouteDashboard />) },
+          { path: ROUTE_PATTERNS.projectExploded, element: <ExplodedViewRedirect /> },
+          { path: ROUTE_PATTERNS.projectMeasure, element: suspendedOutsideMain(<RouteMeasurementTool />) },
+          /* Nhóm màn không tự có `<main>`: một landmark chung ở đây thay vì ba mươi chỗ
+             (FIX-381). Màn đã có `<main>` riêng đứng NGOÀI nhóm để không lồng `<main>`. */
+          {
+            element: (
+              <ScreenMain>
+                <Outlet />
+              </ScreenMain>
+            ),
+            children: [
+              { path: ROUTE_PATTERNS.accessDenied, element: suspended(<RouteAccessDenied />) },
+              { path: ROUTE_PATTERNS.onboarding, element: suspended(<RouteOnboarding />) },
+              { path: ROUTE_PATTERNS.projectSettings, element: suspended(<RouteProjectSettings />) },
+              { path: ROUTE_PATTERNS.projectUpload, element: suspended(<RouteFloorUpload />) },
+              { path: ROUTE_PATTERNS.projectQuality, element: suspended(<RouteInputQualityGate />) },
+              { path: ROUTE_PATTERNS.projectPipeline, element: suspended(<RouteProcessing />) },
+              { path: ROUTE_PATTERNS.projectPipelineGraph, element: suspended(<RoutePipelineGraph />) },
+              { path: ROUTE_PATTERNS.projectScale, element: suspended(<RouteScaleCalibration />) },
+              { path: ROUTE_PATTERNS.projectOverlay, element: suspended(<RouteOverlayComparison />) },
+              { path: ROUTE_PATTERNS.projectCadConfirm, element: suspended(<RouteCadBranchConfirm />) },
+              { path: ROUTE_PATTERNS.projectWalls, element: suspended(<RouteWallLayerReview />) },
+              { path: ROUTE_PATTERNS.projectObjects, element: suspended(<RouteObjectLayerReview />) },
+              { path: ROUTE_PATTERNS.projectDimensions, element: suspended(<RouteDimensionOcrReview />) },
+              { path: ROUTE_PATTERNS.projectGrids, element: suspended(<RouteAxisGridManager />) },
+              { path: ROUTE_PATTERNS.projectRooms, element: suspended(<RouteRoomLabelReview />) },
+              { path: ROUTE_PATTERNS.projectFloors, element: suspended(<RouteFloorManager />) },
+              { path: ROUTE_PATTERNS.projectThickness, element: suspended(<RouteThicknessStandardization />) },
+              { path: ROUTE_PATTERNS.projectViewer, element: suspended(<RoutePascalViewer />) },
+              { path: ROUTE_PATTERNS.projectViewerPascal, element: <PascalViewerRedirect /> },
+              { path: ROUTE_PATTERNS.projectRules, element: suspended(<RouteRules />) },
+              { path: ROUTE_PATTERNS.projectRuleSettings, element: suspended(<RouteRuleSettings />) },
+              { path: ROUTE_PATTERNS.projectExport, element: suspended(<RouteExportPanel />) },
+              { path: ROUTE_PATTERNS.projectData, element: suspended(<RouteSpatialJsonViewer />) },
+              { path: ROUTE_PATTERNS.projectVersions, element: suspended(<RouteVersionHistory />) },
+              { path: ROUTE_PATTERNS.adminModels, element: suspended(<RouteModelLibrary />) },
+              { path: ROUTE_PATTERNS.adminTrainingJobs, element: suspended(<RouteTrainingJobs />) },
+              { path: ROUTE_PATTERNS.adminTrainingModels, element: suspended(<RouteModelRegistry />) },
+              { path: ROUTE_PATTERNS.adminUsers, element: suspended(<RouteUserManagement />) },
+              { path: ROUTE_PATTERNS.account, element: suspended(<RouteAccountSettings />) },
+              { path: ROUTE_PATTERNS.notifications, element: suspended(<RouteNotificationCenter />) },
+              { path: ROUTE_PATTERNS.notFound, element: suspended(<RouteNotFound />) },
+            ],
+          },
         ],
       },
     ],

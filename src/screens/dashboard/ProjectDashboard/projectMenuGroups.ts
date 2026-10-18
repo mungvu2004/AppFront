@@ -9,7 +9,7 @@ import type { ProjectCardModel, ProjectDashboardActions } from './useProjectDash
  */
 export function projectMenuGroups(
   project: ProjectCardModel,
-  actions: Pick<ProjectDashboardActions, 'openProject' | 'startRename' | 'requestDelete' | 'duplicateProject'>,
+  actions: Pick<ProjectDashboardActions, 'openProject' | 'openProjectViewer' | 'startRename' | 'requestDelete' | 'duplicateProject'>,
   canEdit: boolean,
   canDuplicate: boolean,
   canDeleteProject: boolean,
@@ -19,6 +19,7 @@ export function projectMenuGroups(
       id: 'project-actions',
       items: [
         { id: 'open', label: 'Mở', action: () => actions.openProject(project.id, 'card') },
+        { id: 'view-3d', label: 'Xem 3D', action: () => actions.openProjectViewer(project.id) },
         ...(canDuplicate
           ? [{ id: 'duplicate', label: 'Nhân bản', action: () => actions.duplicateProject(project.id) }]
           : []),
