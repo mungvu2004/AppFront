@@ -22,6 +22,7 @@ import { Hammer, Layers, Package, Settings } from 'lucide-react'
 import Image from 'next/image'
 import { type ComponentProps, type ReactNode, useCallback, useEffect } from 'react'
 import { BuildTab } from './components/build-tab'
+import { CanvasHelp, MeasureClearButton } from './components/canvas-help'
 import {
   CommunityViewerToolbarLeft,
   CommunityViewerToolbarRight,
@@ -185,6 +186,8 @@ export default function Home({ projectId, onLoad, onSave, backCard }: HomeProps)
         viewerToolbarRight={<CommunityViewerToolbarRight vrButton={null} vrLabel="Enter VR" />}
       />
       <DeleteModeBanner />
+      <CanvasHelp />
+      <MeasureClearButton />
     </div>
   )
 }
