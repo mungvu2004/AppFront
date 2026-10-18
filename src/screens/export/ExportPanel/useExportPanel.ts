@@ -131,10 +131,10 @@ export const exportRunQueryKey = (projectId: string) =>
 
 /** Đuôi tệp của từng định dạng, hiện bằng chữ đều. */
 const EXTENSION_LABEL: Readonly<Record<ExportFormatId, string>> = Object.freeze({
-  glb: '.glb',
-  pdf: '.pdf',
-  image: '.png',
-  'spatial-json': '.json',
+  glb: 'Mô hình 3D (.glb)',
+  pdf: 'Hồ sơ PDF (.pdf)',
+  image: 'Ảnh mặt bằng (.png)',
+  'spatial-json': 'Dữ liệu dự án (.json)',
 });
 
 /**
@@ -147,7 +147,7 @@ const AUDIENCE_SENTENCE: Readonly<Record<ExportFormatId, string>> = Object.freez
   glb: 'Mô hình ba chiều cho người dựng hình và người xem bằng phần mềm 3D.',
   pdf: 'Hồ sơ in cho người duyệt hồ sơ và người mang bản vẽ ra công trường.',
   image: 'Ảnh mặt bằng cho người làm bản trình bày và người gửi kèm thư.',
-  'spatial-json': 'Dữ liệu thô cho người viết công cụ và người nối sang hệ khác.',
+  'spatial-json': 'Toàn bộ dữ liệu của dự án, cho người viết công cụ và người nối sang hệ khác.',
 });
 
 /** Tên bước, dịch từ pha thật của worker. Hai pha, đúng hai. */
@@ -176,11 +176,11 @@ const DESTINATION_CAPTION = 'Tệp tải về thư mục tải xuống của tr�
 
 /** Vì sao hồ sơ PDF mới đếm được trang mà chưa tải về được. */
 const PDF_NOTICE_CAPTION =
-  'Hồ sơ PDF mới đếm được số trang: dự án chưa có bộ dựng tệp PDF nên chưa tải về được.';
+  'Chưa xuất được PDF ở bản này, mới đếm được số trang. Hãy chọn mô hình 3D hoặc dữ liệu dự án.';
 
 /** Vì sao chưa chụp được ảnh. */
 const IMAGE_NOTICE_CAPTION =
-  'Ảnh cần một khung nhìn 3D đang mở; màn này chưa được gắn với khung nhìn nào nên chưa chụp được.';
+  'Chưa xuất được ảnh từ màn này. Mở mô hình 3D để chụp ảnh, hoặc chọn mô hình 3D hoặc dữ liệu dự án.';
 
 /** Gợi ý duy nhất có thật khi một lượt xuất hỏng: hạ mức chi tiết rồi thử lại. */
 const ERROR_HINT = 'Thử hạ mức chi tiết xuống mức gọn hơn rồi xuất lại.';

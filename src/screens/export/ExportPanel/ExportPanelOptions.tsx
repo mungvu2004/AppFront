@@ -204,6 +204,7 @@ export interface ExportPanelOptionsProps {
   readonly onToggleFloor: (id: string) => void;
   readonly onChangeOptions: (next: ExportOptionsView) => void;
   readonly onToggleOptionsExpanded: () => void;
+  readonly onOpenData?: () => void;
 }
 
 export function ExportPanelOptions({
@@ -214,16 +215,33 @@ export function ExportPanelOptions({
   onToggleFloor,
   onChangeOptions,
   onToggleOptionsExpanded,
+  onOpenData,
 }: ExportPanelOptionsProps) {
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-border-default bg-bg-surface p-4">
       {/* Spatial JSON lấy cả đồ thị nên không có phạm vi theo tầng (30-C-015). */}
-      {selectedFormatId !== 'spatial-json' && <ExportPanelScope floors={floors} onToggleFloor={onToggleFloor} />}
+      {selectedFormatId !== 'spatial-json' ? (
+        <ExportPanelScope floors={floors} onToggleFloor={onToggleFloor} />
+      ) : (
+        <section aria-label="Phạm vi" className="flex flex-col gap-1">
+          <h3 className="text-sm font-medium text-text-secondary">Phạm vi</h3>
+          <p className="text-sm text-text-secondary">Tệp này gồm toàn bộ dự án, không chọn theo tầng.</p>
+          {onOpenData !== undefined && (
+            <button
+              type="button"
+              onClick={onOpenData}
+              className={cn('self-start rounded text-sm font-medium text-accent hover:underline', FOCUS_RING)}
+            >
+              Xem trước
+            </button>
+          )}
+        </section>
+      )}
 
       <div
         className={
           selectedFormatId === 'spatial-json'
-            ? 'flex flex-col gap-2'
+            ? 'flex flex-col gap-2 border-t border-border-default pt-3'
             : 'flex flex-col gap-2 border-t border-border-default pt-3'
         }
       >

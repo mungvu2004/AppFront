@@ -73,6 +73,7 @@ import {
 import { useSession } from '@/hooks/useSession';
 import { SHARE_LINKS_SUPPORTED } from '@/lib/export/shareLink';
 import { ShareDialogContainer } from '@/screens/export/ShareDialog';
+import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
@@ -156,7 +157,16 @@ function WiredExportPanel(props: WiredExportPanelProps) {
 
   return (
     <>
-      <ExportPanel {...viewProps} />
+      <ExportPanel
+        {...viewProps}
+        onBackToProject={() => {
+          void navigate(ROUTES.project.floors(props.projectId));
+        }}
+        onOpenData={() => {
+          void navigate(ROUTES.project.data(props.projectId));
+        }}
+      />
+      {viewProps.status !== 'forbidden' && <EditorTourContainer hostId="export-panel" />}
       {SHARE_LINKS_SUPPORTED && (
         <ShareDialogContainer
           isOpen={isShareOpen}
@@ -204,7 +214,6 @@ export function ExportPanelContainer(props: ExportPanelContainerProps) {
         {...(props.onNavigateToFix !== undefined ? { onNavigateToFix: props.onNavigateToFix } : {})}
         {...(props.onToast !== undefined ? { onToast: props.onToast } : {})}
       />
-      <EditorTourContainer hostId="export-panel" />
     </ScreenErrorBoundary>
   );
 }

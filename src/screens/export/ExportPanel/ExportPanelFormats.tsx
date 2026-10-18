@@ -32,11 +32,11 @@ export const FOCUS_RING =
  * câu ở chân trang mà không ai phải chép lại nó.
  */
 export const PDF_BLOCKED_CAPTION =
-  'Chưa tải về được: dự án chưa có bộ dựng tệp PDF, mới đếm được số trang.';
+  'Chưa xuất được PDF ở bản này, mới đếm được số trang. Hãy chọn mô hình 3D hoặc dữ liệu dự án.';
 
 /** Vì sao thẻ ảnh chưa tải về được. */
 export const IMAGE_BLOCKED_CAPTION =
-  'Chưa tải về được: ảnh cần một khung nhìn ba chiều đang mở, màn này chưa gắn với khung nhìn nào.';
+  'Chưa xuất được ảnh từ màn này. Mở mô hình 3D để chụp ảnh, hoặc chọn mô hình 3D hoặc dữ liệu dự án.';
 
 /**
  * Câu giải thích của một định dạng chưa sinh được tệp, hoặc `null` khi nó sinh
@@ -105,7 +105,7 @@ function FormatCard({ format, isLoading, blockedCaption, onSelect }: FormatCardP
 
       <div className="flex min-w-0 flex-col gap-1">
         <div className="flex flex-wrap items-baseline gap-2">
-          <span className="font-mono text-sm font-medium text-text-primary">{format.extensionLabel}</span>
+          <span className="text-sm font-medium text-text-primary">{format.extensionLabel}</span>
           {format.pageCountLabel !== null &&
             (isLoading ? (
               <SkeletonText className="h-3 w-14" />

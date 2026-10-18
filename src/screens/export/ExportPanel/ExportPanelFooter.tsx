@@ -18,20 +18,25 @@ export interface ExportPanelFooterProps {
   readonly progress: ExportProgressView | null;
   /** Định dạng đang chọn có sinh ra được một tệp thật không. */
   readonly canExportSelected: boolean;
+  /** Vì sao nút "Xuất" đang mờ (định dạng chưa xuất được), `null` khi không có lý do riêng. */
+  readonly blockedReason?: string | null;
   readonly destinationCaption: string;
   /** Mô hình còn đang tải: chưa có gì để xuất (30-C-028). */
   readonly isLoading?: boolean;
   readonly onExport: () => void;
   readonly onCancel: () => void;
+  readonly onBackToProject?: () => void;
 }
 
 export function ExportPanelFooter({
   progress,
   canExportSelected,
+  blockedReason = null,
   destinationCaption,
   isLoading = false,
   onExport,
   onCancel,
+  onBackToProject,
 }: ExportPanelFooterProps) {
   const footerRef = useRef<HTMLElement>(null);
   const isRunning = progress !== null;
@@ -84,15 +89,19 @@ export function ExportPanelFooter({
 
   return (
     <footer ref={footerRef} data-sticky-footer="" className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface p-4 sm:px-6">
-      <p className="text-sm text-text-secondary">{destinationCaption}</p>
-      {canExportSelected && (
-        // `data-tour-anchor`: móc neo cho lớp dạy việc (`screens/system/EditorTour`).
-        // Nút này không có `aria-label`/`id` nào ổn định để bám, và tên khẳng định
-        // của nó là chính chữ hiện trên nút — thứ `querySelector` không chọn được.
-        <Button data-tour-anchor="exportResult" variant="primary" disabled={isLoading} onClick={onExport}>
+      <p className="text-sm text-text-secondary">{canExportSelected ? destinationCaption : (blockedReason ?? destinationCaption)}</p>
+      <div className="flex shrink-0 items-center gap-2">
+        {onBackToProject !== undefined && (
+          <Button variant="secondary" onClick={onBackToProject}>
+            Về dự án
+          </Button>
+        )}
+        {/* Nút luôn có mặt: mờ khi định dạng chưa xuất được, để người dùng thấy lý do thay vì tưởng nút hỏng.
+            `data-tour-anchor`: móc neo cho lớp dạy việc (`screens/system/EditorTour`). */}
+        <Button data-tour-anchor="exportResult" variant="primary" disabled={isLoading || !canExportSelected} onClick={onExport}>
           Xuất
         </Button>
-      )}
+      </div>
     </footer>
   );
 }

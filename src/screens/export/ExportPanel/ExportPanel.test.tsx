@@ -190,7 +190,7 @@ describe('khối kiểm tra trước khi xuất không bao giờ chặn nút "Xu
 });
 
 describe('[BUG-466] .glb mà chưa chọn tầng nào: không nút "Xuất", không dòng xanh', () => {
-  it('bỏ chọn mọi tầng khi đang chọn .glb thì nút "Xuất" rời DOM', async () => {
+  it('bỏ chọn mọi tầng khi đang chọn .glb thì nút "Xuất" mờ đi', async () => {
     const ExportPanelView = await loadExportPanelView();
     const props = buildExportPanelProps('success', {
       formats: formatsSelecting('glb'),
@@ -198,7 +198,7 @@ describe('[BUG-466] .glb mà chưa chọn tầng nào: không nút "Xuất", kh�
     });
     render(<ExportPanelView {...props} />);
 
-    expect(screen.queryByRole('button', { name: 'Xuất' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Xuất' })).toHaveProperty('disabled', true);
   });
 
   it('Spatial JSON không phụ thuộc tầng nên vẫn xuất được khi chưa chọn tầng', async () => {
@@ -361,8 +361,8 @@ describe('capabilities false → giao diện tương ứng rời khỏi DOM, kh�
     expect(screen.getAllByText('.pdf')).toHaveLength(1);
     expect(container.textContent).toContain(pdfCard.pageCountLabel);
 
-    // Không nút xuất, không nút tải — kể cả một nút xám.
-    expect(screen.queryByRole('button', { name: /xuất|tải/iu })).toBeNull();
+    // Nút Xuất vẫn có mặt nhưng mờ, kèm lý do ở chân trang.
+    expect(screen.getByRole('button', { name: 'Xuất' })).toHaveProperty('disabled', true);
   });
 
   it('canCaptureImage=false: thẻ ảnh vẫn ở lại nhưng không còn khả năng tải nào', async () => {
@@ -375,7 +375,7 @@ describe('capabilities false → giao diện tương ứng rời khỏi DOM, kh�
     render(<ExportPanelView {...props} />);
 
     expect(screen.getAllByText('.png')).toHaveLength(1);
-    expect(screen.queryByRole('button', { name: /xuất|tải/iu })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Xuất' })).toHaveProperty('disabled', true);
   });
 
   it('canIncludeAxisGrid=false: không có công tắc "lưới trục" nào, kể cả khi mục tuỳ chọn đã mở', async () => {

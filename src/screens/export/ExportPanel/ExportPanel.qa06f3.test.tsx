@@ -21,16 +21,16 @@ describe('QA-06b F3 — màn Xuất', () => {
     expect(document.activeElement).toBe(radios[1]);
   });
 
-  it('30-C-015: .json không hiện khối Phạm vi (nó xuất cả đồ thị)', () => {
+  it('30-C-015: .json không có ô chọn tầng (nó xuất cả đồ thị), chỉ có câu giải thích', () => {
     render(<ExportPanel {...buildExportPanelProps('success', { formats: formatsSelecting('spatial-json') })} />);
-    expect(screen.queryByRole('region', { name: 'Phạm vi' })).toBeNull();
+    expect(screen.getByText(/gồm toàn bộ dự án, không chọn theo tầng/u)).toBeTruthy();
   });
 
-  it('30-E-014: mỗi nút Tải lại mang tên tệp', () => {
+  it('30-E-014: mỗi nút Tải về lại mang tên tệp', () => {
     const files = [buildSampleExportedFile(), buildSampleExportedFile({ id: 'E2', fileName: 'b.json' })];
     render(<ExportPanel {...buildExportPanelProps('success', { exportedFiles: files })} />);
-    expect(screen.getByRole('button', { name: `Tải lại ${files[0]?.fileName}` })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Tải lại b.json' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: `Tải về lại ${files[0]?.fileName}` })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tải về lại b.json' })).toBeTruthy();
   });
 
   it('30-C-028: "Xuất" bị khoá khi đang tải', () => {

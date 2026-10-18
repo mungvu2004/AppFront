@@ -122,7 +122,7 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
       <div className="flex flex-col gap-0.5">
         <h3 className="text-sm font-medium text-text-secondary">Tệp đã xuất</h3>
         {!canPersistHistory && (
-          <p className="text-xs text-text-muted">Chỉ trong phiên làm việc này, sẽ mất khi tải lại trang.</p>
+          <p className="text-xs text-text-muted">Chỉ trong phiên làm việc này, sẽ mất khi làm mới trang.</p>
         )}
       </div>
 
@@ -134,7 +134,7 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
             <Table.Head className="hidden sm:table-cell">Thời điểm</Table.Head>
             <Table.Head>Dung lượng</Table.Head>
             <Table.Head>
-              <span className="sr-only">Tải lại</span>
+              <span className="sr-only">Tải về lại</span>
             </Table.Head>
           </Table.Row>
         </Table.Header>
@@ -154,12 +154,12 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
                 <Button
                   variant="ghost"
                   size="sm"
-                  aria-label={`Tải lại ${file.fileName}`}
+                  aria-label={`Tải về lại ${file.fileName}`}
                   onClick={() => {
                     onDownload(file.id);
                   }}
                 >
-                  Tải lại
+                  Tải về lại
                 </Button>
               </Table.Cell>
             </Table.Row>
@@ -184,6 +184,8 @@ export function ExportPanel(props: ExportPanelProps) {
     error,
     destinationCaption,
     noticeCaption,
+    onBackToProject,
+    onOpenData,
     permissionCaption,
     isCollapsed,
     onSelectFormat,
@@ -224,6 +226,11 @@ export function ExportPanel(props: ExportPanelProps) {
         <p className="max-w-sm text-sm text-text-secondary">
           {permissionCaption ?? 'Chỉ một số vai trò trong dự án được xuất bản vẽ.'}
         </p>
+        {onBackToProject !== undefined && (
+          <Button variant="secondary" onClick={onBackToProject}>
+            Về dự án
+          </Button>
+        )}
       </div>
     );
   }
@@ -255,8 +262,6 @@ export function ExportPanel(props: ExportPanelProps) {
           )}
         </header>
 
-        {status === 'partial' && noticeCaption !== null && <InlineAlert level="attention" message={noticeCaption} />}
-
         {status === 'error' && error !== null && (
           <div className="flex flex-col gap-2">
             <InlineAlert level="violation" message={error.message} action={{ label: 'thử lại', onClick: onRetry }} />
@@ -287,6 +292,7 @@ export function ExportPanel(props: ExportPanelProps) {
                 onToggleFloor={onToggleFloor}
                 onChangeOptions={onChangeOptions}
                 onToggleOptionsExpanded={onToggleOptionsExpanded}
+                {...(onOpenData !== undefined ? { onOpenData } : {})}
               />
             )}
 
@@ -305,10 +311,12 @@ export function ExportPanel(props: ExportPanelProps) {
       <ExportPanelFooter
         progress={progress}
         canExportSelected={canExportSelected}
+        blockedReason={noticeCaption}
         destinationCaption={destinationCaption}
         isLoading={isLoading}
         onExport={onExport}
         onCancel={onCancel}
+        {...(onBackToProject !== undefined ? { onBackToProject } : {})}
       />
     </div>
   );

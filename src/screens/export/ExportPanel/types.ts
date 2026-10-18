@@ -285,4 +285,8 @@ export interface ExportPanelProps {
    * liên kết chia sẻ tắt (v1) hoặc nơi gọi không truyền: nút "chia sẻ" rời DOM.
    */
   readonly onShare: (() => void) | null;
+  /** Về màn Quản lý tầng của dự án (nút "Về dự án" ở chân trang). Vắng thì không có nút. */
+  readonly onBackToProject?: () => void;
+  /** Mở màn "Dữ liệu dự án" (xem trước tệp JSON). Vắng thì không có liên kết. */
+  readonly onOpenData?: () => void;
 }
