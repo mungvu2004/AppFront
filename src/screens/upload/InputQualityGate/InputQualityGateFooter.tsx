@@ -30,7 +30,7 @@ import { Checkbox } from '@/components/ui/Checkbox';
 
 import type { InputQualityFooterProps } from './types';
 
-const CONTINUE_BLOCKED_ACKNOWLEDGEMENT = 'Đánh dấu ô xác nhận bên trên rồi thử lại.';
+const CONTINUE_BLOCKED_ACKNOWLEDGEMENT = 'Đánh dấu ô xác nhận bên trên để tiếp tục xử lý.';
 const CONTINUE_BLOCKED_GENERIC = 'Vẫn còn phát hiện cần xử lý trước khi qua bước tiếp theo.';
 const CONTINUE_BLOCKED_NOTE_ID = 'input-quality-gate-continue-note';
 

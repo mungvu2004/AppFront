@@ -31,6 +31,13 @@ export const PHASE_1_DIALOG_STATES = {
     description:
       'Hồ sơ này có tệp bản vẽ gốc từ AutoCAD hoặc các phần mềm thiết kế khác. Bạn có thể sử dụng đường hình học chính xác từ tệp, hoặc tiếp tục dùng nhánh nhận dạng ảnh để kiểm soát từng bước.',
   },
+  /** Tầng chỉ có ảnh: không nói sai về tệp của người dùng (G3-30). */
+  noCadFile: {
+    title: 'Chưa có tệp CAD',
+    description:
+      'Tầng này chỉ có ảnh bản vẽ, không có tệp CAD gốc. Hãy dùng nhánh nhận dạng ảnh; muốn dùng đường từ CAD thì tải tệp .dwg của tầng lên trước.',
+    reason: 'Tầng này chưa có tệp CAD nên chưa dùng được đường từ CAD.',
+  },
 } as const;
 
 /**

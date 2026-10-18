@@ -118,7 +118,7 @@ function MetricRow({ metric, onHoverRegion }: MetricRowProps) {
           : {})}
       >
         <span className="flex-1 text-[14px] text-text-primary">{metric.label}</span>
-        <span className="w-[92px] shrink-0 text-right text-[13px] tabular-nums text-text-secondary">
+        <span className="min-w-[92px] shrink-0 whitespace-nowrap text-right text-[13px] tabular-nums text-text-secondary">
           {metric.valueText}
         </span>
         <Badge variant={metric.statusCode}>{QUALITY_LEVEL_LABELS[metric.level]}</Badge>
@@ -243,7 +243,7 @@ function FloorsTable({ floors, onSelectFloor }: FloorsTableProps) {
             >
               <Table.Cell className="font-medium">{floor.label}</Table.Cell>
               <Table.Cell className="text-text-secondary">{floor.summaryText}</Table.Cell>
-              <Table.Cell>
+              <Table.Cell className="whitespace-nowrap">
                 {floor.level === null ? (
                   <span className="text-text-muted">{NOT_MEASURED_TEXT}</span>
                 ) : (

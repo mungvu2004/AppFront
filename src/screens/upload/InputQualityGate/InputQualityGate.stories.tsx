@@ -378,6 +378,7 @@ const NO_ACTIONS: InputQualityGateActions = {
   onStraighten: () => undefined,
   onPickCorners: () => undefined,
   onDragCorner: () => undefined,
+  onCancelCorners: () => undefined,
   onChangeReveal: () => undefined,
   onToggleAcknowledgement: () => undefined,
   onContinue: () => undefined,

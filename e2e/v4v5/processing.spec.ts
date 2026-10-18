@@ -47,7 +47,7 @@ test('B-V4-01: tới từ "Vẫn dùng AI" của hộp thoại CAD cũng thấy 
   await page.goto(ROUTES.project.cadConfirm(PROJECT_ID, 'L1'));
 
   await page
-    .getByRole('dialog', { name: 'Phát hiện tệp CAD' })
+    .getByRole('dialog', { name: 'Chưa có tệp CAD' })
     .getByRole('button', { name: 'Vẫn dùng AI' })
     .click({ timeout: FIRST_PAINT_TIMEOUT_MS });
 

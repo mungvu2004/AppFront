@@ -337,6 +337,8 @@ export interface InputQualityGateActions {
   /** Vào chế độ chọn bốn góc — `action.kind === 'pickCorners'`. */
   readonly onPickCorners: () => void;
   readonly onDragCorner: (cornerId: string, xRatio: number, yRatio: number) => void;
+  /** Bỏ chế độ chọn góc, không gửi gì — cùng việc với Esc, cho người dùng chuột (G3-34). */
+  readonly onCancelCorners: () => void;
   /** Kéo thanh so sánh trước/sau. */
   readonly onChangeReveal: (ratio: number) => void;
   readonly onToggleAcknowledgement: (next: boolean) => void;
@@ -367,7 +369,7 @@ export interface InputQualityImagePanelProps {
   readonly image: InputQualityImageModel;
   readonly actions: Pick<
     InputQualityGateActions,
-    'onChangeReveal' | 'onDragCorner' | 'onHoverRegion'
+    'onCancelCorners' | 'onChangeReveal' | 'onDragCorner' | 'onHoverRegion'
   >;
 }
 

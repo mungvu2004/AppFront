@@ -44,15 +44,20 @@ export function CadBranchConfirmDialog({ model, actions }: CadBranchConfirmDialo
     wasCadChoiceDisabledRef.current = model.isCadChoiceDisabled;
   }, [model.isCadChoiceDisabled, model.isOpen]);
 
+  const copy = model.hasCadFile ? TEXT.dialogStates.normal : TEXT.dialogStates.noCadFile;
+
   return (
     <Modal.Root isOpen={model.isOpen} onClose={actions.onDismiss} width={560}>
-      <Modal.Header>{TEXT.dialogStates.normal.title}</Modal.Header>
+      <Modal.Header>{copy.title}</Modal.Header>
 
       <Modal.Body className="flex flex-col gap-5 pb-6">
-        <p className="text-text-secondary">{TEXT.dialogStates.normal.description}</p>
+        <p className="text-text-secondary">{copy.description}</p>
 
         {model.isCadChoiceDisabled && model.cadChoiceDisabledReason !== null && (
-          <InlineAlert level="violation" message={model.cadChoiceDisabledReason} />
+          <InlineAlert
+            level={model.hasCadFile ? 'violation' : 'attention'}
+            message={model.cadChoiceDisabledReason}
+          />
         )}
 
         <CadBranchCompareTable rows={model.comparisonRows} />
@@ -91,14 +96,14 @@ export function CadBranchConfirmDialog({ model, actions }: CadBranchConfirmDialo
           </Button>
           <Button
             ref={aiButtonRef}
-            variant="secondary"
+            variant={model.isCadChoiceDisabled ? 'primary' : 'secondary'}
             data-autofocus={model.isCadChoiceDisabled ? true : undefined}
             onClick={() => actions.onChooseBranch('ai')}
           >
             {TEXT.buttons.secondary}
           </Button>
           <Button
-            variant="primary"
+            variant={model.isCadChoiceDisabled ? 'secondary' : 'primary'}
             data-autofocus={model.isCadChoiceDisabled ? undefined : true}
             disabled={model.isCadChoiceDisabled}
             onClick={() => actions.onChooseBranch('cad')}

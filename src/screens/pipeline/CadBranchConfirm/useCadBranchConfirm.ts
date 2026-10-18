@@ -74,6 +74,7 @@ import {
   CAD_REMEMBER_SESSION_NOTICE,
   createAppCadBranchConfirmGateway,
 } from './cadBranchConfirmGateway';
+import { PHASE_1_DIALOG_STATES } from './cadBranchConfirmText';
 import type {
   CadBranchChoice,
   CadBranchComparisonCell,
@@ -106,6 +107,8 @@ import type {
  * Nhãn viết thường kiểu câu (A6); ngoại lệ chữ hoa là tên lớp CAD, tên loại
  * thực thể và số phiên bản định dạng — mã máy đọc, giữ nguyên dạng.
  */
+const NO_CAD_FILE_REASON = PHASE_1_DIALOG_STATES.noCadFile.reason;
+
 const COPY = {
   emptyNotice:
     'Tệp CAD không có lớp nào được đặt tên, nên không có lớp nào để ánh xạ và chưa nhập được hình học. Hãy chọn "Vẫn dùng AI".',
@@ -677,7 +680,14 @@ export function useCadBranchConfirm(
   /* Hành động.                                                             */
   /* ---------------------------------------------------------------------- */
 
-  const isCadChoiceDisabled = state === 'error' || state === 'forbidden';
+  // Tầng đang mở có trong bảng thì theo tầng đó; không thì theo cả hồ sơ. Chưa đọc xong thì coi như có.
+  const currentFloor = record?.floors.find((floor) => floor.floorId === floorId);
+  const hasCadFile =
+    record == null ||
+    (currentFloor !== undefined
+      ? currentFloor.hasCadFile
+      : record.floors.length === 0 || record.floors.some((floor) => floor.hasCadFile));
+  const isCadChoiceDisabled = state === 'error' || state === 'forbidden' || !hasCadFile;
 
   const onToggleRemember = useCallback(
     (isChecked: boolean) => {
@@ -898,7 +908,10 @@ export function useCadBranchConfirm(
         isCadChoiceDisabled,
         // Không quyền: câu đầy đủ đã ở băng trạng thái, hộp thoại không lặp lại (BUG-P09-014).
         cadChoiceDisabledReason:
-          isCadChoiceDisabled && state !== 'forbidden' ? (failure?.sentence ?? null) : null,
+          !isCadChoiceDisabled || state === 'forbidden'
+            ? null
+            : (failure?.sentence ?? (hasCadFile ? null : NO_CAD_FILE_REASON)),
+        hasCadFile,
       },
       mapping: isStageTwoOpen ? { layers, roleOptions, hoveredLayerId } : null,
       preview: isStageTwoOpen

@@ -45,7 +45,7 @@ import { useCallback, useRef, useState, type KeyboardEvent } from 'react';
 import { clsx } from 'clsx';
 
 import { ZoomCluster } from '@/components/canvas/ZoomCluster';
-import { NumericField } from '@/components/ui/NumericField';
+import { Button } from '@/components/ui/Button';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useZoomCluster } from '@/hooks/useZoomCluster';
 import { cssDurationMs } from '@/lib/motion';
@@ -64,7 +64,8 @@ import type { InputQualityImagePanelProps } from './types';
 
 const PANEL_LABEL = 'Khung xem bản vẽ';
 const CORNER_HINT = 'Kéo bằng chuột, hoặc dùng phím mũi tên khi tay nắm đang được chọn.';
-const COMPARISON_LABEL = 'Tỉ lệ lộ ảnh sau khi nắn';
+const COMPARISON_LABEL = 'So sánh trước và sau khi nắn';
+const CANCEL_CORNERS_LABEL = 'Huỷ chọn góc';
 const COMPARISON_HINT = 'Phần bên trái đường chia là ảnh đã nắn, bên phải là ảnh gốc.';
 const COMPARISON_UNIT = '%';
 const SKEW_LABEL_PREFIX = 'Độ nghiêng đo được so với phương ngang: ';
@@ -99,7 +100,7 @@ export function InputQualityGateImagePanel({ actions, image }: InputQualityImage
   /** Tay nắm đang bị con trỏ giữ. Trạng thái con trỏ, không phải dữ liệu màn. */
   const [draggingCornerId, setDraggingCornerId] = useState<string | null>(null);
 
-  const { onChangeReveal, onDragCorner, onHoverRegion } = actions;
+  const { onCancelCorners, onChangeReveal, onDragCorner, onHoverRegion } = actions;
 
   const zoom = useZoomCluster();
   const zoomPercent = image.corners === null ? zoom.zoomLevel : PERCENT_SCALE;
@@ -207,16 +208,22 @@ export function InputQualityGateImagePanel({ actions, image }: InputQualityImage
           </div>
         </div>
 
-        {/* Đang chọn góc thì cụm thu phóng nhường góc dưới phải cho tay nắm (BUG-292). */}
-        <ZoomCluster
-          isVisible={image.corners === null}
-          onFitToScreen={zoom.resetZoom}
-          onResetZoom={zoom.resetZoom}
-          onZoomIn={zoom.zoomIn}
-          onZoomOut={zoom.zoomOut}
-          zoomLevel={zoomPercent}
-        />
       </div>
+
+      {/* Cụm thu phóng nằm DƯỚI khung, không đè khung tên góc dưới phải bản vẽ (G3-36); đang chọn
+          góc thì ẩn, nhường chỗ cho tay nắm (BUG-292). */}
+      {image.corners === null ? (
+        <div className="flex max-w-[640px] justify-end">
+          <ZoomCluster
+            className="relative p-0"
+            onFitToScreen={zoom.resetZoom}
+            onResetZoom={zoom.resetZoom}
+            onZoomIn={zoom.zoomIn}
+            onZoomOut={zoom.zoomOut}
+            zoomLevel={zoomPercent}
+          />
+        </div>
+      ) : null}
 
       {image.skewLine === null ? null : (
         <p className="text-[13px] leading-[18px] text-text-secondary">
@@ -226,21 +233,34 @@ export function InputQualityGateImagePanel({ actions, image }: InputQualityImage
       )}
 
       {image.corners === null ? null : (
-        <p className="text-[13px] leading-[18px] text-text-secondary">{CORNER_HINT}</p>
+        <div className="flex max-w-[640px] flex-wrap items-center justify-between gap-2">
+          <p className="text-[13px] leading-[18px] text-text-secondary">{CORNER_HINT}</p>
+          <Button onClick={onCancelCorners} size="sm" variant="ghost">
+            {CANCEL_CORNERS_LABEL}
+          </Button>
+        </div>
       )}
 
       {isComparing ? (
         <div className="flex max-w-[640px] flex-col gap-1">
-          <NumericField
-            label={COMPARISON_LABEL}
-            max={PERCENT_SCALE}
-            min={0}
-            onChange={(next) => {
-              onChangeReveal(clampRatio((next ?? 0) / PERCENT_SCALE));
-            }}
-            unit={COMPARISON_UNIT}
-            value={comparison.revealRatio * PERCENT_SCALE}
-          />
+          {/* Thanh kéo thay ô số: so trước/sau là việc kéo, không phải gõ số (G3-35). */}
+          <label className="flex items-center gap-3 text-[13px] text-text-secondary">
+            <span className="shrink-0">{COMPARISON_LABEL}</span>
+            <input
+              className="min-w-0 flex-1 accent-accent"
+              max={PERCENT_SCALE}
+              min={0}
+              onChange={(event) => {
+                onChangeReveal(clampRatio(Number(event.target.value) / PERCENT_SCALE));
+              }}
+              type="range"
+              value={Math.round(comparison.revealRatio * PERCENT_SCALE)}
+            />
+            <span className="w-10 shrink-0 text-right tabular-nums">
+              {Math.round(comparison.revealRatio * PERCENT_SCALE)}
+              {COMPARISON_UNIT}
+            </span>
+          </label>
           <p className="text-[13px] leading-[18px] text-text-muted">{COMPARISON_HINT}</p>
         </div>
       ) : null}

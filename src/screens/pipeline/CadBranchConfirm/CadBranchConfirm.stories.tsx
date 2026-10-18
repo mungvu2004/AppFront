@@ -157,6 +157,7 @@ function dialogFor(state: SevenState): CadBranchConfirmDialogViewModel {
     isRememberChoiceChecked: false,
     canRememberChoice: true,
     isCadChoiceDisabled: isBlocked,
+    hasCadFile: true,
     cadChoiceDisabledReason: state === 'error' ? ERROR_MESSAGE : null,
   };
 }

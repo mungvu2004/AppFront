@@ -157,6 +157,7 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
           <div className="lg:w-[62%]">
             <InputQualityGateImagePanel
               actions={{
+                onCancelCorners: actions.onCancelCorners,
                 onChangeReveal: actions.onChangeReveal,
                 onDragCorner: actions.onDragCorner,
                 onHoverRegion: actions.onHoverRegion,

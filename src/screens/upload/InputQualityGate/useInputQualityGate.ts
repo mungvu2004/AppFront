@@ -206,7 +206,7 @@ const METRIC_BY_FINDING_CODE: Readonly<Record<string, QualityMetricId>> = {
 const CORNER_IDS = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'] as const;
 
 /** Khung mặc định lúc mời người dùng tự chọn góc, thụt vào một phần mười khung. */
-const CORNER_INSET_RATIO = 0.1;
+const CORNER_INSET_RATIO = 0.02;
 
 /** Nửa chiều dài đường vẽ độ nghiêng, theo tỉ lệ khung ảnh. */
 const SKEW_LINE_HALF_LENGTH_RATIO = 0.4;
@@ -1262,6 +1262,7 @@ export function useInputQualityGate(
     onSelectFloor: selectFloor,
     onStraighten,
     onPickCorners,
+    onCancelCorners: exitCornerMode,
     onDragCorner: (cornerId, xRatio, yRatio) => {
       setDraftCorners((previous) =>
         previous === null

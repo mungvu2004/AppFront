@@ -167,6 +167,11 @@ export interface CadBranchConfirmDialogViewModel {
    * rõ số phiên bản và gợi ý thiết lập khi xuất lại. `null` khi không khoá.
    */
   readonly cadChoiceDisabledReason: string | null;
+  /**
+   * `false` khi tầng đang mở (hoặc cả hồ sơ) chỉ có ảnh, không có tệp CAD: tiêu đề và mô tả không
+   * được nói "Phát hiện tệp CAD", và lựa chọn CAD bị khoá (G3-30).
+   */
+  readonly hasCadFile: boolean;
 }
 
 /** Props của hộp thoại giai đoạn 1 — worker L2-B viết view theo kiểu này. */

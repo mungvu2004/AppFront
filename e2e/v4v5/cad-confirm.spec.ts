@@ -21,7 +21,7 @@ import { FIRST_PAINT_TIMEOUT_MS, PROJECT_ID } from './files';
 const CAD = ROUTES.project.cadConfirm(PROJECT_ID, 'L1');
 
 function dialog(page: Page) {
-  return page.getByRole('dialog', { name: 'Phát hiện tệp CAD' });
+  return page.getByRole('dialog', { name: 'Chưa có tệp CAD' });
 }
 
 const CLOSERS: ReadonlyArray<{ readonly how: string; readonly close: (page: Page) => Promise<void> }> = [
@@ -60,18 +60,16 @@ for (const { how, close } of CLOSERS) {
   });
 }
 
-test('chọn "Dùng đường từ CAD" mở bước ánh xạ lớp; bộ mẫu không có lớp nào nên "Nhập hình học" khoá', async ({
+test('tầng chỉ có ảnh: "Dùng đường từ CAD" khoá kèm lý do, không nói "Phát hiện tệp CAD" (G3-30)', async ({
   page,
 }) => {
   await page.goto(CAD);
 
-  await dialog(page)
-    .getByRole('button', { name: 'Dùng đường từ CAD' })
-    .click({ timeout: FIRST_PAINT_TIMEOUT_MS });
-
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Ánh xạ lớp từ tệp CAD' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Nhập hình học' })).toBeDisabled();
+  await expect(dialog(page).getByRole('button', { name: 'Dùng đường từ CAD' })).toBeDisabled({
+    timeout: FIRST_PAINT_TIMEOUT_MS,
+  });
+  await expect(dialog(page).getByText('Tầng này chưa có tệp CAD nên chưa dùng được đường từ CAD.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Phát hiện tệp CAD' })).toHaveCount(0);
   expect(pathOf(page.url())).toBe(CAD);
 });
 

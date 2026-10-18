@@ -98,7 +98,7 @@ test('B-V4-02: chưa tích ô xác nhận thì "Tiếp tục xử lý" không đ
     name: 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này',
   });
   await expect(acknowledgement).not.toBeChecked();
-  await expect(page.getByText('Đánh dấu ô xác nhận bên trên rồi thử lại.')).toBeVisible();
+  await expect(page.getByText('Đánh dấu ô xác nhận bên trên để tiếp tục xử lý.')).toBeVisible();
 
   await page.getByRole('button', { name: 'Tiếp tục xử lý' }).click();
   expect(pathOf(page.url())).toBe(QUALITY);

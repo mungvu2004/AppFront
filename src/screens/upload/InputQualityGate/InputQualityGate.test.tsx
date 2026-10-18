@@ -418,7 +418,7 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
     });
 
     expect(checkbox).not.toBeChecked();
-    expect(screen.getByText(/đánh dấu ô xác nhận bên trên rồi thử lại/iu)).toBeInTheDocument();
+    expect(screen.getByText(/đánh dấu ô xác nhận bên trên để tiếp tục xử lý/iu)).toBeInTheDocument();
 
     // Không chặn cứng: nút chính vẫn bấm được, chỉ có lời cảnh báo đi kèm.
     const primary = screen.getByRole('button', { name: /tiếp tục xử lý/iu });
@@ -426,7 +426,7 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
     expect(primary).toBeEnabled();
     expect(primary).toHaveAttribute('aria-describedby');
 
-    const blockedBefore = screen.queryAllByText(/đánh dấu ô xác nhận bên trên rồi thử lại/iu).length;
+    const blockedBefore = screen.queryAllByText(/đánh dấu ô xác nhận bên trên để tiếp tục xử lý/iu).length;
 
     // B-V4-02: bấm được nhưng không đi — lời chặn nói "rồi thử lại".
     fireEvent.click(primary);
@@ -437,7 +437,7 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
 
     expect(checkbox).toBeChecked();
 
-    const blockedAfter = screen.queryAllByText(/đánh dấu ô xác nhận bên trên rồi thử lại/iu).length;
+    const blockedAfter = screen.queryAllByText(/đánh dấu ô xác nhận bên trên để tiếp tục xử lý/iu).length;
 
     console.log(
       `[NGHIEM-E] loi-chan-truoc=${String(blockedBefore)} loi-chan-sau=${String(blockedAfter)}`,
@@ -459,7 +459,7 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
     expect(
       screen.queryByRole('checkbox', { name: /tôi đã đọc cảnh báo/iu }),
     ).toBeNull();
-    expect(screen.queryByText(/đánh dấu ô xác nhận bên trên rồi thử lại/iu)).toBeNull();
+    expect(screen.queryByText(/đánh dấu ô xác nhận bên trên để tiếp tục xử lý/iu)).toBeNull();
   });
 
   it('mô hình đã tích ô mở đường đi tiếp mà vẫn giữ ô xác nhận trên màn', () => {

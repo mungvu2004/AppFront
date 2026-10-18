@@ -49,7 +49,7 @@ const HALF_RATIO = 0.5;
 const CORNER_KEYBOARD_STEP_RATIO = 0.01;
 
 /** Cạnh chấm tay nắm góc, px — đặc tả gọi tên đúng con số này. */
-const CORNER_HANDLE_SIZE_PX = 10;
+const CORNER_HANDLE_SIZE_PX = 16;
 
 /** Vùng chạm quanh chấm: 44 px (đích chạm cảm ứng), chấm 10 px vẫn ở giữa (BUG-292). */
 const CORNER_HIT_SIZE_PX = 44;

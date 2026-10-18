@@ -356,6 +356,20 @@ describe('useCadBranchConfirm — hai giai đoạn', () => {
     expect(mounted.result.current.resolvedBranch).toBeNull();
   });
 
+  it('tầng chỉ có ảnh: khoá lựa chọn CAD và nói rõ chưa có tệp CAD (G3-30)', async () => {
+    const mounted = mountHook(
+      createMockCadBranchConfirmGateway({
+        floorAvailability: [{ floorId: FLOOR_ID, floorName: 'Tầng 1', hasCadFile: false }],
+      }),
+    );
+    await settle(mounted);
+    const { dialog } = mounted.result.current.model;
+
+    expect(dialog.hasCadFile).toBe(false);
+    expect(dialog.isCadChoiceDisabled).toBe(true);
+    expect(dialog.cadChoiceDisabledReason).toMatch(/chưa có tệp CAD/u);
+  });
+
   it('chọn CAD thì hộp thoại ĐÓNG rồi panel ánh xạ mới mở — không lồng hộp thoại', async () => {
     const mounted = mountHook(createMockCadBranchConfirmGateway());
     await openLayerMapping(mounted);

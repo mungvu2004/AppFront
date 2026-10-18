@@ -316,6 +316,9 @@ function CadBranchConfirmBody({ actions, model }: CadBranchConfirmProps) {
   const isError = model.state === 'error';
   const isStageTwoOpen = model.stage === 'layerMapping';
   const isHandoffOpen = !isStageTwoOpen && !model.dialog.isOpen;
+  const headerCopy = model.dialog.hasCadFile
+    ? PHASE_1_TEXT.dialogStates.normal
+    : PHASE_1_TEXT.dialogStates.noCadFile;
 
   return (
     <div
@@ -325,10 +328,10 @@ function CadBranchConfirmBody({ actions, model }: CadBranchConfirmProps) {
     >
       <header className="flex flex-col gap-1 px-4 pb-3 pt-4">
         <h1 className="text-[17px] font-semibold text-text-primary">
-          {PHASE_1_TEXT.dialogStates.normal.title}
+          {headerCopy.title}
         </h1>
         <p className="text-[13px] text-text-secondary">
-          {PHASE_1_TEXT.dialogStates.normal.description}
+          {headerCopy.description}
         </p>
       </header>
 
