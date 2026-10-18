@@ -12,7 +12,7 @@ import { APP_ERROR_KIND_CONFIG } from '@/lib/errors/kinds';
 /** Việc nên làm tiếp với một lượt hỏng. */
 export type PipelineErrorAction = 'reupload' | 'retry' | 'contactAdmin' | 'reload';
 
-/** Đúng 28 mã của bảng BE-cho-FE §3.1, theo thứ tự bốn nhóm hành động. */
+/** 28 mã của bảng BE-cho-FE §3.1 cộng `NOT_A_FLOOR_PLAN` (bước tách tường), theo thứ tự bốn nhóm hành động. */
 export const PIPELINE_ERROR_CODES = [
   'PIPELINE_SUPERSEDED',
   'FLOOR_DELETED',
@@ -31,6 +31,7 @@ export const PIPELINE_ERROR_CODES = [
   'CAD_NOT_SUPPORTED',
   'PIPELINE_ARTIFACT_INVALID',
   'PIPELINE_BUILD_INVALID',
+  'NOT_A_FLOOR_PLAN',
   'MODEL_PIN_MISMATCH',
   'PIPELINE_RESULT_INVALID',
   'LAYER_INTEGRITY_BROKEN',
@@ -67,6 +68,7 @@ const TABLE = {
   CAD_NOT_SUPPORTED: ['reupload', 'Hệ thống chưa nhận tệp CAD ở bước này.'],
   PIPELINE_ARTIFACT_INVALID: ['reupload', 'Kết quả trung gian dựng từ bản vẽ không hợp lệ.'],
   PIPELINE_BUILD_INVALID: ['reupload', 'Mô hình dựng từ bản vẽ không hợp lệ.'],
+  NOT_A_FLOOR_PLAN: ['reupload', 'Ảnh tải lên không giống bản vẽ mặt bằng: hệ thống không nhận ra đủ tường.'],
   // contactAdmin — cần sửa hệ thống.
   MODEL_PIN_MISMATCH: ['contactAdmin', 'Phiên bản mô hình đang chạy không khớp với phiên bản đã ghim.'],
   PIPELINE_RESULT_INVALID: ['contactAdmin', 'Kết quả xử lý không qua được bước kiểm tra của hệ thống.'],
