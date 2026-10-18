@@ -96,6 +96,7 @@ export interface PascalViewerContainerProps {
   readonly loadMount?: UsePascalViewerOptions['loadMount'] | undefined;
   /** Lối ra ở đầu màn và hành động của trạng thái rỗng — `PascalViewerProps`. */
   readonly onLeave?: (() => void) | undefined;
+  readonly onNext?: (() => void) | undefined;
   readonly onReprocess?: (() => void) | undefined;
   /**
    * Bảng phụ thêm vào ba cái của màn (#45).
@@ -118,6 +119,7 @@ function PascalViewerBody({
   extraPanels,
   loadMount,
   onLeave,
+  onNext,
   onReprocess,
   projectId,
   readOnly,
@@ -318,6 +320,7 @@ function PascalViewerBody({
         onRetry={onRetry}
         onExpand={onExpand}
         onLeave={onLeave}
+        onNext={onNext}
         onReprocess={onReprocess}
         panels={panels}
         activePanel={activePanel}
@@ -358,6 +361,7 @@ export function PascalViewerContainer({
   extraPanels,
   loadMount,
   onLeave,
+  onNext,
   onReprocess,
   projectId,
   readOnly,
@@ -375,6 +379,7 @@ export function PascalViewerContainer({
         graph={graph}
         loadMount={loadMount}
         onLeave={onLeave}
+        onNext={onNext}
         onReprocess={onReprocess}
         projectId={projectId}
         readOnly={readOnly}
@@ -402,12 +407,12 @@ export function PascalViewerRoute() {
   // `null` đẩy màn sang "đang nạp" chứ không dựng một đồ thị rỗng giả.
   const graph = useMemo(() => (spatial === null ? null : denormalizeSpatial(spatial)), [spatial]);
 
-  /* Màn đứng một mình dưới router, không vỏ nào cấp chiều cao: thiếu `h-screen`
+  /* Màn đứng một mình dưới router, không vỏ nào cấp chiều cao: thiếu `h-dvh`
      thì `h-full` của khung ra 0 và cả màn co về `min-h-96` — đo 1440×900:
      trang 384 px, hộp dựng 192 px (B-V10-02). Bọc ở đây chứ không ở `Frame`, để
      chỗ nhúng màn vào bố cục khác vẫn tự quyết chiều cao. */
   return (
-    <div className="h-screen">
+    <div className="h-dvh">
       <ProjectSpatialGate projectId={projectId}>
         {/* Lối ra về quản lý tầng của dự án, để `/3d` không là ngõ cụt (BUG-487). */}
         <PascalViewerContainer
@@ -415,6 +420,9 @@ export function PascalViewerRoute() {
           projectId={projectId}
           onLeave={
             projectId === undefined ? undefined : () => navigate(ROUTES.project.floors(projectId))
+          }
+          onNext={
+            projectId === undefined ? undefined : () => navigate(ROUTES.project.rules(projectId))
           }
           onReprocess={
             projectId === undefined ? undefined : () => navigate(ROUTES.project.pipeline(projectId))

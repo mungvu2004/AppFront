@@ -98,6 +98,8 @@ export interface PascalViewerProps {
    * rỗng/lỗi/cờ tắt không thành ngõ cụt (BUG-487). Vắng thì không có nút.
    */
   readonly onLeave?: (() => void) | undefined;
+  /** Sang bước kế (quy chuẩn) từ thanh trên cùng. */
+  readonly onNext?: (() => void) | undefined;
   /** Sang màn xử lý bản vẽ — lối đi tiếp của trạng thái `empty`. Vắng thì không có nút. */
   readonly onReprocess?: (() => void) | undefined;
   /**
@@ -165,6 +167,9 @@ export const PASCAL_VIEWER_TITLE = 'Mô hình 3D';
 
 /** Nút lối ra ở đầu màn, về quản lý tầng của dự án (BUG-487). */
 export const PASCAL_LEAVE_LABEL = 'Về quản lý tầng';
+
+/** Nút chính trên thanh trên cùng: sang bước quy chuẩn. */
+export const PASCAL_NEXT_LABEL = 'Bước tiếp theo: Quy chuẩn →';
 
 /** Hành động của trạng thái rỗng, sang màn xử lý bản vẽ. */
 export const PASCAL_REPROCESS_LABEL = 'Xử lý lại bản vẽ';
