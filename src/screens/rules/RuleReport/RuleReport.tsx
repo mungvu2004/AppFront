@@ -310,6 +310,12 @@ export function RuleReport(props: RuleReportViewProps) {
         </header>
 
         {hasResults ? <RuleReportSummaryStrip summary={summary} /> : null}
+        {/* G5-30: thẻ tổng đếm LUẬT, danh sách đếm ĐỐI TƯỢNG — nói ra để hai số không vênh nhau. */}
+        {hasResults && status !== 'done' ? (
+          <p className="-mt-3 text-sm text-text-secondary">
+            Các số trên đếm theo luật. Danh sách bên dưới liệt kê từng đối tượng vi phạm, nên một luật có thể có nhiều mục.
+          </p>
+        ) : null}
 
         {skipped.length > 0 ? <SkippedNotice skipped={skipped} /> : null}
 
@@ -351,9 +357,16 @@ export function RuleReport(props: RuleReportViewProps) {
 
         {canConfirm ? (
           <footer className="flex items-center justify-end gap-3 border-t border-border-default pt-4">
+            {/* G5-31: nút khoá thì nói vì sao và cách mở khoá. */}
+            {summary.violations > 0 ? (
+              <p id="rule-report-confirm-hint" className="text-sm text-text-secondary">
+                Sửa hết lỗi nghiêm trọng trên bản vẽ rồi bấm "Chạy kiểm tra lại" để xác nhận.
+              </p>
+            ) : null}
             <Button
               variant="primary"
               disabled={summary.violations > 0}
+              {...(summary.violations > 0 ? { 'aria-describedby': 'rule-report-confirm-hint' } : {})}
               onClick={props.onConfirmResolved}
             >
               Xác nhận đã xử lý

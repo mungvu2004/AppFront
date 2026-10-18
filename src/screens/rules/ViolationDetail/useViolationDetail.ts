@@ -82,7 +82,10 @@ import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { appNotificationBus } from '@/hooks/useNotifications';
-import { ruleSettingsQueryKey, type LoadedRuleConfig } from '@/screens/rules/RuleSettings/ruleSettingsGateway';
+import {
+  ruleSettingsQueryKey,
+  type LoadedRuleConfig,
+} from '@/screens/rules/RuleSettings/ruleSettingsGateway';
 import { ruleRegistryFor } from '@/store/selectors';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { getAppAnnouncer } from '@/lib/input/announcer';
@@ -95,6 +98,7 @@ import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellT
 import type { ViewerSceneHandle } from '@/screens/viewer/Viewer3D';
 import { useStore } from '@/store';
 
+import { fixTargetOf } from './fixPath';
 import type { ViolationDetailSaveProps } from './ViolationDetail';
 
 import {
@@ -217,10 +221,13 @@ const CAUSE_BY_GROUP: Readonly<Record<RuleGroup, string>> = {
 
 /** Một giả thuyết cho mỗi LOẠI BỘ PHẬN, nói về cách bước dò dựng ra chính nó. */
 const CAUSE_BY_KIND: Readonly<Record<EntityKind, string>> = {
-  level: 'Tầng này được tách ra từ các trang bản vẽ, nên một trang xếp nhầm thứ tự cũng đủ làm cao độ lệch.',
+  level:
+    'Tầng này được tách ra từ các trang bản vẽ, nên một trang xếp nhầm thứ tự cũng đủ làm cao độ lệch.',
   wall: 'Tường này có thể được dò gộp hoặc tách khác với nét vẽ gốc, nên hai đầu của nó chưa chắc nằm đúng chỗ.',
-  opening: 'Ô mở này được gắn vào tường gần nhất ở bước gắn tường, nên nó có thể đang thuộc về một tường bên cạnh.',
-  furniture: 'Đồ đạc này được nhận ra từ một ký hiệu trên bản vẽ, và vài ký hiệu trông rất giống nhau.',
+  opening:
+    'Ô mở này được gắn vào tường gần nhất ở bước gắn tường, nên nó có thể đang thuộc về một tường bên cạnh.',
+  furniture:
+    'Đồ đạc này được nhận ra từ một ký hiệu trên bản vẽ, và vài ký hiệu trông rất giống nhau.',
   room: 'Phòng này được khép ranh rồi mới gắn nhãn, nên tên và ranh giới của nó chưa chắc khớp bản vẽ gốc.',
   axis: 'Trục này được dò từ nét mảnh kéo dài, nên một đường gióng cũng có thể được đọc thành trục.',
   dimension:
@@ -461,13 +468,32 @@ const buildFigure2d = (
 
   return {
     viewBox: `${String(bounds.minX)} ${String(bounds.minY)} ${String(bounds.width)} ${String(bounds.height)}`,
-    shapes: shapes.map((shape) => ({
-      id: shape.wallId,
-      points: shape.outline.map((point) => `${String(point.x)},${String(point.y)}`).join(' '),
-      isSubject: shape.wallId === subjectEntityId,
-      isDimmed: dimmed !== null && dimmed.has(shape.wallId),
-    })),
+    shapes: [
+      // G5-33: vi phạm thuộc một phòng thì tô cả phòng, vẽ dưới tường.
+      ...roomShapeOf(graph, levelId, subjectEntityId),
+      ...shapes.map((shape) => ({
+        id: shape.wallId,
+        points: shape.outline.map((point) => `${String(point.x)},${String(point.y)}`).join(' '),
+        isSubject: shape.wallId === subjectEntityId,
+        isDimmed: dimmed !== null && dimmed.has(shape.wallId),
+      })),
+    ],
   };
+};
+
+/** Phòng của vi phạm (nếu chủ thể là phòng trên tầng này) thành một hình tô của khối 5. */
+const roomShapeOf = (graph: NormalizedSpatial, levelId: LevelId, subjectEntityId: string) => {
+  const entity = graph.byId[subjectEntityId as EntityId];
+  if (entity === undefined || !isEntityOfKind('room', entity)) return [];
+  if (entity.levelId !== levelId || entity.outline.length < 3) return [];
+  return [
+    {
+      id: entity.id,
+      points: entity.outline.map((point) => `${String(point.x)},${String(point.y)}`).join(' '),
+      isSubject: true,
+      isDimmed: false,
+    },
+  ];
 };
 
 /* -------------------------------------------------------------------------- */
@@ -569,7 +595,7 @@ class ApplyFixError extends Error {
 const violationKeyOf = (item: Violation | undefined): string =>
   item === undefined ? '' : `${item.ruleCode}|${item.entityId}`;
 
-const resolvedMessageOf =(ruleName: string | null): string =>
+const resolvedMessageOf = (ruleName: string | null): string =>
   ruleName === null
     ? 'Đã sửa xong; lượt chạy lại không còn báo lỗi trên đối tượng này.'
     : `Đã sửa xong; luật ${ruleName} chạy lại và không còn báo lỗi trên đối tượng này.`;
@@ -601,16 +627,16 @@ export function useViolationDetail(
     notifications = appNotificationBus,
   } = options;
 
-  const gateway: ViolationDetailGateway = useMemo(
-    () => createViolationDetailGateway(seed),
-    [seed],
-  );
+  const gateway: ViolationDetailGateway = useMemo(() => createViolationDetailGateway(seed), [seed]);
   const capabilities = useMemo(() => gateway.readCapabilities(canEdit), [gateway, canEdit]);
 
   // 28V-C-007: cùng sổ luật và ngưỡng với báo cáo — cấu hình N21 mà báo cáo đã
   // đọc vào cache (cùng khoá). Chỉ đọc cache, không gọi mạng: tấm trượt luôn mở
   // trên báo cáo; cache trống thì rơi về bộ mặc định như báo cáo.
-  const configQuery = useQuery<LoadedRuleConfig>({ queryKey: ruleSettingsQueryKey(projectId), queryFn: skipToken });
+  const configQuery = useQuery<LoadedRuleConfig>({
+    queryKey: ruleSettingsQueryKey(projectId),
+    queryFn: skipToken,
+  });
   const ruleConfig = configQuery.data?.config ?? EMPTY_RULE_CONFIG;
   const registry: RuleRegistry = useMemo(() => ruleRegistryFor(ruleConfig), [ruleConfig]);
 
@@ -672,7 +698,8 @@ export function useViolationDetail(
   const onShownChangeRef = useRef(onShownChange);
   onShownChangeRef.current = onShownChange;
   useEffect(() => {
-    if (violation !== null && violationKeyOf(violation) === shownKeyRef.current) onShownChangeRef.current?.(violation);
+    if (violation !== null && violationKeyOf(violation) === shownKeyRef.current)
+      onShownChangeRef.current?.(violation);
   }, [violation]);
 
   const hasPrevious = index > 0;
@@ -738,7 +765,11 @@ export function useViolationDetail(
 
   const actions = useMemo<readonly ViolationAction[]>(() => {
     // 28V-B-004: đối tượng đã rời bản vẽ (vừa xoá) thì không còn gì để sửa lần hai.
-    if (violation === null || !capabilities.canEdit || graph?.byId[violation.entityId] === undefined) {
+    if (
+      violation === null ||
+      !capabilities.canEdit ||
+      graph?.byId[violation.entityId] === undefined
+    ) {
       return EMPTY_ACTIONS;
     }
 
@@ -875,10 +906,7 @@ export function useViolationDetail(
       // 3. dựng lệnh bằng hàm của S-07 — màn không dựng patch nào.
       const built =
         variables.kind === 'deleteObject'
-          ? buildDeleteFurnitureCommand(
-              { furnitureId: asFurnitureId(variables.entityId) },
-              context,
-            )
+          ? buildDeleteFurnitureCommand({ furnitureId: asFurnitureId(variables.entityId) }, context)
           : buildRenameRoomCommand(
               {
                 roomId: asRoomId(variables.entityId),
@@ -923,8 +951,7 @@ export function useViolationDetail(
       const ran = evaluatedRuleCodes(rerun).includes(variables.ruleCode);
       const stillFailing = rerun.violations.some(
         (candidate) =>
-          candidate.ruleCode === variables.ruleCode &&
-          candidate.entityId === variables.entityId,
+          candidate.ruleCode === variables.ruleCode && candidate.entityId === variables.entityId,
       );
 
       return { resolved: ran && !stillFailing, description: built.data.description };
@@ -1075,8 +1102,12 @@ export function useViolationDetail(
     const timer = window.setTimeout(() => {
       setIsAdvancing(false);
       // Sang hàng đã ghi lúc bấm (theo khoá, không theo vị trí đã bị sắp xếp lại).
-      const target = latestViolationsRef.current.findIndex((item) => violationKeyOf(item) === nextKeyRef.current);
-      setIndex((current) => (target === -1 ? Math.min(violations.length - 1, current + 1) : target));
+      const target = latestViolationsRef.current.findIndex(
+        (item) => violationKeyOf(item) === nextKeyRef.current,
+      );
+      setIndex((current) =>
+        target === -1 ? Math.min(violations.length - 1, current + 1) : target,
+      );
     }, MOTION_DURATIONS_MS.slow);
 
     return (): void => {
@@ -1171,10 +1202,12 @@ export function useViolationDetail(
     }
 
     const levels = [model];
-    const bounds = boundsOfPoints(wallsOnLevel(current.graph, current.levelId).flatMap((wall) => [
-      wall.centreline.start,
-      wall.centreline.end,
-    ]));
+    const bounds = boundsOfPoints(
+      wallsOnLevel(current.graph, current.levelId).flatMap((wall) => [
+        wall.centreline.start,
+        wall.centreline.end,
+      ]),
+    );
 
     const frame = initialFrameOf(
       current.levelId,
@@ -1276,10 +1309,7 @@ export function useViolationDetail(
       return [subject];
     }
 
-    return [
-      subject,
-      ...relatedIdsOf(entity).map((relatedId) => objectOf(graph, relatedId, false)),
-    ];
+    return [subject, ...relatedIdsOf(entity).map((relatedId) => objectOf(graph, relatedId, false))];
   }, [graph, violation]);
 
   const causes = useMemo<readonly ViolationCause[]>(() => {
@@ -1372,6 +1402,9 @@ export function useViolationDetail(
 
     objects,
     onSelectObject,
+    // N3-08: lối tới đúng lớp 2D sửa đối tượng lỗi, trên tầng của nó.
+    fixTarget:
+      violation === null ? null : fixTargetOf(projectId, levelId ?? floorId, violation.entityId),
 
     figureMode,
     onFigureModeChange,

@@ -297,6 +297,7 @@ function emptyProps(): ViolationDetailViewProps {
     thresholdLabel: null,
     objects: [],
     onSelectObject: vi.fn(),
+    fixTarget: null,
     figureMode: '2d',
     onFigureModeChange: vi.fn(),
     previewEntityIds: null,
@@ -368,6 +369,7 @@ function loadedProps(args: LoadedArgs): ViolationDetailViewProps {
     thresholdLabel: null,
     objects: args.objects,
     onSelectObject: vi.fn(),
+    fixTarget: null,
     figureMode: '2d',
     onFigureModeChange: vi.fn(),
     previewEntityIds: null,
@@ -485,12 +487,12 @@ describe('BUG-434 — tấm thu gọn mở trong khung nhìn và nhận tiêu đ
     expect(panel.contains(document.activeElement)).toBe(true);
   });
 
-  it('BUG-735 — khổ rộng: tấm bám khung nhìn (`fixed`, cao 100dvh), đầu tấm không cuộn theo báo cáo dài', () => {
+  it('BUG-735 / G5-33 — khổ rộng: tấm bám khung không cuộn của màn (dưới header), đầu tấm không cuộn theo báo cáo dài', () => {
     renderView(propsFor(scenarioOf('success')));
 
     const panel = screen.getByRole('complementary', { name: 'Chi tiết vi phạm' });
-    expect(panel).toHaveClass('fixed', 'top-0', 'h-dvh');
-    expect(panel).not.toHaveClass('absolute');
+    expect(panel).toHaveClass('absolute', 'top-0', 'h-full');
+    expect(panel).not.toHaveClass('fixed', 'h-dvh');
   });
 });
 

@@ -19,6 +19,8 @@
 import type { RuleCode, RuleGroup, RuleSeverity } from '@/domain/rules/registry';
 import type { LevelId } from '@/domain/spatial/types';
 
+import type { FixTarget } from './fixPath';
+
 /* -------------------------------------------------------------------------- */
 /* Năng lực.                                                                   */
 /* -------------------------------------------------------------------------- */
@@ -156,6 +158,8 @@ export interface ViolationDetailViewProps {
   readonly objects: readonly ViolationObject[];
   /** Gọi khi bấm vào một mã đối tượng: khuôn camera R-07 + tô sáng R-09. */
   readonly onSelectObject: (entityId: string) => void;
+  /** Lớp 2D sửa được đối tượng lỗi (N3-08); `null` khi không biết loại/tầng. */
+  readonly fixTarget: FixTarget | null;
 
   /* -- Khối 5 "Hình" — chỉ khi `canPreview2d` hoặc `canPreview3d` -- */
   readonly figureMode: ViolationFigureMode;

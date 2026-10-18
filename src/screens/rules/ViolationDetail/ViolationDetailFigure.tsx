@@ -72,8 +72,9 @@ const RULE_DIAGRAMS: Readonly<Record<RuleGroup, RuleDiagram>> = {
     paths: ['M4 8 H44', 'M4 24 H30', 'M30 24 H44', 'M30 20 V28'],
   },
   circulation: {
-    label: 'Sơ đồ lối đi và bề rộng thông thuỷ của nó',
-    paths: ['M8 4 V28', 'M40 4 V28', 'M8 16 H40', 'M12 12 L8 16 L12 20', 'M36 12 L40 16 L36 20'],
+    // G5-33: nhóm lưu thông (lối vào, thoát nạn) là phòng có cửa và lối ra — không phải ký hiệu đo |←→|.
+    label: 'Sơ đồ một phòng có cửa và lối đi ra ngoài',
+    paths: ['M36 12 V6 H6 V26 H36 V20', 'M14 16 H46', 'M42 12 L46 16 L42 20'],
   },
   area: {
     label: 'Sơ đồ một mặt sàn và phần diện tích được đo',

@@ -184,14 +184,19 @@ function WiredRuleReport(props: WiredRuleReportProps) {
   // trước/sau/đóng nằm ngoài màn (BUG-434). Báo cáo tự cuộn bên trong `h-full`.
   return (
     <div ref={rootRef} className="relative h-full overflow-hidden" onClickCapture={onClickCapture}>
-      <RuleReport
-        {...viewProps}
-        onSelectRow={(rowKey) => {
-          viewProps.onSelectRow(rowKey);
-          returnFocusKey.current = rowKey;
-          setOpenRowKey(rowKey);
-        }}
-      />
+      {/* G5-33: tấm chi tiết `fixed` rộng 420 px — chừa lề phải để nó không che cột Xem và nút ở chân. */}
+      <div
+        className={openRow !== null && props.isCompact !== true ? 'h-full pr-[420px]' : 'h-full'}
+      >
+        <RuleReport
+          {...viewProps}
+          onSelectRow={(rowKey) => {
+            viewProps.onSelectRow(rowKey);
+            returnFocusKey.current = rowKey;
+            setOpenRowKey(rowKey);
+          }}
+        />
+      </div>
 
       {openRow !== null && floorId !== null ? (
         <ViolationDetailContainer
@@ -204,7 +209,9 @@ function WiredRuleReport(props: WiredRuleReportProps) {
             // 28-A-040: hàng đang chọn đi theo tấm (tự chuyển 28V-A-016, J/K). Giữ khoá cũ thì bấm lại
             // hàng đã mở tấm lúc đầu không đổi `initialIndex` và tấm đứng yên (BUG-728 RF p06-rf).
             // `returnFocusKey` không đổi: đóng tấm vẫn trả tiêu điểm về hàng đã bấm (28V-E-008).
-            const key = allRows.find((row) => row.entityId === shown.entityId && row.ruleCode === shown.ruleCode)?.key;
+            const key = allRows.find(
+              (row) => row.entityId === shown.entityId && row.ruleCode === shown.ruleCode,
+            )?.key;
             if (key !== undefined && key !== openRowKey) {
               viewProps.onSelectRow(key);
               setOpenRowKey(key);
@@ -231,7 +238,11 @@ export function RuleReportContainer(props: RuleReportContainerProps) {
   if (projectId === undefined || projectId.length === 0) {
     return (
       <div className="p-6">
-        <InlineAlert level="violation" message={MISSING_PARAMS_MESSAGE} title={MISSING_PARAMS_TITLE} />
+        <InlineAlert
+          level="violation"
+          message={MISSING_PARAMS_MESSAGE}
+          title={MISSING_PARAMS_TITLE}
+        />
       </div>
     );
   }
@@ -239,7 +250,9 @@ export function RuleReportContainer(props: RuleReportContainerProps) {
   return (
     <ScreenErrorBoundary
       key={projectId}
-      renderFallback={({ report, retry }) => <RuleReportCrashFallback report={report} retry={retry} />}
+      renderFallback={({ report, retry }) => (
+        <RuleReportCrashFallback report={report} retry={retry} />
+      )}
       screenId={SCREEN_ID}
     >
       <WiredRuleReport

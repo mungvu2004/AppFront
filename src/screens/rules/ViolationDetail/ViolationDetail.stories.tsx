@@ -255,6 +255,7 @@ const EMPTY_PROPS: ViolationDetailViewProps = {
   thresholdLabel: null,
   objects: [],
   onSelectObject: noop,
+  fixTarget: { path: '/projects/project-1/floors/L-000001LVL0/layers/rooms', layerLabel: 'Phòng' },
   figureMode: '2d',
   onFigureModeChange: noop,
   previewEntityIds: null,

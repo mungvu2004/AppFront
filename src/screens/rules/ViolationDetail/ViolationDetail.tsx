@@ -104,7 +104,9 @@ type ViolationDetailViewProps = ViolationDetailBaseProps & ViolationDetailSavePr
  * theo khung nhìn như tấm đáy: báo cáo dài cuộn theo tài liệu, nên tấm `absolute top-0` mở ở đầu
  * tài liệu — đầu tấm (tiêu đề, trước/kế, Đóng) nằm ngoài màn khi hàng bấm ở cuối (BUG-735).
  */
-const PANEL_SIDE = 'fixed right-0 top-0 h-dvh w-[420px] border-l';
+// G5-33: tấm nằm trong vùng nội dung (khung `relative h-full overflow-hidden` của RuleReport,
+// báo cáo cuộn bên trong) nên bắt đầu dưới header + thanh bước, không che "Bước tiếp theo".
+const PANEL_SIDE = 'absolute right-0 top-0 h-full w-[420px] border-l';
 
 /**
  * Trạng thái 7: cùng tấm trượt ấy, đến từ cạnh dưới, cao vừa đủ để đọc. `fixed` theo khung
@@ -267,6 +269,16 @@ function ViolationDetailBody({ props }: BodyProps) {
         objects={props.objects}
         onSelectObject={props.onSelectObject}
       />
+
+      {/* N3-08: lối đi thẳng tới lớp 2D sửa được đối tượng lỗi, trên đúng tầng. */}
+      {props.fixTarget === null ? null : (
+        <a
+          className="self-start rounded border border-border-default px-3 py-1.5 text-sm text-accent outline-none hover:bg-bg-sunken focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
+          href={props.fixTarget.path}
+        >
+          Sửa ở lớp {props.fixTarget.layerLabel} →
+        </a>
+      )}
 
       {isCollapsed ? null : (
         <ViolationFigure

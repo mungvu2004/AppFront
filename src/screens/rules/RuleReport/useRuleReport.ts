@@ -77,6 +77,8 @@ import {
 import { useStore } from '@/store';
 import { ruleRegistryFor } from '@/store/selectors';
 
+import { fixTargetOf } from '../ViolationDetail/fixPath';
+
 import { createRuleReportGateway, type RuleReportGateway } from './ruleReportGateway';
 import type {
   PassedRule,
@@ -643,9 +645,14 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   const onViewRow = useCallback(
     (rowKey: string): void => {
       setSelectedRowKey(rowKey);
-      navigate(ROUTES.project.viewer(projectId));
+      // G5-32 / N3-08: đi thẳng tới lớp 2D sửa được đối tượng lỗi trên tầng của nó;
+      // chỉ khi không biết loại/tầng mới về màn 3D như cũ.
+      const row = [...groups.flatMap((group) => group.rows), ...resolvedRows].find((r) => r.key === rowKey);
+      const target =
+        row === undefined ? null : fixTargetOf(projectId, row.levelId ?? graph?.byKind.level[0] ?? null, row.entityId);
+      navigate(target?.path ?? ROUTES.project.viewer(projectId));
     },
-    [navigate, projectId],
+    [graph, groups, navigate, projectId, resolvedRows],
   );
 
   const onRerun = useCallback((): void => {
