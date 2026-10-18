@@ -138,7 +138,13 @@ function WiredDimensionOcrReview(props: DimensionOcrReviewContainerProps) {
     [props.floorId, props.projectId],
   );
 
-  return <DimensionOcrReview {...model} scaleCalibrationHref={scaleCalibrationHref} />;
+  return (
+    <DimensionOcrReview
+      {...model}
+      floorNav={{ floorId: props.floorId, projectId: props.projectId }}
+      scaleCalibrationHref={scaleCalibrationHref}
+    />
+  );
 }
 
 /** `<DimensionOcrReviewContainer … />` — màn S-14 thật, đã nối, gắn được bằng một thẻ. */

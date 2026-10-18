@@ -59,7 +59,11 @@ const ARROW_EDGES: Readonly<Record<TourPlacement, string>> = {
   bottom: 'border-l border-t',
   left: 'border-r border-t',
   right: 'border-b border-l',
+  corner: '',
 };
+
+/** Nâng thẻ góc lên khỏi thanh trạng thái đáy (N1-06). */
+const CORNER_LIFT = 48;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -77,7 +81,9 @@ function cardOrigin(
   const centreY = rect.top + rect.height / 2 - cardHeight / 2;
 
   const raw =
-    placement === 'top'
+    placement === 'corner'
+      ? { left: viewWidth - CARD_WIDTH - MARGIN, top: viewHeight - cardHeight - MARGIN - CORNER_LIFT }
+      : placement === 'top'
       ? { left: centreX, top: rect.top - cardHeight - GAP }
       : placement === 'bottom'
         ? { left: centreX, top: rect.top + rect.height + GAP }
@@ -282,7 +288,7 @@ export function EditorTour(props: EditorTourProps) {
             className={`pointer-events-auto relative border-border-default bg-bg-surface p-5 shadow-float ${cardShape}`}
             style={cardStyle}
           >
-            {anchor !== null && !isCollapsed && (
+            {anchor !== null && !isCollapsed && placement !== 'corner' && (
               <span
                 aria-hidden="true"
                 className={`absolute h-2 w-2 rotate-45 border-border-default bg-bg-surface ${ARROW_EDGES[placement]}`}
@@ -345,6 +351,7 @@ export function EditorTour(props: EditorTourProps) {
                       {step.comboDescription !== null && <span>{step.comboDescription}</span>}
                     </p>
                   )}
+                  <p className="mt-3 text-[12px] text-text-muted">Bấm Esc để đóng hướng dẫn.</p>
                   <div className="mt-5 flex items-center justify-between">
                     <Button variant="ghost" size="sm" onClick={onSkip}>
                       Bỏ qua hướng dẫn
@@ -356,13 +363,12 @@ export function EditorTour(props: EditorTourProps) {
                 </>
               )
             )}
-          </section>
 
           {showsDots && (
             <div
               role="group"
               aria-label="Tiến độ hướng dẫn"
-              className="pointer-events-auto mt-2 flex justify-center"
+              className="mt-3 flex justify-center"
             >
               {steps.map((dot, index) => (
                 <button
@@ -385,6 +391,7 @@ export function EditorTour(props: EditorTourProps) {
               ))}
             </div>
           )}
+          </section>
         </div>
       )}
 

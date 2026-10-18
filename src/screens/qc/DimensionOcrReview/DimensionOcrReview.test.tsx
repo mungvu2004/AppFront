@@ -667,21 +667,11 @@ describe('bốn bộ soát dùng chung', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('[BUG-334] chế độ duyệt bàn phím ở màn rỗng', () => {
-  it('vẫn thấy bản vẽ, trạng thái rỗng và nút tắt; chú thích phím khớp trạng thái đang bật', async () => {
+  it('G4b-04: màn rỗng không mời bật duyệt bàn phím vì không có gì để duyệt', async () => {
     renderState('empty');
 
-    fireEvent.click(await screen.findByRole('button', { name: DIMENSION_OCR_TEXT.keyboard.toggleOnLabel }));
-
-    const panel = await screen.findByRole('region', { name: DIMENSION_OCR_TEXT.keyboard.caption });
-
-    expect(screen.getByRole('region', { name: DIMENSION_OCR_TEXT.screen.canvasAriaLabel })).toBeInTheDocument();
-    expect(screen.getByText(DIMENSION_OCR_TEXT.states.empty.title)).toBeInTheDocument();
-    expect(within(panel).getByRole('button', { name: DIMENSION_OCR_TEXT.keyboard.toggleOffLabel })).toBeInTheDocument();
-    /* BUG-583: ô nhập nuốt phím R, nên bảng phím chỉ Esc là lối tắt chế độ — không hứa R. */
-    expect(
-      within(panel).getByText(DIMENSION_OCR_TEXT.keyboard.keys.escInKeyboardMode.description, { selector: 'dd' }),
-    ).toBeInTheDocument();
-    expect(within(panel).queryByText('R', { selector: 'kbd' })).not.toBeInTheDocument();
+    expect(await screen.findByText(DIMENSION_OCR_TEXT.states.empty.title)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: DIMENSION_OCR_TEXT.keyboard.toggleOnLabel })).toBeNull();
   });
 });
 
@@ -844,7 +834,6 @@ describe('QA-04c SCR-18 trên màn đã ráp', () => {
     renderState('partial');
 
     expect(await screen.findByRole('heading', { name: DIMENSION_OCR_TEXT.screen.title })).toBeInTheDocument();
-    expect(screen.getByText(DIMENSION_OCR_TEXT.screen.breadcrumb)).toBeInTheDocument();
   });
 
   it('[BUG-335/338/325] màn rỗng: khung bản vẽ có câu giải thích, biểu tượng thật, nút đủ lớn', async () => {
@@ -855,9 +844,7 @@ describe('QA-04c SCR-18 trên màn đã ráp', () => {
 
     expect(within(canvas).getByText(DIMENSION_OCR_TEXT.screen.canvasEmptyNotice)).toBeInTheDocument();
     expect(title.parentElement?.querySelector('svg')).not.toBeNull();
-    expect(
-      screen.getByRole('button', { name: DIMENSION_OCR_TEXT.keyboard.toggleOnLabel }).className,
-    ).toContain('min-h-11');
+    expect(screen.queryByRole('button', { name: DIMENSION_OCR_TEXT.keyboard.toggleOnLabel })).toBeNull();
     expect(screen.getByRole('link', { name: DIMENSION_OCR_TEXT.states.empty.actionLabel }).className).toContain(
       'min-h-11',
     );
@@ -902,11 +889,11 @@ describe('[G07/G13] khung bản vẽ SCR-18', () => {
     const layer = svg?.parentElement;
 
     expect(svg?.getAttribute('viewBox')).toMatch(/^0 0 \d/u);
-    expect(layer?.style.transform ?? '').toBe('scale(1)');
+    expect(layer?.style.transform ?? '').toContain('scale(1)');
 
     fireEvent.click(screen.getByRole('button', { name: /phóng to/iu }));
 
-    expect(layer?.style.transform).toBe('scale(1.1)');
+    expect(layer?.style.transform).toContain('scale(1.1)');
   });
 });
 

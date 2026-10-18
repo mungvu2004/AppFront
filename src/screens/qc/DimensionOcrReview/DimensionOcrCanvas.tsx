@@ -38,6 +38,7 @@
 
 import { cn } from '@/lib/utils';
 import { ZoomCluster } from '@/components/canvas/ZoomCluster';
+import { useCanvasPan } from '@/components/canvas/useCanvasPan';
 
 import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
 import type { DimensionChainViewModel, DimensionOcrCanvasProps } from './dimensionOcrTypes';
@@ -187,15 +188,18 @@ export function DimensionOcrCanvas({
   onSelect,
   zoom,
 }: DimensionOcrCanvasProps) {
+  const pan = useCanvasPan((direction) => (direction > 0 ? zoom.onZoomIn() : zoom.onZoomOut()));
   return (
     <div
       aria-describedby={isInteractive ? undefined : CANVAS_READ_ONLY_NOTICE_ID}
       aria-label={DIMENSION_OCR_TEXT.screen.canvasAriaLabel}
       className={CANVAS_FRAME_CLASSES}
+      ref={pan.ref}
+      {...pan.handlers}
       role="group"
     >
       {/* Ảnh và lớp chuỗi phóng CÙNG nhau (G07); viewBox theo khổ bản vẽ để chuỗi khớp ảnh (G13). */}
-      <div className="absolute inset-0 origin-center" style={{ transform: `scale(${zoom.scale})` }}>
+      <div className="absolute inset-0 origin-center" data-canvas-bg style={{ transform: `${pan.transform} scale(${zoom.scale})` }}>
         {backgroundImageUrl === null ? (
           <div aria-hidden="true" className="absolute inset-0 bg-bg-sunken" />
         ) : (
@@ -211,6 +215,7 @@ export function DimensionOcrCanvas({
         <svg
           aria-label={DIMENSION_OCR_TEXT.screen.canvasAriaLabel}
           className="absolute inset-0 h-full w-full"
+          data-canvas-bg
           preserveAspectRatio="none"
           role="img"
           {...(drawingSizePx === null ? {} : { viewBox: `0 0 ${drawingSizePx.width} ${drawingSizePx.height}` })}
@@ -227,15 +232,15 @@ export function DimensionOcrCanvas({
       </div>
 
       <ZoomCluster
-        onFitToScreen={zoom.onReset}
-        onResetZoom={zoom.onReset}
+        onFitToScreen={() => { zoom.onReset(); pan.reset(); }}
+        onResetZoom={() => { zoom.onReset(); pan.reset(); }}
         onZoomIn={zoom.onZoomIn}
         onZoomOut={zoom.onZoomOut}
         zoomLevel={zoom.percent}
       />
 
       {emptyNotice == null ? null : (
-        <p className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-[13px] text-text-secondary">
+        <p className="pointer-events-none absolute left-1/2 top-1/2 max-w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border-default bg-bg-surface p-4 text-center text-[13px] text-text-secondary shadow-float">
           {emptyNotice}
         </p>
       )}

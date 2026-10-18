@@ -65,7 +65,7 @@ export interface TourRect {
 }
 
 /** Thẻ đứng phía nào so với neo. Mũi nhọn 8px chỉ ngược lại. */
-export type TourPlacement = 'top' | 'bottom' | 'left' | 'right';
+export type TourPlacement = 'top' | 'bottom' | 'left' | 'right' | 'corner';
 
 /**
  * Một bước ĐÃ SỐNG SÓT, sẵn sàng để vẽ.
@@ -189,6 +189,8 @@ interface TourStepDefinition {
   readonly title: string;
   readonly body: string;
   readonly placement: TourPlacement;
+  /** Thay câu mô tả phím của registry khi câu ấy sai nghĩa với bước (G4a-03). */
+  readonly comboDescription?: string;
 }
 
 /**
@@ -206,8 +208,9 @@ export const TOUR_STEPS: readonly TourStepDefinition[] = [
     anchorSelector: '[role="toolbar"][aria-label="Công cụ lớp tường"]',
     shortcutId: 'wallLayerReview.tool.drawWall',
     title: 'Chọn công cụ ở ray bên trái',
+    comboDescription: 'Vẽ tường.',
     body: 'Mỗi công cụ ứng một phím; bấm phím là ray đổi ngay, tay bạn không phải rời khỏi mặt bằng.',
-    placement: 'right',
+    placement: 'corner',
   },
   {
     id: 'reviewWall',
@@ -550,7 +553,7 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
         title: step.title,
         body: step.body,
         combo: binding?.combo ?? null,
-        comboDescription: binding?.description ?? null,
+        comboDescription: step.comboDescription ?? binding?.description ?? null,
         anchorRect,
         placement: step.placement,
       };

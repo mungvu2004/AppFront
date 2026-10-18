@@ -45,6 +45,7 @@
  */
 
 import { Ruler } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -55,6 +56,7 @@ import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
+import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QC_BODY_CLASS, QcCanvasFrame, QcScreenFrame } from '../shared/QcScreenFrame';
 import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
 import { DimensionOcrCanvas } from './DimensionOcrCanvas';
@@ -76,6 +78,8 @@ import type { DimensionOcrReviewModel } from './useDimensionOcrReview';
 export interface DimensionOcrReviewViewProps extends DimensionOcrReviewModel {
   /** Đích của lối ra duy nhất: hiệu chỉnh tỷ lệ thủ công ở trạng thái Rỗng. */
   readonly scaleCalibrationHref: string;
+  /** Breadcrumb dự án › tầng › lớp + thanh lớp (N0-01, N2-06). */
+  readonly floorNav?: Omit<QcFloorNavProps, 'layer'> | undefined;
 }
 
 /* Chuỗi tiếng Việt tĩnh — chép từ `dimensionOcrText.ts`, không gõ câu mới (A6). */
@@ -91,10 +95,10 @@ const SKELETON_ROWS = [0, 1, 2, 3];
 const EMPTY_ACTION_CLASS_NAME = getButtonStyles({ variant: 'primary', size: 'md', className: 'self-center' });
 
 /** Đầu màn như SCR-19/20 (BUG-413): breadcrumb, tiêu đề, một câu mô tả. */
-function DimensionOcrHeader() {
+function DimensionOcrHeader({ hasFloorNav }: { readonly hasFloorNav: boolean }) {
   return (
     <header className="shrink-0 px-4 pb-1 pt-3">
-      <p className="text-[12px] text-text-muted">{DIMENSION_OCR_TEXT.screen.breadcrumb}</p>
+      {hasFloorNav ? null : <p className="text-[12px] text-text-muted">{DIMENSION_OCR_TEXT.screen.breadcrumb}</p>}
       <h2 className="text-[18px] font-semibold text-text-primary">{DIMENSION_OCR_TEXT.screen.title}</h2>
       <p className="text-[13px] text-text-secondary">{DIMENSION_OCR_TEXT.screen.description}</p>
     </header>
@@ -163,6 +167,7 @@ function DimensionOcrPanelBody({ model, scaleCalibrationHref }: DimensionOcrPane
   if (model.state === 'loading') {
     return (
       <div className="flex flex-col gap-1 p-3">
+        <p className="px-1 text-[13px] text-text-secondary" role="status">Đang đọc kích thước…</p>
         {SKELETON_ROWS.map((row) => (
           <Skeleton key={row} preset="table-row" />
         ))}
@@ -183,9 +188,9 @@ function DimensionOcrPanelBody({ model, scaleCalibrationHref }: DimensionOcrPane
           callback: đích là trang hiệu chỉnh tỷ lệ, và container dựng đường dẫn
           bằng `ROUTES.project.scale(...)` nên không có chuỗi thô nào ở đây (R-65).
         */}
-        <a className={EMPTY_ACTION_CLASS_NAME} href={scaleCalibrationHref}>
+        <Link className={EMPTY_ACTION_CLASS_NAME} to={scaleCalibrationHref}>
           {DIMENSION_OCR_TEXT.states.empty.actionLabel}
-        </a>
+        </Link>
       </div>
     );
   }
@@ -228,11 +233,13 @@ function DimensionOcrPanelBody({ model, scaleCalibrationHref }: DimensionOcrPane
 
 export function DimensionOcrReview({
   scaleCalibrationHref,
+  floorNav,
   ...model
 }: DimensionOcrReviewViewProps) {
   if (model.readFailure != null) {
     return (
       <QcScreenFrame label={SCREEN_ARIA_LABEL}>
+        {floorNav != null && <QcFloorNav {...floorNav} layer="dimensions" />}
         <FloorLayerReadFailureScreen failure={model.readFailure} />
       </QcScreenFrame>
     );
@@ -265,7 +272,8 @@ export function DimensionOcrReview({
 
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
-      <DimensionOcrHeader />
+      {floorNav != null && <QcFloorNav {...floorNav} layer="dimensions" />}
+      <DimensionOcrHeader hasFloorNav={floorNav != null} />
       <DimensionOcrSaveStatus model={model} />
       <div className={cn('flex min-h-0 w-full flex-1 flex-col lg:flex-row', QC_BODY_CLASS)}>
         {/* Nửa trái 60% — bản vẽ gốc. Bung ra cả khung khi bảng duyệt thu gọn. */}
@@ -336,8 +344,8 @@ export function DimensionOcrReview({
                 <p className="font-medium text-text-secondary">{DIMENSION_OCR_TEXT.states.forbidden.title}</p>
                 <p>{model.viewerRoleNotice}</p>
               </div>
-            ) : !model.keyboardReview.isActive && (model.state === 'loading' || model.state === 'error') ? null : (
-              /* Đang tải hay đọc lỗi: chưa có gì để duyệt, không mời "bật duyệt bàn phím" (BUG-630). Màn rỗng giữ nút (BUG-334). */
+            ) : !model.keyboardReview.isActive && (model.state === 'loading' || model.state === 'error' || model.rows.length === 0) ? null : (
+              /* Đang tải hay đọc lỗi: chưa có gì để duyệt, không mời "bật duyệt bàn phím" (BUG-630). Không có chuỗi nào: bỏ nút vì bấm không tác dụng (G4b-04). */
               <div className="border-t border-border-default px-3 py-2">
                 <DimensionOcrKeyboardMode
                   isActive={model.keyboardReview.isActive}
