@@ -213,6 +213,12 @@ module.exports = {
       rules: { '@typescript-eslint/no-restricted-imports': 'off' },
     },
     {
+      // Trang 3D riêng (`public/editor3d.html`): một tài liệu HTML Pascal sở hữu trọn,
+      // bó dựng riêng (`vite.pascal.config.ts`), không chung cây React với AppFront.
+      files: ['src/pascal-page/**/*'],
+      rules: { '@typescript-eslint/no-restricted-imports': 'off' },
+    },
+    {
       // Bộ đổi dữ liệu: chỉ kiểu, không mã. `src/lib` chạy trong worker và test
       // được không cần DOM (mục 0.4), và một lượt nhập mã Pascal ở đây kéo cả
       // `@react-three/fiber` vào đúng cái tầng đang giữ được tính chất ấy.

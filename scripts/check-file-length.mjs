@@ -40,8 +40,11 @@ const DEFAULT_FAIL_AT = 400;
  */
 const NOT_PRODUCT = /\.test\.tsx$|\.stories\.tsx$/;
 
-/** Thư mục bỏ qua hoàn toàn. */
-const SKIP_DIRS = new Set(['__tests__', 'node_modules']);
+/**
+ * Thư mục bỏ qua hoàn toàn. `upstream` = `src/pascal-page/upstream`, bản chép NGUYÊN VĂN
+ * `apps/editor` của Pascal (như `vendor`, vốn nằm ngoài `src`): tách nó là sửa mã upstream.
+ */
+const SKIP_DIRS = new Set(['__tests__', 'node_modules', 'upstream']);
 
 /** Đọc `--max <số>`; không có thì dùng mặc định. */
 function readFailThreshold(argv) {
