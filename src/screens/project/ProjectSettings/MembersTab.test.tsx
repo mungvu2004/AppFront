@@ -38,8 +38,8 @@ function tabProps(overrides: Partial<MembersTabProps> = {}): MembersTabProps {
     state: 'success',
     canEdit: true,
     members: [
-      { id: 'usr_admin', name: 'Phạm An', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' },
-      { id: 'usr_eng', name: 'Nguyễn Bình', roleLabel: 'Kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình' },
+      { id: 'usr_admin', name: 'Phạm An', email: '', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' },
+      { id: 'usr_eng', name: 'Nguyễn Bình', email: '', roleLabel: 'Kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình' },
     ],
     memberCountLabel: '2 thành viên',
     memberEmail: '',
@@ -286,6 +286,16 @@ describe('thành viên trong useProjectSettings', () => {
     await addEmail(hook, 'x@example.com');
 
     expect(hook.result.current.memberError).toBe(viMessages.project.settings.members.badEmail);
+  });
+
+  it('email thiếu @ thì báo bằng câu tiếng Việt, không gọi mạng (G3-12)', async () => {
+    const server = await createFakeServer();
+    const hook = await mount(server);
+
+    await addEmail(hook, 'khongphaiemail');
+
+    expect(hook.result.current.memberError).toBe(viMessages.project.settings.members.badEmail);
+    expect(server.membersAdd).not.toHaveBeenCalled();
   });
 
   it('email trống thì báo ngay, không gọi mạng', async () => {

@@ -161,6 +161,12 @@ export function useProjectMembers(
       return;
     }
 
+    // G3-12: form tắt kiểm tra của trình duyệt (bong bóng tiếng Anh), nên tự chặn ở đây.
+    if (!/^[^\s@]+@[^\s@]+$/u.test(email)) {
+      setMemberError(SENTENCES.badEmail);
+      return;
+    }
+
     setAddingMember(true);
     setMemberError(null);
 

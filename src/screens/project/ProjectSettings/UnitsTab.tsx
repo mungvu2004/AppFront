@@ -4,7 +4,7 @@
  *
  * View thuần (R-60). Mọi con số đọc được — "50 mm", "75%", "100 điểm ảnh ứng
  * với 250 mm" — do `useProjectSettings` dựng; ở đây chỉ có ô nhập và nhãn.
- * Biên của từng ô lấy từ `PROJECT_SETTINGS_LIMITS` chứ không viết thẳng (R-71).
+ * Biên của từng ô do hook kiểm (`PROJECT_SETTINGS_LIMITS`, R-71), không do ô tự chặn (G3-10).
  *
  * Đơn vị diện tích là dòng chữ chứ không phải ô chọn: sản phẩm này chỉ có mét
  * vuông, và một ô chọn một lựa chọn là lời hứa suông.
@@ -13,7 +13,7 @@
 import { NumericField } from '@/components/ui/NumericField';
 import { Select } from '@/components/ui/Select';
 
-import { PROJECT_SETTINGS_LIMITS, type ProjectSettingsViewProps } from './useProjectSettings';
+import type { ProjectSettingsViewProps } from './useProjectSettings';
 
 export type UnitsTabProps = Pick<
   ProjectSettingsViewProps,
@@ -55,14 +55,13 @@ export function UnitsTab(props: UnitsTabProps) {
         <p className="text-[14px] text-text-primary">{props.areaUnitLabel}</p>
       </div>
 
+      {/* G3-10: không truyền min/max cho ô — ô tự chặn thì giá trị sai không tới hook, nên viên lưu vẫn
+          "Đã lưu" và thẻ không có số lỗi. Hook kiểm khoảng (snap/confidence/scaleProblemFor) và chặn tự lưu. */}
       <NumericField
         label="Dung sai bắt điểm"
         value={props.snapToleranceMm ?? undefined}
         onChange={props.setSnapToleranceMm}
-        min={props.snapToleranceMinMm}
-        max={props.snapToleranceMaxMm}
         unit="mm"
-        hint={props.snapToleranceLabel}
         error={problems.snapToleranceMm}
         isReadOnly={isReadOnly}
       />
@@ -71,8 +70,6 @@ export function UnitsTab(props: UnitsTabProps) {
         label="Ngưỡng tin cậy"
         value={props.confidenceThreshold}
         onChange={(value) => props.setConfidenceThreshold(value ?? props.confidenceThreshold)}
-        min={PROJECT_SETTINGS_LIMITS.confidenceMin}
-        max={PROJECT_SETTINGS_LIMITS.confidenceMax}
         hint={props.confidenceThresholdLabel}
         error={problems.confidenceThreshold}
         isReadOnly={isReadOnly}
@@ -82,8 +79,6 @@ export function UnitsTab(props: UnitsTabProps) {
         label="Tỉ lệ bản vẽ"
         value={props.scaleMmPerPx ?? undefined}
         onChange={props.setScaleMmPerPx}
-        min={PROJECT_SETTINGS_LIMITS.scaleMinMmPerPx}
-        max={PROJECT_SETTINGS_LIMITS.scaleMaxMmPerPx}
         hint={props.scaleLabel}
         error={problems.scaleMmPerPx}
         isReadOnly={isReadOnly}

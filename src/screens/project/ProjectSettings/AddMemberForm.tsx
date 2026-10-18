@@ -19,6 +19,7 @@ export function AddMemberForm(props: AddMemberFormProps) {
   return (
     <form
       className="flex items-start gap-2"
+      noValidate
       onSubmit={(event) => {
         event.preventDefault();
         props.addMember();

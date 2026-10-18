@@ -23,9 +23,9 @@ type Story = StoryObj<typeof meta>;
 const noop = (): void => undefined;
 
 const MEMBERS = [
-  { id: 'm-an', name: 'Phạm An', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' },
-  { id: 'm-binh', name: 'Nguyễn Bình', roleLabel: 'Kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình' },
-  { id: 'm-chi', name: 'Trần Chi', roleLabel: 'Người xem', initials: 'TC', removeLabel: 'Gỡ Trần Chi' },
+  { id: 'm-an', name: 'Phạm An', email: '', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' },
+  { id: 'm-binh', name: 'Nguyễn Bình', email: '', roleLabel: 'Kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình' },
+  { id: 'm-chi', name: 'Trần Chi', email: '', roleLabel: 'Người xem', initials: 'TC', removeLabel: 'Gỡ Trần Chi' },
 ];
 
 const NO_PROBLEMS = {
@@ -57,6 +57,7 @@ const base: ProjectSettingsViewProps = {
   isAddMemberLocked: false,
   memberRemoveDialog: null,
   activeTab: 'general',
+  projectTitle: 'Dự án mẫu',
   tabs: [
     { id: 'general', label: 'chung', problemCount: 0 },
     { id: 'units', label: 'đơn vị đo', problemCount: 0 },

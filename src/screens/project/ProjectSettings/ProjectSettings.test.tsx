@@ -99,6 +99,7 @@ function baseProps(): ProjectSettingsViewProps {
     isAddMemberLocked: false,
     memberRemoveDialog: null,
     activeTab: 'general',
+    projectTitle: 'Dự án mẫu',
     tabs: [
       { id: 'general', label: 'Chung', problemCount: 0 },
       { id: 'units', label: 'Đơn vị đo', problemCount: 0 },
@@ -131,7 +132,7 @@ function baseProps(): ProjectSettingsViewProps {
     scaleMmPerPx: 2.5,
     scaleLabel: '2,5 milimét trên mỗi điểm ảnh',
     scalePreviewLabel: '100 điểm ảnh ứng với 250 mm ngoài thực tế.',
-    members: [{ id: 'm-an', name: 'Phạm An', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' }],
+    members: [{ id: 'm-an', name: 'Phạm An', email: '', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' }],
     memberCountLabel: '1 thành viên',
     floorCount: 4,
     deleteAllFloorsLabel:
@@ -631,6 +632,23 @@ describe('ProjectSettings đã nối dây', () => {
   const nameField = (): HTMLInputElement =>
     screen.getByRole('textbox', { name: 'Tên dự án' }) as HTMLInputElement;
 
+  it('N4-04: mở đúng thẻ theo initialTab, báo onTabChange khi đổi; thẻ không có quyền thì về Chung', async () => {
+    const onTabChange = vi.fn();
+    await mountSettings({ gateway: spyGateway(), projectId: 'project-tab', roles: ['admin'], initialTab: 'members', onTabChange });
+    await tick(MOTION_SETTLE_MS);
+
+    expect(screen.getByRole('tab', { name: 'Thành viên' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.click(screen.getByRole('tab', { name: 'Đơn vị đo' }));
+    expect(onTabChange).toHaveBeenCalledWith('units');
+  });
+
+  it('N4-04: initialTab danger với vai không xoá được thì mở thẻ Chung', async () => {
+    await mountSettings({ gateway: spyGateway(), projectId: 'project-tab-eng', roles: ['engineer'], initialTab: 'danger' });
+    await tick(MOTION_SETTLE_MS);
+
+    expect(screen.getByRole('tab', { name: 'Chung' })).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('đọc hỏng ở khổ hẹp: lỗi tải thắng thu gọn, không vẽ biểu mẫu trống (BUG-072)', async () => {
     const gateway = spyGateway({
       read: async () => ({ ok: false, error: httpError(404, 'PROJECT_NOT_FOUND') }),
@@ -720,7 +738,8 @@ describe('ProjectSettings đã nối dây', () => {
 
     expect(gateway.update).toHaveBeenCalledTimes(1);
     expect(toasts).toHaveLength(1);
-    expect(toasts[0]?.message).toBe(viMessages.project.settings.savedToast);
+    // G3-09: câu báo nói rõ tên vừa lưu.
+    expect(toasts[0]?.message).toMatch(/^Đã lưu tên dự án «.+»\.$/u);
     expect(toasts[0]?.onUndo).toBeTypeOf('function');
 
     act(() => {
@@ -809,7 +828,7 @@ describe('ProjectSettings đã nối dây', () => {
     expect(gateway.deleteProject).toHaveBeenCalledWith({ projectId: 'project-delete' });
     // B-V3-05: câu báo đi cùng lời gọi rời màn, không vào toast của màn sắp gỡ.
     expect(onProjectDeleted).toHaveBeenCalledTimes(1);
-    expect(onProjectDeleted).toHaveBeenCalledWith('Đã xoá dự án.');
+    expect(onProjectDeleted).toHaveBeenCalledWith(`Đã xoá dự án «${expectedName}».`); // G3-37
   });
 
   /** Mở hộp "Xoá dự án" và gõ đúng tên; trả nút xác nhận. */
@@ -868,10 +887,15 @@ describe('ProjectSettings đã nối dây', () => {
     const gateway = spyGateway({ deleteAllFloors: () => new Promise(() => undefined) });
     await mountSettings({ gateway, projectId: 'project-double-floors', roles: ['admin'] });
 
+    const floorsExpectedName = nameField().value;
     fireEvent.click(screen.getByRole('tab', { name: 'Vùng nguy hiểm' }));
     await tick(MOTION_SETTLE_MS);
     fireEvent.click(screen.getByRole('button', { name: 'Xoá mọi tầng' }));
     await tick(MOTION_SETTLE_MS);
+    // G3-14: xoá mọi tầng cũng phải gõ lại tên dự án như xoá dự án.
+    fireEvent.change(within(screen.getByRole('dialog')).getByRole('textbox', { name: 'Gõ lại tên dự án để xác nhận' }), {
+      target: { value: floorsExpectedName },
+    });
     const confirm = within(screen.getByRole('dialog')).getByRole('button', { name: 'Xoá mọi tầng' });
 
     act(() => {
@@ -895,7 +919,7 @@ describe('ProjectSettings đã nối dây', () => {
     await tick(MOTION_SETTLE_MS);
 
     expect(onProjectDeleted).toHaveBeenCalledTimes(1);
-    expect(onProjectDeleted).toHaveBeenCalledWith('Đã xoá dự án.');
+    expect(onProjectDeleted).toHaveBeenCalledWith(expect.stringMatching(/^Đã xoá dự án «.+»\.$/u)); // G3-37
   });
 
   // BUG-207: a toast that reports floors left behind is a warning, not a plain notice.
@@ -906,10 +930,15 @@ describe('ProjectSettings đã nối dây', () => {
     });
     await mountSettings({ gateway: partial, projectId: 'project-partial', roles: ['admin'], onToast: (toast) => toasts.push(toast) });
 
+    const floorsExpectedName = nameField().value;
     fireEvent.click(screen.getByRole('tab', { name: 'Vùng nguy hiểm' }));
     await tick(MOTION_SETTLE_MS);
     fireEvent.click(screen.getByRole('button', { name: 'Xoá mọi tầng' }));
     await tick(MOTION_SETTLE_MS);
+    // G3-14: xoá mọi tầng cũng phải gõ lại tên dự án như xoá dự án.
+    fireEvent.change(within(screen.getByRole('dialog')).getByRole('textbox', { name: 'Gõ lại tên dự án để xác nhận' }), {
+      target: { value: floorsExpectedName },
+    });
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Xoá mọi tầng' }));
     await tick(MOTION_SETTLE_MS);
 

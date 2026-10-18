@@ -157,7 +157,7 @@ describe('useProjectSettings, lưu hai phần', () => {
     await tick(AUTOSAVE_DEBOUNCE_MS);
 
     expect(onToast).toHaveBeenCalledTimes(1);
-    expect(onToast.mock.calls[0]?.[0]).toMatchObject({ message: viMessages.project.settings.savedToast });
+    expect(onToast.mock.calls[0]?.[0].message).toMatch(/^Đã lưu (tên dự án «.+»|cài đặt dự án)\.$/u); // G3-09
     expect(result.current.saveFailureMessage).toBeNull();
   });
 

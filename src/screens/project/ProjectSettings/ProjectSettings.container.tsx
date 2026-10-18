@@ -19,7 +19,7 @@
  */
 
 import { useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -32,7 +32,7 @@ import type { ProjectRole } from '@/types/project';
 
 import { ProjectSettingsView } from './ProjectSettings';
 import { createAppProjectSettingsGateway } from './projectSettingsGateway';
-import { useProjectSettings } from './useProjectSettings';
+import { useProjectSettings, type ProjectSettingsTabId } from './useProjectSettings';
 
 /** Tên màn này với ranh giới lỗi, và với bất cứ ai đọc báo cáo của nó. */
 const SCREEN_ID = 'project-settings';
@@ -51,6 +51,8 @@ export interface ProjectSettingsContainerProps {
   readonly onBackToProjects?: () => void;
   /** Ép cách xếp thu gọn — cho story hoặc test muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  readonly initialTab?: ProjectSettingsTabId;
+  readonly onTabChange?: (tab: ProjectSettingsTabId) => void;
 }
 
 /** Cùng khuôn với `DashboardCrashFallback` — R-62. */
@@ -89,6 +91,8 @@ function WiredProjectSettings(props: ProjectSettingsContainerProps) {
     ...(props.onSelfRemoved !== undefined ? { onSelfRemoved: props.onSelfRemoved } : {}),
     ...(props.onBackToProjects !== undefined ? { onBackToProjects: props.onBackToProjects } : {}),
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
+    ...(props.initialTab !== undefined ? { initialTab: props.initialTab } : {}),
+    ...(props.onTabChange !== undefined ? { onTabChange: props.onTabChange } : {}),
   });
 
   return <ProjectSettingsView {...model} />;
@@ -120,6 +124,10 @@ function ProjectSettingsRouteBody({
 }) {
   const { addToast } = useToast();
   const navigate = useNavigate();
+  // N4-01/N4-04: thẻ đang mở nằm trên địa chỉ (`?tab=members`), nên Back hay link vào thẳng đều mở đúng thẻ.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const initialTab = SETTINGS_TAB_IDS.find((tab) => tab === tabParam);
 
   return (
     <ProjectSettingsContainer
@@ -129,6 +137,10 @@ function ProjectSettingsRouteBody({
       roles={roles}
       {...(currentUserId !== undefined ? { currentUserId } : {})}
       onToast={addToast}
+      {...(initialTab !== undefined ? { initialTab } : {})}
+      onTabChange={(tab) => {
+        setSearchParams(tab === 'general' ? {} : { tab }, { replace: true });
+      }}
       onSelfRemoved={() => {
         navigate(ROUTES.dashboard);
       }}
@@ -144,6 +156,8 @@ function ProjectSettingsRouteBody({
     />
   );
 }
+
+const SETTINGS_TAB_IDS: readonly ProjectSettingsTabId[] = ['general', 'units', 'members', 'danger'];
 
 /** Route thật của màn cài đặt, đăng ký tại `src/routes/router.tsx`. */
 export function ProjectSettingsRoute() {

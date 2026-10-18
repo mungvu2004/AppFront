@@ -118,6 +118,8 @@ export interface ProjectSettingsTabModel {
 export interface ProjectSettingsMemberRow {
   readonly id: string;
   readonly name: string;
+  /** G3-12: email dưới tên để phân biệt người trùng tên. */
+  readonly email: string;
   readonly roleLabel: string;
   readonly initials: string;
   /** Nhãn của nút gỡ, có tên người để trình đọc màn hình phân biệt các dòng. */
@@ -190,6 +192,8 @@ export interface ProjectSettingsModel extends ProjectMembersModel {
   /** Hộp thoại A9 trước khi tải lại bỏ bản nháp chưa lưu. */
   readonly isReloadDialogOpen: boolean;
   readonly activeTab: ProjectSettingsTabId;
+  /** Tên dự án đã lưu, cho đường dẫn trang (không đổi theo từng phím gõ). */
+  readonly projectTitle: string;
   readonly tabs: readonly ProjectSettingsTabModel[];
   readonly name: string;
   readonly code: string;
@@ -284,6 +288,10 @@ export interface UseProjectSettingsOptions {
   readonly onSelfRemoved?: () => void;
   /** Lối về danh sách dự án khi lượt đọc trả 404; nơi gọi điều hướng đi. */
   readonly onBackToProjects?: () => void;
+  /** Thẻ mở đầu (N4-01/N4-04: route đọc từ `?tab=`). */
+  readonly initialTab?: ProjectSettingsTabId;
+  /** Báo nơi gọi khi đổi thẻ, để nó ghi lên địa chỉ trang. */
+  readonly onTabChange?: (tab: ProjectSettingsTabId) => void;
 }
 
 /** Lỗi đọc giữ nguyên `AppError` để màn biết đó là 404 hay lỗi thử lại được (BUG-078). */
@@ -718,7 +726,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
   const roles = options.roles ?? DEFAULT_ROLES;
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<ProjectSettingsTabId>('general');
+  const [chosenTab, setChosenTab] = useState<ProjectSettingsTabId>(options.initialTab ?? 'general');
   const [draft, setDraft] = useState<ProjectSettingsDraft | null>(null);
   const [saved, setSaved] = useState<ProjectSettingsDraft | null>(null);
   const [syncedKey, setSyncedKey] = useState<string | null>(null);
@@ -998,6 +1006,9 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
 
       failures = outcome.failures;
       baseRef.current = outcome.snapshot;
+      // N4-06: bộ đệm đọc giữ bản mới sau lượt lưu, để lần mở lại màn (hoặc refetch) không hiện bản cũ.
+      // Không đụng bản nháp: khoá đồng bộ là projectId + reloadToken, không theo dữ liệu.
+      queryClient.setQueryData(projectSettingsQueryKey(projectId), outcome.snapshot);
 
       // Màn đã tháo trong lúc gửi: bản chờ của R13 lo phần còn lại, không đụng UI nữa.
       if (bridgeRef.current.flush !== null) {
@@ -1099,8 +1110,15 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
         ...(options.now !== undefined ? { now: options.now } : {}),
       });
 
+      // G3-09: nói rõ đã lưu gì, để câu "Chưa lưu vì còn ô cần sửa" ngay sau đó không đọc như mâu thuẫn.
+      const savedName = sentDraft?.name.trim() ?? '';
+      const message =
+        savedName.length > 0 && savedName !== previous.name.trim()
+          ? `Đã lưu tên dự án «${savedName}».`
+          : SAVED_TOAST_MESSAGE;
+
       options.onToast?.({
-        message: SAVED_TOAST_MESSAGE,
+        message,
         onUndo: () => {
           ticket.undo();
         },
@@ -1265,16 +1283,21 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
       invalidateProjectQueries('deleteProject');
       // A9 đã hỏi trước bằng hộp thoại, nên A8 không nợ một toast hoàn tác ở đây:
       // không có đường khôi phục nào để hứa.
+      // G3-37: câu báo nêu tên dự án vừa xoá.
+      const deletedName = (savedRef.current?.name ?? snapshot?.name ?? '').trim();
+      const notice = deletedName.length > 0 ? `Đã xoá dự án «${deletedName}».` : PROJECT_DELETED_NOTICE;
+
       if (options.onProjectDeleted === undefined) {
-        options.onToast?.({ message: PROJECT_DELETED_NOTICE });
+        options.onToast?.({ message: notice });
       } else {
-        options.onProjectDeleted(PROJECT_DELETED_NOTICE);
+        options.onProjectDeleted(notice);
       }
     });
   };
 
+  // G3-14: hai việc cùng mức "không hoàn tác được" thì cùng mức bảo vệ — đều gõ lại tên dự án.
   const dangerConfirmationExpected =
-    pendingDanger === 'deleteProject' ? (saved?.name ?? snapshot?.name ?? '') : null;
+    pendingDanger === null ? null : (saved?.name ?? snapshot?.name ?? '');
 
   const canConfirmDanger =
     pendingDanger !== null &&
@@ -1349,6 +1372,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
       (snapshot?.members ?? []).map((member) => ({
         id: member.id,
         name: member.name,
+        email: member.email,
         roleLabel: ROLE_LABELS[member.role],
         initials: initialsOf(member.name, member.email),
         removeLabel: `Gỡ ${member.name}`,
@@ -1370,6 +1394,13 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     ? [...alwaysTabs, { id: 'danger', label: TAB_LABELS.danger, problemCount: 0 }]
     : alwaysTabs;
 
+  // `?tab=danger` với vai không xoá được thì về thẻ Chung thay vì một thẻ không có.
+  const activeTab: ProjectSettingsTabId = tabs.some((tab) => tab.id === chosenTab) ? chosenTab : 'general';
+  const setActiveTab = (tab: ProjectSettingsTabId): void => {
+    setChosenTab(tab);
+    options.onTabChange?.(tab);
+  };
+
   const model: ProjectSettingsModel = {
     ...membersModel,
     state,
@@ -1387,6 +1418,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     saveFailureMessage,
     isReloadDialogOpen,
     activeTab,
+    projectTitle: saved?.name ?? snapshot?.name ?? '',
     tabs,
     name: current.name,
     code: current.code,
@@ -1406,7 +1438,8 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     snapToleranceMinMm: LIMITS.snapToleranceMinMm,
     snapToleranceMaxMm: LIMITS.snapToleranceMaxMm,
     confidenceThreshold: current.confidenceThreshold,
-    confidenceThresholdLabel: formatPercent(current.confidenceThreshold, { fractionDigits: 0 }),
+    // G3-11: nói cách nhập (số thập phân) thay vì in lại giá trị ở dạng khác.
+    confidenceThresholdLabel: `Nhập từ ${formatNumber(LIMITS.confidenceMin)} đến ${formatNumber(LIMITS.confidenceMax)}; ${formatNumber(current.confidenceThreshold, { maxFractionDigits: 2 })} nghĩa là ${formatPercent(current.confidenceThreshold, { fractionDigits: 0 })}.`,
     scaleMmPerPx: current.scaleMmPerPx,
     scaleLabel: `${formatNumber(current.scaleMmPerPx, { maxFractionDigits: 3 })} milimét trên mỗi điểm ảnh`,
     scalePreviewLabel: scalePreviewLabelFor(current.scaleMmPerPx),

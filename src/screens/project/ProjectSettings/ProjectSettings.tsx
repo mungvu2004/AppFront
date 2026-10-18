@@ -29,6 +29,7 @@
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { BACK_TO_PROJECTS_LABEL } from '@/components/feedback/ProjectSpatialGate';
 import { SaveIndicator } from '@/components/feedback/SaveIndicator';
+import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Toast, useToast } from '@/components/feedback/Toast';
 import { Modal } from '@/components/overlay/Modal';
@@ -69,11 +70,26 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
   return (
     <div className="min-h-screen bg-bg-app">
       <div className="mx-auto flex max-w-[720px] flex-col gap-6 p-8">
+        {/* N0-05: Dự án › <tên dự án> › Cài đặt dự án. */}
+        <Breadcrumb
+          items={[
+            {
+              id: 'projects',
+              label: 'Dự án',
+              ...(props.backToProjects !== null ? { onClick: props.backToProjects } : {}),
+            },
+            ...(props.projectTitle.length > 0 ? [{ id: 'project', label: props.projectTitle }] : []),
+            { id: 'current', label: 'Cài đặt dự án' },
+          ]}
+        />
         <header className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex min-w-0 flex-1 basis-[320px] flex-col gap-1">
             <h1 className="text-[20px] font-semibold text-text-primary">Cài đặt dự án</h1>
             <p className="text-[13px] text-text-secondary">
-              Thông tin chung, đơn vị đo, thành viên và hai việc không hoàn tác được.
+              {/* G2-27: không hứa phần "Vùng nguy hiểm" với vai không thấy nó, và nói ai làm được. */}
+              {props.canDelete
+                ? 'Thông tin chung, đơn vị đo, thành viên và hai việc không hoàn tác được.'
+                : 'Thông tin chung, đơn vị đo và thành viên. Chỉ quản trị viên xoá được tầng hoặc dự án.'}
             </p>
           </div>
           {showSaveIndicator && <SaveIndicator saveState={props.saveState} label={props.saveLabel} />}

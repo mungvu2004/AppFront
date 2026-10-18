@@ -59,7 +59,12 @@ export function MembersTab(props: MembersTabProps) {
             {props.members.map((member) => (
               <li key={member.id} className="flex items-center gap-3 px-3 py-2">
                 <Avatar initials={member.initials} alt={member.name} />
-                <span className="truncate text-[14px] text-text-primary">{member.name}</span>
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate text-[14px] text-text-primary">{member.name}</span>
+                  {member.email.length > 0 && member.email !== member.name && (
+                    <span className="truncate text-[12px] text-text-secondary">{member.email}</span>
+                  )}
+                </span>
                 <span className="ml-auto flex items-center gap-2">
                   <Badge variant="neutral">{member.roleLabel}</Badge>
                   {props.canEdit && (
