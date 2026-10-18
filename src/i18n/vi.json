@@ -1181,7 +1181,7 @@
       "loadingDescription": "Ảnh 3000×3000 pixel đang được tải. Bảng hiệu chỉnh sẽ mở ngay khi ảnh sẵn sàng.",
       "partialTitle": "Chưa đủ dữ liệu để chốt tỷ lệ",
       "partialDescription": "Đã có đoạn tham chiếu nhưng chưa có chiều dài thật, hoặc một số chuỗi kích thước đọc được với độ tin cậy thấp.",
-      "errorTitle": "Nắn ảnh thất bại nên bản vẽ có thể méo",
+      "errorTitle": "Không tìm thấy khung bản vẽ, ảnh có thể chưa thẳng",
       "errorDescription": "Tỷ lệ đo trên một bản vẽ méo sẽ sai theo. Quay lại bước tiền xử lý để nắn lại ảnh, rồi hiệu chỉnh tỷ lệ.",
       "errorBackToPreprocessing": "Quay lại bước tiền xử lý",
       "errorRetry": "Tải lại ảnh",
@@ -1506,7 +1506,8 @@
       "floorNav": "Tầng của bản vẽ"
     },
     "statusBar": {
-      "cursorIdle": "Chưa rê chuột lên bản vẽ"
+      "cursorIdle": "Chưa rê chuột lên bản vẽ",
+      "panHint": "Kéo nền hoặc giữ Space để di chuyển · lăn chuột để phóng"
     },
     "canvas": {
       "waitingFrame": "Chưa có ảnh bản vẽ của tầng này",

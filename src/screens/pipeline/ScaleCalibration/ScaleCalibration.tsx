@@ -75,7 +75,9 @@ const NOTICE_REGION_ARIA_LABEL = 'Trạng thái của màn hiệu chỉnh tỷ l
 
 const EMPTY_TITLE = 'Chưa có chuỗi kích thước nào để đối chiếu';
 const PARTIAL_TITLE = 'Chưa đủ dữ liệu để chốt tỷ lệ';
-const ERROR_TITLE = 'Nắn ảnh thất bại nên bản vẽ có thể méo';
+// G3-31: tiền xử lý không thất bại (BE chỉ báo FRAME_NOT_FOUND mức cần chú ý, màn Xử lý đánh ✓),
+// nên tiêu đề không nói "thất bại" và khối dùng màu cần chú ý, không màu vi phạm.
+const ERROR_TITLE = 'Không tìm thấy khung bản vẽ, ảnh có thể chưa thẳng';
 const SUCCESS_TITLE = 'Đã áp tỷ lệ cho bản vẽ';
 const FORBIDDEN_TITLE = 'Bạn không có quyền hiệu chỉnh tỷ lệ';
 
@@ -185,6 +187,8 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
   const noticeMessage = messageFor(model);
   const noticeLevel = NOTICE_LEVELS[model.state];
   const isError = model.state === 'error';
+  // Ảnh méo là nhánh `'error'` không có tiêu đề riêng (lỗi đọc luôn mang `errorTitle`, B-V5-04).
+  const isWarped = isError && model.errorTitle === undefined;
 
   if (model.readFailure != null) {
     return (
@@ -206,7 +210,7 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
           {noticeLevel !== null && noticeMessage !== null && (
             <section aria-label={NOTICE_REGION_ARIA_LABEL} className="flex flex-col gap-2">
               <InlineAlert
-                level={noticeLevel}
+                level={isWarped ? 'attention' : noticeLevel}
                 message={
                   isError && model.errorCode !== null
                     ? `${noticeMessage} ${ERROR_CODE_PREFIX}${model.errorCode}`
@@ -225,9 +229,12 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
                   <Button onClick={actions.onGoToPreprocessing} size="sm" variant="ghost">
                     {BACK_TO_PREPROCESSING_LABEL}
                   </Button>
-                  <Button onClick={actions.onRetry} size="sm" variant="secondary">
-                    {RETRY_LABEL}
-                  </Button>
+                  {/* Tải lại không làm máy tìm ra khung — chỉ lỗi đọc mới cần nút này. */}
+                  {!isWarped && (
+                    <Button onClick={actions.onRetry} size="sm" variant="secondary">
+                      {RETRY_LABEL}
+                    </Button>
+                  )}
                 </div>
               )}
             </section>

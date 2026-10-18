@@ -384,7 +384,7 @@ export function scenarioFor(state: SevenState): ScaleCalibrationProps {
       prefersReducedMotion: false,
       errorMessage:
         state === 'error'
-          ? 'Tỷ lệ đo trên một bản vẽ méo sẽ sai theo. Quay lại bước tiền xử lý để nắn lại ảnh, rồi hiệu chỉnh tỷ lệ.'
+          ? 'Bước tiền xử lý đã xong nhưng máy không tìm thấy khung bản vẽ, nên ảnh có thể chưa được nắn thẳng. Nếu thấy ảnh méo, quay lại bước tiền xử lý để nắn lại, vì tỷ lệ đo trên ảnh méo sẽ sai theo.'
           : null,
       errorCode: null,
       emptyNotice:

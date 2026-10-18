@@ -208,7 +208,7 @@ const SCALE = {
   expand: 'Bung bảng', // SCP:EXPAND_LABEL
   applyFailed:
     'Chưa lưu được tỷ lệ lên máy chủ, tầng giữ tỷ lệ cũ. Tài khoản của bạn chưa có quyền xem hoặc thay đổi nội dung này. Liên hệ quản trị dự án.', // USC applyFailed + errors.forbidden
-  warpedTitle: 'Nắn ảnh thất bại nên bản vẽ có thể méo', // SC:ERROR_TITLE
+  warpedTitle: 'Không tìm thấy khung bản vẽ, ảnh có thể chưa thẳng', // SC:ERROR_TITLE
 } as const;
 
 /* SCR-22 */

@@ -89,7 +89,7 @@ test('L1: bộ mẫu không tìm thấy khung bản vẽ ⇒ màn nói ảnh có
   await page.goto(scaleOf('L1'));
 
   await expect(
-    page.getByRole('heading', { name: 'Nắn ảnh thất bại nên bản vẽ có thể méo' }),
+    page.getByRole('heading', { name: 'Không tìm thấy khung bản vẽ, ảnh có thể chưa thẳng' }),
   ).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
   await expect(page.getByRole('button', { name: 'Quay lại bước tiền xử lý' })).toBeVisible();
 });

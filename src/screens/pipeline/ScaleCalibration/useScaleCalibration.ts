@@ -176,6 +176,8 @@ const COPY = {
   canvasAltEmpty: 'Chưa có bản vẽ nào để hiệu chỉnh.',
   currentScaleUnknown: 'Chưa có',
   derivedLineUnknown: 'chưa đủ dữ liệu để suy ra tỷ lệ nguyên đồ',
+  // G3-31: màn tường đang dùng tỷ lệ tạm này; nói ra để hai màn không nói hai điều khác nhau.
+  derivedLineProvisional: (density: string): string => `đang dùng tạm ${density} do máy ước, chưa được duyệt`,
   methodDimensionString: 'Từ chuỗi kích thước',
   methodReferenceLine: 'Vẽ đường tham chiếu',
   methodDimensionDisabled:
@@ -208,8 +210,9 @@ const COPY = {
     'Chưa có bản vẽ nào được tải lên cho tầng này. Tải bản vẽ lên và chờ bước tiền xử lý xong rồi mới hiệu chỉnh tỷ lệ.',
   // Tiêu đề "Nắn ảnh thất bại nên bản vẽ có thể méo" là của view; câu này chỉ nói hậu quả và lối ra,
   // không nhắc lại tiêu đề (BUG-341). Khớp khoá `scaleCalibration.state.errorDescription`.
+  // G3-31: tiền xử lý KHÔNG thất bại (màn Xử lý đánh ✓ đúng) — BE chỉ báo FRAME_NOT_FOUND mức cần chú ý.
   warpingNotice:
-    'Tỷ lệ đo trên một bản vẽ méo sẽ sai theo. Quay lại bước tiền xử lý để nắn lại ảnh, rồi hiệu chỉnh tỷ lệ.',
+    'Bước tiền xử lý đã xong nhưng máy không tìm thấy khung bản vẽ, nên ảnh có thể chưa được nắn thẳng. Nếu thấy ảnh méo, quay lại bước tiền xử lý để nắn lại, vì tỷ lệ đo trên ảnh méo sẽ sai theo.',
   emptyNotice:
     'Bản vẽ này không có chuỗi kích thước nào OCR đọc được. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.',
   partialNotice:
@@ -1985,7 +1988,9 @@ export function useScaleCalibration(
         currentScaleLabel,
         derivedLine:
           displayRatio === null
-            ? COPY.derivedLineUnknown
+            ? provisionalRatio === null
+              ? COPY.derivedLineUnknown
+              : COPY.derivedLineProvisional(formatScaleDensity(provisionalRatio))
             : derivedLine(
                 formatLength(millimetres(displayRatio), { unit: 'mm' }),
                 scaleRatioLabel,
@@ -2092,6 +2097,7 @@ export function useScaleCalibration(
     readFailure,
     isApplying,
     provisionalNotice,
+    provisionalRatio,
     aiInference,
     applyScope,
     applyScopeOptions,

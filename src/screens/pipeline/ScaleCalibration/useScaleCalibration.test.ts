@@ -741,6 +741,8 @@ describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved
 
     expect(useStore.getState().floorMeta[FLOOR_ID]?.scaleStatus).toBe('unresolved');
     expect(mounted.result.current.model.panel.currentScaleLabel).toBe('Chưa có'); // A6
+    // G3-31: màn tường đang dùng tỷ lệ tạm — dòng dưới nói ra số đó thay vì "chưa đủ dữ liệu".
+    expect(mounted.result.current.model.panel.derivedLine).toMatch(/^đang dùng tạm .+ mm\/px do máy ước, chưa được duyệt$/u);
     expect(mounted.result.current.model.provisionalScaleNotice).toBe(
       'Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.',
     );
@@ -1062,8 +1064,10 @@ describe('useScaleCalibration — bảy trạng thái', () => {
 
     expect(warped.result.current.model.state).toBe('error');
     expect(warped.result.current.model.errorTitle).toBeUndefined();
-    // Một câu, không nhắc lại tiêu đề "Nắn ảnh thất bại…" của view (BUG-341).
-    expect(warped.result.current.model.errorMessage).not.toContain('Nắn ảnh thất bại');
+    // Một câu, không nhắc lại tiêu đề của view (BUG-341). Tiền xử lý không thất bại: màn Xử lý
+    // đánh ✓ đúng, nên câu ở đây không được nói "thất bại" (G3-31).
+    expect(warped.result.current.model.errorMessage).not.toContain('thất bại');
+    expect(warped.result.current.model.errorMessage).toContain('Bước tiền xử lý đã xong');
     warped.unmount();
   });
 

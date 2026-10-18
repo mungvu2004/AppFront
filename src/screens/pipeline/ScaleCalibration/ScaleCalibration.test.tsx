@@ -542,13 +542,16 @@ describe('ScaleCalibration — bảy trạng thái (A11, R-63)', () => {
     renderWithProviders(<ScaleCalibration {...scenario} />);
 
     // Tiêu đề khối lỗi một lần, câu hậu quả một lần — canvas không dựng dải thứ ba (BUG-341).
-    expect(screen.getAllByText(/Nắn ảnh thất bại nên bản vẽ có thể méo/u)).toHaveLength(1);
-    expect(screen.getAllByText(/Tỷ lệ đo trên một bản vẽ méo sẽ sai theo/u)).toHaveLength(1);
+    expect(screen.getAllByText(/Không tìm thấy khung bản vẽ, ảnh có thể chưa thẳng/u)).toHaveLength(1);
+    // G3-31: tiền xử lý không thất bại, nên không nói "thất bại".
+    expect(screen.queryByText(/thất bại/u)).toBeNull();
+    expect(screen.getAllByText(/tỷ lệ đo trên ảnh méo sẽ sai theo/u)).toHaveLength(1);
     expect(screen.queryByText(/Mã lỗi/u)).toBeNull();
     expect(
       screen.getByRole('button', { name: 'Quay lại bước tiền xử lý' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tải lại ảnh' })).toBeInTheDocument();
+    // Tải lại không làm máy tìm ra khung: ảnh méo không có nút này (G3-31).
+    expect(screen.queryByRole('button', { name: 'Tải lại ảnh' })).toBeNull();
   });
 
   it('thanh trạng thái 32px là `StatusBar` dùng chung, có mặt ở mọi trạng thái', () => {
@@ -626,7 +629,7 @@ describe('ScaleCalibration — khả năng tiếp cận, tiếng Việt, màu (R
     );
 
     expect(screen.getByText('Không tải được bản vẽ của tầng')).toBeInTheDocument();
-    expect(screen.queryByText('Nắn ảnh thất bại nên bản vẽ có thể méo')).toBeNull();
+    expect(screen.queryByText('Không tìm thấy khung bản vẽ, ảnh có thể chưa thẳng')).toBeNull();
   });
 
   it('tầng chưa có bản vẽ: một lối ra "Tải bản vẽ lên", không "Tải lại ảnh" (BUG-337)', () => {

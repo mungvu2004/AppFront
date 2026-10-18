@@ -152,14 +152,10 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-E-001', 'names');
       });
 
-      await step('14-B-025', 'real default: provisional banner and warped notice stacked, both visible, provisional first', async () => {
-        const provisional = page.getByText(SCALE.provisional, { exact: true });
-        const warped = page.getByText(SCALE.warpedTitle, { exact: true });
-        await expect.soft(provisional).toBeVisible(); // SC:190-193
-        await expect.soft(warped).toBeVisible(); // SC:193-203
-        const [pb, wb] = [await provisional.boundingBox(), await warped.boundingBox()];
-        expect.soft(pb !== null && wb !== null && pb.y < wb.y, 'provisional banner is above the warped notice').toBe(true);
-        await evidence(page, '14-B-025', 'banner-and-warped');
+      await step('14-B-025', 'real default: only the warped notice; no provisional banner on the scale screen itself (G4b-11)', async () => {
+        await expect.soft(page.getByText(SCALE.provisional, { exact: true })).toHaveCount(0);
+        await expect.soft(page.getByText(SCALE.warpedTitle, { exact: true })).toBeVisible();
+        await evidence(page, '14-B-025', 'warped-only');
       });
 
       await step('14-B-026', 'status bar defaults: "X: 0,00", "Y: 0,00", ratio "—" · "—", save text from useAutosave', async () => {
@@ -1059,7 +1055,8 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await expect.soft(notice.getByText(SCALE.warpedBody, { exact: true })).toBeVisible();
         await expect.soft(notice).not.toContainText('Mã lỗi');
         await expect.soft(btn(notice, SCALE.backToPreprocessing)).toBeVisible();
-        await expect.soft(btn(notice, SCALE.retry)).toBeVisible();
+        // G3-31: reloading cannot make the frame appear, so the warped notice has no retry button.
+        await expect.soft(btn(notice, SCALE.retry)).toHaveCount(0);
         await drawStandard(page);
         await expect.soft(handleEnd(page), 'a line can still be drawn on a warped drawing').toBeVisible();
         await evidence(page, '14-B-007', 'warped-error');
@@ -1069,7 +1066,8 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await clearLine(page);
         await expect.soft(page.getByText(SCALE.provisional, { exact: true })).toBeVisible();
         await expect.soft(panelOf(page).getByText('Chưa có', { exact: true })).toBeVisible();
-        await expect.soft(panelOf(page).getByText('chưa đủ dữ liệu để suy ra tỷ lệ nguyên đồ', { exact: true })).toBeVisible();
+        // G3-31: the derived line names the provisional ratio the wall screen already uses.
+        await expect.soft(panelOf(page).getByText(/^đang dùng tạm .+ mm\/px do máy ước, chưa được duyệt$/u)).toBeVisible();
         await evidence(page, '14-B-011', 'provisional');
       });
 

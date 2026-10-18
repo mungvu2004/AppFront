@@ -64,8 +64,8 @@ export const SCALE = {
   backToPreprocessing: 'Quay lại bước tiền xử lý', // SC:76
   retry: 'Tải lại ảnh', // SC:77
   goToUpload: 'Tải bản vẽ lên', // SC:78
-  warpedTitle: 'Nắn ảnh thất bại nên bản vẽ có thể méo', // SC:72
-  warpedBody: 'Tỷ lệ đo trên một bản vẽ méo sẽ sai theo. Quay lại bước tiền xử lý để nắn lại ảnh, rồi hiệu chỉnh tỷ lệ.', // USC COPY.warpingNotice
+  warpedTitle: 'Không tìm thấy khung bản vẽ, ảnh có thể chưa thẳng', // SC:72
+  warpedBody: 'Bước tiền xử lý đã xong nhưng máy không tìm thấy khung bản vẽ, nên ảnh có thể chưa được nắn thẳng. Nếu thấy ảnh méo, quay lại bước tiền xử lý để nắn lại, vì tỷ lệ đo trên ảnh méo sẽ sai theo.', // USC COPY.warpingNotice
   provisional: 'Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.', // lib/viewmodel/provisionalScale.ts
   emptyTitle: 'Chưa có chuỗi kích thước nào để đối chiếu', // SMD EMPTY_TITLE / SC:70
   emptyBody: 'Bản vẽ này không có chuỗi kích thước nào OCR đọc được. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.', // USC COPY.emptyNotice
