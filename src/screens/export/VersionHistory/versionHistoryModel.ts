@@ -179,7 +179,16 @@ export interface BuildRowsContext {
  * thứ 0 là bản hiện tại và `index + 1` là bản cũ hơn liền kề.
  */
 export function buildVersionRows(context: BuildRowsContext): readonly VersionRowBuild[] {
-  const { currentRevision, failedIds, history, now, leftVersionId, purgedIds, rightVersionId, summaries } = context;
+  const {
+    currentRevision,
+    failedIds,
+    history,
+    now,
+    leftVersionId,
+    purgedIds,
+    rightVersionId,
+    summaries,
+  } = context;
   const pickedCount = (leftVersionId === null ? 0 : 1) + (rightVersionId === null ? 0 : 1);
 
   return history.map((entry, index): VersionRowBuild => {
@@ -193,6 +202,13 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
       entry.kind === 'full' && previous !== null
         ? countsOf(diffVersions(previous.snapshot, entry.version.snapshot))
         : EMPTY_DIFF_COUNTS;
+
+    // Ảnh chụp của bản này hoặc bản liền trước chưa nạp: số liệu chưa biết, không phải "không đổi".
+    const isFailed = failedIds?.has(metadata.id) === true;
+    const hasUnloadedPrevious =
+      history[index + 1] !== undefined && previous === null && entry.kind === 'full';
+    const isCountsLoading =
+      !isMetadataOnly && !isFailed && (entry.kind !== 'full' || hasUnloadedPrevious);
 
     const createdAt = instantOf(metadata.createdAt);
 
@@ -211,6 +227,7 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
         relativeTimeLabel: formatTimestamp(createdAt, now),
         absoluteTimeLabel: `${formatCalendarDate(createdAt)} ${formatClockTime(createdAt)}`,
         counts,
+        isCountsLoading,
         // HOP-DONG-MOI §5: hiện tại ⇔ `floorRevision` bằng `revision` của tầng, không phải "hàng đầu".
         isCurrent: currentRevision !== null && summary?.floorRevision === currentRevision,
         tagLabel: summary?.label ?? null,
@@ -219,7 +236,9 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
         ...(failedIds?.has(metadata.id) === true ? { snapshotError: SNAPSHOT_FAILED_NOTICE } : {}),
         isSelectedForCompare,
         // Bản còn nội dung nào cũng tích được: tích là nạp nó (B-025). Bản hết nội dung/nạp hỏng thì không.
-        isPickable: isSelectedForCompare || (!isMetadataOnly && failedIds?.has(metadata.id) !== true && pickedCount < 2),
+        isPickable:
+          isSelectedForCompare ||
+          (!isMetadataOnly && failedIds?.has(metadata.id) !== true && pickedCount < 2),
       },
     };
   });
@@ -425,12 +444,16 @@ export const UNDO_RETRY_TOAST = 'Chưa hoàn tác được lượt phục hồi;
 const UNKNOWN_OUTCOME = 'Chưa rõ đã phục hồi chưa, bấm lại.';
 
 /** (thao tác, `code`) → câu. Mã lạ thì câu dự phòng; mã không bao giờ in ra (R1). */
-const WRITE_ERROR_SENTENCES: Readonly<Record<VersionWriteOperation, Readonly<Record<string, string>>>> = {
+const WRITE_ERROR_SENTENCES: Readonly<
+  Record<VersionWriteOperation, Readonly<Record<string, string>>>
+> = {
   restore: {
     FORBIDDEN: 'Vai của bạn trên dự án này không được sửa lớp của tầng.',
-    LAYER_INTEGRITY_BROKEN: 'Nội dung bản này không còn khớp toàn vẹn của tầng, nên không phục hồi được.',
+    LAYER_INTEGRITY_BROKEN:
+      'Nội dung bản này không còn khớp toàn vẹn của tầng, nên không phục hồi được.',
     NETWORK: UNKNOWN_OUTCOME,
-    REVIEW_BY_AI_FORBIDDEN: 'Bản này sẽ ghi dấu "đã duyệt" cho kết quả của AI, nên không phục hồi được.',
+    REVIEW_BY_AI_FORBIDDEN:
+      'Bản này sẽ ghi dấu "đã duyệt" cho kết quả của AI, nên không phục hồi được.',
     TIMEOUT: UNKNOWN_OUTCOME,
     VALIDATION: 'Không phục hồi được bản này.',
     VERSION_FLOOR_MISMATCH: 'Bản này không thuộc tầng đang chọn.',
@@ -465,11 +488,19 @@ export function writeErrorNotice(
 ): ConflictNoticeModel {
   const code = codeOf(error);
   const isBadChars =
-    operation === 'label' && code === 'VALIDATION' && submittedLabel !== undefined && submittedLabel.length <= LABEL_MAX_UNITS;
+    operation === 'label' &&
+    code === 'VALIDATION' &&
+    submittedLabel !== undefined &&
+    submittedLabel.length <= LABEL_MAX_UNITS;
 
   return {
     actorName: WRITE_ERROR_TITLES[operation],
-    message: (isBadChars ? LABEL_BAD_CHARS : code === undefined ? undefined : WRITE_ERROR_SENTENCES[operation][code]) ?? WRITE_ERROR_FALLBACK[operation],
+    message:
+      (isBadChars
+        ? LABEL_BAD_CHARS
+        : code === undefined
+          ? undefined
+          : WRITE_ERROR_SENTENCES[operation][code]) ?? WRITE_ERROR_FALLBACK[operation],
     detail: null,
     dismissLabel: 'Đã hiểu',
   };
@@ -478,7 +509,8 @@ export function writeErrorNotice(
 /** N16 hỏng sau một lượt ghi: kho giữ `revision` cũ, nên lượt tự lưu sau sẽ 409 thay vì ghi đè. */
 export const RELOAD_FAILED_NOTICE: ConflictNoticeModel = {
   actorName: 'Chưa tải lại được tầng',
-  message: 'Máy chủ đã nhận thay đổi nhưng chưa trả lại lớp mới của tầng. Tải lại để xem bản mới nhất.',
+  message:
+    'Máy chủ đã nhận thay đổi nhưng chưa trả lại lớp mới của tầng. Tải lại để xem bản mới nhất.',
   detail: null,
   dismissLabel: 'Tải lại',
 };
@@ -487,7 +519,10 @@ export const RELOAD_FAILED_NOTICE: ConflictNoticeModel = {
 export function isForbiddenRead(error: unknown): boolean {
   const code = codeOf(error);
   const params =
-    typeof error === 'object' && error !== null && 'params' in error && typeof error.params === 'object'
+    typeof error === 'object' &&
+    error !== null &&
+    'params' in error &&
+    typeof error.params === 'object'
       ? (error.params as Readonly<Record<string, unknown>> | null)
       : null;
 
@@ -532,7 +567,8 @@ export function buildRestoreConfirm(
     return {
       isOpen: true,
       title: `${floorName.charAt(0).toLocaleUpperCase('vi-VN')}${floorName.slice(1)} còn thay đổi chưa lưu được; tiếp tục sẽ bỏ chúng`,
-      reassurance: 'Thay đổi chưa lưu của tầng này sẽ mất. Chọn "Huỷ" để giữ chúng và không phục hồi.',
+      reassurance:
+        'Thay đổi chưa lưu của tầng này sẽ mất. Chọn "Huỷ" để giữ chúng và không phục hồi.',
       confirmLabel: 'Bỏ thay đổi và tiếp tục',
       cancelLabel: 'Huỷ',
       targetVersionLabel: null,
@@ -540,12 +576,16 @@ export function buildRestoreConfirm(
   }
 
   const label =
-    dialog === null ? null : (builds.find((build) => build.row.id === dialog.versionId)?.row.label ?? null);
+    dialog === null
+      ? null
+      : (builds.find((build) => build.row.id === dialog.versionId)?.row.label ?? null);
 
   return {
     isOpen: dialog !== null,
     title:
-      label === null ? `Phục hồi phiên bản này của ${floorName}?` : `Phục hồi phiên bản ${label} của ${floorName}?`,
+      label === null
+        ? `Phục hồi phiên bản này của ${floorName}?`
+        : `Phục hồi phiên bản ${label} của ${floorName}?`,
     reassurance: `${RESTORE_CAPTION}. ${UNDO_HISTORY_CLEARED}`,
     confirmLabel: 'Phục hồi',
     cancelLabel: 'Để nguyên',

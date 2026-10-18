@@ -144,6 +144,8 @@ export interface VersionRowModel {
   /** Mốc đầy đủ, cho `title`/`aria` — tương đối một mình thì không tra lại được. */
   readonly absoluteTimeLabel: string;
   readonly counts: DiffCountsModel;
+  /** Ảnh chụp chưa nạp nên chưa biết số thay đổi: view hiện khung xương thay cho "+0 −0 ~0". */
+  readonly isCountsLoading?: boolean;
   readonly isCurrent: boolean;
   /** Nhãn người dùng gắn, ví dụ "Duyệt với chủ đầu tư". */
   readonly tagLabel: string | null;

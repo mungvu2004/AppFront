@@ -14,7 +14,12 @@ import { AnimatePresence, motion } from '@/components/motion';
 import { durationSeconds } from '@/lib/motion';
 import type { MouseEvent } from 'react';
 
-import { DIFF_TONE_TOKENS, type DiffTone, type VersionGroupModel, type VersionRowModel } from './types';
+import {
+  DIFF_TONE_TOKENS,
+  type DiffTone,
+  type VersionGroupModel,
+  type VersionRowModel,
+} from './types';
 import { SNAPSHOT_RETRY_LABEL } from './versionHistoryModel';
 
 export interface VersionListProps {
@@ -30,6 +35,16 @@ const SNAPSHOT_STATUS_LABEL = 'Trạng thái nạp nội dung phiên bản';
 const DIFF_DOT_TONES: readonly DiffTone[] = ['added', 'removed', 'changed'];
 
 function VersionDiffDots({ row }: { row: VersionRowModel }) {
+  if (row.isCountsLoading === true) {
+    return (
+      <span
+        role="status"
+        aria-label="Đang tính số thay đổi"
+        className="h-4 w-24 animate-pulse rounded bg-bg-sunken"
+      />
+    );
+  }
+
   const counts = row.counts;
   const labelByTone: Readonly<Record<DiffTone, string>> = {
     added: counts.addedLabel,
@@ -38,7 +53,10 @@ function VersionDiffDots({ row }: { row: VersionRowModel }) {
   };
 
   return (
-    <span className="flex items-center gap-2 tabular-nums text-[13px] text-text-secondary" aria-hidden="true">
+    <span
+      className="flex items-center gap-2 tabular-nums text-[13px] text-text-secondary"
+      aria-hidden="true"
+    >
       {DIFF_DOT_TONES.map((tone) => (
         <span key={tone} className="flex items-center gap-1">
           <span
@@ -75,7 +93,7 @@ function VersionListRow({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: durationSeconds('fast') }}
-      className="flex h-12 items-center gap-3 border-b border-border-default px-3"
+      className="flex min-h-12 items-center gap-3 border-b py-1.5 border-border-default px-3"
     >
       <Checkbox
         checked={row.isSelectedForCompare}
@@ -107,30 +125,37 @@ function VersionListRow({
             </button>
           </p>
         ) : (
-          <p className="truncate text-[13px] text-text-secondary">{row.description}</p>
+          <p className="line-clamp-2 text-[13px] text-text-secondary" title={row.description}>
+            {row.description}
+          </p>
         )}
         {row.isMetadataOnly && row.retentionNotice !== null && (
           <p className="text-[12px] text-text-tertiary">{row.retentionNotice}</p>
         )}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
-        <span
-          className="text-[13px] text-text-secondary"
-          title={row.absoluteTimeLabel}
-        >
+        <span className="text-[13px] text-text-secondary" title={row.absoluteTimeLabel}>
           {row.relativeTimeLabel}
         </span>
         <VersionDiffDots row={row} />
-        <span className="sr-only">{row.counts.ariaLabel}</span>
+        {row.isCountsLoading === true ? null : (
+          <span className="sr-only">{row.counts.ariaLabel}</span>
+        )}
       </div>
     </motion.li>
   );
 }
 
-export function VersionList({ groups, onToggleCompareSelection, onRetrySnapshot }: VersionListProps) {
+export function VersionList({
+  groups,
+  onToggleCompareSelection,
+  onRetrySnapshot,
+}: VersionListProps) {
   const failures = groups
     .flatMap((group) => group.rows)
-    .flatMap((row) => (row.snapshotError === undefined ? [] : [`${row.label}: ${row.snapshotError}`]))
+    .flatMap((row) =>
+      row.snapshotError === undefined ? [] : [`${row.label}: ${row.snapshotError}`],
+    )
     .join('; ');
 
   return (

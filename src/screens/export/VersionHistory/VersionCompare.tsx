@@ -163,7 +163,22 @@ export function VersionCompare({ model, actions }: VersionCompareProps) {
       return <VersionJsonDiff lines={model.jsonLines} />;
     }
 
-    return <VersionVisualDiff visual={model.visual} />;
+    const labelOf = (options: typeof model.leftOptions, id: string | null): string =>
+      options.find((option) => option.id === id)?.label ?? '?';
+
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-[13px] font-medium text-text-primary">
+          {'So sánh: ' +
+            labelOf(model.leftOptions, model.leftVersionId) +
+            ' (gốc) và ' +
+            labelOf(model.rightOptions, model.rightVersionId) +
+            ' (đối chiếu)'}
+        </p>
+        <VersionVisualDiff visual={model.visual} />
+        <VersionDiffGroups groups={model.groups} onHoverRow={actions.hoverDiffRow} />
+      </div>
+    );
   };
 
   /*

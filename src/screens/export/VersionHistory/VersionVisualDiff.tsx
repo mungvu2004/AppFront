@@ -33,6 +33,8 @@ const WEBGL_TITLE = 'Máy này không dựng được 3D';
 const WEBGL_BODY =
   'Trình duyệt không bật WebGL nên khối 3D không hiện. Hai tab còn lại vẫn mô tả đủ khác biệt.';
 const BUILDING_LABEL = 'Đang dựng mô hình';
+const VISUAL_HINT =
+  'Khung này chỉ dựng một mô hình; phần đã thêm, xoá hoặc sửa được tô sáng. Danh sách đầy đủ nằm ở thẻ "Thay đổi".';
 
 /** Mã node Pascal của các đối tượng AppFront đang được tô sáng (đã đổi, cộng hàng đang trỏ). */
 function highlightIdsOf(visual: VisualDiffModel): readonly string[] {
@@ -75,7 +77,6 @@ export function VersionVisualDiff({ visual }: VersionVisualDiffProps) {
 
   /* Chạy lại khi đổi cảnh (đổi cặp phiên bản): dựng lại đúng cảnh mới, dispose cảnh cũ. */
   useEffect(() => {
-
     if (host === null || scene === null) {
       return undefined;
     }
@@ -158,7 +159,8 @@ export function VersionVisualDiff({ visual }: VersionVisualDiffProps) {
       <figure className="flex flex-col gap-2">
         <Skeleton preset="canvas" aria-label={BUILDING_LABEL} role="status" />
         <figcaption className="text-[13px] leading-relaxed text-text-secondary">
-          {visual.caption}
+          <span className="block">{visual.caption}</span>
+          <span className="block">{VISUAL_HINT}</span>
         </figcaption>
       </figure>
     );
@@ -175,7 +177,8 @@ export function VersionVisualDiff({ visual }: VersionVisualDiffProps) {
         ) : null}
       </div>
       <figcaption className="text-[13px] leading-relaxed text-text-secondary">
-        {visual.caption}
+        <span className="block">{visual.caption}</span>
+        <span className="block">{VISUAL_HINT}</span>
       </figcaption>
     </figure>
   );

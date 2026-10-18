@@ -26,6 +26,8 @@ import type { JsonDiffLineModel } from './types';
 const NO_JSON_TITLE = 'Không có dòng nào khác nhau';
 const NO_JSON_BODY = 'Bản ghi của hai phiên bản đang chọn trùng nhau từng dòng.';
 const JSON_LABEL = 'So sánh bản ghi JSON theo từng dòng';
+const JSON_HINT =
+  'Dữ liệu kỹ thuật để tra lại. Muốn đọc thay đổi bằng lời thường, xem thẻ "Thay đổi".';
 
 interface JsonLineProps {
   readonly line: JsonDiffLineModel;
@@ -35,7 +37,7 @@ function JsonLine({ line }: JsonLineProps) {
   return (
     <li className="relative px-3 py-px">
       {line.tone === null ? null : <DiffTint tone={line.tone} />}
-      <code className="relative block whitespace-pre text-[13px] leading-5 text-text-primary">
+      <code className="relative block whitespace-pre-wrap break-all text-[13px] leading-5 text-text-primary">
         {line.text}
       </code>
     </li>
@@ -58,16 +60,19 @@ export function VersionJsonDiff({ lines }: VersionJsonDiffProps) {
   }
 
   return (
-    <div
-      className="overflow-x-auto rounded-md border border-border-default bg-bg-sunken py-2 font-mono"
-      aria-label={JSON_LABEL}
-      role="group"
-    >
-      <ol className="min-w-max">
-        {lines.map((line) => (
-          <JsonLine key={line.id} line={line} />
-        ))}
-      </ol>
+    <div className="flex flex-col gap-2">
+      <p className="text-[13px] text-text-secondary">{JSON_HINT}</p>
+      <div
+        className="overflow-x-auto rounded-md border border-border-default bg-bg-sunken py-2 font-mono"
+        aria-label={JSON_LABEL}
+        role="group"
+      >
+        <ol>
+          {lines.map((line) => (
+            <JsonLine key={line.id} line={line} />
+          ))}
+        </ol>
+      </div>
     </div>
   );
 }

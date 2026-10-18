@@ -49,7 +49,14 @@ import type {
   VersionSnapshotRead,
   VisualDiffModel,
 } from './types';
-import { COMPARE_TABS, compareSentenceOf, defaultPairOf, orderPair, togglePick, type VersionPair } from './versionHistoryCompare';
+import {
+  COMPARE_TABS,
+  compareSentenceOf,
+  defaultPairOf,
+  orderPair,
+  togglePick,
+  type VersionPair,
+} from './versionHistoryCompare';
 import {
   readFullVersion,
   toConflictNotice,
@@ -94,7 +101,11 @@ interface Banner {
 
 /** Ổn định ở cấp module để `combine` của `useQueries` giữ được kết quả khi không gì đổi. */
 const combineSnapshots = (
-  results: readonly { data?: VersionSnapshotRead | undefined; isError: boolean; isFetching: boolean }[],
+  results: readonly {
+    data?: VersionSnapshotRead | undefined;
+    isError: boolean;
+    isFetching: boolean;
+  }[],
 ) => ({
   reads: results.map((result) => result.data),
   fetching: results.map((result) => result.isFetching),
@@ -102,12 +113,22 @@ const combineSnapshots = (
 });
 type FlushOutcome = 'clean' | 'discarded' | 'cancelled';
 
-const capitalizeFirst = (text: string): string => `${text.charAt(0).toLocaleUpperCase('vi-VN')}${text.slice(1)}`;
+const capitalizeFirst = (text: string): string =>
+  `${text.charAt(0).toLocaleUpperCase('vi-VN')}${text.slice(1)}`;
 
 const EMPTY_SUMMARIES: readonly FloorVersionSummary[] = Object.freeze([]);
 
 export function useVersionHistory(options: UseVersionHistoryOptions): VersionHistoryResult {
-  const { apiClient, floorId, floorOptions, gateway, onExportVersion, onSelectFloor, onToast, projectId } = options;
+  const {
+    apiClient,
+    floorId,
+    floorOptions,
+    gateway,
+    onExportVersion,
+    onSelectFloor,
+    onToast,
+    projectId,
+  } = options;
   const canRestore = options.canRestore ?? true;
   const isNarrow = options.isNarrow ?? false;
   const readNow = options.now;
@@ -116,7 +137,11 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   const graph = useStore((state) => state.spatial);
   const currentRevision = useStore((state) => state.floorMeta[floorId]?.revision ?? null);
   // Màn không có engine nào khác: gắn bộ lưu lớp tầng để `flushAutosaves()` xả được ống (F-04x-1).
-  const { discardFloor } = useFloorLayerAutosave({ projectId, floorId, ...(apiClient !== undefined ? { apiClient } : {}) });
+  const { discardFloor } = useFloorLayerAutosave({
+    projectId,
+    floorId,
+    ...(apiClient !== undefined ? { apiClient } : {}),
+  });
   /** Tên tầng (tên riêng, giữ hoa); vắng thì "tầng này". */
   const floorName = floorOptions?.find((option) => option.id === floorId)?.label ?? 'tầng này';
 
@@ -150,7 +175,8 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
 
   const versionsQuery = useInfiniteQuery({
     queryKey: versionsQueryKey(floorId),
-    queryFn: ({ pageParam }) => gateway.listVersionPage(pageParam === undefined ? {} : { cursor: pageParam }),
+    queryFn: ({ pageParam }) =>
+      gateway.listVersionPage(pageParam === undefined ? {} : { cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor,
   });
@@ -173,7 +199,9 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
     () =>
       new Set([
         ...summaries.slice(0, SNAPSHOT_PREFETCH_LIMIT).map((item) => item.id),
-        ...[pickedPair?.left, pickedPair?.right].filter((id): id is string => typeof id === 'string'),
+        ...[pickedPair?.left, pickedPair?.right].filter(
+          (id): id is string => typeof id === 'string',
+        ),
       ]),
     [summaries, pickedPair],
   );
@@ -214,14 +242,21 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
 
   /* ---- Cặp so, diff ----------------------------------------------------- */
 
-  const pair = useMemo(() => orderPair(pickedPair ?? defaultPairOf(history), history), [pickedPair, history]);
+  const pair = useMemo(
+    () => orderPair(pickedPair ?? defaultPairOf(history), history),
+    [pickedPair, history],
+  );
   const { left: leftVersionId, right: rightVersionId } = pair;
   const left = leftVersionId === null ? null : readFullVersion(history, leftVersionId);
   const right = rightVersionId === null ? null : readFullVersion(history, rightVersionId);
   const canDiff = left !== null && right !== null;
-  const diff = useMemo(() => (left !== null && right !== null ? diffVersions(left.snapshot, right.snapshot) : null), [left, right]);
+  const diff = useMemo(
+    () => (left !== null && right !== null ? diffVersions(left.snapshot, right.snapshot) : null),
+    [left, right],
+  );
   const pairFetching = snapshots.fetching.some(
-    (fetching, index) => fetching && [leftVersionId, rightVersionId].includes(summaries[index]?.id ?? null),
+    (fetching, index) =>
+      fetching && [leftVersionId, rightVersionId].includes(summaries[index]?.id ?? null),
   );
 
   useEffect(() => {
@@ -240,18 +275,47 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   /* ---- Hàng, nhóm ------------------------------------------------------- */
 
   const dataUpdatedAt = versionsQuery.dataUpdatedAt;
+  /** Đồng hồ phút: "41 phút trước" tự cập nhật khi để trang mở. */
+  const [minuteTick, setMinuteTick] = useState(0);
+
+  useEffect(() => {
+    // eslint-disable-next-line local/no-raw-duration -- thời gian chờ đồng hồ phút, không phải chuyển động
+    const timer = window.setInterval(() => setMinuteTick((tick) => tick + 1), 60_000);
+
+    return (): void => window.clearInterval(timer);
+  }, []);
+
   const now = useMemo((): Date => {
     if (readNow !== undefined) {
       return readNow();
     }
 
-    return dataUpdatedAt === 0 ? new Date() : new Date(dataUpdatedAt);
-  }, [readNow, dataUpdatedAt]);
+    return new Date();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- minuteTick/dataUpdatedAt chỉ để tính lại "bây giờ"
+  }, [readNow, dataUpdatedAt, minuteTick]);
 
   const builds = useMemo(
     () =>
-      buildVersionRows({ history, now, leftVersionId, rightVersionId, summaries: summaryMap, purgedIds, failedIds, currentRevision }),
-    [history, now, leftVersionId, rightVersionId, summaryMap, purgedIds, failedIds, currentRevision],
+      buildVersionRows({
+        history,
+        now,
+        leftVersionId,
+        rightVersionId,
+        summaries: summaryMap,
+        purgedIds,
+        failedIds,
+        currentRevision,
+      }),
+    [
+      history,
+      now,
+      leftVersionId,
+      rightVersionId,
+      summaryMap,
+      purgedIds,
+      failedIds,
+      currentRevision,
+    ],
   );
   const rows = useMemo(() => builds.map((build) => build.row), [builds]);
   const groups = useMemo(() => groupRowsByDay(builds, now), [builds, now]);
@@ -259,7 +323,10 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
     (): readonly VersionHistoryOption[] =>
       builds
         .filter((build) => !build.row.isMetadataOnly)
-        .map((build) => ({ id: build.row.id, label: `${build.row.label} · ${build.row.relativeTimeLabel}` })),
+        .map((build) => ({
+          id: build.row.id,
+          label: `${build.row.label} · ${build.row.relativeTimeLabel}`,
+        })),
     [builds],
   );
 
@@ -286,7 +353,17 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         hoveredEntityId,
         isFetchingDiff: pairFetching,
       }),
-    [gateway.capabilities, graph, sceneGraph, scene, diff, builds, leftVersionId, hoveredEntityId, pairFetching],
+    [
+      gateway.capabilities,
+      graph,
+      sceneGraph,
+      scene,
+      diff,
+      builds,
+      leftVersionId,
+      hoveredEntityId,
+      pairFetching,
+    ],
   );
 
   const compare = useMemo(
@@ -309,13 +386,28 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         fullCount: history.filter((entry) => entry.kind === 'full').length,
       }),
     }),
-    [versionOptions, leftVersionId, rightVersionId, activeTab, diff, visual, isRecomputing, history, pairFetching, snapshotsInFlight],
+    [
+      versionOptions,
+      leftVersionId,
+      rightVersionId,
+      activeTab,
+      diff,
+      visual,
+      isRecomputing,
+      history,
+      pairFetching,
+      snapshotsInFlight,
+    ],
   );
 
   /* ---- Ghi --------------------------------------------------------------- */
 
-  const canTagVersion = gateway.capabilities.canTagVersion && gateway.tagVersion !== undefined && canRestore;
-  const ticketNow = useMemo(() => (readNow === undefined ? {} : { now: () => readNow().getTime() }), [readNow]);
+  const canTagVersion =
+    gateway.capabilities.canTagVersion && gateway.tagVersion !== undefined && canRestore;
+  const ticketNow = useMemo(
+    () => (readNow === undefined ? {} : { now: () => readNow().getTime() }),
+    [readNow],
+  );
 
   /** Xả ống; tầng còn bẩn → hỏi A9. */
   const flushFirst = useCallback(async (): Promise<FlushOutcome> => {
@@ -398,7 +490,11 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
             if (flushed === 'discarded') await reloadFloor();
             // Lỗi ném thì phiếu còn dùng (gateway): toast cũ đã đóng, nên mời bấm lại khi còn hạn.
             if (ticket.getStatus() === 'active') {
-              onToast?.({ message: UNDO_RETRY_TOAST, onUndo: () => void attempt(ticket), state: 'violation' });
+              onToast?.({
+                message: UNDO_RETRY_TOAST,
+                onUndo: () => void attempt(ticket),
+                state: 'violation',
+              });
             }
           }
         } finally {
@@ -420,7 +516,9 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       }
 
       try {
-        const base = useStore.getState().floorMeta[floorId]?.revision ?? (await gateway.readFloorLayer()).revision;
+        const base =
+          useStore.getState().floorMeta[floorId]?.revision ??
+          (await gateway.readFloorLayer()).revision;
         const outcome = await gateway.restore(versionId, base);
 
         if (outcome.kind === 'conflict') {
@@ -453,7 +551,17 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         if (flushed === 'discarded') await reloadFloor();
       }
     },
-    [flushFirst, floorId, floorName, gateway, onToast, queryClient, reloadFloor, runUndo, summaryMap],
+    [
+      flushFirst,
+      floorId,
+      floorName,
+      gateway,
+      onToast,
+      queryClient,
+      reloadFloor,
+      runUndo,
+      summaryMap,
+    ],
   );
 
   const sendLabel = useCallback(
@@ -479,7 +587,10 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
           return;
         }
 
-        onToast?.({ message: isBlank ? 'Đã gỡ nhãn' : 'Đã gắn nhãn', onUndo: () => void ticket.undo() });
+        onToast?.({
+          message: isBlank ? 'Đã gỡ nhãn' : 'Đã gắn nhãn',
+          onUndo: () => void ticket.undo(),
+        });
       } catch (error) {
         setBanner({ kind: 'error', notice: writeErrorNotice('label', error, label) });
       }
@@ -501,20 +612,33 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
     if (summaries.length === 0) return 'empty';
     if (isNarrow) return 'collapsed';
 
-    return snapshotsInFlight || visual.isBuilding || rows.some((row) => row.isMetadataOnly) ? 'partial' : 'success';
+    return snapshotsInFlight || visual.isBuilding || rows.some((row) => row.isMetadataOnly)
+      ? 'partial'
+      : 'success';
   })();
 
   /* ---- Việc làm được ---------------------------------------------------- */
 
-  const { fetchNextPage, hasNextPage, isFetchingNextPage, refetch: refetchVersions } = versionsQuery;
+  const {
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    refetch: refetchVersions,
+  } = versionsQuery;
 
   const actions = useMemo(
     (): VersionHistoryActions => ({
       // `pair` đã xếp theo sequence (bản cũ trái): ô "gốc"/"đối chiếu" nói về hai bên HIỂN THỊ, không về thứ tự đã tích.
       // Chọn đúng bản đang ở bên kia thì hoán đổi hai bên (không thành cặp trùng {v, v}).
-      selectLeftVersion: (versionId) => setPickedPair({ left: versionId, right: versionId === pair.right ? pair.left : pair.right }),
-      selectRightVersion: (versionId) => setPickedPair({ left: versionId === pair.left ? pair.right : pair.left, right: versionId }),
-      toggleCompareSelection: (versionId) => setPickedPair((previous) => togglePick(previous ?? pair, versionId)),
+      selectLeftVersion: (versionId) =>
+        setPickedPair({
+          left: versionId,
+          right: versionId === pair.right ? pair.left : pair.right,
+        }),
+      selectRightVersion: (versionId) =>
+        setPickedPair({ left: versionId === pair.left ? pair.right : pair.left, right: versionId }),
+      toggleCompareSelection: (versionId) =>
+        setPickedPair((previous) => togglePick(previous ?? pair, versionId)),
       setTab: setActiveTab,
       hoverDiffRow: setHoveredEntityId,
       requestRestore: (versionId) => {
@@ -554,7 +678,9 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         setBanner(null);
 
         if (current?.kind === 'reload') {
-          void flushFirst().then((flushed) => (flushed === 'cancelled' ? undefined : reloadFloor()));
+          void flushFirst().then((flushed) =>
+            flushed === 'cancelled' ? undefined : reloadFloor(),
+          );
         }
       },
       loadMoreVersions: () => {
@@ -565,7 +691,10 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       selectFloor: (nextFloorId) => onSelectFloor?.(nextFloorId),
       // Qua `queryFn` của chính truy vấn, nên vẫn trong giới hạn SNAPSHOT_CONCURRENCY.
       retrySnapshot: (versionId) =>
-        void queryClient.refetchQueries({ queryKey: snapshotQueryKey(floorId, versionId), exact: true }),
+        void queryClient.refetchQueries({
+          queryKey: snapshotQueryKey(floorId, versionId),
+          exact: true,
+        }),
       retryVersions: () => void refetchVersions(),
     }),
     [
@@ -592,7 +721,10 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
     ],
   );
 
-  const restoreConfirm = useMemo(() => buildRestoreConfirm(builds, dialog, floorName), [builds, dialog, floorName]);
+  const restoreConfirm = useMemo(
+    () => buildRestoreConfirm(builds, dialog, floorName),
+    [builds, dialog, floorName],
+  );
 
   const model: VersionHistoryModel = {
     state,

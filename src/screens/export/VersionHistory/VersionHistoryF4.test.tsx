@@ -59,6 +59,19 @@ describe('F4', () => {
     expect(purged[1]?.row.isPickable).toBe(false);
   });
 
+  it('G5-24: bản chưa nạp ảnh chụp báo đang tải số thay đổi, không phải "+0 −0 ~0"', () => {
+    const history = [0, 1].map((i) => ({
+      kind: i === 0 ? ('full' as const) : ('metadata' as const),
+      version: { id: `v${String(i)}`, sequence: i, createdAt: '2026-01-01T00:00:00Z', note: null, creatorId: 'u', creatorName: 'U' },
+    }));
+    const built = buildVersionRows({
+      currentRevision: 1, history: history as never, leftVersionId: null, now: new Date('2026-01-02T00:00:00Z'),
+      purgedIds: new Set(), rightVersionId: null, summaries: new Map(),
+    } as never);
+    expect(built[0]?.row.isCountsLoading).toBe(true);
+    expect(built[1]?.row.isCountsLoading).toBe(true);
+  });
+
   it('32-C-043: ký tự cấm không bị báo "dài tối đa 60"', () => {
     const err = { code: 'VALIDATION' };
     expect(writeErrorNotice('label', err, 'abc\u202E').message).toMatch(/ký tự không cho phép/);

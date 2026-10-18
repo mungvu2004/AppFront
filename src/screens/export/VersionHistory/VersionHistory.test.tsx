@@ -1378,7 +1378,7 @@ describe('đổi tab giữ nguyên vị trí cuộn', () => {
 
     const { rerender } = renderWithProviders(<VersionHistoryView {...props} />);
 
-    const anchor = screen.getByText(anchorText as string, { exact: false });
+    const anchor = screen.getAllByText(anchorText as string, { exact: false })[0]!;
 
     anchor.scrollTop = 120;
 
@@ -1395,7 +1395,7 @@ describe('đổi tab giữ nguyên vị trí cuộn', () => {
       />,
     );
 
-    const anchorAgain = screen.getByText(anchorText as string, { exact: false });
+    const anchorAgain = screen.getAllByText(anchorText as string, { exact: false })[0]!;
 
     expect(anchorAgain).toBe(anchor);
     expect(anchorAgain.scrollTop).toBe(120);
