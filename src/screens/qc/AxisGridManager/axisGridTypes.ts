@@ -122,6 +122,8 @@ export interface AxisGroupViewModel {
   readonly title: string;
   readonly rows: readonly AxisRowViewModel[];
   readonly addButtonLabel: string;
+  /** G4b-22: tên gợi ý cho trục kế tiếp. */
+  readonly nextLabel?: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -338,7 +340,8 @@ export interface AxisGridManagerProps {
   /* -- Trục ---------------------------------------------------------------- */
   readonly onAxisToggleVisibility: (axisId: string) => void;
   readonly onAxisSelect: (axisId: string | null) => void;
-  readonly onAxisAdd: (direction: AxisGridDirection) => void;
+  /** G4b-22: `options` từ ô thêm trục — tên (trống = tên kế tiếp) và khoảng cách tới trục cuối (mm). */
+  readonly onAxisAdd: (direction: AxisGridDirection, options?: AxisAddOptions) => void;
   /** Kéo trục trên canvas tới toạ độ pixel mới; hook quy đổi mm và soát 100 mm. */
   readonly onAxisDrag: (axisId: string, coordinatePx: Pixels) => void;
   /** Xoá dùng vé hoàn tác (A8); toast Hoàn tác do hook dựng. */
@@ -382,3 +385,9 @@ export interface AxisGridManagerProps {
  * phải `orca orchestration ask` hỏi điều phối viên trước — không tự thêm,
  * không tự sửa, kể cả người đã viết file này.
  */
+
+/** G4b-22: những gì ô thêm trục gửi lên. */
+export interface AxisAddOptions {
+  readonly label?: string;
+  readonly spacingMm?: number;
+}

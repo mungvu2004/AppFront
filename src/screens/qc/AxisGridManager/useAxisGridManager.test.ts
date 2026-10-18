@@ -21,11 +21,12 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { __resetMockLayerState, createMockApiClient } from '@/api/__mocks__/client';
 import { alignFloors, type FloorAlignmentReport } from '@/domain/axes/alignFloors';
 import { createSampleBuilding, sampleLevelId, sampleWallId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { applyPatch } from '@/domain/spatial/applyPatch';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
-import type { LevelId } from '@/domain/spatial/types';
+import type { Axis, LevelId } from '@/domain/spatial/types';
 import { pixels } from '@/domain/units/scale';
 import { millimetres, type Millimetres } from '@/domain/units/types';
 import type { Announcer } from '@/lib/input/announcer';
@@ -50,6 +51,7 @@ import {
   createAxisGridManagerGateway,
   createAxisGridSampleGraph,
   createMockAxisGridManagerGateway,
+  extendPerpendicularAxes,
   floorPlansOf,
   levelsOf,
   MIN_AXIS_SPACING_MM,
@@ -551,6 +553,35 @@ describe('bảy trạng thái màn (A11 / R-63)', () => {
     });
     expect(mounted.result.current.historyStepCount()).toBe(1);
   });
+
+  it('[G4b-22] thêm trục với tên và khoảng cách người dùng nhập', async () => {
+    const mounted = await mountSettled();
+    const labels = (): string[] =>
+      mounted.result.current.viewModel.groups.flatMap((group) => group.rows.map((row) => row.label));
+
+    await act(async () => {
+      mounted.result.current.onAxisAdd('vertical', { label: 'X9', spacingMm: 2500 });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(labels()).toContain('X9');
+    });
+    /* Trục ngang được kéo tới trục dọc mới trong CÙNG lệnh: một bước hoàn tác. */
+    expect(mounted.result.current.historyStepCount()).toBe(1);
+  });
+
+  it('[G4b-22] kéo dài trục vuông góc tới trục mới nằm ngoài lưới', () => {
+    const horizontal = {
+      direction: 'horizontal',
+      line: { start: { x: millimetres(0), y: millimetres(0) }, end: { x: millimetres(10000), y: millimetres(0) } },
+    } as unknown as Axis;
+    const [change] = extendPerpendicularAxes([horizontal], 'vertical', 12500);
+
+    expect(change?.after.line.end.x).toBe(12500);
+    expect(change?.after.line.start.x).toBe(0);
+    expect(extendPerpendicularAxes([horizontal], 'vertical', 5000)).toEqual([]);
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -558,44 +589,46 @@ describe('bảy trạng thái màn (A11 / R-63)', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('khả năng chưa có đường (không bịa, không ném)', () => {
-  const gateway: AxisGridManagerGateway = createAxisGridManagerGateway();
 
-  it('cổng thật khai đúng hai khả năng còn thiếu', () => {
-    expect(gateway.supports.persistAxisGrid).toBe(false);
-    expect(gateway.supports.persistAxisOrigin).toBe(false);
-    expect(gateway.supports.readAxisLayer).toBe(true);
-    expect(gateway.supports.writeAxisGraph).toBe(true);
-  });
+  it('G4b-17: cổng thật lưu trục và gốc qua PUT lớp tầng, đọc lại thấy bản đã lưu', async () => {
+    __resetMockLayerState();
+    const saving = createAxisGridManagerGateway({ apiClient: createMockApiClient() });
+    const floorId = String(AXIS_GRID_FIXTURE_FLOOR1.levelId);
 
-  it('persistAxisGrid trả nhánh supported:false có kiểu, kèm câu nợ endpoint', async () => {
-    const result = await gateway.persistAxisGrid({
+    expect(saving.supports.persistAxisGrid).toBe(true);
+    expect(saving.supports.persistAxisOrigin).toBe(true);
+
+    const graph = createAxisGridSampleGraph();
+    const grid = await saving.persistAxisGrid({ projectId: PROJECT_ID, floorId, graph });
+    const origin = await saving.persistAxisOrigin({
       projectId: PROJECT_ID,
-      floorId: String(AXIS_GRID_FIXTURE_FLOOR1.levelId),
-      graph: createAxisGridSampleGraph(),
-    });
-
-    expect(result.supported).toBe(false);
-
-    if (!result.supported) {
-      expect(result.capability).toBe('persistAxisGrid');
-      expect(result.missing).toContain('FloorWriteBody');
-    }
-  });
-
-  it('persistAxisOrigin trả nhánh supported:false có kiểu, kèm câu nợ endpoint', async () => {
-    const result = await gateway.persistAxisOrigin({
-      projectId: PROJECT_ID,
-      floorId: String(AXIS_GRID_FIXTURE_FLOOR1.levelId),
+      floorId,
       anchor: 'A-1',
-      point: { x: millimetres(0), y: millimetres(0) },
+      point: { x: millimetres(1200.4), y: millimetres(-300) },
     });
 
-    expect(result.supported).toBe(false);
+    expect(grid.supported).toBe(true);
+    expect(origin.supported).toBe(true);
 
-    if (!result.supported) {
-      expect(result.capability).toBe('persistAxisOrigin');
-      expect(result.missing).toContain('không có chỗ ghi');
-    }
+    const saved = await saving.readLayer({ projectId: PROJECT_ID, floorId });
+    const expectedIds = (graph.byLevel[floorId] ?? []).filter((id) => id.startsWith('A-'));
+
+    expect(expectedIds.length).toBeGreaterThan(0);
+    expect(saved.axes.map((axis) => axis.id).sort()).toEqual([...expectedIds].sort());
+    expect(saved.origin).toEqual({ x: 1200, y: -300 });
+
+    /* Hai lượt lưu liên tiếp đều qua, và kho mang revision mới nên lượt ghi kế (màn Tường) không 409. */
+    expect(saved.revision).toBe(2);
+    expect(useStore.getState().floorMeta[floorId]?.revision).toBe(2);
+
+    const wallsWrite = await createMockApiClient().spatial.writeLayer({
+      baseVersion: useStore.getState().floorMeta[floorId]?.revision ?? 0,
+      body: { layer: saved.layer },
+      floorId,
+      projectId: PROJECT_ID,
+    });
+
+    expect(wallsWrite.ok).toBe(true);
   });
 
   it('đổi giao trục neo: ghim lưới được, và NÓI RA là lượt chọn chưa lưu được', async () => {

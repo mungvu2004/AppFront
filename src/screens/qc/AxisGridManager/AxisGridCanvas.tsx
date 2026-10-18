@@ -37,6 +37,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 
+import { useCanvasPan } from '@/components/canvas/useCanvasPan';
+import { ZoomCluster } from '@/components/canvas/ZoomCluster';
+import { useZoomCluster } from '@/hooks/useZoomCluster';
+
 import { fitCanvas } from './axisGridCanvasFit';
 import { AxisGridGhostFloor } from './AxisGridGhostFloor';
 import { AxisGridOriginMarker } from './AxisGridOriginMarker';
@@ -197,6 +201,13 @@ export function AxisGridCanvas({ background = null, canvas, isInteractive, onAxi
   const [draggingAxisId, setDraggingAxisId] = useState<string | null>(null);
   const [dragCoordinatePx, setDragCoordinatePx] = useState<number | null>(null);
   const [frame, setFrame] = useState({ width: 0, height: 0 });
+  /* G4b-24: cùng thanh "− % + ⤢", kéo nền/lăn chuột như các lớp QC khác. */
+  const zoom = useZoomCluster();
+  const pan = useCanvasPan((direction) => (direction > 0 ? zoom.zoomIn() : zoom.zoomOut()));
+  const resetView = (): void => {
+    zoom.resetZoom();
+    pan.reset();
+  };
   const svgRef = useRef<SVGSVGElement | null>(null);
   /* Lượt bấm bắt đầu trên một trục: pointer capture đẩy `click` sau đó về svg (G16). */
   const axisPressRef = useRef(false);
@@ -322,8 +333,14 @@ export function AxisGridCanvas({ background = null, canvas, isInteractive, onAxi
       aria-describedby={isInteractive ? undefined : CANVAS_READ_ONLY_NOTICE_ID}
       aria-label={CANVAS_ARIA_LABEL}
       className={`${CANVAS_FRAME_CLASSES} ${canvas.axes.length === 0 ? CANVAS_EMPTY_BG : CANVAS_DRAWING_BG}`}
+      ref={pan.ref}
+      {...pan.handlers}
       role="group"
     >
+      <div
+        className="absolute inset-0 origin-center"
+        style={{ transform: `${pan.transform} scale(${String(zoom.zoomLevel / 100)})` }}
+      >
       <svg
         aria-label={CANVAS_ARIA_LABEL}
         className="absolute inset-0 h-full w-full"
@@ -365,6 +382,15 @@ export function AxisGridCanvas({ background = null, canvas, isInteractive, onAxi
         {/* BUG-404: chưa có trục thì chưa có gốc toạ độ để chỉ — panel phải đã nói vậy. */}
         {canvas.axes.length === 0 ? null : <AxisGridOriginMarker origin={canvas.origin} unit={fit.unit} />}
       </svg>
+      </div>
+
+      <ZoomCluster
+        onFitToScreen={resetView}
+        onResetZoom={resetView}
+        onZoomIn={zoom.zoomIn}
+        onZoomOut={zoom.zoomOut}
+        zoomLevel={zoom.zoomLevel}
+      />
 
       {isInteractive ? null : (
         <p className="sr-only" id={CANVAS_READ_ONLY_NOTICE_ID}>

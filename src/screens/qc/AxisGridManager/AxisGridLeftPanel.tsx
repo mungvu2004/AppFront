@@ -40,6 +40,7 @@ import { Toggle } from '@/components/ui/Toggle';
 import { cn } from '@/lib/utils';
 
 import type {
+  AxisAddOptions,
   AxisGridDirection,
   AxisGridManagerProps,
   AxisGroupViewModel,
@@ -258,7 +259,7 @@ function AxisGridRow({
 interface AxisGridGroupProps {
   readonly group: AxisGroupViewModel;
   readonly isViewerRole: boolean;
-  readonly onAxisAdd: (direction: AxisGridDirection) => void;
+  readonly onAxisAdd: (direction: AxisGridDirection, options?: AxisAddOptions) => void;
   readonly onAxisRemove: (axisId: string) => void;
   readonly onAxisToggleVisibility: (axisId: string) => void;
   readonly onViewOnDrawing: (axisId: string) => void;
@@ -276,6 +277,24 @@ function AxisGridGroup({
   onAxisToggleVisibility,
   onViewOnDrawing,
 }: AxisGridGroupProps) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [newLabel, setNewLabel] = useState('');
+  const [newSpacing, setNewSpacing] = useState('');
+  const closeAdd = (): void => {
+    setIsAdding(false);
+    setNewLabel('');
+    setNewSpacing('');
+  };
+  const submitAdd = (event: FormEvent): void => {
+    event.preventDefault();
+    const spacing = Number(newSpacing.replace(/\./gu, '').replace(',', '.'));
+    onAxisAdd(group.direction, {
+      label: newLabel,
+      ...(newSpacing.trim() !== '' && Number.isFinite(spacing) && spacing > 0 ? { spacingMm: spacing } : {}),
+    });
+    closeAdd();
+  };
+
   return (
     <div className="flex flex-col gap-1 px-3 py-2">
       <h4 className="px-1 text-[13px] font-semibold text-text-secondary">{group.title}</h4>
@@ -293,11 +312,49 @@ function AxisGridGroup({
           />
         ))}
       </div>
-      {isViewerRole ? null : (
+      {!isViewerRole && isAdding ? (
+        <form
+          className="mt-1 flex flex-wrap items-end gap-2 rounded-lg border border-border-default p-2"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.stopPropagation();
+              closeAdd();
+            }
+          }}
+          onSubmit={submitAdd}
+        >
+          <label className="flex flex-col gap-1 text-[12px] text-text-secondary">
+            Tên trục
+            <input
+              autoFocus
+              className="h-8 w-16 rounded-md border border-border-default bg-bg-surface px-2 text-[13px] text-text-primary"
+              onChange={(event) => setNewLabel(event.target.value)}
+              placeholder="Tự đặt"
+              value={newLabel}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[12px] text-text-secondary">
+            Cách trục cuối (mm)
+            <input
+              className="h-8 w-24 rounded-md border border-border-default bg-bg-surface px-2 text-[13px] text-text-primary"
+              inputMode="decimal"
+              onChange={(event) => setNewSpacing(event.target.value)}
+              placeholder="Như cũ"
+              value={newSpacing}
+            />
+          </label>
+          <Button size="sm" type="submit">Thêm</Button>
+          <Button onClick={closeAdd} size="sm" type="button" variant="ghost">Huỷ</Button>
+        </form>
+      ) : null}
+      {isViewerRole || isAdding ? null : (
         <Button
           className="mt-1 self-start"
           iconBefore={<Plus className="h-4 w-4" />}
-          onClick={() => onAxisAdd(group.direction)}
+          onClick={() => {
+            setNewLabel(group.nextLabel ?? '');
+            setIsAdding(true);
+          }}
           size="sm"
           variant="ghost"
         >

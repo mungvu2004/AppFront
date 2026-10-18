@@ -47,23 +47,19 @@
  * khung đọc — cùng loại với `ghostEnabled` và `isCollapsed`, không ai mong
  * `Ctrl+Z` hoàn tác chúng.
  *
- * ## Hai việc chưa có đường
+ * ## Lưu trục và gốc toạ độ (G4b-17)
  *
- * - `persistAxisGrid` — **NOT FOUND**. Không endpoint nào của `src/api` biết
- *   tới trục: `ENDPOINTS` chỉ có `auth`/`drawings`/`featureFlags`/`floors`/
- *   `projects`/`quality`/`spatial`, và thân yêu cầu gần nhất —
- *   `PatchSpatialFloorInput.body` là `Partial<FloorWriteBody>` — chỉ mang
- *   `name`/`order`/`elevationMm`/`heightMm`/`areaM2`/`drawings`.
- * - `persistAxisOrigin` — **NOT FOUND**, và đây là hệ quả trực tiếp của mục
- *   trên: lựa chọn giao trục neo không sống qua được một lần tải trang. Cổng
- *   thật trả nhánh `supported: false` CÓ KIỂU để màn NÓI RA sự thật đó bằng
- *   chính nhãn của nó, thay vì im lặng hoặc bịa một lượt lưu đã xong.
+ * Cổng thật lưu qua `PUT …/floors/{floorId}/spatial/layer` (#35, B4): `axes`
+ * thay nguyên danh sách trục của tầng, `origin` là gốc `{x, y}` mm nguyên. N16
+ * trả lại cả hai. Sau lượt ghi, `revision` mới vào `floorMeta` của kho để bộ tự
+ * lưu của các màn khác cùng tầng không gặp 409. Bộ mẫu (story/test) vẫn trả
+ * nhánh `supported: false` có kiểu khi không bật lưu, và màn nói ra điều đó.
  */
 
 import { createAppApiClient } from '@/api/appClient';
 import type { ApiClient } from '@/api/client';
 import { readFloorLayerGraph } from '@/api/floorLayerGraph';
-import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
+import type { FloorLayerDocument, FloorLayerWriteBody } from '@/api/schemas/spatialLayer';
 import {
   axisLine,
   detectAxes,
@@ -90,6 +86,7 @@ import type {
   AxisId,
   Building,
   Level,
+  Point,
   LevelId,
   Segment,
   Wall,
@@ -144,12 +141,12 @@ export const AXIS_GRID_CAPABILITIES = [
 
 export type AxisGridCapability = (typeof AXIS_GRID_CAPABILITIES)[number];
 
-/** Việc trong danh sách trên mà bản cài đặt THẬT chưa làm được. Chỉ được ngắn đi. */
+/** Việc mà bộ mẫu không lưu được khi tắt lưu (cổng thật làm được cả hai từ G4b-17). */
 export const AXIS_GRID_MISSING_CAPABILITIES = ['persistAxisGrid', 'persistAxisOrigin'] as const;
 
 export type AxisGridMissingCapability = (typeof AXIS_GRID_MISSING_CAPABILITIES)[number];
 
-/** Endpoint còn thiếu của từng khả năng, viết nguyên văn cho người nối dây sau. */
+/** Câu giải thích của nhánh `supported: false` ở bộ mẫu khi tắt lưu. */
 export const AXIS_GRID_MISSING_ENDPOINTS: Readonly<
   Record<AxisGridMissingCapability, string>
 > = {
@@ -733,6 +730,36 @@ export interface BuildAddAxisInput {
   /** Một trục khi người dùng bấm "Thêm trục"; cả lưới khi họ suy ra từ tường bao. */
   readonly axes: readonly Axis[];
   readonly actorId: string;
+  /** G4b-22: trục vuông góc kéo dài tới trục mới — cùng một lệnh, nên một lần hoàn tác. */
+  readonly extended?: readonly { readonly before: Axis; readonly after: Axis }[];
+}
+
+/** G4b-22: kéo đầu mút các trục vuông góc để chạm toạ độ `coordinateMm` của trục mới. */
+export function extendPerpendicularAxes(
+  axes: readonly Axis[],
+  direction: AxisGridDirection,
+  coordinateMm: number,
+): { readonly before: Axis; readonly after: Axis }[] {
+  const along = direction === 'vertical' ? 'x' : 'y';
+  return axes
+    .filter((axis) => axis.direction !== direction)
+    .flatMap((axis) => {
+      const { start, end } = axis.line;
+      const low = Math.min(start[along], end[along]);
+      const high = Math.max(start[along], end[along]);
+
+      if (coordinateMm >= low && coordinateMm <= high) {
+        return [];
+      }
+
+      const stretch = (point: Axis['line']['start'], isLow: boolean): Axis['line']['start'] =>
+        (isLow && coordinateMm < low) || (!isLow && coordinateMm > high)
+          ? { ...point, [along]: millimetres(coordinateMm) }
+          : point;
+      const startIsLow = start[along] <= end[along];
+
+      return [{ before: axis, after: { ...axis, line: { start: stretch(start, startIsLow), end: stretch(end, !startIsLow) } } }];
+    });
 }
 
 /**
@@ -759,7 +786,10 @@ export function buildAddAxisCommand(input: BuildAddAxisInput): Command | null {
       input.axes.length === 1
         ? addAxisDescription(first.label)
         : addAxesDescription(input.axes.length),
-    changes: input.axes.map((axis) => changeForAdd('axis', axis)),
+    changes: [
+      ...input.axes.map((axis) => changeForAdd('axis', axis)),
+      ...(input.extended ?? []).map(({ before, after }) => changeForUpdate('axis', before, after)),
+    ],
   });
 }
 
@@ -1081,11 +1111,11 @@ export interface AxisGridManagerGateway {
   readonly readBackground?: (input: ReadAxisLayerInput) => Promise<AxisGridBackground>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: AxisGridGraphPort;
-  /** NOT FOUND — `persistAxisGrid`. Không bịa một lượt lưu; xem bản kê nợ ở đầu file. */
+  /** Lưu trục của tầng qua PUT lớp tầng (#35 `axes`, G4b-17). Bộ mẫu không lưu được. */
   readonly persistAxisGrid: (
     input: PersistAxisGridInput,
   ) => Promise<AxisGridCapabilityResult<void>>;
-  /** NOT FOUND — `persistAxisOrigin`. Giao trục neo mất sau một lần tải lại trang. */
+  /** Lưu gốc toạ độ của tầng qua PUT lớp tầng (#35 `origin`, G4b-17). */
   readonly persistAxisOrigin: (
     input: PersistAxisOriginInput,
   ) => Promise<AxisGridCapabilityResult<void>>;
@@ -1128,13 +1158,51 @@ export function createAxisGridManagerGateway(
     read: () => useStore.getState().spatial,
   };
 
+  /*
+   * G4b-17: #35 nhận `axes`/`origin` (B4). Đọc `revision` ngay trước khi ghi.
+   * ponytail: đọc-rồi-ghi, hai thẻ cùng sửa trục thì thẻ sau đè thẻ trước;
+   * nối `revision` của `useFloorLayer` + xử lý 409 nếu cần chặt hơn.
+   */
+  const writeFloorBody = async (
+    projectId: string,
+    floorId: string,
+    body: FloorLayerWriteBody,
+  ): Promise<AxisGridCapabilityResult<void>> => {
+    const current = await apiClient.spatial.readLayer({ floorId, projectId });
+
+    if (!current.ok) {
+      throw current.error;
+    }
+
+    const written = await apiClient.spatial.writeLayer({
+      baseVersion: current.data.revision,
+      body,
+      floorId,
+      projectId,
+    });
+
+    if (!written.ok) {
+      throw written.error;
+    }
+
+    /* Revision mới vào kho — nơi bộ tự lưu của Tường/Kích thước lấy baseVersion — để lượt ghi kế không 409. */
+    const { floorMeta, updateFloorMeta } = useStore.getState();
+    updateFloorMeta(floorId, { ...floorMeta[floorId], revision: written.data.revision });
+
+    return { supported: true, value: undefined };
+  };
+  const roundPoint = (point: Point): Point => ({
+    x: millimetres(Math.round(point.x)),
+    y: millimetres(Math.round(point.y)),
+  });
+
   return {
     supports: {
       readAxisLayer: true,
       readAxisGraph: true,
       writeAxisGraph: true,
-      persistAxisGrid: false,
-      persistAxisOrigin: false,
+      persistAxisGrid: true,
+      persistAxisOrigin: true,
     },
 
     readAxisLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
@@ -1166,8 +1234,18 @@ export function createAxisGridManagerGateway(
 
     graph,
 
-    persistAxisGrid: () => Promise.resolve(unsupported('persistAxisGrid')),
-    persistAxisOrigin: () => Promise.resolve(unsupported('persistAxisOrigin')),
+    persistAxisGrid: ({ floorId, graph: spatial, projectId }) => {
+      const axes = (spatial.byLevel[floorId] ?? [])
+        .map((id) => spatial.byId[id])
+        .filter((entity): entity is Axis => entity !== undefined && isEntityOfKind('axis', entity))
+        .map((axis) => ({ ...axis, line: { start: roundPoint(axis.line.start), end: roundPoint(axis.line.end) } }));
+
+      return writeFloorBody(projectId, floorId, { axes });
+    },
+    persistAxisOrigin: ({ floorId, point, projectId }) =>
+      writeFloorBody(projectId, floorId, {
+        origin: { x: Math.round(point.x), y: Math.round(point.y) },
+      }),
 
     nextAxisId: options.nextAxisId ?? ((): AxisId => createId('axis')),
     scale: options.scale ?? AXIS_GRID_FIXTURE_SCALE,

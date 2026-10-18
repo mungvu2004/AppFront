@@ -44,14 +44,11 @@
  * tác bằng ngăn xếp **zundo**, tức một ngăn xếp khác với ngăn xếp lệnh của màn.
  * Nên container không bọc provider nào. Tiền lệ: `WallLayerReview.container.tsx`.
  *
- * ## Khoảng trống đã biết: chưa có đường lưu lưới trục lên máy chủ
+ * ## Lưu lưới trục lên máy chủ (G4b-17)
  *
- * `AXIS_GRID_MISSING_CAPABILITIES` của cổng khai thẳng hai khả năng còn thiếu
- * (`persistAxisGrid`, `persistAxisOrigin`): `ENDPOINTS` không có đường nào cho
- * trục, và `FloorWriteBody` không mang mảng trục. Màn chạy TRONG BỘ NHỚ (kho
- * cộng ngăn xếp hoàn tác), cổng trả nhánh `supported: false` có kiểu, và hook
- * NÓI RA điều đó cho người dùng. Không ai được bịa một endpoint để lấp chỗ đó —
- * thêm đường lưu trục là một lượt làm riêng của nhóm lô-gic.
+ * Cổng thật lưu trục và gốc toạ độ qua `PUT` lớp tầng (#35 `axes`/`origin`)
+ * sau mỗi lượt sửa, hoàn tác hoặc làm lại. Câu "chỉ giữ trong phiên" chỉ hiện
+ * khi cổng không lưu được (bộ mẫu của story/test).
  */
 
 import { useCallback, useMemo, type ReactNode } from 'react';
@@ -67,6 +64,7 @@ import {
 import type { LevelId } from '@/domain/spatial/types';
 import { pixels } from '@/domain/units/scale';
 import { useSession } from '@/hooks/useSession';
+import { useProjectFloors } from '@/hooks/useProjectFloors';
 import type { Announcer } from '@/lib/input/announcer';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
@@ -229,6 +227,7 @@ function AxisGridManagerRouteBody({
    * tiên của đồ thị.
    */
   const levelId = useMemo(() => floorId as LevelId, [floorId]);
+  const floors = useProjectFloors(projectId); // N2-11: đổi tầng theo mã API như mọi màn kiểm tra.
   const navigate = useNavigate();
   const onNavigate = useCallback((path: string) => {
     navigate(path);
@@ -237,7 +236,7 @@ function AxisGridManagerRouteBody({
   return (
     <AxisGridManagerContainer
       floorId={floorId}
-      floorNav={<QcFloorNav floorId={floorId} layer="grids" projectId={projectId} />}
+      floorNav={<QcFloorNav floorId={floorId} floors={floors} layer="grids" projectId={projectId} />}
       levelId={levelId}
       onNavigate={onNavigate}
       projectId={projectId}

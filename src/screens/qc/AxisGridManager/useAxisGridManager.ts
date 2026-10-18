@@ -122,6 +122,8 @@ import {
   levelExtentMm,
   levelOf,
   levelsOf,
+  axesInDirection,
+  extendPerpendicularAxes,
   nextAxisCoordinateMm,
   outlineOfBounds,
   removeToastDescription,
@@ -134,6 +136,7 @@ import {
   type AxisGridManagerGateway,
 } from './axisGridManagerGateway';
 import type {
+  AxisAddOptions,
   AxisCanvasAxisViewModel,
   AxisCanvasGhostFloorViewModel,
   AxisCanvasViewModel,
@@ -169,7 +172,7 @@ export const AXIS_GRID_TEXT = {
   viewerRoleNotice:
     'Vai trò hiện tại chỉ được xem, không được chỉnh sửa các trục. Liên hệ quản trị dự án nếu cần.',
   /**
-   * Câu NÓI RA sự thật khi `persistAxisOrigin` chưa có đường.
+   * Câu NÓI RA sự thật khi cổng không lưu được gốc (bộ mẫu tắt lưu).
    *
    * Câu nợ endpoint của cổng viết cho người nối dây, không cho người dùng; đây
    * là câu người dùng nghe được, và nó không hứa một lượt lưu nào đã xong.
@@ -178,8 +181,10 @@ export const AXIS_GRID_TEXT = {
     'Đã ghim gốc toạ độ cho phiên làm việc này. Hệ thống chưa có chỗ lưu lựa chọn đó, nên nó mất sau khi tải lại trang.',
   shortcutUndo: 'Hoàn tác thay đổi trục gần nhất',
   shortcutRedo: 'Làm lại thay đổi trục vừa hoàn tác',
-  /** BUG-578: chưa có endpoint ghi lưới trục — nói thật, cố định trên màn. */
+  /** BUG-578: chỉ hiện khi cổng không lưu được lưới trục (bộ mẫu); cổng thật lưu từ G4b-17. */
   unsavedNotice: 'Trục chỉ giữ trong phiên này — tải lại trang sẽ mất các thay đổi.',
+  /** G4b-17: lượt lưu trục/gốc lên máy chủ hỏng. */
+  saveFailed: 'Chưa lưu được thay đổi trục lên máy chủ. Kiểm tra kết nối rồi sửa lại một lần nữa.',
   /** BUG-594, BUG-601: "Căn chỉnh tự động" bị khoá thì nói vì sao. */
   autoAlignViewer: 'Vai người xem không căn chỉnh được các tầng.',
   autoAlignSingleFloor: 'Cần ít nhất hai tầng có trục để căn chỉnh.',
@@ -472,6 +477,15 @@ export function useAxisGridManager(
    */
   const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
 
+  /* G4b-17: gốc toạ độ đã lưu (N16 `origin`) là điểm ghim lưới khi mở màn. */
+  const savedOriginX = floorLayer.data?.origin?.x;
+  const savedOriginY = floorLayer.data?.origin?.y;
+  useEffect(() => {
+    if (savedOriginX !== undefined && savedOriginY !== undefined) {
+      setOriginPoint({ x: millimetres(savedOriginX), y: millimetres(savedOriginY) });
+    }
+  }, [savedOriginX, savedOriginY]);
+
   const graph = useStore((state) => state.spatial);
   const setSpatial = useStore((state) => state.setSpatial);
 
@@ -635,18 +649,29 @@ export function useAxisGridManager(
         selectionAfter: () => ({ selectedIds: [] }),
         onSynced: () => {
           /*
-           * Bước `sync` chỉ đánh dấu bản vẽ bẩn. `persistAxisGrid` chưa có
-           * endpoint (xem bản kê nợ của cổng), nên KHÔNG có lượt gửi nào để
-           * xếp hàng — bịa một lượt lưu ở đây là nói dối người dùng.
+           * Bước `sync` chỉ đánh dấu bản vẽ bẩn. Lượt lưu lên máy chủ
+           * (`persistAxisGrid`, G4b-17) chạy trong `invalidate`, nơi cả sửa,
+           * hoàn tác và làm lại cùng đi qua.
            */
         },
       }),
     [],
   );
 
+  /* G4b-17: lưu trục của tầng qua #35 rồi mới làm mới cache, để lượt đọc lại thấy bản đã lưu. */
   const invalidate = useCallback(() => {
-    applyInvalidation(queryClient, 'changeAxis', { floorId, projectId });
-  }, [floorId, projectId, queryClient]);
+    const graphNow = useStore.getState().spatial;
+    const save =
+      gateway.supports.persistAxisGrid && graphNow !== null
+        ? gateway.persistAxisGrid({ floorId, projectId, graph: graphNow }).catch(() => {
+            announce(AXIS_GRID_TEXT.saveFailed);
+          })
+        : Promise.resolve();
+
+    void save.then(() => {
+      applyInvalidation(queryClient, 'changeAxis', { floorId, projectId });
+    });
+  }, [announce, floorId, gateway, projectId, queryClient]);
 
   /** Chạy một lệnh qua đủ năm bước; `false` khi vai trò không cho sửa hoặc lệnh rỗng. */
   const run = useCallback(
@@ -789,12 +814,16 @@ export function useAxisGridManager(
   );
 
   const onAxisAdd = useCallback(
-    (direction: AxisGridDirection) => {
+    (direction: AxisGridDirection, addOptions?: AxisAddOptions) => {
       if (levelId === null) {
         return;
       }
 
-      const coordinateMm = nextAxisCoordinateMm(labelledAxes, direction);
+      const lastInDirection = axesInDirection(labelledAxes, direction).at(-1);
+      const coordinateMm =
+        addOptions?.spacingMm !== undefined && lastInDirection !== undefined
+          ? millimetres(lastInDirection.axis.coordinateMm + addOptions.spacingMm)
+          : nextAxisCoordinateMm(labelledAxes, direction);
       const candidate: DetectedAxis = {
         direction,
         coordinateMm,
@@ -820,7 +849,13 @@ export function useAxisGridManager(
         nextIndex += 1;
       }
 
-      const label = storedAxes.length > 0 ? axisLabelAt(direction, nextIndex) : labelForNewAxis(detectedAxes, candidate);
+      const typedLabel = addOptions?.label?.trim() ?? '';
+      const label =
+        typedLabel.length > 0
+          ? typedLabel
+          : storedAxes.length > 0
+            ? axisLabelAt(direction, nextIndex)
+            : labelForNewAxis(detectedAxes, candidate);
 
       if (
         rejectWhenTooClose({ label, direction, coordinateMm, neighbours: labelledAxes })
@@ -844,7 +879,11 @@ export function useAxisGridManager(
       const previewAxes = previewEntities();
 
       void run(
-        buildAddAxisCommand({ axes: [...previewAxes, axis], actorId: gateway.actorId }),
+        buildAddAxisCommand({
+          axes: [...previewAxes, axis],
+          actorId: gateway.actorId,
+          extended: extendPerpendicularAxes(storedAxes, direction, coordinateMm),
+        }),
       ).then((ok) => {
         if (ok) {
           announce(addAxisDescription(label));
@@ -861,7 +900,7 @@ export function useAxisGridManager(
       previewEntities,
       rejectWhenTooClose,
       run,
-      storedAxes.length,
+      storedAxes,
     ],
   );
 
@@ -1082,6 +1121,8 @@ export function useAxisGridManager(
           if (!result.supported) {
             announce(AXIS_GRID_TEXT.originNotPersisted);
           }
+        }, () => {
+          announce(AXIS_GRID_TEXT.saveFailed);
         });
     },
     [announce, floorId, gateway, grid, projectId],
@@ -1224,6 +1265,17 @@ export function useAxisGridManager(
           direction,
           title: AXIS_GROUP_TITLES[direction],
           addButtonLabel: AXIS_GROUP_ADD_LABELS[direction],
+          /* G4b-22: tên kế tiếp chưa ai dùng, điền sẵn vào ô thêm trục. */
+          nextLabel: (() => {
+            const taken = new Set(labelledAxes.map((item) => item.label));
+            let index = inGroup.length;
+
+            while (taken.has(axisLabelAt(direction, index))) {
+              index += 1;
+            }
+
+            return axisLabelAt(direction, index);
+          })(),
           rows: inGroup.map((labelled, index) => {
             const next = inGroup[index + 1];
             const spacingMm =
@@ -1489,7 +1541,7 @@ export function useAxisGridManager(
     historyStepCount: () => dispatchBundle.history.undoSteps().length,
     canUndo: dispatchBundle.history.canUndo(),
     readFailure,
-    unsavedNotice: canEdit ? AXIS_GRID_TEXT.unsavedNotice : null,
+    unsavedNotice: canEdit && !gateway.supports.persistAxisGrid ? AXIS_GRID_TEXT.unsavedNotice : null,
     provisionalScaleNotice,
     background,
     autoAlignBlockedReason,
