@@ -103,6 +103,7 @@ function ActiveCard({ actions, card, focusKey }: ActiveCardProps) {
         <p className="text-[12px] text-text-secondary">{TEXT.activeTitle}</p>
         <p className="truncate text-base font-semibold text-text-primary">{card.label}</p>
         {facts.length > 0 && <p className="tabular-nums text-[13px] text-text-secondary">{facts.join(' · ')}</p>}
+        {card.betterNote != null && <p className="text-[13px] text-state-attention-text">{card.betterNote}</p>}
       </div>
       {card.canRevert && (
         <div className="flex max-w-[280px] flex-col items-end gap-1">

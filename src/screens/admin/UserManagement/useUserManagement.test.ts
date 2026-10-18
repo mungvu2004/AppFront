@@ -218,6 +218,19 @@ describe('SCR-37 đọc — BUG-P08-015/016: trạng thái đọc của panel ch
     }
   });
 
+  it('[G2-21] mất mạng lúc mở màn: lượt đọc danh sách bị tạm dừng → màn báo "error" (không kẹt khung xương), có mạng lại thì tải tiếp', async () => {
+    onlineManager.setOnline(false);
+    try {
+      const { result } = mount(gatewayWith([ADMIN, VIEWER], {}));
+      await waitFor(() => expect(result.current.model.state).toBe('error'));
+      expect(result.current.model.errorLabel).not.toBeNull();
+      act(() => onlineManager.setOnline(true));
+      await waitFor(() => expect(result.current.model.rows).toHaveLength(2));
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
   it('[37U-C-011] chỉ có mình admin: "empty" ở cả khổ rộng và khổ hẹp (<1024)', async () => {
     const wide = mount(gatewayWith([ADMIN], {}), false);
     await waitFor(() => expect(wide.result.current.model.state).toBe('empty'));

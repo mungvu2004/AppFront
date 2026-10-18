@@ -28,6 +28,8 @@ export interface ActiveCardModel {
   readonly createdLabel: string | null;
   /** Chỉ họ tường đang có bản kích hoạt mới quay về đường cổ điển được. */
   readonly canRevert: boolean;
+  /** G2-20: có bản đã đánh giá điểm cao hơn hẳn bản đang dùng. */
+  readonly betterNote?: string | null;
 }
 
 export interface VersionRowModel {

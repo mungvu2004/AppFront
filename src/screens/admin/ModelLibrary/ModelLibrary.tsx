@@ -113,8 +113,17 @@ export function ModelLibrary({ actions, model }: ModelLibraryProps) {
       {model.readOnlyReason !== null && <InlineAlert level="attention" message={model.readOnlyReason} />}
       <ModelLibraryToolbar actions={actions} model={model} />
       <ModelLibrarySummary summary={model.summary} />
-      <ModelLibraryTable actions={actions} model={model} />
-      {model.detail !== null && <ModelLibraryDetail actions={actions} model={model.detail} />}
+      {/* G2-17: panel chi tiết đứng cạnh bảng (≥1024), không rơi xuống dưới cuối danh sách. */}
+      <div className="flex flex-col gap-4 min-[1024px]:flex-row min-[1024px]:items-start">
+        <div className="min-w-0 flex-1">
+          <ModelLibraryTable actions={actions} model={model} />
+        </div>
+        {model.detail !== null && (
+          <div className="min-[1024px]:sticky min-[1024px]:top-4 min-[1024px]:max-h-[calc(100vh-2rem)]">
+            <ModelLibraryDetail actions={actions} model={model.detail} />
+          </div>
+        )}
+      </div>
     </ModelLibraryShell>
   );
 }

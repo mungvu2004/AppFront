@@ -48,7 +48,6 @@ import { initialsOf } from '@/lib/format/initials';
 import { cn } from '@/lib/utils';
 import type { ProjectRole } from '@/types/project';
 
-import { UserManagementPermissionMatrix } from './UserManagementPermissionMatrix';
 import type {
   DetailReadState,
   RemoveConfirmModel,
@@ -62,7 +61,6 @@ import type {
 
 const PANEL_WIDTH = 'w-[400px] max-w-full';
 const EMPTY_LABEL = 'Chọn một người để xem chi tiết';
-const PERMISSION_CAPTION = 'Ma trận quyền theo vai trò';
 const READY_STATE: DetailReadState = { status: 'ready' };
 
 /* -------------------------------------------------------------------------- */
@@ -342,11 +340,11 @@ export function RemoveConfirmDialog({ actions, removeConfirm }: RemoveDialogProp
 interface DetailBodyProps {
   readonly detail: UserDetailModel;
   readonly roleOptions: readonly RoleOption[];
-  readonly permissionMatrix: UserManagementDetailProps['permissionMatrix'];
   readonly actions: UserManagementActions;
 }
 
-function DetailBody({ actions, detail, permissionMatrix, roleOptions }: DetailBodyProps) {
+/** G2-13: ma trận quyền chỉ ở nút "Ma trận quyền" đầu trang, không lặp trong panel. */
+function DetailBody({ actions, detail, roleOptions }: DetailBodyProps) {
   return (
     <div className="flex flex-col gap-6">
       <DetailProfile
@@ -373,7 +371,6 @@ function DetailBody({ actions, detail, permissionMatrix, roleOptions }: DetailBo
         }}
       />
 
-      <UserManagementPermissionMatrix captionLabel={PERMISSION_CAPTION} matrix={permissionMatrix} />
     </div>
   );
 }
@@ -386,7 +383,6 @@ export function UserManagementDetail({
   actions,
   detail,
   isCollapsed,
-  permissionMatrix,
   roleOptions,
 }: UserManagementDetailProps) {
   const body =
@@ -396,7 +392,6 @@ export function UserManagementDetail({
       <DetailBody
         actions={actions}
         detail={detail}
-        permissionMatrix={permissionMatrix}
         roleOptions={roleOptions}
       />
     );

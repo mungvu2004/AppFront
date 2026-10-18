@@ -229,10 +229,40 @@ export function buildVersionRow(
   };
 }
 
+/** Chênh tối thiểu để coi là "cao hơn hẳn" — dưới mức này là nhiễu đánh giá. */
+const BETTER_MARGIN = 0.05;
+
+/** G2-20: bản đã đánh giá có điểm cao hơn hẳn bản đang dùng → một câu nhắc trên thẻ. */
+export function betterVersionNote(
+  activeVersion: ModelVersion | undefined,
+  versions: readonly ModelVersion[],
+): string | null {
+  if (activeVersion === undefined) return null;
+  const metric = METRIC_BY_FAMILY[activeVersion.family];
+  const current = activeVersion.metrics?.[metric.key];
+  if (current === undefined) return null;
+  // CER: càng thấp càng tốt — đảo dấu để một phép so dùng cho cả ba họ.
+  const sign = metric.key === 'cer' ? -1 : 1;
+  let best: ModelVersion | undefined;
+  let bestScore = sign * current + BETTER_MARGIN;
+  for (const version of versions) {
+    const value = version.metrics?.[metric.key];
+    if (version.id === activeVersion.id || version.evaluationStatus !== 'completed' || value === undefined) continue;
+    if (sign * value >= bestScore) {
+      best = version;
+      bestScore = sign * value;
+    }
+  }
+  return best === undefined
+    ? null
+    : `Bản ${best.label} có ${metricLabel(best)}, tốt hơn hẳn bản đang dùng; cân nhắc kích hoạt bản đó.`;
+}
+
 export function buildActiveCard(
   family: ModelFamilyId,
   record: ModelFamily | undefined,
   activeVersion: ModelVersion | undefined,
+  versions: readonly ModelVersion[] = [],
 ): ActiveCardModel | null {
   if (record === undefined) return null;
 
@@ -254,6 +284,7 @@ export function buildActiveCard(
     hasVersion: true,
     label: activeVersion?.label ?? MISSING_VALUE,
     metricLabel: activeVersion === undefined ? null : metricLabel(activeVersion),
+    betterNote: betterVersionNote(activeVersion, versions),
   };
 }
 
@@ -660,7 +691,7 @@ export function useModelRegistry({
         : MISSING_VALUE;
 
     return {
-      activeCard: buildActiveCard(family, familyRecord, activeVersion),
+      activeCard: buildActiveCard(family, familyRecord, activeVersion, versions),
       activeCardFocusKey,
       conflictNotice: conflictFamily === null ? null : conflictNotice(conflictFamily),
       detail:

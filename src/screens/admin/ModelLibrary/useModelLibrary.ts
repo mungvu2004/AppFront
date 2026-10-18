@@ -386,7 +386,8 @@ export function useModelLibrary(options: UseModelLibraryOptions): ModelLibraryRe
    */
   const filterOptions = useMemo(
     (): readonly ModelLibraryFilterOption[] =>
-      LIBRARY_FILTER_IDS.map((id) => ({
+      // G2-17: "Của tôi" là khái niệm của thư viện trong editor, vô nghĩa ở trang quản trị.
+      LIBRARY_FILTER_IDS.filter((id) => id !== 'mine').map((id) => ({
         id,
         label: libraryFilterLabel(id),
         count: items.filter((item) => matchesLibraryFilter(item, id)).length,

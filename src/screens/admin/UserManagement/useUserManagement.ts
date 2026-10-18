@@ -190,7 +190,48 @@ export const USER_MANAGEMENT_TEXT = {
   resentTitle: 'Đã gửi lại lời mời',
   resendFailedTitle: 'Không gửi lại được lời mời',
   activityFallback: 'Thao tác khác',
+  invitePending:
+    'Email này đang chờ chấp nhận lời mời; dùng "Gửi lại lời mời" trên dòng của người đó thay vì mời lần nữa',
+  lastEditor:
+    'Người này là người sửa cuối cùng của ít nhất một dự án; hãy thêm người sửa khác cho dự án đó trước rồi mới hạ vai hoặc vô hiệu hoá',
 } as const;
+
+const URL_PARAM_ROLE = 'vai';
+const URL_PARAM_STATUS = 'trangThai';
+
+function readUrlParam(key: string): string | null {
+  try {
+    return new URLSearchParams(window.location.search).get(key);
+  } catch {
+    return null;
+  }
+}
+
+/** Ghi bộ lọc lên URL bằng `replaceState` (không thêm mục lịch sử); `all` thì xoá khoá. */
+function writeUrlParams(values: Readonly<Record<string, string>>): void {
+  try {
+    const url = new URL(window.location.href);
+    for (const [key, value] of Object.entries(values)) {
+      if (value === FILTER_ALL) url.searchParams.delete(key);
+      else url.searchParams.set(key, value);
+    }
+    if (url.href !== window.location.href) window.history.replaceState(window.history.state, '', url);
+  } catch {
+    // Không có `window` (SSR/kiểm thử lạ): bộ lọc vẫn chạy, chỉ không nhớ qua lần tải lại.
+  }
+}
+
+/** Mã BE có câu riêng (G2-8, B5); mã khác rơi về câu chung theo loại lỗi. */
+const CODE_SENTENCES: Readonly<Record<string, string>> = {
+  USER_INVITE_PENDING: USER_MANAGEMENT_TEXT.invitePending,
+  MEMBER_LAST_EDITOR: USER_MANAGEMENT_TEXT.lastEditor,
+};
+
+export function failureSentence(error: unknown): string {
+  const appError = asAppError(error);
+  const code = readWireError(error)?.code ?? appError.code;
+  return CODE_SENTENCES[code] ?? describeError(appError).description;
+}
 
 /**
  * Nhãn tiếng Việt của một dòng nhật ký.
@@ -507,8 +548,18 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
   /* ---- Lựa chọn của người dùng ----------------------------------------- */
 
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>(FILTER_ALL);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(FILTER_ALL);
+  // G2-14: bộ lọc Vai/Trạng thái nằm trên URL (`?vai=&trangThai=`) để tải lại không mất.
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>(() => {
+    const value = readUrlParam(URL_PARAM_ROLE);
+    return value !== null && value in ROLE_LABELS ? (value as RoleFilter) : FILTER_ALL;
+  });
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
+    const value = readUrlParam(URL_PARAM_STATUS);
+    return value !== null && value in STATUS_LABELS ? (value as StatusFilter) : FILTER_ALL;
+  });
+  useEffect(() => {
+    writeUrlParams({ [URL_PARAM_ROLE]: roleFilter, [URL_PARAM_STATUS]: statusFilter });
+  }, [roleFilter, statusFilter]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isPermissionReferenceOpen, setPermissionReferenceOpen] = useState(false);
   const [isInviteOpen, setInviteOpen] = useState(false);
@@ -675,7 +726,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
       gateway.notify({
         type: 'user.write-failed',
         title,
-        description: describeError(asAppError(error)).description,
+        description: failureSentence(error),
       });
     },
     [gateway],
@@ -1011,11 +1062,12 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
    * đúng nghĩa `'partial'` của A11. Kéo cả màn về `'error'` vì một nhật ký hoạt động
    * không đọc được là vứt đi một bảng vẫn dùng được.
    */
-  const errorLabel = useMemo(
-    (): string | null =>
-      listQuery.error === null ? null : describeError(toAppError(listQuery.error)).description,
-    [listQuery.error],
-  );
+  // G2-21: lượt đọc danh sách bị TanStack tạm dừng (mất mạng) cũng là lỗi, không để bảng kẹt khung xương mãi.
+  const listPaused = listQuery.isPending && listQuery.isPaused;
+  const errorLabel = useMemo((): string | null => {
+    const failure = listQuery.error ?? (listPaused ? OFFLINE_READ_ERROR : null);
+    return failure === null ? null : describeError(toAppError(failure)).description;
+  }, [listQuery.error, listPaused]);
 
   /**
    * Bậc thang: `forbidden` → `loading` → `error` → `collapsed` → `empty` → `partial` →
@@ -1031,7 +1083,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
     if (!canManage) {
       return 'forbidden';
     }
-    if (listQuery.isPending) {
+    if (listQuery.isPending && !listPaused) {
       return 'loading';
     }
     if (errorLabel !== null) {
@@ -1049,6 +1101,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
   }, [
     canManage,
     listQuery.isPending,
+    listPaused,
     errorLabel,
     isCollapsed,
     users.length,
@@ -1196,7 +1249,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
             // Lượt ghi lạc quan đã bọc lỗi dây thành AppError (field nằm ở `params`) — đọc cả hai dạng.
             const appParams = (error as { params?: { field?: unknown } } | null)?.params;
             if ((readWireError(error)?.field ?? appParams?.field) === 'emails') {
-              setInviteServerError(describeError(asAppError(error)).description);
+              setInviteServerError(failureSentence(error));
             }
             notifyFailure(USER_MANAGEMENT_TEXT.inviteFailedTitle, error);
           },

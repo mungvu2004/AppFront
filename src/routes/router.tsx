@@ -3,6 +3,7 @@
  * định nghĩa `UndoShortcuts`. `UndoShortcuts` được xuất có chủ đích: xem docblock
  * của nó — một binding không test được là một binding không ai chứng minh được. */
 import { AdminNav } from '../components/shell/AdminNav';
+import { AdminGate } from '../screens/admin/AdminGate';
 import React, { lazy, useCallback, useEffect, useState } from 'react';
 import {
   createBrowserRouter,
@@ -307,10 +308,10 @@ export function UndoShortcuts({ children }: { children: React.ReactNode }): Reac
 }
 
 const withAdminNav = (page: React.ReactNode) => (
-  <>
+  <AdminGate>
     <AdminNav />
     {page}
-  </>
+  </AdminGate>
 );
 
 /** Bảng route — xuất riêng để bài kiểm dựng nó trên `createMemoryRouter`. */

@@ -953,6 +953,9 @@ export function useTrainingJobs({
       },
       onLoadMore,
       onOpenForm: () => {
+        // G2-19: hộp mở theo họ đang lọc bên ngoài (nếu là họ huấn luyện được).
+        const filtered = TRAINABLE_MODEL_FAMILIES.find((family) => family === familyFilter);
+        if (filtered !== undefined && filtered !== formFamily) onFormFamily(filtered);
         setEpochsTyped(null);
         setFormErrors(NO_FIELD_ERRORS);
         setFormOpen(true);
@@ -971,7 +974,7 @@ export function useTrainingJobs({
       onSelectTab: setActiveTab,
       onSubmitForm,
     }),
-    [onConfirmCancel, onFormDataset, onFormFamily, onLoadMore, onRetry, onSelectJob, onSubmitForm],
+    [familyFilter, formFamily, onConfirmCancel, onFormDataset, onFormFamily, onLoadMore, onRetry, onSelectJob, onSubmitForm],
   );
 
   return { actions, model };
