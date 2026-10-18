@@ -220,7 +220,7 @@ describe('Bảng và chi tiết', () => {
 
     expect(screen.getByRole('navigation', { name: 'Đường dẫn trang' }).textContent).toBe('Quản trị›Huấn luyện model');
     expect(screen.getByRole('heading', { level: 1, name: 'Huấn luyện model AI' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Model AI của chuỗi xử lý' })).toHaveAttribute('href', ROUTES.adminTrainingModels);
+    expect(screen.getByRole('link', { name: 'Sang tab Mô hình AI' })).toHaveAttribute('href', ROUTES.adminTrainingModels);
     expect(ROUTES.adminTrainingJobs).toBe('/admin/training/jobs');
   });
 

@@ -438,12 +438,12 @@ describe('R-72 — expectAccessible trên cây render thật', () => {
  * ========================================================================== */
 
 describe('A6 — đường dẫn trang viết hoa chữ đầu như màn quản trị người dùng (lỗi B-V12b-04)', () => {
-  it('nav tên đúng "Đường dẫn trang", chữ "Quản trị › Thư viện model"', async () => {
+  it('nav tên đúng "Đường dẫn trang", chữ "Quản trị › Thư viện mẫu 3D"', async () => {
     const ModelLibraryView = await loadModelLibraryView();
     renderWithProviders(<ModelLibraryView {...buildModelLibraryProps('success')} />);
 
     const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
-    expect(nav.textContent).toBe('Quản trị › Thư viện model');
+    expect(nav.textContent).toBe('Quản trị › Thư viện mẫu 3D');
   });
 });
 
@@ -463,7 +463,7 @@ describe('R-67 — expectVietnamese trên cây render thật', () => {
  * 4. Khẳng định riêng của màn này (brief mục 2, nhóm 4).
  * ========================================================================== */
 
-describe('ba cột số mang font-mono tabular-nums và luôn nhìn thấy', () => {
+describe('ba cột số mang tabular-nums và luôn nhìn thấy', () => {
   it('boundsLabel, triangleCountLabel, fileSizeLabel đều mang cả hai class, không bị ẩn', async () => {
     const ModelLibraryView = await loadModelLibraryView();
     const props = buildModelLibraryProps('success');
@@ -474,7 +474,7 @@ describe('ba cột số mang font-mono tabular-nums và luôn nhìn thấy', () 
     for (const label of [row.boundsLabel, row.triangleCountLabel, row.fileSizeLabel]) {
       const cell = findNumericCell(label);
 
-      expect(cell.className, `ô "${label}"`).toMatch(/(?:^|\s)font-mono(?:\s|$)/u);
+      expect(cell.className, `ô "${label}"`).toMatch(/(?:^|\s)tabular-nums(?:\s|$)/u);
       expect(cell.className, `ô "${label}"`).toMatch(/(?:^|\s)tabular-nums(?:\s|$)/u);
       expect(cell, `ô "${label}"`).toBeVisible();
     }
@@ -677,14 +677,14 @@ describe('[34L-C-017] nhãn chữ hoa đầu (luật A6, BUG-595)', () => {
 });
 
 describe('[34L-E-009] màn có đúng một h1 ở mọi trạng thái đã dựng khung', () => {
-  it.each(['success', 'loading', 'error', 'empty', 'forbidden'] as const)('state %s: một h1 "Thư viện model"', async (state) => {
+  it.each(['success', 'loading', 'error', 'empty', 'forbidden'] as const)('state %s: một h1 "Thư viện mẫu 3D"', async (state) => {
     const ModelLibraryView = await loadModelLibraryView();
 
     renderWithProviders(<ModelLibraryView {...buildModelLibraryProps(state)} />);
     const headings = screen.getAllByRole('heading', { level: 1 });
 
     expect(headings).toHaveLength(1);
-    expect(headings[0]?.textContent).toBe('Thư viện model');
+    expect(headings[0]?.textContent).toBe('Thư viện mẫu 3D');
   });
 });
 

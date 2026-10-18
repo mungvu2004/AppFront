@@ -18,6 +18,7 @@ const TEXT = {
   retry: 'Thử lại',
   errorTitle: 'Không đọc được dữ liệu huấn luyện',
   emptyTitle: 'Chưa có lượt huấn luyện',
+  toDatasets: 'Xem tab Bộ dữ liệu',
   loadMore: 'Xem thêm',
 } as const;
 
@@ -119,7 +120,9 @@ export function TrainingJobsTable({ actions, model }: TrainingJobsProps) {
     <div className="flex flex-col gap-4">
       {model.partialNotice !== null && <InlineAlert level="attention" message={model.partialNotice} />}
       {model.rows.length === 0 ? (
-        <EmptyState description={model.emptyMessage} icon={<History aria-hidden="true" />} title={TEXT.emptyTitle} />
+        <EmptyState
+          action={{ label: TEXT.toDatasets, onClick: () => actions.onSelectTab('datasets'), variant: 'secondary' }}
+          description={model.emptyMessage} icon={<History aria-hidden="true" />} title={TEXT.emptyTitle} />
       ) : (
         <div className={PANEL}>
           {model.isCollapsed ? <Cards actions={actions} rows={model.rows} /> : <Rows actions={actions} rows={model.rows} />}

@@ -98,7 +98,7 @@ export function ModelRegistryVersionTable({ actions, isCollapsed, rows }: ModelR
               ].map(([term, value]) => (
                 <div className="flex justify-between gap-2" key={term}>
                   <dt className="text-text-secondary">{term}</dt>
-                  <dd className="font-mono tabular-nums">{value}</dd>
+                  <dd className="tabular-nums">{value}</dd>
                 </div>
               ))}
             </dl>
@@ -117,7 +117,7 @@ export function ModelRegistryVersionTable({ actions, isCollapsed, rows }: ModelR
             <Table.Head key={header}>{header}</Table.Head>
           ))}
           <Table.Head>
-            <span className="sr-only">{ACTIONS_HEADER}</span>
+            <span>{ACTIONS_HEADER}</span>
           </Table.Head>
         </Table.Row>
       </Table.Header>
@@ -131,7 +131,7 @@ export function ModelRegistryVersionTable({ actions, isCollapsed, rows }: ModelR
             <Table.Cell>
               <EvaluationBadge row={row} />
             </Table.Cell>
-            <Table.Cell className="font-mono tabular-nums">{row.metricLabel}</Table.Cell>
+            <Table.Cell className="tabular-nums">{row.metricLabel}</Table.Cell>
             <Table.Cell className="text-text-secondary">{row.sourceLabel}</Table.Cell>
             <Table.Cell className="text-text-secondary">{row.createdLabel}</Table.Cell>
             <Table.Cell>

@@ -16,6 +16,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Select } from '@/components/ui/Select';
 import { Tabs } from '@/components/ui/Tabs';
 import { cn } from '@/lib/utils';
+import { ROUTES } from '@/routes/paths';
 
 import { TrainingDatasetsTab } from './TrainingDatasetsTab';
 import { TrainingJobCancelDialog, TrainingJobDetail } from './TrainingJobDetail';
@@ -47,14 +48,18 @@ function Header({ model }: { readonly model: TrainingJobsViewModel }) {
       <div className="flex flex-col gap-1">
         <nav aria-label={TEXT.breadcrumbNav} className="text-[13px] text-text-secondary">
           <ol className="flex items-center gap-1.5">
-            <li>{TEXT.breadcrumbAdmin}</li>
+            <li>
+              <a className="hover:text-text-primary hover:underline" href={ROUTES.adminUsers}>
+                {TEXT.breadcrumbAdmin}
+              </a>
+            </li>
             <li aria-hidden="true">›</li>
             <li aria-current="page">{TEXT.breadcrumbHere}</li>
           </ol>
         </nav>
         <h1 className="text-[20px] font-semibold text-text-primary">{TEXT.title}</h1>
       </div>
-      <a className="text-[13px] text-accent hover:underline" href={model.relatedLink.href}>
+      <a className="text-[13px] font-medium text-accent underline-offset-2 hover:underline" href={model.relatedLink.href}>
         {model.relatedLink.label}
       </a>
     </div>
@@ -104,7 +109,7 @@ function LoadingArea({ rowCount }: { readonly rowCount: number }) {
 }
 
 function JobsPanel({ actions, model }: TrainingJobsProps) {
-  const showsSidePanel = !model.isCollapsed && model.state !== 'loading';
+  const showsSidePanel = !model.isCollapsed && model.state !== 'loading' && model.rows.length > 0;
 
   return (
     <div className="flex flex-col gap-4">

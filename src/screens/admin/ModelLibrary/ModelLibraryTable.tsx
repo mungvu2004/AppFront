@@ -13,8 +13,9 @@
  * không có prop chiều cao; 48px của đặc tả chỉ đạt được bằng cách truyền `className="h-12"`
  * cho CẢ HAI (twMerge ghi đè `h-10`) — xem `contract-ui.md` mục 0.
  */
-import { Box, RotateCw } from 'lucide-react';
+import { Box, RotateCw, SearchX } from 'lucide-react';
 
+import { EmptyState } from '@/components/feedback/EmptyState';
 import { Badge } from '@/components/ui/Badge';
 import { IconButton } from '@/components/ui/IconButton';
 import { Table } from '@/components/ui/Table';
@@ -28,7 +29,9 @@ const HEADER_GROUP = 'Danh mục';
 const HEADER_BOUNDS = 'Kích thước bao';
 const HEADER_TRIANGLES = 'Số tam giác';
 const HEADER_FILE_SIZE = 'Dung lượng';
-const EMPTY_MESSAGE = 'Không tìm thấy model phù hợp.';
+const EMPTY_MESSAGE = 'Không có model nào khớp với từ khoá hoặc danh mục đang chọn.';
+const EMPTY_TITLE = 'Không tìm thấy model';
+const CLEAR_SEARCH_LABEL = 'Xoá tìm kiếm và bộ lọc';
 const HEAVY_BADGE_LABEL = 'Nặng';
 const GRID_LIST_LABEL = 'lưới model';
 const COLUMN_COUNT = 6;
@@ -81,7 +84,7 @@ function ModelPreviewThumb({
 /** Chấm "cần chú ý" cạnh số tam giác. Chỉ một mức — xem docblock `types.ts` vì sao. */
 function TriangleCountValue({ row }: { readonly row: ModelLibraryRowModel }) {
   return (
-    <span className="inline-flex items-center gap-1.5 font-mono tabular-nums">
+    <span className="inline-flex items-center gap-1.5 tabular-nums">
       {row.isHeavy && <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-state-attention" />}
       {row.triangleCountLabel}
     </span>
@@ -121,7 +124,7 @@ function ModelLibraryCardList({ actions, rows }: RowLayoutProps) {
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-text-secondary">Kích thước bao</dt>
-              <dd className="font-mono tabular-nums">{row.boundsLabel}</dd>
+              <dd className="tabular-nums">{row.boundsLabel}</dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-text-secondary">Số tam giác</dt>
@@ -131,7 +134,7 @@ function ModelLibraryCardList({ actions, rows }: RowLayoutProps) {
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-text-secondary">Dung lượng</dt>
-              <dd className="font-mono tabular-nums">{row.fileSizeLabel}</dd>
+              <dd className="tabular-nums">{row.fileSizeLabel}</dd>
             </div>
           </dl>
         </li>
@@ -168,11 +171,11 @@ function ModelLibraryGrid({ actions, rows }: RowLayoutProps) {
           <p className="truncate text-[14px] font-medium text-text-primary">{row.name}</p>
           <p className="truncate text-[13px] text-text-secondary">{row.groupLabel}</p>
           <div className="flex items-center justify-between gap-2 text-[13px]">
-            <span className="font-mono tabular-nums text-text-secondary">{row.boundsLabel}</span>
+            <span className="tabular-nums text-text-secondary">{row.boundsLabel}</span>
             <TriangleCountValue row={row} />
           </div>
           <div className="flex items-center justify-between gap-2">
-            <span className="font-mono tabular-nums text-[13px] text-text-secondary">{row.fileSizeLabel}</span>
+            <span className="tabular-nums text-[13px] text-text-secondary">{row.fileSizeLabel}</span>
             {row.isHeavy && <Badge variant="attention">{HEAVY_BADGE_LABEL}</Badge>}
           </div>
         </div>
@@ -215,7 +218,23 @@ export function ModelLibraryTable({ actions, model }: ModelLibraryTableProps) {
       </Table.Header>
       <Table.Body>
         {model.rows.length === 0 ? (
-          <Table.Empty colSpan={COLUMN_COUNT} message={EMPTY_MESSAGE} />
+          <tr>
+            <td className="py-12" colSpan={COLUMN_COUNT}>
+              <EmptyState
+                action={{
+                  label: CLEAR_SEARCH_LABEL,
+                  onClick: () => {
+                    actions.setSearchText('');
+                    actions.setFilter('all');
+                  },
+                  variant: 'secondary',
+                }}
+                description={EMPTY_MESSAGE}
+                icon={<SearchX aria-hidden="true" />}
+                title={EMPTY_TITLE}
+              />
+            </td>
+          </tr>
         ) : (
           model.rows.map((row) => (
             <Table.Row className={ROW_HEIGHT} key={row.id}>
@@ -232,13 +251,13 @@ export function ModelLibraryTable({ actions, model }: ModelLibraryTableProps) {
                 </button>
               </Table.Cell>
               <Table.Cell className={ROW_HEIGHT}>{row.groupLabel}</Table.Cell>
-              <Table.Cell className={cn(ROW_HEIGHT, 'font-mono tabular-nums')}>{row.boundsLabel}</Table.Cell>
+              <Table.Cell className={cn(ROW_HEIGHT, 'tabular-nums')}>{row.boundsLabel}</Table.Cell>
               {/*
                 Chữ đều nằm trên chính ô, không chỉ trên `<span>` bên trong — cùng khuôn hai
                 cột số anh em ở trên và dưới. Badge "Nặng" là chữ thường nên nó tự kéo mình
                 về bộ chữ giao diện, thay vì mọi thứ trong ô cùng thành chữ đều.
               */}
-              <Table.Cell className={cn(ROW_HEIGHT, 'font-mono tabular-nums')}>
+              <Table.Cell className={cn(ROW_HEIGHT, 'tabular-nums')}>
                 <div className="flex items-center gap-2">
                   <TriangleCountValue row={row} />
                   {row.isHeavy && (
@@ -248,7 +267,7 @@ export function ModelLibraryTable({ actions, model }: ModelLibraryTableProps) {
                   )}
                 </div>
               </Table.Cell>
-              <Table.Cell className={cn(ROW_HEIGHT, 'font-mono tabular-nums')}>{row.fileSizeLabel}</Table.Cell>
+              <Table.Cell className={cn(ROW_HEIGHT, 'tabular-nums')}>{row.fileSizeLabel}</Table.Cell>
             </Table.Row>
           ))
         )}

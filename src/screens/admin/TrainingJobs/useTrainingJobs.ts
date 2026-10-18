@@ -148,7 +148,7 @@ export const TRAINING_JOBS_TEXT = {
   emptyDatasets: 'Chưa có bộ dữ liệu nào. Dựng bằng công cụ dòng lệnh.',
   noReadyVersion: 'Bộ dữ liệu này chưa có phiên bản sẵn sàng.',
   resultLink: 'Xem model AI đã tạo',
-  relatedLink: 'Model AI của chuỗi xử lý',
+  relatedLink: 'Sang tab Mô hình AI',
   fieldFamily: 'Họ',
   fieldBaseModel: 'Model nền',
   fieldDatasetVersion: 'Phiên bản bộ dữ liệu',

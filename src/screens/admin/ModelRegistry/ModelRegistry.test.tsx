@@ -228,13 +228,13 @@ describe('Bảng phiên bản', () => {
 });
 
 describe('Đầu trang, chi tiết, dải 409', () => {
-  it('breadcrumb "Quản trị › Model AI" là nhãn, không liên kết; h1 viết hoa chữ đầu', () => {
+  it('breadcrumb "Quản trị › Mô hình AI" có liên kết "Quản trị"; h1 viết hoa chữ đầu', () => {
     renderView(MODEL_REGISTRY_SCENARIO_SUCCESS);
 
     const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
-    expect(nav.textContent).toBe('Quản trị›Model AI');
-    expect(within(nav).queryByRole('link')).toBeNull();
-    expect(screen.getByRole('heading', { level: 1, name: 'Model AI của chuỗi xử lý' })).toBeInTheDocument();
+    expect(nav.textContent).toBe('Quản trị›Mô hình AI');
+    expect(within(nav).getByRole('link', { name: 'Quản trị' })).toHaveAttribute('href', '/admin/users');
+    expect(screen.getByRole('heading', { level: 1, name: 'Mô hình AI của chuỗi xử lý' })).toBeInTheDocument();
   });
 
   it('relatedLink null thì không có liên kết; có thì hiện', () => {

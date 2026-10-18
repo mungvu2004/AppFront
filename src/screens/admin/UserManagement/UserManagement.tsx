@@ -45,7 +45,7 @@ import type {
   UserManagementViewModel,
 } from './types';
 
-const SCREEN_CONTAINER_CLASS = 'mx-auto flex w-full max-w-[1080px] flex-col gap-4 p-6';
+const SCREEN_CONTAINER_CLASS = 'mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[1920px]:max-w-[1440px]';
 const BREADCRUMB_NAV_LABEL = 'Đường dẫn trang';
 const PERMISSION_REFERENCE_BUTTON_LABEL = 'Xem ma trận quyền';
 const PERMISSION_REFERENCE_MODAL_TITLE = 'Ma trận quyền theo vai trò';
@@ -91,7 +91,7 @@ function UserManagementBreadcrumb({ items }: { readonly items: readonly Breadcru
 
 /** Màn có đúng một `h1` (BUG-P08-020): đọc được cho trình đọc màn hình, tên màn = mục cuối breadcrumb. */
 function ScreenHeading({ items }: { readonly items: readonly BreadcrumbItemModel[] }) {
-  return <h1 className="sr-only">{items[items.length - 1]?.label}</h1>;
+  return <h1 className="text-[20px] font-semibold text-text-primary">{items[items.length - 1]?.label}</h1>;
 }
 
 function renderContent(model: UserManagementViewModel, actions: UserManagementActions) {
@@ -180,8 +180,8 @@ export function UserManagement({ model, actions }: UserManagementProps) {
   if (model.state === 'forbidden') {
     return (
       <div className={SCREEN_CONTAINER_CLASS}>
-        <ScreenHeading items={model.breadcrumbItems} />
         <UserManagementBreadcrumb items={model.breadcrumbItems} />
+        <ScreenHeading items={model.breadcrumbItems} />
         <InlineAlert level="attention" message={model.forbiddenLabel} />
         <UserManagementPermissionMatrix captionLabel={PERMISSION_MATRIX_CAPTION} matrix={model.permissionMatrix} />
         <BreadcrumbLink item={model.backLink} />
@@ -191,7 +191,6 @@ export function UserManagement({ model, actions }: UserManagementProps) {
 
   return (
     <div className={SCREEN_CONTAINER_CLASS}>
-      <ScreenHeading items={model.breadcrumbItems} />
       <div className="flex items-center justify-between gap-4">
         <UserManagementBreadcrumb items={model.breadcrumbItems} />
         <Button
@@ -203,6 +202,7 @@ export function UserManagement({ model, actions }: UserManagementProps) {
           {PERMISSION_REFERENCE_BUTTON_LABEL}
         </Button>
       </div>
+      <ScreenHeading items={model.breadcrumbItems} />
 
       <UserManagementToolbar
         actions={actions}

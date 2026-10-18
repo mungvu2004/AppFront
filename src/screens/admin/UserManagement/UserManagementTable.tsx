@@ -36,6 +36,8 @@ const HEADER_PROJECTS = 'Số dự án';
 const HEADER_LAST_ACTIVE = 'Lần hoạt động cuối';
 const HEADER_STATUS = 'Trạng thái';
 const HEADER_ACTIONS = 'Hành động';
+const SELF_LABEL = 'Bạn';
+const SELF_TOOLTIP = 'Không tự đổi vai hoặc xoá tài khoản của chính mình';
 const NO_MATCH_TITLE = 'Không tìm thấy người dùng';
 const NO_MATCH_DESCRIPTION = 'Không ai khớp với từ khoá hoặc bộ lọc đang chọn.';
 // Nút đặt lại cả ô tìm lẫn hai bộ lọc (`onClearSearch`), nên nhãn nói đủ cả hai.
@@ -74,6 +76,10 @@ interface RoleCellProps {
 }
 
 function RoleCell({ actions, roleOptions, row }: RoleCellProps) {
+  if (row.isSelf && row.roleChangeBlockedReason !== null) {
+    const own = roleOptions.find((option) => option.role === row.role);
+    return <span className="text-[13px] text-text-primary">{own?.label ?? row.role}</span>;
+  }
   if (row.roleChangeBlockedReason !== null) {
     return <span className="text-[13px] text-text-secondary">{row.roleChangeBlockedReason}</span>;
   }
@@ -143,6 +149,18 @@ interface RowActionsProps {
 }
 
 function RowActions({ actions, row }: RowActionsProps) {
+  if (row.isSelf && (row.removeBlockedReason !== null || row.disableBlockedReason !== null)) {
+    return (
+      <div className="flex justify-end">
+        <Tooltip label={SELF_TOOLTIP}>
+          <span className={cn('text-[13px] font-medium text-text-secondary', FOCUS_RING)} tabIndex={0}>
+            {SELF_LABEL}
+          </span>
+        </Tooltip>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       {row.status === 'disabled' ? (
@@ -220,7 +238,7 @@ function UserManagementCardList({ actions, roleOptions, rows }: UserListProps) {
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-text-secondary">{HEADER_PROJECTS}</dt>
-              <dd className="font-mono tabular-nums">{row.projectCountLabel}</dd>
+              <dd className="tabular-nums">{row.projectCountLabel}</dd>
             </div>
             <div className="col-span-2 flex justify-between gap-2">
               <dt className="text-text-secondary">{HEADER_LAST_ACTIVE}</dt>
@@ -253,7 +271,7 @@ function TableHeaderRow({ withSecondary }: { readonly withSecondary: boolean }) 
         {withSecondary && <Table.Head>{HEADER_LAST_ACTIVE}</Table.Head>}
         {withSecondary && <Table.Head>{HEADER_STATUS}</Table.Head>}
         <Table.Head>
-          <span className="sr-only">{HEADER_ACTIONS}</span>
+          <span>{HEADER_ACTIONS}</span>
         </Table.Head>
       </Table.Row>
     </Table.Header>
@@ -301,7 +319,7 @@ export function UserManagementTable({
             key={row.id}
             selected={row.id === selectedUserId}
           >
-            <Table.Cell className={WRAP_CELL}>
+            <Table.Cell className={cn(WRAP_CELL, 'min-w-[260px]')}>
               <div className="flex items-center gap-3">
                 <Avatar alt={row.name} initials={initialsOf(row.name, row.email)} size="default" {...avatarSrcProp(row.avatarUrl)} />
                 <div className="flex min-w-0 flex-col">
@@ -325,7 +343,7 @@ export function UserManagementTable({
               <RoleCell actions={actions} roleOptions={roleOptions} row={row} />
             </Table.Cell>
             {withSecondary && (
-              <Table.Cell className={cn(ROW_HEIGHT, 'font-mono tabular-nums')}>{row.projectCountLabel}</Table.Cell>
+              <Table.Cell className={cn(ROW_HEIGHT, 'tabular-nums')}>{row.projectCountLabel}</Table.Cell>
             )}
             {withSecondary && (
               <Table.Cell className={WRAP_CELL}>

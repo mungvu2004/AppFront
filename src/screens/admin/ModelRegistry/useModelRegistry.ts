@@ -24,7 +24,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { lowerFirst } from '@/lib/format/sentence';
 import type { ModelFamily, ModelVersion } from '@/api/schemas/adminMl';
 import { useSession } from '@/hooks/useSession';
-import { formatTimestamp } from '@/lib/format/datetime';
+import { formatCalendarDate, formatClockTime } from '@/lib/format/datetime';
 import { formatNumber, MISSING_VALUE } from '@/lib/format/number';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
@@ -90,8 +90,13 @@ const METRIC_BY_FAMILY: Readonly<Record<ModelFamilyId, { readonly key: 'iou' | '
 
 const METRIC_FRACTION_DIGITS = 3;
 
+/** Luôn có ngày lẫn giờ: bản model cần biết hôm nào, không phải "vừa xong" (G2-6). */
+function formatFullTimestamp(ms: number): string {
+  return `${formatCalendarDate(ms)} ${formatClockTime(ms)}`;
+}
+
 /** Liên kết sang màn huấn luyện (F-12). */
-export const TRAINING_JOBS_LINK: RelatedLinkModel = { href: ROUTES.adminTrainingJobs, label: 'Lượt huấn luyện' };
+export const TRAINING_JOBS_LINK: RelatedLinkModel = { href: ROUTES.adminTrainingJobs, label: 'Sang tab Huấn luyện' };
 
 const SEED_LABEL = 'Gốc';
 const SYSTEM_PIPELINE = 'system:pipeline';
@@ -217,7 +222,7 @@ export function buildVersionRow(
     evaluationVariant: EVALUATION_VARIANT[version.evaluationStatus],
     metricLabel: metricLabel(version),
     sourceLabel: sourceLabel(version),
-    createdLabel: formatTimestamp(Date.parse(version.createdAt), context.nowMs),
+    createdLabel: formatFullTimestamp(Date.parse(version.createdAt)),
     isActive: version.id === context.activeId,
     isSelected: version.id === context.selectedId,
     activateBlockedReason: activateBlockedReason(version),
@@ -228,7 +233,6 @@ export function buildActiveCard(
   family: ModelFamilyId,
   record: ModelFamily | undefined,
   activeVersion: ModelVersion | undefined,
-  nowMs: number,
 ): ActiveCardModel | null {
   if (record === undefined) return null;
 
@@ -245,7 +249,7 @@ export function buildActiveCard(
 
   return {
     canRevert: family === WALL_FAMILY,
-    createdLabel: activeVersion === undefined ? null : formatTimestamp(Date.parse(activeVersion.createdAt), nowMs),
+    createdLabel: activeVersion === undefined ? null : formatFullTimestamp(Date.parse(activeVersion.createdAt)),
     formatLabel: activeVersion?.weightsFormat ?? null,
     hasVersion: true,
     label: activeVersion?.label ?? MISSING_VALUE,
@@ -256,7 +260,6 @@ export function buildActiveCard(
 export function buildDetail(
   version: ModelVersion | undefined,
   status: { readonly isLoading: boolean; readonly error: unknown },
-  nowMs: number,
 ): VersionDetailModel {
   const base = {
     errorMessage: status.error === null || status.error === undefined ? null : describeReadError(status.error),
@@ -291,7 +294,7 @@ export function buildDetail(
         MODEL_REGISTRY_TEXT.fieldCreator,
         version.creatorId === SYSTEM_PIPELINE ? MODEL_REGISTRY_TEXT.creatorSystem : MODEL_REGISTRY_TEXT.creatorAdmin,
       ),
-      field(MODEL_REGISTRY_TEXT.fieldCreatedAt, formatTimestamp(Date.parse(version.createdAt), nowMs)),
+      field(MODEL_REGISTRY_TEXT.fieldCreatedAt, formatFullTimestamp(Date.parse(version.createdAt))),
     ],
     seedNote: isSeed(version) ? MODEL_REGISTRY_TEXT.seedNote : null,
     title: version.label,
@@ -651,14 +654,13 @@ export function useModelRegistry({
   /* ---- View model ------------------------------------------------------- */
 
   const model = useMemo((): ModelRegistryViewModel => {
-    const nowMs = gateway.now();
     const targetLabel =
       dialogTarget?.kind === 'activate'
         ? (versions.find((version) => version.id === dialogTarget.versionId)?.label ?? MISSING_VALUE)
         : MISSING_VALUE;
 
     return {
-      activeCard: buildActiveCard(family, familyRecord, activeVersion, nowMs),
+      activeCard: buildActiveCard(family, familyRecord, activeVersion),
       activeCardFocusKey,
       conflictNotice: conflictFamily === null ? null : conflictNotice(conflictFamily),
       detail:
@@ -667,7 +669,6 @@ export function useModelRegistry({
           : buildDetail(
               selectedQuery.data ?? versions.find((version) => version.id === selectedVersionId),
               { error: selectedQuery.error, isLoading: selectedQuery.isPending },
-              nowMs,
             ),
       dialog:
         dialogTarget === null
@@ -698,7 +699,6 @@ export function useModelRegistry({
       state,
     };
   }, [
-    gateway,
     dialogTarget,
     versions,
     family,

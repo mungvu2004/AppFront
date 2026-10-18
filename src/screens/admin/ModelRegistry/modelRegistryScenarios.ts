@@ -54,11 +54,11 @@ function scenario(
   return {
     activeCardFocusKey: 0,
     activeCard: hasData
-      ? buildActiveCard(family, record, MOCK_MODEL_VERSIONS.find((version) => version.id === activeId), MODEL_REGISTRY_SCENARIO_NOW)
+      ? buildActiveCard(family, record, MOCK_MODEL_VERSIONS.find((version) => version.id === activeId))
       : null,
     conflictNotice: null,
     detail:
-      selectedId === null ? null : buildDetail(selected, { error: null, isLoading: false }, MODEL_REGISTRY_SCENARIO_NOW),
+      selectedId === null ? null : buildDetail(selected, { error: null, isLoading: false }),
     dialog: null,
     emptyMessage: emptyMessage(family, record),
     errorMessage: options.errorMessage ?? null,

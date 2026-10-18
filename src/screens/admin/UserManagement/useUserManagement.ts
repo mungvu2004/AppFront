@@ -1298,7 +1298,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
    */
   const breadcrumbItems = useMemo(
     (): readonly BreadcrumbItemModel[] => [
-      { label: USER_MANAGEMENT_TEXT.breadcrumbAdmin, href: null },
+      { label: USER_MANAGEMENT_TEXT.breadcrumbAdmin, href: ROUTES.adminUsers },
       { label: USER_MANAGEMENT_TEXT.breadcrumbUsers, href: null },
     ],
     [],

@@ -267,13 +267,14 @@ describe('Hành động bị chặn (Đ-8): hiện câu giải thích tại ch�
   it('trạng thái "thành công": roleChangeBlockedReason và removeBlockedReason đều đọc được trong DOM', async () => {
     const model = USER_MANAGEMENT_SCENARIO_SUCCESS;
     const selfRow = requireRow(model, (row) => row.roleChangeBlockedReason !== null, 'một hàng có roleChangeBlockedReason');
-    const lastAdminRow = requireRow(model, (row) => row.removeBlockedReason !== null, 'một hàng có removeBlockedReason');
+    const lastAdminRow = requireRow(model, (row) => row.removeBlockedReason !== null && !row.isSelf, 'một hàng có removeBlockedReason');
 
     const UserManagementView = await loadUserManagementView();
 
     renderWithProviders(<UserManagementView actions={USER_MANAGEMENT_ACTIONS} model={model} />);
 
-    expect(screen.getByText(selfRow.roleChangeBlockedReason as string)).toBeTruthy();
+    if (!selfRow.isSelf) expect(screen.getAllByText(selfRow.roleChangeBlockedReason as string).length).toBeGreaterThan(0);
+    else expect(screen.queryByText(selfRow.roleChangeBlockedReason as string)).toBeNull();
     // BUG-P08-022 / 37W-C-014: panel chi tiết nay cũng nêu lý do chặn xoá nên câu có thể hiện ở hàng VÀ panel.
     expect(screen.getAllByText(lastAdminRow.removeBlockedReason as string).length).toBeGreaterThan(0);
   });

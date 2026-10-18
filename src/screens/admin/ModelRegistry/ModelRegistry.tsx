@@ -16,6 +16,7 @@ import { Drawer } from '@/components/overlay/Drawer';
 import { Button } from '@/components/ui/Button';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { cn } from '@/lib/utils';
+import { ROUTES } from '@/routes/paths';
 
 import { ModelRegistryActivateDialog } from './ModelRegistryActivateDialog';
 import { ModelRegistryDetail } from './ModelRegistryDetail';
@@ -25,11 +26,12 @@ import type { ActiveCardModel, ModelFamilyId, ModelRegistryActions, ModelRegistr
 const TEXT = {
   breadcrumbNav: 'Đường dẫn trang',
   breadcrumbAdmin: 'Quản trị',
-  breadcrumbHere: 'Model AI',
-  title: 'Model AI của chuỗi xử lý',
+  breadcrumbHere: 'Mô hình AI',
+  title: 'Mô hình AI của chuỗi xử lý',
   familyPicker: 'Họ model',
   activeTitle: 'Đang dùng',
   revert: 'Quay về đường cổ điển',
+  revertHint: 'Bỏ model AI, chuỗi xử lý dùng lại thuật toán không học máy cho họ này.',
   reload: 'Tải lại',
   retry: 'Thử lại',
   errorTitle: 'Không đọc được danh sách model',
@@ -50,7 +52,11 @@ function Header({ model }: { readonly model: ModelRegistryViewModel }) {
       <div className="flex flex-col gap-1">
         <nav aria-label={TEXT.breadcrumbNav} className="text-[13px] text-text-secondary">
           <ol className="flex items-center gap-1.5">
-            <li>{TEXT.breadcrumbAdmin}</li>
+            <li>
+              <a className="hover:text-text-primary hover:underline" href={ROUTES.adminUsers}>
+                {TEXT.breadcrumbAdmin}
+              </a>
+            </li>
             <li aria-hidden="true">›</li>
             <li aria-current="page">{TEXT.breadcrumbHere}</li>
           </ol>
@@ -58,7 +64,7 @@ function Header({ model }: { readonly model: ModelRegistryViewModel }) {
         <h1 className="text-[20px] font-semibold text-text-primary">{TEXT.title}</h1>
       </div>
       {model.relatedLink !== null && (
-        <a className="text-[13px] text-accent hover:underline" href={model.relatedLink.href}>
+        <a className="text-[13px] font-medium text-accent underline-offset-2 hover:underline" href={model.relatedLink.href}>
           {model.relatedLink.label}
         </a>
       )}
@@ -96,12 +102,15 @@ function ActiveCard({ actions, card, focusKey }: ActiveCardProps) {
       <div className="flex min-w-0 flex-col gap-1">
         <p className="text-[12px] text-text-secondary">{TEXT.activeTitle}</p>
         <p className="truncate text-base font-semibold text-text-primary">{card.label}</p>
-        {facts.length > 0 && <p className="font-mono text-[13px] text-text-secondary">{facts.join(' · ')}</p>}
+        {facts.length > 0 && <p className="tabular-nums text-[13px] text-text-secondary">{facts.join(' · ')}</p>}
       </div>
       {card.canRevert && (
-        <Button onClick={actions.onRequestRevert} size="sm" variant="secondary">
-          {TEXT.revert}
-        </Button>
+        <div className="flex max-w-[280px] flex-col items-end gap-1">
+          <Button onClick={actions.onRequestRevert} size="sm" variant="secondary">
+            {TEXT.revert}
+          </Button>
+          <p className="text-right text-[12px] text-text-secondary">{TEXT.revertHint}</p>
+        </div>
       )}
     </section>
   );

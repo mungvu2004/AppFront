@@ -696,11 +696,11 @@ describe('relatedLink — F-12', () => {
   it('màn có liên kết "Lượt huấn luyện" sang /admin/training/jobs; `null` thì ẩn', async () => {
     renderScreen(makeClient());
 
-    expect(await screen.findByRole('link', { name: 'Lượt huấn luyện' })).toHaveAttribute('href', '/admin/training/jobs');
+    expect(await screen.findByRole('link', { name: 'Sang tab Huấn luyện' })).toHaveAttribute('href', '/admin/training/jobs');
 
     cleanup();
     renderWithProviders(<ModelRegistryContainer client={makeClient()} now={() => NOW} relatedLink={null} />);
-    expect(screen.queryByRole('link', { name: 'Lượt huấn luyện' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Sang tab Huấn luyện' })).toBeNull();
   });
 });
 

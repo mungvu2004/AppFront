@@ -104,7 +104,7 @@ const ROWS = {
   adminUsers: { anchor: { text: 'Ma trận quyền theo vai trò' } },
   adminModels: { anchor: { label: 'Tìm model' } },
   adminTrainingJobs: { anchor: { role: 'heading', name: 'Huấn luyện model AI' } },
-  adminTrainingModels: { anchor: { role: 'heading', name: 'Model AI của chuỗi xử lý' } },
+  adminTrainingModels: { anchor: { role: 'heading', name: 'Mô hình AI của chuỗi xử lý' } },
   // FIX-775 (BUG-079): breadcrumb dùng chung, `nav` tên "Đường dẫn trang"; chữ của cấp cuối mới nói đây là màn nào.
   projectUpload: { anchor: { text: 'Tải lên bản vẽ' } },
   projectQuality: { anchor: { role: 'region', name: 'Báo cáo chất lượng' } },

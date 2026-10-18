@@ -148,7 +148,7 @@ export interface ModelLibraryDetailModel {
 export interface ModelLibraryFieldModel {
   readonly label: string;
   readonly value: string;
-  /** `true` ⇒ ô giá trị mang `font-mono tabular-nums`. */
+  /** `true` ⇒ ô giá trị mang `tabular-nums`. */
   readonly isNumeric: boolean;
 }
 

@@ -77,7 +77,7 @@ const PREVIEW_FRAME =
   'relative h-60 w-full overflow-hidden rounded-lg border border-border-default bg-canvas-3d';
 
 /** Chữ đều cho mọi con số người đọc nhìn thấy — số tam giác, dung lượng, kích thước bao. */
-const NUMERIC_TEXT = 'font-mono tabular-nums';
+const NUMERIC_TEXT = 'tabular-nums';
 
 /* -------------------------------------------------------------------------- */
 /* Phần 1 — khung xem trước 3D.                                                */

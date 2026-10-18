@@ -23,7 +23,7 @@ function SummaryFigure({ caption, value, toneClassName }: SummaryFigureProps) {
   return (
     <div className="flex flex-col-reverse gap-1">
       <dt className="text-[13px] text-text-secondary">{caption}</dt>
-      <dd className={cn('font-mono text-3xl tabular-nums text-text-primary', toneClassName)}>{value}</dd>
+      <dd className={cn('text-3xl tabular-nums text-text-primary', toneClassName)}>{value}</dd>
     </div>
   );
 }

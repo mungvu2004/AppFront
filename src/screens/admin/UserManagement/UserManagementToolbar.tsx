@@ -97,15 +97,15 @@ export function UserManagementToolbar({ actions, invite, searchRef, summary, too
       <dl className="flex flex-wrap items-center gap-4 text-[13px] text-text-secondary">
         <div className="flex items-center gap-1.5">
           <dt>{SUMMARY_USER_LABEL}</dt>
-          <dd className="font-mono tabular-nums text-text-primary">{summary.userCountLabel}</dd>
+          <dd className="tabular-nums text-text-primary">{summary.userCountLabel}</dd>
         </div>
         <div className="flex items-center gap-1.5">
           <dt>{SUMMARY_ADMIN_LABEL}</dt>
-          <dd className="font-mono tabular-nums text-text-primary">{summary.adminCountLabel}</dd>
+          <dd className="tabular-nums text-text-primary">{summary.adminCountLabel}</dd>
         </div>
         <div className="flex items-center gap-1.5">
           <dt>{SUMMARY_PENDING_LABEL}</dt>
-          <dd className="font-mono tabular-nums text-text-primary">{summary.pendingInviteCountLabel}</dd>
+          <dd className="tabular-nums text-text-primary">{summary.pendingInviteCountLabel}</dd>
         </div>
       </dl>
 
