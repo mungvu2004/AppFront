@@ -32,6 +32,8 @@ export interface AppHeaderProject {
   readonly floorId?: string | undefined;
   /** Lớp đang duyệt (chỉ số trong FLOOR_LAYERS): nút chính mời sang lớp kế tiếp trước khi sang 3D. */
   readonly layerIndex?: number | undefined;
+  /** Dự án chưa có bản vẽ / lượt xử lý lỗi: nút chính không mời sang bước sau. */
+  readonly blocker?: 'no-drawings' | 'pipeline-error' | undefined;
 }
 
 export interface AppHeaderProps {
@@ -93,7 +95,18 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
           );
         })}
       </ol>
-      {project.stepIndex === -1 ? (
+      {project.stepIndex >= 0 && project.blocker === 'no-drawings' ? (
+        project.stepIndex === 0 ? (
+          <span className="shrink-0 text-[13px] text-text-secondary">Tải bản vẽ lên để đi tiếp</span>
+        ) : (
+          <Link to={ROUTES.project.upload(project.id)} className={cn(getButtonStyles({ variant: 'primary', size: 'sm' }), 'shrink-0 gap-2')}>
+            Tải bản vẽ để bắt đầu
+            <ArrowRight size={16} aria-hidden="true" />
+          </Link>
+        )
+      ) : project.stepIndex === 1 && project.blocker === 'pipeline-error' ? (
+        <span className="shrink-0 text-[13px] text-text-secondary">Xử lý gặp lỗi: xem chi tiết bên dưới trước khi đi tiếp</span>
+      ) : project.stepIndex === -1 ? (
         hasHistory ? (
           <button type="button" onClick={() => navigate(-1)} className={cn(getButtonStyles({ variant: 'secondary', size: 'sm' }), 'shrink-0 gap-2')}>
             <ArrowLeft size={16} aria-hidden="true" />

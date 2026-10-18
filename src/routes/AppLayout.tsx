@@ -33,7 +33,11 @@ export function AppLayout() {
   const projectId = location?.projectId ?? '';
 
   // Header tự đọc #24 một lần (dùng chung khóa với màn con).
-  const detail = useQuery<{ readonly name?: string }>({
+  const detail = useQuery<{
+    readonly name?: string;
+    readonly status?: string;
+    readonly floors?: readonly { readonly drawings: readonly unknown[] }[];
+  }>({
     queryKey: queryKeys.project.detail(projectId),
     // Tự nạp chi tiết khi đang trong dự án, để tên có ở mọi màn (cùng khóa nên dùng chung bộ đệm với màn con).
     queryFn:
@@ -50,6 +54,15 @@ export function AppLayout() {
   });
   const projectName =
     location === null ? null : (detail.data?.name?.trim() || null) ?? cachedProjectName(queryClient, projectId) ?? (detail.isError ? 'Dự án' : null);
+
+  // Nút "Bước tiếp theo" theo trạng thái dự án (G3-06, G3-28, G3-32): chưa có bản vẽ / xử lý lỗi thì không mời đi tiếp.
+  const floors = detail.data?.floors;
+  const blocker =
+    detail.data?.status === 'error'
+      ? ('pipeline-error' as const)
+      : floors !== undefined && !floors.some((floor) => floor.drawings.length > 0)
+        ? ('no-drawings' as const)
+        : undefined;
 
   const handleSignOut = useCallback((): void => {
     void signOut().finally(() => navigate(ROUTES.login));
@@ -69,7 +82,7 @@ export function AppLayout() {
         project={
           location === null
             ? null
-            : { id: location.projectId, name: projectName, stepIndex: location.stepIndex, floorId: location.floorId, layerIndex: location.layerIndex }
+            : { id: location.projectId, name: projectName, stepIndex: location.stepIndex, floorId: location.floorId, layerIndex: location.layerIndex, blocker }
         }
         onSignOut={handleSignOut}
       />

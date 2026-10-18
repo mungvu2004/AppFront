@@ -45,6 +45,16 @@ describe('AppHeader', () => {
     expect(screen.getByRole('link', { name: /Tiếp: Cửa và nội thất/ })).toHaveAttribute('href', ROUTES.project.objects('p1', 'f1'));
   });
 
+  it('chưa có bản vẽ hoặc xử lý lỗi: nút chính không mời sang bước sau', () => {
+    const { unmount } = renderHeader({ project: { id: 'p1', name: null, stepIndex: 1, blocker: 'no-drawings' } });
+    expect(screen.queryByRole('link', { name: /Bước tiếp theo/ })).toBeNull();
+    expect(screen.getByRole('link', { name: /Tải bản vẽ để bắt đầu/ })).toHaveAttribute('href', ROUTES.project.upload('p1'));
+    unmount();
+    renderHeader({ project: { id: 'p1', name: null, stepIndex: 1, blocker: 'pipeline-error' } });
+    expect(screen.queryByRole('link', { name: /Bước tiếp theo/ })).toBeNull();
+    expect(screen.getByText(/Xử lý gặp lỗi/)).toBeInTheDocument();
+  });
+
   it('quản trị viên thấy liên kết "Quản trị"', () => {
     renderHeader({ showAdmin: true });
     expect(screen.getByRole('link', { name: 'Quản trị' })).toHaveAttribute('href', ROUTES.adminUsers);
