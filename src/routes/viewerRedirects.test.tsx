@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import { ROUTE_PATTERNS } from './paths';
-import { ExplodedViewRedirect } from './viewerRedirects';
+import { ExplodedViewRedirect, MeasureViewRedirect } from './viewerRedirects';
 
 /** In địa chỉ đích ra DOM để khẳng định cả query lẫn hash. */
 function Landing() {
@@ -26,5 +26,20 @@ describe('ExplodedViewRedirect', () => {
     expect(screen.getByTestId('landing').textContent).toBe(
       '/projects/p1/3d?tool=measure&view=exploded#x',
     );
+  });
+});
+
+describe('MeasureViewRedirect', () => {
+  it('/3d/measure cũ về /3d?tool=measure, giữ query và hash', () => {
+    render(
+      <MemoryRouter initialEntries={['/projects/p1/3d/measure?v=3#x']}>
+        <Routes>
+          <Route path={ROUTE_PATTERNS.projectMeasure} element={<MeasureViewRedirect />} />
+          <Route path={ROUTE_PATTERNS.projectViewer} element={<Landing />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId('landing').textContent).toBe('/projects/p1/3d?v=3&tool=measure#x');
   });
 });

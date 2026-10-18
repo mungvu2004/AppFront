@@ -407,6 +407,10 @@ export interface FloorManagerViewProps {
   readonly onUploadDrawing: (floorId: string) => void;
   /** Lối vào màn Đối chiếu lớp phủ (SCR-22) của một tầng; vắng thì không vẽ nút. */
   readonly onOpenOverlay?: ((floorId: string) => void) | undefined;
+  /** Lối vào các màn duyệt lớp của một tầng (menu "Duyệt lớp"); vắng thì không vẽ nút. */
+  /** Lối vào màn cấp dự án (menu "Thêm" đầu màn); vắng thì không vẽ nút. */
+  readonly onOpenProjectScreen?: ((screen: ProjectMoreScreen) => void) | undefined;
+  readonly onOpenFloorScreen?: ((floorId: string, screen: FloorReviewScreen) => void) | undefined;
   readonly onToggleCollapsed: () => void;
   readonly onRetry: () => void;
   /** Lối về danh sách dự án: nút khi {@link FloorManagerViewProps.isProjectMissing} và cấp "Dự án" của breadcrumb; vắng thì không vẽ nút, cấp ấy là chữ trơn. */
@@ -466,3 +470,25 @@ export const FLOOR_COLUMN_LABELS = {
   qc: 'Tiến độ QC',
   actions: 'Hành động',
 } as const;
+
+/** Các màn duyệt theo tầng mà menu "Duyệt lớp" ở mỗi dòng dẫn tới; khoá trùng tên builder `ROUTES.project.*`. */
+export const FLOOR_REVIEW_SCREENS = [
+  { id: 'walls', label: 'Duyệt tường' },
+  { id: 'objects', label: 'Cửa & nội thất' },
+  { id: 'dimensions', label: 'Kích thước (OCR)' },
+  { id: 'grids', label: 'Trục & gốc toạ độ' },
+  { id: 'rooms', label: 'Tên phòng' },
+  { id: 'thickness', label: 'Độ dày tường' },
+  { id: 'scale', label: 'Hiệu chỉnh tỉ lệ' },
+] as const;
+
+export type FloorReviewScreen = (typeof FLOOR_REVIEW_SCREENS)[number]['id'];
+
+/** Màn cấp dự án mà menu "Thêm" ở đầu màn dẫn tới; khoá trùng tên builder `ROUTES.project.*`. */
+export const PROJECT_MORE_SCREENS = [
+  { id: 'data', label: 'Dữ liệu không gian' },
+  { id: 'versions', label: 'Lịch sử phiên bản' },
+  { id: 'pipelineGraph', label: 'Sơ đồ xử lý' },
+] as const;
+
+export type ProjectMoreScreen = (typeof PROJECT_MORE_SCREENS)[number]['id'];

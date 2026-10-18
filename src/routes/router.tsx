@@ -21,7 +21,7 @@ import {
 import { useStore } from '@/store';
 
 import { ROUTE_PATTERNS } from './paths';
-import { ExplodedViewRedirect, PascalViewerRedirect } from './viewerRedirects';
+import { ExplodedViewRedirect, MeasureViewRedirect, PascalViewerRedirect } from './viewerRedirects';
 import { RouteErrorScreen } from './RouteErrorScreen';
 import { PendingShell, SessionBootstrap } from './SessionBootstrap';
 
@@ -73,7 +73,6 @@ const RouteInputQualityGate = lazy(() => import('../screens/upload/InputQualityG
 const RouteProcessing = lazy(() => import('../screens/pipeline/ProcessingScreen').then(m => ({ default: m.ProcessingScreenRoute })));
 const RouteScaleCalibration = lazy(() => import('../screens/pipeline/ScaleCalibration').then(m => ({ default: m.ScaleCalibrationRoute })));
 const RouteOverlayComparison = lazy(() => import('../screens/viewer/OverlayComparison').then(m => ({ default: m.OverlayComparisonRoute })));
-const RouteMeasurementTool = lazy(() => import('../screens/viewer/MeasurementTool').then(m => ({ default: m.MeasurementToolRoute })));
 const RouteRules = lazy(() => import('../screens/rules/RuleReport').then(m => ({ default: m.RulesRoute })));
 const RouteRuleSettings = lazy(() => import('../screens/rules/RuleSettings').then(m => ({ default: m.RuleSettingsRoute })));
 const RouteExportPanel = lazy(() => import('../screens/export/ExportPanel').then(m => ({ default: m.ExportPanelRoute })));
@@ -357,7 +356,7 @@ export const routes: RouteObject[] = [
       { path: ROUTE_PATTERNS.passwordReset, element: suspendedOutsideMain(<RoutePasswordReset />) },
       { path: ROUTE_PATTERNS.dashboard, element: suspendedOutsideMain(<RouteDashboard />) },
       { path: ROUTE_PATTERNS.projectExploded, element: <ExplodedViewRedirect /> },
-      { path: ROUTE_PATTERNS.projectMeasure, element: suspendedOutsideMain(<RouteMeasurementTool />) },
+      { path: ROUTE_PATTERNS.projectMeasure, element: <MeasureViewRedirect /> },
       // Màn di động: route MỚI, không thay chỗ một route tạm nào (R-66).
       { path: ROUTE_PATTERNS.mobileViewer, element: suspendedOutsideMain(<RouteMobileViewer />) },
       ...STATE_GALLERY_DEV_ONLY_ROUTES,

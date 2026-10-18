@@ -66,6 +66,7 @@ import { cn } from '@/lib/utils';
 import { FloorSectionCut } from './FloorSectionCut';
 import { FloorTable } from './FloorTable';
 import type { FloorManagerViewProps } from './floorManagerTypes';
+import { ProjectMoreMenu } from './ProjectMoreMenu';
 
 const SCREEN_TITLE = 'Quản lý tầng';
 /** Cùng component, cùng dấu "›" với màn tải bản vẽ và cổng chất lượng (BUG-079). */
@@ -124,7 +125,10 @@ export function FloorManager(props: FloorManagerViewProps) {
             { id: 'floors', label: SCREEN_TITLE },
           ]}
         />
-        <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
+          {props.onOpenProjectScreen !== undefined && <ProjectMoreMenu onOpen={props.onOpenProjectScreen} />}
+        </div>
         <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
       </header>
 
@@ -200,6 +204,7 @@ export function FloorManager(props: FloorManagerViewProps) {
               onToggleHiddenIn3d={props.onToggleHiddenIn3d}
               onUploadDrawing={props.onUploadDrawing}
               onOpenOverlay={props.onOpenOverlay}
+              onOpenFloorScreen={props.onOpenFloorScreen}
               rows={props.rows}
               state={state}
             />
