@@ -9,7 +9,10 @@
     <title>2D/3D Frontend</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Chữ chờ tĩnh trước khi JS chạy (P05 · G1-02, G2-26): mở bằng URL/F5 từng là trang trắng tới
+         lúc mô-đun đầu tiên nạp xong. React thay nội dung #root ở lượt vẽ đầu, nên khối này tự mất.
+         CSS ứng dụng chưa nạp lúc này nên màu viết thẳng, khớp --bg-app/--text-secondary nền sáng. -->
+    <div id="root"><div role="status" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#f6f4f0;color:#605d58;font:14px/20px system-ui,sans-serif">Đang mở ứng dụng…</div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

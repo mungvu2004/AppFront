@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 
 import { editor3dHref, ROUTE_PATTERNS } from './paths';
+import { PendingShell } from './SessionBootstrap';
 
 /**
  * `/3d/pascal` giờ chỉ là địa chỉ cũ của `/3d` (F-15).
@@ -72,5 +73,6 @@ export function Pascal3dPage() {
     window.location.replace(editor3dHref(projectId ?? '', search));
   }, [projectId, search]);
 
-  return null;
+  // Trang mới nạp cả tài liệu, mất vài giây: có chữ chờ thay cho màn trắng (P05 · G5-02, G5-42).
+  return <PendingShell label="Đang mở mô hình 3D" />;
 }
