@@ -99,6 +99,8 @@ export interface CreateProjectFloorRowModel {
   readonly name: string;
   readonly kind: 'basement' | 'floor';
   readonly clearHeightM: number | null;
+  /** `"3,2 m"`, already formatted; `null` while no height is typed (G3-05). */
+  readonly clearHeightLabel: string | null;
   /** `"-3,0 m"`, already formatted; `null` while the stack cannot be computed yet. */
   readonly elevationLabel: string | null;
   /** This row's own complaint — missing height, out of range, or a collision naming it. */
@@ -200,6 +202,8 @@ function generateProjectCode(name: string): string {
 function rowIdFromLevelId(levelId: LevelId): string {
   return levelId.slice(LEVEL_ID_PREFIX_LENGTH);
 }
+
+const AUTO_FLOOR_NAME = /^Tầng (trệt|\d+)$/u;
 
 /** Names the next floor above the ground the way {@link addFloor} always has. */
 function nextFloorName(aboveCount: number): string {
@@ -507,6 +511,8 @@ export interface CreateProjectModel {
   };
   /** Why "Tên dự án" is required — the reason a pristine step 1 cannot continue yet. */
   readonly nameHint: string;
+  /** The name field lost focus: a blank name now says so (G1-29). */
+  readonly touchName: () => void;
   readonly notice: CreateProjectNotice | null;
   readonly floorRows: readonly CreateProjectFloorRowModel[];
   /** Why step 2 cannot continue — shown for as long as it cannot, so the locked "Tiếp tục" always says why (BUG-120). */
@@ -693,6 +699,7 @@ export function useCreateProjectModal(
     name: row.name,
     kind: row.kind,
     clearHeightM: row.clearHeightM,
+    clearHeightLabel: row.clearHeightM === null ? null : `${formatNumber(row.clearHeightM)} m`,
     elevationLabel: floorStack.elevationLabelById.get(row.id) ?? null,
     // Step 2 opens neutral (BUG-120): a row complains once a height has been typed or applied — or the server refused it.
     problem:
@@ -768,8 +775,20 @@ export function useCreateProjectModal(
   };
 
   const removeFloor = (id: string): void => {
+    if (floorRows.length <= 1) return; // At least one floor stays (G1-30).
     markDirty();
-    setFloorRows((current) => current.filter((row) => row.id !== id));
+    setFloorRows((current) => {
+      // Floors still carrying their automatic name ("Tầng trệt", "Tầng 2") follow their new position (G1-30).
+      let above = 0;
+      return current
+        .filter((row) => row.id !== id)
+        .map((row) => {
+          if (row.kind !== 'floor') return row;
+          const position = above;
+          above += 1;
+          return AUTO_FLOOR_NAME.test(row.name.trim()) ? { ...row, name: nextFloorName(position) } : row;
+        });
+    });
   };
 
   const setFloorName = (id: string, value: string): void => {
@@ -910,7 +929,11 @@ export function useCreateProjectModal(
     notes,
     buildingTypeOptions: BUILDING_TYPE_OPTIONS,
     problems,
-    nameHint: NAME_HINT,
+    nameHint:
+      name.trim().normalize('NFC').length >= PROJECT_LIMITS.nameMaxLength
+        ? `Đã đủ ${formatNumber(PROJECT_LIMITS.nameMaxLength)} ký tự, phần nhập thêm không được nhận.`
+        : NAME_HINT,
+    touchName: () => setNameTouched(true),
     notice,
     floorRows: floorRowModels,
     floorsHint,

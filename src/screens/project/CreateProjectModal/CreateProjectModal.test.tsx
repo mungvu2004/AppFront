@@ -56,10 +56,10 @@ const BUILDING_TYPE_OPTIONS = [
 
 /** The acceptance case this task's own verification names: a basement plus three floors. */
 const STACKED_FLOOR_ROWS: CreateProjectFloorRowModel[] = [
-  { id: 'row-basement', name: 'Tầng hầm', kind: 'basement', clearHeightM: 3, elevationLabel: '-3,0 m', problem: null, nameProblem: null },
-  { id: 'row-ground', name: 'Tầng trệt', kind: 'floor', clearHeightM: 3.9, elevationLabel: '0,0 m', problem: null, nameProblem: null },
-  { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: 3.6, elevationLabel: '3,9 m', problem: null, nameProblem: null },
-  { id: 'row-2', name: 'Tầng 2', kind: 'floor', clearHeightM: 3, elevationLabel: '7,5 m', problem: null, nameProblem: null },
+  { id: 'row-basement', name: 'Tầng hầm', kind: 'basement', clearHeightM: 3, clearHeightLabel: null, elevationLabel: '-3,0 m', problem: null, nameProblem: null },
+  { id: 'row-ground', name: 'Tầng trệt', kind: 'floor', clearHeightM: 3.9, clearHeightLabel: null, elevationLabel: '0,0 m', problem: null, nameProblem: null },
+  { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: 3.6, clearHeightLabel: null, elevationLabel: '3,9 m', problem: null, nameProblem: null },
+  { id: 'row-2', name: 'Tầng 2', kind: 'floor', clearHeightM: 3, clearHeightLabel: null, elevationLabel: '7,5 m', problem: null, nameProblem: null },
 ];
 
 function baseProps(): CreateProjectModalViewProps {
@@ -81,6 +81,7 @@ function baseProps(): CreateProjectModalViewProps {
     buildingTypeOptions: BUILDING_TYPE_OPTIONS,
     problems: { name: null, code: null, address: null },
     nameHint: 'Bắt buộc, từ 3 đến 80 ký tự.',
+    touchName: () => undefined,
     notice: null,
     floorRows: STACKED_FLOOR_ROWS,
     floorsHint: null,
@@ -143,7 +144,7 @@ const PROPS_BY_STATE: Readonly<Record<SevenState, () => CreateProjectModalViewPr
     floorRows: [
       STACKED_FLOOR_ROWS[0] as CreateProjectFloorRowModel,
       STACKED_FLOOR_ROWS[1] as CreateProjectFloorRowModel,
-      { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: null, elevationLabel: null, problem: 'Chưa nhập chiều cao thông thuỷ.', nameProblem: null },
+      { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: null, clearHeightLabel: null, elevationLabel: null, problem: 'Chưa nhập chiều cao thông thuỷ.', nameProblem: null },
     ],
   }),
   error: () => ({
@@ -535,7 +536,7 @@ describe('CreateProjectModal, wired to its hook', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thêm tầng' }));
 
     const names = screen.getAllByRole('textbox', { name: /^Tên tầng/u }).map((box) => (box as HTMLInputElement).value);
-    expect(names).toEqual(['Tầng trệt', 'Tầng lửng', 'Tầng 3', 'Tầng 4']);
+    expect(names).toEqual(['Tầng trệt', 'Tầng lửng', 'Tầng 2', 'Tầng 3']);
   });
 
   it('marks a blank floor name at step 2 and blocks "Tiếp tục" (BUG-185)', () => {
@@ -568,19 +569,21 @@ describe('CreateProjectModal, wired to its hook', () => {
     }
   });
 
-  it('clears a refused row height with "áp cho mọi tầng", even with the height the row already holds', () => {
+  it('clears a refused row height with "áp cho mọi tầng", even with the height the row already holds', async () => {
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
 
     goToStep2();
     setHeight('Chiều cao áp cho mọi tầng', '3');
     fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
     setHeight('Chiều cao thông thuỷ tầng Tầng trệt', '12');
-    expect(screen.getByRole('alert')).toHaveTextContent('Giá trị không quá 10 m.');
+    expect((await screen.findAllByRole('alert')).map((a) => a.textContent).join(' ')).toContain('Chiều cao thông thuỷ áp dụng từ 2 đến 10 mét.');
 
     fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
 
-    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng trệt')).toHaveValue('3');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    // G1-31 keeps the refused 12 in the row, so the apply is a write from outside and the box
+    // counts 12 down to 3 (useNumericField); wait for the run to land instead of reading a frame.
+    await waitFor(() => expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng trệt')).toHaveValue('3'));
+    expect(screen.queryAllByRole('alert')).toHaveLength(0);
   });
 
   it('reads "3.5" in "áp cho mọi tầng" as 3,5 m and never erases the floors (BUG-132)', async () => {
@@ -718,9 +721,9 @@ describe('CreateProjectModal, wired to its hook', () => {
     await user.keyboard(' ');
     expect(basement).toHaveAttribute('aria-checked', 'true');
 
-    screen.getByRole('button', { name: 'Xoá Tầng 2' }).focus();
+    screen.getByRole('button', { name: 'Xoá Tầng 3' }).focus();
     await user.keyboard('{Enter}');
-    expect(screen.queryByLabelText('Tên tầng Tầng 2')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Tên tầng Tầng 3')).not.toBeInTheDocument();
   });
 
   it('closes an open "Loại công trình" list on Esc and keeps the dialog (BUG-152)', async () => {
@@ -747,7 +750,7 @@ describe('CreateProjectModal, wired to its hook', () => {
 
     fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: 'Bản nháp' } });
     fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
-    expect(screen.getByText('Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đổi" để đóng.')).toBeInTheDocument();
+    expect(screen.getByText('Bấm "Đóng, bỏ thay đổi" để đóng, hoặc "Tiếp tục sửa" để quay lại.')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục sửa' }));
 

@@ -146,8 +146,6 @@ export function StepFloors(props: StepFloorsProps) {
                       className="w-full"
                       value={row.clearHeightM ?? undefined}
                       onChange={(value) => props.setFloorHeight(row.id, value)}
-                      min={PROJECT_LIMITS.storeyHeightMinM}
-                      max={PROJECT_LIMITS.storeyHeightMaxM}
                       unit="m"
                       disabled={isSubmitting}
                       aria-label={`Chiều cao thông thuỷ tầng ${row.name}`}
@@ -160,12 +158,12 @@ export function StepFloors(props: StepFloorsProps) {
                   <Table.Cell className={ROW_CELL}>
                     <span className={FIELD_HIGH}>
                       {/* Its tooltip to the left: on top, the first row's covered the "Cao độ" column header (BUG-232). */}
-                      <Tooltip label={`Xoá ${row.name}`} side="left" disabled={isSubmitting}>
+                      <Tooltip label={floorRows.length <= 1 ? 'Cần ít nhất một tầng' : `Xoá ${row.name}`} side="left" disabled={isSubmitting}>
                         <IconButton
                           icon={<Trash2 size={16} aria-hidden="true" />}
                           aria-label={`Xoá ${row.name}`}
                           onClick={() => props.removeFloor(row.id)}
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || floorRows.length <= 1}
                           tooltip={false}
                         />
                       </Tooltip>

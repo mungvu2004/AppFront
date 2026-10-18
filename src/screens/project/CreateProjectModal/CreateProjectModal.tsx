@@ -106,6 +106,7 @@ function StepInfo(props: CreateProjectModalViewProps) {
           label="Tên dự án"
           value={props.name}
           onChange={(event) => props.setName(event.target.value)}
+          onBlur={props.touchName}
           maxLength={PROJECT_LIMITS.nameMaxLength}
           error={props.problems.name}
           hint={props.nameHint}
@@ -208,7 +209,7 @@ function DiscardPrompt(props: CreateProjectModalViewProps & { readonly cancelRef
             Đóng và bỏ các thay đổi chưa lưu?
           </h4>
           <p className="text-pretty text-[14px] leading-relaxed text-state-attention-text">
-            Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đổi" để đóng.
+            Bấm "Đóng, bỏ thay đổi" để đóng, hoặc "Tiếp tục sửa" để quay lại.
           </p>
         </div>
       </div>

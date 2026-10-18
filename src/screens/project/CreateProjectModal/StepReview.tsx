@@ -60,13 +60,15 @@ export function StepReview(props: CreateProjectModalViewProps) {
       <div className="mt-4 flex flex-col gap-1 rounded-lg border border-border-default p-3">
         {/* The numbers are floor levels — named as step 2 names them (BUG-121). */}
         <div className="flex items-center justify-between text-[12px] font-medium leading-[18px] text-text-secondary">
-          <span>Tầng</span>
-          <span>Cao độ</span>
+          <span className="flex-1">Tầng</span>
+          <span className="w-28 text-right">Chiều cao thông thuỷ</span>
+          <span className="w-20 text-right">Cao độ</span>
         </div>
         {props.floorRows.map((row) => (
           <div key={row.id} className="flex items-center justify-between text-[13px]">
-            <span className="text-text-primary">{row.name}</span>
-            <span className="font-mono text-text-secondary">{row.elevationLabel ?? '—'}</span>
+            <span className="flex-1 text-text-primary">{row.name}</span>
+            <span className="w-28 text-right text-text-secondary">{row.clearHeightLabel ?? '—'}</span>
+            <span className="w-20 text-right text-text-secondary">{row.elevationLabel ?? '—'}</span>
           </div>
         ))}
       </div>
