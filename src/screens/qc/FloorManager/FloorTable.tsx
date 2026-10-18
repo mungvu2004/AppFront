@@ -39,6 +39,7 @@ import { useContextMenu } from '@/hooks/useContextMenu';
 import { CELL, FloorTableRow } from './FloorTableRow';
 import {
   FLOOR_COLUMN_LABELS,
+  FLOOR_REVIEW_SCREENS,
   type FloorManagerScreenState,
   type FloorManagerViewProps,
   type FloorRowVm,
@@ -66,6 +67,7 @@ export interface FloorTableProps
     | 'onToggleAutoElevation'
     | 'onUploadDrawing'
     | 'onOpenOverlay'
+    | 'onOpenFloorScreen'
     | 'onRetry'
     | 'isProjectMissing'
     | 'onBackToProjects'
@@ -110,6 +112,7 @@ export function FloorTable({
   onToggleAutoElevation,
   onUploadDrawing,
   onOpenOverlay,
+  onOpenFloorScreen,
   onRetry,
   isProjectMissing,
   onBackToProjects,
@@ -184,6 +187,22 @@ export function FloorTable({
             action: () => onRemoveFloor(row.id),
           },
         ],
+      },
+    ]);
+  };
+
+  const openReviewMenu = (event: MouseEvent, row: FloorRowVm) => {
+    if (onOpenFloorScreen === undefined) return;
+    // Mở bằng phím thì clientX/Y = 0: neo menu vào chính nút.
+    const anchor = event.currentTarget.getBoundingClientRect();
+    menu.openMenu(anchor.left, anchor.bottom, [
+      {
+        id: 'review-screens',
+        items: FLOOR_REVIEW_SCREENS.map((screen) => ({
+          id: screen.id,
+          label: screen.label,
+          action: () => onOpenFloorScreen(row.id, screen.id),
+        })),
       },
     ]);
   };
@@ -299,6 +318,7 @@ export function FloorTable({
                   onSelectFloor={onSelectFloor}
                   onSetCopyFurniture={setCopyFurniture}
                   onOpenOverlay={onOpenOverlay}
+                  {...(onOpenFloorScreen !== undefined ? { onOpenReviewMenu: openReviewMenu } : {})}
                   onUploadDrawing={onUploadDrawing}
                   row={row}
                   rows={rows}

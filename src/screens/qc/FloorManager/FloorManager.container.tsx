@@ -70,6 +70,7 @@ import type { ProjectRole } from '@/types/project';
 
 import { FloorManager } from './FloorManager';
 import type { FloorManagerGateway } from './floorManagerGateway';
+import type { FloorReviewScreen, ProjectMoreScreen } from './floorManagerTypes';
 import { useFloorManager } from './useFloorManager';
 
 /** Mã màn, cho ranh giới lỗi và cho nhật ký — một chỗ viết duy nhất (R-71). */
@@ -100,6 +101,8 @@ export interface FloorManagerContainerProps {
   readonly onNavigateToDrawings?: (floorId: string) => void;
   /** Mở màn Đối chiếu lớp phủ (SCR-22) của tầng; route nối vào `useNavigate`. */
   readonly onNavigateToOverlay?: (floorId: string) => void;
+  readonly onNavigateToProjectScreen?: (screen: ProjectMoreScreen) => void;
+  readonly onNavigateToFloorScreen?: (floorId: string, screen: FloorReviewScreen) => void;
   /** Lối về danh sách dự án khi dự án không tồn tại (404); {@link FloorManagerRoute} nối vào `useNavigate`. */
   readonly onBackToProjects?: (() => void) | undefined;
   /** Cổng dữ liệu tiêm được. Vắng mặt thì hook dựng bản thật, đúng một lần. */
@@ -185,6 +188,8 @@ function WiredFloorManager(props: FloorManagerContainerProps) {
       onToggleHiddenIn3d={result.onToggleHiddenIn3d}
       onUndo={result.onUndo}
       onOpenOverlay={props.onNavigateToOverlay}
+      onOpenFloorScreen={props.onNavigateToFloorScreen}
+      onOpenProjectScreen={props.onNavigateToProjectScreen}
       onUploadDrawing={result.onUploadDrawing}
       rows={result.rows}
       state={result.state}
@@ -265,6 +270,20 @@ function FloorManagerRouteBody({
     [navigate, projectId],
   );
 
+  const handleNavigateToFloorScreen = useCallback(
+    (floorId: string, screen: FloorReviewScreen) => {
+      navigate(ROUTES.project[screen](projectId, floorId));
+    },
+    [navigate, projectId],
+  );
+
+  const handleNavigateToProjectScreen = useCallback(
+    (screen: ProjectMoreScreen) => {
+      navigate(ROUTES.project[screen](projectId));
+    },
+    [navigate, projectId],
+  );
+
   const handleBackToProjects = useCallback(() => {
     navigate(ROUTES.dashboard);
   }, [navigate]);
@@ -277,7 +296,9 @@ function FloorManagerRouteBody({
         isCompact={isCompact}
         onBackToProjects={handleBackToProjects}
         onNavigateToDrawings={handleNavigateToDrawings}
+        onNavigateToFloorScreen={handleNavigateToFloorScreen}
         onNavigateToOverlay={handleNavigateToOverlay}
+        onNavigateToProjectScreen={handleNavigateToProjectScreen}
         projectId={projectId}
         roles={roles}
       />

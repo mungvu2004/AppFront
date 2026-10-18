@@ -36,6 +36,7 @@ import { Toggle } from '@/components/ui/Toggle';
 import { formatNumber, parseNumber } from '@/lib/format/number';
 import { cn } from '@/lib/utils';
 
+import { FloorRowLinks } from './FloorRowLinks';
 import { FLOOR_COLUMN_LABELS, type FloorEditableField, type FloorManagerViewProps, type FloorRowVm } from './floorManagerTypes';
 
 /** Chỉ chín hàm xử lý dòng cần — tránh `import type` vòng ngược với `FloorTable.tsx`. */
@@ -55,7 +56,6 @@ const NEEDS_DRAWING_LABEL = 'Chưa có bản vẽ';
 /** Đuôi nhãn dòng khi chưa có bản vẽ: chưa có gì để kiểm nên không đọc "— đã kiểm" (BUG-263). */
 const NEEDS_DRAWING_ROW_SUFFIX = 'chưa có bản vẽ';
 const UPLOAD_LINK_LABEL = 'Tải lên';
-const OVERLAY_ACTION_LABEL = 'Đối chiếu lớp phủ';
 const COPY_FURNITURE_LABEL = 'Sao chép nội thất sang tầng mới';
 /** Ô nhập mét đọc như ô bảng bên cạnh, "4,0" chứ không "4" (BUG-306; `metreText` của hook). */
 const METRE_FRACTION_DIGITS = 1;
@@ -128,6 +128,7 @@ export interface FloorTableRowProps {
   readonly onUploadDrawing: FloorRowHandlers['onUploadDrawing'];
   readonly onOpenOverlay?: FloorRowHandlers['onOpenOverlay'];
   readonly onOpenMenu: (event: MouseEvent, row: FloorRowVm) => void;
+  readonly onOpenReviewMenu?: (event: MouseEvent, row: FloorRowVm) => void;
   readonly onCancelDuplicate: () => void;
   readonly onSetCopyFurniture: (value: boolean) => void;
   readonly onConfirmDuplicate: (floorId: string) => void;
@@ -171,6 +172,7 @@ export function FloorTableRow({
   onUploadDrawing,
   onOpenOverlay,
   onOpenMenu,
+  onOpenReviewMenu,
   onCancelDuplicate,
   onSetCopyFurniture,
   onConfirmDuplicate,
@@ -400,21 +402,9 @@ export function FloorTableRow({
             </div>
           </Table.Cell>
 
-          {(canEdit || onOpenOverlay !== undefined) && (
+          {(canEdit || onOpenOverlay !== undefined || onOpenReviewMenu !== undefined) && (
             <Table.Cell className={cell}>
-              {onOpenOverlay !== undefined && row.hasDrawing && (
-                <Button
-                  aria-label={`${OVERLAY_ACTION_LABEL} tầng ${row.name}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onOpenOverlay(row.id);
-                  }}
-                  size="sm"
-                  variant="ghost"
-                >
-                  {OVERLAY_ACTION_LABEL}
-                </Button>
-              )}
+              <FloorRowLinks onOpenOverlay={onOpenOverlay} onOpenReviewMenu={onOpenReviewMenu} row={row} />
               {canEdit && <IconButton
                 aria-label={`Thao tác khác cho tầng ${row.name}`}
                 icon={<MoreVertical className="h-4 w-4" />}

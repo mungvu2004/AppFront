@@ -41,3 +41,19 @@ export function ExplodedViewRedirect() {
     />
   );
 }
+
+/** `/3d/measure` cũ → `/3d?tool=measure`: màn 3D tự lo công cụ đo. Query và hash cũ đi theo, `tool` ghi đè. */
+export function MeasureViewRedirect() {
+  const { projectId } = useParams<{ projectId: string }>();
+  const { search, hash } = useLocation();
+  const query = new URLSearchParams(search);
+
+  query.set('tool', 'measure');
+
+  return (
+    <Navigate
+      replace
+      to={`${ROUTE_PATTERNS.projectViewer.replace(':projectId', projectId ?? '')}?${query.toString()}${hash}`}
+    />
+  );
+}

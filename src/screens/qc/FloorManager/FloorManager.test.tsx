@@ -807,3 +807,46 @@ describe('[SCR-22] lối vào Đối chiếu lớp phủ', () => {
     expect(onOpenOverlay).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('lối vào các màn duyệt lớp của tầng', () => {
+  it('nút "Duyệt lớp" mở menu bảy màn; chọn một mục bắn mã tầng và mã màn', async () => {
+    const onOpenFloorScreen = vi.fn();
+
+    renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onOpenFloorScreen={onOpenFloorScreen} />);
+
+    const [first] = screen.getAllByRole('button', { name: /^Duyệt lớp/ });
+
+    expect(first).toBeDefined();
+    fireEvent.click(first!);
+
+    const items = await screen.findAllByRole('menuitem');
+
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Duyệt tường',
+      'Cửa & nội thất',
+      'Kích thước (OCR)',
+      'Trục & gốc toạ độ',
+      'Tên phòng',
+      'Độ dày tường',
+      'Hiệu chỉnh tỉ lệ',
+    ]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Tên phòng' }));
+    expect(onOpenFloorScreen).toHaveBeenCalledWith(expect.any(String), 'rooms');
+  });
+});
+
+describe('menu "Thêm" ở đầu màn: lối vào màn cấp dự án', () => {
+  it('mở menu ba màn; chọn "Lịch sử phiên bản" bắn mã màn', async () => {
+    const onOpenProjectScreen = vi.fn();
+
+    renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onOpenProjectScreen={onOpenProjectScreen} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm màn của dự án' }));
+
+    const items = await screen.findAllByRole('menuitem');
+
+    expect(items.map((item) => item.textContent)).toEqual(['Dữ liệu không gian', 'Lịch sử phiên bản', 'Sơ đồ xử lý']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Lịch sử phiên bản' }));
+    expect(onOpenProjectScreen).toHaveBeenCalledWith('versions');
+  });
+});
