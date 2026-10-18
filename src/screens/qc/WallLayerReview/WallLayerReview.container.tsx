@@ -103,7 +103,7 @@ const WALL_QUERY_KEY = 'wall';
 
 const MISSING_PARAMS_TITLE = 'Thiếu mã dự án hoặc mã tầng';
 /** Giữa cạnh dưới như mặc định, nhưng cao hơn thanh trạng thái của màn (BUG-397) — lớp CSS có sẵn. */
-const TOUR_CHIP_ANCHOR = 'bottom-16 left-1/2 -translate-x-1/2';
+const TOUR_CHIP_ANCHOR = 'bottom-16 right-4';
 const MISSING_PARAMS_MESSAGE =
   'Đường dẫn không mang đủ mã dự án và mã tầng, nên chưa mở được lớp tường. Quay lại danh sách tầng rồi chọn lại tầng cần duyệt.';
 

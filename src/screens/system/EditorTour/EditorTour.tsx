@@ -125,7 +125,7 @@ function backdropPanels(
  * Giữa cạnh dưới (B-V2-05): đo cả ba màn chủ ở 1280×720 và 1440×900, chỗ này không đè
  * điều khiển nào. Bài: e2e/v2v3/tour-chip.spec.ts.
  */
-const DEFAULT_CHIP_ANCHOR = 'bottom-4 left-1/2 -translate-x-1/2';
+const DEFAULT_CHIP_ANCHOR = 'bottom-4 right-4';
 
 export function EditorTour(props: EditorTourProps) {
   const {
@@ -395,7 +395,7 @@ export function EditorTour(props: EditorTourProps) {
         </div>
       )}
 
-      {/* Vị trí do màn chủ truyền (NO-208); mặc định giữa cạnh dưới (B-V2-05) — xem `DEFAULT_CHIP_ANCHOR`. */}
+      {/* Vị trí do màn chủ truyền (NO-208); mặc định góc phải dưới như thẻ hướng dẫn (G4a-07) — xem `DEFAULT_CHIP_ANCHOR`. */}
       {isSkipChipVisible && (
         <div className={cn('pointer-events-auto fixed', chipAnchorClassName)}>
           <Button variant="secondary" size="sm" onClick={onReopen}>

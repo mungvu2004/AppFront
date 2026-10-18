@@ -200,7 +200,14 @@ export function WallThicknessLegend({
         <div className="flex items-center gap-2 px-2 py-1">
           <span
             className="shrink-0 rounded-[3px]"
-            style={{ width: 16, height: 16, backgroundColor: OTHER_THICKNESS_TOKEN }}
+            style={{
+              width: 16,
+              height: 16,
+              backgroundColor: OTHER_THICKNESS_TOKEN,
+              // Viền đứt khớp tường "Khác" trên bản vẽ (G4a-04).
+              border: '1.5px dashed var(--text-secondary)',
+              boxSizing: 'border-box',
+            }}
             aria-hidden="true"
           />
           <span className="font-mono text-sm text-text-primary leading-none">{otherLabel}</span>

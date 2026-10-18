@@ -34,6 +34,8 @@ export interface AppHeaderProject {
   readonly layerIndex?: number | undefined;
   /** Dự án chưa có bản vẽ / lượt xử lý lỗi: nút chính không mời sang bước sau. */
   readonly blocker?: 'no-drawings' | 'pipeline-error' | undefined;
+  /** Màn kiểm tra tầng gần nhất của dự án này (G4a-34/N4-08): ô bước 3 quay về đó thay vì danh sách tầng. */
+  readonly lastFloorPath?: string | undefined;
 }
 
 export interface AppHeaderProps {
@@ -64,7 +66,9 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
   const stepPath = (index: number): string =>
     index === 2 && project.floorId !== undefined
       ? (FLOOR_LAYERS[0]?.path(project.id, project.floorId) ?? ROUTES.project.floors(project.id))
-      : (PROJECT_STEPS[index]?.path(project.id) ?? ROUTES.dashboard);
+      : index === 2 && project.lastFloorPath !== undefined
+        ? project.lastFloorPath
+        : (PROJECT_STEPS[index]?.path(project.id) ?? ROUTES.dashboard);
 
   return (
     <nav aria-label="Các bước của dự án" className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-default px-4 py-1 sm:px-6">

@@ -890,7 +890,7 @@ describe('NO-208 — vị trí chip do màn chủ truyền', () => {
   const chipWrapper = (): HTMLElement | null =>
     screen.getByRole('button', { name: 'Xem hướng dẫn' }).parentElement;
 
-  it('mặc định ở giữa cạnh dưới (B-V2-05)', () => {
+  it('mặc định ở góc phải dưới (G4a-07)', () => {
     render(
       <EditorTour
         {...baseProps({
@@ -903,7 +903,7 @@ describe('NO-208 — vị trí chip do màn chủ truyền', () => {
       />,
     );
 
-    expect(chipWrapper()?.className).toContain('bottom-4 left-1/2 -translate-x-1/2');
+    expect(chipWrapper()?.className).toContain('bottom-4 right-4');
   });
 
   it('theo chipAnchorClassName của màn chủ, và bỏ góc mặc định', () => {

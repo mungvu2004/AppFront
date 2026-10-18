@@ -88,6 +88,23 @@ export function AppLayout() {
     }
   }, [projectId, projectName]);
 
+  // G4a-34/N4-08: nhớ màn kiểm tra tầng gần nhất của từng dự án (đường có `/floors/<tầng>/`).
+  const floorPathKey = `appfront.lastFloorPath.${projectId}`;
+  useEffect(() => {
+    if (location?.floorId === undefined) return;
+    try {
+      sessionStorage.setItem(floorPathKey, routerLocation.pathname);
+    } catch {
+      /* sessionStorage bị chặn: ô bước 3 về danh sách tầng như cũ. */
+    }
+  }, [floorPathKey, location?.floorId, routerLocation.pathname]);
+  let lastFloorPath: string | undefined;
+  try {
+    lastFloorPath = projectId === '' ? undefined : (sessionStorage.getItem(floorPathKey) ?? undefined);
+  } catch {
+    lastFloorPath = undefined;
+  }
+
   // Nút "Bước tiếp theo" theo trạng thái dự án (G3-06, G3-28, G3-32): chưa có bản vẽ / xử lý lỗi thì không mời đi tiếp.
   const floors = detail.data?.floors;
   const blocker =
@@ -115,7 +132,7 @@ export function AppLayout() {
         project={
           location === null
             ? null
-            : { id: location.projectId, name: projectName, stepIndex: location.stepIndex, floorId: location.floorId, layerIndex: location.layerIndex, blocker }
+            : { id: location.projectId, name: projectName, stepIndex: location.stepIndex, floorId: location.floorId, layerIndex: location.layerIndex, blocker, lastFloorPath }
         }
         returnProject={lastProject}
         onSignOut={handleSignOut}

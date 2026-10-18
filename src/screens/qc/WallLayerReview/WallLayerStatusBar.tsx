@@ -31,6 +31,8 @@ export interface WallLayerStatusBarProps {
 }
 
 const STATUS_BAR_ARIA_LABEL = 'Thanh trạng thái';
+/** G4a-19: gợi ý kéo/phóng bản vẽ — khớp `wallLayerReview.statusBar.panHint`. */
+const PAN_HINT = 'Kéo nền hoặc giữ Space để di chuyển · lăn chuột để phóng';
 const SAVED_PREFIX = 'Đã lưu';
 
 export function WallLayerStatusBar({ cursorLabel, scaleLabel, saveLabel, saveFailed }: WallLayerStatusBarProps) {
@@ -48,6 +50,7 @@ export function WallLayerStatusBar({ cursorLabel, scaleLabel, saveLabel, saveFai
         {cursorLabel}
       </span>
       <span className="hidden min-w-0 truncate text-[12px] tabular-nums text-text-secondary sm:block">{scaleLabel}</span>
+      <span className="hidden min-w-0 truncate text-[12px] text-text-muted xl:block">{PAN_HINT}</span>
       <span
         aria-live="polite"
         className={cn(
