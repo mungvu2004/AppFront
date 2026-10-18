@@ -11,7 +11,7 @@ interface SelectionHaloProps {
   height: number;
   /** Trạng thái hiển thị */
   isVisible: boolean;
-  /** Biến thể: selected (1,5px + fill) hay hover (1px, không fill) */
+  /** Biến thể: selected (3px + khe nền + fill) hay hover (1,5px, không fill) */
   variant?: SelectionVariant;
   /** Đã qua 120ms animation enter */
   hasEntered?: boolean;
@@ -20,8 +20,8 @@ interface SelectionHaloProps {
 
 /**
  * SelectionHalo — viền chọn canvas.
- * - selected: viền accent 1,5px + nền accent-wash
- * - hover: viền accent 1px, không fill
+ * - selected: viền accent 3px cách khe nền 2px + nền accent-wash
+ * - hover: viền accent 1,5px, không fill
  * - Xuất hiện 120ms ease-out
  * - Màu từ materialMap
  */
@@ -62,7 +62,7 @@ export function SelectionHalo({
       {isSelected && (
         <div
           className="absolute inset-0"
-          style={{ backgroundColor: fillToken, opacity: 0.12 }}
+          style={{ backgroundColor: fillToken, opacity: 0.24 }}
         />
       )}
 
@@ -70,8 +70,11 @@ export function SelectionHalo({
       <div
         className="absolute inset-0"
         style={{
-          outline: `${isSelected ? 1.5 : 1}px solid ${borderToken}`,
-          outlineOffset: 0,
+          // G4a-11: viền chọn 1,5px chìm vào tường nâu. Đoạn chọn: viền accent 3px tách khỏi
+          // nét bằng một khe nền 2px (box-shadow), nên nổi trên cả tường đậm lẫn nền nhạt.
+          outline: `${isSelected ? 3 : 1.5}px solid ${borderToken}`,
+          outlineOffset: isSelected ? 2 : 0,
+          boxShadow: isSelected ? '0 0 0 2px var(--bg-surface)' : undefined,
         }}
       />
     </div>

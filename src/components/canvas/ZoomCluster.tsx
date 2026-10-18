@@ -67,9 +67,8 @@ export function ZoomCluster({
       <div
         className={cn(
           'flex items-center bg-bg-surface rounded-xl shadow-float px-2 py-1.5 gap-0.5',
-          'pointer-events-auto',
-          // Mờ 60% khi không hover
-          'opacity-60 group-hover:opacity-100 transition-opacity duration-180'
+          // G4b-05: bỏ mờ 60% khi không hover; nét bản vẽ (khung tên) hiện xuyên qua nút "+".
+          'pointer-events-auto border border-border-default'
         )}
         role="group"
         aria-label="Cụm thu phóng"
