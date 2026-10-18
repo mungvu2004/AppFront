@@ -90,6 +90,15 @@ describe('FloorLayerDocumentSchema', () => {
     expect(FloorLayerDocumentSchema.parse(fullDocument)).toStrictEqual({ ...fullDocument });
   });
 
+  it('gốc toạ độ: có thì giữ, null hoặc vắng thì bỏ khoá; số lẻ bị từ chối (G4b-17)', () => {
+    expect(FloorLayerDocumentSchema.parse({ ...minimalDocument, origin: { x: 1200, y: -300 } })).toStrictEqual({
+      ...minimalDocument,
+      origin: { x: 1200, y: -300 },
+    });
+    expect(FloorLayerDocumentSchema.parse({ ...minimalDocument, origin: null })).toStrictEqual({ ...minimalDocument });
+    expect(FloorLayerDocumentSchema.safeParse({ ...minimalDocument, origin: { x: 1.5, y: 0 } }).success).toBe(false);
+  });
+
   it('nhận tài liệu tối thiểu và bỏ hẳn khoá scaleStatus', () => {
     expect(FloorLayerDocumentSchema.parse(minimalDocument)).toStrictEqual({ ...minimalDocument });
   });
@@ -151,6 +160,11 @@ describe('FloorLayerDocumentSchema', () => {
 });
 
 describe('FloorLayerWriteBodySchema', () => {
+  it('nhận thân chỉ mang trục hoặc chỉ mang gốc toạ độ (G4b-17)', () => {
+    expect(FloorLayerWriteBodySchema.parse({ axes: [] })).toStrictEqual({ axes: [] });
+    expect(FloorLayerWriteBodySchema.parse({ origin: { x: 0, y: 0 } })).toStrictEqual({ origin: { x: 0, y: 0 } });
+  });
+
   it('nhận thân chỉ mang lớp', () => {
     expect(FloorLayerWriteBodySchema.parse({ layer })).toStrictEqual({ layer });
   });

@@ -68,9 +68,13 @@ const scaleMillimetresPerPixelSchema = z.number().positive().finite();
  * `notes` **không** ở đây, khác `SpatialGraphSchema`: không màn QC nào đọc ghi
  * chú, và W1 nói cái gì không màn nào cần thì không lên dây.
  */
+/** Gốc toạ độ của tầng (mm nguyên); máy chủ trả `null` hoặc bỏ khoá khi chưa đặt (#35/N16, G4b-17). */
+export const FloorOriginSchema = z.object({ x: z.number().int(), y: z.number().int() }).strict();
+
 export const FloorLayerDocumentSchema = z
   .object({
     axes: z.array(AxisSchema),
+    origin: FloorOriginSchema.nullish(),
     dimensions: z.array(DimensionSchema),
     layer: SpatialLayerSchema,
     level: LevelSchema,
@@ -89,6 +93,7 @@ export const FloorLayerDocumentSchema = z
     layer: wireDocument.layer,
     level: wireDocument.level,
     revision: wireDocument.revision,
+    ...(wireDocument.origin != null ? { origin: wireDocument.origin } : {}),
     ...(wireDocument.scaleStatus !== undefined ? { scaleStatus: wireDocument.scaleStatus } : {}),
   }));
 
@@ -103,8 +108,11 @@ export type FloorLayerDocument = z.infer<typeof FloorLayerDocumentSchema>;
  */
 export const FloorLayerWriteBodySchema = z
   .object({
+    /** Thay CẢ danh sách trục đã lưu (`[]` xoá hết); vắng = không đụng (G4b-17). */
+    axes: z.array(AxisSchema).optional(),
     /** Thay CẢ danh sách kích thước đã lưu (`[]` xoá hết); vắng = không đụng. `reviewed` chỉ khi `source === 'human'`. */
     dimensions: z.array(DimensionSchema).optional(),
+    origin: FloorOriginSchema.optional(),
     layer: SpatialLayerSchema.optional(),
     scaleMillimetresPerPixel: scaleMillimetresPerPixelSchema.optional(),
   })
@@ -121,7 +129,11 @@ export const FloorLayerWriteBodySchema = z
      * `revision` mới, không đổi gì.
      */
     (body) =>
-      body.layer !== undefined || body.scaleMillimetresPerPixel !== undefined || body.dimensions !== undefined,
+      body.layer !== undefined ||
+      body.scaleMillimetresPerPixel !== undefined ||
+      body.dimensions !== undefined ||
+      body.axes !== undefined ||
+      body.origin !== undefined,
     { path: [] },
   );
 
