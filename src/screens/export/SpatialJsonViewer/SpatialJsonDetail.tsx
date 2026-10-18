@@ -14,6 +14,8 @@
  * có sẵn. Không nút giả, không canvas rỗng vờ như sắp vẽ.
  */
 
+import { useEffect, useRef } from 'react';
+
 import { formatNumber } from '@/lib/format/number';
 import { cn } from '@/lib/utils';
 
@@ -42,8 +44,16 @@ const TAB_LABELS: ReadonlyArray<{ readonly id: SpatialJsonTabId; readonly label:
   { id: 'preview', label: 'Xem trước' },
 ];
 
-function RawJson({ rawText }: { readonly rawText: string }) {
+function RawJson({ rawText, focusKey }: { readonly rawText: string; readonly focusKey: string | null }) {
   const lines = rawText.split('\n');
+  const hitRef = useRef<HTMLDivElement | null>(null);
+  // Dòng khớp đầu tiên với khoá của nút đang chọn: cuộn tới đó khi chọn đổi (G5-41).
+  const hitIndex = focusKey === null ? -1 : lines.slice(0, MAX_RAW_LINES).findIndex((l) => l.includes(`"${focusKey}"`));
+
+  useEffect(() => {
+    hitRef.current?.scrollIntoView?.({ block: 'center' });
+  }, [hitIndex, focusKey]);
+
   const shown = lines.slice(0, MAX_RAW_LINES);
   const hiddenCount = lines.length - shown.length;
 
@@ -53,7 +63,7 @@ function RawJson({ rawText }: { readonly rawText: string }) {
         {/* Chỉ số dòng là khoá ổn định ở đây (R-24): chữ thô được dựng lại trọn vẹn
             mỗi lần dữ liệu đổi, không có dòng nào chèn vào giữa hai dòng cũ. */}
         {shown.map((line, index) => (
-          <div key={`${String(index)}:${line}`}>
+          <div key={`${String(index)}:${line}`} ref={index === hitIndex ? hitRef : undefined}>
             {tokenizeJsonLine(line).map((segment, segmentIndex) => (
               <span key={`${String(segmentIndex)}:${segment.text}`} className={TONE_CLASS[segment.tone]}>
                 {segment.text}
@@ -77,7 +87,7 @@ function NodePreview({ selectedNode }: { readonly selectedNode: SpatialJsonNode 
     return (
       <div className="flex h-full items-center justify-center rounded-xl bg-bg-sunken p-5">
         <p className="max-w-[40ch] text-center text-[15px] leading-6 text-text-secondary">
-          Chọn một nút ở cây bên trái để xem chi tiết của nó.
+          Tab này hiện các trường của nút đang chọn. Bấm một dòng ở cây bên trái, hoặc tìm rồi bấm Kết quả sau, để xem.
         </p>
       </div>
     );
@@ -181,7 +191,7 @@ export function SpatialJsonDetail({
 
       <div id="sjd-tabpanel" role="tabpanel" aria-labelledby={`sjd-tab-${activeTabId}`} className="min-h-0 flex-1">
         {activeTabId === 'json' ? (
-          <RawJson rawText={rawText} />
+          <RawJson rawText={rawText} focusKey={selectedNode?.label ?? null} />
         ) : (
           <NodePreview selectedNode={selectedNode} />
         )}

@@ -100,8 +100,10 @@ export interface WelcomeScreenViewModel {
   readonly intro: string;
   /** Luôn đúng thứ tự 1,2,3. Ở 'forbidden' mảng chỉ còn ĐÚNG một phần tử: thẻ 3. */
   readonly cards: readonly OnboardingStepCard[];
-  readonly sampleProjectLink: OnboardingLink;
-  readonly tutorialLink: OnboardingLink;
+  /** null = ẩn: chưa có dự án mẫu thì không bày lối tới đó (G1-23). */
+  readonly sampleProjectLink: OnboardingLink | null;
+  /** null = ẩn: hướng dẫn chưa xong thì không bày ra (G1-23). */
+  readonly tutorialLink: OnboardingLink | null;
   readonly skipLink: OnboardingLink;
   /** Chỉ khác null ở screenState === 'error'. */
   readonly errorMessage: string | null;
@@ -303,10 +305,6 @@ export function useWelcomeScreen(options: UseWelcomeScreenOptions = {}): Welcome
     if (name !== undefined && name !== '') {
       return `${STRINGS.greetingPrefix}${name}${STRINGS.greetingSuffix}`;
     }
-    const localPart = session.user?.email?.split('@')[0]?.trim();
-    if (localPart !== undefined && localPart !== '') {
-      return `${STRINGS.greetingPrefix}${localPart}${STRINGS.greetingSuffix}`;
-    }
     return STRINGS.greetingFallback;
   }, [session.user]);
 
@@ -324,23 +322,22 @@ export function useWelcomeScreen(options: UseWelcomeScreenOptions = {}): Welcome
 
   const goUpload = useCallback((): void => {
     if (latest === null) return;
-    leave(() => navigate(ROUTES.project.upload(latest.id)));
-  }, [latest, leave, navigate]);
+    // Nhiều dự án thì để người dùng tự chọn, không tự nhảy vào dự án gần nhất (G1-22).
+    leave(() => navigate(projects.length > 1 ? ROUTES.dashboard : ROUTES.project.upload(latest.id)));
+  }, [latest, projects.length, leave, navigate]);
 
   const goReview = useCallback((): void => {
     if (latest === null) return;
     leave(() =>
       navigate(
-        latest.defaultFloorId === undefined
+        projects.length > 1
+          ? ROUTES.dashboard
+          : latest.defaultFloorId === undefined
           ? ROUTES.project.floors(latest.id)
           : ROUTES.project.walls(latest.id, latest.defaultFloorId),
       ),
     );
-  }, [latest, leave, navigate]);
-
-  const goDashboard = useCallback((): void => {
-    leave(() => navigate(ROUTES.dashboard));
-  }, [leave, navigate]);
+  }, [latest, projects.length, leave, navigate]);
 
   const cards = useMemo<readonly OnboardingStepCard[]>(() => {
     const card1State: OnboardingStepState = step1Done ? 'done' : 'open';
@@ -402,22 +399,8 @@ export function useWelcomeScreen(options: UseWelcomeScreenOptions = {}): Welcome
     leave(() => navigate(ROUTES.dashboard));
   }, [userId, leave, navigate]);
 
-  const sampleProjectLink = useMemo<OnboardingLink>(
-    () => ({ label: STRINGS.sampleProject, disabledReason: null, onActivate: goDashboard }),
-    [goDashboard],
-  );
-
-  // Quyết định 6 của gate G1: S-40 chưa tồn tại trong repo, nên liên kết vẫn hiện
-  // — để phép đếm lựa chọn còn đúng 3 thẻ + 2 liên kết phụ + 1 liên kết bỏ qua —
-  // nhưng vô hiệu kèm lý do, thay vì dẫn tới một chỗ không có gì.
-  const tutorialLink = useMemo<OnboardingLink>(
-    () => ({
-      label: STRINGS.tutorial,
-      disabledReason: STRINGS.tutorialDisabled,
-      onActivate: () => {},
-    }),
-    [],
-  );
+  const sampleProjectLink = null;
+  const tutorialLink = null;
 
   const skipLink = useMemo<OnboardingLink>(
     () => ({ label: STRINGS.skip, disabledReason: null, onActivate: onSkip }),

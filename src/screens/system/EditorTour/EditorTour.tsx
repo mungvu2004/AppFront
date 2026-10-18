@@ -357,7 +357,7 @@ export function EditorTour(props: EditorTourProps) {
                       Bỏ qua hướng dẫn
                     </Button>
                     <Button variant="primary" size="sm" onClick={onNext}>
-                      Tiếp theo
+                      {activeIndex === steps.length - 1 ? 'Xong' : 'Tiếp theo'}
                     </Button>
                   </div>
                 </>

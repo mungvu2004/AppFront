@@ -61,7 +61,7 @@ const describeScalar = (value: unknown): { text: string; tone: SpatialJsonTone }
   }
 
   if (typeof value === 'number') {
-    return { text: formatNumber(value, { fractionDigits: Number.isInteger(value) ? 0 : 2 }), tone: 'number' };
+    return { text: formatNumber(value, { fractionDigits: Number.isInteger(value) ? 0 : 2, grouping: false }), tone: 'number' };
   }
 
   if (typeof value === 'boolean') {

@@ -281,12 +281,12 @@ describe('Bảy trạng thái', () => {
     unmount();
   });
 
-  it('[BUG-454] cả bảy trạng thái có đúng một h1 "Dữ liệu không gian"', () => {
+  it('[BUG-454] cả bảy trạng thái có đúng một h1 "Dữ liệu dự án"', () => {
     for (const { state } of createSevenStateScenarios()) {
       const { unmount } = renderWithProviders(<SpatialJsonViewer {...buildSpatialJsonViewerProps(state)} />);
 
       expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent), `trạng thái: ${state}`).toEqual([
-        'Dữ liệu không gian',
+        'Dữ liệu dự án',
       ]);
       unmount();
     }

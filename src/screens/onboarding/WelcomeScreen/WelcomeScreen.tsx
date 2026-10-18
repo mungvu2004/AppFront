@@ -336,12 +336,14 @@ export function WelcomeScreen({
 
         {!isLoading && (
           <div className="flex flex-col items-center gap-2">
-            <div className="flex flex-wrap items-center justify-center gap-x-4">
-              <QuietLink id="onboarding-sample" link={sampleProjectLink} />
-              <QuietLink id="onboarding-tutorial" link={tutorialLink} />
-            </div>
-            <QuietNote id="onboarding-sample" link={sampleProjectLink} />
-            <QuietNote id="onboarding-tutorial" link={tutorialLink} />
+            {sampleProjectLink === null && tutorialLink === null ? null : (
+              <div className="flex flex-wrap items-center justify-center gap-x-4">
+                {sampleProjectLink === null ? null : <QuietLink id="onboarding-sample" link={sampleProjectLink} />}
+                {tutorialLink === null ? null : <QuietLink id="onboarding-tutorial" link={tutorialLink} />}
+              </div>
+            )}
+            {sampleProjectLink === null ? null : <QuietNote id="onboarding-sample" link={sampleProjectLink} />}
+            {tutorialLink === null ? null : <QuietNote id="onboarding-tutorial" link={tutorialLink} />}
             <QuietLink id="onboarding-skip" link={skipLink} note={skipNotice} />
             <QuietNote id="onboarding-skip" link={skipLink} note={skipNotice} />
           </div>

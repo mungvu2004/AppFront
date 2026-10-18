@@ -64,13 +64,14 @@ function ValidityDot({ isValid }: { readonly isValid: boolean }) {
 }
 
 /** Tiêu đề trang ở mọi trạng thái, như các màn có h1 sẵn (BUG-454); lề 20 px như thanh công cụ. */
-const pageTitle = <h1 className="px-5 pt-4 text-[20px] font-semibold text-text-primary">Dữ liệu không gian</h1>;
+const pageTitle = <h1 className="px-5 pt-4 text-[20px] font-semibold text-text-primary">Dữ liệu dự án</h1>;
 
 export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
   const selectedNode = model.nodes.find((node) => node.id === model.selectedNodeId) ?? null;
   // Rỗng thì chỉ một khung nói "chưa có dữ liệu" — khung JSON cạnh nó kể chuyện ngược lại (BUG-454).
   const isEmpty = model.state === 'empty';
-  const isRawOnly = model.isNarrow && model.viewMode === 'raw' && !isEmpty;
+  // "Thô" ở mọi cỡ: bỏ cây, chỉ còn khung JSON — để nút đổi chế độ thấy được tác dụng (G5-40).
+  const isRawOnly = model.viewMode === 'raw' && !isEmpty;
 
   if (model.state === 'forbidden') {
     return (
@@ -142,18 +143,12 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
 
         <span className="flex-1" />
 
-        <IconButton
-          icon={<ChevronsUpDown size={18} aria-hidden="true" />}
-          aria-label="Mở rộng tất cả"
-          size="sm"
-          onClick={actions.onExpandAll}
-        />
-        <IconButton
-          icon={<ChevronsDownUp size={18} aria-hidden="true" />}
-          aria-label="Thu gọn tất cả"
-          size="sm"
-          onClick={actions.onCollapseAll}
-        />
+        <Button variant="ghost" size="sm" iconBefore={<ChevronsUpDown size={16} aria-hidden="true" />} onClick={actions.onExpandAll}>
+          Mở rộng tất cả
+        </Button>
+        <Button variant="ghost" size="sm" iconBefore={<ChevronsDownUp size={16} aria-hidden="true" />} onClick={actions.onCollapseAll}>
+          Thu gọn tất cả
+        </Button>
 
         <SegmentedControl
           aria-label="Cách hiện cấu trúc"
@@ -162,19 +157,10 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
           onChange={actions.onChangeViewMode}
         />
 
-        <IconButton
-          icon={<Copy size={18} aria-hidden="true" />}
-          aria-label="Sao chép nhánh đang chọn"
-          size="sm"
-          onClick={actions.onCopyBranch}
-        />
+        <Button variant="ghost" size="sm" iconBefore={<Copy size={16} aria-hidden="true" />} onClick={actions.onCopyBranch}>
+          Sao chép nhánh đang chọn
+        </Button>
       </header>
-
-      {model.copyNotice === null ? null : (
-        <p role="status" className="shrink-0 px-5 pb-2 text-[13px] leading-[18px] text-text-secondary">
-          {model.copyNotice}
-        </p>
-      )}
 
       {/* Chưa có dữ liệu thì chưa có gì để kiểm: "hợp lệ — 0 lỗi" lúc ấy là nói thừa (B-V12-07). */}
       {model.state === 'empty' || model.state === 'loading' ? null : (
@@ -252,8 +238,17 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
       </div>
 
       <footer className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-4 px-5 pb-3">
-        <span className="whitespace-nowrap font-mono text-[13px] leading-5 text-text-secondary">{model.sizeLabel}</span>
-        <span className="text-[13px] leading-[18px] text-text-muted">{model.countsLabel}</span>
+        {model.state === 'loading' ? null : (
+          <span className="whitespace-nowrap font-mono text-[13px] leading-5 text-text-secondary">{model.sizeLabel}</span>
+        )}
+        {model.state === 'loading' ? null : (
+          <span className="text-[13px] leading-[18px] text-text-muted">{model.countsLabel}</span>
+        )}
+        {model.copyNotice === null ? null : (
+          <span role="status" className="text-[13px] leading-[18px] text-text-secondary">
+            {model.copyNotice}
+          </span>
+        )}
         <span className="flex-1" />
         {model.canDownload && actions.onDownload !== null ? (
           <Button

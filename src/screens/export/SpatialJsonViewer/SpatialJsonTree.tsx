@@ -159,6 +159,10 @@ export function SpatialJsonTree({ nodes, onSelect, onToggle, selectedNodeId }: S
               </>
             ) : null}
 
+            {node.childCount === 0 ? (
+              <code className="ml-1 shrink-0 font-mono text-[13px] leading-[18px] text-text-muted">trống</code>
+            ) : null}
+
             {!node.isExpanded && node.childCount !== null && node.childCount > 0 ? (
               <code className="ml-1 shrink-0 font-mono text-[13px] leading-[18px] text-text-muted">
                 [{node.childCount}]
