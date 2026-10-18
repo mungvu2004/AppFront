@@ -49,6 +49,8 @@ const subscribeToClientMount = () => () => {}
  * with the kind's own `def.defaults()`. The "Painting" type swaps in the
  * material-paint panel.
  */
+let isPageLoadMount = true
+
 export function BuildTab() {
   const [mepOpen, setMepOpen] = useState(false)
   const activeTool = useEditor((s) => s.tool)
@@ -126,10 +128,16 @@ export function BuildTab() {
   // sidebar, so switching to Build immediately arms a usable tool. Skip when a
   // Build-tab tool or special mode is already active: the current editor state
   // is the source of truth, including entry from another panel.
+  // AppFront edit (P40, G5-05): the first mount of a page load does NOT arm a tool, so the
+  // editor opens in Select; switching to Build later still arms the first tool as upstream.
   const didInitRef = useRef(false)
   useEffect(() => {
     if (didInitRef.current) return
     didInitRef.current = true
+    if (isPageLoadMount) {
+      isPageLoadMount = false
+      return
+    }
     const ed = useEditor.getState()
     if (ed.mode === 'material-paint' || ed.mode === 'terrain-sculpt') return
     if (ed.mode === 'build' && ed.tool) return
@@ -161,15 +169,20 @@ export function BuildTab() {
                       handleTypeClick(type)
                     }}
                     onMouseEnter={() => triggerSFX('sfx:menu-hover')}
+                    aria-label={type.label}
                     type="button"
                   >
-                    <Image
-                      alt={type.label}
-                      className="size-full object-contain transition-transform duration-200 group-hover:scale-110"
-                      height={48}
-                      src={type.iconSrc}
-                      width={48}
-                    />
+                    {/* AppFront edit (P40, G5-12): visible label under the icon. */}
+                    <span className="flex size-full flex-col items-center justify-center gap-0.5">
+                      <Image
+                        alt=""
+                        className="min-h-0 w-full flex-1 object-contain transition-transform duration-200 group-hover:scale-110"
+                        height={48}
+                        src={type.iconSrc}
+                        width={48}
+                      />
+                      <span className="w-full truncate text-center text-[10px] leading-tight">{type.label}</span>
+                    </span>
                   </button>
                 </TooltipTrigger>
                 <TooltipContent className="pointer-events-none" side="top">
@@ -192,7 +205,7 @@ export function BuildTab() {
       ) : mode === 'build' && (activeTool === 'roof' || isRoofFeatureActive) ? (
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
           <div className="flex flex-col gap-2">
-            <div className="px-0.5 pt-1 font-medium text-muted-foreground text-xs">Roof type</div>
+            <div className="px-0.5 pt-1 font-medium text-muted-foreground text-xs">Kiểu mái</div>
             <div className="grid grid-cols-2 gap-1.5">
               {ROOF_TYPE_OPTIONS.map((roofType) => {
                 const active = activeTool === 'roof' && activeRoofType === roofType.value
@@ -286,7 +299,7 @@ export function BuildTab() {
         </div>
       ) : isKitchenActive ? (
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-          <div className="px-0.5 pt-1 font-medium text-muted-foreground text-xs">Kitchen</div>
+          <div className="px-0.5 pt-1 font-medium text-muted-foreground text-xs">Bếp</div>
           <TooltipProvider delayDuration={0} disableHoverableContent>
             <div
               className="grid gap-1.5 px-0.5"
@@ -321,7 +334,7 @@ export function BuildTab() {
         </div>
       ) : isMepActive ? (
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-          <div className="px-0.5 pt-1 font-medium text-muted-foreground text-xs">MEP</div>
+          <div className="px-0.5 pt-1 font-medium text-muted-foreground text-xs">Cơ điện</div>
           <TooltipProvider delayDuration={0} disableHoverableContent>
             <div
               className="grid gap-1.5 px-0.5"
@@ -391,7 +404,7 @@ export function BuildTab() {
 
           {liquidLineContext ? (
             <div className="flex flex-col gap-1.5">
-              <span className="text-muted-foreground text-xs">Liquid Line</span>
+              <span className="text-muted-foreground text-xs">Ống lỏng</span>
               <button
                 className={cn(
                   'flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm transition-all duration-200',
@@ -404,7 +417,7 @@ export function BuildTab() {
                 onMouseEnter={() => triggerSFX('sfx:menu-hover')}
                 type="button"
               >
-                <span>Follow lineset</span>
+                <span>Theo ống đồng</span>
                 <span className="text-muted-foreground text-xs">{follow ? 'On' : 'Off'}</span>
               </button>
               <span className="px-1 text-[11px] text-muted-foreground">

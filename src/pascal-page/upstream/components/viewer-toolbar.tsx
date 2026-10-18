@@ -40,6 +40,7 @@ import {
   Grid2X2,
   Layers3,
   Magnet,
+  Maximize,
   PenLine,
   Ruler,
   ScanLine,
@@ -49,11 +50,15 @@ import {
   SwatchBook,
   Tag,
 } from 'lucide-react'
+import { emitter, useScene } from '@pascal-app/core'
 import Image from 'next/image'
+import { computeSceneBoundsXZ } from '../../../../vendor/pascal/packages/editor/src/lib/scene-bounds'
 import { type ReactNode, useCallback } from 'react'
 import { flushSync } from 'react-dom'
 import { cn } from '../lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from './toolbar-tooltip'
+// AppFront edit (P40, G5-11): text labels of the level/wall/display/preview buttons collapse to
+// screen-reader text below xl (1280px) so the top bar fits at 1024/768; tooltips keep the name.
 
 const TOOLBAR_CONTAINER =
   'inline-flex h-8 items-stretch overflow-hidden rounded-xl border border-border bg-background/90 shadow-2xl backdrop-blur-md'
@@ -117,40 +122,40 @@ const VIEW_MODES: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
   },
   {
     id: 'split',
-    label: 'Split',
+    label: 'Chia đôi',
     icon: <Columns2 className="h-3 w-3" />,
   },
 ]
 
 const levelModeOrder = ['stacked', 'exploded', 'solo'] as const
 const levelModeLabels: Record<string, string> = {
-  manual: 'Stack',
-  stacked: 'Stack',
-  exploded: 'Exploded',
-  solo: 'Solo',
+  manual: 'Tầng: chồng',
+  stacked: 'Tầng: chồng',
+  exploded: 'Tầng: tách',
+  solo: 'Tầng: một tầng',
 }
 
 const wallModeOrder = ['cutaway', 'up', 'down', 'translucent'] as const
 const wallModeConfig: Record<string, { icon: string; label: string }> = {
-  up: { icon: '/icons/room.webp', label: 'Full height' },
-  cutaway: { icon: '/icons/wallcut.webp', label: 'Cutaway' },
-  down: { icon: '/icons/walllow.webp', label: 'Low' },
-  translucent: { icon: '/icons/wall.webp', label: 'Translucent' },
+  up: { icon: '/icons/room.webp', label: 'Tường: cao đủ' },
+  cutaway: { icon: '/icons/wallcut.webp', label: 'Tường: cắt' },
+  down: { icon: '/icons/walllow.webp', label: 'Tường: thấp' },
+  translucent: { icon: '/icons/wall.webp', label: 'Tường: trong mờ' },
 }
 
 const SHADING_OPTIONS = [
-  { id: 'solid', name: 'Solid', detail: 'Flat and fast — no ambient occlusion', icon: Box },
-  { id: 'rendered', name: 'Rendered', detail: 'Full ambient occlusion', icon: Sparkles },
+  { id: 'solid', name: 'Phẳng', detail: 'Nhanh, không đổ bóng môi trường', icon: Box },
+  { id: 'rendered', name: 'Đầy đủ', detail: 'Có đổ bóng môi trường', icon: Sparkles },
 ] as const
 
 const FLOORPLAN_ANNOTATION_OPTIONS = [
-  { id: 'automaticDimensions', name: 'Automatic dimensions', icon: Ruler },
-  { id: 'manualDimensions', name: 'Manual dimensions', icon: Ruler },
-  { id: 'measurements', name: 'Measurements', icon: ScanLine },
-  { id: 'openingMarks', name: 'Door/window marks', icon: Tag },
-  { id: 'structuralGrids', name: 'Structural grids & column centers', icon: Grid2X2 },
-  { id: 'roomLabels', name: 'Room labels', icon: SquareUserRound },
-  { id: 'stairAnnotations', name: 'Stair annotations', icon: Footprints },
+  { id: 'automaticDimensions', name: 'Kích thước tự động', icon: Ruler },
+  { id: 'manualDimensions', name: 'Kích thước thủ công', icon: Ruler },
+  { id: 'measurements', name: 'Số đo', icon: ScanLine },
+  { id: 'openingMarks', name: 'Ký hiệu cửa', icon: Tag },
+  { id: 'structuralGrids', name: 'Lưới trục và tâm cột', icon: Grid2X2 },
+  { id: 'roomLabels', name: 'Tên phòng', icon: SquareUserRound },
+  { id: 'stairAnnotations', name: 'Chú thích cầu thang', icon: Footprints },
 ] as const
 
 const FLOORPLAN_MODE_OPTIONS = [
@@ -167,9 +172,9 @@ const FLOORPLAN_MODE_OPTIONS = [
 ] as const
 
 const FLOORPLAN_WALL_DIMENSION_REFERENCE_OPTIONS = [
-  { id: 'finished-faces', name: 'Finished faces', detail: 'Full wall thickness' },
-  { id: 'centerline', name: 'Wall centerline', detail: 'Single wall axis' },
-  { id: 'stud-faces', name: 'Face of stud', detail: 'Structural core face' },
+  { id: 'finished-faces', name: 'Mặt hoàn thiện', detail: 'Đủ bề dày tường' },
+  { id: 'centerline', name: 'Tim tường', detail: 'Một trục tường' },
+  { id: 'stud-faces', name: 'Mặt kết cấu', detail: 'Mặt lõi kết cấu' },
 ] as const
 
 function ViewModeControl() {
@@ -214,9 +219,9 @@ function CollapseSidebarButton() {
 
   return (
     <div className={TOOLBAR_CONTAINER}>
-      <ToolbarTooltip label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+      <ToolbarTooltip label={isCollapsed ? 'Mở thanh bên' : 'Thu gọn thanh bên'}>
         <button
-          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={isCollapsed ? 'Mở thanh bên' : 'Thu gọn thanh bên'}
           className={TOOLBAR_BTN}
           onClick={toggle}
           type="button"
@@ -248,7 +253,7 @@ function LevelModeToggle() {
     if (next) setLevelMode(next)
   }
 
-  const label = `Levels: ${levelMode === 'manual' ? 'Manual' : (levelModeLabels[levelMode] ?? 'Stack')}`
+  const label = `${levelMode === 'manual' ? 'Tầng: tuỳ chỉnh' : (levelModeLabels[levelMode] ?? 'Tầng: chồng')} (bấm để đổi; cần từ 2 tầng)`
 
   return (
     <ToolbarTooltip label={label}>
@@ -268,7 +273,7 @@ function LevelModeToggle() {
         ) : (
           <IconifyIcon height={14} icon="charm:stack-push" width={14} />
         )}
-        <span className="font-medium text-xs">{levelModeLabels[levelMode] ?? 'Stack'}</span>
+        <span className="font-medium text-xs sr-only xl:not-sr-only">{levelModeLabels[levelMode] ?? 'Tầng: chồng'}</span>
       </button>
     </ToolbarTooltip>
   )
@@ -286,7 +291,7 @@ function WallModeToggle() {
   }
 
   return (
-    <ToolbarTooltip label={`Walls: ${config.label}`}>
+    <ToolbarTooltip label={`${config.label} (bấm để đổi)`}>
       <button
         className={cn(
           TOOLBAR_BTN,
@@ -299,7 +304,7 @@ function WallModeToggle() {
         type="button"
       >
         <Image alt="" className="h-4 w-4 object-contain" height={16} src={config.icon} width={16} />
-        <span className="font-medium text-xs">{config.label}</span>
+        <span className="font-medium text-xs sr-only xl:not-sr-only">{config.label}</span>
       </button>
     </ToolbarTooltip>
   )
@@ -362,15 +367,15 @@ function DisplayMenu() {
 
   return (
     <DropdownMenu>
-      <ToolbarTooltip label="Display settings">
+      <ToolbarTooltip label="Cài đặt hiển thị">
         <DropdownMenuTrigger asChild>
           <button
-            aria-label="Display settings"
+            aria-label="Cài đặt hiển thị"
             className={cn(TOOLBAR_BTN, 'w-auto gap-1.5 px-2.5 text-foreground/90')}
             type="button"
           >
             <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />
-            <span className="font-medium text-xs">Display</span>
+            <span className="font-medium text-xs sr-only xl:not-sr-only">Hiển thị</span>
           </button>
         </DropdownMenuTrigger>
       </ToolbarTooltip>
@@ -382,7 +387,7 @@ function DisplayMenu() {
       >
         <DropdownMenuItem onSelect={(e) => keepOpen(e, () => setShowGrid(!showGrid))}>
           <Grid2X2 className="h-4 w-4" />
-          <span>Grid</span>
+          <span>Lưới</span>
           {showGrid ? (
             <Eye className="ml-auto h-4 w-4 text-foreground" />
           ) : (
@@ -407,7 +412,7 @@ function DisplayMenu() {
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <Layers3 className="h-4 w-4" />
-                <span>Floor plan mode</span>
+                <span>Chế độ mặt bằng</span>
                 <span className="ml-auto text-muted-foreground text-xs">
                   {floorplanMode === 'default' ? 'Default' : 'Expert'}
                 </span>
@@ -431,7 +436,7 @@ function DisplayMenu() {
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <Layers3 className="h-4 w-4" />
-                    <span>Floor plan annotations</span>
+                    <span>Chú thích mặt bằng</span>
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className={SUBMENU_CONTENT_CLASS}>
                     {FLOORPLAN_ANNOTATION_OPTIONS.map((option) => {
@@ -459,7 +464,7 @@ function DisplayMenu() {
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <Ruler className="h-4 w-4" />
-                    <span>Wall dimensions</span>
+                    <span>Kích thước tường</span>
                     <span className="ml-auto text-muted-foreground text-xs">
                       {
                         FLOORPLAN_WALL_DIMENSION_REFERENCE_OPTIONS.find(
@@ -493,15 +498,15 @@ function DisplayMenu() {
         ) : null}
         <DropdownMenuItem onSelect={(e) => keepOpen(e, () => setMagneticSnap(!magneticSnap))}>
           <Magnet className="h-4 w-4" />
-          <span>Magnetic snap</span>
+          <span>Bắt dính</span>
           <span className="ml-auto text-muted-foreground text-xs">
             {magneticSnap ? 'On' : 'Off'}
           </span>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={(e) => keepOpen(e, () => setShadows(!shadows))}>
           <Contrast className="h-4 w-4" />
-          <span>Shadows</span>
-          <span className="ml-auto text-muted-foreground text-xs">{shadows ? 'On' : 'Off'}</span>
+          <span>Đổ bóng</span>
+          <span className="ml-auto text-muted-foreground text-xs">{shadows ? 'Bật' : 'Tắt'}</span>
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={(e) =>
@@ -515,7 +520,7 @@ function DisplayMenu() {
             icon={cameraMode === 'perspective' ? 'icon-park-outline:perspective' : 'vaadin:grid'}
             width={16}
           />
-          <span>Camera</span>
+          <span>Máy quay</span>
           <span className="ml-auto text-muted-foreground text-xs">
             {cameraMode === 'perspective' ? 'Perspective' : 'Orthographic'}
           </span>
@@ -525,7 +530,7 @@ function DisplayMenu() {
             <span className="flex h-4 w-4 items-center justify-center font-semibold text-[10px]">
               {unit === 'imperial' ? 'ft' : metricNotation === 'millimeters' ? 'mm' : 'm'}
             </span>
-            <span>Units</span>
+            <span>Đơn vị</span>
             <span className="ml-auto text-muted-foreground text-xs">
               {unit === 'imperial'
                 ? 'Feet & inches'
@@ -539,7 +544,7 @@ function DisplayMenu() {
               <span className="flex h-4 w-4 items-center justify-center font-semibold text-[10px]">
                 m
               </span>
-              <span>Meters</span>
+              <span>Mét</span>
               {unit === 'metric' && metricNotation === 'meters' ? (
                 <Check className="ml-auto h-4 w-4 text-foreground" />
               ) : null}
@@ -548,7 +553,7 @@ function DisplayMenu() {
               <span className="flex h-4 w-4 items-center justify-center font-semibold text-[10px]">
                 mm
               </span>
-              <span>Millimeters</span>
+              <span>Mi-li-mét</span>
               {unit === 'metric' && metricNotation === 'millimeters' ? (
                 <Check className="ml-auto h-4 w-4 text-foreground" />
               ) : null}
@@ -557,7 +562,7 @@ function DisplayMenu() {
               <span className="flex h-4 w-4 items-center justify-center font-semibold text-[10px]">
                 ft
               </span>
-              <span>Feet & inches</span>
+              <span>Feet và inch</span>
               {unit === 'imperial' ? <Check className="ml-auto h-4 w-4 text-foreground" /> : null}
             </DropdownMenuItem>
           </DropdownMenuSubContent>
@@ -568,7 +573,7 @@ function DisplayMenu() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <activeShading.icon className="h-4 w-4" />
-            <span>Render</span>
+            <span>Kết xuất</span>
             <span className="ml-auto text-muted-foreground text-xs">{activeShading.name}</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className={SUBMENU_CONTENT_CLASS}>
@@ -593,7 +598,7 @@ function DisplayMenu() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <PenLine className="h-4 w-4" />
-            <span>Edges</span>
+            <span>Cạnh</span>
             <span className="ml-auto text-muted-foreground text-xs">{activeEdges.name}</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className={SUBMENU_CONTENT_CLASS}>
@@ -612,7 +617,7 @@ function DisplayMenu() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <SwatchBook className="h-4 w-4" />
-            <span>Theme</span>
+            <span>Giao diện</span>
             <span className="ml-auto truncate text-muted-foreground text-xs">
               {activeTheme.name}
             </span>
@@ -660,8 +665,9 @@ function WalkthroughButton() {
   }, [isFirstPersonMode, setFirstPersonMode])
 
   return (
-    <ToolbarTooltip label="Walkthrough">
+    <ToolbarTooltip label="Đi bộ trong nhà">
       <button
+        aria-label="Đi bộ trong nhà"
         className={cn(
           TOOLBAR_BTN,
           isFirstPersonMode && 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20',
@@ -675,16 +681,35 @@ function WalkthroughButton() {
   )
 }
 
+/**
+ * AppFront edit (P40, G5-06 / G5-07 / G5-48): frame the whole model, using the editor's own
+ * `camera-controls:fit-scene` event (the one `useAutoFrame` emits after a load).
+ */
+export function fitWholeModel() {
+  const bounds = computeSceneBoundsXZ(useScene.getState().nodes)
+  emitter.emit('camera-controls:fit-scene', bounds ? { bounds } : {})
+}
+
+function FitViewButton() {
+  return (
+    <ToolbarTooltip label="Xem toàn bộ mô hình">
+      <button aria-label="Xem toàn bộ mô hình" className={TOOLBAR_BTN} onClick={fitWholeModel} type="button">
+        <Maximize className="h-4 w-4" />
+      </button>
+    </ToolbarTooltip>
+  )
+}
+
 function PreviewButton() {
   return (
-    <ToolbarTooltip label="Preview mode">
+    <ToolbarTooltip label="Xem trước (Esc để thoát)">
       <button
         className="flex items-center gap-1.5 px-2.5 font-medium text-muted-foreground/80 text-xs transition-colors hover:bg-white/8 hover:text-foreground/90"
         onClick={() => useEditor.getState().setPreviewMode(true)}
         type="button"
       >
         <Eye className="h-3.5 w-3.5 shrink-0" />
-        <span>Preview</span>
+        <span className="sr-only xl:not-sr-only">Xem trước</span>
       </button>
     </ToolbarTooltip>
   )
@@ -749,6 +774,7 @@ export function CommunityViewerToolbarRight({
       <div className="my-1.5 w-px bg-border/50" />
       <DisplayMenu />
       <div className="my-1.5 w-px bg-border/50" />
+      <FitViewButton />
       <WalkthroughButton />
       {onVRToggle || vrButton
         ? (vrButton ??

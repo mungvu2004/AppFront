@@ -10,9 +10,9 @@ export type RoofFeatureIdentity = {
 }
 
 const ROOF_FOOTPRINT_SOURCES = [
-  { label: 'Room', value: 'room' },
-  { label: 'Wall', value: 'walls' },
-  { label: 'Draw', value: 'draw' },
+  { label: 'Phòng', value: 'room' },
+  { label: 'Tường', value: 'walls' },
+  { label: 'Vẽ', value: 'draw' },
 ] as const
 
 export type RoofFootprintSource = (typeof ROOF_FOOTPRINT_SOURCES)[number]['value']
@@ -35,14 +35,14 @@ export function getRoofFootprintSource(roofType: RoofType, value: unknown): Roof
 }
 
 export const ROOF_TYPE_OPTIONS: ReadonlyArray<{ label: string; value: RoofType }> = [
-  { label: 'Hip', value: 'hip' },
-  { label: 'Gable', value: 'gable' },
-  { label: 'Shed', value: 'shed' },
-  { label: 'Flat', value: 'flat' },
-  { label: 'Gambrel', value: 'gambrel' },
-  { label: 'Dutch', value: 'dutch' },
+  { label: 'Bốn mái', value: 'hip' },
+  { label: 'Hai mái', value: 'gable' },
+  { label: 'Một mái', value: 'shed' },
+  { label: 'Mái bằng', value: 'flat' },
+  { label: 'Mái gãy', value: 'gambrel' },
+  { label: 'Kiểu Hà Lan', value: 'dutch' },
   { label: 'Mansard', value: 'mansard' },
-  { label: 'Conical', value: 'conical' },
+  { label: 'Nón', value: 'conical' },
 ]
 
 export function getActiveRoofFeatureId(

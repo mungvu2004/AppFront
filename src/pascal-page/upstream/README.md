@@ -7,11 +7,11 @@ These files are upstream code; do not restyle or refactor them. They are exclude
 | File here | Upstream | Edits |
 |---|---|---|
 | `page.tsx` | `app/page.tsx` | see below |
-| `components/build-tab.tsx` | `components/build-tab.tsx` | import paths only (`@/components/*`, `@/lib/*` -> relative) |
-| `components/viewer-toolbar.tsx` | `components/viewer-toolbar.tsx` | import paths only |
+| `components/build-tab.tsx` | `components/build-tab.tsx` | import paths; P40 (below) |
+| `components/viewer-toolbar.tsx` | `components/viewer-toolbar.tsx` | import paths; P40 (below) |
 | `components/toolbar-tooltip.tsx` | `components/toolbar-tooltip.tsx` | import paths only |
-| `lib/build-palette.ts` | `lib/build-palette.ts` | import paths only |
-| `lib/build-tab-state.ts` | `lib/build-tab-state.ts` | none |
+| `lib/build-palette.ts` | `lib/build-palette.ts` | import paths; P40 (below) |
+| `lib/build-tab-state.ts` | `lib/build-tab-state.ts` | P40 (below) |
 | `lib/utils.ts` | `lib/utils.ts` | none |
 
 Every file also carries a header comment (source path, commit, edits) after `'use client'`.
@@ -27,5 +27,16 @@ Every file also carries a header comment (source path, commit, edits) after `'us
 4. `Home` takes props `{ projectId, onLoad, onSave, readOnly }` and passes `projectId`/`onLoad`/`onSave` to
    `<Editor>`. The read-only lease (`acquireSceneReadOnlyLease`) is taken by `../main.tsx`.
 5. Optional `backCard` prop rendered first in the `viewerToolbarLeft` slot (`../BackToProjectCard.tsx`).
+
+AppFront UX edits (UI review package P40), marked `AppFront edit (P40 …)` in code:
+
+6. Vietnamese user-facing strings: sidebar tab labels (`page.tsx`), top toolbar + Display menu
+   (`viewer-toolbar.tsx`, level/wall toggles labelled as state "Tầng: …"/"Tường: …"), Build palette labels
+   (`build-palette.ts`), slab/roof option labels (`build-tab-state.ts`), Build sub-panel headings (`build-tab.tsx`).
+7. `page.tsx`: after `onLoad` the editor is put in Select, or the Measure tool for `?tool=measure`;
+   `?view=exploded` sets the viewer level mode; Esc leaves Preview, then the Delete/Measure tool; a banner
+   shows while the Delete tool is armed.
+8. `build-tab.tsx`: the first mount of a page load no longer arms the first tool (wall); the grid cells show
+   their label under the icon and carry `aria-label`.
 
 `next/image` / `next/link` resolve to `vendor/pascal/shims/*` (aliases in `vite.pascal.config.ts`, paths in `tsconfig.json`).
