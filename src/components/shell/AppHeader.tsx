@@ -42,6 +42,8 @@ export interface AppHeaderProps {
   readonly showAdmin: boolean;
   readonly notificationBell?: ReactNode;
   readonly project: AppHeaderProject | null;
+  /** Dự án vừa rời (N4-05): ở màn Quản trị hiện lối "Về dự án …". */
+  readonly returnProject?: { readonly id: string; readonly name: string } | null | undefined;
   readonly onSignOut: () => void;
 }
 
@@ -140,7 +142,7 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
   );
 }
 
-export function AppHeader({ accountInitials, accountLabel, showAdmin, notificationBell, project, onSignOut }: AppHeaderProps) {
+export function AppHeader({ accountInitials, accountLabel, showAdmin, notificationBell, project, returnProject, onSignOut }: AppHeaderProps) {
   const adminActive = useMatch('/admin/*') !== null;
   const location = useLocation();
   const [confirmOut, setConfirmOut] = useState(false);
@@ -165,6 +167,15 @@ export function AppHeader({ accountInitials, accountLabel, showAdmin, notificati
             </NavLink>
           )}
         </nav>
+        {adminActive && returnProject != null && (
+          <Link
+            to={ROUTES.project.floors(returnProject.id)}
+            className="flex min-w-0 items-center gap-1 truncate rounded-md px-2 text-[13px] text-text-secondary hover:bg-bg-sunken hover:text-text-primary"
+          >
+            <ArrowLeft size={14} aria-hidden="true" className="shrink-0" />
+            <span className="truncate">Về dự án {returnProject.name}</span>
+          </Link>
+        )}
 
         {project !== null && (
           <div className="flex min-w-0 items-center gap-2 text-[13px]">

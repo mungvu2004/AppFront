@@ -5,15 +5,15 @@ import { ROUTE_PATTERNS } from '../../routes/paths';
 
 const TABS = [
   { to: ROUTE_PATTERNS.adminUsers, label: 'Người dùng' },
-  { to: ROUTE_PATTERNS.adminModels, label: 'Thư viện model' },
-  { to: ROUTE_PATTERNS.adminTrainingModels, label: 'Model AI' },
+  { to: ROUTE_PATTERNS.adminModels, label: 'Thư viện mẫu 3D' },
+  { to: ROUTE_PATTERNS.adminTrainingModels, label: 'Mô hình AI' },
   { to: ROUTE_PATTERNS.adminTrainingJobs, label: 'Huấn luyện' },
 ] as const;
 
 /** Thanh điều hướng chung cho bốn màn quản trị; liên kết thật nên bấm giữa/Tab đều dùng được. */
 export function AdminNav() {
   return (
-    <nav aria-label="Mục quản trị" className="mx-auto flex w-full max-w-[1200px] gap-1 border-b border-border-default px-6 pt-4">
+    <nav aria-label="Mục quản trị" className="mx-auto flex w-full max-w-[1280px] gap-1 border-b border-border-default px-8 pt-4 min-[1920px]:max-w-[1440px]">
       {TABS.map(({ to, label }) => (
         <NavLink
           key={to}

@@ -8,7 +8,7 @@
  * này nằm trên đường tải đầu của mọi màn.
  */
 import { skipToken, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { AppHeader } from '@/components/shell/AppHeader';
@@ -19,6 +19,20 @@ import { cachedProjectName } from '@/lib/query/cachedProjectName';
 import { queryKeys } from '@/lib/query/queryKeys';
 
 import { ROUTES } from './paths';
+
+const LAST_PROJECT_KEY = 'appfront.lastProject';
+
+function readLastProject(): { readonly id: string; readonly name: string } | null {
+  try {
+    const raw = sessionStorage.getItem(LAST_PROJECT_KEY);
+    const parsed: unknown = raw === null ? null : JSON.parse(raw);
+    return parsed !== null && typeof parsed === 'object' && 'id' in parsed && 'name' in parsed
+      ? { id: String(parsed.id), name: String(parsed.name) }
+      : null;
+  } catch {
+    return null;
+  }
+}
 import { projectLocationOf } from './projectSteps';
 
 const LazyNotificationBell = lazy(() =>
@@ -55,6 +69,19 @@ export function AppLayout() {
   const projectName =
     location === null ? null : (detail.data?.name?.trim() || null) ?? cachedProjectName(queryClient, projectId) ?? (detail.isError ? 'Dự án' : null);
 
+  // N4-05: nhớ dự án vừa rời để màn Quản trị có lối quay về đúng chỗ.
+  const [lastProject, setLastProject] = useState<{ readonly id: string; readonly name: string } | null>(() => readLastProject());
+  useEffect(() => {
+    if (projectId === '' || projectName === null) return;
+    const next = { id: projectId, name: projectName };
+    setLastProject(next);
+    try {
+      sessionStorage.setItem(LAST_PROJECT_KEY, JSON.stringify(next));
+    } catch {
+      /* sessionStorage có thể bị chặn: lối quay về chỉ là tiện ích. */
+    }
+  }, [projectId, projectName]);
+
   // Nút "Bước tiếp theo" theo trạng thái dự án (G3-06, G3-28, G3-32): chưa có bản vẽ / xử lý lỗi thì không mời đi tiếp.
   const floors = detail.data?.floors;
   const blocker =
@@ -84,6 +111,7 @@ export function AppLayout() {
             ? null
             : { id: location.projectId, name: projectName, stepIndex: location.stepIndex, floorId: location.floorId, layerIndex: location.layerIndex, blocker }
         }
+        returnProject={lastProject}
         onSignOut={handleSignOut}
       />
       <div data-app-content className="relative flex min-h-0 flex-1 flex-col overflow-auto">
