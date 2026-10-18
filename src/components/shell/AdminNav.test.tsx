@@ -13,6 +13,6 @@ describe('AdminNav', () => {
     );
     expect(screen.getAllByRole('link')).toHaveLength(4);
     expect(screen.getByRole('link', { name: 'Huấn luyện' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Model AI' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Mô hình AI' })).not.toHaveAttribute('aria-current');
   });
 });
