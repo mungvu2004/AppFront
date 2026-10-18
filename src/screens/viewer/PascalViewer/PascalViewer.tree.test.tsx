@@ -37,7 +37,8 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { renderWithProviders } from '@/lib/testing/render';
 import { useStore } from '@/store';
 
-import { PascalViewerContainer, PascalViewerRoute } from './PascalViewer.container';
+import { PascalViewerContainer } from './PascalViewer.container';
+import { PascalViewerRoute } from './PascalViewerRoute.container';
 import { PASCAL_LEAVE_LABEL } from './pascalViewerTypes';
 
 /** Lời trạng thái của màn; lớp cộng tác (S5) có `status` riêng, đứng sau trong DOM. */
