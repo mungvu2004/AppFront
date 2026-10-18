@@ -135,7 +135,7 @@ export function AccessDenied({
         <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[13px] text-text-secondary">
           <span>{identityLabel}</span>
           {currentEmail !== null && <span className="font-medium text-text-primary">{currentEmail}</span>}
-          <Button variant="ghost" size="sm" onClick={switchAccount.onActivate}>
+          <Button variant="secondary" size="sm" onClick={switchAccount.onActivate}>
             {switchAccount.label}
           </Button>
         </div>
@@ -197,7 +197,7 @@ export function AccessDenied({
         )}
 
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button variant="ghost" onClick={backToProjects.onActivate}>
+          <Button variant={enterProject !== null ? 'secondary' : 'primary'} onClick={backToProjects.onActivate}>
             {backToProjects.label}
           </Button>
           {enterProject !== null && (

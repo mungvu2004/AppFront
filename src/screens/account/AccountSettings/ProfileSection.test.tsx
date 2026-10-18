@@ -9,7 +9,9 @@
  * đúng hai trạng thái thuộc khối này — **1 rỗng** và **nửa của 3 một phần**.
  */
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render as baseRender, screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { initialsOf } from '@/lib/format/initials';
@@ -26,6 +28,8 @@ afterEach(() => {
 
 /** Một địa chỉ thư mẫu. `expectVietnamese` bỏ qua nó — xem chú thích ở bài dùng. */
 const SAMPLE_EMAIL = 'thu.ha@congty.vn';
+
+const render = (ui: ReactElement) => baseRender(ui, { wrapper: MemoryRouter });
 
 function props(overrides: Partial<ProfileSectionProps> = {}): ProfileSectionProps {
   return {
@@ -131,10 +135,10 @@ describe('BUG-497, BUG-502 — khổ hẹp: nhãn trên ô, thư dài không đ�
   });
 
   it('ô thư điện tử co được (min-w-0 flex-1) để nút "Đổi thư điện tử" ở lại trong hàng', () => {
-    render(<ProfileSection {...props({ email: `${'a'.repeat(120)}@congty.vn` })} />);
+    render(<ProfileSection {...props({ isSystemAdmin: true, email: `${'a'.repeat(120)}@congty.vn` })} />);
 
-    const button = screen.getByRole('button', { name: 'Đổi thư điện tử' });
-    const wrapper = button.previousElementSibling;
+    const link = screen.getByRole('link', { name: 'Đổi tại Quản trị › Người dùng' });
+    const wrapper = link.previousElementSibling;
 
     expect(wrapper).toHaveClass('min-w-0', 'flex-1');
   });
@@ -262,16 +266,16 @@ describe('thư điện tử chỉ đọc', () => {
     // tính DOM không có thật, và React kêu về chuyện đó.
     expect(screen.queryByLabelText('Thư điện tử')).toBeNull();
     expect(screen.getByText(SAMPLE_EMAIL)).toBeTruthy();
-    expect(screen.getByText('Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.')).toBeTruthy();
+    expect(screen.getByText('Liên hệ quản trị viên để đổi email.')).toBeTruthy();
   });
 
-  it('liên kết "Đổi thư điện tử" gọi lên hook', () => {
-    const onChangeEmail = vi.fn();
-    render(<ProfileSection {...props({ onChangeEmail })} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Đổi thư điện tử' }));
-
-    expect(onChangeEmail).toHaveBeenCalledTimes(1);
+  it('quản trị hệ thống thấy liên kết tới Quản trị › Người dùng; người khác không có nút', () => {
+    render(<ProfileSection {...props({ isSystemAdmin: true })} />);
+    expect(screen.getByRole('link', { name: 'Đổi tại Quản trị › Người dùng' })).toBeTruthy();
+    cleanup();
+    render(<ProfileSection {...props()} />);
+    expect(screen.queryByRole('link', { name: /Đổi tại Quản trị/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đổi thư điện tử' })).toBeNull();
   });
 });
 

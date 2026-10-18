@@ -131,6 +131,9 @@ export function NotificationRow({
         <div className="flex items-center gap-2">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
             <span className="whitespace-nowrap text-[13px] leading-[18px] text-text-muted">{item.relativeTime}</span>
+            {item.target.projectName.length > 0 && (
+              <span className="min-w-0 max-w-full truncate text-[13px] leading-[18px] text-text-muted">{`· ${item.target.projectName}`}</span>
+            )}
             {item.inlineAction !== undefined && (
               // While the accept is in flight the button is `aria-disabled`, not `disabled`: a disabled button
               // drops keyboard focus to <body> inside the sheet (WCAG 2.4.3, review QA-02 P2-5).

@@ -60,6 +60,8 @@ export interface NotificationCenterContainerProps extends UseNotificationCenterO
    * có người nối nhầm vòng.
    */
   readonly onDismiss?: (() => void) | undefined;
+  /** Route toàn màn: ẩn "Xem tất cả" (chỉ dẫn về chính nó). */
+  readonly hideViewAll?: boolean | undefined;
 }
 
 /** Thẻ nhỏ thay cho tấm trượt khi nó sập — không chắn thao tác của màn bên dưới. */
@@ -86,7 +88,7 @@ function NotificationCrashFallback({ report, retry }: ScreenErrorFallback) {
  */
 function useWiredNotificationCenter(props: NotificationCenterContainerProps) {
   const navigate = useNavigate();
-  const { onDismiss, ...options } = props;
+  const { onDismiss, hideViewAll, ...options } = props;
 
   const goTo = useCallback(
     (to: string): void => {
@@ -100,11 +102,13 @@ function useWiredNotificationCenter(props: NotificationCenterContainerProps) {
   // có hàm để truyền.
   const onClose = options.onClose ?? onDismiss;
 
-  return useNotificationCenter({
+  const vm = useNotificationCenter({
     ...options,
     onNavigate: options.onNavigate ?? goTo,
     ...(onClose === undefined ? {} : { onClose }),
   });
+
+  return { ...vm, hideViewAll: hideViewAll === true };
 }
 
 /** Hook và view — nối lại thành một tấm trượt đã sẵn sàng. */
@@ -174,10 +178,11 @@ export function NotificationBellContainer(props: NotificationCenterContainerProp
 /** The panel and the gaps on both its sides: the backdrop centres its text in what is left (from the Drawer's own width). */
 const PANEL_CLEARANCE = { '--panel-clearance': `${String(DRAWER_WIDTH_PX + 2 * DRAWER_GAP_PX)}px` } as CSSProperties;
 
-function NotificationRouteBackdrop() {
+function NotificationRouteBackdrop({ onBack }: { readonly onBack: () => void }) {
   return (
     <div
       aria-hidden="true"
+      onClick={onBack}
       className="fixed inset-0 flex items-start justify-center bg-bg-app px-6 pt-8 lg:items-center lg:pr-[var(--panel-clearance)] lg:pt-0"
       style={PANEL_CLEARANCE}
     >
@@ -264,8 +269,8 @@ export function NotificationCenterRoute() {
 
   return (
     <>
-      <NotificationRouteBackdrop />
-      <NotificationCenterContainer isOpen isCompact onNavigate={goTo} onDismiss={goBack} />
+      <NotificationRouteBackdrop onBack={goBack} />
+      <NotificationCenterContainer isOpen isCompact hideViewAll onNavigate={goTo} onDismiss={goBack} />
     </>
   );
 }

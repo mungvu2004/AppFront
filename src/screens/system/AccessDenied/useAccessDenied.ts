@@ -147,7 +147,7 @@ export const REASON_SENTENCE: Readonly<Record<AccessDeniedReason, string>> = {
   revoked: 'Quyền xem của tài khoản này đã được thu hồi, nên đường dẫn cũ không còn mở ra nữa.',
   expired: 'Đường dẫn bạn đang mở đã hết hạn, nên nó không còn dẫn vào được nữa.',
   password: 'Đường dẫn này cần một mật khẩu, và mật khẩu đi kèm chưa mở được nó.',
-  unknown: 'Hệ thống chưa nói rõ vì sao, nên chưa thể nêu chính xác điều gì đang chặn lượt truy cập này.',
+  unknown: 'Hệ thống không cho biết lý do cụ thể.',
 };
 
 /* -------------------------------------------------------------------------- */

@@ -104,11 +104,12 @@ function flatIndexOf(groups: readonly NotificationDayGroup[]): ReadonlyMap<strin
 /* Màn.                                                                        */
 /* -------------------------------------------------------------------------- */
 
-export function NotificationCenter(props: NotificationCenterProps) {
+/** `hideViewAll`: trên `/thong-bao` danh sách đã là toàn màn, nút "Xem tất cả" chỉ dẫn về chính nó (G1-15). */
+export function NotificationCenter(props: NotificationCenterProps & { readonly hideViewAll?: boolean }) {
   const {
     screenState, isOpen, onClose, filter, onFilterChange, groups, unreadBadge,
     liveMessage, onMarkAllRead, onMarkRead, onItemClick, onInlineAction, onViewAll,
-    onOpenSettings, errorMessage, onRetry, arrivedIds, scrollRef,
+    onOpenSettings, errorMessage, onRetry, arrivedIds, scrollRef, hideViewAll = false,
   } = props;
 
   /* Hoà tan 180ms rồi mới `onClose` — trình bày thuần, không phải R-64. */
@@ -260,11 +261,13 @@ export function NotificationCenter(props: NotificationCenterProps) {
           </div>
         </Drawer.Body>
 
-        <div className={cn('shrink-0 border-t border-border-default px-8 py-4', SHEET_GUTTER)}>
-          <Button variant="ghost" size="sm" fullWidth onClick={onViewAll}>
-            {VIEW_ALL_LABEL}
-          </Button>
-        </div>
+        {!hideViewAll && (
+          <div className={cn('shrink-0 border-t border-border-default px-8 py-4', SHEET_GUTTER)}>
+            <Button variant="ghost" size="sm" fullWidth onClick={onViewAll}>
+              {VIEW_ALL_LABEL}
+            </Button>
+          </div>
+        )}
       </div>
     </Drawer.Root>
   );

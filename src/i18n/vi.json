@@ -429,7 +429,7 @@
   "account": {
     "title": "Cài đặt tài khoản",
     "description": "Hồ sơ, giao diện, thông báo, phím tắt và mật khẩu.",
-    "backToDashboard": "Về bảng điều khiển",
+    "backToDashboard": "Về trang Dự án",
     "savedLocalToast": "Đã đổi cài đặt, chỉ giữ trong phiên này.",
     "sections": {
       "profile": "Hồ sơ",
@@ -509,11 +509,11 @@
       "email": {
         "change": "Đổi thư điện tử",
         "readOnlyShort": "Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.",
-        "readOnlyLong": "Thư điện tử là tên đăng nhập nên đổi nó phải qua một bước xác minh. Liên hệ quản trị viên của công ty để đổi."
+        "readOnlyLong": "Ứng dụng chưa có bước xác minh để tự đổi thư điện tử. Nhờ quản trị viên công ty đổi giúp trong mục Quản trị."
       },
       "languages": {
         "vi": "Tiếng Việt",
-        "en": "Tiếng Anh"
+        "en": "English"
       }
     },
     "appearance": {
@@ -3492,7 +3492,7 @@
     "breadcrumb": {
       "navLabel": "Đường dẫn trang",
       "parent": "Quản trị",
-      "current": "Thư viện model"
+      "current": "Thư viện mẫu 3D"
     },
     "toolbar": {
       "searchLabel": "Tìm model",
@@ -3576,8 +3576,8 @@
   },
   "modelRegistry": {
     "breadcrumbAdmin": "Quản trị",
-    "breadcrumbHere": "Model AI",
-    "title": "Model AI của chuỗi xử lý",
+    "breadcrumbHere": "Mô hình AI",
+    "title": "Mô hình AI của chuỗi xử lý",
     "familyPicker": "Họ model",
     "activeTitle": "Đang dùng",
     "classic": "Đường cổ điển",
@@ -3628,7 +3628,7 @@
     "breadcrumbAdmin": "Quản trị",
     "breadcrumbHere": "Huấn luyện model",
     "title": "Huấn luyện model AI",
-    "relatedLink": "Model AI của chuỗi xử lý",
+    "relatedLink": "Mô hình AI của chuỗi xử lý",
     "tabsLabel": "Phần của trang huấn luyện",
     "tabJobs": "Lượt huấn luyện",
     "tabDatasets": "Bộ dữ liệu",
@@ -3920,7 +3920,7 @@
       "revoked": "Quyền xem của tài khoản này đã được thu hồi, nên đường dẫn cũ không còn mở ra nữa.",
       "expired": "Đường dẫn bạn đang mở đã hết hạn, nên nó không còn dẫn vào được nữa.",
       "password": "Đường dẫn này cần một mật khẩu, và mật khẩu đi kèm chưa mở được nó.",
-      "unknown": "Hệ thống chưa nói rõ vì sao, nên chưa thể nêu chính xác điều gì đang chặn lượt truy cập này."
+      "unknown": "Hệ thống không cho biết lý do cụ thể."
     },
     "whoCanGrant": "Người quản trị dự án là người cấp được quyền này; hãy nhắn cho họ để được thêm vào danh sách xem.",
     "identityLabel": "Bạn đang đăng nhập bằng {{email}}",

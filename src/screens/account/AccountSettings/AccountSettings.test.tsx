@@ -960,7 +960,7 @@ describe('số phím tắt hiển thị bằng số mục trong registry (I-01)'
       openSearch: noop,
       openShortcutHelp: noop,
       closeTopLayer: noop,
-    }).length;
+    }).length + 1; // + dòng "N" của trang Dự án
 
     console.log(
       `[T6] phím tắt hiển thị = ${String(shown)} · mục trong registry = ${String(registered)}`,

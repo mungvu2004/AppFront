@@ -81,7 +81,7 @@ describe('NotificationCenterRoute', () => {
     vi.useRealTimers();
   });
 
-  it('BUG-113: "Xem tất cả" ở /thong-bao ở lại route, và Esc sau đó vẫn rời được', async () => {
+  it('G1-15: ở /thong-bao không có "Xem tất cả" (chỉ dẫn về chính nó), Esc vẫn rời được', async () => {
     renderWithProviders(
       <MemoryRouter initialEntries={[ROUTES.notifications]}>
         <Routes>
@@ -91,8 +91,8 @@ describe('NotificationCenterRoute', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Xem tất cả' }));
-    expect(screen.queryByText(/đang ở/)).not.toBeInTheDocument();
+    await screen.findByRole('dialog');
+    expect(screen.queryByRole('button', { name: 'Xem tất cả' })).not.toBeInTheDocument();
 
     // Bẫy tiêu điểm kích hoạt ở khung hình kế tiếp — chờ nó trước khi nhấn phím.
     await waitFor(() => expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement));

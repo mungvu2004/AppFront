@@ -117,7 +117,7 @@ export const COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)';
 /** Hai ngôn ngữ đang có. Định danh tiếng Anh theo BCP-47, nhãn tiếng Việt. */
 export const LANGUAGE_OPTIONS: readonly SelectOption[] = [
   { label: 'Tiếng Việt', value: 'vi' },
-  { label: 'Tiếng Anh', value: 'en' },
+  { label: 'English', value: 'en' },
 ];
 
 const THEME_CHOICES: readonly ThemeChoice[] = ['light', 'dark', 'system'];
@@ -157,8 +157,8 @@ export const ACCOUNT_STACKED_QUERY = '(width < 1024px)';
 
 const EMAIL_REASON_SHORT = 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.';
 const EMAIL_REASON_LONG =
-  'Thư điện tử là tên đăng nhập nên đổi nó phải qua một bước xác minh. ' +
-  'Liên hệ quản trị viên của công ty để đổi.';
+  'Ứng dụng chưa có bước xác minh để tự đổi thư điện tử. ' +
+  'Nhờ quản trị viên công ty đổi giúp trong mục Quản trị.';
 
 const JOB_TITLE_PLACEHOLDER = 'Chưa đặt';
 
@@ -649,6 +649,7 @@ export function useAccountPreferences(
     email: email === '' ? MISSING_VALUE : email,
     emailReadOnlyReason: emailReason,
     onChangeEmail: () => setEmailReason(EMAIL_REASON_LONG),
+    isSystemAdmin: session.roles.includes('admin'),
     phone: values.phone,
     onPhoneChange: (value) => commit('profile', 'phone', value, 'phone'),
     language: values.language,

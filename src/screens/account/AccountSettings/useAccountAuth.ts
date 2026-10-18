@@ -658,8 +658,11 @@ export function useAccountAuth(options: UseAccountAuthOptions = {}): AccountAuth
       currentPasswordProblem:
         serverProblem ??
         (hasSubmitted && passwords.current === '' ? MESSAGES.currentPasswordRequired : null),
-      newPasswordProblem: hasSubmitted ? (localNewProblem ?? sameAsCurrent) : null,
-      confirmPasswordProblem: hasSubmitted ? confirmProblem : null,
+      // Báo ngay khi ô đã có chữ (G1-19), không đợi bấm nút; ô còn trống thì chờ lượt gửi.
+      newPasswordProblem:
+        hasSubmitted || passwords.next !== '' ? (localNewProblem ?? sameAsCurrent) : null,
+      confirmPasswordProblem:
+        hasSubmitted || passwords.confirm !== '' ? confirmProblem : null,
       strength: passwordStrengthOf(passwords.next),
       canSubmit:
         passwords.current !== '' &&

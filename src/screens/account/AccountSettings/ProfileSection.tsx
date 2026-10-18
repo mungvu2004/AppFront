@@ -36,10 +36,12 @@
 import { useEffect, useId, useRef } from 'react';
 
 import { Avatar } from '@/components/ui/Avatar';
-import { Button } from '@/components/ui/Button';
 import { FieldRow } from '@/components/ui/FieldRow';
 import { Input } from '@/components/ui/Input';
 import { Select, type SelectOption } from '@/components/ui/Select';
+import { Link } from 'react-router-dom';
+
+import { ROUTES } from '@/routes/paths';
 import { cn } from '@/lib/utils';
 
 import { AvatarReplaceDialog, type AvatarReplaceDialogProps } from './AvatarReplaceDialog';
@@ -93,6 +95,8 @@ export interface ProfileSectionProps {
   readonly email: string;
   readonly emailReadOnlyReason: string;
   readonly onChangeEmail: () => void;
+  /** Quản trị hệ thống: có chỗ đổi email (Quản trị › Người dùng). Người khác chỉ đọc lời nhắn. */
+  readonly isSystemAdmin?: boolean;
 
   readonly phone: string;
   readonly onPhoneChange: (value: string) => void;
@@ -169,9 +173,9 @@ export function ProfileSection(props: ProfileSectionProps) {
           <label
             htmlFor={avatarInputId}
             className={cn(
-              'absolute inset-0 flex cursor-pointer items-center justify-center rounded-full',
-              'bg-bg-overlay text-[12px] font-medium text-white',
-              'opacity-0 group-hover:opacity-100 peer-focus-visible:opacity-100',
+              'absolute inset-0 flex cursor-pointer items-end justify-center overflow-hidden rounded-full pb-1',
+              'bg-gradient-to-t from-bg-overlay to-transparent text-[12px] font-medium text-white',
+              'opacity-90 group-hover:opacity-100 peer-focus-visible:opacity-100',
               'peer-focus-visible:ring-2 peer-focus-visible:ring-accent',
               'peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-bg-surface',
               'transition-opacity',
@@ -230,17 +234,14 @@ export function ProfileSection(props: ProfileSectionProps) {
                 readOnly
                 wrapperClassName="min-w-0 flex-1"
               />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="shrink-0 text-accent"
-                onClick={props.onChangeEmail}
-              >
-                Đổi thư điện tử
-              </Button>
+              {props.isSystemAdmin === true ? (
+                <Link to={ROUTES.adminUsers} className="shrink-0 text-[13px] text-accent underline">
+                  Đổi tại Quản trị › Người dùng
+                </Link>
+              ) : null}
             </div>
             <p className="text-[13px] leading-[18px] text-text-muted">
-              {props.emailReadOnlyReason}
+              {props.isSystemAdmin === true ? props.emailReadOnlyReason : 'Liên hệ quản trị viên để đổi email.'}
             </p>
           </div>
         </FieldRow>

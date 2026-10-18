@@ -62,6 +62,14 @@ const BLOCK_CLASS = 'flex flex-col gap-3 rounded-xl bg-bg-surface p-5';
 /** Vùng nguy hiểm mang thêm viền, để mắt phân biệt được trước khi kịp đọc chữ. */
 const DANGER_BLOCK_CLASS = `${BLOCK_CLASS} border border-danger-border`;
 
+const TOC: readonly (readonly [string, string])[] = [
+  ['account-profile', 'Hồ sơ'],
+  ['account-appearance', 'Giao diện'],
+  ['account-notifications', 'Thông báo'],
+  ['account-shortcuts', 'Phím tắt'],
+  ['account-password', 'Mật khẩu'],
+];
+
 interface AccountBlockProps {
   readonly id: string;
   readonly title: string;
@@ -127,6 +135,18 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
 
         {vm.errorMessage === null ? (
           <>
+            {/* G1-20: mục lục nhảy tới từng khối; trang dài ~2300 px. */}
+            <nav aria-label="Mục trong trang" className="flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
+              {TOC.map(([id, label]) => (
+                <a
+                  key={id}
+                  href={`#${id}`}
+                  className="rounded text-text-secondary underline hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
+                >
+                  {label}
+                </a>
+              ))}
+            </nav>
             <AccountBlock
               id="account-profile"
               title="Hồ sơ"

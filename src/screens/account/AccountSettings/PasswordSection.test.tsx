@@ -116,7 +116,7 @@ describe('khối mật khẩu — view dựng chỉ từ props', () => {
     expect(screen.getByLabelText('Mật khẩu hiện tại')).toBeTruthy();
     expect(screen.getByLabelText('Mật khẩu mới')).toBeTruthy();
     expect(screen.getByLabelText('Nhắc lại mật khẩu mới')).toBeTruthy();
-    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.getAllByRole('button')).toHaveLength(4); // 3 nút mắt + Đổi mật khẩu
     expect(screen.getByRole('button', { name: 'Đổi mật khẩu' })).toBeTruthy();
   });
 

@@ -45,7 +45,7 @@ import { useEffect, useId, useRef, type FormEvent } from 'react';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
 import { FieldRow } from '@/components/ui/FieldRow';
-import { Input } from '@/components/ui/Input';
+import { PasswordField } from '@/screens/auth/PasswordField';
 import { cn } from '@/lib/utils';
 
 /** Ba mức của thanh sức mạnh. `null` khi ô mật khẩu mới còn trống. */
@@ -184,9 +184,8 @@ export function PasswordSection(props: PasswordSectionProps) {
 
   return (
     <form ref={formRef} className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
-      <Input
+      <PasswordField
         label="Mật khẩu hiện tại"
-        type="password"
         autoComplete="current-password"
         value={props.currentPassword}
         onChange={(event) => props.onCurrentPasswordChange(event.target.value)}
@@ -195,9 +194,8 @@ export function PasswordSection(props: PasswordSectionProps) {
       />
 
       <div className="flex flex-col gap-2">
-        <Input
+        <PasswordField
           label="Mật khẩu mới"
-          type="password"
           autoComplete="new-password"
           value={props.newPassword}
           onChange={(event) => props.onNewPasswordChange(event.target.value)}
@@ -210,9 +208,8 @@ export function PasswordSection(props: PasswordSectionProps) {
         )}
       </div>
 
-      <Input
+      <PasswordField
         label="Nhắc lại mật khẩu mới"
-        type="password"
         autoComplete="new-password"
         value={props.confirmPassword}
         onChange={(event) => props.onConfirmPasswordChange(event.target.value)}
@@ -238,7 +235,24 @@ export function PasswordSection(props: PasswordSectionProps) {
         />
       )}
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-3">
+        {props.canSubmit || props.isSubmitting ? null : (
+          <span className="text-[13px] text-text-secondary">Nhập đủ cả ba ô để đổi mật khẩu.</span>
+        )}
+        {props.currentPassword === '' && props.newPassword === '' && props.confirmPassword === '' ? null : (
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={props.isSubmitting}
+            onClick={() => {
+              props.onCurrentPasswordChange('');
+              props.onNewPasswordChange('');
+              props.onConfirmPasswordChange('');
+            }}
+          >
+            Huỷ
+          </Button>
+        )}
         <Button
           type="submit"
           variant="primary"
