@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import { ROUTE_PATTERNS } from './paths';
+import { editor3dHref, ROUTE_PATTERNS } from './paths';
 import { ExplodedViewRedirect, MeasureViewRedirect } from './viewerRedirects';
 
 /** In địa chỉ đích ra DOM để khẳng định cả query lẫn hash. */
@@ -41,5 +41,12 @@ describe('MeasureViewRedirect', () => {
     );
 
     expect(screen.getByTestId('landing').textContent).toBe('/projects/p1/3d?v=3&tool=measure#x');
+  });
+});
+
+describe('editor3dHref', () => {
+  it('/3d mở trang Pascal riêng, giữ ?tool=measure', () => {
+    expect(editor3dHref('p1')).toBe('/editor3d.html?project=p1');
+    expect(editor3dHref('p1', '?tool=measure')).toBe('/editor3d.html?tool=measure&project=p1');
   });
 });

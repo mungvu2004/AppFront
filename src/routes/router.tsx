@@ -23,7 +23,7 @@ import { useStore } from '@/store';
 
 import { AppLayout } from './AppLayout';
 import { ROUTE_PATTERNS } from './paths';
-import { ExplodedViewRedirect, MeasureViewRedirect, PascalViewerRedirect } from './viewerRedirects';
+import { ExplodedViewRedirect, MeasureViewRedirect, Pascal3dPage, PascalViewerRedirect } from './viewerRedirects';
 import { RouteErrorScreen } from './RouteErrorScreen';
 import { PendingShell, SessionBootstrap } from './SessionBootstrap';
 // Màn nạp lười: khai ở `lazyScreens.ts` để file này dưới trần 400 dòng.
@@ -338,7 +338,7 @@ export const routes: RouteObject[] = [
           </ScreenMain>
         ),
         children: [
-          { path: ROUTE_PATTERNS.projectViewer, element: suspended(<Screens.RoutePascalViewer />) },
+          { path: ROUTE_PATTERNS.projectViewer, element: <Pascal3dPage /> },
           { path: ROUTE_PATTERNS.projectViewerPascal, element: <PascalViewerRedirect /> },
         ],
       },

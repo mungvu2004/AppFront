@@ -38,6 +38,8 @@ export interface ProductRoute {
  * route sản phẩm" sẽ đòi một landmark không bao giờ có.
  */
 export const REDIRECT_PATHS: readonly string[] = [
+  /* `/3d` điều hướng cả trang sang `public/editor3d.html` (trang Pascal riêng), không dựng màn. */
+  ROUTE_PATTERNS.projectViewer,
   ROUTE_PATTERNS.projectViewerPascal,
   ROUTE_PATTERNS.projectExploded,
   ROUTE_PATTERNS.projectMeasure,
@@ -122,7 +124,6 @@ export const FLOORS_ADMIN_PATHS: readonly string[] = [
 ];
 
 export const VIEWER_PATHS: readonly string[] = [
-  ROUTE_PATTERNS.projectViewer,
   '/m/du-an/:projectId',
 ];
 

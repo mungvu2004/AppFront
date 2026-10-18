@@ -4,7 +4,6 @@
 
 import { lazy } from 'react';
 
-export const RoutePascalViewer = lazy(() => import('../screens/viewer/PascalViewer').then(m => ({ default: m.PascalViewerRoute })));
 export const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
 export const RouteInvitationAccept = lazy(() => import('../screens/auth/InvitationAccept').then(m => ({ default: m.InvitationAcceptRoute })));
 export const RoutePasswordReset = lazy(() => import('../screens/auth/PasswordReset').then(m => ({ default: m.PasswordResetRoute })));

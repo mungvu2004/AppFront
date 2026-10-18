@@ -228,3 +228,12 @@ export const DEV_PUBLIC_ROUTE_PATTERNS = [
   ROUTE_PATTERNS.feedbackDemo,
   ROUTE_PATTERNS.designSystemStates,
 ] as const;
+
+/** Địa chỉ trang 3D riêng của Pascal; query cũ (vd `?tool=measure`) đi theo, `project` ghi đè. */
+export function editor3dHref(projectId: string, search = ''): string {
+  const query = new URLSearchParams(search);
+
+  query.set('project', projectId);
+
+  return `/editor3d.html?${query.toString()}`;
+}
