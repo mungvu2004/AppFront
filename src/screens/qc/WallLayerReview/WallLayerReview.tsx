@@ -56,6 +56,7 @@ import { FloorLayerSaveBanner } from './FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame } from '../shared/QcScreenFrame';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { WallLayerInspector } from './WallLayerInspector';
@@ -78,6 +79,8 @@ export interface WallLayerReviewViewProps extends WallLayerReviewProps {
   readonly onNavigateLayer?: ((layer: WallLayerOtherKind) => void) | undefined;
   /** Mở lớp tường của một tầng khác — container tra `ROUTES.project.walls`. */
   readonly onNavigateFloor?: ((floorId: string) => void) | undefined;
+  /** Đầu chung Dự án › Tầng › Lớp + thanh lớp (G4a-24). Tầng lấy từ `leftPanel.floors`. */
+  readonly floorNav?: Omit<QcFloorNavProps, 'floors' | 'layer'> | undefined;
   /** Khối lưu lớp của tầng (F-04x-1) — dải trên màn, không trong canvas. */
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
   /** Dải tỉ lệ tạm (F-04x-2) — trên màn, không trong canvas. */
@@ -115,6 +118,7 @@ export function WallLayerReview({
   canvasSlot,
   onNavigateLayer,
   onNavigateFloor,
+  floorNav,
   saveBlock,
   provisionalScaleNotice,
   readFailure,
@@ -139,6 +143,7 @@ export function WallLayerReview({
    */
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
+      {floorNav != null && <QcFloorNav {...floorNav} floors={leftPanel.floors} layer="walls" />}
       {saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={saveBlock} />

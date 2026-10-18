@@ -215,6 +215,7 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
     <WallLayerReview
       canvas={canvas}
       canvasSlot={<WallLayerCanvas {...canvas} />}
+      floorNav={{ projectId, floorId }}
       leftPanel={leftPanel}
       onNavigateFloor={onNavigateFloor}
       onNavigateLayer={onNavigateLayer}

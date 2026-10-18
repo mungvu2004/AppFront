@@ -22,7 +22,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { Crosshair, DoorOpen, Eye, EyeOff, Layers, LayoutGrid, Ruler, Square } from 'lucide-react';
+import { Eye, EyeOff, Layers, Square } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
@@ -237,24 +237,8 @@ function WallLayerFloorNav({
   );
 }
 
-/** Lớp đang mở. Bốn lớp còn lại nằm ở {@link OTHER_LAYERS}. */
+/** Lớp đang mở. Sang lớp khác đi qua thanh lớp của `QcFloorNav` ở đầu màn (G4a-24): cây chỉ còn bật/tắt lớp Tường. */
 const WALL_LAYER_LABEL = 'Tường';
-
-/** Bốn lớp còn lại của cây, đúng thứ tự đặc tả đọc chúng. */
-const OTHER_LAYERS: readonly {
-  readonly kind: WallLayerOtherKind;
-  readonly label: string;
-  readonly icon: ReactNode;
-}[] = [
-  {
-    kind: 'openingsAndFurniture',
-    label: 'Cửa và nội thất',
-    icon: <DoorOpen className="h-4 w-4" />,
-  },
-  { kind: 'dimensions', label: 'Kích thước', icon: <Ruler className="h-4 w-4" /> },
-  { kind: 'axes', label: 'Trục', icon: <Crosshair className="h-4 w-4" /> },
-  { kind: 'rooms', label: 'Phòng', icon: <LayoutGrid className="h-4 w-4" /> },
-];
 
 export function WallLayerLeftPanel({
   panel,
@@ -325,14 +309,6 @@ export function WallLayerLeftPanel({
               onToggle: extras.onToggleWallLayer,
             }}
           />
-          {OTHER_LAYERS.map((layer) => (
-            <WallLayerTreeRow
-              icon={layer.icon}
-              key={layer.kind}
-              label={layer.label}
-              onOpen={() => onNavigateLayer?.(layer.kind)}
-            />
-          ))}
         </div>
 
         <div className="flex flex-col gap-1">
