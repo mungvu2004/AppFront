@@ -50,5 +50,9 @@
     "playwright.config.ts",
     "tailwind.config.ts",
     ".storybook/**/*.ts"
+  ],
+  "exclude": [
+    "src/components/pascal",
+    "src/pascal-page"
   ]
 }

@@ -1,0 +1,87 @@
+{
+  // Mã AppFront chạm Pascal (src/components/pascal, src/pascal-page) kéo theo mã Pascal gốc
+  // (vendor/pascal/packages, KHÔNG được sửa). Pascal tự kiểm kiểu không bật
+  // exactOptionalPropertyTypes (tooling/typescript/base.json của nó), nên hai thư mục này
+  // kiểm bằng đúng cờ ấy; phần còn lại của AppFront giữ cấu hình chặt ở tsconfig.json.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "exactOptionalPropertyTypes": false,
+    "target": "ES2022",
+    "lib": ["ES2022", "ESNext", "DOM", "DOM.Iterable"],
+    "allowImportingTsExtensions": true,
+    // Gói Pascal trỏ `exports` vào `dist/` (chưa dựng): kiểm thẳng mã nguồn, như alias của vite.pascal.config.ts.
+    "paths": {
+      "@/*": [
+            "./src/*"
+      ],
+      "next/image": [
+            "./vendor/pascal/shims/next-image.tsx"
+      ],
+      "@iconify/react": [
+            "./vendor/pascal/packages/editor/node_modules/@iconify/react"
+      ],
+      "@radix-ui/react-tooltip": [
+            "./vendor/pascal/packages/editor/node_modules/@radix-ui/react-tooltip"
+      ],
+      "next/link": [
+            "./vendor/pascal/shims/next-link.tsx"
+      ],
+      "@pascal-app/core": [
+            "./vendor/pascal/packages/core/src/index.ts"
+      ],
+      "@pascal-app/core/clone-scene-graph": [
+            "./vendor/pascal/packages/core/src/utils/clone-scene-graph.ts"
+      ],
+      "@pascal-app/core/scene-migrations": [
+            "./vendor/pascal/packages/core/src/utils/scene-migrations.ts"
+      ],
+      "@pascal-app/core/capture": [
+            "./vendor/pascal/packages/core/src/capture/index.ts"
+      ],
+      "@pascal-app/core/registry": [
+            "./vendor/pascal/packages/core/src/registry/index.ts"
+      ],
+      "@pascal-app/core/schema": [
+            "./vendor/pascal/packages/core/src/schema/index.ts"
+      ],
+      "@pascal-app/core/store": [
+            "./vendor/pascal/packages/core/src/store/use-scene.ts"
+      ],
+      "@pascal-app/core/material-library": [
+            "./vendor/pascal/packages/core/src/material-library.ts"
+      ],
+      "@pascal-app/core/spatial-grid": [
+            "./vendor/pascal/packages/core/src/hooks/spatial-grid/spatial-grid-manager.ts"
+      ],
+      "@pascal-app/core/plan-footprint": [
+            "./vendor/pascal/packages/core/src/lib/plan-footprint.ts"
+      ],
+      "@pascal-app/core/wall": [
+            "./vendor/pascal/packages/core/src/systems/wall/wall-footprint.ts"
+      ],
+      "@pascal-app/core/stair-openings": [
+            "./vendor/pascal/packages/core/src/systems/stair/stair-opening-sync.ts"
+      ],
+      "@pascal-app/core/procedural-items": [
+            "./vendor/pascal/packages/core/src/procedural-items/index.ts"
+      ],
+      "@pascal-app/viewer": [
+            "./vendor/pascal/packages/viewer/src/index.ts"
+      ],
+      "@pascal-app/viewer/capture": [
+            "./vendor/pascal/packages/viewer/src/capture/index.ts"
+      ],
+      "@pascal-app/viewer/capture/preview": [
+            "./vendor/pascal/packages/viewer/src/capture/preview.ts"
+      ],
+      "@pascal-app/nodes": [
+            "./vendor/pascal/packages/nodes/src/index.ts"
+      ],
+      "@pascal-app/nodes/procedural-item": [
+            "./vendor/pascal/packages/nodes/src/procedural-item/index.ts"
+      ]
+    }
+  },
+  "include": ["src/components/pascal", "src/pascal-page", "src/**/*.d.ts"],
+  "exclude": []
+}

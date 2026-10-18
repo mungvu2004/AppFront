@@ -57,3 +57,48 @@ export interface PascalMeasurementDelete {
   readonly ordinal: number;
   readonly undo: () => void;
 }
+
+/** Cái `loadSceneIntoPascal` trả về, đủ để nơi gọi tự kiểm mà không cần chạm store Pascal. */
+export interface PascalSceneCensus {
+  /** Số node thật sự nằm trong store sau lượt nạp. */
+  readonly nodeCount: number;
+  /** Node bị store dọn đi vì mồ côi hoặc không với tới được từ gốc. */
+  readonly droppedIds: readonly string[];
+}
+
+/** Cái người gọi cầm về, đủ để sống trọn vòng đời mà không chạm vào Pascal. */
+export interface PascalMountHandle {
+  /** Nạp một cảnh khác vào cùng khung đang chạy. */
+  readonly setScene: (scene: PascalScene) => void;
+  /** Khuôn camera vào một đối tượng theo mã AppFront; `false` khi không có node nào mang mã ấy. */
+  readonly frameEntity: (entityId: string) => boolean;
+  /** Tô sáng các node theo mã Pascal; mảng rỗng là bỏ tô sáng. */
+  readonly setHighlight: (nodeIds: readonly string[]) => void;
+  /** Xoá node theo mã Pascal như nút "Xoá" của editor (lượt xoá hàng loạt đã xác nhận). */
+  readonly deleteNodes: (nodeIds: readonly string[]) => void;
+  /** Gỡ gốc React thứ hai và trả store về rỗng. Gọi được nhiều lần. */
+  readonly dispose: () => void;
+}
+
+/** Những gì màn hình cha cần nói cho khung nhúng biết. */
+export interface PascalMountOptions {
+  /** Cảnh đầu tiên. Đã phải đủ trường — xem `lib/pascal/__tests__/renderContract.test.ts`. */
+  readonly scene: PascalScene;
+  /** Cảnh đã dựng xong một khung hình thật, hoặc chưa. */
+  readonly onReadyChange?: (ready: boolean) => void;
+  /** Lỗi chết người ở gốc thứ hai. `ScreenErrorBoundary` không với tới đây được. */
+  readonly onFatal?: (error: Error) => void;
+  /** Số node vào store và số node store dọn đi — xem `PascalFrameProps.onSceneLoaded`. */
+  readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
+  /** Xoay một ngón, chụm để thu phóng, hai ngón để dời (chuột: kéo, lăn). */
+  readonly cameraControls?: boolean;
+  /** Chạm/bấm một đối tượng ở `view` — mã node Pascal, hoặc `null` khi chạm khoảng trống. */
+  readonly onPick?: (nodeId: string | null) => void;
+  /** Bật đo hai điểm ở `view`: khi bật, chạm không còn gọi `onPick`. */
+  readonly measure?: boolean;
+  /** Một lượt đo xong (hai điểm). */
+  readonly onMeasure?: (result: PascalMeasureResult) => void;
+  /** Màn di động: `view` tắt post-FX lúc đầu, bật lại khi nạp xong lần đầu. DPR đã ≤ 1,5 sẵn trong `<Viewer>`. */
+  readonly lite?: boolean;
+}
+

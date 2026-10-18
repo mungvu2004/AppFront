@@ -22,6 +22,7 @@
  *    rào đó.
  */
 
+import type { PascalSceneCensus } from './pascalMountTypes';
 import { emitter } from '@pascal-app/core';
 import useScene from '@pascal-app/core/store';
 import { loadPlugin } from '@pascal-app/core/registry';
@@ -47,13 +48,6 @@ export const loadPascalPlugins = async (): Promise<void> => {
   await pluginsLoaded;
 };
 
-/** Cái `loadSceneIntoPascal` trả về, đủ để nơi gọi tự kiểm mà không cần chạm store Pascal. */
-export interface PascalSceneCensus {
-  /** Số node thật sự nằm trong store sau lượt nạp. */
-  readonly nodeCount: number;
-  /** Node bị store dọn đi vì mồ côi hoặc không với tới được từ gốc. */
-  readonly droppedIds: readonly string[];
-}
 
 /**
  * Đưa một cảnh do `toPascalScene()` sinh ra vào store của Pascal.
@@ -129,3 +123,5 @@ export const stackExplodedLevels = (): void => {
 export const clearPascalScene = (): void => {
   useScene.getState().unloadScene();
 };
+
+export type { PascalSceneCensus };
