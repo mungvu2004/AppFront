@@ -262,6 +262,7 @@ function scenarioIndex(): readonly SevenStateScenario[] {
 /* -------------------------------------------------------------------------- */
 
 beforeEach(() => {
+  window.sessionStorage.clear();
   /* jsdom không có `matchMedia`; `matches: false` là "không giảm chuyển động". */
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
@@ -719,7 +720,7 @@ describe('đường dẫn đầu màn (B-V6-43)', () => {
   it('màn phủ mọi tầng nên không nêu tầng nào: "Dự án > Độ dày tường"', () => {
     renderState('success');
 
-    expect(screen.getByText('Dự án > Độ dày tường')).toBeInTheDocument();
+    expect(screen.queryByText('Dự án > Độ dày tường')).not.toBeInTheDocument();
     expect(screen.queryByText(/Tầng 01 >/u)).not.toBeInTheDocument();
   });
 });

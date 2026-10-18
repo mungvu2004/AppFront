@@ -115,6 +115,8 @@ export function ThicknessApplyBar({
           <NumericField
             className="w-32"
             label={TOLERANCE_LABEL}
+            max={1000}
+            min={0}
             onChange={handleToleranceChange}
             unit="mm"
             value={toleranceMm}
@@ -199,7 +201,12 @@ export function ThicknessApplyBar({
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {preview.totalWalls === preview.unchangedWalls.length && (
+              <span className="mr-auto text-[13px] text-text-secondary">
+                Chưa áp dụng được: mọi tường đều bị dung sai chặn hoặc không đổi nhóm. Hãy đổi ngưỡng hoặc dung sai.
+              </span>
+            )}
             <Button onClick={cancelPreview} size="sm" variant="ghost">
               {CANCEL_LABEL}
             </Button>

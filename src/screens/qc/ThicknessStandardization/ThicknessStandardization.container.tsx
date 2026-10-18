@@ -50,7 +50,7 @@
  */
 
 import { AlertCircle } from 'lucide-react';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -63,8 +63,12 @@ import { useSession } from '@/hooks/useSession';
 import type { HistoryStack } from '@/lib/commands/history';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import type { ProjectRole } from '@/types/project';
+import { createAppApiClient } from '@/api/appClient';
+import { queryKeys } from '@/lib/query/queryKeys';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import type { QcFloorNavProps } from '../shared/QcFloorNav';
 import { ThicknessStandardization } from './ThicknessStandardization';
 import type { ThicknessStandardizationGateway } from './thicknessStandardizationGateway';
 import { useThicknessStandardization } from './useThicknessStandardization';
@@ -107,6 +111,8 @@ export interface ThicknessStandardizationContainerProps {
    * của riêng nó, đúng như lúc chạy thật.
    */
   readonly history?: HistoryStack;
+  /** Breadcrumb du an, tang, lop va thanh lop (N1-02). */
+  readonly floorNav?: Omit<QcFloorNavProps, 'layer'>;
 }
 
 /** Cùng khuôn `ScreenCrashFallback` của `src/App.tsx` — R-62. */
@@ -149,7 +155,10 @@ function WiredThicknessStandardization(props: ThicknessStandardizationContainerP
     ...(props.history !== undefined ? { history: props.history } : {}),
   });
 
-  return <ThicknessStandardization {...model} saveBlock={props.forceSaveBlock ?? model.saveBlock} />;
+  return <ThicknessStandardization
+      {...model}
+      {...(props.floorNav !== undefined ? { floorNav: props.floorNav } : {})}
+      saveBlock={props.forceSaveBlock ?? model.saveBlock} />;
 }
 
 /** `<ThicknessStandardizationContainer … />` — màn S-18 thật, gắn được bằng một thẻ. */
@@ -178,6 +187,27 @@ export function ThicknessStandardizationRoute() {
     navigate(path);
   }, [navigate]);
 
+  const floorsQuery = useQuery({
+    queryKey: queryKeys.floor.list(id ?? ''),
+    queryFn: async ({ signal }) => {
+      const result = await createAppApiClient().floors.list({ projectId: id ?? '', signal });
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      return result.data;
+    },
+    enabled: id !== undefined && id.length > 0,
+  });
+  const floors = useMemo(
+    () =>
+      [...(floorsQuery.data ?? [])]
+        .sort((first, second) => first.order - second.order)
+        .map((item) => ({ id: item.id, label: item.name })),
+    [floorsQuery.data],
+  );
+
   if (id === undefined || id.length === 0 || floorId === undefined || floorId.length === 0) {
     return (
       <div className="p-6">
@@ -193,6 +223,7 @@ export function ThicknessStandardizationRoute() {
   return (
     <ThicknessStandardizationContainer
       floorId={floorId}
+      floorNav={{ floorId, floors, projectId: id }}
       onNavigate={onNavigate}
       projectId={id}
       roles={session.roles}

@@ -113,6 +113,28 @@ import {
 import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
+/** Ngưỡng nhớ theo dự án trong phiên (G4a-33); tải lại trang vẫn giữ. */
+const MIN_THRESHOLD_MM = 110;
+const thresholdsKey = (projectId: string): string => `thickness-thresholds:${projectId}`;
+function readSavedThresholds(projectId: string): ThicknessThresholds {
+  try {
+    const raw: unknown = JSON.parse(window.sessionStorage.getItem(thresholdsKey(projectId)) ?? 'null');
+    if (Array.isArray(raw) && raw.length === 3 && raw.every((v) => typeof v === 'number')) {
+      return raw as unknown as ThicknessThresholds;
+    }
+  } catch {
+    /* sessionStorage chặn hoặc hỏng: dùng mặc định. */
+  }
+  return DEFAULT_THICKNESS_THRESHOLDS;
+}
+function saveThresholds(projectId: string, value: ThicknessThresholds): void {
+  try {
+    window.sessionStorage.setItem(thresholdsKey(projectId), JSON.stringify(value));
+  } catch {
+    /* bỏ qua */
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Chuỗi của hook — mọi câu người dùng đọc mà cổng không sinh ra.              */
 /* -------------------------------------------------------------------------- */
@@ -327,8 +349,7 @@ export function useThicknessStandardization(
   const queryClient = useQueryClient();
   const notifications = options.notifications ?? appNotificationBus;
 
-  /* ---------------------------------------------------------------------- */
-  /* Vai trò — trạng thái 6 vô hiệu MỌI hàm sửa, ở tầng hook.                */
+    /* Vai trò — trạng thái 6 vô hiệu MỌI hàm sửa, ở tầng hook.                */
   /* ---------------------------------------------------------------------- */
 
   const roles = options.roles ?? [];
@@ -339,9 +360,7 @@ export function useThicknessStandardization(
   /* Trạng thái của riêng giao diện — KHÔNG có isLoading/error ở đây (R-64). */
   /* ---------------------------------------------------------------------- */
 
-  const [thresholds, setThresholds] = useState<ThicknessThresholds>(
-    DEFAULT_THICKNESS_THRESHOLDS,
-  );
+  const [thresholds, setThresholds] = useState<ThicknessThresholds>(() => readSavedThresholds(projectId));
   const [toleranceMm, setToleranceMm] = useState(DEFAULT_TOLERANCE_MM);
   const [acceptedMeasurements, setAcceptedMeasurements] =
     useState<ReadonlySet<number>>(NO_MEASUREMENTS);
@@ -369,6 +388,7 @@ export function useThicknessStandardization(
     projectId,
     floorId,
     options.onNavigate,
+    canEdit,
   );
   const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
 
@@ -683,8 +703,13 @@ export function useThicknessStandardization(
   /* ---------------------------------------------------------------------- */
 
   const onThresholdDrag = useCallback((index: number, mm: number) => {
-    setThresholds((previous) => withThresholdAt(previous, index, mm));
-  }, []);
+    setThresholds((previous) => {
+      /* Không kéo xuống dưới nhóm chuẩn nhỏ nhất (110 mm): tường mỏng không nhảy nhóm (G4a-33). */
+      const next = withThresholdAt(previous, index, Math.max(mm, MIN_THRESHOLD_MM));
+      saveThresholds(projectId, next);
+      return next;
+    });
+  }, [projectId]);
 
   const onChangeTolerance = useCallback((mm: number) => {
     setToleranceMm(mm);

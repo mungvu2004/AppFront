@@ -58,6 +58,7 @@
  * {@link ThicknessStandardizationViewProps.viewerRoleNotice} nói ra vì sao.
  */
 
+import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import type { ReactNode } from 'react';
 import { Layers } from 'lucide-react';
 
@@ -89,7 +90,9 @@ import type {
  * `useThicknessStandardization` trả về, nên container chuyền thẳng kết quả hook
  * xuống đây bằng một phép trải.
  */
-export type ThicknessStandardizationViewProps = ThicknessStandardizationProps &
+export type ThicknessStandardizationViewProps = ThicknessStandardizationProps & {
+  readonly floorNav?: Omit<QcFloorNavProps, 'layer'>;
+} &
   Pick<ThicknessApplyBarProps, 'onDismissReapplyWarning'> &
   Pick<
     ThicknessSegmentTableProps,
@@ -106,7 +109,6 @@ export type ThicknessStandardizationViewProps = ThicknessStandardizationProps &
 /* Chuỗi tĩnh của vỏ màn (A6 — chữ thường kiểu câu, trừ tên riêng và mã).      */
 /* -------------------------------------------------------------------------- */
 
-const SCREEN_BREADCRUMB = 'Dự án > Độ dày tường';
 const SCREEN_TITLE = 'Chuẩn hoá độ dày tường';
 const SCREEN_DESCRIPTION =
   'Đối chiếu số đo độ dày của từng đoạn tường với bốn nhóm chuẩn, xem trước rồi áp một lượt duy nhất.';
@@ -318,6 +320,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
   if (props.readFailure != null) {
     return (
       <QcScreenFrame label={SCREEN_TITLE}>
+        {props.floorNav != null && <QcFloorNav {...props.floorNav} layer="thickness" />}
         <FloorLayerReadFailureScreen failure={props.readFailure} />
       </QcScreenFrame>
     );
@@ -325,9 +328,9 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
 
   return (
     <QcScreenFrame label={SCREEN_TITLE} scroll>
+      {props.floorNav != null && <QcFloorNav {...props.floorNav} layer="thickness" />}
       <div className="flex w-full flex-col gap-4 p-2">
         <header className="shrink-0 px-2 pt-1">
-          <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
           <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
           <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
         </header>
@@ -373,7 +376,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
          * không riêng bảng nào. Vắng mặt hẳn ở vai Người xem — xem đầu file.
          */}
         {isViewerRole ? null : (
-          <div className="overflow-hidden rounded-xl bg-bg-surface shadow-panel">
+          <div data-sticky-footer className="sticky bottom-0 z-10 overflow-hidden rounded-xl bg-bg-surface shadow-panel">
             <ThicknessApplyBar
               canPreview={props.segmentRows.length > 0}
               onApplyPreview={onApplyPreview}

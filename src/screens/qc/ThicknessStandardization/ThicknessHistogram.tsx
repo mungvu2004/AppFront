@@ -395,6 +395,8 @@ export function ThicknessHistogram({
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
           >
+            {/* Núm nắm nhìn thấy được: báo thanh ngưỡng kéo được (G4a-33). */}
+            <span aria-hidden="true" className="absolute left-1/2 top-1/2 h-8 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-bg-surface bg-accent shadow-panel" />
             {/* Vùng nắm 24 px quanh nét vẽ — 1px là thứ không ai trỏ trúng (BUG-325). */}
             <span aria-hidden="true" className="absolute inset-y-0 -left-3 w-6" />
           </motion.div>

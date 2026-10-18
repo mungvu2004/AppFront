@@ -125,6 +125,7 @@ const wallsOfMeasurement = (measuredMm: number): readonly Wall[] =>
 /* -------------------------------------------------------------------------- */
 
 beforeEach(() => {
+  window.sessionStorage.clear();
   /* Bộ lưu lớp và revision mock sống cấp module — mỗi bài kiểm bắt đầu sạch. */
   __resetFloorLayerSavers();
   __resetMockLayerState();
