@@ -26,6 +26,9 @@ interface WallThicknessLegendProps {
    */
   otherLabel?: string | undefined;
   className?: string;
+  /** Lọc điều khiển từ ngoài (G4a-21): có `onFilterChange` thì màn cha giữ trạng thái lọc. */
+  activeFilter?: WallThickness | null | undefined;
+  onFilterChange?: ((thickness: WallThickness | null) => void) | undefined;
 }
 
 /** Màu của tường ngoài bốn cấp — đúng màu `wallStrokeToken` trả cho độ dày lạ. */
@@ -42,8 +45,14 @@ export function WallThicknessLegend({
   availableLevels = WALL_THICKNESS_LEVELS,
   otherLabel,
   className,
+  activeFilter,
+  onFilterChange,
 }: WallThicknessLegendProps) {
-  const { activeThickness, toggleThickness, clearFilter } = useWallThicknessLegend();
+  const internal = useWallThicknessLegend();
+  const activeThickness = onFilterChange ? (activeFilter ?? null) : internal.activeThickness;
+  const toggleThickness = (thickness: WallThickness) =>
+    onFilterChange ? onFilterChange(activeThickness === thickness ? null : thickness) : internal.toggleThickness(thickness);
+  const clearFilter = () => (onFilterChange ? onFilterChange(null) : internal.clearFilter());
 
   // ── Trạng thái không hiện ──
   if (!isVisible || state === 'no-permission') return null;

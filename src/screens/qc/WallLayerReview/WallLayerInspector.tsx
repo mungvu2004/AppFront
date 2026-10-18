@@ -147,7 +147,7 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
             {!(thicknessChoices as readonly number[]).includes(inspector.thicknessMm) && (
               <p className="pt-2 text-[13px] text-text-secondary">
                 {CURRENT_THICKNESS_PREFIX}
-                <span className="font-mono text-text-primary">{inspector.thicknessMm} mm</span>
+                <span className="tabular-nums text-text-primary">{inspector.thicknessMm} mm</span>
                 {NON_STANDARD_SUFFIX}
               </p>
             )}
@@ -155,12 +155,12 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
 
           <div className="flex flex-col px-5">
             <FieldRow label={LENGTH_LABEL}>
-              <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">
+              <span className="flex h-9 items-center tabular-nums text-[14px] text-text-primary">
                 {inspector.lengthLabel}
               </span>
             </FieldRow>
             <FieldRow label={HEIGHT_LABEL}>
-              <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">
+              <span className="flex h-9 items-center tabular-nums text-[14px] text-text-primary">
                 {inspector.heightLabel}
               </span>
             </FieldRow>
@@ -200,17 +200,17 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
                   transition={{ duration: durationSeconds('standard') }}
                 >
                   <FieldRow label={ELEVATION_OFFSET_LABEL}>
-                    <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">
+                    <span className="flex h-9 items-center tabular-nums text-[14px] text-text-primary">
                       {inspector.advanced.elevationOffsetLabel}
                     </span>
                   </FieldRow>
                   <FieldRow label={START_POINT_LABEL}>
-                    <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">
+                    <span className="flex h-9 items-center tabular-nums text-[14px] text-text-primary">
                       {inspector.advanced.startPointLabel}
                     </span>
                   </FieldRow>
                   <FieldRow isLast label={END_POINT_LABEL}>
-                    <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">
+                    <span className="flex h-9 items-center tabular-nums text-[14px] text-text-primary">
                       {inspector.advanced.endPointLabel}
                     </span>
                   </FieldRow>

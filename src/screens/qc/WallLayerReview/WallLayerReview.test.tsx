@@ -919,7 +919,7 @@ describe('đợt sửa P04 — SCR-16', () => {
     );
 
     expect(screen.getByText('Chưa rê chuột lên bản vẽ')).not.toHaveClass('font-mono');
-    expect(screen.getByText('Đã lưu')).toHaveClass('text-text-muted');
+    expect(screen.getByText('Đã lưu')).toHaveClass('text-text-secondary');
 
     rerender(
       <WallLayerStatusBar cursorLabel="Chưa rê chuột lên bản vẽ" saveFailed saveLabel="Lưu thất bại" scaleLabel="12 mm/px" />,

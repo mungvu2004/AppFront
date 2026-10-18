@@ -354,7 +354,8 @@ export function WallLayerCanvas({
               >
                 <WallHatchDefs unitPx={unitPx} />
 
-                {shapes.map((shape) => (
+                {/* G4a-17: "Ẩn lớp tường" ẩn thật các đoạn tường, để nhìn thấy bản vẽ gốc bên dưới. */}
+                {(isWallLayerVisible ? shapes : []).map((shape) => (
                   <WallShapeFigure
                     isHovered={shape.id === hoveredWallId}
                     isInteractive={isInteractive}

@@ -634,6 +634,25 @@ describe('vai Người xem', () => {
     mounted.unmount();
   });
 
+  it('G4a-09: phím Delete xoá đoạn đang chọn như Backspace', async () => {
+    const mounted = await mountSettled();
+
+    await act(async () => {
+      mounted.result.current.panel.onSelect(wallAt(0).id);
+      await Promise.resolve();
+    });
+    await pressKey(mounted.registry, 'Delete');
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(wallsOfLevel(useStore.getState().spatial, FIXTURE_LEVEL.id)).toHaveLength(
+      WALL_LAYER_FIXTURE_TOTAL - 1,
+    );
+
+    mounted.unmount();
+  });
+
   it('phím xoá cũng không làm gì ở vai Người xem', async () => {
     const mounted = await mountSettled({ roles: ['viewer'] });
 
@@ -810,7 +829,7 @@ describe('ray công cụ và thanh trạng thái', () => {
      * được đọc bằng hai đơn vị khác nhau. Đây là đổi ĐẶC TẢ HIỂN THỊ, không
      * phải nới một điều kiện — chuỗi mới chặt hơn chuỗi cũ, không lỏng hơn.
      */
-    expect(inspector.heightLabel).toBe('3.000,00 mm');
+    expect(inspector.heightLabel).toBe('3.000 mm');
     expect(inspector.kindLabel).toBe('vách ngăn');
   });
 });
@@ -856,7 +875,7 @@ describe('hợp đồng canvas mở rộng', () => {
     expect(canvas.canvasLabel).toContain(String(WALL_LAYER_FIXTURE_TOTAL));
     expect(canvas.isWallLayerVisible).toBe(true);
     /* Bộ mẫu có tường 175/235/90 mm: chú giải cần mục "Khác" cho chúng (BUG-416). */
-    expect(canvas.legendLevels).toEqual({ levels: [...WALL_LAYER_THICKNESS_CHOICES], hasUnbanded: true });
+    expect(canvas.legendLevels).toMatchObject({ levels: [...WALL_LAYER_THICKNESS_CHOICES], hasUnbanded: true, activeFilter: null });
     expect(canvas.drawingSizePx).not.toBeNull();
     expect(canvas.measurement).toBeNull();
 

@@ -1307,9 +1307,10 @@ export function toWallInspector(
      * nó. Đặc tả đòi hai dòng đọc được cạnh nhau, nên đơn vị nói thẳng ra, và
      * số chữ số thập phân dùng lại đúng hằng của chiều dài (R-71).
      */
+    /* G4a-15: milimét là số nguyên — không "3.600,00 mm". */
     heightLabel: formatLength(wall.heightMm, {
       unit: 'mm',
-      fractionDigits: LENGTH_FRACTION_DIGITS,
+      fractionDigits: 0,
     }),
     confidence: wall.confidence,
     kindLabel: WALL_KIND_LABELS[wall.kind],

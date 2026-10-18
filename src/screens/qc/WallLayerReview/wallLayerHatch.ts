@@ -31,6 +31,7 @@
 import { wallStrokeToken } from '@/components/canvas/materialMap';
 import type { Point, WallId } from '@/domain/spatial/types';
 import type { MeasurementState, Point as PointPx } from '@/hooks/useMeasurementLabel';
+import type { WallThickness as SpatialWallThickness } from '@/types/spatial';
 
 import type {
   WallLayerCanvasProps,
@@ -241,6 +242,9 @@ export interface WallLayerViewportPx {
 export interface WallLayerLegendLevels {
   readonly levels: readonly WallThicknessChoice[];
   readonly hasUnbanded: boolean;
+  /** Lọc theo độ dày từ chú giải (G4a-21) — hook giữ, danh sách + bản vẽ lọc theo. */
+  readonly activeFilter?: SpatialWallThickness | null;
+  readonly onFilterChange?: (thickness: SpatialWallThickness | null) => void;
 }
 
 /** Nhãn đo của công cụ đo — mọi toạ độ bằng px, khoảng cách đã thành chuỗi. */

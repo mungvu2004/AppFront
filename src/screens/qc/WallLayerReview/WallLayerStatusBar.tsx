@@ -15,7 +15,7 @@
  * CHUỖI ĐÃ ĐỊNH DẠNG SẴN (A15) — view chỉ hiển thị.
  */
 
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Check } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -31,6 +31,7 @@ export interface WallLayerStatusBarProps {
 }
 
 const STATUS_BAR_ARIA_LABEL = 'Thanh trạng thái';
+const SAVED_PREFIX = 'Đã lưu';
 
 export function WallLayerStatusBar({ cursorLabel, scaleLabel, saveLabel, saveFailed }: WallLayerStatusBarProps) {
   return (
@@ -50,11 +51,16 @@ export function WallLayerStatusBar({ cursorLabel, scaleLabel, saveLabel, saveFai
       <span
         aria-live="polite"
         className={cn(
-          'flex min-w-0 items-center gap-1 truncate text-[12px]',
-          saveFailed ? 'text-state-violation-text' : 'text-text-muted',
+          'flex min-w-0 items-center gap-1 truncate text-[13px] font-medium',
+          saveFailed ? 'text-state-violation-text' : 'text-text-secondary',
         )}
       >
-        {saveFailed && <AlertCircle aria-hidden="true" className="h-3 w-3 shrink-0" />}
+        {/* G4a-14 (A7): không thêm nút lưu — chỉ báo tự lưu đậm hơn, có biểu tượng. */}
+        {saveFailed ? (
+          <AlertCircle aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+        ) : saveLabel.startsWith(SAVED_PREFIX) ? (
+          <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-state-verified-text" />
+        ) : null}
         {saveLabel}
       </span>
     </div>

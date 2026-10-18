@@ -80,6 +80,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { WallThickness as SpatialWallThickness } from '@/types/spatial';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
@@ -717,9 +718,15 @@ export function useWallLayerReview(
    * Danh sách đã lọc, xếp theo mã hiển thị (BUG-592). Đây cũng là thứ tự J/K và tự chuyển sau
    * "Duyệt"/"Bỏ qua" đi theo, nên tự chuyển không nhảy ra khỏi bộ lọc đang bật (BUG-581).
    */
+  /* G4a-21: lọc theo độ dày từ chú giải — áp cho cả danh sách lẫn bản vẽ. */
+  const [thicknessFilter, setThicknessFilter] = useState<SpatialWallThickness | null>(null);
+  const thicknessFilteredWalls = useMemo(
+    () => (thicknessFilter === null ? walls : walls.filter((wall) => wall.thicknessMm === thicknessFilter)),
+    [thicknessFilter, walls],
+  );
   const visibleWalls = useMemo(
-    () => sortByDisplayCode(applyWallFilters(walls, filters, confidenceThreshold), wallCodes),
-    [confidenceThreshold, filters, wallCodes, walls],
+    () => sortByDisplayCode(applyWallFilters(thicknessFilteredWalls, filters, confidenceThreshold), wallCodes),
+    [confidenceThreshold, filters, wallCodes, thicknessFilteredWalls],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1269,8 +1276,8 @@ export function useWallLayerReview(
 
   const shapes = useMemo<readonly WallLayerCanvasShape[]>(
     () =>
-      level === null ? [] : toCanvasShapes(walls, level, wallStatusCode, wallCodes, confidenceThreshold),
-    [confidenceThreshold, level, walls, wallCodes],
+      level === null ? [] : toCanvasShapes(thicknessFilteredWalls, level, wallStatusCode, wallCodes, confidenceThreshold),
+    [confidenceThreshold, level, thicknessFilteredWalls, wallCodes],
   );
 
   const inspector = useMemo(() => {
@@ -1340,6 +1347,21 @@ export function useWallLayerReview(
     {
       id: 'wallLayerReview.delete',
       combo: 'Backspace',
+      scope: 'canvas',
+      description: WALL_LAYER_TEXT.shortcutDelete,
+      onTrigger: () => {
+        if (selectedRef.current !== null) {
+          onDelete(selectedRef.current);
+        }
+      },
+    },
+    { ...shortcutOptions, enabled: canEdit },
+  );
+  /* G4a-09: phím Delete xoá như Backspace (cùng vé hoàn tác + toast A8). */
+  useShortcut(
+    {
+      id: 'wallLayerReview.deleteKey',
+      combo: 'Delete',
       scope: 'canvas',
       description: WALL_LAYER_TEXT.shortcutDelete,
       onTrigger: () => {
@@ -1653,7 +1675,10 @@ export function useWallLayerReview(
     [baseScale, frameSizePx, level, viewCenter, zoom],
   );
 
-  const legendLevels = useMemo(() => legendLevelsOf(walls), [walls]);
+  const legendLevels = useMemo(
+    () => ({ ...legendLevelsOf(walls), activeFilter: thicknessFilter, onFilterChange: setThicknessFilter }),
+    [thicknessFilter, walls],
+  );
 
   /* ---------------------------------------------------------------------- */
   /* Lái khung nhìn: cụm thu phóng, phím F, bản đồ nhỏ.                       */

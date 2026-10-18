@@ -92,7 +92,9 @@ export function WallLayerLegend({ state, isWallLayerVisible, levels }: WallLayer
   /* Ray không còn nổi trên canvas ở `collapsed` (G4a-20): chú giải không cần né nó nữa. */
   return (
     <WallThicknessLegend
+      activeFilter={levels.activeFilter}
       availableLevels={[...levels.levels]}
+      onFilterChange={levels.onFilterChange}
       className="whitespace-nowrap"
       isVisible={isWallLayerVisible}
       otherLabel={levels.hasUnbanded ? OTHER_THICKNESS_LABEL : undefined}
