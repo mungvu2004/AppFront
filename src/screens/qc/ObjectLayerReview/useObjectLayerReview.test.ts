@@ -1447,7 +1447,7 @@ describe('tỷ lệ tạm (F-04x-2)', () => {
       expect(mounted.result.current.provisionalScaleNotice).not.toBeNull();
     });
     act(() => {
-      mounted.result.current.provisionalScaleNotice?.onCalibrate();
+      mounted.result.current.provisionalScaleNotice?.onCalibrate?.();
     });
     expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(PROJECT_ID, FLOOR_ID));
     mounted.unmount();

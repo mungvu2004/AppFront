@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '../../lib/utils';
 import type { ButtonProps } from '../ui/Button';
 import { Button } from '../ui/Button';
-import { CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, AlertCircle, X } from 'lucide-react';
 
 export type InlineAlertLevel = 'verified' | 'attention' | 'violation';
 
@@ -15,6 +15,8 @@ export interface InlineAlertProps extends React.HTMLAttributes<HTMLDivElement> {
     onClick: () => void;
     variant?: ButtonProps['variant'];
   };
+  /** Có thì hiện nút "Ẩn thông báo" (biểu tượng X) ở cuối dải. */
+  onDismiss?: () => void;
 }
 
 export function InlineAlert({
@@ -22,6 +24,7 @@ export function InlineAlert({
   title,
   message,
   action,
+  onDismiss,
   className,
   ...props
 }: InlineAlertProps) {
@@ -84,6 +87,18 @@ export function InlineAlert({
             {action.label}
           </Button>
         </div>
+      )}
+
+      {onDismiss && (
+        <button
+          type="button"
+          aria-label="Ẩn thông báo"
+          title="Ẩn thông báo"
+          onClick={onDismiss}
+          className={cn('shrink-0 rounded p-1 hover:bg-black/5 focus-visible:outline focus-visible:outline-2', iconColorClass, !action && 'ml-auto')}
+        >
+          <X size={16} strokeWidth={2} aria-hidden="true" />
+        </button>
       )}
     </div>
   );

@@ -9,15 +9,22 @@ import { ROUTES } from '@/routes/paths';
 
 export interface ProvisionalScaleNotice {
   readonly message: string;
-  readonly onCalibrate: () => void;
+  /** Khoá "đã ẩn trong phiên" — theo tầng. */
+  readonly dismissKey: string;
+  /** Không có khi vai không được hiệu chỉnh (người xem) — dải không mời bấm (G2-22). */
+  readonly onCalibrate?: () => void;
 }
 
-/** `null` khi tầng không ở tỷ lệ tạm; `onCalibrate` mở màn Hiệu chỉnh tỷ lệ của tầng. */
+/**
+ * `null` khi tầng không ở tỷ lệ tạm; `onCalibrate` mở màn Hiệu chỉnh tỷ lệ của tầng.
+ * `canCalibrate` = false (người xem) thì bỏ nút.
+ */
 export function useProvisionalScaleNotice(
   scaleStatus: 'unresolved' | undefined,
   projectId: string,
   floorId: string,
   onNavigate: ((path: string) => void) | undefined,
+  canCalibrate = true,
 ): ProvisionalScaleNotice | null {
   return useMemo(() => {
     const notice = provisionalScaleNoticeOf(scaleStatus);
@@ -27,10 +34,15 @@ export function useProvisionalScaleNotice(
     }
 
     return {
+      dismissKey: `${projectId}/${floorId}`,
       message: notice.message,
-      onCalibrate: () => {
-        onNavigate?.(ROUTES.project.scale(projectId, floorId));
-      },
+      ...(canCalibrate
+        ? {
+            onCalibrate: () => {
+              onNavigate?.(ROUTES.project.scale(projectId, floorId));
+            },
+          }
+        : {}),
     };
-  }, [floorId, onNavigate, projectId, scaleStatus]);
+  }, [canCalibrate, floorId, onNavigate, projectId, scaleStatus]);
 }

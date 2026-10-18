@@ -872,7 +872,7 @@ describe('tỷ lệ tạm (F-04x-2)', () => {
     expect(summary.totalAreaText).toBe(PROVISIONAL_MEASURE_TEXT);
 
     act(() => {
-      provisionalScaleNotice?.onCalibrate();
+      provisionalScaleNotice?.onCalibrate?.();
     });
     expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(PROJECT_ID, FLOOR_ID));
     mounted.unmount();
