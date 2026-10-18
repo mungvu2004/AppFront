@@ -248,7 +248,7 @@ export const WALL_LAYER_TEXT = {
   shortcutDelete: 'Xoá đoạn tường đang chọn.',
   shortcutUndo: 'Hoàn tác thao tác gần nhất.',
   shortcutThickness: 'Đặt độ dày cho đoạn tường đang chọn.',
-  shortcutTool: 'Chuyển công cụ.',
+  shortcutTool: 'Vẽ tường.',
   shortcutFit: 'Phủ khắp đoạn tường đang chọn.',
 } as const;
 
@@ -406,6 +406,10 @@ const RAIL_TOOL_IDS: readonly WallLayerToolId[] = ['select', 'drawWall', 'splitW
  * Cùng bộ số mà `useMiniMap` vốn tự đặt (`useMiniMap.ts:36-39`), viết ra đây để
  * nó là một quyết định đọc được chứ không phải một mặc định ẩn của component.
  */
+/** G4a-05: bề ngang chừa cho bản đồ nhỏ + chú giải khi "vừa khung" (tối đa 22% khung). */
+const FIT_OVERLAY_RESERVE_PX = 240;
+const FIT_OVERLAY_MIN_FRAME_PX = 600;
+
 const MINIMAP_INITIAL_VIEWPORT: WallLayerViewportRectPercent = {
   x: 20,
   y: 20,
@@ -666,6 +670,7 @@ export function useWallLayerReview(
     projectId,
     floorId,
     options.onNavigate,
+    canEdit,
   );
   const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
 
@@ -1699,7 +1704,25 @@ export function useWallLayerReview(
    */
   const [lockedFit, setLockedFit] = useState<{ levelId: LevelId; boundsPx: WallLayerRectPx } | null>(null);
   const fitReferencePx = lockedFit !== null && lockedFit.levelId === levelId ? lockedFit.boundsPx : fitAllBoundsPx;
-  const baseScale = fitCanvasView(frameSizePx, fitReferencePx)?.zoom ?? DEFAULT_ZOOM;
+  /*
+   * G4a-05: "vừa khung" chừa hai bên cho bản đồ nhỏ (trên-phải) và chú giải (dưới-trái) nổi trên
+   * canvas, để chúng không đè mép mặt bằng. Tâm vẫn là giữa khung thật.
+   */
+  const fitFramePx = useMemo<WallLayerSizePx | null>(
+    () =>
+      frameSizePx === null
+        ? null
+        : {
+            /* Khung hẹp (< 600 px) thì nổi đằng nào cũng đè: không chừa, giữ mặt bằng to nhất có thể. */
+            width:
+              frameSizePx.width < FIT_OVERLAY_MIN_FRAME_PX
+                ? frameSizePx.width
+                : frameSizePx.width - Math.min(FIT_OVERLAY_RESERVE_PX, frameSizePx.width * 0.22),
+            height: frameSizePx.height,
+          },
+    [frameSizePx],
+  );
+  const baseScale = fitCanvasView(fitFramePx, fitReferencePx)?.zoom ?? DEFAULT_ZOOM;
 
   const viewport = useMemo<WallLayerViewportPx>(
     () => centredCanvasView(frameSizePx, toPixelPoint(viewCenter, scaleOfLevel(level)), zoom * baseScale),
@@ -1748,6 +1771,22 @@ export function useWallLayerReview(
     setZoom(DEFAULT_ZOOM);
   }, [setZoom]);
 
+  /**
+   * G4a-19: kéo nền / chuột giữa / Space+kéo trên canvas — dời tâm nhìn ngược chiều kéo.
+   * `dx`/`dy` là pixel KHUNG; chia mức phóng của khung để ra pixel bản vẽ.
+   */
+  const onPanBy = useCallback(
+    (dx: number, dy: number) => {
+      const scale = scaleOfLevel(level);
+      const centre = toPixelPoint(viewCenter, scale);
+
+      setViewCenter(
+        toMillimetrePoint({ x: centre.x - dx / viewport.zoom, y: centre.y - dy / viewport.zoom }, scale),
+      );
+    },
+    [level, setViewCenter, viewCenter, viewport.zoom],
+  );
+
   /** Hộp mà phím `F` phủ: tường đang chọn nếu có, không thì cả lớp tường. */
   const fitBoundsPx = useMemo<WallLayerRectPx | null>(() => {
     if (selectedWallId !== null) {
@@ -1773,11 +1812,11 @@ export function useWallLayerReview(
       return;
     }
 
-    const fitted = fitCanvasView(frameSizePx, fitBoundsPx);
+    const fitted = fitCanvasView(fitFramePx, fitBoundsPx);
 
     setZoom(fitted === null ? DEFAULT_ZOOM : clampZoom(fitted.zoom / baseScale));
     setViewCenter(toMillimetrePoint(centreOfBounds(fitBoundsPx), scaleOfLevel(level)));
-  }, [baseScale, fitBoundsPx, frameSizePx, level, setViewCenter, setZoom]);
+  }, [baseScale, fitBoundsPx, fitFramePx, level, setViewCenter, setZoom]);
 
   /*
    * Mở một tầng là thấy trọn tầng ấy (BUG-403): một lần cho mỗi tầng, khi đã có thứ để phủ.
@@ -2081,6 +2120,7 @@ export function useWallLayerReview(
     onFitToScreen,
     miniMapViewport,
     onMiniMapViewportChange,
+    onPanBy,
     onFrameResize,
     onPointerMove,
     onCanvasPoint,

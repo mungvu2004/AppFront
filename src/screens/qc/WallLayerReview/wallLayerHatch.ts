@@ -92,6 +92,9 @@ const UNBANDED_WALL_TOKEN = 'var(--wall-idle)';
  */
 export const WALL_CENTRELINE_TOKEN = 'var(--wall-idle)';
 
+/** G4a-04: viền đứt của tường "Khác" — nền `--wall-idle` gần trùng nền canvas nên cần viền đậm. */
+export const UNBANDED_WALL_OUTLINE_TOKEN = 'var(--text-secondary)';
+
 /** `true` khi độ dày thuộc đúng một trong ba băng hệ thiết kế sơn được. */
 export function isThicknessBand(thicknessMm: number): thicknessMm is WallThicknessChoice {
   return THICKNESS_BANDS.includes(thicknessMm);
@@ -350,6 +353,8 @@ export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
   readonly miniMapViewport: WallLayerViewportRectPercent;
   /** Người dùng kéo/bấm trên bản đồ nhỏ; hook dịch tâm nhìn theo. */
   readonly onMiniMapViewportChange: (rect: WallLayerViewportRectPercent) => void;
+  /** G4a-19: kéo bản vẽ — độ dời tính bằng pixel KHUNG; hook dời tâm nhìn theo. */
+  readonly onPanBy: (dx: number, dy: number) => void;
   /** Khung canvas đổi kích thước — hook cần số này để "vừa khung" khớp thật. */
   readonly onFrameResize: (size: WallLayerSizePx) => void;
   /** Con trỏ trên bản vẽ, số thô của trình duyệt. `null` khi con trỏ rời khung. */

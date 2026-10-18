@@ -911,6 +911,26 @@ describe('hợp đồng canvas mở rộng', () => {
     mounted.unmount();
   });
 
+  it('[G4a-19] kéo bản vẽ dời khung nhìn đúng bằng độ kéo, mức phóng giữ nguyên', async () => {
+    const mounted = await mountSettled();
+
+    act(() => mounted.result.current.canvas.onFrameResize({ width: 300, height: 480 }));
+    await waitFor(() => expect(mounted.result.current.canvas.viewport.zoom).toBeLessThan(1));
+
+    const before = mounted.result.current.canvas.viewport;
+
+    act(() => mounted.result.current.canvas.onPanBy(40, -25));
+
+    await waitFor(() => expect(mounted.result.current.canvas.viewport.x).not.toBe(before.x));
+    const after = mounted.result.current.canvas.viewport;
+
+    expect(after.zoom).toBe(before.zoom);
+    expect(after.x - before.x).toBeCloseTo(40, 3);
+    expect(after.y - before.y).toBeCloseTo(-25, 3);
+
+    mounted.unmount();
+  });
+
   it('[BUG-403] bản đồ nhỏ đi theo thu phóng — vùng nhìn hẹp lại khi phóng to', async () => {
     const mounted = await mountSettled();
 

@@ -22,12 +22,14 @@ import type { WallLayerCanvasShape, WallLayerCanvasViewProps } from './wallLayer
 import {
   ATTENTION_DOT_RADIUS_PX,
   ATTENTION_TOKEN,
+  UNBANDED_WALL_OUTLINE_TOKEN,
   WALL_CENTRELINE_TOKEN,
   WALL_HATCH_LINE_WIDTH_PX,
   WALL_HATCH_OPACITY,
   WALL_HATCH_PATTERN_ID,
   WALL_HATCH_PATTERN_TRANSFORM,
   WALL_HATCH_TILE_PX,
+  isThicknessBand,
   toSvgPoints,
   wallThicknessFillToken,
 } from './wallLayerHatch';
@@ -134,6 +136,15 @@ export function WallShapeFigure({
         className="transition-colors duration-260 motion-reduce:transition-none"
         fill={wallThicknessFillToken(shape.thicknessMm)}
         points={points}
+        /* G4a-04: tường "Khác" (ngoài ba băng) tô nhạt gần nền — thêm viền đứt đậm để thấy được. */
+        {...(isThicknessBand(shape.thicknessMm)
+          ? {}
+          : {
+              stroke: UNBANDED_WALL_OUTLINE_TOKEN,
+              strokeDasharray: '4 3',
+              strokeWidth: 1.5,
+              vectorEffect: 'non-scaling-stroke' as const,
+            })}
       />
 
       {shape.isLowConfidence ? (

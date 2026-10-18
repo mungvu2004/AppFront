@@ -28,11 +28,13 @@ import { GridLayer } from '@/components/canvas/GridLayer';
 import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
 import { MiniMap } from '@/components/canvas/MiniMap';
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
+import { useCanvasPan } from '@/components/canvas/useCanvasPan';
 import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import type { ContextMenuGroup } from '@/hooks/useContextMenu';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
+import { cn } from '@/lib/utils';
 
 import { WallLayerLegend } from './WallLayerLegend';
 import { WallHatchDefs, WallShapeFigure } from './WallLayerShapeFigure';
@@ -100,6 +102,7 @@ export function WallLayerCanvas({
   onFitToScreen,
   onFrameResize,
   onMiniMapViewportChange,
+  onPanBy,
   onPointerMove,
   onResetZoom,
   onZoomIn,
@@ -123,6 +126,33 @@ export function WallLayerCanvas({
   const menu = useContextMenu();
   const { select: haloSelect, hover: haloHover, deselect: haloDeselect } = halo;
   const { openMenu } = menu;
+
+  /*
+   * G4a-19: kéo nền (chuột trái trên nền trống), chuột giữa, Space+kéo dời bản vẽ; lăn chuột phóng.
+   * `useCanvasPan` cộng dồn độ dời; ở đây chỉ chuyển PHẦN MỚI lên hook (viewBox do hook giữ).
+   */
+  const pan = useCanvasPan((direction) => (direction > 0 ? onZoomIn() : onZoomOut()));
+  const panRef = pan.ref;
+  const lastPanOffsetRef = useRef(pan.offset);
+  useEffect(() => {
+    const previous = lastPanOffsetRef.current;
+    lastPanOffsetRef.current = pan.offset;
+    const dx = pan.offset.x - previous.x;
+    const dy = pan.offset.y - previous.y;
+
+    if (dx !== 0 || dy !== 0) {
+      onPanBy(dx, dy);
+    }
+  }, [onPanBy, pan.offset]);
+  const setFrameEl = useCallback(
+    (el: HTMLDivElement | null) => {
+      frameRef.current = el;
+      panRef(el);
+    },
+    [panRef],
+  );
+  /* Kéo xong thì `click` vẫn nổ: bỏ qua nó để công cụ vẽ không nhận một điểm ngoài ý muốn. */
+  const pointerDownAtRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -201,19 +231,39 @@ export function WallLayerCanvas({
    * bước `point` của công cụ tách đoạn thường rơi đúng trên tường cần cắt.
    * Công cụ nào không chờ một điểm thì `reduceTool` bỏ qua lượt này.
    */
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const handleCanvasClick = useCallback(
-    (event: ReactMouseEvent<SVGSVGElement>) => {
-      if (!isInteractive) {
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      const svg = svgRef.current;
+
+      /*
+       * Gắn ở KHUNG (không ở `<svg>`): lúc kéo nền khung giữ con trỏ (pointer capture), nên
+       * `click` của một lần bấm nền rơi vào khung chứ không vào `<svg>`. Bấm nút nổi (thu phóng,
+       * bản đồ nhỏ, chú giải) thì bỏ qua.
+       */
+      if (!isInteractive || svg === null || !(event.target === event.currentTarget || svg.contains(event.target as Node))) {
         return;
       }
 
-      const reading = readPointer(event);
+      const downAt = pointerDownAtRef.current;
+
+      if (downAt !== null && Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) > 4) {
+        return;
+      }
+
+      const matrix = svg.getScreenCTM?.();
+      const reading =
+        matrix === null || matrix === undefined
+          ? null
+          : (({ x, y }) => ({ xPx: x, yPx: y }))(
+              new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse()),
+            );
 
       if (reading !== null) {
         onCanvasPoint(reading);
       }
     },
-    [isInteractive, onCanvasPoint, readPointer],
+    [isInteractive, onCanvasPoint],
   );
 
   const handlePointerLeave = useCallback(() => {
@@ -291,9 +341,20 @@ export function WallLayerCanvas({
     <div
       aria-describedby={isInteractive ? undefined : FORBIDDEN_DESCRIPTION_ID}
       aria-label={canvasLabel}
-      className={FRAME_CLASSES}
+      className={cn(
+        FRAME_CLASSES,
+        pan.isPanning ? 'cursor-grabbing' : pan.spaceHeld ? 'cursor-grab' : undefined,
+      )}
+      onClick={handleCanvasClick}
       onMouseLeave={handlePointerLeave}
-      ref={frameRef}
+      onPointerCancel={pan.handlers.onPointerCancel}
+      onPointerDown={(event) => {
+        pointerDownAtRef.current = { x: event.clientX, y: event.clientY };
+        pan.handlers.onPointerDown(event);
+      }}
+      onPointerMove={pan.handlers.onPointerMove}
+      onPointerUp={pan.handlers.onPointerUp}
+      ref={setFrameEl}
       role="group"
     >
       {state === 'loading' ? (
@@ -348,7 +409,8 @@ export function WallLayerCanvas({
               <svg
                 aria-label={canvasLabel}
                 className="absolute inset-0 h-full w-full"
-                onClick={handleCanvasClick}
+                data-canvas-bg=""
+                ref={svgRef}
                 onMouseMove={handlePointerMove}
                 role="img"
                 viewBox={frameViewBox}
