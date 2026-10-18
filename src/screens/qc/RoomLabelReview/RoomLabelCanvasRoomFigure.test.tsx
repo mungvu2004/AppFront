@@ -50,3 +50,30 @@ describe('RoomLabelCanvasRoomFigure — nhãn tên', () => {
     expect(nameText?.querySelector('title')?.textContent).toBe(LONG_NAME);
   });
 });
+
+describe('RoomLabelCanvasRoomFigure — nhãn không đè chữ gốc (G4a-29)', () => {
+  const nameY = (hasBackground: boolean): number => {
+    const { container, unmount } = render(
+      <svg>
+        <RoomLabelCanvasRoomFigure
+          hasBackground={hasBackground}
+          isSelected={false}
+          millimetresPerPixel={20}
+          reducedMotion
+          room={ROOM}
+        />
+      </svg>,
+    );
+    const y = Number(container.querySelector('text')?.getAttribute('y'));
+    unmount();
+    return y;
+  };
+
+  it('có bản vẽ nền thì nhãn dời khỏi giữa phòng (nơi bản vẽ gốc ghi tên), không nền thì giữ giữa', () => {
+    const centred = nameY(false);
+    const moved = nameY(true);
+
+    expect(moved).toBeLessThan(centred - 40);
+    expect(moved).toBeGreaterThan(0);
+  });
+});

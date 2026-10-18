@@ -197,7 +197,7 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
                     {SPLIT_LABEL}
                   </Button>
                 )}
-                <Button fullWidth onClick={extras.onNavigateToWalls} size="sm" variant="ghost">
+                <Button fullWidth onClick={() => extras.onNavigateToWalls()} size="sm" variant="ghost">
                   {NAVIGATE_WALLS_LABEL}
                 </Button>
               </>

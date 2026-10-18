@@ -844,11 +844,44 @@ describe('[20-D-007] tầng rỗng vì vòng hở vẫn có lối "Xem tại l�
     expect(screen.getAllByRole('button', { name: 'Kiểm tra lại vòng hở' })).toHaveLength(1);
   });
 
+  it('[G4a-39] nút "Xem tại lớp tường" của một vòng hở gắn ?wall=<tường đầu tiên>', async () => {
+    const onNavigate = vi.fn();
+    renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('empty')} onNavigate={onNavigate} />);
+
+    const gapsSection = () => within(screen.getByRole('region', { name: 'Vòng tường hở' }));
+    const button = await waitFor(() => gapsSection().getByRole('button', { name: 'Xem tại lớp tường' }));
+    fireEvent.click(button);
+
+    expect(onNavigate).toHaveBeenCalledWith(expect.stringMatching(/\/walls\?wall=.+/u));
+  });
+
   it('vai Người xem trên cùng tầng: cũng có nút sang lớp tường', async () => {
     const viewerRoles = scenarioArgsFor('forbidden').roles ?? [];
     renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('empty')} roles={viewerRoles} />);
 
     const gapsSection = () => within(screen.getByRole('region', { name: 'Vòng tường hở' }));
     await waitFor(() => expect(gapsSection().getByRole('button', { name: 'Xem tại lớp tường' })).toBeInTheDocument());
+  });
+});
+
+describe('[N3-08] ?select=<mã phòng> trên URL chọn sẵn phòng đó', () => {
+  afterEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('mở màn với ?select= của phòng thứ hai thì đúng phòng đó được chọn', async () => {
+    const first = renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('partial')} />);
+    fireEvent.click((await screen.findAllByRole('option'))[1] as HTMLElement);
+    const [targetId] = useStore.getState().selectedIds;
+    first.unmount();
+    useStore.getState().setSelection([]);
+    expect(targetId).toBeDefined();
+
+    window.history.replaceState(null, '', `/?select=${encodeURIComponent(targetId ?? '')}`);
+    renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('partial')} />);
+
+    await waitFor(() => {
+      expect(useStore.getState().selectedIds).toEqual([targetId]);
+    });
   });
 });

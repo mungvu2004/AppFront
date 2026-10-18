@@ -402,8 +402,8 @@ export interface RoomLabelLeftPanelProps {
   readonly hasNamesToNormalize?: boolean;
   /** Chạy lại `buildWallGraph` để tìm vòng hở mới nhất. */
   readonly onCheckWallGaps: () => void;
-  /** "đi sang lớp tường" — hook tự ghép `ROUTES.project.walls(projectId, floorId)`, view không biết đường dẫn (R-65). */
-  readonly onNavigateToWalls: () => void;
+  /** "đi sang lớp tường" — hook tự ghép `ROUTES.project.walls(projectId, floorId)`, view không biết đường dẫn (R-65); có `wallId` thì gắn `?wall=` để màn Tường chọn sẵn đoạn đó (G4a-39). */
+  readonly onNavigateToWalls: (wallId?: WallId) => void;
   /** `true` ở vai Người xem — CẤM TUYỆT ĐỐI không hộp thoại, nên chỉ ẩn nút "Chuẩn hoá tên". */
   readonly isViewerRole: boolean;
 }
@@ -592,7 +592,7 @@ export interface RoomLabelReviewProps {
   /* -- Bộ lọc, vòng hở, điều hướng, hoàn tác, vỏ màn ------------------------ */
   readonly onToggleUnnamedFilter: () => void;
   readonly onCheckWallGaps: () => void;
-  readonly onNavigateToWalls: () => void;
+  readonly onNavigateToWalls: (wallId?: WallId) => void;
   /** Hoàn tác thao tác gần nhất (A8) — thường đi cùng toast, không tham số. */
   readonly onUndo: () => void;
   readonly onToggleCollapsed: () => void;

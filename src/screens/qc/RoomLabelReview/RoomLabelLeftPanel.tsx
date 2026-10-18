@@ -23,6 +23,7 @@
 import { Unlink } from 'lucide-react';
 
 import { Button } from '@/components/ui/Button';
+import type { WallId } from '@/domain/spatial/types';
 import { cn } from '@/lib/utils';
 
 import { RoomLabelList } from './RoomLabelList';
@@ -59,7 +60,7 @@ const NORMALIZE_HINT_ID = 'room-label-normalize-hint';
 
 interface RoomLabelGapRowProps {
   readonly gap: RoomLabelGapViewModel;
-  readonly onNavigateToWalls: () => void;
+  readonly onNavigateToWalls: (wallId?: WallId) => void;
 }
 
 function RoomLabelGapRow({ gap, onNavigateToWalls }: RoomLabelGapRowProps) {
@@ -82,7 +83,7 @@ function RoomLabelGapRow({ gap, onNavigateToWalls }: RoomLabelGapRowProps) {
           </code>
         ))}
       </p>
-      <Button onClick={onNavigateToWalls} size="sm" variant="ghost">
+      <Button onClick={() => onNavigateToWalls(gap.wallIds[0])} size="sm" variant="ghost">
         {NAVIGATE_WALLS_LABEL}
       </Button>
     </li>

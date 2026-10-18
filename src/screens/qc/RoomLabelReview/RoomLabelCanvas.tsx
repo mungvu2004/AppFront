@@ -223,6 +223,7 @@ export function RoomLabelCanvas({
           >
             {rooms.map((room) => (
               <RoomLabelCanvasRoomFigure
+                hasBackground={backgroundImageUrl !== null}
                 isSelected={room.id === selectedRoomId}
                 key={room.id}
                 millimetresPerPixel={millimetresPerPixel}

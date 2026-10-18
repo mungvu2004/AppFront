@@ -29,7 +29,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
-import type { Level, Room, RoomId, Wall } from '@/domain/spatial/types';
+import type { Level, Room, RoomId, Wall, WallId } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
 import { formatArea, formatLength } from '@/lib/format/measure';
 import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
@@ -886,5 +886,18 @@ describe('tỷ lệ tạm (F-04x-2)', () => {
     expect(rooms.some((row) => row.areaText === PROVISIONAL_MEASURE_TEXT)).toBe(false);
     expect(summary.totalAreaText).not.toBe(PROVISIONAL_MEASURE_TEXT);
     mounted.unmount();
+  });
+});
+
+describe('[G4a-39] lối sang lớp tường mang mã tường', () => {
+  it('có mã tường thì gắn ?wall= để màn Tường chọn sẵn đoạn đó', async () => {
+    const onNavigate = vi.fn();
+    const mounted = await mountSettled({ onNavigate });
+
+    act(() => {
+      mounted.result.current.onNavigateToWalls('wall-x' as WallId);
+    });
+
+    expect(onNavigate).toHaveBeenCalledWith(`${ROUTES.project.walls(PROJECT_ID, FLOOR_ID)}?wall=wall-x`);
   });
 });

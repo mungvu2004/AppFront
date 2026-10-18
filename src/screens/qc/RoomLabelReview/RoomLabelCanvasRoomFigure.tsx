@@ -47,7 +47,51 @@ export interface RoomLabelCanvasRoomFigureProps {
   readonly isSelected: boolean;
   readonly millimetresPerPixel: number;
   readonly reducedMotion: boolean;
+  /** Có bản vẽ nền: nhãn dời lên mép trên phòng để không đè chữ gốc ở giữa phòng (G4a-29). */
+  readonly hasBackground?: boolean;
 }
+
+/** Khoảng cách từ mép trên phòng tới tâm nhãn khi dời nhãn (G4a-29). */
+const TOP_LABEL_INSET_PX = ROOM_LABEL_NAME_FONT_PX + ROOM_LABEL_LINE_OFFSET_PX + 4;
+
+/** Phép thử tia chuẩn: điểm có nằm trong đa giác (toạ độ px) không. */
+function isInsidePolygon(point: { readonly x: number; readonly y: number }, polygon: readonly { readonly x: number; readonly y: number }[]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[i]!;
+    const b = polygon[j]!;
+    if (a.y > point.y !== b.y > point.y && point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/**
+ * G4a-29: bản vẽ gốc thường ghi tên phòng đúng giữa phòng, nên khi có nền nhãn của màn dời lên gần
+ * mép trên (vẫn trong phòng) để người duyệt đọc được cả hai mà đối chiếu. Phòng thấp hoặc điểm mới
+ * rơi ra ngoài đa giác (phòng chữ L) thì giữ điểm neo cũ.
+ */
+function labelAnchorFor(
+  anchor: { readonly x: number; readonly y: number },
+  bounds: { readonly y: number; readonly height: number },
+  outline: readonly { readonly x: number; readonly y: number }[],
+  hasBackground: boolean,
+) {
+  if (!hasBackground || bounds.height < TOP_LABEL_INSET_PX * 3) {
+    return anchor;
+  }
+  const moved = { x: anchor.x, y: bounds.y + TOP_LABEL_INSET_PX };
+  return isInsidePolygon(moved, outline) ? moved : anchor;
+}
+
+/** Viền chữ màu nền: nhãn đọc được cả khi nằm trên nét bản vẽ. */
+const LABEL_HALO = {
+  paintOrder: 'stroke',
+  stroke: cssVar('--bg-surface'),
+  strokeWidth: 3,
+  strokeLinejoin: 'round',
+} as const;
 
 /**
  * Nhãn giữa phòng: hai dòng (tên + diện tích) khi hộp trong lớn nhất của
@@ -108,6 +152,7 @@ function RoomLabelText({
         className="motion-reduce:transition-none"
         fill={textToken}
         fontSize={ROOM_LABEL_CODE_FONT_PX}
+        {...LABEL_HALO}
         style={fadeStyle}
         textAnchor="middle"
         x={anchor.x}
@@ -125,6 +170,7 @@ function RoomLabelText({
         fontSize={ROOM_LABEL_NAME_FONT_PX}
         fontStyle={room.hasName ? 'normal' : 'italic'}
         fontWeight={600}
+        {...LABEL_HALO}
         textAnchor="middle"
         x={anchor.x}
         y={anchor.y - ROOM_LABEL_LINE_OFFSET_PX}
@@ -135,6 +181,7 @@ function RoomLabelText({
       <text
         fill={textToken}
         fontSize={ROOM_LABEL_AREA_FONT_PX}
+        {...LABEL_HALO}
         textAnchor="middle"
         x={anchor.x}
         y={anchor.y + ROOM_LABEL_LINE_OFFSET_PX}
@@ -150,11 +197,13 @@ export function RoomLabelCanvasRoomFigure({
   isSelected,
   millimetresPerPixel,
   reducedMotion,
+  hasBackground = false,
 }: RoomLabelCanvasRoomFigureProps) {
-  const points = svgPointsAttr(roomOutlinePx(room, millimetresPerPixel));
+  const outline = roomOutlinePx(room, millimetresPerPixel);
+  const points = svgPointsAttr(outline);
   const bounds = computeRoomBoundsPx(room, millimetresPerPixel);
   const centre = centreOfBounds(bounds);
-  const anchor = pointToPx(room.labelAnchorMm, millimetresPerPixel);
+  const anchor = labelAnchorFor(pointToPx(room.labelAnchorMm, millimetresPerPixel), bounds, outline, hasBackground);
 
   /*
    * "Nâng lên 10%": phòng đang chọn phóng to quanh tâm hộp bao của CHÍNH NÓ,

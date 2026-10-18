@@ -76,6 +76,7 @@ import type {
   RoomId,
   RoomUsage,
   Wall,
+  WallId,
 } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
 import { useFloorLayerAutosave } from '@/hooks/useAutosave';
@@ -675,9 +676,14 @@ export function useRoomLabelReview(
    */
   const navigate = options.onNavigate;
 
-  const onNavigateToWalls = useCallback(() => {
-    navigate?.(ROUTES.project.walls(projectId, floorId));
-  }, [floorId, navigate, projectId]);
+  const onNavigateToWalls = useCallback(
+    (wallId?: WallId) => {
+      const path = ROUTES.project.walls(projectId, floorId);
+      // G4a-39: the Walls screen reads `?wall=` and selects/zooms to that segment.
+      navigate?.(wallId === undefined ? path : `${path}?wall=${encodeURIComponent(wallId)}`);
+    },
+    [floorId, navigate, projectId],
+  );
 
   const run = useCallback(
     async (build: (context: CommandContext) => CommandResult | null): Promise<Command | null> => {
@@ -703,7 +709,7 @@ export function useRoomLabelReview(
           description: rest.join(' '),
           // BUG-605: a refusal that says "Sang lớp tường" carries the way there.
           ...(title.includes('Sang lớp tường')
-            ? { action: { label: 'Sang lớp tường', onClick: onNavigateToWalls } }
+            ? { action: { label: 'Sang lớp tường', onClick: () => onNavigateToWalls() } }
             : {}),
         });
 

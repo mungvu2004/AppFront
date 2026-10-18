@@ -63,7 +63,7 @@
 
 import { AlertCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -86,6 +86,9 @@ import type { QcFloorNavProps } from '../shared/QcFloorNav';
 import { RoomLabelReview } from './RoomLabelReview';
 import type { RoomLabelReviewGateway } from './roomLabelReviewGateway';
 import { useRoomLabelReview } from './useRoomLabelReview';
+
+/** Tham số URL chọn sẵn một phòng (N3-08, `fixPath.ts` của Quy chuẩn). */
+const ROOM_QUERY_KEY = 'select';
 
 /** Mã màn, cho ranh giới lỗi và cho nhật ký — một chỗ viết duy nhất (R-71). */
 export const ROOM_LABEL_REVIEW_SCREEN_ID = 'room-label-review';
@@ -162,6 +165,28 @@ function WiredRoomLabelReview(props: RoomLabelReviewContainerProps) {
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
     ...(props.forceCompact !== undefined ? { forceCompact: props.forceCompact } : {}),
   });
+
+  /*
+   * N3-08: lối "Sửa ở lớp Phòng" từ Quy chuẩn mang `?select=<mã phòng>` — chọn sẵn phòng đó một lần
+   * khi dữ liệu đã về (cùng khuôn `?wall=` của màn Tường).
+   */
+  const pendingUrlRoomRef = useRef(new URLSearchParams(window.location.search).get(ROOM_QUERY_KEY));
+  const { rooms, selectedRoomId, onSelect, state } = model;
+
+  useEffect(() => {
+    const wanted = pendingUrlRoomRef.current;
+
+    if (wanted === null || state === 'loading') {
+      return;
+    }
+
+    pendingUrlRoomRef.current = null;
+    const room = rooms.find((candidate) => candidate.id === wanted);
+
+    if (room !== undefined && room.id !== selectedRoomId) {
+      onSelect(room.id);
+    }
+  }, [rooms, selectedRoomId, onSelect, state]);
 
   return <RoomLabelReview
       {...model}
