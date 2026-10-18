@@ -1034,7 +1034,7 @@ describe('FloorUploadScreenView — QA-03e', () => {
     vi.spyOn(footer, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 700, 800, 100));
     vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 720, 32, 32));
 
-    fireEvent.click(within(trayRow).getByRole('combobox', { name: 'Gán cho tầng khác' }));
+    fireEvent.click(within(trayRow).getByRole('combobox', { name: 'Gán cho tầng' }));
     const option = screen.getAllByRole('option')[1] as HTMLElement;
 
     // The option lives in a portal outside the screen: its focus never scrolls the page.

@@ -20,7 +20,8 @@ import { CHOOSE_FILE_BUTTON_ID } from './FloorUploadDropZone';
 import { SheetGlyph } from './FloorUploadGlyphs';
 import type { FloorUploadActions, FloorUploadTrayModel } from './types';
 
-const LABEL_ASSIGN = 'Gán cho tầng khác';
+const LABEL_ASSIGN = 'Gán cho tầng';
+const PLACEHOLDER_ASSIGN = 'Chọn tầng để gán';
 const LABEL_DISMISS = 'Đóng';
 
 export interface FloorUploadTrayProps {
@@ -80,7 +81,7 @@ export function FloorUploadTray({ tray, actions }: FloorUploadTrayProps) {
                     options={[...item.assignOptions]}
                   >
                     <Select.Label className="sr-only">{LABEL_ASSIGN}</Select.Label>
-                    <Select.Trigger options={[...item.assignOptions]} placeholder={LABEL_ASSIGN} />
+                    <Select.Trigger options={[...item.assignOptions]} placeholder={PLACEHOLDER_ASSIGN} />
                     <Select.Content>
                       {item.assignOptions.map((option, index) => (
                         <Select.Item index={index} key={option.value} value={option.value}>
@@ -105,11 +106,16 @@ export function FloorUploadTray({ tray, actions }: FloorUploadTrayProps) {
 
             {item.error !== null && (
               <InlineAlert
-                action={{
-                  label: LABEL_DISMISS,
-                  onClick: () => actions.onDismissError(item.id),
-                  variant: 'secondary',
-                }}
+                // Đã có thùng rác thì không thêm nút "Đóng" cùng ý (G3-23).
+                {...(item.canRemoveFile
+                  ? {}
+                  : {
+                      action: {
+                        label: LABEL_DISMISS,
+                        onClick: () => actions.onDismissError(item.id),
+                        variant: 'secondary' as const,
+                      },
+                    })}
                 level="violation"
                 message={item.error.sentence}
               />

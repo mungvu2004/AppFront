@@ -307,7 +307,7 @@ describe('useFloorUploadScreen — danh sách tầng', () => {
     // Tầng 1: cao độ 0 mm, chiều cao 3 900 mm ⇒ trần 3,90 m — chính là cao độ
     // sàn của Tầng 2. Đây là phép kiểm rằng trần đến từ `ceilingElevationMm`
     // chứ không từ một phép cộng viết trong màn.
-    expect(ground?.elevationLabel).toBe('0 mm');
+    expect(ground?.elevationLabel).toBe('0,00 m');
     expect(ground?.storeyHeightLabel).toBe('3,90 m');
     expect(ground?.ceilingElevationLabel).toBe('3,90 m');
     expect(second?.elevationLabel).toBe('3,90 m');

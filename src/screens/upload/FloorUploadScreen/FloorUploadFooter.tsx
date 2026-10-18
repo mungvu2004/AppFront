@@ -76,7 +76,7 @@ export function FloorUploadFooter({ footer, blockNotice, onSubmit, rootRef }: Fl
     <div ref={rootRef} data-sticky-footer="" className="sticky bottom-0 z-20 flex flex-col gap-3 rounded-xl border border-border-default bg-bg-surface p-5">
       {blockNotice !== null && (
         <div
-          className="flex flex-col gap-1 rounded-lg bg-state-attention-tint p-3"
+          className="flex max-h-32 flex-col gap-1 overflow-y-auto rounded-lg bg-state-attention-tint p-3"
           data-testid={BLOCK_NOTICE_TEST_ID}
           role="alert"
         >

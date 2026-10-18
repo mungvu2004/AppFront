@@ -68,6 +68,8 @@ export interface FloorUploadInlineError {
 export interface FloorUploadFileModel {
   readonly id: string;
   readonly name: string;
+  /** Ảnh xem trước (blob URL) của tệp ảnh; `null` khi không phải ảnh (G3-24). */
+  readonly previewUrl?: string | null;
   /** `formatFileSize` — ví dụ `"12,5 MB"`. `"—"` khi chưa đo được. */
   readonly sizeLabel: string;
   /** Ví dụ `"3 trang"`. `null` khi không phải PDF hoặc không đọc được số trang. */
@@ -324,6 +326,8 @@ export interface FloorUploadModel {
  * phải bọc điều kiện quanh từng lời gọi.
  */
 export interface FloorUploadActions {
+  /** Chọn tệp ngay từ thẻ một tầng: gán thẳng cho tầng đó (N1-04). */
+  readonly onFilesForFloor?: (floorId: string, files: readonly File[]) => void;
   /** Thả tệp vào vùng kéo thả. */
   readonly onFilesDropped: (files: readonly File[]) => void;
   /** Chọn tệp bằng hộp thoại của trình duyệt. */

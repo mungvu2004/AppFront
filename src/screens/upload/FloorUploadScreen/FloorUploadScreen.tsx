@@ -99,6 +99,7 @@ function actionsOf(props: FloorUploadScreenViewProps): FloorUploadActions {
     onDragLeave: props.onDragLeave,
     onFilesChosen: props.onFilesChosen,
     onFilesDropped: props.onFilesDropped,
+    ...(props.onFilesForFloor === undefined ? {} : { onFilesForFloor: props.onFilesForFloor }),
     onPickPdfPage: props.onPickPdfPage,
     onReassign: props.onReassign,
     onRemoveFile: props.onRemoveFile,
@@ -205,6 +206,7 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
         <ul className={clsx('flex flex-col', props.isCollapsed ? 'gap-2' : 'gap-3')}>
           {props.floors.map((row) => (
             <FloorUploadCard
+              acceptAttribute={props.dropZone.acceptAttribute}
               actions={actions}
               isCollapsed={props.isCollapsed}
               isReadOnly={props.isReadOnly}
@@ -219,7 +221,7 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
 
   return (
     <div
-      className="min-h-screen bg-bg-app"
+      className="min-h-screen scroll-pb-48 bg-bg-app"
       onDragEnter={(event) => {
         event.preventDefault();
         props.onDragEnter();
@@ -237,7 +239,7 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
       }}
       onFocus={keepFocusAboveFooter}
     >
-      <div className="mx-auto flex max-w-[1120px] flex-col gap-6 p-8">
+      <div className="mx-auto flex max-w-[1120px] flex-col gap-6 p-8 pb-24">
         <Breadcrumb
           items={[
             {

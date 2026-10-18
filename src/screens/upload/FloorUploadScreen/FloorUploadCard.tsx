@@ -26,6 +26,7 @@ import { MoreHorizontal, RotateCcw, Trash2, X } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { motion } from '@/components/motion';
+import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { IconButton } from '@/components/ui/IconButton';
 import { Select } from '@/components/ui/Select';
@@ -40,6 +41,7 @@ const LABEL_REASSIGN = 'Gán cho tầng khác';
 const LABEL_PAGE_PICKER = 'Chọn trang';
 const LABEL_CAD_PILL = 'Bản vẽ CAD · độ chính xác cao';
 const LABEL_MENU_PREFIX = 'Tuỳ chọn của tầng';
+const LABEL_UPLOAD_FOR_FLOOR = 'Tải bản vẽ cho tầng này';
 const LABEL_CANCEL = 'Huỷ';
 const LABEL_RETRY = 'Thử lại';
 const LABEL_DISMISS = 'Đóng';
@@ -54,6 +56,8 @@ export interface FloorUploadCardProps {
   readonly isCollapsed: boolean;
   readonly isReadOnly: boolean;
   readonly actions: FloorUploadActions;
+  /** Giá trị `accept` của ô chọn tệp. */
+  readonly acceptAttribute?: string;
   /** Danh sách giữ tham chiếu tới từng thẻ để cuộn tới đúng tầng bị chặn. */
   readonly registerCard: (floorId: string, element: HTMLElement | null) => void;
 }
@@ -169,7 +173,7 @@ function ProgressRail({ row }: { row: FloorUploadRowModel }) {
     <>
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden rounded-b-xl bg-bg-sunken"
+        className="absolute inset-x-0 bottom-0 h-1 overflow-hidden rounded-b-xl bg-bg-sunken"
       >
         <div
           className="h-full bg-accent transition-[width] duration-instant"
@@ -196,9 +200,11 @@ export function FloorUploadCard({
   isCollapsed,
   isReadOnly,
   actions,
+  acceptAttribute,
   registerCard,
 }: FloorUploadCardProps) {
   const cardRef = useRef<HTMLLIElement | null>(null);
+  const pickerRef = useRef<HTMLInputElement | null>(null);
   // Bảng tuỳ chọn mở thì thẻ nổi trên chân trang dính (`z-20`): thẻ là một ngữ cảnh xếp chồng
   // (`panel-rise` giữ `transform`), nên `z-10` của bảng không thoát ra được (BUG-526).
   const [isMenuOpen, setMenuOpen] = useState(false);
@@ -235,7 +241,11 @@ export function FloorUploadCard({
           className="flex h-[72px] w-24 shrink-0 items-center justify-center rounded-lg bg-bg-sunken"
           {...(file === null ? {} : { layoutId: `floor-upload-thumb-${file.id}` })}
         >
-          <SheetGlyph />
+          {file?.previewUrl ? (
+            <img alt="" className="h-full w-full rounded-lg object-contain" src={file.previewUrl} />
+          ) : (
+            <SheetGlyph />
+          )}
         </motion.div>
 
         <div className="flex min-w-24 flex-1 flex-col gap-1">
@@ -249,7 +259,33 @@ export function FloorUploadCard({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Badge variant={row.statusVariant}>{row.statusLabel}</Badge>
+          <Badge variant={row.statusVariant}>
+            {row.status === 'uploading' ? `${row.statusLabel} ${row.percentLabel}` : row.statusLabel}
+          </Badge>
+          {file === null && !isReadOnly && actions.onFilesForFloor !== undefined && (
+            <>
+              <input
+                accept={acceptAttribute}
+                aria-label={`${LABEL_UPLOAD_FOR_FLOOR} ${row.name}`}
+                className="sr-only"
+                onChange={(event) => {
+                  const chosen = event.target.files;
+
+                  if (chosen !== null && chosen.length > 0) {
+                    actions.onFilesForFloor?.(row.floorId, [...chosen]);
+                  }
+
+                  event.target.value = '';
+                }}
+                ref={pickerRef}
+                tabIndex={-1}
+                type="file"
+              />
+              <Button onClick={() => pickerRef.current?.click()} size="sm" type="button" variant="secondary">
+                {LABEL_UPLOAD_FOR_FLOOR}
+              </Button>
+            </>
+          )}
           <CardMenu actions={actions} isOpen={isMenuOpen} row={row} setOpen={setMenuOpen} />
         </div>
       </div>

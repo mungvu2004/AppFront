@@ -48,7 +48,7 @@
  * Thêm mục cho ba thao tác này là một lượt riêng ở tầng dữ liệu.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { Floor } from '@/api/client';
@@ -756,7 +756,7 @@ export function useFloorUploadScreen(
     return taken;
   };
 
-  const acceptFile = (file: File, claimed: Set<string>): void => {
+  const acceptFile = (file: File, claimed: Set<string>, forcedFloorId: string | null = null): void => {
     const id = gateway.createFileId();
 
     setAttachments((previous) => [
@@ -783,11 +783,17 @@ export function useFloorUploadScreen(
       }
 
       const guess = gateway.guessFloor(file.name);
-      const match = guess.ok
+      const guessed = guess.ok
         ? (floors.find(
             (floor) => levelByFloorId.get(floor.id) === guess.level && !claimed.has(floor.id),
           ) ?? null)
         : null;
+      // Từ thẻ tầng: gán thẳng. Chỉ còn đúng một tầng trống: tệp vào tầng đó, không rơi vào khay (N1-04).
+      const free = floors.filter((floor) => !claimed.has(floor.id));
+      const match =
+        forcedFloorId !== null
+          ? (floors.find((floor) => floor.id === forcedFloorId) ?? null)
+          : (guessed ?? (free.length === 1 ? (free[0] ?? null) : null));
 
       if (match !== null) {
         claimed.add(match.id);
@@ -797,7 +803,7 @@ export function useFloorUploadScreen(
         branch: check.branch,
         pageCount: check.pageCount ?? null,
         floorId: match?.id ?? null,
-        isAutoMatched: match !== null,
+        isAutoMatched: match !== null && forcedFloorId === null,
         status: 'waiting',
       };
 
@@ -807,6 +813,16 @@ export function useFloorUploadScreen(
         startUpload({ ...emptyAttachment(id, file), ...next }, match.id);
       }
     });
+  };
+
+  const acceptFilesForFloor = (floorId: string, files: readonly File[]): void => {
+    const file = files[0];
+
+    if (!canDrop || file === undefined) {
+      return;
+    }
+
+    acceptFile(file, new Set(takenFloorIds()), floorId);
   };
 
   const acceptFiles = (files: readonly File[]): void => {
@@ -1107,7 +1123,31 @@ export function useFloorUploadScreen(
     [floors],
   );
 
-  const fileModelFor = (attachment: Attachment): FloorUploadFileModel => {
+  // Ảnh xem trước: blob URL của tệp ảnh, giữ theo id tệp và thu hồi khi rời màn (G3-24).
+  const previewsRef = useRef(new Map<string, string | null>());
+  useEffect(() => {
+    const previews = previewsRef.current;
+    return () => {
+      for (const url of previews.values()) {
+        if (url !== null) URL.revokeObjectURL(url);
+      }
+      previews.clear();
+    };
+  }, []);
+  const previewUrlFor = useCallback((attachment: Attachment): string | null => {
+    const cache = previewsRef.current;
+    if (!cache.has(attachment.id)) {
+      cache.set(
+        attachment.id,
+        attachment.file.type.startsWith('image/') && typeof URL.createObjectURL === 'function'
+          ? URL.createObjectURL(attachment.file)
+          : null,
+      );
+    }
+    return cache.get(attachment.id) ?? null;
+  }, []);
+
+  const fileModelFor = useCallback((attachment: Attachment): FloorUploadFileModel => {
     const pageCountLabel =
       attachment.pageCount === null || attachment.pageCount <= 0
         ? null
@@ -1129,6 +1169,7 @@ export function useFloorUploadScreen(
     return {
       id: attachment.id,
       name: attachment.file.name,
+      previewUrl: previewUrlFor(attachment),
       sizeLabel,
       pageCountLabel,
       // Tệp CAD hỏng (vd. 422 chưa hỗ trợ) không chạy nhánh nào: không quảng cáo độ chính xác (BUG-304).
@@ -1139,7 +1180,7 @@ export function useFloorUploadScreen(
       pageOptions,
       selectedPage: attachment.selectedPage,
     };
-  };
+  }, [previewUrlFor]);
 
   const statusVariantFor = (attachment: Attachment | null, status: FloorUploadStatus) =>
     status === 'attached' && attachment !== null && attachment.isAutoMatched
@@ -1178,9 +1219,9 @@ export function useFloorUploadScreen(
         return {
           floorId: floor.id,
           name: floor.name,
-          elevationLabel: elevationMm === null ? MISSING_VALUE : formatLength(elevationMm),
-          ceilingElevationLabel: ceilingMm === null ? MISSING_VALUE : formatLength(ceilingMm),
-          storeyHeightLabel: formatLength(floor.heightMm),
+          elevationLabel: elevationMm === null ? MISSING_VALUE : formatLength(elevationMm, { unit: 'm' }),
+          ceilingElevationLabel: ceilingMm === null ? MISSING_VALUE : formatLength(ceilingMm, { unit: 'm' }),
+          storeyHeightLabel: formatLength(floor.heightMm, { unit: 'm' }),
           file,
           status,
           statusVariant: statusVariantFor(attachment, status),
@@ -1211,7 +1252,7 @@ export function useFloorUploadScreen(
           revealDurationMs: durationMs('standard', { reducedMotion }),
         };
       }),
-    [attachmentByFloor, canEdit, floors, reassignOptions, reducedMotion, stack],
+    [attachmentByFloor, canEdit, fileModelFor, floors, reassignOptions, reducedMotion, stack],
   );
 
   const trayItems = useMemo<readonly FloorUploadTrayItemModel[]>(
@@ -1233,7 +1274,7 @@ export function useFloorUploadScreen(
             removeLabel: canEdit ? `Xoá bản vẽ ${attachment.file.name}` : null,
           };
         }),
-    [attachments, canEdit, reassignOptions],
+    [attachments, canEdit, fileModelFor, reassignOptions],
   );
 
   const tray: FloorUploadTrayModel = {
@@ -1337,7 +1378,8 @@ export function useFloorUploadScreen(
     floors: rows,
     tray,
     footer,
-    blockNotice,
+    // Lý do hiện theo bản mới nhất, không theo bản chụp lúc bấm (G3-22).
+    blockNotice: blockNotice === null ? null : { ...blockNotice, reasons: blockReasons },
   };
 
   const actions: FloorUploadActions = {
@@ -1346,6 +1388,7 @@ export function useFloorUploadScreen(
       acceptFiles(files);
     },
     onFilesChosen: acceptFiles,
+    onFilesForFloor: acceptFilesForFloor,
     onDragEnter: () => {
       if (canDrop) setDragDepth((depth) => depth + 1);
     },
