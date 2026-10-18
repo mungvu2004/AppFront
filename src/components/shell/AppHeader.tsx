@@ -10,7 +10,7 @@
  */
 import type { ReactNode } from 'react';
 import { ArrowRight, Box, ChevronRight, LogOut, Settings } from 'lucide-react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useMatch } from 'react-router-dom';
 
 import { Avatar } from '@/components/ui/Avatar';
 import { getButtonStyles } from '@/components/ui/buttonVariants';
@@ -92,6 +92,7 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
 }
 
 export function AppHeader({ accountInitials, accountLabel, showAdmin, notificationBell, project, onSignOut }: AppHeaderProps) {
+  const adminActive = useMatch('/admin/*') !== null;
   return (
     <header className="shrink-0 border-b border-border-default bg-bg-surface">
       <div className="flex h-14 items-center gap-4 px-4 sm:px-6">
@@ -107,7 +108,8 @@ export function AppHeader({ accountInitials, accountLabel, showAdmin, notificati
             Dự án
           </NavLink>
           {showAdmin && (
-            <NavLink to={ROUTES.adminUsers} className={navLinkClass}>
+            /* Sáng trên mọi màn `/admin/*`, không chỉ màn người dùng mà link trỏ tới. */
+            <NavLink to={ROUTES.adminUsers} className={() => navLinkClass({ isActive: adminActive })}>
               Quản trị
             </NavLink>
           )}

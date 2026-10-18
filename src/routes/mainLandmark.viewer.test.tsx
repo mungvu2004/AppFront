@@ -1,9 +1,9 @@
 /**
  * FIX-381 — nhóm khung nhìn mô hình: `/3d` (nay là màn Pascal),
- * `/3d/measure`, màn di động `/m/du-an/:projectId`. Tách khỏi `mainLandmark.test.tsx`
+ * màn di động `/m/du-an/:projectId`. Tách khỏi `mainLandmark.test.tsx`
  * cũ để collect/chạy song song theo nhóm (PERF-01 FE-6).
  *
- * `/3d/pascal` không còn ở đây: sau F-15 nó chỉ `<Navigate>` về `/3d`, không
+ * `/3d/pascal` và `/3d/measure` không còn ở đây: sau F-15 nó chỉ `<Navigate>` về `/3d`, không
  * dựng màn nào — xem `REDIRECT_PATHS` của `mainLandmarkHarness`.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

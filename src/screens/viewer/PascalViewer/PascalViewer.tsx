@@ -18,7 +18,9 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { Button } from '@/components/ui/Button';
 
 import {
+  PASCAL_CALIBRATE_SCALE_LABEL,
   PASCAL_LEAVE_LABEL,
+  PASCAL_NEXT_LABEL,
   PASCAL_REPROCESS_LABEL,
   PASCAL_SAVE_RELOAD_LABEL,
   PASCAL_SIDE_PANEL_RAIL_LABEL,
@@ -31,44 +33,58 @@ import {
 /**
  * Khung chứa, dùng chung cho cả bảy nhánh để không nhánh nào lạc ra ngoài bố cục.
  *
- * Đầu màn có tiêu đề và lối ra (BUG-487). Dòng trạng thái chỉ HIỆN khi có khung
- * dựng (`showCaption`); ở các nhánh `EmptyState` nó lặp đúng ý của khối giữa
- * trang nên chỉ còn cho trình đọc màn hình (`sr-only`), vẫn là `role="status"`.
+ * Màn chiếm trọn khung nhìn: một thanh mảnh 48 px trên cùng (lối ra BUG-487, số
+ * liệu tóm tắt, khe hiện diện, nút bảng phụ, nút sang bước kế), phần còn lại cho
+ * khung dựng. Tiêu đề và dòng trạng thái chỉ còn cho trình đọc màn hình
+ * (`sr-only`), vẫn là `h2` và `role="status"`.
  */
 function Frame({
+  barCenter,
+  barEnd,
   caption,
   children,
   headerSlotRef,
   onLeave,
-  showCaption = false,
+  onNext,
 }: {
+  barCenter?: React.ReactNode;
+  barEnd?: React.ReactNode;
   caption: string;
   children: React.ReactNode;
   headerSlotRef?: React.Ref<HTMLDivElement> | undefined;
   onLeave?: (() => void) | undefined;
-  showCaption?: boolean;
+  onNext?: (() => void) | undefined;
 }) {
   return (
-    <section
-      aria-label={PASCAL_VIEWER_TITLE}
-      className="flex h-full min-h-96 flex-col gap-3 bg-bg-app p-4"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-[16px] font-semibold text-text-primary">{PASCAL_VIEWER_TITLE}</h2>
-        {/* Khe thanh hiện diện: nằm ở đầu màn chứ không nổi trên canvas (23R-F-002). */}
-        {headerSlotRef !== undefined && (
-          <div ref={headerSlotRef} className="ml-auto flex" data-testid="pascal-header-slot" />
-        )}
+    <section aria-label={PASCAL_VIEWER_TITLE} className="flex h-full min-h-96 flex-col bg-bg-app">
+      <h2 className="sr-only">{PASCAL_VIEWER_TITLE}</h2>
+      <p className="sr-only" role="status">
+        {caption}
+      </p>
+      <div
+        className="flex h-12 shrink-0 items-center gap-3 border-b border-border-default bg-bg-surface px-3"
+        data-testid="pascal-top-bar"
+      >
         {onLeave !== undefined && (
-          <Button onClick={onLeave} size="sm" variant="secondary">
-            {PASCAL_LEAVE_LABEL}
+          <Button onClick={onLeave} size="sm" variant="ghost">
+            <span aria-hidden="true">←</span> {PASCAL_LEAVE_LABEL}
+          </Button>
+        )}
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-3">
+          {barCenter}
+          {/* Khe thanh hiện diện: nằm trên thanh chứ không nổi trên canvas (23R-F-002). */}
+          {headerSlotRef !== undefined && (
+            <div ref={headerSlotRef} className="flex" data-testid="pascal-header-slot" />
+          )}
+        </div>
+        {barEnd}
+        {onNext !== undefined && (
+          <Button onClick={onNext} size="sm" variant="primary">
+            {PASCAL_NEXT_LABEL}
           </Button>
         )}
       </div>
-      <p className={showCaption ? 'text-sm text-text-muted' : 'sr-only'} role="status">
-        {caption}
-      </p>
-      <div className="min-h-0 flex-1">{children}</div>
+      <div className="relative min-h-0 flex-1">{children}</div>
     </section>
   );
 }
@@ -84,21 +100,12 @@ function Skeleton() {
 }
 
 /**
- * Cột bảng phụ: hàng tab trên, bảng đang mở dưới (#45).
+ * Nút bảng phụ trên thanh trên cùng (#45).
  *
  * Loại trừ nhau là **cấu tạo**, không phải quy ước: `activePanel` là một giá
- * trị, nên hai bảng cùng mở không biểu diễn được. Từ `lg` bảng là cột 344 px
- * cạnh khung dựng; chỉ cột trượt vào trượt ra có hoạt cảnh, và `motion-reduce`
- * tắt nó (#33).
- *
- * Dưới `lg` (1024, cùng ngưỡng vỏ `sheet` của `HistoryPanel`) hàng tab nằm TRÊN
- * khung dựng và chính vùng bảng là tấm trượt đáy cố định, rộng hết màn: cột 344 px
- * cộng hàng tab không vừa 375/768 (trang cuộn ngang, khung dựng bị bóp còn
- * ~128 px), còn tấm trượt đặt TRONG cột 344 để lại một hộp rỗng (23-F-007,
- * 23H-F-002). Vùng là cột flex để bảng con (`min-h-0`) co vừa `max-h` và tự cuộn
- * bên trong, thay vì tràn khỏi đáy màn.
+ * trị, nên hai bảng cùng mở không biểu diễn được.
  */
-function SidePanelColumn({
+function SidePanelRail({
   panels,
   activePanel,
   onPanelChange,
@@ -107,45 +114,46 @@ function SidePanelColumn({
   activePanel: PascalSidePanelId | null;
   onPanelChange: (panel: PascalSidePanelId | null) => void;
 }) {
-  const open = panels.find((panel) => panel.id === activePanel) ?? null;
-
   return (
-    <div className="flex min-h-0 gap-2 max-lg:order-first">
-      <div
-        aria-label={PASCAL_SIDE_PANEL_RAIL_LABEL}
-        className="flex flex-wrap gap-1 lg:flex-col lg:flex-nowrap"
-        role="group"
-      >
-        {panels.map((panel) => {
-          const isOpen = panel.id === activePanel;
-          return (
-            <Button
-              key={panel.id}
-              aria-expanded={isOpen}
-              onClick={() => onPanelChange(isOpen ? null : panel.id)}
-              size="sm"
-              variant={isOpen ? 'primary' : 'secondary'}
-            >
-              {panel.label}
-            </Button>
-          );
-        })}
-      </div>
+    <div aria-label={PASCAL_SIDE_PANEL_RAIL_LABEL} className="flex gap-1" role="group">
+      {panels.map((panel) => {
+        const isOpen = panel.id === activePanel;
+        return (
+          <Button
+            key={panel.id}
+            aria-expanded={isOpen}
+            onClick={() => onPanelChange(isOpen ? null : panel.id)}
+            size="sm"
+            variant={isOpen ? 'primary' : 'secondary'}
+          >
+            {panel.label}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
 
-      {open !== null && (
-        <div
-          aria-label={open.label}
-          className={
-            'fixed inset-x-0 bottom-0 z-10 flex max-h-[70vh] w-full flex-col overflow-y-auto rounded-t-2xl ' +
-            'border-t border-border-default bg-bg-surface shadow-overlay ' +
-            'lg:static lg:z-auto lg:max-h-none lg:min-h-0 lg:w-[344px] lg:shrink-0 lg:rounded-md ' +
-            'lg:border lg:shadow-none transition-[width] duration-standard motion-reduce:transition-none'
-          }
-          role="region"
-        >
-          {open.render()}
-        </div>
-      )}
+/**
+ * Bảng đang mở: phủ lên mép phải khung dựng, rộng 344 px, không bóp thanh trên
+ * cũng không bóp khung dựng. Dưới `lg` (1024, cùng ngưỡng vỏ `sheet` của
+ * `HistoryPanel`) nó là tấm trượt đáy cố định, rộng hết màn (23-F-007, 23H-F-002).
+ * Vùng là cột flex để bảng con (`min-h-0`) co vừa và tự cuộn bên trong; hoạt cảnh
+ * bị `motion-reduce` tắt (#33).
+ */
+function SidePanelRegion({ panel }: { panel: PascalSidePanel }) {
+  return (
+    <div
+      aria-label={panel.label}
+      className={
+        'fixed inset-x-0 bottom-0 z-10 flex max-h-[70vh] w-full flex-col overflow-y-auto rounded-t-2xl ' +
+        'border-t border-border-default bg-bg-surface shadow-overlay ' +
+        'lg:absolute lg:inset-x-auto lg:inset-y-0 lg:right-0 lg:max-h-none lg:w-[344px] lg:rounded-none ' +
+        'lg:border-l lg:border-t-0 transition-[width] duration-standard motion-reduce:transition-none'
+      }
+      role="region"
+    >
+      {panel.render()}
     </div>
   );
 }
@@ -156,6 +164,7 @@ export function PascalViewer({
   onRetry,
   onExpand,
   onLeave,
+  onNext,
   onReprocess,
   panels,
   activePanel,
@@ -163,6 +172,7 @@ export function PascalViewer({
   sceneOverlay,
   headerSlotRef,
   onSaveReload,
+  scaleWarning,
 }: PascalViewerProps) {
   const { state, caption, summary, skipped, errorCode, saveLabel } = viewModel;
 
@@ -268,85 +278,102 @@ export function PascalViewer({
    */
   const isBooting = state === 'loading';
 
-  return (
-    <Frame caption={caption} headerSlotRef={headerSlotRef} onLeave={onLeave} showCaption>
-      <div className="flex h-full min-h-0 flex-col gap-3">
-        <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
-          <div className="relative min-h-48 min-w-0 flex-1">
-            {/* `contain:layout`: hộp `fixed` của Pascal neo vào khung này; `container-type:size`: `cqh`/`cqw` trong vendor đo khung chứ không đo viewport. */}
-            <div
-              ref={canvasRef}
-              data-testid="pascal-canvas"
-              aria-label="Khung dựng mô hình 3D"
-              className="absolute inset-0 overflow-hidden rounded-md border border-border-default bg-bg-sunken [contain:layout] [container-type:size]"
-            />
-            {sceneOverlay}
-            {isBooting && (
-              <div className="absolute inset-0">
-                <Skeleton />
-              </div>
-            )}
-          </div>
+  const openPanel = panels?.find((panel) => panel.id === activePanel) ?? null;
 
+  return (
+    <Frame
+      barCenter={
+        summary !== null && (
+          <dl className="flex items-center gap-1.5 truncate text-sm text-text-muted">
+            <dt className="sr-only">Tầng</dt>
+            <dd className="font-medium text-text-primary">{summary.levelLabel} tầng</dd>
+            <dt className="sr-only">Tường</dt>
+            <dd>· {summary.wallLabel} tường</dd>
+            <dt className="sr-only">Ô mở</dt>
+            <dd>· {summary.openingLabel} ô mở</dd>
+            <dt className="sr-only">Phòng</dt>
+            <dd>· {summary.roomLabel} phòng</dd>
+          </dl>
+        )
+      }
+      barEnd={
+        <>
+          {/* Chip co lại và cắt chữ trước, nút của nó và "Bước tiếp theo" thì không (1024 px). */}
+          {scaleWarning != null && (
+            <div
+              className="flex min-w-0 items-center gap-2 rounded-md border border-state-attention bg-state-attention-tint py-0.5 pl-2 pr-0.5 text-sm text-state-attention-text"
+              data-testid="pascal-scale-warning"
+              role="status"
+            >
+              <AlertTriangle aria-hidden="true" className="size-4 shrink-0 text-state-attention" />
+              <span className="truncate" title={scaleWarning.message}>
+                {scaleWarning.message}
+              </span>
+              <Button className="shrink-0" onClick={scaleWarning.onCalibrate} size="sm" variant="secondary">
+                {PASCAL_CALIBRATE_SCALE_LABEL}
+              </Button>
+            </div>
+          )}
           {panels !== undefined && panels.length > 0 && (
-            <SidePanelColumn
+            <SidePanelRail
               activePanel={activePanel ?? null}
               onPanelChange={onPanelChange ?? (() => undefined)}
               panels={panels}
             />
           )}
+        </>
+      }
+      caption={caption}
+      headerSlotRef={headerSlotRef}
+      onLeave={onLeave}
+      onNext={onNext}
+    >
+      {/* `contain:layout`: hộp `fixed` của Pascal neo vào khung này; `container-type:size`: `cqh`/`cqw` trong vendor đo khung chứ không đo viewport. */}
+      <div
+        ref={canvasRef}
+        data-testid="pascal-canvas"
+        aria-label="Khung dựng mô hình 3D"
+        className="absolute inset-0 overflow-hidden bg-bg-sunken [contain:layout] [container-type:size]"
+      />
+      {sceneOverlay}
+      {isBooting && (
+        <div className="absolute inset-0">
+          <Skeleton />
         </div>
+      )}
+      {openPanel !== null && <SidePanelRegion panel={openPanel} />}
 
-        {/* A7 — không có nút lưu, nên dòng này là chỗ duy nhất nói ra việc lưu. */}
-        {saveLabel !== null && (
-          <p aria-live="polite" className="text-sm text-text-muted" role="status">
-            {saveLabel}
-          </p>
-        )}
-        {/* Anh em của câu lưu, không nằm trong nó: câu giữ đúng chữ cho trình đọc màn hình. */}
-        {onSaveReload !== undefined && (
-          <Button className="self-start" onClick={onSaveReload} size="sm" variant="secondary">
-            {PASCAL_SAVE_RELOAD_LABEL}
-          </Button>
-        )}
-
-        {summary !== null && (
-          <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-text-muted">
-            <div className="flex gap-1.5">
-              <dt>Tầng</dt>
-              <dd className="font-medium text-text-primary">{summary.levelLabel}</dd>
+      {/* A7 — không có nút lưu, nên dòng này là chỗ duy nhất nói ra việc lưu; nổi ở góc dưới trái khung dựng. */}
+      {(saveLabel !== null || onSaveReload !== undefined || skipped.length > 0) && (
+        <div className="absolute bottom-3 left-3 flex max-w-md flex-col items-start gap-2">
+          {saveLabel !== null && (
+            <p aria-live="polite" className="rounded-md bg-bg-surface px-2 py-1 text-sm text-text-muted" role="status">
+              {saveLabel}
+            </p>
+          )}
+          {/* Anh em của câu lưu, không nằm trong nó: câu giữ đúng chữ cho trình đọc màn hình. */}
+          {onSaveReload !== undefined && (
+            <Button onClick={onSaveReload} size="sm" variant="secondary">
+              {PASCAL_SAVE_RELOAD_LABEL}
+            </Button>
+          )}
+          {skipped.length > 0 && (
+            <div className="rounded-md border border-border-default bg-bg-surface p-3">
+              <p className="text-sm font-medium text-text-primary">Chưa chuyển sang được</p>
+              <ul className="mt-2 flex flex-col gap-1">
+                {skipped.map((item) => (
+                  <li key={item.kind} className="text-sm text-text-muted">
+                    <span className="font-medium text-text-primary">
+                      {item.countLabel} {item.kind}
+                    </span>{' '}
+                    — {item.reason}
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div className="flex gap-1.5">
-              <dt>Tường</dt>
-              <dd className="font-medium text-text-primary">{summary.wallLabel}</dd>
-            </div>
-            <div className="flex gap-1.5">
-              <dt>Ô mở</dt>
-              <dd className="font-medium text-text-primary">{summary.openingLabel}</dd>
-            </div>
-            <div className="flex gap-1.5">
-              <dt>Phòng</dt>
-              <dd className="font-medium text-text-primary">{summary.roomLabel}</dd>
-            </div>
-          </dl>
-        )}
-
-        {skipped.length > 0 && (
-          <div className="rounded-md border border-border-default bg-bg-sunken p-3">
-            <p className="text-sm font-medium text-text-primary">Chưa chuyển sang được</p>
-            <ul className="mt-2 flex flex-col gap-1">
-              {skipped.map((item) => (
-                <li key={item.kind} className="text-sm text-text-muted">
-                  <span className="font-medium text-text-primary">
-                    {item.countLabel} {item.kind}
-                  </span>{' '}
-                  — {item.reason}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </Frame>
   );
 }

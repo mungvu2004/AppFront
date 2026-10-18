@@ -298,9 +298,10 @@ describe('[BUG-487] rỗng/lỗi/cờ tắt không là ngõ cụt', () => {
     expect(onReprocess).toHaveBeenCalledTimes(1);
   });
 
-  it('"success": dòng trạng thái vẫn hiện, vì khung dựng không tự nói gì', () => {
+  it('"success": dòng trạng thái chỉ còn cho trình đọc màn hình, số đo hiện trên thanh trên', () => {
     renderState('success');
 
-    expect(screen.getByRole('status')).not.toHaveClass('sr-only');
+    expect(screen.getByRole('status')).toHaveClass('sr-only');
+    expect(screen.getByTestId('pascal-top-bar')).toHaveTextContent('4 tầng');
   });
 });

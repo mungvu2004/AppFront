@@ -41,4 +41,14 @@ describe('AppHeader', () => {
     renderHeader({ showAdmin: true });
     expect(screen.getByRole('link', { name: 'Quản trị' })).toHaveAttribute('href', ROUTES.adminUsers);
   });
+
+  it('"Quản trị" sáng trên mọi màn /admin/*, không chỉ màn người dùng', () => {
+    const props: AppHeaderProps = { accountLabel: 'Hà', showAdmin: true, project: null, onSignOut: vi.fn() };
+    render(
+      <MemoryRouter initialEntries={[ROUTES.adminTrainingJobs]}>
+        <AppHeader {...props} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('link', { name: 'Quản trị' })).toHaveClass('text-accent');
+  });
 });

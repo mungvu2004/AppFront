@@ -37,7 +37,8 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { renderWithProviders } from '@/lib/testing/render';
 import { useStore } from '@/store';
 
-import { PascalViewerContainer, PascalViewerRoute } from './PascalViewer.container';
+import { PascalViewerContainer } from './PascalViewer.container';
+import { PascalViewerRoute } from './PascalViewerRoute.container';
 import { PASCAL_LEAVE_LABEL } from './pascalViewerTypes';
 
 /** Lời trạng thái của màn; lớp cộng tác (S5) có `status` riêng, đứng sau trong DOM. */
@@ -128,7 +129,7 @@ describe('cây thật: container → view → hook', () => {
     });
 
     // Bộ mẫu chuẩn A14: 48 tường.
-    expect(screen.getByText('48')).toBeInTheDocument();
+    expect(screen.getByTestId('pascal-top-bar')).toHaveTextContent('48 tường');
   });
 
   it('rời màn thì gọi dispose', async () => {
@@ -188,7 +189,7 @@ describe('route: đọc kho qua cổng nạp kho dự án (B-V12-01)', () => {
     renderRoute();
 
     expect(screenStatus()).toHaveTextContent('Đang nạp');
-    expect(screen.queryByText('48')).not.toBeInTheDocument();
+    expect(screen.queryByText(/48 tường/)).not.toBeInTheDocument();
   });
 
   it('nối BE thật, kho đã nạp mà dự án chưa có hình thì màn ở "Rỗng" — không "đang nạp" mãi', () => {

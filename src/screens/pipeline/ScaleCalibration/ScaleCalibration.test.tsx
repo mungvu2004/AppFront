@@ -644,6 +644,20 @@ describe('ScaleCalibration — khả năng tiếp cận, tiếng Việt, màu (R
     expect(screen.queryByRole('button', { name: 'Tải lại ảnh' })).toBeNull();
   });
 
+  it('áp tỷ lệ xong: nút "Xem mô hình 3D →" dẫn sang 3D; chưa áp thì không có nút', () => {
+    const scenario = scenarioFor('success');
+    const onGoToViewer3d = vi.fn();
+    const { unmount } = renderWithProviders(
+      <ScaleCalibration actions={{ ...scenario.actions, onGoToViewer3d }} model={scenario.model} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xem mô hình 3D →' }));
+    expect(onGoToViewer3d).toHaveBeenCalledOnce();
+    unmount();
+    renderWithProviders(<ScaleCalibration {...scenarioFor('partial')} />);
+    expect(screen.queryByRole('button', { name: 'Xem mô hình 3D →' })).toBeNull();
+  });
+
   it('lỗi có mã máy thật thì mã đi sau câu tiếng Việt', () => {
     const scenario = scenarioFor('error');
     renderWithProviders(<ScaleCalibration {...scenario} model={{ ...scenario.model, errorCode: 'NETWORK' }} />);

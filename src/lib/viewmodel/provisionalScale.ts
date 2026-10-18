@@ -22,3 +22,14 @@ export function measureTextOf(formatted: string, scaleStatus: ScaleStatus): stri
 export function provisionalScaleNoticeOf(scaleStatus: ScaleStatus): ProvisionalScaleNoticeView | null {
   return scaleStatus === 'unresolved' ? { level: 'attention', message: PROVISIONAL_SCALE_MESSAGE } : null;
 }
+
+/** Chip cảnh báo của màn 3D: một tầng thì gọi tên, nhiều tầng thì đếm; không tầng nào thì `null`. */
+export function provisionalFloorsMessageOf(floorNames: readonly string[]): string | null {
+  const [first] = floorNames;
+
+  if (first === undefined) return null;
+
+  const subject = floorNames.length === 1 ? first : `${floorNames.length} tầng`;
+
+  return `${subject} chưa hiệu chỉnh tỷ lệ — kích thước 3D có thể sai`;
+}

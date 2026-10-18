@@ -2,6 +2,7 @@
  * tức bảng route, nên fast refresh không có gì để làm mới ở đây dù trong file có
  * định nghĩa `UndoShortcuts`. `UndoShortcuts` được xuất có chủ đích: xem docblock
  * của nó — một binding không test được là một binding không ai chứng minh được. */
+import { AdminNav } from '../components/shell/AdminNav';
 import React, { lazy, useCallback, useEffect, useState } from 'react';
 import {
   createBrowserRouter,
@@ -22,9 +23,11 @@ import { useStore } from '@/store';
 
 import { AppLayout } from './AppLayout';
 import { ROUTE_PATTERNS } from './paths';
-import { ExplodedViewRedirect, PascalViewerRedirect } from './viewerRedirects';
+import { ExplodedViewRedirect, MeasureViewRedirect, PascalViewerRedirect } from './viewerRedirects';
 import { RouteErrorScreen } from './RouteErrorScreen';
 import { PendingShell, SessionBootstrap } from './SessionBootstrap';
+// Màn nạp lười: khai ở `lazyScreens.ts` để file này dưới trần 400 dòng.
+import * as Screens from './lazyScreens';
 
 /**
  * Vỏ chờ dùng chung, để hai mươi mấy route không mỗi chỗ viết một kiểu.
@@ -56,43 +59,6 @@ const suspendedOutsideMain = (node: React.ReactNode) => (
   </React.Suspense>
 );
 
-// Lazy load screen routes
-const RoutePascalViewer = lazy(() => import('../screens/viewer/PascalViewer').then(m => ({ default: m.PascalViewerRoute })));
-const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
-const RouteInvitationAccept = lazy(() => import('../screens/auth/InvitationAccept').then(m => ({ default: m.InvitationAcceptRoute })));
-const RoutePasswordReset = lazy(() => import('../screens/auth/PasswordReset').then(m => ({ default: m.PasswordResetRoute })));
-const RouteDashboard = lazy(() => import('../screens/dashboard/ProjectDashboard').then(m => ({ default: m.ProjectDashboardRoute })));
-const RouteProjectSettings = lazy(() => import('../screens/project/ProjectSettings').then(m => ({ default: m.ProjectSettingsRoute })));
-const RouteAccountSettings = lazy(() => import('../screens/account/AccountSettings').then(m => ({ default: m.AccountSettingsRoute })));
-const RouteNotificationCenter = lazy(() => import('../screens/system/NotificationCenter').then(m => ({ default: m.NotificationCenterRoute })));
-const RouteAccessDenied = lazy(() => import('../screens/system/AccessDenied').then(m => ({ default: m.AccessDeniedRoute })));
-const RouteMobileViewer = lazy(() => import('../screens/system/MobileViewer').then(m => ({ default: m.MobileViewerRoute })));
-const RouteNotFound = lazy(() => import('../screens/system/NotFound').then(m => ({ default: m.NotFoundRoute })));
-const RouteOnboarding = lazy(() => import('../screens/onboarding/WelcomeScreen').then(m => ({ default: m.WelcomeRoute })));
-const RouteFloorUpload = lazy(() => import('../screens/upload/FloorUploadScreen').then(m => ({ default: m.FloorUploadRoute })));
-const RouteInputQualityGate = lazy(() => import('../screens/upload/InputQualityGate').then(m => ({ default: m.InputQualityGateRoute })));
-const RouteProcessing = lazy(() => import('../screens/pipeline/ProcessingScreen').then(m => ({ default: m.ProcessingScreenRoute })));
-const RouteScaleCalibration = lazy(() => import('../screens/pipeline/ScaleCalibration').then(m => ({ default: m.ScaleCalibrationRoute })));
-const RouteOverlayComparison = lazy(() => import('../screens/viewer/OverlayComparison').then(m => ({ default: m.OverlayComparisonRoute })));
-const RouteMeasurementTool = lazy(() => import('../screens/viewer/MeasurementTool').then(m => ({ default: m.MeasurementToolRoute })));
-const RouteRules = lazy(() => import('../screens/rules/RuleReport').then(m => ({ default: m.RulesRoute })));
-const RouteRuleSettings = lazy(() => import('../screens/rules/RuleSettings').then(m => ({ default: m.RuleSettingsRoute })));
-const RouteExportPanel = lazy(() => import('../screens/export/ExportPanel').then(m => ({ default: m.ExportPanelRoute })));
-const RoutePipelineGraph = lazy(() => import('../screens/pipeline/PipelineGraph').then(m => ({ default: m.PipelineGraphRoute })));
-const RouteCadBranchConfirm = lazy(() => import('../screens/pipeline/CadBranchConfirm').then(m => ({ default: m.CadBranchConfirmRoute })));
-const RouteWallLayerReview = lazy(() => import('../screens/qc/WallLayerReview').then(m => ({ default: m.WallLayerReviewRoute })));
-const RouteObjectLayerReview = lazy(() => import('../screens/qc/ObjectLayerReview').then(m => ({ default: m.ObjectLayerReviewRoute })));
-const RouteDimensionOcrReview = lazy(() => import('../screens/qc/DimensionOcrReview').then(m => ({ default: m.DimensionOcrReviewRoute })));
-const RouteAxisGridManager = lazy(() => import('../screens/qc/AxisGridManager').then(m => ({ default: m.AxisGridManagerRoute })));
-const RouteRoomLabelReview = lazy(() => import('../screens/qc/RoomLabelReview').then(m => ({ default: m.RoomLabelReviewRoute })));
-const RouteFloorManager = lazy(() => import('../screens/qc/FloorManager').then(m => ({ default: m.FloorManagerRoute })));
-const RouteThicknessStandardization = lazy(() => import('../screens/qc/ThicknessStandardization').then(m => ({ default: m.ThicknessStandardizationRoute })));
-const RouteSpatialJsonViewer = lazy(() => import('../screens/export/SpatialJsonViewer').then(m => ({ default: m.SpatialJsonViewerRoute })));
-const RouteVersionHistory = lazy(() => import('../screens/export/VersionHistory').then(m => ({ default: m.VersionHistoryRoute })));
-const RouteModelLibrary = lazy(() => import('../screens/admin/ModelLibrary').then(m => ({ default: m.ModelLibraryRoute })));
-const RouteModelRegistry = lazy(() => import('../screens/admin/ModelRegistry').then(m => ({ default: m.ModelRegistryRoute })));
-const RouteTrainingJobs = lazy(() => import('../screens/admin/TrainingJobs').then(m => ({ default: m.TrainingJobsRoute })));
-const RouteUserManagement = lazy(() => import('../screens/admin/UserManagement').then(m => ({ default: m.UserManagementRoute })));
 
 /**
  * Bảy màn demo, và **chỉ trong bản dev**.
@@ -340,6 +306,13 @@ export function UndoShortcuts({ children }: { children: React.ReactNode }): Reac
   );
 }
 
+const withAdminNav = (page: React.ReactNode) => (
+  <>
+    <AdminNav />
+    {page}
+  </>
+);
+
 /** Bảng route — xuất riêng để bài kiểm dựng nó trên `createMemoryRouter`. */
 export const routes: RouteObject[] = [
   {
@@ -353,19 +326,32 @@ export const routes: RouteObject[] = [
     ),
     children: [
       ...DEV_ONLY_ROUTES,
-      { path: ROUTE_PATTERNS.login, element: suspendedOutsideMain(<RouteAuth />) },
-      { path: ROUTE_PATTERNS.invitationAccept, element: suspendedOutsideMain(<RouteInvitationAccept />) },
-      { path: ROUTE_PATTERNS.passwordReset, element: suspendedOutsideMain(<RoutePasswordReset />) },
+      { path: ROUTE_PATTERNS.login, element: suspendedOutsideMain(<Screens.RouteAuth />) },
+      { path: ROUTE_PATTERNS.invitationAccept, element: suspendedOutsideMain(<Screens.RouteInvitationAccept />) },
+      { path: ROUTE_PATTERNS.passwordReset, element: suspendedOutsideMain(<Screens.RoutePasswordReset />) },
+      /* Mô hình 3D: trang riêng toàn màn hình, KHÔNG header/thanh bước của `AppLayout`;
+         nhóm `ScreenMain` riêng để trang vẫn có đúng một `<main>`. */
+      {
+        element: (
+          <ScreenMain>
+            <Outlet />
+          </ScreenMain>
+        ),
+        children: [
+          { path: ROUTE_PATTERNS.projectViewer, element: suspended(<Screens.RoutePascalViewer />) },
+          { path: ROUTE_PATTERNS.projectViewerPascal, element: <PascalViewerRedirect /> },
+        ],
+      },
       // Màn di động: route MỚI, không thay chỗ một route tạm nào (R-66).
-      { path: ROUTE_PATTERNS.mobileViewer, element: suspendedOutsideMain(<RouteMobileViewer />) },
+      { path: ROUTE_PATTERNS.mobileViewer, element: suspendedOutsideMain(<Screens.RouteMobileViewer />) },
       ...STATE_GALLERY_DEV_ONLY_ROUTES,
       /* Mọi màn sau đăng nhập: header chung + thanh bước dự án (`AppLayout`). */
       {
         element: <AppLayout />,
         children: [
-          { path: ROUTE_PATTERNS.dashboard, element: suspendedOutsideMain(<RouteDashboard />) },
+          { path: ROUTE_PATTERNS.dashboard, element: suspendedOutsideMain(<Screens.RouteDashboard />) },
           { path: ROUTE_PATTERNS.projectExploded, element: <ExplodedViewRedirect /> },
-          { path: ROUTE_PATTERNS.projectMeasure, element: suspendedOutsideMain(<RouteMeasurementTool />) },
+          { path: ROUTE_PATTERNS.projectMeasure, element: <MeasureViewRedirect /> },
           /* Nhóm màn không tự có `<main>`: một landmark chung ở đây thay vì ba mươi chỗ
              (FIX-381). Màn đã có `<main>` riêng đứng NGOÀI nhóm để không lồng `<main>`. */
           {
@@ -375,37 +361,35 @@ export const routes: RouteObject[] = [
               </ScreenMain>
             ),
             children: [
-              { path: ROUTE_PATTERNS.accessDenied, element: suspended(<RouteAccessDenied />) },
-              { path: ROUTE_PATTERNS.onboarding, element: suspended(<RouteOnboarding />) },
-              { path: ROUTE_PATTERNS.projectSettings, element: suspended(<RouteProjectSettings />) },
-              { path: ROUTE_PATTERNS.projectUpload, element: suspended(<RouteFloorUpload />) },
-              { path: ROUTE_PATTERNS.projectQuality, element: suspended(<RouteInputQualityGate />) },
-              { path: ROUTE_PATTERNS.projectPipeline, element: suspended(<RouteProcessing />) },
-              { path: ROUTE_PATTERNS.projectPipelineGraph, element: suspended(<RoutePipelineGraph />) },
-              { path: ROUTE_PATTERNS.projectScale, element: suspended(<RouteScaleCalibration />) },
-              { path: ROUTE_PATTERNS.projectOverlay, element: suspended(<RouteOverlayComparison />) },
-              { path: ROUTE_PATTERNS.projectCadConfirm, element: suspended(<RouteCadBranchConfirm />) },
-              { path: ROUTE_PATTERNS.projectWalls, element: suspended(<RouteWallLayerReview />) },
-              { path: ROUTE_PATTERNS.projectObjects, element: suspended(<RouteObjectLayerReview />) },
-              { path: ROUTE_PATTERNS.projectDimensions, element: suspended(<RouteDimensionOcrReview />) },
-              { path: ROUTE_PATTERNS.projectGrids, element: suspended(<RouteAxisGridManager />) },
-              { path: ROUTE_PATTERNS.projectRooms, element: suspended(<RouteRoomLabelReview />) },
-              { path: ROUTE_PATTERNS.projectFloors, element: suspended(<RouteFloorManager />) },
-              { path: ROUTE_PATTERNS.projectThickness, element: suspended(<RouteThicknessStandardization />) },
-              { path: ROUTE_PATTERNS.projectViewer, element: suspended(<RoutePascalViewer />) },
-              { path: ROUTE_PATTERNS.projectViewerPascal, element: <PascalViewerRedirect /> },
-              { path: ROUTE_PATTERNS.projectRules, element: suspended(<RouteRules />) },
-              { path: ROUTE_PATTERNS.projectRuleSettings, element: suspended(<RouteRuleSettings />) },
-              { path: ROUTE_PATTERNS.projectExport, element: suspended(<RouteExportPanel />) },
-              { path: ROUTE_PATTERNS.projectData, element: suspended(<RouteSpatialJsonViewer />) },
-              { path: ROUTE_PATTERNS.projectVersions, element: suspended(<RouteVersionHistory />) },
-              { path: ROUTE_PATTERNS.adminModels, element: suspended(<RouteModelLibrary />) },
-              { path: ROUTE_PATTERNS.adminTrainingJobs, element: suspended(<RouteTrainingJobs />) },
-              { path: ROUTE_PATTERNS.adminTrainingModels, element: suspended(<RouteModelRegistry />) },
-              { path: ROUTE_PATTERNS.adminUsers, element: suspended(<RouteUserManagement />) },
-              { path: ROUTE_PATTERNS.account, element: suspended(<RouteAccountSettings />) },
-              { path: ROUTE_PATTERNS.notifications, element: suspended(<RouteNotificationCenter />) },
-              { path: ROUTE_PATTERNS.notFound, element: suspended(<RouteNotFound />) },
+              { path: ROUTE_PATTERNS.accessDenied, element: suspended(<Screens.RouteAccessDenied />) },
+              { path: ROUTE_PATTERNS.onboarding, element: suspended(<Screens.RouteOnboarding />) },
+              { path: ROUTE_PATTERNS.projectSettings, element: suspended(<Screens.RouteProjectSettings />) },
+              { path: ROUTE_PATTERNS.projectUpload, element: suspended(<Screens.RouteFloorUpload />) },
+              { path: ROUTE_PATTERNS.projectQuality, element: suspended(<Screens.RouteInputQualityGate />) },
+              { path: ROUTE_PATTERNS.projectPipeline, element: suspended(<Screens.RouteProcessing />) },
+              { path: ROUTE_PATTERNS.projectPipelineGraph, element: suspended(<Screens.RoutePipelineGraph />) },
+              { path: ROUTE_PATTERNS.projectScale, element: suspended(<Screens.RouteScaleCalibration />) },
+              { path: ROUTE_PATTERNS.projectOverlay, element: suspended(<Screens.RouteOverlayComparison />) },
+              { path: ROUTE_PATTERNS.projectCadConfirm, element: suspended(<Screens.RouteCadBranchConfirm />) },
+              { path: ROUTE_PATTERNS.projectWalls, element: suspended(<Screens.RouteWallLayerReview />) },
+              { path: ROUTE_PATTERNS.projectObjects, element: suspended(<Screens.RouteObjectLayerReview />) },
+              { path: ROUTE_PATTERNS.projectDimensions, element: suspended(<Screens.RouteDimensionOcrReview />) },
+              { path: ROUTE_PATTERNS.projectGrids, element: suspended(<Screens.RouteAxisGridManager />) },
+              { path: ROUTE_PATTERNS.projectRooms, element: suspended(<Screens.RouteRoomLabelReview />) },
+              { path: ROUTE_PATTERNS.projectFloors, element: suspended(<Screens.RouteFloorManager />) },
+              { path: ROUTE_PATTERNS.projectThickness, element: suspended(<Screens.RouteThicknessStandardization />) },
+              { path: ROUTE_PATTERNS.projectRules, element: suspended(<Screens.RouteRules />) },
+              { path: ROUTE_PATTERNS.projectRuleSettings, element: suspended(<Screens.RouteRuleSettings />) },
+              { path: ROUTE_PATTERNS.projectExport, element: suspended(<Screens.RouteExportPanel />) },
+              { path: ROUTE_PATTERNS.projectData, element: suspended(<Screens.RouteSpatialJsonViewer />) },
+              { path: ROUTE_PATTERNS.projectVersions, element: suspended(<Screens.RouteVersionHistory />) },
+              { path: ROUTE_PATTERNS.adminModels, element: withAdminNav(suspended(<Screens.RouteModelLibrary />)) },
+              { path: ROUTE_PATTERNS.adminTrainingJobs, element: withAdminNav(suspended(<Screens.RouteTrainingJobs />)) },
+              { path: ROUTE_PATTERNS.adminTrainingModels, element: withAdminNav(suspended(<Screens.RouteModelRegistry />)) },
+              { path: ROUTE_PATTERNS.adminUsers, element: withAdminNav(suspended(<Screens.RouteUserManagement />)) },
+              { path: ROUTE_PATTERNS.account, element: suspended(<Screens.RouteAccountSettings />) },
+              { path: ROUTE_PATTERNS.notifications, element: suspended(<Screens.RouteNotificationCenter />) },
+              { path: ROUTE_PATTERNS.notFound, element: suspended(<Screens.RouteNotFound />) },
             ],
           },
         ],

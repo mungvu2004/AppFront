@@ -93,11 +93,13 @@ describe('[#45] ba bảng phụ loại trừ nhau', () => {
     expect(screen.queryByText('Nội dung bảng diện tích phòng')).not.toBeInTheDocument();
   });
 
-  it('cột bảng rộng đúng 344 px từ lg', () => {
+  it('từ lg bảng phủ mép phải khung dựng, rộng đúng 344 px', () => {
     renderPanels('rooms');
 
     expect(screen.getByRole('region', { name: PASCAL_SIDE_PANEL_LABELS.rooms })).toHaveClass(
-      'lg:static',
+      'lg:absolute',
+      'lg:right-0',
+      'lg:inset-y-0',
       'lg:w-[344px]',
     );
   });
@@ -105,7 +107,7 @@ describe('[#45] ba bảng phụ loại trừ nhau', () => {
   /* 23-F-007, 23H-F-002: dưới lg, cột 344 px + hàng tab làm trang 375 cuộn ngang
      và bóp khung dựng; vùng bảng phải là tấm trượt đáy rộng hết màn, hàng tab lên
      trên khung dựng. */
-  it('dưới lg vùng bảng là tấm trượt đáy rộng hết màn, hàng tab lên trên khung', () => {
+  it('dưới lg vùng bảng là tấm trượt đáy rộng hết màn, hàng tab ở thanh trên', () => {
     renderPanels('history');
 
     expect(screen.getByRole('region', { name: PASCAL_SIDE_PANEL_LABELS.history })).toHaveClass(
@@ -116,12 +118,9 @@ describe('[#45] ba bảng phụ loại trừ nhau', () => {
       'max-h-[70vh]',
       'overflow-y-auto',
     );
-    expect(screen.getByRole('group', { name: 'Bảng phụ' }).parentElement).toHaveClass(
-      'max-lg:order-first',
-    );
-    expect(screen.getByTestId('pascal-canvas').parentElement?.parentElement).toHaveClass(
-      'flex-col',
-      'lg:flex-row',
+    // Hàng tab nằm trên thanh trên cùng, không chen vào khung dựng.
+    expect(screen.getByTestId('pascal-top-bar')).toContainElement(
+      screen.getByRole('group', { name: 'Bảng phụ' }),
     );
   });
 

@@ -98,6 +98,8 @@ export interface PascalViewerProps {
    * rỗng/lỗi/cờ tắt không thành ngõ cụt (BUG-487). Vắng thì không có nút.
    */
   readonly onLeave?: (() => void) | undefined;
+  /** Sang bước kế (quy chuẩn) từ thanh trên cùng. */
+  readonly onNext?: (() => void) | undefined;
   /** Sang màn xử lý bản vẽ — lối đi tiếp của trạng thái `empty`. Vắng thì không có nút. */
   readonly onReprocess?: (() => void) | undefined;
   /**
@@ -118,7 +120,15 @@ export interface PascalViewerProps {
    * của màn QC (23-B-029). Vắng thì không có nút.
    */
   readonly onSaveReload?: (() => void) | undefined;
+  /**
+   * Có tầng ở tỷ lệ tạm (N16 `scaleStatus: 'unresolved'`): chip cảnh báo trên
+   * thanh trên cùng, kèm nút sang màn Hiệu chỉnh tỷ lệ. Vắng thì không có chip.
+   */
+  readonly scaleWarning?: { readonly message: string; readonly onCalibrate: () => void } | null | undefined;
 }
+
+/** Nhãn nút trên chip tỷ lệ tạm — cùng chữ `ProvisionalScaleBanner` của màn QC. */
+export const PASCAL_CALIBRATE_SCALE_LABEL = 'Hiệu chỉnh tỷ lệ';
 
 /** Nhãn nút tải lại tầng khi lưu gặp bản mới hơn — cùng chữ `FloorLayerSaveBanner`. */
 export const PASCAL_SAVE_RELOAD_LABEL = 'Tải lại';
@@ -165,6 +175,9 @@ export const PASCAL_VIEWER_TITLE = 'Mô hình 3D';
 
 /** Nút lối ra ở đầu màn, về quản lý tầng của dự án (BUG-487). */
 export const PASCAL_LEAVE_LABEL = 'Về quản lý tầng';
+
+/** Nút chính trên thanh trên cùng: sang bước quy chuẩn. */
+export const PASCAL_NEXT_LABEL = 'Bước tiếp theo: Quy chuẩn →';
 
 /** Hành động của trạng thái rỗng, sang màn xử lý bản vẽ. */
 export const PASCAL_REPROCESS_LABEL = 'Xử lý lại bản vẽ';

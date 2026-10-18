@@ -271,6 +271,7 @@ const ACTIONS: ScaleCalibrationActions = {
   onToggleCollapsed: NO_OP,
   onGoToPreprocessing: NO_OP,
   onGoToUpload: NO_OP,
+  onGoToViewer3d: NO_OP,
   onRetry: NO_OP,
 };
 
@@ -348,6 +349,7 @@ function panelFor(state: ScaleCalibrationState): ScalePanelViewModel {
     applyScope: 'thisFloor',
     applyScopeOptions: APPLY_SCOPE_OPTIONS,
     canApply: hasScale,
+    canOpenViewer3d: state === 'success',
     isApplying: false,
     areActionsHidden: state === 'forbidden',
     recalculationCaption: 'Đổi tỷ lệ sẽ tính lại mọi kích thước dẫn xuất của bản vẽ này.',
