@@ -59,6 +59,7 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useSession } from '@/hooks/useSession';
+import { useProjectFloors } from '@/hooks/useProjectFloors';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { ROUTES } from '@/routes/paths';
@@ -133,6 +134,7 @@ function WiredDimensionOcrReview(props: DimensionOcrReviewContainerProps) {
     ...(props.onNavigate !== undefined ? { onNavigate: props.onNavigate } : {}),
   });
 
+  const floors = useProjectFloors(props.projectId); // N2-11: đổi tầng theo mã API như mọi màn kiểm tra.
   const scaleCalibrationHref = useMemo(
     () => ROUTES.project.scale(props.projectId, props.floorId),
     [props.floorId, props.projectId],
@@ -141,7 +143,7 @@ function WiredDimensionOcrReview(props: DimensionOcrReviewContainerProps) {
   return (
     <DimensionOcrReview
       {...model}
-      floorNav={{ floorId: props.floorId, projectId: props.projectId }}
+      floorNav={{ floorId: props.floorId, floors, projectId: props.projectId }}
       scaleCalibrationHref={scaleCalibrationHref}
     />
   );

@@ -42,6 +42,7 @@ import {
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useProjectSpatial } from '@/hooks/useProjectSpatial';
 import { useSession } from '@/hooks/useSession';
+import { useProjectFloors } from '@/hooks/useProjectFloors';
 import { ROUTES } from '@/routes/paths';
 import { QcFloorNav } from '@/screens/qc/shared/QcFloorNav';
 import type { ProjectRole } from '@/types/project';
@@ -106,6 +107,8 @@ function WiredOverlayComparison(props: OverlayComparisonContainerProps) {
     [props.roles, session.roles, session.status],
   );
 
+  // N2-11: cấp Tầng đổi tầng theo mã API (đúng route), như mọi màn kiểm tra.
+  const floors = useProjectFloors(props.projectId, props.gateway?.readFloorList);
   const { actions, model } = useOverlayComparison({
     floorId: props.floorId,
     projectId: props.projectId,
@@ -121,7 +124,7 @@ function WiredOverlayComparison(props: OverlayComparisonContainerProps) {
       // Route tỷ lệ nhận mã tầng API như route này (G4b-25).
       alignHref={ROUTES.project.scale(props.projectId, props.floorId)}
       model={model}
-      nav={<QcFloorNav floorId={props.floorId} layer="overlay" projectId={props.projectId} />}
+      nav={<QcFloorNav floorId={props.floorId} floors={floors} layer="overlay" projectId={props.projectId} />}
     />
   );
 }

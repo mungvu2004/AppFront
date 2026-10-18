@@ -44,11 +44,10 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import { useProjectFloors } from '@/hooks/useProjectFloors';
 import { useSession } from '@/hooks/useSession';
-import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
-import { levelsOf } from '../../qc/FloorManager/floorManagerGateway';
 import type { QcFloorNavProps } from '../../qc/shared/QcFloorNav';
 
 import { ScaleCalibration } from './ScaleCalibration';
@@ -140,12 +139,8 @@ function ScaleCalibrationRouteBody({
   roles: readonly ProjectRole[];
 }) {
   const navigate = useNavigate();
-  const spatial = useStore((state) => state.spatial);
-  // N2-04: name the floor being calibrated and let the user switch floor (keeps the "scale" layer).
-  const floors = useMemo(
-    () => levelsOf(spatial).map((level) => ({ id: level.id, label: level.name })),
-    [spatial],
-  );
+  // N2-04/N2-11: name the floor and let the user switch floor (keeps the "scale" layer); API floor ids match the route.
+  const floors = useProjectFloors(projectId);
   const handleNavigate = useCallback(
     (path: string) => {
       navigate(path);
