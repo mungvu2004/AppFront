@@ -18,15 +18,16 @@ import { getSessionSnapshot } from '@/lib/auth/state';
 import { readWireError } from '@/lib/errors/wireError';
 import { toPascalScene } from '@/lib/pascal/toPascal';
 import type { PascalScene } from '@/lib/pascal/types';
-import { ROUTES } from '@/routes/paths';
 import { startAppSession } from '@/routes/sessionSetup';
 import { PASCAL_REJECTED_FALLBACK, usePascalEdits } from '@/screens/viewer/PascalViewer/usePascalEdits';
 import { selectViewerSpatial } from '@/screens/viewer/ViewerShell/viewerShellGateway';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
+import { resolveBackHref } from './backHref';
 import type { PascalBridge, PascalSceneGraph } from './types';
 
+export { LAST_APP_PATH_KEY, rememberAppPath, RETURN_TO_PARAM } from './backHref';
 export type { PascalBridge, PascalSceneGraph } from './types';
 
 export const BRIDGE_SESSION_ERROR = 'Phiên đăng nhập đã hết. Đăng nhập lại rồi mở lại mô hình 3D.';
@@ -69,6 +70,8 @@ interface LoadState {
 
 export function usePascalProjectBridge(projectId: string): PascalBridge {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
+  // Đọc một lần lúc mở trang: màn vừa rời (N1-01, N5-13, N3-09), không có thì Quản lý tầng.
+  const [backHref] = useState(() => resolveBackHref(projectId));
   const session = useSession();
   const storeRoles = useStore((state) => state.userRoles);
   const spatial = useStore((state) => state.spatial);
@@ -135,7 +138,7 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
   return {
     ...load,
     readOnly,
-    backHref: ROUTES.project.floors(projectId),
+    backHref,
     onLoad,
     onSave,
   };

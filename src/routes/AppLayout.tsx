@@ -12,6 +12,7 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { AppHeader } from '@/components/shell/AppHeader';
+import { rememberAppPath } from '@/pascal-page/bridge/backHref';
 import { useSession } from '@/hooks/useSession';
 import { signOut } from '@/lib/auth';
 import { initialsOf } from '@/lib/format/initials';
@@ -43,7 +44,12 @@ export function AppLayout() {
   const session = useSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const location = projectLocationOf(useLocation().pathname);
+  const routerLocation = useLocation();
+  const location = projectLocationOf(routerLocation.pathname);
+  // N1-01/N5-13/N3-09: trang 3D (tài liệu riêng) đọc đường này để "Về dự án" về đúng màn vừa rời.
+  useEffect(() => {
+    rememberAppPath(routerLocation.pathname + routerLocation.search);
+  }, [routerLocation.pathname, routerLocation.search]);
   const projectId = location?.projectId ?? '';
 
   // Header tự đọc #24 một lần (dùng chung khóa với màn con).
