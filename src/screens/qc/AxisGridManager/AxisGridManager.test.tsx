@@ -459,6 +459,14 @@ describe('QA-04c SCR-19 trên màn', () => {
     expect(screen.queryByText('Trục chỉ giữ trong phiên này.')).not.toBeInTheDocument();
   });
 
+  it('[G4b-16] có ảnh bản vẽ thì vẽ ảnh nền dưới lưới trục', () => {
+    const { container } = renderWithProviders(
+      <AxisGridManager {...scenarioArgsFor('success')} background={{ url: 'drawing.png', widthPx: 400, heightPx: 300 }} />,
+    );
+
+    expect(container.querySelector('svg image')?.getAttribute('href')).toBe('drawing.png');
+  });
+
   it('[G4b-15] tầng ở tỷ lệ tạm thì hiện dải tỷ lệ tạm kèm nút hiệu chỉnh', () => {
     const onCalibrate = vi.fn();
     renderWithProviders(

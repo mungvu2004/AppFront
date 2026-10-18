@@ -56,11 +56,13 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query/queryKeys';
 
 import { alignFloors, type FloorAlignmentReport, type FloorIssue } from '@/domain/axes/alignFloors';
 import { axisLine, type DetectedAxis } from '@/domain/axes/detect';
 import {
+  axisLabelAt,
   buildAxisGrid,
   describePoint,
   labelAxes,
@@ -106,6 +108,8 @@ import {
   buildAutoAlignCommand,
   buildMoveAxisCommand,
   buildRemoveAxisCommand,
+  buildRenameAxisCommand,
+  MIN_AXIS_SPACING_MM,
   createAxisEntity,
   createAxisGridDispatchDeps,
   createAxisGridManagerGateway,
@@ -173,6 +177,7 @@ export const AXIS_GRID_TEXT = {
   originNotPersisted:
     'Đã ghim gốc toạ độ cho phiên làm việc này. Hệ thống chưa có chỗ lưu lựa chọn đó, nên nó mất sau khi tải lại trang.',
   shortcutUndo: 'Hoàn tác thay đổi trục gần nhất',
+  shortcutRedo: 'Làm lại thay đổi trục vừa hoàn tác',
   /** BUG-578: chưa có endpoint ghi lưới trục — nói thật, cố định trên màn. */
   unsavedNotice: 'Trục chỉ giữ trong phiên này — tải lại trang sẽ mất các thay đổi.',
   /** BUG-594, BUG-601: "Căn chỉnh tự động" bị khoá thì nói vì sao. */
@@ -342,6 +347,30 @@ export interface UseAxisGridManagerOptions {
  * Trải đúng {@link AxisGridManagerProps} — hợp đồng props đã đóng băng của T3 —
  * nên lớp 3 truyền thẳng kết quả này vào `<AxisGridManager {...result} />`.
  */
+/** G4b-16: gộp khung ảnh nền (gốc 0,0) vào hộp bao để vừa khung không cắt ảnh. */
+function withBackground(bounds: AxisGridPixelRect, background: AxisCanvasBackground | null): AxisGridPixelRect {
+  if (background === null) {
+    return bounds;
+  }
+
+  const x = Math.min(bounds.x, 0);
+  const y = Math.min(bounds.y, 0);
+
+  return {
+    x: pixels(x),
+    y: pixels(y),
+    width: pixels(Math.max(bounds.x + bounds.width, background.widthPx) - x),
+    height: pixels(Math.max(bounds.y + bounds.height, background.heightPx) - y),
+  };
+}
+
+/** G4b-16: ảnh bản vẽ của tầng, toạ độ px cùng hệ với trục (gốc 0,0). */
+export interface AxisCanvasBackground {
+  readonly url: string;
+  readonly widthPx: number;
+  readonly heightPx: number;
+}
+
 export interface UseAxisGridManagerResult extends AxisGridManagerProps {
   /**
    * Câu chặn khoảng cách tối thiểu gần nhất, `null` khi lượt vừa rồi hợp lệ.
@@ -363,6 +392,11 @@ export interface UseAxisGridManagerResult extends AxisGridManagerProps {
   readonly unsavedNotice: string | null;
   /** G4b-15: dải "tỷ lệ tạm" — số mm của trục đang tính theo tỷ lệ chưa hiệu chỉnh. */
   readonly provisionalScaleNotice: ProvisionalScaleNotice | null;
+  /** G4b-16: ảnh bản vẽ dưới lưới, đã đổi sang px theo cùng tỷ lệ với trục. */
+  readonly background: AxisCanvasBackground | null;
+  /** G4b-20: trả câu lỗi (tên rỗng/trùng…) hoặc null khi đã đổi. */
+  readonly onAxisRename: (axisId: string, label: string) => string | null;
+  readonly onAxisSpacingChange: (axisId: string, spacingMm: number) => string | null;
   /** BUG-594/601: vì sao "Căn chỉnh tự động" bị khoá; `null` khi bấm được và có việc để làm. */
   readonly autoAlignBlockedReason: string | null;
 }
@@ -466,6 +500,25 @@ export function useAxisGridManager(
 
   const hasError = floorLayer.error !== null;
   const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
+  const backgroundQuery = useQuery({
+    queryKey: queryKeys.drawing.byFloor(floorId),
+    queryFn: ({ signal }) => gateway.readBackground?.({ floorId, projectId, signal }) ?? null,
+    enabled: gateway.readBackground !== undefined,
+  });
+  const background = useMemo<AxisCanvasBackground | null>(() => {
+    const data = backgroundQuery.data;
+
+    if (data === undefined || data === null || data.imageUrl === null || data.widthMm === null || data.heightMm === null) {
+      return null;
+    }
+
+    return {
+      url: data.imageUrl,
+      widthPx: scale.millimetresToPixels(millimetres(data.widthMm)),
+      heightPx: scale.millimetresToPixels(millimetres(data.heightMm)),
+    };
+  }, [backgroundQuery.data, scale]);
+
   const provisionalScaleNotice = useProvisionalScaleNotice(
     floorLayer.scaleStatus,
     projectId,
@@ -498,8 +551,26 @@ export function useAxisGridManager(
   );
 
   const labelledAxes = useMemo<readonly LabelledAxis[]>(
-    () => (hasError ? [] : labelAxes(detectedAxes)),
-    [detectedAxes, hasError],
+    () => {
+      if (hasError) {
+        return [];
+      }
+
+      /*
+       * G4b-21: trục đã lưu giữ nhãn của chính nó — xoá D không đổi tên E→D,
+       * F→E… Chỉ bản xem trước (chưa lưu) mới đặt tên theo thứ tự.
+       */
+      const overrides = storedAxes.flatMap((stored, index) => {
+        const detected = detectedAxes[index];
+
+        return detected === undefined
+          ? []
+          : [{ direction: detected.direction, coordinateMm: detected.coordinateMm, label: stored.label }];
+      });
+
+      return labelAxes(detectedAxes, overrides);
+    },
+    [detectedAxes, hasError, storedAxes],
   );
 
   /**
@@ -616,6 +687,22 @@ export function useAxisGridManager(
     applyUndo();
   }, [applyUndo]);
 
+  /* G4b-24: Ctrl+Shift+Z làm lại bước vừa hoàn tác. */
+  const onRedo = useCallback(() => {
+    if (!canEdit) {
+      return;
+    }
+
+    const transition = dispatchBundle.history.redo();
+
+    if (transition === null) {
+      return;
+    }
+
+    dispatchBundle.deps.spatial.applyPatches(transition.patches);
+    invalidate();
+  }, [canEdit, dispatchBundle, invalidate]);
+
   /* ---------------------------------------------------------------------- */
   /* Chặn hai trục cách nhau dưới MIN_AXIS_SPACING_MM.                        */
   /* ---------------------------------------------------------------------- */
@@ -722,7 +809,18 @@ export function useAxisGridManager(
         spreadMm: millimetres(0),
         wallIds: [],
       };
-      const label = labelForNewAxis(detectedAxes, candidate);
+      /*
+       * G4b-21: trục đã lưu giữ tên riêng, nên trục mới (luôn đặt ở cuối) lấy
+       * tên kế tiếp chưa ai dùng — xoá B rồi thêm thì ra E, không trùng/không dùng lại B.
+       */
+      const taken = new Set(labelledAxes.map((item) => item.label));
+      let nextIndex = labelledAxes.filter((item) => item.axis.direction === direction).length;
+
+      while (taken.has(axisLabelAt(direction, nextIndex))) {
+        nextIndex += 1;
+      }
+
+      const label = storedAxes.length > 0 ? axisLabelAt(direction, nextIndex) : labelForNewAxis(detectedAxes, candidate);
 
       if (
         rejectWhenTooClose({ label, direction, coordinateMm, neighbours: labelledAxes })
@@ -763,6 +861,7 @@ export function useAxisGridManager(
       previewEntities,
       rejectWhenTooClose,
       run,
+      storedAxes.length,
     ],
   );
 
@@ -828,6 +927,75 @@ export function useAxisGridManager(
       );
     },
     [axisByRowId, gateway, labelledAxes, previewEntities, rejectWhenTooClose, run, scale, snapTargets],
+  );
+
+  /** G4b-20: đổi tên trục đã lưu; tên rỗng hoặc trùng thì báo lý do, không đổi. */
+  const onAxisRename = useCallback(
+    (axisId: string, nextLabel: string): string | null => {
+      const label = nextLabel.trim().toUpperCase();
+      const before = axisByRowId.get(axisId);
+
+      if (label.length === 0) {
+        return 'Tên trục không được để trống.';
+      }
+
+      if (labelledAxes.some((item) => item.label === label && axisRowId(item.axis.direction, item.label) !== axisId)) {
+        return `Đã có trục ${label}. Chọn tên khác.`;
+      }
+
+      if (before === undefined) {
+        return 'Thêm, xoá hoặc kéo một trục trước để lưu lưới, rồi mới đổi tên được.';
+      }
+
+      if (before.label !== label) {
+        void run(buildRenameAxisCommand({ before, label, actorId: gateway.actorId }));
+      }
+
+      return null;
+    },
+    [axisByRowId, gateway, labelledAxes, run],
+  );
+
+  /** G4b-20: sửa khoảng cách tới trục kế = dời trục kế tới toạ độ trục này + khoảng cách (mm). */
+  const onAxisSpacingChange = useCallback(
+    (axisId: string, spacingMm: number): string | null => {
+      const labelled = labelledAxes.find((item) => axisRowId(item.axis.direction, item.label) === axisId);
+
+      if (labelled === undefined) {
+        return null;
+      }
+
+      if (!Number.isFinite(spacingMm) || spacingMm < MIN_AXIS_SPACING_MM) {
+        return `Khoảng cách phải từ ${MIN_AXIS_SPACING_MM} mm trở lên.`;
+      }
+
+      const sameDirection = labelledAxes
+        .filter((item) => item.axis.direction === labelled.axis.direction)
+        .sort((a, b) => a.axis.coordinateMm - b.axis.coordinateMm);
+      const next = sameDirection[sameDirection.indexOf(labelled) + 1];
+
+      if (next === undefined) {
+        return 'Trục cuối cùng không có trục kế để đo khoảng cách.';
+      }
+
+      const nextId = axisRowId(next.axis.direction, next.label);
+      const before = axisByRowId.get(nextId);
+
+      if (before === undefined) {
+        return 'Thêm, xoá hoặc kéo một trục trước để lưu lưới, rồi mới sửa khoảng cách được.';
+      }
+
+      void run(
+        buildMoveAxisCommand({
+          before,
+          coordinateMm: millimetres(labelled.axis.coordinateMm + spacingMm),
+          actorId: gateway.actorId,
+        }),
+      );
+
+      return null;
+    },
+    [axisByRowId, gateway, labelledAxes, run],
   );
 
   const onAxisRemove = useCallback(
@@ -1032,6 +1200,17 @@ export function useAxisGridManager(
     { ...shortcutOptions, enabled: canEdit },
   );
 
+  useShortcut(
+    {
+      id: 'axisGridManager.redo',
+      combo: 'Mod+Shift+Z',
+      scope: 'canvas',
+      description: AXIS_GRID_TEXT.shortcutRedo,
+      onTrigger: onRedo,
+    },
+    { ...shortcutOptions, enabled: canEdit },
+  );
+
   /* ---------------------------------------------------------------------- */
   /* View-model — ĐỊNH DẠNG SỐ XẢY RA Ở ĐÂY, không ở view (A15).              */
   /* ---------------------------------------------------------------------- */
@@ -1183,9 +1362,10 @@ export function useAxisGridManager(
         label: AXIS_GRID_TEXT.originCanvasLabel,
       },
       ghostFloors,
-      boundsPx: extent === null ? EMPTY_BOUNDS_PX : toPixelRect(extent, scale),
+      boundsPx: withBackground(extent === null ? EMPTY_BOUNDS_PX : toPixelRect(extent, scale), background),
     };
   }, [
+    background,
     extent,
     ghostFloors,
     hiddenRowIds,
@@ -1289,6 +1469,8 @@ export function useAxisGridManager(
     onAxisAdd,
     onAxisDrag,
     onAxisRemove,
+    onAxisRename,
+    onAxisSpacingChange,
     onViewOnDrawing,
 
     onAnchorChange,
@@ -1309,6 +1491,7 @@ export function useAxisGridManager(
     readFailure,
     unsavedNotice: canEdit ? AXIS_GRID_TEXT.unsavedNotice : null,
     provisionalScaleNotice,
+    background,
     autoAlignBlockedReason,
   };
 }

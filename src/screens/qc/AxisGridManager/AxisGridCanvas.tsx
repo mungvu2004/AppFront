@@ -41,6 +41,7 @@ import { fitCanvas } from './axisGridCanvasFit';
 import { AxisGridGhostFloor } from './AxisGridGhostFloor';
 import { AxisGridOriginMarker } from './AxisGridOriginMarker';
 import type { AxisCanvasAxisViewModel, AxisCanvasViewModel } from './axisGridTypes';
+import type { AxisCanvasBackground } from './useAxisGridManager';
 
 /* -------------------------------------------------------------------------- */
 /* Token màu — xem JSDoc đầu file.                                             */
@@ -56,6 +57,9 @@ const AXIS_BADGE_FILL_TOKEN = 'var(--bg-surface)';
 /* -------------------------------------------------------------------------- */
 
 const AXIS_STROKE_WIDTH_PX = 1;
+/** G4b-23: trục đang chọn/trỏ dày gấp đôi, nét liền, bong bóng tô đặc — không chỉ đổi màu. */
+const AXIS_HIGHLIGHT_STROKE_WIDTH_PX = 2;
+const AXIS_HIGHLIGHT_LABEL_TOKEN = 'var(--accent-foreground)';
 /** Nét gạch-chấm 1px: gạch 8, hở 3, chấm 1, hở 3 (px màn). */
 const AXIS_DASH_ARRAY = [8, 3, 1, 3];
 const AXIS_BADGE_DIAMETER_PX = 24;
@@ -68,6 +72,8 @@ const AXIS_LABEL_FONT_SIZE_PX = 13;
 const AXIS_BADGE_OVERHANG_PX = AXIS_BADGE_RADIUS_PX + 8;
 /** BUG-404: lề quanh lưới khi vừa khung (px màn) — đủ chỗ cho bong bóng, không bị mép khung cắt nửa. */
 const FIT_MARGIN_PX = AXIS_BADGE_OVERHANG_PX + AXIS_BADGE_RADIUS_PX + 4;
+
+const BACKGROUND_OPACITY = 0.5;
 
 const AXIS_TRANSITION_CLASSES = 'transition-colors duration-180 motion-reduce:transition-none';
 
@@ -140,8 +146,8 @@ function AxisFigure({ axis, dragCoordinatePx, isInteractive, onPointerDownAxis, 
     >
       <line
         stroke={token}
-        strokeDasharray={AXIS_DASH_ARRAY.map((dash) => dash * unit).join(' ')}
-        strokeWidth={AXIS_STROKE_WIDTH_PX * unit}
+        strokeDasharray={axis.isHighlighted ? undefined : AXIS_DASH_ARRAY.map((dash) => dash * unit).join(' ')}
+        strokeWidth={(axis.isHighlighted ? AXIS_HIGHLIGHT_STROKE_WIDTH_PX : AXIS_STROKE_WIDTH_PX) * unit}
         x1={start.x}
         x2={end.x}
         y1={start.y}
@@ -152,11 +158,11 @@ function AxisFigure({ axis, dragCoordinatePx, isInteractive, onPointerDownAxis, 
         ['end', end],
       ] as const).map(([key, point]) => (
         <g key={key} transform={`translate(${point.x} ${point.y}) scale(${unit})`}>
-          <circle fill={AXIS_BADGE_FILL_TOKEN} r={AXIS_BADGE_RADIUS_PX} stroke={token} strokeWidth={AXIS_BADGE_STROKE_WIDTH_PX} />
+          <circle fill={axis.isHighlighted ? AXIS_HIGHLIGHT_TOKEN : AXIS_BADGE_FILL_TOKEN} r={AXIS_BADGE_RADIUS_PX} stroke={token} strokeWidth={AXIS_BADGE_STROKE_WIDTH_PX} />
           <text
             className="select-none tabular-nums"
             dominantBaseline="middle"
-            fill={token}
+            fill={axis.isHighlighted ? AXIS_HIGHLIGHT_LABEL_TOKEN : token}
             fontSize={AXIS_LABEL_FONT_SIZE_PX}
             textAnchor="middle"
           >
@@ -174,6 +180,8 @@ function AxisFigure({ axis, dragCoordinatePx, isInteractive, onPointerDownAxis, 
 
 export interface AxisGridCanvasProps {
   readonly canvas: AxisCanvasViewModel;
+  /** G4b-16: ảnh bản vẽ nằm dưới lưới. */
+  readonly background?: AxisCanvasBackground | null;
   readonly isInteractive: boolean;
   /** Đọc thẳng `AxisGridViewModel.viewerRoleNotice` — canvas không tự soạn câu (A15, R-69). */
   readonly viewerRoleNotice: string | null;
@@ -185,7 +193,7 @@ export interface AxisGridCanvasProps {
 /** Dưới ngưỡng này (đơn vị svg) một lượt bấm trên trục không phải là kéo (G09). */
 const DRAG_THRESHOLD_PX = 2;
 
-export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect, viewerRoleNotice }: AxisGridCanvasProps) {
+export function AxisGridCanvas({ background = null, canvas, isInteractive, onAxisDrag, onAxisSelect, viewerRoleNotice }: AxisGridCanvasProps) {
   const [draggingAxisId, setDraggingAxisId] = useState<string | null>(null);
   const [dragCoordinatePx, setDragCoordinatePx] = useState<number | null>(null);
   const [frame, setFrame] = useState({ width: 0, height: 0 });
@@ -193,7 +201,10 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
   /* Lượt bấm bắt đầu trên một trục: pointer capture đẩy `click` sau đó về svg (G16). */
   const axisPressRef = useRef(false);
   const pressPointerRef = useRef<{ x: number; y: number } | null>(null);
-  const visibleAxes = canvas.axes.filter((axis) => axis.isVisible);
+  /* G4b-23: trục đang chọn vẽ sau cùng để không bị trục sát bên che. */
+  const visibleAxes = canvas.axes
+    .filter((axis) => axis.isVisible)
+    .sort((a, b) => Number(a.isHighlighted) - Number(b.isHighlighted));
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -326,6 +337,17 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
         role="img"
         viewBox={fit.viewBox}
       >
+        {background === null ? null : (
+          <image
+            height={background.heightPx}
+            href={background.url}
+            opacity={BACKGROUND_OPACITY}
+            preserveAspectRatio="none"
+            width={background.widthPx}
+            x={0}
+            y={0}
+          />
+        )}
         <AxisGridGhostFloor ghostFloors={canvas.ghostFloors} unit={fit.unit} />
 
         {visibleAxes.map((axis) => (

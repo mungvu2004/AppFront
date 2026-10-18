@@ -802,6 +802,16 @@ export function buildMoveAxisCommand(input: BuildMoveAxisInput): Command {
   });
 }
 
+/** G4b-20: đổi tên một trục — một bước hoàn tác. */
+export function buildRenameAxisCommand(input: { readonly before: Axis; readonly label: string; readonly actorId: string }): Command {
+  return createCommand({
+    type: AXIS_COMMAND_TYPES.move,
+    actorId: input.actorId,
+    description: `Đổi tên trục ${input.before.label} thành ${input.label}.`,
+    changes: [changeForUpdate('axis', input.before, { ...input.before, label: input.label })],
+  });
+}
+
 /* -------------------------------------------------------------------------- */
 /* Căn tự động — MỘT lệnh cho MỌI tầng (Q3.4, yêu cầu nghiệm thu).             */
 /* -------------------------------------------------------------------------- */
@@ -1032,6 +1042,12 @@ export { UNDO_WINDOW_MS };
 /* Cái seam.                                                                   */
 /* -------------------------------------------------------------------------- */
 
+export interface AxisGridBackground {
+  readonly imageUrl: string | null;
+  readonly widthMm: number | null;
+  readonly heightMm: number | null;
+}
+
 export interface ReadAxisLayerInput {
   readonly projectId: string;
   readonly floorId: string;
@@ -1061,6 +1077,8 @@ export interface AxisGridManagerGateway {
   readonly readAxisLayer: (input: ReadAxisLayerInput) => Promise<NormalizedSpatial | null>;
   /** N16 thô của tầng URL — nguồn của `useFloorLayer` (G22: kho thiếu tầng thì vẫn đọc). */
   readonly readLayer: (input: ReadAxisLayerInput) => Promise<FloorLayerDocument>;
+  /** G4b-16: ảnh bản vẽ của tầng (mm) để vẽ dưới lưới trục. Gateway mẫu không có. */
+  readonly readBackground?: (input: ReadAxisLayerInput) => Promise<AxisGridBackground>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: AxisGridGraphPort;
   /** NOT FOUND — `persistAxisGrid`. Không bịa một lượt lưu; xem bản kê nợ ở đầu file. */
@@ -1130,6 +1148,20 @@ export function createAxisGridManagerGateway(
       }
 
       return result.data;
+    },
+
+    readBackground: async ({ floorId, projectId, signal }) => {
+      const result = await apiClient.spatial.readFloor(
+        signal === undefined ? { floorId, projectId } : { floorId, projectId, signal },
+      );
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      const drawing = result.data.drawings[0];
+
+      return { imageUrl: drawing?.url ?? null, widthMm: drawing?.widthMm ?? null, heightMm: drawing?.heightMm ?? null };
     },
 
     graph,

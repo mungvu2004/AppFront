@@ -57,6 +57,7 @@ import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScre
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcScreenFrame } from '../shared/QcScreenFrame';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
+import type { AxisCanvasBackground } from './useAxisGridManager';
 import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 
 import { AxisGridCanvas, type AxisGridCanvasProps } from './AxisGridCanvas';
@@ -92,10 +93,15 @@ export interface AxisGridManagerViewProps
   /** Toạ độ thô của canvas; container gắn nhãn `Pixels` trước khi vào hook. */
   readonly onAxisDrag: AxisGridCanvasProps['onAxisDrag'];
   readonly spacingMessage: string | null;
+  /** G4b-20: đổi tên / sửa khoảng cách trục; trả câu lỗi hoặc null. */
+  readonly onAxisRename?: ((axisId: string, label: string) => string | null) | undefined;
+  readonly onAxisSpacingChange?: ((axisId: string, spacingMm: number) => string | null) | undefined;
   /** BUG-578: câu "chỉ giữ trong phiên" — `null` ở vai chỉ xem. */
   readonly unsavedNotice: string | null;
   /** G4b-15: dải "tỷ lệ tạm" kèm nút "Hiệu chỉnh tỷ lệ"; vắng/`null` khi tầng đã có tỷ lệ. */
   readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
+  /** G4b-16: ảnh bản vẽ dưới lưới. */
+  readonly background?: AxisCanvasBackground | null | undefined;
   /** `QcFloorNav` (breadcrumb dự án › tầng › lớp + thanh lớp) — route truyền vào; vắng thì giữ đầu màn cũ. */
   readonly floorNav?: ReactNode;
   /** BUG-594/601: vì sao "Căn chỉnh tự động" bị khoá; `null` khi bấm được. */
@@ -141,6 +147,8 @@ function AxisGridLeftColumn({
   viewModel,
   onAxisAdd,
   onAxisRemove,
+  onAxisRename,
+  onAxisSpacingChange,
   onAxisToggleVisibility,
   onGhostToggle,
   onRetry,
@@ -199,9 +207,12 @@ function AxisGridLeftColumn({
         <AxisGridLeftPanel
           ghostEnabled={viewModel.ghostEnabled}
           groups={viewModel.groups}
+          hasGhostFloors={viewModel.canvas.ghostFloors.length > 0}
           isViewerRole={viewModel.isViewerRole}
           onAxisAdd={onAxisAdd}
           onAxisRemove={onAxisRemove}
+          onAxisRename={onAxisRename}
+          onAxisSpacingChange={onAxisSpacingChange}
           onAxisToggleVisibility={onAxisToggleVisibility}
           onGhostToggle={onGhostToggle}
           onViewOnDrawing={onViewOnDrawing}
@@ -280,6 +291,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
           className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken max-lg:h-[360px] max-lg:flex-none"
         >
           <AxisGridCanvas
+            background={props.background ?? null}
             canvas={viewModel.canvas}
             isInteractive={!viewModel.isViewerRole}
             onAxisDrag={props.onAxisDrag}

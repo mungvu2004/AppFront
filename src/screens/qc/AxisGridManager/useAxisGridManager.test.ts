@@ -916,6 +916,70 @@ describe('QA-04c SCR-19', () => {
     expect(titles).toEqual(shown);
   });
 
+  it('[G4b-21, G4b-24] xoá một trục: các trục còn lại giữ tên; Ctrl+Z rồi Ctrl+Shift+Z xoá lại', async () => {
+    const mounted = await mountSettled();
+    const labels = () => rowsOf(mounted).map((row) => row.label);
+
+    /* Lần xoá đầu ghi bản xem trước vào kho; xoá lần hai mới là trục đã lưu. */
+    await act(async () => {
+      mounted.result.current.onAxisRemove(rowsOf(mounted)[0]?.id ?? '');
+      await Promise.resolve();
+    });
+    const before = labels();
+    const target = rowsOf(mounted)[1];
+
+    expect(target).toBeDefined();
+    await act(async () => {
+      mounted.result.current.onAxisRemove(target?.id ?? '');
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(labels()).toEqual(before.filter((label) => label !== target?.label));
+    });
+
+    await pressKey(mounted.registry, 'z', { ctrlKey: true });
+    await waitFor(() => {
+      expect(labels()).toEqual(before);
+    });
+
+    await act(async () => {
+      mounted.registry.handleKeyDown({ key: 'z', ctrlKey: true, shiftKey: true }, null);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(labels()).toEqual(before.filter((label) => label !== target?.label));
+    });
+  });
+
+  it('[G4b-20] đổi tên trục (không cho trùng) và sửa khoảng cách bằng mm', async () => {
+    const mounted = await mountSettled();
+
+    /* Lần xoá đầu ghi bản xem trước vào kho, để trục thành trục đã lưu. */
+    await act(async () => {
+      mounted.result.current.onAxisRemove(rowsOf(mounted)[0]?.id ?? '');
+      await Promise.resolve();
+    });
+    const [first, second] = rowsOf(mounted);
+
+    expect(mounted.result.current.onAxisRename(first?.id ?? '', second?.label ?? '')).toMatch(/Đã có trục/u);
+    await act(async () => {
+      expect(mounted.result.current.onAxisRename(first?.id ?? '', 'Z')).toBeNull();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(rowsOf(mounted).map((row) => row.label)).toContain('Z');
+    });
+
+    const target = rowsOf(mounted).find((row) => row.label === 'Z');
+    await act(async () => {
+      expect(mounted.result.current.onAxisSpacingChange(target?.id ?? '', 2500)).toBeNull();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(rowsOf(mounted).find((row) => row.label === 'Z')?.spacingMm).toBe(2500);
+    });
+  });
+
   it('[BUG-594] kéo một trục của bản xem trước: có tác dụng ngay, một bước hoàn tác', async () => {
     const mounted = await mountSettled({ floorId: sampleLevelId(0), gateway: previewGateway() });
     const target = rowsOf(mounted)[0];

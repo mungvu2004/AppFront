@@ -31,7 +31,8 @@
  *    phải lớp duy nhất.
  */
 
-import { Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
@@ -52,13 +53,18 @@ export interface AxisGridLeftPanelProps
   > {
   readonly groups: readonly AxisGroupViewModel[];
   readonly ghostEnabled: boolean;
+  /** G4b-24: false khi dự án chỉ có một tầng — công tắc bóng ma khoá kèm lý do. */
+  readonly hasGhostFloors?: boolean;
   /** Vai Người xem: ẩn nút thêm và nút xoá — xem mục 3 ở đầu file. */
   readonly isViewerRole: boolean;
+  readonly onAxisRename?: AxisGridRowProps['onRename'];
+  readonly onAxisSpacingChange?: AxisGridRowProps['onSpacingChange'];
 }
 
 const PANEL_TITLE = 'Trục';
 /** Nhãn tĩnh của Toggle — không đổi theo trạng thái bật/tắt, cùng khuôn `CENTRELINES_LABEL`. */
 const GHOST_TOGGLE_LABEL = 'Hiện bóng ma tầng dưới';
+const GHOST_TOGGLE_NO_FLOORS = 'Dự án chỉ có một tầng nên chưa có tầng nào để hiện bóng ma.';
 /** Dấu gạch ngang chờ cho trục cuối nhóm (`spacingText === null`) — cùng khuôn `ScaleCalibrationMethodReference.tsx`. */
 const MISSING_DISTANCE = '—';
 
@@ -87,15 +93,115 @@ interface AxisGridRowProps {
   readonly onRemove: (axisId: string) => void;
   readonly onToggleVisibility: (axisId: string) => void;
   readonly onViewOnDrawing: (axisId: string) => void;
+  readonly onRename?: ((axisId: string, label: string) => string | null) | undefined;
+  readonly onSpacingChange?: ((axisId: string, spacingMm: number) => string | null) | undefined;
+}
+
+/** G4b-20: sửa tên + khoảng cách (mm) ngay trên hàng; Enter lưu, Esc huỷ. */
+function AxisGridRowEditor({
+  row,
+  onClose,
+  onRename,
+  onSpacingChange,
+}: {
+  readonly row: AxisRowViewModel;
+  readonly onClose: () => void;
+  readonly onRename?: AxisGridRowProps['onRename'];
+  readonly onSpacingChange?: AxisGridRowProps['onSpacingChange'];
+}) {
+  const [label, setLabel] = useState(row.label);
+  const [spacing, setSpacing] = useState(row.spacingMm === null ? '' : String(Math.round(row.spacingMm)));
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const renameError = label.trim() === row.label ? null : (onRename?.(row.id, label) ?? null);
+
+    if (renameError !== null) {
+      setError(renameError);
+      return;
+    }
+
+    const spacingMm = Number(spacing.replace(/\./g, '').replace(',', '.'));
+    const original = row.spacingMm === null ? '' : String(Math.round(row.spacingMm));
+    const spacingError = spacing === original || spacing === '' ? null : (onSpacingChange?.(row.id, spacingMm) ?? null);
+
+    if (spacingError !== null) {
+      setError(spacingError);
+      return;
+    }
+
+    onClose();
+  };
+
+  return (
+    <form
+      aria-label={`Sửa trục ${row.label}`}
+      className="flex flex-col gap-1 px-2 py-1"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.stopPropagation();
+          onClose();
+        }
+      }}
+      onSubmit={submit}
+    >
+      <div className="flex items-center gap-2">
+        <input
+          aria-label="Tên trục"
+          autoFocus
+          className="h-8 w-14 rounded-md border border-border-control bg-bg-surface px-2 text-[13px] font-semibold"
+          maxLength={4}
+          onChange={(event) => setLabel(event.target.value)}
+          value={label}
+        />
+        <input
+          aria-label="Khoảng cách tới trục kế (mm)"
+          className="h-8 min-w-0 flex-1 rounded-md border border-border-control bg-bg-surface px-2 text-right text-[13px] tabular-nums"
+          disabled={row.spacingMm === null}
+          inputMode="numeric"
+          onChange={(event) => setSpacing(event.target.value)}
+          placeholder={row.spacingMm === null ? 'Trục cuối' : undefined}
+          value={spacing}
+        />
+        <span className="text-[12px] text-text-secondary">mm</span>
+      </div>
+      {error === null ? null : (
+        <p className="text-[12px] text-state-violation-text" role="alert">
+          {error}
+        </p>
+      )}
+      <p className="text-[12px] text-text-secondary">Enter để lưu, Esc để huỷ.</p>
+      <button className="sr-only" type="submit">
+        Lưu
+      </button>
+    </form>
+  );
 }
 
 function AxisGridRow({
   row,
   isViewerRole,
   onRemove,
+  onRename,
+  onSpacingChange,
   onToggleVisibility,
   onViewOnDrawing,
 }: AxisGridRowProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const canEdit = !isViewerRole && onRename !== undefined;
+
+  if (isEditing) {
+    return (
+      <AxisGridRowEditor
+        onClose={() => setIsEditing(false)}
+        onRename={onRename}
+        onSpacingChange={onSpacingChange}
+        row={row}
+      />
+    );
+  }
+
   return (
     <div className="flex items-center gap-1 px-1" role="none">
       <button
@@ -108,6 +214,12 @@ function AxisGridRow({
           row.isSelected ? 'bg-bg-selected text-text-primary' : 'text-text-primary hover:bg-bg-hover',
         )}
         onClick={() => onViewOnDrawing(row.id)}
+        onDoubleClick={canEdit ? () => setIsEditing(true) : undefined}
+        onKeyDown={(event) => {
+          if (canEdit && event.key === 'F2') {
+            setIsEditing(true);
+          }
+        }}
         role="option"
         type="button"
       >
@@ -116,6 +228,14 @@ function AxisGridRow({
           {row.spacingText ?? MISSING_DISTANCE}
         </span>
       </button>
+      {canEdit ? (
+        <IconButton
+          aria-label={`Sửa trục ${row.label}`}
+          icon={<Pencil className="h-4 w-4" />}
+          onClick={() => setIsEditing(true)}
+          size="sm"
+        />
+      ) : null}
       <IconButton
         aria-label={axisToggleAriaLabel(row)}
         aria-pressed={row.isVisible}
@@ -142,6 +262,8 @@ interface AxisGridGroupProps {
   readonly onAxisRemove: (axisId: string) => void;
   readonly onAxisToggleVisibility: (axisId: string) => void;
   readonly onViewOnDrawing: (axisId: string) => void;
+  readonly onAxisRename?: AxisGridRowProps['onRename'];
+  readonly onAxisSpacingChange?: AxisGridRowProps['onSpacingChange'];
 }
 
 function AxisGridGroup({
@@ -149,6 +271,8 @@ function AxisGridGroup({
   isViewerRole,
   onAxisAdd,
   onAxisRemove,
+  onAxisRename,
+  onAxisSpacingChange,
   onAxisToggleVisibility,
   onViewOnDrawing,
 }: AxisGridGroupProps) {
@@ -161,6 +285,8 @@ function AxisGridGroup({
             isViewerRole={isViewerRole}
             key={row.id}
             onRemove={onAxisRemove}
+            onRename={onAxisRename}
+            onSpacingChange={onAxisSpacingChange}
             onToggleVisibility={onAxisToggleVisibility}
             onViewOnDrawing={onViewOnDrawing}
             row={row}
@@ -185,10 +311,13 @@ function AxisGridGroup({
 export function AxisGridLeftPanel({
   groups,
   ghostEnabled,
+  hasGhostFloors = true,
   isViewerRole,
   onAxisAdd,
   onAxisRemove,
   onAxisToggleVisibility,
+  onAxisRename,
+  onAxisSpacingChange,
   onGhostToggle,
   onViewOnDrawing,
 }: AxisGridLeftPanelProps) {
@@ -206,6 +335,8 @@ export function AxisGridLeftPanel({
             key={group.direction}
             onAxisAdd={onAxisAdd}
             onAxisRemove={onAxisRemove}
+            onAxisRename={onAxisRename}
+            onAxisSpacingChange={onAxisSpacingChange}
             onAxisToggleVisibility={onAxisToggleVisibility}
             onViewOnDrawing={onViewOnDrawing}
           />
@@ -213,7 +344,13 @@ export function AxisGridLeftPanel({
       </div>
 
       <div className="shrink-0 border-t border-border-default px-5 py-4">
-        <Toggle checked={ghostEnabled} label={GHOST_TOGGLE_LABEL} onChange={() => onGhostToggle()} />
+        <Toggle
+          checked={hasGhostFloors && ghostEnabled}
+          description={hasGhostFloors ? undefined : GHOST_TOGGLE_NO_FLOORS}
+          disabled={!hasGhostFloors}
+          label={GHOST_TOGGLE_LABEL}
+          onChange={() => onGhostToggle()}
+        />
       </div>
     </div>
   );

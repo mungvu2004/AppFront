@@ -175,6 +175,8 @@ function WiredAxisGridManager(props: AxisGridManagerContainerProps) {
       onAxisAdd={result.onAxisAdd}
       onAxisDrag={handleAxisDrag}
       onAxisRemove={result.onAxisRemove}
+      onAxisRename={result.onAxisRename}
+      onAxisSpacingChange={result.onAxisSpacingChange}
       onAxisSelect={result.onAxisSelect}
       onAxisToggleVisibility={result.onAxisToggleVisibility}
       onFloorRowHover={result.onFloorRowHover}
@@ -188,6 +190,7 @@ function WiredAxisGridManager(props: AxisGridManagerContainerProps) {
       spacingMessage={result.spacingMessage}
       unsavedNotice={result.unsavedNotice}
       provisionalScaleNotice={result.provisionalScaleNotice}
+      background={result.background}
       floorNav={props.floorNav}
       autoAlignBlockedReason={result.autoAlignBlockedReason}
       viewModel={result.viewModel}
