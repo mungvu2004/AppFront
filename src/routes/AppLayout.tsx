@@ -55,7 +55,11 @@ export function AppLayout() {
             <LazyNotificationBell />
           </Suspense>
         }
-        project={location === null ? null : { id: location.projectId, name: projectName, stepIndex: location.stepIndex }}
+        project={
+          location === null
+            ? null
+            : { id: location.projectId, name: projectName, stepIndex: location.stepIndex, floorId: location.floorId, layerIndex: location.layerIndex }
+        }
         onSignOut={handleSignOut}
       />
       <div data-app-content className="relative flex min-h-0 flex-1 flex-col overflow-auto">

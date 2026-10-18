@@ -29,12 +29,18 @@ describe('AppHeader', () => {
     expectVietnamese(container, { allowWords: ['AppFront'] });
   });
 
-  it('bước cuối không có "Bước tiếp theo"; ngoài sáu bước thì có "Về bước đầu"', () => {
+  it('bước cuối không có "Bước tiếp theo"; ngoài sáu bước, mở thẳng: "Về Quản lý tầng"', () => {
     const { unmount } = renderHeader({ project: { id: 'p1', name: null, stepIndex: 5 } });
     expect(screen.queryByRole('link', { name: /Bước tiếp theo/ })).toBeNull();
     unmount();
     renderHeader({ project: { id: 'p1', name: null, stepIndex: -1 } });
-    expect(screen.getByRole('link', { name: 'Về bước đầu' })).toHaveAttribute('href', ROUTES.project.upload('p1'));
+    expect(screen.getByRole('link', { name: 'Về Quản lý tầng' })).toHaveAttribute('href', ROUTES.project.floors('p1'));
+  });
+
+  it('trong một lớp của tầng: ô bước 3 về lớp Tường, nút chính mời lớp kế tiếp', () => {
+    renderHeader({ project: { id: 'p1', name: null, stepIndex: 2, floorId: 'f1', layerIndex: 0 } });
+    expect(screen.getByRole('link', { name: /Kiểm tra tầng/ })).toHaveAttribute('href', ROUTES.project.walls('p1', 'f1'));
+    expect(screen.getByRole('link', { name: /Tiếp: Cửa và nội thất/ })).toHaveAttribute('href', ROUTES.project.objects('p1', 'f1'));
   });
 
   it('quản trị viên thấy liên kết "Quản trị"', () => {
