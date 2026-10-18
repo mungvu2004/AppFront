@@ -2,6 +2,7 @@
  * tức bảng route, nên fast refresh không có gì để làm mới ở đây dù trong file có
  * định nghĩa `UndoShortcuts`. `UndoShortcuts` được xuất có chủ đích: xem docblock
  * của nó — một binding không test được là một binding không ai chứng minh được. */
+import { AdminNav } from '../components/shell/AdminNav';
 import React, { lazy, useCallback, useEffect, useState } from 'react';
 import {
   createBrowserRouter,
@@ -339,6 +340,13 @@ export function UndoShortcuts({ children }: { children: React.ReactNode }): Reac
   );
 }
 
+const withAdminNav = (page: React.ReactNode) => (
+  <>
+    <AdminNav />
+    {page}
+  </>
+);
+
 /** Bảng route — xuất riêng để bài kiểm dựng nó trên `createMemoryRouter`. */
 export const routes: RouteObject[] = [
   {
@@ -394,10 +402,10 @@ export const routes: RouteObject[] = [
           { path: ROUTE_PATTERNS.projectExport, element: suspended(<RouteExportPanel />) },
           { path: ROUTE_PATTERNS.projectData, element: suspended(<RouteSpatialJsonViewer />) },
           { path: ROUTE_PATTERNS.projectVersions, element: suspended(<RouteVersionHistory />) },
-          { path: ROUTE_PATTERNS.adminModels, element: suspended(<RouteModelLibrary />) },
-          { path: ROUTE_PATTERNS.adminTrainingJobs, element: suspended(<RouteTrainingJobs />) },
-          { path: ROUTE_PATTERNS.adminTrainingModels, element: suspended(<RouteModelRegistry />) },
-          { path: ROUTE_PATTERNS.adminUsers, element: suspended(<RouteUserManagement />) },
+          { path: ROUTE_PATTERNS.adminModels, element: withAdminNav(suspended(<RouteModelLibrary />)) },
+          { path: ROUTE_PATTERNS.adminTrainingJobs, element: withAdminNav(suspended(<RouteTrainingJobs />)) },
+          { path: ROUTE_PATTERNS.adminTrainingModels, element: withAdminNav(suspended(<RouteModelRegistry />)) },
+          { path: ROUTE_PATTERNS.adminUsers, element: withAdminNav(suspended(<RouteUserManagement />)) },
           { path: ROUTE_PATTERNS.account, element: suspended(<RouteAccountSettings />) },
           { path: ROUTE_PATTERNS.notifications, element: suspended(<RouteNotificationCenter />) },
           { path: ROUTE_PATTERNS.notFound, element: suspended(<RouteNotFound />) },
