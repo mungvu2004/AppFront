@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { getFloorplanNodeExtension } from '@pascal-app/editor'
 import { measurementDefinition } from './definition'
-import { vi } from '../i18n/vi'
 
 describe('measurementDefinition', () => {
   test('registers a transient-free analysis annotation contract', () => {
@@ -32,9 +31,7 @@ describe('measurementDefinition', () => {
       'Backspace',
       'Esc',
     ])
-    expect(measurementDefinition.toolHints?.at(-1)?.label).toBe(
-      vi.measurement.shortcuts.finishAndContinue,
-    )
+    expect(measurementDefinition.toolHints?.at(-1)?.label).toBe('Finish and continue')
   })
 
   test('produces schema-valid defaults', () => {

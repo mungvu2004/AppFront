@@ -1,6 +1,5 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { CupolaNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Inspector descriptor for the cupola. Move / Duplicate use the kind-owned
@@ -11,7 +10,7 @@ export const cupolaParametrics: ParametricDescriptor<CupolaNode> = {
   customPanel: () => import('./panel'),
   groups: [
     {
-      label: vi.common.style,
+      label: 'Style',
       fields: [
         {
           key: 'roofStyle',
@@ -23,7 +22,7 @@ export const cupolaParametrics: ParametricDescriptor<CupolaNode> = {
       ],
     },
     {
-      label: vi.common.dimensions,
+      label: 'Dimensions',
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.3, max: 1000, step: 0.05 },
         { key: 'depth', kind: 'number', unit: 'm', min: 0.3, max: 1000, step: 0.05 },

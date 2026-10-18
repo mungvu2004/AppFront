@@ -24,7 +24,6 @@ import { useViewer } from '@pascal-app/viewer'
 import { LayoutGrid, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { computeAutoFit, flippedPanelDims } from './geometry'
-import { vi } from '../i18n/vi'
 
 const cn = (...classes: Array<string | false | undefined | null>): string =>
   classes.filter(Boolean).join(' ')
@@ -188,7 +187,7 @@ export default function SolarPanelPanel() {
       title={node.name || 'Solar Panel'}
       width={300}
     >
-      <PanelSection title={vi.common.preset}>
+      <PanelSection title="Preset">
         <div className="grid grid-cols-2 gap-1.5 px-1 pt-1">
           {PRESET_CARDS.map((card) => {
             const dims = SOLAR_PANEL_PRESETS[card.key]
@@ -223,9 +222,9 @@ export default function SolarPanelPanel() {
         )}
       </PanelSection>
 
-      <PanelSection title={vi.common.array}>
+      <PanelSection title="Array">
         <SliderControl
-          label={vi.common.rows}
+          label="Rows"
           max={20}
           min={1}
           onChange={(v) => previewProp({ rows: Math.round(v) })}
@@ -236,7 +235,7 @@ export default function SolarPanelPanel() {
           value={num(node.rows, 4)}
         />
         <SliderControl
-          label={vi.common.columns}
+          label="Columns"
           max={20}
           min={1}
           onChange={(v) => previewProp({ columns: Math.round(v) })}
@@ -247,7 +246,7 @@ export default function SolarPanelPanel() {
           value={num(node.columns, 5)}
         />
         <SliderControl
-          label={vi.common.gapX}
+          label="Gap X"
           max={0.2}
           min={0}
           onChange={(v) => previewProp({ gapX: v })}
@@ -259,7 +258,7 @@ export default function SolarPanelPanel() {
           value={num(node.gapX, 0.02)}
         />
         <SliderControl
-          label={vi.common.gapY}
+          label="Gap Y"
           max={0.2}
           min={0}
           onChange={(v) => previewProp({ gapY: v })}
@@ -271,14 +270,14 @@ export default function SolarPanelPanel() {
           value={num(node.gapY, 0.02)}
         />
         <ActionGroup>
-          <ActionButton disabled={!segment} label={vi.common.autoFitToRoof} onClick={handleAutoFit} />
+          <ActionButton disabled={!segment} label="Auto-fit to roof" onClick={handleAutoFit} />
         </ActionGroup>
         {autoFitMessage ? <p className="px-1 text-amber-400 text-xs">{autoFitMessage}</p> : null}
       </PanelSection>
 
-      <PanelSection title={vi.common.panel}>
+      <PanelSection title="Panel">
         <SliderControl
-          label={vi.common.width}
+          label="Width"
           max={1000}
           min={0.3}
           onChange={(v) => previewProp({ panelWidth: v })}
@@ -290,7 +289,7 @@ export default function SolarPanelPanel() {
           value={num(node.panelWidth, 1)}
         />
         <SliderControl
-          label={vi.common.height}
+          label="Height"
           max={1000}
           min={0.3}
           onChange={(v) => previewProp({ panelHeight: v })}
@@ -302,10 +301,10 @@ export default function SolarPanelPanel() {
           value={num(node.panelHeight, 1.65)}
         />
         <ActionGroup>
-          <ActionButton label={vi.common.flipOrientation} onClick={handleFlip} />
+          <ActionButton label="Flip orientation" onClick={handleFlip} />
         </ActionGroup>
         <SliderControl
-          label={vi.common.frameThickness}
+          label="Frame thickness"
           max={0.1}
           min={0.005}
           onChange={(v) => previewProp({ frameThickness: v })}
@@ -317,7 +316,7 @@ export default function SolarPanelPanel() {
           value={num(node.frameThickness, 0.04)}
         />
         <SliderControl
-          label={vi.common.frameDepth}
+          label="Frame depth"
           max={0.1}
           min={0.005}
           onChange={(v) => previewProp({ frameDepth: v })}
@@ -330,7 +329,7 @@ export default function SolarPanelPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.mounting}>
+      <PanelSection title="Mounting">
         <SegmentedControl
           onChange={(v) => handleUpdate({ mountingType: v })}
           options={[
@@ -341,7 +340,7 @@ export default function SolarPanelPanel() {
         />
         {node.mountingType === 'tilted' && (
           <SliderControl
-            label={vi.common.tiltAngle}
+            label="Tilt angle"
             max={45}
             min={0}
             onChange={(v) => previewProp({ tiltAngle: v })}
@@ -354,7 +353,7 @@ export default function SolarPanelPanel() {
           />
         )}
         <SliderControl
-          label={vi.common.standoff}
+          label="Standoff"
           max={0.3}
           min={0}
           onChange={(v) => previewProp({ standoffHeight: v })}
@@ -367,12 +366,12 @@ export default function SolarPanelPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.actions}>
+      <PanelSection title="Actions">
         <ActionGroup>
           <ActionButton
             className="hover:bg-red-500/20"
             icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
-            label={vi.common.delete}
+            label="Delete"
             onClick={handleDelete}
           />
         </ActionGroup>

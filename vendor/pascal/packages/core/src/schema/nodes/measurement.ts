@@ -53,29 +53,6 @@ export const AngleMeasurement = z.object({
   points: z.tuple([MeasurementAnchor, MeasurementAnchor, MeasurementAnchor]),
 })
 
-/** Distance from the second point to the surface through the first point with the given normal. */
-export const PerpendicularMeasurement = z
-  .object({
-    kind: z.literal('perpendicular'),
-    points: z.tuple([MeasurementAnchor, MeasurementAnchor]),
-    normal: MeasurementPoint,
-  })
-  .superRefine((measurement, ctx) => {
-    if (Math.hypot(...measurement.normal) <= 1e-9) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['normal'],
-        message: 'Measurement surface normal must be non-zero',
-      })
-    }
-  })
-
-/** Vertical (Y) offset between two anchors. */
-export const HeightMeasurement = z.object({
-  kind: z.literal('height'),
-  points: z.tuple([MeasurementAnchor, MeasurementAnchor]),
-})
-
 export const AreaMeasurement = z.object({
   kind: z.literal('area'),
   base: PlanarMeasurementBase,
@@ -113,8 +90,6 @@ export const VolumeMeasurement = z
 export const MeasurementPayload = z.discriminatedUnion('kind', [
   DistanceMeasurement,
   AngleMeasurement,
-  PerpendicularMeasurement,
-  HeightMeasurement,
   AreaMeasurement,
   PerimeterMeasurement,
   VolumeMeasurement,
@@ -129,8 +104,6 @@ export const MeasurementNode = BaseNode.extend({
   Measurement node - a persistent level-local 3D measurement annotation
   - distance: exactly two level-local anchors
   - angle: exactly three anchors, with the middle anchor as the vertex
-  - perpendicular: two anchors and a surface normal; measures the second anchor's distance to the surface through the first
-  - height: two anchors; measures their vertical offset
   - area/perimeter: an ordered planar base with at least three anchors
   - volume: an ordered planar base with an extrusion vector
   - an anchor is either a free point tuple or a semantic feature reference with a fallback
@@ -144,8 +117,6 @@ export type MeasurementFeatureAnchor = z.infer<typeof MeasurementFeatureAnchor>
 export type MeasurementAnchor = z.infer<typeof MeasurementAnchor>
 export type DistanceMeasurement = z.infer<typeof DistanceMeasurement>
 export type AngleMeasurement = z.infer<typeof AngleMeasurement>
-export type PerpendicularMeasurement = z.infer<typeof PerpendicularMeasurement>
-export type HeightMeasurement = z.infer<typeof HeightMeasurement>
 export type AreaMeasurement = z.infer<typeof AreaMeasurement>
 export type PerimeterMeasurement = z.infer<typeof PerimeterMeasurement>
 export type VolumeMeasurement = z.infer<typeof VolumeMeasurement>

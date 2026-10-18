@@ -1,10 +1,9 @@
 import type { ParametricDescriptor, StairNode } from '@pascal-app/core'
-import { vi } from '../i18n/vi'
 
 export const stairParametrics: ParametricDescriptor<StairNode> = {
   groups: [
     {
-      label: vi.common.type,
+      label: 'Type',
       fields: [
         {
           key: 'stairType',
@@ -15,21 +14,21 @@ export const stairParametrics: ParametricDescriptor<StairNode> = {
       ],
     },
     {
-      label: vi.common.opening,
+      label: 'Opening',
       fields: [
-        { key: 'fromLevelId', kind: 'ref', label: vi.common.fromLevel, refKind: 'level' },
-        { key: 'toLevelId', kind: 'ref', label: vi.common.toLevel, refKind: 'level' },
+        { key: 'fromLevelId', kind: 'ref', label: 'From level', refKind: 'level' },
+        { key: 'toLevelId', kind: 'ref', label: 'To level', refKind: 'level' },
         {
           key: 'slabOpeningMode',
           kind: 'enum',
-          label: vi.common.autoCutout,
+          label: 'Auto cutout',
           options: ['none', 'destination'],
           display: 'segmented',
         },
         {
           key: 'openingOffset',
           kind: 'number',
-          label: vi.common.openingOffset,
+          label: 'Opening offset',
           unit: 'm',
           min: 0,
           max: 0.5,
@@ -39,7 +38,7 @@ export const stairParametrics: ParametricDescriptor<StairNode> = {
       ],
     },
     {
-      label: vi.common.geometry,
+      label: 'Geometry',
       fields: [
         {
           key: 'width',
@@ -53,7 +52,7 @@ export const stairParametrics: ParametricDescriptor<StairNode> = {
         {
           key: 'stepCount',
           kind: 'number',
-          label: vi.common.steps,
+          label: 'Steps',
           min: 2,
           max: 32,
           step: 1,
@@ -62,7 +61,7 @@ export const stairParametrics: ParametricDescriptor<StairNode> = {
         {
           key: 'fillToFloor',
           kind: 'boolean',
-          label: vi.common.fillToFloor,
+          label: 'Fill to floor',
           visibleIf: (node) => node.stairType === 'curved',
         },
         {
@@ -77,7 +76,7 @@ export const stairParametrics: ParametricDescriptor<StairNode> = {
         {
           key: 'innerRadius',
           kind: 'number',
-          label: vi.common.innerRadius,
+          label: 'Inner radius',
           unit: 'm',
           min: 0.05,
           max: 1000,
@@ -87,7 +86,7 @@ export const stairParametrics: ParametricDescriptor<StairNode> = {
         {
           key: 'sweepAngle',
           kind: 'number',
-          label: vi.common.sweepRad,
+          label: 'Sweep (rad)',
           min: -Math.PI * 4,
           max: Math.PI * 4,
           step: Math.PI / 180,
@@ -96,19 +95,19 @@ export const stairParametrics: ParametricDescriptor<StairNode> = {
         {
           key: 'showCenterColumn',
           kind: 'boolean',
-          label: vi.common.centerColumn,
+          label: 'Center column',
           visibleIf: (node) => node.stairType === 'spiral',
         },
         {
           key: 'showStepSupports',
           kind: 'boolean',
-          label: vi.common.stepSupports,
+          label: 'Step supports',
           visibleIf: (node) => node.stairType === 'spiral',
         },
         {
           key: 'topLandingMode',
           kind: 'enum',
-          label: vi.common.topLanding,
+          label: 'Top landing',
           options: ['none', 'integrated'],
           display: 'segmented',
           visibleIf: (node) => node.stairType === 'spiral',
@@ -116,7 +115,7 @@ export const stairParametrics: ParametricDescriptor<StairNode> = {
         {
           key: 'topLandingDepth',
           kind: 'number',
-          label: vi.common.landingDepth,
+          label: 'Landing depth',
           unit: 'm',
           min: 0.3,
           max: 1000,
@@ -126,13 +125,13 @@ export const stairParametrics: ParametricDescriptor<StairNode> = {
       ],
     },
     {
-      label: vi.common.position,
+      label: 'Position',
       fields: [
         { key: 'position', kind: 'vec3' },
         {
           key: 'rotation',
           kind: 'number',
-          label: vi.common.rotationRad,
+          label: 'Rotation (rad)',
           min: -Math.PI,
           max: Math.PI,
           step: Math.PI / 36,
@@ -140,7 +139,7 @@ export const stairParametrics: ParametricDescriptor<StairNode> = {
       ],
     },
     {
-      label: vi.common.railing,
+      label: 'Railing',
       fields: [
         {
           key: 'railingMode',
@@ -150,7 +149,7 @@ export const stairParametrics: ParametricDescriptor<StairNode> = {
         {
           key: 'railingHeight',
           kind: 'number',
-          label: vi.common.railingHeight,
+          label: 'Railing height',
           unit: 'm',
           min: 0.7,
           max: 1.4,

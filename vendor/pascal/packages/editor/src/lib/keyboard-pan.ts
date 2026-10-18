@@ -22,17 +22,6 @@ export function isEditableKeyboardTarget(target: EventTarget | null) {
   )
 }
 
-/**
- * A focused button, link or disclosure: Space is its own activation (A12), so
- * the camera's hold-Space-to-pan must not take it. (AppFront, QA-05c E1-B17)
- */
-export function isActivatableKeyboardTarget(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    target.closest('button, a[href], summary, [role="button"], [role="checkbox"], [role="radio"], [role="switch"], [role="option"], [role="tab"]') !== null
-  )
-}
-
 export function setKeyboardPanKey(
   state: KeyboardPanState,
   code: string,

@@ -1,7 +1,6 @@
 import { isSplineFence, type ParametricDescriptor } from '@pascal-app/core'
 import { FenceCurveEditor, FenceLengthEditor } from './inspector-editors'
 import type { FenceNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Inspector descriptor for fence. Mirrors the legacy `FencePanel`
@@ -18,7 +17,7 @@ import { vi } from '../i18n/vi'
 export const fenceParametrics: ParametricDescriptor<FenceNode> = {
   groups: [
     {
-      label: vi.common.style,
+      label: 'Style',
       fields: [
         {
           key: 'style',
@@ -46,7 +45,7 @@ export const fenceParametrics: ParametricDescriptor<FenceNode> = {
       ],
     },
     {
-      label: vi.common.dimensions,
+      label: 'Dimensions',
       fields: [
         // Length / Curve drive start/end + the single sagitta — meaningless
         // for a multi-point spline fence, so hide them when `path` is set.
@@ -67,7 +66,7 @@ export const fenceParametrics: ParametricDescriptor<FenceNode> = {
       ],
     },
     {
-      label: vi.common.structure,
+      label: 'Structure',
       fields: [
         { key: 'baseHeight', kind: 'number', unit: 'm', min: 0.04, max: 1, step: 0.01 },
         { key: 'topRailHeight', kind: 'number', unit: 'm', min: 0.01, max: 0.25, step: 0.005 },

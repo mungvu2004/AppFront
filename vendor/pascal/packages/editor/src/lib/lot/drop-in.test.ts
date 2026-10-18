@@ -308,7 +308,7 @@ describe('dropInLot onto a site that already has a lot', () => {
     expect(second.terrain).toBeNull()
     expect(second.terrainFailure).toBe('USGS down')
     expect(second.message).toContain(
-      'Không đọc được địa hình (USGS down) — mặt đất vẫn phẳng cho tới khi đọc được',
+      'terrain read failed (USGS down) — the ground is flat until it is read',
     )
     const s = site(second.siteId!)
     expect(s.terrain).toBeUndefined()
@@ -321,6 +321,6 @@ test('without a parcel provider the drop-in says so and writes nothing', async (
   useScene.setState({ nodes: {}, rootNodeIds: [], dirtyNodes: new Set() } as never)
   const r = await dropInLot({ address: LAKELAND })
   expect(r.ok).toBe(false)
-  expect(r.message).toBe('Không có dịch vụ lô đất nào khả dụng.')
+  expect(r.message).toBe('No parcel service is available.')
   expect(useScene.getState().rootNodeIds).toEqual([])
 })

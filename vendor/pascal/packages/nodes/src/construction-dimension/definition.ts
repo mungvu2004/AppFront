@@ -8,7 +8,6 @@ import {
 } from './floorplan-affordances'
 import { constructionDimensionParametrics } from './parametrics'
 import { ConstructionDimensionNode } from './schema'
-import { vi } from '../i18n/vi'
 
 export const constructionDimensionDefinition: NodeDefinition<typeof ConstructionDimensionNode> = {
   kind: 'construction-dimension',
@@ -71,15 +70,15 @@ export const constructionDimensionDefinition: NodeDefinition<typeof Construction
     'move-construction-dimension-witness': moveConstructionDimensionWitnessAffordance,
   },
   toolHints: [
-    { key: 'Left click', label: vi.constructionDimension.shortcuts.pickWitnessPoint },
-    { key: 'Enter', label: vi.constructionDimension.shortcuts.finishWitnesses },
-    { key: 'Left click', label: vi.constructionDimension.shortcuts.placeDimensionLine },
-    { key: 'Backspace', label: vi.constructionDimension.shortcuts.removeLastWitness },
-    { key: 'Esc', label: vi.constructionDimension.shortcuts.stepBackOrCancel },
+    { key: 'Left click', label: 'Pick witness point' },
+    { key: 'Enter', label: 'Finish multi-point witnesses' },
+    { key: 'Left click', label: 'Place dimension line when needed' },
+    { key: 'Backspace', label: 'Remove last witness' },
+    { key: 'Esc', label: 'Step back or cancel' },
   ],
 
   presentation: {
-    label: vi.constructionDimension.catalogLabel,
+    label: 'Construction Dimension',
     description: 'Associative linear, curved, circular, angular, or coordinate plan dimension.',
     icon: { kind: 'iconify', name: 'lucide:ruler-dimension-line' },
     hidden: true,

@@ -4,7 +4,6 @@ import { buildLiquidLineFloorplan } from './floorplan'
 import { buildLiquidLineGeometry } from './geometry'
 import { liquidLineParametrics } from './parametrics'
 import { LiquidLineNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Standalone refrigerant liquid line — the thin bare-copper line broken out of
@@ -106,15 +105,15 @@ export const liquidLineDefinition: NodeDefinition<typeof LiquidLineNode> = {
 
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Click', label: vi.liquidLine.shortcuts.start },
-    { key: 'Click again', label: vi.liquidLine.shortcuts.placeLocked45 },
-    { key: 'Alt + drag', label: vi.liquidLine.shortcuts.goVertical },
-    { key: 'F', label: vi.liquidLine.shortcuts.followLineset },
-    { key: 'Esc', label: vi.liquidLine.shortcuts.cancel },
+    { key: 'Click', label: 'Start liquid line' },
+    { key: 'Click again', label: 'Place it (locked to 45°)' },
+    { key: 'Alt + drag', label: 'Go vertical ↕, click to place' },
+    { key: 'F', label: 'Follow: trace a lineset' },
+    { key: 'Esc', label: 'Cancel' },
   ],
 
   presentation: {
-    label: vi.liquidLine.catalogLabel,
+    label: 'Liquid Line',
     description:
       'Standalone refrigerant liquid line — a thin bare-copper run; Follow mode traces an existing lineset.',
     icon: { kind: 'url', src: '/icons/lineset.webp' },

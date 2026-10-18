@@ -22,13 +22,12 @@ import { useViewer } from '@pascal-app/viewer'
 import { Trash2, X } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
 import { PanelSelect, PanelTextField } from '../shared/panel-fields'
-import { vi } from '../i18n/vi'
 
 const UNIT_KIND_LABELS: Record<UnitKind, string> = {
-  apartment: vi.unit.panel.apartment,
-  'hotel-room': vi.unit.panel.hotelRoom,
-  commercial: vi.unit.panel.commercial,
-  common: vi.unit.panel.common,
+  apartment: 'Apartment',
+  'hotel-room': 'Hotel room',
+  commercial: 'Commercial',
+  common: 'Common',
 }
 
 const UNIT_KIND_OPTIONS = UNIT_KINDS.map((value) => ({ label: UNIT_KIND_LABELS[value], value }))
@@ -98,28 +97,28 @@ export default function UnitPanel({ node }: { node: UnitNode }) {
 
   const warningMessages = warnings.map((warning) => {
     if (warning.code === 'non-adjacent-levels') {
-      return vi.unit.panel.nonAdjacent
+      return 'Members sit on levels that are not adjacent.'
     }
-    return vi.unit.panel.noneAssigned
+    return 'No zones assigned yet.'
   })
 
   return (
     <PanelWrapper
       icon="/icons/zone.webp"
       onClose={handleClose}
-      title={node.name || vi.unit.panel.unit}
+      title={node.name || 'Unit'}
       width={320}
     >
-      <PanelSection title={vi.unit.panel.unit}>
-        <PanelTextField label={vi.unit.panel.name} onCommit={(name) => update({ name })} value={node.name} />
+      <PanelSection title="Unit">
+        <PanelTextField label="Name" onCommit={(name) => update({ name })} value={node.name} />
         <PanelSelect
-          label={vi.unit.panel.kind}
+          label="Kind"
           onChange={(kind) => update({ kind: kind as UnitKind })}
           options={UNIT_KIND_OPTIONS}
           value={node.kind}
         />
         <label className="flex h-10 items-center justify-between gap-3 rounded-lg border border-border/50 bg-[#2C2C2E] px-3 text-sm">
-          <span className="text-muted-foreground">{vi.unit.panel.color}</span>
+          <span className="text-muted-foreground">Color</span>
           <span className="flex items-center gap-2">
             <span className="font-mono text-muted-foreground text-xs">{node.color}</span>
             <input
@@ -132,10 +131,10 @@ export default function UnitPanel({ node }: { node: UnitNode }) {
         </label>
       </PanelSection>
 
-      <PanelSection title={vi.unit.panel.members}>
+      <PanelSection title="Members">
         {report.members.length === 0 ? (
           <p className="text-muted-foreground text-xs leading-snug">
-            {vi.unit.panel.noZones}
+            No zones yet. Draw zones while this unit is focused, or pick it from a zone's inspector.
           </p>
         ) : (
           report.members.map((member) => (
@@ -144,7 +143,7 @@ export default function UnitPanel({ node }: { node: UnitNode }) {
               key={member.zoneId}
             >
               <span className="min-w-0 flex-1 truncate text-foreground">
-                {member.name || vi.unit.panel.zone}
+                {member.name || 'Zone'}
               </span>
               <span className="shrink-0 truncate text-muted-foreground">
                 {member.levelId ? levelNameById.get(member.levelId) : ''}
@@ -153,7 +152,7 @@ export default function UnitPanel({ node }: { node: UnitNode }) {
                 {formatAreaLabel(member.areaM2, areaUnit, 1)}
               </span>
               <button
-                aria-label={vi.unit.panel.removeMember(member.name || vi.unit.panel.zone)}
+                aria-label={`Remove ${member.name || 'zone'} from unit`}
                 className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-[#3e3e3e] hover:text-foreground"
                 onClick={() => removeMember(member.zoneId)}
                 type="button"
@@ -172,25 +171,25 @@ export default function UnitPanel({ node }: { node: UnitNode }) {
         ) : null}
       </PanelSection>
 
-      <PanelSection title={vi.unit.panel.report}>
-        <ReportRow label={vi.unit.panel.members} value={String(report.memberCount)} />
-        <ReportRow label={vi.unit.panel.levels} value={levelSpanLabel} />
-        <ReportRow label={vi.unit.panel.grossArea} value={formatAreaLabel(report.grossAreaM2, areaUnit, 2)} />
+      <PanelSection title="Report">
+        <ReportRow label="Members" value={String(report.memberCount)} />
+        <ReportRow label="Levels" value={levelSpanLabel} />
+        <ReportRow label="Gross area" value={formatAreaLabel(report.grossAreaM2, areaUnit, 2)} />
       </PanelSection>
 
-      <PanelSection title={vi.common.actions}>
+      <PanelSection title="Actions">
         <ActionGroup>
           {focusedUnitId !== node.id && (
             <ActionButton
               className="rounded-full"
-              label={vi.unit.panel.focus}
+              label="Focus"
               onClick={() => useViewer.getState().setFocusedUnit(node.id)}
             />
           )}
           <ActionButton
             className="text-destructive hover:text-destructive"
             icon={<Trash2 className="h-3.5 w-3.5" />}
-            label={vi.common.delete}
+            label="Delete"
             onClick={handleDelete}
           />
         </ActionGroup>

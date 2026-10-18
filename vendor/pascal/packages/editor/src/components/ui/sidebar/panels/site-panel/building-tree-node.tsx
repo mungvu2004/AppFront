@@ -10,7 +10,6 @@ import {
 } from './../../../../../components/ui/primitives/tooltip'
 import { focusTreeNode, TreeNode, TreeNodeWrapper } from './tree-node'
 import { TreeNodeActions } from './tree-node-actions'
-import { primitivesAndSidebar as vi } from '../../../../../i18n/regions/primitivesAndSidebar'
 
 interface BuildingTreeNodeProps {
   nodeId: BuildingNode['id']
@@ -72,7 +71,7 @@ export const BuildingTreeNode = memo(function BuildingTreeNode({
                 <Plus className="h-3 w-3" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">{vi.buildingTreeNode.addNewLevel}</TooltipContent>
+            <TooltipContent side="right">Add new level</TooltipContent>
           </Tooltip>
         </div>
       }
@@ -84,7 +83,7 @@ export const BuildingTreeNode = memo(function BuildingTreeNode({
       isLast={isLast}
       isSelected={isSelected}
       isVisible={isVisible}
-      label={name || vi.buildingTreeNode.building}
+      label={name || 'Building'}
       onClick={handleClick}
       onDoubleClick={() => focusTreeNode(nodeId)}
       onToggle={() => setExpanded(!expanded)}

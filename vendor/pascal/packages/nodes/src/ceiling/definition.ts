@@ -30,7 +30,6 @@ import { ceilingPaint } from './paint'
 import { ceilingParametrics } from './parametrics'
 import { CeilingNode } from './schema'
 import { ceilingSlots } from './slots'
-import { vi } from '../i18n/vi'
 
 const HEIGHT_HANDLE_OFFSET = 0.22
 const MIN_CEILING_HEIGHT = 0.5
@@ -187,7 +186,7 @@ export const ceilingDefinition: NodeDefinition<typeof CeilingNode> = {
       polygonMeasurementFeatures({
         featurePrefix: 'ceiling',
         height: resolveCeilingHeight(node, useScene.getState().nodes),
-        label: vi.ceiling.slotLabel,
+        label: 'Ceiling',
         polygon: node.polygon,
       }),
   },
@@ -229,14 +228,14 @@ export const ceilingDefinition: NodeDefinition<typeof CeilingNode> = {
   },
 
   toolHints: [
-    { key: 'Left click', label: vi.ceiling.shortcuts.traceOutline },
-    { key: 'Enter', label: vi.ceiling.shortcuts.finish, minDraftVertices: 3 },
-    { key: 'Esc', label: vi.ceiling.shortcuts.cancel },
+    { key: 'Left click', label: 'Trace ceiling outline' },
+    { key: 'Enter', label: 'Finish ceiling', minDraftVertices: 3 },
+    { key: 'Esc', label: 'Cancel' },
   ],
 
   presentation: {
-    label: vi.ceiling.catalogLabel,
-    description: vi.ceiling.catalogDescription,
+    label: 'Ceiling',
+    description: 'A polygon-bounded ceiling surface that hosts ceiling-mounted items.',
     icon: { kind: 'url', src: '/icons/ceiling.webp' },
     paletteSection: 'structure',
     paletteOrder: 40,

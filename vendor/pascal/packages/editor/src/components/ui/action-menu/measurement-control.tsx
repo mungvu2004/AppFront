@@ -12,31 +12,26 @@ import {
   Crosshair,
   Grid2X2,
   Minus,
-  MoveVertical,
   Ruler,
   ScanSearch,
   Square,
   Triangle,
   Waypoints,
 } from 'lucide-react'
-import { useViewer } from '@pascal-app/viewer'
 import { useState } from 'react'
 import type { CreatableMeasurementKind } from '../../../lib/measurement-kind'
 import { cn } from '../../../lib/utils'
 import useEditor from '../../../store/use-editor'
 import useFloorplanMode from '../../../store/use-floorplan-mode'
-import { controlsAndPanels as vi } from '../../../i18n/regions/controlsAndPanels'
 import { Popover, PopoverContent, PopoverTrigger } from '../primitives/popover'
 import { ActionButton } from './action-button'
 
 const measurementOptions = [
-  { kind: 'distance', label: vi.measurementControl.distance, icon: Ruler },
-  { kind: 'perpendicular', label: vi.measurementControl.perpendicular, icon: Ruler },
-  { kind: 'height', label: vi.measurementControl.height, icon: MoveVertical },
-  { kind: 'angle', label: vi.measurementControl.angle, icon: Triangle },
-  { kind: 'area', label: vi.measurementControl.area, icon: Square },
-  { kind: 'perimeter', label: vi.measurementControl.perimeter, icon: Waypoints },
-  { kind: 'volume', label: vi.measurementControl.volume, icon: Box },
+  { kind: 'distance', label: 'Distance', icon: Ruler },
+  { kind: 'angle', label: 'Angle', icon: Triangle },
+  { kind: 'area', label: 'Area', icon: Square },
+  { kind: 'perimeter', label: 'Perimeter', icon: Waypoints },
+  { kind: 'volume', label: 'Volume', icon: Box },
 ] as const satisfies readonly {
   kind: CreatableMeasurementKind
   label: string
@@ -44,20 +39,20 @@ const measurementOptions = [
 }[]
 
 const measurementMenuOptions = [
-  { kind: 'smart', label: vi.measurementControl.smart, icon: ScanSearch },
+  { kind: 'smart', label: 'Smart', icon: ScanSearch },
   ...measurementOptions,
 ] as const
 
 const constructionDimensionOptions = [
-  { mode: 'linear', chainMode: 'point-to-point', label: vi.measurementControl.linearDimension, icon: Ruler },
-  { mode: 'linear', chainMode: 'continuous', label: vi.measurementControl.continuousDimension, icon: Waypoints },
-  { mode: 'radius', chainMode: 'point-to-point', label: vi.measurementControl.radiusDimension, icon: CircleIcon },
-  { mode: 'diameter', chainMode: 'point-to-point', label: vi.measurementControl.diameterDimension, icon: CircleIcon },
-  { mode: 'center-mark', chainMode: 'point-to-point', label: vi.measurementControl.centerMark, icon: Crosshair },
-  { mode: 'chord', chainMode: 'point-to-point', label: vi.measurementControl.chordDimension, icon: Minus },
-  { mode: 'arc-length', chainMode: 'point-to-point', label: vi.measurementControl.arcLength, icon: CircleIcon },
-  { mode: 'angular', chainMode: 'point-to-point', label: vi.measurementControl.angularDimension, icon: Triangle },
-  { mode: 'coordinate', chainMode: 'continuous', label: vi.measurementControl.coordinateDimensions, icon: Grid2X2 },
+  { mode: 'linear', chainMode: 'point-to-point', label: 'Linear dimension', icon: Ruler },
+  { mode: 'linear', chainMode: 'continuous', label: 'Continuous dimension', icon: Waypoints },
+  { mode: 'radius', chainMode: 'point-to-point', label: 'Radius dimension', icon: CircleIcon },
+  { mode: 'diameter', chainMode: 'point-to-point', label: 'Diameter dimension', icon: CircleIcon },
+  { mode: 'center-mark', chainMode: 'point-to-point', label: 'Center mark', icon: Crosshair },
+  { mode: 'chord', chainMode: 'point-to-point', label: 'Chord dimension', icon: Minus },
+  { mode: 'arc-length', chainMode: 'point-to-point', label: 'Arc length', icon: CircleIcon },
+  { mode: 'angular', chainMode: 'point-to-point', label: 'Angular dimension', icon: Triangle },
+  { mode: 'coordinate', chainMode: 'continuous', label: 'Coordinate dimensions', icon: Grid2X2 },
 ] as const satisfies readonly {
   mode: ConstructionDimensionMode
   chainMode: ConstructionDimensionChainMode
@@ -65,15 +60,7 @@ const constructionDimensionOptions = [
   icon: typeof Ruler
 }[]
 
-const unitOptions = [
-  { notation: 'meters', short: 'm', label: vi.measurementControl.unitMeters },
-  { notation: 'centimeters', short: 'cm', label: vi.measurementControl.unitCentimeters },
-  { notation: 'millimeters', short: 'mm', label: vi.measurementControl.unitMillimeters },
-] as const
-
 export function MeasurementControl() {
-  const metricNotation = useViewer((state) => state.metricNotation)
-  const setMetricNotation = useViewer((state) => state.setMetricNotation)
   const [isOpen, setIsOpen] = useState(false)
   const mode = useEditor((state) => state.mode)
   const tool = useEditor((state) => state.tool)
@@ -111,9 +98,9 @@ export function MeasurementControl() {
       ? ScanSearch
       : selectedOption.icon
   const selectedLabel = isConstructionDimensionActive
-    ? (activeConstructionDimensionOption?.label ?? vi.measurementControl.linearDimension)
+    ? (activeConstructionDimensionOption?.label ?? 'Linear dimension')
     : isSmartActive
-      ? vi.measurementControl.smart
+      ? 'Smart'
       : selectedOption.label
 
   const activateMeasurement = (kind: CreatableMeasurementKind) => {
@@ -146,7 +133,7 @@ export function MeasurementControl() {
     chainMode: ConstructionDimensionChainMode,
   ) => {
     if (useFloorplanMode.getState().mode !== 'expert') {
-      useFloorplanMode.getState().showExpertModeNotice(vi.measurementControl.constructionDimension)
+      useFloorplanMode.getState().showExpertModeNotice('Construction Dimension')
       return
     }
     setPhase('structure')
@@ -161,7 +148,7 @@ export function MeasurementControl() {
     <Popover onOpenChange={setIsOpen} open={isOpen}>
       <div className="flex items-center">
         <ActionButton
-          aria-label={vi.measurementControl.measure(selectedLabel)}
+          aria-label={`Measure: ${selectedLabel}`}
           aria-pressed={isControlActive}
           className={cn(
             'rounded-r-none p-0 text-muted-foreground',
@@ -169,7 +156,7 @@ export function MeasurementControl() {
               ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20'
               : 'hover:bg-cyan-500/15 hover:text-cyan-400',
           )}
-          label={vi.measurementControl.measure(selectedLabel)}
+          label={`Measure: ${selectedLabel}`}
           onClick={handlePrimaryClick}
           shortcut="M"
           size="icon"
@@ -182,7 +169,7 @@ export function MeasurementControl() {
           <button
             aria-expanded={isOpen}
             aria-haspopup="menu"
-            aria-label={vi.measurementControl.measurementOptions}
+            aria-label="Measurement options"
             className={cn(
               'flex h-11 w-6 items-center justify-center rounded-r-lg text-muted-foreground transition-colors',
               isOpen
@@ -205,7 +192,7 @@ export function MeasurementControl() {
         side="top"
         sideOffset={14}
       >
-        <div aria-label={vi.measurementControl.measurementType} className="space-y-1" role="menu">
+        <div aria-label="Measurement type" className="space-y-1" role="menu">
           {measurementMenuOptions.map((option) => {
             const OptionIcon = option.icon
             const isSmart = option.kind === 'smart'
@@ -237,37 +224,11 @@ export function MeasurementControl() {
             )
           })}
 
-          <div className="my-1.5 h-px bg-border/60" />
-          <div
-            aria-label={vi.measurementControl.unitLabel}
-            className="flex gap-1 px-1 pb-0.5"
-            role="radiogroup"
-          >
-            {unitOptions.map((option) => (
-              <button
-                aria-checked={metricNotation === option.notation}
-                aria-label={option.label}
-                className={cn(
-                  'h-8 flex-1 rounded-md text-xs transition-colors',
-                  metricNotation === option.notation
-                    ? 'bg-white/10 text-foreground'
-                    : 'text-muted-foreground hover:bg-white/8 hover:text-foreground',
-                )}
-                key={option.notation}
-                onClick={() => setMetricNotation(option.notation)}
-                role="radio"
-                type="button"
-              >
-                {option.short}
-              </button>
-            ))}
-          </div>
-
           {floorplanMode === 'expert' ? (
             <>
               <div className="my-1.5 h-px bg-border/60" />
               <div className="px-2.5 pt-1 pb-0.5 font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">
-                {vi.measurementControl.floorPlan}
+                Floor plan
               </div>
 
               {constructionDimensionOptions.map((option) => {

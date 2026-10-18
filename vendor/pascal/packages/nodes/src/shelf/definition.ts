@@ -9,7 +9,6 @@ import { shelfPaint } from './paint'
 import { shelfParametrics } from './parametrics'
 import { ShelfNode } from './schema'
 import { shelfSlots } from './slots'
-import { vi } from '../i18n/vi'
 
 const SIDE_HANDLE_OFFSET = 0.18
 const HEIGHT_HANDLE_OFFSET = 0.22
@@ -269,12 +268,12 @@ export const shelfDefinition: NodeDefinition<typeof ShelfNode> = {
   preview: () => import('./preview'),
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Left click', label: vi.shelf.shortcuts.place },
-    { key: 'Esc', label: vi.shelf.shortcuts.cancel },
+    { key: 'Left click', label: 'Place shelf' },
+    { key: 'Esc', label: 'Cancel' },
   ],
 
   presentation: {
-    label: vi.shelf.catalogLabel,
+    label: 'Shelf',
     description: 'A configurable shelving unit. Items host on each row.',
     icon: { kind: 'url', src: '/icons/shelf.webp' },
     paletteSection: 'furnish',

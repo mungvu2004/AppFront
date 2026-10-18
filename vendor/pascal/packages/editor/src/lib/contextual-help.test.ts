@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { vi } from '../i18n/vi'
 import { resolveRotateHandleHelpHints, resolveSelectModeHelpHints } from './contextual-help'
 
 test('rotation advertises Alt as the temporary free-rotation override', () => {
@@ -36,7 +35,7 @@ describe('resolveSelectModeHelpHints', () => {
     ).toEqual([
       {
         keys: [['Cmd/Ctrl', 'Shift'], 'Left click'],
-        label: vi.contextualHelp.addOrRemove,
+        label: 'Add or remove objects from the selection',
         active: true,
       },
     ])
@@ -53,17 +52,17 @@ describe('resolveSelectModeHelpHints', () => {
 
     expect(hints).toContainEqual({
       keys: ['Left click'],
-      label: vi.contextualHelp.dragMovable,
+      label: 'Drag selected movable object',
     })
     expect(hints).toContainEqual({
       keys: ['Cmd/Ctrl', 'Right click'],
-      label: vi.contextualHelp.rotateSelected,
+      label: 'Drag left or right to rotate selected object',
     })
     // Cmd/Ctrl and Shift click both toggle selection membership (3D selection
     // manager and 2D floorplan alike) — advertised as a single or-group row.
     expect(hints).toContainEqual({
       keys: [['Cmd/Ctrl', 'Shift'], 'Left click'],
-      label: vi.contextualHelp.addOrRemove,
+      label: 'Add or remove objects from the selection',
       active: false,
     })
   })
@@ -80,23 +79,23 @@ describe('resolveSelectModeHelpHints', () => {
     expect(hints).toEqual([
       {
         keys: ['Left click'],
-        label: vi.contextualHelp.moveSelection,
+        label: 'Click or drag the selection to move it as one',
       },
-      { keys: ['R / T'], label: vi.contextualHelp.rotateSelection },
+      { keys: ['R / T'], label: 'Rotate the selection ±45°' },
       {
         keys: ['Cmd/Ctrl', 'G'],
-        label: vi.contextualHelp.groupSelection,
+        label: 'Group selection (session only)',
       },
       {
         keys: ['Cmd/Ctrl', 'Shift', 'G'],
-        label: vi.contextualHelp.ungroupSelection,
+        label: 'Ungroup session selection',
       },
       {
         keys: [['Cmd/Ctrl', 'Shift'], 'Left click'],
-        label: vi.contextualHelp.addOrRemove,
+        label: 'Add or remove objects from the selection',
         active: false,
       },
-      { keys: ['Esc'], label: vi.contextualHelp.clearSelection },
+      { keys: ['Esc'], label: 'Clear the selection (or click outside)' },
     ])
   })
 
@@ -114,15 +113,15 @@ describe('resolveSelectModeHelpHints', () => {
     expect(hints).toEqual([
       {
         keys: ['Left click'],
-        label: vi.contextualHelp.dragMovable,
+        label: 'Drag selected movable object',
       },
       {
         keys: ['Cmd/Ctrl', 'Right click'],
-        label: vi.contextualHelp.rotateSelected,
+        label: 'Drag left or right to rotate selected object',
       },
       {
         keys: [['Cmd/Ctrl', 'Shift'], 'Left click'],
-        label: vi.contextualHelp.addOrRemove,
+        label: 'Add or remove objects from the selection',
         active: true,
       },
     ])
@@ -140,7 +139,7 @@ describe('resolveSelectModeHelpHints', () => {
       }),
     ).toContainEqual({
       keys: ['Shift'],
-      label: vi.contextualHelp.openingRadius,
+      label: 'Adjust one side’s corner radius',
       active: false,
     })
   })

@@ -1,5 +1,3 @@
-import { vi } from '../i18n/vi'
-
 export type ContinuationContext = 'wall' | 'fence' | 'point' | 'cabinet' | 'canopy'
 export type ContinuationMode = string
 
@@ -15,7 +13,7 @@ export const CONTINUATION_PROFILES: Record<
   wall: {
     options: ['room', 'single'],
     default: 'room',
-    labels: { room: vi.contextualHelp.wallContinuation.room, single: vi.contextualHelp.wallContinuation.single },
+    labels: { room: 'Room (auto-close)', single: 'Single wall' },
     icons: { room: 'lucide:square', single: 'lucide:minus' },
   },
   fence: {

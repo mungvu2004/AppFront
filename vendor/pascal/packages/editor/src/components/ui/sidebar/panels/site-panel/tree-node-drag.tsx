@@ -12,7 +12,6 @@ import {
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { getPascalRoot } from '../../../../../lib/pascal-root'
 
 // ---------------------------------------------------------------------------
 // Reparenting rules
@@ -322,7 +321,7 @@ function FloatingPreview({ drag }: { drag: NonNullable<DragState> }) {
       <span className="opacity-60">↕</span>
       {drag.label}
     </div>,
-    getPascalRoot() ?? document.body,
+    document.body,
   )
 }
 

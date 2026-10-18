@@ -9,7 +9,6 @@ import {
   useScene,
 } from '@pascal-app/core'
 import { SliderControl } from '@pascal-app/editor'
-import { vi } from '../i18n/vi'
 
 /**
  * Position-along-the-eave editor for a downspout. The downspout's spot
@@ -85,7 +84,7 @@ export function DownspoutPositionEditor({ node }: { node: DownspoutNode }) {
 
   return (
     <SliderControl
-      label={vi.common.position}
+      label="Position"
       max={bound}
       min={-bound}
       onChange={handleChange}

@@ -17,7 +17,6 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { useIsMobile } from '../../hooks/use-mobile'
-import { editorAndViewer as vi } from '../../i18n/regions/editorAndViewer'
 import { triggerSFX } from '../../lib/sfx-bus'
 import { requestWalkthroughPointerLock } from '../../lib/walkthrough-pointer-lock'
 import useEditor, {
@@ -126,9 +125,9 @@ const HUD_CHIP_CLASS =
   'flex flex-col gap-px rounded-lg border border-white/10 bg-neutral-950/85 px-3 py-1.5'
 
 const CROP_LABELS: Record<CropMode, string> = {
-  standard: vi.snapshotCaptureOverlay.cropStandard,
-  viewport: vi.snapshotCaptureOverlay.cropViewport,
-  area: vi.snapshotCaptureOverlay.cropArea,
+  standard: 'Standard',
+  viewport: 'Viewport',
+  area: 'Area',
 }
 
 // Dark-HUD skin for the shared slider, which is themed for the light editor chrome.
@@ -148,22 +147,22 @@ function CaptureWalkthroughCrosshair() {
 const CAMERA_NAV_HINTS: Record<CaptureCameraNav, readonly CameraNavHint[] | null> = {
   orbit: null,
   walk: [
-    { keys: ['WASD'], action: vi.snapshotCaptureOverlay.navMove },
-    { keys: ['Space'], action: vi.snapshotCaptureOverlay.navJump },
-    { keys: ['E'], action: vi.snapshotCaptureOverlay.navOpen },
-    { keys: ['Wheel'], action: vi.snapshotCaptureOverlay.navLens },
-    { keys: ['P', 'Esc'], action: vi.snapshotCaptureOverlay.navFreeCursor },
-    { keys: ['Click', 'Enter'], action: vi.snapshotCaptureOverlay.navShoot },
+    { keys: ['WASD'], action: 'move' },
+    { keys: ['Space'], action: 'jump' },
+    { keys: ['E'], action: 'open' },
+    { keys: ['Wheel'], action: 'lens' },
+    { keys: ['P', 'Esc'], action: 'free cursor' },
+    { keys: ['Click', 'Enter'], action: 'shoot' },
   ],
   drone: [
-    { keys: ['WASD'], action: vi.snapshotCaptureOverlay.navMove },
-    { keys: ['Space', 'E'], action: vi.snapshotCaptureOverlay.navUp },
-    { keys: ['Q'], action: vi.snapshotCaptureOverlay.navDown },
-    { keys: ['Shift'], action: vi.snapshotCaptureOverlay.navBoost },
-    { keys: ['Alt'], action: vi.snapshotCaptureOverlay.navSlow },
-    { keys: ['Wheel'], action: vi.snapshotCaptureOverlay.navLens },
-    { keys: ['P', 'Esc'], action: vi.snapshotCaptureOverlay.navFreeCursor },
-    { keys: ['Click', 'Enter'], action: vi.snapshotCaptureOverlay.navShoot },
+    { keys: ['WASD'], action: 'move' },
+    { keys: ['Space', 'E'], action: 'up' },
+    { keys: ['Q'], action: 'down' },
+    { keys: ['Shift'], action: 'boost' },
+    { keys: ['Alt'], action: 'slow' },
+    { keys: ['Wheel'], action: 'lens' },
+    { keys: ['P', 'Esc'], action: 'free cursor' },
+    { keys: ['Click', 'Enter'], action: 'shoot' },
   ],
 }
 
@@ -632,8 +631,8 @@ export function SnapshotCaptureOverlay({ projectId }: { projectId: string }) {
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <span className="rounded-full border border-white/10 bg-neutral-950/80 px-4 py-2 text-sm text-white">
                 {cameraOwnsPointer
-                  ? vi.snapshotCaptureOverlay.switchBackToOrbitHint
-                  : vi.snapshotCaptureOverlay.dragAreaHint}
+                  ? 'Switch back to orbit to drag a capture area'
+                  : 'Drag the area you want to capture'}
               </span>
             </div>
           )}
@@ -694,15 +693,15 @@ export function SnapshotCaptureOverlay({ projectId }: { projectId: string }) {
         <div className="pointer-events-none absolute top-4 left-1/2 flex -translate-x-1/2 gap-2">
           <div className={HUD_CHIP_CLASS}>
             <span className="font-mono text-[8.5px] text-white/50 uppercase tracking-[0.14em]">
-              {vi.snapshotCaptureOverlay.crop}
+              Crop
             </span>
             <span className="font-semibold text-white text-xs">
-              {isPreset ? vi.snapshotCaptureOverlay.presetSquare : CROP_LABELS[mode]}
+              {isPreset ? 'Preset · square' : CROP_LABELS[mode]}
             </span>
           </div>
           <div className={HUD_CHIP_CLASS}>
             <span className="font-mono text-[8.5px] text-white/50 uppercase tracking-[0.14em]">
-              {vi.snapshotCaptureOverlay.format}
+              Format
             </span>
             <span className="font-semibold text-white text-xs tabular-nums">
               {resolution ? `${resolution.w} × ${resolution.h}` : '—'}
@@ -714,13 +713,13 @@ export function SnapshotCaptureOverlay({ projectId }: { projectId: string }) {
       {/* Top-right dismiss button (icon-only on mobile) */}
       <div className="pointer-events-auto absolute top-4 right-4">
         <button
-          aria-label={vi.snapshotCaptureOverlay.closeCaptureMode}
+          aria-label="Close capture mode"
           className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-neutral-950/85 px-3 py-1.5 text-white/80 text-xs transition-colors hover:bg-neutral-950 hover:text-white"
           onClick={dismiss}
           type="button"
         >
           <X className="h-3 w-3" />
-          {!isMobile && vi.snapshotCaptureOverlay.escToCancel}
+          {!isMobile && 'Esc to cancel'}
         </button>
       </div>
 
@@ -738,19 +737,19 @@ export function SnapshotCaptureOverlay({ projectId }: { projectId: string }) {
                 <ModeButton
                   active={cameraNav === 'orbit'}
                   icon={<Orbit className="h-3.5 w-3.5" />}
-                  label={vi.snapshotCaptureOverlay.orbit}
+                  label="Orbit"
                   onClick={() => setCameraNav('orbit')}
                 />
                 <ModeButton
                   active={cameraNav === 'walk'}
                   icon={<Footprints className="h-3.5 w-3.5" />}
-                  label={vi.snapshotCaptureOverlay.walk}
+                  label="Walk"
                   onClick={() => setCameraNav('walk')}
                 />
                 <ModeButton
                   active={cameraNav === 'drone'}
                   icon={<Drone className="h-3.5 w-3.5" />}
-                  label={vi.snapshotCaptureOverlay.drone}
+                  label="Drone"
                   onClick={() => setCameraNav('drone')}
                 />
               </div>
@@ -758,10 +757,10 @@ export function SnapshotCaptureOverlay({ projectId }: { projectId: string }) {
             {fovValue !== null && (
               <div className="flex items-center gap-2.5 rounded-full border border-white/10 bg-neutral-950/85 py-1.5 pr-1.5 pl-3 shadow-xl">
                 <span className="font-mono text-[8.5px] text-white/50 uppercase tracking-[0.14em]">
-                  {vi.snapshotCaptureOverlay.lens}
+                  Lens
                 </span>
                 <Slider
-                  aria-label={vi.snapshotCaptureOverlay.fieldOfView}
+                  aria-label="Field of view"
                   className={FOV_SLIDER_CLASS}
                   max={CAPTURE_FOV_MAX}
                   min={CAPTURE_FOV_MIN}
@@ -775,7 +774,7 @@ export function SnapshotCaptureOverlay({ projectId }: { projectId: string }) {
                   {fovValue}°
                 </span>
                 <button
-                  aria-label={vi.snapshotCaptureOverlay.resetFieldOfView}
+                  aria-label="Reset field of view"
                   className="grid h-6 w-6 place-items-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-white/50"
                   disabled={captureFovBaseline === null || fovValue === captureFovBaseline}
                   onClick={() => {
@@ -797,7 +796,7 @@ export function SnapshotCaptureOverlay({ projectId }: { projectId: string }) {
               active={mode === 'standard'}
               badge={standardAspect}
               icon={<Monitor className="h-3.5 w-3.5" />}
-              label={isMobile ? undefined : vi.snapshotCaptureOverlay.standard}
+              label={isMobile ? undefined : 'Standard'}
               onClick={() => {
                 if (mode === 'standard') setAspectMenuOpen((v) => !v)
                 else setAspectMenuOpen(false)
@@ -829,7 +828,7 @@ export function SnapshotCaptureOverlay({ projectId }: { projectId: string }) {
             <ModeButton
               active={mode === 'viewport'}
               icon={<Maximize2 className="h-3.5 w-3.5" />}
-              label={isMobile ? undefined : vi.snapshotCaptureOverlay.viewport}
+              label={isMobile ? undefined : 'Viewport'}
               onClick={() => {
                 setMode('viewport')
                 setDrag(null)
@@ -839,7 +838,7 @@ export function SnapshotCaptureOverlay({ projectId }: { projectId: string }) {
             <ModeButton
               active={mode === 'area'}
               icon={<Crop className="h-3.5 w-3.5" />}
-              label={isMobile ? undefined : vi.snapshotCaptureOverlay.area}
+              label={isMobile ? undefined : 'Area'}
               onClick={() => {
                 setMode('area')
                 setAspectMenuOpen(false)
@@ -877,15 +876,13 @@ export function SnapshotCaptureOverlay({ projectId }: { projectId: string }) {
             </div>
           ) : (
             <span className="pointer-events-none max-w-90 rounded-lg border border-white/10 bg-neutral-950/85 px-3.5 py-1.5 text-center text-[11.5px] text-white/85 leading-relaxed">
-              <b className="font-semibold text-white">{vi.snapshotCaptureOverlay.snapshotWord}</b>{' '}
-              {vi.snapshotCaptureOverlay.snapshotPitch}
+              A <b className="font-semibold text-white">snapshot</b>
+              {' freezes this exact camera angle as a reusable reference for renders & videos.'}
             </span>
           ))}
 
         <button
-          aria-label={
-            isPreset ? vi.snapshotCaptureOverlay.capture : vi.snapshotCaptureOverlay.takeSnapshot
-          }
+          aria-label={isPreset ? 'Capture' : 'Take snapshot'}
           className="group pointer-events-auto relative grid h-14 w-14 place-items-center rounded-full disabled:opacity-50"
           disabled={captureDisabled}
           onClick={handleCapture}
@@ -908,12 +905,12 @@ export function SnapshotCaptureOverlay({ projectId }: { projectId: string }) {
         </button>
         <span className="pointer-events-none font-mono text-[10.5px] text-white uppercase tracking-[0.12em] drop-shadow">
           {captureState === 'capturing'
-            ? vi.snapshotCaptureOverlay.capturing
+            ? 'Capturing…'
             : captureState === 'saved'
-              ? vi.snapshotCaptureOverlay.saved
+              ? 'Saved'
               : isPreset
-                ? vi.snapshotCaptureOverlay.capture
-                : vi.snapshotCaptureOverlay.takeSnapshot}
+                ? 'Capture'
+                : 'Take snapshot'}
         </span>
       </div>
     </div>

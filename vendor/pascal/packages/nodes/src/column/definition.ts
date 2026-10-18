@@ -20,7 +20,6 @@ import { columnParametrics } from './parametrics'
 import { ColumnNode } from './schema'
 import { columnSlots } from './slots'
 import { columnSurfaceProvider } from './surface'
-import { vi } from '../i18n/vi'
 
 // Limits + offsets shared with the in-world arrows. Mirrors the floors
 // the renderer clamps to (`Math.max(0.2, node.height)` etc.) so a drag
@@ -419,8 +418,8 @@ export const columnDefinition: NodeDefinition<typeof ColumnNode> = {
   // registry-first path mounts this and skips the legacy `<ColumnTool>`.
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Left click', label: vi.column.shortcuts.place },
-    { key: 'Esc', label: vi.column.shortcuts.cancel },
+    { key: 'Left click', label: 'Place column' },
+    { key: 'Esc', label: 'Cancel' },
   ],
   computeFloorplanLevelData: computeColumnFloorplanLevelData,
   floorplanDependsOnSiblings: true,
@@ -442,7 +441,7 @@ export const columnDefinition: NodeDefinition<typeof ColumnNode> = {
   },
 
   presentation: {
-    label: vi.column.catalogLabel,
+    label: 'Column',
     description: 'A parametric column with configurable cross-section, base, and capital.',
     icon: { kind: 'url', src: '/icons/column.webp' },
     paletteSection: 'structure',

@@ -28,7 +28,6 @@ import {
   getSlabBaseElevation,
   getSlabRecessDepth,
 } from './elevation-limit'
-import { vi } from '../i18n/vi'
 
 /**
  * Phase 5 Stage E — slab inspector (kind-owned).
@@ -276,10 +275,10 @@ export function SlabPanel() {
     <PanelWrapper
       icon="/icons/floor.webp"
       onClose={handleClose}
-      title={node.name || vi.nodeDisplay.slab}
+      title={node.name || 'Slab'}
       width={320}
     >
-      <PanelSection title={vi.common.elevation}>
+      <PanelSection title="Elevation">
         {/* Range mirrors the 20 m storey cap; `clampSlabElevation` in the
             write path stays the real bound against the level. */}
         <SliderControl
@@ -306,7 +305,7 @@ export function SlabPanel() {
 
         {node.recessed ? (
           <SliderControl
-            label={vi.common.depth}
+            label="Depth"
             max={1000}
             min={MIN_SLAB_THICKNESS}
             onChange={handleRecessDepthChange}
@@ -317,7 +316,7 @@ export function SlabPanel() {
           />
         ) : (
           <SliderControl
-            label={vi.common.thickness}
+            label="Thickness"
             max={1000}
             min={MIN_SLAB_THICKNESS}
             onChange={handleThicknessChange}
@@ -361,14 +360,14 @@ export function SlabPanel() {
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.common.info}>
+      <PanelSection title="Info">
         <div className="flex items-center justify-between px-2 py-1 text-muted-foreground text-sm">
           <span>Area</span>
           <span className="font-mono text-white">{area.toFixed(2)} m²</span>
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.common.holes}>
+      <PanelSection title="Holes">
         {node.holes && node.holes.length > 0 ? (
           <div className="flex flex-col gap-1 pb-2">
             {node.holes.map((hole, index) => {
@@ -402,7 +401,7 @@ export function SlabPanel() {
                     {isEditing ? (
                       <ActionButton
                         className="h-7 bg-primary text-primary-foreground hover:bg-primary/90"
-                        label={vi.common.doneAction}
+                        label="Done"
                         onClick={() =>
                           useInteractionScope
                             .getState()
@@ -447,13 +446,13 @@ export function SlabPanel() {
             className="w-full"
             disabled={editingHole?.nodeId === selectedId}
             icon={<Plus className="h-3.5 w-3.5" />}
-            label={vi.common.addHole}
+            label="Add Hole"
             onClick={handleAddHole}
           />
         </div>
       </PanelSection>
       <ActionGroup>
-        <ActionButton icon={<Move className="h-3.5 w-3.5" />} label={vi.common.move} onClick={handleMove} />
+        <ActionButton icon={<Move className="h-3.5 w-3.5" />} label="Move" onClick={handleMove} />
       </ActionGroup>
     </PanelWrapper>
   )

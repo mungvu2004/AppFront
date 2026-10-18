@@ -2,7 +2,6 @@ import type { ParametricDescriptor } from '@pascal-app/core'
 import { findAutomaticRunEndCapIds } from '../shared/automatic-run-end-cap'
 import { fittingDeletionPlansForRun } from '../shared/fitting-deletion-cleanup'
 import type { PipeSegmentNode } from './schema'
-import { vi } from '../i18n/vi'
 
 export const pipeSegmentParametrics: ParametricDescriptor<PipeSegmentNode> = {
   derive: (next) =>
@@ -26,12 +25,12 @@ export const pipeSegmentParametrics: ParametricDescriptor<PipeSegmentNode> = {
   trailingSection: () => import('../shared/run-hanger-inspector'),
   groups: [
     {
-      label: vi.common.hangers,
+      label: 'Hangers',
       fields: [
-        { key: 'autoHangers', label: vi.common.autoHangers, kind: 'boolean' },
+        { key: 'autoHangers', label: 'Auto hangers', kind: 'boolean' },
         {
           key: 'hangerStyle',
-          label: vi.common.hangerLines,
+          label: 'Hanger lines',
           kind: 'enum',
           options: ['single', 'double'],
           display: 'segmented',
@@ -39,7 +38,7 @@ export const pipeSegmentParametrics: ParametricDescriptor<PipeSegmentNode> = {
         },
         {
           key: 'hangerSpacing',
-          label: vi.common.spacing,
+          label: 'Spacing',
           kind: 'number',
           unit: 'm',
           min: 0.05,
@@ -49,7 +48,7 @@ export const pipeSegmentParametrics: ParametricDescriptor<PipeSegmentNode> = {
         },
         {
           key: 'hangerMaxReach',
-          label: vi.common.maximumReach,
+          label: 'Maximum reach',
           kind: 'number',
           unit: 'm',
           min: 0.01,
@@ -60,7 +59,7 @@ export const pipeSegmentParametrics: ParametricDescriptor<PipeSegmentNode> = {
       ],
     },
     {
-      label: vi.common.drainage,
+      label: 'Drainage',
       fields: [
         {
           key: 'system',
@@ -79,7 +78,7 @@ export const pipeSegmentParametrics: ParametricDescriptor<PipeSegmentNode> = {
       ],
     },
     {
-      label: vi.common.construction,
+      label: 'Construction',
       fields: [
         {
           key: 'pipeMaterial',

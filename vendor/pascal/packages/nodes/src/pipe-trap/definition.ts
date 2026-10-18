@@ -4,7 +4,6 @@ import { buildPipeTrapGeometry } from './geometry'
 import { pipeTrapParametrics } from './parametrics'
 import { getPipeTrapPorts } from './ports'
 import { PipeTrapNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * DWV P-trap — the water-seal fitting on the waste line. Placed by its
@@ -52,13 +51,13 @@ export const pipeTrapDefinition: NodeDefinition<typeof PipeTrapNode> = {
 
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Click', label: vi.pipeTrap.shortcuts.place },
-    { key: 'R / T', label: vi.pipeTrap.shortcuts.rotate45 },
-    { key: 'Esc', label: vi.pipeTrap.shortcuts.exit },
+    { key: 'Click', label: 'Place trap' },
+    { key: 'R / T', label: 'Rotate ±45°' },
+    { key: 'Esc', label: 'Exit' },
   ],
 
   presentation: {
-    label: vi.pipeTrap.catalogLabel,
+    label: 'Trap',
     description: 'DWV P-trap — water seal on the waste line. The trap arm runs to the vent.',
     icon: { kind: 'url', src: '/icons/dwv-pipes.webp' },
     paletteSection: 'structure',

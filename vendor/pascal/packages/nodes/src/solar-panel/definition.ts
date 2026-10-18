@@ -7,7 +7,6 @@ import {
 import { buildSolarPanelFloorplan } from './floorplan'
 import { solarPanelParametrics } from './parametrics'
 import { SolarPanelNode } from './schema'
-import { vi } from '../i18n/vi'
 
 // Handle constants — same scheme as the skylight: edge-to-arrow-center
 // offsets that need to clear half the chevron's body (~13 cm at default
@@ -268,12 +267,12 @@ export const solarPanelDefinition: NodeDefinition<typeof SolarPanelNode> = {
     move: () => import('./move-tool'),
   },
   toolHints: [
-    { key: 'Left click', label: vi.solarPanel.shortcuts.place },
-    { key: 'Esc', label: vi.solarPanel.shortcuts.cancel },
+    { key: 'Left click', label: 'Place solar panel array on roof' },
+    { key: 'Esc', label: 'Cancel' },
   ],
 
   presentation: {
-    label: vi.solarPanel.catalogLabel,
+    label: 'Solar Panel',
     description: 'Grid of photovoltaic panels mounted on a roof segment.',
     icon: { kind: 'url', src: '/icons/solar-panel.webp' },
     paletteSection: 'structure',

@@ -33,7 +33,6 @@ import { windowPaint } from './paint'
 import { windowParametrics } from './parametrics'
 import { WindowNode } from './schema'
 import { windowSlots } from './slots'
-import { vi } from '../i18n/vi'
 
 const SIDE_HANDLE_OFFSET = 0.24
 const HEIGHT_HANDLE_OFFSET = 0.24
@@ -350,14 +349,14 @@ export const windowDefinition: NodeDefinition<typeof WindowNode> = {
   },
 
   toolHints: [
-    { key: 'Left click', label: vi.window.shortcuts.place },
-    { key: 'R', label: vi.window.shortcuts.flipSide },
-    { key: 'Alt', label: vi.window.shortcuts.forcePlace },
-    { key: 'Esc', label: vi.window.shortcuts.cancel },
+    { key: 'Left click', label: 'Place window on wall' },
+    { key: 'R', label: 'Flip side' },
+    { key: 'Alt', label: 'Force place' },
+    { key: 'Esc', label: 'Cancel' },
   ],
 
   presentation: {
-    label: vi.window.catalogLabel,
+    label: 'Window',
     description: 'A window cut into a wall. Animated open/close for opening windows.',
     icon: { kind: 'url', src: '/icons/window.webp' },
     paletteSection: 'structure',

@@ -8,7 +8,6 @@ import { buildDuctSegmentFloorplan } from './floorplan'
 import { buildDuctSegmentGeometry, ductPortDiameterIn } from './geometry'
 import { ductSegmentParametrics } from './parametrics'
 import { DuctSegmentNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Phase 1 of the HVAC node system — round duct segment as a polyline.
@@ -176,17 +175,17 @@ export const ductSegmentDefinition: NodeDefinition<typeof DuctSegmentNode> = {
 
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Click', label: vi.ductSegment.shortcuts.startSegment },
-    { key: 'Click again', label: vi.ductSegment.shortcuts.placeAndContinue },
-    { key: 'Alt + drag', label: vi.ductSegment.shortcuts.goVertical },
-    { key: '[ / ]', label: vi.ductSegment.shortcuts.diameterDownUp },
-    { key: 'Q', label: vi.ductSegment.shortcuts.roundRectOval },
+    { key: 'Click', label: 'Start segment' },
+    { key: 'Click again', label: 'Place and continue' },
+    { key: 'Alt + drag', label: 'Go vertical ↕, click to place' },
+    { key: '[ / ]', label: 'Duct diameter down / up' },
+    { key: 'Q', label: 'Round / rectangular / oval' },
     createRunHangerToolHint('duct-segment'),
-    { key: 'Esc', label: vi.ductSegment.shortcuts.exitDrawing },
+    { key: 'Esc', label: 'Exit drawing' },
   ],
 
   presentation: {
-    label: vi.ductSegment.catalogLabel,
+    label: 'Duct',
     description: 'HVAC duct run — polyline of round, rect, or flat-oval sections.',
     icon: { kind: 'url', src: '/icons/duct.webp' },
     paletteSection: 'structure',

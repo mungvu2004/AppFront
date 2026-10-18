@@ -14,20 +14,18 @@ import { ArrowLeft, ChevronRight, Layers } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { editorAndViewer as vi } from '../../i18n/regions/editorAndViewer'
 import { cn } from '../../lib/utils'
 import { ViewerUnitsPanel } from './viewer-units-panel'
 
 const getNodeName = (node: AnyNode): string => {
   if ('name' in node && node.name) return node.name
-  if (node.type === 'wall') return vi.viewerSceneHeader.nodeWall
-  if (node.type === 'fence') return vi.viewerSceneHeader.nodeFence
-  if (node.type === 'item')
-    return (node as { asset: { name: string } }).asset?.name || vi.viewerSceneHeader.nodeItem
-  if (node.type === 'slab') return vi.viewerSceneHeader.nodeSlab
-  if (node.type === 'ceiling') return vi.viewerSceneHeader.nodeCeiling
-  if (node.type === 'roof') return vi.viewerSceneHeader.nodeRoof
-  if (node.type === 'roof-segment') return vi.viewerSceneHeader.nodeRoofSegment
+  if (node.type === 'wall') return 'Wall'
+  if (node.type === 'fence') return 'Fence'
+  if (node.type === 'item') return (node as { asset: { name: string } }).asset?.name || 'Item'
+  if (node.type === 'slab') return 'Slab'
+  if (node.type === 'ceiling') return 'Ceiling'
+  if (node.type === 'roof') return 'Roof'
+  if (node.type === 'roof-segment') return 'Roof Segment'
   return node.type
 }
 
@@ -105,7 +103,7 @@ export const ViewerSceneHeader = ({
         <div className="flex items-center gap-3 px-3 py-2.5">
           {onBack ? (
             <button
-              aria-label={vi.viewerSceneHeader.back}
+              aria-label="Back"
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-white/10"
               onClick={onBack}
               type="button"
@@ -114,7 +112,7 @@ export const ViewerSceneHeader = ({
             </button>
           ) : (
             <Link
-              aria-label={vi.viewerSceneHeader.back}
+              aria-label="Back"
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-white/10"
               href={backHref}
               prefetch={false}
@@ -124,7 +122,7 @@ export const ViewerSceneHeader = ({
           )}
           <div className="min-w-0 flex-1">
             <div className="truncate font-medium text-foreground text-sm">
-              {projectName || vi.viewerSceneHeader.untitled}
+              {projectName || 'Untitled'}
             </div>
             {owner?.username && (
               <Link
@@ -149,7 +147,7 @@ export const ViewerSceneHeader = ({
                 className="text-muted-foreground transition-colors hover:text-foreground"
                 onClick={() => handleBreadcrumbClick('root')}
               >
-                {vi.viewerSceneHeader.site}
+                Site
               </button>
 
               <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
@@ -157,7 +155,7 @@ export const ViewerSceneHeader = ({
                 className={`truncate transition-colors ${level ? 'text-muted-foreground hover:text-foreground' : 'font-medium text-foreground'}`}
                 onClick={() => handleBreadcrumbClick('building')}
               >
-                {building.name || vi.viewerSceneHeader.building}
+                {building.name || 'Building'}
               </button>
 
               {level && (
@@ -200,7 +198,7 @@ export const ViewerSceneHeader = ({
       {building && levels.length > 0 && (
         <div className="corner-smooth pointer-events-auto flex w-48 flex-col overflow-hidden rounded-2xl border border-border/40 bg-background/95 py-1 shadow-elevation-4 backdrop-blur-xl transition-colors duration-200 ease-out">
           <span className="px-3 py-2 font-medium text-[10px] text-muted-foreground uppercase tracking-wider">
-            {vi.viewerSceneHeader.levels}
+            Levels
           </span>
           <div className="flex flex-col">
             {levels.map((lvl) => {

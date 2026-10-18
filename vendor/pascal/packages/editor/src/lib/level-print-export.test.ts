@@ -437,9 +437,9 @@ describe('per-level print STL export', () => {
 
     expect(Object.keys(files)).toEqual(['[Content_Types].xml', '_rels/.rels', '3D/3dmodel.model'])
     expect(model.unit).toBe('millimeter')
-    expect(object.name).toBe('Pascal - các phần theo tầng')
+    expect(object.name).toBe('Pascal level parts')
     expect(partManifest.map((part) => part.name)).toEqual([
-      '00 Bệ',
+      '00 Plinth',
       '01 Ground & Entry',
       '02 Upper',
     ])
@@ -447,7 +447,7 @@ describe('per-level print STL export', () => {
     expect(bundle.report.format).toBe('3mf')
     expect(bundle.report.parts.map((part) => part.filename)).toEqual([null, null, null])
     expect(bundle.report.parts.map((part) => part.objectName)).toEqual([
-      '00 Bệ',
+      '00 Plinth',
       '01 Ground & Entry',
       '02 Upper',
     ])

@@ -1,6 +1,6 @@
 'use client'
 
-import { Icon } from '../../lib/offline-icons'
+import { Icon } from '@iconify/react'
 import {
   acquireSceneReadOnlyLease,
   getCatalogMaterialById,
@@ -17,15 +17,12 @@ import {
   PERF_OVERLAY_ENABLED,
   recordPerfSample,
   SceneEnvironment,
-  SectionPlaneControl,
   useViewer,
-  ViewCube,
   Viewer,
   type ViewerImmersiveSession,
   ViewerPresentations,
 } from '@pascal-app/viewer'
 import {
-  type CSSProperties,
   memo,
   Profiler,
   type ProfilerOnRenderCallback,
@@ -38,10 +35,9 @@ import {
 } from 'react'
 import { ViewerOverlay } from '../../components/viewer-overlay'
 import { ViewerZoneSystem } from '../../components/viewer-zone-system'
-import { type CommitVerdict, type SaveStatus, useAutoSave } from '../../hooks/use-auto-save'
+import { type SaveStatus, useAutoSave } from '../../hooks/use-auto-save'
 import { useKeyboard } from '../../hooks/use-keyboard'
 import { useSaveShortcut } from '../../hooks/use-save-shortcut'
-import { vi } from '../../i18n/vi'
 import {
   createLocalProjectPresentationPersistence,
   type LocalProjectPresentationPersistence,
@@ -53,7 +49,6 @@ import {
   type SceneGraph,
   writePersistedSelection,
 } from '../../lib/scene'
-import { getPascalRoot } from '../../lib/pascal-root'
 import { disposeSFXBus, initSFXBus } from '../../lib/sfx-bus'
 import { useUnitFocusRules } from '../../lib/units'
 import { type CameraHintAction, useCameraHintFocus } from '../../store/use-camera-hint-focus'
@@ -75,8 +70,6 @@ import { EditorCommands } from '../ui/command-palette/editor-commands'
 import { FloatingLevelSelector } from '../ui/floating-level-selector'
 import { HelperManager } from '../ui/helpers/helper-manager'
 import { PanelManager } from '../ui/panels/panel-manager'
-import { SaveAsTemplateContext, type SaveAsTemplateResult } from '../ui/panels/save-as-template'
-import { KeyboardShortcutsDialogHost } from '../ui/sidebar/panels/settings-panel/keyboard-shortcuts-dialog'
 import { ErrorBoundary } from '../ui/primitives/error-boundary'
 import { useSidebarStore } from '../ui/primitives/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/primitives/tooltip'
@@ -222,31 +215,6 @@ export interface EditorProps {
   onSaveShortcut?: () => boolean | undefined
   onDirty?: () => void
   onSaveStatusChange?: (status: SaveStatus) => void
-  /**
-   * Host rule check, run on the edited graph before the edit is adopted
-   * (AppFront F-15, decision 6A). A rejection undoes the operation and the
-   * message is handed back through `onCommitRejected`.
-   */
-  validateCommit?: (scene: SceneGraph) => CommitVerdict
-  /** What to show when `validateCommit` refuses an edit. */
-  onCommitRejected?: (message: string) => void
-  /**
-   * "Lưu làm khuôn mẫu" (AppFront #25): the host stores the node as a property
-   * template and returns the sentence to show. Omitted → no button.
-   */
-  onSaveAsTemplate?: (nodeId: string) => Promise<SaveAsTemplateResult>
-  /**
-   * Viewer role: the scene store takes a read-only lease, so every write
-   * action is a no-op, the edit tools never arm, and the panels that already
-   * read `useScene(s => s.readOnly)` hide their edit affordances.
-   */
-  readOnly?: boolean
-  /**
-   * AppFront 23-B-016: the machine has neither WebGPU nor WebGL. Forwarded to
-   * the inner `<Viewer>`, which then renders nothing so the host shows its own
-   * card (PASCAL-03) instead of the viewer's fallback reporting "ready".
-   */
-  onRendererUnavailable?: () => void
 
   // Version preview
   previewScene?: SceneGraph
@@ -289,7 +257,7 @@ function EditorSceneCrashFallback() {
   return (
     <div className="fixed inset-0 z-80 flex items-center justify-center bg-background/95 p-4 text-foreground">
       <div className="w-full max-w-md rounded-2xl border border-border/60 bg-background p-6 shadow-xl">
-        <h2 className="font-semibold text-lg">{vi.editorRoot.sceneRenderFailed}</h2>
+        <h2 className="font-semibold text-lg">The editor scene failed to render</h2>
         <p className="mt-2 text-muted-foreground text-sm">
           You can retry the scene or return home without reloading the whole app shell.
         </p>
@@ -373,21 +341,13 @@ function SidebarSlot({ children }: { children: ReactNode }) {
   }, [setWidth, setIsCollapsed, setIsDragging])
 
   return (
-    // Outer: no overflow-hidden so the handle can extend into the gap.
-    // AppFront: in a frame narrower than 50rem (`.pascal-root` is a size
-    // container) the layout stacks: the slot spans the frame and takes the top
-    // 45 % of it, so panels and viewer both stay inside the frame instead of a
-    // fixed 432 px slot being clipped by it.
+    // Outer: no overflow-hidden so the handle can extend into the gap
     <div
-      className={`relative h-full w-(--sidebar-slot-width) flex-shrink-0 rounded-xl @max-[50rem]:w-full ${
-        isCollapsed ? '@max-[50rem]:h-2' : '@max-[50rem]:h-[45%]'
-      }`}
-      style={
-        {
-          '--sidebar-slot-width': `${isCollapsed ? 8 : width}px`,
-          transition: isDragging ? 'none' : 'width 150ms ease',
-        } as CSSProperties
-      }
+      className="relative h-full flex-shrink-0 rounded-xl"
+      style={{
+        width: isCollapsed ? 8 : width,
+        transition: isDragging ? 'none' : 'width 150ms ease',
+      }}
     >
       {/* Inner: overflow-hidden clips content to rounded corners */}
       <div className="h-full w-full overflow-hidden rounded-xl">
@@ -395,7 +355,7 @@ function SidebarSlot({ children }: { children: ReactNode }) {
           <div
             className="absolute inset-0 z-10 cursor-col-resize transition-colors hover:bg-primary/20"
             onPointerDown={handleGrabDown}
-            title={vi.editorRoot.expandSidebar}
+            title="Expand sidebar"
           />
         ) : (
           children
@@ -405,7 +365,7 @@ function SidebarSlot({ children }: { children: ReactNode }) {
       {/* Handle: extends into the gap, centered on the gap midpoint */}
       {!isCollapsed && (
         <div
-          className="group absolute inset-y-0 -right-3.5 z-10 flex w-4 cursor-col-resize items-stretch justify-center py-4 @max-[50rem]:hidden"
+          className="group absolute inset-y-0 -right-3.5 z-10 flex w-4 cursor-col-resize items-stretch justify-center py-4"
           onPointerDown={handleResizerDown}
         >
           <div className="w-px self-stretch rounded-full bg-transparent transition-colors group-hover:bg-neutral-300" />
@@ -417,36 +377,20 @@ function SidebarSlot({ children }: { children: ReactNode }) {
 
 // ── UI overlays: fixed, scoped to viewer area via transform containing block ──
 
-// AppFront: in the stacked (narrow-frame) layout the viewer starts under the
-// sidebar slot: root padding 12 + slot (45 % of the padded height, or the 8 px
-// collapsed strip) + gap 12.
-function ViewerOverlays({
-  left,
-  sidebarCollapsed,
-  children,
-}: {
-  left: number
-  sidebarCollapsed: boolean
-  children: ReactNode
-}) {
+function ViewerOverlays({ left, children }: { left: number; children: ReactNode }) {
   return (
     <div
-      className={`pointer-events-none top-0 left-(--viewer-overlay-left) @max-[50rem]:left-3 ${
-        sidebarCollapsed
-          ? '@max-[50rem]:top-8'
-          : '@max-[50rem]:top-[calc(24px_+_0.45_*_(100cqh_-_24px))]'
-      }`}
-      style={
-        {
-          '--viewer-overlay-left': `${left}px`,
-          position: 'fixed',
-          right: 0,
-          bottom: 0,
-          // Creates a containing block so position:fixed children are scoped here
-          transform: 'translateZ(0)',
-          zIndex: 30,
-        } as CSSProperties
-      }
+      className="pointer-events-none"
+      style={{
+        position: 'fixed',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left,
+        // Creates a containing block so position:fixed children are scoped here
+        transform: 'translateZ(0)',
+        zIndex: 30,
+      }}
     >
       {children}
     </div>
@@ -586,7 +530,7 @@ function CameraControlHintItem({ hint }: { hint: CameraControlHint }) {
   return (
     <div className="flex min-w-0 flex-col items-center gap-1.5 px-4 text-center first:pl-0 last:pr-0">
       <span className="font-medium text-[10px] text-muted-foreground/60 tracking-[0.03em]">
-        {vi.contextualHelp.cameraAction[hint.action]}
+        {hint.action}
       </span>
       <div className="flex flex-wrap items-center justify-center gap-1.5">
         <ShortcutSequence keys={hint.keys} />
@@ -619,12 +563,9 @@ function ViewerCanvasControlsHint({
   }
 
   return (
-    // Embedded in a narrow host frame (size container < 1400px) the column is too
-    // narrow for a centred hint to clear the 320px inspector at `right-4`:
-    // centre it in the space left of the inspector instead.
-    <div className="pointer-events-none absolute top-14 left-1/2 z-40 max-w-[calc(100%-2rem)] -translate-x-1/2 @max-[1400px]:left-[calc((100%-21rem)/2)] @max-[1400px]:max-w-[calc(100%-22rem)]">
+    <div className="pointer-events-none absolute top-14 left-1/2 z-40 max-w-[calc(100%-2rem)] -translate-x-1/2">
       <section
-        aria-label={vi.editorRoot.cameraControlsHint}
+        aria-label="Camera controls hint"
         className="pointer-events-auto flex items-start gap-3 rounded-2xl border border-border/35 bg-background/90 px-3.5 py-2.5 shadow-elevation-4 backdrop-blur-xl"
       >
         <div
@@ -638,7 +579,7 @@ function ViewerCanvasControlsHint({
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              aria-label={vi.editorRoot.dismissCameraControlsHint}
+              aria-label="Dismiss camera controls hint"
               className="flex h-5 shrink-0 items-center justify-center self-center border-border/18 border-l pl-3 text-muted-foreground/70 transition-colors hover:text-foreground"
               onClick={onDismiss}
               type="button"
@@ -869,11 +810,7 @@ const ViewerSceneContent = memo(function ViewerSceneContent({
   // selection, editing handles, and the tool manager (which mounts the site
   // boundary flags) so the framed shot stays clean.
   const isCaptureMode = useEditor((s) => s.isCaptureMode)
-  // A viewer-role host (`readOnly`) holds the scene read-only lease: its
-  // handles and floating action menus are not mounted at all (AppFront #30/#41).
-  const sceneReadOnly = useScene((s) => s.readOnly)
-  const noEditing =
-    isVersionPreviewMode || isFirstPersonMode || isStudioMode || isCaptureMode || sceneReadOnly
+  const noEditing = isVersionPreviewMode || isFirstPersonMode || isStudioMode || isCaptureMode
   return (
     <>
       <SceneEnvironment />
@@ -1094,7 +1031,6 @@ const ViewerCanvas = memo(function ViewerCanvas({
   floorplanSceneSlot,
   disablePostFx = false,
   immersive,
-  onRendererUnavailable,
 }: {
   isVersionPreviewMode: boolean
   isLoading: boolean
@@ -1110,7 +1046,6 @@ const ViewerCanvas = memo(function ViewerCanvas({
   floorplanSceneSlot?: ReactNode
   disablePostFx?: boolean
   immersive?: ViewerImmersiveSession
-  onRendererUnavailable?: () => void
 }) {
   const viewMode = useEditor((s) => s.viewMode)
   const floorplanPaneRatio = useEditor((s) => s.floorplanPaneRatio)
@@ -1226,9 +1161,6 @@ const ViewerCanvas = memo(function ViewerCanvas({
               onDismiss={dismissCameraControlsHint}
             />
           ) : null}
-          {/* AppFront #32/#34: section-plane slider and view cube, DOM over the canvas. */}
-          {!(showLoader || isFirstPersonMode) && <SectionPlaneControl />}
-          {!(showLoader || isFirstPersonMode) && <ViewCube />}
           <SelectionPersistenceManager enabled={hasLoadedInitialScene && !showLoader} />
           <Viewer
             defaultRender={EDITOR_DEFAULT_RENDER}
@@ -1239,7 +1171,6 @@ const ViewerCanvas = memo(function ViewerCanvas({
             // Other modes retain the viewer's configured background policy.
             transparent={presetIsolation === null ? undefined : true}
             onSceneReadyChange={onSceneReadyChange}
-            onRendererUnavailable={onRendererUnavailable}
             renderContext="editor"
             renderPaused={!show3d && !showLoader}
             sceneReadyKey={sceneReadyKey}
@@ -1341,10 +1272,6 @@ function EditorContent({
   onSaveShortcut,
   onDirty,
   onSaveStatusChange,
-  validateCommit,
-  onCommitRejected,
-  readOnly = false,
-  onRendererUnavailable,
   previewScene,
   isVersionPreviewMode = false,
   isLoading = false,
@@ -1392,8 +1319,6 @@ function EditorContent({
     onDirty,
     onSaveStatusChange,
     isVersionPreviewMode,
-    validateCommit,
-    onCommitRejected,
   })
 
   const handleSaveShortcut = useCallback(() => {
@@ -1515,25 +1440,14 @@ function EditorContent({
     return releaseReadOnly
   }, [isVersionPreviewMode])
 
-  // Same lock for a viewer-role host. Leases nest, so this and the preview
-  // lease above can be held at once without either releasing the other's.
-  useEffect(() => {
-    if (!readOnly) return
-    const releaseReadOnly = acquireSceneReadOnlyLease()
-    useEditor.getState().setMode('select')
-    return releaseReadOnly
-  }, [readOnly])
-
   useEffect(() => {
     if (!isPreviewMode) setPreviewStageMode('3d')
   }, [isPreviewMode])
 
   useEffect(() => {
-    // AppFront: dark on the Pascal root, not on AppFront's body (portals land in the root).
-    const themeRoot = getPascalRoot() ?? document.body
-    themeRoot.classList.add('dark')
+    document.body.classList.add('dark')
     return () => {
-      themeRoot.classList.remove('dark')
+      document.body.classList.remove('dark')
     }
   }, [])
 
@@ -1643,7 +1557,6 @@ function EditorContent({
       viewerSceneSlot={viewerSceneSlot}
       floorplanSceneSlot={floorplanSceneSlot}
       immersive={immersive}
-      onRendererUnavailable={onRendererUnavailable}
     />
   )
 
@@ -1763,8 +1676,6 @@ function EditorContent({
             />
             <EditorCommands />
             <CommandPalette emptyAction={commandPaletteEmptyAction} />
-            {/* `?` target (AppFront #23): one shortcuts dialog for every sidebar tab. */}
-            <KeyboardShortcutsDialogHost />
           </>
         )}
       </>
@@ -1778,7 +1689,7 @@ function EditorContent({
   const overlayLeft = LAYOUT_PADDING + (isSidebarCollapsed ? 8 : sidebarWidth) + LAYOUT_GAP
 
   return (
-    <div className="dark flex h-full w-full gap-3 bg-neutral-100 p-3 text-foreground @max-[50rem]:flex-col">
+    <div className="dark flex h-full w-full gap-3 bg-neutral-100 p-3 text-foreground">
       <FloorplanModeCoordinator />
       {visibleLoader && (
         <div className="fixed inset-0 z-60">
@@ -1816,7 +1727,7 @@ function EditorContent({
           <div className="relative flex-1 overflow-hidden rounded-xl">{viewerCanvas}</div>
 
           {/* Fixed UI overlays scoped to the viewer area */}
-          <ViewerOverlays left={overlayLeft} sidebarCollapsed={isSidebarCollapsed}>
+          <ViewerOverlays left={overlayLeft}>
             <div className="pointer-events-auto">
               <ActionMenu />
             </div>
@@ -1840,9 +1751,7 @@ function EditorContent({
 export default function Editor(props: EditorProps) {
   return (
     <Profiler id="editor" onRender={recordEditorRender}>
-      <SaveAsTemplateContext.Provider value={props.onSaveAsTemplate ?? null}>
-        <EditorContent {...props} />
-      </SaveAsTemplateContext.Provider>
+      <EditorContent {...props} />
     </Profiler>
   )
 }

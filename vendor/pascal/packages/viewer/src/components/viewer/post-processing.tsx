@@ -42,12 +42,6 @@ import { packNormalToRGB, unpackRGBToNormal } from '../../lib/tsl-compat'
 import useViewer from '../../store/use-viewer'
 import { useSceneAtmosphere } from './scene-atmosphere'
 
-/** Two colours a viewer could tell apart: any channel off by a 1/255 step. */
-function colorsDiffer(a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }) {
-  const step = 1 / 255
-  return Math.abs(a.r - b.r) > step || Math.abs(a.g - b.g) > step || Math.abs(a.b - b.b) > step
-}
-
 // Scene-referred grade applied before the output tone mapping (AgX). AgX rolls
 // highlights off gently but reads flat on its own; a mild mid-gray-pivot
 // contrast + saturation lift restores the punch. Rendered shading only.
@@ -758,14 +752,6 @@ const PostProcessingPasses = ({
     bgSkyDeepTarget.current.set(deepSkyColor(bgTheme.backgroundSky ?? bgTheme.background))
     bgSkyDeepCurrent.current.lerp(bgSkyDeepTarget.current, Math.min(delta, 0.1) * 4)
     bgSkyDeepUniform.current.value.copy(bgSkyDeepCurrent.current)
-    // The lerp above is the one viewer effect that needs frames nobody asks
-    // for: a theme change invalidates once, and the frame limiter now only
-    // advances on demand. Keep asking while the colour is still travelling,
-    // and stop the moment it lands: the threshold is a 1/255 step per channel,
-    // below which nothing is visible. (THREE.Color has no distance method —
-    // `manhattanDistanceTo` is Vector3's, and calling it here threw inside the
-    // frame, which the limiter reports as a dead render loop.)
-    if (colorsDiffer(bgCurrent.current, bgTarget.current)) invalidate()
     camProjInvUniform.current.value.copy(camera.projectionMatrixInverse)
     camWorldUniform.current.value.copy(camera.matrixWorld)
     // Ink colour follows the (lerping) background luminance — snaps dark↔light.

@@ -19,7 +19,6 @@ import { cn } from './../../../../../lib/utils'
 import useEditor from './../../../../../store/use-editor'
 import { ActionButton } from '../../../controls/action-button'
 import { PanelSection } from '../../../controls/panel-section'
-import { primitivesAndSidebar as vi } from '../../../../../i18n/regions/primitivesAndSidebar'
 
 function ZoneItem({ zone }: { zone: ZoneNode }) {
   const [cameraPopoverOpen, setCameraPopoverOpen] = useState(false)
@@ -68,7 +67,7 @@ function ZoneItem({ zone }: { zone: ZoneNode }) {
           <button
             className="relative flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-black/5 hover:text-foreground group-hover/row:opacity-100 dark:hover:bg-white/10"
             onClick={(e) => e.stopPropagation()}
-            title={vi.zonePanel.cameraSnapshot}
+            title="Camera snapshot"
           >
             <Camera className="h-3 w-3" />
             {zone.camera && (
@@ -93,7 +92,7 @@ function ZoneItem({ zone }: { zone: ZoneNode }) {
                 }}
               >
                 <Camera className="h-3.5 w-3.5" />
-                {vi.zonePanel.viewSnapshot}
+                View snapshot
               </button>
             )}
             <button
@@ -105,7 +104,7 @@ function ZoneItem({ zone }: { zone: ZoneNode }) {
               }}
             >
               <Camera className="h-3.5 w-3.5" />
-              {zone.camera ? vi.zonePanel.updateSnapshot : vi.zonePanel.takeSnapshot}
+              {zone.camera ? 'Update snapshot' : 'Take snapshot'}
             </button>
             {zone.camera && (
               <button
@@ -117,7 +116,7 @@ function ZoneItem({ zone }: { zone: ZoneNode }) {
                 }}
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                {vi.zonePanel.clearSnapshot}
+                Clear snapshot
               </button>
             )}
           </div>
@@ -170,7 +169,7 @@ export function ZonePanel() {
   if (!currentLevelId) {
     return (
       <div className="px-3 py-4 text-muted-foreground text-sm">
-        {vi.zonePanel.selectLevelToViewZones}
+        Select a level to view and create zones
       </div>
     )
   }
@@ -179,34 +178,34 @@ export function ZonePanel() {
     <div className="py-1">
       {levelZones.length === 0 ? (
         <div className="px-3 py-4 text-muted-foreground text-sm">
-          {vi.zonePanel.noZonesOnLevel}{' '}
+          No zones on this level.{' '}
           <button className="cursor-pointer text-primary hover:underline" onClick={handleAddZone}>
-            {vi.zonePanel.addOne}
+            Add one
           </button>
         </div>
       ) : (
         levelZones.map((zone) => <ZoneItem key={zone.id} zone={zone} />)
       )}
       {selectedZone ? (
-        <PanelSection className="mt-2 border-t" title={vi.zonePanel.actions}>
+        <PanelSection className="mt-2 border-t" title="Actions">
           <ActionButton
             className="w-full flex-none"
             icon={<Save className="h-4 w-4" />}
-            label={vi.zonePanel.saveToCatalog}
+            label="Save to catalog"
             onClick={() => emitter.emit('room-preset:create', { zoneId: selectedZone.id })}
             type="button"
           />
           <ActionButton
             className="w-full flex-none"
             icon={<Trash2 className="h-4 w-4 text-red-400" />}
-            label={vi.zonePanel.delete}
+            label="Delete"
             onClick={() => deleteSelectedZone(false)}
             type="button"
           />
           <ActionButton
             className="w-full flex-none"
             icon={<Trash2 className="h-4 w-4 text-red-400" />}
-            label={vi.zonePanel.deleteWithContents}
+            label="Delete with contents"
             onClick={() => deleteSelectedZone(true)}
             type="button"
           />

@@ -8,7 +8,6 @@ import {
   normalizeWallCurveOffset,
 } from '@pascal-app/core'
 import { SliderControl } from '@pascal-app/editor'
-import { vi } from '../i18n/vi'
 
 /**
  * Custom inspector editors for fence fields that don't map to a single
@@ -50,7 +49,7 @@ export function FenceLengthEditor({
 
   return (
     <SliderControl
-      label={vi.common.length}
+      label="Length"
       max={50}
       min={0.1}
       onChange={handleChange}
@@ -74,7 +73,7 @@ export function FenceCurveEditor({
 
   return (
     <SliderControl
-      label={vi.wall.panel.curve}
+      label="Curve"
       max={Math.max(0.01, maxCurveOffset)}
       min={-Math.max(0.01, maxCurveOffset)}
       onChange={(value) => onUpdate({ curveOffset: normalizeWallCurveOffset(node, value) })}

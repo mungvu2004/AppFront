@@ -1,6 +1,5 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { EyebrowVentNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Inspector descriptor for the eyebrow vent. Move / Duplicate use the
@@ -11,7 +10,7 @@ export const eyebrowVentParametrics: ParametricDescriptor<EyebrowVentNode> = {
   customPanel: () => import('./panel'),
   groups: [
     {
-      label: vi.common.style,
+      label: 'Style',
       fields: [
         {
           key: 'style',
@@ -24,7 +23,7 @@ export const eyebrowVentParametrics: ParametricDescriptor<EyebrowVentNode> = {
       ],
     },
     {
-      label: vi.common.dimensions,
+      label: 'Dimensions',
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.3, max: 1000, step: 0.05 },
         { key: 'depth', kind: 'number', unit: 'm', min: 0.2, max: 1000, step: 0.05 },

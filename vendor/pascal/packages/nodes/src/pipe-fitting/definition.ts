@@ -8,7 +8,6 @@ import { buildPipeFittingGeometry } from './geometry'
 import { pipeFittingParametrics } from './parametrics'
 import { getPipeFittingPorts } from './ports'
 import { PipeFittingNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * DWV fittings — minted automatically by the pipe draw tool (corner
@@ -99,15 +98,15 @@ export const pipeFittingDefinition: NodeDefinition<typeof PipeFittingNode> = {
   toolOptions: pipeFittingToolOptions,
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Click', label: vi.pipeFitting.shortcuts.place },
-    { key: 'Hover a pipe end', label: vi.pipeFitting.shortcuts.snapOntoRun },
-    { key: 'R / T', label: vi.pipeFitting.shortcuts.rotate45 },
-    { key: 'Alt', label: vi.pipeFitting.shortcuts.switchAxis },
-    { key: 'Esc', label: vi.pipeFitting.shortcuts.exit },
+    { key: 'Click', label: 'Place fitting' },
+    { key: 'Hover a pipe end', label: 'Snap onto the run' },
+    { key: 'R / T', label: 'Rotate ±45°' },
+    { key: 'Alt', label: 'Switch rotation axis (Y → X → Z)' },
+    { key: 'Esc', label: 'Exit' },
   ],
 
   presentation: {
-    label: vi.pipeFitting.catalogLabel,
+    label: 'Pipe Fitting',
     description: 'DWV joint — elbow bend, 45° wye, or sanitary tee.',
     // Reuses the duct-fitting artwork — DWV fittings read the same in the UI.
     icon: { kind: 'url', src: '/icons/duct-fitting.webp' },

@@ -8,7 +8,6 @@ import { buildCupolaFloorplan } from './floorplan'
 import { cupolaPaint } from './paint'
 import { cupolaParametrics } from './parametrics'
 import { CupolaNode } from './schema'
-import { vi } from '../i18n/vi'
 
 const SIDE_HANDLE_OFFSET = 0.3
 const HEIGHT_HANDLE_OFFSET = 0.25
@@ -126,10 +125,10 @@ export const cupolaDefinition: NodeDefinition<typeof CupolaNode> = {
 
   capabilities: {
     slots: () => [
-      { slotId: 'base', label: vi.cupola.slots.base, default: 'library:preset-softwhite' },
-      { slotId: 'body', label: vi.cupola.slots.body, default: 'library:preset-softwhite' },
-      { slotId: 'roof', label: vi.cupola.slots.roof, default: 'library:preset-softwhite' },
-      { slotId: 'louvers', label: vi.cupola.slots.louvers, default: CUPOLA_LOUVERS_DEFAULT },
+      { slotId: 'base', label: 'Base', default: 'library:preset-softwhite' },
+      { slotId: 'body', label: 'Body', default: 'library:preset-softwhite' },
+      { slotId: 'roof', label: 'Roof', default: 'library:preset-softwhite' },
+      { slotId: 'louvers', label: 'Louvers', default: CUPOLA_LOUVERS_DEFAULT },
     ],
     selectable: { hitVolume: 'bbox' },
     duplicable: true,
@@ -157,12 +156,12 @@ export const cupolaDefinition: NodeDefinition<typeof CupolaNode> = {
     move: () => import('./move-tool'),
   },
   toolHints: [
-    { key: 'Left click', label: vi.cupola.shortcuts.place },
-    { key: 'Esc', label: vi.cupola.shortcuts.cancel },
+    { key: 'Left click', label: 'Place cupola on roof' },
+    { key: 'Esc', label: 'Cancel' },
   ],
 
   presentation: {
-    label: vi.cupola.catalogLabel,
+    label: 'Cupola',
     description: 'Louvered roof lantern with a dome or pyramid cap and optional finial.',
     icon: { kind: 'url', src: '/icons/cupola.webp' },
     paletteSection: 'structure',

@@ -1,13 +1,10 @@
 import {
   type AnyNodeId,
-  collectStructuralGridAxes,
   DEFAULT_ANGLE_STEP,
   planWallInsertion,
   planWallSplitAtPoint,
-  resolveStructuralGridSnap,
   resolveWallConstruction,
   runAsSingleSceneHistoryStep,
-  type StructuralGridNode,
   snapPointAlongAngleRay,
   useScene,
   type WallConstructionOptions,
@@ -120,16 +117,6 @@ type SnapWallDraftArgs = {
   gridSnap?: (point: WallPlanPoint) => WallPlanPoint
   /** Optional magnetic snap radii. Omitted means wall tools keep their defaults. */
   snapRadii?: WallSnapRadii
-  /**
-   * Structural-grid axes of the active level. Omitted → read from the scene
-   * for the viewer's selected level. A crossing within reach snaps the point
-   * ("Giao trục"); it never overrides a wall corner.
-   */
-  gridAxes?: readonly StructuralGridNode[]
-}
-
-function activeLevelGridAxes(): StructuralGridNode[] {
-  return collectStructuralGridAxes(useScene.getState().nodes, useViewer.getState().selection.levelId)
 }
 
 export function snapWallDraftPointDetailed(args: SnapWallDraftArgs): WallDraftSnapResult {
@@ -144,7 +131,6 @@ export function snapWallDraftPointDetailed(args: SnapWallDraftArgs): WallDraftSn
     magnetic = true,
     gridSnap,
     snapRadii,
-    gridAxes,
   } = args
 
   if (bypassSnap) return { point, snap: null, targetWallIds: [] }
@@ -154,11 +140,6 @@ export function snapWallDraftPointDetailed(args: SnapWallDraftArgs): WallDraftSn
   // then the nearer of midpoint / crossing — see `findWallSpecialPointSnap`.
   if (magnetic) {
     const special = findWallSpecialPointSnap(point, walls, ignoreWallIds, snapRadii)
-    if (special?.snap === 'endpoint') return special
-    const axisSnap = resolveStructuralGridSnap(point, gridAxes ?? activeLevelGridAxes())
-    if (axisSnap?.kind === 'intersection') {
-      return { point: axisSnap.point, snap: 'gridIntersection', targetWallIds: [] }
-    }
     if (special) return special
   }
 

@@ -928,7 +928,7 @@ function SystemSummaryPill({
   nodeId,
   unit,
 }: {
-  metricNotation: 'meters' | 'centimeters' | 'millimeters'
+  metricNotation: 'meters' | 'millimeters'
   nodeId: AnyNodeId
   unit: 'metric' | 'imperial'
 }) {

@@ -58,7 +58,6 @@ import {
 import { useViewer } from '@pascal-app/viewer'
 import { Spline } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { vi } from '../i18n/vi'
 import { resolveWallOpeningCeiling } from '../shared/wall-opening-ceiling'
 import { CurtainWallPanel } from './curtain-wall-panel'
 import { hasWallCurveBlockingChildren } from './curve-eligibility'
@@ -90,25 +89,25 @@ const WALL_TRIM_PROFILE_OPTIONS: Record<
   Array<{ label: string; value: WallTrimProfile }>
 > = {
   skirting: [
-    { label: vi.wall.panel.trim.flat, value: 'flat' },
-    { label: vi.wall.panel.trim.modern, value: 'base-modern' },
-    { label: vi.wall.panel.trim.colonial, value: 'base-colonial' },
-    { label: vi.wall.panel.trim.shoe, value: 'base-shoe' },
-    { label: vi.wall.panel.trim.ogee, value: 'base-ogee' },
+    { label: 'Flat', value: 'flat' },
+    { label: 'Modern', value: 'base-modern' },
+    { label: 'Colonial', value: 'base-colonial' },
+    { label: 'Shoe', value: 'base-shoe' },
+    { label: 'Ogee', value: 'base-ogee' },
   ],
   crown: [
-    { label: vi.wall.panel.trim.flat, value: 'flat' },
-    { label: vi.wall.panel.trim.cove, value: 'crown-cove' },
-    { label: vi.wall.panel.trim.ogee, value: 'crown-ogee' },
-    { label: vi.wall.panel.trim.craft, value: 'crown-craftsman' },
-    { label: vi.wall.panel.trim.layered, value: 'crown-layered' },
+    { label: 'Flat', value: 'flat' },
+    { label: 'Cove', value: 'crown-cove' },
+    { label: 'Ogee', value: 'crown-ogee' },
+    { label: 'Craft', value: 'crown-craftsman' },
+    { label: 'Layered', value: 'crown-layered' },
   ],
   chairRail: [
-    { label: vi.wall.panel.trim.flat, value: 'flat' },
-    { label: vi.wall.panel.trim.round, value: 'rail-rounded' },
-    { label: vi.wall.panel.trim.ogee, value: 'rail-ogee' },
-    { label: vi.wall.panel.trim.picture, value: 'rail-picture' },
-    { label: vi.wall.panel.trim.step, value: 'rail-stepped' },
+    { label: 'Flat', value: 'flat' },
+    { label: 'Round', value: 'rail-rounded' },
+    { label: 'Ogee', value: 'rail-ogee' },
+    { label: 'Picture', value: 'rail-picture' },
+    { label: 'Step', value: 'rail-stepped' },
   ],
 }
 
@@ -266,26 +265,26 @@ export default function WallPanel() {
     <PanelWrapper
       icon="/icons/wall.webp"
       onClose={handleClose}
-      title={node.name || vi.wall.panel.wall}
+      title={node.name || 'Wall'}
       width={280}
     >
-      <PanelSection title={vi.wall.panel.wallType}>
+      <PanelSection title="Wall type">
         <SegmentedControl
           onChange={(wallType) => handleUpdate({ wallType })}
           options={[
-            { label: vi.wall.panel.standard, value: 'standard' },
-            { label: vi.wall.panel.curtainWall, value: 'curtain' },
+            { label: 'Standard', value: 'standard' },
+            { label: 'Curtain wall', value: 'curtain' },
           ]}
           value={node.wallType ?? 'standard'}
         />
       </PanelSection>
-      <PanelSection title={vi.wall.panel.dimensions}>
+      <PanelSection title="Dimensions">
         <SliderControl
           onCommit={handleCommit}
           onCancel={handleCancel}
           restoreOnCommit={false}
           previewWhileTyping
-          label={vi.wall.panel.length}
+          label="Length"
           max={metersToLinearUnit(1000, unit)}
           min={metersToLinearUnit(0.1, unit)}
           onChange={(value) =>
@@ -299,19 +298,19 @@ export default function WallPanel() {
           value={displayLength}
         />
         <div className="px-1 font-medium text-[10px] text-muted-foreground/80 uppercase tracking-wider">
-          {vi.wall.panel.top}
+          Top
         </div>
         <SegmentedControl
           onChange={handleTopModeChange}
           options={[
-            { label: vi.wall.panel.followsLevel, value: 'storey' },
-            { label: vi.wall.panel.customHeight, value: 'custom' },
+            { label: 'Follows level', value: 'storey' },
+            { label: 'Custom height', value: 'custom' },
           ]}
           value={isPlaneBound ? 'storey' : 'custom'}
         />
         {isPlaneBound ? (
           <div className="px-1 text-[11px] text-muted-foreground">
-            {vi.wall.panel.currently(formatLinearMeasurement(height, unit))}
+            Currently {formatLinearMeasurement(height, unit)}
           </div>
         ) : (
           <SliderControl
@@ -319,7 +318,7 @@ export default function WallPanel() {
             onCancel={handleCancel}
             restoreOnCommit={false}
             previewWhileTyping
-            label={vi.wall.panel.height}
+            label="Height"
             max={metersToLinearUnit(1000, unit)}
             min={metersToLinearUnit(0.1, unit)}
             onChange={(v) =>
@@ -334,19 +333,19 @@ export default function WallPanel() {
           />
         )}
         <div className="px-1 font-medium text-[10px] text-muted-foreground/80 uppercase tracking-wider">
-          {vi.wall.panel.bottom}
+          Bottom
         </div>
         <SegmentedControl
           onChange={handleInfillChange}
           options={[
-            { label: vi.wall.panel.auto, value: 'auto' },
-            { label: vi.wall.panel.fillToTerrain, value: 'terrain' },
+            { label: 'Auto', value: 'auto' },
+            { label: 'Fill to terrain', value: 'terrain' },
           ]}
           value={followsTerrain ? 'terrain' : 'auto'}
         />
         {followsTerrain && (
           <div className="px-1 text-[11px] text-muted-foreground">
-            {vi.wall.panel.extendsToTerrain}
+            Extends downward to meet the terrain. Height and top stay unchanged.
           </div>
         )}
         {node.assembly && node.wallType !== 'curtain' ? (
@@ -355,10 +354,10 @@ export default function WallPanel() {
           // section is the only place thickness changes.
           <div className="flex items-center justify-between px-2 py-1.5">
             <span className="font-medium text-[10px] text-muted-foreground uppercase tracking-wider">
-              {vi.wall.panel.thickness}
+              Thickness
             </span>
             <span className="text-[11px] text-muted-foreground tabular-nums">
-              {formatLinearMeasurement(thickness, unit)} · {vi.wall.panel.fromAssembly}
+              {formatLinearMeasurement(thickness, unit)} · from assembly
             </span>
           </div>
         ) : (
@@ -367,7 +366,7 @@ export default function WallPanel() {
             onCancel={handleCancel}
             restoreOnCommit={false}
             previewWhileTyping
-            label={node.wallType === 'curtain' ? vi.wall.panel.frameDepth : vi.wall.panel.thickness}
+            label={node.wallType === 'curtain' ? 'Frame depth' : 'Thickness'}
             max={metersToLinearUnit(1000, unit)}
             min={metersToLinearUnit(0.05, unit)}
             onChange={(v) =>
@@ -390,7 +389,7 @@ export default function WallPanel() {
             onCancel={handleCancel}
             restoreOnCommit={false}
             previewWhileTyping
-            label={vi.wall.panel.curve}
+            label="Curve"
             max={Math.max(metersToLinearUnit(0.01, unit), displayMaxCurveOffset)}
             min={-Math.max(metersToLinearUnit(0.01, unit), displayMaxCurveOffset)}
             onChange={(v) =>
@@ -438,7 +437,7 @@ export default function WallPanel() {
           <WallTrimSection
             node={node}
             onUpdate={handleUpdate}
-            title={vi.wall.panel.skirtingTitle}
+            title="Skirting"
             trimKey="skirting"
             trimValue={skirting}
             unit={unit}
@@ -448,7 +447,7 @@ export default function WallPanel() {
           <WallTrimSection
             node={node}
             onUpdate={handleUpdate}
-            title={vi.wall.panel.crownTitle}
+            title="Crown molding"
             trimKey="crown"
             trimValue={crown}
             unit={unit}
@@ -458,7 +457,7 @@ export default function WallPanel() {
           <WallTrimSection
             node={node}
             onUpdate={handleUpdate}
-            title={vi.wall.panel.chairRailTitle}
+            title="Chair rail"
             trimKey="chairRail"
             trimValue={chairRail}
             unit={unit}
@@ -469,11 +468,11 @@ export default function WallPanel() {
       )}
 
       {!hasWallChildrenBlockingCurve && (
-        <PanelSection title={vi.wall.panel.actions}>
+        <PanelSection title="Actions">
           <ActionGroup>
             <ActionButton
               icon={<Spline className="h-3.5 w-3.5" />}
-              label={vi.wall.panel.curve}
+              label="Curve"
               onClick={handleCurve}
             />
           </ActionGroup>
@@ -513,9 +512,9 @@ function WallFaceBandSection({
     })
 
   return (
-    <PanelSection title={vi.wall.panel.bands}>
+    <PanelSection title="Wall bands">
       <SliderControl
-        label={vi.wall.panel.bandCount}
+        label="Bands"
         max={4}
         min={1}
         onChange={(value) => onUpdate(buildWallFaceBandCountPatch(node, Math.round(value)))}
@@ -525,7 +524,7 @@ function WallFaceBandSection({
       />
       {bandCount >= 2 && (
         <SliderControl
-          label={vi.wall.panel.lower}
+          label="Lower"
           max={metersToLinearUnit(wallHeightMeters, unit)}
           min={metersToLinearUnit(0, unit)}
           onChange={(value) =>
@@ -544,7 +543,7 @@ function WallFaceBandSection({
       )}
       {bandCount >= 3 && (
         <SliderControl
-          label={vi.wall.panel.middle}
+          label="Middle"
           max={metersToLinearUnit(Math.max(0, wallHeightMeters - lowerHeight), unit)}
           min={metersToLinearUnit(0, unit)}
           onChange={(value) =>
@@ -563,7 +562,7 @@ function WallFaceBandSection({
       )}
       {bandCount >= 4 && (
         <SliderControl
-          label={vi.wall.panel.upper}
+          label="Upper"
           max={metersToLinearUnit(Math.max(0, wallHeightMeters - lowerHeight - middleHeight), unit)}
           min={metersToLinearUnit(0, unit)}
           onChange={(value) =>
@@ -619,7 +618,7 @@ function WallTrimSection({
     <PanelSection title={title}>
       <ActionGroup>
         <ActionButton
-          label={trimValue.enabled ? vi.wall.panel.hide(title) : vi.wall.panel.show(title)}
+          label={trimValue.enabled ? `Hide ${title.toLowerCase()}` : `Show ${title.toLowerCase()}`}
           onClick={() => updateTrim({ enabled: !trimValue.enabled })}
         />
       </ActionGroup>
@@ -628,9 +627,9 @@ function WallTrimSection({
           <SegmentedControl
             onChange={(next) => updateTrim({ sides: next as any })}
             options={[
-              { label: vi.wall.panel.interior, value: 'interior' },
-              { label: vi.wall.panel.exterior, value: 'exterior' },
-              { label: vi.wall.panel.both, value: 'both' },
+              { label: 'Interior', value: 'interior' },
+              { label: 'Exterior', value: 'exterior' },
+              { label: 'Both', value: 'both' },
             ]}
             value={trimValue.sides}
           />
@@ -640,7 +639,7 @@ function WallTrimSection({
             value={selectedProfile}
           />
           <SliderControl
-            label={vi.wall.panel.height}
+            label="Height"
             max={metersToLinearUnit(Math.max(0.05, wallHeightMeters), unit)}
             min={metersToLinearUnit(0.01, unit)}
             onChange={(value) =>
@@ -657,7 +656,7 @@ function WallTrimSection({
             value={metersToLinearUnit(trimValue.height, unit)}
           />
           <SliderControl
-            label={vi.wall.panel.proud}
+            label="Proud"
             max={metersToLinearUnit(0.2, unit)}
             min={metersToLinearUnit(0.001, unit)}
             onChange={(value) =>
@@ -675,7 +674,7 @@ function WallTrimSection({
           />
           {trimKey === 'chairRail' && (
             <SliderControl
-              label={vi.wall.panel.offset}
+              label="Offset"
               max={metersToLinearUnit(Math.max(0.05, wallHeightMeters - trimValue.height), unit)}
               min={metersToLinearUnit(0, unit)}
               onChange={(value) =>
@@ -821,32 +820,32 @@ function ThicknessInput({
 }
 
 const EXTERIOR_FINISH_OPTIONS: Array<{ value: WallAssemblyExteriorFinish; label: string }> = [
-  { value: 'none', label: vi.wall.panel.material.none },
-  { value: 'siding', label: vi.wall.panel.material.lapSiding },
-  { value: 'fiber-cement', label: vi.wall.panel.material.fiberCement },
-  { value: 'stucco', label: vi.wall.panel.material.stucco },
-  { value: 'brick', label: vi.wall.panel.material.brickVeneer },
-  { value: 'stone', label: vi.wall.panel.material.stoneVeneer },
+  { value: 'none', label: 'None' },
+  { value: 'siding', label: 'Lap siding' },
+  { value: 'fiber-cement', label: 'Fiber cement' },
+  { value: 'stucco', label: 'Stucco' },
+  { value: 'brick', label: 'Brick veneer' },
+  { value: 'stone', label: 'Stone veneer' },
 ]
 
 const SHEATHING_OPTIONS: Array<{ value: WallAssemblySheathingMaterial; label: string }> = [
-  { value: 'none', label: vi.wall.panel.material.none },
+  { value: 'none', label: 'None' },
   { value: 'osb', label: 'OSB' },
-  { value: 'plywood', label: vi.wall.panel.material.plywood },
-  { value: 'gypsum', label: vi.wall.panel.material.gypsum },
+  { value: 'plywood', label: 'Plywood' },
+  { value: 'gypsum', label: 'Gypsum' },
 ]
 
 const FRAMING_OPTIONS: Array<{ value: WallAssemblyFramingKind; label: string }> = [
-  { value: 'wood', label: vi.wall.panel.material.woodStuds },
-  { value: 'lgs', label: vi.wall.panel.material.steelStuds },
+  { value: 'wood', label: 'Wood studs' },
+  { value: 'lgs', label: 'Steel studs' },
   { value: 'cmu', label: 'CMU' },
   { value: 'icf', label: 'ICF' },
 ]
 
 const INTERIOR_FINISH_OPTIONS: Array<{ value: WallAssemblyInteriorFinish; label: string }> = [
-  { value: 'none', label: vi.wall.panel.material.none },
-  { value: 'drywall', label: vi.wall.panel.material.drywall },
-  { value: 'plaster', label: vi.wall.panel.material.plaster },
+  { value: 'none', label: 'None' },
+  { value: 'drywall', label: 'Drywall' },
+  { value: 'plaster', label: 'Plaster' },
 ]
 
 /** Cited default thickness for a finish the user just switched to. */
@@ -882,8 +881,8 @@ function WallAssemblySection({
   }
 
   return (
-    <PanelSection title={vi.wall.panel.assembly}>
-      <LayerRow label={vi.wall.panel.preset}>
+    <PanelSection title="Assembly">
+      <LayerRow label="Preset">
         <select
           className={SELECT_CLASS}
           onChange={(event) => {
@@ -897,7 +896,7 @@ function WallAssemblySection({
           }}
           value={assembly?.preset ?? ''}
         >
-          <option value="">{assembly ? vi.wall.panel.custom : vi.wall.panel.singleLayer}</option>
+          <option value="">{assembly ? 'Custom' : 'None (single layer)'}</option>
           {WALL_ASSEMBLY_PRESETS.map((preset) => (
             <option key={preset.id} value={preset.id}>
               {preset.label}
@@ -908,7 +907,7 @@ function WallAssemblySection({
 
       {assembly && (
         <>
-          <LayerRow label={vi.wall.panel.exterior}>
+          <LayerRow label="Exterior">
             <select
               className={SELECT_CLASS}
               onChange={(event) => {
@@ -940,7 +939,7 @@ function WallAssemblySection({
             )}
           </LayerRow>
 
-          <LayerRow label={vi.wall.panel.sheathing}>
+          <LayerRow label="Sheathing">
             <select
               className={SELECT_CLASS}
               onChange={(event) => {
@@ -980,7 +979,7 @@ function WallAssemblySection({
             )}
           </LayerRow>
 
-          <LayerRow label={vi.wall.panel.framing}>
+          <LayerRow label="Framing">
             <select
               className={SELECT_CLASS}
               onChange={(event) =>
@@ -1009,7 +1008,7 @@ function WallAssemblySection({
             />
           </LayerRow>
 
-          <LayerRow label={vi.wall.panel.interior}>
+          <LayerRow label="Interior">
             <select
               className={SELECT_CLASS}
               onChange={(event) => {
@@ -1046,7 +1045,7 @@ function WallAssemblySection({
 
           <div className="flex items-center justify-between px-2 py-1.5">
             <span className="font-medium text-[10px] text-muted-foreground uppercase tracking-wide">
-              {vi.wall.panel.totalThickness}
+              Total thickness
             </span>
             <span className="font-medium text-[11px] text-foreground tabular-nums">
               {formatLayerThickness(assemblyThickness(assembly), unit)}
@@ -1055,21 +1054,23 @@ function WallAssemblySection({
 
           {resolved.kind === 'partition' && (
             <div className="px-2 pb-1.5 text-[10px] text-muted-foreground">
-              {vi.wall.panel.partitionNote}
+              Partition: the interior finish is applied to both faces.
             </div>
           )}
           {resolved.kind === 'envelope' && resolved.exteriorSide == null && (
             <div className="px-2 pb-1.5 text-[10px] text-muted-foreground">
-              {vi.wall.panel.undeterminedFaceNote}
+              Which face is outside is undetermined (no room detected on either side) — the exterior
+              layers are drawn on the front face.
             </div>
           )}
           {presetNote && (
             <div className="px-2 pb-2 text-[10px] text-amber-600 dark:text-amber-400">
-              {vi.wall.panel.unverified(presetNote)}
+              Unverified: {presetNote}
             </div>
           )}
           <div className="px-2 pb-2 text-[10px] text-muted-foreground">
-            {vi.wall.panel.irc2021Note}
+            Layer thicknesses follow the 2021 IRC assembly data. Drafting aid, not engineering —
+            verify with the authority having jurisdiction.
           </div>
         </>
       )}

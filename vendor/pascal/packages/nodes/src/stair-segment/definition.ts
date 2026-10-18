@@ -6,7 +6,6 @@ import {
 } from '@pascal-app/core'
 import { stairSegmentParametrics } from './parametrics'
 import { StairSegmentNode } from './schema'
-import { vi } from '../i18n/vi'
 
 const SIDE_HANDLE_OFFSET = 0.24
 const LENGTH_HANDLE_OFFSET = 0.24
@@ -140,7 +139,7 @@ export const stairSegmentDefinition: NodeDefinition<typeof StairSegmentNode> = {
   },
 
   presentation: {
-    label: vi.stairSegment.catalogLabel,
+    label: 'Stair Segment',
     description: 'A single flight of a parent stair.',
     icon: { kind: 'url', src: '/icons/stairs.webp' },
     paletteSection: 'structure',

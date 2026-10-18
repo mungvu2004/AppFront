@@ -17,14 +17,14 @@ import { createLocalGuideImage } from '../../../lib/local-guide-image'
 import { cn } from '../../../lib/utils'
 import useEditor from '../../../store/use-editor'
 import { useUploadStore } from '../../../store/use-upload'
-import { controlsAndPanels as vi } from '../../../i18n/regions/controlsAndPanels'
 import { SliderControl } from '../controls/slider-control'
 import { Popover, PopoverContent, PopoverTrigger } from '../primitives/popover'
 import { ActionButton } from './action-button'
 
 const MAX_FILE_SIZE = 200 * 1024 * 1024 // 200MB
 const ACCEPTED_FILE_TYPES = '.glb,.gltf,image/jpeg,image/png,image/webp,image/gif'
-const REFERENCES_EMPTY_TEXT = vi.viewToggles.referencesEmptyText
+const REFERENCES_EMPTY_TEXT =
+  'Upload GLB meshes as scan references or blueprint images as guide references.'
 
 // ── Helper: get guide images for the current level ──────────────────────────
 
@@ -100,7 +100,7 @@ function UploadButton({ onError }: { onError: (message: string | null) => void }
       onError(null)
 
       if (file.size > MAX_FILE_SIZE) {
-        onError(vi.viewToggles.fileTooLarge)
+        onError('File is too large. Maximum size is 200 MB.')
         return
       }
 
@@ -108,7 +108,7 @@ function UploadButton({ onError }: { onError: (message: string | null) => void }
         file.name.toLowerCase().endsWith('.glb') || file.name.toLowerCase().endsWith('.gltf')
       const isImage = file.type.startsWith('image/')
       if (!(isScan || isImage)) {
-        onError(vi.viewToggles.uploadScanOrImage)
+        onError('Upload a .glb/.gltf scan or an image.')
         return
       }
 
@@ -120,7 +120,7 @@ function UploadButton({ onError }: { onError: (message: string | null) => void }
           setSelectedReferenceId(guide.id)
           setSelection({ selectedIds: [], zoneId: null })
         } catch {
-          onError(vi.viewToggles.couldNotAddGuideImage)
+          onError('Could not add that guide image.')
         } finally {
           setIsAddingGuide(false)
         }
@@ -129,13 +129,13 @@ function UploadButton({ onError }: { onError: (message: string | null) => void }
 
       const { uploadHandler } = useUploadStore.getState()
       if (!uploadHandler) {
-        onError(vi.viewToggles.scanUploadUnavailable)
+        onError('Scan upload is unavailable.')
         return
       }
 
       const projectId = window.location.pathname.split('/editor/')[1]?.split('/')[0]
       if (!projectId) {
-        onError(vi.viewToggles.openProjectBeforeUpload)
+        onError('Open a project before uploading a scan.')
         return
       }
 
@@ -148,7 +148,7 @@ function UploadButton({ onError }: { onError: (message: string | null) => void }
   return (
     <>
       <button
-        aria-label={vi.viewToggles.uploadScanOrGuideImage}
+        aria-label="Upload scan or guide image"
         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border/40 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
         disabled={isAddingGuide}
         onClick={() => fileInputRef.current?.click()}
@@ -210,14 +210,14 @@ function GuidesControl() {
               ? 'bg-white/15'
               : 'opacity-60 grayscale hover:bg-white/5 hover:opacity-100 hover:grayscale-0',
           )}
-          label={vi.viewToggles.guidesVisibility(showGuides)}
+          label={`Guides: ${showGuides ? 'Visible' : 'Hidden'}`}
           onClick={() => setShowGuides(!showGuides)}
           size="icon"
           variant="ghost"
         >
           <div className="relative">
             <img
-              alt={vi.viewToggles.guides}
+              alt="Guides"
               className="h-[28px] w-[28px] object-contain"
               src="/icons/floorplan.webp"
             />
@@ -231,7 +231,7 @@ function GuidesControl() {
         <PopoverTrigger asChild>
           <button
             aria-expanded={isOpen}
-            aria-label={vi.viewToggles.guideImageSettings}
+            aria-label="Guide image settings"
             className={cn(
               'flex h-11 w-6 items-center justify-center rounded-r-lg transition-colors',
               showGuides
@@ -261,10 +261,10 @@ function GuidesControl() {
               <img alt="" className="h-4 w-4 object-contain" src="/icons/floorplan.webp" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-foreground text-sm">{vi.viewToggles.guideImages}</p>
+              <p className="font-medium text-foreground text-sm">Guide images</p>
               {hasGuides && (
                 <p className="text-muted-foreground text-xs">
-                  {vi.viewToggles.guideImageCount(guides.length)}
+                  {guides.length} guide image{guides.length !== 1 ? 's' : ''} on this level
                 </p>
               )}
             </div>
@@ -301,14 +301,14 @@ function GuidesControl() {
                         src="/icons/floorplan.webp"
                       />
                       <p className="truncate font-medium text-foreground text-sm">
-                        {guide.name || vi.viewToggles.guideImageFallbackName(index + 1)}
+                        {guide.name || `Guide image ${index + 1}`}
                       </p>
                       {selectedReferenceId === guide.id && (
                         <Check className="ml-auto h-3.5 w-3.5 shrink-0 text-foreground/80" />
                       )}
                     </button>
                     <button
-                      aria-label={vi.viewToggles.deleteGuideImage}
+                      aria-label="Delete guide image"
                       className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover/item:opacity-100"
                       onClick={(event) => {
                         event.stopPropagation()
@@ -323,7 +323,7 @@ function GuidesControl() {
                     </button>
                   </div>
                   <SliderControl
-                    label={vi.viewToggles.opacity}
+                    label="Opacity"
                     max={100}
                     min={0}
                     onChange={(value) => handleOpacityChange(guide.id, value)}
@@ -389,13 +389,13 @@ function ScansControl() {
               ? 'bg-white/15'
               : 'opacity-60 grayscale hover:bg-white/5 hover:opacity-100 hover:grayscale-0',
           )}
-          label={vi.viewToggles.scansVisibility(showScans)}
+          label={`Scans: ${showScans ? 'Visible' : 'Hidden'}`}
           onClick={() => setShowScans(!showScans)}
           size="icon"
           variant="ghost"
         >
           <div className="relative">
-            <img alt={vi.viewToggles.scans} className="h-[28px] w-[28px] object-contain" src="/icons/mesh.webp" />
+            <img alt="Scans" className="h-[28px] w-[28px] object-contain" src="/icons/mesh.webp" />
             <span className="absolute -right-1.5 -bottom-1 min-w-[14px] rounded-full bg-white/20 px-[3px] text-center font-medium text-[9px] text-white/70 leading-[14px]">
               {scans.length}
             </span>
@@ -406,7 +406,7 @@ function ScansControl() {
         <PopoverTrigger asChild>
           <button
             aria-expanded={isOpen}
-            aria-label={vi.viewToggles.scanSettings}
+            aria-label="Scan settings"
             className={cn(
               'flex h-11 w-6 items-center justify-center rounded-r-lg transition-colors',
               showScans
@@ -436,10 +436,10 @@ function ScansControl() {
               <img alt="" className="h-4 w-4 object-contain" src="/icons/mesh.webp" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-foreground text-sm">{vi.viewToggles.scans}</p>
+              <p className="font-medium text-foreground text-sm">Scans</p>
               {hasScans && (
                 <p className="text-muted-foreground text-xs">
-                  {vi.viewToggles.scanCount(scans.length)}
+                  {scans.length} scan{scans.length !== 1 ? 's' : ''} on this level
                 </p>
               )}
             </div>
@@ -476,14 +476,14 @@ function ScansControl() {
                         src="/icons/mesh.webp"
                       />
                       <p className="truncate font-medium text-foreground text-sm">
-                        {scan.name || vi.viewToggles.scanFallbackName(index + 1)}
+                        {scan.name || `Scan ${index + 1}`}
                       </p>
                       {selectedReferenceId === scan.id && (
                         <Check className="ml-auto h-3.5 w-3.5 shrink-0 text-foreground/80" />
                       )}
                     </button>
                     <button
-                      aria-label={vi.viewToggles.deleteScan}
+                      aria-label="Delete scan"
                       className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover/item:opacity-100"
                       onClick={(event) => {
                         event.stopPropagation()
@@ -498,7 +498,7 @@ function ScansControl() {
                     </button>
                   </div>
                   <SliderControl
-                    label={vi.viewToggles.opacity}
+                    label="Opacity"
                     max={100}
                     min={0}
                     onChange={(value) => handleOpacityChange(scan.id, value)}
@@ -571,12 +571,13 @@ function ReferenceListSection({
           <p className="font-medium text-foreground text-sm">{title}</p>
           {hasItems && (
             <p className="text-muted-foreground text-xs">
-              {vi.viewToggles.nounCount(nodes.length, noun)}
+              {nodes.length} {noun}
+              {nodes.length !== 1 ? 's' : ''} on this level
             </p>
           )}
         </div>
         <button
-          aria-label={show ? vi.viewToggles.hide(title) : vi.viewToggles.show(title)}
+          aria-label={show ? `Hide ${title.toLowerCase()}` : `Show ${title.toLowerCase()}`}
           className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border/40 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
           onClick={() => setShow(!show)}
           type="button"
@@ -610,18 +611,14 @@ function ReferenceListSection({
                     src={iconSrc}
                   />
                   <p className="truncate font-medium text-foreground text-sm">
-                    {node.name ||
-                      vi.viewToggles.nounFallbackName(
-                        `${noun.charAt(0).toUpperCase()}${noun.slice(1)}`,
-                        index + 1,
-                      )}
+                    {node.name || `${noun.charAt(0).toUpperCase()}${noun.slice(1)} ${index + 1}`}
                   </p>
                   {selectedReferenceId === node.id && (
                     <Check className="ml-auto h-3.5 w-3.5 shrink-0 text-foreground/80" />
                   )}
                 </button>
                 <button
-                  aria-label={vi.viewToggles.deleteNoun(noun)}
+                  aria-label={`Delete ${noun}`}
                   className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover/item:opacity-100"
                   onClick={(event) => {
                     event.stopPropagation()
@@ -636,7 +633,7 @@ function ReferenceListSection({
                 </button>
               </div>
               <SliderControl
-                label={vi.viewToggles.opacity}
+                label="Opacity"
                 max={100}
                 min={0}
                 onChange={(value) =>
@@ -688,14 +685,14 @@ function ReferencesControl() {
               ? 'bg-white/15'
               : 'opacity-60 grayscale hover:bg-white/5 hover:opacity-100 hover:grayscale-0',
           )}
-          label={vi.viewToggles.referencesVisibility(anyVisible)}
+          label={`References: ${anyVisible ? 'Visible' : 'Hidden'}`}
           onClick={toggleAll}
           size="icon"
           variant="ghost"
         >
           <div className="relative">
             <img
-              alt={vi.viewToggles.references}
+              alt="References"
               className="h-[28px] w-[28px] object-contain"
               src="/icons/floorplan.webp"
             />
@@ -708,7 +705,7 @@ function ReferencesControl() {
         <PopoverTrigger asChild>
           <button
             aria-expanded={isOpen}
-            aria-label={vi.viewToggles.referenceSettings}
+            aria-label="Reference settings"
             className={cn(
               'flex h-11 w-6 items-center justify-center rounded-r-lg transition-colors',
               anyVisible
@@ -742,22 +739,22 @@ function ReferencesControl() {
             emptyText={REFERENCES_EMPTY_TEXT}
             iconSrc="/icons/mesh.webp"
             nodes={scans}
-            noun={vi.viewToggles.scanNoun}
+            noun="scan"
             onError={setUploadError}
             setShow={setShowScans}
             show={showScans}
-            title={vi.viewToggles.scans}
+            title="Scans"
           />
           <div className="h-px bg-border/45" />
           <ReferenceListSection
             emptyText={REFERENCES_EMPTY_TEXT}
             iconSrc="/icons/floorplan.webp"
             nodes={guides}
-            noun={vi.viewToggles.guideImageNoun}
+            noun="guide image"
             onError={setUploadError}
             setShow={setShowGuides}
             show={showGuides}
-            title={vi.viewToggles.guideImages}
+            title="Guide images"
           />
         </div>
       </PopoverContent>
@@ -793,8 +790,8 @@ function ReferenceFloorControl() {
           disabled={!hasLowerLevels}
           label={
             selectedLevelName && showReferenceFloor
-              ? vi.viewToggles.referenceFloorWithLevel(selectedLevelName)
-              : vi.viewToggles.referenceFloor
+              ? `Reference floor: ${selectedLevelName}`
+              : 'Reference floor'
           }
           onClick={() => {
             if (hasLowerLevels) toggleReferenceFloor()
@@ -813,7 +810,7 @@ function ReferenceFloorControl() {
         <PopoverTrigger asChild>
           <button
             aria-expanded={isOpen}
-            aria-label={vi.viewToggles.referenceFloorSettings}
+            aria-label="Reference floor settings"
             className={cn(
               'flex h-11 w-6 items-center justify-center rounded-r-lg transition-colors',
               showReferenceFloor && selectedLevel
@@ -844,17 +841,13 @@ function ReferenceFloorControl() {
               <Layers2 className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-foreground text-sm">{vi.viewToggles.referenceFloor}</p>
+              <p className="font-medium text-foreground text-sm">Reference floor</p>
               {selectedLevelName && (
                 <p className="truncate text-muted-foreground text-xs">{selectedLevelName}</p>
               )}
             </div>
             <button
-              aria-label={
-                showReferenceFloor
-                  ? vi.viewToggles.hideReferenceFloor
-                  : vi.viewToggles.showReferenceFloor
-              }
+              aria-label={showReferenceFloor ? 'Hide reference floor' : 'Show reference floor'}
               className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border/40 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
               disabled={!hasLowerLevels}
               onClick={toggleReferenceFloor}
@@ -898,16 +891,14 @@ function ReferenceFloorControl() {
                         )}
                       />
                       <span className="min-w-0 flex-1 truncate">{levelName}</span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {vi.viewToggles.levelsBelow(index + 1)}
-                      </span>
+                      <span className="text-[10px] text-muted-foreground">{index + 1} below</span>
                     </button>
                   )
                 })}
               </div>
 
               <SliderControl
-                label={vi.viewToggles.opacity}
+                label="Opacity"
                 max={0.8}
                 min={0.1}
                 onChange={setReferenceFloorOpacity}
@@ -918,7 +909,7 @@ function ReferenceFloorControl() {
             </>
           ) : (
             <div className="rounded-xl border border-border/45 border-dashed bg-background/60 px-3 py-4 text-muted-foreground text-sm">
-              {vi.viewToggles.noLowerFloor}
+              No lower floor available.
             </div>
           )}
         </div>
@@ -940,7 +931,7 @@ function RiserControl() {
           ? 'bg-white/15'
           : 'opacity-60 grayscale hover:bg-white/5 hover:opacity-100 hover:grayscale-0',
       )}
-      label={vi.viewToggles.riserDiagram}
+      label="Riser diagram"
       onClick={toggleRiserOpen}
       size="icon"
       variant="ghost"

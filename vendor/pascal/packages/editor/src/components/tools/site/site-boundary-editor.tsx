@@ -1,5 +1,6 @@
 import { emitter, type SiteNode, useLiveNodeOverrides, useScene } from '@pascal-app/core'
 import { SCENE_LAYER } from '@pascal-app/viewer'
+import { useGLTF } from '@react-three/drei/core/Gltf'
 import { useFrame } from '@react-three/fiber'
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -29,7 +30,7 @@ import {
   type PolygonMidpointHandleRenderProps,
   type PolygonVertexHandleRenderProps,
 } from '../shared/polygon-editor'
-import { useSiteFlagScene } from './site-flag-model'
+import { SITE_FLAG_MODEL_URL } from './site-flag-model'
 
 const SITE_FLAG_BASE_Y = 0
 const SITE_FLAG_HIT_HEIGHT = 0.5
@@ -64,8 +65,7 @@ function SiteFlagModel({
   opacity?: number
   scale?: number
 }) {
-  // AppFront: Draco tự host, không gstatic (FIX-380).
-  const scene = useSiteFlagScene('/draco/')
+  const { scene } = useGLTF(SITE_FLAG_MODEL_URL, true)
   const modelRef = useRef<Object3D>(null)
   const flagScene = useMemo(() => {
     const cloned = scene.clone(true)

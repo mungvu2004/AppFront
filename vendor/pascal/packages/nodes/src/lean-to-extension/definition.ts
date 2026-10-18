@@ -30,7 +30,6 @@ import { deriveLeanToResizePatch, leanToExtensionParametrics } from './parametri
 import { applyLeanToRoofAttachment, resolveLeanToRoofAttachment } from './roof-attachment'
 import { LeanToExtensionNode } from './schema'
 import { leanToSlots } from './slots'
-import { vi } from '../i18n/vi'
 
 const HEIGHT_HANDLE_OFFSET = 0.25
 const SPAN_HANDLE_OFFSET = 0.3
@@ -103,7 +102,7 @@ function publishAdjacentHeightGuide(node: LeanToExtensionNode, sceneApi: SceneAp
       id: `${match.target.nodeId ?? 'lean-to'}:high-edge`,
       elevation: match.target.roofEdgeY,
       anchor: match.target.anchor ?? [pose.position[0], pose.position[2]],
-      label: vi.leanToExtension.neighborEdgeLabel,
+      label: 'Neighbor shed edge',
     },
   )
 }
@@ -488,14 +487,14 @@ export const leanToExtensionDefinition: NodeDefinition<typeof LeanToExtensionNod
   toolHints: [
     {
       key: 'Left click',
-      label: vi.leanToExtension.shortcuts.placeOrSetNextPoint,
+      label: 'Place canopy or set the next run point',
     },
-    { key: 'R / T', label: vi.leanToExtension.shortcuts.rotateOrFlip },
-    { key: 'F', label: vi.leanToExtension.shortcuts.cycleShape },
-    { key: 'Esc', label: vi.leanToExtension.shortcuts.endOrCancel },
+    { key: 'R / T', label: 'Rotate or flip the run side' },
+    { key: 'F', label: 'Cycle mono / gable / butterfly' },
+    { key: 'Esc', label: 'End run / cancel' },
   ],
   presentation: {
-    label: vi.leanToExtension.catalogLabel,
+    label: 'Canopy',
     description:
       'An attached mono-pitch or freestanding mono, gable, or butterfly canopy with managed structure and drainage.',
     icon: { kind: 'url', src: '/icons/lean-to-extension.webp' },

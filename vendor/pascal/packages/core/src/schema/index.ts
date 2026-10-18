@@ -392,8 +392,6 @@ export {
   ProvenanceRef,
   ProvenanceRole,
 } from './provenance'
-// Review state: reviewed / confidence / source (A5)
-export { Review, type ReviewState, ReviewSource, reviewStateOf, SUSPECT_CONFIDENCE, withReviewCleared } from './review'
 export { generateSceneMaterialId, SceneMaterial, type SceneMaterialId } from './scene-material'
 // Source references in string form (`<ns>:<id>[::<sub>]`, D5)
 export { type ParsedSourceRef, parseSourceRef, SourceRefString } from './source-ref'

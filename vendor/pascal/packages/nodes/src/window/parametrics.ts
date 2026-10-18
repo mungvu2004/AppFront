@@ -1,6 +1,5 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { WindowNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Minimal inspector descriptor for window. Like door, the legacy
@@ -12,7 +11,7 @@ import { vi } from '../i18n/vi'
 export const windowParametrics: ParametricDescriptor<WindowNode> = {
   groups: [
     {
-      label: vi.common.dimensions,
+      label: 'Dimensions',
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.3, max: 1000, step: 0.05 },
         { key: 'height', kind: 'number', unit: 'm', min: 0.3, max: 1000, step: 0.05 },

@@ -10,23 +10,22 @@ import {
 import { Mountain, Pipette } from 'lucide-react'
 import { brushRadiusRange, flattenSite, resetSiteTerrain } from '../../../lib/terrain-sculpt'
 import useEditor from '../../../store/use-editor'
-import { controlsAndPanels as vi } from '../../../i18n/regions/controlsAndPanels'
 import { Button } from '../primitives/button'
 import { SegmentedControl } from './segmented-control'
 import { SliderControl } from './slider-control'
 
 const VERB_OPTIONS: Array<{ value: TerrainVerb; iconSrc: string; hint: string }> = [
-  { value: 'raise', iconSrc: '/icons/terrain-raise.webp', hint: vi.terrainSculptPanel.raise },
-  { value: 'lower', iconSrc: '/icons/terrain-lower.webp', hint: vi.terrainSculptPanel.lower },
-  { value: 'flatten', iconSrc: '/icons/terrain-flatten.webp', hint: vi.terrainSculptPanel.flatten },
-  { value: 'smooth', iconSrc: '/icons/terrain-smooth.webp', hint: vi.terrainSculptPanel.smooth },
+  { value: 'raise', iconSrc: '/icons/terrain-raise.webp', hint: 'Raise' },
+  { value: 'lower', iconSrc: '/icons/terrain-lower.webp', hint: 'Lower' },
+  { value: 'flatten', iconSrc: '/icons/terrain-flatten.webp', hint: 'Flatten' },
+  { value: 'smooth', iconSrc: '/icons/terrain-smooth.webp', hint: 'Smooth' },
 ]
 
 const VERB_HINTS: Record<TerrainVerb, string> = {
-  raise: vi.terrainSculptPanel.raiseHint(RAISE_METRES_PER_STROKE),
-  lower: vi.terrainSculptPanel.lowerHint(RAISE_METRES_PER_STROKE),
-  flatten: vi.terrainSculptPanel.flattenHint,
-  smooth: vi.terrainSculptPanel.smoothHint,
+  raise: `Drag to raise the ground. One pass moves it up to ${RAISE_METRES_PER_STROKE} m — release and drag again to go further.`,
+  lower: `Drag to lower the ground. One pass moves it down to ${RAISE_METRES_PER_STROKE} m.`,
+  flatten: 'Drag to level the ground toward the target height. It never overshoots.',
+  smooth: 'Drag to soften slopes and remove ridges. Flat ground stays flat.',
 }
 
 /**
@@ -93,7 +92,7 @@ export function TerrainSculptPanel() {
           under it lands between samples and paints nothing at all.
         */}
         <SliderControl
-          label={vi.terrainSculptPanel.size}
+          label="Size"
           max={maxRadius}
           min={minRadius}
           onChange={(radius) => setTerrainBrush({ radius })}
@@ -103,7 +102,7 @@ export function TerrainSculptPanel() {
           value={brush.radius}
         />
         <SliderControl
-          label={vi.terrainSculptPanel.strength}
+          label="Strength"
           max={1}
           min={0.05}
           onChange={(strength) => setTerrainBrush({ strength })}
@@ -112,7 +111,7 @@ export function TerrainSculptPanel() {
           value={brush.strength}
         />
         <SliderControl
-          label={vi.terrainSculptPanel.softness}
+          label="Softness"
           max={1}
           min={0}
           onChange={(falloff) => setTerrainBrush({ falloff })}
@@ -123,8 +122,8 @@ export function TerrainSculptPanel() {
         <SegmentedControl
           onChange={(shape) => setTerrainBrush({ shape })}
           options={[
-            { value: 'round', label: vi.terrainSculptPanel.round },
-            { value: 'square', label: vi.terrainSculptPanel.square },
+            { value: 'round', label: 'Round' },
+            { value: 'square', label: 'Square' },
           ]}
           value={brush.shape}
         />
@@ -135,7 +134,7 @@ export function TerrainSculptPanel() {
           <div className="flex items-center gap-2">
             <div className="min-w-0 flex-1">
               <SliderControl
-                label={vi.terrainSculptPanel.target}
+                label="Target"
                 max={50}
                 min={-50}
                 onChange={setTerrainFlattenTarget}
@@ -146,7 +145,7 @@ export function TerrainSculptPanel() {
               />
             </div>
             <Button
-              aria-label={vi.terrainSculptPanel.pickTargetHeight}
+              aria-label="Pick target height from the ground"
               aria-pressed={sampling}
               onClick={() => setTerrainSampling(!sampling)}
               size="icon-sm"
@@ -158,10 +157,10 @@ export function TerrainSculptPanel() {
           </div>
           <p className="px-0.5 text-muted-foreground text-xs">
             {sampling
-              ? vi.terrainSculptPanel.clickToPickHeight
+              ? 'Click the ground to pick its height as the target.'
               : flattenTarget === null
-                ? vi.terrainSculptPanel.noTargetYet
-                : vi.terrainSculptPanel.everyStrokeLevels}
+                ? 'No target yet — the first click samples the ground under it.'
+                : 'Every flatten stroke levels toward this height.'}
           </p>
         </div>
       )}
@@ -176,7 +175,7 @@ export function TerrainSculptPanel() {
           variant="outline"
         >
           <Mountain />
-          {vi.terrainSculptPanel.levelLot}
+          Level lot
         </Button>
         <Button
           className="flex-1"
@@ -186,7 +185,7 @@ export function TerrainSculptPanel() {
           type="button"
           variant="outline"
         >
-          {vi.terrainSculptPanel.clearTerrain}
+          Clear terrain
         </Button>
       </div>
     </div>

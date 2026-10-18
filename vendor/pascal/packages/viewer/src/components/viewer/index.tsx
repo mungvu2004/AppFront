@@ -30,8 +30,6 @@ import { initializeGpuRenderer, type RendererPowerPreference } from '../../lib/r
 import { getSceneTheme } from '../../lib/scene-themes'
 import { installTextureNodeNullGuard } from '../../lib/texture-node-guard'
 import useViewer, { type RenderContext } from '../../store/use-viewer'
-import { LevelCameraFocus } from '../../systems/level/level-camera-focus'
-import { SectionPlaneGroup } from '../../systems/section-plane/section-plane'
 import { FloorElevationSystem } from '../../systems/floor-elevation/floor-elevation-system'
 import { GeometrySystem } from '../../systems/geometry/geometry-system'
 import { PerfActionSettleSystem } from '../../systems/perf-action-settle/perf-action-settle-system'
@@ -39,11 +37,10 @@ import { subscribeWallBuildInteractions } from '../../systems/wall/wall-build-li
 import { ImmersiveXRPresentationProvider } from '../../xr/presentation-context'
 import { SceneRenderer } from '../renderers/scene-renderer'
 import { BATCH_SPIKE_ENABLED, BatchedMeshSpike } from './batched-mesh-spike'
-import FrameLimiter, { setViewerSceneSettled } from './frame-limiter'
+import FrameLimiter from './frame-limiter'
 import { Lights } from './lights'
 import { PerfMonitor } from './perf-monitor'
 import { PerfPanel } from './perf-panel'
-import { ViewCubeBridge } from './view-cube'
 import { PointerRaycastLayers } from './pointer-raycast-layers'
 import PostProcessing, { DEFAULT_HOVER_STYLES, type HoverStyles } from './post-processing'
 import { RegisteredSystems } from './registered-systems'
@@ -52,7 +49,6 @@ import { useSceneAtmosphere } from './scene-atmosphere'
 import { SceneBvh } from './scene-bvh'
 import { SelectionManager } from './selection-manager'
 import { UnsupportedGpuViewerFallback } from './unsupported-gpu-fallback'
-import { TouchCameraControls } from './touch-camera-controls'
 import { ViewerCamera } from './viewer-camera'
 
 // Must be in place before any node material builds — a null texture pulled by
@@ -364,7 +360,6 @@ function SceneReadyTracker({
     waitedFramesRef.current = 0
     waitStartRef.current = null
     onSceneReadyChangeRef.current?.(false)
-    setViewerSceneSettled(false)
     invalidate()
   }, [invalidate, sceneReadyKey])
 
@@ -394,9 +389,6 @@ function SceneReadyTracker({
     }
 
     readyRef.current = true
-    // The frame limiter gates frames only from here on: the first build needs
-    // every frame (see frame-limiter.tsx `sceneSettled`).
-    setViewerSceneSettled(true)
     onSceneReadyChangeRef.current(true)
   }, 10)
 
@@ -447,16 +439,6 @@ interface ViewerProps {
    */
   onRenderError?: (cause: unknown) => void
   /**
-   * The machine cannot initialize WebGPU or WebGL at all.
-   *
-   * AppFront addition. Without it the viewer renders its own English fallback
-   * card (`unsupported-gpu-fallback.tsx`) with hard-coded neutral colours — a
-   * host with its own empty states, its own language and its own colour tokens
-   * has no way to take over that screen. Pass this and the viewer renders
-   * nothing instead, leaving the message to the host.
-   */
-  onRendererUnavailable?: () => void
-  /**
    * Wall-clock give-up cap for scene readiness, replacing the default
    * frame-count cap. Set it on hosts whose frame cadence is decoupled from
    * real time (the headless bake page's timer-driven loop runs the default
@@ -488,11 +470,6 @@ interface ViewerProps {
   renderPaused?: boolean
   /** Host-provided immersive XR session wrappers for the main scene. */
   immersive?: ViewerImmersiveSession
-  /**
-   * AppFront addition: built-in touch/mouse camera for view-only hosts (no
-   * editor controls). One finger/drag orbits, pinch/wheel zooms, two fingers pan.
-   */
-  cameraControls?: boolean
 }
 
 /** Imperative handle exposed via `ref` on `<Viewer>`. */
@@ -520,13 +497,11 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
     sceneReadyKey,
     onSceneReadyChange,
     onRenderError,
-    onRendererUnavailable,
     sceneReadyMaxWaitMs,
     maxFps = 50,
     disablePostFx = false,
     renderPaused = false,
     immersive,
-    cameraControls = false,
   },
   ref,
 ) {
@@ -644,10 +619,6 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   }, [showGpuFallback, onSceneReadyChange])
 
   useEffect(() => {
-    if (showGpuFallback) onRendererUnavailable?.()
-  }, [showGpuFallback, onRendererUnavailable])
-
-  useEffect(() => {
     if (!immersive) return
     const timeout = window.setTimeout(() => window.dispatchEvent(new Event('resize')), 0)
     return () => window.clearTimeout(timeout)
@@ -657,8 +628,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   const immersiveActive = immersive != null
 
   if (showGpuFallback) {
-    // Host took over the message: render nothing rather than two cards stacked.
-    return onRendererUnavailable === undefined ? <UnsupportedGpuViewerFallback /> : null
+    return <UnsupportedGpuViewerFallback />
   }
   return (
     <>
@@ -669,9 +639,9 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         ref={subscribeWallBuildInteractions}
         key={immersiveActive ? 'webgl-xr' : 'webgpu'}
         camera={{ position: [50, 50, 50], fov: 50 }}
-        className={
+        className={`transition-colors duration-700 ${
           transparentBackground ? 'bg-transparent' : isDark ? 'bg-[#1f2433]' : 'bg-[#fafafa]'
-        }
+        }`}
         dpr={[1, maxDpr]}
         events={pointerEvents}
         frameloop="never"
@@ -758,7 +728,6 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
                 onFrameError={composeRenderErrorHandlers(onRenderError)}
                 paused={renderPaused}
               />
-              {cameraControls && <TouchCameraControls />}
               <ViewerScene
                 disablePostFx={disablePostFx}
                 hoverStyles={hoverStyles}
@@ -807,16 +776,12 @@ function ViewerScene({
   useBvh: boolean
   SceneWrapper?: ViewerImmersiveSession['Scene']
 }) {
-  const renderedScene = (
-    <SectionPlaneGroup>
-      {useBvh ? (
-        <SceneBvh>
-          <SceneRenderer />
-        </SceneBvh>
-      ) : (
-        <SceneRenderer />
-      )}
-    </SectionPlaneGroup>
+  const renderedScene = useBvh ? (
+    <SceneBvh>
+      <SceneRenderer />
+    </SceneBvh>
+  ) : (
+    <SceneRenderer />
   )
   const spatialScene = (
     <>
@@ -826,8 +791,6 @@ function ViewerScene({
       <StairOpeningSystem />
       <RoofElevationSystem />
       <RegisteredSystems />
-      <LevelCameraFocus />
-      <ViewCubeBridge />
       {BATCH_SPIKE_ENABLED && <BatchedMeshSpike />}
       {children}
     </>

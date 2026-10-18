@@ -31,7 +31,6 @@ import {
   chimneyPresets,
   detectActiveChimneyPreset,
 } from './presets'
-import { vi } from '../i18n/vi'
 
 // Tiny clsx-equivalent. The editor package doesn't re-export the
 // legacy `cn` helper; inlining keeps this panel self-contained.
@@ -346,7 +345,7 @@ export default function ChimneyPanel() {
       title={node.name || 'Chimney'}
       width={300}
     >
-      <PanelSection title={vi.common.style}>
+      <PanelSection title="Style">
         <SegmentedControl
           onChange={(v) => applyPreset(v as ChimneyPresetKey)}
           options={CHIMNEY_PRESET_KEYS.map((k) => ({
@@ -359,7 +358,7 @@ export default function ChimneyPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.footprint}>
+      <PanelSection title="Footprint">
         <SegmentedControl
           onChange={(v) => handleUpdate({ bodyShape: v })}
           options={[
@@ -382,7 +381,7 @@ export default function ChimneyPanel() {
         />
         {(node.bodyShape ?? 'square') !== 'round' && (
           <SliderControl
-            label={vi.common.depth}
+            label="Depth"
             max={1000}
             min={0.2}
             onChange={(v) => previewProp({ depth: v })}
@@ -395,7 +394,7 @@ export default function ChimneyPanel() {
           />
         )}
         <SliderControl
-          label={vi.common.hollowDepth}
+          label="Hollow Depth"
           max={3}
           min={0}
           onChange={(v) => previewProp({ bodyHollowDepth: v })}
@@ -407,7 +406,7 @@ export default function ChimneyPanel() {
           value={node.bodyHollowDepth ?? 0.6}
         />
         <SliderControl
-          label={vi.common.wallThickness}
+          label="Wall Thickness"
           max={0.3}
           min={0}
           onChange={(v) => previewProp({ bodyHollowMargin: v })}
@@ -420,7 +419,7 @@ export default function ChimneyPanel() {
         />
         {(node.bodyShape ?? 'square') !== 'round' && (
           <SliderControl
-            label={vi.common.cornerBevel}
+            label="Corner Bevel"
             max={Math.max(0, Math.min(node.width, node.depth) / 2 - 0.005)}
             min={0}
             onChange={(v) => previewProp({ cornerBevel: v })}
@@ -434,9 +433,9 @@ export default function ChimneyPanel() {
         )}
       </PanelSection>
 
-      <PanelSection title={vi.common.height}>
+      <PanelSection title="Height">
         <SliderControl
-          label={vi.common.aboveRidge}
+          label="Above Ridge"
           max={1000}
           min={0.1}
           onChange={(v) => previewProp({ heightAboveRidge: v })}
@@ -448,7 +447,7 @@ export default function ChimneyPanel() {
           value={node.heightAboveRidge}
         />
         <SliderControl
-          label={vi.common.cutoutOffset}
+          label="Cutout Offset"
           max={0.5}
           min={0}
           onChange={(v) => previewProp({ cutoutOffset: v })}
@@ -461,7 +460,7 @@ export default function ChimneyPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.position}>
+      <PanelSection title="Position">
         <SliderControl
           label="X"
           max={Math.round(worldMaxX * 10) / 10}
@@ -498,7 +497,7 @@ export default function ChimneyPanel() {
           value={worldZ_now}
         />
         <SliderControl
-          label={vi.common.rotation}
+          label="Rotation"
           max={180}
           min={-180}
           onChange={(degrees) => {
@@ -524,7 +523,7 @@ export default function ChimneyPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.chimneyType}>
+      <PanelSection title="Chimney Type">
         <div className="grid grid-cols-2 gap-1.5 px-1 pt-1">
           {CHIMNEY_TYPE_OPTIONS.filter((option) => {
             // Cricket and Panels both rely on a flat face — hide them for
@@ -569,7 +568,7 @@ export default function ChimneyPanel() {
             {(node.capShape ?? 'sloped') !== 'none' && (
               <>
                 <SliderControl
-                  label={vi.common.overhang}
+                  label="Overhang"
                   max={0.2}
                   min={0}
                   onChange={(v) => previewProp({ capOverhang: v })}
@@ -581,7 +580,7 @@ export default function ChimneyPanel() {
                   value={node.capOverhang ?? 0.04}
                 />
                 <SliderControl
-                  label={vi.common.thickness}
+                  label="Thickness"
                   max={0.3}
                   min={0.02}
                   onChange={(v) => previewProp({ capThickness: v })}
@@ -612,7 +611,7 @@ export default function ChimneyPanel() {
             {(node.shoulderStyle ?? 'none') !== 'none' && (
               <>
                 <SliderControl
-                  label={vi.common.height}
+                  label="Height"
                   max={3}
                   min={0.1}
                   onChange={(v) => previewProp({ shoulderHeight: v })}
@@ -624,7 +623,7 @@ export default function ChimneyPanel() {
                   value={node.shoulderHeight ?? 0.5}
                 />
                 <SliderControl
-                  label={vi.common.extent}
+                  label="Extent"
                   max={0.5}
                   min={0}
                   onChange={(v) => previewProp({ shoulderExtent: v })}
@@ -643,7 +642,7 @@ export default function ChimneyPanel() {
         {chimneyType === 'flues' && (
           <>
             <SliderControl
-              label={vi.common.count}
+              label="Count"
               max={4}
               min={0}
               onChange={(v) => previewProp({ flueCount: Math.round(v) })}
@@ -665,7 +664,7 @@ export default function ChimneyPanel() {
                   value={node.flueShape ?? 'round'}
                 />
                 <SliderControl
-                  label={vi.common.diameter}
+                  label="Diameter"
                   max={Math.max(0.4, node.width)}
                   min={0.05}
                   onChange={(v) => previewProp({ flueDiameter: v })}
@@ -677,7 +676,7 @@ export default function ChimneyPanel() {
                   value={node.flueDiameter ?? 0.22}
                 />
                 <SliderControl
-                  label={vi.common.height}
+                  label="Height"
                   max={1.5}
                   min={0.05}
                   onChange={(v) => previewProp({ flueHeight: v })}
@@ -690,7 +689,7 @@ export default function ChimneyPanel() {
                 />
                 {(node.flueCount ?? 1) > 1 && (
                   <SliderControl
-                    label={vi.common.spacing}
+                    label="Spacing"
                     max={1}
                     min={0}
                     onChange={(v) => previewProp({ flueSpacing: v })}
@@ -702,7 +701,7 @@ export default function ChimneyPanel() {
                   />
                 )}
                 <SliderControl
-                  label={vi.common.wallThickness}
+                  label="Wall Thickness"
                   max={Math.max(0.1, (node.flueDiameter ?? 0.22) / 2 - 0.01)}
                   min={0}
                   onChange={(v) => previewProp({ flueWallThickness: v })}
@@ -733,7 +732,7 @@ export default function ChimneyPanel() {
             {(node.bandStyle ?? 'none') !== 'none' && (
               <>
                 <SliderControl
-                  label={vi.common.thickness}
+                  label="Thickness"
                   max={0.4}
                   min={0.02}
                   onChange={(v) => previewProp({ bandHeight: v })}
@@ -745,7 +744,7 @@ export default function ChimneyPanel() {
                   value={node.bandHeight ?? 0.1}
                 />
                 <SliderControl
-                  label={vi.common.extent}
+                  label="Extent"
                   max={0.2}
                   min={0}
                   onChange={(v) => previewProp({ bandExtent: v })}
@@ -757,7 +756,7 @@ export default function ChimneyPanel() {
                   value={node.bandExtent ?? 0.04}
                 />
                 <SliderControl
-                  label={vi.common.offset}
+                  label="Offset"
                   max={3}
                   min={0}
                   onChange={(v) => previewProp({ bandOffset: v })}
@@ -796,7 +795,7 @@ export default function ChimneyPanel() {
                   value={node.cricketSide ?? 'front'}
                 />
                 <SliderControl
-                  label={vi.common.length}
+                  label="Length"
                   max={2}
                   min={0.1}
                   onChange={(v) => previewProp({ cricketLength: v })}
@@ -808,7 +807,7 @@ export default function ChimneyPanel() {
                   value={node.cricketLength ?? 0.6}
                 />
                 <SliderControl
-                  label={vi.common.height}
+                  label="Height"
                   max={1.5}
                   min={0.05}
                   onChange={(v) => previewProp({ cricketHeight: v })}
@@ -838,7 +837,7 @@ export default function ChimneyPanel() {
             {(node.panelStyle ?? 'none') !== 'none' && (
               <>
                 <SliderControl
-                  label={vi.common.depth}
+                  label="Depth"
                   max={0.15}
                   min={0.005}
                   onChange={(v) => previewProp({ panelDepth: v })}
@@ -850,7 +849,7 @@ export default function ChimneyPanel() {
                   value={node.panelDepth ?? 0.03}
                 />
                 <SliderControl
-                  label={vi.common.height}
+                  label="Height"
                   max={3}
                   min={0.1}
                   onChange={(v) => previewProp({ panelHeight: v })}
@@ -862,7 +861,7 @@ export default function ChimneyPanel() {
                   value={node.panelHeight ?? 0.8}
                 />
                 <SliderControl
-                  label={vi.common.topOffset}
+                  label="Top Offset"
                   max={2}
                   min={0}
                   onChange={(v) => previewProp({ panelOffsetTop: v })}
@@ -874,7 +873,7 @@ export default function ChimneyPanel() {
                   value={node.panelOffsetTop ?? 0.15}
                 />
                 <SliderControl
-                  label={vi.common.sideMargin}
+                  label="Side Margin"
                   max={Math.max(0.5, node.width / 2 - 0.05)}
                   min={0.02}
                   onChange={(v) => previewProp({ panelMargin: v })}
@@ -891,12 +890,12 @@ export default function ChimneyPanel() {
         )}
       </PanelSection>
 
-      <PanelSection title={vi.common.actions}>
+      <PanelSection title="Actions">
         <ActionGroup>
           <ActionButton
             className="hover:bg-red-500/20"
             icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
-            label={vi.common.delete}
+            label="Delete"
             onClick={handleDelete}
           />
         </ActionGroup>

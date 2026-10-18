@@ -16,8 +16,6 @@ import {
 
 export type ResolvedMeasurementPayload =
   | { kind: 'distance'; points: [MeasurementPoint, MeasurementPoint] }
-  | { kind: 'perpendicular'; points: [MeasurementPoint, MeasurementPoint]; normal: MeasurementPoint }
-  | { kind: 'height'; points: [MeasurementPoint, MeasurementPoint] }
   | { kind: 'angle'; points: [MeasurementPoint, MeasurementPoint, MeasurementPoint] }
   | { kind: 'area'; base: MeasurementPoint[] }
   | { kind: 'perimeter'; base: MeasurementPoint[] }
@@ -204,7 +202,7 @@ export function resolveMeasurementAnchor(
 }
 
 function anchorsFor(payload: MeasurementPayload): readonly MeasurementAnchor[] {
-  return 'points' in payload ? payload.points : payload.base
+  return payload.kind === 'distance' || payload.kind === 'angle' ? payload.points : payload.base
 }
 
 export function measurementDependencyIds(
@@ -241,19 +239,6 @@ export function resolveMeasurementNode(
     case 'distance':
       payload = {
         kind: 'distance',
-        points: [point(measurement.points[0]), point(measurement.points[1])],
-      }
-      break
-    case 'perpendicular':
-      payload = {
-        kind: 'perpendicular',
-        points: [point(measurement.points[0]), point(measurement.points[1])],
-        normal: measurement.normal,
-      }
-      break
-    case 'height':
-      payload = {
-        kind: 'height',
         points: [point(measurement.points[0]), point(measurement.points[1])],
       }
       break

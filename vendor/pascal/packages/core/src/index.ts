@@ -115,16 +115,6 @@ export {
 } from './lib/door-operation'
 export { getDefaultLevelName, getLevelDisplayName } from './lib/level-name'
 export {
-  collectStructuralGridAxes,
-  formatStructuralGridReference,
-  resolveStructuralGridReference,
-  resolveStructuralGridSnap,
-  STRUCTURAL_GRID_REFERENCE_TOLERANCE_M,
-  STRUCTURAL_GRID_SNAP_DISTANCE_M,
-  type StructuralGridPoint,
-  type StructuralGridSnap,
-} from './lib/structural-grid-coordination'
-export {
   areMeasurementPointsCoplanar,
   closestMeasurementFeatureBinding,
   MEASUREMENT_PLANAR_TOLERANCE,
@@ -136,11 +126,8 @@ export {
   measurementCentroid,
   measurementDistance,
   measurementFeatureLength,
-  measurementHeight,
   measurementNormal,
   measurementPerimeter,
-  measurementPerpendicularDistance,
-  measurementPerpendicularFoot,
   measurementPrismVolume,
   measurementReferenceNodeIds,
   remapMeasurementAnchors,

@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test'
 import { cupolaDefinition } from '../definition'
 import { cupolaPaint, resolveCupolaMaterialRole } from '../paint'
 import { CupolaNode } from '../schema'
-import { vi } from '../../i18n/vi'
 
 describe('cupola paint', () => {
   test('declares and seeds metallic louvers for new cupolas', () => {
@@ -12,7 +11,7 @@ describe('cupola paint', () => {
     expect(node.slots?.louvers).toBe('library:preset-metal')
     expect(cupolaDefinition.capabilities.slots?.(node)).toContainEqual({
       slotId: 'louvers',
-      label: vi.cupola.slots.louvers,
+      label: 'Louvers',
       default: 'library:preset-metal',
     })
   })

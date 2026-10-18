@@ -1,6 +1,5 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { DormerNode } from './schema'
-import { vi } from '../i18n/vi'
 
 export const dormerParametrics: ParametricDescriptor<DormerNode> = {
   // Bespoke tabbed UI (Dormer / Window / Frame / Grid / Sill) — same
@@ -9,7 +8,7 @@ export const dormerParametrics: ParametricDescriptor<DormerNode> = {
   customPanel: () => import('./panel'),
   groups: [
     {
-      label: vi.common.dormer,
+      label: 'Dormer',
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.5, max: 1000, step: 0.05 },
         { key: 'depth', kind: 'number', unit: 'm', min: 0.5, max: 1000, step: 0.05 },
@@ -17,7 +16,7 @@ export const dormerParametrics: ParametricDescriptor<DormerNode> = {
       ],
     },
     {
-      label: vi.common.dormerRoof,
+      label: 'Dormer roof',
       fields: [
         {
           key: 'roofType',
@@ -36,7 +35,7 @@ export const dormerParametrics: ParametricDescriptor<DormerNode> = {
       ],
     },
     {
-      label: vi.common.hungWall,
+      label: 'Hung wall',
       fields: [
         { key: 'wallSkirtHeight', kind: 'number', unit: 'm', min: 0.2, max: 1000, step: 0.05 },
       ],

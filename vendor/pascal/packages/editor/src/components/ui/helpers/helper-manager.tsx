@@ -10,7 +10,6 @@ import {
 import { useViewer } from '@pascal-app/viewer'
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { vi } from '../../../i18n/vi'
 import { useIsMobile } from '../../../hooks/use-mobile'
 import {
   type ContextualShortcutHint,
@@ -237,7 +236,7 @@ export function HelperManager() {
   if (activeHandleDrag?.label === GROUP_MOVE_DRAG_LABEL) {
     return (
       <ContextualHelperPanel
-        hints={[{ keys: ['R / T'], label: vi.contextualHelp.rotateSelection }]}
+        hints={[{ keys: ['R / T'], label: 'Rotate the selection ±45°' }]}
         snapContext={snapContext}
       />
     )

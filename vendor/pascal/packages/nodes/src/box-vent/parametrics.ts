@@ -1,6 +1,5 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { BoxVentNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Inspector descriptor for the box vent. Position / rotation are
@@ -16,7 +15,7 @@ export const boxVentParametrics: ParametricDescriptor<BoxVentNode> = {
   customPanel: () => import('./panel'),
   groups: [
     {
-      label: vi.common.style,
+      label: 'Style',
       fields: [
         {
           key: 'style',
@@ -27,7 +26,7 @@ export const boxVentParametrics: ParametricDescriptor<BoxVentNode> = {
       ],
     },
     {
-      label: vi.common.dimensions,
+      label: 'Dimensions',
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.15, max: 1000, step: 0.01 },
         { key: 'depth', kind: 'number', unit: 'm', min: 0.15, max: 1000, step: 0.01 },

@@ -26,7 +26,6 @@ import { fencePaint } from './paint'
 import { fenceParametrics } from './parametrics'
 import { FenceNode } from './schema'
 import { fenceSlots } from './slots'
-import { vi } from '../i18n/vi'
 
 const SIDE_HANDLE_OFFSET = 0.27
 const SIDE_HANDLE_MIN_OFFSET = 0.33
@@ -386,12 +385,12 @@ export const fenceDefinition: NodeDefinition<typeof FenceNode> = {
   },
 
   toolHints: [
-    { key: 'Left click', label: vi.fence.shortcuts.setStartEnd },
-    { key: 'Esc', label: vi.fence.shortcuts.cancel },
+    { key: 'Left click', label: 'Set fence start / end' },
+    { key: 'Esc', label: 'Cancel' },
   ],
 
   presentation: {
-    label: vi.fence.catalogLabel,
+    label: 'Fence',
     description: 'A straight or curved fence segment with configurable posts and infill.',
     icon: { kind: 'url', src: '/icons/fence.webp' },
     paletteSection: 'structure',

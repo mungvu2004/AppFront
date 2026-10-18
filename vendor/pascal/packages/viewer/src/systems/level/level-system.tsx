@@ -4,12 +4,7 @@ import type { Object3D } from 'three'
 import { lerp } from 'three/src/math/MathUtils.js'
 import { applyShadowOnly, clearShadowOnly } from '../../lib/shadow-only'
 import useViewer from '../../store/use-viewer'
-import {
-  EXPLODED_GAP,
-  prefersReducedMotion,
-  resolveLevelVisibility,
-  useLevelExplode,
-} from './level-utils'
+import { EXPLODED_GAP, resolveLevelVisibility } from './level-utils'
 
 // Levels currently in shadow-caster-only mode (solo hides them from the color
 // passes but keeps their sun shadows). Tracked so we can restore layer masks
@@ -22,9 +17,6 @@ export const LevelSystem = () => {
     const nodes = useScene.getState().nodes
     const levelMode = useViewer.getState().levelMode
     const selectedLevel = useViewer.getState().selection.levelId
-    const explodeAmount = useLevelExplode.getState().amount
-    // Reduced motion: levels jump straight to their destination (no easing).
-    const smoothing = prefersReducedMotion() ? 1 : Math.min(1, delta * 12)
 
     const levelElevations = getLevelElevations(nodes)
     type LevelEntry = {
@@ -51,7 +43,7 @@ export const LevelSystem = () => {
     for (const { levelId, index, obj } of entries) {
       const level = nodes[levelId as LevelNode['id']] as LevelNode | undefined
       const baseY = levelElevations.get(levelId)?.baseY ?? 0
-      const explodedExtra = levelMode === 'exploded' ? index * EXPLODED_GAP * explodeAmount : 0
+      const explodedExtra = levelMode === 'exploded' ? index * EXPLODED_GAP : 0
       const targetY = baseY + explodedExtra
 
       // Clamped smoothing. The naive `lerp(y, target, delta*12)` multiplies
@@ -60,7 +52,7 @@ export const LevelSystem = () => {
       // oscillated kilometers off-screen and the level-fit camera followed
       // (blank viewport). Clamping keeps every step a contraction: identical
       // feel at 60 fps, exact snap instead of overshoot on slow frames.
-      obj.position.y = lerp(obj.position.y, targetY, smoothing)
+      obj.position.y = lerp(obj.position.y, targetY, Math.min(1, delta * 12))
 
       const { visible, shadowOnly } = resolveLevelVisibility({
         levelMode,

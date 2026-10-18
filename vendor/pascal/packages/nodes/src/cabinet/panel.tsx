@@ -87,7 +87,6 @@ import {
   cabinetStandardWidthById,
   cabinetStandardWidthId,
 } from './widths'
-import { vi } from '../i18n/vi'
 
 const HANDLE_STYLE_OPTIONS = [
   { value: 'bar', label: 'Bar' },
@@ -609,7 +608,7 @@ export default function CabinetPanel() {
       {node.type === 'cabinet-module' &&
         parentRun?.type === 'cabinet' &&
         cabinetModuleSupportsPresets(node) && (
-          <PanelSection title={vi.common.presets}>
+          <PanelSection title="Presets">
             <div className="grid grid-cols-2 gap-2 px-1 pb-2">
               {CABINET_PRESETS.map((preset) => (
                 <button
@@ -625,7 +624,7 @@ export default function CabinetPanel() {
           </PanelSection>
         )}
 
-      <PanelSection title={vi.common.dimensions}>
+      <PanelSection title="Dimensions">
         {node.type === 'cabinet-module' && !isHoodOnlyNode && (
           <div className="space-y-1 px-1 pb-2">
             <div className="px-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -672,7 +671,7 @@ export default function CabinetPanel() {
           </div>
         )}
         <SliderControl
-          label={vi.common.width}
+          label="Width"
           max={3}
           min={0.3}
           onChange={(value) => updateNode({ width: value })}
@@ -684,7 +683,7 @@ export default function CabinetPanel() {
         {!isHoodOnlyNode && (
           <>
             <SliderControl
-              label={vi.common.depth}
+              label="Depth"
               max={1.2}
               min={0.3}
               onChange={(value) => updateNode({ depth: value })}
@@ -694,7 +693,7 @@ export default function CabinetPanel() {
               value={node.depth}
             />
             <SliderControl
-              label={vi.common.carcassHeight}
+              label="Carcass height"
               max={
                 node.type === 'cabinet-module' && resolveCabinetType(node, parentRun) === 'tall'
                   ? 2.4
@@ -716,7 +715,7 @@ export default function CabinetPanel() {
       </PanelSection>
 
       {node.type === 'cabinet-module' && parentRun?.type === 'cabinet' && !isHoodOnlyNode && (
-        <PanelSection title={vi.common.cabinetType}>
+        <PanelSection title="Cabinet Type">
           <div className="space-y-2 px-1 pb-2">
             <SegmentedControl
               onChange={(value) => {
@@ -734,11 +733,11 @@ export default function CabinetPanel() {
             />
             {resolveCabinetType(node, parentRun) === 'base' &&
               (hasWallCabinet ? (
-                <ActionButton label={vi.common.removeWallCabinet} onClick={removeWallCabinet} />
+                <ActionButton label="Remove wall cabinet" onClick={removeWallCabinet} />
               ) : (
                 <>
-                  <ActionButton label={vi.common.addWallCabinet} onClick={addWallCabinetAbove} />
-                  <ActionButton label={vi.common.addChimney} onClick={addHoodAbove} />
+                  <ActionButton label="Add wall cabinet" onClick={addWallCabinetAbove} />
+                  <ActionButton label="Add chimney" onClick={addHoodAbove} />
                 </>
               ))}
           </div>
@@ -746,7 +745,7 @@ export default function CabinetPanel() {
       )}
 
       {canAddTopFinish && (
-        <PanelSection title={vi.common.topOrCeiling}>
+        <PanelSection title="Top / Ceiling">
           <div className="space-y-2 px-1 pb-2">
             <div>
               <div className="px-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -771,7 +770,7 @@ export default function CabinetPanel() {
             {node.topFinish !== 'none' && (
               <>
                 <ActionButton
-                  label={vi.common.fillToCeiling}
+                  label="Fill to ceiling"
                   onClick={() =>
                     updateNode({
                       topFinishHeight: cabinetCeilingGap(
@@ -782,7 +781,7 @@ export default function CabinetPanel() {
                   }
                 />
                 <SliderControl
-                  label={vi.common.topHeight}
+                  label="Top height"
                   max={1.2}
                   min={0}
                   onChange={(value) => updateNode({ topFinishHeight: value })}
@@ -792,7 +791,7 @@ export default function CabinetPanel() {
                   value={node.topFinishHeight}
                 />
                 <SliderControl
-                  label={vi.common.topDepth}
+                  label="Top depth"
                   max={1.2}
                   min={0.15}
                   onChange={(value) => updateNode({ topFinishDepth: value })}
@@ -818,7 +817,7 @@ export default function CabinetPanel() {
 
       {planningReport &&
         (planningReport.errors.length > 0 || planningReport.warnings.length > 0) && (
-          <PanelSection title={vi.common.planningChecks}>
+          <PanelSection title="Planning checks">
             <div className="space-y-1 px-1 pb-2 text-xs leading-5">
               {planningReport.errors.map((planningIssue) => (
                 <div
@@ -843,11 +842,11 @@ export default function CabinetPanel() {
         )}
 
       {!isHoodOnlyNode && (
-        <PanelSection title={vi.common.openAnimation}>
+        <PanelSection title="Open Animation">
           <div className="flex items-center gap-2 px-1">
             <div className="min-w-0 flex-1">
               <SliderControl
-                label={vi.common.open}
+                label="Open"
                 max={100}
                 min={0}
                 onChange={(value) => {
@@ -893,7 +892,7 @@ export default function CabinetPanel() {
         </PanelSection>
       )}
 
-      <PanelSection title={vi.common.compartments}>
+      <PanelSection title="Compartments">
         {reflowNotice ? (
           <p
             aria-live="polite"
@@ -928,7 +927,7 @@ export default function CabinetPanel() {
         <div className="px-1 pb-1">
           <ActionButton
             icon={<Plus className="h-4 w-4" />}
-            label={vi.common.addCompartment}
+            label="Add compartment"
             onClick={addCompartment}
           />
         </div>
@@ -937,7 +936,7 @@ export default function CabinetPanel() {
       {!isHoodOnlyNode && (
         <>
           {isFridgeModule && (
-            <PanelSection title={vi.common.applianceFront}>
+            <PanelSection title="Appliance front">
               <div className="space-y-2 px-1 pb-2">
                 <div>
                   <div className="px-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -960,7 +959,7 @@ export default function CabinetPanel() {
               </div>
             </PanelSection>
           )}
-          <PanelSection title={vi.common.fronts}>
+          <PanelSection title="Fronts">
             <div className="space-y-2 px-1 pb-2">
               <div>
                 <div className="px-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -1017,7 +1016,7 @@ export default function CabinetPanel() {
             </div>
           </PanelSection>
 
-          <PanelSection title={vi.common.handles}>
+          <PanelSection title="Handles">
             <div className="space-y-2 px-1 pb-2">
               <div>
                 <div className="px-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">

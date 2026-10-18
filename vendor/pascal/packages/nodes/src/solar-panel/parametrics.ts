@@ -1,6 +1,5 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { SolarPanelNode } from './schema'
-import { vi } from '../i18n/vi'
 
 export const solarPanelParametrics: ParametricDescriptor<SolarPanelNode> = {
   // Bespoke panel ported from the archive — preset cards, auto-fit,
@@ -9,14 +8,14 @@ export const solarPanelParametrics: ParametricDescriptor<SolarPanelNode> = {
   customPanel: () => import('./panel'),
   groups: [
     {
-      label: vi.common.grid,
+      label: 'Grid',
       fields: [
         { key: 'rows', kind: 'number', min: 1, max: 20, step: 1 },
         { key: 'columns', kind: 'number', min: 1, max: 20, step: 1 },
       ],
     },
     {
-      label: vi.common.panelDimensions,
+      label: 'Panel dimensions',
       fields: [
         { key: 'panelWidth', kind: 'number', unit: 'm', min: 0.4, max: 1000, step: 0.01 },
         { key: 'panelHeight', kind: 'number', unit: 'm', min: 0.4, max: 1000, step: 0.01 },
@@ -25,7 +24,7 @@ export const solarPanelParametrics: ParametricDescriptor<SolarPanelNode> = {
       ],
     },
     {
-      label: vi.common.mounting,
+      label: 'Mounting',
       fields: [
         {
           key: 'mountingType',
@@ -46,7 +45,7 @@ export const solarPanelParametrics: ParametricDescriptor<SolarPanelNode> = {
       ],
     },
     {
-      label: vi.common.frame,
+      label: 'Frame',
       fields: [
         { key: 'frameThickness', kind: 'number', unit: 'm', min: 0, max: 0.1, step: 0.005 },
         { key: 'frameDepth', kind: 'number', unit: 'm', min: 0.005, max: 0.1, step: 0.005 },

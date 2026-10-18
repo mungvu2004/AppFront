@@ -1,7 +1,6 @@
 import { BuildingNode as BuildingNodeSchema, type NodeDefinition } from '@pascal-app/core'
 import { buildingParametrics } from './parametrics'
 import { BuildingNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Building — Stage A. Container for levels; can be translated /
@@ -49,7 +48,7 @@ export const buildingDefinition: NodeDefinition<typeof BuildingNode> = {
   },
 
   presentation: {
-    label: vi.building.catalogLabel,
+    label: 'Building',
     description: 'A building container holding one or more levels.',
     icon: { kind: 'url', src: '/icons/building.webp' },
     paletteSection: 'site',

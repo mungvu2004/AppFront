@@ -233,7 +233,7 @@ describe('snapshot request correlation', () => {
     await Promise.all([background, oldFrame, newFrame])
     expect(captured).toEqual(['new-frame'])
     expect(failures).toEqual([
-      { requestId: 'old-frame', error: 'Cảnh đã đổi trước khi chụp. Thử lại.' },
+      { requestId: 'old-frame', error: 'The scene changed before capture. Try again.' },
     ])
   })
 
@@ -369,7 +369,7 @@ describe('snapshot request correlation', () => {
     expect(failures).toEqual([
       {
         requestId: 'second',
-        error: 'Đang chụp một ảnh khác. Thử lại.',
+        error: 'Another snapshot is being captured. Try again.',
       },
     ])
     expect(completed).toEqual([])

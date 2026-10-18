@@ -418,7 +418,6 @@ import { stairPaint } from './paint'
 import { stairParametrics } from './parametrics'
 import { StairNode } from './schema'
 import { stairSlots } from './slots'
-import { vi } from '../i18n/vi'
 
 /**
  * Stair — Stage A. Composite node like roof: owns overall framing,
@@ -446,9 +445,9 @@ export const stairDefinition: NodeDefinition<typeof StairNode> = {
   // snapping chip shows during placement.
   snapDraftDirectional: false,
   toolHints: [
-    { key: 'Left click', label: vi.stair.shortcuts.place },
-    { key: 'R / T', label: vi.stair.shortcuts.rotate },
-    { key: 'Esc', label: vi.stair.shortcuts.cancel },
+    { key: 'Left click', label: 'Place stairs' },
+    { key: 'R / T', label: 'Rotate' },
+    { key: 'Esc', label: 'Cancel' },
   ],
   surfaceRole: 'joinery',
 
@@ -528,7 +527,7 @@ export const stairDefinition: NodeDefinition<typeof StairNode> = {
   },
 
   presentation: {
-    label: vi.stair.catalogLabel,
+    label: 'Stair',
     description:
       'A stair composed of one or more flights with configurable treads, risers, railings.',
     icon: { kind: 'url', src: '/icons/stairs.webp' },

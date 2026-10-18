@@ -1,5 +1,4 @@
 import type { AnyNode } from '@pascal-app/core'
-import { vi } from '../../../i18n/vi'
 
 export type NodeDisplay = {
   icon: string
@@ -11,7 +10,7 @@ const TYPE_DEFAULTS: Record<string, NodeDisplay> = {
   wall: { icon: '/icons/wall.webp', label: 'Wall' },
   door: { icon: '/icons/door.webp', label: 'Door' },
   window: { icon: '/icons/window.webp', label: 'Window' },
-  slab: { icon: '/icons/floor.webp', label: vi.nodeDisplay.slab },
+  slab: { icon: '/icons/floor.webp', label: 'Slab' },
   ceiling: { icon: '/icons/ceiling.webp', label: 'Ceiling' },
   column: { icon: '/icons/column.webp', label: 'Column' },
   elevator: { icon: '/icons/elevator.webp', label: 'Elevator' },

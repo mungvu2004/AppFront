@@ -1,6 +1,5 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { DoorNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Stage E inspector for door. Mounts the kind-owned panel
@@ -13,14 +12,14 @@ import { vi } from '../i18n/vi'
 export const doorParametrics: ParametricDescriptor<DoorNode> = {
   groups: [
     {
-      label: vi.common.dimensions,
+      label: 'Dimensions',
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.5, max: 1000, step: 0.05 },
         { key: 'height', kind: 'number', unit: 'm', min: 1.0, max: 1000, step: 0.05 },
       ],
     },
     {
-      label: vi.common.frame,
+      label: 'Frame',
       fields: [
         { key: 'frameThickness', kind: 'number', unit: 'm', min: 0.01, max: 0.2, step: 0.005 },
         { key: 'frameDepth', kind: 'number', unit: 'm', min: 0.01, max: 0.3, step: 0.005 },

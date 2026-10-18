@@ -1,8 +1,7 @@
 import type { MeasurementPoint } from '@pascal-app/core'
-import { formatWithUnitVi } from '../i18n/format'
 
 export type LinearUnit = 'metric' | 'imperial'
-export type MetricNotation = 'meters' | 'centimeters' | 'millimeters'
+export type MetricNotation = 'meters' | 'millimeters'
 
 export const MEASUREMENT_ACTIVE_COLOR = '#6366f1'
 export const MEASUREMENT_DANGLING_COLOR = '#dc2626'
@@ -154,8 +153,7 @@ export function formatAreaLabel(
 ): string {
   if (!Number.isFinite(squareMeters)) return '--'
 
-  const rounded = Number(squareMetersToAreaUnit(squareMeters, unit).toFixed(fractionDigits))
-  return formatWithUnitVi(rounded, getAreaUnitLabel(unit))
+  return `${squareMetersToAreaUnit(squareMeters, unit).toFixed(fractionDigits)}${getAreaUnitLabel(unit)}`
 }
 
 export function cubicMetersToVolumeUnit(cubicMeters: number, unit: LinearUnit): number {
@@ -173,8 +171,7 @@ export function formatVolumeLabel(
 ): string {
   if (!Number.isFinite(cubicMeters)) return '--'
 
-  const rounded = Number(cubicMetersToVolumeUnit(cubicMeters, unit).toFixed(fractionDigits))
-  return formatWithUnitVi(rounded, getVolumeUnitLabel(unit))
+  return `${cubicMetersToVolumeUnit(cubicMeters, unit).toFixed(fractionDigits)}${getVolumeUnitLabel(unit)}`
 }
 
 export function formatLinearMeasurement(
@@ -206,15 +203,8 @@ export function formatLinearMeasurement(
     return `${sign}${roundedMillimeters}mm`
   }
 
-  if (metricNotation === 'centimeters') {
-    const roundedCentimeters = Number.parseFloat((absoluteMeters * 100).toFixed(1))
-    const sign = meters < 0 && roundedCentimeters !== 0 ? '-' : ''
-    return `${sign}${String(roundedCentimeters).replace('.', ',')}cm`
-  }
-
   const roundedMeters = Number.parseFloat(absoluteMeters.toFixed(2))
   const sign = meters < 0 && roundedMeters !== 0 ? '-' : ''
 
-  // A15: decimal comma on screen.
-  return `${sign}${String(roundedMeters).replace('.', ',')}m`
+  return `${sign}${roundedMeters}m`
 }

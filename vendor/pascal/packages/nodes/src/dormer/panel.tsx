@@ -28,7 +28,6 @@ import { DormerActionsSection } from './panel-actions-section'
 import { DormerPositionSection } from './panel-position-section'
 import { DormerWindowsSection } from './panel-windows-section'
 import { planDormerWindowRow } from './window-layout'
-import { vi } from '../i18n/vi'
 
 type RoofType = DormerNode['roofType']
 type ShedHighSide = DormerNode['shedHighSide']
@@ -267,7 +266,7 @@ export default function DormerPanel() {
         selectedId={selectedId}
       />
 
-      <PanelSection title={vi.common.section}>
+      <PanelSection title="Section">
         <div className="grid grid-cols-3 gap-1.5 px-1 pt-1">
           {SECTION_OPTIONS.map((option) => {
             const isSelected = section === option.value
@@ -292,9 +291,9 @@ export default function DormerPanel() {
 
       {section === 'dormer' && (
         <>
-          <PanelSection title={vi.common.dimensions}>
+          <PanelSection title="Dimensions">
             <SliderControl
-              label={vi.common.width}
+              label="Width"
               max={1000}
               min={0.5}
               onChange={(v) => previewProp({ width: v })}
@@ -306,7 +305,7 @@ export default function DormerPanel() {
               value={node.width}
             />
             <SliderControl
-              label={vi.common.depth}
+              label="Depth"
               max={1000}
               min={0.5}
               onChange={(v) => previewProp({ depth: v })}
@@ -318,7 +317,7 @@ export default function DormerPanel() {
               value={node.depth}
             />
             <SliderControl
-              label={vi.common.wallHeight}
+              label="Wall Height"
               max={1000}
               min={0}
               onChange={(v) => previewProp({ height: v })}
@@ -343,7 +342,7 @@ export default function DormerPanel() {
             />
           </PanelSection>
 
-          <PanelSection title={vi.common.roofType}>
+          <PanelSection title="Roof Type">
             <div className="grid grid-cols-3 gap-1.5 px-1 pt-1">
               {ROOF_TYPE_OPTIONS.map((option) => {
                 const isSelected = node.roofType === option.value
@@ -367,7 +366,7 @@ export default function DormerPanel() {
           </PanelSection>
 
           {node.roofType === 'shed' && (
-            <PanelSection title={vi.common.pitchDirection}>
+            <PanelSection title="Pitch Direction">
               <div className="grid grid-cols-2 gap-1.5 px-1 pt-1">
                 {SHED_HIGH_SIDE_OPTIONS.map((option) => {
                   const isSelected = node.shedHighSide === option.value

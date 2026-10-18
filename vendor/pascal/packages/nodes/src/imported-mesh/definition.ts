@@ -2,7 +2,6 @@ import type { NodeDefinition } from '@pascal-app/core'
 import { buildImportedMeshFloorplan } from './floorplan'
 import { buildImportedMeshGeometry } from './geometry'
 import { ImportedMeshNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /** Format-neutral fallback for imported objects without a parametric node. */
 export const importedMeshDefinition: NodeDefinition<typeof ImportedMeshNode> = {
@@ -30,7 +29,7 @@ export const importedMeshDefinition: NodeDefinition<typeof ImportedMeshNode> = {
   geometry: buildImportedMeshGeometry,
   floorplan: buildImportedMeshFloorplan,
   presentation: {
-    label: vi.importedMesh.catalogLabel,
+    label: 'Imported Mesh',
     description: 'Geometry preserved from an imported model when no native Pascal shape exists.',
     icon: { kind: 'url', src: '/icons/item.webp' },
     hidden: true,

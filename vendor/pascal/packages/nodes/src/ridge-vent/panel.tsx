@@ -21,7 +21,6 @@ import { useViewer } from '@pascal-app/viewer'
 import { Copy, Move, Trash2 } from 'lucide-react'
 import { useCallback } from 'react'
 import type { RidgeVentNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Inspector panel for a placed ridge vent. Same structure as box-vent's
@@ -135,7 +134,7 @@ export default function RidgeVentPanel() {
       title={node.name || 'Ridge Vent'}
       width={300}
     >
-      <PanelSection title={vi.common.style}>
+      <PanelSection title="Style">
         <SegmentedControl
           onChange={(v) => handleUpdate({ style: v as RidgeVentNode['style'] })}
           options={[
@@ -155,9 +154,9 @@ export default function RidgeVentPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.dimensions}>
+      <PanelSection title="Dimensions">
         <SliderControl
-          label={vi.common.length}
+          label="Length"
           max={1000}
           min={0.5}
           onChange={(v) => handleUpdate({ length: v })}
@@ -169,7 +168,7 @@ export default function RidgeVentPanel() {
           value={node.length}
         />
         <SliderControl
-          label={vi.common.width}
+          label="Width"
           max={0.6}
           min={0.1}
           onChange={(v) => handleUpdate({ width: v })}
@@ -181,7 +180,7 @@ export default function RidgeVentPanel() {
           value={node.width}
         />
         <SliderControl
-          label={vi.common.height}
+          label="Height"
           max={0.2}
           min={0.03}
           onChange={(v) => handleUpdate({ height: v })}
@@ -194,7 +193,7 @@ export default function RidgeVentPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.position}>
+      <PanelSection title="Position">
         <SliderControl
           label="X"
           max={halfW}
@@ -254,7 +253,7 @@ export default function RidgeVentPanel() {
           value={node.position[2] ?? 0}
         />
         <SliderControl
-          label={vi.common.rotation}
+          label="Rotation"
           max={180}
           min={-180}
           onChange={(deg) => handleUpdate({ rotation: (deg * Math.PI) / 180 })}
@@ -267,18 +266,18 @@ export default function RidgeVentPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.actions}>
+      <PanelSection title="Actions">
         <ActionGroup>
-          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label={vi.common.move} onClick={handleMove} />
+          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label="Move" onClick={handleMove} />
           <ActionButton
             icon={<Copy className="h-3.5 w-3.5" />}
-            label={vi.common.duplicate}
+            label="Duplicate"
             onClick={handleDuplicate}
           />
           <ActionButton
             className="hover:bg-red-500/20"
             icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
-            label={vi.common.delete}
+            label="Delete"
             onClick={handleDelete}
           />
         </ActionGroup>

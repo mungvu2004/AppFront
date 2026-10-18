@@ -1,7 +1,6 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { editorAndViewer as vi } from '../i18n/regions/editorAndViewer'
 import { cn } from '../lib/utils'
 import type { WalkthroughInteract } from '../store/use-first-person-hud'
 
@@ -50,7 +49,7 @@ export function WalkthroughHud({
   const exitContent = (
     <>
       <kbd className={kbdClass}>Esc</kbd>
-      {vi.walkthroughHud.toExit}
+      to exit
     </>
   )
 
@@ -75,10 +74,10 @@ export function WalkthroughHud({
       <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2">
         {suspended ? (
           <div className={pillClass}>
-            <span className="font-medium text-foreground">{vi.walkthroughHud.click}</span>
-            <span>{vi.walkthroughHud.or}</span>
+            <span className="font-medium text-foreground">Click</span>
+            <span>or</span>
             <kbd className={kbdClass}>P</kbd>
-            <span>{vi.walkthroughHud.toResume}</span>
+            <span>to resume</span>
             <span className="text-muted-foreground/60">·</span>
             {exitContent}
           </div>
@@ -86,7 +85,7 @@ export function WalkthroughHud({
           <>
             <div className={pillClass}>
               <kbd className={kbdClass}>P</kbd>
-              {vi.walkthroughHud.freeCursor}
+              free cursor
             </div>
             {onExit ? (
               <button
@@ -109,7 +108,7 @@ export function WalkthroughHud({
             <kbd className="rounded border border-border/60 bg-white/10 px-1.5 py-0.5 font-mono text-[10px]">
               E
             </kbd>
-            <span className="text-muted-foreground">{vi.walkthroughHud.orClickTo}</span>
+            <span className="text-muted-foreground">or click to</span>
             <span className="font-medium">
               {interact.verb} {interact.label}
             </span>
