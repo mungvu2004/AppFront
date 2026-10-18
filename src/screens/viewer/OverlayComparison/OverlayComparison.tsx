@@ -81,6 +81,9 @@ const CANVAS_REGION_ARIA_LABEL = 'Khung đối chiếu bản vẽ gốc và mô 
 const NOTICE_REGION_ARIA_LABEL = 'Trạng thái của màn đối chiếu bản vẽ';
 
 const ERROR_LINK_LABEL = 'Sang màn hiệu chỉnh tỷ lệ';
+const LEGEND_ARIA_LABEL = 'Chú giải nét';
+const LEGEND_MODEL = 'Mô hình';
+const LEGEND_SCAN = 'Bản vẽ';
 /** BUG-420: lối ra của tầng chưa có bản vẽ — cùng nhãn nút của màn Hiệu chỉnh tỷ lệ. */
 const UPLOAD_LINK_LABEL = 'Tải bản vẽ lên';
 const RETRY_LABEL = 'Thử lại';
@@ -111,7 +114,7 @@ const NOTICE_LEVELS: Readonly<Partial<Record<OverlayComparisonState, InlineAlert
   forbidden: 'attention',
 };
 
-export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
+export function OverlayComparison({ actions, alignHref, model, nav }: OverlayComparisonProps) {
   // Vai 'viewer', và vai null (CHƯA BIẾT vai) — hai trường hợp duy nhất không
   // sửa được ở màn này, cùng khuôn `canEdit` của WallLayerReview/PropertyInspector.
   const canEdit = model.role !== null && model.role !== 'viewer';
@@ -157,6 +160,7 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
   if (model.readFailure != null) {
     return (
       <div aria-label={SCREEN_ARIA_LABEL} className="flex h-screen min-h-0 w-full flex-col bg-bg-app" role="region">
+        {nav}
         <FloorLayerReadFailureScreen failure={model.readFailure} />
       </div>
     );
@@ -168,9 +172,12 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
       // Dưới 1024 bảng số liệu xuống dưới canvas: cạnh nhau thì canvas còn quá hẹp cho thanh công cụ (BUG-318, BUG-327).
       // Cao bằng khung nhìn: route nằm trong `ScreenMain` (display: contents) không cho `h-full` một chiều
       // cao, nên màn co theo panel (~290 px ở 1024) và canvas còn 0 px dưới 1024 (QA-04 nợ B-3).
-      className="relative flex h-screen min-h-0 w-full flex-col overflow-x-clip bg-bg-app lg:flex-row"
+      className="flex h-screen min-h-0 w-full flex-col bg-bg-app"
       role="region"
     >
+      {/* N2-10, G4b-29: breadcrumb dự án › tầng › lớp và thanh lớp, cùng các màn QC khác. */}
+      {nav}
+      <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-x-clip lg:flex-row">
       {/* Dưới 1024 thanh công cụ nằm TRÊN canvas (trong luồng), không đè ~45% khung vẽ ở 375 (BUG-634). */}
       <section
         aria-label={CANVAS_REGION_ARIA_LABEL}
@@ -222,6 +229,21 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
           </div>
         </div>
 
+        {/* G4b-27: chú giải nét nào là mô hình, nét nào là bản vẽ. */}
+        <ul
+          aria-label={LEGEND_ARIA_LABEL}
+          className="pointer-events-none absolute bottom-3 left-3 z-20 flex gap-3 rounded-lg bg-bg-surface px-3 py-1.5 text-[12px] text-text-secondary shadow-float"
+        >
+          <li className="flex items-center gap-1.5">
+            <span aria-hidden="true" className="h-0.5 w-4 rounded-full bg-accent" />
+            {LEGEND_MODEL}
+          </li>
+          <li className="flex items-center gap-1.5">
+            <span aria-hidden="true" className="h-px w-4 bg-text-primary" />
+            {LEGEND_SCAN}
+          </li>
+        </ul>
+
         {/* Về được toàn cảnh mà không tải lại trang (BUG-599); 100% ở màn này chính là vừa khung. */}
         <ZoomCluster
           onFitToScreen={actions.fitView}
@@ -232,6 +254,7 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
         />
       </section>
 
+      {/* alignHref: chưa có bản vẽ thì không có gì để căn, lối "Tải bản vẽ lên" ở trên đã đủ. */}
       <OverlayComparisonPanel
         canEdit={canEdit}
         confirmation={model.confirmation}
@@ -243,7 +266,9 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
         rows={model.rows}
         toleranceLabel={model.toleranceLabel}
         toleranceMm={model.toleranceMm}
+        {...(alignHref === undefined || model.uploadHref !== null ? {} : { alignHref })}
       />
+      </div>
     </div>
   );
 }

@@ -87,6 +87,15 @@ describe('OverlayComparisonPanel', () => {
     expect(screen.queryByText('—')).toBeNull();
   });
 
+  it('[G4b-25] chưa đo được thì có lối sang màn căn ảnh', () => {
+    renderWithProviders(<OverlayComparisonPanel {...panelPropsOf('empty')} alignHref="/projects/p/floors/f/scale" />);
+
+    expect(screen.getByRole('link', { name: 'Căn ảnh ở màn Hiệu chỉnh tỷ lệ' })).toHaveAttribute(
+      'href',
+      '/projects/p/floors/f/scale',
+    );
+  });
+
   it('nút xác nhận tắt thì có dòng lý do ngay dưới (BUG-599)', () => {
     const props = panelPropsOf('empty');
     renderWithProviders(

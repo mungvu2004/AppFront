@@ -161,8 +161,9 @@ const partialDeviationNotice = (overTolerance: string): string =>
  * Chúng được viết lại ở đây thay vì nhập từ `overlayComparisonScenarios.ts`:
  * file kia là **dữ liệu mẫu cho test và story**, và bản sản phẩm không đọc nó.
  */
-const DEFAULT_SCAN_OPACITY_PERCENT = 25;
-const GEOMETRY_LAYER_OPACITY = 0.6;
+// G4b-27: 45% để nét bản vẽ còn đọc được mà nét mô hình (đậm, trên cùng) vẫn nổi.
+const DEFAULT_SCAN_OPACITY_PERCENT = 45;
+const GEOMETRY_LAYER_OPACITY = 1;
 const DEVIATION_LAYER_OPACITY = 1;
 
 /** Dung sai mặc định khi mở màn, theo milimét — con số đặc tả nêu. */
@@ -984,13 +985,14 @@ export function useOverlayComparison(
       scan: layer(
         'scan',
         COPY.layerScan,
-        scanOpacityPercent / FULL_PERCENT,
+        // G4b-26: độ mờ chỉ để xem chồng; "trượt"/"cạnh nhau" đặt hai bên riêng nên ảnh hiện đủ.
+        compareMode === 'overlay' ? scanOpacityPercent / FULL_PERCENT : 1,
         hasScanLayer,
       ),
       geometry: layer('geometry', COPY.layerGeometry, GEOMETRY_LAYER_OPACITY, true),
       deviation: layer('deviation', COPY.layerDeviation, DEVIATION_LAYER_OPACITY, marks.length > 0),
     };
-  }, [activeScan, marks.length, scanOpacityPercent]);
+  }, [activeScan, compareMode, marks.length, scanOpacityPercent]);
 
   /* ---------------------------------------------------------------------- */
   /* Xác nhận — chữ ký của người, ghi qua tầng mutation (R-64).              */

@@ -753,9 +753,9 @@ describe('useOverlayComparison — cổng và định dạng', () => {
   it('độ mờ ảnh nguồn đi ra dưới dạng chuỗi đã định dạng', async () => {
     const mounted = await mountMeasured();
 
-    expect(mounted.result.current.model.scanOpacityPercent).toBe(25);
-    expect(mounted.result.current.model.scanOpacityText).toBe('25%');
-    expect(mounted.result.current.model.layers.scan.opacity).toBeCloseTo(0.25);
+    expect(mounted.result.current.model.scanOpacityPercent).toBe(45);
+    expect(mounted.result.current.model.scanOpacityText).toBe('45%');
+    expect(mounted.result.current.model.layers.scan.opacity).toBeCloseTo(0.45);
 
     await act(async () => {
       mounted.result.current.actions.setScanOpacity(60);
@@ -763,6 +763,13 @@ describe('useOverlayComparison — cổng và định dạng', () => {
 
     expect(mounted.result.current.model.scanOpacityText).toBe('60%');
     expect(mounted.result.current.model.layers.scan.opacity).toBeCloseTo(0.6);
+
+    // G4b-26: "trượt" đặt ảnh riêng một bên nên hiện đủ, không theo thanh độ mờ.
+    await act(async () => {
+      mounted.result.current.actions.setCompareMode('swipe');
+    });
+
+    expect(mounted.result.current.model.layers.scan.opacity).toBe(1);
   });
 
   it('chọn một vùng lệch thì vẽ đường đo kèm giá trị đã định dạng', async () => {
@@ -868,7 +875,7 @@ describe('useOverlayComparison — cổng và định dạng', () => {
     const { layers } = mounted.result.current.model;
 
     expect(Object.keys(layers).sort()).toEqual(['deviation', 'geometry', 'scan']);
-    expect(layers.geometry.opacity).toBeCloseTo(0.6);
+    expect(layers.geometry.opacity).toBeCloseTo(1);
     expect(layers.deviation.isVisible).toBe(true);
   });
 });

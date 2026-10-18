@@ -42,6 +42,8 @@ import {
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useProjectSpatial } from '@/hooks/useProjectSpatial';
 import { useSession } from '@/hooks/useSession';
+import { ROUTES } from '@/routes/paths';
+import { QcFloorNav } from '@/screens/qc/shared/QcFloorNav';
 import type { ProjectRole } from '@/types/project';
 
 import { OverlayComparison } from './OverlayComparison';
@@ -113,7 +115,15 @@ function WiredOverlayComparison(props: OverlayComparisonContainerProps) {
     ...(props.onNavigate === undefined ? {} : { onNavigate: props.onNavigate }),
   });
 
-  return <OverlayComparison actions={actions} model={model} />;
+  return (
+    <OverlayComparison
+      actions={actions}
+      // Route tỷ lệ nhận mã tầng API như route này (G4b-25).
+      alignHref={ROUTES.project.scale(props.projectId, props.floorId)}
+      model={model}
+      nav={<QcFloorNav floorId={props.floorId} layer="overlay" projectId={props.projectId} />}
+    />
+  );
 }
 
 /** `<OverlayComparisonContainer projectId={...} floorId={...} />` — màn thật, đã nối. */

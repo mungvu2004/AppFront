@@ -551,6 +551,10 @@ export interface OverlayComparisonActions {
 export interface OverlayComparisonProps {
   readonly model: OverlayComparisonViewModel;
   readonly actions: OverlayComparisonActions;
+  /** G4b-25: lối sang màn căn ảnh, container dựng từ tham số route. */
+  readonly alignHref?: string;
+  /** Thanh điều hướng QC (breadcrumb + thanh lớp), đặt trên cùng màn. */
+  readonly nav?: ReactNode;
 }
 
 /** Props của thanh công cụ nổi: cao 40, bo 12, nằm trên cùng giữa. */
@@ -586,6 +590,8 @@ export interface OverlayComparisonPanelProps {
   readonly onConfirmMatch: () => void;
   /** Khối câu trạng thái đặt ở ĐẦU panel, không nổi giữa canvas (BUG-331, AES-13). */
   readonly notice?: ReactNode;
+  /** G4b-25: lối sang màn căn ảnh (Hiệu chỉnh tỷ lệ), hiện dưới câu "chưa có số đo". */
+  readonly alignHref?: string;
 }
 
 /** Props của canvas đối chiếu, rộng toàn vùng còn lại. */

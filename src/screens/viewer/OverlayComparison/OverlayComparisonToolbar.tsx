@@ -196,11 +196,14 @@ export function OverlayComparisonToolbar({
       role="toolbar"
     >
       <div className={CLUSTER_ROW_CLASS}>
-        <FloorSelect
-          activeFloorId={activeFloorId}
-          floors={floors}
-          onSelectFloor={onSelectFloor}
-        />
+        {/* G4b-28: một tầng thì không có gì để chọn; breadcrumb QcFloorNav đã ghi tầng đang xem. */}
+        {floors.length > 1 && (
+          <FloorSelect
+            activeFloorId={activeFloorId}
+            floors={floors}
+            onSelectFloor={onSelectFloor}
+          />
+        )}
         <CompareModeCluster
           compareMode={compareMode}
           disabledCompareModes={disabledCompareModes}
@@ -209,11 +212,14 @@ export function OverlayComparisonToolbar({
       </div>
 
       <div className={CLUSTER_ROW_CLASS}>
-        <ScanOpacityCluster
-          onSetScanOpacity={onSetScanOpacity}
-          scanOpacityPercent={scanOpacityPercent}
-          scanOpacityText={scanOpacityText}
-        />
+        {/* G4b-26: độ mờ chỉ có nghĩa khi xem chồng; "trượt"/"cạnh nhau" luôn hiện đủ ảnh. */}
+        {compareMode === 'overlay' && (
+          <ScanOpacityCluster
+            onSetScanOpacity={onSetScanOpacity}
+            scanOpacityPercent={scanOpacityPercent}
+            scanOpacityText={scanOpacityText}
+          />
+        )}
         {/* Ẩn tới khi đặt được ảnh vào mô hình: bật/tắt mà không đổi gì là điều khiển chết (BUG-599). */}
         {canLockAlignment && (
           <div className="shrink-0 whitespace-nowrap">

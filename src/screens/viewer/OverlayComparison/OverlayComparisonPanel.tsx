@@ -55,6 +55,10 @@ const NO_DEVIATIONS_NOTICE = 'Không có vùng lệch nào được ghi nhận.'
 const CONFIRM_BADGE_LABEL = 'Đã duyệt';
 /** Ba ô gạch ngang nổi hơn cả nhãn của chúng: chưa đo thì một dòng nói thẳng (BUG-331, AES-13). */
 const UNMEASURED_NOTICE = 'Chưa có số đo — cần căn ảnh quét vào mô hình trước.';
+/** G4b-25: lối đi căn ảnh, không để người dùng kẹt ở câu "cần căn trước". */
+const ALIGN_LINK_LABEL = 'Căn ảnh ở màn Hiệu chỉnh tỷ lệ';
+/** G4b-28: ô mm chỉ nhận chữ số, dấu phẩy/chấm thập phân và dấu trừ (dấu trừ có câu báo riêng). */
+const NON_NUMERIC_INPUT = /[^\d.,-]/;
 
 /** Bốn lớp chung của mọi panel 344 trong repo — `HistoryPanel.chrome.tsx:91-92`. */
 const PANEL_CLASS =
@@ -114,6 +118,7 @@ export function OverlayComparisonPanel({
   onSelectRegion,
   onConfirmMatch,
   notice,
+  alignHref,
 }: OverlayComparisonPanelProps) {
   const isUnmeasured = metrics.overToleranceCount === null;
 
@@ -121,7 +126,17 @@ export function OverlayComparisonPanel({
     <div aria-label={PANEL_LABEL} className={PANEL_CLASS} role="region">
       {notice === undefined ? null : <div className="px-4 pt-4">{notice}</div>}
       {isUnmeasured ? (
-        <p className="px-4 pt-4 text-[13px] text-text-secondary">{UNMEASURED_NOTICE}</p>
+        <div className="flex flex-col items-start gap-1 px-4 pt-4">
+          <p className="text-[13px] text-text-secondary">{UNMEASURED_NOTICE}</p>
+          {alignHref !== undefined && (
+            <a
+              className="rounded-md text-[13px] text-accent underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              href={alignHref}
+            >
+              {ALIGN_LINK_LABEL}
+            </a>
+          )}
+        </div>
       ) : (
         <div className="grid grid-cols-3 gap-2 px-4 pt-4">
           <MetricStat label={metrics.labels.mean} valueText={metrics.meanText} />
@@ -135,6 +150,12 @@ export function OverlayComparisonPanel({
           disabled={!canEdit}
           label={toleranceLabel}
           min={0}
+          onBeforeInput={(event) => {
+            const typed = (event.nativeEvent as InputEvent).data;
+            if (typed !== null && typed !== undefined && NON_NUMERIC_INPUT.test(typed)) {
+              event.preventDefault();
+            }
+          }}
           onChange={(value) => {
             if (value !== undefined) {
               onSetToleranceMm(value);
