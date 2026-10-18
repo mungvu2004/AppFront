@@ -92,6 +92,7 @@ import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
 import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { useLeaveWarning } from '../shared/useLeaveWarning';
 
 import {
@@ -360,6 +361,8 @@ export interface UseAxisGridManagerResult extends AxisGridManagerProps {
   readonly readFailure: FloorLayerReadFailure | null;
   /** BUG-578: câu "chỉ giữ trong phiên". `null` ở vai chỉ xem — vai đó không sửa gì. */
   readonly unsavedNotice: string | null;
+  /** G4b-15: dải "tỷ lệ tạm" — số mm của trục đang tính theo tỷ lệ chưa hiệu chỉnh. */
+  readonly provisionalScaleNotice: ProvisionalScaleNotice | null;
   /** BUG-594/601: vì sao "Căn chỉnh tự động" bị khoá; `null` khi bấm được và có việc để làm. */
   readonly autoAlignBlockedReason: string | null;
 }
@@ -463,6 +466,13 @@ export function useAxisGridManager(
 
   const hasError = floorLayer.error !== null;
   const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
+  const provisionalScaleNotice = useProvisionalScaleNotice(
+    floorLayer.scaleStatus,
+    projectId,
+    floorId,
+    options.onNavigate,
+    canEdit,
+  );
   const isLoading = floorLayer.isPending || graph === null;
 
   /* ---------------------------------------------------------------------- */
@@ -1298,6 +1308,7 @@ export function useAxisGridManager(
     canUndo: dispatchBundle.history.canUndo(),
     readFailure,
     unsavedNotice: canEdit ? AXIS_GRID_TEXT.unsavedNotice : null,
+    provisionalScaleNotice,
     autoAlignBlockedReason,
   };
 }

@@ -54,7 +54,7 @@
  * thêm đường lưu trục là một lượt làm riêng của nhóm lô-gic.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type ReactNode } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -71,6 +71,8 @@ import type { Announcer } from '@/lib/input/announcer';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import type { ProjectRole } from '@/types/project';
+
+import { QcFloorNav } from '../shared/QcFloorNav';
 
 import { AxisGridManager } from './AxisGridManager';
 import type { AxisGridManagerGateway } from './axisGridManagerGateway';
@@ -110,6 +112,8 @@ export interface AxisGridManagerContainerProps {
   readonly isCompact?: boolean;
   /** Lối ra của trạng thái đọc lớp hỏng (BUG-326). */
   readonly onNavigate?: (path: string) => void;
+  /** `QcFloorNav` dựng ở route (cần Router); vắng thì view giữ đầu màn cũ. */
+  readonly floorNav?: ReactNode;
 }
 
 /** Cùng khuôn `ScreenCrashFallback` của `src/App.tsx` — R-62. */
@@ -183,6 +187,8 @@ function WiredAxisGridManager(props: AxisGridManagerContainerProps) {
       readFailure={result.readFailure}
       spacingMessage={result.spacingMessage}
       unsavedNotice={result.unsavedNotice}
+      provisionalScaleNotice={result.provisionalScaleNotice}
+      floorNav={props.floorNav}
       autoAlignBlockedReason={result.autoAlignBlockedReason}
       viewModel={result.viewModel}
     />
@@ -228,6 +234,7 @@ function AxisGridManagerRouteBody({
   return (
     <AxisGridManagerContainer
       floorId={floorId}
+      floorNav={<QcFloorNav floorId={floorId} layer="grids" projectId={projectId} />}
       levelId={levelId}
       onNavigate={onNavigate}
       projectId={projectId}

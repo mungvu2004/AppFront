@@ -44,6 +44,7 @@
  * đọc `aria-live` mà hook đã phát lúc bị chặn.
  */
 
+import { useState, type ReactNode } from 'react';
 import { Grid3x3 } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -53,7 +54,9 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
+import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcScreenFrame } from '../shared/QcScreenFrame';
+import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 
 import { AxisGridCanvas, type AxisGridCanvasProps } from './AxisGridCanvas';
@@ -91,6 +94,10 @@ export interface AxisGridManagerViewProps
   readonly spacingMessage: string | null;
   /** BUG-578: câu "chỉ giữ trong phiên" — `null` ở vai chỉ xem. */
   readonly unsavedNotice: string | null;
+  /** G4b-15: dải "tỷ lệ tạm" kèm nút "Hiệu chỉnh tỷ lệ"; vắng/`null` khi tầng đã có tỷ lệ. */
+  readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
+  /** `QcFloorNav` (breadcrumb dự án › tầng › lớp + thanh lớp) — route truyền vào; vắng thì giữ đầu màn cũ. */
+  readonly floorNav?: ReactNode;
   /** BUG-594/601: vì sao "Căn chỉnh tự động" bị khoá; `null` khi bấm được. */
   readonly autoAlignBlockedReason: string | null;
   /** Đọc lớp hỏng khi chưa có tài liệu → cả màn là một trạng thái lỗi (BUG-326). */
@@ -210,6 +217,7 @@ function AxisGridLeftColumn({
 
 export function AxisGridManager(props: AxisGridManagerViewProps) {
   const { viewModel, spacingMessage } = props;
+  const [unsavedDismissed, setUnsavedDismissed] = useState(false);
   const isCollapsed = viewModel.isCollapsed;
   const hasNoAxis = viewModel.hasNoAxes;
   const canvasNotice = !hasNoAxis ? null : viewModel.errorMessage !== null ? CANVAS_ERROR_NOTICE : CANVAS_EMPTY_NOTICE;
@@ -224,16 +232,29 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
 
   return (
     <QcScreenFrame label={SCREEN_TITLE}>
-      <header className="shrink-0 px-4 pb-1 pt-3">
-        <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
-        <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
-        <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
-      </header>
+      {props.floorNav ?? (
+        <header className="shrink-0 px-4 pb-1 pt-3">
+          <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
+          <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
+          <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
+        </header>
+      )}
 
-      {/* BUG-578: nói thật, cố định — chưa có chỗ lưu lưới trục lên máy chủ. */}
-      {props.unsavedNotice === null ? null : (
+      {props.provisionalScaleNotice == null ? null : (
         <div className="shrink-0 px-4 pb-1">
-          <InlineAlert level="attention" message={props.unsavedNotice} role="note" />
+          <ProvisionalScaleBanner notice={props.provisionalScaleNotice} />
+        </div>
+      )}
+
+      {/* BUG-578: nói thật — chưa có chỗ lưu lưới trục lên máy chủ. G4b-17: ẩn được để trả chỗ. */}
+      {props.unsavedNotice === null || unsavedDismissed ? null : (
+        <div className="shrink-0 px-4 pb-1">
+          <InlineAlert
+            level="attention"
+            message={props.unsavedNotice}
+            onDismiss={() => setUnsavedDismissed(true)}
+            role="note"
+          />
         </div>
       )}
 

@@ -451,6 +451,29 @@ describe('QA-04c SCR-19 trên màn', () => {
     expect(screen.getByText('Trục chỉ giữ trong phiên này.')).toBeInTheDocument();
   });
 
+  it('[G4b-17] câu "chỉ giữ trong phiên" ẩn được để trả chỗ', () => {
+    renderWithProviders(<AxisGridManager {...scenarioArgsFor('success')} unsavedNotice="Trục chỉ giữ trong phiên này." />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ẩn thông báo' }));
+
+    expect(screen.queryByText('Trục chỉ giữ trong phiên này.')).not.toBeInTheDocument();
+  });
+
+  it('[G4b-15] tầng ở tỷ lệ tạm thì hiện dải tỷ lệ tạm kèm nút hiệu chỉnh', () => {
+    const onCalibrate = vi.fn();
+    renderWithProviders(
+      <AxisGridManager
+        {...scenarioArgsFor('success')}
+        provisionalScaleNotice={{ dismissKey: 'p15-test', message: 'Tỷ lệ tạm.', onCalibrate }}
+        unsavedNotice={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ' }));
+
+    expect(onCalibrate).toHaveBeenCalledTimes(1);
+  });
+
   it('[BUG-594][BUG-601] "Căn chỉnh tự động" bị khoá thì nói lý do ngay dưới nút', () => {
     renderWithProviders(
       <AxisGridManager {...scenarioArgsFor('success')} autoAlignBlockedReason="Vai người xem không căn chỉnh được các tầng." />,
