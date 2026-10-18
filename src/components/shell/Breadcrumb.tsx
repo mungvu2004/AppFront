@@ -1,6 +1,8 @@
 import React from 'react';
 
 import { Check } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
+import { ROUTES } from '../../routes/paths';
 import { cn } from '../../lib/utils';
 import { useBreadcrumb } from '../../hooks/useBreadcrumb';
 import type { BreadcrumbItem, BreadcrumbOption } from '../../hooks/useBreadcrumb';
@@ -20,9 +22,21 @@ interface BreadcrumbProps {
 /** Một tên cho mọi breadcrumb, cùng chữ với các màn quản trị. */
 const NAV_LABEL = 'Đường dẫn trang';
 
+/** Một kiểu chữ cho mọi cấp bấm được (nút hay link). */
+const CRUMB_LINK_CLASS = cn(
+  // Dưới 640 px vùng chạm 44×44 px như mọi nút — cả bề ngang: "Dự án" chỉ rộng 39 px
+  // (BUG-108, run-20); từ 640 px giữ dòng chữ 24 px.
+  'inline-flex min-h-11 min-w-11 items-center sm:min-h-6 sm:min-w-0 text-[13px] font-medium text-text-secondary leading-none',
+  'hover:text-text-primary transition-colors duration-120',
+  'rounded px-0.5 -mx-0.5',
+  'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2'
+);
+
 // ─── Breadcrumb ───────────────────────────────────────────────────────────────
 
 export function Breadcrumb({ ariaLabel = NAV_LABEL, items }: BreadcrumbProps) {
+  // Ngoài router (story, test lẻ) `useParams` trả `{}`: tên dự án khi đó là chữ thường.
+  const projectId = useParams().projectId;
   const { openDropdownId, openDropdown, closeDropdown, dropdownZIndex } = useBreadcrumb();
 
   return (
@@ -124,6 +138,11 @@ export function Breadcrumb({ ariaLabel = NAV_LABEL, items }: BreadcrumbProps) {
                     </>
                   )}
                 </div>
+              ) : item.onClick === undefined && item.id === 'project' && projectId !== undefined ? (
+                /* Tên dự án luôn bấm được, về màn tầng của dự án (N5-09). */
+                <Link to={ROUTES.project.floors(projectId)} className={cn(CRUMB_LINK_CLASS, 'inline-block max-w-[140px] truncate leading-6 sm:max-w-xs')} title={item.label}>
+                  {item.label}
+                </Link>
               ) : item.onClick === undefined ? (
                 /* Cấp trước không có đích — chữ thường, không giả làm nút (BUG-079) */
                 /* Một tên dự án dài cắt "…" (title giữ đủ) để đường dẫn vẫn một dòng ở 375 px (BUG-165);
@@ -139,14 +158,7 @@ export function Breadcrumb({ ariaLabel = NAV_LABEL, items }: BreadcrumbProps) {
                 <button
                   type="button"
                   onClick={item.onClick}
-                  className={cn(
-                    // Dưới 640 px vùng chạm 44×44 px như mọi nút — cả bề ngang: "Dự án" chỉ rộng 39 px
-                    // (BUG-108, run-20); từ 640 px giữ dòng chữ 24 px.
-                    'inline-flex min-h-11 min-w-11 items-center sm:min-h-6 sm:min-w-0 text-[13px] font-medium text-text-secondary leading-none',
-                    'hover:text-text-primary transition-colors duration-120',
-                    'rounded px-0.5 -mx-0.5',
-                    'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2'
-                  )}
+                  className={CRUMB_LINK_CLASS}
                 >
                   {item.label}
                 </button>
