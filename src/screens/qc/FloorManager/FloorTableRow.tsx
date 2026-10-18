@@ -195,6 +195,11 @@ export function FloorTableRow({
       return;
     }
 
+    moveByArrow(event);
+  };
+
+  /** Mũi tên lên/xuống dời dòng một bậc — dùng chung cho Alt+mũi tên ở dòng và mũi tên ở nút kéo (G3-20). */
+  function moveByArrow(event: KeyboardEvent<HTMLElement>) {
     if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') {
       return;
     }
@@ -206,8 +211,9 @@ export function FloorTableRow({
     }
 
     event.preventDefault();
+    event.stopPropagation();
     onReorderFloors(ids);
-  };
+  }
 
   return (
     <tr
@@ -248,12 +254,14 @@ export function FloorTableRow({
       {canEdit && (
         <Table.Cell className={cn(cell, !isStacked && 'w-10 sm:w-8')}>
           <IconButton
+            aria-keyshortcuts="ArrowUp ArrowDown"
             aria-label={`Đổi thứ tự tầng ${row.name}`}
             className="cursor-grab active:cursor-grabbing"
             draggable
             icon={<GripVertical className="h-4 w-4" />}
             onClick={(event) => event.stopPropagation()}
             onDragEnd={onDragEnd}
+            onKeyDown={moveByArrow}
             onDragStart={(event) => {
               event.stopPropagation();
               onDragHandleStart(row.id);
@@ -404,6 +412,8 @@ export function FloorTableRow({
 
           {(canEdit || onOpenOverlay !== undefined || onOpenReviewMenu !== undefined) && (
             <Table.Cell className={cell}>
+              {/* Nút ⋮ cùng dòng với "Duyệt lớp", không rơi xuống dòng riêng (G3-21). */}
+              <div className="flex items-center gap-1">
               <FloorRowLinks onOpenOverlay={onOpenOverlay} onOpenReviewMenu={onOpenReviewMenu} row={row} />
               {canEdit && <IconButton
                 aria-label={`Thao tác khác cho tầng ${row.name}`}
@@ -415,6 +425,7 @@ export function FloorTableRow({
                 size="sm"
                 tooltip={false}
               />}
+              </div>
             </Table.Cell>
           )}
         </>

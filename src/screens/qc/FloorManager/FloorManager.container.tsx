@@ -198,6 +198,7 @@ function WiredFloorManager(props: FloorManagerContainerProps) {
       state={result.state}
       totalHeightText={result.totalHeightText}
       unsupportedNotices={result.unsupportedNotices}
+      projectName={result.projectName}
     />
   );
 }

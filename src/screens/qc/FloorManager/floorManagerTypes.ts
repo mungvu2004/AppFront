@@ -329,6 +329,8 @@ export interface FloorManagerViewProps {
    * TRƯỚC lúc người dùng bấm, không giấu dưới đáy trang.
    */
   readonly unsupportedNotices: readonly string[];
+  /** Tên dự án cho breadcrumb "Dự án › <tên> › Quản lý tầng" (N0-05); `null`/vắng thì bỏ cấp ấy. */
+  readonly projectName?: string | null | undefined;
   /**
    * Câu chặn trùng cao độ của lượt sửa gần nhất, `null` khi lượt vừa rồi hợp lệ.
    *
@@ -491,6 +493,8 @@ export const PROJECT_MORE_SCREENS = [
   { id: 'data', label: 'Dữ liệu dự án' },
   { id: 'versions', label: 'Lịch sử phiên bản' },
   { id: 'pipelineGraph', label: 'Sơ đồ xử lý' },
+  // N0-03: lối mở lại bước nắn ảnh sau khi luồng xử lý đã đi qua.
+  { id: 'quality', label: 'Xem lại chất lượng ảnh' },
 ] as const;
 
 export type ProjectMoreScreen = (typeof PROJECT_MORE_SCREENS)[number]['id'];

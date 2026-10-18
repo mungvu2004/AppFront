@@ -492,7 +492,8 @@ describe('[NGHIEM-6] màn nói ra hai sự thật thay vì im lặng', () => {
   it('màn ĐÃ NỐI DÂY đọc câu nợ thẳng từ cổng thật; câu ẩn 3D chỉ khi có tầng ẩn (BUG-287)', async () => {
     await mountScreen();
 
-    expect(screen.getByText(FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents, { exact: false })).toBeInTheDocument();
+    // G3-16: vừa mở, chưa nhân bản/xoá tầng nào thì chưa có gì "chưa lưu".
+    expect(screen.queryByText(FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents, { exact: false })).not.toBeInTheDocument();
     expect(screen.queryByText(FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d, { exact: false })).not.toBeInTheDocument();
   });
 
@@ -760,6 +761,20 @@ describe('kéo thả tới cuối bảng (BUG-518)', () => {
   });
 });
 
+describe('đổi thứ tự bằng bàn phím ở nút kéo (G3-20)', () => {
+  it('mũi tên xuống trên nút kéo dời tầng một bậc, gọi đúng một lần', () => {
+    const base = scenarioArgsFor('partial');
+    const onReorderFloors = vi.fn();
+    renderWithProviders(<FloorManager {...base} onReorderFloors={onReorderFloors} />);
+    const ids = base.rows.map((row) => row.id);
+
+    fireEvent.keyDown(screen.getByRole('button', { name: `Đổi thứ tự tầng ${base.rows[0]!.name}` }), { key: 'ArrowDown' });
+
+    expect(onReorderFloors).toHaveBeenCalledTimes(1);
+    expect(onReorderFloors).toHaveBeenCalledWith([ids[1], ids[0], ...ids.slice(2)]);
+  });
+});
+
 describe('rê lên dòng bảng làm sáng dải lát cắt (BUG-519)', () => {
   it('dải của tầng đang được rê mang nền hover; dải khác thì không', () => {
     const base = scenarioArgsFor('partial');
@@ -845,7 +860,7 @@ describe('menu "Thêm" ở đầu màn: lối vào màn cấp dự án', () => {
 
     const items = await screen.findAllByRole('menuitem');
 
-    expect(items.map((item) => item.textContent)).toEqual(['Dữ liệu dự án', 'Lịch sử phiên bản', 'Sơ đồ xử lý']);
+    expect(items.map((item) => item.textContent)).toEqual(['Dữ liệu dự án', 'Lịch sử phiên bản', 'Sơ đồ xử lý', 'Xem lại chất lượng ảnh']);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Lịch sử phiên bản' }));
     expect(onOpenProjectScreen).toHaveBeenCalledWith('versions');
   });

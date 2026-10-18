@@ -1216,6 +1216,8 @@ export interface FloorManagerGateway {
   readonly supports: Readonly<Record<FloorManagerCapability, boolean>>;
   /** Danh sách tầng + đồ thị. Lỗi ở đây là trạng thái `error` của A11. */
   readonly readFloorList: (input: ReadFloorListInput) => Promise<FloorManagerSnapshot>;
+  /** Tên dự án cho breadcrumb (N0-05). Vắng thì breadcrumb không có cấp tên dự án. */
+  readonly readProjectName?: (input: { readonly projectId: string; readonly signal?: AbortSignal }) => Promise<string | null>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: FloorManagerGraphPort;
   /** `POST /floors`. CÓ endpoint thật, nên không có nhánh `supported: false`. */
@@ -1296,6 +1298,12 @@ export function createFloorManagerGateway(
       duplicateFloor: true,
       persistFloorContents: false,
       hideFloorFrom3d: false,
+    },
+
+    readProjectName: async ({ projectId, signal }) => {
+      const result = await api.projects.read({ projectId, ...(signal !== undefined ? { signal } : {}) });
+
+      return result.ok ? result.data.name : null;
     },
 
     readFloorList: async (input) => {

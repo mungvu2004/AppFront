@@ -106,6 +106,7 @@ import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { runExclusive } from '@/lib/mutations/entityQueue';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
+import { cachedProjectName } from '@/lib/query/cachedProjectName';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ApiResult } from '@/api/client';
 
@@ -499,10 +500,38 @@ function useResolvedGateway(injected: FloorManagerGateway | undefined): FloorMan
   return fallbackRef.current;
 }
 
+/**
+ * G3-20: tên tầng nói vị trí ("Tầng mái", "Tầng trệt") mà nằm sai chỗ sau khi kéo thì nói ra,
+ * kèm vé hoàn tác. ponytail: dò theo chữ trong tên; tên khác ("Roof", "Sân thượng") không bắt.
+ */
+export function misplacedFloorNameWarning(namesBottomUp: readonly string[]): string | null {
+  const roofIndex = namesBottomUp.findIndex((name) => /mái/iu.test(name));
+
+  if (roofIndex !== -1 && roofIndex !== namesBottomUp.length - 1) {
+    return `"${namesBottomUp[roofIndex]}" không còn ở trên cùng, hãy xem lại thứ tự.`;
+  }
+
+  const groundIndex = namesBottomUp.findIndex((name) => /trệt/iu.test(name));
+
+  if (groundIndex > 0 && !namesBottomUp.slice(0, groundIndex).every((name) => /hầm/iu.test(name))) {
+    return `"${namesBottomUp[groundIndex]}" đang nằm trên một tầng không phải tầng hầm, hãy xem lại thứ tự.`;
+  }
+
+  return null;
+}
+
 export function useFloorManager(options: UseFloorManagerOptions): UseFloorManagerResult {
   const { projectId } = options;
   const gateway = useResolvedGateway(options.gateway);
   const queryClient = useQueryClient();
+  // N0-05: breadcrumb nêu tên dự án; bộ đệm có sẵn thì khỏi đọc lại.
+  const cachedName = cachedProjectName(queryClient, projectId);
+  const projectNameQuery = useQuery({
+    queryKey: [...queryKeys.project.detail(projectId), 'name'],
+    queryFn: ({ signal }) => gateway.readProjectName?.({ projectId, signal }) ?? Promise.resolve(null),
+    enabled: cachedName === null && gateway.readProjectName !== undefined,
+  });
+  const projectName = cachedName ?? projectNameQuery.data ?? null;
   const notifications = options.notifications ?? appNotificationBus;
   const announcerRef = useRef<Announcer | null>(options.announcer ?? null);
 
@@ -526,6 +555,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null);
   const [hoveredFloorId, setHoveredFloorId] = useState<string | null>(null);
   const [hiddenFloorIds, setHiddenFloorIds] = useState<readonly string[]>(NO_FLOOR_IDS);
+  /* Cờ dirty thật (G3-16): câu "tường, phòng, nội thất chưa lưu" chỉ đúng sau khi đã nhân bản hay xoá tầng. */
+  const [hasUnsavedContents, setHasUnsavedContents] = useState(false);
   const [ownCollapsed, setOwnCollapsed] = useState(false);
   const [isAutoElevation, setIsAutoElevation] = useState(false);
   const [drafts, setDrafts] = useState<Readonly<Record<string, FloorRowDraft>>>({});
@@ -1464,6 +1495,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
             });
 
             if (!contents.supported) {
+              setHasUnsavedContents(true);
               announce(contents.notice);
             }
           },
@@ -1489,6 +1521,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
           label: result.data.description,
           requests: [removeRequest(floorId)],
           onApplied: (stepId) => {
+            setHasUnsavedContents(true);
+
             if (selectedFloorId === floorId) {
               setSelectedFloorId(null);
             }
@@ -1526,9 +1560,14 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
             ...patchRequestsOf([result.data]),
           ],
           onApplied: (stepId) => {
+            const names = floorIdsBottomUp.map(
+              (id) => levelsOf(context.graph).find((entry) => String(entry.id) === id)?.name ?? '',
+            );
+            const warning = misplacedFloorNameWarning(names);
+
             publishUndoTicket(
               FLOOR_REORDER_NOTIFICATION_TYPE,
-              REORDER_FLOORS_TOAST_DESCRIPTION,
+              warning === null ? REORDER_FLOORS_TOAST_DESCRIPTION : `${REORDER_FLOORS_TOAST_DESCRIPTION} ${warning}`,
               stepId,
             );
             announceStackIssue();
@@ -1761,9 +1800,10 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
           !gateway.supports[capability] &&
           (capability !== 'hideFloorFrom3d' || hasHiddenFloor) &&
           /* Câu nhân bản/xoá tầng chỉ nói với người làm được hai việc đó (BUG-521). */
-          (capability !== 'persistFloorContents' || canEdit),
+          /* …và chỉ sau khi đã nhân bản/xoá tầng trong phiên này (G3-16). */
+          (capability !== 'persistFloorContents' || (canEdit && hasUnsavedContents)),
       ).map((capability) => FLOOR_MANAGER_UNSUPPORTED_NOTICES[capability]),
-    [canEdit, gateway, hasHiddenFloor],
+    [canEdit, gateway, hasHiddenFloor, hasUnsavedContents],
   );
 
   return {
@@ -1811,5 +1851,6 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     historyStepCount: () => dispatchBundle.history.undoSteps().length,
     canUndo: dispatchBundle.history.canUndo(),
     unsupportedNotices,
+    projectName,
   };
 }

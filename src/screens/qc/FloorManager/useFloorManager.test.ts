@@ -61,6 +61,7 @@ import {
   FLOOR_MANAGER_TEXT,
   FLOOR_RESTORE_WINDOW_MS,
   metreDraftText,
+  misplacedFloorNameWarning,
   nextNewFloorName,
   useFloorManager,
   type UseFloorManagerOptions,
@@ -747,9 +748,8 @@ describe('bảng tầng', () => {
   it('nói ra khoản nợ của cổng thay vì im lặng; câu ẩn 3D chỉ khi đã ẩn một tầng (BUG-287)', async () => {
     const mounted = await mountSettled();
 
-    expect(mounted.result.current.unsupportedNotices).toEqual([
-      FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
-    ]);
+    // G3-16: vừa mở, chưa sửa gì thì không có câu "chưa lưu" nào.
+    expect(mounted.result.current.unsupportedNotices).toEqual([]);
 
     await act(async () => {
       mounted.result.current.onToggleHiddenIn3d(String(FLOOR_MANAGER_SAMPLE_ROOF_ID));
@@ -758,7 +758,6 @@ describe('bảng tầng', () => {
 
     await waitFor(() => {
       expect(mounted.result.current.unsupportedNotices).toEqual([
-        FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
         FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d,
       ]);
     });
@@ -866,9 +865,21 @@ describe('bảng tầng', () => {
 
     const editor = await mountSettled();
 
-    expect(editor.result.current.unsupportedNotices).toContain(
+    // G3-16: người sửa chỉ nghe câu ấy sau khi đã xoá (hay nhân bản) một tầng.
+    expect(editor.result.current.unsupportedNotices).not.toContain(
       FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
     );
+
+    await act(async () => {
+      editor.result.current.onRemoveFloor(String(FLOOR_MANAGER_SAMPLE_ROOF_ID));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(editor.result.current.unsupportedNotices).toContain(
+        FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
+      );
+    });
   });
 });
 
@@ -1760,5 +1771,14 @@ describe('BUG-515 — kho dùng chung không che tầng của dự án trên URL
     await waitFor(() => {
       expect(rowNames(second)).toContain('Tầng thêm ngoài');
     });
+  });
+});
+
+describe('G3-20: tên tầng nằm sai chỗ sau khi đổi thứ tự', () => {
+  it('nói ra khi tầng mái không trên cùng hay tầng trệt nằm trên tầng thường', () => {
+    expect(misplacedFloorNameWarning(['Tầng trệt', 'Tầng 1', 'Tầng mái'])).toBeNull();
+    expect(misplacedFloorNameWarning(['Tầng hầm', 'Tầng trệt', 'Tầng mái'])).toBeNull();
+    expect(misplacedFloorNameWarning(['Tầng mái', 'Tầng trệt'])).toContain('Tầng mái');
+    expect(misplacedFloorNameWarning(['Tầng 1', 'Tầng trệt'])).toContain('Tầng trệt');
   });
 });

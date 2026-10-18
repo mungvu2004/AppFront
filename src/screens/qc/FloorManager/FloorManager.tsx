@@ -125,6 +125,7 @@ export function FloorManager(props: FloorManagerViewProps) {
               label: BREADCRUMB_PROJECTS,
               ...(props.onBackToProjects ? { onClick: props.onBackToProjects } : {}),
             },
+            ...(props.projectName ? [{ id: 'project', label: props.projectName }] : []),
             { id: 'floors', label: SCREEN_TITLE },
           ]}
         />
