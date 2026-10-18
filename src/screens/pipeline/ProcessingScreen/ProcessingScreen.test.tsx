@@ -475,7 +475,7 @@ describe('ProcessingScreenContainer — R-73', () => {
       />,
     );
 
-    expect(await screen.findByText('Đã xong 1/1 tầng')).toBeInTheDocument();
+    expect(await screen.findByText('Đã xong 1/1 tầng đã có bản vẽ')).toBeInTheDocument();
     expect(screen.queryByText('Chưa có bước nào để theo dõi')).toBeNull();
   });
 
@@ -810,8 +810,8 @@ describe('ProcessingScreen — màn rỗng (BUG-165)', () => {
     const statusText = (): string[] => screen.getAllByRole('status').map((node) => node.textContent ?? '');
     const before = statusText();
 
-    expect(screen.getByText('Đã xong 2/4 tầng').closest('p')).toHaveTextContent(
-      'Đã xong 2/4 tầng · Còn lại khoảng 3 phút',
+    expect(screen.getByText('Đã xong 2/4 tầng đã có bản vẽ').closest('p')).toHaveTextContent(
+      'Đã xong 2/4 tầng đã có bản vẽ · Còn lại khoảng 3 phút',
     );
     expect(before.some((text) => text.includes('Còn lại khoảng'))).toBe(false);
 

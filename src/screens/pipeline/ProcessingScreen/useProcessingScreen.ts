@@ -179,7 +179,7 @@ const remainingSentence = (duration: string): string => `Còn khoảng ${duratio
 
 /** Ví dụ `"Đã xong 2/4 tầng"`. */
 const doneFloorsSentence = (done: string, total: string): string =>
-  `Đã xong ${done}/${total} ${UNIT.floor}`;
+  `Đã xong ${done}/${total} ${UNIT.floor} đã có bản vẽ`;
 
 /** Ví dụ `"Còn lại khoảng 4 phút 20 giây"` — ngoài vùng `role=status`: đổi mỗi giây (R1-03). */
 const overallRemainingSentence = (duration: string): string => `Còn lại khoảng ${duration}`;

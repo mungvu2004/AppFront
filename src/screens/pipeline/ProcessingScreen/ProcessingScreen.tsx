@@ -74,8 +74,6 @@ const TABS_ARIA_LABEL = 'Xem trước hoặc nhật ký';
 const TAB_PREVIEW_LABEL = 'Xem trước';
 const TAB_LOG_LABEL = 'Nhật ký';
 
-const FLOOR_OBJECTS_ARIA_LABEL = 'Số đối tượng đã nhận theo tầng';
-
 const EMPTY_TITLE = 'Chưa có bước nào để theo dõi';
 const EMPTY_DESCRIPTION = 'Khi bản vẽ được đưa vào hàng đợi, các bước xử lý sẽ hiện ở đây.';
 const EMPTY_ACTION_LABEL = 'Tải bản vẽ';
@@ -125,6 +123,8 @@ function ProcessingActions(props: ProcessingScreenProps) {
 
 /** Cột phải: hai tab, mặc định "Xem trước". API compound của `Tabs`, không phải dạng legacy. */
 function ProcessingPanels(props: ProcessingScreenProps) {
+  const activeFloor = props.floors.find((floor) => floor.isActive) ?? props.floors[0];
+
   return (
     <Tabs.Root
       activeId={props.activeTab}
@@ -139,6 +139,9 @@ function ProcessingPanels(props: ProcessingScreenProps) {
       </Tabs.List>
       <div className="relative pt-4">
         <Tabs.Panel id="preview">
+          {activeFloor !== undefined ? (
+            <p className="mb-2 text-[13px] font-medium text-text-primary">{activeFloor.label}</p>
+          ) : null}
           <ProcessingPreviewPanel prefersReducedMotion={props.prefersReducedMotion} preview={props.previewPanel} />
         </Tabs.Panel>
         <Tabs.Panel id="log">
@@ -154,32 +157,10 @@ function ProcessingPanels(props: ProcessingScreenProps) {
   );
 }
 
-/** Bốn dòng tầng dưới stepper, kèm số đối tượng đã nhận khi đã đếm được. */
-function ProcessingFloorObjectRows({ floors }: Pick<ProcessingScreenProps, 'floors'>) {
-  if (floors.length === 0) {
-    return null;
-  }
-
-  return (
-    <ul aria-label={FLOOR_OBJECTS_ARIA_LABEL} className="mt-4 flex flex-col">
-      {floors.map((floor) => (
-        <li
-          className="flex items-baseline justify-between gap-3 border-b border-border-default py-2 text-[13px] last:border-b-0"
-          key={floor.id}
-        >
-          <span className="text-text-primary">{floor.label}</span>
-          {floor.objectCountLabel !== undefined ? (
-            <span className="text-text-secondary">{floor.objectCountLabel}</span>
-          ) : null}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 /** Màn Xử lý như một hàm của props (mục D) — test và story dựng thẳng cái này. */
 export function ProcessingScreen(props: ProcessingScreenProps) {
   const { errorAlert } = props;
+  const isDone = props.state === 'success';
   const isSheet = props.isCompact || props.state === 'collapsed';
 
   const body =
@@ -213,7 +194,6 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
           ) : (
             <ProcessingStepList prefersReducedMotion={props.prefersReducedMotion} steps={props.steps} />
           )}
-          <ProcessingFloorObjectRows floors={props.floors} />
         </div>
         {/* Dưới 1024px hai tab xếp dưới các bước, trong dòng chảy trang: tấm cố định 70vh
             che khối tổng kết và để trống 400-600 px phía trên (BUG-294, BUG-285). */}
@@ -266,7 +246,9 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
               title={errorAlert.title}
             />
             <div className="flex flex-wrap items-center gap-3">
-              <span className="font-mono text-[12px] font-medium text-text-muted">{errorAlert.technicalCode}</span>
+              {errorAlert.technicalCode === 'INTERNAL' ? null : (
+                <span className="font-mono text-[12px] font-medium text-text-muted">{errorAlert.technicalCode}</span>
+              )}
               <Button onClick={errorAlert.onGoToSupport} size="sm" variant="ghost">
                 {SUPPORT_LABEL}
               </Button>
@@ -276,19 +258,29 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
 
         {errorAlert?.isProjectMissing === true ? null : (
           <>
+            {isDone ? (
+              <p className="text-[20px] font-semibold text-text-primary" role="status">
+                {props.overallSummaryLine}
+              </p>
+            ) : null}
+
+            {isDone && props.summary !== undefined ? <ProcessingSummary summary={props.summary} /> : null}
+
             <ProcessingFloorChips floors={props.floors} />
 
             {body}
 
-            {props.summary !== undefined ? <ProcessingSummary summary={props.summary} /> : null}
+            {!isDone && props.summary !== undefined ? <ProcessingSummary summary={props.summary} /> : null}
 
             {/* Vùng thông báo tiến độ nằm NGOÀI hai tab: tab "Xem trước" mặc định giấu nhật ký (BUG-554).
                 Thời gian còn lại đổi mỗi giây nên đứng ngoài vùng `role=status` (R1-03). */}
             <div className="flex flex-col items-center gap-1 text-center">
-              <p className="text-[14px] text-text-primary">
-                <span role="status">{props.overallSummaryLine}</span>
-                {props.remainingLine !== undefined ? ` · ${props.remainingLine}` : null}
-              </p>
+              {props.state === 'empty' || props.state === 'error' || isDone ? null : (
+                <p className="text-[14px] text-text-primary">
+                  <span role="status">{props.overallSummaryLine}</span>
+                  {props.remainingLine !== undefined ? ` · ${props.remainingLine}` : null}
+                </p>
+              )}
               <div role="status">
                 {props.partialNoticeLine !== undefined ? (
                   <p className="text-[13px] text-text-secondary">{props.partialNoticeLine}</p>
