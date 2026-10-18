@@ -239,14 +239,14 @@ export function RuleReportRows({
   }
 
   return (
-    <Table.Root>
+    <Table.Root className="table-fixed">
       <Table.Header>
         <tr>
-          <Table.Head>Mức độ</Table.Head>
+          <Table.Head className="w-[120px]">Mức độ</Table.Head>
           <Table.Head>Mô tả</Table.Head>
-          <Table.Head>Tầng</Table.Head>
-          <Table.Head>Mã đối tượng</Table.Head>
-          <Table.Head>
+          <Table.Head className="w-[120px]">Tầng</Table.Head>
+          <Table.Head className="w-[140px]">Mã đối tượng</Table.Head>
+          <Table.Head className="w-[88px]">
             <span className="sr-only">Hành động</span>
           </Table.Head>
         </tr>

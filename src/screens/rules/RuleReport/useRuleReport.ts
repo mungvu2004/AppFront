@@ -46,6 +46,7 @@
  *   thang, không viết số thô (R-71).
  */
 
+import { appNotificationBus } from '@/hooks/useNotifications';
 import { lowerFirst } from '@/lib/format/sentence';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -669,7 +670,23 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
       return;
     }
 
-    void query.refetch();
+    // G5-34: nói ra kết quả lượt chạy lại, kể cả khi số liệu không đổi.
+    void query.refetch().then((result) => {
+      if (result.isError) {
+        appNotificationBus.publish({
+          type: 'rule-report-rerun',
+          title: 'Không chạy lại được lượt kiểm tra.',
+          description: '',
+        });
+        return;
+      }
+      const found = result.data?.violations.length ?? 0;
+      appNotificationBus.publish({
+        type: 'rule-report-rerun',
+        title: found === 0 ? 'Đã kiểm tra lại: không có vi phạm.' : `Đã kiểm tra lại: còn ${found} vi phạm.`,
+        description: '',
+      });
+    });
   }, [configQuery, graph, query]);
 
   /**

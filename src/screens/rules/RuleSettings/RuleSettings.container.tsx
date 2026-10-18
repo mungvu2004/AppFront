@@ -177,6 +177,8 @@ export function RuleSettingsRoute() {
 const RULE_SETTINGS_NOTIFICATION_TYPE = 'rule-settings';
 
 function publishRuleSettingsToast(toast: RuleSettingsToast): void {
+  // G5-36: mỗi thay đổi mới thay toast cũ, không chồng hai "Hoàn tác" (vé cũ đã hết hạn).
+  appNotificationBus.withdraw(RULE_SETTINGS_NOTIFICATION_TYPE);
   appNotificationBus.publish({
     type: RULE_SETTINGS_NOTIFICATION_TYPE,
     title: toast.message,

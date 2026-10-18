@@ -177,4 +177,6 @@ export interface RuleSettingsActions {
 export interface RuleSettingsProps extends RuleSettingsActions {
   readonly model: RuleSettingsViewModel;
   readonly capabilities: RuleSettingsCapabilities;
+  /** Đường về kết quả kiểm tra luật của dự án (G5-36); vắng thì không có lối quay lại. */
+  readonly backPath?: string;
 }

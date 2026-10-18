@@ -24,6 +24,7 @@ function PresetButton({ preset, onApplyPreset }: PresetButtonProps) {
   return (
     <button
       type="button"
+      aria-pressed={preset.changedRuleCount === 0}
       onClick={() => {
         onApplyPreset(preset.kind);
       }}
@@ -35,9 +36,13 @@ function PresetButton({ preset, onApplyPreset }: PresetButtonProps) {
     >
       <span className="text-sm font-medium text-text-primary">{preset.label}</span>
       <span className="text-xs text-text-secondary">{preset.caption}</span>
-      <span className="font-mono text-xs tabular-nums text-text-secondary">
-        {changedText} luật sẽ đổi
-      </span>
+      {preset.changedRuleCount === 0 ? (
+        <span className="text-xs font-medium text-accent">Đang dùng</span>
+      ) : (
+        <span className="font-mono text-xs tabular-nums text-text-secondary">
+          {changedText} luật sẽ đổi
+        </span>
+      )}
     </button>
   );
 }

@@ -310,35 +310,3 @@ export function ViolationActionsSection({
     </section>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* Khối 8 — chân.                                                              */
-/* -------------------------------------------------------------------------- */
-
-interface FooterProps {
-  readonly ruleCode: ViolationDetailViewProps['ruleCode'];
-  readonly levelId: ViolationDetailViewProps['levelId'];
-}
-
-/**
- * Mã luật và mã tầng, chữ đều, cỡ nhỏ, để tra cứu.
- *
- * Đây là dòng người dùng chép vào một email khi hỏi lại người ra luật, nên nó phải chọn
- * được bằng chuột và phải giữ nguyên chữ hoa của mã. Không mã nào thì không có chân —
- * một dòng chân rỗng là một dòng chân sai.
- */
-export function ViolationFooterSection({ levelId, ruleCode }: FooterProps) {
-  if (ruleCode === null && levelId === null) {
-    return null;
-  }
-
-  return (
-    <footer className="border-t border-border-default pt-3">
-      <p className="font-mono text-[12px] text-text-muted">
-        {ruleCode === null ? null : <span>{ruleCode}</span>}
-        {ruleCode !== null && levelId !== null ? <span> · </span> : null}
-        {levelId === null ? null : <span>{levelId}</span>}
-      </p>
-    </footer>
-  );
-}

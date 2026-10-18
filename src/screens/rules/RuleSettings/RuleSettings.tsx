@@ -48,10 +48,11 @@ import { useCountUp } from '@/hooks/useCountUp';
 import { cn } from '@/lib/utils';
 
 import { RuleSettingsGeneralThresholdsCard, RuleSettingsGroupCard } from './RuleSettingsGroups';
+import { RuleSettingsConfirmDialog } from './RuleSettingsConfirmDialog';
 import { RuleSettingsPresetsRow } from './RuleSettingsPresets';
 import { RuleSettingsReloadDialog } from './RuleSettingsReloadDialog';
 import { type RuleCode, FOCUS_RING } from './RuleSettingsRow';
-import type { RuleSettingsGroup, RuleSettingsProps } from './types';
+import type { BuildingKind, RuleSettingsGroup, RuleSettingsProps } from './types';
 
 /** Mục nav cho thẻ "Ngưỡng chung" — không phải mã nhóm luật thật. */
 const GENERAL_SECTION_ID = 'general-thresholds';
@@ -165,10 +166,17 @@ interface RuleSettingsMainProps {
   readonly activeSection: string;
   readonly onSelectSection: (id: string) => void;
   readonly sentenceByCode: ReadonlyMap<RuleCode, string>;
+  readonly onRequestPreset: (kind: BuildingKind) => void;
 }
 
 /** Nội dung của ba trạng thái có dữ liệu: `ready`, `partial`, `collapsed`. */
-function RuleSettingsMain({ props, activeSection, onSelectSection, sentenceByCode }: RuleSettingsMainProps) {
+function RuleSettingsMain({
+  props,
+  activeSection,
+  onSelectSection,
+  sentenceByCode,
+  onRequestPreset,
+}: RuleSettingsMainProps) {
   const { model, capabilities } = props;
   const isCollapsed = model.status === 'collapsed';
   const navItems = navItemsOf(model.groups);
@@ -192,7 +200,7 @@ function RuleSettingsMain({ props, activeSection, onSelectSection, sentenceByCod
       )}
 
       {capabilities.canApplyPreset && model.presets.length > 0 && (
-        <RuleSettingsPresetsRow presets={model.presets} onApplyPreset={props.onApplyPreset} />
+        <RuleSettingsPresetsRow presets={model.presets} onApplyPreset={onRequestPreset} />
       )}
 
       <div className={cn('flex gap-6', isCollapsed ? 'flex-col' : 'flex-row items-start')}>
@@ -244,6 +252,9 @@ export function RuleSettings(props: RuleSettingsProps) {
   const [activeSection, setActiveSection] = useState<string>(
     () => model.groups[0]?.group ?? GENERAL_SECTION_ID,
   );
+  const [pendingPreset, setPendingPreset] = useState<BuildingKind | null>(null);
+  const [isRestoreOpen, setRestoreOpen] = useState(false);
+  const pending = model.presets.find((preset) => preset.kind === pendingPreset);
   const sentenceByCode = useMemo(() => sentenceByCodeOf(model.groups), [model.groups]);
   const { text: enabledText } = useCountUp(model.enabledRuleCount, { format: { fractionDigits: 0 } });
   const { text: totalText } = useCountUp(model.totalRuleCount, { format: { fractionDigits: 0 } });
@@ -260,6 +271,14 @@ export function RuleSettings(props: RuleSettingsProps) {
       <div className="mx-auto flex w-full max-w-[960px] flex-1 flex-col gap-6 p-6">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
+            {props.backPath === undefined ? null : (
+              <a
+                href={props.backPath}
+                className={cn('w-fit rounded text-sm text-accent underline', FOCUS_RING)}
+              >
+                Quay lại kết quả kiểm tra
+              </a>
+            )}
             <h2 className="text-base font-semibold text-text-primary">Cài đặt bộ luật không gian</h2>
             {hasConfig && (
               <p className="text-sm text-text-secondary">
@@ -307,6 +326,7 @@ export function RuleSettings(props: RuleSettingsProps) {
             activeSection={activeSection}
             onSelectSection={setActiveSection}
             sentenceByCode={sentenceByCode}
+            onRequestPreset={setPendingPreset}
           />
         )}
       </div>
@@ -317,10 +337,42 @@ export function RuleSettings(props: RuleSettingsProps) {
         onCancel={props.onCancelReload}
       />
 
+      <RuleSettingsConfirmDialog
+        isOpen={pending !== undefined}
+        title={`Áp bộ luật ${pending?.label.toLocaleLowerCase('vi') ?? ''}?`}
+        body={`${pending?.changedRuleCount ?? 0} luật sẽ đổi. Bạn hoàn tác được trong tám giây sau khi áp.`}
+        confirmLabel="Áp bộ luật"
+        onConfirm={() => {
+          if (pendingPreset !== null) props.onApplyPreset(pendingPreset);
+          setPendingPreset(null);
+        }}
+        onCancel={() => {
+          setPendingPreset(null);
+        }}
+      />
+      <RuleSettingsConfirmDialog
+        isOpen={isRestoreOpen}
+        title="Khôi phục bộ luật mặc định?"
+        body="Mọi thay đổi về bật, tắt, mức độ và ngưỡng của các luật sẽ trở về mặc định. Bạn hoàn tác được trong tám giây sau khi khôi phục."
+        confirmLabel="Khôi phục mặc định"
+        onConfirm={() => {
+          props.onRestoreDefaults();
+          setRestoreOpen(false);
+        }}
+        onCancel={() => {
+          setRestoreOpen(false);
+        }}
+      />
+
       {showRestoreDefaults && (
         <footer data-sticky-footer="" className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface px-6 py-3">
           <p className="text-sm text-text-secondary">Cấu hình đã khác mặc định.</p>
-          <Button variant="secondary" onClick={props.onRestoreDefaults}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setRestoreOpen(true);
+            }}
+          >
             Khôi phục mặc định
           </Button>
         </footer>

@@ -786,7 +786,13 @@ export function useViolationDetail(
       });
     }
 
-    if (capabilities.canRenameRoom && kind === 'room' && proposedRoomName !== null) {
+    // N3-10: gợi ý đặt tên chỉ đúng với lỗi phòng chưa có tên, không gắn cho mọi lỗi của phòng.
+    if (
+      capabilities.canRenameRoom &&
+      kind === 'room' &&
+      violation.ruleCode === 'ROOM-UNNAMED' &&
+      proposedRoomName !== null
+    ) {
       rows.push({
         kind: 'renameRoom',
         label: 'Đặt tên phòng theo công năng',

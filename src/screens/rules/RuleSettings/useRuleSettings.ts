@@ -100,6 +100,7 @@ import { isTransientWireError, readWireError } from '@/lib/errors/wireError';
 import { formatNumber } from '@/lib/format/number';
 import type { Announcer } from '@/lib/input/announcer';
 import { createUndoTicket, type UndoTicket } from '@/lib/mutations/undoTicket';
+import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
 import { selectRuleConfig, selectRuleImpactCounts } from '@/store/selectors';
 import type { ProjectRole } from '@/types/project';
@@ -1114,6 +1115,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
   }, [applyConfig]);
 
   return {
+    backPath: ROUTES.project.rules(projectId),
     model,
     capabilities,
     onToggleRule,

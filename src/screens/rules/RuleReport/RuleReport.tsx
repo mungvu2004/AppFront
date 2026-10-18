@@ -76,21 +76,6 @@ import type { RuleReportViewProps } from './types';
 /** How wide the preview column is when there is a preview to put in it. */
 const PREVIEW_WIDTH = 'w-[344px]';
 
-/** Where you are. Text, because the view was given nothing to navigate with. */
-function RuleReportTrail() {
-  return (
-    <nav aria-label="Đường dẫn trang" className="text-sm text-text-secondary">
-      <ol className="flex items-center gap-2">
-        <li>Dự án</li>
-        <li aria-hidden="true">›</li>
-        <li aria-current="page" className="text-text-primary">
-          Kiểm tra luật không gian
-        </li>
-      </ol>
-    </nav>
-  );
-}
-
 interface SkippedNoticeProps {
   readonly skipped: RuleReportViewProps['skipped'];
 }
@@ -281,8 +266,6 @@ export function RuleReport(props: RuleReportViewProps) {
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-bg-app">
       <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-6 p-6">
-        <RuleReportTrail />
-
         <header className="flex flex-wrap items-end justify-between gap-4">
           <h2 className="text-base font-semibold text-text-primary">Kiểm tra luật không gian</h2>
 

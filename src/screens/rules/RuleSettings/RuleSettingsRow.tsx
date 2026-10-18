@@ -87,10 +87,16 @@ interface ThresholdFieldProps {
 }
 
 function ThresholdField({ threshold, canEdit, onChange }: ThresholdFieldProps) {
+  const visibleLabel = threshold.label.charAt(0).toLocaleUpperCase('vi') + threshold.label.slice(1);
+
   return (
+    <div className="flex w-[180px] shrink-0 flex-col items-stretch gap-0.5 self-start">
+      <span aria-hidden="true" className="text-xs text-text-secondary">
+        {visibleLabel}
+      </span>
     <NumericField
       aria-label={threshold.label}
-      className="h-8 w-[104px] shrink-0"
+      className="h-8 w-full"
       unit={threshold.unit}
       value={threshold.value}
       min={threshold.min}
@@ -104,6 +110,7 @@ function ThresholdField({ threshold, canEdit, onChange }: ThresholdFieldProps) {
         }
       }}
     />
+    </div>
   );
 }
 

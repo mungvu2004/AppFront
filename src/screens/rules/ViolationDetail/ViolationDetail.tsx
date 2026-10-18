@@ -81,7 +81,6 @@ import {
   ViolationActionsSection,
   ViolationCausesSection,
   ViolationFindingsSection,
-  ViolationFooterSection,
   ViolationRuleSection,
   ViolationSeverityBadge,
 } from './ViolationDetailSections';
@@ -307,7 +306,6 @@ function ViolationDetailBody({ props }: BodyProps) {
         props={props}
       />
 
-      <ViolationFooterSection levelId={props.levelId} ruleCode={props.ruleCode} />
     </div>
   );
 }
