@@ -836,3 +836,34 @@ describe('ProcessingScreen — khổ hẹp (BUG-294)', () => {
     expect(screen.getByRole('button', { name: 'Duyệt lớp tường' })).toBeInTheDocument();
   });
 });
+
+describe('ProcessingScreen — tầng chưa có bản vẽ, lối chất lượng, danh sách lượt (N2-02, N5-04, N5-08)', () => {
+  it('liệt kê tầng chưa có bản vẽ, nút chất lượng ảnh và các lượt ở tab Nhật ký', () => {
+    const onUploadDrawings = vi.fn();
+    const onOpenQuality = vi.fn();
+
+    renderWithProviders(
+      <ProcessingScreen
+        {...scenarioFor('success')}
+        activeTab="log"
+        floorsWithoutDrawing={[{ id: 'f-3', label: 'Tầng 3' }]}
+        onOpenQuality={onOpenQuality}
+        onUploadDrawings={onUploadDrawings}
+        runs={[
+          { id: 'r1', floorName: 'Tầng 1', statusLabel: 'Hoàn tất', timeLabel: '14:05 · 18/10/2026', tone: 'done' },
+        ]}
+      />,
+    );
+
+    const missing = screen.getByRole('list', { name: 'Tầng chưa có bản vẽ' });
+    expect(within(missing).getByText('Tầng 3')).toBeInTheDocument();
+    fireEvent.click(within(missing).getByRole('button', { name: 'Tải bản vẽ cho tầng này' }));
+    expect(onUploadDrawings).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra chất lượng ảnh đầu vào' }));
+    expect(onOpenQuality).toHaveBeenCalledTimes(1);
+
+    const runs = screen.getByRole('region', { name: 'Các lượt xử lý gần đây' });
+    expect(within(runs).getByText('Hoàn tất')).toBeInTheDocument();
+  });
+});

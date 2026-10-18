@@ -84,15 +84,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { Progress } from '@/api/schemas';
+import type { PipelineRun } from '@/api/schemas/pipelineRuns';
 import {
   PROJECT_NOT_FOUND_DESCRIPTION,
   PROJECT_NOT_FOUND_TITLE,
 } from '@/components/feedback/ProjectSpatialGate';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useProjectFloors } from '@/hooks/useProjectFloors';
 import { isProjectNotFound } from '@/hooks/useProjectSpatial';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { can } from '@/lib/auth/permissions';
-import { formatClockTime, formatDuration } from '@/lib/format/datetime';
+import { formatCalendarDate, formatClockTime, formatDuration } from '@/lib/format/datetime';
 import { formatArea } from '@/lib/format/measure';
 import { formatNumber, formatPercent } from '@/lib/format/number';
 import type { HttpError } from '@/lib/http/types';
@@ -131,6 +133,7 @@ import type {
   ProcessingLogLineViewModel,
   ProcessingPanelTab,
   ProcessingPreviewViewModel,
+  ProcessingRunRowViewModel,
   ProcessingScreenProps,
   ProcessingScreenState,
   ProcessingStageStatus,
@@ -584,6 +587,31 @@ export interface ProcessingScreenHookResult extends ProcessingScreenProps {
 }
 
 /** `(options) => ProcessingScreenHookResult` cho `ProcessingScreen.tsx` và container. */
+/** Cổng không đọc được danh sách tầng: không liệt kê tầng chưa có bản vẽ. */
+const READ_NO_FLOORS = async () => ({ ok: true as const, data: [] });
+
+/** N5-08 — một lượt N7b thành một dòng của danh sách lượt. */
+function toRunRow(run: PipelineRun): ProcessingRunRowViewModel {
+  const at = Date.parse(run.startedAt ?? run.createdAt);
+  const timeLabel = `${formatClockTime(at)} · ${formatCalendarDate(at)}`;
+  const base = { id: run.runId, floorName: run.floorName, timeLabel };
+
+  if (run.status === 'completed') return { ...base, statusLabel: 'Hoàn tất', tone: 'done' };
+  if (run.status === 'failed') {
+    return {
+      ...base,
+      statusLabel: run.supersededBy !== undefined ? 'Đã thay bằng lượt mới' : 'Lỗi',
+      tone: run.supersededBy !== undefined ? 'running' : 'failed',
+    };
+  }
+  if (run.status === 'pending') return { ...base, statusLabel: 'Đang chờ', tone: 'running' };
+  return {
+    ...base,
+    statusLabel: `Đang chạy · ${formatPercent(run.progressPercent, { source: 'percent', fractionDigits: 0 })}`,
+    tone: 'running',
+  };
+}
+
 export function useProcessingScreen(options: UseProcessingScreenOptions): ProcessingScreenHookResult {
   const { projectId } = options;
   const roles = options.roles ?? DEFAULT_ROLES;
@@ -632,6 +660,33 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     enabled: readsLatestUploads,
   });
   const floorUploads = options.floorUploads ?? latestUploadsQuery.data ?? EMPTY_UPLOADS;
+
+  // N2-02 — tầng chưa có bản vẽ: mọi tầng của dự án trừ tầng N7 đã có lượt tải. Chỉ
+  // trên đường N7 (danh sách cố định của test/story không phải "cả dự án").
+  const projectFloors = useProjectFloors(projectId, gateway.readFloorList ?? READ_NO_FLOORS);
+  const floorsWithoutDrawing = useMemo(() => {
+    if (!readsLatestUploads || latestUploadsQuery.data === undefined) return undefined;
+    const uploaded = new Set(latestUploadsQuery.data.map((upload) => upload.floorId));
+    return projectFloors.filter((floor) => !uploaded.has(floor.id));
+  }, [latestUploadsQuery.data, projectFloors, readsLatestUploads]);
+
+  // N5-08 — nhật ký lượt xử lý (N7b) cho tab "Nhật ký". Khoá con của N7 để lượt làm
+  // mới danh sách tầng cũng làm mới danh sách lượt. Lỗi thì chỉ không vẽ danh sách.
+  const readPipelineRuns = gateway.readPipelineRuns;
+  const runsQuery = useQuery({
+    queryKey: [...queryKeys.progress.latestUploads(projectId), 'runs'] as const,
+    queryFn: async ({ signal }) => {
+      if (readPipelineRuns === undefined) return [];
+      const result = await readPipelineRuns({ projectId, signal });
+      if (!result.ok) throw result.error;
+      return result.data.items;
+    },
+    enabled: readPipelineRuns !== undefined,
+  });
+  const runs = useMemo(
+    () => (runsQuery.data === undefined ? undefined : runsQuery.data.map(toRunRow)),
+    [runsQuery.data],
+  );
   // Danh tính của danh sách tầng dưới dạng một chuỗi: nơi gọi truyền một mảng
   // mới mỗi lượt render vẫn không làm các đăng ký bị mở lại.
   const floorsKey = floorUploads.map((upload) => `${upload.floorId}:${upload.uploadId}`).join('|');
@@ -877,6 +932,10 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   /** Màn rỗng chỉ ra bước kế: chưa có bản vẽ nào trong hàng đợi thì tải bản vẽ (BUG-165). */
   const onUploadDrawings = useCallback(() => {
     navigate(ROUTES.project.upload(projectId));
+  }, [navigate, projectId]);
+
+  const onOpenQuality = useCallback(() => {
+    navigate(ROUTES.project.quality(projectId));
   }, [navigate, projectId]);
 
   const onBackToProjects = useCallback(() => {
@@ -1459,6 +1518,9 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     canRunInBackground,
     onUploadDrawings,
     onBackToProjects,
+    onOpenQuality,
+    ...(floorsWithoutDrawing !== undefined ? { floorsWithoutDrawing } : {}),
+    ...(runs !== undefined ? { runs } : {}),
     isCompact,
     prefersReducedMotion,
     ...(knownProjectName !== null ? { projectName: knownProjectName } : {}),

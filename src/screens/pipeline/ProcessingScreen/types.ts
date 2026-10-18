@@ -249,6 +249,23 @@ export interface ProcessingScreenProps {
   readonly projectName?: string;
   /** Cấp "Dự án" của đường dẫn về danh sách dự án (BUG-546). Vắng thì cấp đó là chữ thường. */
   readonly onBackToProjects?: () => void;
+  /** Lối sang màn kiểm tra chất lượng ảnh đầu vào của dự án (N5-04). Vắng thì không vẽ nút. */
+  readonly onOpenQuality?: () => void;
+  /** Tầng của dự án chưa có bản vẽ nào (N2-02), theo `order`. Vắng/rỗng thì không vẽ khối. */
+  readonly floorsWithoutDrawing?: readonly { readonly id: string; readonly label: string }[];
+  /** Các lượt xử lý gần nhất của dự án, mới nhất trước (N5-08). Vắng khi chưa đọc được. */
+  readonly runs?: readonly ProcessingRunRowViewModel[];
+}
+
+/** Một dòng trong danh sách lượt xử lý của tab "Nhật ký" (N5-08). */
+export interface ProcessingRunRowViewModel {
+  readonly id: string;
+  readonly floorName: string;
+  /** Ví dụ "Hoàn tất", "Lỗi", "Đang chạy · 40%". */
+  readonly statusLabel: string;
+  readonly tone: 'done' | 'failed' | 'running';
+  /** Giờ bắt đầu (hoặc giờ tạo) kèm ngày, ví dụ "14:05 · 18/10/2026". */
+  readonly timeLabel: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -264,6 +281,7 @@ export interface ProcessingPreviewPanelProps {
 /** Props của `ProcessingLogPanel` — nhật ký cuộn, khoá cuộn tự động, sao chép. */
 export interface ProcessingLogPanelProps {
   readonly logLines: readonly ProcessingLogLineViewModel[];
+  readonly runs?: readonly ProcessingRunRowViewModel[];
   readonly isAutoScrollLocked: boolean;
   readonly onToggleAutoScroll: () => void;
   readonly onCopyLog: () => void;

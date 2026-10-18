@@ -71,7 +71,7 @@
  */
 
 import { createAppApiClient, resolveApiBaseUrl } from '@/api/appClient';
-import type { ApiClient, ApiResult, LatestFloorUpload, Project } from '@/api/client';
+import type { ApiClient, ApiResult, Floor, LatestFloorUpload, PipelineRunList, Project } from '@/api/client';
 import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import type { Progress } from '@/api/schemas';
 import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
@@ -95,6 +95,9 @@ import { createProgressStream } from '@/lib/realtime/progressStream';
 import type { ProgressStreamSource, ProgressStreamState } from '@/lib/realtime/progressStream';
 import { createBeaconTransport, createTelemetrySender } from '@/lib/telemetry/sender';
 import type { TelemetrySender } from '@/lib/telemetry/sender';
+
+/** Số lượt gần nhất tab "Nhật ký" liệt kê (N5-08). */
+const PIPELINE_RUNS_PAGE_SIZE = 20;
 
 /** SSE `running` im lâu thế này thì hỏi #8 một lần (`: ping` không tới `onmessage`). */
 export const SSE_SILENCE_PROBE_MS = 120_000;
@@ -379,6 +382,19 @@ export interface ProcessingGateway {
     readonly projectId: string;
     readonly signal?: AbortSignal;
   }) => Promise<ApiResult<LatestFloorUpload[]>>;
+  /**
+   * Mọi tầng của dự án — để liệt kê tầng CHƯA có bản vẽ (N2-02). Tuỳ chọn: cổng
+   * giả cũ không có thì màn không liệt kê.
+   */
+  readonly readFloorList?: (input: { readonly projectId: string }) => Promise<ApiResult<Floor[]>>;
+  /**
+   * N7b — trang đầu nhật ký lượt xử lý (mới nhất trước), cho tab "Nhật ký" (N5-08).
+   * Tuỳ chọn: cổng giả cũ không có thì màn chỉ không vẽ danh sách lượt.
+   */
+  readonly readPipelineRuns?: (input: {
+    readonly projectId: string;
+    readonly signal?: AbortSignal;
+  }) => Promise<ApiResult<PipelineRunList>>;
   /**
    * #24 — dự án thô, dưới khoá `project.detail` như mọi nơi khác. Chỉ đọc khi bộ
    * đệm chưa có tên dự án (mở thẳng đường dẫn), để breadcrumb vẫn nêu tên (BUG-165).
@@ -843,6 +859,15 @@ export function createProcessingGateway(
 
       return first.ok || readWireError(first.error)?.code !== 'CURSOR_INVALID' ? first : read();
     },
+
+    readFloorList: ({ projectId }) => client.floors.list({ projectId }),
+
+    readPipelineRuns: ({ projectId, signal }) =>
+      client.drawings.listPipelineRuns({
+        projectId,
+        limit: PIPELINE_RUNS_PAGE_SIZE,
+        ...(signal !== undefined ? { signal } : {}),
+      }),
 
     readProject: ({ projectId, signal }) =>
       client.projects.read({ projectId, ...(signal !== undefined ? { signal } : {}) }),

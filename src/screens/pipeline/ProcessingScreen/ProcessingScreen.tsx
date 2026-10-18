@@ -84,9 +84,20 @@ const SKELETON_ROW_COUNT = 4;
 const ALL_STEPS_LABEL = 'Xem tất cả các bước';
 
 /** Hàng hành động đầu trang: nút chìm chạy nền khi còn lượt đang chạy, nút huỷ thì tuỳ quyền. */
+/** N5-04 — lối riêng sang màn chất lượng ảnh, không biến bước `qualityCheck` thành link. */
+const NO_DRAWING_ARIA_LABEL = 'Tầng chưa có bản vẽ';
+const NO_DRAWING_LABEL = 'chưa có bản vẽ';
+const UPLOAD_FLOOR_LABEL = 'Tải bản vẽ cho tầng này';
+const OPEN_QUALITY_LABEL = 'Kiểm tra chất lượng ảnh đầu vào';
+
 function ProcessingActions(props: ProcessingScreenProps) {
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
+      {props.onOpenQuality !== undefined ? (
+        <Button onClick={props.onOpenQuality} size="sm" variant="ghost">
+          {OPEN_QUALITY_LABEL}
+        </Button>
+      ) : null}
       {props.canRunInBackground ? (
         <Button onClick={props.onRunInBackground} size="sm" variant="ghost">
           {RUN_IN_BACKGROUND_LABEL}
@@ -148,6 +159,7 @@ function ProcessingPanels(props: ProcessingScreenProps) {
           <ProcessingLogPanel
             isAutoScrollLocked={props.isLogAutoScrollLocked}
             logLines={props.logLines}
+            {...(props.runs !== undefined ? { runs: props.runs } : {})}
             onCopyLog={props.onCopyLog}
             onToggleAutoScroll={props.onToggleLogAutoScroll}
           />
@@ -267,6 +279,20 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
             {isDone && props.summary !== undefined ? <ProcessingSummary summary={props.summary} /> : null}
 
             <ProcessingFloorChips floors={props.floors} />
+
+            {props.floorsWithoutDrawing !== undefined && props.floorsWithoutDrawing.length > 0 ? (
+              <ul aria-label={NO_DRAWING_ARIA_LABEL} className="flex flex-col gap-1">
+                {props.floorsWithoutDrawing.map((floor) => (
+                  <li className="flex flex-wrap items-center gap-2 text-[13px]" key={floor.id}>
+                    <span className="font-medium text-text-primary">{floor.label}</span>
+                    <span className="text-text-secondary">{NO_DRAWING_LABEL}</span>
+                    <Button onClick={props.onUploadDrawings} size="sm" variant="ghost">
+                      {UPLOAD_FLOOR_LABEL}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
 
             {body}
 
