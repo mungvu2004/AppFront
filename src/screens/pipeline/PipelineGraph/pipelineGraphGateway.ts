@@ -241,6 +241,13 @@ export interface PipelineGraphGateway {
    * chứ không coi như tồn tại (BUG-557).
    */
   readonly readProjectExists: (input: { readonly projectId: string; readonly signal?: AbortSignal }) => Promise<boolean>;
+  /** Tên dự án cho breadcrumb (N0-05). Vắng thì breadcrumb không có mục tên dự án. */
+  readonly readProjectName?: (input: { readonly projectId: string; readonly signal?: AbortSignal }) => Promise<string | null>;
+  /** Lượt xử lý mới nhất của dự án (G3-29), khi route không truyền `run`. */
+  readonly readLatestRun?: (input: {
+    readonly projectId: string;
+    readonly signal?: AbortSignal;
+  }) => Promise<{ readonly floorId: string; readonly uploadId: string } | null>;
   readonly readRunOnce: (
     input: ReadRunInput,
   ) => Promise<PipelineGraphCapabilityResult<readonly PipelineStageState[]>>;
@@ -317,6 +324,22 @@ export function createPipelineGraphGateway(
       }
 
       throw result.error;
+    },
+
+    readProjectName: async ({ projectId, signal }) => {
+      const result = await processing.readProject({ projectId, ...(signal !== undefined ? { signal } : {}) });
+
+      return result.ok ? result.data.name : null;
+    },
+
+    readLatestRun: async ({ projectId, signal }) => {
+      const result = await processing.readLatestUploads({
+        projectId,
+        ...(signal !== undefined ? { signal } : {}),
+      });
+      const latest = result.ok ? result.data.at(-1) : undefined;
+
+      return latest === undefined ? null : { floorId: latest.floorId, uploadId: latest.uploadId };
     },
 
     readRunOnce: async ({ projectId, signal, uploadId }) => {

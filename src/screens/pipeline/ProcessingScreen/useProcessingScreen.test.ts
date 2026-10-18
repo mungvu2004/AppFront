@@ -645,8 +645,8 @@ describe('useProcessingScreen', () => {
     });
 
     expect(mounted.result.current.logLines.map((line) => line.text)).toEqual([
-      `${STAGES[0]!.label} — 0%`,
-      `${STAGES[1]!.label} — 0%`,
+      `${upload.floorName}: ${STAGES[0]!.label} — 0%`,
+      `${upload.floorName}: ${STAGES[1]!.label} — 0%`,
     ]);
 
     mounted.unmount();

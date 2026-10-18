@@ -157,6 +157,7 @@ export const PIPELINE_GRAPH_TEXT = {
     'Mỗi tầng đang đi một nhánh khác nhau, nên chưa có một câu trả lời chung cho cả hồ sơ.',
   /** Chưa đọc được báo cáo nhánh nào — không được nói "mỗi tầng một nhánh" (B-V5-03). */
   reasonNoReport: 'Chưa có lượt xử lý nào, nên chưa biết hồ sơ đi nhánh nào.',
+  reasonRunNoBranch: 'Hệ thống chưa báo hồ sơ đi nhánh nào ở lượt xử lý này.',
 
   statusLabels: {
     queued: 'chờ chạy',

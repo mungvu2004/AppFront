@@ -218,7 +218,7 @@ function countApprovedWalls(walls: readonly Wall[]): number {
 /* -------------------------------------------------------------------------- */
 
 export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineGraphResult {
-  const { forceCollapsed, gateway, onBackToProjects = NO_OP, projectId, roles = NO_ROLES, run } = options;
+  const { forceCollapsed, gateway, onBackToProjects = NO_OP, projectId, roles = NO_ROLES, run: explicitRun } = options;
 
   const prefersReducedMotion = useReducedMotion();
   const detectedNarrow = useNarrowViewport();
@@ -237,6 +237,20 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
   const [retryToken, setRetryToken] = useState(0);
 
   const canSeeDetail = roles.some((role) => DETAIL_MODE_ROLES.includes(role));
+
+  const projectNameQuery = useQuery({
+    queryKey: ['pipeline', 'project-name', projectId],
+    queryFn: async ({ signal }) => (await gateway.readProjectName?.({ projectId, signal })) ?? null,
+  });
+
+  // Route không mang lượt xử lý: lấy lượt mới nhất của dự án, kẻo báo "chưa có lượt" khi đã xử lý xong (G3-29).
+  const latestRunQuery = useQuery({
+    queryKey: ['pipeline', 'latest-run', projectId, retryToken],
+    queryFn: async ({ signal }) => (await gateway.readLatestRun?.({ projectId, signal })) ?? null,
+    enabled: explicitRun === undefined,
+  });
+  const run = explicitRun ?? latestRunQuery.data ?? undefined;
+
 
   /* ---- Dòng sự kiện của T-08 -------------------------------------------- */
 
@@ -525,7 +539,9 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
   const failure =
     streamFailure ??
     (projectExistsQuery.isError ? gateway.describeApiFailure(projectExistsQuery.error) : null);
-  const isPending = projectExistsQuery.isPending || branchQuery.isPending || comparisonQuery.isPending;
+  const isPending =
+    projectExistsQuery.isPending ||
+    (explicitRun === undefined && latestRunQuery.isPending) || branchQuery.isPending || comparisonQuery.isPending;
   const isRunning = stages.some((stage) => stage.status === 'running');
   const isEverythingDone =
     stages.length > 0 && stages.every((stage) => stage.status === 'done');
@@ -660,6 +676,7 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
     state,
     mode: canSeeDetail ? mode : 'overview',
     title: PIPELINE_GRAPH_TEXT.title,
+    ...(projectNameQuery.data != null ? { projectName: projectNameQuery.data } : {}),
     leadLine: PIPELINE_GRAPH_TEXT.leadLine,
     overview: {
       blocks: PIPELINE_OVERVIEW_BLOCKS,
@@ -671,7 +688,9 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
           ? PIPELINE_GRAPH_TEXT.reasonByBranch[activeBranch]
           : isMixedBranch
             ? PIPELINE_GRAPH_TEXT.reasonUnknown
-            : PIPELINE_GRAPH_TEXT.reasonNoReport,
+            : run !== undefined
+              ? PIPELINE_GRAPH_TEXT.reasonRunNoBranch
+              : PIPELINE_GRAPH_TEXT.reasonNoReport,
       // Nút đổi nhánh chỉ có nghĩa khi còn nhánh khác để đổi sang: hồ sơ đã chạy
       // nhánh ảnh quét rồi thì "đổi sang nhánh ảnh quét" là một nút không làm gì.
       ...(canSeeDetail && gateway.supports.switchBranch && activeBranch !== SWITCH_TARGET_BRANCH

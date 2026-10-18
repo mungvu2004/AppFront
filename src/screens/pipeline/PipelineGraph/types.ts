@@ -344,6 +344,8 @@ export interface PipelineGraphViewModel {
   readonly state: PipelineGraphState;
   readonly mode: PipelineGraphMode;
   readonly title: string;
+  /** Tên dự án cho breadcrumb; vắng thì breadcrumb bỏ mục này (N0-05). */
+  readonly projectName?: string;
   /** Câu mở đầu giải thích màn này trả lời câu hỏi gì. */
   readonly leadLine: string;
   readonly overview: PipelineOverviewViewModel;

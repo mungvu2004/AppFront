@@ -832,13 +832,16 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const logLines = useMemo<readonly ProcessingLogLineViewModel[]>(
     () =>
       records
-        .flatMap((record) => record.logLines)
-        .map((line) => ({
+        .flatMap((record, index) =>
+          record.logLines.map((line) => ({ line, floorName: floorUploads[index]?.floorName })),
+        )
+        .map(({ line, floorName }) => ({
           id: line.id,
           timeLabel: formatClockTime(new Date(line.atIso)),
-          text: line.text,
+          // Nêu tầng để nhật ký tra được theo tầng (G3-26).
+          text: floorName === undefined ? line.text : `${floorName}: ${line.text}`,
         })),
-    [records],
+    [records, floorUploads],
   );
 
   const onCopyLog = useCallback(() => {

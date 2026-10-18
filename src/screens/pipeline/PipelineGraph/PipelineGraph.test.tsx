@@ -235,12 +235,18 @@ describe('PipelineGraph — mục [CẤM TUYỆT ĐỐI]', () => {
   });
 });
 
+/** Cổng thật nhưng không có lượt xử lý nào: jsdom không có EventSource để mở dòng tiến độ. */
+const noRunGateway = () => ({
+  ...createPipelineGraphGateway(createProcessingGateway(createMockApiClient())),
+  readLatestRun: () => Promise.resolve(null),
+});
+
 describe('PipelineGraph — nghiệm thu', () => {
   it('chưa có báo cáo nhánh thì không nói "mỗi tầng một nhánh" (B-V5-03)', async () => {
     // Cổng THẬT của route: `branchReport` không được hỗ trợ ⇒ không có báo cáo nào.
     renderWithProviders(
       <PipelineGraphContainer
-        gateway={createPipelineGraphGateway(createProcessingGateway(createMockApiClient()))}
+        gateway={noRunGateway()}
         projectId="project-1"
         roles={['admin']}
       />,
@@ -255,7 +261,7 @@ describe('PipelineGraph — nghiệm thu', () => {
     const onBackToProjects = vi.fn();
     renderWithProviders(
       <PipelineGraphContainer
-        gateway={createPipelineGraphGateway(createProcessingGateway(createMockApiClient()))}
+        gateway={noRunGateway()}
         onBackToProjects={onBackToProjects}
         projectId={MOCK_MISSING_PROJECT_ID}
         roles={['admin']}
@@ -270,7 +276,7 @@ describe('PipelineGraph — nghiệm thu', () => {
 
   it('#24 còn đang đọc thì là skeleton, không thoáng hiện câu rỗng trước dải không tìm thấy (BUG-556)', async () => {
     const gateway = {
-      ...createPipelineGraphGateway(createProcessingGateway(createMockApiClient())),
+      ...noRunGateway(),
       readProjectExists: () => new Promise<boolean>(() => undefined),
     };
     const { container } = renderWithProviders(
@@ -292,7 +298,10 @@ describe('PipelineGraph — nghiệm thu', () => {
       }),
     );
     const client = { ...base, projects: { ...base.projects, read: failing } };
-    const gateway = createPipelineGraphGateway(createProcessingGateway(client));
+    const gateway = {
+      ...createPipelineGraphGateway(createProcessingGateway(client)),
+      readLatestRun: () => Promise.resolve(null),
+    };
 
     await expect(gateway.readProjectExists({ projectId: 'project-1' })).rejects.toBeTruthy();
 
@@ -506,7 +515,10 @@ describe('PipelineGraph — giả định C3 dùng chung với màn Xử lý (NO
           }),
       },
     };
-    const gateway = createPipelineGraphGateway(createProcessingGateway(client));
+    const gateway = {
+      ...createPipelineGraphGateway(createProcessingGateway(client)),
+      readLatestRun: () => Promise.resolve(null),
+    };
 
     const run = await gateway.readRunOnce({ projectId: 'project-1', uploadId: 'upload-1' });
 

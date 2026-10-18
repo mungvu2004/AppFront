@@ -16,7 +16,7 @@ import { useEffect, useRef } from 'react';
 import { Copy, Inbox, Lock } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
-import { IconButton } from '@/components/ui/IconButton';
+import { Button } from '@/components/ui/Button';
 
 import type { ProcessingLogPanelProps } from './types';
 
@@ -68,20 +68,23 @@ export function ProcessingLogPanel({
   return (
     <div aria-label={PANEL_LABEL} role="region" className="flex flex-col gap-2">
       <div className="flex items-center justify-end gap-2">
-        <IconButton
-          aria-label={LOCK_AUTO_SCROLL_LABEL}
+        <Button
           aria-pressed={isAutoScrollLocked}
-          icon={<Lock aria-hidden="true" className="h-4 w-4" />}
-          isActive={isAutoScrollLocked}
+          iconBefore={<Lock aria-hidden="true" className="h-4 w-4" />}
           onClick={onToggleAutoScroll}
           size="sm"
-        />
-        <IconButton
-          aria-label={COPY_LOG_LABEL}
-          icon={<Copy aria-hidden="true" className="h-4 w-4" />}
+          variant={isAutoScrollLocked ? 'primary' : 'secondary'}
+        >
+          {LOCK_AUTO_SCROLL_LABEL}
+        </Button>
+        <Button
+          iconBefore={<Copy aria-hidden="true" className="h-4 w-4" />}
           onClick={onCopyLog}
           size="sm"
-        />
+          variant="secondary"
+        >
+          {COPY_LOG_LABEL}
+        </Button>
       </div>
 
       {visibleLines.length === 0 ? (
