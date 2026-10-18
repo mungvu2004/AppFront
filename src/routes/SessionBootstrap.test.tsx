@@ -248,6 +248,17 @@ describe('SessionGate — năm nhánh', () => {
     expectAccessible(container);
   });
 
+  it('[G4b-31] máy chủ trả 5xx khi đọc phiên: "Máy chủ đang gặp sự cố" + "Thử lại" gọi onRetry', async () => {
+    const onRetry = vi.fn();
+    const { container } = renderGate({ onRetry, serverError: true, serverUnreachable: true, status: 'unknown' });
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Máy chủ đang gặp sự cố' })).toBeInTheDocument();
+    expect(screen.queryByText('Kiểm tra mạng rồi thử lại.')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expectVietnamese(container);
+  });
+
   it('báo không kết nối được máy chủ khi phiên còn chưa biết, và thử lại gọi onRetry', async () => {
     const onRetry = vi.fn();
     const { container } = renderGate({ onRetry, serverUnreachable: true, status: 'unknown' });

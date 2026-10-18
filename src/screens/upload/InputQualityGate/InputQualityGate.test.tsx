@@ -1013,8 +1013,8 @@ describe('InputQualityGateView — ba trạng thái mới của F-05a', () => {
     expect(content.style.width).toBe('100%');
 
     fireEvent.click(screen.getByRole('button', { name: 'Phóng to' }));
-    expect(content.style.width).toBe('110%');
-    expect(screen.getByRole('button', { name: /Mức thu phóng 110%/u })).toBeInTheDocument();
+    expect(content.style.width).toBe('125%');
+    expect(screen.getByRole('button', { name: /Mức thu phóng 125%/u })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Vừa khung nhìn' }));
     expect(content.style.width).toBe('100%');

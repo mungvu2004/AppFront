@@ -336,9 +336,10 @@ const createRefreshFailure = (): void => {
  * Không đặt `refreshFailed`, không phát gì — một chuỗi lỗi mạng không được
  * biến thành một lượt đăng xuất.
  */
-const handleTransientFailure = (retryAfterHeader: string | null): void => {
+const handleTransientFailure = (retryAfterHeader: string | null, serverError = false): void => {
   clearRefreshTimer();
-  setServerUnreachable(true);
+  // G4b-31: 5xx = máy chủ có trả lời nhưng lỗi → cổng nói "Máy chủ đang gặp sự cố", không bảo kiểm tra mạng.
+  setServerUnreachable(true, serverError);
   transientAttempt += 1;
 
   /*
@@ -473,7 +474,10 @@ export const refreshSingleFlight = async (
 
       if (!response.ok) {
         if (isTransientStatus(response.status)) {
-          handleTransientFailure(response.headers.get('Retry-After'));
+          handleTransientFailure(
+            response.headers.get('Retry-After'),
+            response.status >= SERVER_ERROR_STATUS,
+          );
           return false;
         }
 

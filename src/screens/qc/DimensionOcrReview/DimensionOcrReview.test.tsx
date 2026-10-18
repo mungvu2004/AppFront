@@ -893,7 +893,7 @@ describe('[G07/G13] khung bản vẽ SCR-18', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /phóng to/iu }));
 
-    expect(layer?.style.transform).toContain('scale(1.1)');
+    expect(layer?.style.transform).toContain('scale(1.25)');
   });
 });
 

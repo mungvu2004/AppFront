@@ -37,6 +37,11 @@ export interface SessionSnapshot {
    * Nơi đọc vẫn nên viết `=== true` để khỏi phụ thuộc vào điều đó.
    */
   serverUnreachable?: boolean;
+  /**
+   * G4b-31: lượt gia hạn có trả lời nhưng là 5xx (máy chủ lỗi), không phải mất mạng.
+   * Chỉ có nghĩa khi `serverUnreachable` bật. Tuỳ chọn cùng lý do như cờ trên; vắng = `false`.
+   */
+  serverError?: boolean;
 }
 
 export interface SessionState extends SessionSnapshot {

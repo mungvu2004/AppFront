@@ -14,16 +14,35 @@ describe('useZoomCluster', () => {
     expect(result.current.zoomLevel).toBe(150);
   });
 
-  it('increases zoom by 10%', () => {
+  it('increases zoom by 25%', () => {
     const { result } = renderHook(() => useZoomCluster());
     act(() => result.current.zoomIn());
-    expect(result.current.zoomLevel).toBe(110);
+    expect(result.current.zoomLevel).toBe(125);
   });
 
-  it('decreases zoom by 10%', () => {
+  it('decreases zoom by 25%', () => {
     const { result } = renderHook(() => useZoomCluster());
     act(() => result.current.zoomOut());
-    expect(result.current.zoomLevel).toBe(90);
+    expect(result.current.zoomLevel).toBe(75);
+  });
+
+  it('snaps an off-step level (85% fit) to the next 25% step', () => {
+    const { result } = renderHook(() => useZoomCluster(85));
+    act(() => result.current.zoomIn());
+    expect(result.current.zoomLevel).toBe(100);
+    act(() => result.current.fitToScreen());
+    act(() => result.current.zoomOut());
+    expect(result.current.zoomLevel).toBe(75);
+  });
+
+  it('keeps the level per persistKey across remounts (G4b-30)', () => {
+    sessionStorage.clear();
+    const first = renderHook(() => useZoomCluster(100, 'dimensions:L1'));
+    act(() => first.result.current.zoomIn());
+    first.unmount();
+    expect(renderHook(() => useZoomCluster(100, 'dimensions:L1')).result.current.zoomLevel).toBe(125);
+    expect(renderHook(() => useZoomCluster(100, 'dimensions:L2')).result.current.zoomLevel).toBe(100);
+    expect(renderHook(() => useZoomCluster()).result.current.zoomLevel).toBe(100);
   });
 
   it('resets zoom to 100', () => {

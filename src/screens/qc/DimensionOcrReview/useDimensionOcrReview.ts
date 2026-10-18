@@ -701,7 +701,8 @@ export function useDimensionOcrReview(
   );
 
   /* G07: cụm thu phóng có chủ — mức sống ở đây, khung bản vẽ áp `scale`. */
-  const zoomCluster = useZoomCluster();
+  // G4b-30: nhớ mức phóng theo tầng trong phiên (chuyển màn rồi Back vẫn giữ).
+  const zoomCluster = useZoomCluster(FULL_ZOOM_PERCENT, `dimensions:${floorId}`);
   const canvasZoom = useMemo<DimensionCanvasZoom>(
     () => ({
       percent: zoomCluster.zoomLevel,

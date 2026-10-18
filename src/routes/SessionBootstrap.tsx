@@ -60,6 +60,11 @@ export interface SessionGateProps {
    * truyền thẳng giá trị đọc được. Vì vậy mọi chỗ đọc ở đây viết `=== true`.
    */
   serverUnreachable?: boolean | undefined;
+  /**
+   * G4b-31: lượt gia hạn hỏng vì máy chủ trả 5xx (có trả lời nhưng lỗi), khác với mất mạng.
+   * Chỉ đọc cùng `serverUnreachable`; `lib/auth/refresh.ts` đặt cờ khi `/auth/refresh` trả ≥ 500.
+   */
+  serverError?: boolean | undefined;
   /** Lượt mở phiên hỏng ngay ở bước dựng, trước cả khi có gì để hỏi máy chủ. */
   setupFailed: boolean;
   status: SessionStatus;
@@ -249,6 +254,7 @@ export function SessionGate({
   loginHref,
   onRetry,
   pathname,
+  serverError,
   serverUnreachable,
   sessionEnded,
   setupFailed,
@@ -267,6 +273,17 @@ export function SessionGate({
           title="Chưa mở được ứng dụng"
           description="Tải lại trang để thử mở lại."
           action={{ label: 'Tải lại trang', onClick: () => globalThis.location.reload() }}
+        />
+      );
+    }
+
+    if (serverUnreachable === true && serverError === true) {
+      return (
+        <GateScreen
+          icon={<AlertCircle />}
+          title="Máy chủ đang gặp sự cố"
+          description="Máy chủ chưa xử lý được yêu cầu. Thử lại sau ít phút."
+          action={{ label: 'Thử lại', onClick: onRetry }}
         />
       );
     }
@@ -411,6 +428,7 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
       onRetry={onRetry}
       pathname={location.pathname}
       sessionEnded={sessionEnded.current}
+      serverError={session.serverError}
       serverUnreachable={session.serverUnreachable}
       // "Chưa mở được ứng dụng" chỉ đúng khi tầng phiên vẫn chưa cấu hình: màn khác thử lại
       // cấu hình được rồi thì cổng rơi về nhánh `serverUnreachable` → "Thử lại" (NO-372).

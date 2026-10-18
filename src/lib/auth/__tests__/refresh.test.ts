@@ -280,6 +280,8 @@ describe('src/lib/auth/refresh', () => {
     expect(getSession().serverUnreachable).toBe(true);
     expect(getAccessToken()).toBe('token-1');
     expect(getSession().roles).toEqual(['engineer']);
+    // G4b-31: chỉ 5xx bật `serverError`; 429, lỗi mạng, quá giờ thì không.
+    expect(getSession().serverError).toBe(_label.startsWith('503'));
     expect(signedOut).not.toHaveBeenCalled();
     expect(otherTab).toEqual([]);
 
@@ -288,6 +290,7 @@ describe('src/lib/auth/refresh', () => {
     expect(server.refreshCalls()).toBe(3);
     expect(getSession().serverUnreachable).toBe(false);
     expect(getAccessToken()).toBe('token-3');
+    expect(getSession().serverError).toBe(false);
   });
 
   it('leaves an unknown session unknown when the server is unreachable', async () => {
@@ -298,6 +301,8 @@ describe('src/lib/auth/refresh', () => {
 
     expect(getSession().status).toBe('unknown');
     expect(getSession().serverUnreachable).toBe(true);
+    // G4b-31: 5xx là máy chủ lỗi, không phải mất mạng.
+    expect(getSession().serverError).toBe(true);
     expect(signedOut).not.toHaveBeenCalled();
     expect(otherTab).toEqual([]);
   });

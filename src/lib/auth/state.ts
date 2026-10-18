@@ -37,6 +37,7 @@ const hasSessionStateChanged = (nextState: SessionState, currentState: SessionSt
     nextState.expiresAt !== currentState.expiresAt ||
     nextState.refreshFailed !== currentState.refreshFailed ||
     nextState.serverUnreachable !== currentState.serverUnreachable ||
+    (nextState.serverError ?? false) !== (currentState.serverError ?? false) ||
     nextState.status !== currentState.status ||
     nextState.user !== currentState.user ||
     nextState.roles.length !== currentState.roles.length
@@ -55,6 +56,7 @@ const updateSessionState = (nextState: SessionState): void => {
   sessionState = nextState;
   sessionSnapshot = {
     roles: nextState.roles,
+    serverError: nextState.serverError ?? false,
     serverUnreachable: nextState.serverUnreachable,
     status: nextState.status,
     user: nextState.user,
@@ -123,8 +125,8 @@ export const setAnonymousSession = ({ refreshFailed }: { refreshFailed: boolean 
  * ngay ở bước cấu hình khi phiên còn `unknown` (`startAppSession`, NO-357) — khi
  * ấy không có lịch tự thử lại, chỉ nút "thử lại" của màn.
  */
-export const setServerUnreachable = (serverUnreachable: boolean): void => {
-  updateSessionState({ ...sessionState, serverUnreachable });
+export const setServerUnreachable = (serverUnreachable: boolean, serverError = false): void => {
+  updateSessionState({ ...sessionState, serverUnreachable, serverError: serverUnreachable && serverError });
 };
 
 export const setUnknownSession = (): void => {
