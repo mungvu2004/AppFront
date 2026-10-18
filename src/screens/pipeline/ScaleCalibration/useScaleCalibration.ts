@@ -1264,6 +1264,10 @@ export function useScaleCalibration(
     navigate(ROUTES.project.upload(projectId));
   }, [navigate, projectId]);
 
+  const onGoToViewer3d = useCallback(() => {
+    navigate(ROUTES.project.viewer(projectId));
+  }, [navigate, projectId]);
+
   const onCanvasSizeChange = useCallback((widthPx: number, heightPx: number) => {
     setCanvasSize((size) =>
       size.width === widthPx && size.height === heightPx
@@ -2022,6 +2026,7 @@ export function useScaleCalibration(
         applyScopeOptions,
         canApply,
         ...(applyNotice !== null ? { applyBlockedNotice: applyNotice } : {}),
+        canOpenViewer3d: applyOutcome === 'success',
         isApplying,
         areActionsHidden: !canEdit,
         recalculationCaption: COPY.recalculationCaption,
@@ -2070,6 +2075,7 @@ export function useScaleCalibration(
     activeStep,
     allFloors,
     applyNotice,
+    applyOutcome,
     canEdit,
     canvasSize,
     saveBlock,
@@ -2141,6 +2147,7 @@ export function useScaleCalibration(
       onGoToPreprocessing,
       onRetry,
       onGoToUpload,
+      onGoToViewer3d,
     }),
     [
       onApply,
@@ -2156,6 +2163,7 @@ export function useScaleCalibration(
       onFitView,
       onGoToPreprocessing,
       onGoToUpload,
+      onGoToViewer3d,
       onHoverDimensionRow,
       onMiniMapViewportChange,
       onMoveCursor,

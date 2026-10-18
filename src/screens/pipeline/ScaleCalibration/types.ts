@@ -482,6 +482,8 @@ export interface ScalePanelViewModel {
    * hỏng, báo cáo "áp mọi tầng", hay tỷ lệ cũ được đặt lại. Vắng khi không có gì để nói.
    */
   readonly applyBlockedNotice?: string;
+  /** Lượt áp gần nhất đã lưu xong: vẽ nút "Xem mô hình 3D →" cạnh câu báo. */
+  readonly canOpenViewer3d: boolean;
   readonly isApplying: boolean;
   /**
    * `true` khi vai không sửa được, ở MỌI trạng thái (BUG-601 — tầng lỗi/chưa bản vẽ trước đây vẫn
@@ -697,6 +699,8 @@ export interface ScaleCalibrationActions {
   readonly onRetry: () => void;
   /** Tới màn Tải bản vẽ — lối ra của tầng chưa có bản vẽ (BUG-337). */
   readonly onGoToUpload: () => void;
+  /** Tới màn 3D toàn màn của dự án — bước kế sau khi áp tỷ lệ xong. */
+  readonly onGoToViewer3d: () => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -747,6 +751,7 @@ export interface ScaleCalibrationPanelProps {
     | 'onChangeMethod'
     | 'onChangeRealLength'
     | 'onConfirmRealLength'
+    | 'onGoToViewer3d'
     | 'onHoverDimensionRow'
     | 'onNudgeEndpoint'
     | 'onRemeasure'

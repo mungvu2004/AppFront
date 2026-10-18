@@ -410,6 +410,8 @@ export interface FloorManagerViewProps {
   /** Lối vào các màn duyệt lớp của một tầng (menu "Duyệt lớp"); vắng thì không vẽ nút. */
   /** Lối vào màn cấp dự án (menu "Thêm" đầu màn); vắng thì không vẽ nút. */
   readonly onOpenProjectScreen?: ((screen: ProjectMoreScreen) => void) | undefined;
+  /** Nút "Xong, xem mô hình 3D →" đầu màn; vắng thì không vẽ nút. */
+  readonly onOpenViewer3d?: (() => void) | undefined;
   readonly onOpenFloorScreen?: ((floorId: string, screen: FloorReviewScreen) => void) | undefined;
   readonly onToggleCollapsed: () => void;
   readonly onRetry: () => void;

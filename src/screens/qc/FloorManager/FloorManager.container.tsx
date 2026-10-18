@@ -102,6 +102,8 @@ export interface FloorManagerContainerProps {
   /** Mở màn Đối chiếu lớp phủ (SCR-22) của tầng; route nối vào `useNavigate`. */
   readonly onNavigateToOverlay?: (floorId: string) => void;
   readonly onNavigateToProjectScreen?: (screen: ProjectMoreScreen) => void;
+  /** Mở màn 3D toàn màn của dự án; route nối vào `useNavigate`. */
+  readonly onNavigateToViewer3d?: () => void;
   readonly onNavigateToFloorScreen?: (floorId: string, screen: FloorReviewScreen) => void;
   /** Lối về danh sách dự án khi dự án không tồn tại (404); {@link FloorManagerRoute} nối vào `useNavigate`. */
   readonly onBackToProjects?: (() => void) | undefined;
@@ -190,6 +192,7 @@ function WiredFloorManager(props: FloorManagerContainerProps) {
       onOpenOverlay={props.onNavigateToOverlay}
       onOpenFloorScreen={props.onNavigateToFloorScreen}
       onOpenProjectScreen={props.onNavigateToProjectScreen}
+      onOpenViewer3d={props.onNavigateToViewer3d}
       onUploadDrawing={result.onUploadDrawing}
       rows={result.rows}
       state={result.state}
@@ -284,6 +287,10 @@ function FloorManagerRouteBody({
     [navigate, projectId],
   );
 
+  const handleNavigateToViewer3d = useCallback(() => {
+    navigate(ROUTES.project.viewer(projectId));
+  }, [navigate, projectId]);
+
   const handleBackToProjects = useCallback(() => {
     navigate(ROUTES.dashboard);
   }, [navigate]);
@@ -299,6 +306,7 @@ function FloorManagerRouteBody({
         onNavigateToFloorScreen={handleNavigateToFloorScreen}
         onNavigateToOverlay={handleNavigateToOverlay}
         onNavigateToProjectScreen={handleNavigateToProjectScreen}
+        onNavigateToViewer3d={handleNavigateToViewer3d}
         projectId={projectId}
         roles={roles}
       />

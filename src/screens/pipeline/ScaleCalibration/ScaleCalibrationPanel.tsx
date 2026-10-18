@@ -63,6 +63,7 @@ const CROSS_CHECKS_ARIA_LABEL = 'Ba đại lượng dẫn xuất để kiểm ch
 const WARNING_ARIA_LABEL = 'Cảnh báo về tỷ lệ';
 const APPLY_PRIMARY = 'Áp dụng tỷ lệ';
 const APPLY_APPLYING = 'Đang áp tỷ lệ…';
+const OPEN_VIEWER_LABEL = 'Xem mô hình 3D →';
 const SCOPE_ARIA_LABEL = 'Phạm vi áp tỷ lệ';
 
 const PANEL_CONTAINER_CLASSES = clsx(
@@ -287,6 +288,12 @@ export function ScaleCalibrationPanel({
             </Button>
             {panel.applyBlockedNotice !== undefined && (
               <InlineAlert level="attention" message={panel.applyBlockedNotice} />
+            )}
+            {/* Áp xong thì bước kế là xem mô hình 3D của cả dự án. */}
+            {panel.canOpenViewer3d && (
+              <Button onClick={actions.onGoToViewer3d} size="sm" variant="primary">
+                {OPEN_VIEWER_LABEL}
+              </Button>
             )}
             <p className="text-[12px] text-text-muted">{panel.recalculationCaption}</p>
           </div>
