@@ -85,6 +85,8 @@ export const ENDPOINTS = {
    */
   auth: {
     invitationAccept: `${AUTH_ROOT}/invitations/accept`,
+    /** N10a (UIFIX-B2) — xem trước lời mời; token trong thân. */
+    invitationPreview: `${AUTH_ROOT}/invitations/preview`,
     login: `${AUTH_ROOT}/login`,
     passwordReset: `${AUTH_ROOT}/password-reset`,
     passwordResetConfirm: `${AUTH_ROOT}/password-reset/confirm`,
@@ -100,6 +102,8 @@ export const ENDPOINTS = {
     latestUploads: (projectId: string, cursor?: string): string =>
       `${PROJECTS_ROOT}/${projectId}${DRAWINGS_ROOT}/uploads/latest` +
       (cursor === undefined ? '' : `?cursor=${encodeURIComponent(cursor)}`),
+    /** N7b (UIFIX-B7) — nhật ký lượt xử lý; `limit`/`cursor` đi qua `query`. */
+    pipelineRuns: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/pipeline-runs`,
     progress: (projectId: string, uploadId: string): string =>
       `${PROJECTS_ROOT}/${projectId}${DRAWINGS_ROOT}/uploads/${uploadId}/progress`,
   },

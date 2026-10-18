@@ -9,6 +9,7 @@ import type { MillimetresPerPixel } from '@/domain/units/types';
 import type { ProjectSettings } from '../schemas/projectSettings';
 import type { ProjectSummary } from '../schemas/projectSummaries';
 import type { Me } from '../schemas/me';
+import type { PipelineRun } from '../schemas/pipelineRuns';
 import type { ProjectRuleConfig } from '../schemas/ruleConfig';
 import type { FloorLayerDocument } from '../schemas/spatialLayer';
 import type {
@@ -1104,6 +1105,49 @@ const mockSummaryUpdatedAt = (day: number): string => `2026-09-${String(day).pad
  * `e2e/v2v3/dashboard.spec.ts` tìm theo tên và đếm đúng ba thẻ — đủ ba `status`. Sunrise đang xử
  * lý, chưa tách xong tầng nào: nó là dự án `floorCount: 0`, nên chưa có tường nào (`wallsTotalCount: 0`). Thứ tự `updatedAt` giữ thứ tự cũ.
  */
+/** N7b — nhật ký lượt xử lý mẫu, mới nhất trước (một lượt lỗi, một lượt bị thay, một lượt xong). */
+export const MOCK_PIPELINE_RUNS: readonly PipelineRun[] = [
+  {
+    createdAt: '2026-09-08T08:40:00.000Z',
+    floorId: 'L-000001LVL0',
+    floorName: 'Tầng 1',
+    progressPercent: 55,
+    runId: 'run-3',
+    startedAt: '2026-09-08T08:40:03.000Z',
+    status: 'running',
+    step: 'openingAndFurnitureDetection',
+    updatedAt: '2026-09-08T08:42:00.000Z',
+    uploadId: 'upl_01JB0000000000000000000003',
+  },
+  {
+    createdAt: '2026-09-08T08:20:00.000Z',
+    errorCode: 'PIPELINE_SUPERSEDED',
+    floorId: 'L-000001LVL0',
+    floorName: 'Tầng 1',
+    progressPercent: 5,
+    runId: 'run-2',
+    startedAt: '2026-09-08T08:20:03.000Z',
+    status: 'failed',
+    step: 'wallSegmentation',
+    supersededBy: 'run-3',
+    updatedAt: '2026-09-08T08:40:00.000Z',
+    uploadId: 'upl_01JB0000000000000000000002',
+  },
+  {
+    createdAt: '2026-09-08T08:00:00.000Z',
+    endedAt: '2026-09-08T08:04:40.000Z',
+    floorId: 'L-000001LVL0',
+    floorName: 'Tầng 1',
+    progressPercent: 100,
+    runId: 'run-1',
+    startedAt: '2026-09-08T08:00:02.000Z',
+    status: 'completed',
+    step: 'qualityCheck',
+    updatedAt: '2026-09-08T08:04:40.000Z',
+    uploadId: 'upl_01JB0000000000000000000001',
+  },
+];
+
 export const MOCK_PROJECT_SUMMARIES: readonly ProjectSummary[] = [
   {
     areaM2: 1860,
@@ -1486,6 +1530,26 @@ export const createMockApiClient = (): ApiClient => {
     auth: {
       acceptInvitation: async () => ok(undefined),
       confirmPasswordReset: async () => ok(undefined),
+      /** Token chứa `invalid`/`expired`/`used` → 422 đúng mã B2, để dựng ba màn lỗi trên dev mock. */
+      previewInvitation: async ({ body }) => {
+        const code = (['invalid', 'expired', 'used'] as const).find((word) => body.token.includes(word));
+
+        return code === undefined
+          ? ok({
+              email: 'engineer@example.com',
+              expiresAt: MOCK_USERS_INVITE_EXPIRY,
+              inviterName: 'Quản Trị Viên',
+              role: 'engineer' as const,
+              status: 'valid' as const,
+            })
+          : failed({
+              kind: 'http',
+              raw: { code: `INVITATION_TOKEN_${code.toUpperCase()}` },
+              requestId: 'req-invitation-preview',
+              retryable: false,
+              status: 422,
+            });
+      },
       requestPasswordReset: async () => ok(undefined),
       signIn: async ({ body }) => {
         lastSignedInEmail = body.email;
@@ -1517,6 +1581,13 @@ export const createMockApiClient = (): ApiClient => {
               return uploadId === undefined ? [] : [{ floorId: floor.id, floorName: floor.name, uploadId }];
             }),
         ),
+      listPipelineRuns: async ({ cursor, limit = 50 }) => {
+        const start = cursor === undefined ? 0 : Number(cursor);
+        const page = MOCK_PIPELINE_RUNS.slice(start, start + limit).map(clone);
+        const next = start + limit < MOCK_PIPELINE_RUNS.length ? String(start + limit) : undefined;
+
+        return ok({ droppedCount: 0, items: page, ...(next !== undefined ? { nextCursor: next } : {}) });
+      },
       progress: async ({ projectId, uploadId }) =>
         ok(uploads.get(uploadKey(projectId, uploadId)) ?? makeProgress({ id: uploadId, progressPercent: 0 })),
       sendChunk: async ({ body, projectId, uploadId }) => {
@@ -1647,6 +1718,15 @@ export const createMockApiClient = (): ApiClient => {
           : ok(writeNotification({ ...current, isRead: true }));
       },
       list: async () => ok(notifications.map(clone)),
+      listPage: async ({ cursor, limit = 200 } = {}) => {
+        const start = cursor === undefined ? 0 : Number(cursor);
+        const next = start + limit < notifications.length ? String(start + limit) : undefined;
+
+        return ok({
+          items: notifications.slice(start, start + limit).map(clone),
+          ...(next !== undefined ? { nextCursor: next } : {}),
+        });
+      },
       markAllRead: async () => {
         notifications = notifications.map((item) => ({ ...item, isRead: true }));
 

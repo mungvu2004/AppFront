@@ -57,3 +57,40 @@ export const AcceptInvitationSchema = z
   .strict();
 
 export type AcceptInvitation = z.infer<typeof AcceptInvitationSchema>;
+
+/**
+ * N10a — `POST /api/auth/invitations/preview` (`auth_preview_invitation`,
+ * UIFIX-B2): kiểm token TRƯỚC khi hiện form nhận lời mời. Chỉ đọc, không tiêu
+ * token. Token đi trong thân, không lên URL (K11).
+ *
+ * 422 tách ba mã: `INVITATION_TOKEN_INVALID` (link sai), `INVITATION_TOKEN_EXPIRED`
+ * (hết hạn hoặc đã bị "Gửi lại" thay), `INVITATION_TOKEN_USED` (đã nhận).
+ */
+export const InvitationPreviewRequestSchema = z
+  .object({
+    token: tokenSchema,
+  })
+  .strict();
+
+export type InvitationPreviewRequest = z.infer<typeof InvitationPreviewRequestSchema>;
+
+export const INVITATION_ROLES = ['admin', 'engineer', 'viewer'] as const;
+
+/** `inviterName` vắng hẳn khi không tìm được người mời (W2). */
+export const InvitationPreviewSchema = z
+  .object({
+    email: z.string().min(1),
+    expiresAt: z.string().datetime({ offset: true }),
+    inviterName: z.string().min(1).optional(),
+    role: z.enum(INVITATION_ROLES),
+    status: z.literal('valid'),
+  })
+  .strict();
+
+export type InvitationPreview = z.infer<typeof InvitationPreviewSchema>;
+
+export const INVITATION_PREVIEW_ERROR_CODES = [
+  'INVITATION_TOKEN_INVALID',
+  'INVITATION_TOKEN_EXPIRED',
+  'INVITATION_TOKEN_USED',
+] as const;

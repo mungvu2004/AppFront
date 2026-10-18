@@ -26,7 +26,15 @@ import {
   type Version,
 } from './contracts';
 import { ENDPOINTS } from './endpoints';
-import type { AcceptInvitation, PasswordResetConfirm, PasswordResetRequest } from './schemas/auth';
+import {
+  InvitationPreviewSchema,
+  type AcceptInvitation,
+  type InvitationPreview,
+  type InvitationPreviewRequest,
+  type PasswordResetConfirm,
+  type PasswordResetRequest,
+} from './schemas/auth';
+import { PipelineRunSchema, type PipelineRun } from './schemas/pipelineRuns';
 import { UserSchema, type SignInInput, type User as ApiUser } from './schemas';
 import {
   FloorLayerDocumentSchema,
@@ -166,6 +174,11 @@ export interface AcceptInvitationApiInput extends WriteRequestOptions {
   body: AcceptInvitation;
 }
 
+/** N10a (UIFIX-B2) — chỉ đọc, không tiêu token. */
+export interface PreviewInvitationApiInput extends WriteRequestOptions {
+  body: InvitationPreviewRequest;
+}
+
 export interface ConfirmPasswordResetApiInput extends WriteRequestOptions {
   body: PasswordResetConfirm;
 }
@@ -238,6 +251,20 @@ export interface ReadDrawingProgressInput extends RequestOptions {
 
 export interface ListLatestUploadsInput extends RequestOptions {
   projectId: string;
+}
+
+/** N7b (UIFIX-B7) — `limit` 1..200 (BE mặc định 50), `cursor` = `nextCursor` của trang trước. */
+export interface ListPipelineRunsInput extends RequestOptions {
+  cursor?: string;
+  limit?: number;
+  projectId: string;
+}
+
+/** Một trang nhật ký lượt xử lý. `droppedCount` = mục hỏng bị bỏ (A11). */
+export interface PipelineRunList {
+  droppedCount: number;
+  items: PipelineRun[];
+  nextCursor?: string;
 }
 
 export interface ReadSpatialFloorInput extends RequestOptions {
@@ -524,6 +551,8 @@ export interface DrawingsApi {
    * tầng có bản vẽ từ trước, và mọi lối vào `/pipeline` đều đọc được nó.
    */
   latestUploads(input: ListLatestUploadsInput): Promise<ApiResult<LatestFloorUpload[]>>;
+  /** N7b — một trang nhật ký lượt xử lý, mới nhất trước. */
+  listPipelineRuns(input: ListPipelineRunsInput): Promise<ApiResult<PipelineRunList>>;
   progress(input: ReadDrawingProgressInput): Promise<ApiResult<Progress>>;
   sendChunk(input: SendDrawingChunkInput): Promise<ApiResult<Progress>>;
 }
@@ -663,9 +692,23 @@ export interface AcceptNotificationInviteInput extends WriteRequestOptions {
  * `acceptInvite` trả về chính thông báo vừa đổi, cùng khuôn mọi lượt GHI khác
  * trong `UsersApi`.
  */
+/** UIFIX-B7 — `GET /api/notifications?limit&cursor`; `cursor` = `nextCursor` trang trước. */
+export interface ListNotificationsPageInput extends RequestOptions {
+  cursor?: string;
+  limit?: number;
+}
+
+/** `nextCursor` lấy từ header `X-Next-Cursor`; vắng nghĩa là hết. */
+export interface NotificationPage {
+  items: Notification[];
+  nextCursor?: string;
+}
+
 export interface NotificationsApi {
   acceptInvite(input: AcceptNotificationInviteInput): Promise<ApiResult<Notification>>;
   list(options?: RequestOptions): Promise<ApiResult<Notification[]>>;
+  /** "Xem cũ hơn": thân vẫn là mảng trần, trang kế đi trong header `X-Next-Cursor`. */
+  listPage(input?: ListNotificationsPageInput): Promise<ApiResult<NotificationPage>>;
   markAllRead(options?: WriteRequestOptions): Promise<ApiResult<void>>;
   markRead(input: MarkNotificationsReadApiInput): Promise<ApiResult<void>>;
 }
@@ -700,6 +743,7 @@ export interface NotificationsApi {
 export interface AuthApi {
   acceptInvitation(input: AcceptInvitationApiInput): Promise<ApiResult<void>>;
   confirmPasswordReset(input: ConfirmPasswordResetApiInput): Promise<ApiResult<void>>;
+  previewInvitation(input: PreviewInvitationApiInput): Promise<ApiResult<InvitationPreview>>;
   requestPasswordReset(input: RequestPasswordResetApiInput): Promise<ApiResult<void>>;
   signIn(input: SignInApiInput): Promise<ApiResult<void>>;
 }
@@ -971,6 +1015,12 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
   auth: {
     acceptInvitation: async (input) =>
       postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.invitationAccept, input.body, input),
+    previewInvitation: async (input) =>
+      decodeSingle(
+        await callPost(options.authHttp ?? http, ENDPOINTS.auth.invitationPreview, input.body, input),
+        InvitationPreviewSchema,
+        'auth.previewInvitation',
+      ),
     confirmPasswordReset: async (input) =>
       postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.passwordResetConfirm, input.body, input),
     requestPasswordReset: async (input) =>
@@ -1027,6 +1077,38 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       } while (cursor !== undefined);
 
       return { ok: true, data: uploads };
+    },
+    listPipelineRuns: async ({ cursor, limit, projectId, signal }) => {
+      const page = decodeSingle(
+        await http.get<unknown>(ENDPOINTS.drawings.pipelineRuns(projectId), {
+          query: {
+            ...(cursor !== undefined ? { cursor } : {}),
+            ...(limit !== undefined ? { limit } : {}),
+          },
+          ...(signal !== undefined ? { signal } : {}),
+        }),
+        CursorEnvelopeSchema,
+        'drawings.listPipelineRuns',
+      );
+
+      if (!page.ok) {
+        return page;
+      }
+
+      const items = safeParseList(PipelineRunSchema, page.data.items, 'drawings.listPipelineRuns');
+
+      if (!items.ok) {
+        return items;
+      }
+
+      return {
+        ok: true,
+        data: {
+          droppedCount: page.data.items.length - items.data.length,
+          items: items.data,
+          ...(page.data.nextCursor !== undefined ? { nextCursor: page.data.nextCursor } : {}),
+        },
+      };
     },
     progress: async ({ projectId, signal, uploadId }) =>
       decodeSingle(
@@ -1142,6 +1224,33 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         NotificationSchema,
         'notifications.list',
       ),
+    listPage: async ({ cursor, limit, signal } = {}) => {
+      const raw = await http.get<Response>(ENDPOINTS.notifications.list, {
+        query: {
+          ...(cursor !== undefined ? { cursor } : {}),
+          ...(limit !== undefined ? { limit } : {}),
+        },
+        responseType: 'response',
+        ...(signal !== undefined ? { signal } : {}),
+      });
+
+      if (!raw.ok) {
+        return asApiResult(raw);
+      }
+
+      const nextCursor = raw.data.headers.get('X-Next-Cursor') ?? '';
+      const items = decodeList(
+        { ok: true, data: (await raw.data.json()) as unknown },
+        NotificationSchema,
+        'notifications.listPage',
+      );
+
+      if (!items.ok) {
+        return items;
+      }
+
+      return { ok: true, data: { items: items.data, ...(nextCursor !== '' ? { nextCursor } : {}) } };
+    },
     markAllRead: async (options = {}) =>
       postWithoutBody(http, ENDPOINTS.notifications.markAllRead, {}, options),
     markRead: async (input) =>
