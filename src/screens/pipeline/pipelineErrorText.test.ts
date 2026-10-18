@@ -25,6 +25,7 @@ const EXPECTED = {
     'CAD_NOT_SUPPORTED',
     'PIPELINE_ARTIFACT_INVALID',
     'PIPELINE_BUILD_INVALID',
+    'NOT_A_FLOOR_PLAN',
   ],
   contactAdmin: [
     'MODEL_PIN_MISMATCH',
@@ -42,9 +43,9 @@ const EXPECTED = {
 } as const;
 
 describe('pipelineErrorText', () => {
-  it('holds exactly the 28 codes of the contract table', () => {
+  it('holds exactly the 29 codes of the contract table', () => {
     const expected = Object.values(EXPECTED).flat();
-    expect(PIPELINE_ERROR_CODES).toHaveLength(28);
+    expect(PIPELINE_ERROR_CODES).toHaveLength(29);
     expect([...PIPELINE_ERROR_CODES].sort()).toEqual([...expected].sort());
   });
 
