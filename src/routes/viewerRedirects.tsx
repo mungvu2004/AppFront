@@ -1,7 +1,8 @@
 /** Hai địa chỉ 3D cũ chuyển về `/3d` của Pascal — tách khỏi `router.tsx` để bảng route dưới trần R-22 (F-15 M2). */
+import { useEffect } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 
-import { ROUTE_PATTERNS } from './paths';
+import { editor3dHref, ROUTE_PATTERNS } from './paths';
 
 /**
  * `/3d/pascal` giờ chỉ là địa chỉ cũ của `/3d` (F-15).
@@ -56,4 +57,20 @@ export function MeasureViewRedirect() {
       to={`${ROUTE_PATTERNS.projectViewer.replace(':projectId', projectId ?? '')}?${query.toString()}${hash}`}
     />
   );
+}
+
+/**
+ * `/3d` → trang Pascal riêng `public/editor3d.html` — tài liệu HTML khác, nên
+ * điều hướng cả trang chứ không qua router. `replace` để nút Lùi không quay về
+ * `/3d` rồi bị đẩy đi lần nữa.
+ */
+export function Pascal3dPage() {
+  const { projectId } = useParams<{ projectId: string }>();
+  const { search } = useLocation();
+
+  useEffect(() => {
+    window.location.replace(editor3dHref(projectId ?? '', search));
+  }, [projectId, search]);
+
+  return null;
 }
