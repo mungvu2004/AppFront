@@ -8,7 +8,6 @@ import { surfacePaintCapability } from '../shared/surface-paint'
 import { buildRidgeVentFloorplan } from './floorplan'
 import { ridgeVentParametrics } from './parametrics'
 import { RidgeVentNode } from './schema'
-import { vi } from '../i18n/vi'
 
 // Edge-to-arrow-center offset, matching the box-vent / chimney cadence.
 const SIDE_HANDLE_OFFSET = 0.25
@@ -200,12 +199,12 @@ export const ridgeVentDefinition: NodeDefinition<typeof RidgeVentNode> = {
     move: () => import('./move-tool'),
   },
   toolHints: [
-    { key: 'Left click', label: vi.ridgeVent.shortcuts.place },
-    { key: 'Esc', label: vi.ridgeVent.shortcuts.cancel },
+    { key: 'Left click', label: 'Place ridge vent on roof' },
+    { key: 'Esc', label: 'Cancel' },
   ],
 
   presentation: {
-    label: vi.ridgeVent.catalogLabel,
+    label: 'Ridge Vent',
     description: 'Ventilation strip running along the ridge of a roof segment.',
     icon: { kind: 'url', src: '/icons/ridge-vent.webp' },
     paletteSection: 'structure',

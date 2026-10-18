@@ -12,7 +12,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../../../../../components/ui/primitives/tooltip'
-import { primitivesAndSidebar as vi } from '../../../../../i18n/regions/primitivesAndSidebar'
 
 /** A function-axis taxonomy node, assembled into a tree by the embedder. */
 export type FunctionTreeNode = {
@@ -23,9 +22,9 @@ export type FunctionTreeNode = {
 }
 
 const SOURCE_CHIPS: Array<{ id: NonNullable<AssetInput['source']>; label: string }> = [
-  { id: 'library', label: vi.functionTreePanel.library },
-  { id: 'community', label: vi.functionTreePanel.community },
-  { id: 'mine', label: vi.functionTreePanel.mine },
+  { id: 'library', label: 'Library' },
+  { id: 'community', label: 'Community' },
+  { id: 'mine', label: 'Mine' },
 ]
 
 /** Every slug at or below `node`, so a non-leaf selection matches descendants. */
@@ -179,7 +178,7 @@ export function FunctionTreePanel({
               setSearch(e.target.value)
               onSearchChange?.(e.target.value)
             }}
-            placeholder={vi.functionTreePanel.searchPlaceholder}
+            placeholder="Search..."
             type="text"
             value={search}
           />
@@ -218,7 +217,7 @@ export function FunctionTreePanel({
               onClick={() => setActiveChildSlug(null)}
               type="button"
             >
-              {vi.functionTreePanel.all}
+              All
             </button>
             {activeRoot.children.map((child) => {
               const isActive = activeChildSlug === child.slug
@@ -251,7 +250,7 @@ export function FunctionTreePanel({
         ) : isServerSearch && search && searchResults?.length === 0 ? (
           (emptyState ?? (
             <div className="flex h-full items-center justify-center text-muted-foreground text-xs">
-              {vi.functionTreePanel.noResultsFor(search)}
+              No results for &ldquo;{search}&rdquo;
             </div>
           ))
         ) : (

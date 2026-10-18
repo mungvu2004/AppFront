@@ -5,7 +5,6 @@ import { findAutomaticRunEndCapIds } from '../shared/automatic-run-end-cap'
 import { fittingDeletionPlansForRun } from '../shared/fitting-deletion-cleanup'
 import { rollToContinueAcrossElbow } from './geometry'
 import type { DuctSegmentNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /** A run endpoint sitting this close to a collar counts as mated. */
 const MATE_TOL_M = 0.03
@@ -116,12 +115,12 @@ export const ductSegmentParametrics: ParametricDescriptor<DuctSegmentNode> = {
   trailingSection: () => import('../shared/run-hanger-inspector'),
   groups: [
     {
-      label: vi.common.hangers,
+      label: 'Hangers',
       fields: [
-        { key: 'autoHangers', label: vi.common.autoHangers, kind: 'boolean' },
+        { key: 'autoHangers', label: 'Auto hangers', kind: 'boolean' },
         {
           key: 'hangerStyle',
-          label: vi.common.hangerLines,
+          label: 'Hanger lines',
           kind: 'enum',
           options: ['single', 'double'],
           display: 'segmented',
@@ -129,7 +128,7 @@ export const ductSegmentParametrics: ParametricDescriptor<DuctSegmentNode> = {
         },
         {
           key: 'hangerSpacing',
-          label: vi.common.spacing,
+          label: 'Spacing',
           kind: 'number',
           unit: 'm',
           min: 0.05,
@@ -139,7 +138,7 @@ export const ductSegmentParametrics: ParametricDescriptor<DuctSegmentNode> = {
         },
         {
           key: 'hangerMaxReach',
-          label: vi.common.maximumReach,
+          label: 'Maximum reach',
           kind: 'number',
           unit: 'm',
           min: 0.01,
@@ -150,7 +149,7 @@ export const ductSegmentParametrics: ParametricDescriptor<DuctSegmentNode> = {
       ],
     },
     {
-      label: vi.common.air,
+      label: 'Air',
       fields: [
         {
           key: 'system',
@@ -194,7 +193,7 @@ export const ductSegmentParametrics: ParametricDescriptor<DuctSegmentNode> = {
       ],
     },
     {
-      label: vi.common.construction,
+      label: 'Construction',
       fields: [
         {
           key: 'ductMaterial',

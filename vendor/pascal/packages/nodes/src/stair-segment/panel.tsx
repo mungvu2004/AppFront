@@ -26,7 +26,6 @@ import {
 import { useViewer } from '@pascal-app/viewer'
 import { Copy, Move, Trash2 } from 'lucide-react'
 import { useCallback } from 'react'
-import { vi } from '../i18n/vi'
 
 const SEGMENT_TYPE_OPTIONS: { label: string; value: StairSegmentType }[] = [
   { label: 'Flight', value: 'stair' },
@@ -173,7 +172,7 @@ export default function StairSegmentPanel() {
       title={node.name || 'Stair Segment'}
       width={300}
     >
-      <PanelSection title={vi.common.type}>
+      <PanelSection title="Type">
         <SegmentedControl
           onChange={(v) => {
             const updates: Partial<StairSegmentNode> = { segmentType: v }
@@ -194,7 +193,7 @@ export default function StairSegmentPanel() {
       </PanelSection>
 
       {!isFirstSegment && (
-        <PanelSection title={vi.common.attachment}>
+        <PanelSection title="Attachment">
           <SegmentedControl
             onChange={(v) => handleUpdate({ attachmentSide: v })}
             options={ATTACHMENT_SIDE_OPTIONS}
@@ -203,9 +202,9 @@ export default function StairSegmentPanel() {
         </PanelSection>
       )}
 
-      <PanelSection title={vi.common.dimensions}>
+      <PanelSection title="Dimensions">
         <SliderControl
-          label={vi.common.width}
+          label="Width"
           max={1000}
           min={0.5}
           onChange={(v) => handleUpdate({ width: v })}
@@ -215,7 +214,7 @@ export default function StairSegmentPanel() {
           value={node.width}
         />
         <SliderControl
-          label={vi.common.length}
+          label="Length"
           max={1000}
           min={0.5}
           onChange={(v) => handleUpdate({ length: v })}
@@ -227,7 +226,7 @@ export default function StairSegmentPanel() {
         {node.segmentType === 'stair' && (
           <>
             <SliderControl
-              label={vi.common.height}
+              label="Height"
               max={1000}
               min={0.5}
               onChange={handleFlightHeightChange}
@@ -242,7 +241,7 @@ export default function StairSegmentPanel() {
               </div>
             )}
             <SliderControl
-              label={vi.common.stepsField}
+              label="Steps"
               max={30}
               min={2}
               onChange={(v) => handleUpdate({ stepCount: Math.round(v) })}
@@ -255,16 +254,16 @@ export default function StairSegmentPanel() {
         )}
       </PanelSection>
 
-      <PanelSection title={vi.common.structure}>
+      <PanelSection title="Structure">
         <div className="space-y-3">
           <ToggleControl
             checked={node.fillToFloor}
-            label={vi.common.fillToFloor}
+            label="Fill to floor"
             onChange={(checked) => handleUpdate({ fillToFloor: checked })}
           />
           {!node.fillToFloor && (
             <SliderControl
-              label={vi.common.thickness}
+              label="Thickness"
               max={1000}
               min={0.05}
               onChange={(v) => handleUpdate({ thickness: v })}
@@ -277,7 +276,7 @@ export default function StairSegmentPanel() {
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.common.position}>
+      <PanelSection title="Position">
         <SliderControl
           label="X"
           onChange={(v) => {
@@ -315,7 +314,7 @@ export default function StairSegmentPanel() {
           value={node.position[2]}
         />
         <SliderControl
-          label={vi.common.rotation}
+          label="Rotation"
           max={180}
           min={-180}
           onChange={(degrees) => {
@@ -344,18 +343,18 @@ export default function StairSegmentPanel() {
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.common.actions}>
+      <PanelSection title="Actions">
         <ActionGroup>
-          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label={vi.common.move} onClick={handleMove} />
+          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label="Move" onClick={handleMove} />
           <ActionButton
             icon={<Copy className="h-3.5 w-3.5" />}
-            label={vi.common.duplicate}
+            label="Duplicate"
             onClick={handleDuplicate}
           />
           <ActionButton
             className="hover:bg-red-500/20"
             icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
-            label={vi.common.delete}
+            label="Delete"
             onClick={handleDelete}
           />
         </ActionGroup>

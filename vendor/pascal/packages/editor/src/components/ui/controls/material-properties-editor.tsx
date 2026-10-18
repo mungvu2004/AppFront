@@ -1,7 +1,6 @@
 'use client'
 
 import type { MaterialProperties, MaterialSchema } from '@pascal-app/core'
-import { controlsAndPanels as vi } from '../../../i18n/regions/controlsAndPanels'
 import { Input } from '../primitives/input'
 import { SliderControl } from './slider-control'
 
@@ -42,7 +41,7 @@ export function MaterialPropertiesEditor({
     <div className="space-y-3">
       <div className="space-y-2">
         <label className="block font-medium text-muted-foreground text-xs uppercase tracking-[0.12em]">
-          {vi.materialPropertiesEditor.color}
+          Color
         </label>
         <div className="flex items-center gap-2">
           <input
@@ -59,7 +58,7 @@ export function MaterialPropertiesEditor({
       </div>
 
       <SliderControl
-        label={vi.materialPropertiesEditor.roughness}
+        label="Roughness"
         max={1}
         min={0}
         onChange={(value) => updateMaterial({ roughness: value })}
@@ -69,7 +68,7 @@ export function MaterialPropertiesEditor({
       />
 
       <SliderControl
-        label={vi.materialPropertiesEditor.metalness}
+        label="Metalness"
         max={1}
         min={0}
         onChange={(value) => updateMaterial({ metalness: value })}
@@ -79,7 +78,7 @@ export function MaterialPropertiesEditor({
       />
 
       <SliderControl
-        label={vi.materialPropertiesEditor.opacity}
+        label="Opacity"
         max={1}
         min={0}
         onChange={(value) => updateMaterial({ opacity: value }, value < 1 || currentProps.transparent)}
@@ -90,7 +89,7 @@ export function MaterialPropertiesEditor({
 
       <div className="space-y-2">
         <label className="block font-medium text-muted-foreground text-xs uppercase tracking-[0.12em]">
-          {vi.materialPropertiesEditor.side}
+          Side
         </label>
         <select
           className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
@@ -99,9 +98,9 @@ export function MaterialPropertiesEditor({
           }
           value={currentProps.side}
         >
-          <option value="front">{vi.materialPropertiesEditor.front}</option>
-          <option value="back">{vi.materialPropertiesEditor.back}</option>
-          <option value="double">{vi.materialPropertiesEditor.double}</option>
+          <option value="front">Front</option>
+          <option value="back">Back</option>
+          <option value="double">Double</option>
         </select>
       </div>
     </div>

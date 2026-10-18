@@ -1,6 +1,6 @@
 'use client'
 
-import { Icon } from '../../../lib/offline-icons'
+import { Icon } from '@iconify/react'
 import { type LucideIcon, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import { Fragment } from 'react'

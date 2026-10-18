@@ -70,7 +70,7 @@ function OpeningGuide({
   unit,
 }: {
   guide: OpeningGuide3D
-  metricNotation: 'meters' | 'centimeters' | 'millimeters'
+  metricNotation: 'meters' | 'millimeters'
   unit: 'metric' | 'imperial'
 }) {
   if (guide.kind === 'badge') {

@@ -41,7 +41,6 @@ import { slabParametrics } from './parametrics'
 import { slabQuickMeasurement } from './quick-measurement'
 import { SlabNode } from './schema'
 import { slabSlots } from './slots'
-import { vi } from '../i18n/vi'
 
 const HEIGHT_HANDLE_OFFSET = 0.22
 const MIN_SLAB_ELEVATION = -1
@@ -325,7 +324,7 @@ export const slabDefinition: NodeDefinition<typeof SlabNode> = {
       polygonMeasurementFeatures({
         featurePrefix: 'slab',
         height: node.elevation,
-        label: vi.slab.catalogLabel,
+        label: 'Slab',
         polygon: node.polygon,
       }),
     quickMeasure: (node) => slabQuickMeasurement(node),
@@ -375,14 +374,14 @@ export const slabDefinition: NodeDefinition<typeof SlabNode> = {
   },
 
   toolHints: [
-    { key: 'Left click', label: vi.slab.shortcuts.traceOutline },
-    { key: 'Enter', label: vi.slab.shortcuts.finish, minDraftVertices: 3 },
-    { key: 'Esc', label: vi.slab.shortcuts.cancel },
+    { key: 'Left click', label: 'Trace slab outline' },
+    { key: 'Enter', label: 'Finish slab', minDraftVertices: 3 },
+    { key: 'Esc', label: 'Cancel' },
   ],
 
   presentation: {
-    label: vi.slab.catalogLabel,
-    description: vi.slab.catalogDescription,
+    label: 'Slab',
+    description: 'A polygon-bounded floor surface that hosts items on top.',
     icon: { kind: 'url', src: '/icons/floor.webp' },
     paletteSection: 'structure',
     paletteOrder: 30,

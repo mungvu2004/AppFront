@@ -1,7 +1,3 @@
-import type { Group } from 'three'
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
-import { type GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-
 const SITE_FLAG_MODEL_BASE64 = [
   'Z2xURgIAAADgAwAAAAMAAEpTT057ImFzc2V0Ijp7ImdlbmVyYXRvciI6ImdsVEYtVHJhbnNmb3JtIHY0LjMuMCIsInZlcnNpb24i',
   'OiIyLjAifSwiYWNjZXNzb3JzIjpbeyJ0eXBlIjoiU0NBTEFSIiwiY29tcG9uZW50VHlwZSI6NTEyMywiY291bnQiOjE2OH0seyJ0',
@@ -19,51 +15,4 @@ const SITE_FLAG_MODEL_BASE64 = [
   'uRtytrkkcra5h4bmOwwAAAA=',
 ].join('')
 
-function decodeBase64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binary = atob(base64)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i)
-  }
-  return bytes.buffer
-}
-
-const SITE_FLAG_MODEL_BUFFER = decodeBase64ToArrayBuffer(SITE_FLAG_MODEL_BASE64)
-
-let dracoLoader: DRACOLoader | undefined
-let gltfPromise: Promise<GLTF> | undefined
-let gltfResult: GLTF | undefined
-let gltfError: unknown
-
-// three.js FileLoader nay luôn `fetch()` cả data: URI (không còn nhánh giải trực
-// tiếp như bản cũ) — nên truyền `data:model/gltf-binary` cho `useGLTF` kích CSP
-// `connect-src` dù không request nào rời máy. Mẫu đã có sẵn dạng base64 trong mã
-// nên giải ArrayBuffer rồi gọi `GLTFLoader.parse()` thẳng, không qua FileLoader.
-function loadSiteFlagGltf(decoderPath: string): Promise<GLTF> {
-  if (!gltfPromise) {
-    const loader = new GLTFLoader()
-    dracoLoader ??= new DRACOLoader()
-    dracoLoader.setDecoderPath(decoderPath)
-    loader.setDRACOLoader(dracoLoader)
-    gltfPromise = new Promise<GLTF>((resolve, reject) => {
-      loader.parse(SITE_FLAG_MODEL_BUFFER, '', resolve, reject)
-    })
-  }
-  return gltfPromise
-}
-
-/** Gốc Suspense thủ công — cùng khuôn `useLoader`/`useGLTF` dùng (ném promise lúc đang chờ). */
-export function useSiteFlagScene(decoderPath: string): Group {
-  if (gltfError !== undefined) throw gltfError
-  if (!gltfResult) {
-    throw loadSiteFlagGltf(decoderPath).then(
-      (gltf) => {
-        gltfResult = gltf
-      },
-      (error: unknown) => {
-        gltfError = error
-      },
-    )
-  }
-  return gltfResult.scene
-}
+export const SITE_FLAG_MODEL_URL = `data:model/gltf-binary;base64,${SITE_FLAG_MODEL_BASE64}`

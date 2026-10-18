@@ -4,8 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { usePerfActionReceipts } from '../../lib/perf-actions'
 import { usePerfStats } from '../../lib/perf-panel-store'
-import { vi } from '../../i18n/vi'
-import { formatTriangles } from '../../lib/perf-format'
 
 // Rendered OUTSIDE <Canvas> (drei <Html> wrappers carry a camera-driven
 // transform, which turns position:fixed into "fixed relative to the wrapper"
@@ -228,7 +226,7 @@ export const PerfPanel = () => {
           {stats ? `${stats.fps} fps` : '—'}
         </span>
         <button
-          aria-label={vi.perfPanel.dockAriaLabel}
+          aria-label="Dock panel to the side"
           onClick={dock}
           onPointerDown={(e) => e.stopPropagation()}
           style={{
@@ -277,7 +275,7 @@ export const PerfPanel = () => {
                 {`${stats.batch.items} items · ${stats.batch.instances} inst · ${stats.batch.containers} mesh`}
               </Row>
             )}
-            <Row name={vi.perfPanel.triangles}>{formatTriangles(stats.triangles)}</Row>
+            <Row name="tri">{`${(stats.triangles / 1000).toFixed(1)}k`}</Row>
             <Row name="mem">
               {`${stats.geometries} geo  ${stats.textures} tex  ${mb(stats.gpuBytes)}`}
             </Row>

@@ -128,15 +128,15 @@ describe('doorSchedule', () => {
       sizeText: `3'-0" x 6'-9"`,
       roughOpening: `3'-2" x 6'-10"`,
       frame: `1 15/16" / 2 3/4"`,
-      hardware: 'Ngưỡng cửa',
+      hardware: 'Threshold',
       count: 1,
-      remarks: 'Mặt ngoài',
+      remarks: 'Exterior',
     })
     expect(rows[1]).toMatchObject({
       mark: 'D102',
       type: 'Pocket',
       roughOpening: null,
-      remarks: 'Kiểm tra lại khung thô (R.O.)',
+      remarks: 'VERIFY R.O.',
     })
   })
 
@@ -177,13 +177,13 @@ describe('roomSchedule', () => {
     expect(rows[0]?.name).toBe('Living')
     expect(rows[0]?.floorFinish).toBe('Oak')
     expect(rows[0]?.area).toBeCloseTo(24, 6)
-    expect(rows[0]?.areaText).toBe('258,3 ft²')
+    expect(rows[0]?.areaText).toBe('258.3 ft²')
   })
 
   test('a room without a number is reported', () => {
     const nodes = fixture()
     ;(nodes.zone_1 as unknown as { roomNumber: string }).roomNumber = ''
     const { issues } = roomSchedule(nodes, 'level_1' as AnyNodeId)
-    expect(issues).toEqual(['Phòng Living không có số phòng'])
+    expect(issues).toEqual(['Room Living has no room number'])
   })
 })

@@ -70,7 +70,6 @@ import {
   cabinetWallHeightPresetById,
   cabinetWallHeightPresetId,
 } from './wall-height-presets'
-import { vi } from '../i18n/vi'
 
 export type CabinetEditableNode = CabinetNodeType | CabinetModuleNodeType
 
@@ -124,36 +123,36 @@ function selectCabinetRunPlanningNodes(
 }
 
 const FRONT_STYLE_OPTIONS = [
-  { value: 'slab', label: vi.cabinet.panel.slab },
-  { value: 'shaker', label: vi.cabinet.panel.shaker },
-  { value: 'raised-arch', label: vi.cabinet.panel.raisedArch },
+  { value: 'slab', label: 'Slab' },
+  { value: 'shaker', label: 'Shaker' },
+  { value: 'raised-arch', label: 'Raised Arch' },
 ] as const
 
 const FRONT_OVERLAY_OPTIONS = [
-  { value: 'full', label: vi.cabinet.panel.overlay },
-  { value: 'inset', label: vi.cabinet.panel.inset },
+  { value: 'full', label: 'Overlay' },
+  { value: 'inset', label: 'Inset' },
 ] as const
 
 const HANDLE_STYLE_OPTIONS = [
-  { value: 'bar', label: vi.cabinet.panel.bar },
-  { value: 'knob', label: vi.cabinet.panel.knob },
-  { value: 'cutout', label: vi.cabinet.panel.cutout },
-  { value: 'hole', label: vi.cabinet.panel.hole },
-  { value: 'none', label: vi.cabinet.panel.none },
+  { value: 'bar', label: 'Bar' },
+  { value: 'knob', label: 'Knob' },
+  { value: 'cutout', label: 'Cutout' },
+  { value: 'hole', label: 'Hole' },
+  { value: 'none', label: 'None' },
 ] as const
 
 const HANDLE_POSITION_OPTIONS = [
-  { value: 'auto', label: vi.cabinet.panel.auto },
-  { value: 'top', label: vi.cabinet.panel.top },
-  { value: 'center', label: vi.cabinet.panel.center },
+  { value: 'auto', label: 'Auto' },
+  { value: 'top', label: 'Top' },
+  { value: 'center', label: 'Center' },
 ] as const
 
 function moduleSummary(module: CabinetModuleNodeType) {
-  if ((module.cabinetType ?? 'base') === 'tall') return vi.cabinet.panel.tallCabinet
+  if ((module.cabinetType ?? 'base') === 'tall') return 'Tall cabinet'
   const stack = stackForCabinet(module)
-  if (stack.length === 0) return vi.cabinet.panel.empty
+  if (stack.length === 0) return 'Empty'
   if (stack.length === 1) return stack[0]!.type
-  return vi.cabinet.panel.compartmentCount(stack.length)
+  return `${stack.length} compartments`
 }
 
 export function bumpRunLayoutRevisionViaStore(
@@ -540,11 +539,11 @@ export function CabinetRunPanel({
 
   const equalizeWidthsTitle = !widthEqualization.ok
     ? widthEqualization.reason === 'not-enough-modules'
-      ? vi.cabinet.panel.equalizeNeedTwo
-      : vi.cabinet.panel.equalizeLimits
+      ? 'At least two standard base cabinets are required'
+      : 'The available run width cannot satisfy the cabinet width limits'
     : widthEqualization.changed
-      ? vi.cabinet.panel.equalizeAll
-      : vi.cabinet.panel.equalizeDone
+      ? 'Equalize all resizeable standard base cabinets in this run'
+      : 'The resizeable cabinet widths are already equal'
 
   const duplicateAlongRun = useCallback(() => {
     if (!arraySource) return
@@ -561,11 +560,11 @@ export function CabinetRunPanel({
 
   const duplicateAlongRunTitle = !arrayPlan.ok
     ? arrayPlan.reason === 'no-source'
-      ? vi.cabinet.panel.arrayNoSource
+      ? 'Choose a standard or appliance module as the source'
       : arrayPlan.reason === 'invalid-options'
-        ? vi.cabinet.panel.arrayInvalid
-        : vi.cabinet.panel.arrayNoRoom
-    : vi.cabinet.panel.createCopies(arrayCopyCount, arraySource?.name || vi.cabinet.panel.module.toLowerCase())
+        ? 'Choose a copy count from 1 to 20 and spacing from 0 to 2 m'
+        : 'There is not enough room in this run for the requested array'
+    : `Create ${arrayCopyCount} ${arraySource?.name || 'module'} cop${arrayCopyCount === 1 ? 'y' : 'ies'}`
 
   const dimensionProfile = cabinetDimensionProfileId(node)
   const wallHeightPreset = cabinetWallHeightPresetId(node)
@@ -610,7 +609,7 @@ export function CabinetRunPanel({
       title={node.name || 'Modular Cabinet'}
       width={320}
     >
-      <PanelSection title={vi.cabinet.panel.modules}>
+      <PanelSection title="Modules">
         <div className="flex flex-col gap-2 px-1 pb-2">
           {sortedModules.map((module, index) => (
             <div
@@ -623,21 +622,21 @@ export function CabinetRunPanel({
                 type="button"
               >
                 <div className="truncate text-xs font-medium text-foreground">
-                  {module.name || vi.cabinet.panel.moduleN(index + 1)}
+                  {module.name || `Module ${index + 1}`}
                 </div>
                 <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
                   {moduleSummary(module)}
                 </div>
               </button>
               <button
-                aria-label={vi.cabinet.panel.useAsSource(module.name || vi.cabinet.panel.moduleN(index + 1))}
+                aria-label={`Use ${module.name || `Module ${index + 1}`} as array source`}
                 className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border/50 text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
                 disabled={module.moduleKind === 'corner-filler'}
                 onClick={() => setArraySourceId(module.id as AnyNodeId)}
                 title={
                   module.moduleKind === 'corner-filler'
-                    ? vi.cabinet.panel.arrayCornerFiller
-                    : vi.cabinet.panel.arrayUseSource
+                    ? 'Corner fillers cannot be used as array sources'
+                    : 'Use this module as the array source'
                 }
                 type="button"
               >
@@ -658,12 +657,12 @@ export function CabinetRunPanel({
           <div className="grid grid-cols-2 gap-2">
             <ActionButton
               icon={<Plus className="h-4 w-4" />}
-              label={vi.cabinet.panel.addLeft}
+              label="Add left"
               onClick={() => addModule('left')}
             />
             <ActionButton
               icon={<Plus className="h-4 w-4" />}
-              label={vi.cabinet.panel.addRight}
+              label="Add right"
               onClick={() => addModule('right')}
             />
           </div>
@@ -671,7 +670,7 @@ export function CabinetRunPanel({
             className="mt-2 w-full"
             disabled={!widthEqualization.ok || !widthEqualization.changed}
             icon={<EqualIcon className="h-4 w-4" />}
-            label={vi.cabinet.panel.equalizeWidths}
+            label="Equalize widths"
             onClick={equalizeWidths}
             title={equalizeWidthsTitle}
           />
@@ -681,19 +680,19 @@ export function CabinetRunPanel({
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.cabinet.panel.duplicateAlongRun}>
+      <PanelSection title="Duplicate along run">
         <div className="space-y-2 px-1 pb-2">
           <div className="rounded-lg border border-border/40 bg-[#252527] px-2 py-2">
             <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              {vi.cabinet.panel.sourceModule}
+              Source module
             </div>
             <div className="truncate pt-1 text-xs font-medium text-foreground">
               {arraySource?.name ||
-                (arraySource ? moduleSummary(arraySource) : vi.cabinet.panel.noEligible)}
+                (arraySource ? moduleSummary(arraySource) : 'No eligible module')}
             </div>
           </div>
           <SliderControl
-            label={vi.cabinet.panel.copies}
+            label="Copies"
             max={20}
             min={1}
             onChange={(value) => setArrayCopyCount(Math.round(value))}
@@ -702,7 +701,7 @@ export function CabinetRunPanel({
             value={arrayCopyCount}
           />
           <SliderControl
-            label={vi.cabinet.panel.spacing}
+            label="Spacing"
             max={2}
             min={0}
             onChange={setArraySpacing}
@@ -718,8 +717,8 @@ export function CabinetRunPanel({
             <SegmentedControl
               onChange={(value) => setArrayDirection(value as 'left' | 'right')}
               options={[
-                { value: 'left', label: vi.cabinet.panel.left },
-                { value: 'right', label: vi.cabinet.panel.right },
+                { value: 'left', label: 'Left' },
+                { value: 'right', label: 'Right' },
               ]}
               value={arrayDirection}
             />
@@ -728,22 +727,23 @@ export function CabinetRunPanel({
             className="w-full"
             disabled={!arrayPlan.ok}
             icon={<Copy className="h-4 w-4" />}
-            label={vi.cabinet.panel.createArray}
+            label="Create array"
             onClick={duplicateAlongRun}
             title={duplicateAlongRunTitle}
           />
           <p className="px-1 pt-1 text-[10px] leading-4 text-muted-foreground">
-            {vi.cabinet.panel.copiesNote}
+            Copies include the source cabinet structure and any attached wall cabinet. Existing
+            modules stay fixed; the requested array must fit in the available run space.
           </p>
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.cabinet.panel.plinthCountertop}>
+      <PanelSection title="Shared Plinth & Countertop">
         <div className="space-y-2 px-1 pb-2">
           {node.runTier === 'base' && (
             <div>
               <div className="px-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                {vi.cabinet.panel.standardDimensions}
+                Standard dimensions
               </div>
               <SegmentedControl
                 mixed={dimensionProfile === 'custom'}
@@ -755,14 +755,14 @@ export function CabinetRunPanel({
                 value={dimensionProfile === 'us-base' ? 'us-base' : 'metric-base'}
               />
               <p className="px-1 pt-1 text-[10px] leading-4 text-muted-foreground">
-                {vi.cabinet.panel.standardDimensionsNote}
+                Applies depth, carcass, plinth, and countertop thickness to this run.
               </p>
             </div>
           )}
           {node.runTier === 'wall' && (
             <div>
               <div className="px-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                {vi.cabinet.panel.heightPreset}
+                Height preset
               </div>
               <SegmentedControl
                 mixed={wallHeightPreset === 'custom'}
@@ -779,12 +779,12 @@ export function CabinetRunPanel({
                 value={wallHeightPreset === 'custom' ? '18' : wallHeightPreset}
               />
               <p className="px-1 pt-1 text-[10px] leading-4 text-muted-foreground">
-                {vi.cabinet.panel.wallHeightNote}
+                Common wall-cabinet heights. Use the slider below for a custom height.
               </p>
             </div>
           )}
           <SliderControl
-            label={vi.cabinet.panel.depth}
+            label="Depth"
             max={1.2}
             min={0.3}
             onChange={(value) => updateRun({ depth: value })}
@@ -794,7 +794,7 @@ export function CabinetRunPanel({
             value={node.depth}
           />
           <SliderControl
-            label={vi.cabinet.panel.carcassHeight}
+            label="Carcass height"
             max={node.runTier === 'tall' ? 2.4 : 1.4}
             min={Math.max(0.4, ...modules.map((module) => minCabinetCarcassHeightForStack(module)))}
             onChange={(value) => updateRun({ carcassHeight: value })}
@@ -805,12 +805,12 @@ export function CabinetRunPanel({
           />
           <ToggleControl
             checked={node.showPlinth}
-            label={vi.cabinet.panel.showPlinth}
+            label="Show plinth"
             onChange={(checked) => updateRun({ showPlinth: checked })}
           />
           {node.showPlinth && (
             <SliderControl
-              label={vi.cabinet.panel.plinthHeight}
+              label="Plinth height"
               max={0.3}
               min={0.02}
               onChange={(value) => updateRun({ plinthHeight: value })}
@@ -822,13 +822,13 @@ export function CabinetRunPanel({
           )}
           <ToggleControl
             checked={node.withCountertop}
-            label={vi.cabinet.panel.showCountertop}
+            label="Show countertop"
             onChange={(checked) => updateRun({ withCountertop: checked })}
           />
           {node.withCountertop && (
             <>
               <SliderControl
-                label={vi.cabinet.panel.countertopHeight}
+                label="Countertop height"
                 max={0.08}
                 min={0.005}
                 onChange={(value) => updateRun({ countertopThickness: value })}
@@ -838,7 +838,7 @@ export function CabinetRunPanel({
                 value={node.countertopThickness}
               />
               <SliderControl
-                label={vi.cabinet.panel.countertopDepth}
+                label="Countertop depth"
                 max={0.12}
                 min={0}
                 onChange={(value) => updateRun({ countertopOverhang: value })}
@@ -852,11 +852,11 @@ export function CabinetRunPanel({
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.cabinet.panel.islandBar}>
+      <PanelSection title="Island & Bar">
         <div className="space-y-2 px-1 pb-2">
           {node.withCountertop && node.barLedge?.edge !== 'back' && (
             <SliderControl
-              label={vi.cabinet.panel.seatingOverhang}
+              label="Seating overhang"
               max={0.45}
               min={0}
               onChange={(value) => updateRun({ countertopBackOverhang: value })}
@@ -868,24 +868,24 @@ export function CabinetRunPanel({
           )}
           <ToggleControl
             checked={node.withFinishedBack}
-            label={vi.cabinet.panel.finishedBack}
+            label="Finished back"
             onChange={(checked) => updateRun({ withFinishedBack: checked })}
           />
           <ToggleControl
             checked={node.withFinishedEnds}
-            label={vi.cabinet.panel.finishedEndPanels}
+            label="Finished end panels"
             onChange={(checked) => updateRun({ withFinishedEnds: checked })}
           />
           {node.withCountertop && (
             <ToggleControl
               checked={node.withWaterfall}
-              label={vi.cabinet.panel.waterfallEnds}
+              label="Waterfall ends"
               onChange={(checked) => updateRun({ withWaterfall: checked })}
             />
           )}
           <ToggleControl
             checked={Boolean(node.barLedge)}
-            label={vi.cabinet.panel.barCounter}
+            label="Bar counter"
             onChange={(checked) =>
               updateRun({
                 barLedge: checked ? { edge: 'back', height: 1.06, depth: 0.35 } : undefined,
@@ -901,14 +901,14 @@ export function CabinetRunPanel({
                   })
                 }
                 options={[
-                  { value: 'back', label: vi.cabinet.panel.back },
-                  { value: 'left', label: vi.cabinet.panel.left },
-                  { value: 'right', label: vi.cabinet.panel.right },
+                  { value: 'back', label: 'Back' },
+                  { value: 'left', label: 'Left' },
+                  { value: 'right', label: 'Right' },
                 ]}
                 value={node.barLedge.edge}
               />
               <SliderControl
-                label={vi.cabinet.panel.barHeight}
+                label="Bar height"
                 max={1.3}
                 min={0.9}
                 onChange={(value) => updateRun({ barLedge: { ...node.barLedge!, height: value } })}
@@ -918,7 +918,7 @@ export function CabinetRunPanel({
                 value={node.barLedge.height}
               />
               <SliderControl
-                label={vi.cabinet.panel.barDepth}
+                label="Bar depth"
                 max={0.5}
                 min={0.15}
                 onChange={(value) => updateRun({ barLedge: { ...node.barLedge!, depth: value } })}
@@ -932,11 +932,11 @@ export function CabinetRunPanel({
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.cabinet.panel.fronts}>
+      <PanelSection title="Fronts">
         <div className="space-y-2 px-1 pb-2">
           <div>
             <div className="px-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-              {vi.cabinet.panel.style}
+              Style
             </div>
             <SegmentedControl
               onChange={(value) =>
@@ -966,7 +966,7 @@ export function CabinetRunPanel({
           </div>
           <div>
             <div className="px-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-              {vi.cabinet.panel.revealGap}
+              Reveal gap
             </div>
             <SegmentedControl
               mixed={cabinetRevealGapId(node.frontGap) === 'custom'}
@@ -989,11 +989,11 @@ export function CabinetRunPanel({
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.cabinet.panel.handles}>
+      <PanelSection title="Handles">
         <div className="space-y-2 px-1 pb-2">
           <div>
             <div className="px-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-              {vi.cabinet.panel.style}
+              Style
             </div>
             <SegmentedControl
               onChange={(value) =>
@@ -1009,7 +1009,7 @@ export function CabinetRunPanel({
           {(node.handleStyle === 'bar' || node.handleStyle === 'knob') && (
             <div>
               <div className="px-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                {vi.cabinet.panel.position}
+                Position
               </div>
               <SegmentedControl
                 onChange={(value) =>

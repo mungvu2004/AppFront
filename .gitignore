@@ -26,6 +26,7 @@ dist-ssr/
 public/pascal/
 public/basis/
 public/icons/
+public/audios/
 public/cursor.svg
 
 # Lượt dựng thứ hai của Pascal (`pnpm build:pascal`, xem vite.pascal.config.ts).

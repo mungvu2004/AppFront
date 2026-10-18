@@ -10,7 +10,7 @@ import type { ResolvedMeasurementPayload } from './resolve'
 export function measurementResolvedEditPoints(
   measurement: ResolvedMeasurementPayload,
 ): MeasurementPoint[] {
-  return 'points' in measurement
+  return measurement.kind === 'distance' || measurement.kind === 'angle'
     ? measurement.points.map((point) => [...point] as MeasurementPoint)
     : measurement.base.map((point) => [...point] as MeasurementPoint)
 }
@@ -19,7 +19,7 @@ function mapMeasurementAnchors(
   measurement: MeasurementPayload,
   map: (anchor: MeasurementAnchor, index: number) => MeasurementAnchor,
 ): MeasurementPayload {
-  if (measurement.kind === 'distance' || measurement.kind === 'perpendicular' || measurement.kind === 'height') {
+  if (measurement.kind === 'distance') {
     return {
       ...measurement,
       points: [map(measurement.points[0], 0), map(measurement.points[1], 1)],
@@ -59,7 +59,7 @@ export function replaceMeasurementAnchor(
   anchor: MeasurementAnchor,
 ): MeasurementPayload | null {
   const count =
-    'points' in measurement
+    measurement.kind === 'distance' || measurement.kind === 'angle'
       ? measurement.points.length
       : measurement.base.length
   if (!Number.isInteger(index) || index < 0 || index >= count) return null

@@ -2,7 +2,6 @@ import { customAlphabet } from 'nanoid'
 import { z } from 'zod'
 import { CameraSchema } from './camera'
 import { Provenance } from './provenance'
-import { Review } from './review'
 
 const customId = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 16)
 
@@ -37,10 +36,6 @@ export const BaseNode = z.object({
   // unchecked values is the whole contract we need.
   metadata: z.record(z.string(), z.unknown()).optional().default({}),
   provenance: Provenance.optional(),
-  // Review state (reviewed / confidence / source). Nested so `review.source`
-  // cannot collide with a hosted plugin's own top-level `source` — see
-  // `review.ts` and the collision note in `provenance.ts`.
-  review: Review.optional(),
 })
 
 export type BaseNode = z.infer<typeof BaseNode>

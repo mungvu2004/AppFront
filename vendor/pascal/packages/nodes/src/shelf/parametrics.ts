@@ -1,6 +1,5 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { ShelfNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Inspector descriptor for the parametric shelf. Drives both the
@@ -15,7 +14,7 @@ import { vi } from '../i18n/vi'
 export const shelfParametrics: ParametricDescriptor<ShelfNode> = {
   groups: [
     {
-      label: vi.common.style,
+      label: 'Style',
       fields: [
         {
           key: 'style',
@@ -25,7 +24,7 @@ export const shelfParametrics: ParametricDescriptor<ShelfNode> = {
       ],
     },
     {
-      label: vi.common.topology,
+      label: 'Topology',
       fields: [
         { key: 'rows', kind: 'number', min: 1, max: 8, step: 1 },
         // Columns only meaningful for kinds with vertical dividers.
@@ -69,7 +68,7 @@ export const shelfParametrics: ParametricDescriptor<ShelfNode> = {
       ],
     },
     {
-      label: vi.common.dimensions,
+      label: 'Dimensions',
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.3, max: 1000, step: 0.05 },
         { key: 'depth', kind: 'number', unit: 'm', min: 0.1, max: 1000, step: 0.05 },
@@ -78,7 +77,7 @@ export const shelfParametrics: ParametricDescriptor<ShelfNode> = {
       ],
     },
     {
-      label: vi.common.position,
+      label: 'Position',
       fields: [{ key: 'position', kind: 'vec3' }],
     },
   ],

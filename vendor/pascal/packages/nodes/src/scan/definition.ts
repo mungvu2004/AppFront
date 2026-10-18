@@ -1,7 +1,6 @@
 import { type NodeDefinition, ScanNode as ScanNodeSchema } from '@pascal-app/core'
 import { scanParametrics } from './parametrics'
 import { ScanNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Scan — Stage A. Capture-session reference with an optional renderable
@@ -47,7 +46,7 @@ export const scanDefinition: NodeDefinition<typeof ScanNode> = {
   },
 
   presentation: {
-    label: vi.scan.catalogLabel,
+    label: 'Capture',
     description: 'A captured session with optional mesh, motion, media, and sensor data.',
     icon: { kind: 'url', src: '/icons/mesh.webp' },
     paletteSection: 'site',

@@ -14,7 +14,6 @@ import {
 import { useViewer } from '@pascal-app/viewer'
 import { Copy, Link, Link2Off, Move, Trash2 } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
-import { vi } from '../i18n/vi'
 
 /**
  * Stage E inspector for item. 1:1 port of the legacy
@@ -106,7 +105,7 @@ export default function ItemPanel() {
       title={node.name || node.asset.name}
       width={300}
     >
-      <PanelSection title={vi.common.position}>
+      <PanelSection title="Position">
         <SliderControl
           label={
             <>
@@ -157,7 +156,7 @@ export default function ItemPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.rotation}>
+      <PanelSection title="Rotation">
         <SliderControl
           label={
             <>
@@ -197,7 +196,7 @@ export default function ItemPanel() {
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.common.scale}>
+      <PanelSection title="Scale">
         <div className="flex items-center justify-between px-2 pb-2">
           <span className="font-medium text-[10px] text-muted-foreground/80 uppercase tracking-wider">
             Uniform Scale
@@ -283,7 +282,7 @@ export default function ItemPanel() {
         )}
       </PanelSection>
 
-      <PanelSection title={vi.common.info}>
+      <PanelSection title="Info">
         <div className="flex items-center justify-between px-2 py-1 text-muted-foreground text-sm">
           <span>Dimensions</span>
           {(() => {
@@ -297,29 +296,29 @@ export default function ItemPanel() {
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.common.collections}>
+      <PanelSection title="Collections">
         <ActionGroup>
           <CollectionsPopover
             collectionIds={node.collectionIds}
             nodeId={selectedId as AnyNode['id']}
           >
-            <ActionButton label={vi.common.manageCollections} />
+            <ActionButton label="Manage collections…" />
           </CollectionsPopover>
         </ActionGroup>
       </PanelSection>
 
-      <PanelSection title={vi.common.actions}>
+      <PanelSection title="Actions">
         <ActionGroup>
-          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label={vi.common.move} onClick={handleMove} />
+          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label="Move" onClick={handleMove} />
           <ActionButton
             icon={<Copy className="h-3.5 w-3.5" />}
-            label={vi.common.duplicate}
+            label="Duplicate"
             onClick={handleDuplicate}
           />
           <ActionButton
             className="hover:bg-red-500/20"
             icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
-            label={vi.common.delete}
+            label="Delete"
             onClick={handleDelete}
           />
         </ActionGroup>

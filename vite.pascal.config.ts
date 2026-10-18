@@ -22,12 +22,60 @@
  *
  * Chạy: `pnpm build:pascal`. Phải chạy **trước** `pnpm build`.
  */
-import { defineConfig } from 'vite';
+import { defineConfig, type Alias } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { existsSync, readFileSync } from 'fs';
 import tailwindcss from '@tailwindcss/postcss';
 
 import { pascalCssScope } from './scripts/pascal-css-scope.mjs';
+
+const PASCAL_PACKAGES = path.resolve(__dirname, './vendor/pascal/packages');
+const EDITOR_DIR = path.join(PASCAL_PACKAGES, 'editor');
+
+/**
+ * Gói Pascal gốc (không sửa) khai `exports` trỏ vào `dist/` — ta không dựng `dist`.
+ * Đổi mỗi lối vào `./dist/x.js` thành `src/x.ts(x)` bằng alias khớp đúng tên.
+ */
+function pascalSourceAliases(): Alias[] {
+  const aliases: Alias[] = [];
+  for (const pkg of ['core', 'viewer', 'nodes', 'editor']) {
+    const dir = path.join(PASCAL_PACKAGES, pkg);
+    const { name, exports } = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8')) as {
+      name: string;
+      exports: Record<string, string | { import: string }>;
+    };
+    for (const [sub, target] of Object.entries(exports)) {
+      const file = typeof target === 'string' ? target : target.import;
+      const base = path.join(dir, file.replace(/^\.\/dist\//, './src/').replace(/\.js$/, ''));
+      const src = ['', '.ts', '.tsx'].map((ext) => base + ext).find((f) => /\.tsx?$/.test(f) && existsSync(f));
+      if (!src) throw new Error(`Không tìm thấy nguồn cho ${name}${sub.slice(1)} (${file})`);
+      const id = name + sub.slice(1);
+      aliases.push({ find: new RegExp(`^${id}$`), replacement: src });
+    }
+  }
+  return aliases;
+}
+
+/** Gói mà `src/pascal-page/upstream` (chép từ apps/editor) nhập: lấy đúng bản editor dùng. */
+const EDITOR_DEP_ALIASES: Alias[] = ['@iconify/react', '@radix-ui/react-tooltip', 'lucide-react'].map((dep) => ({
+  find: new RegExp(`^${dep}$`),
+  replacement: path.join(EDITOR_DIR, 'node_modules', dep),
+}));
+
+/** Chỉ khoanh CSS của mount nhúng cũ; trang 3D (`src/pascal-page`) sở hữu cả tài liệu. */
+function scopeOutsidePage() {
+  const scope = pascalCssScope();
+  const pageDir = path.resolve(__dirname, './src/pascal-page');
+  return {
+    ...scope,
+    OnceExit(root: Parameters<NonNullable<typeof scope.OnceExit>>[0], helpers: Parameters<NonNullable<typeof scope.OnceExit>>[1]) {
+      const file = root.source?.input.file ?? '';
+      if (path.resolve(file).startsWith(pageDir)) return;
+      return scope.OnceExit?.(root, helpers);
+    },
+  };
+}
 
 /** Bảy biến `process.env.NEXT_PUBLIC_*` mà mã Pascal đọc ở TẦNG MODULE. */
 const PASCAL_ENV_DEFINES = {
@@ -50,6 +98,8 @@ const PASCAL_ENV_DEFINES = {
   // `NODE_ENV` và 1 chỗ đọc `PORT` còn sót lại trong bản dựng.
   'process.env.NODE_ENV': '"production"',
   'process.env.PORT': '""',
+  // Các cờ gỡ lỗi khác (`PASCAL_*_AUDIT`, `DUPLICATE_CAPTURE_*`…) đọc từ `process.env`.
+  'process.env': '{}',
 };
 
 export default defineConfig({
@@ -57,27 +107,32 @@ export default defineConfig({
   publicDir: false,
   base: '/assets/pascal/',
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      'next/image': path.resolve(__dirname, './vendor/pascal/shims/next-image.tsx'),
-      'next/link': path.resolve(__dirname, './vendor/pascal/shims/next-link.tsx'),
-    },
+    alias: [
+      ...pascalSourceAliases(),
+      ...EDITOR_DEP_ALIASES,
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      { find: 'next/image', replacement: path.resolve(__dirname, './vendor/pascal/shims/next-image.tsx') },
+      { find: 'next/link', replacement: path.resolve(__dirname, './vendor/pascal/shims/next-link.tsx') },
+    ],
   },
   define: PASCAL_ENV_DEFINES,
   // CSS của chính Pascal: Tailwind v4 như app gốc, rồi khoanh vào `.pascal-root`
   // (lý do ở `scripts/pascal-css-scope.mjs`). Cấu hình nội tuyến nên
   // `postcss.config.js` (Tailwind 3 của AppFront) không chạy ở lượt dựng này.
   // `optimize` để Lightning CSS gỡ CSS lồng trước khi ta tiền tố selector.
-  css: { postcss: { plugins: [tailwindcss({ optimize: true }), pascalCssScope()] } },
+  css: { postcss: { plugins: [tailwindcss({ optimize: true }), scopeOutsidePage()] } },
   build: {
     outDir: 'public/assets/pascal',
     emptyOutDir: true,
     minify: 'terser',
     terserOptions: { compress: { passes: 2, pure_getters: true } },
     lib: {
-      entry: path.resolve(__dirname, './src/components/pascal/pascalMount.tsx'),
+      entry: {
+        'pascal-mount': path.resolve(__dirname, './src/components/pascal/pascalMount.tsx'),
+        'pascal-page': path.resolve(__dirname, './src/pascal-page/main.tsx'),
+      },
       formats: ['es'],
-      fileName: () => 'pascal-mount.js',
+      fileName: (_format, entryName) => `${entryName}.js`,
     },
   },
 });

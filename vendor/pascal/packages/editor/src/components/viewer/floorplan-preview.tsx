@@ -33,7 +33,6 @@ import {
 } from '../../lib/floorplan'
 import { getFloorplanNodeExtension } from '../../lib/floorplan/floorplan-extension'
 import { buildFloorplanContext, floorplanLayerRank } from '../../lib/floorplan/floorplan-readonly'
-import { editorAndViewer as vi } from '../../i18n/regions/editorAndViewer'
 import { subscribeNavigationSyncPose } from '../../store/navigation-sync-pose-store'
 import useEditor, { type NavigationSyncPose } from '../../store/use-editor'
 import {
@@ -200,7 +199,7 @@ function buildFloorplanGeometries(
   installedPlugins: readonly string[] | undefined,
   level: AnyNode,
   unit: 'metric' | 'imperial',
-  metricNotation: 'meters' | 'centimeters' | 'millimeters',
+  metricNotation: 'meters' | 'millimeters',
 ): FloorplanRenderEntry[] {
   const building = level.parentId ? nodes[level.parentId] : undefined
   const levelTree = collectLevelTree(level, nodes)
@@ -971,9 +970,9 @@ export function FloorplanPreview({
             fontWeight: 600,
           }}
         >
-          {vi.floorplanPreview.floor}
+          Floor
           <select
-            aria-label={vi.floorplanPreview.floor}
+            aria-label="Floor"
             onChange={(event) => chooseLevel(event.target.value)}
             style={{
               border: '1px solid rgba(148,163,184,.55)',
@@ -1015,28 +1014,28 @@ export function FloorplanPreview({
         }}
       >
         <button
-          aria-label={vi.floorplanPreview.zoomOut}
+          aria-label="Zoom out"
           onClick={() => zoom(1.2)}
           style={controlStyle}
-          title={vi.floorplanPreview.zoomOut}
+          title="Zoom out"
           type="button"
         >
           <Minus size={16} />
         </button>
         <button
-          aria-label={vi.floorplanPreview.fitFloorPlan}
+          aria-label="Fit floor plan"
           onClick={() => updateLocalViewBox(fittedViewBox)}
           style={controlStyle}
-          title={vi.floorplanPreview.fitFloorPlan}
+          title="Fit floor plan"
           type="button"
         >
           <Maximize2 size={15} />
         </button>
         <button
-          aria-label={vi.floorplanPreview.zoomIn}
+          aria-label="Zoom in"
           onClick={() => zoom(0.8)}
           style={controlStyle}
-          title={vi.floorplanPreview.zoomIn}
+          title="Zoom in"
           type="button"
         >
           <Plus size={16} />

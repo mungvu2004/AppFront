@@ -30,7 +30,7 @@ export const INPUT_PATHS = [
   'pnpm-lock.yaml',
 ];
 
-export const OUTPUT_DIRS = ['public/pascal', 'public/basis', 'public/assets/pascal', 'public/draco'];
+export const OUTPUT_DIRS = ['public/pascal', 'public/basis', 'public/assets/pascal', 'public/draco', 'public/icons', 'public/audios'];
 
 const STAMP_PATH = join('node_modules', '.cache', 'pascal-build', 'stamp.json');
 

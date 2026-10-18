@@ -448,7 +448,10 @@ export {
   planDimensionDrive,
   resolveDimensionDrive,
 } from './lib/floorplan/dimension-drive'
-export { type FloorplanExportScope } from './lib/floorplan/floorplan-export'
+export {
+  exportFloorplanPdf,
+  type FloorplanExportScope,
+} from './lib/floorplan/floorplan-export'
 export {
   createFloorplanContextExtensions,
   FLOORPLAN_CONTEXT_EXTENSION_KEY,
@@ -494,7 +497,19 @@ export {
   type ScheduleUnit,
   windowSchedule,
 } from './lib/floorplan/schedules'
-export { collectFloorplanSchedules } from './lib/floorplan/floorplan-export'
+// Sheets — headless floor-plan geometry collection + the multi-sheet vector
+// PDF writer.
+export {
+  collectFloorplanSchedules,
+  collectSheetGeometry,
+  exportSheetsToPdf,
+  POINTS_PER_INCH,
+  resolveSheetRotationDeg,
+  type SheetGeometryEntry,
+  type SheetGeometryOptions,
+  type SheetPdfPage,
+  type SheetPdfWindow,
+} from './lib/floorplan/sheet-export'
 // ── Site plan (WS1) ──────────────────────────────────────────────────
 export {
   boundsInsidePolygon,
@@ -546,13 +561,9 @@ export {
   type HistoryCommandResult,
   type HistoryCommandState,
   installHistoryCommandDelegate,
-  type HistoryJumpKind,
-  type HistoryJumpListener,
   runRedo,
   runUndo,
   subscribeHistoryCommandState,
-  subscribeHistoryJumps,
-  subscribeMeasurementDeletes,
 } from './lib/history'
 export {
   type EditorHostTreeChildren,
@@ -884,7 +895,3 @@ export {
   type WallSnapKind,
   type WallSnapPoint,
 } from './store/use-wall-snap-indicator'
-// Bảng phụ AppFront dựng trong editor (F-15 W2-D) — xem appfront-panels.tsx.
-export { appFrontEditorPanels } from './components/ui/panels/appfront-panels'
-export { FurnitureLibraryPanel } from './components/ui/panels/furniture-library-panel'
-export { RoomAreaPanel } from './components/ui/panels/room-area-panel'

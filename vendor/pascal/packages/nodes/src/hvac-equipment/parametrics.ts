@@ -1,11 +1,10 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { HvacEquipmentNode } from './schema'
-import { vi } from '../i18n/vi'
 
 export const hvacEquipmentParametrics: ParametricDescriptor<HvacEquipmentNode> = {
   groups: [
     {
-      label: vi.common.equipment,
+      label: 'Equipment',
       fields: [
         {
           key: 'equipmentType',
@@ -16,7 +15,7 @@ export const hvacEquipmentParametrics: ParametricDescriptor<HvacEquipmentNode> =
       ],
     },
     {
-      label: vi.common.cabinet,
+      label: 'Cabinet',
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.3, max: 1000, step: 0.05 },
         { key: 'depth', kind: 'number', unit: 'm', min: 0.3, max: 1000, step: 0.05 },
@@ -24,7 +23,7 @@ export const hvacEquipmentParametrics: ParametricDescriptor<HvacEquipmentNode> =
       ],
     },
     {
-      label: vi.common.supply,
+      label: 'Supply',
       fields: [
         {
           key: 'supplyShape',
@@ -63,7 +62,7 @@ export const hvacEquipmentParametrics: ParametricDescriptor<HvacEquipmentNode> =
       ],
     },
     {
-      label: vi.common.returnPart,
+      label: 'Return',
       fields: [
         {
           key: 'returnShape',

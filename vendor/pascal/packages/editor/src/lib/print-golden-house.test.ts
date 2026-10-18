@@ -192,7 +192,7 @@ describe('print golden house', () => {
 
       expect(first.report.status).toBe('pass')
       expect(first.report.parts.map((part) => part.objectName)).toEqual([
-        '00 Bệ',
+        '00 Plinth',
         '01 Ground',
         '02 Upper',
       ])
@@ -231,7 +231,7 @@ describe('print golden house', () => {
       )
 
       const objects = packageObjectSizes(first.data)
-      expect(objects.map((object) => object.name)).toEqual(['00 Bệ', '01 Ground', '02 Upper'])
+      expect(objects.map((object) => object.name)).toEqual(['00 Plinth', '01 Ground', '02 Upper'])
       expect(objects[0]?.size.x).toBeCloseTo(46, 4)
       expect(objects[0]?.size.y).toBeCloseTo(36, 4)
       expect(objects[0]?.size.z).toBeCloseTo(3, 4)

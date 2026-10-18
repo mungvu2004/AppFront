@@ -3,23 +3,23 @@
   "version": "1.0.3",
   "description": "3D viewer component for Pascal building editor",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./src/index.ts",
-      "default": "./src/index.ts"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./capture": {
       "types": "./dist/capture/index.d.ts",
-      "import": "./src/capture/index.ts",
-      "default": "./src/capture/index.ts"
+      "import": "./dist/capture/index.js",
+      "default": "./dist/capture/index.js"
     },
     "./capture/preview": {
       "types": "./dist/capture/preview.d.ts",
-      "import": "./src/capture/preview.ts",
-      "default": "./src/capture/preview.ts"
+      "import": "./dist/capture/preview.js",
+      "default": "./dist/capture/preview.js"
     }
   },
   "files": [
@@ -33,7 +33,7 @@
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
-    "@pascal-app/core": "workspace:*",
+    "@pascal-app/core": "^1.0.3",
     "@react-three/drei": "^10",
     "@react-three/fiber": "^9",
     "react": "^18 || ^19",
@@ -46,8 +46,8 @@
     "zustand": "^5"
   },
   "devDependencies": {
-    "@pascal-app/core": "workspace:*",
-    "@pascal/typescript-config": "workspace:*",
+    "@pascal-app/core": "^1.0.3",
+    "@pascal/typescript-config": "*",
     "@react-three/test-renderer": "^9.1.0",
     "@types/node": "^22",
     "@types/react": "^19.2.2",

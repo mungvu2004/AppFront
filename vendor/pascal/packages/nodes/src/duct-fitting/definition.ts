@@ -7,7 +7,6 @@ import { buildDuctFittingGeometry } from './geometry'
 import { ductFittingParametrics } from './parametrics'
 import { getDuctFittingPorts } from './ports'
 import { DuctFittingNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Phase 2 of the HVAC node system — duct fittings (elbow / tee / reducer)
@@ -127,15 +126,15 @@ export const ductFittingDefinition: NodeDefinition<typeof DuctFittingNode> = {
   toolOptions: ductFittingToolOptions,
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Click', label: vi.ductFitting.shortcuts.place },
-    { key: 'Hover a duct end', label: vi.ductFitting.shortcuts.snapOntoRun },
-    { key: 'R / T', label: vi.ductFitting.shortcuts.rotate45 },
-    { key: 'Alt', label: vi.ductFitting.shortcuts.switchAxis },
-    { key: 'Esc', label: vi.ductFitting.shortcuts.exit },
+    { key: 'Click', label: 'Place fitting' },
+    { key: 'Hover a duct end', label: 'Snap onto the run' },
+    { key: 'R / T', label: 'Rotate ±45°' },
+    { key: 'Alt', label: 'Switch rotation axis (Y → X → Z)' },
+    { key: 'Esc', label: 'Exit' },
   ],
 
   presentation: {
-    label: vi.ductFitting.catalogLabel,
+    label: 'Duct Fitting',
     description: 'Elbow, tee, reducer, or square-to-round transition connecting duct runs.',
     icon: { kind: 'url', src: '/icons/duct-fitting.webp' },
     paletteSection: 'structure',

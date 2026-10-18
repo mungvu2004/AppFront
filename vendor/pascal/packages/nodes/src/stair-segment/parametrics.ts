@@ -1,10 +1,9 @@
 import type { ParametricDescriptor, StairSegmentNode } from '@pascal-app/core'
-import { vi } from '../i18n/vi'
 
 export const stairSegmentParametrics: ParametricDescriptor<StairSegmentNode> = {
   groups: [
     {
-      label: vi.common.type,
+      label: 'Type',
       fields: [
         {
           key: 'segmentType',
@@ -15,14 +14,14 @@ export const stairSegmentParametrics: ParametricDescriptor<StairSegmentNode> = {
         {
           key: 'attachmentSide',
           kind: 'enum',
-          label: vi.common.attachment,
+          label: 'Attachment',
           options: ['front', 'left', 'right'],
           display: 'segmented',
         },
       ],
     },
     {
-      label: vi.common.dimensions,
+      label: 'Dimensions',
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.5, max: 1000, step: 0.1 },
         { key: 'length', kind: 'number', unit: 'm', min: 0.5, max: 1000, step: 0.1 },
@@ -38,7 +37,7 @@ export const stairSegmentParametrics: ParametricDescriptor<StairSegmentNode> = {
         {
           key: 'stepCount',
           kind: 'number',
-          label: vi.common.steps,
+          label: 'Steps',
           min: 2,
           max: 30,
           step: 1,
@@ -47,9 +46,9 @@ export const stairSegmentParametrics: ParametricDescriptor<StairSegmentNode> = {
       ],
     },
     {
-      label: vi.common.structure,
+      label: 'Structure',
       fields: [
-        { key: 'fillToFloor', kind: 'boolean', label: vi.common.fillToFloor },
+        { key: 'fillToFloor', kind: 'boolean', label: 'Fill to floor' },
         {
           key: 'thickness',
           kind: 'number',
@@ -62,13 +61,13 @@ export const stairSegmentParametrics: ParametricDescriptor<StairSegmentNode> = {
       ],
     },
     {
-      label: vi.common.position,
+      label: 'Position',
       fields: [
         { key: 'position', kind: 'vec3' },
         {
           key: 'rotation',
           kind: 'number',
-          label: vi.common.rotationRad,
+          label: 'Rotation (rad)',
           min: -Math.PI,
           max: Math.PI,
           step: Math.PI / 36,

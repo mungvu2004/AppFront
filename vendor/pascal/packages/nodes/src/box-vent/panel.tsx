@@ -23,7 +23,6 @@ import { useViewer } from '@pascal-app/viewer'
 import { Copy, Move, Trash2 } from 'lucide-react'
 import { useCallback } from 'react'
 import type { BoxVentNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Inspector panel for a placed box-vent. Exposes the same parametrics
@@ -171,7 +170,7 @@ export default function BoxVentPanel() {
       title={node.name || 'Box Vent'}
       width={300}
     >
-      <PanelSection title={vi.common.style}>
+      <PanelSection title="Style">
         <SegmentedControl
           onChange={(v) => handleUpdate({ style: v as BoxVentNode['style'] })}
           options={[
@@ -183,9 +182,9 @@ export default function BoxVentPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.dimensions}>
+      <PanelSection title="Dimensions">
         <SliderControl
-          label={vi.common.width}
+          label="Width"
           max={1000}
           min={0.15}
           onChange={(v) => previewProp({ width: v })}
@@ -197,7 +196,7 @@ export default function BoxVentPanel() {
           value={node.width}
         />
         <SliderControl
-          label={vi.common.depth}
+          label="Depth"
           max={1000}
           min={0.15}
           onChange={(v) => previewProp({ depth: v })}
@@ -209,7 +208,7 @@ export default function BoxVentPanel() {
           value={node.depth}
         />
         <SliderControl
-          label={vi.common.height}
+          label="Height"
           max={1000}
           min={0.05}
           onChange={(v) => previewProp({ height: v })}
@@ -226,7 +225,7 @@ export default function BoxVentPanel() {
             flare further past the body. */}
         {node.style === 'cap' && (
           <SliderControl
-            label={vi.common.hoodOverhang}
+            label="Hood Overhang"
             max={Math.max(0.02, node.width)}
             min={0}
             onChange={(v) => previewProp({ hoodOverhang: v })}
@@ -241,7 +240,7 @@ export default function BoxVentPanel() {
         {node.style === 'box' && (
           <>
             <SliderControl
-              label={vi.common.baseInset}
+              label="Base Inset"
               max={Math.max(0.005, Math.min(node.width, node.depth) / 2 - 0.005)}
               min={0}
               onChange={(v) => previewProp({ baseInset: v })}
@@ -253,7 +252,7 @@ export default function BoxVentPanel() {
               value={node.baseInset ?? 0.06}
             />
             <SliderControl
-              label={vi.common.baseHeight}
+              label="Base Height"
               max={Math.max(0.01, node.height - 0.005)}
               min={0.005}
               onChange={(v) => previewProp({ baseHeight: v })}
@@ -265,7 +264,7 @@ export default function BoxVentPanel() {
               value={node.baseHeight ?? 0.04}
             />
             <SliderControl
-              label={vi.common.cornerBevel}
+              label="Corner Bevel"
               max={Math.max(
                 0,
                 Math.min(node.width, node.depth) / 2 - (node.baseInset ?? 0.06) - 0.001,
@@ -284,7 +283,7 @@ export default function BoxVentPanel() {
         {node.style === 'cap' && (
           <>
             <SliderControl
-              label={vi.common.capHeight}
+              label="Cap Height"
               max={Math.max(0.02, node.height - 0.01)}
               min={0.01}
               onChange={(v) => previewProp({ capHeight: v })}
@@ -296,7 +295,7 @@ export default function BoxVentPanel() {
               value={node.capHeight ?? 0.07}
             />
             <SliderControl
-              label={vi.common.gapHeight}
+              label="Gap Height"
               max={Math.max(0, node.height - Math.max(0.01, node.capHeight ?? 0.07) - 0.005)}
               min={0}
               onChange={(v) => previewProp({ capGap: v })}
@@ -308,7 +307,7 @@ export default function BoxVentPanel() {
               value={node.capGap ?? 0}
             />
             <SliderControl
-              label={vi.common.topTaper}
+              label="Top Taper"
               max={1}
               min={0}
               onChange={(v) => previewProp({ topTaper: v })}
@@ -324,7 +323,7 @@ export default function BoxVentPanel() {
         {node.style === 'dome' && (
           <>
             <SliderControl
-              label={vi.common.domeCurvature}
+              label="Dome Curvature"
               max={1.5}
               min={0.3}
               onChange={(v) => previewProp({ domeCurvature: v })}
@@ -336,7 +335,7 @@ export default function BoxVentPanel() {
               value={Math.round((node.domeCurvature ?? 1.0) * 100) / 100}
             />
             <SliderControl
-              label={vi.common.baseFlange}
+              label="Base Flange"
               max={0.2}
               min={0}
               onChange={(v) => previewProp({ hoodOverhang: v })}
@@ -351,7 +350,7 @@ export default function BoxVentPanel() {
         )}
       </PanelSection>
 
-      <PanelSection title={vi.common.position}>
+      <PanelSection title="Position">
         <SliderControl
           label="X"
           max={Math.round(((segment?.width ?? 10) / 2) * 100) / 100}
@@ -416,7 +415,7 @@ export default function BoxVentPanel() {
           value={node.position[2] ?? 0}
         />
         <SliderControl
-          label={vi.common.rotation}
+          label="Rotation"
           max={180}
           min={-180}
           onChange={(deg) => previewProp({ rotation: (deg * Math.PI) / 180 })}
@@ -429,18 +428,18 @@ export default function BoxVentPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.actions}>
+      <PanelSection title="Actions">
         <ActionGroup>
-          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label={vi.common.move} onClick={handleMove} />
+          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label="Move" onClick={handleMove} />
           <ActionButton
             icon={<Copy className="h-3.5 w-3.5" />}
-            label={vi.common.duplicate}
+            label="Duplicate"
             onClick={handleDuplicate}
           />
           <ActionButton
             className="hover:bg-red-500/20"
             icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
-            label={vi.common.delete}
+            label="Delete"
             onClick={handleDelete}
           />
         </ActionGroup>

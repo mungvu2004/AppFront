@@ -29,7 +29,6 @@ import {
   SiteNode,
   useScene,
 } from '@pascal-app/core'
-import { libStrings as vi } from '../../i18n/regions/libStrings'
 import {
   buildingRecentreOffset,
   buildSitePlanDrawing,
@@ -128,7 +127,7 @@ export async function dropInLot(
   const address = (input.address ?? '').trim()
   const hasCoords = Number.isFinite(input.latitude) && Number.isFinite(input.longitude)
   if (!address && !hasCoords)
-    return { ok: false, error: 'address is required', message: vi.lotDropIn.typeAddressFirst }
+    return { ok: false, error: 'address is required', message: 'Type an address first.' }
 
   // The Pascal Map dossier first — the parcel with its frontage, the
   // zoning, flood, code basis, utilities, soils, wetlands, structures and
@@ -213,13 +212,11 @@ export async function dropInLot(
           : {}),
       })) as ParcelResolveData
     } catch (error) {
-      const message = error instanceof Error ? error.message : vi.lotDropIn.parcelLookupFailed
+      const message = error instanceof Error ? error.message : 'Parcel lookup failed.'
       return { ok: false, error: message, message }
     }
     if (!data.ok || !data.polygonM || data.polygonM.length < 3) {
-      const message = data.error
-        ? vi.lotDropIn.noParcelReason(data.error)
-        : vi.lotDropIn.noParcelFound
+      const message = data.error ? `No parcel: ${data.error}` : 'No parcel found for that address.'
       return { ok: false, error: data.error ?? 'no parcel', message }
     }
   }
@@ -284,7 +281,7 @@ export async function dropInLot(
     return {
       ok: false,
       error: 'parcel geometry was unusable',
-      message: vi.lotDropIn.parcelGeometryUnusable,
+      message: 'The parcel geometry was unusable.',
     }
   // the surveyed contour lines ride the site with the patch (the site plan
   // draws them over the heightfield's own); absent without 3DEP lines
@@ -307,7 +304,7 @@ export async function dropInLot(
           provider,
           ...(options.terrainDeadlineMs ? { deadlineMs: options.terrainDeadlineMs } : {}),
         })
-      : { ok: false, reason: vi.lotTerrain.noParcelOrigin }
+      : { ok: false, reason: 'no parcel origin' }
     const current = useScene.getState().nodes[site.id as AnyNodeId]
     const { terrainSample: _previous, ...meta } =
       current &&
@@ -326,7 +323,7 @@ export async function dropInLot(
         } as unknown as Partial<AnyNode>,
       )
     } else {
-      terrainFailure = read.reason ?? vi.lotTerrain.noTerrain
+      terrainFailure = read.reason ?? 'no terrain'
       useScene
         .getState()
         .updateNode(
@@ -364,13 +361,11 @@ export async function dropInLot(
   }
 
   const extra = [
-    recentred ? vi.lotDropIn.buildingRecentred : '',
-    roadsFailure && roadsFailure !== 'skipped'
-      ? vi.lotDropIn.roadsUnavailable(roadsFailure)
-      : '',
+    recentred ? 'building re-centred' : '',
+    roadsFailure && roadsFailure !== 'skipped' ? `roads unavailable (${roadsFailure})` : '',
     describeTerrainSample(terrain, terrainFailure),
     dossierFailure && dossierFailure !== 'skipped'
-      ? vi.lotDropIn.pascalMapUnavailable(dossierFailure)
+      ? `Pascal Map unavailable (${dossierFailure})`
       : '',
     ...(dossier ? dossierHeadline(dossier) : []),
   ]

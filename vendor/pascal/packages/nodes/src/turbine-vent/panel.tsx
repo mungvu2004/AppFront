@@ -23,7 +23,6 @@ import { useViewer } from '@pascal-app/viewer'
 import { Copy, Move, Pause, Play, Trash2 } from 'lucide-react'
 import { useCallback, useRef } from 'react'
 import type { TurbineVentNode } from './schema'
-import { vi } from '../i18n/vi'
 
 // Speed restored when resuming a paused turbine that has no remembered
 // speed yet (matches the schema default).
@@ -168,7 +167,7 @@ export default function TurbineVentPanel() {
       title={node.name || 'Turbine Vent'}
       width={300}
     >
-      <PanelSection title={vi.common.style}>
+      <PanelSection title="Style">
         <SegmentedControl
           onChange={(v) => handleUpdate({ style: v as TurbineVentNode['style'] })}
           options={[
@@ -179,9 +178,9 @@ export default function TurbineVentPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.dimensions}>
+      <PanelSection title="Dimensions">
         <SliderControl
-          label={vi.common.diameter}
+          label="Diameter"
           max={1000}
           min={0.15}
           onChange={(v) => previewProp({ diameter: v })}
@@ -193,7 +192,7 @@ export default function TurbineVentPanel() {
           value={node.diameter}
         />
         <SliderControl
-          label={vi.common.height}
+          label="Height"
           max={1000}
           min={0.2}
           onChange={(v) => previewProp({ height: v })}
@@ -205,7 +204,7 @@ export default function TurbineVentPanel() {
           value={node.height}
         />
         <SliderControl
-          label={vi.common.neckHeight}
+          label="Neck Height"
           max={Math.max(0.04, node.height * 0.5)}
           min={0.02}
           onChange={(v) => previewProp({ neckHeight: v })}
@@ -217,7 +216,7 @@ export default function TurbineVentPanel() {
           value={node.neckHeight ?? 0.09}
         />
         <SliderControl
-          label={vi.common.vanes}
+          label="Vanes"
           max={36}
           min={6}
           onChange={(v) => previewProp({ vaneCount: Math.round(v) })}
@@ -230,7 +229,7 @@ export default function TurbineVentPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.motion}>
+      <PanelSection title="Motion">
         <ActionGroup>
           <ActionButton
             icon={isSpinning ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
@@ -239,7 +238,7 @@ export default function TurbineVentPanel() {
           />
         </ActionGroup>
         <SliderControl
-          label={vi.common.spinSpeed}
+          label="Spin Speed"
           max={4}
           min={0}
           onChange={(v) => previewProp({ spinSpeed: v })}
@@ -252,7 +251,7 @@ export default function TurbineVentPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.position}>
+      <PanelSection title="Position">
         <SliderControl
           label="X"
           max={Math.round(((segment?.width ?? 10) / 2) * 100) / 100}
@@ -305,7 +304,7 @@ export default function TurbineVentPanel() {
           value={node.position[2] ?? 0}
         />
         <SliderControl
-          label={vi.common.rotation}
+          label="Rotation"
           max={180}
           min={-180}
           onChange={(deg) => previewProp({ rotation: (deg * Math.PI) / 180 })}
@@ -318,18 +317,18 @@ export default function TurbineVentPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.actions}>
+      <PanelSection title="Actions">
         <ActionGroup>
-          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label={vi.common.move} onClick={handleMove} />
+          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label="Move" onClick={handleMove} />
           <ActionButton
             icon={<Copy className="h-3.5 w-3.5" />}
-            label={vi.common.duplicate}
+            label="Duplicate"
             onClick={handleDuplicate}
           />
           <ActionButton
             className="hover:bg-red-500/20"
             icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
-            label={vi.common.delete}
+            label="Delete"
             onClick={handleDelete}
           />
         </ActionGroup>

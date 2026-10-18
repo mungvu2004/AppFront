@@ -74,7 +74,6 @@ import { InlineRenameInput } from './inline-rename-input'
 import { ZoneMembershipCheckbox } from './zone-membership-checkbox'
 import { focusTreeNode, TreeNode, TreeNodeWrapper } from './tree-node'
 import { TreeNodeDragProvider } from './tree-node-drag'
-import { primitivesAndSidebar as vi } from '../../../../../i18n/regions/primitivesAndSidebar'
 
 // ============================================================================
 // PROPERTY LINE SECTION
@@ -186,7 +185,7 @@ const PropertyLineSection = memo(function PropertyLineSection() {
 
         <div className="flex items-center gap-2">
           <Pentagon className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium text-sm">{vi.sitePanel.propertyLine}</span>
+          <span className="font-medium text-sm">Property Line</span>
         </div>
         <button
           className={cn(
@@ -204,13 +203,13 @@ const PropertyLineSection = memo(function PropertyLineSection() {
       {/* Measurements */}
       <div className="relative flex gap-3 pr-3 pb-2 pl-10">
         <div className="text-muted-foreground text-xs">
-          {vi.sitePanel.area}:{' '}
+          Area:{' '}
           <span className="text-foreground">
             {displayArea.toFixed(1)} {getAreaUnitLabel(viewerUnit)}
           </span>
         </div>
         <div className="text-muted-foreground text-xs">
-          {vi.sitePanel.perimeter}:{' '}
+          Perimeter:{' '}
           <span className="text-foreground">
             {displayPerimeter.toFixed(1)} {linearLabel}
           </span>
@@ -264,7 +263,7 @@ const PropertyLineSection = memo(function PropertyLineSection() {
             onClick={handleAddPoint}
           >
             <Plus className="h-3 w-3" />
-            {vi.sitePanel.addPoint}
+            Add point
           </button>
         </div>
       )}
@@ -299,7 +298,7 @@ const CameraPopover = memo(function CameraPopover({
             buttonClassName,
           )}
           onClick={(e) => e.stopPropagation()}
-          title={vi.sitePanel.cameraSnapshot}
+          title="Camera snapshot"
         >
           <Camera className="h-3.5 w-3.5" />
           {hasCamera && (
@@ -324,7 +323,7 @@ const CameraPopover = memo(function CameraPopover({
               }}
             >
               <Camera className="h-3.5 w-3.5" />
-              {vi.sitePanel.viewSnapshot}
+              View snapshot
             </button>
           )}
           <button
@@ -336,7 +335,7 @@ const CameraPopover = memo(function CameraPopover({
             }}
           >
             <Camera className="h-3.5 w-3.5" />
-            {hasCamera ? vi.sitePanel.updateSnapshot : vi.sitePanel.takeSnapshot}
+            {hasCamera ? 'Update snapshot' : 'Take snapshot'}
           </button>
           {hasCamera && (
             <button
@@ -442,19 +441,19 @@ const ReferenceItem = memo(function ReferenceItem({
         >
           {isCapture ? (
             <img
-              alt={vi.sitePanel.capture}
+              alt="Capture"
               className="h-3.5 w-3.5 shrink-0 object-contain opacity-70 transition-opacity group-hover/ref:opacity-100"
               src="/icons/mesh.webp"
             />
           ) : (
             <img
-              alt={vi.sitePanel.guide}
+              alt="Guide"
               className="h-3.5 w-3.5 shrink-0 object-contain opacity-70 transition-opacity group-hover/ref:opacity-100"
               src="/icons/floorplan.webp"
             />
           )}
           <InlineRenameInput
-            defaultName={isCapture ? vi.sitePanel.capture : vi.sitePanel.guideImage}
+            defaultName={isCapture ? 'Capture' : 'Guide Image'}
             isEditing={isEditing}
             nodeId={refNode.id}
             onStartEditing={() => setIsEditing(true)}
@@ -469,7 +468,7 @@ const ReferenceItem = memo(function ReferenceItem({
               event.stopPropagation()
               updateNode(refNode.id, { visible: !isVisible })
             }}
-            title={isVisible ? vi.sitePanel.hide : vi.sitePanel.show}
+            title={isVisible ? 'Hide' : 'Show'}
             type="button"
           >
             {isVisible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
@@ -478,7 +477,7 @@ const ReferenceItem = memo(function ReferenceItem({
         <button
           className="z-20 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-black/5 hover:text-foreground group-hover/ref:opacity-100 dark:hover:bg-white/10"
           onClick={(e) => handleDelete(refNode.id, e)}
-          title={vi.sitePanel.delete}
+          title="Delete"
           type="button"
         >
           <Trash2 className="h-3 w-3" />
@@ -550,7 +549,7 @@ const LevelReferences = memo(function LevelReferences({
       useUploadStore.getState().startUpload(levelId, type, file.name)
       useUploadStore
         .getState()
-        .setError(levelId, vi.sitePanel.invalidFileType)
+        .setError(levelId, 'Invalid file type. Please upload a .glb/.gltf scan or an image.')
       return
     }
 
@@ -560,7 +559,7 @@ const LevelReferences = memo(function LevelReferences({
         .getState()
         .setError(
           levelId,
-          vi.sitePanel.fileTooLarge(Math.round(file.size / 1024 / 1024)),
+          `File is too large (${(file.size / 1024 / 1024).toFixed(0)} MB). Maximum size is 200 MB.`,
         )
       return
     }
@@ -577,7 +576,7 @@ const LevelReferences = memo(function LevelReferences({
         useUploadStore.getState().setResult(levelId, guide.url)
         window.setTimeout(() => useUploadStore.getState().clearUpload(levelId), 600)
       } catch {
-        useUploadStore.getState().setError(levelId, vi.sitePanel.couldNotAddGuideImage)
+        useUploadStore.getState().setError(levelId, 'Could not add that guide image.')
       }
       return
     }
@@ -594,14 +593,14 @@ const LevelReferences = memo(function LevelReferences({
         useUploadStore.getState().setResult(levelId, url)
         window.setTimeout(() => useUploadStore.getState().clearUpload(levelId), 600)
       } catch {
-        useUploadStore.getState().setError(levelId, vi.sitePanel.couldNotAddScan)
+        useUploadStore.getState().setError(levelId, 'Could not add that scan.')
       }
       return
     }
 
     if (!projectId) {
       useUploadStore.getState().startUpload(levelId, 'scan', file.name)
-      useUploadStore.getState().setError(levelId, vi.sitePanel.noActiveProject)
+      useUploadStore.getState().setError(levelId, 'No active project. Please open a project first.')
       return
     }
 
@@ -668,7 +667,7 @@ const LevelReferences = memo(function LevelReferences({
                 ) : (
                   <Plus className="h-3.5 w-3.5" />
                 )}
-                {uploading ? vi.sitePanel.uploading(uploadingType ?? '', progress) : vi.sitePanel.uploadScanOrFloorplan}
+                {uploading ? `Uploading ${uploadingType}... ${progress}%` : 'Upload scan/floorplan'}
               </button>
 
               <input
@@ -841,7 +840,7 @@ const LevelItem = memo(function LevelItem({
 
         <div className="flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-2 py-0 pl-0.5 text-sm">
           <img
-            alt={vi.sitePanel.level}
+            alt="Level"
             className={cn(
               'h-4 w-4 shrink-0 object-contain transition-all duration-200',
               !isSelected && 'opacity-60 grayscale',
@@ -867,7 +866,7 @@ const LevelItem = memo(function LevelItem({
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground',
               )}
               onClick={(e) => e.stopPropagation()}
-              title={vi.sitePanel.cameraSnapshot}
+              title="Camera snapshot"
             >
               <Camera className="h-3.5 w-3.5" />
               {level.camera && (
@@ -892,7 +891,7 @@ const LevelItem = memo(function LevelItem({
                   }}
                 >
                   <Camera className="h-3.5 w-3.5" />
-                  {vi.sitePanel.viewSnapshot}
+                  View snapshot
                 </button>
               )}
               <button
@@ -904,7 +903,7 @@ const LevelItem = memo(function LevelItem({
                 }}
               >
                 <Camera className="h-3.5 w-3.5" />
-                {level.camera ? vi.sitePanel.updateSnapshot : vi.sitePanel.takeSnapshot}
+                {level.camera ? 'Update snapshot' : 'Take snapshot'}
               </button>
               {level.camera && (
                 <button
@@ -916,7 +915,7 @@ const LevelItem = memo(function LevelItem({
                   }}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  {vi.sitePanel.clearSnapshot}
+                  Clear snapshot
                 </button>
               )}
             </div>
@@ -940,27 +939,27 @@ const LevelItem = memo(function LevelItem({
             <button
               className="flex w-full cursor-pointer items-center gap-2 rounded px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent"
               onClick={() => handleDuplicateLevel()}
-              title={vi.sitePanel.duplicateLevel}
+              title="Duplicate level"
             >
               <Copy className="h-3.5 w-3.5" />
-              {vi.sitePanel.duplicate}
+              Duplicate
             </button>
             <button
               className="flex w-full cursor-pointer items-center gap-2 rounded px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent"
               onClick={() => setDuplicateDialogOpen(true)}
-              title={vi.sitePanel.duplicateLevelWithOptions}
+              title="Duplicate level with options"
             >
               <Copy className="h-3.5 w-3.5" />
-              {vi.sitePanel.duplicateLevelWithOptions}
+              Duplicate with options...
             </button>
             <button
               className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left text-sm transition-colors enabled:cursor-pointer enabled:hover:bg-accent enabled:hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={!canDeleteLevel}
               onClick={() => deleteLevelWithFallbackSelection(level.id)}
-              title={canDeleteLevel ? vi.sitePanel.deleteLevel : vi.sitePanel.groundLevelCannotBeDeleted}
+              title={canDeleteLevel ? 'Delete level' : 'The ground level cannot be deleted'}
             >
               <Trash2 className="h-3.5 w-3.5" />
-              {vi.sitePanel.delete}
+              Delete
             </button>
           </PopoverContent>
         </Popover>
@@ -977,7 +976,7 @@ const LevelItem = memo(function LevelItem({
             <div className="relative border-border/50 border-b py-2 pr-3 pl-[60px]">
               <div className="pointer-events-none absolute top-0 bottom-0 left-[45px] z-10 w-px bg-border/50" />
               <MetricControl
-                label={vi.sitePanel.baseElevation}
+                label="Base elevation"
                 onChange={(value) => updateNode(level.id, { baseElevation: value })}
                 precision={2}
                 step={0.05}
@@ -1063,7 +1062,7 @@ const LevelsSection = memo(function LevelsSection({
           <div className="relative z-10 flex items-center pr-1 pl-[38px]">
             <Plus className="h-3.5 w-3.5" />
           </div>
-          <span className="truncate">{vi.sitePanel.addLevel}</span>
+          <span className="truncate">Add level</span>
         </button>
         {levels.length === 0 && (
           <div className="relative flex h-8 select-none items-center border-border/50 border-b py-0 pr-2 pl-[38px] text-muted-foreground text-xs">
@@ -1071,7 +1070,7 @@ const LevelsSection = memo(function LevelsSection({
             <div className="pointer-events-none absolute top-0 bottom-1/2 left-[21px] w-px bg-border/50" />
             {/* Horizontal branch line */}
             <div className="pointer-events-none absolute top-1/2 left-[21px] h-px w-[11px] bg-border/50" />
-            {vi.sitePanel.noLevelsYet}
+            No levels yet
           </div>
         )}
         {[...levels].reverse().map((level, index) => (
@@ -1124,7 +1123,7 @@ const UnitsSection = memo(function UnitsSection({
           <button
             className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10"
             onClick={handleNewUnit}
-            title={vi.sitePanel.newUnit}
+            title="New unit"
             type="button"
           >
             <Plus className="h-3 w-3" />
@@ -1136,7 +1135,7 @@ const UnitsSection = memo(function UnitsSection({
         icon={<Group className="h-3.5 w-3.5" />}
         label={
           <span className="flex items-center gap-1.5">
-            {vi.sitePanel.units}
+            Units
             {hasUnits && <span className="text-muted-foreground text-xs">{unitIds.length}</span>}
           </span>
         }
@@ -1152,7 +1151,7 @@ const UnitsSection = memo(function UnitsSection({
           hasChildren={false}
           icon={<Plus className="h-3.5 w-3.5" />}
           isLast
-          label={vi.sitePanel.newUnit}
+          label="New unit"
           onClick={handleNewUnit}
           onToggle={() => {}}
         />
@@ -1199,14 +1198,14 @@ const LayerToggle = memo(function LayerToggle() {
         )}
         <div className="relative z-10 flex flex-col items-center">
           <img
-            alt={vi.sitePanel.structure}
+            alt="Structure"
             className={cn(
               'mb-1 h-6 w-6 transition-all',
               activeTab !== 'structure' && 'opacity-50 grayscale',
             )}
             src="/icons/room.webp"
           />
-          {vi.sitePanel.structure}
+          Structure
         </div>
         <div className="absolute right-1.5 bottom-1 z-10 rounded border border-border/40 bg-background/40 px-1 py-[2px] backdrop-blur-md">
           <span className="block font-medium font-mono text-[9px] text-muted-foreground/70 leading-none">
@@ -1235,14 +1234,14 @@ const LayerToggle = memo(function LayerToggle() {
         )}
         <div className="relative z-10 flex flex-col items-center">
           <img
-            alt={vi.sitePanel.furnish}
+            alt="Furnish"
             className={cn(
               'mb-1 h-6 w-6 transition-all',
               activeTab !== 'furnish' && 'opacity-50 grayscale',
             )}
             src="/icons/couch.webp"
           />
-          {vi.sitePanel.furnish}
+          Furnish
         </div>
         <div className="absolute right-1.5 bottom-1 z-10 rounded border border-border/40 bg-background/40 px-1 py-[2px] backdrop-blur-md">
           <span className="block font-medium font-mono text-[9px] text-muted-foreground/70 leading-none">
@@ -1272,14 +1271,14 @@ const LayerToggle = memo(function LayerToggle() {
         )}
         <div className="relative z-10 flex flex-col items-center">
           <img
-            alt={vi.sitePanel.zonesLabel}
+            alt="Zones"
             className={cn(
               'mb-1 h-6 w-6 transition-all',
               activeTab !== 'zones' && 'opacity-50 grayscale',
             )}
             src="/icons/kitchen.webp"
           />
-          {vi.sitePanel.zonesLabel}
+          Zones
         </div>
         <div className="absolute right-1.5 bottom-1 z-10 rounded border border-border/40 bg-background/40 px-1 py-[2px] backdrop-blur-md">
           <span className="block font-medium font-mono text-[9px] text-muted-foreground/70 leading-none">
@@ -1320,7 +1319,7 @@ const ZoneItem = memo(function ZoneItem({ zone, isLast }: { zone: ZoneNode; isLa
     }
   }, [isSelected])
 
-  const defaultName = vi.sitePanel.zoneWithArea(formatAreaLabel(calculatePolygonArea(zone.polygon), unit))
+  const defaultName = `Zone (${formatAreaLabel(calculatePolygonArea(zone.polygon), unit)})`
 
   const handleClick = () => {
     setSelection({ zoneId: zone.id })
@@ -1378,7 +1377,7 @@ const ZoneItem = memo(function ZoneItem({ zone, isLast }: { zone: ZoneNode; isLa
         <ZoneMembershipCheckbox
           checked={focusedUnit.members.includes(zone.id)}
           onToggle={() => toggleZoneMembership(focusedUnit.id, zone.id)}
-          unitName={focusedUnit.name || vi.sitePanel.units}
+          unitName={focusedUnit.name || 'Unit'}
         />
       )}
       <span className={cn('mr-2', !isSelected && 'opacity-40')}>
@@ -1400,7 +1399,7 @@ const ZoneItem = memo(function ZoneItem({ zone, isLast }: { zone: ZoneNode; isLa
             <button
               className="relative flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-black/5 hover:text-foreground group-hover/row:opacity-100 dark:hover:bg-white/10"
               onClick={(e) => e.stopPropagation()}
-              title={vi.sitePanel.cameraSnapshot}
+              title="Camera snapshot"
             >
               <Camera className="h-3 w-3" />
               {zone.camera && (
@@ -1425,7 +1424,7 @@ const ZoneItem = memo(function ZoneItem({ zone, isLast }: { zone: ZoneNode; isLa
                   }}
                 >
                   <Camera className="h-3.5 w-3.5" />
-                  {vi.sitePanel.viewSnapshot}
+                  View snapshot
                 </button>
               )}
               <button
@@ -1437,7 +1436,7 @@ const ZoneItem = memo(function ZoneItem({ zone, isLast }: { zone: ZoneNode; isLa
                 }}
               >
                 <Camera className="h-3.5 w-3.5" />
-                {zone.camera ? vi.sitePanel.updateSnapshot : vi.sitePanel.takeSnapshot}
+                {zone.camera ? 'Update snapshot' : 'Take snapshot'}
               </button>
               {zone.camera && (
                 <button
@@ -1449,7 +1448,7 @@ const ZoneItem = memo(function ZoneItem({ zone, isLast }: { zone: ZoneNode; isLa
                   }}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  {vi.sitePanel.clearSnapshot}
+                  Clear snapshot
                 </button>
               )}
             </div>
@@ -1475,11 +1474,11 @@ const MultiSelectionBadge = memo(function MultiSelectionBadge() {
   return (
     <div className="pointer-events-none sticky top-4 z-50 flex h-0 w-full justify-center overflow-visible">
       <div className="pointer-events-auto flex items-center gap-2.5 rounded-full border border-primary/20 bg-primary px-0.5 py-4 pl-2 font-medium text-primary-foreground text-xs shadow-black/10 shadow-lg backdrop-blur-md">
-        <span>{vi.sitePanel.objectsSelected(selectedIds.length)}</span>
+        <span>{selectedIds.length} objects selected</span>
         <button
           className="cursor-pointer rounded-full p-1.5 transition-colors hover:bg-primary-foreground/20"
           onClick={() => setSelection({ selectedIds: [] })}
-          title={vi.sitePanel.clearSelection}
+          title="Clear selection"
         >
           <X className="h-4 w-4" />
         </button>
@@ -1521,7 +1520,7 @@ const ContentSection = memo(function ContentSection() {
 
   if (!level) {
     return (
-      <div className="px-3 py-4 text-muted-foreground text-sm">{vi.sitePanel.selectLevelToViewContent}</div>
+      <div className="px-3 py-4 text-muted-foreground text-sm">Select a level to view content</div>
     )
   }
 
@@ -1535,9 +1534,9 @@ const ContentSection = memo(function ContentSection() {
     if (levelZones.length === 0) {
       return (
         <div className="px-3 py-4 text-muted-foreground text-sm">
-          {vi.sitePanel.noZonesOnLevel}{' '}
+          No zones on this level.{' '}
           <button className="cursor-pointer text-primary hover:underline" onClick={handleAddZone}>
-            {vi.sitePanel.addOne}
+            Add one
           </button>
         </div>
       )
@@ -1553,7 +1552,7 @@ const ContentSection = memo(function ContentSection() {
   }
 
   if (elementChildren.length === 0) {
-    return <div className="px-3 py-4 text-muted-foreground text-sm">{vi.sitePanel.noElementsOnLevel}</div>
+    return <div className="px-3 py-4 text-muted-foreground text-sm">No elements on this level</div>
   }
   return (
     <TreeNodeDragProvider>
@@ -1628,14 +1627,14 @@ const BuildingItem = memo(function BuildingItem({
       >
         <div className="flex h-full min-w-0 flex-1 cursor-pointer items-center gap-2 py-2 pl-3">
           <img
-            alt={vi.sitePanel.building}
+            alt="Building"
             className={cn(
               'h-5 w-5 object-contain transition-all',
               !isBuildingActive && 'opacity-60 grayscale',
             )}
             src="/icons/building.webp"
           />
-          <span className="truncate font-medium text-sm">{building.name || vi.sitePanel.building}</span>
+          <span className="truncate font-medium text-sm">{building.name || 'Building'}</span>
         </div>
         <Popover
           onOpenChange={(open) => setBuildingCameraOpen(open ? building.id : null)}
@@ -1650,7 +1649,7 @@ const BuildingItem = memo(function BuildingItem({
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground',
               )}
               onClick={(e) => e.stopPropagation()}
-              title={vi.sitePanel.cameraSnapshot}
+              title="Camera snapshot"
             >
               <Camera className="h-4 w-4" />
               {building.camera && (
@@ -1675,7 +1674,7 @@ const BuildingItem = memo(function BuildingItem({
                   }}
                 >
                   <Camera className="h-3.5 w-3.5" />
-                  {vi.sitePanel.viewSnapshot}
+                  View snapshot
                 </button>
               )}
               <button
@@ -1687,7 +1686,7 @@ const BuildingItem = memo(function BuildingItem({
                 }}
               >
                 <Camera className="h-3.5 w-3.5" />
-                {building.camera ? vi.sitePanel.updateSnapshot : vi.sitePanel.takeSnapshot}
+                {building.camera ? 'Update snapshot' : 'Take snapshot'}
               </button>
               {building.camera && (
                 <button
@@ -1699,7 +1698,7 @@ const BuildingItem = memo(function BuildingItem({
                   }}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  {vi.sitePanel.clearSnapshot}
+                  Clear snapshot
                 </button>
               )}
             </div>
@@ -1792,14 +1791,14 @@ export function SitePanel({ projectId, onUploadAsset, onDeleteAsset }: SitePanel
           >
             <div className="flex items-center gap-2">
               <img
-                alt={vi.sitePanel.site}
+                alt="Site"
                 className={cn(
                   'h-5 w-5 object-contain transition-all',
                   phase !== 'site' && 'opacity-60 grayscale',
                 )}
                 src="/icons/site-flag.webp"
               />
-              <span className="font-medium text-sm">{siteNode.name || vi.sitePanel.site}</span>
+              <span className="font-medium text-sm">{siteNode.name || 'Site'}</span>
             </div>
             <CameraPopover
               buttonClassName={cn(
@@ -1843,7 +1842,7 @@ export function SitePanel({ projectId, onUploadAsset, onDeleteAsset }: SitePanel
           {/* Buildings List */}
           {buildings.length === 0 ? (
             <motion.div className="px-3 py-4 text-muted-foreground text-sm" layout="position">
-              {vi.sitePanel.noBuildingsYet}
+              No buildings yet
             </motion.div>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">

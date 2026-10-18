@@ -32,7 +32,6 @@ import { useViewer } from '@pascal-app/viewer'
 import { Copy, Move, Plus, Trash2 } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { vi } from '../i18n/vi'
 
 export default function RoofPanel() {
   const [ventType, setVentType] = useState<'box-vent' | 'ridge-vent' | 'turbine-vent'>('box-vent')
@@ -251,7 +250,7 @@ export default function RoofPanel() {
       title={node.name || 'Roof'}
       width={300}
     >
-      <PanelSection title={vi.common.segments}>
+      <PanelSection title="Segments">
         <div className="flex flex-col gap-1">
           {segments.map((seg, i) => (
             <button
@@ -268,13 +267,13 @@ export default function RoofPanel() {
         <ActionGroup>
           <ActionButton
             icon={<Plus className="h-3.5 w-3.5" />}
-            label={vi.common.drawSegment}
+            label="Draw Segment"
             onClick={handleAddSegment}
           />
         </ActionGroup>
       </PanelSection>
 
-      <PanelSection title={vi.common.position}>
+      <PanelSection title="Position">
         <SliderControl
           label="X"
           onChange={(v) => {
@@ -338,7 +337,7 @@ export default function RoofPanel() {
           value={node.position[2]}
         />
         <SliderControl
-          label={vi.common.rotation}
+          label="Rotation"
           max={180}
           min={-180}
           onChange={(degrees) => {
@@ -367,7 +366,7 @@ export default function RoofPanel() {
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.common.elements}>
+      <PanelSection title="Elements">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             {chimneys.map((chimney, i) => (
@@ -384,7 +383,7 @@ export default function RoofPanel() {
             <ActionGroup>
               <ActionButton
                 icon={<Plus className="h-3.5 w-3.5" />}
-                label={vi.common.addChimney}
+                label="Add Chimney"
                 onClick={() => activateTool('chimney')}
               />
             </ActionGroup>
@@ -405,7 +404,7 @@ export default function RoofPanel() {
             <ActionGroup>
               <ActionButton
                 icon={<Plus className="h-3.5 w-3.5" />}
-                label={vi.common.addDormer}
+                label="Add Dormer"
                 onClick={() => activateTool('dormer')}
               />
             </ActionGroup>
@@ -426,7 +425,7 @@ export default function RoofPanel() {
             <ActionGroup>
               <ActionButton
                 icon={<Plus className="h-3.5 w-3.5" />}
-                label={vi.common.addSkylight}
+                label="Add Skylight"
                 onClick={() => activateTool('skylight')}
               />
             </ActionGroup>
@@ -447,7 +446,7 @@ export default function RoofPanel() {
             <ActionGroup>
               <ActionButton
                 icon={<Plus className="h-3.5 w-3.5" />}
-                label={vi.common.addSolarPanel}
+                label="Add Solar Panel"
                 onClick={() => activateTool('solar-panel')}
               />
             </ActionGroup>
@@ -490,7 +489,7 @@ export default function RoofPanel() {
             <ActionGroup>
               <ActionButton
                 icon={<Plus className="h-3.5 w-3.5" />}
-                label={vi.common.addVent}
+                label="Add Vent"
                 onClick={() => activateTool(ventType)}
               />
             </ActionGroup>
@@ -500,7 +499,7 @@ export default function RoofPanel() {
             <ActionGroup>
               <ActionButton
                 icon={<Plus className="h-3.5 w-3.5" />}
-                label={vi.common.addCupola}
+                label="Add Cupola"
                 onClick={() => activateTool('cupola')}
               />
             </ActionGroup>
@@ -510,7 +509,7 @@ export default function RoofPanel() {
             <ActionGroup>
               <ActionButton
                 icon={<Plus className="h-3.5 w-3.5" />}
-                label={vi.common.addEyebrowVent}
+                label="Add Eyebrow Vent"
                 onClick={() => activateTool('eyebrow-vent')}
               />
             </ActionGroup>
@@ -531,7 +530,7 @@ export default function RoofPanel() {
             <ActionGroup>
               <ActionButton
                 icon={<Plus className="h-3.5 w-3.5" />}
-                label={vi.common.addGutter}
+                label="Add Gutter"
                 onClick={() => activateTool('gutter')}
               />
             </ActionGroup>
@@ -539,18 +538,18 @@ export default function RoofPanel() {
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.common.actions}>
+      <PanelSection title="Actions">
         <ActionGroup>
-          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label={vi.common.move} onClick={handleMove} />
+          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label="Move" onClick={handleMove} />
           <ActionButton
             icon={<Copy className="h-3.5 w-3.5" />}
-            label={vi.common.duplicate}
+            label="Duplicate"
             onClick={handleDuplicate}
           />
           <ActionButton
             className="hover:bg-red-500/20"
             icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
-            label={vi.common.delete}
+            label="Delete"
             onClick={handleDelete}
           />
         </ActionGroup>

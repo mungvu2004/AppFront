@@ -92,7 +92,7 @@ describe('measurement draft ownership', () => {
 
     expect(draft.addPoint('3d', point(1, 0, 0))).toBe(false)
     expect(useMeasurementDraft.getState().error).toBe(
-      'Tầng đang xem đã đổi. Hãy bắt đầu một phép đo mới.',
+      'The active level changed. Start a new measurement.',
     )
     expect(commitMeasurementDraft('3d')).toBeNull()
     expect(
@@ -165,7 +165,7 @@ describe('measurement draft transitions', () => {
     draft.addPoint('3d', point(0, 1, 2))
 
     expect(draft.closeBase('3d')).toBe(false)
-    expect(useMeasurementDraft.getState().error).toBe('Các điểm đo phải nằm trên cùng một mặt phẳng.')
+    expect(useMeasurementDraft.getState().error).toBe('Measurement points must be on one plane.')
 
     draft.removeLast('3d')
     draft.addPoint('3d', point(0, 0, 2))

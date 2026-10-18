@@ -20,7 +20,6 @@ import {
   ToggleControl,
 } from '@pascal-app/editor'
 import { useState } from 'react'
-import { vi } from '../i18n/vi'
 import { useCurtainPanelHighlight } from './curtain-panel-highlight'
 import { curtainGridPositions, curtainPanelType } from './curtain-wall-layout'
 
@@ -139,12 +138,12 @@ function GridSection({
   return (
     <PanelSection title={title}>
       <Choice
-        label={vi.wall.curtain.layout}
+        label="Layout"
         onChange={(layout) => onChange({ ...value, layout })}
         options={[
-          { label: vi.wall.curtain.panelCount, value: 'count' },
-          { label: vi.wall.curtain.maxSpacing, value: 'maximum-spacing' },
-          { label: vi.wall.curtain.fixedSpacing, value: 'fixed-spacing' },
+          { label: 'Panel count', value: 'count' },
+          { label: 'Maximum spacing', value: 'maximum-spacing' },
+          { label: 'Fixed spacing', value: 'fixed-spacing' },
         ]}
         value={value.layout}
       />
@@ -154,7 +153,7 @@ function GridSection({
           onCancel={onCancel}
           restoreOnCommit={false}
           previewWhileTyping
-          label={vi.wall.curtain.panels}
+          label="Panels"
           max={32}
           min={1}
           onChange={(count) => onPreview({ ...value, count: Math.round(count) })}
@@ -166,7 +165,7 @@ function GridSection({
         <LengthControl
           onCommit={onCommit}
           onCancel={onCancel}
-          label={vi.wall.curtain.spacing}
+          label="Spacing"
           max={100}
           min={0.2}
           onChange={(spacing) => onPreview({ ...value, spacing })}
@@ -178,9 +177,9 @@ function GridSection({
         <SegmentedControl
           onChange={(alignment) => onChange({ ...value, alignment })}
           options={[
-            { label: vertical ? vi.wall.curtain.bottom : vi.wall.curtain.start, value: 'start' },
-            { label: vi.wall.curtain.center, value: 'center' },
-            { label: vertical ? vi.wall.curtain.top : vi.wall.curtain.end, value: 'end' },
+            { label: vertical ? 'Bottom' : 'Start', value: 'start' },
+            { label: 'Center', value: 'center' },
+            { label: vertical ? 'Top' : 'End', value: 'end' },
           ]}
           value={value.alignment}
         />
@@ -189,10 +188,10 @@ function GridSection({
         {(() => {
           const positions = curtainGridPositions(length, value)
           const spans = positions.slice(1).map((position, i) => position - positions[i]!)
-          if (!spans.length) return vi.wall.curtain.noPanels
+          if (!spans.length) return 'No panels'
           const min = metersToLinearUnit(Math.min(...spans), unit)
           const max = metersToLinearUnit(Math.max(...spans), unit)
-          return vi.wall.curtain.gridSummary(spans.length, vertical, `${min.toFixed(2)}${max - min > 0.005 ? `–${max.toFixed(2)}` : ''} ${getLinearUnitLabel(unit)}`)
+          return `${spans.length} ${vertical ? 'rows' : 'columns'} · ${min.toFixed(2)}${max - min > 0.005 ? `–${max.toFixed(2)}` : ''} ${getLinearUnitLabel(unit)} grid spacing`
         })()}
       </p>
     </PanelSection>
@@ -200,9 +199,9 @@ function GridSection({
 }
 
 const PANEL_OPTIONS = [
-  { label: vi.wall.curtain.glass, value: 'glass' },
-  { label: vi.wall.curtain.solid, value: 'solid' },
-  { label: vi.wall.curtain.empty, value: 'empty' },
+  { label: 'Glass', value: 'glass' },
+  { label: 'Solid', value: 'solid' },
+  { label: 'Empty', value: 'empty' },
 ] as const
 
 export function getCurtainWallUpdate(
@@ -271,35 +270,35 @@ export function CurtainWallPanel({
 
   return (
     <>
-      <PanelSection title={vi.wall.curtain.wallSystem}>
+      <PanelSection title="Wall system">
         <Choice
-          label={vi.wall.curtain.construction}
+          label="Construction"
           onChange={(construction) => update({ construction })}
           options={[
-            { label: vi.wall.curtain.stick, value: 'stick' },
-            { label: vi.wall.curtain.unitized, value: 'unitized' },
+            { label: 'Stick-built', value: 'stick' },
+            { label: 'Unitized', value: 'unitized' },
           ]}
           value={config.construction}
         />
         <Choice
-          label={vi.wall.curtain.framing}
+          label="Framing"
           onChange={(framing) => update({ framing })}
           options={[
-            { label: vi.wall.curtain.fullyCapped, value: 'capped' },
-            { label: vi.wall.curtain.verticalCaps, value: 'vertical-caps' },
-            { label: vi.wall.curtain.horizontalCaps, value: 'horizontal-caps' },
-            { label: vi.wall.curtain.structuralGlazing, value: 'structural-glazing' },
+            { label: 'Fully capped', value: 'capped' },
+            { label: 'Vertical caps', value: 'vertical-caps' },
+            { label: 'Horizontal caps', value: 'horizontal-caps' },
+            { label: 'Structural glazing', value: 'structural-glazing' },
           ]}
           value={config.framing}
         />
         <p className="text-[11px] text-muted-foreground">
           {config.construction === 'unitized'
-            ? vi.wall.curtain.unitizedNote
-            : vi.wall.curtain.stickNote}
+            ? 'Separate framed modules with joints between units.'
+            : 'Continuous mullions and transoms assembled along the wall.'}
         </p>
         {config.framing !== 'capped' && (
           <p className="text-[11px] text-muted-foreground">
-            {vi.wall.curtain.uncappedNote}
+            Uncapped members sit behind the glazing.
           </p>
         )}
       </PanelSection>
@@ -308,7 +307,7 @@ export function CurtainWallPanel({
         onPreview={(columns) => update({ columns }, true)}
         onCommit={onCommit}
         onCancel={onCancel}
-        title={vi.wall.curtain.columnLayout}
+        title="Column layout"
         length={getWallCurveLength(node)}
         unit={unit}
         value={config.columns}
@@ -318,7 +317,7 @@ export function CurtainWallPanel({
         onPreview={(rows) => update({ rows }, true)}
         onCommit={onCommit}
         onCancel={onCancel}
-        title={vi.wall.curtain.rowLayout}
+        title="Row layout"
         length={height}
         vertical
         unit={unit}
@@ -328,15 +327,15 @@ export function CurtainWallPanel({
         config.columns.layout !== 'count') ||
         (height / config.rows.spacing > 32 && config.rows.layout !== 'count')) && (
         <p className="px-3 text-[11px] text-muted-foreground">
-          {vi.wall.curtain.gridLimitNote}
+          Grid limited to 32 panels per axis. Spacing expands to fit this wall.
         </p>
       )}
-      <PanelSection title={vi.wall.curtain.frameDimensions}>
+      <PanelSection title="Frame dimensions">
         <LengthControl
           profile
           onCommit={onCommit}
           onCancel={onCancel}
-          label={vi.wall.curtain.verticalFrameWidth}
+          label="Vertical frame width"
           max={0.3}
           min={0.01}
           onChange={(mullionWidth) => update({ mullionWidth }, true)}
@@ -347,7 +346,7 @@ export function CurtainWallPanel({
           profile
           onCommit={onCommit}
           onCancel={onCancel}
-          label={vi.wall.curtain.horizontalFrameWidth}
+          label="Horizontal frame width"
           max={0.3}
           min={0.01}
           onChange={(transomWidth) => update({ transomWidth }, true)}
@@ -358,7 +357,7 @@ export function CurtainWallPanel({
           profile
           onCommit={onCommit}
           onCancel={onCancel}
-          label={vi.wall.curtain.borderFrame}
+          label="Border / opening frame"
           max={0.3}
           min={0.01}
           onChange={(perimeterWidth) => update({ perimeterWidth }, true)}
@@ -370,7 +369,7 @@ export function CurtainWallPanel({
             profile
             onCommit={onCommit}
             onCancel={onCancel}
-            label={config.construction === 'unitized' ? vi.wall.curtain.moduleJointWidth : vi.wall.curtain.glazingGap}
+            label={config.construction === 'unitized' ? 'Module joint width' : 'Glazing gap'}
             max={0.05}
             min={0.002}
             onChange={(jointWidth) => update({ jointWidth }, true)}
@@ -379,31 +378,31 @@ export function CurtainWallPanel({
           />
         )}
       </PanelSection>
-      <PanelSection title={vi.wall.curtain.panelInfill}>
+      <PanelSection title="Panel infill">
         <Choice
-          label={vi.wall.curtain.defaultPanel}
+          label="Default panel"
           onChange={(panelType) => update({ panelType })}
           options={PANEL_OPTIONS}
           value={config.panelType}
         />
         <Choice
-          label={vi.wall.curtain.opaqueBand}
+          label="Opaque band"
           onChange={(spandrel) => update({ spandrel })}
           options={[
-            { label: vi.wall.curtain.none, value: 'none' },
-            { label: vi.wall.curtain.bottomRow, value: 'bottom' },
-            { label: vi.wall.curtain.topRow, value: 'top' },
+            { label: 'None', value: 'none' },
+            { label: 'Bottom row', value: 'bottom' },
+            { label: 'Top row', value: 'top' },
           ]}
           value={config.spandrel}
         />
         <p className="text-[11px] text-muted-foreground">
-          {vi.wall.curtain.opaqueBandNote}
+          Opaque bands replace a full row with solid panels. Apply their finish with the paint tool.
         </p>
         <LengthControl
           profile
           onCommit={onCommit}
           onCancel={onCancel}
-          label={vi.wall.curtain.panelThickness}
+          label="Panel thickness"
           max={0.08}
           min={0.004}
           onChange={(glassThickness) => update({ glassThickness }, true)}
@@ -412,7 +411,7 @@ export function CurtainWallPanel({
         />
         {effectiveThickness < config.glassThickness - 1e-6 && (
           <p className="text-[11px] text-muted-foreground">
-            {vi.wall.curtain.effectiveThickness}:{' '}
+            Effective thickness:{' '}
             {unit === 'metric'
               ? `${(effectiveThickness * 1000).toFixed(1)} mm`
               : `${metersToLinearUnit(effectiveThickness, unit).toFixed(3)} ${getLinearUnitLabel(unit)}`}
@@ -420,16 +419,17 @@ export function CurtainWallPanel({
           </p>
         )}
       </PanelSection>
-      <PanelSection title={vi.wall.curtain.editPanels}>
+      <PanelSection title="Edit individual panels">
         <ToggleControl
           checked={panelEditing}
-          label={vi.wall.curtain.enablePanelEditing}
+          label="Enable panel editing"
           onChange={setPanelEditing}
         />
         {panelEditing && (
           <>
             <p className="text-[11px] text-muted-foreground">
-              {vi.wall.curtain.cellHelp}
+              Choose a cell or enter its column and row. Use arrow keys to move between cells.
+              Columns run from the wall start; rows count upward.
             </p>
             <div className="max-h-64 overflow-auto rounded border border-border">
               <svg
@@ -437,7 +437,7 @@ export function CurtainWallPanel({
                 style={{ width: diagramWidth, height: diagramHeight }}
                 className="block"
                 role="group"
-                aria-label={vi.wall.curtain.panelSelection}
+                aria-label="Curtain wall panel selection"
               >
                 {xs.slice(1).flatMap((_, c) =>
                   ys.slice(1).map((_, r) => {
@@ -448,7 +448,7 @@ export function CurtainWallPanel({
                         key={`${c}-${r}`}
                         role="button"
                         tabIndex={selected ? 0 : -1}
-                        aria-label={vi.wall.curtain.cellLabel(c + 1, r + 1, type)}
+                        aria-label={`Column ${c + 1}, row ${r + 1}: ${type}`}
                         aria-pressed={selected}
                         data-cell={`${c}-${r}`}
                         x={(c / columnCount) * diagramWidth}
@@ -505,7 +505,8 @@ export function CurtainWallPanel({
             {hiddenOverrides.length > 0 && (
               <div className="space-y-2 text-[11px] text-muted-foreground">
                 <p>
-                  {vi.wall.curtain.hiddenOverrides(hiddenOverrides.length)}
+                  {hiddenOverrides.length} custom panels are outside this grid. They return if the
+                  grid expands.
                 </p>
                 <button
                   type="button"
@@ -518,16 +519,16 @@ export function CurtainWallPanel({
                     })
                   }
                 >
-                  {vi.wall.curtain.clearHidden}
+                  Clear hidden overrides
                 </button>
               </div>
             )}
             <p className="text-[11px] text-muted-foreground">
-              {vi.wall.curtain.cellStatus(column + 1, row + 1)} ·{' '}
-              {overridden ? vi.wall.curtain.customInfill : vi.wall.curtain.followsDefaults}
+              Column {column + 1}, row {row + 1} ·{' '}
+              {overridden ? 'Custom infill' : 'Following wall defaults'}
             </p>
             <SliderControl
-              label={vi.wall.curtain.column}
+              label="Column"
               max={Math.max(1, columnCount)}
               min={1}
               onChange={(value) => setColumn(Math.round(value) - 1)}
@@ -536,7 +537,7 @@ export function CurtainWallPanel({
               value={column + 1}
             />
             <SliderControl
-              label={vi.wall.curtain.row}
+              label="Row"
               max={Math.max(1, rowCount)}
               min={1}
               onChange={(value) => setRow(Math.round(value) - 1)}
@@ -545,7 +546,7 @@ export function CurtainWallPanel({
               value={row + 1}
             />
             <Choice
-              label={vi.wall.curtain.panelInfill}
+              label="Panel infill"
               onChange={changePanel}
               options={PANEL_OPTIONS}
               value={selectedType}
@@ -556,19 +557,19 @@ export function CurtainWallPanel({
               onClick={() => changePanel()}
               type="button"
             >
-              {vi.wall.curtain.resetPanel}
+              Reset this panel
             </button>
             <p className="text-[11px] text-muted-foreground">
-              {vi.wall.curtain.openingHint}
+              Use the Door or Window tool to add an opening through the wall.
             </p>
           </>
         )}
       </PanelSection>
       {hasGlass && (
-        <PanelSection title={vi.wall.curtain.glassAppearance}>
+        <PanelSection title="Glass appearance">
           {paintedGlass && (
             <div className="space-y-2 text-xs text-muted-foreground">
-              <p>{vi.wall.curtain.paintedGlassNote}</p>
+              <p>Glass appearance is controlled by the paint tool.</p>
               <button
                 type="button"
                 className="rounded border border-border px-2 py-1"
@@ -579,7 +580,7 @@ export function CurtainWallPanel({
                   onUpdate({ slots })
                 }}
               >
-                {vi.wall.curtain.useGlassSettings}
+                Use glass settings instead
               </button>
             </div>
           )}
@@ -590,7 +591,7 @@ export function CurtainWallPanel({
                 onCancel={onCancel}
                 restoreOnCommit={false}
                 previewWhileTyping
-                label={vi.wall.curtain.opacity}
+                label="Opacity"
                 max={100}
                 min={5}
                 onChange={(value) => update({ glassOpacity: value / 100 }, true)}
@@ -604,7 +605,7 @@ export function CurtainWallPanel({
                 onCancel={onCancel}
                 restoreOnCommit={false}
                 previewWhileTyping
-                label={vi.wall.curtain.surfaceRoughness}
+                label="Surface roughness"
                 max={1}
                 min={0}
                 onChange={(glassRoughness) => update({ glassRoughness }, true)}
@@ -613,9 +614,9 @@ export function CurtainWallPanel({
                 value={config.glassRoughness}
               />
               <label className="flex items-center justify-between text-xs text-muted-foreground">
-                {vi.wall.curtain.glassTint}
+                Glass tint
                 <input
-                  aria-label={vi.wall.curtain.glassTint}
+                  aria-label="Glass tint"
                   className="h-7 w-10 cursor-pointer rounded border border-border bg-transparent"
                   onKeyDown={(event) => {
                     if (event.key === 'Escape') {
@@ -651,7 +652,7 @@ export function CurtainWallPanel({
                       setTintEditing(false)
                     }}
                   >
-                    {vi.wall.curtain.applyTint}
+                    Apply tint
                   </button>
                   <button
                     type="button"
@@ -661,12 +662,12 @@ export function CurtainWallPanel({
                       setTintEditing(false)
                     }}
                   >
-                    {vi.wall.curtain.cancelTint}
+                    Cancel tint
                   </button>
                 </div>
               )}
               <p className="text-[11px] text-muted-foreground">
-                {vi.wall.curtain.roughnessNote}
+                Low roughness is smooth; high roughness gives a matte surface in rendered shading.
               </p>
             </div>
           )}

@@ -1,6 +1,5 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { ChimneyNode } from './schema'
-import { vi } from '../i18n/vi'
 
 export const chimneyParametrics: ParametricDescriptor<ChimneyNode> = {
   // The chimney panel is a bespoke tabbed UI (Cap / Flues / Shoulder /
@@ -11,7 +10,7 @@ export const chimneyParametrics: ParametricDescriptor<ChimneyNode> = {
   customPanel: () => import('./panel'),
   groups: [
     {
-      label: vi.common.body,
+      label: 'Body',
       fields: [
         {
           key: 'bodyShape',
@@ -42,7 +41,7 @@ export const chimneyParametrics: ParametricDescriptor<ChimneyNode> = {
       ],
     },
     {
-      label: vi.common.shoulder,
+      label: 'Shoulder',
       fields: [
         {
           key: 'shoulderStyle',
@@ -71,7 +70,7 @@ export const chimneyParametrics: ParametricDescriptor<ChimneyNode> = {
       ],
     },
     {
-      label: vi.common.cap,
+      label: 'Cap',
       fields: [
         { key: 'cap', kind: 'boolean' },
         {
@@ -102,7 +101,7 @@ export const chimneyParametrics: ParametricDescriptor<ChimneyNode> = {
       ],
     },
     {
-      label: vi.common.flues,
+      label: 'Flues',
       fields: [
         { key: 'flueCount', kind: 'number', min: 0, max: 4, step: 1 },
         {
@@ -141,7 +140,7 @@ export const chimneyParametrics: ParametricDescriptor<ChimneyNode> = {
       ],
     },
     {
-      label: vi.common.cricket,
+      label: 'Cricket',
       fields: [
         {
           key: 'cricketStyle',

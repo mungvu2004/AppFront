@@ -11,7 +11,6 @@ import {
 import { Copy, Paintbrush, Pencil, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import useEditor from '../../../store/use-editor'
-import { controlsAndPanels as vi } from '../../../i18n/regions/controlsAndPanels'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../primitives/tooltip'
@@ -132,7 +131,7 @@ function SceneMaterialRow({
   const duplicateMaterial = () => {
     addSceneMaterial({
       id: generateSceneMaterialId(),
-      name: vi.sceneMaterialList.duplicateSuffix(sceneMaterial.name),
+      name: `${sceneMaterial.name} copy`,
       material: structuredClone(sceneMaterial.material) as MaterialSchema,
     })
   }
@@ -168,13 +167,13 @@ function SceneMaterialRow({
 
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="text-muted-foreground text-xs">
-          {vi.sceneMaterialList.usedByCount(usageCount)}
+          Used by {usageCount} {usageCount === 1 ? 'part' : 'parts'}
         </span>
         <div className="flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                aria-label={vi.sceneMaterialList.paintWith}
+                aria-label="Paint with"
                 onClick={() =>
                   armMaterialPaint({
                     materialPreset: toSceneMaterialRef(id),
@@ -188,12 +187,12 @@ function SceneMaterialRow({
                 <Paintbrush />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{vi.sceneMaterialList.paintWith}</TooltipContent>
+            <TooltipContent>Paint with</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                aria-label={vi.sceneMaterialList.edit}
+                aria-label="Edit"
                 aria-pressed={isEditingMaterial}
                 onClick={() => setIsEditingMaterial((value) => !value)}
                 size="icon-sm"
@@ -203,12 +202,12 @@ function SceneMaterialRow({
                 <Pencil />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{vi.sceneMaterialList.edit}</TooltipContent>
+            <TooltipContent>Edit</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                aria-label={vi.sceneMaterialList.duplicate}
+                aria-label="Duplicate"
                 onClick={duplicateMaterial}
                 size="icon-sm"
                 type="button"
@@ -217,12 +216,12 @@ function SceneMaterialRow({
                 <Copy />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{vi.sceneMaterialList.duplicate}</TooltipContent>
+            <TooltipContent>Duplicate</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                aria-label={vi.sceneMaterialList.delete}
+                aria-label="Delete"
                 onClick={() => removeSceneMaterial(id)}
                 size="icon-sm"
                 type="button"
@@ -231,7 +230,7 @@ function SceneMaterialRow({
                 <Trash2 />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{vi.sceneMaterialList.delete}</TooltipContent>
+            <TooltipContent>Delete</TooltipContent>
           </Tooltip>
         </div>
       </div>

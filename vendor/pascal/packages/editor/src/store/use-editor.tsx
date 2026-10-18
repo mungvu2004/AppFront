@@ -1,6 +1,5 @@
 'use client'
 
-import { clampSwipePercent, type GuideCompareMode } from '../lib/floorplan/guide-compare'
 import type { AssetInput } from '@pascal-app/core'
 import {
   type AnyNode,
@@ -22,7 +21,6 @@ import {
 import { useViewer } from '@pascal-app/viewer'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { hydratedLocalStorage } from '../lib/hydrated-local-storage'
 import {
   CONTINUATION_PROFILES,
   type ContinuationContext,
@@ -266,8 +264,6 @@ export type SurfaceHoleTarget = { nodeId: string; holeIndex: number }
 export type GuideUiState = {
   locked?: boolean
   scaleReferenceVisible?: boolean
-  compareMode?: GuideCompareMode
-  swipePercent?: number
 }
 
 type EditorState = {
@@ -403,8 +399,6 @@ type EditorState = {
   guideUi: Record<string, GuideUiState>
   setGuideLocked: (guideId: string, locked: boolean) => void
   setGuideScaleReferenceVisible: (guideId: string, visible: boolean) => void
-  setGuideCompareMode: (guideId: string, mode: GuideCompareMode) => void
-  setGuideSwipePercent: (guideId: string, percent: number) => void
   clearGuideUi: (guideId: string) => void
   // Space detection for cutaway mode
   spaces: Record<string, Space>
@@ -1311,17 +1305,6 @@ const useEditor = create<EditorState>()(
             },
           },
         })),
-      setGuideCompareMode: (guideId, compareMode) =>
-        set((state) => ({
-          guideUi: { ...state.guideUi, [guideId]: { ...state.guideUi[guideId], compareMode } },
-        })),
-      setGuideSwipePercent: (guideId, percent) =>
-        set((state) => ({
-          guideUi: {
-            ...state.guideUi,
-            [guideId]: { ...state.guideUi[guideId], swipePercent: clampSwipePercent(percent) },
-          },
-        })),
       clearGuideUi: (guideId) =>
         set((state) => {
           if (!state.guideUi[guideId]) {
@@ -1613,7 +1596,6 @@ const useEditor = create<EditorState>()(
         referenceFloorOffset: state.referenceFloorOffset,
         referenceFloorOpacity: state.referenceFloorOpacity,
       }),
-      storage: hydratedLocalStorage(() => useEditor.persist.hasHydrated()),
       skipHydration: true,
     },
   ),

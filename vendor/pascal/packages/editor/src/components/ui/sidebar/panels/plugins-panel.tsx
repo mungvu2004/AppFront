@@ -1,13 +1,12 @@
 'use client'
 
-import { Icon } from '../../../../lib/offline-icons'
+import { Icon } from '@iconify/react'
 import { type IconRef, useScene } from '@pascal-app/core'
 import { ChevronLeft, ChevronRight, ExternalLink, Lock, Puzzle } from 'lucide-react'
 import { lazy, type ReactNode, Suspense, useState, useSyncExternalStore } from 'react'
 import { editorHostPanelRegistry, pluginInstallLocks } from '../../../../lib/plugin-panels'
 import { IconRefImage } from '../../icon-ref'
 import { Button } from '../../primitives/button'
-import { primitivesAndSidebar as vi } from '../../../../i18n/regions/primitivesAndSidebar'
 
 const PLUGIN_AUTHORING_URL =
   'https://editor.pascal.app/docs/developers/plugins'
@@ -83,7 +82,7 @@ export function PluginsPanel() {
             variant="ghost"
           >
             <ChevronLeft className="h-4 w-4" />
-            {vi.pluginsPanel.allPlugins}
+            All plugins
           </Button>
 
           <div className="mt-5 flex items-start gap-4">
@@ -96,23 +95,23 @@ export function PluginsPanel() {
                 {panel.badge && <PluginBadge label={panel.badge} />}
               </div>
               <p className="text-sidebar-foreground/50 text-sm">
-                {installed ? vi.pluginsPanel.installed : vi.pluginsPanel.notInstalled}
+                {installed ? 'Installed' : 'Not installed'}
               </p>
             </div>
           </div>
 
           <p className="mt-5 text-sidebar-foreground/70 text-sm">
-            {panel.description ?? vi.pluginsPanel.defaultDescription}
+            {panel.description ?? 'Adds a new tool panel to the editor.'}
           </p>
 
           <dl className="mt-6 divide-y divide-border/50 rounded-xl border border-border/60">
             <div className="p-3">
-              <dt className="text-sidebar-foreground/50 text-xs">{vi.pluginsPanel.pluginId}</dt>
+              <dt className="text-sidebar-foreground/50 text-xs">Plugin ID</dt>
               <dd className="mt-1 break-all text-sidebar-foreground text-sm">{pluginId}</dd>
             </div>
             {panel.creator && (
               <div className="p-3">
-                <dt className="text-sidebar-foreground/50 text-xs">{vi.pluginsPanel.creator}</dt>
+                <dt className="text-sidebar-foreground/50 text-xs">Creator</dt>
                 <dd className="mt-1 text-sm">
                   {panel.creator.url ? (
                     <a
@@ -132,7 +131,7 @@ export function PluginsPanel() {
             )}
             {panel.pluginUrl && (
               <div className="p-3">
-                <dt className="text-sidebar-foreground/50 text-xs">{vi.pluginsPanel.plugin}</dt>
+                <dt className="text-sidebar-foreground/50 text-xs">Plugin</dt>
                 <dd className="mt-1 text-sm">
                   <a
                     className="inline-flex items-center gap-1 text-sidebar-foreground underline-offset-4 hover:underline"
@@ -140,7 +139,7 @@ export function PluginsPanel() {
                     rel="noreferrer"
                     target="_blank"
                   >
-                    {vi.pluginsPanel.viewPlugin}
+                    View plugin
                     <ExternalLink className="h-3 w-3" />
                   </a>
                 </dd>
@@ -158,14 +157,10 @@ export function PluginsPanel() {
                 {lock.actionLabel}
               </Button>
             </div>
-          ) : readOnly ? null : (
-            /* Viewer role: the button is REMOVED, not disabled. A greyed
-               "Install" still says the action exists for this person and
-               something is merely wrong right now; a viewer has no such
-               action at all, and a screen reader reading out a disabled
-               control it can never reach is noise either way. */
+          ) : (
             <Button
               className="mt-5 rounded-full"
+              disabled={readOnly}
               onClick={() => {
                 const next = installed
                   ? installedPlugins.filter((id) => id !== pluginId)
@@ -174,7 +169,7 @@ export function PluginsPanel() {
               }}
               variant={installed ? 'outline' : 'default'}
             >
-              {installed ? vi.pluginsPanel.uninstall : vi.pluginsPanel.install}
+              {installed ? 'Uninstall' : 'Install'}
             </Button>
           )}
         </div>
@@ -186,7 +181,7 @@ export function PluginsPanel() {
             rel="noreferrer"
             target="_blank"
           >
-            {vi.pluginsPanel.createPlugin}
+            Create a Pascal plugin
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
@@ -197,9 +192,9 @@ export function PluginsPanel() {
   return (
     <div className="flex h-full flex-col overflow-y-auto p-4">
       <div className="mb-5">
-        <h2 className="font-semibold text-lg text-sidebar-foreground">{vi.pluginsPanel.heading}</h2>
+        <h2 className="font-semibold text-lg text-sidebar-foreground">Plugins</h2>
         <p className="mt-1 text-sidebar-foreground/60 text-sm">
-          {vi.pluginsPanel.subheading}
+          Add focused tools and content to this project.
         </p>
       </div>
 
@@ -225,13 +220,13 @@ export function PluginsPanel() {
                         {panel.badge && <PluginBadge label={panel.badge} />}
                       </div>
                       <p className="text-sidebar-foreground/50 text-xs">
-                        {installed ? vi.pluginsPanel.installed : vi.pluginsPanel.notInstalled}
+                        {installed ? 'Installed' : 'Not installed'}
                       </p>
                     </div>
                     <ChevronRight className="h-4 w-4 shrink-0 text-sidebar-foreground/50" />
                   </div>
                   <p className="mt-2 text-sidebar-foreground/60 text-sm">
-                    {panel.description ?? vi.pluginsPanel.defaultDescription}
+                    {panel.description ?? 'Adds a new tool panel to the editor.'}
                   </p>
                 </div>
               </div>
@@ -247,7 +242,7 @@ export function PluginsPanel() {
           rel="noreferrer"
           target="_blank"
         >
-          {vi.pluginsPanel.createPlugin}
+          Create a Pascal plugin
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
       </div>

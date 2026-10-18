@@ -4,7 +4,6 @@ import { spawnRotateAffordance } from './floorplan-affordances'
 import { spawnFloorplanMoveTarget } from './floorplan-move'
 import { spawnParametrics } from './parametrics'
 import { SpawnNode } from './schema'
-import { vi } from '../i18n/vi'
 
 const SPAWN_FOOTPRINT = 0.6
 const SPAWN_HANDLE_HEIGHT = 0.46
@@ -102,13 +101,13 @@ export const spawnDefinition: NodeDefinition<typeof SpawnNode> = {
   },
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Left click', label: vi.spawn.shortcuts.place },
-    { key: 'R / T', label: vi.spawn.shortcuts.rotate },
-    { key: 'Esc', label: vi.spawn.shortcuts.cancel },
+    { key: 'Left click', label: 'Place spawn point' },
+    { key: 'R / T', label: 'Rotate spawn point' },
+    { key: 'Esc', label: 'Cancel' },
   ],
 
   presentation: {
-    label: vi.spawn.catalogLabel,
+    label: 'Spawn Point',
     description: 'Player or camera origin within a level. One per level.',
     icon: { kind: 'url', src: '/icons/spawn-point.webp' },
     paletteSection: 'structure',

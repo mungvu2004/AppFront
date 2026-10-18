@@ -12,7 +12,6 @@ import { buildChimneyFloorplan } from './floorplan'
 import { chimneyPaint } from './paint'
 import { chimneyParametrics } from './parametrics'
 import { ChimneyNode } from './schema'
-import { vi } from '../i18n/vi'
 
 // Side handle offsets in metres. Match the roof-segment values so a
 // segment + chimney selected back-to-back use the same visual rhythm.
@@ -405,12 +404,12 @@ export const chimneyDefinition: NodeDefinition<typeof ChimneyNode> = {
 
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Left click', label: vi.chimney.shortcuts.place },
-    { key: 'Esc', label: vi.chimney.shortcuts.cancel },
+    { key: 'Left click', label: 'Place chimney on roof' },
+    { key: 'Esc', label: 'Cancel' },
   ],
 
   presentation: {
-    label: vi.chimney.catalogLabel,
+    label: 'Chimney',
     description: 'Vertical masonry stack on a roof segment.',
     icon: { kind: 'url', src: '/icons/chimney.webp' },
     paletteSection: 'structure',

@@ -1,10 +1,9 @@
 import type { ParametricDescriptor, RoofSegmentNode } from '@pascal-app/core'
-import { vi } from '../i18n/vi'
 
 export const roofSegmentParametrics: ParametricDescriptor<RoofSegmentNode> = {
   groups: [
     {
-      label: vi.common.footprint,
+      label: 'Footprint',
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.5, max: 1000, step: 0.5 },
         {
@@ -19,28 +18,28 @@ export const roofSegmentParametrics: ParametricDescriptor<RoofSegmentNode> = {
       ],
     },
     {
-      label: vi.common.shape,
+      label: 'Shape',
       fields: [
         {
           key: 'wallHeight',
           kind: 'number',
-          label: vi.common.wallGroup,
+          label: 'Wall',
           unit: 'm',
           min: 0,
           max: 1000,
           step: 0.1,
         },
-        { key: 'pitch', kind: 'number', label: vi.common.pitch, unit: '°', min: 0, max: 85, step: 1 },
+        { key: 'pitch', kind: 'number', label: 'Pitch', unit: '°', min: 0, max: 85, step: 1 },
         {
           key: 'conicalFullCircle',
           kind: 'boolean',
-          label: vi.common.fullCircle,
+          label: 'Full circle',
           visibleIf: (node) => node.roofType === 'conical',
         },
         {
           key: 'gambrelLowerWidthRatio',
           kind: 'number',
-          label: vi.common.kinkDepth,
+          label: 'Kink depth',
           min: 0.1,
           max: 0.9,
           step: 0.01,
@@ -49,7 +48,7 @@ export const roofSegmentParametrics: ParametricDescriptor<RoofSegmentNode> = {
         {
           key: 'gambrelLowerHeightRatio',
           kind: 'number',
-          label: vi.common.kinkHeight,
+          label: 'Kink height',
           min: 0.1,
           max: 0.9,
           step: 0.01,
@@ -58,7 +57,7 @@ export const roofSegmentParametrics: ParametricDescriptor<RoofSegmentNode> = {
         {
           key: 'mansardSteepWidthRatio',
           kind: 'number',
-          label: vi.common.waistWidth,
+          label: 'Waist width',
           min: 0.05,
           max: 0.45,
           step: 0.01,
@@ -67,7 +66,7 @@ export const roofSegmentParametrics: ParametricDescriptor<RoofSegmentNode> = {
         {
           key: 'mansardSteepHeightRatio',
           kind: 'number',
-          label: vi.common.waistHeight,
+          label: 'Waist height',
           min: 0.1,
           max: 0.9,
           step: 0.01,
@@ -76,7 +75,7 @@ export const roofSegmentParametrics: ParametricDescriptor<RoofSegmentNode> = {
         {
           key: 'dutchHipWidthRatio',
           kind: 'number',
-          label: vi.common.waistWidth,
+          label: 'Waist width',
           min: 0.05,
           max: 0.45,
           step: 0.01,
@@ -85,7 +84,7 @@ export const roofSegmentParametrics: ParametricDescriptor<RoofSegmentNode> = {
         {
           key: 'dutchHipHeightRatio',
           kind: 'number',
-          label: vi.common.waistHeight,
+          label: 'Waist height',
           min: 0.1,
           max: 0.9,
           step: 0.01,
@@ -94,7 +93,7 @@ export const roofSegmentParametrics: ParametricDescriptor<RoofSegmentNode> = {
         {
           key: 'dutchWaistLengthRatio',
           kind: 'number',
-          label: vi.common.waistLength,
+          label: 'Waist length',
           min: 0.1,
           max: 1,
           step: 0.01,
@@ -103,7 +102,7 @@ export const roofSegmentParametrics: ParametricDescriptor<RoofSegmentNode> = {
         {
           key: 'dutchTopRakeThickness',
           kind: 'number',
-          label: vi.common.topRakeThickness,
+          label: 'Top rake thickness',
           unit: 'm',
           min: 0.01,
           max: 0.5,
@@ -113,7 +112,7 @@ export const roofSegmentParametrics: ParametricDescriptor<RoofSegmentNode> = {
         {
           key: 'dutchGabletRake',
           kind: 'number',
-          label: vi.common.topRakeLength,
+          label: 'Top rake length',
           unit: 'm',
           min: 0,
           max: 3,
@@ -123,12 +122,12 @@ export const roofSegmentParametrics: ParametricDescriptor<RoofSegmentNode> = {
       ],
     },
     {
-      label: vi.common.structure,
+      label: 'Structure',
       fields: [
         {
           key: 'wallThickness',
           kind: 'number',
-          label: vi.common.wallThickness,
+          label: 'Wall thickness',
           unit: 'm',
           min: 0.05,
           max: 1,
@@ -137,7 +136,7 @@ export const roofSegmentParametrics: ParametricDescriptor<RoofSegmentNode> = {
         {
           key: 'deckThickness',
           kind: 'number',
-          label: vi.common.deckThickness,
+          label: 'Deck thickness',
           unit: 'm',
           min: 0.04,
           max: 0.3,
@@ -147,7 +146,7 @@ export const roofSegmentParametrics: ParametricDescriptor<RoofSegmentNode> = {
         {
           key: 'shingleThickness',
           kind: 'number',
-          label: vi.common.shingleThickness,
+          label: 'Shingle thickness',
           unit: 'm',
           min: 0.02,
           max: 0.3,
@@ -156,19 +155,19 @@ export const roofSegmentParametrics: ParametricDescriptor<RoofSegmentNode> = {
         {
           key: 'wallShell',
           kind: 'enum',
-          label: vi.common.wallShell,
+          label: 'Wall shell',
           options: ['auto', 'include', 'omit'],
         },
       ],
     },
     {
-      label: vi.common.position,
+      label: 'Position',
       fields: [
         { key: 'position', kind: 'vec3' },
         {
           key: 'rotation',
           kind: 'number',
-          label: vi.common.rotationRad,
+          label: 'Rotation (rad)',
           min: -Math.PI,
           max: Math.PI,
           step: Math.PI / 36,

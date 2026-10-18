@@ -773,9 +773,6 @@ export const METADATA_NON_REFERENCES: readonly { path: string; reason: string }[
   ]),
   ...described('Registry extension key, not scene-node metadata.', ['pascal:editor/floorplan']),
   ...described('Next.js page metadata export, not scene-node metadata.', ['title']),
-  ...described('AppFront level area (m²) written by toPascalScene: a number, not an id.', [
-    'appfront.areaM2',
-  ]),
 ]
 
 const bare = (path: string) => path.replace(/^metadata\./, '').replace(/\[\]/g, '')

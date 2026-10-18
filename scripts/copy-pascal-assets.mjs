@@ -86,14 +86,16 @@ const LIBRARY_SOURCE = join('vendor', 'pascal', 'packages', 'core', 'src', 'mate
 const MATERIAL_WANTED = /\.ktx2$/;
 
 /**
- * Biểu tượng ảnh của editor Pascal: mã vendor viết `<img src="/icons/x.webp">` (đường tuyệt đối
- * của app Next gốc), nên tệp phải nằm đúng ở `/icons/` — không có thì mọi nút thành ảnh vỡ.
- * Chỉ chép tệp ≤ 40 KB: 19 tệp lớn hơn (mái/ống gió/ống nước) đẩy tài sản vượt
- * trần 8 000 KiB của cổng kích thước; công cụ ấy sẽ còn ảnh vỡ cho tới khi nén lại được.
+ * Biểu tượng ảnh của editor Pascal: mã gốc viết `<img src="/icons/x.webp">` (đường tuyệt đối
+ * của app Next gốc), nên tệp phải nằm đúng ở `/icons/`. Chép TẤT CẢ (kể cả `fittings/` và
+ * `scene.webp`): trang 3D riêng dùng nguyên giao diện gốc, thiếu tệp nào là nút ấy thành ảnh vỡ.
  */
 const ICON_SOURCE = join('vendor', 'pascal', 'assets', 'icons');
 const ICON_TARGET = join('public', 'icons');
-const ICON_MAX_BYTES = 40_000;
+
+/** Âm thanh thao tác của editor gốc: `/audios/sfx/*.mp3` (từ `apps/editor/public/audios`). */
+const AUDIO_SOURCE = join('vendor', 'pascal', 'assets', 'audios');
+const AUDIO_TARGET = join('public', 'audios');
 
 /**
  * Thư viện đồ đạc của editor (QA-05c B4): `catalog-items.tsx` ghi `/items/<mẫu>/{model.glb,thumbnail.webp}`,
@@ -162,18 +164,9 @@ rmSync(ITEMS_TARGET, { force: true, recursive: true });
 cpSync(ITEMS_SOURCE, ITEMS_TARGET, { recursive: true });
 
 rmSync(ICON_TARGET, { force: true, recursive: true });
-mkdirSync(ICON_TARGET, { recursive: true });
-const iconsSkipped = [];
-let iconCount = 0;
-// Không đệ quy: `icons/fittings/` (MEP, 450 KiB) không có chỗ nào gọi tới và làm tài sản vượt trần.
-for (const name of readdirSync(ICON_SOURCE).filter((n) => statSync(join(ICON_SOURCE, n)).isFile())) {
-  if (statSync(join(ICON_SOURCE, name)).size > ICON_MAX_BYTES) {
-    iconsSkipped.push(name);
-    continue;
-  }
-  copyFileSync(join(ICON_SOURCE, name), join(ICON_TARGET, name));
-  iconCount += 1;
-}
+cpSync(ICON_SOURCE, ICON_TARGET, { recursive: true });
+rmSync(AUDIO_TARGET, { force: true, recursive: true });
+cpSync(AUDIO_SOURCE, AUDIO_TARGET, { recursive: true });
 // Con trỏ của khung vẽ mặt bằng: `url('/cursor.svg')` trong `floorplan-panel.tsx`.
 copyFileSync(join('vendor', 'pascal', 'assets', 'cursor.svg'), join('public', 'cursor.svg'));
 
@@ -197,8 +190,6 @@ if (missing.length > 0) {
       (materials.length > 6 ? ` … và ${String(materials.length - 6)} nữa.` : '.'),
   );
 }
-console.log(
-  `Đã chép ${String(iconCount)} biểu tượng vào ${ICON_TARGET}/` +
-    (iconsSkipped.length > 0 ? `, bỏ ${String(iconsSkipped.length)} tệp > 40 KB: ${iconsSkipped.join(', ')}` : ''),
-);
+console.log(`Đã chép ${String(countFiles(ICON_TARGET))} biểu tượng vào ${ICON_TARGET}/`);
+console.log(`Đã chép ${String(countFiles(AUDIO_TARGET))} tệp âm thanh vào ${AUDIO_TARGET}/`);
 console.log(`Đã chép ${String(basisCopied.length)} tệp bộ giải Basis vào ${BASIS_TARGET}/: ${basisCopied.join(', ')}`);

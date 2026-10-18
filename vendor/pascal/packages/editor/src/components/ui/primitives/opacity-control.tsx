@@ -6,7 +6,6 @@ import { Button } from '../../../components/ui/primitives/button'
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/primitives/popover'
 import { Slider } from '../../../components/ui/primitives/slider'
 import { cn } from '../../../lib/utils'
-import { primitivesAndSidebar as vi } from '../../../i18n/regions/primitivesAndSidebar'
 
 interface OpacityControlProps {
   visible?: boolean
@@ -31,7 +30,7 @@ export function OpacityControl({
     <Popover onOpenChange={setIsOpen} open={isOpen}>
       <div className={cn('flex items-center gap-1', className)}>
         {!isHidden && actualOpacity < 100 && (
-          <span className="text-muted-foreground text-xs">{vi.opacityControl.percent(actualOpacity)}</span>
+          <span className="text-muted-foreground text-xs">{actualOpacity}%</span>
         )}
         <PopoverTrigger asChild>
           <Button
@@ -60,8 +59,8 @@ export function OpacityControl({
         >
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-medium text-sm">{vi.opacityControl.opacity}</span>
-              <span className="text-muted-foreground text-xs">{vi.opacityControl.percent(actualOpacity)}</span>
+              <span className="font-medium text-sm">Opacity</span>
+              <span className="text-muted-foreground text-xs">{actualOpacity}%</span>
             </div>
             <Slider
               max={100}

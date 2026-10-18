@@ -27,7 +27,6 @@ import {
 } from '../../schema'
 import type { CollectionId } from '../../schema/collections'
 import { Provenance } from '../../schema/provenance'
-import { withReviewCleared } from '../../schema/review'
 import { constrainWallCurveOffsetToAvoidIntersections } from '../../systems/wall/wall-curve'
 import {
   areWallStylesCompatible,
@@ -1405,8 +1404,7 @@ const updateNodesActionImpl = (
               ),
             }
           : data
-      // A5: a geometry edit clears the reviewer's sign-off right away.
-      const updatedNode = parseUpdatedNode(currentNode, withReviewCleared(currentNode, constrainedData))
+      const updatedNode = parseUpdatedNode(currentNode, constrainedData)
       addLeanToHostRoofId(updatedNode, nextNodes, roofsToRefresh)
 
       // Handle Reparenting Logic

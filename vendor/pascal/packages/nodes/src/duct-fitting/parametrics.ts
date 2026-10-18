@@ -14,7 +14,6 @@ import {
 import { DuctFittingSizeSwapEditor } from './inspector-editors'
 import { adapterShape, getDuctFittingPorts } from './ports'
 import type { DuctFittingNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /** Schema bounds for `diameter` / `diameter2`. */
 const clampDiameter = (d: number) => Math.min(48, Math.max(2, d))
@@ -225,7 +224,7 @@ export const ductFittingParametrics: ParametricDescriptor<DuctFittingNode> = {
   },
   groups: [
     {
-      label: vi.common.fitting,
+      label: 'Fitting',
       fields: [
         {
           key: 'fittingType',
@@ -295,7 +294,7 @@ export const ductFittingParametrics: ParametricDescriptor<DuctFittingNode> = {
       ],
     },
     {
-      label: vi.common.connections,
+      label: 'Connections',
       fields: [
         {
           key: 'inletShape',
@@ -414,7 +413,7 @@ export const ductFittingParametrics: ParametricDescriptor<DuctFittingNode> = {
       ],
     },
     {
-      label: vi.common.placement,
+      label: 'Placement',
       fields: [
         { key: 'position', kind: 'vec3' },
         { key: 'rotation', kind: 'vec3' },

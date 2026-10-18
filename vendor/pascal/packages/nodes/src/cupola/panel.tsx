@@ -23,7 +23,6 @@ import { useViewer } from '@pascal-app/viewer'
 import { Copy, Move, Trash2 } from 'lucide-react'
 import { useCallback } from 'react'
 import type { CupolaNode } from './schema'
-import { vi } from '../i18n/vi'
 
 /**
  * Inspector panel for a placed cupola. Roof style + finial + dimensions
@@ -144,7 +143,7 @@ export default function CupolaPanel() {
       title={node.name || 'Cupola'}
       width={300}
     >
-      <PanelSection title={vi.common.style}>
+      <PanelSection title="Style">
         <SegmentedControl
           onChange={(v) => handleUpdate({ roofStyle: v as CupolaNode['roofStyle'] })}
           options={[
@@ -163,9 +162,9 @@ export default function CupolaPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.dimensions}>
+      <PanelSection title="Dimensions">
         <SliderControl
-          label={vi.common.width}
+          label="Width"
           max={1000}
           min={0.3}
           onChange={(v) => previewProp({ width: v })}
@@ -177,7 +176,7 @@ export default function CupolaPanel() {
           value={node.width}
         />
         <SliderControl
-          label={vi.common.depth}
+          label="Depth"
           max={1000}
           min={0.3}
           onChange={(v) => previewProp({ depth: v })}
@@ -189,7 +188,7 @@ export default function CupolaPanel() {
           value={node.depth}
         />
         <SliderControl
-          label={vi.common.height}
+          label="Height"
           max={1000}
           min={0.4}
           onChange={(v) => previewProp({ height: v })}
@@ -202,7 +201,7 @@ export default function CupolaPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.position}>
+      <PanelSection title="Position">
         <SliderControl
           label="X"
           max={Math.round(((segment?.width ?? 10) / 2) * 100) / 100}
@@ -255,7 +254,7 @@ export default function CupolaPanel() {
           value={node.position[2] ?? 0}
         />
         <SliderControl
-          label={vi.common.rotation}
+          label="Rotation"
           max={180}
           min={-180}
           onChange={(deg) => previewProp({ rotation: (deg * Math.PI) / 180 })}
@@ -268,18 +267,18 @@ export default function CupolaPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.actions}>
+      <PanelSection title="Actions">
         <ActionGroup>
-          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label={vi.common.move} onClick={handleMove} />
+          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label="Move" onClick={handleMove} />
           <ActionButton
             icon={<Copy className="h-3.5 w-3.5" />}
-            label={vi.common.duplicate}
+            label="Duplicate"
             onClick={handleDuplicate}
           />
           <ActionButton
             className="hover:bg-red-500/20"
             icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
-            label={vi.common.delete}
+            label="Delete"
             onClick={handleDelete}
           />
         </ActionGroup>

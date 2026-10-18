@@ -1,6 +1,6 @@
 'use client'
 
-import { Icon } from '../../../lib/offline-icons'
+import { Icon } from '@iconify/react'
 import {
   type AnyNode,
   type AnyNodeId,
@@ -283,18 +283,14 @@ export function PanelWrapper({
       className={cn(
         isMobile
           ? 'flex h-full w-full flex-col overflow-hidden bg-transparent dark:text-foreground'
-          // Cap height at `100cqh - 154px` so a tall panel's bottom edge
+          // Cap height at `100dvh - 154px` so a tall panel's bottom edge
           // aligns flush with the top of the floating bottom action bar.
           // Combined with `top-20` (80px), the panel's bottom sits at
-          // `100cqh - 74px` — just clearing the bar without leaving a
+          // `100dvh - 74px` — just clearing the bar without leaving a
           // visible gap. The inner `flex-1 overflow-y-auto` content area
           // (below) handles vertical scrolling when content exceeds the
-          // cap. AppFront: `100%` of the overlay box (the transformed
-          // `ViewerOverlays` is this fixed panel's containing block) rather
-          // than `100cqh` of the frame — the same height side by side, but in
-          // the stacked narrow-frame layout the overlay box starts below the
-          // sidebar and a frame-high cap would push the panel off the bottom.
-          : 'pointer-events-auto fixed top-20 right-4 z-50 flex max-h-[calc(100%-154px)] flex-col overflow-hidden rounded-xl border border-border/50 bg-sidebar/95 shadow-2xl backdrop-blur-xl dark:text-foreground',
+          // cap.
+          : 'pointer-events-auto fixed top-20 right-4 z-50 flex max-h-[calc(100dvh-154px)] flex-col overflow-hidden rounded-xl border border-border/50 bg-sidebar/95 shadow-2xl backdrop-blur-xl dark:text-foreground',
         className,
       )}
       ref={panelRef}

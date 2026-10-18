@@ -8,7 +8,6 @@ import { buildEyebrowVentFloorplan } from './floorplan'
 import { eyebrowVentPaint } from './paint'
 import { eyebrowVentParametrics } from './parametrics'
 import { EyebrowVentNode } from './schema'
-import { vi } from '../i18n/vi'
 
 const SIDE_HANDLE_OFFSET = 0.3
 const HEIGHT_HANDLE_OFFSET = 0.2
@@ -129,8 +128,8 @@ export const eyebrowVentDefinition: NodeDefinition<typeof EyebrowVentNode> = {
 
   capabilities: {
     slots: () => [
-      { slotId: 'hood', label: vi.eyebrowVent.slots.hood, default: 'library:preset-softwhite' },
-      { slotId: 'front', label: vi.eyebrowVent.slots.louvers, default: 'library:preset-softwhite' },
+      { slotId: 'hood', label: 'Hood', default: 'library:preset-softwhite' },
+      { slotId: 'front', label: 'Louvers', default: 'library:preset-softwhite' },
     ],
     selectable: { hitVolume: 'bbox' },
     duplicable: true,
@@ -158,12 +157,12 @@ export const eyebrowVentDefinition: NodeDefinition<typeof EyebrowVentNode> = {
     move: () => import('./move-tool'),
   },
   toolHints: [
-    { key: 'Left click', label: vi.eyebrowVent.shortcuts.place },
-    { key: 'Esc', label: vi.eyebrowVent.shortcuts.cancel },
+    { key: 'Left click', label: 'Place eyebrow vent on roof' },
+    { key: 'Esc', label: 'Cancel' },
   ],
 
   presentation: {
-    label: vi.eyebrowVent.catalogLabel,
+    label: 'Eyebrow Vent',
     description: 'Low curved lens-shaped roof vent with a louvered front.',
     icon: { kind: 'url', src: '/icons/eyebrow-vent.webp' },
     paletteSection: 'structure',

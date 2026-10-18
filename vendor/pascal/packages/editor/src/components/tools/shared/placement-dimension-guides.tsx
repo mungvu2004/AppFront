@@ -51,7 +51,7 @@ function PlacementDimensionGuide({
 }: {
   dimension: PlacementPreviewDimension
   dimensionInput: string | null
-  metricNotation: 'meters' | 'centimeters' | 'millimeters'
+  metricNotation: 'meters' | 'millimeters'
   unit: 'metric' | 'imperial'
 }) {
   const { line, position } = useMemo(() => {

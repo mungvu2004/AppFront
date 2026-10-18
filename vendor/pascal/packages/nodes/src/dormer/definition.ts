@@ -10,7 +10,6 @@ import { buildDormerFloorplan } from './floorplan'
 import { dormerPaint } from './paint'
 import { dormerParametrics } from './parametrics'
 import { DormerNode } from './schema'
-import { vi } from '../i18n/vi'
 
 const SIDE_HANDLE_OFFSET = 0.25
 const HEIGHT_HANDLE_OFFSET = 0.25
@@ -326,13 +325,13 @@ export const dormerDefinition: NodeDefinition<typeof DormerNode> = {
 
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Left click', label: vi.dormer.shortcuts.place },
-    { key: 'R / Shift+R', label: vi.dormer.shortcuts.rotateGhost },
-    { key: 'Esc', label: vi.dormer.shortcuts.cancel },
+    { key: 'Left click', label: 'Place dormer on roof' },
+    { key: 'R / Shift+R', label: 'Rotate ghost ±15°' },
+    { key: 'Esc', label: 'Cancel' },
   ],
 
   presentation: {
-    label: vi.dormer.catalogLabel,
+    label: 'Dormer',
     description: 'House-shaped protrusion on a roof segment.',
     icon: { kind: 'url', src: '/icons/dormer.webp' },
     paletteSection: 'structure',

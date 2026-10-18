@@ -30,38 +30,6 @@ export type HistoryCommandDelegate = {
   undo: () => HistoryCommandResult
 }
 
-/**
- * A history jump the user actually made, as opposed to the internal rollbacks
- * `use-auto-save` and the selection affordance manager perform: those call
- * `useScene.temporal` straight and never reach `runUndo`/`runRedo`.
- *
- * AppFront needs this for invariant A8 — every change is undoable and says so
- * with a toast. The host cannot derive it from `subscribeHistoryCommandState`,
- * which fires on every scene commit and cannot tell a jump from an edit.
- */
-export type HistoryJumpKind = 'undo' | 'redo'
-
-export type HistoryJumpListener = (kind: HistoryJumpKind) => void
-
-const historyJumpListeners = new Set<HistoryJumpListener>()
-
-export function subscribeHistoryJumps(listener: HistoryJumpListener): () => void {
-  historyJumpListeners.add(listener)
-  return () => {
-    historyJumpListeners.delete(listener)
-  }
-}
-
-function emitHistoryJump(kind: HistoryJumpKind): void {
-  for (const listener of [...historyJumpListeners]) {
-    try {
-      listener(kind)
-    } catch (error) {
-      console.error('[History] History jump listener failed', error)
-    }
-  }
-}
-
 let historyCommandDelegate: HistoryCommandDelegate | null = null
 let historyCommandDelegateSubscription: (() => void) | null = null
 const historyCommandListeners = new Set<() => void>()
@@ -161,16 +129,13 @@ export function shouldCancelDraftOnHistoryJump(): boolean {
   return registeredDraftingConfig(scope)?.cancelOnHistoryJump === true
 }
 
-function doUndo(): HistoryCommandResult {
+export function runUndo(): HistoryCommandResult {
   if (shouldCancelDraftOnHistoryJump()) emitter.emit('tool:cancel')
   if (historyCommandDelegate) {
     const result = historyCommandDelegate.undo()
     // Mark only real jumps: a no-op undo must not open a receipt (or
     // interrupt one that is still settling).
-    if (result.kind !== 'empty') {
-      markPerfAction('undo')
-      emitHistoryJump('undo')
-    }
+    if (result.kind !== 'empty') markPerfAction('undo')
     return result
   }
   if (useScene.temporal.getState().pastStates.length === 0) return { kind: 'empty' }
@@ -178,18 +143,14 @@ function doUndo(): HistoryCommandResult {
   const previewLayout = capturePreviewLayout()
   useScene.temporal.getState().undo()
   refreshSceneAfterHistoryJump(previewLayout)
-  emitHistoryJump('undo')
   return { kind: 'applied', persistence: 'local' }
 }
 
-function doRedo(): HistoryCommandResult {
+export function runRedo(): HistoryCommandResult {
   if (shouldCancelDraftOnHistoryJump()) emitter.emit('tool:cancel')
   if (historyCommandDelegate) {
     const result = historyCommandDelegate.redo()
-    if (result.kind !== 'empty') {
-      markPerfAction('redo')
-      emitHistoryJump('redo')
-    }
+    if (result.kind !== 'empty') markPerfAction('redo')
     return result
   }
   if (useScene.temporal.getState().futureStates.length === 0) return { kind: 'empty' }
@@ -197,61 +158,7 @@ function doRedo(): HistoryCommandResult {
   const previewLayout = capturePreviewLayout()
   useScene.temporal.getState().redo()
   refreshSceneAfterHistoryJump(previewLayout)
-  emitHistoryJump('redo')
   return { kind: 'applied', persistence: 'local' }
-}
-
-function runAsJump(run: () => HistoryCommandResult): HistoryCommandResult {
-  isHistoryJumping = true
-  try {
-    return run()
-  } finally {
-    isHistoryJumping = false
-  }
-}
-
-export function runUndo(): HistoryCommandResult {
-  return runAsJump(doUndo)
-}
-
-export function runRedo(): HistoryCommandResult {
-  return runAsJump(doRedo)
-}
-
-/**
- * A measurement the user deleted (#63, AppFront A8). `ordinal` is its 1-based
- * position among the level's measurements before the delete, which is the "N"
- * in "Đã xoá phép đo N". Undo/redo jumps never fire this — they restore or
- * remove nodes without being a fresh delete.
- */
-export type MeasurementDeleteListener = (event: { ordinal: number }) => void
-
-const measurementDeleteListeners = new Set<MeasurementDeleteListener>()
-let isHistoryJumping = false
-let stopWatchingMeasurements: (() => void) | null = null
-
-function watchMeasurementDeletes() {
-  return useScene.subscribe((state, previous) => {
-    if (isHistoryJumping || state.nodes === previous.nodes) return
-    let ordinal = 0
-    for (const [id, node] of Object.entries(previous.nodes)) {
-      if (node.type !== 'measurement') continue
-      ordinal += 1
-      if (state.nodes[id as AnyNodeId]) continue
-      for (const listener of [...measurementDeleteListeners]) listener({ ordinal })
-    }
-  })
-}
-
-export function subscribeMeasurementDeletes(listener: MeasurementDeleteListener): () => void {
-  measurementDeleteListeners.add(listener)
-  stopWatchingMeasurements ??= watchMeasurementDeletes()
-  return () => {
-    measurementDeleteListeners.delete(listener)
-    if (measurementDeleteListeners.size > 0) return
-    stopWatchingMeasurements?.()
-    stopWatchingMeasurements = null
-  }
 }
 
 /**

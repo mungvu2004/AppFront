@@ -1,4 +1,4 @@
-import { Icon as IconifyIcon } from '../../../../../lib/offline-icons'
+import { Icon as IconifyIcon } from '@iconify/react'
 import { type AnyNodeId, nodeRegistry, useScene } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
 import Image from 'next/image'

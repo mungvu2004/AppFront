@@ -21,7 +21,6 @@ import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { PanelSelect } from '../shared/panel-fields'
 import { buildingUnitsForZone } from './unit-membership'
-import { vi } from '../i18n/vi'
 
 type Point2D = readonly [number, number]
 
@@ -68,7 +67,7 @@ function ZonePlanSketch({
 
   return (
     <svg
-      aria-label={vi.zone.panel.topView}
+      aria-label="Top view with zone edge dimensions"
       className="h-auto w-full rounded-md border border-cyan-950/20 bg-[#f8faf7]"
       role="img"
       viewBox={`0 0 ${viewWidth} ${viewHeight}`}
@@ -183,13 +182,13 @@ function ZoneUnitPanel({ zone }: { zone: ZoneNode }) {
   }
 
   return (
-    <PanelSection title={vi.zone.panel.unit}>
+    <PanelSection title="Unit">
       <PanelSelect
-        label={vi.zone.panel.unit}
+        label="Unit"
         onChange={handleChange}
         options={[
-          { label: vi.zone.panel.none, value: '' },
-          ...units.map((unit) => ({ label: unit.name || vi.zone.panel.unit, value: unit.id })),
+          { label: 'None', value: '' },
+          ...units.map((unit) => ({ label: unit.name || 'Unit', value: unit.id })),
         ]}
         value={current?.id ?? ''}
       />
@@ -243,13 +242,13 @@ export default function ZoneQuantitiesPanel() {
     <>
       <ZoneUnitPanel zone={effectiveZone} />
       <PanelSection
-        title={effectiveZone.spaceRole === 'room' ? vi.zone.panel.roomQuantities : vi.zone.panel.zoneQuantities}
+        title={effectiveZone.spaceRole === 'room' ? 'Room quantities' : 'Zone quantities'}
       >
         <div className="overflow-hidden rounded-md border border-cyan-950/20 bg-[#f8faf7] text-slate-950">
           <div className="flex items-center border-cyan-950/15 border-b px-2.5 py-2">
             <span className="font-semibold text-[11px]">{effectiveZone.name}</span>
             <span className="ml-auto rounded-full border border-cyan-800/25 bg-cyan-50 px-2 py-0.5 text-cyan-900 text-[9px]">
-              {report.classification === 'enclosed-room' ? vi.zone.panel.enclosedRoom : vi.zone.panel.footprintOnly}
+              {report.classification === 'enclosed-room' ? 'Enclosed room' : 'Footprint only'}
             </span>
           </div>
           <div className="flex items-baseline gap-2 px-2.5 py-2 font-mono text-[10px]">
@@ -271,19 +270,19 @@ export default function ZoneQuantitiesPanel() {
           <QuantityRow
             abbreviation="Aw"
             format={(value) => formatAreaLabel(value, unit, 2)}
-            label={vi.zone.panel.wallSurface}
+            label="Wall surface"
             quantity={report.wallSurface}
           />
           <QuantityRow
             abbreviation="Af"
             format={(value) => formatAreaLabel(value, unit, 2)}
-            label={vi.zone.panel.floorSurface}
+            label="Floor surface"
             quantity={report.floorSurface}
           />
           <QuantityRow
             abbreviation="V"
             format={(value) => formatVolumeLabel(value, unit, 2)}
-            label={vi.zone.panel.volume}
+            label="Volume"
             quantity={report.volume}
           />
         </div>

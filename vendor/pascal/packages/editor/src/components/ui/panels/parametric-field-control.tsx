@@ -167,22 +167,6 @@ export function ParametricFieldControl({
       )
     }
 
-    case 'link': {
-      // `value` is the resolved href for link fields — see parametric-inspector.
-      const href = typeof value === 'string' ? value : null
-      if (!href) return null
-      return (
-        <a
-          className="block px-3 py-1.5 text-primary text-xs underline-offset-2 hover:underline"
-          href={href}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          {field.label ?? key}
-        </a>
-      )
-    }
-
     default:
       return null
   }

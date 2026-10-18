@@ -29,7 +29,6 @@ import { useViewer } from '@pascal-app/viewer'
 import { Copy, Move, Send, Trash2 } from 'lucide-react'
 import { useCallback, useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { vi } from '../i18n/vi'
 
 function findLevelId(levels: LevelNode[], levelId: string | null | undefined) {
   if (!levelId) return null
@@ -478,24 +477,24 @@ export default function ElevatorPanel() {
       title={node.name || 'Elevator'}
       width={300}
     >
-      <PanelSection title={vi.common.actions}>
+      <PanelSection title="Actions">
         <ActionGroup>
-          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label={vi.common.move} onClick={handleMove} />
+          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label="Move" onClick={handleMove} />
           <ActionButton
             icon={<Copy className="h-3.5 w-3.5" />}
-            label={vi.common.duplicate}
+            label="Duplicate"
             onClick={handleDuplicate}
           />
           <ActionButton
             className="text-destructive hover:text-destructive"
             icon={<Trash2 className="h-3.5 w-3.5" />}
-            label={vi.common.delete}
+            label="Delete"
             onClick={handleDelete}
           />
         </ActionGroup>
       </PanelSection>
 
-      <PanelSection title={vi.common.position}>
+      <PanelSection title="Position">
         <SliderControl
           label="X"
           onChange={(value) => {
@@ -554,9 +553,9 @@ export default function ElevatorPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.rotation}>
+      <PanelSection title="Rotation">
         <SliderControl
-          label={vi.common.yaw}
+          label="Yaw"
           max={180}
           min={-180}
           onChange={(degrees) => previewTransform(displayPosition, degreesToRadians(degrees))}
@@ -585,7 +584,7 @@ export default function ElevatorPanel() {
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.common.service}>
+      <PanelSection title="Service">
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1.5">
             <div className="px-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -640,9 +639,9 @@ export default function ElevatorPanel() {
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.common.cab}>
+      <PanelSection title="Cab">
         <MetricControl
-          label={vi.common.width}
+          label="Width"
           max={4}
           min={0.8}
           onChange={(value) => previewMetric('width', value)}
@@ -654,7 +653,7 @@ export default function ElevatorPanel() {
           value={displayNode.width}
         />
         <MetricControl
-          label={vi.common.depth}
+          label="Depth"
           max={4}
           min={0.8}
           onChange={(value) => previewMetric('depth', value)}
@@ -666,7 +665,7 @@ export default function ElevatorPanel() {
           value={displayNode.depth}
         />
         <MetricControl
-          label={vi.common.cabHeight}
+          label="Cab Height"
           max={4}
           min={1.8}
           onChange={(value) => previewMetric('cabHeight', value)}
@@ -679,7 +678,7 @@ export default function ElevatorPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.shaft}>
+      <PanelSection title="Shaft">
         <div className="space-y-1.5">
           <div className="px-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             Shaft Style
@@ -699,7 +698,7 @@ export default function ElevatorPanel() {
           </select>
         </div>
         <MetricControl
-          label={vi.common.shaftWidth}
+          label="Shaft Width"
           max={5}
           min={displayNode.width}
           onChange={(value) => previewMetric('shaftWidth', Math.max(value, displayNode.width))}
@@ -711,7 +710,7 @@ export default function ElevatorPanel() {
           value={displayShaftWidth}
         />
         <MetricControl
-          label={vi.common.shaftDepth}
+          label="Shaft Depth"
           max={5}
           min={displayNode.depth}
           onChange={(value) => previewMetric('shaftDepth', Math.max(value, displayNode.depth))}
@@ -723,7 +722,7 @@ export default function ElevatorPanel() {
           value={displayShaftDepth}
         />
         <MetricControl
-          label={vi.common.wallThickness}
+          label="Wall Thickness"
           max={0.4}
           min={0.04}
           onChange={(value) => previewMetric('shaftWallThickness', value)}
@@ -736,7 +735,7 @@ export default function ElevatorPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.doors}>
+      <PanelSection title="Doors">
         <div className="space-y-1.5">
           <div className="px-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             Opening Style
@@ -776,7 +775,7 @@ export default function ElevatorPanel() {
           </select>
         </div>
         <MetricControl
-          label={vi.common.doorWidth}
+          label="Door Width"
           max={Math.max(displayNode.width - 0.1, 0.5)}
           min={0.45}
           onChange={(value) => previewMetric('doorWidth', value)}
@@ -788,7 +787,7 @@ export default function ElevatorPanel() {
           value={displayNode.doorWidth}
         />
         <MetricControl
-          label={vi.common.doorHeight}
+          label="Door Height"
           max={Math.max(displayNode.cabHeight - 0.1, 1.3)}
           min={1.2}
           onChange={(value) => previewMetric('doorHeight', value)}
@@ -801,7 +800,7 @@ export default function ElevatorPanel() {
         />
       </PanelSection>
 
-      <PanelSection title={vi.common.access}>
+      <PanelSection title="Access">
         <div className="space-y-2">
           {servedLevels.map((level) => {
             const isDisabled = disabledLevelIds.has(level.id)
@@ -844,7 +843,7 @@ export default function ElevatorPanel() {
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.common.destination}>
+      <PanelSection title="Destination">
         <div className="grid grid-cols-2 gap-1.5">
           {servedLevels.map((level) => {
             const isActive = activeLevelId === level.id
@@ -896,9 +895,9 @@ export default function ElevatorPanel() {
         </div>
       </PanelSection>
 
-      <PanelSection title={vi.common.motion}>
+      <PanelSection title="Motion">
         <SliderControl
-          label={vi.common.speed}
+          label="Speed"
           max={8}
           min={0.5}
           onChange={(value) => handleUpdate({ speed: value })}
@@ -908,7 +907,7 @@ export default function ElevatorPanel() {
           value={node.speed}
         />
         <SliderControl
-          label={vi.common.doorTimeField}
+          label="Door Time"
           max={2200}
           min={300}
           onChange={(value) => handleUpdate({ doorDurationMs: value })}
@@ -917,7 +916,7 @@ export default function ElevatorPanel() {
           value={node.doorDurationMs}
         />
         <SliderControl
-          label={vi.common.dwellField}
+          label="Dwell"
           max={5000}
           min={300}
           onChange={(value) => handleUpdate({ dwellMs: value })}

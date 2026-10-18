@@ -29,8 +29,6 @@ import { sfxEmitter } from '../../../lib/sfx-bus'
 import useEditor from '../../../store/use-editor'
 import { deleteSelection, duplicateSelectionAndPickUp, startGroupPickUp } from '../../editor/group-actions'
 import { resolveHomogeneousSelection } from './homogeneous-selection'
-import { InspectorNotice } from './inspector-notice'
-import { inspectorStateOf } from './inspector-state'
 import { MobilePanelSheet } from './mobile-panel-sheet'
 import { MobileSelectionBar } from './mobile-selection-bar'
 import { MultiParametricInspector } from './multi-parametric-inspector'
@@ -241,9 +239,6 @@ export function PanelManager({
     const id = selectedIds[0]
     return id ? (s.nodes[id as AnyNodeId] ?? null) : null
   })
-  const missingCount = useScene(
-    (s) => selectedIds.filter((id) => !s.nodes[id as AnyNodeId]).length,
-  )
   const homogeneousType = useScene((s) =>
     selectedIds.length > 1 ? resolveHomogeneousSelection(selectedIds, s.nodes) : null,
   )
@@ -274,19 +269,6 @@ export function PanelManager({
     }
   }, [hasAnySelection])
 
-  // Seven-state guard (`inspector-state.ts`): the two states that used to
-  // fall through to a blank panel get a notice. Collapse is PanelWrapper's.
-  const inspectorState = inspectorStateOf({
-    readOnly: !shouldShowEditingControls(readOnly),
-    sceneLoaded: true,
-    selectedCount: selectedIds.length + (selectedZoneId ? 1 : 0),
-    missingCount,
-    homogeneous: selectedIds.length <= 1 || homogeneousType !== null,
-    collapsed: false,
-  })
-  if (inspectorState === 'forbidden' || inspectorState === 'error') {
-    return <InspectorNotice state={inspectorState} />
-  }
   if (!shouldShowEditingControls(readOnly)) return null
 
   if (isMobile) {

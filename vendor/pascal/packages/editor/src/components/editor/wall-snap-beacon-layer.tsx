@@ -17,13 +17,11 @@ import {
 } from '@pascal-app/core'
 import { useWallSnapIndicator, type WallSnapKind } from '@pascal-app/editor'
 import { useViewer } from '@pascal-app/viewer'
-import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { memo, useMemo, useRef } from 'react'
 import { BoxGeometry, CircleGeometry, CylinderGeometry, type Group } from 'three'
 import { MeshBasicNodeMaterial } from 'three/webgpu'
 import { EDITOR_LAYER } from '../../lib/constants'
-import { WALL_DRAFT_SNAP_LABELS } from '../tools/wall/wall-snap-geometry'
 
 /**
  * "Magnetic" wall-snap beacon for the 3D editor — a vertical marker that
@@ -138,16 +136,6 @@ export const WallSnapBeaconLayer = memo(function WallSnapBeaconLayer() {
         renderOrder={1002}
       />
       <SnapMarker kind={point.kind} x={point.x} z={point.z} />
-      <Html
-        center
-        position={[point.x, BEACON_HEIGHT + 0.1, point.z]}
-        style={{ pointerEvents: 'none', userSelect: 'none' }}
-        zIndexRange={[20, 0]}
-      >
-        <div className="whitespace-nowrap rounded bg-background/90 px-1.5 py-0.5 font-medium text-[11px] text-foreground shadow">
-          {WALL_DRAFT_SNAP_LABELS[point.kind]}
-        </div>
-      </Html>
     </group>
   )
 })
