@@ -79,6 +79,7 @@
  * một phím không có đường ra là dựng một cái nút không nối vào đâu (R-73).
  */
 
+import { useProjectUnits } from '@/hooks/useProjectUnits';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { WallThickness as SpatialWallThickness } from '@/types/spatial';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -219,7 +220,7 @@ export const WALL_LAYER_TEXT = {
    * theo từ điển — xem `vi.json#wallLayerReview.state`.
    */
   emptyNotice:
-    'Chưa phát hiện được đoạn tường nào ở tầng này. Bạn có thể vẽ tường thủ công bằng phím W, hoặc chạy lại với ngưỡng thấp hơn.',
+    'Chưa phát hiện được đoạn tường nào ở tầng này. Bạn có thể vẽ tường thủ công bằng phím W, hoặc quay lại bước Xử lý để chạy nhận dạng lại.',
   viewerRoleNotice:
     'Bạn đang xem với vai người xem, nên không duyệt hay sửa được đoạn tường nào. Nhờ người có quyền sửa dự án duyệt giúp.',
   mergeLabel: 'Nối đoạn',
@@ -344,8 +345,25 @@ export interface UseWallLayerReviewResult extends WallLayerReviewProps {
 const WALL_DELETE_NOTIFICATION_TYPE = 'wallLayerReview.deleteWall';
 /** Toast "Hoàn tác" bị từ chối: bước đã rời lịch sử, hoặc một bước mới hơn sửa cùng tường (BUG-579). */
 const WALL_UNDO_REFUSED_NOTIFICATION_TYPE = 'wallLayerReview.undoRefused';
+/** "Nối đoạn" không nối được — trước đây bấm xong không có phản hồi gì (G4a-12). */
+const WALL_MERGE_REFUSED_NOTIFICATION_TYPE = 'wallLayerReview.mergeRefused';
+const WALL_MERGE_REFUSED_TEXT = 'Không nối được: hai đoạn phải thẳng hàng và chạm đầu nhau.';
 const WALL_UNDO_REFUSED_TEXT =
   'Chưa hoàn tác: một thay đổi sau đó đã sửa cùng tường. Dùng Ctrl+Z để hoàn tác lần lượt.';
+
+/** Câu chỉ dẫn trên thanh trạng thái khi một công cụ vẽ/tách/đo đang bật (G4a-23). */
+const toolHintOf = (tool: string, pointCount: number): string => {
+  switch (tool) {
+    case 'drawWall':
+      return pointCount === 0 ? 'Bấm điểm đầu của tường, Esc để huỷ' : 'Bấm điểm cuối của tường, Esc để huỷ';
+    case 'splitWall':
+      return 'Bấm lên tường tại chỗ cần tách, Esc để huỷ';
+    case 'measure':
+      return pointCount === 0 ? 'Bấm điểm đầu để đo, Esc để huỷ' : 'Bấm điểm thứ hai, Esc để huỷ';
+    default:
+      return '';
+  }
+};
 
 /** Ba cờ lọc lúc mở màn: chưa lọc gì. */
 const NO_FILTERS: WallLayerFilters = {
@@ -586,6 +604,10 @@ export function useWallLayerReview(
 ): UseWallLayerReviewResult {
   const { floorId, projectId } = options;
   const gateway = useResolvedGateway(options.gateway);
+  /* N4-07: đơn vị chiều dài của dự án (Cài đặt › Đơn vị đo) cho chiều dài, chiều cao và nhãn đo. */
+  const { lengthUnit } = useProjectUnits(projectId);
+  const lengthUnitRef = useRef(lengthUnit);
+  lengthUnitRef.current = lengthUnit;
   const queryClient = useQueryClient();
 
   /* ---------------------------------------------------------------------- */
@@ -983,15 +1005,25 @@ export function useWallLayerReview(
     [gateway, run],
   );
 
+  const notifications = options.notifications ?? appNotificationBus;
+
   const onMerge = useCallback(
     (wallId: WallId, otherWallId: WallId) => {
       void run((context) => {
         const result = buildMergeWallsCommand({ wallId, otherWallId }, context);
 
+        if (!result.ok) {
+          notifications.publish({
+            type: WALL_MERGE_REFUSED_NOTIFICATION_TYPE,
+            title: WALL_MERGE_REFUSED_TEXT,
+            description: '',
+          });
+        }
+
         return result.ok ? result.data : null;
       });
     },
-    [run],
+    [notifications, run],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1024,7 +1056,6 @@ export function useWallLayerReview(
   /* ---------------------------------------------------------------------- */
 
   const undoTicketRef = useRef<ReturnType<typeof createWallUndoTicket> | null>(null);
-  const notifications = options.notifications ?? appNotificationBus;
 
   /*
    * Nháy nền một hàng — bật ở đây, và TỰ TẮT.
@@ -1178,7 +1209,7 @@ export function useWallLayerReview(
        */
       if (outcome.kind === 'measurement') {
         setCommittedMeasurement(
-          measurementOutcomeToPx(outcome.measurement, scaleOfLevel(levelRef.current)),
+          measurementOutcomeToPx(outcome.measurement, scaleOfLevel(levelRef.current), lengthUnitRef.current),
         );
 
         return transition;
@@ -1287,8 +1318,8 @@ export function useWallLayerReview(
 
     const wall = wallById(selectedWallId);
 
-    return wall === null ? null : toWallInspector(wall, level, wallCodes, floorLayer.scaleStatus);
-  }, [floorLayer.scaleStatus, level, selectedWallId, wallById, wallCodes]);
+    return wall === null ? null : toWallInspector(wall, level, wallCodes, floorLayer.scaleStatus, lengthUnit);
+  }, [floorLayer.scaleStatus, lengthUnit, level, selectedWallId, wallById, wallCodes]);
 
   /* Bộ đếm chạy 12 → 13 ở nấc `standard` (260 ms) — xem ghi chú đầu file. */
   /* Nhãn đọc-màn-hình lấy số THẬT, không phải số đang đếm lên (G69) — đếm lên chỉ là hiệu ứng. */
@@ -1866,21 +1897,45 @@ export function useWallLayerReview(
           toMillimetrePoint({ x: pointerReading.xPx, y: pointerReading.yPx }, scale),
           scale,
           'measuring',
+          lengthUnit,
         );
       }
     }
 
     return committedMeasurement;
-  }, [committedMeasurement, level, pointerReading, toolState.tool, toolState.values]);
+  }, [committedMeasurement, lengthUnit, level, pointerReading, toolState.tool, toolState.values]);
+
+  /* G4a-23: nét tạm theo con trỏ cho Vẽ tường (từ điểm đầu) và Tách đoạn (dấu cắt). */
+  const draftGuidePx = useMemo(() => {
+    if (pointerReading === null) {
+      return null;
+    }
+
+    const toPx = { x: pointerReading.xPx, y: pointerReading.yPx };
+
+    if (toolState.tool === 'splitWall') {
+      return { fromPx: null, toPx };
+    }
+
+    const first = toolState.values[0];
+
+    if (toolState.tool === 'drawWall' && first !== undefined && first.kind === 'point') {
+      return { fromPx: toPixelPoint(first.at, scaleOfLevel(level)), toPx };
+    }
+
+    return null;
+  }, [level, pointerReading, toolState.tool, toolState.values]);
 
   const statusBar = useMemo<WallLayerStatusBarProps>(
     () => ({
-      cursorLabel: cursorLabelOf(pointerReading, scaleOfLevel(level)),
+      cursorLabel: [toolHintOf(toolState.tool, toolState.values.length), cursorLabelOf(pointerReading, scaleOfLevel(level))]
+        .filter((part) => part !== '')
+        .join(' · '),
       scaleLabel: formatScaleLabel(level),
       saveLabel: saveIndicator.label,
       saveFailed: saveIndicator.state === 'failed',
     }),
-    [level, pointerReading, saveIndicator.label, saveIndicator.state],
+    [level, pointerReading, saveIndicator.label, saveIndicator.state, toolState.tool, toolState.values.length],
   );
 
   /** Menu chuột phải "Đổi độ dày": đưa tường vào thanh tra, và focus vào ba lựa chọn (BUG-604). */
@@ -1924,6 +1979,7 @@ export function useWallLayerReview(
     thicknessChoices: WALL_LAYER_THICKNESS_CHOICES,
     thicknessFocusRequest,
     selectedWallId,
+    selectedWallIds,
     hoveredWallId: hoveredId as WallId | null,
     inspector,
     isCompact: isCollapsed,
@@ -1972,6 +2028,9 @@ export function useWallLayerReview(
       ? null
       : {
           ...measurement,
+          /* G4a-22: tỷ lệ còn tạm thì số đo cũng tạm — cùng lời với "Chiều dài: … tỷ lệ tạm" của thanh tra. */
+          distanceLabel:
+            provisionalScaleNotice === null ? measurement.distanceLabel : `${measurement.distanceLabel} (tạm)`,
           startPx: onFrame(measurement.startPx),
           currentPx: onFrame(measurement.currentPx),
           midPx: onFrame(measurement.midPx),
@@ -1982,6 +2041,7 @@ export function useWallLayerReview(
     selectedWallId,
     selectedWallIds,
     menuRequest,
+    draftGuidePx,
     hoveredWallId: (hoveredId as WallId | null) ?? null,
     showCentrelines,
     millimetresPerPixel: level?.scaleMillimetresPerPixel ?? UNCALIBRATED_SCALE,
@@ -1993,7 +2053,8 @@ export function useWallLayerReview(
     backgroundImageUrl: background?.imageUrl ?? null,
     backgroundImageAlt: background?.imageAlt ?? '',
     isInteractive: canEdit,
-    onSelect,
+    /* G4a-22: đang đo thì bấm lên tường chỉ là chấm điểm đo, không đổi vùng chọn. */
+    onSelect: toolState.tool === 'measure' ? () => undefined : onSelect,
     onHover,
 
     /* -- Hợp đồng mở rộng của lớp canvas (T7) ------------------------------ */

@@ -282,6 +282,14 @@ export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
   readonly selectedWallIds?: readonly WallId[];
   /** Lượt mở menu bằng bàn phím từ danh sách — `seq` đổi mỗi lượt để mở lại cùng tường (G74). */
   readonly menuRequest?: { readonly wallId: WallId; readonly seq: number } | null;
+  /**
+   * Nét tạm của công cụ đang chạy, pixel bản vẽ (G4a-23): vẽ tường thì `fromPx` là điểm đầu đã
+   * bấm (đường tới con trỏ), tách đoạn thì `fromPx` rỗng (chỉ một dấu cắt ở con trỏ).
+   */
+  readonly draftGuidePx?: {
+    readonly fromPx: { readonly x: number; readonly y: number } | null;
+    readonly toPx: { readonly x: number; readonly y: number };
+  } | null;
   readonly state: WallLayerScreenState;
   /** `aria-label` của khung, có số liệu — ví dụ `"Mặt bằng tầng 1 — 48 tường"`. */
   readonly canvasLabel: string;

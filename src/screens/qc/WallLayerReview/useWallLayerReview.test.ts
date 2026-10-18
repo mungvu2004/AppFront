@@ -58,6 +58,7 @@ import { isLowConfidence as canvasHatchGate } from '@/components/canvas/material
 import {
   buildApproveWallCommand,
   buildChangeThicknessCommand,
+  canMergeWalls,
   commandContextOf,
   createMockWallLayerReviewGateway,
   createWallLayerReviewGateway,
@@ -1128,6 +1129,39 @@ describe('công cụ đã nối dây', () => {
     mounted.unmount();
   });
 
+  it('G4a-23: vẽ tường có nét tạm từ điểm đầu tới con trỏ, tách đoạn có dấu cắt, kèm câu chỉ dẫn', async () => {
+    const mounted = await mountSettled();
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    expect(mounted.result.current.statusBar.cursorLabel).toContain('Bấm điểm đầu của tường');
+
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 0, y: 0 }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      mounted.result.current.canvas.onPointerMove(asCanvasPoint({ x: 1200, y: 0 }));
+      await Promise.resolve();
+    });
+
+    expect(mounted.result.current.canvas.draftGuidePx?.fromPx).not.toBeNull();
+    expect(mounted.result.current.statusBar.cursorLabel).toContain('Bấm điểm cuối của tường');
+
+    await pressKey(mounted.registry, shortcutForTool('splitWall'));
+    await act(async () => {
+      mounted.result.current.canvas.onPointerMove(asCanvasPoint({ x: 600, y: 0 }));
+      await Promise.resolve();
+    });
+
+    expect(mounted.result.current.canvas.draftGuidePx).not.toBeNull();
+    expect(mounted.result.current.canvas.draftGuidePx?.fromPx).toBeNull();
+
+    await pressKey(mounted.registry, shortcutForTool('select'));
+    expect(mounted.result.current.canvas.draftGuidePx).toBeNull();
+
+    mounted.unmount();
+  });
+
   it('đo: sau điểm đầu, nhãn đi theo con trỏ', async () => {
     const mounted = await mountSettled();
 
@@ -1326,6 +1360,30 @@ describe('điều khiển của panel trái', () => {
 /* -------------------------------------------------------------------------- */
 /* A8 — xoá đi kèm TOAST hoàn tác, không chỉ một vé nằm im.                    */
 /* -------------------------------------------------------------------------- */
+
+describe('G4a-12: nối đoạn không được thì báo', () => {
+  it('hai đoạn vuông góc: không đổi số tường, đẩy một toast nói lý do', async () => {
+    const bus: NotificationBus = createNotificationBus();
+    const mounted = await mountSettled({ notifications: bus });
+    const before = wallCount();
+    const first = wallAt(0);
+    const other = FIXTURE_WALLS.find((wall) => wall.id !== first.id && !canMergeWalls(first, wall, FIXTURE_LEVEL));
+
+    expect(other).toBeDefined();
+
+    await act(async () => {
+      mounted.result.current.panel.onMerge(first.id, (other as Wall).id);
+      await Promise.resolve();
+    });
+
+    expect(wallCount()).toBe(before);
+    expect(bus.list().map((item) => item.title)).toContain(
+      'Không nối được: hai đoạn phải thẳng hàng và chạm đầu nhau.',
+    );
+
+    mounted.unmount();
+  });
+});
 
 describe('toast hoàn tác sau khi xoá', () => {
   /*

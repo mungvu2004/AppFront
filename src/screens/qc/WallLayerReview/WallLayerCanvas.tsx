@@ -107,6 +107,7 @@ export function WallLayerCanvas({
   selectedWallId,
   selectedWallIds = NO_SELECTED_WALLS,
   menuRequest,
+  draftGuidePx = null,
   shapes,
   showCentrelines,
   state,
@@ -370,6 +371,33 @@ export function WallLayerCanvas({
                     unitPx={unitPx}
                   />
                 ))}
+
+                {/* G4a-23: nét xem trước của Vẽ tường / dấu cắt của Tách đoạn — accent, nét đứt. */}
+                {draftGuidePx === null ? null : draftGuidePx.fromPx === null ? (
+                  <circle
+                    cx={draftGuidePx.toPx.x}
+                    cy={draftGuidePx.toPx.y}
+                    data-testid="wall-draft-guide"
+                    fill="none"
+                    pointerEvents="none"
+                    r={6 * unitPx}
+                    stroke="var(--accent)"
+                    strokeDasharray={`${3 * unitPx} ${2 * unitPx}`}
+                    strokeWidth={2 * unitPx}
+                  />
+                ) : (
+                  <line
+                    data-testid="wall-draft-guide"
+                    pointerEvents="none"
+                    stroke="var(--accent)"
+                    strokeDasharray={`${6 * unitPx} ${4 * unitPx}`}
+                    strokeWidth={2 * unitPx}
+                    x1={draftGuidePx.fromPx.x}
+                    x2={draftGuidePx.toPx.x}
+                    y1={draftGuidePx.fromPx.y}
+                    y2={draftGuidePx.toPx.y}
+                  />
+                )}
               </svg>
 
               {haloRectPx === null ? null : (

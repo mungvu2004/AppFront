@@ -76,7 +76,7 @@ const TOOLS: readonly WallLayerToolDef[] = [
 ];
 
 const MERGE_LABEL = 'Nối đoạn';
-const MERGE_HINT = 'Chọn hai đoạn tường để gộp';
+const MERGE_HINT = 'Chọn hai đoạn thẳng hàng để nối (Ctrl hoặc Shift + bấm)';
 const RAIL_ARIA_LABEL = 'Công cụ lớp tường';
 const COLLAPSE_LABEL = 'Thu gọn hai panel';
 const EXPAND_LABEL = 'Mở lại hai panel';
@@ -107,14 +107,17 @@ export function WallLayerToolRail({
   const mergeButton = readOnly ? null : (
     <div className="relative flex w-full justify-center" key="merge">
       <Tooltip label={canMerge ? MERGE_LABEL : MERGE_HINT}>
-        <IconButton
-          aria-label={canMerge ? MERGE_LABEL : `${MERGE_LABEL} — ${MERGE_HINT}`}
-          disabled={!canMerge}
-          icon={<GitMerge aria-hidden="true" className="h-[18px] w-[18px]" />}
-          onClick={onMerge}
-          size="lg"
-          tooltip={false}
-        />
+        {/* Nút tắt không nhận rê chuột — bọc span để lý do khoá vẫn hiện (G4a-12). */}
+        <span className="inline-flex">
+          <IconButton
+            aria-label={canMerge ? MERGE_LABEL : `${MERGE_LABEL} — ${MERGE_HINT}`}
+            disabled={!canMerge}
+            icon={<GitMerge aria-hidden="true" className="h-[18px] w-[18px]" />}
+            onClick={onMerge}
+            size="lg"
+            tooltip={false}
+          />
+        </span>
       </Tooltip>
     </div>
   );

@@ -111,7 +111,7 @@ export function WallShapeFigure({
    * của S-10; view chỉ đọc hai cờ phím của sự kiện chuột.
    */
   const handleClick = (event: ReactMouseEvent<SVGGElement>) => {
-    if (event.ctrlKey || event.metaKey) {
+    if (event.ctrlKey || event.metaKey || event.shiftKey) {
       onToggleSelect(shape.id);
 
       return;

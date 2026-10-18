@@ -156,7 +156,7 @@ function WallLayerListRow({
          */
         isFlashing && 'bg-accent-wash duration-340',
       )}
-      onClick={(event) => pick(event.ctrlKey || event.metaKey)}
+      onClick={(event) => pick(event.ctrlKey || event.metaKey || event.shiftKey)}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
@@ -233,6 +233,7 @@ function WallLayerListRow({
 
 export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLayerListProps) {
   const { rows, selectedWallId, hoveredWallId, onSelect, onHover, onOpenRowMenu, state, emptyNotice } = panel;
+  const selectedWallIds = panel.selectedWallIds ?? (selectedWallId === null ? [] : [selectedWallId]);
   // Vai Người xem luôn ở `forbidden`; "đang tải" của họ đọc từ dữ liệu (bất biến 7), không từ vai (16-D-008).
   const isLoadingList =
     state === 'loading' ||
@@ -346,7 +347,7 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLay
           <WallLayerListRow
             isFlashing={row.id === flashingWallId}
             isHovered={row.id === hoveredWallId}
-            isSelected={row.id === selectedWallId}
+            isSelected={selectedWallIds.includes(row.id)}
             key={row.id}
             onHover={onHover}
             onOpenMenu={onOpenRowMenu}

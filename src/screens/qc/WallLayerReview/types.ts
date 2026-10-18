@@ -348,6 +348,8 @@ export interface WallLayerViewProps {
   /** Tăng mỗi lần menu "Đổi độ dày" được chọn — thanh tra đưa focus vào ba lựa chọn (BUG-604). */
   readonly thicknessFocusRequest: number;
   readonly selectedWallId: WallId | null;
+  /** Mọi tường đang chọn (Ctrl/Shift-bấm) — danh sách tô hết, thanh tra báo "N đoạn đã chọn" (G4a-12). */
+  readonly selectedWallIds?: readonly WallId[];
   readonly hoveredWallId: WallId | null;
   /** `null` khi chưa chọn tường nào. */
   readonly inspector: WallInspectorViewModel | null;

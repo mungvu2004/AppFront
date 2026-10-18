@@ -126,7 +126,13 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
         <p className="px-5 pb-5 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
       ) : (
         <div className="flex flex-1 flex-col overflow-y-auto pb-5">
-          <p className="px-5 pb-4 font-mono text-[16px] text-text-primary">{inspector.codeLabel}</p>
+          <p className="px-5 pb-4 text-[16px] tabular-nums text-text-primary">{inspector.codeLabel}</p>
+          {/* G4a-12: chọn nhiều thì nói rõ đang chọn mấy đoạn, thông số bên dưới là của đoạn nào. */}
+          {(panel.selectedWallIds?.length ?? 0) > 1 ? (
+            <p className="-mt-2 px-5 pb-4 text-[13px] text-text-secondary">
+              {`${panel.selectedWallIds?.length ?? 0} đoạn đã chọn. Thông số dưới đây của ${inspector.codeLabel}.`}
+            </p>
+          ) : null}
 
           <div className="px-5 pb-4" ref={thicknessRef}>
             {isViewerRole ? (

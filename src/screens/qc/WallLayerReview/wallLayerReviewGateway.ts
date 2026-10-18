@@ -44,6 +44,7 @@
  *   mặc định là chính store; ảnh nền thì đọc thật qua `spatial.readFloor`.
  */
 
+import type { ProjectLengthUnit } from '@/hooks/useProjectUnits';
 import { readFloorLayerRead, type FloorLayerGraphRead } from '@/api/floorLayerGraph';
 import type { ApiClient } from '@/api/client';
 import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
@@ -1141,9 +1142,9 @@ export const formatThickness = (thicknessMm: number): string =>
   formatLength(thicknessMm, { unit: 'mm' });
 
 /** Chiều dài tim tường — "4.250,00 mm", dấu phẩy thập phân (A15). */
-export const formatCentrelineLength = (wall: Wall, level: Level): string =>
+export const formatCentrelineLength = (wall: Wall, level: Level, unit: ProjectLengthUnit = 'mm'): string =>
   formatLength(centrelineLength(toGeometryWall(wall, level)), {
-    unit: 'mm',
+    unit,
     fractionDigits: LENGTH_FRACTION_DIGITS,
   });
 
@@ -1175,6 +1176,7 @@ export function toMeasurementPx(
   endMm: Point,
   scale: Scale,
   state: MeasurementState,
+  unit: ProjectLengthUnit = 'mm',
 ): WallLayerMeasurementPx {
   const startPx = toPixelPoint(startMm, scale);
   const currentPx = toPixelPoint(endMm, scale);
@@ -1187,7 +1189,7 @@ export function toMeasurementPx(
     currentPx,
     midPx: bounds === null ? null : centreOfBounds(bounds),
     distanceLabel: formatLength(distance.lengthMm, {
-      unit: 'mm',
+      unit,
       fractionDigits: LENGTH_FRACTION_DIGITS,
     }),
   };
@@ -1204,6 +1206,7 @@ export function toMeasurementPx(
 export function measurementOutcomeToPx(
   measurement: Measurement,
   scale: Scale,
+  unit: ProjectLengthUnit = 'mm',
 ): WallLayerMeasurementPx | null {
   if (measurement.kind !== 'distance') {
     return null;
@@ -1211,7 +1214,7 @@ export function measurementOutcomeToPx(
 
   const [from, to] = measurement.points;
 
-  return toMeasurementPx({ x: from.x, y: from.y }, { x: to.x, y: to.y }, scale, 'committed');
+  return toMeasurementPx({ x: from.x, y: from.y }, { x: to.x, y: to.y }, scale, 'committed', unit);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1292,13 +1295,14 @@ export function toWallInspector(
   level: Level,
   wallCodes?: ReadonlyMap<string, string>,
   scaleStatus?: 'unresolved',
+  unit: ProjectLengthUnit = 'mm',
 ): WallInspectorViewModel {
   return {
     id: wall.id,
     codeLabel: wallLabelOf(wall.id, wallCodes),
     thicknessMm: wall.thicknessMm,
     /* Tầng ở tỉ lệ tạm thì chiều dài chưa tin được (F-04x-2). */
-    lengthLabel: measureTextOf(formatCentrelineLength(wall, level), scaleStatus),
+    lengthLabel: measureTextOf(formatCentrelineLength(wall, level, unit), scaleStatus),
     /*
      * Chiều cao ở CÙNG cột milimét với chiều dài.
      *
@@ -1309,8 +1313,8 @@ export function toWallInspector(
      */
     /* G4a-15: milimét là số nguyên — không "3.600,00 mm". */
     heightLabel: formatLength(wall.heightMm, {
-      unit: 'mm',
-      fractionDigits: 0,
+      unit,
+      fractionDigits: unit === 'mm' ? 0 : 2,
     }),
     confidence: wall.confidence,
     kindLabel: WALL_KIND_LABELS[wall.kind],
