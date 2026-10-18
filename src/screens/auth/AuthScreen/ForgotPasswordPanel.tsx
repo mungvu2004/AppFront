@@ -29,7 +29,12 @@ export interface ForgotPasswordPanelProps {
   readonly registerEmailField: (element: HTMLInputElement | null) => void;
 }
 
-export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField }: ForgotPasswordPanelProps) {
+export function ForgotPasswordPanel({
+  model,
+  actions,
+  onBack,
+  registerEmailField,
+}: ForgotPasswordPanelProps) {
   const { email, problem, notice, sentMessage, isSending, isSent, canSubmit } = model;
   const focusReturn = useReturnFocus(isSending);
 
@@ -85,9 +90,18 @@ export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField
         <RecoveryStatus success={sentMessage} icon={Mail} />
         {/* The button is locked after a send (a second identical letter helps no one): say how to unlock it. */}
         {isSent && (
-          <p className="text-center text-[13px] leading-[18px] text-text-secondary">
-            {AUTH_MESSAGES.forgotPassword.sentHint}
-          </p>
+          <>
+            <p className="text-center text-[13px] leading-[18px] text-text-secondary">
+              {AUTH_MESSAGES.forgotPassword.sentHint}
+            </p>
+            <button
+              type="button"
+              onClick={actions.resend}
+              className="inline-flex min-h-11 items-center self-center py-1 text-[13px] sm:min-h-6 leading-[18px] text-accent-hover hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
+            >
+              Gửi lại thư
+            </button>
+          </>
         )}
         <button
           type="button"

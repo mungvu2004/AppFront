@@ -75,6 +75,7 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
 const ROWS = {
   login: { anchor: { role: 'button', name: 'Đăng nhập' } },
+  forgotPassword: { anchor: { role: 'heading', name: 'Quên mật khẩu' } },
   invitationAccept: { anchor: { role: 'heading', name: 'Nhận lời mời' } },
   passwordReset: { anchor: { role: 'heading', name: 'Đặt lại mật khẩu' } },
   onboarding: { anchor: { role: 'button', name: 'Tạo dự án' } },

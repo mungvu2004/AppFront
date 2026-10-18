@@ -337,7 +337,7 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
     needsSignIn,
     isSessionPending: port.isSessionPending,
     isSessionUnavailable: sessionUnavailable,
-    isLinkIncomplete: !hasUsableToken,
+    isLinkIncomplete: token === null, // mã có trên URL nhưng sai dạng = link hỏng, không phải "bị cắt" (G1-10)
     retryNotice: !sessionUnavailable
       ? null
       : retryPhase === 'pending'

@@ -83,6 +83,7 @@ export const concretePath = (pattern: string): string =>
  */
 export const SHELL_PATHS: readonly string[] = [
   '/login',
+  '/login/forgot',
   '/login/invitation',
   '/login/reset-password',
   '/',

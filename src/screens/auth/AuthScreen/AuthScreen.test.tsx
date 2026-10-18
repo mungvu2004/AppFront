@@ -96,7 +96,7 @@ function baseProps(): AuthScreenViewProps {
     forgotPassword: noop,
     closeForgotPassword: noop,
     signInWithAnotherAccount: noop,
-    forgotActions: { setEmail: noop, submit: noop, reset: noop },
+    forgotActions: { setEmail: noop, submit: noop, resend: noop, reset: noop },
   };
 }
 

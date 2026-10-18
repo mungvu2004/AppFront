@@ -374,6 +374,10 @@ function AuthRouteContent() {
       gateway={gateway}
       onAuthenticated={onAuthenticated}
       reducedMotion={reducedMotion}
+      panel={location.pathname === ROUTES.forgotPassword ? 'forgotPassword' : 'signIn'}
+      onPanelChange={(next) => {
+        void navigate(next === 'forgotPassword' ? ROUTES.forgotPassword : ROUTES.login, { replace: next === 'signIn' });
+      }}
       {...(initialNotice !== undefined ? { initialNotice } : {})}
       {...(session.status === 'authenticated' ? { onReturnToApp: returnToApp } : {})}
     />

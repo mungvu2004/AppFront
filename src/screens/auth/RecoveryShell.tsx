@@ -4,7 +4,7 @@
  * `src/components`: nó chỉ có hai nơi dùng và cả hai là màn của nhóm này.
  */
 
-import { CheckCircle2, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, PanelsTopLeft, type LucideIcon } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 
@@ -29,6 +29,8 @@ export function RecoveryShell({ title, subtitle, state, children }: RecoveryShel
       data-auth-state={state}
     >
       <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
+        {/* Cùng dấu hiệu với /login để hai màn mở từ thư không trông như trang lạ (G1-08, G1-11). */}
+        <PanelsTopLeft aria-hidden="true" className="h-8 w-8 text-accent" strokeWidth={1.5} />
         <div className="flex flex-col gap-1">
           <h1 className="text-[30px] font-semibold leading-10 text-text-primary">{title}</h1>
           {subtitle !== undefined && (

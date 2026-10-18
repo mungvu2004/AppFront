@@ -76,6 +76,7 @@ export const ROUTE_PATTERNS = {
   designSystem: DESIGN_SYSTEM_ROOT,
   designSystemStates: `${DESIGN_SYSTEM_ROOT}/states`,
   feedbackDemo: '/feedback-demo',
+  forgotPassword: '/login/forgot',
   invitationAccept: '/login/invitation',
   listReviewDemo: '/list-review-demo',
   login: '/login',
@@ -131,6 +132,7 @@ export const ROUTES = {
   demoGallery: ROUTE_PATTERNS.demoGallery,
   designSystem: ROUTE_PATTERNS.designSystem,
   designSystemStates: ROUTE_PATTERNS.designSystemStates,
+  forgotPassword: ROUTE_PATTERNS.forgotPassword,
   invitationAccept: ROUTE_PATTERNS.invitationAccept,
   login: ROUTE_PATTERNS.login,
   mobileViewer: (projectId: string): string => `${MOBILE_ROOT}/du-an/${projectId}`,
@@ -202,6 +204,7 @@ export const ROUTES = {
  */
 export const PUBLIC_ROUTE_PATTERNS = [
   '/login',
+  '/login/forgot',
   '/login/invitation/*',
   '/login/reset-password/*',
 ] as const;

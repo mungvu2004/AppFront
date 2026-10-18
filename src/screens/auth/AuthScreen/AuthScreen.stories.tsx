@@ -67,7 +67,7 @@ const base: AuthScreenViewProps = {
   forgotPassword: noop,
   closeForgotPassword: noop,
   signInWithAnotherAccount: noop,
-  forgotActions: { setEmail: noop, submit: noop, reset: noop },
+  forgotActions: { setEmail: noop, submit: noop, resend: noop, reset: noop },
 };
 
 /** Nothing typed yet — the state a visitor arrives in. */

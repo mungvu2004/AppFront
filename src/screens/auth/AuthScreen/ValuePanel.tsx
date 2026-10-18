@@ -125,6 +125,10 @@ export function ValuePanel() {
 
       <div className="relative flex flex-col gap-12">
         <div className="relative h-[400px] overflow-hidden rounded-2xl border border-border-default bg-scene-backdrop shadow-panel">
+          {/* Chữ nằm dưới canvas: thấy khi ảnh 3D chưa tải xong, bị che khi đã vẽ (G1-03). */}
+          <p className="absolute inset-0 flex items-center justify-center text-[14px] text-white/70">
+            Đang dựng mô hình căn hộ…
+          </p>
           <HouseModel />
         </div>
 

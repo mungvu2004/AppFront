@@ -49,6 +49,7 @@ export interface ForgotPasswordModel {
 export interface ForgotPasswordActions {
   readonly setEmail: (email: string) => void;
   readonly submit: () => void;
+  readonly resend: () => void;
   /** Mở panel: mang địa chỉ đã gõ ở biểu mẫu đăng nhập, xoá kết quả lần trước. */
   readonly reset: (email: string) => void;
 }
@@ -83,9 +84,9 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
     setPhase('idle');
   }, []);
 
-  const submit = useCallback(() => {
+  const send = useCallback((again: boolean) => {
     // `sent`: the same address again would only send a second identical letter (BUG-022).
-    if (inFlight.current || isLocked || phase === 'sent') {
+    if (inFlight.current || isLocked || (phase === 'sent' && !again)) {
       return;
     }
 
@@ -144,6 +145,14 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
       });
   }, [isLocked, lock, phase, request]);
 
+  const submit = useCallback(() => {
+    send(false);
+  }, [send]);
+  // Thư không tới: gửi lại cùng địa chỉ bằng một cú bấm (G1-06).
+  const resend = useCallback(() => {
+    send(true);
+  }, [send]);
+
   // Hết khoá thì dải 429 đi theo; không cần effect riêng.
   const shownFailure = failure?.kind === 'rateLimited' && !isLocked ? null : failure;
 
@@ -158,7 +167,7 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
     canSubmit: phase === 'idle' && !isLocked,
   };
 
-  const actions = useMemo(() => ({ setEmail, submit, reset }), [reset, setEmail, submit]);
+  const actions = useMemo(() => ({ setEmail, submit, resend, reset }), [reset, resend, setEmail, submit]);
 
   return { model, actions };
 }

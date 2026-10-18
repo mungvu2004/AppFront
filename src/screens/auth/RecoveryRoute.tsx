@@ -4,6 +4,8 @@
  * (A11). Nằm trong thư mục màn, không ở `src/components`.
  */
 
+import { useLocation } from 'react-router-dom';
+
 import { EmptyState } from '@/components/feedback/EmptyState';
 import {
   ScreenErrorBoundary,
@@ -32,8 +34,12 @@ export function RecoveryRoute({
   readonly screenId: string;
   readonly children: React.ReactNode;
 }) {
+  // Mở link khác (đổi `#token=`) trong cùng tab phải dựng lại màn, không giữ mã cũ trong state (G1-01).
+  const { key, hash } = useLocation();
+
   return (
     <ScreenErrorBoundary
+      key={`${key}${hash}`}
       screenId={screenId}
       renderFallback={({ report, retry }) => <CrashFallback report={report} retry={retry} />}
     >

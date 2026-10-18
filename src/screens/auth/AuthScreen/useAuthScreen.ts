@@ -212,6 +212,9 @@ export interface UseAuthScreenOptions {
   readonly onReturnToApp?: () => void;
   /** Skips the success flash, so a person who asked for less motion waits for nothing. */
   readonly reducedMotion?: boolean;
+  /** Host-owned panel (route `/login/forgot`): when set, the panel follows it and changes go through `onPanelChange` (G1-05). */
+  readonly panel?: AuthPanel;
+  readonly onPanelChange?: (panel: AuthPanel) => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -459,9 +462,16 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     initialNotice,
     onReturnToApp,
     reducedMotion = false,
+    panel: hostPanel,
+    onPanelChange,
   } = options;
 
-  const [panel, setPanel] = useState<AuthPanel>('signIn');
+  const [panel, setPanel] = useState<AuthPanel>(hostPanel ?? 'signIn');
+  useEffect(() => {
+    if (hostPanel !== undefined) {
+      setPanel(hostPanel);
+    }
+  }, [hostPanel]);
   /** The host's opening sentence; the first attempt replaces it. */
   const [openingNotice, setOpeningNotice] = useState<AuthInitialNotice | undefined>(initialNotice);
   const { model: forgot, actions: forgotActions } = useForgotPassword({
@@ -591,11 +601,13 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
   const forgotPassword = useCallback(() => {
     forgotActions.reset(valuesRef.current.email);
     setPanel('forgotPassword');
-  }, [forgotActions]);
+    onPanelChange?.('forgotPassword');
+  }, [forgotActions, onPanelChange]);
 
   const closeForgotPassword = useCallback(() => {
     setPanel('signIn');
-  }, []);
+    onPanelChange?.('signIn');
+  }, [onPanelChange]);
 
   const signInWithAnotherAccount = useCallback(() => {
     setFailure(null);

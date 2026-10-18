@@ -327,6 +327,7 @@ export const routes: RouteObject[] = [
     children: [
       ...DEV_ONLY_ROUTES,
       { path: ROUTE_PATTERNS.login, element: suspendedOutsideMain(<Screens.RouteAuth />) },
+      { path: ROUTE_PATTERNS.forgotPassword, element: suspendedOutsideMain(<Screens.RouteAuth />) },
       { path: ROUTE_PATTERNS.invitationAccept, element: suspendedOutsideMain(<Screens.RouteInvitationAccept />) },
       { path: ROUTE_PATTERNS.passwordReset, element: suspendedOutsideMain(<Screens.RoutePasswordReset />) },
       /* Mô hình 3D: trang riêng toàn màn hình, KHÔNG header/thanh bước của `AppLayout`;

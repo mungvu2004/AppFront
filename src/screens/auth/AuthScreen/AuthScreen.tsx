@@ -169,24 +169,6 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
         </div>
       </div>
 
-      {/* Every strip under the button, the opening ones too: above the fields, one appearing — or
-          going, as the opening one does on submit — moved the fields and the button under the
-          cursor (BUG-008). */}
-      {notice !== null && (
-        <div className="flex flex-col gap-3">
-          <InlineAlert
-            level={notice.tone}
-            {...(notice.title !== undefined ? { title: notice.title } : {})}
-            message={notice.message}
-          />
-          {stripAction !== undefined && (
-            <Button type="button" variant="secondary" size="lg" fullWidth onClick={stripAction.onClick}>
-              {stripAction.label}
-            </Button>
-          )}
-        </div>
-      )}
-
       {/* Under the button too: it appears while the address is being typed (BUG-008). */}
       {state === 'partial' && (
         <p className="text-[13px] leading-[18px] text-text-secondary">
@@ -225,6 +207,24 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           {AUTH_MESSAGES.actions.forgotPassword}
         </button>
       </div>
+
+      {/* Every strip under the button, the opening ones too: above the fields, one appearing — or
+          going, as the opening one does on submit — moved the fields and the button under the
+          cursor (BUG-008). */}
+      {notice !== null && (
+        <div className="flex flex-col gap-3">
+          <InlineAlert
+            level={notice.tone}
+            {...(notice.title !== undefined ? { title: notice.title } : {})}
+            message={notice.message}
+          />
+          {stripAction !== undefined && (
+            <Button type="button" variant="secondary" size="lg" fullWidth onClick={stripAction.onClick}>
+              {stripAction.label}
+            </Button>
+          )}
+        </div>
+      )}
     </form>
   );
 }
