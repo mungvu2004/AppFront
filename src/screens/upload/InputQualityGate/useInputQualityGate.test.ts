@@ -801,4 +801,27 @@ describe('useInputQualityGate — QA-03e', () => {
 
     expect(mounted.result.current.model.passNotice).toMatch(/^Bản vẽ đạt yêu cầu\./u);
   });
+
+  // G3-35 (B6): SKEW_NOT_MEASURED must not read as "0,0° Tốt"; PERSPECTIVE_DETECTED offers manual corners.
+  it('SKEW_NOT_MEASURED: ô nghiêng hiện "Không đo được"; PERSPECTIVE_DETECTED: gợi ý chọn góc', async () => {
+    const base = { region: { heightRatio: 1, widthRatio: 1, xRatio: 0, yRatio: 0 }, severity: 'attention' } as const;
+    const result = await sampleWith((floor) => ({
+      ...floor,
+      findings: [
+        { ...base, code: 'SKEW_NOT_MEASURED', id: 'f-nm' },
+        { ...base, code: 'PERSPECTIVE_DETECTED', id: 'f-pd' },
+      ],
+    }));
+    const mounted = mountHook(createHarness({ assessResults: [result] }));
+
+    await ready(mounted);
+
+    const { metrics, findings } = mounted.result.current.model;
+    const skew = metrics.find((metric) => metric.id === 'skew');
+
+    expect(skew?.valueText).toBe('Không đo được');
+    expect(skew?.level).toBe('attention');
+    expect(findings.find((f) => f.id === 'f-nm')?.title).toBe('Không đo được độ nghiêng');
+    expect(findings.find((f) => f.id === 'f-pd')?.action?.kind).toBe('pickCorners');
+  });
 });

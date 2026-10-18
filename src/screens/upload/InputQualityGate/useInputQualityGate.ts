@@ -200,6 +200,7 @@ const METRIC_BY_FINDING_CODE: Readonly<Record<string, QualityMetricId>> = {
   LOW_CONTRAST: 'contrast',
   RESOLUTION_TOO_LOW: 'resolution',
   SKEW_DETECTED: 'skew',
+  SKEW_NOT_MEASURED: 'skew',
 };
 
 /** Bốn góc khung bản vẽ, theo chiều kim đồng hồ từ trên-trái — thứ tự của API. */
@@ -359,6 +360,24 @@ function describeFinding(finding: ImageQualityFinding, floor: FloorImageQuality)
         actionKind: null,
       };
     }
+
+    case 'SKEW_NOT_MEASURED':
+      return {
+        title: 'Không đo được độ nghiêng',
+        consequence:
+          'Không đo được độ nghiêng vì ảnh có quá ít nét thẳng. Con số 0,0° khi đó không có nghĩa ' +
+          'là ảnh thẳng. Hãy xem ảnh bằng mắt, hoặc dùng ảnh có nét tường rõ hơn.',
+        actionKind: null,
+      };
+
+    case 'PERSPECTIVE_DETECTED':
+      return {
+        title: 'Ảnh bị méo phối cảnh',
+        consequence:
+          'Bản vẽ bị méo hình thang, thường do chụp chếch. Tự động nắn chỉ xoay ảnh nên không ' +
+          'sửa được lỗi này, và các tường song song sẽ bị đọc lệch nhau. Bạn có thể tự chọn 4 góc.',
+        actionKind: 'pickCorners',
+      };
 
     default:
       return {
@@ -737,25 +756,30 @@ export function useInputQualityGate(
       return [];
     }
 
+    const skewNotMeasured =
+      activeFloor?.findings.some((finding) => finding.code === 'SKEW_NOT_MEASURED') ?? false;
+
     const levels: Readonly<Record<QualityMetricId, ImageQualityLevel>> = {
       contrast: classifyContrast(measurement.contrastScore),
       noise: classifyNoise(measurement.noiseScore),
       resolution: classifyResolution(shortEdgeOf(measurement)),
-      skew: classifySkew(measurement.skewDeg),
+      skew: skewNotMeasured ? 'attention' : classifySkew(measurement.skewDeg),
     };
 
     const valueTexts: Readonly<Record<QualityMetricId, string>> = {
       contrast: formatScore(measurement.contrastScore),
       noise: formatScore(measurement.noiseScore),
       resolution: formatResolution(measurement.widthPx, measurement.heightPx),
-      skew: formatAngle(measurement.skewDeg),
+      skew: skewNotMeasured ? 'Không đo được' : formatAngle(measurement.skewDeg),
     };
 
     const recommendations: Readonly<Record<QualityMetricId, string>> = {
       contrast: 'Quét lại với nền sáng đều hơn để nét mảnh không rụng khỏi ảnh.',
       noise: 'Quét lại ở chế độ ảnh nét và không nén mạnh để bớt đốm giả.',
       resolution: `Nên dùng ảnh có cạnh ngắn từ ${formatPixels(RESOLUTION_GOOD_SHORT_EDGE_PX)} px trở lên.`,
-      skew: 'Bấm "Tự động nắn" để hệ thống xoay ảnh về phương ngang.',
+      skew: skewNotMeasured
+        ? 'Ảnh có quá ít nét thẳng để đo. Hãy xem ảnh bằng mắt trước khi chạy bước dò.'
+        : 'Bấm "Tự động nắn" để hệ thống xoay ảnh về phương ngang.',
     };
 
     const metricIds: readonly QualityMetricId[] = ['resolution', 'skew', 'contrast', 'noise'];
@@ -773,7 +797,7 @@ export function useInputQualityGate(
         regionId: regionIdByMetric.get(id) ?? null,
       };
     });
-  }, [measurement, regionIdByMetric]);
+  }, [activeFloor, measurement, regionIdByMetric]);
 
   /* ---------------------------------------------------------------------- */
   /* Phát hiện — mỗi câu nêu hậu quả, mỗi phát hiện neo vào một vùng ảnh.     */
@@ -828,7 +852,9 @@ export function useInputQualityGate(
             ? null
             : worstLevel([
                 classifyResolution(shortEdgeOf(floorMeasurement)),
-                classifySkew(floorMeasurement.skewDeg),
+                floor.findings.some((finding) => finding.code === 'SKEW_NOT_MEASURED')
+                  ? 'attention'
+                  : classifySkew(floorMeasurement.skewDeg),
                 classifyContrast(floorMeasurement.contrastScore),
                 classifyNoise(floorMeasurement.noiseScore),
               ]);

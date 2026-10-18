@@ -300,6 +300,8 @@ export const IMAGE_QUALITY_FINDING_CODES = [
   'FRAME_NOT_FOUND',
   'LOW_CONTRAST',
   'HIGH_NOISE',
+  'SKEW_NOT_MEASURED',
+  'PERSPECTIVE_DETECTED',
 ] as const;
 
 export const ImageQualityFindingCodeSchema = z.enum(IMAGE_QUALITY_FINDING_CODES);

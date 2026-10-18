@@ -105,7 +105,7 @@ describe('InvitationPreviewSchema (N10a)', () => {
 
   it('mock trả 422 đúng mã theo token', async () => {
     const result = await createMockApiClient().auth.previewInvitation({ body: { token: 'abc-expired' } });
-    expect(result).toMatchObject({ ok: false, error: { status: 422, raw: { code: 'INVITATION_TOKEN_EXPIRED' } } });
+    expect(result).toMatchObject({ ok: false, error: { status: 422, code: 'INVITATION_TOKEN_EXPIRED', raw: { code: 'INVITATION_TOKEN_EXPIRED' } } });
   });
 });
 

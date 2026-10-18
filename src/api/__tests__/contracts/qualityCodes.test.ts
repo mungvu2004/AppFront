@@ -27,13 +27,15 @@ const findingBase = {
 } as const;
 
 describe('IMAGE_QUALITY_FINDING_CODES', () => {
-  it('là đúng năm mã của useInputQualityGate.ts:275-351', () => {
+  it('là đúng bảy mã của useInputQualityGate.ts:275-351', () => {
     expect(IMAGE_QUALITY_FINDING_CODES).toStrictEqual([
       'RESOLUTION_TOO_LOW',
       'SKEW_DETECTED',
       'FRAME_NOT_FOUND',
       'LOW_CONTRAST',
       'HIGH_NOISE',
+      'SKEW_NOT_MEASURED',
+      'PERSPECTIVE_DETECTED',
     ]);
   });
 });
