@@ -123,6 +123,7 @@ function WiredObjectLayerReview(props: ObjectLayerReviewContainerProps) {
   const model = useObjectLayerReview({
     floorId: props.floorId,
     projectId: props.projectId,
+    focusId: new URLSearchParams(window.location.search).get('select'),
     ...(props.roles !== undefined ? { roles: props.roles } : {}),
     ...(props.onNavigate !== undefined ? { onNavigate: props.onNavigate } : {}),
     ...(props.gateway !== undefined ? { gateway: props.gateway } : {}),

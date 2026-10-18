@@ -183,6 +183,8 @@ export interface UseObjectLayerReviewOptions {
   readonly registry?: ShortcutRegistry;
   /** Ép thu gọn hai panel — cho story và bài kiểm muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /** N3-08: ma doi tuong (ma hien thi hoac ma may) can chon va phong toi mot lan khi du lieu ve. */
+  readonly focusId?: string | null;
   /** Bus thông báo — chỗ toast hoàn tác của A8 đi ra. */
   readonly notifications?: NotificationBus;
   /** Lối ra của dải tỉ lệ tạm (F-04x-2) — container truyền `onNavigate` của nó. */
@@ -1491,6 +1493,47 @@ export function useObjectLayerReview(
     () => objectPlacementsOf(visibleObjects, solidWalls, level),
     [level, solidWalls, visibleObjects],
   );
+
+  /* N3-08: `?select=<mã>` từ Quy chuẩn — chọn đối tượng đó và phóng tới nó, đúng một lần. */
+  const pendingFocusRef = useRef(options.focusId ?? null);
+  const pendingFlyRef = useRef<string | null>(null);
+
+  /* Chọn ngay khi danh sách đã có; khung chưa đo xong thì phóng sau (effect kế). */
+  useEffect(() => {
+    const wanted = pendingFocusRef.current;
+
+    if (wanted === null || isLoading || objects.length === 0) {
+      return;
+    }
+
+    pendingFocusRef.current = null;
+    const object = objects.find((item) => item.id === wanted || item.entityId === wanted);
+
+    if (object !== undefined) {
+      onSelect(object.id);
+      pendingFlyRef.current = object.id;
+    }
+  }, [isLoading, objects, onSelect]);
+
+  useEffect(() => {
+    const id = pendingFlyRef.current;
+    const placement = id === null ? undefined : placements.find((item) => item.id === id);
+
+    if (placement === undefined || frameSizePx === null) {
+      return;
+    }
+
+    pendingFlyRef.current = null;
+    const box = rotatedBounds(placement.boundsPx, placement.angleDeg);
+    const min = toFramePoint(fitView, { x: box.x, y: box.y });
+    const max = toFramePoint(fitView, { x: box.x + box.width, y: box.y + box.height });
+
+    flyToBounds(
+      { minX: min.x, minY: min.y, maxX: max.x, maxY: max.y },
+      frameSizePx.width,
+      frameSizePx.height,
+    );
+  }, [fitView, flyToBounds, frameSizePx, placements, objects]);
 
   /*
    * Số đo hai đầu tường của đối tượng đang chọn.

@@ -188,6 +188,7 @@ function mountHook(options: MountOptions = {}): Mounted {
         ...(options.notifications === undefined ? {} : { notifications: options.notifications }),
         ...(options.forceCollapsed === undefined ? {} : { forceCollapsed: options.forceCollapsed }),
         ...(options.onNavigate === undefined ? {} : { onNavigate: options.onNavigate }),
+        ...(options.focusId === undefined ? {} : { focusId: options.focusId }),
       }),
     { wrapper },
   );
@@ -336,6 +337,31 @@ describe('phép ghép thuần của màn Lớp đối tượng', () => {
 /* -------------------------------------------------------------------------- */
 /* NGHIỆM THU 3 — 21 = 9 + 7 + 5.                                              */
 /* -------------------------------------------------------------------------- */
+
+describe('[N3-08] ?select= chọn sẵn đối tượng', () => {
+  it('mã hiển thị D-003 được chọn', async () => {
+    const mounted = await mountSettled({ focusId: 'D-003' });
+
+    await waitFor(() => expect(mounted.result.current.selectedObjectId).toBe('D-003'));
+    mounted.unmount();
+  });
+
+  it('mã máy cũng được chọn', async () => {
+    const mounted = await mountSettled({ focusId: entityIdOf('D-003', 'door') });
+
+    await waitFor(() => expect(mounted.result.current.selectedObjectId).toBe('D-003'));
+    mounted.unmount();
+  });
+
+  it('mã không tồn tại thì không chọn gì và không lỗi', async () => {
+    const mounted = await mountSettled({ focusId: 'D-999' });
+
+    await run(() => undefined);
+    expect(mounted.result.current.selectedObjectId).toBeNull();
+    expect(mounted.result.current.state).not.toBe('error');
+    mounted.unmount();
+  });
+});
 
 describe('[NGHIEM-3] tổng số đối tượng', () => {
   it('tổng là 21 và 9 + 7 + 5 = 21 ở mọi nơi con số xuất hiện', async () => {
