@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { Button } from '@/components/ui/Button';
 
 import {
+  PASCAL_CALIBRATE_SCALE_LABEL,
   PASCAL_LEAVE_LABEL,
   PASCAL_NEXT_LABEL,
   PASCAL_REPROCESS_LABEL,
@@ -171,6 +172,7 @@ export function PascalViewer({
   sceneOverlay,
   headerSlotRef,
   onSaveReload,
+  scaleWarning,
 }: PascalViewerProps) {
   const { state, caption, summary, skipped, errorCode, saveLabel } = viewModel;
 
@@ -295,14 +297,31 @@ export function PascalViewer({
         )
       }
       barEnd={
-        panels !== undefined &&
-        panels.length > 0 && (
-          <SidePanelRail
-            activePanel={activePanel ?? null}
-            onPanelChange={onPanelChange ?? (() => undefined)}
-            panels={panels}
-          />
-        )
+        <>
+          {/* Chip co lại và cắt chữ trước, nút của nó và "Bước tiếp theo" thì không (1024 px). */}
+          {scaleWarning != null && (
+            <div
+              className="flex min-w-0 items-center gap-2 rounded-md border border-state-attention bg-state-attention-tint py-0.5 pl-2 pr-0.5 text-sm text-state-attention-text"
+              data-testid="pascal-scale-warning"
+              role="status"
+            >
+              <AlertTriangle aria-hidden="true" className="size-4 shrink-0 text-state-attention" />
+              <span className="truncate" title={scaleWarning.message}>
+                {scaleWarning.message}
+              </span>
+              <Button className="shrink-0" onClick={scaleWarning.onCalibrate} size="sm" variant="secondary">
+                {PASCAL_CALIBRATE_SCALE_LABEL}
+              </Button>
+            </div>
+          )}
+          {panels !== undefined && panels.length > 0 && (
+            <SidePanelRail
+              activePanel={activePanel ?? null}
+              onPanelChange={onPanelChange ?? (() => undefined)}
+              panels={panels}
+            />
+          )}
+        </>
       }
       caption={caption}
       headerSlotRef={headerSlotRef}

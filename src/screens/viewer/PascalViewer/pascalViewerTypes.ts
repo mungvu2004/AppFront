@@ -120,7 +120,15 @@ export interface PascalViewerProps {
    * của màn QC (23-B-029). Vắng thì không có nút.
    */
   readonly onSaveReload?: (() => void) | undefined;
+  /**
+   * Có tầng ở tỷ lệ tạm (N16 `scaleStatus: 'unresolved'`): chip cảnh báo trên
+   * thanh trên cùng, kèm nút sang màn Hiệu chỉnh tỷ lệ. Vắng thì không có chip.
+   */
+  readonly scaleWarning?: { readonly message: string; readonly onCalibrate: () => void } | null | undefined;
 }
+
+/** Nhãn nút trên chip tỷ lệ tạm — cùng chữ `ProvisionalScaleBanner` của màn QC. */
+export const PASCAL_CALIBRATE_SCALE_LABEL = 'Hiệu chỉnh tỷ lệ';
 
 /** Nhãn nút tải lại tầng khi lưu gặp bản mới hơn — cùng chữ `FloorLayerSaveBanner`. */
 export const PASCAL_SAVE_RELOAD_LABEL = 'Tải lại';

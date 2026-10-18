@@ -57,6 +57,7 @@ import {
 } from './pascalViewerTypes';
 import { usePascalEdits, type PascalMassDeleteRequest } from './usePascalEdits';
 import { usePascalViewer, type UsePascalViewerOptions } from './usePascalViewer';
+import { useProvisionalScaleWarning } from './useProvisionalScaleWarning';
 
 /** Loại thông báo của một lượt sửa bị chặn — toast gom theo loại. */
 export const PASCAL_REJECTED_NOTIFICATION_TYPE = 'pascal.edit.rejected';
@@ -307,6 +308,8 @@ function PascalViewerBody({
     onTrigger: () => setActivePanel((current) => (current === 'history' ? null : 'history')),
   });
 
+  const scaleWarning = useProvisionalScaleWarning(graph, projectId ?? spatialProjectId ?? '', apiClient);
+
   const saveConfirm = floorSave.saveBlock?.confirm ?? null;
   // Thanh hiện diện ra đầu màn: góc nào của canvas cũng có nút Pascal (23R-F-002, BUG-623).
   const [presenceSlot, setPresenceSlot] = useState<HTMLDivElement | null>(null);
@@ -326,6 +329,7 @@ function PascalViewerBody({
         activePanel={activePanel}
         onPanelChange={setActivePanel}
         headerSlotRef={setPresenceSlot}
+        scaleWarning={scaleWarning}
         sceneOverlay={
           <CollaborationLayerContainer
             presenceContainer={presenceSlot}
