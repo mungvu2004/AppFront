@@ -305,6 +305,7 @@ export function NotificationBell({ unreadBadge, isOpen, onToggle, bellNudgeToken
       type="button"
       animate={controls}
       aria-label={BELL_ARIA_LABEL}
+      title={BELL_ARIA_LABEL}
       aria-expanded={isOpen}
       onClick={onToggle}
       className={cn(

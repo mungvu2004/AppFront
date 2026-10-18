@@ -8,11 +8,14 @@
  *
  * View thuần: mọi dữ liệu đến qua props; liên kết dùng `Link` của router.
  */
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, Box, ChevronRight, LogOut } from 'lucide-react';
 import { Link, NavLink, useLocation, useMatch, useNavigate } from 'react-router-dom';
 
+import { Skeleton } from '@/components/feedback/Skeleton';
+import { Modal } from '@/components/overlay/Modal';
 import { Avatar } from '@/components/ui/Avatar';
+import { Button } from '@/components/ui/Button';
 import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/routes/paths';
@@ -42,7 +45,7 @@ export interface AppHeaderProps {
 
 const navLinkClass = ({ isActive }: { isActive: boolean }): string =>
   cn(
-    'flex h-8 items-center rounded-md px-3 text-[13px] font-medium transition-colors duration-fast',
+    'flex h-8 shrink-0 items-center whitespace-nowrap rounded-md px-3 text-[13px] font-medium transition-colors duration-fast',
     isActive ? 'bg-accent-wash text-accent' : 'text-text-secondary hover:bg-bg-sunken hover:text-text-primary',
   );
 
@@ -60,8 +63,8 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
       : (PROJECT_STEPS[index]?.path(project.id) ?? ROUTES.dashboard);
 
   return (
-    <nav aria-label="Các bước của dự án" className="flex h-12 items-center gap-3 border-t border-border-default px-4 sm:px-6">
-      <ol className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+    <nav aria-label="Các bước của dự án" className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-default px-4 py-1 sm:px-6">
+      <ol className="flex min-w-0 basis-full items-center gap-1 overflow-x-auto lg:flex-1 lg:basis-0">
         {PROJECT_STEPS.map((step, index) => {
           const isCurrent = index === project.stepIndex;
           return (
@@ -106,6 +109,12 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
           Tiếp: {nextLayer.label}
           <ArrowRight size={16} aria-hidden="true" />
         </Link>
+      ) : project.floorId !== undefined && project.layerIndex === -1 ? (
+        // Màn công cụ của tầng (tỷ lệ, chồng lớp): quay về việc duyệt lớp, không mời sang 3D (G4b-29).
+        <Link to={FLOOR_LAYERS[0]?.path(project.id, project.floorId) ?? ROUTES.project.floors(project.id)} className={cn(getButtonStyles({ variant: 'secondary', size: 'sm' }), 'shrink-0 gap-2')}>
+          <ArrowLeft size={16} aria-hidden="true" />
+          Về duyệt lớp {FLOOR_LAYERS[0]?.label.toLowerCase()}
+        </Link>
       ) : (
         next !== undefined && (
           <Link to={next.path(project.id)} className={cn(getButtonStyles({ variant: 'primary', size: 'sm' }), 'shrink-0 gap-2')}>
@@ -121,9 +130,10 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
 export function AppHeader({ accountInitials, accountLabel, showAdmin, notificationBell, project, onSignOut }: AppHeaderProps) {
   const adminActive = useMatch('/admin/*') !== null;
   const location = useLocation();
+  const [confirmOut, setConfirmOut] = useState(false);
   return (
     <header className="shrink-0 border-b border-border-default bg-bg-surface">
-      <div className="flex h-14 items-center gap-4 px-4 sm:px-6">
+      <div className="flex min-h-14 flex-wrap items-center gap-x-4 px-4 sm:px-6">
         <Link to={ROUTES.dashboard} className="flex shrink-0 items-center gap-2 rounded-md text-text-primary">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white" aria-hidden="true">
             <Box size={18} />
@@ -146,11 +156,15 @@ export function AppHeader({ accountInitials, accountLabel, showAdmin, notificati
         {project !== null && (
           <div className="flex min-w-0 items-center gap-2 text-[13px]">
             <ChevronRight size={14} aria-hidden="true" className="shrink-0 text-text-muted" />
-            <span className="truncate font-medium text-text-primary">{project.name ?? 'Dự án'}</span>
+            {project.name === null ? (
+              <Skeleton preset="block" className="h-4 w-32" aria-label="Đang tải tên dự án" />
+            ) : (
+              <span className="truncate font-medium text-text-primary">{project.name}</span>
+            )}
           </div>
         )}
         {project !== null && (
-          <ProjectNav projectId={project.id} pathname={location.pathname} search={location.search} className="min-w-0 overflow-x-auto" />
+          <ProjectNav projectId={project.id} pathname={location.pathname} search={location.search} className="order-last min-w-0 basis-full overflow-x-auto pb-2 xl:order-none xl:basis-auto xl:pb-0" />
         )}
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -160,7 +174,7 @@ export function AppHeader({ accountInitials, accountLabel, showAdmin, notificati
           </Link>
           <button
             type="button"
-            onClick={onSignOut}
+            onClick={() => setConfirmOut(true)}
             aria-label="Đăng xuất"
             title="Đăng xuất"
             className="flex h-8 w-8 items-center justify-center rounded-md text-text-secondary hover:bg-bg-sunken hover:text-text-primary"
@@ -170,6 +184,16 @@ export function AppHeader({ accountInitials, accountLabel, showAdmin, notificati
         </div>
       </div>
       {project !== null && <ProjectStepBar project={project} />}
+      <Modal.Root isOpen={confirmOut} onClose={() => setConfirmOut(false)} width={480}>
+        <Modal.Header>Đăng xuất?</Modal.Header>
+        <Modal.Body>
+          <p>Bạn sẽ phải đăng nhập lại để tiếp tục làm việc.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="ghost" onClick={() => setConfirmOut(false)}>Huỷ</Button>
+          <Button variant="primary" onClick={onSignOut}>Đăng xuất</Button>
+        </Modal.Footer>
+      </Modal.Root>
     </header>
   );
 }

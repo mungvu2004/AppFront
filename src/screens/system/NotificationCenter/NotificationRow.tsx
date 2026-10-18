@@ -158,7 +158,6 @@ export function NotificationRow({
             <span
               className={cn(
                 'ml-auto shrink-0 transition-opacity duration-fast',
-                'sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 [@media(hover:none)]:opacity-100',
               )}
             >
               <IconButton

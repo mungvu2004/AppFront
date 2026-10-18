@@ -32,13 +32,24 @@ export function AppLayout() {
   const location = projectLocationOf(useLocation().pathname);
   const projectId = location?.projectId ?? '';
 
-  // Chỉ nghe bộ đệm (skipToken): màn của dự án tự đọc #24, header không gọi thêm lượt nào.
+  // Header tự đọc #24 một lần (dùng chung khóa với màn con).
   const detail = useQuery<{ readonly name?: string }>({
     queryKey: queryKeys.project.detail(projectId),
-    queryFn: skipToken,
+    // Tự nạp chi tiết khi đang trong dự án, để tên có ở mọi màn (cùng khóa nên dùng chung bộ đệm với màn con).
+    queryFn:
+      projectId === ''
+        ? skipToken
+        : async ({ signal }) => {
+            const [{ readProjectDetail }, { createAppApiClient }] = await Promise.all([
+              import('@/api/floorLayerGraph'),
+              import('@/api/appClient'),
+            ]);
+            return readProjectDetail(createAppApiClient().projects, { projectId, signal });
+          },
+    staleTime: 60_000,
   });
   const projectName =
-    location === null ? null : (detail.data?.name?.trim() || null) ?? cachedProjectName(queryClient, projectId);
+    location === null ? null : (detail.data?.name?.trim() || null) ?? cachedProjectName(queryClient, projectId) ?? (detail.isError ? 'Dự án' : null);
 
   const handleSignOut = useCallback((): void => {
     void signOut().finally(() => navigate(ROUTES.login));

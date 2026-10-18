@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -13,10 +13,12 @@ function renderHeader(overrides: Partial<AppHeaderProps> = {}) {
 }
 
 describe('AppHeader', () => {
-  it('ngoài dự án: không có thanh bước, có đăng xuất', () => {
+  it('ngoài dự án: không có thanh bước, đăng xuất có hỏi lại', async () => {
     const { props } = renderHeader();
     expect(screen.queryByRole('navigation', { name: 'Các bước của dự án' })).toBeNull();
-    screen.getByRole('button', { name: 'Đăng xuất' }).click();
+    fireEvent.click(screen.getByRole('button', { name: 'Đăng xuất' }));
+    expect(props.onSignOut).not.toHaveBeenCalled();
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đăng xuất' }));
     expect(props.onSignOut).toHaveBeenCalledOnce();
     expect(screen.queryByRole('link', { name: 'Quản trị' })).toBeNull();
   });
