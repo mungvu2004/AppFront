@@ -342,6 +342,12 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           )}
         </div>
         <div className="flex items-center gap-3">
+          {/* G3-03: lý do nút khoá đứng ngay cạnh nút, không ở trên bảng tầng. */}
+          {step === 2 && props.floorsHint !== null && (
+            <p id={FLOORS_HINT_ID} className="max-w-[280px] text-right text-[13px] leading-[18px] text-text-secondary">
+              {props.floorsHint}
+            </p>
+          )}
           <Button ref={cancelRef} variant="ghost" onClick={props.requestClose} disabled={isSubmitting}>
             Huỷ
           </Button>

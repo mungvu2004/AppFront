@@ -163,6 +163,8 @@ export interface AuthScreenModel {
   readonly problems: AuthProblems;
   /** The strip inside the form. Null when the last attempt has nothing to say. */
   readonly notice: AuthNotice | null;
+  /** Wrong email or password: both boxes draw red for as long as the strip says so (G1-09). Optional for hand-built props. */
+  readonly credentialsRejected?: boolean;
   /** False while submitting, while locked out, and while the account is disabled. */
   readonly canSubmit: boolean;
   /** The primary button's label. Keeps its width while submitting, so it does not change. */
@@ -775,6 +777,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     values,
     problems,
     notice,
+    credentialsRejected: failure?.kind === 'invalidCredentials',
     canSubmit: !isSubmitting && !isBlocked && !isLockedOut,
     submitLabel: AUTH_MESSAGES.actions.signIn,
     isBlocked,

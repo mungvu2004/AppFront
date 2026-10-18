@@ -181,6 +181,12 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
               isLoading={isLoading}
             >
               <ShortcutsSection {...vm.tables.shortcuts} />
+              {/* N0-03: màn chào chỉ tự hiện một lần; đây là lối mở lại nó. */}
+              <Link
+                to={`${ROUTES.onboarding}?again=1`}
+                className="mt-4 inline-block w-fit rounded text-[13px] text-text-secondary underline hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface">
+                Xem lại hướng dẫn bắt đầu
+              </Link>
             </AccountBlock>
 
             <AccountBlock

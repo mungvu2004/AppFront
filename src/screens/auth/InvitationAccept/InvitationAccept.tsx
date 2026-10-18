@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { formatCalendarDate, formatClockTime } from '@/lib/format/datetime';
 import { ROUTES } from '@/routes/paths';
 
 /* Nhập THEO TÊN, không default — lý do ở `../recoveryShared.ts`. */
@@ -37,14 +38,53 @@ import {
   useInvitationAccept,
   type InvitationAcceptActions,
   type InvitationAcceptModel,
+  type InvitationDeadReason,
   type UseInvitationAcceptOptions,
 } from './useInvitationAccept';
+import type { InvitationPreview } from '@/api/schemas/auth';
 
 export type InvitationAcceptViewProps = InvitationAcceptModel & InvitationAcceptActions;
+
+// ponytail: chữ để tại chỗ vì vi.json thuộc gói khác (P54); chuyển vào `auth.invitation` khi gộp.
+const DEAD_REASON_MESSAGES: Readonly<Record<InvitationDeadReason, string>> = {
+  invalid:
+    'Liên kết lời mời không đúng (có thể bị chép thiếu hoặc sai). Hãy mở lại đúng liên kết trong thư mời, hoặc nhờ quản trị viên gửi lại lời mời.',
+  expired:
+    'Lời mời đã hết hạn hoặc đã được gửi lại bằng thư mới. Hãy mở liên kết trong thư mời mới nhất, hoặc nhờ quản trị viên gửi lại lời mời.',
+  used: 'Lời mời này đã được nhận. Hãy đăng nhập bằng mật khẩu bạn đã đặt.',
+};
+const ROLE_LABELS: Readonly<Record<InvitationPreview['role'], string>> = {
+  admin: 'Quản trị viên',
+  engineer: 'Kỹ sư',
+  viewer: 'Người xem',
+};
+const CHECKING_MESSAGE = 'Đang kiểm tra lời mời…';
+
+function InvitationSummary({ preview }: { readonly preview: InvitationPreview }) {
+  return (
+    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-md border border-border-default bg-bg-sunken px-3 py-2 text-[14px] leading-5">
+      <dt className="text-text-secondary">Tài khoản</dt>
+      <dd className="break-all font-medium text-text-primary">{preview.email}</dd>
+      <dt className="text-text-secondary">Vai</dt>
+      <dd className="text-text-primary">{ROLE_LABELS[preview.role]}</dd>
+      {preview.inviterName !== undefined && (
+        <>
+          <dt className="text-text-secondary">Người mời</dt>
+          <dd className="text-text-primary">{preview.inviterName}</dd>
+        </>
+      )}
+      <dt className="text-text-secondary">Hết hạn</dt>
+      <dd className="text-text-primary">
+        {formatClockTime(new Date(preview.expiresAt))} {formatCalendarDate(new Date(preview.expiresAt))}
+      </dd>
+    </dl>
+  );
+}
 
 export function InvitationAcceptView(props: InvitationAcceptViewProps) {
   const { state, values, problems, notice, warning, canSubmit, isSubmitting, isDone } = props;
   const { needsSignIn, isSessionPending, isSessionUnavailable, retryNotice, isLinkIncomplete } = props;
+  const { deadReason = null, preview = null, isPreviewPending = false } = props;
   const { setFullName, setPassword, setConfirmPassword, submit, goToSignIn, expand, retrySession } =
     props;
   const fullNameRef = useRef<HTMLInputElement>(null);
@@ -98,11 +138,21 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
         </div>
       ) : state === 'forbidden' ? (
         <RecoveryDeadEnd
-          message={isLinkIncomplete ? AUTH_MESSAGES.invitation.incomplete : AUTH_MESSAGES.invitation.expired}
+          message={
+            isLinkIncomplete
+              ? AUTH_MESSAGES.invitation.incomplete
+              : deadReason !== null
+                ? DEAD_REASON_MESSAGES[deadReason]
+                : AUTH_MESSAGES.invitation.expired
+          }
           linkLabel={AUTH_MESSAGES.actions.goToSignIn}
           href={ROUTES.login}
           onLinkClick={goToSignIn}
         />
+      ) : isPreviewPending ? (
+        <p role="status" aria-busy="true" className="text-[14px] leading-5 text-text-secondary">
+          {CHECKING_MESSAGE}
+        </p>
       ) : (
         <form
           ref={focusReturn.ref}
@@ -112,6 +162,7 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
           onSubmit={handleSubmit}
           onFocus={focusReturn.onFocus}
         >
+          {preview !== null && <InvitationSummary preview={preview} />}
           {/* Không `gap`: mỗi ô giữ sẵn chỗ cho câu lỗi dài nhất của nó, chỗ ấy là khoảng cách — câu
               lỗi hiện hay mất không đẩy ô dưới và nút gửi (BUG-008, QA-01c nợ #10). */}
           <div className="flex flex-col">

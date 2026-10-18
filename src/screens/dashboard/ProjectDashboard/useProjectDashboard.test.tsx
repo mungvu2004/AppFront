@@ -375,7 +375,7 @@ describe('useProjectDashboard rename', () => {
 });
 
 describe('useProjectDashboard delete', () => {
-  it('removes the row only after #27 succeeded, and shows no undo toast', async () => {
+  it('removes the row only after #27 succeeded, and confirms with a toast that has no undo (G1-32)', async () => {
     const server = fakeServer([project()]);
     let finish: () => void = () => undefined;
     server.remove.mockImplementationOnce(() => new Promise<void>((resolve) => {
@@ -400,7 +400,9 @@ describe('useProjectDashboard delete', () => {
     });
     await waitFor(() => expect(dash().model.rows).toHaveLength(0));
     expect(dash().model.pendingDeleteId).toBeNull();
-    expect(onToast).not.toHaveBeenCalled();
+    expect(onToast).toHaveBeenCalledTimes(1);
+    expect(onToast.mock.calls[0]?.[0]).toMatchObject({ message: expect.stringContaining('Đã xoá dự án') });
+    expect(onToast.mock.calls[0]?.[0]).not.toHaveProperty('onUndo');
   });
 
   it('sends one #27 for a double click on "Xoá dự án", and says it is busy meanwhile (BUG-146)', async () => {

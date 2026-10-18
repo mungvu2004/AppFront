@@ -518,7 +518,7 @@ export function useProjectDashboard(
     void renameTo(project.id, trimmed, project.name, true);
   };
 
-  /** #27 first; the row leaves only once the server has deleted it. A9 asked already, so no undo toast. */
+  /** #27 first; the row leaves only once the server has deleted it. A9 asked already, so the toast only confirms (G1-32), no undo. */
   const confirmDelete = async (): Promise<void> => {
     if (pendingDeleteId === null || deleteInFlight.current) return;
     const id = pendingDeleteId;
@@ -537,9 +537,12 @@ export function useProjectDashboard(
       deleteInFlight.current = false;
       setIsDeleting(false);
     }
+    const deletedName = projectById.get(id)?.name;
     setProjects((previous) => previous.filter((entry) => entry.id !== id));
     setPendingDeleteId(null);
     applyInvalidation(queryClient, 'deleteProject', { projectId: id });
+    // G1-32: thẻ biến mất thôi thì người dùng không chắc đã xoá xong. Không có "Hoàn tác": xoá đã hỏi trước (A9).
+    options.onToast?.({ message: deletedName === undefined ? 'Đã xoá dự án.' : `Đã xoá dự án "${deletedName}".` });
   };
 
   const pendingDeleteProject = pendingDeleteId === null ? undefined : projectById.get(pendingDeleteId);

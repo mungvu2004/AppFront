@@ -312,7 +312,7 @@ describe('InvitationAccept — what the server answers', () => {
       expect(navigate).toHaveBeenCalledTimes(1);
     });
     expect(bootstrapSession).toHaveBeenCalledTimes(1);
-    expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+    expect(navigate).toHaveBeenCalledWith('/', { replace: true, state: { welcomeToast: expect.stringContaining('Chào mừng') } });
   });
 
   it('on 204 with no session shows the error and a link to /login, and does not navigate', async () => {
@@ -650,5 +650,45 @@ describe('InvitationAccept — checks before sending', () => {
     await waitFor(() => {
       expect(accept).toHaveBeenCalledWith({ token: 'abc', fullName: FULL_NAME, password: PASSWORD });
     });
+  });
+});
+
+describe('InvitationAccept — checks the link before showing the form (G2-9, G2-10, G1-10)', () => {
+  it('shows who is invited, with which role, by whom and until when', async () => {
+    const { port } = makePort();
+    const preview = vi.fn<NonNullable<InvitationAcceptPort['preview']>>(async () => ({
+      ok: true,
+      data: {
+        email: 'ha@example.com',
+        expiresAt: '2026-10-20T10:00:00+07:00',
+        inviterName: 'Quản Trị Viên',
+        role: 'engineer',
+        status: 'valid',
+      },
+    }));
+    render(<InvitationAccept port={{ ...port, preview }} />);
+
+    expect(screen.queryByLabelText(AUTH.fields.fullName)).toBeNull();
+    expect(await screen.findByText('ha@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Kỹ sư')).toBeInTheDocument();
+    expect(screen.getByText('Quản Trị Viên')).toBeInTheDocument();
+    expect(screen.getByLabelText(AUTH.fields.fullName)).toBeInTheDocument();
+    expect(preview).toHaveBeenCalledWith('abc', expect.any(AbortSignal));
+  });
+
+  it.each([
+    ['INVITATION_TOKEN_EXPIRED', 'Lời mời đã hết hạn hoặc đã được gửi lại'],
+    ['INVITATION_TOKEN_USED', 'Lời mời này đã được nhận'],
+    ['INVITATION_TOKEN_INVALID', 'Liên kết lời mời không đúng'],
+  ])('says %s right away, with no form to fill', async (code, text) => {
+    const { port } = makePort();
+    const preview = vi.fn<NonNullable<InvitationAcceptPort['preview']>>(async () => wireFailure(422, { code }));
+    const { container } = render(<InvitationAccept port={{ ...port, preview }} />);
+
+    await waitFor(() => {
+      expect(stateOf(container)).toBe('forbidden');
+    });
+    expect(screen.getByText(new RegExp(text))).toBeInTheDocument();
+    expect(screen.queryByLabelText(AUTH.fields.fullName)).toBeNull();
   });
 });

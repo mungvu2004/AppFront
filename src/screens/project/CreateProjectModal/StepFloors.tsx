@@ -24,7 +24,6 @@ import { cn } from '@/lib/utils';
 
 import {
   FLOOR_CAP_NOTE_ID,
-  FLOORS_HINT_ID,
   PROJECT_LIMITS,
   type CreateProjectModalViewProps,
 } from './useCreateProjectModal';
@@ -75,11 +74,7 @@ export function StepFloors(props: StepFloorsProps) {
         description="Tầng hầm luôn nằm dưới tầng trệt; cao độ của nó là số âm."
       />
 
-      {props.floorsHint !== null && (
-        <p id={FLOORS_HINT_ID} className="text-[13px] leading-[18px] text-text-secondary">
-          {props.floorsHint}
-        </p>
-      )}
+      {/* Câu "vì sao Tiếp tục khoá" nằm ở chân hộp thoại, ngay cạnh nút (G3-03). */}
 
       {props.collision !== null && (
         <InlineAlert

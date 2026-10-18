@@ -32,7 +32,7 @@
  */
 
 import { useCallback, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import {
@@ -125,8 +125,7 @@ export function WelcomeScreenContainer(props: WelcomeScreenContainerProps) {
  *
  * Ai đã xem màn chào (đi hết ba bước, hoặc bấm "Bỏ qua") thì mở lại
  * `/onboarding` là về thẳng `/` — cờ "đã xem" giữ lời hứa "lần sau không hiện
- * nữa" (B-V1-04). Không có đường xem lại màn chào là CỐ Ý: xem lại hướng dẫn
- * thuộc S-40, không thuộc màn này. Câu `skipNotice` nói trước đúng hệ quả này
+ * nữa" (B-V1-04). Xem lại chỉ bằng lối riêng `?again=1` từ trang Tài khoản (N0-03). Câu `skipNotice` nói trước đúng hệ quả này
  * (B-V1-41).
  *
  * Cờ chỉ đọc MỘT lần, lúc route gắn: chính màn này ghi cờ khi sang `success`,
@@ -135,8 +134,11 @@ export function WelcomeScreenContainer(props: WelcomeScreenContainerProps) {
  */
 export function WelcomeRoute(props: WelcomeScreenContainerProps) {
   const session = useSession();
+  const [searchParams] = useSearchParams();
+  // `?again=1` (lối "Xem lại hướng dẫn bắt đầu" ở trang Tài khoản, N0-03) bỏ qua cờ "đã xem".
+  const again = searchParams.get('again') === '1';
   const [seen] = useState(() => readWelcomeSeen(session.user?.id ?? null));
 
-  if (seen) return <Navigate replace to={ROUTES.dashboard} />;
+  if (seen && !again) return <Navigate replace to={ROUTES.dashboard} />;
   return <WelcomeScreenContainer {...props} />;
 }

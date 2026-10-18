@@ -173,9 +173,11 @@ const makeLayerDocument = (floor: Floor, revision: number, layer?: SpatialLayer)
     sampleLevel === undefined ? [] : clone(items.filter((item) => item.levelId === sampleLevel.id));
   const walls = onFloor(SAMPLE_BUILDING.walls);
   const wallIds = new Set<string>(walls.map((wall) => wall.id));
+  const origin = writtenOrigins.get(floor.id);
   const base: FloorLayerDocument = {
-    axes: onFloor(SAMPLE_BUILDING.axes),
+    axes: clone(writtenAxes.get(floor.id) ?? onFloor(SAMPLE_BUILDING.axes)),
     dimensions: onFloor(SAMPLE_BUILDING.dimensions),
+    ...(origin === undefined ? {} : { origin: { ...origin } }),
     layer: layer ?? {
       furniture: onFloor(SAMPLE_BUILDING.furniture),
       openings: clone(SAMPLE_BUILDING.openings.filter((opening) => wallIds.has(opening.wallId))),
@@ -1236,12 +1238,17 @@ const writtenLayers = new Map<string, SpatialLayer>();
 const lastLayerWrites = new Map<string, { base: number; body: string; revision: number }>();
 /** Tỉ lệ của tầng theo mã tầng: `provisional` → N16 trả `scaleStatus: 'unresolved'`; PUT có tỉ lệ gỡ nó. */
 const writtenScales = new Map<string, { provisional: boolean; value: MillimetresPerPixel }>();
+/** Trục và gốc đã lưu qua #35 (G4b-17): gửi `axes` thay nguyên danh sách, gửi `origin` thay gốc. */
+const writtenAxes = new Map<string, FloorLayerDocument['axes']>();
+const writtenOrigins = new Map<string, { x: number; y: number }>();
 
 export const __resetMockLayerState = (): void => {
   layerRevisions.clear();
   writtenLayers.clear();
   lastLayerWrites.clear();
   writtenScales.clear();
+  writtenAxes.clear();
+  writtenOrigins.clear();
 };
 
 /** Tầng mang tỉ lệ tạm (`scaleStatus: 'unresolved'`) — như máy chủ đoán tỉ lệ mà chưa ai chốt. */
@@ -1543,6 +1550,8 @@ export const createMockApiClient = (): ApiClient => {
               status: 'valid' as const,
             })
           : failed({
+              // Như HttpError thật: mã ở `code` (cho `readWireError`), thân lỗi ở `raw`.
+              code: `INVITATION_TOKEN_${code.toUpperCase()}`,
               kind: 'http',
               raw: { code: `INVITATION_TOKEN_${code.toUpperCase()}` },
               requestId: 'req-invitation-preview',
@@ -1998,6 +2007,14 @@ export const createMockApiClient = (): ApiClient => {
 
         if (body.layer !== undefined) {
           writtenLayers.set(floorId, clone(body.layer));
+        }
+
+        if (body.axes !== undefined) {
+          writtenAxes.set(floorId, clone(body.axes));
+        }
+
+        if (body.origin !== undefined) {
+          writtenOrigins.set(floorId, { ...body.origin });
         }
 
         // Thân chỉ tỉ lệ giữ lớp; có tỉ lệ → tỉ lệ nguồn `human`, gỡ `scaleStatus` (#35).

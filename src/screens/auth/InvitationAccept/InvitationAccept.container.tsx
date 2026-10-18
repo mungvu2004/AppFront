@@ -38,6 +38,8 @@ function InvitationAcceptRouteContent() {
       accept: async (input, signal) =>
         client.auth.acceptInvitation({ body: input, ...(signal !== undefined ? { signal } : {}) }),
       bootstrapSession: bootstrapAfterNewCookie,
+      preview: async (token, signal) =>
+        client.auth.previewInvitation({ body: { token }, ...(signal !== undefined ? { signal } : {}) }),
       navigate: (to, options) => {
         void navigate(to, options);
       },

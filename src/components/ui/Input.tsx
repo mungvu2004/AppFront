@@ -5,6 +5,8 @@ import { cn } from '../../lib/utils';
 export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
   label?: React.ReactNode | undefined;
   error?: React.ReactNode | undefined;
+  /** Viền đỏ + `aria-invalid` mà không có câu lỗi riêng dưới ô (câu nằm ở dải chung, ví dụ sai mật khẩu — G1-09). */
+  invalid?: boolean | undefined;
   hint?: React.ReactNode | undefined;
   prefix?: React.ReactNode | undefined;
   suffix?: React.ReactNode | undefined;
@@ -20,6 +22,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       className,
       label,
       error,
+      invalid,
       hint,
       prefix,
       suffix,
@@ -36,10 +39,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
   ) => {
     const defaultId = React.useId();
     const inputId = id || defaultId;
-    const isError = !!error;
-    const errorId = isError ? `${inputId}-error` : undefined;
+    const isError = !!error || invalid === true;
+    const errorId = error ? `${inputId}-error` : undefined;
     // Gợi ý chỉ hiện khi không có lỗi (xem khối dưới ô), nên chỉ trỏ tới nó lúc ấy.
-    const hintId = !isError && hint ? `${inputId}-hint` : undefined;
+    const hintId = !error && hint ? `${inputId}-hint` : undefined;
     // Ghép, không đè: mô tả nơi gọi đưa vào vẫn đứng cạnh câu lỗi/gợi ý của chính ô; bỏ id trùng
     // (nơi gọi như `PasswordField` có thể đã ghép sẵn id lỗi này).
     const describedBy =

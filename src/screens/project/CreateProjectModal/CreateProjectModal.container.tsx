@@ -96,6 +96,9 @@ export function createProjectGateway(client: ApiClient, queryClient: QueryClient
       }
 
       applyInvalidation(queryClient, 'createProject', {});
+      // G3-01/G1-32: chờ danh sách tải lại rồi mới báo "Đã tạo", để thẻ mới đã có khi toast hiện.
+      // ponytail: tải lại mọi query đang mở (trên dashboard chỉ là danh sách); lỗi tải lại không chặn lượt tạo.
+      await queryClient.refetchQueries({ type: 'active' }).catch(() => undefined);
 
       return { ok: true, data: { id: result.data.id } };
     },

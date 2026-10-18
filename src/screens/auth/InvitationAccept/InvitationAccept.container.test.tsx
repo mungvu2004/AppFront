@@ -64,7 +64,8 @@ describe('InvitationAcceptRoute — lượt mở phiên hỏng ở bước cấu
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('button', { name: AUTH.actions.acceptInvitation })).toBeEnabled();
+    // Biểu mẫu chỉ hiện sau lượt kiểm mã (G2-9).
+    expect(await screen.findByRole('button', { name: AUTH.actions.acceptInvitation })).toBeEnabled();
     expect(screen.getByRole('alert')).toHaveTextContent(viMessages.errors.network.description);
 
     transportBroken = false;

@@ -25,9 +25,9 @@
  * `createUuid` from it.)
  */
 
-import type { ReactElement } from 'react';
-import { AlertCircle, FolderPlus, Lock, Plus, Search } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, type ReactElement } from 'react';
+import { AlertCircle, Folder, FolderPlus, Lock, Plus, Search } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -217,7 +217,8 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
               // Never had a project — the `empty` rule of `useProjectDashboard`, read from the counts and not
               // from `state`: below 1024 px a filter or search with no match is `collapsed`, not `partial` (BUG-111).
               <EmptyState
-                icon={<FolderPlus aria-hidden="true" />}
+                // Không tạo được thì không vẽ dấu cộng: nó hứa một nút không có (G2-12).
+                icon={props.canCreate ? <FolderPlus aria-hidden="true" /> : <Folder aria-hidden="true" />}
                 title="Chưa có dự án nào"
                 description={
                   props.canCreate
@@ -313,7 +314,18 @@ export type ProjectDashboardProps = Omit<UseProjectDashboardOptions, 'onOpenProj
  */
 export function ProjectDashboardConnected(options: ProjectDashboardProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToast } = useToast();
+
+  // G2-12: màn khác (nhận lời mời) gửi một câu chào qua state điều hướng; hiện một lần rồi xoá khỏi lịch sử.
+  const welcomeToast = (location.state as { readonly welcomeToast?: unknown } | null)?.welcomeToast;
+  const shownForKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof welcomeToast !== 'string' || shownForKey.current === location.key) return;
+    shownForKey.current = location.key;
+    addToast({ message: welcomeToast });
+    void navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [addToast, location.key, location.pathname, location.search, navigate, welcomeToast]);
 
   const { model, actions } = useProjectDashboard({
     ...options,

@@ -92,4 +92,13 @@ describe('Input', () => {
     render(<Input id="f" label="Tên" error="Trường bắt buộc" aria-describedby="f-error" />);
     expect(screen.getByRole('textbox')).toHaveAttribute('aria-describedby', 'f-error');
   });
+
+  it('draws the error border without a sentence when only `invalid` is set (G1-09)', () => {
+    render(<Input label="Mật khẩu" invalid hint="Gợi ý" />);
+    const input = screen.getByLabelText('Mật khẩu');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input.parentElement?.className).toContain('border-state-violation');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByText('Gợi ý')).toBeInTheDocument();
+  });
 });

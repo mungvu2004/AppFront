@@ -8,9 +8,10 @@
  * bay thì single-flight trả kết quả cũ, chứ không gửi thêm lượt thứ hai.
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { AcceptInvitationSchema } from '@/api/schemas/auth';
+import { AcceptInvitationSchema, type InvitationPreview } from '@/api/schemas/auth';
+import { readWireError } from '@/lib/errors/wireError';
 import type { Result } from '@/lib/http';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { ROUTES } from '@/routes/paths';
@@ -37,7 +38,7 @@ export interface InvitationAcceptPort {
     signal?: AbortSignal,
   ) => Promise<Result<void, unknown>>;
   readonly bootstrapSession: () => Promise<boolean>;
-  readonly navigate: (to: string, options?: { readonly replace?: boolean }) => void;
+  readonly navigate: (to: string, options?: { readonly replace?: boolean; readonly state?: unknown }) => void;
   /** Đang có người đăng nhập: nhận lời mời sẽ đăng xuất họ (N10 thu hồi phiên cũ). */
   readonly isSignedIn: boolean;
   /** Phiên `unknown` mà máy chủ chưa được báo là không tới được: chưa biết có ai đăng nhập hay không. */
@@ -46,7 +47,21 @@ export interface InvitationAcceptPort {
   readonly isSessionUnavailable: boolean;
   /** Mở lại phiên (`retryAppSession`). */
   readonly retrySession: () => Promise<boolean>;
+  /**
+   * Kiểm mã TRƯỚC khi hiện biểu mẫu (`auth.previewInvitation`, G2-9/G2-10). Vắng thì
+   * biểu mẫu hiện ngay như cũ, lỗi mã chỉ ra sau khi gửi.
+   */
+  readonly preview?: (token: string, signal?: AbortSignal) => Promise<Result<InvitationPreview, unknown>>;
 }
+
+/** Lý do ngõ cụt khi máy chủ từ chối mã (G1-10): link sai, hết hạn/đã gửi lại, đã dùng. */
+export type InvitationDeadReason = 'invalid' | 'expired' | 'used';
+
+const DEAD_REASON_BY_CODE: Readonly<Record<string, InvitationDeadReason>> = {
+  INVITATION_TOKEN_INVALID: 'invalid',
+  INVITATION_TOKEN_EXPIRED: 'expired',
+  INVITATION_TOKEN_USED: 'used',
+};
 
 export interface UseInvitationAcceptOptions {
   readonly port: InvitationAcceptPort;
@@ -88,6 +103,12 @@ export interface InvitationAcceptModel {
    * nhầm vào `?token=`), khác với mã đủ mà máy chủ từ chối (hết hạn, đã dùng) — BUG-005.
    */
   readonly isLinkIncomplete: boolean;
+  /** Máy chủ đã nói vì sao mã hỏng (lượt xem trước); `null` khi chưa biết. */
+  readonly deadReason?: InvitationDeadReason | null;
+  /** Lời mời đã kiểm: thư, vai, người mời, giờ hết hạn (G2-10). */
+  readonly preview?: InvitationPreview | null;
+  /** Đang kiểm mã: chưa hiện biểu mẫu. */
+  readonly isPreviewPending?: boolean;
 }
 
 export interface InvitationAcceptActions {
@@ -99,6 +120,8 @@ export interface InvitationAcceptActions {
   readonly expand: () => void;
   readonly retrySession: () => void;
 }
+
+const INVITATION_WELCOME = 'Đã tạo tài khoản. Chào mừng bạn!';
 
 const EMPTY_VALUES: InvitationAcceptValues = { fullName: '', password: '', confirmPassword: '' };
 const FIELDS: readonly string[] = ['fullName', 'password'];
@@ -146,6 +169,48 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
   const valuesRef = useRef(values);
   valuesRef.current = values;
 
+  const canPreview = hasUsableToken && token !== null && port.preview !== undefined;
+  const [preview, setPreview] = useState<InvitationPreview | null>(null);
+  const [deadReason, setDeadReason] = useState<InvitationDeadReason | null>(null);
+  const [isPreviewPending, setPreviewPending] = useState(canPreview);
+  const previewFn = port.preview;
+
+  useEffect(() => {
+    if (!hasUsableToken || token === null || previewFn === undefined) {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+
+    void previewFn(token, controller.signal)
+      .then((result) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        if (result.ok) {
+          setPreview(result.data);
+        } else {
+          const code = readWireError(result.error)?.code;
+          const reason = code === undefined ? undefined : DEAD_REASON_BY_CODE[code];
+
+          // Lỗi khác (mạng, 5xx): vẫn mở biểu mẫu; lượt gửi sẽ tự báo.
+          if (reason !== undefined) {
+            setDeadReason(reason);
+          }
+        }
+        setPreviewPending(false);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setPreviewPending(false);
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [hasUsableToken, previewFn, token]);
+
   const edit = useCallback((field: InvitationAcceptField, patch: Partial<InvitationAcceptValues>) => {
     setValues((current) => ({ ...current, ...patch }));
     setProblems((current) => {
@@ -179,7 +244,7 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
     [edit],
   );
 
-  const isDead = !hasUsableToken || failure?.kind === 'tokenInvalid';
+  const isDead = !hasUsableToken || deadReason !== null || failure?.kind === 'tokenInvalid';
   const needsSignIn = failure?.kind === 'sessionNotOpened';
   // Hết khoá thì dải 429 đi theo; không cần effect riêng.
   const shownFailure = failure?.kind === 'rateLimited' && !isLocked ? null : failure;
@@ -227,7 +292,8 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
           inFlight.current = false;
 
           if (established) {
-            port.navigate(ROUTES.dashboard, { replace: true });
+            // G2-12: dashboard đọc `welcomeToast` một lần và chào người vừa nhận lời mời.
+            port.navigate(ROUTES.dashboard, { replace: true, state: { welcomeToast: INVITATION_WELCOME } });
 
             return;
           }
@@ -302,7 +368,7 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
     if (isDead) {
       return 'forbidden';
     }
-    if (isSubmitting) {
+    if (isPreviewPending || isSubmitting) {
       return 'loading';
     }
     if (isDone) {
@@ -313,7 +379,7 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
     }
 
     return typed ? 'partial' : 'empty';
-  }, [isCollapsed, isDead, isDone, isSubmitting, shownFailure, typed]);
+  }, [isCollapsed, isDead, isDone, isPreviewPending, isSubmitting, shownFailure, typed]);
 
   const notice: RecoveryNotice | null =
     shownFailure?.kind === 'sessionNotOpened'
@@ -331,13 +397,17 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
       port.isSignedIn && !port.isSessionPending && !isDone
         ? { tone: 'attention', message: AUTH_MESSAGES.invitation.signedInWarning }
         : null,
-    canSubmit: !isSubmitting && !isDone && !isLocked && !needsSignIn && !port.isSessionPending,
+    canSubmit:
+      !isSubmitting && !isDone && !isLocked && !needsSignIn && !port.isSessionPending && !isPreviewPending,
     isSubmitting,
     isDone,
     needsSignIn,
     isSessionPending: port.isSessionPending,
     isSessionUnavailable: sessionUnavailable,
     isLinkIncomplete: token === null, // mã có trên URL nhưng sai dạng = link hỏng, không phải "bị cắt" (G1-10)
+    deadReason: hasUsableToken ? deadReason : token === null ? null : 'invalid',
+    preview,
+    isPreviewPending,
     retryNotice: !sessionUnavailable
       ? null
       : retryPhase === 'pending'

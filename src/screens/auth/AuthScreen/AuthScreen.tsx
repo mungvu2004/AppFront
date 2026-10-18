@@ -68,6 +68,7 @@ interface CredentialFormProps {
 
 function CredentialForm({ model, actions, registerFirstField }: CredentialFormProps) {
   const { values, problems, isSubmitting, canSubmit, submitLabel, notice, state } = model;
+  const credentialsRejected = model.credentialsRejected === true;
   const isDone = state === 'success';
   const fieldsDisabled = isSubmitting || isDone;
   const focusReturn = useReturnFocus(isSubmitting);
@@ -134,6 +135,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           value={values.email}
           disabled={fieldsDisabled}
           {...(problems.email !== undefined ? { error: problems.email } : {})}
+          invalid={credentialsRejected}
           onChange={(event) => {
             actions.setEmail(event.target.value);
           }}
@@ -147,6 +149,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           value={values.password}
           disabled={fieldsDisabled}
           {...(problems.password !== undefined ? { error: problems.password } : {})}
+          invalid={credentialsRejected}
           onChange={(event) => {
             actions.setPassword(event.target.value);
           }}

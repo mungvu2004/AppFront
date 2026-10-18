@@ -618,9 +618,9 @@ describe('cờ "đã xem màn chào" đọc và ghi vào localStorage', () => {
   /* -- B-V1-04: route đọc cờ. `/` giả chỉ là một tiêu đề để nhận ra đã tới. -- */
 
   /** `tree()` dựng phần tử MỚI mỗi lần gọi — `rerender` với cùng một phần tử thì React bỏ qua. */
-  function mountRoute(fetchList: QueryFunction<DashboardProjectList>) {
+  function mountRoute(fetchList: QueryFunction<DashboardProjectList>, entry = '/onboarding') {
     const tree = () => (
-      <MemoryRouter initialEntries={['/onboarding']}>
+      <MemoryRouter initialEntries={[entry]}>
         <Routes>
           <Route path="/onboarding" element={<WelcomeRoute fetchList={fetchList} />} />
           <Route path="/" element={<h1>Dự án của tôi</h1>} />
@@ -638,6 +638,14 @@ describe('cờ "đã xem màn chào" đọc và ghi vào localStorage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Dự án của tôi' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Bỏ qua' })).not.toBeInTheDocument();
+  });
+
+  it('đã xem rồi vẫn mở lại được bằng lối "Xem lại hướng dẫn" (?again=1, N0-03)', async () => {
+    window.localStorage.setItem('appfront:onboarding-welcome-seen:u-minh', 'true');
+
+    mountRoute(listOf([]), '/onboarding?again=1');
+
+    expect(await screen.findByRole('button', { name: 'Bỏ qua' })).toBeInTheDocument();
   });
 
   it('chưa xem thì /onboarding vẫn là màn chào', async () => {

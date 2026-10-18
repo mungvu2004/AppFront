@@ -619,6 +619,9 @@ describe('AuthScreen — SSO and password reset', () => {
     fireEvent.keyDown(passwordField(), { key: 'Enter' });
 
     await screen.findByText(AUTH_MESSAGES.errors.invalidCredentials.title);
+    // G1-09: both boxes turn red with the strip, without a second sentence under each.
+    expect(emailField()).toHaveAttribute('aria-invalid', 'true');
+    expect(passwordField()).toHaveAttribute('aria-invalid', 'true');
     fireEvent.click(screen.getByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword }));
 
     expect(screen.getByRole('button', { name: AUTH_MESSAGES.actions.sendResetLink })).toBeInTheDocument();
