@@ -171,7 +171,7 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
                   onClick={() => onApprove(room.id)}
                   variant="primary"
                 >
-                  {APPROVE_LABEL}
+                  {room.status === 'confirmed' ? APPROVED_BADGE : APPROVE_LABEL}
                 </Button>
                 {room.status === 'unnamed' && (
                   <p className="text-[13px] text-text-secondary" id={APPROVE_HINT_ID}>

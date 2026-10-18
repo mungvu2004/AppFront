@@ -93,11 +93,11 @@ function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus }: 
       tabIndex={0}
     >
       <span className="w-16 shrink-0 truncate font-mono text-text-secondary">{room.codeLabel}</span>
-      <span className={cn('min-w-0 flex-1 truncate', room.hasName ? 'text-text-primary' : 'text-text-muted')}>
+      <span className={cn('min-w-0 flex-1 break-words', room.hasName ? 'text-text-primary' : 'text-text-muted')}>
         {nameText}
       </span>
       {/* Diện tích co được tới 45% hàng, chữ đầy đủ ở `title`: "Chưa có · tỷ lệ tạm" không còn nuốt tên phòng (BUG-624). */}
-      <span className="max-w-[45%] truncate font-mono tabular-nums text-text-secondary" title={room.areaText}>
+      <span className="max-w-[45%] break-words text-right font-mono tabular-nums text-text-secondary" title={room.areaText}>
         {room.areaText}
       </span>
       <span aria-hidden="true" className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_CLASS[room.status])} />

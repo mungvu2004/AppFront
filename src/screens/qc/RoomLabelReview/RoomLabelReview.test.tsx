@@ -475,10 +475,10 @@ describe('hộp thoại gộp phòng', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('đường dẫn đầu màn (B-V6-43)', () => {
-  it('không gõ cứng một tầng: "Dự án > Nhãn phòng"', () => {
+  it('không gõ cứng một tầng; đường dẫn do QcFloorNav (gắn qua floorNav) lo', () => {
     renderState('success');
 
-    expect(screen.getByText('Dự án > Nhãn phòng')).toBeInTheDocument();
+    expect(screen.queryByText('Dự án > Nhãn phòng')).not.toBeInTheDocument();
     expect(screen.queryByText(/Tầng 01 >/u)).not.toBeInTheDocument();
   });
 });

@@ -421,7 +421,7 @@ export function useRoomLabelReview(
   /* N16 của tầng — `useFloorLayer` quyết định nó vào kho thế nào (F-04x-2). */
   const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
   const { scaleStatus } = floorLayer;
-  const provisionalScaleNotice = useProvisionalScaleNotice(scaleStatus, projectId, floorId, options.onNavigate);
+  const provisionalScaleNotice = useProvisionalScaleNotice(scaleStatus, projectId, floorId, options.onNavigate, canEdit);
   const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
 
   /*
@@ -540,7 +540,10 @@ export function useRoomLabelReview(
       rooms.map((room) =>
         toRoomLabelRow(room, {
           measures: measures.get(room.id) ?? measureRoom(room, scale, scaleStatus),
-          notices: noticesOfRoom(violations, room.id, ruleRouteHref),
+          notices: noticesOfRoom(violations, room.id, ruleRouteHref).filter(
+            /* G4a-30: tỷ lệ tạm thì diện tích chưa có, không nhắc "thiếu m²" trái với panel. */
+            (notice) => scaleStatus === undefined || notice.ruleCode !== 'ROOM-AREA-BELOW-MINIMUM',
+          ),
           backgroundImageUrl,
           scale,
           codes: roomCodes,

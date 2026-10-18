@@ -129,12 +129,16 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
             )}
             key={suggestion}
             /*
-             * Điền vào ô, KHÔNG cam kết: người dùng còn sửa tiếp được. Cam kết
-             * vẫn đi qua đúng một cửa (rời ô hoặc Enter) như khi tự gõ.
+             * Gợi ý là một cú bấm một bước: cam kết ngay (G4a-31), nhãn trên bản
+             * vẽ và danh sách đổi theo; hoàn tác qua toast như mọi lần đổi tên.
              */
             onClick={() => {
               setDraft(suggestion);
               inputRef.current?.focus();
+              if (suggestion !== name) {
+                setCommitted(suggestion);
+                onCommit(suggestion);
+              }
             }}
             type="button"
           >

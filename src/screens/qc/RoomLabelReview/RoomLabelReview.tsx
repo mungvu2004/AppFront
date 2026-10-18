@@ -61,6 +61,7 @@ import { cn } from '@/lib/utils';
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame } from '../shared/QcScreenFrame';
 
 import { RoomLabelCanvas } from './RoomLabelCanvas';
@@ -76,16 +77,16 @@ import type { RoomLabelReviewProps } from './roomLabelTypes';
  * container chuyền thẳng kết quả hook xuống đây mà không phải nắn hình dạng —
  * và story dựng view bằng cùng một vật.
  */
-export type RoomLabelReviewViewProps = RoomLabelReviewProps;
+export type RoomLabelReviewViewProps = RoomLabelReviewProps & {
+  /** Breadcrumb dự án › tầng › lớp và thanh lớp (P14). */
+  readonly floorNav?: Omit<QcFloorNavProps, 'layer'>;
+};
 
 /* -------------------------------------------------------------------------- */
 /* Chuỗi tĩnh của vỏ màn (A6 — chữ thường kiểu câu, trừ tên riêng và mã).      */
 /* -------------------------------------------------------------------------- */
 
-const SCREEN_BREADCRUMB = 'Dự án > Nhãn phòng';
 const SCREEN_TITLE = 'Duyệt tên phòng';
-const SCREEN_DESCRIPTION =
-  'Đối chiếu tên và công năng từng phòng với bản vẽ gốc, rồi xác nhận từng phòng một.';
 const CANVAS_SECTION_LABEL = 'Khung xem bản vẽ duyệt tên phòng';
 const EMPTY_TITLE = 'Chưa dò ra phòng nào';
 const EMPTY_ACTION_LABEL = 'Kiểm tra lại vòng hở';
@@ -269,16 +270,19 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
 
   return (
     <QcScreenFrame label={SCREEN_TITLE}>
-      <header className="shrink-0 px-4 pb-1 pt-3">
-        <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
-        <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
-        <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
-        {props.saveStatus != null && (
-          <p className="text-[12px] text-text-muted" data-testid="room-save-status" role="status">
-            {props.saveStatus}
-          </p>
-        )}
-      </header>
+      {props.floorNav != null && <QcFloorNav {...props.floorNav} layer="rooms" />}
+      <p className="shrink-0 px-4 pt-1 text-[12px] text-text-secondary" data-testid="room-approve-progress">
+        {`${rooms.filter((room) => room.status === 'confirmed').length}/${rooms.length} phòng đã duyệt`}
+      </p>
+      {props.saveStatus != null && (
+        <p
+          className="shrink-0 px-4 pt-1 text-[12px] text-text-muted"
+          data-testid="room-save-status"
+          role="status"
+        >
+          {props.saveStatus}
+        </p>
+      )}
 
       {props.saveBlock != null && (
         <div className="px-2 pt-2">

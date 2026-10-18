@@ -62,6 +62,7 @@
  */
 
 import { AlertCircle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -76,6 +77,11 @@ import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useSession } from '@/hooks/useSession';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import type { ProjectRole } from '@/types/project';
+
+import { createAppApiClient } from '@/api/appClient';
+import { queryKeys } from '@/lib/query/queryKeys';
+
+import type { QcFloorNavProps } from '../shared/QcFloorNav';
 
 import { RoomLabelReview } from './RoomLabelReview';
 import type { RoomLabelReviewGateway } from './roomLabelReviewGateway';
@@ -113,6 +119,8 @@ export interface RoomLabelReviewContainerProps {
   readonly forceSaveBlock?: FloorLayerSaveBlock;
   /** Dưới 1.024px cột trái xếp dọc; màn cha đo bề rộng và truyền vào. */
   readonly forceCompact?: boolean;
+  /** Breadcrumb + thanh lớp (P14); vắng thì màn không vẽ nav. */
+  readonly floorNav?: Omit<QcFloorNavProps, 'layer'>;
 }
 
 /** Cùng khuôn `ScreenCrashFallback` của `src/App.tsx` — R-62. */
@@ -155,7 +163,10 @@ function WiredRoomLabelReview(props: RoomLabelReviewContainerProps) {
     ...(props.forceCompact !== undefined ? { forceCompact: props.forceCompact } : {}),
   });
 
-  return <RoomLabelReview {...model} saveBlock={props.forceSaveBlock ?? model.saveBlock} />;
+  return <RoomLabelReview
+      {...model}
+      {...(props.floorNav !== undefined ? { floorNav: props.floorNav } : {})}
+      saveBlock={props.forceSaveBlock ?? model.saveBlock} />;
 }
 
 /** `<RoomLabelReviewContainer … />` — màn S-17 thật, đã nối, gắn được bằng một thẻ. */
@@ -192,9 +203,31 @@ function RoomLabelReviewRouteBody({
    */
   const levelId = useMemo(() => floorId as LevelId, [floorId]);
 
+  /* Danh sách tầng cho cấp Tầng của breadcrumb (cùng cách màn Đối tượng). */
+  const floorsQuery = useQuery({
+    queryKey: queryKeys.floor.list(projectId),
+    queryFn: async ({ signal }) => {
+      const result = await createAppApiClient().floors.list({ projectId, signal });
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      return result.data;
+    },
+  });
+  const floors = useMemo(
+    () =>
+      [...(floorsQuery.data ?? [])]
+        .sort((first, second) => first.order - second.order)
+        .map((item) => ({ id: item.id, label: item.name })),
+    [floorsQuery.data],
+  );
+
   return (
     <RoomLabelReviewContainer
       floorId={floorId}
+      floorNav={{ floorId, floors, projectId }}
       levelId={levelId}
       onNavigate={(path) => navigate(path)}
       projectId={projectId}

@@ -89,7 +89,7 @@ describe('RoomLabelNameField', () => {
     expect(onCommit).not.toHaveBeenCalled();
   });
 
-  it('bấm gợi ý chỉ điền vào ô; vai chỉ xem không có ô nhập gợi ý', () => {
+  it('bấm gợi ý điền vào ô và cam kết ngay; vai chỉ xem không có ô nhập gợi ý', () => {
     const onCommit = vi.fn();
     const { rerender } = render(
       <RoomLabelNameField isReadOnly={false} name="" onCommit={onCommit} suggestions={['Phòng ngủ']} />,
@@ -98,7 +98,7 @@ describe('RoomLabelNameField', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Phòng ngủ' }));
 
     expect(screen.getByRole('textbox', { name: 'Tên phòng' })).toHaveValue('Phòng ngủ');
-    expect(onCommit).not.toHaveBeenCalled();
+    expect(onCommit).toHaveBeenCalledWith('Phòng ngủ');
 
     rerender(<RoomLabelNameField isReadOnly name="Bếp" onCommit={onCommit} suggestions={['Phòng ngủ']} />);
 
