@@ -10,6 +10,7 @@
  * thật của repo hôm nay, không phải chỗ tạm — xem `ruleReportGateway.ts`.
  */
 
+import type { BreadcrumbItem } from '@/components/shell/Breadcrumb';
 import type { RuleCode, RuleGroup, RuleSeverity } from '@/domain/rules/registry';
 import type { LevelId } from '@/domain/spatial/types';
 
@@ -160,4 +161,6 @@ export interface RuleReportViewProps {
    * story và test dựng view thẳng không cần nó.
    */
   readonly settingsPath?: string;
+  /** "Dự án › <tên dự án> › Kiểm tra luật không gian", như Cài đặt dự án (K5). Vắng thì không vẽ. */
+  readonly breadcrumb?: readonly BreadcrumbItem[];
 }

@@ -21,7 +21,10 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient, ApiResult, LatestFloorUpload } from '@/api/client';
 import { ProgressSchema, type Progress } from '@/api/schemas';
+import { totalArea } from '@/domain/rooms/area';
 import { SAMPLE_BUILDING, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { toPointMm } from '@/lib/commands/business/shared';
+import { formatArea } from '@/lib/format/measure';
 import * as auth from '@/lib/auth';
 import type { HttpError } from '@/lib/http';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
@@ -304,6 +307,7 @@ interface BackgroundOptions {
   readonly backgroundWatches?: BackgroundWatchRegistry;
   readonly onNavigate?: (path: string) => void;
   readonly writeClipboardText?: (text: string) => Promise<void>;
+  readonly forceCollapsed?: boolean;
 }
 
 function mountHook(
@@ -337,6 +341,7 @@ function mountHook(
           ? { notifications: background.notifications }
           : {}),
         ...(background.onNavigate !== undefined ? { onNavigate: background.onNavigate } : {}),
+        ...(background.forceCollapsed !== undefined ? { forceCollapsed: background.forceCollapsed } : {}),
       }),
     { wrapper },
   );
@@ -629,6 +634,29 @@ describe('useProcessingScreen', () => {
     mounted.unmount();
   });
 
+  it('narrow and finished is still success, so the summary stays on top (K5)', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget(), {
+      forceCollapsed: true,
+    });
+
+    await settle(clock);
+    expect(mounted.result.current.state).toBe('collapsed');
+
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(finishedProgress(upload.uploadId));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+
+    expect(mounted.result.current.state).toBe('success');
+    expect(mounted.result.current.isCompact).toBe(true);
+
+    mounted.unmount();
+  });
+
   // BUG-360: the seed read (#8) and the first SSE event both say "Tiền xử lý — 0%".
   it('the same progress twice in a row writes one log line, not two (BUG-360)', async () => {
     const harness = makeScriptedClient();
@@ -755,6 +783,11 @@ describe('useProcessingScreen', () => {
     expect(mounted.result.current.floors[0]?.objectCountLabel).toBe(objectLabel);
     expect(mounted.result.current.summary?.metricLabels[1]).toBe(objectLabel);
     expect(mounted.result.current.summary?.metricLabels[2]).toBe(`${String(dimensions.length)} chuỗi kích thước`);
+    // K5: total area = outlines added in mm², rounded once (as on the rooms screen), not the
+    // sum of each room's already-rounded `areaM2`.
+    expect(mounted.result.current.summary?.metricLabels[4]).toBe(
+      formatArea(totalArea(sample.rooms.map((room) => room.outline.map(toPointMm)))),
+    );
 
     mounted.unmount();
   });

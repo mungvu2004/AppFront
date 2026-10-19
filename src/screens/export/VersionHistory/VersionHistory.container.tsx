@@ -37,7 +37,7 @@
 
 import { History } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { createAppApiClient } from '@/api/appClient';
 
@@ -52,6 +52,7 @@ import {
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useSession } from '@/hooks/useSession';
 import { can } from '@/lib/auth/permissions';
+import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
@@ -131,7 +132,7 @@ function VersionHistoryCrashFallback({ report, retry }: ScreenErrorFallback) {
 
 /** Màn thật, bên trong ranh giới lỗi. */
 function WiredVersionHistory(props: VersionHistoryContainerProps) {
-  const { apiClient: injectedClient, floorId, floorOptions, gateway: injectedGateway, onExportVersion, onSelectFloor, onToast, projectId } =
+  const { apiClient: injectedClient, breadcrumb, floorId, floorOptions, gateway: injectedGateway, onExportVersion, onSelectFloor, onToast, projectId } =
     props;
 
   const session = useSession();
@@ -162,7 +163,7 @@ function WiredVersionHistory(props: VersionHistoryContainerProps) {
     ...(onExportVersion !== undefined ? { onExportVersion } : {}),
   });
 
-  return <VersionHistory model={model} actions={actions} />;
+  return <VersionHistory model={model} actions={actions} {...(breadcrumb !== undefined ? { breadcrumb } : {})} />;
 }
 
 /**
@@ -191,6 +192,7 @@ export function VersionHistoryContainer(props: VersionHistoryContainerProps) {
  */
 function ProjectVersionHistory({ projectId }: { readonly projectId: string }) {
   const { addToast } = useToast();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const project = useStore((state) => state.project);
   const floors = useStore((state) => state.floors);
@@ -222,7 +224,11 @@ function ProjectVersionHistory({ projectId }: { readonly projectId: string }) {
   }
 
   return (
-    <VersionHistoryContainer projectId={projectId} floorId={floorId} floorOptions={floorOptions} onSelectFloor={(id) => {
+    <VersionHistoryContainer projectId={projectId} floorId={floorId} floorOptions={floorOptions} breadcrumb={[
+        { id: 'projects', label: 'Dự án', onClick: () => void navigate(ROUTES.dashboard) },
+        { id: 'project', label: project.name },
+        { id: 'current', label: 'Lịch sử phiên bản' },
+      ]} onSelectFloor={(id) => {
         setPicked(id);
         // `?floorId=` là chỗ giữ tầng qua tải lại / liên kết sao chép (A-006).
         setSearchParams((previous) => new URLSearchParams({ ...Object.fromEntries(previous), floorId: id }), { replace: true });

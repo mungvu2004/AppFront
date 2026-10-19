@@ -2,7 +2,7 @@
  * Trung tâm thông báo — tấm trượt kể những việc vừa xảy ra trong dự án, và
  * cái chuông mở nó. Đường nhập duy nhất của thư mục này.
  *
- * - {@link NotificationCenterRoute} là bản toàn màn của `/thong-bao`.
+ * - {@link NotificationCenterRoute} là trang `/thong-bao` trong khung ứng dụng (G1-15).
  *   `src/routes/router.tsx:36` nhập ĐÚNG tên này — đổi tên là hỏng route.
  * - {@link NotificationCenterContainer} là lớp đã nối (ranh giới lỗi + router +
  *   hook), cho một màn chủ muốn tự giữ trạng thái mở (R-73).

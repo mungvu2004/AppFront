@@ -77,8 +77,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { alignFloors, type FloorAlignmentReport, type FloorIssue } from '@/domain/axes/alignFloors';
 import { explainHealthScore, groupViolationsByLevel, HEALTH_SCORE_MAX } from '@/domain/rules/healthScore';
 import type { Violation } from '@/domain/rules/registry';
+import { totalArea } from '@/domain/rooms/area';
 import type { Level, LevelId } from '@/domain/spatial/types';
 import { HUMAN_TEXT_MAX_LENGTH, normalizeHumanText } from '@/domain/text/humanText';
+import type { PointMm } from '@/domain/units/compare';
 import { PROJECT_LIMITS } from '@/domain/project/limits';
 import {
   metres,
@@ -119,6 +121,7 @@ import type { ProjectRole } from '@/types/project';
 
 import {
   areaOfLevel,
+  roomOutlinesOfLevel,
   createAddFloorCommand,
   createChangeFloorHeightCommands,
   createChangeLevelElevationCommand,
@@ -1611,7 +1614,12 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   const countsByLevel = useMemo(() => {
     const table = new Map<
       string,
-      { readonly wallCount: number; readonly roomCount: number; readonly areaM2: number }
+      {
+        readonly wallCount: number;
+        readonly roomCount: number;
+        readonly areaM2: number;
+        readonly roomOutlinesMm: readonly (readonly PointMm[])[];
+      }
     >();
 
     for (const level of levels) {
@@ -1626,6 +1634,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         wallCount: wallCountOfLevel(graph, level.id),
         roomCount: roomsOfLevel(graph, level.id).length,
         areaM2: areaOfLevel(graph, level.id),
+        roomOutlinesMm: roomOutlinesOfLevel(graph, level.id),
       });
     }
 
@@ -1739,7 +1748,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   }, [bottomMm, levels, topMm, totalStackHeightMm]);
 
   const footer = useMemo<FloorTableFooterVm>(() => {
-    let areaTotal: number | null = null;
+    // Tổng chân bảng: mọi đường bao của các tầng đã đếm, cộng mm² rồi làm tròn MỘT lần (K5).
+    let areaOutlines: (readonly PointMm[])[] | null = null;
     let wallTotal: number | null = null;
     let roomTotal: number | null = null;
 
@@ -1750,7 +1760,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         continue;
       }
 
-      areaTotal = (areaTotal ?? 0) + counts.areaM2;
+      areaOutlines = [...(areaOutlines ?? []), ...counts.roomOutlinesMm];
       wallTotal = (wallTotal ?? 0) + counts.wallCount;
       roomTotal = (roomTotal ?? 0) + counts.roomCount;
     }
@@ -1758,7 +1768,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     return {
       floorCountText: floorCountText(rows.length),
       totalHeightText,
-      totalAreaText: areaTotal === null ? MISSING_VALUE : formatArea(areaTotal),
+      totalAreaText: areaOutlines === null ? MISSING_VALUE : formatArea(totalArea(areaOutlines)),
       totalWallCountText: countText(wallTotal),
       totalRoomCountText: countText(roomTotal),
     };

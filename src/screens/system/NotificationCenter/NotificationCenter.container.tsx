@@ -13,7 +13,7 @@
  *   được vào vỏ ứng dụng; nó cấp một chuông đã nối đủ để bất kỳ vỏ nào cũng
  *   gắn vào bằng một dòng. Người gắn đầu tiên là danh sách dự án
  *   (`ProjectDashboard.container.tsx`, B-V3-08).
- * - {@link NotificationCenterRoute} là bản toàn màn cho `/thong-bao`.
+ * - {@link NotificationCenterRoute} là trang `/thong-bao` trong khung ứng dụng (G1-15).
  *
  * ## Vì sao `isOpen`/`onDismiss` là props chứ không phải trạng thái nội bộ
  *
@@ -32,19 +32,16 @@
  * `EditorTour.container.tsx` đang dùng.
  */
 
-import { useCallback, useRef, type CSSProperties } from 'react';
-import { Bell } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
-import { DRAWER_GAP_PX, DRAWER_WIDTH_PX } from '@/components/overlay/Drawer';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
-import { ROUTES } from '@/routes/paths';
 
-import { NotificationBell, NotificationCenter } from './NotificationCenter';
+import { NotificationBell, NotificationCenter, NotificationCenterPage } from './NotificationCenter';
 import { useNotificationCenter, type UseNotificationCenterOptions } from './useNotificationCenter';
 
 /** Tên màn này với ranh giới lỗi, và với bất cứ ai đọc báo cáo của nó. */
@@ -60,8 +57,6 @@ export interface NotificationCenterContainerProps extends UseNotificationCenterO
    * có người nối nhầm vòng.
    */
   readonly onDismiss?: (() => void) | undefined;
-  /** Route toàn màn: ẩn "Xem tất cả" (chỉ dẫn về chính nó). */
-  readonly hideViewAll?: boolean | undefined;
 }
 
 /** Thẻ nhỏ thay cho tấm trượt khi nó sập — không chắn thao tác của màn bên dưới. */
@@ -88,7 +83,7 @@ function NotificationCrashFallback({ report, retry }: ScreenErrorFallback) {
  */
 function useWiredNotificationCenter(props: NotificationCenterContainerProps) {
   const navigate = useNavigate();
-  const { onDismiss, hideViewAll, ...options } = props;
+  const { onDismiss, ...options } = props;
 
   const goTo = useCallback(
     (to: string): void => {
@@ -108,7 +103,7 @@ function useWiredNotificationCenter(props: NotificationCenterContainerProps) {
     ...(onClose === undefined ? {} : { onClose }),
   });
 
-  return { ...vm, hideViewAll: hideViewAll === true };
+  return vm;
 }
 
 /** Hook và view — nối lại thành một tấm trượt đã sẵn sàng. */
@@ -170,107 +165,27 @@ export function NotificationBellContainer(props: NotificationCenterContainerProp
   );
 }
 
-/**
- * Trang đứng sau tấm ở `/thong-bao` (BUG-124). Route không có màn chủ để tấm trượt lên, nên thay vì nền xám
- * trống là một trang có chủ ý: tên trang và cách quay lại. `aria-hidden`: hộp thoại là modal và đã mang tên
- * "Thông báo"; trang này chỉ để mắt nhìn. Dưới 1024 px chỉ dòng tên lộ ra trên tờ 90 %.
- */
-/** The panel and the gaps on both its sides: the backdrop centres its text in what is left (from the Drawer's own width). */
-const PANEL_CLEARANCE = { '--panel-clearance': `${String(DRAWER_WIDTH_PX + 2 * DRAWER_GAP_PX)}px` } as CSSProperties;
+/** Hook và trang — `isOpen` ghim `true` vì trang luôn hiện; bấm một dòng chỉ điều hướng, không có gì để đóng. */
+function WiredNotificationPage() {
+  const vm = useWiredNotificationCenter({ isOpen: true });
 
-/** Không bắt click: lớp phủ của `Drawer` nằm trên và đã gọi `onDismiss` (RV2#9). */
-function NotificationRouteBackdrop() {
-  return (
-    <div
-      aria-hidden="true"
-      className="fixed inset-0 flex items-start justify-center bg-bg-app px-6 pt-8 lg:items-center lg:pr-[var(--panel-clearance)] lg:pt-0"
-      style={PANEL_CLEARANCE}
-    >
-      <div className="flex max-w-sm flex-col items-center gap-2 text-center">
-        <Bell size={32} strokeWidth={1.5} className="hidden text-text-muted lg:block" />
-        <p className="text-[20px] font-semibold text-text-primary">Trung tâm thông báo</p>
-        <p className="hidden text-[14px] text-text-secondary lg:block">
-          Nhấn Esc hoặc bấm ra ngoài bảng để quay lại.
-        </p>
-      </div>
-    </div>
-  );
+  return <NotificationCenterPage {...vm} />;
 }
 
 /**
- * Bản toàn màn cho `/thong-bao` — trạng thái 7 "thu gọn, toàn màn".
- *
- * `isOpen` ghim `true` và `onDismiss` đưa người dùng lùi lại: ở một route thì
- * không có màn chủ nào để trượt về, nên "đóng" nghĩa là rời route.
- *
- * ## Vì sao không gọi thẳng `navigate(-1)`
- *
- * `navigate(-1)` là một lượt lùi **mù**. Mở `/thong-bao` trực tiếp — một liên kết được
- * chia sẻ, một thông báo đẩy, một tab mới — thì tab không có mục lịch sử nào phía
- * trước, và `Escape` đưa trình duyệt ra **`about:blank`**. Đã dựng lại được bằng
- * trình duyệt thật: một màn trắng do một phím gây ra — đúng thứ A11 tồn tại để
- * chặn, và ngược lời hứa A12 ("Esc đóng lớp trên cùng", không phải "Esc rời
- * ứng dụng").
- *
- * `location.key` là `'default'` ở đúng mục lịch sử **đầu tiên** của router
- * (react-router 6.25.1), nên nó trả lời được câu "có chỗ nào trong ứng dụng để
- * lùi về không". Không có thì đi tới một đích xác định thay vì lùi ra ngoài;
- * `replace` để `/thong-bao` không nằm lại trong lịch sử và `Escape` lần hai
- * không quay lại nó.
- *
- * **Hai nhánh đều với tới được.** Trước B-V3-08 không chỗ nào trong `src` điều
- * hướng tới `/thong-bao` — nút "Xem tất cả" chỉ nằm trong quả chuông, mà quả chuông
- * chưa vỏ nào dựng — nên mọi lượt tới đây là một lượt tải trang và `navigate(-1)`
- * từng lùi ra khỏi ứng dụng (lỗi trên sống lâu vì thế). Nay chuông ở danh sách dự
- * án dẫn tới đây qua "Xem tất cả", nên nhánh `navigate(-1)` có bài e2e riêng
- * (`e2e/v2v3/dashboard.spec.ts`, B-V3-08).
+ * `/thong-bao` — trang danh sách đầy đủ dưới header chung (G1-15). Trước đây là tấm trượt ghim mở trên nền
+ * xám (BUG-124/B-G-02/B-V2-04): nay là trang thường nên không còn Esc rời route hay lượt "đóng" đè điều hướng.
  */
 export function NotificationCenterRoute() {
-  const navigate = useNavigate();
-  const { key: historyKey, pathname } = useLocation();
-  // Hook gọi `onNavigate(đích)` rồi `onClose()` liền sau (và view gọi `onClose` thêm
-  // một lần nữa sau quãng mờ). Ở route, "đóng" là "rời route" — nên lượt đóng ấy
-  // từng đè lên chính lượt điều hướng vừa đi và đưa người dùng về `/` thay vì tới
-  // màn của thông báo (B-V2-04). Đã điều hướng đi thì không còn gì để đóng.
-  const hasLeftRef = useRef(false);
-
-  // "Xem tất cả" ngay trên `/thong-bao` điều hướng tới chính route này: không đi đâu cả,
-  // nên không được đánh dấu là đã rời (BUG-113 — Esc từng hết tác dụng vĩnh viễn), và
-  // lượt `onClose` ngay sau nó không được đóng route — người dùng chọn "xem tất cả", chứ
-  // không phải "đóng".
-  const isStayingRef = useRef(false);
-
-  const goTo = useCallback(
-    (to: string): void => {
-      if (to === pathname) {
-        isStayingRef.current = true;
-        queueMicrotask(() => {
-          isStayingRef.current = false;
-        });
-        return;
-      }
-
-      hasLeftRef.current = true;
-      navigate(to);
-    },
-    [navigate, pathname],
-  );
-
-  const goBack = useCallback((): void => {
-    if (hasLeftRef.current || isStayingRef.current) return;
-
-    if (historyKey === 'default') {
-      navigate(ROUTES.dashboard, { replace: true });
-      return;
-    }
-
-    navigate(-1);
-  }, [historyKey, navigate]);
-
   return (
-    <>
-      <NotificationRouteBackdrop />
-      <NotificationCenterContainer isOpen isCompact hideViewAll onNavigate={goTo} onDismiss={goBack} />
-    </>
+    <ScreenErrorBoundary
+      key={`${SCREEN_ID}-page`}
+      screenId={SCREEN_ID}
+      renderFallback={({ report, retry }) => (
+        <NotificationCrashFallback report={report} retry={retry} />
+      )}
+    >
+      <WiredNotificationPage />
+    </ScreenErrorBoundary>
   );
 }

@@ -24,6 +24,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Modal } from '@/components/overlay/Modal';
+import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/utils';
@@ -33,7 +34,7 @@ import { VersionLabelDialog } from './VersionLabelDialog';
 import { VersionList } from './VersionList';
 import type { VersionHistoryProps } from './types';
 
-export function VersionHistory({ model, actions }: VersionHistoryProps) {
+export function VersionHistory({ model, actions, breadcrumb }: VersionHistoryProps) {
   // Bản bên phải; chỉ tích một bản thì chính bản ấy, nút phục hồi không tắt vô cớ (BUG-470).
   const reviewedVersionId = model.compare.rightVersionId ?? model.compare.leftVersionId;
   const rowOf = (id: string | null) => model.rows.find((row) => row.id === id) ?? null;
@@ -85,7 +86,14 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
     // Khổ hẹp: trang tự cao theo nội dung và khung cuộn của app cuộn nó, để khung so sánh không bị ép
     // còn ~220 px dưới tiêu đề + hai ô chọn (V1b vòng 1). Khổ rộng giữ khung cố định, vùng so sánh tự cuộn.
     <div className={model.isNarrow ? 'flex min-h-full flex-col gap-3' : 'flex h-full flex-col gap-3'}>
-      <h1 className="px-4 pt-4 text-[20px] font-semibold text-text-primary">Lịch sử phiên bản</h1>
+      {breadcrumb === undefined ? null : (
+        <div className="px-4 pt-4">
+          <Breadcrumb items={breadcrumb} />
+        </div>
+      )}
+      <h1 className={cn('px-4 text-[20px] font-semibold text-text-primary', breadcrumb === undefined && 'pt-4')}>
+        Lịch sử phiên bản
+      </h1>
       {model.floorSelect !== null && model.state !== 'forbidden' && (
         <div className="max-w-2xl px-4">
           <Select

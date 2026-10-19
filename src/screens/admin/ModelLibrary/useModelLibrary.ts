@@ -1,5 +1,5 @@
 /**
- * Hook của S-25 — thư viện model dùng chung (`/admin/models`).
+ * Hook của S-25 — thư viện mẫu 3D dùng chung (`/admin/models`).
  *
  * View thuần chỉ nhận `model` + `actions` (mục D, R-60); tất cả phần còn lại của màn ở
  * đây. File này tiêu thụ `modelLibraryGateway.ts` và không dựng lại thứ gì trong đó —
@@ -102,7 +102,7 @@ export const MODEL_LIBRARY_TEXT = {
   readOnlyReason:
     'Vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện',
   autoSpinNote: 'Khung xem trước không tự quay; kéo chuột trong khung để xoay model',
-  loadFailed: 'Không đọc được danh mục model',
+  loadFailed: 'Không đọc được danh mục mẫu 3D',
   fieldBounds: 'Kích thước bao',
   fieldTriangles: 'Số tam giác',
   fieldFileSize: 'Dung lượng',

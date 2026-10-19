@@ -149,7 +149,7 @@ function WiredModelLibrary(props: ModelLibraryContainerProps) {
 }
 
 /**
- * `<ModelLibraryContainer />` — màn thư viện model đã nối.
+ * `<ModelLibraryContainer />` — màn thư viện mẫu 3D đã nối.
  *
  * Không có `key` phụ thuộc tham số nào vì `/admin/models` không có tham số nào: màn này là
  * một danh mục toàn hệ thống, không phải một khung nhìn của một dự án cụ thể.
@@ -168,7 +168,7 @@ export function ModelLibraryContainer(props: ModelLibraryContainerProps) {
 }
 
 /**
- * Route thật của màn thư viện model, đăng ký tại `src/routes/router.tsx`.
+ * Route thật của màn thư viện mẫu 3D, đăng ký tại `src/routes/router.tsx`.
  *
  * Không đọc tham số nào: `ROUTE_PATTERNS.adminModels` là `/admin/models`, một đường dẫn phẳng
  * không có lỗ `:id`. Nên route ở đây đúng bằng container, và nó tồn tại để router có một thứ

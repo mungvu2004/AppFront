@@ -28,8 +28,8 @@ import type { TrainingJobsProps, TrainingJobsViewModel, TrainingTabId } from './
 const TEXT = {
   breadcrumbNav: 'Đường dẫn trang',
   breadcrumbAdmin: 'Quản trị',
-  breadcrumbHere: 'Huấn luyện model',
-  title: 'Huấn luyện model AI',
+  breadcrumbHere: 'Huấn luyện',
+  title: 'Huấn luyện mô hình AI',
   tabsLabel: 'Phần của trang huấn luyện',
   tabJobs: 'Lượt huấn luyện',
   tabDatasets: 'Bộ dữ liệu',

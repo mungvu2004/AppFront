@@ -255,7 +255,7 @@ function HeavyNotice({ item }: HeavyProps) {
 
   return (
     <section
-      aria-label="Cảnh báo model nặng"
+      aria-label="Cảnh báo mẫu 3D nặng"
       className="flex flex-col items-start gap-2 rounded-lg bg-bg-sunken p-3"
     >
       <Badge variant="attention">Nặng</Badge>
@@ -296,7 +296,7 @@ export function ModelLibraryDetail({ actions, model }: ModelLibraryDetailProps) 
 
   useShortcut({
     combo: 'Escape',
-    description: 'Đóng panel chi tiết model',
+    description: 'Đóng panel chi tiết mẫu 3D',
     id: 'sidePanel.modelLibraryDetail.close',
     onTrigger: actions.closeDetail,
     scope: 'sidePanel',
@@ -321,7 +321,7 @@ export function ModelLibraryDetail({ actions, model }: ModelLibraryDetailProps) 
         </h2>
 
         <IconButton
-          aria-label="Đóng panel chi tiết model"
+          aria-label="Đóng panel chi tiết mẫu 3D"
           icon={<X aria-hidden="true" />}
           onClick={actions.closeDetail}
           size="sm"

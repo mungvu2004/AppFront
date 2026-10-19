@@ -57,6 +57,7 @@ import { useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Table } from '@/components/ui/Table';
@@ -266,6 +267,7 @@ export function RuleReport(props: RuleReportViewProps) {
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-bg-app">
       <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-6 p-6">
+        {props.breadcrumb === undefined ? null : <Breadcrumb items={props.breadcrumb} />}
         <header className="flex flex-wrap items-end justify-between gap-4">
           <h2 className="text-base font-semibold text-text-primary">Kiểm tra luật không gian</h2>
 

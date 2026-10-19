@@ -13,6 +13,9 @@ import { expect, type APIRequestContext, type Browser, type BrowserContext, type
 
 import { readBaseUrl } from '../../../../e2e/fullstack/env';
 import { watchApi, type ApiEntry } from '../../../../e2e/fullstack/apiWatch';
+import { totalArea } from '../../../../src/domain/rooms/area';
+import type { PointMm } from '../../../../src/domain/units/compare';
+import { millimetres } from '../../../../src/domain/units/types';
 import { formatNumber } from '../../../../src/lib/format/number';
 import { apiBaseUrl, signedInApi } from '../api';
 import { readAdminCredentials } from '../auth';
@@ -254,7 +257,8 @@ export interface LayerCounts {
   readonly openings: number;
   readonly rooms: number;
   readonly dimensions: number;
-  readonly areaM2: number;
+  /** Room outlines (mm); the area is `totalArea` over every floor's outlines, rounded once (K5). */
+  readonly roomOutlines: readonly (readonly PointMm[])[];
   /** Items (walls + openings + rooms) not reviewed and below a threshold, per threshold asked. */
   readonly lowBelow: (threshold: number) => number;
 }
@@ -273,7 +277,9 @@ export async function readLayerCounts(api: APIRequestContext, projectId: string,
     openings: items(layer.openings).length,
     rooms: items(layer.rooms).length,
     dimensions: items(doc.dimensions).length,
-    areaM2: items(layer.rooms).reduce((sum, room) => sum + (typeof room.areaM2 === 'number' ? room.areaM2 : 0), 0),
+    roomOutlines: items(layer.rooms).map((room) =>
+      items(room.outline).map((point) => ({ x: millimetres(Number(point.x)), y: millimetres(Number(point.y)) })),
+    ),
     lowBelow: (threshold) => all.filter((item) => item.reviewed !== true && Number(item.confidence) < threshold).length,
   };
 }
@@ -288,7 +294,7 @@ export function metricLabelsOf(parts: readonly LayerCounts[]): string[] {
     `${n(walls + sum((c) => c.openings) + sum((c) => c.rooms))} đối tượng`,
     `${n(sum((c) => c.dimensions))} chuỗi kích thước`,
     `${n(sum((c) => c.rooms))} phòng`,
-    `${formatNumber(sum((c) => c.areaM2), { fractionDigits: 2 })} m²`,
+    `${formatNumber(totalArea(parts.flatMap((c) => c.roomOutlines)), { fractionDigits: 2 })} m²`,
   ];
 }
 

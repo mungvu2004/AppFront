@@ -156,7 +156,7 @@ describe('trạng thái 3 — một phần: ảnh đang tải lên', () => {
   });
 });
 
-describe('ảnh đại diện: 56, bo tròn, lớp phủ "Đổi ảnh"', () => {
+describe('ảnh đại diện: 56, bo tròn, nút "Đổi ảnh" cạnh ảnh', () => {
   it('kích thước đi qua className vì AvatarProps.size không có nấc 56', () => {
     const { container } = render(<ProfileSection {...props()} />);
     const avatar = container.querySelector('.rounded-full');
@@ -176,6 +176,14 @@ describe('ảnh đại diện: 56, bo tròn, lớp phủ "Đổi ảnh"', () => 
     expect(screen.getByText('Đổi ảnh').getAttribute('for')).toBe(input?.id);
     expect(screen.getByLabelText('Đổi ảnh')).toBe(input);
     expect(container.querySelectorAll('input[type="file"]')).toHaveLength(1);
+  });
+
+  it('"Đổi ảnh" nằm cạnh ảnh, không phủ lên chữ cái đầu (K4: chữ trắng đè "E2")', () => {
+    render(<ProfileSection {...props()} />);
+    const label = screen.getByText('Đổi ảnh');
+
+    expect(label.className).not.toMatch(/absolute|text-white/);
+    expect(label.closest('.rounded-full')).toBeNull();
   });
 
   it('chọn một tệp thì gọi lên hook, và hook mới là chỗ đọc tệp', () => {
@@ -331,7 +339,7 @@ describe('giảm chuyển động', () => {
     expect(rowOf('Họ tên').className).not.toContain('duration-340');
   });
 
-  it('lớp phủ ảnh cũng tắt hoạt cảnh mờ dần', () => {
+  it('nút "Đổi ảnh" cũng tắt hoạt cảnh', () => {
     render(<ProfileSection {...props({ motionOff: true })} />);
 
     expect(screen.getByText('Đổi ảnh').className).toContain('duration-0');

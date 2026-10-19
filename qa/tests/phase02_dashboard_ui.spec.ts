@@ -157,8 +157,6 @@ const NOTIFICATIONS_ERROR = 'Không tải được thông báo';
 const SETTINGS_LABEL = 'Mở cài đặt thông báo'; // NotificationCenter.tsx SETTINGS_LABEL (IconButton → Tooltip, BUG-114)
 const SNAP_GROUP = 'Chiều cao tấm trượt'; // components/overlay/Drawer.tsx BottomSheet (< 1024 px)
 const SNAP_COLLAPSE = { name: 'Mức 1', hint: 'Thu gọn' } as const; // Drawer.tsx SNAP_HINTS[0]
-const ROUTE_BACKDROP_TITLE = 'Trung tâm thông báo'; // NotificationCenter.container.tsx NotificationRouteBackdrop (BUG-124)
-const ROUTE_BACKDROP_HINT = 'Nhấn Esc hoặc bấm ra ngoài bảng để quay lại.'; // same, `lg:block` only
 const LG_MIN_WIDTH = 1024; // Tailwind `lg`
 /** Longer than two lines at every drawer width: NotificationRow.tsx clamps the inner span to 2 lines (BUG-203). */
 const LONG_EXCERPT =
@@ -1190,17 +1188,15 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
     );
   });
 
-  test('U02 · SCR-06 /thong-bao full-screen notification center', async ({ browser }) => {
+  test('U02 · SCR-06 /thong-bao notification page inside the app frame (G1-15)', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U02_notif_route', async (p) => {
       await p.goto(ROUTES.notifications);
-      await expectDrawerSettled(p);
-      await expect(p.getByRole('heading', { name: BELL, exact: true })).toBeVisible();
-      // BUG-124: a deliberate page behind the panel (aria-hidden, so read as text): its title at every width, the way back from lg.
-      await expect(p.getByText(ROUTE_BACKDROP_TITLE, { exact: true })).toBeVisible();
-      const hint = p.getByText(ROUTE_BACKDROP_HINT, { exact: true });
-      if ((p.viewportSize()?.width ?? 1440) >= LG_MIN_WIDTH) await expect(hint).toBeVisible();
-      else await expect(hint).toBeHidden();
-      await settled(drawer(p)); // BUG-143: measured mid-slide in run-11 ("Nhắc đến tôi", "Xem tất cả" off-screen)
+      // A real page under the shared header: h1 + filters + "Đánh dấu tất cả đã đọc"; no drawer, no grey backdrop.
+      await expect(p.getByRole('heading', { level: 1, name: BELL, exact: true })).toBeVisible();
+      await expect(p.getByRole('radiogroup', { name: 'Lọc thông báo' })).toBeVisible();
+      await expect(p.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' })).toBeVisible();
+      await expect(p.getByRole('dialog', { name: BELL })).toHaveCount(0);
+      await expect(p.getByText('Trung tâm thông báo', { exact: true })).toHaveCount(0);
     });
   });
 });

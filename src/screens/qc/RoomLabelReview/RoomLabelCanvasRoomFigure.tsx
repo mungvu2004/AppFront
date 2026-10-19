@@ -67,6 +67,9 @@ function isInsidePolygon(point: { readonly x: number; readonly y: number }, poly
   return inside;
 }
 
+/** Tên cắt còn chừng này ký tự (kể cả "…") thì không đọc được — hiện mã phòng thay vào. */
+const MIN_NAME_GLYPHS = 4;
+
 /**
  * G4a-29: bản vẽ gốc thường ghi tên phòng đúng giữa phòng, nên khi có nền nhãn của màn dời lên gần
  * mép trên (vẫn trong phòng) để người duyệt đọc được cả hai mà đối chiếu. Phòng thấp hoặc điểm mới
@@ -145,8 +148,10 @@ function RoomLabelText({
   /* BUG-623: tên dài cắt bằng dấu "…" theo bề rộng phòng đang vẽ, tên đầy đủ ở `<title>`. */
   const nameText = room.hasName ? room.name : ROOM_LABEL_CANVAS_COPY.unnamedPlaceholder;
   const fittedName = fitText(nameText, ROOM_LABEL_NAME_FONT_PX, maxWidthPx);
+  /* Cắt còn vài chữ ("p…", "ph…") là vô nghĩa: phòng vẽ quá nhỏ thì hiện mã phòng, tên ở `<title>`. */
+  const isNameStub = fittedName !== nameText && fittedName.length <= MIN_NAME_GLYPHS;
 
-  if (!room.labelFits || fittedName === '') {
+  if (!room.labelFits || fittedName === '' || isNameStub) {
     return (
       <text
         className="motion-reduce:transition-none"
@@ -158,6 +163,7 @@ function RoomLabelText({
         x={anchor.x}
         y={anchor.y}
       >
+        {isNameStub ? <title>{nameText}</title> : null}
         {room.codeLabel}
       </text>
     );

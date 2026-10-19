@@ -35,7 +35,7 @@ export const COPY = {
   onbTutorialOff:'Hướng dẫn hai phút chưa sẵn sàng.', // :141
   onbSkip: 'Bỏ qua', // :142
   accept: 'Chấp nhận', // NG:182
-  librarySearch: 'Tìm model', // ModelLibraryToolbar
+  librarySearch: 'Tìm mẫu 3D', // ModelLibraryToolbar
   libraryReadOnly: 'Vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện', // useModelLibrary.ts:~103
   libraryForbidden: 'Không có quyền',
 } as const;

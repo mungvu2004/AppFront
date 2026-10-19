@@ -35,7 +35,7 @@ const VIEWER_STEP = PROJECT_STEPS.findIndex((step) => step.id === 'viewer');
  * hiện tại ẩn và lối tiếp viết gọn "Tiếp:".
  * QA-2 L1: các ngưỡng dưới đây đo theo bề rộng thanh trên (container `appbar`, khai ở pascal.css),
  * không theo khổ màn — thanh bên mở/kéo rộng cũng làm thanh hẹp lại. Thanh < 1400px: dải sáu bước
- * thu thành một chip "bước hiện tại + menu" (`<details>`); < 960px: ẩn lối tiếp (đã có trong menu).
+ * thu thành một chip "bước hiện tại + menu" (`<details>`); < 900px: ẩn lối tiếp (đã có trong menu).
  */
 export function ProjectStepsCard({ projectId }: { readonly projectId: string }) {
   const next = PROJECT_STEPS[VIEWER_STEP + 1];
@@ -72,6 +72,7 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
       <details className="relative @min-[1400px]/appbar:hidden">
         <summary
           aria-label={`Bước ${VIEWER_STEP + 1}/${PROJECT_STEPS.length}: ${current.label} — mở danh sách bước`}
+          title={`Bước ${VIEWER_STEP + 1}: ${current.label}`}
           className={`${CARD} flex cursor-pointer list-none gap-1.5 px-2 font-semibold hover:bg-accent [&::-webkit-details-marker]:hidden`}
         >
           <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
@@ -98,7 +99,7 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
       {next !== undefined && (
         <a
           aria-label={`Bước tiếp theo: ${next.label}`}
-          className={`${CARD} hidden gap-1 whitespace-nowrap px-2.5 font-medium hover:bg-accent @min-[960px]/appbar:inline-flex`}
+          className={`${CARD} hidden gap-1 whitespace-nowrap px-2.5 font-medium hover:bg-accent @min-[900px]/appbar:inline-flex`}
           href={next.path(projectId)}
         >
           <span className="@min-[1600px]/appbar:hidden">Tiếp:</span>

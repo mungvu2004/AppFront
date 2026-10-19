@@ -37,6 +37,14 @@ describe('MiniMap', () => {
     expect(onViewportChange).toHaveBeenCalledWith({ x: 30, y: 35, width: 40, height: 30 });
   });
 
+  it('hides while the view already shows the whole map, shows again once zoomed in', () => {
+    const { rerender } = render(<MiniMap viewport={{ x: 0, y: 0, width: 100, height: 100 }} />);
+    expect(screen.queryByRole('region', { name: 'Bản đồ thu nhỏ' })).toBeNull();
+
+    rerender(<MiniMap viewport={{ x: 10, y: 10, width: 50, height: 50 }} />);
+    expect(screen.getByRole('region', { name: 'Bản đồ thu nhỏ' })).toBeTruthy();
+  });
+
   it('does not jump on unrelated keys', () => {
     const onViewportChange = vi.fn();
     render(

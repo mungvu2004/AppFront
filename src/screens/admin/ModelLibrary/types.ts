@@ -1,5 +1,5 @@
 /**
- * `S-25` — thư viện model dùng chung. **Hợp đồng đông cứng** của bốn worker viết song song.
+ * `S-25` — thư viện mẫu 3D dùng chung. **Hợp đồng đông cứng** của bốn worker viết song song.
  *
  * Cùng vai trò với `src/screens/export/VersionHistory/types.ts`: container, view, hook và bộ
  * test cùng nhập từ đây, không nơi nào chép lại hình dạng. Sửa file này là sửa hợp đồng của
@@ -164,7 +164,7 @@ export interface ModelLibraryFieldModel {
 export interface ModelLibraryCapabilities {
   /** Xem trước 3D một model. `true` — `createAssetService` + `measureScene` + `disposeFloor` có thật. */
   readonly canPreview3d: boolean;
-  /** Cảnh báo model nặng. `true` — `checkBudget` + `SCENE_BUDGET` có thật. */
+  /** Cảnh báo mẫu 3D nặng. `true` — `checkBudget` + `SCENE_BUDGET` có thật. */
   readonly canFlagHeavy: boolean;
   /** Người dùng có `library.manage`. Trạng thái 6 đọc trường này. */
   readonly canManage: boolean;

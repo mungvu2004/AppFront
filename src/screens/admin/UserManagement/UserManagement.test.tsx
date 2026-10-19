@@ -430,6 +430,17 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
     expect(headers.map((header) => header.textContent)).toEqual(['Người dùng', 'Vai', 'Hành động']);
   });
 
+  it('K4: nút hàng nằm trên một dòng, tiêu đề "Hành động" canh phải như nút', async () => {
+    const UserManagementView = await loadUserManagementView();
+    const closed: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_SUCCESS, detail: null, isCollapsed: false, selectedUserId: null };
+    renderWithProviders(<UserManagementView actions={buildActions()} model={closed} />);
+
+    const disable = (await screen.findAllByRole('button', { name: 'Vô hiệu hoá' }))[0];
+    expect(disable?.parentElement?.className).toContain('flex-nowrap');
+    expect(disable?.parentElement?.className).not.toContain('flex-wrap ');
+    expect(screen.getByText('Hành động', { selector: 'span' }).className).toContain('text-right');
+  });
+
   it('BUG-076: nút hàng viết hoa chữ đầu (A6), không còn "xoá" viết thường', async () => {
     const UserManagementView = await loadUserManagementView();
     renderWithProviders(<UserManagementView actions={buildActions()} model={USER_MANAGEMENT_SCENARIO_SUCCESS} />);

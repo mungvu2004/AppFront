@@ -78,7 +78,7 @@ import {
 } from '@/domain/axes/alignFloors';
 import { copyFloor, type CopyFloorResult, type FloorContents } from '@/domain/axes/copyFloor';
 import { applyPatch } from '@/domain/spatial/applyPatch';
-import { computeArea } from '@/domain/rooms/area';
+import { computeArea, totalArea } from '@/domain/rooms/area';
 import { createId } from '@/domain/spatial/ids';
 import {
   idsOnLevel,
@@ -102,6 +102,7 @@ import type {
   WallId,
 } from '@/domain/spatial/types';
 import { normalizeHumanText, type HumanTextFailureReason } from '@/domain/text/humanText';
+import type { PointMm } from '@/domain/units/compare';
 import { millimetres, roundMeasurement, type Millimetres } from '@/domain/units/types';
 
 import { createAppApiClient } from '@/api/appClient';
@@ -322,15 +323,20 @@ export function roomsOfLevel(graph: NormalizedSpatial | null, levelId: LevelId):
 }
 
 /**
- * Diện tích sàn của một tầng, mét vuông.
- *
- * Cộng thẳng `Room.areaM2` — không có hàm domain nào cộng sẵn diện tích theo
- * tầng, và tiền lệ trong repo là chính phép cộng này
- * (`src/domain/rooms/detect.ts:459`). Không tính lại hình học, không quy đổi
- * đơn vị: `Room.areaM2` đã là m².
+ * Đường bao (mm) các phòng của một tầng — đầu vào của `totalArea`.
+ */
+export function roomOutlinesOfLevel(graph: NormalizedSpatial | null, levelId: LevelId): PointMm[][] {
+  return roomsOfLevel(graph, levelId).map((room) =>
+    room.outline.map((corner) => ({ x: millimetres(corner.x), y: millimetres(corner.y) })),
+  );
+}
+
+/**
+ * Diện tích sàn của một tầng, mét vuông: `totalArea` cộng mm² rồi làm tròn MỘT lần, như
+ * màn Phòng. Cộng `Room.areaM2` (đã làm tròn từng phòng) lệch 0,01 m² (73,91 cạnh 73,90, K5).
  */
 export function areaOfLevel(graph: NormalizedSpatial | null, levelId: LevelId): number {
-  return roomsOfLevel(graph, levelId).reduce((total, room) => total + room.areaM2, 0);
+  return totalArea(roomOutlinesOfLevel(graph, levelId));
 }
 
 /**

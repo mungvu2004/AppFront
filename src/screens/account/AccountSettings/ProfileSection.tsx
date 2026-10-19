@@ -21,8 +21,9 @@
  * `<input type="file">` ẩn thì trình đọc màn hình gặp hai điều khiển cho một
  * việc. Một `<label htmlFor>` gắn với ô chọn tệp thì chỉ có MỘT điều khiển: nó
  * nhận tiêu điểm, Enter mở hộp thoại chọn tệp, và tên của nó chính là dòng chữ
- * người ta nhìn thấy. Viền tiêu điểm vẽ trên lớp phủ bằng biến thể `peer-*`, vì
- * ô nhập thật nằm dưới `sr-only`.
+ * người ta nhìn thấy. Nhãn trông như một nút phụ đặt CẠNH ảnh (không phủ lên
+ * ảnh, để chữ cái đầu còn đọc được); viền tiêu điểm vẽ trên nhãn bằng biến thể
+ * `peer-*`, vì ô nhập thật nằm dưới `sr-only`.
  *
  * ## `readOnlyReason` cố ý không truyền
  *
@@ -39,6 +40,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { FieldRow } from '@/components/ui/FieldRow';
 import { Input } from '@/components/ui/Input';
 import { Select, type SelectOption } from '@/components/ui/Select';
+import { getButtonStyles } from '@/components/ui/buttonVariants';
 
 import { cn } from '@/lib/utils';
 
@@ -143,44 +145,45 @@ export function ProfileSection(props: ProfileSectionProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-4">
-        <div className="group relative shrink-0">
-          <Avatar
-            size="profile"
-            className={AVATAR_SIZE_CLASS}
-            alt={props.avatarAlt}
-            initials={props.avatarInitials}
-            {...(props.avatarUrl === null ? {} : { src: props.avatarUrl })}
-          />
-          <input
-            id={avatarInputId}
-            ref={avatarInputRef}
-            type="file"
-            accept="image/png,image/jpeg"
-            disabled={props.isAvatarUploading || props.isAvatarLocked}
-            className="peer sr-only"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
+        <Avatar
+          size="profile"
+          className={cn(AVATAR_SIZE_CLASS, 'shrink-0')}
+          alt={props.avatarAlt}
+          initials={props.avatarInitials}
+          {...(props.avatarUrl === null ? {} : { src: props.avatarUrl })}
+        />
+        <input
+          id={avatarInputId}
+          ref={avatarInputRef}
+          type="file"
+          accept="image/png,image/jpeg"
+          disabled={props.isAvatarUploading || props.isAvatarLocked}
+          className="peer sr-only"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
 
-              if (file !== undefined) {
-                props.onAvatarFileSelected(file);
-              }
-            }}
-          />
-          <label
-            htmlFor={avatarInputId}
-            className={cn(
-              'absolute inset-0 flex cursor-pointer items-end justify-center overflow-hidden rounded-full pb-1',
-              'bg-gradient-to-t from-bg-overlay to-transparent text-[12px] font-medium text-white',
-              'opacity-90 group-hover:opacity-100 peer-focus-visible:opacity-100',
+            if (file !== undefined) {
+              props.onAvatarFileSelected(file);
+            }
+          }}
+        />
+        {/* Nút cạnh ảnh, không phủ lên ảnh: lớp phủ chữ trắng đè chữ cái đầu, cả hai không đọc được (K4). */}
+        <label
+          htmlFor={avatarInputId}
+          className={getButtonStyles({
+            variant: 'secondary',
+            size: 'sm',
+            className: cn(
+              'cursor-pointer',
               'peer-focus-visible:ring-2 peer-focus-visible:ring-accent',
               'peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-bg-surface',
-              'transition-opacity',
-              motionOff ? 'duration-0' : 'duration-fast',
-            )}
-          >
-            Đổi ảnh
-          </label>
-        </div>
+              'peer-disabled:cursor-not-allowed peer-disabled:opacity-40',
+              motionOff && 'duration-0',
+            ),
+          })}
+        >
+          Đổi ảnh
+        </label>
 
         {props.isAvatarUploading ? (
           <p role="status" className="text-[13px] text-text-secondary">

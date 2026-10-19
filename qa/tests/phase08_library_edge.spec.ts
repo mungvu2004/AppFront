@@ -47,9 +47,9 @@ test('SCR-34 · FL-34L-01 · search and category logic, summary strip, one GET',
     await ev(page, '34L-B-007', 'empty');
   });
   await test.step('[34L-B-010] no match: summary zeros', async () => {
-    await expect.soft(summaryValue(page, 'Tổng số model')).toHaveText('0');
+    await expect.soft(summaryValue(page, 'Tổng số mẫu 3D')).toHaveText('0');
     await expect.soft(summaryValue(page, 'Tổng dung lượng')).toHaveText(formatFileSize(0));
-    await expect.soft(summaryValue(page, 'Model nặng')).toHaveText('0');
+    await expect.soft(summaryValue(page, 'Mẫu 3D nặng')).toHaveText('0');
     await ev(page, '34L-B-010', 'zeros');
   });
   await selectCategory(page, 'all');
@@ -101,7 +101,7 @@ test('SCR-34 · FL-34L-01 · search and category logic, summary strip, one GET',
   });
   await test.step('[34L-C-007] summary count follows filtered rows', async () => {
     await selectCategory(page, x.group);
-    await expect.soft(summaryValue(page, 'Tổng số model')).toHaveText(formatNumber(items.filter((i) => matchesFilter(i, x.group)).length));
+    await expect.soft(summaryValue(page, 'Tổng số mẫu 3D')).toHaveText(formatNumber(items.filter((i) => matchesFilter(i, x.group)).length));
     await ev(page, '34L-C-007', 'count');
   });
   await test.step('[34L-C-008] summary size = sum of visible', async () => {
@@ -285,7 +285,7 @@ test('SCR-34 · FL-34L-04 · detail panel: content, close paths, focus, filter i
   const heavy = (await bodyRows(page).filter({ hasText: x.name }).first().innerText()).includes('Nặng');
   await test.step('[34L-B-018] normal model: no heavy section', async () => {
     expect(heavy, 'environment: first model is within budget').toBe(false);
-    await expect(section('Cảnh báo model nặng')).toHaveCount(0);
+    await expect(section('Cảnh báo mẫu 3D nặng')).toHaveCount(0);
     await ev(page, '34L-B-018', 'no_heavy');
   });
   await test.step('[34L-B-019] detail structure', async () => {
@@ -496,7 +496,7 @@ test('SCR-34 · FL-34L-08 · admin gate and accessible names/landmarks', async (
     await ev(page, '34L-D-001', 'full');
   });
   await test.step('[34L-E-001] search accessible name', async () => {
-    await expect.soft(page.getByRole('textbox', { name: 'Tìm model', exact: true })).toBeVisible();
+    await expect.soft(page.getByRole('textbox', { name: 'Tìm mẫu 3D', exact: true })).toBeVisible();
     await ev(page, '34L-E-001', 'search');
   });
   await test.step('[34L-E-002] category accessible name', async () => {

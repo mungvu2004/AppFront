@@ -517,6 +517,26 @@ describe('QA-04c SCR-19 trên màn', () => {
     expect(fit.viewBox).toBe('-400 -300 800 600');
   });
 
+  it('nhãn "0,0" đặt chéo dưới-phải dấu gốc, không nằm trên đường trục nơi có bong bóng', () => {
+    renderState('success');
+
+    const label = screen.getByTestId('axis-origin-label');
+
+    expect(Number(label.getAttribute('x'))).toBeGreaterThan(0);
+    expect(Number(label.getAttribute('y'))).toBeGreaterThan(0);
+  });
+
+  it('chừa đáy cho cụm thu phóng: viewBox dài thêm đúng phần chừa, lưới không nằm dưới cụm nút', () => {
+    const bounds = { x: pixels(0), y: pixels(0), width: pixels(1000), height: pixels(500) };
+    /* Khung 1.072 × 600, lề 36: không chừa thì vừa theo chiều cao (unit 500/528); chừa 56 thì unit 500/472. */
+    const fit = fitCanvas(bounds, { width: 1072, height: 600 }, 36, 56);
+
+    expect(fit.unit).toBeCloseTo(500 / 472);
+    const [, y, , height] = fit.viewBox.split(' ').map(Number);
+    /* Đáy viewBox − đáy lưới = (lề + chừa) px màn. */
+    expect(((y ?? 0) + (height ?? 0) - 500) / fit.unit).toBeCloseTo(36 + 56);
+  });
+
   it('[BUG-595] một lần kéo trục là MỘT lượt onAxisDrag lúc thả chuột, không một lượt mỗi pointermove', () => {
     const onAxisDrag = vi.fn();
     const viewModel = axisGridScenarioFor('success');

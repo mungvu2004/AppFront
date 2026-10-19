@@ -122,10 +122,10 @@ const FILTER_LABEL_VI: Readonly<Record<LibraryFilterId, string>> = {
 };
 
 /** Trạng thái 6 (A11): câu nói vì sao chỉ xem được. */
-export const READ_ONLY_REASON = 'Bạn chỉ có quyền xem thư viện model, không thể quản lý.';
+export const READ_ONLY_REASON = 'Bạn chỉ có quyền xem thư viện mẫu 3D, không thể quản lý.';
 
 /** Trạng thái 4 (A11). */
-export const ERROR_MESSAGE = 'Không tải được thư viện model. Kiểm tra kết nối rồi thử lại.';
+export const ERROR_MESSAGE = 'Không tải được thư viện mẫu 3D. Kiểm tra kết nối rồi thử lại.';
 
 const AUTO_SPIN_NOTE = 'Chưa hỗ trợ tự quay; bạn vẫn quay được bằng tay.';
 

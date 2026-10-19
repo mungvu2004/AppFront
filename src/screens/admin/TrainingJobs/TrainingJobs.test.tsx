@@ -218,8 +218,8 @@ describe('Bảng và chi tiết', () => {
   it('đầu trang: breadcrumb nhãn, h1, liên kết sang model AI', () => {
     renderView(TRAINING_JOBS_SCENARIO_SUCCESS);
 
-    expect(screen.getByRole('navigation', { name: 'Đường dẫn trang' }).textContent).toBe('Quản trị›Huấn luyện model');
-    expect(screen.getByRole('heading', { level: 1, name: 'Huấn luyện model AI' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Đường dẫn trang' }).textContent).toBe('Quản trị›Huấn luyện');
+    expect(screen.getByRole('heading', { level: 1, name: 'Huấn luyện mô hình AI' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sang tab Mô hình AI' })).toHaveAttribute('href', ROUTES.adminTrainingModels);
     expect(ROUTES.adminTrainingJobs).toBe('/admin/training/jobs');
   });

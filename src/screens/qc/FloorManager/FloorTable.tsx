@@ -267,7 +267,9 @@ export function FloorTable({
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-border-default">
+      {/* Không `flex-1`: khung cao theo số tầng, chỉ co lại và tự cuộn khi nhiều tầng (BUG-520);
+          kéo giãn thì một tầng để lại ~400 px khung trống (K5). */}
+      <div className="min-h-0 overflow-auto rounded-lg border border-border-default">
         <Table.Root>
           <Table.Header className={isStacked ? 'hidden' : undefined}>
             <tr>

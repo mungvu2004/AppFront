@@ -27,12 +27,12 @@ function figure(page: Page, caption: string) {
   return page.getByText(caption, { exact: true }).locator('xpath=..');
 }
 
-const search = (page: Page) => page.getByRole('textbox', { name: 'Tìm model' });
+const search = (page: Page) => page.getByRole('textbox', { name: 'Tìm mẫu 3D' });
 
 test.describe('admin (đăng nhập, G2-25)', () => {
   test.beforeEach(async ({ page }) => {
     await signInAs(page, 'admin', ROUTES.adminModels);
-    await expect(figure(page, 'Tổng số model')).toHaveText(new RegExp(`Tổng số model\\s*${MODEL_COUNT}$`, 'u'), { timeout: FIRST_PAINT_TIMEOUT_MS });
+    await expect(figure(page, 'Tổng số mẫu 3D')).toHaveText(new RegExp(`Tổng số mẫu 3D\\s*${MODEL_COUNT}$`, 'u'), { timeout: FIRST_PAINT_TIMEOUT_MS });
   });
 
   test('B-V12b-04 đường dẫn trang viết thường như mọi màn quản trị khác (A6)', async ({ page }) => {
@@ -46,14 +46,14 @@ test.describe('admin (đăng nhập, G2-25)', () => {
     await search(page).fill('zzzz');
 
     // G2-18: ô rỗng thành EmptyState có tiêu đề và câu giải thích.
-    await expect(page.getByRole('heading', { name: 'Không tìm thấy model', exact: true })).toBeVisible();
-    await expect(page.getByText('Không có model nào khớp với từ khoá hoặc danh mục đang chọn.')).toBeVisible();
-    await expect(figure(page, 'Tổng số model')).toHaveText(/Tổng số model\s*0$/u);
+    await expect(page.getByRole('heading', { name: 'Không tìm thấy mẫu 3D', exact: true })).toBeVisible();
+    await expect(page.getByText('Không có mẫu 3D nào khớp với từ khoá hoặc danh mục đang chọn.')).toBeVisible();
+    await expect(figure(page, 'Tổng số mẫu 3D')).toHaveText(/Tổng số mẫu 3D\s*0$/u);
     await expect(figure(page, 'Tổng dung lượng')).toHaveText(/Tổng dung lượng\s*0 B$/u);
-    await expect(figure(page, 'Model nặng')).toHaveText(/Model nặng\s*0$/u);
+    await expect(figure(page, 'Mẫu 3D nặng')).toHaveText(/Mẫu 3D nặng\s*0$/u);
 
     await search(page).fill('');
-    await expect(figure(page, 'Tổng số model')).toHaveText(new RegExp(`Tổng số model\\s*${MODEL_COUNT}$`, 'u'));
+    await expect(figure(page, 'Tổng số mẫu 3D')).toHaveText(new RegExp(`Tổng số mẫu 3D\\s*${MODEL_COUNT}$`, 'u'));
   });
 
   test('MD-2 Esc đóng đúng tấm chi tiết model, ở lại /admin/models (A12)', async ({ page }) => {
@@ -75,7 +75,7 @@ test.describe('admin (đăng nhập, G2-25)', () => {
     await expect(table).not.toContainText(/\d\.\d{1,2} m/u);
 
     await page.getByRole('radio', { name: 'Lưới' }).click();
-    const grid = page.getByRole('list', { name: 'lưới model' });
+    const grid = page.getByRole('list', { name: 'lưới mẫu 3D' });
     await expect(grid.getByRole('listitem')).toHaveCount(MODEL_COUNT);
 
     await search(page).fill('ghế');

@@ -273,7 +273,7 @@ describe('format/semantic.ts — formatChange', () => {
     );
   });
 
-  it('falls back to naming a field it has no unit for', () => {
+  it('never shows the technical name of a field no table knows (K5)', () => {
     expect(
       formatChange({
         entityId: 'W-014',
@@ -283,7 +283,32 @@ describe('format/semantic.ts — formatChange', () => {
         oldValue: 'A-WALL',
         newValue: 'A-WALL-PART',
       }),
-    ).toBe('Tường W-014 đổi layer từ A-WALL sang A-WALL-PART');
+    ).toBe('Tường W-014 đổi một thuộc tính khác');
+  });
+
+  it('says offset_mm in Vietnamese with its unit (K5)', () => {
+    expect(
+      formatChange({
+        entityId: '#1',
+        entityType: 'door',
+        kind: 'changed',
+        field: 'offset_mm',
+        oldValue: 370,
+        newValue: 395,
+      }),
+    ).toBe('Cửa đi #1 vị trí trên tường 370 mm → 395 mm');
+  });
+
+  it('names a unitless field in Vietnamese, without enum codes (K5)', () => {
+    const swing = formatChange({
+      entityId: '#1',
+      entityType: 'door',
+      kind: 'changed',
+      field: 'swing',
+      oldValue: 'left',
+      newValue: 'sliding',
+    });
+    expect(swing).toBe('Cửa đi #1 đổi kiểu mở');
   });
 
   it('writes the placeholder for a measured side that has no number', () => {
@@ -301,14 +326,14 @@ describe('format/semantic.ts — formatChange', () => {
 
   it('writes an empty generic side as "(trống)", never "undefined"', () => {
     const sentence = formatChange({
-      entityId: 'W-014',
-      entityType: 'wall',
+      entityId: 'P-1',
+      entityType: 'room',
       kind: 'changed',
-      field: 'layer',
+      field: 'name',
       oldValue: undefined,
-      newValue: 'A-WALL',
+      newValue: 'Bếp',
     });
-    expect(sentence).toBe('Tường W-014 đổi layer từ (trống) sang A-WALL');
+    expect(sentence).toBe('Phòng P-1 đổi tên: (trống) → Bếp');
     expect(sentence).not.toMatch(/undefined|null|NaN/);
   });
 

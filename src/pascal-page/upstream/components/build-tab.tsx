@@ -181,7 +181,7 @@ export function BuildTab() {
                         src={type.iconSrc}
                         width={48}
                       />
-                      <span className="w-full truncate text-center text-[10px] leading-tight">{type.label}</span>
+                      <span className="w-full truncate text-center text-[10px] leading-tight">{type.shortLabel ?? type.label}</span>
                     </span>
                   </button>
                 </TooltipTrigger>

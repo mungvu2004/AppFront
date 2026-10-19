@@ -37,7 +37,7 @@
  *
  * ## Dưới 1024px
  *
- * Hai nửa xếp dọc (`flex-col lg:flex-row`), và ảnh cắt của mỗi hàng thu về ô
+ * Hai nửa xếp dọc (`flex-col lg:flex-row`), cả khung cuộn dọc và bảng duyệt cao theo nội dung — không cắt nút ở đáy thẻ (ảnh 768); và ảnh cắt của mỗi hàng thu về ô
  * vuông `displayHeightPx` — 96 theo `DIMENSION_CROP_DISPLAY_HEIGHT_PX` của
  * `dimensionOcrTypes.ts`. Việc thu ấy do `DimensionOcrCrop` làm bằng cặp lớp
  * `w-[var(--dim-crop-h)] xl:w-[var(--dim-crop-w)]`; ở đây chỉ có điểm ngắt của
@@ -275,7 +275,7 @@ export function DimensionOcrReview({
       {floorNav != null && <QcFloorNav {...floorNav} layer="dimensions" />}
       <DimensionOcrHeader hasFloorNav={floorNav != null} />
       <DimensionOcrSaveStatus model={model} />
-      <div className={cn('flex min-h-0 w-full flex-1 flex-col lg:flex-row', QC_BODY_CLASS)}>
+      <div className={cn('flex min-h-0 w-full flex-1 flex-col max-lg:overflow-y-auto lg:flex-row', QC_BODY_CLASS)}>
         {/* Nửa trái 60% — bản vẽ gốc. Bung ra cả khung khi bảng duyệt thu gọn. */}
         <QcCanvasFrame
           label={DIMENSION_OCR_TEXT.screen.canvasAriaLabel}
@@ -309,11 +309,11 @@ export function DimensionOcrReview({
           <aside
             aria-label={PANEL_ARIA_LABEL}
             className={cn(
-              'flex min-h-0 min-w-0 flex-col overflow-hidden lg:w-[40%]',
+              'flex min-h-0 min-w-0 flex-col overflow-hidden max-lg:shrink-0 max-lg:overflow-visible lg:w-[40%]',
               'rounded-2xl border border-border-default bg-bg-surface',
             )}
           >
-            <div className="min-h-0 flex-1 overflow-hidden">
+            <div className="min-h-0 flex-1 overflow-hidden max-lg:overflow-visible">
               <DimensionOcrPanelBody model={model} scaleCalibrationHref={scaleCalibrationHref} />
             </div>
 

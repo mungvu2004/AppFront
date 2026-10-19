@@ -140,8 +140,8 @@ const FILTER_LABEL_VI: Readonly<Record<LibraryFilterId, string>> = {
   mine: 'Của tôi',
 };
 
-const READ_ONLY_REASON = 'Bạn chỉ có quyền xem thư viện model, không thể quản lý.';
-const ERROR_MESSAGE = 'Không tải được thư viện model. Kiểm tra kết nối rồi thử lại.';
+const READ_ONLY_REASON = 'Bạn chỉ có quyền xem thư viện mẫu 3D, không thể quản lý.';
+const ERROR_MESSAGE = 'Không tải được thư viện mẫu 3D. Kiểm tra kết nối rồi thử lại.';
 const AUTO_SPIN_NOTE = 'Chưa hỗ trợ tự quay; bạn vẫn quay được bằng tay.';
 
 const METRE_SUFFIX = ' m';
@@ -659,13 +659,13 @@ describe('[34L-B-004] lỗi đọc thư viện có nút "Thử lại" gọi retr
 });
 
 describe('[34L-C-017] nhãn chữ hoa đầu (luật A6, BUG-595)', () => {
-  it('thanh công cụ: "Tìm model"; dải tóm tắt: "Model nặng"', async () => {
+  it('thanh công cụ: "Tìm mẫu 3D"; dải tóm tắt: "Mẫu 3D nặng"', async () => {
     const ModelLibraryView = await loadModelLibraryView();
 
     renderWithProviders(<ModelLibraryView {...buildModelLibraryProps('success')} />);
 
-    expect(screen.getByLabelText('Tìm model')).toBeTruthy();
-    expect(screen.getByText('Model nặng')).toBeTruthy();
+    expect(screen.getByLabelText('Tìm mẫu 3D')).toBeTruthy();
+    expect(screen.getByText('Mẫu 3D nặng')).toBeTruthy();
   });
 
   it('nhãn trường chi tiết "Dung lượng" và "Nhóm"', async () => {

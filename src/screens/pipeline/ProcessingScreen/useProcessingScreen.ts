@@ -89,6 +89,7 @@ import {
   PROJECT_NOT_FOUND_DESCRIPTION,
   PROJECT_NOT_FOUND_TITLE,
 } from '@/components/feedback/ProjectSpatialGate';
+import { totalArea } from '@/domain/rooms/area';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useProjectFloors } from '@/hooks/useProjectFloors';
 import { isProjectNotFound } from '@/hooks/useProjectSpatial';
@@ -856,9 +857,11 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     // Nothing to lay out narrow: below 1024 px "no run" must still be the empty state with its
     // next step, not two empty columns (the dashboard's BUG-111, here).
     if (records.length === 0) return 'empty';
+    if (doneCount >= records.length) return 'success';
+    // Narrow but finished stays `success`: the view collapses the steps from `isCompact`
+    // anyway, and `collapsed` would push the "Đã xong" summary below the preview (K5).
     if (isCompact) return 'collapsed';
-    if (doneCount < records.length) return 'partial';
-    return 'success';
+    return 'partial';
   }, [canEdit, doneCount, hasEveryReadFailed, isCompact, isLoading, isProjectMissing, isReadPaused, records.length]);
 
   /* ---------------------------------------------------------------------- */
@@ -1353,7 +1356,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         openingCount: accumulated.openingCount + part.openingCount,
         dimensionCount: accumulated.dimensionCount + part.dimensionCount,
         roomCount: accumulated.roomCount + part.roomCount,
-        areaM2: accumulated.areaM2 + part.areaM2,
+        roomOutlinesMm: [...accumulated.roomOutlinesMm, ...part.roomOutlinesMm],
         // Mọi tầng cùng một dự án nên cùng một ngưỡng; một tầng không đọc được cài đặt thì bỏ câu.
         confidenceThreshold:
           accumulated.confidenceThreshold === null ? null : part.confidenceThreshold,
@@ -1364,7 +1367,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         openingCount: 0,
         dimensionCount: 0,
         roomCount: 0,
-        areaM2: 0,
+        roomOutlinesMm: [],
         confidenceThreshold: parts[0]?.confidenceThreshold ?? null,
         lowConfidenceCount: 0,
       },
@@ -1381,7 +1384,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         countLabel(objectTotalOf(total), UNIT.object),
         countLabel(total.dimensionCount, UNIT.dimensionChain),
         countLabel(total.roomCount, UNIT.room),
-        formatArea(total.areaM2),
+        formatArea(totalArea(total.roomOutlinesMm)),
       ],
       ...(threshold === null
         ? {}

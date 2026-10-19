@@ -139,7 +139,7 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 
 /** Khung chung của cột trái, để ba nhánh thay thế không mỗi chỗ một bề rộng. */
 const LEFT_COLUMN_CLASS_NAME =
-  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-xl bg-bg-surface p-4 shadow-panel max-lg:h-auto max-lg:w-full';
+  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-xl bg-bg-surface p-4 shadow-panel max-lg:h-auto max-lg:w-full lg:max-xl:h-[60vh]';
 
 /* -------------------------------------------------------------------------- */
 /* Cột trái — bốn nhánh loại trừ nhau, nhánh cuối là danh sách trục thật.      */
@@ -196,7 +196,7 @@ function AxisGridLeftColumn({
   }
 
   return (
-    <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 max-lg:h-auto">
+    <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 max-lg:h-auto lg:max-xl:h-[60vh]">
       {viewModel.viewerRoleNotice === null ? null : (
         <InlineAlert
           className="w-[280px] shrink-0 max-lg:w-full"
@@ -284,15 +284,15 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
         className={cn(
           'flex min-h-0 flex-1 gap-2 p-2',
           viewModel.isCompact ? 'flex-col' : 'flex-row',
-          // BUG-319/393/404: dưới 1024 ba cột cố định (280 + canvas + 344) tràn ngang hoặc bóp canvas còn ~110 px — xếp dọc và cuộn dọc.
-          'max-lg:flex-col max-lg:overflow-y-auto',
+          // BUG-319/393/404: dưới 1280 ba cột cố định (280 + canvas + 344) bóp canvas (1024: còn ~366 px, bản vẽ ~250 px) — 1024–1279: cột trái + bản vẽ cao 60vh ở hàng đầu, cột phải xuống dòng, cuộn dọc (như Tường); dưới 1024 xếp dọc, bản vẽ 360 px.
+          'max-lg:flex-col max-lg:overflow-y-auto lg:max-xl:flex-wrap lg:max-xl:content-start lg:max-xl:overflow-y-auto',
         )}
       >
         {isCollapsed ? null : <AxisGridLeftColumn {...props} />}
 
         <section
           aria-label={CANVAS_SECTION_LABEL}
-          className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken max-lg:h-[360px] max-lg:flex-none"
+          className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken max-lg:h-[360px] max-lg:flex-none lg:max-xl:h-[60vh]"
         >
           <AxisGridCanvas
             background={props.background ?? null}
@@ -317,7 +317,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
           </div>
         ) : viewModel.state === 'loading' ? (
           /* Đang tải: khung xương, không in "0 px / 0 mm" và danh sách tầng như dữ liệu thật (BUG-618). */
-          <div aria-hidden="true" className="flex w-[344px] shrink-0 flex-col gap-2 max-lg:w-full">
+          <div aria-hidden="true" className="flex w-[344px] shrink-0 flex-col gap-2 max-xl:w-full">
             {[0, 1].map((card) => (
               <div className="flex flex-col gap-2 rounded-xl bg-bg-surface p-5 shadow-panel" key={card}>
                 {SKELETON_ROWS.slice(0, 3).map((row) => (
@@ -327,7 +327,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
             ))}
           </div>
         ) : (
-          <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 overflow-y-auto max-lg:h-auto max-lg:overflow-visible">
+          <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 overflow-y-auto max-xl:h-auto max-xl:w-full max-xl:overflow-visible">
             <AxisGridOriginPanel
               onAnchorChange={props.onAnchorChange}
               origin={viewModel.origin}

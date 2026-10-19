@@ -4,15 +4,15 @@ import type { Page } from '@playwright/test';
 import { ROUTES } from '../fixtures/routes';
 
 /**
- * NotificationCenter — route `/thong-bao` (`ROUTES.notifications`), bản toàn màn
- * `NotificationCenterRoute` của tấm trượt thông báo.
+ * NotificationCenter — route `/thong-bao` (`ROUTES.notifications`), trang danh sách
+ * `NotificationCenterRoute` trong khung ứng dụng (G1-15; trước đó là tấm trượt ghim mở).
  * Kế hoạch: `docs/notes/e2e/plan.md` V2 MỤC 3, trường 2, 6, 8, 10; phát hiện V2
  * số 3, 4, 6, 7; lỗi B-G-02.
  *
  * ## Đường tới: `goto`, và chuông ở danh sách dự án
  *
  * Bài ở đây mở thẳng `/thong-bao`. Ca "đến từ màn khác" của kế hoạch (trường 2) —
- * chuông "Thông báo" ở danh sách dự án → "Xem tất cả" → `/thong-bao` → Esc quay về —
+ * chuông "Thông báo" ở danh sách dự án → "Xem tất cả" → `/thong-bao` → lùi lại —
  * nằm ở `dashboard.spec.ts` (B-V3-08), vì trước bản sửa ấy chuông là nút chết và
  * không có đường nội bộ nào tới route này.
  *
@@ -55,8 +55,9 @@ test.beforeAll(async ({ browser }) => {
   await page.close();
 });
 
+/** Nội dung trang (`<main>` của khung) — không còn hộp thoại nào ở `/thong-bao` (G1-15). */
 function panel(page: Page) {
-  return page.getByRole('dialog', { name: 'Thông báo' });
+  return page.getByRole('main');
 }
 
 /** Mở THẲNG `/thong-bao` — một lượt tải trang, không có mục lịch sử nào trong ứng dụng. */
@@ -67,25 +68,33 @@ async function openDirect(page: Page): Promise<void> {
   });
 }
 
-test('mở trực tiếp /thong-bao rồi Escape về danh sách dự án trong ứng dụng, không ra about:blank (B-G-02)', async ({
+test('mở trực tiếp /thong-bao là một trang trong khung ứng dụng: không hộp thoại, Escape không đổi màn, không ra about:blank (G1-15, B-G-02)', async ({
   page,
 }) => {
   await openDirect(page);
+
+  await expect(page.getByRole('heading', { level: 1, name: 'Thông báo' })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByText('Trung tâm thông báo')).toHaveCount(0);
+  await expect(panel(page).getByRole('button', { name: 'Xem tất cả' })).toHaveCount(0);
 
   await page.keyboard.press('Escape');
 
-  await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.dashboard);
-  await expect(page.getByRole('heading', { name: 'Dự án của tôi' })).toBeVisible();
-  await expect(panel(page)).toHaveCount(0);
+  await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.notifications);
+  await expect(page.getByRole('heading', { level: 1, name: 'Thông báo' })).toBeVisible();
 });
 
-test('điện thoại: ba nút chọn chiều cao tấm trượt nằm trong cây truy cập, có tên và trạng thái (B-V1-46)', async ({
+test('768: ba nút chọn chiều cao tấm trượt của chuông nằm trong cây truy cập, có tên và trạng thái (B-V1-46)', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await openDirect(page);
+  // Trang /thong-bao không còn tấm trượt (G1-15): tấm trượt nay chỉ là của chuông, dưới 1024 px.
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto(ROUTES.dashboard);
+  await page.getByRole('button', { name: 'Thông báo', exact: true }).click({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
-  const levels = panel(page).getByRole('group', { name: 'Chiều cao tấm trượt', exact: true });
+  const levels = page
+    .getByRole('dialog', { name: 'Thông báo' })
+    .getByRole('group', { name: 'Chiều cao tấm trượt', exact: true });
   await expect(levels.getByRole('button')).toHaveCount(3);
   await expect(levels.getByRole('button', { name: 'Mức 3', pressed: true })).toBeVisible();
 
@@ -138,10 +147,8 @@ test('bộ lọc "Chưa đọc" (nút chọn trong nhóm "Lọc thông báo") ch
 
 /*
  * B-V2-04 (đã sửa): bấm một thông báo ở `/thong-bao` từng đưa người dùng về `/` —
- * hook gọi `onNavigate(đích)` rồi `onClose()`, và ở route "đóng" là "rời route" nên
- * lượt đóng (`replace /`, hai lần: lần sau từ quãng mờ 180 ms) đè lên lượt điều
- * hướng. Nay `NotificationCenterRoute` đã điều hướng đi thì không đóng nữa. Đã kiểm
- * đỏ trên mã chưa sửa.
+ * lượt "đóng" của tấm trượt đè lên lượt điều hướng. Từ G1-15 `/thong-bao` là trang
+ * thường, không có lượt đóng nào; bài giữ lại để chặn tái phát.
  */
 test('bấm một thông báo ở /thong-bao mở thẳng đưa người dùng tới đúng màn của thông báo ấy', async ({
   page,

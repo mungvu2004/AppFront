@@ -64,6 +64,8 @@ const MENU_LABELS = {
 
 const WAITING_FRAME_LABEL = 'Chưa có ảnh bản vẽ của tầng này';
 const MINIMAP_LABEL = 'Mặt bằng thu nhỏ';
+/** `zoomPercent` lúc "vừa khung": 100% là cả mặt bằng nằm trong khung. */
+const FIT_ZOOM_PERCENT = 100;
 const FORBIDDEN_DESCRIPTION =
   'Bản vẽ vẫn xem và phóng to được, nhưng không chọn hay sửa được đoạn tường nào. Nhờ người có quyền sửa dự án duyệt giúp.';
 const FORBIDDEN_DESCRIPTION_ID = 'wall-layer-canvas-forbidden';
@@ -501,7 +503,11 @@ export function WallLayerCanvas({
         zoomLevel={zoomPercent}
       />
       <MiniMap
-        isVisible={surface !== null}
+        /*
+         * Ở "vừa khung" (100%) cả mặt bằng đã nằm trong khung: bản đồ nhỏ không có gì để chỉ, chỉ
+         * đè góc trên phải bản vẽ (khung tên). Phóng to qua 100% thì hiện.
+         */
+        isVisible={surface !== null && zoomPercent > FIT_ZOOM_PERCENT}
         onViewportChange={onMiniMapViewportChange}
         viewport={miniMapViewport}
       >

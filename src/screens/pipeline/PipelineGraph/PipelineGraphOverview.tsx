@@ -38,7 +38,11 @@ import type {
 
 const BLOCK_WIDTH = 200;
 const BLOCK_HEIGHT = 76;
-const COLUMN_STEP = 272;
+/**
+ * 248 để cả sơ đồ (3 x 248 + 200 = 944) vừa khung nội dung ở khổ 1024
+ * (1024 - 2 x 32 đệm = 960). 272 cũ làm sơ đồ rộng 1016, ô cuối bị cắt.
+ */
+const COLUMN_STEP = 248;
 const ROW_STEP = 96;
 const DIAGRAM_WIDTH = COLUMN_STEP * 3 + BLOCK_WIDTH;
 

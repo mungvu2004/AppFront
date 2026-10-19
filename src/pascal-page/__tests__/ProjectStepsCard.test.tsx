@@ -15,7 +15,10 @@ describe('ProjectStepsCard', () => {
 
   it('QA-2 L1: chip thu gọn "bước hiện tại + menu" cho thanh hẹp, menu đủ sáu bước', () => {
     render(<ProjectStepsCard projectId="p1" />);
-    expect(screen.getByLabelText('Bước 4/6: Mô hình 3D — mở danh sách bước').tagName).toBe('SUMMARY');
+    const chip = screen.getByLabelText('Bước 4/6: Mô hình 3D — mở danh sách bước');
+    expect(chip.tagName).toBe('SUMMARY');
+    // K6: ở 768 chip chỉ còn số "4" — tooltip phải nói tên bước.
+    expect(chip.getAttribute('title')).toBe('Bước 4: Mô hình 3D');
     const menu = screen.getByRole('list', { name: 'Danh sách bước' });
     expect(menu.querySelectorAll('a')).toHaveLength(6);
     expect(menu.querySelector('[aria-current="step"]')?.getAttribute('href')).toBe('/projects/p1/3d');

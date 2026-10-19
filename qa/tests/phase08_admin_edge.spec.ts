@@ -107,15 +107,15 @@ const LIB = {
   viewMode: 'Chế độ xem', // MLT:20
   table: 'Bảng', // MLT:22-25
   grid: 'Lưới',
-  gridList: 'lưới model', // MLB:33
-  noMatch: 'Không tìm thấy model phù hợp.', // MLB:31
-  emptyTitle: 'Chưa có model nào', // ML:39
-  errorTitle: 'Không tải được thư viện model', // ML:41
+  gridList: 'lưới mẫu 3D', // MLB:33
+  noMatch: 'Không tìm thấy mẫu 3D phù hợp.', // MLB:31
+  emptyTitle: 'Chưa có mẫu 3D nào', // ML:39
+  errorTitle: 'Không tải được thư viện mẫu 3D', // ML:41
   readOnly: 'Vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện', // UML:102-103
-  totalCount: 'Tổng số model', // MLS:12
+  totalCount: 'Tổng số mẫu 3D', // MLS:12
   heavyCount: 'model nặng', // MLS:14
   detail: 'Chi tiết model', // MLD:293
-  closeDetail: 'Đóng panel chi tiết model', // MLD:306
+  closeDetail: 'Đóng panel chi tiết mẫu 3D', // MLD:306
   preview: 'Xem trước mô hình', // MLD:103
   triangles: 'Số tam giác', // MLD:173, MLB:29
   metadata: 'Siêu dữ liệu model', // MLD:215
@@ -127,8 +127,8 @@ const LIB = {
 
 /* SCR-35 Training Jobs. */
 const TRAIN = {
-  title: 'Huấn luyện model AI', // TJ:30
-  crumbHere: 'Huấn luyện model', // TJ:29
+  title: 'Huấn luyện mô hình AI', // TJ:30
+  crumbHere: 'Huấn luyện', // TJ:29
   tabs: 'Phần của trang huấn luyện', // TJ:31
   tabJobs: 'Lượt huấn luyện', // TJ:32
   tabDatasets: 'Bộ dữ liệu', // TJ:33
@@ -177,8 +177,8 @@ const FAMILY_NAME: Readonly<Record<MlFamily, string>> = {
 
 /* SCR-36 Model Registry. */
 const REG = {
-  title: 'Model AI của chuỗi xử lý', // MR:29
-  crumbHere: 'Model AI', // MR:28
+  title: 'Mô hình AI của chuỗi xử lý', // MR:29
+  crumbHere: 'Mô hình AI', // MR:28
   picker: 'Họ model', // MR:30
   active: 'Đang dùng', // MR:31, MRV:18
   revert: 'Quay về đường cổ điển', // MR:32
@@ -632,10 +632,10 @@ test.describe('E08 anonymous', () => {
 /* ================================================================= SCR-34 Model Library */
 
 test.describe('E08 SCR-34 Model Library', () => {
-  test('E08 · SCR-34 search folds case, diacritics and outer spaces; a miss shows "Không tìm thấy model phù hợp." in table and grid, summary counts 0', async ({ browser }) => {
+  test('E08 · SCR-34 search folds case, diacritics and outer spaces; a miss shows "Không tìm thấy mẫu 3D phù hợp." in table and grid, summary counts 0', async ({ browser }) => {
     await asAdminUi(browser, async ({ page }) => {
       const items = await openLibrary(page);
-      test.skip(items.length === 0, 'environment: library is empty ("Chưa có model nào"), nothing to search');
+      test.skip(items.length === 0, 'environment: library is empty ("Chưa có mẫu 3D nào"), nothing to search');
       await expect(libSearch(page)).toBeVisible();
 
       // UML:216-221 matchesSearchText: foldForSearch (NFD, strip marks, lower case, đ→d) on BOTH sides, query trimmed.
@@ -644,8 +644,8 @@ test.describe('E08 SCR-34 Model Library', () => {
       await libSearch(page).fill(typed);
       await expect(libRows(page).getByRole('button', { name, exact: true }).first()).toBeVisible();
 
-      // A miss: Table.Empty "Không tìm thấy model phù hợp." (MLB:217-218); the summary is built from the FILTERED rows
-      // (UML:397 buildSummary(rows)) → "Tổng số model" 0 and "model nặng" 0 (UML:262-278).
+      // A miss: Table.Empty "Không tìm thấy mẫu 3D phù hợp." (MLB:217-218); the summary is built from the FILTERED rows
+      // (UML:397 buildSummary(rows)) → "Tổng số mẫu 3D" 0 and "mẫu 3D nặng" 0 (UML:262-278).
       const miss = `qa-e08-no-model-${uniq()}`;
       await libSearch(page).fill(miss);
       await expect(page.getByText(LIB.noMatch, { exact: true })).toBeVisible();
@@ -796,7 +796,7 @@ test.describe('E08 SCR-34 Model Library', () => {
     });
   });
 
-  test('E08 · SCR-34 [mocked response] GET /api/library 500 → "Không tải được thư viện model", no toolbar and no retry button; a reload recovers', async ({ browser }) => {
+  test('E08 · SCR-34 [mocked response] GET /api/library 500 → "Không tải được thư viện mẫu 3D", no toolbar and no retry button; a reload recovers', async ({ browser }) => {
     await asAdminUi(browser, async ({ page }) => {
       let served = 0;
       const matcher = (url: URL): boolean => url.pathname === LIBRARY_LIST;
@@ -1034,7 +1034,7 @@ test.describe('E08 SCR-35 Training Jobs', () => {
   test('E08 · SCR-35 ↔ SCR-36 related links and Back: "Model AI của chuỗi xử lý" → /admin/training/models, "Lượt huấn luyện" → /admin/training/jobs', async ({ browser }) => {
     await asAdminUi(browser, async ({ page }) => {
       await openTraining(page);
-      // TJ:44-62 header: breadcrumb (current "Huấn luyện model"), h1, related link (UTJ:161 RELATED_LINK).
+      // TJ:44-62 header: breadcrumb (current "Huấn luyện"), h1, related link (UTJ:161 RELATED_LINK).
       const crumbs = page.getByRole('navigation', { name: 'Đường dẫn trang', exact: true });
       await expect(crumbs.locator('[aria-current="page"]')).toHaveText(TRAIN.crumbHere);
       await expect(page.getByRole('heading', { level: 1, name: TRAIN.title, exact: true })).toBeVisible();

@@ -31,6 +31,7 @@ import { tagPart } from '../build/scene';
 import type { AssetService } from './assets';
 import { buildProceduralPiece, CATALOGUE, isCatalogueVariant } from './catalogue';
 import type { SceneMaterials } from './materials';
+import { ensureWhiteVertexColors } from './occlusion';
 import {
   furnitureCentre,
   furnitureLift,
@@ -191,6 +192,11 @@ export function placeFurniture(
 
   const procedural = buildProceduralPiece(entry.variant, size, materials);
   procedural.name = 'procedural';
+  // Only a piece with no `modelUrl` is baked (assemble.ts `staticRoots`); one waiting on a `.glb` is not, and
+  // without a `color` attribute the vertex-coloured materials draw it black when the model never arrives (K4).
+  procedural.traverse((object) => {
+    if (object instanceof Mesh) ensureWhiteVertexColors(object);
+  });
   group.add(procedural);
 
   if (CATALOGUE[entry.variant]?.contactShadow === true && (entry.liftMm ?? 0) === 0) {

@@ -147,7 +147,8 @@ test.describe('U04 UI verify — SCR-14 scale calibration (QA-04c P6)', () => {
           const field = await lengthField(p).boundingBox();
           const width = p.viewportSize()?.width ?? 0;
           for (const name of ['Phóng to', 'Bấm để di chuyển vùng nhìn']) {
-            const box = await btn(p, name).boundingBox();
+            // MiniMap tự ẩn ở 100% (vùng nhìn phủ cả ảnh): vắng mặt thì không thể đè.
+            const box = (await btn(p, name).count()) > 0 ? await btn(p, name).boundingBox() : null;
             if (field !== null && box !== null) {
               const w = Math.min(field.x + field.width, box.x + box.width) - Math.max(field.x, box.x);
               const h = Math.min(field.y + field.height, box.y + box.height) - Math.max(field.y, box.y);

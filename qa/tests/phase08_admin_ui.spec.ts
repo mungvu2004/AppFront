@@ -40,17 +40,17 @@ import { verifyUi } from './support/ui-verify';
 /* ---- SCR-34 copy: ModelLibrary.tsx, ModelLibraryToolbar.tsx, ModelLibraryTable.tsx, ModelLibraryDetail.tsx ---- */
 const LIBRARY_SEARCH = 'tìm model';
 const LIBRARY_CATEGORY = 'danh mục';
-const LIBRARY_EMPTY_TITLE = 'Chưa có model nào';
-const LIBRARY_NO_MATCH = 'Không tìm thấy model phù hợp.';
+const LIBRARY_EMPTY_TITLE = 'Chưa có mẫu 3D nào';
+const LIBRARY_NO_MATCH = 'Không tìm thấy mẫu 3D phù hợp.';
 const LIBRARY_VIEW_MODE = 'Chế độ xem';
 const LIBRARY_GRID = 'Lưới';
-const LIBRARY_GRID_LIST = 'lưới model';
+const LIBRARY_GRID_LIST = 'lưới mẫu 3D';
 const LIBRARY_DETAIL = 'Chi tiết model';
 /** ModelLibrary.container.tsx:58 NARROW_QUERY — below it the table / grid become a card list. */
 const NARROW_PX = 1024;
 
 /* ---- SCR-35 copy: TrainingJobs.tsx, TrainingJobsTable.tsx, TrainingDatasetsTab.tsx, TrainingJobForm.tsx ---- */
-const TRAINING_TITLE = 'Huấn luyện model AI';
+const TRAINING_TITLE = 'Huấn luyện mô hình AI';
 const TAB_JOBS = 'Lượt huấn luyện';
 const TAB_DATASETS = 'Bộ dữ liệu';
 const JOBS_EMPTY_TITLE = 'Chưa có lượt huấn luyện';
@@ -167,7 +167,7 @@ async function openLibrary(page: Page): Promise<void> {
   const search = page.getByLabel(LIBRARY_SEARCH, { exact: true });
   const empty = page.getByText(LIBRARY_EMPTY_TITLE, { exact: true });
   await expect(search.or(empty)).toBeVisible({ timeout: SETTLE_TIMEOUT_MS });
-  test.skip(await empty.isVisible(), 'environment: library is empty ("Chưa có model nào"), nothing to browse');
+  test.skip(await empty.isVisible(), 'environment: library is empty ("Chưa có mẫu 3D nào"), nothing to browse');
   await expect(libraryNames(page).first()).toBeVisible();
 }
 

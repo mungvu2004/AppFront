@@ -1,5 +1,5 @@
 /**
- * `S-25` — thư viện model dùng chung. Đường nhập duy nhất của thư mục này.
+ * `S-25` — thư viện mẫu 3D dùng chung. Đường nhập duy nhất của thư mục này.
  *
  * - {@link ModelLibraryContainer} là màn ĐÃ NỐI: một màn khác chỉ cần
  *   `<ModelLibraryContainer />` là mở được, không phải viết thêm một dòng logic thư viện

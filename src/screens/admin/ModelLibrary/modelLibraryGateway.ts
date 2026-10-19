@@ -1,5 +1,5 @@
 /**
- * Cổng dữ liệu của S-25 — thư viện model dùng chung. Một file thuần: không React, không
+ * Cổng dữ liệu của S-25 — thư viện mẫu 3D dùng chung. Một file thuần: không React, không
  * JSX, nên nó chạy và test được ngoài một cây React, đúng khuôn
  * `VersionHistory/versionHistoryGateway.ts` và `viewer/HistoryPanel/historyPanelGateway.ts`.
  *

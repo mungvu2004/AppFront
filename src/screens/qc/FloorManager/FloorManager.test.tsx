@@ -794,7 +794,10 @@ describe('khung bảng có chiều cao xác định (BUG-520)', () => {
     const frame = screen.getByRole('table').closest('[class~="rounded-lg"]');
     const content = frame?.closest('[class~="max-w-[1120px]"][class~="flex-1"]');
 
-    expect(frame).toHaveClass('min-h-0', 'flex-1', 'overflow-auto');
+    // `min-h-0` + `overflow-auto`: co lại và tự cuộn khi nhiều tầng; không `flex-1`, nên một
+    // tầng không để lại ~400 px khung trống bên dưới (K5).
+    expect(frame).toHaveClass('min-h-0', 'overflow-auto');
+    expect(frame).not.toHaveClass('flex-1');
     expect(content).toHaveClass('flex', 'flex-col');
     expect(content?.firstElementChild).toHaveClass('flex-1');
   });
@@ -866,20 +869,9 @@ describe('menu "Thêm" ở đầu màn: lối vào màn cấp dự án', () => {
   });
 });
 
-describe('nút "Xong, xem mô hình 3D →" ở đầu màn', () => {
-  it('bấm thì bắn lối sang 3D', () => {
-    const onOpenViewer3d = vi.fn();
-
-    renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onOpenViewer3d={onOpenViewer3d} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Xong, xem mô hình 3D →' }));
-    expect(onOpenViewer3d).toHaveBeenCalledTimes(1);
-  });
-
-  it('bị tắt khi chưa tầng nào có bản vẽ đã xử lý', () => {
-    const args = scenarioArgsFor('success');
-    const rows = args.rows.map((row) => ({ ...row, hasDrawing: false }));
-
-    renderWithProviders(<FloorManager {...args} onOpenViewer3d={vi.fn()} rows={rows} />);
-    expect(screen.getByRole('button', { name: 'Xong, xem mô hình 3D →' })).toBeDisabled();
+describe('lối sang 3D', () => {
+  it('màn không vẽ nút chính thứ hai cùng đích với "Bước tiếp theo: Mô hình 3D" của thanh bước (K5)', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('success')} />);
+    expect(screen.queryByRole('button', { name: /mô hình 3D/u })).toBeNull();
   });
 });

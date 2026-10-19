@@ -54,6 +54,8 @@ export interface NotificationRowProps {
   readonly onItemAction: (item: NotificationItemVm) => void;
   readonly onMarkRead: (id: string) => void;
   readonly onInlineAction: (item: NotificationItemVm) => void;
+  /** Trang `/thong-bao`: tên dự án xuống dòng; tấm trượt 400 px vẫn cắt "…". */
+  readonly wrapProjectName?: boolean;
 }
 
 export function NotificationRow({
@@ -63,6 +65,7 @@ export function NotificationRow({
   onItemAction,
   onMarkRead,
   onInlineAction,
+  wrapProjectName = false,
 }: NotificationRowProps) {
   const Icon = KIND_ICON[item.kind];
   const dotDelaySeconds = (flatIndex * UNREAD_DOT_STAGGER_MS) / MS_IN_ONE_SECOND;
@@ -132,7 +135,7 @@ export function NotificationRow({
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
             <span className="whitespace-nowrap text-[13px] leading-[18px] text-text-muted">{item.relativeTime}</span>
             {item.target.projectName.length > 0 && (
-              <span className="min-w-0 max-w-full truncate text-[13px] leading-[18px] text-text-muted">{`· ${item.target.projectName}`}</span>
+              <span className={cn('min-w-0 max-w-full text-[13px] leading-[18px] text-text-muted', wrapProjectName ? '[overflow-wrap:anywhere]' : 'truncate')}>{`· ${item.target.projectName}`}</span>
             )}
             {item.inlineAction !== undefined && (
               // While the accept is in flight the button is `aria-disabled`, not `disabled`: a disabled button

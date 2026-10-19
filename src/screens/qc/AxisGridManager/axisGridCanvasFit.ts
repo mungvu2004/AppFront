@@ -24,9 +24,11 @@ export function fitCanvas(
   bounds: AxisCanvasViewModel['boundsPx'],
   frame: { readonly width: number; readonly height: number },
   marginPx: number,
+  /** Lề thêm ở đáy (px màn) cho cụm thu phóng nổi ở góc dưới phải — để nó không che bong bóng trục. */
+  bottomReservePx = 0,
 ): CanvasFit {
   const usableWidth = frame.width - marginPx * 2;
-  const usableHeight = frame.height - marginPx * 2;
+  const usableHeight = frame.height - marginPx * 2 - bottomReservePx;
   const measured =
     usableWidth > 0 && usableHeight > 0 ? Math.max(bounds.width / usableWidth, bounds.height / usableHeight) : 0;
   const unit = measured > 0 ? measured : 1;
@@ -42,6 +44,6 @@ export function fitCanvas(
 
   return {
     unit,
-    viewBox: `${bounds.x - pad} ${bounds.y - pad} ${bounds.width + pad * 2} ${bounds.height + pad * 2}`,
+    viewBox: `${bounds.x - pad} ${bounds.y - pad} ${bounds.width + pad * 2} ${bounds.height + pad * 2 + bottomReservePx * unit}`,
   };
 }

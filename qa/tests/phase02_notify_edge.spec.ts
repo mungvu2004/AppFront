@@ -121,8 +121,6 @@ const MARKED_READ = 'Đã đánh dấu là đã đọc'; // UNC:161
 const MARKED_ALL_READ = 'Đã đánh dấu tất cả là đã đọc'; // UNC:160
 const UNDO = 'Hoàn tác'; // TST:143
 const SETTINGS_HEADING = 'Cài đặt dự án'; // PS:93
-const SHEET_GROUP = 'Chiều cao tấm trượt'; // DRW:245
-const snapButton = (level: number): string => `Mức ${String(level)}`; // DRW:252
 
 /* SCR-07 copy, UWS:122-146. */
 const WELCOME_SEEN_PREFIX = 'appfront:onboarding-welcome-seen:'; // UWS:164
@@ -200,6 +198,8 @@ const horizontalOverflow = (page: Page): Promise<number> =>
 
 const bell = (page: Page): Locator => page.getByRole('button', { name: 'Thông báo', exact: true }); // NC:61,389-391
 const panel = (page: Page): Locator => page.getByRole('dialog', { name: 'Thông báo', exact: true }); // NC:54,288, DRW:146-148
+/** `/thong-bao` is a page in the app frame since G1-15 — its content is the shell's `<main>`, not a dialog. */
+const routePage = (page: Page): Locator => page.getByRole('main');
 const rowOf = (scope: Locator, projectName: string): Locator => scope.getByRole('listitem').filter({ hasText: projectName });
 const sentenceOf = (row: Locator): Locator => row.getByRole('button').first(); // NC:161-169
 const markReadButtons = (scope: Locator): Locator => scope.getByRole('button', { name: MARK_READ, exact: true });
@@ -544,13 +544,13 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
     });
   });
 
-  test('E02 · SCR-06 on /thong-bao (direct load) a row click lands on its project and stays there — the route close does not bounce to /', async ({ browser }) => {
+  test('E02 · SCR-06 on /thong-bao (direct load) a row click lands on its project and stays there — no late close bounces it to /', async ({ browser }) => {
     await asInvitee(browser, async (session) => {
       const { page } = session;
       const project = await sharedProject(session, 'ntf-row-route');
       inviteOf(await loadWithInbox(page, ROUTES.notifications), project.id);
-      const route = panel(page);
-      await expect(route).toBeVisible(); // NCC:223 pinned open
+      const route = routePage(page);
+      await expect(route).toBeVisible();
       await settledBox(route);
       await sentenceOf(rowOf(route, project.name)).click();
       const target = ROUTES.project.settings(project.id);
@@ -794,7 +794,7 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
       await row.getByRole('button', { name: MARK_READ, exact: true }).click();
       await drawer.getByRole('button', { name: VIEW_ALL, exact: true }).click(); // UNC:767-770
       await expect.poll(() => pathname(page)).toBe(ROUTES.notifications);
-      const route = panel(page);
+      const route = routePage(page);
       await expect(route).toBeVisible();
       // UNC:455-458 (ponytail): the overlay lives in the unmounted bell instance; the route instance may show it unread.
       const unreadOnArrival = await markReadButtons(rowOf(route, project.name)).count();
@@ -837,7 +837,7 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
 
       const reloaded = await loadWithInbox(page, ROUTES.notifications);
       expect(inviteOf(reloaded, project.id).isRead, 'server row still unread').toBe(false);
-      const route = panel(page);
+      const route = routePage(page);
       await expect(sentenceOf(rowOf(route, project.name))).toHaveAccessibleName(UNREAD_HINT);
       await settledBox(route);
       await captureEvidence(page, 'E02_ntf_leave_then_undo.png', { caption: '"Hoàn tác" after leaving → no POST /read; row unread after reload' });
@@ -845,69 +845,27 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
     });
   });
 
-  for (const viewport of [DESKTOP, LAPTOP]) {
-    test(`E02 · SCR-06 BUG-124: /thong-bao at ${String(viewport.width)} — once the slide stops, the 400 px panel sits 8 px from the right edge with its filters and "Xem tất cả" on screen`, async ({ browser }) => {
+  for (const viewport of [DESKTOP, LAPTOP, { width: 768, height: 1024 }]) {
+    test(`E02 · SCR-06 G1-15: /thong-bao at ${String(viewport.width)} is a page in the app frame — h1, filters and "mark all" on screen, no drawer, no "Xem tất cả", no horizontal scroll`, async ({ browser }) => {
       await asInvitee(
         browser,
         async ({ page }) => {
           await loadWithInbox(page, ROUTES.notifications);
-          const route = panel(page);
-          const box = await settledBox(route);
-          const mentions = await filterRadio(route, NOTIF_FILTERS.mentions).boundingBox();
-          const viewAll = await route.getByRole('button', { name: VIEW_ALL, exact: true }).boundingBox();
+          const route = routePage(page);
+          await expect(route.getByRole('heading', { level: 1, name: NOTIF_TITLE, exact: true })).toBeVisible();
+          await expect(filterRadio(route, NOTIF_FILTERS.mentions)).toBeInViewport();
+          await expect(route.getByRole('button', { name: VIEW_ALL, exact: true })).toHaveCount(0);
+          await expect(panel(page)).toHaveCount(0);
           const overflow = await horizontalOverflow(page);
           const tag = String(viewport.width);
-          await captureEvidence(page, `E02_ntf_route_${tag}.png`, { caption: `panel x=${String(Math.round(box.x))} w=${String(Math.round(box.width))}; overflow ${String(overflow)} px` });
-          await attachJson(`E02_ntf_route_${tag}.json`, { viewport, panel: box, mentions, viewAll, horizontalOverflowPx: overflow, bug: 'BUG-124' });
-
-          // DRW:67,158-159: desktop drawer (≥ 1024, DRW:70) is 400 px wide with `my-2 mr-2`, inside `justify-end`.
-          expect.soft(Math.round(box.width), 'panel width').toBe(400);
-          expect.soft(Math.round(viewport.width - (box.x + box.width)), 'gap to the right edge').toBe(8);
-          for (const [what, b] of [['"Nhắc đến tôi"', mentions], ['"Xem tất cả"', viewAll]] as const) {
-            expect.soft(b !== null && b.x >= 0 && b.x + b.width <= viewport.width && b.y + b.height <= viewport.height, `${what} inside the viewport`).toBe(true);
-          }
+          await captureEvidence(page, `E02_ntf_route_${tag}.png`, { caption: `/thong-bao page at ${tag}; overflow ${String(overflow)} px` });
+          await attachJson(`E02_ntf_route_${tag}.json`, { viewport, horizontalOverflowPx: overflow, bug: 'G1-15' });
           expect(overflow, 'no horizontal scroll').toBeLessThanOrEqual(0);
         },
         viewport,
       );
     });
   }
-
-  test('E02 · SCR-06 BUG-125/137: /thong-bao at 375 — after the slide the sheet spans the width at 90 % height, title on one line, snap targets ≥ 24 px', async ({ browser }) => {
-    await asInvitee(
-      browser,
-      async ({ page }) => {
-        await loadWithInbox(page, ROUTES.notifications);
-        const sheet = panel(page); // DRW:70 → BottomSheet (DRW:195-233)
-        const box = await settledBox(sheet);
-        // BUG-192: `h3` also matches the empty state's title ("Không có thông báo mới"); the sheet's own heading is by name.
-        const title = sheet.getByRole('heading', { name: NOTIF_TITLE, exact: true });
-        // Lines of the title text: distinct tops of its client rects.
-        const titleLines = await title.evaluate((el) => {
-          const range = document.createRange();
-          range.selectNodeContents(el);
-          return new Set(Array.from(range.getClientRects()).map((r) => Math.round(r.top))).size;
-        });
-        const snaps = sheet.getByRole('group', { name: SHEET_GROUP, exact: true }).getByRole('button');
-        const snapBoxes = await Promise.all([0, 1, 2].map((i) => snaps.nth(i).boundingBox()));
-        const overflow = await horizontalOverflow(page);
-        await captureEvidence(page, 'E02_ntf_route_375.png', { caption: `sheet y=${String(Math.round(box.y))} h=${String(Math.round(box.height))}; title lines ${String(titleLines)}` });
-        await attachJson('E02_ntf_route_375.json', { viewport: COMPACT, sheet: box, titleLines, snapBoxes, horizontalOverflowPx: overflow });
-
-        await expect(snaps.nth(2)).toHaveAccessibleName(snapButton(3));
-        await expect(snaps.nth(2)).toHaveAttribute('aria-pressed', 'true'); // DRW:72 opens at level 2 ("Mức 3")
-        expect.soft(Math.round(box.x), 'sheet left').toBe(0);
-        expect.soft(Math.round(box.width), 'sheet width').toBe(COMPACT.width);
-        expect.soft(Math.abs(box.height - Math.round(COMPACT.height * 0.9)), 'sheet 90 % (DRW:33)').toBeLessThanOrEqual(1);
-        expect.soft(Math.abs(box.y + box.height - COMPACT.height), 'sheet bottom on the screen edge').toBeLessThanOrEqual(1);
-        // NCC:223 isCompact → NC:295-299 stacks the header, so the title row has the full width.
-        expect.soft(titleLines, '"Thông báo" on one line').toBe(1);
-        for (const b of snapBoxes) expect.soft(b !== null && b.width >= MIN_TARGET_PX && b.height >= MIN_TARGET_PX, 'snap target ≥ 24 px (DRW:251)').toBe(true);
-        expect(overflow, 'no horizontal scroll').toBeLessThanOrEqual(0);
-      },
-      COMPACT,
-    );
-  });
 });
 
 /* ================================================================= SCR-07 onboarding */

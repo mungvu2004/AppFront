@@ -34,6 +34,8 @@ const ORIGIN_STROKE_WIDTH_PX = 1;
 const ORIGIN_CROSS_HALF_LENGTH_PX = ORIGIN_RADIUS_PX;
 const ORIGIN_LABEL_FONT_SIZE_PX = 12;
 const ORIGIN_LABEL_OFFSET_PX = 8;
+/** Viền chữ màu nền: nhãn đọc được khi nằm trên nét bản vẽ. */
+const ORIGIN_LABEL_HALO_PX = 3;
 
 /** Đúng A2: điểm neo đổi được qua Select ở panel phải (xem JSDoc đầu file). */
 const ORIGIN_TOKEN = 'var(--accent)';
@@ -81,13 +83,22 @@ export function AxisGridOriginMarker({ origin, unit }: AxisGridOriginMarkerProps
           y1={-ORIGIN_CROSS_HALF_LENGTH_PX}
           y2={ORIGIN_CROSS_HALF_LENGTH_PX}
         />
+        {/*
+         * Nhãn chéo xuống dưới-phải, không nằm trên đường trục: bong bóng trục ngang/dọc nằm
+         * trên chính hai đường qua gốc nên nhãn đặt ngang hàng từng đè bóng trục A (ảnh 1920/1024).
+         */}
         <text
           className="select-none tabular-nums"
-          dominantBaseline="middle"
+          data-testid="axis-origin-label"
+          dominantBaseline="hanging"
           fill={ORIGIN_LABEL_TOKEN}
           fontSize={ORIGIN_LABEL_FONT_SIZE_PX}
+          paintOrder="stroke"
+          stroke="var(--bg-surface)"
+          strokeLinejoin="round"
+          strokeWidth={ORIGIN_LABEL_HALO_PX}
           x={ORIGIN_RADIUS_PX + ORIGIN_LABEL_OFFSET_PX}
-          y={0}
+          y={ORIGIN_RADIUS_PX + ORIGIN_LABEL_OFFSET_PX}
         >
           {origin.label}
         </text>

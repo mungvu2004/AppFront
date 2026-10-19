@@ -31,11 +31,11 @@ export interface Item {
 }
 
 export const TEXT = {
-  noMatch: 'Không tìm thấy model phù hợp.', // MLB:31
+  noMatch: 'Không tìm thấy mẫu 3D phù hợp.', // MLB:31
   readOnly: 'Vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện', // UML:102-103
   detail: 'Chi tiết model', // MLD:293
-  close: 'Đóng panel chi tiết model', // MLD:306
-  gridList: 'lưới model', // MLB:33
+  close: 'Đóng panel chi tiết mẫu 3D', // MLD:306
+  gridList: 'lưới mẫu 3D', // MLB:33
   viewMode: 'Chế độ xem', // MLT:20
   breadcrumb: 'Đường dẫn trang', // ML:36
 } as const;
@@ -61,7 +61,7 @@ export async function openLibrary(page: Page, navigate: () => Promise<unknown>):
   return { items: body as Item[], status: res.status(), search: new URL(res.url()).search };
 }
 
-export const searchBox = (page: Page): Locator => page.getByRole('textbox', { name: 'Tìm model', exact: true });
+export const searchBox = (page: Page): Locator => page.getByRole('textbox', { name: 'Tìm mẫu 3D', exact: true });
 export const categoryBox = (page: Page): Locator => page.getByRole('combobox', { name: 'Danh mục', exact: true });
 export const viewRadio = (page: Page, name: 'Bảng' | 'Lưới'): Locator =>
   page.locator(`[aria-label="${TEXT.viewMode}"]`).getByRole('radio', { name, exact: true });

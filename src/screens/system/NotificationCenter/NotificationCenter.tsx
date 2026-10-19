@@ -105,14 +105,104 @@ function flatIndexOf(groups: readonly NotificationDayGroup[]): ReadonlyMap<strin
 /* Màn.                                                                        */
 /* -------------------------------------------------------------------------- */
 
-/** `hideViewAll`: trên `/thong-bao` danh sách đã là toàn màn, nút "Xem tất cả" chỉ dẫn về chính nó (G1-15). */
-export function NotificationCenter(props: NotificationCenterProps & { readonly hideViewAll?: boolean }) {
+/** Hai lối bấm của một dòng: tấm trượt mờ dần rồi đóng, trang `/thong-bao` gọi thẳng. */
+export interface NotificationListProps extends NotificationCenterProps {
+  readonly onRowAction: (item: NotificationItemVm) => void;
+  readonly onRowInlineAction: (item: NotificationItemVm) => void;
+  /** Trang đầy đủ: tên dự án xuống dòng thay vì cắt "…" (LOOK-L2). */
+  readonly wrapProjectName?: boolean;
+}
+
+/** Thân danh sách theo `screenState` — dùng chung cho tấm trượt và trang `/thong-bao` (G1-15). */
+export function NotificationList(props: NotificationListProps) {
   const {
-    screenState, isOpen, onClose, filter, onFilterChange, groups, unreadBadge,
-    liveMessage, onMarkAllRead, onMarkRead, onItemClick, onInlineAction, onViewAll,
-    onOpenSettings, errorMessage, onRetry, arrivedIds, scrollRef, hideViewAll = false,
-    canLoadOlder, isLoadingOlder, onLoadOlder,
+    screenState, filter, onFilterChange, groups, onMarkRead, errorMessage, onRetry, arrivedIds,
+    canLoadOlder, isLoadingOlder, onLoadOlder, onRowAction, onRowInlineAction, wrapProjectName = false,
   } = props;
+
+  if (screenState === 'loading') {
+    return <>{Array.from({ length: LOADING_ROW_COUNT }, (_u, i) => <Skeleton key={i} preset="table-row" />)}</>;
+  }
+  if (screenState === 'error') {
+    return (
+      <InlineAlert
+        level="violation"
+        title={ERROR_TITLE}
+        message={errorMessage ?? ERROR_FALLBACK_MESSAGE}
+        action={{ label: RETRY_LABEL, onClick: onRetry, variant: 'secondary' }}
+      />
+    );
+  }
+  if (screenState === 'empty') {
+    const copy = EMPTY_COPY[filter];
+
+    return (
+      <EmptyState
+        icon={<Bell />}
+        title={copy.title}
+        description={copy.description}
+        {...(filter === 'all'
+          ? {}
+          : { action: { label: SHOW_EVERYTHING_LABEL, onClick: () => onFilterChange('all') } })}
+      />
+    );
+  }
+
+  const indices = flatIndexOf(groups);
+
+  return (
+    <>
+      {screenState === 'partial' && <InlineAlert level="attention" message={PARTIAL_NOTICE} />}
+      {screenState === 'forbidden' && (
+        <p className="px-1 text-[13px] text-text-secondary">{FORBIDDEN_NOTICE}</p>
+      )}
+      {groups.map((group) => (
+        <section key={group.key} aria-label={group.heading}>
+          <h4 className="px-1 pb-1 pt-3 text-[13px] font-medium text-text-muted first:pt-0">
+            {group.heading}
+          </h4>
+          <ul className="flex flex-col">
+            {group.items.map((item) => (
+              <NotificationRow
+                key={item.id}
+                item={item}
+                flatIndex={indices.get(item.id) ?? 0}
+                isArrived={arrivedIds.includes(item.id)}
+                onItemAction={onRowAction}
+                onMarkRead={onMarkRead}
+                onInlineAction={onRowInlineAction}
+                wrapProjectName={wrapProjectName}
+              />
+            ))}
+          </ul>
+        </section>
+      ))}
+      {/* G1-15: thông báo cũ hơn trang đầu nạp theo cursor, cuối danh sách. */}
+      {canLoadOlder && (
+        <Button variant="ghost" size="sm" fullWidth loading={isLoadingOlder} onClick={onLoadOlder}>
+          {LOAD_OLDER_LABEL}
+        </Button>
+      )}
+    </>
+  );
+}
+
+/** "Đánh dấu tất cả đã đọc" + bánh răng cài đặt — chung cho tấm trượt và trang. */
+export function NotificationActions({ unreadBadge, screenState, onMarkAllRead, onOpenSettings }: NotificationCenterProps) {
+  const isMarkAllDisabled = unreadBadge === '' || screenState === 'loading' || screenState === 'error';
+
+  return (
+    <>
+      <Button variant="ghost" size="sm" onClick={onMarkAllRead} disabled={isMarkAllDisabled}>
+        {MARK_ALL_READ_LABEL}
+      </Button>
+      <IconButton icon={<Settings size={18} />} aria-label={SETTINGS_LABEL} size="sm" onClick={onOpenSettings} />
+    </>
+  );
+}
+
+export function NotificationCenter(props: NotificationCenterProps) {
+  const { isOpen, onClose, filter, onFilterChange, unreadBadge, liveMessage, onItemClick, onInlineAction, onViewAll, scrollRef } = props;
 
   /* Hoà tan 180ms rồi mới `onClose` — trình bày thuần, không phải R-64. */
   const [isClosing, setIsClosing] = useState(false);
@@ -138,72 +228,6 @@ export function NotificationCenter(props: NotificationCenterProps & { readonly h
     }
   };
 
-  const indices = flatIndexOf(groups);
-  const isMarkAllDisabled = unreadBadge === '' || screenState === 'loading' || screenState === 'error';
-
-  let body: React.ReactNode;
-
-  if (screenState === 'loading') {
-    body = Array.from({ length: LOADING_ROW_COUNT }, (_u, i) => <Skeleton key={i} preset="table-row" />);
-  } else if (screenState === 'error') {
-    body = (
-      <InlineAlert
-        level="violation"
-        title={ERROR_TITLE}
-        message={errorMessage ?? ERROR_FALLBACK_MESSAGE}
-        action={{ label: RETRY_LABEL, onClick: onRetry, variant: 'secondary' }}
-      />
-    );
-  } else if (screenState === 'empty') {
-    const copy = EMPTY_COPY[filter];
-
-    body = (
-      <EmptyState
-        icon={<Bell />}
-        title={copy.title}
-        description={copy.description}
-        {...(filter === 'all'
-          ? {}
-          : { action: { label: SHOW_EVERYTHING_LABEL, onClick: () => onFilterChange('all') } })}
-      />
-    );
-  } else {
-    body = (
-      <>
-        {screenState === 'partial' && <InlineAlert level="attention" message={PARTIAL_NOTICE} />}
-        {screenState === 'forbidden' && (
-          <p className="px-1 text-[13px] text-text-secondary">{FORBIDDEN_NOTICE}</p>
-        )}
-        {groups.map((group) => (
-          <section key={group.key} aria-label={group.heading}>
-            <h4 className="px-1 pb-1 pt-3 text-[13px] font-medium text-text-muted first:pt-0">
-              {group.heading}
-            </h4>
-            <ul className="flex flex-col">
-              {group.items.map((item) => (
-                <NotificationRow
-                  key={item.id}
-                  item={item}
-                  flatIndex={indices.get(item.id) ?? 0}
-                  isArrived={arrivedIds.includes(item.id)}
-                  onItemAction={handleItemAction}
-                  onMarkRead={onMarkRead}
-                  onInlineAction={handleInlineAction}
-                />
-              ))}
-            </ul>
-          </section>
-        ))}
-        {/* G1-15: thông báo cũ hơn trang đầu nạp theo cursor, cuối danh sách. */}
-        {canLoadOlder && (
-          <Button variant="ghost" size="sm" fullWidth loading={isLoadingOlder} onClick={onLoadOlder}>
-            {LOAD_OLDER_LABEL}
-          </Button>
-        )}
-      </>
-    );
-  }
-
   return (
     <Drawer.Root isOpen={isOpen} onClose={onClose} label={TITLE_LABEL}>
       {/* Cột đủ cao của tấm: thân cuộn riêng, chân "Xem tất cả" ghim đáy cả ở tờ dưới 1024px (BUG-161). */}
@@ -216,7 +240,7 @@ export function NotificationCenter(props: NotificationCenterProps & { readonly h
           {/*
             Trạng thái 7 ("thu gọn"): khung hẹp thì nhóm nút rơi xuống hàng dưới thay vì
             ép tiêu đề gãy dòng. Dùng `flex-wrap` chứ không đọc `isCollapsed`: bề ngang
-            thật của tấm (400px ở desktop, cả `/thong-bao`) đủ cho một hàng, nên cùng
+            thật của tấm (400px ở desktop) đủ cho một hàng, nên cùng
             một bố cục với ngăn kéo (BUG-124/125). Tiêu đề không bao giờ gãy.
           */}
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
@@ -230,15 +254,7 @@ export function NotificationCenter(props: NotificationCenterProps & { readonly h
             </div>
             {/* ml-auto: if a narrower screen still wraps the group, it stays on the right (BUG-234). */}
             <div className="ml-auto flex shrink-0 items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={onMarkAllRead} disabled={isMarkAllDisabled}>
-                {MARK_ALL_READ_LABEL}
-              </Button>
-              <IconButton
-                icon={<Settings size={18} />}
-                aria-label={SETTINGS_LABEL}
-                size="sm"
-                onClick={onOpenSettings}
-              />
+              <NotificationActions {...props} />
             </div>
           </div>
           <div className="mt-3">
@@ -265,19 +281,54 @@ export function NotificationCenter(props: NotificationCenterProps & { readonly h
               isClosing ? 'opacity-0' : 'opacity-100',
             )}
           >
-            {body}
+            <NotificationList {...props} onRowAction={handleItemAction} onRowInlineAction={handleInlineAction} />
           </div>
         </Drawer.Body>
 
-        {!hideViewAll && (
-          <div className={cn('shrink-0 border-t border-border-default px-8 py-4', SHEET_GUTTER)}>
-            <Button variant="ghost" size="sm" fullWidth onClick={onViewAll}>
-              {VIEW_ALL_LABEL}
-            </Button>
-          </div>
-        )}
+        <div className={cn('shrink-0 border-t border-border-default px-8 py-4', SHEET_GUTTER)}>
+          <Button variant="ghost" size="sm" fullWidth onClick={onViewAll}>
+            {VIEW_ALL_LABEL}
+          </Button>
+        </div>
       </div>
     </Drawer.Root>
+  );
+}
+
+/**
+ * Trang `/thong-bao` trong khung ứng dụng (G1-15): cùng dữ liệu, bộ lọc và dòng như tấm trượt, nhưng là một
+ * trang thường dưới header chung — không lớp phủ, không Esc, không "Xem tất cả" (chính là nó).
+ */
+export function NotificationCenterPage(props: NotificationCenterProps) {
+  const { filter, onFilterChange, unreadBadge, liveMessage, onItemClick, onInlineAction } = props;
+
+  return (
+    <div className="mx-auto flex w-full max-w-[880px] flex-col gap-6 p-8 max-lg:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+          <h1 className="text-[20px] font-semibold text-text-primary">{TITLE_LABEL}</h1>
+          {unreadBadge !== '' && (
+            <span className="font-mono text-[14px] tabular-nums text-text-secondary">{unreadBadge}</span>
+          )}
+        </div>
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <NotificationActions {...props} />
+        </div>
+      </div>
+      <SegmentedControl
+        className="max-w-md"
+        aria-label={FILTER_ARIA_LABEL}
+        options={FILTER_OPTIONS}
+        value={filter}
+        onChange={onFilterChange}
+      />
+      <p className="sr-only" role="status" aria-live="polite">
+        {liveMessage}
+      </p>
+      <div className="flex flex-col gap-1 rounded-lg border border-border-default bg-bg-surface p-4">
+        <NotificationList {...props} onRowAction={onItemClick} onRowInlineAction={onInlineAction} wrapProjectName />
+      </div>
+    </div>
   );
 }
 

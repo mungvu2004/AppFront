@@ -14,7 +14,7 @@ import { poolUser, signInPoolUser } from './support/p08/pool';
 
 const LIST = /\/api\/library(\?.*)?$/u;
 const DETAIL_RE = /\/api\/library\/[^/?]+(\?.*)?$/u;
-const ALERT = 'Không tải được thư viện model';
+const ALERT = 'Không tải được thư viện mẫu 3D';
 const err = (status: 403 | 404 | 429 | 500) => (route: Route) => failWith(route, status);
 
 type Mode = 'real' | 'hold' | 'empty' | '500' | 'abort' | 'bad' | '403' | '429';
@@ -76,8 +76,8 @@ test.describe('P08 SCR-34 library mocked edge', () => {
       });
       await test.step('[34L-B-002] Empty library: EmptyState replaces toolbar and table', async () => {
         await reload('empty');
-        await expect.soft(page.getByText('Chưa có model nào', { exact: true })).toBeVisible(); // ML:39-40,85-91
-        await expect.soft(page.getByText('Thư viện chưa có model nào.', { exact: true })).toBeVisible();
+        await expect.soft(page.getByText('Chưa có mẫu 3D nào', { exact: true })).toBeVisible(); // ML:39-40,85-91
+        await expect.soft(page.getByText('Thư viện chưa có mẫu 3D nào.', { exact: true })).toBeVisible();
         await captureEvidence(page, 'E08_34L-B-002_empty.png');
       });
       await test.step('[34L-B-003] List 500: alert in place of the screen body', async () => {
@@ -100,7 +100,7 @@ test.describe('P08 SCR-34 library mocked edge', () => {
       await test.step('[34L-B-005] List network failure (aborted): alert, no toolbar', async () => {
         await reload('abort');
         await expect.soft(alertOf(page)).toBeVisible();
-        await expect.soft(page.getByLabel('Tìm model', { exact: true })).toHaveCount(0);
+        await expect.soft(page.getByLabel('Tìm mẫu 3D', { exact: true })).toHaveCount(0);
         await captureEvidence(page, 'E08_34L-B-005_abort.png');
       });
       await test.step('[34L-B-006] Wrong shape fails FE decode: read error, not a crash', async () => {
@@ -139,7 +139,7 @@ test.describe('P08 SCR-34 library mocked edge', () => {
       });
       state.mode = 'real';
       await page.goto(ROUTES.library);
-      await expect(page.getByLabel('Tìm model', { exact: true })).toBeVisible(); // ends on a real answer
+      await expect(page.getByLabel('Tìm mẫu 3D', { exact: true })).toBeVisible(); // ends on a real answer
     } finally {
       await eng.close();
       await admin.dispose();
@@ -187,10 +187,10 @@ test.describe('P08 SCR-34 library mocked edge', () => {
       await expect.soft(page.locator('[class*="text-state-attention-text"]').filter({ hasText: /\d/u }).first()).toBeVisible(); // MLS:42
       await captureEvidence(page, 'E08_34L-B-016_heavy_figure.png');
     });
-    await test.step('[34L-B-017] Detail of a heavy model: "Cảnh báo model nặng"', async () => {
+    await test.step('[34L-B-017] Detail of a heavy model: "Cảnh báo mẫu 3D nặng"', async () => {
       await row('QA heavy model 900001').getByRole('button').filter({ hasText: /\S/u }).first().click();
       const aside = page.locator('aside[aria-label="Chi tiết model"]');
-      await expect.soft(aside.getByLabel('Cảnh báo model nặng', { exact: true })).toBeVisible(); // MLD:257-266 (aria-label of the <section>, not text)
+      await expect.soft(aside.getByLabel('Cảnh báo mẫu 3D nặng', { exact: true })).toBeVisible(); // MLD:257-266 (aria-label of the <section>, not text)
       await expect.soft(aside.getByText('Nặng', { exact: true }).first()).toBeVisible();
       await captureEvidence(page, 'E08_34L-B-017_heavy_detail.png');
       await page.keyboard.press('Escape');
@@ -233,7 +233,7 @@ test.describe('P08 SCR-34 library mocked edge', () => {
     const name = (await first.innerText()).trim();
     const aside = page.locator('aside[aria-label="Chi tiết model"]');
     const h2 = aside.getByRole('heading', { level: 2, name, exact: true });
-    const close = aside.getByRole('button', { name: 'Đóng panel chi tiết model' });
+    const close = aside.getByRole('button', { name: 'Đóng panel chi tiết mẫu 3D' });
     const retry = aside.getByRole('button', { name: 'Thử lại', exact: true });
     const GLB = /\.(glb|gltf)(\?.*)?$/u;
     const detail = async (mode: 'hold' | '404' | '500', gate: Promise<void> = Promise.resolve()): Promise<void> => {

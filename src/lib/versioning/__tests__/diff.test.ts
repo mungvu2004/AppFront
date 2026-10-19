@@ -270,7 +270,7 @@ describe('a diff entry, put into words', () => {
       oldValue: 'pending',
     });
 
-    expect(description).toBe('Tường W-014 đổi review_state từ pending sang approved');
+    expect(description).toBe('Tường W-014 đổi một thuộc tính khác');
   });
 
   it('describes an added entity', () => {

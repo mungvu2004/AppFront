@@ -436,6 +436,7 @@ export function ScaleCalibrationCanvas({
       ) : null}
 
       <CanvasNavigation
+        imageUrl={canvas.imageUrl}
         miniMapViewport={canvas.miniMapViewport}
         onFitView={onFitView}
         onMiniMapViewportChange={onMiniMapViewportChange}

@@ -271,16 +271,17 @@ test.describe('chuông "Thông báo" ở danh sách dự án (B-V3-08)', () => {
     await expect(bell(page)).toHaveAttribute('aria-expanded', 'false');
   });
 
-  test('chuông → "Xem tất cả" tới /thong-bao, Esc ở đó quay về danh sách dự án', async ({ page }) => {
+  test('chuông → "Xem tất cả" tới trang /thong-bao (G1-15), lùi lại về danh sách dự án', async ({ page }) => {
     await openDashboard(page);
 
     await bell(page).click();
     await page.getByRole('dialog', { name: 'Thông báo' }).getByRole('button', { name: 'Xem tất cả' }).click();
 
     await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.notifications);
-    await expect(page.getByRole('heading', { name: 'Thông báo' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Thông báo' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Thông báo' })).toHaveCount(0);
 
-    await page.keyboard.press('Escape');
+    await page.goBack();
 
     await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.dashboard);
     await expect(projectList(page)).toBeVisible();

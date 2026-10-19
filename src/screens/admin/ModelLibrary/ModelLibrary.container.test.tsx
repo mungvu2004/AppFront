@@ -1,5 +1,5 @@
 /**
- * QA-09 F-11 (9P-D-401..403, 9A-D-009): quyền quản lý thư viện model theo vai của PHIÊN
+ * QA-09 F-11 (9P-D-401..403, 9A-D-009): quyền quản lý thư viện mẫu 3D theo vai của PHIÊN
  * (toàn cục, duy nhất), không theo `store.userRoles` của dự án mở trước.
  */
 import { cleanup, screen } from '@testing-library/react';
@@ -37,7 +37,7 @@ afterEach(() => {
   useStore.setState({ userRoles: [] });
 });
 
-describe('[9P-D-401][9A-D-009] vai phiên là nguồn quyền thư viện model', () => {
+describe('[9P-D-401][9A-D-009] vai phiên là nguồn quyền thư viện mẫu 3D', () => {
   it.each([['engineer'], ['viewer']] as const)(
     'phiên admin + store.userRoles=%s: KHÔNG hiện cảnh báo chỉ đọc',
     async (storeRole) => {

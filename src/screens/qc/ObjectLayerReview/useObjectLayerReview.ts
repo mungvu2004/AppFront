@@ -312,6 +312,12 @@ export const subtypeSlotsOf = (layer: ObjectLayerId): readonly ObjectSubtype[] =
 /** Khung nhìn chưa đo được khung: pixel bản vẽ đọc thẳng là pixel khung. */
 const IDENTITY_VIEW: CanvasFitView = { x: 0, y: 0, zoom: 1 };
 
+/**
+ * "Vừa khung" chừa dải đáy cho chú giải nổi (`ObjectLayerCanvasLegend`, đáy-trái, cao ~36 px + lề
+ * 16 px): mặt bằng căn giữa phần khung PHÍA TRÊN dải đó, nên chú giải không đè mép dưới bản vẽ.
+ */
+const FIT_LEGEND_RESERVE_PX = 56;
+
 /** Cổng thật dựng đúng một lần cho suốt đời component. */
 function useResolvedGateway(
   injected: ObjectLayerReviewGateway | undefined,
@@ -1148,7 +1154,13 @@ export function useObjectLayerReview(
       : { x: box.minX, y: box.minY, width: box.maxX - box.minX, height: box.maxY - box.minY };
   }, [background, level, wallOutlinesPx]);
 
-  const fitView = fitCanvasView(frameSizePx, surfacePx) ?? IDENTITY_VIEW;
+  const fitView =
+    fitCanvasView(
+      frameSizePx === null
+        ? null
+        : { width: frameSizePx.width, height: frameSizePx.height - FIT_LEGEND_RESERVE_PX },
+      surfacePx,
+    ) ?? IDENTITY_VIEW;
 
   const onSelectHostWall = useCallback(
     (wallId: WallId) => {

@@ -84,7 +84,7 @@ export function AxisGridOriginPanel({
   const isUnmeasured = origin.anchorOptions.length === 0;
 
   return (
-    <div className="flex w-[344px] shrink-0 flex-col gap-4 rounded-xl bg-bg-surface p-5 shadow-panel max-lg:w-full">
+    <div className="flex w-[344px] shrink-0 flex-col gap-4 rounded-xl bg-bg-surface p-5 shadow-panel max-xl:w-full">
       <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
 
       {unavailableNotice !== null ? (

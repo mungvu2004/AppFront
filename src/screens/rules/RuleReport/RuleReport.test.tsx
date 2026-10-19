@@ -690,6 +690,26 @@ describe('năng lực bị gỡ thì bị gỡ khỏi DOM, không render nút v�
   });
 });
 
+describe('K5 — đường dẫn "Dự án › <tên dự án> › …" như các màn dự án khác', () => {
+  it('vẽ breadcrumb khi nơi gọi đưa vào, cấp "Dự án" bấm được', async () => {
+    const RuleReportView = await loadRuleReportView();
+    const onBack = vi.fn();
+    renderRuleReport(RuleReportView, {
+      ...propsFor(scenarioOf('success')),
+      breadcrumb: [
+        { id: 'projects', label: 'Dự án', onClick: onBack },
+        { id: 'project', label: 'Nhà mẫu' },
+        { id: 'current', label: 'Kiểm tra luật không gian' },
+      ],
+    });
+
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+    expect(within(nav).getByText('Nhà mẫu')).toBeTruthy();
+    fireEvent.click(within(nav).getByRole('button', { name: 'Dự án' }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('BUG-465 — chưa có kết quả thì không có gì để xác nhận, và chỉ một nút thử lại', () => {
   it.each([['error'], ['loading']] as const)('%s: không nút "Xác nhận đã xử lý"', async (state) => {
     const RuleReportView = await loadRuleReportView();

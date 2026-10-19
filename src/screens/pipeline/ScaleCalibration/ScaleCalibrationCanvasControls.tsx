@@ -147,6 +147,8 @@ function stopAtOverlay(event: SyntheticEvent): void {
 
 interface CanvasNavigationProps {
   readonly zoomPercent: number;
+  /** Ảnh bản vẽ cho bản đồ nhỏ; `null` thì bản đồ chỉ có khung nhìn. */
+  readonly imageUrl: string | null;
   readonly miniMapViewport: ScaleCanvasViewModel['miniMapViewport'];
   readonly onZoomIn: CanvasActions['onZoomIn'];
   readonly onZoomOut: CanvasActions['onZoomOut'];
@@ -156,6 +158,7 @@ interface CanvasNavigationProps {
 
 /** Cụm thu phóng và bản đồ nhỏ, nối vào khung nhìn của màn — trước đây là hai điều khiển chết (BUG-596). */
 export function CanvasNavigation({
+  imageUrl,
   miniMapViewport,
   onFitView,
   onMiniMapViewportChange,
@@ -173,7 +176,18 @@ export function CanvasNavigation({
         onZoomOut={onZoomOut}
         zoomLevel={zoomPercent}
       />
-      <MiniMap onViewportChange={onMiniMapViewportChange} viewport={miniMapViewport} />
+      {/* Ở 100% bản đồ nhỏ tự ẩn (vùng nhìn phủ cả ảnh); phóng to thì hiện kèm ảnh thu nhỏ thật. */}
+      <MiniMap onViewportChange={onMiniMapViewportChange} viewport={miniMapViewport}>
+        {imageUrl === null ? null : (
+          /*
+           * Khung ảnh vuông kéo giãn đúng vào ô 160×120 (`none`), ảnh bên trong vẫn `contain` như
+           * trên canvas — nên phần trăm vùng nhìn khớp đúng chỗ trên ảnh.
+           */
+          <svg className="h-full w-full" preserveAspectRatio="none" viewBox="0 0 1 1">
+            <image height="1" href={imageUrl} preserveAspectRatio="xMidYMid meet" width="1" />
+          </svg>
+        )}
+      </MiniMap>
     </div>
   );
 }

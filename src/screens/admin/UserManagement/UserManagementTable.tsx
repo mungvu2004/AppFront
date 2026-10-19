@@ -54,7 +54,7 @@ const ROW_HEIGHT = 'h-12';
  */
 const WRAP_CELL = cn(ROW_HEIGHT, 'whitespace-normal');
 // Trần 160 px chỉ cho cột hành động của bảng (≥ 1024); trong thẻ hẹp câu lý do dùng hết bề ngang (review-1).
-const BLOCKED_REASON_CLASS = 'text-[13px] text-text-secondary lg:max-w-40';
+const BLOCKED_REASON_CLASS = 'whitespace-normal text-[13px] text-text-secondary lg:max-w-40';
 const FOCUS_RING =
   'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
@@ -162,7 +162,8 @@ function RowActions({ actions, row }: RowActionsProps) {
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
+    // Một hàng ở mọi khổ (K4: ở 1024 "Vô hiệu hoá" và "Xoá" xếp dọc, hàng cao lệch).
+    <div className="flex flex-nowrap items-center justify-end gap-2 whitespace-nowrap">
       {row.status === 'disabled' ? (
         <Button onClick={() => actions.onEnableUser(row.id)} size="sm" variant="ghost">
           {ENABLE_LABEL}
@@ -271,7 +272,8 @@ function TableHeaderRow({ withSecondary }: { readonly withSecondary: boolean }) 
         {withSecondary && <Table.Head>{HEADER_LAST_ACTIVE}</Table.Head>}
         {withSecondary && <Table.Head>{HEADER_STATUS}</Table.Head>}
         <Table.Head>
-          <span>{HEADER_ACTIONS}</span>
+          {/* Canh phải như nút trong ô (K4). `Table.Head` bọc chữ trong một `flex`, nên canh bằng `w-full`. */}
+          <span className="w-full text-right">{HEADER_ACTIONS}</span>
         </Table.Head>
       </Table.Row>
     </Table.Header>

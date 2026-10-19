@@ -263,8 +263,8 @@ test.describe('phase09 shell B edge', () => {
       await signInRole(context, flip);
       const libReadOnly = page.getByText(LIBRARY_READ_ONLY, { exact: false });
       const libAnchor = page
-        .getByLabel('Tìm model', { exact: true })
-        .or(page.getByText('Chưa có model nào', { exact: true }))
+        .getByLabel('Tìm mẫu 3D', { exact: true })
+        .or(page.getByText('Chưa có mẫu 3D nào', { exact: true }))
         .or(page.getByText(FORBIDDEN_TITLE, { exact: true }));
 
       await test.step('[9P-D-005] `/`: "Dự án mới" hiện, "Xoá" bật, không dòng vai', async () => {

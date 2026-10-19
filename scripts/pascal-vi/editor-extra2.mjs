@@ -54,4 +54,70 @@ export const EDITOR_EXTRA2_VI = {
     ['label="Split"', 'label="Chia đôi"'],
     ['aria-label="Viewer layout"', 'aria-label="Bố cục khung nhìn"'],
   ],
+
+  // K6: dấu phẩy thập phân (CLAUDE.md 0.4) cho số Pascal CHỈ HIỂN THỊ. Gốc chung: ba hàm định
+  // dạng đo đạc (mọi nhãn đo/kích thước/cao độ 2D-3D đi qua chúng) + dạng đọc của ô số
+  // metric/slider. Ô đang gõ (`inputValue`, đọc lại bằng `parseFloat`) giữ dấu chấm.
+  'editor/src/lib/measurements.ts': [
+    ['.toFixed(fractionDigits)}${getAreaUnitLabel', ".toFixed(fractionDigits).replace('.', ',')}${getAreaUnitLabel"],
+    ['.toFixed(fractionDigits)}${getVolumeUnitLabel', ".toFixed(fractionDigits).replace('.', ',')}${getVolumeUnitLabel"],
+    ['return `${sign}${roundedMeters}m`', "return `${sign}${String(roundedMeters).replace('.', ',')}m`"],
+  ],
+  'editor/src/components/editor/floorplan-panel.tsx': [
+    ['{Number.parseFloat(scaledAreaSqM.toFixed(1))}', "{String(Number.parseFloat(scaledAreaSqM.toFixed(1))).replace('.', ',')}"],
+  ],
+  'nodes/src/shared/construction-length.ts': [
+    ['return `${sign}${rounded}m`', "return `${sign}${String(rounded).replace('.', ',')}m`"],
+  ],
+  [`${UI}controls/metric-control.tsx`]: [
+    ['{Number(displayValue.toFixed(precision)).toFixed(precision)}', "{Number(displayValue.toFixed(precision)).toFixed(precision).replace('.', ',')}"],
+  ],
+  [`${UI}controls/slider-control.tsx`]: [
+    ['{Number(displayValue.toFixed(precision)).toFixed(precision)}', "{Number(displayValue.toFixed(precision)).toFixed(precision).replace('.', ',')}"],
+  ],
+  [`${UI}floating-level-selector.tsx`]: [
+    ["formattedStoreyHeight.replace(/0$/, '') :", "formattedStoreyHeight.replace(/0$/, '').replace('.', ',') :"],
+    ["{ label: '2.5 m'", "{ label: '2,5 m'"],
+    ["{ label: '3.0 m'", "{ label: '3,0 m'"],
+    ["{ label: '3.5 m'", "{ label: '3,5 m'"],
+  ],
+  [`${UI}helpers/contextual-helper-panel.tsx`]: [
+    ['ariaLabel={`Grid step: ${gridSnapStep.toFixed(2)} m`}', "ariaLabel={`Bước lưới: ${gridSnapStep.toFixed(2).replace('.', ',')} m`}"],
+    ['label={`Grid: ${gridSnapStep.toFixed(2)} m`}', "label={`Lưới: ${gridSnapStep.toFixed(2).replace('.', ',')} m`}"],
+    // K6b: chip bắt dính — nhãn, chế độ, tooltip.
+    ["  grid: 'Grid',\n  lines: 'Lines',\n  angles: 'Angles',\n  off: 'Off',", "  grid: 'Lưới',\n  lines: 'Đường',\n  angles: 'Góc',\n  off: 'Tắt',"],
+    ['ariaLabel={`Snapping: ${', 'ariaLabel={`Bắt dính: ${'],
+    ['label={`Snapping: ${', 'label={`Bắt dính: ${'],
+    ['tooltip="Snapping mode — click or press Shift to cycle"', 'tooltip="Chế độ bắt dính — bấm hoặc nhấn Shift để đổi"'],
+    ['tooltip="Grid step — click or tap Ctrl to cycle"', 'tooltip="Bước lưới — bấm hoặc nhấn Ctrl để đổi"'],
+  ],
 };
+// K6b: hộp "đặt tỉ lệ ảnh tham chiếu" của mặt bằng 2D. Số hiển thị dùng dấu phẩy; ví dụ cú pháp
+// nhập ("3.5") giữ dấu chấm vì ô nhập đọc theo cú pháp của bộ phân tích gốc.
+EDITOR_EXTRA2_VI['editor/src/components/editor/floorplan-panel.tsx'].push(
+  ['>Set overlay scale</div>', '>Đặt tỉ lệ ảnh nền</div>'],
+  [
+    '\n                  Enter the real-world length of the line you just drew. The image will resize to\n                  match it.\n',
+    '\n                  Nhập độ dài thực của đoạn vừa vẽ. Ảnh sẽ co giãn cho khớp.\n',
+  ],
+  ['\n                Drawn line\n', '\n                Đoạn đã vẽ\n'],
+  ['\n                Real length\n', '\n                Độ dài thực\n'],
+  ['<option value="meters">Meters</option>', '<option value="meters">Mét</option>'],
+  ['<option value="centimeters">Centimeters</option>', '<option value="centimeters">Xen-ti-mét</option>'],
+  ['<option value="feet">Feet</option>', '<option value="feet">Foot</option>'],
+  ['<option value="inches">Inches</option>', '<option value="inches">Inch</option>'],
+  [
+    "'Any decimal works. Use the known real length, not the drawn value.'",
+    "'Nhập số thập phân bất kỳ. Dùng độ dài thực đã biết, không phải số đo trên bản vẽ.'",
+  ],
+  [
+    '`Image will scale ${formatNumber(pendingReferenceImageScaleFactor, 3)}x from the first point.`',
+    "`Ảnh sẽ co giãn ${formatNumber(pendingReferenceImageScaleFactor, 3).replace('.', ',')} lần tính từ điểm đầu.`",
+  ],
+  ["'Enter a length greater than 0.'", "'Nhập độ dài lớn hơn 0.'"],
+  ["'Enter the real length of the line.'", "'Nhập độ dài thực của đoạn.'"],
+  ['`Enter a length like 3.5, 180cm or 5\'11".`', '`Nhập độ dài dạng 3.5, 180cm hoặc 5\'11".`'],
+  ["'Length must be greater than 0.'", "'Độ dài phải lớn hơn 0.'"],
+  ['\n                Cancel\n              </button>\n              <button\n                className="h-8 rounded-lg bg-foreground', '\n                Huỷ\n              </button>\n              <button\n                className="h-8 rounded-lg bg-foreground'],
+  ['\n                Save Scale\n', '\n                Áp dụng tỉ lệ\n'],
+);

@@ -56,6 +56,7 @@ import type { Violation } from '@/domain/rules/registry';
 import { useBreakpoint } from '@/hooks/useAppShell';
 import { useSession } from '@/hooks/useSession';
 import { can } from '@/lib/auth/permissions';
+import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
 
 import { ViolationDetailContainer } from '../ViolationDetail';
@@ -133,6 +134,7 @@ function WiredRuleReport(props: WiredRuleReportProps) {
   const [openRowKey, setOpenRowKey] = useState<string | null>(null);
   const activeFloorId = useStore((state) => state.activeFloorId);
   const graph = useStore((state) => state.spatial);
+  const projectName = useStore((state) => (state.project?.id === props.projectId ? state.project.name : null));
   const navigate = useNavigate();
   const rootRef = useRef<HTMLDivElement>(null);
   // 28V-E-008: hàng đã mở tấm — đóng tấm thì tiêu điểm về nút của hàng đó.
@@ -190,6 +192,11 @@ function WiredRuleReport(props: WiredRuleReportProps) {
       >
         <RuleReport
           {...viewProps}
+          breadcrumb={[
+            { id: 'projects', label: 'Dự án', onClick: () => void navigate(ROUTES.dashboard) },
+            ...(projectName !== null ? [{ id: 'project', label: projectName }] : []),
+            { id: 'current', label: 'Kiểm tra luật không gian' },
+          ]}
           onSelectRow={(rowKey) => {
             viewProps.onSelectRow(rowKey);
             returnFocusKey.current = rowKey;

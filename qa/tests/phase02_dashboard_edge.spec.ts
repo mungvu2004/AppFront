@@ -2608,7 +2608,7 @@ test.describe('E02 SCR-06 notifications', () => {
     });
   });
 
-  test('E02 · SCR-06 "Xem tất cả" opens /thong-bao; Esc there goes back to / through history', async ({ browser }) => {
+  test('E02 · SCR-06 "Xem tất cả" opens the /thong-bao page (G1-15); browser back returns to /', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const drawer = await openDrawer(page);
@@ -2616,41 +2616,18 @@ test.describe('E02 SCR-06 notifications', () => {
       await captureEvidence(page, 'E02_notif_viewall_from.png', { caption: `before: drawer open over the dashboard (${ROUTES.dashboard}), "${VIEW_ALL}" at its foot` });
       await drawer.getByRole('button', { name: VIEW_ALL, exact: true }).click(); // UNC:767-770
       await expect.poll(() => pathname(page)).toBe(ROUTES.notifications);
-      await expect(notificationDrawer(page)).toBeVisible(); // NCC:223 pinned open
+      // G1-15: a page under the shared header, not the drawer pinned open over a grey backdrop.
+      await expect(page.getByRole('heading', { level: 1, name: 'Thông báo', exact: true })).toBeVisible();
+      await expect(notificationDrawer(page)).toHaveCount(0);
       await expect(dashboardHeading(page)).toHaveCount(0);
       await captureEvidence(page, 'E02_notif_viewall.png', {
-        caption: [
-          `after "${VIEW_ALL}": ${ROUTES.dashboard} → ${ROUTES.notifications}; the dashboard behind is gone (pair: E02_notif_viewall_from)`,
-          `${ROUTES.notifications} is the drawer pinned open over an empty backdrop by design (NotificationCenterRoute, NCC:223)`,
-        ],
+        caption: `after "${VIEW_ALL}": ${ROUTES.dashboard} → ${ROUTES.notifications}, the full notification page (pair: E02_notif_viewall_from)`,
       });
 
-      await page.keyboard.press('Escape'); // NCC:212-221: in-app history → navigate(-1)
+      await page.goBack();
       await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
       await expect(dashboardHeading(page)).toBeVisible();
-      await expect(notificationDrawer(page)).toHaveCount(0);
-      await attachJson('E02_notif_viewall_back.json', { viewAll: ROUTES.notifications, afterEsc: pathname(page) });
-    });
-  });
-
-  test('E02 · SCR-06 on /thong-bao, "Xem tất cả" keeps the route open and Esc still leaves it', async ({ browser }) => {
-    await withAdmin(browser, async (admin) => {
-      const { page } = admin;
-      await page.goto(ROUTES.notifications);
-      const drawer = notificationDrawer(page);
-      await expect(drawer).toBeVisible();
-      await drawer.getByRole('button', { name: VIEW_ALL, exact: true }).click();
-      await expect.poll(() => pathname(page)).toBe(ROUTES.notifications);
-      await expect(drawer).toBeVisible();
-      await captureEvidence(page, 'E02_notif_route_viewall.png', {
-        caption: `opened ${ROUTES.notifications} by URL, then "${VIEW_ALL}" at the drawer's foot: no navigation, still ${ROUTES.notifications}, drawer kept open`,
-      });
-
-      // NCC:167-171 + A12: on the route "close" means leaving it; Esc (DRW:83,95) reaches `goBack` (NCC:212-221).
-      // NCC:204-209 sets `hasLeftRef` on that same-route navigation — this asserts Esc is not left dead by it.
-      await page.keyboard.press('Escape');
-      await expect.poll(() => pathname(page), { timeout: 10_000 }).not.toBe(ROUTES.notifications);
-      await attachJson('E02_notif_route_viewall.json', { afterEsc: pathname(page) });
+      await attachJson('E02_notif_viewall_back.json', { viewAll: ROUTES.notifications, afterBack: pathname(page) });
     });
   });
 
@@ -2687,13 +2664,12 @@ test.describe('E02 SCR-06 notifications', () => {
     });
   });
 
-  test('E02 · SCR-06 compact: /thong-bao is a bottom sheet with "Mức 1–3"; "Mức 2" lowers it to 40 % of the screen; Esc leaves', async ({ browser }) => {
+  test('E02 · SCR-06 compact: the bell sheet has "Mức 1–3"; "Mức 2" lowers it to 40 % of the screen; Esc leaves', async ({ browser }) => {
     await withAdmin(
       browser,
       async (admin) => {
         const { page } = admin;
-        await page.goto(ROUTES.notifications);
-        const sheet = notificationDrawer(page); // DRW:105 (width < 1024px since BUG-225) → BottomSheet (DRW:205-210)
+        const sheet = await openDrawer(page); // G1-15: /thong-bao is a page now; the bottom sheet is the bell's (DRW BottomSheet < 1024 px)
         await expect(sheet).toBeVisible();
         const group = sheet.getByRole('group', { name: SHEET_GROUP, exact: true });
         await expect(group.getByRole('button', { name: snapButton(3), exact: true })).toHaveAttribute('aria-pressed', 'true'); // DRW:72
@@ -2719,7 +2695,8 @@ test.describe('E02 SCR-06 notifications', () => {
           .toBeLessThanOrEqual(2);
         await attachJson('E02_notif_sheet_375.json', { viewport: COMPACT, snap2HeightPx: target });
 
-        await page.keyboard.press('Escape'); // direct load → `/` (NCC:215-218)
+        await page.keyboard.press('Escape'); // closes the bell sheet, stays on `/`
+        await expect(sheet).toHaveCount(0);
         await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
       },
       COMPACT,
@@ -3144,8 +3121,7 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
       browser,
       async (admin) => {
         const { page } = admin;
-        await page.goto(ROUTES.notifications);
-        const sheet = notificationDrawer(page);
+        const sheet = await openDrawer(page); // G1-15: /thong-bao is a page now; the bottom sheet is the bell's (DRW BottomSheet < 1024 px)
         await expect(sheet).toBeVisible();
         const group = sheet.getByRole('group', { name: SHEET_GROUP, exact: true }); // DRW:251
         const dot = (level: 1 | 2 | 3): Locator => group.getByRole('button', { name: snapButton(level), exact: true });
@@ -3306,8 +3282,6 @@ const wizardBody = (dialog: Locator): Locator => dialog.locator('[data-scroll-fa
 const KEEP_EDITING = 'Tiếp tục sửa'; // CPM:216-218
 const floorNameBoxes = (dialog: Locator): Locator => dialog.getByRole('textbox', { name: /^Tên tầng/u }); // SF:112-119
 const FLOORS_HINT = 'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.'; // UCPM:474
-const ROUTE_BACKDROP_TITLE = 'Trung tâm thông báo'; // NCC:186
-const ROUTE_BACKDROP_HINT = 'Nhấn Esc hoặc bấm ra ngoài bảng để quay lại.'; // NCC:187-189 (`hidden lg:block`)
 /** NCC:175 `--panel-clearance` = DRAWER_WIDTH_PX + 2 × DRAWER_GAP_PX (DRW:85-86). */
 const PANEL_CLEARANCE_PX = 400 + 2 * 8;
 /** WS:183 an enabled quiet link is underlined; a locked one is not (BUG-127). */
@@ -3861,59 +3835,7 @@ test.describe('E02 QA-02 FE changes (d18eb884) — SCR-05 / SCR-06 / SCR-07', ()
     });
   });
 
-  test('E02 · SCR-06 /thong-bao at 1440: the page behind the panel names itself ("Trung tâm thông báo" + how to leave), aria-hidden, centred in the space left of the panel; a click there leaves to / (BUG-124)', async ({ browser }) => {
-    await withAdmin(browser, async (admin) => {
-      const { page } = admin;
-      await page.goto(ROUTES.notifications);
-      const drawer = notificationDrawer(page);
-      await expect(drawer).toBeVisible();
-      const title = page.getByText(ROUTE_BACKDROP_TITLE, { exact: true });
-      const hint = page.getByText(ROUTE_BACKDROP_HINT, { exact: true });
-      await expect(title).toBeVisible();
-      await expect(hint).toBeVisible();
-      const ariaHidden = await title.evaluate((el) => el.closest('[aria-hidden="true"]') !== null); // NCC:180
-      const [titleBox, panel] = [await steadyBox(title), await steadyBox(drawer)];
-      const centre = titleBox.x + titleBox.width / 2;
-      // NCC:181 `px-6 … lg:pr-[var(--panel-clearance)]`: the text column is centred between 24 px and (width − 416 px).
-      const wantCentre = (24 + (DESKTOP.width - PANEL_CLEARANCE_PX)) / 2;
-      await captureEvidence(page, 'E02_notif_route_backdrop_1440.png', { caption: `/thong-bao: "${ROUTE_BACKDROP_TITLE}" centred at x=${String(Math.round(centre))} (want ${String(wantCentre)}), panel from x=${String(panel.x)}` });
-      expect(ariaHidden, 'the backdrop is for the eye only').toBe(true);
-      expect(Math.abs(centre - wantCentre)).toBeLessThanOrEqual(2);
-      expect(titleBox.x + titleBox.width, 'the text clears the panel').toBeLessThan(panel.x);
-
-      await page.mouse.click(200, DESKTOP.height / 2); // DRW:170-177 overlay onClick → NCC goBack; direct load → /
-      await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
-      await expect(dashboardHeading(page)).toBeVisible();
-      await attachJson('E02_notif_route_backdrop_1440.json', { ariaHidden, titleBox, panel, centre, wantCentre, afterClick: pathname(page) });
-    });
-  });
-
-  test('E02 · SCR-06 /thong-bao at 375: only the page name shows above the 90 % sheet — no hint, no icon (BUG-124)', async ({ browser }) => {
-    await withAdmin(
-      browser,
-      async (admin) => {
-        const { page } = admin;
-        await page.goto(ROUTES.notifications);
-        const sheet = notificationDrawer(page);
-        await expect(sheet).toBeVisible();
-        const title = page.getByText(ROUTE_BACKDROP_TITLE, { exact: true });
-        await expect(title).toBeVisible();
-        await expect(page.getByText(ROUTE_BACKDROP_HINT, { exact: true })).toBeHidden(); // NCC:187 `hidden lg:block`
-        const backdrop = title.locator('xpath=ancestor::div[@aria-hidden="true"][1]');
-        await expect(backdrop.locator('svg')).toBeHidden(); // NCC:185 bell `hidden lg:block`
-        const restingTop = COMPACT.height - Math.round(COMPACT.height * 0.9); // DRW:33 90 % sheet
-        const sheetBox = await steadyBox(sheet);
-        const titleBox = await steadyBox(title);
-        await captureEvidence(page, 'E02_notif_route_backdrop_375.png', { caption: `/thong-bao at 375: "${ROUTE_BACKDROP_TITLE}" ${String(titleBox.y)}–${String(titleBox.y + titleBox.height)} px, sheet from ${String(sheetBox.y)} px` });
-        await attachJson('E02_notif_route_backdrop_375.json', { titleBox, sheetBox, restingTop });
-        expect(Math.abs(sheetBox.y - restingTop), 'the sheet rests at 90 %').toBeLessThanOrEqual(2);
-        expect(titleBox.y + titleBox.height, 'the page name is above the sheet').toBeLessThanOrEqual(sheetBox.y + 0.5);
-        await page.keyboard.press('Escape');
-        await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
-      },
-      COMPACT,
-    );
-  });
+  // G1-15: the grey backdrop page behind a pinned drawer (BUG-124) is gone; /thong-bao is a real page (phase02_notify_edge G1-15).
 
   test('E02 · SCR-06 [mocked response] rows (unpairable: aiCompleted / violationFound need Phase 3/4 data, commentMention has no BE producer, a sentence ending in its label is no longer sent — BE messages.py): the name is said once, the excerpt is cut at two whole lines, "Đánh dấu đã đọc" is an icon in the time row — hidden until hover from 640 px, always shown below (BUG-206, BUG-203)', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {

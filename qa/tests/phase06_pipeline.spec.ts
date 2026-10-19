@@ -519,8 +519,12 @@ test('SCR-32 · FL-M-32-01 · open the AI floor: requests, rows, default pair, c
     await expect(panel.locator('li').first()).toBeVisible();
     const sentences = await panel.locator('li').allInnerTexts();
     expect.soft(sentences.length, 'diff rows').toBeGreaterThan(0);
-    // semantic.ts formatChange: "Thêm <nhãn> <mã>", "Xoá <nhãn> <mã>", "<Nhãn> <mã> <phrase> a → b", "<Nhãn> <mã> đổi <trường> từ a sang b"
-    for (const sentence of sentences) expect.soft(sentence.trim(), 'a plain sentence').toMatch(/^(Thêm |Xoá )|→| đổi .+ từ .+ sang /u);
+    // semantic.ts formatChange: "Thêm <nhãn> <mã>", "Xoá <nhãn> <mã>", "<Nhãn> <mã> <phrase> a → b", "<Nhãn> <mã> đổi <tên trường tiếng Việt>"
+    for (const sentence of sentences) {
+      expect.soft(sentence.trim(), 'a plain sentence').toMatch(/^(Thêm |Xoá )|→| đổi [\p{L} ]+$/u);
+      // K5: never a technical field name such as offset_mm.
+      expect.soft(sentence, 'no technical field name').not.toMatch(/[a-z]+_[a-z]+/u);
+    }
     await shot('E06v', '32-C-014', 'diff_sentences');
   });
 

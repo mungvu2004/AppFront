@@ -14,8 +14,8 @@ import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/S
 
 import type { LibraryFilterId, ModelLibraryActions, ModelLibraryModel, ModelLibraryViewMode } from './types';
 
-const SEARCH_LABEL = 'Tìm model';
-const SEARCH_PLACEHOLDER = 'Tìm theo tên model...';
+const SEARCH_LABEL = 'Tìm mẫu 3D';
+const SEARCH_PLACEHOLDER = 'Tìm theo tên mẫu 3D...';
 const CATEGORY_LABEL = 'Danh mục';
 const VIEW_MODE_LABEL = 'Chế độ xem';
 

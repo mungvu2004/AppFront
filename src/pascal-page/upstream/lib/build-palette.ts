@@ -17,6 +17,8 @@ import { getRoofFootprintSource, type RoofFootprintSource } from './build-tab-st
 export type BuildType = {
   id: string
   label: string
+  /** AppFront edit (K6): visible text under the icon when `label` does not fit the cell; tooltip/aria keep `label`. */
+  shortLabel?: string
   iconSrc: string
   kind?: string
   paletteOrder?: number
@@ -49,7 +51,7 @@ export const BASE_BUILD_TYPES: BuildType[] = [
   { id: 'window', label: 'Cửa sổ', iconSrc: '/icons/window.webp', kind: 'window' },
   { id: 'column', label: 'Cột', iconSrc: '/icons/column.webp', kind: 'column' },
   { id: 'shelf', label: 'Kệ', iconSrc: '/icons/shelf.webp', kind: 'shelf' },
-  { id: 'spawn', label: 'Điểm xuất phát', iconSrc: '/icons/spawn-point.webp', kind: 'spawn' },
+  { id: 'spawn', label: 'Điểm xuất phát', shortLabel: 'Xuất phát', iconSrc: '/icons/spawn-point.webp', kind: 'spawn' },
   { id: 'kitchen', label: 'Bếp', iconSrc: '/icons/kitchen.webp' },
   { id: 'mep', label: 'Cơ điện', iconSrc: '/icons/HVAC.webp' },
   { id: 'painting', label: 'Sơn', iconSrc: '/icons/paint.webp', mode: 'material-paint' },

@@ -29,11 +29,11 @@ const HEADER_GROUP = 'Danh mục';
 const HEADER_BOUNDS = 'Kích thước bao';
 const HEADER_TRIANGLES = 'Số tam giác';
 const HEADER_FILE_SIZE = 'Dung lượng';
-const EMPTY_MESSAGE = 'Không có model nào khớp với từ khoá hoặc danh mục đang chọn.';
-const EMPTY_TITLE = 'Không tìm thấy model';
+const EMPTY_MESSAGE = 'Không có mẫu 3D nào khớp với từ khoá hoặc danh mục đang chọn.';
+const EMPTY_TITLE = 'Không tìm thấy mẫu 3D';
 const CLEAR_SEARCH_LABEL = 'Xoá tìm kiếm và bộ lọc';
 const HEAVY_BADGE_LABEL = 'Nặng';
-const GRID_LIST_LABEL = 'lưới model';
+const GRID_LIST_LABEL = 'lưới mẫu 3D';
 const COLUMN_COUNT = 6;
 const ROW_HEIGHT = 'h-12';
 

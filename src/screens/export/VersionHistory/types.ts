@@ -63,6 +63,7 @@
 
 import type { ApiClient, SpatialLayer } from '@/api/client';
 import type { FloorVersionSummary } from '@/api/schemas/versions';
+import type { BreadcrumbItem } from '@/components/shell/Breadcrumb';
 import type { Dimension, Level } from '@/domain/spatial/types';
 import type { PascalScene } from '@/lib/pascal/types';
 import type { VersionSnapshotSource } from './versionSnapshotAdapter';
@@ -396,6 +397,8 @@ export interface VersionHistoryActions {
 export interface VersionHistoryProps {
   readonly model: VersionHistoryModel;
   readonly actions: VersionHistoryActions;
+  /** "Dự án › <tên dự án> › Lịch sử phiên bản", như Cài đặt dự án (K5). Vắng thì không vẽ. */
+  readonly breadcrumb?: readonly BreadcrumbItem[];
 }
 
 /** Hoàn tác đi qua đây (A8, D-05). Cửa sổ là `UNDO_WINDOW_MS` = 8000 ms, không viết lại số. */
@@ -509,6 +512,7 @@ export interface VersionHistoryContainerProps {
   readonly onExportVersion?: (versionId: string) => void;
   readonly floorOptions?: readonly VersionHistoryOption[];
   readonly onSelectFloor?: (floorId: string) => void;
+  readonly breadcrumb?: readonly BreadcrumbItem[];
   /** Thay `createAppApiClient()` — cho cổng và bộ tự lưu. */
   readonly apiClient?: Pick<ApiClient, 'spatial' | 'versions'>;
 }

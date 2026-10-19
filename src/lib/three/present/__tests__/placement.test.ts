@@ -106,6 +106,20 @@ describe('placeFurniture — models', () => {
     expect(piece.group.getObjectByName('model')).toBeUndefined();
   });
 
+  it('gives the kept procedural piece white vertex colours, so it is not drawn black (K4: login, no .glb)', async () => {
+    const piece = placeFurniture(withModel(CHAIR, '/chair.glb'), 'L-G', materials, { assets: fakeAssets('reject') });
+    await piece.ready;
+
+    const meshes: Mesh[] = [];
+    piece.group.getObjectByName('procedural')?.traverse((object) => {
+      if (object instanceof Mesh) meshes.push(object);
+    });
+    expect(meshes.length).toBeGreaterThan(0);
+    for (const mesh of meshes) {
+      expect(mesh.geometry.getAttribute('color')?.getX(0)).toBe(1);
+    }
+  });
+
   it('swaps the model in, normalised to the declared size and standing on the floor', async () => {
     const entry = withModel(CHAIR, '/chair.glb');
     const piece = placeFurniture(entry, 'L-G', materials, { assets: fakeAssets('resolve') });

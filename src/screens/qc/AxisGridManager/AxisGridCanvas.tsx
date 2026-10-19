@@ -76,6 +76,8 @@ const AXIS_LABEL_FONT_SIZE_PX = 13;
 const AXIS_BADGE_OVERHANG_PX = AXIS_BADGE_RADIUS_PX + 8;
 /** BUG-404: lề quanh lưới khi vừa khung (px màn) — đủ chỗ cho bong bóng, không bị mép khung cắt nửa. */
 const FIT_MARGIN_PX = AXIS_BADGE_OVERHANG_PX + AXIS_BADGE_RADIUS_PX + 4;
+/** Cụm thu phóng nổi ở góc dưới phải cao ~58 px tính từ mép khung: chừa thêm ở đáy để nó không che bong bóng trục dọc (ảnh 1920). */
+const ZOOM_CLUSTER_RESERVE_PX = 56;
 
 const BACKGROUND_OPACITY = 0.5;
 
@@ -326,7 +328,7 @@ export function AxisGridCanvas({ background = null, canvas, isInteractive, onAxi
     }
   }, [isInteractive, onAxisSelect]);
 
-  const fit = fitCanvas(canvas.boundsPx, frame, FIT_MARGIN_PX);
+  const fit = fitCanvas(canvas.boundsPx, frame, FIT_MARGIN_PX, ZOOM_CLUSTER_RESERVE_PX);
 
   return (
     <div

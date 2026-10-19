@@ -18,10 +18,10 @@ import { verifyUi } from './support/ui-verify';
 const LIBRARY_PATH = '**/api/library';
 const SEARCH = /^tìm model$/iu; // ModelLibraryToolbar.tsx:17
 const CATEGORY = 'Danh mục'; // ModelLibraryToolbar.tsx:19
-const NO_MATCH = 'Không tìm thấy model phù hợp.'; // ModelLibraryTable.tsx:31
+const NO_MATCH = 'Không tìm thấy mẫu 3D phù hợp.'; // ModelLibraryTable.tsx:31
 const DETAIL = 'Chi tiết model'; // ModelLibraryDetail.tsx:293
-const EMPTY_TITLE = 'Chưa có model nào'; // ModelLibrary.tsx:39
-const ERROR_TITLE = 'Không tải được thư viện model'; // ModelLibrary.tsx:41
+const EMPTY_TITLE = 'Chưa có mẫu 3D nào'; // ModelLibrary.tsx:39
+const ERROR_TITLE = 'Không tải được thư viện mẫu 3D'; // ModelLibrary.tsx:41
 const HEAVY_TRIANGLES = 900_001; // > 900000 budget (flows MK)
 const LONG_NAME = 'Mô hình rất dài '.repeat(8).slice(0, 120).trim().padEnd(120, 'x');
 
@@ -46,7 +46,7 @@ async function openLibrary(page: Page): Promise<void> {
 async function openReady(page: Page): Promise<void> {
   await openLibrary(page);
   await expect(page.getByLabel(SEARCH)).toBeVisible();
-  await expect(rowNames(page).first().or(page.getByRole('list', { name: 'lưới model' }))).toBeVisible();
+  await expect(rowNames(page).first().or(page.getByRole('list', { name: 'lưới mẫu 3D' }))).toBeVisible();
 }
 
 test('SCR-34 · FL-34L-U1 · UI verify real states (default, no match, category open, grid, detail, copy case, then engineer alert)', async ({
@@ -60,9 +60,9 @@ test('SCR-34 · FL-34L-U1 · UI verify real states (default, no match, category 
   await test.step('[34L-C-017] ⚑ labels in sentence case (BUG-595)', async () => {
     await openReady(page);
     // ModelLibraryToolbar.tsx:17,19; ModelLibrarySummary.tsx:14; useModelLibrary.ts:107-108. Correct = first letter capital (rule A6).
-    await expect.soft(page.getByLabel('Tìm model', { exact: true }), 'search label capital').toBeVisible();
+    await expect.soft(page.getByLabel('Tìm mẫu 3D', { exact: true }), 'search label capital').toBeVisible();
     await expect.soft(page.getByRole('combobox', { name: 'Danh mục', exact: true }), 'category label capital').toBeVisible();
-    await expect.soft(page.getByText('Model nặng', { exact: true }), 'heavy count label capital').toBeVisible();
+    await expect.soft(page.getByText('Mẫu 3D nặng', { exact: true }), 'heavy count label capital').toBeVisible();
     // Labels of the detail panel (useModelLibrary.ts:108-109 fieldFileSize / fieldGroup), not the table headers.
     await rowNames(page).first().click();
     const aside = page.locator(`aside[aria-label="${DETAIL}"]`);
@@ -267,7 +267,7 @@ test('SCR-34 · FL-34L-U2 · [mocked response] UI verify loading, empty, error, 
     await mocked('U08_34L-F-011_heavy_detail', answer(200, crafted), async (p) => {
       await openCrafted(p);
       await p.getByText('Heavy 900001', { exact: true }).first().click();
-      await expect(p.getByLabel('Cảnh báo model nặng', { exact: true })).toBeVisible(); // ModelLibraryDetail.tsx:257
+      await expect(p.getByLabel('Cảnh báo mẫu 3D nặng', { exact: true })).toBeVisible(); // ModelLibraryDetail.tsx:257
     });
   });
 

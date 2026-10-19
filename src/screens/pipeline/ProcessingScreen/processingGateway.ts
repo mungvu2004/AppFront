@@ -75,6 +75,8 @@ import type { ApiClient, ApiResult, Floor, LatestFloorUpload, PipelineRunList, P
 import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import type { Progress } from '@/api/schemas';
 import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
+import type { PointMm } from '@/domain/units/compare';
+import { toPointMm } from '@/lib/commands/business/shared';
 import { refreshSingleFlight } from '@/lib/auth';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
@@ -235,7 +237,12 @@ export interface ProcessingExtractionSummary {
   readonly openingCount: number;
   readonly dimensionCount: number;
   readonly roomCount: number;
-  readonly areaM2: number;
+  /**
+   * Đường bao các phòng của tầng (mm). Hook cộng mọi tầng bằng `totalArea` — cộng mm² rồi
+   * làm tròn MỘT lần, như màn Phòng — thay vì cộng `Room.areaM2` đã làm tròn từng phòng
+   * (73,91 cạnh 73,90, K5).
+   */
+  readonly roomOutlinesMm: readonly (readonly PointMm[])[];
   /** Ngưỡng tin cậy của dự án (N5, Cài đặt › Đơn vị đo); `null` khi không đọc được cài đặt. */
   readonly confidenceThreshold: number | null;
   /** Số đối tượng chưa duyệt có độ tin cậy dưới `confidenceThreshold`; 0 khi ngưỡng là `null`. */
@@ -816,7 +823,7 @@ export function toExtractionSummary(
     openingCount: openings.length,
     dimensionCount: document.dimensions.length,
     roomCount: rooms.length,
-    areaM2: rooms.reduce((sum, room) => sum + room.areaM2, 0),
+    roomOutlinesMm: rooms.map((room) => room.outline.map(toPointMm)),
     confidenceThreshold,
     lowConfidenceCount,
   };

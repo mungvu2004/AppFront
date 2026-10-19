@@ -24,6 +24,19 @@ interface MiniMapProps {
   onViewportChange?: (rect: ViewportRect) => void;
 }
 
+/** Sai số làm tròn phần trăm khi so khung nhìn với cả bản đồ. */
+const WHOLE_MAP_EPSILON = 0.5;
+const WHOLE_MAP_PERCENT = 100;
+
+function coversWholeMap({ x, y, width, height }: ViewportRect): boolean {
+  return (
+    x <= WHOLE_MAP_EPSILON &&
+    y <= WHOLE_MAP_EPSILON &&
+    x + width >= WHOLE_MAP_PERCENT - WHOLE_MAP_EPSILON &&
+    y + height >= WHOLE_MAP_PERCENT - WHOLE_MAP_EPSILON
+  );
+}
+
 /**
  * MiniMap — 160×120, viền hairline, khung nhìn accent 1px.
  * Mờ 60% khi không hover.
@@ -57,7 +70,9 @@ export function MiniMap({
     ...(controlledViewport === undefined ? {} : { viewport: controlledViewport }),
   });
 
-  if (!isVisible) return null;
+  // Khung nhìn đã phủ cả bản đồ (vd. "vừa khung") thì bản đồ nhỏ không có gì để chỉ đường,
+  // chỉ đè lên mép bản vẽ: ẩn đi, phóng to là hiện lại.
+  if (!isVisible || coversWholeMap(viewport)) return null;
 
   return (
     <div

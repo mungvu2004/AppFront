@@ -114,7 +114,7 @@ test('SCR-34 · FL-M-34L-01 · open, search, category, sort, grid, detail + Esc'
   await test.step('[34L-A-002] search narrows the rows', async () => {
     await search.fill(name);
     await expect.soft(rows.locator('td:nth-child(2)').getByRole('button', { name, exact: true })).toBeVisible();
-    await expect.soft(search).toHaveAttribute('placeholder', 'Tìm theo tên model...');
+    await expect.soft(search).toHaveAttribute('placeholder', 'Tìm theo tên mẫu 3D...');
     await captureEvidence(page, 'E08_34L-A-002_main.png');
     await search.fill('');
   });
@@ -140,13 +140,13 @@ test('SCR-34 · FL-M-34L-01 · open, search, category, sort, grid, detail + Esc'
 
   await test.step('[34L-A-006] "Lưới" replaces the table with the card grid', async () => {
     await page.getByRole('radiogroup', { name: 'Chế độ xem' }).getByRole('radio', { name: 'Lưới', exact: true }).click();
-    await expect.soft(page.getByRole('list', { name: 'lưới model' })).toBeVisible();
+    await expect.soft(page.getByRole('list', { name: 'lưới mẫu 3D' })).toBeVisible();
     await captureEvidence(page, 'E08_34L-A-006_main.png');
   });
 
   const detail = page.locator('aside[aria-label="Chi tiết model"]');
   await test.step('[34L-A-009] click a grid card: detail panel opens', async () => {
-    await page.getByRole('list', { name: 'lưới model' }).getByRole('listitem').first().click();
+    await page.getByRole('list', { name: 'lưới mẫu 3D' }).getByRole('listitem').first().click();
     await expect.soft(detail).toBeVisible();
     await expect.soft(detail.getByRole('heading', { level: 2 })).toBeVisible();
     await captureEvidence(page, 'E08_34L-A-009_main.png');
@@ -177,10 +177,10 @@ test('SCR-35 · FL-M-35T-01 · navigate, tabs, filters, open/close the form', as
       new RegExp(`^${TRAINING_JOBS_PATH}$`, 'u'),
       [200],
     );
-    await expect(page.getByRole('heading', { level: 1, name: 'Huấn luyện model AI', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Huấn luyện mô hình AI', exact: true })).toBeVisible();
     const nav = page.getByRole('navigation', { name: 'Đường dẫn trang' });
     await expect(nav.getByText('Quản trị', { exact: true })).toBeVisible();
-    await expect(nav.getByText('Huấn luyện model', { exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByText('Huấn luyện', { exact: true })).toHaveAttribute('aria-current', 'page');
     await captureEvidence(page, 'E08_35T-A-001_main.png');
   });
 

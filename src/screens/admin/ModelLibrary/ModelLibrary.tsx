@@ -1,5 +1,5 @@
 /**
- * S-25 — vỏ màn thư viện model dùng chung. View thuần (R-60, mục D): mọi dữ liệu qua
+ * S-25 — vỏ màn thư viện mẫu 3D dùng chung. View thuần (R-60, mục D): mọi dữ liệu qua
  * `ModelLibraryProps`, không chạm store/mạng, không nhập `three`.
  *
  * Bảy trạng thái A11 rẽ nhánh ở đây. "không có quyền" ở màn này nghĩa là CHỈ XEM, không
@@ -38,9 +38,9 @@ import type { ModelLibraryProps } from './types';
 const BREADCRUMB_NAV_LABEL = 'Đường dẫn trang';
 const BREADCRUMB_PARENT = 'Quản trị';
 const BREADCRUMB_CURRENT = 'Thư viện mẫu 3D';
-const EMPTY_TITLE = 'Chưa có model nào';
-const EMPTY_DESCRIPTION = 'Thư viện chưa có model nào.';
-const ERROR_TITLE = 'Không tải được thư viện model';
+const EMPTY_TITLE = 'Chưa có mẫu 3D nào';
+const EMPTY_DESCRIPTION = 'Thư viện chưa có mẫu 3D nào.';
+const ERROR_TITLE = 'Không tải được thư viện mẫu 3D';
 const GENERIC_ERROR_MESSAGE = 'Đã có lỗi xảy ra.';
 const RETRY_LABEL = 'Thử lại';
 const LOADING_ROW_COUNT = 10;

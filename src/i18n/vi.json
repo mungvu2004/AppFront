@@ -3484,13 +3484,13 @@
   },
   "modelLibrary": {
     "state": {
-      "emptyTitle": "Chưa có model nào",
-      "emptyDescription": "Thư viện chưa có model nào.",
-      "errorTitle": "Không tải được thư viện model",
+      "emptyTitle": "Chưa có mẫu 3D nào",
+      "emptyDescription": "Thư viện chưa có mẫu 3D nào.",
+      "errorTitle": "Không tải được thư viện mẫu 3D",
       "errorFallback": "Đã có lỗi xảy ra.",
-      "loadFailed": "Không đọc được danh mục model",
+      "loadFailed": "Không đọc được danh mục mẫu 3D",
       "readOnlyReason": "Vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện",
-      "filteredEmptyMessage": "Không tìm thấy model phù hợp."
+      "filteredEmptyMessage": "Không tìm thấy mẫu 3D phù hợp."
     },
     "breadcrumb": {
       "navLabel": "Đường dẫn trang",
@@ -3498,17 +3498,17 @@
       "current": "Thư viện mẫu 3D"
     },
     "toolbar": {
-      "searchLabel": "Tìm model",
-      "searchPlaceholder": "Tìm theo tên model...",
+      "searchLabel": "Tìm mẫu 3D",
+      "searchPlaceholder": "Tìm theo tên mẫu 3D...",
       "categoryLabel": "Danh mục",
       "viewModeLabel": "Chế độ xem",
       "viewModeTable": "Bảng",
       "viewModeGrid": "Lưới"
     },
     "summary": {
-      "totalCountCaption": "Tổng số model",
+      "totalCountCaption": "Tổng số mẫu 3D",
       "totalSizeCaption": "Tổng dung lượng",
-      "heavyCountCaption": "Model nặng"
+      "heavyCountCaption": "Mẫu 3D nặng"
     },
     "table": {
       "previewHeader": "Ảnh xem trước",
@@ -3533,9 +3533,9 @@
     },
     "detail": {
       "regionLabel": "Chi tiết model",
-      "closeButton": "Đóng panel chi tiết model",
+      "closeButton": "Đóng panel chi tiết mẫu 3D",
       "key": {
-        "escape": "Đóng panel chi tiết model"
+        "escape": "Đóng panel chi tiết mẫu 3D"
       },
       "preview": {
         "regionLabel": "Xem trước mô hình",
@@ -3552,13 +3552,13 @@
         "regionLabel": "Siêu dữ liệu model"
       },
       "heavy": {
-        "regionLabel": "Cảnh báo model nặng",
+        "regionLabel": "Cảnh báo mẫu 3D nặng",
         "badge": "Nặng"
       }
     },
     "fixture": {
-      "readOnlyReason": "Bạn chỉ có quyền xem thư viện model, không thể quản lý.",
-      "errorMessage": "Không tải được thư viện model. Kiểm tra kết nối rồi thử lại.",
+      "readOnlyReason": "Bạn chỉ có quyền xem thư viện mẫu 3D, không thể quản lý.",
+      "errorMessage": "Không tải được thư viện mẫu 3D. Kiểm tra kết nối rồi thử lại.",
       "autoSpinNote": "Chưa hỗ trợ tự quay; bạn vẫn quay được bằng tay.",
       "heavyBadge": "Nặng",
       "fieldBounds": "Kích thước bao",
@@ -3629,8 +3629,8 @@
   },
   "trainingJobs": {
     "breadcrumbAdmin": "Quản trị",
-    "breadcrumbHere": "Huấn luyện model",
-    "title": "Huấn luyện model AI",
+    "breadcrumbHere": "Huấn luyện",
+    "title": "Huấn luyện mô hình AI",
     "relatedLink": "Mô hình AI của chuỗi xử lý",
     "tabsLabel": "Phần của trang huấn luyện",
     "tabJobs": "Lượt huấn luyện",

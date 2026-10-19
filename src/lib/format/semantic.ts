@@ -155,11 +155,36 @@ const FIELD_DESCRIPTORS: Readonly<Record<string, FieldDescriptor>> = {
   area_m2: { phrase: 'diện tích', quantity: 'areaM2' },
   elevation_m: { phrase: 'cao độ', quantity: 'elevationM' },
   height_mm: { phrase: 'cao', quantity: 'lengthMm' },
+  offset_mm: { phrase: 'vị trí trên tường', quantity: 'lengthMm' },
+  override_value_mm: { phrase: 'số đo nhập tay', quantity: 'lengthMm' },
   rotation_deg: { phrase: 'xoay', quantity: 'angleDeg' },
+  sill_height_mm: { phrase: 'cao bệ cửa', quantity: 'lengthMm' },
   thickness_mm: { phrase: 'dày', quantity: 'lengthMm' },
   value_mm: { phrase: 'kích thước', quantity: 'lengthMm' },
   width_mm: { phrase: 'rộng', quantity: 'lengthMm' },
+  x: { phrase: 'toạ độ X', quantity: 'lengthMm' },
+  y: { phrase: 'toạ độ Y', quantity: 'lengthMm' },
 };
+
+/**
+ * Fields with no unit, named in Vietnamese. `showValues` only where the value is
+ * the user's own text: enum codes (`sliding`) and ids would leak English, and a
+ * shape (`outline`, `centre`) has no one-line value.
+ */
+const NAMED_FIELDS: Readonly<Record<string, { readonly name: string; readonly showValues: boolean }>> = {
+  centre: { name: 'vị trí', showValues: false },
+  kind: { name: 'loại', showValues: false },
+  name: { name: 'tên', showValues: true },
+  outline: { name: 'đường bao', showValues: false },
+  reference_ids: { name: 'đối tượng tham chiếu', showValues: false },
+  room_id: { name: 'phòng chứa', showValues: false },
+  swing: { name: 'kiểu mở', showValues: false },
+  usage: { name: 'công năng', showValues: false },
+  wall_id: { name: 'tường chứa', showValues: false },
+};
+
+/** A field no table knows: said in general, never by its technical name. */
+const UNKNOWN_FIELD_PHRASE = 'đổi một thuộc tính khác';
 
 function capitalise(label: string): string {
   const first = label[0];
@@ -237,8 +262,9 @@ function describeGenericValue(value: unknown): string {
  * Write one diff entry as a Vietnamese sentence.
  *
  * A field this module knows the unit of reads as a measurement — `"Tường W-014
- * dày 200 mm → 220 mm"`. Anything else falls back to naming the field rather
- * than guessing what it measures.
+ * dày 200 mm → 220 mm"`. A field without a unit is named in Vietnamese
+ * (`NAMED_FIELDS`); one no table knows gets a general sentence, never its
+ * technical name (`offset_mm`).
  *
  * @example
  * formatChange({ entityId: 'W-014', entityType: 'wall', kind: 'changed',
@@ -264,9 +290,18 @@ export function formatChange(entry: ChangeEntry): string {
     return `${subject} ${descriptor.phrase} ${before} ${CHANGE_ARROW} ${after}`;
   }
 
+  const named = NAMED_FIELDS[field];
+
+  if (named === undefined) {
+    return `${subject} ${UNKNOWN_FIELD_PHRASE}`;
+  }
+  if (!named.showValues) {
+    return `${subject} đổi ${named.name}`;
+  }
+
   const before = describeGenericValue(entry.oldValue);
   const after = describeGenericValue(entry.newValue);
-  return `${subject} đổi ${field} từ ${before} sang ${after}`;
+  return `${subject} đổi ${named.name}: ${before} ${CHANGE_ARROW} ${after}`;
 }
 
 /** Write every entry of a diff, in the order it was given. */

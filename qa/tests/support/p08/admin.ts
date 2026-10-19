@@ -74,7 +74,7 @@ export const familyActiveRe = (family: string): RegExp => new RegExp(`^/api${fam
 /** Page heading per screen. Library and Users have no h1: their page title is the breadcrumb current item. */
 export const TITLE = {
   library: 'Thư viện model', // ML:38 BREADCRUMB_CURRENT (also the h1, BUG-P08-006)
-  jobs: 'Huấn luyện model AI', // TJ:30 (h1, TJ:55)
+  jobs: 'Huấn luyện mô hình AI', // TJ:30 (h1, TJ:55)
   registry: 'Model AI của chuỗi xử lý', // MR:29 (h1, MR:58)
   users: 'Người dùng', // UMH:134 breadcrumbUsers (aria-current="page", UM:~64; no h1)
 } as const;
@@ -94,7 +94,7 @@ export const DETAIL = {
   users: 'Chi tiết người dùng', // UMD:370
 } as const;
 export const CLOSE = {
-  library: 'Đóng panel chi tiết model', // MLD:306
+  library: 'Đóng panel chi tiết mẫu 3D', // MLD:306
   users: 'Đóng chi tiết người dùng', // UMD:106
   jobs: 'Đóng', // UNKNOWN — NEED VERIFICATION (TrainingJobDetail.tsx has no panel close button found; close with Esc)
   registry: 'Đóng', // UNKNOWN — NEED VERIFICATION (ModelRegistryDetail.tsx has no close button found; close with Esc)

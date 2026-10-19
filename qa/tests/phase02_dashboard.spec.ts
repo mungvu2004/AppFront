@@ -646,19 +646,18 @@ test.describe('SCR-06 Notifications', () => {
     await attachJson('06_notif_mark_all.json', { unread, branch: 'undone', postSent: leaked });
   });
 
-  test('SCR-06 /thong-bao: drawer forced open; Esc leaves to / (no in-app history)', async () => {
+  test('SCR-06 /thong-bao: a page inside the app frame (G1-15) — h1, filters, list; no dialog; Esc stays', async () => {
     await page.goto(ROUTES.notifications);
-    const drawer = notificationDrawer(page);
-    await expect(drawer).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Thông báo', exact: true })).toBeVisible();
-    await settled(drawer); // BUG-143: not while the drawer still slides in
+    const heading = page.getByRole('heading', { level: 1, name: 'Thông báo', exact: true });
+    await expect(heading).toBeVisible();
+    await expect(page.getByRole('radiogroup', { name: 'Lọc thông báo' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Thông báo' })).toHaveCount(0);
     await captureEvidence(page, '06_notif_route.png');
 
-    // Direct load ⇒ `location.key === 'default'` ⇒ `navigate('/', { replace: true })` (NotificationCenter.container.tsx).
+    // A page, not an overlay: Esc has nothing to close (NotificationCenter.container.tsx, NotificationCenterRoute).
     await page.keyboard.press('Escape');
-    await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
-    await expect(dashboardHeading(page)).toBeVisible();
-    await expect(drawer).toHaveCount(0);
+    await expect.poll(() => pathOf(page)).toBe(ROUTES.notifications);
+    await expect(heading).toBeVisible();
   });
 });
 
