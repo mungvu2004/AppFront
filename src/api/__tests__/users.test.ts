@@ -627,7 +627,7 @@ describe('bộ mẫu users — bảy lượt ghi', () => {
     await first.users.disable({ userId: 'user-2' });
 
     const second = createMockApiClient();
-    const enabledElsewhere = await second.users.changeRole({ body: { role: 'viewer', userId: 'user-2' } });
+    const enabledElsewhere = await second.users.changeRole({ body: { role: 'admin', userId: 'user-2' } });
 
     expect(enabledElsewhere.ok && enabledElsewhere.data.status).toBe('active');
   });

@@ -64,7 +64,7 @@ ${MEASURE_LABEL} {
   background: color-mix(in oklab, var(--background) 88%, transparent);
   color: var(--foreground) !important; border: 1px solid var(--border);
   border-radius: 6px; padding: 2px 8px; font-size: 14px !important; font-weight: 700 !important;
-  text-shadow: none !important; box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  text-shadow: none !important; box-shadow: 0 2px 8px color-mix(in oklab, var(--foreground) 35%, transparent);
 }
 `
 
