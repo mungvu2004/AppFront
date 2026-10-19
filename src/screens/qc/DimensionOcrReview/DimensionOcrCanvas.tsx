@@ -240,7 +240,7 @@ export function DimensionOcrCanvas({
       />
 
       {emptyNotice == null ? null : (
-        <p className="pointer-events-none absolute left-1/2 top-1/2 max-w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border-default bg-bg-surface p-4 text-center text-[13px] text-text-secondary shadow-float">
+        <p className="pointer-events-none absolute left-1/2 top-3 max-w-[80%] -translate-x-1/2 rounded-lg bg-bg-surface px-4 py-2 text-center text-[13px] text-text-secondary shadow-panel">
           {emptyNotice}
         </p>
       )}

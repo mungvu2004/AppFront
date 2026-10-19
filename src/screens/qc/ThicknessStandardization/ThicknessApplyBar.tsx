@@ -108,13 +108,16 @@ export function ThicknessApplyBar({
   };
 
   return (
-    <div className="flex flex-col gap-3 border-t border-border-default bg-bg-surface p-4">
+    <div className="flex flex-col gap-3 border-t border-border-default bg-bg-surface px-4 py-3">
       {/* Hai cụm xuống dòng NGUYÊN KHỐI: nút chính luôn ở mép phải cụm của nó (BUG-412). */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex min-w-0 max-w-full flex-wrap items-end gap-3">
+      {/* Nhãn "Dung sai" đứng CẠNH ô, không trên ô: thanh dính đáy thấp một dòng (~62 px) để không
+          che dòng cuối bảng nhóm và chú giải khung xem trước ở 1440 (QA-1 vòng 1). */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3">
           <NumericField
             className="w-32"
             label={TOLERANCE_LABEL}
+            wrapperClassName="flex-row items-center gap-2 [&>label]:mb-0"
             max={1000}
             min={0}
             onChange={handleToleranceChange}

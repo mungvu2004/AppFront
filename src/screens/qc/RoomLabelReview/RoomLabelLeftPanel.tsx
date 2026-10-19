@@ -114,8 +114,9 @@ export function RoomLabelGapsSection({
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
+          {/* QA-1: hai tường có thể hở ở HAI chỗ (mỗi đầu một khe) — khoá kèm vị trí khe. */}
           {gaps.map((gap) => (
-            <RoomLabelGapRow gap={gap} key={gap.wallIds.join('-')} onNavigateToWalls={onNavigateToWalls} />
+            <RoomLabelGapRow gap={gap} key={`${gap.wallIds.join('-')}@${gap.positionMm.x},${gap.positionMm.y}`} onNavigateToWalls={onNavigateToWalls} />
           ))}
         </ul>
       )}

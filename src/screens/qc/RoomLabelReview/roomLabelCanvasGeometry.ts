@@ -102,13 +102,32 @@ export function computeRoomBoundsPx(
   return boundsOfPoints(points) ?? { x: 0, y: 0, width: 0, height: 0 };
 }
 
-/** Hộp bao của TOÀN BỘ nội dung (mọi phòng), cộng đệm — dùng cho `viewBox`. `null` khi không có phòng. */
+/** Cỡ ảnh nền tính bằng mm; ảnh đặt ở gốc (0, 0) của hệ toạ độ mặt bằng. */
+export type RoomLabelBackgroundSizeMm = { readonly widthMm: number; readonly heightMm: number } | null | undefined;
+
+/**
+ * Điểm (mm) mà khung phải ôm trọn: mọi góc phòng, cộng hai góc ảnh nền nếu biết
+ * cỡ — QA-1: chỉ ôm phòng thì phần mặt bằng nằm ngoài các phòng bị khung cắt mất.
+ */
+function contentPointsMm(
+  rooms: readonly RoomLabelViewModel[],
+  backgroundSizeMm: RoomLabelBackgroundSizeMm,
+): readonly RoomLabelPointPx[] {
+  const roomPoints = rooms.flatMap((room) => room.outlineMm);
+
+  return roomPoints.length === 0 || backgroundSizeMm == null
+    ? roomPoints
+    : [...roomPoints, { x: 0, y: 0 }, { x: backgroundSizeMm.widthMm, y: backgroundSizeMm.heightMm }];
+}
+
+/** Hộp bao của TOÀN BỘ nội dung (mọi phòng + ảnh nền), cộng đệm — dùng cho `viewBox`. `null` khi không có phòng. */
 export function computeContentBoundsPx(
   rooms: readonly RoomLabelViewModel[],
   millimetresPerPixel: number,
   padding: number = CONTENT_PADDING_PX,
+  backgroundSizeMm: RoomLabelBackgroundSizeMm = null,
 ): RoomLabelBoundsPx | null {
-  const allPoints = rooms.flatMap((room) => roomOutlinePx(room, millimetresPerPixel));
+  const allPoints = contentPointsMm(rooms, backgroundSizeMm).map((point) => pointToPx(point, millimetresPerPixel));
   const bounds = boundsOfPoints(allPoints);
 
   if (bounds === null) {
@@ -133,8 +152,9 @@ export function fitMillimetresPerPixel(
   rooms: readonly RoomLabelViewModel[],
   millimetresPerPixel: number,
   frame: { readonly width: number; readonly height: number },
+  backgroundSizeMm: RoomLabelBackgroundSizeMm = null,
 ): number {
-  const bounds = boundsOfPoints(rooms.flatMap((room) => room.outlineMm));
+  const bounds = boundsOfPoints(contentPointsMm(rooms, backgroundSizeMm));
   const padding = contentPaddingFor(frame);
   const usableWidth = frame.width - padding * 2;
   const usableHeight = frame.height - padding * 2;

@@ -122,13 +122,13 @@ export function RoomLabelCanvas({
 
   /* BUG-393: tỷ lệ HIỂN THỊ cho cả mặt bằng vừa khung — chữ và nét vẫn giữ cỡ px vì chúng không nhân tỷ lệ này. */
   const millimetresPerPixel = useMemo(
-    () => fitMillimetresPerPixel(rooms, drawingMillimetresPerPixel, frameSize),
-    [drawingMillimetresPerPixel, frameSize, rooms],
+    () => fitMillimetresPerPixel(rooms, drawingMillimetresPerPixel, frameSize, backgroundImageSizeMm),
+    [backgroundImageSizeMm, drawingMillimetresPerPixel, frameSize, rooms],
   );
 
   const contentBounds = useMemo(
-    () => computeContentBoundsPx(rooms, millimetresPerPixel, contentPaddingFor(frameSize)),
-    [frameSize, rooms, millimetresPerPixel],
+    () => computeContentBoundsPx(rooms, millimetresPerPixel, contentPaddingFor(frameSize), backgroundImageSizeMm),
+    [backgroundImageSizeMm, frameSize, rooms, millimetresPerPixel],
   );
 
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;

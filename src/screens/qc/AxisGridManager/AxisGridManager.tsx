@@ -299,7 +299,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
             viewerRoleNotice={viewModel.viewerRoleNotice}
           />
           {canvasNotice === null ? null : (
-            <p className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-[13px] text-text-secondary">
+            <p className="pointer-events-none absolute left-1/2 top-3 max-w-[80%] -translate-x-1/2 rounded-lg bg-bg-surface px-4 py-2 text-center text-[13px] text-text-secondary shadow-panel">
               {canvasNotice}
             </p>
           )}
