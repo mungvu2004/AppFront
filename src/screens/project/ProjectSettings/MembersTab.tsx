@@ -138,6 +138,7 @@ export function MembersTab(props: MembersTabProps) {
                     )}
                   </span>
                   <span className="ml-auto flex items-center gap-2">
+                    {member.isPending === true && <Badge variant="neutral">Chờ chấp nhận</Badge>}
                     <RoleCell member={member} onChange={(role) => props.requestRoleChange(member.id, role)} />
                     {props.canEdit && (
                       <Button

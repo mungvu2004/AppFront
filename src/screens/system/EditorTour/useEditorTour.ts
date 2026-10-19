@@ -33,10 +33,7 @@ import { useShortcut } from '@/hooks/useShortcut';
 import {
   appShortcutRegistry,
   type RegisteredShortcut,
-  type ShortcutDefinition,
-  type ShortcutKeyEvent,
   type ShortcutRegistry,
-  type ShortcutScope,
 } from '@/lib/input/shortcutRegistry';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
@@ -277,8 +274,7 @@ const VIEWER_STEP_IDS: readonly TourStepId[] = ['reviewWall', 'view3d', 'exportR
 /** Vai người xem, đúng chữ `ProjectRole` dùng (`src/types/project.ts:1`). */
 const VIEWER_ROLE = 'viewer';
 
-/** `id` của hai binding lớp phủ này tự đăng ký. */
-const TOUR_ADVANCE_SHORTCUT_ID = 'editorTour.advance';
+/** `id` của binding duy nhất lớp phủ này tự đăng ký (Esc). Phím của bước thuộc màn chủ. */
 const TOUR_SKIP_SHORTCUT_ID = 'editorTour.skip';
 
 const EMPTY_SUMMARY: readonly TourSummaryRow[] = Object.freeze([]);
@@ -495,9 +491,14 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
   const isViewer = options.role === VIEWER_ROLE;
 
   const [progress] = useState<TourProgress>(() => readTourProgress(userId, hostId));
-  const [phase, setPhase] = useState<TourPhase>(progress.isFinished ? 'dismissed' : 'running');
+  // Đã từng hiện (dừng giữa chừng) thì không tự bật lại: chỉ còn chip để mở tiếp
+  // đúng bước đã dừng. Chưa từng hiện thì tự bật.
+  const hasStopped = progress.stoppedStepId !== null;
+  const [phase, setPhase] = useState<TourPhase>(
+    progress.isFinished || hasStopped ? 'dismissed' : 'running',
+  );
   const [activeStepId, setActiveStepId] = useState<TourStepId | null>(progress.stoppedStepId);
-  const [hasSkipped, setHasSkipped] = useState(false);
+  const [hasSkipped, setHasSkipped] = useState(hasStopped);
 
   const isReducedMotion = useReducedMotion();
   const isNarrow = useSyncExternalStore(subscribeCollapsed, readCollapsed, SERVER_COLLAPSED);
@@ -656,44 +657,27 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
 
   const activeDefinition =
     activeStep === undefined ? undefined : TOUR_STEPS.find((step) => step.id === activeStep.id);
-  const activeBinding =
-    activeDefinition?.shortcutId === undefined || activeDefinition.shortcutId === null
-      ? undefined
-      : shortcutById.get(activeDefinition.shortcutId);
-  const activeCombo = activeBinding?.combo ?? null;
-  const activeScope: ShortcutScope | null = activeBinding?.scope ?? null;
+  const activeShortcutId = activeDefinition?.shortcutId ?? null;
+
+  // Lớp phủ KHÔNG đăng ký phím của bước: phím đó thuộc màn chủ (W của
+  // `wallLayerReview.tool.drawWall`…). Đăng ký thêm một W cùng phạm vi là hai
+  // hành động giữ một phím (QA-1). Chỉ nghe registry báo binding của màn chủ
+  // vừa chạy, rồi sang bước kế tiếp.
+  useEffect(() => {
+    if (activeShortcutId === null) return undefined;
+
+    return registry.subscribeTriggers((id) => {
+      if (id === activeShortcutId) nextRef.current();
+    });
+  }, [registry, activeShortcutId]);
+
+  // Tự bật CHỈ lần đầu: vừa hiện là ghi bước đang mở, nên lần sau mở màn này
+  // lớp phủ không tự bật lại mà chỉ để chip "Xem hướng dẫn" (QA-1, ghi chú 9).
+  const shownStepId = activeStep?.id ?? null;
 
   useEffect(() => {
-    if (activeCombo === null || activeScope === null) return undefined;
-
-    let dispose: (() => void) | null = null;
-
-    const definition: ShortcutDefinition = {
-      id: TOUR_ADVANCE_SHORTCUT_ID,
-      combo: activeCombo,
-      scope: activeScope,
-      // Không tự `preventDefault`: quyền đó thuộc binding của màn chủ bên dưới.
-      preventDefault: false,
-      onTrigger: (event: ShortcutKeyEvent): void => {
-        // Registry dừng ở binding khớp ĐẦU TIÊN và duyệt NGƯỢC theo thứ tự đăng
-        // ký (`shortcutRegistry.ts:380-383`), nên binding này — đăng ký sau màn
-        // chủ — luôn khớp trước. Muốn không NUỐT MẤT phím của màn chủ thì chỉ có
-        // một cách: gỡ mình ra, đưa lại đúng phím đó cho registry phân xử, rồi
-        // gắn lại. Phần tử được tô sáng nhờ thế vẫn hoạt động đầy đủ.
-        dispose?.();
-        dispose = null;
-        registry.handleKeyDown(event, null);
-        dispose = registry.register(definition);
-        nextRef.current();
-      },
-    };
-
-    dispose = registry.register(definition);
-
-    return (): void => {
-      dispose?.();
-    };
-  }, [registry, activeCombo, activeScope]);
+    if (shownStepId !== null && phase === 'running') writeTourProgress(userId, hostId, shownStepId);
+  }, [shownStepId, phase, userId, hostId]);
 
   /* -- Props của view ------------------------------------------------------ */
 

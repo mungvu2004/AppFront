@@ -488,6 +488,57 @@ describe('BÀI NGHIỆM THU 2 — bấm phím thật của bước đang mở th
     expect(after.activeIndex).toBe(1);
     expect(after.steps[after.activeIndex]?.id).toBe('editThickness');
   });
+
+  it('QA-1: tour không đăng ký phím của bước — W chỉ một hành động giữ, không cảnh báo trùng, W vẫn chạy công cụ', () => {
+    const warn = vi.fn();
+    const registry = createShortcutRegistry({ isDev: true, warn });
+    const drawWall = vi.fn();
+
+    registry.register({
+      id: 'wallLayerReview.tool.drawWall',
+      combo: 'W',
+      scope: 'canvas',
+      onTrigger: drawWall,
+    });
+
+    const resolveAnchor = (id: TourStepId): TourRect | null =>
+      id === 'editThickness' ? FIXED_RECT : null;
+
+    mountTour({ registry, resolveAnchor, forcedState: 'partial', hasModel: true });
+    expect(tourProps().steps[tourProps().activeIndex]?.id).toBe('switchTool');
+
+    act(() => {
+      registry.handleKeyDown({ key: 'w', preventDefault: vi.fn() }, null);
+    });
+
+    expect(warn).not.toHaveBeenCalled();
+    expect(registry.findOverlaps()).toEqual([]);
+    expect(drawWall).toHaveBeenCalledTimes(1);
+    expect(tourProps().steps[tourProps().activeIndex]?.id).toBe('editThickness');
+  });
+});
+
+describe('QA-1 — tự bật chỉ lần đầu', () => {
+  function mountOnWalls() {
+    const registry = createShortcutRegistry();
+
+    registry.register({ id: 'wallLayerReview.next', combo: 'J', scope: 'canvas', onTrigger: noop });
+
+    return mountTour({ registry, resolveAnchor: () => null, hostId: 'wall-layer-review', userId: 'u-1', hasModel: true });
+  }
+
+  it('mở lại màn khi chưa bỏ qua: không tự bật nữa, chỉ còn chip; chip mở tiếp đúng bước', () => {
+    mountOnWalls();
+    expect(screen.getByRole('button', { name: 'Bỏ qua hướng dẫn' })).toBeInTheDocument();
+    cleanup();
+
+    mountOnWalls();
+    expect(screen.queryByRole('button', { name: 'Bỏ qua hướng dẫn' })).toBeNull();
+    expect(tourProps().isSkipChipVisible).toBe(true);
+
+    act(() => tourProps().onReopen());
+    expect(screen.getByRole('button', { name: 'Bỏ qua hướng dẫn' })).toBeInTheDocument();
+  });
 });
 
 /* -------------------------------------------------------------------------- */

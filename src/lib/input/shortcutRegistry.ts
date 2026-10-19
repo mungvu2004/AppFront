@@ -319,6 +319,13 @@ export interface ShortcutRegistry {
    * (B-V2-01). Returns the unsubscribe.
    */
   subscribe(listener: () => void): () => void;
+  /**
+   * Calls `listener` with a binding's id each time that binding answers a key
+   * press. Lets a layer follow a key it must not own — `EditorTour` advances
+   * when the screen's W fires instead of registering a second W in the same
+   * scope (QA-1). Returns the unsubscribe.
+   */
+  subscribeTriggers(listener: (id: string) => void): () => void;
 }
 
 export interface ShortcutRegistryOptions {
@@ -465,6 +472,7 @@ export function createShortcutRegistry(
   const entries: RegistryEntry[] = [];
   const claims = new Map<ShortcutScope, number>();
   const listeners = new Set<() => void>();
+  const triggerListeners = new Set<(id: string) => void>();
   let attached = false;
 
   const notify = (): void => {
@@ -602,6 +610,10 @@ export function createShortcutRegistry(
 
         entry.definition.onTrigger(event);
 
+        for (const listener of [...triggerListeners]) {
+          listener(entry.definition.id);
+        }
+
         return true;
       }
 
@@ -718,6 +730,13 @@ export function createShortcutRegistry(
     reportOverlaps,
     listShortcuts,
     subscribe,
+    subscribeTriggers: (listener) => {
+      triggerListeners.add(listener);
+
+      return (): void => {
+        triggerListeners.delete(listener);
+      };
+    },
   };
 }
 

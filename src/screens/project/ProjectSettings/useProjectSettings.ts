@@ -129,6 +129,8 @@ export interface ProjectSettingsMemberRow {
   readonly initials: string;
   /** Nhãn của nút gỡ, có tên người để trình đọc màn hình phân biệt các dòng. */
   readonly removeLabel: string;
+  /** N4-02: đã được mời nhưng chưa chấp nhận. */
+  readonly isPending?: boolean;
 }
 
 export interface ProjectSettingsProblems {
@@ -1384,6 +1386,26 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     conflictMessage,
   ]);
 
+  const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(new Set());
+  const gatewayRef = useRef(gateway);
+  gatewayRef.current = gateway;
+  const memberKey = (snapshot?.members ?? []).map((member) => member.id).join(',');
+
+  useEffect(() => {
+    if (!canDelete || memberKey === '') return;
+    let live = true;
+    // Cổng nằm ngoài deps: nhiều nơi dựng cổng mới mỗi lượt render, và dep ấy sẽ lặp vô hạn.
+    gatewayRef.current.listPendingUserIds?.().then(
+      (ids) => {
+        if (live) setPendingIds(ids);
+      },
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [canDelete, memberKey]);
+
   const members = useMemo<readonly ProjectSettingsMemberRow[]>(
     () =>
       (snapshot?.members ?? []).map((member) => ({
@@ -1395,8 +1417,9 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
         roleOptions: ROLE_OPTIONS,
         initials: initialsOf(member.name, member.email),
         removeLabel: `Gỡ ${member.name}`,
+        isPending: pendingIds.has(member.id),
       })),
-    [snapshot, canDelete, options.currentUserId],
+    [snapshot, canDelete, options.currentUserId, pendingIds],
   );
 
   const alwaysTabs: readonly ProjectSettingsTabModel[] = [

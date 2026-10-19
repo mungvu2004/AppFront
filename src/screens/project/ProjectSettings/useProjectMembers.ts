@@ -330,7 +330,7 @@ export function useProjectMembers(
       setMemberError(null);
 
       if (added.ok && !added.data.alreadyMember) {
-        finishAdd(added.data.member, `Đã mời và thêm ${added.data.member.name} vào dự án (chờ họ chấp nhận lời mời).`);
+        finishAdd(added.data.member, `Đã mời ${added.data.member.name} vào dự án (chờ chấp nhận).`);
         return;
       }
 

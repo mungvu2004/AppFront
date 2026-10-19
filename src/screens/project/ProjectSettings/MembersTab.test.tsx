@@ -399,7 +399,7 @@ describe('thành viên trong useProjectSettings', () => {
     expect(server.membersAdd).toHaveBeenCalledTimes(2);
     expect(hook.result.current.inviteEmail).toBeNull();
     expect((hook.onToast.mock.calls.at(-1)?.[0] as { message: string }).message).toBe(
-      'Đã mời và thêm Newcomer vào dự án (chờ họ chấp nhận lời mời).',
+      'Đã mời Newcomer vào dự án (chờ chấp nhận).',
     );
   });
 

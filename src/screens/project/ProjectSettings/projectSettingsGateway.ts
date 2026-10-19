@@ -158,6 +158,8 @@ export interface ProjectSettingsGateway {
   }) => Promise<ApiResult<void>>;
   /** N4-03: tên các dự án người này đang tham gia, để hộp xác nhận nói rõ phạm vi. */
   readonly listUserProjects: (input: { readonly userId: string }) => Promise<ApiResult<readonly string[]>>;
+  /** N4-02: id các tài khoản đang chờ chấp nhận lời mời (chỉ quản trị đọc được; lỗi thì rỗng). */
+  readonly listPendingUserIds?: () => Promise<ReadonlySet<string>>;
   readonly deleteAllFloors: (input: DeleteAllFloorsInput) => Promise<ApiResult<DeleteAllFloorsResult>>;
   readonly deleteProject: (input: DeleteProjectInput) => Promise<ApiResult<void>>;
 }
@@ -467,6 +469,12 @@ export function createProjectSettingsGateway(client: ApiClient): ProjectSettings
       const result = await client.users.invite({ body: { emails: [email], role: 'viewer' }, failFastOnRateLimit: true });
 
       return result.ok ? { ok: true, data: undefined } : result;
+    },
+
+    listPendingUserIds: async () => {
+      const result = await client.users.list();
+
+      return new Set(result.ok ? result.data.users.filter((user) => user.status === 'pending').map((user) => user.id) : []);
     },
 
     changeUserRole: async ({ userId, role }) => {

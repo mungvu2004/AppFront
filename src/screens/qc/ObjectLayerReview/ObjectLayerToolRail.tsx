@@ -4,7 +4,7 @@
  * loại/loại con đang chọn — đó là trạng thái nghiệp vụ do hook (T5) sở
  * hữu, đi vào qua `activeLayer`/`activeSubtype`. View KHÔNG tự đăng ký phím
  * tắt (`addEventListener` hay `useShortcut`) — T5 làm việc đó qua
- * `shortcutRegistry`; ở đây chỉ hiển thị gợi ý phím bằng chữ nhỏ dưới nút, kèm tooltip (G4a-25).
+ * `shortcutRegistry`; ở đây nhóm có tên đầy đủ cỡ nhỏ dưới nút, phím ở tooltip + `aria-label` (G4a-25, QA-1).
  *
  * ## Vì sao mỗi nhóm chỉ có tối đa BA nút loại con
  *
@@ -137,7 +137,10 @@ export function ObjectLayerToolRail({
                   onClick={() => onSelectLayer(tool.id)}
                   size="lg"
                 />
-                <span aria-hidden="true" className="font-mono text-[10px] leading-none text-text-muted">{tool.kbd}</span>
+                {/* Group name, not the bare key letter ("C"/"S"/"N" meant nothing, QA-1); the key sits in tooltip + aria-label. */}
+                <span aria-hidden="true" className="whitespace-nowrap text-[10px] leading-none text-text-muted">
+                  {OBJECT_LAYER_LABELS[tool.id]}
+                </span>
               </div>
             );
           })}
