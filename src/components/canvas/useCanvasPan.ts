@@ -5,7 +5,8 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
  * Kéo bản vẽ dùng chung cho mọi canvas (G4a-19, G4b-08).
  *
  * Kéo được khi: chuột giữa ở bất kỳ đâu; giữ Space + chuột trái; chuột trái trên NỀN
- * (đích là phần tử có `data-canvas-bg`, hoặc chính phần tử gắn `onPointerDown`).
+ * (đích CHÍNH LÀ phần tử có `data-canvas-bg`, hoặc chính phần tử gắn `onPointerDown`; con của
+ * nền như tường/chuỗi không kéo — kéo sẽ giữ con trỏ và nuốt `click` chọn hình).
  * Lăn chuột gọi `onWheelZoom(+1 | -1)` (lăn lên = phóng to) và chặn cuộn trang.
  *
  * Cách gắn: `<div ref={pan.ref} {...pan.handlers}>` bao vùng vẽ; lớp nội dung nhận
@@ -39,7 +40,7 @@ export function shouldStartPan(
   if (button !== 0) return false;
   if (spaceHeld) return true;
   if (target === currentTarget) return true;
-  return target instanceof Element && target.closest('[data-canvas-bg]') !== null;
+  return target instanceof Element && target.hasAttribute('data-canvas-bg');
 }
 
 export function useCanvasPan(onWheelZoom?: (direction: 1 | -1) => void): CanvasPanState {
@@ -63,11 +64,15 @@ export function useCanvasPan(onWheelZoom?: (direction: 1 | -1) => void): CanvasP
     const up = (e: KeyboardEvent) => {
       if (e.code === 'Space') setSpaceHeld(false);
     };
+    // Alt+Tab khi đang giữ Space thì lỡ `keyup`: mất focus cửa sổ coi như thả Space.
+    const blur = () => setSpaceHeld(false);
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
+    window.addEventListener('blur', blur);
     return () => {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', blur);
     };
   }, [el]);
 

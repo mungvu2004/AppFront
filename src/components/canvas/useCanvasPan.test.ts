@@ -15,5 +15,10 @@ describe('shouldStartPan', () => {
   });
   it('chuột trái trên hình (không Space) để dành cho chọn', () =>
     expect(shouldStartPan(0, false, wall, root)).toBe(false));
+  it('chuột trái trên hình nằm TRONG nền không kéo (giữ click chọn)', () => {
+    const shape = document.createElement('div');
+    bg.appendChild(shape);
+    expect(shouldStartPan(0, false, shape, root)).toBe(false);
+  });
   it('chuột phải không kéo', () => expect(shouldStartPan(2, true, bg, root)).toBe(false));
 });
