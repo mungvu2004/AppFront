@@ -11,7 +11,10 @@
 
 import type { AnyNodeDefinition, ToolHint } from '@pascal-app/core'
 
-/** Same names as the AppFront build palette (`./build-palette.ts`). */
+/**
+ * One name per kind across the 3D editor (RV3 #5): the build palette (`./build-palette.ts`), the
+ * scene header and command palette (`scripts/pascal-vi/*.mjs`) use these same words.
+ */
 const KIND_VI: Record<string, string> = {
   Block: 'Khối',
   Building: 'Toà nhà',
@@ -29,7 +32,7 @@ const KIND_VI: Record<string, string> = {
   Downspout: 'Ống thoát nước mái',
   Duct: 'Ống gió',
   'Duct Fitting': 'Phụ kiện ống gió',
-  'DWV Pipe': 'Ống thoát nước',
+  'DWV Pipe': 'Ống thoát',
   Elevator: 'Thang máy',
   'Eyebrow Vent': 'Lỗ thông gió mái cong',
   Fence: 'Hàng rào',
@@ -39,8 +42,8 @@ const KIND_VI: Record<string, string> = {
   'Imported Mesh': 'Mô hình nhập',
   Item: 'Đồ vật',
   Level: 'Tầng',
-  Lineset: 'Ống đồng điều hoà',
-  'Liquid Line': 'Ống dẫn lỏng',
+  Lineset: 'Ống đồng',
+  'Liquid Line': 'Ống lỏng',
   Measurement: 'Thước đo',
   'Modular Cabinet': 'Tủ mô-đun',
   'Pipe Fitting': 'Phụ kiện ống',
@@ -78,7 +81,8 @@ const HINT_VI: Record<string, string> = {
   'Exit drawing': 'Thoát vẽ',
   'Step back or cancel': 'Lùi một bước hoặc huỷ',
   'Cancel run / exit': 'Huỷ đường ống / thoát',
-  'Cycle snapping mode': 'Đổi chế độ bắt điểm',
+  // 'Cycle snapping mode' cố ý không dịch: `useVisibleToolHints` (panel-tool-options.ts) giấu
+  // hint Shift theo đúng nhãn tiếng Anh này, dịch đi thì dòng bị giấu hiện ra (RV3 #2).
   'Bypass snapping': 'Bỏ qua bắt điểm',
   'Free placement': 'Đặt tự do',
   // wall, fence, measurement
@@ -167,7 +171,7 @@ const HINT_VI: Record<string, string> = {
   'Start lineset': 'Bắt đầu ống đồng',
   'Place it (locked to 45°)': 'Đặt (khoá theo góc 45°)',
   'Cancel start point': 'Huỷ điểm đầu',
-  'Start liquid line': 'Bắt đầu ống dẫn lỏng',
+  'Start liquid line': 'Bắt đầu ống lỏng',
   'Follow: trace a lineset': 'Bám theo: vẽ dọc ống đồng',
   'Start run': 'Bắt đầu đường ống',
   'Waste / vent': 'Thoát / thông hơi',

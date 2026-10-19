@@ -40,7 +40,7 @@ export const EDITOR_VI = {
     ['\n                      Visible nodes only\n', '\n                      Chỉ phần đang hiện\n'],
     [
       'Exclude hidden furniture and other hidden scene nodes',
-      'Bỏ qua đồ đạc ẩn và các phần ẩn khác của cảnh',
+      'Bỏ qua đồ vật ẩn và các phần ẩn khác của cảnh',
     ],
     ['aria-label="Export visible nodes only"', 'aria-label="Chỉ xuất phần đang hiện"'],
     ['>Include in file<', '>Gồm trong tệp<'],
@@ -86,11 +86,11 @@ export const EDITOR_VI = {
   'editor/src/components/viewer/viewer-scene-header.tsx': [
     ["return 'Wall'", "return 'Tường'"],
     ["return 'Fence'", "return 'Hàng rào'"],
-    ["|| 'Item'", "|| 'Đồ đạc'"],
-    ["return 'Slab'", "return 'Tấm sàn'"],
+    ["|| 'Item'", "|| 'Đồ vật'"],
+    ["return 'Slab'", "return 'Sàn'"],
     ["return 'Ceiling'", "return 'Trần'"],
     ["return 'Roof'", "return 'Mái'"],
-    ["return 'Roof Segment'", "return 'Đoạn mái'"],
+    ["return 'Roof Segment'", "return 'Mảng mái'"],
     ['aria-label="Back"', 'aria-label="Quay lại"'],
     ["{projectName || 'Untitled'}", "{projectName || 'Chưa đặt tên'}"],
     ['\n                Site\n', '\n                Khu đất\n'],

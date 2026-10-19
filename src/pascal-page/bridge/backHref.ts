@@ -12,7 +12,13 @@ export const LAST_APP_PATH_KEY = 'appfront:last-app-path';
 
 /** Chỉ đường nội bộ, và không phải chính trang 3D (tránh vòng lặp `/3d` → editor). */
 export function isSafeReturnPath(path: string | null | undefined): path is string {
-  if (!path || !path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return false;
+  // Trình duyệt bỏ tab/xuống dòng trong URL (WHATWG): `/\t/evil.test` sẽ thành `//evil.test`.
+  if (!path || !path.startsWith('/') || path.startsWith('//') || /[\\\s\p{Cc}]/u.test(path)) return false;
+  try {
+    if (new URL(path, window.location.origin).origin !== window.location.origin) return false;
+  } catch {
+    return false;
+  }
 
   const pathname = path.split(/[?#]/, 1)[0] ?? '';
   return !pathname.startsWith('/editor3d.html') && !/^\/projects\/[^/]+\/3d(\/|$)/.test(pathname);

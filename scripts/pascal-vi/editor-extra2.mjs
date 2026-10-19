@@ -22,10 +22,10 @@ export const EDITOR_EXTRA2_VI = {
     ["label: 'Chord dimension'", "label: 'Kích thước dây cung'"],
     ["label: 'Arc length'", "label: 'Độ dài cung'"],
     ["label: 'Angular dimension'", "label: 'Kích thước góc'"],
-    ["label: 'Coordinate dimensions'", "label: 'Kích thước tọa độ'"],
+    ["label: 'Coordinate dimensions'", "label: 'Kích thước toạ độ'"],
     ['aria-label={`Measure: ${selectedLabel}`}', 'aria-label={`Đo: ${selectedLabel}`}'],
     ['label={`Measure: ${selectedLabel}`}', 'label={`Đo: ${selectedLabel}`}'],
-    ['aria-label="Measurement options"', 'aria-label="Tùy chọn đo"'],
+    ['aria-label="Measurement options"', 'aria-label="Tuỳ chọn đo"'],
     ['aria-label="Measurement type"', 'aria-label="Loại phép đo"'],
     ['Floor plan\n', 'Mặt bằng\n'],
   ],
@@ -33,7 +33,7 @@ export const EDITOR_EXTRA2_VI = {
   [`${UI}action-menu/control-modes.tsx`]: [
     ["label: 'Select'", "label: 'Chọn'"],
     ["label: 'Zone'", "label: 'Vùng'"],
-    ["label: 'Delete'", "label: 'Xóa'"],
+    ["label: 'Delete'", "label: 'Xoá'"],
   ],
 
   [`${UI}sidebar/use-plugin-panels.tsx`]: [["label: 'Plugins'", "label: 'Tiện ích'"]],

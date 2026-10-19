@@ -168,13 +168,13 @@ const FLOORPLAN_ANNOTATION_OPTIONS = [
 const FLOORPLAN_MODE_OPTIONS = [
   {
     id: 'default',
-    name: 'Default',
-    detail: 'Clean plan; dimensions appear with selection',
+    name: 'Mặc định',
+    detail: 'Mặt bằng gọn; kích thước hiện khi chọn',
   },
   {
     id: 'expert',
-    name: 'Expert',
-    detail: 'Full documentation and annotation controls',
+    name: 'Chuyên sâu',
+    detail: 'Đủ ký hiệu và điều khiển chú thích',
   },
 ] as const
 
@@ -321,9 +321,9 @@ function WallModeToggle() {
 // camera projection, units, render mode, edges and scene theme.
 
 const EDGE_OPTIONS = [
-  { id: 'off', name: 'Off', detail: 'No edge lines' },
-  { id: 'soft', name: 'Soft', detail: 'Faint outline of major creases' },
-  { id: 'strong', name: 'Strong', detail: 'Crisp, opaque edge lines' },
+  { id: 'off', name: 'Tắt', detail: 'Không vẽ đường cạnh' },
+  { id: 'soft', name: 'Nhẹ', detail: 'Viền mờ ở các nếp gấp chính' },
+  { id: 'strong', name: 'Đậm', detail: 'Đường cạnh rõ, không trong suốt' },
 ] as const satisfies readonly { id: EdgeMode; name: string; detail: string }[]
 
 const SUBMENU_CONTENT_CLASS = 'min-w-56 rounded-xl border-border/45 bg-popover/95 backdrop-blur-xl'
@@ -406,7 +406,7 @@ function DisplayMenu() {
             onSelect={(e) => keepOpen(e, () => setShowMeasurements(!showMeasurements))}
           >
             <Ruler className="h-4 w-4" />
-            <span>{viewMode === 'split' ? '3D measurements' : 'Measurements'}</span>
+            <span>{viewMode === 'split' ? 'Số đo 3D' : 'Số đo'}</span>
             {showMeasurements ? (
               <Eye className="ml-auto h-4 w-4 text-foreground" />
             ) : (
@@ -421,7 +421,7 @@ function DisplayMenu() {
                 <Layers3 className="h-4 w-4" />
                 <span>Chế độ mặt bằng</span>
                 <span className="ml-auto text-muted-foreground text-xs">
-                  {floorplanMode === 'default' ? 'Default' : 'Expert'}
+                  {floorplanMode === 'default' ? 'Mặc định' : 'Chuyên sâu'}
                 </span>
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className={SUBMENU_CONTENT_CLASS}>
@@ -507,7 +507,7 @@ function DisplayMenu() {
           <Magnet className="h-4 w-4" />
           <span>Bắt dính</span>
           <span className="ml-auto text-muted-foreground text-xs">
-            {magneticSnap ? 'On' : 'Off'}
+            {magneticSnap ? 'Bật' : 'Tắt'}
           </span>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={(e) => keepOpen(e, () => setShadows(!shadows))}>
@@ -529,7 +529,7 @@ function DisplayMenu() {
           />
           <span>Máy quay</span>
           <span className="ml-auto text-muted-foreground text-xs">
-            {cameraMode === 'perspective' ? 'Perspective' : 'Orthographic'}
+            {cameraMode === 'perspective' ? 'Phối cảnh' : 'Trực giao'}
           </span>
         </DropdownMenuItem>
         <DropdownMenuSub>
@@ -540,10 +540,10 @@ function DisplayMenu() {
             <span>Đơn vị</span>
             <span className="ml-auto text-muted-foreground text-xs">
               {unit === 'imperial'
-                ? 'Feet & inches'
+                ? 'Feet và inch'
                 : metricNotation === 'millimeters'
-                  ? 'Millimeters'
-                  : 'Meters'}
+                  ? 'Mi-li-mét'
+                  : 'Mét'}
             </span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className={SUBMENU_CONTENT_CLASS}>

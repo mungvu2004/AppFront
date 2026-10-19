@@ -40,6 +40,11 @@ describe('resolveBackHref', () => {
     expect(isSafeReturnPath('/projects/p1/3d/measure')).toBe(false);
     expect(isSafeReturnPath('/projects/p1/3dx')).toBe(true);
     expect(isSafeReturnPath('/\\evil.test')).toBe(false);
+    expect(isSafeReturnPath('//evil.test')).toBe(false);
+    expect(isSafeReturnPath('/\t/evil.test')).toBe(false);
+    expect(isSafeReturnPath('/\n/evil.test')).toBe(false);
+    expect(resolveBackHref('p2', '?returnTo=%2F%09%2Fevil.test')).toBe('/projects/p2/floors');
+    expect(resolveBackHref('p2', '?returnTo=%2F%0A%2Fevil.test')).toBe('/projects/p2/floors');
     expect(isSafeReturnPath(null)).toBe(false);
   });
 });

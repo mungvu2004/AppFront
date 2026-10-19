@@ -13,12 +13,15 @@
  * Vitest không nạp được `@pascal-app/editor` thật (gói trỏ `exports` vào `dist/*.js`,
  * chưa dựng), nên hai kho dưới đây chép đúng tuỳ chọn `persist` của upstream
  * (`store/use-editor.tsx`, `components/ui/primitives/sidebar.tsx`): cùng tên khoá,
- * cùng `skipHydration`.
+ * cùng `skipHydration`. Hai kho dựng bằng đúng bản zustand của gói vendor editor
+ * (5.x, khác bản 4.x ở gốc app) để nâng zustand vendor thì test này cũng chạy theo
+ * (RV3 #10). Test chỉ dùng `getState`/`persist`, không gọi kho như hook, nên bản React
+ * riêng của vendor không chen vào.
  */
 
 import { renderHook } from '@testing-library/react';
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from '../../../vendor/pascal/packages/editor/node_modules/zustand/esm/index.mjs';
+import { persist } from '../../../vendor/pascal/packages/editor/node_modules/zustand/esm/middleware.mjs';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const EDITOR_KEY = 'pascal-editor-ui-preferences';

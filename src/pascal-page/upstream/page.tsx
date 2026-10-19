@@ -43,6 +43,7 @@ import { computeSceneBoundsXZ } from '../../../vendor/pascal/packages/editor/src
 import { useEditorPreferencesPersistence } from './lib/editor-preferences'
 import { fitPose, fitWhenControlsReady } from './lib/fit-on-ready'
 import { translateDefinition } from './lib/pascal-vi'
+import { isMeasureActive } from './lib/select-exits-measure'
 import { useSelectExitsMeasure } from './lib/use-select-exits-measure'
 
 // The open-source editor only ships the built-in catalog (no uploaded items),
@@ -203,14 +204,17 @@ function useSelectAfterPreview() {
   }, [isPreview])
 }
 
-/** AppFront edit (P40, G5-15 / N5-11 / G5-14): Esc leaves Preview, then Delete or Measure. */
+/**
+ * AppFront edit (P40, G5-15 / N5-11 / G5-14): Esc leaves Preview, then Delete or Measure (both
+ * measure tools, the same test V uses, RV3 #8). The Delete banner lives in `CanvasHelp`.
+ */
 function useEscapeExits() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       const ed = useEditor.getState()
       if (ed.isPreviewMode) ed.setPreviewMode(false)
-      else if (ed.mode === 'delete' || (ed.mode === 'build' && ed.tool === 'measurement'))
+      else if (ed.mode === 'delete' || isMeasureActive(ed))
         ed.armToolMode({ mode: 'select' })
     }
     window.addEventListener('keydown', onKey)
@@ -218,19 +222,6 @@ function useEscapeExits() {
   }, [])
 }
 
-/** AppFront edit (P40, G5-14): say so while the Delete tool (X) is armed. */
-function DeleteModeBanner() {
-  const isDelete = useEditor((state) => state.mode === 'delete')
-  if (!isDelete) return null
-  return (
-    <div
-      className="pointer-events-none fixed top-16 left-1/2 z-50 -translate-x-1/2 rounded-full bg-red-600 px-4 py-1.5 font-medium text-sm text-white shadow-lg"
-      role="status"
-    >
-      Đang ở chế độ xoá: bấm vào đối tượng sẽ xoá nó · Esc để thoát
-    </div>
-  )
-}
 
 let viInstalled = false
 
@@ -407,7 +398,6 @@ export default function Home({ projectId, onLoad, onSave, backCard, projectName 
         }
         viewerToolbarRight={<CommunityViewerToolbarRight vrButton={null} vrLabel="Enter VR" />}
       />
-      <DeleteModeBanner />
       <PreviewHeader projectName={projectName} />
       <OrbitHint />
       <CanvasHelp />

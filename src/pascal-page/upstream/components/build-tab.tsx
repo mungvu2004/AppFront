@@ -418,12 +418,12 @@ export function BuildTab() {
                 type="button"
               >
                 <span>Theo ống đồng</span>
-                <span className="text-muted-foreground text-xs">{follow ? 'On' : 'Off'}</span>
+                <span className="text-muted-foreground text-xs">{follow ? 'Bật' : 'Tắt'}</span>
               </button>
               <span className="px-1 text-[11px] text-muted-foreground">
                 {follow
-                  ? 'Click a lineset to lay the line beside it.'
-                  : 'Trace a line alongside an existing lineset (F).'}
+                  ? 'Bấm vào một ống đồng để đặt ống bên cạnh.'
+                  : 'Vẽ ống dọc theo một ống đồng có sẵn (F).'}
               </span>
             </div>
           ) : null}

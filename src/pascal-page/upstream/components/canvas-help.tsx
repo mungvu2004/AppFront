@@ -9,9 +9,10 @@
  * - G5-16: the level card's add-above/below dots sit outside the card edge, are larger, and the
  *   storey-height badge gets readable contrast.
  * - G5-09: keeps the selected object's action bars (Move/Duplicate/Delete…) inside the window.
- * - G5-03: the level card's English tooltips are translated in place.
  * - G5-11 / G5-12 / G5-44: the bottom action bar stays inside the viewer pane and loses its
  *   unlabelled camera group; measurement distance labels get a solid, readable chip.
+ * - G5-14: while the Delete tool (X) is armed, a banner says so. It sits in the same column as
+ *   the pill (above it), so the two never overlap (RV3 #9).
  * - N5-11: while measuring, a "Xoá vạch đo" button removes every measurement (Ctrl+Z undoes).
  * The selectors target upstream title/aria-label/class strings; if Pascal renames them the CSS
  * simply stops matching (no breakage).
@@ -39,18 +40,17 @@ const MEASURE_LABEL = 'div.whitespace-nowrap.font-medium.text-base.text-white'
 const SCOPED_CSS = `
 section[aria-label="Camera controls hint"] { display: none !important; }
 [data-appfront-help="closed"] ${SHORTCUT_PANEL} { display: none !important; }
-button[title="Add level above"], button[title="Add level below"],
 button[title="Thêm tầng phía trên"], button[title="Thêm tầng phía dưới"] {
   width: 1.25rem !important; height: 1.25rem !important;
   color: var(--foreground) !important;
 }
-button[title="Add level above"], button[title="Thêm tầng phía trên"] {
+button[title="Thêm tầng phía trên"] {
   translate: -50% -50% !important;
 }
-button[title="Add level below"], button[title="Thêm tầng phía dưới"] {
+button[title="Thêm tầng phía dưới"] {
   translate: -50% calc(100% + 2px) !important;
 }
-button[title="Level height"], button[title="Chiều cao tầng"] {
+button[title="Chiều cao tầng"] {
   color: var(--foreground) !important; opacity: 0.85; font-size: 11px !important;
 }
 ${BOTTOM_BAR} { max-width: calc(100% - 24px); overflow-x: auto; scrollbar-width: thin; }
@@ -73,24 +73,11 @@ const ACTION_BARS = [
   'div.pointer-events-auto.flex.items-center.gap-1.rounded-lg.border.p-1.shadow-xl',
   'div.pointer-events-auto.mt-1.inline-flex.w-max.rounded-lg.border.shadow-md',
 ].join(',')
-// G5-03: upstream level-card tooltips. React only re-writes an attribute when its prop changes,
-// and these titles are constants, so translating them in place sticks.
-const TITLE_VI: Record<string, string> = {
-  'Add level above': 'Thêm tầng phía trên',
-  'Add level below': 'Thêm tầng phía dưới',
-  'Level height': 'Chiều cao tầng',
-}
-const TITLE_SELECTOR = Object.keys(TITLE_VI)
-  .map((title) => `button[title="${title}"]`)
-  .join(',')
 
 function useClampActionBars() {
   useEffect(() => {
     let frame = 0
     const tick = () => {
-      for (const el of document.querySelectorAll<HTMLElement>(TITLE_SELECTOR)) {
-        el.title = TITLE_VI[el.title] ?? el.title
-      }
       for (const el of document.querySelectorAll<HTMLElement>(ACTION_BARS)) {
         const prevX = Number(el.dataset.clampX ?? 0)
         const prevY = Number(el.dataset.clampY ?? 0)
@@ -148,6 +135,7 @@ const PREVIEW_HINTS: Array<[string, string]> = [
 export function CanvasHelp() {
   const [open, setOpen] = useState(false)
   const isPreview = useEditor((state) => state.isPreviewMode)
+  const isDelete = useEditor((state) => state.mode === 'delete')
   useClampActionBars()
 
   useEffect(() => setOpen(readOpen()), [])
@@ -168,6 +156,14 @@ export function CanvasHelp() {
       <style>{SCOPED_CSS}</style>
       <div className="pointer-events-none absolute top-14 left-1/2 z-40 -translate-x-1/2">
         <div className="pointer-events-auto flex flex-col items-center gap-1.5">
+          {isDelete ? (
+            <div
+              className="pointer-events-none rounded-full bg-destructive px-4 py-1.5 font-medium text-background text-sm shadow-lg"
+              role="status"
+            >
+              Đang ở chế độ xoá: bấm vào đối tượng sẽ xoá nó · Esc để thoát
+            </div>
+          ) : null}
           <button
             aria-expanded={open}
             className="flex items-center gap-1.5 rounded-full border border-border/50 bg-background/90 px-3 py-1 font-medium text-foreground text-xs shadow-md backdrop-blur-md transition-colors hover:bg-accent"

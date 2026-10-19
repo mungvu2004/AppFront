@@ -34,4 +34,8 @@ describe('pascal-vi (G5-03 registry)', () => {
     expect(def.presentation?.label).toBe('Tường')
     expect(viHint('Cuts: 1')).toBe('Số vết cắt: 1')
   })
+
+  it('keeps labels Pascal matches on (Shift "Cycle snapping mode" is filtered by label)', () => {
+    expect(viHint('Cycle snapping mode')).toBe('Cycle snapping mode')
+  })
 })
