@@ -41,6 +41,7 @@ import {
 } from './components/viewer-toolbar'
 import { useEditorPreferencesPersistence } from './lib/editor-preferences'
 import { translateDefinition } from './lib/pascal-vi'
+import { useSelectExitsMeasure } from './lib/use-select-exits-measure'
 
 // The open-source editor only ships the built-in catalog (no uploaded items),
 // so the Library/Community/Mine source chips and tag filters add nothing —
@@ -325,6 +326,7 @@ export default function Home({ projectId, onLoad, onSave, backCard, projectName 
   useEditorPreferencesPersistence()
   usePascalVi()
   useEscapeExits()
+  useSelectExitsMeasure()
   useAutoCollapseSidebar()
   const handleLoad = useCallback(async () => {
     const graph = await onLoad()
