@@ -14,14 +14,13 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppHeader } from '@/components/shell/AppHeader';
 import { rememberAppPath } from '@/pascal-page/bridge/backHref';
 import { useSession } from '@/hooks/useSession';
-import { signOut } from '@/lib/auth';
+import { LAST_PROJECT_KEY, lastFloorPathKey, signOut } from '@/lib/auth';
 import { initialsOf } from '@/lib/format/initials';
 import { cachedProjectName } from '@/lib/query/cachedProjectName';
 import { queryKeys } from '@/lib/query/queryKeys';
 
 import { ROUTES } from './paths';
-
-const LAST_PROJECT_KEY = 'appfront.lastProject';
+import { projectLocationOf } from './projectSteps';
 
 function readLastProject(): { readonly id: string; readonly name: string } | null {
   try {
@@ -34,7 +33,6 @@ function readLastProject(): { readonly id: string; readonly name: string } | nul
     return null;
   }
 }
-import { projectLocationOf } from './projectSteps';
 
 const LazyNotificationBell = lazy(() =>
   import('@/screens/system/NotificationCenter').then((m) => ({ default: m.NotificationBellContainer })),
@@ -56,7 +54,7 @@ export function AppLayout() {
   const detail = useQuery<{
     readonly name?: string;
     readonly status?: string;
-    readonly floors?: readonly { readonly drawings: readonly unknown[] }[];
+    readonly floors?: readonly { readonly id?: string; readonly drawings: readonly unknown[] }[];
   }>({
     queryKey: queryKeys.project.detail(projectId),
     // Tự nạp chi tiết khi đang trong dự án, để tên có ở mọi màn (cùng khóa nên dùng chung bộ đệm với màn con).
@@ -77,19 +75,21 @@ export function AppLayout() {
 
   // N4-05: nhớ dự án vừa rời để màn Quản trị có lối quay về đúng chỗ.
   const [lastProject, setLastProject] = useState<{ readonly id: string; readonly name: string } | null>(() => readLastProject());
+  // RV5 #4: chỉ nhớ dự án đọc được; 403/404 (đã xoá, không quyền) không thành lối "Về dự án".
+  const rememberedName = detail.isSuccess ? projectName : null;
   useEffect(() => {
-    if (projectId === '' || projectName === null) return;
-    const next = { id: projectId, name: projectName };
+    if (projectId === '' || rememberedName === null) return;
+    const next = { id: projectId, name: rememberedName };
     setLastProject(next);
     try {
       sessionStorage.setItem(LAST_PROJECT_KEY, JSON.stringify(next));
     } catch {
       /* sessionStorage có thể bị chặn: lối quay về chỉ là tiện ích. */
     }
-  }, [projectId, projectName]);
+  }, [projectId, rememberedName]);
 
   // G4a-34/N4-08: nhớ màn kiểm tra tầng gần nhất của từng dự án (đường có `/floors/<tầng>/`).
-  const floorPathKey = `appfront.lastFloorPath.${projectId}`;
+  const floorPathKey = lastFloorPathKey(projectId);
   useEffect(() => {
     if (location?.floorId === undefined) return;
     try {
@@ -98,15 +98,18 @@ export function AppLayout() {
       /* sessionStorage bị chặn: ô bước 3 về danh sách tầng như cũ. */
     }
   }, [floorPathKey, location?.floorId, routerLocation.pathname]);
+  const floors = detail.data?.floors;
   let lastFloorPath: string | undefined;
   try {
     lastFloorPath = projectId === '' ? undefined : (sessionStorage.getItem(floorPathKey) ?? undefined);
   } catch {
     lastFloorPath = undefined;
   }
+  // RV5 #2: tầng đã xoá (hoặc chưa biết danh sách tầng) thì ô bước 3 về danh sách tầng, không mở đường chết.
+  const lastFloorId = lastFloorPath === undefined ? undefined : projectLocationOf(lastFloorPath)?.floorId;
+  if (lastFloorId === undefined || floors?.some((floor) => floor.id === lastFloorId) !== true) lastFloorPath = undefined;
 
   // Nút "Bước tiếp theo" theo trạng thái dự án (G3-06, G3-28, G3-32): chưa có bản vẽ / xử lý lỗi thì không mời đi tiếp.
-  const floors = detail.data?.floors;
   const blocker =
     detail.data?.status === 'error'
       ? ('pipeline-error' as const)

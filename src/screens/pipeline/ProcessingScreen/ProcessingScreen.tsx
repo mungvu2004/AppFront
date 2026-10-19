@@ -286,7 +286,13 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
                   <li className="flex flex-wrap items-center gap-2 text-[13px]" key={floor.id}>
                     <span className="font-medium text-text-primary">{floor.label}</span>
                     <span className="text-text-secondary">{NO_DRAWING_LABEL}</span>
-                    <Button onClick={props.onUploadDrawings} size="sm" variant="ghost">
+                    {/* Tên riêng theo tầng (RV2#8), vẫn chứa chữ nhìn thấy (label-in-name). */}
+                    <Button
+                      aria-label={`${UPLOAD_FLOOR_LABEL}: ${floor.label}`}
+                      onClick={props.onUploadDrawings}
+                      size="sm"
+                      variant="ghost"
+                    >
                       {UPLOAD_FLOOR_LABEL}
                     </Button>
                   </li>

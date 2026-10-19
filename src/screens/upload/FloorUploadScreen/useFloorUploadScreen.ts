@@ -584,6 +584,8 @@ export function useFloorUploadScreen(
     void queryClient.invalidateQueries({ queryKey: queryKeys.drawing.byFloor(floorId) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.floor.detail(floorId) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.floor.list(projectId) });
+    // RV5 #3: header suy ra "chưa có bản vẽ" từ chi tiết dự án.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.project.detail(projectId) });
   };
 
   /* ---------------------------------------------------------------------- */
@@ -1134,6 +1136,17 @@ export function useFloorUploadScreen(
       previews.clear();
     };
   }, []);
+  // Gỡ hay thay tệp (thay = gỡ + thêm id mới): thu hồi ngay blob của tệp không còn trong danh sách,
+  // không đợi rời màn (RV5#20).
+  useEffect(() => {
+    const cache = previewsRef.current;
+    const live = new Set(attachments.map((attachment) => attachment.id));
+    for (const [id, url] of cache) {
+      if (live.has(id)) continue;
+      if (url !== null) URL.revokeObjectURL(url);
+      cache.delete(id);
+    }
+  }, [attachments]);
   const previewUrlFor = useCallback((attachment: Attachment): string | null => {
     const cache = previewsRef.current;
     if (!cache.has(attachment.id)) {

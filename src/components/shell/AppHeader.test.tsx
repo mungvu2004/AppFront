@@ -39,6 +39,17 @@ describe('AppHeader', () => {
     expect(screen.getByRole('link', { name: 'Về Quản lý tầng' })).toHaveAttribute('href', ROUTES.project.floors('p1'));
   });
 
+  it('màn xác nhận CAD: không mời "Về duyệt lớp tường" (RV5 #10)', () => {
+    const props: AppHeaderProps = { accountLabel: 'Hà', showAdmin: false, onSignOut: vi.fn(), project: { id: 'p1', name: null, stepIndex: 2, floorId: 'f1', layerIndex: -1 } };
+    render(
+      <MemoryRouter initialEntries={[ROUTES.project.cadConfirm('p1', 'f1')]}>
+        <AppHeader {...props} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole('link', { name: /Về duyệt lớp/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Bước tiếp theo/ })).toBeNull();
+  });
+
   it('trong một lớp của tầng: ô bước 3 về lớp Tường, nút chính mời lớp kế tiếp', () => {
     renderHeader({ project: { id: 'p1', name: null, stepIndex: 2, floorId: 'f1', layerIndex: 0 } });
     expect(screen.getByRole('link', { name: /Kiểm tra tầng/ })).toHaveAttribute('href', ROUTES.project.walls('p1', 'f1'));

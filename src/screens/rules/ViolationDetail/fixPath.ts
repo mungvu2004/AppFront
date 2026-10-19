@@ -1,16 +1,24 @@
 import { readKindFromId, type EntityKind } from '@/domain/spatial/ids';
-import { ROUTES } from '@/routes/paths';
+import { FLOOR_LAYERS, type FloorLayerKey } from '@/routes/projectSteps';
 
-/** Lớp 2D nơi sửa được một loại đối tượng (N3-08, G5-32). */
-const LAYER_BY_KIND: Partial<
-  Record<EntityKind, { label: string; path: (p: string, f: string) => string }>
-> = {
-  wall: { label: 'Tường', path: ROUTES.project.walls },
-  opening: { label: 'Cửa và nội thất', path: ROUTES.project.objects },
-  furniture: { label: 'Cửa và nội thất', path: ROUTES.project.objects },
-  room: { label: 'Phòng', path: ROUTES.project.rooms },
-  dimension: { label: 'Kích thước', path: ROUTES.project.dimensions },
-  axis: { label: 'Lưới trục', path: ROUTES.project.grids },
+/** Lớp 2D nơi sửa được một loại đối tượng (N3-08, G5-32); tên và đường lấy từ `FLOOR_LAYERS` (RV5 #5). */
+const LAYER_KEY_BY_KIND: Partial<Record<EntityKind, FloorLayerKey>> = {
+  wall: 'walls',
+  opening: 'objects',
+  furniture: 'objects',
+  room: 'rooms',
+  dimension: 'dimensions',
+  axis: 'grids',
+};
+
+/**
+ * Tham số chọn sẵn mà màn lớp có đọc: Tường đọc `?wall=` (G4a-16), Cửa và nội thất
+ * và Phòng đọc `?select=`. Kích thước và Trục chưa đọc gì (RV5 #6) nên chỉ mở lớp.
+ */
+const SELECT_PARAM_BY_LAYER: Partial<Record<FloorLayerKey, string>> = {
+  walls: 'wall',
+  objects: 'select',
+  rooms: 'select',
 };
 
 export interface FixTarget {
@@ -26,12 +34,13 @@ export function fixTargetOf(
   entityId: string,
 ): FixTarget | null {
   const kind = readKindFromId(entityId);
-  const layer = kind === null ? undefined : LAYER_BY_KIND[kind];
+  const key = kind === null ? undefined : LAYER_KEY_BY_KIND[kind];
+  const layer = FLOOR_LAYERS.find((candidate) => candidate.key === key);
   if (layer === undefined || floorId === null) return null;
-  // Màn Tường đọc `?wall=` (G4a-16); các lớp khác đọc `?select=` (việc của gói lớp đó).
-  const param = kind === 'wall' ? 'wall' : 'select';
+  const param = SELECT_PARAM_BY_LAYER[layer.key];
+  const base = layer.path(projectId, floorId);
   return {
-    path: `${layer.path(projectId, floorId)}?${param}=${encodeURIComponent(entityId)}`,
+    path: param === undefined ? base : `${base}?${param}=${encodeURIComponent(entityId)}`,
     layerLabel: layer.label,
   };
 }

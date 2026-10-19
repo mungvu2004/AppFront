@@ -322,9 +322,19 @@ describe('src/lib/auth/session', () => {
     });
 
     await flush();
+    // RV5 #1: lối quay về của người vừa đăng xuất không còn cho người sau.
+    sessionStorage.setItem('appfront.lastProject', '{"id":"p1","name":"X"}');
+    sessionStorage.setItem('appfront.lastFloorPath.p1', '/projects/p1/floors/f1/layers/walls');
+    sessionStorage.setItem('appfront:last-app-path', '/projects/p1/floors');
+    sessionStorage.setItem('other.key', 'giữ');
     await signOut();
     const result = await pending;
 
+    expect(sessionStorage.getItem('appfront.lastProject')).toBeNull();
+    expect(sessionStorage.getItem('appfront.lastFloorPath.p1')).toBeNull();
+    expect(sessionStorage.getItem('appfront:last-app-path')).toBeNull();
+    expect(sessionStorage.getItem('other.key')).toBe('giữ');
+    sessionStorage.removeItem('other.key');
     expect(clearQueryCache).toHaveBeenCalledTimes(1);
     expect(getSession().status).toBe('anonymous');
     expect(messages).toContainEqual({ type: 'signed-out' });

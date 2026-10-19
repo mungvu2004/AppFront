@@ -9,6 +9,7 @@ import {
   setLastKnownUserId,
 } from './bootstrap';
 import { broadcastAuthIntent, emitAuthSignedIn, emitAuthSignedOut } from './events';
+import { clearNavigationMemory } from './navigationMemory';
 import { endAnonymousSession } from './transitions';
 import {
   getAuthConfig,
@@ -504,6 +505,7 @@ export const refreshSingleFlight = async (
       if (userChanged) {
         await runQuietly(config.clearQueryCache);
         await runQuietly(config.clearUserData);
+        clearNavigationMemory();
       }
 
       setAuthenticatedSession(payload);

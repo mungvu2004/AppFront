@@ -9,6 +9,7 @@ export {
   signOut,
   subscribeToSession,
 } from './session';
+export { LAST_PROJECT_KEY, clearNavigationMemory, lastFloorPathKey } from './navigationMemory';
 export {
   AUTH_SIGNED_IN_EVENT,
   AUTH_SIGNED_OUT_EVENT,

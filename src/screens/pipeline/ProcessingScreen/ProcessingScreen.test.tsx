@@ -857,7 +857,7 @@ describe('ProcessingScreen — tầng chưa có bản vẽ, lối chất lượn
 
     const missing = screen.getByRole('list', { name: 'Tầng chưa có bản vẽ' });
     expect(within(missing).getByText('Tầng 3')).toBeInTheDocument();
-    fireEvent.click(within(missing).getByRole('button', { name: 'Tải bản vẽ cho tầng này' }));
+    fireEvent.click(within(missing).getByRole('button', { name: 'Tải bản vẽ cho tầng này: Tầng 3' }));
     expect(onUploadDrawings).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra chất lượng ảnh đầu vào' }));

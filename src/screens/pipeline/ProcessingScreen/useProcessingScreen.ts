@@ -912,7 +912,9 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const onRetry = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.progress.latestUploads.root() });
     void queryClient.invalidateQueries({ queryKey: queryKeys.progress.byFloor.root() });
-  }, [queryClient]);
+    // RV5 #3: header suy ra "xử lý lỗi" từ chi tiết dự án; thử lại thì đọc lại nó.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.project.detail(projectId) });
+  }, [projectId, queryClient]);
 
   const onGoToSupport = useCallback(() => {
     const given = onGoToSupportRef.current;

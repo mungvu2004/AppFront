@@ -58,7 +58,10 @@ const navLinkClass = ({ isActive }: { isActive: boolean }): string =>
 function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
   const navigate = useNavigate();
   // 'default' = trang mở thẳng (không có màn trước trong app): Back của trình duyệt sẽ rời app.
-  const hasHistory = useLocation().key !== 'default';
+  const routerLocation = useLocation();
+  const hasHistory = routerLocation.key !== 'default';
+  // RV5 #10: xác nhận CAD đi TRƯỚC việc duyệt lớp; màn đó tự có nút đi tiếp, header không mời gì.
+  const onCadConfirm = routerLocation.pathname.endsWith('/cad-confirm');
   const next = PROJECT_STEPS[project.stepIndex + 1];
   const nextLayer = project.floorId !== undefined && project.layerIndex !== undefined && project.layerIndex >= 0
     ? FLOOR_LAYERS[project.layerIndex + 1]
@@ -128,7 +131,7 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
           Tiếp: {nextLayer.label}
           <ArrowRight size={16} aria-hidden="true" />
         </Link>
-      ) : project.floorId !== undefined && project.layerIndex === -1 ? (
+      ) : onCadConfirm ? null : project.floorId !== undefined && project.layerIndex === -1 ? (
         // Màn công cụ của tầng (tỷ lệ, chồng lớp): quay về việc duyệt lớp, không mời sang 3D (G4b-29).
         <Link to={FLOOR_LAYERS[0]?.path(project.id, project.floorId) ?? ROUTES.project.floors(project.id)} className={cn(getButtonStyles({ variant: 'secondary', size: 'sm' }), 'shrink-0 gap-2')}>
           <ArrowLeft size={16} aria-hidden="true" />

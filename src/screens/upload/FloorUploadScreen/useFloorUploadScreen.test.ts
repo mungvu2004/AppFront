@@ -1038,6 +1038,35 @@ describe('useFloorUploadScreen — lệnh "chờ đồng bộ" của tệp chờ
     await expectQueuedFiles(['mat-bang-tang-3.png']);
   });
 
+  it('RV5#20: gỡ tệp ảnh thì thu hồi ngay blob xem trước, không đợi rời màn', async () => {
+    const created: string[] = [];
+    const revoke = vi.fn();
+    const original = { createObjectURL: URL.createObjectURL, revokeObjectURL: URL.revokeObjectURL };
+    Object.assign(URL, {
+      createObjectURL: () => {
+        created.push(`blob:preview-${String(created.length)}`);
+        return created[created.length - 1];
+      },
+      revokeObjectURL: revoke,
+    });
+    try {
+      const { result } = await offlineWithFiles(['mat-bang-tang-3.png']);
+      await waitFor(() => {
+        expect(created.length).toBeGreaterThan(0);
+      });
+
+      act(() => {
+        result.current.onRemoveFile(fileIdOn(result, 3));
+      });
+
+      await waitFor(() => {
+        expect(revoke).toHaveBeenCalledWith(created[0]);
+      });
+    } finally {
+      Object.assign(URL, original);
+    }
+  });
+
   it('(b) gán lại về khay → lệnh gỡ; gán sang tầng khác → một lệnh, đúng tầng mới', async () => {
     const { result } = await offlineWithFiles(['mat-bang-tang-3.png']);
     const fileId = fileIdOn(result, 3);

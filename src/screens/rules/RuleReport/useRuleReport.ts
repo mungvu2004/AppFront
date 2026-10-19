@@ -649,11 +649,11 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
       // G5-32 / N3-08: đi thẳng tới lớp 2D sửa được đối tượng lỗi trên tầng của nó;
       // chỉ khi không biết loại/tầng mới về màn 3D như cũ.
       const row = [...groups.flatMap((group) => group.rows), ...resolvedRows].find((r) => r.key === rowKey);
-      const target =
-        row === undefined ? null : fixTargetOf(projectId, row.levelId ?? graph?.byKind.level[0] ?? null, row.entityId);
+      // RV5 #7: hàng không mang tầng thì không đoán tầng đầu (sai tầng ở dự án nhiều tầng).
+      const target = row === undefined ? null : fixTargetOf(projectId, row.levelId ?? null, row.entityId);
       navigate(target?.path ?? ROUTES.project.viewer(projectId));
     },
-    [graph, groups, navigate, projectId, resolvedRows],
+    [groups, navigate, projectId, resolvedRows],
   );
 
   const onRerun = useCallback((): void => {
