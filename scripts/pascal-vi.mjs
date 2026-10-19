@@ -12,6 +12,7 @@ import path from 'node:path';
 
 import { EDITOR_VI } from './pascal-vi/editor.mjs';
 import { EDITOR_EXTRA_VI } from './pascal-vi/editor-extra.mjs';
+import { EDITOR_EXTRA2_VI } from './pascal-vi/editor-extra2.mjs';
 
 function mergeTables(...tables) {
   const out = {};
@@ -19,7 +20,7 @@ function mergeTables(...tables) {
   return out;
 }
 
-export const PASCAL_VI_TABLES = mergeTables(EDITOR_VI, EDITOR_EXTRA_VI);
+export const PASCAL_VI_TABLES = mergeTables(EDITOR_VI, EDITOR_EXTRA_VI, EDITOR_EXTRA2_VI);
 
 /** Thay mọi cặp `[gốc, Việt]` trong `code`; thiếu chuỗi gốc thì ném lỗi. */
 export function applyTable(code, file, pairs) {

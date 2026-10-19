@@ -45,7 +45,7 @@ button[title="Thêm tầng phía trên"], button[title="Thêm tầng phía dư�
   color: var(--foreground) !important;
 }
 button[title="Add level above"], button[title="Thêm tầng phía trên"] {
-  translate: -50% calc(-100% - 2px) !important;
+  translate: -50% -50% !important;
 }
 button[title="Add level below"], button[title="Thêm tầng phía dưới"] {
   translate: -50% calc(100% + 2px) !important;

@@ -3,7 +3,7 @@
  * Nằm đầu khe `viewerToolbarLeft` nên không đè thanh bên; kiểu chép từ `TOOLBAR_CONTAINER`
  * của upstream `viewer-toolbar.tsx`.
  */
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown } from 'lucide-react';
 
 import { PROJECT_STEPS } from '@/routes/projectSteps';
 
@@ -32,13 +32,17 @@ const VIEWER_STEP = PROJECT_STEPS.findIndex((step) => step.id === 'viewer');
  * Dải sáu bước gọn của dự án (bước "Mô hình 3D" đang mở) và lối "Bước tiếp theo" — trang 3D
  * không có header chung của app nên tự vẽ lại hai thứ này từ cùng bảng `PROJECT_STEPS` (G5-04, N0-07).
  * Khe thanh công cụ hẹp: bước khác chỉ hiện số (tên ở `title`/nhãn đọc); dưới 1536px tên bước
- * hiện tại ẩn và lối tiếp viết gọn "Tiếp:", dưới 1280px ẩn cả dải (còn lối tiếp).
+ * hiện tại ẩn và lối tiếp viết gọn "Tiếp:".
+ * QA-2 L1: các ngưỡng dưới đây đo theo bề rộng thanh trên (container `appbar`, khai ở pascal.css),
+ * không theo khổ màn — thanh bên mở/kéo rộng cũng làm thanh hẹp lại. Thanh < 1400px: dải sáu bước
+ * thu thành một chip "bước hiện tại + menu" (`<details>`); < 960px: ẩn lối tiếp (đã có trong menu).
  */
 export function ProjectStepsCard({ projectId }: { readonly projectId: string }) {
   const next = PROJECT_STEPS[VIEWER_STEP + 1];
+  const current = PROJECT_STEPS[VIEWER_STEP] ?? PROJECT_STEPS[0]!;
   return (
     <>
-      <nav aria-label="Các bước của dự án" className={`${CARD} hidden px-1 xl:inline-flex`}>
+      <nav aria-label="Các bước của dự án" className={`${CARD} hidden px-1 @min-[1400px]/appbar:inline-flex`}>
         <ol className="flex items-center gap-0.5">
           {PROJECT_STEPS.map((step, index) =>
             index === VIEWER_STEP ? (
@@ -47,7 +51,7 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
                   <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
                     {index + 1}
                   </span>
-                  <span className="sr-only 2xl:not-sr-only">{step.label}</span>
+                  <span className="sr-only @min-[1600px]/appbar:not-sr-only">{step.label}</span>
                 </span>
               </li>
             ) : (
@@ -65,14 +69,40 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
           )}
         </ol>
       </nav>
+      <details className="relative @min-[1400px]/appbar:hidden">
+        <summary
+          aria-label={`Bước ${VIEWER_STEP + 1}/${PROJECT_STEPS.length}: ${current.label} — mở danh sách bước`}
+          className={`${CARD} flex cursor-pointer list-none gap-1.5 px-2 font-semibold hover:bg-accent [&::-webkit-details-marker]:hidden`}
+        >
+          <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+            {VIEWER_STEP + 1}
+          </span>
+          <span className="hidden @min-[1000px]/appbar:inline">{current.label}</span>
+          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        </summary>
+        <ol aria-label="Danh sách bước" className="absolute top-full left-0 z-50 mt-1 min-w-48 rounded-xl border border-border bg-popover/95 p-1 text-xs shadow-2xl backdrop-blur-xl">
+          {PROJECT_STEPS.map((step, index) => (
+            <li key={step.id}>
+              <a
+                {...(index === VIEWER_STEP ? { 'aria-current': 'step' as const } : {})}
+                className="flex h-7 items-center gap-2 whitespace-nowrap rounded-lg px-2 hover:bg-accent aria-[current=step]:bg-accent aria-[current=step]:font-semibold"
+                href={step.path(projectId)}
+              >
+                <span className="w-3 text-muted-foreground">{index + 1}</span>
+                {step.label}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </details>
       {next !== undefined && (
         <a
           aria-label={`Bước tiếp theo: ${next.label}`}
-          className={`${CARD} inline-flex gap-1 px-2.5 font-medium hover:bg-accent`}
+          className={`${CARD} hidden gap-1 whitespace-nowrap px-2.5 font-medium hover:bg-accent @min-[960px]/appbar:inline-flex`}
           href={next.path(projectId)}
         >
-          <span className="2xl:hidden">Tiếp:</span>
-          <span className="hidden 2xl:inline">Bước tiếp theo:</span>
+          <span className="@min-[1600px]/appbar:hidden">Tiếp:</span>
+          <span className="hidden @min-[1600px]/appbar:inline">Bước tiếp theo:</span>
           {next.label}
           <ArrowRight className="h-3.5 w-3.5 shrink-0" />
         </a>

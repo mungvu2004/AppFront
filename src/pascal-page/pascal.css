@@ -547,3 +547,14 @@
       100% 100%;
   }
 }
+
+/* QA-2 L1 (D1b): the viewer top bar (vendor RightColumn, `absolute left-3 right-3`) is the size
+ * container `appbar`; viewer-toolbar.tsx + BackToProjectCard.tsx drop labels / fold the step strip by
+ * its width, so an open or widened sidebar narrows the bar the same way a small viewport does. */
+div.z-20:has(> div > [data-appfront-bar]) {
+  container: appbar / inline-size;
+}
+/* Last-resort give: the left group may shrink and the back card (its name span is `truncate`)
+ * ellipsizes instead of pushing the right-hand buttons out of the bar. */
+div.z-20:has(> div > [data-appfront-bar]) > div:first-child { min-width: 0; }
+div.z-20:has(> div > [data-appfront-bar]) > div:first-child > a:first-child { min-width: 5rem; }

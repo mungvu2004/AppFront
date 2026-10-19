@@ -20,10 +20,11 @@
  *      (G5-11), Preview header shows the project name (G5-15), one-time orbit hint (G5-08).
  */
 
-import { nodeRegistry, onRegistryChange } from '@pascal-app/core'
+import { emitter, nodeRegistry, onRegistryChange, useScene } from '@pascal-app/core'
 import {
   Editor,
   ItemsPanel,
+  subscribeCameraPose,
   useEditor,
   useSidebarStore,
   useViewer,
@@ -31,15 +32,16 @@ import {
 } from '@pascal-app/editor'
 import { Hammer, Layers, Package, Settings, X } from 'lucide-react'
 import Image from 'next/image'
-import { type ComponentProps, type ReactNode, useCallback, useEffect, useState } from 'react'
+import { type ComponentProps, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { BuildTab } from './components/build-tab'
 import { CanvasHelp, MeasureClearButton } from './components/canvas-help'
 import {
   CommunityViewerToolbarLeft,
   CommunityViewerToolbarRight,
-  fitWholeModel,
 } from './components/viewer-toolbar'
+import { computeSceneBoundsXZ } from '../../../vendor/pascal/packages/editor/src/lib/scene-bounds'
 import { useEditorPreferencesPersistence } from './lib/editor-preferences'
+import { fitPose, fitWhenControlsReady } from './lib/fit-on-ready'
 import { translateDefinition } from './lib/pascal-vi'
 import { useSelectExitsMeasure } from './lib/use-select-exits-measure'
 
@@ -143,9 +145,62 @@ function applyStartParams() {
     ed.armToolMode({ mode: 'select' })
   }
   if (params.get('view') === 'exploded') useViewer.getState().setLevelMode('exploded')
-  // G5-06: frame the model once the camera controls have mounted (the editor's own auto-frame
-  // can fire before them). ponytail: fixed 600 ms delay, hook a 'controls ready' event if flaky.
-  setTimeout(fitWholeModel, 600)
+  // G5-06 / QA-2 L2: frame the model once the camera controls have mounted (a cold first open
+  // mounts them after the editor's own auto-frame and after any fixed delay).
+  fitWhenControlsReady(subscribeCameraPose, fitModel)
+}
+
+/** Frame the whole model; `apply-pose`, because upstream's `fit-scene` is ignored in Preview. */
+function fitModel() {
+  const bounds = computeSceneBoundsXZ(useScene.getState().nodes)
+  emitter.emit('camera-controls:apply-pose', fitPose(bounds, useViewer.getState().cameraMode))
+}
+
+/** Only poses published after subscribing (the current one belongs to the canvas being replaced). */
+function subscribeNextCameraPose(listener: () => void) {
+  let initial = true
+  const unsubscribe = subscribeCameraPose(() => {
+    if (!initial) listener()
+  })
+  initial = false
+  return unsubscribe
+}
+
+/**
+ * QA-2 L2: entering or leaving Preview swaps the canvas, and the new camera controls start at a
+ * fixed pose close to one corner. Re-frame the model once they are up.
+ */
+function useFitOnPreviewToggle() {
+  const isPreview = useEditor((state) => state.isPreviewMode)
+  const seen = useRef(isPreview)
+  useEffect(() => {
+    if (seen.current === isPreview) return
+    seen.current = isPreview
+    return fitWhenControlsReady(subscribeNextCameraPose, fitModel)
+  }, [isPreview])
+}
+
+/** Select tool, the same public calls `use-select-exits-measure.ts` makes for V. */
+function armSelect() {
+  const ed = useEditor.getState()
+  ed.armToolMode({ mode: 'select' })
+  ed.setFloorplanSelectionTool('click')
+}
+
+/**
+ * AppFront edit (Q4, D1a): leaving Preview (Esc or the header's back arrow) came back with the
+ * Wall tool armed — the sidebar "Tường" tile lit, "Chọn (V)" not. Land in Select instead. Runs
+ * on the state change, so every exit path (Esc in `useEscapeExits`, the back arrow) is covered.
+ */
+function useSelectAfterPreview() {
+  const isPreview = useEditor((state) => state.isPreviewMode)
+  const seen = useRef(isPreview)
+  useEffect(() => {
+    const left = seen.current && !isPreview
+    seen.current = isPreview
+    if (!left) return
+    armSelect()
+  }, [isPreview])
 }
 
 /** AppFront edit (P40, G5-15 / N5-11 / G5-14): Esc leaves Preview, then Delete or Measure. */
@@ -328,6 +383,8 @@ export default function Home({ projectId, onLoad, onSave, backCard, projectName 
   useEscapeExits()
   useSelectExitsMeasure()
   useAutoCollapseSidebar()
+  useFitOnPreviewToggle()
+  useSelectAfterPreview()
   const handleLoad = useCallback(async () => {
     const graph = await onLoad()
     // After Editor's own continuation has applied the graph (it awaits this promise).

@@ -62,11 +62,13 @@ import { flushSync } from 'react-dom'
 import { isTopDown, topViewPose } from '../lib/top-view-pose'
 import { cn } from '../lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from './toolbar-tooltip'
-// AppFront edit (P40, G5-11): text labels of the level/wall/display/preview buttons collapse to
-// screen-reader text below xl (1280px) so the top bar fits at 1024/768; tooltips keep the name.
+// AppFront edit (P40, G5-11; QA-2 L1): text labels of the level/wall/display buttons collapse to
+// screen-reader text when the top bar itself is narrower than 1300px (container `appbar`, declared
+// in pascal.css; the sidebar width counts, not just the viewport). "Xem trước" keeps its label down
+// to 760px; "Chia đôi" goes icon-only below 760px. Tooltips/aria-labels keep every name.
 
 const TOOLBAR_CONTAINER =
-  'inline-flex h-8 items-stretch overflow-hidden rounded-xl border border-border bg-background/90 shadow-2xl backdrop-blur-md'
+  'inline-flex h-8 shrink-0 items-stretch overflow-hidden whitespace-nowrap rounded-xl border border-border bg-background/90 shadow-2xl backdrop-blur-md'
 
 const TOOLBAR_BTN =
   'flex w-8 items-center justify-center text-muted-foreground/80 transition-colors hover:bg-white/8 hover:text-foreground/90'
@@ -205,7 +207,7 @@ function ViewModeControl() {
               type="button"
             >
               {mode.icon}
-              <span>{mode.label}</span>
+              <span className={mode.id === 'split' ? 'sr-only @min-[760px]/appbar:not-sr-only' : undefined}>{mode.label}</span>
             </button>
           </ToolbarTooltip>
         )
@@ -278,7 +280,7 @@ function LevelModeToggle() {
         ) : (
           <IconifyIcon height={14} icon="charm:stack-push" width={14} />
         )}
-        <span className="font-medium text-xs sr-only xl:not-sr-only">{levelModeLabels[levelMode] ?? 'Tầng: chồng'}</span>
+        <span className="font-medium text-xs sr-only @min-[1300px]/appbar:not-sr-only">{levelModeLabels[levelMode] ?? 'Tầng: chồng'}</span>
       </button>
     </ToolbarTooltip>
   )
@@ -309,7 +311,7 @@ function WallModeToggle() {
         type="button"
       >
         <Image alt="" className="h-4 w-4 object-contain" height={16} src={config.icon} width={16} />
-        <span className="font-medium text-xs sr-only xl:not-sr-only">{config.label}</span>
+        <span className="font-medium text-xs sr-only @min-[1300px]/appbar:not-sr-only">{config.label}</span>
       </button>
     </ToolbarTooltip>
   )
@@ -380,7 +382,7 @@ function DisplayMenu() {
             type="button"
           >
             <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />
-            <span className="font-medium text-xs sr-only xl:not-sr-only">Hiển thị</span>
+            <span className="font-medium text-xs sr-only @min-[1300px]/appbar:not-sr-only">Hiển thị</span>
           </button>
         </DropdownMenuTrigger>
       </ToolbarTooltip>
@@ -760,12 +762,13 @@ function PreviewButton() {
   return (
     <ToolbarTooltip label="Xem trước (Esc để thoát)">
       <button
+        aria-label="Xem trước"
         className="flex items-center gap-1.5 px-2.5 font-medium text-muted-foreground/80 text-xs transition-colors hover:bg-white/8 hover:text-foreground/90"
         onClick={() => useEditor.getState().setPreviewMode(true)}
         type="button"
       >
         <Eye className="h-3.5 w-3.5 shrink-0" />
-        <span className="sr-only xl:not-sr-only">Xem trước</span>
+        <span aria-hidden="true" className="hidden @min-[760px]/appbar:inline">Xem trước</span>
       </button>
     </ToolbarTooltip>
   )
@@ -824,7 +827,7 @@ export function CommunityViewerToolbarRight({
   vrLabel?: string
 }) {
   return (
-    <div className={TOOLBAR_CONTAINER}>
+    <div className={TOOLBAR_CONTAINER} data-appfront-bar="">
       <LevelModeToggle />
       <WallModeToggle />
       <div className="my-1.5 w-px bg-border/50" />
