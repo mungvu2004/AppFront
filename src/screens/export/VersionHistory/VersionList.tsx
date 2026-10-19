@@ -45,6 +45,10 @@ function VersionDiffDots({ row }: { row: VersionRowModel }) {
     );
   }
 
+  if (row.countsUnavailableLabel !== undefined) {
+    return <span className="text-[13px] text-text-tertiary">{row.countsUnavailableLabel}</span>;
+  }
+
   const counts = row.counts;
   const labelByTone: Readonly<Record<DiffTone, string>> = {
     added: counts.addedLabel,
@@ -138,7 +142,7 @@ function VersionListRow({
           {row.relativeTimeLabel}
         </span>
         <VersionDiffDots row={row} />
-        {row.isCountsLoading === true ? null : (
+        {row.isCountsLoading === true || row.countsUnavailableLabel !== undefined ? null : (
           <span className="sr-only">{row.counts.ariaLabel}</span>
         )}
       </div>

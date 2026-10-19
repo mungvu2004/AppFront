@@ -238,13 +238,7 @@ export function ExportPanelOptions({
         </section>
       )}
 
-      <div
-        className={
-          selectedFormatId === 'spatial-json'
-            ? 'flex flex-col gap-2 border-t border-border-default pt-3'
-            : 'flex flex-col gap-2 border-t border-border-default pt-3'
-        }
-      >
+      <div className="flex flex-col gap-2 border-t border-border-default pt-3">
         <button
           type="button"
           aria-expanded={options.isExpanded}

@@ -4,7 +4,7 @@ import type { SpatialLayer } from '@/api/client';
 import { diffVersions } from '@/lib/versioning/diff';
 
 import { WIRE_CURRENT_WALLS, WIRE_V2_WALLS, wireLayer, wireWall } from './versionHistoryFixtures';
-import { buildPlanDiffModel, planEntityIdOf } from './versionHistoryPlan';
+import { buildPlanDiffModel, entityCountsOf, planEntityIdOf, togglePinned } from './versionHistoryPlan';
 import { toVersionSnapshot, type VersionSnapshotSource } from './versionSnapshotAdapter';
 
 const sourceOf = (walls: readonly Record<string, unknown>[], extra: Partial<SpatialLayer> = {}): VersionSnapshotSource => ({
@@ -55,6 +55,31 @@ describe('buildPlanDiffModel', () => {
 
     expect(planEntityIdOf('V-W-WALL000001-end')).toBe('W-WALL000001');
     expect(plan.walls).toEqual([expect.objectContaining({ focused: true, id: 'W-WALL000001', tone: 'changed', x1: 1000 })]);
+  });
+
+  it('RV2#2: bấm lại hàng đầu tường của tường đang ghim thì bỏ ghim', () => {
+    expect(togglePinned('W1', 'V-W1-start')).toBeNull();
+    expect(togglePinned('V-W1-start', 'V-W1-end')).toBeNull();
+    expect(togglePinned('W1', 'W2')).toBe('W2');
+    expect(togglePinned(null, 'W1')).toBe('W1');
+    expect(togglePinned('W1', null)).toBeNull();
+  });
+
+  it('RV2#3: đếm theo đối tượng, không theo mục diff', () => {
+    const counts = entityCountsOf({
+      added: [
+        { entityId: 'W2', entityType: 'wall', kind: 'added' },
+        { entityId: 'V-W2-start', entityType: 'vertex', kind: 'added' },
+        { entityId: 'V-W2-end', entityType: 'vertex', kind: 'added' },
+      ],
+      changed: [
+        { entityId: 'V-W1-start', entityType: 'vertex', kind: 'changed', field: 'x' },
+        { entityId: 'V-W1-start', entityType: 'vertex', kind: 'changed', field: 'y' },
+      ],
+      removed: [],
+    });
+
+    expect(counts).toEqual({ added: 1, removed: 0, changed: 1 });
   });
 
   it('ô mở trên tường bị xoá vẽ theo bản trái, tone xoá', () => {

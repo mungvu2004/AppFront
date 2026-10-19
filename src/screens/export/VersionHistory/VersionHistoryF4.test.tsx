@@ -66,10 +66,24 @@ describe('F4', () => {
     }));
     const built = buildVersionRows({
       currentRevision: 1, history: history as never, leftVersionId: null, now: new Date('2026-01-02T00:00:00Z'),
-      purgedIds: new Set(), rightVersionId: null, summaries: new Map(),
+      purgedIds: new Set(), rightVersionId: null, summaries: new Map(), loadingIds: new Set(['v1']),
     } as never);
     expect(built[0]?.row.isCountsLoading).toBe(true);
     expect(built[1]?.row.isCountsLoading).toBe(true);
+  });
+
+  it('RV2#1: hàng không được nạp thì "Chưa so được", không xoay mãi', () => {
+    const history = [0, 1].map((i) => ({
+      kind: i === 0 ? ('full' as const) : ('metadata' as const),
+      version: { id: `v${String(i)}`, sequence: i, createdAt: '2026-01-01T00:00:00Z', note: null, creatorId: 'u', creatorName: 'U' },
+    }));
+    const built = buildVersionRows({
+      currentRevision: 1, history: history as never, leftVersionId: null, now: new Date('2026-01-02T00:00:00Z'),
+      purgedIds: new Set(), rightVersionId: null, summaries: new Map(), loadingIds: new Set(),
+    } as never);
+    expect(built[0]?.row.isCountsLoading).toBe(false);
+    expect(built[0]?.row.countsUnavailableLabel).toBe('Chưa so được');
+    expect(built[1]?.row.isCountsLoading).toBe(false);
   });
 
   it('32-C-043: ký tự cấm không bị báo "dài tối đa 60"', () => {
@@ -96,12 +110,12 @@ describe('F4', () => {
     const base = buildVersionHistoryProps('success');
     const [current, old] = [SAMPLE_ROWS[0]!, SAMPLE_ROWS[1]!];
     const rows = [{ ...current, isCurrent: true }, { ...old, isCurrent: false }];
-    const totals = { ...base.model.compare.totals, added: 28, removed: 0, changed: 0 };
+    const entityTotals = { added: 28, removed: 0, changed: 0 };
     const props = buildVersionHistoryProps(
       'success',
       {
         rows,
-        compare: { ...base.model.compare, leftVersionId: old.id, rightVersionId: current.id, totals },
+        compare: { ...base.model.compare, leftVersionId: old.id, rightVersionId: current.id, entityTotals },
         restoreConfirm: { ...base.model.restoreConfirm, isOpen: true },
       },
       { requestRestore },

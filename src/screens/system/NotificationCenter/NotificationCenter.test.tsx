@@ -227,6 +227,9 @@ function baseProps(overrides: Partial<NotificationCenterProps> = {}): Notificati
     arrivedIds: [],
     bellNudgeToken: 0,
     scrollRef: noop,
+    canLoadOlder: false,
+    isLoadingOlder: false,
+    onLoadOlder: noop,
     ...overrides,
   };
 }
@@ -1253,3 +1256,32 @@ describe('Tên đối tượng chỉ hiện một lần trong dòng (BUG-206)', 
   });
 });
 
+
+describe('G1-15 — "Xem cũ hơn" nạp trang kế bằng cursor', () => {
+  it('trang đầu có cursor thì hiện nút; bấm nạp trang cũ hơn rồi nút biến mất', async () => {
+    const fake = createFakeGateway([]);
+    const listPage = vi.fn((cursor?: string) =>
+      Promise.resolve(
+        cursor === undefined
+          ? { items: [buildItem({ id: 'new-1' })], nextCursor: 'c-1' }
+          : { items: [buildItem({ id: 'old-1' })] },
+      ),
+    );
+
+    mountNotificationCenter({ gateway: { ...fake.gateway, listPage } });
+
+    await waitFor(() => {
+      expect(notificationProps().canLoadOlder).toBe(true);
+    });
+
+    act(() => {
+      notificationProps().onLoadOlder();
+    });
+
+    await waitFor(() => {
+      expect(allItems(notificationProps().groups).map((item) => item.id)).toEqual(['new-1', 'old-1']);
+    });
+    expect(listPage).toHaveBeenLastCalledWith('c-1');
+    expect(notificationProps().canLoadOlder).toBe(false);
+  });
+});

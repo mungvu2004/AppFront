@@ -332,11 +332,18 @@ export function createPipelineGraphGateway(
       return result.ok ? result.data.name : null;
     },
 
+    // N7b (mới nhất trước) chứ không phải phần tử cuối N7: N7 là mỗi tầng một lượt, không mốc thời gian (RV2#4).
     readLatestRun: async ({ projectId, signal }) => {
-      const result = await processing.readLatestUploads({
-        projectId,
-        ...(signal !== undefined ? { signal } : {}),
-      });
+      const input = { projectId, ...(signal !== undefined ? { signal } : {}) };
+
+      if (processing.readPipelineRuns !== undefined) {
+        const runs = await processing.readPipelineRuns(input);
+        const newest = runs.ok ? runs.data.items[0] : undefined;
+
+        return newest === undefined ? null : { floorId: newest.floorId, uploadId: newest.uploadId };
+      }
+
+      const result = await processing.readLatestUploads(input);
       const latest = result.ok ? result.data.at(-1) : undefined;
 
       return latest === undefined ? null : { floorId: latest.floorId, uploadId: latest.uploadId };

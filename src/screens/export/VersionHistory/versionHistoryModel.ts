@@ -170,6 +170,8 @@ export interface BuildRowsContext {
   readonly currentRevision: number | null;
   /** Bản có N18 hỏng tạm thời (không tính bản hết nội dung). */
   readonly failedIds?: ReadonlySet<string>;
+  /** Bản có N18 đang nạp thật (đã bật truy vấn, chưa có dữ liệu, chưa hỏng). */
+  readonly loadingIds?: ReadonlySet<string>;
 }
 
 /**
@@ -183,6 +185,7 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
     currentRevision,
     failedIds,
     history,
+    loadingIds,
     now,
     leftVersionId,
     purgedIds,
@@ -204,11 +207,19 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
         : EMPTY_DIFF_COUNTS;
 
     // Ảnh chụp của bản này hoặc bản liền trước chưa nạp: số liệu chưa biết, không phải "không đổi".
+    // Chỉ xoay khi truy vấn N18 của hàng (hoặc bản liền trước) thật sự đang chạy; hàng ngoài
+    // tầm nạp hay bản trước đã hết nội dung thì "chưa so được", không xoay mãi (RV2#1).
     const isFailed = failedIds?.has(metadata.id) === true;
-    const hasUnloadedPrevious =
-      history[index + 1] !== undefined && previous === null && entry.kind === 'full';
-    const isCountsLoading =
-      !isMetadataOnly && !isFailed && (entry.kind !== 'full' || hasUnloadedPrevious);
+    const previousEntry = history[index + 1];
+    const awaitedId =
+      entry.kind !== 'full'
+        ? metadata.id
+        : previousEntry !== undefined && previous === null
+          ? previousEntry.version.id
+          : null;
+    const isCountsPending = !isMetadataOnly && !isFailed && awaitedId !== null;
+    const isCountsLoading = isCountsPending && loadingIds?.has(awaitedId) === true;
+    const isCountsUnknown = isCountsPending && !isCountsLoading;
 
     const createdAt = instantOf(metadata.createdAt);
 
@@ -228,6 +239,7 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
         absoluteTimeLabel: `${formatCalendarDate(createdAt)} ${formatClockTime(createdAt)}`,
         counts,
         isCountsLoading,
+        ...(isCountsUnknown ? { countsUnavailableLabel: COUNTS_UNAVAILABLE_LABEL } : {}),
         // HOP-DONG-MOI §5: hiện tại ⇔ `floorRevision` bằng `revision` của tầng, không phải "hàng đầu".
         isCurrent: currentRevision !== null && summary?.floorRevision === currentRevision,
         tagLabel: summary?.label ?? null,
@@ -434,6 +446,8 @@ const WRITE_ERROR_FALLBACK: Readonly<Record<VersionWriteOperation, string>> = {
 
 /** N18 hỏng tạm thời của một hàng (NO-368) — khác "hết nội dung": bấm thử lại được. */
 export const SNAPSHOT_FAILED_NOTICE = 'Chưa tải được nội dung bản này';
+/** Hàng không nạp ảnh chụp (ngoài tầm nạp trước, hoặc bản trước hết nội dung) — RV2#1. */
+export const COUNTS_UNAVAILABLE_LABEL = 'Chưa so được';
 /** Nhãn nút thử lại N18 của một hàng. */
 export const SNAPSHOT_RETRY_LABEL = 'Thử lại';
 

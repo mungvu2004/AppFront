@@ -40,6 +40,7 @@ import {
   describeCounts,
   findMatches,
   flattenJson,
+  rawLineIndex,
   summariseValidity,
   toRawText,
   tokenizeJsonLine,
@@ -267,6 +268,31 @@ describe('Bảy trạng thái', () => {
     expect(onChangeTab).toHaveBeenCalledWith('preview');
 
     unmount();
+  });
+
+  it('RV2#6: khổ rộng + "Thô" chỉ còn khung JSON, không tab Xem trước, không nút mở rộng/thu gọn', () => {
+    const props = buildSpatialJsonViewerProps('success');
+    const { unmount } = renderWithProviders(
+      <SpatialJsonViewer {...props} model={{ ...props.model, isNarrow: false, viewMode: 'raw', activeTabId: 'preview' }} />,
+    );
+
+    expect(screen.queryByRole('tablist', { name: 'Cách xem nội dung' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Mở rộng tất cả/u })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Thu gọn tất cả/u })).toBeNull();
+
+    unmount();
+  });
+
+  it('RV2#5: số dòng theo đường dẫn khớp đúng chữ thô, kể cả phần tử mảng và khoá lặp', () => {
+    const graph = { walls: [{ id: 'W0', start: { x: 1 } }, { id: 'W1', tags: [] }, { id: 'W2' }], name: 'A' };
+    const lines = toRawText(graph).split('\n');
+    const index = rawLineIndex(graph);
+
+    expect(lines[index.get('walls[2]') ?? -1]?.trim()).toBe('{');
+    expect(lines[index.get('walls[2].id') ?? -1]?.trim()).toBe('"id": "W2"');
+    expect(lines[index.get('walls[1].tags') ?? -1]?.trim()).toBe('"tags": []');
+    expect(lines[index.get('name') ?? -1]?.trim()).toBe('"name": "A"');
+    expect([...index.keys()]).toEqual(flattenJson(graph).map((node) => node.id));
   });
 
   it('[BUG-454] rỗng: không khung JSON kể ngược lại, không lộ "pipeline" / "Spatial JSON"', () => {

@@ -37,6 +37,10 @@ export interface SpatialJsonDetailProps {
   readonly onChangeTab: (tabId: SpatialJsonTabId) => void;
   readonly rawText: string;
   readonly selectedNode: SpatialJsonNode | null;
+  /** `model.selectedRawLine` — dòng của hàng đang chọn trong chữ thô. */
+  readonly focusLine?: number | null | undefined;
+  /** Chỉ khung JSON, không tab — chế độ "Thô" ở khổ rộng, nơi không còn cây để chọn hàng xem trước. */
+  readonly isJsonOnly?: boolean | undefined;
 }
 
 const TAB_LABELS: ReadonlyArray<{ readonly id: SpatialJsonTabId; readonly label: string }> = [
@@ -44,15 +48,15 @@ const TAB_LABELS: ReadonlyArray<{ readonly id: SpatialJsonTabId; readonly label:
   { id: 'preview', label: 'Xem trước' },
 ];
 
-function RawJson({ rawText, focusKey }: { readonly rawText: string; readonly focusKey: string | null }) {
+function RawJson({ rawText, focusLine }: { readonly rawText: string; readonly focusLine: number | null }) {
   const lines = rawText.split('\n');
   const hitRef = useRef<HTMLDivElement | null>(null);
-  // Dòng khớp đầu tiên với khoá của nút đang chọn: cuộn tới đó khi chọn đổi (G5-41).
-  const hitIndex = focusKey === null ? -1 : lines.slice(0, MAX_RAW_LINES).findIndex((l) => l.includes(`"${focusKey}"`));
+  // Dòng của hàng đang chọn, tính theo đường dẫn ở model: cuộn tới đó khi chọn đổi (G5-41, RV2#5).
+  const hitIndex = focusLine ?? -1;
 
   useEffect(() => {
     hitRef.current?.scrollIntoView?.({ block: 'center' });
-  }, [hitIndex, focusKey]);
+  }, [hitIndex]);
 
   const shown = lines.slice(0, MAX_RAW_LINES);
   const hiddenCount = lines.length - shown.length;
@@ -142,9 +146,19 @@ function NodePreview({ selectedNode }: { readonly selectedNode: SpatialJsonNode 
 export function SpatialJsonDetail({
   activeTabId,
   onChangeTab,
+  focusLine = null,
+  isJsonOnly = false,
   rawText,
   selectedNode,
 }: SpatialJsonDetailProps) {
+  if (isJsonOnly) {
+    return (
+      <section className="flex h-full min-w-0 flex-1 flex-col" aria-label="Nội dung dữ liệu không gian">
+        <RawJson rawText={rawText} focusLine={focusLine} />
+      </section>
+    );
+  }
+
   return (
     <section className="flex h-full min-w-0 flex-1 flex-col gap-3" aria-label="Nội dung dữ liệu không gian">
       <div role="tablist" aria-label="Cách xem nội dung" className="flex items-center gap-1">
@@ -191,7 +205,7 @@ export function SpatialJsonDetail({
 
       <div id="sjd-tabpanel" role="tabpanel" aria-labelledby={`sjd-tab-${activeTabId}`} className="min-h-0 flex-1">
         {activeTabId === 'json' ? (
-          <RawJson rawText={rawText} focusKey={selectedNode?.label ?? null} />
+          <RawJson rawText={rawText} focusLine={focusLine} />
         ) : (
           <NodePreview selectedNode={selectedNode} />
         )}

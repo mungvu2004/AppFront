@@ -10,7 +10,7 @@
  *
  * | Việc | Đi qua |
  * |---|---|
- * | Đọc danh sách | `useQuery` + {@link NotificationCenterGateway.list} |
+ * | Đọc danh sách | `useInfiniteQuery` + {@link NotificationCenterGateway.listPage} (vắng thì `list`) |
  * | Thời gian tương đối | `formatTimestamp` (`lib/format/datetime.ts:184`, P-02) |
  * | Gộp theo ngày | `isSameCalendarDay` (`datetime.ts:129`) |
  * | Tiêu đề ngày cũ | `formatCalendarDate` (`datetime.ts:153`) |
@@ -64,7 +64,7 @@
  *    S-05, và nối hai nơi làm một là phần của khoản nợ **T-09**.
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { appNotificationBus } from '@/hooks/useNotifications';
@@ -90,8 +90,12 @@ import {
   type NotificationFilter,
   type NotificationItemVm,
   type NotificationKind,
+  type NotificationPageVm,
   type NotificationScreenState,
 } from './notificationModel';
+
+/** Hình dạng bộ đệm của danh sách: các trang, mới nhất trước. */
+type NotificationListData = InfiniteData<NotificationPageVm, string | undefined>;
 
 /* -------------------------------------------------------------------------- */
 /* 1 — Khoá bộ đệm                                                             */
@@ -302,6 +306,13 @@ export interface NotificationCenterProps {
   readonly bellNudgeToken: number;
   /** Ref của vùng cuộn. Gắn vào `<div>` cuộn thì hook mới bù được vị trí. */
   readonly scrollRef: (surface: NotificationScrollSurface | null) => void;
+
+  /** Còn thông báo cũ hơn trên máy chủ — hiện nút "Xem cũ hơn" (G1-15). */
+  readonly canLoadOlder: boolean;
+  /** Đang nạp trang cũ hơn. */
+  readonly isLoadingOlder: boolean;
+  /** "Xem cũ hơn": nạp trang kế bằng cursor. */
+  readonly onLoadOlder: () => void;
 }
 
 /**
@@ -453,9 +464,14 @@ export function useNotificationCenter(
     setIsOpenInternal((current) => !current);
   }, []);
 
-  const listQuery = useQuery({
+  // Trang đầu y như trước; "Xem cũ hơn" nạp trang kế bằng cursor (G1-15). Cổng không có
+  // `listPage` thì một trang duy nhất từ `list`, không có trang kế.
+  const listQuery = useInfiniteQuery({
     queryKey: notificationListQueryKey,
-    queryFn: () => gateway.list(),
+    queryFn: async ({ pageParam }): Promise<NotificationPageVm> =>
+      gateway.listPage !== undefined ? gateway.listPage(pageParam) : { items: await gateway.list() },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor,
   });
 
   /**
@@ -480,7 +496,7 @@ export function useNotificationCenter(
   );
 
   const items = useMemo<readonly NotificationItemVm[]>(() => {
-    const listed = listQuery.data ?? [];
+    const listed = listQuery.data?.pages.flatMap((page) => page.items) ?? [];
 
     if (pendingReadIds.size === 0 && acceptState.size === 0) {
       return listed;
@@ -559,10 +575,14 @@ export function useNotificationCenter(
         heightBeforeArrivalRef.current = surface.scrollHeight;
       }
 
-      queryClient.setQueryData<readonly NotificationItemVm[]>(
-        notificationListQueryKey,
-        (previous) => (previous === undefined ? [arrived] : [arrived, ...previous]),
-      );
+      queryClient.setQueryData<NotificationListData>(notificationListQueryKey, (previous) => {
+        const [first, ...rest] = previous?.pages ?? [];
+
+        return {
+          pages: [{ ...first, items: [arrived, ...(first?.items ?? [])] }, ...rest],
+          pageParams: previous?.pageParams ?? [undefined],
+        };
+      });
 
       setArrivedIds((current) => [arrived.id, ...current]);
       setBellNudgeToken((token) => token + 1);
@@ -603,7 +623,7 @@ export function useNotificationCenter(
    */
   const applyReadInCache = useCallback(
     (ids: readonly string[]): void => {
-      queryClient.setQueryData<readonly NotificationItemVm[]>(
+      queryClient.setQueryData<NotificationListData>(
         notificationListQueryKey,
         (previous) => {
           if (previous === undefined) {
@@ -612,11 +632,17 @@ export function useNotificationCenter(
 
           const wanted = new Set(ids);
 
-          return previous.map((item) =>
-            item.isRead || !wanted.has(item.id)
-              ? item
-              : { ...item, isRead: true },
-          );
+          return {
+            ...previous,
+            pages: previous.pages.map((page) => ({
+              ...page,
+              items: page.items.map((item) =>
+                item.isRead || !wanted.has(item.id)
+                  ? item
+                  : { ...item, isRead: true },
+              ),
+            })),
+          };
         },
       );
     },
@@ -954,11 +980,17 @@ export function useNotificationCenter(
     isCompact,
   ]);
 
-  const { refetch } = listQuery;
+  const { fetchNextPage, hasNextPage, isFetchingNextPage, refetch } = listQuery;
 
   const onRetry = useCallback((): void => {
     void refetch();
   }, [refetch]);
+
+  const onLoadOlder = useCallback((): void => {
+    if (!isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [fetchNextPage, isFetchingNextPage]);
 
   /**
    * Câu cho `aria-live`. Lỗi nói ra là lỗi; không còn gì chưa đọc thì nói ra
@@ -1001,6 +1033,9 @@ export function useNotificationCenter(
     arrivedIds,
     bellNudgeToken,
     scrollRef,
+    canLoadOlder: hasNextPage,
+    isLoadingOlder: isFetchingNextPage,
+    onLoadOlder,
     filterOptions,
     errorTitle: NOTIFICATION_CENTER_TEXT.loadFailed,
     mutationErrorMessage:

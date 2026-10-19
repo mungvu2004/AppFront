@@ -335,6 +335,7 @@ export function buildCompareModel(overrides: Partial<CompareModel> = {}): Compar
     activeTab: 'changes',
     tabs: SAMPLE_TABS,
     totals: SAMPLE_DIFF_COUNTS,
+    entityTotals: { added: SAMPLE_DIFF_COUNTS.added, removed: SAMPLE_DIFF_COUNTS.removed, changed: SAMPLE_DIFF_COUNTS.changed },
     groups: [SAMPLE_DIFF_GROUP],
     jsonLines: SAMPLE_JSON_LINES,
     visual: SAMPLE_VISUAL,

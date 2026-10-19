@@ -18,7 +18,8 @@ const SVG_LABEL_PREFIX = 'Mặt bằng ';
 const LEGEND_LABEL = 'Chú giải mặt bằng';
 const SAME_LABEL = 'Không đổi';
 const NO_PLAN_TEXT =
-  'Chưa vẽ được mặt bằng vì một trong hai bản chưa có ảnh chụp. Danh sách thay đổi bên dưới vẫn đủ.';
+  'Chưa vẽ được mặt bằng vì một trong hai bản chưa có ảnh chụp. Danh sách thay đổi vẫn đủ.';
+const NO_PAIR_TEXT = 'Tích đủ hai phiên bản để xem mặt bằng chồng hai bản.';
 const EMPTY_PLAN_TEXT = 'Tầng này chưa có tường, phòng hay đồ đạc nào ở cả hai bản, nên không có gì để vẽ.';
 /** Chú giải đếm HÌNH trên mặt bằng; số +/−/~ phía trên đếm mọi mục thay đổi (QA-2 L7). */
 const SHAPE_UNIT = ' hình';
@@ -57,17 +58,19 @@ function centroidOf(points: string): { x: number; y: number } {
 
 export interface VersionPlanDiffProps {
   readonly plan: PlanDiffModel | null;
+  /** Đã tích đủ hai bản chưa — `plan` null vì thiếu cặp khác với null vì thiếu ảnh chụp (RV2#12). */
+  readonly isPairPicked?: boolean;
   /** `actions.hoverDiffRow`. */
   readonly onHover: (entityId: string | null) => void;
   /** `actions.pinDiffRow` — bấm hình thì ghim dòng tương ứng. */
   readonly onPick: (entityId: string) => void;
 }
 
-export function VersionPlanDiff({ plan, onHover, onPick }: VersionPlanDiffProps) {
+export function VersionPlanDiff({ plan, isPairPicked = true, onHover, onPick }: VersionPlanDiffProps) {
   if (plan === null) {
     return (
       <p className="rounded-lg border border-border-default bg-bg-surface p-4 text-[14px] text-text-secondary">
-        {NO_PLAN_TEXT}
+        {isPairPicked ? NO_PLAN_TEXT : NO_PAIR_TEXT}
       </p>
     );
   }

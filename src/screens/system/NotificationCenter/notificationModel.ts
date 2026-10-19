@@ -102,6 +102,12 @@ export interface NotificationItemVm {
   readonly statusNote?: string | undefined;
 }
 
+/** Một trang thông báo; `nextCursor` vắng nghĩa là không còn thông báo cũ hơn. */
+export interface NotificationPageVm {
+  readonly items: readonly NotificationItemVm[];
+  readonly nextCursor?: string | undefined;
+}
+
 /** Nhóm theo ngày (P-03). `heading` đã là câu tiếng Việt. */
 export interface NotificationDayGroup {
   /** Khoá ổn định cho React, dẫn xuất từ ngày chứ không phải chỉ số mảng. */
@@ -166,6 +172,11 @@ export const BELL_NUDGE_DEGREES = 8;
 export interface NotificationCenterGateway {
   /** Đọc danh sách. Ném lỗi khi hỏng — tầng trên bắt và vẽ trạng thái 4. */
   readonly list: () => Promise<readonly NotificationItemVm[]>;
+  /**
+   * "Xem cũ hơn" (G1-15): không `cursor` thì y như {@link list} kèm cursor trang kế; có `cursor`
+   * thì trang cũ hơn kế tiếp. Tuỳ chọn: cổng giả cũ không có thì màn chỉ không có nút ấy.
+   */
+  readonly listPage?: (cursor?: string) => Promise<NotificationPageVm>;
   /** Đánh dấu đã đọc. Gọi khi người dùng làm việc đó, không bao giờ tự động. */
   readonly markRead: (ids: readonly string[]) => Promise<void>;
   readonly markAllRead: () => Promise<void>;

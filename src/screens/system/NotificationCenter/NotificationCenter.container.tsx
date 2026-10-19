@@ -178,11 +178,11 @@ export function NotificationBellContainer(props: NotificationCenterContainerProp
 /** The panel and the gaps on both its sides: the backdrop centres its text in what is left (from the Drawer's own width). */
 const PANEL_CLEARANCE = { '--panel-clearance': `${String(DRAWER_WIDTH_PX + 2 * DRAWER_GAP_PX)}px` } as CSSProperties;
 
-function NotificationRouteBackdrop({ onBack }: { readonly onBack: () => void }) {
+/** Không bắt click: lớp phủ của `Drawer` nằm trên và đã gọi `onDismiss` (RV2#9). */
+function NotificationRouteBackdrop() {
   return (
     <div
       aria-hidden="true"
-      onClick={onBack}
       className="fixed inset-0 flex items-start justify-center bg-bg-app px-6 pt-8 lg:items-center lg:pr-[var(--panel-clearance)] lg:pt-0"
       style={PANEL_CLEARANCE}
     >
@@ -269,7 +269,7 @@ export function NotificationCenterRoute() {
 
   return (
     <>
-      <NotificationRouteBackdrop onBack={goBack} />
+      <NotificationRouteBackdrop />
       <NotificationCenterContainer isOpen isCompact hideViewAll onNavigate={goTo} onDismiss={goBack} />
     </>
   );

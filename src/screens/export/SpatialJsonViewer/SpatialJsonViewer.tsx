@@ -143,12 +143,17 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
 
         <span className="flex-1" />
 
-        <Button variant="ghost" size="sm" iconBefore={<ChevronsUpDown size={16} aria-hidden="true" />} onClick={actions.onExpandAll}>
-          Mở rộng tất cả
-        </Button>
-        <Button variant="ghost" size="sm" iconBefore={<ChevronsDownUp size={16} aria-hidden="true" />} onClick={actions.onCollapseAll}>
-          Thu gọn tất cả
-        </Button>
+        {/* Không có cây ("Thô") thì mở rộng/thu gọn không có gì để tác động (RV2#6). */}
+        {isRawOnly ? null : (
+          <>
+            <Button variant="ghost" size="sm" iconBefore={<ChevronsUpDown size={16} aria-hidden="true" />} onClick={actions.onExpandAll}>
+              Mở rộng tất cả
+            </Button>
+            <Button variant="ghost" size="sm" iconBefore={<ChevronsDownUp size={16} aria-hidden="true" />} onClick={actions.onCollapseAll}>
+              Thu gọn tất cả
+            </Button>
+          </>
+        )}
 
         <SegmentedControl
           aria-label="Cách hiện cấu trúc"
@@ -229,8 +234,12 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
 
         {isEmpty || (model.isNarrow && !isRawOnly) ? null : (
           <SpatialJsonDetail
-            activeTabId={model.viewMode === 'raw' && !isRawOnly ? 'json' : model.activeTabId}
+            activeTabId={model.activeTabId}
+            // "Thô" ở khổ rộng: không còn cây nên chỉ khung JSON (RV2#6). Khổ hẹp giữ hai tab (BUG-450):
+            // ở đó "Thô" là lối duy nhất tới tab Xem trước.
+            isJsonOnly={isRawOnly && !model.isNarrow}
             onChangeTab={actions.onChangeTab}
+            focusLine={model.selectedRawLine}
             rawText={model.rawText}
             selectedNode={selectedNode}
           />

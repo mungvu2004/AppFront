@@ -55,6 +55,7 @@ const MARK_ALL_READ_LABEL = 'Đánh dấu tất cả đã đọc';
 const SETTINGS_LABEL = 'Mở cài đặt thông báo';
 const FILTER_ARIA_LABEL = 'Lọc thông báo';
 const VIEW_ALL_LABEL = 'Xem tất cả';
+const LOAD_OLDER_LABEL = 'Xem cũ hơn';
 const RETRY_LABEL = 'Thử lại';
 const BELL_ARIA_LABEL = 'Thông báo';
 
@@ -110,6 +111,7 @@ export function NotificationCenter(props: NotificationCenterProps & { readonly h
     screenState, isOpen, onClose, filter, onFilterChange, groups, unreadBadge,
     liveMessage, onMarkAllRead, onMarkRead, onItemClick, onInlineAction, onViewAll,
     onOpenSettings, errorMessage, onRetry, arrivedIds, scrollRef, hideViewAll = false,
+    canLoadOlder, isLoadingOlder, onLoadOlder,
   } = props;
 
   /* Hoà tan 180ms rồi mới `onClose` — trình bày thuần, không phải R-64. */
@@ -192,6 +194,12 @@ export function NotificationCenter(props: NotificationCenterProps & { readonly h
             </ul>
           </section>
         ))}
+        {/* G1-15: thông báo cũ hơn trang đầu nạp theo cursor, cuối danh sách. */}
+        {canLoadOlder && (
+          <Button variant="ghost" size="sm" fullWidth loading={isLoadingOlder} onClick={onLoadOlder}>
+            {LOAD_OLDER_LABEL}
+          </Button>
+        )}
       </>
     );
   }

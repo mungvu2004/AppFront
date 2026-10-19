@@ -199,6 +199,8 @@ describe('[BUG-466] .glb mà chưa chọn tầng nào: không nút "Xuất", kh�
     render(<ExportPanelView {...props} />);
 
     expect(screen.getByRole('button', { name: 'Xuất' })).toHaveProperty('disabled', true);
+    // RV2#7: chân trang nói vì sao nút mờ, không phải câu thư mục tải xuống.
+    expect(screen.getByText('Chọn ít nhất một tầng để xuất mô hình 3D.')).toBeTruthy();
   });
 
   it('Spatial JSON không phụ thuộc tầng nên vẫn xuất được khi chưa chọn tầng', async () => {

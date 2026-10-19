@@ -73,6 +73,9 @@ import type {
 export { NOTIFICATION_PLACES };
 export type { NotificationPlace };
 
+/** Mỗi lượt "Xem cũ hơn" nạp ngần này thông báo. */
+export const OLDER_PAGE_SIZE = 20;
+
 /* -------------------------------------------------------------------------- */
 /* 1 — Bảng đích: mỗi thông báo dẫn tới màn duyệt của chính nó                 */
 /* -------------------------------------------------------------------------- */
@@ -300,6 +303,19 @@ export function createNotificationCenterGateway(
       return unwrap(await client.notifications.list()).map((notification) =>
         toNotificationItemVm(notification, nowMs),
       );
+    },
+
+    // Trang đầu không tham số: cùng lượt gọi với `list`, thêm cursor từ `X-Next-Cursor` (G1-15).
+    listPage: async (cursor) => {
+      const nowMs = now();
+      const page = unwrap(
+        await client.notifications.listPage(cursor === undefined ? {} : { cursor, limit: OLDER_PAGE_SIZE }),
+      );
+
+      return {
+        items: page.items.map((notification) => toNotificationItemVm(notification, nowMs)),
+        ...(page.nextCursor !== undefined ? { nextCursor: page.nextCursor } : {}),
+      };
     },
 
     markRead: async (ids) => {

@@ -184,6 +184,9 @@ const BASE: NotificationCenterProps = {
   arrivedIds: [],
   bellNudgeToken: 0,
   scrollRef: noop,
+  canLoadOlder: false,
+  isLoadingOlder: false,
+  onLoadOlder: noop,
 };
 
 /* -------------------------------------------------------------------------- */

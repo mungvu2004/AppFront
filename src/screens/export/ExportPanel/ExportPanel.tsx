@@ -73,6 +73,9 @@ import type {
   ExportPanelProps,
 } from './types';
 
+/** Lý do nút Xuất mờ khi chọn `.glb` mà bỏ hết tầng (RV2#7, BUG-466). */
+const NO_FLOOR_CAPTION = 'Chọn ít nhất một tầng để xuất mô hình 3D.';
+
 /**
  * Định dạng này có sinh ra được một tệp thật không.
  *
@@ -311,7 +314,7 @@ export function ExportPanel(props: ExportPanelProps) {
       <ExportPanelFooter
         progress={progress}
         canExportSelected={canExportSelected}
-        blockedReason={noticeCaption}
+        blockedReason={noticeCaption ?? (selectedFormat?.id === 'glb' ? NO_FLOOR_CAPTION : null)}
         destinationCaption={destinationCaption}
         isLoading={isLoading}
         onExport={onExport}

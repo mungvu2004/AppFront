@@ -83,7 +83,7 @@ import {
   UNDO_RETRY_TOAST,
   writeErrorNotice,
 } from './versionHistoryModel';
-import { buildPlanDiffModel } from './versionHistoryPlan';
+import { buildPlanDiffModel, entityCountsOf, togglePinned } from './versionHistoryPlan';
 import { buildVisualModel, convertScene, graphOfVersion, isEmptySource } from './versionHistoryScene';
 
 /** Lượt N18 cùng lúc. */
@@ -118,6 +118,7 @@ const capitalizeFirst = (text: string): string =>
   `${text.charAt(0).toLocaleUpperCase('vi-VN')}${text.slice(1)}`;
 
 const EMPTY_SUMMARIES: readonly FloorVersionSummary[] = Object.freeze([]);
+const NO_ENTITY_CHANGES = Object.freeze({ added: 0, removed: 0, changed: 0 });
 
 export function useVersionHistory(options: UseVersionHistoryOptions): VersionHistoryResult {
   const {
@@ -221,9 +222,10 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   const snapshotData = snapshots.reads;
   const snapshotFailed = snapshots.failed;
 
-  const { failedIds, history, purgedIds } = useMemo(() => {
+  const { failedIds, history, loadingIds, purgedIds } = useMemo(() => {
     const purged = new Set<string>();
     const failed = new Set<string>();
+    const loading = new Set<string>();
     const entries = summaries.map((item, index): VersionHistoryEntry => {
       const read = snapshotData[index];
 
@@ -232,6 +234,8 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       } else if (snapshotFailed[index] === true && read === undefined && wanted.has(item.id)) {
         // Chỉ hàng còn bật truy vấn: hàng tắt thì `refetchQueries` bỏ qua, nút thử lại sẽ chết.
         failed.add(item.id);
+      } else if (read === undefined && wanted.has(item.id)) {
+        loading.add(item.id);
       }
 
       return read?.kind === 'snapshot'
@@ -239,7 +243,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         : { kind: 'metadataOnly', version: toVersionMetadata(item) };
     });
 
-    return { failedIds: failed, history: entries, purgedIds: purged };
+    return { failedIds: failed, history: entries, loadingIds: loading, purgedIds: purged };
   }, [summaries, snapshotData, snapshotFailed, wanted]);
 
   /* ---- Cặp so, diff ----------------------------------------------------- */
@@ -249,6 +253,12 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
     [pickedPair, history],
   );
   const { left: leftVersionId, right: rightVersionId } = pair;
+
+  // Đổi cặp/tầng: bỏ ghim và rê của cặp cũ, để Esc không bị nuốt bởi ghim vô hình (RV2#11).
+  useEffect(() => {
+    setPinnedEntityId(null);
+    setHoveredEntityId(null);
+  }, [leftVersionId, rightVersionId, floorId]);
   const left = leftVersionId === null ? null : readFullVersion(history, leftVersionId);
   const right = rightVersionId === null ? null : readFullVersion(history, rightVersionId);
   const canDiff = left !== null && right !== null;
@@ -306,6 +316,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         summaries: summaryMap,
         purgedIds,
         failedIds,
+        loadingIds,
         currentRevision,
       }),
     [
@@ -316,6 +327,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       summaryMap,
       purgedIds,
       failedIds,
+      loadingIds,
       currentRevision,
     ],
   );
@@ -403,6 +415,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       activeTab,
       tabs: COMPARE_TABS,
       totals: diff === null ? EMPTY_DIFF_COUNTS : countsOf(diff),
+      entityTotals: diff === null ? NO_ENTITY_CHANGES : entityCountsOf(diff),
       groups: diff === null ? [] : buildDiffGroups(diff),
       jsonLines: diff === null ? [] : buildJsonLines(diff),
       visual,
@@ -673,7 +686,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         setPickedPair((previous) => togglePick(previous ?? pair, versionId)),
       setTab: setActiveTab,
       hoverDiffRow: setHoveredEntityId,
-      pinDiffRow: (entityId) => setPinnedEntityId((previous) => (entityId === previous ? null : entityId)),
+      pinDiffRow: (entityId) => setPinnedEntityId((previous) => togglePinned(previous, entityId)),
       requestRestore: (versionId) => {
         if (canRestore && rows.find((row) => row.id === versionId)?.isCurrent !== true) {
           openDialog({ kind: 'restore', versionId });

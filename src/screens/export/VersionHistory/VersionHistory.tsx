@@ -38,7 +38,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
   const reviewedVersionId = model.compare.rightVersionId ?? model.compare.leftVersionId;
   const rowOf = (id: string | null) => model.rows.find((row) => row.id === id) ?? null;
   const reviewedRow = rowOf(reviewedVersionId);
-  const { leftVersionId, rightVersionId, totals } = model.compare;
+  const { entityTotals: totals, leftVersionId, rightVersionId } = model.compare;
   // G5-23: hai bản được tích mà bản bên phải là "Hiện tại" → phục hồi nhắm bản còn lại, nút không biến mất.
   const otherRow = reviewedVersionId === rightVersionId ? rowOf(leftVersionId) : null;
   const restoreRow =

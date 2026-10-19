@@ -527,3 +527,17 @@ describe('PipelineGraph — giả định C3 dùng chung với màn Xử lý (NO
     expect(run.supported ? run.value.map((stage) => stage.status) : []).not.toContain('done');
   });
 });
+
+describe('PipelineGraph — lượt mới nhất (RV2#4)', () => {
+  it('lấy lượt đầu N7b (mới nhất trước), không phải tầng cuối N7', async () => {
+    const run = (floorId: string) => ({ floorId, uploadId: `u-${floorId}` });
+    const processing = {
+      ...createProcessingGateway(createMockApiClient()),
+      readLatestUploads: () => Promise.resolve({ ok: true as const, data: [run('f1'), run('f3')] as never }),
+      readPipelineRuns: () =>
+        Promise.resolve({ ok: true as const, data: { items: [run('f1'), run('f3')] } as never }),
+    };
+
+    await expect(createPipelineGraphGateway(processing).readLatestRun?.({ projectId: 'p' })).resolves.toEqual(run('f1'));
+  });
+});

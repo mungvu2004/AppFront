@@ -19,7 +19,11 @@ const VERTEX_ID = /^V-(.+)-(?:start|end)$/;
 /** `V-W1-start` → `W1`; mã khác giữ nguyên. */
 export const planEntityIdOf = (entityId: string): string => VERTEX_ID.exec(entityId)?.[1] ?? entityId;
 
-const LEGEND_LABELS: Readonly<Record<DiffTone, string>> = { added: 'Thêm', removed: 'Xoá', changed: 'Sửa' };
+/** Ghim/bỏ ghim, so theo mã đã quy về đối tượng như hàng tính "đang ghim" (RV2#2). */
+export const togglePinned = (previous: string | null, entityId: string | null): string | null =>
+  entityId === null || (previous !== null && planEntityIdOf(entityId) === planEntityIdOf(previous)) ? null : entityId;
+
+const LEGEND_LABELS:Readonly<Record<DiffTone, string>> = { added: 'Thêm', removed: 'Xoá', changed: 'Sửa' };
 
 /** Tone theo mã đối tượng: thêm/xoá của chính nó thắng "sửa" (đầu tường thêm cùng tường thêm). */
 function tonesOf(diff: VersionDiff): ReadonlyMap<string, DiffTone> {
@@ -39,6 +43,17 @@ function tonesOf(diff: VersionDiff): ReadonlyMap<string, DiffTone> {
   }
 
   return tones;
+}
+
+/** Số ĐỐI TƯỢNG thêm/xoá/sửa (không phải số mục diff): một tường dời hai đầu vẫn là "sửa 1" (RV2#3). */
+export function entityCountsOf(diff: VersionDiff): Readonly<Record<DiffTone, number>> {
+  const counts = { added: 0, removed: 0, changed: 0 };
+
+  for (const tone of tonesOf(diff).values()) {
+    counts[tone] += 1;
+  }
+
+  return counts;
 }
 
 /** Bản trái cho đối tượng bị xoá, bản phải cho phần còn lại. */

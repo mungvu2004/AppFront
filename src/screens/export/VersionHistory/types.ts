@@ -146,6 +146,8 @@ export interface VersionRowModel {
   readonly counts: DiffCountsModel;
   /** Ảnh chụp chưa nạp nên chưa biết số thay đổi: view hiện khung xương thay cho "+0 −0 ~0". */
   readonly isCountsLoading?: boolean;
+  /** Ảnh chụp không được nạp (ngoài tầm nạp trước, hoặc bản trước hết nội dung): "Chưa so được". */
+  readonly countsUnavailableLabel?: string;
   readonly isCurrent: boolean;
   /** Nhãn người dùng gắn, ví dụ "Duyệt với chủ đầu tư". */
   readonly tagLabel: string | null;
@@ -272,6 +274,8 @@ export interface CompareModel {
   readonly activeTab: CompareTabId;
   readonly tabs: readonly VersionHistoryOption[];
   readonly totals: DiffCountsModel;
+  /** Số đối tượng (không phải mục diff) thêm/xoá/sửa — cho câu "So với hiện tại" của hộp phục hồi. */
+  readonly entityTotals: Readonly<Record<DiffTone, number>>;
   readonly groups: readonly DiffGroupModel[];
   readonly jsonLines: readonly JsonDiffLineModel[];
   readonly visual: VisualDiffModel;

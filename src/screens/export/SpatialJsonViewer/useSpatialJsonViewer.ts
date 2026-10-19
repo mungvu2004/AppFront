@@ -44,6 +44,7 @@ import {
   describeCounts,
   findMatches,
   flattenJson,
+  rawLineIndex,
   summariseValidity,
   toRawText,
   valueAtPath,
@@ -119,6 +120,7 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
 
   const allNodes = useMemo(() => flattenJson(graph), [graph]);
   const rawText = useMemo(() => (graph === null ? '' : toRawText(graph)), [graph]);
+  const rawLines = useMemo(() => rawLineIndex(graph), [graph]);
   const counts = useMemo(() => countEntities(graph), [graph]);
   const validity = useMemo(() => summariseValidity(canView ? issues : EMPTY_ISSUES), [canView, issues]);
 
@@ -326,6 +328,7 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
     rawText: canView ? rawText : '',
     searchQuery,
     selectedNodeId,
+    selectedRawLine: selectedNodeId === null ? null : (rawLines.get(selectedNodeId) ?? null),
     sizeLabel: formatFileSize(byteLengthOf(rawText)),
     state,
     validity,

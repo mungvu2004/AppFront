@@ -256,6 +256,42 @@ export function toRawText(value: unknown): string {
   return JSON.stringify(value, null, RAW_INDENT) ?? '';
 }
 
+/**
+ * Đường dẫn của từng hàng cây → số dòng (từ 0) nơi nó mở đầu trong {@link toRawText}.
+ *
+ * Đi cùng thứ tự với {@link flattenJson} và đếm dòng y như `JSON.stringify` thụt lề: mỗi giá
+ * trị mở một dòng, khối khác rỗng thêm một dòng đóng. Nhờ vậy cuộn theo đường dẫn, không theo
+ * nhãn — `walls[3]` hay `walls[3].id` tới đúng tường 3 (RV2#5).
+ */
+export function rawLineIndex(value: unknown): ReadonlyMap<string, number> {
+  const lines = new Map<string, number>();
+  let line = 1;
+
+  const visit = (node: unknown, path: string): void => {
+    lines.set(path, line);
+    line += 1;
+
+    const entries: readonly [string, unknown][] = Array.isArray(node)
+      ? node.map((item, index): [string, unknown] => [`${path}[${index}]`, item])
+      : isPlainObject(node)
+        ? Object.keys(node).map((key): [string, unknown] => [childPath(path, key), node[key]])
+        : [];
+
+    if (entries.length > 0) {
+      entries.forEach(([childId, child]) => visit(child, childId));
+      line += 1;
+    }
+  };
+
+  if (isPlainObject(value)) {
+    for (const key of Object.keys(value)) {
+      visit(value[key], key);
+    }
+  }
+
+  return lines;
+}
+
 /** Giá trị tại đường dẫn của một hàng (`walls[3].id`); `undefined` nếu đường dẫn không dẫn tới đâu. */
 export function valueAtPath(root: unknown, path: string): unknown {
   let cursor: unknown = root;

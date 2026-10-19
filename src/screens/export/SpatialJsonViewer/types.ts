@@ -120,6 +120,8 @@ export interface SpatialJsonViewerModel {
   /** "3 / 12", hoặc `null` khi chưa tìm gì. */
   readonly matchLabel: string | null;
   readonly selectedNodeId: string | null;
+  /** Dòng (từ 0) của hàng đang chọn trong `rawText` — cuộn khối JSON theo đường dẫn (RV2#5). */
+  readonly selectedRawLine?: number | null;
   readonly activeTabId: SpatialJsonTabId;
   readonly viewMode: SpatialJsonViewMode;
   /** Dưới 1024: ẩn nửa phải, cây chiếm hết chiều rộng. */
