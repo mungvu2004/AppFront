@@ -192,6 +192,8 @@ export const USER_MANAGEMENT_TEXT = {
   activityFallback: 'Thao tác khác',
   invitePending:
     'Email này đang chờ chấp nhận lời mời; dùng "Gửi lại lời mời" trên dòng của người đó thay vì mời lần nữa',
+  invitePendingFor: (email: string) => `${email} đã có lời mời đang chờ — gửi lại thư ở dòng của họ.`,
+  emailTakenFor: (email: string) => `${email} đã có tài khoản trong hệ thống — không cần mời nữa.`,
   lastEditor:
     'Người này là người sửa cuối cùng của ít nhất một dự án; hãy thêm người sửa khác cho dự án đó trước rồi mới hạ vai hoặc vô hiệu hoá',
 } as const;
@@ -244,10 +246,27 @@ const CODE_SENTENCES: Readonly<Record<string, string>> = {
   MEMBER_LAST_EDITOR: USER_MANAGEMENT_TEXT.lastEditor,
 };
 
-export function failureSentence(error: unknown): string {
+/** Câu nêu đích danh email khi BE trả `field: "emails.<i>"` (chỉ số trong mảng `emails` đã gửi). */
+const EMAIL_SENTENCES: Readonly<Record<string, (email: string) => string>> = {
+  USER_INVITE_PENDING: USER_MANAGEMENT_TEXT.invitePendingFor,
+  USER_EMAIL_TAKEN: USER_MANAGEMENT_TEXT.emailTakenFor,
+};
+
+const EMAIL_FIELD = /^emails\.(\d+)$/;
+
+/** `field` của lỗi: lượt ghi lạc quan đã bọc lỗi dây thành AppError (field nằm ở `params`) — đọc cả hai dạng. */
+export function failureField(error: unknown): string | undefined {
+  const appField = (error as { params?: { field?: unknown } } | null)?.params?.field;
+  return readWireError(error)?.field ?? (typeof appField === 'string' ? appField : undefined);
+}
+
+export function failureSentence(error: unknown, sentEmails: readonly string[] = []): string {
   const appError = asAppError(error);
   const code = readWireError(error)?.code ?? appError.code;
-  return CODE_SENTENCES[code] ?? describeError(appError).description;
+  const index = EMAIL_FIELD.exec(failureField(error) ?? '')?.[1];
+  const email = index === undefined ? undefined : sentEmails[Number(index)];
+  const named = email === undefined ? undefined : EMAIL_SENTENCES[code]?.(email);
+  return named ?? CODE_SENTENCES[code] ?? describeError(appError).description;
 }
 
 /**
@@ -737,11 +756,11 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
   /* ---- Thông báo -------------------------------------------------------- */
 
   const notifyFailure = useCallback(
-    (title: string, error: unknown): void => {
+    (title: string, error: unknown, sentEmails?: readonly string[]): void => {
       gateway.notify({
         type: 'user.write-failed',
         title,
-        description: failureSentence(error),
+        description: failureSentence(error, sentEmails),
       });
     },
     [gateway],
@@ -1261,12 +1280,11 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
             });
           },
           (error: unknown) => {
-            // Lượt ghi lạc quan đã bọc lỗi dây thành AppError (field nằm ở `params`) — đọc cả hai dạng.
-            const appParams = (error as { params?: { field?: unknown } } | null)?.params;
-            if ((readWireError(error)?.field ?? appParams?.field) === 'emails') {
-              setInviteServerError(failureSentence(error));
+            const field = failureField(error);
+            if (field === 'emails' || field?.startsWith('emails.') === true) {
+              setInviteServerError(failureSentence(error, validEmails));
             }
-            notifyFailure(USER_MANAGEMENT_TEXT.inviteFailedTitle, error);
+            notifyFailure(USER_MANAGEMENT_TEXT.inviteFailedTitle, error, validEmails);
           },
         ).finally(() => {
           inviteInFlightRef.current = false;

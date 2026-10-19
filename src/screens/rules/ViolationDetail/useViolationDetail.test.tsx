@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
@@ -13,13 +14,18 @@ import { createHistoryStack } from '@/lib/commands/history';
 import { getAppAnnouncer } from '@/lib/input/announcer';
 import { LAYER_SAVE_MESSAGES } from '@/lib/autosave/spatialLayerSave';
 import { CLEAN_BUILDING_SCENARIO } from '@/lib/testing/fixtures';
-import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
+import { createTestQueryClient, renderWithProviders as renderWithStore } from '@/lib/testing/render';
 import { useStore } from '@/store';
 import { ruleSettingsQueryKey } from '@/screens/rules/RuleSettings';
 
 import { ViolationDetail } from './ViolationDetail';
 import { useViolationDetail } from './useViolationDetail';
 import type { ViolationDetailGatewaySeed } from './violationDetailGateway';
+
+/** "Sửa ở lớp …" là `<Link>` của router (RV5#17), nên tấm trượt thật cần một router. */
+function renderWithProviders(...[ui, options]: Parameters<typeof renderWithStore>) {
+  return renderWithStore(<MemoryRouter>{ui}</MemoryRouter>, options);
+}
 
 const PROJECT = 'project-violation-save';
 const GRAPH = normalizeSpatial(CLEAN_BUILDING_SCENARIO.graph);

@@ -86,7 +86,7 @@ const base: AccountSettingsViewModel = {
       jobTitlePlaceholder: 'chưa đặt',
       phonePlaceholder: 'chưa đặt',
       email: EMAIL,
-      emailReadOnlyReason: 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.',
+      emailReadOnlyReason: 'Thư điện tử là tên đăng nhập do quản trị hệ thống cấp, nên chỉ đọc ở đây.',
       phone: '0912 345 678',
       onPhoneChange: noop,
       language: 'vi',

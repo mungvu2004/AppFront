@@ -2,7 +2,7 @@
  * Phase 07 — SCR-33 Account Settings (`/tai-khoan`), password block UI-verify flows (QA-07b pack P4; flows-C3
  * `phase07_security_ui.spec.ts`): FL-33S-09 (real states: default / filled strong / invalid / current cleared) and FL-33S-10
  * ([mocked response] states: wrong 422 / success / 429 / unavailable / loading). Every state goes through `verifyUi` at
- * 1920 / 1440 / 1024 / 768 (never 375 / 2560, which the default list holds) and records its own measurements in `open`.
+ * 1920 / 1440 / 1024 / 768 (the default `UI_VIEWPORTS` list: 1440 / 1920 / 1024 / 768) and records its own measurements in `open`.
  *
  * Request budget per run: one pool login per flow (engineer `p07-security-9`, own jar). `POST /api/me/password` is limited to
  * 5 per 900 s per user, so NOTHING here sends it for real: FL-33S-09 types values but its only submits are stopped by the

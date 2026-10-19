@@ -1,5 +1,5 @@
 /**
- * Dedicated UI-verification case (skill `qa-verify-ui`): one screen state × the six review viewports (1440 / 1024 / 768 / 375 / 1920 / 2560)
+ * Dedicated UI-verification case (skill `qa-verify-ui`): one screen state × the four review viewports (1440 / 1920 / 1024 / 768)
  * (skill `qa-review-ui`). Per viewport it re-opens the state (layouts read the viewport at mount), measures
  * layout defects in the page, captures `<name>_<width>.png` (full page unless `shot.fullPage` is false), and attaches all metrics as
  * `<name>.json` for the reviewer. Hard defects fail softly (horizontal scroll, controls pushed off-screen,
@@ -15,16 +15,9 @@ import { EVIDENCE_DIR, captureEvidence, repSuffix } from './evidence';
 
 export const UI_VIEWPORTS = [
   { width: 1440, height: 900 },
-<<<<<<< Updated upstream
   // Wide desktop (Full HD, > 19"): the layout must use or cap the extra width. Index 0 stays 1440 (specs read
   // UI_VIEWPORTS[0]). No 375: the web targets desktop + tablet only (user, 2026-10-14).
   { width: 1920, height: 1080 },
-=======
-  // Wide desktops (Full HD, QHD): the layout must use or cap the extra width, not stretch. Index 0 stays 1440 and the
-  // last entry stays 375: specs read UI_VIEWPORTS[0] and rely on verifyUi leaving the page at 375.
-  { width: 1920, height: 1080 },
-  { width: 2560, height: 1440 },
->>>>>>> Stashed changes
   { width: 1024, height: 768 },
   { width: 768, height: 1024 },
 ] as const;

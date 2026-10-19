@@ -17,7 +17,6 @@ import { readAdminCredentials } from './support/auth';
 import { captureEvidence } from './support/evidence';
 import {
   CHANGE_EMAIL,
-  EMAIL_REASON_LONG,
   EMAIL_REASON_SHORT,
   IND,
   LANGUAGE,
@@ -166,7 +165,6 @@ test.describe('SCR-33 profile edge', () => {
           const order = [
             box(page, 'Họ tên'),
             box(page, 'Chức danh'),
-            page.getByRole('button', { name: CHANGE_EMAIL, exact: true }),
             box(page, 'Điện thoại'),
             page.getByRole('combobox', { name: LANGUAGE.label, exact: true }),
           ];
@@ -181,7 +179,7 @@ test.describe('SCR-33 profile edge', () => {
           for (const name of ['Họ tên', 'Chức danh', 'Điện thoại']) await expect.soft(box(page, name)).toBeVisible();
           await expect.soft(page.getByRole('combobox', { name: LANGUAGE.label, exact: true })).toBeVisible();
           await expect.soft(avatarInput(page)).toHaveAttribute('type', 'file');
-          await expect.soft(page.getByRole('button', { name: CHANGE_EMAIL, exact: true })).toBeVisible();
+          await expect.soft(page.getByRole('button', { name: CHANGE_EMAIL, exact: true })).toHaveCount(0);
           await captureEvidence(page, 'E07_33P-E-003_names.png');
         });
 
@@ -459,12 +457,10 @@ test.describe('SCR-33 profile edge', () => {
           await captureEvidence(page, 'E07_33P-A-013_after_reload.png');
         });
 
-        await test.step('[33P-A-031] "Đổi thư điện tử" swaps the reason, sends nothing', async () => {
+        await test.step('[33P-A-031] no "Đổi thư điện tử" button: the read-only reason stays, nothing is sent', async () => {
           const before = writes.list().length;
           await expect.soft(page.getByText(EMAIL_REASON_SHORT, { exact: true })).toBeVisible();
-          await page.getByRole('button', { name: CHANGE_EMAIL, exact: true }).click();
-          await expect.soft(page.getByText(EMAIL_REASON_LONG, { exact: true })).toBeVisible();
-          await expect.soft(page.getByText(EMAIL_REASON_SHORT, { exact: true })).toHaveCount(0);
+          await expect.soft(page.getByRole('button', { name: CHANGE_EMAIL, exact: true })).toHaveCount(0);
           await page.clock.runFor(1_000); // past the 800 ms debounce: a request would have gone out
           await page.evaluate(() => 0); // round trip: any request event has been delivered
           expect.soft(writes.list().length, 'no request').toBe(before);

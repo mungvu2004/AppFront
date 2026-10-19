@@ -19,6 +19,7 @@
  */
 
 import type { Meta, StoryObj } from '@storybook/react';
+import { MemoryRouter } from 'react-router-dom';
 
 import { createDefaultRuleRegistry } from '@/domain/rules/defaults';
 import { RULE_GROUP_LABELS, RULE_SEVERITY_LABELS } from '@/domain/rules/registry';
@@ -51,6 +52,14 @@ const meta = {
   component: ViolationDetail,
   parameters: { layout: 'fullscreen' },
   tags: ['autodocs'],
+  // "Sửa ở lớp …" là `<Link>` của router (RV5#17).
+  decorators: [
+    (Story) => (
+      <MemoryRouter>
+        <Story />
+      </MemoryRouter>
+    ),
+  ],
 } satisfies Meta<typeof ViolationDetail>;
 
 export default meta;

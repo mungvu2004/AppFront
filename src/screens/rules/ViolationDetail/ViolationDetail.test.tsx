@@ -31,6 +31,7 @@
  */
 
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createDefaultRuleRegistry } from '@/domain/rules/defaults';
@@ -798,7 +799,12 @@ function WiredForFixLoop(props: {
     onClose: () => undefined,
   });
 
-  return <ViolationDetail {...viewProps} />;
+  // Hook thật cho `fixTarget` thật: "Sửa ở lớp …" là `<Link>` (RV5#17), cần một router.
+  return (
+    <MemoryRouter>
+      <ViolationDetail {...viewProps} />
+    </MemoryRouter>
+  );
 }
 
 describe('B-V7-31 — khối "phát hiện" gọi đối tượng bằng mã người đọc', () => {

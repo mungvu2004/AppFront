@@ -26,7 +26,7 @@ import {
   AVATAR,
   BLOCK_IDS,
   CHANGE_EMAIL,
-  EMAIL_REASON_LONG,
+  EMAIL_REASON_SHORT,
   ERROR_PAINT_TIMEOUT_MS,
   IND,
   LANGUAGE,
@@ -155,21 +155,19 @@ test('SCR-33 · FL-33P-U1 · page states: default, loading, e-mail reason, langu
       await expect(box(ro.page, 'Chức danh')).toBeVisible();
     });
 
-    await test.step('[33P-F-009] "Đổi thư điện tử": the long reason wraps inside the row, the button stays inside the card', async () => {
-      const seen: Array<{ vw: number; card: Box; reason: Box; button: Box }> = [];
+    await test.step('[33P-F-009] no "Đổi thư điện tử" button: the read-only e-mail sentence sits inside the card', async () => {
+      const seen: Array<{ vw: number; card: Box; reason: Box; buttons: number }> = [];
       await verifyUi(ro.page, U('33P-F-009', 'email_reason'), async (p) => {
         await openAccount(p);
-        const button = p.getByRole('button', { name: CHANGE_EMAIL, exact: true });
-        await button.click();
-        const reason = profileCard(p).getByText(EMAIL_REASON_LONG, { exact: true });
+        const reason = profileCard(p).getByText(EMAIL_REASON_SHORT, { exact: true });
         await expect(reason).toBeVisible();
         const f = await frame(p);
-        seen.push({ vw: f.vw, card: f.card, reason: await rect(reason), button: await rect(button) });
+        const buttons = await p.getByRole('button', { name: CHANGE_EMAIL, exact: true }).count();
+        seen.push({ vw: f.vw, card: f.card, reason: await rect(reason), buttons });
       }, FOUR);
       for (const m of seen) {
-        expect.soft(within(m.reason, m.card), `${String(m.vw)}: reason inside the card`).toBe(true);
-        expect.soft(within(m.button, m.card), `${String(m.vw)}: "${CHANGE_EMAIL}" inside the card`).toBe(true);
-        expect.soft(m.reason.height, `${String(m.vw)}: the long reason wraps`).toBeGreaterThan(18);
+        expect.soft(m.buttons, `${String(m.vw)}: no "${CHANGE_EMAIL}" button`).toBe(0);
+        expect.soft(within(m.reason, m.card), `${String(m.vw)}: read-only sentence inside the card`).toBe(true);
       }
     });
 
@@ -398,8 +396,8 @@ test('SCR-33 · FL-33P-U3 · [mocked response] only in step 3 · long data, fiel
     const setup = await api.patch('/api/me', { data: { fullName: LONG_NAME, jobTitle: LONG_JOB_TITLE, phone: LONG_PHONE } });
     expect(setup.status(), 'setup: PATCH /api/me with the long values').toBe(200);
 
-    await test.step('[33P-F-011] long data (name 120, title 120, phone 32, ~60-char e-mail): no overflow, "Đổi thư điện tử" inside the card', async () => {
-      const seen: Array<{ vw: number; card: Box; button: Box; email: Box; fields: Array<Box> }> = [];
+    await test.step('[33P-F-011] long data (name 120, title 120, phone 32, ~60-char e-mail): no overflow, no "Đổi thư điện tử" button', async () => {
+      const seen: Array<{ vw: number; card: Box; buttons: number; email: Box; reason: Box; fields: Array<Box> }> = [];
       await verifyUi(page, U('33P-F-011', 'long_data'), async (p) => {
         await openAccount(p);
         await expect(box(p, 'Họ tên')).toHaveValue(LONG_NAME);
@@ -409,15 +407,18 @@ test('SCR-33 · FL-33P-U3 · [mocked response] only in step 3 · long data, fiel
         seen.push({
           vw: (await viewportOf(p)).w,
           card: await rect(profileCard(p)),
-          button: await rect(p.getByRole('button', { name: CHANGE_EMAIL, exact: true })),
+          buttons: await p.getByRole('button', { name: CHANGE_EMAIL, exact: true }).count(),
           email: await rect(emailText(p, user.email)),
+          reason: await rect(profileCard(p).getByText(EMAIL_REASON_SHORT, { exact: true })),
           fields,
         });
       }, FOUR);
       for (const m of seen) {
-        // BUG-497 desktop part (fix/qa07-a: `min-w-0 flex-1` on the e-mail input wrapper): the long e-mail is cut with an ellipsis, the button stays in the card.
-        expect.soft(within(m.button, m.card), `${String(m.vw)}: "${CHANGE_EMAIL}" inside the card`).toBe(true);
-        expect.soft(m.email.right, `${String(m.vw)}: e-mail ends before the button`).toBeLessThanOrEqual(m.button.left + 1);
+        // BUG-497 desktop part (fix/qa07-a: `min-w-0 flex-1` on the e-mail wrapper): the long e-mail is cut with an ellipsis inside the card.
+        // The change button is gone (the e-mail is read-only for every role), so the step asserts it is absent.
+        expect.soft(m.buttons, `${String(m.vw)}: no "${CHANGE_EMAIL}" button`).toBe(0);
+        expect.soft(within(m.email, m.card), `${String(m.vw)}: long e-mail inside the card`).toBe(true);
+        expect.soft(within(m.reason, m.card), `${String(m.vw)}: read-only sentence inside the card`).toBe(true);
         expect.soft(m.fields.every((f) => within(f, m.card)), `${String(m.vw)}: the three long fields inside the card`).toBe(true);
       }
     });

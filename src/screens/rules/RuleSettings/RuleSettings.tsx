@@ -37,6 +37,7 @@
 
 import { useMemo, useState } from 'react';
 import { AlertCircle, ClipboardList, Lock } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -272,12 +273,12 @@ export function RuleSettings(props: RuleSettingsProps) {
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
             {props.backPath === undefined ? null : (
-              <a
-                href={props.backPath}
+              <Link
+                to={props.backPath}
                 className={cn('w-fit rounded text-sm text-accent underline', FOCUS_RING)}
               >
                 Quay lại kết quả kiểm tra
-              </a>
+              </Link>
             )}
             <h2 className="text-base font-semibold text-text-primary">Cài đặt bộ luật không gian</h2>
             {hasConfig && (

@@ -71,10 +71,10 @@ export const PROBLEM = {
   phoneControl: 'Số điện thoại không được chứa ký tự điều khiển hoặc ký tự đảo chiều chữ.', // vi.json:503 (BUG-P07-005, 004add26)
 } as const;
 export const PLACEHOLDER = 'Chưa đặt'; // UAP:155,158
-export const EMAIL_REASON_SHORT = 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.'; // UAP:150
-export const EMAIL_REASON_LONG =
-  'Thư điện tử là tên đăng nhập nên đổi nó phải qua một bước xác minh. Liên hệ quản trị viên của công ty để đổi.'; // UAP:151-153
-export const CHANGE_EMAIL = 'Đổi thư điện tử'; // PS:210
+/** Same sentence for every role; the change button and its long reason are gone (useAccountPreferences.ts EMAIL_REASON). */
+export const EMAIL_REASON_SHORT = 'Thư điện tử là tên đăng nhập do quản trị hệ thống cấp, nên chỉ đọc ở đây.';
+/** Removed button; specs assert it is ABSENT. */
+export const CHANGE_EMAIL = 'Đổi thư điện tử';
 export const LANGUAGE = { label: 'Ngôn ngữ', vi: 'Tiếng Việt', en: 'Tiếng Anh' } as const; // PS:243-258, UAP:117-120
 /** BE:apps/api/me/schemas.py FULL_NAME_MAX (also jobTitle) / PHONE_MAX. */
 export const TEXT_MAX = 120;
