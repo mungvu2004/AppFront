@@ -4,7 +4,7 @@ import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuildi
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { VersionDiff } from '@/lib/versioning/diff';
 
-import { buildVisualModel, convertScene, graphOfVersion } from './versionHistoryScene';
+import { buildVisualModel, convertScene, graphOfVersion, isEmptySource } from './versionHistoryScene';
 
 const current = normalizeSpatial(createSampleBuilding());
 const wall = current.byKind.wall[0] as string;
@@ -34,6 +34,32 @@ describe('cảnh của phiên bản cũ', () => {
     });
 
     expect(model.caption).toBe('Đây là phiên bản v3; 0 đối tượng đã đổi đang được tô sáng');
+  });
+});
+
+describe('V1a: bản gốc trống', () => {
+  it('nhận ra bản không có đối tượng nào, và caption nói cảnh là bản đối chiếu', () => {
+    const empty = { dimensions: [], layer: { furniture: [], openings: [], rooms: [], walls: [] } } as never;
+
+    expect(isEmptySource(empty)).toBe(true);
+    expect(isEmptySource(source)).toBe(false);
+
+    const graph = graphOfVersion(current, source);
+    const model = buildVisualModel({
+      capabilities: { canShowCurrentModel3d: true, canHighlightEntity: true } as never,
+      graph,
+      scene: convertScene(graph),
+      diff: null,
+      leftVersionLabel: 'v2',
+      hoveredEntityId: null,
+      isFetchingDiff: false,
+      isOldVersion: true,
+      isTargetVersion: true,
+    });
+
+    expect(model.caption).toBe(
+      'Đây là phiên bản v2 (bản đối chiếu, vì bản gốc chưa có đối tượng nào); 0 đối tượng đã đổi đang được tô sáng',
+    );
   });
 });
 

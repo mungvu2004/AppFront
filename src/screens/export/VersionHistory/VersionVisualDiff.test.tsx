@@ -41,7 +41,7 @@ describe('VersionVisualDiff trên Pascal', () => {
 
     await waitFor(() => expect(mount).toHaveBeenCalledTimes(1));
     const options = (mount.mock.calls[0] as unknown as [HTMLElement, Record<string, unknown>])[1];
-    expect(options).toMatchObject({ scene: SCENE, mode: 'view', readOnly: true });
+    expect(options).toMatchObject({ scene: SCENE, mode: 'view', readOnly: true, fit: 'scene', cameraControls: true });
 
     (options.onReadyChange as (ready: boolean) => void)(true);
     expect(setHighlight).toHaveBeenLastCalledWith(['wall_wall1', 'wall_wall2']);
@@ -74,13 +74,13 @@ describe('VersionVisualDiff trên Pascal', () => {
 });
 
 describe('câu hướng dẫn của khối 3D', () => {
-  it('nói thật: chỉ dựng bản gốc, phần thêm xem ở mặt bằng 2D', async () => {
+  it('nói thật: chỉ tô được đối tượng có trong bản đang dựng, phần còn lại xem ở mặt bằng 2D', async () => {
     loadMount.mockResolvedValue({ mount: vi.fn(() => ({ dispose: vi.fn() })) });
 
     render(<VersionVisualDiff visual={visual()} />);
 
-    expect(await screen.findByText(/Khối 3D chỉ dựng bản gốc, nên chỉ tô được phần đã sửa hoặc xoá/)).toBeTruthy();
-    expect(screen.getByText(/Phần thêm chỉ có ở bản đối chiếu: xem ở mặt bằng 2D/)).toBeTruthy();
+    expect(await screen.findByText(/Khối 3D dựng một bản \(nêu ở câu trên\), nên chỉ tô được đối tượng có trong bản ấy/)).toBeTruthy();
+    expect(screen.getByText(/Phần còn lại xem ở mặt bằng 2D/)).toBeTruthy();
     expect(screen.queryByText(/phần đã thêm, xoá hoặc sửa được tô sáng/)).toBeNull();
   });
 });

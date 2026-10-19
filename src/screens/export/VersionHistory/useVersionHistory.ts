@@ -84,7 +84,7 @@ import {
   writeErrorNotice,
 } from './versionHistoryModel';
 import { buildPlanDiffModel } from './versionHistoryPlan';
-import { buildVisualModel, convertScene, graphOfVersion } from './versionHistoryScene';
+import { buildVisualModel, convertScene, graphOfVersion, isEmptySource } from './versionHistoryScene';
 
 /** Lượt N18 cùng lúc. */
 export const SNAPSHOT_CONCURRENCY = 2;
@@ -338,15 +338,19 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   const leftIndex = summaries.findIndex((item) => item.id === leftVersionId);
   const leftRead = leftIndex < 0 ? undefined : snapshotData[leftIndex];
   const leftSource = leftRead?.kind === 'snapshot' ? leftRead.source : undefined;
-  const sceneGraph = useMemo(
-    () => (leftSource === undefined ? graph : (graphOfVersion(graph, leftSource) ?? graph)),
-    [graph, leftSource],
-  );
-  const scene = useMemo(() => convertScene(sceneGraph), [sceneGraph]);
   // Mặt bằng 2D cần ảnh chụp của CẢ HAI bản: xoá vẽ theo trái, thêm/sửa theo phải.
   const rightIndex = summaries.findIndex((item) => item.id === rightVersionId);
   const rightRead = rightIndex < 0 ? undefined : snapshotData[rightIndex];
   const rightSource = rightRead?.kind === 'snapshot' ? rightRead.source : undefined;
+  // V1a: bản gốc trống (chỉ nền trời) thì khối 3D dựng bản đối chiếu, nơi có phần thêm.
+  const sceneFromRight =
+    leftSource !== undefined && rightSource !== undefined && isEmptySource(leftSource) && !isEmptySource(rightSource);
+  const sceneSource = sceneFromRight ? rightSource : leftSource;
+  const sceneGraph = useMemo(
+    () => (sceneSource === undefined ? graph : (graphOfVersion(graph, sceneSource) ?? graph)),
+    [graph, sceneSource],
+  );
+  const scene = useMemo(() => convertScene(sceneGraph), [sceneGraph]);
   const plan = useMemo(
     () =>
       diff === null || leftSource === undefined || rightSource === undefined
@@ -367,8 +371,11 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         graph: sceneGraph,
         scene,
         isOldVersion: sceneGraph !== graph,
+        isTargetVersion: sceneFromRight,
         diff,
-        leftVersionLabel: builds.find((build) => build.row.id === leftVersionId)?.row.label ?? null,
+        leftVersionLabel:
+          builds.find((build) => build.row.id === (sceneFromRight ? rightVersionId : leftVersionId))?.row.label ??
+          null,
         hoveredEntityId,
         isFetchingDiff: pairFetching,
       }),
@@ -380,6 +387,8 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       diff,
       builds,
       leftVersionId,
+      rightVersionId,
+      sceneFromRight,
       hoveredEntityId,
       pairFetching,
     ],

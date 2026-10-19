@@ -20,7 +20,8 @@
  * đọc ra được, nên panel dùng `aria-label` thay cho `aria-labelledby`.
  */
 
-import { useCallback, useId, useState } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 
 import { motion } from '@/components/motion';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
@@ -152,6 +153,7 @@ export function VersionCompare({ model, actions }: VersionCompareProps) {
   const { setTab } = actions;
   // Trạng thái hiển thị thuần của view, không phải dữ liệu: không cần đi qua hook.
   const [visualMode, setVisualMode] = useState<VisualMode>('plan');
+  const planColumnRef = useRef<HTMLDivElement>(null);
 
   const handleTabChange = useCallback(
     (id: string): void => {
@@ -178,17 +180,8 @@ export function VersionCompare({ model, actions }: VersionCompareProps) {
     const labelOf = (options: typeof model.leftOptions, id: string | null): string =>
       options.find((option) => option.id === id)?.label ?? '?';
 
-    return (
-      <div
-        className="flex flex-col gap-3"
-        onKeyDown={(event) => {
-          // A12: Esc bỏ ghim trước, chưa đóng gì khác.
-          if (event.key === 'Escape' && model.pinnedEntityId !== null) {
-            event.stopPropagation();
-            actions.pinDiffRow(null);
-          }
-        }}
-      >
+    const header = (
+      <>
         <SegmentedControl
           aria-label={VIEW_MODE_LABEL}
           options={VIEW_MODE_OPTIONS}
@@ -204,17 +197,54 @@ export function VersionCompare({ model, actions }: VersionCompareProps) {
             ' (đối chiếu)' +
             (visualMode === 'plan' && model.plan !== null ? ' · ' + model.plan.floorLabel : '')}
         </p>
-        {visualMode === 'plan' ? (
-          <VersionPlanDiff plan={model.plan} onHover={actions.hoverDiffRow} onPick={actions.pinDiffRow} />
-        ) : (
+      </>
+    );
+    const onEscape = (event: KeyboardEvent<HTMLDivElement>) => {
+      // A12: Esc bỏ ghim trước, chưa đóng gì khác.
+      if (event.key === 'Escape' && model.pinnedEntityId !== null) {
+        event.stopPropagation();
+        actions.pinDiffRow(null);
+      }
+    };
+
+    if (visualMode === 'scene') {
+      return (
+        <div className="flex flex-col gap-3" onKeyDown={onEscape}>
+          {header}
           <VersionVisualDiff visual={model.visual} />
-        )}
-        <VersionDiffGroups
-          groups={model.groups}
-          onHoverRow={actions.hoverDiffRow}
-          onPickRow={actions.pinDiffRow}
-          pinnedEntityId={model.pinnedEntityId}
-        />
+          <VersionDiffGroups
+            groups={model.groups}
+            onHoverRow={actions.hoverDiffRow}
+            onPickRow={actions.pinDiffRow}
+            pinnedEntityId={model.pinnedEntityId}
+          />
+        </div>
+      );
+    }
+
+    /*
+     * Mặt bằng 2D (QA-2 L6/L8): cột hình cao đúng bằng khung panel (tối thiểu PLAN_MIN), nên hình
+     * vừa khung ở mọi cỡ. Màn rộng (xl): danh sách sang phải, tự cuộn, hình đứng yên khi ghim.
+     * Màn hẹp: danh sách nằm dưới; ghim một dòng thì cuộn hình về lại khung nhìn.
+     */
+    return (
+      <div className="flex h-full flex-col gap-3 xl:flex-row" onKeyDown={onEscape}>
+        <div ref={planColumnRef} className="flex h-full min-h-[340px] min-w-0 shrink-0 flex-col gap-3 xl:flex-1">
+          {/* Màn hẹp panel chỉ cao ~220 px: hình lên đầu để luôn nằm trong khung, nút chuyển 2D/3D xuống dưới. */}
+          <div className="order-last flex flex-col gap-3 xl:order-none">{header}</div>
+          <VersionPlanDiff plan={model.plan} onHover={actions.hoverDiffRow} onPick={actions.pinDiffRow} />
+        </div>
+        <div className="xl:w-[340px] xl:shrink-0 xl:overflow-y-auto xl:pr-1">
+          <VersionDiffGroups
+            groups={model.groups}
+            onHoverRow={actions.hoverDiffRow}
+            onPickRow={(entityId) => {
+              actions.pinDiffRow(entityId);
+              planColumnRef.current?.scrollIntoView?.({ block: 'nearest' });
+            }}
+            pinnedEntityId={model.pinnedEntityId}
+          />
+        </div>
       </div>
     );
   };

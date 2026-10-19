@@ -26,6 +26,7 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { Modal } from '@/components/overlay/Modal';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
+import { cn } from '@/lib/utils';
 
 import { VersionCompare } from './VersionCompare';
 import { VersionLabelDialog } from './VersionLabelDialog';
@@ -81,7 +82,9 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
   );
 
   const withHeader = (content: ReactNode) => (
-    <div className="flex h-full flex-col gap-3">
+    // Khổ hẹp: trang tự cao theo nội dung và khung cuộn của app cuộn nó, để khung so sánh không bị ép
+    // còn ~220 px dưới tiêu đề + hai ô chọn (V1b vòng 1). Khổ rộng giữ khung cố định, vùng so sánh tự cuộn.
+    <div className={model.isNarrow ? 'flex min-h-full flex-col gap-3' : 'flex h-full flex-col gap-3'}>
       <h1 className="px-4 pt-4 text-[20px] font-semibold text-text-primary">Lịch sử phiên bản</h1>
       {model.floorSelect !== null && model.state !== 'forbidden' && (
         <div className="max-w-2xl px-4">
@@ -143,7 +146,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
   }
 
   return withHeader(
-    <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+    <div className={model.isNarrow ? 'flex flex-1 flex-col gap-3 p-4' : 'flex min-h-0 flex-1 flex-col gap-3 p-4'}>
       {model.savedAtLabel !== null && <p className="text-[13px] text-text-secondary">{model.savedAtLabel}</p>}
 
       {model.conflict !== null && (
@@ -155,7 +158,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
         />
       )}
 
-      <div className={model.isNarrow ? 'flex flex-1 flex-col gap-4 overflow-hidden' : 'flex flex-1 gap-4 overflow-hidden'}>
+      <div className={model.isNarrow ? 'flex flex-1 flex-col gap-4' : 'flex flex-1 gap-4 overflow-hidden'}>
         {model.isNarrow ? (
           <Select
             label="Phiên bản"
@@ -181,7 +184,8 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
         )}
         {model.isNarrow && loadMore}
 
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {/* Khổ hẹp: khung so sánh cao 70% màn (≥ 60%, V1b vòng 1); bên trong vẫn tự cuộn như khổ rộng. */}
+        <div className={cn('flex min-w-0 flex-col overflow-hidden', model.isNarrow ? 'h-[70vh] min-h-[420px] flex-none' : 'flex-1')}>
           <VersionCompare model={model.compare} actions={actions} />
         </div>
       </div>

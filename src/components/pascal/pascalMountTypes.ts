@@ -92,6 +92,8 @@ export interface PascalMountOptions {
   readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
   /** Xoay một ngón, chụm để thu phóng, hai ngón để dời (chuột: kéo, lăn). */
   readonly cameraControls?: boolean;
+  /** Đặt camera khi cảnh sẵn sàng: `hero` (mặc định, góc ảnh đại diện) hoặc `scene` (vừa khung bao cả cảnh). */
+  readonly fit?: 'hero' | 'scene';
   /** Chạm/bấm một đối tượng ở `view` — mã node Pascal, hoặc `null` khi chạm khoảng trống. */
   readonly onPick?: (nodeId: string | null) => void;
   /** Bật đo hai điểm ở `view`: khi bật, chạm không còn gọi `onPick`. */

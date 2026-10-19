@@ -25,6 +25,8 @@ export interface PascalFrameProps {
   readonly scene: PascalScene;
   /** Bật điều khiển camera chạm/chuột (xoay, thu phóng, dời) — `OrbitControls` của drei. */
   readonly cameraControls?: boolean;
+  /** Cách đặt camera khi cảnh sẵn sàng — xem `CameraFit`. Mặc định `hero`. */
+  readonly fit?: CameraFit;
   /**
    * **Phải đổi mỗi lần nạp cảnh mới.** Đo được: để nó cố định thì viewer giữ
    * nguyên phán quyết "sẵn sàng" của cảnh trước và không bao giờ nói lại.
@@ -45,6 +47,16 @@ export interface PascalFrameProps {
   readonly lite?: boolean;
 }
 
+/**
+ * `hero`: góc ảnh đại diện của Pascal (thấp 13°, sát mép, ngắm tâm toà nhà) — màn đăng nhập,
+ * màn di động. `scene`: vừa khung bao của cả cảnh, nhìn cao hơn và chừa lề, để khối nằm giữa
+ * khung và không bị cắt mép (Lịch sử phiên bản).
+ */
+export type CameraFit = 'hero' | 'scene';
+
+/** Góc nhìn xuống và lề của `fit="scene"`. */
+const SCENE_FIT = { elevationRad: (30 * Math.PI) / 180, padding: 1.15 } as const;
+
 /** `fov` của `PerspectiveCamera` mà `ViewerCamera` của Pascal dựng (`viewer-camera.tsx`). */
 const VIEWER_FOV_DEG = 50;
 
@@ -57,7 +69,13 @@ const VIEWER_FOV_DEG = 50;
  * Pascal dùng cho ảnh đại diện (`computeHeroFraming` + `heroCameraPose`), chạy lại
  * mỗi khi cảnh mới sẵn sàng hoặc khung đổi tỷ lệ (375 dọc khác 1440 ngang).
  */
-export function HeroCamera({ ready }: { readonly ready: boolean }) {
+export function HeroCamera({
+  ready,
+  fit = 'hero',
+}: {
+  readonly ready: boolean;
+  readonly fit?: CameraFit;
+}) {
   const camera = useThree((state) => state.camera);
   const width = useThree((state) => state.size.width);
   const height = useThree((state) => state.size.height);
@@ -73,20 +91,21 @@ export function HeroCamera({ ready }: { readonly ready: boolean }) {
     const framing = computeHeroFraming();
     if (framing === null) return;
 
-    const pose = heroCameraPose({
-      aim: framing.aim,
+    const base = {
       aspect: width / height,
       azimuthRad: framing.azimuthRad,
       boxes: framing.boxes,
       fovDeg: VIEWER_FOV_DEG,
-    });
+    };
+    // `scene` bỏ `aim` để ngắm tâm khung bao chung: ngắm tâm toà nhà thì khối nằm thấp.
+    const pose = heroCameraPose(fit === 'scene' ? { ...base, ...SCENE_FIT } : { ...base, aim: framing.aim });
 
     camera.position.set(...pose.position);
     camera.lookAt(...pose.target);
     camera.updateMatrixWorld();
     controls?.target?.set(...pose.target);
     controls?.update?.();
-  }, [camera, controls, height, ready, width]);
+  }, [camera, controls, fit, height, ready, width]);
 
   return null;
 }
@@ -95,6 +114,7 @@ export function PascalFrame({
   scene,
   sceneKey,
   cameraControls = false,
+  fit = 'hero',
   onReadyChange,
   onFatal,
   onSceneLoaded,
@@ -158,7 +178,7 @@ export function PascalFrame({
       disablePostFx={lite && !firstLoadDone}
       onSceneReadyChange={handleReady}
     >
-      <HeroCamera ready={ready} />
+      <HeroCamera ready={ready} fit={fit} />
       {cameraControls ? <OrbitControls makeDefault /> : null}
     </Viewer>
   );

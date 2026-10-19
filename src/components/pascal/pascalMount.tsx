@@ -67,6 +67,7 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           scene={scene}
           sceneKey={sceneKey}
           cameraControls={options.cameraControls ?? false}
+          fit={options.fit ?? 'hero'}
           lite={options.lite ?? false}
           onReadyChange={options.onReadyChange}
           onFatal={options.onFatal}

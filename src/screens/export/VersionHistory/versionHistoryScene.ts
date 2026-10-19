@@ -95,6 +95,13 @@ export function graphOfVersion(
   });
 }
 
+/**
+ * Bản không có đối tượng nào để dựng (ví dụ "trạng thái trước khi ghi kết quả AI"): cảnh của nó
+ * chỉ có nền trời. Khi bản gốc trống thì `useVersionHistory` dựng bản đối chiếu thay vào.
+ */
+export const isEmptySource = ({ layer }: VersionSnapshotSource): boolean =>
+  layer.walls.length + layer.openings.length + layer.rooms.length + layer.furniture.length === 0;
+
 /** Vì sao tab "Trực quan" không dựng được cảnh; `null` khi nó dựng được. */
 export function unavailableReasonOf(
   canShowCurrentModel3d: boolean,
@@ -131,6 +138,8 @@ export interface VisualModelInput {
   readonly isFetchingDiff: boolean;
   /** `graph`/`scene` là của bản CŨ `leftVersionLabel`, không phải mô hình hiện tại. */
   readonly isOldVersion?: boolean;
+  /** Bản gốc trống nên cảnh dựng bản ĐỐI CHIẾU; `leftVersionLabel` khi đó là nhãn bản đối chiếu. */
+  readonly isTargetVersion?: boolean;
 }
 
 /**
@@ -168,7 +177,9 @@ export function buildVisualModel(input: VisualModelInput): VisualDiffModel {
     ),
     isBuilding: isAvailable && input.isFetchingDiff,
     caption:
-      input.isOldVersion === true && leftVersionLabel !== null
+      input.isTargetVersion === true && leftVersionLabel !== null
+        ? `Đây là phiên bản ${leftVersionLabel} (bản đối chiếu, vì bản gốc chưa có đối tượng nào); ${marked}`
+        : input.isOldVersion === true && leftVersionLabel !== null
         ? `Đây là phiên bản ${leftVersionLabel}; ${marked}`
         : leftVersionLabel === null
           ? `Đây là mô hình hiện tại chứ không phải một bản cũ; ${marked}`

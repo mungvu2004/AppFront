@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import type { PascalMountOptions } from '@/components/pascal/pascalMountTypes';
 import { bodyOfPascalId } from '@/lib/pascal/ids';
 import { defaultLoadMount, type MountModule } from '@/screens/viewer/PascalViewer/usePascalViewer';
 
@@ -33,9 +34,9 @@ const WEBGL_TITLE = 'Máy này không dựng được 3D';
 const WEBGL_BODY =
   'Trình duyệt không bật WebGL nên khối 3D không hiện. Hai tab còn lại vẫn mô tả đủ khác biệt.';
 const BUILDING_LABEL = 'Đang dựng mô hình';
-/** Cảnh dựng từ bản gốc (`useVersionHistory.ts` `sceneGraph`): đối tượng chỉ có ở bản đối chiếu không có trong cảnh. */
+/** Cảnh dựng bản gốc, hoặc bản đối chiếu khi bản gốc trống (`useVersionHistory.ts` `sceneGraph`); caption nêu bản nào. */
 const VISUAL_HINT =
-  'Khối 3D chỉ dựng bản gốc, nên chỉ tô được phần đã sửa hoặc xoá. Phần thêm chỉ có ở bản đối chiếu: xem ở mặt bằng 2D hoặc thẻ "Thay đổi".';
+  'Khối 3D dựng một bản (nêu ở câu trên), nên chỉ tô được đối tượng có trong bản ấy. Phần còn lại xem ở mặt bằng 2D hoặc thẻ "Thay đổi".';
 
 /**
  * Mã node Pascal của các đối tượng AppFront đang được tô sáng (đã đổi, cộng hàng đang trỏ).
@@ -97,16 +98,21 @@ export function VersionVisualDiff({ visual }: VersionVisualDiffProps) {
       .then((module) => {
         if (cancelled) return;
 
-        handleRef.current = module.mount(host, {
+        // Vừa khung bao cả cảnh và cho xoay/thu phóng (V1c); `MountModule` chưa khai hai khoá này.
+        const options: Parameters<MountModule['mount']>[1] &
+          Pick<PascalMountOptions, 'cameraControls' | 'fit'> = {
           scene,
           mode: 'view',
           readOnly: true,
+          fit: 'scene',
+          cameraControls: true,
           onReadyChange: (ready) => {
             if (ready) handleRef.current?.setHighlight?.(highlightRef.current);
           },
           onFatal: fail,
           onRendererUnavailable: fail,
-        });
+        };
+        handleRef.current = module.mount(host, options);
       })
       .catch(fail);
 
@@ -172,7 +178,7 @@ export function VersionVisualDiff({ visual }: VersionVisualDiffProps) {
 
   return (
     <figure className="flex flex-col gap-2">
-      <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-bg-sunken">
+      <div className="relative aspect-video max-h-[55vh] w-full overflow-hidden rounded-lg bg-bg-sunken">
         <div ref={hostRef} aria-hidden="true" className="h-full w-full" />
         {visual.isBuilding ? (
           <div className="absolute inset-0">

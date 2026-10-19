@@ -45,9 +45,9 @@ describe('VersionPlanDiff', () => {
 
     expect(container.querySelector('[data-entity-id="W-WALL000001"]')?.getAttribute('data-tone')).toBe('changed');
     expect(container.querySelector('[data-entity-id="W-WALL000002"]')?.getAttribute('data-tone')).toBe('added');
-    expect(screen.getByText('Thêm: 1')).toBeTruthy();
-    expect(screen.getByText('Xoá: 0')).toBeTruthy();
-    expect(screen.getByText('Sửa: 1')).toBeTruthy();
+    expect(screen.getByText('Thêm: 1 hình')).toBeTruthy();
+    expect(screen.getByText('Xoá: 0 hình')).toBeTruthy();
+    expect(screen.getByText('Sửa: 1 hình')).toBeTruthy();
     // Nét viền không phình theo tỷ lệ mm.
     expect(container.querySelectorAll('[vector-effect="non-scaling-stroke"]').length).toBeGreaterThan(0);
   });

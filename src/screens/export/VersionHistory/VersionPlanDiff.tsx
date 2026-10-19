@@ -20,6 +20,9 @@ const SAME_LABEL = 'Không đổi';
 const NO_PLAN_TEXT =
   'Chưa vẽ được mặt bằng vì một trong hai bản chưa có ảnh chụp. Danh sách thay đổi bên dưới vẫn đủ.';
 const EMPTY_PLAN_TEXT = 'Tầng này chưa có tường, phòng hay đồ đạc nào ở cả hai bản, nên không có gì để vẽ.';
+/** Chú giải đếm HÌNH trên mặt bằng; số +/−/~ phía trên đếm mọi mục thay đổi (QA-2 L7). */
+const SHAPE_UNIT = ' hình';
+const COUNT_NOTE_TEXT = 'Chú giải đếm hình trên mặt bằng; số +, −, ~ ở trên đếm mọi mục thay đổi, kể cả đầu tường.';
 const HINT_TEXT = 'Bấm một hình hoặc một dòng để ghim; bấm lại hoặc nhấn Esc để bỏ ghim.';
 
 /** Mẫu nét theo px màn hình (đi cùng `non-scaling-stroke`). `undefined` = nét liền. */
@@ -98,14 +101,14 @@ export function VersionPlanDiff({ plan, onHover, onPick }: VersionPlanDiffProps)
   });
 
   return (
-    <figure className="flex flex-col gap-2">
+    <figure className="flex min-h-0 flex-1 flex-col gap-2">
       <figcaption className="flex flex-wrap items-center gap-x-5 gap-y-1">
         <ul aria-label={LEGEND_LABEL} className="flex flex-wrap items-center gap-x-4 gap-y-1">
           {plan.legend.map((item) => (
             <li key={item.tone} data-legend-tone={item.tone} className="inline-flex items-center gap-1.5">
               <LegendSwatch color={DIFF_TONE_TOKENS[item.tone]} dash={TONE_DASH[item.tone]} />
               <span className="text-[13px] text-text-primary">
-                {item.label + ': ' + formatNumber(item.count, { fractionDigits: 0 })}
+                {item.label + ': ' + formatNumber(item.count, { fractionDigits: 0 }) + SHAPE_UNIT}
               </span>
             </li>
           ))}
@@ -114,13 +117,13 @@ export function VersionPlanDiff({ plan, onHover, onPick }: VersionPlanDiffProps)
             <span className="text-[13px] text-text-secondary">{SAME_LABEL}</span>
           </li>
         </ul>
-        <span className="text-[12px] text-text-tertiary">{HINT_TEXT}</span>
+        <span className="text-[12px] text-text-tertiary">{COUNT_NOTE_TEXT + ' ' + HINT_TEXT}</span>
       </figcaption>
       <svg
         role="img"
         aria-label={SVG_LABEL_PREFIX + plan.floorLabel}
         viewBox={plan.viewBox}
-        className="h-[clamp(260px,50vh,480px)] w-full shrink-0 rounded-lg border border-border-default bg-bg-sunken"
+        className="order-first min-h-[160px] w-full flex-1 rounded-lg xl:order-none border border-border-default bg-bg-sunken"
       >
         {plan.rooms.map((room) => {
           const c = centroidOf(room.points);

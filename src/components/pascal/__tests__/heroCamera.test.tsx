@@ -52,4 +52,22 @@ describe('[BUG-482] HeroCamera', () => {
     expect(camera.position.set).toHaveBeenCalledWith(1, 2, 3);
     expect(camera.lookAt).toHaveBeenCalledWith(4, 5, 6);
   });
+
+  it('mặc định (hero) ngắm tâm toà nhà, giữ góc thấp của ảnh đại diện', () => {
+    render(<HeroCamera ready />);
+
+    const args = vi.mocked(viewer.heroCameraPose).mock.calls[0]?.[0];
+    expect(args).toMatchObject({ aim: framing.aim });
+    expect(args).not.toHaveProperty('elevationRad');
+    expect(args).not.toHaveProperty('padding');
+  });
+
+  it('[V1c] fit="scene" vừa khung bao cả cảnh: bỏ aim, nhìn cao hơn, chừa lề', () => {
+    render(<HeroCamera ready fit="scene" />);
+
+    const args = vi.mocked(viewer.heroCameraPose).mock.calls[0]?.[0];
+    expect(args).not.toHaveProperty('aim');
+    expect(args).toMatchObject({ boxes: framing.boxes, elevationRad: Math.PI / 6, padding: 1.15 });
+    expect(camera.position.set).toHaveBeenCalledWith(1, 2, 3);
+  });
 });
