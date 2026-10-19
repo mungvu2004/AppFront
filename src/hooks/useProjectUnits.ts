@@ -59,7 +59,7 @@ export function useProjectUnits(projectId: string | undefined, api?: ProjectUnit
   const { data: settingsSnapshot } = useQuery<CachedSettings>({ queryKey: key, enabled: false });
   const { data: fetched } = useQuery<CachedSettings>({
     queryKey: [...key, 'units'],
-    enabled: projectId !== undefined && settingsSnapshot === undefined,
+    enabled: Boolean(projectId) && settingsSnapshot === undefined,
     queryFn: async () => {
       const result = await (await loadClient(api)).projectSettings.read({ projectId: projectId ?? '' });
       if (!result.ok) throw new Error('project settings unavailable');

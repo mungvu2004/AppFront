@@ -122,6 +122,8 @@ export interface ProjectSettingsMemberRow {
   readonly name: string;
   /** G3-12: email dưới tên để phân biệt người trùng tên. */
   readonly email: string;
+  /** Mã vai, để so vai hiện tại theo mã chứ không theo nhãn (RV4#5). */
+  readonly role: ProjectRole;
   readonly roleLabel: string;
   /** N4-03: quản trị hệ thống đổi được vai toàn hệ thống của người khác (không phải của mình). */
   readonly canChangeRole: boolean;
@@ -214,9 +216,6 @@ export interface ProjectSettingsModel extends ProjectMembersModel {
   readonly lengthUnitOptions: readonly SelectOption[];
   readonly areaUnitLabel: string;
   readonly snapToleranceMm: number | null;
-  readonly snapToleranceLabel: string;
-  readonly snapToleranceMinMm: number;
-  readonly snapToleranceMaxMm: number;
   readonly confidenceThreshold: number;
   readonly confidenceThresholdLabel: string;
   readonly scaleMmPerPx: number | null;
@@ -510,8 +509,7 @@ function snapProblemFor(value: number | null): string | null {
 function confidenceProblemFor(value: number): string | null {
   if (value < LIMITS.confidenceMin || value > LIMITS.confidenceMax) {
     return (
-      `Ngưỡng tin cậy nằm trong khoảng ${formatPercent(LIMITS.confidenceMin, { fractionDigits: 0 })} ` +
-      `đến ${formatPercent(LIMITS.confidenceMax, { fractionDigits: 0 })}.`
+      `Ngưỡng tin cậy nhập từ ${formatNumber(LIMITS.confidenceMin)} đến ${formatNumber(LIMITS.confidenceMax)}.`
     );
   }
   return null;
@@ -1412,6 +1410,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
         id: member.id,
         name: member.name,
         email: member.email,
+        role: member.role,
         roleLabel: ROLE_LABELS[member.role],
         canChangeRole: canDelete && member.id !== options.currentUserId,
         roleOptions: ROLE_OPTIONS,
@@ -1476,9 +1475,6 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     lengthUnitOptions: LENGTH_UNIT_OPTIONS,
     areaUnitLabel: `Mét vuông — ví dụ ${formatArea(LIMITS.areaExampleM2)}`,
     snapToleranceMm: current.snapToleranceMm,
-    snapToleranceLabel: formatLength(current.snapToleranceMm, { unit: 'mm' }),
-    snapToleranceMinMm: LIMITS.snapToleranceMinMm,
-    snapToleranceMaxMm: LIMITS.snapToleranceMaxMm,
     confidenceThreshold: current.confidenceThreshold,
     // G3-11: nói cách nhập (số thập phân) thay vì in lại giá trị ở dạng khác.
     confidenceThresholdLabel: `Nhập từ ${formatNumber(LIMITS.confidenceMin)} đến ${formatNumber(LIMITS.confidenceMax)}; ${formatNumber(current.confidenceThreshold, { maxFractionDigits: 2 })} nghĩa là ${formatPercent(current.confidenceThreshold, { fractionDigits: 0 })}.`,

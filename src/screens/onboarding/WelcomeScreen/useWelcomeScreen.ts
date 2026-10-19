@@ -298,7 +298,7 @@ export function useWelcomeScreen(options: UseWelcomeScreenOptions = {}): Welcome
     markWelcomeSeen(userId);
   }, [screenState, userId]);
 
-  /* -- Lời chào: tên → phần trước '@' của email → 'bạn'. -------------------- */
+  /* -- Lời chào: tên → 'bạn'. --------------------------------------------- */
 
   const greeting = useMemo(() => {
     const name = session.user?.name?.trim();

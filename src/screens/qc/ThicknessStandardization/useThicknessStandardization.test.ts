@@ -403,6 +403,31 @@ describe('bảng nhóm', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('kéo ngưỡng', () => {
+  it('đổi dự án mà không gắn lại thì nạp ngưỡng đã lưu của dự án mới (RV1#15)', () => {
+    const queryClient = createTestQueryClient();
+    const history = createHistoryStack();
+    const gateway = createMockThicknessStandardizationGateway();
+    const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    const rendered = renderHook(
+      ({ projectId }: { projectId: string }) =>
+        useThicknessStandardization({ projectId, floorId: FLOOR_ID, roles: ['engineer'], gateway, history }),
+      { wrapper, initialProps: { projectId: PROJECT_ID } },
+    );
+
+    act(() => {
+      rendered.result.current.onThresholdDrag(0, 180);
+    });
+    expect(rendered.result.current.thresholds[0]).toBe(180);
+
+    rendered.rerender({ projectId: 'project-2' });
+    expect(rendered.result.current.thresholds).toEqual(DEFAULT_THICKNESS_THRESHOLDS);
+
+    rendered.rerender({ projectId: PROJECT_ID });
+    expect(rendered.result.current.thresholds[0]).toBe(180);
+    rendered.unmount();
+  });
+
   it('kéo qua lại năm lần cho ĐÚNG KHÔNG bước lịch sử và không một lượt ghi nào', async () => {
     const notifications: NotificationBus = createNotificationBus();
     const mounted = await mountSettled({ notifications });

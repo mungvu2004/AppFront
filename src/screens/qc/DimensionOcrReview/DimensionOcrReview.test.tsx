@@ -673,6 +673,20 @@ describe('[BUG-334] chế độ duyệt bàn phím ở màn rỗng', () => {
     expect(await screen.findByText(DIMENSION_OCR_TEXT.states.empty.title)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: DIMENSION_OCR_TEXT.keyboard.toggleOnLabel })).toBeNull();
   });
+
+  it('[BUG-583] bảng phím ở chế độ bàn phím chỉ hứa Esc để thoát, không hứa phím R', async () => {
+    renderState('partial');
+
+    fireEvent.click(await screen.findByRole('button', { name: DIMENSION_OCR_TEXT.keyboard.toggleOnLabel }));
+
+    const panel = await screen.findByRole('region', { name: DIMENSION_OCR_TEXT.keyboard.caption });
+
+    /* Ô nhập nuốt phím R, nên bảng phím chỉ Esc là lối tắt chế độ. */
+    expect(
+      within(panel).getByText(DIMENSION_OCR_TEXT.keyboard.keys.escInKeyboardMode.description, { selector: 'dd' }),
+    ).toBeInTheDocument();
+    expect(within(panel).queryByText('R', { selector: 'kbd' })).not.toBeInTheDocument();
+  });
 });
 
 /* -------------------------------------------------------------------------- */

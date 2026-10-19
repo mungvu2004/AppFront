@@ -77,7 +77,7 @@ function RoleCell({ member, onChange }: { readonly member: MembersTabMember; rea
 
   const options = member.roleOptions.map((option) => ({ label: option.label, value: option.value as string }));
   // Giá trị luôn là vai hiện tại: chọn vai khác chỉ mở hộp xác nhận, huỷ hay lỗi thì Select vẫn đúng vai cũ.
-  const current = member.roleOptions.find((option) => option.label === member.roleLabel)?.value;
+  const current: string = member.role;
 
   return (
     <Select.Root

@@ -34,6 +34,11 @@ import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
+import { MemoryRouter } from 'react-router-dom';
+import type { ReactElement } from 'react';
+
+/** Lối sửa tỷ lệ/tải bản vẽ là `Link` của router (đi trong app, không tải lại trang). */
+const renderInRouter = (ui: ReactElement) => renderWithProviders(<MemoryRouter>{ui}</MemoryRouter>);
 import {
   SEVEN_STATES,
   SEVEN_STATE_LABELS,
@@ -105,7 +110,7 @@ describe('OverlayComparison — bảy trạng thái (A11, R-63)', () => {
     let rendered = 0;
 
     expectSevenStates((scenario) => {
-      const { container, unmount } = renderWithProviders(
+      const { container, unmount } = renderInRouter(
         <OverlayComparison {...scenarioFor(scenario.state)} />,
       );
       rendered += 1;
@@ -117,13 +122,13 @@ describe('OverlayComparison — bảy trạng thái (A11, R-63)', () => {
   });
 
   it('[BUG-636] vai người xem: đúng MỘT câu nói vì sao chỉ được xem', () => {
-    renderWithProviders(<OverlayComparison {...scenarioFor('forbidden')} />);
+    renderInRouter(<OverlayComparison {...scenarioFor('forbidden')} />);
 
     expect(screen.getAllByText(/chỉ được xem|không có quyền sửa/u)).toHaveLength(1);
   });
 
   it('[BUG-634] dưới 1024 thanh công cụ nằm trong luồng phía trên canvas, chỉ nổi trên canvas từ lg', () => {
-    renderWithProviders(<OverlayComparison {...scenarioFor('success')} />);
+    renderInRouter(<OverlayComparison {...scenarioFor('success')} />);
 
     const slot = screen.getByRole('toolbar', { name: 'Thanh công cụ đối chiếu bản vẽ' }).parentElement?.parentElement;
     const classes = slot?.className.split(' ') ?? [];
@@ -136,7 +141,7 @@ describe('OverlayComparison — bảy trạng thái (A11, R-63)', () => {
   it('trạng thái lỗi mở lối sang màn hiệu chỉnh tỷ lệ bằng một liên kết thật (R-65)', () => {
     const scenario = scenarioFor('error');
 
-    renderWithProviders(<OverlayComparison {...scenario} />);
+    renderInRouter(<OverlayComparison {...scenario} />);
 
     const link = screen.getByRole('link', { name: /hiệu chỉnh tỷ lệ/u });
 
@@ -149,7 +154,7 @@ describe('OverlayComparison — bảy trạng thái (A11, R-63)', () => {
   it('[BUG-420] tầng chưa có bản vẽ mở lối "Tải bản vẽ lên" từ `model.uploadHref`', () => {
     const scenario = scenarioFor('empty');
 
-    renderWithProviders(
+    renderInRouter(
       <OverlayComparison {...scenario} model={{ ...scenario.model, uploadHref: '/projects/p/upload' }} />,
     );
 
@@ -163,14 +168,14 @@ describe('OverlayComparison — bảy trạng thái (A11, R-63)', () => {
 
 describe('OverlayComparison — khả năng tiếp cận, tiếng Việt (R-72)', () => {
   it('đi qua expectAccessible ở trạng thái đầy đủ nhất', () => {
-    const { container } = renderWithProviders(<OverlayComparison {...scenarioFor('success')} />);
+    const { container } = renderInRouter(<OverlayComparison {...scenarioFor('success')} />);
 
     // Đỏ cho tới khi nhánh `overlay-a11y` gộp Slider/Table — xem chú thích đầu file.
     expectAccessible(container);
   });
 
   it('đi qua expectAccessible ở trạng thái một phần, nơi có cả thông báo lẫn danh sách', () => {
-    const { container } = renderWithProviders(<OverlayComparison {...scenarioFor('partial')} />);
+    const { container } = renderInRouter(<OverlayComparison {...scenarioFor('partial')} />);
 
     expectAccessible(container);
   });
@@ -184,13 +189,13 @@ describe('OverlayComparison — khả năng tiếp cận, tiếng Việt (R-72)'
   const TOLERANCE_LABEL_WORDS = ['dung', 'sai'];
 
   it('mọi chuỗi hiển thị ở trạng thái thành công là tiếng Việt có dấu', () => {
-    const { container } = renderWithProviders(<OverlayComparison {...scenarioFor('success')} />);
+    const { container } = renderInRouter(<OverlayComparison {...scenarioFor('success')} />);
 
     expectVietnamese(container, { allowWords: TOLERANCE_LABEL_WORDS });
   });
 
   it('mọi chuỗi hiển thị ở trạng thái lỗi cũng là tiếng Việt có dấu', () => {
-    const { container } = renderWithProviders(<OverlayComparison {...scenarioFor('error')} />);
+    const { container } = renderInRouter(<OverlayComparison {...scenarioFor('error')} />);
 
     expectVietnamese(container, { allowWords: TOLERANCE_LABEL_WORDS });
   });
@@ -238,7 +243,7 @@ describe('OverlayComparison — xác nhận là hành động của người (A5
     const confirmMatch = vi.fn();
     const actions: OverlayComparisonActions = { ...scenarioFor('success').actions, confirmMatch };
 
-    renderWithProviders(<OverlayComparison actions={actions} model={model} />);
+    renderInRouter(<OverlayComparison actions={actions} model={model} />);
 
     const button = screen.getByRole('button', { name: model.confirmation.buttonLabel });
 
@@ -256,7 +261,7 @@ describe('OverlayComparison — QA-04c SCR-22 (BUG-331, 599, 608)', () => {
   it('lỗi đọc có "Thử lại"; câu trạng thái nằm ở đầu panel, không nổi giữa canvas', () => {
     const base = scenarioFor('error');
     const retry = vi.fn();
-    renderWithProviders(
+    renderInRouter(
       <OverlayComparison actions={{ ...base.actions, retry }} model={{ ...base.model, canRetry: true }} />,
     );
 
@@ -270,7 +275,7 @@ describe('OverlayComparison — QA-04c SCR-22 (BUG-331, 599, 608)', () => {
   it('nút "Vừa khung nhìn" về toàn cảnh mà không tải lại trang (BUG-599)', () => {
     const base = scenarioFor('partial');
     const fitView = vi.fn();
-    renderWithProviders(<OverlayComparison actions={{ ...base.actions, fitView }} model={base.model} />);
+    renderInRouter(<OverlayComparison actions={{ ...base.actions, fitView }} model={base.model} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Vừa khung nhìn' }));
     expect(fitView).toHaveBeenCalledOnce();

@@ -91,6 +91,8 @@ interface DraftFloorRow {
   readonly name: string;
   readonly kind: 'basement' | 'floor';
   readonly clearHeightM: number | null;
+  /** Tên do wizard tự sinh, chưa ai gõ lại: chỉ những dòng này được đánh số lại khi xoá tầng (RV4#7). */
+  readonly isAutoName?: boolean;
 }
 
 /** One floor, ready for the table. Every field is a value; the view computes nothing. */
@@ -203,8 +205,6 @@ function rowIdFromLevelId(levelId: LevelId): string {
   return levelId.slice(LEVEL_ID_PREFIX_LENGTH);
 }
 
-const AUTO_FLOOR_NAME = /^Tầng (trệt|\d+)$/u;
-
 /** Names the next floor above the ground the way {@link addFloor} always has. */
 function nextFloorName(aboveCount: number): string {
   return aboveCount === 0 ? 'Tầng trệt' : `Tầng ${String(aboveCount)}`;
@@ -217,6 +217,7 @@ function createDefaultFloorRows(): DraftFloorRow[] {
     name: nextFloorName(index),
     kind: 'floor' as const,
     clearHeightM: null,
+    isAutoName: true,
   }));
 }
 
@@ -770,7 +771,7 @@ export function useCreateProjectModal(
       const taken = new Set(current.map((row) => row.name.trim()));
       let number = current.filter((row) => row.kind === 'floor').length;
       while (taken.has(nextFloorName(number))) number += 1;
-      return [...current, { id: createUuid(), name: nextFloorName(number), kind: 'floor', clearHeightM: null }];
+      return [...current, { id: createUuid(), name: nextFloorName(number), kind: 'floor', clearHeightM: null, isAutoName: true }];
     });
   };
 
@@ -778,7 +779,8 @@ export function useCreateProjectModal(
     if (floorRows.length <= 1) return; // At least one floor stays (G1-30).
     markDirty();
     setFloorRows((current) => {
-      // Floors still carrying their automatic name ("Tầng trệt", "Tầng 2") follow their new position (G1-30).
+      // Floors still carrying their automatic name ("Tầng trệt", "Tầng 2") follow their new position (G1-30);
+      // a name the user typed stays, even when it looks automatic ("Tầng 5" matching the drawing).
       let above = 0;
       return current
         .filter((row) => row.id !== id)
@@ -786,14 +788,14 @@ export function useCreateProjectModal(
           if (row.kind !== 'floor') return row;
           const position = above;
           above += 1;
-          return AUTO_FLOOR_NAME.test(row.name.trim()) ? { ...row, name: nextFloorName(position) } : row;
+          return row.isAutoName === true ? { ...row, name: nextFloorName(position) } : row;
         });
     });
   };
 
   const setFloorName = (id: string, value: string): void => {
     markDirty();
-    setFloorRows((current) => current.map((row) => (row.id === id ? { ...row, name: value } : row)));
+    setFloorRows((current) => current.map((row) => (row.id === id ? { ...row, name: value, isAutoName: false } : row)));
   };
 
   const setFloorHeight = (id: string, valueM: number | undefined): void => {

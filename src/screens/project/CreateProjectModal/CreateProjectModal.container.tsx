@@ -38,6 +38,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { ScreenErrorBoundary, type ScreenErrorFallback } from '@/components/feedback/ScreenErrorBoundary';
 import { createUuid } from '@/lib/http/ids';
 import { applyInvalidation } from '@/lib/query/invalidation';
+import { queryKeys } from '@/lib/query/queryKeys';
 import type { ProjectRole } from '@/types/project';
 
 import { CreateProjectModal } from './CreateProjectModal';
@@ -96,9 +97,14 @@ export function createProjectGateway(client: ApiClient, queryClient: QueryClient
       }
 
       applyInvalidation(queryClient, 'createProject', {});
-      // G3-01/G1-32: chờ danh sách tải lại rồi mới báo "Đã tạo", để thẻ mới đã có khi toast hiện.
-      // ponytail: tải lại mọi query đang mở (trên dashboard chỉ là danh sách); lỗi tải lại không chặn lượt tạo.
-      await queryClient.refetchQueries({ type: 'active' }).catch(() => undefined);
+      // G3-01/G1-32: chờ danh sách dự án tải lại rồi mới báo "Đã tạo", để thẻ mới đã có khi toast hiện.
+      // Chỉ chờ đúng hai khoá danh sách; `cancelRefetch: false` dùng lại lượt tải mà invalidate vừa mở.
+      // refetchQueries mặc định không ném lỗi nên lỗi tải lại không chặn lượt tạo.
+      await Promise.all(
+        [queryKeys.project.list(), queryKeys.project.summaries()].map((queryKey) =>
+          queryClient.refetchQueries({ queryKey, type: 'active' }, { cancelRefetch: false }),
+        ),
+      );
 
       return { ok: true, data: { id: result.data.id } };
     },

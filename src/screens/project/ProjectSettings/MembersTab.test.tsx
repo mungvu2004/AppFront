@@ -45,7 +45,7 @@ const OPEN_ROLE_DIALOG = {
   fromLabel: 'Kỹ sư',
   toLabel: 'Người xem',
   consequence: 'Nguyễn Bình sẽ không còn sửa được bản vẽ, tầng hay cài đặt ở các dự án đó.',
-  projectNames: ['Toà nhà HQ Renovation', 'Nhà máy Bắc Ninh'],
+  projects: [{ id: 'prj_hq', name: 'Toà nhà HQ Renovation' }, { id: 'prj_bn', name: 'Nhà máy Bắc Ninh' }],
   error: null,
   isSubmitting: false,
 } as const;
@@ -58,8 +58,8 @@ function tabProps(overrides: Partial<MembersTabProps> = {}): MembersTabProps {
     state: 'success',
     canEdit: true,
     members: [
-      { id: 'usr_admin', name: 'Phạm An', email: '', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An', canChangeRole: false, roleOptions: ROLE_OPTIONS },
-      { id: 'usr_eng', name: 'Nguyễn Bình', email: '', roleLabel: 'Kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình', canChangeRole: true, roleOptions: ROLE_OPTIONS },
+      { id: 'usr_admin', name: 'Phạm An', email: '', role: 'admin', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An', canChangeRole: false, roleOptions: ROLE_OPTIONS },
+      { id: 'usr_eng', name: 'Nguyễn Bình', email: '', role: 'engineer', roleLabel: 'Kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình', canChangeRole: true, roleOptions: ROLE_OPTIONS },
     ],
     roleChangeDialog: { state: 'closed' },
     requestRoleChange: noop,
@@ -237,6 +237,25 @@ describe('MembersTab · vai toàn hệ thống (N4-03)', () => {
 
     fireEvent.click(dialog.getByRole('button', { name: 'Đổi vai' }));
     expect(confirmRoleChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('vai hiện tại so theo mã vai, không theo nhãn: nhãn dòng khác nhãn tuỳ chọn vẫn không mở hộp khi chọn lại vai cũ (RV4#5)', () => {
+    const requestRoleChange = vi.fn();
+    const members = tabProps().members.map((member) =>
+      member.id === 'usr_eng' ? { ...member, roleLabel: 'Kỹ sư (nhãn cũ)' } : member,
+    );
+    render(<MembersTab {...tabProps({ members, requestRoleChange })} />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Vai toàn hệ thống của Nguyễn Bình' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Kỹ sư' }));
+    expect(requestRoleChange).not.toHaveBeenCalled();
+  });
+
+  it('hộp đổi vai liệt kê đủ hai dự án trùng tên (khoá theo mã dự án, RV4#4)', () => {
+    const projects = [{ id: 'prj_1', name: 'Nhà A' }, { id: 'prj_2', name: 'Nhà A' }];
+    render(<MembersTab {...tabProps({ roleChangeDialog: { ...OPEN_ROLE_DIALOG, projects } })} />);
+
+    expect(within(screen.getByRole('dialog')).getAllByText('Nhà A')).toHaveLength(2);
   });
 
   it('MEMBER_LAST_EDITOR: câu dễ hiểu ngay trong hộp, Select vẫn giữ vai cũ', () => {

@@ -30,9 +30,9 @@ const ROLE_OPTIONS = [
 
 /** N4-03: dòng đầu là chính quản trị viên đang xem (không tự đổi vai), hai dòng sau có Select vai. */
 const MEMBERS = [
-  { id: 'm-an', name: 'Phạm An', email: '', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An', canChangeRole: false, roleOptions: ROLE_OPTIONS },
-  { id: 'm-binh', name: 'Nguyễn Bình', email: '', roleLabel: 'Kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình', canChangeRole: true, roleOptions: ROLE_OPTIONS },
-  { id: 'm-chi', name: 'Trần Chi', email: '', roleLabel: 'Người xem', initials: 'TC', removeLabel: 'Gỡ Trần Chi', canChangeRole: true, roleOptions: ROLE_OPTIONS },
+  { id: 'm-an', name: 'Phạm An', email: '', role: 'admin' as const, roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An', canChangeRole: false, roleOptions: ROLE_OPTIONS },
+  { id: 'm-binh', name: 'Nguyễn Bình', email: '', role: 'engineer' as const, roleLabel: 'Kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình', canChangeRole: true, roleOptions: ROLE_OPTIONS },
+  { id: 'm-chi', name: 'Trần Chi', email: '', role: 'viewer' as const, roleLabel: 'Người xem', initials: 'TC', removeLabel: 'Gỡ Trần Chi', canChangeRole: true, roleOptions: ROLE_OPTIONS },
 ];
 
 const NO_PROBLEMS = {
@@ -89,9 +89,6 @@ const base: ProjectSettingsViewProps = {
   ],
   areaUnitLabel: 'mét vuông — ví dụ 248,60 m²',
   snapToleranceMm: 50,
-  snapToleranceLabel: '50 mm',
-  snapToleranceMinMm: 1,
-  snapToleranceMaxMm: 120,
   confidenceThreshold: 0.75,
   confidenceThresholdLabel: '75%',
   scaleMmPerPx: 2.5,
@@ -254,7 +251,7 @@ export const RoleChangeLastEditor: Story = {
       fromLabel: 'Kỹ sư',
       toLabel: 'Người xem',
       consequence: 'Nguyễn Bình sẽ không còn sửa được bản vẽ, tầng hay cài đặt ở các dự án đó.',
-      projectNames: ['Toà nhà HQ Renovation', 'Nhà máy Bắc Ninh'],
+      projects: [{ id: 'prj_hq', name: 'Toà nhà HQ Renovation' }, { id: 'prj_bn', name: 'Nhà máy Bắc Ninh' }],
       error: 'Chưa hạ được vai: người này là người sửa cuối cùng của ít nhất một dự án. Hãy cho thêm một người có quyền sửa vào dự án đó trước.',
       isSubmitting: false,
     },

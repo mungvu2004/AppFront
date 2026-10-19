@@ -39,7 +39,6 @@
  * lẽ đã ghi ở màn tường anh em.
  */
 
-import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -50,11 +49,10 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
-import { createAppApiClient } from '@/api/appClient';
+import { useProjectFloors } from '@/hooks/useProjectFloors';
 import { useSession } from '@/hooks/useSession';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
-import { queryKeys } from '@/lib/query/queryKeys';
 import type { ProjectRole } from '@/types/project';
 
 import type { QcFloorNavProps } from '../shared/QcFloorNav';
@@ -169,26 +167,7 @@ export function ObjectLayerReviewRoute() {
     [navigate],
   );
   /* Danh sách tầng cho cấp Tầng của breadcrumb: đổi tầng ngay tại màn, giữ lớp (N2-06). */
-  const floorsQuery = useQuery({
-    queryKey: queryKeys.floor.list(id ?? ''),
-    queryFn: async ({ signal }) => {
-      const result = await createAppApiClient().floors.list({ projectId: id ?? '', signal });
-
-      if (!result.ok) {
-        throw result.error;
-      }
-
-      return result.data;
-    },
-    enabled: id !== undefined && id.length > 0,
-  });
-  const floors = useMemo(
-    () =>
-      [...(floorsQuery.data ?? [])]
-        .sort((first, second) => first.order - second.order)
-        .map((item) => ({ id: item.id, label: item.name })),
-    [floorsQuery.data],
-  );
+  const floors = useProjectFloors(id);
 
   if (id === undefined || id.length === 0 || floorId === undefined || floorId.length === 0) {
     return (

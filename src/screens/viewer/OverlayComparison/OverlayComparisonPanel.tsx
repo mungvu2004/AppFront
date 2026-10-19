@@ -38,6 +38,8 @@
  * `types.ts:284-309`).
  */
 
+import { Link } from 'react-router-dom';
+
 import { useCountUp } from '@/hooks/useCountUp';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -129,12 +131,12 @@ export function OverlayComparisonPanel({
         <div className="flex flex-col items-start gap-1 px-4 pt-4">
           <p className="text-[13px] text-text-secondary">{UNMEASURED_NOTICE}</p>
           {alignHref !== undefined && (
-            <a
+            <Link
               className="rounded-md text-[13px] text-accent underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              href={alignHref}
+              to={alignHref}
             >
               {ALIGN_LINK_LABEL}
-            </a>
+            </Link>
           )}
         </div>
       ) : (

@@ -50,7 +50,7 @@
  */
 
 import { AlertCircle } from 'lucide-react';
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -59,13 +59,11 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
+import { useProjectFloors } from '@/hooks/useProjectFloors';
 import { useSession } from '@/hooks/useSession';
 import type { HistoryStack } from '@/lib/commands/history';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import type { ProjectRole } from '@/types/project';
-import { createAppApiClient } from '@/api/appClient';
-import { queryKeys } from '@/lib/query/queryKeys';
-import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { QcFloorNavProps } from '../shared/QcFloorNav';
@@ -187,26 +185,7 @@ export function ThicknessStandardizationRoute() {
     navigate(path);
   }, [navigate]);
 
-  const floorsQuery = useQuery({
-    queryKey: queryKeys.floor.list(id ?? ''),
-    queryFn: async ({ signal }) => {
-      const result = await createAppApiClient().floors.list({ projectId: id ?? '', signal });
-
-      if (!result.ok) {
-        throw result.error;
-      }
-
-      return result.data;
-    },
-    enabled: id !== undefined && id.length > 0,
-  });
-  const floors = useMemo(
-    () =>
-      [...(floorsQuery.data ?? [])]
-        .sort((first, second) => first.order - second.order)
-        .map((item) => ({ id: item.id, label: item.name })),
-    [floorsQuery.data],
-  );
+  const floors = useProjectFloors(id);
 
   if (id === undefined || id.length === 0 || floorId === undefined || floorId.length === 0) {
     return (

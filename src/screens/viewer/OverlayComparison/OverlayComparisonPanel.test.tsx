@@ -19,6 +19,7 @@
  */
 
 import { fireEvent, screen, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
@@ -88,12 +89,23 @@ describe('OverlayComparisonPanel', () => {
   });
 
   it('[G4b-25] chưa đo được thì có lối sang màn căn ảnh', () => {
-    renderWithProviders(<OverlayComparisonPanel {...panelPropsOf('empty')} alignHref="/projects/p/floors/f/scale" />);
-
-    expect(screen.getByRole('link', { name: 'Căn ảnh ở màn Hiệu chỉnh tỷ lệ' })).toHaveAttribute(
-      'href',
-      '/projects/p/floors/f/scale',
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/projects/p/floors/f/overlay']}>
+        <Routes>
+          <Route
+            element={<OverlayComparisonPanel {...panelPropsOf('empty')} alignHref="/projects/p/floors/f/scale" />}
+            path="/projects/p/floors/f/overlay"
+          />
+          <Route element={<p>Màn hiệu chỉnh</p>} path="/projects/p/floors/f/scale" />
+        </Routes>
+      </MemoryRouter>,
     );
+
+    const link = screen.getByRole('link', { name: 'Căn ảnh ở màn Hiệu chỉnh tỷ lệ' });
+    expect(link).toHaveAttribute('href', '/projects/p/floors/f/scale');
+    // RV4#8: router Link, so the app navigates in place instead of reloading the page.
+    fireEvent.click(link);
+    expect(screen.getByText('Màn hiệu chỉnh')).toBeInTheDocument();
   });
 
   it('nút xác nhận tắt thì có dòng lý do ngay dưới (BUG-599)', () => {

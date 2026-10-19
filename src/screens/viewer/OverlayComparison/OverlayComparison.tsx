@@ -65,6 +65,7 @@
  */
 
 import { useRef } from 'react';
+import { Link } from 'react-router-dom';
 
 import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import { InlineAlert, type InlineAlertLevel } from '@/components/feedback/InlineAlert';
@@ -145,14 +146,14 @@ export function OverlayComparison({ actions, alignHref, model, nav }: OverlayCom
           </Button>
         )}
         {isError && model.scaleFixHref !== null && (
-          <a className={ERROR_LINK_CLASS_NAME} href={model.scaleFixHref}>
+          <Link className={ERROR_LINK_CLASS_NAME} to={model.scaleFixHref}>
             {ERROR_LINK_LABEL}
-          </a>
+          </Link>
         )}
         {model.uploadHref !== null && (
-          <a className={ERROR_LINK_CLASS_NAME} href={model.uploadHref}>
+          <Link className={ERROR_LINK_CLASS_NAME} to={model.uploadHref}>
             {UPLOAD_LINK_LABEL}
-          </a>
+          </Link>
         )}
       </div>
     );

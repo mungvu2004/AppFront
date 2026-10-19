@@ -33,10 +33,16 @@ const readStored = (persistKey: string | undefined): number | null => {
  *
  * `persistKey` (G4b-30): truyền khoá theo (route, tầng), ví dụ `dimensions:${floorId}`, thì mức phóng
  * được giữ trong `sessionStorage` khi chuyển màn rồi bấm Back. Bỏ trống thì không nhớ gì.
- * ponytail: khoá chỉ đọc lúc gắn; màn đổi tầng mà không gắn lại thì truyền `key` cho màn.
+ * Đổi khoá thì nạp lại mức đã lưu của khoá mới ngay lúc render, trước khi effect ghi (không ghi mức cũ sang khoá mới).
  */
 export function useZoomCluster(initialZoom = 100, persistKey?: string): ZoomClusterState {
   const [zoomLevel, setZoomLevel] = useState(() => readStored(persistKey) ?? initialZoom);
+  const [loadedKey, setLoadedKey] = useState(persistKey);
+
+  if (loadedKey !== persistKey) {
+    setLoadedKey(persistKey);
+    setZoomLevel(readStored(persistKey) ?? initialZoom);
+  }
 
   useEffect(() => {
     if (persistKey === undefined) return;

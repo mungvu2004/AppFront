@@ -539,6 +539,17 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(names).toEqual(['Tầng trệt', 'Tầng lửng', 'Tầng 2', 'Tầng 3']);
   });
 
+  it('renumbers only automatic floor names on delete, never a name the user typed (RV4#7)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    fireEvent.change(screen.getByLabelText('Tên tầng Tầng 3'), { target: { value: 'Tầng 5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá Tầng 1' }));
+
+    const names = screen.getAllByRole('textbox', { name: /^Tên tầng/u }).map((box) => (box as HTMLInputElement).value);
+    expect(names).toEqual(['Tầng trệt', 'Tầng 1', 'Tầng 5']);
+  });
+
   it('marks a blank floor name at step 2 and blocks "Tiếp tục" (BUG-185)', () => {
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
 
@@ -609,6 +620,7 @@ describe('CreateProjectModal, wired to its hook', () => {
     queryClient.setQueryData(queryKeys.project.summaries(), { projects: [], droppedCount: 0 });
     const createSpy = vi.spyOn(client.projects, 'create');
     const deleteSpy = vi.spyOn(client.projects, 'delete');
+    const refetchSpy = vi.spyOn(queryClient, 'refetchQueries');
     const onDismiss = vi.fn();
     const onCreated = vi.fn();
     const onToast = vi.fn();
@@ -644,6 +656,12 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(createSpy).toHaveBeenCalledTimes(1);
     // D-03: the project list's cache is invalidated once the mock client confirms the write.
     expect(listState()?.isInvalidated).toBe(true);
+    // RV4#1: only the project-list keys are refetched, never every active query.
+    const refetchedKeys = refetchSpy.mock.calls.map(([filters]) => filters?.queryKey);
+    expect(refetchedKeys.length).toBeGreaterThan(0);
+    expect(new Set(refetchedKeys.map((key) => JSON.stringify(key)))).toEqual(
+      new Set([JSON.stringify(queryKeys.project.list()), JSON.stringify(queryKeys.project.summaries())]),
+    );
     queryClient.setQueryData(queryKeys.project.summaries(), { projects: [], droppedCount: 0 });
 
     // The id the toast's undo will act on is whatever the mock actually minted

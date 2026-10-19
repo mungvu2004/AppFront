@@ -35,14 +35,14 @@ export function MemberRoleDialog({ dialog, onConfirm, onCancel }: MemberRoleDial
             <>
               <p className="text-[14px] text-text-primary">{open.consequence}</p>
               <p className="text-[14px] text-text-primary">
-                {open.projectNames.length === 0
+                {open.projects.length === 0
                   ? `Vai mới áp dụng cho mọi dự án của ${open.memberName}.`
-                  : `Vai mới áp dụng cho tất cả ${open.projectNames.length} dự án của ${open.memberName}:`}
+                  : `Vai mới áp dụng cho tất cả ${open.projects.length} dự án của ${open.memberName}:`}
               </p>
-              {open.projectNames.length > 0 && (
+              {open.projects.length > 0 && (
                 <ul className="flex max-h-40 list-disc flex-col gap-1 overflow-y-auto pl-5 text-[13px] text-text-primary">
-                  {open.projectNames.map((name) => (
-                    <li key={name}>{name}</li>
+                  {open.projects.map((project) => (
+                    <li key={project.id}>{project.name}</li>
                   ))}
                 </ul>
               )}

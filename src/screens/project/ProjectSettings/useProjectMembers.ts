@@ -26,6 +26,7 @@ import type {
   ProjectSettingsGateway,
   ProjectSettingsMember,
   ProjectSettingsSnapshot,
+  UserProject,
 } from './projectSettingsGateway';
 import { readSettingsError } from './settingsErrors';
 
@@ -73,7 +74,7 @@ export type RoleChangeDialogModel =
       readonly fromLabel: string;
       readonly toLabel: string;
       /** Rỗng khi không đọc được danh sách: hộp hiện câu chung, không chặn. */
-      readonly projectNames: readonly string[];
+      readonly projects: readonly UserProject[];
       /** Câu nói hậu quả của vai mới, ví dụ "X sẽ chỉ xem được, không sửa được … ở 3 dự án." */
       readonly consequence: string;
       readonly error: string | null;
@@ -170,14 +171,14 @@ interface RoleChangeTarget {
   readonly name: string;
   readonly from: ProjectMemberRole;
   readonly to: ProjectMemberRole;
-  readonly projectNames: readonly string[];
+  readonly projects: readonly UserProject[];
 }
 
 /** Câu hậu quả của một lượt đổi vai (B-con §4); danh sách dự án rỗng (đọc lỗi) thì nói chung. */
-export function roleChangeConsequence(target: Pick<RoleChangeTarget, 'name' | 'from' | 'to' | 'projectNames'>): string {
+export function roleChangeConsequence(target: Pick<RoleChangeTarget, 'name' | 'from' | 'to' | 'projects'>): string {
   const scope =
-    target.projectNames.length > 0
-      ? `${formatNumber(target.projectNames.length, { grouping: false })} dự án`
+    target.projects.length > 0
+      ? `${formatNumber(target.projects.length, { grouping: false })} dự án`
       : 'mọi dự án của người này';
 
   if (target.to === 'admin') {
@@ -441,7 +442,7 @@ export function useProjectMembers(
         name: options.memberNames[userId] ?? '',
         from,
         to: role,
-        projectNames: projects.ok ? projects.data : [],
+        projects: projects.ok ? projects.data : [],
       });
     });
   };
@@ -484,7 +485,7 @@ export function useProjectMembers(
           memberName: roleTarget.name,
           fromLabel: ROLE_LABELS[roleTarget.from],
           toLabel: ROLE_LABELS[roleTarget.to],
-          projectNames: roleTarget.projectNames,
+          projects: roleTarget.projects,
           consequence: roleChangeConsequence(roleTarget),
           error: roleError,
           isSubmitting: isRoleSubmitting,

@@ -361,6 +361,13 @@ export function useThicknessStandardization(
   /* ---------------------------------------------------------------------- */
 
   const [thresholds, setThresholds] = useState<ThicknessThresholds>(() => readSavedThresholds(projectId));
+  const [thresholdsProjectId, setThresholdsProjectId] = useState(projectId);
+
+  /* Đổi dự án mà màn không gắn lại: nạp ngưỡng của dự án mới ngay lúc render (RV1#15). */
+  if (thresholdsProjectId !== projectId) {
+    setThresholdsProjectId(projectId);
+    setThresholds(readSavedThresholds(projectId));
+  }
   const [toleranceMm, setToleranceMm] = useState(DEFAULT_TOLERANCE_MM);
   const [acceptedMeasurements, setAcceptedMeasurements] =
     useState<ReadonlySet<number>>(NO_MEASUREMENTS);

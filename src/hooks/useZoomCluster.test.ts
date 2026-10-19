@@ -45,6 +45,21 @@ describe('useZoomCluster', () => {
     expect(renderHook(() => useZoomCluster()).result.current.zoomLevel).toBe(100);
   });
 
+  it('loads the new key level instead of copying the old one when persistKey changes (RV4#2)', () => {
+    sessionStorage.clear();
+    sessionStorage.setItem('zoom-cluster:dimensions:L2', '75');
+    const { result, rerender } = renderHook(({ key }: { key: string }) => useZoomCluster(100, key), {
+      initialProps: { key: 'dimensions:L1' },
+    });
+    act(() => result.current.zoomIn());
+    expect(result.current.zoomLevel).toBe(125);
+    rerender({ key: 'dimensions:L2' });
+    expect(result.current.zoomLevel).toBe(75);
+    expect(sessionStorage.getItem('zoom-cluster:dimensions:L2')).toBe('75');
+    rerender({ key: 'dimensions:L1' });
+    expect(result.current.zoomLevel).toBe(125);
+  });
+
   it('resets zoom to 100', () => {
     const { result } = renderHook(() => useZoomCluster(200));
     act(() => result.current.resetZoom());

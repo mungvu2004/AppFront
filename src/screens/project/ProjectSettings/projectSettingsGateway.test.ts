@@ -443,7 +443,7 @@ describe('N4-03: đổi vai toàn hệ thống', () => {
     expect(await gateway.changeUserRole({ userId: 'usr_x', role: 'viewer' })).toEqual({ ok: false, error });
   });
 
-  it('listUserProjects trả tên dự án; lỗi thì chuyển nguyên', async () => {
+  it('listUserProjects trả mã và tên dự án; lỗi thì chuyển nguyên', async () => {
     const { server } = await setup();
     const error = networkError();
     const memberships = vi
@@ -458,7 +458,7 @@ describe('N4-03: đổi vai toàn hệ thống', () => {
       .mockResolvedValueOnce({ ok: false, error });
     const gateway = createProjectSettingsGateway({ ...server.client, users: { ...server.client.users, memberships } });
 
-    expect(await gateway.listUserProjects({ userId: 'usr_x' })).toEqual({ ok: true, data: ['Nhà A', 'Nhà B'] });
+    expect(await gateway.listUserProjects({ userId: 'usr_x' })).toEqual({ ok: true, data: [{ id: 'prj_a', name: 'Nhà A' }, { id: 'prj_b', name: 'Nhà B' }] });
     expect(memberships).toHaveBeenCalledWith({ userId: 'usr_x' });
     expect(await gateway.listUserProjects({ userId: 'usr_x' })).toEqual({ ok: false, error });
   });

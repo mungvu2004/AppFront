@@ -138,7 +138,7 @@ describe('đổi vai thành viên (N4-03)', () => {
       memberName: 'Engineer',
       fromLabel: 'Kỹ sư',
       toLabel: 'Người xem',
-      projectNames: ['Nhà A', 'Nhà B'],
+      projects: [{ id: 'prj_a', name: 'Nhà A' }, { id: 'prj_b', name: 'Nhà B' }],
       consequence: 'Engineer sẽ chỉ xem được, không sửa được bản vẽ, tầng hay cài đặt ở 2 dự án.',
       error: null,
       isSubmitting: false,
@@ -215,7 +215,7 @@ describe('đổi vai thành viên (N4-03)', () => {
 
     await request(hook, 'viewer');
 
-    expect(hook.result.current.roleChangeDialog).toMatchObject({ state: 'open', projectNames: [] });
+    expect(hook.result.current.roleChangeDialog).toMatchObject({ state: 'open', projects: [] });
   });
 
   it('Huỷ (cả khi đang tải) thì đóng hộp, không gọi máy chủ đổi vai; chọn lại đúng vai cũ thì không mở', async () => {
@@ -241,7 +241,7 @@ describe('đổi vai thành viên (N4-03)', () => {
 });
 
 describe('roleChangeConsequence', () => {
-  const base = { name: 'An', projectNames: ['A', 'B', 'C'] } as const;
+  const base = { name: 'An', projects: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }] } as const;
 
   it('đủ bốn hướng đổi vai', () => {
     expect(roleChangeConsequence({ ...base, from: 'admin', to: 'viewer' })).toBe(

@@ -41,6 +41,12 @@ export type ProjectAreaUnit = 'm2';
 
 export type ProjectMemberRole = 'admin' | 'engineer' | 'viewer';
 
+/** N4-03: một dự án người dùng đang tham gia; `id` làm khoá danh sách vì tên dự án không bắt buộc duy nhất (RV4#4). */
+export interface UserProject {
+  readonly id: string;
+  readonly name: string;
+}
+
 export interface ProjectSettingsMember {
   readonly id: string;
   readonly name: string;
@@ -156,8 +162,8 @@ export interface ProjectSettingsGateway {
     readonly userId: string;
     readonly role: ProjectMemberRole;
   }) => Promise<ApiResult<void>>;
-  /** N4-03: tên các dự án người này đang tham gia, để hộp xác nhận nói rõ phạm vi. */
-  readonly listUserProjects: (input: { readonly userId: string }) => Promise<ApiResult<readonly string[]>>;
+  /** N4-03: các dự án người này đang tham gia (mã + tên), để hộp xác nhận nói rõ phạm vi. */
+  readonly listUserProjects: (input: { readonly userId: string }) => Promise<ApiResult<readonly UserProject[]>>;
   /** N4-02: id các tài khoản đang chờ chấp nhận lời mời (chỉ quản trị đọc được; lỗi thì rỗng). */
   readonly listPendingUserIds?: () => Promise<ReadonlySet<string>>;
   readonly deleteAllFloors: (input: DeleteAllFloorsInput) => Promise<ApiResult<DeleteAllFloorsResult>>;
@@ -486,7 +492,7 @@ export function createProjectSettingsGateway(client: ApiClient): ProjectSettings
     listUserProjects: async ({ userId }) => {
       const result = await client.users.memberships({ userId });
 
-      return result.ok ? { ok: true, data: result.data.map((membership) => membership.projectName) } : result;
+      return result.ok ? { ok: true, data: result.data.map((membership) => ({ id: membership.projectId, name: membership.projectName })) } : result;
     },
 
     addMember: async ({ projectId, email }) => {

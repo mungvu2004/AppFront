@@ -62,7 +62,6 @@
  */
 
 import { AlertCircle } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -74,12 +73,11 @@ import {
 } from '@/components/feedback/ScreenErrorBoundary';
 import type { LevelId } from '@/domain/spatial/types';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
+import { useProjectFloors } from '@/hooks/useProjectFloors';
 import { useSession } from '@/hooks/useSession';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import type { ProjectRole } from '@/types/project';
 
-import { createAppApiClient } from '@/api/appClient';
-import { queryKeys } from '@/lib/query/queryKeys';
 
 import type { QcFloorNavProps } from '../shared/QcFloorNav';
 
@@ -229,25 +227,7 @@ function RoomLabelReviewRouteBody({
   const levelId = useMemo(() => floorId as LevelId, [floorId]);
 
   /* Danh sách tầng cho cấp Tầng của breadcrumb (cùng cách màn Đối tượng). */
-  const floorsQuery = useQuery({
-    queryKey: queryKeys.floor.list(projectId),
-    queryFn: async ({ signal }) => {
-      const result = await createAppApiClient().floors.list({ projectId, signal });
-
-      if (!result.ok) {
-        throw result.error;
-      }
-
-      return result.data;
-    },
-  });
-  const floors = useMemo(
-    () =>
-      [...(floorsQuery.data ?? [])]
-        .sort((first, second) => first.order - second.order)
-        .map((item) => ({ id: item.id, label: item.name })),
-    [floorsQuery.data],
-  );
+  const floors = useProjectFloors(projectId);
 
   return (
     <RoomLabelReviewContainer

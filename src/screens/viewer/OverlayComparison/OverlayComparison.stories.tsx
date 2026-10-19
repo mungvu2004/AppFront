@@ -27,6 +27,7 @@
  */
 
 import type { Meta, StoryObj } from '@storybook/react';
+import { MemoryRouter } from 'react-router-dom';
 
 import { OverlayComparison } from './OverlayComparison';
 import { OVERLAY_COMPARISON_SCENARIOS } from './overlayComparisonScenarios';
@@ -64,6 +65,14 @@ const meta = {
   title: 'Màn hình/Đối chiếu bản vẽ',
   component: OverlayComparison,
   parameters: { layout: 'fullscreen' },
+  /* Lối "Căn ảnh…", sửa tỷ lệ, tải bản vẽ là `Link` của router. */
+  decorators: [
+    (Story) => (
+      <MemoryRouter>
+        <Story />
+      </MemoryRouter>
+    ),
+  ],
   excludeStories: ['scenarioFor'],
 } satisfies Meta<typeof OverlayComparison>;
 
