@@ -59,6 +59,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
       onLoad={onLoad}
       {...(readOnly ? {} : { onSave: bridge.onSave })}
       projectId={projectId}
+      projectName={bridge.projectName}
       readOnly={readOnly}
     />
   );

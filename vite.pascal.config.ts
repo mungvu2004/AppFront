@@ -29,6 +29,7 @@ import { existsSync, readFileSync } from 'fs';
 import tailwindcss from '@tailwindcss/postcss';
 
 import { pascalCssScope } from './scripts/pascal-css-scope.mjs';
+import { pascalVi } from './scripts/pascal-vi.mjs';
 
 const PASCAL_PACKAGES = path.resolve(__dirname, './vendor/pascal/packages');
 const EDITOR_DIR = path.join(PASCAL_PACKAGES, 'editor');
@@ -103,7 +104,7 @@ const PASCAL_ENV_DEFINES = {
 };
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [pascalVi({ packagesDir: PASCAL_PACKAGES }), react()],
   publicDir: false,
   base: '/assets/pascal/',
   resolve: {

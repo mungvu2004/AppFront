@@ -15,12 +15,23 @@
  *      only addition: a small "back to project" card, ../BackToProjectCard.tsx).
  *   6-8. AppFront UX edits from UI review P40 (Vietnamese labels, start in Select, ?tool/?view,
  *      Esc, delete-mode banner, frame model on load) - listed in ./README.md.
+ *   9. UI review fix R3d: registry strings in Vietnamese (G5-03, ./lib/pascal-vi.ts), saved
+ *      preferences (BUG-648, ./lib/editor-preferences.ts), sidebar auto-collapses under 1100 px
+ *      (G5-11), Preview header shows the project name (G5-15), one-time orbit hint (G5-08).
  */
 
-import { Editor, ItemsPanel, useEditor, useViewer } from '@pascal-app/editor'
-import { Hammer, Layers, Package, Settings } from 'lucide-react'
+import { nodeRegistry, onRegistryChange } from '@pascal-app/core'
+import {
+  Editor,
+  ItemsPanel,
+  useEditor,
+  useSidebarStore,
+  useViewer,
+  ViewerSceneHeader,
+} from '@pascal-app/editor'
+import { Hammer, Layers, Package, Settings, X } from 'lucide-react'
 import Image from 'next/image'
-import { type ComponentProps, type ReactNode, useCallback, useEffect } from 'react'
+import { type ComponentProps, type ReactNode, useCallback, useEffect, useState } from 'react'
 import { BuildTab } from './components/build-tab'
 import { CanvasHelp, MeasureClearButton } from './components/canvas-help'
 import {
@@ -28,6 +39,8 @@ import {
   CommunityViewerToolbarRight,
   fitWholeModel,
 } from './components/viewer-toolbar'
+import { useEditorPreferencesPersistence } from './lib/editor-preferences'
+import { translateDefinition } from './lib/pascal-vi'
 
 // The open-source editor only ships the built-in catalog (no uploaded items),
 // so the Library/Community/Mine source chips and tag filters add nothing —
@@ -111,6 +124,8 @@ export interface HomeProps {
   onSave?: EditorProps['onSave']
   readOnly: boolean
   backCard?: ReactNode
+  /** Shown in the Preview header (G5-15); from the bridge. */
+  projectName?: string | undefined
 }
 
 /**
@@ -161,8 +176,156 @@ function DeleteModeBanner() {
   )
 }
 
-export default function Home({ projectId, onLoad, onSave, backCard }: HomeProps) {
+let viInstalled = false
+
+/**
+ * AppFront edit (R3d, G5-03): Vietnamese registry strings, now and whenever a kind or plugin
+ * registers later. Runs during render, before the HUD first reads them. Idempotent.
+ */
+function usePascalVi() {
+  if (viInstalled) return
+  viInstalled = true
+  const run = () => {
+    for (const [, def] of nodeRegistry.entries()) translateDefinition(def)
+  }
+  run()
+  onRegistryChange(run)
+}
+
+const NARROW_PX = 1100
+
+/**
+ * AppFront edit (R3d, G5-11): under 1100 px the 344 px sidebar pushes the toolbars off screen.
+ * Collapse it once the saved state is loaded and whenever the window narrows past 1100 px.
+ * Never re-opens it: a user who opens it again on a tablet keeps it open.
+ */
+function useAutoCollapseSidebar() {
+  useEffect(() => {
+    const collapse = () => useSidebarStore.getState().setIsCollapsed(true)
+    let wasNarrow = window.innerWidth < NARROW_PX
+    const onHydrated = () => {
+      if (window.innerWidth < NARROW_PX) collapse()
+    }
+    const onResize = () => {
+      const narrow = window.innerWidth < NARROW_PX
+      if (narrow && !wasNarrow) collapse()
+      wasNarrow = narrow
+    }
+    const unsubscribe = useSidebarStore.persist.onFinishHydration(onHydrated)
+    if (useSidebarStore.persist.hasHydrated()) onHydrated()
+    window.addEventListener('resize', onResize)
+    return () => {
+      unsubscribe()
+      window.removeEventListener('resize', onResize)
+    }
+  }, [])
+}
+
+// Pascal's own Preview header (the only node with these classes) is hidden while ours shows.
+const HIDE_VENDOR_HEADER =
+  '.dark.absolute.top-4.left-4.z-20:not([data-appfront-header] > *) { display: none !important; }'
+
+/**
+ * AppFront edit (R3d, G5-15): `<Editor>` never passes `projectName` to its Preview overlay, so
+ * the header read "Untitled". Render the exported `ViewerSceneHeader` with the bridge's name.
+ */
+function PreviewHeader({ projectName }: { projectName?: string | undefined }) {
+  const isPreview = useEditor((state) => state.isPreviewMode)
+  if (!isPreview) return null
+  return (
+    <div className="pointer-events-none fixed inset-0 z-30" data-appfront-header="">
+      <style>{HIDE_VENDOR_HEADER}</style>
+      <ViewerSceneHeader
+        onBack={() => useEditor.getState().setPreviewMode(false)}
+        projectName={projectName ?? null}
+      />
+    </div>
+  )
+}
+
+const ORBIT_HINT_KEY = 'appfront.pascal.orbit-hint-seen'
+
+function orbitHintSeen(): boolean {
+  try {
+    return localStorage.getItem(ORBIT_HINT_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * AppFront edit (R3d, G5-08): left-drag on empty canvas is Pascal's box select (kept on
+ * purpose). The first time such a drag selects nothing, say how to orbit. Shown once per browser.
+ */
+function OrbitHint() {
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    if (orbitHintSeen()) return
+    let start: { x: number; y: number } | null = null
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const onDown = (event: PointerEvent) => {
+      start =
+        event.button === 0 && event.target instanceof HTMLCanvasElement
+          ? { x: event.clientX, y: event.clientY }
+          : null
+    }
+    const onUp = (event: PointerEvent) => {
+      if (!start) return
+      const dragged = Math.hypot(event.clientX - start.x, event.clientY - start.y) > 40
+      start = null
+      const ed = useEditor.getState()
+      if (!dragged || ed.mode !== 'select' || ed.isPreviewMode) return
+      // Let the box selection commit before reading it.
+      timer = setTimeout(() => {
+        if (useViewer.getState().selection.selectedIds.length > 0) return
+        try {
+          localStorage.setItem(ORBIT_HINT_KEY, '1')
+        } catch {
+          // Private mode: the hint may show again next visit.
+        }
+        setShown(true)
+      }, 100)
+    }
+    window.addEventListener('pointerdown', onDown, true)
+    window.addEventListener('pointerup', onUp, true)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('pointerdown', onDown, true)
+      window.removeEventListener('pointerup', onUp, true)
+    }
+  }, [])
+  useEffect(() => {
+    if (!shown) return
+    const timer = setTimeout(() => setShown(false), 10_000)
+    return () => clearTimeout(timer)
+  }, [shown])
+  if (!shown) return null
+  return (
+    <div
+      className="fixed bottom-28 left-1/2 z-50 flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-3 rounded-xl border border-border bg-background/95 py-2 pr-2 pl-4 text-foreground text-sm shadow-lg backdrop-blur-md"
+      role="status"
+    >
+      <span>
+        Kéo chuột trái trên vùng trống là chọn bằng khung. Muốn xoay mô hình: giữ chuột phải và
+        kéo.
+      </span>
+      <button
+        aria-label="Đóng gợi ý"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md hover:bg-accent"
+        onClick={() => setShown(false)}
+        type="button"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  )
+}
+
+export default function Home({ projectId, onLoad, onSave, backCard, projectName }: HomeProps) {
+  useEditorPreferencesPersistence()
+  usePascalVi()
   useEscapeExits()
+  useAutoCollapseSidebar()
   const handleLoad = useCallback(async () => {
     const graph = await onLoad()
     // After Editor's own continuation has applied the graph (it awaits this promise).
@@ -186,6 +349,8 @@ export default function Home({ projectId, onLoad, onSave, backCard }: HomeProps)
         viewerToolbarRight={<CommunityViewerToolbarRight vrButton={null} vrLabel="Enter VR" />}
       />
       <DeleteModeBanner />
+      <PreviewHeader projectName={projectName} />
+      <OrbitHint />
       <CanvasHelp />
       <MeasureClearButton />
     </div>

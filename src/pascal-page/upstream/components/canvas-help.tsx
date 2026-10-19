@@ -10,6 +10,8 @@
  *   storey-height badge gets readable contrast.
  * - G5-09: keeps the selected object's action bars (Move/Duplicate/Delete…) inside the window.
  * - G5-03: the level card's English tooltips are translated in place.
+ * - G5-11 / G5-12 / G5-44: the bottom action bar stays inside the viewer pane and loses its
+ *   unlabelled camera group; measurement distance labels get a solid, readable chip.
  * - N5-11: while measuring, a "Xoá vạch đo" button removes every measurement (Ctrl+Z undoes).
  * The selectors target upstream title/aria-label/class strings; if Pascal renames them the CSS
  * simply stops matching (no breakage).
@@ -25,6 +27,14 @@ const OPEN_KEY = 'appfront-3d-help-open:v1'
 
 // The upstream shortcut panel: `pointer-events-none fixed top-1/2 right-4 … max-w-[260px]`.
 const SHORTCUT_PANEL = '.fixed.top-1\\/2.right-4.max-w-\\[260px\\]'
+
+// G5-11 / G5-12: the upstream bottom action bar (`action-menu/index.tsx`, desktop branch). Its
+// camera group (Orbit Left/Right, Top View) is hidden; `CameraButtons` in the top-right toolbar
+// replaces it with Vietnamese labels. Anchored on the icon file, which translation never touches.
+const BOTTOM_BAR = 'div.fixed.bottom-6.rounded-2xl.backdrop-blur-md'
+const VENDOR_CAMERA_BUTTON = '> button img[src*="/topview."], > button img[src*="/rotate."]'
+// G5-44: the distance label of a measurement (`nodes/src/measurement/renderer.tsx`, drei <Html>).
+const MEASURE_LABEL = 'div.whitespace-nowrap.font-medium.text-base.text-white'
 
 const SCOPED_CSS = `
 section[aria-label="Camera controls hint"] { display: none !important; }
@@ -42,6 +52,19 @@ button[title="Add level below"], button[title="Thêm tầng phía dưới"] {
 }
 button[title="Level height"], button[title="Chiều cao tầng"] {
   color: var(--foreground) !important; opacity: 0.85; font-size: 11px !important;
+}
+${BOTTOM_BAR} { max-width: calc(100% - 24px); overflow-x: auto; scrollbar-width: thin; }
+@media (max-width: 899px) { ${BOTTOM_BAR} { zoom: 0.9; } }
+${BOTTOM_BAR} div.flex.items-center.gap-1:has(${VENDOR_CAMERA_BUTTON}),
+${BOTTOM_BAR} div.w-px:has(+ div.flex.items-center.gap-1 > button img[src*="/topview."]),
+${BOTTOM_BAR} div.w-px:has(+ div.flex.items-center.gap-1 > button img[src*="/rotate."]) {
+  display: none !important;
+}
+${MEASURE_LABEL} {
+  background: color-mix(in oklab, var(--background) 88%, transparent);
+  color: var(--foreground) !important; border: 1px solid var(--border);
+  border-radius: 6px; padding: 2px 8px; font-size: 14px !important; font-weight: 700 !important;
+  text-shadow: none !important; box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
 }
 `
 

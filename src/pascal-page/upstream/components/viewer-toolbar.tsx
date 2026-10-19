@@ -17,6 +17,7 @@ import {
   useEditor,
   useFloorplanAnnotationVisibility,
   useFloorplanMode,
+  subscribeCameraPose,
   useSidebarStore,
   type ViewMode,
 } from '@pascal-app/editor'
@@ -28,6 +29,7 @@ import {
   useViewer,
 } from '@pascal-app/viewer'
 import {
+  ArrowDownToDot,
   Box,
   Check,
   ChevronsLeft,
@@ -42,6 +44,8 @@ import {
   Magnet,
   Maximize,
   PenLine,
+  RotateCcw,
+  RotateCw,
   Ruler,
   ScanLine,
   SlidersHorizontal,
@@ -55,6 +59,7 @@ import Image from 'next/image'
 import { computeSceneBoundsXZ } from '../../../../vendor/pascal/packages/editor/src/lib/scene-bounds'
 import { type ReactNode, useCallback } from 'react'
 import { flushSync } from 'react-dom'
+import { isTopDown, topViewPose } from '../lib/top-view-pose'
 import { cn } from '../lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from './toolbar-tooltip'
 // AppFront edit (P40, G5-11): text labels of the level/wall/display/preview buttons collapse to
@@ -700,6 +705,57 @@ function FitViewButton() {
   )
 }
 
+/**
+ * AppFront edit (G5-12 / G5-48): Vietnamese-labelled replacements for the vendor `CameraActions`
+ * group (hidden by scoped CSS in `canvas-help.tsx`). They emit the same public camera events;
+ * "Nhìn từ trên" frames the whole model straight from above via `apply-pose`, and a second press
+ * hands back to upstream `top-view`, which returns to 45° when already looking down.
+ */
+export function topViewToggle() {
+  let pose = null as Parameters<typeof isTopDown>[0]
+  subscribeCameraPose((current) => {
+    pose = current
+  })()
+  if (isTopDown(pose)) {
+    emitter.emit('camera-controls:top-view')
+    return
+  }
+  const bounds = computeSceneBoundsXZ(useScene.getState().nodes)
+  const aspect = window.innerWidth / Math.max(1, window.innerHeight)
+  emitter.emit(
+    'camera-controls:apply-pose',
+    topViewPose(bounds, useViewer.getState().cameraMode, aspect),
+  )
+}
+
+const CAMERA_BUTTONS = [
+  { label: 'Xoay trái 90°', icon: RotateCcw, onClick: () => emitter.emit('camera-controls:orbit-ccw') },
+  { label: 'Xoay phải 90°', icon: RotateCw, onClick: () => emitter.emit('camera-controls:orbit-cw') },
+] as const
+
+function CameraButtons() {
+  // Upstream hides top view in 2D-only (it only tilts the hidden 3D camera); orbit still spins the plan.
+  const is2dOnly = useEditor((state) => state.viewMode === '2d')
+  return (
+    <>
+      {CAMERA_BUTTONS.map(({ label, icon: ButtonIcon, onClick }) => (
+        <ToolbarTooltip key={label} label={label}>
+          <button aria-label={label} className={TOOLBAR_BTN} onClick={onClick} type="button">
+            <ButtonIcon className="h-4 w-4" />
+          </button>
+        </ToolbarTooltip>
+      ))}
+      {is2dOnly ? null : (
+        <ToolbarTooltip label="Nhìn từ trên (bấm lần nữa để về góc 45°)">
+          <button aria-label="Nhìn từ trên" className={TOOLBAR_BTN} onClick={topViewToggle} type="button">
+            <ArrowDownToDot className="h-4 w-4" />
+          </button>
+        </ToolbarTooltip>
+      )}
+    </>
+  )
+}
+
 function PreviewButton() {
   return (
     <ToolbarTooltip label="Xem trước (Esc để thoát)">
@@ -775,6 +831,7 @@ export function CommunityViewerToolbarRight({
       <DisplayMenu />
       <div className="my-1.5 w-px bg-border/50" />
       <FitViewButton />
+      <CameraButtons />
       <WalkthroughButton />
       {onVRToggle || vrButton
         ? (vrButton ??

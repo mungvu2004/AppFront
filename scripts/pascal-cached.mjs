@@ -26,6 +26,8 @@ export const INPUT_PATHS = [
   'tsconfig.json',
   'scripts/copy-pascal-assets.mjs',
   'scripts/copy-draco.mjs',
+  'scripts/pascal-vi.mjs',
+  'scripts/pascal-vi',
   'package.json',
   'pnpm-lock.yaml',
 ];
