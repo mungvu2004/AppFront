@@ -200,9 +200,11 @@ describe('làm mất hiệu lực sau năm lượt ghi của quản trị ngư�
   });
 
   it('đổi vai không viết lại nhật ký, nhưng xoá người thì có', () => {
+    // N4-03: vai trong chi tiết mọi dự án của người đó cũng đổi theo.
     expect(invalidationMap.changeUserRole({ userId: 'user-2' })).toEqual([
       queryKeys.user.list(),
       queryKeys.user.memberships('user-2'),
+      queryKeys.project.detail.root(),
     ]);
     expect(invalidationMap.removeUser({ userId: 'user-2' })).toEqual([
       queryKeys.user.list(),

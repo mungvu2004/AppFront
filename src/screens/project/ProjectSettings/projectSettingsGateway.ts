@@ -151,6 +151,13 @@ export interface ProjectSettingsGateway {
   readonly removeMember: (input: RemoveProjectMemberInput) => Promise<ApiResult<ProjectSettingsMember>>;
   /** N4-02: mời một email vào hệ thống (cùng API của Quản trị › Người dùng), vai Người xem. */
   readonly inviteUser: (input: { readonly email: string }) => Promise<ApiResult<void>>;
+  /** N4-03: đổi vai TOÀN HỆ THỐNG của một người (cùng API của Quản trị › Người dùng). */
+  readonly changeUserRole: (input: {
+    readonly userId: string;
+    readonly role: ProjectMemberRole;
+  }) => Promise<ApiResult<void>>;
+  /** N4-03: tên các dự án người này đang tham gia, để hộp xác nhận nói rõ phạm vi. */
+  readonly listUserProjects: (input: { readonly userId: string }) => Promise<ApiResult<readonly string[]>>;
   readonly deleteAllFloors: (input: DeleteAllFloorsInput) => Promise<ApiResult<DeleteAllFloorsResult>>;
   readonly deleteProject: (input: DeleteProjectInput) => Promise<ApiResult<void>>;
 }
@@ -460,6 +467,18 @@ export function createProjectSettingsGateway(client: ApiClient): ProjectSettings
       const result = await client.users.invite({ body: { emails: [email], role: 'viewer' }, failFastOnRateLimit: true });
 
       return result.ok ? { ok: true, data: undefined } : result;
+    },
+
+    changeUserRole: async ({ userId, role }) => {
+      const result = await client.users.changeRole({ body: { role, userId } });
+
+      return result.ok ? { ok: true, data: undefined } : result;
+    },
+
+    listUserProjects: async ({ userId }) => {
+      const result = await client.users.memberships({ userId });
+
+      return result.ok ? { ok: true, data: result.data.map((membership) => membership.projectName) } : result;
     },
 
     addMember: async ({ projectId, email }) => {

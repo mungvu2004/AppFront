@@ -33,14 +33,38 @@ afterEach(() => {
 
 const noop = (): void => undefined;
 
+const ROLE_OPTIONS = [
+  { value: 'admin', label: 'Quản trị' },
+  { value: 'engineer', label: 'Kỹ sư' },
+  { value: 'viewer', label: 'Người xem' },
+] as const;
+
+const OPEN_ROLE_DIALOG = {
+  state: 'open',
+  memberName: 'Nguyễn Bình',
+  fromLabel: 'Kỹ sư',
+  toLabel: 'Người xem',
+  consequence: 'Nguyễn Bình sẽ không còn sửa được bản vẽ, tầng hay cài đặt ở các dự án đó.',
+  projectNames: ['Toà nhà HQ Renovation', 'Nhà máy Bắc Ninh'],
+  error: null,
+  isSubmitting: false,
+} as const;
+
+const LAST_EDITOR_SENTENCE =
+  'Chưa hạ được vai: Nguyễn Bình là người sửa cuối cùng của ít nhất một dự án. Hãy cho thêm một người có quyền sửa vào dự án đó trước.';
+
 function tabProps(overrides: Partial<MembersTabProps> = {}): MembersTabProps {
   return {
     state: 'success',
     canEdit: true,
     members: [
-      { id: 'usr_admin', name: 'Phạm An', email: '', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' },
-      { id: 'usr_eng', name: 'Nguyễn Bình', email: '', roleLabel: 'Kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình' },
+      { id: 'usr_admin', name: 'Phạm An', email: '', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An', canChangeRole: false, roleOptions: ROLE_OPTIONS },
+      { id: 'usr_eng', name: 'Nguyễn Bình', email: '', roleLabel: 'Kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình', canChangeRole: true, roleOptions: ROLE_OPTIONS },
     ],
+    roleChangeDialog: { state: 'closed' },
+    requestRoleChange: noop,
+    confirmRoleChange: noop,
+    cancelRoleChange: noop,
     memberCountLabel: '2 thành viên',
     memberEmail: '',
     memberError: null,
@@ -168,6 +192,81 @@ describe('MembersTab (view)', () => {
 
     expectVietnamese(container);
     expectAccessible(container, { ignoreSelector: '[role="dialog"], button[tabindex="-1"]' });
+  });
+});
+
+describe('MembersTab · vai toàn hệ thống (N4-03)', () => {
+  it('quản trị viên thấy Select vai; người không có quyền đổi thấy Badge có lời chỉ đường', () => {
+    render(<MembersTab {...tabProps()} />);
+
+    expect(screen.getByText('Vai (toàn hệ thống)')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Vai toàn hệ thống của Nguyễn Bình' })).toBeInTheDocument();
+    cleanup();
+
+    const members = tabProps().members.map((member) => ({ ...member, canChangeRole: false }));
+    render(<MembersTab {...tabProps({ canEdit: false, members })} />);
+
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.getByText('Kỹ sư')).toHaveAttribute('title', 'Vai toàn hệ thống — nhờ quản trị viên đổi');
+  });
+
+  it('dòng của chính mình không có Select', () => {
+    render(<MembersTab {...tabProps()} />);
+
+    expect(screen.queryByRole('combobox', { name: 'Vai toàn hệ thống của Phạm An' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('combobox')).toHaveLength(1);
+    expect(screen.getByText('Quản trị')).toHaveAttribute('title', 'Vai toàn hệ thống — nhờ quản trị viên đổi');
+  });
+
+  it('chọn vai thì xin đổi (chưa ghi); hộp nêu A → B và các dự án; Đổi vai gọi xác nhận', () => {
+    const requestRoleChange = vi.fn();
+    const confirmRoleChange = vi.fn();
+    const { rerender } = render(<MembersTab {...tabProps({ requestRoleChange, confirmRoleChange })} />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Vai toàn hệ thống của Nguyễn Bình' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Người xem' }));
+    expect(requestRoleChange).toHaveBeenCalledWith('usr_eng', 'viewer');
+    expect(confirmRoleChange).not.toHaveBeenCalled();
+
+    rerender(<MembersTab {...tabProps({ requestRoleChange, confirmRoleChange, roleChangeDialog: OPEN_ROLE_DIALOG })} />);
+    const dialog = within(screen.getByRole('dialog'));
+
+    expect(dialog.getByText('Đổi vai Nguyễn Bình: Kỹ sư → Người xem')).toBeInTheDocument();
+    expect(dialog.getByText('Toà nhà HQ Renovation')).toBeInTheDocument();
+    expect(dialog.getByText('Nhà máy Bắc Ninh')).toBeInTheDocument();
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Đổi vai' }));
+    expect(confirmRoleChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('MEMBER_LAST_EDITOR: câu dễ hiểu ngay trong hộp, Select vẫn giữ vai cũ', () => {
+    render(
+      <MembersTab {...tabProps({ roleChangeDialog: { ...OPEN_ROLE_DIALOG, error: LAST_EDITOR_SENTENCE } })} />,
+    );
+
+    expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent(LAST_EDITOR_SENTENCE);
+    expect(screen.getByRole('combobox', { name: 'Vai toàn hệ thống của Nguyễn Bình' })).toHaveTextContent('Kỹ sư');
+  });
+
+  it('câu hậu quả nằm ngay dưới tiêu đề, trước danh sách dự án', () => {
+    render(<MembersTab {...tabProps({ roleChangeDialog: OPEN_ROLE_DIALOG })} />);
+
+    const consequence = within(screen.getByRole('dialog')).getByText(OPEN_ROLE_DIALOG.consequence);
+    const firstProject = within(screen.getByRole('dialog')).getByText('Toà nhà HQ Renovation');
+
+    expect(consequence.compareDocumentPosition(firstProject) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('Huỷ hoặc Esc chỉ đóng hộp, không xác nhận', () => {
+    const cancelRoleChange = vi.fn();
+    const confirmRoleChange = vi.fn();
+    render(<MembersTab {...tabProps({ cancelRoleChange, confirmRoleChange, roleChangeDialog: OPEN_ROLE_DIALOG })} />);
+
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Huỷ' }));
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+    expect(cancelRoleChange).toHaveBeenCalledTimes(2);
+    expect(confirmRoleChange).not.toHaveBeenCalled();
   });
 });
 

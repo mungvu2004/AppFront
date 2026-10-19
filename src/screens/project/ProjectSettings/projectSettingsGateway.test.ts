@@ -423,3 +423,43 @@ describe('removeMember và deleteProject', () => {
     expect(del).toHaveBeenCalledWith({ projectId: PROJECT_ID, idempotent: true });
   });
 });
+
+describe('N4-03: đổi vai toàn hệ thống', () => {
+  it('changeUserRole gửi { role, userId } tới users.changeRole và trả void', async () => {
+    const { server } = await setup();
+    const changeRole = vi.fn<ApiClient['users']['changeRole']>(async () => ({ ok: true, data: {} as never }));
+    const gateway = createProjectSettingsGateway({ ...server.client, users: { ...server.client.users, changeRole } });
+
+    expect(await gateway.changeUserRole({ userId: 'usr_x', role: 'viewer' })).toEqual({ ok: true, data: undefined });
+    expect(changeRole).toHaveBeenCalledWith({ body: { role: 'viewer', userId: 'usr_x' } });
+  });
+
+  it('changeUserRole chuyển nguyên lỗi', async () => {
+    const { server } = await setup();
+    const error = httpError(422, 'MEMBER_LAST_EDITOR');
+    const changeRole = vi.fn<ApiClient['users']['changeRole']>(async () => ({ ok: false, error }));
+    const gateway = createProjectSettingsGateway({ ...server.client, users: { ...server.client.users, changeRole } });
+
+    expect(await gateway.changeUserRole({ userId: 'usr_x', role: 'viewer' })).toEqual({ ok: false, error });
+  });
+
+  it('listUserProjects trả tên dự án; lỗi thì chuyển nguyên', async () => {
+    const { server } = await setup();
+    const error = networkError();
+    const memberships = vi
+      .fn<ApiClient['users']['memberships']>()
+      .mockResolvedValueOnce({
+        ok: true,
+        data: [
+          { projectId: 'prj_a', projectName: 'Nhà A', role: 'engineer' },
+          { projectId: 'prj_b', projectName: 'Nhà B', role: 'admin' },
+        ],
+      })
+      .mockResolvedValueOnce({ ok: false, error });
+    const gateway = createProjectSettingsGateway({ ...server.client, users: { ...server.client.users, memberships } });
+
+    expect(await gateway.listUserProjects({ userId: 'usr_x' })).toEqual({ ok: true, data: ['Nhà A', 'Nhà B'] });
+    expect(memberships).toHaveBeenCalledWith({ userId: 'usr_x' });
+    expect(await gateway.listUserProjects({ userId: 'usr_x' })).toEqual({ ok: false, error });
+  });
+});

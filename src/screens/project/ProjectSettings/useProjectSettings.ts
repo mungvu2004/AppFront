@@ -78,6 +78,8 @@ import {
   type SettingsRejection,
 } from './settingsErrors';
 import {
+  ROLE_LABELS,
+  ROLE_OPTIONS,
   useProjectMembers,
   type ProjectMembersActions,
   type ProjectMembersModel,
@@ -121,6 +123,9 @@ export interface ProjectSettingsMemberRow {
   /** G3-12: email dưới tên để phân biệt người trùng tên. */
   readonly email: string;
   readonly roleLabel: string;
+  /** N4-03: quản trị hệ thống đổi được vai toàn hệ thống của người khác (không phải của mình). */
+  readonly canChangeRole: boolean;
+  readonly roleOptions: readonly { readonly value: ProjectRole; readonly label: string }[];
   readonly initials: string;
   /** Nhãn của nút gỡ, có tên người để trình đọc màn hình phân biệt các dòng. */
   readonly removeLabel: string;
@@ -543,12 +548,6 @@ const TAB_LABELS: Readonly<Record<ProjectSettingsTabId, string>> = {
   units: 'Đơn vị đo',
   members: 'Thành viên',
   danger: 'Vùng nguy hiểm',
-};
-
-const ROLE_LABELS: Readonly<Record<ProjectRole, string>> = {
-  admin: 'Quản trị',
-  engineer: 'Kỹ sư',
-  viewer: 'Người xem',
 };
 
 const DANGER_TITLES: Readonly<Record<ProjectSettingsDangerAction, string>> = {
@@ -1189,6 +1188,11 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     [snapshot],
   );
 
+  const memberRoles = useMemo<Readonly<Record<string, ProjectRole>>>(
+    () => Object.fromEntries((snapshot?.members ?? []).map((member) => [member.id, member.role])),
+    [snapshot],
+  );
+
   const soleAdminId = useMemo(() => {
     const admins = (snapshot?.members ?? []).filter((member) => member.role === 'admin');
     return admins.length === 1 ? (admins[0]?.id ?? null) : null;
@@ -1201,6 +1205,9 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     requestRemoveMember,
     confirmRemoveMember,
     cancelRemoveMember,
+    requestRoleChange,
+    confirmRoleChange,
+    cancelRoleChange,
     ...membersModel
   } = useProjectMembers({
     gateway,
@@ -1210,6 +1217,8 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     memberNames,
     soleAdminId,
     canInvite: canDelete,
+    canChangeRole: canDelete,
+    memberRoles,
     currentUserId: options.currentUserId,
     now: options.now,
     onToast: options.onToast,
@@ -1382,10 +1391,12 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
         name: member.name,
         email: member.email,
         roleLabel: ROLE_LABELS[member.role],
+        canChangeRole: canDelete && member.id !== options.currentUserId,
+        roleOptions: ROLE_OPTIONS,
         initials: initialsOf(member.name, member.email),
         removeLabel: `Gỡ ${member.name}`,
       })),
-    [snapshot],
+    [snapshot, canDelete, options.currentUserId],
   );
 
   const alwaysTabs: readonly ProjectSettingsTabModel[] = [
@@ -1503,6 +1514,9 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     requestRemoveMember,
     confirmRemoveMember,
     cancelRemoveMember,
+    requestRoleChange,
+    confirmRoleChange,
+    cancelRoleChange,
     requestDeleteAllFloors: () => openDanger('deleteAllFloors'),
     requestDeleteProject: () => openDanger('deleteProject'),
     setDangerConfirmationText,

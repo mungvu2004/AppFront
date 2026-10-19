@@ -2050,6 +2050,13 @@ export const createMockApiClient = (): ApiClient => {
           ? failed(mockUsersHttpError(500, 'req-users-activity'))
           : ok((MOCK_USER_ACTIVITY[userId] ?? []).map(clone)),
       changeRole: async ({ body }) => {
+        // N4-03: kịch bản "người sửa cuối cùng" — hạ Engineer (user-2) của project-1 xuống Người xem bị từ chối.
+        if (body.userId === 'user-2' && body.role === 'viewer') {
+          return failed(
+            mockWireError(422, 'MEMBER_LAST_EDITOR', 'req-users-role-last-editor', { code: 'MEMBER_LAST_EDITOR' }),
+          );
+        }
+
         const current = readAdminUser(body.userId);
 
         return current === undefined

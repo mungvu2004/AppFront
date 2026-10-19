@@ -132,7 +132,7 @@ function baseProps(): ProjectSettingsViewProps {
     scaleMmPerPx: 2.5,
     scaleLabel: '2,5 milimét trên mỗi điểm ảnh',
     scalePreviewLabel: '100 điểm ảnh ứng với 250 mm ngoài thực tế.',
-    members: [{ id: 'm-an', name: 'Phạm An', email: '', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' }],
+    members: [{ id: 'm-an', name: 'Phạm An', email: '', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An', canChangeRole: false, roleOptions: [] }],
     memberCountLabel: '1 thành viên',
     floorCount: 4,
     deleteAllFloorsLabel:
@@ -177,6 +177,10 @@ function baseProps(): ProjectSettingsViewProps {
     inviteEmail: null,
     isInvitingMember: false,
     inviteMember: noop,
+    roleChangeDialog: { state: 'closed' },
+    requestRoleChange: noop,
+    confirmRoleChange: noop,
+    cancelRoleChange: noop,
   };
 }
 
@@ -604,6 +608,8 @@ function spyGateway(overrides: Partial<ProjectSettingsGateway> = {}) {
     deleteAllFloors: vi.fn(overrides.deleteAllFloors ?? real.deleteAllFloors),
     deleteProject: vi.fn(overrides.deleteProject ?? real.deleteProject),
     inviteUser: vi.fn(overrides.inviteUser ?? real.inviteUser),
+    changeUserRole: vi.fn(overrides.changeUserRole ?? real.changeUserRole),
+    listUserProjects: vi.fn(overrides.listUserProjects ?? real.listUserProjects),
   };
 }
 

@@ -22,10 +22,17 @@ type Story = StoryObj<typeof meta>;
 
 const noop = (): void => undefined;
 
+const ROLE_OPTIONS = [
+  { value: 'admin', label: 'Quản trị' },
+  { value: 'engineer', label: 'Kỹ sư' },
+  { value: 'viewer', label: 'Người xem' },
+] as const;
+
+/** N4-03: dòng đầu là chính quản trị viên đang xem (không tự đổi vai), hai dòng sau có Select vai. */
 const MEMBERS = [
-  { id: 'm-an', name: 'Phạm An', email: '', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' },
-  { id: 'm-binh', name: 'Nguyễn Bình', email: '', roleLabel: 'Kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình' },
-  { id: 'm-chi', name: 'Trần Chi', email: '', roleLabel: 'Người xem', initials: 'TC', removeLabel: 'Gỡ Trần Chi' },
+  { id: 'm-an', name: 'Phạm An', email: '', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An', canChangeRole: false, roleOptions: ROLE_OPTIONS },
+  { id: 'm-binh', name: 'Nguyễn Bình', email: '', roleLabel: 'Kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình', canChangeRole: true, roleOptions: ROLE_OPTIONS },
+  { id: 'm-chi', name: 'Trần Chi', email: '', roleLabel: 'Người xem', initials: 'TC', removeLabel: 'Gỡ Trần Chi', canChangeRole: true, roleOptions: ROLE_OPTIONS },
 ];
 
 const NO_PROBLEMS = {
@@ -126,6 +133,10 @@ const base: ProjectSettingsViewProps = {
   requestRemoveMember: noop,
   confirmRemoveMember: noop,
   cancelRemoveMember: noop,
+  roleChangeDialog: { state: 'closed' },
+  requestRoleChange: noop,
+  confirmRoleChange: noop,
+  cancelRoleChange: noop,
   requestDeleteAllFloors: noop,
   requestDeleteProject: noop,
   setDangerConfirmationText: noop,
@@ -231,6 +242,24 @@ export const Conflict: Story = {
 
 /** Thẻ thành viên, người sửa được: ô email, nút thêm và nút gỡ trên từng dòng. */
 export const MembersEditable: Story = { args: { ...base, activeTab: 'members' } };
+
+/** N4-03: đổi vai toàn hệ thống — hộp xác nhận nêu A → B, các dự án bị ảnh hưởng và lỗi MEMBER_LAST_EDITOR. */
+export const RoleChangeLastEditor: Story = {
+  args: {
+    ...base,
+    activeTab: 'members',
+    roleChangeDialog: {
+      state: 'open',
+      memberName: 'Nguyễn Bình',
+      fromLabel: 'Kỹ sư',
+      toLabel: 'Người xem',
+      consequence: 'Nguyễn Bình sẽ không còn sửa được bản vẽ, tầng hay cài đặt ở các dự án đó.',
+      projectNames: ['Toà nhà HQ Renovation', 'Nhà máy Bắc Ninh'],
+      error: 'Chưa hạ được vai: người này là người sửa cuối cùng của ít nhất một dự án. Hãy cho thêm một người có quyền sửa vào dự án đó trước.',
+      isSubmitting: false,
+    },
+  },
+};
 
 /** Thêm thành viên lỗi — địa chỉ chưa có tài khoản đang hoạt động. */
 export const AddMemberError: Story = {

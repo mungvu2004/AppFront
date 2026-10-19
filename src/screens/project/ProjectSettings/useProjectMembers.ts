@@ -16,11 +16,17 @@ import type { QueryClient } from '@tanstack/react-query';
 
 import type { ApiError } from '@/api/client';
 import { describeError, toAppError } from '@/lib/errors';
+import { formatNumber } from '@/lib/format/number';
 import { createUndoTicket } from '@/lib/mutations/undoTicket';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 
-import type { ProjectSettingsGateway, ProjectSettingsMember, ProjectSettingsSnapshot } from './projectSettingsGateway';
+import type {
+  ProjectMemberRole,
+  ProjectSettingsGateway,
+  ProjectSettingsMember,
+  ProjectSettingsSnapshot,
+} from './projectSettingsGateway';
 import { readSettingsError } from './settingsErrors';
 
 /** Khoá nút thêm tối thiểu khi gặp 429 (hạn mức theo giờ nên số giây của máy chủ chỉ là sàn). */
@@ -42,7 +48,37 @@ const SENTENCES = {
   close: 'Đóng',
   invitedPending: 'Đã gửi lời mời; thêm vào dự án sau khi họ chấp nhận.',
   remove: 'Gỡ',
+  // N4-03: vai là vai toàn hệ thống; BE chặn hạ vai người sửa cuối cùng của một dự án.
+  lastEditorRole:
+    'Chưa hạ được vai: người này là người sửa cuối cùng của ít nhất một dự án. Hãy cho thêm một người có quyền sửa vào dự án đó trước.',
 } as const;
+
+export const ROLE_LABELS: Readonly<Record<ProjectMemberRole, string>> = {
+  admin: 'Quản trị',
+  engineer: 'Kỹ sư',
+  viewer: 'Người xem',
+};
+
+export const ROLE_OPTIONS: readonly { readonly value: ProjectMemberRole; readonly label: string }[] = (
+  ['admin', 'engineer', 'viewer'] as const
+).map((value) => ({ value, label: ROLE_LABELS[value] }));
+
+/** N4-03: hộp xác nhận đổi vai toàn hệ thống; `loading` khi đang đọc danh sách dự án của người đó. */
+export type RoleChangeDialogModel =
+  | { readonly state: 'closed' }
+  | { readonly state: 'loading' }
+  | {
+      readonly state: 'open';
+      readonly memberName: string;
+      readonly fromLabel: string;
+      readonly toLabel: string;
+      /** Rỗng khi không đọc được danh sách: hộp hiện câu chung, không chặn. */
+      readonly projectNames: readonly string[];
+      /** Câu nói hậu quả của vai mới, ví dụ "X sẽ chỉ xem được, không sửa được … ở 3 dự án." */
+      readonly consequence: string;
+      readonly error: string | null;
+      readonly isSubmitting: boolean;
+    };
 
 export interface MemberRemoveDialogModel {
   readonly title: string;
@@ -64,6 +100,7 @@ export interface ProjectMembersModel {
   readonly inviteEmail: string | null;
   readonly isInvitingMember: boolean;
   readonly memberRemoveDialog: MemberRemoveDialogModel | null;
+  readonly roleChangeDialog: RoleChangeDialogModel;
 }
 
 export interface ProjectMembersActions {
@@ -73,6 +110,9 @@ export interface ProjectMembersActions {
   readonly requestRemoveMember: (userId: string) => void;
   readonly confirmRemoveMember: () => void;
   readonly cancelRemoveMember: () => void;
+  readonly requestRoleChange: (userId: string, role: ProjectMemberRole) => void;
+  readonly confirmRoleChange: () => void;
+  readonly cancelRoleChange: () => void;
 }
 
 export interface UseProjectMembersOptions {
@@ -86,6 +126,10 @@ export interface UseProjectMembersOptions {
   readonly soleAdminId?: string | null | undefined;
   /** N4-02: quản trị hệ thống mời được email chưa có tài khoản ngay tại đây. */
   readonly canInvite?: boolean | undefined;
+  /** N4-03: chỉ quản trị hệ thống đổi được vai (không phải của chính mình). */
+  readonly canChangeRole?: boolean | undefined;
+  /** Vai hiện tại của các thành viên, để hộp xác nhận nói "từ … sang …". */
+  readonly memberRoles?: Readonly<Record<string, ProjectMemberRole>> | undefined;
   readonly currentUserId?: string | undefined;
   readonly now?: (() => number) | undefined;
   readonly onToast?:
@@ -121,6 +165,42 @@ function addFailureSentence(error: ApiError): { sentence: string; lockSeconds: n
   return { sentence: describeError(toAppError(error)).description, lockSeconds: null };
 }
 
+interface RoleChangeTarget {
+  readonly id: string;
+  readonly name: string;
+  readonly from: ProjectMemberRole;
+  readonly to: ProjectMemberRole;
+  readonly projectNames: readonly string[];
+}
+
+/** Câu hậu quả của một lượt đổi vai (B-con §4); danh sách dự án rỗng (đọc lỗi) thì nói chung. */
+export function roleChangeConsequence(target: Pick<RoleChangeTarget, 'name' | 'from' | 'to' | 'projectNames'>): string {
+  const scope =
+    target.projectNames.length > 0
+      ? `${formatNumber(target.projectNames.length, { grouping: false })} dự án`
+      : 'mọi dự án của người này';
+
+  if (target.to === 'admin') {
+    return `${target.name} sẽ quản trị được toàn hệ thống: vào khu Quản trị, mời và đổi vai người dùng.`;
+  }
+
+  const losesAdmin = target.from === 'admin' ? ' và mất quyền vào khu Quản trị' : '';
+
+  if (target.to === 'viewer') {
+    return `${target.name} sẽ chỉ xem được, không sửa được bản vẽ, tầng hay cài đặt ở ${scope}${losesAdmin}.`;
+  }
+
+  return target.from === 'admin'
+    ? `${target.name} sẽ mất quyền vào khu Quản trị, vẫn sửa được bản vẽ, tầng và cài đặt ở ${scope}.`
+    : `${target.name} sẽ sửa được bản vẽ, tầng và cài đặt ở ${scope}.`;
+}
+
+function roleChangeFailureSentence(error: ApiError): string {
+  return readSettingsError(error).code === 'MEMBER_LAST_EDITOR'
+    ? SENTENCES.lastEditorRole
+    : describeError(toAppError(error)).description;
+}
+
 function removeFailureSentence(error: ApiError): string {
   const info = readSettingsError(error);
 
@@ -146,6 +226,12 @@ export function useProjectMembers(
   const [inviteEmail, setInviteEmail] = useState<string | null>(null);
   const [isInvitingMember, setInvitingMember] = useState(false);
   const lockTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [roleTarget, setRoleTarget] = useState<RoleChangeTarget | null>(null);
+  const [isRoleLoading, setRoleLoading] = useState(false);
+  const [roleError, setRoleError] = useState<string | null>(null);
+  const [isRoleSubmitting, setRoleSubmitting] = useState(false);
+  // Lượt đọc dự án đã bị Huỷ (hoặc thay bằng lượt mới) thì kết quả của nó không được mở hộp.
+  const roleRequestRef = useRef(0);
 
   useEffect(
     () => () => {
@@ -333,6 +419,80 @@ export function useProjectMembers(
     });
   };
 
+  const requestRoleChange = (userId: string, role: ProjectMemberRole): void => {
+    const from = options.memberRoles?.[userId];
+
+    if (options.canChangeRole !== true || userId === options.currentUserId || from === undefined || from === role) {
+      return;
+    }
+
+    const requestId = roleRequestRef.current + 1;
+    roleRequestRef.current = requestId;
+    setRoleTarget(null);
+    setRoleError(null);
+    setRoleLoading(true);
+
+    void gateway.listUserProjects({ userId }).then((projects) => {
+      if (roleRequestRef.current !== requestId) return;
+
+      setRoleLoading(false);
+      setRoleTarget({
+        id: userId,
+        name: options.memberNames[userId] ?? '',
+        from,
+        to: role,
+        projectNames: projects.ok ? projects.data : [],
+      });
+    });
+  };
+
+  const cancelRoleChange = (): void => {
+    if (isRoleSubmitting) return;
+    roleRequestRef.current += 1;
+    setRoleLoading(false);
+    setRoleTarget(null);
+    setRoleError(null);
+  };
+
+  const confirmRoleChange = (): void => {
+    if (roleTarget === null || isRoleSubmitting) return;
+
+    const target = roleTarget;
+    setRoleSubmitting(true);
+    setRoleError(null);
+
+    void gateway.changeUserRole({ userId: target.id, role: target.to }).then((result) => {
+      setRoleSubmitting(false);
+
+      if (!result.ok) {
+        // Hộp vẫn mở, vai trong danh sách giữ nguyên.
+        setRoleError(roleChangeFailureSentence(result.error));
+        return;
+      }
+
+      setRoleTarget(null);
+      patchMembers((members) => members.map((row) => (row.id === target.id ? { ...row, role: target.to } : row)));
+      applyInvalidation(queryClient, 'changeUserRole', { userId: target.id });
+      options.onToast?.({ message: `Đã đổi vai ${target.name} thành ${ROLE_LABELS[target.to]} (mọi dự án).` });
+    });
+  };
+
+  const roleChangeDialog: RoleChangeDialogModel =
+    roleTarget !== null
+      ? {
+          state: 'open',
+          memberName: roleTarget.name,
+          fromLabel: ROLE_LABELS[roleTarget.from],
+          toLabel: ROLE_LABELS[roleTarget.to],
+          projectNames: roleTarget.projectNames,
+          consequence: roleChangeConsequence(roleTarget),
+          error: roleError,
+          isSubmitting: isRoleSubmitting,
+        }
+      : isRoleLoading
+      ? { state: 'loading' }
+      : { state: 'closed' };
+
   const memberRemoveDialog: MemberRemoveDialogModel | null =
     removeTarget === null
       ? null
@@ -360,6 +520,7 @@ export function useProjectMembers(
     inviteEmail,
     isInvitingMember,
     memberRemoveDialog,
+    roleChangeDialog,
     setMemberEmail: (value) => {
       setMemberEmailState(value);
       setMemberError(null);
@@ -370,5 +531,8 @@ export function useProjectMembers(
     requestRemoveMember,
     confirmRemoveMember,
     cancelRemoveMember,
+    requestRoleChange,
+    confirmRoleChange,
+    cancelRoleChange,
   };
 }

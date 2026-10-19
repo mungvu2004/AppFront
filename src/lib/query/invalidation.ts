@@ -247,7 +247,7 @@ export const invalidationMap: InvalidationMap = {
    */
   inviteUsers: () => [queryKeys.user.list()],
 
-  changeUserRole: ({ userId }) => [queryKeys.user.list(), queryKeys.user.memberships(userId)],
+  changeUserRole: ({ userId }) => [queryKeys.user.list(), queryKeys.user.memberships(userId), queryKeys.project.detail.root()],
 
   setUserEnabled: ({ userId }) => [queryKeys.user.list(), queryKeys.user.memberships(userId)],
 
