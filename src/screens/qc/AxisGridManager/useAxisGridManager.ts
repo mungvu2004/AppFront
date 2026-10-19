@@ -76,6 +76,7 @@ import { snapToTargets, type SnapTarget } from '@/domain/units/snap';
 import type { PointMm } from '@/domain/units/compare';
 import { millimetres, type Millimetres } from '@/domain/units/types';
 import { millimetresPerPixel, pixels, scaleFromRatio, type Pixels } from '@/domain/units/scale';
+import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import type { Axis, LevelId } from '@/domain/spatial/types';
 import { toPointMm } from '@/lib/commands/business/shared';
 import type { Command } from '@/lib/commands/types';
@@ -190,6 +191,10 @@ export const AXIS_GRID_TEXT = {
   autoAlignSingleFloor: 'Cần ít nhất hai tầng có trục để căn chỉnh.',
   autoAlignNothing: 'Các tầng đã khớp nhau, không còn gì để căn.',
 } as const;
+
+/** Câu lỗi dùng chung của thêm trục / đổi tên / sửa khoảng cách. */
+const duplicateLabelMessage = (label: string): string => `Đã có trục ${label}. Chọn tên khác.`;
+const SPACING_TOO_SMALL_MESSAGE = `Khoảng cách phải từ ${MIN_AXIS_SPACING_MM} mm trở lên.`;
 
 const AXIS_GROUP_TITLES: Readonly<Record<AxisGridDirection, string>> = {
   horizontal: AXIS_GRID_TEXT.groupTitleHorizontal,
@@ -402,6 +407,8 @@ export interface UseAxisGridManagerResult extends AxisGridManagerProps {
   /** G4b-20: trả câu lỗi (tên rỗng/trùng…) hoặc null khi đã đổi. */
   readonly onAxisRename: (axisId: string, label: string) => string | null;
   readonly onAxisSpacingChange: (axisId: string, spacingMm: number) => string | null;
+  /** RV1-3/11: trả câu lỗi (tên trùng, khoảng cách sai) hoặc null khi đã gửi lệnh. */
+  readonly onAxisAdd: (direction: AxisGridDirection, options?: AxisAddOptions) => string | null;
   /** BUG-594/601: vì sao "Căn chỉnh tự động" bị khoá; `null` khi bấm được và có việc để làm. */
   readonly autoAlignBlockedReason: string | null;
 }
@@ -732,26 +739,26 @@ export function useAxisGridManager(
   /* Chặn hai trục cách nhau dưới MIN_AXIS_SPACING_MM.                        */
   /* ---------------------------------------------------------------------- */
 
-  /** Chặn và NÓI VÌ SAO — trả `true` khi lượt đặt bị từ chối. */
+  /** Chặn và NÓI VÌ SAO — trả câu chặn khi lượt đặt bị từ chối, `null` khi hợp lệ. */
   const rejectWhenTooClose = useCallback(
     (candidate: {
       readonly label: string;
       readonly direction: AxisGridDirection;
       readonly coordinateMm: Millimetres;
       readonly neighbours: readonly LabelledAxis[];
-    }): boolean => {
+    }): string | null => {
       const violation = findSpacingViolation(candidate);
 
       if (violation === null) {
         setSpacingViolation(null);
 
-        return false;
+        return null;
       }
 
       setSpacingViolation(violation);
       announce(announceSpacingViolation(violation));
 
-      return true;
+      return describeSpacingViolation(violation);
     },
     [announce],
   );
@@ -813,10 +820,19 @@ export function useAxisGridManager(
     [extent, gateway, labelledAxes, levelId, storedAxes.length],
   );
 
+  /** Trả câu lỗi để form thêm trục hiện ngay tại ô (RV1-3, RV1-11), `null` khi đã gửi lệnh. */
   const onAxisAdd = useCallback(
-    (direction: AxisGridDirection, addOptions?: AxisAddOptions) => {
+    (direction: AxisGridDirection, addOptions?: AxisAddOptions): string | null => {
       if (levelId === null) {
-        return;
+        return null;
+      }
+
+      /* RV1-11: khoảng cách gõ sai/âm thì báo, không lặng lẽ đặt theo bước mặc định. */
+      if (
+        addOptions?.spacingMm !== undefined &&
+        (!Number.isFinite(addOptions.spacingMm) || addOptions.spacingMm < MIN_AXIS_SPACING_MM)
+      ) {
+        return SPACING_TOO_SMALL_MESSAGE;
       }
 
       const lastInDirection = axesInDirection(labelledAxes, direction).at(-1);
@@ -849,7 +865,13 @@ export function useAxisGridManager(
         nextIndex += 1;
       }
 
-      const typedLabel = addOptions?.label?.trim() ?? '';
+      /* RV1-3: cùng chuẩn với đổi tên — viết hoa, không trùng nhãn nào đang có. */
+      const typedLabel = addOptions?.label?.trim().toUpperCase() ?? '';
+
+      if (taken.has(typedLabel)) {
+        return duplicateLabelMessage(typedLabel);
+      }
+
       const label =
         typedLabel.length > 0
           ? typedLabel
@@ -857,10 +879,10 @@ export function useAxisGridManager(
             ? axisLabelAt(direction, nextIndex)
             : labelForNewAxis(detectedAxes, candidate);
 
-      if (
-        rejectWhenTooClose({ label, direction, coordinateMm, neighbours: labelledAxes })
-      ) {
-        return;
+      const tooClose = rejectWhenTooClose({ label, direction, coordinateMm, neighbours: labelledAxes });
+
+      if (tooClose !== null) {
+        return tooClose;
       }
 
       const axis = createAxisEntity({
@@ -889,6 +911,8 @@ export function useAxisGridManager(
           announce(addAxisDescription(label));
         }
       });
+
+      return null;
     },
     [
       announce,
@@ -953,9 +977,7 @@ export function useAxisGridManager(
 
       const neighbours = labelledAxes.filter((item) => item !== labelled);
 
-      if (
-        rejectWhenTooClose({ label: labelled.label, direction, coordinateMm, neighbours })
-      ) {
+      if (rejectWhenTooClose({ label: labelled.label, direction, coordinateMm, neighbours }) !== null) {
         return;
       }
 
@@ -979,7 +1001,7 @@ export function useAxisGridManager(
       }
 
       if (labelledAxes.some((item) => item.label === label && axisRowId(item.axis.direction, item.label) !== axisId)) {
-        return `Đã có trục ${label}. Chọn tên khác.`;
+        return duplicateLabelMessage(label);
       }
 
       if (before === undefined) {
@@ -987,7 +1009,17 @@ export function useAxisGridManager(
       }
 
       if (before.label !== label) {
-        void run(buildRenameAxisCommand({ before, label, actorId: gateway.actorId }));
+        const renamedId = axisRowId(before.direction, label);
+
+        void run(buildRenameAxisCommand({ before, label, actorId: gateway.actorId })).then((ok) => {
+          if (!ok) {
+            return;
+          }
+
+          /* RV1-12: mã hàng lấy theo nhãn — mang trạng thái ẩn/chọn sang mã mới. */
+          setHiddenRowIds((previous) => previous.map((id) => (id === axisId ? renamedId : id)));
+          setSelectedRowId((previous) => (previous === axisId ? renamedId : previous));
+        });
       }
 
       return null;
@@ -1005,7 +1037,7 @@ export function useAxisGridManager(
       }
 
       if (!Number.isFinite(spacingMm) || spacingMm < MIN_AXIS_SPACING_MM) {
-        return `Khoảng cách phải từ ${MIN_AXIS_SPACING_MM} mm trở lên.`;
+        return SPACING_TOO_SMALL_MESSAGE;
       }
 
       const sameDirection = labelledAxes
@@ -1024,17 +1056,24 @@ export function useAxisGridManager(
         return 'Thêm, xoá hoặc kéo một trục trước để lưu lưới, rồi mới sửa khoảng cách được.';
       }
 
-      void run(
-        buildMoveAxisCommand({
-          before,
-          coordinateMm: millimetres(labelled.axis.coordinateMm + spacingMm),
-          actorId: gateway.actorId,
-        }),
-      );
+      const coordinateMm = millimetres(labelled.axis.coordinateMm + spacingMm);
+      /* RV1-4: cùng bước chặn 100 mm như kéo trục. */
+      const tooClose = rejectWhenTooClose({
+        label: next.label,
+        direction: next.axis.direction,
+        coordinateMm,
+        neighbours: labelledAxes.filter((item) => item !== next),
+      });
+
+      if (tooClose !== null) {
+        return tooClose;
+      }
+
+      void run(buildMoveAxisCommand({ before, coordinateMm, actorId: gateway.actorId }));
 
       return null;
     },
-    [axisByRowId, gateway, labelledAxes, run],
+    [axisByRowId, gateway, labelledAxes, rejectWhenTooClose, run],
   );
 
   const onAxisRemove = useCallback(
@@ -1120,12 +1159,21 @@ export function useAxisGridManager(
         .then((result) => {
           if (!result.supported) {
             announce(AXIS_GRID_TEXT.originNotPersisted);
+
+            return;
           }
+
+          /* RV1-8: cache N16 mang gốc mới, để mở lại màn khi cache còn tươi không ghim về gốc cũ. */
+          queryClient.setQueryData<FloorLayerDocument>(queryKeys.layer.byFloor(projectId, floorId), (document) =>
+            document === undefined
+              ? document
+              : { ...document, origin: { x: Math.round(point.x), y: Math.round(point.y) } },
+          );
         }, () => {
           announce(AXIS_GRID_TEXT.saveFailed);
         });
     },
-    [announce, floorId, gateway, grid, projectId],
+    [announce, floorId, gateway, grid, projectId, queryClient],
   );
 
   /* ---------------------------------------------------------------------- */

@@ -40,8 +40,6 @@ import { Toggle } from '@/components/ui/Toggle';
 import { cn } from '@/lib/utils';
 
 import type {
-  AxisAddOptions,
-  AxisGridDirection,
   AxisGridManagerProps,
   AxisGroupViewModel,
   AxisRowViewModel,
@@ -54,8 +52,10 @@ export interface AxisGridLeftPanelProps
   > {
   readonly groups: readonly AxisGroupViewModel[];
   readonly ghostEnabled: boolean;
-  /** G4b-24: false khi dự án chỉ có một tầng — công tắc bóng ma khoá kèm lý do. */
+  /** G4b-24: false khi chưa có tầng nào khác để vẽ bóng ma — công tắc khoá kèm lý do. */
   readonly hasGhostFloors?: boolean;
+  /** RV1-7: số tầng của dự án (`useProjectFloors`); vắng thì coi như chưa biết. */
+  readonly projectFloorCount?: number | undefined;
   /** Vai Người xem: ẩn nút thêm và nút xoá — xem mục 3 ở đầu file. */
   readonly isViewerRole: boolean;
   readonly onAxisRename?: AxisGridRowProps['onRename'];
@@ -66,6 +66,8 @@ const PANEL_TITLE = 'Trục';
 /** Nhãn tĩnh của Toggle — không đổi theo trạng thái bật/tắt, cùng khuôn `CENTRELINES_LABEL`. */
 const GHOST_TOGGLE_LABEL = 'Hiện bóng ma tầng dưới';
 const GHOST_TOGGLE_NO_FLOORS = 'Dự án chỉ có một tầng nên chưa có tầng nào để hiện bóng ma.';
+/** RV1-7: dự án nhiều tầng nhưng chưa tầng nào khác được tải (hoặc chưa có tường). */
+const GHOST_TOGGLE_NOT_LOADED = 'Chưa tải tầng khác hoặc tầng khác chưa có tường, nên chưa có bóng ma để hiện.';
 /** Dấu gạch ngang chờ cho trục cuối nhóm (`spacingText === null`) — cùng khuôn `ScaleCalibrationMethodReference.tsx`. */
 const MISSING_DISTANCE = '—';
 
@@ -116,19 +118,23 @@ function AxisGridRowEditor({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const renameError = label.trim() === row.label ? null : (onRename?.(row.id, label) ?? null);
-
-    if (renameError !== null) {
-      setError(renameError);
-      return;
-    }
-
+    /*
+     * RV1-6: khoảng cách trước, tên sau. Đổi tên làm mã hàng đổi và hàng mount lại,
+     * nên câu lỗi khoảng cách đặt sau lượt đổi tên sẽ rơi vào component đã unmount.
+     */
     const spacingMm = Number(spacing.replace(/\./g, '').replace(',', '.'));
     const original = row.spacingMm === null ? '' : String(Math.round(row.spacingMm));
     const spacingError = spacing === original || spacing === '' ? null : (onSpacingChange?.(row.id, spacingMm) ?? null);
 
     if (spacingError !== null) {
       setError(spacingError);
+      return;
+    }
+
+    const renameError = label.trim().toUpperCase() === row.label ? null : (onRename?.(row.id, label) ?? null);
+
+    if (renameError !== null) {
+      setError(renameError);
       return;
     }
 
@@ -172,9 +178,10 @@ function AxisGridRowEditor({
           {error}
         </p>
       )}
-      <p className="text-[12px] text-text-secondary">Enter để lưu, Esc để huỷ.</p>
+      <p className="text-[12px] text-text-secondary">Enter để áp dụng, Esc để huỷ.</p>
+      {/* RV1-10: nút submit ẩn giữ Enter cho trình đọc màn hình — không mang nhãn "Lưu" (A7). */}
       <button className="sr-only" type="submit">
-        Lưu
+        Áp dụng
       </button>
     </form>
   );
@@ -259,7 +266,7 @@ function AxisGridRow({
 interface AxisGridGroupProps {
   readonly group: AxisGroupViewModel;
   readonly isViewerRole: boolean;
-  readonly onAxisAdd: (direction: AxisGridDirection, options?: AxisAddOptions) => void;
+  readonly onAxisAdd: AxisGridManagerProps['onAxisAdd'];
   readonly onAxisRemove: (axisId: string) => void;
   readonly onAxisToggleVisibility: (axisId: string) => void;
   readonly onViewOnDrawing: (axisId: string) => void;
@@ -280,18 +287,26 @@ function AxisGridGroup({
   const [isAdding, setIsAdding] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [newSpacing, setNewSpacing] = useState('');
+  const [addError, setAddError] = useState<string | null>(null);
   const closeAdd = (): void => {
     setIsAdding(false);
     setNewLabel('');
     setNewSpacing('');
+    setAddError(null);
   };
   const submitAdd = (event: FormEvent): void => {
     event.preventDefault();
-    const spacing = Number(newSpacing.replace(/\./gu, '').replace(',', '.'));
-    onAxisAdd(group.direction, {
+    /* RV1-11: gõ sai ("abc", "-500") thì hook trả câu lỗi — form giữ nguyên và báo tại ô. */
+    const error = onAxisAdd(group.direction, {
       label: newLabel,
-      ...(newSpacing.trim() !== '' && Number.isFinite(spacing) && spacing > 0 ? { spacingMm: spacing } : {}),
+      ...(newSpacing.trim() === '' ? {} : { spacingMm: Number(newSpacing.replace(/\./gu, '').replace(',', '.')) }),
     });
+
+    if (typeof error === 'string') {
+      setAddError(error);
+      return;
+    }
+
     closeAdd();
   };
 
@@ -328,6 +343,7 @@ function AxisGridGroup({
             <input
               autoFocus
               className="h-8 w-16 rounded-md border border-border-default bg-bg-surface px-2 text-[13px] text-text-primary"
+              maxLength={4}
               onChange={(event) => setNewLabel(event.target.value)}
               placeholder="Tự đặt"
               value={newLabel}
@@ -345,6 +361,11 @@ function AxisGridGroup({
           </label>
           <Button size="sm" type="submit">Thêm</Button>
           <Button onClick={closeAdd} size="sm" type="button" variant="ghost">Huỷ</Button>
+          {addError === null ? null : (
+            <p className="w-full text-[12px] text-state-violation-text" role="alert">
+              {addError}
+            </p>
+          )}
         </form>
       ) : null}
       {isViewerRole || isAdding ? null : (
@@ -369,6 +390,7 @@ export function AxisGridLeftPanel({
   groups,
   ghostEnabled,
   hasGhostFloors = true,
+  projectFloorCount,
   isViewerRole,
   onAxisAdd,
   onAxisRemove,
@@ -403,7 +425,13 @@ export function AxisGridLeftPanel({
       <div className="shrink-0 border-t border-border-default px-5 py-4">
         <Toggle
           checked={hasGhostFloors && ghostEnabled}
-          description={hasGhostFloors ? undefined : GHOST_TOGGLE_NO_FLOORS}
+          description={
+            hasGhostFloors
+              ? undefined
+              : projectFloorCount !== undefined && projectFloorCount > 1
+                ? GHOST_TOGGLE_NOT_LOADED
+                : GHOST_TOGGLE_NO_FLOORS
+          }
           disabled={!hasGhostFloors}
           label={GHOST_TOGGLE_LABEL}
           onChange={() => onGhostToggle()}

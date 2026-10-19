@@ -114,7 +114,7 @@ test.describe('E04 SCR-19 axes — UI verify (QA-04c P4)', () => {
           await p.getByRole('button', { name: 'Thêm trục dọc', exact: true }).click();
           await expect(group(p, V_GROUP).getByRole('option')).toHaveCount(3);
           await dragAxis(p, '3', 'vertical', 9_000, 20); // snaps to the corner vertex = axis 2: distance 0 < 100
-          await expect(region(p).locator('[role="status"]').filter({ hasText: /không thể đặt/u })).toBeVisible(); // AGV:234-238
+          await expect(region(p).locator('[role="status"]').filter({ hasText: /không thể đặt/iu })).toBeVisible(); // AGV:234-238
         });
       });
 

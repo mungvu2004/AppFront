@@ -76,8 +76,8 @@ const UNDO = 'Hoàn tác';
 const ORIGIN_NOT_PERSISTED =
   'Đã ghim gốc toạ độ cho phiên làm việc này. Hệ thống chưa có chỗ lưu lựa chọn đó, nên nó mất sau khi tải lại trang.'; // UAG:AXIS_GRID_TEXT.originNotPersisted
 const OFFSET_LABELS = ['Lệch X (pixel)', 'Lệch Y (pixel)', 'Lệch X (mm)', 'Lệch Y (mm)'] as const; // AOP:50-53
-const SPACING_NOTICE = /^không thể đặt .+ và .+ cách nhau dưới 100 mm — khoảng cách tối thiểu này giữ cho bước dò hai trục khác nhau phân biệt được\. khoảng cách hiện tại: [\d.]+ mm\.$/u; // AGG:675-681
-const SPACING_ANNOUNCE = /^không thể đặt .+ và .+ cách dưới 100 mm$/u; // AGG:684-689
+const SPACING_NOTICE = /^Không thể đặt .+ và .+ cách nhau dưới 100 mm — khoảng cách tối thiểu này giữ cho bước dò hai trục khác nhau phân biệt được\. Khoảng cách hiện tại: [\d.]+ mm\.$/u; // AGG:675-681
+const SPACING_ANNOUNCE = /^Không thể đặt .+ và .+ cách dưới 100 mm$/u; // AGG:684-689
 
 /* 404 / read failure screens: FLR + ProjectSpatialGate copy. */
 const PROJECT_NOT_FOUND = 'Không tìm thấy dự án này';
@@ -117,7 +117,7 @@ const ghostSwitch = (page: Page): Locator => page.getByRole('switch', { name: GH
 const anchorBox = (page: Page): Locator => page.getByRole('combobox', { name: ANCHOR, exact: true });
 /** The open select is portalled; its listbox is named by the trigger (the chosen value), so options are found by their text. */
 const anchorOptions = (page: Page): Locator => page.getByRole('option', { name: /^[AB]-[12]$/u });
-const spacingNotice = (page: Page): Locator => region(page).locator('[role="status"]').filter({ hasText: /không thể đặt/u });
+const spacingNotice = (page: Page): Locator => region(page).locator('[role="status"]').filter({ hasText: /không thể đặt/iu });
 const floorRow = (page: Page, floorName: string): Locator => page.getByRole('listitem', { name: new RegExp(`^${escapeRegExp(floorName)}, lệch `, 'u') });
 const warningBanner = (page: Page): Locator => region(page).getByRole('alert');
 

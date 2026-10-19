@@ -47,7 +47,9 @@ import {
 } from './axisGridFixture';
 import { AXIS_GRID_MANAGER_SCENARIOS } from './axisGridManagerScenarios';
 import {
+  AXIS_COMMAND_TYPES,
   axesOfLevel,
+  buildRenameAxisCommand,
   createAxisGridManagerGateway,
   createAxisGridSampleGraph,
   createMockAxisGridManagerGateway,
@@ -631,6 +633,31 @@ describe('khả năng chưa có đường (không bịa, không ném)', () => {
     expect(wallsWrite.ok).toBe(true);
   });
 
+  it('[RV1-5] hai lượt ghi gửi cùng lúc xếp hàng, lượt sau dùng revision của lượt trước — không 409', async () => {
+    __resetMockLayerState();
+    const saving = createAxisGridManagerGateway({ apiClient: createMockApiClient() });
+    const floorId = String(AXIS_GRID_FIXTURE_FLOOR1.levelId);
+    const [grid, origin] = await Promise.all([
+      saving.persistAxisGrid({ projectId: PROJECT_ID, floorId, graph: createAxisGridSampleGraph() }),
+      saving.persistAxisOrigin({ projectId: PROJECT_ID, floorId, anchor: 'A-1', point: { x: millimetres(10), y: millimetres(20) } }),
+    ]);
+
+    expect(grid.supported && origin.supported).toBe(true);
+    expect((await saving.readLayer({ projectId: PROJECT_ID, floorId })).origin).toEqual({ x: 10, y: 20 });
+  });
+
+  it('[RV1-9][RV1-12] ảnh nền có imageAlt (khoá cache dùng chung), lệnh đổi tên mang type riêng', async () => {
+    const gateway = createAxisGridManagerGateway({ apiClient: createMockApiClient() });
+    const background = await gateway.readBackground?.({ projectId: PROJECT_ID, floorId: String(AXIS_GRID_FIXTURE_FLOOR1.levelId) });
+
+    expect(background?.imageAlt).toMatch(/Bản vẽ gốc/u);
+
+    const axis = axesOfLevel(createAxisGridSampleGraph(), AXIS_GRID_FIXTURE_FLOOR1.levelId)[0];
+
+    expect(axis).toBeDefined();
+    expect(buildRenameAxisCommand({ before: axis as Axis, label: 'Q', actorId: 'a' }).type).toBe(AXIS_COMMAND_TYPES.rename);
+  });
+
   it('đổi giao trục neo: ghim lưới được, và NÓI RA là lượt chọn chưa lưu được', async () => {
     const mounted = await mountSettled();
     const options = mounted.result.current.viewModel.origin.anchorOptions;
@@ -1010,6 +1037,46 @@ describe('QA-04c SCR-19', () => {
     });
     await waitFor(() => {
       expect(rowsOf(mounted).find((row) => row.label === 'Z')?.spacingMm).toBe(2500);
+    });
+  });
+
+  it('[RV1-3][RV1-4][RV1-11][RV1-12] thêm/đổi tên/sửa khoảng cách đi qua cùng luật soát', async () => {
+    const mounted = await mountSettled();
+
+    await act(async () => {
+      mounted.result.current.onAxisRemove(rowsOf(mounted)[0]?.id ?? '');
+      await Promise.resolve();
+    });
+    const steps = mounted.result.current.historyStepCount();
+    const [first] = rowsOf(mounted);
+
+    /* RV1-3: tên gõ tay viết hoa rồi soát trùng như đổi tên. */
+    expect(mounted.result.current.onAxisAdd(first?.direction ?? 'vertical', { label: (first?.label ?? '').toLowerCase() })).toMatch(/Đã có trục/u);
+    /* RV1-11: khoảng cách gõ sai hoặc âm thì báo, không thêm trục. */
+    expect(mounted.result.current.onAxisAdd('vertical', { spacingMm: Number.NaN })).toMatch(/Khoảng cách phải từ/u);
+    expect(mounted.result.current.onAxisAdd('vertical', { spacingMm: -500 })).toMatch(/Khoảng cách phải từ/u);
+
+    /* RV1-4: dời trục kế tới sát trục sau nữa (< 100 mm) bị chặn như khi kéo. */
+    const group = rowsOf(mounted).filter((row) => row.direction === first?.direction);
+    const [a, b] = group;
+
+    expect(group.length).toBeGreaterThanOrEqual(3);
+    let spacingError: string | null = null;
+    await act(async () => {
+      spacingError = mounted.result.current.onAxisSpacingChange(a?.id ?? '', (a?.spacingMm ?? 0) + (b?.spacingMm ?? 0) - 50);
+      await Promise.resolve();
+    });
+    expect(spacingError).not.toBeNull();
+    expect(mounted.result.current.historyStepCount()).toBe(steps);
+
+    /* RV1-12: đổi tên giữ trạng thái ẩn của trục. */
+    await act(async () => {
+      mounted.result.current.onAxisToggleVisibility(first?.id ?? '');
+      mounted.result.current.onAxisRename(first?.id ?? '', 'Y');
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(rowsOf(mounted).find((row) => row.label === 'Y')?.isVisible).toBe(false);
     });
   });
 

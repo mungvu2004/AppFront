@@ -340,8 +340,8 @@ export interface AxisGridManagerProps {
   /* -- Trục ---------------------------------------------------------------- */
   readonly onAxisToggleVisibility: (axisId: string) => void;
   readonly onAxisSelect: (axisId: string | null) => void;
-  /** G4b-22: `options` từ ô thêm trục — tên (trống = tên kế tiếp) và khoảng cách tới trục cuối (mm). */
-  readonly onAxisAdd: (direction: AxisGridDirection, options?: AxisAddOptions) => void;
+  /** G4b-22: `options` từ ô thêm trục — tên (trống = tên kế tiếp) và khoảng cách tới trục cuối (mm). RV1-3/11: trả câu lỗi để form hiện tại ô. */
+  readonly onAxisAdd: (direction: AxisGridDirection, options?: AxisAddOptions) => string | null | void;
   /** Kéo trục trên canvas tới toạ độ pixel mới; hook quy đổi mm và soát 100 mm. */
   readonly onAxisDrag: (axisId: string, coordinatePx: Pixels) => void;
   /** Xoá dùng vé hoàn tác (A8); toast Hoàn tác do hook dựng. */

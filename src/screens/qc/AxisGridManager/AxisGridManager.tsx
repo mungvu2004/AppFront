@@ -108,6 +108,8 @@ export interface AxisGridManagerViewProps
   readonly autoAlignBlockedReason: string | null;
   /** Đọc lớp hỏng khi chưa có tài liệu → cả màn là một trạng thái lỗi (BUG-326). */
   readonly readFailure?: FloorLayerReadFailure | null | undefined;
+  /** RV1-7: số tầng của dự án — phân biệt "chỉ một tầng" với "chưa tải tầng khác" ở công tắc bóng ma. */
+  readonly projectFloorCount?: number | undefined;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -153,6 +155,7 @@ function AxisGridLeftColumn({
   onGhostToggle,
   onRetry,
   onViewOnDrawing,
+  projectFloorCount,
 }: AxisGridManagerViewProps) {
   const isViewerRole = viewModel.isViewerRole;
 
@@ -209,6 +212,7 @@ function AxisGridLeftColumn({
           groups={viewModel.groups}
           hasGhostFloors={viewModel.canvas.ghostFloors.length > 0}
           isViewerRole={viewModel.isViewerRole}
+          projectFloorCount={projectFloorCount}
           onAxisAdd={onAxisAdd}
           onAxisRemove={onAxisRemove}
           onAxisRename={onAxisRename}

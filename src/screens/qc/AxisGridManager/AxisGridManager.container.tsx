@@ -112,6 +112,8 @@ export interface AxisGridManagerContainerProps {
   readonly onNavigate?: (path: string) => void;
   /** `QcFloorNav` dựng ở route (cần Router); vắng thì view giữ đầu màn cũ. */
   readonly floorNav?: ReactNode;
+  /** RV1-7: số tầng của dự án (`useProjectFloors` ở route) cho câu của công tắc bóng ma. */
+  readonly projectFloorCount?: number;
 }
 
 /** Cùng khuôn `ScreenCrashFallback` của `src/App.tsx` — R-62. */
@@ -190,6 +192,7 @@ function WiredAxisGridManager(props: AxisGridManagerContainerProps) {
       provisionalScaleNotice={result.provisionalScaleNotice}
       background={result.background}
       floorNav={props.floorNav}
+      projectFloorCount={props.projectFloorCount}
       autoAlignBlockedReason={result.autoAlignBlockedReason}
       viewModel={result.viewModel}
     />
@@ -239,6 +242,7 @@ function AxisGridManagerRouteBody({
       floorNav={<QcFloorNav floorId={floorId} floors={floors} layer="grids" projectId={projectId} />}
       levelId={levelId}
       onNavigate={onNavigate}
+      projectFloorCount={floors.length}
       projectId={projectId}
       roles={roles}
     />

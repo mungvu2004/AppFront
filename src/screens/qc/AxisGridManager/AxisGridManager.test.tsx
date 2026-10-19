@@ -55,6 +55,7 @@ import { useStore } from '@/store';
 import { BACK_TO_FLOORS_LABEL, FLOOR_MISSING_TITLE } from '../shared/floorLayerReadFailure';
 
 import { AxisGridCanvas } from './AxisGridCanvas';
+import { AxisGridLeftPanel } from './AxisGridLeftPanel';
 import { AxisGridOriginPanel } from './AxisGridOriginPanel';
 import { fitCanvas } from './axisGridCanvasFit';
 import { AxisGridManager } from './AxisGridManager';
@@ -668,5 +669,61 @@ describe('QA-04c SCR-19 trên màn', () => {
     renderState('collapsed');
 
     expect(screen.getByRole('button', { name: EXPAND_PANEL_LABEL }).className).toContain('min-h-11');
+  });
+});
+
+describe('[RV1] panel trục', () => {
+  const renderPanel = (handlers: Partial<Parameters<typeof AxisGridLeftPanel>[0]> = {}) => {
+    const groups = axisGridScenarioFor('success').groups;
+
+    renderWithProviders(
+      <AxisGridLeftPanel
+        ghostEnabled={false}
+        groups={groups}
+        hasGhostFloors={false}
+        isViewerRole={false}
+        onAxisAdd={vi.fn()}
+        onAxisRemove={vi.fn()}
+        onAxisRename={vi.fn(() => null)}
+        onAxisSpacingChange={vi.fn(() => null)}
+        onAxisToggleVisibility={vi.fn()}
+        onGhostToggle={vi.fn()}
+        onViewOnDrawing={vi.fn()}
+        projectFloorCount={3}
+        {...handlers}
+      />,
+    );
+
+    return groups;
+  };
+
+  it('[RV1-6][RV1-10] khoảng cách sai thì báo và KHÔNG đổi tên; nút submit ẩn không mang nhãn "Lưu"', () => {
+    const onAxisRename = vi.fn(() => null);
+    const onAxisSpacingChange = vi.fn(() => 'Khoảng cách phải từ 100 mm trở lên.');
+    const groups = renderPanel({ onAxisRename, onAxisSpacingChange });
+    const row = groups.flatMap((group) => group.rows).find((item) => item.spacingMm !== null);
+
+    fireEvent.click(screen.getByRole('button', { name: `Sửa trục ${row?.label ?? ''}` }));
+    fireEvent.change(screen.getByLabelText('Tên trục'), { target: { value: 'X' } });
+    fireEvent.change(screen.getByLabelText('Khoảng cách tới trục kế (mm)'), { target: { value: '50' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
+
+    expect(onAxisRename).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert').textContent).toMatch(/Khoảng cách phải từ/u);
+    expect(screen.queryByRole('button', { name: 'Lưu' })).toBeNull();
+  });
+
+  it('[RV1-3][RV1-7][RV1-11] form thêm trục báo lỗi tại ô; dự án nhiều tầng không nói "chỉ một tầng"', () => {
+    const onAxisAdd = vi.fn(() => 'Đã có trục A. Chọn tên khác.');
+    const groups = renderPanel({ onAxisAdd });
+
+    expect(screen.getByText(/Chưa tải tầng khác/u)).toBeTruthy();
+    expect(screen.queryByText(/chỉ có một tầng/u)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: groups[0]?.addButtonLabel ?? '' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+
+    expect(screen.getByRole('alert').textContent).toMatch(/Đã có trục A/u);
+    expect(screen.getByRole('button', { name: 'Thêm' })).toBeTruthy();
   });
 });

@@ -673,16 +673,16 @@ const millimetreCount = (valueMm: Millimetres): string =>
  */
 export function describeSpacingViolation(violation: AxisSpacingViolation): string {
   return (
-    `không thể đặt ${violation.firstLabel} và ${violation.secondLabel} cách nhau dưới ` +
+    `Không thể đặt ${violation.firstLabel} và ${violation.secondLabel} cách nhau dưới ` +
     `${millimetreCount(violation.minimumMm)} mm — khoảng cách tối thiểu này giữ cho bước dò hai ` +
-    `trục khác nhau phân biệt được. khoảng cách hiện tại: ${millimetreCount(violation.actualMm)} mm.`
+    `trục khác nhau phân biệt được. Khoảng cách hiện tại: ${millimetreCount(violation.actualMm)} mm.`
   );
 }
 
 /** Bản ngắn cho `aria-live` — nguyên văn `constraint.ariaLive` của bảng chuỗi S15-T4. */
 export function announceSpacingViolation(violation: AxisSpacingViolation): string {
   return (
-    `không thể đặt ${violation.firstLabel} và ${violation.secondLabel} cách dưới ` +
+    `Không thể đặt ${violation.firstLabel} và ${violation.secondLabel} cách dưới ` +
     `${millimetreCount(violation.minimumMm)} mm`
   );
 }
@@ -702,6 +702,8 @@ export const AXIS_COMMAND_TYPES = {
   add: 'axis.add',
   remove: 'axis.remove',
   move: 'axis.move',
+  /* RV1-12: đổi tên là một loại lệnh riêng, nhật ký không ghi thành "dời trục". */
+  rename: 'axis.rename',
   autoAlign: 'axis.autoAlign',
 } as const;
 
@@ -835,7 +837,7 @@ export function buildMoveAxisCommand(input: BuildMoveAxisInput): Command {
 /** G4b-20: đổi tên một trục — một bước hoàn tác. */
 export function buildRenameAxisCommand(input: { readonly before: Axis; readonly label: string; readonly actorId: string }): Command {
   return createCommand({
-    type: AXIS_COMMAND_TYPES.move,
+    type: AXIS_COMMAND_TYPES.rename,
     actorId: input.actorId,
     description: `Đổi tên trục ${input.before.label} thành ${input.label}.`,
     changes: [changeForUpdate('axis', input.before, { ...input.before, label: input.label })],
@@ -1074,6 +1076,8 @@ export { UNDO_WINDOW_MS };
 
 export interface AxisGridBackground {
   readonly imageUrl: string | null;
+  /** RV1-9: khoá `drawing.byFloor` dùng chung với Tường/Phòng/Đối tượng — các màn đó đọc `imageAlt` từ cache. */
+  readonly imageAlt: string;
   readonly widthMm: number | null;
   readonly heightMm: number | null;
 }
@@ -1159,37 +1163,54 @@ export function createAxisGridManagerGateway(
   };
 
   /*
-   * G4b-17: #35 nhận `axes`/`origin` (B4). Đọc `revision` ngay trước khi ghi.
-   * ponytail: đọc-rồi-ghi, hai thẻ cùng sửa trục thì thẻ sau đè thẻ trước;
-   * nối `revision` của `useFloorLayer` + xử lý 409 nếu cần chặt hơn.
+   * G4b-17: #35 nhận `axes`/`origin` (B4).
+   * RV1-5: mọi lượt ghi (trục, hoàn tác, làm lại, gốc) xếp hàng một-lượt-một-lúc;
+   * lượt sau lấy `revision` lượt trước vừa nhận, nên hai lượt sửa nhanh không tự 409.
+   * Chưa có revision (lượt đầu, hoặc lượt trước hỏng) thì đọc lại ngay trước khi ghi.
+   * ponytail: hai THẺ cùng sửa trục thì thẻ sau vẫn 409 và báo "Chưa lưu được".
    */
-  const writeFloorBody = async (
+  const lastRevision = new Map<string, number>();
+  let writeQueue: Promise<unknown> = Promise.resolve();
+  const writeNow = async (
     projectId: string,
     floorId: string,
     body: FloorLayerWriteBody,
   ): Promise<AxisGridCapabilityResult<void>> => {
-    const current = await apiClient.spatial.readLayer({ floorId, projectId });
+    let baseVersion = lastRevision.get(floorId);
 
-    if (!current.ok) {
-      throw current.error;
+    if (baseVersion === undefined) {
+      const current = await apiClient.spatial.readLayer({ floorId, projectId });
+
+      if (!current.ok) {
+        throw current.error;
+      }
+
+      baseVersion = current.data.revision;
     }
 
-    const written = await apiClient.spatial.writeLayer({
-      baseVersion: current.data.revision,
-      body,
-      floorId,
-      projectId,
-    });
+    const written = await apiClient.spatial.writeLayer({ baseVersion, body, floorId, projectId });
 
     if (!written.ok) {
+      lastRevision.delete(floorId);
       throw written.error;
     }
 
+    lastRevision.set(floorId, written.data.revision);
     /* Revision mới vào kho — nơi bộ tự lưu của Tường/Kích thước lấy baseVersion — để lượt ghi kế không 409. */
     const { floorMeta, updateFloorMeta } = useStore.getState();
     updateFloorMeta(floorId, { ...floorMeta[floorId], revision: written.data.revision });
 
     return { supported: true, value: undefined };
+  };
+  const writeFloorBody = (
+    projectId: string,
+    floorId: string,
+    body: FloorLayerWriteBody,
+  ): Promise<AxisGridCapabilityResult<void>> => {
+    const task = writeQueue.then(() => writeNow(projectId, floorId, body));
+    writeQueue = task.catch(() => undefined);
+
+    return task;
   };
   const roundPoint = (point: Point): Point => ({
     x: millimetres(Math.round(point.x)),
@@ -1229,7 +1250,12 @@ export function createAxisGridManagerGateway(
 
       const drawing = result.data.drawings[0];
 
-      return { imageUrl: drawing?.url ?? null, widthMm: drawing?.widthMm ?? null, heightMm: drawing?.heightMm ?? null };
+      return {
+        imageUrl: drawing?.url ?? null,
+        imageAlt: `Bản vẽ gốc của ${result.data.name}, dùng làm nền để đối chiếu lưới trục.`,
+        widthMm: drawing?.widthMm ?? null,
+        heightMm: drawing?.heightMm ?? null,
+      };
     },
 
     graph,
