@@ -539,7 +539,6 @@ function vmFor(
         phonePlaceholder: 'Chưa đặt',
         email: SAMPLE_EMAIL,
         emailReadOnlyReason: 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.',
-        onChangeEmail: vi.fn(),
         phone: isEmpty ? '' : '0912 345 678',
         onPhoneChange: vi.fn(),
         language: 'vi',

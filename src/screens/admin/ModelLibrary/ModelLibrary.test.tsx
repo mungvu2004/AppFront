@@ -47,7 +47,7 @@ import { formatNumber } from '@/lib/format/number';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
-import { renderWithProviders } from '@/lib/testing/render';
+import { renderWithProviders } from '../renderWithRouter';
 import { createSevenStateScenarios, SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import { checkBudget, SCENE_BUDGET } from '@/lib/three/perf/budget';
 

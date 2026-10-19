@@ -39,9 +39,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { FieldRow } from '@/components/ui/FieldRow';
 import { Input } from '@/components/ui/Input';
 import { Select, type SelectOption } from '@/components/ui/Select';
-import { Link } from 'react-router-dom';
 
-import { ROUTES } from '@/routes/paths';
 import { cn } from '@/lib/utils';
 
 import { AvatarReplaceDialog, type AvatarReplaceDialogProps } from './AvatarReplaceDialog';
@@ -93,10 +91,8 @@ export interface ProfileSectionProps {
   readonly phonePlaceholder: string;
 
   readonly email: string;
+  /** Câu lý do chỉ đọc. BE chưa có API đổi thư điện tử nên không hứa chỗ đổi (RV5#11). */
   readonly emailReadOnlyReason: string;
-  readonly onChangeEmail: () => void;
-  /** Quản trị hệ thống: có chỗ đổi email (Quản trị › Người dùng). Người khác chỉ đọc lời nhắn. */
-  readonly isSystemAdmin?: boolean;
 
   readonly phone: string;
   readonly onPhoneChange: (value: string) => void;
@@ -225,24 +221,14 @@ export function ProfileSection(props: ProfileSectionProps) {
 
         <FieldRow isStacked={props.isStacked} label="Thư điện tử" className={rowClass}>
           <div className="flex flex-col gap-1">
-            {/* `min-w-0 flex-1`: thư dài cắt "…" trong cột, nút không bị đẩy ra ngoài thẻ (BUG-497). */}
-            <div className="flex items-center gap-2">
-              <Input
-                aria-label="Thư điện tử"
-                value={props.email}
-                isReadOnly
-                readOnly
-                wrapperClassName="min-w-0 flex-1"
-              />
-              {props.isSystemAdmin === true ? (
-                <Link to={ROUTES.adminUsers} className="shrink-0 text-[13px] text-accent underline">
-                  Đổi tại Quản trị › Người dùng
-                </Link>
-              ) : null}
-            </div>
-            <p className="text-[13px] leading-[18px] text-text-muted">
-              {props.isSystemAdmin === true ? props.emailReadOnlyReason : 'Liên hệ quản trị viên để đổi email.'}
-            </p>
+            <Input
+              aria-label="Thư điện tử"
+              value={props.email}
+              isReadOnly
+              readOnly
+              wrapperClassName="min-w-0"
+            />
+            <p className="text-[13px] leading-[18px] text-text-muted">{props.emailReadOnlyReason}</p>
           </div>
         </FieldRow>
 

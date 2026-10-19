@@ -171,7 +171,9 @@
       "title": "Quên mật khẩu",
       "subtitle": "Nhập thư điện tử của tài khoản. Thư đặt lại mật khẩu sẽ được gửi tới đó.",
       "sent": "Nếu địa chỉ này có tài khoản, thư đặt lại mật khẩu sẽ tới trong vài phút.",
-      "sentHint": "Đổi địa chỉ nếu muốn gửi tới thư khác."
+      "sentHint": "Đổi địa chỉ nếu muốn gửi tới thư khác.",
+      "resend": "Gửi lại thư",
+      "resendWait": "Gửi lại thư sau {{count}} giây"
     },
     "invitation": {
       "title": "Nhận lời mời",

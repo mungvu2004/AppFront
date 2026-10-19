@@ -4,12 +4,17 @@ import { useCallback, useEffect, useState } from 'react';
 const COUNTDOWN_TICK_MS = 1000;
 
 /**
- * Đếm ngược khoá nút sau một 429. Số giây chỉ để khoá, không bao giờ in ra.
+ * Đếm ngược khoá nút: sau một 429 (số giây chỉ để khoá, không in ra), hoặc thời gian chờ
+ * "Gửi lại thư" (RV5#16, `secondsLeft` in ra ở viewmodel).
  *
  * @example
  * const { isLocked, lock } = useLockout();
  */
-export function useLockout(): { readonly isLocked: boolean; readonly lock: (seconds: number) => void } {
+export function useLockout(): {
+  readonly isLocked: boolean;
+  readonly secondsLeft: number;
+  readonly lock: (seconds: number) => void;
+} {
   const [secondsLeft, setSecondsLeft] = useState(0);
 
   useEffect(() => {
@@ -30,5 +35,5 @@ export function useLockout(): { readonly isLocked: boolean; readonly lock: (seco
     setSecondsLeft(seconds);
   }, []);
 
-  return { isLocked: secondsLeft > 0, lock };
+  return { isLocked: secondsLeft > 0, secondsLeft, lock };
 }

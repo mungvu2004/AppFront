@@ -58,7 +58,6 @@ function props(overrides: Partial<ProfileSectionProps> = {}): ProfileSectionProp
     phonePlaceholder: 'chưa đặt',
     email: SAMPLE_EMAIL,
     emailReadOnlyReason: 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.',
-    onChangeEmail: vi.fn(),
     phone: '',
     onPhoneChange: vi.fn(),
     language: 'vi',
@@ -134,13 +133,11 @@ describe('BUG-497, BUG-502 — khổ hẹp: nhãn trên ô, thư dài không đ�
     }
   });
 
-  it('ô thư điện tử co được (min-w-0 flex-1) để nút "Đổi thư điện tử" ở lại trong hàng', () => {
-    render(<ProfileSection {...props({ isSystemAdmin: true, email: `${'a'.repeat(120)}@congty.vn` })} />);
+  it('ô thư điện tử co được (min-w-0) để thư dài cắt "…" trong thẻ', () => {
+    const longEmail = `${'a'.repeat(120)}@congty.vn`;
+    render(<ProfileSection {...props({ email: longEmail })} />);
 
-    const link = screen.getByRole('link', { name: 'Đổi tại Quản trị › Người dùng' });
-    const wrapper = link.previousElementSibling;
-
-    expect(wrapper).toHaveClass('min-w-0', 'flex-1');
+    expect(screen.getByText(longEmail).closest('.min-w-0')).not.toBeNull();
   });
 });
 
@@ -266,15 +263,12 @@ describe('thư điện tử chỉ đọc', () => {
     // tính DOM không có thật, và React kêu về chuyện đó.
     expect(screen.queryByLabelText('Thư điện tử')).toBeNull();
     expect(screen.getByText(SAMPLE_EMAIL)).toBeTruthy();
-    expect(screen.getByText('Liên hệ quản trị viên để đổi email.')).toBeTruthy();
+    expect(screen.getByText('Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.')).toBeTruthy();
   });
 
-  it('quản trị hệ thống thấy liên kết tới Quản trị › Người dùng; người khác không có nút', () => {
-    render(<ProfileSection {...props({ isSystemAdmin: true })} />);
-    expect(screen.getByRole('link', { name: 'Đổi tại Quản trị › Người dùng' })).toBeTruthy();
-    cleanup();
+  it('RV5#11: không có liên kết đổi thư điện tử (BE chưa có API đổi)', () => {
     render(<ProfileSection {...props()} />);
-    expect(screen.queryByRole('link', { name: /Đổi tại Quản trị/ })).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Đổi thư điện tử' })).toBeNull();
   });
 });

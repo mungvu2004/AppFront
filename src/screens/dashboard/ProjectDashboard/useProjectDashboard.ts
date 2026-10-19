@@ -59,6 +59,8 @@ import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
+import { CREATE_PROJECT_SHORTCUT } from './dashboardShortcuts';
+
 import {
   createProjectsGateway,
   DASHBOARD_CAPABILITIES,
@@ -440,7 +442,7 @@ export function useProjectDashboard(
   // Registry-arbitrated, so it never fires while a search box or the rename
   // field is focused (`isTextEntryTarget`, `shortcutRegistry.ts`).
   useShortcut(
-    { id: 'dashboard.createProject', combo: 'N', scope: 'global', onTrigger: () => options.onCreateProject?.() },
+    { ...CREATE_PROJECT_SHORTCUT, onTrigger: () => options.onCreateProject?.() },
     { enabled: canCreate },
   );
 

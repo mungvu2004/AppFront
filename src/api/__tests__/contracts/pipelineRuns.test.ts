@@ -7,7 +7,7 @@ import { createMockApiClient, MOCK_PIPELINE_RUNS } from '../../__mocks__/client'
 import { InvitationPreviewRequestSchema, InvitationPreviewSchema } from '../../schemas/auth';
 import { PipelineRunSchema } from '../../schemas/pipelineRuns';
 
-/** UIFIX-B2 (N10a xem trước lời mời) + UIFIX-B7 (N7b lượt xử lý, trang thông báo). */
+/** UIFIX-B2 (N10b xem trước lời mời) + UIFIX-B7 (N7b lượt xử lý, trang thông báo). */
 
 const RUN = {
   createdAt: '2026-10-18T21:05:00Z',
@@ -77,7 +77,7 @@ describe('PipelineRunSchema (N7b)', () => {
   });
 });
 
-describe('InvitationPreviewSchema (N10a)', () => {
+describe('InvitationPreviewSchema (N10b)', () => {
   it('nhận có và không có inviterName', () => {
     expect(InvitationPreviewSchema.safeParse(PREVIEW).success).toBe(true);
     const noInviter: Record<string, unknown> = { ...PREVIEW };

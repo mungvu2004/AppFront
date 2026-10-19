@@ -1062,9 +1062,10 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-B-007', 'warped-error');
       });
 
-      await step('14-B-011', 'provisional scale (pipeline `unresolved`): banner; "Tỷ lệ hiện tại" still "Chưa có" with the unknown derived line', async () => {
+      await step('14-B-011', 'provisional scale (pipeline `unresolved`): no banner (G4b-11); "Tỷ lệ hiện tại" still "Chưa có" with the unknown derived line', async () => {
         await clearLine(page);
-        await expect.soft(page.getByText(SCALE.provisional, { exact: true })).toBeVisible();
+        // G4b-11: the "Tỷ lệ tạm" banner is gone from the scale screen (same as 14-B-025).
+        await expect.soft(page.getByText(SCALE.provisional, { exact: true })).toHaveCount(0);
         await expect.soft(panelOf(page).getByText('Chưa có', { exact: true })).toBeVisible();
         // G3-31: the derived line names the provisional ratio the wall screen already uses.
         await expect.soft(panelOf(page).getByText(/^đang dùng tạm .+ mm\/px do máy ước, chưa được duyệt$/u)).toBeVisible();

@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -170,9 +171,9 @@ export function TrainingJobDetail({ actions, detail }: TrainingJobDetailProps) {
       </dl>
       <div className="flex flex-wrap items-center gap-3">
         {detail.resultLink !== null && (
-          <a className="text-[13px] text-accent hover:underline" href={detail.resultLink.href}>
+          <Link className="text-[13px] text-accent hover:underline" to={detail.resultLink.href}>
             {detail.resultLink.label}
-          </a>
+          </Link>
         )}
         {detail.canCancel && (
           <Button className="ml-auto" onClick={actions.onRequestCancel} size="sm" variant="secondary">

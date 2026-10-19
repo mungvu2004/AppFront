@@ -87,7 +87,6 @@ const base: AccountSettingsViewModel = {
       phonePlaceholder: 'chưa đặt',
       email: EMAIL,
       emailReadOnlyReason: 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.',
-      onChangeEmail: noop,
       phone: '0912 345 678',
       onPhoneChange: noop,
       language: 'vi',

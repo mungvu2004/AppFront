@@ -264,17 +264,34 @@ describe('Trạng thái 6 (Đ-7) — "không có quyền": chỉ ma trận, khô
 });
 
 describe('Hành động bị chặn (Đ-8): hiện câu giải thích tại chỗ, không phải nút xám vô cớ', () => {
-  it('trạng thái "thành công": roleChangeBlockedReason và removeBlockedReason đều đọc được trong DOM', async () => {
+  it('hàng của chính mình: hiện vai của mình bằng chữ, không lặp câu chặn đổi vai', async () => {
     const model = USER_MANAGEMENT_SCENARIO_SUCCESS;
-    const selfRow = requireRow(model, (row) => row.roleChangeBlockedReason !== null, 'một hàng có roleChangeBlockedReason');
+    const selfRow = requireRow(model, (row) => row.isSelf && row.roleChangeBlockedReason !== null, 'hàng của chính mình có roleChangeBlockedReason');
+
+    const UserManagementView = await loadUserManagementView();
+
+    renderWithProviders(<UserManagementView actions={USER_MANAGEMENT_ACTIONS} model={model} />);
+
+    const selfTr = screen.getAllByText(selfRow.name)[0]?.closest('tr');
+    expect(selfTr).toBeTruthy();
+    expect(within(selfTr as HTMLElement).getAllByText(selfRow.roleLabel).length).toBeGreaterThan(0);
+    expect(screen.queryByText(selfRow.roleChangeBlockedReason as string)).toBeNull();
+  });
+
+  it('hàng người khác: câu chặn đổi vai và chặn xoá đọc được trong DOM', async () => {
+    const other = requireRow(USER_MANAGEMENT_SCENARIO_SUCCESS, (row) => !row.isSelf, 'một hàng không phải chính mình');
+    const reason = 'Không đổi được vai của người này lúc này.';
+    const model: UserManagementViewModel = {
+      ...USER_MANAGEMENT_SCENARIO_SUCCESS,
+      rows: USER_MANAGEMENT_SCENARIO_SUCCESS.rows.map((row) => (row.id === other.id ? { ...row, roleChangeBlockedReason: reason } : row)),
+    };
     const lastAdminRow = requireRow(model, (row) => row.removeBlockedReason !== null && !row.isSelf, 'một hàng có removeBlockedReason');
 
     const UserManagementView = await loadUserManagementView();
 
     renderWithProviders(<UserManagementView actions={USER_MANAGEMENT_ACTIONS} model={model} />);
 
-    if (!selfRow.isSelf) expect(screen.getAllByText(selfRow.roleChangeBlockedReason as string).length).toBeGreaterThan(0);
-    else expect(screen.queryByText(selfRow.roleChangeBlockedReason as string)).toBeNull();
+    expect(screen.getAllByText(reason).length).toBeGreaterThan(0);
     // BUG-P08-022 / 37W-C-014: panel chi tiết nay cũng nêu lý do chặn xoá nên câu có thể hiện ở hàng VÀ panel.
     expect(screen.getAllByText(lastAdminRow.removeBlockedReason as string).length).toBeGreaterThan(0);
   });

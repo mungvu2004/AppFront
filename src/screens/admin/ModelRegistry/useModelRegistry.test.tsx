@@ -14,7 +14,7 @@ import type { SessionSnapshot } from '@/lib/auth/types';
 import type { HttpError, Result } from '@/lib/http';
 import { createNotificationBus, type NotificationInput } from '@/lib/mutations/notificationBus';
 import { queryKeys } from '@/lib/query/queryKeys';
-import { renderWithProviders } from '@/lib/testing/render';
+import { renderWithProviders } from '../renderWithRouter';
 import { resolveConflict } from '@/lib/versioning/conflict';
 
 import { ModelRegistryContainer } from './ModelRegistry.container';

@@ -43,6 +43,8 @@ const forgotBase: ForgotPasswordModel = {
   isSent: false,
   hasFailure: false,
   canSubmit: true,
+  canResend: false,
+  resendLabel: 'Gửi lại thư',
 };
 
 const base: AuthScreenViewProps = {
@@ -201,6 +203,7 @@ export const ForgotPasswordSent: Story = {
       email: SAMPLE_EMAIL,
       isSent: true,
       sentMessage: AUTH_MESSAGES.forgotPassword.sent,
+      canResend: true,
     },
   },
 };

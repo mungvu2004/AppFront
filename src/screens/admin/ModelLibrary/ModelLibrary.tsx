@@ -22,6 +22,7 @@
 import type { ReactNode } from 'react';
 
 import { Boxes } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -50,9 +51,9 @@ function ModelLibraryShell({ children }: { readonly children: ReactNode }) {
   return (
     <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[1920px]:max-w-[1440px]">
       <nav aria-label={BREADCRUMB_NAV_LABEL} className="text-[13px] text-text-secondary">
-        <a className="hover:text-text-primary hover:underline" href={ROUTES.adminUsers}>
+        <Link className="hover:text-text-primary hover:underline" to={ROUTES.adminUsers}>
           {BREADCRUMB_PARENT}
-        </a>
+        </Link>
         <span aria-hidden="true"> › </span>
         <span className="text-text-primary">{BREADCRUMB_CURRENT}</span>
       </nav>

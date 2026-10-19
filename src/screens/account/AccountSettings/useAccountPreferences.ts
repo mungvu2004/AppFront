@@ -155,10 +155,8 @@ export const DENSITY_ROW_CLASS: Readonly<Record<DensityChoice, string>> = {
  */
 export const ACCOUNT_STACKED_QUERY = '(width < 1024px)';
 
-const EMAIL_REASON_SHORT = 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.';
-const EMAIL_REASON_LONG =
-  'Ứng dụng chưa có bước xác minh để tự đổi thư điện tử. ' +
-  'Nhờ quản trị viên công ty đổi giúp trong mục Quản trị.';
+/** BE chưa có API đổi thư điện tử: chỉ nói ai cấp, không hứa chỗ đổi (RV5#11). */
+const EMAIL_REASON = 'Thư điện tử là tên đăng nhập do quản trị hệ thống cấp, nên chỉ đọc ở đây.';
 
 const JOB_TITLE_PLACEHOLDER = 'Chưa đặt';
 
@@ -429,7 +427,6 @@ export function useAccountPreferences(
   const [pendingAvatar, setPendingAvatar] = useState<PendingAvatar | null>(null);
   const [isAvatarLocked, setAvatarLocked] = useState(false);
   const avatarLockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const [emailReason, setEmailReason] = useState(EMAIL_REASON_SHORT);
 
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -647,9 +644,7 @@ export function useAccountPreferences(
     jobTitlePlaceholder: JOB_TITLE_PLACEHOLDER,
     phonePlaceholder: PHONE_PLACEHOLDER,
     email: email === '' ? MISSING_VALUE : email,
-    emailReadOnlyReason: emailReason,
-    onChangeEmail: () => setEmailReason(EMAIL_REASON_LONG),
-    isSystemAdmin: session.roles.includes('admin'),
+    emailReadOnlyReason: EMAIL_REASON,
     phone: values.phone,
     onPhoneChange: (value) => commit('profile', 'phone', value, 'phone'),
     language: values.language,

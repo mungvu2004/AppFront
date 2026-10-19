@@ -6,7 +6,7 @@ import { cleanup, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
-import { renderWithProviders } from '@/lib/testing/render';
+import { renderWithProviders } from '../renderWithRouter';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 

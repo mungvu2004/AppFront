@@ -7,6 +7,7 @@
  */
 
 import { Lock } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -49,9 +50,9 @@ function Header({ model }: { readonly model: TrainingJobsViewModel }) {
         <nav aria-label={TEXT.breadcrumbNav} className="text-[13px] text-text-secondary">
           <ol className="flex items-center gap-1.5">
             <li>
-              <a className="hover:text-text-primary hover:underline" href={ROUTES.adminUsers}>
+              <Link className="hover:text-text-primary hover:underline" to={ROUTES.adminUsers}>
                 {TEXT.breadcrumbAdmin}
-              </a>
+              </Link>
             </li>
             <li aria-hidden="true">›</li>
             <li aria-current="page">{TEXT.breadcrumbHere}</li>
@@ -59,9 +60,9 @@ function Header({ model }: { readonly model: TrainingJobsViewModel }) {
         </nav>
         <h1 className="text-[20px] font-semibold text-text-primary">{TEXT.title}</h1>
       </div>
-      <a className="text-[13px] font-medium text-accent underline-offset-2 hover:underline" href={model.relatedLink.href}>
+      <Link className="text-[13px] font-medium text-accent underline-offset-2 hover:underline" to={model.relatedLink.href}>
         {model.relatedLink.label}
-      </a>
+      </Link>
     </div>
   );
 }

@@ -75,6 +75,8 @@ import type {
   ShortcutRowModel,
   ShortcutsSectionProps,
 } from './ShortcutsSection';
+import { DASHBOARD_PAGE_SHORTCUTS } from '@/screens/dashboard/ProjectDashboard/dashboardShortcuts';
+
 import type { AccountDraftFields, AccountDraftPort } from './accountDraft';
 
 export interface AccountTablesModel {
@@ -233,7 +235,8 @@ const ANIMATED_ROW_MOTION: ShortcutRowMotion = Object.freeze({
  * viết tay danh sách phím tắt" cấm, chỉ dịch sang chỗ khác.
  */
 export function buildShortcutRows(): readonly ShortcutRowModel[] {
-  const rows = buildGlobalShortcuts(NO_OP_SHORTCUT_HANDLERS).map((definition) => {
+  // Phím riêng trang Dự án ("N") lấy từ nguồn chung của dashboard, không viết tay ở đây (RV5#12).
+  return [...buildGlobalShortcuts(NO_OP_SHORTCUT_HANDLERS), ...DASHBOARD_PAGE_SHORTCUTS].map((definition) => {
     const combo = formatCombo(parseCombo(definition.combo));
 
     return {
@@ -247,10 +250,6 @@ export function buildShortcutRows(): readonly ShortcutRowModel[] {
       description: definition.description ?? MISSING_DESCRIPTION,
     };
   });
-
-  // G1-21: "N" chỉ đăng ký ở trang Dự án (useProjectDashboard), không phải phím toàn cục nên registry
-  // không có; ghi thêm một dòng để bảng khớp nhãn phím trên nút "Dự án mới".
-  return [...rows, { id: 'dashboard.createProject', combo: 'N', keys: ['N'], description: 'Tạo dự án mới (ở trang Dự án)' }];
 }
 
 /*

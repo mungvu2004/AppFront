@@ -15,7 +15,9 @@ import type { Dataset, DatasetVersion, TrainingJob, TrainingLogLine, TrainingMet
 import type { SessionSnapshot } from '@/lib/auth/types';
 import type { HttpError, Result } from '@/lib/http';
 import { createNotificationBus, type NotificationInput } from '@/lib/mutations/notificationBus';
-import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
+import { createTestQueryClient } from '@/lib/testing/render';
+
+import { renderWithProviders } from '../renderWithRouter';
 import { resolveConflict } from '@/lib/versioning/conflict';
 
 import { TrainingJobsContainer } from './TrainingJobs.container';

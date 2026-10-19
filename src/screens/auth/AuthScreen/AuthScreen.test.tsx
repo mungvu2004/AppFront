@@ -57,6 +57,8 @@ const forgotBase: ForgotPasswordModel = {
   isSent: false,
   hasFailure: false,
   canSubmit: true,
+  canResend: false,
+  resendLabel: 'Gửi lại thư',
 };
 
 afterEach(() => {

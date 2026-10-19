@@ -45,6 +45,7 @@ import { durationSeconds } from '@/lib/motion';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
 import { DashboardSidebar, DashboardSidebarSkeleton } from './DashboardSidebar';
+import { CREATE_PROJECT_SHORTCUT } from './dashboardShortcuts';
 import { projectMenuGroups } from './projectMenuGroups';
 import { ProjectCardTile } from './ProjectCardTile';
 import { ProjectTable } from './ProjectTable';
@@ -166,7 +167,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
               onChange={props.setViewMode}
             />
             {props.canCreate && (
-              <Button variant="primary" size="sm" iconBefore={<Plus size={16} aria-hidden="true" />} onClick={props.createProject} shortcut="N">
+              <Button variant="primary" size="sm" iconBefore={<Plus size={16} aria-hidden="true" />} onClick={props.createProject} shortcut={CREATE_PROJECT_SHORTCUT.combo}>
                 Dự án mới
               </Button>
             )}

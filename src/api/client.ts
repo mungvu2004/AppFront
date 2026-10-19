@@ -174,7 +174,7 @@ export interface AcceptInvitationApiInput extends WriteRequestOptions {
   body: AcceptInvitation;
 }
 
-/** N10a (UIFIX-B2) — chỉ đọc, không tiêu token. */
+/** N10b (UIFIX-B2) — chỉ đọc, không tiêu token. */
 export interface PreviewInvitationApiInput extends WriteRequestOptions {
   body: InvitationPreviewRequest;
 }

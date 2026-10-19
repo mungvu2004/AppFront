@@ -23,6 +23,10 @@ import {
   type GlobalShortcutHandlers,
 } from '@/lib/input/shortcutRegistry';
 import { durationSeconds } from '@/lib/motion';
+import {
+  CREATE_PROJECT_SHORTCUT,
+  DASHBOARD_PAGE_SHORTCUTS,
+} from '@/screens/dashboard/ProjectDashboard/dashboardShortcuts';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
@@ -48,7 +52,7 @@ const COUNTING_HANDLERS: GlobalShortcutHandlers = {
 };
 
 /** Nguồn sự thật của I-01, đọc lúc chạy. Không có con số nào ở đây. */
-const REGISTRY_COUNT = buildGlobalShortcuts(COUNTING_HANDLERS).length + 1; // + dòng "N" của trang Dự án
+const REGISTRY_COUNT = buildGlobalShortcuts(COUNTING_HANDLERS).length + DASHBOARD_PAGE_SHORTCUTS.length;
 
 const SHORTCUT_COUNT_TEST = 'số hàng phím tắt vẽ ra bằng số mục buildGlobalShortcuts khai';
 
@@ -101,10 +105,14 @@ describe('đối chiếu số phím tắt', () => {
 
   it('viewmodel dựng danh sách từ I-01, không từ một mảng viết tay', () => {
     const rows = buildShortcutRows();
-    const definitions = buildGlobalShortcuts(COUNTING_HANDLERS);
+    const definitions = [...buildGlobalShortcuts(COUNTING_HANDLERS), ...DASHBOARD_PAGE_SHORTCUTS];
 
-    expect(rows).toHaveLength(definitions.length + 1);
-    expect(rows.slice(0, -1).map((row) => row.id)).toEqual(definitions.map((definition) => definition.id));
+    expect(rows).toHaveLength(definitions.length);
+    expect(rows.map((row) => row.id)).toEqual(definitions.map((definition) => definition.id));
+    // RV5#12: dòng "N" đi theo nguồn chung của trang Dự án, không phải chữ viết tay.
+    expect(rows.find((row) => row.id === CREATE_PROJECT_SHORTCUT.id)?.combo).toBe(
+      formatCombo(parseCombo(CREATE_PROJECT_SHORTCUT.combo)),
+    );
 
     // Mỗi tổ hợp in ra đúng cách `formatCombo(parseCombo(...))` in.
     for (const [index, definition] of definitions.entries()) {

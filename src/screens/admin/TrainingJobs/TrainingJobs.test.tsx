@@ -11,7 +11,7 @@ import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
-import { renderWithProviders } from '@/lib/testing/render';
+import { renderWithProviders } from '../renderWithRouter';
 import { createSevenStateScenarios } from '@/lib/testing/sevenStateScenarios';
 import { ROUTES } from '@/routes/paths';
 

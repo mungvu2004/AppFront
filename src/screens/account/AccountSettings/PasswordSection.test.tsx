@@ -154,6 +154,18 @@ describe('khối mật khẩu — view dựng chỉ từ props', () => {
     renderWithProviders(<PasswordSection {...baseProps({ canSubmit: false })} />);
 
     expect(screen.getByRole('button', { name: 'Đổi mật khẩu' })).toBeDisabled();
+    expect(screen.getByText('Nhập đủ cả ba ô để đổi mật khẩu.')).toBeTruthy();
+  });
+
+  it('RV5#13: đủ ba ô nhưng đang khoá (429) thì không bảo "nhập đủ cả ba ô"', () => {
+    renderWithProviders(
+      <PasswordSection
+        {...baseProps({ currentPassword: 'cu12345678', newPassword: 'moi12345678', confirmPassword: 'moi12345678', canSubmit: false })}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Đổi mật khẩu' })).toBeDisabled();
+    expect(screen.queryByText('Nhập đủ cả ba ô để đổi mật khẩu.')).toBeNull();
   });
 
   it('thanh sức mạnh đọc được thành chữ, và ba mức là ba câu khác nhau', () => {

@@ -10,7 +10,7 @@
  * and can say nothing about whether anyone is signed in.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /* Nhập THEO TÊN, không default: default export của `vi.json` là một object literal liền
    khối nên Rollup phải giữ cả cuốn từ điển trong chunk vào. Đừng "dọn" về default. */
@@ -38,6 +38,8 @@ import type { HouseSceneHandle } from './houseScene';
  */
 function HouseModel() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  // Cờ "đã vẽ": chữ chờ chỉ hiện tới khi mô hình sẵn sàng, không dựa vào canvas che nó (RV5#15).
+  const [isReady, setReady] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -55,7 +57,9 @@ function HouseModel() {
           return undefined;
         }
         handle = module.mountHouseScene(canvas);
-        return handle.ready;
+        return handle.ready.then(() => {
+          if (!cancelled) setReady(true);
+        });
       })
       .catch(() => {
         // No WebGL context — an old browser, a blocklisted GPU, a headless run
@@ -72,11 +76,19 @@ function HouseModel() {
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 h-full w-full"
-    />
+    <>
+      {isReady ? null : (
+        // `--scene-tile`: màu sáng đã cân trên `--scene-backdrop` ở cả hai chủ đề (token, không `text-white/70`).
+        <p className="absolute inset-0 flex items-center justify-center text-[14px] text-[color:var(--scene-tile)]">
+          Đang dựng mô hình căn hộ…
+        </p>
+      )}
+      <canvas
+        ref={canvasRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 h-full w-full"
+      />
+    </>
   );
 }
 
@@ -125,10 +137,7 @@ export function ValuePanel() {
 
       <div className="relative flex flex-col gap-12">
         <div className="relative h-[400px] overflow-hidden rounded-2xl border border-border-default bg-scene-backdrop shadow-panel">
-          {/* Chữ nằm dưới canvas: thấy khi ảnh 3D chưa tải xong, bị che khi đã vẽ (G1-03). */}
-          <p className="absolute inset-0 flex items-center justify-center text-[14px] text-white/70">
-            Đang dựng mô hình căn hộ…
-          </p>
+          {/* Chữ chờ nằm trong HouseModel, gỡ khi mô hình đã vẽ (G1-03, RV5#15). */}
           <HouseModel />
         </div>
 

@@ -59,7 +59,7 @@ export const AcceptInvitationSchema = z
 export type AcceptInvitation = z.infer<typeof AcceptInvitationSchema>;
 
 /**
- * N10a — `POST /api/auth/invitations/preview` (`auth_preview_invitation`,
+ * N10b — `POST /api/auth/invitations/preview` (`auth_preview_invitation`,
  * UIFIX-B2): kiểm token TRƯỚC khi hiện form nhận lời mời. Chỉ đọc, không tiêu
  * token. Token đi trong thân, không lên URL (K11).
  *

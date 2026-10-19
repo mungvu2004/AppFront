@@ -44,6 +44,10 @@ export interface ForgotPasswordModel {
   /** Có lỗi còn thử lại được — dùng cho trạng thái `error` của màn. */
   readonly hasFailure: boolean;
   readonly canSubmit: boolean;
+  /** "Gửi lại thư" bấm được: đã gửi, không đang gửi, hết thời gian chờ (RV5#16). */
+  readonly canResend: boolean;
+  /** Nhãn nút gửi lại, kèm số giây còn chờ khi đang chờ. */
+  readonly resendLabel: string;
 }
 
 export interface ForgotPasswordActions {
@@ -56,6 +60,9 @@ export interface ForgotPasswordActions {
 
 type Phase = 'idle' | 'sending' | 'sent';
 
+/** Chờ giữa hai lượt "Gửi lại thư": bấm liên tục không gửi hàng loạt thư giống nhau (RV5#16). */
+export const RESEND_COOLDOWN_SECONDS = 60;
+
 export function useForgotPassword(options: UseForgotPasswordOptions): {
   readonly model: ForgotPasswordModel;
   readonly actions: ForgotPasswordActions;
@@ -66,6 +73,7 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
   const [failure, setFailure] = useState<RecoveryFailure | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const { isLocked, lock } = useLockout();
+  const { isLocked: isResendWaiting, secondsLeft: resendSecondsLeft, lock: lockResend } = useLockout();
   const inFlight = useRef(false);
   const emailRef = useRef(email);
   emailRef.current = email;
@@ -86,7 +94,7 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
 
   const send = useCallback((again: boolean) => {
     // `sent`: the same address again would only send a second identical letter (BUG-022).
-    if (inFlight.current || isLocked || (phase === 'sent' && !again)) {
+    if (inFlight.current || isLocked || (phase === 'sent' && !again) || (again && isResendWaiting)) {
       return;
     }
 
@@ -118,6 +126,7 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
 
         if (result.ok) {
           setPhase('sent');
+          lockResend(RESEND_COOLDOWN_SECONDS);
 
           return;
         }
@@ -143,7 +152,7 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
         setPhase('idle');
         setFailure({ kind: 'other', cause: thrown });
       });
-  }, [isLocked, lock, phase, request]);
+  }, [isLocked, isResendWaiting, lock, lockResend, phase, request]);
 
   const submit = useCallback(() => {
     send(false);
@@ -165,6 +174,10 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
     isSent: phase === 'sent',
     hasFailure: shownFailure !== null,
     canSubmit: phase === 'idle' && !isLocked,
+    canResend: phase === 'sent' && !isLocked && !isResendWaiting,
+    resendLabel: isResendWaiting
+      ? fillTemplate(AUTH_MESSAGES.forgotPassword.resendWait, { count: String(resendSecondsLeft) })
+      : AUTH_MESSAGES.forgotPassword.resend,
   };
 
   const actions = useMemo(() => ({ setEmail, submit, resend, reset }), [reset, resend, setEmail, submit]);

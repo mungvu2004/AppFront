@@ -35,7 +35,7 @@ export function ForgotPasswordPanel({
   onBack,
   registerEmailField,
 }: ForgotPasswordPanelProps) {
-  const { email, problem, notice, sentMessage, isSending, isSent, canSubmit } = model;
+  const { email, problem, notice, sentMessage, isSending, isSent, canSubmit, canResend, resendLabel } = model;
   const focusReturn = useReturnFocus(isSending);
 
   const handleSubmit = useCallback(
@@ -97,9 +97,10 @@ export function ForgotPasswordPanel({
             <button
               type="button"
               onClick={actions.resend}
-              className="inline-flex min-h-11 items-center self-center py-1 text-[13px] sm:min-h-6 leading-[18px] text-accent-hover hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
+              disabled={!canResend}
+              className="inline-flex min-h-11 items-center self-center py-1 text-[13px] sm:min-h-6 leading-[18px] text-accent-hover hover:text-accent-active disabled:cursor-not-allowed disabled:text-text-muted rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
             >
-              Gửi lại thư
+              {resendLabel}
             </button>
           </>
         )}

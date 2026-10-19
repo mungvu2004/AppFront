@@ -196,15 +196,30 @@ export const USER_MANAGEMENT_TEXT = {
     'Người này là người sửa cuối cùng của ít nhất một dự án; hãy thêm người sửa khác cho dự án đó trước rồi mới hạ vai hoặc vô hiệu hoá',
 } as const;
 
-const URL_PARAM_ROLE = 'vai';
-const URL_PARAM_STATUS = 'trangThai';
+const URL_PARAM_ROLE = 'role';
+const URL_PARAM_STATUS = 'status';
+/** Khoá cũ (G2-14) — chỉ còn đọc để link đã lưu vẫn mở đúng bộ lọc; lần ghi đầu gỡ chúng (RV5#19). */
+const LEGACY_URL_PARAMS: Readonly<Record<string, string>> = { [URL_PARAM_ROLE]: 'vai', [URL_PARAM_STATUS]: 'trangThai' };
 
 function readUrlParam(key: string): string | null {
   try {
-    return new URLSearchParams(window.location.search).get(key);
+    const params = new URLSearchParams(window.location.search);
+    const legacy = LEGACY_URL_PARAMS[key];
+    return params.get(key) ?? (legacy === undefined ? null : params.get(legacy));
   } catch {
     return null;
   }
+}
+
+/**
+ * Giá trị bộ lọc đọc từ URL: chỉ nhận khoá RIÊNG của bảng nhãn. `in` nhận cả khoá kế thừa
+ * (`?role=toString` → bảng rỗng, nhãn trống), nên kiểm bằng `hasOwnProperty` (RV5#19).
+ */
+export function urlFilterOf<TKey extends string>(
+  value: string | null,
+  labels: Readonly<Record<TKey, string>>,
+): TKey | typeof FILTER_ALL {
+  return value !== null && Object.prototype.hasOwnProperty.call(labels, value) ? (value as TKey) : FILTER_ALL;
 }
 
 /** Ghi bộ lọc lên URL bằng `replaceState` (không thêm mục lịch sử); `all` thì xoá khoá. */
@@ -212,6 +227,8 @@ function writeUrlParams(values: Readonly<Record<string, string>>): void {
   try {
     const url = new URL(window.location.href);
     for (const [key, value] of Object.entries(values)) {
+      const legacy = LEGACY_URL_PARAMS[key];
+      if (legacy !== undefined) url.searchParams.delete(legacy);
       if (value === FILTER_ALL) url.searchParams.delete(key);
       else url.searchParams.set(key, value);
     }
@@ -548,15 +565,13 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
   /* ---- Lựa chọn của người dùng ----------------------------------------- */
 
   const [search, setSearch] = useState('');
-  // G2-14: bộ lọc Vai/Trạng thái nằm trên URL (`?vai=&trangThai=`) để tải lại không mất.
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>(() => {
-    const value = readUrlParam(URL_PARAM_ROLE);
-    return value !== null && value in ROLE_LABELS ? (value as RoleFilter) : FILTER_ALL;
-  });
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
-    const value = readUrlParam(URL_PARAM_STATUS);
-    return value !== null && value in STATUS_LABELS ? (value as StatusFilter) : FILTER_ALL;
-  });
+  // G2-14: bộ lọc Vai/Trạng thái nằm trên URL (`?role=&status=`) để tải lại không mất.
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>(() =>
+    urlFilterOf(readUrlParam(URL_PARAM_ROLE), ROLE_LABELS),
+  );
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() =>
+    urlFilterOf(readUrlParam(URL_PARAM_STATUS), STATUS_LABELS),
+  );
   useEffect(() => {
     writeUrlParams({ [URL_PARAM_ROLE]: roleFilter, [URL_PARAM_STATUS]: statusFilter });
   }, [roleFilter, statusFilter]);

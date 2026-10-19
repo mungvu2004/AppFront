@@ -236,7 +236,9 @@ export function PasswordSection(props: PasswordSectionProps) {
       )}
 
       <div className="flex items-center justify-end gap-3">
-        {props.canSubmit || props.isSubmitting ? null : (
+        {/* Chỉ khi còn ô trống: khoá 429 cũng làm `canSubmit` false nhưng không phải lý do này (RV5#13). */}
+        {props.isSubmitting ||
+        (props.currentPassword !== '' && props.newPassword !== '' && props.confirmPassword !== '') ? null : (
           <span className="text-[13px] text-text-secondary">Nhập đủ cả ba ô để đổi mật khẩu.</span>
         )}
         {props.currentPassword === '' && props.newPassword === '' && props.confirmPassword === '' ? null : (

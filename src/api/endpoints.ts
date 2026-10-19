@@ -85,7 +85,7 @@ export const ENDPOINTS = {
    */
   auth: {
     invitationAccept: `${AUTH_ROOT}/invitations/accept`,
-    /** N10a (UIFIX-B2) — xem trước lời mời; token trong thân. */
+    /** N10b (UIFIX-B2) — xem trước lời mời; token trong thân. */
     invitationPreview: `${AUTH_ROOT}/invitations/preview`,
     login: `${AUTH_ROOT}/login`,
     passwordReset: `${AUTH_ROOT}/password-reset`,
