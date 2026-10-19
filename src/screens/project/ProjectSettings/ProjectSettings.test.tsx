@@ -746,7 +746,7 @@ describe('ProjectSettings đã nối dây', () => {
     expect(gateway.update).toHaveBeenCalledTimes(1);
     expect(toasts).toHaveLength(1);
     // G3-09: câu báo nói rõ tên vừa lưu.
-    expect(toasts[0]?.message).toMatch(/^Đã lưu tên dự án «.+»\.$/u);
+    expect(toasts[0]?.message).toMatch(/^Đã lưu tên dự án ".+"\.$/u);
     expect(toasts[0]?.onUndo).toBeTypeOf('function');
 
     act(() => {
@@ -835,7 +835,7 @@ describe('ProjectSettings đã nối dây', () => {
     expect(gateway.deleteProject).toHaveBeenCalledWith({ projectId: 'project-delete' });
     // B-V3-05: câu báo đi cùng lời gọi rời màn, không vào toast của màn sắp gỡ.
     expect(onProjectDeleted).toHaveBeenCalledTimes(1);
-    expect(onProjectDeleted).toHaveBeenCalledWith(`Đã xoá dự án «${expectedName}».`); // G3-37
+    expect(onProjectDeleted).toHaveBeenCalledWith(`Đã xoá dự án "${expectedName}".`); // G3-37
   });
 
   /** Mở hộp "Xoá dự án" và gõ đúng tên; trả nút xác nhận. */
@@ -926,7 +926,7 @@ describe('ProjectSettings đã nối dây', () => {
     await tick(MOTION_SETTLE_MS);
 
     expect(onProjectDeleted).toHaveBeenCalledTimes(1);
-    expect(onProjectDeleted).toHaveBeenCalledWith(expect.stringMatching(/^Đã xoá dự án «.+»\.$/u)); // G3-37
+    expect(onProjectDeleted).toHaveBeenCalledWith(expect.stringMatching(/^Đã xoá dự án ".+"\.$/u)); // G3-37
   });
 
   // BUG-207: a toast that reports floors left behind is a warning, not a plain notice.

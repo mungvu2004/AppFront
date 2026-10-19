@@ -44,7 +44,7 @@
  * màn tường vẫn "chạy", chỉ là dẫn sai chỗ và không ai thấy.
  */
 
-import { createAppApiClient, resolveApiBaseUrl } from '@/api/appClient';
+import { createAppApiClient, resolveApiBaseUrl, resolveUseMockApi } from '@/api/appClient';
 import type { ApiClient, ApiResult, Notification } from '@/api/client';
 import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import { NOTIFICATION_PLACES, NotificationSchema } from '@/api/schemas/notifications';
@@ -341,6 +341,12 @@ export function createNotificationCenterGateway(
     },
 
     subscribe: (listener) => {
+      // Bộ mẫu dev không có máy chủ SSE: mở kênh chỉ gặp 500 của proxy Vite và thử lại mãi,
+      // làm đỏ lưới chống màn trắng ở mọi màn có chuông (smoke-grid). Danh sách vẫn đọc từ bộ mẫu.
+      if (resolveUseMockApi()) {
+        return () => undefined;
+      }
+
       const channel = createEventChannel({
         url: toApiUrl(resolveApiBaseUrl(), ENDPOINTS.streams.notifications()),
         refreshAuth: () => refreshSingleFlight({ source: 'local' }),

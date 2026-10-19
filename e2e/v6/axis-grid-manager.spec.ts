@@ -17,7 +17,7 @@ import { QC_FLOOR, QC_PROJECT, seedQc } from './seedQc';
 /** Lần tải đầu một route bắt Vite dịch nguội; tiền lệ `smoke-grid.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
-/** Tầng 2 của bộ mẫu A14: bốn trục chia đều bốn tầng ⇒ một trục, "A". */
+/** Tầng 2 của bộ mẫu A14: bốn trục A–D chia đều bốn tầng ⇒ một trục, "B" (G4b-21: trục đã lưu giữ nhãn của nó, không đặt lại theo thứ tự trong tầng). */
 const A14_FLOOR = 'L-LEVEL000001';
 
 const axisOptions = (page: Page) => page.getByRole('option', { name: /^Trục / });
@@ -29,7 +29,7 @@ test.describe('đường nạp thật (không bơm)', () => {
     await page.goto(ROUTES.project.grids(QC_PROJECT, A14_FLOOR));
 
     await expect(axisOptions(page)).toHaveCount(1, { timeout: FIRST_PAINT_TIMEOUT_MS });
-    await expect(page.getByRole('option', { name: /^Trục A,/u })).toBeVisible();
+    await expect(page.getByRole('option', { name: /^Trục B,/u })).toBeVisible();
   });
 
   test('tầng chưa có lớp thì màn nói thật "Chưa có trục nào"', async ({ page }) => {
@@ -45,7 +45,8 @@ test('[bơm] bộ mẫu trục ở đúng mã tầng hiện tám trục A–D, 1
   page,
 }) => {
   await page.goto(ROUTES.project.grids(QC_PROJECT, QC_FLOOR.grids));
-  await expect(page.getByRole('heading', { name: 'Quản lý trục và gốc toạ độ' })).toBeVisible({
+  /* N0-01: đầu màn cũ (h2) nhường chỗ cho QcFloorNav (P15) — chờ vùng mang tên màn thay vì tiêu đề. */
+  await expect(page.getByRole('region', { name: 'Quản lý trục và gốc toạ độ', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   await seedQc(page, 'grids');

@@ -1113,7 +1113,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
       const savedName = sentDraft?.name.trim() ?? '';
       const message =
         savedName.length > 0 && savedName !== previous.name.trim()
-          ? `Đã lưu tên dự án «${savedName}».`
+          ? `Đã lưu tên dự án "${savedName}".`
           : SAVED_TOAST_MESSAGE;
 
       options.onToast?.({
@@ -1302,7 +1302,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
       // không có đường khôi phục nào để hứa.
       // G3-37: câu báo nêu tên dự án vừa xoá.
       const deletedName = (savedRef.current?.name ?? snapshot?.name ?? '').trim();
-      const notice = deletedName.length > 0 ? `Đã xoá dự án «${deletedName}».` : PROJECT_DELETED_NOTICE;
+      const notice = deletedName.length > 0 ? `Đã xoá dự án "${deletedName}".` : PROJECT_DELETED_NOTICE;
 
       if (options.onProjectDeleted === undefined) {
         options.onToast?.({ message: notice });

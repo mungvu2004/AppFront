@@ -959,6 +959,21 @@ describe('createNotificationCenterGateway — dây thật', () => {
     vi.unstubAllGlobals();
   });
 
+  it('chạy bộ mẫu dev (VITE_USE_MOCK_API) thì subscribe không mở luồng SSE nào', () => {
+    StubEventSource.instances = [];
+    vi.stubGlobal('EventSource', StubEventSource);
+    vi.stubEnv('VITE_USE_MOCK_API', 'true');
+
+    const unsubscribe = createNotificationCenterGateway(createMockApiClient(), () => GATEWAY_NOW_MS).subscribe(
+      () => undefined,
+    );
+
+    expect(StubEventSource.instances).toHaveLength(0);
+    unsubscribe();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
   it('subscribe truyền refreshAuth xuống kênh: ba lỗi liên tiếp thì xin refresh một lần', () => {
     StubEventSource.instances = [];
     refreshSingleFlightMock.mockClear();

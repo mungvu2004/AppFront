@@ -118,7 +118,7 @@ const DANGER = {
   deleteProject: 'Xoá dự án',
   typeName: 'Gõ lại tên dự án để xác nhận', // PS
   keep: 'Để nguyên', // PS
-  deletedNotice: 'Đã xoá dự án.', // UPS PROJECT_DELETED_NOTICE
+  deletedNotice: /Đã xoá dự án( "[^"]+")?\./u, // UPS PROJECT_DELETED_NOTICE; G3-37 nêu tên dự án
   deleteFloorsTitle: 'Xoá mọi tầng của dự án?',
   deleteFloors: 'Xoá mọi tầng',
   noFloorsTitle: 'Chưa có tầng nào', // DZ EmptyState
@@ -161,7 +161,7 @@ const sentJson = (result: { readonly response: { request: () => { postDataJSON: 
 const sentSettingsBody = (result: Parameters<typeof sentJson>[0]): Json => asRecord(sentJson(result, 'PUT settings').body, 'PUT settings body');
 
 const field = (page: Page, label: string): Locator => page.getByRole('textbox', { name: label, exact: true });
-const toastWith = (page: Page, text: string): Locator => page.getByRole('status').filter({ hasText: text }); // TST role=status
+const toastWith = (page: Page, text: string | RegExp): Locator => page.getByRole('status').filter({ hasText: text }); // TST role=status
 /** Header save chip (PS `SaveIndicator`, SI role=status). */
 const saveChip = (page: Page): Locator => page.locator('header').getByRole('status');
 const tablist = (page: Page): Locator => page.getByRole('tablist', { name: SETTINGS_TABS, exact: true });

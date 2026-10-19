@@ -70,7 +70,7 @@
  * một lần đọc báo hỏng.
  */
 
-import { createAppApiClient, resolveApiBaseUrl } from '@/api/appClient';
+import { createAppApiClient, resolveApiBaseUrl, resolveUseMockApi } from '@/api/appClient';
 import type { ApiClient, ApiResult, Floor, LatestFloorUpload, PipelineRunList, Project } from '@/api/client';
 import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import type { Progress } from '@/api/schemas';
@@ -1100,10 +1100,14 @@ export function createProcessingGateway(
 
 /** Cổng dựng trên client thật của ứng dụng — thứ container gọi. */
 export function createAppProcessingGateway(): ProcessingGateway {
-  return createProcessingGateway(createAppApiClient(), {
+  const gateway = createProcessingGateway(createAppApiClient(), {
     telemetry: createTelemetrySender({
       transport: createBeaconTransport({ url: ENDPOINTS.telemetry }),
       sessionId: createUuid(),
     }),
   });
+
+  // Bộ mẫu dev không có máy chủ SSE: lượt `running` của nó (N7b, `MOCK_PIPELINE_RUNS`) mở luồng
+  // chỉ gặp 500 của proxy Vite (smoke-grid `projectPipelineGraph`). Hỏi #8 định kỳ thay cho SSE.
+  return resolveUseMockApi() ? { ...gateway, subscribeProgress: gateway.pollProgress } : gateway;
 }

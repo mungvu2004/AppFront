@@ -18,15 +18,6 @@ const skipButton = (page: Page) => page.getByRole('button', { name: 'Bỏ qua', 
 const dashboardHeading = (page: Page) =>
   page.getByRole('heading', { name: 'Dự án của tôi', exact: true });
 
-/** Mọi đường khung chính đi qua — kể cả lượt đổi lịch sử cùng tài liệu. */
-function recordTrail(page: Page): string[] {
-  const trail: string[] = [];
-  page.on('framenavigated', (frame) => {
-    if (frame === page.mainFrame()) trail.push(pathOf(frame.url()));
-  });
-  return trail;
-}
-
 test('"Bỏ qua" đưa người dùng mới tới danh sách dự án', async ({ page }) => {
   await page.goto(ROUTES.onboarding);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Chào .+, bắt đầu trong ba bước$/u, {
@@ -39,26 +30,19 @@ test('"Bỏ qua" đưa người dùng mới tới danh sách dự án', async ({
   expect(pathOf(page.url())).toBe(ROUTES.dashboard);
 });
 
-test('"Xem hướng dẫn 2 phút" đang tắt: Enter trên nó không đi đâu, dù nó vẫn trong thứ tự Tab', async ({
+/*
+ * G1-23: hai lối phụ chưa có thật ("Xem hướng dẫn 2 phút" từng là nút tắt trong thứ tự Tab,
+ * "Xem dự án mẫu" chỉ về trang chủ) nay bị ẩn hẳn. Ý ban đầu giữ nguyên: màn chào không bày
+ * một lối cụt nào cho bàn phím.
+ */
+test('màn chào không bày lối cụt: "Xem hướng dẫn 2 phút" và "Xem dự án mẫu" không còn, "Bỏ qua" vẫn có (G1-23)', async ({
   page,
 }) => {
   await page.goto(ROUTES.onboarding);
+  await expect(skipButton(page)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
-  const guide = page.getByRole('button', { name: 'Xem hướng dẫn 2 phút', exact: true });
-  await expect(guide).toHaveAttribute('aria-disabled', 'true', { timeout: FIRST_PAINT_TIMEOUT_MS });
-  /* Ghi vệt SAU khi màn đã dựng: lúc khởi động react-router tự `replaceState` mục lịch sử
-     đầu (gắn `idx`), và Playwright đếm đó là một lượt điều hướng cùng tài liệu. */
-  const trail = recordTrail(page);
-  await guide.focus();
-  await expect(guide).toBeFocused();
-  await page.keyboard.press('Enter');
-
-  /* Rào dương thay cho chờ một khoảng: điều hướng của màn này đi sau một nhịp chuyển
-     động, nên cú Enter — nếu nó điều hướng — phải hiện trong vệt TRƯỚC lượt "Bỏ qua". */
-  await skipButton(page).click();
-  await expect(dashboardHeading(page)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
-
-  expect(trail).toEqual([ROUTES.dashboard]);
+  await expect(page.getByRole('button', { name: 'Xem hướng dẫn 2 phút', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Xem dự án mẫu', exact: true })).toHaveCount(0);
 });
 
 /*

@@ -268,8 +268,10 @@ export function ScaleCalibrationPanel({
 
         {!panel.areActionsHidden && (
           <div className="flex flex-col gap-3 border-t border-border-default pt-4">
+            {/* BUG-410: the 344 px column (from 768, G4b-10) is narrower than both labels on one line — let them wrap so the thumb stays inside the group. */}
             <SegmentedControl
               aria-label={SCOPE_ARIA_LABEL}
+              className="h-auto min-h-9 items-stretch [&>button]:h-auto [&>button]:min-w-0 [&>button]:whitespace-normal [&>button]:py-1 [&>button]:leading-tight"
               onChange={actions.onChangeApplyScope}
               options={panel.applyScopeOptions.map((option) => ({
                 label: option.label,

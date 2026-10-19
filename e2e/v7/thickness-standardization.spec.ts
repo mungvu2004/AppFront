@@ -67,12 +67,16 @@ test('đường nạp thật: mở thẳng ở một tầng có lớp thì thẻ
   await expect(page.getByRole('heading', { name: 'Chưa có đoạn tường nào để chuẩn hoá' })).toHaveCount(0);
 });
 
-test('đường dẫn đầu màn không gõ cứng "Tầng 01" — màn phủ mọi tầng: "Dự án > Độ dày tường" (B-V6-43)', async ({
+/* P20 (N1-02): breadcrumb chung `QcFloorNav` "Dự án › <tầng> › Độ dày tường" thay chữ "Dự án > Độ dày tường". */
+test('đường dẫn đầu màn không gõ cứng "Tầng 01": "Dự án › Tầng › Độ dày tường" (B-V6-43, N1-02)', async ({
   page,
 }) => {
   await open(page);
 
-  await expect(page.getByText('Dự án > Độ dày tường', { exact: true })).toBeVisible();
+  const breadcrumb = page.getByRole('navigation', { name: 'Đường dẫn trang', exact: true });
+  await expect(breadcrumb).toContainText('Dự án');
+  await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText('Độ dày tường');
+  await expect(breadcrumb).not.toContainText('Tầng 01');
 });
 
 test('đường nạp thật: tầng chưa có lớp thì màn nói thật "chưa có đoạn tường nào" (V7-THICK-01)', async ({ page }) => {

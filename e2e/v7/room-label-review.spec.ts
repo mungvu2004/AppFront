@@ -59,7 +59,8 @@ function nameField(page: Page) {
 
 async function open(page: Page, floorId: string = QCB_FLOOR.rooms): Promise<void> {
   await page.goto(ROUTES.project.rooms(QCB_PROJECT, floorId));
-  await expect(page.getByRole('heading', { name: 'Duyệt tên phòng' })).toBeVisible({
+  /* P14 (N2-08, G4a-29): bỏ tiêu đề hiện "Duyệt tên phòng"; tên ấy còn là nhãn vùng màn. */
+  await expect(page.getByRole('region', { name: 'Duyệt tên phòng', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 }
@@ -98,10 +99,14 @@ test('đường nạp thật: mở thẳng ở một tầng có lớp thì danh 
  * Mã A14 `R-ROOM0000010`… có chỉ số ĐỨNG SAU: quy tắc cũ đọc sáu ký tự đầu thân mã làm số
  * đếm, nên cả bốn phòng cùng nhãn "#R-ROOM00" (B-V6-09). Mã ULID của BE hỏng y như vậy.
  */
-test('đường dẫn đầu màn không gõ cứng "Tầng 01": "Dự án > Nhãn phòng" (B-V6-43)', async ({ page }) => {
+/* P14 (N2-08): breadcrumb chung `QcFloorNav` "Dự án › <tầng> › Phòng" thay chữ "Dự án > Nhãn phòng". */
+test('đường dẫn đầu màn không gõ cứng "Tầng 01": "Dự án › Tầng › Phòng" (B-V6-43, N2-08)', async ({ page }) => {
   await open(page);
 
-  await expect(page.getByText('Dự án > Nhãn phòng', { exact: true })).toBeVisible();
+  const breadcrumb = page.getByRole('navigation', { name: 'Đường dẫn trang', exact: true });
+  await expect(breadcrumb).toContainText('Dự án');
+  await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText('Phòng');
+  await expect(breadcrumb).not.toContainText('Tầng 01');
 });
 
 test('đường nạp thật: mỗi phòng một mã hiển thị riêng, theo thứ tự tạo (B-V6-09)', async ({ page }) => {
@@ -318,7 +323,8 @@ test('đường nạp thật: Ctrl+Z ngay sau lượt nạp không trả màn v�
   await openReal(page);
 
   /* Ngoài ô nhập, để phím đi tới `global.undo` của vỏ (`router.tsx`). */
-  await page.getByRole('heading', { name: 'Duyệt tên phòng' }).click();
+  /* P14 (G4a-38): dòng tiến độ thay tiêu đề cũ làm chỗ bấm ngoài ô nhập. */
+  await page.getByTestId('room-approve-progress').click();
   await page.keyboard.press('Control+z');
 
   await expect(roomOptions(page)).toHaveCount(A14_ROOMS.length);

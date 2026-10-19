@@ -62,7 +62,9 @@ for (const host of HOSTS) {
 
     // A15: cao độ ở bước xem lại dùng dấu phẩy thập phân.
     await expect(dialog.getByText(/^\d,\d m$/u).first()).toBeVisible();
-    await expect(dialog.getByText('3,2 m', { exact: true })).toBeVisible();
+    // G3-05: bước xem lại thêm cột chiều cao thông thuỷ (mọi tầng "3,2 m"), nên neo vào
+    // cao độ tầng thứ ba — 2 × 3,2 = 6,4 — chỉ có khi chiều cao đã áp cho mọi tầng.
+    await expect(dialog.getByText('6,4 m', { exact: true })).toBeVisible();
     await dialog.getByRole('button', { name: 'tạo dự án' }).click();
 
     await expect(dialog).toHaveCount(0);

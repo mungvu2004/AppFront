@@ -85,20 +85,10 @@ const ROWS = {
     anchor: { role: 'region', name: 'Xem mô hình 3D trên điện thoại' },
     viewport: { width: 390, height: 844 },
   },
-  notifications: {
-    anchor: { role: 'heading', name: 'Thông báo' },
-    expectedConsole: {
-      match: /\/api\/streams\/notifications/u,
-      why: 'bộ mẫu dev không có luồng SSE thông báo — 404',
-    },
-  },
-  dashboard: {
-    anchor: { role: 'heading', name: 'Dự án của tôi' },
-    expectedConsole: {
-      match: /\/api\/streams\/notifications/u,
-      why: 'chuông thông báo (B-V3-08) mở luồng SSE mà bộ mẫu dev không có — 404',
-    },
-  },
+  // Chuông (B-V3-08) không mở luồng SSE thông báo khi chạy bộ mẫu dev (không có máy chủ SSE):
+  // trước kia lỗi 500 của luồng ấy rơi vào mọi màn có chuông tuỳ nhịp tải, nay không màn nào được có.
+  notifications: { anchor: { role: 'heading', name: 'Thông báo' } },
+  dashboard: { anchor: { role: 'heading', name: 'Dự án của tôi' } },
   projectSettings: { anchor: { role: 'heading', name: 'Cài đặt dự án' } },
   account: { anchor: { role: 'heading', name: 'Cài đặt tài khoản' } },
   adminUsers: { anchor: { text: 'Ma trận quyền theo vai trò' } },

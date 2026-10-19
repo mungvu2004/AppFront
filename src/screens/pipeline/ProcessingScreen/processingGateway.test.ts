@@ -3,7 +3,7 @@
  * hẹn im lặng 120 s hỏi #8, và kênh hỏi #8 cho tầng không đang xem. Đồng hồ giả.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createApiClient } from '@/api/client';
 import type { ApiClient, ApiResult } from '@/api/client';
@@ -15,6 +15,7 @@ import { getPipelineStages } from '@/lib/realtime/pipeline';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 
 import {
+  createAppProcessingGateway,
   createProcessingGateway,
   OTHER_FLOOR_POLL_INTERVAL_MS,
   PENDING_POLL_INTERVAL_MS,
@@ -506,5 +507,17 @@ describe('toStageBreakdown — lượt đọc cũ đến sau khung SSE (BUG-548)
     const failed = toStageBreakdown({ status: 'failed', step: stages[0]!.id }, previous, 2_000);
 
     expect(statuses(failed)[2]).toBe('queued');
+  });
+});
+
+describe('createAppProcessingGateway trên bộ mẫu dev', () => {
+  it('VITE_USE_MOCK_API bật thì theo dõi tiến độ bằng hỏi #8, không mở SSE (bộ mẫu không có máy chủ SSE)', () => {
+    vi.stubEnv('VITE_USE_MOCK_API', 'true');
+    const gateway = createAppProcessingGateway();
+    vi.unstubAllEnvs();
+
+    expect(gateway.subscribeProgress).toBe(gateway.pollProgress);
+    const real = createAppProcessingGateway();
+    expect(real.subscribeProgress).not.toBe(real.pollProgress);
   });
 });

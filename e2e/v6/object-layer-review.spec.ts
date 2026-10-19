@@ -64,7 +64,7 @@ test('đường nạp thật: màn liệt kê đúng ô mở và nội thất c�
 test('[bơm] ba nút "chọn nhóm" bấm được bằng chuột ngay từ đầu (B-V6-10)', async ({ page }) => {
   await openSeeded(page);
 
-  const door = rail(page).getByRole('button', { name: 'chọn nhóm cửa đi (phím D)' });
+  const door = rail(page).getByRole('button', { name: 'Chọn nhóm cửa đi (phím C)' });
   await expect(door).toBeEnabled();
   await door.click();
 
@@ -72,10 +72,11 @@ test('[bơm] ba nút "chọn nhóm" bấm được bằng chuột ngay từ đ�
   await expect(rail(page).getByRole('button', { name: /^Đổi thành .* \(phím 1\)$/u })).toBeVisible();
 });
 
-test('[bơm] phím D chọn nhóm qua sổ phím thật, Escape bỏ chọn đối tượng (O-1)', async ({ page }) => {
+test('[bơm] phím C chọn nhóm qua sổ phím thật, Escape bỏ chọn đối tượng (O-1, G4a-25)', async ({ page }) => {
   await openSeeded(page);
 
-  await page.keyboard.press('d');
+  /* G4a-25: nhóm cửa đi đổi phím D → C (W trùng "Vẽ tường" ở màn Tường). */
+  await page.keyboard.press('c');
   await expect(rail(page).getByRole('button', { name: /^Đổi thành .* \(phím 1\)$/u })).toBeVisible();
 
   const first = page.getByRole('option').first();

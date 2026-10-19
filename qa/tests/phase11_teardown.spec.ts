@@ -556,7 +556,7 @@ test.describe('SCR-08 Project Settings', () => {
     });
 
     await expect.poll(() => pathnameOf(page)).toBe(ROUTES.dashboard);
-    await expect(page.getByRole('status').filter({ hasText: 'Đã xoá dự án.' })).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: /Đã xoá dự án( "[^"]+")?\./u })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Dự án của tôi', level: 1 })).toBeVisible();
     await expect(
       page.getByRole('list', { name: 'Danh sách dự án' }).or(page.getByText('Chưa có dự án nào', { exact: true })).first(),

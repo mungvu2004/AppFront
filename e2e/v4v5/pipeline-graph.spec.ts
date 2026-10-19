@@ -19,7 +19,9 @@ import { FIRST_PAINT_TIMEOUT_MS, PROJECT_ID } from './files';
 const GRAPH = ROUTES.project.pipelineGraph(PROJECT_ID);
 const FORBIDDEN_LINE =
   'Chế độ chi tiết kỹ thuật chỉ mở cho vai quản trị, nên phần đó và nút đổi nhánh không hiện ở đây.';
-const NO_REPORT_REASON = 'Chưa có lượt xử lý nào, nên chưa biết hồ sơ đi nhánh nào.';
+// G3-29: sơ đồ đọc lượt mới nhất (N7b); bộ mẫu `project-1` có lượt (`MOCK_PIPELINE_RUNS`) mà
+// chưa có báo cáo nhánh, nên câu "chưa biết" nói theo lượt ấy thay cho "chưa có lượt nào".
+const NO_REPORT_REASON = 'Hệ thống chưa báo hồ sơ đi nhánh nào ở lượt xử lý này.';
 const MIXED_BRANCH_REASON =
   'Mỗi tầng đang đi một nhánh khác nhau, nên chưa có một câu trả lời chung cho cả hồ sơ.';
 
@@ -48,9 +50,11 @@ for (const role of ['engineer', 'viewer'] as const) {
   });
 }
 
-test('vai quản trị thấy trạng thái rỗng có giải thích, không thấy câu từ chối', async ({ page }) => {
+// G3-29: `project-1` của bộ mẫu đã có lượt xử lý nên không còn trạng thái rỗng (tầng đơn vị giữ ca rỗng);
+// quản trị thấy lối mở chế độ chi tiết kỹ thuật thay cho câu từ chối.
+test('vai quản trị thấy lối mở chế độ chi tiết kỹ thuật, không thấy câu từ chối', async ({ page }) => {
   await signInAs(page, 'admin', GRAPH);
 
-  await expect(page.getByRole('heading', { name: 'Chưa có lượt xử lý nào để kể lại' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Chi tiết kỹ thuật', exact: true })).toBeVisible();
   await expect(page.getByText(FORBIDDEN_LINE)).toHaveCount(0);
 });

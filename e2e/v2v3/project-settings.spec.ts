@@ -76,6 +76,9 @@ function toasts(page: Page): Locator {
 
 const CONFIRM_NAME_LABEL = 'Gõ lại tên dự án để xác nhận';
 
+/** N4-04: thẻ đang mở nằm trên địa chỉ (`?tab=danger`), đóng hộp thoại không đổi địa chỉ. */
+const DANGER_URL = `${SETTINGS}?tab=danger`;
+
 /** Đăng nhập quản trị viên, mở thẻ "vùng nguy hiểm"; trả tên dự án đã lưu (đo, không chép). */
 async function openDangerZoneAsAdmin(page: Page): Promise<string> {
   await signInAs(page, 'admin', SETTINGS);
@@ -201,7 +204,7 @@ test.describe('cài đặt dự án — việc nguy hiểm (A9, A12)', () => {
       await page.keyboard.press('Escape');
 
       await expect(page.getByRole('dialog')).toHaveCount(0);
-      expect(pathOf(page.url())).toBe(SETTINGS);
+      expect(pathOf(page.url())).toBe(DANGER_URL);
       await expect(page.getByRole('tab', { name: 'Vùng nguy hiểm' })).toHaveAttribute('aria-selected', 'true');
     });
   }
@@ -214,7 +217,7 @@ test.describe('cài đặt dự án — việc nguy hiểm (A9, A12)', () => {
     let dialog = await openDeleteProjectDialog(page);
     await dialog.getByRole('button', { name: 'Để nguyên' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    expect(pathOf(page.url())).toBe(SETTINGS);
+    expect(pathOf(page.url())).toBe(DANGER_URL);
 
     dialog = await openDeleteProjectDialog(page);
     const confirm = dialog.getByRole('button', { name: 'Xoá dự án', exact: true });
@@ -234,14 +237,15 @@ test.describe('cài đặt dự án — việc nguy hiểm (A9, A12)', () => {
    * được báo gì (đo: 0 chỗ có chữ suốt 1,75 s). Nay câu báo lên `appNotificationBus`,
    * `NotificationHost` cạnh `RouterProvider` vẽ nó. Đã kiểm đỏ trên mã chưa sửa.
    */
-  test('xoá dự án xong thì ở danh sách dự án có toast "Đã xoá dự án." (B-V3-05)', async ({ page }) => {
+  test('xoá dự án xong thì ở danh sách dự án có toast "Đã xoá dự án "tên"." (B-V3-05, G3-37)', async ({ page }) => {
     const projectName = await openDangerZoneAsAdmin(page);
     const dialog = await openDeleteProjectDialog(page);
     await dialog.getByLabel(CONFIRM_NAME_LABEL).fill(projectName);
     await dialog.getByRole('button', { name: 'Xoá dự án', exact: true }).click();
     await expect.poll(() => pathOf(page.url())).toBe(ROUTES.dashboard);
 
-    await expect(toasts(page).getByText('Đã xoá dự án.', { exact: true })).toBeVisible();
+    // G3-37: câu báo nêu tên dự án vừa xoá.
+    await expect(toasts(page).getByText(`Đã xoá dự án "${projectName}".`, { exact: true })).toBeVisible();
   });
 });
 
@@ -252,7 +256,8 @@ test.describe('cài đặt dự án — định dạng số (A15)', () => {
     const units = page.getByRole('tabpanel', { name: 'Đơn vị đo' });
 
     await expect(units.getByLabel('Ngưỡng tin cậy')).toHaveValue('0,75');
-    await expect(units.getByText('75%', { exact: true })).toBeVisible();
+    // G3-11: dòng dưới ô ghi cách nhập kèm nghĩa phần trăm.
+    await expect(units.getByText('Nhập từ 0 đến 1; 0,75 nghĩa là 75%.', { exact: true })).toBeVisible();
 
     const scale = units.getByLabel('Tỉ lệ bản vẽ');
     await scale.fill('1,25');

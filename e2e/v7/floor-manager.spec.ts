@@ -53,16 +53,15 @@ async function openSeeded(page: Page): Promise<void> {
   await expect(floorRows(page)).toHaveCount(4);
 }
 
-test('đường nạp thật: mở thẳng thì màn không treo khung xương — có nút "Thêm tầng", một dải nợ nói thật (V7-FLOORS-01, B-V6-01)', async ({
+test('đường nạp thật: mở thẳng thì màn không treo khung xương — có nút "Thêm tầng", chưa sửa thì không có dải nợ (V7-FLOORS-01, B-V6-01, G3-16)', async ({
   page,
 }) => {
   await open(page);
 
   /* Nút "Thêm tầng" chỉ vắng khi bảng còn khung xương (`isLoading`) — trước B-V6-01 là mãi. */
   await expect(page.getByRole('button', { name: 'Thêm tầng' })).toBeVisible();
-  const debt = page.getByRole('status').filter({ hasText: DEBT_CONTENT });
-  await expect(debt).toBeVisible();
-  await expect(debt).toContainText(DEBT_TITLE);
+  /* G3-16: chưa nhân bản hay xoá tầng thì không có gì chưa lưu — dải nợ không hiện lúc mở. */
+  await expect(page.getByRole('status').filter({ hasText: DEBT_CONTENT })).toHaveCount(0);
   /* Chưa ẩn tầng nào thì không hứa gì về 3D. */
   await expect(page.getByRole('status').filter({ hasText: DEBT_HIDE })).toHaveCount(0);
 });
@@ -90,8 +89,8 @@ test('bơm bộ mẫu: bốn tầng, cao độ và tổng cao dùng dấu phẩy
   await expect(page.getByRole('row', { name: 'Tầng trệt, cao độ 0,0 m, cao 3,9 m, chưa có bản vẽ' })).toBeVisible();
   await expect(page.getByRole('row', { name: 'Tầng hầm, cao độ -3,0 m, cao 3,0 m, chưa có bản vẽ' })).toBeVisible();
   await expect(page.getByText('14,1 m').first()).toBeVisible();
-  /* Câu nợ vẫn còn khi đã có hàng — nó không phải câu của trạng thái rỗng. */
-  await expect(page.getByRole('status').filter({ hasText: DEBT_CONTENT })).toBeVisible();
+  /* G3-16: có hàng nhưng chưa nhân bản/xoá tầng thì chưa có gì chưa lưu — dải nợ chưa hiện. */
+  await expect(page.getByRole('status').filter({ hasText: DEBT_CONTENT })).toHaveCount(0);
 });
 
 test('bơm bộ mẫu: thang cao độ là một nhóm có tên "Thang cao độ" (B-V6-44)', async ({ page }) => {
@@ -126,6 +125,10 @@ test('bơm bộ mẫu: xoá tầng không hỏi, toast hoàn tác trả tầng v
   await expect(floorRows(page)).toHaveCount(3);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(toast(page)).toContainText('Đã xoá tầng Tầng 2.');
+  /* G3-16: xoá tầng rồi thì dải nợ mới nói thật phần tường, phòng, nội thất chưa lưu. */
+  const debt = page.getByRole('status').filter({ hasText: DEBT_CONTENT });
+  await expect(debt).toBeVisible();
+  await expect(debt).toContainText(DEBT_TITLE);
 
   await toast(page).getByRole('button', { name: 'Hoàn tác' }).click();
 

@@ -12,11 +12,15 @@ import { FIRST_PAINT_TIMEOUT_MS } from './firstPaint';
  * Màn chỉ đọc (chín năng lực ghi `false`, `modelLibraryGateway.ts`), kể cả với `admin`.
  * Đơn vị (`ModelLibrary.test.tsx`, 13 bài) phủ sắp xếp cột và `Esc` gọi `closeDetail`
  * qua hàm giả; nó không phủ lọc, chế độ lưới, và `Esc` qua sổ phím thật — ba thứ ở đây.
+ *
+ * G2-25: `AdminGate` chặn cả khu `/admin/*` cho vai không phải `admin`, nên vai mặc định
+ * (`engineer`) không còn vào được màn; nhóm chính đăng nhập `admin`.
  */
 
 const MODEL_COUNT = 16;
 const READ_ONLY_REASON =
   'Vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện';
+const ADMIN_GATE_TITLE = 'Khu Quản trị chỉ dành cho quản trị viên';
 
 /** Một ô tổng kết: chữ chú thích và con số của nó (`ModelLibrarySummary.tsx`). */
 function figure(page: Page, caption: string) {
@@ -25,10 +29,9 @@ function figure(page: Page, caption: string) {
 
 const search = (page: Page) => page.getByRole('textbox', { name: 'Tìm model' });
 
-test.describe('engineer (vai mặc định, goto thẳng)', () => {
+test.describe('admin (đăng nhập, G2-25)', () => {
   test.beforeEach(async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(ROUTES.adminModels);
+    await signInAs(page, 'admin', ROUTES.adminModels);
     await expect(figure(page, 'Tổng số model')).toHaveText(new RegExp(`Tổng số model\\s*${MODEL_COUNT}$`, 'u'), { timeout: FIRST_PAINT_TIMEOUT_MS });
   });
 
@@ -42,7 +45,9 @@ test.describe('engineer (vai mặc định, goto thẳng)', () => {
   test('MD-1 lọc không ra gì thì nói ra bằng lời, xoá ô thì về đủ 16 (A11 empty)', async ({ page }) => {
     await search(page).fill('zzzz');
 
-    await expect(page.getByText('Không tìm thấy model phù hợp.')).toBeVisible();
+    // G2-18: ô rỗng thành EmptyState có tiêu đề và câu giải thích.
+    await expect(page.getByRole('heading', { name: 'Không tìm thấy model', exact: true })).toBeVisible();
+    await expect(page.getByText('Không có model nào khớp với từ khoá hoặc danh mục đang chọn.')).toBeVisible();
     await expect(figure(page, 'Tổng số model')).toHaveText(/Tổng số model\s*0$/u);
     await expect(figure(page, 'Tổng dung lượng')).toHaveText(/Tổng dung lượng\s*0 B$/u);
     await expect(figure(page, 'Model nặng')).toHaveText(/Model nặng\s*0$/u);
@@ -79,19 +84,27 @@ test.describe('engineer (vai mặc định, goto thẳng)', () => {
 });
 
 const ROLE_ROWS = [
-  { role: 'engineer', readOnly: true },
-  { role: 'viewer', readOnly: true },
-  { role: 'admin', readOnly: false },
+  { role: 'engineer', isAdmin: false },
+  { role: 'viewer', isAdmin: false },
+  { role: 'admin', isAdmin: true },
 ] as const;
 
 for (const row of ROLE_ROWS) {
-  test(`MD-F vai ${row.role}: ${row.readOnly ? 'có' : 'không'} dòng giải thích chỉ-xem (A11 forbidden dạng banner)`, async ({
+  test(`MD-F vai ${row.role}: ${row.isAdmin ? 'thấy bảng, không dòng chỉ-xem' : 'bị cổng quản trị chặn, không thấy bảng'} (A11 forbidden, G2-25)`, async ({
     page,
   }) => {
     await signInAs(page, row.role, ROUTES.adminModels);
+    if (!row.isAdmin) {
+      // G2-25: cổng thay cả trang — không thanh tab quản trị, không bảng, không ô tìm.
+      await expect(page.getByRole('heading', { level: 1, name: ADMIN_GATE_TITLE })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+      await expect(page.getByRole('button', { name: 'Về bảng điều khiển' })).toBeVisible();
+      await expect(page.getByRole('navigation', { name: 'Mục quản trị' })).toHaveCount(0);
+      await expect(search(page)).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'bàn ăn sáu chỗ' })).toHaveCount(0);
+      return;
+    }
     await expect(search(page)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
-    // Banner chứ không chặn: bảng vẫn hiện ở mọi vai.
     await expect(page.getByRole('button', { name: 'bàn ăn sáu chỗ' })).toBeVisible();
-    await expect(page.getByText(READ_ONLY_REASON)).toHaveCount(row.readOnly ? 1 : 0);
+    await expect(page.getByText(READ_ONLY_REASON)).toHaveCount(0);
   });
 }

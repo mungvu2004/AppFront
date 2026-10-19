@@ -18,10 +18,15 @@ import { FIRST_PAINT_TIMEOUT_MS } from './firstPaint';
  * (`src/api/__mocks__/client.ts`) không bao giờ được gọi tới. UM-1 chứng minh vai thấp
  * KHÔNG thấy danh sách người — không chứng minh máy chủ ép quyền.
  *
+ * G2-25: từ đợt sửa UI, `AdminGate` chặn cả khu `/admin/*` trước khi màn dựng, nên vai
+ * thấp thấy cổng "Khu Quản trị chỉ dành cho quản trị viên" thay cho dải forbidden và ma
+ * trận quyền cũ. Ý của UM-1 giữ nguyên: vai thấp không thấy ai, không có nút ghi.
+ *
  * Phiên là biến module của bộ mẫu: vào màn bằng `signInAs(…, ROUTES.adminUsers)`,
  * không `goto` lần hai.
  */
 
+const ADMIN_GATE_TITLE = 'Khu Quản trị chỉ dành cho quản trị viên';
 const FORBIDDEN_TEXT =
   'Vai của bạn chưa quản lý được người dùng nên danh sách tài khoản không hiện; bảng dưới đây cho biết mỗi vai làm được những việc gì';
 
@@ -42,7 +47,7 @@ const ROLE_ROWS = [
 ] as const;
 
 for (const row of ROLE_ROWS) {
-  test(`UM-1 ${row.label}: ${row.canManage ? 'thấy danh sách người dùng' : 'chỉ thấy ma trận quyền, không thấy ai'} (A11 forbidden, cổng phía client)`, async ({
+  test(`UM-1 ${row.label}: ${row.canManage ? 'thấy danh sách người dùng' : 'bị cổng quản trị chặn, không thấy ai'} (A11 forbidden, cổng phía client)`, async ({
     page,
   }) => {
     if (row.role === null) {
@@ -57,16 +62,21 @@ for (const row of ROLE_ROWS) {
       await expect(invite).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
       await expect(page.getByRole('alert').filter({ hasText: FORBIDDEN_TEXT })).toHaveCount(0);
       await expect(targetRow(page)).toBeVisible();
-      await expect(page.getByRole('row').filter({ hasText: 'admin@example.com' })).toContainText(
-        'Bạn không thể tự đổi vai của mình',
-      );
+      // G2-2: dòng của chính mình chỉ hiện nhãn "Bạn" thay ba câu giải thích; vẫn không
+      // có ô đổi vai hay nút ghi nào — trong khi dòng người khác có ô đổi vai.
+      const selfRow = page.getByRole('row').filter({ hasText: 'admin@example.com' });
+      await expect(selfRow.getByText('Bạn', { exact: true })).toBeVisible();
+      await expect(selfRow.getByRole('combobox')).toHaveCount(0);
+      await expect(selfRow.getByRole('button', { name: 'Vô hiệu hoá' })).toHaveCount(0);
+      await expect(selfRow.getByRole('button', { name: 'Xoá', exact: true })).toHaveCount(0);
+      await expect(targetRow(page).getByRole('combobox', { name: `Vai của ${TARGET.name}` })).toBeVisible();
       return;
     }
 
-    await expect(page.getByRole('alert').filter({ hasText: FORBIDDEN_TEXT })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
-    await expect(page.getByText('Ma trận quyền theo vai trò')).toBeVisible();
-    await expect(page.getByText('quản trị: được phép tải bản vẽ', { exact: true })).toBeAttached();
-    await expect(page.getByText('người xem: không được phép tải bản vẽ', { exact: true })).toBeAttached();
+    // G2-25: cổng thay cả trang — không thanh tab quản trị, không dải forbidden cũ.
+    await expect(page.getByRole('heading', { level: 1, name: ADMIN_GATE_TITLE })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+    await expect(page.getByRole('button', { name: 'Về bảng điều khiển' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Mục quản trị' })).toHaveCount(0);
     // Không rò người: không hàng, không địa chỉ của ai, không nút ghi.
     await expect(page.getByText(BYSTANDER_EMAIL)).toHaveCount(0);
     await expect(page.getByRole('row')).toHaveCount(0);
