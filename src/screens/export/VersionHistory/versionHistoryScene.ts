@@ -20,6 +20,7 @@ import type { VersionDiff } from '@/lib/versioning/diff';
 
 import type { VersionHistoryCapabilities, VisualDiffModel } from './types';
 import { changedEntityIdsOf } from './versionHistoryModel';
+import { planEntityIdOf } from './versionHistoryPlan';
 import type { VersionSnapshotSource } from './versionSnapshotAdapter';
 
 /* -------------------------------------------------------------------------- */
@@ -139,16 +140,23 @@ export interface VisualModelInput {
  * không được phép tưởng cảnh trên màn là bản cũ. Nó nói thẳng đây là mô hình HIỆN TẠI,
  * và đếm bao nhiêu đối tượng đang được tô sáng.
  *
- * Mã đối tượng lọc theo đồ thị hiện tại trước khi đếm: một mã có trong bản so nhưng
- * không còn trong đồ thị là đối tượng đã bị xoá, và tô sáng nó là tô vào chỗ trống.
+ * Mã đầu tường `V-<wallId>-start|end` quy về mã tường trước (cùng `planEntityIdOf` của mặt bằng
+ * 2D): tường chỉ bị dời đầu vẫn được tô. Rồi mã lọc theo đồ thị của cảnh: mã không có trong
+ * cảnh (cảnh là bản gốc thì đó là phần THÊM) không tô được, nên caption đếm riêng nó và chỉ
+ * sang mặt bằng 2D thay vì lặng lẽ bỏ đi.
  */
 export function buildVisualModel(input: VisualModelInput): VisualDiffModel {
   const { capabilities, graph, scene, diff, leftVersionLabel } = input;
   const isAvailable = capabilities.canShowCurrentModel3d && scene.scene !== null;
-  const found = diff === null ? [] : changedEntityIdsOf(diff);
+  const found = diff === null ? [] : [...new Set(changedEntityIdsOf(diff).map(planEntityIdOf))];
   const changedEntityIds =
     graph === null ? found : found.filter((id) => graph.byId[id] !== undefined);
-  const marked = `${formatNumber(changedEntityIds.length)} đối tượng đã đổi đang được tô sáng`;
+  const missing = found.length - changedEntityIds.length;
+  const marked =
+    `${formatNumber(changedEntityIds.length)} đối tượng đã đổi đang được tô sáng` +
+    (missing > 0
+      ? `; ${formatNumber(missing)} đối tượng không có trong bản này nên không tô được, xem ở mặt bằng 2D`
+      : '');
 
   return {
     isAvailable,
@@ -167,6 +175,9 @@ export function buildVisualModel(input: VisualModelInput): VisualDiffModel {
           : `Đây là mô hình hiện tại chứ không phải phiên bản ${leftVersionLabel}; ${marked}`,
     scene: scene.scene,
     changedEntityIds,
-    hoveredEntityId: capabilities.canHighlightEntity ? input.hoveredEntityId : null,
+    hoveredEntityId:
+      capabilities.canHighlightEntity && input.hoveredEntityId !== null
+        ? planEntityIdOf(input.hoveredEntityId)
+        : null,
   };
 }

@@ -22,6 +22,7 @@
 
 import type { Meta, StoryObj } from '@storybook/react';
 
+import type { PlanDiffModel } from './types';
 import { buildVersionHistoryProps } from './versionHistoryFixtures';
 import { toConflictNotice } from './versionHistoryGateway';
 import { VersionHistory } from './VersionHistory';
@@ -117,6 +118,53 @@ export const ManyFloors: Story = {
         { id: 'L-LEVEL000003', label: 'Tầng mái' },
       ],
       selectedId: 'L-LEVEL000002',
+    },
+  }),
+};
+
+/* -------------------------------------------------------------------------- */
+/* G5-21, N3-04 — mặt bằng 2D chồng hai bản (mặc định của tab "Trực quan").     */
+/* -------------------------------------------------------------------------- */
+
+const shape = (id: string, tone: PlanDiffModel['walls'][number]['tone'], label = id) => ({ id, tone, label, focused: false });
+
+/** Đủ ba loại: tường thêm/xoá/sửa, một cửa thêm, một phòng sửa, một đồ đạc xoá. */
+const SAMPLE_PLAN: PlanDiffModel = {
+  viewBox: '-500 -500 9000 7000',
+  floorLabel: 'Tầng 1',
+  walls: [
+    { ...shape('W-1', 'same'), x1: 0, y1: 0, x2: 8000, y2: 0, thickness: 220 },
+    { ...shape('W-2', 'changed'), x1: 8000, y1: 0, x2: 8000, y2: 6000, thickness: 220 },
+    { ...shape('W-3', 'same'), x1: 8000, y1: 6000, x2: 0, y2: 6000, thickness: 220 },
+    { ...shape('W-4', 'same'), x1: 0, y1: 6000, x2: 0, y2: 0, thickness: 220 },
+    { ...shape('W-5', 'added'), x1: 4000, y1: 0, x2: 4000, y2: 6000, thickness: 110 },
+    { ...shape('W-6', 'removed'), x1: 0, y1: 3000, x2: 4000, y2: 3000, thickness: 110 },
+  ],
+  rooms: [{ ...shape('R-1', 'changed', 'Phòng khách'), points: '4000,0 8000,0 8000,6000 4000,6000' }],
+  openings: [{ ...shape('D-1', 'added'), x1: 4000, y1: 2000, x2: 4000, y2: 2900 }],
+  furniture: [{ ...shape('F-1', 'removed', 'sofa'), x: 2000, y: 1500 }],
+  legend: [
+    { tone: 'added', label: 'Thêm', count: 2 },
+    { tone: 'removed', label: 'Xoá', count: 2 },
+    { tone: 'changed', label: 'Sửa', count: 2 },
+  ],
+};
+
+const successCompare = buildVersionHistoryProps('success').model.compare;
+
+/** Tab "Trực quan" mặc định: mặt bằng 2D, nét liền/đứt/chấm cho thêm/xoá/sửa, chú giải có số đếm. */
+export const PlanDiff2D: Story = {
+  args: buildVersionHistoryProps('success', { compare: { ...successCompare, activeTab: 'visual', plan: SAMPLE_PLAN } }),
+};
+
+/** Một tường đang ghim: tường nổi viền nhấn, phần còn lại mờ đi. */
+export const PlanDiff2DPinned: Story = {
+  args: buildVersionHistoryProps('success', {
+    compare: {
+      ...successCompare,
+      activeTab: 'visual',
+      pinnedEntityId: 'W-5',
+      plan: { ...SAMPLE_PLAN, walls: SAMPLE_PLAN.walls.map((wall) => ({ ...wall, focused: wall.id === 'W-5' })) },
     },
   }),
 };

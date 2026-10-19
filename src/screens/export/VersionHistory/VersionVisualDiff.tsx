@@ -33,10 +33,14 @@ const WEBGL_TITLE = 'Máy này không dựng được 3D';
 const WEBGL_BODY =
   'Trình duyệt không bật WebGL nên khối 3D không hiện. Hai tab còn lại vẫn mô tả đủ khác biệt.';
 const BUILDING_LABEL = 'Đang dựng mô hình';
+/** Cảnh dựng từ bản gốc (`useVersionHistory.ts` `sceneGraph`): đối tượng chỉ có ở bản đối chiếu không có trong cảnh. */
 const VISUAL_HINT =
-  'Khung này chỉ dựng một mô hình; phần đã thêm, xoá hoặc sửa được tô sáng. Danh sách đầy đủ nằm ở thẻ "Thay đổi".';
+  'Khối 3D chỉ dựng bản gốc, nên chỉ tô được phần đã sửa hoặc xoá. Phần thêm chỉ có ở bản đối chiếu: xem ở mặt bằng 2D hoặc thẻ "Thay đổi".';
 
-/** Mã node Pascal của các đối tượng AppFront đang được tô sáng (đã đổi, cộng hàng đang trỏ). */
+/**
+ * Mã node Pascal của các đối tượng AppFront đang được tô sáng (đã đổi, cộng hàng đang trỏ).
+ * Mã đầu tường đã được `buildVisualModel` quy về mã tường, nên so thẳng với thân mã node.
+ */
 function highlightIdsOf(visual: VisualDiffModel): readonly string[] {
   if (visual.scene === null) {
     return [];

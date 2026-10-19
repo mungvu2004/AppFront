@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
+import type { VersionDiff } from '@/lib/versioning/diff';
 
 import { buildVisualModel, convertScene, graphOfVersion } from './versionHistoryScene';
 
@@ -33,5 +34,40 @@ describe('cảnh của phiên bản cũ', () => {
     });
 
     expect(model.caption).toBe('Đây là phiên bản v3; 0 đối tượng đã đổi đang được tô sáng');
+  });
+});
+
+describe('tô sáng trên cảnh bản gốc', () => {
+  const graph = graphOfVersion(current, source);
+  const modelOf = (diff: VersionDiff, hoveredEntityId: string | null = null) =>
+    buildVisualModel({
+      capabilities: { canShowCurrentModel3d: true, canHighlightEntity: true } as never,
+      graph,
+      scene: convertScene(graph),
+      diff,
+      leftVersionLabel: 'v2',
+      hoveredEntityId,
+      isFetchingDiff: false,
+      isOldVersion: true,
+    });
+
+  it('tường chỉ bị dời đầu được tô bằng mã tường, không phải mã đầu tường', () => {
+    const moved = { entityId: `V-${wall}-start`, entityType: 'vertex', kind: 'changed', field: 'x' } as const;
+    const model = modelOf({ added: [], changed: [moved, { ...moved, field: 'y' }], removed: [] }, `V-${wall}-end`);
+
+    expect(model.changedEntityIds).toEqual([wall]);
+    expect(model.hoveredEntityId).toBe(wall);
+    expect(model.caption).toBe('Đây là phiên bản v2; 1 đối tượng đã đổi đang được tô sáng');
+  });
+
+  it('phần thêm không có trong cảnh bản gốc: không tô, nhưng caption đếm và chỉ sang 2D', () => {
+    const added = { entityId: 'W-NEW', entityType: 'wall', kind: 'added' } as const;
+    const changed = { entityId: wall, entityType: 'wall', kind: 'changed', field: 'thickness_mm' } as const;
+    const model = modelOf({ added: [added], changed: [changed], removed: [] });
+
+    expect(model.changedEntityIds).toEqual([wall]);
+    expect(model.caption).toBe(
+      'Đây là phiên bản v2; 1 đối tượng đã đổi đang được tô sáng; 1 đối tượng không có trong bản này nên không tô được, xem ở mặt bằng 2D',
+    );
   });
 });

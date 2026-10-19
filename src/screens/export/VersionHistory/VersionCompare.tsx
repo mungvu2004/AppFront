@@ -20,9 +20,10 @@
  * đọc ra được, nên panel dùng `aria-label` thay cho `aria-labelledby`.
  */
 
-import { useCallback, useId } from 'react';
+import { useCallback, useId, useState } from 'react';
 
 import { motion } from '@/components/motion';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Select } from '@/components/ui/Select';
 import { Tabs } from '@/components/ui/Tabs';
 import { useCountUp } from '@/hooks/useCountUp';
@@ -31,6 +32,7 @@ import { cn } from '@/lib/utils';
 
 import { VersionDiffGroups } from './VersionDiffGroups';
 import { VersionJsonDiff } from './VersionJsonDiff';
+import { VersionPlanDiff } from './VersionPlanDiff';
 import { VersionVisualDiff } from './VersionVisualDiff';
 import { DIFF_TONE_TOKENS } from './types';
 import type {
@@ -51,6 +53,14 @@ const RIGHT_SELECT_LABEL = 'Phiên bản đối chiếu';
 const SELECT_PLACEHOLDER = 'Chọn phiên bản';
 const TABS_LABEL = 'Cách xem khác biệt';
 const COMPARE_LABEL = 'Vùng so sánh hai phiên bản';
+const VIEW_MODE_LABEL = 'Cách vẽ khác biệt';
+
+/** 2D mặc định: chỉ ra cả thêm/xoá/sửa và chạy trên mọi máy; 3D chỉ dựng bản gốc (DECISIONS C). */
+type VisualMode = 'plan' | 'scene';
+const VIEW_MODE_OPTIONS: { label: string; value: VisualMode }[] = [
+  { label: 'Mặt bằng 2D', value: 'plan' },
+  { label: 'Khối 3D bản gốc', value: 'scene' },
+];
 
 /* -------------------------------------------------------------------------- */
 /* Hằng bố cục — không phải hằng nghiệp vụ (R-71).                             */
@@ -133,13 +143,15 @@ export interface VersionCompareProps {
   readonly model: CompareModel;
   readonly actions: Pick<
     VersionHistoryActions,
-    'selectLeftVersion' | 'selectRightVersion' | 'setTab' | 'hoverDiffRow'
+    'selectLeftVersion' | 'selectRightVersion' | 'setTab' | 'hoverDiffRow' | 'pinDiffRow'
   >;
 }
 
 export function VersionCompare({ model, actions }: VersionCompareProps) {
   const panelPrefix = useId();
   const { setTab } = actions;
+  // Trạng thái hiển thị thuần của view, không phải dữ liệu: không cần đi qua hook.
+  const [visualMode, setVisualMode] = useState<VisualMode>('plan');
 
   const handleTabChange = useCallback(
     (id: string): void => {
@@ -167,16 +179,42 @@ export function VersionCompare({ model, actions }: VersionCompareProps) {
       options.find((option) => option.id === id)?.label ?? '?';
 
     return (
-      <div className="flex flex-col gap-3">
+      <div
+        className="flex flex-col gap-3"
+        onKeyDown={(event) => {
+          // A12: Esc bỏ ghim trước, chưa đóng gì khác.
+          if (event.key === 'Escape' && model.pinnedEntityId !== null) {
+            event.stopPropagation();
+            actions.pinDiffRow(null);
+          }
+        }}
+      >
+        <SegmentedControl
+          aria-label={VIEW_MODE_LABEL}
+          options={VIEW_MODE_OPTIONS}
+          value={visualMode}
+          onChange={setVisualMode}
+          className="self-start"
+        />
         <p className="text-[13px] font-medium text-text-primary">
           {'So sánh: ' +
             labelOf(model.leftOptions, model.leftVersionId) +
             ' (gốc) và ' +
             labelOf(model.rightOptions, model.rightVersionId) +
-            ' (đối chiếu)'}
+            ' (đối chiếu)' +
+            (visualMode === 'plan' && model.plan !== null ? ' · ' + model.plan.floorLabel : '')}
         </p>
-        <VersionVisualDiff visual={model.visual} />
-        <VersionDiffGroups groups={model.groups} onHoverRow={actions.hoverDiffRow} />
+        {visualMode === 'plan' ? (
+          <VersionPlanDiff plan={model.plan} onHover={actions.hoverDiffRow} onPick={actions.pinDiffRow} />
+        ) : (
+          <VersionVisualDiff visual={model.visual} />
+        )}
+        <VersionDiffGroups
+          groups={model.groups}
+          onHoverRow={actions.hoverDiffRow}
+          onPickRow={actions.pinDiffRow}
+          pinnedEntityId={model.pinnedEntityId}
+        />
       </div>
     );
   };

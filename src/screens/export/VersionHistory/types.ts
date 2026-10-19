@@ -227,6 +227,43 @@ export interface VisualDiffModel {
   readonly hoveredEntityId: string | null;
 }
 
+/* ── Mặt bằng 2D chồng hai bản (G5-21, N3-04) ────────────────────────────────────────────── */
+
+/** Tone của một hình trên mặt bằng: ba loại thay đổi, hoặc `same` (vẽ `--wall-idle`). */
+export type PlanTone = DiffTone | 'same';
+
+export interface PlanDiffShape {
+  readonly id: string;
+  readonly tone: PlanTone;
+  readonly label: string;
+  /** Đang trỏ hoặc đang ghim — viền `--accent`, phần còn lại mờ. */
+  readonly focused: boolean;
+}
+
+/** Do `buildPlanDiffModel` (`versionHistoryPlan.ts`) sinh; xoá lấy hình bản trái, thêm/sửa lấy bản phải. */
+export interface PlanDiffModel {
+  /** "x y w h" theo mm. */
+  readonly viewBox: string;
+  readonly floorLabel: string;
+  readonly walls: readonly (PlanDiffShape & {
+    readonly x1: number;
+    readonly y1: number;
+    readonly x2: number;
+    readonly y2: number;
+    readonly thickness: number;
+  })[];
+  readonly rooms: readonly (PlanDiffShape & { readonly points: string })[];
+  readonly openings: readonly (PlanDiffShape & {
+    readonly x1: number;
+    readonly y1: number;
+    readonly x2: number;
+    readonly y2: number;
+  })[];
+  readonly furniture: readonly (PlanDiffShape & { readonly x: number; readonly y: number })[];
+  /** Số đếm là số HÌNH theo tone (một tường sửa hai trường vẫn là một). */
+  readonly legend: readonly { readonly tone: DiffTone; readonly label: string; readonly count: number }[];
+}
+
 export interface CompareModel {
   readonly leftOptions: readonly VersionHistoryOption[];
   readonly rightOptions: readonly VersionHistoryOption[];
@@ -238,6 +275,10 @@ export interface CompareModel {
   readonly groups: readonly DiffGroupModel[];
   readonly jsonLines: readonly JsonDiffLineModel[];
   readonly visual: VisualDiffModel;
+  /** Mặt bằng 2D chồng hai bản; `null` khi một trong hai bản chưa có ảnh chụp N18. */
+  readonly plan: PlanDiffModel | null;
+  /** Hàng diff đang ghim (bấm/Enter); bấm lại hoặc Esc thì `null`. */
+  readonly pinnedEntityId: string | null;
   /** Đang tính lại cặp mới — view hoà tan 180 ms và chạy số. */
   readonly isRecomputing: boolean;
   /** Trạng thái 1: chỉ có một phiên bản. Một câu dạy việc, không phải lỗi. */
@@ -331,6 +372,8 @@ export interface VersionHistoryActions {
   readonly toggleCompareSelection: (versionId: string) => void;
   readonly setTab: (tab: CompareTabId) => void;
   readonly hoverDiffRow: (entityId: string | null) => void;
+  /** Ghim một hàng diff lên mặt bằng; cùng mã đang ghim hoặc `null` thì bỏ ghim. */
+  readonly pinDiffRow: (entityId: string | null) => void;
   readonly requestRestore: (versionId: string) => void;
   readonly confirmRestore: () => void;
   readonly cancelRestore: () => void;

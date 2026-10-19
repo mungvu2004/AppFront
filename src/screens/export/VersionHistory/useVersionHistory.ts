@@ -83,6 +83,7 @@ import {
   UNDO_RETRY_TOAST,
   writeErrorNotice,
 } from './versionHistoryModel';
+import { buildPlanDiffModel } from './versionHistoryPlan';
 import { buildVisualModel, convertScene, graphOfVersion } from './versionHistoryScene';
 
 /** Lượt N18 cùng lúc. */
@@ -150,6 +151,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   const [pickedPair, setPickedPair] = useState<VersionPair | null>(null);
   const [activeTab, setActiveTab] = useState<CompareTabId>('changes');
   const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
+  const [pinnedEntityId, setPinnedEntityId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<RestoreDialog | null>(null);
   const [banner, setBanner] = useState<Banner | null>(null);
   const [isRecomputing, setIsRecomputing] = useState(false);
@@ -341,6 +343,23 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
     [graph, leftSource],
   );
   const scene = useMemo(() => convertScene(sceneGraph), [sceneGraph]);
+  // Mặt bằng 2D cần ảnh chụp của CẢ HAI bản: xoá vẽ theo trái, thêm/sửa theo phải.
+  const rightIndex = summaries.findIndex((item) => item.id === rightVersionId);
+  const rightRead = rightIndex < 0 ? undefined : snapshotData[rightIndex];
+  const rightSource = rightRead?.kind === 'snapshot' ? rightRead.source : undefined;
+  const plan = useMemo(
+    () =>
+      diff === null || leftSource === undefined || rightSource === undefined
+        ? null
+        : buildPlanDiffModel({
+            diff,
+            floorLabel: capitalizeFirst(floorName),
+            focusId: pinnedEntityId ?? hoveredEntityId,
+            left: leftSource,
+            right: rightSource,
+          }),
+    [diff, leftSource, rightSource, floorName, pinnedEntityId, hoveredEntityId],
+  );
   const visual = useMemo(
     (): VisualDiffModel =>
       buildVisualModel({
@@ -378,6 +397,8 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       groups: diff === null ? [] : buildDiffGroups(diff),
       jsonLines: diff === null ? [] : buildJsonLines(diff),
       visual,
+      plan,
+      pinnedEntityId,
       isRecomputing,
       teachingSentence: compareSentenceOf({
         hasDiff: diff !== null,
@@ -393,6 +414,8 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       activeTab,
       diff,
       visual,
+      plan,
+      pinnedEntityId,
       isRecomputing,
       history,
       pairFetching,
@@ -641,6 +664,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         setPickedPair((previous) => togglePick(previous ?? pair, versionId)),
       setTab: setActiveTab,
       hoverDiffRow: setHoveredEntityId,
+      pinDiffRow: (entityId) => setPinnedEntityId((previous) => (entityId === previous ? null : entityId)),
       requestRestore: (versionId) => {
         if (canRestore && rows.find((row) => row.id === versionId)?.isCurrent !== true) {
           openDialog({ kind: 'restore', versionId });

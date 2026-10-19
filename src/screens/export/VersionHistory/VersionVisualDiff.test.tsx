@@ -72,3 +72,15 @@ describe('VersionVisualDiff trên Pascal', () => {
     expect((mount.mock.calls[1] as unknown as [HTMLElement, Record<string, unknown>])[1]).toMatchObject({ scene: other });
   });
 });
+
+describe('câu hướng dẫn của khối 3D', () => {
+  it('nói thật: chỉ dựng bản gốc, phần thêm xem ở mặt bằng 2D', async () => {
+    loadMount.mockResolvedValue({ mount: vi.fn(() => ({ dispose: vi.fn() })) });
+
+    render(<VersionVisualDiff visual={visual()} />);
+
+    expect(await screen.findByText(/Khối 3D chỉ dựng bản gốc, nên chỉ tô được phần đã sửa hoặc xoá/)).toBeTruthy();
+    expect(screen.getByText(/Phần thêm chỉ có ở bản đối chiếu: xem ở mặt bằng 2D/)).toBeTruthy();
+    expect(screen.queryByText(/phần đã thêm, xoá hoặc sửa được tô sáng/)).toBeNull();
+  });
+});
