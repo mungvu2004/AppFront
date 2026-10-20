@@ -23,6 +23,8 @@ declare global {
     __landingStageTune?: (patch: Partial<QualitySettings> | null, q?: Quality) => void;
     /** DEV only: hold the camera at a fixed view for review shots; `null` gives it back to the timeline. */
     __landingStageView?: (view: { position: Vec3; target: Vec3; fov?: number } | null) => void;
+    /** DEV only: the live renderer and scene, for one-feature-off perf probes. */
+    __landingStageRaw?: { renderer: WebGLRenderer; scene: Object3D };
   }
 }
 
@@ -81,11 +83,13 @@ export function installStageDev(
   window.__landingStageInfo = info;
   window.__landingStageView = hooks.view;
   window.__landingStageTune = hooks.tune;
+  window.__landingStageRaw = { renderer, scene };
   return () => {
     if (window.__landingStageInfo === info) {
       delete window.__landingStageInfo;
       delete window.__landingStageTune;
       delete window.__landingStageView;
+      delete window.__landingStageRaw;
     }
   };
 }

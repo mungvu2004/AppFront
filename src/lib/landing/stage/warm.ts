@@ -3,7 +3,7 @@
  *
  * Measured on Intel UHD: entering the wall rise compiled ~20 programs and
  * uploaded ~400 geometries on the spot (seeks of 0.4–0.8 s, stalls up to
- * 2.2 s). `compileAsync` walks every material, visible or not, with the real
+ * 2.2 s). `compileAsync` (over hidden nodes too, see compileAll) walks every material with the real
  * lights and — given the target the frame will draw into (the composer's
  * linear buffer, not the sRGB screen) — the same program keys; parallel
  * compile keeps it off the main thread. It skips the shadow pass and geometry
@@ -42,27 +42,20 @@ export async function warmStage(
   }
   const previous = renderer.getRenderTarget();
   renderer.setRenderTarget(target());
-  const compiling = renderer.compileAsync(scene, camera);
+  const compiling = compileAll(renderer, scene, camera);
   renderer.setRenderTarget(previous);
   await compiling;
   if (stopped()) {
     return false;
   }
   const culled: Object3D[] = [];
-  const hidden: Object3D[] = [];
   scene.traverse((node) => {
     if (node.frustumCulled) {
       node.frustumCulled = false;
       culled.push(node);
     }
   });
-  // traverseVisible would stop at a hidden parent: walk everything, showing as we go.
-  scene.traverse((node) => {
-    if (!node.visible) {
-      node.visible = true;
-      hidden.push(node);
-    }
-  });
+  const hide = showAll(scene);
   renderer.shadowMap.needsUpdate = true;
   renderer.setRenderTarget(target());
   renderer.render(scene, camera);
@@ -70,10 +63,40 @@ export async function warmStage(
   for (const node of culled) {
     node.frustumCulled = true;
   }
-  for (const node of hidden) {
-    node.visible = false;
-  }
+  hide();
   return true;
+}
+
+/**
+ * Shows every hidden node (traverseVisible would stop at a hidden parent); returns the re-hide. Lights stay
+ * as they are: the furniture .glb carries hidden punctual lights, and counting them compiled 8-spot-light
+ * variants while every frame draws with none — 39 programs then linked mid-scroll (PERF-V3).
+ */
+function showAll(scene: Scene): () => void {
+  const hidden: Object3D[] = [];
+  scene.traverse((node) => {
+    if (!node.visible && !(node as Object3D & { isLight?: boolean }).isLight) {
+      node.visible = true;
+      hidden.push(node);
+    }
+  });
+  return () => {
+    for (const node of hidden) node.visible = false;
+  };
+}
+
+/**
+ * `compileAsync` over hidden nodes too: three's `compile` walks `traverseVisible`, so the house growers
+ * (hidden at p = 0) used to link synchronously in the warm draw — a 17 s main-thread stall on Intel UHD
+ * (PERF-V3). Program creation happens inside the call; nodes are hidden again before any frame can draw.
+ */
+function compileAll(renderer: WebGLRenderer, scene: Scene, camera: Camera): Promise<Object3D> {
+  const hide = showAll(scene);
+  try {
+    return renderer.compileAsync(scene, camera);
+  } finally {
+    hide();
+  }
 }
 
 /**
@@ -92,7 +115,7 @@ export async function compileTiers(
   renderer.setRenderTarget(null);
   const compiling = tiers.map((useTier) => {
     useTier();
-    return renderer.compileAsync(scene, camera);
+    return compileAll(renderer, scene, camera);
   });
   renderer.setRenderTarget(previous);
   restore();
