@@ -213,14 +213,28 @@ export const sceneStyleOf = (id: unknown): SceneStyle => SCENE_STYLES[isSceneSty
 /** Khoá localStorage lưu phong cách đang chọn (J9). */
 export const SCENE_STYLE_STORAGE_KEY = 'appfront.pascal.sceneStyle.v1';
 
+/** Khoá xem thử riêng một dự án của người không sửa được cài đặt (W4a) — chỉ máy này. */
+export const sceneStylePreviewKey = (projectId: string): string => `${SCENE_STYLE_STORAGE_KEY}:${projectId}`;
+
 /**
- * Phong cách đã lưu; thiếu/hỏng/không truy cập được bộ nhớ → mặc định. Mọi lời gọi
- * `toPascalScene` trong một trang phải dùng cùng kết quả này, không thì sinh "sửa ma".
+ * Phong cách của lượt mở trang. Thứ tự (W4a): bản xem thử trên máy này của dự án → phong
+ * cách lưu ở dự án (`project.sceneStyle`) → khoá J9 → mặc định; bộ nhớ không truy cập được thì
+ * bỏ qua các khoá. Mọi lời gọi `toPascalScene` trong một trang phải dùng cùng kết quả này,
+ * không thì sinh "sửa ma".
  */
-export const readSceneStyle = (storage: () => Storage): SceneStyle => {
-  try {
-    return sceneStyleOf(storage().getItem(SCENE_STYLE_STORAGE_KEY));
-  } catch {
-    return sceneStyleOf(undefined);
-  }
+export const readSceneStyle = (
+  storage: () => Storage,
+  project?: { readonly id: string; readonly style?: unknown },
+): SceneStyle => {
+  const read = (key: string): string | null => {
+    try {
+      return storage().getItem(key);
+    } catch {
+      return null;
+    }
+  };
+  const preview = project === undefined ? null : read(sceneStylePreviewKey(project.id));
+  const pick = [preview, project?.style, read(SCENE_STYLE_STORAGE_KEY)].find(isSceneStyleId);
+
+  return sceneStyleOf(pick);
 };

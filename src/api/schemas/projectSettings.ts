@@ -44,6 +44,10 @@ export const ProjectSettingsBodySchema = z
     defaultScaleMmPerPx: z.number().min(0.01).max(1000),
     lengthUnit: z.enum(PROJECT_LENGTH_UNITS),
     notes: z.string().min(1).max(500).optional(),
+    /* FE3D-FIX-003 W4a — kiểu cảnh 3D. PUT vắng = giữ nguyên (BE aed24f10), nên màn Cài đặt
+       gửi đủ thân mà không mang trường này vẫn không xoá nó. BE nhận cả `null` = xoá, nhưng FE
+       chưa có lối xoá nên thân gửi không nhận `null`. */
+    sceneStyle: z.enum(PROJECT_SCENE_STYLES).optional(),
     snapToleranceMm: z.number().int().min(1).max(120),
   })
   .strict();
@@ -53,16 +57,16 @@ export type ProjectSettingsBody = z.infer<typeof ProjectSettingsBodySchema>;
 /**
  * N5. Chưa lưu lần nào → `revision: 0` cùng mặc định của FE.
  *
- * `sceneStyle` chỉ ở bản **nhận** (FE3D-FIX-003 R1): BE bỏ trường khi NULL, nhưng
- * vẫn nhận `null` cho chắc; `null` ra như vắng. Chưa thêm vào thân gửi — chưa
- * có màn nào ghi nó (thứ tự hợp đồng J-v3).
+ * `sceneStyle`: BE bỏ trường khi NULL, nhưng vẫn nhận `null` cho chắc; `null` ra như vắng.
  */
 export const ProjectSettingsSchema = ProjectSettingsBodySchema.extend({
   revision: z.number().int().nonnegative(),
   sceneStyle: z.enum(PROJECT_SCENE_STYLES).nullable().optional(),
 })
   .strict()
-  .transform((wireSettings) => ({
+  /* Kiểu ra nhận `sceneStyle: undefined` để thân gửi (zod `.optional()`) trải thẳng vào được, như
+     mock N6 và `settingsFromBody` vẫn làm; `notes` giữ vắng hẳn như trước. */
+  .transform((wireSettings): Omit<ProjectSettingsBody, 'notes'> & { notes?: string; revision: number } => ({
     buildingType: wireSettings.buildingType,
     confidenceThreshold: wireSettings.confidenceThreshold,
     defaultScaleMmPerPx: wireSettings.defaultScaleMmPerPx,

@@ -12,6 +12,7 @@ import { SCENE_MATERIALS } from '../sceneDressing';
 import {
   DEFAULT_SCENE_STYLE,
   readSceneStyle,
+  sceneStylePreviewKey,
   SCENE_STYLE_IDS,
   SCENE_STYLE_MATERIALS,
   SCENE_STYLE_STORAGE_KEY,
@@ -159,5 +160,15 @@ describe.skipIf(!existsSync(resolve(PUBLIC, 'material')))('sceneStyles: sàn kh�
       }
     }
     expect(failures).toEqual([]);
+  });
+
+  it('W4a — readSceneStyle: xem thử của dự án → phong cách dự án → khoá J9 → mặc định', () => {
+    const store = (items: Record<string, string>) => () => ({ getItem: (k: string) => items[k] ?? null }) as Storage;
+    const project = { id: 'p1', style: 'toi-gian' };
+    expect(readSceneStyle(store({ [SCENE_STYLE_STORAGE_KEY]: 'go-am' }), project)).toBe(SCENE_STYLES['toi-gian']);
+    expect(readSceneStyle(store({ [sceneStylePreviewKey('p1')]: 'go-am' }), project)).toBe(SCENE_STYLES['go-am']);
+    expect(readSceneStyle(store({ [sceneStylePreviewKey('p2')]: 'go-am' }), project)).toBe(SCENE_STYLES['toi-gian']);
+    expect(readSceneStyle(store({ [SCENE_STYLE_STORAGE_KEY]: 'go-am' }), { id: 'p1', style: 'lạ' })).toBe(SCENE_STYLES['go-am']);
+    expect(readSceneStyle(store({}), { id: 'p1' })).toBe(SCENE_STYLES['am-ap']);
   });
 });

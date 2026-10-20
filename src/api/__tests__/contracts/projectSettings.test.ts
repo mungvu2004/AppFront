@@ -105,10 +105,14 @@ describe('ProjectSettingsBodySchema', () => {
     ['areaUnit', { areaUnit: 'm2' }],
     ['revision', { revision: 0 }],
     ['name', { name: 'Nhà phố' }],
-    // Chỉ đọc ở R1: thân gửi chưa mang sceneStyle (thứ tự hợp đồng J-v3).
-    ['sceneStyle', { sceneStyle: 'go-am' }],
   ])('từ chối khoá lạ %s', (_label, patch) => {
     expect(issuePaths(ProjectSettingsBodySchema, { ...fullBody, ...patch })).toStrictEqual([[]]);
+  });
+
+  it('W4a — thân gửi mang sceneStyle; id lạ và null (FE chưa có lối xoá) bị từ chối', () => {
+    expect(ProjectSettingsBodySchema.parse({ ...fullBody, sceneStyle: 'go-am' })).toStrictEqual({ ...fullBody, sceneStyle: 'go-am' });
+    expect(issuePaths(ProjectSettingsBodySchema, { ...fullBody, sceneStyle: null })).toStrictEqual([['sceneStyle']]);
+    expect(issuePaths(ProjectSettingsBodySchema, { ...fullBody, sceneStyle: 'co-dien' })).toStrictEqual([['sceneStyle']]);
   });
 
   it('từ chối null ở notes', () => {

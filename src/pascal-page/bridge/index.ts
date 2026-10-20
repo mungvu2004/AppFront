@@ -16,7 +16,7 @@ import { useSession } from '@/hooks/useSession';
 import { can } from '@/lib/auth/permissions';
 import { getSessionSnapshot } from '@/lib/auth/state';
 import { readWireError } from '@/lib/errors/wireError';
-import { readSceneStyle } from '@/lib/pascal/sceneStyles';
+import { readSceneStyle, type SceneStyle, type SceneStyleId } from '@/lib/pascal/sceneStyles';
 import { toPascalScene } from '@/lib/pascal/toPascal';
 import type { PascalScene } from '@/lib/pascal/types';
 import { startAppSession } from '@/routes/sessionSetup';
@@ -48,6 +48,19 @@ export const BRIDGE_SAVE_BLOCKED = 'Tầng này chưa lưu được lên máy ch
 
 class BridgeLoadError extends Error {}
 
+/** Phong cách cảnh của lượt mở trang (W4a) — thẻ "Phong cách" đọc nó. */
+export interface ProjectSceneStyle {
+  readonly projectId: string;
+  readonly id: SceneStyleId;
+  /** Ghi phong cách vào dự án (PUT N6, ném khi hỏng); vắng khi không có quyền sửa cài đặt hoặc chưa đọc được cài đặt. */
+  readonly saveToProject?: (id: SceneStyleId) => Promise<void>;
+}
+
+let projectSceneStyle: ProjectSceneStyle | null = null;
+
+/** Phong cách của dự án đang mở; `null` trước khi cầu nạp xong. */
+export const currentProjectSceneStyle = (): ProjectSceneStyle | null => projectSceneStyle;
+
 /** Lượt `onSave` gần nhất của cầu — `savePascalNow` đợi nó. */
 let lastSave: Promise<unknown> = Promise.resolve();
 
@@ -72,12 +85,17 @@ const messageOf = (error: unknown): string => {
   return BRIDGE_LOAD_ERROR;
 };
 
-async function loadProject(projectId: string): Promise<string> {
+async function loadProject(projectId: string): Promise<{ readonly projectName: string; readonly style: SceneStyle }> {
   if (!(await startAppSession())) throw new BridgeLoadError(BRIDGE_SESSION_ERROR);
 
   const [{ createAppApiClient }, { readProjectDetail, readProjectGraph, toProjectSpatial }, { loadProjectGraph }] =
     await Promise.all([import('@/api/appClient'), import('@/api/floorLayerGraph'), import('@/store/projectHydration')]);
   const client = createAppApiClient();
+  // N5 lỗi thì vẫn mở trang, phong cách lùi về bộ nhớ máy (W4a).
+  const settingsRead = (async () => {
+    const result = await client.projectSettings.read({ projectId });
+    return result.ok ? result.data : null;
+  })().catch(() => null);
   const project = await readProjectDetail(client.projects, { projectId });
   const document = await readProjectGraph(client.spatial, { projectId });
   /* Chưa có tầng nào thì không có chỗ để vẽ — báo trạng thái rỗng (C15). Có tầng mà chưa
@@ -89,22 +107,46 @@ async function loadProject(projectId: string): Promise<string> {
 
   loadProjectGraph(toProjectSpatial(project, document, { roles: session.roles, userId: session.user?.id ?? null }));
 
-  return project.name;
+  const settings = await settingsRead;
+  const style = readSceneStyle(() => localStorage, { id: projectId, style: settings?.sceneStyle });
+  // Cùng cổng vai như hook: vai theo dự án vừa nạp trước, phiên dự phòng.
+  const storeRoles = useStore.getState().userRoles;
+  const canEditSettings = can('edit', 'project.settings', { roles: storeRoles.length > 0 ? storeRoles : session.roles });
+
+  projectSceneStyle = {
+    projectId,
+    id: style.id,
+    ...(settings !== null && canEditSettings
+      ? {
+          // Gửi đủ thân như màn Cài đặt, đúng `revision` vừa đọc; 409 thì ném, thẻ báo lỗi.
+          saveToProject: async (id: SceneStyleId) => {
+            const { revision, ...body } = settings;
+            const result = await client.projectSettings.replace({
+              projectId,
+              baseVersion: revision,
+              body: { ...body, sceneStyle: id },
+            });
+            if (!result.ok) throw result.error;
+          },
+        }
+      : {}),
+  };
+
+  return { projectName: project.name, style };
 }
 
 interface LoadState {
   readonly status: PascalBridge['status'];
   readonly error?: string;
   readonly projectName?: string;
+  readonly style?: SceneStyle;
 }
 
 export function usePascalProjectBridge(projectId: string): PascalBridge {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
+  const { style } = load;
   // Đọc một lần lúc mở trang: màn vừa rời (N1-01, N5-13, N3-09), không có thì Quản lý tầng.
   const [backHref] = useState(() => resolveBackHref(projectId));
-  /* Phong cách cảnh đọc MỘT lần mỗi lượt mở trang (J9): mọi `toPascalScene` dưới đây dùng
-     chung nó, không thì giá trị sinh ra lệch nhau → "sửa ma". Đổi phong cách = nạp lại trang. */
-  const [style] = useState(() => readSceneStyle(() => localStorage));
   const session = useSession();
   const storeRoles = useStore((state) => state.userRoles);
   const spatial = useStore((state) => state.spatial);
@@ -118,7 +160,7 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
 
     setLoad({ status: 'loading' });
     loadProject(projectId).then(
-      (projectName) => !cancelled && setLoad({ status: 'ready', projectName }),
+      ({ projectName, style }) => !cancelled && setLoad({ status: 'ready', projectName, style }),
       (error: unknown) => !cancelled && setLoad({ status: 'error', error: messageOf(error) }),
     );
 
@@ -191,7 +233,9 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
     const current = selectViewerSpatial(useStore.getState());
     if (current === null) throw new BridgeLoadError(BRIDGE_EMPTY_ERROR);
 
-    const { scene } = toPascalScene(denormalizeSpatial(current), { style });
+    /* Phong cách cảnh chốt MỘT lần mỗi lượt mở trang (J9, W4a: dự án → máy → mặc định): mọi
+       `toPascalScene` dùng chung nó, không thì giá trị sinh ra lệch nhau → "sửa ma". */
+    const { scene } = toPascalScene(denormalizeSpatial(current), { style: style ?? readSceneStyle(() => localStorage) });
     setLoadedScene(scene);
 
     return scene;

@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
-import { SCENE_STYLE_STORAGE_KEY, SCENE_STYLES } from '@/lib/pascal/sceneStyles';
+import { UpdateProjectSettingsSchema } from '@/api/schemas/projectSettings';
+import { SCENE_STYLE_STORAGE_KEY, SCENE_STYLES, sceneStylePreviewKey } from '@/lib/pascal/sceneStyles';
 import { toPascalScene } from '@/lib/pascal/toPascal';
 import type * as ToPascal from '@/lib/pascal/toPascal';
 import { useStore } from '@/store';
@@ -15,12 +16,18 @@ import {
   BRIDGE_SAVE_BLOCKED,
   BRIDGE_SAVE_FAILED,
   BRIDGE_SESSION_ERROR,
+  currentProjectSceneStyle,
   savePascalNow,
   unsavedNoticeOf,
   usePascalProjectBridge,
 } from '..';
 
 const session = vi.hoisted(() => ({ ok: true }));
+/** N5/N6 giả (W4a): `read` = kết quả đọc cài đặt, `puts` = các lượt PUT đã gửi. */
+const settingsApi = vi.hoisted(() => ({
+  read: { ok: true, data: {} } as { ok: boolean; data?: unknown; error?: unknown },
+  puts: [] as unknown[],
+}));
 const detail = vi.hoisted(() => ({ fail: false, levels: 1, walls: 1, role: 'engineer' as ProjectRole }));
 /** Kết quả `onSceneCommit` giả: `reason` khác `null` = có lời từ chối qua `onRejected`. */
 const commit = vi.hoisted(() => ({ ok: true, reason: null as string | null, unsaved: [] as string[], notices: [] as string[] }));
@@ -35,7 +42,14 @@ const saver = vi.hoisted(() => ({
 vi.mock('@/routes/sessionSetup', () => ({ startAppSession: () => Promise.resolve(session.ok) }));
 vi.mock('@/api/appClient', async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  createAppApiClient: () => ({ projects: {}, spatial: {} }),
+  createAppApiClient: () => ({
+    projects: {},
+    spatial: {},
+    projectSettings: {
+      read: () => Promise.resolve(settingsApi.read),
+      replace: (input: unknown) => (settingsApi.puts.push(input), Promise.resolve({ ok: true, data: {} })),
+    },
+  }),
   resolveUseMockApi: () => false,
 }));
 vi.mock('@/hooks/useAutosave', () => ({
@@ -109,6 +123,8 @@ vi.mock('@/screens/viewer/PascalViewer/usePascalEdits', () => ({
 describe('usePascalProjectBridge', () => {
   beforeEach(() => {
     session.ok = true;
+    settingsApi.read = { ok: true, data: {} };
+    settingsApi.puts = [];
     detail.fail = false;
     detail.levels = 1;
     detail.walls = 1;
@@ -139,6 +155,76 @@ describe('usePascalProjectBridge', () => {
     expect(toPascalScene).toHaveBeenCalledTimes(1);
     expect(toPascalScene).toHaveBeenCalledWith(expect.anything(), { style });
     localStorage.removeItem(SCENE_STYLE_STORAGE_KEY);
+  });
+
+  const wireSettings = {
+    buildingType: 'residential',
+    confidenceThreshold: 0.8,
+    defaultScaleMmPerPx: 10,
+    lengthUnit: 'mm',
+    snapToleranceMm: 20,
+    revision: 4,
+  } as const;
+
+  it('W4a — phong cách lưu ở dự án thắng khoá máy; N5 hỏng thì lùi về khoá máy', async () => {
+    localStorage.setItem(SCENE_STYLE_STORAGE_KEY, 'go-am');
+    settingsApi.read = { ok: true, data: { ...wireSettings, sceneStyle: 'toi-gian' } };
+    const first = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(first.result.current.status).toBe('ready'));
+    vi.mocked(toPascalScene).mockClear();
+    await act(() => first.result.current.onLoad());
+    expect(toPascalScene).toHaveBeenCalledWith(expect.anything(), { style: SCENE_STYLES['toi-gian'] });
+    expect(currentProjectSceneStyle()?.id).toBe('toi-gian');
+
+    settingsApi.read = { ok: false, error: new Error('403') };
+    const second = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(second.result.current.status).toBe('ready'));
+    vi.mocked(toPascalScene).mockClear();
+    await act(() => second.result.current.onLoad());
+    expect(toPascalScene).toHaveBeenCalledWith(expect.anything(), { style: SCENE_STYLES['go-am'] });
+    expect(currentProjectSceneStyle()?.saveToProject).toBeUndefined();
+    localStorage.removeItem(SCENE_STYLE_STORAGE_KEY);
+  });
+
+  it('W4a — bản xem thử của người xem trên máy này thắng phong cách dự án', async () => {
+    localStorage.setItem(sceneStylePreviewKey('p1'), 'hien-dai-sang');
+    settingsApi.read = { ok: true, data: { ...wireSettings, sceneStyle: 'toi-gian' } };
+    const { result } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(currentProjectSceneStyle()?.id).toBe('hien-dai-sang');
+    localStorage.removeItem(sceneStylePreviewKey('p1'));
+  });
+
+  it('W4a — người xem: không có lối PUT (chỉ máy này)', async () => {
+    detail.role = 'viewer';
+    settingsApi.read = { ok: true, data: { ...wireSettings } };
+    const { result } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(currentProjectSceneStyle()).toStrictEqual({ projectId: 'p1', id: 'am-ap' });
+  });
+
+  it('W4a — người sửa được cài đặt: PUT đủ thân + sceneStyle, đúng revision, qua schema strict', async () => {
+    settingsApi.read = { ok: true, data: { ...wireSettings, notes: 'ghi chú', sceneStyle: 'go-am' } };
+    const { result } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    await currentProjectSceneStyle()?.saveToProject?.('sang-trong-toi');
+
+    expect(settingsApi.puts).toHaveLength(1);
+    const { projectId, ...write } = settingsApi.puts[0] as { projectId: string };
+    expect(projectId).toBe('p1');
+    expect(UpdateProjectSettingsSchema.parse(write)).toStrictEqual({
+      baseVersion: 4,
+      body: {
+        buildingType: 'residential',
+        confidenceThreshold: 0.8,
+        defaultScaleMmPerPx: 10,
+        lengthUnit: 'mm',
+        notes: 'ghi chú',
+        sceneStyle: 'sang-trong-toi',
+        snapToleranceMm: 20,
+      },
+    });
   });
 
   it('savePascalNow: Ctrl+S cho Pascal rồi đợi đúng lượt onSave ấy (ném khi bị từ chối)', async () => {
