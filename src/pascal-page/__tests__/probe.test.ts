@@ -16,7 +16,7 @@ const fakeStores = () => {
       getState: () => ({
         nodes: {
           w1: { type: 'wall', slots: { interior: 'scene:plaster' }, skirting: { height: 0.1 } },
-          w2: { type: 'wall' },
+          w2: { type: 'wall', start: [0, 0], end: [4, 0], thickness: 0.2, height: 2.7 },
           s1: { type: 'slab', slots: { surface: 'scene:wood' } },
           s2: { type: 'slab', materialPreset: 'tile' },
           i1: { type: 'item' },
@@ -70,6 +70,14 @@ describe('pascal probe', () => {
     expect(stores.emitter.emit.mock.calls).toEqual([
       ['camera-controls:apply-pose', { position: [0, 30, 0], target: [0, 0, 0], projection: 'orthographic' }],
       ['camera-controls:apply-pose', { position: [5, 5, 5], target: [0, 0, 0], projection: 'perspective', fov: 40 }],
+    ]);
+  });
+
+  it('walls() trả hình học tường (C9)', () => {
+    const { stores } = fakeStores();
+    expect(install('?probe=1', stores)?.walls()).toEqual([
+      { id: 'w1', start: [0, 0], end: [0, 0], thickness: undefined, height: undefined },
+      { id: 'w2', start: [0, 0], end: [4, 0], thickness: 0.2, height: 2.7 },
     ]);
   });
 });

@@ -21,6 +21,16 @@ export interface PascalProbe {
   materials(): { slabs: Record<string, string | undefined>; walls: Record<string, unknown> };
   shading(): string | undefined;
   setCamera(pos: Vec3, target: Vec3, fov: number | 'top-ortho'): void;
+  /** Hình học tường (m, toạ độ tầng) cho C9. */
+  walls(): ProbeWall[];
+}
+
+export interface ProbeWall {
+  id: string;
+  start: [number, number];
+  end: [number, number];
+  thickness: number | undefined;
+  height: number | undefined;
 }
 
 interface LooseNode {
@@ -29,6 +39,10 @@ interface LooseNode {
   readonly materialPreset?: string;
   readonly skirting?: unknown;
   readonly crown?: unknown;
+  readonly start?: [number, number];
+  readonly end?: [number, number];
+  readonly thickness?: number;
+  readonly height?: number;
 }
 
 type CameraPose =
@@ -73,6 +87,14 @@ export const createPascalProbe = ({ useScene, useViewer, sceneRegistry, emitter 
           ? { position, target, projection: 'orthographic' }
           : { position, target, projection: 'perspective', fov },
       ),
+    walls: () =>
+      entriesOf('wall').map(([id, n]) => ({
+        id,
+        start: n.start ?? [0, 0],
+        end: n.end ?? [0, 0],
+        thickness: n.thickness,
+        height: n.height,
+      })),
   };
 };
 
