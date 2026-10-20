@@ -716,12 +716,16 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
       adopt(levelNodeId, node.id);
     }
 
-    /* Trần + đèn sinh từ phòng; đèn là con của trần (trần tự giữ `children`). */
-    const [ceiling, light] = ceilingNodesOf(room, levelNodeId);
+    /* Trần + đèn sinh từ phòng (sân ngoài trời thì không); đèn là con của trần (trần tự giữ `children`). */
+    const generated = ceilingNodesOf(room, levelNodeId);
 
-    nodes[ceiling.id] = ceiling;
-    nodes[light.id] = light;
-    adopt(levelNodeId, ceiling.id);
+    if (generated !== undefined) {
+      const [ceiling, light] = generated;
+
+      nodes[ceiling.id] = ceiling;
+      nodes[light.id] = light;
+      adopt(levelNodeId, ceiling.id);
+    }
   }
 
   for (const furniture of graph.furniture) {

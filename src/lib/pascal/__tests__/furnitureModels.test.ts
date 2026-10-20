@@ -125,7 +125,8 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     }
   });
 
-  it('tre 500×500×2000 → cọ cao ~2 m (không phải 5,4 m); không heightMm thì chặn 2,2 m', () => {
+  it('tre 500×500×2000 → thông (cây cao hẹp) cao ~2 m; không heightMm thì chặn ở trần tầng', () => {
+    const levelH = metresOfMm(graphOf(fixtureF2().doc).levels[0]!.heightMm);
     const tall = (heightMm?: number): number => {
       const [item] = itemsOf(
         withFurniture((base) => [
@@ -139,12 +140,12 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
           },
         ]),
       );
-      expect(item!.asset.src).toBe('/items/palm/model.glb');
-      // GLB cọ gốc cao 4,5 / 0,37 ≈ 12 m.
-      return (CATALOG_MODELS.palm!.dimensions[1] * item!.asset.scale![1]) / 0.37;
+      expect(item!.asset.src).toBe('/items/fir-tree/model.glb');
+      // Thông không có scale riêng của catalog: GLB gốc cao đúng 3 m.
+      return CATALOG_MODELS['fir-tree']!.dimensions[1] * item!.asset.scale![1];
     };
     expect(tall(2000)).toBeCloseTo(2, 2);
-    expect(tall()).toBeCloseTo(2.2, 2);
+    expect(tall()).toBeCloseTo(Math.min(levelH, 3 * 1.25), 2);
   });
 
   it('bụi cây (catalog scale 0,96): asset.scale nhân cả scale riêng của catalog', () => {

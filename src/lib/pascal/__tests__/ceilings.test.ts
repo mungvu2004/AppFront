@@ -6,16 +6,29 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { fixtureF1 } from '../__fixtures__';
 import { createPascalEditCommand } from '../fromPascal';
 import { toPascalId } from '../ids';
-import { isGeneratedLightId, LIGHT_COLOR, LIGHT_DISTANCE_M, LIGHT_INTENSITY_MAX } from '../sceneDressing';
+import {
+  interiorPointOf,
+  isGeneratedLightId,
+  LIGHT_COLOR,
+  LIGHT_DISTANCE_M,
+  LIGHT_INTENSITY_MAX,
+} from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
 import { toSpatialGraph } from '../toSpatial';
-import type { PascalCeilingNode, PascalItemNode, PascalNode, PascalScene } from '../types';
+import type { PascalCeilingNode, PascalItemNode, PascalNode, PascalPoint2, PascalScene } from '../types';
 
 const graph = SpatialGraphDocumentSchema.parse(fixtureF1({ ext: true }).doc).graph;
 const { scene, skipped } = toPascalScene(graph);
 const nodes = Object.values(scene.nodes);
 const ceilings = nodes.filter((node): node is PascalCeilingNode => node.type === 'ceiling');
 const lights = nodes.filter((node): node is PascalItemNode => node.type === 'item' && isGeneratedLightId(node.id));
+
+/** Chẵn-lẻ: điểm nằm hẳn trong đa giác. */
+const isInside = ([x, y]: PascalPoint2, polygon: readonly PascalPoint2[]): boolean =>
+  polygon.reduce((inside, [x1, y1], i) => {
+    const [x2, y2] = polygon[(i + 1) % polygon.length]!;
+    return y1 <= y === y2 <= y || x >= x1 + ((y - y1) * (x2 - x1)) / (y2 - y1) ? inside : !inside;
+  }, false);
 
 /** Cảnh như trước T16: bỏ trần, đèn và id trần trong `children` của tầng. */
 const withoutCeilings = (source: PascalScene): PascalScene => {
@@ -32,12 +45,20 @@ const withoutCeilings = (source: PascalScene): PascalScene => {
 };
 
 describe('trần + đèn (T16)', () => {
-  it('F1-ext: mỗi phòng một trần con của tầng, theo đỉnh tầng, mặt vữa', () => {
+  it('F1-ext: mỗi phòng trong nhà một trần con của tầng, theo đỉnh tầng, mặt vữa; sân decking không trần', () => {
+    const indoor = graph.rooms.filter((room) => room.finish !== 'decking');
+
     expect(graph.rooms).toHaveLength(9);
-    expect(ceilings).toHaveLength(9);
+    expect(indoor).toHaveLength(8);
+    expect(ceilings).toHaveLength(8);
     expect(skipped).toEqual([]);
 
-    for (const room of graph.rooms) {
+    for (const room of graph.rooms.filter((r) => r.finish === 'decking')) {
+      expect(scene.nodes[toPascalId('ceiling', room.id)]).toBeUndefined();
+      expect(scene.nodes[toPascalId('item', `LIGHT-${room.id}`)]).toBeUndefined();
+    }
+
+    for (const room of indoor) {
       const ceiling = scene.nodes[toPascalId('ceiling', room.id)] as PascalCeilingNode;
       const level = scene.nodes[ceiling.parentId ?? ''];
 
@@ -51,17 +72,15 @@ describe('trần + đèn (T16)', () => {
   });
 
   it('F1-ext: một đèn âm trần bật sẵn dưới mỗi trần, mô hình thật', () => {
-    expect(lights).toHaveLength(9);
+    expect(lights).toHaveLength(8);
 
     for (const light of lights) {
       const ceiling = scene.nodes[light.parentId ?? ''] as PascalCeilingNode;
-      const xs = ceiling.polygon.map((point) => point[0]);
 
       expect(ceiling.type).toBe('ceiling');
       expect(ceiling.children).toEqual([light.id]);
       expect(light.position[1]).toBe(0);
-      expect(light.position[0]).toBeGreaterThanOrEqual(Math.min(...xs));
-      expect(light.position[0]).toBeLessThanOrEqual(Math.max(...xs));
+      expect(isInside([light.position[0], light.position[2]], ceiling.polygon), light.id).toBe(true);
       expect(light.asset).toMatchObject({
         src: '/items/recessed-light/model.glb',
         attachTo: 'ceiling',
@@ -82,6 +101,15 @@ describe('trần + đèn (T16)', () => {
         distance: LIGHT_DISTANCE_M,
       });
     }
+  });
+
+  it('đèn luôn trong phòng: trọng tâm nằm ngoài chữ L thì lấy giữa đoạn trong dài nhất', () => {
+    const square: PascalPoint2[] = [[0, 0], [4, 0], [4, 2], [0, 2]];
+    const thinL: PascalPoint2[] = [[0, 0], [10, 0], [10, 1], [1, 1], [1, 10], [0, 10]];
+
+    expect(interiorPointOf(square)).toEqual([2, 1]);
+    expect(isInside(interiorPointOf(thinL), thinL)).toBe(true);
+    expect(isInside(interiorPointOf([...thinL].reverse()), thinL)).toBe(true);
   });
 
   it('lượt về: đồ thị đọc ngược y hệt khi chưa có trần/đèn', () => {

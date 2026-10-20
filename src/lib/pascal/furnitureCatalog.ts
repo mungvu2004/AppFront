@@ -281,6 +281,12 @@ export const CATALOG_MODELS: Readonly<Record<string, CatalogModel>> = {
     rotation: [0, 0, 0],
     scale: [0.37, 0.37, 0.37],
   },
+  'fir-tree': {
+    folder: 'fir-tree',
+    dimensions: [0.27, 3, 0.23],
+    offset: [0.02, 0.05, -0.06],
+    rotation: [0, 0, 0],
+  },
   bush: {
     folder: 'bush',
     dimensions: [3, 1.04, 1.01],
@@ -327,7 +333,7 @@ export const VARIANT_MODEL: Readonly<
   vase: null,
   lounger: { folder: 'sunbed' },
   planter: { folder: 'small-indoor-plant' },
-  bamboo: { folder: 'palm' },
+  bamboo: { folder: 'fir-tree' },
   shrub: { folder: 'bush' },
 };
 

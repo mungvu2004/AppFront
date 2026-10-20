@@ -112,6 +112,7 @@ const ITEM_SLOTS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   'dining-chair': { legs: OAK },
   'dining-table': { top: OAK },
   dresser: { body: WALNUT, drawers: WALNUT },
+  'fir-tree': { trunk: BARK },
   'indoor-plant': { trunk: BARK },
   'office-table': { cabinet: WALNUT },
   palm: { trunk: BARK },
@@ -162,22 +163,69 @@ const lightInteractiveOf = (interactive: unknown): unknown => {
   return copy;
 };
 
+/** Các x nơi cạnh đa giác cắt đường ngang `y`, tăng dần (quy tắc nửa mở: đỉnh không đếm hai lần). */
+const crossingsAt = (polygon: readonly PascalPoint2[], y: number): number[] =>
+  polygon
+    .flatMap(([x1, y1], i) => {
+      const [x2, y2] = polygon[(i + 1) % polygon.length]!;
+      return y1 <= y === y2 <= y ? [] : [x1 + ((y - y1) * (x2 - x1)) / (y2 - y1)];
+    })
+    .sort((a, b) => a - b);
+
+/**
+ * Một điểm chắc chắn nằm trong đa giác: trọng tâm diện tích nếu nó ở trong, không thì
+ * giữa đoạn trong dài nhất của đường ngang qua trọng tâm (phòng chữ L/chữ U).
+ */
+export const interiorPointOf = (polygon: readonly PascalPoint2[]): PascalPoint2 => {
+  let area = 0;
+  let cx = 0;
+  let cy = 0;
+
+  polygon.forEach(([x1, y1], i) => {
+    const [x2, y2] = polygon[(i + 1) % polygon.length]!;
+    const cross = x1 * y2 - x2 * y1;
+    area += cross;
+    cx += (x1 + x2) * cross;
+    cy += (y1 + y2) * cross;
+  });
+
+  if (area === 0) return polygon[0]!;
+  cx /= 3 * area;
+  cy /= 3 * area;
+
+  const xs = crossingsAt(polygon, cy);
+  let best: PascalPoint2 = [cx, cy];
+  let bestWidth = 0;
+
+  // Chẵn-lẻ: cặp (xs[0], xs[1]), (xs[2], xs[3])… là các đoạn nằm trong đa giác.
+  for (let i = 0; i + 1 < xs.length; i += 2) {
+    const [left, right] = [xs[i]!, xs[i + 1]!];
+    if (cx > left && cx < right) return [cx, cy];
+    if (right - left > bestWidth) [best, bestWidth] = [[(left + right) / 2, cy], right - left];
+  }
+
+  return best;
+};
+
 /**
  * Trần + một đèn âm trần cho mỗi phòng, như nhà mẫu ở trang đăng nhập có trần và đèn ấm.
  * Trần là con của tầng, cao theo đỉnh tầng (không khai `height`); đèn là con của trần,
  * `y = 0` trong khung trần, `x/z` theo toạ độ tầng (`placement-strategies.ts:740-757`).
  * Cả hai sinh ra từ phòng nên lượt về bỏ qua chúng (`toSpatial` chỉ đọc con của tầng,
- * `fromPascal` coi chúng là kết cấu). Chưa có công năng ban công nên phòng nào cũng có đèn.
+ * `fromPascal` coi chúng là kết cấu). Phòng sàn `decking` là sân ngoài trời: không trần,
+ * không đèn — trần che nắng làm sân tối đen. Chưa khai `finish` thì không biết phòng nào
+ * ngoài trời (`RoomUsage` không có ban công) nên phòng nào cũng có trần.
  */
 export const ceilingNodesOf = (
-  room: Pick<Room, 'id' | 'outline'>,
+  room: Pick<Room, 'id' | 'outline' | 'finish'>,
   levelNodeId: PascalNodeId,
-): readonly [PascalCeilingNode, PascalItemNode] => {
+): readonly [PascalCeilingNode, PascalItemNode] | undefined => {
+  if (room.finish === 'decking') return undefined;
+
   const ceilingId = toPascalId('ceiling', room.id);
   const lightId = toPascalId('item', `${GENERATED_LIGHT_PREFIX}${room.id}`);
   const polygon = room.outline.map((point): PascalPoint2 => [metresOf(point.x), metresOf(point.y)]);
-  // ponytail: trung bình đỉnh, không phải trọng tâm diện tích — phòng chữ L đèn lệch chút.
-  const centre = (axis: 0 | 1): number => polygon.reduce((sum, point) => sum + point[axis], 0) / polygon.length;
+  const [lightX, lightZ] = interiorPointOf(polygon);
   const model = CATALOG_MODELS['recessed-light'];
 
   if (model === undefined) throw new Error('bảng mô hình thiếu recessed-light');
@@ -201,7 +249,7 @@ export const ceilingNodesOf = (
       type: 'item',
       parentId: ceilingId,
       metadata: { generated: 'light' },
-      position: [centre(0), 0, centre(1)],
+      position: [lightX, 0, lightZ],
       rotation: [0, 0, 0],
       scale: [1, 1, 1],
       asset: {

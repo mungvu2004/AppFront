@@ -60,6 +60,7 @@ describe('furnitureCatalog', () => {
       expect(row.dimensions, f).toEqual(catalogField(f, 'dimensions'));
       expect(row.offset, f).toEqual(catalogField(f, 'offset'));
       expect(row.rotation, f).toEqual(catalogField(f, 'rotation'));
+      expect(row.scale ?? [1, 1, 1], f).toEqual(catalogField(f, 'scale') ?? [1, 1, 1]);
       expect(row.attachTo, f).toEqual(catalogField(f, 'attachTo'));
       expect(row.interactive, f).toEqual(catalogField(f, 'interactive'));
     }
