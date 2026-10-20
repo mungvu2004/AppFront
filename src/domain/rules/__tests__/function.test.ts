@@ -18,6 +18,7 @@ import type {
   WallId,
   WallKind,
 } from '../../spatial/types';
+import { degrees } from '../../units/types';
 import { BUILT_IN_RULES, createRuleRegistry, type RuleContext } from '../registry';
 import { runRules } from '../runner';
 import { computeHealthScore, explainHealthScore, sortBySeverity } from '../healthScore';
@@ -1068,6 +1069,23 @@ describe('furniture standing where something else is', () => {
     expect(found).toHaveLength(1);
     expect(found[0]?.message).toContain(wallId('WBACK'));
     expect(found[0]?.message).toContain(furnitureId('BEDB'));
+  });
+
+  it('judges a turned piece by the ground it covers, not by its unturned box', () => {
+    // The box is the bench's own 2000 × 600 footprint, 300 mm clear of the wall.
+    // Turned 90° about its centre it covers 600 × 2000 and runs through the wall.
+    const bench = box('BNCH', { x: 0, y: 300 }, { x: 2000, y: 900 });
+    const planAt = (rotationDeg: number) =>
+      planOf({
+        walls: [wall('WBACK', { x: 0, y: 0 }, { x: 6000, y: 0 })],
+        furniture: [{ ...bench, rotationDeg: degrees(rotationDeg) }],
+      });
+
+    expect(runCheck(checkFurnitureClash, planAt(0))).toEqual([]);
+
+    const found = runCheck(checkFurnitureClash, planAt(90));
+    expect(found).toHaveLength(1);
+    expect(found[0]?.relatedIds).toContain(wallId('WBACK'));
   });
 });
 

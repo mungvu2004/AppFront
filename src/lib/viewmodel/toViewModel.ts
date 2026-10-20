@@ -439,13 +439,13 @@ export function toRoomViewModel(room: Room): ViewModel {
 /**
  * A furniture item, ready to draw.
  *
- * The footprint is read off the stored bounding box rather than recomputed
- * from `centre` and `rotationDeg`: the box is axis-aligned and already the
- * number a QC panel argues about, and re-deriving it here would let the two
- * disagree after a rounding difference. Width and depth are the box's own
- * `max − min`, not a rotated width — a wardrobe drawn at 30° reads as the box
- * around it, which is generous on the diagonal and matches how
- * `FURNITURE-CLASH` (`src/domain/rules/function`) judges the same piece.
+ * The stored bounding box is the piece's own, unrotated footprint centred on
+ * `centre`, and `rotationDeg` turns it. Width and depth are therefore the box's
+ * own `max − min` — the piece's real size, whatever its angle: a 2000 × 600
+ * wardrobe at 90° still reads 2000 wide and 600 deep, with the turn shown on
+ * its own line. Rules that judge where the piece stands (`FURNITURE-CLASH`,
+ * `FIXTURE-OFF-WALL`) turn the box first (`furnitureCorners` in
+ * `src/domain/rules/function`).
  */
 export function toFurnitureViewModel(item: Furniture): ViewModel {
   return {

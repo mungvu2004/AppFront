@@ -37,10 +37,11 @@
 
 import { outlineContains } from '../../rooms/area';
 import { displayCodeIn } from '../../spatial/normalize';
-import type { BoundingBox, FurnitureKind, Point, Room, RoomUsage } from '../../spatial/types';
+import type { Furniture, FurnitureKind, Point, Room, RoomUsage } from '../../spatial/types';
 import { compareNearly, isNearlyZero, type PointMm } from '../../units/compare';
 import { millimetres } from '../../units/types';
 import { formatLength } from '../../../lib/format/measure';
+import { furnitureCorners } from '../function';
 import {
   entitiesInScope,
   findEntity,
@@ -180,19 +181,14 @@ function distancePointToSegment(point: Point, start: Point, end: Point): number 
 /**
  * How far a footprint stands clear of a wall's face.
  *
- * Measured from the box's corners and its centre to the wall centreline, then
+ * Measured from the footprint's corners — the stored box turned by
+ * `rotationDeg` (`furnitureCorners`) — and its centre to the wall centreline, then
  * the wall's half thickness is taken off, because a fitting touches the *face* of
  * a wall and not its middle. A basin inside the wall body reads as zero rather
  * than as a negative gap: it is against the wall, which is all this asks.
  */
-function gapToWallFace(box: BoundingBox, start: Point, end: Point, thicknessMm: number): number {
-  const corners: readonly Point[] = [
-    box.min,
-    { x: box.max.x, y: box.min.y },
-    box.max,
-    { x: box.min.x, y: box.max.y },
-    { x: (box.min.x + box.max.x) / 2, y: (box.min.y + box.max.y) / 2 },
-  ];
+function gapToWallFace(item: Furniture, start: Point, end: Point, thicknessMm: number): number {
+  const corners: readonly Point[] = [...furnitureCorners(item), item.centre];
 
   const nearest = corners.reduce(
     (closest, corner) => Math.min(closest, distancePointToSegment(corner, start, end)),
@@ -298,7 +294,7 @@ export const checkFixtureOffWall: FitoutCheck = (context) => {
         continue;
       }
 
-      const gapMm = gapToWallFace(item.boundingBox, start, end, wall.thicknessMm);
+      const gapMm = gapToWallFace(item, start, end, wall.thicknessMm);
 
       if (gapMm < nearestGapMm) {
         nearestGapMm = gapMm;

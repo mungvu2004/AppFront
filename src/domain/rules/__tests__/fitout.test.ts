@@ -18,6 +18,7 @@ import type {
   WallId,
   WallKind,
 } from '../../spatial/types';
+import { degrees } from '../../units/types';
 import { createRuleRegistry, ROOM_USAGE_LABELS, type RuleContext } from '../registry';
 import { runRules } from '../runner';
 import {
@@ -408,6 +409,29 @@ describe('checkFixtureOffWall', () => {
 
     expect(findings[0]?.relatedIds[1]).toMatch(/^W-/);
     expect(findings[0]?.message).toMatch(/\d/);
+  });
+
+  it('measures a turned cabinet from the ground it covers, not from its unturned box', () => {
+    // Own footprint 600 wide × 2000 deep, 1000 mm west of the east face (x = 5890):
+    // 700 mm clear as drawn, flush against the face once turned 90°.
+    const cabinet = furniture('KC9', { x: 4890, y: 2000 }, { kind: 'kitchenCabinet' });
+    const runAt = (rotationDeg: number) =>
+      runCheck(
+        checkFixtureOffWall,
+        planOf({
+          walls: SHELL,
+          furniture: [
+            {
+              ...cabinet,
+              boundingBox: { min: { x: 4590, y: 1000 }, max: { x: 5190, y: 3000 } },
+              rotationDeg: degrees(rotationDeg),
+            },
+          ],
+        }),
+      );
+
+    expect(runAt(0)).toHaveLength(1);
+    expect(runAt(90)).toEqual([]);
   });
 
   it('says nothing when the level has no wall to measure to', () => {

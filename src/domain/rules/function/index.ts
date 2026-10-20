@@ -36,9 +36,9 @@
 import { computeCentroid, computeLargestInnerRectangle } from '../../rooms/area';
 import { openingsOfRoom as openingsOfRoomOfAnyKind } from '../../spatial/roomOpenings';
 import { displayCodeIn } from '../../spatial/normalize';
-import type { BoundingBox, Opening, Point, Room, RoomUsage, Wall } from '../../spatial/types';
+import type { BoundingBox, Furniture, Opening, Point, Room, RoomUsage, Wall } from '../../spatial/types';
 import { compareNearly, isNearlyZero, type PointMm } from '../../units/compare';
-import { millimetres } from '../../units/types';
+import { degrees, degreesToRadians, millimetres } from '../../units/types';
 import { formatLength } from '../../../lib/format/measure';
 import { formatNumber } from '../../../lib/format/number';
 import {
@@ -321,6 +321,47 @@ function boxCorners(box: BoundingBox): Point[] {
     { x: box.max.x, y: box.max.y },
     { x: box.min.x, y: box.max.y },
   ];
+}
+
+/**
+ * The four corners a piece of furniture actually covers.
+ *
+ * The stored box is the piece's own, unrotated footprint centred on `centre`;
+ * `rotationDeg` turns it about that centre (the same turn as
+ * `furnitureFootprint` in `src/lib/selection/marquee.ts`). A 2000 × 600 bench
+ * at 90° covers 600 × 2000 on the plan, and that is what a rule must judge.
+ */
+export function furnitureCorners(item: Pick<Furniture, 'centre' | 'boundingBox' | 'rotationDeg'>): Point[] {
+  const corners = boxCorners(item.boundingBox);
+  const angle = degreesToRadians(degrees(item.rotationDeg));
+
+  if (isNearlyZero(angle)) {
+    return corners;
+  }
+
+  const sin = Math.sin(angle);
+  const cos = Math.cos(angle);
+
+  return corners.map((corner) => {
+    const offsetX = corner.x - item.centre.x;
+    const offsetY = corner.y - item.centre.y;
+
+    return {
+      x: item.centre.x + offsetX * cos - offsetY * sin,
+      y: item.centre.y + offsetX * sin + offsetY * cos,
+    };
+  });
+}
+
+/** The axis-aligned box around a set of points. */
+function boxAround(points: readonly Point[]): BoundingBox {
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+
+  return {
+    min: { x: Math.min(...xs), y: Math.min(...ys) },
+    max: { x: Math.max(...xs), y: Math.max(...ys) },
+  };
 }
 
 /** Closest approach between a run and a box; zero when the run enters it. */
@@ -979,14 +1020,17 @@ export const checkRoomArea: FunctionCheck = (context) => {
  * A pair is reported against the piece the model lists first, so moving one of
  * them settles a single entry rather than two that disagree.
  *
- * The footprint is the stored bounding box. It is axis-aligned, so a rotated
- * item is judged by the box around it: generous on a diagonal wardrobe, which
- * is the safe direction to be wrong in — a clash that turns out to be clear is
- * a glance, a clash that goes unreported is a site instruction.
+ * The stored bounding box is the piece's own, unrotated footprint; it is turned
+ * by `rotationDeg` first (`furnitureCorners`), and the piece is judged by the
+ * axis-aligned box around the turned corners. Exact at quarter turns, generous
+ * on a diagonal wardrobe, which is the safe direction to be wrong in — a clash
+ * that turns out to be clear is a glance, a clash that goes unreported is a
+ * site instruction.
  */
 export const checkFurnitureClash: FunctionCheck = (context) => {
   const minClashMm = context.thresholds?.['furniture.minClashMm'] ?? MIN_CLASH_MM;
   const items = entitiesInScope(context, 'furniture');
+  const boxes = items.map((item) => boxAround(furnitureCorners(item)));
   const walls = entitiesInScope(context, 'wall');
   const findings: FunctionFinding[] = [];
 
@@ -1002,7 +1046,7 @@ export const checkFurnitureClash: FunctionCheck = (context) => {
       }
 
       const reachMm = wall.thicknessMm / 2;
-      const overlapMm = reachMm - distanceLineToBox(wall.centreline, item.boundingBox);
+      const overlapMm = reachMm - distanceLineToBox(wall.centreline, itemAt(boxes, index));
 
       if (compareNearly(overlapMm, minClashMm) <= 0) {
         continue;
@@ -1014,7 +1058,7 @@ export const checkFurnitureClash: FunctionCheck = (context) => {
 
     for (let other = index + 1; other < items.length; other += 1) {
       const secondItem = itemAt(items, other);
-      const overlapMm = boxOverlapMm(item.boundingBox, secondItem.boundingBox);
+      const overlapMm = boxOverlapMm(itemAt(boxes, index), itemAt(boxes, other));
 
       if (compareNearly(overlapMm, minClashMm) <= 0) {
         continue;
