@@ -431,6 +431,10 @@ export const furnitureModelOf = (
   }
 };
 
+/** Cây mà catalog dựng cao hơn trần (cọ 4,5 m): trong nhà chặn ở 2,2 m. */
+const TALL_PLANT_FOLDERS: ReadonlySet<string> = new Set(['palm']);
+const TALL_PLANT_MAX_M = 2.2;
+
 const itemNodeOf = (
   furniture: Furniture,
   levelNodeId: PascalNodeId,
@@ -453,7 +457,15 @@ const itemNodeOf = (
 
     const [cw, ch, cd] = catalog.dimensions;
     const fixedH = furniture.heightMm === undefined ? undefined : metresOf(furniture.heightMm);
-    const s = Math.min(widthM / cw, depthM / cd, fixedH === undefined ? Infinity : fixedH / ch);
+    // Không có `heightMm` (bản quét AI) thì chỉ hộp bao quyết định `s` — món đồ có thể
+    // phình cao vô lý. Chặn: ≤ 1,25× cỡ catalog, cây cao ≤ 2,2 m, và không quá trần tầng.
+    const maxH =
+      fixedH ??
+      Math.min(metresOf(levelHeightMm), TALL_PLANT_FOLDERS.has(model.folder) ? TALL_PLANT_MAX_M : ch * 1.25);
+    const s = Math.min(widthM / cw, depthM / cd, maxH / ch);
+    // `asset.scale` nhân thẳng vào GLB gốc; catalog nào có scale riêng thì `dimensions`
+    // là cỡ sau scale đó (cọ: GLB cao 11,9 m × 0,37) — phải nhân lại, không thì cao gấp đôi tường.
+    const [kx, ky, kz] = catalog.scale ?? [1, 1, 1];
     // Đồ treo tường: mô hình mỏng hơn hộp bao thì áp lưng nó vào mép sau (−z cục
     // bộ, phía tường) thay vì treo lơ lửng giữa hộp. Dời bằng `asset.offset` chứ
     // không dời `position`: tâm món đồ phải giữ đúng `centre` để lượt về không trôi.
@@ -464,7 +476,7 @@ const itemNodeOf = (
     return {
       folder: model.folder,
       heightM: fixedH ?? ch * s,
-      scale: [s, s, s] as PascalVec3,
+      scale: [s * kx, s * ky, s * kz] as PascalVec3,
       offset: [ox * s, oy * s, oz * s + backShift] as PascalVec3,
       rotation: [...catalog.rotation] as PascalVec3,
     };
@@ -805,6 +817,10 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
     parentId: null,
     children: [BUILDING_NODE_ID],
     polygon: sitePolygonOf(nodes),
+    // Ẩn khu đất chỉ tắt nền + đường ranh vàng của chính nó, công trình vẫn hiện
+    // (`core/src/lib/node-visibility.ts`). Nhà mẫu trang đăng nhập không có ranh đất.
+    // Trải vào vì `PascalSiteNode` (types.ts) chưa khai `visible`.
+    ...{ visible: false },
   };
 
 

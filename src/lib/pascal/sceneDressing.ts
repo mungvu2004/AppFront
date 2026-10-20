@@ -131,12 +131,32 @@ export const isGeneratedLightId = (nodeId: PascalNodeId): boolean =>
 
 const metresOf = (valueMm: number): number => millimetresToMetres(millimetres(valueMm));
 
-/** Bật sẵn đèn: khối `interactive` chép sâu, công tắc `default: true`. */
+/**
+ * Đèn âm trần ấm như `--scene-lamp` của trang đăng nhập. Pascal dựng nó thành đèn điểm
+ * (`use-item-light-pool.ts`): mặc định trắng, 2 cd, không giới hạn tầm — trên nền `night`
+ * gần như không thấy. 6 cd ở trần 2,4 m cho sàn ≈ 1,1 — ngang đèn chính của chủ đề (1,2),
+ * đủ thành vũng sáng mà không cháy; tầm 6 m như đèn trần trang đăng nhập.
+ */
+export const LIGHT_COLOR = '#ffd9a3';
+export const LIGHT_INTENSITY_MAX = 6;
+export const LIGHT_DISTANCE_M = 6;
+
+/** Bật sẵn đèn: khối `interactive` chép sâu, công tắc `default: true`, ánh sáng ấm. */
 const lightInteractiveOf = (interactive: unknown): unknown => {
-  const copy = structuredClone(interactive) as { controls?: { kind: string; default?: unknown }[] };
+  const copy = structuredClone(interactive) as {
+    controls?: { kind: string; default?: unknown }[];
+    effects?: { kind: string; color?: string; intensityRange?: [number, number]; distance?: number }[];
+  };
 
   for (const control of copy.controls ?? []) {
     if (control.kind === 'toggle') control.default = true;
+  }
+
+  for (const effect of copy.effects ?? []) {
+    if (effect.kind !== 'light') continue;
+    effect.color = LIGHT_COLOR;
+    effect.intensityRange = [0, LIGHT_INTENSITY_MAX];
+    effect.distance = LIGHT_DISTANCE_M;
   }
 
   return copy;

@@ -6,6 +6,8 @@ export interface CatalogModel {
   readonly dimensions: readonly [number, number, number];
   readonly offset: readonly [number, number, number];
   readonly rotation: readonly [number, number, number];
+  /** Scale riêng của catalog (bỏ = [1, 1, 1]): `dimensions` là cỡ SAU scale này, GLB gốc to hơn. */
+  readonly scale?: readonly [number, number, number];
   readonly attachTo?: string;
   readonly interactive?: unknown;
 }
@@ -277,12 +279,14 @@ export const CATALOG_MODELS: Readonly<Record<string, CatalogModel>> = {
     dimensions: [0.525, 4.5, 0.496],
     offset: [0, 0.08, 0],
     rotation: [0, 0, 0],
+    scale: [0.37, 0.37, 0.37],
   },
   bush: {
     folder: 'bush',
     dimensions: [3, 1.04, 1.01],
     offset: [-0.1463, 0.0094, -0.113],
     rotation: [0, 0, 0],
+    scale: [0.96, 0.96, 0.96],
   },
 };
 

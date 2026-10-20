@@ -4,7 +4,7 @@ import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
 import { millimetres } from '@/domain/units/types';
 
 import { fixtureF1, fixtureF2, type Fixture } from '../__fixtures__';
-import { toPascalId } from '../ids';
+import { SITE_NODE_ID, toPascalId } from '../ids';
 import { SCENE_MATERIALS, wallDressingOf } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
 import type { PascalSlabNode, PascalWallNode } from '../types';
@@ -92,5 +92,13 @@ describe('sceneDressing (I3) — sàn, tường, vật liệu cảnh', () => {
       for (const ref of refs.filter((r) => r.startsWith('scene:')))
         expect(scene.materials?.[ref.slice('scene:'.length)]).toBeDefined();
     }
+  });
+
+  it('khu đất ẩn (không nền, không ranh vàng) nhưng vẫn giữ đường bao cho bộ vẽ', () => {
+    const { scene } = run(fixtureF1({ ext: true }));
+    const site = scene.nodes[SITE_NODE_ID];
+
+    expect(site).toMatchObject({ type: 'site', visible: false });
+    expect(site?.type === 'site' && site.polygon.points.length).toBeGreaterThanOrEqual(3);
   });
 });

@@ -10,8 +10,11 @@ import { describe, expect, it } from 'vitest';
 
 import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
 import type { Furniture, SpatialGraph } from '@/domain/spatial/types';
+import { millimetres } from '@/domain/units/types';
 
 import { fixtureF1, fixtureF2 } from '../__fixtures__';
+import { CATALOG_MODELS } from '../furnitureCatalog';
+import { toPascalId } from '../ids';
 import { isGeneratedLightId } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
 import { toSpatialGraph } from '../toSpatial';
@@ -21,6 +24,8 @@ const graphOf = (doc: unknown): SpatialGraph => SpatialGraphDocumentSchema.parse
 
 const itemsOf = (graph: SpatialGraph): PascalItemNode[] =>
   Object.values(toPascalScene(graph).scene.nodes).filter((n): n is PascalItemNode => n.type === 'item' && !isGeneratedLightId(n.id));
+
+const metresOfMm = (mm: number): number => mm / 1000;
 
 const ROOT = resolve(__dirname, '../../../..');
 const modelExists = (src: string): boolean =>
@@ -95,6 +100,68 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     expect(item!.position[1]).toBeCloseTo(1.2);
     expect(item!.asset.src).toBe('/items/round-mirror/model.glb');
     expect(item!.asset.offset![2]).toBeLessThan(0);
+  });
+
+  it('F1-ext (có heightMm) và F1 thường (không): không món nào cao quá heightMm / trần tầng / 2,2 m với cây', () => {
+    for (const ext of [true, false]) {
+      const graph = graphOf(fixtureF1({ ext }).doc);
+      const levelH = metresOfMm(graph.levels[0]!.heightMm);
+      const byId = new Map(itemsOf(graph).map((n) => [n.id, n]));
+      for (const f of graph.furniture) {
+        const item = byId.get(toPascalId('item', f.id))!;
+        const folder = /^\/items\/([^/]+)\//.exec(item.asset.src)?.[1];
+        if (folder === undefined) continue; // thang: chỗ giữ chỗ
+        const cat = CATALOG_MODELS[folder]!;
+        // Cao thật = cao GLB gốc × asset.scale; GLB gốc = dimensions ÷ scale riêng của catalog.
+        const rendered = (cat.dimensions[1] * item.asset.scale![1]) / (cat.scale?.[1] ?? 1);
+        const limit =
+          f.heightMm === undefined
+            ? folder === 'palm' ? 2.2 : levelH
+            : metresOfMm(f.heightMm);
+        const why = `${ext ? 'ext' : 'plain'} ${f.id} ${folder} rendered=${rendered.toFixed(2)} limit=${limit}`;
+        expect(rendered, why).toBeLessThanOrEqual(limit * 1.02);
+        expect(item.asset.dimensions[1], why).toBeLessThanOrEqual(limit * 1.02);
+      }
+    }
+  });
+
+  it('tre 500×500×2000 → cọ cao ~2 m (không phải 5,4 m); không heightMm thì chặn 2,2 m', () => {
+    const tall = (heightMm?: number): number => {
+      const [item] = itemsOf(
+        withFurniture((base) => [
+          {
+            ...base,
+            kind: 'other',
+            variant: 'bamboo',
+            ...(heightMm === undefined ? {} : { heightMm: millimetres(heightMm) }),
+            boundingBox: { min: { x: 0, y: 0 }, max: { x: 500, y: 500 } } as Furniture['boundingBox'],
+            centre: { x: 250, y: 250 } as Furniture['centre'],
+          },
+        ]),
+      );
+      expect(item!.asset.src).toBe('/items/palm/model.glb');
+      // GLB cọ gốc cao 4,5 / 0,37 ≈ 12 m.
+      return (CATALOG_MODELS.palm!.dimensions[1] * item!.asset.scale![1]) / 0.37;
+    };
+    expect(tall(2000)).toBeCloseTo(2, 2);
+    expect(tall()).toBeCloseTo(2.2, 2);
+  });
+
+  it('bụi cây (catalog scale 0,96): asset.scale nhân cả scale riêng của catalog', () => {
+    const graph = withFurniture((base) => [
+      {
+        ...base,
+        kind: 'other',
+        variant: 'shrub',
+        heightMm: millimetres(1000),
+        boundingBox: { min: { x: 0, y: 0 }, max: { x: 3000, y: 1010 } } as Furniture['boundingBox'],
+        centre: { x: 1500, y: 505 } as Furniture['centre'],
+      },
+    ]);
+    const [item] = itemsOf(graph);
+    expect(item!.asset.src).toBe('/items/bush/model.glb');
+    // s = min(3/3, 1,01/1,01, 1/1,04) → GLB gốc nhân s × 0,96.
+    expect(item!.asset.scale![1]).toBeCloseTo((1 / 1.04) * 0.96, 4);
   });
 
   it('F2 (không variant): đoán thư mục theo loại + phòng + hộp bao; thang vẫn là chỗ giữ chỗ', () => {

@@ -6,7 +6,7 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { fixtureF1 } from '../__fixtures__';
 import { createPascalEditCommand } from '../fromPascal';
 import { toPascalId } from '../ids';
-import { isGeneratedLightId } from '../sceneDressing';
+import { isGeneratedLightId, LIGHT_COLOR, LIGHT_DISTANCE_M, LIGHT_INTENSITY_MAX } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
 import { toSpatialGraph } from '../toSpatial';
 import type { PascalCeilingNode, PascalItemNode, PascalNode, PascalScene } from '../types';
@@ -75,7 +75,12 @@ describe('trần + đèn (T16)', () => {
       };
 
       expect(controls.find((control) => control.kind === 'toggle')?.default).toBe(true);
-      expect(effects[0]?.kind).toBe('light');
+      expect(effects[0]).toMatchObject({
+        kind: 'light',
+        color: LIGHT_COLOR,
+        intensityRange: [0, LIGHT_INTENSITY_MAX],
+        distance: LIGHT_DISTANCE_M,
+      });
     }
   });
 

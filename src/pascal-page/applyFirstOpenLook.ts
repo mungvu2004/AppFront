@@ -5,7 +5,8 @@
  *
  * Lần mở đầu tiên trên máy này: cảnh Pascal hiện như nhà 3D ở trang đăng nhập — tô
  * `rendered` (vật liệu thật, không phải đất sét) trên nền tối `night` (gần nền #2b2a28 của
- * trang đăng nhập nhất trong các chủ đề Pascal; `twilight` ngả tím). Pascal tự lưu lựa chọn
+ * trang đăng nhập nhất trong các chủ đề Pascal: ΔE76 nền 12,5, `twilight` 20,5 ngả tím, các
+ * chủ đề sáng ≥ 72 — `studio` 81,5). Pascal tự lưu lựa chọn
  * (`viewer-preferences`), nên chỉ gieo một lần theo cờ; lần sau người dùng đổi gì thì giữ nấy.
  */
 
