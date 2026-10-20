@@ -16,6 +16,7 @@ import type {
   Segment,
   Wall,
 } from '@/domain/spatial/types';
+import { FURNITURE_VARIANTS } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
 
 import { isoInstantSchema } from './common';
@@ -253,9 +254,15 @@ export const RoomSchema: z.ZodType<Room, z.ZodTypeDef, unknown> = z
       'other',
     ]),
     wallIds: z.array(wallIdSchema),
+    finish: z.enum(['wood', 'tile', 'mosaic', 'decking', 'concrete']).optional(),
   })
   .strict()
-  .refine(humanOnlyReview);
+  .refine(humanOnlyReview)
+  /* `finish` vắng là vắng khoá (xem chú thích của `FurnitureSchema` bên dưới). */
+  .transform(({ finish, ...wireRoom }) => ({
+    ...wireRoom,
+    ...(finish !== undefined ? { finish } : {}),
+  }));
 
 /**
  * `roomId` vắng mặt là vắng **khoá**, không phải khoá mang `undefined`.
@@ -283,9 +290,13 @@ export const FurnitureSchema: z.ZodType<Furniture, z.ZodTypeDef, unknown> = z
     levelId: levelIdSchema,
     roomId: roomIdSchema.optional(),
     rotationDeg: degreesSchema,
+    variant: z.enum(FURNITURE_VARIANTS).optional(),
+    heightMm: positiveMillimetresSchema.optional(),
+    liftMm: nonNegativeMillimetresSchema.optional(),
   })
   .strict()
   .refine(humanOnlyReview)
+  /* Liệt kê tường minh: trường nào quên chép ở đây sẽ bị bỏ rơi mà không báo. */
   .transform((wireFurniture) => ({
     boundingBox: wireFurniture.boundingBox,
     centre: wireFurniture.centre,
@@ -297,6 +308,9 @@ export const FurnitureSchema: z.ZodType<Furniture, z.ZodTypeDef, unknown> = z
     ...(wireFurniture.roomId !== undefined ? { roomId: wireFurniture.roomId } : {}),
     rotationDeg: wireFurniture.rotationDeg,
     source: wireFurniture.source,
+    ...(wireFurniture.variant !== undefined ? { variant: wireFurniture.variant } : {}),
+    ...(wireFurniture.heightMm !== undefined ? { heightMm: wireFurniture.heightMm } : {}),
+    ...(wireFurniture.liftMm !== undefined ? { liftMm: wireFurniture.liftMm } : {}),
   }));
 
 /* -------------------------------------------------------------------------- */

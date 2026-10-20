@@ -169,11 +169,62 @@ export interface Furniture extends ReviewMetadata {
   roomId?: RoomId;
   kind: FurnitureKind;
   centre: Point;
+  /** The piece's own, unrotated footprint centred on `centre`; `rotationDeg` turns it about `centre`. */
   boundingBox: BoundingBox;
   rotationDeg: Degrees;
   /** Catalogue model chosen for this item (e.g. after a Pascal "replace all"); absent = the stock model of `kind`. */
   model?: { id: string; src: string };
+  /** Finer-grained piece than `kind` (the login-house vocabulary); absent = pick from `kind`. */
+  variant?: FurnitureVariant;
+  /** Height of the piece; absent = the model's own height. */
+  heightMm?: Millimetres;
+  /** Height of the piece's base above the floor (mirror, wall cabinet); absent = on the floor. */
+  liftMm?: Millimetres;
 }
+
+/** The 35 furniture variants of the login-page house model. */
+export const FURNITURE_VARIANTS = [
+  'bed',
+  'nightstand',
+  'tableLamp',
+  'wardrobe',
+  'rug',
+  'plant',
+  'shower',
+  'wc',
+  'basin',
+  'mirror',
+  'artwork',
+  'shelves',
+  'table',
+  'chair',
+  'baseRun',
+  'upperRun',
+  'hood',
+  'hob',
+  'sink',
+  'fridge',
+  'stool',
+  'cabinet',
+  'sofa',
+  'sconce',
+  'tv',
+  'armchair',
+  'sideTable',
+  'floorLamp',
+  'bench',
+  'pendant',
+  'vase',
+  'lounger',
+  'planter',
+  'bamboo',
+  'shrub',
+] as const;
+
+export type FurnitureVariant = (typeof FURNITURE_VARIANTS)[number];
+
+/** Floor finish of a room. */
+export type RoomFinish = 'wood' | 'tile' | 'mosaic' | 'decking' | 'concrete';
 
 /** What a room is used for. */
 export type RoomUsage =
@@ -196,6 +247,8 @@ export interface Room extends ReviewMetadata {
   outline: readonly Point[];
   areaM2: SquareMetres;
   wallIds: readonly WallId[];
+  /** Floor finish; absent = derived from `usage`. */
+  finish?: RoomFinish;
 }
 
 /** Orientation of a setting-out axis. */

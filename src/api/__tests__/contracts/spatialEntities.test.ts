@@ -4,8 +4,10 @@ import {
   AxisSchema,
   BuildingSchema,
   DimensionSchema,
+  FurnitureSchema,
   LevelSchema,
   NoteSchema,
+  RoomSchema,
 } from '../../schemas/spatial';
 
 /**
@@ -344,5 +346,71 @@ describe('A5 — máy không được tự nhận đã duyệt', () => {
   ])('từ chối %s có độ tin cậy ngoài khoảng 0..1', (_label, schema, entity) => {
     expect(schema.safeParse({ ...entity, confidence: 1.2 }).success).toBe(false);
     expect(schema.safeParse({ ...entity, confidence: -0.1 }).success).toBe(false);
+  });
+});
+
+/**
+ * Bốn trường tuỳ chọn mới (FE3D-FIX T06): FE đọc được, chưa ghi ra. Vắng là vắng
+ * khoá; có thì phải đi qua `.transform()` nguyên vẹn; khoá lạ khác vẫn bị từ chối.
+ */
+describe('Trường tuỳ chọn của phòng và đồ đạc (finish, variant, heightMm, liftMm)', () => {
+  const room = {
+    ...AI_REVIEW,
+    areaM2: 18.4,
+    id: 'R-ROOM0005',
+    levelId: 'L-LEVEL00',
+    name: 'Phòng khách',
+    outline: [
+      { x: 0, y: 0 },
+      { x: 4800, y: 0 },
+      { x: 4800, y: 3600 },
+    ],
+    usage: 'livingRoom',
+    wallIds: ['W-WALL000'],
+  } as const;
+
+  const furniture = {
+    ...AI_REVIEW,
+    boundingBox: { max: { x: 3400, y: 2100 }, min: { x: 1400, y: 1500 } },
+    centre: { x: 2400, y: 1800 },
+    id: 'F-FURN0001',
+    kind: 'other',
+    levelId: 'L-LEVEL00',
+    rotationDeg: 90,
+  } as const;
+
+  it('vắng thì vắng khoá', () => {
+    const parsedRoom = RoomSchema.parse(room);
+    const parsedFurniture = FurnitureSchema.parse(furniture);
+
+    expect('finish' in parsedRoom).toBe(false);
+    expect(['variant', 'heightMm', 'liftMm'].filter((key) => key in parsedFurniture)).toStrictEqual([]);
+  });
+
+  it('finish: nhận và giữ qua transform, từ chối giá trị lạ', () => {
+    expect(RoomSchema.parse({ ...room, finish: 'mosaic' })).toStrictEqual({ ...room, finish: 'mosaic' });
+    expect(RoomSchema.safeParse({ ...room, finish: 'marble' }).success).toBe(false);
+  });
+
+  it('variant: nhận và giữ qua transform, từ chối giá trị lạ', () => {
+    expect(FurnitureSchema.parse({ ...furniture, variant: 'sofa' })).toStrictEqual({ ...furniture, variant: 'sofa' });
+    expect(FurnitureSchema.safeParse({ ...furniture, variant: 'piano' }).success).toBe(false);
+  });
+
+  it('heightMm: số nguyên dương, giữ qua transform', () => {
+    expect(FurnitureSchema.parse({ ...furniture, heightMm: 850 })).toStrictEqual({ ...furniture, heightMm: 850 });
+    expect(FurnitureSchema.safeParse({ ...furniture, heightMm: 0 }).success).toBe(false);
+    expect(FurnitureSchema.safeParse({ ...furniture, heightMm: 850.5 }).success).toBe(false);
+  });
+
+  it('liftMm: số nguyên không âm, giữ qua transform', () => {
+    expect(FurnitureSchema.parse({ ...furniture, liftMm: 0 })).toStrictEqual({ ...furniture, liftMm: 0 });
+    expect(FurnitureSchema.parse({ ...furniture, liftMm: 1200 })).toStrictEqual({ ...furniture, liftMm: 1200 });
+    expect(FurnitureSchema.safeParse({ ...furniture, liftMm: -1 }).success).toBe(false);
+  });
+
+  it('khoá lạ khác vẫn bị từ chối (strict giữ nguyên)', () => {
+    expect(RoomSchema.safeParse({ ...room, ceilingMm: 2700 }).success).toBe(false);
+    expect(FurnitureSchema.safeParse({ ...furniture, modelUrl: '/x.glb' }).success).toBe(false);
   });
 });
