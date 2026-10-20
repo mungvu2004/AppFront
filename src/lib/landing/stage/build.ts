@@ -27,8 +27,17 @@ const NO_EYE = { x: -1e6, y: 0, z: -1e6 };
 const CUT_DARK = new Color('#7D7972');
 const cutNow = new Color();
 
-/** Write one frame's build state into the house, seen from `eye` (the camera). Allocates nothing. */
-export function applyBuild(h: StageHouse, s: LandingState, eye: { x: number; y: number; z: number } = NO_EYE): void {
+/**
+ * Beyond this eye distance (m) from the ground storey's centre, an exterior shot (dark glass, warm glows behind)
+ * drops the furniture: a few pixels behind 55 % glass, ~250 draw calls (FINDINGS §3: 600–780 calls on wide shots).
+ */
+const INTERIOR_HIDE_M = 40;
+
+/**
+ * Write one frame's build state into the house, seen from `eye` (the camera). Allocates nothing.
+ * True when the furniture was hidden or shown for distance (the shadow map must redraw).
+ */
+export function applyBuild(h: StageHouse, s: LandingState, eye: { x: number; y: number; z: number } = NO_EYE): boolean {
   const { build } = s;
   const upperLift = build.upperLiftM;
   if (h.upper !== null) {
@@ -46,20 +55,23 @@ export function applyBuild(h: StageHouse, s: LandingState, eye: { x: number; y: 
   }
   // Tall pieces are clamped with the walls in the cutaway, a little above the cut (finding 8).
   const pieceCap = CUTAWAY_HEIGHT_M + 0.15;
-  for (const piece of h.furniture.values()) {
-    const cap = piece.heightM > pieceCap ? piece.heightM + (pieceCap - piece.heightM) * build.cutaway : Infinity;
-    rise(piece, build.furniture[piece.id] ?? 0, build.material, liftOf(piece), cap);
-  }
   // From the moment the camera is in the ground storey its ceiling is on: the upper floor's oak
   // underside must never read as the ceiling (archviz-r2 fix 11, p 0.60).
   const [ix0, iz0, ix1, iz1, itop] = h.inside;
   const inside = eye.x > ix0 && eye.x < ix1 && eye.z > iz0 && eye.z < iz1 && eye.y < itop;
+  // Roof on and camera outside: dark reflective glass with warm rooms behind it; otherwise clear.
+  const exterior = !inside && build.roof > 0.5 && build.roofLiftM < 0.5 && build.cutaway <= SHOWN && upperLift < 0.05;
+  const far = exterior && Math.hypot(eye.x - (ix0 + ix1) / 2, eye.y, eye.z - (iz0 + iz1) / 2) > INTERIOR_HIDE_M;
+  for (const piece of h.furniture.values()) {
+    const cap = piece.heightM > pieceCap ? piece.heightM + (pieceCap - piece.heightM) * build.cutaway : Infinity;
+    rise(piece, far ? 0 : (build.furniture[piece.id] ?? 0), build.material, liftOf(piece), cap);
+  }
+  const flipped = h.look.far !== far;
+  h.look.far = far;
   const ceilingOn = (build.ceiling > 0.5 || inside) && build.cutaway <= SHOWN;
   for (const ceiling of h.ceilings) {
     ceiling.visible = ceilingOn;
   }
-  // Roof on and camera outside: dark reflective glass with warm rooms behind it; otherwise clear.
-  const exterior = !inside && build.roof > 0.5 && build.roofLiftM < 0.5 && build.cutaway <= SHOWN && upperLift < 0.05;
   for (const glow of h.glows) {
     glow.visible = exterior;
   }
@@ -91,4 +103,5 @@ export function applyBuild(h: StageHouse, s: LandingState, eye: { x: number; y: 
     part.uniforms.uDrop.value = -JOINERY_DROP_M * (1 - build.joinery);
     part.uniforms.uMat.value = build.material;
   }
+  return flipped;
 }

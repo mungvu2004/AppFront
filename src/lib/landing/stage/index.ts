@@ -13,24 +13,26 @@
  * anchors, quality governor — is tested on its own.
  */
 
-import { Box3, MathUtils, Vector3, type Group, type Texture, type WebGLRenderTarget } from 'three';
+import { Box3, MathUtils, Vector3, type Texture, type WebGLRenderTarget } from 'three';
 
 import { buildStair } from '@/lib/landing/house';
-import { createAssetService, disposeMaterials, readPalette, type AssetService, type SceneMaterials } from '@/lib/three/present';
+import { createAssetService, disposeMaterials, readPalette, type AssetService } from '@/lib/three/present';
 
 import type { LandingHouse, LandingState, Vec3 } from '../types';
 
 import { houseAnchors, projectPoint, type StageAnchor } from './anchors';
-import { gpuMemory, type StageInfo } from './dev';
+import { installStageDev } from './dev';
 import { recolourModel } from './facade';
 import { landingScenePalette, matchSheetPaper, warmInterior } from './look';
 import { applyBuild } from './build';
 import { buildStageHouse, disposeStageHouse } from './house';
 import { createInk } from './ink';
+import { createShadowThrottle } from './loop';
 import type { createPost, PostChain } from './post';
 import { pixelRatioFor, QUALITY, sameNumbers, type Quality, type QualitySettings } from './quality';
-import { createStageRenderer } from './renderer';
+import { createStageRenderer, dfgLut } from './renderer';
 import { buildRoofs } from './roof';
+import type * as SiteModule from './site/index';
 import { compileTiers, warmStage } from './warm';
 import { applyPbr, type PbrHandle } from './textures';
 
@@ -52,22 +54,17 @@ export interface Stage {
   project(anchorId: string): { x: number; y: number; visible: boolean } | null;
   anchors(): string[];
   setQuality(q: Quality): void;
-  /** Ambient motion (pond ripples, koi); marks a redraw only when something moved. */
-  ambient(timeMs: number): void;
+  /** Ambient motion (pond ripples, koi); true (and a redraw marked) only while a pond in view moved. */
+  ambient(timeMs: number): boolean;
+  /** `cb` runs whenever the stage needs a frame on its own (late asset, warm-up, throttled shadow): wake the loop. */
+  onInvalidate(cb: () => void): void;
   /** Resolves once every tier's programs are compiled (switching tiers after this costs no link stall). */
   readonly warmed: Promise<void>;
   onContextLost(cb: () => void): void;
   dispose(): void;
 }
 
-interface SiteHandle {
-  readonly group: Group;
-  apply(state: LandingState, eye?: Vector3, target?: Vector3): boolean;
-  ambient(timeMs: number): boolean;
-  dispose(): void;
-}
-type CreateSite = (house: LandingHouse, ctx: { materials: SceneMaterials; anisotropy: number }) => SiteHandle;
-const SITE_MODULE = import.meta.glob<{ createSite: CreateSite }>('./site/index.ts');
+const SITE_MODULE = import.meta.glob<typeof SiteModule>('./site/index.ts');
 
 /** Where `pnpm draco` puts three's Draco decoder (public/draco, gitignored), as AuthScreen's houseScene. */
 export const DRACO_DECODER_PATH = '/draco/';
@@ -77,6 +74,8 @@ const NEAR_MIN = 0.02;
 const FAR_PER_DIST = 4;
 /** Far never closer than this past the target: an interior shot still sees the whole house. */
 const FAR_MIN = 40;
+/** Shadow map redraws at most this often (ms): ~10 Hz while the house grows, then one final redraw. */
+const SHADOW_GAP_MS = 100;
 
 export async function createStage(
   canvas: HTMLCanvasElement,
@@ -109,8 +108,8 @@ export async function createStage(
   let siteFloor = catcherY;
   const anisotropy = renderer.capabilities.getMaxAnisotropy();
   // Agent SITE's module (ground, water, planting, outdoor items): its own chunk, mounted when it lands.
-  let site: SiteHandle | null = null;
-  void SITE_MODULE['./site/index.ts']?.().then((m) => {
+  let site: SiteModule.StageSite | null = null;
+  const siteLanded = SITE_MODULE['./site/index.ts']?.().then((m) => {
     if (disposed) {
       return;
     }
@@ -121,8 +120,12 @@ export async function createStage(
     if (last !== null) {
       site.apply(last, camera.position, target);
     }
-    dirty = true;
     shadowDirty = true;
+    invalidate();
+    return site.ready.then(() => {
+      shadowDirty = true;
+      invalidate();
+    });
   });
   let view: { position: Vec3; target: Vec3; fov?: number } | null = null;
   const ink = createInk(house);
@@ -147,6 +150,9 @@ export async function createStage(
   let height = 1;
   let dpr = 1;
   const lostCallbacks: (() => void)[] = [];
+  const invalidators: (() => void)[] = [];
+  const invalidate = (): void => void ((dirty = true), invalidators.forEach((cb) => cb()));
+  const shadows = createShadowThrottle(SHADOW_GAP_MS, () => !disposed && invalidate());
   const lifted = new Vector3();
   let facadeTextures: Texture[] = [];
   const target = new Vector3();
@@ -158,8 +164,8 @@ export async function createStage(
       if (source === 'model' && !disposed && grower !== undefined) {
         recolourModel(grower.object, house.plan.furniture.find((f) => f.id === piece.id)?.modelUrl, stage.materials);
         grower.refresh();
-        dirty = true;
         shadowDirty = true;
+        invalidate();
       }
     });
   }
@@ -170,6 +176,7 @@ export async function createStage(
     postModule = await import('./post');
     if (!disposed) {
       configure();
+      invalidate();
     }
   };
 
@@ -199,7 +206,7 @@ export async function createStage(
       cb();
     }
   };
-  const onRestored = (): void => void (dirty = true);
+  const onRestored = (): void => invalidate();
   canvas.addEventListener('webglcontextlost', onLost);
   canvas.addEventListener('webglcontextrestored', onRestored);
 
@@ -208,49 +215,45 @@ export async function createStage(
   } else {
     configure();
   }
-  const environment = gl.loadEnvironment().then(() => {
-    dirty = true;
-  });
+  const environment = gl.loadEnvironment().then(invalidate);
 
   /** Programs, textures and geometry warmed once the late parts (HDRI, PBR maps, `.glb`) are in — see warm.ts. */
-  const warmUp = async (pbrLanded: Promise<unknown>): Promise<void> => {
-    await Promise.allSettled([environment, pbrLanded, ...stage.pieces.map((piece) => piece.ready)]);
+  const warmUp = async (pbrLanded: Promise<unknown>, textures: Promise<unknown>): Promise<void> => {
+    await Promise.allSettled([environment, pbrLanded, textures, siteLanded, ...stage.pieces.map((piece) => piece.ready)]);
     const target = (): WebGLRenderTarget | null => (post !== null && QUALITY[quality].composer ? post.composer.inputBuffer : null);
-    const growers = [...stage.walls.values(), ...stage.furniture.values(), ...stage.floors, ...stage.joinery, stage.stair];
-    const parts = [...growers.map((grower) => grower.object), ...(stage.upper === null ? [] : [stage.upper])];
-    if (!disposed && (await warmStage(renderer, scene, camera, target, parts, () => disposed))) {
+    if (!disposed && (await warmStage(renderer, scene, camera, target, () => disposed))) {
       // Off the composer the warm draw went to the screen (jury fix 12: a beige slab over the plan at 768):
       // overwrite it in this same task, before the browser presents the canvas.
       if (last !== null) {
         applyBuild(stage, last, camera.position);
       }
       dirty = true;
+      shadowDirty = true;
+      shadows.reset();
       stageApi.render();
       // Every lower tier's programs too (shadowed or not, tone-mapped by the renderer, drawn to the
       // screen): a later step down then links nothing — SMOOTH.md's 1.2 s stall. The governor never climbs.
       const lower = (['full', 'balanced', 'lite'] as const).slice((['full', 'balanced', 'lite'] as const).indexOf(quality) + 1);
       await compileTiers(renderer, scene, camera, lower.map((tier) => () => gl.configure(QUALITY[tier])), configure);
+      invalidate();
     }
   };
 
   // Counts every pass of a frame (the composer renders several), reset once per frame below.
   renderer.info.autoReset = false;
-  if (import.meta.env.DEV) {
-    window.__landingStageInfo = info;
-    window.__landingStageView = (next) => {
-      view = next;
-      if (last !== null) stageApi.apply(last);
-    };
-    window.__landingStageTune = (patch, q) => {
-      tune = patch ?? {};
-      quality = q ?? quality;
-      configure();
-    };
-  }
-  function info(): StageInfo {
-    const { render, memory, programs } = renderer.info;
-    return { quality, render: { ...render }, memory: { ...memory }, gpuMB: gpuMemory(renderer, scene), programs: programs?.length ?? 0 };
-  }
+  const removeDev = !import.meta.env.DEV
+    ? null
+    : installStageDev(renderer, scene, () => quality, {
+        view(next) {
+          view = next;
+          if (last !== null) stageApi.apply(last);
+        },
+        tune(patch, q) {
+          tune = patch ?? {};
+          quality = q ?? quality;
+          configure();
+        },
+      });
 
   const anchorPoint = (id: string): Vector3 | null => {
     const mine: StageAnchor | undefined = own.get(id);
@@ -284,7 +287,7 @@ export async function createStage(
       if (last === null || !sameNumbers(last.build, s.build) || !sameNumbers(last.compliance, s.compliance)) {
         shadowDirty = true;
       }
-      applyBuild(stage, s, camera.position);
+      shadowDirty = applyBuild(stage, s, camera.position) || shadowDirty;
       roofs.apply(s, lamps.apply(camera.position, stage.inside));
       if (site?.apply(s, camera.position, target) === true) {
         shadowDirty = true;
@@ -300,8 +303,8 @@ export async function createStage(
       }
       dirty = false;
       renderer.info.reset();
-      renderer.shadowMap.needsUpdate = shadowDirty;
-      shadowDirty = false;
+      renderer.shadowMap.needsUpdate = shadows.take(shadowDirty, performance.now());
+      shadowDirty &&= !renderer.shadowMap.needsUpdate;
       if (post !== null && (tune.composer ?? QUALITY[quality].composer)) {
         post.composer.render();
       } else {
@@ -311,24 +314,24 @@ export async function createStage(
         firstFrame = false;
         // Photographic textures are not needed for the first paint; they land once, later.
         const landed = applyPbr(stage, house.plan.rooms, anisotropy);
-        void Promise.all([roofs.loadTextures(anisotropy), stage.facade.loadTextures(anisotropy, stage.clonesOf)]).then(
+        const textures = Promise.all([roofs.loadTextures(anisotropy), stage.facade.loadTextures(anisotropy, stage.clonesOf)]).then(
           (sets) => {
             facadeTextures = sets[1];
             if (disposed) {
               for (const t of facadeTextures) t.dispose();
             }
-            dirty = true;
+            invalidate();
           },
           () => undefined,
         );
-        void warmUp(landed).catch(() => undefined).finally(warmedResolve);
+        void warmUp(landed, textures).catch(() => undefined).finally(warmedResolve);
         landed.then(
           (handle) => {
             if (disposed) {
               handle.dispose();
             } else {
               pbr = handle;
-              dirty = true;
+              invalidate();
             }
           },
           () => undefined, // keep present's drawn textures
@@ -352,8 +355,11 @@ export async function createStage(
       return [...new Set([...own.keys(), ...ink.anchors.keys()])];
     },
     ambient(timeMs) {
-      dirty = site?.ambient(timeMs) === true || dirty;
+      const moving = site?.ambient(timeMs, camera, height) === true;
+      dirty ||= moving;
+      return moving;
     },
+    onInvalidate: (cb) => void invalidators.push(cb),
     setQuality(q) {
       if (q !== quality) {
         quality = q;
@@ -361,22 +367,19 @@ export async function createStage(
       }
     },
     warmed,
-    onContextLost(cb) {
-      lostCallbacks.push(cb);
-    },
+    onContextLost: (cb) => void lostCallbacks.push(cb),
     dispose() {
       disposed = true;
-      // A stage re-made on a fresh canvas (context loss) may already own the hook.
-      if (import.meta.env.DEV && window.__landingStageInfo === info) {
-        delete window.__landingStageInfo;
-        delete window.__landingStageTune;
-        delete window.__landingStageView;
-      }
+      removeDev?.();
       warmedResolve();
       models.abort();
       canvas.removeEventListener('webglcontextlost', onLost);
       canvas.removeEventListener('webglcontextrestored', onRestored);
       lostCallbacks.length = 0;
+      invalidators.length = 0;
+      shadows.dispose();
+      // three r186 keeps one module-level DFG LUT whose dispose listeners hold every renderer (and its canvas, and the page).
+      const lut = dfgLut(renderer, scene);
       pbr?.dispose();
       ink.dispose();
       roofs.dispose();
@@ -388,6 +391,7 @@ export async function createStage(
       scene.remove(stage.root);
       ownAssets?.dispose();
       gl.dispose();
+      lut?.dispose();
     },
   };
   return stageApi;

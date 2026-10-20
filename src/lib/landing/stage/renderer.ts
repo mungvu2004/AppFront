@@ -262,3 +262,23 @@ export function createStageRenderer(canvas: HTMLCanvasElement): StageRenderer {
     },
   };
 }
+
+/**
+ * three r186's module-level DFG LUT (DFGLUTData.js), read back from the first PBR material's uniforms.
+ * Each renderer that uploads it adds a `dispose` listener that is never removed, so the LUT holds every
+ * renderer, its canvas and the page around it. Disposing it (after renderer.dispose) drops those listeners;
+ * the next renderer simply uploads it again. Call before the materials are freed.
+ */
+export function dfgLut(renderer: WebGLRenderer, scene: Object3D): Texture | null {
+  let lut: Texture | null = null;
+  scene.traverse((node) => {
+    const material = (node as { material?: unknown }).material;
+    for (const m of Array.isArray(material) ? material : [material]) {
+      if (lut === null && m !== undefined && m !== null && typeof m === 'object') {
+        const uniforms = (renderer.properties.get(m) as { uniforms?: { dfgLUT?: { value?: Texture | null } } }).uniforms;
+        lut = uniforms?.dfgLUT?.value ?? null;
+      }
+    }
+  });
+  return lut;
+}

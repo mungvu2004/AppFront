@@ -26,6 +26,8 @@ vi.mock('@/lib/landing/stage', () => ({
 vi.mock('@/lib/landing/house', () => ({ LANDING_HOUSE: { checks: [] }, planSvg: () => '<svg></svg>' }));
 vi.mock('lenis', () => ({
   default: class {
+    scroll = 0;
+    isScrolling = false;
     on() {}
     off() {}
     raf() {}

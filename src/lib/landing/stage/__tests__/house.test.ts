@@ -67,6 +67,20 @@ describe('buildStageHouse', () => {
     expect(glass.opacity).toBeLessThan(0.1);
   });
 
+  it('drops the furniture on far exterior shots only, and reports each flip once', () => {
+    const roofed = { upperLiftM: 0, roof: 1, roofLiftM: 0, ceiling: 0 };
+    const outside = state(1, roofed);
+    const far = new Vector3(-13, 33, 107);
+    const pieces = [...h.furniture.values()].map((f) => f.object);
+    applyBuild(h, outside, new Vector3(-6, 1.7, -13));
+    expect(pieces.every((o) => o.visible)).toBe(true);
+    expect(applyBuild(h, outside, far)).toBe(true);
+    expect(pieces.some((o) => o.visible)).toBe(false);
+    expect(applyBuild(h, outside, far)).toBe(false);
+    expect(applyBuild(h, state(1, { ...roofed, cutaway: 1 }), far)).toBe(true);
+    expect(pieces.every((o) => o.visible)).toBe(true);
+  });
+
   it('gives each object its own patched clones', () => {
     const a = h.walls.get('W1')?.object as Mesh;
     const b = h.walls.get('W2')?.object as Mesh;

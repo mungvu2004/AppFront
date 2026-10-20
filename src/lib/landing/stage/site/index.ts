@@ -17,15 +17,20 @@
  */
 
 import {
+  Box3,
   Color,
+  Frustum,
   Group,
+  Matrix4,
   Mesh,
   MeshLambertMaterial,
   MeshStandardMaterial,
   RepeatWrapping,
+  Sphere,
   SRGBColorSpace,
   TextureLoader,
   type BufferGeometry,
+  type PerspectiveCamera,
   type Material,
   type Texture,
 } from 'three';
@@ -37,6 +42,8 @@ import type { LandingHouse, LandingState } from '../../types';
 import { NO_CLAMP_Y, createGrowthUniforms, growthDepthMaterial } from '../patch';
 import { TEX_BASE } from '../textures';
 import { inverseNeutral } from '../tone';
+
+import { AMBIENT_MIN_PX, radiusPx } from '../loop';
 
 import { M } from './geo';
 import { buildHardscape } from './ground';
@@ -58,8 +65,11 @@ export interface StageSite {
   readonly group: Group;
   /** Writes one frame; true when the shadow map must redraw (plants hidden or shown near `eye`). */
   apply(state: LandingState, eye?: { x: number; y: number; z: number }, target?: { x: number; y: number; z: number }): boolean;
-  /** Ripples + koi at `timeMs`; true when there is water to animate (the frame needs a redraw). */
-  ambient(timeMs: number): boolean;
+  /**
+   * Ripples + koi at `timeMs`; true when a shown pond is in `camera`'s frustum and at least AMBIENT_MIN_PX
+   * (radius) on a `heightPx`-tall viewport, so the frame needs a redraw. Nothing moves otherwise.
+   */
+  ambient(timeMs: number, camera?: PerspectiveCamera, heightPx?: number): boolean;
   /** Resolves when textures and models have landed or failed. */
   readonly ready: Promise<void>;
   dispose(): void;
@@ -130,6 +140,13 @@ export function createSite(house: LandingHouse, ctx: SiteContext): StageSite {
     add(`${pond.group.name}:liner`, pond.liner, mats.liner, [], false);
     group.add(pond.group);
   }
+  // Bounds once (the site never moves; the water's rise is small against the pond's width).
+  const pondSpheres = ponds.map((pond) => new Box3().setFromObject(pond.group).getBoundingSphere(new Sphere()));
+  const frustum = new Frustum();
+  const viewProj = new Matrix4();
+  const seen = (sphere: Sphere, camera: PerspectiveCamera, heightPx: number): boolean =>
+    frustum.intersectsSphere(sphere) &&
+    radiusPx(sphere.radius, sphere.center.distanceTo(camera.position), camera.fov, heightPx) >= AMBIENT_MIN_PX;
 
   const planting = buildPlanting(site.plants, grow);
   const items = buildItems(site.items, hard);
@@ -201,9 +218,20 @@ export function createSite(house: LandingHouse, ctx: SiteContext): StageSite {
       }
       return p > 0 && eye !== undefined && target !== undefined && planting.cull(eye, target);
     },
-    ambient(timeMs) {
-      time.value = timeMs / 1000;
-      return group.visible && ponds.some((pond) => pond.group.visible);
+    ambient(timeMs, camera, heightPx = 0) {
+      if (camera !== undefined) {
+        frustum.setFromProjectionMatrix(viewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+      }
+      let moving = false;
+      for (let i = 0; i < ponds.length && group.visible; i += 1) {
+        const sphere = pondSpheres[i];
+        moving ||=
+          ponds[i]?.group.visible === true && sphere !== undefined && (camera === undefined || seen(sphere, camera, heightPx));
+      }
+      if (moving) {
+        time.value = timeMs / 1000;
+      }
+      return moving;
     },
     dispose() {
       disposed = true;

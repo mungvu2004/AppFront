@@ -97,7 +97,7 @@ export interface StageHouse {
   /** Ground storey's room extent (scene x0, z0, x1, z1) and its ceiling height: the camera is inside under it. */
   readonly inside: readonly [number, number, number, number, number];
   /** Which glass look is on (null until the first frame): written only when it flips. */
-  readonly look: { exterior: boolean | null };
+  readonly look: { exterior: boolean | null; far: boolean };
 }
 
 /** Walls cut for the interior / cutaway read stop at this height above their foot. */
@@ -316,7 +316,7 @@ export function buildStageHouse(
     ceilings: ceilings.meshes,
     glows: glows.meshes,
     inside: [Math.min(...gx), Math.min(...gz), Math.max(...gx), Math.max(...gz), groundTop],
-    look: { exterior: null },
+    look: { exterior: null, far: false },
   };
 }
 

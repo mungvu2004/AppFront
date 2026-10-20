@@ -63,3 +63,29 @@ export function gpuMemory(renderer: WebGLRenderer, scene: Object3D & { environme
   const screen = (canvas.width * canvas.height * 4 * (4 + 1 + 1)) / MB; // 4× MSAA colour, resolve, depth
   return { textures: Math.round(textures), shadow: Math.round(shadow), screen: Math.round(screen), total: Math.round(textures + shadow + screen) };
 }
+
+/**
+ * Installs the three DEV hooks; returns their removal. A stage re-made on a fresh canvas (context loss) may
+ * already own them, so removal only deletes hooks that are still this stage's.
+ */
+export function installStageDev(
+  renderer: WebGLRenderer,
+  scene: Object3D & { environment?: Texture | null },
+  quality: () => Quality,
+  hooks: { view: NonNullable<Window['__landingStageView']>; tune: NonNullable<Window['__landingStageTune']> },
+): () => void {
+  const info = (): StageInfo => {
+    const { render, memory, programs } = renderer.info;
+    return { quality: quality(), render: { ...render }, memory: { ...memory }, gpuMB: gpuMemory(renderer, scene), programs: programs?.length ?? 0 };
+  };
+  window.__landingStageInfo = info;
+  window.__landingStageView = hooks.view;
+  window.__landingStageTune = hooks.tune;
+  return () => {
+    if (window.__landingStageInfo === info) {
+      delete window.__landingStageInfo;
+      delete window.__landingStageTune;
+      delete window.__landingStageView;
+    }
+  };
+}

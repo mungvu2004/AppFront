@@ -7,9 +7,11 @@
  * lights and — given the target the frame will draw into (the composer's
  * linear buffer, not the sRGB screen) — the same program keys; parallel
  * compile keeps it off the main thread. It skips the shadow pass and geometry
- * upload, so one unculled draw of everything follows, into the buffer the next
- * frame overwrites anyway. The caller re-applies its last state afterwards
- * (that draw turns every part visible).
+ * upload, so one unculled draw of every node (hidden ones shown for it, then
+ * hidden again) with a shadow-map pass follows, into the buffer the next frame
+ * overwrites anyway (FINDINGS §3: forcing only the house growers left ~500
+ * uploads and 160+ depth programs for the first S05 frames). The caller
+ * re-applies its last state afterwards.
  *
  * Needs a live renderer; exercised in the browser only (untested by design).
  */
@@ -22,7 +24,6 @@ export async function warmStage(
   scene: Scene,
   camera: Camera,
   target: () => WebGLRenderTarget | null,
-  parts: readonly Object3D[],
   stopped: () => boolean,
 ): Promise<boolean> {
   const textures = new Set<Texture>();
@@ -47,21 +48,30 @@ export async function warmStage(
   if (stopped()) {
     return false;
   }
-  for (const part of parts) {
-    part.visible = true;
-  }
   const culled: Object3D[] = [];
+  const hidden: Object3D[] = [];
   scene.traverse((node) => {
     if (node.frustumCulled) {
       node.frustumCulled = false;
       culled.push(node);
     }
   });
+  // traverseVisible would stop at a hidden parent: walk everything, showing as we go.
+  scene.traverse((node) => {
+    if (!node.visible) {
+      node.visible = true;
+      hidden.push(node);
+    }
+  });
+  renderer.shadowMap.needsUpdate = true;
   renderer.setRenderTarget(target());
   renderer.render(scene, camera);
   renderer.setRenderTarget(previous);
   for (const node of culled) {
     node.frustumCulled = true;
+  }
+  for (const node of hidden) {
+    node.visible = false;
   }
   return true;
 }
