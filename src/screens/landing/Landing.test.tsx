@@ -10,13 +10,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PUBLIC_ROUTE_PATTERNS, ROUTES } from '@/routes/paths';
 
 import { copyPhase } from './landing.copy';
+import { scrimAt } from './overlay';
 
 const reduced = vi.hoisted(() => ({ value: false }));
 
 vi.mock('@/hooks/useReducedMotion', () => ({ useReducedMotion: () => reduced.value }));
 vi.mock('@/lib/landing/timeline', () => ({
   SCENES: Array.from({ length: 9 }, (_, i) => ({ id: `s${i}`, start: i / 9, end: (i + 1) / 9, title: '' })),
-  stateAt: () => ({ p: 0, exports: 0, labels: {} }),
+  stateAt: () => ({ p: 0, exports: 0, labels: {}, scene: 0, camera: { position: [0, 20, 0] } }),
 }));
 vi.mock('@/lib/landing/stage', () => ({
   createStage: () => Promise.reject(new Error('NoWebGL2Error')),
@@ -93,5 +94,14 @@ describe('/welcome', () => {
     const { container } = renderRoute();
 
     await vi.waitFor(() => expect(container.querySelector('[data-mode="static"]')).not.toBeNull());
+  });
+});
+
+describe('scrimAt', () => {
+  const at = (h: number, scene: number) => scrimAt({ scene, camera: { position: [0, h, 0] } } as never);
+  it('đậm trong nhà, mất khi máy quay cao', () => {
+    expect(at(1.4, 5)).toBeCloseTo(0.68);
+    expect(at(2, 7)).toBeCloseTo(0.88);
+    expect(at(12, 7)).toBe(0);
   });
 });

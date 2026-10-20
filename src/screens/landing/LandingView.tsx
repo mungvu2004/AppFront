@@ -47,6 +47,7 @@ export function LandingView({
       >
         <div ref={refs.sticky} className="landing-sticky">
           <canvas ref={refs.canvas} className="landing-canvas" aria-hidden="true" />
+          <div className="landing-scrim" aria-hidden="true" />
           {loading && (
             <p className="landing-loading" role="status">
               Đang dựng bản vẽ

@@ -31,7 +31,7 @@ import type { QualitySettings } from './quality';
 /** Contact AO, in metres: about a skirting's height. */
 export const AO_RADIUS_M = 0.35;
 const AO_FALLOFF = 0.5;
-const AO_INTENSITY = 1.6;
+const AO_INTENSITY = 2.2;
 const AO_COLOUR = new Color(0x2a2724);
 
 export interface PostChain {

@@ -53,6 +53,11 @@ const PLASTER_TINT = tintFor('#ECE9E3', [0.34, 0.262, 0.188]);
 const OAK_TINT = tintFor('#C4AD94', [0.329, 0.217, 0.126]);
 const CONCRETE_TINT = new Color('#DEDDD8');
 const OAK_MIN_ROUGHNESS = 0.55;
+/** Oak on unit-UV faces (a 1 m tread, a 1.6 m table top): grain at a believable size. */
+const PIECE_OAK_REPEAT = 0.6;
+/** Linen: plaster's fine relief, tiled small and soft, reads as a weave on cushions and covers. */
+const WEAVE_REPEAT = 3;
+const WEAVE_STRENGTH = 0.35;
 
 /** A deterministic 0..1 from a string: per-room variation that is the same every load. */
 export function seedOf(id: string): number {
@@ -166,6 +171,35 @@ export async function applyPbr(house: StageHouse, rooms: readonly PlanRoom[]): P
         clone.needsUpdate = true;
       }
     });
+  }
+
+  // Box UVs run 0..1 per face (treads, table tops): one fixed repeat instead of metres.
+  const unit = (set: PbrSet): PbrSet =>
+    keep({ diff: set.diff.clone(), nor: set.nor.clone(), rough: set.rough.clone() });
+  const oakUnit = unit(oak);
+  const weave = unit(plaster);
+  for (const t of [oakUnit.diff, oakUnit.nor, oakUnit.rough]) {
+    t.repeat.setScalar(PIECE_OAK_REPEAT);
+  }
+  weave.nor.repeat.setScalar(WEAVE_REPEAT);
+  for (const clone of house.clonesOf.get(materials.wood) ?? []) {
+    if (clone instanceof MeshStandardMaterial) {
+      clone.map = oakUnit.diff;
+      clone.normalMap = oakUnit.nor;
+      clone.roughnessMap = oakUnit.rough;
+      clone.roughness = Math.max(clone.roughness, OAK_MIN_ROUGHNESS);
+      clone.color.copy(OAK_TINT);
+      clone.needsUpdate = true;
+    }
+  }
+  for (const role of [materials.fabric, materials.textile]) {
+    for (const clone of house.clonesOf.get(role) ?? []) {
+      if (clone instanceof MeshLambertMaterial) {
+        clone.normalMap = weave.nor;
+        clone.normalScale.setScalar(WEAVE_STRENGTH);
+        clone.needsUpdate = true;
+      }
+    }
   }
 
   const sources = [plaster, oak, concrete].flatMap((s) => [s.diff, s.nor, s.rough]);

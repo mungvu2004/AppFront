@@ -141,7 +141,7 @@ const ROOMS: readonly PlanRoom[] = [
   room('R2', 'T1', 'tile', rect(5000, 0, 12000, 5000)),
   room('R3', 'T1', 'wood', rect(0, 5000, 5000, 9000)),
   room('R4', 'T1', 'wood', rect(5000, 5000, 8000, 6500)),
-  room('R5', 'T1', 'mosaic', rect(5000, 6500, 8000, 9000)),
+  room('R5', 'T1', 'tile', rect(5000, 6500, 8000, 9000)),
   room('R6', 'T1', 'wood', rect(8000, 5000, 12000, 9000)),
   // R7 is notched: the stairwell (x 0-1200, y 0-4300) stays open above the flight.
   room('R7', 'T2', 'wood', [

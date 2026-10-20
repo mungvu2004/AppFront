@@ -33,7 +33,25 @@ export interface LandingScrollOptions {
   readonly onFallback: () => void;
   /** Gọi khi người dùng bấm "Bỏ qua": nhảy tới hết đoạn cuộn. */
   readonly skipRef: React.MutableRefObject<(() => void) | null>;
+  /** Quay lại bằng back/forward hoặc tải lại: trả người xem về chỗ đã cuộn. */
+  readonly restore: boolean;
 }
+
+const SCROLL_KEY = 'landing:scrollY';
+const store = (y: number): void => {
+  try {
+    sessionStorage.setItem(SCROLL_KEY, String(y));
+  } catch {
+    /* chế độ riêng tư: bỏ qua, chỉ mất khôi phục cuộn */
+  }
+};
+const saved = (): number => {
+  try {
+    return Number(sessionStorage.getItem(SCROLL_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+};
 
 declare global {
   interface Window {
@@ -80,6 +98,12 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
     let governor: FrameGovernor | null = null;
     let lastDraw = 0;
 
+    // Ghi lúc rời (bấm liên kết, đóng/tải lại trang) chứ không theo từng nhịp cuộn:
+    // khi route đổi, trang bị đưa về 0 trước khi ta kịp gỡ và sẽ ghi đè mất chỗ cũ.
+    const leave = (): void => store(Math.round(window.scrollY));
+    document.addEventListener('click', leave, true);
+    window.addEventListener('pagehide', leave);
+    const back = optsRef.current.restore ? saved() : 0; // đọc trước: onUpdate đầu sẽ ghi đè bằng 0
     const trigger = ScrollTrigger.create({
       trigger: trackEl,
       start: 'top top',
@@ -90,6 +114,13 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
         dirty = true;
       },
     });
+    // Route lazy: đoạn cuộn mới có chiều cao sau lần dựng đầu, nên tự khôi phục thay trình duyệt.
+    if (back > 0) {
+      requestAnimationFrame(() => {
+        ScrollTrigger.refresh();
+        lenis.scrollTo(back, { immediate: true, force: true });
+      });
+    }
 
     const draw = (): void => {
       if (!dirty) return;
@@ -184,6 +215,8 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
     return () => {
       disposed = true;
       cancelAnimationFrame(first);
+      document.removeEventListener('click', leave, true);
+      window.removeEventListener('pagehide', leave);
       observer.disconnect();
       gsap.ticker.remove(draw);
       gsap.ticker.remove(tick);

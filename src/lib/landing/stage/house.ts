@@ -26,11 +26,26 @@ import {
 } from 'three';
 
 import { readPartData } from '@/lib/three/build/scene';
-import { assembleHouse, createMaterials, planPoint, type SceneMaterials, type ScenePalette } from '@/lib/three/present';
+import {
+  assembleHouse,
+  createMaterials,
+  planPoint,
+  type AssetService,
+  type PieceSource,
+  type SceneMaterials,
+  type ScenePalette,
+} from '@/lib/three/present';
 
 import type { LandingHouse, LandingState } from '../types';
 
-import { NO_CLAMP_Y, createGrowthUniforms, growthDepthMaterial, patchGrowth, type GrowthUniforms } from './patch';
+import {
+  NO_CLAMP_Y,
+  createGrowthUniforms,
+  growthDepthMaterial,
+  growthOf,
+  patchGrowth,
+  type GrowthUniforms,
+} from './patch';
 
 /** One part that grows, fades or turns from drawn to built. */
 export interface Grower {
@@ -41,6 +56,10 @@ export interface Grower {
   readonly baseY: number;
   readonly heightM: number;
   readonly upper: boolean;
+  /** Scene y of the part's storey floor (before any lift): joinery's cutaway is measured from it. */
+  readonly floorY: number;
+  /** Patch meshes added since (a `.glb` swapped in for a procedural piece) into the same uniforms. */
+  readonly refresh: () => void;
 }
 
 export interface StageHouse {
@@ -52,6 +71,10 @@ export interface StageHouse {
   readonly floors: readonly Grower[];
   readonly joinery: readonly Grower[];
   readonly stair: Grower;
+  /** The door the compliance scene fails (C4's D5): its leaf fades so the clear opening reads. */
+  readonly failedDoorId: string | null;
+  /** Furniture whose `.glb` may still arrive; resolves when each piece is final. */
+  readonly pieces: readonly { readonly id: string; readonly ready: Promise<PieceSource> }[];
   readonly materials: SceneMaterials;
   /** Original material → every clone made of it, for `textures.ts`. */
   readonly clonesOf: ReadonlyMap<Material, readonly Material[]>;
@@ -121,8 +144,13 @@ interface Patcher {
   readonly materials: SceneMaterials;
 }
 
-/** Give every mesh under `object` growth clones that share one uniform set. */
-function grow(patcher: Patcher, id: string, object: Object3D, upper: boolean, fade: boolean): Grower {
+/**
+ * Give every mesh under `object` growth clones that share one uniform set.
+ * present's materials use vertex colours (baked AO); a mesh without a colour
+ * attribute (the stair, a `.glb`) would read them as black, so it gets a clone
+ * with vertex colours off.
+ */
+function grow(patcher: Patcher, id: string, object: Object3D, upper: boolean, fade: boolean, floorY: number): Grower {
   object.updateMatrixWorld(true);
   box.setFromObject(object);
   const baseY = box.isEmpty() ? 0 : box.min.y;
@@ -131,15 +159,24 @@ function grow(patcher: Patcher, id: string, object: Object3D, upper: boolean, fa
   const depth: MeshDepthMaterial = growthDepthMaterial(uniforms);
   patcher.owned.push(depth);
   const cache = new Map<Material, Material>();
+  const plainCache = new Map<Material, Material>();
 
-  const cloneOf = (original: Material): Material => {
-    const hit = cache.get(original);
+  const cloneOf = (original: Material, coloured: boolean): Material => {
+    if (growthOf(original) !== null) {
+      return original;
+    }
+    const plain = !coloured && original.vertexColors;
+    const hits = plain ? plainCache : cache;
+    const hit = hits.get(original);
     if (hit !== undefined) {
       return hit;
     }
     const base = original === patcher.materials.glass ? patcher.glass : original;
     const clone = patchGrowth(base, { baseY, uniforms, fade: fade || base.transparent });
-    cache.set(original, clone);
+    if (plain) {
+      clone.vertexColors = false;
+    }
+    hits.set(original, clone);
     patcher.owned.push(clone);
     const list = patcher.clonesOf.get(original) ?? [];
     list.push(clone);
@@ -147,19 +184,23 @@ function grow(patcher: Patcher, id: string, object: Object3D, upper: boolean, fa
     return clone;
   };
 
-  object.traverse((child) => {
-    if (!(child instanceof Mesh)) {
-      return;
-    }
-    const material = child.material as Material | Material[];
-    child.material = Array.isArray(material) ? material.map(cloneOf) : cloneOf(material);
-    const glazed = (Array.isArray(material) ? material : [material]).includes(patcher.materials.glass);
-    child.castShadow = !glazed;
-    child.receiveShadow = true;
-    child.customDepthMaterial = depth;
-  });
+  const refresh = (): void => {
+    object.traverse((child) => {
+      if (!(child instanceof Mesh)) {
+        return;
+      }
+      const material = child.material as Material | Material[];
+      const coloured = (child.geometry as Mesh['geometry']).getAttribute('color') !== undefined;
+      child.material = Array.isArray(material) ? material.map((m) => cloneOf(m, coloured)) : cloneOf(material, coloured);
+      const glazed = (Array.isArray(material) ? material : [material]).includes(patcher.materials.glass);
+      child.castShadow = !glazed;
+      child.receiveShadow = true;
+      child.customDepthMaterial = depth;
+    });
+  };
+  refresh();
 
-  return { id, object, uniforms, baseY, heightM, upper };
+  return { id, object, uniforms, baseY, heightM, upper, floorY, refresh };
 }
 
 /**
@@ -171,10 +212,11 @@ export function buildStageHouse(
   house: LandingHouse,
   makeStair: (materials: SceneMaterials) => Group,
   palette: ScenePalette,
+  models: { readonly assets?: AssetService; readonly signal?: AbortSignal } = {},
 ): StageHouse {
   const materials = createMaterials(palette);
   const stair = makeStair(materials);
-  const assembled = assembleHouse(house.plan, palette, materials, { batch: false });
+  const assembled = assembleHouse(house.plan, palette, materials, { batch: false, ...models });
   const root = assembled.house;
   const levels = [...house.plan.levels].sort((a, b) => a.elevationMm - b.elevationMm);
   const upperId = levels[1]?.id;
@@ -193,7 +235,10 @@ export function buildStageHouse(
     }
   }
   // A piece lifts with its storey; storey groups sit at identity, so moving it keeps its place.
+  // present stands every piece on y = 0 (its houses have one storey): raise it to its floor,
+  // or the upper rooms' furniture stands inside the ground floor, below its own slab.
   for (const piece of furnitureGroups) {
+    piece.object.position.y += (levels.find((l) => l.id === piece.levelId)?.elevationMm ?? 0) / 1000;
     storeys.get(piece.levelId)?.add(piece.object);
   }
   const groundStorey = storeys.get(levels[0]?.id ?? '') ?? root;
@@ -207,32 +252,36 @@ export function buildStageHouse(
   for (const storey of storeys.values()) {
     metalWindowFrames(storey, house, materials.paint, frameMetal);
   }
+  const floorOf = (levelId: string): number =>
+    (house.plan.levels.find((l) => l.id === levelId)?.elevationMm ?? 0) / 1000;
   const walls = new Map<string, Grower>();
   const floors: Grower[] = [];
   const joinery: Grower[] = [];
 
   for (const [levelId, storey] of storeys) {
     const upper = levelId === upperId;
+    const floorY = floorOf(levelId);
     for (const child of [...storey.children]) {
       if (child === stair || furnitureGroups.some((piece) => piece.object === child)) {
         continue;
       }
       const part = readPartData(child);
       if (part?.kind === 'wall') {
-        walls.set(part.entityId, grow(patcher, part.entityId, child, upper, false));
+        walls.set(part.entityId, grow(patcher, part.entityId, child, upper, false, floorY));
       } else if (part?.kind === 'floorSlab') {
-        floors.push(grow(patcher, part.entityId, child, upper, false));
+        floors.push(grow(patcher, part.entityId, child, upper, false, floorY));
       } else {
-        joinery.push(grow(patcher, part?.entityId ?? child.uuid, child, upper, true));
+        joinery.push(grow(patcher, part?.entityId ?? child.uuid, child, upper, true, floorY));
       }
     }
   }
 
   const furniture = new Map<string, Grower>();
   for (const piece of furnitureGroups) {
-    furniture.set(piece.id, grow(patcher, piece.id, piece.object, piece.levelId === upperId, false));
+    furniture.set(piece.id, grow(patcher, piece.id, piece.object, piece.levelId === upperId, false, floorOf(piece.levelId)));
   }
-  const stairGrower = grow(patcher, house.stair.id, stair, house.stair.levelId === upperId, false);
+  const stairGrower = grow(patcher, house.stair.id, stair, house.stair.levelId === upperId, false, floorOf(house.stair.levelId));
+  const doors = new Set(house.plan.openings.filter((o) => o.kind === 'door').map((o) => o.id));
 
   return {
     root,
@@ -242,6 +291,8 @@ export function buildStageHouse(
     floors,
     joinery,
     stair: stairGrower,
+    failedDoorId: house.checks.find((c) => !c.pass && doors.has(c.targetId))?.targetId ?? null,
+    pieces: assembled.pieces.map((piece) => ({ id: readPartData(piece.group)?.entityId ?? '', ready: piece.ready })),
     materials,
     clonesOf: patcher.clonesOf,
     owned: patcher.owned,
@@ -278,10 +329,15 @@ export function applyBuild(h: StageHouse, s: LandingState): void {
   }
   rise(h.stair, build.stair, build.material, liftOf(h.stair));
 
+  const storeyM = h.walls.get('W1')?.heightM ?? 3;
+  const doorFade = 1 - s.compliance.bathDoor;
   for (const part of h.joinery) {
-    part.object.visible = build.joinery > SHOWN;
-    part.uniforms.uRiseY.value = NO_CLAMP_Y;
-    part.uniforms.uOpacity.value = build.joinery;
+    const opacity = part.id === h.failedDoorId ? build.joinery * doorFade : build.joinery;
+    part.object.visible = opacity > SHOWN;
+    // Frames and leaves are cut with the walls, or a window frame floats above a 1.2 m wall.
+    part.uniforms.uRiseY.value =
+      build.cutaway > SHOWN ? part.floorY + liftOf(part) + storeyM + (CUTAWAY_HEIGHT_M - storeyM) * build.cutaway : NO_CLAMP_Y;
+    part.uniforms.uOpacity.value = opacity;
     // Negative drop = raised: it settles into place as joinery reaches 1.
     part.uniforms.uDrop.value = -JOINERY_DROP_M * (1 - build.joinery);
     part.uniforms.uMat.value = build.material;

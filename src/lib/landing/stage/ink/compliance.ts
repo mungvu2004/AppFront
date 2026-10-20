@@ -162,8 +162,8 @@ export function createCompliance(house: LandingHouse): Compliance {
 
   const doorStrokesList = doorCheck ? doorStrokes(house, doorCheck.targetId, anchors, doorCheck.id) : [];
   return {
-    door: doorStrokesList.length > 0 ? new RevealLine('check:door', doorStrokesList, lineMaterial(CORAL, 2.6)) : null,
-    stair: new RevealLine('check:stair', stairStrokes(house, anchors, stairCheck?.id ?? null), lineMaterial(CORAL, 2.4)),
+    door: doorStrokesList.length > 0 ? new RevealLine('check:door', doorStrokesList, lineMaterial(CORAL, 4)) : null,
+    stair: new RevealLine('check:stair', stairStrokes(house, anchors, stairCheck?.id ?? null), lineMaterial(CORAL, 3.6)),
     passes: staticLine('check:passes', ticks, lineMaterial(JADE, 1.6)),
     anchors,
   };

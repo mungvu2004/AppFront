@@ -119,8 +119,8 @@ export function createPoche(plan: PresentationPlan): Poche {
     // triangle fails, so overlaps never darken; the offset keeps the ink lines on top.
     depthFunc: LessDepth,
     polygonOffset: true,
-    polygonOffsetFactor: 1,
-    polygonOffsetUnits: 1,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
   });
   material.side = DoubleSide; // the welded outlines wind either way
   const mesh = new Mesh(geometry, material);

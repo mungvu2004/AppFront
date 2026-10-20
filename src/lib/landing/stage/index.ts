@@ -16,7 +16,13 @@
 import { MathUtils, Vector3 } from 'three';
 
 import { buildStair } from '@/lib/landing/house';
-import { disposeMaterials, readPalette, type ScenePalette } from '@/lib/three/present';
+import {
+  createAssetService,
+  disposeMaterials,
+  readPalette,
+  type AssetService,
+  type ScenePalette,
+} from '@/lib/three/present';
 
 import { LANDING_PALETTE } from '../palette';
 import type { LandingHouse, LandingState } from '../types';
@@ -76,17 +82,34 @@ export function landingScenePalette(base: ScenePalette = readPalette(() => '')):
   return out as ScenePalette;
 }
 
+/** Where `pnpm draco` puts three's Draco decoder (public/draco, gitignored), as AuthScreen's houseScene. */
+export const DRACO_DECODER_PATH = '/draco/';
+/** Depth range from the camera's distance to its target: near ≈ dist / 200 keeps the drawing's layers apart. */
+const NEAR_PER_DIST = 1 / 200;
+const NEAR_MIN = 0.02;
+const FAR_PER_DIST = 4;
+/** Far never closer than this past the target: an interior shot still sees the whole house. */
+const FAR_MIN = 40;
+
 export async function createStage(
   canvas: HTMLCanvasElement,
   house: LandingHouse,
-  opts: { quality: Quality },
+  opts: {
+    quality: Quality;
+    /** CC0 `.glb` furniture (public/models). Default: present's service with the Draco decoder; the stage frees its own. */
+    assets?: AssetService;
+  },
 ): Promise<Stage> {
   const gl = createStageRenderer(canvas);
   const { renderer, scene, camera } = gl;
+  const ownAssets = opts.assets === undefined ? createAssetService({ dracoDecoderPath: DRACO_DECODER_PATH }) : null;
+  const assets = opts.assets ?? ownAssets;
+  const models = new AbortController();
   const stage = buildStageHouse(
     house,
     (materials) => buildStair(house.stair, materials.wood),
     landingScenePalette(readPalette()),
+    assets === null ? { signal: models.signal } : { assets, signal: models.signal },
   );
   scene.add(stage.root);
   const ink = createInk(house);
@@ -104,6 +127,17 @@ export async function createStage(
   let dpr = 1;
   const lostCallbacks: (() => void)[] = [];
   const lifted = new Vector3();
+  const target = new Vector3();
+
+  // A `.glb` swapped in for a procedural piece gets the piece's growth clones, then one redraw.
+  for (const piece of stage.pieces) {
+    void piece.ready.then((source) => {
+      if (source === 'model' && !disposed) {
+        stage.furniture.get(piece.id)?.refresh();
+        dirty = true;
+      }
+    });
+  }
 
   const configure = (): void => {
     const settings = QUALITY[quality];
@@ -153,10 +187,16 @@ export async function createStage(
     apply(s) {
       const c = s.camera;
       camera.position.set(c.position[0], c.position[1], c.position[2]);
-      camera.lookAt(c.target[0], c.target[1], c.target[2]);
+      target.set(c.target[0], c.target[1], c.target[2]);
+      camera.lookAt(target);
       camera.rotateZ(MathUtils.degToRad(c.rollDeg));
-      if (camera.fov !== c.fovDeg) {
+      const dist = camera.position.distanceTo(target);
+      const near = Math.max(NEAR_MIN, dist * NEAR_PER_DIST);
+      const far = Math.max(dist * FAR_PER_DIST, dist + FAR_MIN);
+      if (camera.fov !== c.fovDeg || camera.near !== near || camera.far !== far) {
         camera.fov = c.fovDeg;
+        camera.near = near;
+        camera.far = far;
         camera.updateProjectionMatrix();
       }
       camera.updateMatrixWorld();
@@ -217,6 +257,7 @@ export async function createStage(
     },
     dispose() {
       disposed = true;
+      models.abort();
       canvas.removeEventListener('webglcontextlost', onLost);
       canvas.removeEventListener('webglcontextrestored', onRestored);
       lostCallbacks.length = 0;
@@ -225,6 +266,7 @@ export async function createStage(
       post?.dispose();
       disposeStageHouse(stage, disposeMaterials);
       scene.remove(stage.root);
+      ownAssets?.dispose();
       gl.dispose();
     },
   };

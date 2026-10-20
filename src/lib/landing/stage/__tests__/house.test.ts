@@ -29,6 +29,7 @@ const state = (rise: number, extra: Partial<LandingState['build']> = {}): Landin
       cutaway: 0,
       ...extra,
     },
+    compliance: { bathDoor: 0, stair: 0, passMarks: 0 },
   }) as unknown as LandingState;
 
 const materialsIn = (h: ReturnType<typeof build>): Set<Material> => {
@@ -76,6 +77,20 @@ describe('buildStageHouse', () => {
     const after = materialsIn(h);
     expect(after.size).toBe(before.size);
     for (const m of after) expect(before.has(m)).toBe(true);
+  });
+});
+
+describe('build fixes', () => {
+  const h = build();
+
+  it('stands upper furniture on its own floor, cuts joinery with the walls, fades the failed door', () => {
+    expect(h.furniture.get('F10')?.baseY).toBeGreaterThan(2.9);
+    expect(h.failedDoorId).toBe('D5');
+    const leaf = h.joinery.find((j) => j.id === 'D5');
+    applyBuild(h, { ...state(1, { cutaway: 1 }), compliance: { bathDoor: 1, stair: 0, passMarks: 0 } } as LandingState);
+    expect(leaf?.object.visible).toBe(false);
+    const frame = h.joinery.find((j) => !j.upper && j.id !== 'D5');
+    expect(frame?.uniforms.uRiseY.value).toBeCloseTo(CUTAWAY_HEIGHT_M);
   });
 });
 

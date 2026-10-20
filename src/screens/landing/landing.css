@@ -64,5 +64,12 @@
 .landing-step-title { margin: 0 0 0.25rem; font-size: 1.125rem; }
 .landing-steps p { margin: 0; line-height: 1.5; }
 @media (max-width: 1100px) {
-  .landing-scene { width: min(30rem, 62vw); padding: 1rem 1.25rem 1.25rem 0; background: color-mix(in srgb, var(--l-paper) 80%, transparent); }
+  .landing-scene { width: 38vw; }
+}
+/* Lớp giấy mờ sau cột chữ: chỉ hiện khi máy quay ở trong nhà (overlay.ts ghi --l-scrim). */
+.landing-scrim { position: absolute; inset: 0 auto 0 0; width: 60vw; opacity: var(--l-scrim, 0); pointer-events: none; background: linear-gradient(to right, var(--l-paper) 0%, color-mix(in srgb, var(--l-paper) 90%, transparent) 50%, transparent 100%); }
+/* Dọc (tablet đứng): chữ ở ~30% trên cùng, lớp giấy mờ chạy từ trên xuống. */
+@media (max-aspect-ratio: 1/1) {
+  .landing-scene { top: calc(var(--l-gutter) + 40px); translate: none; width: calc(100% - 2 * var(--l-gutter)); }
+  .landing-scrim { inset: 0 0 auto 0; width: auto; height: 42%; background: linear-gradient(to bottom, var(--l-paper) 0%, color-mix(in srgb, var(--l-paper) 88%, transparent) 55%, transparent 100%); }
 }

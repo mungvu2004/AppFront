@@ -26,6 +26,13 @@ function setPhase(el: HTMLElement, opacity: number, y: number): void {
   el.style.transform = `translate3d(0, ${y}px, 0)`;
 }
 
+/** Độ đậm lớp giấy mờ: theo độ cao máy quay (trong nhà thấp, ngoài nhà cao); S08 đậm hơn vì gần vật nhất. */
+export function scrimAt(state: Pick<LandingState, 'camera' | 'scene'>): number {
+  const h = state.camera.position[1];
+  const inside = 1 - Math.min(1, Math.max(0, (h - 6) / 3));
+  return inside * (state.scene === 7 ? 0.88 : 0.68);
+}
+
 export interface Overlay {
   update(state: LandingState, project: Projector | null): void;
 }
@@ -36,10 +43,12 @@ export function createOverlay(root: HTMLElement, scenes: readonly SceneSpan[]): 
   const exportItems = Array.from(root.querySelectorAll<HTMLElement>('[data-export]'));
   const labels = Array.from(root.querySelectorAll<HTMLElement>('[data-label]'));
   const last = scenes.length - 1;
+  const scrim = root.querySelector<HTMLElement>('.landing-scrim');
 
   return {
     update(state, project) {
       const { p } = state;
+      scrim?.style.setProperty('--l-scrim', String(scrimAt(state)));
 
       sections.forEach((section, i) => {
         const index = Number(section.dataset.scene);

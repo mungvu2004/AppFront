@@ -4,6 +4,10 @@
  * `facing` is where the piece's front points; north is +y. Pieces against a wall
  * sit with their back to it, and nothing stands inside a door's swing square on
  * either side of a door (the tests check both).
+ *
+ * Pieces with a CC0 `.glb` in public/models (`node scripts/fetch-models.mjs`,
+ * gitignored) name it as `modelUrl`; present places the procedural piece first
+ * and swaps the model in when it arrives, so a missing file is not a hole.
  */
 
 import type { PlanFurniture } from '@/lib/three/present';
@@ -18,6 +22,8 @@ const GROUND: readonly Entry[] = [
   ['F3', 'sofa', 2300, 3800, 2200, 900, 800, 'east'],
   ['X-LIV-TV', 'tv', 4740, 3800, 1100, 400, 1500, 'west'],
   ['X-LIV-COFFEE', 'table', 3500, 3800, 1100, 600, 420, 'east'],
+  ['X-LIV-VASE', 'vase', 3500, 3550, 180, 180, 300, 'east'],
+  ['X-LIV-ARM', 'armchair', 3500, 2350, 800, 800, 800, 'south'],
   ['X-LIV-RUG', 'rug', 3300, 3800, 2400, 1700, 10, 'east'],
   ['X-LIV-PLANT', 'plant', 4600, 4650, 450, 450, 1200, 'north'],
   // Bếp + ăn R2.
@@ -62,15 +68,35 @@ const UPPER: readonly Entry[] = [
   ['X-OFF-PLANT', 'plant', 7500, 500, 450, 450, 1200, 'north'],
 ];
 
-const toPlan = (level: string) => (e: Entry): PlanFurniture => ({
-  id: e[0],
-  levelId: level,
-  variant: e[1],
-  centreMm: [e[2], e[3]],
-  sizeMm: [e[4], e[5], e[6]],
-  facing: e[7],
-  ...(e[1] === 'tableLamp' ? { liftMm: 500 } : {}),
-});
+/**
+ * variant → model; the living room's low table is the only `table` with one (dining and desk stay drawn).
+ * sofa.glb / armchair.glb are tufted period pieces that fight the contemporary rooms: those stay drawn.
+ */
+const MODELS: Readonly<Record<string, string>> = {
+  chair: 'dining-chair',
+  plant: 'plant',
+  shelves: 'shelf',
+  nightstand: 'side-table',
+  vase: 'vase',
+  'X-LIV-COFFEE': 'coffee-table',
+};
+/** Pieces standing on another piece: the vase on the coffee table (420 mm). */
+const LIFT: Readonly<Record<string, number>> = { 'X-LIV-VASE': 420 };
+
+const toPlan = (level: string) => (e: Entry): PlanFurniture => {
+  const model = MODELS[e[0]] ?? (e[1] === 'table' ? undefined : MODELS[e[1]]);
+  const lift = LIFT[e[0]];
+  return {
+    id: e[0],
+    levelId: level,
+    variant: e[1],
+    centreMm: [e[2], e[3]],
+    sizeMm: [e[4], e[5], e[6]],
+    facing: e[7],
+    ...(lift === undefined ? {} : { liftMm: lift }),
+    ...(model === undefined ? {} : { modelUrl: `/models/${model}.glb` }),
+  };
+};
 
 export const LANDING_FURNITURE: readonly PlanFurniture[] = [
   ...GROUND.map(toPlan('T1')),

@@ -179,18 +179,19 @@ function build(o: Live): gsap.core.Timeline {
   // S07 — out and up; cutaway; the upper storey comes down to a slight lift that keeps the
   // stair and the floor it reaches readable (S07) and leaves headroom over the cut walls (S08).
   tw(b, { upperLiftM: 1.2 }, 0.7, 0.728, 'power3.inOut');
-  // S08 — lifted a little more for the pull-back that shows both failures.
-  tw(b, { upperLiftM: 2.6 }, 0.85, 0.868, 'power2.inOut');
   tw(b, { cutaway: 1 }, 0.704, 0.728, 'power2.inOut');
   label('stair', 0.726, 0.734, 0.772, 0.782);
   label('room:R7', 0.73, 0.738, 0.766, 0.776);
   label('room:R8', 0.734, 0.742, 0.766, 0.776);
+  // S08 — lifted a little more so eye-level shots under it see the ground floor and the pull-back
+  // shows both failures.
+  tw(b, { upperLiftM: 2.6 }, 0.764, 0.79, 'power2.inOut');
   // S08 — bathroom door, then the stair, then the passes.
   tw(c, { bathDoor: 1 }, 0.798, 0.814, 'power2.out');
-  tw(c, { stair: 1 }, 0.826, 0.842, 'power2.out');
+  tw(c, { stair: 1 }, 0.826, 0.84, 'power2.out');
   tw(c, { passMarks: 1 }, 0.848, 0.866, 'power2.out');
   label('check:C4', 0.806, 0.814, 0.876, 0.888);
-  label('check:C7', 0.838, 0.846, 0.876, 0.888);
+  label('check:C7', 0.834, 0.842, 0.876, 0.888);
   // S09 — diagnostics recede to small indicators, walls close, exports align.
   tw(c, { bathDoor: 0, stair: 0, passMarks: 0 }, 0.886, 0.93, 'sine.inOut');
   tw(misc, { semantic: 0.15 }, 0.888, 0.94, 'sine.inOut');

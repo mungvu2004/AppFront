@@ -61,17 +61,17 @@ const CATCHER_SIZE = 80;
 /** Just under the ground slab's top, so walls meet their shadow with no gap. */
 const CATCHER_Y = -0.001;
 /** How dark a full sun shadow is on the paper (warm graphite, not black). */
-const CATCHER_OPACITY = 0.3;
+const CATCHER_OPACITY = 0.42;
 const CATCHER_COLOUR = 0x2a2620;
 /** Same exposure for every frame of the journey (Prompt 4). */
 export const EXPOSURE = 1;
-const SUN_INTENSITY = 2.1;
-const SUN_OFFSET = { x: -7, y: 14, z: -10 } as const;
+const SUN_INTENSITY = 2.6;
+const SUN_OFFSET = { x: -8, y: 12, z: -10 } as const;
 /** Half-extent of the shadow camera: covers the house and its cast shadow, no more. */
 const SHADOW_HALF = 10;
 const SHADOW_RADIUS = 5;
-const HEMI_INTENSITY = 0.7;
-const ENV_INTENSITY = 0.7;
+const HEMI_INTENSITY = 0.5;
+const ENV_INTENSITY = 0.55;
 const FOV = 35;
 
 export interface StageRenderer {

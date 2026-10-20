@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
+import { useNavigationType } from 'react-router-dom';
 
 import { ScreenErrorBoundary } from '@/components/feedback/ScreenErrorBoundary';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -29,6 +30,7 @@ function LandingContent() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const skipRef = useRef<(() => void) | null>(null);
   const pinned = !reduced && !failed;
+  const restore = useNavigationType() === 'POP';
 
   useLandingScroll({
     enabled: pinned,
@@ -36,6 +38,7 @@ function LandingContent() {
     stickyRoot: sticky,
     canvas,
     skipRef,
+    restore,
     onReady: setHouse,
     onFallback: useCallback(() => setFailed(true), []),
   });
