@@ -151,6 +151,13 @@ export interface PascalWallNode extends PascalNodeCommon {
   readonly end: PascalPoint2;
   readonly thickness: number;
   readonly height: number;
+  /**
+   * Mặt trước (phía pháp tuyến `perp(end - start)`) / mặt sau quay vào nhà hay ra ngoài
+   * (`wall.ts:301`, mặc định `unknown`). Quyết định mặt nào nhận khe `exterior`
+   * (`wall-system.tsx` `getWallFaceMaterialIndex`) và bức nào `cutaway` được ẩn.
+   */
+  readonly frontSide?: 'interior' | 'exterior';
+  readonly backSide?: 'interior' | 'exterior';
   /** Vật liệu từng mặt (`interior`/`exterior`), tham chiếu `scene:`/`library:` — `sceneDressing.ts`. */
   readonly slots?: Readonly<Record<string, string>>;
   readonly skirting?: PascalWallTrim;

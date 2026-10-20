@@ -15,7 +15,7 @@ import { millimetres, millimetresToMetres } from '@/domain/units/types';
 
 import { CATALOG_MODELS, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { bodyOfPascalId, toPascalId } from './ids';
-import { SCENE_PALETTE } from './scenePalette';
+import { RENDER_LOOK_PALETTE, SCENE_PALETTE } from './scenePalette';
 import { sceneStyleOf, type SceneStyle, type SlotFamily } from './sceneStyles';
 import type {
   PascalCeilingNode,
@@ -43,6 +43,23 @@ const flat = (id: PascalSceneMaterial['id'], name: string, color: string, roughn
 export const SCENE_MATERIALS: readonly PascalSceneMaterial[] = [
   flat('mat_appfront_plaster', 'Trần vữa', SCENE_PALETTE.plaster, 0.9),
   flat('mat_appfront_bark', 'Thân cây', SCENE_PALETTE.bark, 0.9),
+  // Kính cửa sổ: đục 0,6 = ngưỡng kính của Pascal (`viewer/src/lib/materials.ts` GLASS_OPACITY_THRESHOLD),
+  // không bị phủ fresnel phản chiếu môi trường tối của `night` → ô kính sáng như nhà trang đăng nhập.
+  {
+    id: 'mat_appfront_glass',
+    name: 'Kính cửa sổ',
+    material: {
+      preset: 'custom',
+      properties: {
+        color: RENDER_LOOK_PALETTE.clayGlazing,
+        roughness: 0.05,
+        metalness: 0,
+        opacity: 0.6,
+        transparent: true,
+        side: 'front',
+      },
+    },
+  },
 ];
 
 const GLASS = 'library:preset-glass';

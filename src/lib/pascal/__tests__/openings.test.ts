@@ -6,7 +6,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
+import { outlineContains } from '@/domain/rooms/area';
 import type { Opening, Room, SwingDirection, Wall } from '@/domain/spatial/types';
+import { toPointMm } from '@/lib/commands/business/shared';
 
 import { fixtureF2 } from '../__fixtures__';
 import { toPascalId } from '../ids';
@@ -51,7 +53,7 @@ describe('ô mở → Pascal (T11)', () => {
     const node = nodes[toPascalId(kind, opening.id)];
     expect(node?.type).toBe(kind);
     expect(pick(node, kind === 'door' ? DOOR_KEYS : WINDOW_KEYS)).toEqual(kind === 'door' ? DOOR[swing] : WINDOW[swing]);
-    if (kind === 'window') expect((node as { slots?: unknown }).slots).toEqual({ frame: 'library:preset-white', glass: 'library:preset-glass' });
+    if (kind === 'window') expect((node as { slots?: unknown }).slots).toEqual({ frame: 'library:preset-white', glass: 'scene:mat_appfront_glass' });
   });
 });
 
@@ -88,5 +90,39 @@ describe('chiều mở cánh theo phòng hai bên (V5 D7)', () => {
   it('phòng tầng khác hoặc không có phòng → giữ inward', () => {
     expect(swingDirectionOf(door, wall, [])).toBe('inward');
     expect(swingDirectionOf(door, wall, [{ ...south('bedroom', 16), levelId: 'L-2' } as unknown as Room])).toBe('inward');
+  });
+});
+
+describe('mặt trong/ngoài của tường (cutaway + sơn ngoài đúng mặt)', () => {
+  // Đối chiếu bằng hàm chứa-điểm của domain, độc lập với `insideOutline` của toPascal.
+  const insideRoom = (wall: Wall, sign: number): boolean => {
+    const { start, end } = wall.centreline;
+    const len = Math.hypot(end.x - start.x, end.y - start.y);
+    const reach = (wall.thicknessMm / 2 + 80) * sign;
+    const p = {
+      x: (start.x + end.x) / 2 - ((end.y - start.y) / len) * reach,
+      y: (start.y + end.y) / 2 + ((end.x - start.x) / len) * reach,
+    };
+    return graph.rooms.some(
+      (r) => r.levelId === wall.levelId && r.finish !== 'decking' && outlineContains(r.outline.map(toPointMm), toPointMm(p)),
+    );
+  };
+
+  it('tường bao: phía có phòng là interior, phía kia exterior; vách giữa hai phòng để trống', () => {
+    let sided = 0;
+    for (const wall of graph.walls) {
+      const node = nodes[toPascalId('wall', wall.id)] as { frontSide?: string; backSide?: string } | undefined;
+      if (node === undefined) continue;
+      const front = insideRoom(wall, 1);
+      const back = insideRoom(wall, -1);
+      if (front === back) {
+        expect(node.frontSide, wall.id).toBeUndefined();
+        expect(node.backSide, wall.id).toBeUndefined();
+        continue;
+      }
+      sided++;
+      expect([node.frontSide, node.backSide], wall.id).toEqual(front ? ['interior', 'exterior'] : ['exterior', 'interior']);
+    }
+    expect(sided).toBeGreaterThan(0);
   });
 });

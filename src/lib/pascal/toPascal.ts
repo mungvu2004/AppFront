@@ -206,12 +206,39 @@ const wallNodeNameOf = (wall: Wall, ordinal: number): string => {
   return `${kindLabel.charAt(0).toUpperCase()}${kindLabel.slice(1)} ${ordinal}`;
 };
 
+/**
+ * Mặt nào của tường quay ra ngoài nhà, như `resolveWallSurfaceSides` của Pascal
+ * (`core/src/lib/space-detection.ts:829-875`): từ điểm giữa trục lùi `dày/2 + 80 mm` về hai
+ * phía theo pháp tuyến `perp(end - start)`; đúng một phía nằm trong phòng thì phía ấy là
+ * `interior`. Pascal chỉ tự tính khi tường được sửa trong phiên, cảnh vừa nạp giữ `unknown`
+ * → `cutaway` không ẩn bức nào (`wall-cutout-cache.ts:83-94`) và sơn ngoài luôn dán mặt sau.
+ * Vách giữa hai phòng (cả hai phía trong) để trống như Pascal: vẫn đứng nguyên. Sân decking
+ * tính là ngoài nhà, như `swingDirectionOf`.
+ */
+const wallSidesOf = (wall: Wall, rooms: readonly Room[]): Pick<PascalWallNode, 'frontSide' | 'backSide'> => {
+  const { start, end } = wall.centreline;
+  const length = Math.hypot(end.x - start.x, end.y - start.y);
+  if (!(length > 0)) return {};
+  const normal = { x: -(end.y - start.y) / length, y: (end.x - start.x) / length };
+  const reach = wall.thicknessMm / 2 + 80;
+  const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+  const inside = (sign: number): boolean => {
+    const p = { x: mid.x + normal.x * reach * sign, y: mid.y + normal.y * reach * sign };
+    return rooms.some((r) => r.levelId === wall.levelId && r.finish !== 'decking' && insideOutline(p, r.outline));
+  };
+  const front = inside(1);
+  const back = inside(-1);
+  if (front === back) return {};
+  return { frontSide: front ? 'interior' : 'exterior', backSide: back ? 'interior' : 'exterior' };
+};
+
 const wallNodeOf = (
   wall: Wall,
   ordinal: number,
   levelNodeId: PascalNodeId,
   children: readonly PascalNodeId[],
   style: SceneStyle,
+  rooms: readonly Room[],
 ): PascalWallNode => ({
   object: 'node',
   id: toPascalId('wall', wall.id),
@@ -223,6 +250,7 @@ const wallNodeOf = (
   end: [metresOf(wall.centreline.end.x), metresOf(wall.centreline.end.y)],
   thickness: metresOf(wall.thicknessMm),
   height: metresOf(wall.heightMm),
+  ...wallSidesOf(wall, rooms),
   ...wallDressingOf(wall, style),
   metadata: { appfront: originOf(wall, { kind: wall.kind }) },
 });
@@ -340,8 +368,12 @@ export const swingDirectionOf = (opening: Opening, wall: Wall | undefined, rooms
   return right.areaM2 < left.areaM2 ? 'outward' : 'inward';
 };
 
-/** Khung sáng + kính thật (`preset-glass`, kính duy nhất bộ vẽ dùng) để cửa sổ đọc ra là kính, không phải tấm màu (V5 D5). */
-const WINDOW_SLOTS = { frame: 'library:preset-white', glass: 'library:preset-glass' } as const;
+/**
+ * Khung sáng + kính sáng (`mat_appfront_glass`, `sceneDressing.ts`) để cửa sổ đọc ra là kính, không
+ * phải tấm màu (V5 D5). Không dùng `preset-glass`: xanh trời 0,3 nên Pascal phủ fresnel phản chiếu
+ * môi trường tối của `night` → ô kính xanh két sẫm.
+ */
+const WINDOW_SLOTS = { frame: 'library:preset-white', glass: 'scene:mat_appfront_glass' } as const;
 
 const openingNodeOf = (
   opening: Opening,
@@ -845,7 +877,7 @@ export const toPascalScene = (
 
     const ordinal = (wallCountOfLevel.get(wall.levelId) ?? 0) + 1;
     wallCountOfLevel.set(wall.levelId, ordinal);
-    const node = wallNodeOf(wall, ordinal, levelNodeId, childrenFor(toPascalId('wall', wall.id)), style);
+    const node = wallNodeOf(wall, ordinal, levelNodeId, childrenFor(toPascalId('wall', wall.id)), style, graph.rooms);
 
     builtWalls.push(wall);
     nodes[node.id] = node;
