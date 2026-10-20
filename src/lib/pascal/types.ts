@@ -280,6 +280,8 @@ export interface PascalItemNode extends PascalNodeCommon {
    * và ranh giới lỗi của Pascal nuốt trọn cả món đồ.
    */
   readonly scale: PascalVec3;
+  /** Đè vật liệu khe `slot_*` của mô hình (khoá = tên khe) — `itemSlotsOf` ở `sceneDressing.ts`. */
+  readonly slots?: Readonly<Record<string, string>>;
   readonly asset: {
     readonly id: string;
     readonly category: string;

@@ -39,7 +39,7 @@ import { FURNITURE_KIND_LABELS, WALL_KIND_LABELS } from '@/lib/commands/business
 
 import { CATALOG_MODELS, VARIANT_MODEL, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
-import { ceilingNodesOf, floorMaterialOf, SCENE_MATERIALS, wallDressingOf } from './sceneDressing';
+import { ceilingNodesOf, floorMaterialOf, itemSlotsOf, SCENE_MATERIALS, wallDressingOf } from './sceneDressing';
 import type {
   AppFrontOrigin,
   PascalDoorNode,
@@ -471,6 +471,7 @@ const itemNodeOf = (
   })();
   const heightM = fit?.heightM ?? heightOfFurniture(furniture, levelHeightMm);
   const liftM = metresOf(furniture.liftMm ?? model?.liftMm ?? 0);
+  const slots = fit === null ? undefined : itemSlotsOf(fit.folder);
 
   return {
     object: 'node',
@@ -478,6 +479,7 @@ const itemNodeOf = (
     type: 'item',
     name: label,
     parentId: levelNodeId,
+    ...(slots === undefined ? {} : { slots }),
     // Đồ trần (pendant) tạm đặt dưới tầng ở độ cao `lift`; T16 lo trần.
     position: [metresOf(furniture.centre.x), liftM, metresOf(furniture.centre.y)],
     rotation: [0, yawOf(furniture.rotationDeg), 0],

@@ -41,6 +41,10 @@ export const SCENE_MATERIALS: readonly PascalSceneMaterial[] = [
   flat('mat_appfront_decking', 'Sàn gỗ ngoài trời', '#6a4a2d', 0.85),
   flat('mat_appfront_plaster', 'Tường vữa', '#ffffff', 0.9),
   flat('mat_appfront_exterior', 'Tường ngoài', '#8c8a86', 0.9),
+  // Màu trung bình ảnh vân của ba loại gỗ Pascal (`core/src/procedural-items/library-colors.ts`).
+  flat('mat_appfront_oak', 'Gỗ sáng', '#a77440', 0.5),
+  flat('mat_appfront_walnut', 'Gỗ tối', '#663020', 0.5),
+  flat('mat_appfront_bark', 'Thân cây', '#88654c', 0.9),
 ];
 
 const CONCRETE = 'library:concrete-polished';
@@ -90,6 +94,33 @@ export const wallDressingOf = (
     crown: { enabled: true, sides: 'interior', height: 0.05, proud: 0.02, profile: 'flat' },
   };
 };
+
+const OAK = 'scene:mat_appfront_oak';
+const WALNUT = 'scene:mat_appfront_walnut';
+const BARK = 'scene:mat_appfront_bark';
+
+/**
+ * Khe `slot_*` của mô hình đồ đạc mà GLB trỏ (`extras.pascal_material`) vào vật liệu
+ * gỗ/gạch có vân — repo Pascal không commit `.ktx2` của chúng (`copy-pascal-assets.mjs`
+ * in số thiếu), tự host là 404 im lặng và mặt ra không vân. Đè bằng màu phẳng.
+ * Chỉ các thư mục `furnitureCatalog.ts` dùng; bài kiểm quét GLB thật để bắt thư mục mới.
+ */
+const ITEM_SLOTS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  'bedside-table': { cabinet: WALNUT },
+  bookshelf: { body: OAK, shelf: OAK },
+  'coffee-table': { top: OAK },
+  'dining-chair': { legs: OAK },
+  'dining-table': { top: OAK },
+  dresser: { body: WALNUT, drawers: WALNUT },
+  'indoor-plant': { trunk: BARK },
+  'office-table': { cabinet: WALNUT },
+  palm: { trunk: BARK },
+  picture: { picture: 'scene:mat_appfront_mosaic' },
+  'single-bed': { frame: OAK },
+};
+
+/** Khe đè cho mô hình ở `/items/<folder>/`; `undefined` = để nguyên vật liệu của GLB. */
+export const itemSlotsOf = (folder: string): Readonly<Record<string, string>> | undefined => ITEM_SLOTS[folder];
 
 /** Thân id của đèn trần sinh ra: `item_LIGHT-<id phòng>`. Không phải id AppFront hợp lệ. */
 const GENERATED_LIGHT_PREFIX = 'LIGHT-';
