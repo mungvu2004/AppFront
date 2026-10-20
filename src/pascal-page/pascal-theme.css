@@ -1,0 +1,54 @@
+/*
+ * Áo của trang 3D theo dáng tối của AppFront (`src/styles/globals.css`, khối `html.dark`).
+ * Trang này không nạp globals.css, nên mỗi giá trị là một bản chép: chú thích `= --token` nêu
+ * token gốc và `__tests__/pascalTheme.test.ts` giữ hai bên khớp nhau. Pascal luôn tối (body.dark),
+ * nên chỉ đè dáng tối; `body .dark` phủ cả phần tử con tự gắn lớp `dark` (specificity
+ * cao hơn `.dark` của pascal.css, không cần !important). Chỉ đổi màu/bo góc/phông — bố cục giữ nguyên.
+ */
+body.dark,
+body.dark .dark {
+  --background: #1c1b19; /* = --bg-app */
+  --foreground: #ece9e3; /* = --text-primary */
+  --card: #262421; /* = --bg-surface */
+  --card-foreground: #ece9e3; /* = --text-primary */
+  --popover: #262421; /* = --bg-surface */
+  --popover-foreground: #ece9e3; /* = --text-primary */
+  --primary: #7fa6c4; /* = --accent */
+  --primary-foreground: #262421; /* = --bg-surface */
+  --secondary: #262421; /* = --bg-surface */
+  --secondary-foreground: #ece9e3; /* = --text-primary */
+  --muted: #151413; /* = --bg-sunken */
+  --muted-foreground: #9d9891; /* = --text-muted */
+  --accent: #23303a; /* = --accent-wash */
+  --accent-foreground: #ece9e3; /* = --text-primary */
+  --destructive: #d68577; /* = --state-violation */
+  --border: #3a3733; /* = --border-default */
+  --input: #746f67; /* = --border-control */
+  --ring: #7fa6c4; /* = --accent */
+  --sidebar: #262421; /* = --bg-surface */
+  --sidebar-foreground: #ece9e3; /* = --text-primary */
+  --sidebar-primary: #7fa6c4; /* = --accent */
+  --sidebar-primary-foreground: #262421; /* = --bg-surface */
+  --sidebar-accent: #23303a; /* = --accent-wash */
+  --sidebar-accent-foreground: #ece9e3; /* = --text-primary */
+  --sidebar-border: #3a3733; /* = --border-default */
+  --sidebar-ring: #7fa6c4; /* = --accent */
+
+  /* Nút của app bo 8px (rounded-lg). */
+  --radius: 0.5rem;
+
+  /* Bóng: màu bóng theo app; viền sáng "kính" của Pascal giảm nửa cho mặt phẳng, dịu như app. */
+  --shadow-color: rgba(0, 0, 0, 0.45); /* = --shadow-color-panel */
+  --dm-hi-base: rgba(255, 255, 255, 0.01);
+  --dm-hi-mid: rgba(255, 255, 255, 0.025);
+  --dm-hi-high: rgba(255, 255, 255, 0.04);
+  --dm-hi-peak: rgba(255, 255, 255, 0.055);
+  --dm-ring-base: rgba(255, 255, 255, 0.01);
+  --dm-ring-mid: rgba(255, 255, 255, 0.02);
+  --dm-ring-high: rgba(255, 255, 255, 0.03);
+
+  /* `--font-barlow`/`--font-geist-mono` của upstream tự trỏ vào chính nó (next/font không có ở đây)
+     nên vô hiệu; cho chúng một chồng phông hệ thống như app. */
+  --font-barlow: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-geist-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}

@@ -23,6 +23,7 @@ import { SceneStyleCard } from './SceneStyleCard';
 import Home from './upstream/page';
 // CSS của trang (Tailwind 4, không bọc phạm vi) — bản dựng xuất thành `/assets/pascal/style.css`.
 import './pascal.css';
+import './pascal-theme.css';
 
 // Như upstream `apps/editor/lib/bootstrap.ts`, nhưng chỉ bộ node dựng sẵn — không plugin ngoài.
 const builtinsLoaded = loadPlugin(builtinPlugin);
