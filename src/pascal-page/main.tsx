@@ -3,6 +3,10 @@
  * (`./upstream/page.tsx`) cộng đúng một thẻ "về dự án". Dữ liệu chỉ đi qua `./bridge`.
  */
 /* eslint-disable react-refresh/only-export-components -- tệp vào của bó riêng, không có biên HMR để giữ. */
+import './selfHost';
+import './probe';
+import './icons';
+import './firstOpen';
 import { acquireSceneReadOnlyLease, type SceneGraph } from '@pascal-app/core';
 import { loadPlugin } from '@pascal-app/core/registry';
 import { builtinPlugin } from '@pascal-app/nodes';
