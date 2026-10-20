@@ -1,0 +1,2938 @@
+{
+ "graph": {
+  "building": {
+   "confidence": 1.0,
+   "source": "human",
+   "reviewed": false,
+   "name": "yukyuoyiuou",
+   "address": "dyuoiuyoiuui",
+   "datumElevationMm": 0
+  },
+  "levels": [
+   {
+    "confidence": 1.0,
+    "source": "human",
+    "reviewed": false,
+    "id": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "name": "Tầng 1",
+    "order": 0,
+    "elevationMm": 0,
+    "heightMm": 3000,
+    "scaleMillimetresPerPixel": 1.0
+   }
+  ],
+  "walls": [
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK00LSK043SCMWQOID",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 127,
+      "y": 857
+     },
+     "end": {
+      "x": 448,
+      "y": 857
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 0.5,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK1B6IQSQDJ25PCL0Q",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 130,
+      "y": 249
+     },
+     "end": {
+      "x": 130,
+      "y": 1142
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "envelope",
+    "openingIds": [
+     "D-03H2Z1ONKUQ51QG4FYWCEUS3S",
+     "D-03H2Z1ONKXFKUN49PLHP883G8",
+     "D-03H2Z1ONKY1NOPO9LDZWJN463",
+     "D-03H2Z1ONL1LYDX31EOG9OX47D"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONJY7GSW5BLQGTR59WN",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 130,
+      "y": 249
+     },
+     "end": {
+      "x": 155,
+      "y": 267
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK5NPYZZ82GXQDP2PR",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 130,
+      "y": 249
+     },
+     "end": {
+      "x": 171,
+      "y": 257
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 0.5,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK2LJ5N5PAJRYHGEAF",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 130,
+      "y": 1142
+     },
+     "end": {
+      "x": 688,
+      "y": 1142
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "envelope",
+    "openingIds": [
+     "D-03H2Z1ONKYA2VP012SLGOH6QZ",
+     "D-03H2Z1ONKYP7FH4MG50WWMW0R"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK51IR3CJCZLF9EKH9",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 140,
+      "y": 670
+     },
+     "end": {
+      "x": 449,
+      "y": 670
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK4B784VLMR7I2YH2P",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 155,
+      "y": 267
+     },
+     "end": {
+      "x": 171,
+      "y": 257
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 0.5,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK2JBUVFED4GTV868V",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 130,
+      "y": 257
+     },
+     "end": {
+      "x": 1193,
+      "y": 259
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "envelope",
+    "openingIds": [
+     "D-03H2Z1ONKUJCVBGAA1CYR90P4",
+     "D-03H2Z1ONKXZCDH4UE3KLFJ9L4",
+     "D-03H2Z1ONKV23L01019OPKD95U"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK6B32KHZYMYMPSTY1",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 190,
+      "y": 0
+     },
+     "end": {
+      "x": 220,
+      "y": 0
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK2BDOTPGG4XDTUUGU",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 448,
+      "y": 857
+     },
+     "end": {
+      "x": 449,
+      "y": 670
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONKVQRALBR3Q3271AVA"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK5B4IBA9DQE1XEIBT",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 448,
+      "y": 857
+     },
+     "end": {
+      "x": 454,
+      "y": 874
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK6C2GEPBBK5UZEYE2",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 449,
+      "y": 966
+     },
+     "end": {
+      "x": 688,
+      "y": 967
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONL1H2XKZAMJ9HLJTI2"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK5W3R2SMUT3GHG9E2",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 449,
+      "y": 670
+     },
+     "end": {
+      "x": 453,
+      "y": 652
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK5QQYW3UYH4IZY63Y",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 450,
+      "y": 948
+     },
+     "end": {
+      "x": 450,
+      "y": 1142
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK52OFOEQ5LZ3H9VTO",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 452,
+      "y": 275
+     },
+     "end": {
+      "x": 452,
+      "y": 574
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK5QC3JDICEQV6080I",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 452,
+      "y": 557
+     },
+     "end": {
+      "x": 883,
+      "y": 559
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONKY1TUOAJ1LX1JLY9N"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK5YI7DS8R3IHT05UW",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 594,
+      "y": 1128
+     },
+     "end": {
+      "x": 614,
+      "y": 1143
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK24T4KM3KOKU7X282",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 597,
+      "y": 1336
+     },
+     "end": {
+      "x": 688,
+      "y": 1336
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK1YPIA16S82F757WB",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 450,
+      "y": 1141
+     },
+     "end": {
+      "x": 688,
+      "y": 1143
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONKYKV0HF3T3BLT1RPW"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK5MN3TUXRS4YVMQA5",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 687,
+      "y": 559
+     },
+     "end": {
+      "x": 687,
+      "y": 761
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONK25S0PQKXWDE619PN",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 687,
+      "y": 761
+     },
+     "end": {
+      "x": 887,
+      "y": 761
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKPELRB6JT7KY7SPV8",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 688,
+      "y": 967
+     },
+     "end": {
+      "x": 688,
+      "y": 1143
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKP085ZI17SEMGADGM",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 688,
+      "y": 1143
+     },
+     "end": {
+      "x": 688,
+      "y": 1336
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONKYY3BHG7UIVJV3737"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKPG9Q5WD3OM8Q9RB2",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 688,
+      "y": 1336
+     },
+     "end": {
+      "x": 1111,
+      "y": 1325
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONL1SFE05G1QU044HLV",
+     "D-03H2Z1ONL156U41O7N28CPY1P"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKO8EUH7HFKJASQJ45",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 878,
+      "y": 1323
+     },
+     "end": {
+      "x": 894,
+      "y": 1306
+     }
+    },
+    "thicknessMm": 23,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKR5DMORKJHTE5PXJV",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 885,
+      "y": 258
+     },
+     "end": {
+      "x": 887,
+      "y": 761
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONKVT9FQ8Q0XUPYKOJ8"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKP52GHYYNL641CC1X",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 973,
+      "y": 762
+     },
+     "end": {
+      "x": 1183,
+      "y": 762
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKRKGN5H6PEVHDEOPP",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1110,
+      "y": 1298
+     },
+     "end": {
+      "x": 1113,
+      "y": 969
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKQ400UPRX2SJXH4C5",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1111,
+      "y": 1325
+     },
+     "end": {
+      "x": 1207,
+      "y": 1423
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONKYPNIEKSU250TNKST"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKPDYP6V9GI11Y9J0P",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1113,
+      "y": 969
+     },
+     "end": {
+      "x": 1136,
+      "y": 969
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKSM33I9JCOYX0ERCU",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1136,
+      "y": 969
+     },
+     "end": {
+      "x": 1177,
+      "y": 969
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKPRR0G5FPVZVFO9NY",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1183,
+      "y": 382
+     },
+     "end": {
+      "x": 1183,
+      "y": 762
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKPOH6SZI40X6ING1T",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1183,
+      "y": 382
+     },
+     "end": {
+      "x": 1193,
+      "y": 355
+     }
+    },
+    "thicknessMm": 21,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKQA4RNMGFIHXRCWFA",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1193,
+      "y": 259
+     },
+     "end": {
+      "x": 1193,
+      "y": 355
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKOBLR0XF67MXW3GO1",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1193,
+      "y": 259
+     },
+     "end": {
+      "x": 1207,
+      "y": 241
+     }
+    },
+    "thicknessMm": 21,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKQ7Q0KWERSI98W0JG",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1193,
+      "y": 355
+     },
+     "end": {
+      "x": 1254,
+      "y": 361
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKONNEM1ITAQS0RHWQ",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1193,
+      "y": 355
+     },
+     "end": {
+      "x": 1254,
+      "y": 361
+     }
+    },
+    "thicknessMm": 21,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKQQHB4CA5NDXDZCGX",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1204,
+      "y": 223
+     },
+     "end": {
+      "x": 1204,
+      "y": 160
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKNZ32ARSHV4NOK590",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1204,
+      "y": 160
+     },
+     "end": {
+      "x": 1213,
+      "y": 157
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKQLZ11C4Y16HZW39Y",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1207,
+      "y": 1423
+     },
+     "end": {
+      "x": 1228,
+      "y": 1425
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKNY2XPT2TXBU13UAE",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1213,
+      "y": 157
+     },
+     "end": {
+      "x": 1245,
+      "y": 158
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKSIUTSXBWXGMYSHAB",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1242,
+      "y": 1425
+     },
+     "end": {
+      "x": 1286,
+      "y": 1425
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKPRYILOCRJ7WRWQMO",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1254,
+      "y": 361
+     },
+     "end": {
+      "x": 2081,
+      "y": 366
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONKVK5RV3YNB3T3N3A2",
+     "D-03H2Z1ONKTV0MYUEW3T6SR90I",
+     "D-03H2Z1ONKU18OF7OVCGU1EOGM"
+    ]
+   },
+   {
+    "confidence": 0.906,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKRZ9BEX1ZOP7XK7B1",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1294,
+      "y": 1420
+     },
+     "end": {
+      "x": 1326,
+      "y": 1425
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKNN5WQYCADBOT0JWK",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1326,
+      "y": 1425
+     },
+     "end": {
+      "x": 1422,
+      "y": 1328
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONKZK27E9PTXCVMJ244"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKN9KB7OD0XB5DBQ87",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1422,
+      "y": 1328
+     },
+     "end": {
+      "x": 1803,
+      "y": 1327
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONKZHUUU7JKSVXXBLIX"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKRC4WUR0AJJWRTDTK",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1521,
+      "y": 158
+     },
+     "end": {
+      "x": 1578,
+      "y": 158
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKSI1OFN9UWPATF61P",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1560,
+      "y": 762
+     },
+     "end": {
+      "x": 1561,
+      "y": 381
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONKU12LYXR02DWXKDRQ"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKQMXZDPVS6YBSFAZJ",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1560,
+      "y": 762
+     },
+     "end": {
+      "x": 1650,
+      "y": 785
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKRO58YN5Z0J9YR599",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1561,
+      "y": 577
+     },
+     "end": {
+      "x": 1603,
+      "y": 577
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKQV33HW0A445LMFRB",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1650,
+      "y": 785
+     },
+     "end": {
+      "x": 1684,
+      "y": 761
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKNIPCNWHZ1PZ8X5UL",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1650,
+      "y": 785
+     },
+     "end": {
+      "x": 1685,
+      "y": 811
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKQUPAFGAZVCY8U0VV",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1684,
+      "y": 761
+     },
+     "end": {
+      "x": 1684,
+      "y": 580
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKOLYUCC847M1PPTXW",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1684,
+      "y": 637
+     },
+     "end": {
+      "x": 1904,
+      "y": 637
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKO8KXLVSRU2M1FKXZ",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1685,
+      "y": 811
+     },
+     "end": {
+      "x": 1696,
+      "y": 841
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKRCH154A0O7SXG8KL",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1696,
+      "y": 841
+     },
+     "end": {
+      "x": 1804,
+      "y": 850
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKRJ0PZF325TL0DN6P",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1803,
+      "y": 1327
+     },
+     "end": {
+      "x": 1804,
+      "y": 850
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONKZWB31PYWXPVKA51T",
+     "D-03H2Z1ONL1O0VJC2J8MQDAV8N",
+     "D-03H2Z1ONKYSSN8Z5Z1DMUVL4O"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKQP9NF0FRGOPQ2KN2",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1803,
+      "y": 1327
+     },
+     "end": {
+      "x": 1826,
+      "y": 1341
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKRZTX686VGMNL0FBB",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1804,
+      "y": 850
+     },
+     "end": {
+      "x": 2080,
+      "y": 850
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONKVZMD8SBCBZV1I6SX"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKS9TS44G0WB0ZCW99",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1899,
+      "y": 827
+     },
+     "end": {
+      "x": 1901,
+      "y": 806
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKNMU0GG9ZLMZWG5PY",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1899,
+      "y": 827
+     },
+     "end": {
+      "x": 1908,
+      "y": 842
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKNIM91JNZV45CEEBN",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1904,
+      "y": 850
+     },
+     "end": {
+      "x": 1905,
+      "y": 586
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONKUZZ7GFZ73S5CPMAM"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKO6XYPWN8G6Y103JW",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1905,
+      "y": 586
+     },
+     "end": {
+      "x": 1918,
+      "y": 571
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKO9U5PU6NA44STSRV",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 1996,
+      "y": 575
+     },
+     "end": {
+      "x": 2070,
+      "y": 575
+     }
+    },
+    "thicknessMm": 16,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKPFKHHFRKVUZYHIGX",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 2075,
+      "y": 1337
+     },
+     "end": {
+      "x": 2079,
+      "y": 1337
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKQK4K5F7X7NAV8QAC",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 2080,
+      "y": 850
+     },
+     "end": {
+      "x": 2081,
+      "y": 366
+     }
+    },
+    "thicknessMm": 32,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": [
+     "D-03H2Z1ONKVO937R7RJMKC0J1U"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKPDAHIE5N25K81AQG",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 2081,
+      "y": 366
+     },
+     "end": {
+      "x": 2099,
+      "y": 351
+     }
+    },
+    "thicknessMm": 21,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKRIIF3S5PAJ0R41FB",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 2103,
+      "y": 982
+     },
+     "end": {
+      "x": 2187,
+      "y": 982
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKS2H5ZUH3EMF1VC2R",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 2187,
+      "y": 982
+     },
+     "end": {
+      "x": 2191,
+      "y": 974
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKTZGZMXDGJD9EUAWG",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 2190,
+      "y": 935
+     },
+     "end": {
+      "x": 2191,
+      "y": 974
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "W-03H2Z1ONKXIKLQ6FX8UHIY4B4",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "centreline": {
+     "start": {
+      "x": 2190,
+      "y": 935
+     },
+     "end": {
+      "x": 2192,
+      "y": 929
+     }
+    },
+    "thicknessMm": 11,
+    "heightMm": 3600,
+    "kind": "partition",
+    "openingIds": []
+   }
+  ],
+  "openings": [
+   {
+    "confidence": 0.8065,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKUJCVBGAA1CYR90P4",
+    "wallId": "W-03H2Z1ONK2JBUVFED4GTV868V",
+    "kind": "window",
+    "offsetMm": 21,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.8101,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKXZCDH4UE3KLFJ9L4",
+    "wallId": "W-03H2Z1ONK2JBUVFED4GTV868V",
+    "kind": "window",
+    "offsetMm": 407,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.839,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKV23L01019OPKD95U",
+    "wallId": "W-03H2Z1ONK2JBUVFED4GTV868V",
+    "kind": "window",
+    "offsetMm": 918,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.7704,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKUQ51QG4FYWCEUS3S",
+    "wallId": "W-03H2Z1ONK1B6IQSQDJ25PCL0Q",
+    "kind": "window",
+    "offsetMm": 0,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.8266,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKVK5RV3YNB3T3N3A2",
+    "wallId": "W-03H2Z1ONKPRYILOCRJ7WRWQMO",
+    "kind": "window",
+    "offsetMm": 0,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.6767,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKTV0MYUEW3T6SR90I",
+    "wallId": "W-03H2Z1ONKPRYILOCRJ7WRWQMO",
+    "kind": "window",
+    "offsetMm": 505,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.8221,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKU18OF7OVCGU1EOGM",
+    "wallId": "W-03H2Z1ONKPRYILOCRJ7WRWQMO",
+    "kind": "door",
+    "offsetMm": 202,
+    "widthMm": 96,
+    "heightMm": 2200,
+    "sillHeightMm": 0,
+    "swing": "left"
+   },
+   {
+    "confidence": 0.8136,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKVO937R7RJMKC0J1U",
+    "wallId": "W-03H2Z1ONKQK4K5F7X7NAV8QAC",
+    "kind": "door",
+    "offsetMm": 309,
+    "widthMm": 96,
+    "heightMm": 2200,
+    "sillHeightMm": 0,
+    "swing": "left"
+   },
+   {
+    "confidence": 0.7004,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKU12LYXR02DWXKDRQ",
+    "wallId": "W-03H2Z1ONKSI1OFN9UWPATF61P",
+    "kind": "door",
+    "offsetMm": 221,
+    "widthMm": 96,
+    "heightMm": 2200,
+    "sillHeightMm": 0,
+    "swing": "left"
+   },
+   {
+    "confidence": 0.7941,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKXFKUN49PLHP883G8",
+    "wallId": "W-03H2Z1ONK1B6IQSQDJ25PCL0Q",
+    "kind": "window",
+    "offsetMm": 259,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.6524,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKY1TUOAJ1LX1JLY9N",
+    "wallId": "W-03H2Z1ONK5QC3JDICEQV6080I",
+    "kind": "door",
+    "offsetMm": 67,
+    "widthMm": 96,
+    "heightMm": 2200,
+    "sillHeightMm": 0,
+    "swing": "left"
+   },
+   {
+    "confidence": 0.6887,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKVQRALBR3Q3271AVA",
+    "wallId": "W-03H2Z1ONK2BDOTPGG4XDTUUGU",
+    "kind": "door",
+    "offsetMm": 45,
+    "widthMm": 96,
+    "heightMm": 2200,
+    "sillHeightMm": 0,
+    "swing": "left"
+   },
+   {
+    "confidence": 0.6109,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKVT9FQ8Q0XUPYKOJ8",
+    "wallId": "W-03H2Z1ONKR5DMORKJHTE5PXJV",
+    "kind": "door",
+    "offsetMm": 356,
+    "widthMm": 96,
+    "heightMm": 2200,
+    "sillHeightMm": 0,
+    "swing": "left"
+   },
+   {
+    "confidence": 0.6638,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKUZZ7GFZ73S5CPMAM",
+    "wallId": "W-03H2Z1ONKNIM91JNZV45CEEBN",
+    "kind": "door",
+    "offsetMm": 6,
+    "widthMm": 96,
+    "heightMm": 2200,
+    "sillHeightMm": 0,
+    "swing": "left"
+   },
+   {
+    "confidence": 0.807,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKY1NOPO9LDZWJN463",
+    "wallId": "W-03H2Z1ONK1B6IQSQDJ25PCL0Q",
+    "kind": "window",
+    "offsetMm": 479,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.7971,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKVZMD8SBCBZV1I6SX",
+    "wallId": "W-03H2Z1ONKRZTX686VGMNL0FBB",
+    "kind": "window",
+    "offsetMm": 0,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.8144,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKZWB31PYWXPVKA51T",
+    "wallId": "W-03H2Z1ONKRJ0PZF325TL0DN6P",
+    "kind": "door",
+    "offsetMm": 329,
+    "widthMm": 96,
+    "heightMm": 2200,
+    "sillHeightMm": 0,
+    "swing": "left"
+   },
+   {
+    "confidence": 0.6708,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONL1H2XKZAMJ9HLJTI2",
+    "wallId": "W-03H2Z1ONK6C2GEPBBK5UZEYE2",
+    "kind": "door",
+    "offsetMm": 60,
+    "widthMm": 96,
+    "heightMm": 2200,
+    "sillHeightMm": 0,
+    "swing": "left"
+   },
+   {
+    "confidence": 0.7992,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONL1O0VJC2J8MQDAV8N",
+    "wallId": "W-03H2Z1ONKRJ0PZF325TL0DN6P",
+    "kind": "window",
+    "offsetMm": 184,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.8008,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONL1LYDX31EOG9OX47D",
+    "wallId": "W-03H2Z1ONK1B6IQSQDJ25PCL0Q",
+    "kind": "window",
+    "offsetMm": 765,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.814,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKYA2VP012SLGOH6QZ",
+    "wallId": "W-03H2Z1ONK2LJ5N5PAJRYHGEAF",
+    "kind": "window",
+    "offsetMm": 17,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.7805,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKYP7FH4MG50WWMW0R",
+    "wallId": "W-03H2Z1ONK2LJ5N5PAJRYHGEAF",
+    "kind": "door",
+    "offsetMm": 311,
+    "widthMm": 96,
+    "heightMm": 2200,
+    "sillHeightMm": 0,
+    "swing": "left"
+   },
+   {
+    "confidence": 0.8034,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKYKV0HF3T3BLT1RPW",
+    "wallId": "W-03H2Z1ONK1YPIA16S82F757WB",
+    "kind": "door",
+    "offsetMm": 60,
+    "widthMm": 96,
+    "heightMm": 2200,
+    "sillHeightMm": 0,
+    "swing": "left"
+   },
+   {
+    "confidence": 0.7767,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKYSSN8Z5Z1DMUVL4O",
+    "wallId": "W-03H2Z1ONKRJ0PZF325TL0DN6P",
+    "kind": "window",
+    "offsetMm": 20,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.805,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKYY3BHG7UIVJV3737",
+    "wallId": "W-03H2Z1ONKP085ZI17SEMGADGM",
+    "kind": "window",
+    "offsetMm": 26,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.8188,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONL1SFE05G1QU044HLV",
+    "wallId": "W-03H2Z1ONKPG9Q5WD3OM8Q9RB2",
+    "kind": "window",
+    "offsetMm": 67,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.8284,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONL156U41O7N28CPY1P",
+    "wallId": "W-03H2Z1ONKPG9Q5WD3OM8Q9RB2",
+    "kind": "window",
+    "offsetMm": 206,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.8185,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKZHUUU7JKSVXXBLIX",
+    "wallId": "W-03H2Z1ONKN9KB7OD0XB5DBQ87",
+    "kind": "window",
+    "offsetMm": 235,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.8854,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKZK27E9PTXCVMJ244",
+    "wallId": "W-03H2Z1ONKNN5WQYCADBOT0JWK",
+    "kind": "window",
+    "offsetMm": 7,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   },
+   {
+    "confidence": 0.9078,
+    "source": "ai",
+    "reviewed": false,
+    "id": "D-03H2Z1ONKYPNIEKSU250TNKST",
+    "wallId": "W-03H2Z1ONKQ400UPRX2SJXH4C5",
+    "kind": "window",
+    "offsetMm": 9,
+    "widthMm": 128,
+    "heightMm": 1400,
+    "sillHeightMm": 900,
+    "swing": "sliding"
+   }
+  ],
+  "furniture": [
+   {
+    "confidence": 0.8696,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONRC78CU4RI98OVZGPV",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "roomId": "R-03H2Z1ONR18WA5WU6JADL20V7",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 489,
+     "y": 303
+    },
+    "boundingBox": {
+     "min": {
+      "x": 460,
+      "y": 279
+     },
+     "max": {
+      "x": 519,
+      "y": 327
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.8622,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONRJXXE10D760D1TT48",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "roomId": "R-03H2Z1ONR18WA5WU6JADL20V7",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 500,
+     "y": 351
+    },
+    "boundingBox": {
+     "min": {
+      "x": 480,
+      "y": 327
+     },
+     "max": {
+      "x": 519,
+      "y": 375
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.8758,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONRJ5U82IF6597ZPHVQ",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "roomId": "R-03H2Z1ONR18WA5WU6JADL20V7",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 499,
+     "y": 399
+    },
+    "boundingBox": {
+     "min": {
+      "x": 480,
+      "y": 374
+     },
+     "max": {
+      "x": 519,
+      "y": 424
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.8662,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONS8CUZN8Q1NLUHB5SO",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 1660,
+     "y": 413
+    },
+    "boundingBox": {
+     "min": {
+      "x": 1630,
+      "y": 382
+     },
+     "max": {
+      "x": 1690,
+      "y": 445
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.8622,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONS4SD6YMMQW57RL2DW",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 1720,
+     "y": 414
+    },
+    "boundingBox": {
+     "min": {
+      "x": 1690,
+      "y": 383
+     },
+     "max": {
+      "x": 1750,
+      "y": 445
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.3474,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONS6PMFW6WMZ8574KAR",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "roomId": "R-03H2Z1ONRA734FFSE4GW9B8JF",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 632,
+     "y": 603
+    },
+    "boundingBox": {
+     "min": {
+      "x": 624,
+      "y": 565
+     },
+     "max": {
+      "x": 640,
+      "y": 640
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.9364,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONSDIDGJS6VMG7ZV72N",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "roomId": "R-03H2Z1ONR9MPI6AYUB48EO85Z",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 787,
+     "y": 661
+    },
+    "boundingBox": {
+     "min": {
+      "x": 696,
+      "y": 566
+     },
+     "max": {
+      "x": 878,
+      "y": 756
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.8732,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONS8PTWMA2XA2M7MF18",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 1721,
+     "y": 600
+    },
+    "boundingBox": {
+     "min": {
+      "x": 1691,
+      "y": 571
+     },
+     "max": {
+      "x": 1750,
+      "y": 630
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.5424,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONS90G8OELH90HAVG6E",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 2048,
+     "y": 617
+    },
+    "boundingBox": {
+     "min": {
+      "x": 2028,
+      "y": 585
+     },
+     "max": {
+      "x": 2067,
+      "y": 649
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.3689,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONS8ROXMBDSIXXO9K1P",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "kind": "sanitaryFixture",
+    "centre": {
+     "x": 1584,
+     "y": 619
+    },
+    "boundingBox": {
+     "min": {
+      "x": 1568,
+      "y": 597
+     },
+     "max": {
+      "x": 1600,
+      "y": 640
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.8779,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONSE15PCJTPI7CVTNEF",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "roomId": "R-03H2Z1ONR18WA5WU6JADL20V7",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 219,
+     "y": 622
+    },
+    "boundingBox": {
+     "min": {
+      "x": 195,
+      "y": 604
+     },
+     "max": {
+      "x": 243,
+      "y": 640
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.8603,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONSKEZR0WIVGTABQ2BP",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "roomId": "R-03H2Z1ONR18WA5WU6JADL20V7",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 170,
+     "y": 622
+    },
+    "boundingBox": {
+     "min": {
+      "x": 145,
+      "y": 605
+     },
+     "max": {
+      "x": 195,
+      "y": 640
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.7837,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONSPVZSTUHEUSIQ41AT",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 1524,
+     "y": 688
+    },
+    "boundingBox": {
+     "min": {
+      "x": 1494,
+      "y": 613
+     },
+     "max": {
+      "x": 1553,
+      "y": 763
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.6856,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONSPM1SIR2B4A9ZS30O",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "roomId": "R-03H2Z1ONRB061WNORWPTLCZCT",
+    "kind": "sanitaryFixture",
+    "centre": {
+     "x": 273,
+     "y": 713
+    },
+    "boundingBox": {
+     "min": {
+      "x": 252,
+      "y": 678
+     },
+     "max": {
+      "x": 295,
+      "y": 748
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.3101,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONSRPPNQ6O48TD79828",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "roomId": "R-03H2Z1ONRB061WNORWPTLCZCT",
+    "kind": "sanitaryFixture",
+    "centre": {
+     "x": 377,
+     "y": 703
+    },
+    "boundingBox": {
+     "min": {
+      "x": 348,
+      "y": 679
+     },
+     "max": {
+      "x": 405,
+      "y": 726
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.4906,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONSZISCTWUQKPWYYKTA",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "kind": "sanitaryFixture",
+    "centre": {
+     "x": 2058,
+     "y": 701
+    },
+    "boundingBox": {
+     "min": {
+      "x": 2049,
+      "y": 685
+     },
+     "max": {
+      "x": 2067,
+      "y": 716
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.6481,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONSW4UCGOU04H5Q1F10",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "kind": "sanitaryFixture",
+    "centre": {
+     "x": 1641,
+     "y": 722
+    },
+    "boundingBox": {
+     "min": {
+      "x": 1619,
+      "y": 687
+     },
+     "max": {
+      "x": 1662,
+      "y": 758
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.8554,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONSWNZ1R88RPZ7Q25F1",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "roomId": "R-03H2Z1ONR6VFQ0O87A6OJ14VS",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 1006,
+     "y": 726
+    },
+    "boundingBox": {
+     "min": {
+      "x": 982,
+      "y": 697
+     },
+     "max": {
+      "x": 1030,
+      "y": 756
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.8632,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONSY6YP6NEMY3THZNQM",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "roomId": "R-03H2Z1ONR6VFQ0O87A6OJ14VS",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 1054,
+     "y": 726
+    },
+    "boundingBox": {
+     "min": {
+      "x": 1030,
+      "y": 697
+     },
+     "max": {
+      "x": 1078,
+      "y": 756
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.4669,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONSWYEI88SQHJONKAYJ",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "kind": "sanitaryFixture",
+    "centre": {
+     "x": 2058,
+     "y": 784
+    },
+    "boundingBox": {
+     "min": {
+      "x": 2048,
+      "y": 769
+     },
+     "max": {
+      "x": 2067,
+      "y": 799
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.4705,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONT32N0BJSV5PH7LW9S",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 791,
+     "y": 792
+    },
+    "boundingBox": {
+     "min": {
+      "x": 702,
+      "y": 771
+     },
+     "max": {
+      "x": 879,
+      "y": 814
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.5273,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONT4K0TILJ9EPPUKS88",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 1081,
+     "y": 1013
+    },
+    "boundingBox": {
+     "min": {
+      "x": 1062,
+      "y": 968
+     },
+     "max": {
+      "x": 1100,
+      "y": 1058
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.3341,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONT4X4LX2HOX27PTKIQ",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "roomId": "R-03H2Z1ONR9JNFHAD9BON7TW4L",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 631,
+     "y": 1050
+    },
+    "boundingBox": {
+     "min": {
+      "x": 622,
+      "y": 975
+     },
+     "max": {
+      "x": 640,
+      "y": 1126
+     }
+    },
+    "rotationDeg": 0.0
+   },
+   {
+    "confidence": 0.2995,
+    "source": "ai",
+    "reviewed": false,
+    "id": "F-03H2Z1ONT4G0GWZDBSHVTFWJ5",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "kind": "wardrobe",
+    "centre": {
+     "x": 1081,
+     "y": 1089
+    },
+    "boundingBox": {
+     "min": {
+      "x": 1062,
+      "y": 1058
+     },
+     "max": {
+      "x": 1099,
+      "y": 1120
+     }
+    },
+    "rotationDeg": 0.0
+   }
+  ],
+  "rooms": [
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "R-03H2Z1ONR18WA5WU6JADL20V7",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "name": "phòng 1",
+    "usage": "other",
+    "outline": [
+     {
+      "x": 130,
+      "y": 257
+     },
+     {
+      "x": 130,
+      "y": 670
+     },
+     {
+      "x": 449,
+      "y": 670
+     },
+     {
+      "x": 452,
+      "y": 574
+     },
+     {
+      "x": 452,
+      "y": 557
+     },
+     {
+      "x": 687,
+      "y": 558
+     },
+     {
+      "x": 886,
+      "y": 559
+     },
+     {
+      "x": 885,
+      "y": 258
+     },
+     {
+      "x": 172,
+      "y": 257
+     },
+     {
+      "x": 171,
+      "y": 257
+     },
+     {
+      "x": 155,
+      "y": 267
+     },
+     {
+      "x": 142,
+      "y": 257
+     }
+    ],
+    "areaM2": 0.26,
+    "wallIds": [
+     "W-03H2Z1ONJY7GSW5BLQGTR59WN",
+     "W-03H2Z1ONK5NPYZZ82GXQDP2PR",
+     "W-03H2Z1ONK51IR3CJCZLF9EKH9",
+     "W-03H2Z1ONK4B784VLMR7I2YH2P",
+     "W-03H2Z1ONK2JBUVFED4GTV868V",
+     "W-03H2Z1ONK5W3R2SMUT3GHG9E2",
+     "W-03H2Z1ONK5QC3JDICEQV6080I",
+     "W-03H2Z1ONKR5DMORKJHTE5PXJV"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "R-03H2Z1ONR6VFQ0O87A6OJ14VS",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "name": "phòng 2",
+    "usage": "other",
+    "outline": [
+     {
+      "x": 1193,
+      "y": 259
+     },
+     {
+      "x": 885,
+      "y": 258
+     },
+     {
+      "x": 886,
+      "y": 559
+     },
+     {
+      "x": 887,
+      "y": 761
+     },
+     {
+      "x": 973,
+      "y": 762
+     },
+     {
+      "x": 1183,
+      "y": 762
+     },
+     {
+      "x": 1183,
+      "y": 382
+     },
+     {
+      "x": 1188,
+      "y": 369
+     },
+     {
+      "x": 1193,
+      "y": 355
+     }
+    ],
+    "areaM2": 0.15,
+    "wallIds": [
+     "W-03H2Z1ONKR5DMORKJHTE5PXJV",
+     "W-03H2Z1ONKP52GHYYNL641CC1X",
+     "W-03H2Z1ONKPRR0G5FPVZVFO9NY",
+     "W-03H2Z1ONKPOH6SZI40X6ING1T",
+     "W-03H2Z1ONKQA4RNMGFIHXRCWFA",
+     "W-03H2Z1ONKOBLR0XF67MXW3GO1"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "R-03H2Z1ONRA734FFSE4GW9B8JF",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "name": "phòng 3",
+    "usage": "other",
+    "outline": [
+     {
+      "x": 448,
+      "y": 857
+     },
+     {
+      "x": 450,
+      "y": 948
+     },
+     {
+      "x": 450,
+      "y": 966
+     },
+     {
+      "x": 688,
+      "y": 967
+     },
+     {
+      "x": 687,
+      "y": 761
+     },
+     {
+      "x": 687,
+      "y": 558
+     },
+     {
+      "x": 452,
+      "y": 557
+     },
+     {
+      "x": 452,
+      "y": 574
+     },
+     {
+      "x": 449,
+      "y": 670
+     }
+    ],
+    "areaM2": 0.1,
+    "wallIds": [
+     "W-03H2Z1ONK2BDOTPGG4XDTUUGU",
+     "W-03H2Z1ONK5B4IBA9DQE1XEIBT",
+     "W-03H2Z1ONK6C2GEPBBK5UZEYE2",
+     "W-03H2Z1ONK5W3R2SMUT3GHG9E2",
+     "W-03H2Z1ONK5QC3JDICEQV6080I",
+     "W-03H2Z1ONK5MN3TUXRS4YVMQA5"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "R-03H2Z1ONR9MPI6AYUB48EO85Z",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "name": "phòng 4",
+    "usage": "other",
+    "outline": [
+     {
+      "x": 886,
+      "y": 559
+     },
+     {
+      "x": 687,
+      "y": 558
+     },
+     {
+      "x": 687,
+      "y": 761
+     },
+     {
+      "x": 887,
+      "y": 761
+     }
+    ],
+    "areaM2": 0.04,
+    "wallIds": [
+     "W-03H2Z1ONK5MN3TUXRS4YVMQA5",
+     "W-03H2Z1ONK25S0PQKXWDE619PN"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "R-03H2Z1ONRA98IFEBC03HTXHJ6",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "name": "phòng 5",
+    "usage": "other",
+    "outline": [
+     {
+      "x": 1684,
+      "y": 761
+     },
+     {
+      "x": 1650,
+      "y": 785
+     },
+     {
+      "x": 1685,
+      "y": 811
+     },
+     {
+      "x": 1696,
+      "y": 841
+     },
+     {
+      "x": 1804,
+      "y": 850
+     },
+     {
+      "x": 1904,
+      "y": 850
+     },
+     {
+      "x": 1904,
+      "y": 836
+     },
+     {
+      "x": 1905,
+      "y": 637
+     },
+     {
+      "x": 1684,
+      "y": 637
+     }
+    ],
+    "areaM2": 0.05,
+    "wallIds": [
+     "W-03H2Z1ONKQV33HW0A445LMFRB",
+     "W-03H2Z1ONKNIPCNWHZ1PZ8X5UL",
+     "W-03H2Z1ONKQUPAFGAZVCY8U0VV",
+     "W-03H2Z1ONKOLYUCC847M1PPTXW",
+     "W-03H2Z1ONKO8KXLVSRU2M1FKXZ",
+     "W-03H2Z1ONKRCH154A0O7SXG8KL",
+     "W-03H2Z1ONKS9TS44G0WB0ZCW99",
+     "W-03H2Z1ONKNMU0GG9ZLMZWG5PY",
+     "W-03H2Z1ONKNIM91JNZV45CEEBN"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "R-03H2Z1ONRB061WNORWPTLCZCT",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "name": "phòng 6",
+    "usage": "other",
+    "outline": [
+     {
+      "x": 130,
+      "y": 857
+     },
+     {
+      "x": 448,
+      "y": 857
+     },
+     {
+      "x": 449,
+      "y": 670
+     },
+     {
+      "x": 130,
+      "y": 670
+     }
+    ],
+    "areaM2": 0.06,
+    "wallIds": [
+     "W-03H2Z1ONK00LSK043SCMWQOID",
+     "W-03H2Z1ONK1B6IQSQDJ25PCL0Q",
+     "W-03H2Z1ONK51IR3CJCZLF9EKH9",
+     "W-03H2Z1ONK2BDOTPGG4XDTUUGU",
+     "W-03H2Z1ONK5B4IBA9DQE1XEIBT",
+     "W-03H2Z1ONK5W3R2SMUT3GHG9E2"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "R-03H2Z1ONR6DZLB2KVMS9H42CL",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "name": "phòng 7",
+    "usage": "other",
+    "outline": [
+     {
+      "x": 448,
+      "y": 857
+     },
+     {
+      "x": 130,
+      "y": 857
+     },
+     {
+      "x": 130,
+      "y": 1142
+     },
+     {
+      "x": 450,
+      "y": 1142
+     },
+     {
+      "x": 450,
+      "y": 1141
+     },
+     {
+      "x": 450,
+      "y": 966
+     },
+     {
+      "x": 450,
+      "y": 948
+     }
+    ],
+    "areaM2": 0.09,
+    "wallIds": [
+     "W-03H2Z1ONK00LSK043SCMWQOID",
+     "W-03H2Z1ONK2LJ5N5PAJRYHGEAF",
+     "W-03H2Z1ONK5B4IBA9DQE1XEIBT",
+     "W-03H2Z1ONK5QQYW3UYH4IZY63Y"
+    ]
+   },
+   {
+    "confidence": 1.0,
+    "source": "ai",
+    "reviewed": false,
+    "id": "R-03H2Z1ONR9JNFHAD9BON7TW4L",
+    "levelId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+    "name": "phòng 8",
+    "usage": "other",
+    "outline": [
+     {
+      "x": 509,
+      "y": 1142
+     },
+     {
+      "x": 613,
+      "y": 1142
+     },
+     {
+      "x": 688,
+      "y": 1142
+     },
+     {
+      "x": 688,
+      "y": 1127
+     },
+     {
+      "x": 688,
+      "y": 967
+     },
+     {
+      "x": 450,
+      "y": 966
+     },
+     {
+      "x": 450,
+      "y": 1141
+     }
+    ],
+    "areaM2": 0.04,
+    "wallIds": [
+     "W-03H2Z1ONK6C2GEPBBK5UZEYE2",
+     "W-03H2Z1ONK5QQYW3UYH4IZY63Y",
+     "W-03H2Z1ONK5YI7DS8R3IHT05UW",
+     "W-03H2Z1ONK1YPIA16S82F757WB",
+     "W-03H2Z1ONKPELRB6JT7KY7SPV8"
+    ]
+   }
+  ],
+  "axes": [],
+  "dimensions": [],
+  "notes": []
+ },
+ "floorRevisions": [
+  {
+   "floorId": "L-01M57GTWHZVDVRAXCH2AXTRSEQ",
+   "revision": 1
+  }
+ ]
+}
