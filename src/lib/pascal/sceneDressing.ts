@@ -2,12 +2,12 @@
  * "Trang phục" của cảnh Pascal: vật liệu sàn, mặt tường, len chân tường và phào trần.
  *
  * Bản đầu để Pascal tự chọn mặc định, và cảnh ra xám trơn — kém hẳn nhà 3D ở trang
- * đăng nhập. File này khai một bộ vật liệu **màu phẳng, không texture** (không có
- * tệp `.ktx2` nào để thiếu) và quy tắc gán chúng theo phòng, theo loại tường.
+ * đăng nhập. File này là quy tắc gán vật liệu theo phòng, theo loại tường, theo khe
+ * mô hình; vật liệu cụ thể lấy từ phong cách đang chọn (`sceneStyles.ts`, J8).
  *
  * Tham chiếu vật liệu theo mô hình khe của Pascal (`viewer/src/lib/materials.ts`):
  * `scene:<id>` trỏ vào `PascalScene.materials`, `library:<id>` trỏ vào thư viện dựng
- * sẵn — chỉ dùng những cái repo Pascal có đủ tệp (`concrete-polished`, `preset-glass`).
+ * sẵn — chỉ dùng những cái có đủ tệp (`.ktx2` của repo hoặc `.webp` tự dựng, J2).
  */
 
 import type { Room, RoomFinish, RoomUsage, Wall } from '@/domain/spatial/types';
@@ -16,6 +16,7 @@ import { millimetres, millimetresToMetres } from '@/domain/units/types';
 import { CATALOG_MODELS, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { bodyOfPascalId, toPascalId } from './ids';
 import { SCENE_PALETTE } from './scenePalette';
+import { sceneStyleOf, type SceneStyle, type SlotFamily } from './sceneStyles';
 import type {
   PascalCeilingNode,
   PascalItemNode,
@@ -34,31 +35,21 @@ const flat = (id: PascalSceneMaterial['id'], name: string, color: string, roughn
   },
 });
 
-/** Bộ vật liệu của AppFront, đúng hình `SceneMaterial` (`core/src/schema/scene-material.ts`). */
+/**
+ * Vật liệu phẳng không theo phong cách, đúng hình `SceneMaterial`
+ * (`core/src/schema/scene-material.ts`). Sàn/tường/đồ gỗ nay lấy từ phong cách.
+ */
 export const SCENE_MATERIALS: readonly PascalSceneMaterial[] = [
-  flat('mat_appfront_wood', 'Sàn gỗ', SCENE_PALETTE.wood, 0.4),
-  flat('mat_appfront_tile', 'Gạch men', SCENE_PALETTE.tile, 0.22),
-  flat('mat_appfront_mosaic', 'Gạch mosaic', SCENE_PALETTE.mosaic, 0.3),
-  flat('mat_appfront_decking', 'Sàn gỗ ngoài trời', SCENE_PALETTE.decking, 0.85),
-  flat('mat_appfront_plaster', 'Tường vữa', SCENE_PALETTE.plaster, 0.9),
-  flat('mat_appfront_exterior', 'Tường ngoài', SCENE_PALETTE.exterior, 0.9),
-  flat('mat_appfront_oak', 'Gỗ sáng', SCENE_PALETTE.oak, 0.5),
-  flat('mat_appfront_walnut', 'Gỗ tối', SCENE_PALETTE.walnut, 0.5),
+  flat('mat_appfront_plaster', 'Trần vữa', SCENE_PALETTE.plaster, 0.9),
   flat('mat_appfront_bark', 'Thân cây', SCENE_PALETTE.bark, 0.9),
 ];
 
-const CONCRETE = 'library:concrete-polished';
 const GLASS = 'library:preset-glass';
 const PLASTER = 'scene:mat_appfront_plaster';
-const EXTERIOR = 'scene:mat_appfront_exterior';
+const BARK = 'scene:mat_appfront_bark';
 
-const FINISH_MATERIAL: Readonly<Record<RoomFinish, string>> = {
-  wood: 'scene:mat_appfront_wood',
-  tile: 'scene:mat_appfront_tile',
-  mosaic: 'scene:mat_appfront_mosaic',
-  decking: 'scene:mat_appfront_decking',
-  concrete: CONCRETE,
-};
+/** Phong cách mặc định — tham số mặc định của mọi hàm dưới đây (J8). */
+const DEFAULT_STYLE = sceneStyleOf(undefined);
 
 /** Phòng chưa khai `finish`: đoán theo công năng, như nhà mẫu ở trang đăng nhập. */
 const USAGE_FINISH: Readonly<Record<RoomUsage, RoomFinish>> = {
@@ -73,55 +64,74 @@ const USAGE_FINISH: Readonly<Record<RoomUsage, RoomFinish>> = {
 };
 
 /** Tham chiếu vật liệu mặt sàn của một phòng: `finish` trước, công năng sau. */
-export const floorMaterialOf = (room: Pick<Room, 'usage' | 'finish'>): string =>
-  FINISH_MATERIAL[room.finish ?? USAGE_FINISH[room.usage]];
+export const floorMaterialOf = (room: Pick<Room, 'usage' | 'finish'>, style: SceneStyle = DEFAULT_STYLE): string =>
+  style.floor[room.finish ?? USAGE_FINISH[room.usage]];
 
 /** Tường thấp hơn mức này là lan can/vách kính, không phải tường phòng. */
 const LOW_WALL_MAX_MM = 1200;
 
 /**
  * Khe mặt tường + len chân + phào. Mọi trường viết đủ: `setScene` không áp mặc định
- * zod (xem `types.ts`). Mặt `exterior` của tường bao/chịu lực xám như mặt ngoài nhà mẫu;
- * vách ngăn trắng cả hai mặt. Tường thấp là kính, không len không phào.
+ * zod (xem `types.ts`). Mặt `exterior` của tường bao/chịu lực theo sơn ngoài của phong
+ * cách; vách ngăn sơn trong cả hai mặt. Tường thấp là kính, không len không phào.
  */
 export const wallDressingOf = (
   wall: Pick<Wall, 'kind' | 'heightMm'>,
+  style: SceneStyle = DEFAULT_STYLE,
 ): Pick<PascalWallNode, 'slots' | 'skirting' | 'crown'> => {
   if (wall.heightMm <= LOW_WALL_MAX_MM) return { slots: { interior: GLASS, exterior: GLASS } };
+  const { interior, exterior } = style.wall;
   return {
-    slots: { interior: PLASTER, exterior: wall.kind === 'partition' ? PLASTER : EXTERIOR },
+    slots: { interior, exterior: wall.kind === 'partition' ? interior : exterior },
     skirting: { enabled: true, sides: 'interior', height: 0.1, proud: 0.015, profile: 'flat' },
     crown: { enabled: true, sides: 'interior', height: 0.05, proud: 0.02, profile: 'flat' },
   };
 };
 
-const OAK = 'scene:mat_appfront_oak';
-const WALNUT = 'scene:mat_appfront_walnut';
-const BARK = 'scene:mat_appfront_bark';
-
 /**
- * Khe `slot_*` của mô hình đồ đạc mà GLB trỏ (`extras.pascal_material`) vào vật liệu
- * gỗ/gạch có vân — repo Pascal không commit `.ktx2` của chúng (`copy-pascal-assets.mjs`
- * in số thiếu), tự host là 404 im lặng và mặt ra không vân. Đè bằng màu phẳng.
+ * Khe `slot_*` của mô hình đồ đạc (tên khe như GLB, `extras.pascal_material`) → họ vật
+ * liệu của phong cách. Phủ mọi khe GLB trỏ vào gỗ/gạch (`wood-*`, `flooring-*`) để đồ gỗ
+ * đổi theo phong cách, cộng vải/kim loại/tủ/mặt đá/sứ/thảm/chậu cho phong cách khác hẳn.
+ * Thân cây (`bark`) không theo phong cách: vân sàn gỗ làm thân cây trông như tấm ván.
  * Chỉ các thư mục `furnitureCatalog.ts` dùng; bài kiểm quét GLB thật để bắt thư mục mới.
  */
-const ITEM_SLOTS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
-  'bedside-table': { cabinet: WALNUT },
-  bookshelf: { body: OAK, shelf: OAK },
-  'coffee-table': { top: OAK },
-  'dining-chair': { legs: OAK },
-  'dining-table': { top: OAK },
-  dresser: { body: WALNUT, drawers: WALNUT },
-  'fir-tree': { trunk: BARK },
-  'indoor-plant': { trunk: BARK },
-  'office-table': { cabinet: WALNUT },
-  palm: { trunk: BARK },
-  picture: { picture: 'scene:mat_appfront_mosaic' },
-  'single-bed': { frame: OAK },
+const SLOT_FAMILY: Readonly<Record<string, Readonly<Record<string, SlotFamily | 'bark'>>>> = {
+  bathtub: { tub: 'ceramic' },
+  'bedside-table': { cabinet: 'wood', handle: 'metal' },
+  bookshelf: { body: 'wood', shelf: 'wood' },
+  closet: { body: 'cabinetry' },
+  'coffee-table': { top: 'wood' },
+  'dining-chair': { legs: 'wood', seat: 'fabric', headrest: 'fabric' },
+  'dining-table': { top: 'wood' },
+  dresser: { body: 'wood', drawers: 'wood', handle: 'metal' },
+  'fir-tree': { trunk: 'bark' },
+  'indoor-plant': { trunk: 'bark', pot: 'pot' },
+  'kitchen-counter': { cabinet: 'cabinetry', countertop: 'countertop' },
+  'kitchen-shelf': { cabinet: 'cabinetry' },
+  'livingroom-chair': { pillow: 'fabric', cushion: 'fabric' },
+  'office-table': { cabinet: 'wood' },
+  palm: { trunk: 'bark' },
+  // Tranh: vải dệt treo tường — sứ/đá phẳng làm tranh thành tấm trắng trơn.
+  picture: { picture: 'rug' },
+  'rectangular-carpet': { a: 'rug' },
+  'round-carpet': { a: 'rug' },
+  'single-bed': { frame: 'wood' },
+  'small-indoor-plant': { pot: 'pot' },
+  sofa: { pillow: 'fabric', cushion: 'fabric' },
+  toilet: { toilet: 'ceramic' },
 };
 
-/** Khe đè cho mô hình ở `/items/<folder>/`; `undefined` = để nguyên vật liệu của GLB. */
-export const itemSlotsOf = (folder: string): Readonly<Record<string, string>> | undefined => ITEM_SLOTS[folder];
+/** Khe đè cho mô hình ở `/items/<folder>/` theo phong cách; `undefined` = để nguyên vật liệu của GLB. */
+export const itemSlotsOf = (
+  folder: string,
+  style: SceneStyle = DEFAULT_STYLE,
+): Readonly<Record<string, string>> | undefined => {
+  const families = SLOT_FAMILY[folder];
+  if (families === undefined) return undefined;
+  return Object.fromEntries(
+    Object.entries(families).map(([slot, family]) => [slot, family === 'bark' ? BARK : style.families[family]]),
+  );
+};
 
 /** Thân id của đèn trần sinh ra: `item_LIGHT-<id phòng>`. Không phải id AppFront hợp lệ. */
 const GENERATED_LIGHT_PREFIX = 'LIGHT-';
@@ -133,17 +143,16 @@ export const isGeneratedLightId = (nodeId: PascalNodeId): boolean =>
 const metresOf = (valueMm: number): number => millimetresToMetres(millimetres(valueMm));
 
 /**
- * Đèn âm trần ấm như `--scene-lamp` của trang đăng nhập. Pascal dựng nó thành đèn điểm
+ * Đèn âm trần: màu và cường độ theo phong cách (`lampColour`/`lampIntensity`; mặc định ấm
+ * như `--scene-lamp` của trang đăng nhập, 6 cd). Pascal dựng nó thành đèn điểm
  * (`use-item-light-pool.ts`): mặc định trắng, 2 cd, không giới hạn tầm — trên nền `night`
  * gần như không thấy. 6 cd ở trần 2,4 m cho sàn ≈ 1,1 — ngang đèn chính của chủ đề (1,2),
  * đủ thành vũng sáng mà không cháy; tầm 6 m như đèn trần trang đăng nhập.
  */
-export const LIGHT_COLOR = SCENE_PALETTE.lamp;
-export const LIGHT_INTENSITY_MAX = 6;
 export const LIGHT_DISTANCE_M = 6;
 
-/** Bật sẵn đèn: khối `interactive` chép sâu, công tắc `default: true`, ánh sáng ấm. */
-const lightInteractiveOf = (interactive: unknown): unknown => {
+/** Bật sẵn đèn: khối `interactive` chép sâu, công tắc `default: true`, ánh sáng theo phong cách. */
+const lightInteractiveOf = (interactive: unknown, style: SceneStyle): unknown => {
   const copy = structuredClone(interactive) as {
     controls?: { kind: string; default?: unknown }[];
     effects?: { kind: string; color?: string; intensityRange?: [number, number]; distance?: number }[];
@@ -155,8 +164,8 @@ const lightInteractiveOf = (interactive: unknown): unknown => {
 
   for (const effect of copy.effects ?? []) {
     if (effect.kind !== 'light') continue;
-    effect.color = LIGHT_COLOR;
-    effect.intensityRange = [0, LIGHT_INTENSITY_MAX];
+    effect.color = style.lampColour;
+    effect.intensityRange = [0, style.lampIntensity];
     effect.distance = LIGHT_DISTANCE_M;
   }
 
@@ -219,6 +228,7 @@ export const interiorPointOf = (polygon: readonly PascalPoint2[]): PascalPoint2 
 export const ceilingNodesOf = (
   room: Pick<Room, 'id' | 'outline' | 'finish'>,
   levelNodeId: PascalNodeId,
+  style: SceneStyle = DEFAULT_STYLE,
 ): readonly [PascalCeilingNode, PascalItemNode] | undefined => {
   if (room.finish === 'decking') return undefined;
 
@@ -264,7 +274,7 @@ export const ceilingNodesOf = (
         scale: [1, 1, 1],
         attachTo: 'ceiling',
         recessed: true,
-        interactive: lightInteractiveOf(model.interactive),
+        interactive: lightInteractiveOf(model.interactive, style),
       },
     },
   ];

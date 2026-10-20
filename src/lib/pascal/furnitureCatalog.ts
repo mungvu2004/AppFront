@@ -225,6 +225,12 @@ export const CATALOG_MODELS: Readonly<Record<string, CatalogModel>> = {
     offset: [0.0043, 0, -0.0505],
     rotation: [0, 0, 0],
   },
+  'washing-machine': {
+    folder: 'washing-machine',
+    dimensions: [0.6, 0.86, 0.53],
+    offset: [0, 0, -0.0114],
+    rotation: [0, 0, 0],
+  },
   stool: {
     folder: 'stool',
     dimensions: [0.52, 1.16, 0.55],

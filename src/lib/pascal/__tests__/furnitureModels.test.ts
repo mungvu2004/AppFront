@@ -9,13 +9,14 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
-import type { Furniture, SpatialGraph } from '@/domain/spatial/types';
+import type { Furniture, RoomUsage, SpatialGraph } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
 
 import { fixtureF1, fixtureF2 } from '../__fixtures__';
 import { CATALOG_MODELS } from '../furnitureCatalog';
 import { toPascalId } from '../ids';
 import { isGeneratedLightId } from '../sceneDressing';
+import { SCENE_STYLES, type SceneStyle } from '../sceneStyles';
 import { toPascalScene } from '../toPascal';
 import { toSpatialGraph } from '../toSpatial';
 import type { PascalItemNode } from '../types';
@@ -165,9 +166,53 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     expect(item!.asset.scale![1]).toBeCloseTo((1 / 1.04) * 0.96, 4);
   });
 
+  it('tất định: F2 dựng hai lần, và với mảng đồ đạc đảo ngược → cùng node (mọi phong cách)', () => {
+    const g = graphOf(fixtureF2().doc);
+    const reversed = { ...g, furniture: [...g.furniture].reverse() };
+    // Thứ tự `children` theo thứ tự đồ thị — so tập hợp, còn lại so từng giá trị.
+    const normalised = (graph: SpatialGraph, style: SceneStyle) =>
+      Object.fromEntries(
+        Object.entries(toPascalScene(graph, { style }).scene.nodes).map(([id, n]) => [
+          id,
+          'children' in n && Array.isArray(n.children) ? { ...n, children: [...n.children].sort() } : n,
+        ]),
+      );
+    for (const style of Object.values(SCENE_STYLES)) {
+      const first = normalised(g, style);
+      expect(normalised(g, style)).toEqual(first);
+      expect(normalised(reversed, style)).toEqual(first);
+    }
+  });
+
+  it('máy giặt (kitchenCabinet/cabinet) ở phòng tắm/kỹ thuật → washing-machine; bếp giữ mô hình cũ', () => {
+    const g = graphOf(fixtureF2().doc);
+    const srcIn = (usage: RoomUsage): string => {
+      const room = { ...g.rooms[0]!, usage };
+      const [item] = itemsOf({
+        ...g,
+        rooms: [room],
+        furniture: [
+          {
+            ...g.furniture[0]!,
+            kind: 'kitchenCabinet',
+            variant: 'cabinet',
+            roomId: room.id,
+            boundingBox: { min: { x: 0, y: 0 }, max: { x: 600, y: 600 } } as Furniture['boundingBox'],
+            centre: { x: 300, y: 300 } as Furniture['centre'],
+          },
+        ],
+      });
+      return item!.asset.src;
+    };
+    expect(srcIn('bathroom')).toBe('/items/washing-machine/model.glb');
+    expect(srcIn('utility')).toBe('/items/washing-machine/model.glb');
+    expect(srcIn('kitchen')).toBe('/items/dresser/model.glb');
+  });
+
   it('F2 (không variant): đoán thư mục theo loại + phòng + hộp bao; thang vẫn là chỗ giữ chỗ', () => {
     const expected: Record<string, string> = {
-      table: '/items/dining-table/model.glb',
+      // Bàn 900×600 là cỡ bàn làm việc: phong cách mặc định ưu tiên office-table (fill 0,62 ≥ 0,6).
+      table: '/items/office-table/model.glb',
       chair: '/items/dining-chair/model.glb',
       bed: '/items/single-bed/model.glb',
       wardrobe: '/items/closet/model.glb',

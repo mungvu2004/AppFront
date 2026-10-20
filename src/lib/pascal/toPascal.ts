@@ -40,6 +40,8 @@ import { FURNITURE_KIND_LABELS, WALL_KIND_LABELS } from '@/lib/commands/business
 import { CATALOG_MODELS, VARIANT_MODEL, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
 import { ceilingNodesOf, floorMaterialOf, itemSlotsOf, SCENE_MATERIALS, wallDressingOf } from './sceneDressing';
+import { SCENE_STYLE_MATERIALS, sceneStyleOf, type SceneStyle } from './sceneStyles';
+import { modelFolderOf } from './sceneVariety';
 import type {
   AppFrontOrigin,
   PascalDoorNode,
@@ -204,6 +206,7 @@ const wallNodeOf = (
   ordinal: number,
   levelNodeId: PascalNodeId,
   children: readonly PascalNodeId[],
+  style: SceneStyle,
 ): PascalWallNode => ({
   object: 'node',
   id: toPascalId('wall', wall.id),
@@ -215,7 +218,7 @@ const wallNodeOf = (
   end: [metresOf(wall.centreline.end.x), metresOf(wall.centreline.end.y)],
   thickness: metresOf(wall.thicknessMm),
   height: metresOf(wall.heightMm),
-  ...wallDressingOf(wall),
+  ...wallDressingOf(wall, style),
   metadata: { appfront: originOf(wall, { kind: wall.kind }) },
 });
 
@@ -320,7 +323,7 @@ const openingNodeOf = (
  * thể có mặt để nhìn và để đặt đồ lên. Bỏ `slab` thì bản vẽ có phòng mà không
  * có nền.
  */
-const slabNodeOf = (room: Room, levelNodeId: PascalNodeId): PascalSlabNode => ({
+const slabNodeOf = (room: Room, levelNodeId: PascalNodeId, style: SceneStyle): PascalSlabNode => ({
   object: 'node',
   id: toPascalId('slab', room.id),
   type: 'slab',
@@ -333,7 +336,7 @@ const slabNodeOf = (room: Room, levelNodeId: PascalNodeId): PascalSlabNode => ({
   recessed: false,
   autoFromWalls: false,
   // Khai đích danh — xem `PascalSlabNode.slots`; quy tắc chọn ở `sceneDressing.ts`.
-  slots: { surface: floorMaterialOf(room) },
+  slots: { surface: floorMaterialOf(room, style) },
   metadata: {
     appfront: originOf(room, { usage: room.usage }),
   },
@@ -384,10 +387,11 @@ const heightOfFurniture = (furniture: Furniture, levelHeightMm: number): number 
     : metresOf(furniture.heightMm ?? FURNITURE_HEIGHT_MM[furniture.kind]);
 
 /**
- * Thư mục mô hình Pascal cho một món đồ (P1 §3): có `variant` thì tra
- * `VARIANT_MODEL`, không thì đoán theo loại + công năng phòng + hộp bao (mét).
- * `stair` không có mô hình — trả `null`.
+ * Cách chọn mô hình TRƯỚC phong cách (P1 §3): có `variant` thì tra `VARIANT_MODEL`,
+ * không thì đoán theo loại + công năng phòng + hộp bao (mét). `stair` → `null`.
  */
+// ponytail: không còn đường chạy nào gọi — chỉ `sceneVariety.test.ts` dùng làm chuẩn
+// đối chiếu "không null ở chỗ hôm nay có mô hình". Xoá khi test đó chép kỳ vọng ra.
 export const furnitureModelOf = (
   furniture: Furniture,
   usage: RoomUsage | undefined,
@@ -431,6 +435,21 @@ export const furnitureModelOf = (
   }
 };
 
+/** Phòng mà tủ thiết bị (`kitchenCabinet`/`cabinet`: máy giặt, máy sấy…) dựng thành máy giặt; bếp giữ mô hình cũ. */
+const WASHER_ROOM_USAGES: ReadonlySet<RoomUsage> = new Set(['bathroom', 'utility']);
+
+/**
+ * Thư mục mô hình Pascal cho một món đồ theo phong cách (J7, `sceneVariety.ts`);
+ * `null` = không có mô hình (thang) → chỗ giữ chỗ `asset://`.
+ */
+const furnitureFolderOf = (furniture: Furniture, style: SceneStyle, usage: RoomUsage | undefined): string | null =>
+  furniture.kind === 'kitchenCabinet' &&
+  furniture.variant === 'cabinet' &&
+  usage !== undefined &&
+  WASHER_ROOM_USAGES.has(usage)
+    ? 'washing-machine'
+    : modelFolderOf(furniture, style, usage);
+
 /** Cây mà catalog dựng cao hơn trần (cọ 4,5 m, thông 3 m): trong nhà chặn ở 2,2 m. */
 const TALL_PLANT_FOLDERS: ReadonlySet<string> = new Set(['palm', 'fir-tree']);
 const TALL_PLANT_MAX_M = 2.2;
@@ -439,12 +458,17 @@ const itemNodeOf = (
   furniture: Furniture,
   levelNodeId: PascalNodeId,
   levelHeightMm: number,
+  style: SceneStyle,
   usage?: RoomUsage,
 ): PascalItemNode => {
   const label = FURNITURE_KIND_LABELS[furniture.kind];
   const widthM = metresOf(furniture.boundingBox.max.x - furniture.boundingBox.min.x);
   const depthM = metresOf(furniture.boundingBox.max.y - furniture.boundingBox.min.y);
-  const model = furniture.model === undefined ? furnitureModelOf(furniture, usage) : null;
+  const folder = furniture.model === undefined ? furnitureFolderOf(furniture, style, usage) : null;
+  const model =
+    folder === null
+      ? null
+      : { folder, liftMm: furniture.variant === undefined ? undefined : VARIANT_MODEL[furniture.variant]?.liftMm };
   const catalog = model === null ? undefined : CATALOG_MODELS[model.folder];
 
   // Khớp mô hình vào hộp bao CỤC BỘ bằng `asset.scale` — `node.scale` phải giữ
@@ -483,7 +507,7 @@ const itemNodeOf = (
   })();
   const heightM = fit?.heightM ?? heightOfFurniture(furniture, levelHeightMm);
   const liftM = metresOf(furniture.liftMm ?? model?.liftMm ?? 0);
-  const slots = fit === null ? undefined : itemSlotsOf(fit.folder);
+  const slots = fit === null ? undefined : itemSlotsOf(fit.folder, style);
 
   return {
     object: 'node',
@@ -581,7 +605,10 @@ const sitePolygonOf = (nodes: Record<PascalNodeId, PascalNode>): PascalSiteNode[
   };
 };
 
-export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
+export const toPascalScene = (
+  graph: SpatialGraph,
+  { style = sceneStyleOf(undefined) }: { readonly style?: SceneStyle } = {},
+): PascalSceneResult => {
   const nodes: Record<PascalNodeId, PascalNode> = {};
   const skipped: SkippedEntity[] = [];
   const childrenOf = new Map<PascalNodeId, PascalNodeId[]>();
@@ -616,6 +643,7 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
   const levelNodeIdOf = new Map<string, PascalNodeId>();
   /* Chiều cao tầng: cái thang dựng cao trọn tầng, và trần của phòng. */
   const levelHeightMmOf = new Map<string, number>();
+  const roomUsageOf = new Map<string, RoomUsage>(graph.rooms.map((room) => [room.id, room.usage]));
   let elevationIndex = 0;
 
   for (const level of orderedLevels) {
@@ -664,7 +692,7 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
 
     const ordinal = (wallCountOfLevel.get(wall.levelId) ?? 0) + 1;
     wallCountOfLevel.set(wall.levelId, ordinal);
-    const node = wallNodeOf(wall, ordinal, levelNodeId, childrenFor(toPascalId('wall', wall.id)));
+    const node = wallNodeOf(wall, ordinal, levelNodeId, childrenFor(toPascalId('wall', wall.id)), style);
 
     nodes[node.id] = node;
     wallNodeIdOf.set(wall.id, node.id);
@@ -711,13 +739,13 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
       continue;
     }
 
-    for (const node of [zoneNodeOf(room, levelNodeId, levelHeightMm), slabNodeOf(room, levelNodeId)]) {
+    for (const node of [zoneNodeOf(room, levelNodeId, levelHeightMm), slabNodeOf(room, levelNodeId, style)]) {
       nodes[node.id] = node;
       adopt(levelNodeId, node.id);
     }
 
     /* Trần + đèn sinh từ phòng (sân ngoài trời thì không); đèn là con của trần (trần tự giữ `children`). */
-    const generated = ceilingNodesOf(room, levelNodeId);
+    const generated = ceilingNodesOf(room, levelNodeId, style);
 
     if (generated !== undefined) {
       const [ceiling, light] = generated;
@@ -756,8 +784,8 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
       continue;
     }
 
-    const usage = graph.rooms.find((room) => room.id === furniture.roomId)?.usage;
-    const node = itemNodeOf(furniture, levelNodeId, levelHeightMm, usage);
+    const usage = furniture.roomId === undefined ? undefined : roomUsageOf.get(furniture.roomId);
+    const node = itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage);
 
     nodes[node.id] = node;
     adopt(levelNodeId, node.id);
@@ -828,6 +856,6 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
   };
 
 
-  const materials = Object.fromEntries(SCENE_MATERIALS.map((material) => [material.id, material]));
+  const materials = Object.fromEntries([...SCENE_MATERIALS, ...SCENE_STYLE_MATERIALS].map((material) => [material.id, material]));
   return { scene: { nodes, rootNodeIds: [SITE_NODE_ID], materials }, skipped };
 };

@@ -14,10 +14,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
+import { millimetres } from '@/domain/units/types';
 
 import { fixtureF1, fixtureF2, fixtureF5 } from '../__fixtures__';
 import { CATALOG_MODELS } from '../furnitureCatalog';
-import { itemSlotsOf, SCENE_MATERIALS } from '../sceneDressing';
+import { ceilingNodesOf, floorMaterialOf, itemSlotsOf, SCENE_MATERIALS, wallDressingOf } from '../sceneDressing';
+import { SCENE_STYLE_IDS, SCENE_STYLE_MATERIALS, SCENE_STYLES } from '../sceneStyles';
 import { toPascalScene } from '../toPascal';
 
 const ROOT = resolve(__dirname, '../../../..');
@@ -43,12 +45,13 @@ const LIBRARY_MAPS = new Map(
       return [block.slice(0, block.indexOf("'")), [...body.matchAll(/'\/material\/([^']+\.ktx2)'/gu)].map((m) => m[1]!)];
     }),
 );
-const SCENE_IDS = new Set<string>(SCENE_MATERIALS.map((material) => material.id));
+const SCENE_IDS = new Set<string>([...SCENE_MATERIALS, ...SCENE_STYLE_MATERIALS].map((material) => material.id));
 
 /** Lý do tham chiếu này gọi tệp thiếu, hoặc `null` nếu dựng được. */
 const problemOf = (ref: string): string | null => {
   if (ref.startsWith('#')) return null;
-  if (ref.startsWith('scene:')) return SCENE_IDS.has(ref.slice(6)) ? null : 'không có trong SCENE_MATERIALS';
+  if (ref.startsWith('scene:'))
+    return SCENE_IDS.has(ref.slice(6)) ? null : 'không có trong SCENE_MATERIALS / SCENE_STYLE_MATERIALS';
   if (!ref.startsWith('library:')) return 'không phải scene:/library:';
   const id = ref.slice(8);
   const maps = LIBRARY_MAPS.get(id);
@@ -84,13 +87,39 @@ describe('vật liệu chỉ trỏ tới tệp có thật (T21)', () => {
     expect(glbSlotRefs('bookshelf')).toMatchObject({ body: 'library:wood-finewood27' });
   });
 
-  it('mọi mô hình trong bảng: khe nào trỏ vật liệu thiếu tệp đều bị itemSlotsOf đè', () => {
+  it('mọi phong cách × mọi mô hình trong bảng: khe sau itemSlotsOf dựng được; khe gỗ/gạch của GLB đều được đè', () => {
     const bad: string[] = [];
-    for (const folder of Object.keys(CATALOG_MODELS)) {
-      const slots = { ...glbSlotRefs(folder), ...itemSlotsOf(folder) };
-      for (const [slotId, ref] of Object.entries(slots)) {
+    for (const id of SCENE_STYLE_IDS) {
+      for (const folder of Object.keys(CATALOG_MODELS)) {
+        const own = itemSlotsOf(folder, SCENE_STYLES[id]) ?? {};
+        for (const [slotId, ref] of Object.entries({ ...glbSlotRefs(folder), ...own })) {
+          const problem = problemOf(ref);
+          if (problem !== null) bad.push(`${id} ${folder}.${slotId} = ${ref}: ${problem}`);
+          // Gỗ/gạch của GLB không theo phong cách thì đổi phong cách mà đồ gỗ vẫn y nguyên.
+          if (!(slotId in own) && /^library:(wood|flooring)-/u.test(ref)) bad.push(`${folder}.${slotId} = ${ref}: chưa có họ`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('mọi phong cách: sàn mọi finish, tường mọi loại, trần + đèn dựng được', () => {
+    const bad: string[] = [];
+    const { id: roomId, outline } = SpatialGraphDocumentSchema.parse(fixtureF2().doc).graph.rooms[0]!;
+    for (const id of SCENE_STYLE_IDS) {
+      const style = SCENE_STYLES[id];
+      const refs = [
+        ...(['wood', 'tile', 'mosaic', 'decking', 'concrete'] as const).map((finish) =>
+          floorMaterialOf({ usage: 'other', finish }, style),
+        ),
+        ...(['envelope', 'loadBearing', 'partition'] as const).flatMap((kind) =>
+          Object.values(wallDressingOf({ kind, heightMm: millimetres(2700) }, style).slots ?? {}),
+        ),
+        ...Object.values(ceilingNodesOf({ id: roomId, outline }, 'level_L-AAAA000001', style)?.[0].slots ?? {}),
+      ];
+      for (const ref of refs) {
         const problem = problemOf(ref);
-        if (problem !== null) bad.push(`${folder}.${slotId} = ${ref}: ${problem}`);
+        if (problem !== null) bad.push(`${id}: ${ref}: ${problem}`);
       }
     }
     expect(bad).toEqual([]);

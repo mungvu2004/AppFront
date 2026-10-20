@@ -6,13 +6,8 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { fixtureF1 } from '../__fixtures__';
 import { createPascalEditCommand } from '../fromPascal';
 import { toPascalId } from '../ids';
-import {
-  interiorPointOf,
-  isGeneratedLightId,
-  LIGHT_COLOR,
-  LIGHT_DISTANCE_M,
-  LIGHT_INTENSITY_MAX,
-} from '../sceneDressing';
+import { ceilingNodesOf, interiorPointOf, isGeneratedLightId, LIGHT_DISTANCE_M } from '../sceneDressing';
+import { SCENE_STYLES, sceneStyleOf } from '../sceneStyles';
 import { toPascalScene } from '../toPascal';
 import { toSpatialGraph } from '../toSpatial';
 import type { PascalCeilingNode, PascalItemNode, PascalNode, PascalPoint2, PascalScene } from '../types';
@@ -96,11 +91,21 @@ describe('trần + đèn (T16)', () => {
       expect(controls.find((control) => control.kind === 'toggle')?.default).toBe(true);
       expect(effects[0]).toMatchObject({
         kind: 'light',
-        color: LIGHT_COLOR,
-        intensityRange: [0, LIGHT_INTENSITY_MAX],
+        color: sceneStyleOf(undefined).lampColour,
+        intensityRange: [0, sceneStyleOf(undefined).lampIntensity],
         distance: LIGHT_DISTANCE_M,
       });
     }
+  });
+
+  it('màu + cường độ đèn theo phong cách, trần vẫn vữa', () => {
+    const room = graph.rooms.find((r) => r.finish !== 'decking')!;
+    const style = SCENE_STYLES['hien-dai-sang'];
+    const [ceiling, light] = ceilingNodesOf(room, 'level_L-AAAA000001', style)!;
+    const [effect] = (light.asset.interactive as { effects: object[] }).effects;
+
+    expect(effect).toMatchObject({ color: style.lampColour, intensityRange: [0, style.lampIntensity] });
+    expect(ceiling.slots).toEqual({ surface: 'scene:mat_appfront_plaster' });
   });
 
   it('đèn luôn trong phòng: trọng tâm nằm ngoài chữ L thì lấy giữa đoạn trong dài nhất', () => {

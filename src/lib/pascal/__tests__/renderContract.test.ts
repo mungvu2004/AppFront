@@ -23,6 +23,7 @@ import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuildi
 import type { SpatialGraph } from '@/domain/spatial/types';
 
 import { BUILDING_NODE_ID, SITE_NODE_ID } from '../ids';
+import { sceneStyleOf } from '../sceneStyles';
 import { toPascalScene } from '../toPascal';
 
 const sceneOf = (graph: SpatialGraph = createSampleBuilding()) => toPascalScene(graph).scene;
@@ -169,10 +170,9 @@ describe('hợp đồng dựng hình — trường bộ vẽ đọc thẳng', ()
       expect(slab.thickness).toBeGreaterThan(0);
       expect(slab.recessed).toBe(false);
       expect(slab.autoFromWalls).toBe(false);
-      // Mặc định của Pascal là `library:wood-woodplank48`, mà repo Pascal KHÔNG
-      // commit bốn tệp `.ktx2` của nó — bốn lượt gọi hỏng, mặt sàn mất vân, và
-      // không gì đổ. Phải khai đích danh: vật liệu màu phẳng của cảnh hoặc một cái CÓ tệp thật.
-      expect(slab.slots['surface']).toMatch(/^(scene:mat_appfront_|library:concrete-polished$)/);
+      // Không khai thì Pascal tự chọn mặc định của nó — phải khai đích danh, theo phong
+      // cách mặc định (J8); tệp thật của từng tham chiếu do `materialFiles.test.ts` kiểm.
+      expect(Object.values(sceneStyleOf(undefined).floor)).toContain(slab.slots['surface']);
     }
   });
 
@@ -198,6 +198,13 @@ describe('hợp đồng dựng hình — trường bộ vẽ đọc thẳng', ()
       'library:metal-copper',
       'library:metal-polished',
       'library:metal-steel',
+      // 14 vân gỗ/gạch tự dựng `.webp` (J2, `scripts/pascal-material-webp.mjs`).
+      ...['woodplank48', 'floorplank1', 'hungarianparquet10', 'woodplank19', 'finewood27', 'hungarianparquet2', 'woodenparquet11'].map(
+        (id) => `library:wood-${id}`,
+      ),
+      ...['woodparquet76', 'tile79', 'tiles4', 'lightceramic24', 'statuarettowhite', 'tile20', 'ceramic53'].map(
+        (id) => `library:flooring-${id}`,
+      ),
     ];
 
     // `scene:` là màu phẳng không texture (`sceneDressing.ts`) — không có tệp nào để thiếu.

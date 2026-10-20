@@ -1,19 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
+import type { RoomUsage } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
 
 import { fixtureF1, fixtureF2, type Fixture } from '../__fixtures__';
 import { SITE_NODE_ID, toPascalId } from '../ids';
-import { SCENE_MATERIALS, wallDressingOf } from '../sceneDressing';
+import { floorMaterialOf, itemSlotsOf, SCENE_MATERIALS, wallDressingOf } from '../sceneDressing';
+import { SCENE_STYLE_IDS, SCENE_STYLE_MATERIALS, SCENE_STYLES, sceneStyleOf } from '../sceneStyles';
 import { toPascalScene } from '../toPascal';
 import type { PascalSlabNode, PascalWallNode } from '../types';
 
-const WOOD = 'scene:mat_appfront_wood';
-const TILE = 'scene:mat_appfront_tile';
-const MOSAIC = 'scene:mat_appfront_mosaic';
-const DECKING = 'scene:mat_appfront_decking';
-const CONCRETE = 'library:concrete-polished';
+const DEFAULT = sceneStyleOf(undefined);
 const GLASS = 'library:preset-glass';
 
 const run = (fixture: Fixture) => {
@@ -25,17 +23,17 @@ const run = (fixture: Fixture) => {
 };
 
 describe('sceneDressing (I3) — sàn, tường, vật liệu cảnh', () => {
-  it('F2: mặt sàn theo công năng khi phòng không khai finish', () => {
+  it('F2: mặt sàn theo công năng khi phòng không khai finish (phong cách mặc định)', () => {
     const { graph, slabOf } = run(fixtureF2());
-    const byUsage = {
-      livingRoom: WOOD,
-      bedroom: WOOD,
-      corridor: WOOD,
-      other: WOOD,
-      kitchen: TILE,
-      utility: TILE,
-      bathroom: MOSAIC,
-      stairwell: CONCRETE,
+    const byUsage: Record<RoomUsage, string> = {
+      livingRoom: DEFAULT.floor.wood,
+      bedroom: DEFAULT.floor.wood,
+      corridor: DEFAULT.floor.wood,
+      other: DEFAULT.floor.wood,
+      kitchen: DEFAULT.floor.tile,
+      utility: DEFAULT.floor.tile,
+      bathroom: DEFAULT.floor.mosaic,
+      stairwell: DEFAULT.floor.concrete,
     };
     expect(graph.rooms.length).toBeGreaterThan(0);
     for (const room of graph.rooms) expect(slabOf(room.id).slots['surface']).toBe(byUsage[room.usage]);
@@ -43,14 +41,13 @@ describe('sceneDressing (I3) — sàn, tường, vật liệu cảnh', () => {
 
   it('F1 ext: mặt sàn theo finish — gỗ dùng chung một id, tắm mosaic, bếp gạch, ban công decking', () => {
     const { graph, slabOf } = run(fixtureF1({ ext: true }));
-    const byFinish = { wood: WOOD, tile: TILE, mosaic: MOSAIC, decking: DECKING, concrete: CONCRETE };
     for (const room of graph.rooms) {
       expect(room.finish).toBeDefined();
-      expect(slabOf(room.id).slots['surface']).toBe(byFinish[room.finish ?? 'concrete']);
+      expect(slabOf(room.id).slots['surface']).toBe(DEFAULT.floor[room.finish ?? 'concrete']);
     }
     const surfaces = graph.rooms.map((room) => slabOf(room.id).slots['surface']);
-    expect(surfaces.filter((s) => s === WOOD)).toHaveLength(5);
-    expect(surfaces).toEqual(expect.arrayContaining([MOSAIC, TILE, DECKING]));
+    expect(surfaces.filter((s) => s === DEFAULT.floor.wood)).toHaveLength(5);
+    expect(surfaces).toEqual(expect.arrayContaining([DEFAULT.floor.mosaic, DEFAULT.floor.tile, DEFAULT.floor.decking]));
   });
 
   it('tường có đủ hai khe + len + phào; tường thấp là kính, không len phào', () => {
@@ -65,26 +62,48 @@ describe('sceneDressing (I3) — sàn, tường, vật liệu cảnh', () => {
           expect(node.crown).toBeUndefined();
           continue;
         }
-        expect(node.slots?.['interior']).toBe('scene:mat_appfront_plaster');
-        expect(node.slots?.['exterior']).toBe(
-          wall.kind === 'partition' ? 'scene:mat_appfront_plaster' : 'scene:mat_appfront_exterior',
-        );
+        expect(node.slots?.['interior']).toBe(DEFAULT.wall.interior);
+        expect(node.slots?.['exterior']).toBe(wall.kind === 'partition' ? DEFAULT.wall.interior : DEFAULT.wall.exterior);
         expect(node.skirting).toEqual({ enabled: true, sides: 'interior', height: 0.1, proud: 0.015, profile: 'flat' });
         expect(node.crown).toEqual({ enabled: true, sides: 'interior', height: 0.05, proud: 0.02, profile: 'flat' });
       }
     }
   });
 
-  it('lan can 1,1 m là kính', () => {
-    expect(wallDressingOf({ kind: 'partition', heightMm: millimetres(1100) })).toEqual({
-      slots: { interior: GLASS, exterior: GLASS },
-    });
+  it('lan can 1,1 m là kính ở mọi phong cách', () => {
+    for (const id of SCENE_STYLE_IDS) {
+      expect(wallDressingOf({ kind: 'partition', heightMm: millimetres(1100) }, SCENE_STYLES[id])).toEqual({
+        slots: { interior: GLASS, exterior: GLASS },
+      });
+    }
+  });
+
+  it('phong cách mặc định ổn định: bỏ tham số = truyền mặc định, gọi lại cho cùng kết quả', () => {
+    const room = { usage: 'bedroom' } as const;
+    const wall = { kind: 'envelope', heightMm: millimetres(2700) } as const;
+    expect(floorMaterialOf(room)).toBe(floorMaterialOf(room, DEFAULT));
+    expect(floorMaterialOf(room)).toBe(DEFAULT.floor.wood);
+    expect(wallDressingOf(wall)).toEqual(wallDressingOf(wall, DEFAULT));
+    expect(itemSlotsOf('bookshelf')).toEqual(itemSlotsOf('bookshelf', DEFAULT));
+    expect(itemSlotsOf('bookshelf')).toEqual({ body: DEFAULT.families.wood, shelf: DEFAULT.families.wood });
+    expect(itemSlotsOf('indoor-plant')?.['trunk']).toBe('scene:mat_appfront_bark');
+    expect(itemSlotsOf('double-bed')).toBeUndefined();
+  });
+
+  it('hai phong cách cho sàn phòng gỗ và gỗ đồ đạc khác nhau', () => {
+    const room = { usage: 'livingRoom', finish: 'wood' } as const;
+    const refs = new Set(SCENE_STYLE_IDS.map((id) => floorMaterialOf(room, SCENE_STYLES[id])));
+    expect(refs.size).toBeGreaterThan(1);
+    expect(floorMaterialOf(room, SCENE_STYLES['go-am'])).not.toBe(floorMaterialOf(room));
+    expect(itemSlotsOf('dresser', SCENE_STYLES['go-am'])).not.toEqual(itemSlotsOf('dresser'));
   });
 
   it('scene.materials chứa mọi id `scene:` được tham chiếu, khoá theo id', () => {
     for (const fixture of [fixtureF2(), fixtureF1({ ext: true })]) {
       const { scene } = run(fixture);
-      expect(Object.keys(scene.materials ?? {}).sort()).toEqual(SCENE_MATERIALS.map((m) => m.id).sort());
+      expect(Object.keys(scene.materials ?? {}).sort()).toEqual(
+        [...SCENE_MATERIALS, ...SCENE_STYLE_MATERIALS].map((m) => m.id).sort(),
+      );
       for (const [id, material] of Object.entries(scene.materials ?? {})) expect(material.id).toBe(id);
       const refs = Object.values(scene.nodes).flatMap((node) =>
         'slots' in node && node.slots !== undefined ? Object.values(node.slots) : [],
