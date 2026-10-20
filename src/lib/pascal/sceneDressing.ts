@@ -23,6 +23,7 @@ import type {
   PascalNodeId,
   PascalPoint2,
   PascalSceneMaterial,
+  PascalVec3,
   PascalWallNode,
 } from './types';
 
@@ -162,6 +163,15 @@ const metresOf = (valueMm: number): number => millimetresToMetres(millimetres(va
  */
 export const LIGHT_DISTANCE_M = 6;
 
+/**
+ * Thu nhỏ vỏ đèn còn 1% (mức nhỏ nhất bảng thuộc tính Pascal cho): nhìn từ trên xuống, trần
+ * không vẽ nên vòng đèn 23 cm hiện thành cung trắng ở mọi phòng (V5 D6). Ẩn (`visible: false`)
+ * thì tắt luôn đèn (item-light-system.tsx `isRendered`); còn thu nhỏ thì không đổi gì ánh sáng —
+ * vị trí đèn = vị trí thế giới của vật + `offset` không nhân tỉ lệ (glb-interactive.tsx), độ
+ * sáng/tầm đặt trên đèn của bể chung, không phải con của vật.
+ */
+export const LIGHT_NODE_SCALE: PascalVec3 = [0.01, 0.01, 0.01];
+
 /** Bật sẵn đèn: khối `interactive` chép sâu, công tắc `default: true`, ánh sáng theo phong cách. */
 const lightInteractiveOf = (interactive: unknown, style: SceneStyle): unknown => {
   const copy = structuredClone(interactive) as {
@@ -272,7 +282,7 @@ export const ceilingNodesOf = (
       metadata: { generated: 'light' },
       position: [lightX, 0, lightZ],
       rotation: [0, 0, 0],
-      scale: [1, 1, 1],
+      scale: LIGHT_NODE_SCALE,
       asset: {
         id: model.folder,
         category: 'lighting',

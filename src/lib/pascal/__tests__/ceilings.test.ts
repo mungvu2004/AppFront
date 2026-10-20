@@ -6,7 +6,13 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { fixtureF1 } from '../__fixtures__';
 import { createPascalEditCommand } from '../fromPascal';
 import { toPascalId } from '../ids';
-import { ceilingNodesOf, interiorPointOf, isGeneratedLightId, LIGHT_DISTANCE_M } from '../sceneDressing';
+import {
+  ceilingNodesOf,
+  interiorPointOf,
+  isGeneratedLightId,
+  LIGHT_DISTANCE_M,
+  LIGHT_NODE_SCALE,
+} from '../sceneDressing';
 import { SCENE_STYLES, sceneStyleOf } from '../sceneStyles';
 import { toPascalScene } from '../toPascal';
 import { toSpatialGraph } from '../toSpatial';
@@ -75,6 +81,9 @@ describe('trần + đèn (T16)', () => {
       expect(ceiling.type).toBe('ceiling');
       expect(ceiling.children).toEqual([light.id]);
       expect(light.position[1]).toBe(0);
+      // Vỏ đèn thu còn 1% để không hiện cung trắng; ánh sáng (độ sáng/tầm bên dưới) giữ nguyên.
+      expect(light.scale).toEqual(LIGHT_NODE_SCALE);
+      expect(LIGHT_NODE_SCALE).toEqual([0.01, 0.01, 0.01]);
       expect(isInside([light.position[0], light.position[2]], ceiling.polygon), light.id).toBe(true);
       expect(light.asset).toMatchObject({
         src: '/items/recessed-light/model.glb',
