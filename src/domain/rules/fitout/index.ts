@@ -182,13 +182,19 @@ function distancePointToSegment(point: Point, start: Point, end: Point): number 
  * How far a footprint stands clear of a wall's face.
  *
  * Measured from the footprint's corners — the stored box turned by
- * `rotationDeg` (`furnitureCorners`) — and its centre to the wall centreline, then
+ * `rotationDeg` (`furnitureCorners`) — and the box's midpoint to the wall centreline, then
  * the wall's half thickness is taken off, because a fitting touches the *face* of
  * a wall and not its middle. A basin inside the wall body reads as zero rather
  * than as a negative gap: it is against the wall, which is all this asks.
  */
 function gapToWallFace(item: Furniture, start: Point, end: Point, thicknessMm: number): number {
-  const corners: readonly Point[] = [...furnitureCorners(item), item.centre];
+  const box = item.boundingBox;
+  // Midpoint of the stored box, not `item.centre`: the two can differ on an imported
+  // drawing, and an unturned piece must read exactly as it did before rotation counted.
+  const corners: readonly Point[] = [
+    ...furnitureCorners(item),
+    { x: (box.min.x + box.max.x) / 2, y: (box.min.y + box.max.y) / 2 },
+  ];
 
   const nearest = corners.reduce(
     (closest, corner) => Math.min(closest, distancePointToSegment(corner, start, end)),

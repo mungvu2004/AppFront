@@ -116,7 +116,7 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
         const rendered = (cat.dimensions[1] * item.asset.scale![1]) / (cat.scale?.[1] ?? 1);
         const limit =
           f.heightMm === undefined
-            ? folder === 'palm' ? 2.2 : levelH
+            ? folder === 'palm' || folder === 'fir-tree' ? 2.2 : levelH
             : metresOfMm(f.heightMm);
         const why = `${ext ? 'ext' : 'plain'} ${f.id} ${folder} rendered=${rendered.toFixed(2)} limit=${limit}`;
         expect(rendered, why).toBeLessThanOrEqual(limit * 1.02);
@@ -125,7 +125,7 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     }
   });
 
-  it('tre 500×500×2000 → thông (cây cao hẹp) cao ~2 m; không heightMm thì chặn ở trần tầng', () => {
+  it('tre 500×500×2000 → thông (cây cao hẹp) cao ~2 m; không heightMm thì chặn ở 2,2 m (cây cao) và trần tầng', () => {
     const levelH = metresOfMm(graphOf(fixtureF2().doc).levels[0]!.heightMm);
     const tall = (heightMm?: number): number => {
       const [item] = itemsOf(
@@ -145,7 +145,7 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
       return CATALOG_MODELS['fir-tree']!.dimensions[1] * item!.asset.scale![1];
     };
     expect(tall(2000)).toBeCloseTo(2, 2);
-    expect(tall()).toBeCloseTo(Math.min(levelH, 3 * 1.25), 2);
+    expect(tall()).toBeCloseTo(Math.min(levelH, 2.2), 2);
   });
 
   it('bụi cây (catalog scale 0,96): asset.scale nhân cả scale riêng của catalog', () => {

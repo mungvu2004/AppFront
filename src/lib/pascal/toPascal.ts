@@ -431,8 +431,8 @@ export const furnitureModelOf = (
   }
 };
 
-/** Cây mà catalog dựng cao hơn trần (cọ 4,5 m): trong nhà chặn ở 2,2 m. */
-const TALL_PLANT_FOLDERS: ReadonlySet<string> = new Set(['palm']);
+/** Cây mà catalog dựng cao hơn trần (cọ 4,5 m, thông 3 m): trong nhà chặn ở 2,2 m. */
+const TALL_PLANT_FOLDERS: ReadonlySet<string> = new Set(['palm', 'fir-tree']);
 const TALL_PLANT_MAX_M = 2.2;
 
 const itemNodeOf = (

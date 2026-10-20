@@ -108,17 +108,25 @@ export const deletePascalNodes = (ids: readonly string[]): void => {
   if (present.length > 0) useScene.getState().deleteNodes(present as never);
 };
 
+/** Chủ đề của khung nhúng: mặc định của Pascal, như trước khi trang editor3d có chủ đề tối. */
+export const EMBEDDED_SCENE_THEME = 'studio';
+
 /**
- * Bỏ chế độ tách tầng còn nhớ từ lượt trước.
+ * Bỏ chế độ tách tầng còn nhớ từ lượt trước, và ghim chủ đề cảnh.
  *
  * `levelMode` của Pascal nằm trong `localStorage` (`viewer-preferences`), nên một
  * lần mở `?view=exploded` làm mọi `/3d` về sau cũng tách (24-A-006). Chỉ `exploded`
  * — chế độ AppFront tự đặt — bị trả về; `solo`/`manual` là người dùng chọn trong Pascal.
+ *
+ * `sceneTheme` cũng ở đó: trang editor3d gieo `night` (`src/pascal-page/applyFirstOpenLook.ts`)
+ * thì khung nhúng ở app chính cũng tối theo. Khung nhúng không có nút đổi chủ đề, nên ghim
+ * thẳng; trang editor3d giữ chủ đề của nó ở khoá riêng và tự đặt lại khi mở.
  */
 export const stackExplodedLevels = (): void => {
   const viewer = useViewer.getState();
 
   if (viewer.levelMode === 'exploded') viewer.setLevelMode('stacked');
+  if (viewer.sceneTheme !== EMBEDDED_SCENE_THEME) viewer.setSceneTheme(EMBEDDED_SCENE_THEME);
 };
 
 /** Trả store về rỗng. Dùng khi rời màn, để cảnh cũ không sống sót sang lượt sau. */

@@ -434,6 +434,22 @@ describe('checkFixtureOffWall', () => {
     expect(runAt(90)).toEqual([]);
   });
 
+  it('samples the stored box midpoint, so an unturned piece reads as before rotation counted', () => {
+    // Box 700 mm clear of the east face (x = 5890) but `centre` pushed onto the face:
+    // at rotation 0 the gap is the box's, exactly as before `rotationDeg` was read.
+    const cabinet = furniture('KC9', { x: 5890, y: 2000 }, { kind: 'kitchenCabinet' });
+
+    expect(
+      runCheck(
+        checkFixtureOffWall,
+        planOf({
+          walls: SHELL,
+          furniture: [{ ...cabinet, boundingBox: { min: { x: 4590, y: 1000 }, max: { x: 5190, y: 3000 } } }],
+        }),
+      ),
+    ).toHaveLength(1);
+  });
+
   it('says nothing when the level has no wall to measure to', () => {
     expect(
       runCheck(
