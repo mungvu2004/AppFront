@@ -23,14 +23,15 @@ import type { LandingHouse, LandingState, Vec3 } from '../types';
 import { houseAnchors, projectPoint, type StageAnchor } from './anchors';
 import { gpuMemory, type StageInfo } from './dev';
 import { recolourModel } from './facade';
-import { landingScenePalette, matchSheetPaper } from './look';
-import { applyBuild, buildStageHouse, disposeStageHouse } from './house';
+import { landingScenePalette, matchSheetPaper, warmInterior } from './look';
+import { applyBuild } from './build';
+import { buildStageHouse, disposeStageHouse } from './house';
 import { createInk } from './ink';
 import type { createPost, PostChain } from './post';
-import { QUALITY, sameNumbers, type Quality, type QualitySettings } from './quality';
+import { pixelRatioFor, QUALITY, sameNumbers, type Quality, type QualitySettings } from './quality';
 import { createStageRenderer } from './renderer';
 import { buildRoofs } from './roof';
-import { warmStage } from './warm';
+import { compileTiers, warmStage } from './warm';
 import { applyPbr, type PbrHandle } from './textures';
 
 export { NoWebGL2Error } from './renderer';
@@ -61,7 +62,7 @@ export interface Stage {
 
 interface SiteHandle {
   readonly group: Group;
-  apply(state: LandingState): void;
+  apply(state: LandingState, eye?: Vector3, target?: Vector3): boolean;
   ambient(timeMs: number): boolean;
   dispose(): void;
 }
@@ -99,7 +100,8 @@ export async function createStage(
   );
   scene.add(stage.root);
   const roofs = buildRoofs(house);
-  scene.add(roofs.group);
+  const lamps = warmInterior();
+  scene.add(roofs.group, lamps.group);
   gl.skyOn(stage.root);
   gl.skyOn(roofs.group);
   // The shadow catcher drops to the site's base-block bottom once the estate stands on it.
@@ -117,7 +119,7 @@ export async function createStage(
     gl.skyOn(site.group);
     siteFloor = new Box3().setFromObject(site.group).min.y;
     if (last !== null) {
-      site.apply(last);
+      site.apply(last, camera.position, target);
     }
     dirty = true;
     shadowDirty = true;
@@ -182,7 +184,7 @@ export async function createStage(
     gl.configure(settings.composer && post === null ? { ...settings, composer: false } : settings);
     matchSheetPaper(ink.group, settings.composer && post !== null);
     post?.configure(settings);
-    renderer.setPixelRatio(Math.min(dpr, settings.maxDpr));
+    renderer.setPixelRatio(pixelRatioFor(quality, width, height, dpr));
     renderer.setSize(width, height, false);
     if (settings.composer) {
       post?.composer.setSize(width, height, false);
@@ -217,27 +219,17 @@ export async function createStage(
     const growers = [...stage.walls.values(), ...stage.furniture.values(), ...stage.floors, ...stage.joinery, stage.stair];
     const parts = [...growers.map((grower) => grower.object), ...(stage.upper === null ? [] : [stage.upper])];
     if (!disposed && (await warmStage(renderer, scene, camera, target, parts, () => disposed))) {
-      // Every lower tier's programs too (shadowed or not, tone-mapped by the renderer, drawn to the
-      // screen): a later step down then links nothing — SMOOTH.md's 1.2 s stall. The governor never climbs.
-      const lower = (['full', 'balanced', 'lite'] as const).slice((['full', 'balanced', 'lite'] as const).indexOf(quality) + 1);
-      // Programs are created with the renderer's state at call time: set each tier, start, restore at once,
-      // so a frame drawn while the driver links never shows a borrowed look.
-      const previous = renderer.getRenderTarget();
-      renderer.setRenderTarget(null);
-      const compiling = lower.map((tier) => {
-        gl.configure(QUALITY[tier]);
-        return renderer.compileAsync(scene, camera);
-      });
-      renderer.setRenderTarget(previous);
-      configure();
-      await Promise.allSettled(compiling);
-      if (disposed) {
-        return;
-      }
+      // Off the composer the warm draw went to the screen (jury fix 12: a beige slab over the plan at 768):
+      // overwrite it in this same task, before the browser presents the canvas.
       if (last !== null) {
         applyBuild(stage, last, camera.position);
       }
       dirty = true;
+      stageApi.render();
+      // Every lower tier's programs too (shadowed or not, tone-mapped by the renderer, drawn to the
+      // screen): a later step down then links nothing — SMOOTH.md's 1.2 s stall. The governor never climbs.
+      const lower = (['full', 'balanced', 'lite'] as const).slice((['full', 'balanced', 'lite'] as const).indexOf(quality) + 1);
+      await compileTiers(renderer, scene, camera, lower.map((tier) => () => gl.configure(QUALITY[tier])), configure);
     }
   };
 
@@ -293,8 +285,10 @@ export async function createStage(
         shadowDirty = true;
       }
       applyBuild(stage, s, camera.position);
-      roofs.apply(s);
-      site?.apply(s);
+      roofs.apply(s, lamps.apply(camera.position, stage.inside));
+      if (site?.apply(s, camera.position, target) === true) {
+        shadowDirty = true;
+      }
       gl.ground.position.y = site !== null && s.build.site > 0.5 ? siteFloor : catcherY;
       last = s;
       ink.apply(s, camera);
@@ -386,6 +380,7 @@ export async function createStage(
       pbr?.dispose();
       ink.dispose();
       roofs.dispose();
+      lamps.dispose();
       site?.dispose();
       for (const t of facadeTextures) t.dispose();
       post?.dispose();

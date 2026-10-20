@@ -320,8 +320,6 @@ export function buildStageHouse(
   };
 }
 
-export { applyBuild } from './build';
-
 /** Free every material this module made, present's set, and every geometry under the house. */
 export function disposeStageHouse(h: StageHouse, disposePresent: (m: SceneMaterials) => void): void {
   h.root.traverse((object) => {

@@ -1,8 +1,8 @@
 /**
  * The site's shader changes, all on materials the site owns.
  *
- * Hardscape reuses the house's growth patch text (patch.ts: world-y clamp +
- * paper→material mix) so a boundary wall rises exactly like a house wall.
+ * Hardscape reuses the house's growth patch text (patch.ts: world-y clamp;
+ * its paper→material mix runs after lighting here) so a boundary wall rises exactly like a house wall.
  * On top of that, three small extras the house never needs:
  * - `twoScale`: the map sampled at two unrelated scales plus a very low
  *   frequency macro read of itself, so a 2 m lawn tile shows no grid from the
@@ -23,7 +23,7 @@ import {
   type WebGLProgramParametersWithUniforms,
 } from 'three';
 
-import { FRAGMENT_DECL, FRAGMENT_MIX, FRAGMENT_PBR_MIX, VERTEX_CLAMP, VERTEX_DECL, type GrowthUniforms } from '../patch';
+import { FRAGMENT_DECL, FRAGMENT_PBR_MIX, VERTEX_CLAMP, VERTEX_DECL, type GrowthUniforms } from '../patch';
 
 export interface Num {
   value: number;
@@ -47,6 +47,12 @@ export const TWO_SCALE_MAP = `
 #endif
 `;
 
+/** The lit result hands over from flat paper to the lit material with `uMat`. */
+export const SITE_PAPER_MIX = `
+  outgoingLight = mix( uPaper, outgoingLight, uMat );
+  diffuseColor.a *= uOpacity;
+`;
+
 /** Patch an owned material in place: clamp + paper mix, plus the asked extras. */
 export function patchSite<T extends Material>(material: T, options: SiteShaderOptions): T {
   const { growth, twoScale = false } = options;
@@ -62,7 +68,8 @@ export function patchSite<T extends Material>(material: T, options: SiteShaderOp
     if (twoScale) {
       fragment = fragment.replace('#include <map_fragment>', TWO_SCALE_MAP);
     }
-    fragment = fragment.replace('#include <color_fragment>', `#include <color_fragment>${FRAGMENT_MIX}`);
+    // Paper → material after lighting (jury fix 12): mixed into the albedo, lit paper read as khaki mud.
+    fragment = fragment.replace('#include <opaque_fragment>', `${SITE_PAPER_MIX}#include <opaque_fragment>`);
     fragment = fragment.replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>${FRAGMENT_PBR_MIX}`);
     shader.fragmentShader = FRAGMENT_DECL + fragment;
   };

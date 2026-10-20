@@ -160,7 +160,8 @@ describe('cameraAt', () => {
       const c = cameraAt(k * STEP);
       const d = dist(c.position, prev.position);
       speeds.push(d);
-      expect(d).toBeLessThan(0.1 * K);
+      // Far long-lens cameras (the sheet ~300 m out) travel further per step: scale by the look distance.
+      expect(d).toBeLessThan(0.1 * K * Math.max(1, dist(c.position, c.target) / 120));
       expect(turn(c, prev)).toBeLessThan(0.5 * K);
       expect(Math.abs(c.rollDeg)).toBeLessThanOrEqual(2);
       expect(Math.abs(c.fovDeg - prev.fovDeg)).toBeLessThan(0.3);

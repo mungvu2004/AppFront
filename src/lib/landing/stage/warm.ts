@@ -65,3 +65,26 @@ export async function warmStage(
   }
   return true;
 }
+
+/**
+ * Compile the scene once per tier (`tiers` set each tier's renderer state), to the screen. Programs are
+ * created with the renderer's state at call time: set each tier, start, restore at once (`restore`),
+ * so a frame drawn while the driver links never shows a borrowed look. Nothing is drawn.
+ */
+export async function compileTiers(
+  renderer: WebGLRenderer,
+  scene: Scene,
+  camera: Camera,
+  tiers: readonly (() => void)[],
+  restore: () => void,
+): Promise<void> {
+  const previous = renderer.getRenderTarget();
+  renderer.setRenderTarget(null);
+  const compiling = tiers.map((useTier) => {
+    useTier();
+    return renderer.compileAsync(scene, camera);
+  });
+  renderer.setRenderTarget(previous);
+  restore();
+  await Promise.allSettled(compiling);
+}

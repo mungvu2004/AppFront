@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest';
 
 import { LANDING_HOUSE } from '../../house';
 import type { LandingState, StairSpec } from '../../types';
-import { cameraAt, stateAt } from '..';
+import { cameraAt, stateAt, WAYPOINTS } from '..';
 
 const CLEAR = 0.25;
 const NEAR = 0.3;
@@ -197,5 +197,74 @@ describe('camera path collision', () => {
       const q = [((lo[0] ?? 0) + (hi[0] ?? 0)) / 2, ((lo[1] ?? 0) + (hi[1] ?? 0)) / 2 + b.roofLiftM, (lo[2] ?? 0) + 0.5];
       expect(collisions(q, b)).toContain(`in roof ${roof.id}`);
     }
+  });
+});
+
+/**
+ * Every hold is a composed photograph: no plant canopy, wall or column within 1.5 m in front of a
+ * hold eye (behind the lens does not show). Walls at their height in the hold (risen, cut, lifted),
+ * plants as a canopy cylinder (stem to crown), columns as their post.
+ */
+describe('hold foreground', () => {
+  const BLOCK = 1.5;
+  const segDist = (q: readonly number[], ax: number, az: number, bx: number, bz: number): { d: number; x: number; z: number } => {
+    const [x = 0, , z = 0] = q;
+    const l2 = (bx - ax) ** 2 + (bz - az) ** 2 || 1;
+    const t = Math.min(1, Math.max(0, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / l2));
+    const px = ax + t * (bx - ax);
+    const pz = az + t * (bz - az);
+    return { d: Math.hypot(x - px, z - pz), x: px, z: pz };
+  };
+  const cols = roofs.columns.flatMap((r) =>
+    Array.from({ length: r.count }, (_, i) => {
+      const t = r.count > 1 ? i / (r.count - 1) : 0;
+      return { id: r.id, x: mm(r.start[0] + (r.end[0] - r.start[0]) * t), z: mm(r.start[1] + (r.end[1] - r.start[1]) * t), r: mm(r.sizeMm) / 2, y0: mm(r.baseMm), y1: mm(r.topMm) };
+    }),
+  );
+  const plants = LANDING_HOUSE.site.plants.map((p) => ({ id: p.id, x: mm(p.at[0]), z: mm(p.at[1]), r: mm(p.canopyMm), y0: mm(p.baseMm), y1: mm(p.baseMm + p.heightMm) }));
+
+  function blockers(cam: { position: readonly number[]; target: readonly number[] }, b: Build): string[] {
+    const e = cam.position;
+    const [ex = 0, ey = 0, ez = 0] = e;
+    const fx = (cam.target[0] ?? 0) - ex;
+    const fz = (cam.target[2] ?? 0) - ez;
+    const ahead = (x: number, z: number): boolean => (x - ex) * fx + (z - ez) * fz > 0;
+    const bad: string[] = [];
+    for (const w of walls) {
+      let span: readonly [number, number] | null;
+      if (w.levelId === 'site') span = b.site > 0 ? [w.y, w.y + w.h] : null;
+      else if (!shown(w.levelId, b)) span = null;
+      else {
+        const foot = w.y + liftOf(w.levelId, b);
+        span = [foot, foot + Math.min(w.h * (b.wallRise[w.id] ?? 0), w.h + (CUT_M - w.h) * b.cutaway)];
+      }
+      if (span === null || span[1] - span[0] < 0.05 || ey > span[1] + BLOCK || ey < span[0] - BLOCK) continue;
+      const s = segDist(e, w.ax, w.az, w.ax + w.ux * w.len, w.az + w.uz * w.len);
+      if (s.d - w.half < BLOCK && ahead(s.x, s.z)) bad.push(`wall ${w.id} ${(s.d - w.half).toFixed(2)} m`);
+    }
+    for (const o of [...cols, ...(b.planting > 0 ? plants : [])]) {
+      const c = Math.hypot(ex - o.x, ez - o.z) || 1;
+      const d = c - o.r;
+      // The canopy's nearest edge to the eye; inside the canopy is always a blocker.
+      const [nx, nz] = [o.x + ((ex - o.x) * o.r) / c, o.z + ((ez - o.z) * o.r) / c];
+      if (d < BLOCK && ey < o.y1 + BLOCK && ey > o.y0 - BLOCK && (d < 0 || ahead(nx, nz) || ahead(o.x, o.z))) bad.push(`${o.id} ${d.toFixed(2)} m`);
+    }
+    return bad;
+  }
+
+  it.each([16 / 10, 4 / 3, 3 / 4])('keeps 1.5 m clear in front of every hold eye at aspect %d', (aspect) => {
+    const bad: string[] = [];
+    for (const w of WAYPOINTS.filter((x) => x.hold)) {
+      for (const why of blockers(cameraAt(w.p, aspect), stateAt(w.p).build)) bad.push(`${w.name}: ${why}`);
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('flags a plant in front of the lens (the check itself works)', () => {
+    const tree = plants.find((p) => p.r > 2);
+    if (tree === undefined) throw new Error('no tree');
+    const cam = { position: [tree.x - tree.r - 0.5, tree.y0 + 2, tree.z], target: [tree.x + 10, tree.y0 + 2, tree.z] };
+    expect(blockers(cam, stateAt(1).build).some((s) => s.startsWith(tree.id))).toBe(true);
+    expect(blockers({ ...cam, target: [tree.x - 20, tree.y0 + 2, tree.z] }, stateAt(1).build).some((s) => s.startsWith(tree.id))).toBe(false);
   });
 });

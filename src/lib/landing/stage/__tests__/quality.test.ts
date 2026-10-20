@@ -86,3 +86,13 @@ describe('qualityForRenderer', () => {
     expect(qualityForRenderer('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device))')).toBe('lite');
   });
 });
+
+describe('pixelRatioFor', () => {
+  it('leaves 1440x900 at ratio 1, shrinks bigger iGPU viewports, never touches full', async () => {
+    const { pixelRatioFor } = await import('../quality');
+    expect(pixelRatioFor('balanced', 1440, 900, 1)).toBe(1);
+    expect(pixelRatioFor('balanced', 1920, 1080, 1)).toBeCloseTo(Math.sqrt(1.35e6 / (1920 * 1080)), 5);
+    expect(pixelRatioFor('balanced', 1920, 1080, 2)).toBeLessThan(0.81);
+    expect(pixelRatioFor('full', 3840, 2160, 2)).toBe(2);
+  });
+});

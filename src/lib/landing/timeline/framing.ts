@@ -30,6 +30,8 @@ export interface FitShot {
   readonly fovDeg: number;
   /** Share of the free region the box fills: < 1 leaves margin (looser), > 1 lets it overflow (closer). */
   readonly fill?: number;
+  /** Landscape only: the free region's left edge (NDC) when this scene's copy is short (the CTA). */
+  readonly x0?: number;
 }
 
 export interface EyeShot {
@@ -52,7 +54,8 @@ export interface Framed {
 /** Free region in NDC for an aspect: [x0, x1, y0, y1]. */
 export function freeRegion(aspect: number): readonly [number, number, number, number] {
   if (aspect < 1) return [-0.84, 0.84, -0.3, 0.64];
-  return [aspect < 1.5 ? -0.04 : -0.14, 0.9, -0.78, 0.74];
+  // x0 starts right of the two-line headline; x1 stops at the step rail (right ~17 %).
+  return [0.02, aspect < 1.5 ? 0.78 : 0.66, -0.78, 0.74];
 }
 
 /** Where an `eye` shot puts its focus horizontally (NDC). */
@@ -82,7 +85,8 @@ const widen = (aspect: number): number => Math.max(1, (aspect >= 1 ? 1 : 0.72) *
 function fit(s: FitShot, aspect: number): Framed {
   // The same widening as eye shots, so a cut between the two kinds never jumps the lens on a tablet.
   const t = Math.tan((s.fovDeg * RAD) / 2) * widen(aspect);
-  const [x0, x1, y0, y1] = freeRegion(aspect);
+  const [rx0, x1, y0, y1] = freeRegion(aspect);
+  const x0 = aspect >= 1 && s.x0 !== undefined ? s.x0 : rx0;
   const k = s.fill ?? 1;
   const cx = (x0 + x1) / 2;
   const cy = (y0 + y1) / 2;

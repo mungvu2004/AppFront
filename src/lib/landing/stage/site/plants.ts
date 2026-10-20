@@ -82,13 +82,31 @@ interface SlugSet {
   readonly url: string;
   readonly records: readonly SitePlant[];
   readonly matrices: Float32Array;
+  /** Per instance: crown centre x, y, z and radius (m). */
+  readonly crowns: Float32Array;
+  /** Per instance: 1 while hidden by the camera-near cull. */
+  readonly hidden: Uint8Array;
   meshes: InstancedMesh[];
+}
+
+/** A plant is hidden whole (never faded) when its crown comes within this of the eye... */
+const EYE_CLEAR_M = 2.5;
+/** ...or of the first `REACH_M` of the line of sight (half the eye-target distance at most), with this radius. */
+const SIGHT_CLEAR_M = 1.2;
+const REACH_M = 8;
+
+interface Point {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
 }
 
 export interface Planting {
   readonly group: Group;
   /** Resolves when every model has landed or failed (the stand-ins stay on failure). */
   load(assets: AssetService, signal: AbortSignal): Promise<void>;
+  /** Hide whole plants whose crown is in the camera-near volume; true when the hidden set changed. Allocates nothing. */
+  cull(eye: Point, target: Point): boolean;
   dispose(): void;
 }
 
@@ -197,10 +215,14 @@ export function buildPlanting(plants: readonly SitePlant[], grow: Num): Planting
   const m = new Matrix4();
   const sets: SlugSet[] = [...bySlug].map(([slug, records]) => {
     const matrices = new Float32Array(records.length * 16);
+    const crowns = new Float32Array(records.length * 4);
     records.forEach((p, i) => {
       matrixOf(p, m).toArray(matrices, i * 16);
+      const h = p.heightMm / 1000;
+      crowns.set([M(p.at[0]), M(p.baseMm) + h * 0.65, M(p.at[1]), Math.max(p.canopyMm / 2000, h * 0.3)], i * 4);
     });
-    return { slug, url: records[0]?.modelUrl ?? `/pascal/items/${slug}/model.glb`, records, matrices, meshes: [] };
+    const url = records[0]?.modelUrl ?? `/pascal/items/${slug}/model.glb`;
+    return { slug, url, records, matrices, crowns, hidden: new Uint8Array(records.length), meshes: [] };
   });
 
   const mount = (set: SlugSet, parts: Map<Part, BufferGeometry>): void => {
@@ -217,6 +239,7 @@ export function buildPlanting(plants: readonly SitePlant[], grow: Num): Planting
       mesh.name = `site:plants:${set.slug}:${part}`;
       mesh.userData.records = set.records.map((p) => p.id);
       mesh.instanceMatrix.array.set(set.matrices);
+      set.hidden.forEach((h, i) => h === 1 && mesh.instanceMatrix.array.fill(0, i * 16, i * 16 + 12));
       set.records.forEach((p, i) => {
         const base = part === 'foliage' ? foliageOf(p) : part === 'trunk' ? (set.slug === 'palm' ? PALM_TRUNK : BARK) : FRUIT;
         // Hue ±0.025, saturation biased down (−0.10…+0.02), lightness ±0.06.
@@ -249,6 +272,42 @@ export function buildPlanting(plants: readonly SitePlant[], grow: Num): Planting
           }
         }),
       );
+    },
+    cull(eye, target) {
+      const dx = target.x - eye.x;
+      const dy = target.y - eye.y;
+      const dz = target.z - eye.z;
+      const dist = Math.hypot(dx, dy, dz) || 1;
+      const reach = Math.min(REACH_M, dist / 2);
+      let changed = false;
+      for (const set of sets) {
+        const { crowns, hidden, matrices } = set;
+        for (let i = 0; i < hidden.length; i += 1) {
+          const cx = (crowns[i * 4] ?? 0) - eye.x;
+          const cy = (crowns[i * 4 + 1] ?? 0) - eye.y;
+          const cz = (crowns[i * 4 + 2] ?? 0) - eye.z;
+          const r = crowns[i * 4 + 3] ?? 0;
+          // Closest point of the near sight segment [0, reach] to the crown centre.
+          const t = Math.min(reach, Math.max(0, (cx * dx + cy * dy + cz * dz) / dist));
+          const off = Math.hypot(cx - (dx / dist) * t, cy - (dy / dist) * t, cz - (dz / dist) * t);
+          const hide = Math.hypot(cx, cy, cz) < r + EYE_CLEAR_M || off < r + SIGHT_CLEAR_M ? 1 : 0;
+          if (hide === hidden[i]) {
+            continue;
+          }
+          hidden[i] = hide;
+          changed = true;
+          for (const mesh of set.meshes) {
+            const a = mesh.instanceMatrix.array;
+            if (hide === 1) {
+              a.fill(0, i * 16, i * 16 + 12);
+            } else {
+              for (let k = i * 16; k < i * 16 + 12; k += 1) a[k] = matrices[k] ?? 0;
+            }
+            mesh.instanceMatrix.needsUpdate = true;
+          }
+        }
+      }
+      return changed;
     },
     dispose() {
       for (const set of sets) {

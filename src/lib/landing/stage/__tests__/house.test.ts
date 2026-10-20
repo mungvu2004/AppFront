@@ -7,7 +7,8 @@ import { readPalette } from '@/lib/three/present';
 
 import type { LandingState } from '../../types';
 import { houseAnchors, projectPoint } from '../anchors';
-import { applyBuild, buildStageHouse, CUTAWAY_HEIGHT_M } from '../house';
+import { applyBuild } from '../build';
+import { buildStageHouse, CUTAWAY_HEIGHT_M } from '../house';
 
 // jsdom has no 2D canvas; present falls back to flat tints on a null context.
 vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);

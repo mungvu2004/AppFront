@@ -29,7 +29,7 @@ const TITLES: readonly (readonly [string, string])[] = [
   ['s05', 'Từ nét vẽ. Thành không gian thật.'],
   // The brief gives S06 room labels but no headline; this one is ours (SCREEN may drop it).
   ['s06', 'Đi qua từng không gian.'],
-  ['s07', 'Hai tầng. Một mô hình thống nhất.'],
+  ['s07', 'Ba tầng. Một mô hình thống nhất.'],
   ['s08', 'Không chỉ dựng hình. Còn giúp phát hiện vấn đề.'],
   ['s09', 'Bản vẽ của bạn. Bắt đầu một công trình mới.'],
 ];

@@ -73,6 +73,24 @@ describe('createSite', () => {
     site.dispose();
   });
 
+  it('hides a whole plant (scale 0, never alpha) whose crown is at the camera, and shows it again', () => {
+    const site = make();
+    const plant = LANDING_HOUSE.site.plants.find((p) => p.slug === 'tree');
+    if (plant === undefined) throw new Error('no tree');
+    const crown = new Vector3(plant.at[0] / 1000, plant.baseMm / 1000 + (plant.heightMm / 1000) * 0.65, plant.at[1] / 1000);
+    const tree = meshes(site.group).find((m) => m.name === 'site:plants:tree:foliage') as InstancedMesh;
+    const i = (tree.userData.records as string[]).indexOf(plant.id);
+    const before = tree.instanceMatrix.array.slice(i * 16, i * 16 + 16);
+    expect(site.apply(state(1, 1, 1), crown, new Vector3(crown.x + 20, crown.y, crown.z))).toBe(true);
+    expect([...tree.instanceMatrix.array.slice(i * 16, i * 16 + 12)].every((v) => v === 0)).toBe(true);
+    expect(site.apply(state(1, 1, 1), crown, new Vector3(crown.x + 20, crown.y, crown.z))).toBe(false);
+    const far = new Vector3(crown.x, 80, crown.z - 80);
+    expect(site.apply(state(1, 1, 1), far, crown)).toBe(true);
+    expect([...tree.instanceMatrix.array.slice(i * 16, i * 16 + 16)]).toEqual([...before]);
+    expect(tree.material).toHaveProperty('transparent', false);
+    site.dispose();
+  });
+
   it('fills the pond from its floor with build.water', () => {
     const site = make();
     const pond = site.group.getObjectByName('site:POND');

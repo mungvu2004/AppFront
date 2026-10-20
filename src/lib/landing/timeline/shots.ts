@@ -77,19 +77,20 @@ const SECTION: Box = [
   [3.5, 0, 8.5],
   [28.5, 14, 23.5],
 ];
-/** The garden side for the finale: house, pergola, pond, lawn. */
-const GARDEN: Box = [
-  [2, -0.45, 7],
-  [30, 11, 33],
+/** The whole plot for the finale: house, pergola, pond, lawn to the boundary walls. */
+const PLOT: Box = [
+  [0, -0.45, 0],
+  [40, 11, 34],
 ];
 
-const fit = (box: Box, azDeg: number, elDeg: number, fovDeg: number, fill?: number): Shot => ({
+const fit = (box: Box, azDeg: number, elDeg: number, fovDeg: number, fill?: number, x0?: number): Shot => ({
   kind: 'fit',
   box,
   azDeg,
   elDeg,
   fovDeg,
   ...(fill === undefined ? {} : { fill }),
+  ...(x0 === undefined ? {} : { x0 }),
 });
 const eye = (at: Vec3, focus: Vec3, fovDeg: number, pitchDeg = 0): Shot => ({ kind: 'eye', eye: at, focus, fovDeg, pitchDeg });
 type Opts = Omit<ShotKey, 'name' | 'shot' | 'rollDeg'>;
@@ -112,24 +113,28 @@ export const SHOTS: readonly ShotKey[] = [
   k('hero-rise', fit(VILLA_LOW, 30, 44, 30, 1.35), 0.4, { scene: 's05', min: 1.2 }),
   k('hero-orbit', fit(VILLA, 45, 34, 34), 0.6, { orbit: true, min: 1.8 }),
   k('hero-settle', fit(ESTATE, 58, 30, 36, 1.05), 0.2, { orbit: true, min: 1.4, hold: 1.2 }),
-  // S06 - down to the street three-quarter at the gate (ref 0.jpg), then in along the stone path
-  // and through D1; from here on the camera only turns right.
-  k('street', eye([29, 2.2, -8], [14.5, 3.6, 14], 46, 2), 0, { scene: 's06', hold: 0.4, orbit: true }),
-  k('entry', eye([13, 1.7, 2.2], [13.1, 1.5, 12], 46, -1)),
-  k('door', eye([12.75, 1.5, 8], [14.6, 1.35, 14], 46)),
+  // S06 - down inside the boundary wall at the plot's south-east corner, low, on the longest diagonal
+  // over the drive and front garden (ref 0.jpg), then along the stone path and through D1;
+  // from here on the camera only turns right.
+  k('street', eye([35, 1.6, 0.8], [14, 4.5, 13.5], 50, 7), 0, { scene: 's06', hold: 0.4 }),
+  k('entry', eye([13, 1.7, 5], [13.6, 1.5, 12], 46, -1)),
+  // Just inside D1, west of the stair, looking down the hall through O1 and the dining room to the
+  // garden glass SL1 (not up the stair).
+  k('door', eye([12.75, 1.5, 10.3], [16, 1.3, 25], 50)),
   // One interior hold, standing in the dining room: through O3 into the living room and through
   // SL1 to the pond. The upper storeys and roofs lift away above the closed ceiling, then the walls
   // cut and the ceiling opens, all inside this hold.
-  k('living', eye([12.6, 1.45, 16.4], [24.5, 1.1, 25.5], 48), 0, { hold: 2 }),
-  // S07 - up through the open ceiling and out over the cut glass wall SL2 to the veranda, turning
-  // right to look back at the stepped section from the north-west (the garden side), under the
-  // lifted storeys.
-  k('rise-out', eye([14.6, 3.5, 21.9], [30, 0.8, 25.5], 44, -22), 0.2),
-  k('section', fit(SECTION, -134, 30, 36, 1.7), -0.3, { scene: 's07', hold: 1.2 }),
+  k('living', eye([12.6, 1.45, 16.4], [22.5, 0.2, 27], 48, -3), 0, { hold: 2 }),
+  // S07 - up through the open ceiling, tipping down over the cut dining room, out under the lifted
+  // storeys above the veranda columns, turning right all the way to look back at the stepped section
+  // from the north-west (the garden side).
+  k('rise', eye([15, 4.4, 19], [21, 0.5, 23], 44, -30), 0.2),
+  k('out', eye([9.5, 4.8, 26.5], [18.6, 1, 22.3], 42, -17), 0),
+  k('section', fit(SECTION, -134, 30, 36, 1.5), -0.3, { scene: 's07', min: 3.5, hold: 1.6 }),
   // S08 - one composition from the north for both failing checks: the WC door D-G10 (east) and
-  // STAIR-1 (west), seen under the lifted storeys across the cut ground floor.
-  k('checks', eye([10.2, 9.4, 33], [19, 1.3, 12.1], 40, -20), 0, { scene: 's08', hold: 1.4 }),
-  // S09 - the garden-side hero over the koi pond (ref 4.jpg, raised): the pond, the island, the
-  // pergola and the glazed living wing; storeys and roofs come home in the hold, exports align.
-  k('hero', fit(GARDEN, -172, 26, 34, 1), 0.5, { scene: 's09', hold: 1.6, push: 0.015 }),
+  // STAIR-1 (west), seen under the lifted storeys across the cut ground floor, clear of the canopies.
+  k('checks', eye([12, 7, 27.5], [19, 1.2, 13.5], 40, -18), 0, { scene: 's08', min: 4, hold: 1.8 }),
+  // S09 - the garden-side hero over the koi pond (ref 4.jpg, raised): eaves and soffits face the
+  // lens, the pond takes the lower third; storeys and roofs land on the flight in, exports align.
+  k('hero', fit(PLOT, -165, 17, 32, 1.15, -0.2), 0.5, { scene: 's09', min: 4, hold: 1.6, push: 0.015 }),
 ];

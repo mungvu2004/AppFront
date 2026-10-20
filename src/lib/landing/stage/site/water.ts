@@ -4,7 +4,7 @@
  * Water is one opaque physical surface (low roughness → the scene's
  * environment does the reflection, three's BRDF does the Fresnel): by the
  * distance to the outline (computed in the fragment shader from the outline's
- * corners) its body runs from a lighter olive shallow edge to a dark middle,
+ * corners) its body runs from a deep green edge to a near-black green middle,
  * which reads as depth. Opaque on purpose: as a transparent sheet it never
  * showed in the stage's pipeline (the basin read through, koi on the floor),
  * and it costs no blending on the iGPU. So the koi swim a hair above the
@@ -140,16 +140,19 @@ export function buildPond(w: SiteWater, time: Num): Pond {
   const liner = merge([prism(offset(w.outline, 20), floorY, copingTop - 0.15, [w.outline]), flat(w.outline, floorY)]);
 
   const waterMat = new MeshPhysicalMaterial({
-    color: '#23392F',
+    color: '#1E3A31',
     roughness: 0.04,
     metalness: 0,
-    envMapIntensity: 0.6,
-    specularIntensity: 1,
+    // The paper-warm environment reflected at full strength turned the pond to chocolate (jury fix 10):
+    // a weak reflection, tinted the sky's blue-grey, over a deep-green body.
+    envMapIntensity: 0.35,
+    specularIntensity: 0.6,
+    specularColor: new Color('#9FB1B8'),
   });
   const corners = w.outline.slice(0, POLY_MAX).map((p) => new Vector2(M(p[0]), M(p[1])));
   const poly = { value: [...corners, ...Array.from({ length: POLY_MAX - corners.length }, () => new Vector2())] };
-  const shallow = { value: new Color('#46593C') };
-  const deep = { value: new Color('#1C2E26') };
+  const shallow = { value: new Color('#1E3A31') };
+  const deep = { value: new Color('#0F211C') };
   waterMat.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = time;
     shader.uniforms.uPoly = poly;
@@ -167,7 +170,8 @@ export function buildPond(w: SiteWater, time: Num): Pond {
   water.name = `site:${w.id}:water`;
   water.receiveShadow = true;
 
-  const koiMat = new MeshLambertMaterial({ color: '#FFFFFF' });
+  // Pulled toward the camera in depth: at grazing angles the flat bodies z-fought the surface into open rings.
+  const koiMat = new MeshLambertMaterial({ color: '#FFFFFF', polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8 });
   koiMat.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = time;
     shader.vertexShader = `uniform float uTime;\n${shader.vertexShader.replace('#include <begin_vertex>', KOI_VERTEX)}`;
@@ -192,7 +196,7 @@ export function buildPond(w: SiteWater, time: Num): Pond {
     const t = seedOf(`${w.id}-koi-y-${String(i)}`);
     const [a0, a1, b0, b1] = i < KOI_SCHOOL ? school : [x0, x1, y0, y1];
     const k = 1 + 0.35 * seedOf(`${w.id}-koi-s-${String(i)}`);
-    m.makeScale(k, 0.2, k).setPosition(M(a0 + (a1 - a0) * s), 0.004 + 0.002 * t, M(b0 + (b1 - b0) * t));
+    m.makeScale(k, 0.2, k).setPosition(M(a0 + (a1 - a0) * s), 0.012 + 0.002 * t, M(b0 + (b1 - b0) * t));
     koi.setMatrixAt(i, m);
     koi.setColorAt(i, c.set(KOI_COLOURS[i % KOI_COLOURS.length] ?? '#E2793A'));
   }

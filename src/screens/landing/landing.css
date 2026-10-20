@@ -49,12 +49,12 @@
 .landing-scene { position: absolute; left: var(--l-gutter); top: 50%; translate: 0 -50%; width: var(--l-col); text-shadow: 0 0 3px var(--l-paper), 0 0 10px var(--l-paper); }
 .landing-phase > *, .landing-exports li { will-change: opacity, transform; }
 .landing-final a, .landing-final button, .landing-footer a { pointer-events: auto; }
-/* Lớp giấy sau cột chữ: đặc tới nửa cột rồi nhạt hết ở mép cột, để nhà ở hai phần ba bên phải không bị phủ (overlay.ts ghi --l-scrim); chữ dài giữ quầng giấy riêng. */
-.landing-scrim { position: absolute; inset: 0; opacity: var(--l-scrim, 0); pointer-events: none; background: linear-gradient(to right, var(--l-paper) 0, var(--l-paper) calc(var(--l-gutter) + 0.55 * var(--l-col)), transparent calc(var(--l-gutter) + var(--l-col))); }
+/* Lớp giấy sau cột chữ: đặc tới 0,8 cột rồi nhạt hết trong 96 px (lông ngắn: mép giấy, không phải sương), để nhà ở hai phần ba bên phải không bị phủ (overlay.ts ghi --l-scrim); chữ dài giữ quầng giấy riêng. */
+.landing-scrim { position: absolute; inset: 0; opacity: var(--l-scrim, 0); pointer-events: none; background: linear-gradient(to right, var(--l-paper) 0, var(--l-paper) calc(var(--l-gutter) + 0.8 * var(--l-col)), transparent calc(var(--l-gutter) + 0.8 * var(--l-col) + 96px)); }
 
 /* Đầu trang */
 .landing-header { position: absolute; inset: 0 0 auto; z-index: 3; isolation: isolate; display: grid; grid-template-columns: auto 1fr auto auto; gap: 0 32px; align-items: center; height: var(--l-head); padding: 0 var(--l-gutter); }
-.landing-header::before { content: ''; position: absolute; inset: 0; z-index: -1; background: color-mix(in srgb, var(--l-paper) 85%, transparent); opacity: var(--l-scrim, 0); }
+.landing-header::before { content: ''; position: absolute; inset: 0; z-index: -1; background: color-mix(in srgb, var(--l-paper) 94%, transparent); opacity: var(--l-head-bg, var(--l-scrim, 0)); }
 .landing-header[data-scrolled] { box-shadow: 0 1px 0 color-mix(in srgb, var(--l-ink) 10%, transparent); }
 .landing-wordmark { margin: 0; display: flex; gap: 12px; align-items: baseline; }
 .landing-wordmark strong { font-size: 1.0625rem; font-weight: 500; letter-spacing: -0.01em; }
@@ -66,19 +66,18 @@
 @media (max-width: 1100px) { .landing-wordmark span { display: none; } }
 
 /* Thanh sáu bước */
-.landing-rail { position: absolute; right: var(--l-gutter); top: 50%; translate: 0 -50%; z-index: 2; text-shadow: 0 0 2px var(--l-paper), 0 0 6px var(--l-paper), 0 0 10px var(--l-paper); }
+.landing-rail { position: absolute; right: var(--l-gutter); top: 50%; translate: 0 -50%; z-index: 2; padding: 8px 12px; background: color-mix(in srgb, var(--l-paper) 82%, transparent); backdrop-filter: blur(6px); }
 .landing-rail ol { list-style: none; margin: 0; padding: 0; }
 .landing-rail a { display: grid; grid-template-columns: 2ch auto 40px; gap: 12px; align-items: center; justify-items: start; min-height: 32px; color: color-mix(in srgb, var(--l-ink) 45%, transparent); text-decoration: none; font-variant-numeric: tabular-nums; }
 .landing-rail-num { font-size: 0.75rem; font-weight: 500; }
-.landing-rail-name { font-size: 0.8125rem; }
+.landing-rail-name { min-width: 5.5rem; font-size: 0.8125rem; }
 .landing-rail-tick { position: relative; width: 24px; height: 1px; background: color-mix(in srgb, var(--l-ink) 30%, transparent); }
 .landing-rail [data-active] a { color: var(--l-ink); font-weight: 500; }
 .landing-rail [data-active] .landing-rail-tick { width: 40px; height: 2px; background: color-mix(in srgb, var(--l-ink) 12%, transparent); }
 .landing-rail [data-active] .landing-rail-tick::after { content: ''; position: absolute; inset: 0; background: var(--l-tone); transform: scaleX(var(--l-fill, 0)); transform-origin: left; }
-@media (max-width: 1439px) {
-  .landing-rail li:not([data-active]) .landing-rail-name { opacity: 0; }
-  .landing-rail a:hover .landing-rail-name, .landing-rail a:focus-visible .landing-rail-name { opacity: 1; }
-}
+/* Chỉ bước đang ở có tên; bước khác là số và vạch (tên hiện khi rê chuột / lấy tiêu điểm). */
+.landing-rail li:not([data-active]) .landing-rail-name { opacity: 0; }
+.landing-rail a:hover .landing-rail-name, .landing-rail a:focus-visible .landing-rail-name { opacity: 1; }
 @media (pointer: coarse) { .landing-rail a { min-height: 44px; } }
 
 /* Chữ */
@@ -107,12 +106,13 @@
 .landing-checks-fix { grid-column: 1 / -1; font-size: 0.8125rem; color: color-mix(in srgb, var(--l-ink) 70%, transparent); }
 
 /* Phần cuối: lưới định dạng, nút, chân trang */
-.landing-exports { display: grid; grid-template-columns: repeat(5, minmax(0, 6rem)); width: max-content; max-width: 100%; list-style: none; margin: 2rem 0 0; padding: 0; border: 1px solid color-mix(in srgb, var(--l-ink) 18%, transparent); }
-.landing-exports li { display: grid; gap: 2px; padding: 14px 14px 12px; border-left: 1px solid color-mix(in srgb, var(--l-ink) 18%, transparent); }
-.landing-exports li:first-child { border-left: 0; }
+.landing-exports { display: grid; grid-template-columns: repeat(5, minmax(0, 6rem)); width: max-content; max-width: 100%; list-style: none; margin: 2rem 0 0; padding: 0; }
+.landing-exports li { display: grid; gap: 2px; padding: 14px 14px 12px; border: 1px solid color-mix(in srgb, var(--l-ink) 18%, transparent); margin-left: -1px; }
+.landing-exports li:first-child { margin-left: 0; }
 .landing-exports strong { font-size: 1.25rem; font-weight: 500; letter-spacing: 0.04em; }
 .landing-exports span { font-size: 0.8125rem; color: color-mix(in srgb, var(--l-ink) 65%, transparent); }
 .landing-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.75rem; margin: 2rem 0 0; }
+.landing-cta, .landing-exports { text-shadow: none; }
 .landing-cta { display: inline-flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 28px; background: var(--l-ink); color: var(--l-paper); font-size: 1rem; font-weight: 500; letter-spacing: 0.005em; text-decoration: none; }
 .landing-cta:hover { background: color-mix(in srgb, var(--l-ink) 88%, var(--l-blue)); }
 .landing-cta:hover span { translate: 4px 0; }
@@ -123,8 +123,8 @@
 @media (max-width: 1100px) { .landing-exports { grid-template-columns: repeat(5, minmax(0, 5.25rem)); } }
 
 /* Nhãn neo vào mô hình: ghi chú bản vẽ, đường dẫn tới điểm neo */
-.landing-label { --l-lead: 20px; position: absolute; left: 0; top: 0; translate: -50% calc(-100% - var(--l-lead)); display: grid; gap: 1px; font-size: 0.8125rem; font-weight: 500; line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.landing-label::after { content: ''; position: absolute; left: calc(50% - 4px); top: 100%; width: 9px; height: var(--l-lead); background: linear-gradient(var(--l-tone), var(--l-tone)) center top / 1px 100% no-repeat, linear-gradient(var(--l-tone), var(--l-tone)) center bottom / 9px 1px no-repeat; opacity: 0.7; }
+.landing-label { --l-lead: 20px; position: absolute; left: 0; top: 0; translate: -50% calc(-100% - var(--l-lead) - var(--l-off, 0px)); display: grid; gap: 1px; font-size: 0.8125rem; font-weight: 500; line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.landing-label::after { content: ''; position: absolute; left: calc(50% - 4px); top: 100%; width: 9px; height: calc(var(--l-lead) + var(--l-off, 0px)); background: linear-gradient(var(--l-tone), var(--l-tone)) center top / 1px 100% no-repeat, linear-gradient(var(--l-tone), var(--l-tone)) center bottom / 9px 1px no-repeat; opacity: 0.7; }
 .landing-label[data-kind='room'] { --l-lead: 24px; justify-items: start; font-size: 0.875rem; text-shadow: 0 0 2px var(--l-paper), 0 0 6px var(--l-paper); }
 .landing-label[data-kind='room'] .landing-label-name::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; vertical-align: 0.1em; background: var(--l-jade); }
 .landing-label[data-kind='room'] .landing-label-meta { padding-left: 12px; font-size: 0.75rem; font-weight: 400; color: color-mix(in srgb, var(--l-ink) 65%, transparent); }
@@ -137,9 +137,9 @@
 /* Dọc (tablet đứng): chữ ở dưới, thanh bước thành hàng ở đáy, lớp giấy từ dưới lên. */
 @media (max-aspect-ratio: 1/1) {
   .landing { --l-col: calc(100vw - 2 * var(--l-gutter)); }
-  .landing-scene { top: auto; bottom: calc(var(--l-gutter) + 64px); translate: none; }
+  .landing-scene { top: auto; bottom: calc(var(--l-gutter) + 100px); translate: none; }
   .landing-scrim { background: linear-gradient(to top, var(--l-paper) 0, var(--l-paper) 50%, transparent 70%); }
-  .landing-rail { top: auto; bottom: var(--l-gutter); left: var(--l-gutter); translate: none; }
+  .landing-rail { top: auto; bottom: var(--l-gutter); left: var(--l-gutter); translate: none; padding-top: 30px; }
   .landing-rail ol { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
   .landing-rail a { grid-template-columns: auto 1fr; position: relative; min-height: 44px; }
   .landing-rail .landing-rail-tick, .landing-rail [data-active] .landing-rail-tick { width: 100%; }

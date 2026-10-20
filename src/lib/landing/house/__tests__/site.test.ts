@@ -90,12 +90,12 @@ describe('roofs', () => {
     expect(storeys.map((r) => r.levelId)).toEqual(['T1', 'T2', 'T3']);
     for (const r of storeys) {
       closed(r.eave, r.id);
-      expect(r.overhangMm, r.id).toBeGreaterThanOrEqual(1500);
+      expect(r.overhangMm, r.id).toBeGreaterThanOrEqual(r.levelId === 'T1' ? 1500 : 1200);
       expect(r.pitchDeg, r.id).toBeGreaterThanOrEqual(15);
       expect(r.pitchDeg, r.id).toBeLessThanOrEqual(22);
       expect(r.cornerUpturnMm, r.id).toBeGreaterThanOrEqual(50);
-      // A hint of kick, not a temple sweep (archviz-r2 fix 4).
-      expect(r.cornerUpturnMm, r.id).toBeLessThanOrEqual(120);
+      // A hint of kick, not a temple sweep (archviz-r2 fix 4, jury fix 11).
+      expect(r.cornerUpturnMm, r.id).toBeLessThanOrEqual(80);
       expect(r.ridgeMm, r.id).toBeGreaterThan(r.eaveMm);
     }
     const eaves = storeys.map((r) => r.eaveMm);

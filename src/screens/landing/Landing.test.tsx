@@ -101,9 +101,11 @@ describe('/welcome', () => {
 });
 
 describe('scrimAt', () => {
-  const at = (h: number, scene: number) => scrimAt({ scene, camera: { position: [0, h, 0] } } as never);
+  const at = (h: number, scene: number, copy = 1) => scrimAt({ scene, camera: { position: [0, h, 0] } } as never, copy);
   it('đậm trong nhà, mất khi máy quay cao', () => {
-    expect(at(1.4, 5)).toBeCloseTo(0.72);
+    expect(at(1.4, 5)).toBeCloseTo(0.6);
+    expect(at(1.4, 5, 0)).toBe(0);
+    expect(at(12, 2)).toBeCloseTo(0.85);
     expect(at(2, 7)).toBeCloseTo(0.92);
     expect(at(12, 7)).toBe(0);
   });
@@ -114,7 +116,7 @@ describe('bước và nhãn', () => {
 
   it('dòng mắt đánh số theo sáu bước', () => {
     expect(eyebrow('s03')).toBe('Bước 02 / 06 — Nhận diện');
-    expect(eyebrow('s07')).toBe('Bước 04 / 06 — Dựng 3D · Hai tầng');
+    expect(eyebrow('s07')).toBe('Bước 04 / 06 — Dựng 3D · Ba tầng');
   });
 
   it('bước 04 phủ ba cảnh và tiến độ chạy trong cả ba', () => {

@@ -32,9 +32,11 @@ import {
 
 import { createAssetService, type AssetService, type SceneMaterials } from '@/lib/three/present';
 
+import { LANDING_PALETTE } from '../../palette';
 import type { LandingHouse, LandingState } from '../../types';
 import { NO_CLAMP_Y, createGrowthUniforms, growthDepthMaterial } from '../patch';
 import { TEX_BASE } from '../textures';
+import { inverseNeutral } from '../tone';
 
 import { M } from './geo';
 import { buildHardscape } from './ground';
@@ -54,7 +56,8 @@ export interface SiteContext {
 
 export interface StageSite {
   readonly group: Group;
-  apply(state: LandingState): void;
+  /** Writes one frame; true when the shadow map must redraw (plants hidden or shown near `eye`). */
+  apply(state: LandingState, eye?: { x: number; y: number; z: number }, target?: { x: number; y: number; z: number }): boolean;
   /** Ripples + koi at `timeMs`; true when there is water to animate (the frame needs a redraw). */
   ambient(timeMs: number): boolean;
   /** Resolves when textures and models have landed or failed. */
@@ -79,6 +82,8 @@ export function createSite(house: LandingHouse, ctx: SiteContext): StageSite {
   const { site } = house;
   const groundY = M(site.groundMm);
   const hard = createGrowthUniforms(groundY);
+  // The site mixes paper in after lighting (shader.ts): the tone curve's pre-image lands on the page's paper.
+  hard.uPaper.value.copy(inverseNeutral(new Color(LANDING_PALETTE.paper)));
   const grow: Num = { value: 0 };
   const time: Num = { value: 0 };
   const group = new Group();
@@ -177,7 +182,7 @@ export function createSite(house: LandingHouse, ctx: SiteContext): StageSite {
   return {
     group,
     ready,
-    apply(state) {
+    apply(state, eye, target) {
       const { site: s, planting: p, water: w } = state.build;
       group.visible = s > 0 || p > 0 || w > 0;
       hard.uMat.value = s;
@@ -194,6 +199,7 @@ export function createSite(house: LandingHouse, ctx: SiteContext): StageSite {
         pond.group.position.y = pond.floorY + (pond.levelY - pond.floorY) * w;
         pond.koi.visible = w > 0.6;
       }
+      return p > 0 && eye !== undefined && target !== undefined && planting.cull(eye, target);
     },
     ambient(timeMs) {
       time.value = timeMs / 1000;

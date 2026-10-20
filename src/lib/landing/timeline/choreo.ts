@@ -259,15 +259,16 @@ export function build(o: Live): gsap.core.Timeline {
   tw(c, { passMarks: 1 }, at(w0, w1, 0.5), w1, 'power2.out');
   label('check:C4', w0 + 0.05, w1 - 0.1);
   label('check:C7', w0 + 0.35, w1 - 0.1);
-  // S09 - diagnostics recede to small indicators and the walls grow back on the flight out; in
-  // the final hold the storeys come down, then the roofs land, while the exports align.
+  // S09 - diagnostics recede to small indicators and the walls grow back on the flight out; the
+  // storeys come down and the roofs land before the final hold, while the exports align.
   const [e0, e1] = [arrive('hero'), leave('hero')];
   const out0 = w1;
   tw(c, { bathDoor: 0, stair: 0, passMarks: 0 }, e0 - 0.6, at(e0, e1, 0.3), 'sine.inOut');
   tw(misc, { semantic: 0.15 }, out0, e0, 'sine.inOut');
   tw(b, { cutaway: 0 }, out0 + 0.2, e0, 'sine.inOut');
-  tw(b, { upperLiftM: 0 }, at(e0, e1, 0.02), at(e0, e1, 0.4), 'power2.inOut');
-  tw(b, { roofLiftM: 0 }, at(e0, e1, 0.38), at(e0, e1, 0.75), 'power2.inOut');
+  // Land on the flight in (the move is mostly a dolly), so the CTA hold holds a finished house.
+  tw(b, { upperLiftM: 0 }, e0 - 1.2, e0, 'power2.inOut');
+  tw(b, { roofLiftM: 0 }, w1, e0, 'power2.inOut');
   tw(misc, { exports: 1 }, e0 - 0.4, at(e0, e1, 0.8), 'power2.out');
   tl.set({}, {}, TRACK_SCREENS); // total duration exactly the track
   return tl;

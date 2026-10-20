@@ -56,15 +56,16 @@ const FASCIA_H = 0.12;
 const LAND_M = 2.5;
 const SHOWN = 0.001;
 /** Flat charcoal until the tile map lands; then a tint that brings the map (mean ~0.47) to the same charcoal. */
-const TILE_FLAT = 0x4a4d50;
-const TILE_TINT = 0x7a7e82;
+const TILE_FLAT = 0x5a5f65;
+const TILE_TINT = 0xa2abb6;
 /** Teak soffit: flat warm brown; with oak's (orange) map, a tint that lands near it. */
 const TEAK = 0xa07c5c;
 const TEAK_TINT = 0xd8c2ad;
 
 export interface StageRoofs {
   readonly group: Group;
-  apply(s: LandingState): void;
+  /** `inside`: the eye is in the house; the soffit light washes (seen through the glass as floating chevrons) hide. */
+  apply(s: LandingState, inside?: boolean): void;
   /** Load the tile and stone-free maps (oak soffit comes from the house's set); resolves either way. */
   loadTextures(anisotropy: number): Promise<void>;
   dispose(): void;
@@ -210,9 +211,10 @@ export function buildRoofs(house: LandingHouse): StageRoofs {
   const hips = new Group();
   const ground = new Group();
   group.add(hips, ground);
-  // Matte and weakly lit by the sky: at grazing angles the tiles stay charcoal, not peach (archviz-r2 fix 4).
-  const tiles = new MeshStandardMaterial({ color: TILE_FLAT, roughness: 0.85, metalness: 0, envMapIntensity: 0.2 });
-  const fasciaMat = new MeshStandardMaterial({ color: 0x2b2d30, roughness: 0.55, metalness: 0.2, side: DoubleSide });
+  // Cool charcoal tile with a sky sheen, clearly lighter than the soffits (jury fix 4: 0x4a4d50 matte read as asphalt).
+  const tiles = new MeshStandardMaterial({ color: TILE_FLAT, roughness: 0.55, metalness: 0, envMapIntensity: 0.6 });
+  // A pale fascia: each tier's edge reads as its own line between the tiles and the timber soffit.
+  const fasciaMat = new MeshStandardMaterial({ color: 0xdcdedd, roughness: 0.6, metalness: 0, side: DoubleSide });
   const timber = new MeshStandardMaterial({ color: TEAK, roughness: 0.6, side: DoubleSide });
   const look = { timber };
   const capMat = new MeshStandardMaterial({ color: 0x3a3c3f, roughness: 0.5, metalness: 0.1 });
@@ -304,7 +306,8 @@ export function buildRoofs(house: LandingHouse): StageRoofs {
   const textures: Texture[] = [];
   return {
     group,
-    apply(s) {
+    apply(s, inside = false) {
+      pool.visible = !inside;
       const amount = s.build.roof;
       group.visible = amount > SHOWN;
       const land = (1 - amount) * (1 - amount) * LAND_M;

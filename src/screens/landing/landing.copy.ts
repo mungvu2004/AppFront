@@ -37,7 +37,7 @@ export const SCENE_STEP: Readonly<Record<string, { step: number; part?: string }
   s04: { step: 2 },
   s05: { step: 3, part: 'Tường' },
   s06: { step: 3, part: 'Bên trong' },
-  s07: { step: 3, part: 'Hai tầng' },
+  s07: { step: 3, part: 'Ba tầng' },
   s08: { step: 4 },
   s09: { step: 5 },
 };
@@ -79,8 +79,8 @@ export const SCENE_COPY: readonly SceneCopy[] = [
   },
   { id: 's04', title: ['Bạn kiểm tra.', 'Bạn quyết định.'], accent: { word: 'kiểm tra', tone: 'amber' } },
   { id: 's05', title: ['Từ nét vẽ.', 'Thành không gian thật.'] },
-  { id: 's06' },
-  { id: 's07', title: ['Hai tầng.', 'Một mô hình thống nhất.'], accent: { word: 'thống nhất', tone: 'jade' } },
+  { id: 's06', title: ['Bước vào.', 'Đo được từng không gian.'], accent: { word: 'Đo được', tone: 'mineral' } },
+  { id: 's07', title: ['Ba tầng.', 'Một mô hình thống nhất.'], accent: { word: 'thống nhất', tone: 'jade' } },
   { id: 's08', title: ['Không chỉ dựng hình.', 'Còn giúp phát hiện vấn đề.'], accent: { word: 'vấn đề', tone: 'coral' } },
 ];
 

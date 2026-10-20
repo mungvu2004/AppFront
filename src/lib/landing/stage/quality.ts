@@ -32,6 +32,15 @@ export const QUALITY: Readonly<Record<Quality, QualitySettings>> = {
   lite: { maxDpr: 1, composer: false, ao: false, aoHalfRes: false, aoMode: 'Performance', shadows: false, shadowMapSize: 512, smaa: 'low' },
 };
 
+/** Drawing-buffer pixel budget (width x height x ratio^2) per tier; fill-bound iGPUs scale with pixels. 'full' is uncapped. */
+export const PIXEL_BUDGET: Readonly<Record<Quality, number>> = { full: Infinity, balanced: 1.35e6, lite: 1.35e6 };
+
+/** The renderer pixel ratio: the device ratio capped by the tier's `maxDpr`, then shrunk (below 1 if need be) to fit the pixel budget. CSS size is unaffected. */
+export function pixelRatioFor(quality: Quality, cssW: number, cssH: number, dpr: number): number {
+  const capped = Math.min(dpr, QUALITY[quality].maxDpr);
+  return Math.min(capped, Math.sqrt(PIXEL_BUDGET[quality] / Math.max(1, cssW * cssH)));
+}
+
 /** Integrated GPUs (the target laptop's Intel UHD) start a notch down; Apple M-series do not. */
 const INTEGRATED = /intel|uhd|iris|amd radeon\(tm\) graphics|radeon vega|mali|adreno/i;
 const SOFTWARE = /swiftshader|llvmpipe|software|basic render/i;

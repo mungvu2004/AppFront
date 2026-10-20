@@ -1,6 +1,6 @@
 /** The landing's palette over present's roles (moved out of index.ts to keep it under 400 lines). */
 
-import { Color, type Mesh, type Object3D, type ShaderMaterial } from 'three';
+import { Color, Group, PointLight, type Mesh, type Object3D, type ShaderMaterial, type Vector3 } from 'three';
 
 import { readPalette, type ScenePalette } from '@/lib/three/present';
 
@@ -54,4 +54,43 @@ export function matchSheetPaper(ink: Object3D, composed: boolean): void {
     const paper = new Color(LANDING_PALETTE.paper);
     uniform.value = composed ? inverseNeutral(paper) : paper.convertLinearToSRGB();
   }
+}
+
+/** 2700 K lamp light. */
+const WARM = 0xffb46b;
+/** Living room (G2) lamps, scene metres: [x, y, z, candela, reach]. Floor lamp F-G2-LAMP, then a ceiling fill. */
+const LAMPS = [
+  [22.9, 1.5, 20.3, 6, 6],
+  [20.5, 2.2, 18, 5, 8],
+] as const;
+
+/**
+ * Warm lamp light for the interior holds (jury fix 11): always in the scene, so the light count and
+ * every program stay fixed; lit (intensity) only while the eye is inside the ground floor box.
+ */
+export function warmInterior(): {
+  readonly group: Group;
+  /** Lights the lamps while `eye` is inside the ground floor box; true then. */
+  apply(eye: Vector3, inside: readonly number[]): boolean;
+  dispose(): void;
+} {
+  const group = new Group();
+  group.name = 'interior:lamps';
+  const lights = LAMPS.map(([x, y, z, cd, reach]) => {
+    const light = new PointLight(WARM, 0, reach, 2);
+    light.position.set(x, y, z);
+    group.add(light);
+    return { light, cd };
+  });
+  return {
+    group,
+    apply(eye, [x0 = 0, z0 = 0, x1 = 0, z1 = 0, top = 0]) {
+      const on = eye.x > x0 && eye.x < x1 && eye.z > z0 && eye.z < z1 && eye.y < top ? 1 : 0;
+      for (const { light, cd } of lights) light.intensity = cd * on;
+      return on === 1;
+    },
+    dispose() {
+      for (const { light } of lights) light.dispose();
+    },
+  };
 }
