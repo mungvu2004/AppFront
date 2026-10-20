@@ -4,6 +4,7 @@ import type { z } from 'zod';
 import {
   PROJECT_BUILDING_TYPES,
   PROJECT_LENGTH_UNITS,
+  PROJECT_SCENE_STYLES,
   ProjectSettingsBodySchema,
   ProjectSettingsSchema,
   UpdateProjectSettingsSchema,
@@ -104,6 +105,8 @@ describe('ProjectSettingsBodySchema', () => {
     ['areaUnit', { areaUnit: 'm2' }],
     ['revision', { revision: 0 }],
     ['name', { name: 'Nhà phố' }],
+    // Chỉ đọc ở R1: thân gửi chưa mang sceneStyle (thứ tự hợp đồng J-v3).
+    ['sceneStyle', { sceneStyle: 'go-am' }],
   ])('từ chối khoá lạ %s', (_label, patch) => {
     expect(issuePaths(ProjectSettingsBodySchema, { ...fullBody, ...patch })).toStrictEqual([[]]);
   });
@@ -166,9 +169,22 @@ describe('ProjectSettingsSchema', () => {
   it.each([
     ['revision âm', { revision: -1 }, 'revision'],
     ['revision thập phân', { revision: 1.5 }, 'revision'],
+    ['sceneStyle lạ', { sceneStyle: 'co-dien' }, 'sceneStyle'],
     ...OUT_OF_RANGE,
   ])('từ chối %s', (_label, patch, key) => {
     expect(issuePaths(ProjectSettingsSchema, { ...fullSettings, ...patch })).toStrictEqual([[key]]);
+  });
+
+  it('PROJECT_SCENE_STYLES khớp CONTRACT J-v3', () => {
+    expect([...PROJECT_SCENE_STYLES]).toStrictEqual(['am-ap', 'hien-dai-sang', 'go-am', 'toi-gian', 'sang-trong-toi']);
+  });
+
+  it.each(PROJECT_SCENE_STYLES)('giữ sceneStyle %s', (sceneStyle) => {
+    expect(ProjectSettingsSchema.parse({ ...fullSettings, sceneStyle })).toStrictEqual({ ...fullSettings, sceneStyle });
+  });
+
+  it('sceneStyle null ra như vắng', () => {
+    expect(ProjectSettingsSchema.parse({ ...fullSettings, sceneStyle: null })).toStrictEqual(fullSettings);
   });
 });
 

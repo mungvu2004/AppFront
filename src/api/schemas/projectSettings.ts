@@ -29,6 +29,9 @@ export const PROJECT_BUILDING_TYPES = [
 
 export const PROJECT_LENGTH_UNITS = ['mm', 'm'] as const;
 
+/** FE3D-B2 — kiểu cảnh 3D của dự án; khớp `SCENE_STYLE_IDS` (`lib/pascal/sceneStyles.ts`). */
+export const PROJECT_SCENE_STYLES = ['am-ap', 'hien-dai-sang', 'go-am', 'toi-gian', 'sang-trong-toi'] as const;
+
 /**
  * `notes` vắng nghĩa là rỗng — F-07 không gửi `''`, nên `.min(1)`.
  * `confidenceThreshold` chỉ để hiển thị; BE không bao giờ dùng nó để đặt
@@ -47,9 +50,16 @@ export const ProjectSettingsBodySchema = z
 
 export type ProjectSettingsBody = z.infer<typeof ProjectSettingsBodySchema>;
 
-/** N5. Chưa lưu lần nào → `revision: 0` cùng mặc định của FE. */
+/**
+ * N5. Chưa lưu lần nào → `revision: 0` cùng mặc định của FE.
+ *
+ * `sceneStyle` chỉ ở bản **nhận** (FE3D-FIX-003 R1): BE bỏ trường khi NULL, nhưng
+ * vẫn nhận `null` cho chắc; `null` ra như vắng. Chưa thêm vào thân gửi — chưa
+ * có màn nào ghi nó (thứ tự hợp đồng J-v3).
+ */
 export const ProjectSettingsSchema = ProjectSettingsBodySchema.extend({
   revision: z.number().int().nonnegative(),
+  sceneStyle: z.enum(PROJECT_SCENE_STYLES).nullable().optional(),
 })
   .strict()
   .transform((wireSettings) => ({
@@ -59,6 +69,7 @@ export const ProjectSettingsSchema = ProjectSettingsBodySchema.extend({
     lengthUnit: wireSettings.lengthUnit,
     ...(wireSettings.notes !== undefined ? { notes: wireSettings.notes } : {}),
     revision: wireSettings.revision,
+    ...(wireSettings.sceneStyle != null ? { sceneStyle: wireSettings.sceneStyle } : {}),
     snapToleranceMm: wireSettings.snapToleranceMm,
   }));
 

@@ -127,6 +127,44 @@ describe('MeSchema', () => {
   });
 });
 
+describe('MeSchema preferences (FE3D-FIX-003 R1)', () => {
+  const me = { email: 'an.pham@congty.vn', fullName: 'Phạm An', language: 'vi' };
+  const preferences = {
+    appearance: { density: 'compact', reducedMotion: true, showGrid: false, themeChoice: 'dark', viewportDark: true },
+    notifications: { 'member.added': { email: false, inApp: true } },
+    seen: { tours: ['viewer3d'], welcome: true },
+  };
+
+  it('giữ preferences đầy đủ', () => {
+    expect(MeSchema.parse({ ...me, preferences })).toStrictEqual({ ...me, preferences });
+  });
+
+  it.each([{}, { appearance: {} }, { seen: { tours: [] } }])('nhận preferences rỗng %j', (value) => {
+    expect(MeSchema.parse({ ...me, preferences: value })).toStrictEqual({ ...me, preferences: value });
+  });
+
+  it('bỏ khoá lạ trong preferences thay vì hỏng cả N11', () => {
+    const parsed = MeSchema.parse({
+      ...me,
+      preferences: { appearance: { fontScale: 1.2, themeChoice: 'light' }, sceneStyleId: 'go-am' },
+    });
+    expect(parsed).toStrictEqual({ ...me, preferences: { appearance: { themeChoice: 'light' } } });
+  });
+
+  it.each([
+    ['themeChoice lạ', { appearance: { themeChoice: 'sepia' } }, ['preferences', 'appearance', 'themeChoice']],
+    ['density lạ', { appearance: { density: 'cozy' } }, ['preferences', 'appearance', 'density']],
+    ['kênh thiếu email', { notifications: { x: { inApp: true } } }, ['preferences', 'notifications', 'x', 'email']],
+    ['tours không phải mảng', { seen: { tours: 'viewer3d' } }, ['preferences', 'seen', 'tours']],
+  ])('từ chối %s', (_label, value, path) => {
+    expect(issuePaths(MeSchema, { ...me, preferences: value })).toStrictEqual([path]);
+  });
+
+  it('UpdateMeSchema chưa nhận preferences (chỉ đọc)', () => {
+    expect(accepts(UpdateMeSchema, { preferences: {} })).toBe(false);
+  });
+});
+
 describe('UpdateMeSchema', () => {
   const fullUpdate = {
     fullName: 'Phạm Minh An',

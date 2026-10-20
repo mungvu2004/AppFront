@@ -165,6 +165,8 @@ export const FloorSchema = z
     drawings: z.array(DrawingSchema),
     elevationMm: mmIntegerSchema,
     heightMm: positiveMmIntegerSchema,
+    // FE3D-FIX-003 R1: chỉ đọc; tuỳ chọn tới khi BE (B3) luôn phát `floors.hidden_in_3d`.
+    hiddenIn3d: z.boolean().optional(),
     id: idSchema,
     name: z.string().min(1),
     order: z.number().int(),
@@ -175,6 +177,7 @@ export const FloorSchema = z
     drawings: wireFloor.drawings,
     elevationMm: wireFloor.elevationMm,
     heightMm: wireFloor.heightMm,
+    ...(wireFloor.hiddenIn3d !== undefined ? { hiddenIn3d: wireFloor.hiddenIn3d } : {}),
     id: wireFloor.id,
     name: wireFloor.name,
     order: wireFloor.order,

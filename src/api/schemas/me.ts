@@ -3,8 +3,8 @@ import { z } from 'zod';
 /**
  * N11–N14 — hồ sơ của người đang đăng nhập (HOP-DONG-MOI §3).
  *
- * Chỉ hồ sơ. Giao diện và tuỳ chọn thông báo vẫn nằm trong bộ nhớ ở v1 (AC1),
- * nên không có trường nào cho chúng ở đây.
+ * Hồ sơ, cộng `preferences` chỉ đọc (FE3D-FIX-003 R1). Chưa gửi nó qua N12:
+ * BE nhận trường này rồi FE mới ghi (thứ tự hợp đồng J-v3).
  *
  * ## Trim: bản gửi tự cắt, bản nhận không kiểm
  *
@@ -30,6 +30,38 @@ export const AVATAR_MIME_TYPES = ['image/png', 'image/jpeg'] as const;
 const AVATAR_BASE64_MAX_LENGTH = 699_052;
 
 const languageSchema = z.enum(ACCOUNT_LANGUAGES);
+
+export const ACCOUNT_THEME_CHOICES = ['light', 'dark', 'system'] as const;
+export const ACCOUNT_DENSITY_CHOICES = ['comfortable', 'compact'] as const;
+
+/*
+ * FE3D-FIX-003 R1 — `users.preferences` (CONTRACT J-v3), chỉ đọc. Khác phần còn
+ * lại của tệp, các object con **không** strict: zod mặc định bỏ khoá lạ, nên BE
+ * thêm một khoá sau này không làm hỏng N11 (object đơn — hỏng là hỏng cả màn tài
+ * khoản). Kiểu của khoá đã biết thì vẫn kiểm.
+ */
+const NotificationChannelsSchema = z.object({ email: z.boolean(), inApp: z.boolean() });
+
+export const UserPreferencesSchema = z.object({
+  appearance: z
+    .object({
+      density: z.enum(ACCOUNT_DENSITY_CHOICES).optional(),
+      reducedMotion: z.boolean().optional(),
+      showGrid: z.boolean().optional(),
+      themeChoice: z.enum(ACCOUNT_THEME_CHOICES).optional(),
+      viewportDark: z.boolean().optional(),
+    })
+    .optional(),
+  notifications: z.record(z.string().min(1), NotificationChannelsSchema).optional(),
+  seen: z
+    .object({
+      tours: z.array(z.string().min(1)).optional(),
+      welcome: z.boolean().optional(),
+    })
+    .optional(),
+});
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 const passwordSchema = z.string().min(1).min(8);
 
 export const MeSchema = z
@@ -40,6 +72,7 @@ export const MeSchema = z
     jobTitle: z.string().min(1).max(120).optional(),
     language: languageSchema,
     phone: z.string().min(1).max(32).optional(),
+    preferences: UserPreferencesSchema.optional(),
   })
   .strict()
   .transform((wireMe) => ({
@@ -49,6 +82,7 @@ export const MeSchema = z
     ...(wireMe.jobTitle !== undefined ? { jobTitle: wireMe.jobTitle } : {}),
     language: wireMe.language,
     ...(wireMe.phone !== undefined ? { phone: wireMe.phone } : {}),
+    ...(wireMe.preferences !== undefined ? { preferences: wireMe.preferences } : {}),
   }));
 
 export type Me = z.infer<typeof MeSchema>;

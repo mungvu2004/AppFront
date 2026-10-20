@@ -42,6 +42,20 @@ describe('decode', () => {
   });
 });
 
+describe('FloorSchema hiddenIn3d (FE3D-FIX-003 R1)', () => {
+  it('parses an old floor without hiddenIn3d unchanged', () => {
+    expect(FloorSchema.parse(createFloor('1'))).toStrictEqual(createFloor('1'));
+  });
+
+  it.each([true, false])('keeps hiddenIn3d %s', (hiddenIn3d) => {
+    expect(FloorSchema.parse({ ...createFloor('1'), hiddenIn3d })).toStrictEqual({ ...createFloor('1'), hiddenIn3d });
+  });
+
+  it.each([null, 'true', 1])('rejects hiddenIn3d %s', (hiddenIn3d) => {
+    expect(FloorSchema.safeParse({ ...createFloor('1'), hiddenIn3d }).success).toBe(false);
+  });
+});
+
 describe('safeParseList', () => {
   it('drops invalid items and still returns the list when the invalid ratio is at most 20%', () => {
     const input = Array.from({ length: 10 }, (_value, index) =>
