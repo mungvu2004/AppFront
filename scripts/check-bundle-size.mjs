@@ -207,8 +207,8 @@ function isHarmlessEvalToken(text, index, token) {
 
 /**
  * Hai chỗ zod 4 trong gói vách ngăn, miễn THEO NỘI DUNG chứ không theo tệp:
- * cả hai không bao giờ chạy vì `usePascalViewer.ts:157-161` bật `jitless`
- * trước khi nạp gói. Chỗ thứ ba — kể cả trong cùng tệp — vẫn đỏ.
+ * cả hai không bao giờ chạy vì `scripts/pascal-no-eval.mjs` bật `jitless` cho cả hai điểm vào
+ * (trang chính lẫn editor3d) trước khi nạp gói. Chỗ thứ ba — kể cả trong cùng tệp — vẫn đỏ.
  */
 const EVAL_ALLOWED = [
   { reason: 'zod 4 `allowsEval` — tắt bởi jitless', pattern: /const F = Function;\s*new F\(""\);/ },

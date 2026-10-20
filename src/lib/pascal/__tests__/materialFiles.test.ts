@@ -26,7 +26,7 @@ const LIBRARY_MAPS = new Map(
   readFileSync(resolve(ROOT, 'vendor/pascal/packages/core/src/material-library.ts'), 'utf8')
     .split(/\n {4}id: '/u)
     .slice(1)
-    .map((block) => {
+    .map((block): [string, string[]] => {
       const end = block.indexOf('\n  },\n  {');
       const body = end < 0 ? block : block.slice(0, end);
       return [block.slice(0, block.indexOf("'")), [...body.matchAll(/'\/material\/([^']+\.ktx2)'/gu)].map((m) => m[1]!)];

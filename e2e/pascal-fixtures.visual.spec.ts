@@ -175,7 +175,8 @@ test('C10 + C11 F1-ext: màu sàn theo lớp hoàn thiện + ảnh cạnh nhau v
     for (let j = i + 1; j < rooms.length; j++) {
       const [p, q] = [rooms[i]!, rooms[j]!];
       const same = p.finish === q.finish;
-      const de = deltaAB(p.lab, q.lab);
+      // Khác lớp hoàn thiện: ΔE76 đủ cả L (gạch và mosaic khác độ sáng có chủ ý); cùng lớp: chỉ a*b*.
+      const de = same ? deltaAB(p.lab, q.lab) : Math.hypot(p.lab[0] - q.lab[0], p.lab[1] - q.lab[1], p.lab[2] - q.lab[2]);
       pairs.push(`${p.id}~${q.id}\t${same ? 'same' : 'diff'}\t${de.toFixed(2)}`);
       if (same) expect.soft(de, `C10 ΔEab ${p.id}~${q.id} (cùng ${p.finish})`).toBeLessThan(6);
       else expect.soft(de, `C10 ΔEab ${p.id}~${q.id} (${p.finish}/${q.finish})`).toBeGreaterThanOrEqual(10);

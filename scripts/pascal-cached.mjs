@@ -30,6 +30,7 @@ export const INPUT_PATHS = [
   'scripts/pascal-vi',
   'scripts/pascal-self-host.mjs',
   'scripts/pascal-no-eval.mjs',
+  'scripts/pascal-css-scope.mjs',
   'scripts/pascal-catalog-local.mjs',
   'package.json',
   'pnpm-lock.yaml',
