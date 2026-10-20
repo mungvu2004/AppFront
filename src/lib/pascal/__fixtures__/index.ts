@@ -5,12 +5,16 @@
  * Chỉ dùng trong test/e2e (Node) — `houseModelSpatial.ts` cần `node:crypto`.
  */
 
+import { readFileSync } from 'node:fs';
+
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 
 import { allKindsGrid } from './allKindsGrid';
-import f3 from './f3-scale-unresolved.json';
-import f4 from './f4-ai-messy.json';
 import { houseModelSpatial, META, stableId } from './houseModelSpatial';
+
+/** Đọc bằng `fs` như `houseModelSpatial.ts`: Playwright chạy ESM thuần, `import … .json` thiếu `with { type: 'json' }` sẽ hỏng. */
+const readWire = (name: string): WireDocument =>
+  JSON.parse(readFileSync(new URL(`./${name}`, import.meta.url), 'utf8')) as WireDocument;
 
 export type WireEntity = Readonly<Record<string, unknown>>;
 
@@ -81,7 +85,7 @@ export function fixtureF2(): Fixture {
 /** F3 — bản AI tỉ lệ chưa giải (1 mm/px, nhà 2 × 1,4 m), chép nguyên A3/D2-spatial.json. */
 export function fixtureF3(): Fixture {
   return {
-    doc: structuredClone(f3) as WireDocument,
+    doc: readWire('f3-scale-unresolved.json'),
     expected: { furniture: 24, levels: 1, openings: 30, rooms: 8, walls: 71 },
   };
 }
@@ -89,7 +93,7 @@ export function fixtureF3(): Fixture {
 /** F4 — bản AI tự suy tỉ lệ, lộn xộn, chép nguyên A3/D2-autoscale-spatial.json. */
 export function fixtureF4(): Fixture {
   return {
-    doc: structuredClone(f4) as WireDocument,
+    doc: readWire('f4-ai-messy.json'),
     expected: { furniture: 24, levels: 1, openings: 30, rooms: 8, walls: 71 },
   };
 }
