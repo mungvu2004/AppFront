@@ -127,11 +127,11 @@ describe('createFakeBackend', () => {
   it('lượt gọi ngoài danh sách: 404 và ghi vào unexpected', () => {
     const api = backend();
 
-    const response = api.handle('GET', '/api/me');
+    const response = api.handle('GET', '/api/khong-co-route');
     expect(response.status).toBe(404);
     ApiErrorBodySchema.parse(response.body);
     api.handle('GET', '/api/projects/P-KHAC/spatial');
     api.handle('PUT', `${PROJECT}/floors/L-KHONGCO/spatial/layer`, {});
-    expect(api.unexpected).toEqual(['GET /api/me', 'GET /api/projects/P-KHAC/spatial', 'PUT /api/projects/P-FAKE/floors/L-KHONGCO/spatial/layer']);
+    expect(api.unexpected).toEqual(['GET /api/khong-co-route', 'GET /api/projects/P-KHAC/spatial', 'PUT /api/projects/P-FAKE/floors/L-KHONGCO/spatial/layer']);
   });
 });
