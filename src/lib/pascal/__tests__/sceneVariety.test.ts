@@ -68,6 +68,13 @@ describe('sceneVariety (J7)', () => {
     );
   });
 
+  it('bàn 900 × 600: bàn làm việc ở phòng ngủ/kho/khác/không rõ phòng, bàn ăn ở bếp/phòng khách', () => {
+    const table = item('T1', 'table', 900, 600);
+    for (const usage of [undefined, 'bedroom', 'utility', 'other'] as const) expect(roleOf(table, usage)).toBe('desk');
+    for (const usage of ['kitchen', 'livingRoom'] as const) expect(roleOf(table, usage)).toBe('diningTable');
+    expect(modelFolderOf(table, withPrefer({}), 'kitchen')).toBe('dining-table');
+  });
+
   it('không ưu tiên: giữ mô hình mặc định nếu nó vừa', () => {
     expect(modelFolderOf(item('D1', 'chair', 450, 450), withPrefer({}))).toBe('dining-chair');
   });

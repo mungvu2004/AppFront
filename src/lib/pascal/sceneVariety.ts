@@ -89,6 +89,9 @@ const roleOfFolder = (folder: string): FurnitureRole =>
 /** Mô hình của variant; variant không có mô hình (null) coi như không có variant. */
 const variantModelOf = (f: Shaped) => (f.variant === undefined ? null : VARIANT_MODEL[f.variant] ?? null);
 
+/** Bàn cỡ bàn làm việc chỉ là `desk` ở các phòng này (hoặc không rõ phòng); bếp, phòng khách… là bàn ăn. */
+const DESK_USAGES: ReadonlySet<RoomUsage | undefined> = new Set([undefined, 'bedroom', 'utility', 'other']);
+
 /**
  * Vai trò của một món: có mô hình variant thì theo mô hình đó, không thì theo hình hộp.
  * Sofa và bàn trà chỉ ở phòng khách (`usage`), như `furnitureModelOf` hôm nay.
@@ -115,7 +118,7 @@ export const roleOf = (f: Shaped, usage?: RoomUsage): FurnitureRole => {
     case 'table':
       if (long < 0.6) return 'nightstand';
       if (living && h !== undefined && h < 0.5) return 'coffeeTable';
-      return short <= 0.8 && long <= 1.6 ? 'desk' : 'diningTable';
+      return short <= 0.8 && long <= 1.6 && DESK_USAGES.has(usage) ? 'desk' : 'diningTable';
     case 'kitchenCabinet':
       return short >= 0.6 && long <= 0.8 ? 'fridge' : 'counter';
     case 'sanitaryFixture':

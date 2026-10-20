@@ -211,8 +211,8 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
 
   it('F2 (không variant): đoán thư mục theo loại + phòng + hộp bao; thang vẫn là chỗ giữ chỗ', () => {
     const expected: Record<string, string> = {
-      // Bàn 900×600 là cỡ bàn làm việc: phong cách mặc định ưu tiên office-table (fill 0,62 ≥ 0,6).
-      table: '/items/office-table/model.glb',
+      // Bàn 900×600 của F2 nằm ở phòng khách → bàn ăn (desk chỉ ở phòng ngủ/kho/khác).
+      table: '/items/dining-table/model.glb',
       chair: '/items/dining-chair/model.glb',
       bed: '/items/single-bed/model.glb',
       wardrobe: '/items/closet/model.glb',
