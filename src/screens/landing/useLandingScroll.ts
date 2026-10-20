@@ -64,8 +64,11 @@ declare global {
 
 const IDLE_MS = 100;
 
-function pickQuality(): 'full' | 'balanced' {
-  return navigator.hardwareConcurrency >= 8 && window.devicePixelRatio <= 1.5 ? 'full' : 'balanced';
+/** Chỉ bản dev: `?quality=full|balanced|lite` để đo từng bậc. */
+function devQuality(): 'full' | 'balanced' | 'lite' | null {
+  if (!import.meta.env.DEV) return null;
+  const q = new URLSearchParams(location.search).get('quality');
+  return q === 'full' || q === 'balanced' || q === 'lite' ? q : null;
 }
 
 export function useLandingScroll(opts: LandingScrollOptions): void {
@@ -77,8 +80,8 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
     const { track, stickyRoot, canvas, skipRef } = optsRef.current;
     const trackEl = track.current;
     const rootEl = stickyRoot.current;
-    const canvasEl = canvas.current;
-    if (!enabled || trackEl === null || rootEl === null || canvasEl === null) return undefined;
+    const canvasEl0 = canvas.current;
+    if (!enabled || trackEl === null || rootEl === null || canvasEl0 === null) return undefined;
 
     gsap.registerPlugin(ScrollTrigger);
     const lenis = new Lenis({ autoRaf: false });
@@ -183,25 +186,42 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
       };
     }
 
+    let canvasEl = canvasEl0;
+    let retried = false;
+    const build = async (): Promise<void> => {
+      const [{ LANDING_HOUSE }, { createStage, createFrameGovernor, pickStageQuality }] = await Promise.all([
+        import('@/lib/landing/house'),
+        import('@/lib/landing/stage'),
+      ]);
+      const quality = devQuality() ?? pickStageQuality();
+      const created = await createStage(canvasEl, LANDING_HOUSE, { quality });
+      if (disposed) {
+        created.dispose();
+        return;
+      }
+      stage = created;
+      governor = createFrameGovernor(quality);
+      // Chrome trả lại context chết cho cùng một canvas khi back/forward nhanh:
+      // thay canvas mới, dựng lại stage đúng một lần; mất lần hai mới về bản tĩnh.
+      created.onContextLost(() => {
+        if (disposed) return;
+        if (retried) return optsRef.current.onFallback();
+        retried = true;
+        stage = null;
+        created.dispose();
+        const fresh = canvasEl.cloneNode(false) as HTMLCanvasElement;
+        canvasEl.replaceWith(fresh);
+        canvasEl = fresh;
+        void build().then(() => dirty = true, () => !disposed && optsRef.current.onFallback());
+      });
+      resize();
+      optsRef.current.onReady(LANDING_HOUSE);
+      draw();
+      resolveReady();
+    };
     const load = async (): Promise<void> => {
       try {
-        const [{ LANDING_HOUSE }, { createStage, createFrameGovernor }] = await Promise.all([
-          import('@/lib/landing/house'),
-          import('@/lib/landing/stage'),
-        ]);
-        const quality = pickQuality();
-        const created = await createStage(canvasEl, LANDING_HOUSE, { quality });
-        if (disposed) {
-          created.dispose();
-          return;
-        }
-        stage = created;
-        governor = createFrameGovernor(quality);
-        created.onContextLost(() => optsRef.current.onFallback());
-        resize();
-        optsRef.current.onReady(LANDING_HOUSE);
-        draw();
-        resolveReady();
+        await build();
       } catch {
         // Không WebGL2 (NoWebGL2Error) hay lỗi dựng: bản tĩnh thay thế.
         if (!disposed) optsRef.current.onFallback();

@@ -51,6 +51,7 @@
 .landing a:focus-visible, .landing button:focus-visible { outline: 2px solid var(--l-blue); outline-offset: 3px; }
 .landing-labels { position: absolute; inset: 0; pointer-events: none; }
 .landing-label { position: absolute; left: 0; top: 0; translate: -50% -130%; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.625rem; font-size: 0.875rem; font-weight: 500; line-height: 1.3; white-space: nowrap; background: var(--l-paper); border: 1px solid color-mix(in srgb, var(--l-ink) 22%, transparent); }
+.landing-label[data-label='gap'] { translate: -50% -280%; }
 .landing-label::before { content: ''; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--l-mineral); flex: none; }
 .landing-label[data-tone='blue']::before { background: var(--l-blue); }
 .landing-label[data-tone='amber']::before { background: var(--l-amber); }

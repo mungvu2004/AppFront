@@ -45,6 +45,9 @@ const STAIR_LINK: Box = [
   [-0.3, 0, 0],
   [3.2, 5.6, 5],
 ];
+/** Aimed a little left of D5 (x 6.5 z 6.5): the steep look-down projects the eye-shot pan short,
+ * so this lands the door and its dimension mid free region. */
+const D5_LOOK: Vec3 = [6.9, 0.9, 6.72];
 const ground = (h: number): Box => [
   [0, 0, 0],
   [12, h, 9],
@@ -71,8 +74,8 @@ export const SHOTS: readonly ShotKey[] = [
   k('recognise', 0.24, fit(ground(0.5), 18, 54, 21, 1.05), 0.6),
   // S04 — decelerate onto the gap in W7 between the two rooms; hold (a slow push) while it closes.
   k('gap-approach', 0.318, fit(GAP_WIDE, 24, 50, 26), 0.4),
-  k('gap-hold', 0.342, fit(GAP_ROOMS, 22, 52, 26), 0.3, true),
-  k('gap-closed', 0.376, fit(GAP_ROOMS, 21, 53, 26, 0.95), 0.3, true),
+  k('gap-hold', 0.342, fit(GAP_ROOMS, 22, 52, 26, 1.25), 0.3, true),
+  k('gap-closed', 0.376, fit(GAP_ROOMS, 21, 53, 26, 1.3), 0.3, true),
   // S05 — pull back over the footprint, lateral orbit, settle on both storeys (upper lifted).
   k('hero-approach', 0.43, fit(ground(1), 26, 44, 34), 0.4),
   k('hero-orbit', 0.49, fit(ground(3), 6, 34, 34), 0.6),
@@ -95,15 +98,16 @@ export const SHOTS: readonly ShotKey[] = [
   // storey and the stairwell it reaches; then a slow push in on that connection.
   k('axo', 0.737, fit(ground(7.4), -52, 30, 44, 1.12), -0.5, true),
   k('stair-axo', 0.757, fit(STAIR_LINK, -56, 25, 44), -0.4),
-  // S08 (upper lifted 2.6 m) — under the upper storey to D5, seen head-on at eye level along the
-  // D2/D5 axis; the stair in three-quarter from the front-east, risers facing the camera; then
-  // a long-lens pull-back from the west-front corner with both failures in view.
-  k('front-in', 0.79, eye([6.5, 2.4, -3], [6.5, 0.8, 6.5], 40, -9), 0.2),
-  k('wc-look', 0.806, eye([6.5, 1.65, 4.05], [6.5, 0.8, 6.5], 40, -16), 0, true),
-  k('wc-hold', 0.818, eye([6.5, 1.62, 4.2], [6.5, 0.8, 6.5], 40, -16), 0, true),
+  // S08 (upper lifted 5.2 m, walls cut at 1.2 m) — an elevated three-quarter look down from over the
+  // kitchen at the hall/WC corner, D5 and its clear width centred, the hall and WC read as rooms;
+  // the stair in three-quarter from the front-east, risers facing the camera; then a long-lens
+  // pull-back from the west-front corner with both failures in view (the upper out of frame).
+  k('wc-in', 0.79, eye([10.2, 5.6, 0.6], D5_LOOK, 42, -37), 0.2),
+  k('wc-look', 0.806, eye([8.2, 4.6, 3.3], D5_LOOK, 42, -44), 0, true),
+  k('wc-hold', 0.818, eye([8.1, 4.5, 3.5], D5_LOOK, 42, -45), 0, true),
   k('stair-look', 0.836, eye([4.7, 2.5, -0.9], [0.6, 1.4, 2.4], 44, -12), 0, true),
   k('stair-hold', 0.846, eye([4.55, 2.45, -0.75], [0.6, 1.4, 2.4], 44, -12), 0, true),
-  k('both', 0.874, eye([-9.5, 4.4, -11], [5.2, 0.6, 4.6], 32, -10), -0.3, true),
+  k('both', 0.874, eye([-9.5, 4.4, -11], [5.2, 0.6, 4.6], 34, -12), -0.3, true),
   // S09 — up and out to the settled hero: the whole house in the right ~60 %.
   k('lift-out', 0.905, eye([6, 8.5, -11], [6, 1.5, 4.5], 36, -24), 0.2),
   k('hero', 0.955, fit(ground(6), 34, 27, 28), 0.5, true),

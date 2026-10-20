@@ -13,7 +13,7 @@
  * anchors, quality governor — is tested on its own.
  */
 
-import { MathUtils, Vector3 } from 'three';
+import { MathUtils, Vector3, type WebGLRenderTarget } from 'three';
 
 import { buildStair } from '@/lib/landing/house';
 import {
@@ -30,13 +30,33 @@ import type { LandingHouse, LandingState } from '../types';
 import { houseAnchors, projectPoint, type StageAnchor } from './anchors';
 import { applyBuild, buildStageHouse, disposeStageHouse } from './house';
 import { createInk } from './ink';
-import { createPost, type PostChain } from './post';
+import type { createPost, PostChain } from './post';
 import { QUALITY, type Quality } from './quality';
 import { createStageRenderer } from './renderer';
+import { warmStage } from './warm';
 import { applyPbr, type PbrHandle } from './textures';
 
 export { NoWebGL2Error } from './renderer';
-export { createFrameGovernor, QUALITY, type FrameGovernor, type Quality } from './quality';
+export {
+  createFrameGovernor,
+  pickStageQuality,
+  QUALITY,
+  qualityForRenderer,
+  type FrameGovernor,
+  type Quality,
+} from './quality';
+
+declare global {
+  interface Window {
+    /** DEV only: the last frame's draw calls/triangles (all passes), GPU memory, program count. */
+    __landingStageInfo?: () => {
+      quality: Quality;
+      render: { calls: number; triangles: number; points: number; lines: number; frame: number };
+      memory: { geometries: number; textures: number };
+      programs: number;
+    };
+  }
+}
 
 export interface Stage {
   apply(s: LandingState): void;
@@ -122,6 +142,7 @@ export async function createStage(
   let firstFrame = true;
   let pbr: PbrHandle | null = null;
   let disposed = false;
+  let last: LandingState | null = null;
   let width = 1;
   let height = 1;
   let dpr = 1;
@@ -139,12 +160,24 @@ export async function createStage(
     });
   }
 
+  // The composer (postprocessing + n8ao) is its own chunk: lite never loads it.
+  let postModule: { createPost: typeof createPost } | null = null;
+  const loadPost = async (): Promise<void> => {
+    postModule = await import('./post');
+    if (!disposed) {
+      configure();
+    }
+  };
+
   const configure = (): void => {
     const settings = QUALITY[quality];
-    gl.configure(settings);
-    if (settings.composer && post === null) {
-      post = createPost(renderer, scene, camera);
+    if (settings.composer && post === null && postModule !== null) {
+      post = postModule.createPost(renderer, scene, camera);
+    } else if (settings.composer && postModule === null) {
+      void loadPost();
     }
+    // Until the composer is here, the renderer tone-maps itself (same curve, same picture).
+    gl.configure(settings.composer && post === null ? { ...settings, composer: false } : settings);
     post?.configure(settings);
     renderer.setPixelRatio(Math.min(dpr, settings.maxDpr));
     renderer.setSize(width, height, false);
@@ -166,10 +199,42 @@ export async function createStage(
   canvas.addEventListener('webglcontextlost', onLost);
   canvas.addEventListener('webglcontextrestored', onRestored);
 
-  configure();
-  void gl.loadEnvironment().then(() => {
+  if (QUALITY[quality].composer) {
+    await loadPost();
+  } else {
+    configure();
+  }
+  const environment = gl.loadEnvironment().then(() => {
     dirty = true;
   });
+
+  /** Programs, textures and geometry warmed once the late parts (HDRI, PBR maps, `.glb`) are in — see warm.ts. */
+  const warmUp = async (pbrLanded: Promise<unknown>): Promise<void> => {
+    await Promise.allSettled([environment, pbrLanded, ...stage.pieces.map((piece) => piece.ready)]);
+    const target = (): WebGLRenderTarget | null => (post !== null && QUALITY[quality].composer ? post.composer.inputBuffer : null);
+    const growers = [...stage.walls.values(), ...stage.furniture.values(), ...stage.floors, ...stage.joinery, stage.stair];
+    const parts = [...growers.map((grower) => grower.object), ...(stage.upper === null ? [] : [stage.upper])];
+    if (!disposed && (await warmStage(renderer, scene, camera, target, parts, () => disposed))) {
+      if (last !== null) {
+        applyBuild(stage, last);
+      }
+      dirty = true;
+    }
+  };
+
+  // Counts every pass of a frame (the composer renders several), reset once per frame below.
+  renderer.info.autoReset = false;
+  if (import.meta.env.DEV) {
+    window.__landingStageInfo = info;
+  }
+  function info(): ReturnType<NonNullable<Window['__landingStageInfo']>> {
+    return {
+      quality,
+      render: { ...renderer.info.render },
+      memory: { ...renderer.info.memory },
+      programs: renderer.info.programs?.length ?? 0,
+    };
+  }
 
   const anchorPoint = (id: string): Vector3 | null => {
     const mine: StageAnchor | undefined = own.get(id);
@@ -201,6 +266,7 @@ export async function createStage(
       }
       camera.updateMatrixWorld();
       applyBuild(stage, s);
+      last = s;
       ink.apply(s, camera);
       dirty = true;
     },
@@ -209,6 +275,7 @@ export async function createStage(
         return;
       }
       dirty = false;
+      renderer.info.reset();
       if (post !== null && QUALITY[quality].composer) {
         post.composer.render();
       } else {
@@ -217,7 +284,9 @@ export async function createStage(
       if (firstFrame) {
         firstFrame = false;
         // Photographic textures are not needed for the first paint; they land once, later.
-        applyPbr(stage, house.plan.rooms).then(
+        const landed = applyPbr(stage, house.plan.rooms);
+        void warmUp(landed).catch(() => undefined);
+        landed.then(
           (handle) => {
             if (disposed) {
               handle.dispose();
@@ -257,6 +326,10 @@ export async function createStage(
     },
     dispose() {
       disposed = true;
+      // A stage re-made on a fresh canvas (context loss) may already own the hook.
+      if (import.meta.env.DEV && window.__landingStageInfo === info) {
+        delete window.__landingStageInfo;
+      }
       models.abort();
       canvas.removeEventListener('webglcontextlost', onLost);
       canvas.removeEventListener('webglcontextrestored', onRestored);

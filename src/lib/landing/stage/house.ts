@@ -38,6 +38,7 @@ import {
 
 import type { LandingHouse, LandingState } from '../types';
 
+import { foldMeshes } from './merge';
 import {
   NO_CLAMP_Y,
   createGrowthUniforms,
@@ -150,7 +151,15 @@ interface Patcher {
  * attribute (the stair, a `.glb`) would read them as black, so it gets a clone
  * with vertex colours off.
  */
-function grow(patcher: Patcher, id: string, object: Object3D, upper: boolean, fade: boolean, floorY: number): Grower {
+function grow(
+  patcher: Patcher,
+  id: string,
+  object: Object3D,
+  upper: boolean,
+  fade: boolean,
+  floorY: number,
+  swappable = false,
+): Grower {
   object.updateMatrixWorld(true);
   box.setFromObject(object);
   const baseY = box.isEmpty() ? 0 : box.min.y;
@@ -197,6 +206,10 @@ function grow(patcher: Patcher, id: string, object: Object3D, upper: boolean, fa
       child.receiveShadow = true;
       child.customDepthMaterial = depth;
     });
+    // A piece folds per child: present swaps its `procedural` child for the `.glb` by reference.
+    for (const container of swappable ? object.children : [object]) {
+      foldMeshes(container);
+    }
   };
   refresh();
 
@@ -278,7 +291,10 @@ export function buildStageHouse(
 
   const furniture = new Map<string, Grower>();
   for (const piece of furnitureGroups) {
-    furniture.set(piece.id, grow(patcher, piece.id, piece.object, piece.levelId === upperId, false, floorOf(piece.levelId)));
+    furniture.set(
+      piece.id,
+      grow(patcher, piece.id, piece.object, piece.levelId === upperId, false, floorOf(piece.levelId), true),
+    );
   }
   const stairGrower = grow(patcher, house.stair.id, stair, house.stair.levelId === upperId, false, floorOf(house.stair.levelId));
   const doors = new Set(house.plan.openings.filter((o) => o.kind === 'door').map((o) => o.id));

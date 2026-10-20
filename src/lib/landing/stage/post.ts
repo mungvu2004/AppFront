@@ -50,6 +50,11 @@ export function createPost(renderer: WebGLRenderer, scene: Scene, camera: Perspe
   ao.configuration.intensity = AO_INTENSITY;
   ao.configuration.color = AO_COLOUR;
   ao.configuration.gammaCorrection = false;
+  // Every fading joinery clone is `transparent`, so n8ao would walk the scene each frame and then
+  // draw it twice more for its transparency pass (≈ 12 ms on Intel UHD). Glass writes no depth and
+  // the faded leaves write it as solids: the plain pass reads the same picture.
+  ao.autoDetectTransparency = false;
+  ao.configuration.transparencyAware = false;
   composer.addPass(ao);
   composer.addPass(
     new EffectPass(

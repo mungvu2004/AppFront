@@ -13,6 +13,8 @@ import { CORAL, JADE, lineMaterial, RevealLine, staticLine, type P3, type Stroke
 
 export interface Compliance {
   readonly door: RevealLine | null;
+  /** Visible wall top at the door: elevation + min(storey, mix(3, 1.2, cutaway)). */
+  doorCap(cutaway: number): number;
   readonly stair: RevealLine;
   readonly passes: RevealLine;
   /** Anchor id (`check:<id>`) → world position. */
@@ -160,11 +162,17 @@ export function createCompliance(house: LandingHouse): Compliance {
     }
   }
 
+  const doorWall = doorCheck && house.plan.walls.find((wall) => wall.id === house.plan.openings.find((o) => o.id === doorCheck.targetId)?.wallId);
+  const doorBase = levelElevation(house, doorWall?.levelId ?? '');
+  const storey = mm(doorWall?.heightMm ?? house.plan.levels.find((level) => level.id === doorWall?.levelId)?.heightMm ?? 3000);
+  const doorCap = (cutaway: number): number => doorBase + Math.min(storey, 3 + (1.2 - 3) * cutaway);
+
   const doorStrokesList = doorCheck ? doorStrokes(house, doorCheck.targetId, anchors, doorCheck.id) : [];
   return {
     door: doorStrokesList.length > 0 ? new RevealLine('check:door', doorStrokesList, lineMaterial(CORAL, 4)) : null,
     stair: new RevealLine('check:stair', stairStrokes(house, anchors, stairCheck?.id ?? null), lineMaterial(CORAL, 3.6)),
     passes: staticLine('check:passes', ticks, lineMaterial(JADE, 1.6)),
+    doorCap,
     anchors,
   };
 }

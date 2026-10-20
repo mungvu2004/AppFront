@@ -90,7 +90,7 @@ describe('stateAt', () => {
     expect(stateAt(0.4).review.close).toBe(1);
     expect(stateAt(0.85).compliance.bathDoor).toBe(1);
     expect(stateAt(0.75).build.upperLiftM).toBe(1.2);
-    expect(stateAt(0.79).build.upperLiftM).toBe(2.6);
+    expect(stateAt(0.79).build.upperLiftM).toBe(5.2);
     expect(stateAt(0.95).build.upperLiftM).toBe(0);
     expect(stateAt(0.62).build.upperLiftM).toBe(4);
     const end = stateAt(1);

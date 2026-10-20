@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import { createFrameGovernor, QUALITY } from '../quality';
+import { createFrameGovernor, QUALITY, qualityForRenderer } from '../quality';
 
 describe('createFrameGovernor', () => {
   it('steps down only after sustained slow frames, then cools down', () => {
@@ -39,5 +39,16 @@ describe('createFrameGovernor', () => {
   it('lite has no composer, no shadows and DPR 1', () => {
     expect(QUALITY.lite).toMatchObject({ composer: false, shadows: false, ao: false, maxDpr: 1 });
     expect(QUALITY.balanced.maxDpr).toBeLessThanOrEqual(1.5);
+  });
+});
+
+describe('qualityForRenderer', () => {
+  it('starts integrated GPUs on balanced, discrete and Apple on full, software on lite', () => {
+    expect(qualityForRenderer('ANGLE (Intel, Intel(R) UHD Graphics (0x00009A60) Direct3D11 vs_5_0 ps_5_0, D3D11)')).toBe('balanced');
+    expect(qualityForRenderer('ANGLE (AMD, AMD Radeon(TM) Graphics Direct3D11)')).toBe('balanced');
+    expect(qualityForRenderer('ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11)')).toBe('full');
+    expect(qualityForRenderer('Apple M2')).toBe('full');
+    expect(qualityForRenderer('')).toBe('full');
+    expect(qualityForRenderer('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device))')).toBe('lite');
   });
 });

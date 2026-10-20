@@ -68,6 +68,8 @@ export class RevealLine {
   readonly object: LineSegments2;
   readonly material: LineMaterial;
   private readonly times: Float32Array;
+  private readonly base: Float32Array;
+  private capY = Infinity;
 
   constructor(name: string, strokes: readonly Stroke[], material: LineMaterial) {
     const pieces: { t: number; a: P3; b: P3 }[] = [];
@@ -89,6 +91,7 @@ export class RevealLine {
     pieces.sort((x, y) => x.t - y.t);
     const positions = new Float32Array(Math.max(1, pieces.length) * 6);
     pieces.forEach((piece, i) => positions.set([...piece.a, ...piece.b], i * 6));
+    this.base = positions.slice();
     this.times = Float32Array.from(pieces, (piece) => piece.t);
 
     const geometry = new LineSegmentsGeometry();
@@ -117,6 +120,19 @@ export class RevealLine {
       }
     }
     this.object.geometry.instanceCount = lo;
+  }
+
+  /** Flatten every point above maxY onto it (visible wall top); redraws only when the cap moves. Allocation-free. */
+  clampY(maxY: number): void {
+    if (Math.abs(maxY - this.capY) < 1e-4) {
+      return;
+    }
+    this.capY = maxY;
+    const data = (this.object.geometry.attributes['instanceStart'] as unknown as { data: { array: Float32Array; needsUpdate: boolean } }).data;
+    for (let i = 1; i < this.base.length; i += 3) {
+      data.array[i] = Math.min(this.base[i] as number, maxY);
+    }
+    data.needsUpdate = true;
   }
 
   setOpacity(opacity: number): void {

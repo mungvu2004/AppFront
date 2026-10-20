@@ -70,10 +70,10 @@ const UPPER: readonly Entry[] = [
 
 /**
  * variant → model; the living room's low table is the only `table` with one (dining and desk stay drawn).
- * sofa.glb / armchair.glb are tufted period pieces that fight the contemporary rooms: those stay drawn.
+ * sofa.glb / armchair.glb are tufted period pieces that fight the contemporary rooms, and
+ * dining-chair.glb is dark tufted leather: those stay drawn (oak + linen, present's chair).
  */
 const MODELS: Readonly<Record<string, string>> = {
-  chair: 'dining-chair',
   plant: 'plant',
   shelves: 'shelf',
   nightstand: 'side-table',

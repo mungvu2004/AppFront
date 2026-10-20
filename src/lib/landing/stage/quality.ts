@@ -26,6 +26,30 @@ export const QUALITY: Readonly<Record<Quality, QualitySettings>> = {
   lite: { maxDpr: 1, composer: false, ao: false, aoHalfRes: false, shadows: false, shadowMapSize: 512 },
 };
 
+/** Integrated GPUs (the target laptop's Intel UHD) start a notch down; Apple M-series do not. */
+const INTEGRATED = /intel|uhd|iris|amd radeon\(tm\) graphics|radeon vega|mali|adreno/i;
+const SOFTWARE = /swiftshader|llvmpipe|software|basic render/i;
+
+/** The starting tier for a GPU, from its `UNMASKED_RENDERER_WEBGL` string ('' when hidden). */
+export function qualityForRenderer(renderer: string): Quality {
+  if (SOFTWARE.test(renderer)) {
+    return 'lite';
+  }
+  return INTEGRATED.test(renderer) ? 'balanced' : 'full';
+}
+
+/** Ask the browser which GPU it has (a throwaway context, released at once) and pick the starting tier. */
+export function pickStageQuality(): Quality {
+  const gl = document.createElement('canvas').getContext('webgl2');
+  if (gl === null) {
+    return 'lite';
+  }
+  const info = gl.getExtension('WEBGL_debug_renderer_info');
+  const name = info === null ? '' : String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL));
+  gl.getExtension('WEBGL_lose_context')?.loseContext();
+  return qualityForRenderer(name);
+}
+
 const LOWER: Readonly<Record<Quality, Quality | null>> = { full: 'balanced', balanced: 'lite', lite: null };
 
 export interface GovernorOptions {

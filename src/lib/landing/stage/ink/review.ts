@@ -45,8 +45,8 @@ export interface Review {
 }
 
 /** Handle radii in screen pixels: the moving one is the one to read. */
-const FIXED_PX = 6;
-const MOVING_PX = 9;
+const FIXED_PX = 10;
+const MOVING_PX = 12;
 const scratch = new Vector3();
 
 /** A ringed disc on the drawing plane, kept a constant size on screen. */
@@ -57,18 +57,18 @@ export interface Handle {
   fit(camera: Camera, heightPx: number): void;
 }
 
-function handle(name: string, px: number, filled: boolean): Handle {
+function handle(name: string, px: number): Handle {
   const ring = new MeshBasicMaterial({ color: new Color(AMBER), transparent: true, opacity: 0, depthWrite: false });
   const core = new MeshBasicMaterial({
-    color: filled ? new Color(AMBER) : inverseNeutral(new Color(PAPER)),
+    color: inverseNeutral(new Color(PAPER)),
     transparent: true,
     opacity: 0,
     depthWrite: false,
   });
   const object = new Group();
   object.name = name;
-  const disc = new Mesh(new CircleGeometry(filled ? 0.5 : 0.62, 28), core);
-  const rim = new Mesh(new RingGeometry(filled ? 0.72 : 0.62, 1, 32), ring);
+  const disc = new Mesh(new CircleGeometry(0.62, 28), core);
+  const rim = new Mesh(new RingGeometry(0.62, 1, 32), ring);
   for (const mesh of [disc, rim]) {
     mesh.rotation.x = -Math.PI / 2;
     mesh.renderOrder = 2;
@@ -79,7 +79,7 @@ function handle(name: string, px: number, filled: boolean): Handle {
     object,
     setOpacity(opacity) {
       ring.opacity = opacity;
-      core.opacity = filled ? opacity : opacity * 0.95;
+      core.opacity = opacity * 0.95;
       object.visible = opacity > 1e-3;
     },
     fit(camera, heightPx) {
@@ -111,11 +111,11 @@ export function createReview(house: LandingHouse, w: WallFrame, wallMaterial: Li
     along(w, s0 - pad, h + pad),
   ];
   const outline = staticLine('review:outline', [flatStroke([...box, box[0] as P2], 0.002)], lineMaterial(AMBER, 2.2));
-  const handleFixed = handle('review:handleA', FIXED_PX, false);
+  const handleFixed = handle('review:handleA', FIXED_PX);
   const fixedAt = along(w, s0);
   handleFixed.object.position.set(fixedAt[0], 0.003, fixedAt[1]);
   // Moved by its transform — the handle never changes shape.
-  const handleMoving = handle('review:handleB', MOVING_PX, true);
+  const handleMoving = handle('review:handleB', MOVING_PX);
   // Unit-long quad along the wall, scaled to the open part [s0, s] each frame.
   const fill = new Mesh(
     new PlaneGeometry(1, w.t).translate(0.5, 0, 0),

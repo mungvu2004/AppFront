@@ -26,7 +26,7 @@ export interface FitShot {
   readonly azDeg: number;
   readonly elDeg: number;
   readonly fovDeg: number;
-  /** Free-region scale: < 1 frames the box tighter (a detail), > 1 looser. */
+  /** Share of the free region the box fills: < 1 leaves margin (looser), > 1 lets it overflow (closer). */
   readonly fill?: number;
 }
 

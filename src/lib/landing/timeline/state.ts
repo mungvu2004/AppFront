@@ -54,6 +54,10 @@ export function wallRiseOrder(): string[] {
   return info.map((x) => x.id);
 }
 
+/** Ink at p 0: the openings (0–0.42 of the layer) are already drawn, so the first frame reads as a
+ * plan; S01 then draws the stair, furniture symbols and axes (stage/ink/strokes.ts windows). */
+const OPENING_INK = 0.42;
+
 const LABEL_IDS = [
   ...LABELLED,
   'gap',
@@ -70,7 +74,7 @@ const LABEL_IDS = [
 
 function blank() {
   return {
-    paper: { opacity: 1, ink: 0, junkInk: 0, axes: 0, dims: 0, liftM: 0 },
+    paper: { opacity: 1, ink: OPENING_INK, junkInk: 0, axes: 0, dims: 0, liftM: 0 },
     detect: { walls: 0, rooms: 0, openings: 0, furniture: 0, labels: 0, explodeM: 0 },
     review: { highlight: 0, close: 0 },
     build: { floors: 0, joinery: 0, material: 0, stair: 0, upper: 0, upperLiftM: 0, cutaway: 0 },
@@ -183,9 +187,9 @@ function build(o: Live): gsap.core.Timeline {
   label('stair', 0.726, 0.734, 0.772, 0.782);
   label('room:R7', 0.73, 0.738, 0.766, 0.776);
   label('room:R8', 0.734, 0.742, 0.766, 0.776);
-  // S08 — lifted a little more so eye-level shots under it see the ground floor and the pull-back
-  // shows both failures.
-  tw(b, { upperLiftM: 2.6 }, 0.764, 0.79, 'power2.inOut');
+  // S08 — lifted well clear (above S06's 4 m, as 4:3 widens the lens) so the elevated looks into
+  // the cut ground floor and the pull-back see no slab at the top edge; S09 lowers it onto the walls.
+  tw(b, { upperLiftM: 5.2 }, 0.764, 0.79, 'power2.inOut');
   // S08 — bathroom door, then the stair, then the passes.
   tw(c, { bathDoor: 1 }, 0.798, 0.814, 'power2.out');
   tw(c, { stair: 1 }, 0.826, 0.84, 'power2.out');

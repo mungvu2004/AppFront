@@ -184,6 +184,7 @@ export function createInk(house: LandingHouse): InkLayer {
 
       if (compliance.door) {
         compliance.door.reveal(comp.bathDoor);
+        compliance.door.clampY(compliance.doorCap(build.cutaway));
         compliance.door.setOpacity(clamp01(comp.bathDoor * 4) * sem);
       }
       compliance.stair.reveal(comp.stair);

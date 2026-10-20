@@ -15,7 +15,8 @@ import type { LandingHouse } from '@/lib/landing/types';
 import { LandingView } from './LandingView';
 import { StaticLanding } from './StaticLanding';
 import { useLandingScroll } from './useLandingScroll';
-import './landing.css';
+// Gói thành chuỗi trong chunk của route: cổng CSS tính theo tệp .css, mà chunk route còn dư chỗ.
+import landingCss from './landing.css?inline';
 
 const TOTAL = (SCENES[SCENES.length - 1]?.end ?? 1) - (SCENES[0]?.start ?? 0);
 /** Chiều cao đoạn cuộn tính bằng "số màn" ở bề ngang desktop; CSS rút lại ở tablet. */
@@ -68,8 +69,11 @@ function LandingContent() {
 /** Nếu bản cuộn sập, người xem vẫn có bản tĩnh với nút bắt đầu. */
 export function LandingRoute() {
   return (
-    <ScreenErrorBoundary screenId="landing" renderFallback={() => <StaticLanding />}>
-      <LandingContent />
-    </ScreenErrorBoundary>
+    <>
+      <style>{landingCss}</style>
+      <ScreenErrorBoundary screenId="landing" renderFallback={() => <StaticLanding />}>
+        <LandingContent />
+      </ScreenErrorBoundary>
+    </>
   );
 }
