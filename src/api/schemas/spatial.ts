@@ -8,6 +8,7 @@ import type {
   EntityId,
   Furniture,
   Level,
+  MaterialRef,
   Note,
   Opening,
   Point,
@@ -198,8 +199,33 @@ const reviewMetadataShape = {
   source: z.enum(['ai', 'human']),
 } as const;
 
+/** J-v3: vật liệu từ thư viện hoặc từ cảnh, ví dụ `library:oak`. */
+const materialRefSchema = z.custom<MaterialRef>(
+  (value) => typeof value === 'string' && /^(library|scene):[a-z0-9_-]{1,64}$/.test(value),
+);
+
+/** Sơn hai mặt tường; mặt vắng là vắng khoá. */
+const wallPaintSchema = z
+  .object({ exterior: materialRefSchema.optional(), interior: materialRefSchema.optional() })
+  .strict()
+  .transform(({ exterior, interior }) => ({
+    ...(exterior !== undefined ? { exterior } : {}),
+    ...(interior !== undefined ? { interior } : {}),
+  }));
+
+/** Mẫu Pascal đã chọn cho món đồ. */
+const furnitureModelSchema = z
+  .object({ id: z.string().max(120), src: z.string().regex(/^\/items\/[a-z0-9_-]+\/model\.glb$/) })
+  .strict();
+
+/** Vật liệu theo từng ô của mẫu, tối đa 8 ô. */
+const furnitureSlotsSchema = z
+  .record(z.string().regex(/^[a-z][a-z0-9_]{0,23}$/), materialRefSchema)
+  .refine((slots) => Object.keys(slots).length <= 8);
+
 /** A5: đầu ra của máy không bao giờ được tự nhận là đã có người duyệt. */
-const humanOnlyReview = (entity: ReviewMetadata): boolean => !(entity.source === 'ai' && entity.reviewed);
+const humanOnlyReview = (entity: ReviewMetadata): boolean =>
+  !(entity.source === 'ai' && entity.reviewed);
 
 /* -------------------------------------------------------------------------- */
 /* Bốn thực thể của lớp không gian.                                            */
@@ -214,10 +240,16 @@ export const WallSchema: z.ZodType<Wall, z.ZodTypeDef, unknown> = z
     kind: z.enum(['loadBearing', 'partition', 'envelope']),
     levelId: levelIdSchema,
     openingIds: z.array(openingIdSchema),
+    paint: wallPaintSchema.optional(),
     thicknessMm: positiveMillimetresSchema,
   })
   .strict()
-  .refine(humanOnlyReview);
+  .refine(humanOnlyReview)
+  /* `paint` vắng là vắng khoá (xem chú thích của `FurnitureSchema` bên dưới). */
+  .transform(({ paint, ...wireWall }) => ({
+    ...wireWall,
+    ...(paint !== undefined ? { paint } : {}),
+  }));
 
 export const OpeningSchema: z.ZodType<Opening, z.ZodTypeDef, unknown> = z
   .object({
@@ -255,13 +287,15 @@ export const RoomSchema: z.ZodType<Room, z.ZodTypeDef, unknown> = z
     ]),
     wallIds: z.array(wallIdSchema),
     finish: z.enum(['wood', 'tile', 'mosaic', 'decking', 'concrete']).optional(),
+    floorMaterial: materialRefSchema.optional(),
   })
   .strict()
   .refine(humanOnlyReview)
   /* `finish` vắng là vắng khoá (xem chú thích của `FurnitureSchema` bên dưới). */
-  .transform(({ finish, ...wireRoom }) => ({
+  .transform(({ finish, floorMaterial, ...wireRoom }) => ({
     ...wireRoom,
     ...(finish !== undefined ? { finish } : {}),
+    ...(floorMaterial !== undefined ? { floorMaterial } : {}),
   }));
 
 /**
@@ -293,6 +327,8 @@ export const FurnitureSchema: z.ZodType<Furniture, z.ZodTypeDef, unknown> = z
     variant: z.enum(FURNITURE_VARIANTS).optional(),
     heightMm: positiveMillimetresSchema.optional(),
     liftMm: nonNegativeMillimetresSchema.optional(),
+    model: furnitureModelSchema.optional(),
+    slots: furnitureSlotsSchema.optional(),
   })
   .strict()
   .refine(humanOnlyReview)
@@ -311,6 +347,8 @@ export const FurnitureSchema: z.ZodType<Furniture, z.ZodTypeDef, unknown> = z
     ...(wireFurniture.variant !== undefined ? { variant: wireFurniture.variant } : {}),
     ...(wireFurniture.heightMm !== undefined ? { heightMm: wireFurniture.heightMm } : {}),
     ...(wireFurniture.liftMm !== undefined ? { liftMm: wireFurniture.liftMm } : {}),
+    ...(wireFurniture.model !== undefined ? { model: wireFurniture.model } : {}),
+    ...(wireFurniture.slots !== undefined ? { slots: wireFurniture.slots } : {}),
   }));
 
 /* -------------------------------------------------------------------------- */

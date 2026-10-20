@@ -129,6 +129,17 @@ export interface Wall extends ReviewMetadata {
   heightMm: Millimetres;
   kind: WallKind;
   openingIds: readonly OpeningId[];
+  /** Paint of each face; absent = the theme's wall colour. */
+  paint?: WallPaint;
+}
+
+/** A material from the library or the scene, e.g. `library:oak` (wire `^(library|scene):[a-z0-9_-]{1,64}$`). */
+export type MaterialRef = `library:${string}` | `scene:${string}`;
+
+/** Paint of the two faces of a wall. */
+export interface WallPaint {
+  interior?: MaterialRef;
+  exterior?: MaterialRef;
 }
 
 /** Kind of opening cut into a wall. */
@@ -174,6 +185,8 @@ export interface Furniture extends ReviewMetadata {
   rotationDeg: Degrees;
   /** Catalogue model chosen for this item (e.g. after a Pascal "replace all"); absent = the stock model of `kind`. */
   model?: { id: string; src: string };
+  /** Material per named slot of the model (at most 8); absent slot = the model's own material. */
+  slots?: Readonly<Record<string, MaterialRef>>;
   /** Finer-grained piece than `kind` (the login-house vocabulary); absent = pick from `kind`. */
   variant?: FurnitureVariant;
   /** Height of the piece; absent = the model's own height. */
@@ -249,6 +262,8 @@ export interface Room extends ReviewMetadata {
   wallIds: readonly WallId[];
   /** Floor finish; absent = derived from `usage`. */
   finish?: RoomFinish;
+  /** Floor material; absent = from `finish`. */
+  floorMaterial?: MaterialRef;
 }
 
 /** Orientation of a setting-out axis. */
