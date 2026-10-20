@@ -217,11 +217,12 @@ export async function createStage(
   }
   const environment = gl.loadEnvironment().then(invalidate);
 
+  const redrawWarm = (): void => { dirty = shadowDirty = true; shadows.reset(); stageApi.render(); };
   /** Programs, textures and geometry warmed once the late parts (HDRI, PBR maps, `.glb`) are in — see warm.ts. */
   const warmUp = async (pbrLanded: Promise<unknown>, textures: Promise<unknown>): Promise<void> => {
     await Promise.allSettled([environment, pbrLanded, textures, siteLanded, ...stage.pieces.map((piece) => piece.ready)]);
     const target = (): WebGLRenderTarget | null => (post !== null && QUALITY[quality].composer ? post.composer.inputBuffer : null);
-    if (!disposed && (await warmStage(renderer, scene, camera, target, () => disposed))) {
+    if (!disposed && (await warmStage(renderer, scene, camera, target, () => disposed, redrawWarm))) {
       // Off the composer the warm draw went to the screen (jury fix 12: a beige slab over the plan at 768):
       // overwrite it in this same task, before the browser presents the canvas.
       if (last !== null) {

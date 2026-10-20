@@ -25,6 +25,9 @@ export async function warmStage(
   camera: Camera,
   target: () => WebGLRenderTarget | null,
   stopped: () => boolean,
+  /** Draws the real frame again, shadow map included: a slice's draw (to the screen off the composer) and its
+   * slice-only shadow map must never be what the page presents. Runs in the same task as each slice. */
+  redraw: () => void,
 ): Promise<boolean> {
   const textures = new Set<Texture>();
   scene.traverse((node) => {
@@ -81,6 +84,7 @@ export async function warmStage(
       else node.visible = true;
     }
     hide();
+    redraw();
     await nextFrame();
     if (stopped()) {
       return false;

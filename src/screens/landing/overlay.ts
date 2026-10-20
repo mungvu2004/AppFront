@@ -114,8 +114,8 @@ export function createOverlay(root: HTMLElement, scenes: readonly SceneSpan[]): 
         });
       }
       const scrim = scrimAt(state, shown);
-      // Cảnh cuối: chữ nằm trên giấy trơn khi máy quay đã lên cao; giấy cột chữ và tấm mờ tắt hẳn (CSS làm mờ chuyển, không bật đột ngột).
-      const hi = p >= (scenes[last]?.start ?? 2) ? 0 : 1;
+      // Cảnh cuối: đầu cảnh chữ còn đè lên nội thất (p .90); tấm mờ tắt dần khi máy quay lên cao, chữ nằm trên giấy trơn.
+      const hi = state.scene === last ? 1 - smoothstep(0.25, 0.5, state.sceneLocal) : 1;
       root.style.setProperty('--l-scrim', String(scrim * hi));
       // Tấm giấy mờ ôm khối chữ chỉ khi chữ đè lên 3D (S03/S04 đã có giấy đặc); lớp giấy cột chữ nhẹ đi tương ứng.
       const flat = state.scene === 2 || state.scene === 3;
@@ -182,4 +182,9 @@ export function createOverlay(root: HTMLElement, scenes: readonly SceneSpan[]): 
       }
     },
   };
+}
+
+function smoothstep(a: number, b: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
 }
