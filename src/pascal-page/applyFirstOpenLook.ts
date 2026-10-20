@@ -9,7 +9,10 @@
  * `./renderLook` còn đè `night` cho ấm hẳn). `rendered` đặt lại MỖI lần mở: đây là trang xem
  * trước hết, Pascal tự lưu `solid` từ lần trước thì lần mở sau vẫn phải ra ảnh thật; trong
  * phiên người dùng đổi thoải mái. Nét viền (`edges`) tắt chỉ ở lần mở đầu (theo cờ), sau đó
- * người dùng bật lại thì giữ nấy.
+ * người dùng bật lại thì giữ nấy. Tường cũng đặt `cutaway` MỖI lần mở (như `rendered`): Pascal ẩn
+ * các bức tường quay mặt về phía camera (wall-cutout-cache.ts `apply`), nên góc nhìn xiên thấy
+ * hết các phòng như nhà cắt lớp ở trang đăng nhập; `up` để tường gần che ⅓ số phòng, `down` hạ
+ * hết tường, `translucent` làm mờ mọi tường.
  *
  * Chủ đề thì khác: `viewer-preferences` dùng chung với khung Pascal nhúng trong app chính, mà
  * khung ấy ghim `studio` (`stackExplodedLevels`, pascalScene.ts). Nên trang này giữ chủ đề của
@@ -25,6 +28,7 @@ interface ViewerLook {
   setRenderContext: (context: 'editor') => void;
   setShading: (shading: 'rendered') => void;
   setEdges: (edges: 'off') => void;
+  setWallMode: (mode: 'cutaway') => void;
   setSceneTheme: (id: string) => void;
 }
 
@@ -43,6 +47,7 @@ export function applyFirstOpenLook(store: FirstOpenStore, storage: () => Storage
       const viewer = store.getState();
       viewer.setRenderContext('editor');
       viewer.setShading('rendered');
+      viewer.setWallMode('cutaway');
       if (local.getItem(FIRST_OPEN_FLAG) === null) {
         viewer.setEdges('off');
         local.setItem(EDITOR_THEME_KEY, FIRST_OPEN_THEME);

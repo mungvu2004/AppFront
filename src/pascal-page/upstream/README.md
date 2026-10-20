@@ -47,6 +47,7 @@ FE3D-FIX WP8:
 FE3D-FIX-002:
 
 11. `lib/fit-on-ready.ts` (AppFront file, not upstream): `fitPose` frames the plan at ≈40° elevation with a 40°
-    lens (`fov` in the `apply-pose` pose) instead of upstream `handleFitScene`'s ≈30° / 50°.
+    lens (`fov` in the `apply-pose` pose) instead of upstream `handleFitScene`'s ≈30° / 50°, at the distance where
+    every corner of the plan box (floor to 3 m) lands inside 80% of the viewport below the 70 px toolbar.
 
 `next/image` / `next/link` resolve to `vendor/pascal/shims/*` (aliases in `vite.pascal.config.ts`, paths in `tsconfig.json`).

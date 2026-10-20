@@ -26,7 +26,13 @@ const fakeStore = (hydrated = true, sceneTheme = 'studio') => {
     theme = id;
     listeners.forEach((listener) => listener({ ...look, sceneTheme: theme }, previous));
   });
-  const look = { setRenderContext: vi.fn(), setShading: vi.fn(), setEdges: vi.fn(), setSceneTheme };
+  const look = {
+    setRenderContext: vi.fn(),
+    setShading: vi.fn(),
+    setEdges: vi.fn(),
+    setWallMode: vi.fn(),
+    setSceneTheme,
+  };
   let onHydrated: (() => void) | undefined;
   const store = {
     getState: () => ({ ...look, sceneTheme: theme }),
@@ -51,6 +57,7 @@ describe('applyFirstOpenLook', () => {
     applyFirstOpenLook(first.store, () => storage);
     expect(first.look.setRenderContext).toHaveBeenCalledWith('editor');
     expect(first.look.setShading).toHaveBeenCalledWith('rendered');
+    expect(first.look.setWallMode).toHaveBeenCalledWith('cutaway');
     expect(first.look.setEdges).toHaveBeenCalledWith('off');
     expect(first.look.setSceneTheme).toHaveBeenCalledWith(FIRST_OPEN_THEME);
     expect(storage.getItem(FIRST_OPEN_FLAG)).not.toBeNull();
@@ -65,6 +72,7 @@ describe('applyFirstOpenLook', () => {
     applyFirstOpenLook(second.store, () => storage);
     expect(second.look.setRenderContext).toHaveBeenCalledWith('editor');
     expect(second.look.setShading).toHaveBeenCalledWith('rendered');
+    expect(second.look.setWallMode).toHaveBeenCalledWith('cutaway');
     expect(second.look.setEdges).not.toHaveBeenCalled();
   });
 
