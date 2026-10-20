@@ -14,9 +14,12 @@ import { getSceneTheme, SSGI_PARAMS } from '@pascal-app/viewer';
 import { type ReactNode, StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { usePascalProjectBridge } from './bridge';
+import { flushAutosaves } from '@/hooks/useAutosave';
+
+import { savePascalNow, usePascalProjectBridge } from './bridge';
 import { BackToProjectCard, ProjectStepsCard } from './BackToProjectCard';
 import { applyRenderLook } from './renderLook';
+import { SceneStyleCard } from './SceneStyleCard';
 import Home from './upstream/page';
 // CSS của trang (Tailwind 4, không bọc phạm vi) — bản dựng xuất thành `/assets/pascal/style.css`.
 import './pascal.css';
@@ -62,6 +65,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
         <>
           <BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} />
           <ProjectStepsCard projectId={projectId} />
+          <SceneStyleCard flushAutosaves={flushAutosaves} reload={() => window.location.reload()} saveNow={savePascalNow} />
         </>
       }
       onLoad={onLoad}

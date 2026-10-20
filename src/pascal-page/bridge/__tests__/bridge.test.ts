@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { SCENE_STYLE_STORAGE_KEY, SCENE_STYLES } from '@/lib/pascal/sceneStyles';
 import { toPascalScene } from '@/lib/pascal/toPascal';
+import type * as ToPascal from '@/lib/pascal/toPascal';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
-import { BRIDGE_EMPTY_ERROR, BRIDGE_LOAD_ERROR, BRIDGE_SESSION_ERROR, usePascalProjectBridge } from '..';
+import { BRIDGE_EMPTY_ERROR, BRIDGE_LOAD_ERROR, BRIDGE_SESSION_ERROR, savePascalNow, usePascalProjectBridge } from '..';
 
 const session = vi.hoisted(() => ({ ok: true }));
 const detail = vi.hoisted(() => ({ fail: false, levels: 1, walls: 1, role: 'engineer' as ProjectRole }));
@@ -43,6 +45,13 @@ vi.mock('@/store/projectHydration', () => ({
   },
 }));
 
+// Gián điệp quanh hàm thật: xem cầu trao phong cách nào cho `toPascalScene`.
+vi.mock('@/lib/pascal/toPascal', async (importOriginal) => {
+  const actual = await importOriginal<typeof ToPascal>();
+
+  return { ...actual, toPascalScene: vi.fn(actual.toPascalScene) };
+});
+
 vi.mock('@/screens/viewer/PascalViewer/usePascalEdits', () => ({
   usePascalEdits: ({ onRejected }: { onRejected: (reason: string) => void }) => ({
     onSceneCommit: () => {
@@ -64,6 +73,38 @@ describe('usePascalProjectBridge', () => {
     commit.reason = null;
     /* eslint-disable-next-line local/no-direct-set -- đưa kho về rỗng giữa các bài */
     useStore.setState({ spatial: null, userRoles: [] });
+  });
+
+  it.each([
+    ['hien-dai-sang', SCENE_STYLES['hien-dai-sang']],
+    ['khong-co', SCENE_STYLES['am-ap']],
+  ])('phong cách đã lưu "%s" đi vào toPascalScene (lạ → mặc định)', async (stored, style) => {
+    localStorage.setItem(SCENE_STYLE_STORAGE_KEY, stored);
+    const { result } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    vi.mocked(toPascalScene).mockClear();
+
+    await act(() => result.current.onLoad());
+
+    expect(toPascalScene).toHaveBeenCalledTimes(1);
+    expect(toPascalScene).toHaveBeenCalledWith(expect.anything(), { style });
+    localStorage.removeItem(SCENE_STYLE_STORAGE_KEY);
+  });
+
+  it('savePascalNow: Ctrl+S cho Pascal rồi đợi đúng lượt onSave ấy (ném khi bị từ chối)', async () => {
+    const { result } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    // Thay `useSaveShortcut` + `saveNow` của editor: bắt Ctrl+S ở pha capture, gọi `onSave` ngay.
+    const pascal = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.code === 'KeyS') void result.current.onSave({ nodes: {}, rootNodeIds: [] }).catch(() => undefined);
+    };
+    window.addEventListener('keydown', pascal, true);
+
+    await expect(savePascalNow()).resolves.toBeUndefined();
+    commit.ok = false;
+    commit.reason = 'Đồ gắn trần chưa lưu được.';
+    await expect(savePascalNow()).rejects.toThrow('Đồ gắn trần chưa lưu được.');
+    window.removeEventListener('keydown', pascal, true);
   });
 
   it('sẵn sàng: tên dự án, đường về, và cảnh từ toPascal', async () => {

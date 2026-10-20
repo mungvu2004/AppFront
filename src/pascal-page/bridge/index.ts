@@ -16,6 +16,7 @@ import { useSession } from '@/hooks/useSession';
 import { can } from '@/lib/auth/permissions';
 import { getSessionSnapshot } from '@/lib/auth/state';
 import { readWireError } from '@/lib/errors/wireError';
+import { readSceneStyle } from '@/lib/pascal/sceneStyles';
 import { toPascalScene } from '@/lib/pascal/toPascal';
 import type { PascalScene } from '@/lib/pascal/types';
 import { startAppSession } from '@/routes/sessionSetup';
@@ -36,6 +37,20 @@ export const BRIDGE_LOAD_ERROR = 'Không tải được mô hình của dự án
 export const BRIDGE_EMPTY_ERROR = 'Dự án chưa có mô hình để mở trong 3D.';
 
 class BridgeLoadError extends Error {}
+
+/** Lượt `onSave` gần nhất của cầu — `savePascalNow` đợi nó. */
+let lastSave: Promise<unknown> = Promise.resolve();
+
+/**
+ * Lưu NGAY cảnh Pascal rồi đợi lượt ghi qua cầu xong (ném nếu lượt ấy bị từ chối). Gói
+ * editor không xuất `saveNow`, nên đi đúng lối phím tắt của nó: Ctrl+S (`use-save-shortcut.ts`,
+ * bắt ở pha capture trên `window`) → `saveNow` → `executeSave` gọi `onSave` ngay trong lượt
+ * phát sự kiện, trước khi `dispatchEvent` trả về.
+ */
+export async function savePascalNow(): Promise<void> {
+  window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyS', key: 's', ctrlKey: true, cancelable: true }));
+  await lastSave;
+}
 
 const messageOf = (error: unknown): string => {
   if (error instanceof BridgeLoadError) return error.message;
@@ -77,6 +92,9 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
   // Đọc một lần lúc mở trang: màn vừa rời (N1-01, N5-13, N3-09), không có thì Quản lý tầng.
   const [backHref] = useState(() => resolveBackHref(projectId));
+  /* Phong cách cảnh đọc MỘT lần mỗi lượt mở trang (J9): mọi `toPascalScene` dưới đây dùng
+     chung nó, không thì giá trị sinh ra lệch nhau → "sửa ma". Đổi phong cách = nạp lại trang. */
+  const [style] = useState(() => readSceneStyle(() => localStorage));
   const session = useSession();
   const storeRoles = useStore((state) => state.userRoles);
   const spatial = useStore((state) => state.spatial);
@@ -122,21 +140,23 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
     const current = selectViewerSpatial(useStore.getState());
     if (current === null) throw new BridgeLoadError(BRIDGE_EMPTY_ERROR);
 
-    const { scene } = toPascalScene(denormalizeSpatial(current));
+    const { scene } = toPascalScene(denormalizeSpatial(current), { style });
     setLoadedScene(scene);
 
     return scene;
-  }, []);
+  }, [style]);
 
   const onSave = useCallback(
     async (scene: unknown): Promise<void> => {
       if (readOnly) return;
 
       rejection.current = null;
-      // `false` mà không có lời từ chối là "không có gì để ghi" (sửa node sinh ra) — vẫn là thành công.
-      if (!(await onSceneCommit(scene as PascalScene)) && rejection.current !== null) {
-        throw new Error(rejection.current);
-      }
+      const save = onSceneCommit(scene as PascalScene).then((ok) => {
+        // `false` mà không có lời từ chối là "không có gì để ghi" (sửa node sinh ra) — vẫn là thành công.
+        if (!ok && rejection.current !== null) throw new Error(rejection.current);
+      });
+      lastSave = save;
+      await save;
     },
     [onSceneCommit, readOnly],
   );
