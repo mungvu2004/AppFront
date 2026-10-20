@@ -1,7 +1,7 @@
 // @vitest-environment node
 /**
- * Lần mở đầu (`./firstOpen`): gieo `rendered` + chủ đề tối + cờ đúng một lần; có cờ thì
- * thôi; bộ nhớ ném lỗi thì không sập. Chủ đề của trang giữ ở khoá riêng, nên khung nhúng
+ * Lần mở (`./firstOpen`): `rendered` mỗi lần mở; tắt nét viền + chủ đề tối + cờ đúng một lần;
+ * bộ nhớ ném lỗi thì không sập. Chủ đề của trang giữ ở khoá riêng, nên khung nhúng
  * của app chính ghim `studio` vào `viewer-preferences` cũng không làm mất nó. Kho Pascal và
  * `localStorage` ở đây là bản giả (vitest không nạp được `@pascal-app/viewer` thật khi gói
  * chưa dựng), nên bài kiểm gọi thẳng `./applyFirstOpenLook`.
@@ -26,7 +26,7 @@ const fakeStore = (hydrated = true, sceneTheme = 'studio') => {
     theme = id;
     listeners.forEach((listener) => listener({ ...look, sceneTheme: theme }, previous));
   });
-  const look = { setRenderContext: vi.fn(), setShading: vi.fn(), setSceneTheme };
+  const look = { setRenderContext: vi.fn(), setShading: vi.fn(), setEdges: vi.fn(), setSceneTheme };
   let onHydrated: (() => void) | undefined;
   const store = {
     getState: () => ({ ...look, sceneTheme: theme }),
@@ -45,18 +45,27 @@ const fakeStorage = () => {
 };
 
 describe('applyFirstOpenLook', () => {
-  it('lần đầu: rendered trong editor + chủ đề tối + đặt cờ; lần sau không gieo lại shading', () => {
+  it('lần đầu: rendered trong editor + tắt nét viền + chủ đề tối + đặt cờ', () => {
     const storage = fakeStorage();
     const first = fakeStore();
     applyFirstOpenLook(first.store, () => storage);
     expect(first.look.setRenderContext).toHaveBeenCalledWith('editor');
     expect(first.look.setShading).toHaveBeenCalledWith('rendered');
+    expect(first.look.setEdges).toHaveBeenCalledWith('off');
     expect(first.look.setSceneTheme).toHaveBeenCalledWith(FIRST_OPEN_THEME);
     expect(storage.getItem(FIRST_OPEN_FLAG)).not.toBeNull();
 
+  });
+
+  it('lần sau: solid đã lưu vẫn thành rendered; nét viền người dùng bật lại thì để nguyên', () => {
+    const storage = fakeStorage();
+    applyFirstOpenLook(fakeStore().store, () => storage);
+
     const second = fakeStore();
     applyFirstOpenLook(second.store, () => storage);
-    expect(second.look.setShading).not.toHaveBeenCalled();
+    expect(second.look.setRenderContext).toHaveBeenCalledWith('editor');
+    expect(second.look.setShading).toHaveBeenCalledWith('rendered');
+    expect(second.look.setEdges).not.toHaveBeenCalled();
   });
 
   it('app chính ghim studio vào kho chung: trang editor vẫn mở lại đúng chủ đề người dùng chọn', () => {

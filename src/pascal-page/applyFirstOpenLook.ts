@@ -3,11 +3,13 @@
  * `useViewer` qua tham số, không nhập `@pascal-app/*` (vitest không nạp được gói khi chưa
  * dựng `dist/*.js`).
  *
- * Lần mở đầu tiên trên máy này: cảnh Pascal hiện như nhà 3D ở trang đăng nhập — tô
- * `rendered` (vật liệu thật, không phải đất sét) trên nền tối `night` (gần nền #2b2a28 của
- * trang đăng nhập nhất trong các chủ đề Pascal: ΔE76 nền 12,5, `twilight` 20,5 ngả tím, các
- * chủ đề sáng ≥ 72 — `studio` 81,5). Pascal tự lưu lựa chọn
- * (`viewer-preferences`), nên chỉ gieo một lần theo cờ; lần sau người dùng đổi gì thì giữ nấy.
+ * Cảnh Pascal hiện như nhà 3D ở trang đăng nhập — tô `rendered` (vật liệu thật, không phải
+ * đất sét) trên nền tối `night` (gần nền #2b2a28 của trang đăng nhập nhất trong các chủ đề
+ * Pascal: ΔE76 nền 12,5, `twilight` 20,5 ngả tím, các chủ đề sáng ≥ 72 — `studio` 81,5; nay
+ * `./renderLook` còn đè `night` cho ấm hẳn). `rendered` đặt lại MỖI lần mở: đây là trang xem
+ * trước hết, Pascal tự lưu `solid` từ lần trước thì lần mở sau vẫn phải ra ảnh thật; trong
+ * phiên người dùng đổi thoải mái. Nét viền (`edges`) tắt chỉ ở lần mở đầu (theo cờ), sau đó
+ * người dùng bật lại thì giữ nấy.
  *
  * Chủ đề thì khác: `viewer-preferences` dùng chung với khung Pascal nhúng trong app chính, mà
  * khung ấy ghim `studio` (`stackExplodedLevels`, pascalScene.ts). Nên trang này giữ chủ đề của
@@ -22,6 +24,7 @@ interface ViewerLook {
   sceneTheme: string;
   setRenderContext: (context: 'editor') => void;
   setShading: (shading: 'rendered') => void;
+  setEdges: (edges: 'off') => void;
   setSceneTheme: (id: string) => void;
 }
 
@@ -32,15 +35,16 @@ export interface FirstOpenStore {
   persist?: { hasHydrated: () => boolean; onFinishHydration: (fn: () => void) => unknown };
 }
 
-/** Gieo dáng mở đầu nếu chưa có cờ. Mọi lần chạm bộ nhớ đều bọc try/catch (chế độ riêng tư). */
+/** Đặt `rendered`, và gieo dáng mở đầu nếu chưa có cờ. Mọi lần chạm bộ nhớ đều bọc try/catch (chế độ riêng tư). */
 export function applyFirstOpenLook(store: FirstOpenStore, storage: () => Storage): void {
   const seed = () => {
     try {
       const local = storage();
       const viewer = store.getState();
+      viewer.setRenderContext('editor');
+      viewer.setShading('rendered');
       if (local.getItem(FIRST_OPEN_FLAG) === null) {
-        viewer.setRenderContext('editor');
-        viewer.setShading('rendered');
+        viewer.setEdges('off');
         local.setItem(EDITOR_THEME_KEY, FIRST_OPEN_THEME);
         local.setItem(FIRST_OPEN_FLAG, '1');
       }

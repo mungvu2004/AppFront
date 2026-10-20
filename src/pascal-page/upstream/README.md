@@ -44,4 +44,9 @@ FE3D-FIX WP8:
 10. `page.tsx` passes `viewerBanner={<ScaleBanner projectId={projectId} />}` to `<Editor>` (`../scaleBanner.tsx`):
     a non-blocking warning when a floor's N16 layer says `scaleStatus: 'unresolved'` or the walls fit in < 3 m.
 
+FE3D-FIX-002:
+
+11. `lib/fit-on-ready.ts` (AppFront file, not upstream): `fitPose` frames the plan at ≈40° elevation with a 40°
+    lens (`fov` in the `apply-pose` pose) instead of upstream `handleFitScene`'s ≈30° / 50°.
+
 `next/image` / `next/link` resolve to `vendor/pascal/shims/*` (aliases in `vite.pascal.config.ts`, paths in `tsconfig.json`).

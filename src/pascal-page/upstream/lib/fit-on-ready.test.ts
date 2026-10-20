@@ -2,12 +2,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fitPose, fitWhenControlsReady } from './fit-on-ready'
 
 describe('fitPose (QA-2 L2)', () => {
-  it('mirrors upstream fit-scene: orbit around the plan centre sized by the longer side', () => {
+  it('orbits the plan centre sized by the longer side, ~40 deg elevation, 40 deg lens', () => {
     const pose = fitPose({ center: [10, -4], size: [40, 20] }, 'perspective')
     expect(pose.target).toEqual([10, 0, -4])
-    expect(pose.position[1]).toBeCloseTo(32)
-    expect(pose.position[0]).toBeCloseTo(10 + 56 * 0.7)
-    expect(pose.position[2]).toBeCloseTo(-4 + 56 * 0.7)
+    expect(pose.position[1]).toBeCloseTo(60)
+    expect(pose.position[0]).toBeCloseTo(10 + 72 * 0.7)
+    expect(pose.position[2]).toBeCloseTo(-4 + 72 * 0.7)
+    expect(pose.fov).toBe(40)
+    const elevation = Math.atan2(60, 72 * 0.7 * Math.SQRT2) * (180 / Math.PI)
+    expect(elevation).toBeGreaterThan(38)
+    expect(elevation).toBeLessThan(42)
   })
   it('falls back to the default pose without bounds', () => {
     expect(fitPose(null, 'orthographic')).toEqual({

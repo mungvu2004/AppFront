@@ -34,3 +34,50 @@ export const SCENE_PALETTE = {
   // Màu đèn mặc định trong catalog Pascal (`catalog-items.tsx`), chép nguyên để đối chiếu.
   catalogLight: '#ffffff',
 } as const;
+
+/**
+ * Màu của dáng render ấm (`src/pascal-page/renderLook.ts`) — đè chủ đề `night` của Pascal cho
+ * gần nhà 3D ở trang đăng nhập (nền #2b2a28). `clay*` là màu đất sét khi tô `solid`.
+ */
+export const RENDER_LOOK_PALETTE = {
+  background: '#2b2a28',
+  sky: '#1f1e1c',
+  ground: '#3d3a36',
+  ambient: '#fff1e0',
+  hemiSky: '#fff6ea',
+  hemiGround: '#2b2a28',
+  key: '#fff4e6',
+  fill: '#ffd9a3',
+  clayWall: '#e8e0d2',
+  clayFloor: '#c9b79c',
+  clayCeiling: '#f2ece2',
+  clayRoof: '#8a6f55',
+  clayGlazing: '#c9d4d8',
+} as const;
+
+// Màu phẳng của 5 phong cách cảnh (`sceneStyles.ts`): sơn tường, tủ bếp, sứ, chậu cây, ánh đèn.
+export const STYLE_PALETTE = {
+  amApWall: '#f4ede1',
+  amApExterior: '#a39684',
+  amApCabinet: '#d8c7ab',
+  hienDaiWall: '#f7f8f8',
+  hienDaiExterior: '#b9bcbf',
+  hienDaiCabinet: '#eef0f1',
+  goAmWall: '#e8d9c3',
+  goAmExterior: '#7d6650',
+  goAmCabinet: '#8a5a36',
+  toiGianWall: '#ececea',
+  toiGianExterior: '#9d9d9a',
+  toiGianCabinet: '#d9d9d6',
+  sangTrongWall: '#3d3a38',
+  sangTrongExterior: '#2f2d2c',
+  sangTrongCabinet: '#26282b',
+  ceramicWhite: '#f3f3f1',
+  ceramicIvory: '#ece4d6',
+  potTerracotta: '#b0643f',
+  potConcrete: '#9a9893',
+  potBlack: '#2b2b2b',
+  lampWarm: '#ffd9a3',
+  lampNeutral: '#fff1de',
+  lampAmber: '#ffc98a',
+} as const;

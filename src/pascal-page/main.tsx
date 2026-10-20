@@ -10,17 +10,21 @@ import './firstOpen';
 import { acquireSceneReadOnlyLease, type SceneGraph } from '@pascal-app/core';
 import { loadPlugin } from '@pascal-app/core/registry';
 import { builtinPlugin } from '@pascal-app/nodes';
+import { getSceneTheme, SSGI_PARAMS } from '@pascal-app/viewer';
 import { type ReactNode, StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { usePascalProjectBridge } from './bridge';
 import { BackToProjectCard, ProjectStepsCard } from './BackToProjectCard';
+import { applyRenderLook } from './renderLook';
 import Home from './upstream/page';
 // CSS của trang (Tailwind 4, không bọc phạm vi) — bản dựng xuất thành `/assets/pascal/style.css`.
 import './pascal.css';
 
 // Như upstream `apps/editor/lib/bootstrap.ts`, nhưng chỉ bộ node dựng sẵn — không plugin ngoài.
 const builtinsLoaded = loadPlugin(builtinPlugin);
+// Dáng render ấm: đè chủ đề `night` + SSGI trước khi vẽ (cả khung sửa lẫn Preview đọc chung).
+applyRenderLook(getSceneTheme('night'), SSGI_PARAMS);
 
 function Notice({ children }: { readonly children: ReactNode }) {
   return (
