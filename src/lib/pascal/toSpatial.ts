@@ -51,6 +51,7 @@ import type {
   WallKind,
   WallPaint,
 } from '@/domain/spatial/types';
+import { FURNITURE_VARIANTS } from '@/domain/spatial/types';
 import {
   degrees as asDegrees,
   metres,
@@ -72,6 +73,7 @@ import type {
   PascalNodeId,
   PascalNodeType,
   PascalScene,
+  PascalItemNode,
   PascalVec3,
   PascalWallNode,
   SkippedEntity,
@@ -231,6 +233,53 @@ const paintOf = (wall: PascalWallNode): WallPaint | null => {
   }
 
   return Object.keys(paint).length === 0 ? null : paint;
+};
+
+/* -------------------------------------------------------------------------- */
+/* W3b — đồ đạc giữ màu, mẫu, loại và độ cao.                                  */
+/* -------------------------------------------------------------------------- */
+
+const SLOT_KEY = /^[a-z][a-z0-9_]{0,23}$/;
+const MODEL_SRC = /^\/items\/[a-z0-9_-]+\/model\.glb$/;
+
+/** Khe đã sơn khác khe phong cách cho (≤ 8, chỉ tham chiếu ghi được), hoặc `null`. */
+const itemSlotsFieldOf = (item: PascalItemNode): Readonly<Record<string, MaterialRef>> | null => {
+  const styleSlots = fieldsOf(item)['styleSlots'];
+  const base = (typeof styleSlots === 'object' && styleSlots !== null ? styleSlots : {}) as Fields;
+  const painted = Object.entries(item.slots ?? {}).filter(
+    (entry): entry is [string, MaterialRef] =>
+      SLOT_KEY.test(entry[0]) && entry[1] !== readString(base, entry[0]) && saveableRef(entry[1]),
+  );
+
+  return painted.length === 0 ? null : Object.fromEntries(painted.slice(0, 8));
+};
+
+/**
+ * Trường I1 của món đồ: `variant` / `heightMm` / `liftMm` từ siêu dữ liệu lượt đi (đồ sinh
+ * ra được nhận nuôi cũng mang theo), đè bằng lần kéo cao (`scale` y ≠ 1) hay nâng (y lệch
+ * quá 1 mm) vừa rồi; `slots` khác phong cách; `model` khi mẫu không phải mẫu AppFront chọn
+ * và `src` là một mẫu `/items/…` (ngoài ra không lưu được).
+ */
+const itemFieldsOf = (item: PascalItemNode, kind: FurnitureKind): Partial<Furniture> => {
+  const fields = fieldsOf(item);
+  const variant = readOneOf(fields, 'variant', FURNITURE_VARIANTS);
+  const styleLiftMm = readNumber(fields, 'styleLiftMm') ?? 0;
+  const liftNowMm = millimetresOf(item.position[1]);
+  const heightMm =
+    Math.abs(item.scale[1] - 1) >= SCALE_EPSILON
+      ? Math.max(1, Math.round(millimetresOf(item.asset.dimensions[1]) * item.scale[1]))
+      : readNumber(fields, 'heightMm');
+  const liftMm = Math.abs(liftNowMm - styleLiftMm) > 1 ? Math.max(0, Math.round(liftNowMm)) : readNumber(fields, 'liftMm');
+  const slots = itemSlotsFieldOf(item);
+  const swapped = item.asset.id !== `appfront-${kind}` && MODEL_SRC.test(item.asset.src);
+
+  return {
+    ...(variant === null ? {} : { variant }),
+    ...(heightMm === null ? {} : { heightMm: millimetres(heightMm) }),
+    ...(liftMm === null ? {} : { liftMm: millimetres(liftMm) }),
+    ...(slots === null ? {} : { slots }),
+    ...(swapped ? { model: { id: item.asset.id.slice(0, 120), src: item.asset.src } } : {}),
+  };
 };
 
 const readCorner = (fields: Fields, corner: 'min' | 'max'): Point | null => {
@@ -467,6 +516,10 @@ export const isEditedGenerated = (node: PascalNode | undefined): boolean => {
   return (
     moved ||
     !isUnscaled(node.scale) ||
+    // W3b: kéo cao, nâng, sơn khe cũng là sửa.
+    Math.abs(node.scale[1] - 1) >= SCALE_EPSILON ||
+    Math.abs(millimetresOf(node.position[1]) - (readNumber(fields, 'styleLiftMm') ?? 0)) > 1 ||
+    itemSlotsFieldOf(node) !== null ||
     (rotationDeg !== null && planDegreesOf(node.rotation[1]) !== normaliseDegrees(asDegrees(rotationDeg)))
   );
 };
@@ -623,7 +676,7 @@ const collectLevelChildren = (
           ),
           rotationDeg: planDegreesOf(child.rotation[1]),
           ...(roomId !== null && isIdOfKind('room', roomId) ? { roomId } : {}),
-          ...(child.asset.id !== `appfront-${kind}` ? { model: { id: child.asset.id, src: child.asset.src } } : {}),
+          ...itemFieldsOf(child, kind),
         });
         break;
       }

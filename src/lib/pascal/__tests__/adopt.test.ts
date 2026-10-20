@@ -48,7 +48,7 @@ const adopt = (idBook: PascalIdBook = new Map()) =>
   });
 
 describe('nhận nuôi đồ bày biện sinh ra', () => {
-  it('dời một món: cả bộ của phòng thành đồ thật, id F-, chưa duyệt, không trường BE chưa nhận', () => {
+  it('dời một món: cả bộ của phòng thành đồ thật, id F-, chưa duyệt', () => {
     const result = adopt();
 
     if (!result.ok) throw new Error(result.error.reasons.join(' '));
@@ -63,8 +63,8 @@ describe('nhận nuôi đồ bày biện sinh ra', () => {
     for (const item of added) {
       expect(item.id).toMatch(/^F-/);
       expect(item).toMatchObject({ source: 'human', reviewed: false, confidence: 1, roomId });
-      for (const key of ['variant', 'heightMm', 'liftMm', 'slots', 'model'])
-        expect(item).not.toHaveProperty(key);
+      // W3b: variant/heightMm/liftMm theo món sinh ra; khe/mẫu chưa sơn chưa thay thì vắng.
+      for (const key of ['slots', 'model']) expect(item).not.toHaveProperty(key);
     }
 
     expect(added.some((item) => item.centre.x === Math.round(moved.position[0] * 1000))).toBe(true);

@@ -163,4 +163,34 @@ describe('toVersionSnapshot — bảng tên HOP-DONG-MOI §1.3', () => {
     expect(diff.changed).toHaveLength(1);
     expect(diff.changed[0]).toMatchObject({ entityId: 'W-WALL000001', entityType: 'wall', field: 'thickness_mm', newValue: 300 });
   });
+
+  it('W3b: trường J-v3 (sơn, sàn, mẫu, khe, độ cao) vào bảng tên snake_case của BE', async () => {
+    const painted = structuredClone(WIRE_SNAPSHOT) as unknown as {
+      layer: { walls: object[]; rooms: object[]; furniture: object[] };
+    };
+    const model = { id: 'dining-chair', src: '/items/dining-chair/model.glb' };
+
+    painted.layer.walls[0] = { ...painted.layer.walls[0], paint: { interior: 'library:preset-glass' } };
+    painted.layer.rooms[0] = { ...painted.layer.rooms[0], finish: 'tile', floorMaterial: 'scene:oak' };
+    painted.layer.furniture[0] = {
+      ...painted.layer.furniture[0],
+      variant: 'armchair',
+      heightMm: 800,
+      liftMm: 0,
+      model,
+      slots: { body: 'scene:oak' },
+    };
+
+    const snapshot = toVersionSnapshot(await decodeSnapshot(painted));
+
+    expect(snapshot.wall['W-WALL000001']).toMatchObject({ paint: { interior: 'library:preset-glass' } });
+    expect(snapshot.room['R-ROOM000001']).toMatchObject({ finish: 'tile', floor_material: 'scene:oak' });
+    expect(snapshot.furniture['F-FURNI00001']).toMatchObject({
+      variant: 'armchair',
+      height_mm: 800,
+      lift_mm: 0,
+      model,
+      slots: { body: 'scene:oak' },
+    });
+  });
 });

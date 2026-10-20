@@ -556,7 +556,8 @@ describe('đổi mẫu đồ đạc', () => {
   it('mẫu mới đi qua lệnh, và khứ hồi giữ nguyên mẫu', () => {
     if (itemNode === undefined || itemNode.type !== 'item') throw new Error('cảnh nền phải có đồ đạc');
 
-    const asset = { ...itemNode.asset, id: 'catalog-sofa-2', src: 'asset://catalog/sofa-2' };
+    // W3b: chỉ mẫu `/items/<thư mục>/model.glb` lưu được lên dây (J-v3).
+    const asset = { ...itemNode.asset, id: 'catalog-sofa-2', src: '/items/sofa-2/model.glb' };
     const result = createPascalEditCommand({
       graph,
       scene: sceneWith(itemNode.id, { ...itemNode, asset }),
@@ -566,7 +567,7 @@ describe('đổi mẫu đồ đạc', () => {
 
     expect(result.ok).toBe(true);
 
-    const model = { id: 'catalog-sofa-2', src: 'asset://catalog/sofa-2' };
+    const model = { id: 'catalog-sofa-2', src: '/items/sofa-2/model.glb' };
     const sample = createSampleBuilding();
     const [first, ...rest] = sample.furniture;
 

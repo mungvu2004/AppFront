@@ -44,7 +44,12 @@ export function toVersionSnapshot({ dimensions, layer }: VersionSnapshotSource):
   };
 
   for (const wall of layer.walls) {
-    snapshot.wall[wall.id] = present({ thickness_mm: wall.thicknessMm, height_mm: wall.heightMm, kind: wall.kind });
+    snapshot.wall[wall.id] = present({
+      thickness_mm: wall.thicknessMm,
+      height_mm: wall.heightMm,
+      kind: wall.kind,
+      paint: wall.paint,
+    });
     snapshot.vertex[vertexIdOf(wall.id, 'start')] = { x: wall.centreline.start.x, y: wall.centreline.start.y };
     snapshot.vertex[vertexIdOf(wall.id, 'end')] = { x: wall.centreline.end.x, y: wall.centreline.end.y };
   }
@@ -61,7 +66,13 @@ export function toVersionSnapshot({ dimensions, layer }: VersionSnapshotSource):
   }
 
   for (const room of layer.rooms) {
-    snapshot.room[room.id] = present({ name: room.name, usage: room.usage, outline: room.outline });
+    snapshot.room[room.id] = present({
+      name: room.name,
+      usage: room.usage,
+      outline: room.outline,
+      finish: room.finish,
+      floor_material: room.floorMaterial,
+    });
   }
 
   for (const item of layer.furniture) {
@@ -70,6 +81,11 @@ export function toVersionSnapshot({ dimensions, layer }: VersionSnapshotSource):
       centre: item.centre,
       rotation_deg: item.rotationDeg,
       room_id: item.roomId,
+      variant: item.variant,
+      height_mm: item.heightMm,
+      lift_mm: item.liftMm,
+      model: item.model,
+      slots: item.slots,
     });
   }
 

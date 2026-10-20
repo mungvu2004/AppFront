@@ -694,8 +694,11 @@ const itemNodeOf = (
     };
   })();
   const heightM = fit?.heightM ?? heightOfFurniture(furniture, levelHeightMm);
-  const liftM = metresOf(furniture.liftMm ?? model?.liftMm ?? 0);
-  const slots = fit === null ? undefined : itemSlotsOf(fit.folder, style);
+  const liftMm = furniture.liftMm ?? model?.liftMm ?? 0;
+  const liftM = metresOf(liftMm);
+  // Khe phong cách cho, rồi khe người dùng đã sơn đè lên (W3b `Furniture.slots`).
+  const styleSlots = fit === null ? {} : itemSlotsOf(fit.folder, style);
+  const slots = { ...styleSlots, ...furniture.slots };
 
   return {
     object: 'node',
@@ -703,7 +706,7 @@ const itemNodeOf = (
     type: 'item',
     name: label,
     parentId: levelNodeId,
-    ...(slots === undefined ? {} : { slots }),
+    ...(Object.keys(slots).length === 0 ? {} : { slots }),
     // Đồ trần (pendant) tạm đặt dưới tầng ở độ cao `lift`; T16 lo trần.
     position: [metresOf(furniture.centre.x), liftM, metresOf(furniture.centre.y)],
     rotation: [0, yawOf(furniture.rotationDeg), 0],
@@ -724,6 +727,13 @@ const itemNodeOf = (
         kind: furniture.kind,
         boundingBox: furniture.boundingBox,
         ...(furniture.roomId === undefined ? {} : { roomId: furniture.roomId }),
+        // W3b: lượt về chỉ ghi khe / độ cao / độ nâng khác những số này — cảnh chưa chạm thì không đổi.
+        rotationDeg: furniture.rotationDeg,
+        styleSlots,
+        styleLiftMm: liftMm,
+        ...(furniture.variant === undefined ? {} : { variant: furniture.variant }),
+        ...(furniture.heightMm === undefined ? {} : { heightMm: furniture.heightMm }),
+        ...(furniture.liftMm === undefined ? {} : { liftMm: furniture.liftMm }),
       }),
     },
   };

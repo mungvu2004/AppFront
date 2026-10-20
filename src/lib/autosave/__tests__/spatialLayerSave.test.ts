@@ -42,7 +42,7 @@ describe('spatialLayerOf', () => {
     expect(layer.walls.length + layer.openings.length).toBeGreaterThan(0);
   });
 
-  it('23F-G-003/004: đồ đạc mang `model` (thay mẫu/đặt mẫu Pascal) vẫn ra thân PUT hợp lệ — #35 không có `model`', () => {
+  it('23F-G-003/004: đồ đạc mang `model` (thay mẫu/đặt mẫu Pascal) ra thân PUT hợp lệ và giữ `model` (J-v3, W3b)', () => {
     const furnitureId = sampleFurnitureId(0);
     const model = { id: 'dining-chair', src: '/items/dining-chair/model.glb' };
     const swapped = applyPatch(normalizeSpatial(SAMPLE_BUILDING), [
@@ -52,7 +52,7 @@ describe('spatialLayerOf', () => {
     const layer = spatialLayerOf(swapped, floor);
 
     expect(readEntity(swapped, 'furniture', furnitureId)?.model).toEqual(model);
-    expect(layer.furniture.some((item) => 'model' in item)).toBe(false);
+    expect(layer.furniture.find((item) => item.id === furnitureId)?.model).toEqual(model);
     expect(FloorLayerWriteSchema.safeParse({ baseVersion: 1, body: { layer } }).success).toBe(true);
   });
 });
