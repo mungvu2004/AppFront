@@ -80,6 +80,18 @@ const sortPts = (pts: { x: number; y: number }[]) =>
   [...pts].sort((a, b) => a.x - b.x || a.y - b.y);
 
 describe('thang Pascal thật', () => {
+  it('lan can: hẹp → bên phải, rộng ≥ 1,2 m → hai bên (V5 D12)', () => {
+    const railOf = (shortMm: number) => {
+      const { graph, stair } = sampleWithStair({
+        boundingBox: { min: { x: -shortMm / 2, y: -1500 }, max: { x: shortMm / 2, y: 1500 } } as Furniture['boundingBox'],
+      });
+      const node = toPascalScene(graph).scene.nodes[`stair_${stair.id}`];
+      return node?.type === 'stair' ? node.railingMode : undefined;
+    };
+    expect(railOf(900)).toBe('right');
+    expect(railOf(1200)).toBe('both');
+  });
+
   it('một stair + một stair-segment, đủ trường lược đồ, không còn item giữ chỗ', () => {
     const { graph, stair } = sampleWithStair();
     const { scene } = toPascalScene(graph);
@@ -98,10 +110,15 @@ describe('thang Pascal thật', () => {
     expect(node.toLevelId).toBeNull();
     expect(node.totalRise).toBe(rise);
     expect(node.stepCount).toBe(Math.max(3, Math.round(rise / 0.175)));
-    expect(node.railingMode).toBe('none');
+    expect(node.railingMode).toBe(node.width >= 1.2 ? 'both' : 'right');
     expect(node.fillToFloor).toBe(true);
     expect(node.thickness).toBe(0.25);
     expect(node.treadMaterialPreset.startsWith('library:')).toBe(true);
+    // Không bao giờ chìm dưới sàn (V5 D12): gốc thang ở cao độ sàn tầng, đoạn thang ở gốc, thành trát vữa.
+    expect(node.position[1]).toBe(0);
+    expect(segment.position).toEqual([0, 0, 0]);
+    expect(segment.fillToFloor).toBe(true);
+    expect(node.sideMaterialPreset).toBe('library:concrete-plaster');
     expect(segment.height).toBe(rise);
     expect(segment.stepCount).toBe(node.stepCount);
     expect(segment.width).toBe(node.width);

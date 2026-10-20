@@ -203,6 +203,8 @@ export interface PascalWindowNode extends PascalNodeCommon {
   readonly windowType?: 'fixed' | 'sliding' | 'casement';
   readonly casementStyle?: 'single' | 'french';
   readonly hingesSide?: 'left' | 'right';
+  /** Vật liệu khung/kính (`frame`/`glass`), tham chiếu `library:`/`scene:` — `window.ts:34-37`. */
+  readonly slots?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -355,7 +357,7 @@ export interface PascalStairNode extends PascalNodeCommon {
   readonly topLandingDepth: number;
   readonly showCenterColumn: boolean;
   readonly showStepSupports: boolean;
-  readonly railingMode: 'none';
+  readonly railingMode: 'none' | 'left' | 'right' | 'both';
   readonly railingHeight: number;
   readonly treadMaterialPreset: string;
   readonly sideMaterialPreset: string;

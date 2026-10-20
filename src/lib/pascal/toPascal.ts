@@ -29,6 +29,7 @@ import type {
   FurnitureKind,
   Level,
   Opening,
+  Point,
   Room,
   RoomUsage,
   SpatialGraph,
@@ -249,6 +250,7 @@ const DOOR_SWING_ANGLE = 1.22;
  */
 const doorLeafOf = (
   opening: Opening,
+  swingDirection: 'inward' | 'outward' = 'inward',
 ): Pick<
   PascalDoorNode,
   'doorType' | 'hingesSide' | 'leafCount' | 'openingKind' | 'swingAngle' | 'swingDirection' | 'operationState'
@@ -259,7 +261,7 @@ const doorLeafOf = (
     hingesSide: 'left',
     openingKind: 'door',
     swingAngle: DOOR_SWING_ANGLE,
-    swingDirection: 'inward',
+    swingDirection,
     operationState: 0,
   } as const;
   switch (opening.swing) {
@@ -294,9 +296,56 @@ const windowStyleOf = (
   }
 };
 
+/** Điểm nằm trong đa giác (tia ngang, chẵn-lẻ). */
+const insideOutline = (p: Point, outline: readonly Point[]): boolean => {
+  let inside = false;
+  for (let i = 0, j = outline.length - 1; i < outline.length; j = i++) {
+    const a = outline[i]!;
+    const b = outline[j]!;
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+};
+
+/** Khoảng dò hai bên mặt tường để tìm phòng, mm. */
+const SWING_PROBE_MM = 300;
+
+/**
+ * Cánh cửa mở về phía nào của tường, theo luật (V5 D7):
+ * - cửa trên tường bao (một bên là phòng, bên kia là ngoài nhà) mở VÀO nhà;
+ * - cửa trong mở vào phòng nó phục vụ: phòng không phải hành lang; nếu cả hai
+ *   (hoặc không bên nào) là hành lang → phòng nhỏ hơn.
+ * Pascal: `inward` = cánh quét sang +z cục bộ của tường (`door-system.tsx:2372,2650`),
+ * tường quay −atan2(cuối − đầu) nên +z cục bộ là pháp tuyến TRÁI của trục
+ * (−dy, dx) trên mặt bằng. Không phòng nào cả hai bên → giữ `inward`.
+ */
+export const swingDirectionOf = (opening: Opening, wall: Wall | undefined, rooms: readonly Room[]): 'inward' | 'outward' => {
+  if (wall === undefined) return 'inward';
+  const { start, end } = wall.centreline;
+  const length = Math.hypot(end.x - start.x, end.y - start.y);
+  if (!(length > 0)) return 'inward';
+  const dir = { x: (end.x - start.x) / length, y: (end.y - start.y) / length };
+  const along = opening.offsetMm + opening.widthMm / 2;
+  const reach = wall.thicknessMm / 2 + SWING_PROBE_MM;
+  const roomAt = (sign: number): Room | undefined => {
+    const p = { x: start.x + dir.x * along - dir.y * reach * sign, y: start.y + dir.y * along + dir.x * reach * sign };
+    return rooms.find((r) => r.levelId === wall.levelId && insideOutline(p, r.outline));
+  };
+  const left = roomAt(1);
+  const right = roomAt(-1);
+  if (left === undefined || right === undefined) return right !== undefined ? 'outward' : 'inward';
+  const corridor = (r: Room): boolean => r.usage === 'corridor';
+  if (corridor(left) !== corridor(right)) return corridor(left) ? 'outward' : 'inward';
+  return right.areaM2 < left.areaM2 ? 'outward' : 'inward';
+};
+
+/** Khung sáng + kính thật (`preset-glass`, kính duy nhất bộ vẽ dùng) để cửa sổ đọc ra là kính, không phải tấm màu (V5 D5). */
+const WINDOW_SLOTS = { frame: 'library:preset-white', glass: 'library:preset-glass' } as const;
+
 const openingNodeOf = (
   opening: Opening,
   wallNodeId: PascalNodeId,
+  swingDirection: 'inward' | 'outward' = 'inward',
 ): PascalDoorNode | PascalWindowNode => {
   const shared = {
     object: 'node',
@@ -311,8 +360,8 @@ const openingNodeOf = (
   } as const;
 
   return opening.kind === 'door'
-    ? { ...shared, type: 'door', ...doorLeafOf(opening) }
-    : { ...shared, type: 'window', ...windowStyleOf(opening) };
+    ? { ...shared, type: 'door', ...doorLeafOf(opening, swingDirection) }
+    : { ...shared, type: 'window', ...windowStyleOf(opening), slots: WINDOW_SLOTS };
 };
 
 /* -------------------------------------------------------------------------- */
@@ -462,6 +511,8 @@ const TALL_PLANT_MAX_M = 2.2;
 const STAIR_RISER_M = 0.175;
 /** Vật liệu thành thang: vữa trát (đã giải được hôm nay, J6). */
 const STAIR_SIDE_MATERIAL = 'library:concrete-plaster';
+/** Thang rộng từ chừng này (mét) thì lan can hai bên, hẹp hơn chỉ bên phải (V5 D12). */
+const STAIR_BOTH_RAILS_M = 1.2;
 
 /**
  * Đồ đạc `stair` thành thang Pascal thật: một `stair` + một `stair-segment`.
@@ -519,7 +570,7 @@ const stairNodesOf = (
       topLandingDepth: 0.9,
       showCenterColumn: true,
       showStepSupports: true,
-      railingMode: 'none',
+      railingMode: width >= STAIR_BOTH_RAILS_M ? 'both' : 'right',
       railingHeight: 0.92,
       treadMaterialPreset: style.floor.wood,
       sideMaterialPreset: STAIR_SIDE_MATERIAL,
@@ -801,6 +852,7 @@ export const toPascalScene = (
     adopt(levelNodeId, node.id);
   }
 
+  const builtWallOf = new Map(builtWalls.map((w) => [w.id, w]));
   for (const opening of graph.openings) {
     const wallNodeId = wallNodeIdOf.get(opening.wallId);
 
@@ -816,7 +868,8 @@ export const toPascalScene = (
       continue;
     }
 
-    const node = openingNodeOf(opening, wallNodeId);
+    const wall = builtWallOf.get(opening.wallId);
+    const node = openingNodeOf(opening, wallNodeId, swingDirectionOf(opening, wall, graph.rooms));
 
     builtOpenings.push(opening);
     nodes[node.id] = node;
