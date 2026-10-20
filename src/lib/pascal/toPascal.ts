@@ -329,7 +329,8 @@ export const swingDirectionOf = (opening: Opening, wall: Wall | undefined, rooms
   const reach = wall.thicknessMm / 2 + SWING_PROBE_MM;
   const roomAt = (sign: number): Room | undefined => {
     const p = { x: start.x + dir.x * along - dir.y * reach * sign, y: start.y + dir.y * along + dir.x * reach * sign };
-    return rooms.find((r) => r.levelId === wall.levelId && insideOutline(p, r.outline));
+    // Sàn decking = sân/hiên ngoài trời → coi như ngoài nhà, cửa mở vào phòng trong.
+    return rooms.find((r) => r.levelId === wall.levelId && r.finish !== 'decking' && insideOutline(p, r.outline));
   };
   const left = roomAt(1);
   const right = roomAt(-1);

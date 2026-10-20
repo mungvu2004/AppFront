@@ -79,6 +79,12 @@ describe('chiều mở cánh theo phòng hai bên (V5 D7)', () => {
     expect(swingDirectionOf(door, wall, [north('bathroom', 4), south('bedroom', 16)])).toBe('inward');
   });
 
+  it('sân decking tính là ngoài nhà: cửa mở vào phòng trong', () => {
+    const deck = (r: Room) => ({ ...r, finish: 'decking' }) as Room;
+    expect(swingDirectionOf(door, wall, [north('bedroom', 16), deck(south('other', 4))])).toBe('inward');
+    expect(swingDirectionOf(door, wall, [deck(north('other', 4)), south('bedroom', 16)])).toBe('outward');
+  });
+
   it('phòng tầng khác hoặc không có phòng → giữ inward', () => {
     expect(swingDirectionOf(door, wall, [])).toBe('inward');
     expect(swingDirectionOf(door, wall, [{ ...south('bedroom', 16), levelId: 'L-2' } as unknown as Room])).toBe('inward');
