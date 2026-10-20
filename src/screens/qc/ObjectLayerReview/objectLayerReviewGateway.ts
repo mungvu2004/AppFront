@@ -1532,8 +1532,8 @@ export function objectsOf(
     }
 
     const { min, max } = entity.boundingBox;
-
-    objects.push({
+    // K1: boundingBox is the unrotated local footprint; rotationDeg turns it about centre.
+    const free: FreeFurnitureObject = {
       id: codeOf(entity.id),
       entityId: entity.id,
       layer: 'furniture',
@@ -1546,7 +1546,10 @@ export function objectsOf(
       reviewed: entity.reviewed,
       hostWallId: null,
       tracedCentre: entity.centre,
-    });
+      rotationDeg: entity.rotationDeg,
+    };
+
+    objects.push(free);
   }
 
   for (const entry of seed) {
@@ -1557,6 +1560,13 @@ export function objectsOf(
 
   return objects;
 }
+
+/** Nội thất đứng tự do: mang thêm góc xoay của chính nó để canvas vẽ đúng hướng. */
+type FreeFurnitureObject = OrphanReviewObject & { readonly rotationDeg: number };
+
+/** Góc xoay riêng của nội thất đứng tự do; mọi đối tượng khác là 0. */
+const ownRotationDegOf = (object: ReviewObject): number =>
+  'rotationDeg' in object && typeof object.rotationDeg === 'number' ? object.rotationDeg : 0;
 
 /** Một dòng bộ mẫu chưa gắn, đọc bằng vựng viewmodel của màn. */
 export function orphanObjectOf(entry: ObjectSeedEntry): OrphanReviewObject {
@@ -2245,7 +2255,7 @@ export function toObjectPlacement(
     subtype: object.subtype,
     swing: object.swing,
     centrePx: toPixelPoint(centreMm, scale),
-    angleDeg: wall === null ? 0 : wallBearing(wall),
+    angleDeg: wall === null ? ownRotationDegOf(object) : wallBearing(wall),
     widthPx: scale.millimetresToPixels(millimetres(object.widthMm)),
     depthPx: scale.millimetresToPixels(millimetres(depthMm)),
     boundsPx: boundsPxOf(centreMm, object.widthMm, depthMm, scale),
