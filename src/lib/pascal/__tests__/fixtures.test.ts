@@ -1,8 +1,8 @@
-import { FurnitureSchema } from '@/api/schemas/spatial';
 import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
 
 import { fixtureF0, fixtureF1, fixtureF2, fixtureF3, fixtureF4, fixtureF5, type Fixture } from '../__fixtures__';
 import { house, stableId } from '../__fixtures__/houseModelSpatial';
+import { toPascalScene } from '../toPascal';
 
 const counts = (f: Fixture) => {
   const g = SpatialGraphDocumentSchema.parse(f.doc).graph;
@@ -63,14 +63,22 @@ describe('bộ đề F0–F5 (I7)', () => {
     expect(g.furniture.some((f) => 'variant' in f || 'heightMm' in f || 'liftMm' in f)).toBe(false);
   });
 
-  // Bật khi T06 cho FurnitureSchema nhận `variant` (I1); tới lúc đó ext:true bị từ chối đúng như mong đợi.
-  const schemaReadsVariant = FurnitureSchema.safeParse(fixtureF1({ ext: true }).doc.graph.furniture[0]).success;
-  it.skipIf(!schemaReadsVariant)('F1 ext:true qua schema và giữ finish/variant/heightMm/liftMm (chờ T06)', () => {
+  it('F1 ext:true qua schema và giữ finish/variant/heightMm/liftMm', () => {
     const fixture = fixtureF1({ ext: true });
     expect(counts(fixture)).toEqual(fixture.expected);
     const g = SpatialGraphDocumentSchema.parse(fixture.doc).graph;
     expect(g.furniture.every((f) => 'variant' in f && 'heightMm' in f)).toBe(true);
     expect(g.furniture.some((f) => 'liftMm' in f)).toBe(true);
     expect(g.rooms.every((r) => 'finish' in r)).toBe(true);
+  });
+
+  it.each([
+    ['F1 ext:false', fixtureF1({ ext: false })],
+    ['F1 ext:true', fixtureF1({ ext: true })],
+    ['F2', fixtureF2()],
+    ['F4', fixtureF4()],
+  ])('%s: toPascalScene không bỏ qua đối tượng nào', (_name, fixture) => {
+    const { skipped } = toPascalScene(SpatialGraphDocumentSchema.parse(fixture.doc).graph);
+    expect(skipped).toEqual([]);
   });
 });
