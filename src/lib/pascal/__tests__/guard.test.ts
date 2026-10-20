@@ -167,6 +167,66 @@ describe('createChangeGate', () => {
     });
   });
 
+  /** Thêm `roomCount` trần sinh ra (con của tầng), mỗi trần một đèn sinh ra. */
+  const withGeneratedCeilings = (base: PascalScene, roomCount: number): PascalScene => {
+    const nodes: Record<string, PascalNode> = { ...base.nodes };
+    const level = nodes[LEVEL_ID];
+    const ceilingIds: string[] = [];
+
+    for (let index = 0; index < roomCount; index += 1) {
+      const ceilingId = `ceiling_R-ROOM${String(index)}`;
+      const lightId = `item_LIGHT-R-ROOM${String(index)}`;
+
+      ceilingIds.push(ceilingId);
+      nodes[ceilingId] = {
+        object: 'node',
+        id: ceilingId,
+        type: 'ceiling',
+        parentId: LEVEL_ID,
+        children: [lightId],
+        polygon: [[0, 0], [1, 0], [1, 1]],
+        holes: [],
+        holeMetadata: [],
+        autoFromWalls: false,
+      } as unknown as PascalNode;
+      nodes[lightId] = {
+        object: 'node',
+        id: lightId,
+        type: 'item',
+        parentId: ceilingId,
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+      } as unknown as PascalNode;
+    }
+
+    if (level !== undefined && level.type === 'level') {
+      nodes[LEVEL_ID] = { ...level, children: [...level.children, ...ceilingIds] };
+    }
+
+    return { nodes, rootNodeIds: base.rootNodeIds };
+  };
+
+  it('không để trần và đèn sinh ra làm loãng tỉ lệ xoá: 6/30 tường vẫn phải xác nhận', () => {
+    const scene = withGeneratedCeilings(sceneWithWalls(30), 4);
+    const removed = Array.from({ length: 6 }, (_unused, index) => `wall_W-WALL${String(index)}`);
+    const verdict = readyGate().admit(commitOf(removed, removed), scene);
+
+    expect(verdict).toMatchObject({ admitted: false, code: 'PASCAL_MASS_DELETE' });
+    expect(verdict.admitted ? '' : verdict.reason).toContain('6 trong 30');
+  });
+
+  it('xoá riêng trần sinh ra (kèm đèn) không bao giờ phải xác nhận', () => {
+    const removed = ['ceiling_R-ROOM0', 'item_LIGHT-R-ROOM0'];
+
+    expect(readyGate().admit(commitOf(removed, removed), withGeneratedCeilings(sceneWithWalls(0), 1))).toEqual({
+      admitted: true,
+    });
+    expect(readyGate().admit(commitOf(removed, removed), withGeneratedCeilings(sceneWithWalls(2), 1))).toEqual({
+      admitted: true,
+    });
+  });
+
   it('không coi lượt sửa lớn là lượt xoá lớn', () => {
     const everyWall = Array.from({ length: 10 }, (_unused, index) => `wall_W-WALL${String(index)}`);
 

@@ -30,6 +30,7 @@
  * nên màn hình bắt mã này rồi mở hộp thoại, chứ không nuốt lượt ghi.
  */
 
+import { isGeneratedLightId } from './sceneDressing';
 import type { PascalNode, PascalNodeId, PascalScene } from './types';
 
 /** Ngưỡng xoá hàng loạt: một phần năm số đối tượng của một tầng. */
@@ -110,13 +111,28 @@ const descendantsOf = (scene: PascalScene, rootId: PascalNodeId): Set<PascalNode
   return found;
 };
 
-/** Mọi tầng của cảnh, kèm tập node nằm dưới nó. */
+/** Trần và đèn trần sinh ra từ phòng — không phải đối tượng của người dùng, không bao giờ được lưu. */
+const isGeneratedDressing = (scene: PascalScene, nodeId: PascalNodeId): boolean =>
+  scene.nodes[nodeId]?.type === 'ceiling' || isGeneratedLightId(nodeId);
+
+/**
+ * Mọi tầng của cảnh, kèm tập node nằm dưới nó — trừ trần và đèn sinh ra: đếm
+ * chúng làm loãng tỉ lệ xoá, và xoá riêng chúng không mất gì của bản vẽ.
+ */
 const levelSubtreesOf = (scene: PascalScene): ReadonlyMap<PascalNodeId, Set<PascalNodeId>> => {
   const subtrees = new Map<PascalNodeId, Set<PascalNodeId>>();
 
   for (const node of Object.values(scene.nodes)) {
     if (node.type === 'level') {
-      subtrees.set(node.id, descendantsOf(scene, node.id));
+      const subtree = descendantsOf(scene, node.id);
+
+      for (const nodeId of subtree) {
+        if (isGeneratedDressing(scene, nodeId)) {
+          subtree.delete(nodeId);
+        }
+      }
+
+      subtrees.set(node.id, subtree);
     }
   }
 

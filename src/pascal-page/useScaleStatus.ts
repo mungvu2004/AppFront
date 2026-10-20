@@ -3,7 +3,8 @@
  *
  * Hai nguồn: N16 của từng tầng mang `scaleStatus: 'unresolved'` (đọc bằng `readLayer` sẵn có,
  * không thêm endpoint), hoặc nhìn hình mà đoán — cả nhà gói trong < 3 m mà tầng cao ≥ 2,4 m thì
- * gần như chắc tỷ lệ sai. Đọc lỗi thì im lặng (không cảnh báo), chỉ ghi log một lần.
+ * gần như chắc tỷ lệ sai. Tầng đọc lỗi thì bỏ qua (chỉ ghi log một lần) — các tầng còn lại và phép
+ * đoán vẫn chạy, để một tầng hỏng không giấu cảnh báo của cả nhà.
  */
 import { useEffect, useState } from 'react';
 
@@ -60,19 +61,19 @@ export function useScaleStatus(projectId: string, readScale?: ReadScale): ScaleS
     const { levels, walls } = denormalizeSpatial(spatial);
     const read = readScale ?? ((floorId: string) => defaultReadScale(projectId, floorId));
 
-    Promise.all(levels.map((level) => read(level.id))).then(
-      (documents) => {
-        if (cancelled) return;
-        const index = documents.findIndex((document) => document.scaleStatus === 'unresolved');
-        const floorId = levels[index]?.id ?? tinyFootprintLevel(levels, walls);
-        setStatus(floorId === undefined ? { status: 'resolved' } : { status: 'unresolved', floorId });
-      },
-      (error: unknown) => {
-        if (failureLogged) return;
+    void Promise.allSettled(levels.map((level) => read(level.id))).then((results) => {
+      const failure = results.find((result) => result.status === 'rejected');
+      if (failure !== undefined && !failureLogged) {
         failureLogged = true;
-        console.warn('[pascal] không đọc được trạng thái tỷ lệ tầng', error);
-      },
-    );
+        console.warn('[pascal] không đọc được trạng thái tỷ lệ tầng', failure.reason);
+      }
+      if (cancelled) return;
+      const index = results.findIndex(
+        (result) => result.status === 'fulfilled' && result.value.scaleStatus === 'unresolved',
+      );
+      const floorId = levels[index]?.id ?? tinyFootprintLevel(levels, walls);
+      setStatus(floorId === undefined ? { status: 'resolved' } : { status: 'unresolved', floorId });
+    });
     return () => {
       cancelled = true;
     };

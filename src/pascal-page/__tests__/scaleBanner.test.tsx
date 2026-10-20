@@ -75,4 +75,27 @@ describe('ScaleBanner', () => {
     expect(screen.queryByRole('status')).toBeNull();
     warn.mockRestore();
   });
+
+  it('một tầng đọc lỗi không giấu tầng unresolved khác', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mount(createSampleBuilding(), async (floorId) => {
+      if (floorId === sampleLevelId(0)) throw new Error('500');
+      return floorId === sampleLevelId(2) ? { scaleStatus: 'unresolved' } : {};
+    });
+    await screen.findByRole('status');
+    expect(screen.getByRole('link', { name: 'Hiệu chỉnh tỷ lệ' }).getAttribute('href')).toBe(
+      `/projects/p1/floors/${sampleLevelId(2)}/scale`,
+    );
+    warn.mockRestore();
+  });
+
+  it('một tầng đọc lỗi, nhà < 3 m → vẫn cảnh báo theo phép đoán', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mount(shrunk(createSampleBuilding()), async (floorId) => {
+      if (floorId === sampleLevelId(1)) throw new Error('500');
+      return {};
+    });
+    expect((await screen.findByRole('status')).textContent).toContain(SCALE_BANNER_TEXT);
+    warn.mockRestore();
+  });
 });

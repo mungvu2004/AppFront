@@ -19,7 +19,7 @@ import { readWireError } from '@/lib/errors/wireError';
 import { toPascalScene } from '@/lib/pascal/toPascal';
 import type { PascalScene } from '@/lib/pascal/types';
 import { startAppSession } from '@/routes/sessionSetup';
-import { PASCAL_REJECTED_FALLBACK, usePascalEdits } from '@/screens/viewer/PascalViewer/usePascalEdits';
+import { usePascalEdits } from '@/screens/viewer/PascalViewer/usePascalEdits';
 import { selectViewerSpatial } from '@/screens/viewer/ViewerShell/viewerShellGateway';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
@@ -55,8 +55,9 @@ async function loadProject(projectId: string): Promise<string> {
   const client = createAppApiClient();
   const project = await readProjectDetail(client.projects, { projectId });
   const document = await readProjectGraph(client.spatial, { projectId });
-  // Chưa có tường lẫn phòng thì Pascal chỉ mở lưới trống không lời nào — báo trạng thái rỗng (C15).
-  if (document.graph.walls.length === 0 && document.graph.rooms.length === 0) {
+  /* Chưa có tầng nào thì không có chỗ để vẽ — báo trạng thái rỗng (C15). Có tầng mà chưa
+     có tường thì vẫn mở: người dùng vẽ tường ngay trong 3D. */
+  if (document.graph.levels.length === 0) {
     throw new BridgeLoadError(BRIDGE_EMPTY_ERROR);
   }
   const session = getSessionSnapshot();
@@ -132,8 +133,9 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
       if (readOnly) return;
 
       rejection.current = null;
-      if (!(await onSceneCommit(scene as PascalScene))) {
-        throw new Error(rejection.current ?? PASCAL_REJECTED_FALLBACK);
+      // `false` mà không có lời từ chối là "không có gì để ghi" (sửa node sinh ra) — vẫn là thành công.
+      if (!(await onSceneCommit(scene as PascalScene)) && rejection.current !== null) {
+        throw new Error(rejection.current);
       }
     },
     [onSceneCommit, readOnly],

@@ -285,11 +285,16 @@ test('C14: F3 tỉ lệ chưa giải → hiện băng cảnh báo trong 10 s', a
   expect(api.unexpected).toEqual([]);
 });
 
-test('C15: F0 rỗng → hiện trạng thái rỗng, 0 pageerror', async ({ page }) => {
+test('C15: F0 một tầng chưa có tường → vẫn mở editor để vẽ, 0 pageerror', async ({ page }) => {
   test.setTimeout(90_000);
   const seen = watch(page);
-  const api = await open(page, fixtureF0());
-  await expect(page.getByText(EMPTY_TEXT)).toBeVisible({ timeout: READY_TIMEOUT_MS });
+  const fixture = fixtureF0();
+  const api = await open(page, fixture);
+  // Thẻ về dự án chỉ có khi cầu đã `ready` — tức không rơi vào thông báo rỗng/lỗi.
+  await expect(page.getByText('Dự án thử 3D')).toBeVisible({ timeout: READY_TIMEOUT_MS });
+  await waitForScene(page, expectedOf(fixture).counts);
+  expect(await page.evaluate(() => window.__pascalProbe!.counts()['level'] ?? 0)).toBeGreaterThan(0);
+  await expect(page.getByText(EMPTY_TEXT)).toHaveCount(0);
   expect.soft(seen.pageErrors, 'C15 pageerror').toEqual([]);
   expect(api.unexpected).toEqual([]);
 });
