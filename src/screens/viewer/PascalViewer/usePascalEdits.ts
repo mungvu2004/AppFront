@@ -37,9 +37,11 @@ import { createHistoryStack, NO_SELECTION, type HistoryStack } from '@/lib/comma
 import { diffScenes, isEmptyDiff } from '@/lib/pascal/diff';
 import { createPascalEditCommand, type PascalEditResult } from '@/lib/pascal/fromPascal';
 import { createChangeGate, type PascalCommit } from '@/lib/pascal/guard';
+import { splitRoomsAfterWalls } from '@/lib/pascal/roomSplitAfterWalls';
 import { isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
 import type { PascalIdBook } from '@/lib/pascal/toSpatial';
 import type { PascalScene } from '@/lib/pascal/types';
+import { buildSplitRoomCommandFromWalls } from '@/screens/qc/RoomLabelReview/roomLabelReviewGateway';
 import { useStore } from '@/store';
 import { applyRollbackPatches, commit } from '@/store/commit';
 
@@ -75,6 +77,8 @@ export interface UsePascalEditsOptions {
   readonly onMassDelete?: (request: PascalMassDeleteRequest) => void;
   /** Lượt sửa có phần máy chủ chưa nhận (`unsavedPascalEdits`) — màn báo người dùng. */
   readonly onUnsaved?: (labels: readonly string[]) => void;
+  /** Câu báo sau một lượt đã lưu, vd "Phòng X có vách mới — mở màn Phòng để tách". */
+  readonly onNotice?: (message: string) => void;
   readonly actorId?: string;
 }
 
@@ -169,6 +173,7 @@ export function usePascalEdits({
   onRejected,
   onMassDelete,
   onUnsaved,
+  onNotice,
   actorId = PASCAL_DEFAULT_ACTOR_ID,
 }: UsePascalEditsOptions): UsePascalEditsResult {
   /** Cảnh máy chủ đang giữ. Mốc "trước" của lượt sửa kế tiếp. */
@@ -195,6 +200,8 @@ export function usePascalEdits({
     result: PascalEditResult | null;
     /** Lượt này là xoá hàng loạt bị cổng chặn — các node bị xoá. */
     massDelete: readonly string[] | null;
+    /** Phòng có vách mới mà không tách gọn được (`splitRoomsAfterWalls`). */
+    notices: readonly string[];
   } | null>(null);
   /** Node người dùng đã xác nhận xoá; sống tới khi lượt xoá ấy vào kho. */
   const confirmedRemoval = useRef<ReadonlySet<string> | null>(null);
@@ -255,7 +262,7 @@ export function usePascalEdits({
           ? ({ admitted: true } as const)
           : gateVerdict;
 
-      const result: PascalEditResult = verdict.admitted
+      const edit: PascalEditResult = verdict.admitted
         ? createPascalEditCommand({
             graph: spatial,
             scene,
@@ -265,7 +272,16 @@ export function usePascalEdits({
           })
         : { ok: false, error: { type: 'pascal.edit', code: 'PASCAL_UNKNOWN_NODE', reasons: [verdict.reason] } };
 
-      lastVerdict.current = { scene, result, massDelete: massDelete && !verdict.admitted ? removed : null };
+      // W3d — vách mới cắt đôi phòng: lệnh tách gộp vào cùng lệnh, một bước hoàn tác.
+      const split = edit.ok ? splitRoomsAfterWalls(spatial, edit.data, buildSplitRoomCommandFromWalls) : null;
+      const result: PascalEditResult = split === null ? edit : { ok: true, data: split.command };
+
+      lastVerdict.current = {
+        scene,
+        result,
+        massDelete: massDelete && !verdict.admitted ? removed : null,
+        notices: split?.notices ?? [],
+      };
 
       return result;
     },
@@ -305,6 +321,7 @@ export function usePascalEdits({
 
       const previous = savedScene.current ?? loadedScene;
       const built = buildFor(scene);
+      const notices = lastVerdict.current?.scene === scene ? lastVerdict.current.notices : [];
 
       if (built === null) return false;
 
@@ -335,10 +352,11 @@ export function usePascalEdits({
 
       savedScene.current = scene;
       confirmedRemoval.current = null;
+      notices.forEach((message) => onNotice?.(message));
 
       return true;
     },
-    [buildFor, deps, loadedScene, onRejected, onUnsaved, readOnly],
+    [buildFor, deps, loadedScene, onNotice, onRejected, onUnsaved, readOnly],
   );
 
   return { onSceneCommit, validateCommit, confirmMassDelete, history };

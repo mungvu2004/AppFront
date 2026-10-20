@@ -53,6 +53,7 @@ const mount = (
     readonly onRejected?: (reason: string) => void;
     readonly onMassDelete?: (request: { nodeIds: readonly string[]; reason: string }) => void;
     readonly onUnsaved?: (labels: readonly string[]) => void;
+    readonly onNotice?: (message: string) => void;
   } = {},
 ) =>
   renderHook(() =>
@@ -63,6 +64,7 @@ const mount = (
       onRejected: overrides.onRejected ?? (() => undefined),
       ...(overrides.onMassDelete === undefined ? {} : { onMassDelete: overrides.onMassDelete }),
       ...(overrides.onUnsaved === undefined ? {} : { onUnsaved: overrides.onUnsaved }),
+      ...(overrides.onNotice === undefined ? {} : { onNotice: overrides.onNotice }),
     }),
   );
 
@@ -139,7 +141,36 @@ describe('unsavedPascalEdits (v3 V3 — phần sửa máy chủ chưa nhận)', 
   });
 });
 
+/** Cảnh nền + một vách mới vẽ giữa phòng đầu (0..4 m × 0..4,25 m), cùng tầng với tường đầu. */
+const withNewWall = (): PascalScene => {
+  const host = firstWall();
+  const parent = host.parentId === null ? undefined : SCENE.nodes[host.parentId];
+  const wall = { ...host, id: 'wall_w3d_new', children: [], start: [0.5, 2.1], end: [3.5, 2.1], metadata: {} } as PascalNode;
+
+  if (parent === undefined || !('children' in parent)) throw new Error('tường đầu phải có tầng cha');
+
+  return {
+    nodes: { ...SCENE.nodes, [wall.id]: wall, [parent.id]: { ...parent, children: [...parent.children, wall.id] } as PascalNode },
+    rootNodeIds: SCENE.rootNodeIds,
+  };
+};
+
 describe('usePascalEdits', () => {
+  it('W3d — vách mới không khép thành hai phòng: tường vẫn lưu, báo mở màn Phòng để tách', async () => {
+    const onNotice = vi.fn();
+    const { result } = mount({ onNotice });
+    const wallsBefore = useStore.getState().spatial?.byKind.wall.length ?? 0;
+    let ok = false;
+
+    await act(async () => {
+      ok = await result.current.onSceneCommit(withNewWall());
+    });
+
+    expect(ok).toBe(true);
+    expect(useStore.getState().spatial?.byKind.wall).toHaveLength(wallsBefore + 1);
+    expect(onNotice).toHaveBeenCalledWith('Phòng "Room 0" có vách mới — mở màn Phòng để tách.');
+  });
+
   it('v3 V3 — sửa chỉ màu đồ đạc: không có gì để ghi, nhưng báo "màu đồ đạc" chưa lưu được', async () => {
     const onUnsaved = vi.fn();
     const onRejected = vi.fn();
