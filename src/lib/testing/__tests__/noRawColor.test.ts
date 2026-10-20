@@ -35,6 +35,19 @@ const COLOUR_FIXTURE_FILES: readonly string[] = [
   'src/lib/three/present/__tests__/palette.test.ts',
 ];
 
+/**
+ * The one shipping file allowed to spell colours: the Pascal scene's palette.
+ *
+ * The 3D page (`editor3d.html`) does not load `globals.css`, and those colours
+ * are data handed to Pascal's material schema, so they cannot be token names.
+ * They live in one module, and `scenePalette.test.ts` pins every one that has a
+ * `--scene-*` twin to the stylesheet's value, so the copy cannot drift.
+ */
+const SCENE_PALETTE_FILE = 'src/lib/pascal/scenePalette.ts';
+
+/** {@link SOURCE_ONLY}, minus the scene palette. */
+const SHIPPING = { ...SOURCE_ONLY, skipFiles: [...(SOURCE_ONLY.skipFiles ?? []), /src\/lib\/pascal\/scenePalette\.ts$/] };
+
 /** Paths as the allowlist writes them, whatever the platform hands back. */
 function relativePath(absolute: string): string {
   return absolute.replace(process.cwd(), '').replace(/\\/g, '/').replace(/^\//, '');
@@ -42,7 +55,7 @@ function relativePath(absolute: string): string {
 
 describe('no raw colour ships', () => {
   it.each(SCANNED_ROOTS)('finds none in %s', (root) => {
-    expect(() => expectNoRawColor(root, SOURCE_ONLY)).not.toThrow();
+    expect(() => expectNoRawColor(root, SHIPPING)).not.toThrow();
   });
 
   it('holds colour literals to the files that test colour, and no others', () => {
@@ -52,14 +65,14 @@ describe('no raw colour ships', () => {
       ),
     );
 
-    expect([...offenders].sort()).toEqual([...COLOUR_FIXTURE_FILES].sort());
+    expect([...offenders].sort()).toEqual([...COLOUR_FIXTURE_FILES, SCENE_PALETTE_FILE].sort());
   });
 
   it('is looking at real files rather than passing on an empty sweep', () => {
     // Without this, a preset that accidentally skipped everything would make
     // the two tests above green and meaningless.
     const everything = scanForRawColors('src');
-    const shippingOnly = scanForRawColors('src', SOURCE_ONLY);
+    const shippingOnly = scanForRawColors('src', SHIPPING);
 
     expect(everything.length).toBeGreaterThan(0);
     expect(shippingOnly).toEqual([]);
@@ -69,7 +82,7 @@ describe('no raw colour ships', () => {
     // `src/lib/scale.test.ts` sits beside its source rather than in `__tests__`,
     // so folder-skipping alone would not cover it.
     const scanned = scanForRawColors('src', {
-      ...SOURCE_ONLY,
+      ...SHIPPING,
       ignore: [],
     });
 

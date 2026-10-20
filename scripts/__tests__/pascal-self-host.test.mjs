@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { pascalSelfHost } from '../pascal-self-host.mjs';
+import { pascalSelfHost, WORKER_SELF_HOST_RULES } from '../pascal-self-host.mjs';
 
 const PACKAGES = path.resolve('vendor/pascal/packages');
 const requireFromNodes = createRequire(path.join(PACKAGES, 'nodes/package.json'));
@@ -26,6 +26,15 @@ describe('pascal-self-host', () => {
     expect(out).not.toMatch(/gstatic\.com|jsdelivr\.net/);
     expect(out).toContain("'/draco/'");
     expect(out).toContain("'/basis/'");
+    expect(() => plugin.buildEnd()).not.toThrow();
+  });
+
+  it('worker manifold: đường dự phòng jsDelivr thành đường trên chính máy', () => {
+    const plugin = pascalSelfHost({ rules: WORKER_SELF_HOST_RULES });
+    const file = path.join(PACKAGES, 'editor/src/lib/print-shell-compiler-manifold-core.ts');
+    const out = plugin.transform(readFileSync(file, 'utf8'), file)?.code ?? '';
+    expect(out).not.toMatch(/jsdelivr\.net/);
+    expect(out).toContain('`/manifold-3d@');
     expect(() => plugin.buildEnd()).not.toThrow();
   });
 

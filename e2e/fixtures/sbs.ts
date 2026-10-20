@@ -11,8 +11,8 @@ const LABEL_H = 48;
 const labelSvg = (text: string, width: number) =>
   Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${LABEL_H}">` +
-      `<rect width="100%" height="100%" fill="#111"/>` +
-      `<text x="16" y="32" font-family="Segoe UI, Arial, sans-serif" font-size="24" fill="#fff">${text}</text></svg>`,
+      `<rect width="100%" height="100%" fill="black"/>` +
+      `<text x="16" y="32" font-family="Segoe UI, Arial, sans-serif" font-size="24" fill="white">${text}</text></svg>`,
   );
 
 /** Hai ảnh cao bằng nhau đặt cạnh nhau, mỗi ảnh có nhãn phía trên. */
@@ -34,7 +34,7 @@ export const sideBySide = async (panels: readonly { png: Buffer; label: string }
       { input: img, left: at, top: LABEL_H },
     ];
   });
-  await sharp({ create: { width: total, height: height + LABEL_H, channels: 3, background: '#000' } })
+  await sharp({ create: { width: total, height: height + LABEL_H, channels: 3, background: 'black' } })
     .composite(layers)
     .png()
     .toFile(out);

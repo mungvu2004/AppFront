@@ -163,7 +163,7 @@ test('C10 + C11 F1-ext: màu sàn theo lớp hoàn thiện + ảnh cạnh nhau v
   );
   // Ảnh phủ đường bao phòng để kiểm phép quy toạ độ bằng mắt.
   const overlay = `<svg xmlns="http://www.w3.org/2000/svg" width="${box.width}" height="${box.height}">${rooms
-    .map((r) => `<polygon points="${r.poly.map((p) => p.join(',')).join(' ')}" fill="none" stroke="#f0f" stroke-width="2"/>`)
+    .map((r) => `<polygon points="${r.poly.map((p) => p.join(',')).join(' ')}" fill="none" stroke="magenta" stroke-width="2"/>`)
     .join('')}</svg>`;
   const sharp = (await import('sharp')).default;
   await sharp(top)

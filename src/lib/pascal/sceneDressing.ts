@@ -15,6 +15,7 @@ import { millimetres, millimetresToMetres } from '@/domain/units/types';
 
 import { CATALOG_MODELS, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { bodyOfPascalId, toPascalId } from './ids';
+import { SCENE_PALETTE } from './scenePalette';
 import type {
   PascalCeilingNode,
   PascalItemNode,
@@ -35,16 +36,15 @@ const flat = (id: PascalSceneMaterial['id'], name: string, color: string, roughn
 
 /** Bộ vật liệu của AppFront, đúng hình `SceneMaterial` (`core/src/schema/scene-material.ts`). */
 export const SCENE_MATERIALS: readonly PascalSceneMaterial[] = [
-  flat('mat_appfront_wood', 'Sàn gỗ', '#b9874d', 0.4),
-  flat('mat_appfront_tile', 'Gạch men', '#e9e5dd', 0.22),
-  flat('mat_appfront_mosaic', 'Gạch mosaic', '#6f7377', 0.3),
-  flat('mat_appfront_decking', 'Sàn gỗ ngoài trời', '#6a4a2d', 0.85),
-  flat('mat_appfront_plaster', 'Tường vữa', '#ffffff', 0.9),
-  flat('mat_appfront_exterior', 'Tường ngoài', '#8c8a86', 0.9),
-  // Màu trung bình ảnh vân của ba loại gỗ Pascal (`core/src/procedural-items/library-colors.ts`).
-  flat('mat_appfront_oak', 'Gỗ sáng', '#a77440', 0.5),
-  flat('mat_appfront_walnut', 'Gỗ tối', '#663020', 0.5),
-  flat('mat_appfront_bark', 'Thân cây', '#88654c', 0.9),
+  flat('mat_appfront_wood', 'Sàn gỗ', SCENE_PALETTE.wood, 0.4),
+  flat('mat_appfront_tile', 'Gạch men', SCENE_PALETTE.tile, 0.22),
+  flat('mat_appfront_mosaic', 'Gạch mosaic', SCENE_PALETTE.mosaic, 0.3),
+  flat('mat_appfront_decking', 'Sàn gỗ ngoài trời', SCENE_PALETTE.decking, 0.85),
+  flat('mat_appfront_plaster', 'Tường vữa', SCENE_PALETTE.plaster, 0.9),
+  flat('mat_appfront_exterior', 'Tường ngoài', SCENE_PALETTE.exterior, 0.9),
+  flat('mat_appfront_oak', 'Gỗ sáng', SCENE_PALETTE.oak, 0.5),
+  flat('mat_appfront_walnut', 'Gỗ tối', SCENE_PALETTE.walnut, 0.5),
+  flat('mat_appfront_bark', 'Thân cây', SCENE_PALETTE.bark, 0.9),
 ];
 
 const CONCRETE = 'library:concrete-polished';
@@ -138,7 +138,7 @@ const metresOf = (valueMm: number): number => millimetresToMetres(millimetres(va
  * gần như không thấy. 6 cd ở trần 2,4 m cho sàn ≈ 1,1 — ngang đèn chính của chủ đề (1,2),
  * đủ thành vũng sáng mà không cháy; tầm 6 m như đèn trần trang đăng nhập.
  */
-export const LIGHT_COLOR = '#ffd9a3';
+export const LIGHT_COLOR = SCENE_PALETTE.lamp;
 export const LIGHT_INTENSITY_MAX = 6;
 export const LIGHT_DISTANCE_M = 6;
 

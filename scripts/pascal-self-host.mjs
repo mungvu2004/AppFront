@@ -16,6 +16,16 @@ export const SELF_HOST_RULES = [
   ['https://cdn.jsdelivr.net/gh/pmndrs/drei-assets@master/basis/', '/basis/'],
 ];
 
+/**
+ * Luật cho lượt dựng worker (`worker.plugins` của `vite.pascal.config.ts` — plugin chính
+ * không chạy trên worker). Vendor `editor/src/lib/print-shell-compiler-manifold-core.ts`
+ * thử `manifold-3d` rồi rơi về jsDelivr; `manifold-3d` không phải phụ thuộc trực tiếp nên
+ * không tự host được, ta đổi đường dự phòng thành đường trên chính máy: nạp hỏng như khi
+ * offline, không bao giờ gọi CDN.
+ * ponytail: xuất vỏ in 3D không chạy trên trình duyệt; cần thì thêm manifold-3d vào deps và chép `manifold.{js,wasm}` vào `public/manifold-3d@<bản>/`.
+ */
+export const WORKER_SELF_HOST_RULES = [['https://cdn.jsdelivr.net/npm/manifold-3d@', '/manifold-3d@']];
+
 export function pascalSelfHost({ rules = SELF_HOST_RULES } = {}) {
   const seen = new Set();
   return {

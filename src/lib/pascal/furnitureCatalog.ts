@@ -1,5 +1,7 @@
 // Bảng tay chép từ vendor/pascal catalog-items.tsx (không import: file đó mang 333 URL supabase,
 // còn toPascal được app chính import). furnitureCatalog.test.ts đối chiếu từng dòng với catalog.
+import { SCENE_PALETTE } from './scenePalette';
+
 export interface CatalogModel {
   readonly folder: string;
   /** Mét, [w, h, d]. */
@@ -152,7 +154,7 @@ export const CATALOG_MODELS: Readonly<Record<string, CatalogModel>> = {
           default: 100,
         },
       ],
-      effects: [{ kind: 'light', intensityRange: [0, 2], color: '#ffffff', offset: [0, -0.1, 0] }],
+      effects: [{ kind: 'light', intensityRange: [0, 2], color: SCENE_PALETTE.catalogLight, offset: [0, -0.1, 0] }],
     },
   },
   'ceiling-lamp': {
@@ -174,7 +176,7 @@ export const CATALOG_MODELS: Readonly<Record<string, CatalogModel>> = {
           default: 100,
         },
       ],
-      effects: [{ kind: 'light', intensityRange: [0, 2], color: '#ffffff', offset: [0, -0.3, 0] }],
+      effects: [{ kind: 'light', intensityRange: [0, 2], color: SCENE_PALETTE.catalogLight, offset: [0, -0.3, 0] }],
     },
   },
   'table-lamp': {
@@ -265,7 +267,7 @@ export const CATALOG_MODELS: Readonly<Record<string, CatalogModel>> = {
           default: 100,
         },
       ],
-      effects: [{ kind: 'light', intensityRange: [0, 2], color: '#ffffff', offset: [0, 1.4, 0] }],
+      effects: [{ kind: 'light', intensityRange: [0, 2], color: SCENE_PALETTE.catalogLight, offset: [0, 1.4, 0] }],
     },
   },
   sunbed: {

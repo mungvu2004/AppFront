@@ -32,7 +32,7 @@ import tailwindcss from '@tailwindcss/postcss';
 import { pascalCatalogLocal } from './scripts/pascal-catalog-local.mjs';
 import { pascalCssScope } from './scripts/pascal-css-scope.mjs';
 import { pascalNoEval } from './scripts/pascal-no-eval.mjs';
-import { pascalSelfHost } from './scripts/pascal-self-host.mjs';
+import { pascalSelfHost, WORKER_SELF_HOST_RULES } from './scripts/pascal-self-host.mjs';
 import { pascalVi } from './scripts/pascal-vi.mjs';
 
 const PASCAL_PACKAGES = path.resolve(__dirname, './vendor/pascal/packages');
@@ -123,6 +123,8 @@ export default defineConfig({
     pascalCatalogLocal(),
     react(),
   ],
+  // Worker có đồ thị plugin riêng: không có dòng này thì luật tự host không chạm tới nó.
+  worker: { plugins: () => [pascalSelfHost({ rules: WORKER_SELF_HOST_RULES })] },
   publicDir: false,
   base: '/assets/pascal/',
   resolve: {
