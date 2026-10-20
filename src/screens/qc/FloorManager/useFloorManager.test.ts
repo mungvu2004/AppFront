@@ -40,8 +40,11 @@ import { useStore } from '@/store';
 
 import {
   createFloorManagerGateway,
+  createFloorManagerSampleFloors,
   createFloorManagerSampleGraph,
   createMockFloorManagerGateway,
+  failedFloorCapability,
+  FLOOR_MANAGER_SAVE_FAILED_NOTICES,
   floorWriteBodyOf,
   type FloorManagerGatewaySeed,
   entitiesOnLevel,
@@ -1780,5 +1783,46 @@ describe('G3-20: tên tầng nằm sai chỗ sau khi đổi thứ tự', () => {
     expect(misplacedFloorNameWarning(['Tầng hầm', 'Tầng trệt', 'Tầng mái'])).toBeNull();
     expect(misplacedFloorNameWarning(['Tầng mái', 'Tầng trệt'])).toContain('Tầng mái');
     expect(misplacedFloorNameWarning(['Tầng 1', 'Tầng trệt'])).toContain('Tầng trệt');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* FE3D-FIX-003 W4b: cờ ẩn 3D là của máy chủ.                                  */
+/* -------------------------------------------------------------------------- */
+
+describe('W4b — ẩn khỏi 3D đọc từ máy chủ, lùi khi lưu hỏng', () => {
+  const roofId = String(FLOOR_MANAGER_SAMPLE_ROOF_ID);
+
+  it('lượt đọc danh sách tầng đặt sẵn cờ ẩn (hiddenIn3d) của tầng', async () => {
+    const floors = createFloorManagerSampleFloors().map((floor) =>
+      floor.id === roofId ? { ...floor, hiddenIn3d: true } : floor,
+    );
+    const mounted = await mountSettled({ gateway: createMockFloorManagerGateway({ floors }) });
+
+    await waitFor(() => {
+      expect(rowOf(mounted, roofId).isHiddenIn3d).toBe(true);
+    });
+    expect(rowOf(mounted, String(FLOOR_MANAGER_SAMPLE_GROUND_ID)).isHiddenIn3d).toBe(false);
+  });
+
+  it('cổng lưu được nhưng PATCH hỏng → trả lại lựa chọn cũ và nói câu lưu hỏng', async () => {
+    const mock = createMockFloorManagerGateway();
+    const gateway: FloorManagerGateway = {
+      ...mock,
+      supports: { ...mock.supports, hideFloorFrom3d: true },
+      persistHiddenIn3d: () => Promise.resolve(failedFloorCapability('hideFloorFrom3d', 'test')),
+    };
+    const mounted = await mountSettled({ gateway });
+
+    await act(async () => {
+      mounted.result.current.onToggleHiddenIn3d(roofId);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mounted.spoken).toContain(FLOOR_MANAGER_SAVE_FAILED_NOTICES.hideFloorFrom3d);
+    });
+    expect(rowOf(mounted, roofId).isHiddenIn3d).toBe(false);
+    expect(mounted.result.current.unsupportedNotices).toEqual([]);
   });
 });

@@ -103,6 +103,8 @@ export interface FloorPayload {
   drawings?: Drawing[];
   elevationMm?: FloorElevationMm;
   heightMm?: FloorHeightMm;
+  /** Chỉ PATCH #34 mang nó (BE bb255414); POST tạo tầng không gửi. */
+  hiddenIn3d?: boolean;
   name?: FloorName;
   order?: FloorOrder;
 }
@@ -185,6 +187,7 @@ export const toFloorWirePayload = (input: FloorPayload): Partial<FloorWire> => (
   ...(input.drawings !== undefined ? { drawings: input.drawings.map(toDrawingWirePayload) } : {}),
   ...(input.elevationMm !== undefined ? { elevationMm: input.elevationMm } : {}),
   ...(input.heightMm !== undefined ? { heightMm: input.heightMm } : {}),
+  ...(input.hiddenIn3d !== undefined ? { hiddenIn3d: input.hiddenIn3d } : {}),
   ...(input.name !== undefined ? { name: input.name } : {}),
   ...(input.order !== undefined ? { order: input.order } : {}),
 });

@@ -53,7 +53,10 @@
  * Hai lệnh chạy qua `runTransaction` (`src/lib/commands/transaction.ts:53`):
  * một `UndoEntry`, một lượt rule, một lượt sync — tức ĐÚNG MỘT lần `Ctrl+Z`.
  *
- * ## Hai việc chưa có đường (bản kê nợ)
+ * ## Hai việc từng chưa có đường (bản kê nợ — cổng THẬT đã nối từ FE3D-FIX-003 W4b)
+ *
+ * Cổng thật: ẩn 3D = PATCH #34 `{ hiddenIn3d }`; nội dung tầng nhân bản = PUT #35 lớp tầng.
+ * Bộ kê dưới đây chỉ còn đúng cho cổng mẫu (không máy chủ).
  *
  * - `hideFloorFrom3d` — **NOT FOUND**. `interface Level`
  *   (`src/domain/spatial/types.ts:104-117`) chỉ có
@@ -106,6 +109,7 @@ import type { PointMm } from '@/domain/units/compare';
 import { millimetres, roundMeasurement, type Millimetres } from '@/domain/units/types';
 
 import { createAppApiClient } from '@/api/appClient';
+import { dimensionsOf, spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
 import type { ApiClient, ApiResult, FloorWriteBody } from '@/api/client';
 import type { Floor } from '@/api/contracts';
 import { readProjectLayerRead } from '@/api/floorLayerGraph';
@@ -233,6 +237,28 @@ export interface FloorManagerSupported<TValue> {
 export type FloorManagerCapabilityResult<TValue> =
   | FloorManagerSupported<TValue>
   | FloorManagerUnsupported;
+
+/**
+ * Câu cho người dùng khi cổng THẬT gửi đi mà máy chủ từ chối (FE3D-FIX-003 W4b). Cùng hình
+ * `supported: false` để màn chỉ có một nhánh "nói ra"; `missing` mang lý do kỹ thuật.
+ */
+export const FLOOR_MANAGER_SAVE_FAILED_NOTICES: Readonly<
+  Record<FloorManagerMissingCapability, string>
+> = {
+  persistFloorContents:
+    'Không lưu được tường, phòng và nội thất của tầng vừa nhân bản; tải lại trang sẽ mất phần đó.',
+  hideFloorFrom3d: 'Không lưu được lựa chọn ẩn tầng khỏi mô hình 3D. Hãy thử lại.',
+};
+
+/** Nhánh "đã gửi nhưng hỏng" của cổng thật. */
+export function failedFloorCapability(
+  capability: FloorManagerMissingCapability,
+  missing: string,
+): FloorManagerUnsupported {
+  return { supported: false, capability, missing, notice: FLOOR_MANAGER_SAVE_FAILED_NOTICES[capability] };
+}
+
+const FLOOR_CAPABILITY_DONE: FloorManagerSupported<void> = { supported: true, value: undefined };
 
 /** Dựng nhánh "chưa có đường làm việc này" — một chỗ duy nhất ghép tên với nợ. */
 export function unsupportedFloorCapability(
@@ -1236,11 +1262,11 @@ export interface FloorManagerGateway {
   ) => Promise<ApiResult<Floor[]>>;
   /** `PATCH /projects/:id/floors/:floorId/spatial` — tên, cao độ, chiều cao. */
   readonly persistFloorFields: (input: PersistFloorFieldsInput) => Promise<ApiResult<Floor>>;
-  /** NOT FOUND — nội dung tầng không có chỗ ghi. Xem bản kê nợ ở đầu file. */
+  /** `PUT .../floors/:floorId/spatial/layer` (#35) — lớp của tầng vừa nhân bản, base = revision đang biết (0 cho tầng mới). */
   readonly persistFloorContents: (
     input: PersistFloorContentsInput,
   ) => Promise<FloorManagerCapabilityResult<void>>;
-  /** NOT FOUND — `Level` không có trường ẩn khỏi 3D. Xem bản kê nợ ở đầu file. */
+  /** `PATCH .../floors/:floorId/spatial` (#34) `{ hiddenIn3d }` — BE bb255414. */
   readonly persistHiddenIn3d: (
     input: PersistHiddenIn3dInput,
   ) => Promise<FloorManagerCapabilityResult<void>>;
@@ -1302,8 +1328,8 @@ export function createFloorManagerGateway(
       reorderFloors: true,
       patchFloor: true,
       duplicateFloor: true,
-      persistFloorContents: false,
-      hideFloorFrom3d: false,
+      persistFloorContents: true,
+      hideFloorFrom3d: true,
     },
 
     readProjectName: async ({ projectId, signal }) => {
@@ -1356,9 +1382,44 @@ export function createFloorManagerGateway(
         projectId: input.projectId,
       }),
 
-    persistFloorContents: () =>
-      Promise.resolve(unsupportedFloorCapability('persistFloorContents')),
-    persistHiddenIn3d: () => Promise.resolve(unsupportedFloorCapability('hideFloorFrom3d')),
+    persistFloorContents: async ({ projectId, floorId }) => {
+      const spatial = graph.read();
+      const level = spatial?.byId[floorId];
+
+      if (!spatial || level === undefined || !isEntityOfKind('level', level)) {
+        return FLOOR_CAPABILITY_DONE;
+      }
+
+      const layer = spatialLayerOf(spatial, level.id);
+      const dimensions = dimensionsOf(spatial, level.id);
+
+      if (Object.values(layer).every((list) => list.length === 0) && dimensions.length === 0) {
+        return FLOOR_CAPABILITY_DONE;
+      }
+
+      const result = await api.spatial.writeLayer({
+        baseVersion: useStore.getState().floorMeta[floorId]?.revision ?? 0,
+        body: { layer, ...(dimensions.length > 0 ? { dimensions } : {}) },
+        floorId,
+        projectId,
+      });
+
+      if (!result.ok) {
+        return failedFloorCapability('persistFloorContents', 'PUT #35 lớp tầng nhân bản bị từ chối');
+      }
+
+      // Lượt lưu sau (tự lưu của /3d) dựa trên revision này, không phải 0 → không 409.
+      useStore.getState().updateFloorMeta(floorId, { revision: result.data.revision });
+
+      return FLOOR_CAPABILITY_DONE;
+    },
+    persistHiddenIn3d: async ({ projectId, floorId, isHidden }) => {
+      const result = await api.spatial.patchFloor({ body: { hiddenIn3d: isHidden }, floorId, projectId });
+
+      return result.ok
+        ? FLOOR_CAPABILITY_DONE
+        : failedFloorCapability('hideFloorFrom3d', 'PATCH #34 hiddenIn3d bị từ chối');
+    },
 
     nextLevelId: options.nextLevelId ?? ((): LevelId => createId('level')),
     actorId: options.actorId ?? FLOOR_MANAGER_DEFAULT_ACTOR_ID,

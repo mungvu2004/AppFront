@@ -635,6 +635,15 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     structuralSharing: false,
   });
 
+  /* Cờ ẩn khỏi 3D là của máy chủ (`floors.hidden_in_3d`, W4b): mỗi lượt đọc danh sách đặt lại nó. */
+  const serverFloors = floorListQuery.data?.floors;
+
+  useEffect(() => {
+    if (serverFloors !== undefined) {
+      setHiddenFloorIds(serverFloors.filter((floor) => floor.hiddenIn3d === true).map((floor) => floor.id));
+    }
+  }, [serverFloors]);
+
   const storeGraph = useStore((state) => state.spatial);
   const storeProjectId = useStore((state) => state.spatialProjectId);
   const setSpatial = useStore((state) => state.setSpatial);
@@ -1200,17 +1209,24 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
       );
 
       /*
-       * Nói ra sự thật thay vì im lặng: `Level` không có trường nào ghi trạng
-       * thái ẩn khỏi 3D, nên lựa chọn này không sống qua một lần tải lại trang.
-       * Nhánh `supported: false` của cổng mang nguyên câu giải thích đó.
+       * Cổng thật PATCH `hiddenIn3d` (W4b); hỏng thì trả lại lựa chọn cũ. Cổng không có
+       * đường lưu (mẫu) giữ cờ trong phiên và nói ra điều đó.
        */
-      void gateway
-        .persistHiddenIn3d({ projectId, floorId, isHidden: !hiddenFloorIds.includes(floorId) })
-        .then((result) => {
-          if (!result.supported) {
-            announce(result.notice);
-          }
-        });
+      const isHidden = !hiddenFloorIds.includes(floorId);
+
+      void gateway.persistHiddenIn3d({ projectId, floorId, isHidden }).then((result) => {
+        if (result.supported) {
+          return;
+        }
+
+        announce(result.notice);
+
+        if (gateway.supports.hideFloorFrom3d) {
+          setHiddenFloorIds((previous) =>
+            isHidden ? previous.filter((id) => id !== floorId) : [...previous, floorId],
+          );
+        }
+      });
     },
     [announce, gateway, hiddenFloorIds, projectId],
   );
@@ -1491,11 +1507,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
             );
           },
           onSynced: async () => {
-            /* Nội dung sao chép được KHÔNG có chỗ ghi trên máy chủ — nói ra, đừng im. */
-            const contents = await gateway.persistFloorContents({
-              projectId,
-              floorId: String(result.data.scope.levelIds[0] ?? floorId),
-            });
+            /* Ghi lớp của tầng mới (#35); hỏng hay cổng không ghi được thì nói ra, đừng im. */
+            const contents = await gateway.persistFloorContents({ projectId, floorId: String(added.id) });
 
             if (!contents.supported) {
               setHasUnsavedContents(true);
