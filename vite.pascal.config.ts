@@ -26,8 +26,10 @@ import { defineConfig, type Alias } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { existsSync, readFileSync } from 'fs';
+import { createRequire } from 'module';
 import tailwindcss from '@tailwindcss/postcss';
 
+import { pascalCatalogLocal } from './scripts/pascal-catalog-local.mjs';
 import { pascalCssScope } from './scripts/pascal-css-scope.mjs';
 import { pascalSelfHost } from './scripts/pascal-self-host.mjs';
 import { pascalVi } from './scripts/pascal-vi.mjs';
@@ -60,10 +62,17 @@ function pascalSourceAliases(): Alias[] {
 }
 
 /** Gói mà `src/pascal-page/upstream` (chép từ apps/editor) nhập: lấy đúng bản editor dùng. */
-const EDITOR_DEP_ALIASES: Alias[] = ['@iconify/react', '@radix-ui/react-tooltip', 'lucide-react'].map((dep) => ({
-  find: new RegExp(`^${dep}$`),
-  replacement: path.join(EDITOR_DIR, 'node_modules', dep),
-}));
+const EDITOR_DEP_ALIASES: Alias[] = [
+  ...['@radix-ui/react-tooltip', 'lucide-react'].map((dep) => ({
+    find: new RegExp(`^${dep}$`),
+    replacement: path.join(EDITOR_DIR, 'node_modules', dep),
+  })),
+  // Bản offline (ESM): không tự gọi api.iconify.design; icon nạp sẵn ở src/pascal-page/icons.ts.
+  {
+    find: /^@iconify\/react$/,
+    replacement: createRequire(path.join(EDITOR_DIR, 'package.json')).resolve('@iconify/react/dist/offline.js'),
+  },
+];
 
 /** Chỉ khoanh CSS của mount nhúng cũ; trang 3D (`src/pascal-page`) sở hữu cả tài liệu. */
 function scopeOutsidePage() {
@@ -108,6 +117,7 @@ export default defineConfig({
   plugins: [
     pascalVi({ packagesDir: PASCAL_PACKAGES }),
     pascalSelfHost(),
+    pascalCatalogLocal(),
     react(),
   ],
   publicDir: false,
