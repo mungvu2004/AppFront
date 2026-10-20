@@ -155,6 +155,7 @@ const FIELD_DESCRIPTORS: Readonly<Record<string, FieldDescriptor>> = {
   area_m2: { phrase: 'diện tích', quantity: 'areaM2' },
   elevation_m: { phrase: 'cao độ', quantity: 'elevationM' },
   height_mm: { phrase: 'cao', quantity: 'lengthMm' },
+  lift_mm: { phrase: 'nâng khỏi sàn', quantity: 'lengthMm' },
   offset_mm: { phrase: 'vị trí trên tường', quantity: 'lengthMm' },
   override_value_mm: { phrase: 'số đo nhập tay', quantity: 'lengthMm' },
   rotation_deg: { phrase: 'xoay', quantity: 'angleDeg' },
@@ -173,13 +174,19 @@ const FIELD_DESCRIPTORS: Readonly<Record<string, FieldDescriptor>> = {
  */
 const NAMED_FIELDS: Readonly<Record<string, { readonly name: string; readonly showValues: boolean }>> = {
   centre: { name: 'vị trí', showValues: false },
+  finish: { name: 'kiểu mặt sàn', showValues: false },
+  floor_material: { name: 'vật liệu sàn', showValues: false },
   kind: { name: 'loại', showValues: false },
+  model: { name: 'mẫu 3D', showValues: false },
   name: { name: 'tên', showValues: true },
   outline: { name: 'đường bao', showValues: false },
+  paint: { name: 'màu sơn', showValues: false },
   reference_ids: { name: 'đối tượng tham chiếu', showValues: false },
   room_id: { name: 'phòng chứa', showValues: false },
+  slots: { name: 'vật liệu từng phần', showValues: false },
   swing: { name: 'kiểu mở', showValues: false },
   usage: { name: 'công năng', showValues: false },
+  variant: { name: 'kiểu dáng', showValues: false },
   wall_id: { name: 'tường chứa', showValues: false },
 };
 

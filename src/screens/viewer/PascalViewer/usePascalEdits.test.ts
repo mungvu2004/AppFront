@@ -107,14 +107,15 @@ const patched = (type: string, patch: Record<string, unknown>): PascalScene => {
 };
 
 describe('unsavedPascalEdits (v3 V3 — phần sửa máy chủ chưa nhận)', () => {
-  it('không đổi gì, hay chỉ đổi thứ lưu được (độ dày tường): không báo', () => {
+  it('không đổi gì, hay chỉ đổi thứ lưu được (độ dày tường, màu sàn, màu tường): không báo', () => {
     expect(unsavedPascalEdits(SCENE, SCENE)).toEqual([]);
     expect(unsavedPascalEdits(SCENE, thickened())).toEqual([]);
+    expect(unsavedPascalEdits(SCENE, patched('slab', { slots: { surface: 'library:wood_oak' } }))).toEqual([]);
+    expect(unsavedPascalEdits(SCENE, patched('wall', { slots: { interior: 'library:paint_white' } }))).toEqual([]);
   });
 
   it.each([
-    ['slab', { slots: { surface: 'library:wood_oak' } }, 'màu sàn'],
-    ['wall', { slots: { interior: 'library:paint_white' } }, 'màu tường'],
+    ['item', { slots: { body: 'library:red' } }, 'màu đồ đạc'],
     ['door', { hingesSide: 'right' }, 'kiểu cửa'],
   ])('%s đổi %j → "%s"', (type, patch, label) => {
     expect(unsavedPascalEdits(SCENE, patched(type, patch))).toEqual([label]);
@@ -139,19 +140,19 @@ describe('unsavedPascalEdits (v3 V3 — phần sửa máy chủ chưa nhận)', 
 });
 
 describe('usePascalEdits', () => {
-  it('v3 V3 — sửa chỉ màu sàn: không có gì để ghi, nhưng báo "màu sàn" chưa lưu được', async () => {
+  it('v3 V3 — sửa chỉ màu đồ đạc: không có gì để ghi, nhưng báo "màu đồ đạc" chưa lưu được', async () => {
     const onUnsaved = vi.fn();
     const onRejected = vi.fn();
     const { result } = mount({ onUnsaved, onRejected });
     let ok = true;
 
     await act(async () => {
-      ok = await result.current.onSceneCommit(patched('slab', { slots: { surface: 'library:wood_oak' } }));
+      ok = await result.current.onSceneCommit(patched('item', { slots: { body: 'library:red' } }));
     });
 
     expect(ok).toBe(false);
     expect(onRejected).not.toHaveBeenCalled();
-    expect(onUnsaved).toHaveBeenCalledWith(['màu sàn']);
+    expect(onUnsaved).toHaveBeenCalledWith(['màu đồ đạc']);
   });
 
   it('nạp xong mà chưa ai sửa gì: KHÔNG ghi vào bản vẽ', async () => {

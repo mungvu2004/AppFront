@@ -127,7 +127,8 @@ const differs = (a: Readonly<Record<string, unknown>>, b: Readonly<Record<string
 
 /**
  * Những gì Pascal sửa được mà bản vẽ AppBack chưa có chỗ chứa (v3 BE.md major 2, EDIT.md):
- * màu sàn/trần/tường/đồ/cửa, kiểu cửa, mẫu đồ từ thư viện, xoá đồ bày sẵn. Lượt sửa ấy vẫn
+ * màu trần/đồ/cửa, kiểu cửa, mẫu đồ từ thư viện, xoá đồ bày sẵn. Màu sàn và màu tường đã
+ * lưu được (`floorMaterial`, `paint` — FE3D-FIX-003 W3a) nên không báo nữa. Lượt sửa ấy vẫn
  * "lưu" phần còn lại (hoặc ra PASCAL_NO_CHANGE), nên phải nói rõ phần nào chưa lưu được.
  */
 export function unsavedPascalEdits(previous: PascalScene, next: PascalScene): string[] {
@@ -144,9 +145,7 @@ export function unsavedPascalEdits(previous: PascalScene, next: PascalScene): st
     }
     const painted = differs(before, after, PAINT_FIELDS);
 
-    if (type === 'slab' && painted) labels.add('màu sàn');
-    else if (type === 'ceiling' && painted) labels.add('màu trần');
-    else if (type === 'wall' && painted) labels.add('màu tường');
+    if (type === 'ceiling' && painted) labels.add('màu trần');
     else if (type === 'item') {
       if (painted) labels.add('màu đồ đạc');
       if (assetSrcOf(before) !== assetSrcOf(after)) labels.add('mẫu đồ đạc');

@@ -88,6 +88,8 @@ export function createFakeBackend({ projectId, graphDoc, layers: overrides = {} 
     id: level.id,
     name: level.name,
     order: level.order,
+    // J-v3: tầng ẩn trong 3D — chỉ trả lại khi bộ mẫu có, như máy chủ thật.
+    ...(level.hiddenIn3d === undefined ? {} : { hiddenIn3d: level.hiddenIn3d }),
   });
 
   const graphNow = (): Wire => ({

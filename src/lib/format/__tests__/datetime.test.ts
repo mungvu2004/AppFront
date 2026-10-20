@@ -286,6 +286,25 @@ describe('format/semantic.ts — formatChange', () => {
     ).toBe('Tường W-014 đổi một thuộc tính khác');
   });
 
+  it.each([
+    { field: 'paint', entityType: 'wall' as const, expected: 'Tường X-1 đổi màu sơn' },
+    { field: 'finish', entityType: 'room' as const, expected: 'Phòng X-1 đổi kiểu mặt sàn' },
+    { field: 'floor_material', entityType: 'room' as const, expected: 'Phòng X-1 đổi vật liệu sàn' },
+    { field: 'variant', entityType: 'furniture' as const, expected: 'Nội thất X-1 đổi kiểu dáng' },
+    { field: 'model', entityType: 'furniture' as const, expected: 'Nội thất X-1 đổi mẫu 3D' },
+    { field: 'slots', entityType: 'furniture' as const, expected: 'Nội thất X-1 đổi vật liệu từng phần' },
+  ])('names the 3D field $field in Vietnamese without leaking its code', ({ expected, ...entry }) => {
+    expect(
+      formatChange({ ...entry, entityId: 'X-1', kind: 'changed', oldValue: 'library:oak', newValue: 'scene:x' }),
+    ).toBe(expected);
+  });
+
+  it('writes lift_mm as a length', () => {
+    expect(
+      formatChange({ entityId: 'F-1', entityType: 'furniture', kind: 'changed', field: 'lift_mm', oldValue: 0, newValue: 750 }),
+    ).toBe('Nội thất F-1 nâng khỏi sàn 0 mm → 750 mm');
+  });
+
   it('says offset_mm in Vietnamese with its unit (K5)', () => {
     expect(
       formatChange({
