@@ -54,7 +54,7 @@ export type {
   AccountDraftPort,
   AccountDraftSection,
 } from './accountDraft';
-export { createAccountSettingsGateway, resetAccountSettingsStore } from './accountSettingsGateway';
+export { createAccountSettingsGateway } from './accountSettingsGateway';
 export type { AccountSettingsGateway } from './accountSettingsGateway';
 export { useAccountAuth } from './useAccountAuth';
 export type { AccountAuthModel } from './useAccountAuth';

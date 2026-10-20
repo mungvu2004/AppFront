@@ -86,6 +86,17 @@ const auth = vi.hoisted(() => ({
   } as SessionSnapshot,
 }));
 
+/** Máy chủ giả của `preferences.seen` (FE3D-FIX-003). */
+const serverSeen = vi.hoisted(() => ({ welcome: false, marks: [] as unknown[] }));
+
+vi.mock('@/hooks/seenPreferences', () => ({
+  readServerSeen: () => Promise.resolve(serverSeen.welcome ? { welcome: true } : {}),
+  markServerSeen: (...args: unknown[]) => {
+    serverSeen.marks.push(args);
+    return Promise.resolve();
+  },
+}));
+
 vi.mock('@/hooks/useSession', () => ({
   useSession: (): SessionSnapshot => auth.session,
 }));
@@ -99,6 +110,8 @@ function signInAs(roles: SessionSnapshot['roles']): void {
 }
 
 beforeEach(() => {
+  serverSeen.welcome = false;
+  serverSeen.marks = [];
   signInAs(['engineer']);
   window.localStorage.clear();
 });
@@ -646,6 +659,23 @@ describe('cờ "đã xem màn chào" đọc và ghi vào localStorage', () => {
     mountRoute(listOf([]), '/onboarding?again=1');
 
     expect(await screen.findByRole('button', { name: 'Bỏ qua' })).toBeInTheDocument();
+  });
+
+  it('bộ đệm trống nhưng máy chủ nói đã xem (trình duyệt mới): về danh sách dự án, ghi bộ đệm', async () => {
+    serverSeen.welcome = true;
+
+    mountRoute(listOf([]));
+
+    expect(await screen.findByRole('heading', { name: 'Dự án của tôi' })).toBeInTheDocument();
+    expect(readWelcomeSeen(USER_ID)).toBe(true);
+  });
+
+  it('bấm "Bỏ qua" ghi cờ lên máy chủ (preferences.seen.welcome)', async () => {
+    mountRoute(listOf([]));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Bỏ qua' }));
+
+    expect(serverSeen.marks).toContainEqual([USER_ID, { welcome: true }]);
   });
 
   it('chưa xem thì /onboarding vẫn là màn chào', async () => {

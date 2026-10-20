@@ -45,6 +45,7 @@ import { useQuery, type QueryFunction } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
 import { createAppApiClient } from '@/api/appClient';
+import { markServerSeen } from '@/hooks/seenPreferences';
 import { useSession } from '@/hooks/useSession';
 import { durationMs } from '@/lib/motion/tokens';
 import { queryKeys } from '@/lib/query/queryKeys';
@@ -179,6 +180,15 @@ function welcomeSeenKey(userId: string): string {
  * dựng màn — cùng một khoá, một chỗ. Cửa sổ ẩn danh ném ngay ở `localStorage.getItem`, nên mọi
  * lần đọc đều nằm trong try/catch và "không đọc được" quy về "chưa xem".
  */
+/** Ghi bộ đệm `localStorage` khi máy chủ nói đã xem (route đọc máy chủ khi bộ đệm trống). */
+export function cacheWelcomeSeen(userId: string): void {
+  try {
+    window.localStorage.setItem(welcomeSeenKey(userId), WELCOME_SEEN_VALUE);
+  } catch {
+    // Ẩn danh: lần sau hỏi lại máy chủ.
+  }
+}
+
 export function readWelcomeSeen(userId: string | null): boolean {
   if (userId === null) return false;
   try {
@@ -191,6 +201,8 @@ export function readWelcomeSeen(userId: string | null): boolean {
 /** Ghi cờ. Cửa sổ ẩn danh ném ở `setItem`; hỏng cũng không được làm hỏng lượt chuyển trang. */
 function markWelcomeSeen(userId: string | null): void {
   if (userId === null) return;
+  // Bản thật nằm trên máy chủ (`preferences.seen.welcome`, FE3D-FIX-003); `localStorage` là bộ đệm nhanh.
+  void markServerSeen(userId, { welcome: true });
   if (readWelcomeSeen(userId)) return;
   try {
     window.localStorage.setItem(welcomeSeenKey(userId), WELCOME_SEEN_VALUE);

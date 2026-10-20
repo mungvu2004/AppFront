@@ -85,7 +85,7 @@ export interface AccountTablesModel {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Thông báo — hai kênh, năm sự việc.                                          */
+/* Thông báo — hai kênh (một đang hiện), ba sự việc.                          */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -101,6 +101,14 @@ export const NOTIFICATION_CHANNELS: readonly NotificationChannelModel[] = Object
   Object.freeze({ id: 'email', label: 'Thư điện tử' }),
 ]);
 
+/**
+ * Cột đang hiện: chỉ "Trong ứng dụng" — chưa có kênh thư điện tử nào gửi thật (FE3D-FIX-003 W4c).
+ * Ma trận vẫn giữ cả hai kênh vì BE đòi đủ cặp `{inApp, email}` cho mỗi loại.
+ */
+const VISIBLE_CHANNELS: readonly NotificationChannelModel[] = NOTIFICATION_CHANNELS.filter(
+  (channel) => channel.id === 'inApp',
+);
+
 /** Một hàng của ma trận: mã tiếng Anh (mục E.11), nhãn tiếng Việt. */
 interface NotificationEventSpec {
   readonly id: string;
@@ -110,7 +118,7 @@ interface NotificationEventSpec {
 }
 
 /**
- * Năm sự việc, và mặc định của từng kênh.
+ * Ba sự việc BE nhận (`preferences.notifications`), và mặc định của từng kênh.
  *
  * Mặc định không phải "bật hết": một hộp thư nhận năm loại thư mỗi ngày là
  * một hộp thư người ta lọc bỏ, và khi ấy cái thứ sáu — thứ thật sự khẩn —
@@ -131,16 +139,6 @@ const NOTIFICATION_EVENTS: readonly NotificationEventSpec[] = Object.freeze([
     id: 'projectInvite',
     label: 'Được mời vào dự án',
     fallback: Object.freeze({ inApp: true, email: true }),
-  }),
-  Object.freeze({
-    id: 'commentMention',
-    label: 'Bình luận nhắc đến tôi',
-    fallback: Object.freeze({ inApp: true, email: false }),
-  }),
-  Object.freeze({
-    id: 'morningDigest',
-    label: 'Tổng hợp mỗi sáng',
-    fallback: Object.freeze({ inApp: false, email: true }),
   }),
 ]);
 
@@ -350,7 +348,7 @@ export function useAccountTables(port: AccountDraftPort): AccountTablesModel {
       NOTIFICATION_EVENTS.map((event) => ({
         id: event.id,
         label: event.label,
-        cells: NOTIFICATION_CHANNELS.map((channel) => ({
+        cells: VISIBLE_CHANNELS.map((channel) => ({
           channelId: channel.id,
           // Tên cho trình đọc màn hình. Một ô tích trong ma trận không có chữ
           // nào cạnh nó, nên nếu không ghép hai nhãn lại thì cả mười ô đọc lên
@@ -390,7 +388,7 @@ export function useAccountTables(port: AccountDraftPort): AccountTablesModel {
 
   return {
     notifications: {
-      channels: NOTIFICATION_CHANNELS,
+      channels: VISIBLE_CHANNELS,
       events,
       isCollapsed,
       onChange: handleChange,

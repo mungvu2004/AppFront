@@ -3,8 +3,8 @@ import { z } from 'zod';
 /**
  * N11–N14 — hồ sơ của người đang đăng nhập (HOP-DONG-MOI §3).
  *
- * Hồ sơ, cộng `preferences` chỉ đọc (FE3D-FIX-003 R1). Chưa gửi nó qua N12:
- * BE nhận trường này rồi FE mới ghi (thứ tự hợp đồng J-v3).
+ * Hồ sơ, cộng `preferences` (FE3D-FIX-003): N11 đọc, N12 gửi bản vá gộp sâu
+ * (`PreferencesPatchSchema`, BE B4 đã nhận trường này).
  *
  * ## Trim: bản gửi tự cắt, bản nhận không kiểm
  *
@@ -62,6 +62,55 @@ export const UserPreferencesSchema = z.object({
 });
 
 export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+/** Loại thông báo BE nhận trong `preferences.notifications` (`NotificationKind`); khoá khác → 422. */
+export const NOTIFICATION_PREFERENCE_EVENTS = ['aiCompleted', 'violationFound', 'projectInvite'] as const;
+
+/*
+ * Bản vá `preferences` của N12 (FE3D-B4): gộp sâu ở BE — khoá vắng = giữ, `null`
+ * ở khoá con = xoá, `seen.tours` thay cả danh sách. Strict như BE (`extra=forbid`):
+ * gửi khoá lạ là 422 cả lượt lưu.
+ */
+const AppearancePatchSchema = z
+  .object({
+    density: z.enum(ACCOUNT_DENSITY_CHOICES).nullable().optional(),
+    reducedMotion: z.boolean().nullable().optional(),
+    showGrid: z.boolean().nullable().optional(),
+    themeChoice: z.enum(ACCOUNT_THEME_CHOICES).nullable().optional(),
+    viewportDark: z.boolean().nullable().optional(),
+  })
+  .strict();
+
+const NotificationPatchSchema = z.object({ email: z.boolean(), inApp: z.boolean() }).strict().nullable();
+
+export const PreferencesPatchSchema = z
+  .object({
+    appearance: AppearancePatchSchema.nullable().optional(),
+    notifications: z
+      .object({
+        aiCompleted: NotificationPatchSchema.optional(),
+        projectInvite: NotificationPatchSchema.optional(),
+        violationFound: NotificationPatchSchema.optional(),
+      })
+      .strict()
+      .nullable()
+      .optional(),
+    seen: z
+      .object({
+        tours: z
+          .array(z.string().regex(/^[A-Za-z0-9_.:-]{1,64}$/))
+          .max(64)
+          .nullable()
+          .optional(),
+        welcome: z.boolean().nullable().optional(),
+      })
+      .strict()
+      .nullable()
+      .optional(),
+  })
+  .strict();
+
+export type PreferencesPatch = z.infer<typeof PreferencesPatchSchema>;
 const passwordSchema = z.string().min(1).min(8);
 
 export const MeSchema = z
@@ -97,6 +146,7 @@ export const UpdateMeSchema = z
     jobTitle: z.string().max(120).optional(),
     language: languageSchema.optional(),
     phone: z.string().max(32).optional(),
+    preferences: PreferencesPatchSchema.optional(),
   })
   .strict()
   .refine(
@@ -110,7 +160,8 @@ export const UpdateMeSchema = z
       body.fullName !== undefined ||
       body.jobTitle !== undefined ||
       body.language !== undefined ||
-      body.phone !== undefined,
+      body.phone !== undefined ||
+      body.preferences !== undefined,
     { path: [] },
   );
 

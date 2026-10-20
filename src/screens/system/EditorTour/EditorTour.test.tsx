@@ -227,6 +227,22 @@ function TourProbe({ options }: { readonly options: UseEditorTourOptions }) {
   return <EditorTour {...props} />;
 }
 
+/** Máy chủ giả của `preferences.seen` (FE3D-FIX-003): bài nào cần thì đặt `tours`. */
+const serverSeen = vi.hoisted(() => ({ tours: [] as string[], marks: [] as unknown[] }));
+
+vi.mock('@/hooks/seenPreferences', () => ({
+  readServerSeen: () => Promise.resolve({ tours: serverSeen.tours }),
+  markServerSeen: (...args: unknown[]) => {
+    serverSeen.marks.push(args);
+    return Promise.resolve();
+  },
+}));
+
+beforeEach(() => {
+  serverSeen.tours = [];
+  serverSeen.marks = [];
+});
+
 function mountTour(options: UseEditorTourOptions = {}) {
   observedProps = null;
 
@@ -894,6 +910,32 @@ describe('Cờ đã xem tách theo host — học xong ở màn này không tắ
     });
 
     expect(tourProps().screenState).toBe('empty');
+  });
+
+  it('máy chủ nói host đã xong, bộ đệm trống (trình duyệt mới): tour tắt và ghi bộ đệm', async () => {
+    serverSeen.tours = ['editor-tour:wall-layer-review'];
+    const registry = createShortcutRegistry();
+
+    registry.register({
+      id: 'wallLayerReview.next',
+      combo: 'J',
+      scope: 'canvas',
+      description: STEP_TEXT.reviewWall.comboDescription,
+      onTrigger: noop,
+    });
+
+    mountTour({ registry, resolveAnchor: () => FIXED_RECT, hostId: 'wall-layer-review', userId: 'u-1', hasModel: true });
+
+    await waitFor(() => {
+      expect(tourProps().screenState).toBe('empty');
+    });
+    expect(window.localStorage.getItem('appfront:system-editor-tour-seen:u-1:wall-layer-review')).toBe('true');
+  });
+
+  it('bỏ qua ghi cờ lên máy chủ (preferences.seen.tours) theo host', () => {
+    skipOnHost('export-panel');
+
+    expect(serverSeen.marks).toContainEqual(['u-1', { tour: 'editor-tour:export-panel' }]);
   });
 });
 

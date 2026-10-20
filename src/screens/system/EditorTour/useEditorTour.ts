@@ -29,6 +29,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { markServerSeen, readServerSeen } from '@/hooks/seenPreferences';
 import { useShortcut } from '@/hooks/useShortcut';
 import {
   appShortcutRegistry,
@@ -332,6 +333,11 @@ const NO_PROGRESS: TourProgress = Object.freeze({
   stoppedStepId: null,
 });
 
+/** Id của tour trong `preferences.seen.tours` (máy chủ, FE3D-FIX-003): một id cho mỗi host. */
+export function serverTourId(hostId: string): string {
+  return `editor-tour:${hostId}`;
+}
+
 function tourSeenKey(userId: string, hostId: string): string {
   return `${TOUR_SEEN_KEY_PREFIX}${userId}:${hostId}`;
 }
@@ -498,6 +504,21 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
     progress.isFinished || hasStopped ? 'dismissed' : 'running',
   );
   const [activeStepId, setActiveStepId] = useState<TourStepId | null>(progress.stoppedStepId);
+
+  // `localStorage` là bộ đệm nhanh; bản thật là `preferences.seen.tours` trên máy chủ. Bộ đệm
+  // trống (trình duyệt mới) mà máy chủ nói host này đã xong → tắt tour và ghi bộ đệm.
+  useEffect(() => {
+    if (userId === null || progress.isFinished) return undefined;
+    let alive = true;
+    void readServerSeen(userId).then((seen) => {
+      if (!alive || seen.tours?.includes(serverTourId(hostId)) !== true) return;
+      writeTourProgress(userId, hostId, TOUR_SEEN_VALUE);
+      setPhase((current) => (current === 'running' ? 'dismissed' : current));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [userId, hostId, progress.isFinished]);
   const [hasSkipped, setHasSkipped] = useState(hasStopped);
 
   const isReducedMotion = useReducedMotion();
@@ -608,6 +629,7 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
   const closeTour = (nextPhase: TourPhase): void => {
     setPhase(nextPhase);
     writeTourProgress(userId, hostId, TOUR_SEEN_VALUE);
+    if (userId !== null) void markServerSeen(userId, { tour: serverTourId(hostId) });
   };
 
   const handleNext = (): void => {

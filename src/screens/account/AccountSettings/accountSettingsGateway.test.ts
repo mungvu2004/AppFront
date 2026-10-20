@@ -1,29 +1,29 @@
 /**
- * Cổng cài đặt tài khoản: N11 đọc, N12 chỉ gửi khoá đổi, N14 thay ảnh, và bộ nhớ
- * của hai khối chưa có dây. Mọi bài tiêm client giả tường minh — không bài nào
+ * Cổng cài đặt tài khoản: N11 đọc, N12 chỉ gửi khoá đổi (cả bản vá `preferences`),
+ * N14 thay ảnh. Mọi bài tiêm client giả tường minh — không bài nào
  * dựa vào cổng mặc định (nạp lười, gọi mạng thật).
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { ApiClient } from '@/api/client';
 import { createMockApiClient } from '@/api/__mocks__/client';
-import { ACCOUNT_LANGUAGES, type Me, type UpdateMe } from '@/api/schemas/me';
+import {
+  ACCOUNT_LANGUAGES,
+  NOTIFICATION_PREFERENCE_EVENTS,
+  UpdateMeSchema,
+  type Me,
+  type UpdateMe,
+} from '@/api/schemas/me';
 import { createApiClient } from '@/api/client';
 import { createHttpClient, type HttpError } from '@/lib/http';
 
 import { EMPTY_ACCOUNT_DRAFT, type AccountDraft } from './accountDraft';
 import {
   createAccountSettingsGateway,
+  PREFERENCE_EVENTS,
   profileDraftOf,
-  resetAccountSettingsStore,
 } from './accountSettingsGateway';
-
-let sessionUserId: string | null = 'user-1';
-
-vi.mock('@/lib/auth', () => ({
-  getSession: () => ({ user: sessionUserId === null ? null : { id: sessionUserId } }),
-}));
 
 const ME: Me = {
   email: 'an@congty.vn',
@@ -74,10 +74,6 @@ function draftWith(
   return { ...EMPTY_ACCOUNT_DRAFT, ...rest, profile };
 }
 
-beforeEach(() => {
-  sessionUserId = 'user-1';
-  resetAccountSettingsStore();
-});
 
 describe('read (N11)', () => {
   it('ánh xạ hồ sơ ra bản nháp; jobTitle/phone vắng thành chuỗi rỗng', async () => {
@@ -151,7 +147,7 @@ describe('save (N12)', () => {
     });
   });
 
-  it('chỉ đổi giao diện: không gọi N12, trả null', async () => {
+  it('chỉ đổi giao diện: N12 mang đúng bản vá preferences, không khoá hồ sơ nào', async () => {
     const { client, updateProfile } = fakeClient();
     const gateway = createAccountSettingsGateway({ apiClient: client });
     const read = await gateway.read();
@@ -161,8 +157,10 @@ describe('save (N12)', () => {
       read,
     );
 
-    expect(result).toBeNull();
-    expect(updateProfile).not.toHaveBeenCalled();
+    expect(result).not.toBeNull();
+    expect(updateProfile.mock.calls[0]?.[0].body).toStrictEqual({
+      preferences: { appearance: { themeChoice: 'dark' } },
+    });
   });
 
   it('lượt lưu thứ hai không gửi lại khoá đã lưu', async () => {
@@ -211,22 +209,6 @@ describe('save (N12)', () => {
 });
 
 describe('cổng không giữ trạng thái hồ sơ', () => {
-  it('cổng mới, không gọi read(): chỉ đổi giao diện thì không gửi N12', async () => {
-    const { client, updateProfile } = fakeClient();
-    const gateway = createAccountSettingsGateway({ apiClient: client });
-    const saved = draftWith({
-      fullName: 'Phạm An',
-      jobTitle: 'Kỹ sư',
-      phone: '0912',
-      language: 'vi',
-    });
-
-    const result = await gateway.save({ ...saved, appearance: { showGrid: false } }, saved);
-
-    expect(result).toBeNull();
-    expect(updateProfile).not.toHaveBeenCalled();
-  });
-
   it('không có bản đã lưu thì mọi khoá có giá trị là khoá đổi', async () => {
     const { client, updateProfile } = fakeClient();
 
@@ -255,27 +237,88 @@ describe('ngôn ngữ viết thẳng khớp schema', () => {
   });
 });
 
-describe('hai khối giao diện và thông báo (bộ nhớ module)', () => {
-  it('lưu rồi đọc lại thấy nguyên; đổi user.id giữa hai lượt read() thì về mặc định', async () => {
-    const { client } = fakeClient();
+describe('hai khối giao diện và thông báo (preferences của N11/N12)', () => {
+  /** Client giả có trạng thái: gộp sâu như BE B4 (khoá vắng giữ, null xoá). */
+  function statefulClient() {
+    let me: Me = ME_MINIMAL;
+    const bodies: UpdateMe[] = [];
+    const merge = (into: Record<string, unknown>, patch: Record<string, unknown>) => {
+      const out: Record<string, unknown> = { ...into };
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === null) delete out[key];
+        else if (typeof value === 'object' && !Array.isArray(value) && key !== 'tours') {
+          out[key] = merge((out[key] as Record<string, unknown> | undefined) ?? {}, value as Record<string, unknown>);
+        } else out[key] = value;
+      }
+      return out;
+    };
+    const client: ApiClient = {
+      ...createMockApiClient(),
+      me: {
+        ...fakeClient().client.me,
+        readProfile: () => Promise.resolve({ ok: true, data: me }),
+        updateProfile: ({ body }) => {
+          bodies.push(body);
+          me = { ...me, preferences: merge(me.preferences ?? {}, body.preferences ?? {}) as NonNullable<Me['preferences']> };
+          return Promise.resolve({ ok: true, data: me });
+        },
+      },
+    };
+    return { client, bodies };
+  }
+
+  it('lưu rồi đọc lại thấy nguyên; thân PATCH qua UpdateMeSchema strict', async () => {
+    const { client, bodies } = statefulClient();
+    const gateway = createAccountSettingsGateway({ apiClient: client });
+    const read = await gateway.read();
+    const edited = draftWith(read.profile, {
+      appearance: { theme: 'dark', showGrid: false, density: 'compact' },
+      notifications: {
+        aiCompleted: { inApp: false, email: false },
+        // Hàng BE chưa nhận: không lên dây.
+        morningDigest: { inApp: true, email: true },
+      },
+    });
+
+    await gateway.save(edited, read);
+
+    const again = await createAccountSettingsGateway({ apiClient: client }).read();
+
+    expect(again.appearance).toEqual({ theme: 'dark', showGrid: false, density: 'compact' });
+    expect(again.notifications).toEqual({ aiCompleted: { inApp: false, email: false } });
+    for (const body of bodies) expect(UpdateMeSchema.safeParse(body).success).toBe(true);
+  });
+
+  it('hoàn tác về bản chưa có khoá: gửi null để BE xoá', async () => {
+    const { client, bodies } = statefulClient();
+    const gateway = createAccountSettingsGateway({ apiClient: client });
+    const read = await gateway.read();
+    const edited = draftWith(read.profile, { appearance: { theme: 'dark' } });
+
+    await gateway.save(edited, read);
+    await gateway.save(read, edited);
+
+    expect(bodies[1]).toStrictEqual({ preferences: { appearance: { themeChoice: null } } });
+    expect((await gateway.read()).appearance).toEqual({});
+    expect(UpdateMeSchema.safeParse(bodies[1]).success).toBe(true);
+  });
+
+  it('không khoá nào đổi thì không gọi N12', async () => {
+    const { client, bodies } = statefulClient();
     const gateway = createAccountSettingsGateway({ apiClient: client });
     const read = await gateway.read();
 
-    await gateway.save(
-      draftWith(read.profile, { appearance: { theme: 'dark' }, notifications: { email: true } }),
-      read,
-    );
+    await expect(gateway.save(read, read)).resolves.toBeNull();
+    expect(bodies).toHaveLength(0);
+  });
 
-    const same = await gateway.read();
+  it('danh sách loại thông báo viết thẳng khớp schema', () => {
+    expect([...PREFERENCE_EVENTS].sort()).toEqual([...NOTIFICATION_PREFERENCE_EVENTS].sort());
+  });
 
-    expect(same.appearance).toEqual({ theme: 'dark' });
-    expect(same.notifications).toEqual({ email: true });
-
-    sessionUserId = 'user-2';
-    const other = await gateway.read();
-
-    expect(other.appearance).toEqual({});
-    expect(other.notifications).toEqual({});
+  it('khoá lạ trong bản vá bị schema strict chặn (BE extra=forbid)', () => {
+    expect(UpdateMeSchema.safeParse({ preferences: { notifications: { commentMention: { inApp: true, email: true } } } }).success).toBe(false);
+    expect(UpdateMeSchema.safeParse({ preferences: { seen: { tours: ['a b'] } } }).success).toBe(false);
   });
 
   it('hồ sơ không bao giờ nằm trong bộ nhớ: đọc luôn đi qua N11', async () => {

@@ -160,8 +160,23 @@ describe('MeSchema preferences (FE3D-FIX-003 R1)', () => {
     expect(issuePaths(MeSchema, { ...me, preferences: value })).toStrictEqual([path]);
   });
 
-  it('UpdateMeSchema chưa nhận preferences (chỉ đọc)', () => {
-    expect(accepts(UpdateMeSchema, { preferences: {} })).toBe(false);
+  it('UpdateMeSchema nhận bản vá preferences strict (BE B4), khoá lạ bị chặn', () => {
+    expect(accepts(UpdateMeSchema, { preferences: {} })).toBe(true);
+    expect(
+      accepts(UpdateMeSchema, {
+        preferences: {
+          appearance: { themeChoice: 'dark', density: null },
+          notifications: { aiCompleted: { inApp: false, email: false }, projectInvite: null },
+          seen: { welcome: true, tours: ['editor-tour:viewer-shell'] },
+        },
+      }),
+    ).toBe(true);
+    expect(accepts(UpdateMeSchema, { preferences: { appearance: { theme: 'dark' } } })).toBe(false);
+    expect(
+      accepts(UpdateMeSchema, { preferences: { notifications: { morningDigest: { inApp: true, email: true } } } }),
+    ).toBe(false);
+    expect(accepts(UpdateMeSchema, { preferences: { notifications: { aiCompleted: { inApp: true } } } })).toBe(false);
+    expect(accepts(UpdateMeSchema, { preferences: { seen: { tours: Array(65).fill('a') } } })).toBe(false);
   });
 });
 

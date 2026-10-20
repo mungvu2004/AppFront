@@ -31,7 +31,7 @@
  * ngoài cùng, để phần dự phòng không phụ thuộc vào provider vừa sập cùng màn.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -40,12 +40,14 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import { Toast, useToast } from '@/components/feedback/Toast';
+import { readServerSeen } from '@/hooks/seenPreferences';
 import { useSession } from '@/hooks/useSession';
 import { ROUTES } from '@/routes/paths';
 import { CreateProjectModalContainer } from '@/screens/project/CreateProjectModal';
 
 import { WelcomeScreen } from './WelcomeScreen';
 import {
+  cacheWelcomeSeen,
   readWelcomeSeen,
   useWelcomeScreen,
   type UseWelcomeScreenOptions,
@@ -137,8 +139,26 @@ export function WelcomeRoute(props: WelcomeScreenContainerProps) {
   const [searchParams] = useSearchParams();
   // `?again=1` (lối "Xem lại hướng dẫn bắt đầu" ở trang Tài khoản, N0-03) bỏ qua cờ "đã xem".
   const again = searchParams.get('again') === '1';
-  const [seen] = useState(() => readWelcomeSeen(session.user?.id ?? null));
+  const userId = session.user?.id ?? null;
+  // `true`/`false` = đã biết; `null` = bộ đệm trống, đang hỏi máy chủ (`preferences.seen.welcome`).
+  const [seen, setSeen] = useState<boolean | null>(() =>
+    readWelcomeSeen(userId) ? true : userId === null || again ? false : null,
+  );
 
+  useEffect(() => {
+    if (seen !== null || userId === null) return undefined;
+    let alive = true;
+    void readServerSeen(userId).then((server) => {
+      if (!alive) return;
+      if (server.welcome === true) cacheWelcomeSeen(userId);
+      setSeen(server.welcome === true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [seen, userId]);
+
+  if (seen === null) return null;
   if (seen && !again) return <Navigate replace to={ROUTES.dashboard} />;
   return <WelcomeScreenContainer {...props} />;
 }

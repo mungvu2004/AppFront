@@ -196,11 +196,6 @@ export function toSaveState(autosaveState: AutosaveState): SaveState {
   }
 }
 
-/** Hai bản nháp giống nhau ở khối hồ sơ — nghĩa là lượt lưu chỉ chạm giao diện hoặc thông báo. */
-function isSameProfile(left: AccountDraft, right: AccountDraft): boolean {
-  return JSON.stringify(left.profile) === JSON.stringify(right.profile);
-}
-
 /** Thứ `createAutosave` gọi tới, luôn là bản mới nhất. */
 interface AutosaveBridge {
   getChanges: () => AccountDraft | undefined;
@@ -340,7 +335,8 @@ export function useAccountSettings(
         throw error;
       }
 
-      const isLocalOnly = previous !== null && isSameProfile(previous, changes);
+      // Giao diện/thông báo nay cũng đi N12 (FE3D-FIX-003): chỉ lượt không gọi mạng mới là chỉ-giữ-trong-phiên.
+      const isLocalOnly = previous !== null && serverProfile === null;
 
       localOnlyRef.current = isLocalOnly;
       setLocalOnlySave(isLocalOnly);

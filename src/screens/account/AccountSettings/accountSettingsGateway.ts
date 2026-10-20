@@ -12,14 +12,14 @@
  *   lỗi — `createAutosave` xếp loại (lỗi tạm thử lại, 4xx dừng ngay).
  * - `replaceAvatar` gọi `PUT /me/avatar`. Ảnh không đi qua bản nháp.
  *
- * ## Hai khối chưa có dây: giao diện và thông báo
+ * ## Giao diện và thông báo: `preferences` của N11/N12 (FE3D-FIX-003 W4c)
  *
- * Hợp đồng v1 (HOP-DONG-MOI §10 AC1) không có điểm cuối cho chúng, nên chúng vẫn
- * nằm trong bộ nhớ của module này — một bản, gắn kèm id người dùng của phiên đã
- * ghi nó. `read` gặp id khác thì hai khối về mặc định: bộ nhớ này không bị xoá khi
- * đăng xuất, nên không có kiểm tra ấy thì người sau thấy cài đặt của người trước.
- * Chúng KHÔNG phải bộ nhớ giả của hồ sơ: hồ sơ không bao giờ được giữ ở đây.
+ * `read` dựng hai khối từ `me.preferences` (khoá `themeChoice` của dây là `theme` của
+ * bản nháp). `save` gửi bản vá gộp sâu: khoá đổi → giá trị mới, khoá bị bỏ (hoàn tác về
+ * bản chưa có khoá ấy) → `null` để BE xoá. Chỉ ba loại thông báo BE nhận
+ * (`NOTIFICATION_PREFERENCE_EVENTS`); hàng khác của bản nháp không đi lên dây.
  *
+
  * ## Nạp LƯỜI client
  *
  * `appClient` kéo theo cả phiên đăng nhập; nhập tĩnh thì chunk của màn vượt trần
@@ -27,18 +27,17 @@
  */
 
 import type { ApiClient, ApiResult } from '@/api/client';
-import type { Me, UpdateMe, UploadAvatar } from '@/api/schemas/me';
-import { getSession } from '@/lib/auth';
+import type { Me, PreferencesPatch, UpdateMe, UploadAvatar } from '@/api/schemas/me';
 import { toAppError } from '@/lib/errors';
 
-import { EMPTY_ACCOUNT_DRAFT, type AccountDraft, type AccountDraftFields } from './accountDraft';
+import type { AccountDraft, AccountDraftFields } from './accountDraft';
 
 export interface AccountSettingsGateway {
   /** Đọc cài đặt đã lưu. Ném lỗi khi đọc hỏng — tầng query bắt và vẽ trạng thái 4. */
   readonly read: () => Promise<AccountDraft>;
   /**
    * Ghi bản nháp. Ném lỗi khi ghi hỏng. Trả hồ sơ máy chủ vừa trả về khi đã gọi
-   * N12, `null` khi lượt này không có khoá hồ sơ nào đổi.
+   * N12, `null` khi lượt này không có khoá nào (hồ sơ hay preferences) đổi.
    */
   readonly save: (draft: AccountDraft, previous: AccountDraft | null) => Promise<Me | null>;
   /** N14. Trả `ApiResult` chứ không ném: hook xếp loại theo mã lỗi dây. */
@@ -81,24 +80,73 @@ function isLanguage(value: string): value is Me['language'] {
   return value === 'vi' || value === 'en';
 }
 
-/** Chỉ hai khối chưa có dây, kèm id người dùng đã ghi chúng. */
-interface LocalOnlyStore {
-  readonly userId: string | null;
-  readonly appearance: AccountDraftFields;
-  readonly notifications: AccountDraftFields;
+/** Khoá giao diện của bản nháp → khoá `preferences.appearance` của dây. */
+const APPEARANCE_KEYS = {
+  density: 'density',
+  reducedMotion: 'reducedMotion',
+  showGrid: 'showGrid',
+  theme: 'themeChoice',
+  viewportDark: 'viewportDark',
+} as const satisfies Record<string, keyof NonNullable<PreferencesPatch['appearance']>>;
+
+type NotificationEvent = keyof NonNullable<PreferencesPatch['notifications']>;
+
+/**
+ * Ba loại thông báo BE nhận. Viết thẳng thay vì nhập `NOTIFICATION_PREFERENCE_EVENTS` (cùng lý do
+ * `isLanguage`); lệch do `accountSettingsGateway.test.ts` bắt.
+ */
+export const PREFERENCE_EVENTS: readonly NotificationEvent[] = ['aiCompleted', 'violationFound', 'projectInvite'];
+
+/** `me.preferences` thành hai khối giao diện và thông báo của bản nháp. */
+export function preferenceDraftsOf(me: Me): Pick<AccountDraft, 'appearance' | 'notifications'> {
+  const wire = me.preferences?.appearance ?? {};
+  const appearance: Record<string, unknown> = {};
+
+  for (const [draftKey, wireKey] of Object.entries(APPEARANCE_KEYS)) {
+    if (wire[wireKey] !== undefined) {
+      appearance[draftKey] = wire[wireKey];
+    }
+  }
+
+  return { appearance, notifications: { ...me.preferences?.notifications } };
 }
 
-const EMPTY_LOCAL_ONLY: LocalOnlyStore = {
-  userId: null,
-  appearance: EMPTY_ACCOUNT_DRAFT.appearance,
-  notifications: EMPTY_ACCOUNT_DRAFT.notifications,
-};
+function channelsOf(value: unknown): { inApp: boolean; email: boolean } | null {
+  const record = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 
-/** Bộ nhớ của hai khối giao diện và thông báo; v1 chưa có dây cho chúng. */
-let localOnly: LocalOnlyStore = EMPTY_LOCAL_ONLY;
+  return typeof record['inApp'] === 'boolean' && typeof record['email'] === 'boolean'
+    ? { inApp: record['inApp'], email: record['email'] }
+    : null;
+}
 
-function currentUserId(): string | null {
-  return getSession().user?.id ?? null;
+/** Bản vá `preferences` từ hai khối đổi so với `previous`; `undefined` khi không khoá nào đổi. */
+export function preferencesPatchOf(draft: AccountDraft, previous: AccountDraft | null): PreferencesPatch | undefined {
+  const appearance: Record<string, unknown> = {};
+
+  for (const [draftKey, wireKey] of Object.entries(APPEARANCE_KEYS)) {
+    const next = draft.appearance[draftKey];
+
+    if (next !== previous?.appearance[draftKey]) {
+      appearance[wireKey] = next ?? null;
+    }
+  }
+
+  const notifications: Record<string, { inApp: boolean; email: boolean } | null> = {};
+
+  for (const event of PREFERENCE_EVENTS) {
+    const next = channelsOf(draft.notifications[event]);
+
+    if (JSON.stringify(next) !== JSON.stringify(channelsOf(previous?.notifications[event]))) {
+      notifications[event] = next;
+    }
+  }
+
+  const patch: PreferencesPatch = {
+    ...(Object.keys(appearance).length > 0 ? { appearance: appearance as PreferencesPatch['appearance'] } : {}),
+    ...(Object.keys(notifications).length > 0 ? { notifications } : {}),
+  };
+
+  return Object.keys(patch).length > 0 ? patch : undefined;
 }
 
 /** Cổng thật của ứng dụng. */
@@ -121,13 +169,7 @@ export function createAccountSettingsGateway(
         throw result.error;
       }
 
-      const profile = profileDraftOf(result.data);
-
-      if (localOnly.userId !== currentUserId()) {
-        localOnly = EMPTY_LOCAL_ONLY;
-      }
-
-      return { appearance: localOnly.appearance, notifications: localOnly.notifications, profile };
+      return { ...preferenceDraftsOf(result.data), profile: profileDraftOf(result.data) };
     },
 
     save: async (draft, previous) => {
@@ -149,11 +191,11 @@ export function createAccountSettingsGateway(
         }
       }
 
-      localOnly = {
-        userId: currentUserId(),
-        appearance: draft.appearance,
-        notifications: draft.notifications,
-      };
+      const preferences = preferencesPatchOf(draft, previous);
+
+      if (preferences !== undefined) {
+        body.preferences = preferences;
+      }
 
       if (Object.keys(body).length === 0) {
         return null;
@@ -178,9 +220,4 @@ export function createAccountSettingsGateway(
       }
     },
   };
-}
-
-/** Đưa bộ nhớ của hai khối giao diện và thông báo về rỗng. Dành cho test; sản phẩm không gọi. */
-export function resetAccountSettingsStore(): void {
-  localOnly = EMPTY_LOCAL_ONLY;
 }

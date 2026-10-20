@@ -130,6 +130,8 @@ export function createFakeBackend({ projectId, graphDoc, layers: overrides = {} 
     return { status: 200, body: { layer: stored.get(floorId), revision: current + 1 } };
   };
 
+  const preferences: Record<string, unknown> = {};
+
   const handle = (method: string, pathname: string, body?: unknown): FakeResponse => {
     const project = `/api/projects/${projectId}`;
     const layerMatch = pathname.match(new RegExp(`^${project}/floors/([^/]+)/spatial/layer$`, 'u'));
@@ -158,6 +160,33 @@ export function createFakeBackend({ projectId, graphDoc, layers: overrides = {} 
           status: 'draft',
           updatedAt: STAMP,
         },
+      };
+    }
+    // N5 — thân tối thiểu hợp lệ (trang Pascal đọc kiểu cảnh của dự án, FE3D-FIX-003).
+    if (method === 'GET' && pathname === `${project}/settings`) {
+      return {
+        status: 200,
+        body: {
+          buildingType: 'residential',
+          confidenceThreshold: 0.5,
+          defaultScaleMmPerPx: 1,
+          lengthUnit: 'mm',
+          revision: 1,
+          snapToleranceMm: 20,
+        },
+      };
+    }
+    // N11/N12 — cờ "đã xem" của lớp dạy việc đọc/ghi `preferences.seen` (gộp nông từng khối là đủ ở đây).
+    if (pathname === '/api/me' && (method === 'GET' || method === 'PATCH')) {
+      const patch = (body as { preferences?: Record<string, Wire | null> } | undefined)?.preferences ?? {};
+      if (method === 'PATCH') {
+        for (const [section, value] of Object.entries(patch)) {
+          preferences[section] = { ...(preferences[section] as Wire | undefined), ...value };
+        }
+      }
+      return {
+        status: 200,
+        body: { email: FAKE_USER.email, fullName: FAKE_USER.name, language: 'vi', preferences },
       };
     }
     if (method === 'GET' && pathname === `${project}/spatial`) return { status: 200, body: graphNow() };

@@ -891,7 +891,7 @@ describe('v2 — khi cổng bật năng lực', () => {
 });
 
 describe('vào lại màn khi bộ đệm còn tươi', () => {
-  it('cổng mới không gọi read(), chỉ đổi giao diện: không gửi N12, bộ đệm mang giá trị mới', async () => {
+  it('cổng mới không gọi read(), chỉ đổi giao diện: N12 mang đúng bản vá preferences, bộ đệm mang giá trị mới', async () => {
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
@@ -934,7 +934,10 @@ describe('vào lại màn khi bộ đệm còn tươi', () => {
       client.getQueryData<AccountDraft>(queryKeys.me.profile())?.appearance['showGrid'],
     ).toBe(false);
 
-    expect(updateProfile).not.toHaveBeenCalled();
+    // FE3D-FIX-003: giao diện nay lưu trên máy chủ, chỉ gửi đúng khoá đổi.
+    expect(updateProfile).toHaveBeenCalledWith({
+      body: { preferences: { appearance: { showGrid: false } } },
+    });
   });
 });
 
@@ -1008,7 +1011,11 @@ describe('SCR-33 QA phase 07', () => {
   });
 
   it('[33P-B-024] lượt lưu chỉ-cục-bộ không bật toast "Đã lưu cài đặt tài khoản."; lưu lên máy chủ thì có', async () => {
-    const save = vi.fn(() => Promise.resolve(newMe('https://cdn.example.test/l.png')));
+    // Cổng trả `null` = lượt không gọi N12 (chỉ-giữ-trong-phiên); trả hồ sơ = đã lưu lên máy chủ.
+    const save = vi
+      .fn<(draft: AccountDraft) => Promise<Me | null>>()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(newMe('https://cdn.example.test/l.png'));
     const titles = mountWithBus(settingsGateway({ save }));
     const field = await loaded();
 

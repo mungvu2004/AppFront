@@ -271,99 +271,84 @@ describe('trạng thái 7 — thu gọn', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('useAccountTables — nửa thông báo', () => {
-  it('dựng năm sự việc nhân hai kênh, và ghép nhãn cho trình đọc màn hình', () => {
+  it('dựng ba sự việc BE nhận, chỉ cột "Trong ứng dụng", và ghép nhãn cho trình đọc màn hình', () => {
     const { port } = createPort();
 
     const { result } = renderHook(() => useAccountTables(port));
     const model = result.current.notifications;
 
-    expect(model.channels).toBe(NOTIFICATION_CHANNELS);
-    expect(model.events).toHaveLength(5);
+    // Chưa có kênh thư điện tử nào gửi thật: cột ấy ẩn (FE3D-FIX-003 W4c).
+    expect(model.channels.map((channel) => channel.id)).toEqual(['inApp']);
+    expect(model.events.map((event) => event.id)).toEqual(['aiCompleted', 'violationFound', 'projectInvite']);
 
     for (const event of model.events) {
-      expect(event.cells.map((cell) => cell.channelId)).toEqual(
-        NOTIFICATION_CHANNELS.map((channel) => channel.id),
-      );
+      expect(event.cells.map((cell) => cell.channelId)).toEqual(['inApp']);
 
       for (const cell of event.cells) {
         expect(cell.label.startsWith(event.label)).toBe(true);
       }
     }
+    expect(NOTIFICATION_CHANNELS.map((channel) => channel.id)).toEqual(['inApp', 'email']);
   });
 
   it('đọc giá trị đã lưu, và lấy mặc định cho ô máy chủ chưa nói', () => {
     const { port } = createPort({
       ...EMPTY_ACCOUNT_DRAFT,
-      notifications: { morningDigest: { inApp: true } },
+      notifications: { violationFound: { inApp: false } },
     });
 
     const { result } = renderHook(() => useAccountTables(port));
-    const digest = result.current.notifications.events.find(
-      (event) => event.id === 'morningDigest',
-    );
+    const isOn = (id: string) =>
+      result.current.notifications.events.find((event) => event.id === id)?.cells[0]?.isOn;
 
-    expect(digest).toBeDefined();
-    // Máy chủ nói `inApp: true`…
-    expect(digest?.cells.find((cell) => cell.channelId === 'inApp')?.isOn).toBe(true);
-    // …và không nói gì về thư điện tử, nên ô đó lấy mặc định của sự việc.
-    expect(digest?.cells.find((cell) => cell.channelId === 'email')?.isOn).toBe(true);
+    expect(isOn('violationFound')).toBe(false);
+    expect(isOn('aiCompleted')).toBe(true);
   });
 
   it('bỏ qua giá trị đã lưu không phải boolean thay vì ép kiểu', () => {
     const { port } = createPort({
       ...EMPTY_ACCOUNT_DRAFT,
-      notifications: { aiCompleted: { email: 'có' } },
+      notifications: { aiCompleted: { inApp: 'không' } },
     });
 
     const { result } = renderHook(() => useAccountTables(port));
-    const cell = result.current.notifications.events
-      .find((event) => event.id === 'aiCompleted')
-      ?.cells.find((entry) => entry.channelId === 'email');
+    const cell = result.current.notifications.events.find((event) => event.id === 'aiCompleted')?.cells[0];
 
-    expect(cell?.isOn).toBe(false);
+    expect(cell?.isOn).toBe(true);
   });
 
-  it('một lượt bấm gửi TRỌN khối notifications qua port.stage, không gửi một ô', () => {
+  it('một lượt bấm gửi TRỌN khối notifications qua port.stage, cặp {inApp, email} đủ', () => {
     const { port, staged } = createPort();
 
     const { result } = renderHook(() => useAccountTables(port));
     const eventIds = result.current.notifications.events.map((event) => event.id);
 
     act(() => {
-      result.current.notifications.onChange('aiCompleted', 'email', true);
+      result.current.notifications.onChange('aiCompleted', 'inApp', false);
     });
 
     expect(staged).toHaveLength(1);
     expect(staged[0]?.section).toBe('notifications');
-
-    // `mergeAccountDraft` gộp NÔNG, nên khối gửi lên phải đủ cả năm sự việc —
-    // gửi thiếu là xoá mất phần còn lại của ma trận ở lượt lưu sau.
+    // Gộp NÔNG: khối gửi lên phải đủ mọi sự việc; BE đòi đủ cặp kênh cho mỗi sự việc.
     expect(Object.keys(staged[0]?.fields ?? {}).sort()).toEqual([...eventIds].sort());
-    expect(staged[0]?.fields['aiCompleted']).toEqual({ inApp: true, email: true });
+    expect(staged[0]?.fields['aiCompleted']).toEqual({ inApp: false, email: false });
   });
 
   it('giá trị mới hiện ra ngay, không đợi 800 ms của bộ tự lưu', () => {
     const { port } = createPort();
 
     const { result } = renderHook(() => useAccountTables(port));
+    const isOn = () =>
+      result.current.notifications.events.find((event) => event.id === 'aiCompleted')?.cells[0]?.isOn;
 
-    const before = result.current.notifications.events
-      .find((event) => event.id === 'aiCompleted')
-      ?.cells.find((cell) => cell.channelId === 'email')?.isOn;
-
-    expect(before).toBe(false);
+    expect(isOn()).toBe(true);
 
     act(() => {
-      result.current.notifications.onChange('aiCompleted', 'email', true);
+      result.current.notifications.onChange('aiCompleted', 'inApp', false);
     });
 
-    // `port.saved` KHÔNG đổi khi `stage` chạy; nếu view đọc thẳng từ nó thì ô
-    // vừa bấm sẽ bật ngược lại trong lúc chờ lưu.
-    expect(
-      result.current.notifications.events
-        .find((event) => event.id === 'aiCompleted')
-        ?.cells.find((cell) => cell.channelId === 'email')?.isOn,
-    ).toBe(true);
+    // `port.saved` KHÔNG đổi khi `stage` chạy; đọc thẳng từ nó thì ô vừa bấm bật ngược lại.
+    expect(isOn()).toBe(false);
   });
 
   it('trạng thái 7 bật khi khung nhìn hẹp hơn 640 px', () => {
