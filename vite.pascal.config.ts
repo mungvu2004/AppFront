@@ -32,6 +32,7 @@ import tailwindcss from '@tailwindcss/postcss';
 import { pascalCatalogLocal } from './scripts/pascal-catalog-local.mjs';
 import { pascalCssScope } from './scripts/pascal-css-scope.mjs';
 import { pascalNoEval } from './scripts/pascal-no-eval.mjs';
+import { pascalRender } from './scripts/pascal-render.mjs';
 import { pascalSelfHost, WORKER_SELF_HOST_RULES } from './scripts/pascal-self-host.mjs';
 import { pascalVi } from './scripts/pascal-vi.mjs';
 
@@ -117,6 +118,7 @@ const PASCAL_ENV_DEFINES = {
 export default defineConfig({
   plugins: [
     pascalVi({ packagesDir: PASCAL_PACKAGES }),
+    pascalRender(),
     pascalSelfHost(),
     // zod 4 dò `new Function` → vi phạm CSP `script-src eval` trên editor3d.html.
     pascalNoEval(),
