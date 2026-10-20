@@ -39,4 +39,9 @@ AppFront UX edits (UI review package P40), marked `AppFront edit (P40 …)` in c
 8. `build-tab.tsx`: the first mount of a page load no longer arms the first tool (wall); the grid cells show
    their label under the icon and carry `aria-label`.
 
+FE3D-FIX WP8:
+
+10. `page.tsx` passes `viewerBanner={<ScaleBanner projectId={projectId} />}` to `<Editor>` (`../scaleBanner.tsx`):
+    a non-blocking warning when a floor's N16 layer says `scaleStatus: 'unresolved'` or the walls fit in < 3 m.
+
 `next/image` / `next/link` resolve to `vendor/pascal/shims/*` (aliases in `vite.pascal.config.ts`, paths in `tsconfig.json`).
