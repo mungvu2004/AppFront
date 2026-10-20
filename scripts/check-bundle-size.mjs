@@ -94,6 +94,27 @@ function findDevOnlyLeaks(files, markers = DEV_ONLY_MARKERS) {
 }
 
 /**
+ * Máy ngoài mà trang Pascal không được gọi: CSP thật chặn hết, và `packages/` upstream
+ * còn trỏ tới chúng (supabase = catalog, gstatic = Draco, jsdelivr = Basis, iconify = biểu tượng).
+ * Tự host bằng `scripts/pascal-self-host.mjs` + `pascal-catalog-local.mjs` lúc build; cổng này
+ * bắt khi lượt ấy trượt. `editor.pascal.app` cố ý KHÔNG nằm đây (chuỗi định danh, không gọi mạng).
+ */
+const OFF_MACHINE_HOSTS = ['supabase.co', 'gstatic.com', 'cdn.jsdelivr.net', 'iconify.design', 'simplesvg.com', 'unisvg.com'];
+
+/** Cặp (máy ngoài, tệp dựng) nào có mặt. `files`: `{ name, text }[]`. */
+function findOffMachineHosts(files, hosts = OFF_MACHINE_HOSTS) {
+  return hosts.flatMap((host) => files.filter((file) => file.text.includes(host)).map((file) => ({ host, file: file.name })));
+}
+
+/** Tệp chữ (.js/.css/.html/.json) dưới `dir`, đệ quy; thư mục không có thì rỗng (chưa chạy `pnpm pascal`). */
+function readTextFilesUnder(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { recursive: true })
+    .filter((name) => /\.(js|css|html|json)$/.test(name))
+    .map((name) => ({ name: join(dir, name), text: readFileSync(join(dir, name), 'utf8') }));
+}
+
+/**
  * Quét bản dựng tìm chỗ dựng mã từ chuỗi — CSP thật không có `'unsafe-eval'`
  * (`AppBack/deploy/nginx/snippets/security_headers.conf:6`), nên mỗi chỗ là một
  * EvalError lúc chạy mà máy dev không gửi CSP thì không bao giờ thấy (FIX-380).
@@ -776,6 +797,18 @@ vách ngăn Pascal — đo THÔ, cả thư mục:
 
   console.log(`màn demo chỉ bản dev trong bản dựng: 0/${DEV_ONLY_MARKERS.length} — đạt\n`);
 
+  const offHosts = findOffMachineHosts(
+    [join('dist', 'assets', 'pascal'), join('dist', 'pascal'), join('dist', 'icons')].flatMap(readTextFilesUnder),
+  );
+
+  if (offHosts.length > 0) {
+    throw new Error(
+      'Trang Pascal còn trỏ tới máy ngoài (CSP chặn):\n' + offHosts.map((hit) => `  ${hit.host} trong ${hit.file}`).join('\n'),
+    );
+  }
+
+  console.log(`máy ngoài trong bản dựng Pascal: 0/${OFF_MACHINE_HOSTS.length} — đạt\n`);
+
   const scripts = readScriptsUnder(EVAL_SCAN_DIRS);
   const evalSites = findEvalSites(scripts);
 
@@ -818,8 +851,10 @@ export {
   baselineFor,
   closureGzip,
   findDevOnlyLeaks,
+  findOffMachineHosts,
   findEvalSites,
   DEV_ONLY_MARKERS,
+  OFF_MACHINE_HOSTS,
 };
 
 /*

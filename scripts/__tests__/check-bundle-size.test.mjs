@@ -25,6 +25,8 @@ import {
   closureGzip,
   findDevOnlyLeaks,
   findEvalSites,
+  findOffMachineHosts,
+  OFF_MACHINE_HOSTS,
   presentWhenLoaded,
 } from '../check-bundle-size.mjs';
 
@@ -341,6 +343,20 @@ describe('màn demo chỉ bản dev', () => {
       { source: 'src/screens/CanvasOverlaysDemo.tsx', marker: 'Canvas Overlays Demo', file: 'leak.js' },
     ]);
     expect(findDevOnlyLeaks(files.slice(0, 1))).toEqual([]);
+  });
+});
+
+describe('findOffMachineHosts', () => {
+  it.each(OFF_MACHINE_HOSTS)('bắt %s trong tệp dựng', (host) => {
+    const files = [
+      { name: 'ok.js', text: 'a="/pascal/x"' },
+      { name: 'bad.js', text: `fetch("https://x.${host}/a")` },
+    ];
+    expect(findOffMachineHosts(files)).toEqual([{ host, file: 'bad.js' }]);
+  });
+
+  it('bản sạch (kể cả editor.pascal.app) thì không có gì', () => {
+    expect(findOffMachineHosts([{ name: 'a.js', text: 'u="https://editor.pascal.app/x"' }])).toEqual([]);
   });
 });
 

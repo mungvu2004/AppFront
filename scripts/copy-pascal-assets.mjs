@@ -15,7 +15,7 @@
  *      `''` là falsy nên nó rơi thẳng về mặc định. Phải đặt một đường dẫn thật.
  *
  *   2. `https://cdn.jsdelivr.net/gh/pmndrs/drei-assets@master/basis/` — bộ giải Basis
- *      mà `viewer/src/lib/ktx2-loader.ts` khai cứng; đường khai đã đổi thành `/basis/`.
+ *      mà `viewer/src/lib/ktx2-loader.ts` khai cứng; lúc build `scripts/pascal-self-host.mjs` đổi đường ấy thành `/basis/`.
  *      Nguồn KHÔNG phải bản `three` đóng gói: bản ấy dựng mã bằng `Function` (embind)
  *      và ném EvalError dưới CSP thật (FIX-380). Chép bản dựng lại không eval ở
  *      `vendor/basis/` — cùng tag, cách dựng ở `vendor/basis/NGUON.md`.
@@ -40,10 +40,11 @@ import {
 } from 'node:fs';
 import { join, dirname } from 'node:path';
 
-// Fork Pascal nạp Draco từ `/draco/` thay vì gstatic (CSP chặn mọi máy ngoài) ở
-// ba chỗ đã sửa: `nodes/src/item/renderer.tsx`, `viewer/src/hooks/use-gltf-ktx2.tsx`,
-// `editor/.../site-boundary-editor.tsx`. Mặc định của chính drei (`useGLTF(p, true)`)
-// vẫn là gstatic — chỗ gọi mới phải truyền `'/draco/'`.
+// `packages/` là upstream nguyên vẹn (không fork, không vá — xem `vendor/pascal/NGUON.md`):
+// upstream nạp Draco từ gstatic (CSP chặn mọi máy ngoài), nên lúc build
+// `scripts/pascal-self-host.mjs` đổi đường ấy sang `/draco/` trong bản dựng, không sửa nguồn.
+// Mặc định của chính drei (`useGLTF(p, true)`) vẫn là gstatic — cổng
+// `check-bundle-size.mjs` (`findOffMachineHosts`) bắt chỗ nào còn sót.
 //
 // Nhập để lấy TÁC DỤNG PHỤ: `copy-draco.mjs` chép bộ giải vào `public/draco/`
 // để đường ấy có thật. Import được nâng lên đầu, nên lượt chép Draco chạy TRƯỚC
@@ -99,7 +100,8 @@ const AUDIO_TARGET = join('public', 'audios');
 
 /**
  * Thư viện đồ đạc của editor (QA-05c B4): `catalog-items.tsx` ghi `/items/<mẫu>/{model.glb,thumbnail.webp}`,
- * `resolveCdnUrl` ghép thành `/pascal/items/…`. Bản gốc trỏ supabase.co của Pascal — CSP chặn, 111 ảnh vỡ.
+ * `resolveCdnUrl` ghép thành `/pascal/items/…`. Bản gốc trỏ supabase.co của Pascal — CSP chặn, 111 ảnh vỡ
+ * (`scripts/pascal-catalog-local.mjs` trỏ catalog về đây lúc build, không sửa `packages/`).
  * Nguồn: `apps/editor/public/items` của `F:/pascal-editor`, chỉ 100 thư mục mà 101 mẫu catalog dùng (200 tệp, 2 010 KiB).
  */
 const ITEMS_SOURCE = join('vendor', 'pascal', 'assets', 'items');

@@ -8,6 +8,8 @@ Không chép `node_modules/`, `dist/`, `.turbo/`, `tsconfig.tsbuildinfo`.
 **KHÔNG được sửa gì trong `packages/`.** Kiểm: `diff -rq -x node_modules F:/pascal-editor/packages/<gói> vendor/pascal/packages/<gói>`
 phải rỗng. Nâng phiên bản = chép lại cả thư mục từ upstream (`robocopy /MIR /XD node_modules dist .turbo`).
 
+Tự host tài nguyên làm bằng `scripts/pascal-self-host.mjs` + `pascal-catalog-local.mjs` lúc build, không sửa `packages/`.
+
 Mã riêng của AppFront nằm ở `src/` (trang 3D: `src/pascal-page/`, cầu dữ liệu: `src/lib/pascal/`),
 nối vào Pascal qua alias của `vite.pascal.config.ts` (trỏ lối vào `dist/` về `src/`) và `pnpm.overrides`
 (nối phụ thuộc nội bộ kiểu bun về workspace). Phần còn lại ở đây là của AppFront:
