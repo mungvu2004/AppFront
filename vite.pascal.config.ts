@@ -30,6 +30,7 @@ import { createRequire } from 'module';
 import tailwindcss from '@tailwindcss/postcss';
 
 import { pascalCatalogLocal } from './scripts/pascal-catalog-local.mjs';
+import { pascalMaterialLocal } from './scripts/pascal-material-local.mjs';
 import { pascalCssScope } from './scripts/pascal-css-scope.mjs';
 import { pascalNoEval } from './scripts/pascal-no-eval.mjs';
 import { pascalRender } from './scripts/pascal-render.mjs';
@@ -123,6 +124,7 @@ export default defineConfig({
     // zod 4 dò `new Function` → vi phạm CSP `script-src eval` trên editor3d.html.
     pascalNoEval(),
     pascalCatalogLocal(),
+    pascalMaterialLocal(),
     react(),
   ],
   // Worker có đồ thị plugin riêng: không có dòng này thì luật tự host không chạm tới nó.

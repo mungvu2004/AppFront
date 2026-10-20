@@ -4,6 +4,8 @@
  * Repo Pascal chỉ commit một phần `.ktx2` của thư viện vật liệu; tham chiếu tới cái
  * thiếu là 404 im lặng (máy chủ dev trả `index.html` mã 200) và mặt ra không vân.
  * Đọc thẳng nguồn đã commit (`vendor/pascal/assets`) để bài không cần `pnpm pascal`.
+ * Riêng 14 id `WEBP_MATERIAL_IDS` dùng `.webp` tự dựng (`pascal-material-local.mjs`): có
+ * `public/pascal/material` (đã `pnpm pascal`) thì tệp webp phải có ở đó.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -20,6 +22,15 @@ import { toPascalScene } from '../toPascal';
 
 const ROOT = resolve(__dirname, '../../../..');
 const ASSETS = resolve(ROOT, 'vendor/pascal/assets');
+const PUBLIC_MATERIAL = resolve(ROOT, 'public/pascal/material');
+
+// Đường dẫn không phải chuỗi cố định: tsc không đòi tệp khai kiểu cho `.mjs`.
+const WEBP_MANIFEST = resolve(ROOT, 'scripts/pascal-material-webp.mjs');
+const { WEBP_MATERIAL_IDS, webpPathOf } = (await import(/* @vite-ignore */ WEBP_MANIFEST)) as {
+  WEBP_MATERIAL_IDS: readonly string[];
+  webpPathOf: (ktx2Path: string) => string;
+};
+const WEBP_IDS = new Set(WEBP_MATERIAL_IDS);
 
 /** id thư viện → các tệp map, đọc từ `material-library.ts` như `copy-pascal-assets.mjs`. */
 const LIBRARY_MAPS = new Map(
@@ -39,9 +50,12 @@ const problemOf = (ref: string): string | null => {
   if (ref.startsWith('#')) return null;
   if (ref.startsWith('scene:')) return SCENE_IDS.has(ref.slice(6)) ? null : 'không có trong SCENE_MATERIALS';
   if (!ref.startsWith('library:')) return 'không phải scene:/library:';
-  const maps = LIBRARY_MAPS.get(ref.slice(8));
+  const id = ref.slice(8);
+  const maps = LIBRARY_MAPS.get(id);
   if (maps === undefined) return 'không có trong thư viện';
-  const missing = maps.filter((rel) => !existsSync(resolve(ASSETS, 'material', rel)));
+  const missing = WEBP_IDS.has(id)
+    ? maps.map(webpPathOf).filter((rel) => existsSync(PUBLIC_MATERIAL) && !existsSync(resolve(PUBLIC_MATERIAL, rel)))
+    : maps.filter((rel) => !existsSync(resolve(ASSETS, 'material', rel)));
   return missing.length === 0 ? null : `thiếu ${missing.join(', ')}`;
 };
 
@@ -64,7 +78,8 @@ const glbSlotRefs = (folder: string): Record<string, string> => {
 describe('vật liệu chỉ trỏ tới tệp có thật (T21)', () => {
   it('bảng thư viện đọc được và có cả vật liệu đủ tệp lẫn thiếu tệp', () => {
     expect(problemOf('library:concrete-polished')).toBeNull();
-    expect(problemOf('library:wood-woodplank48')).toMatch(/thiếu/u);
+    expect(problemOf('library:flooring-ground13')).toMatch(/thiếu/u);
+    expect(problemOf('library:wood-woodplank48')).toBeNull();
     // Bộ đọc GLB thấy khe thật — không thì hai bài dưới xanh vì không quét gì.
     expect(glbSlotRefs('bookshelf')).toMatchObject({ body: 'library:wood-finewood27' });
   });

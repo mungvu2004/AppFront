@@ -347,11 +347,16 @@ const BUDGETS_KIB = {
  * 1 999,1 KiB — tài sản đo lại 9 827,5 KiB (`pascal` 8 525,5 + `basis` 569,6 + `icons` 732,4).
  * `assets` 8 000 → 11 000 và `total` 30 000 → 33 000 giữ lại dư ~12 % như trên. Không duyệt thì
  * phương án lùi là bỏ GLB/ảnh thẻ khỏi catalog (thư viện rỗng), không phải nới CSP.
+ *
+ * FE3D-FIX-002 (2026-10-20, điều phối chốt): 14 vật liệu thư viện (gỗ/gạch lát) thiếu `.ktx2` ở
+ * upstream nay có vân thật bằng `.webp` 512 sinh từ ảnh nguồn (`scripts/pascal-material-webp.mjs`),
+ * thêm ≈ 570 KiB. Tài sản ở base đã vượt sẵn (11 310,5 KiB, vì `icons` 732 → 2 215 KiB), nên
+ * `assets` 11 000 → 12 500 và `total` 33 000 → 34 500.
  */
 const PASCAL_BUDGETS_KIB = {
   code: 22_000,
-  assets: 11_000,
-  total: 33_000,
+  assets: 12_500,
+  total: 34_500,
 };
 
 /** Ba thư mục hợp thành vách ngăn, sau khi `vite build` chép `public/` vào `dist/`. */

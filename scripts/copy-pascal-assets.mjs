@@ -39,6 +39,9 @@ import {
   statSync,
 } from 'node:fs';
 import { join, dirname } from 'node:path';
+import sharp from 'sharp';
+
+import { WEBP_MATERIAL_IDS, roleOf, sourceFor, webpPathOf } from './pascal-material-webp.mjs';
 
 // `packages/` là upstream nguyên vẹn (không fork, không vá — xem `vendor/pascal/NGUON.md`):
 // upstream nạp Draco từ gstatic (CSP chặn mọi máy ngoài), nên lúc build
@@ -135,7 +138,30 @@ const walk = (dir, prefix = '') => {
  * nó SẼ đếm phần rác ấy. `01-ho-so-cong-T4.1.md` đã ghi đúng cái bẫy này: một
  * lượt dựng xếp chồng làm số đo lệch 29 % trong im lặng.
  */
-rmSync(MATERIAL_TARGET, { force: true, recursive: true });
+const library = readFileSync(LIBRARY_SOURCE, 'utf8');
+
+/*
+ * FE3D-FIX-002: 14 vật liệu trong `WEBP_MATERIAL_IDS` thiếu `.ktx2` ở upstream. Sinh `.webp` 512 từ ảnh
+ * nguồn trong `vendor/pascal/assets/material/**`; `pascal-material-local.mjs` đổi đường dẫn map của
+ * đúng 14 id ấy sang `.webp` lúc build (viewer nạp đuôi khác `.ktx2` bằng TextureLoader thường).
+ */
+const webpMaps = WEBP_MATERIAL_IDS.flatMap((id) => {
+  const at = library.indexOf(`id: '${id}'`);
+  if (at < 0) throw new Error(`copy-pascal-assets: bản kê vật liệu không còn id ${id}`);
+  const block = library.slice(at, library.indexOf('mapProperties', at));
+  const maps = [...block.matchAll(/'(\/material\/[^']+_512\.ktx2)'/g)].map((match) => match[1]);
+  if (maps.length === 0) throw new Error(`copy-pascal-assets: ${id} không có map _512.ktx2`);
+  return maps;
+});
+/** Đường `.webp` tương đối so với MATERIAL_TARGET — lượt dọn dưới đây giữ lại chúng. */
+const webpTargets = new Set(webpMaps.map((map) => webpPathOf(map).replace('/material/', '')));
+
+// Dọn mọi thứ trừ `.webp` đã sinh: giữ để lượt sau bỏ qua tệp còn mới hơn ảnh nguồn.
+if (existsSync(MATERIAL_TARGET)) {
+  for (const rel of walk(MATERIAL_TARGET)) {
+    if (!webpTargets.has(rel)) rmSync(join(MATERIAL_TARGET, rel), { force: true });
+  }
+}
 mkdirSync(MATERIAL_TARGET, { recursive: true });
 
 let materialCount = 0;
@@ -147,6 +173,22 @@ for (const rel of walk(MATERIAL_SOURCE)) {
   materialCount += 1;
 }
 
+let webpMade = 0;
+let webpBytes = 0;
+for (const map of webpMaps) {
+  const source = sourceFor(map);
+  const target = join('public', 'pascal', webpPathOf(map));
+  if (!existsSync(target) || statSync(target).mtimeMs < statSync(source).mtimeMs) {
+    mkdirSync(dirname(target), { recursive: true });
+    await sharp(source)
+      .resize(512, 512, { fit: 'fill' })
+      .webp({ quality: roleOf(map) === 'normal' ? 90 : 80 })
+      .toFile(target);
+    webpMade += 1;
+  }
+  webpBytes += statSync(target).size;
+}
+
 /*
  * Đối chiếu bản kê với thứ vừa chép. Không ném lỗi: 187 tệp thiếu là trạng thái
  * THẬT của repo Pascal, không phải hỏng cài đặt, và ném ở đây sẽ chặn cả `pnpm
@@ -155,12 +197,14 @@ for (const rel of walk(MATERIAL_SOURCE)) {
  */
 const referenced = [
   ...new Set(
-    [...readFileSync(LIBRARY_SOURCE, 'utf8').matchAll(/'(\/material\/[^']+\.ktx2)'/g)].map(
+    [...library.matchAll(/'(\/material\/[^']+\.ktx2)'/g)].map(
       (match) => match[1].replace('/material/', ''),
     ),
   ),
 ];
-const missing = referenced.filter((rel) => !existsSync(join(MATERIAL_TARGET, rel)));
+const missing = referenced.filter(
+  (rel) => !existsSync(join(MATERIAL_TARGET, rel)) && !webpTargets.has(rel.replace(/\.ktx2$/, '.webp')),
+);
 
 rmSync(ITEMS_TARGET, { force: true, recursive: true });
 cpSync(ITEMS_SOURCE, ITEMS_TARGET, { recursive: true });
@@ -179,6 +223,10 @@ for (const name of basisCopied) {
 }
 
 console.log(`Đã chép ${String(materialCount)} tệp vật liệu Pascal vào ${MATERIAL_TARGET}/`);
+console.log(
+  `Đã có ${String(webpMaps.length)} tệp .webp cho ${String(WEBP_MATERIAL_IDS.length)} vật liệu thiếu .ktx2 ` +
+    `(sinh mới ${String(webpMade)}, ${(webpBytes / 1024).toFixed(1)} KiB)`,
+);
 console.log(`Đã chép ${String(countFiles(ITEMS_TARGET))} tệp thư viện đồ đạc vào ${ITEMS_TARGET}/`);
 
 if (missing.length > 0) {
