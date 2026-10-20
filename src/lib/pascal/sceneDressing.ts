@@ -81,9 +81,11 @@ const USAGE_FINISH: Readonly<Record<RoomUsage, RoomFinish>> = {
   stairwell: 'concrete',
 };
 
-/** Tham chiếu vật liệu mặt sàn của một phòng: `finish` trước, công năng sau. */
-export const floorMaterialOf = (room: Pick<Room, 'usage' | 'finish'>, style: SceneStyle = DEFAULT_STYLE): string =>
-  style.floor[room.finish ?? USAGE_FINISH[room.usage]];
+/** Tham chiếu vật liệu mặt sàn của một phòng: `floorMaterial` (W3a) trước, rồi `finish`, rồi công năng. */
+export const floorMaterialOf = (
+  room: Pick<Room, 'usage' | 'finish' | 'floorMaterial'>,
+  style: SceneStyle = DEFAULT_STYLE,
+): string => room.floorMaterial ?? style.floor[room.finish ?? USAGE_FINISH[room.usage]];
 
 /** Tường thấp hơn mức này là lan can/vách kính, không phải tường phòng. */
 const LOW_WALL_MAX_MM = 1200;
@@ -94,13 +96,18 @@ const LOW_WALL_MAX_MM = 1200;
  * cách; vách ngăn sơn trong cả hai mặt. Tường thấp là kính, không len không phào.
  */
 export const wallDressingOf = (
-  wall: Pick<Wall, 'kind' | 'heightMm'>,
+  wall: Pick<Wall, 'kind' | 'heightMm' | 'paint'>,
   style: SceneStyle = DEFAULT_STYLE,
 ): Pick<PascalWallNode, 'slots' | 'skirting' | 'crown'> => {
-  if (wall.heightMm <= LOW_WALL_MAX_MM) return { slots: { interior: GLASS, exterior: GLASS } };
+  // W3a — sơn người dùng chọn (`Wall.paint`) đè lên phong cách, từng mặt.
+  const painted = (interior: string, exterior: string): Readonly<Record<string, string>> => ({
+    interior: wall.paint?.interior ?? interior,
+    exterior: wall.paint?.exterior ?? exterior,
+  });
+  if (wall.heightMm <= LOW_WALL_MAX_MM) return { slots: painted(GLASS, GLASS) };
   const { interior, exterior } = style.wall;
   return {
-    slots: { interior, exterior: wall.kind === 'partition' ? interior : exterior },
+    slots: painted(interior, wall.kind === 'partition' ? interior : exterior),
     skirting: { enabled: true, sides: 'interior', height: 0.1, proud: 0.015, profile: 'flat' },
     crown: { enabled: true, sides: 'interior', height: 0.05, proud: 0.02, profile: 'flat' },
   };

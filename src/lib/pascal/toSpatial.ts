@@ -39,7 +39,9 @@ import type {
   OpeningId,
   Point,
   ReviewMetadata,
+  MaterialRef,
   Room,
+  RoomFinish,
   RoomId,
   RoomUsage,
   SpatialGraph,
@@ -47,6 +49,7 @@ import type {
   Wall,
   WallId,
   WallKind,
+  WallPaint,
 } from '@/domain/spatial/types';
 import {
   degrees as asDegrees,
@@ -61,7 +64,8 @@ import {
 import { AUTHORED_BY_HAND, toPointMm } from '@/lib/commands/business/shared';
 
 import { appFrontIdOf, BUILDING_NODE_ID } from './ids';
-import { isGeneratedLightId, isGeneratedNodeId } from './sceneDressing';
+import { isGeneratedLightId, isGeneratedNodeId, SCENE_MATERIALS } from './sceneDressing';
+import { SCENE_STYLE_MATERIALS, SCENE_STYLES, sceneStyleOf } from './sceneStyles';
 import type {
   PascalLevelNode,
   PascalNode,
@@ -165,6 +169,68 @@ const readOneOf = <T extends string>(fields: Fields, key: string, allowed: reado
   return typeof value === 'string' && (allowed as readonly string[]).includes(value)
     ? (value as T)
     : null;
+};
+
+/* -------------------------------------------------------------------------- */
+/* W3a — sơn sàn/tường.                                                        */
+/* -------------------------------------------------------------------------- */
+
+const MATERIAL_REF = /^(library|scene):[a-z0-9_-]{1,64}$/;
+
+/**
+ * Vật liệu ghi được: vật liệu phẳng của AppFront + mọi tham chiếu mà các phong cách
+ * dùng. Màu tự pha (`scene.materials` người dùng thêm) chưa lưu được — thông báo V3 nói ra.
+ * ponytail: thư viện = các ref phong cách dùng, không phải cả MATERIAL_CATALOG của vendor;
+ * nới khi danh sách thư viện có đủ tệp được xuất ra lúc chạy.
+ */
+const SAVEABLE_REFS: ReadonlySet<string> = new Set([
+  ...[...SCENE_MATERIALS, ...SCENE_STYLE_MATERIALS].map((material) => `scene:${material.id}`),
+  ...Object.values(SCENE_STYLES).flatMap((style) => [
+    ...Object.values(style.floor),
+    style.wall.interior,
+    style.wall.exterior,
+    ...Object.values(style.families),
+  ]),
+  'library:preset-glass',
+]);
+
+const saveableRef = (ref: string | undefined): ref is MaterialRef =>
+  ref !== undefined && MATERIAL_REF.test(ref) && SAVEABLE_REFS.has(ref);
+
+/**
+ * Mặt sàn `slab_<phòng>` → trường của phòng. Bằng mặt phong cách cho: không ghi gì.
+ * Trùng sàn của một `finish` trong phong cách đang dùng: ghi `finish` (đổi phong cách
+ * thì sàn đổi theo). Khác nữa: ghi `floorMaterial`.
+ */
+const floorFieldsOf = (
+  scene: PascalScene,
+  roomId: RoomId,
+): { finish?: RoomFinish; floorMaterial?: MaterialRef } => {
+  const slab = scene.nodes[`slab_${roomId}`];
+  const surface = slab?.type === 'slab' ? slab.slots['surface'] : undefined;
+  const fields = slab === undefined ? {} : fieldsOf(slab);
+
+  if (surface === readString(fields, 'styleSurface') || !saveableRef(surface)) return {};
+
+  const style = sceneStyleOf(fields['style']);
+  const finish = (Object.keys(style.floor) as RoomFinish[]).find((key) => style.floor[key] === surface);
+
+  return finish === undefined ? { floorMaterial: surface } : { finish };
+};
+
+/** Khe mặt tường → `Wall.paint`, chỉ những mặt khác khe phong cách cho. */
+const paintOf = (wall: PascalWallNode): WallPaint | null => {
+  const styleSlots = fieldsOf(wall)['styleSlots'];
+  const base = (typeof styleSlots === 'object' && styleSlots !== null ? styleSlots : {}) as Fields;
+  const paint: { interior?: MaterialRef; exterior?: MaterialRef } = {};
+
+  for (const side of ['interior', 'exterior'] as const) {
+    const ref = wall.slots?.[side];
+
+    if (ref !== readString(base, side) && saveableRef(ref)) paint[side] = ref;
+  }
+
+  return Object.keys(paint).length === 0 ? null : paint;
 };
 
 const readCorner = (fields: Fields, corner: 'min' | 'max'): Point | null => {
@@ -466,6 +532,8 @@ const collectLevelChildren = (
         const wallId = knownId ?? collector.mint('wall', child.id);
         const openingIds: OpeningId[] = [];
 
+        const paint = paintOf(child);
+
         collector.wallIdOfNode.set(child.id, wallId);
         collector.walls.push({
           ...reviewOf(child, knownId !== null),
@@ -479,6 +547,7 @@ const collectLevelChildren = (
           heightMm: millimetresOf(child.height),
           kind: readOneOf(fieldsOf(child), 'kind', WALL_KINDS) ?? 'partition',
           openingIds,
+          ...(paint === null ? {} : { paint }),
         });
 
         collectWallChildren(scene, child, wallId, openingIds, collector);
@@ -513,6 +582,7 @@ const collectLevelChildren = (
           outline,
           areaM2: readNumber(fields, 'areaM2') ?? computeArea(outline.map(toPointMm)),
           wallIds: [],
+          ...(knownId === null ? {} : floorFieldsOf(scene, knownId)),
         });
         break;
       }

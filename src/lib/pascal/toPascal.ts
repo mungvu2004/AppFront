@@ -252,7 +252,10 @@ const wallNodeOf = (
   height: metresOf(wall.heightMm),
   ...wallSidesOf(wall, rooms),
   ...wallDressingOf(wall, style),
-  metadata: { appfront: originOf(wall, { kind: wall.kind }) },
+  // W3a — khe của phong cách (chưa sơn): lượt về chỉ ghi `Wall.paint` cho mặt khác cái này.
+  metadata: {
+    appfront: originOf(wall, { kind: wall.kind, styleSlots: wallDressingOf({ kind: wall.kind, heightMm: wall.heightMm }, style).slots }),
+  },
 });
 
 /**
@@ -423,8 +426,13 @@ const slabNodeOf = (room: Room, levelNodeId: PascalNodeId, style: SceneStyle): P
   autoFromWalls: false,
   // Khai đích danh — xem `PascalSlabNode.slots`; quy tắc chọn ở `sceneDressing.ts`.
   slots: { surface: floorMaterialOf(room, style) },
+  // W3a — phong cách + mặt sàn nó cho (chưa đè): lượt về chỉ ghi `finish`/`floorMaterial` khi sàn khác cái này.
   metadata: {
-    appfront: originOf(room, { usage: room.usage }),
+    appfront: originOf(room, {
+      usage: room.usage,
+      style: style.id,
+      styleSurface: floorMaterialOf({ usage: room.usage, ...(room.finish === undefined ? {} : { finish: room.finish }) }, style),
+    }),
   },
 });
 
