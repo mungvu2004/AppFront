@@ -57,7 +57,8 @@ const GRID_MM = 200;
 const BEDROOM_MIN_M2 = 6;
 const DOUBLE_BED_MIN_M2 = 9;
 const DOUBLE_BED_MIN_SHORT_MM = 2600;
-const LIVING_MIN_M2 = 10;
+// Phòng khách nhà phố thường 8–10 m²: vẫn đủ một sofa 2 m (V5 D1).
+const LIVING_MIN_M2 = 8;
 const KITCHEN_DINING_MIN_M2 = 10;
 const LIVING_DINING_MIN_M2 = 18;
 
@@ -179,11 +180,24 @@ const place = (ctx: Ctx, piece: Piece, at: Point, rotationDeg: number, n?: numbe
   return item;
 };
 
-/** Cạnh phòng xếp theo đoạn trống giảm dần, rồi theo thứ tự cạnh. */
+/**
+ * Cạnh phòng xếp theo đoạn trống giảm dần, rồi theo thứ tự cạnh. Chỉ CỬA ĐI chặn đoạn trống:
+ * đầu giường/lưng sofa tựa dưới cửa sổ là bình thường, còn để cửa sổ chặn thì phòng nhỏ không
+ * còn cạnh nào đủ dài (nguyên nhân chính của phòng trống, V5 D1).
+ */
 const rankedEdges = (room: Room, graph: SpatialGraph): RankedEdge[] =>
-  roomEdges(room, graph)
+  roomEdges(room, { ...graph, openings: graph.openings.filter((o) => o.kind === 'door') })
     .map((edge, index) => ({ edge, span: widestSpan(edge), index }))
     .sort((p, q) => lengthOf(q.span) - lengthOf(p.span) || p.index - q.index);
+
+/**
+ * Vị trí thử dọc đoạn trống: giữa đoạn, rồi sát hai đầu (nửa món + lùi outline). Đồ thật như
+ * tủ áo hay chiếm giữa tường; trượt về một đầu thường còn chỗ (V5 D1).
+ */
+const slotsOf = (span: Span, half: number): number[] => {
+  const end = half + INSET_MM + SLACK_MM;
+  return [...new Set([(span.from + span.to) / 2, span.from + end, span.to - end])];
+};
 
 const furnishBedroom = (ctx: Ctx, edges: readonly RankedEdge[], areaM2: number): void => {
   const inner = computeLargestInnerRectangle(ctx.room.outline.map(toMm));
@@ -193,14 +207,15 @@ const furnishBedroom = (ctx: Ctx, edges: readonly RankedEdge[], areaM2: number):
   for (const bed of big ? [DOUBLE_BED, SINGLE_BED] : [SINGLE_BED]) {
     for (const { edge, span } of edges) {
       if (lengthOf(span) < bed.w + 2 * BED_SIDE_MM) continue;
-      const t = (span.from + span.to) / 2;
-      const spot = againstEdge(edge, t, bed);
-      if (place(ctx, bed, spot.at, spot.rotationDeg) === null) continue;
-      [-1, 1].forEach((side, i) => {
-        const s = againstEdge(edge, t + side * (bed.w / 2 + GAP_MM + SLACK_MM + NIGHTSTAND.w / 2), NIGHTSTAND);
-        place(ctx, NIGHTSTAND, s.at, s.rotationDeg, i + 1);
-      });
-      return;
+      for (const t of slotsOf(span, bed.w / 2 + BED_SIDE_MM)) {
+        const spot = againstEdge(edge, t, bed);
+        if (place(ctx, bed, spot.at, spot.rotationDeg) === null) continue;
+        [-1, 1].forEach((side, i) => {
+          const s = againstEdge(edge, t + side * (bed.w / 2 + GAP_MM + SLACK_MM + NIGHTSTAND.w / 2), NIGHTSTAND);
+          place(ctx, NIGHTSTAND, s.at, s.rotationDeg, i + 1);
+        });
+        return;
+      }
     }
   }
 };
@@ -208,8 +223,13 @@ const furnishBedroom = (ctx: Ctx, edges: readonly RankedEdge[], areaM2: number):
 const furnishLiving = (ctx: Ctx, edges: readonly RankedEdge[]): void => {
   for (const { edge, span } of edges) {
     if (lengthOf(span) < SOFA.w) continue;
-    const spot = againstEdge(edge, (span.from + span.to) / 2, SOFA);
-    const sofa = place(ctx, SOFA, spot.at, spot.rotationDeg);
+    let spot = againstEdge(edge, span.from, SOFA);
+    let sofa: Furniture | null = null;
+    for (const t of slotsOf(span, SOFA.w / 2)) {
+      spot = againstEdge(edge, t, SOFA);
+      sofa = place(ctx, SOFA, spot.at, spot.rotationDeg);
+      if (sofa !== null) break;
+    }
     if (sofa === null) continue;
 
     const n = edge.inwardNormal;
@@ -321,11 +341,17 @@ const isRug = (f: Furniture): boolean => {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const furnishEmptyRooms = (graph: SpatialGraph, _style: SceneStyle): readonly Furniture[] => {
   const out: Furniture[] = [];
+  const usageOf = new Map(graph.rooms.map((r) => [r.id, r.usage]));
+  const isDiningTable = (f: Furniture): boolean =>
+    f.kind === 'table' &&
+    !['nightstand', 'coffeeTable'].includes(roleOf(f, f.roomId === undefined ? undefined : usageOf.get(f.roomId)));
   const rooms = [...graph.rooms].sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));
   // Thảm nằm dưới đồ nên không chiếm chỗ.
   const solid = graph.furniture.filter((f) => !isRug(f));
 
-  for (const room of rooms) {
+  // Lượt 0: giường, sofa, bàn ăn trong bếp; lượt 1: bàn ăn phòng khách — để bàn của bếp (bất kể
+  // thứ tự id phòng) chặn được bàn thứ hai ở phòng khách cùng tầng (V5 D10).
+  for (const pass of [0, 1]) for (const room of rooms) {
     const outlineMm = room.outline.map(toMm);
     const real = graph.furniture.filter(
       (f) =>
@@ -333,15 +359,28 @@ export const furnishEmptyRooms = (graph: SpatialGraph, _style: SceneStyle): read
         (f.roomId === undefined && f.levelId === room.levelId && outlineContains(outlineMm, toMm(f.centre))),
     );
     const areaM2 = computeArea(outlineMm);
-    const needsBed = room.usage === 'bedroom' && areaM2 >= BEDROOM_MIN_M2 && !real.some((f) => f.kind === 'bed');
+    const needsBed =
+      pass === 0 && room.usage === 'bedroom' && areaM2 >= BEDROOM_MIN_M2 && !real.some((f) => f.kind === 'bed');
     const needsSofa =
+      pass === 0 &&
       room.usage === 'livingRoom' &&
       areaM2 >= LIVING_MIN_M2 &&
       !real.some((f) => f.kind === 'chair' || roleOf(f, room.usage) === 'sofa');
     const needsTable =
-      ((room.usage === 'kitchen' && areaM2 >= KITCHEN_DINING_MIN_M2) ||
-        (room.usage === 'livingRoom' && areaM2 >= LIVING_DINING_MIN_M2)) &&
-      !real.some((f) => f.kind === 'table' && !['nightstand', 'coffeeTable'].includes(roleOf(f, room.usage)));
+      ((pass === 0 && room.usage === 'kitchen' && areaM2 >= KITCHEN_DINING_MIN_M2) ||
+        (pass === 1 && room.usage === 'livingRoom' && areaM2 >= LIVING_DINING_MIN_M2)) &&
+      !real.some(isDiningTable) &&
+      // Phòng khách không thêm bàn ăn thứ hai khi bếp/phòng khách cùng tầng đã có bàn (V5 D10).
+      !(
+        room.usage === 'livingRoom' &&
+        [...graph.furniture, ...out].some(
+          (f) =>
+            f.levelId === room.levelId &&
+            f.roomId !== undefined &&
+            ['kitchen', 'livingRoom'].includes(usageOf.get(f.roomId) ?? '') &&
+            isDiningTable(f),
+        )
+      );
     if (!needsBed && !needsSofa && !needsTable) continue;
 
     const ctx: Ctx = {
