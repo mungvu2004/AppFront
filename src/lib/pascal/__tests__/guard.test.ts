@@ -227,6 +227,33 @@ describe('createChangeGate', () => {
     });
   });
 
+  it('xoá đồ bày biện sinh ra (`item_DRESS-…`, J10) không bao giờ phải xác nhận', () => {
+    const base = sceneWithWalls(1);
+    const level = base.nodes[LEVEL_ID];
+    const dressId = 'item_DRESS-bed-R-ROOM0';
+
+    if (level?.type !== 'level') throw new Error('cảnh phải có tầng');
+
+    const scene: PascalScene = {
+      rootNodeIds: base.rootNodeIds,
+      nodes: {
+        ...base.nodes,
+        [LEVEL_ID]: { ...level, children: [...level.children, dressId] },
+        [dressId]: {
+          object: 'node',
+          id: dressId,
+          type: 'item',
+          parentId: LEVEL_ID,
+          position: [0, 0, 0],
+          rotation: [0, 0, 0],
+          scale: [1, 1, 1],
+        } as unknown as PascalNode,
+      },
+    };
+
+    expect(readyGate().admit(commitOf([dressId], [dressId]), scene)).toEqual({ admitted: true });
+  });
+
   it('không coi lượt sửa lớn là lượt xoá lớn', () => {
     const everyWall = Array.from({ length: 10 }, (_unused, index) => `wall_W-WALL${String(index)}`);
 

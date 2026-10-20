@@ -24,7 +24,7 @@ import {
   type Fixture,
 } from '../src/lib/pascal/__fixtures__';
 import { toPascalId } from '../src/lib/pascal/ids';
-import { floorMaterialOf, isGeneratedLightId } from '../src/lib/pascal/sceneDressing';
+import { floorMaterialOf, isGeneratedLightId, isGeneratedNodeId } from '../src/lib/pascal/sceneDressing';
 import { toPascalScene } from '../src/lib/pascal/toPascal';
 
 import { installFakeApi, type WireGraphDocument } from './fixtures/fakeApi';
@@ -220,7 +220,8 @@ test('C8: F2 góc quay item khớp −rotationDeg, mô hình từ /items/', asyn
   // Đèn trần tự sinh (`item_LIGHT-<phòng>`) không phải đồ đạc của F2: đếm riêng theo toPascalScene.
   const lights = all.filter((item) => isGeneratedLightId(item.id));
   expect.soft(lights.length, 'C8 số đèn trần = toPascalScene').toBe(expected.lights);
-  const items = all.filter((item) => !isGeneratedLightId(item.id));
+  // Đồ bày biện sinh ra (`item_DRESS-…`, J10) không có trong bản vẽ: chỉ soát đồ thật.
+  const items = all.filter((item) => !isGeneratedNodeId(item.id));
   expect(items.length, 'C8 có item').toBeGreaterThan(0);
   const offYaw: string[] = [];
   const offSrc: string[] = [];

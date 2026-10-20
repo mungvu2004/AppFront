@@ -61,7 +61,7 @@ import {
 import { AUTHORED_BY_HAND, toPointMm } from '@/lib/commands/business/shared';
 
 import { appFrontIdOf, BUILDING_NODE_ID } from './ids';
-import { isGeneratedLightId } from './sceneDressing';
+import { isGeneratedNodeId } from './sceneDressing';
 import type {
   PascalLevelNode,
   PascalNode,
@@ -478,6 +478,9 @@ const collectLevelChildren = (
       }
 
       case 'item': {
+        // Đồ bày biện / đèn AppFront tự sinh (J10): dựng lại mỗi lần mở, không bao giờ thành đồ đạc.
+        if (isGeneratedNodeId(child.id)) break;
+
         if (!positionIsUsable(child.position) || !positionIsUsable(child.rotation)) {
           collector.skip(child.id, 'đồ đạc', 'Vị trí hoặc góc quay của đồ đạc không phải một số đo được.');
           break;
@@ -570,7 +573,7 @@ const collectLevelChildren = (
         }
 
         for (const fixture of childrenOf(scene, child)) {
-          if (!isGeneratedLightId(fixture.id)) {
+          if (!isGeneratedNodeId(fixture.id)) {
             collector.skip(fixture.id, CEILING_FIXTURE_KIND, CEILING_FIXTURE_REASON);
           }
         }

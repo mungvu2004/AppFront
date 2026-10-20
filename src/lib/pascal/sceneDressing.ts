@@ -140,6 +140,15 @@ const GENERATED_LIGHT_PREFIX = 'LIGHT-';
 export const isGeneratedLightId = (nodeId: PascalNodeId): boolean =>
   bodyOfPascalId(nodeId).startsWith(GENERATED_LIGHT_PREFIX);
 
+/** Thân id của đồ đạc sinh ra (J10): `item_DRESS-<vai trò>-<id neo>[-<n>]`. */
+export const GENERATED_DRESS_PREFIX = 'DRESS-';
+
+/** Node AppFront tự sinh (đèn trần hoặc đồ bày biện) — không bao giờ thành dữ liệu của bản vẽ. */
+export const isGeneratedNodeId = (nodeId: PascalNodeId): boolean => {
+  const body = bodyOfPascalId(nodeId);
+  return body.startsWith(GENERATED_LIGHT_PREFIX) || body.startsWith(GENERATED_DRESS_PREFIX);
+};
+
 const metresOf = (valueMm: number): number => millimetresToMetres(millimetres(valueMm));
 
 /**

@@ -59,7 +59,7 @@ import { err, ok, type Result } from '@/lib/http/types';
 import { sameValue } from './diff';
 import type { PascalCommit } from './guard';
 import { appFrontIdOf, bodyOfPascalId } from './ids';
-import { isGeneratedLightId } from './sceneDressing';
+import { isGeneratedNodeId } from './sceneDressing';
 import {
   CEILING_FIXTURE_KIND,
   CEILING_FIXTURE_REASON,
@@ -145,8 +145,8 @@ const kindOfNode = (
   scene: PascalScene,
   idBook: PascalIdBook,
 ): EntityKind | 'structural' | null => {
-  // Đèn trần do AppFront sinh ra: không phải đồ đạc, kể cả khi đã bị xoá khỏi cảnh.
-  if (isGeneratedLightId(nodeId)) {
+  // Đèn trần và đồ bày biện do AppFront sinh ra: không phải đồ đạc, kể cả khi đã bị xoá khỏi cảnh.
+  if (isGeneratedNodeId(nodeId)) {
     return 'structural';
   }
 

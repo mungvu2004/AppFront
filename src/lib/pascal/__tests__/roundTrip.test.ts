@@ -24,6 +24,7 @@ import { describeUsage } from '@/domain/rooms/classify';
 import type { Furniture, SpatialGraph } from '@/domain/spatial/types';
 
 import { BUILDING_NODE_ID, SITE_NODE_ID } from '../ids';
+import { isGeneratedLightId, isGeneratedNodeId } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
 import { toSpatialGraph } from '../toSpatial';
 import type { PascalScene, PascalZoneNode } from '../types';
@@ -77,8 +78,11 @@ describe('toPascalScene — lượt đi', () => {
     expect(countOf('zone')).toBe(SAMPLE_ROOM_COUNT);
     // Mỗi phòng có HAI node: `zone` là khối không gian, `slab` là mặt sàn thật.
     expect(countOf('slab')).toBe(SAMPLE_ROOM_COUNT);
-    // Mỗi phòng thêm một đèn âm trần sinh ra (`item`, con của `ceiling`).
-    expect(countOf('item')).toBe(SAMPLE_FURNITURE_COUNT + SAMPLE_ROOM_COUNT);
+    // Đồ thật đúng bằng bộ mẫu; mỗi phòng thêm một đèn âm trần sinh ra (`item`, con của `ceiling`);
+    // đồ bày biện sinh ra (`item_DRESS-…`, J10) là phần thêm, không đếm ở đây.
+    const items = Object.values(scene.nodes).filter((node) => node.type === 'item');
+    expect(items.filter((node) => !isGeneratedNodeId(node.id))).toHaveLength(SAMPLE_FURNITURE_COUNT);
+    expect(items.filter((node) => isGeneratedLightId(node.id))).toHaveLength(SAMPLE_ROOM_COUNT);
     expect(countOf('ceiling')).toBe(SAMPLE_ROOM_COUNT);
   });
 

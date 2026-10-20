@@ -15,7 +15,7 @@ import { millimetres } from '@/domain/units/types';
 import { fixtureF1, fixtureF2 } from '../__fixtures__';
 import { CATALOG_MODELS } from '../furnitureCatalog';
 import { toPascalId } from '../ids';
-import { isGeneratedLightId } from '../sceneDressing';
+import { isGeneratedNodeId } from '../sceneDressing';
 import { SCENE_STYLES, type SceneStyle } from '../sceneStyles';
 import { toPascalScene } from '../toPascal';
 import { toSpatialGraph } from '../toSpatial';
@@ -24,7 +24,7 @@ import type { PascalItemNode } from '../types';
 const graphOf = (doc: unknown): SpatialGraph => SpatialGraphDocumentSchema.parse(doc).graph as SpatialGraph;
 
 const itemsOf = (graph: SpatialGraph): PascalItemNode[] =>
-  Object.values(toPascalScene(graph).scene.nodes).filter((n): n is PascalItemNode => n.type === 'item' && !isGeneratedLightId(n.id));
+  Object.values(toPascalScene(graph).scene.nodes).filter((n): n is PascalItemNode => n.type === 'item' && !isGeneratedNodeId(n.id));
 
 const metresOfMm = (mm: number): number => mm / 1000;
 

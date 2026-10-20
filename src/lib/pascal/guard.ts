@@ -30,7 +30,7 @@
  * nên màn hình bắt mã này rồi mở hộp thoại, chứ không nuốt lượt ghi.
  */
 
-import { isGeneratedLightId } from './sceneDressing';
+import { isGeneratedNodeId } from './sceneDressing';
 import type { PascalNode, PascalNodeId, PascalScene } from './types';
 
 /** Ngưỡng xoá hàng loạt: một phần năm số đối tượng của một tầng. */
@@ -111,9 +111,9 @@ const descendantsOf = (scene: PascalScene, rootId: PascalNodeId): Set<PascalNode
   return found;
 };
 
-/** Trần và đèn trần sinh ra từ phòng — không phải đối tượng của người dùng, không bao giờ được lưu. */
+/** Trần, đèn trần và đồ bày biện sinh ra — không phải đối tượng của người dùng, không bao giờ được lưu. */
 const isGeneratedDressing = (scene: PascalScene, nodeId: PascalNodeId): boolean =>
-  scene.nodes[nodeId]?.type === 'ceiling' || isGeneratedLightId(nodeId);
+  scene.nodes[nodeId]?.type === 'ceiling' || isGeneratedNodeId(nodeId);
 
 /**
  * Mọi tầng của cảnh, kèm tập node nằm dưới nó — trừ trần và đèn sinh ra: đếm

@@ -41,6 +41,8 @@ import { CATALOG_MODELS, VARIANT_MODEL, modelSrcOf, thumbnailOf } from './furnit
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
 import { ceilingNodesOf, floorMaterialOf, itemSlotsOf, SCENE_MATERIALS, wallDressingOf } from './sceneDressing';
 import { SCENE_STYLE_MATERIALS, sceneStyleOf, type SceneStyle } from './sceneStyles';
+import { dressingOf } from './sceneDressingRules';
+import { furnishEmptyRooms } from './sceneFurnish';
 import { modelFolderOf } from './sceneVariety';
 import type {
   AppFrontOrigin,
@@ -644,6 +646,11 @@ export const toPascalScene = (
   /* Chiều cao tầng: cái thang dựng cao trọn tầng, và trần của phòng. */
   const levelHeightMmOf = new Map<string, number>();
   const roomUsageOf = new Map<string, RoomUsage>(graph.rooms.map((room) => [room.id, room.usage]));
+  /* Phòng và đồ thật đã dựng được: đồ sinh ra chỉ suy từ chúng (toạ độ hỏng thì không vào). */
+  const builtWalls: Wall[] = [];
+  const builtOpenings: Opening[] = [];
+  const builtRooms: Room[] = [];
+  const builtFurniture: Furniture[] = [];
   let elevationIndex = 0;
 
   for (const level of orderedLevels) {
@@ -694,6 +701,7 @@ export const toPascalScene = (
     wallCountOfLevel.set(wall.levelId, ordinal);
     const node = wallNodeOf(wall, ordinal, levelNodeId, childrenFor(toPascalId('wall', wall.id)), style);
 
+    builtWalls.push(wall);
     nodes[node.id] = node;
     wallNodeIdOf.set(wall.id, node.id);
     adopt(levelNodeId, node.id);
@@ -716,6 +724,7 @@ export const toPascalScene = (
 
     const node = openingNodeOf(opening, wallNodeId);
 
+    builtOpenings.push(opening);
     nodes[node.id] = node;
     adopt(wallNodeId, node.id);
   }
@@ -738,6 +747,8 @@ export const toPascalScene = (
       skipped.push(skip(room.id, 'phòng', 'Đường bao phòng có điểm không phải một toạ độ đo được.'));
       continue;
     }
+
+    builtRooms.push(room);
 
     for (const node of [zoneNodeOf(room, levelNodeId, levelHeightMm), slabNodeOf(room, levelNodeId, style)]) {
       nodes[node.id] = node;
@@ -787,7 +798,30 @@ export const toPascalScene = (
     const usage = furniture.roomId === undefined ? undefined : roomUsageOf.get(furniture.roomId);
     const node = itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage);
 
+    builtFurniture.push(furniture);
     nodes[node.id] = node;
+    adopt(levelNodeId, node.id);
+  }
+
+  /*
+   * Đồ sinh ra (J10): bày phòng trống rồi bày biện, cùng đường `itemNodeOf` với đồ thật, sau
+   * đồ thật. Không bao giờ được lưu (`isGeneratedNodeId`), không tính vào `skipped`: món nào
+   * không dựng được thì bỏ im lặng.
+   */
+  const usable = { ...graph, walls: builtWalls, openings: builtOpenings, rooms: builtRooms, furniture: builtFurniture };
+  const furnished = furnishEmptyRooms(usable, style);
+  const dressed = dressingOf({ ...usable, furniture: [...builtFurniture, ...furnished] }, style);
+
+  for (const furniture of [...furnished, ...dressed]) {
+    const levelNodeId = levelNodeIdOf.get(furniture.levelId);
+    const levelHeightMm = levelHeightMmOf.get(furniture.levelId);
+
+    if (levelNodeId === undefined || levelHeightMm === undefined) continue;
+
+    const usage = furniture.roomId === undefined ? undefined : roomUsageOf.get(furniture.roomId);
+    const node = itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage);
+
+    nodes[node.id] = { ...node, metadata: { ...node.metadata, generated: 'dressing' } };
     adopt(levelNodeId, node.id);
   }
 

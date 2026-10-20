@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import type { Furniture, Level, Room, SpatialGraph, Wall } from '@/domain/spatial/types';
 
 import { BUILDING_NODE_ID, SITE_NODE_ID } from '../ids';
-import { ceilingNodesOf, isGeneratedLightId } from '../sceneDressing';
+import { ceilingNodesOf, isGeneratedNodeId } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
 import { CEILING_FIXTURE_KIND, toSpatialGraph } from '../toSpatial';
 import type {
@@ -93,7 +93,7 @@ const entityNodeCount = (scene: PascalScene): number =>
       node.type !== 'building' &&
       node.type !== 'slab' &&
       node.type !== 'ceiling' &&
-      !isGeneratedLightId(node.id),
+      !isGeneratedNodeId(node.id),
   ).length;
 
 describe('toPascalScene — đường hỏng', () => {
