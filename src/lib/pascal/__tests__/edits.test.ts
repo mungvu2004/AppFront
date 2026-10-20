@@ -711,21 +711,28 @@ describe('đồ bày biện sinh ra', () => {
     expect(toSpatialGraph(dressed)).toEqual(toSpatialGraph(extScene));
   });
 
-  it('dời hay xoá nó: không lệnh nào, không lỗi lạ', () => {
+  it('xoá nó: không lệnh nào, không lỗi lạ (chưa lưu được — V3 báo)', () => {
+    const result = createPascalEditCommand({
+      graph: normalizeSpatial(extGraph),
+      scene: extScene,
+      commit: { origin: 'local', changedNodeIds: [dress.id] },
+      actorId: ACTOR,
+    });
+
+    expect(result.ok ? null : result.error.code).toBe('PASCAL_NO_CHANGE');
+  });
+
+  it('dời nó (V4): được nhận nuôi thành đồ thật id F-, không bao giờ mang id DRESS-', () => {
     const moved: PascalScene = { ...dressed, nodes: { ...dressed.nodes, [dress.id]: { ...dress, position: [0, 0, 0] } } };
+    const result = createPascalEditCommand({
+      graph: normalizeSpatial(extGraph),
+      scene: moved,
+      commit: { origin: 'local', changedNodeIds: [dress.id] },
+      actorId: ACTOR,
+    });
+    const ids = result.ok ? result.data.changes.map((change) => change.after?.id ?? '') : [];
 
-    for (const [scene, origin] of [
-      [moved, 'local'],
-      [extScene, 'local'],
-    ] as const) {
-      const result = createPascalEditCommand({
-        graph: normalizeSpatial(extGraph),
-        scene,
-        commit: { origin, changedNodeIds: [dress.id] },
-        actorId: ACTOR,
-      });
-
-      expect(result.ok ? null : result.error.code).toBe('PASCAL_NO_CHANGE');
-    }
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.every((id) => id.startsWith('F-'))).toBe(true);
   });
 });

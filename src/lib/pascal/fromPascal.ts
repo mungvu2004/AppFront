@@ -38,6 +38,7 @@
  * nên đừng đọc bài kiểm xanh của chúng thành "đường sửa đã chạy".
  */
 
+import { outlineContains } from '@/domain/rooms/area';
 import { readKindFromId, type EntityKind, type IdByKind } from '@/domain/spatial/ids';
 import {
   isEntityOfKind,
@@ -45,9 +46,11 @@ import {
   type NormalizedSpatial,
   type SpatialEntity,
 } from '@/domain/spatial/normalize';
+import type { Furniture, Room } from '@/domain/spatial/types';
 import {
   buildCommand,
   formatCount,
+  toPointMm,
   type CommandContext,
   type CommandRefusal,
 } from '@/lib/commands/business/shared';
@@ -61,8 +64,10 @@ import type { PascalCommit } from './guard';
 import { appFrontIdOf, bodyOfPascalId } from './ids';
 import { isGeneratedNodeId } from './sceneDressing';
 import {
+  adoptableRoomOf,
   CEILING_FIXTURE_KIND,
   CEILING_FIXTURE_REASON,
+  isEditedGenerated,
   toSpatialGraph,
   type PascalIdBook,
 } from './toSpatial';
@@ -285,6 +290,34 @@ const changeBetween = <K extends EntityKind>(
   );
 };
 
+/**
+ * V4 — món đồ đã dời ra khỏi phòng của nó sang một phòng khác cùng tầng thì
+ * `roomId` theo sang. Tâm vẫn trong phòng cũ, hoặc không phòng nào chứa: giữ
+ * nguyên — kể cả tâm nằm đúng trên đường bao phòng cũ (cách cạnh ≤ 1 mm).
+ * Chỉ áp cho món mà lượt này dời thật: dữ liệu cũ có món nằm lệch phòng, đổi
+ * chúng khi không ai chạm tới là ghi từ hư không.
+ */
+const withRoomOfCentre = (item: Furniture, rooms: readonly Room[]): Furniture => {
+  const { x, y } = item.centre;
+  const contains = (room: Room): boolean =>
+    room.levelId === item.levelId && outlineContains(room.outline.map(toPointMm), toPointMm(item.centre));
+  const onEdge = (room: Room): boolean =>
+    room.outline.some((a, index) => {
+      const b = room.outline[(index + 1) % room.outline.length] ?? a;
+      const length2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
+      const t = length2 === 0 ? 0 : Math.min(1, Math.max(0, ((x - a.x) * (b.x - a.x) + (y - a.y) * (b.y - a.y)) / length2));
+
+      return Math.hypot(x - (a.x + t * (b.x - a.x)), y - (a.y + t * (b.y - a.y))) <= 1;
+    });
+  const current = rooms.find((room) => room.id === item.roomId);
+
+  if (current === undefined || contains(current) || onEdge(current)) return item;
+
+  const next = rooms.find(contains);
+
+  return next === undefined ? item : { ...item, roomId: next.id };
+};
+
 /** Câu mô tả cho nhật ký hoạt động: đếm theo việc, rồi đếm theo loại. */
 const describe = (changes: readonly EntityChange[]): string => {
   const countOf = new Map<string, number>();
@@ -351,7 +384,16 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
   // vừa vẽ được cấp id **trong** lượt đổi dưới đây, và không có sổ thì lượt
   // này không tìm lại được id vừa cấp — đối tượng mới sẽ lặng lẽ không vào lệnh.
   const idBook: PascalIdBook = input.idBook ?? new Map();
-  const { graph: after, skipped } = toSpatialGraph(input.scene, idBook);
+  /* V4 — sửa (dời/xoay/kéo) một món bày biện sinh ra còn trong cảnh thì cả bộ
+     của phòng ấy thành đồ thật trong cùng lệnh: nhận nửa bộ thì nửa kia biến
+     mất ở lượt mở sau (`furnishEmptyRooms` chỉ lo phòng trống). Xoá thì vẫn chưa lưu được. */
+  const adoptRoomIds = new Set(
+    input.commit.changedNodeIds
+      .map((nodeId) => input.scene.nodes[nodeId])
+      .map((node) => (isEditedGenerated(node) ? adoptableRoomOf(node) : null))
+      .filter((roomId): roomId is string => roomId !== null),
+  );
+  const { graph: after, skipped } = toSpatialGraph(input.scene, idBook, adoptRoomIds);
   const afterById = new Map<string, SpatialEntity>();
 
   for (const entity of [
@@ -389,9 +431,29 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
 
     seen.add(entityId);
 
-    const change = changeBetween(kind, graphEntity(input.graph, entityId), afterById.get(entityId));
+    const before = graphEntity(input.graph, entityId);
+    const now = afterById.get(entityId);
+    // V4 — đồ thật vừa dời: `roomId` theo phòng mới chứa tâm nó.
+    const moved =
+      now !== undefined &&
+      before !== undefined &&
+      isEntityOfKind('furniture', now) &&
+      isEntityOfKind('furniture', before) &&
+      !sameValue(before.centre, now.centre);
+    const change = changeBetween(kind, before, moved ? withRoomOfCentre(now, after.rooms) : now);
 
     if (change !== null) {
+      changes.push(change);
+    }
+  }
+
+  for (const node of Object.values(input.scene.nodes)) {
+    const minted = adoptRoomIds.has(adoptableRoomOf(node) ?? '') ? idBook.get(node.id) : undefined;
+    const change =
+      minted === undefined || seen.has(minted) ? null : changeBetween('furniture', undefined, afterById.get(minted));
+
+    if (minted !== undefined && change !== null) {
+      seen.add(minted);
       changes.push(change);
     }
   }

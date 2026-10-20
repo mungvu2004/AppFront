@@ -61,7 +61,7 @@ import {
 import { AUTHORED_BY_HAND, toPointMm } from '@/lib/commands/business/shared';
 
 import { appFrontIdOf, BUILDING_NODE_ID } from './ids';
-import { isGeneratedNodeId } from './sceneDressing';
+import { isGeneratedLightId, isGeneratedNodeId } from './sceneDressing';
 import type {
   PascalLevelNode,
   PascalNode,
@@ -296,6 +296,8 @@ interface Collector {
   readonly boundaryNodeIdsOf: Map<RoomId, readonly PascalNodeId[]>;
   /** Cấp id cho node Pascal chưa có id AppFront. */
   readonly mint: Minter;
+  /** Phòng có đồ bày biện sinh ra được "nhận nuôi" trong lượt này (V4). */
+  readonly adoptRoomIds: ReadonlySet<string>;
 }
 
 const positionIsUsable = (position: PascalVec3): boolean => isUsable(...position);
@@ -363,6 +365,44 @@ const itemBoxOf = (
       y: centre.y + (stored.max.y - centre.y) * scale[2],
     },
   };
+};
+
+/**
+ * V4 — phòng của một món đồ bày biện sinh ra (`item_DRESS-…`) mà người dùng
+ * nhận nuôi được, hoặc `null`. Đèn trần không bao giờ được nhận nuôi.
+ */
+export const adoptableRoomOf = (node: PascalNode | undefined): string | null => {
+  if (node?.type !== 'item' || !isGeneratedNodeId(node.id) || isGeneratedLightId(node.id)) return null;
+
+  const roomId = node.metadata?.appfront?.fields?.['roomId'];
+
+  return typeof roomId === 'string' && isIdOfKind('room', roomId) ? roomId : null;
+};
+
+/**
+ * V4 — món bày biện sinh ra đã bị người dùng dời / kéo / xoay chưa, so với
+ * chính siêu dữ liệu lượt đi: tâm khác tâm hộp bao quá 1 mm, tỉ lệ khác 1, hoặc
+ * góc khác `fields.rotationDeg` (chỉ khi lượt đi có ghi trường này).
+ * Lượt nạp đầu khai mọi node là "đã đổi" nên không được nhận nuôi gì ở đó.
+ */
+export const isEditedGenerated = (node: PascalNode | undefined): boolean => {
+  if (node?.type !== 'item' || adoptableRoomOf(node) === null) return false;
+
+  const fields = fieldsOf(node);
+  const min = readCorner(fields, 'min');
+  const max = readCorner(fields, 'max');
+  const rotationDeg = readNumber(fields, 'rotationDeg');
+  const moved =
+    min === null ||
+    max === null ||
+    Math.abs(millimetresOf(node.position[0]) - (min.x + max.x) / 2) > 1 ||
+    Math.abs(millimetresOf(node.position[2]) - (min.y + max.y) / 2) > 1;
+
+  return (
+    moved ||
+    !isUnscaled(node.scale) ||
+    (rotationDeg !== null && planDegreesOf(node.rotation[1]) !== normaliseDegrees(asDegrees(rotationDeg)))
+  );
 };
 
 const collectWallChildren = (
@@ -478,8 +518,9 @@ const collectLevelChildren = (
       }
 
       case 'item': {
-        // Đồ bày biện / đèn AppFront tự sinh (J10): dựng lại mỗi lần mở, không bao giờ thành đồ đạc.
-        if (isGeneratedNodeId(child.id)) break;
+        // Đồ bày biện / đèn AppFront tự sinh (J10): dựng lại mỗi lần mở, không bao giờ thành đồ đạc —
+        // trừ khi người dùng vừa sửa một món của phòng ấy: cả bộ của phòng thành đồ thật, id `F-` mới (V4).
+        if (isGeneratedNodeId(child.id) && !collector.adoptRoomIds.has(adoptableRoomOf(child) ?? '')) break;
 
         if (!positionIsUsable(child.position) || !positionIsUsable(child.rotation)) {
           collector.skip(child.id, 'đồ đạc', 'Vị trí hoặc góc quay của đồ đạc không phải một số đo được.');
@@ -652,7 +693,11 @@ const collectLevelChildren = (
  * ghi chú về rỗng: lượt đi không mang chúng sang nên lượt về không có gì để
  * dựng lại — người gọi giữ bản cũ của ba danh sách ấy nếu cần.
  */
-export const toSpatialGraph = (scene: PascalScene, idBook?: PascalIdBook): SpatialGraphResult => {
+export const toSpatialGraph = (
+  scene: PascalScene,
+  idBook?: PascalIdBook,
+  adoptRoomIds: ReadonlySet<string> = new Set(),
+): SpatialGraphResult => {
   const mint = minterFor(idBook);
   const skipped: SkippedEntity[] = [];
   const skip = (id: string, kind: string, reason: string): void => {
@@ -716,6 +761,7 @@ export const toSpatialGraph = (scene: PascalScene, idBook?: PascalIdBook): Spati
     wallIdOfNode: new Map(),
     boundaryNodeIdsOf: new Map(),
     mint,
+    adoptRoomIds,
   };
 
   usableLevels.forEach((node, index) => {
