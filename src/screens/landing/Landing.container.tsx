@@ -9,18 +9,20 @@ import { useNavigationType } from 'react-router-dom';
 
 import { ScreenErrorBoundary } from '@/components/feedback/ScreenErrorBoundary';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { SCENES } from '@/lib/landing/timeline';
+import { SCENES, TRACK_SCREENS } from '@/lib/landing/timeline';
 import type { LandingHouse } from '@/lib/landing/types';
 
+import { ENTER } from './landing.copy';
 import { LandingView } from './LandingView';
+import { stepStartP } from './overlay';
 import { StaticLanding } from './StaticLanding';
 import { useLandingScroll } from './useLandingScroll';
 // Gói thành chuỗi trong chunk của route: cổng CSS tính theo tệp .css, mà chunk route còn dư chỗ.
 import landingCss from './landing.css?inline';
 
-const TOTAL = (SCENES[SCENES.length - 1]?.end ?? 1) - (SCENES[0]?.start ?? 0);
-/** Chiều cao đoạn cuộn tính bằng "số màn" ở bề ngang desktop; CSS rút lại ở tablet. */
-const TRACK_SCREENS = 10;
+const SCENE_IDS = SCENES.map((s) => s.id);
+/** Đoạn cuộn: TRACK_SCREENS màn cho p 0→1 cộng một màn ghim (start 'top top', end 'bottom bottom'). */
+const TRACK_VH = TRACK_SCREENS + 1;
 
 function LandingContent() {
   const reduced = useReducedMotion();
@@ -48,14 +50,21 @@ function LandingContent() {
     return <StaticLanding />;
   }
 
-  const suggestions = house?.checks.flatMap((c) => (!c.pass && c.suggestion !== undefined ? [c.suggestion] : []));
+  // ponytail: cuộn thẳng tới vị trí của p; thay bằng seekToScene(i) của useLandingScroll khi PERF-V thêm nó.
+  const onStep = (step: number): void => {
+    const el = track.current;
+    if (el === null) return;
+    const top = el.getBoundingClientRect().top + window.scrollY;
+    const p = stepStartP(step, SCENES, ENTER);
+    window.scrollTo({ top: top + (el.offsetHeight - window.innerHeight) * p });
+  };
 
   return (
     <LandingView
-      trackVh={TOTAL * TRACK_SCREENS}
-      lastScene={SCENES.length - 1}
-      loading={house === null}
-      suggestions={suggestions !== undefined && suggestions.length > 0 ? suggestions : undefined}
+      trackVh={TRACK_VH}
+      sceneIds={SCENE_IDS}
+      house={house}
+      onStep={onStep}
       onSkip={() => {
         skipRef.current?.();
         // Nút hiện sau khi khung kế tiếp vẽ xong; focus sớm hơn sẽ trượt vì nó còn ẩn.

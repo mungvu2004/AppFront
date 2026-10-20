@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import { createFrameGovernor, QUALITY, qualityForRenderer } from '../quality';
+import { benchmarkTier, createFrameGovernor, dampProgress, QUALITY, qualityForRenderer, sameNumbers, SCROLL_FEEL } from '../quality';
 
 describe('createFrameGovernor', () => {
   it('steps down only after sustained slow frames, then cools down', () => {
@@ -38,7 +38,41 @@ describe('createFrameGovernor', () => {
 
   it('lite has no composer, no shadows and DPR 1', () => {
     expect(QUALITY.lite).toMatchObject({ composer: false, shadows: false, ao: false, maxDpr: 1 });
-    expect(QUALITY.balanced.maxDpr).toBeLessThanOrEqual(1.5);
+    expect(QUALITY.balanced).toMatchObject({ composer: false, shadows: true });
+    expect(QUALITY.balanced.maxDpr).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('benchmarkTier', () => {
+  it('keeps a tier inside budget, steps down once per halving, floors at lite', () => {
+    expect(benchmarkTier('balanced', 14)).toBe('balanced');
+    expect(benchmarkTier('full', 35)).toBe('balanced');
+    expect(benchmarkTier('full', 90)).toBe('lite');
+    expect(benchmarkTier('lite', 200)).toBe('lite');
+  });
+});
+
+describe('dampProgress', () => {
+  it('eases toward raw, frame-rate independent, and snaps when close or on a big jump', () => {
+    const once = dampProgress(0, 0.1, 1 / 30);
+    let twice = dampProgress(0, 0.1, 1 / 60);
+    twice = dampProgress(twice, 0.1, 1 / 60);
+    expect(once).toBeGreaterThan(0);
+    expect(once).toBeLessThan(0.1);
+    expect(twice).toBeCloseTo(once, 10);
+    expect(dampProgress(0.5, 0.5 + SCROLL_FEEL.snap / 2, 1 / 60)).toBe(0.5 + SCROLL_FEEL.snap / 2);
+    expect(dampProgress(0, 0.9, 1 / 60)).toBe(0.9);
+    let p = 0;
+    for (let i = 0; i < 600 && p !== 0.2; i += 1) p = dampProgress(p, 0.2, 1 / 60);
+    expect(p).toBe(0.2); // settles exactly, so the page stops drawing
+  });
+});
+
+describe('sameNumbers', () => {
+  it('compares flat and one-level records', () => {
+    expect(sameNumbers({ a: 1, r: { w1: 0.5 } }, { a: 1, r: { w1: 0.5 } })).toBe(true);
+    expect(sameNumbers({ a: 1, r: { w1: 0.5 } }, { a: 1, r: { w1: 0.6 } })).toBe(false);
+    expect(sameNumbers({ a: 1 }, { a: 1, b: 2 })).toBe(false);
   });
 });
 

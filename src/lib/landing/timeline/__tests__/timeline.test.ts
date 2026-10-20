@@ -2,16 +2,29 @@
 import { describe, expect, it } from 'vitest';
 
 import { LANDING_HOUSE } from '../../house';
-import { cameraAt, furnitureRise, SCENES, sceneAt, stateAt, WAYPOINTS } from '..';
+import { arrive, cameraAt, furnitureRise, leave, SCENES, sceneAt, stateAt, TRACK_SCREENS, WAYPOINTS } from '..';
+
+const P = (screens: number): number => screens / TRACK_SCREENS;
+/** Thresholds were set for 1e-4 p on the v1 9-screen track (0.0009 screen); scale them per screen. */
+const K = (1e-4 * TRACK_SCREENS) / 0.0009;
+interface Cam { position: readonly number[]; target: readonly number[] }
+const turn = (a: Cam, b: Cam): number => {
+  const d = (c: Cam): number[] => c.target.map((v, i) => v - (c.position[i] ?? 0));
+  const [u, w] = [d(a), d(b)];
+  const cos = u.reduce((s, v, i) => s + v * (w[i] ?? 0), 0) / (Math.hypot(...u) * Math.hypot(...w) || 1);
+  return (Math.acos(Math.min(1, cos)) * 180) / Math.PI;
+};
 
 const dist = (a: readonly number[], b: readonly number[]): number =>
   Math.hypot((a[0] ?? 0) - (b[0] ?? 0), (a[1] ?? 0) - (b[1] ?? 0), (a[2] ?? 0) - (b[2] ?? 0));
 
 describe('scenes', () => {
   it('tiles [0, 1] with the storyboard intervals', () => {
-    expect(SCENES.map((s) => s.start)).toEqual([0, 0.08, 0.18, 0.3, 0.4, 0.55, 0.68, 0.78, 0.88]);
+    expect(SCENES).toHaveLength(9);
+    expect(SCENES[0]?.start).toBe(0);
+    SCENES.slice(1).forEach((s, i) => expect(s.start).toBe(SCENES[i]?.end));
     expect(SCENES.at(-1)?.end).toBe(1);
-    expect(sceneAt(0.08)).toEqual({ scene: 1, sceneLocal: 0 });
+    expect(sceneAt(SCENES[1]?.start ?? 0)).toEqual({ scene: 1, sceneLocal: 0 });
     expect(sceneAt(1)).toEqual({ scene: 8, sceneLocal: 1 });
     expect(sceneAt(-3).scene).toBe(0);
   });
@@ -52,7 +65,7 @@ describe('stateAt', () => {
 
   it('draws ink monotonically through S01', () => {
     let prev = -1;
-    for (let p = 0; p <= 0.08; p += 0.002) {
+    for (let p = 0; p <= (SCENES[1]?.start ?? 0); p += 0.0005) {
       const ink = stateAt(p).paper.ink;
       expect(ink).toBeGreaterThanOrEqual(prev);
       prev = ink;
@@ -60,41 +73,49 @@ describe('stateAt', () => {
     expect(prev).toBe(1);
   });
 
-  it('has every ground wall up by 0.47 and the upper storey by 0.55', () => {
-    const ground = LANDING_HOUSE.plan.walls.filter((w) => w.levelId === 'T1').map((w) => w.id);
+  it('raises the ground walls through S05, exterior first, everything up by S06', () => {
+    const ground = LANDING_HOUSE.plan.walls.filter((w) => w.levelId === LANDING_HOUSE.plan.levels[0]?.id).map((w) => w.id);
     const all = LANDING_HOUSE.plan.walls.map((w) => w.id);
-    expect(ground.every((id) => stateAt(0.47).build.wallRise[id] === 1)).toBe(true);
-    expect(ground.every((id) => (stateAt(0.4).build.wallRise[id] ?? 1) === 0)).toBe(true);
-    expect(all.every((id) => stateAt(0.55).build.wallRise[id] === 1)).toBe(true);
-    // Exterior walls lead: the first wall to move is load-bearing.
-    const s = stateAt(0.433);
+    const s5 = SCENES[4]?.start ?? 0;
+    const s6 = SCENES[5]?.start ?? 0;
+    expect(ground.every((id) => (stateAt(s5).build.wallRise[id] ?? 1) === 0)).toBe(true);
+    expect(all.every((id) => stateAt(s6).build.wallRise[id] === 1)).toBe(true);
+    // Exterior walls lead: the first walls to move are exterior (load-bearing).
+    let p = s5;
+    while (ground.every((id) => (stateAt(p).build.wallRise[id] ?? 0) === 0) && p < s6) p += 0.0002;
+    const s = stateAt(p + 0.0002);
     const moving = ground.filter((id) => (s.build.wallRise[id] ?? 0) > 0);
     expect(moving.length).toBeGreaterThan(0);
     expect(moving.every((id) => LANDING_HOUSE.plan.walls.find((w) => w.id === id)?.kind === 'loadBearing')).toBe(true);
   });
 
   it('covers every furniture id and falls back to the group value', () => {
-    const s = stateAt(0.5);
+    const s = stateAt(SCENES[4]?.start ?? 0);
     for (const f of LANDING_HOUSE.plan.furniture) {
       expect(s.build.furniture[f.id]).toBeTypeOf('number');
     }
-    expect(stateAt(0.53).build.furniture['F1']).toBe(1);
+    const done = stateAt(SCENES[5]?.start ?? 0);
+    expect(LANDING_HOUSE.plan.furniture.every((f) => done.build.furniture[f.id] === 1)).toBe(true);
     expect(furnitureRise(s, 'nope')).toBe(s.build.furniture['*']);
-    expect(stateAt(0.56).build.furniture['F11']).toBe(1);
   });
 
-  it('shows scene labels in their scenes and the finale settled', () => {
-    expect(stateAt(0.22).labels['det:F1']).toBeGreaterThan(0.5);
-    expect(stateAt(0.35).labels['gap']).toBe(1);
-    expect(stateAt(0.36).review.highlight).toBe(1);
-    expect(stateAt(0.4).review.close).toBe(1);
-    expect(stateAt(0.85).compliance.bathDoor).toBe(1);
-    expect(stateAt(0.75).build.upperLiftM).toBe(1.2);
-    expect(stateAt(0.79).build.upperLiftM).toBe(5.2);
-    expect(stateAt(0.95).build.upperLiftM).toBe(0);
-    expect(stateAt(0.62).build.upperLiftM).toBe(4);
+  it('shows scene beats in their holds and the finale settled', () => {
+    const mid = (name: string): number => P((arrive(name) + leave(name)) / 2);
+    expect(stateAt(mid('recognise')).detect.labels).toBe(1);
+    expect(stateAt(mid('gap-hold')).labels['gap']).toBe(1);
+    expect(stateAt(mid('gap-hold')).review.highlight).toBe(1);
+    expect(stateAt(P(leave('gap-hold'))).review.close).toBe(1);
+    expect(stateAt(mid('wc-look')).compliance.bathDoor).toBe(1);
+    expect(stateAt(mid('living')).build.upperLiftM).toBe(4);
+    expect(stateAt(mid('living')).build.ceiling).toBe(1);
+    expect(stateAt(P(leave('axo'))).build.upperLiftM).toBe(1.2);
+    expect(stateAt(P(arrive('wc-in'))).build.upperLiftM).toBe(5.2);
+    expect(stateAt(P(arrive('lift-out'))).build.upperLiftM).toBe(0);
+    const s6 = stateAt(SCENES[5]?.start ?? 0).build;
+    expect([s6.site, s6.planting, s6.roof, s6.water]).toEqual([1, 1, 1, 1]);
     const end = stateAt(1);
     expect(end.exports).toBe(1);
+    expect(end.build.roofLiftM).toBe(0);
     expect(end.semantic).toBeCloseTo(0.15);
     expect(Object.values(end.labels).every((v) => v === 0)).toBe(true);
   });
@@ -115,11 +136,11 @@ describe('cameraAt', () => {
     const STEP = 1e-4;
     for (const b of SCENES.slice(1).map((s) => s.start)) {
       let prev = cameraAt(b - 0.003);
-      for (let p = b - 0.003 + STEP; p <= b + 0.003; p += STEP) {
+      for (let p = b - 0.003 + STEP; p <= Math.min(1, b + 0.003); p += STEP) {
         const c = cameraAt(p);
         // No jump: < 0.08 m per 1e-4 of scroll (a discontinuity would be metres).
-        expect(dist(c.position, prev.position)).toBeLessThan(0.08);
-        expect(dist(c.target, prev.target)).toBeLessThan(0.08);
+        expect(dist(c.position, prev.position)).toBeLessThan(0.08 * K);
+        expect(turn(c, prev)).toBeLessThan(0.5 * K);
         expect(Math.abs(c.fovDeg - prev.fovDeg)).toBeLessThan(0.3);
         prev = c;
       }
@@ -134,8 +155,8 @@ describe('cameraAt', () => {
       const c = cameraAt(k * STEP);
       const d = dist(c.position, prev.position);
       speeds.push(d);
-      expect(d).toBeLessThan(0.1);
-      expect(dist(c.target, prev.target)).toBeLessThan(0.1);
+      expect(d).toBeLessThan(0.1 * K);
+      expect(turn(c, prev)).toBeLessThan(0.5 * K);
       expect(Math.abs(c.rollDeg)).toBeLessThanOrEqual(2);
       expect(Math.abs(c.fovDeg - prev.fovDeg)).toBeLessThan(0.3);
       prev = c;
@@ -155,8 +176,8 @@ describe('cameraAt', () => {
     expect(cameraAt(living, 3 / 4).fovDeg).toBeGreaterThan(cameraAt(living).fovDeg);
   });
 
-  it('settles: p 0.97 and 1 frame the same shot', () => {
-    const a = cameraAt(0.97);
+  it('settles: the last 0.05 screen frames the same shot', () => {
+    const a = cameraAt(1 - P(0.05));
     const b = cameraAt(1);
     expect(dist(a.position, b.position)).toBeLessThan(0.05);
     expect(dist(a.target, b.target)).toBeLessThan(0.02);

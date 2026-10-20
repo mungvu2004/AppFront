@@ -88,14 +88,17 @@ export interface StageRenderer {
 }
 
 export function createStageRenderer(canvas: HTMLCanvasElement): StageRenderer {
-  const context = canvas.getContext('webgl2', { antialias: false, powerPreference: 'high-performance' });
+  // MSAA on the screen buffer: the composer-less tiers' only anti-aliasing (the composer draws into its own target).
+  const context = canvas.getContext('webgl2', { antialias: true, powerPreference: 'high-performance' });
   if (context === null) {
     throw new NoWebGL2Error();
   }
-  const renderer = new WebGLRenderer({ canvas, context, antialias: false });
+  const renderer = new WebGLRenderer({ canvas, context, antialias: true });
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMappingExposure = EXPOSURE;
   renderer.shadowMap.type = PCFShadowMap;
+  // Sun and shadow camera never move: the stage asks for a redraw only when the build changes.
+  renderer.shadowMap.autoUpdate = false;
   // Pre-image of the paper under the tone curve: on screen it is Paper Ivory.
   const paper = inverseNeutral(new Color(LANDING_PALETTE.paper));
   renderer.setClearColor(paper, 1);

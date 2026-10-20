@@ -56,20 +56,25 @@ export function createPost(renderer: WebGLRenderer, scene: Scene, camera: Perspe
   ao.autoDetectTransparency = false;
   ao.configuration.transparencyAware = false;
   composer.addPass(ao);
-  composer.addPass(
-    new EffectPass(
-      camera,
-      new SMAAEffect({ preset: SMAAPreset.MEDIUM }),
-      new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL }),
-    ),
-  );
+  const smaa = new SMAAEffect({ preset: SMAAPreset.MEDIUM });
+  let smaaPreset: QualitySettings['smaa'] = 'medium';
+  composer.addPass(new EffectPass(camera, smaa, new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL })));
+  let aoMode: QualitySettings['aoMode'] | null = null;
 
   return {
     composer,
     configure(settings) {
       ao.enabled = settings.ao;
       ao.configuration.halfRes = settings.aoHalfRes;
-      ao.setQualityMode(settings.aoHalfRes ? 'Low' : 'Medium');
+      // Each preset is a recompile: only on a real change.
+      if (aoMode !== settings.aoMode) {
+        aoMode = settings.aoMode;
+        ao.setQualityMode(aoMode);
+      }
+      if (smaaPreset !== settings.smaa) {
+        smaaPreset = settings.smaa;
+        smaa.applyPreset(smaaPreset === 'low' ? SMAAPreset.LOW : SMAAPreset.MEDIUM);
+      }
     },
     dispose() {
       composer.dispose();

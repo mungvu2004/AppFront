@@ -31,7 +31,7 @@ import { houseAnchors, projectPoint, type StageAnchor } from './anchors';
 import { applyBuild, buildStageHouse, disposeStageHouse } from './house';
 import { createInk } from './ink';
 import type { createPost, PostChain } from './post';
-import { QUALITY, type Quality } from './quality';
+import { QUALITY, sameNumbers, type Quality, type QualitySettings } from './quality';
 import { createStageRenderer } from './renderer';
 import { warmStage } from './warm';
 import { applyPbr, type PbrHandle } from './textures';
@@ -55,6 +55,8 @@ declare global {
       memory: { geometries: number; textures: number };
       programs: number;
     };
+    /** DEV only: override single settings of the live tier (pass profiling); `null` clears. */
+    __landingStageTune?: (patch: Partial<QualitySettings> | null, q?: Quality) => void;
   }
 }
 
@@ -65,6 +67,8 @@ export interface Stage {
   project(anchorId: string): { x: number; y: number; visible: boolean } | null;
   anchors(): string[];
   setQuality(q: Quality): void;
+  /** Resolves once every tier's programs are compiled (switching tiers after this costs no link stall). */
+  readonly warmed: Promise<void>;
   onContextLost(cb: () => void): void;
   dispose(): void;
 }
@@ -143,6 +147,13 @@ export async function createStage(
   let pbr: PbrHandle | null = null;
   let disposed = false;
   let last: LandingState | null = null;
+  let shadowDirty = true;
+  let tune: Partial<QualitySettings> = {};
+  let warmedResolve: () => void = () => undefined;
+  const warmed = new Promise<void>((resolve) => {
+    warmedResolve = resolve;
+  });
+  const settingsNow = (): QualitySettings => ({ ...QUALITY[quality], ...tune });
   let width = 1;
   let height = 1;
   let dpr = 1;
@@ -156,6 +167,7 @@ export async function createStage(
       if (source === 'model' && !disposed) {
         stage.furniture.get(piece.id)?.refresh();
         dirty = true;
+        shadowDirty = true;
       }
     });
   }
@@ -170,7 +182,7 @@ export async function createStage(
   };
 
   const configure = (): void => {
-    const settings = QUALITY[quality];
+    const settings = settingsNow();
     if (settings.composer && post === null && postModule !== null) {
       post = postModule.createPost(renderer, scene, camera);
     } else if (settings.composer && postModule === null) {
@@ -185,6 +197,7 @@ export async function createStage(
       post?.composer.setSize(width, height, false);
     }
     dirty = true;
+    shadowDirty = true;
   };
 
   const onLost = (event: Event): void => {
@@ -215,6 +228,23 @@ export async function createStage(
     const growers = [...stage.walls.values(), ...stage.furniture.values(), ...stage.floors, ...stage.joinery, stage.stair];
     const parts = [...growers.map((grower) => grower.object), ...(stage.upper === null ? [] : [stage.upper])];
     if (!disposed && (await warmStage(renderer, scene, camera, target, parts, () => disposed))) {
+      // Every lower tier's programs too (shadowed or not, tone-mapped by the renderer, drawn to the
+      // screen): a later step down then links nothing — SMOOTH.md's 1.2 s stall. The governor never climbs.
+      const lower = (['full', 'balanced', 'lite'] as const).slice((['full', 'balanced', 'lite'] as const).indexOf(quality) + 1);
+      // Programs are created with the renderer's state at call time: set each tier, start, restore at once,
+      // so a frame drawn while the driver links never shows a borrowed look.
+      const previous = renderer.getRenderTarget();
+      renderer.setRenderTarget(null);
+      const compiling = lower.map((tier) => {
+        gl.configure(QUALITY[tier]);
+        return renderer.compileAsync(scene, camera);
+      });
+      renderer.setRenderTarget(previous);
+      configure();
+      await Promise.allSettled(compiling);
+      if (disposed) {
+        return;
+      }
       if (last !== null) {
         applyBuild(stage, last);
       }
@@ -226,6 +256,11 @@ export async function createStage(
   renderer.info.autoReset = false;
   if (import.meta.env.DEV) {
     window.__landingStageInfo = info;
+    window.__landingStageTune = (patch, q) => {
+      tune = patch ?? {};
+      quality = q ?? quality;
+      configure();
+    };
   }
   function info(): ReturnType<NonNullable<Window['__landingStageInfo']>> {
     return {
@@ -265,6 +300,9 @@ export async function createStage(
         camera.updateProjectionMatrix();
       }
       camera.updateMatrixWorld();
+      if (last === null || !sameNumbers(last.build, s.build) || !sameNumbers(last.compliance, s.compliance)) {
+        shadowDirty = true;
+      }
       applyBuild(stage, s);
       last = s;
       ink.apply(s, camera);
@@ -276,7 +314,9 @@ export async function createStage(
       }
       dirty = false;
       renderer.info.reset();
-      if (post !== null && QUALITY[quality].composer) {
+      renderer.shadowMap.needsUpdate = shadowDirty;
+      shadowDirty = false;
+      if (post !== null && (tune.composer ?? QUALITY[quality].composer)) {
         post.composer.render();
       } else {
         renderer.render(scene, camera);
@@ -285,7 +325,7 @@ export async function createStage(
         firstFrame = false;
         // Photographic textures are not needed for the first paint; they land once, later.
         const landed = applyPbr(stage, house.plan.rooms);
-        void warmUp(landed).catch(() => undefined);
+        void warmUp(landed).catch(() => undefined).finally(warmedResolve);
         landed.then(
           (handle) => {
             if (disposed) {
@@ -321,6 +361,7 @@ export async function createStage(
         configure();
       }
     },
+    warmed,
     onContextLost(cb) {
       lostCallbacks.push(cb);
     },
@@ -329,7 +370,9 @@ export async function createStage(
       // A stage re-made on a fresh canvas (context loss) may already own the hook.
       if (import.meta.env.DEV && window.__landingStageInfo === info) {
         delete window.__landingStageInfo;
+        delete window.__landingStageTune;
       }
+      warmedResolve();
       models.abort();
       canvas.removeEventListener('webglcontextlost', onLost);
       canvas.removeEventListener('webglcontextrestored', onRestored);

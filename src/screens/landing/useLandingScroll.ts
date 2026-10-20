@@ -17,7 +17,9 @@ import Lenis from 'lenis';
 import { useEffect, useRef } from 'react';
 
 import { stateAt, SCENES } from '@/lib/landing/timeline';
-import type { FrameGovernor, Stage } from '@/lib/landing/stage';
+import type { FrameGovernor, Quality, Stage } from '@/lib/landing/stage';
+// Không kéo three: chỉ hằng số và hàm thuần.
+import { benchmarkTier, dampProgress, QUIET_MS, SCROLL_FEEL } from '@/lib/landing/stage/quality';
 import type { LandingHouse } from '@/lib/landing/types';
 
 import { createOverlay } from './overlay';
@@ -59,10 +61,23 @@ declare global {
     __landingSeek?: (p: number) => Promise<void>;
     /** Chỉ bản dev: resolve sau khung đầu tiên của stage. */
     __landingReady?: Promise<void>;
+    /** Chỉ bản dev: p thô, p đang vẽ (sau tầng giảm chấn), số khung đã vẽ, khung trung vị của benchmark. */
+    __landingP?: () => { raw: number; shown: number; frames: number; bench: number | null };
   }
 }
 
 const IDLE_MS = 100;
+/** Benchmark lúc mở đầu (màn đầu đứng yên): bỏ vài khung đầu, lấy trung vị phần còn lại. */
+const BENCH_FRAMES = 30;
+const BENCH_SKIP = 6;
+
+/** Chỉ bản dev: `?lerp=0.1&k=8` để A/B cảm giác cuộn (tools/feel.mjs). */
+function devFeel(): { lerp: number; k: number } {
+  const q = import.meta.env.DEV ? new URLSearchParams(location.search) : null;
+  const lerp = Number(q?.get('lerp'));
+  const k = Number(q?.get('k'));
+  return { lerp: lerp > 0 ? lerp : SCROLL_FEEL.lerp, k: k > 0 ? k : SCROLL_FEEL.k };
+}
 
 /** Chỉ bản dev: `?quality=full|balanced|lite` để đo từng bậc. */
 function devQuality(): 'full' | 'balanced' | 'lite' | null {
@@ -84,7 +99,9 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
     if (!enabled || trackEl === null || rootEl === null || canvasEl0 === null) return undefined;
 
     gsap.registerPlugin(ScrollTrigger);
-    const lenis = new Lenis({ autoRaf: false });
+    const feel = devFeel();
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const lenis = new Lenis({ autoRaf: false, lerp: feel.lerp });
     const onScroll = (): void => ScrollTrigger.update();
     lenis.on('scroll', onScroll);
     const tick = (t: number): void => lenis.raf(t * 1000);
@@ -93,13 +110,29 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
 
     const overlay = createOverlay(rootEl, SCENES);
     let stage: Stage | null = null;
-    let p = 0;
+    let p = 0; // p thô từ ScrollTrigger
+    let shown = 0; // p đang vẽ: tầng giảm chấn thứ hai, xem quality.ts dampProgress
     let aspect = rootEl.clientWidth / Math.max(1, rootEl.clientHeight) || 16 / 10;
     let dirty = true;
     let frames = 0;
     let disposed = false;
     let governor: FrameGovernor | null = null;
     let lastDraw = 0;
+    let pending: Quality | null = null; // governor đề nghị hạ bậc: chỉ đổi khi người dùng ngừng cuộn
+    let lastInput = 0;
+    let bench: number[] | null = null;
+    let benchMs: number | null = null;
+    let visible = true;
+    const touched = (): void => {
+      lastInput = performance.now();
+      if (bench !== null) bench = null; // đang benchmark mà người dùng cuộn: bỏ, governor lo tiếp
+    };
+    const inputs = ['wheel', 'touchmove', 'keydown', 'pointerdown'] as const;
+    for (const type of inputs) window.addEventListener(type, touched, { passive: true });
+    const seen = new IntersectionObserver(([entry]) => {
+      visible = entry?.isIntersecting ?? true;
+    });
+    seen.observe(rootEl);
 
     // Ghi lúc rời (bấm liên kết, đóng/tải lại trang) chứ không theo từng nhịp cuộn:
     // khi route đổi, trang bị đưa về 0 trước khi ta kịp gỡ và sẽ ghi đè mất chỗ cũ.
@@ -118,17 +151,38 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
       },
     });
     // Route lazy: đoạn cuộn mới có chiều cao sau lần dựng đầu, nên tự khôi phục thay trình duyệt.
-    if (back > 0) {
-      requestAnimationFrame(() => {
-        ScrollTrigger.refresh();
-        lenis.scrollTo(back, { immediate: true, force: true });
-      });
-    }
+    const restoring =
+      back > 0
+        ? requestAnimationFrame(() => {
+            ScrollTrigger.refresh();
+            lenis.scrollTo(back, { immediate: true, force: true });
+            shown = p;
+          })
+        : 0;
 
-    const draw = (): void => {
-      if (!dirty) return;
+    const draw = (_time: number, deltaMs: number): void => {
+      if (shown !== p) {
+        shown = reduced ? p : dampProgress(shown, p, deltaMs / 1000, feel.k);
+        dirty = true;
+      }
+      const quiet = performance.now() - lastInput >= QUIET_MS;
+      if (stage !== null && pending !== null && quiet) {
+        stage.setQuality(pending);
+        pending = null;
+      }
+      if (stage !== null && bench !== null && quiet) {
+        bench.push(deltaMs);
+        dirty = true;
+        if (bench.length >= BENCH_FRAMES) finishBench(stage, bench.slice(BENCH_SKIP));
+      }
+      // Tab ẩn thì rAF tự dừng; canvas ra khỏi màn hình thì giữ `dirty` tới khi quay lại.
+      if (!visible || document.hidden) return;
+      if (!dirty) {
+        stage?.render(); // stage tự bỏ qua khi không có gì đổi (ảnh, mô hình đến muộn vẫn được vẽ)
+        return;
+      }
       dirty = false;
-      const state = stateAt(p, aspect);
+      const state = stateAt(shown, aspect);
       if (stage !== null) {
         stage.apply(state);
         stage.render();
@@ -136,7 +190,7 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
         const now = performance.now();
         if (governor !== null && now - lastDraw < IDLE_MS) {
           const next = governor.sample(now - lastDraw, now);
-          if (next !== null) stage.setQuality(next);
+          if (next !== null) pending = next;
         }
         lastDraw = now;
       }
@@ -145,10 +199,27 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
     };
     gsap.ticker.add(draw);
 
+    const finishBench = (s: Stage, frameMs: number[]): void => {
+      bench = null;
+      const sorted = [...frameMs].sort((a, b) => a - b);
+      benchMs = sorted[Math.floor(sorted.length / 2)] ?? null;
+      const from = governor?.quality ?? null;
+      if (benchMs === null || from === null) return;
+      const tier = benchmarkTier(from, benchMs);
+      if (tier !== from) {
+        s.setQuality(tier);
+        governor = createGovernor(tier);
+      }
+    };
+    let createGovernor: (q: Quality) => FrameGovernor = () => {
+      throw new Error('stage chưa tải');
+    };
+
     const scrollToP = (target: number): void => {
       const y = trigger.start + (trigger.end - trigger.start) * target;
       lenis.scrollTo(y, { immediate: true, force: true });
       p = target;
+      shown = target;
       dirty = true;
     };
     skipRef.current = () => scrollToP(1);
@@ -159,6 +230,7 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
       aspect = w / Math.max(1, h) || aspect;
       stage?.resize(w, h, Math.min(window.devicePixelRatio, 2));
       ScrollTrigger.refresh();
+      shown = p;
       dirty = true;
     };
     const observer = new ResizeObserver(resize);
@@ -171,6 +243,7 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
 
     if (import.meta.env.DEV) {
       window.__landingReady = ready;
+      window.__landingP = () => ({ raw: p, shown, frames, bench: benchMs });
       window.__landingSeek = async (target) => {
         await ready;
         scrollToP(Math.min(1, Math.max(0, target)));
@@ -200,7 +273,12 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
         return;
       }
       stage = created;
+      createGovernor = createFrameGovernor;
       governor = createFrameGovernor(quality);
+      // Mọi bậc đã biên dịch xong thì đo ngay lúc màn đầu còn đứng yên; đổi bậc lúc này không ai thấy.
+      void created.warmed.then(() => {
+        if (!disposed && stage === created && devQuality() === null) bench = [];
+      });
       // Chrome trả lại context chết cho cùng một canvas khi back/forward nhanh:
       // thay canvas mới, dựng lại stage đúng một lần; mất lần hai mới về bản tĩnh.
       created.onContextLost(() => {
@@ -216,7 +294,7 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
       });
       resize();
       optsRef.current.onReady(LANDING_HOUSE);
-      draw();
+      draw(0, 0);
       resolveReady();
     };
     const load = async (): Promise<void> => {
@@ -235,11 +313,17 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
     return () => {
       disposed = true;
       cancelAnimationFrame(first);
+      cancelAnimationFrame(restoring);
+      for (const type of inputs) window.removeEventListener(type, touched);
+      seen.disconnect();
       document.removeEventListener('click', leave, true);
       window.removeEventListener('pagehide', leave);
       observer.disconnect();
       gsap.ticker.remove(draw);
       gsap.ticker.remove(tick);
+      // Trang khác không dùng gsap: tắt hẳn vòng rAF của ticker (autoSleep không kịp ngủ; tools/release.mjs đo 146 rAF/s ở /login).
+      gsap.ticker.lagSmoothing(500, 33); // Trả lại mặc định của GSAP; trang này tắt nó trong lúc chạy.
+      gsap.ticker.sleep();
       lenis.off('scroll', onScroll);
       trigger.kill();
       lenis.destroy();
@@ -248,6 +332,7 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
       if (import.meta.env.DEV) {
         delete window.__landingSeek;
         delete window.__landingReady;
+        delete window.__landingP;
       }
     };
   }, [enabled]);

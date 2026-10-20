@@ -16,6 +16,10 @@
 
 import type { PresentationPlan } from '@/lib/three/present';
 
+import type { LandingRoofs, LandingSite } from './siteTypes';
+
+export type * from './siteTypes';
+
 /* -------------------------------------------------------------------------- */
 /* Demo house: what a PresentationPlan does not carry.                         */
 /* -------------------------------------------------------------------------- */
@@ -44,9 +48,22 @@ export interface StairSpec {
   /** Compass direction the flight climbs towards on the plan. */
   readonly climbs: 'north' | 'east' | 'south' | 'west';
   readonly widthMm: number;
-  readonly risers: number; // 16
+  readonly risers: number; // 18
   readonly riserMm: number; // 187.5
   readonly treadMm: number;
+  /**
+   * A half-landing that turns the stair back on itself (a U-stair). Absent: one
+   * straight flight. The first `afterRisers` risers climb `climbs`; the landing is
+   * the tread on top of riser `afterRisers`, `depthMm` deep; the rest climb back in
+   * a parallel flight `gapMm` beside the first, on the `returnsOn` side, so the
+   * top of the stair lands on the same line as its foot.
+   */
+  readonly landing?: {
+    readonly afterRisers: number;
+    readonly depthMm: number;
+    readonly gapMm: number;
+    readonly returnsOn: 'north' | 'east' | 'south' | 'west';
+  };
 }
 
 /** A detection the AI scene shows: plan furniture id + class label + confidence. */
@@ -86,10 +103,16 @@ export interface LandingHouse {
   readonly axes: readonly GridAxis[];
   readonly rooms: readonly RoomInfo[];
   readonly stair: StairSpec;
+  /** The flight from T2 to the top floor T3, stacked in the same well (not part of the checks). */
+  readonly topStair?: StairSpec;
   readonly detections: readonly Detection[];
   readonly reviewGap: ReviewGap;
   readonly checks: readonly ComplianceCheck[];
   readonly exports: readonly ExportFormat[];
+  /** Everything on the plot outside the house walls (types in siteTypes.ts). */
+  readonly site: LandingSite;
+  /** Roofs, eaves and the veranda columns under them (types in siteTypes.ts). */
+  readonly roofs: LandingRoofs;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -158,6 +181,18 @@ export interface LandingState {
     readonly upperLiftM: number;
     /** 0 = full walls, 1 = walls cut for the interior/cutaway read. */
     readonly cutaway: number;
+    /** Roofs, overhangs, canopies, louvres, pergola: 0 = absent, 1 = built. */
+    readonly roof: number;
+    /** Metres the roof layer is lifted away (interiors, cutaways); 0 = in place. */
+    readonly roofLiftM: number;
+    /** Ceilings over the rooms the camera is inside: 0 = open, 1 = closed. */
+    readonly ceiling: number;
+    /** Site hardscape (ground, paths, driveway, boundary walls, gates, pool shell): 0 = drawing, 1 = built. */
+    readonly site: number;
+    /** Trees, shrubs, lawn, planters grow in: 0 = none, 1 = grown. */
+    readonly planting: number;
+    /** Pool and pond water: 0 = empty, 1 = full. */
+    readonly water: number;
   };
 
   /** Scene 08. */

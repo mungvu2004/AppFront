@@ -1,5 +1,5 @@
 /**
- * A static SVG of the ground floor for the no-WebGL2 / reduced-motion fallback.
+ * A static SVG of the site and the ground floor for the no-WebGL2 / reduced-motion fallback.
  *
  * Everything is read from `LandingHouse` and drawn in plan millimetres (the viewBox
  * is in mm, y down the sheet like the plan): walls as filled graphite rectangles,
@@ -11,6 +11,11 @@ import type { PlanOpening, PlanWall } from '@/lib/three/present';
 
 import { LANDING_PALETTE as C } from '../palette';
 import type { LandingHouse } from '../types';
+
+import { siteShapes } from './planSite';
+
+/** The whole plot (40 × 34 m) with a 1,5 m margin. */
+const VIEW = [-1500, -1500, 43000, 37000] as const;
 
 type Vec = readonly [number, number];
 
@@ -86,7 +91,8 @@ export function planSvg(house: LandingHouse): string {
   const { plan } = house;
   const level = plan.levels[0]?.id ?? 'T1';
   const walls = plan.walls.filter((w) => w.levelId === level);
-  const parts: string[] = [`<rect x="-1800" y="-1800" width="15600" height="12600" fill="${C.paper}"/>`];
+  const parts: string[] = [`<rect x="${VIEW[0]}" y="${VIEW[1]}" width="${VIEW[2]}" height="${VIEW[3]}" fill="${C.paper}"/>`];
+  parts.push(...siteShapes(house));
 
   for (const r of plan.rooms.filter((x) => x.levelId === level)) {
     const pts = r.outline.map((p) => `${p[0] ?? 0},${p[1] ?? 0}`).join(' ');
@@ -100,8 +106,9 @@ export function planSvg(house: LandingHouse): string {
     }
   }
   for (const ax of house.axes) {
-    const [x, y] = ax.along === 'x' ? [ax.atMm, -1000] : [-1000, ax.atMm];
-    const [x2, y2] = ax.along === 'x' ? [ax.atMm, 9600] : [12600, ax.atMm];
+    // Axes on the house only (S02): bubbles in the front lawn and west of the house.
+    const [x, y] = ax.along === 'x' ? [ax.atMm, 6400] : [2600, ax.atMm];
+    const [x2, y2] = ax.along === 'x' ? [ax.atMm, 21600] : [28600, ax.atMm];
     parts.push(
       `<line x1="${x}" y1="${y}" x2="${x2}" y2="${y2}" stroke="${C.graphite}" stroke-width="8" stroke-dasharray="120 60 20 60" opacity="0.5"/>`,
       `<circle cx="${x}" cy="${y}" r="280" fill="${C.paper}" stroke="${C.graphite}" stroke-width="14"/>`,
@@ -120,5 +127,5 @@ export function planSvg(house: LandingHouse): string {
     );
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1800 -1800 15600 12600" role="img" aria-label="Mặt bằng tầng 1" preserveAspectRatio="xMidYMid meet">${parts.join('')}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW.join(' ')}" role="img" aria-label="Mặt bằng tổng thể và tầng 1" preserveAspectRatio="xMidYMid meet">${parts.join('')}</svg>`;
 }
