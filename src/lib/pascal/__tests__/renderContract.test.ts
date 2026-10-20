@@ -62,6 +62,23 @@ describe('hợp đồng dựng hình — trường bộ vẽ đọc thẳng', ()
     }
   });
 
+  it('khu đất là cái đế: hiện, và rộng hơn tường 2,5 m mỗi phía', () => {
+    const scene = sceneOf();
+    const site = scene.nodes[SITE_NODE_ID];
+
+    expect(site?.type).toBe('site');
+    if (site?.type !== 'site') return;
+    expect((site as { visible?: boolean }).visible).not.toBe(false);
+
+    const walls = Object.values(scene.nodes).flatMap((node) => (node.type === 'wall' ? [node.start, node.end] : []));
+    const xs = site.polygon.points.map(([x]) => x);
+    const zs = site.polygon.points.map(([, z]) => z);
+    expect(Math.min(...walls.map(([x]) => x)) - Math.min(...xs)).toBeGreaterThanOrEqual(2.5 - 1e-9);
+    expect(Math.max(...xs) - Math.max(...walls.map(([x]) => x))).toBeGreaterThanOrEqual(2.5 - 1e-9);
+    expect(Math.min(...walls.map(([, z]) => z)) - Math.min(...zs)).toBeGreaterThanOrEqual(2.5 - 1e-9);
+    expect(Math.max(...zs) - Math.max(...walls.map(([, z]) => z))).toBeGreaterThanOrEqual(2.5 - 1e-9);
+  });
+
   it('bản vẽ rỗng vẫn có đường bao hợp lệ, không phải mảng rỗng', () => {
     const empty: SpatialGraph = {
       ...createSampleBuilding(),

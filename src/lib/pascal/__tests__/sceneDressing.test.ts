@@ -127,11 +127,12 @@ describe('sceneDressing (I3) — sàn, tường, vật liệu cảnh', () => {
     }
   });
 
-  it('khu đất ẩn (không nền, không ranh vàng) nhưng vẫn giữ đường bao cho bộ vẽ', () => {
+  it('khu đất hiện làm đế (ranh vàng tắt lúc dựng) và giữ đường bao cho bộ vẽ', () => {
     const { scene } = run(fixtureF1({ ext: true }));
     const site = scene.nodes[SITE_NODE_ID];
 
-    expect(site).toMatchObject({ type: 'site', visible: false });
+    expect(site).toMatchObject({ type: 'site' });
+    expect((site as { visible?: boolean } | undefined)?.visible).not.toBe(false);
     expect(site?.type === 'site' && site.polygon.points.length).toBeGreaterThanOrEqual(3);
   });
 });

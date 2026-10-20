@@ -6,7 +6,8 @@
  * 1. cờ góc khu đất chỉ hiện ở pha site, không hiện ở chế độ chọn;
  * 2. Preview có `<SceneEnvironment />` (IBL) như khung sửa;
  * 3. bóng đổ 2048 thay 1024, `normalBias` 0.04 (texel nhỏ hơn nên bias nhỏ hơn);
- * 4. ánh sáng môi trường nền tối 0.2 → 0.4.
+ * 4. ánh sáng môi trường nền tối 0.2 → 0.4;
+ * 5. khu đất không vẽ đường ranh vàng (nền + bóng đổ vẫn vẽ) — cái đế dưới nhà như trang đăng nhập.
  *
  * Báo đỏ thay vì im lặng: chuỗi gốc không còn hoặc xuất hiện hơn một lần trong tệp, hay
  * tệp trong bảng không được dựng tới → ném lỗi, lượt dựng hỏng.
@@ -26,6 +27,9 @@ export const RENDER_RULES = {
   'viewer/src/components/viewer/lights.tsx': [
     ['shadow-mapSize={[1024, 1024]}', 'shadow-mapSize={[2048, 2048]}'],
     ['const SHADOW_NORMAL_BIAS = 0.08', 'const SHADOW_NORMAL_BIAS = 0.04'],
+  ],
+  'nodes/src/site/renderer.tsx': [
+    ['{showSiteSurfaces && !ribbons && (', '{false && showSiteSurfaces && !ribbons && ('],
   ],
   'viewer/src/components/viewer/scene-environment.tsx': [
     ['const ENV_INTENSITY_DARK = 0.2', 'const ENV_INTENSITY_DARK = 0.4'],

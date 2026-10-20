@@ -70,10 +70,10 @@ import type {
 const MIN_OUTLINE_POINTS = 3;
 
 /**
- * Khoảng lùi từ mép công trình ra mép khu đất, mét. 1 m để ngôi nhà lấp khung hình như
- * nhà 3D ở trang đăng nhập; khu đất vẫn bao trọn mọi hình học.
+ * Khoảng lùi từ mép công trình ra mép khu đất, mét: khu đất là cái đế dưới ngôi nhà (nhận
+ * bóng đổ, màu nền chủ đề `RENDER_LOOK_PALETTE.ground`), rộng hơn công trình 2,5 m mỗi phía.
  */
-const SITE_MARGIN_M = 1;
+const SITE_MARGIN_M = 2.5;
 
 /** Nửa cạnh khu đất khi bản vẽ chưa có hình học nào, mét — bằng mặc định của lược đồ Pascal. */
 const SITE_FALLBACK_HALF_SIZE_M = 15;
@@ -1073,10 +1073,8 @@ export const toPascalScene = (
     parentId: null,
     children: [BUILDING_NODE_ID],
     polygon: sitePolygonOf(nodes),
-    // Ẩn khu đất chỉ tắt nền + đường ranh vàng của chính nó, công trình vẫn hiện
-    // (`core/src/lib/node-visibility.ts`). Nhà mẫu trang đăng nhập không có ranh đất.
-    // Trải vào vì `PascalSiteNode` (types.ts) chưa khai `visible`.
-    ...{ visible: false },
+    // Khu đất HIỆN để có nền đỡ + bóng đổ; đường ranh vàng bị tắt lúc dựng
+    // (`scripts/pascal-render.mjs` luật 5) — nhà mẫu trang đăng nhập không có ranh đất.
   };
 
 
