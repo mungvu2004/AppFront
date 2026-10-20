@@ -9,19 +9,22 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
 import {
   createSampleBuilding,
   sampleLevelId,
   sampleWallId,
 } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
+import type { SpatialGraph } from '@/domain/spatial/types';
 
+import { fixtureF1 } from '../__fixtures__';
 import { diffScenes, isEmptyDiff } from '../diff';
 import { createPascalEditCommand, PASCAL_COMMAND_TYPE } from '../fromPascal';
 import { appFrontIdOf, BUILDING_NODE_ID } from '../ids';
 import { isGeneratedLightId } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
-import type { PascalIdBook } from '../toSpatial';
+import { CEILING_FIXTURE_REASON, type PascalIdBook } from '../toSpatial';
 import type { PascalNode, PascalScene, PascalZoneNode } from '../types';
 
 const ACTOR = 'U-1';
@@ -575,5 +578,111 @@ describe('đổi mẫu đồ đạc', () => {
     const node = Object.values(back.nodes).find((n) => n.type === 'item' && !isGeneratedLightId(n.id));
 
     expect(node?.type === 'item' ? node.asset.id : null).toBe('catalog-sofa-2');
+  });
+});
+
+/** R3-F1/F2 — lượt ghi từ Pascal không được làm mất dữ liệu của F1-ext. */
+describe('F1-ext: lượt sửa không làm mất dữ liệu', () => {
+  const extGraph: SpatialGraph = SpatialGraphDocumentSchema.parse(fixtureF1({ ext: true }).doc).graph;
+  const extScene = toPascalScene(extGraph).scene;
+  const nodeOf = (type: PascalNode['type'], appFrontId: string): PascalNode => {
+    const node = Object.values(extScene.nodes).find((n) => n.type === type && n.id === `${type}_${appFrontId}`);
+
+    if (node === undefined) throw new Error(`cảnh F1-ext thiếu ${type} ${appFrontId}`);
+
+    return node;
+  };
+  const withNodes = (...nodes: readonly PascalNode[]): PascalScene => ({
+    rootNodeIds: extScene.rootNodeIds,
+    nodes: { ...extScene.nodes, ...Object.fromEntries(nodes.map((node) => [node.id, node])) },
+  });
+
+  it('nạp F1-ext rồi đọc ngược ra: 0 lệnh (variant/heightMm/liftMm/finish không tính là đổi)', () => {
+    const result = createPascalEditCommand({
+      graph: normalizeSpatial(extGraph),
+      scene: extScene,
+      commit: { origin: 'load', changedNodeIds: Object.keys(extScene.nodes) },
+      actorId: ACTOR,
+    });
+
+    expect(result.ok ? null : result.error.code).toBe('PASCAL_NO_CHANGE');
+  });
+
+  it('dời một món treo: lệnh giữ nguyên variant, heightMm, liftMm', () => {
+    const lifted = extGraph.furniture.find((item) => item.liftMm !== undefined && item.variant !== undefined);
+    const node = lifted === undefined ? undefined : nodeOf('item', lifted.id);
+
+    if (lifted === undefined || node?.type !== 'item') throw new Error('F1-ext phải có một món treo');
+
+    const result = createPascalEditCommand({
+      graph: normalizeSpatial(extGraph),
+      scene: withNodes({ ...node, position: [node.position[0] + 0.3, node.position[1], node.position[2]] }),
+      commit: { origin: 'local', changedNodeIds: [node.id] },
+      actorId: ACTOR,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.ok ? result.data.changes[0]?.after : null).toMatchObject({
+      variant: lifted.variant,
+      heightMm: lifted.heightMm,
+      liftMm: lifted.liftMm,
+    });
+  });
+
+  it('đổi tên phòng có finish: giữ finish và dấu xác minh', () => {
+    const finished = extGraph.rooms.find((room) => room.finish !== undefined);
+
+    if (finished === undefined) throw new Error('F1-ext phải có phòng khai finish');
+
+    const reviewed = normalizeSpatial({
+      ...extGraph,
+      rooms: extGraph.rooms.map((room) =>
+        room.id === finished.id ? { ...room, source: 'human' as const, reviewed: true } : room,
+      ),
+    });
+    const zone = nodeOf('zone', finished.id) as PascalZoneNode;
+    const result = createPascalEditCommand({
+      graph: reviewed,
+      scene: withNodes({ ...zone, name: 'Phòng đổi tên' }),
+      commit: { origin: 'local', changedNodeIds: [zone.id] },
+      actorId: ACTOR,
+    });
+
+    expect(result.ok ? result.data.changes : null).toHaveLength(1);
+    expect(result.ok ? result.data.changes[0]?.after : null).toMatchObject({
+      name: 'Phòng đổi tên',
+      finish: finished.finish,
+      reviewed: true,
+    });
+  });
+
+  it('đặt một đồ gắn trần (con của trần sinh ra): từ chối kèm câu rõ, kể cả khi đi cùng lượt sửa khác', () => {
+    const ceiling = Object.values(extScene.nodes).find((node) => node.type === 'ceiling');
+    const light = Object.values(extScene.nodes).find((node) => node.type === 'item' && isGeneratedLightId(node.id));
+
+    if (ceiling?.type !== 'ceiling' || light?.type !== 'item') throw new Error('F1-ext phải có trần và đèn');
+
+    // Cùng mô hình đèn nhưng không mang dấu `generated`: món Pascal vừa đặt dưới trần.
+    const plain = { ...light, metadata: {} };
+    const fan: PascalNode = { ...plain, id: 'item_pn77qv12ab34cd56', position: [0.5, 0, 0.5] };
+    const parent: PascalNode = { ...ceiling, children: [...ceiling.children, fan.id] };
+    const wall = Object.values(extScene.nodes).find((node) => node.type === 'wall');
+
+    if (wall?.type !== 'wall') throw new Error('F1-ext phải có tường');
+
+    for (const [nodes, changedNodeIds] of [
+      [[fan, parent], [fan.id, parent.id]],
+      [[fan, parent, { ...wall, thickness: wall.thickness + 0.05 }], [wall.id, fan.id, parent.id]],
+    ] as const) {
+      const result = createPascalEditCommand({
+        graph: normalizeSpatial(extGraph),
+        scene: withNodes(...nodes),
+        commit: { origin: 'local', changedNodeIds },
+        actorId: ACTOR,
+      });
+
+      expect(result.ok ? null : result.error.code).toBe('PASCAL_UNKNOWN_NODE');
+      expect(result.ok ? [] : result.error.reasons).toEqual([CEILING_FIXTURE_REASON]);
+    }
   });
 });

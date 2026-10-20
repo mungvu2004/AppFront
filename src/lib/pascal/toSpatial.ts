@@ -61,6 +61,7 @@ import {
 import { AUTHORED_BY_HAND, toPointMm } from '@/lib/commands/business/shared';
 
 import { appFrontIdOf, BUILDING_NODE_ID } from './ids';
+import { isGeneratedLightId } from './sceneDressing';
 import type {
   PascalLevelNode,
   PascalNode,
@@ -88,6 +89,10 @@ export interface SpatialGraphResult {
  * một lượt gắn Pascal và người gọi giữ nó.
  */
 export type PascalIdBook = Map<PascalNodeId, string>;
+
+/** Dòng bỏ qua cho đồ Pascal gắn dưới trần; `fromPascal` đọc `kind` này để từ chối lượt sửa. */
+export const CEILING_FIXTURE_KIND = 'đồ gắn trần';
+export const CEILING_FIXTURE_REASON = 'Đồ gắn trần chưa lưu được vào bản vẽ.';
 
 /** Số chữ số thập phân giữ lại của một góc, đủ để `độ → radian → độ` khép lại. */
 const ANGLE_PRECISION = 1e6;
@@ -553,9 +558,24 @@ const collectLevelChildren = (
         break;
       }
 
-      // Trần (và đèn con của nó) sinh ra từ phòng như sàn; lượt về không mang gì mới.
-      case 'ceiling':
+      /*
+       * Trần (và đèn con của nó) sinh ra từ phòng như sàn; lượt về không mang gì
+       * mới. Nhưng Pascal gắn đồ `attachTo: 'ceiling'` (đèn, quạt, đầu báo khói…)
+       * làm con của chính trần ấy, và bản vẽ chưa có chỗ chứa chúng: phải nói ra,
+       * không được rơi im lặng (R3-F2). Trần người dùng vẽ cũng nói ra, như sàn.
+       */
+      case 'ceiling': {
+        if (appFrontIdOf('room', child.id) === null) {
+          collector.skip(child.id, 'trần', 'Trần vẽ trong Pascal chưa có đối tượng tương ứng trong bản vẽ.');
+        }
+
+        for (const fixture of childrenOf(scene, child)) {
+          if (!isGeneratedLightId(fixture.id)) {
+            collector.skip(fixture.id, CEILING_FIXTURE_KIND, CEILING_FIXTURE_REASON);
+          }
+        }
         break;
+      }
 
       default:
         collector.skip(

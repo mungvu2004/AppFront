@@ -60,7 +60,12 @@ import { sameValue } from './diff';
 import type { PascalCommit } from './guard';
 import { appFrontIdOf, bodyOfPascalId } from './ids';
 import { isGeneratedLightId } from './sceneDressing';
-import { toSpatialGraph, type PascalIdBook } from './toSpatial';
+import {
+  CEILING_FIXTURE_KIND,
+  CEILING_FIXTURE_REASON,
+  toSpatialGraph,
+  type PascalIdBook,
+} from './toSpatial';
 import type { PascalNodeType, PascalScene } from './types';
 
 /** Vì sao một lượt thay đổi của Pascal không thành lệnh được. */
@@ -193,6 +198,27 @@ const asChange = <K extends EntityKind>(change: EntityChangeOfKind<K>): EntityCh
   change as EntityChange;
 
 /**
+ * R3-F1 — trường I1 mà `toSpatialGraph` chưa viết ra (đồ đạc: `variant` ·
+ * `heightMm` · `liftMm`; phòng: `finish`). Không mang từ "trước" sang thì một
+ * lượt sửa bất kỳ xoá chúng khỏi bản vẽ, và phép so "có đổi gì không" luôn ra
+ * "đổi". Chỉ lấp khi "sau" thiếu: tường/ô mở/tầng luôn có `heightMm` nên không
+ * bị đụng. Khi `toSpatial` viết được các trường này thì bỏ hàm này đi.
+ */
+const READ_ONLY_KEYS = ['variant', 'heightMm', 'liftMm', 'finish'] as const;
+
+const carriedFrom = (before: object, after: object): Readonly<Record<string, unknown>> => {
+  const was = before as Readonly<Record<string, unknown>>;
+  const now = after as Readonly<Record<string, unknown>>;
+
+  return Object.fromEntries(
+    READ_ONLY_KEYS.filter((key) => now[key] === undefined && was[key] !== undefined).map((key) => [
+      key,
+      was[key],
+    ]),
+  );
+};
+
+/**
  * Siêu dữ liệu duyệt của một lượt **sửa** đến từ Pascal — hàng rào A5, và C2.
  *
  * `toSpatialGraph` đã chặn node Pascal tự đẻ mang dấu xác minh về. Còn một lỗ
@@ -210,6 +236,7 @@ const withReviewOfPrevious = <K extends EntityKind>(
   before: EntityByKind[K],
   after: EntityByKind[K],
 ): EntityByKind[K] => ({
+  ...carriedFrom(before, after),
   ...after,
   confidence: before.confidence,
   source: before.source,
@@ -321,7 +348,7 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
   // vừa vẽ được cấp id **trong** lượt đổi dưới đây, và không có sổ thì lượt
   // này không tìm lại được id vừa cấp — đối tượng mới sẽ lặng lẽ không vào lệnh.
   const idBook: PascalIdBook = input.idBook ?? new Map();
-  const { graph: after } = toSpatialGraph(input.scene, idBook);
+  const { graph: after, skipped } = toSpatialGraph(input.scene, idBook);
   const afterById = new Map<string, SpatialEntity>();
 
   for (const entity of [
@@ -364,6 +391,13 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
     if (change !== null) {
       changes.push(change);
     }
+  }
+
+  // R3-F2 — đồ gắn dưới trần không thành đồ đạc được; lặng lẽ bỏ là mất món người dùng vừa đặt.
+  const changed = new Set(input.commit.changedNodeIds);
+
+  if (skipped.some((entry) => entry.kind === CEILING_FIXTURE_KIND && changed.has(entry.id))) {
+    return err({ type: PASCAL_COMMAND_TYPE, code: 'PASCAL_UNKNOWN_NODE', reasons: [CEILING_FIXTURE_REASON] });
   }
 
   if (unknown.length > 0) {

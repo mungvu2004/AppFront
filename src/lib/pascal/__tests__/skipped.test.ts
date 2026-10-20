@@ -13,9 +13,9 @@ import { describe, expect, it } from 'vitest';
 import type { Furniture, Level, Room, SpatialGraph, Wall } from '@/domain/spatial/types';
 
 import { BUILDING_NODE_ID, SITE_NODE_ID } from '../ids';
-import { isGeneratedLightId } from '../sceneDressing';
+import { ceilingNodesOf, isGeneratedLightId } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
-import { toSpatialGraph } from '../toSpatial';
+import { CEILING_FIXTURE_KIND, toSpatialGraph } from '../toSpatial';
 import type {
   PascalBuildingNode,
   PascalLevelNode,
@@ -387,6 +387,38 @@ describe('toSpatialGraph — đường hỏng', () => {
     );
 
     expect(graph.walls).toEqual([]);
+  });
+
+  it('R3-F2 — đồ gắn dưới trần sinh ra và trần người dùng vẽ được nói ra; đèn sinh ra thì không', () => {
+    const pair = ceilingNodesOf(ROOM, 'level_L-AAAA000001');
+
+    if (pair === undefined) throw new Error('phòng không decking phải có trần');
+
+    const [ceiling, light] = pair;
+    // Cùng mô hình đèn nhưng không mang dấu `generated`: món Pascal vừa đặt dưới trần.
+    const plain = { ...light, metadata: {} };
+    const fan: PascalNode = { ...plain, id: 'item_qv12ab34cd56', parentId: ceiling.id };
+    const drawn: PascalNode = { ...ceiling, id: 'ceiling_qv98zz76yy54', children: [] };
+    const { graph, skipped } = toSpatialGraph(
+      sceneOf(
+        [
+          site([BUILDING_NODE_ID]),
+          building(BUILDING_NODE_ID, ['level_L-AAAA000001']),
+          level([ceiling.id, drawn.id]),
+          { ...ceiling, children: [light.id, fan.id] },
+          light,
+          fan,
+          drawn,
+        ],
+        [SITE_NODE_ID],
+      ),
+    );
+
+    expect(graph.furniture).toEqual([]);
+    expect(skipped.map(({ id, kind }) => [id, kind])).toEqual([
+      [fan.id, CEILING_FIXTURE_KIND],
+      [drawn.id, 'trần'],
+    ]);
   });
 
   it('đọc được cảnh mà gốc là chính công trình, không qua khu đất', () => {
