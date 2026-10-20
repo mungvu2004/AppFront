@@ -64,7 +64,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
     <Home
       backCard={
         <>
-          <BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} />
+          <BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} save={bridge.save} />
           <ProjectStepsCard projectId={projectId} />
           <SceneStyleCard flushAutosaves={flushAutosaves} reload={() => window.location.reload()} saveNow={savePascalNow} />
         </>

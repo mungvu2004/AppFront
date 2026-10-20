@@ -18,6 +18,7 @@ import { useStore } from '@/store';
 import {
   commitOfScenes,
   PASCAL_READ_ONLY_REASON,
+  unsavedPascalEdits,
   usePascalEdits,
 } from './usePascalEdits';
 
@@ -51,6 +52,7 @@ const mount = (
     readonly readOnly?: boolean;
     readonly onRejected?: (reason: string) => void;
     readonly onMassDelete?: (request: { nodeIds: readonly string[]; reason: string }) => void;
+    readonly onUnsaved?: (labels: readonly string[]) => void;
   } = {},
 ) =>
   renderHook(() =>
@@ -60,6 +62,7 @@ const mount = (
       readOnly: overrides.readOnly ?? false,
       onRejected: overrides.onRejected ?? (() => undefined),
       ...(overrides.onMassDelete === undefined ? {} : { onMassDelete: overrides.onMassDelete }),
+      ...(overrides.onUnsaved === undefined ? {} : { onUnsaved: overrides.onUnsaved }),
     }),
   );
 
@@ -94,7 +97,63 @@ describe('commitOfScenes', () => {
   });
 });
 
+/** Cảnh nền với node đầu tiên loại `type` được ghép thêm `patch`. */
+const patched = (type: string, patch: Record<string, unknown>): PascalScene => {
+  const node = Object.values(SCENE.nodes).find((candidate) => candidate.type === type);
+
+  if (node === undefined) throw new Error(`bộ mẫu phải có ${type}`);
+
+  return { nodes: { ...SCENE.nodes, [node.id]: { ...node, ...patch } as PascalNode }, rootNodeIds: SCENE.rootNodeIds };
+};
+
+describe('unsavedPascalEdits (v3 V3 — phần sửa máy chủ chưa nhận)', () => {
+  it('không đổi gì, hay chỉ đổi thứ lưu được (độ dày tường): không báo', () => {
+    expect(unsavedPascalEdits(SCENE, SCENE)).toEqual([]);
+    expect(unsavedPascalEdits(SCENE, thickened())).toEqual([]);
+  });
+
+  it.each([
+    ['slab', { slots: { surface: 'library:wood_oak' } }, 'màu sàn'],
+    ['wall', { slots: { interior: 'library:paint_white' } }, 'màu tường'],
+    ['door', { hingesSide: 'right' }, 'kiểu cửa'],
+  ])('%s đổi %j → "%s"', (type, patch, label) => {
+    expect(unsavedPascalEdits(SCENE, patched(type, patch))).toEqual([label]);
+  });
+
+  it('đồ đạc: màu, mẫu mới, đồ thêm từ thư viện; xoá đồ bày sẵn', () => {
+    const item = { id: 'item_new', type: 'item', asset: { src: '/items/sofa/model.glb' } } as unknown as PascalNode;
+    const added: PascalScene = { nodes: { ...SCENE.nodes, item_new: item }, rootNodeIds: SCENE.rootNodeIds };
+    const painted: PascalScene = {
+      nodes: { ...added.nodes, item_new: { ...item, slots: { body: 'library:red' }, asset: { src: '/items/chair/model.glb' } } as unknown as PascalNode },
+      rootNodeIds: SCENE.rootNodeIds,
+    };
+    const dressed: PascalScene = {
+      nodes: { ...SCENE.nodes, 'item_DRESS-sofa-R-1': { ...item, id: 'item_DRESS-sofa-R-1' } as PascalNode },
+      rootNodeIds: SCENE.rootNodeIds,
+    };
+
+    expect(unsavedPascalEdits(SCENE, added)).toEqual(['mẫu đồ đạc']);
+    expect(unsavedPascalEdits(added, painted)).toEqual(['màu đồ đạc', 'mẫu đồ đạc']);
+    expect(unsavedPascalEdits(dressed, SCENE)).toEqual(['xoá đồ bày sẵn']);
+  });
+});
+
 describe('usePascalEdits', () => {
+  it('v3 V3 — sửa chỉ màu sàn: không có gì để ghi, nhưng báo "màu sàn" chưa lưu được', async () => {
+    const onUnsaved = vi.fn();
+    const onRejected = vi.fn();
+    const { result } = mount({ onUnsaved, onRejected });
+    let ok = true;
+
+    await act(async () => {
+      ok = await result.current.onSceneCommit(patched('slab', { slots: { surface: 'library:wood_oak' } }));
+    });
+
+    expect(ok).toBe(false);
+    expect(onRejected).not.toHaveBeenCalled();
+    expect(onUnsaved).toHaveBeenCalledWith(['màu sàn']);
+  });
+
   it('nạp xong mà chưa ai sửa gì: KHÔNG ghi vào bản vẽ', async () => {
     const { result } = mount();
     const before = useStore.getState().spatial;

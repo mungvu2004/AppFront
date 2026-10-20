@@ -37,6 +37,7 @@ import { createHistoryStack, NO_SELECTION, type HistoryStack } from '@/lib/comma
 import { diffScenes, isEmptyDiff } from '@/lib/pascal/diff';
 import { createPascalEditCommand, type PascalEditResult } from '@/lib/pascal/fromPascal';
 import { createChangeGate, type PascalCommit } from '@/lib/pascal/guard';
+import { isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
 import type { PascalIdBook } from '@/lib/pascal/toSpatial';
 import type { PascalScene } from '@/lib/pascal/types';
 import { useStore } from '@/store';
@@ -72,6 +73,8 @@ export interface UsePascalEditsOptions {
    * `confirmMassDelete(nodeIds)` rồi cho editor xoá lại đúng các node ấy.
    */
   readonly onMassDelete?: (request: PascalMassDeleteRequest) => void;
+  /** Lượt sửa có phần máy chủ chưa nhận (`unsavedPascalEdits`) — màn báo người dùng. */
+  readonly onUnsaved?: (labels: readonly string[]) => void;
   readonly actorId?: string;
 }
 
@@ -114,12 +117,59 @@ export const commitOfScenes = (
   };
 };
 
+const PAINT_FIELDS = ['slots', 'material', 'materialPreset'] as const;
+const DOOR_FIELDS = ['doorType', 'leafCount', 'hingesSide', 'swingDirection'] as const;
+
+const fieldsOf = (node: unknown): Readonly<Record<string, unknown>> => (node ?? {}) as Readonly<Record<string, unknown>>;
+const assetSrcOf = (node: Readonly<Record<string, unknown>>): unknown => fieldsOf(node['asset'])['src'];
+const differs = (a: Readonly<Record<string, unknown>>, b: Readonly<Record<string, unknown>>, keys: readonly string[]): boolean =>
+  keys.some((key) => JSON.stringify(a[key]) !== JSON.stringify(b[key]));
+
+/**
+ * Những gì Pascal sửa được mà bản vẽ AppBack chưa có chỗ chứa (v3 BE.md major 2, EDIT.md):
+ * màu sàn/trần/tường/đồ/cửa, kiểu cửa, mẫu đồ từ thư viện, xoá đồ bày sẵn. Lượt sửa ấy vẫn
+ * "lưu" phần còn lại (hoặc ra PASCAL_NO_CHANGE), nên phải nói rõ phần nào chưa lưu được.
+ */
+export function unsavedPascalEdits(previous: PascalScene, next: PascalScene): string[] {
+  const labels = new Set<string>();
+
+  for (const [nodeId, node] of Object.entries(next.nodes)) {
+    const after = fieldsOf(node);
+    const before = previous.nodes[nodeId] === undefined ? null : fieldsOf(previous.nodes[nodeId]);
+    const type = after['type'];
+
+    if (before === null) {
+      if (type === 'item' && assetSrcOf(after) !== undefined) labels.add('mẫu đồ đạc');
+      continue;
+    }
+    const painted = differs(before, after, PAINT_FIELDS);
+
+    if (type === 'slab' && painted) labels.add('màu sàn');
+    else if (type === 'ceiling' && painted) labels.add('màu trần');
+    else if (type === 'wall' && painted) labels.add('màu tường');
+    else if (type === 'item') {
+      if (painted) labels.add('màu đồ đạc');
+      if (assetSrcOf(before) !== assetSrcOf(after)) labels.add('mẫu đồ đạc');
+    } else if (type === 'door' || type === 'window') {
+      if (painted) labels.add('màu cửa');
+      if (type === 'door' && differs(before, after, DOOR_FIELDS)) labels.add('kiểu cửa');
+    }
+  }
+
+  if (Object.keys(previous.nodes).some((nodeId) => next.nodes[nodeId] === undefined && isGeneratedNodeId(nodeId))) {
+    labels.add('xoá đồ bày sẵn');
+  }
+
+  return [...labels];
+}
+
 export function usePascalEdits({
   spatial,
   loadedScene,
   readOnly,
   onRejected,
   onMassDelete,
+  onUnsaved,
   actorId = PASCAL_DEFAULT_ACTOR_ID,
 }: UsePascalEditsOptions): UsePascalEditsResult {
   /** Cảnh máy chủ đang giữ. Mốc "trước" của lượt sửa kế tiếp. */
@@ -254,9 +304,17 @@ export function usePascalEdits({
     async (scene: PascalScene): Promise<boolean> => {
       if (readOnly) return false;
 
+      const previous = savedScene.current ?? loadedScene;
       const built = buildFor(scene);
 
       if (built === null) return false;
+
+      // Phần máy chủ chưa nhận: báo cả khi phần còn lại lưu được lẫn khi chỉ còn "không có gì để ghi".
+      if ((built.ok || built.error.code === 'PASCAL_NO_CHANGE') && previous !== null && onUnsaved !== undefined) {
+        const unsaved = unsavedPascalEdits(previous, scene);
+
+        if (unsaved.length > 0) onUnsaved(unsaved);
+      }
 
       if (!built.ok) {
         if (built.error.code !== 'PASCAL_NO_CHANGE') {
@@ -281,7 +339,7 @@ export function usePascalEdits({
 
       return true;
     },
-    [buildFor, deps, onRejected, readOnly],
+    [buildFor, deps, loadedScene, onRejected, onUnsaved, readOnly],
   );
 
   return { onSceneCommit, validateCommit, confirmMassDelete, history };

@@ -9,12 +9,28 @@ import type * as ToPascal from '@/lib/pascal/toPascal';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
-import { BRIDGE_EMPTY_ERROR, BRIDGE_LOAD_ERROR, BRIDGE_SESSION_ERROR, savePascalNow, usePascalProjectBridge } from '..';
+import {
+  BRIDGE_EMPTY_ERROR,
+  BRIDGE_LOAD_ERROR,
+  BRIDGE_SAVE_BLOCKED,
+  BRIDGE_SAVE_FAILED,
+  BRIDGE_SESSION_ERROR,
+  savePascalNow,
+  unsavedNoticeOf,
+  usePascalProjectBridge,
+} from '..';
 
 const session = vi.hoisted(() => ({ ok: true }));
 const detail = vi.hoisted(() => ({ fail: false, levels: 1, walls: 1, role: 'engineer' as ProjectRole }));
 /** Kết quả `onSceneCommit` giả: `reason` khác `null` = có lời từ chối qua `onRejected`. */
-const commit = vi.hoisted(() => ({ ok: true, reason: null as string | null }));
+const commit = vi.hoisted(() => ({ ok: true, reason: null as string | null, unsaved: [] as string[] }));
+/** Bộ tự lưu tầng giả: trạng thái engine, tầng bị khối, câu khối. */
+const saver = vi.hoisted(() => ({
+  state: 'saved' as string,
+  blocked: null as string | null,
+  saveNow: { calls: 0 },
+  reloaded: [] as string[],
+}));
 
 vi.mock('@/routes/sessionSetup', () => ({ startAppSession: () => Promise.resolve(session.ok) }));
 vi.mock('@/api/appClient', async (importOriginal) => ({
@@ -22,7 +38,25 @@ vi.mock('@/api/appClient', async (importOriginal) => ({
   createAppApiClient: () => ({ projects: {}, spatial: {} }),
   resolveUseMockApi: () => false,
 }));
-vi.mock('@/hooks/useAutosave', () => ({ useFloorLayerAutosave: () => ({}) }));
+vi.mock('@/hooks/useAutosave', () => ({
+  useFloorLayerAutosave: () => ({
+    autosave: {
+      subscribe: () => () => undefined,
+      getState: () => saver.state,
+      saveNow: () => {
+        saver.saveNow.calls += 1;
+        return Promise.resolve();
+      },
+    },
+    label: saver.state === 'saved' ? 'Đã lưu lúc 10:00' : null,
+    saveBlock: saver.blocked === null ? null : { kind: 'reload', message: saver.blocked, confirm: null },
+    isFloorBlocked: (floorId: string) => saver.blocked !== null && floorId === 'L-1',
+    reloadFloor: (floorId: string) => {
+      saver.reloaded.push(floorId);
+      return Promise.resolve();
+    },
+  }),
+}));
 vi.mock('@/api/floorLayerGraph', () => ({
   readProjectDetail: () =>
     detail.fail ? Promise.reject(new Error('mạng hỏng')) : Promise.resolve({ id: 'p1', name: 'Nhà mẫu' }),
@@ -53,9 +87,10 @@ vi.mock('@/lib/pascal/toPascal', async (importOriginal) => {
 });
 
 vi.mock('@/screens/viewer/PascalViewer/usePascalEdits', () => ({
-  usePascalEdits: ({ onRejected }: { onRejected: (reason: string) => void }) => ({
+  usePascalEdits: ({ onRejected, onUnsaved }: { onRejected: (reason: string) => void; onUnsaved: (labels: readonly string[]) => void }) => ({
     onSceneCommit: () => {
       if (commit.reason !== null) onRejected(commit.reason);
+      if (commit.unsaved.length > 0) onUnsaved(commit.unsaved);
 
       return Promise.resolve(commit.ok);
     },
@@ -71,6 +106,11 @@ describe('usePascalProjectBridge', () => {
     detail.role = 'engineer';
     commit.ok = true;
     commit.reason = null;
+    commit.unsaved = [];
+    saver.state = 'saved';
+    saver.blocked = null;
+    saver.saveNow.calls = 0;
+    saver.reloaded = [];
     /* eslint-disable-next-line local/no-direct-set -- đưa kho về rỗng giữa các bài */
     useStore.setState({ spatial: null, userRoles: [] });
   });
@@ -172,5 +212,61 @@ describe('usePascalProjectBridge', () => {
 
     await waitFor(() => expect(result.current.status).toBe('error'));
     expect(result.current.error).toBe(BRIDGE_SESSION_ERROR);
+  });
+
+  it('v3 V3 — lượt vào kho đợi lượt PUT; hỏng/khối thì ném cho editor, thẻ hiện trạng thái thật', async () => {
+    const { result } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    expect(result.current.save?.state).toBe('saved');
+    expect(result.current.save?.label).toBe('Đã lưu lúc 10:00');
+    await expect(result.current.onSave({ nodes: {}, rootNodeIds: [] })).resolves.toBeUndefined();
+    expect(saver.saveNow.calls).toBe(1);
+
+    saver.state = 'failed';
+    await expect(result.current.onSave({ nodes: {}, rootNodeIds: [] })).rejects.toThrow(BRIDGE_SAVE_FAILED);
+
+    saver.state = 'saved';
+    saver.blocked = 'Bản vẽ đã đổi ở nơi khác.';
+    /* eslint-disable-next-line local/no-direct-set -- tầng L-1 đang chờ lưu */
+    useStore.setState({ unsavedFloorIds: ['L-1'] });
+    await expect(result.current.onSave({ nodes: {}, rootNodeIds: [] })).rejects.toThrow(BRIDGE_SAVE_BLOCKED);
+
+    const { result: blocked } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(blocked.current.status).toBe('ready'));
+    expect(blocked.current.save?.state).toBe('blocked');
+    expect(blocked.current.save?.blockMessage).toBe('Bản vẽ đã đổi ở nơi khác.');
+    /* eslint-disable-next-line local/no-direct-set -- dọn */
+    useStore.setState({ unsavedFloorIds: [] });
+  });
+
+  it('v3 V3 — phần sửa chưa lưu được: một câu, mỗi nhãn một lần mỗi phiên; vai xem không có thẻ lưu', async () => {
+    const { result } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    commit.ok = false;
+    commit.unsaved = ['màu sàn', 'màu tường'];
+    await act(async () => {
+      await result.current.onSave({ nodes: {}, rootNodeIds: [] });
+    });
+    expect(result.current.save?.notice).toBe(unsavedNoticeOf(['màu sàn', 'màu tường']));
+    expect(result.current.save?.notice).toBe('Chưa lưu được: màu sàn, màu tường — sẽ có ở bản sau.');
+
+    act(() => result.current.save?.dismissNotice());
+    await act(async () => {
+      await result.current.onSave({ nodes: {}, rootNodeIds: [] });
+    });
+    expect(result.current.save?.notice).toBeNull();
+
+    commit.unsaved = ['màu sàn', 'kiểu cửa'];
+    await act(async () => {
+      await result.current.onSave({ nodes: {}, rootNodeIds: [] });
+    });
+    expect(result.current.save?.notice).toBe('Chưa lưu được: kiểu cửa — sẽ có ở bản sau.');
+
+    detail.role = 'viewer';
+    const { result: viewer } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(viewer.current.readOnly).toBe(true));
+    expect(viewer.current.save).toBeUndefined();
   });
 });

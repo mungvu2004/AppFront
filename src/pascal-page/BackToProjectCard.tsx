@@ -3,16 +3,29 @@
  * Nằm đầu khe `viewerToolbarLeft` nên không đè thanh bên; kiểu chép từ `TOOLBAR_CONTAINER`
  * của upstream `viewer-toolbar.tsx`.
  */
-import { ArrowLeft, ArrowRight, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown, X } from 'lucide-react';
 
 import { PROJECT_STEPS } from '@/routes/projectSteps';
+
+import type { PascalSaveStatus } from './bridge/types';
 
 export interface BackToProjectCardProps {
   readonly href: string;
   readonly projectName?: string | undefined;
+  /** Trạng thái lưu thật của tầng (cầu); vắng khi chỉ đọc. */
+  readonly save?: PascalSaveStatus | undefined;
 }
 
-export function BackToProjectCard({ href, projectName }: BackToProjectCardProps) {
+export function BackToProjectCard({ href, projectName, save }: BackToProjectCardProps) {
+  return (
+    <>
+      <BackLink href={href} projectName={projectName} />
+      {save !== undefined && <SaveStatusCard save={save} />}
+    </>
+  );
+}
+
+function BackLink({ href, projectName }: Omit<BackToProjectCardProps, 'save'>) {
   return (
     <a
       aria-label="Về dự án"
@@ -26,6 +39,57 @@ export function BackToProjectCard({ href, projectName }: BackToProjectCardProps)
 }
 
 const CARD = 'h-8 shrink-0 items-center rounded-xl border border-border bg-background/90 text-foreground text-xs shadow-2xl backdrop-blur-md';
+/** Như `CARD` nhưng màu viền/chữ theo trạng thái — hai lớp màu cùng loại thì Tailwind không chắc lớp nào thắng. */
+const STATUS_CARD = 'h-8 shrink-0 items-center rounded-xl border bg-background/90 text-xs shadow-2xl backdrop-blur-md';
+const SAVING_TEXT = 'Đang lưu…';
+
+/**
+ * Chip lưu của tầng: đang lưu / đã lưu lúc … / lưu thất bại / bị khối kèm "Tải lại tầng" (v3 BE.md
+ * major 1), và câu "Chưa lưu được: …" cho phần sửa máy chủ chưa nhận (major 2).
+ */
+export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
+  const alert = save.state === 'blocked' || save.state === 'failed';
+  const text =
+    save.state === 'blocked'
+      ? (save.blockMessage ?? 'Tầng này chưa lưu được.')
+      : save.state === 'saving'
+        ? SAVING_TEXT
+        : save.state === 'failed'
+          ? (save.label ?? 'Lưu thất bại')
+          : save.label;
+
+  return (
+    <>
+      {text !== null && (
+        <div
+          aria-live="polite"
+          className={`${STATUS_CARD} inline-flex max-w-96 gap-2 px-2.5 ${alert ? 'border-destructive text-destructive' : 'border-border text-muted-foreground'}`}
+          role={alert ? 'alert' : 'status'}
+        >
+          <span className="truncate" title={text}>
+            {text}
+          </span>
+          {save.state === 'blocked' && (
+            <button className="shrink-0 rounded-lg px-1.5 font-medium text-foreground hover:bg-accent" onClick={save.onReloadFloor} type="button">
+              Tải lại tầng
+            </button>
+          )}
+        </div>
+      )}
+      {save.notice !== null && (
+        <div className={`${CARD} inline-flex max-w-[28rem] gap-1.5 px-2.5`} role="status">
+          <span className="truncate" title={save.notice}>
+            {save.notice}
+          </span>
+          <button aria-label="Đóng thông báo" className="shrink-0 rounded-lg p-0.5 hover:bg-accent" onClick={save.dismissNotice} type="button">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 const VIEWER_STEP = PROJECT_STEPS.findIndex((step) => step.id === 'viewer');
 
 /**

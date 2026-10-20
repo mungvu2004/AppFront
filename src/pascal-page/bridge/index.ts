@@ -8,7 +8,7 @@
  * `/3d`, và ghi qua `usePascalEdits.onSceneCommit` → kho → `useFloorLayerAutosave` (N16).
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import { useFloorLayerAutosave } from '@/hooks/useAutosave';
@@ -26,15 +26,25 @@ import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
 import { resolveBackHref } from './backHref';
-import type { PascalBridge, PascalSceneGraph } from './types';
+import type { PascalBridge, PascalSaveStatus, PascalSceneGraph } from './types';
 
 export { LAST_APP_PATH_KEY, rememberAppPath, RETURN_TO_PARAM } from './backHref';
-export type { PascalBridge, PascalSceneGraph } from './types';
+export type { PascalBridge, PascalSaveStatus, PascalSceneGraph } from './types';
 
 export const BRIDGE_SESSION_ERROR = 'Phiên đăng nhập đã hết. Đăng nhập lại rồi mở lại mô hình 3D.';
 export const BRIDGE_NOT_FOUND_ERROR = 'Không tìm thấy dự án này, hoặc bạn chưa được thêm vào dự án.';
 export const BRIDGE_LOAD_ERROR = 'Không tải được mô hình của dự án. Tải lại trang để thử lại.';
 export const BRIDGE_EMPTY_ERROR = 'Dự án chưa có mô hình để mở trong 3D.';
+
+/** Câu khi lượt gửi N16 hỏng mà không có dải khối nào nêu lý do. */
+export const BRIDGE_SAVE_FAILED = 'Lưu thất bại. Kiểm tra mạng rồi sửa tiếp để thử lại.';
+
+/** Câu báo một lần mỗi phiên cho phần sửa máy chủ chưa nhận (`unsavedPascalEdits`). */
+export const unsavedNoticeOf = (labels: readonly string[]): string =>
+  `Chưa lưu được: ${labels.join(', ')} — sẽ có ở bản sau.`;
+
+/** Câu ném cho editor khi tầng bị khối (409/422/403) — lý do đầy đủ + "Tải lại tầng" ở thẻ trang. */
+export const BRIDGE_SAVE_BLOCKED = 'Tầng này chưa lưu được lên máy chủ. Xem thẻ ở góc trên để tải lại tầng.';
 
 class BridgeLoadError extends Error {}
 
@@ -117,8 +127,41 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
     };
   }, [projectId]);
 
-  // Bộ tự lưu tầng dùng chung (A7): mỗi `commit` của `usePascalEdits` đổi kho, saver gửi N16.
-  useFloorLayerAutosave({ projectId });
+  /* Bộ tự lưu tầng dùng chung (A7): mỗi `commit` của `usePascalEdits` đổi kho, saver gửi N16.
+     Trạng thái thật của nó (đang lưu / đã lưu / bị khối) lên thẻ trang — "đã lưu" của Pascal chỉ
+     là lượt vào kho, không phải lượt PUT (v3 BE.md major 1). */
+  const { autosave, isFloorBlocked, label: savedLabel, reloadFloor, saveBlock } = useFloorLayerAutosave({ projectId });
+  const engineState = useSyncExternalStore(autosave.subscribe, autosave.getState, autosave.getState);
+
+  // Phần sửa chưa lưu được: mỗi nhãn báo một lần mỗi phiên, gộp vào một câu.
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticed = useRef(new Set<string>());
+  const onUnsaved = useCallback((labels: readonly string[]) => {
+    const fresh = labels.filter((item) => !noticed.current.has(item));
+
+    if (fresh.length === 0) return;
+    fresh.forEach((item) => noticed.current.add(item));
+    setNotice(unsavedNoticeOf(fresh));
+  }, []);
+  const dismissNotice = useCallback(() => setNotice(null), []);
+
+  /* Tải lại tầng bị khối: bỏ bản chưa lưu được của tầng ấy rồi nạp lại trang — cảnh Pascal chỉ đọc
+     kho lúc `onLoad`, nên nạp lại cả trang là cách duy nhất để cảnh khớp bản máy chủ. */
+  const reloadBlockedFloor = useCallback(async () => {
+    const target = useStore.getState().unsavedFloorIds.find(isFloorBlocked);
+
+    if (target !== undefined) await reloadFloor(target);
+    window.location.reload();
+  }, [isFloorBlocked, reloadFloor]);
+
+  const save: PascalSaveStatus = {
+    state: saveBlock !== null ? 'blocked' : engineState === 'failed' ? 'failed' : engineState === 'saved' ? 'saved' : 'saving',
+    label: savedLabel,
+    blockMessage: saveBlock?.message ?? null,
+    onReloadFloor: () => void reloadBlockedFloor(),
+    notice,
+    dismissNotice,
+  };
 
   // Mốc "trước" của lượt sửa đầu: đúng cảnh vừa trao cho Pascal ở `onLoad`.
   const [loadedScene, setLoadedScene] = useState<PascalScene | null>(null);
@@ -131,6 +174,7 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
     loadedScene,
     readOnly,
     onRejected,
+    onUnsaved,
     ...(session.user?.id === undefined ? {} : { actorId: session.user.id }),
   });
 
@@ -151,14 +195,20 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
       if (readOnly) return;
 
       rejection.current = null;
-      const save = onSceneCommit(scene as PascalScene).then((ok) => {
+      const pending = onSceneCommit(scene as PascalScene).then(async (ok) => {
         // `false` mà không có lời từ chối là "không có gì để ghi" (sửa node sinh ra) — vẫn là thành công.
         if (!ok && rejection.current !== null) throw new Error(rejection.current);
+        if (!ok) return;
+        /* Đợi đúng lượt PUT N16 rồi mới báo Pascal "đã lưu": lượt gửi hỏng hay tầng bị khối thì
+           ném, để chỉ báo của editor không nói "đã lưu" khi máy chủ chưa nhận. */
+        await autosave.saveNow().catch(() => undefined);
+        if (useStore.getState().unsavedFloorIds.some(isFloorBlocked)) throw new Error(BRIDGE_SAVE_BLOCKED);
+        if (autosave.getState() === 'failed') throw new Error(BRIDGE_SAVE_FAILED);
       });
-      lastSave = save;
-      await save;
+      lastSave = pending;
+      await pending;
     },
-    [onSceneCommit, readOnly],
+    [autosave, isFloorBlocked, onSceneCommit, readOnly],
   );
 
   return {
@@ -167,5 +217,6 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
     backHref,
     onLoad,
     onSave,
+    ...(readOnly ? {} : { save }),
   };
 }

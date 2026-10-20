@@ -7,6 +7,20 @@ export interface PascalSceneGraph {
   readonly materials?: Readonly<Record<string, unknown>>;
 }
 
+/** Trạng thái lưu THẬT của tầng (lượt PUT N16), cho thẻ trên trang Pascal. */
+export interface PascalSaveStatus {
+  /** `blocked` = máy chủ từ chối (409/422/403) — cần tải lại tầng; `failed` = lượt gửi hỏng, sửa tiếp sẽ thử lại. */
+  readonly state: 'saving' | 'saved' | 'failed' | 'blocked';
+  /** "Đã lưu lúc HH:mm" / "Lưu thất bại" của bộ tự lưu, `null` khi chưa lưu lần nào. */
+  readonly label: string | null;
+  readonly blockMessage: string | null;
+  /** Bỏ bản chưa lưu được của tầng bị khối rồi nạp lại trang theo bản máy chủ. */
+  readonly onReloadFloor: () => void;
+  /** "Chưa lưu được: màu sàn, … — sẽ có ở bản sau." (mỗi nhãn một lần mỗi phiên). */
+  readonly notice: string | null;
+  readonly dismissNotice: () => void;
+}
+
 export interface PascalBridge {
   readonly status: 'loading' | 'ready' | 'error';
   readonly error?: string;
@@ -17,4 +31,6 @@ export interface PascalBridge {
   readonly backHref: string;
   readonly onLoad: () => Promise<PascalSceneGraph>;
   readonly onSave: (scene: unknown) => Promise<void>;
+  /** Vắng khi chỉ đọc (không có gì để lưu). */
+  readonly save?: PascalSaveStatus;
 }
