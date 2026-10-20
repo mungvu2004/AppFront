@@ -12,6 +12,7 @@ import { installPascalProbe, type PascalProbe, type PascalProbeStores } from '..
 const fakeStores = () => {
   const registry = new Map<string, { userData: Record<string, unknown> }>();
   const updateNode = vi.fn();
+  const setControlValue = vi.fn();
   const stores = {
     useScene: {
       getState: () => ({
@@ -28,8 +29,9 @@ const fakeStores = () => {
     useViewer: { getState: () => ({ itemLoadFailures: { i2: '/items/x/model.glb' }, shading: 'rendered' }) },
     sceneRegistry: { nodes: registry },
     emitter: { emit: vi.fn() },
+    useInteractive: { getState: () => ({ lampItems: { L1: [0], L2: [1] }, setControlValue }) },
   } satisfies PascalProbeStores;
-  return { stores, registry, updateNode };
+  return { stores, registry, updateNode, setControlValue };
 };
 
 const install = (search: string, stores: PascalProbeStores) => {
@@ -94,5 +96,14 @@ describe('pascal probe', () => {
     const { stores, updateNode } = fakeStores();
     install('?probe=1', stores)?.editNode('w2', { thickness: 0.3 });
     expect(updateNode.mock.calls).toEqual([['w2', { thickness: 0.3 }]]);
+  });
+
+  it('setLights() bật/tắt công tắc của mọi đèn trong lampItems (C10)', () => {
+    const { stores, setControlValue } = fakeStores();
+    install('?probe=1', stores)?.setLights(false);
+    expect(setControlValue.mock.calls).toEqual([
+      ['L1', 0, false],
+      ['L2', 1, false],
+    ]);
   });
 });

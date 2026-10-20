@@ -135,6 +135,9 @@ test('C10 + C11 F1-ext: màu sàn theo lớp hoàn thiện + ảnh cạnh nhau v
   // Lượt chạy đầu chụp ra nền xám trống: ngay sau `ready()` trang còn đang hiện dần và tự
   // canh máy quay lần đầu, đè lên tư thế vừa đặt. Chờ thêm rồi đặt lại lần hai.
   await page.waitForTimeout(5000);
+  // Đèn ấm làm phòng nhỏ sáng hơn phòng lớn cùng lớp hoàn thiện; C10 đo vật liệu nên tắt đèn.
+  await page.evaluate(() => (window as unknown as { __pascalProbe: PascalProbe }).__pascalProbe.setLights(false));
+  await page.waitForTimeout(1000);
   for (let i = 0; i < 2; i++) await setCamera(page, [ext.cx, height, ext.cz + height * 1e-3], [ext.cx, 0, ext.cz], TOP_FOV);
   const top = await page.screenshot({ clip: box });
   fs.writeFileSync(`${EVIDENCE}/C10-top-F1-ext.png`, top);
@@ -185,6 +188,8 @@ test('C10 + C11 F1-ext: màu sàn theo lớp hoàn thiện + ảnh cạnh nhau v
   fs.writeFileSync(`${EVIDENCE}/C10-F1-ext.tsv`, `${lines.join('\n')}\n\n${pairs.join('\n')}\n`);
   console.log(`C10\n${lines.join('\n')}\n${pairs.join('\n')}`);
 
+  // Ảnh cạnh nhau là dáng người dùng thấy: bật đèn lại.
+  await page.evaluate(() => (window as unknown as { __pascalProbe: PascalProbe }).__pascalProbe.setLights(true));
   // C11 (a) — phối cảnh gần góc trang đăng nhập: cao 50°, xoay 0,05 vòng (director.ts DEFAULT_CAMERA_RIG).
   const el = (50 * Math.PI) / 180;
   const az = 0.05 * 2 * Math.PI;

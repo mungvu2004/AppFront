@@ -3,7 +3,7 @@
  * Pascal qua tham số, không nhập `@pascal-app/*` (vitest không nạp được gói khi chưa dựng
  * `dist/*.js`). Nơi gắn store thật lên `window` là `./probe`.
  *
- * Chỉ đọc store, trừ `setCamera` và `editNode` (móc kiểm thử C13: sửa một node qua đúng
+ * Chỉ đọc store, trừ `setCamera`, `setLights` và `editNode` (móc kiểm thử C13: sửa một node qua đúng
  * `useScene.updateNode` như inspector, để luồng tự lưu thật — `onSave` → N16 PUT — chạy). Lượt hỏng tải mô hình đọc từ `useViewer.itemLoadFailures`
  * (vendor `nodes/src/item/renderer.tsx`), "đã xong" đọc từ `userData.itemModelSettled` trên
  * nhóm item trong `sceneRegistry`.
@@ -28,6 +28,8 @@ export interface PascalProbe {
   items(): ProbeItem[];
   /** Móc kiểm thử C13: `useScene.updateNode(id, patch)` — chỉ có khi `?probe=1`. */
   editNode(id: string, patch: object): void;
+  /** Bật/tắt mọi đèn (công tắc trong `useInteractive.lampItems`) — C10 đo màu sàn khi tắt đèn. */
+  setLights(on: boolean): void;
 }
 
 export interface ProbeItem {
@@ -70,9 +72,12 @@ export interface PascalProbeStores {
   readonly useViewer: { getState(): { itemLoadFailures: object; shading?: string } };
   readonly sceneRegistry: { nodes: { get(id: string): { userData: Record<string, unknown> } | undefined } };
   readonly emitter: { emit(event: 'camera-controls:apply-pose', pose: CameraPose): void };
+  readonly useInteractive: {
+    getState(): { lampItems: Record<string, number[]>; setControlValue(id: string, index: number, value: boolean): void };
+  };
 }
 
-export const createPascalProbe = ({ useScene, useViewer, sceneRegistry, emitter }: PascalProbeStores): PascalProbe => {
+export const createPascalProbe = ({ useScene, useViewer, sceneRegistry, emitter, useInteractive }: PascalProbeStores): PascalProbe => {
   const entries = () => Object.entries(useScene.getState().nodes as Record<string, LooseNode>);
   const entriesOf = (type: string) => entries().filter(([, n]) => n.type === type);
 
@@ -113,6 +118,10 @@ export const createPascalProbe = ({ useScene, useViewer, sceneRegistry, emitter 
     items: () =>
       entriesOf('item').map(([id, n]) => ({ id, position: n.position, rotation: n.rotation, src: n.asset?.src })),
     editNode: (id, patch) => useScene.getState().updateNode(id, patch),
+    setLights: (on) => {
+      const { lampItems, setControlValue } = useInteractive.getState();
+      for (const [id, indices] of Object.entries(lampItems)) for (const i of indices) setControlValue(id, i, on);
+    },
   };
 };
 

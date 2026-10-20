@@ -76,7 +76,9 @@ const expectedOf = (fixture: Fixture) => {
   const slabs = Object.fromEntries(graph.rooms.map((room) => [toPascalId('slab', room.id), floorMaterialOf(room)]));
   const stairs = new Set(graph.furniture.filter((f) => f.kind === 'stair').map((f) => toPascalId('item', f.id)));
   const rotationDeg = Object.fromEntries(graph.furniture.map((f) => [toPascalId('item', f.id), f.rotationDeg]));
-  return { counts: pick, slabs, stairs, rotationDeg };
+  // Trần/đèn không còn bằng số phòng (phòng ngoài trời không có): đếm thẳng từ toPascalScene.
+  const lights = Object.values(scene.nodes).filter((n) => n.type === 'item' && isGeneratedLightId(n.id)).length;
+  return { counts: pick, slabs, stairs, rotationDeg, lights };
 };
 
 /** Gom tín hiệu C1/C2/C3 từ trước lượt goto đầu tiên. */
@@ -149,7 +151,13 @@ for (const [name, make] of CASES) {
 
     const state = await page.evaluate(() => {
       const probe = window.__pascalProbe!;
-      return { failures: probe.itemLoadFailures(), materials: probe.materials(), shading: probe.shading() };
+      return {
+        failures: probe.itemLoadFailures(),
+        materials: probe.materials(),
+        shading: probe.shading(),
+        ceilings: probe.counts()['ceiling'] ?? 0,
+        lightIds: probe.items().map((item) => item.id),
+      };
     });
 
     // C1
@@ -166,10 +174,9 @@ for (const [name, make] of CASES) {
     expect.soft([...seen.badAssets], 'C2 .glb/.ktx2/.webp trả text/html').toEqual([]);
     // C3
     expect.soft(findOffMachineRequests(seen.urls), 'C3 request rời máy').toEqual([]);
-    // C6 — trần = phòng, chỉ khi T16 đã có trong toPascalScene.
-    const ceilings = c.ceiling ?? 0;
-    if (ceilings > 0) expect.soft(ceilings, 'C6 ceiling = rooms').toBe(fixture.expected.rooms);
-    else test.info().annotations.push({ type: 'fixme', description: 'C6: toPascalScene chưa sinh trần/đèn (T16 chưa vào)' });
+    // C6 — số trần và đèn tự sinh trong store khớp toPascalScene (phòng ngoài trời không có).
+    expect.soft(state.ceilings, 'C6 số trần = toPascalScene').toBe(c.ceiling);
+    expect.soft(state.lightIds.filter(isGeneratedLightId).length, 'C6 số đèn tự sinh = toPascalScene').toBe(expected.lights);
     // C7
     expect.soft(state.materials.slabs, 'C7 vật liệu sàn theo floorMaterialOf').toEqual(expected.slabs);
     // Lần mở đầu: shading 'rendered' (T12).
@@ -210,9 +217,9 @@ test('C8: F2 góc quay item khớp −rotationDeg, mô hình từ /items/', asyn
   await waitForScene(page, expected.counts);
 
   const all = await page.evaluate(() => window.__pascalProbe!.items());
-  // Đèn trần tự sinh (`item_LIGHT-<phòng>`) không phải đồ đạc của F2: đếm riêng, một đèn mỗi phòng.
+  // Đèn trần tự sinh (`item_LIGHT-<phòng>`) không phải đồ đạc của F2: đếm riêng theo toPascalScene.
   const lights = all.filter((item) => isGeneratedLightId(item.id));
-  expect.soft(lights.length, 'C8 một đèn trần mỗi phòng').toBe(fixture.expected.rooms);
+  expect.soft(lights.length, 'C8 số đèn trần = toPascalScene').toBe(expected.lights);
   const items = all.filter((item) => !isGeneratedLightId(item.id));
   expect(items.length, 'C8 có item').toBeGreaterThan(0);
   const offYaw: string[] = [];
