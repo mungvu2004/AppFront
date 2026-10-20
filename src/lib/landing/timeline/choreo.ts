@@ -4,9 +4,10 @@
  * list drags its build along. Big model motions (storey and roof lifts) happen
  * only inside camera holds — one big motion at a time (budget test asserts it).
  *
- * Placeholder beats for the villa fields (CAM-V refines): site and planting grow
- * round the hero build, the roof lands after the walls, roof + storey lift away
- * in the settle hold, ceilings close during the walk, water fills late in S05.
+ * Villa beats: the site grows under the first walls, planting through the build, the
+ * roofs appear lifted and land in the hero-settle hold, the pond fills after them; in the living
+ * hold the storeys + roofs lift away above the closed ceiling, the walls cut and the ceiling opens
+ * before the rise to the stepped section; everything comes home in the final hold.
  */
 
 import { gsap } from 'gsap';
@@ -47,8 +48,14 @@ export const FURNITURE_GROUP = '*';
  * plan; S01 then draws the stair, furniture symbols and axes (stage/ink/strokes.ts windows). */
 const OPENING_INK = 0.42;
 
-/** Label ids (stage/anchors.ts); R3/R6 stay 0 until CAM-V's walk visits the bedrooms again. */
-const LABEL_IDS = [...LABELLED, 'gap', 'room:R1', 'room:R2', 'room:R3', 'room:R6', 'room:R7', 'room:R8', 'stair', 'check:C4', 'check:C7'];
+/** Label ids (stage/anchors.ts): the walk's dining + living, the section's stair + two upper rooms, the two checks. */
+const LABEL_IDS = [...LABELLED, 'gap', 'room:G3', 'room:G2', 'room:U1', 'room:U4', 'stair', 'check:C4', 'check:C7'];
+
+/** The section's storey lift (each storey above the ground one rides it), and the roofs' lift there. */
+export const SECTION_LIFT_M = 3.4;
+export const ROOF_AWAY_M = 9;
+/** The roofs appear this far above their storeys and land in the hero-settle hold. */
+const ROOF_DROP_M = 2.4;
 
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types -- the shape IS the definition
 export function blank() {
@@ -65,7 +72,7 @@ export function blank() {
       upperLiftM: 0,
       cutaway: 0,
       roof: 0,
-      roofLiftM: 0,
+      roofLiftM: ROOF_DROP_M,
       ceiling: 0,
       site: 0,
       planting: 0,
@@ -187,37 +194,36 @@ export function build(o: Live): gsap.core.Timeline {
   tw(review, { close: 1 }, at(g0, g1, 0.25), at(g0, g1, 0.8), 'power3.inOut');
   tw(review, { highlight: 0 }, g1, g1 + 0.5, 'sine.inOut');
   label('gap', g0 - 0.1, at(g0, g1, 0.85));
-  // S05 A — the plane settles back, drawing references recede; the site builds round the footprint.
+  // S05 A - the plane settles back, drawing references recede; the site builds round the footprint.
   const s5 = sceneStart('s05');
-  const settle = arrive('hero-settle');
-  const h1 = leave('hero-settle');
+  const [h0, h1] = [arrive('hero-settle'), leave('hero-settle')];
   tw(paper, { liftM: 0 }, s5, s5 + 0.6, 'power2.inOut');
   tw(paper, { axes: 0, dims: 0 }, s5 + 0.5, s5 + 1.3, 'sine.inOut');
   tw(b, { site: 1 }, s5 + 0.3, arrive('hero-orbit'), 'power2.inOut');
-  // S05 B — ground walls rise (recipe); the semantic outlines recede under them.
-  const wall0 = s5 + 0.8;
+  // S05 B - ground walls rise (recipe); the semantic outlines recede under them.
+  const wall0 = s5 + 0.6;
   const ground = wallSchedule(wallFacts(GROUND_WALLS, wall0), wall0);
   ground.forEach((x) => tw(o.wallRise, { [x.id]: 1 }, x.start, x.end, WALL_EASE));
   const wallsUp = slotsEnd(ground);
   tw(detect, { walls: 0.3 }, wall0, wallsUp, 'sine.inOut');
   tw(detect, { rooms: 0, openings: 0 }, wall0 + 0.4, wallsUp + 0.4, 'sine.inOut');
   tw(detect, { walls: 0 }, wallsUp + 0.4, wallsUp + 1.2, 'sine.inOut');
-  // S05 C — floors, joinery; the material starts before the geometry settles; ink fades.
+  // S05 C - floors, joinery; the material starts before the geometry settles; ink fades.
   tw(b, { material: 1 }, wall0 + 0.5, wallsUp + 1.4, 'sine.inOut');
   tw(b, { floors: 1 }, wallsUp - 0.4, wallsUp + 0.2, 'power2.inOut');
   tw(b, { joinery: 1 }, wallsUp - 0.2, wallsUp + 0.4, 'power2.out');
   tw(paper, { ink: 0.35 }, wallsUp - 0.3, wallsUp + 1, 'sine.inOut');
-  // S05 D — ground furniture settles room by room; planting grows in alongside.
+  // S05 D - ground furniture settles room by room.
   const furn0 = wallsUp + 0.2;
   const pieces = furnitureOrder(pieceFacts(GROUND_FURNITURE, furn0), furn0);
   pieces.forEach((x) => tw(o.furniture, { [x.id]: 1 }, x.start, x.end, 'power2.out'));
   const furnUp = Math.max(furn0 + 0.4, ...pieces.map((x) => x.end));
   tw(o.furniture, { [FURNITURE_GROUP]: 1 }, furn0, furnUp, 'sine.inOut');
   tw(detect, { furniture: 0 }, furn0, furnUp, 'sine.inOut');
-  tw(b, { planting: 1 }, wallsUp, settle, 'power2.out');
-  // S05 E — stair and upper storey on its floor (walls by the same recipe); the roof lands after the
-  // walls; inside the settle hold (camera near-still) storey and roof lift away, the water fills.
-  const up0 = Math.max(furn0, settle - 1.2);
+  // S05 E - stair and upper storeys on their floors (walls by the same recipe) while the camera
+  // orbits; the roofs appear lifted over their storeys and LAND inside the settle hold (camera
+  // near-still); planting grows through the settle; the pond fills at the end of the hold.
+  const up0 = Math.max(furn0, h0 - 1.6);
   tw(b, { stair: 1 }, up0, up0 + 0.5, 'power2.inOut');
   tw(b, { upper: 1 }, up0, up0 + 0.4, 'power2.inOut');
   const upper = wallSchedule(wallFacts(UPPER_WALLS, up0), up0 + 0.1);
@@ -225,43 +231,44 @@ export function build(o: Live): gsap.core.Timeline {
   furnitureOrder(pieceFacts(UPPER_FURNITURE, up0), up0 + 0.3).forEach((x) =>
     tw(o.furniture, { [x.id]: 1 }, x.start, x.end, 'power2.out'),
   );
-  tw(b, { roof: 1 }, Math.max(upper.length > 0 ? slotsEnd(upper) : 0, wallsUp), settle, 'power2.out');
-  tw(b, { upperLiftM: 4, roofLiftM: 6 }, at(settle, h1, 0.1), at(settle, h1, 0.8), 'power2.inOut');
-  tw(b, { water: 1 }, at(settle, h1, 0.2), h1, 'sine.inOut');
-  // S06 — the ceiling closes over the rooms once inside, opens before the rise out; room labels
-  // across each room's hold.
-  tw(b, { ceiling: 1 }, arrive('door'), arrive('living'), 'sine.inOut');
-  tw(b, { ceiling: 0 }, leave('kitchen') - 0.3, leave('kitchen'), 'sine.inOut');
-  label('room:R1', arrive('living'), leave('living'));
-  label('room:R2', arrive('kitchen'), leave('kitchen'));
-  // S07 — cutaway on the way out; in the axo hold the storey comes down to a slight lift that keeps
-  // the stair and its floor readable; after the labels it lifts clear for S08's elevated looks.
-  const [a0, a1] = [arrive('axo'), leave('axo')];
-  const [x0, x1] = [arrive('stair-axo'), leave('stair-axo')];
-  tw(b, { cutaway: 1 }, leave('kitchen'), leave('kitchen') + 1.2, 'power2.inOut');
-  tw(b, { upperLiftM: 1.2 }, at(a0, a1, 0.05), at(a0, a1, 0.55), 'power2.inOut');
-  label('stair', at(a0, a1, 0.6), at(x0, x1, 0.3));
-  label('room:R7', at(a0, a1, 0.6), a1);
-  label('room:R8', at(a0, a1, 0.64), a1);
-  tw(b, { upperLiftM: 5.2 }, at(x0, x1, 0.45), at(x0, x1, 0.95), 'power2.inOut');
-  // S08 — bathroom door, then the stair, then the passes; the storey comes down in the pull-back hold.
-  const [w0, w1] = [arrive('wc-look'), leave('wc-look')];
-  const [t0, t1] = [arrive('stair-look'), leave('stair-look')];
-  const [b0, b1] = [arrive('both'), leave('both')];
+  const upperUp = upper.length > 0 ? slotsEnd(upper) : wallsUp;
+  tw(b, { roof: 1 }, Math.min(upperUp, h0 - 0.3), h0, 'sine.inOut');
+  tw(b, { roofLiftM: 0 }, at(h0, h1, 0.05), at(h0, h1, 0.6), 'power2.inOut');
+  tw(b, { planting: 1 }, wallsUp, h1, 'power2.out');
+  tw(b, { water: 1 }, at(h0, h1, 0.45), h1, 'sine.inOut');
+  // S06 - the ceiling closes as the camera passes D1; the dining label rides the walk in; in
+  // the living hold the storeys and roofs lift away above the closed ceiling (unseen, camera still),
+  // then the walls cut and the ceiling opens >= 0.3 screen before the rise out.
+  const [l0, l1] = [arrive('living'), leave('living')];
+  const din = at(arrive('door'), l0, 0.5);
+  tw(b, { ceiling: 1 }, arrive('door'), at(arrive('door'), din, 0.6), 'sine.inOut');
+  tw(b, { upperLiftM: SECTION_LIFT_M, roofLiftM: ROOF_AWAY_M }, at(l0, l1, 0.04), at(l0, l1, 0.4), 'power2.inOut');
+  label('room:G3', din - 0.3, l0 + 0.3);
+  label('room:G2', l0 + 0.3, at(l0, l1, 0.6));
+  tw(b, { cutaway: 1 }, at(l0, l1, 0.42), at(l0, l1, 0.72), 'power2.inOut');
+  tw(b, { ceiling: 0 }, at(l0, l1, 0.42), l1 - 0.3, 'sine.inOut');
+  // S07 - the stepped section: labels on the stair and two upper rooms across the hold.
+  const [a0, a1] = [arrive('section'), leave('section')];
+  label('stair', at(a0, a1, 0.1), a1);
+  label('room:U1', at(a0, a1, 0.18), a1);
+  label('room:U4', at(a0, a1, 0.26), a1);
+  // S08 - both failing checks in one hold: the WC door first, the stair 0.3 screen later, then the passes.
+  const [w0, w1] = [arrive('checks'), leave('checks')];
   tw(c, { bathDoor: 1 }, w0 - 0.3, w0 + 0.1, 'power2.out');
-  tw(c, { stair: 1 }, t0 - 0.3, t0 + 0.1, 'power2.out');
-  tw(c, { passMarks: 1 }, b0 - 0.4, b0 + 0.2, 'power2.out');
-  label('check:C4', w0, w1);
-  label('check:C7', t0, t1);
-  tw(b, { upperLiftM: 0 }, at(b0, b1, 0.3), at(b0, b1, 0.95), 'power2.inOut');
-  // S09 — diagnostics recede to small indicators, walls close, the roof comes home in the final hold
-  // while the exports align (the camera's 1.5 % push-in lands it).
+  tw(c, { stair: 1 }, w0, w0 + 0.4, 'power2.out');
+  tw(c, { passMarks: 1 }, at(w0, w1, 0.5), w1, 'power2.out');
+  label('check:C4', w0 + 0.05, w1 - 0.1);
+  label('check:C7', w0 + 0.35, w1 - 0.1);
+  // S09 - diagnostics recede to small indicators and the walls grow back on the flight out; in
+  // the final hold the storeys come down, then the roofs land, while the exports align.
   const [e0, e1] = [arrive('hero'), leave('hero')];
-  tw(c, { bathDoor: 0, stair: 0, passMarks: 0 }, b1, b1 + 1, 'sine.inOut');
-  tw(misc, { semantic: 0.15 }, b1, b1 + 1.2, 'sine.inOut');
-  tw(b, { cutaway: 0 }, b1, b1 + 1.2, 'sine.inOut');
-  tw(b, { roofLiftM: 0 }, at(e0, e1, 0.02), at(e0, e1, 0.5), 'power2.inOut');
-  tw(misc, { exports: 1 }, e0 - 0.6, at(e0, e1, 0.7), 'power2.out');
+  const out0 = w1;
+  tw(c, { bathDoor: 0, stair: 0, passMarks: 0 }, e0 - 0.6, at(e0, e1, 0.3), 'sine.inOut');
+  tw(misc, { semantic: 0.15 }, out0, e0, 'sine.inOut');
+  tw(b, { cutaway: 0 }, out0 + 0.2, e0, 'sine.inOut');
+  tw(b, { upperLiftM: 0 }, at(e0, e1, 0.02), at(e0, e1, 0.4), 'power2.inOut');
+  tw(b, { roofLiftM: 0 }, at(e0, e1, 0.38), at(e0, e1, 0.75), 'power2.inOut');
+  tw(misc, { exports: 1 }, e0 - 0.4, at(e0, e1, 0.8), 'power2.out');
   tl.set({}, {}, TRACK_SCREENS); // total duration exactly the track
   return tl;
 }

@@ -150,7 +150,57 @@ const plant: Draw = (w, d) => {
   return out;
 };
 
+/** Plain carcass: box and a front line (dresser, sideboard, tv-stand, washer). */
+const cabinet: Draw = (w, d) => [box(w, d), [[-w / 2, d / 2 - 0.05], [w / 2, d / 2 - 0.05]]];
+
+const shelves: Draw = (w, d) => {
+  const out: Local[][] = [box(w, d)];
+  for (let u = -w / 2 + 0.3; u < w / 2 - 0.1; u += 0.3) {
+    out.push([[u, -d / 2], [u, d / 2]]);
+  }
+  return out;
+};
+
+const shower: Draw = (w, d) => [
+  box(w, d),
+  [[-w / 2, -d / 2], [w / 2, d / 2]],
+  [[w / 2, -d / 2], [-w / 2, d / 2]],
+  ellipse(0, 0, 0.04, 0.04, 10),
+];
+
+const tub: Draw = (w, d) => [box(w, d), rounded(-w / 2 + 0.08, -d / 2 + 0.08, w / 2 - 0.08, d / 2 - 0.08, Math.min(w, d) * 0.3), ellipse(w / 2 - 0.2, 0, 0.03, 0.03, 10)];
+
+const piano: Draw = (w, d) => {
+  const out: Local[][] = [box(w, d), rect(-w / 2 + 0.05, d / 2 - 0.2, w / 2 - 0.05, d / 2 - 0.04)];
+  for (let u = -w / 2 + 0.12; u < w / 2 - 0.08; u += 0.08) {
+    out.push([[u, d / 2 - 0.2], [u, d / 2 - 0.1]]);
+  }
+  return out;
+};
+
+const washer: Draw = (w, d) => [box(w, d), ellipse(0, 0.02, Math.min(w, d) * 0.32, Math.min(w, d) * 0.32, 20)];
+
+const stool: Draw = (w, d) => [ellipse(0, 0, Math.min(w, d) * 0.35, Math.min(w, d) * 0.35, 18)];
+
+const lamp: Draw = (w, d) => {
+  const r = Math.min(w, d) * 0.35;
+  return [ellipse(0, 0, r, r, 20), [[-r, -r], [r, r]], [[r, -r], [-r, r]]];
+};
+
+/** Overhead or wall-hung pieces: dashed, the convention for things above the cut. */
+const overhead: Draw = rug;
+
+const artwork: Draw = (w, d) => [rect(-w / 2, -d / 2, w / 2, d / 2)];
+
 const DRAW: Record<string, Draw> = {
+  cabinet,
+  shelves,
+  shower,
+  stool,
+  floorLamp: lamp,
+  pendant: overhead,
+  hood: overhead,
+  artwork,
   bed,
   sofa,
   armchair: sofa,
@@ -171,7 +221,12 @@ const DRAW: Record<string, Draw> = {
   plant,
 };
 
-/** One piece's symbol in plan metres. Unknown variants get their footprint. */
+/** Pascal models whose stand-in variant reads wrong in plan (a piano is not a cabinet). */
+const BY_SLUG: Record<string, Draw> = { piano, bathtub: tub, 'washing-machine': washer };
+
+const slugOf = (item: PlanFurniture): string => /\/items\/([^/]+)\//.exec(item.modelUrl ?? '')?.[1] ?? '';
+
+/** One piece's symbol in plan metres: by model slug, then variant; unknown ones get their footprint. */
 export function pieceSymbol(item: PlanFurniture): P2[][] {
   const f = compass(item.facing) ?? [0, 1];
   // `u` runs to the piece's left when seen from its front: across = (−f.z, f.x).
@@ -180,7 +235,7 @@ export function pieceSymbol(item: PlanFurniture): P2[][] {
   const w = mm(item.sizeMm[0] ?? 0);
   const d = mm(item.sizeMm[1] ?? 0);
   const h = mm(item.sizeMm[2] ?? 0);
-  const draw = DRAW[item.variant] ?? ((ww: number, dd: number) => [box(ww, dd)]);
+  const draw = BY_SLUG[slugOf(item)] ?? DRAW[item.variant] ?? ((ww: number, dd: number) => [box(ww, dd)]);
   return draw(w, d, h).map((line) => line.map(([u, v]): P2 => [cx + across[0] * u + f[0] * v, cz + across[1] * u + f[1] * v]));
 }
 

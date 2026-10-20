@@ -1,0 +1,237 @@
+/**
+ * The estate around the villa: ground, lawns, paths, walls and gates, the koi
+ * pond, planting and outdoor objects — every `LandingSite` record, in about
+ * thirty draw calls.
+ *
+ * Built once here; `apply(state)` only writes uniforms, colours, positions and
+ * `visible` (allocation-free). Three state channels drive it:
+ * - `build.site`: hardscape turns from paper to material and rises (one shared
+ *   growth uniform set, the house's clamp), the model base with it;
+ * - `build.planting`: the lawn greens from bare soil, plants grow from their feet;
+ * - `build.water`: the pond fills from its floor.
+ * `ambient(timeMs)` moves only the water ripples and the koi; the stage calls
+ * it while it chooses to animate and simply stops calling when idle.
+ *
+ * Photographic textures (lawn, paving; Poly Haven CC0) and the Pascal models
+ * arrive after construction and land once; the site draws without them.
+ */
+
+import {
+  Color,
+  Group,
+  Mesh,
+  MeshLambertMaterial,
+  MeshStandardMaterial,
+  RepeatWrapping,
+  SRGBColorSpace,
+  TextureLoader,
+  type BufferGeometry,
+  type Material,
+  type Texture,
+} from 'three';
+
+import { createAssetService, type AssetService, type SceneMaterials } from '@/lib/three/present';
+
+import type { LandingHouse, LandingState } from '../../types';
+import { NO_CLAMP_Y, createGrowthUniforms, growthDepthMaterial } from '../patch';
+import { TEX_BASE } from '../textures';
+
+import { M } from './geo';
+import { buildHardscape } from './ground';
+import { buildItems } from './items';
+import { buildPlanting } from './plants';
+import { buildPond } from './water';
+import { patchSite, type Num } from './shader';
+
+export interface SiteContext {
+  readonly materials: SceneMaterials;
+  readonly anisotropy: number;
+  /** Pascal model loader; default: present's service with the Draco decoder (the site frees its own). */
+  readonly assets?: AssetService;
+  /** Texture loader (tests inject one); default: three's TextureLoader. */
+  readonly loadTexture?: (url: string) => Promise<Texture>;
+}
+
+export interface StageSite {
+  readonly group: Group;
+  apply(state: LandingState): void;
+  /** Ripples + koi at `timeMs`; true when there is water to animate (the frame needs a redraw). */
+  ambient(timeMs: number): boolean;
+  /** Resolves when textures and models have landed or failed. */
+  readonly ready: Promise<void>;
+  dispose(): void;
+}
+
+/** Tile sizes (m) of the photographic sets. */
+const LAWN_TILE_M = 2;
+const PAVING_TILE_M = 2.4;
+/** The clamp climbs this far above natural ground over `build.site` (tallest gate pier ≈ 3 m). */
+const RISE_M = 3.6;
+const SOIL = new Color('#7D6A4F');
+/**
+ * Tint over the lawn map, above white on purpose (linear multipliers): the
+ * map is a dark turf photo, and the reference lawn is clearly lighter than the
+ * trees (the value contrast that makes it read).
+ */
+const GRASS = new Color().setRGB(1.12, 1.22, 0.82);
+
+export function createSite(house: LandingHouse, ctx: SiteContext): StageSite {
+  const { site } = house;
+  const groundY = M(site.groundMm);
+  const hard = createGrowthUniforms(groundY);
+  const grow: Num = { value: 0 };
+  const time: Num = { value: 0 };
+  const group = new Group();
+  group.name = 'site';
+  group.visible = false;
+
+  const mats = {
+    lawn: patchSite(new MeshLambertMaterial({ color: SOIL.clone() }), { growth: hard, twoScale: true }),
+    bed: patchSite(new MeshLambertMaterial({ color: '#3A3128' }), { growth: hard }),
+    // Cool grey stone, never brown cobble.
+    paving: patchSite(new MeshStandardMaterial({ color: '#C9CCCD', roughness: 0.85 }), { growth: hard }),
+    stone: patchSite(new MeshStandardMaterial({ color: '#B9B7B1', roughness: 0.8 }), { growth: hard }),
+    granite: patchSite(new MeshStandardMaterial({ color: '#8E8C87', roughness: 0.75 }), { growth: hard }),
+    render: patchSite(new MeshLambertMaterial({ color: '#F3F4F3' }), { growth: hard }),
+    gate: patchSite(new MeshStandardMaterial({ color: '#3B3530', roughness: 0.5, metalness: 0.3 }), { growth: hard }),
+    liner: patchSite(new MeshLambertMaterial({ color: '#2A2F2A' }), { growth: hard }),
+  };
+  const depth = growthDepthMaterial(hard);
+
+  const scape = buildHardscape(site);
+  const ponds = site.water.map((w) => buildPond(w, time));
+  const hardMeshes: Mesh[] = [];
+  const add = (name: string, geometry: BufferGeometry, material: Material, records: readonly string[], cast: boolean): void => {
+    const mesh = new Mesh(geometry, material);
+    mesh.name = `site:${name}`;
+    mesh.userData.records = records;
+    mesh.receiveShadow = true;
+    mesh.castShadow = cast;
+    if (cast) {
+      mesh.customDepthMaterial = depth;
+    }
+    hardMeshes.push(mesh);
+    group.add(mesh);
+  };
+  add('lawn', scape.lawn, mats.lawn, scape.records.lawn, false);
+  add('bed', scape.bed, mats.bed, scape.records.bed, false);
+  add('paving', scape.paving, mats.paving, scape.records.paving, false);
+  add('stone', scape.stone, mats.stone, scape.records.stone, true);
+  add('granite', scape.granite, mats.granite, [], true);
+  add('render', scape.render, mats.render, scape.records.render, true);
+  add('gate', scape.gate, mats.gate, scape.records.gate, true);
+  for (const pond of ponds) {
+    add(`${pond.group.name}:coping`, pond.coping, mats.granite, [], false);
+    add(`${pond.group.name}:liner`, pond.liner, mats.liner, [], false);
+    group.add(pond.group);
+  }
+
+  const planting = buildPlanting(site.plants, grow);
+  const items = buildItems(site.items, hard);
+  group.add(planting.group, items.group);
+
+  // Late parts: textures and models, each landing once.
+  const models = new AbortController();
+  const ownAssets = ctx.assets === undefined ? createAssetService({ dracoDecoderPath: '/draco/' }) : null;
+  const assets = ctx.assets ?? ownAssets;
+  const load = ctx.loadTexture ?? ((url: string) => new TextureLoader().loadAsync(url));
+  const textures: Texture[] = [];
+  let disposed = false;
+  const tex = async (name: string, srgb: boolean, tileM: number): Promise<Texture> => {
+    const t = await load(`${TEX_BASE}${name}_1k.jpg`);
+    textures.push(t);
+    t.wrapS = RepeatWrapping;
+    t.wrapT = RepeatWrapping;
+    t.anisotropy = ctx.anisotropy;
+    t.repeat.setScalar(1 / tileM);
+    if (srgb) {
+      t.colorSpace = SRGBColorSpace;
+    }
+    return t;
+  };
+  const dress = async (): Promise<void> => {
+    const [lawnD, lawnN, paveD, paveN] = await Promise.all([
+      tex('lawn_diff', true, LAWN_TILE_M),
+      tex('lawn_nor', false, LAWN_TILE_M),
+      tex('paving_diff', true, PAVING_TILE_M),
+      tex('paving_nor', false, PAVING_TILE_M),
+    ]);
+    if (disposed) {
+      return;
+    }
+    mats.lawn.map = lawnD;
+    mats.lawn.normalMap = lawnN;
+    mats.lawn.normalScale.setScalar(0.35);
+    mats.paving.map = paveD;
+    mats.paving.normalMap = paveN;
+    for (const m of [mats.lawn, mats.paving]) {
+      m.needsUpdate = true;
+    }
+  };
+  const ready = Promise.allSettled([
+    dress(),
+    assets === null ? Promise.resolve() : planting.load(assets, models.signal),
+    assets === null ? Promise.resolve() : items.load(assets, models.signal),
+  ]).then(() => undefined);
+
+  return {
+    group,
+    ready,
+    apply(state) {
+      const { site: s, planting: p, water: w } = state.build;
+      group.visible = s > 0 || p > 0 || w > 0;
+      hard.uMat.value = s;
+      hard.uRiseY.value = s >= 1 ? NO_CLAMP_Y : groundY + s * RISE_M;
+      for (const mesh of hardMeshes) {
+        mesh.visible = s > 0;
+      }
+      items.group.visible = s > 0;
+      mats.lawn.color.lerpColors(SOIL, GRASS, p);
+      grow.value = p;
+      planting.group.visible = p > 0;
+      for (const pond of ponds) {
+        pond.group.visible = w > 0;
+        pond.group.position.y = pond.floorY + (pond.levelY - pond.floorY) * w;
+        pond.koi.visible = w > 0.6;
+      }
+    },
+    ambient(timeMs) {
+      time.value = timeMs / 1000;
+      return group.visible && ponds.some((pond) => pond.group.visible);
+    },
+    dispose() {
+      disposed = true;
+      models.abort();
+      for (const mesh of hardMeshes) {
+        mesh.geometry.dispose();
+      }
+      for (const pond of ponds) {
+        pond.group.traverse((o) => {
+          if (o instanceof Mesh) {
+            (o.geometry as BufferGeometry).dispose();
+          }
+        });
+        for (const m of pond.materials) {
+          m.dispose();
+        }
+      }
+      for (const m of Object.values(mats)) {
+        m.dispose();
+      }
+      depth.dispose();
+      planting.dispose();
+      items.dispose();
+      for (const t of textures) {
+        t.dispose();
+      }
+      // Textures still in flight are freed once they land.
+      void ready.then(() => {
+        for (const t of textures) {
+          t.dispose();
+        }
+      });
+      ownAssets?.dispose();
+      group.clear();
+    },
+  };
+}

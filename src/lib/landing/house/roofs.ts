@@ -3,9 +3,11 @@
  * roof per storey, stepped, 18° with 1.8 m (top: 1.6 m) overhangs and timber
  * soffits, the eave flared only a little at the corners; a glass pergola on slim
  * steel posts over the pond deck; a flat metal carport roof; the gate's own small
- * hip. Each hip's eave sits where the slope, carried out over the overhang from
- * the wall top, ends — so a roof meets the storey above it exactly at that
- * storey's wall line. Stone cladding lists the wall faces that are not render.
+ * slab. Each hip's eave sits where the slope, carried out over the overhang from
+ * the wall top, ends, raised by the roof's build-up (`EAVE_RAISE_MM`): the tiles
+ * clear the outer face of a wall and its slab band, so no wall top shows through
+ * a roof from above (archviz-r2 fix 2). Stone cladding lists the wall faces that
+ * are not render.
  */
 
 import type { Canopy, Cladding, ColumnRow, HipRoof, LandingRoofs, PlanPt, Polygon } from '../types';
@@ -29,6 +31,15 @@ interface HipSpec {
   readonly overhangMm: number;
   readonly pitchDeg: number;
   readonly cornerUpturnMm: number;
+  readonly thicknessMm?: number;
+}
+
+/**
+ * Tiles stand this far over the wall top at the wall line: battens + tile (150 mm)
+ * plus the slope over half a 220 mm wall and the 60 mm cladding + band proud.
+ */
+export function eaveRaiseMm(pitchDeg: number): number {
+  return Math.round(150 + Math.tan((pitchDeg * Math.PI) / 180) * (110 + 60));
 }
 
 /** The hip whose slope leaves the wall top at the wall line and runs `overhangMm` past it. */
@@ -38,7 +49,7 @@ export function hip(s: HipSpec): HipRoof {
   const slope = Math.tan((s.pitchDeg * Math.PI) / 180);
   const w = x1 - x0 + 2 * o;
   const d = y1 - y0 + 2 * o;
-  const eaveMm = Math.round(s.wallTopMm - o * slope);
+  const eaveMm = Math.round(s.wallTopMm - o * slope + eaveRaiseMm(s.pitchDeg));
   return {
     id: s.id,
     name: s.name,
@@ -53,18 +64,19 @@ export function hip(s: HipSpec): HipRoof {
     cornerUpturnMm: s.cornerUpturnMm,
     eaveSagMm: Math.round(s.cornerUpturnMm / 5),
     ridgeEndUpturnMm: Math.round(s.cornerUpturnMm / 2),
-    thicknessMm: 250,
+    thicknessMm: s.thicknessMm ?? 250,
     tile: 'flat',
     soffit: 'timber',
   };
 }
 
 const HIPS: readonly HipRoof[] = [
-  hip({ id: 'RF1', name: 'Mái tầng 1', levelId: 'T1', walls: [4000, 9000, 28000, 21000], wallTopMm: STOREY, overhangMm: 1800, pitchDeg: 18, cornerUpturnMm: 300 }),
-  hip({ id: 'RF2', name: 'Mái tầng 2', levelId: 'T2', walls: [4000, 9000, 22000, 23000], wallTopMm: 2 * STOREY, overhangMm: 1800, pitchDeg: 18, cornerUpturnMm: 300 }),
-  hip({ id: 'RF3', name: 'Mái tầng 3', levelId: 'T3', walls: [12000, 9000, 20000, 16000], wallTopMm: 2 * STOREY + 3000, overhangMm: 1600, pitchDeg: 18, cornerUpturnMm: 250 }),
-  // Gate roof over the pedestrian gate in the front wall (centreline y = 600).
-  hip({ id: 'RF4', name: 'Mái cổng', levelId: 'site', walls: [12000, 400, 14000, 800], wallTopMm: 2500, overhangMm: 400, pitchDeg: 22, cornerUpturnMm: 150 }),
+  hip({ id: 'RF1', name: 'Mái tầng 1', levelId: 'T1', walls: [4000, 9000, 28000, 21000], wallTopMm: STOREY, overhangMm: 1800, pitchDeg: 18, cornerUpturnMm: 90 }),
+  hip({ id: 'RF2', name: 'Mái tầng 2', levelId: 'T2', walls: [4000, 9000, 22000, 23000], wallTopMm: 2 * STOREY, overhangMm: 1800, pitchDeg: 18, cornerUpturnMm: 90 }),
+  hip({ id: 'RF3', name: 'Mái tầng 3', levelId: 'T3', walls: [12000, 9000, 20000, 16000], wallTopMm: 2 * STOREY + 3000, overhangMm: 1600, pitchDeg: 18, cornerUpturnMm: 70 }),
+  // Gate cap over the pedestrian gate in the front wall (centreline y = 600): a flat 120 mm
+  // charcoal slab overhanging 0.3 m, its underside on the pier tops (G + 2950 = 2500); a pitched, upturned hip read as a pagoda.
+  hip({ id: 'RF4', name: 'Mái cổng', levelId: 'site', walls: [12000, 400, 14000, 800], wallTopMm: 2474, overhangMm: 300, pitchDeg: 2, cornerUpturnMm: 0, thicknessMm: 120 }),
 ];
 
 const CANOPIES: readonly Canopy[] = [

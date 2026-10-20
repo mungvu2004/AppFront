@@ -20,11 +20,12 @@ import type { LandingHouse, LandingState } from '@/lib/landing/types';
 import { createGrid } from './axes';
 import { createCompliance } from './compliance';
 import { createDetect, LAYER, ROOM_FILL_ALPHA } from './detect';
-import { footprint } from './geometry';
-import { clamp01, disposeTree, smooth, type P3 } from './lines';
+import { drawingBounds, type P2 } from './geometry';
+import { clamp01, disposeTree, flatStroke, GRAPHITE, lineMaterial, RevealLine, smooth, windows, type P3 } from './lines';
 import { createReview } from './review';
-import { createPoche } from './poche';
+import { createPoche, pocheShapes } from './poche';
 import { createSheet, softShadow } from './sheet';
+import { siteInk } from './site';
 import { createStrokes } from './strokes';
 
 export interface InkLayer {
@@ -49,8 +50,21 @@ interface Anchor {
   readonly layer: number | null;
 }
 
+/** A fine layer drawn in order over `[a, b]` of `paper.ink`. */
+function revealed(name: string, polylines: readonly (readonly P2[])[], a: number, b: number, share: number, widthPx: number): RevealLine {
+  const slot = windows(polylines.length, a, b, share);
+  return new RevealLine(
+    name,
+    polylines.map((pts, i) => {
+      const [start, end] = slot(i);
+      return { pts: flatStroke(pts), start, end };
+    }),
+    lineMaterial(GRAPHITE, widthPx),
+  );
+}
+
 export function createInk(house: LandingHouse): InkLayer {
-  const bounds = footprint(house.plan);
+  const bounds = drawingBounds(house);
   const group = new Group();
   group.name = 'ink';
   const drawing = new Group();
@@ -63,7 +77,11 @@ export function createInk(house: LandingHouse): InkLayer {
   dropShadow.renderOrder = -1;
 
   const strokes = createStrokes(house);
-  const poche = createPoche(house.plan);
+  const site = siteInk(house);
+  const poche = createPoche([...pocheShapes(house.plan), ...site.poche]);
+  const siteFine = revealed('ink:site', site.fine, 0, 0.4, 0.04, 0.6);
+  const siteWalls = revealed('ink:siteWalls', site.walls, 0, 0.2, 0.3, 1.1);
+  const overhead = revealed('ink:overhead', site.overhead, 0.25, 0.5, 0.05, 0.8);
   const grid = createGrid(house);
   const detect = createDetect(house, strokes.faces);
   const wallsLayer = detect.layers[LAYER.walls] as Group;
@@ -74,6 +92,9 @@ export function createInk(house: LandingHouse): InkLayer {
 
   drawing.add(
     poche.mesh,
+    siteFine.object,
+    siteWalls.object,
+    overhead.object,
     strokes.walls.object,
     strokes.furniture.object,
     strokes.openings.object,
@@ -143,6 +164,14 @@ export function createInk(house: LandingHouse): InkLayer {
       strokes.openings.setOpacity(op * inkFade);
       strokes.stair.reveal(paper.ink);
       strokes.stair.setOpacity(op * inkFade);
+      // The site hands over to the built ground, the dashed eaves to the real roofs.
+      const siteFade = op * Math.min(inkFade, 1 - smooth(0.2, 1, build.site));
+      siteFine.reveal(paper.ink);
+      siteFine.setOpacity(siteFade * (1 - 0.5 * recede));
+      siteWalls.reveal(paper.ink);
+      siteWalls.setOpacity(siteFade * (1 - 0.4 * recede));
+      overhead.reveal(paper.ink);
+      overhead.setOpacity(op * Math.min(inkFade, 1 - build.roof) * (1 - 0.5 * recede));
       strokes.junk.reveal(paper.ink);
       strokes.junk.setOpacity(op * paper.junkInk);
       grid.axes.reveal(paper.axes);

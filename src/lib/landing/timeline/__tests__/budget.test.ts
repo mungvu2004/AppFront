@@ -2,8 +2,8 @@
 /**
  * The motion budget holds at every sampled step (0.01 screen) at 16:10, 4:3 and
  * 3:4: look rotation ≤ 30°/screen outside and ≤ 22° inside, interior travel ≤
- * 2.5 m/screen, exterior travel ≤ 0.45 look-distances/screen, FOV ≤ 6°/screen.
- * One big motion at a time: while the storey or roof lifts, the camera is
+ * 2.5 m/screen, exterior travel ≤ 0.8 look-distances/screen (dolly as |Δd|/d), FOV ≤ 6°/screen.
+ * One turning direction per walk. One big motion at a time: while the storey or roof lifts, the camera is
  * near-still. Labels stay fully visible ≥ 0.5 screen. Recipes are checked too.
  */
 import { describe, expect, it } from 'vitest';
@@ -12,12 +12,12 @@ import { LIMITS, load, rates } from '../budget';
 import { furnitureOrder, furnitureSettle, wallSchedule } from '../recipes';
 import { expand, makePath, makeRig, panLead } from '../rig';
 import { SHOTS } from '../shots';
-import { SCHEDULE, stateAt, TRACK_SCREENS } from '..';
+import { cameraAt, leave, SCHEDULE, stateAt, TRACK_SCREENS } from '..';
 
 const STEP = 0.01;
 
 describe('motion budget', () => {
-  it.each([16 / 10, 4 / 3, 3 / 4])('no step breaks a limit at aspect %d', (aspect) => {
+  it.each([16 / 10, 16 / 9, 4 / 3, 3 / 4])('no step breaks a limit at aspect %d', (aspect) => {
     const rig = makeRig(makePath(expand(SHOTS, aspect)), SCHEDULE.durs);
     const bad: string[] = [];
     let prev = rig.pose(0);
@@ -55,6 +55,30 @@ describe('motion budget', () => {
       a = b;
     }
     expect(bad.slice(0, 6)).toEqual([]);
+  });
+
+  it('turns one way per walk: the yaw changes direction at most once, inside a hold', () => {
+    const H = 0.02;
+    const yaw = (t: number): number => {
+      const c = cameraAt(t / TRACK_SCREENS);
+      return Math.atan2(c.target[0] - c.position[0], c.target[2] - c.position[2]);
+    };
+    const runs: { sign: number; t: number; deg: number }[] = [];
+    let prev = yaw(0);
+    for (let t = H; t <= TRACK_SCREENS; t += H) {
+      const y = yaw(t);
+      const d = ((y - prev + 3 * Math.PI) % (2 * Math.PI)) - Math.PI;
+      prev = y;
+      const deg = (d * 180) / Math.PI;
+      if (Math.abs(deg / H) < 2) continue; // still: a hold or a pure dolly
+      const last = runs.at(-1);
+      if (last?.sign === Math.sign(deg)) last.deg += deg;
+      else runs.push({ sign: Math.sign(deg), t, deg });
+    }
+    const real = runs.filter((r) => Math.abs(r.deg) > 3);
+    expect(real.length, real.map((r) => `${r.t.toFixed(2)} ${r.deg.toFixed(0)}°`).join(' · ')).toBeLessThanOrEqual(2);
+    // The one change comes after the hero settle hold (S05 swings left, the walk from the street on turns right).
+    if (real.length === 2) expect(real[1]?.t).toBeGreaterThanOrEqual(leave('hero-settle') - 0.05);
   });
 
   it('keeps every label fully up for at least half a screen', () => {

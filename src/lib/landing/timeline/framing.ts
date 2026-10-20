@@ -1,14 +1,16 @@
 /**
  * Aspect-aware shot composition: turns a shot *intent* into a camera.
  *
- * The page's type sits in the left ~38 % on landscape and the top ~30 % on
- * portrait, so a shot is not a fixed position: it is "this subject, seen from
+ * The page's type sits in the left ~38 % on landscape (a little wider at 4:3, where the
+ * 56 px title takes more of the width) and the bottom ~35 % on portrait (the model is
+ * centred at ~42 % height there), so a shot is not a fixed position: it is "this subject, seen from
  * this direction, placed in the free part of the frame". Two kinds:
  *
  * - `fit` (exterior / overview): a world box seen from an azimuth + elevation
  *   with a given lens; the camera is dollied and trucked (orientation fixed, so
  *   no extra keystone) until the box's projection fills the free region with
- *   margins. Narrow screens therefore pull back instead of cropping.
+ *   margins. Narrow screens widen the lens a little (as eye shots do) and pull
+ *   back for the rest instead of cropping.
  * - `eye` (interior, eye level): a fixed eye point and a focus point. The camera
  *   stays level (verticals vertical, two-point perspective) and pans so the focus
  *   lands right of centre on landscape, centred on portrait; the lens widens on
@@ -49,7 +51,8 @@ export interface Framed {
 
 /** Free region in NDC for an aspect: [x0, x1, y0, y1]. */
 export function freeRegion(aspect: number): readonly [number, number, number, number] {
-  return aspect >= 1 ? [-0.14, 0.9, -0.78, 0.74] : [-0.84, 0.84, -0.86, 0.3];
+  if (aspect < 1) return [-0.84, 0.84, -0.3, 0.64];
+  return [aspect < 1.5 ? -0.04 : -0.14, 0.9, -0.78, 0.74];
 }
 
 /** Where an `eye` shot puts its focus horizontally (NDC). */
@@ -73,8 +76,12 @@ function basis(f: V): { r: V; u: V } {
   return { r, u };
 }
 
+/** Lens widening on narrow screens (both kinds): keep the authored 16:10 horizontal field, ~70 % on portrait. */
+const widen = (aspect: number): number => Math.max(1, (aspect >= 1 ? 1 : 0.72) * (DEFAULT_ASPECT / aspect));
+
 function fit(s: FitShot, aspect: number): Framed {
-  const t = Math.tan((s.fovDeg * RAD) / 2);
+  // The same widening as eye shots, so a cut between the two kinds never jumps the lens on a tablet.
+  const t = Math.tan((s.fovDeg * RAD) / 2) * widen(aspect);
   const [x0, x1, y0, y1] = freeRegion(aspect);
   const k = s.fill ?? 1;
   const cx = (x0 + x1) / 2;
@@ -117,13 +124,11 @@ function fit(s: FitShot, aspect: number): Framed {
     pos = axpy(pos, -(cy - (ay + by) / 2) * zc * t * 0.8, u);
   }
   const zc = dot(sub(centre, pos), f);
-  return { position: pos, target: axpy(pos, zc, f), fovDeg: s.fovDeg };
+  return { position: pos, target: axpy(pos, zc, f), fovDeg: (2 * Math.atan(t)) / RAD };
 }
 
 function eye(s: EyeShot, aspect: number): Framed {
-  // Keep the authored (16:10) horizontal field on narrower screens; portrait only needs ~70 % of it.
-  const need = (aspect >= 1 ? 1 : 0.72) * (DEFAULT_ASPECT / aspect);
-  const t = Math.tan((s.fovDeg * RAD) / 2) * Math.max(1, need);
+  const t = Math.tan((s.fovDeg * RAD) / 2) * widen(aspect);
   const d = sub(s.focus, s.eye);
   const yaw = Math.atan2(d[0], d[2]) + Math.atan(focusX(aspect) * aspect * t);
   const pitch = (s.pitchDeg ?? 0) * RAD;

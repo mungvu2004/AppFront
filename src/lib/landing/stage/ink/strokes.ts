@@ -17,7 +17,7 @@ import {
   compass,
   dashes,
   dist,
-  footprint,
+  drawingBounds,
   along,
   groundWalls,
   openingSpan,
@@ -27,6 +27,7 @@ import {
   type Seg,
 } from './geometry';
 import { flatStroke, GRAPHITE, lineMaterial, RevealLine, windows, type Stroke } from './lines';
+import { stairPlan } from './stairPlan';
 import { furnitureSymbols } from './symbols';
 
 /** Leaf, swing arc, glazing lines, dashed head: everything an opening adds to the plan. */
@@ -84,35 +85,15 @@ export function openingStrokes(house: LandingHouse): P2[][] {
   return out;
 }
 
-/** Nosing lines, the two sides, and the climb arrow. */
+/** Nosing lines, the flight sides and landing, and the climb arrow. */
 export function stairStrokes(house: LandingHouse): P2[][] {
-  const spec = house.stair;
-  const dir = compass(spec.climbs) ?? [0, 1];
-  const across: P2 = [-dir[1], dir[0]];
-  const start: P2 = [spec.startMm[0] / 1000, spec.startMm[1] / 1000];
-  const tread = spec.treadMm / 1000;
-  const half = spec.widthMm / 2000;
-  const run = tread * (spec.risers - 1);
-  const out: P2[][] = [];
-  const sideA = add(start, across, -half);
-  const sideB = add(start, across, half);
-  out.push([sideA, add(sideA, dir, run)], [sideB, add(sideB, dir, run)]);
-  for (let k = 0; k < spec.risers; k++) {
-    out.push([add(sideA, dir, k * tread), add(sideB, dir, k * tread)]);
-  }
-  const tail = add(start, dir, tread * 0.5);
-  const tip = add(start, dir, run - tread * 0.3);
-  const barb = 0.18;
-  out.push(
-    [tail, tip],
-    [add(add(tip, dir, -barb), across, -barb * 0.55), tip, add(add(tip, dir, -barb), across, barb * 0.55)],
-  );
-  return out;
+  const plan = stairPlan(house.stair);
+  return [...plan.edges, ...plan.risers.map((r): P2[] => [r.a, r.b]), ...plan.climb];
 }
 
 /** A few handwritten-looking note lines and a north arrow in the right margin. */
 export function junkStrokes(house: LandingHouse): P2[][] {
-  const [, minZ, maxX] = footprint(house.plan);
+  const [, minZ, maxX] = drawingBounds(house);
   const out: P2[][] = [];
   let seed = 7;
   const rand = (): number => {

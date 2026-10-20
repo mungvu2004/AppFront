@@ -46,11 +46,11 @@
 .landing-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .landing-loading { position: absolute; right: var(--l-gutter); bottom: var(--l-gutter); margin: 0; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--l-ink-60); }
 .landing-copy, .landing-labels { position: absolute; inset: 0; pointer-events: none; }
-.landing-scene { position: absolute; left: var(--l-gutter); top: 50%; translate: 0 -50%; width: var(--l-col); }
+.landing-scene { position: absolute; left: var(--l-gutter); top: 50%; translate: 0 -50%; width: var(--l-col); text-shadow: 0 0 3px var(--l-paper), 0 0 10px var(--l-paper); }
 .landing-phase > *, .landing-exports li { will-change: opacity, transform; }
 .landing-final a, .landing-final button, .landing-footer a { pointer-events: auto; }
-/* Lớp giấy sau cột chữ: đặc tới hết cột rồi mới nhạt (overlay.ts ghi --l-scrim). */
-.landing-scrim { position: absolute; inset: 0; opacity: var(--l-scrim, 0); pointer-events: none; background: linear-gradient(to right, var(--l-paper) 0, var(--l-paper) calc(var(--l-gutter) + var(--l-col)), transparent calc(var(--l-gutter) + var(--l-col) + 18vw)); }
+/* Lớp giấy sau cột chữ: đặc tới nửa cột rồi nhạt hết ở mép cột, để nhà ở hai phần ba bên phải không bị phủ (overlay.ts ghi --l-scrim); chữ dài giữ quầng giấy riêng. */
+.landing-scrim { position: absolute; inset: 0; opacity: var(--l-scrim, 0); pointer-events: none; background: linear-gradient(to right, var(--l-paper) 0, var(--l-paper) calc(var(--l-gutter) + 0.55 * var(--l-col)), transparent calc(var(--l-gutter) + var(--l-col))); }
 
 /* Đầu trang */
 .landing-header { position: absolute; inset: 0 0 auto; z-index: 3; isolation: isolate; display: grid; grid-template-columns: auto 1fr auto auto; gap: 0 32px; align-items: center; height: var(--l-head); padding: 0 var(--l-gutter); }

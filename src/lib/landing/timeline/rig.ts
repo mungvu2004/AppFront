@@ -10,7 +10,8 @@
  * (`panLead`) so the pan lands before the dolly does.
  *
  * Time inside a segment goes through a Hermite speed profile over the segment's
- * combined length (travel + 3 m per radian of turn, so spins in place get time):
+ * combined length (travel in look distances × 6 m + 3 m per radian of turn, so
+ * spins in place get time and dives decelerate in screen space):
  * holds are reached at zero speed, pass-throughs at 0.8 × the slower neighbour.
  */
 
@@ -47,6 +48,8 @@ export interface Pose {
 
 /** Rotation counted as travel in the speed profile: 3 m per radian ≈ a walking-pace pan. */
 export const M_PER_RAD = 3;
+/** Travel of one look distance counted as this many metres (≈ an interior shot's look distance). */
+export const M_PER_REL = 6;
 export const PAN_LEAD = 0.85;
 const MAX_ROLL = 2;
 const SAMPLES = 48;
@@ -67,6 +70,21 @@ const lerp3 = (a: readonly number[], b: readonly number[], t: number): V => [
 const len3 = (v: readonly number[]): number => Math.hypot(v[0] ?? 0, v[1] ?? 0, v[2] ?? 0);
 export const angleBetween = (a: V, b: V): number =>
   Math.acos(Math.min(1, Math.max(-1, (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (len3(a) * len3(b) || 1))));
+/**
+ * Perceived travel of one small step, in look distances: the dolly part as |Δd|/d (zoom reads
+ * logarithmically, so a dive from 80 m to 20 m costs what 20 m to 5 m does) and the sideways part
+ * (across the view) relative to the nearer look distance. Travel along the view that does not change
+ * the look distance (the look point moving with the eye) counts as sideways travel.
+ */
+export function relStep(a: Pose, b: Pose): number {
+  const m = sub(b.position, a.position);
+  const d = Math.max(1, Math.min(a.dist, b.dist));
+  const dolly = Math.abs(Math.log(Math.max(1, b.dist) / Math.max(1, a.dist)));
+  const along = m[0] * a.fwd[0] + m[1] * a.fwd[1] + m[2] * a.fwd[2];
+  const side = Math.sqrt(Math.max(0, len3(m) ** 2 - along * along));
+  const slide = Math.max(0, Math.abs(along) - Math.abs(b.dist - a.dist));
+  return Math.hypot(dolly, side / d, slide / d);
+}
 const unwrap = (y: number, prev: number): number => y + 2 * Math.PI * Math.round((prev - y) / (2 * Math.PI));
 
 /**
@@ -186,7 +204,7 @@ export function makePath(wps: readonly Waypoint[]): Path {
     return {
       position: [tmp.x, tmp.y, tmp.z],
       fwd: [Math.sin(ya) * Math.cos(pi), Math.sin(pi), Math.cos(ya) * Math.cos(pi)],
-      dist: Math.exp(hermite(logDist, holds, i, uo)),
+      dist: Math.exp(hermite(logDist, holds, i, u)), // follows the dolly, not the pan lead
       fovDeg: hermite(fov, holds, i, u),
       rollDeg: Math.min(MAX_ROLL, Math.max(-MAX_ROLL, hermite(roll, holds, i, u))),
     };
@@ -200,7 +218,9 @@ export function makePath(wps: readonly Waypoint[]): Path {
     const c = [0];
     for (let k = 1; k <= SAMPLES; k += 1) {
       const q = pose(i, k / SAMPLES);
-      acc += len3(sub(q.position, prev.position)) + M_PER_RAD * angleBetween(q.fwd, prev.fwd);
+      // Travel counts relative to the look distance (relStep), so a dive from 60 m to a close shot runs
+      // at a constant screen-space rate (fast while far, slow on arrival) instead of a constant m/s.
+      acc += M_PER_REL * relStep(prev, q) + M_PER_RAD * angleBetween(q.fwd, prev.fwd);
       c.push(acc);
       prev = q;
     }

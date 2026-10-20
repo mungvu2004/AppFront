@@ -67,6 +67,10 @@ declare global {
 }
 
 const IDLE_MS = 100;
+/** Mất context lần nữa trong khoảng này (Chrome trả context chết khi back/forward nhanh) thì về bản tĩnh. */
+const LOSS_WINDOW_MS = 10_000;
+/** Mất context thưa (GPU bị chiếm, TDR) vẫn dựng lại, tối đa chừng này lần một lượt xem. */
+const MAX_REBUILDS = 3;
 /** Benchmark lúc mở đầu (màn đầu đứng yên): bỏ vài khung đầu, lấy trung vị phần còn lại. */
 const BENCH_FRAMES = 30;
 const BENCH_SKIP = 6;
@@ -177,6 +181,8 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
       }
       // Tab ẩn thì rAF tự dừng; canvas ra khỏi màn hình thì giữ `dirty` tới khi quay lại.
       if (!visible || document.hidden) return;
+      // Gợn nước + cá koi: chỉ vẽ lại khi site báo có chuyển động (dừng khi ẩn / giảm chuyển động).
+      if (!reduced) stage?.ambient(_time * 1000);
       if (!dirty) {
         stage?.render(); // stage tự bỏ qua khi không có gì đổi (ảnh, mô hình đến muộn vẫn được vẽ)
         return;
@@ -260,7 +266,8 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
     }
 
     let canvasEl = canvasEl0;
-    let retried = false;
+    let lastLoss = -Infinity;
+    let rebuilds = 0;
     const build = async (): Promise<void> => {
       const [{ LANDING_HOUSE }, { createStage, createFrameGovernor, pickStageQuality }] = await Promise.all([
         import('@/lib/landing/house'),
@@ -274,17 +281,23 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
       }
       stage = created;
       createGovernor = createFrameGovernor;
-      governor = createFrameGovernor(quality);
+      // Bản dev `?quality=` ghim bậc: không benchmark, không governor (để xem đúng bậc đã chọn).
+      governor = devQuality() === null ? createFrameGovernor(quality) : null;
       // Mọi bậc đã biên dịch xong thì đo ngay lúc màn đầu còn đứng yên; đổi bậc lúc này không ai thấy.
       void created.warmed.then(() => {
         if (!disposed && stage === created && devQuality() === null) bench = [];
       });
-      // Chrome trả lại context chết cho cùng một canvas khi back/forward nhanh:
-      // thay canvas mới, dựng lại stage đúng một lần; mất lần hai mới về bản tĩnh.
+      // Chrome trả lại context chết cho cùng một canvas khi back/forward nhanh: thay canvas mới, dựng lại.
+      // Mất lại ngay (trong LOSS_WINDOW_MS) hay quá MAX_REBUILDS lần mới về bản tĩnh; một lần mất lẻ
+      // (GPU đầy vì máy khác cũng vẽ) không được đẩy cả trang sang bản tĩnh — trước đây lần mất thứ hai
+      // bất kỳ làm vậy, và gỡ luôn các hook dev (__landingSeek biến mất giữa lượt chụp).
       created.onContextLost(() => {
         if (disposed) return;
-        if (retried) return optsRef.current.onFallback();
-        retried = true;
+        const now = performance.now();
+        if (import.meta.env.DEV) console.warn('[landing] WebGL context lost', { rebuilds });
+        if (now - lastLoss < LOSS_WINDOW_MS || rebuilds >= MAX_REBUILDS) return optsRef.current.onFallback();
+        lastLoss = now;
+        rebuilds += 1;
         stage = null;
         created.dispose();
         const fresh = canvasEl.cloneNode(false) as HTMLCanvasElement;

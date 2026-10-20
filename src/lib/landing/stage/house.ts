@@ -15,11 +15,8 @@
 
 import {
   Box3,
-  DoubleSide,
   Group,
   Mesh,
-  MeshPhysicalMaterial,
-  MeshStandardMaterial,
   type Material,
   type MeshDepthMaterial,
   type Object3D,
@@ -29,18 +26,25 @@ import { readPartData } from '@/lib/three/build/scene';
 import {
   assembleHouse,
   createMaterials,
-  planPoint,
   type AssetService,
   type PieceSource,
   type SceneMaterials,
   type ScenePalette,
 } from '@/lib/three/present';
 
-import type { LandingHouse, LandingState } from '../types';
+import type { LandingHouse } from '../types';
 
+import {
+  buildCeilings,
+  buildGlows,
+  createFrameMetal,
+  createStageGlass,
+  dressFacade,
+  metalWindowFrames,
+  type Facade,
+} from './facade';
 import { foldMeshes } from './merge';
 import {
-  NO_CLAMP_Y,
   createGrowthUniforms,
   growthDepthMaterial,
   growthOf,
@@ -57,6 +61,8 @@ export interface Grower {
   readonly baseY: number;
   readonly heightM: number;
   readonly upper: boolean;
+  /** Storeys above the ground this part's level is: it lifts `liftK × build.upperLiftM` (T2 1×, T3 2×). */
+  readonly liftK: number;
   /** Scene y of the part's storey floor (before any lift): joinery's cutaway is measured from it. */
   readonly floorY: number;
   /** Patch meshes added since (a `.glb` swapped in for a procedural piece) into the same uniforms. */
@@ -67,6 +73,8 @@ export interface StageHouse {
   readonly root: Group;
   /** The upper storey's level group (moved by `build.upperLiftM`), or null on a one-storey plan. */
   readonly upper: Group | null;
+  /** Storeys above the upper one, parented to it: each rides one more `upperLiftM` (the section shot). */
+  readonly stacked: readonly Group[];
   readonly walls: ReadonlyMap<string, Grower>;
   readonly furniture: ReadonlyMap<string, Grower>;
   readonly floors: readonly Grower[];
@@ -81,62 +89,24 @@ export interface StageHouse {
   readonly clonesOf: ReadonlyMap<Material, readonly Material[]>;
   /** Everything this module created and `disposeStageHouse` frees. */
   readonly owned: readonly Material[];
+  readonly facade: Facade;
+  /** Room ceilings (plain meshes in their storeys), shown by `build.ceiling` outside the cutaway. */
+  readonly ceilings: readonly Mesh[];
+  /** Warm planes behind the large windows, shown for exterior shots only (facade.ts buildGlows). */
+  readonly glows: readonly Mesh[];
+  /** Ground storey's room extent (scene x0, z0, x1, z1) and its ceiling height: the camera is inside under it. */
+  readonly inside: readonly [number, number, number, number, number];
+  /** Which glass look is on (null until the first frame): written only when it flips. */
+  readonly look: { exterior: boolean | null };
 }
 
 /** Walls cut for the interior / cutaway read stop at this height above their foot. */
 export const CUTAWAY_HEIGHT_M = 1.2;
 /** Joinery drops in from this far above its place. */
 export const JOINERY_DROP_M = 0.02;
-/** Below this a part is hidden rather than drawn as a sliver. */
-const SHOWN = 0.001;
+const LINEN = '#CFC6B8';
 
 const box = new Box3();
-
-/** The stage's glass: mostly clear, a faint reflection — present's is a tinted standard. */
-function createStageGlass(): MeshPhysicalMaterial {
-  return new MeshPhysicalMaterial({
-    color: 0xf4f7f7,
-    roughness: 0.04,
-    metalness: 0,
-    ior: 1.5,
-    reflectivity: 0.35,
-    envMapIntensity: 1,
-    transparent: true,
-    opacity: 0.16,
-    side: DoubleSide,
-    depthWrite: false,
-  });
-}
-
-/** Window frames: dark anodised metal, matte-satin; doors keep present's painted frame. */
-function createFrameMetal(): MeshStandardMaterial {
-  return new MeshStandardMaterial({ color: 0x34373c, roughness: 0.5, metalness: 0.6, vertexColors: true });
-}
-
-/** Frame groups sit, untagged, at their opening's centre: repaint those of windows. */
-function metalWindowFrames(storey: Group, house: LandingHouse, paint: Material, metal: Material): void {
-  const centres: [number, number][] = [];
-  for (const o of house.plan.openings) {
-    const wall = house.plan.walls.find((w) => w.id === o.wallId);
-    if (o.kind !== 'window' || wall === undefined) {
-      continue;
-    }
-    const a = planPoint(wall.start);
-    const b = planPoint(wall.end);
-    centres.push([a.x + (b.x - a.x) * o.relativePosition, a.z + (b.z - a.z) * o.relativePosition]);
-  }
-  for (const child of storey.children) {
-    const { x, z } = child.position;
-    if (readPartData(child) !== null || !centres.some(([cx, cz]) => Math.hypot(cx - x, cz - z) < 0.1)) {
-      continue;
-    }
-    child.traverse((mesh) => {
-      if (mesh instanceof Mesh && mesh.material === paint) {
-        mesh.material = metal;
-      }
-    });
-  }
-}
 
 interface Patcher {
   readonly clonesOf: Map<Material, Material[]>;
@@ -155,7 +125,7 @@ function grow(
   patcher: Patcher,
   id: string,
   object: Object3D,
-  upper: boolean,
+  liftK: number,
   fade: boolean,
   floorY: number,
   swappable = false,
@@ -213,7 +183,7 @@ function grow(
   };
   refresh();
 
-  return { id, object, uniforms, baseY, heightM, upper, floorY, refresh };
+  return { id, object, uniforms, baseY, heightM, upper: liftK > 0, liftK, floorY, refresh };
 }
 
 /**
@@ -228,6 +198,8 @@ export function buildStageHouse(
   models: { readonly assets?: AssetService; readonly signal?: AbortSignal } = {},
 ): StageHouse {
   const materials = createMaterials(palette);
+  // present's linen is its plaster white: Pascal sofas and armchairs read as raw clay (archviz-r2 fix 11).
+  materials.linen.color.set(LINEN);
   const stair = makeStair(materials);
   const assembled = assembleHouse(house.plan, palette, materials, { batch: false, ...models });
   const root = assembled.house;
@@ -255,13 +227,33 @@ export function buildStageHouse(
     storeys.get(piece.levelId)?.add(piece.object);
   }
   const groundStorey = storeys.get(levels[0]?.id ?? '') ?? root;
+  // Storeys above the first upper one ride on it (they lift together for the cutaway).
+  const upperGroup = storeys.get(upperId ?? '');
+  for (const level of levels.slice(2)) {
+    const storey = storeys.get(level.id);
+    if (storey !== undefined && upperGroup !== undefined) {
+      upperGroup.add(storey);
+    }
+  }
+  const isUpper = (levelId: string): number => Math.max(0, levels.findIndex((l) => l.id === levelId));
+  const stacked = levels.slice(2).flatMap((l) => storeys.get(l.id) ?? []);
+  const wallObjects = new Map<string, Object3D>();
+  for (const storey of storeys.values()) {
+    for (const child of storey.children) {
+      const part = readPartData(child);
+      if (part?.kind === 'wall') {
+        wallObjects.set(part.entityId, child);
+      }
+    }
+  }
+  const facade = dressFacade(house, wallObjects);
   // buildStair's flight stands on y = 0; lift it to its storey's floor.
   stair.position.y = (house.plan.levels.find((l) => l.id === house.stair.levelId)?.elevationMm ?? 0) / 1000;
   (storeys.get(house.stair.levelId) ?? groundStorey).add(stair);
 
   const patcher: Patcher = { clonesOf: new Map(), owned: [], glass: createStageGlass(), materials };
   const frameMetal = createFrameMetal();
-  patcher.owned.push(patcher.glass, frameMetal);
+  patcher.owned.push(patcher.glass, frameMetal, ...facade.owned);
   for (const storey of storeys.values()) {
     metalWindowFrames(storey, house, materials.paint, frameMetal);
   }
@@ -272,10 +264,10 @@ export function buildStageHouse(
   const joinery: Grower[] = [];
 
   for (const [levelId, storey] of storeys) {
-    const upper = levelId === upperId;
+    const upper = isUpper(levelId);
     const floorY = floorOf(levelId);
     for (const child of [...storey.children]) {
-      if (child === stair || furnitureGroups.some((piece) => piece.object === child)) {
+      if (child === stair || storeys.has(readPartData(child)?.entityId ?? '') || furnitureGroups.some((piece) => piece.object === child)) {
         continue;
       }
       const part = readPartData(child);
@@ -293,15 +285,23 @@ export function buildStageHouse(
   for (const piece of furnitureGroups) {
     furniture.set(
       piece.id,
-      grow(patcher, piece.id, piece.object, piece.levelId === upperId, false, floorOf(piece.levelId), true),
+      grow(patcher, piece.id, piece.object, isUpper(piece.levelId), false, floorOf(piece.levelId), true),
     );
   }
-  const stairGrower = grow(patcher, house.stair.id, stair, house.stair.levelId === upperId, false, floorOf(house.stair.levelId));
+  const stairGrower = grow(patcher, house.stair.id, stair, isUpper(house.stair.levelId), false, floorOf(house.stair.levelId));
+  const ceilings = buildCeilings(house, storeys);
+  const glows = buildGlows(house, storeys);
+  patcher.owned.push(ceilings.material, glows.material);
+  const ground = house.plan.rooms.filter((r) => r.levelId === levels[0]?.id).flatMap((r) => r.outline);
+  const gx = ground.map((p) => (p[0] ?? 0) / 1000);
+  const gz = ground.map((p) => (p[1] ?? 0) / 1000);
+  const groundTop = ((levels[0]?.elevationMm ?? 0) + (levels[0]?.heightMm ?? 0)) / 1000;
   const doors = new Set(house.plan.openings.filter((o) => o.kind === 'door').map((o) => o.id));
 
   return {
     root,
     upper: upperId === undefined ? null : (storeys.get(upperId) ?? null),
+    stacked,
     walls,
     furniture,
     floors,
@@ -312,53 +312,15 @@ export function buildStageHouse(
     materials,
     clonesOf: patcher.clonesOf,
     owned: patcher.owned,
+    facade,
+    ceilings: ceilings.meshes,
+    glows: glows.meshes,
+    inside: [Math.min(...gx), Math.min(...gz), Math.max(...gx), Math.max(...gz), groundTop],
+    look: { exterior: null },
   };
 }
 
-/** Rise a part to `amount` of its height (capped at `capM` above its foot). */
-function rise(grower: Grower, amount: number, material: number, lift: number, capM = Infinity): void {
-  const shown = amount > SHOWN;
-  grower.object.visible = shown;
-  grower.uniforms.uRiseY.value = grower.baseY + lift + Math.min(amount * grower.heightM, capM);
-  grower.uniforms.uMat.value = material;
-}
-
-/** Write one frame's build state into the house. Allocates nothing. */
-export function applyBuild(h: StageHouse, s: LandingState): void {
-  const { build } = s;
-  const upperLift = build.upperLiftM;
-  if (h.upper !== null) {
-    h.upper.position.y = upperLift;
-    h.upper.visible = build.upper > SHOWN;
-  }
-  const liftOf = (grower: Grower): number => (grower.upper ? upperLift : 0);
-
-  for (const wall of h.walls.values()) {
-    const cap = wall.heightM + (CUTAWAY_HEIGHT_M - wall.heightM) * build.cutaway;
-    rise(wall, build.wallRise[wall.id] ?? 0, build.material, liftOf(wall), Math.max(cap, 0));
-  }
-  for (const piece of h.furniture.values()) {
-    rise(piece, build.furniture[piece.id] ?? 0, build.material, liftOf(piece));
-  }
-  for (const floor of h.floors) {
-    rise(floor, build.floors, build.floors, liftOf(floor));
-  }
-  rise(h.stair, build.stair, build.material, liftOf(h.stair));
-
-  const storeyM = h.walls.get('W1')?.heightM ?? 3;
-  const doorFade = 1 - s.compliance.bathDoor;
-  for (const part of h.joinery) {
-    const opacity = part.id === h.failedDoorId ? build.joinery * doorFade : build.joinery;
-    part.object.visible = opacity > SHOWN;
-    // Frames and leaves are cut with the walls, or a window frame floats above a 1.2 m wall.
-    part.uniforms.uRiseY.value =
-      build.cutaway > SHOWN ? part.floorY + liftOf(part) + storeyM + (CUTAWAY_HEIGHT_M - storeyM) * build.cutaway : NO_CLAMP_Y;
-    part.uniforms.uOpacity.value = opacity;
-    // Negative drop = raised: it settles into place as joinery reaches 1.
-    part.uniforms.uDrop.value = -JOINERY_DROP_M * (1 - build.joinery);
-    part.uniforms.uMat.value = build.material;
-  }
-}
+export { applyBuild } from './build';
 
 /** Free every material this module made, present's set, and every geometry under the house. */
 export function disposeStageHouse(h: StageHouse, disposePresent: (m: SceneMaterials) => void): void {

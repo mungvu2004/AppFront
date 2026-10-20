@@ -13,30 +13,28 @@
  * anchors, quality governor — is tested on its own.
  */
 
-import { MathUtils, Vector3, type WebGLRenderTarget } from 'three';
+import { Box3, MathUtils, Vector3, type Group, type Texture, type WebGLRenderTarget } from 'three';
 
 import { buildStair } from '@/lib/landing/house';
-import {
-  createAssetService,
-  disposeMaterials,
-  readPalette,
-  type AssetService,
-  type ScenePalette,
-} from '@/lib/three/present';
+import { createAssetService, disposeMaterials, readPalette, type AssetService, type SceneMaterials } from '@/lib/three/present';
 
-import { LANDING_PALETTE } from '../palette';
-import type { LandingHouse, LandingState } from '../types';
+import type { LandingHouse, LandingState, Vec3 } from '../types';
 
 import { houseAnchors, projectPoint, type StageAnchor } from './anchors';
+import { gpuMemory, type StageInfo } from './dev';
+import { recolourModel } from './facade';
+import { landingScenePalette, matchSheetPaper } from './look';
 import { applyBuild, buildStageHouse, disposeStageHouse } from './house';
 import { createInk } from './ink';
 import type { createPost, PostChain } from './post';
 import { QUALITY, sameNumbers, type Quality, type QualitySettings } from './quality';
 import { createStageRenderer } from './renderer';
+import { buildRoofs } from './roof';
 import { warmStage } from './warm';
 import { applyPbr, type PbrHandle } from './textures';
 
 export { NoWebGL2Error } from './renderer';
+export { LANDING_LOOK, landingScenePalette } from './look';
 export {
   createFrameGovernor,
   pickStageQuality,
@@ -46,20 +44,6 @@ export {
   type Quality,
 } from './quality';
 
-declare global {
-  interface Window {
-    /** DEV only: the last frame's draw calls/triangles (all passes), GPU memory, program count. */
-    __landingStageInfo?: () => {
-      quality: Quality;
-      render: { calls: number; triangles: number; points: number; lines: number; frame: number };
-      memory: { geometries: number; textures: number };
-      programs: number;
-    };
-    /** DEV only: override single settings of the live tier (pass profiling); `null` clears. */
-    __landingStageTune?: (patch: Partial<QualitySettings> | null, q?: Quality) => void;
-  }
-}
-
 export interface Stage {
   apply(s: LandingState): void;
   render(): void;
@@ -67,44 +51,22 @@ export interface Stage {
   project(anchorId: string): { x: number; y: number; visible: boolean } | null;
   anchors(): string[];
   setQuality(q: Quality): void;
+  /** Ambient motion (pond ripples, koi); marks a redraw only when something moved. */
+  ambient(timeMs: number): void;
   /** Resolves once every tier's programs are compiled (switching tiers after this costs no link stall). */
   readonly warmed: Promise<void>;
   onContextLost(cb: () => void): void;
   dispose(): void;
 }
 
-/**
- * The landing's art direction over present's roles (R3–R5): a gallery model,
- * not the app's themed viewer. Warm off-white plaster, a light mineral
- * render outside, a soft graphite cut (not the page's text black), natural
- * oak, linen and graphite metal, and one muted sage as the only accent —
- * present's ochre cushion and orange woods read as toys.
- */
-export const LANDING_LOOK: Readonly<Partial<Record<keyof ScenePalette, string>>> = {
-  backdrop: LANDING_PALETTE.paper,
-  plaster: '#EFECE6',
-  exterior: '#DEDDD8',
-  cut: '#7D7972',
-  wood: '#B9A891',
-  woodDark: '#6B5D50',
-  fabric: '#E6E0D5',
-  textile: '#CBC3B5',
-  ochre: '#97A391',
-  stone: '#DAD6CE',
-  metal: '#3A3D42',
-  clay: '#B9A28C',
-  foliage: '#6E7D5C',
-  screen: '#2A2D31',
-};
-
-/** present's palette roles, with the landing's look in place of the page's tokens. */
-export function landingScenePalette(base: ScenePalette = readPalette(() => '')): ScenePalette {
-  const out: Record<string, ScenePalette[keyof ScenePalette]> = { ...base };
-  for (const [role, hex] of Object.entries(LANDING_LOOK)) {
-    out[role] = base.backdrop.clone().set(hex);
-  }
-  return out as ScenePalette;
+interface SiteHandle {
+  readonly group: Group;
+  apply(state: LandingState): void;
+  ambient(timeMs: number): boolean;
+  dispose(): void;
 }
+type CreateSite = (house: LandingHouse, ctx: { materials: SceneMaterials; anisotropy: number }) => SiteHandle;
+const SITE_MODULE = import.meta.glob<{ createSite: CreateSite }>('./site/index.ts');
 
 /** Where `pnpm draco` puts three's Draco decoder (public/draco, gitignored), as AuthScreen's houseScene. */
 export const DRACO_DECODER_PATH = '/draco/';
@@ -136,6 +98,31 @@ export async function createStage(
     assets === null ? { signal: models.signal } : { assets, signal: models.signal },
   );
   scene.add(stage.root);
+  const roofs = buildRoofs(house);
+  scene.add(roofs.group);
+  gl.skyOn(stage.root);
+  gl.skyOn(roofs.group);
+  // The shadow catcher drops to the site's base-block bottom once the estate stands on it.
+  const catcherY = gl.ground.position.y;
+  let siteFloor = catcherY;
+  const anisotropy = renderer.capabilities.getMaxAnisotropy();
+  // Agent SITE's module (ground, water, planting, outdoor items): its own chunk, mounted when it lands.
+  let site: SiteHandle | null = null;
+  void SITE_MODULE['./site/index.ts']?.().then((m) => {
+    if (disposed) {
+      return;
+    }
+    site = m.createSite(house, { materials: stage.materials, anisotropy });
+    scene.add(site.group);
+    gl.skyOn(site.group);
+    siteFloor = new Box3().setFromObject(site.group).min.y;
+    if (last !== null) {
+      site.apply(last);
+    }
+    dirty = true;
+    shadowDirty = true;
+  });
+  let view: { position: Vec3; target: Vec3; fov?: number } | null = null;
   const ink = createInk(house);
   scene.add(ink.group);
   const own = houseAnchors(house);
@@ -159,13 +146,16 @@ export async function createStage(
   let dpr = 1;
   const lostCallbacks: (() => void)[] = [];
   const lifted = new Vector3();
+  let facadeTextures: Texture[] = [];
   const target = new Vector3();
 
   // A `.glb` swapped in for a procedural piece gets the piece's growth clones, then one redraw.
   for (const piece of stage.pieces) {
     void piece.ready.then((source) => {
-      if (source === 'model' && !disposed) {
-        stage.furniture.get(piece.id)?.refresh();
+      const grower = stage.furniture.get(piece.id);
+      if (source === 'model' && !disposed && grower !== undefined) {
+        recolourModel(grower.object, house.plan.furniture.find((f) => f.id === piece.id)?.modelUrl, stage.materials);
+        grower.refresh();
         dirty = true;
         shadowDirty = true;
       }
@@ -190,6 +180,7 @@ export async function createStage(
     }
     // Until the composer is here, the renderer tone-maps itself (same curve, same picture).
     gl.configure(settings.composer && post === null ? { ...settings, composer: false } : settings);
+    matchSheetPaper(ink.group, settings.composer && post !== null);
     post?.configure(settings);
     renderer.setPixelRatio(Math.min(dpr, settings.maxDpr));
     renderer.setSize(width, height, false);
@@ -206,9 +197,7 @@ export async function createStage(
       cb();
     }
   };
-  const onRestored = (): void => {
-    dirty = true;
-  };
+  const onRestored = (): void => void (dirty = true);
   canvas.addEventListener('webglcontextlost', onLost);
   canvas.addEventListener('webglcontextrestored', onRestored);
 
@@ -246,7 +235,7 @@ export async function createStage(
         return;
       }
       if (last !== null) {
-        applyBuild(stage, last);
+        applyBuild(stage, last, camera.position);
       }
       dirty = true;
     }
@@ -256,19 +245,19 @@ export async function createStage(
   renderer.info.autoReset = false;
   if (import.meta.env.DEV) {
     window.__landingStageInfo = info;
+    window.__landingStageView = (next) => {
+      view = next;
+      if (last !== null) stageApi.apply(last);
+    };
     window.__landingStageTune = (patch, q) => {
       tune = patch ?? {};
       quality = q ?? quality;
       configure();
     };
   }
-  function info(): ReturnType<NonNullable<Window['__landingStageInfo']>> {
-    return {
-      quality,
-      render: { ...renderer.info.render },
-      memory: { ...renderer.info.memory },
-      programs: renderer.info.programs?.length ?? 0,
-    };
+  function info(): StageInfo {
+    const { render, memory, programs } = renderer.info;
+    return { quality, render: { ...render }, memory: { ...memory }, gpuMB: gpuMemory(renderer, scene), programs: programs?.length ?? 0 };
   }
 
   const anchorPoint = (id: string): Vector3 | null => {
@@ -276,16 +265,16 @@ export async function createStage(
     if (mine !== undefined) {
       lifted.copy(mine.point);
       if (mine.upper && stage.upper !== null) {
-        lifted.y += stage.upper.position.y;
+        lifted.y += stage.upper.position.y * (mine.liftK ?? 1);
       }
       return lifted;
     }
     return ink.anchors.get(id) ?? null;
   };
 
-  return {
+  const stageApi: Stage = {
     apply(s) {
-      const c = s.camera;
+      const c = view === null ? s.camera : { position: view.position, target: view.target, fovDeg: view.fov ?? s.camera.fovDeg, rollDeg: 0 };
       camera.position.set(c.position[0], c.position[1], c.position[2]);
       target.set(c.target[0], c.target[1], c.target[2]);
       camera.lookAt(target);
@@ -303,7 +292,10 @@ export async function createStage(
       if (last === null || !sameNumbers(last.build, s.build) || !sameNumbers(last.compliance, s.compliance)) {
         shadowDirty = true;
       }
-      applyBuild(stage, s);
+      applyBuild(stage, s, camera.position);
+      roofs.apply(s);
+      site?.apply(s);
+      gl.ground.position.y = site !== null && s.build.site > 0.5 ? siteFloor : catcherY;
       last = s;
       ink.apply(s, camera);
       dirty = true;
@@ -324,7 +316,17 @@ export async function createStage(
       if (firstFrame) {
         firstFrame = false;
         // Photographic textures are not needed for the first paint; they land once, later.
-        const landed = applyPbr(stage, house.plan.rooms);
+        const landed = applyPbr(stage, house.plan.rooms, anisotropy);
+        void Promise.all([roofs.loadTextures(anisotropy), stage.facade.loadTextures(anisotropy, stage.clonesOf)]).then(
+          (sets) => {
+            facadeTextures = sets[1];
+            if (disposed) {
+              for (const t of facadeTextures) t.dispose();
+            }
+            dirty = true;
+          },
+          () => undefined,
+        );
         void warmUp(landed).catch(() => undefined).finally(warmedResolve);
         landed.then(
           (handle) => {
@@ -355,6 +357,9 @@ export async function createStage(
     anchors() {
       return [...new Set([...own.keys(), ...ink.anchors.keys()])];
     },
+    ambient(timeMs) {
+      dirty = site?.ambient(timeMs) === true || dirty;
+    },
     setQuality(q) {
       if (q !== quality) {
         quality = q;
@@ -371,6 +376,7 @@ export async function createStage(
       if (import.meta.env.DEV && window.__landingStageInfo === info) {
         delete window.__landingStageInfo;
         delete window.__landingStageTune;
+        delete window.__landingStageView;
       }
       warmedResolve();
       models.abort();
@@ -379,6 +385,9 @@ export async function createStage(
       lostCallbacks.length = 0;
       pbr?.dispose();
       ink.dispose();
+      roofs.dispose();
+      site?.dispose();
+      for (const t of facadeTextures) t.dispose();
       post?.dispose();
       disposeStageHouse(stage, disposeMaterials);
       scene.remove(stage.root);
@@ -386,4 +395,5 @@ export async function createStage(
       gl.dispose();
     },
   };
+  return stageApi;
 }

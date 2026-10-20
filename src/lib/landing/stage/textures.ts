@@ -8,7 +8,7 @@
  * Scale and colour compensate for the sources (coordinator's notes):
  * - plaster = beige_wall_001, 3 × 3 m, dark taupe → re-tinted to warm off-white;
  * - oak = laminate_floor_02, 1.7 × 1.7 m, boards along u → turned per room so
- *   they run along its long side, roughness kept ≥ 0.55;
+ *   they run along its long side, effective roughness ~0.55;
  * - concrete = plastered_wall_04, 3.2 × 3.2 m → its relief only, on the exterior face.
  * Wall and slab UVs are in metres (extruded shapes), so repeat = 1 / tile size.
  * Every room / wall gets its own offset and a small scale jitter so no two
@@ -49,10 +49,18 @@ function tintFor(target: string, mean: readonly [number, number, number]): Color
   const c = new Color(target);
   return c.setRGB(c.r / mean[0], c.g / mean[1], c.b / mean[2]);
 }
-const PLASTER_TINT = tintFor('#ECE9E3', [0.34, 0.262, 0.188]);
+const PLASTER_TINT = tintFor('#EFEFEC', [0.34, 0.262, 0.188]);
 const OAK_TINT = tintFor('#C4AD94', [0.329, 0.217, 0.126]);
-const CONCRETE_TINT = new Color('#DEDDD8');
-const OAK_MIN_ROUGHNESS = 0.55;
+/** Cool crisp render (archviz-r2 fix 7): lands near #F1F2F0 in sun, not cream. */
+const CONCRETE_TINT = new Color('#E9ECEE');
+/**
+ * `roughnessMap` multiplies `roughness`, and oak_rough's mean is 0.377: a factor of 0.55 gave ~0.21, a
+ * mirror floor (archviz-r2 fix 11). This factor lands the mean at 0.55 (the shader clamps texels at 1).
+ */
+const OAK_ROUGH_MEAN = 0.377;
+const OAK_ROUGHNESS = 0.55 / OAK_ROUGH_MEAN;
+/** A soft window sheen on the boards, not a sky-blue streak. */
+const OAK_ENV = 0.3;
 /** Oak on unit-UV faces (a 1 m tread, a 1.6 m table top): grain at a believable size. */
 const PIECE_OAK_REPEAT = 0.6;
 /** Linen: plaster's fine relief, tiled small and soft, reads as a weave on cushions and covers. */
@@ -93,12 +101,12 @@ export interface PbrHandle {
   dispose(): void;
 }
 
-async function loadSet(loader: TextureLoader, name: SetName): Promise<PbrSet> {
+async function loadSet(loader: TextureLoader, name: SetName, anisotropy: number): Promise<PbrSet> {
   const load = async (kind: 'diff' | 'nor' | 'rough'): Promise<Texture> => {
     const t = await loader.loadAsync(`${TEX_BASE}${name}_${kind}_1k.jpg`);
     t.wrapS = RepeatWrapping;
     t.wrapT = RepeatWrapping;
-    t.anisotropy = 4;
+    t.anisotropy = anisotropy;
     if (kind === 'diff') {
       t.colorSpace = SRGBColorSpace;
     }
@@ -113,12 +121,12 @@ async function loadSet(loader: TextureLoader, name: SetName): Promise<PbrSet> {
  * handle that frees every texture; rejects only if nothing could load (the
  * caller keeps the drawn look).
  */
-export async function applyPbr(house: StageHouse, rooms: readonly PlanRoom[]): Promise<PbrHandle> {
+export async function applyPbr(house: StageHouse, rooms: readonly PlanRoom[], anisotropy = 8): Promise<PbrHandle> {
   const loader = new TextureLoader();
   const [plaster, oak, concrete] = await Promise.all([
-    loadSet(loader, 'plaster'),
-    loadSet(loader, 'oak'),
-    loadSet(loader, 'concrete'),
+    loadSet(loader, 'plaster', anisotropy),
+    loadSet(loader, 'oak', anisotropy),
+    loadSet(loader, 'concrete', anisotropy),
   ]);
   const made: Texture[] = [];
   const keep = (set: PbrSet): PbrSet => {
@@ -166,7 +174,8 @@ export async function applyPbr(house: StageHouse, rooms: readonly PlanRoom[]): P
         clone.map = set.diff;
         clone.normalMap = set.nor;
         clone.roughnessMap = set.rough;
-        clone.roughness = Math.max(clone.roughness, OAK_MIN_ROUGHNESS);
+        clone.roughness = OAK_ROUGHNESS;
+        clone.envMapIntensity = OAK_ENV;
         clone.color.copy(OAK_TINT);
         clone.needsUpdate = true;
       }
@@ -187,7 +196,7 @@ export async function applyPbr(house: StageHouse, rooms: readonly PlanRoom[]): P
       clone.map = oakUnit.diff;
       clone.normalMap = oakUnit.nor;
       clone.roughnessMap = oakUnit.rough;
-      clone.roughness = Math.max(clone.roughness, OAK_MIN_ROUGHNESS);
+      clone.roughness = OAK_ROUGHNESS;
       clone.color.copy(OAK_TINT);
       clone.needsUpdate = true;
     }

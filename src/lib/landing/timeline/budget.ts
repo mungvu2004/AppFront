@@ -12,17 +12,18 @@
 
 import { LANDING_HOUSE } from '../house';
 
-import { angleBetween, expand, makePath, makeRig, type Path, type Pose } from './rig';
+import { angleBetween, expand, makePath, makeRig, relStep, type Path, type Pose } from './rig';
 import type { ShotKey } from './shots';
 
 export const LIMITS = {
   /** Look rotation, degrees per screen, outside the building / inside it. */
   outsideDeg: 30,
   insideDeg: 22,
-  /** Camera travel per screen: metres inside; outside, a share of the look distance (screen-space, so a
-   * long-lens camera 80 m out may travel far while a close one may not; 0.45 ≈ the rotation limit). */
+  /** Camera travel per screen: metres inside; outside, look distances (rig.relStep: dolly as |Δd|/d,
+   * sideways travel relative to d), so a long-lens camera 80 m out may travel far while a close one may
+   * not. 0.8 ≈ Casa Serra's exterior pace. */
   insideM: 2.5,
-  outsideRel: 0.45,
+  outsideRel: 0.8,
   /** Lens change, degrees per screen. */
   fovDeg: 6,
 } as const;
@@ -72,7 +73,7 @@ export function rates(a: Pose, b: Pose, dScreens: number): Rates {
   return {
     deg: (angleBetween(a.fwd, b.fwd) * 180) / Math.PI / d,
     m: m / d,
-    rel: m / Math.max(1, Math.min(a.dist, b.dist)) / d,
+    rel: relStep(a, b) / d,
     fov: Math.abs(b.fovDeg - a.fovDeg) / d,
     inside: isInside(a.position, a.fwd) || isInside(b.position, b.fwd),
   };

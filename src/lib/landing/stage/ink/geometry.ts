@@ -16,6 +16,7 @@ import { resolveWallShapes } from '@/domain/walls/joints';
 import type { Wall, WallKind } from '@/domain/walls/types';
 import type { WallId } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
+import type { LandingHouse } from '@/lib/landing/types';
 import type { PlanOpening, PlanWall, PresentationPlan } from '@/lib/three/present';
 
 export type P2 = readonly [number, number];
@@ -90,6 +91,15 @@ export function footprint(plan: PresentationPlan): readonly [number, number, num
   }
   const xs = pts.map((p) => p[0]);
   const zs = pts.map((p) => p[1]);
+  return [Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs)];
+}
+
+/** `[minX, minZ, maxX, maxZ]` of everything the sheet shows: the ground walls and the whole plot. */
+export function drawingBounds(house: LandingHouse): readonly [number, number, number, number] {
+  const [x0, z0, x1, z1] = footprint(house.plan);
+  const plot = house.site.plot.map(p2);
+  const xs = [x0, x1, ...plot.map((p) => p[0])];
+  const zs = [z0, z1, ...plot.map((p) => p[1])];
   return [Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs)];
 }
 

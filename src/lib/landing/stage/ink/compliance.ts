@@ -8,8 +8,9 @@
 
 import type { LandingHouse } from '@/lib/landing/types';
 
-import { add, along, compass, mm, openingSpan, p2, wallFrame, type P2 } from './geometry';
+import { add, along, dot, mm, openingSpan, p2, sub, wallFrame, type P2 } from './geometry';
 import { CORAL, JADE, lineMaterial, RevealLine, staticLine, type P3, type Stroke } from './lines';
+import { stairPlan, type RiserLine } from './stairPlan';
 
 export interface Compliance {
   readonly door: RevealLine | null;
@@ -91,48 +92,48 @@ function doorStrokes(house: LandingHouse, openingId: string, anchors: Map<string
   return out;
 }
 
-/** `buildStair` puts the open (stringer) side at its local +x, which after the compass turn is −across. */
-const OPEN_SIDE = -1;
-
 function stairStrokes(house: LandingHouse, anchors: Map<string, P3>, checkId: string | null): Stroke[] {
   const spec = house.stair;
-  const dir = compass(spec.climbs) ?? [0, 1];
-  const across: P2 = [-dir[1], dir[0]];
-  const start = p2(spec.startMm);
-  const half = mm(spec.widthMm) / 2;
-  const tread = mm(spec.treadMm);
+  const plan = stairPlan(spec);
   const riser = mm(spec.riserMm);
   const base = levelElevation(house, spec.levelId);
+  const n = plan.risers.length;
   const out: Stroke[] = [];
   // Nosing lines just proud of each tread's front edge, so they never sink into the wood.
-  const nosing = (k: number): number => k * tread - 0.03;
-  for (let k = 0; k < spec.risers; k++) {
-    const nose = add(start, dir, nosing(k));
-    const a = add(nose, across, -half);
-    const b = add(nose, across, half);
+  const nose = (k: number, end: 'a' | 'b'): P2 => {
+    const r = plan.risers[k] as RiserLine;
+    return add(r[end], r.down, 0.03);
+  };
+  for (let k = 0; k < n; k++) {
+    const a = nose(k, 'a');
+    const b = nose(k, 'b');
     const y = base + (k + 1) * riser + 0.004;
-    const t = (0.7 * k) / spec.risers;
-    out.push({ pts: [[a[0], y, a[1]], [b[0], y, b[1]]], start: t, end: t + 0.7 / spec.risers });
+    const t = (0.7 * k) / n;
+    out.push({ pts: [[a[0], y, a[1]], [b[0], y, b[1]]], start: t, end: t + 0.7 / n });
   }
-  // One riser dimensioned on the open (stringer) side, at about hand height.
-  const k = 4;
-  const edge = add(add(start, dir, nosing(k)), across, OPEN_SIDE * half);
+  // One riser dimensioned at about hand height, on the flight's open side (the well of a U-stair).
+  const k = Math.min(4, n - 1);
+  const r = plan.risers[k] as RiserLine;
+  const side = plan.openSide;
+  const edge = dot(sub(r.b, r.a), side) > 0 ? nose(k, 'b') : nose(k, 'a');
+  const room = Math.min(0.3, plan.openRoom - 0.03);
+  const dimAt = room * 0.8;
   const lo = base + k * riser;
   const hi = lo + riser;
   const at = (off: number, y: number): P3 => {
-    const p = add(edge, across, OPEN_SIDE * off);
+    const p = add(edge, side, off);
     return [p[0], y, p[1]];
   };
+  const tk = Math.min(TICK * 0.6, room * 0.3);
   out.push(
-    { pts: [at(0.03, lo), at(0.3, lo)], start: 0.7, end: 0.78 },
-    { pts: [at(0.03, hi), at(0.3, hi)], start: 0.72, end: 0.8 },
-    { pts: [at(0.24, lo - 0.05), at(0.24, hi + 0.05)], start: 0.8, end: 0.9 },
-    { pts: [at(0.24 - TICK * 0.6, lo - TICK * 0.6), at(0.24 + TICK * 0.6, lo + TICK * 0.6)], start: 0.9, end: 0.95 },
-    { pts: [at(0.24 - TICK * 0.6, hi - TICK * 0.6), at(0.24 + TICK * 0.6, hi + TICK * 0.6)], start: 0.95, end: 1 },
+    { pts: [at(0.03, lo), at(room, lo)], start: 0.7, end: 0.78 },
+    { pts: [at(0.03, hi), at(room, hi)], start: 0.72, end: 0.8 },
+    { pts: [at(dimAt, lo - 0.05), at(dimAt, hi + 0.05)], start: 0.8, end: 0.9 },
+    { pts: [at(dimAt - tk, lo - tk), at(dimAt + tk, lo + tk)], start: 0.9, end: 0.95 },
+    { pts: [at(dimAt - tk, hi - tk), at(dimAt + tk, hi + tk)], start: 0.95, end: 1 },
   );
   if (checkId) {
-    const label = at(0.42, (lo + hi) / 2);
-    anchors.set(`check:${checkId}`, label);
+    anchors.set(`check:${checkId}`, at(room + 0.12, (lo + hi) / 2));
   }
   return out;
 }

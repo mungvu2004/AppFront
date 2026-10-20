@@ -8,6 +8,8 @@ import type { LandingState } from '@/lib/landing/types';
 import { along, wallFrame, type P2 } from '../geometry';
 import { createInk } from '../index';
 import { pocheShapes } from '../poche';
+import { siteInk } from '../site';
+import { stairPlan } from '../stairPlan';
 import { furnitureSymbols, pieceSymbol } from '../symbols';
 
 const camera = new PerspectiveCamera();
@@ -22,7 +24,23 @@ function zeroState(): LandingState {
     paper: { opacity: 0, ink: 0, junkInk: 0, axes: 0, dims: 0, liftM: 0 },
     detect: { walls: 0, rooms: 0, openings: 0, furniture: 0, labels: 0, explodeM: 0 },
     review: { highlight: 0, close: 0 },
-    build: { wallRise: {}, floors: 0, joinery: 0, furniture: {}, material: 0, stair: 0, upper: 0, upperLiftM: 0, cutaway: 0 },
+    build: {
+      wallRise: {},
+      floors: 0,
+      joinery: 0,
+      furniture: {},
+      material: 0,
+      stair: 0,
+      upper: 0,
+      upperLiftM: 0,
+      cutaway: 0,
+      roof: 0,
+      roofLiftM: 0,
+      ceiling: 0,
+      site: 0,
+      planting: 0,
+      water: 0,
+    },
     compliance: { bathDoor: 0, stair: 0, passMarks: 0 },
     exports: 0,
     semantic: 0,
@@ -83,7 +101,15 @@ function ids(root: Object3D): string[] {
 describe('createInk', () => {
   it('publishes the anchors the stage labels', () => {
     const ink = createInk(LANDING_HOUSE);
-    for (const id of ['axis:A', 'axis:3', 'dim:12000', 'dim:9000', 'dim:5000', 'det:F1', 'gap', 'check:C4', 'check:C7']) {
+    const house = LANDING_HOUSE;
+    const ids = [
+      ...house.axes.map((axis) => `axis:${axis.id}`),
+      ...house.detections.filter((d) => d.labelled).map((d) => `det:${d.furnitureId}`),
+      ...house.checks.filter((c) => !c.pass).map((c) => `check:${c.id}`),
+      'gap',
+    ];
+    expect(ids.length).toBeGreaterThan(house.axes.length + 2);
+    for (const id of ids) {
       expect(ink.anchors.has(id), id).toBe(true);
     }
     ink.dispose();
@@ -178,6 +204,39 @@ describe('plan drawing', () => {
       for (const p of pieceSymbol(item).flat()) {
         expect(Math.hypot(p[0] - (item.centreMm[0] ?? 0) / 1000, p[1] - (item.centreMm[1] ?? 0) / 1000), item.id).toBeLessThan(r);
       }
+    }
+  });
+
+  it('draws every riser of the U-stair, the second flight beside the first', () => {
+    const spec = LANDING_HOUSE.stair;
+    const plan = stairPlan(spec);
+    expect(plan.risers).toHaveLength(spec.risers);
+    const first = plan.risers[0] as (typeof plan.risers)[number];
+    const last = plan.risers[spec.risers - 1] as (typeof plan.risers)[number];
+    const mid = (r: typeof first): P2 => [(r.a[0] + r.b[0]) / 2, (r.a[1] + r.b[1]) / 2];
+    if (spec.landing) {
+      // Back on the line of the foot, one width + gap over.
+      expect(Math.abs(mid(last)[1] - mid(first)[1])).toBeLessThan(1e-6);
+      expect(Math.hypot(mid(last)[0] - mid(first)[0], mid(last)[1] - mid(first)[1])).toBeCloseTo((spec.widthMm + spec.landing.gapMm) / 1000, 6);
+    }
+  });
+
+  it('inks the site: boundary walls cut as poché, gates open, eaves dashed', () => {
+    const site = siteInk(LANDING_HOUSE);
+    expect(site.poche.length).toBeGreaterThan(LANDING_HOUSE.site.walls.length);
+    expect(site.walls.length).toBeGreaterThan(8);
+    expect(site.overhead.length).toBeGreaterThan(LANDING_HOUSE.roofs.hips.length * 8);
+    expect(site.fine.length).toBeGreaterThan(LANDING_HOUSE.site.plants.length);
+    // Nothing of the site leaves the plot — beyond a tree canopy reaching over the
+    // boundary wall, as a real one does (a metre at most).
+    const xs = LANDING_HOUSE.site.plot.map((p) => p[0] / 1000);
+    const zs = LANDING_HOUSE.site.plot.map((p) => p[1] / 1000);
+    const reach = 1;
+    for (const p of [...site.fine, ...site.walls].flat()) {
+      expect(p[0]).toBeGreaterThan(Math.min(...xs) - reach);
+      expect(p[0]).toBeLessThan(Math.max(...xs) + reach);
+      expect(p[1]).toBeGreaterThan(Math.min(...zs) - reach);
+      expect(p[1]).toBeLessThan(Math.max(...zs) + reach);
     }
   });
 

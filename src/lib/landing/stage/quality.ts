@@ -24,11 +24,11 @@ export interface QualitySettings {
 }
 
 export const QUALITY: Readonly<Record<Quality, QualitySettings>> = {
-  full: { maxDpr: 2, composer: true, ao: true, aoHalfRes: false, aoMode: 'Medium', shadows: true, shadowMapSize: 2048, smaa: 'medium' },
+  full: { maxDpr: 2, composer: true, ao: true, aoHalfRes: false, aoMode: 'Medium', shadows: true, shadowMapSize: 3072, smaa: 'medium' },
   // Measured on Intel UHD 1440×900 (tools/passes.mjs): the composer's half-float chain alone costs ≈ 7 ms and
   // n8ao another ≈ 7 (even 'Performance', half-res); shadows ≈ 0 once static. So the iGPU tier keeps the sun
   // shadow, drops the composer, and gets its edges from the context's MSAA: p50 7 / p95 14 ms vs 21 / 35.
-  balanced: { maxDpr: 1, composer: false, ao: false, aoHalfRes: true, aoMode: 'Performance', shadows: true, shadowMapSize: 1024, smaa: 'low' },
+  balanced: { maxDpr: 1, composer: false, ao: false, aoHalfRes: true, aoMode: 'Performance', shadows: true, shadowMapSize: 2048, smaa: 'low' },
   lite: { maxDpr: 1, composer: false, ao: false, aoHalfRes: false, aoMode: 'Performance', shadows: false, shadowMapSize: 512, smaa: 'low' },
 };
 

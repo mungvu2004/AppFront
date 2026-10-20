@@ -17,12 +17,12 @@ import type { LandingHouse } from '../types';
 export interface StageAnchor {
   readonly point: Vector3;
   readonly upper: boolean;
+  /** Storeys above the ground (T2 1, T3 2): the anchor rides `liftK × upperLiftM`. */
+  readonly liftK?: number;
 }
 
 /** Room labels float at eye height over the room's centre. */
 export const LABEL_HEIGHT_M = 1.2;
-/** The compliance checks' targets: the bathroom door, and the stair. */
-export const BATH_DOOR_OPENING = 'D5';
 
 const MM = 1000;
 
@@ -30,6 +30,7 @@ export function houseAnchors(house: LandingHouse): Map<string, StageAnchor> {
   const { plan, stair } = house;
   const levels = [...plan.levels].sort((a, b) => a.elevationMm - b.elevationMm);
   const upperId = levels[1]?.id;
+  const liftK = (levelId: string): number => Math.max(0, levels.findIndex((l) => l.id === levelId));
   const elevation = (levelId: string): number => (plan.levels.find((l) => l.id === levelId)?.elevationMm ?? 0) / MM;
   const anchors = new Map<string, StageAnchor>();
 
@@ -37,7 +38,8 @@ export function houseAnchors(house: LandingHouse): Map<string, StageAnchor> {
     const c = roomCentre(room);
     anchors.set(`room:${room.id}`, {
       point: new Vector3(c.x, elevation(room.levelId) + LABEL_HEIGHT_M, c.z),
-      upper: room.levelId === upperId,
+      upper: liftK(room.levelId) > 0,
+      liftK: liftK(room.levelId),
     });
   }
 
@@ -51,7 +53,6 @@ export function houseAnchors(house: LandingHouse): Map<string, StageAnchor> {
     foot.z + (dir.z * half * stair.treadMm) / MM,
   );
   const stairUpper = stair.levelId === upperId;
-  anchors.set('check:C7', { point: mid, upper: stairUpper });
   // On the flight itself: lifted by a storey height it sat on the upper floor (R7).
   anchors.set('stair', { point: mid.clone(), upper: stairUpper });
 
@@ -64,15 +65,23 @@ export function houseAnchors(house: LandingHouse): Map<string, StageAnchor> {
     const b = planPoint(wall.end);
     return {
       point: new Vector3(a.x + (b.x - a.x) * t, elevation(wall.levelId) + heightM, a.z + (b.z - a.z) * t),
-      upper: wall.levelId === upperId,
+      upper: liftK(wall.levelId) > 0,
+      liftK: liftK(wall.levelId),
     };
   };
 
-  const door = plan.openings.find((o) => o.id === BATH_DOOR_OPENING);
-  const doorAnchor =
-    door === undefined ? null : along(door.wallId, door.relativePosition, (door.sillHeightMm + door.heightMm / 2) / MM);
-  if (doorAnchor !== null) {
-    anchors.set('check:C4', doorAnchor);
+  // Each failing check hangs off its target: the stair's middle riser, or an opening's centre.
+  for (const check of house.checks.filter((c) => !c.pass)) {
+    const door = plan.openings.find((o) => o.id === check.targetId);
+    const at =
+      check.targetId === stair.id
+        ? { point: mid.clone(), upper: stairUpper }
+        : door === undefined
+          ? null
+          : along(door.wallId, door.relativePosition, (door.sillHeightMm + door.heightMm / 2) / MM);
+    if (at !== null) {
+      anchors.set(`check:${check.id}`, at);
+    }
   }
   const gap = along(house.reviewGap.wallId, (house.reviewGap.from + house.reviewGap.to) / 2, 0);
   if (gap !== null) {

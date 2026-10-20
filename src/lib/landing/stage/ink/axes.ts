@@ -13,7 +13,8 @@ import type { LandingHouse } from '@/lib/landing/types';
 import { add, circle, dashes, footprint, mm, type P2 } from './geometry';
 import { flatStroke, GRAPHITE, lineMaterial, RevealLine, windows, type P3, type Stroke } from './lines';
 
-const AXIS_REACH_M = 1.7;
+/** Bubbles and dimension chains clear the planting bed along the house front. */
+const AXIS_REACH_M = 2.6;
 const BUBBLE_R = 0.28;
 const DASH_DOT = [0.45, 0.09, 0.04, 0.09];
 /** Architectural 45° tick, the same slant on every dimension. */
@@ -80,12 +81,12 @@ function dimStrokes(house: LandingHouse, anchors: Map<string, P3>): Stroke[] {
   const x1 = xs[xs.length - 1] as number;
   const z0 = zs[0] as number;
   const z1 = zs[zs.length - 1] as number;
-  const chainZ = z0 - 0.75;
-  const overallZ = z0 - 1.2;
+  const chainZ = z0 - 1.25;
+  const overallZ = z0 - 1.8;
   const sideX = x0 - 0.95;
   const dims: Dim[] = [
-    ...xs.slice(1).map((x, i): Dim => ({ a: [xs[i] as number, chainZ], b: [x, chainZ], out: [0, -1], reach: 0.5 })),
-    { a: [x0, overallZ], b: [x1, overallZ], out: [0, -1], reach: 0.95 },
+    ...xs.slice(1).map((x, i): Dim => ({ a: [xs[i] as number, chainZ], b: [x, chainZ], out: [0, -1], reach: 0.95 })),
+    { a: [x0, overallZ], b: [x1, overallZ], out: [0, -1], reach: 1.5 },
     { a: [sideX, z0], b: [sideX, z1], out: [-1, 0], reach: 0.7 },
   ];
 

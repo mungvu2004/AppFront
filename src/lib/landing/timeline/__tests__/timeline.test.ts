@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { LANDING_HOUSE } from '../../house';
 import { arrive, cameraAt, furnitureRise, leave, SCENES, sceneAt, stateAt, TRACK_SCREENS, WAYPOINTS } from '..';
+import { ROOF_AWAY_M, SECTION_LIFT_M } from '../choreo';
 
 const P = (screens: number): number => screens / TRACK_SCREENS;
 /** Thresholds were set for 1e-4 p on the v1 9-screen track (0.0009 screen); scale them per screen. */
@@ -105,12 +106,16 @@ describe('stateAt', () => {
     expect(stateAt(mid('gap-hold')).labels['gap']).toBe(1);
     expect(stateAt(mid('gap-hold')).review.highlight).toBe(1);
     expect(stateAt(P(leave('gap-hold'))).review.close).toBe(1);
-    expect(stateAt(mid('wc-look')).compliance.bathDoor).toBe(1);
-    expect(stateAt(mid('living')).build.upperLiftM).toBe(4);
-    expect(stateAt(mid('living')).build.ceiling).toBe(1);
-    expect(stateAt(P(leave('axo'))).build.upperLiftM).toBe(1.2);
-    expect(stateAt(P(arrive('wc-in'))).build.upperLiftM).toBe(5.2);
-    expect(stateAt(P(arrive('lift-out'))).build.upperLiftM).toBe(0);
+    expect(stateAt(mid('checks')).compliance.bathDoor).toBe(1);
+    expect(stateAt(mid('checks')).compliance.stair).toBe(1);
+    expect(stateAt(P(arrive('living'))).build.ceiling).toBe(1);
+    expect(stateAt(P(arrive('living'))).build.upperLiftM).toBe(0);
+    expect(stateAt(mid('living')).build.upperLiftM).toBe(SECTION_LIFT_M);
+    expect(stateAt(P(leave('living'))).build.cutaway).toBe(1);
+    expect(stateAt(P(leave('living'))).build.ceiling).toBe(0);
+    expect(stateAt(mid('section')).build.roofLiftM).toBe(ROOF_AWAY_M);
+    expect(stateAt(P(arrive('checks'))).build.upperLiftM).toBe(SECTION_LIFT_M);
+    expect(stateAt(1).build.upperLiftM).toBe(0);
     const s6 = stateAt(SCENES[5]?.start ?? 0).build;
     expect([s6.site, s6.planting, s6.roof, s6.water]).toEqual([1, 1, 1, 1]);
     const end = stateAt(1);

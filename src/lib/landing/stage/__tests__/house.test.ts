@@ -45,12 +45,25 @@ const materialsIn = (h: ReturnType<typeof build>): Set<Material> => {
 describe('buildStageHouse', () => {
   const h = build();
 
-  it('maps every wall id to its object: W1–W11 on T1, U1–U5 on T2', () => {
-    for (let i = 1; i <= 11; i += 1) expect(h.walls.get(`W${i}`)?.upper).toBe(false);
-    for (let i = 1; i <= 5; i += 1) expect(h.walls.get(`U${i}`)?.upper).toBe(true);
+  it('maps every wall id to its object: T1 walls stay, every storey above lifts', () => {
+    for (const w of LANDING_HOUSE.plan.walls) expect(h.walls.get(w.id)?.upper).toBe(w.levelId !== 'T1');
     expect(h.upper).not.toBeNull();
     expect(h.furniture.size).toBe(LANDING_HOUSE.plan.furniture.length);
     expect(h.walls.get('W1')?.heightM).toBeGreaterThan(2);
+  });
+
+  it('turns the ceiling on with the camera inside, dark glass and window glow only for exterior shots', () => {
+    const outside = { ...state(1, { upperLiftM: 0, roof: 1, roofLiftM: 0, ceiling: 0 }) } as LandingState;
+    applyBuild(h, outside, new Vector3(-6, 1.7, -13));
+    expect(h.glows.length).toBeGreaterThan(5);
+    expect(h.glows.every((g) => g.visible)).toBe(true);
+    expect(h.ceilings.some((c) => c.visible)).toBe(false);
+    const glass = h.clonesOf.get(h.materials.glass)?.[0] as Material & { opacity: number };
+    expect(glass.opacity).toBeGreaterThan(0.3);
+    applyBuild(h, outside, new Vector3(12.5, 1.45, 16.3));
+    expect(h.ceilings.every((c) => c.visible)).toBe(true);
+    expect(h.glows.some((g) => g.visible)).toBe(false);
+    expect(glass.opacity).toBeLessThan(0.1);
   });
 
   it('gives each object its own patched clones', () => {
@@ -71,6 +84,9 @@ describe('buildStageHouse', () => {
     expect(h.upper?.position.y).toBe(2);
     const u1 = h.walls.get('U1');
     expect(u1?.uniforms.uRiseY.value).toBeCloseTo((u1?.baseY ?? 0) + 2 + 0.5 * (u1?.heightM ?? 0));
+    const v1 = h.walls.get('V1');
+    expect(v1?.uniforms.uRiseY.value).toBeCloseTo((v1?.baseY ?? 0) + 4 + 0.5 * (v1?.heightM ?? 0));
+    expect(h.stacked[0]?.position.y).toBe(2);
     applyBuild(h, state(1, { cutaway: 1 }));
     expect(w1?.uniforms.uRiseY.value).toBeCloseTo((w1?.baseY ?? 0) + CUTAWAY_HEIGHT_M);
     expect(h.joinery.every((j) => j.uniforms.uOpacity.value === 1 && j.uniforms.uDrop.value === 0)).toBe(true);
@@ -84,12 +100,14 @@ describe('build fixes', () => {
   const h = build();
 
   it('stands upper furniture on its own floor, cuts joinery with the walls, fades the failed door', () => {
-    expect(h.furniture.get('F10')?.baseY).toBeGreaterThan(2.9);
-    expect(h.failedDoorId).toBe('D5');
-    const leaf = h.joinery.find((j) => j.id === 'D5');
+    const upperPiece = LANDING_HOUSE.plan.furniture.find((f) => f.levelId === 'T2' && f.liftMm === undefined);
+    expect(h.furniture.get(upperPiece?.id ?? '')?.baseY).toBeGreaterThan(2.9);
+    const failedDoor = LANDING_HOUSE.checks.find((c) => !c.pass && LANDING_HOUSE.plan.openings.some((o) => o.id === c.targetId && o.kind === 'door'));
+    expect(h.failedDoorId).toBe(failedDoor?.targetId);
+    const leaf = h.joinery.find((j) => j.id === failedDoor?.targetId);
     applyBuild(h, { ...state(1, { cutaway: 1 }), compliance: { bathDoor: 1, stair: 0, passMarks: 0 } } as LandingState);
     expect(leaf?.object.visible).toBe(false);
-    const frame = h.joinery.find((j) => !j.upper && j.id !== 'D5');
+    const frame = h.joinery.find((j) => !j.upper && j.id !== failedDoor?.targetId);
     expect(frame?.uniforms.uRiseY.value).toBeCloseTo(CUTAWAY_HEIGHT_M);
   });
 });
@@ -97,7 +115,9 @@ describe('build fixes', () => {
 describe('anchors', () => {
   it('names rooms, stair, the two checks and the gap, and projects to CSS pixels', () => {
     const anchors = houseAnchors(LANDING_HOUSE);
-    for (const id of ['stair', 'check:C4', 'check:C7', 'gap']) expect(anchors.has(id)).toBe(true);
+    const failing = LANDING_HOUSE.checks.filter((c) => !c.pass).map((c) => `check:${c.id}`);
+    expect(failing.length).toBeGreaterThan(0);
+    for (const id of ['stair', ...failing, 'gap']) expect(anchors.has(id)).toBe(true);
     for (const room of LANDING_HOUSE.plan.rooms) expect(anchors.has(`room:${room.id}`)).toBe(true);
 
     const camera = new PerspectiveCamera(40, 2, 0.1, 100);

@@ -60,16 +60,22 @@ describe('site', () => {
       expect(w.waterLevelMm, w.id).toBeLessThan(w.copingTopMm);
       expect(Math.abs(area(w.outline)) / 1e6, w.id).toBeGreaterThan(80); // ~14 × 7 m with the organic bite
     }
+    // Low walls all round, so the pond reads from eye height inside the plot.
+    expect(site.walls.every((w) => w.heightMm <= 1200)).toBe(true);
     const island = site.surfaces.find((s) => s.kind === 'island');
     expect(island && site.water.some((w) => island.outline.every((p) => inside(w.outline, p)))).toBe(true);
   });
 
   it('plants hedges in beds and keeps trees out of the house and the pond', () => {
     const beds = site.surfaces.filter((s) => s.kind === 'bed');
-    for (const p of site.plants.filter((x) => x.slug === 'bush')) {
+    const hedges = site.plants.filter((x) => x.slug === 'bush' && x.variant !== 'topiary');
+    for (const p of hedges) {
       expect(beds.some((b) => inside(b.outline, p.at)), p.id).toBe(true);
     }
-    expect(site.plants.filter((x) => x.slug === 'bush')).toHaveLength(40);
+    expect(hedges).toHaveLength(40);
+    // Topiary in odd groups, palms few (the reference leans on specimen trees, not palm rows).
+    expect(site.plants.filter((x) => x.variant === 'topiary').length % 3).toBe(0);
+    expect(site.plants.filter((x) => x.slug === 'palm').length).toBeLessThanOrEqual(5);
     const house = plan.rooms.filter((r) => r.levelId === 'T1').map((r) => r.outline.map((q): PlanPt => [q[0] ?? 0, q[1] ?? 0]));
     for (const p of [...site.plants, ...site.items].filter((x) => x.id !== 'P-BONSAI')) {
       expect(house.some((o) => inside(o, p.at)), p.id).toBe(false);
@@ -87,8 +93,9 @@ describe('roofs', () => {
       expect(r.overhangMm, r.id).toBeGreaterThanOrEqual(1500);
       expect(r.pitchDeg, r.id).toBeGreaterThanOrEqual(15);
       expect(r.pitchDeg, r.id).toBeLessThanOrEqual(22);
-      expect(r.cornerUpturnMm, r.id).toBeGreaterThanOrEqual(200);
-      expect(r.cornerUpturnMm, r.id).toBeLessThanOrEqual(350);
+      expect(r.cornerUpturnMm, r.id).toBeGreaterThanOrEqual(50);
+      // A hint of kick, not a temple sweep (archviz-r2 fix 4).
+      expect(r.cornerUpturnMm, r.id).toBeLessThanOrEqual(120);
       expect(r.ridgeMm, r.id).toBeGreaterThan(r.eaveMm);
     }
     const eaves = storeys.map((r) => r.eaveMm);
@@ -98,10 +105,10 @@ describe('roofs', () => {
   it('computes a hip from its walls', () => {
     const r = hip({ id: 'X', name: 'x', levelId: 'T1', walls: [0, 0, 10000, 6000], wallTopMm: 3000, overhangMm: 1000, pitchDeg: 45, cornerUpturnMm: 300 });
     expect(r.eave[0]).toEqual([-1000, -1000]);
-    expect(r.eaveMm).toBe(2000);
+    expect(r.eaveMm).toBe(2000 + 320); // + the roof build-up over the wall (150 + tan 45° × 170)
     expect(r.ridgeAxis).toBe('x');
     expect(r.ridgeLengthMm).toBe(4000);
-    expect(r.ridgeMm).toBe(6000);
+    expect(r.ridgeMm).toBe(6000 + 320);
   });
 
   it('places posts, canopies and cladding on real things', () => {

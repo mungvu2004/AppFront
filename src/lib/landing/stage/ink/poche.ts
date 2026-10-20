@@ -92,9 +92,10 @@ export interface Poche {
   setOpacity(opacity: number): void;
 }
 
-export function createPoche(plan: PresentationPlan): Poche {
+/** One mesh for every cut-wall piece: the house's (`pocheShapes`) and the site's boundary walls. */
+export function createPoche(shapes: readonly P2[][]): Poche {
   const positions: number[] = [];
-  for (const poly of pocheShapes(plan)) {
+  for (const poly of shapes) {
     const contour = poly.map((p) => new Vector2(p[0], p[1]));
     for (const tri of ShapeUtils.triangulateShape(contour, [])) {
       for (const k of tri) {
