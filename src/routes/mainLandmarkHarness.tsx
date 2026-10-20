@@ -83,6 +83,7 @@ export const SHELL_PATHS: readonly string[] = [
   '/login',
   '/login/invitation',
   '/login/reset-password',
+  '/welcome',
   '/',
   '/khong-co-quyen',
   '/onboarding',

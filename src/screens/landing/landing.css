@@ -1,0 +1,60 @@
+/* /welcome — bảy sắc khai một lần ở đây; TSX chỉ dùng biến. Mọi thứ nằm dưới .landing. */
+.landing {
+  --l-paper: #f3efe6;
+  --l-ink: #252b35;
+  --l-blue: #4785f5;
+  --l-jade: #20b89a;
+  --l-amber: #f2ad53;
+  --l-coral: #e66c68;
+  --l-mineral: #b9c9c5;
+  --l-gutter: clamp(20px, 5vw, 72px);
+  --l-run: 100;
+  background: var(--l-paper);
+  color: var(--l-ink);
+  min-height: 100svh;
+  font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  overflow-x: clip;
+}
+@media (max-width: 1100px) {
+  .landing { --l-run: 85; }
+}
+@media (max-width: 800px) {
+  .landing { --l-run: 70; }
+}
+.landing-track { height: calc(var(--landing-total) * var(--l-run) * 1svh); }
+.landing-sticky { position: sticky; top: 0; height: 100svh; overflow: hidden; }
+.landing-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.landing-loading { position: absolute; right: var(--l-gutter); bottom: var(--l-gutter); margin: 0; font-size: 0.8125rem; letter-spacing: 0.02em; opacity: 0.6; }
+.landing-copy { position: absolute; inset: 0; pointer-events: none; }
+.landing-scene { position: absolute; left: var(--l-gutter); top: 50%; translate: 0 -50%; width: min(34ch, 38vw); }
+.landing-scene > *, .landing-scene .landing-exports li { will-change: opacity, transform; }
+.landing-final a, .landing-final button { pointer-events: auto; }
+.landing-title { margin: 0; font-size: clamp(1.75rem, 1.2rem + 1.6vw, 3rem); line-height: 1.12; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+.landing-sub { margin: 1rem 0 0; font-size: 1.0625rem; line-height: 1.5; max-width: 32ch; opacity: 0.85; }
+.landing-note { margin: 1.25rem 0 0; font-size: 0.8125rem; opacity: 0.6; }
+.landing-summary { margin: 1.5rem 0 0.5rem; font-size: 1.125rem; font-weight: 600; }
+.landing-suggestions { margin: 0; padding-left: 1.1rem; font-size: 0.9375rem; line-height: 1.5; }
+.landing-exports { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; list-style: none; margin: 1.75rem 0 0; padding: 1.1rem 0 0; border-top: 1px solid var(--l-ink); }
+.landing-exports li { display: grid; gap: 0.125rem; font-size: 0.8125rem; }
+.landing-exports strong { font-size: 0.9375rem; letter-spacing: 0.04em; }
+.landing-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem; margin: 1.75rem 0 0; }
+.landing-cta { display: inline-flex; align-items: center; min-height: 48px; padding: 0 1.5rem; background: var(--l-ink); color: var(--l-paper); font-weight: 600; text-decoration: none; border-radius: 2px; }
+.landing-link, .landing-skip { background: none; border: 0; padding: 0.75rem 0; min-height: 48px; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 0.25em; cursor: pointer; }
+.landing-skip { position: fixed; top: 12px; right: var(--l-gutter); z-index: 5; padding: 0 0.75rem; display: inline-flex; align-items: center; }
+.landing a:focus-visible, .landing button:focus-visible { outline: 2px solid var(--l-blue); outline-offset: 3px; }
+.landing-labels { position: absolute; inset: 0; pointer-events: none; }
+.landing-label { position: absolute; left: 0; top: 0; translate: -50% -130%; padding: 0.125rem 0.5rem; font-size: 0.8125rem; white-space: nowrap; background: var(--l-paper); border-left: 3px solid var(--l-mineral); }
+.landing-label[data-tone='blue'] { border-color: var(--l-blue); }
+.landing-label[data-tone='amber'] { border-color: var(--l-amber); }
+.landing-label[data-tone='jade'] { border-color: var(--l-jade); }
+.landing-label[data-tone='coral'] { border-color: var(--l-coral); }
+/* Bản tĩnh */
+.landing[data-mode='static'] { padding: 72px var(--l-gutter) 96px; display: grid; gap: 2.5rem; max-width: 72rem; margin-inline: auto; }
+.landing-plan svg, .landing-still { width: 100%; height: auto; display: block; }
+.landing-plan { margin-top: 2rem; max-width: 40rem; }
+.landing-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1.5rem 2rem; list-style: none; margin: 0; padding: 0; }
+.landing-step-title { margin: 0 0 0.25rem; font-size: 1.125rem; }
+.landing-steps p { margin: 0; line-height: 1.5; }
+@media (max-width: 1100px) {
+  .landing-scene { width: min(36ch, 62vw); padding: 1rem 1.25rem 1.25rem 0; background: color-mix(in srgb, var(--l-paper) 80%, transparent); }
+}

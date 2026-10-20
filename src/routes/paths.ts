@@ -111,6 +111,7 @@ export const ROUTE_PATTERNS = {
   projectViewerPascal: `${PROJECTS_ROOT}/:projectId/3d/pascal`,
   projectWalls: `${PROJECTS_ROOT}/:projectId/floors/:floorId/layers/walls`,
   shellDemo: '/shell-demo',
+  welcome: '/welcome',
 } as const;
 
 /**
@@ -174,6 +175,7 @@ export const ROUTES = {
     walls: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/walls`,
   },
+  welcome: ROUTE_PATTERNS.welcome,
 } as const;
 
 /**
@@ -204,6 +206,8 @@ export const PUBLIC_ROUTE_PATTERNS = [
   '/login',
   '/login/invitation/*',
   '/login/reset-password/*',
+  /** Trang giới thiệu cuộn (landing): ai cũng xem được, không cần phiên. */
+  '/welcome',
 ] as const;
 
 /**

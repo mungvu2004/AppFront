@@ -148,6 +148,8 @@ const MAIN_OWNERS = [
   'auth/AuthScreen/AuthScreen.tsx',
   'auth/RecoveryShell.tsx',
   'dashboard/ProjectDashboard/ProjectDashboard.tsx',
+  'landing/LandingView.tsx',
+  'landing/StaticLanding.tsx',
   'system/MobileViewer/MobileViewer.tsx',
   'viewer/ViewerShell/ViewerViewport.tsx',
 ];

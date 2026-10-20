@@ -608,6 +608,19 @@ describe('SessionBootstrap', () => {
     expect(screenMounts).toBe(0);
   });
 
+  it('để người ẩn danh xem /welcome mà không bị đá về /login', async () => {
+    const server = createFakeServer(null);
+    await configureAppSession({ fetchImpl: server.fetchImpl });
+
+    renderAt('/welcome');
+
+    await waitFor(() => {
+      expect(getSession().status).toBe('anonymous');
+    });
+    expect(screen.queryByTestId('man-dang-nhap')).not.toBeInTheDocument();
+    expect(screenMounts).toBe(1);
+  });
+
   it('mở màn con khi phiên mở được', async () => {
     const server = createFakeServer('u1');
     await configureAppSession({ fetchImpl: server.fetchImpl });
