@@ -12,10 +12,11 @@
  * Time inside a segment goes through a Hermite speed profile over the segment's
  * combined length (travel in look distances × 6 m + 3 m per radian of turn, so
  * spins in place get time and dives decelerate in screen space):
- * holds are reached at zero speed, pass-throughs at 0.8 × the slower neighbour.
+ * holds are reached drifting into their push-in (the look has already settled), pass-throughs at
+ * 0.8 × the slower neighbour. Every channel is a Hermite in the same uniform `u` with one tangent per
+ * waypoint, and the profile matches du/dt on both sides of a pass-through, so position, look, lens and
+ * distance are all C1 in scroll there.
  */
-
-import { CatmullRomCurve3, Vector3 } from 'three';
 
 import type { LandingState, Vec3 } from '../types';
 
@@ -56,6 +57,9 @@ const SAMPLES = 48;
 const HOLD_MIN = 0.4;
 const PUSH = 0.03;
 const ORBIT_STEPS = 3;
+/** Arrival speed into a hold, as a share of the push-in's mean pace: the push starts as the arrival eases out. */
+const DRIFT = 0.8;
+const ARRIVE = 0.25;
 
 const sub = (a: readonly number[], b: readonly number[]): V => [
   (a[0] ?? 0) - (b[0] ?? 0),
@@ -170,17 +174,37 @@ export interface Path {
   /** Combined length per segment (m + M_PER_RAD × rad) and its normalised cumulative table. */
   readonly len: readonly number[];
   readonly cum: readonly (readonly number[])[];
+  /** Monotone (Fritsch–Carlson) slopes du/df at each table knot, so the inverse is C1, not a sawtooth. */
+  readonly slope: readonly (readonly number[])[];
 }
 
 /** The time-independent geometry through resolved waypoints. */
 export function makePath(wps: readonly Waypoint[]): Path {
   const N = wps.length - 1;
-  const POS = new CatmullRomCurve3(
-    wps.map((w) => new Vector3(...w.position)),
-    false,
-    'centripetal',
-  );
   const holds = wps.map((w) => w.hold);
+  // Position: Catmull–Rom tangents, capped at the shorter neighbouring chord so a short push-in next to
+  // a long move cannot loop (what the centripetal knots did, at the price of a speed kink per waypoint).
+  const P = wps.map((w) => [...w.position] as V);
+  const chord = (k: number): number => len3(sub(P[k + 1] ?? P[k] ?? [0, 0, 0], P[k] ?? [0, 0, 0]));
+  const T = P.map((p, k): V => {
+    if (k === 0 || k === N) return [0, 0, 0];
+    // A hold's arrival already points along its push-in, so the drift does not bend at the hold.
+    if (wps[k]?.hold === true && wps[k + 1]?.name === `${wps[k]?.name}:end`) return sub(P[k + 1] as V, p);
+    const t = sub(P[k + 1] as V, P[k - 1] as V).map((v) => v / 2) as V;
+    const cap = Math.min(chord(k - 1), chord(k));
+    const l = len3(t);
+    return l > cap && l > 0 ? (t.map((v) => (v * cap) / l) as V) : t;
+  });
+  const posAt = (i: number, u: number): V => {
+    const u2 = u * u;
+    const u3 = u2 * u;
+    const [a, b, c, d] = [2 * u3 - 3 * u2 + 1, u3 - 2 * u2 + u, 3 * u2 - 2 * u3, u3 - u2];
+    const p0 = P[i] as V;
+    const p1 = P[i + 1] ?? p0;
+    const t0 = T[i] as V;
+    const t1 = T[i + 1] ?? t0;
+    return [0, 1, 2].map((k) => a * p0[k]! + b * t0[k]! + c * p1[k]! + d * t1[k]!) as V;
+  };
   const yaw: number[] = [];
   const pitch: number[] = [];
   const logDist: number[] = [];
@@ -194,15 +218,13 @@ export function makePath(wps: readonly Waypoint[]): Path {
   });
   const fov = wps.map((w) => w.fovDeg);
   const roll = wps.map((w) => w.rollDeg);
-  const tmp = new Vector3();
 
   const pose = (i: number, u: number): Pose => {
     const uo = holds[i + 1] === true ? panLead(u) : u;
-    POS.getPoint((i + u) / N, tmp);
     const ya = hermite(yaw, holds, i, uo);
     const pi = hermite(pitch, holds, i, uo);
     return {
-      position: [tmp.x, tmp.y, tmp.z],
+      position: posAt(i, u),
       fwd: [Math.sin(ya) * Math.cos(pi), Math.sin(pi), Math.cos(ya) * Math.cos(pi)],
       dist: Math.exp(hermite(logDist, holds, i, u)), // follows the dolly, not the pan lead
       fovDeg: hermite(fov, holds, i, u),
@@ -227,18 +249,61 @@ export function makePath(wps: readonly Waypoint[]): Path {
     len.push(acc);
     cum.push(c.map((v, k) => (acc > 1e-9 ? v / acc : k / SAMPLES)));
   }
-  return { wps, pose, len, cum };
+  // End slopes from the exact derivative, not the end interval's secant: the profile matches du/dt
+  // across a waypoint through them, and a secant is far off where the arc rate changes fast (an arrival).
+  const EPS = 1e-4;
+  const rateAt = (i: number, u: number, du: number): number => {
+    const a = pose(i, u);
+    const b = pose(i, u + du);
+    return (M_PER_REL * relStep(a, b) + M_PER_RAD * angleBetween(a.fwd, b.fwd)) / Math.abs(du);
+  };
+  const slope = cum.map((c, i) => {
+    const m = monotoneSlopes(c);
+    const l = len[i] as number;
+    const fix = (k: number, r: number): void => {
+      const cap = 3 * (k === 0 ? (m[0] as number) : (m[SAMPLES] as number));
+      if (l > 1e-9 && r > 1e-12) m[k] = Math.min(cap, l / r);
+    };
+    fix(0, rateAt(i, 0, EPS));
+    fix(SAMPLES, rateAt(i, 1, -EPS));
+    return m;
+  });
+  return { wps, pose, len, cum, slope };
 }
 
-/** Path parameter at arc fraction `f`. */
-function paramAt(cum: readonly number[], f: number): number {
+/** Knot slopes of u(f) through (cum[k], k / SAMPLES), Fritsch–Carlson: monotone, no overshoot. */
+function monotoneSlopes(cum: readonly number[]): number[] {
+  const d = cum.slice(1).map((c, k) => {
+    const h = c - (cum[k] as number);
+    return h > 1e-12 ? 1 / SAMPLES / h : 1e6;
+  });
+  return cum.map((_, k) => {
+    const a = d[k - 1] ?? d[k] ?? 0;
+    const b = d[k] ?? a;
+    return a > 0 && b > 0 ? (2 * a * b) / (a + b) : 0;
+  });
+}
+
+/** Path parameter at arc fraction `f`: cubic Hermite on the arc table (binary search). */
+function paramAt(cum: readonly number[], slope: readonly number[], f: number): number {
   if (f <= 0) return 0;
   if (f >= 1) return 1;
-  let k = 0;
-  while (k < SAMPLES - 1 && (cum[k + 1] as number) < f) k += 1;
-  const c0 = cum[k] as number;
-  const c1 = cum[k + 1] as number;
-  return (k + (c1 > c0 ? (f - c0) / (c1 - c0) : 0)) / SAMPLES;
+  let lo = 0;
+  let hi = SAMPLES;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if ((cum[mid] as number) <= f) lo = mid;
+    else hi = mid;
+  }
+  const c0 = cum[lo] as number;
+  const h = (cum[lo + 1] as number) - c0;
+  if (!(h > 1e-12)) return lo / SAMPLES;
+  const t = (f - c0) / h;
+  const t2 = t * t;
+  const t3 = t2 * t;
+  const y = (2 * t3 - 3 * t2 + 1) * lo + (3 * t2 - 2 * t3) * (lo + 1);
+  const m = (t3 - 2 * t2 + t) * (slope[lo] as number) + (t3 - t2) * (slope[lo + 1] as number);
+  return Math.min(1, Math.max(0, y / SAMPLES + m * h));
 }
 
 export interface Rig {
@@ -251,19 +316,37 @@ export interface Rig {
 
 /** The path timed by `durs` (screens per segment). */
 export function makeRig(path: Path, durs: readonly number[]): Rig {
-  const { wps, len, cum } = path;
+  const { wps, len, cum, slope } = path;
   const N = wps.length - 1;
   const at = [0];
   durs.forEach((d) => at.push((at.at(-1) as number) + d));
   const total = at[N] as number;
-  const mean = len.map((l, i) => l / (durs[i] as number));
-  const speed = wps.map((w, k) =>
-    k === 0 || k === N || w.hold ? 0 : 0.8 * Math.min(mean[k - 1] as number, mean[k] as number),
-  );
-  const slopes = len.map((l, i) => {
-    const m = (v: number): number => (l > 1e-9 ? Math.min(3, (v * (durs[i] as number)) / l) : 0);
-    return [m(speed[i] as number), m(speed[i + 1] as number)] as const;
+  const dur = (i: number): number => durs[i] as number;
+  // du/df where segment i starts and ends (the arc table's end slopes), so a rate in u per screen maps
+  // to the profile's end slope m = rate × dur / (du/df).
+  const du0 = (i: number): number => (slope[i] as number[])[0] as number;
+  const du1 = (i: number): number => (slope[i] as number[])[SAMPLES] as number;
+  const mean = len.map((l, i) => l / dur(i));
+  /** du/dt at each waypoint, shared by both segments that meet there. */
+  const rate = wps.map((w, k) => {
+    if (k === 0 || k === N) return 0;
+    if (w.hold) {
+      // Arrive moving at a share of the push-in's pace (never above ARRIVE of the approach's own mean
+      // pace, so a long dive still decelerates); the end of a hold is left from rest.
+      return wps[k + 1]?.name === `${w.name}:end` ? Math.min(DRIFT / dur(k), (ARRIVE * du1(k - 1)) / dur(k - 1)) : 0;
+    }
+    const sp = 0.8 * Math.min(mean[k - 1] as number, mean[k] as number);
+    const sides = [k - 1, k].filter((i) => (len[i] as number) > 1e-9);
+    return sides.length < 2 ? 0 : Math.min(sp * du1(k - 1) / (len[k - 1] as number), sp * du0(k) / (len[k] as number));
   });
+  const endSlope = (v: number, i: number, du: number): number => (du > 1e-9 ? (v * dur(i)) / du : 0);
+  // Cap the profile's end slopes at 3 (no overshoot of the arc fraction) by lowering the shared rate.
+  rate.forEach((v, k) => {
+    if (k === 0 || k === N) return;
+    const worst = Math.max(endSlope(v, k - 1, du1(k - 1)), endSlope(v, k, du0(k)));
+    if (worst > 3) rate[k] = (v * 3) / worst;
+  });
+  const slopes = len.map((_, i) => [endSlope(rate[i] as number, i, du0(i)), endSlope(rate[i + 1] as number, i, du1(i))] as const);
   const profile = (i: number, s: number): number => {
     const [m0, m1] = slopes[i] as readonly [number, number];
     const s2 = s * s;
@@ -275,7 +358,7 @@ export function makeRig(path: Path, durs: readonly number[]): Rig {
     let i = 0;
     while (i < N - 1 && (at[i + 1] as number) <= q) i += 1;
     const s = Math.min(1, Math.max(0, (q - (at[i] as number)) / (durs[i] as number)));
-    return path.pose(i, paramAt(cum[i] as number[], profile(i, s)));
+    return path.pose(i, paramAt(cum[i] as number[], slope[i] as number[], profile(i, s)));
   };
   const camera = (t: number): LandingState['camera'] => {
     const c = pose(t);

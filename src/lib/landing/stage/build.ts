@@ -19,6 +19,7 @@ function rise(grower: Grower, amount: number, material: number, lift: number, ca
   const shown = amount > SHOWN;
   grower.object.visible = shown;
   grower.uniforms.uRiseY.value = grower.baseY + lift + Math.min(amount * grower.heightM, capM);
+  grower.uniforms.uFootY.value = grower.baseY + lift;
   grower.uniforms.uMat.value = material;
 }
 

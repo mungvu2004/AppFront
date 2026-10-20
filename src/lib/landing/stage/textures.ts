@@ -45,7 +45,7 @@ export const TILE_M: Readonly<Record<SetName, number>> = { plaster: 3, oak: 1.7,
  * from the 1k JPGs: plaster (.340, .262, .188) is near-flat taupe, oak
  * (.329, .217, .126) saturated orange. The exterior uses concrete's relief only.
  */
-function tintFor(target: string, mean: readonly [number, number, number]): Color {
+export function tintFor(target: string, mean: readonly [number, number, number]): Color {
   const c = new Color(target);
   return c.setRGB(c.r / mean[0], c.g / mean[1], c.b / mean[2]);
 }
@@ -58,7 +58,17 @@ const CONCRETE_TINT = new Color('#E9ECEE');
  * mirror floor (archviz-r2 fix 11). This factor lands the mean at 0.55 (the shader clamps texels at 1).
  */
 const OAK_ROUGH_MEAN = 0.377;
-const OAK_ROUGHNESS = 0.55 / OAK_ROUGH_MEAN;
+const OAK_ROUGHNESS = 0.68 / OAK_ROUGH_MEAN;
+/** Oak on furniture and treads: oiled, not lacquered (CONTRACT-V3: no plastic sheen). */
+const PIECE_OAK_ROUGHNESS = 0.8 / OAK_ROUGH_MEAN;
+/**
+ * The canvas tile floor (big 3-per-metre grid, dark grout, roughness 0.22) read as a CG bathroom:
+ * the hall and wet rooms take concrete's set instead, as honed light limestone with no grid.
+ * Concrete's means: albedo (.266, .255, .244), roughness map .932.
+ */
+const STONE_FLOOR_TINT = tintFor('#D9D3C9', [0.266, 0.255, 0.244]);
+const STONE_FLOOR_ROUGHNESS = 0.72 / 0.932;
+const STONE_FLOOR_ENV = 0.35;
 /** A soft window sheen on the boards, not a sky-blue streak. */
 const OAK_ENV = 0.3;
 /** Oak on unit-UV faces (a 1 m tread, a 1.6 m table top): grain at a believable size. */
@@ -161,12 +171,25 @@ export async function applyPbr(house: StageHouse, rooms: readonly PlanRoom[], an
   }
 
   const oakClones = new Set(house.clonesOf.get(materials.woodFloor) ?? []);
+  const tileClones = new Set(house.clonesOf.get(materials.tileFloor) ?? []);
   for (const floor of house.floors) {
     const room = rooms.find((r) => r.id === floor.id);
     const rotation = room === undefined || longSideAlongX(room) ? 0 : Math.PI / 2;
     floor.object.traverse((child) => {
       const material = (child as { material?: Material | Material[] }).material;
       for (const clone of Array.isArray(material) ? material : material === undefined ? [] : [material]) {
+        if (clone instanceof MeshStandardMaterial && tileClones.has(clone)) {
+          const stone = keep(placed(concrete, 'concrete', floor.id, rotation));
+          clone.map = stone.diff;
+          clone.normalMap = stone.nor;
+          clone.normalScale.setScalar(0.35);
+          clone.roughnessMap = stone.rough;
+          clone.roughness = STONE_FLOOR_ROUGHNESS;
+          clone.envMapIntensity = STONE_FLOOR_ENV;
+          clone.color.copy(STONE_FLOOR_TINT);
+          clone.needsUpdate = true;
+          continue;
+        }
         if (!(clone instanceof MeshStandardMaterial) || !oakClones.has(clone)) {
           continue;
         }
@@ -196,7 +219,8 @@ export async function applyPbr(house: StageHouse, rooms: readonly PlanRoom[], an
       clone.map = oakUnit.diff;
       clone.normalMap = oakUnit.nor;
       clone.roughnessMap = oakUnit.rough;
-      clone.roughness = OAK_ROUGHNESS;
+      clone.roughness = PIECE_OAK_ROUGHNESS;
+      clone.envMapIntensity = OAK_ENV;
       clone.color.copy(OAK_TINT);
       clone.needsUpdate = true;
     }

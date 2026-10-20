@@ -114,7 +114,13 @@ export function createOverlay(root: HTMLElement, scenes: readonly SceneSpan[]): 
         });
       }
       const scrim = scrimAt(state, shown);
-      root.style.setProperty('--l-scrim', String(scrim));
+      // Cảnh cuối: chữ nằm trên giấy trơn khi máy quay đã lên cao; giấy cột chữ và tấm mờ tắt hẳn (CSS làm mờ chuyển, không bật đột ngột).
+      const hi = p >= (scenes[last]?.start ?? 2) ? 0 : 1;
+      root.style.setProperty('--l-scrim', String(scrim * hi));
+      // Tấm giấy mờ ôm khối chữ chỉ khi chữ đè lên 3D (S03/S04 đã có giấy đặc); lớp giấy cột chữ nhẹ đi tương ứng.
+      const flat = state.scene === 2 || state.scene === 3;
+      root.style.setProperty('--l-panel', String(flat ? 0 : shown * hi));
+      root.style.setProperty('--l-wash', flat ? '1' : '0.4');
       // Tờ bản vẽ 2D chạy dưới đầu trang ở S01..S04: nền giấy đặc, không phụ thuộc lớp giấy cột chữ.
       root.style.setProperty('--l-head-bg', state.scene <= 3 ? '0.95' : String(scrim));
 

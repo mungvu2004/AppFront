@@ -11,7 +11,8 @@
  * The look is the reference's, not a game kit's: dark, low-saturation greens
  * on a rough PBR surface (sky fill from the environment), facets smoothed by
  * welding and recomputing normals, and a baked vertex shade that darkens the
- * lower crown (cheap crown occlusion). Until a model arrives each slug draws a crude
+ * lower crown (cheap crown occlusion); canopy normals lean to the crown's ellipsoid
+ * (soft masses), and shader.ts adds leaf clumps and wrap light. Until a model arrives each slug draws a crude
  * stand-in of the record's size (an icosahedron crown on a cylinder) through
  * the same instance data; the `.glb` then replaces the geometry once.
  * Growth is the `grow` uniform in the vertex shader (shader.ts), not matrices.
@@ -47,16 +48,19 @@ import { growDepthMaterial, patchGrow, type Num } from './shader';
 type Part = 'foliage' | 'trunk' | 'fruit';
 
 /** Albedo before lighting: HSV saturation ≤ 40 %, value ≤ 42 %, or the sun clips them into lime. */
-const DEEP = '#33442C';
-const MID = '#4A5C38';
-const TIPS = '#66713F';
-const FROND = '#5A6540';
+const DEEP = '#3E5A2E';
+const MID = '#557043';
+const TIPS = '#6E7E4A';
+const FROND = '#647349';
 const BOUGAINVILLEA = '#A3346B';
-const BARK = '#4E4239';
-const PALM_TRUNK = '#7A6E60';
+/** Bark: grey-brown, never pink (low red-blue spread). */
+const BARK = '#5A5045';
+const PALM_TRUNK = '#6B6457';
 const FRUIT = '#6E6A3A';
 /** The lower crown darkens to this share of its colour (fake occlusion). */
-const CROWN_SHADE = 0.55;
+const CROWN_SHADE = 0.45;
+/** How far the canopy normals lean to the crown's ellipsoid (0 = welded facets, 1 = one soft ball). */
+const ROUND = 0.7;
 const PALM_LEAN = (6 * Math.PI) / 180;
 /** The hedge model's depth / length: scaling x by this turns it into a ball. */
 const BALL_X = 1043 / 3115;
@@ -141,6 +145,32 @@ function smooth(g: BufferGeometry): BufferGeometry {
   return out;
 }
 
+/**
+ * The stylised-tree trick: lean every canopy normal toward the direction from
+ * the crown's centre (its bounding ellipsoid), so the crown lights as a soft mass
+ * and the low-poly facets stop reading; ROUND keeps a little blob detail.
+ */
+function roundNormals(g: BufferGeometry): void {
+  g.computeBoundingBox();
+  const box = g.boundingBox;
+  if (box === null) {
+    return;
+  }
+  const c = box.getCenter(new Vector3());
+  const e = box.getSize(new Vector3()).multiplyScalar(0.5).max(new Vector3(1e-3, 1e-3, 1e-3));
+  const pos = g.getAttribute('position');
+  const nor = g.getAttribute('normal');
+  const n = new Vector3();
+  const r = new Vector3();
+  for (let i = 0; i < pos.count; i += 1) {
+    // Gradient of the ellipsoid through the point: (p − c) / e².
+    r.fromBufferAttribute(pos, i).sub(c).divide(e).divide(e).normalize();
+    n.fromBufferAttribute(nor, i).lerp(r, ROUND).normalize();
+    nor.setXYZ(i, n.x, n.y, n.z);
+  }
+  nor.needsUpdate = true;
+}
+
 /** Bake the crown shade into a vertex colour: dark at the crown's foot, full at its top. */
 function shadeCrown(g: BufferGeometry): void {
   g.computeBoundingBox();
@@ -202,7 +232,7 @@ export function buildPlanting(plants: readonly SitePlant[], grow: Num): Planting
   group.userData.records = plants.map((p) => p.id);
   const white = new Color('#FFFFFF');
   const leafy = (vertexColors: boolean): MeshStandardMaterial =>
-    patchGrow(new MeshStandardMaterial({ color: white, roughness: 0.9, metalness: 0, envMapIntensity: 0.4, vertexColors }), grow);
+    patchGrow(new MeshStandardMaterial({ color: white, roughness: vertexColors ? 0.95 : 1, metalness: 0, envMapIntensity: 0.35, vertexColors }), grow, vertexColors);
   const materials: Record<Part, MeshStandardMaterial> = { foliage: leafy(true), trunk: leafy(false), fruit: leafy(false) };
   const depth: MeshDepthMaterial = growDepthMaterial(grow);
   const tint = new Color();
@@ -233,6 +263,7 @@ export function buildPlanting(plants: readonly SitePlant[], grow: Num): Planting
     }
     set.meshes = [...parts].map(([part, geometry]) => {
       if (part === 'foliage') {
+        roundNormals(geometry);
         shadeCrown(geometry);
       }
       const mesh = new InstancedMesh(geometry, materials[part], set.records.length);
@@ -242,9 +273,9 @@ export function buildPlanting(plants: readonly SitePlant[], grow: Num): Planting
       set.hidden.forEach((h, i) => h === 1 && mesh.instanceMatrix.array.fill(0, i * 16, i * 16 + 12));
       set.records.forEach((p, i) => {
         const base = part === 'foliage' ? foliageOf(p) : part === 'trunk' ? (set.slug === 'palm' ? PALM_TRUNK : BARK) : FRUIT;
-        // Hue ±0.025, saturation biased down (−0.10…+0.02), lightness ±0.06.
+        // Hue ±0.035 (olive ↔ blue-green), saturation biased down (−0.12…+0.02), lightness ±0.07.
         const [h, sa, l] = [seedOf(`${p.id}h`), seedOf(`${p.id}c`), seedOf(`${p.id}v`)];
-        mesh.setColorAt(i, tint.set(base).offsetHSL((h - 0.5) * 0.05, -0.1 + 0.12 * sa, (l - 0.5) * 0.12));
+        mesh.setColorAt(i, tint.set(base).offsetHSL((h - 0.5) * 0.07, -0.12 + 0.14 * sa, (l - 0.5) * 0.14));
       });
       mesh.computeBoundingSphere();
       mesh.castShadow = true;

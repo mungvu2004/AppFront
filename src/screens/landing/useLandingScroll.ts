@@ -19,7 +19,7 @@ import { useEffect, useRef } from 'react';
 import { stateAt, SCENES } from '@/lib/landing/timeline';
 import type { FrameGovernor, Quality, Stage } from '@/lib/landing/stage';
 // Không kéo three: chỉ hằng số và hàm thuần.
-import { benchmarkTier, dampProgress, QUIET_MS, SCROLL_FEEL } from '@/lib/landing/stage/quality';
+import { benchmarkTier, dampProgress, QUIET_MS } from '@/lib/landing/stage/quality';
 import {
   AMBIENT_FRAME_MS,
   AMBIENT_IDLE_MS,
@@ -32,9 +32,8 @@ import {
 } from '@/lib/landing/stage/loop';
 import type { LandingHouse } from '@/lib/landing/types';
 
+import { devFeel, devQuality, saved, store } from './landingDev';
 import { createOverlay } from './overlay';
-
-
 
 export interface LandingScrollOptions {
   readonly enabled: boolean;
@@ -49,33 +48,6 @@ export interface LandingScrollOptions {
   readonly restore: boolean;
 }
 
-const SCROLL_KEY = 'landing:scrollY';
-const store = (y: number): void => {
-  try {
-    sessionStorage.setItem(SCROLL_KEY, String(y));
-  } catch {
-    /* chế độ riêng tư: bỏ qua, chỉ mất khôi phục cuộn */
-  }
-};
-const saved = (): number => {
-  try {
-    return Number(sessionStorage.getItem(SCROLL_KEY)) || 0;
-  } catch {
-    return 0;
-  }
-};
-
-declare global {
-  interface Window {
-    /** Chỉ bản dev: cuộn tức thì tới `p` và chờ hai khung đã vẽ. */
-    __landingSeek?: (p: number) => Promise<void>;
-    /** Chỉ bản dev: resolve sau khung đầu tiên của stage. */
-    __landingReady?: Promise<void>;
-    /** Chỉ bản dev: p thô, p đang vẽ (sau tầng giảm chấn), số khung đã vẽ, khung trung vị của benchmark. */
-    __landingP?: () => { raw: number; shown: number; frames: number; bench: number | null };
-  }
-}
-
 const IDLE_MS = 100;
 /** Mất context lần nữa trong khoảng này (Chrome trả context chết khi back/forward nhanh) thì về bản tĩnh. */
 const LOSS_WINDOW_MS = 10_000;
@@ -84,21 +56,6 @@ const MAX_REBUILDS = 3;
 /** Benchmark lúc mở đầu (màn đầu đứng yên): bỏ vài khung đầu, lấy trung vị phần còn lại. */
 const BENCH_FRAMES = 30;
 const BENCH_SKIP = 6;
-
-/** Chỉ bản dev: `?lerp=0.1&k=8` để A/B cảm giác cuộn (tools/feel.mjs). */
-function devFeel(): { lerp: number; k: number } {
-  const q = import.meta.env.DEV ? new URLSearchParams(location.search) : null;
-  const lerp = Number(q?.get('lerp'));
-  const k = Number(q?.get('k'));
-  return { lerp: lerp > 0 ? lerp : SCROLL_FEEL.lerp, k: k > 0 ? k : SCROLL_FEEL.k };
-}
-
-/** Chỉ bản dev: `?quality=full|balanced|lite` để đo từng bậc. */
-function devQuality(): 'full' | 'balanced' | 'lite' | null {
-  if (!import.meta.env.DEV) return null;
-  const q = new URLSearchParams(location.search).get('quality');
-  return q === 'full' || q === 'balanced' || q === 'lite' ? q : null;
-}
 
 export function useLandingScroll(opts: LandingScrollOptions): void {
   const optsRef = useRef(opts);
@@ -129,14 +86,19 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
     };
     lenis.on('scroll', onScroll);
     let clock = 0; // đồng hồ riêng của Lenis: sau một lần ngủ, bước đầu không được dài cả chục giây
+    // Nhịp đầu sau khi thức chỉ dài một khung 60 Hz: bước dài (≤ 50 ms) làm cả hai tầng giảm chấn nhảy
+    // ~11 % một nấc cuộn trong một khung rồi mới chạy đều (đo bằng wheel thật: "giật" ở đầu mỗi nấc).
+    let woke = false;
+    const step = (deltaMs: number): number => Math.min(deltaMs, woke ? 1000 / 60 : MAX_STEP_MS);
     const tick = (_t: number, deltaMs: number): void => {
-      clock += Math.min(deltaMs, MAX_STEP_MS);
+      clock += step(deltaMs);
       lenis.raf(clock);
     };
     let awake = false;
     const wake = (): void => {
       if (!awake && !disposed) {
         awake = true;
+        woke = true;
         gsap.ticker.wake();
       }
     };
@@ -205,9 +167,10 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
 
     const draw = (_time: number, deltaMs: number): void => {
       if (shown !== p) {
-        shown = reduced ? p : dampProgress(shown, p, deltaMs / 1000, feel.k);
+        shown = reduced ? p : dampProgress(shown, p, step(deltaMs) / 1000, feel.k);
         dirty = true;
       }
+      woke = false;
       const now0 = performance.now();
       const quiet = now0 - lastInput >= QUIET_MS;
       const scrolling = lenis.isScrolling !== false;

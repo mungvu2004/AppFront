@@ -84,5 +84,7 @@ describe('roofs', () => {
     expect(roleFor('floor-lamp', 'slot_shade')).toBe('lampShade');
     expect(roleFor('dining-table', 'slot_legs')).toBe('metal');
     expect(roleFor('fridge', 'Material')).toBe('metal');
+    expect(roleFor('piano', 'slot_body')).toBe('woodDark');
+    expect(roleFor('television', 'slot_body')).toBe('screen');
   });
 });

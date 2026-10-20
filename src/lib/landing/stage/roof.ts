@@ -40,7 +40,7 @@ import {
 import type { HipRoof, LandingHouse, LandingState } from '../types';
 
 import { canopy, clipped, columns, hipFaces, planTriangles, poolTexture, rectOf, soffitLights, type Rect } from './roofParts';
-import { TEX_BASE } from './textures';
+import { TEX_BASE, tintFor } from './textures';
 
 const MM = 1000;
 /** Corner upturn falls off over this share of the short side, from each eave corner. */
@@ -60,7 +60,8 @@ const TILE_FLAT = 0x5a5f65;
 const TILE_TINT = 0xa2abb6;
 /** Teak soffit: flat warm brown; with oak's (orange) map, a tint that lands near it. */
 const TEAK = 0xa07c5c;
-const TEAK_TINT = 0xd8c2ad;
+/** Oak's map mean (.329, .217, .126) is saturated orange: tint to a weathered, desaturated teak. */
+const TEAK_TINT = tintFor('#8E7A66', [0.329, 0.217, 0.126]);
 
 export interface StageRoofs {
   readonly group: Group;
@@ -212,10 +213,11 @@ export function buildRoofs(house: LandingHouse): StageRoofs {
   const ground = new Group();
   group.add(hips, ground);
   // Cool charcoal tile with a sky sheen, clearly lighter than the soffits (jury fix 4: 0x4a4d50 matte read as asphalt).
-  const tiles = new MeshStandardMaterial({ color: TILE_FLAT, roughness: 0.55, metalness: 0, envMapIntensity: 0.6 });
+  const tiles = new MeshStandardMaterial({ color: TILE_FLAT, roughness: 0.7, metalness: 0, envMapIntensity: 0.5 });
   // A pale fascia: each tier's edge reads as its own line between the tiles and the timber soffit.
-  const fasciaMat = new MeshStandardMaterial({ color: 0xdcdedd, roughness: 0.6, metalness: 0, side: DoubleSide });
-  const timber = new MeshStandardMaterial({ color: TEAK, roughness: 0.6, side: DoubleSide });
+  // A shade under the render white (CONTRACT-V3 §4): the edge reads as a form, not a hard white CG line.
+  const fasciaMat = new MeshStandardMaterial({ color: 0xc4c7c7, roughness: 0.9, metalness: 0, envMapIntensity: 0.5, side: DoubleSide });
+  const timber = new MeshStandardMaterial({ color: TEAK, roughness: 0.82, envMapIntensity: 0.5, side: DoubleSide });
   const look = { timber };
   const capMat = new MeshStandardMaterial({ color: 0x3a3c3f, roughness: 0.5, metalness: 0.1 });
   const steel = new MeshStandardMaterial({ color: 0x3d4044, roughness: 0.42, metalness: 0.35 });
@@ -230,7 +232,7 @@ export function buildRoofs(house: LandingHouse): StageRoofs {
   });
   const disc = new MeshBasicMaterial({ color: new Color(0xffe2b0).multiplyScalar(1.6) });
   const wash = poolTexture();
-  const pool = new MeshBasicMaterial({ map: wash, color: 0xffd7a0, opacity: 0.35, transparent: true, blending: AdditiveBlending, depthWrite: false });
+  const pool = new MeshBasicMaterial({ map: wash, color: 0xffd7a0, opacity: 0.08, transparent: true, blending: AdditiveBlending, depthWrite: false });
   const hipLevels = new Map<number, Group>();
   const owned: Material[] = [tiles, fasciaMat, capMat, steel, glass, timber, disc, pool];
   const geometries: BufferGeometry[] = [];
@@ -345,7 +347,7 @@ export function buildRoofs(house: LandingHouse): StageRoofs {
             m.needsUpdate = true;
           } else if (m.color.getHex() === TEAK) {
             m.map = oak;
-            m.color.set(TEAK_TINT);
+            m.color.copy(TEAK_TINT);
             m.needsUpdate = true;
           }
         }

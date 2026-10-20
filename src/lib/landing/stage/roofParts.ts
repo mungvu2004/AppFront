@@ -106,6 +106,18 @@ export function clipped<T extends Material>(m: T, clip: Rect | null): T {
   return c;
 }
 
+/** Oak's boards run along u: column UVs in metres with u up the shaft, so the grain is vertical, never stretched. */
+const OAK_M = 1.7;
+function timberColumn(s: number, h: number): CylinderGeometry {
+  const g = new CylinderGeometry(s / 2, s / 2, h, 20);
+  const uv = g.getAttribute('uv');
+  for (let i = 0; i < uv.count; i += 1) {
+    const around = uv.getX(i);
+    uv.setXY(i, (uv.getY(i) * h) / OAK_M, (around * Math.PI * s) / OAK_M);
+  }
+  return g;
+}
+
 export function columns(row: ColumnRow, timber: Material, steel: Material, add: (m: Mesh) => void): void {
   for (let i = 0; i < row.count; i += 1) {
     const t = row.count === 1 ? 0.5 : i / (row.count - 1);
@@ -113,7 +125,7 @@ export function columns(row: ColumnRow, timber: Material, steel: Material, add: 
     const z = (row.start[1] + (row.end[1] - row.start[1]) * t) / MM;
     const h = (row.topMm - row.baseMm) / MM;
     const s = row.sizeMm / MM;
-    const g = row.material === 'timber' ? new CylinderGeometry(s / 2, s / 2, h, 20) : new BoxGeometry(s, h, s);
+    const g = row.material === 'timber' ? timberColumn(s, h) : new BoxGeometry(s, h, s);
     const m = new Mesh(g, row.material === 'timber' ? timber : steel);
     m.position.set(x, row.baseMm / MM + h / 2, z);
     add(m);
@@ -174,7 +186,7 @@ export function poolTexture(): DataTexture {
       // Brightest just under the light (top of the quad), fading down and to the sides.
       const dx = (x + 0.5) / n - 0.5;
       const dy = ((y + 0.5) / n - 0.85) * 0.6;
-      const v = Math.max(0, 1 - Math.hypot(dx, dy) * 2.2);
+      const v = Math.max(0, 1 - Math.hypot(dx, dy) * 1.6);
       const i = (y * n + x) * 4;
       data[i] = data[i + 1] = data[i + 2] = Math.round(255 * v * v);
       data[i + 3] = 255;

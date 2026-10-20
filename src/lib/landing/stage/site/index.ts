@@ -30,6 +30,7 @@ import {
   SRGBColorSpace,
   TextureLoader,
   type BufferGeometry,
+  type MeshBasicMaterial,
   type PerspectiveCamera,
   type Material,
   type Texture,
@@ -49,6 +50,7 @@ import { M } from './geo';
 import { buildHardscape } from './ground';
 import { buildItems } from './items';
 import { buildPlanting } from './plants';
+import { blobMesh, blobTexture, blobsOf } from './shadows';
 import { buildPond } from './water';
 import { patchSite, type Num } from './shader';
 
@@ -78,15 +80,21 @@ export interface StageSite {
 /** Tile sizes (m) of the photographic sets. */
 const LAWN_TILE_M = 2;
 const PAVING_TILE_M = 2.4;
+/** Stone pieces' uv is ~0.5 per model unit (items.ts): one tile across a rock. */
+const STONE_TILE_M = 1.2;
 /** The clamp climbs this far above natural ground over `build.site` (tallest gate pier ≈ 3 m). */
 const RISE_M = 3.6;
 const SOIL = new Color('#7D6A4F');
 /**
- * Tint over the lawn map, above white on purpose (linear multipliers): the
- * map is a dark turf photo, and the reference lawn is clearly lighter than the
- * trees (the value contrast that makes it read).
+ * Gain over the lawn map, well above white on purpose (linear multipliers): the
+ * map is a dark, very saturated turf photo (mean ≈ 0.07, 0.18, 0.03) that the
+ * shader pulls to 38 % chroma; this lands a sunlit lawn near sRGB (105, 128, 67),
+ * lighter than the trees (the value contrast that makes it read).
  */
-const GRASS = new Color().setRGB(1.12, 1.22, 0.82);
+const GRASS = new Color().setRGB(2.15, 2.2, 1.65);
+/** Contact-shadow strength under plants / under stone, the car and along walls. */
+const BLOB_PLANTS = 0.5;
+const BLOB_SITE = 0.42;
 
 export function createSite(house: LandingHouse, ctx: SiteContext): StageSite {
   const { site } = house;
@@ -150,7 +158,13 @@ export function createSite(house: LandingHouse, ctx: SiteContext): StageSite {
 
   const planting = buildPlanting(site.plants, grow);
   const items = buildItems(site.items, hard);
-  group.add(planting.group, items.group);
+  const blobMap = blobTexture();
+  const blobs = blobsOf(site);
+  const plantBlobs = blobMesh(blobs.planting, blobMap, BLOB_PLANTS, 'site:contact:plants');
+  const siteBlobs = blobMesh(blobs.site, blobMap, BLOB_SITE, 'site:contact:site');
+  plantBlobs.userData.records = [];
+  siteBlobs.userData.records = [];
+  group.add(planting.group, items.group, plantBlobs, siteBlobs);
 
   // Late parts: textures and models, each landing once.
   const models = new AbortController();
@@ -172,11 +186,13 @@ export function createSite(house: LandingHouse, ctx: SiteContext): StageSite {
     return t;
   };
   const dress = async (): Promise<void> => {
-    const [lawnD, lawnN, paveD, paveN] = await Promise.all([
+    const [lawnD, lawnN, paveD, paveN, stoneD, stoneN] = await Promise.all([
       tex('lawn_diff', true, LAWN_TILE_M),
       tex('lawn_nor', false, LAWN_TILE_M),
       tex('paving_diff', true, PAVING_TILE_M),
       tex('paving_nor', false, PAVING_TILE_M),
+      tex('stone_diff', true, STONE_TILE_M),
+      tex('stone_nor', false, STONE_TILE_M),
     ]);
     if (disposed) {
       return;
@@ -186,7 +202,10 @@ export function createSite(house: LandingHouse, ctx: SiteContext): StageSite {
     mats.lawn.normalScale.setScalar(0.35);
     mats.paving.map = paveD;
     mats.paving.normalMap = paveN;
-    for (const m of [mats.lawn, mats.paving]) {
+    items.stone.map = stoneD;
+    items.stone.normalMap = stoneN;
+    items.stone.normalScale.setScalar(0.6);
+    for (const m of [mats.lawn, mats.paving, items.stone]) {
       m.needsUpdate = true;
     }
   };
@@ -211,6 +230,10 @@ export function createSite(house: LandingHouse, ctx: SiteContext): StageSite {
       mats.lawn.color.lerpColors(SOIL, GRASS, p);
       grow.value = p;
       planting.group.visible = p > 0;
+      plantBlobs.visible = p > 0;
+      (plantBlobs.material as MeshBasicMaterial).opacity = BLOB_PLANTS * p;
+      siteBlobs.visible = s > 0;
+      (siteBlobs.material as MeshBasicMaterial).opacity = BLOB_SITE * s;
       for (const pond of ponds) {
         pond.group.visible = w > 0;
         pond.group.position.y = pond.floorY + (pond.levelY - pond.floorY) * w;
@@ -253,6 +276,12 @@ export function createSite(house: LandingHouse, ctx: SiteContext): StageSite {
         m.dispose();
       }
       depth.dispose();
+      for (const b of [plantBlobs, siteBlobs]) {
+        b.geometry.dispose();
+        (b.material as MeshBasicMaterial).dispose();
+        b.dispose();
+      }
+      blobMap.dispose();
       planting.dispose();
       items.dispose();
       for (const t of textures) {

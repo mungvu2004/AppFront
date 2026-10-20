@@ -30,6 +30,11 @@ describe('patchGrowth', () => {
     expect(s.uniforms.uRiseY).toBe(uniforms?.uRiseY);
     expect(s.uniforms.uMat).toBe(uniforms?.uMat);
     expect(s.uniforms.uOpacity).toBe(uniforms?.uOpacity);
+    // Contact darkening: the varying is written after the clamp and read against the shared foot / strength.
+    expect(s.vertexShader).toMatch(/varying float vGrowthY;[\s\S]*growthWorld\.y = [\s\S]*vGrowthY = growthWorld\.y;/);
+    expect(s.fragmentShader).toContain('vGrowthY - uFootY');
+    expect(s.uniforms.uFootY).toBe(uniforms?.uFootY);
+    expect(uniforms?.uAo.value).toBe(0);
     expect(patched.customProgramCacheKey()).toBe(patchGrowth(new MeshStandardMaterial(), { baseY: 2 }).customProgramCacheKey());
   });
 

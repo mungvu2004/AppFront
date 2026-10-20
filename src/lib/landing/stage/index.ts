@@ -116,7 +116,7 @@ export async function createStage(
     site = m.createSite(house, { materials: stage.materials, anisotropy });
     scene.add(site.group);
     gl.skyOn(site.group);
-    siteFloor = new Box3().setFromObject(site.group).min.y;
+    siteFloor = gl.fitCatcher(new Box3().setFromObject(site.group));
     if (last !== null) {
       site.apply(last, camera.position, target);
     }
@@ -277,6 +277,7 @@ export async function createStage(
       const dist = camera.position.distanceTo(target);
       const near = Math.max(NEAR_MIN, dist * NEAR_PER_DIST);
       const far = Math.max(dist * FAR_PER_DIST, dist + FAR_MIN);
+      gl.atmosphere(dist);
       if (camera.fov !== c.fovDeg || camera.near !== near || camera.far !== far) {
         camera.fov = c.fovDeg;
         camera.near = near;

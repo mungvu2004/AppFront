@@ -1,6 +1,6 @@
 /**
  * Outdoor objects: boulders (displaced, smooth-shaded icosahedra, instanced,
- * sunk about a third into the lawn, ±6 % lightness each), the round stone
+ * sunk about a third into the lawn, stone-textured, ±12 % value and a warm/cool shift each), the round stone
  * table with its stools (one merged mesh), path lights (instanced posts +
  * unlit warm heads — glow without a light), and the Pascal models (car,
  * parking bay) recoloured per material slot.
@@ -18,7 +18,9 @@ import {
   InstancedMesh,
   Matrix4,
   Mesh,
+  Float32BufferAttribute,
   MeshBasicMaterial,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
   Quaternion,
   Euler,
@@ -41,7 +43,6 @@ const FACING: Readonly<Record<Compass, number>> = { north: 0, east: Math.PI / 2,
 
 /** Pascal slot → the finish it gets here. */
 const SLOT_FINISH: Readonly<Record<string, { color: string; roughness: number; metalness: number }>> = {
-  slot_body: { color: '#3A3E44', roughness: 0.32, metalness: 0.6 },
   slot_windows: { color: '#15191D', roughness: 0.08, metalness: 0.2 },
   slot_wheels: { color: '#1B1C1E', roughness: 0.8, metalness: 0 },
   slot_rim: { color: '#9EA3A8', roughness: 0.3, metalness: 0.9 },
@@ -51,9 +52,13 @@ const SLOT_FINISH: Readonly<Record<string, { color: string; roughness: number; m
   slot_marking: { color: '#E9E6DE', roughness: 0.8, metalness: 0 },
 };
 const DEFAULT_FINISH = { color: '#8E8B85', roughness: 0.7, metalness: 0 };
+/** Car paint: dark graphite metallic base under a glossy clearcoat (not one shiny plastic). */
+const CAR_PAINT = { color: '#2A2E33', roughness: 0.42, metalness: 0.55, clearcoat: 1, clearcoatRoughness: 0.08 };
 
 export interface Items {
   readonly group: Group;
+  /** The stone pieces' material: the site lays the stone texture on it once it lands. */
+  readonly stone: MeshStandardMaterial;
   load(assets: AssetService, signal: AbortSignal): Promise<void>;
   dispose(): void;
 }
@@ -78,6 +83,14 @@ export function boulderGeometry(seed: number): BufferGeometry {
   const out = mergeVertices(g, 1e-4);
   g.dispose();
   out.computeVertexNormals();
+  // Box-blend planar uv (the stone map is noise, a seam never shows).
+  const p = out.getAttribute('position');
+  const uv = new Float32Array(p.count * 2);
+  for (let i = 0; i < p.count; i += 1) {
+    uv[i * 2] = (p.getX(i) + p.getZ(i) * 0.6) * 0.5;
+    uv[i * 2 + 1] = (p.getY(i) + p.getZ(i) * 0.4) * 0.5;
+  }
+  out.setAttribute('uv', new Float32BufferAttribute(uv, 2));
   return out;
 }
 
@@ -102,7 +115,8 @@ export function buildItems(items: readonly SiteItem[], growth: GrowthUniforms): 
     materials.push(mat);
     return mat;
   };
-  const granite = own(patchSite(new MeshStandardMaterial({ color: '#7F7E79', roughness: 0.92 }), { growth }));
+  // Linear gain above white on purpose: the stone map is dark (mean ≈ 0.1); this lands mid grey (≈ 120–150 sRGB) in sun.
+  const granite = own(patchSite(new MeshStandardMaterial({ color: new Color().setScalar(2), roughness: 0.92, envMapIntensity: 1 }), { growth }));
   const shade = new Color();
   const m = new Matrix4();
   const q = new Quaternion();
@@ -118,7 +132,10 @@ export function buildItems(items: readonly SiteItem[], growth: GrowthUniforms): 
       // Centre at ground level: about 35 % of the rock is under the lawn.
       m.compose(at(b, 0), q.setFromEuler(e.set((s - 0.5) * 0.3, s * 6.28, (seedOf(`${b.id}t`) - 0.5) * 0.3)), new Vector3(M(w) / 2, M(h) / 1.3, M(d) / 2));
       mesh.setMatrixAt(i, m);
-      mesh.setColorAt(i, shade.setScalar(1 + (seedOf(`${b.id}c`) - 0.5) * 0.12));
+      // ±12 % value, warm ↔ cool a touch, so no two rocks match.
+      const v = 1 + (seedOf(`${b.id}c`) - 0.5) * 0.24;
+      const warm = (seedOf(`${b.id}w`) - 0.5) * 0.08;
+      mesh.setColorAt(i, shade.setRGB(v * (1 + warm), v, v * (1 - warm)));
     });
     mesh.name = 'site:boulders';
     mesh.userData.records = boulders.map((b) => b.id);
@@ -176,7 +193,7 @@ export function buildItems(items: readonly SiteItem[], growth: GrowthUniforms): 
     let mat = slotMats.get(slot);
     if (mat === undefined) {
       const f = SLOT_FINISH[slot] ?? DEFAULT_FINISH;
-      mat = own(patchSite(new MeshStandardMaterial(f), { growth }));
+      mat = own(patchSite(slot === 'slot_body' ? new MeshPhysicalMaterial(CAR_PAINT) : new MeshStandardMaterial(f), { growth }));
       slotMats.set(slot, mat);
     }
     return mat;
@@ -209,6 +226,7 @@ export function buildItems(items: readonly SiteItem[], growth: GrowthUniforms): 
 
   return {
     group,
+    stone: granite,
     async load(assets, signal) {
       await Promise.allSettled(
         models.map(async (item) => {

@@ -51,7 +51,7 @@ const BAND_PROUD = 0.02;
 const FRAME_DEPTH = 0.07;
 const FRAME_SETBACK = 0.08;
 /** Large split-face panels (2.jpg), not rubble. */
-const STONE_TILE_M = 4;
+const STONE_TILE_M = 5.5;
 /** Ceiling sits this far under the storey's wall top: under the upper floor's 150 mm slab, whose oak soffit must not show. */
 const CEILING_DROP = 0.17;
 
@@ -130,7 +130,7 @@ function facePanel(
 /** Cladding + slab bands onto the exterior walls; call before the walls are patched. */
 export function dressFacade(house: LandingHouse, wallObjects: ReadonlyMap<string, Object3D>): Facade {
   const stone = new MeshStandardMaterial({ color: 0x8d8b86, roughness: 0.9 });
-  const timber = new MeshStandardMaterial({ color: 0xa07c5c, roughness: 0.6 });
+  const timber = new MeshStandardMaterial({ color: 0x8e7a66, roughness: 0.85, envMapIntensity: 0.5 });
   const band = new MeshLambertMaterial({ color: 0xe4e7e8 });
   const owned: Material[] = [stone, timber, band];
   const geometries: { dispose(): void }[] = [];
@@ -181,7 +181,7 @@ export function dressFacade(house: LandingHouse, wallObjects: ReadonlyMap<string
           // The map's mean is dark (0xd2d0cc landed at #4A4744): a linear gain of ~2.5× that lands near the
           // reference's mid grey #7E7D79; colour factors above 1 are fine for a map multiplier.
           clone.color.setRGB(1.6, 1.59, 1.56);
-          clone.normalScale.setScalar(1);
+          clone.normalScale.setScalar(0.85);
           clone.needsUpdate = true;
         }
       }
@@ -356,7 +356,10 @@ export function roleFor(slug: string, slot: string): keyof SceneMaterials | null
   if (/pillow|cushion|seat|mattress|blanket|arms/.test(s)) return s === 'arms' ? 'wood' : 'fabric';
   if (/body|material|color/.test(s)) {
     if (/sofa|bed|chair|carpet/.test(slug)) return slug.includes('carpet') ? 'textile' : 'linen';
-    if (/fridge|stove|hood|washing|television|tesla|piano/.test(slug)) return 'metal';
+    // A piano / TV body is lacquer, not steel: as 'metal' (0.8 metal, env 1.6) it was a black mirror (CONTRACT-V3).
+    if (slug.includes('piano')) return 'woodDark';
+    if (slug.includes('television')) return 'screen';
+    if (/fridge|stove|hood|washing|tesla/.test(slug)) return 'metal';
     if (/bathtub|toilet|sink|shower/.test(slug)) return 'porcelain';
     return 'wood';
   }

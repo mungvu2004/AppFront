@@ -35,6 +35,10 @@ export interface GrowthUniforms {
   readonly uOpacity: { value: number };
   readonly uDrop: { value: number };
   readonly uPaper: { value: Color };
+  /** World y of the part's foot now (baseY + its storey's lift): the contact darkening is measured from it. */
+  readonly uFootY: { value: number };
+  /** Contact darkening at the foot (0 = off): walls on floors and ground, furniture on floors. */
+  readonly uAo: { value: number };
 }
 
 export interface GrowthOptions {
@@ -56,6 +60,8 @@ export function createGrowthUniforms(baseY: number): GrowthUniforms {
     uOpacity: { value: 1 },
     uDrop: { value: 0 },
     uPaper: { value: new Color(LANDING_PALETTE.paper) },
+    uFootY: { value: baseY },
+    uAo: { value: 0 },
   };
 }
 
@@ -76,22 +82,38 @@ export const FRAGMENT_PBR_MIX = `
   metalnessFactor *= uMat;
 `;
 
-function injectVertex(shader: WebGLProgramParametersWithUniforms, uniforms: GrowthUniforms): void {
+/**
+ * Analytic contact darkening (no pass, ~0 ms): albedo darkens over the first AO_REACH_M above the
+ * part's foot, so a wall meets its floor and a sofa sits on its rug instead of floating (CONTRACT-V3 §1).
+ * Only the stage's own clones carry it; site/shader.ts keeps the plain strings above.
+ */
+const AO_REACH_M = 0.45;
+const AO_VERTEX = '\n  vGrowthY = growthWorld.y;\n';
+const AO_FRAGMENT = `
+  float growthAo = 1.0 - uAo * ( 1.0 - smoothstep( 0.0, ${AO_REACH_M.toFixed(2)}, vGrowthY - uFootY ) );
+  diffuseColor.rgb *= mix( 1.0, growthAo, uMat );
+`;
+
+function injectVertex(shader: WebGLProgramParametersWithUniforms, uniforms: GrowthUniforms, ao = false): void {
   shader.uniforms.uRiseY = uniforms.uRiseY;
   shader.uniforms.uDrop = uniforms.uDrop;
   shader.vertexShader =
-    VERTEX_DECL + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>${VERTEX_CLAMP}`);
+    VERTEX_DECL +
+    (ao ? 'varying float vGrowthY;\n' : '') +
+    shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>${VERTEX_CLAMP}${ao ? AO_VERTEX : ''}`);
 }
 
 function injectFragment(shader: WebGLProgramParametersWithUniforms, uniforms: GrowthUniforms): void {
   shader.uniforms.uMat = uniforms.uMat;
   shader.uniforms.uOpacity = uniforms.uOpacity;
   shader.uniforms.uPaper = uniforms.uPaper;
-  let fragment = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>${FRAGMENT_MIX}`);
+  shader.uniforms.uFootY = uniforms.uFootY;
+  shader.uniforms.uAo = uniforms.uAo;
+  let fragment = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>${FRAGMENT_MIX}${AO_FRAGMENT}`);
   if (fragment.includes('#include <metalnessmap_fragment>')) {
     fragment = fragment.replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>${FRAGMENT_PBR_MIX}`);
   }
-  shader.fragmentShader = FRAGMENT_DECL + fragment;
+  shader.fragmentShader = FRAGMENT_DECL + 'uniform float uFootY;\nuniform float uAo;\nvarying float vGrowthY;\n' + fragment;
 }
 
 /**
@@ -106,7 +128,7 @@ export function patchGrowth<T extends Material>(material: T, options: GrowthOpti
     clone.transparent = true;
   }
   clone.onBeforeCompile = (shader) => {
-    injectVertex(shader, uniforms);
+    injectVertex(shader, uniforms, true);
     injectFragment(shader, uniforms);
   };
   // Same key for every clone of one base shader: one program, many uniform sets.

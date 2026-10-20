@@ -15,8 +15,11 @@
 
 import {
   Box3,
+  Color,
   Group,
   Mesh,
+  MeshPhysicalMaterial,
+  MeshStandardMaterial,
   type Material,
   type MeshDepthMaterial,
   type Object3D,
@@ -105,6 +108,41 @@ export const CUTAWAY_HEIGHT_M = 1.2;
 /** Joinery drops in from this far above its place. */
 export const JOINERY_DROP_M = 0.02;
 const LINEN = '#CFC6B8';
+/** Contact darkening at the foot (patch.ts): how much a wall / a piece darkens where it meets the floor. */
+const WALL_AO = 0.38;
+const PIECE_AO = 0.22;
+/** Painted, rendered and clay surfaces are matte (CONTRACT-V3 §4): no softbox sheen on a sofa or a cabinet. */
+const MATTE_ROUGHNESS = 0.88;
+const MATTE_ENV = 0.55;
+/** Lacquer-black pieces (piano, TV) read as a black mirror: a soft graphite instead. */
+const GRAPHITE = new Color('#56524D');
+const BLACK_LUMA = 0.03;
+
+/**
+ * Matte finish on a dielectric clone, unless it is meant to shine (glass, mirror, metal, porcelain,
+ * polished stone). Written once at build time; `textures.ts` sets the PBR floors' own values later.
+ */
+function matteFinish(clone: Material, keepGloss: ReadonlySet<Material>, original: Material): void {
+  if (!(clone instanceof MeshStandardMaterial) || keepGloss.has(original) || clone.transparent) {
+    return;
+  }
+  const c = clone.color;
+  const black = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b < BLACK_LUMA;
+  // A lacquer-black glb part may come in as a metal: graphite is a dielectric. Real metals keep their sheen.
+  if (clone.metalness >= 0.3 && !black) {
+    return;
+  }
+  if (black) {
+    c.copy(GRAPHITE);
+    clone.metalness = 0;
+  }
+  clone.roughness = Math.max(clone.roughness, MATTE_ROUGHNESS);
+  clone.envMapIntensity = Math.min(clone.envMapIntensity, MATTE_ENV);
+  if (clone instanceof MeshPhysicalMaterial) {
+    clone.clearcoat = 0;
+    clone.specularIntensity = Math.min(clone.specularIntensity, 0.5);
+  }
+}
 
 const box = new Box3();
 
@@ -113,6 +151,7 @@ interface Patcher {
   readonly owned: Material[];
   readonly glass: Material;
   readonly materials: SceneMaterials;
+  readonly keepGloss: ReadonlySet<Material>;
 }
 
 /**
@@ -155,6 +194,7 @@ function grow(
     if (plain) {
       clone.vertexColors = false;
     }
+    matteFinish(clone, patcher.keepGloss, original);
     hits.set(original, clone);
     patcher.owned.push(clone);
     const list = patcher.clonesOf.get(original) ?? [];
@@ -251,7 +291,8 @@ export function buildStageHouse(
   stair.position.y = (house.plan.levels.find((l) => l.id === house.stair.levelId)?.elevationMm ?? 0) / 1000;
   (storeys.get(house.stair.levelId) ?? groundStorey).add(stair);
 
-  const patcher: Patcher = { clonesOf: new Map(), owned: [], glass: createStageGlass(), materials };
+  const keepGloss = new Set<Material>([materials.glass, materials.mirror, materials.metal, materials.porcelain, materials.stone]);
+  const patcher: Patcher = { clonesOf: new Map(), owned: [], glass: createStageGlass(), materials, keepGloss };
   const frameMetal = createFrameMetal();
   patcher.owned.push(patcher.glass, frameMetal, ...facade.owned);
   for (const storey of storeys.values()) {
@@ -287,6 +328,12 @@ export function buildStageHouse(
       piece.id,
       grow(patcher, piece.id, piece.object, isUpper(piece.levelId), false, floorOf(piece.levelId), true),
     );
+  }
+  for (const wall of walls.values()) {
+    wall.uniforms.uAo.value = WALL_AO;
+  }
+  for (const piece of furniture.values()) {
+    piece.uniforms.uAo.value = PIECE_AO;
   }
   const stairGrower = grow(patcher, house.stair.id, stair, isUpper(house.stair.levelId), false, floorOf(house.stair.levelId));
   const ceilings = buildCeilings(house, storeys);
