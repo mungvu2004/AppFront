@@ -151,6 +151,19 @@ export interface PascalWallNode extends PascalNodeCommon {
   readonly end: PascalPoint2;
   readonly thickness: number;
   readonly height: number;
+  /** Vật liệu từng mặt (`interior`/`exterior`), tham chiếu `scene:`/`library:` — `sceneDressing.ts`. */
+  readonly slots?: Readonly<Record<string, string>>;
+  readonly skirting?: PascalWallTrim;
+  readonly crown?: PascalWallTrim;
+}
+
+/** `WallTrimConfig` của Pascal (`core/src/schema/nodes/wall.ts`), mọi trường khai đủ. */
+export interface PascalWallTrim {
+  readonly enabled: boolean;
+  readonly sides: 'interior' | 'exterior' | 'both';
+  readonly height: number;
+  readonly proud: number;
+  readonly profile: 'flat';
 }
 
 /**
@@ -169,6 +182,13 @@ export interface PascalDoorNode extends PascalNodeCommon {
   readonly leafCount?: 1 | 2;
   readonly hingesSide?: 'left' | 'right';
   readonly doorType?: 'hinged' | 'sliding';
+  /** `'opening'` = ô trống không cánh (vòm, lối thông). */
+  readonly openingKind?: 'door' | 'opening';
+  /** Góc mở cánh bản lề, radian 0..π/2. Cửa trượt không đọc. */
+  readonly swingAngle?: number;
+  readonly swingDirection?: 'inward' | 'outward';
+  /** 0..1; chỉ cửa trượt/xếp/cuốn đọc, cửa bản lề đọc `swingAngle`. */
+  readonly operationState?: number;
 }
 
 /** Cửa sổ; con của tường. Xem `PascalDoorNode` về `rotation`. */
@@ -179,6 +199,10 @@ export interface PascalWindowNode extends PascalNodeCommon {
   readonly rotation: PascalVec3;
   readonly width: number;
   readonly height: number;
+  readonly openingKind?: 'window' | 'opening';
+  readonly windowType?: 'fixed' | 'sliding' | 'casement';
+  readonly casementStyle?: 'single' | 'french';
+  readonly hingesSide?: 'left' | 'right';
 }
 
 /**
@@ -263,6 +287,10 @@ export interface PascalItemNode extends PascalNodeCommon {
     readonly thumbnail: string;
     readonly src: string;
     readonly dimensions: PascalVec3;
+    /** Dời/xoay/tỉ lệ của riêng mô hình GLB trong nhóm của món đồ (`nodes/item/renderer.tsx:718-725`). */
+    readonly offset?: PascalVec3;
+    readonly rotation?: PascalVec3;
+    readonly scale?: PascalVec3;
   };
 }
 
@@ -304,6 +332,25 @@ export type PascalNodeType = PascalNode['type'];
 export interface PascalScene {
   readonly nodes: Readonly<Record<PascalNodeId, PascalNode>>;
   readonly rootNodeIds: readonly PascalNodeId[];
+  /** Vật liệu riêng của cảnh, khoá theo `id` — đúng hình `extra.materials` của `setScene`. */
+  readonly materials?: Readonly<Record<string, PascalSceneMaterial>>;
+}
+
+/** `SceneMaterial` của Pascal (`core/src/schema/scene-material.ts`): màu phẳng, không texture. */
+export interface PascalSceneMaterial {
+  readonly id: `mat_${string}`;
+  readonly name: string;
+  readonly material: {
+    readonly preset: 'custom';
+    readonly properties: {
+      readonly color: string;
+      readonly roughness: number;
+      readonly metalness: number;
+      readonly opacity: number;
+      readonly transparent: boolean;
+      readonly side: 'front' | 'back' | 'double';
+    };
+  };
 }
 
 /** Một đối tượng AppFront không chuyển được, kèm lý do đọc được bằng tiếng Việt. */

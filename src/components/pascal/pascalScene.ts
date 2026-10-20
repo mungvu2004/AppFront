@@ -60,6 +60,8 @@ export const loadSceneIntoPascal = async (scene: PascalScene): Promise<PascalSce
 
   const store = useScene.getState();
   store.setScene(scene.nodes as never, scene.rootNodeIds as never, {
+    // Khe `scene:<id>` của sàn/tường trỏ vào đây; thiếu thì Pascal rơi về mặc định.
+    materials: scene.materials as never,
     installedPlugins: [builtinPlugin.id],
     hasExplicitPluginInstallState: true,
   });

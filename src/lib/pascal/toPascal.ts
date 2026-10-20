@@ -30,13 +30,16 @@ import type {
   Level,
   Opening,
   Room,
+  RoomUsage,
   SpatialGraph,
   Wall,
 } from '@/domain/spatial/types';
 import { degrees, degreesToRadians, millimetres, millimetresToMetres } from '@/domain/units/types';
 import { FURNITURE_KIND_LABELS, WALL_KIND_LABELS } from '@/lib/commands/business/shared';
 
+import { CATALOG_MODELS, VARIANT_MODEL, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
+import { floorMaterialOf, SCENE_MATERIALS, wallDressingOf } from './sceneDressing';
 import type {
   AppFrontOrigin,
   PascalDoorNode,
@@ -59,8 +62,11 @@ import type {
 /** Số điểm tối thiểu để một đường bao là một đa giác. */
 const MIN_OUTLINE_POINTS = 3;
 
-/** Khoảng lùi từ mép công trình ra mép khu đất, mét. */
-const SITE_MARGIN_M = 5;
+/**
+ * Khoảng lùi từ mép công trình ra mép khu đất, mét. 1 m để ngôi nhà lấp khung hình như
+ * nhà 3D ở trang đăng nhập; khu đất vẫn bao trọn mọi hình học.
+ */
+const SITE_MARGIN_M = 1;
 
 /** Nửa cạnh khu đất khi bản vẽ chưa có hình học nào, mét — bằng mặc định của lược đồ Pascal. */
 const SITE_FALLBACK_HALF_SIZE_M = 15;
@@ -96,15 +102,6 @@ const FURNITURE_HEIGHT_MM: Readonly<Record<Exclude<FurnitureKind, 'stair'>, numb
 
 /** Bề dày tấm sàn, mét — mặc định của chính lược đồ Pascal. */
 const SLAB_THICKNESS_M = 0.05;
-
-/**
- * Vật liệu mặt sàn. Xem `PascalSlabNode.slots` về việc vì sao KHÔNG để mặc định.
- *
- * `concrete-polished` là một trong 17 vật liệu mà repo Pascal có đủ tệp `.ktx2`;
- * 48 vật liệu còn lại của bản kê chỉ sống trên CDN của họ. Đổi tên ở đây thì
- * đối chiếu lại bằng `pnpm pascal:assets` — nó in ra danh sách thiếu.
- */
-const SLAB_SURFACE_MATERIAL = 'library:concrete-polished';
 
 /** Một độ dài hữu hạn — điều kiện để được đổi sang mét mà không ném lỗi. */
 const isUsable = (...values: readonly number[]): boolean => values.every(Number.isFinite);
@@ -218,6 +215,7 @@ const wallNodeOf = (
   end: [metresOf(wall.centreline.end.x), metresOf(wall.centreline.end.y)],
   thickness: metresOf(wall.thicknessMm),
   height: metresOf(wall.heightMm),
+  ...wallDressingOf(wall),
   metadata: { appfront: originOf(wall, { kind: wall.kind }) },
 });
 
@@ -233,19 +231,59 @@ const openingPositionOf = (opening: Opening): PascalVec3 => [
   0,
 ];
 
-/** Cách mở cánh của AppFront, diễn sang ba trường rời của Pascal. */
+/** Góc hé cánh bản lề (~70°) để cửa đọc ra là cửa, không phải mảng tường. */
+const DOOR_SWING_ANGLE = 1.22;
+
+/**
+ * Cách mở cánh của AppFront, diễn sang các trường rời của Pascal. Mọi trường
+ * khai đích danh vì `setScene` không áp mặc định của lược đồ. Cửa bản lề hé
+ * bằng `swingAngle`; `operationState` chỉ cửa trượt đọc (R1-5c). Swing
+ * `'fixed'` trên cửa đi là ô trống bộ chuyển đổi để lại → `openingKind:'opening'`.
+ */
 const doorLeafOf = (
   opening: Opening,
-): Pick<PascalDoorNode, 'doorType' | 'hingesSide' | 'leafCount'> => {
+): Pick<
+  PascalDoorNode,
+  'doorType' | 'hingesSide' | 'leafCount' | 'openingKind' | 'swingAngle' | 'swingDirection' | 'operationState'
+> => {
+  const hinged = {
+    doorType: 'hinged',
+    leafCount: 1,
+    hingesSide: 'left',
+    openingKind: 'door',
+    swingAngle: DOOR_SWING_ANGLE,
+    swingDirection: 'inward',
+    operationState: 0,
+  } as const;
   switch (opening.swing) {
     case 'double':
-      return { doorType: 'hinged', leafCount: 2, hingesSide: 'left' };
+      return { ...hinged, leafCount: 2 };
     case 'sliding':
-      return { doorType: 'sliding', leafCount: 1, hingesSide: 'left' };
+      return { ...hinged, doorType: 'sliding', swingAngle: 0, operationState: 0.5 };
     case 'right':
-      return { doorType: 'hinged', leafCount: 1, hingesSide: 'right' };
+      return { ...hinged, hingesSide: 'right' };
+    case 'fixed':
+      return { ...hinged, openingKind: 'opening', swingAngle: 0 };
     default:
-      return { doorType: 'hinged', leafCount: 1, hingesSide: 'left' };
+      return hinged;
+  }
+};
+
+/** Cách mở cánh cửa sổ: trượt, cánh đơn theo bên bản lề, hai cánh kiểu Pháp, hoặc kính cố định. */
+const windowStyleOf = (
+  opening: Opening,
+): Pick<PascalWindowNode, 'openingKind' | 'windowType' | 'casementStyle' | 'hingesSide'> => {
+  const fixed = { openingKind: 'window', windowType: 'fixed', casementStyle: 'single', hingesSide: 'left' } as const;
+  switch (opening.swing) {
+    case 'sliding':
+      return { ...fixed, windowType: 'sliding' };
+    case 'left':
+    case 'right':
+      return { ...fixed, windowType: 'casement', hingesSide: opening.swing };
+    case 'double':
+      return { ...fixed, windowType: 'casement', casementStyle: 'french' };
+    default:
+      return fixed;
   }
 };
 
@@ -267,7 +305,7 @@ const openingNodeOf = (
 
   return opening.kind === 'door'
     ? { ...shared, type: 'door', ...doorLeafOf(opening) }
-    : { ...shared, type: 'window' };
+    : { ...shared, type: 'window', ...windowStyleOf(opening) };
 };
 
 /* -------------------------------------------------------------------------- */
@@ -294,7 +332,8 @@ const slabNodeOf = (room: Room, levelNodeId: PascalNodeId): PascalSlabNode => ({
   thickness: SLAB_THICKNESS_M,
   recessed: false,
   autoFromWalls: false,
-  slots: { surface: SLAB_SURFACE_MATERIAL },
+  // Khai đích danh — xem `PascalSlabNode.slots`; quy tắc chọn ở `sceneDressing.ts`.
+  slots: { surface: floorMaterialOf(room) },
   metadata: {
     appfront: originOf(room, { usage: room.usage }),
   },
@@ -342,17 +381,96 @@ const gridNodeOf = (axis: Axis, levelNodeId: PascalNodeId): PascalStructuralGrid
 const heightOfFurniture = (furniture: Furniture, levelHeightMm: number): number =>
   furniture.kind === 'stair'
     ? metresOf(levelHeightMm)
-    : metresOf(FURNITURE_HEIGHT_MM[furniture.kind]);
+    : metresOf(furniture.heightMm ?? FURNITURE_HEIGHT_MM[furniture.kind]);
+
+/**
+ * Thư mục mô hình Pascal cho một món đồ (P1 §3): có `variant` thì tra
+ * `VARIANT_MODEL`, không thì đoán theo loại + công năng phòng + hộp bao (mét).
+ * `stair` không có mô hình — trả `null`.
+ */
+export const furnitureModelOf = (
+  furniture: Furniture,
+  usage: RoomUsage | undefined,
+): { readonly folder: string; readonly liftMm?: number } | null => {
+  const byVariant = furniture.variant === undefined ? null : VARIANT_MODEL[furniture.variant];
+
+  if (byVariant) {
+    return byVariant;
+  }
+
+  const w = metresOf(furniture.boundingBox.max.x - furniture.boundingBox.min.x);
+  const d = metresOf(furniture.boundingBox.max.y - furniture.boundingBox.min.y);
+  const short = Math.min(w, d);
+  const long = Math.max(w, d);
+  const h = furniture.heightMm === undefined ? undefined : metresOf(furniture.heightMm);
+  const pick = (folder: string) => ({ folder });
+
+  switch (furniture.kind) {
+    case 'stair':
+      return null;
+    case 'bed':
+      return pick(w < 1.2 ? 'single-bed' : 'double-bed');
+    case 'wardrobe':
+      return pick('closet');
+    case 'chair':
+      return pick('dining-chair');
+    case 'table':
+      if (long < 0.6) return pick('bedside-table');
+      return pick(usage === 'livingRoom' && h !== undefined && h < 0.5 ? 'coffee-table' : 'dining-table');
+    case 'kitchenCabinet':
+      return pick(short >= 0.6 && long <= 0.8 ? 'fridge' : 'kitchen-counter');
+    case 'sanitaryFixture':
+      if (short < 0.5 && long < 0.8) return pick('toilet');
+      if (long > 1.5) return pick('bathtub');
+      if (short >= 0.75 && long - short < 0.1) return pick('shower-square');
+      return pick('bathroom-sink');
+    case 'other':
+      if (usage === 'livingRoom' && long > 1.5) return pick('sofa');
+      if (h !== undefined && h < 0.05) return pick('rectangular-carpet');
+      return pick(w * d < 0.25 ? 'small-indoor-plant' : 'indoor-plant');
+  }
+};
 
 const itemNodeOf = (
   furniture: Furniture,
   levelNodeId: PascalNodeId,
   levelHeightMm: number,
+  usage?: RoomUsage,
 ): PascalItemNode => {
   const label = FURNITURE_KIND_LABELS[furniture.kind];
   const widthM = metresOf(furniture.boundingBox.max.x - furniture.boundingBox.min.x);
   const depthM = metresOf(furniture.boundingBox.max.y - furniture.boundingBox.min.y);
-  const heightM = heightOfFurniture(furniture, levelHeightMm);
+  const model = furniture.model === undefined ? furnitureModelOf(furniture, usage) : null;
+  const catalog = model === null ? undefined : CATALOG_MODELS[model.folder];
+
+  // Khớp mô hình vào hộp bao CỤC BỘ bằng `asset.scale` — `node.scale` phải giữ
+  // [1, 1, 1] vì lượt về đọc lệch khỏi 1 là "người dùng vừa kéo" (toSpatial `isUnscaled`).
+  // `asset.id` cũng giữ nguyên `appfront-<kind>`: đổi nó là lượt về sinh `model` (R1-3b).
+  const fit = (() => {
+    if (model === null || catalog === undefined) {
+      return null;
+    }
+
+    const [cw, ch, cd] = catalog.dimensions;
+    const fixedH = furniture.heightMm === undefined ? undefined : metresOf(furniture.heightMm);
+    const s = Math.min(widthM / cw, depthM / cd, fixedH === undefined ? Infinity : fixedH / ch);
+    // Đồ treo tường: mô hình mỏng hơn hộp bao thì áp lưng nó vào mép sau (−z cục
+    // bộ, phía tường) thay vì treo lơ lửng giữa hộp. Dời bằng `asset.offset` chứ
+    // không dời `position`: tâm món đồ phải giữ đúng `centre` để lượt về không trôi.
+    // `attachTo` không ghi ra — Pascal sẽ đòi một bức tường cha mà node này không có.
+    const backShift = catalog.attachTo === 'wall-side' ? -(depthM - cd * s) / 2 : 0;
+    const [ox, oy, oz] = catalog.offset;
+
+    return {
+      folder: model.folder,
+      heightM: fixedH ?? ch * s,
+      scale: [s, s, s] as PascalVec3,
+      offset: [ox * s, oy * s, oz * s + backShift] as PascalVec3,
+      rotation: [...catalog.rotation] as PascalVec3,
+    };
+  })();
+  const heightM = fit?.heightM ?? heightOfFurniture(furniture, levelHeightMm);
+  const liftM = metresOf(furniture.liftMm ?? model?.liftMm ?? 0);
 
   return {
     object: 'node',
@@ -360,18 +478,20 @@ const itemNodeOf = (
     type: 'item',
     name: label,
     parentId: levelNodeId,
-    position: [metresOf(furniture.centre.x), 0, metresOf(furniture.centre.y)],
+    // Đồ trần (pendant) tạm đặt dưới tầng ở độ cao `lift`; T16 lo trần.
+    position: [metresOf(furniture.centre.x), liftM, metresOf(furniture.centre.y)],
     rotation: [0, yawOf(furniture.rotationDeg), 0],
     scale: [1, 1, 1],
     asset: {
       id: furniture.model?.id ?? `appfront-${furniture.kind}`,
       category: furniture.kind,
       name: label,
-      thumbnail: '',
+      thumbnail: fit === null ? '' : thumbnailOf(fit.folder),
       // `asset://…` là dạng nội bộ mà `AssetUrl` nhận (`schema/asset-url.js`);
-      // AppFront chưa có mô hình GLB cho đồ đạc nên đây là chỗ giữ chỗ hợp lệ.
-      src: furniture.model?.src ?? `asset://appfront/${furniture.kind}`,
+      // chỉ còn `stair` dùng nó làm chỗ giữ chỗ — chưa có mô hình thang (ngoài C2).
+      src: furniture.model?.src ?? (fit === null ? `asset://appfront/${furniture.kind}` : modelSrcOf(fit.folder)),
       dimensions: [widthM, heightM, depthM],
+      ...(fit === null ? {} : { offset: fit.offset, rotation: fit.rotation, scale: fit.scale }),
     },
     metadata: {
       appfront: originOf(furniture, {
@@ -611,7 +731,8 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
       continue;
     }
 
-    const node = itemNodeOf(furniture, levelNodeId, levelHeightMm);
+    const usage = graph.rooms.find((room) => room.id === furniture.roomId)?.usage;
+    const node = itemNodeOf(furniture, levelNodeId, levelHeightMm, usage);
 
     nodes[node.id] = node;
     adopt(levelNodeId, node.id);
@@ -678,5 +799,6 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
   };
 
 
-  return { scene: { nodes, rootNodeIds: [SITE_NODE_ID] }, skipped };
+  const materials = Object.fromEntries(SCENE_MATERIALS.map((material) => [material.id, material]));
+  return { scene: { nodes, rootNodeIds: [SITE_NODE_ID], materials }, skipped };
 };

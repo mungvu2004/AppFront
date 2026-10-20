@@ -171,8 +171,8 @@ describe('hợp đồng dựng hình — trường bộ vẽ đọc thẳng', ()
       expect(slab.autoFromWalls).toBe(false);
       // Mặc định của Pascal là `library:wood-woodplank48`, mà repo Pascal KHÔNG
       // commit bốn tệp `.ktx2` của nó — bốn lượt gọi hỏng, mặt sàn mất vân, và
-      // không gì đổ. Phải khai đích danh một vật liệu CÓ tệp thật.
-      expect(slab.slots['surface']).toBe('library:concrete-polished');
+      // không gì đổ. Phải khai đích danh: vật liệu màu phẳng của cảnh hoặc một cái CÓ tệp thật.
+      expect(slab.slots['surface']).toMatch(/^(scene:mat_appfront_|library:concrete-polished$)/);
     }
   });
 
@@ -200,7 +200,9 @@ describe('hợp đồng dựng hình — trường bộ vẽ đọc thẳng', ()
       'library:metal-steel',
     ];
 
-    expect(SHIPPED).toContain(slab.slots['surface']);
+    // `scene:` là màu phẳng không texture (`sceneDressing.ts`) — không có tệp nào để thiếu.
+    const surface = slab.slots['surface'] ?? '';
+    if (!surface.startsWith('scene:')) expect(SHIPPED).toContain(surface);
   });
 
   it('sàn dày XUỐNG dưới mặt phẳng tầng, không chèn vào chân tường', () => {

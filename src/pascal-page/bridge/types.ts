@@ -3,6 +3,8 @@ export interface PascalSceneGraph {
   readonly nodes: Record<string, unknown>;
   readonly rootNodeIds: readonly string[];
   readonly installedPlugins?: readonly string[];
+  /** Vật liệu riêng của cảnh, khoá theo id — editor chuyển thẳng cho `setScene` (`scene.ts` applySceneGraphToEditor). */
+  readonly materials?: Readonly<Record<string, unknown>>;
 }
 
 export interface PascalBridge {
