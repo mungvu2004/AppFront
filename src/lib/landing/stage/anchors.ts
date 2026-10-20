@@ -52,7 +52,8 @@ export function houseAnchors(house: LandingHouse): Map<string, StageAnchor> {
   );
   const stairUpper = stair.levelId === upperId;
   anchors.set('check:C7', { point: mid, upper: stairUpper });
-  anchors.set('stair', { point: mid.clone().setY(mid.y + LABEL_HEIGHT_M), upper: stairUpper });
+  // On the flight itself: lifted by a storey height it sat on the upper floor (R7).
+  anchors.set('stair', { point: mid.clone(), upper: stairUpper });
 
   const along = (wallId: string, t: number, heightM: number): StageAnchor | null => {
     const wall = plan.walls.find((w) => w.id === wallId);

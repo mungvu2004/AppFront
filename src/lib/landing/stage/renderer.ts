@@ -1,29 +1,36 @@
 /**
- * The WebGL side of the stage: renderer, camera, daylight, environment, sheet.
+ * The WebGL side of the stage: renderer, camera, daylight, environment, ground.
  *
- * One dominant sun from front-left-high casts every shadow; its shadow camera
- * is fitted to the 12 × 9 m house and the sheet around it, nothing more, so
- * the map's texels go where the picture is. A hemisphere light and the HDRI's
- * reflections fill the shadow side. The background is the paper, never the
- * HDRI: the studio photo contains a visible room and is for light only.
+ * One dominant sun from front-left-high (the camera side: the journey looks
+ * at the house from -z) casts every shadow; its shadow camera
+ * is fitted to the 12 × 9 m house and the ground its shadow falls on, so the
+ * map's texels go where the picture is. The HDRI (light only — the studio
+ * photo shows a room) and a weak hemisphere fill the shadow side; they are
+ * kept low so a shadow reads as a shadow, not as a slightly greyer wall.
+ *
+ * The ground is not a lit plane: it is the background colour, with a
+ * shadow catcher just under the slab top that darkens it only where the sun
+ * is blocked. So the paper stays exactly Paper Ivory on screen (the
+ * background is written as the tone curve's pre-image, see `tone.ts`) and
+ * the house still stands on it with a soft cast shadow and contact AO.
  *
  * Needs a live WebGL2 context; exercised in the browser only (untested by design).
  */
 
 import {
-  AgXToneMapping,
   Color,
   DirectionalLight,
   EquirectangularReflectionMapping,
   HemisphereLight,
   Mesh,
-  MeshStandardMaterial,
+  NeutralToneMapping,
   NoToneMapping,
   PCFShadowMap,
   PerspectiveCamera,
   PlaneGeometry,
   PMREMGenerator,
   Scene,
+  ShadowMaterial,
   SRGBColorSpace,
   WebGLRenderer,
   type Texture,
@@ -36,6 +43,7 @@ import { createStudioScene, disposeStudioScene } from '@/lib/three/present';
 import { LANDING_PALETTE } from '../palette';
 
 import type { QualitySettings } from './quality';
+import { inverseNeutral } from './tone';
 
 /** Thrown when the browser cannot give a WebGL2 context; the screen shows its static fallback. */
 export class NoWebGL2Error extends Error {
@@ -48,19 +56,22 @@ export class NoWebGL2Error extends Error {
 export const HDRI_URL = '/landing/hdri/studio_1k.hdr';
 /** Middle of the 12 × 9 m footprint (plan origin at scene origin). */
 export const HOUSE_CENTRE = { x: 6, z: 4.5 } as const;
-/** The sheet the drawing sits on, a little larger than the house. */
-const SHEET_SIZE = { x: 20, z: 15 } as const;
-/** Just under the ground slab's underside (150 mm), so the two never fight. */
-const SHEET_Y = -0.16;
+/** The shadow catcher: wide enough that its edge never enters a frame. */
+const CATCHER_SIZE = 80;
+/** Just under the ground slab's top, so walls meet their shadow with no gap. */
+const CATCHER_Y = -0.001;
+/** How dark a full sun shadow is on the paper (warm graphite, not black). */
+const CATCHER_OPACITY = 0.3;
+const CATCHER_COLOUR = 0x2a2620;
 /** Same exposure for every frame of the journey (Prompt 4). */
 export const EXPOSURE = 1;
-const SUN_INTENSITY = 2.6;
-const SUN_OFFSET = { x: -9, y: 16, z: 11 } as const;
-/** Half-extent of the shadow camera: covers house + sheet from the sun's lean. */
-const SHADOW_HALF = 12;
-const SHADOW_RADIUS = 4;
-const HEMI_INTENSITY = 0.9;
-const ENV_INTENSITY = 0.55;
+const SUN_INTENSITY = 2.1;
+const SUN_OFFSET = { x: -7, y: 14, z: -10 } as const;
+/** Half-extent of the shadow camera: covers the house and its cast shadow, no more. */
+const SHADOW_HALF = 10;
+const SHADOW_RADIUS = 5;
+const HEMI_INTENSITY = 0.7;
+const ENV_INTENSITY = 0.7;
 const FOV = 35;
 
 export interface StageRenderer {
@@ -68,7 +79,8 @@ export interface StageRenderer {
   readonly scene: Scene;
   readonly camera: PerspectiveCamera;
   readonly sun: DirectionalLight;
-  readonly sheet: Mesh<PlaneGeometry, MeshStandardMaterial>;
+  /** Darkens the background ground where the sun is blocked (lit tiers only). */
+  readonly ground: Mesh<PlaneGeometry, ShadowMaterial>;
   configure(settings: QualitySettings): void;
   /** HDRI → PMREM, falling back to present's studio box. Resolves either way. */
   loadEnvironment(): Promise<void>;
@@ -84,14 +96,15 @@ export function createStageRenderer(canvas: HTMLCanvasElement): StageRenderer {
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMappingExposure = EXPOSURE;
   renderer.shadowMap.type = PCFShadowMap;
-  const paper = new Color(LANDING_PALETTE.paper);
+  // Pre-image of the paper under the tone curve: on screen it is Paper Ivory.
+  const paper = inverseNeutral(new Color(LANDING_PALETTE.paper));
   renderer.setClearColor(paper, 1);
 
   const scene = new Scene();
   scene.background = paper;
   const camera = new PerspectiveCamera(FOV, 1, 0.1, 200);
 
-  const sun = new DirectionalLight(0xfff6ea, SUN_INTENSITY);
+  const sun = new DirectionalLight(0xfffaf3, SUN_INTENSITY);
   sun.position.set(HOUSE_CENTRE.x + SUN_OFFSET.x, SUN_OFFSET.y, HOUSE_CENTRE.z + SUN_OFFSET.z);
   sun.target.position.set(HOUSE_CENTRE.x, 0, HOUSE_CENTRE.z);
   sun.castShadow = true;
@@ -101,21 +114,22 @@ export function createStageRenderer(canvas: HTMLCanvasElement): StageRenderer {
   shadowCamera.top = SHADOW_HALF;
   shadowCamera.bottom = -SHADOW_HALF;
   shadowCamera.near = 1;
-  shadowCamera.far = 50;
+  shadowCamera.far = 45;
   sun.shadow.radius = SHADOW_RADIUS;
-  sun.shadow.bias = -0.0003;
-  sun.shadow.normalBias = 0.02;
+  sun.shadow.bias = -0.0002;
+  sun.shadow.normalBias = 0.015;
   scene.add(sun, sun.target);
-  scene.add(new HemisphereLight(0xf7f3ec, 0xd9d2c4, HEMI_INTENSITY));
+  scene.add(new HemisphereLight(0xf4f4f2, 0xdcd8d0, HEMI_INTENSITY));
 
-  const sheet = new Mesh(
-    new PlaneGeometry(SHEET_SIZE.x, SHEET_SIZE.z),
-    new MeshStandardMaterial({ color: paper, roughness: 1, metalness: 0, transparent: true }),
+  const ground = new Mesh(
+    new PlaneGeometry(CATCHER_SIZE, CATCHER_SIZE),
+    new ShadowMaterial({ color: CATCHER_COLOUR, opacity: CATCHER_OPACITY }),
   );
-  sheet.rotation.x = -Math.PI / 2;
-  sheet.position.set(HOUSE_CENTRE.x, SHEET_Y, HOUSE_CENTRE.z);
-  sheet.receiveShadow = true;
-  scene.add(sheet);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(HOUSE_CENTRE.x, CATCHER_Y, HOUSE_CENTRE.z);
+  ground.receiveShadow = true;
+  ground.renderOrder = -4;
+  scene.add(ground);
 
   let envTarget: WebGLRenderTarget | null = null;
   let hdr: Texture | null = null;
@@ -135,7 +149,7 @@ export function createStageRenderer(canvas: HTMLCanvasElement): StageRenderer {
     scene,
     camera,
     sun,
-    sheet,
+    ground,
     configure(settings) {
       renderer.shadowMap.enabled = settings.shadows;
       sun.castShadow = settings.shadows;
@@ -145,7 +159,8 @@ export function createStageRenderer(canvas: HTMLCanvasElement): StageRenderer {
         sun.shadow.map = null;
       }
       // Tone map once: in the composer's last pass, or here when there is no composer.
-      renderer.toneMapping = settings.composer ? NoToneMapping : AgXToneMapping;
+      renderer.toneMapping = settings.composer ? NoToneMapping : NeutralToneMapping;
+      ground.visible = settings.shadows;
     },
     async loadEnvironment() {
       try {
@@ -171,8 +186,8 @@ export function createStageRenderer(canvas: HTMLCanvasElement): StageRenderer {
       envTarget?.dispose();
       hdr?.dispose();
       sun.shadow.dispose();
-      sheet.geometry.dispose();
-      sheet.material.dispose();
+      ground.geometry.dispose();
+      ground.material.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
     },

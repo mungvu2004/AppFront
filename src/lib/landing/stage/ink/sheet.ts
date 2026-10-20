@@ -9,9 +9,12 @@
 
 import { Color, DoubleSide, Mesh, PlaneGeometry, ShaderMaterial, Vector2 } from 'three';
 
+import { inverseNeutral } from '../tone';
+
 import { PAPER } from './lines';
 
-export const SHEET_MARGIN_M = 3;
+/** Wide enough that the sheet's edge never enters the frame in scenes 01–04. */
+export const SHEET_MARGIN_M = 40;
 
 const GRAIN_VERTEX = /* glsl */ `
   uniform float uLift;
@@ -39,7 +42,9 @@ const GRAIN_FRAGMENT = /* glsl */ `
     return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
   }
   void main() {
-    float grain = noise(vPos * 420.0) * 0.5 + noise(vPos * 90.0) * 0.3 + noise(vPos * vec2(14.0, 160.0)) * 0.2;
+    // Fibres finer than a pixel fade out instead of aliasing into moiré bands at distance.
+    float fine = 1.0 - smoothstep(0.25, 0.8, fwidth(vPos.x * 90.0));
+    float grain = 0.5 + (noise(vPos * 90.0) - 0.5) * 0.6 * fine + (noise(vPos * 23.0) - 0.5) * 0.4;
     vec2 e = abs(vUv - 0.5) * 2.0;
     float rim = smoothstep(0.9, 1.0, max(e.x, e.y));
     vec3 color = uColor * (0.975 + 0.035 * grain) * (1.0 - 0.03 * rim);
@@ -94,11 +99,13 @@ export function createSheet(bounds: readonly [number, number, number, number]): 
   const cz = (minZ + maxZ) / 2;
 
   const material = new ShaderMaterial({
-    uniforms: { uColor: { value: new Color(PAPER) }, uOpacity: { value: 0 }, uLift: { value: 0 } },
+    uniforms: { uColor: { value: inverseNeutral(new Color(PAPER)) }, uOpacity: { value: 0 }, uLift: { value: 0 } },
     vertexShader: GRAIN_VERTEX,
     fragmentShader: GRAIN_FRAGMENT,
     transparent: true,
     side: DoubleSide,
+    // The bottom layer: nothing tests against it, so the ink 10 mm above never depth-fights it at distance.
+    depthWrite: false,
   });
   const paper = new Mesh(new PlaneGeometry(width, depth, 24, 18), material);
   paper.name = 'ink:sheet';

@@ -381,7 +381,15 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
 
   previousStatus.current = session.status;
 
+  // /welcome (trang giới thiệu) không hỏi máy chủ: khách chưa có gì để mở, và mỗi lượt gia hạn
+  // hỏng là một dòng lỗi mạng trên trang mặt tiền. Rời khỏi đó (sang /login) thì effect chạy lại.
+  const skipProbe = location.pathname === ROUTES.welcome;
+
   useEffect(() => {
+    if (skipProbe) {
+      return undefined;
+    }
+
     let cancelled = false;
 
     void import('./sessionSetup')
@@ -395,7 +403,7 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [skipProbe]);
 
   const onRetry = useCallback(() => {
     setSetupFailed(false);

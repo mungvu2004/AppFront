@@ -89,7 +89,8 @@ describe('stateAt', () => {
     expect(stateAt(0.36).review.highlight).toBe(1);
     expect(stateAt(0.4).review.close).toBe(1);
     expect(stateAt(0.85).compliance.bathDoor).toBe(1);
-    expect(stateAt(0.79).build.upperLiftM).toBe(0);
+    expect(stateAt(0.79).build.upperLiftM).toBe(1.2);
+    expect(stateAt(0.95).build.upperLiftM).toBe(0);
     expect(stateAt(0.62).build.upperLiftM).toBe(4);
     const end = stateAt(1);
     expect(end.exports).toBe(1);
@@ -115,8 +116,9 @@ describe('cameraAt', () => {
       let prev = cameraAt(b - 0.003);
       for (let p = b - 0.003 + STEP; p <= b + 0.003; p += STEP) {
         const c = cameraAt(p);
-        expect(dist(c.position, prev.position)).toBeLessThan(0.05);
-        expect(dist(c.target, prev.target)).toBeLessThan(0.05);
+        // No jump: < 0.08 m per 1e-4 of scroll (a discontinuity would be metres).
+        expect(dist(c.position, prev.position)).toBeLessThan(0.08);
+        expect(dist(c.target, prev.target)).toBeLessThan(0.08);
         expect(Math.abs(c.fovDeg - prev.fovDeg)).toBeLessThan(0.3);
         prev = c;
       }
@@ -139,6 +141,17 @@ describe('cameraAt', () => {
     }
     const varied = speeds.slice(0, 2000).some((v, i, a) => Math.abs(v - (a[i + 50] ?? v)) > 1e-3);
     expect(varied).toBe(true);
+  });
+
+  it('recomposes per aspect, deterministically; interiors keep their eye point', () => {
+    expect(stateAt(0.95, 3 / 4)).toEqual(stateAt(0.95, 3 / 4));
+    expect(cameraAt(0.3, 4 / 3)).toEqual(cameraAt(0.3, 4 / 3));
+    // Portrait pulls the exterior hero back; the default aspect is 16:10.
+    expect(dist(cameraAt(1, 3 / 4).position, cameraAt(1).position)).toBeGreaterThan(1);
+    expect(cameraAt(1, 16 / 10)).toEqual(cameraAt(1));
+    const living = WAYPOINTS.find((w) => w.name === 'living')?.p ?? 0;
+    expect(dist(cameraAt(living, 3 / 4).position, cameraAt(living).position)).toBeLessThan(1e-9);
+    expect(cameraAt(living, 3 / 4).fovDeg).toBeGreaterThan(cameraAt(living).fovDeg);
   });
 
   it('settles: p 0.97 and 1 frame the same shot', () => {

@@ -19,13 +19,14 @@ import {
   Group,
   Mesh,
   MeshPhysicalMaterial,
+  MeshStandardMaterial,
   type Material,
   type MeshDepthMaterial,
   type Object3D,
 } from 'three';
 
 import { readPartData } from '@/lib/three/build/scene';
-import { assembleHouse, createMaterials, type SceneMaterials, type ScenePalette } from '@/lib/three/present';
+import { assembleHouse, createMaterials, planPoint, type SceneMaterials, type ScenePalette } from '@/lib/three/present';
 
 import type { LandingHouse, LandingState } from '../types';
 
@@ -81,6 +82,36 @@ function createStageGlass(): MeshPhysicalMaterial {
     side: DoubleSide,
     depthWrite: false,
   });
+}
+
+/** Window frames: dark anodised metal, matte-satin; doors keep present's painted frame. */
+function createFrameMetal(): MeshStandardMaterial {
+  return new MeshStandardMaterial({ color: 0x34373c, roughness: 0.5, metalness: 0.6, vertexColors: true });
+}
+
+/** Frame groups sit, untagged, at their opening's centre: repaint those of windows. */
+function metalWindowFrames(storey: Group, house: LandingHouse, paint: Material, metal: Material): void {
+  const centres: [number, number][] = [];
+  for (const o of house.plan.openings) {
+    const wall = house.plan.walls.find((w) => w.id === o.wallId);
+    if (o.kind !== 'window' || wall === undefined) {
+      continue;
+    }
+    const a = planPoint(wall.start);
+    const b = planPoint(wall.end);
+    centres.push([a.x + (b.x - a.x) * o.relativePosition, a.z + (b.z - a.z) * o.relativePosition]);
+  }
+  for (const child of storey.children) {
+    const { x, z } = child.position;
+    if (readPartData(child) !== null || !centres.some(([cx, cz]) => Math.hypot(cx - x, cz - z) < 0.1)) {
+      continue;
+    }
+    child.traverse((mesh) => {
+      if (mesh instanceof Mesh && mesh.material === paint) {
+        mesh.material = metal;
+      }
+    });
+  }
 }
 
 interface Patcher {
@@ -171,7 +202,11 @@ export function buildStageHouse(
   (storeys.get(house.stair.levelId) ?? groundStorey).add(stair);
 
   const patcher: Patcher = { clonesOf: new Map(), owned: [], glass: createStageGlass(), materials };
-  patcher.owned.push(patcher.glass);
+  const frameMetal = createFrameMetal();
+  patcher.owned.push(patcher.glass, frameMetal);
+  for (const storey of storeys.values()) {
+    metalWindowFrames(storey, house, materials.paint, frameMetal);
+  }
   const walls = new Map<string, Grower>();
   const floors: Grower[] = [];
   const joinery: Grower[] = [];

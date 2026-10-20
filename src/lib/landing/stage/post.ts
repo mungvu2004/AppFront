@@ -5,7 +5,7 @@
  * linear HDR into a half-float buffer (three skips its own tone mapping when
  * the target is not the screen) and `ToneMappingEffect` maps it in the last
  * pass; without the composer (lite) the renderer maps it itself — the same
- * AgX curve at the same exposure, so a tier change does not shift the picture.
+ * Neutral curve at the same exposure, so a tier change does not shift the picture.
  *
  * AO is contact AO: a small world radius and a short falloff, so a sofa sits
  * on the floor and a wall meets the slab, with no halo around the house. No
@@ -55,7 +55,7 @@ export function createPost(renderer: WebGLRenderer, scene: Scene, camera: Perspe
     new EffectPass(
       camera,
       new SMAAEffect({ preset: SMAAPreset.MEDIUM }),
-      new ToneMappingEffect({ mode: ToneMappingMode.AGX }),
+      new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL }),
     ),
   );
 

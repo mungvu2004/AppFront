@@ -6,10 +6,10 @@
  * once, with `needsUpdate` (one recompile, never per scroll update).
  *
  * Scale and colour compensate for the sources (coordinator's notes):
- * - plaster = beige_wall_001, 3 × 3 m, dark taupe → multiplied up to warm ivory;
+ * - plaster = beige_wall_001, 3 × 3 m, dark taupe → re-tinted to warm off-white;
  * - oak = laminate_floor_02, 1.7 × 1.7 m, boards along u → turned per room so
  *   they run along its long side, roughness kept ≥ 0.55;
- * - concrete = plastered_wall_04, 3.2 × 3.2 m → lifted, on the exterior face.
+ * - concrete = plastered_wall_04, 3.2 × 3.2 m → its relief only, on the exterior face.
  * Wall and slab UVs are in metres (extruded shapes), so repeat = 1 / tile size.
  * Every room / wall gets its own offset and a small scale jitter so no two
  * neighbours repeat in step; clones share the image, so GPU memory is per set.
@@ -39,9 +39,19 @@ interface PbrSet {
 }
 
 export const TILE_M: Readonly<Record<SetName, number>> = { plaster: 3, oak: 1.7, concrete: 3.2 };
-const PLASTER_TINT = new Color(1.55, 1.5, 1.45);
-const OAK_TINT = new Color(1.2, 1.2, 1.2);
-const CONCRETE_TINT = new Color(1.2, 1.2, 1.18);
+/**
+ * Tint = target albedo / the image's mean albedo (both linear), so a set keeps
+ * its grain but lands on the colour art direction asks for. Means measured
+ * from the 1k JPGs: plaster (.340, .262, .188) is near-flat taupe, oak
+ * (.329, .217, .126) saturated orange. The exterior uses concrete's relief only.
+ */
+function tintFor(target: string, mean: readonly [number, number, number]): Color {
+  const c = new Color(target);
+  return c.setRGB(c.r / mean[0], c.g / mean[1], c.b / mean[2]);
+}
+const PLASTER_TINT = tintFor('#ECE9E3', [0.34, 0.262, 0.188]);
+const OAK_TINT = tintFor('#C4AD94', [0.329, 0.217, 0.126]);
+const CONCRETE_TINT = new Color('#DEDDD8');
 const OAK_MIN_ROUGHNESS = 0.55;
 
 /** A deterministic 0..1 from a string: per-room variation that is the same every load. */
@@ -118,9 +128,10 @@ export async function applyPbr(house: StageHouse, rooms: readonly PlanRoom[]): P
     }
     const isExterior = house.clonesOf.get(materials.exterior)?.includes(clone) === true;
     const set = keep(placed(isExterior ? concrete : plaster, isExterior ? 'concrete' : 'plaster', wallId, 0));
-    clone.map = set.diff;
+    // The render's diffuse blotches once lifted ~3×: outside keeps only its relief.
+    clone.map = isExterior ? null : set.diff;
     clone.normalMap = set.nor;
-    clone.normalScale.set(0.35, 0.35);
+    clone.normalScale.setScalar(isExterior ? 0.25 : 0.3);
     clone.color.copy(isExterior ? CONCRETE_TINT : PLASTER_TINT);
     clone.needsUpdate = true;
   };

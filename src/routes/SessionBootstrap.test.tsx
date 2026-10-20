@@ -615,10 +615,13 @@ describe('SessionBootstrap', () => {
     renderAt('/welcome');
 
     await waitFor(() => {
-      expect(getSession().status).toBe('anonymous');
+      expect(screenMounts).toBe(1);
     });
+    /* Cho lượt import động của cổng (nếu có) đủ thời gian để lộ ra một lượt gia hạn. */
+    await new Promise((resolve) => setTimeout(resolve, 50));
     expect(screen.queryByTestId('man-dang-nhap')).not.toBeInTheDocument();
-    expect(screenMounts).toBe(1);
+    expect(server.refreshCalls()).toBe(0);
+    expect(getSession().status).toBe('unknown');
   });
 
   it('mở màn con khi phiên mở được', async () => {

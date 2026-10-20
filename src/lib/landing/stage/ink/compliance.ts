@@ -64,22 +64,33 @@ function doorStrokes(house: LandingHouse, openingId: string, anchors: Map<string
   }
   const w = wallFrame(wall);
   const [s0, s1] = openingSpan(opening, w);
-  const face = w.t / 2 + 0.012;
   const y0 = levelElevation(house, wall.levelId) + mm(opening.sillHeightMm);
   const y1 = y0 + mm(opening.heightMm);
-  const pt = (s: number, y: number, off = face): P3 => {
-    const p = along(w, s, off);
-    return [p[0], y, p[1]];
-  };
-  const dimY = y0 + 0.15;
-  anchors.set(`check:${checkId}`, pt((s0 + s1) / 2, dimY + 0.14));
-  return [
-    { pts: [pt(s0, y0), pt(s0, y1), pt(s1, y1), pt(s1, y0), pt(s0, y0)], start: 0, end: 0 },
-    { pts: [pt(s0, dimY), pt(s1, dimY)], start: 0, end: 0.6 },
-    { pts: [pt(s0, dimY - TICK), pt(s0, dimY + TICK)], start: 0.6, end: 0.8 },
-    { pts: [pt(s1, dimY - TICK), pt(s1, dimY + TICK)], start: 0.8, end: 1 },
-  ];
+  // Clear width measured where a person passes: 1,0 m above the floor, across the opening.
+  const dimY = y0 + 1;
+  const out: Stroke[] = [];
+  // Both faces: whichever side the camera stands on, the far one is hidden by the wall.
+  for (const side of [-1, 1]) {
+    const face = side * (w.t / 2 + 0.012);
+    const pt = (s: number, y: number, off = face): P3 => {
+      const p = along(w, s, off);
+      return [p[0], y, p[1]];
+    };
+    const slash = (s: number): P3[] => [pt(s - TICK * 0.7, dimY - TICK * 0.7), pt(s + TICK * 0.7, dimY + TICK * 0.7)];
+    out.push(
+      { pts: [pt(s0, y0), pt(s0, y1), pt(s1, y1), pt(s1, y0), pt(s0, y0)], start: 0, end: 0.35 },
+      { pts: [pt(s0 - 0.12, dimY), pt(s1 + 0.12, dimY)], start: 0.4, end: 0.75 },
+      { pts: slash(s0), start: 0.75, end: 0.87 },
+      { pts: slash(s1), start: 0.87, end: 1 },
+    );
+  }
+  const mid = along(w, (s0 + s1) / 2);
+  anchors.set(`check:${checkId}`, [mid[0], dimY + 0.16, mid[1]]);
+  return out;
 }
+
+/** `buildStair` puts the open (stringer) side at its local +x, which after the compass turn is −across. */
+const OPEN_SIDE = -1;
 
 function stairStrokes(house: LandingHouse, anchors: Map<string, P3>, checkId: string | null): Stroke[] {
   const spec = house.stair;
@@ -91,28 +102,35 @@ function stairStrokes(house: LandingHouse, anchors: Map<string, P3>, checkId: st
   const riser = mm(spec.riserMm);
   const base = levelElevation(house, spec.levelId);
   const out: Stroke[] = [];
+  // Nosing lines just proud of each tread's front edge, so they never sink into the wood.
+  const nosing = (k: number): number => k * tread - 0.03;
   for (let k = 0; k < spec.risers; k++) {
-    const nose = add(start, dir, k * tread);
+    const nose = add(start, dir, nosing(k));
     const a = add(nose, across, -half);
     const b = add(nose, across, half);
-    const y = base + (k + 1) * riser;
+    const y = base + (k + 1) * riser + 0.004;
     const t = (0.7 * k) / spec.risers;
     out.push({ pts: [[a[0], y, a[1]], [b[0], y, b[1]]], start: t, end: t + 0.7 / spec.risers });
   }
-  const k = 1;
-  const side = add(add(start, dir, k * tread), across, half + 0.15);
+  // One riser dimensioned on the open (stringer) side, at about hand height.
+  const k = 4;
+  const edge = add(add(start, dir, nosing(k)), across, OPEN_SIDE * half);
   const lo = base + k * riser;
   const hi = lo + riser;
-  const tickA = add(side, dir, -TICK);
-  const tickB = add(side, dir, TICK);
+  const at = (off: number, y: number): P3 => {
+    const p = add(edge, across, OPEN_SIDE * off);
+    return [p[0], y, p[1]];
+  };
   out.push(
-    { pts: [[side[0], lo, side[1]], [side[0], hi, side[1]]], start: 0.7, end: 0.88 },
-    { pts: [[tickA[0], lo, tickA[1]], [tickB[0], lo, tickB[1]]], start: 0.88, end: 0.94 },
-    { pts: [[tickA[0], hi, tickA[1]], [tickB[0], hi, tickB[1]]], start: 0.94, end: 1 },
+    { pts: [at(0.03, lo), at(0.3, lo)], start: 0.7, end: 0.78 },
+    { pts: [at(0.03, hi), at(0.3, hi)], start: 0.72, end: 0.8 },
+    { pts: [at(0.24, lo - 0.05), at(0.24, hi + 0.05)], start: 0.8, end: 0.9 },
+    { pts: [at(0.24 - TICK * 0.6, lo - TICK * 0.6), at(0.24 + TICK * 0.6, lo + TICK * 0.6)], start: 0.9, end: 0.95 },
+    { pts: [at(0.24 - TICK * 0.6, hi - TICK * 0.6), at(0.24 + TICK * 0.6, hi + TICK * 0.6)], start: 0.95, end: 1 },
   );
   if (checkId) {
-    const label = add(side, across, 0.12);
-    anchors.set(`check:${checkId}`, [label[0], (lo + hi) / 2, label[1]]);
+    const label = at(0.42, (lo + hi) / 2);
+    anchors.set(`check:${checkId}`, label);
   }
   return out;
 }
@@ -144,8 +162,8 @@ export function createCompliance(house: LandingHouse): Compliance {
 
   const doorStrokesList = doorCheck ? doorStrokes(house, doorCheck.targetId, anchors, doorCheck.id) : [];
   return {
-    door: doorStrokesList.length > 0 ? new RevealLine('check:door', doorStrokesList, lineMaterial(CORAL, 2)) : null,
-    stair: new RevealLine('check:stair', stairStrokes(house, anchors, stairCheck?.id ?? null), lineMaterial(CORAL, 1.8)),
+    door: doorStrokesList.length > 0 ? new RevealLine('check:door', doorStrokesList, lineMaterial(CORAL, 2.6)) : null,
+    stair: new RevealLine('check:stair', stairStrokes(house, anchors, stairCheck?.id ?? null), lineMaterial(CORAL, 2.4)),
     passes: staticLine('check:passes', ticks, lineMaterial(JADE, 1.6)),
     anchors,
   };

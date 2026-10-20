@@ -23,6 +23,7 @@ import { createDetect, LAYER, ROOM_FILL_ALPHA } from './detect';
 import { footprint } from './geometry';
 import { clamp01, disposeTree, smooth, type P3 } from './lines';
 import { createReview } from './review';
+import { createPoche } from './poche';
 import { createSheet, softShadow } from './sheet';
 import { createStrokes } from './strokes';
 
@@ -35,9 +36,11 @@ export interface InkLayer {
 }
 
 /** How far the drawing sits above the sheet at rest, against z-fighting. */
-const INK_Y = 0.004;
+const INK_Y = 0.01;
 /** Gap-bordering rooms read as "not closed" at this share of the full fill. */
 const OPEN_ROOM_SHARE = 0.35;
+/** Poché strength on the paper: dense graphite that still reads as ink, not a void. */
+const POCHE_ALPHA = 0.88;
 
 interface Anchor {
   readonly v: Vector3;
@@ -60,6 +63,7 @@ export function createInk(house: LandingHouse): InkLayer {
   dropShadow.renderOrder = -1;
 
   const strokes = createStrokes(house);
+  const poche = createPoche(house.plan);
   const grid = createGrid(house);
   const detect = createDetect(house, strokes.faces);
   const wallsLayer = detect.layers[LAYER.walls] as Group;
@@ -69,7 +73,9 @@ export function createInk(house: LandingHouse): InkLayer {
   checks.name = 'ink:checks';
 
   drawing.add(
+    poche.mesh,
     strokes.walls.object,
+    strokes.furniture.object,
     strokes.openings.object,
     strokes.stair.object,
     strokes.junk.object,
@@ -106,12 +112,13 @@ export function createInk(house: LandingHouse): InkLayer {
   });
 
   let lastClose = Number.NaN;
+  let viewHeight = 900;
 
   return {
     group,
     anchors,
 
-    apply(state) {
+    apply(state, camera) {
       const { paper, detect: det, review: rev, compliance: comp, build } = state;
       const op = paper.opacity;
       const sem = state.semantic;
@@ -120,13 +127,18 @@ export function createInk(house: LandingHouse): InkLayer {
       // The plan lines hand over to the physical walls, but a faint footprint stays until materials are in.
       const wallFade = Math.max(inkFade, 0.22 * (1 - smooth(0.9, 1, m)));
 
-      sheet.set(op, paper.liftM);
+      // The ivory sheet hands the ground to the lit, shadow-catching floor as materials arrive.
+      sheet.set(op * (1 - smooth(0.25, 0.9, m)), paper.liftM);
       drawing.position.y = INK_Y + paper.liftM;
       dropShadow.material.uniforms['uOpacity']!.value = 0.16 * op * clamp01(paper.liftM / 0.12);
       dropShadow.visible = paper.liftM > 1e-4 && op > 1e-3;
 
-      strokes.walls.reveal(paper.ink);
-      strokes.walls.setOpacity(op * wallFade);
+      // Scene 03: the graphite recedes so the blue outline is the wall; scene 05: the built walls take over.
+      const recede = smooth(0, 0.6, det.walls);
+      poche.setOpacity(op * POCHE_ALPHA * inkFade * (1 - 0.82 * recede));
+      strokes.walls.setOpacity(op * wallFade * (1 - 0.55 * recede));
+      strokes.furniture.reveal(paper.ink);
+      strokes.furniture.setOpacity(op * inkFade * (1 - 0.3 * smooth(0, 0.6, det.furniture)));
       strokes.openings.reveal(paper.ink);
       strokes.openings.setOpacity(op * inkFade);
       strokes.stair.reveal(paper.ink);
@@ -162,8 +174,12 @@ export function createInk(house: LandingHouse): InkLayer {
         }
         review.gap.setOpacity(detect.walls.material.opacity);
         review.outline.setOpacity(rev.highlight * sem);
+        review.fill.material.opacity = 0.32 * rev.highlight * sem;
+        review.fill.visible = review.fill.material.opacity > 1e-3;
         review.handleFixed.setOpacity(rev.highlight * sem);
         review.handleMoving.setOpacity(rev.highlight * sem);
+        review.handleFixed.fit(camera, viewHeight);
+        review.handleMoving.fit(camera, viewHeight);
       }
 
       if (compliance.door) {
@@ -185,6 +201,7 @@ export function createInk(house: LandingHouse): InkLayer {
       for (const material of lineMaterials) {
         material.resolution.set(width, height);
       }
+      viewHeight = height;
     },
 
     dispose() {

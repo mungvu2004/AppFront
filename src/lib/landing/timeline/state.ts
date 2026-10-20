@@ -20,6 +20,7 @@ import { LANDING_HOUSE } from '../house';
 import type { LandingState } from '../types';
 
 import { cameraAt } from './camera';
+import { DEFAULT_ASPECT } from './framing';
 import { clamp01, sceneAt } from './scenes';
 
 type Bag = Record<string, number>;
@@ -69,7 +70,7 @@ const LABEL_IDS = [
 
 function blank() {
   return {
-    paper: { opacity: 1, ink: 0.12, junkInk: 0, axes: 0, dims: 0, liftM: 0 },
+    paper: { opacity: 1, ink: 0, junkInk: 0, axes: 0, dims: 0, liftM: 0 },
     detect: { walls: 0, rooms: 0, openings: 0, furniture: 0, labels: 0, explodeM: 0 },
     review: { highlight: 0, close: 0 },
     build: { floors: 0, joinery: 0, material: 0, stair: 0, upper: 0, upperLiftM: 0, cutaway: 0 },
@@ -110,7 +111,8 @@ function build(o: Live): gsap.core.Timeline {
   };
   const { paper, detect, review, build: b, compliance: c, misc } = o;
 
-  // S01 — strokes draw on; S02 — junk recedes, axes extend, dims reveal, plane lifts.
+  // S01 — walls are drawn from the start (stage); `ink` draws the fine layers stroke by stroke.
+  // S02 — junk recedes, axes extend, dims reveal, plane lifts.
   tw(paper, { ink: 1 }, 0, 0.068, 'power2.out');
   tw(paper, { junkInk: 1 }, 0.012, 0.07, 'power2.out');
   tw(paper, { axes: 0.55 }, 0.03, 0.075, 'power2.out');
@@ -170,17 +172,19 @@ function build(o: Live): gsap.core.Timeline {
   tw(b, { upperLiftM: 2.6 }, 0.535, 0.552, 'power3.inOut');
   // S06 — lifted well clear so the interior is open above and the camera can rise out.
   tw(b, { upperLiftM: 4 }, 0.556, 0.585, 'power2.inOut');
-  label('room:R1', 0.601, 0.607, 0.616, 0.622);
-  label('room:R2', 0.63, 0.636, 0.646, 0.652);
-  label('room:R3', 0.661, 0.665, 0.667, 0.671);
-  label('room:R6', 0.675, 0.679, 0.682, 0.686);
-  // S07 — out and up; cutaway; the upper storey comes down from a slight lift to rest.
-  tw(b, { upperLiftM: 1.4 }, 0.703, 0.728, 'power3.inOut');
-  tw(b, { upperLiftM: 0 }, 0.748, 0.775, 'power3.inOut');
-  tw(b, { cutaway: 1 }, 0.712, 0.742, 'power2.inOut');
-  label('stair', 0.725, 0.735, 0.77, 0.782);
-  label('room:R7', 0.73, 0.74, 0.77, 0.782);
-  label('room:R8', 0.735, 0.745, 0.77, 0.782);
+  label('room:R1', 0.594, 0.6, 0.608, 0.614);
+  label('room:R2', 0.628, 0.634, 0.644, 0.65);
+  label('room:R3', 0.664, 0.669, 0.674, 0.679);
+  label('room:R6', 0.684, 0.689, 0.694, 0.699);
+  // S07 — out and up; cutaway; the upper storey comes down to a slight lift that keeps the
+  // stair and the floor it reaches readable (S07) and leaves headroom over the cut walls (S08).
+  tw(b, { upperLiftM: 1.2 }, 0.7, 0.728, 'power3.inOut');
+  // S08 — lifted a little more for the pull-back that shows both failures.
+  tw(b, { upperLiftM: 2.6 }, 0.85, 0.868, 'power2.inOut');
+  tw(b, { cutaway: 1 }, 0.704, 0.728, 'power2.inOut');
+  label('stair', 0.726, 0.734, 0.772, 0.782);
+  label('room:R7', 0.73, 0.738, 0.766, 0.776);
+  label('room:R8', 0.734, 0.742, 0.766, 0.776);
   // S08 — bathroom door, then the stair, then the passes.
   tw(c, { bathDoor: 1 }, 0.798, 0.814, 'power2.out');
   tw(c, { stair: 1 }, 0.826, 0.842, 'power2.out');
@@ -191,6 +195,7 @@ function build(o: Live): gsap.core.Timeline {
   tw(c, { bathDoor: 0, stair: 0, passMarks: 0 }, 0.886, 0.93, 'sine.inOut');
   tw(misc, { semantic: 0.15 }, 0.888, 0.94, 'sine.inOut');
   tw(b, { cutaway: 0 }, 0.888, 0.93, 'sine.inOut');
+  tw(b, { upperLiftM: 0 }, 0.888, 0.935, 'power3.inOut');
   tw(misc, { exports: 1 }, 0.9, 0.95, 'power2.out');
   tl.set({}, {}, 1); // total duration exactly 1
   return tl;
@@ -203,11 +208,12 @@ const TL = build(live);
 const freeze = <T extends object>(x: T): Readonly<T> =>
   Object.freeze(Object.fromEntries(Object.entries(x).filter(([, v]) => typeof v === 'number')) as T);
 
-export function stateAt(p: number): LandingState {
+/** Everything at scroll `p`; `aspect` (width / height) only changes the camera's framing. */
+export function stateAt(p: number, aspect: number = DEFAULT_ASPECT): LandingState {
   const q = clamp01(p);
   TL.progress(q);
   const { scene, sceneLocal } = sceneAt(q);
-  const cam = cameraAt(q);
+  const cam = cameraAt(q, aspect);
   return Object.freeze({
     p: q,
     scene,

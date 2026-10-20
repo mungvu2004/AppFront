@@ -2,9 +2,10 @@
  * The architectural ink of scene 01: walls, openings, the void and the stair,
  * plus the "junk" ink (notes, north arrow) the AI later ignores.
  *
- * Draw order is the order a draughtsman would ink: walls first, longest first,
- * then openings, then the stair. Each stroke is revealed along its length by
- * `state.paper.ink` (see `lines.ts`), never faded in as a whole plan.
+ * The walls (outline + poché) are the drawing the page opens on, complete.
+ * `state.paper.ink` then draws the fine layers in a draughtsman's order —
+ * openings, the stair, furniture symbols — each stroke revealed along its
+ * length (see `lines.ts`), never faded in as a whole plan.
  */
 
 import type { LandingHouse } from '@/lib/landing/types';
@@ -26,6 +27,7 @@ import {
   type Seg,
 } from './geometry';
 import { flatStroke, GRAPHITE, lineMaterial, RevealLine, windows, type Stroke } from './lines';
+import { furnitureSymbols } from './symbols';
 
 /** Leaf, swing arc, glazing lines, dashed head: everything an opening adds to the plan. */
 export function openingStrokes(house: LandingHouse): P2[][] {
@@ -146,6 +148,7 @@ export interface Strokes {
   readonly openings: RevealLine;
   readonly stair: RevealLine;
   readonly junk: RevealLine;
+  readonly furniture: RevealLine;
   /** Every drawn wall face, by wall id — the detection layer reuses them. */
   readonly faces: ReadonlyMap<string, Seg[]>;
 }
@@ -164,11 +167,19 @@ export function createStrokes(house: LandingHouse): Strokes {
     .flat()
     .map((seg): P2[] => [seg[0], seg[1]])
     .sort((x, y) => dist(y[0] as P2, y[1] as P2) - dist(x[0] as P2, x[1] as P2));
+  const walls = new RevealLine('ink:walls', timed(wallLines, 0, 0, 0), lineMaterial(GRAPHITE, 1.5));
+  walls.reveal(1);
   return {
     faces,
-    walls: new RevealLine('ink:walls', timed(wallLines, 0, 0.55, 0.12), lineMaterial(GRAPHITE, 1.6)),
-    openings: new RevealLine('ink:openings', timed(openingStrokes(house), 0.5, 0.85, 0.15), lineMaterial(GRAPHITE, 1.1)),
-    stair: new RevealLine('ink:stair', timed(stairStrokes(house), 0.8, 1, 0.3), lineMaterial(GRAPHITE, 1.1)),
-    junk: new RevealLine('ink:junk', timed(junkStrokes(house), 0.55, 1, 0.2), lineMaterial(GRAPHITE, 1.2)),
+    // Walls are the complete drawing from the first frame; `paper.ink` draws only the fine layers.
+    walls,
+    openings: new RevealLine('ink:openings', timed(openingStrokes(house), 0, 0.42, 0.18), lineMaterial(GRAPHITE, 0.9)),
+    stair: new RevealLine('ink:stair', timed(stairStrokes(house), 0.36, 0.58, 0.3), lineMaterial(GRAPHITE, 0.9)),
+    furniture: new RevealLine(
+      'ink:furniture',
+      timed(furnitureSymbols(house.plan).flat(), 0.5, 1, 0.08),
+      lineMaterial(GRAPHITE, 0.8),
+    ),
+    junk: new RevealLine('ink:junk', timed(junkStrokes(house), 0.55, 1, 0.2), lineMaterial(GRAPHITE, 1)),
   };
 }

@@ -43,9 +43,37 @@ export interface Stage {
   dispose(): void;
 }
 
-/** present's palette roles, with the landing's paper in place of the page's tokens. */
+/**
+ * The landing's art direction over present's roles (R3–R5): a gallery model,
+ * not the app's themed viewer. Warm off-white plaster, a light mineral
+ * render outside, a soft graphite cut (not the page's text black), natural
+ * oak, linen and graphite metal, and one muted sage as the only accent —
+ * present's ochre cushion and orange woods read as toys.
+ */
+export const LANDING_LOOK: Readonly<Partial<Record<keyof ScenePalette, string>>> = {
+  backdrop: LANDING_PALETTE.paper,
+  plaster: '#EFECE6',
+  exterior: '#DEDDD8',
+  cut: '#7D7972',
+  wood: '#B9A891',
+  woodDark: '#6B5D50',
+  fabric: '#E6E0D5',
+  textile: '#CBC3B5',
+  ochre: '#97A391',
+  stone: '#DAD6CE',
+  metal: '#3A3D42',
+  clay: '#B9A28C',
+  foliage: '#6E7D5C',
+  screen: '#2A2D31',
+};
+
+/** present's palette roles, with the landing's look in place of the page's tokens. */
 export function landingScenePalette(base: ScenePalette = readPalette(() => '')): ScenePalette {
-  return { ...base, backdrop: base.backdrop.clone().set(LANDING_PALETTE.paper) };
+  const out: Record<string, ScenePalette[keyof ScenePalette]> = { ...base };
+  for (const [role, hex] of Object.entries(LANDING_LOOK)) {
+    out[role] = base.backdrop.clone().set(hex);
+  }
+  return out as ScenePalette;
 }
 
 export async function createStage(
@@ -54,7 +82,7 @@ export async function createStage(
   opts: { quality: Quality },
 ): Promise<Stage> {
   const gl = createStageRenderer(canvas);
-  const { renderer, scene, camera, sheet } = gl;
+  const { renderer, scene, camera } = gl;
   const stage = buildStageHouse(
     house,
     (materials) => buildStair(house.stair, materials.wood),
@@ -132,8 +160,6 @@ export async function createStage(
         camera.updateProjectionMatrix();
       }
       camera.updateMatrixWorld();
-      sheet.material.opacity = s.paper.opacity;
-      sheet.visible = s.paper.opacity > 0.001;
       applyBuild(stage, s);
       ink.apply(s, camera);
       dirty = true;

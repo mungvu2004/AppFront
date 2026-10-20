@@ -5,7 +5,10 @@ import { describe, expect, it } from 'vitest';
 import { LANDING_HOUSE } from '@/lib/landing/house';
 import type { LandingState } from '@/lib/landing/types';
 
+import { along, wallFrame, type P2 } from '../geometry';
 import { createInk } from '../index';
+import { pocheShapes } from '../poche';
+import { furnitureSymbols, pieceSymbol } from '../symbols';
 
 const camera = new PerspectiveCamera();
 
@@ -141,5 +144,52 @@ describe('createInk', () => {
     ink.setResolution(800, 600);
     ink.dispose();
     expect(ink.anchors.size).toBe(0);
+  });
+});
+
+describe('plan drawing', () => {
+  it('fills walls solid but leaves every opening open', () => {
+    const shapes = pocheShapes(LANDING_HOUSE.plan);
+    expect(shapes.length).toBeGreaterThan(11);
+    for (const opening of LANDING_HOUSE.plan.openings) {
+      const wall = LANDING_HOUSE.plan.walls.find((w) => w.id === opening.wallId);
+      if (!wall || wall.levelId !== 'T1') continue;
+      const w = wallFrame(wall);
+      const c = along(w, opening.relativePosition * w.len);
+      const inside = shapes.some((poly) => {
+        let hit = false;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+          const a = poly[i] as P2;
+          const b = poly[j] as P2;
+          if (a[1] > c[1] !== b[1] > c[1] && c[0] < ((b[0] - a[0]) * (c[1] - a[1])) / (b[1] - a[1]) + a[0]) hit = !hit;
+        }
+        return hit;
+      });
+      expect(inside, opening.id).toBe(false);
+    }
+  });
+
+  it('draws one symbol per ground piece, inside its footprint', () => {
+    const ground = LANDING_HOUSE.plan.furniture.filter((f) => f.levelId === 'T1');
+    const symbols = furnitureSymbols(LANDING_HOUSE.plan);
+    expect(symbols).toHaveLength(ground.length);
+    for (const item of ground) {
+      const r = Math.hypot(item.sizeMm[0] ?? 0, item.sizeMm[1] ?? 0) / 2000 + 0.01;
+      for (const p of pieceSymbol(item).flat()) {
+        expect(Math.hypot(p[0] - (item.centreMm[0] ?? 0) / 1000, p[1] - (item.centreMm[1] ?? 0) / 1000), item.id).toBeLessThan(r);
+      }
+    }
+  });
+
+  it('opens on complete walls and draws furniture only with ink', () => {
+    const ink = createInk(LANDING_HOUSE);
+    const zero = zeroState();
+    ink.apply({ ...zero, paper: { ...zero.paper, opacity: 1 } }, camera);
+    expect(find(ink.group, 'ink:walls').visible).toBe(true);
+    expect(find(ink.group, 'ink:poche').visible).toBe(true);
+    expect(find(ink.group, 'ink:furniture').visible).toBe(false);
+    ink.apply({ ...zero, paper: { ...zero.paper, opacity: 1, ink: 1 } }, camera);
+    expect(find(ink.group, 'ink:furniture').visible).toBe(true);
+    ink.dispose();
   });
 });

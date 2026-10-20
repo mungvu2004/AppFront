@@ -73,6 +73,7 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
     const overlay = createOverlay(rootEl, SCENES);
     let stage: Stage | null = null;
     let p = 0;
+    let aspect = rootEl.clientWidth / Math.max(1, rootEl.clientHeight) || 16 / 10;
     let dirty = true;
     let frames = 0;
     let disposed = false;
@@ -93,7 +94,7 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
     const draw = (): void => {
       if (!dirty) return;
       dirty = false;
-      const state = stateAt(p);
+      const state = stateAt(p, aspect);
       if (stage !== null) {
         stage.apply(state);
         stage.render();
@@ -121,6 +122,7 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
     const resize = (): void => {
       const w = rootEl.clientWidth;
       const h = rootEl.clientHeight;
+      aspect = w / Math.max(1, h) || aspect;
       stage?.resize(w, h, Math.min(window.devicePixelRatio, 2));
       ScrollTrigger.refresh();
       dirty = true;

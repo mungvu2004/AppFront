@@ -120,7 +120,7 @@ function rectangle(w: WallFrame): P2[] {
 }
 
 /** Closed outline per wall, welded at the nodes; a plain rectangle if the solver refuses. */
-function wallPolygons(walls: readonly PlanWall[]): P2[][] {
+export function wallPolygons(walls: readonly PlanWall[]): P2[][] {
   try {
     const { shapes } = resolveWallShapes(walls.map(toWall));
     return shapes.map((shape) => shape.outline.map((pt): P2 => [mm(pt.x), mm(pt.y)]));
