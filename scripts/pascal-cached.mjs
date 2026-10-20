@@ -28,6 +28,7 @@ export const INPUT_PATHS = [
   'scripts/copy-draco.mjs',
   'scripts/pascal-vi.mjs',
   'scripts/pascal-vi',
+  'scripts/pascal-self-host.mjs',
   'package.json',
   'pnpm-lock.yaml',
 ];
