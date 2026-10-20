@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Furniture, FurnitureKind, FurnitureVariant } from '@/domain/spatial/types';
+import { FURNITURE_VARIANTS } from '@/domain/spatial/types';
+import type { Furniture, FurnitureKind, FurnitureVariant, RoomUsage } from '@/domain/spatial/types';
 import { degrees, millimetres } from '@/domain/units/types';
 
 import { SCENE_STYLES, type SceneStyle } from '../sceneStyles';
 import { modelFolderOf, roleOf } from '../sceneVariety';
+import { VARIANT_MODEL } from '../furnitureCatalog';
 
 type Item = Parameters<typeof modelFolderOf>[0];
 
@@ -83,5 +85,60 @@ describe('sceneVariety (J7)', () => {
     // Hộp dẹt 0,4 × 1,2: cây nhỏ fill ≈ 0,35 → giữ mô hình của variant.
     const slim = item('P2', 'other', 400, 1200, { variant: 'plant' });
     expect(modelFolderOf(slim, withPrefer({ plant: ['small-indoor-plant'] }))).toBe('indoor-plant');
+  });
+
+  // Kỳ vọng chép từ `furnitureModelOf` (toPascal.ts @31c7c66f, đang được U09 sửa nên không
+  // import): chỉ `null` khi loại 'stair' và không có mô hình variant.
+  const todayHasModel = (f: Item): boolean => (f.variant !== undefined && VARIANT_MODEL[f.variant] != null) || f.kind !== 'stair';
+
+  it('không bao giờ null ở chỗ furnitureModelOf hôm nay có mô hình', () => {
+    // Hộp điển hình cho từng loại; mọi variant (kể cả sconce/bench/vase không có mô hình).
+    const typical: Readonly<Record<FurnitureKind, readonly (readonly [number, number, number?])[]>> = {
+      bed: [[900, 2000], [1600, 2000]],
+      wardrobe: [[600, 1200], [350, 900], [500, 1000, 800]],
+      chair: [[450, 450], [800, 800], [900, 2100]],
+      table: [[450, 450], [1200, 600, 400], [800, 1400], [1000, 2000]],
+      kitchenCabinet: [[650, 700], [600, 2400]],
+      sanitaryFixture: [[400, 700], [750, 1700], [900, 900], [500, 600]],
+      other: [[2000, 1500, 20], [2000, 2000, 20], [900, 2100], [400, 400], [800, 900]],
+      stair: [[1000, 3000]],
+    };
+    const usages: readonly (RoomUsage | undefined)[] = ['livingRoom', 'bedroom', 'kitchen', 'bathroom', undefined];
+    const cases: Item[] = [];
+    for (const [kind, boxes] of Object.entries(typical) as [FurnitureKind, (typeof typical)[FurnitureKind]][]) {
+      for (const [w, d, h] of boxes) cases.push(item(`${kind}${w}x${d}`, kind, w, d, h === undefined ? {} : { heightMm: h }));
+    }
+    for (const variant of FURNITURE_VARIANTS) cases.push(item(`v-${variant}`, 'other', 600, 600, { variant }));
+    for (const usage of usages) {
+      for (const f of cases) {
+        if (!todayHasModel(f)) continue;
+        for (const style of Object.values(SCENE_STYLES)) {
+          expect(modelFolderOf(f, style, usage), `${style.id} ${usage ?? '-'} ${f.id}`).not.toBeNull();
+        }
+      }
+    }
+  });
+
+  it('variant không có mô hình đi đường hình hộp như hôm nay', () => {
+    // sconce/vase → bbox loại 'other' nhỏ → cây nhỏ; bench 0,4 × 1,2 → cây (toPascal.ts hôm nay).
+    expect(modelFolderOf(item('V1', 'other', 300, 200, { variant: 'sconce' }), AM_AP, 'bedroom')).toBe('small-indoor-plant');
+    expect(modelFolderOf(item('V2', 'other', 300, 300, { variant: 'vase' }), AM_AP, 'livingRoom')).toBe('small-indoor-plant');
+    expect(modelFolderOf(item('V3', 'other', 400, 1200, { variant: 'bench' }), withPrefer({}), 'bedroom')).toBe('indoor-plant');
+  });
+
+  it('sofa và bàn trà chỉ ở phòng khách', () => {
+    const long = item('L1', 'chair', 900, 2100, { roomId: 'R-1' });
+    const low = item('L2', 'table', 1200, 600, { roomId: 'R-1', heightMm: 400 });
+    const longOther = item('L3', 'other', 900, 2100, { roomId: 'R-1' });
+    expect(modelFolderOf(long, AM_AP, 'livingRoom')).toBe('sofa');
+    expect(modelFolderOf(low, AM_AP, 'livingRoom')).toBe('coffee-table');
+    expect(modelFolderOf(longOther, AM_AP, 'livingRoom')).toBe('sofa');
+    for (const usage of ['bedroom', 'kitchen', undefined] as const) {
+      for (const style of Object.values(SCENE_STYLES)) {
+        expect(modelFolderOf(long, style, usage)).not.toBe('sofa');
+        expect(modelFolderOf(longOther, style, usage)).not.toBe('sofa');
+        expect(modelFolderOf(low, style, usage)).not.toBe('coffee-table');
+      }
+    }
   });
 });

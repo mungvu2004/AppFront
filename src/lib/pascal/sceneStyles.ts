@@ -79,8 +79,8 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     floor: {
       wood: lib('wood-woodplank48'),
       tile: lib('flooring-tile79'),
-      mosaic: lib('flooring-tile20'),
-      decking: lib('wood-woodplank19'),
+      mosaic: lib('flooring-lightceramic24'),
+      decking: lib('flooring-woodparquet76'),
       concrete: lib('concrete-polished'),
     },
     wall: { interior: scene('am_ap_wall'), exterior: scene('am_ap_exterior') },
@@ -105,7 +105,7 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     floor: {
       wood: lib('wood-floorplank1'),
       tile: lib('flooring-lightceramic24'),
-      mosaic: lib('flooring-tiles4'),
+      mosaic: lib('flooring-tile20'),
       decking: lib('wood-woodplank19'),
       concrete: lib('concrete-polished'),
     },
@@ -130,8 +130,8 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     label: 'Gỗ ấm',
     floor: {
       wood: lib('wood-hungarianparquet10'),
-      tile: lib('flooring-tile79'),
-      mosaic: lib('flooring-ceramic53'),
+      tile: lib('flooring-tile20'),
+      mosaic: lib('flooring-tiles4'),
       decking: lib('wood-woodenparquet11'),
       concrete: lib('concrete-raw'),
     },
@@ -156,7 +156,7 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     label: 'Tối giản',
     floor: {
       wood: lib('flooring-woodparquet76'),
-      tile: lib('flooring-tiles4'),
+      tile: lib('flooring-statuarettowhite'),
       mosaic: lib('flooring-lightceramic24'),
       decking: lib('wood-floorplank1'),
       concrete: lib('concrete-polished'),
@@ -183,7 +183,7 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     floor: {
       wood: lib('wood-hungarianparquet2'),
       tile: lib('flooring-statuarettowhite'),
-      mosaic: lib('flooring-ceramic53'),
+      mosaic: lib('flooring-tile20'),
       decking: lib('wood-woodenparquet11'),
       concrete: lib('concrete-polished'),
     },
@@ -208,3 +208,18 @@ const isSceneStyleId = (id: unknown): id is SceneStyleId => SCENE_STYLE_IDS.incl
 
 /** Phong cách theo id; id lạ/thiếu → mặc định. */
 export const sceneStyleOf = (id: unknown): SceneStyle => SCENE_STYLES[isSceneStyleId(id) ? id : DEFAULT_SCENE_STYLE];
+
+/** Khoá localStorage lưu phong cách đang chọn (J9). */
+export const SCENE_STYLE_STORAGE_KEY = 'appfront.pascal.sceneStyle.v1';
+
+/**
+ * Phong cách đã lưu; thiếu/hỏng/không truy cập được bộ nhớ → mặc định. Mọi lời gọi
+ * `toPascalScene` trong một trang phải dùng cùng kết quả này, không thì sinh "sửa ma".
+ */
+export const readSceneStyle = (storage: () => Storage): SceneStyle => {
+  try {
+    return sceneStyleOf(storage().getItem(SCENE_STYLE_STORAGE_KEY));
+  } catch {
+    return sceneStyleOf(undefined);
+  }
+};

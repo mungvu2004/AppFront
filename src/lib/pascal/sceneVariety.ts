@@ -3,11 +3,12 @@
  * danh sách ưu tiên của phong cách ∩ catalog của vai trò mà vừa hộp (fill ≥ 0,6), chọn
  * bằng băm FNV-1a — cùng phòng + cùng vai trò thì cùng mô hình; cây và thảm băm theo món.
  *
- * Hàm thuần của (đồ đạc, phong cách): không ngẫu nhiên, không phụ thuộc thứ tự mảng.
- * Chưa nối vào `toPascal.ts`.
+ * Hàm thuần của (đồ đạc, phong cách, công năng phòng): không ngẫu nhiên, không phụ thuộc
+ * thứ tự mảng. Giữ các cổng của `furnitureModelOf` (toPascal.ts): sofa và bàn trà chỉ ở
+ * phòng khách; variant không có mô hình (`VARIANT_MODEL[v] === null`) đi đường hình hộp.
  */
 
-import type { Furniture } from '@/domain/spatial/types';
+import type { Furniture, RoomUsage } from '@/domain/spatial/types';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
 
 import { CATALOG_MODELS, VARIANT_MODEL } from './furnitureCatalog';
@@ -85,12 +86,17 @@ const footprintOf = (f: Shaped): readonly [number, number] => {
 const roleOfFolder = (folder: string): FurnitureRole =>
   (Object.keys(ROLE_MODELS) as FurnitureRole[]).find((role) => ROLE_MODELS[role][0] === folder) ?? 'fixed';
 
-/** Vai trò của một món: có `variant` thì theo mô hình của variant, không thì theo hình hộp. */
-export const roleOf = (f: Shaped): FurnitureRole => {
-  if (f.variant !== undefined) {
-    const byVariant = VARIANT_MODEL[f.variant];
-    return byVariant ? roleOfFolder(byVariant.folder) : 'fixed';
-  }
+/** Mô hình của variant; variant không có mô hình (null) coi như không có variant. */
+const variantModelOf = (f: Shaped) => (f.variant === undefined ? null : VARIANT_MODEL[f.variant] ?? null);
+
+/**
+ * Vai trò của một món: có mô hình variant thì theo mô hình đó, không thì theo hình hộp.
+ * Sofa và bàn trà chỉ ở phòng khách (`usage`), như `furnitureModelOf` hôm nay.
+ */
+export const roleOf = (f: Shaped, usage?: RoomUsage): FurnitureRole => {
+  const byVariant = variantModelOf(f);
+  if (byVariant) return roleOfFolder(byVariant.folder);
+  const living = usage === 'livingRoom';
 
   const [short, long] = footprintOf(f);
   const h = f.heightMm === undefined ? undefined : metresOf(f.heightMm);
@@ -104,11 +110,11 @@ export const roleOf = (f: Shaped): FurnitureRole => {
       if (short <= 0.4) return 'bookshelf';
       return h !== undefined && h < 1 ? 'dresser' : 'closet';
     case 'chair':
-      if (long > 1.5) return 'sofa';
-      return short >= 0.65 ? 'armchair' : 'diningChair';
+      if (living && long > 1.5) return 'sofa';
+      return short >= 0.65 && long <= 1.5 ? 'armchair' : 'diningChair';
     case 'table':
       if (long < 0.6) return 'nightstand';
-      if (h !== undefined && h < 0.5) return 'coffeeTable';
+      if (living && h !== undefined && h < 0.5) return 'coffeeTable';
       return short <= 0.8 && long <= 1.6 ? 'desk' : 'diningTable';
     case 'kitchenCabinet':
       return short >= 0.6 && long <= 0.8 ? 'fridge' : 'counter';
@@ -119,7 +125,7 @@ export const roleOf = (f: Shaped): FurnitureRole => {
       return 'basin';
     case 'other':
       if (h !== undefined && h < 0.05) return long - short < 0.15 * long ? 'roundRug' : 'rug';
-      if (long > 1.5) return 'sofa';
+      if (living && long > 1.5) return 'sofa';
       return short * long < 0.25 ? 'smallPlant' : 'plant';
   }
 };
@@ -154,16 +160,17 @@ export const modelFolderOf = (
   f: Pick<Furniture, 'id' | 'kind' | 'variant' | 'boundingBox' | 'rotationDeg' | 'roomId'> &
     Partial<Pick<Furniture, 'heightMm'>>,
   style: SceneStyle,
+  usage?: RoomUsage,
 ): string | null => {
-  const role = roleOf(f);
+  const role = roleOf(f, usage);
   const catalogue = ROLE_MODELS[role];
   const preferred = (style.prefer[role] ?? []).filter((folder) => catalogue.includes(folder) && fillOf(f, folder) >= MIN_FILL);
   const key = PER_ITEM_ROLES.has(role) ? f.id : `${f.roomId ?? 'none'}|${role}`;
   const pickHashed = (folders: readonly string[]): string => folders[fnv1a(key) % folders.length] as string;
 
-  if (f.variant !== undefined) {
-    const variantFolder = VARIANT_MODEL[f.variant]?.folder ?? null;
-    return variantFolder !== null && preferred.some((folder) => folder !== variantFolder) ? pickHashed(preferred) : variantFolder;
+  const byVariant = variantModelOf(f);
+  if (byVariant) {
+    return preferred.some((folder) => folder !== byVariant.folder) ? pickHashed(preferred) : byVariant.folder;
   }
   if (catalogue.length === 0) return null;
   if (preferred.length > 0) return pickHashed(preferred);
