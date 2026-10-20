@@ -90,6 +90,20 @@ describe('sceneDressing (I3) — sàn, tường, vật liệu cảnh', () => {
     expect(itemSlotsOf('double-bed')).toBeUndefined();
   });
 
+  it('tủ cố định không thành khối be trơn: thân tủ áo vân gỗ, tủ bếp tay nắm kim loại + mặt đá khác thân', () => {
+    for (const style of Object.values(SCENE_STYLES)) {
+      expect(itemSlotsOf('closet', style)).toEqual({ body: style.families.wood });
+      const kitchen = itemSlotsOf('kitchen-cabinet', style);
+      expect(kitchen).toEqual({
+        cabinet: style.families.cabinetry,
+        countertop: style.families.countertop,
+        handle: style.families.metal,
+      });
+      expect(kitchen?.['countertop']).not.toBe(kitchen?.['cabinet']);
+      expect(itemSlotsOf('kitchen-shelf', style)?.['handle']).toBe(style.families.metal);
+    }
+  });
+
   it('hai phong cách cho sàn phòng gỗ và gỗ đồ đạc khác nhau', () => {
     const room = { usage: 'livingRoom', finish: 'wood' } as const;
     const refs = new Set(SCENE_STYLE_IDS.map((id) => floorMaterialOf(room, SCENE_STYLES[id])));

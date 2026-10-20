@@ -56,7 +56,8 @@ const ROLE_MODELS: Readonly<Record<FurnitureRole, readonly string[]>> = {
   desk: ['office-table', 'dining-table'],
   diningTable: ['dining-table'],
   fridge: ['fridge'],
-  counter: ['kitchen-counter'],
+  // Không dùng 'kitchen-counter' (hộp trơn): tủ có tay nắm trước, dãy dài có chậu rửa vừa hơn.
+  counter: ['kitchen-cabinet', 'kitchen'],
   toilet: ['toilet'],
   bathtub: ['bathtub'],
   shower: ['shower-square'],

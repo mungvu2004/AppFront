@@ -216,7 +216,8 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
       chair: '/items/dining-chair/model.glb',
       bed: '/items/single-bed/model.glb',
       wardrobe: '/items/closet/model.glb',
-      kitchenCabinet: '/items/kitchen-counter/model.glb',
+      // FR1-F2: tủ bếp dưới có cửa + tay nắm, không còn khối hộp trơn kitchen-counter.
+      kitchenCabinet: '/items/kitchen-cabinet/model.glb',
       sanitaryFixture: '/items/bathroom-sink/model.glb',
       other: '/items/indoor-plant/model.glb',
     };

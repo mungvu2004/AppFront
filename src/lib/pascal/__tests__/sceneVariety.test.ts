@@ -148,4 +148,17 @@ describe('sceneVariety (J7)', () => {
       }
     }
   });
+
+  it('tủ bếp không bao giờ là khối hộp trơn kitchen-counter: dãy ngắn = tủ có tay nắm, dãy dài = bếp có chậu', () => {
+    const short = item('K1', 'kitchenCabinet', 1200, 600, { roomId: 'R-K' });
+    const long = item('K2', 'kitchenCabinet', 2400, 600, { roomId: 'R-K' });
+    for (const style of Object.values(SCENE_STYLES)) {
+      for (const usage of ['kitchen', 'utility', undefined] as const) {
+        expect(modelFolderOf(short, style, usage)).toBe('kitchen-cabinet');
+        expect(modelFolderOf(long, style, usage)).toBe('kitchen');
+      }
+    }
+    expect(modelFolderOf(item('K3', 'other', 600, 600, { variant: 'sink' }), AM_AP, 'kitchen')).toBe('kitchen');
+    expect(modelFolderOf(item('K4', 'other', 600, 1200, { variant: 'baseRun' }), AM_AP, 'kitchen')).toBe('kitchen-cabinet');
+  });
 });

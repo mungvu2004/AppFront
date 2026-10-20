@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CATALOG_MODELS, VARIANT_MODEL, modelSrcOf, thumbnailOf } from '../furnitureCatalog';
+import { itemSlotsOf } from '../sceneDressing';
 
 const ROOT = resolve(__dirname, '../../../..');
 const CATALOG_TSX = readFileSync(
@@ -69,5 +70,16 @@ describe('furnitureCatalog', () => {
   it('modelSrcOf / thumbnailOf', () => {
     expect(modelSrcOf('sofa')).toBe('/items/sofa/model.glb');
     expect(thumbnailOf('sofa')).toBe('/items/sofa/thumbnail.webp');
+  });
+
+  it('mọi khe đè vật liệu (itemSlotsOf) có thật trong GLB của mô hình (slot_<khe>)', () => {
+    for (const folder of Object.keys(CATALOG_MODELS)) {
+      const slots = itemSlotsOf(folder);
+      if (slots === undefined) continue;
+      const glb = readFileSync(resolve(ROOT, 'vendor/pascal/assets/items', folder, 'model.glb'));
+      const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8')) as { materials?: { name?: string }[] };
+      const names = new Set((json.materials ?? []).map((m) => m.name));
+      for (const slot of Object.keys(slots)) expect(names.has(`slot_${slot}`), `${folder} slot_${slot}`).toBe(true);
+    }
   });
 });

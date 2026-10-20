@@ -81,6 +81,21 @@ export const CATALOG_MODELS: Readonly<Record<string, CatalogModel>> = {
     offset: [0, 0, -0.0507],
     rotation: [0, 0, 0],
   },
+  // `kitchen-counter` là khối hộp trơn (không cửa, không tay nắm) — chỉ giữ cho dữ liệu cũ.
+  // Tủ bếp dưới: ngăn kéo + cửa + tay nắm (khe cabinet/countertop/handle).
+  'kitchen-cabinet': {
+    folder: 'kitchen-cabinet',
+    dimensions: [1.65, 1.09, 0.77],
+    offset: [0, 0.0004, 0],
+    rotation: [0, 0, 0],
+  },
+  // Dãy bếp dài có chậu rửa + vòi + cửa tủ (một vật liệu GLB, không khe).
+  kitchen: {
+    folder: 'kitchen',
+    dimensions: [2.38, 1.03, 0.84],
+    offset: [0, 0, 0],
+    rotation: [0, 0, 0],
+  },
   toilet: {
     folder: 'toilet',
     dimensions: [0.42, 0.82, 0.72],
@@ -322,11 +337,11 @@ export const VARIANT_MODEL: Readonly<
   shelves: { folder: 'bookshelf' },
   table: { folder: 'dining-table' },
   chair: { folder: 'dining-chair' },
-  baseRun: { folder: 'kitchen-counter' },
+  baseRun: { folder: 'kitchen-cabinet' },
   upperRun: { folder: 'kitchen-shelf', liftMm: 1450 },
   hood: { folder: 'hood', liftMm: 1500 },
   hob: { folder: 'stove' },
-  sink: { folder: 'kitchen-counter' },
+  sink: { folder: 'kitchen' },
   fridge: { folder: 'fridge' },
   stool: { folder: 'stool' },
   cabinet: { folder: 'dresser' },
