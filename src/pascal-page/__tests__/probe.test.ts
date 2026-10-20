@@ -11,6 +11,7 @@ import { installPascalProbe, type PascalProbe, type PascalProbeStores } from '..
 
 const fakeStores = () => {
   const registry = new Map<string, { userData: Record<string, unknown> }>();
+  const updateNode = vi.fn();
   const stores = {
     useScene: {
       getState: () => ({
@@ -21,13 +22,14 @@ const fakeStores = () => {
           s2: { type: 'slab', materialPreset: 'tile' },
           i1: { type: 'item', position: [1, 0, 2], rotation: [0, -1.5, 0], asset: { src: '/items/bed/model.glb' } },
         },
+        updateNode,
       }),
     },
     useViewer: { getState: () => ({ itemLoadFailures: { i2: '/items/x/model.glb' }, shading: 'rendered' }) },
     sceneRegistry: { nodes: registry },
     emitter: { emit: vi.fn() },
   } satisfies PascalProbeStores;
-  return { stores, registry };
+  return { stores, registry, updateNode };
 };
 
 const install = (search: string, stores: PascalProbeStores) => {
@@ -86,5 +88,11 @@ describe('pascal probe', () => {
     expect(install('?probe=1', stores)?.items()).toEqual([
       { id: 'i1', position: [1, 0, 2], rotation: [0, -1.5, 0], src: '/items/bed/model.glb' },
     ]);
+  });
+
+  it('editNode() gọi useScene.updateNode (móc C13)', () => {
+    const { stores, updateNode } = fakeStores();
+    install('?probe=1', stores)?.editNode('w2', { thickness: 0.3 });
+    expect(updateNode.mock.calls).toEqual([['w2', { thickness: 0.3 }]]);
   });
 });

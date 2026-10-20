@@ -3,7 +3,8 @@
  * Pascal qua tham số, không nhập `@pascal-app/*` (vitest không nạp được gói khi chưa dựng
  * `dist/*.js`). Nơi gắn store thật lên `window` là `./probe`.
  *
- * Chỉ đọc store, trừ `setCamera`. Lượt hỏng tải mô hình đọc từ `useViewer.itemLoadFailures`
+ * Chỉ đọc store, trừ `setCamera` và `editNode` (móc kiểm thử C13: sửa một node qua đúng
+ * `useScene.updateNode` như inspector, để luồng tự lưu thật — `onSave` → N16 PUT — chạy). Lượt hỏng tải mô hình đọc từ `useViewer.itemLoadFailures`
  * (vendor `nodes/src/item/renderer.tsx`), "đã xong" đọc từ `userData.itemModelSettled` trên
  * nhóm item trong `sceneRegistry`.
  *
@@ -25,6 +26,8 @@ export interface PascalProbe {
   walls(): ProbeWall[];
   /** Vị trí, góc quay (rad) và mô hình của item cho C8. */
   items(): ProbeItem[];
+  /** Móc kiểm thử C13: `useScene.updateNode(id, patch)` — chỉ có khi `?probe=1`. */
+  editNode(id: string, patch: object): void;
 }
 
 export interface ProbeItem {
@@ -63,7 +66,7 @@ type CameraPose =
 
 /** Đúng phần store Pascal mà đầu dò đọc; `./probe` truyền store thật vào. */
 export interface PascalProbeStores {
-  readonly useScene: { getState(): { nodes: object } };
+  readonly useScene: { getState(): { nodes: object; updateNode(id: string, data: object): void } };
   readonly useViewer: { getState(): { itemLoadFailures: object; shading?: string } };
   readonly sceneRegistry: { nodes: { get(id: string): { userData: Record<string, unknown> } | undefined } };
   readonly emitter: { emit(event: 'camera-controls:apply-pose', pose: CameraPose): void };
@@ -109,6 +112,7 @@ export const createPascalProbe = ({ useScene, useViewer, sceneRegistry, emitter 
       })),
     items: () =>
       entriesOf('item').map(([id, n]) => ({ id, position: n.position, rotation: n.rotation, src: n.asset?.src })),
+    editNode: (id, patch) => useScene.getState().updateNode(id, patch),
   };
 };
 

@@ -13,6 +13,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 import { SpatialGraphDocumentSchema } from '../src/api/schemas/spatialGraph';
+import { FloorLayerWriteSchema } from '../src/api/schemas/spatialLayer';
 import {
   fixtureF0,
   fixtureF1,
@@ -23,7 +24,7 @@ import {
   type Fixture,
 } from '../src/lib/pascal/__fixtures__';
 import { toPascalId } from '../src/lib/pascal/ids';
-import { floorMaterialOf } from '../src/lib/pascal/sceneDressing';
+import { floorMaterialOf, isGeneratedLightId } from '../src/lib/pascal/sceneDressing';
 import { toPascalScene } from '../src/lib/pascal/toPascal';
 
 import { installFakeApi, type WireGraphDocument } from './fixtures/fakeApi';
@@ -59,6 +60,8 @@ declare global {
       materials(): { slabs: Record<string, string | undefined>; walls: Record<string, unknown> };
       shading(): string | undefined;
       items(): { id: string; position?: number[]; rotation?: number[]; src?: string }[];
+      walls(): { id: string; thickness?: number }[];
+      editNode(id: string, patch: object): void;
     };
   }
 }
@@ -206,7 +209,11 @@ test('C8: F2 góc quay item khớp −rotationDeg, mô hình từ /items/', asyn
   await open(page, fixture);
   await waitForScene(page, expected.counts);
 
-  const items = await page.evaluate(() => window.__pascalProbe!.items());
+  const all = await page.evaluate(() => window.__pascalProbe!.items());
+  // Đèn trần tự sinh (`item_LIGHT-<phòng>`) không phải đồ đạc của F2: đếm riêng, một đèn mỗi phòng.
+  const lights = all.filter((item) => isGeneratedLightId(item.id));
+  expect.soft(lights.length, 'C8 một đèn trần mỗi phòng').toBe(fixture.expected.rooms);
+  const items = all.filter((item) => !isGeneratedLightId(item.id));
   expect(items.length, 'C8 có item').toBeGreaterThan(0);
   const offYaw: string[] = [];
   const offSrc: string[] = [];
@@ -222,8 +229,40 @@ test('C8: F2 góc quay item khớp −rotationDeg, mô hình từ /items/', asyn
   expect.soft(offSrc, 'C8 asset.src là /items/... (trừ thang)').toEqual([]);
 });
 
-test.fixme('C13: F1 sửa độ dày tường → PUT hợp lệ → tải lại vẫn giữ', async () => {
-  // Cần luồng chọn tường trên canvas Pascal + inspector; chưa dựng kịp trong hạn T18.
+test('C13: F1 sửa độ dày tường → PUT hợp lệ → tải lại vẫn giữ', async ({ page }) => {
+  test.setTimeout(180_000);
+  const fixture = fixtureF1({ ext: false });
+  const expected = expectedOf(fixture);
+  const api = await open(page, fixture);
+  await waitForScene(page, expected.counts);
+
+  const wall = fixture.doc.graph.walls[0]!;
+  const wallId = String(wall['id']);
+  const pascalWallId = toPascalId('wall', wallId);
+  const thicknessMm = Number(wall['thicknessMm']) + 50;
+  /* Trang 3D riêng không hiện trạng thái lưu (editor không nối `onSaveStatusChange`), nên
+     "đã lưu" = máy chủ giả trả 200 cho PUT N16 mang độ dày mới — nó chỉ trả 200 khi thân
+     qua `FloorLayerWriteSchema` (strict) và `baseVersion` đúng. Sửa qua móc `editNode`
+     (`useScene.updateNode`, như inspector) để chạy đúng đường thật: onSave → kho → tự lưu. */
+  const putHasEdit = (raw: string | null): boolean => {
+    const walls = (JSON.parse(raw ?? '{}') as { body?: { layer?: { walls?: Record<string, unknown>[] } } }).body?.layer?.walls;
+    return walls?.some((w) => w['id'] === wallId && w['thicknessMm'] === thicknessMm) ?? false;
+  };
+  const saved = page.waitForResponse(
+    (r) => r.request().method() === 'PUT' && r.url().endsWith('/spatial/layer') && putHasEdit(r.request().postData()),
+    { timeout: READY_TIMEOUT_MS },
+  );
+  await page.evaluate(([id, t]) => window.__pascalProbe!.editNode(id, { thickness: t }), [pascalWallId, thicknessMm / 1000] as const);
+  expect((await saved).status(), 'C13 PUT có độ dày mới được máy chủ giả nhận (200)').toBe(200);
+  const put = api.puts.find((body) => putHasEdit(JSON.stringify(body)));
+  expect(FloorLayerWriteSchema.safeParse(put).success, 'C13 thân PUT qua FloorLayerWriteSchema').toBe(true);
+
+  // `page.route` và trạng thái máy chủ giả sống qua `reload`: N15 trả lớp vừa lưu.
+  await page.reload();
+  await waitForScene(page, expected.counts);
+  const reloaded = await page.evaluate((id) => window.__pascalProbe!.walls().find((w) => w.id === id), pascalWallId);
+  expect(reloaded?.thickness, 'C13 tải lại vẫn giữ độ dày mới (m)').toBeCloseTo(thicknessMm / 1000, 6);
+  expect(api.unexpected).toEqual([]);
 });
 
 test('C14: F3 tỉ lệ chưa giải → hiện băng cảnh báo trong 10 s', async ({ page }) => {
