@@ -46,19 +46,19 @@ const flat = (name: string, label: string, color: string, roughness: number): Pa
 
 /** Vật liệu phẳng mà các phong cách trỏ tới (`scene:mat_style_<name>`). */
 export const SCENE_STYLE_MATERIALS: readonly PascalSceneMaterial[] = [
-  flat('am_ap_wall', 'Sơn kem ấm', STYLE_PALETTE.amApWall, 0.9),
-  flat('am_ap_exterior', 'Tường ngoài be', STYLE_PALETTE.amApExterior, 0.9),
-  flat('am_ap_cabinet', 'Tủ gỗ sồi sơn', STYLE_PALETTE.amApCabinet, 0.6),
+  flat('am_ap_wall', 'Sơn trắng ngà', STYLE_PALETTE.amApWall, 0.9),
+  flat('am_ap_exterior', 'Tường ngoài xám', STYLE_PALETTE.amApExterior, 0.9),
+  flat('am_ap_cabinet', 'Tủ trắng ấm', STYLE_PALETTE.amApCabinet, 0.6),
   flat('hien_dai_wall', 'Sơn trắng lạnh', STYLE_PALETTE.hienDaiWall, 0.85),
   flat('hien_dai_exterior', 'Tường ngoài xám sáng', STYLE_PALETTE.hienDaiExterior, 0.9),
   flat('hien_dai_cabinet', 'Tủ trắng bóng', STYLE_PALETTE.hienDaiCabinet, 0.3),
   flat('go_am_wall', 'Sơn be gỗ', STYLE_PALETTE.goAmWall, 0.9),
   flat('go_am_exterior', 'Tường ngoài nâu', STYLE_PALETTE.goAmExterior, 0.9),
   flat('go_am_cabinet', 'Tủ gỗ óc chó', STYLE_PALETTE.goAmCabinet, 0.55),
-  flat('toi_gian_wall', 'Sơn xám trắng', STYLE_PALETTE.toiGianWall, 0.9),
+  flat('toi_gian_wall', 'Sơn xám nhạt', STYLE_PALETTE.toiGianWall, 0.9),
   flat('toi_gian_exterior', 'Tường ngoài xám', STYLE_PALETTE.toiGianExterior, 0.9),
   flat('toi_gian_cabinet', 'Tủ xám mờ', STYLE_PALETTE.toiGianCabinet, 0.7),
-  flat('sang_trong_wall', 'Sơn than chì', STYLE_PALETTE.sangTrongWall, 0.8),
+  flat('sang_trong_wall', 'Sơn nâu xám', STYLE_PALETTE.sangTrongWall, 0.8),
   flat('sang_trong_exterior', 'Tường ngoài than', STYLE_PALETTE.sangTrongExterior, 0.9),
   flat('sang_trong_cabinet', 'Tủ đen mờ', STYLE_PALETTE.sangTrongCabinet, 0.5),
   flat('ceramic_white', 'Sứ trắng', STYLE_PALETTE.ceramicWhite, 0.15),
@@ -72,15 +72,16 @@ const lib = (id: string): string => `library:${id}`;
 const scene = (name: string): string => `scene:mat_style_${name}`;
 
 export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
-  // Mặc định: gỗ tự nhiên, kem ấm, vải lanh, đồng thau.
+  // Mặc định, theo ngôi nhà ở trang đăng nhập: tường gần trắng, sàn gỗ sồi nhạt, gạch
+  // trắng, sàn gỗ ngoài trời nâu vừa, tường ngoài xám đậm; vải lanh, đồng thau.
   'am-ap': {
     id: 'am-ap',
     label: 'Ấm áp',
     floor: {
-      wood: lib('wood-woodplank48'),
+      wood: lib('flooring-woodparquet76'),
       tile: lib('flooring-tile79'),
       mosaic: lib('flooring-lightceramic24'),
-      decking: lib('flooring-woodparquet76'),
+      decking: lib('wood-woodplank48'),
       concrete: lib('concrete-polished'),
     },
     wall: { interior: scene('am_ap_wall'), exterior: scene('am_ap_exterior') },
@@ -98,12 +99,12 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     lampColour: STYLE_PALETTE.lampWarm,
     lampIntensity: 6,
   },
-  // Sàn ván sáng, gạch men trắng, tường trắng lạnh, crôm.
+  // Sàn gỗ xương cá sáng (bớt cam hơn ván floorplank1), gạch men, tường trắng lạnh, crôm.
   'hien-dai-sang': {
     id: 'hien-dai-sang',
     label: 'Hiện đại sáng',
     floor: {
-      wood: lib('wood-floorplank1'),
+      wood: lib('wood-hungarianparquet10'),
       tile: lib('flooring-lightceramic24'),
       mosaic: lib('flooring-tile20'),
       decking: lib('wood-woodplank19'),
@@ -124,12 +125,12 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     lampColour: STYLE_PALETTE.lampNeutral,
     lampIntensity: 7,
   },
-  // Gỗ đậm: sàn xương cá, tủ óc chó, nhung, đồng đỏ.
+  // Gỗ đậm: sàn ván nâu vừa, tủ óc chó, da bò sáp (bớt đỏ hơn nhung), đồng đỏ.
   'go-am': {
     id: 'go-am',
     label: 'Gỗ ấm',
     floor: {
-      wood: lib('wood-hungarianparquet10'),
+      wood: lib('wood-woodplank48'),
       tile: lib('flooring-tile20'),
       mosaic: lib('flooring-tiles4'),
       decking: lib('wood-woodenparquet11'),
@@ -137,7 +138,7 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     },
     wall: { interior: scene('go_am_wall'), exterior: scene('go_am_exterior') },
     families: {
-      fabric: lib('fabric-velvet'),
+      fabric: lib('leather-calf'),
       wood: lib('wood-hungarianparquet2'),
       metal: lib('metal-copper'),
       cabinetry: scene('go_am_cabinet'),
@@ -150,16 +151,16 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     lampColour: STYLE_PALETTE.lampAmber,
     lampIntensity: 5,
   },
-  // Ít chi tiết: sàn gỗ ghép nhạt, xám trắng, bê tông, thép.
+  // Ít chi tiết: tường xám nhạt, sàn ván sồi xám, gạch xám, bê tông thô, thép.
   'toi-gian': {
     id: 'toi-gian',
     label: 'Tối giản',
     floor: {
-      wood: lib('flooring-woodparquet76'),
-      tile: lib('flooring-statuarettowhite'),
-      mosaic: lib('flooring-lightceramic24'),
-      decking: lib('wood-floorplank1'),
-      concrete: lib('concrete-polished'),
+      wood: lib('wood-woodplank19'),
+      tile: lib('flooring-tile79'),
+      mosaic: lib('flooring-tiles4'),
+      decking: lib('wood-woodenparquet11'),
+      concrete: lib('concrete-raw'),
     },
     wall: { interior: scene('toi_gian_wall'), exterior: scene('toi_gian_exterior') },
     families: {
@@ -176,7 +177,7 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     lampColour: STYLE_PALETTE.lampNeutral,
     lampIntensity: 6,
   },
-  // Tường than chì, đá trắng, da đen, đồng thau bóng.
+  // Tường nâu xám (đủ sáng để đọc được đồ đạc), sàn gỗ đậm, đá trắng, da đen, đồng thau bóng.
   'sang-trong-toi': {
     id: 'sang-trong-toi',
     label: 'Sang trọng tối',
@@ -200,7 +201,7 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     },
     prefer: { plant: ['indoor-plant'], roundRug: ['round-carpet'], desk: ['office-table'] },
     lampColour: STYLE_PALETTE.lampAmber,
-    lampIntensity: 7,
+    lampIntensity: 9,
   },
 };
 

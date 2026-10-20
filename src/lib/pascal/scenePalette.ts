@@ -40,8 +40,8 @@ export const SCENE_PALETTE = {
  * gần nhà 3D ở trang đăng nhập (nền #2b2a28). `clay*` là màu đất sét khi tô `solid`.
  */
 export const RENDER_LOOK_PALETTE = {
-  background: '#2b2a28',
-  sky: '#1f1e1c',
+  background: '#36332f',
+  sky: '#2a2825',
   ground: '#3d3a36',
   ambient: '#fff1e0',
   hemiSky: '#fff6ea',
@@ -57,20 +57,20 @@ export const RENDER_LOOK_PALETTE = {
 
 // Màu phẳng của 5 phong cách cảnh (`sceneStyles.ts`): sơn tường, tủ bếp, sứ, chậu cây, ánh đèn.
 export const STYLE_PALETTE = {
-  amApWall: '#f4ede1',
-  amApExterior: '#a39684',
-  amApCabinet: '#d8c7ab',
+  amApWall: '#f5f3ef',
+  amApExterior: '#8c8a86',
+  amApCabinet: '#ebe7e0',
   hienDaiWall: '#f7f8f8',
   hienDaiExterior: '#b9bcbf',
   hienDaiCabinet: '#eef0f1',
-  goAmWall: '#e8d9c3',
+  goAmWall: '#eadfcf',
   goAmExterior: '#7d6650',
   goAmCabinet: '#8a5a36',
-  toiGianWall: '#ececea',
-  toiGianExterior: '#9d9d9a',
-  toiGianCabinet: '#d9d9d6',
-  sangTrongWall: '#3d3a38',
-  sangTrongExterior: '#2f2d2c',
+  toiGianWall: '#d9d9d7',
+  toiGianExterior: '#7f807f',
+  toiGianCabinet: '#c4c5c3',
+  sangTrongWall: '#7d756c',
+  sangTrongExterior: '#3a3735',
   sangTrongCabinet: '#26282b',
   ceramicWhite: '#f3f3f1',
   ceramicIvory: '#ece4d6',
