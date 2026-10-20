@@ -54,6 +54,8 @@ import type {
   PascalPoint2,
   PascalSiteNode,
   PascalSlabNode,
+  PascalStairNode,
+  PascalStairSegmentNode,
   PascalStructuralGridNode,
   PascalVec3,
   PascalWallNode,
@@ -456,6 +458,98 @@ const furnitureFolderOf = (furniture: Furniture, style: SceneStyle, usage: RoomU
 const TALL_PLANT_FOLDERS: ReadonlySet<string> = new Set(['palm', 'fir-tree']);
 const TALL_PLANT_MAX_M = 2.2;
 
+/** Chiều cao một bậc mục tiêu, mét — số bậc = max(3, round(chiều cao tầng / số này)). */
+const STAIR_RISER_M = 0.175;
+/** Vật liệu thành thang: vữa trát (đã giải được hôm nay, J6). */
+const STAIR_SIDE_MATERIAL = 'library:concrete-plaster';
+
+/**
+ * Đồ đạc `stair` thành thang Pascal thật: một `stair` + một `stair-segment`.
+ *
+ * Bộ vẽ dựng đoạn thang từ GỐC của nó theo +z cục bộ, bề rộng cân quanh x = 0
+ * (`viewer/systems/stair/stair-system.tsx:166-169,209-210`), đoạn đầu ở gốc của thang
+ * (`:476-486`), và nhóm thang đặt ở `position`/`rotation` (`parametric-node-renderer.tsx:71-88`).
+ * Nên `position` = tâm hộp bao lùi nửa thân thang. Thân chạy theo cạnh DÀI của hộp bao
+ * (K1, cục bộ): cạnh dài là y cục bộ → yaw = −rotationDeg; là x cục bộ → yaw + π/2.
+ */
+const stairNodesOf = (
+  furniture: Furniture,
+  levelNodeId: PascalNodeId,
+  levelHeightMm: number,
+  style: SceneStyle,
+): readonly [PascalStairNode, PascalStairSegmentNode] => {
+  const sizeX = metresOf(furniture.boundingBox.max.x - furniture.boundingBox.min.x);
+  const sizeY = metresOf(furniture.boundingBox.max.y - furniture.boundingBox.min.y);
+  const runAlongX = sizeX > sizeY;
+  const width = runAlongX ? sizeY : sizeX;
+  const length = runAlongX ? sizeX : sizeY;
+  const rotation = yawOf(furniture.rotationDeg) + (runAlongX ? Math.PI / 2 : 0);
+  const rise = metresOf(levelHeightMm);
+  const stepCount = Math.max(3, Math.round(rise / STAIR_RISER_M));
+  const stairId = toPascalId('stair', furniture.id);
+  const segmentId: PascalNodeId = `sseg_${furniture.id}`;
+
+  return [
+    {
+      object: 'node',
+      id: stairId,
+      type: 'stair',
+      name: FURNITURE_KIND_LABELS.stair,
+      parentId: levelNodeId,
+      children: [segmentId],
+      position: [
+        metresOf(furniture.centre.x) - (Math.sin(rotation) * length) / 2,
+        0,
+        metresOf(furniture.centre.y) - (Math.cos(rotation) * length) / 2,
+      ],
+      rotation,
+      stairType: 'straight',
+      fromLevelId: levelNodeId,
+      toLevelId: null,
+      slabOpeningMode: 'none',
+      openingOffset: 0,
+      width,
+      totalRise: rise,
+      stepCount,
+      thickness: 0.25,
+      fillToFloor: true,
+      innerRadius: 0.9,
+      sweepAngle: Math.PI / 2,
+      topLandingMode: 'none',
+      topLandingDepth: 0.9,
+      showCenterColumn: true,
+      showStepSupports: true,
+      railingMode: 'none',
+      railingHeight: 0.92,
+      treadMaterialPreset: style.floor.wood,
+      sideMaterialPreset: STAIR_SIDE_MATERIAL,
+      metadata: {
+        appfront: originOf(furniture, {
+          kind: furniture.kind,
+          boundingBox: furniture.boundingBox,
+          ...(furniture.roomId === undefined ? {} : { roomId: furniture.roomId }),
+        }),
+      },
+    },
+    {
+      object: 'node',
+      id: segmentId,
+      type: 'stair-segment',
+      parentId: stairId,
+      position: [0, 0, 0],
+      rotation: 0,
+      segmentType: 'stair',
+      width,
+      length,
+      height: rise,
+      stepCount,
+      attachmentSide: 'front',
+      fillToFloor: true,
+      thickness: 0.25,
+    },
+  ];
+};
+
 const itemNodeOf = (
   furniture: Furniture,
   levelNodeId: PascalNodeId,
@@ -795,10 +889,20 @@ export const toPascalScene = (
       continue;
     }
 
+    builtFurniture.push(furniture);
+
+    if (furniture.kind === 'stair') {
+      const [stair, segment] = stairNodesOf(furniture, levelNodeId, levelHeightMm, style);
+
+      nodes[stair.id] = stair;
+      nodes[segment.id] = segment;
+      adopt(levelNodeId, stair.id);
+      continue;
+    }
+
     const usage = furniture.roomId === undefined ? undefined : roomUsageOf.get(furniture.roomId);
     const node = itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage);
 
-    builtFurniture.push(furniture);
     nodes[node.id] = node;
     adopt(levelNodeId, node.id);
   }

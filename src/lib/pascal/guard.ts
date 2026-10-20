@@ -113,7 +113,10 @@ const descendantsOf = (scene: PascalScene, rootId: PascalNodeId): Set<PascalNode
 
 /** Trần, đèn trần và đồ bày biện sinh ra — không phải đối tượng của người dùng, không bao giờ được lưu. */
 const isGeneratedDressing = (scene: PascalScene, nodeId: PascalNodeId): boolean =>
-  scene.nodes[nodeId]?.type === 'ceiling' || isGeneratedNodeId(nodeId);
+  scene.nodes[nodeId]?.type === 'ceiling' ||
+  // Đoạn thang là một phần của thang: thang đếm một lần.
+  scene.nodes[nodeId]?.type === 'stair-segment' ||
+  isGeneratedNodeId(nodeId);
 
 /**
  * Mọi tầng của cảnh, kèm tập node nằm dưới nó — trừ trần và đèn sinh ra: đếm

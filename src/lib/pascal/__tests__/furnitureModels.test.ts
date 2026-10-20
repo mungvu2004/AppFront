@@ -209,7 +209,7 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     expect(srcIn('kitchen')).toBe('/items/dresser/model.glb');
   });
 
-  it('F2 (không variant): đoán thư mục theo loại + phòng + hộp bao; thang vẫn là chỗ giữ chỗ', () => {
+  it('F2 (không variant): đoán thư mục theo loại + phòng + hộp bao; thang thành node stair thật', () => {
     const expected: Record<string, string> = {
       // Bàn 900×600 của F2 nằm ở phòng khách → bàn ăn (desk chỉ ở phòng ngủ/kho/khác).
       table: '/items/dining-table/model.glb',
@@ -218,11 +218,11 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
       wardrobe: '/items/closet/model.glb',
       kitchenCabinet: '/items/kitchen-counter/model.glb',
       sanitaryFixture: '/items/bathroom-sink/model.glb',
-      stair: 'asset://appfront/stair',
       other: '/items/indoor-plant/model.glb',
     };
     const items = itemsOf(graphOf(fixtureF2().doc));
-    expect(items).toHaveLength(32);
+    // 32 đồ đạc, 4 cái là thang → node `stair` thật (U13, stair.test.ts), không còn item giữ chỗ.
+    expect(items).toHaveLength(28);
     for (const item of items) {
       expect(item.asset.src, item.asset.category).toBe(expected[item.asset.category]);
     }

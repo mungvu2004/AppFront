@@ -142,12 +142,13 @@ describe('hợp đồng dựng hình — trường bộ vẽ đọc thẳng', ()
     graph.furniture = [{ ...first, kind: 'stair' }, ...graph.furniture.slice(1)];
 
     const level = graph.levels.find((item) => item.id === first.levelId);
-    const node = sceneOf(graph).nodes[`item_${first.id}`];
+    // Thang thật (U13): node `stair`, cao trọn tầng qua `totalRise`.
+    const node = sceneOf(graph).nodes[`stair_${first.id}`];
 
     expect(level?.heightMm).toBeGreaterThan(0);
-    expect(node?.type).toBe('item');
-    if (node?.type !== 'item') return;
-    expect(node.asset.dimensions[1]).toBe((level?.heightMm ?? 0) / 1000);
+    expect(node?.type).toBe('stair');
+    if (node?.type !== 'stair') return;
+    expect(node.totalRise).toBe((level?.heightMm ?? 0) / 1000);
   });
 
   it('mỗi phòng có MỘT tấm sàn, và tấm sàn khai đủ trường bộ vẽ đọc thẳng', () => {

@@ -120,6 +120,9 @@ const KIND_OF_NODE_TYPE: Readonly<Record<PascalNodeType, EntityKind | null>> = {
   // Trần dựng ra từ đường bao phòng, như sàn: không sở hữu đối tượng nào.
   ceiling: null,
   'structural-grid': 'axis',
+  // Thang dựng từ đồ đạc `stair`; đoạn thang `sseg_<id đồ>` mang cùng id nên sửa nó = sửa món đồ.
+  stair: 'furniture',
+  'stair-segment': 'furniture',
 };
 
 /** Tên tiếng Việt của từng loại, cho câu mô tả trong nhật ký hoạt động. */

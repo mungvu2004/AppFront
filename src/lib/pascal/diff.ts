@@ -72,8 +72,10 @@ const DEPTH_OF_TYPE: Readonly<Record<PascalNodeType, number>> = {
   item: 3,
   ceiling: 3,
   'structural-grid': 3,
+  stair: 3,
   door: 4,
   window: 4,
+  'stair-segment': 4,
 };
 
 /** Phần chênh rỗng — không có gì để áp. */

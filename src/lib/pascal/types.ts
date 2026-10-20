@@ -329,6 +329,53 @@ export interface PascalStructuralGridNode extends PascalNodeCommon {
   readonly showEndBubble: boolean;
 }
 
+/**
+ * Thang (`core/schema/nodes/stair.ts`); con của tầng. Ghi ĐỦ mọi trường lược đồ vì
+ * `setScene` không áp mặc định zod. `position` = chân thang (đầu bậc thấp nhất), thân
+ * thang chạy theo +z cục bộ sau khi xoay `rotation` quanh `y` (`stair-system.tsx:209-210`).
+ */
+export interface PascalStairNode extends PascalNodeCommon {
+  readonly type: 'stair';
+  readonly children: readonly PascalNodeId[];
+  readonly position: PascalVec3;
+  readonly rotation: number;
+  readonly stairType: 'straight';
+  readonly fromLevelId: PascalNodeId | null;
+  readonly toLevelId: PascalNodeId | null;
+  readonly slabOpeningMode: 'none';
+  readonly openingOffset: number;
+  readonly width: number;
+  readonly totalRise: number;
+  readonly stepCount: number;
+  readonly thickness: number;
+  readonly fillToFloor: boolean;
+  readonly innerRadius: number;
+  readonly sweepAngle: number;
+  readonly topLandingMode: 'none';
+  readonly topLandingDepth: number;
+  readonly showCenterColumn: boolean;
+  readonly showStepSupports: boolean;
+  readonly railingMode: 'none';
+  readonly railingHeight: number;
+  readonly treadMaterialPreset: string;
+  readonly sideMaterialPreset: string;
+}
+
+/** Một đoạn thang (`core/schema/nodes/stair-segment.ts`); con của thang, id `sseg_…`. */
+export interface PascalStairSegmentNode extends PascalNodeCommon {
+  readonly type: 'stair-segment';
+  readonly position: PascalVec3;
+  readonly rotation: number;
+  readonly segmentType: 'stair';
+  readonly width: number;
+  readonly length: number;
+  readonly height: number;
+  readonly stepCount: number;
+  readonly attachmentSide: 'front';
+  readonly fillToFloor: boolean;
+  readonly thickness: number;
+}
+
 /** Một node bất kỳ trong số các loại AppFront viết ra. */
 export type PascalNode =
   | PascalSiteNode
@@ -341,7 +388,9 @@ export type PascalNode =
   | PascalSlabNode
   | PascalItemNode
   | PascalCeilingNode
-  | PascalStructuralGridNode;
+  | PascalStructuralGridNode
+  | PascalStairNode
+  | PascalStairSegmentNode;
 
 /** Loại node AppFront viết ra, đọc từ chính hợp trên. */
 export type PascalNodeType = PascalNode['type'];

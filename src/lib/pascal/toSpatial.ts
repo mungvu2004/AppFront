@@ -517,6 +517,57 @@ const collectLevelChildren = (
         break;
       }
 
+      case 'stair': {
+        // Thang thật (toPascal `stairNodesOf`): đoạn con không bao giờ thành đối tượng riêng.
+        const segment = childrenOf(scene, child).find((node) => node.type === 'stair-segment');
+        const length = segment?.type === 'stair-segment' ? segment.length : null;
+
+        if (length === null || !positionIsUsable(child.position) || !isUsable(child.rotation, child.width, length)) {
+          collector.skip(child.id, 'đồ đạc', 'Vị trí, góc quay hoặc kích thước thang không phải một số đo được.');
+          break;
+        }
+
+        const fields = fieldsOf(child);
+        const knownId = appFrontIdOf('furniture', child.id);
+        const min = readCorner(fields, 'min');
+        const max = readCorner(fields, 'max');
+        const roomId = readString(fields, 'roomId');
+        // Thân thang chạy theo +z cục bộ từ `position` (chân thang) → tâm ở giữa thân.
+        const centre: Point = {
+          x: millimetresOf(child.position[0] + (Math.sin(child.rotation) * length) / 2),
+          y: millimetresOf(child.position[2] + (Math.cos(child.rotation) * length) / 2),
+        };
+        // Hướng hộp bao giữ như lượt đi: cạnh dài theo x cục bộ thì yaw đã cộng π/2.
+        const runAlongX = min !== null && max !== null && max.x - min.x > max.y - min.y;
+        const sizeX = millimetresOf(runAlongX ? length : child.width);
+        const sizeY = millimetresOf(runAlongX ? child.width : length);
+        const stored =
+          min !== null &&
+          max !== null &&
+          Math.abs(max.x - min.x - sizeX) <= 1 &&
+          Math.abs(max.y - min.y - sizeY) <= 1 &&
+          Math.abs((min.x + max.x) / 2 - centre.x) <= 1 &&
+          Math.abs((min.y + max.y) / 2 - centre.y) <= 1;
+
+        collector.furniture.push({
+          ...reviewOf(child, knownId !== null),
+          id: knownId ?? collector.mint('furniture', child.id),
+          levelId,
+          kind: 'stair',
+          centre,
+          boundingBox: stored
+            ? { min, max }
+            : {
+                min: { x: centre.x - sizeX / 2, y: centre.y - sizeY / 2 },
+                max: { x: centre.x + sizeX / 2, y: centre.y + sizeY / 2 },
+              },
+          // Viết −(bù − yaw) chứ không phải yaw − bù: yaw 0 phải ra 0° chứ không phải −0° (diff so giá trị).
+          rotationDeg: planDegreesOf(-((runAlongX ? Math.PI / 2 : 0) - child.rotation)),
+          ...(roomId !== null && isIdOfKind('room', roomId) ? { roomId } : {}),
+        });
+        break;
+      }
+
       case 'structural-grid': {
         if (!isUsable(...child.start, ...child.end)) {
           collector.skip(child.id, 'trục định vị', 'Toạ độ hai đầu trục không phải một số đo được.');
