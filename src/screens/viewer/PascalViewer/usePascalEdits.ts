@@ -39,7 +39,7 @@ import { createPascalEditCommand, type PascalEditResult } from '@/lib/pascal/fro
 import { createChangeGate, type PascalCommit } from '@/lib/pascal/guard';
 import { splitRoomsAfterWalls } from '@/lib/pascal/roomSplitAfterWalls';
 import { isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
-import type { PascalIdBook } from '@/lib/pascal/toSpatial';
+import { saveableModelSrc, saveableRef, type PascalIdBook } from '@/lib/pascal/toSpatial';
 import type { PascalScene } from '@/lib/pascal/types';
 import { buildSplitRoomCommandFromWalls } from '@/screens/qc/RoomLabelReview/roomLabelReviewGateway';
 import { useStore } from '@/store';
@@ -122,6 +122,8 @@ export const commitOfScenes = (
 };
 
 const PAINT_FIELDS = ['slots', 'material', 'materialPreset'] as const;
+/** Màu tự pha (vật liệu riêng của node) — bản vẽ chưa có chỗ chứa. */
+const CUSTOM_PAINT_FIELDS = ['material', 'materialPreset'] as const;
 const DOOR_FIELDS = ['doorType', 'leafCount', 'hingesSide', 'swingDirection'] as const;
 
 const fieldsOf = (node: unknown): Readonly<Record<string, unknown>> => (node ?? {}) as Readonly<Record<string, unknown>>;
@@ -130,29 +132,44 @@ const differs = (a: Readonly<Record<string, unknown>>, b: Readonly<Record<string
   keys.some((key) => JSON.stringify(a[key]) !== JSON.stringify(b[key]));
 
 /**
+ * Sơn sàn/tường/đồ có phần không ghi được: màu tự pha, hay một khe vừa đổi sang tham chiếu
+ * ngoài `saveableRef` (khe về mặc định — bỏ khe — thì `toSpatial` vẫn lưu được).
+ */
+const paintUnsaved = (before: Readonly<Record<string, unknown>>, after: Readonly<Record<string, unknown>>): boolean => {
+  const slotsBefore = fieldsOf(before['slots']);
+
+  return (
+    differs(before, after, CUSTOM_PAINT_FIELDS) ||
+    Object.entries(fieldsOf(after['slots'])).some(
+      ([key, ref]) => ref !== slotsBefore[key] && ref !== undefined && (typeof ref !== 'string' || !saveableRef(ref)),
+    )
+  );
+};
+
+/**
  * Những gì Pascal sửa được mà bản vẽ AppBack chưa có chỗ chứa (v3 BE.md major 2, EDIT.md):
- * màu trần/đồ/cửa, kiểu cửa, mẫu đồ từ thư viện, xoá đồ bày sẵn. Màu sàn và màu tường đã
- * lưu được (`floorMaterial`, `paint` — FE3D-FIX-003 W3a) nên không báo nữa. Lượt sửa ấy vẫn
- * "lưu" phần còn lại (hoặc ra PASCAL_NO_CHANGE), nên phải nói rõ phần nào chưa lưu được.
+ * màu trần/cửa, kiểu cửa, xoá đồ bày sẵn, màu tự pha. Màu sàn/tường/đồ và mẫu đồ `/items/…`
+ * đã lưu được (W3a, W3b) nên chỉ báo khi tham chiếu mới nằm ngoài luật ghi của `toSpatial`.
+ * Lượt sửa ấy vẫn "lưu" phần còn lại (hoặc ra PASCAL_NO_CHANGE), nên phải nói rõ phần nào chưa lưu.
  */
 export function unsavedPascalEdits(previous: PascalScene, next: PascalScene): string[] {
   const labels = new Set<string>();
 
   for (const [nodeId, node] of Object.entries(next.nodes)) {
     const after = fieldsOf(node);
-    const before = previous.nodes[nodeId] === undefined ? null : fieldsOf(previous.nodes[nodeId]);
     const type = after['type'];
+    // Đồ mới thêm so với "chưa có gì": khe và mẫu của nó đều là phần sửa.
+    const before = previous.nodes[nodeId] === undefined ? (type === 'item' ? {} : null) : fieldsOf(previous.nodes[nodeId]);
 
-    if (before === null) {
-      if (type === 'item' && assetSrcOf(after) !== undefined) labels.add('mẫu đồ đạc');
-      continue;
-    }
+    if (before === null) continue;
     const painted = differs(before, after, PAINT_FIELDS);
 
     if (type === 'ceiling' && painted) labels.add('màu trần');
+    else if (type === 'slab' && painted && paintUnsaved(before, after)) labels.add('màu sàn');
+    else if (type === 'wall' && painted && paintUnsaved(before, after)) labels.add('màu tường');
     else if (type === 'item') {
-      if (painted) labels.add('màu đồ đạc');
-      if (assetSrcOf(before) !== assetSrcOf(after)) labels.add('mẫu đồ đạc');
+      if (painted && paintUnsaved(before, after)) labels.add('màu đồ đạc');
+      if (assetSrcOf(before) !== assetSrcOf(after) && !saveableModelSrc(assetSrcOf(after))) labels.add('mẫu đồ đạc');
     } else if (type === 'door' || type === 'window') {
       if (painted) labels.add('màu cửa');
       if (type === 'door' && differs(before, after, DOOR_FIELDS)) labels.add('kiểu cửa');

@@ -196,7 +196,7 @@ const SAVEABLE_REFS: ReadonlySet<string> = new Set([
   'library:preset-glass',
 ]);
 
-const saveableRef = (ref: string | undefined): ref is MaterialRef =>
+export const saveableRef = (ref: string | undefined): ref is MaterialRef =>
   ref !== undefined && MATERIAL_REF.test(ref) && SAVEABLE_REFS.has(ref);
 
 /**
@@ -241,6 +241,9 @@ const paintOf = (wall: PascalWallNode): WallPaint | null => {
 
 const SLOT_KEY = /^[a-z][a-z0-9_]{0,23}$/;
 const MODEL_SRC = /^\/items\/[a-z0-9_-]+\/model\.glb$/;
+
+/** `src` mẫu đồ ghi được vào `Furniture.model` (cùng luật với `itemFieldsOf`). */
+export const saveableModelSrc = (src: unknown): src is string => typeof src === 'string' && MODEL_SRC.test(src);
 
 /** Khe đã sơn khác khe phong cách cho (≤ 8, chỉ tham chiếu ghi được), hoặc `null`. */
 const itemSlotsFieldOf = (item: PascalItemNode): Readonly<Record<string, MaterialRef>> | null => {

@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { SCENE_STYLES } from '@/lib/pascal/sceneStyles';
 import { toPascalScene } from '@/lib/pascal/toPascal';
 import type { PascalNode, PascalScene } from '@/lib/pascal/types';
 import { useStore } from '@/store';
@@ -108,26 +109,36 @@ const patched = (type: string, patch: Record<string, unknown>): PascalScene => {
   return { nodes: { ...SCENE.nodes, [node.id]: { ...node, ...patch } as PascalNode }, rootNodeIds: SCENE.rootNodeIds };
 };
 
-describe('unsavedPascalEdits (v3 V3 — phần sửa máy chủ chưa nhận)', () => {
-  it('không đổi gì, hay chỉ đổi thứ lưu được (độ dày tường, màu sàn, màu tường): không báo', () => {
+/** Tham chiếu ghi được (phong cách dùng) và một màu ngoài luật ghi của `toSpatial`. */
+const SAVEABLE = SCENE_STYLES['am-ap'].wall.interior;
+const FOREIGN = 'library:khong-co-trong-thu-vien';
+
+describe('unsavedPascalEdits (v3 V3 + W3e — phần sửa máy chủ chưa nhận)', () => {
+  it('không đổi gì, hay chỉ đổi thứ lưu được (độ dày tường, sơn sàn/tường/đồ bằng tham chiếu ghi được): không báo', () => {
     expect(unsavedPascalEdits(SCENE, SCENE)).toEqual([]);
     expect(unsavedPascalEdits(SCENE, thickened())).toEqual([]);
-    expect(unsavedPascalEdits(SCENE, patched('slab', { slots: { surface: 'library:wood_oak' } }))).toEqual([]);
-    expect(unsavedPascalEdits(SCENE, patched('wall', { slots: { interior: 'library:paint_white' } }))).toEqual([]);
+    expect(unsavedPascalEdits(SCENE, patched('slab', { slots: { surface: SAVEABLE } }))).toEqual([]);
+    expect(unsavedPascalEdits(SCENE, patched('wall', { slots: { interior: SAVEABLE } }))).toEqual([]);
+    expect(unsavedPascalEdits(SCENE, patched('item', { slots: { body: SAVEABLE } }))).toEqual([]);
   });
 
   it.each([
-    ['item', { slots: { body: 'library:red' } }, 'màu đồ đạc'],
+    ['slab', { slots: { surface: FOREIGN } }, 'màu sàn'],
+    ['wall', { slots: { exterior: FOREIGN } }, 'màu tường'],
+    ['wall', { material: { preset: 'tu-pha' } }, 'màu tường'],
+    ['item', { slots: { body: FOREIGN } }, 'màu đồ đạc'],
+    ['item', { materialPreset: 'tu-pha' }, 'màu đồ đạc'],
     ['door', { hingesSide: 'right' }, 'kiểu cửa'],
+    ['door', { slots: { frame: SAVEABLE } }, 'màu cửa'],
   ])('%s đổi %j → "%s"', (type, patch, label) => {
     expect(unsavedPascalEdits(SCENE, patched(type, patch))).toEqual([label]);
   });
 
-  it('đồ đạc: màu, mẫu mới, đồ thêm từ thư viện; xoá đồ bày sẵn', () => {
+  it('đồ đạc: mẫu /items/… lưu được, mẫu lạ thì báo; màu lạ trên đồ mới; xoá đồ bày sẵn', () => {
     const item = { id: 'item_new', type: 'item', asset: { src: '/items/sofa/model.glb' } } as unknown as PascalNode;
     const added: PascalScene = { nodes: { ...SCENE.nodes, item_new: item }, rootNodeIds: SCENE.rootNodeIds };
-    const painted: PascalScene = {
-      nodes: { ...added.nodes, item_new: { ...item, slots: { body: 'library:red' }, asset: { src: '/items/chair/model.glb' } } as unknown as PascalNode },
+    const swapped: PascalScene = {
+      nodes: { ...added.nodes, item_new: { ...item, slots: { body: FOREIGN }, asset: { src: 'blob:http://x/ghe.glb' } } as unknown as PascalNode },
       rootNodeIds: SCENE.rootNodeIds,
     };
     const dressed: PascalScene = {
@@ -135,8 +146,9 @@ describe('unsavedPascalEdits (v3 V3 — phần sửa máy chủ chưa nhận)', 
       rootNodeIds: SCENE.rootNodeIds,
     };
 
-    expect(unsavedPascalEdits(SCENE, added)).toEqual(['mẫu đồ đạc']);
-    expect(unsavedPascalEdits(added, painted)).toEqual(['màu đồ đạc', 'mẫu đồ đạc']);
+    expect(unsavedPascalEdits(SCENE, added)).toEqual([]);
+    expect(unsavedPascalEdits(added, swapped)).toEqual(['màu đồ đạc', 'mẫu đồ đạc']);
+    expect(unsavedPascalEdits(SCENE, swapped)).toEqual(['màu đồ đạc', 'mẫu đồ đạc']);
     expect(unsavedPascalEdits(dressed, SCENE)).toEqual(['xoá đồ bày sẵn']);
   });
 });
@@ -178,7 +190,7 @@ describe('usePascalEdits', () => {
     let ok = true;
 
     await act(async () => {
-      ok = await result.current.onSceneCommit(patched('item', { slots: { body: 'library:red' } }));
+      ok = await result.current.onSceneCommit(patched('item', { slots: { body: FOREIGN } }));
     });
 
     expect(ok).toBe(false);

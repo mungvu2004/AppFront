@@ -23,7 +23,7 @@ import {
 const session = vi.hoisted(() => ({ ok: true }));
 const detail = vi.hoisted(() => ({ fail: false, levels: 1, walls: 1, role: 'engineer' as ProjectRole }));
 /** Kết quả `onSceneCommit` giả: `reason` khác `null` = có lời từ chối qua `onRejected`. */
-const commit = vi.hoisted(() => ({ ok: true, reason: null as string | null, unsaved: [] as string[] }));
+const commit = vi.hoisted(() => ({ ok: true, reason: null as string | null, unsaved: [] as string[], notices: [] as string[] }));
 /** Bộ tự lưu tầng giả: trạng thái engine, tầng bị khối, câu khối. */
 const saver = vi.hoisted(() => ({
   state: 'saved' as string,
@@ -87,10 +87,19 @@ vi.mock('@/lib/pascal/toPascal', async (importOriginal) => {
 });
 
 vi.mock('@/screens/viewer/PascalViewer/usePascalEdits', () => ({
-  usePascalEdits: ({ onRejected, onUnsaved }: { onRejected: (reason: string) => void; onUnsaved: (labels: readonly string[]) => void }) => ({
+  usePascalEdits: ({
+    onRejected,
+    onUnsaved,
+    onNotice,
+  }: {
+    onRejected: (reason: string) => void;
+    onUnsaved: (labels: readonly string[]) => void;
+    onNotice: (message: string) => void;
+  }) => ({
     onSceneCommit: () => {
       if (commit.reason !== null) onRejected(commit.reason);
       if (commit.unsaved.length > 0) onUnsaved(commit.unsaved);
+      commit.notices.forEach(onNotice);
 
       return Promise.resolve(commit.ok);
     },
@@ -107,6 +116,7 @@ describe('usePascalProjectBridge', () => {
     commit.ok = true;
     commit.reason = null;
     commit.unsaved = [];
+    commit.notices = [];
     saver.state = 'saved';
     saver.blocked = null;
     saver.saveNow.calls = 0;
@@ -268,5 +278,24 @@ describe('usePascalProjectBridge', () => {
     const { result: viewer } = renderHook(() => usePascalProjectBridge('p1'));
     await waitFor(() => expect(viewer.current.readOnly).toBe(true));
     expect(viewer.current.save).toBeUndefined();
+  });
+
+  it('W3e — lời báo của lượt sửa (vách mới): lên thẻ như câu chưa lưu, mỗi câu một lần mỗi phiên', async () => {
+    const split = 'Phòng "Khách" có vách mới — mở màn Phòng để tách.';
+    const { result } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    commit.notices = [split];
+    await act(async () => {
+      await result.current.onSave({ nodes: {}, rootNodeIds: [] });
+    });
+    expect(result.current.save?.notice).toBe(split);
+
+    act(() => result.current.save?.dismissNotice());
+    commit.notices = [split, 'Phòng "Ngủ" có vách mới — mở màn Phòng để tách.'];
+    await act(async () => {
+      await result.current.onSave({ nodes: {}, rootNodeIds: [] });
+    });
+    expect(result.current.save?.notice).toBe('Phòng "Ngủ" có vách mới — mở màn Phòng để tách.');
   });
 });

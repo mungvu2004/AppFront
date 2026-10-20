@@ -143,6 +143,12 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
     fresh.forEach((item) => noticed.current.add(item));
     setNotice(unsavedNoticeOf(fresh));
   }, []);
+  // Lời báo của lượt sửa (vd. vách mới cần tách phòng — W3d): mỗi câu một lần mỗi phiên, nối vào thẻ.
+  const onNotice = useCallback((message: string) => {
+    if (noticed.current.has(message)) return;
+    noticed.current.add(message);
+    setNotice((current) => (current === null ? message : `${current} ${message}`));
+  }, []);
   const dismissNotice = useCallback(() => setNotice(null), []);
 
   /* Tải lại tầng bị khối: bỏ bản chưa lưu được của tầng ấy rồi nạp lại trang — cảnh Pascal chỉ đọc
@@ -175,6 +181,7 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
     readOnly,
     onRejected,
     onUnsaved,
+    onNotice,
     ...(session.user?.id === undefined ? {} : { actorId: session.user.id }),
   });
 
