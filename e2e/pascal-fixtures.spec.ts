@@ -45,6 +45,10 @@ const SCALE_BANNER_TEXT = 'Bản vẽ chưa hiệu chỉnh tỷ lệ';
 const CONSOLE_ERROR_ALLOW: readonly RegExp[] = [];
 /** Loại node mà bài so số với `toPascalScene` (bỏ site/building/level của editor). */
 const COUNTED_TYPES = ['wall', 'door', 'window', 'slab', 'zone', 'item', 'ceiling'] as const;
+/** Cảnh báo vendor `viewer/src/lib/asset-url.ts` khi gặp `asset://` (chỉ thang còn dùng). */
+const STAIR_ASSET_WARN = /^Use resolveAssetUrl\(\) for asset:\/\/ URLs, not resolveCdnUrl\(\)$/u;
+/** Sai số góc quay của C8. */
+const YAW_TOLERANCE_DEG = 0.5;
 
 declare global {
   interface Window {
@@ -54,6 +58,7 @@ declare global {
       itemLoadFailures(): Record<string, unknown>;
       materials(): { slabs: Record<string, string | undefined>; walls: Record<string, unknown> };
       shading(): string | undefined;
+      items(): { id: string; position?: number[]; rotation?: number[]; src?: string }[];
     };
   }
 }
@@ -66,7 +71,9 @@ const expectedOf = (fixture: Fixture) => {
   for (const node of Object.values(scene.nodes)) counts[node.type] = (counts[node.type] ?? 0) + 1;
   const pick = Object.fromEntries(COUNTED_TYPES.map((t) => [t, counts[t] ?? 0]));
   const slabs = Object.fromEntries(graph.rooms.map((room) => [toPascalId('slab', room.id), floorMaterialOf(room)]));
-  return { counts: pick, slabs, hasStair: graph.furniture.some((f) => f.kind === 'stair') };
+  const stairs = new Set(graph.furniture.filter((f) => f.kind === 'stair').map((f) => toPascalId('item', f.id)));
+  const rotationDeg = Object.fromEntries(graph.furniture.map((f) => [toPascalId('item', f.id), f.rotationDeg]));
+  return { counts: pick, slabs, stairs, rotationDeg };
 };
 
 /** Gom tín hiệu C1/C2/C3 từ trước lượt goto đầu tiên. */
@@ -144,10 +151,14 @@ for (const [name, make] of CASES) {
 
     // C1
     expect.soft(seen.pageErrors, 'C1 pageerror').toEqual([]);
-    expect.soft(seen.assetLogs, 'C1 asset:// / Asset not found').toEqual([]);
+    // Khoảng hở đã biết (T14): chưa có mô hình thang, item thang giữ `asset://appfront/stair`, nên
+    // Pascal cảnh báo `resolveCdnUrl` (câu không kèm id) và ghi hỏng tải cho đúng các id thang.
+    // Item khác dùng `asset://` thì C8 bắt (src phải là `/items/...`).
+    const assetLogs = seen.assetLogs.filter((t) => !(expected.stairs.size > 0 && STAIR_ASSET_WARN.test(t)));
+    expect.soft(assetLogs, 'C1 asset:// / Asset not found (trừ cảnh báo của thang)').toEqual([]);
     expect.soft(seen.consoleErrors, 'C1 console.error ngoài allow-list').toEqual([]);
-    // C2 — cầu thang dùng `asset://appfront/stair` (khoảng hở đã biết, T14) nên loại khỏi C2.
-    const failures = Object.keys(state.failures).filter((k) => !(expected.hasStair && /stair/iu.test(k)));
+    // C2 — loại các id item thang (khoảng hở trên).
+    const failures = Object.keys(state.failures).filter((id) => !expected.stairs.has(id));
     expect.soft(failures, 'C2 itemLoadFailures').toEqual([]);
     expect.soft([...seen.badAssets], 'C2 .glb/.ktx2/.webp trả text/html').toEqual([]);
     // C3
@@ -176,7 +187,10 @@ test('C4: F1-ext dưới CSP của nginx — 0 vi phạm, dựng xong', async ({
   });
   await page.addInitScript(() => {
     document.addEventListener('securitypolicyviolation', (e) => {
-      console.error(`Refused to (securitypolicyviolation) ${e.violatedDirective} ${e.blockedURI}`);
+      // Nguồn + dòng + mẫu để lần ra mã gây vi phạm (T22).
+      console.error(
+        `Refused to (securitypolicyviolation) ${e.violatedDirective} ${e.blockedURI} @ ${e.sourceFile}:${e.lineNumber}:${e.columnNumber} ${e.sample}`,
+      );
     });
   });
   const api = await open(page, fixture);
@@ -185,8 +199,27 @@ test('C4: F1-ext dưới CSP của nginx — 0 vi phạm, dựng xong', async ({
   expect(api.unexpected).toEqual([]);
 });
 
-test.fixme('C8: F2 góc quay item khớp −rotationDeg', async () => {
-  // Đầu dò chưa có `nodes(type)` trả {id, position, rotation}; createProbe.ts không thuộc T18.
+test('C8: F2 góc quay item khớp −rotationDeg, mô hình từ /items/', async ({ page }) => {
+  test.setTimeout(120_000);
+  const fixture = fixtureF2();
+  const expected = expectedOf(fixture);
+  await open(page, fixture);
+  await waitForScene(page, expected.counts);
+
+  const items = await page.evaluate(() => window.__pascalProbe!.items());
+  expect(items.length, 'C8 có item').toBeGreaterThan(0);
+  const offYaw: string[] = [];
+  const offSrc: string[] = [];
+  for (const item of items) {
+    const yawDeg = ((item.rotation?.[1] ?? Number.NaN) * 180) / Math.PI;
+    // Lệch góc quy về (−180°, 180°]: yaw + rotationDeg phải ≈ 0.
+    const diff = ((((yawDeg + (expected.rotationDeg[item.id] ?? Number.NaN)) % 360) + 540) % 360) - 180;
+    if (!(Math.abs(diff) <= YAW_TOLERANCE_DEG)) offYaw.push(`${item.id}: yaw ${yawDeg.toFixed(1)}°`);
+    // Thang: khoảng hở đã biết (xem C1/C2).
+    if (!expected.stairs.has(item.id) && !item.src?.startsWith('/items/')) offSrc.push(`${item.id}: ${item.src}`);
+  }
+  expect.soft(offYaw, `C8 yaw == −rotationDeg ±${YAW_TOLERANCE_DEG}°`).toEqual([]);
+  expect.soft(offSrc, 'C8 asset.src là /items/... (trừ thang)').toEqual([]);
 });
 
 test.fixme('C13: F1 sửa độ dày tường → PUT hợp lệ → tải lại vẫn giữ', async () => {

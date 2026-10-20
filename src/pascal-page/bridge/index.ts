@@ -55,6 +55,10 @@ async function loadProject(projectId: string): Promise<string> {
   const client = createAppApiClient();
   const project = await readProjectDetail(client.projects, { projectId });
   const document = await readProjectGraph(client.spatial, { projectId });
+  // Chưa có tường lẫn phòng thì Pascal chỉ mở lưới trống không lời nào — báo trạng thái rỗng (C15).
+  if (document.graph.walls.length === 0 && document.graph.rooms.length === 0) {
+    throw new BridgeLoadError(BRIDGE_EMPTY_ERROR);
+  }
   const session = getSessionSnapshot();
 
   loadProjectGraph(toProjectSpatial(project, document, { roles: session.roles, userId: session.user?.id ?? null }));

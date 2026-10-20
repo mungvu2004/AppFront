@@ -23,6 +23,15 @@ export interface PascalProbe {
   setCamera(pos: Vec3, target: Vec3, fov: number | 'top-ortho'): void;
   /** Hình học tường (m, toạ độ tầng) cho C9. */
   walls(): ProbeWall[];
+  /** Vị trí, góc quay (rad) và mô hình của item cho C8. */
+  items(): ProbeItem[];
+}
+
+export interface ProbeItem {
+  id: string;
+  position: Vec3 | undefined;
+  rotation: Vec3 | undefined;
+  src: string | undefined;
 }
 
 export interface ProbeWall {
@@ -43,6 +52,9 @@ interface LooseNode {
   readonly end?: [number, number];
   readonly thickness?: number;
   readonly height?: number;
+  readonly position?: Vec3;
+  readonly rotation?: Vec3;
+  readonly asset?: { readonly src?: string };
 }
 
 type CameraPose =
@@ -95,6 +107,8 @@ export const createPascalProbe = ({ useScene, useViewer, sceneRegistry, emitter 
         thickness: n.thickness,
         height: n.height,
       })),
+    items: () =>
+      entriesOf('item').map(([id, n]) => ({ id, position: n.position, rotation: n.rotation, src: n.asset?.src })),
   };
 };
 

@@ -19,7 +19,7 @@ const fakeStores = () => {
           w2: { type: 'wall', start: [0, 0], end: [4, 0], thickness: 0.2, height: 2.7 },
           s1: { type: 'slab', slots: { surface: 'scene:wood' } },
           s2: { type: 'slab', materialPreset: 'tile' },
-          i1: { type: 'item' },
+          i1: { type: 'item', position: [1, 0, 2], rotation: [0, -1.5, 0], asset: { src: '/items/bed/model.glb' } },
         },
       }),
     },
@@ -78,6 +78,13 @@ describe('pascal probe', () => {
     expect(install('?probe=1', stores)?.walls()).toEqual([
       { id: 'w1', start: [0, 0], end: [0, 0], thickness: undefined, height: undefined },
       { id: 'w2', start: [0, 0], end: [4, 0], thickness: 0.2, height: 2.7 },
+    ]);
+  });
+
+  it('items() trả vị trí, góc quay và mô hình của item (C8)', () => {
+    const { stores } = fakeStores();
+    expect(install('?probe=1', stores)?.items()).toEqual([
+      { id: 'i1', position: [1, 0, 2], rotation: [0, -1.5, 0], src: '/items/bed/model.glb' },
     ]);
   });
 });

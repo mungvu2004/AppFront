@@ -7,10 +7,10 @@ import { toPascalScene } from '@/lib/pascal/toPascal';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
-import { BRIDGE_LOAD_ERROR, BRIDGE_SESSION_ERROR, usePascalProjectBridge } from '..';
+import { BRIDGE_EMPTY_ERROR, BRIDGE_LOAD_ERROR, BRIDGE_SESSION_ERROR, usePascalProjectBridge } from '..';
 
 const session = vi.hoisted(() => ({ ok: true }));
-const detail = vi.hoisted(() => ({ fail: false, role: 'engineer' as ProjectRole }));
+const detail = vi.hoisted(() => ({ fail: false, empty: false, role: 'engineer' as ProjectRole }));
 
 vi.mock('@/routes/sessionSetup', () => ({ startAppSession: () => Promise.resolve(session.ok) }));
 vi.mock('@/api/appClient', async (importOriginal) => ({
@@ -22,7 +22,7 @@ vi.mock('@/hooks/useAutosave', () => ({ useFloorLayerAutosave: () => ({}) }));
 vi.mock('@/api/floorLayerGraph', () => ({
   readProjectDetail: () =>
     detail.fail ? Promise.reject(new Error('mạng hỏng')) : Promise.resolve({ id: 'p1', name: 'Nhà mẫu' }),
-  readProjectGraph: () => Promise.resolve({}),
+  readProjectGraph: () => Promise.resolve({ graph: detail.empty ? { walls: [], rooms: [] } : { walls: [{}], rooms: [] } }),
   toProjectSpatial: () => ({}),
 }));
 vi.mock('@/store/projectHydration', () => ({
@@ -42,6 +42,7 @@ describe('usePascalProjectBridge', () => {
   beforeEach(() => {
     session.ok = true;
     detail.fail = false;
+    detail.empty = false;
     detail.role = 'engineer';
     /* eslint-disable-next-line local/no-direct-set -- đưa kho về rỗng giữa các bài */
     useStore.setState({ spatial: null, userRoles: [] });
@@ -76,6 +77,14 @@ describe('usePascalProjectBridge', () => {
 
     await waitFor(() => expect(result.current.status).toBe('error'));
     expect(result.current.error).toBe(BRIDGE_LOAD_ERROR);
+  });
+
+  it('chưa có tường lẫn phòng: trạng thái rỗng (C15)', async () => {
+    detail.empty = true;
+    const { result } = renderHook(() => usePascalProjectBridge('p1'));
+
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    expect(result.current.error).toBe(BRIDGE_EMPTY_ERROR);
   });
 
   it('phiên hết hạn: lỗi phiên', async () => {
