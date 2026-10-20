@@ -12,6 +12,7 @@ import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
 import type { Furniture, SpatialGraph } from '@/domain/spatial/types';
 
 import { fixtureF1, fixtureF2 } from '../__fixtures__';
+import { isGeneratedLightId } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
 import { toSpatialGraph } from '../toSpatial';
 import type { PascalItemNode } from '../types';
@@ -19,7 +20,7 @@ import type { PascalItemNode } from '../types';
 const graphOf = (doc: unknown): SpatialGraph => SpatialGraphDocumentSchema.parse(doc).graph as SpatialGraph;
 
 const itemsOf = (graph: SpatialGraph): PascalItemNode[] =>
-  Object.values(toPascalScene(graph).scene.nodes).filter((n): n is PascalItemNode => n.type === 'item');
+  Object.values(toPascalScene(graph).scene.nodes).filter((n): n is PascalItemNode => n.type === 'item' && !isGeneratedLightId(n.id));
 
 const ROOT = resolve(__dirname, '../../../..');
 const modelExists = (src: string): boolean =>

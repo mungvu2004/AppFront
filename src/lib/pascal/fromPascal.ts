@@ -59,6 +59,7 @@ import { err, ok, type Result } from '@/lib/http/types';
 import { sameValue } from './diff';
 import type { PascalCommit } from './guard';
 import { appFrontIdOf, bodyOfPascalId } from './ids';
+import { isGeneratedLightId } from './sceneDressing';
 import { toSpatialGraph, type PascalIdBook } from './toSpatial';
 import type { PascalNodeType, PascalScene } from './types';
 
@@ -111,6 +112,8 @@ const KIND_OF_NODE_TYPE: Readonly<Record<PascalNodeType, EntityKind | null>> = {
   // lượt sửa một tấm sàn phải đi qua chính cái phòng của nó.
   slab: null,
   item: 'furniture',
+  // Trần dựng ra từ đường bao phòng, như sàn: không sở hữu đối tượng nào.
+  ceiling: null,
   'structural-grid': 'axis',
 };
 
@@ -137,6 +140,11 @@ const kindOfNode = (
   scene: PascalScene,
   idBook: PascalIdBook,
 ): EntityKind | 'structural' | null => {
+  // Đèn trần do AppFront sinh ra: không phải đồ đạc, kể cả khi đã bị xoá khỏi cảnh.
+  if (isGeneratedLightId(nodeId)) {
+    return 'structural';
+  }
+
   const node = scene.nodes[nodeId];
 
   if (node !== undefined) {

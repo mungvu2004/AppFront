@@ -19,6 +19,7 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { diffScenes, isEmptyDiff } from '../diff';
 import { createPascalEditCommand, PASCAL_COMMAND_TYPE } from '../fromPascal';
 import { appFrontIdOf, BUILDING_NODE_ID } from '../ids';
+import { isGeneratedLightId } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
 import type { PascalIdBook } from '../toSpatial';
 import type { PascalNode, PascalScene, PascalZoneNode } from '../types';
@@ -547,7 +548,7 @@ describe('diffScenes', () => {
 });
 
 describe('đổi mẫu đồ đạc', () => {
-  const itemNode = Object.values(baseScene.nodes).find((node) => node.type === 'item');
+  const itemNode = Object.values(baseScene.nodes).find((node) => node.type === 'item' && !isGeneratedLightId(node.id));
 
   it('mẫu mới đi qua lệnh, và khứ hồi giữ nguyên mẫu', () => {
     if (itemNode === undefined || itemNode.type !== 'item') throw new Error('cảnh nền phải có đồ đạc');
@@ -571,7 +572,7 @@ describe('đổi mẫu đồ đạc', () => {
     const swapped = { ...sample, furniture: [{ ...first, model }, ...rest] };
 
     const back = toPascalScene(swapped).scene;
-    const node = Object.values(back.nodes).find((n) => n.type === 'item');
+    const node = Object.values(back.nodes).find((n) => n.type === 'item' && !isGeneratedLightId(n.id));
 
     expect(node?.type === 'item' ? node.asset.id : null).toBe('catalog-sofa-2');
   });

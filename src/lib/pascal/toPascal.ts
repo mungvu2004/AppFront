@@ -39,7 +39,7 @@ import { FURNITURE_KIND_LABELS, WALL_KIND_LABELS } from '@/lib/commands/business
 
 import { CATALOG_MODELS, VARIANT_MODEL, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
-import { floorMaterialOf, SCENE_MATERIALS, wallDressingOf } from './sceneDressing';
+import { ceilingNodesOf, floorMaterialOf, SCENE_MATERIALS, wallDressingOf } from './sceneDressing';
 import type {
   AppFrontOrigin,
   PascalDoorNode,
@@ -701,6 +701,13 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
       nodes[node.id] = node;
       adopt(levelNodeId, node.id);
     }
+
+    /* Trần + đèn sinh từ phòng; đèn là con của trần (trần tự giữ `children`). */
+    const [ceiling, light] = ceilingNodesOf(room, levelNodeId);
+
+    nodes[ceiling.id] = ceiling;
+    nodes[light.id] = light;
+    adopt(levelNodeId, ceiling.id);
   }
 
   for (const furniture of graph.furniture) {

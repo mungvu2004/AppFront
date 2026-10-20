@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import type { Furniture } from '@/domain/spatial/types';
 
+import { isGeneratedLightId } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
 import { toSpatialGraph } from '../toSpatial';
 import type { PascalItemNode, PascalNode, PascalScene } from '../types';
@@ -19,7 +20,7 @@ const firstOfType = <T extends PascalNode['type']>(
   scene: PascalScene,
   type: T,
 ): Extract<PascalNode, { type: T }> => {
-  const found = Object.values(scene.nodes).find((node) => node.type === type);
+  const found = Object.values(scene.nodes).find((node) => node.type === type && !isGeneratedLightId(node.id));
 
   if (found === undefined) throw new Error(`Cảnh mẫu không có node loại "${type}".`);
 

@@ -553,6 +553,10 @@ const collectLevelChildren = (
         break;
       }
 
+      // Trần (và đèn con của nó) sinh ra từ phòng như sàn; lượt về không mang gì mới.
+      case 'ceiling':
+        break;
+
       default:
         collector.skip(
           child.id,

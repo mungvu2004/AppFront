@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 import type { Furniture, Level, Room, SpatialGraph, Wall } from '@/domain/spatial/types';
 
 import { BUILDING_NODE_ID, SITE_NODE_ID } from '../ids';
+import { isGeneratedLightId } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
 import { toSpatialGraph } from '../toSpatial';
 import type {
@@ -87,7 +88,12 @@ const graphOf = (parts: Partial<SpatialGraph>): SpatialGraph => ({
  */
 const entityNodeCount = (scene: PascalScene): number =>
   Object.values(scene.nodes).filter(
-    (node) => node.type !== 'site' && node.type !== 'building' && node.type !== 'slab',
+    (node) =>
+      node.type !== 'site' &&
+      node.type !== 'building' &&
+      node.type !== 'slab' &&
+      node.type !== 'ceiling' &&
+      !isGeneratedLightId(node.id),
   ).length;
 
 describe('toPascalScene — đường hỏng', () => {

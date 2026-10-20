@@ -77,7 +77,9 @@ describe('toPascalScene — lượt đi', () => {
     expect(countOf('zone')).toBe(SAMPLE_ROOM_COUNT);
     // Mỗi phòng có HAI node: `zone` là khối không gian, `slab` là mặt sàn thật.
     expect(countOf('slab')).toBe(SAMPLE_ROOM_COUNT);
-    expect(countOf('item')).toBe(SAMPLE_FURNITURE_COUNT);
+    // Mỗi phòng thêm một đèn âm trần sinh ra (`item`, con của `ceiling`).
+    expect(countOf('item')).toBe(SAMPLE_FURNITURE_COUNT + SAMPLE_ROOM_COUNT);
+    expect(countOf('ceiling')).toBe(SAMPLE_ROOM_COUNT);
   });
 
   it('đặt tên tường theo loại và số thứ tự trong tầng, không lộ mã nội bộ', () => {

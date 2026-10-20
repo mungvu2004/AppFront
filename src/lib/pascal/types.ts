@@ -291,7 +291,27 @@ export interface PascalItemNode extends PascalNodeCommon {
     readonly offset?: PascalVec3;
     readonly rotation?: PascalVec3;
     readonly scale?: PascalVec3;
+    /** Chỗ gắn của mô hình; đèn trần sinh ra mang `'ceiling'` (`sceneDressing.ts`). */
+    readonly attachTo?: 'wall' | 'wall-side' | 'ceiling';
+    /** Đèn âm trần: lún vào mặt trần thay vì treo dưới nó. */
+    readonly recessed?: boolean;
+    /** Khối điều khiển + hiệu ứng (đèn) của Pascal, chép nguyên từ bảng mô hình. */
+    readonly interactive?: unknown;
   };
+}
+
+/**
+ * Trần của một phòng; con của tầng. `height` vắng = theo đỉnh tầng
+ * (`core/schema/nodes/ceiling.ts`). `children` là id các đèn gắn trần.
+ */
+export interface PascalCeilingNode extends PascalNodeCommon {
+  readonly type: 'ceiling';
+  readonly children: readonly PascalNodeId[];
+  readonly polygon: readonly PascalPoint2[];
+  readonly holes: readonly (readonly PascalPoint2[])[];
+  readonly holeMetadata: readonly never[];
+  readonly autoFromWalls: boolean;
+  readonly slots: Readonly<Record<string, string>>;
 }
 
 /**
@@ -307,7 +327,7 @@ export interface PascalStructuralGridNode extends PascalNodeCommon {
   readonly showEndBubble: boolean;
 }
 
-/** Một node bất kỳ trong số tám loại AppFront viết ra. */
+/** Một node bất kỳ trong số các loại AppFront viết ra. */
 export type PascalNode =
   | PascalSiteNode
   | PascalBuildingNode
@@ -318,6 +338,7 @@ export type PascalNode =
   | PascalZoneNode
   | PascalSlabNode
   | PascalItemNode
+  | PascalCeilingNode
   | PascalStructuralGridNode;
 
 /** Loại node AppFront viết ra, đọc từ chính hợp trên. */

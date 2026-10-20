@@ -11,8 +11,18 @@
  */
 
 import type { Room, RoomFinish, RoomUsage, Wall } from '@/domain/spatial/types';
+import { millimetres, millimetresToMetres } from '@/domain/units/types';
 
-import type { PascalSceneMaterial, PascalWallNode } from './types';
+import { CATALOG_MODELS, modelSrcOf, thumbnailOf } from './furnitureCatalog';
+import { bodyOfPascalId, toPascalId } from './ids';
+import type {
+  PascalCeilingNode,
+  PascalItemNode,
+  PascalNodeId,
+  PascalPoint2,
+  PascalSceneMaterial,
+  PascalWallNode,
+} from './types';
 
 const flat = (id: PascalSceneMaterial['id'], name: string, color: string, roughness: number): PascalSceneMaterial => ({
   id,
@@ -79,4 +89,84 @@ export const wallDressingOf = (
     skirting: { enabled: true, sides: 'interior', height: 0.1, proud: 0.015, profile: 'flat' },
     crown: { enabled: true, sides: 'interior', height: 0.05, proud: 0.02, profile: 'flat' },
   };
+};
+
+/** Thân id của đèn trần sinh ra: `item_LIGHT-<id phòng>`. Không phải id AppFront hợp lệ. */
+const GENERATED_LIGHT_PREFIX = 'LIGHT-';
+
+/** Node này (còn hay đã xoá) là đèn trần AppFront tự sinh — không bao giờ thành đồ đạc. */
+export const isGeneratedLightId = (nodeId: PascalNodeId): boolean =>
+  bodyOfPascalId(nodeId).startsWith(GENERATED_LIGHT_PREFIX);
+
+const metresOf = (valueMm: number): number => millimetresToMetres(millimetres(valueMm));
+
+/** Bật sẵn đèn: khối `interactive` chép sâu, công tắc `default: true`. */
+const lightInteractiveOf = (interactive: unknown): unknown => {
+  const copy = structuredClone(interactive) as { controls?: { kind: string; default?: unknown }[] };
+
+  for (const control of copy.controls ?? []) {
+    if (control.kind === 'toggle') control.default = true;
+  }
+
+  return copy;
+};
+
+/**
+ * Trần + một đèn âm trần cho mỗi phòng, như nhà mẫu ở trang đăng nhập có trần và đèn ấm.
+ * Trần là con của tầng, cao theo đỉnh tầng (không khai `height`); đèn là con của trần,
+ * `y = 0` trong khung trần, `x/z` theo toạ độ tầng (`placement-strategies.ts:740-757`).
+ * Cả hai sinh ra từ phòng nên lượt về bỏ qua chúng (`toSpatial` chỉ đọc con của tầng,
+ * `fromPascal` coi chúng là kết cấu). Chưa có công năng ban công nên phòng nào cũng có đèn.
+ */
+export const ceilingNodesOf = (
+  room: Pick<Room, 'id' | 'outline'>,
+  levelNodeId: PascalNodeId,
+): readonly [PascalCeilingNode, PascalItemNode] => {
+  const ceilingId = toPascalId('ceiling', room.id);
+  const lightId = toPascalId('item', `${GENERATED_LIGHT_PREFIX}${room.id}`);
+  const polygon = room.outline.map((point): PascalPoint2 => [metresOf(point.x), metresOf(point.y)]);
+  // ponytail: trung bình đỉnh, không phải trọng tâm diện tích — phòng chữ L đèn lệch chút.
+  const centre = (axis: 0 | 1): number => polygon.reduce((sum, point) => sum + point[axis], 0) / polygon.length;
+  const model = CATALOG_MODELS['recessed-light'];
+
+  if (model === undefined) throw new Error('bảng mô hình thiếu recessed-light');
+
+  return [
+    {
+      object: 'node',
+      id: ceilingId,
+      type: 'ceiling',
+      parentId: levelNodeId,
+      children: [lightId],
+      polygon,
+      holes: [],
+      holeMetadata: [],
+      autoFromWalls: false,
+      slots: { surface: PLASTER },
+    },
+    {
+      object: 'node',
+      id: lightId,
+      type: 'item',
+      parentId: ceilingId,
+      metadata: { generated: 'light' },
+      position: [centre(0), 0, centre(1)],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      asset: {
+        id: model.folder,
+        category: 'lighting',
+        name: 'Đèn âm trần',
+        thumbnail: thumbnailOf(model.folder),
+        src: modelSrcOf(model.folder),
+        dimensions: model.dimensions,
+        offset: model.offset,
+        rotation: model.rotation,
+        scale: [1, 1, 1],
+        attachTo: 'ceiling',
+        recessed: true,
+        interactive: lightInteractiveOf(model.interactive),
+      },
+    },
+  ];
 };
