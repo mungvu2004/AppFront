@@ -36,17 +36,20 @@ export const SCENE_PALETTE = {
 } as const;
 
 /**
- * Màu của dáng render ấm (`src/pascal-page/renderLook.ts`) — đè chủ đề `night` của Pascal cho
- * gần nhà 3D ở trang đăng nhập (nền #2b2a28). `clay*` là màu đất sét khi tô `solid`.
+ * Màu của dáng render ấm (`src/pascal-page/renderLook.ts`) — đè chủ đề `night` của Pascal.
+ * Phông xám trung tính sáng như ảnh chụp sản phẩm (FE3D-FIX-004 thẻ R; trước là nâu tối
+ * #36332f/#2a2825/#3d3a36): tường sáng vẫn nổi rõ trên nền, mặt đất tối hơn phông một bậc để
+ * nhà "đứng" trên đế. Đèn chính ấm, mặt dưới bán cầu nâu gỗ (ánh dội sàn).
+ * `clay*` là màu đất sét khi tô `solid`.
  */
 export const RENDER_LOOK_PALETTE = {
-  background: '#36332f',
-  sky: '#2a2825',
-  ground: '#3d3a36',
+  background: '#8d8c89',
+  sky: '#a3a29f',
+  ground: '#74726e',
   ambient: '#fff1e0',
   hemiSky: '#fff6ea',
-  hemiGround: '#2b2a28',
-  key: '#fff4e6',
+  hemiGround: '#6b5640',
+  key: '#ffe9cf',
   fill: '#ffd9a3',
   clayWall: '#e8e0d2',
   clayFloor: '#c9b79c',
@@ -56,9 +59,10 @@ export const RENDER_LOOK_PALETTE = {
 } as const;
 
 // Màu phẳng của 5 phong cách cảnh (`sceneStyles.ts`): sơn tường, tủ bếp, sứ, chậu cây, ánh đèn.
+// Tường ngoài xám của ấm áp/tối giản sẫm hơn (than xám) để khối nhà kiểu dollhouse đọc rõ.
 export const STYLE_PALETTE = {
   amApWall: '#f5f3ef',
-  amApExterior: '#8c8a86',
+  amApExterior: '#5f5d5a',
   amApCabinet: '#ebe7e0',
   hienDaiWall: '#f7f8f8',
   hienDaiExterior: '#b9bcbf',
@@ -67,7 +71,7 @@ export const STYLE_PALETTE = {
   goAmExterior: '#7d6650',
   goAmCabinet: '#8a5a36',
   toiGianWall: '#d9d9d7',
-  toiGianExterior: '#7f807f',
+  toiGianExterior: '#626362',
   toiGianCabinet: '#c4c5c3',
   sangTrongWall: '#7d756c',
   sangTrongExterior: '#3a3735',

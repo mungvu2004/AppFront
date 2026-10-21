@@ -4,6 +4,11 @@
  * gọi một lần trước khi vẽ, truyền đúng hai đối tượng thật của Pascal; tệp này không nhập
  * `@pascal-app/*` để vitest chạy được. Giữ `appearance: 'dark'` (đèn trong nhà chỉ bật ở chủ
  * đề tối). Màu ở `RENDER_LOOK_PALETTE`, số ở đây.
+ *
+ * Hai bậc chất lượng (FE3D-FIX-004 thẻ R): có WebGPU thì Pascal dựng chuỗi hậu kỳ (SSGI có
+ * GI dội + AO, bloom, vignette — `scripts/pascal-render.mjs`), nên ánh sáng nền hạ thấp cho góc
+ * tối và vũng đèn ấm, phần dội để GI lo. Không có WebGPU (WebGL2) thì không có hậu kỳ: không
+ * GI/AO bù, nên giữ ánh sáng nền cao hơn để nhà không tối om.
  */
 import { RENDER_LOOK_PALETTE as C } from '@/lib/pascal/scenePalette';
 
@@ -24,27 +29,40 @@ export interface RenderLookSsgi {
   sliceCount: number;
   stepCount: number;
   radius: number;
+  giIntensity: number;
 }
 
 // Đèn chính cao, chếch như nắng chiều (đổ bóng); đèn phụ ấm, yếu, phía đối diện.
 const KEY_POSITION: [number, number, number] = [12, 30, 16];
 const FILL_POSITION: [number, number, number] = [-12, 12, -10];
-// SSGI: 2 lát × 6 bước, bán kính 2 m — AO rõ hơn ở góc tường, tốn thêm ≈ 2–3 ms (Q2).
-const SSGI = { sliceCount: 2, stepCount: 6, radius: 2 } as const;
+
+/** Số của từng bậc; `high` = có WebGPU (hậu kỳ chạy), `low` = WebGL2 (không hậu kỳ). */
+export const RENDER_LOOK_TIERS = {
+  high: { ambient: 0.2, hemi: 0.2, key: 2.3, fill: 0.25, exposure: 1 },
+  low: { ambient: 0.35, hemi: 0.35, key: 2, fill: 0.3, exposure: 0.95 },
+} as const;
+
+// SSGI: 2 lát × 8 bước, bán kính 2 m; GI 0.6 cho ánh dội từ sàn gỗ. GI của Pascal không qua
+// khử nhiễu (chỉ AO qua), nên giữ GI vừa phải thay vì tăng lát. Chỉ chạy khi có WebGPU.
+export const RENDER_LOOK_SSGI = { sliceCount: 2, stepCount: 8, radius: 2, giIntensity: 0.6 } as const;
+
+/** Trình duyệt có WebGPU không (cùng phép thử Pascal dùng để bật hậu kỳ). */
+export const hasWebGpu = (): boolean => typeof navigator !== 'undefined' && 'gpu' in navigator;
 
 /** Đè tại chỗ; gọi lại nhiều lần cũng ra cùng giá trị. */
-export function applyRenderLook(theme: RenderLookTheme, ssgi: RenderLookSsgi): void {
+export function applyRenderLook(theme: RenderLookTheme, ssgi: RenderLookSsgi, webgpu = hasWebGpu()): void {
+  const t = RENDER_LOOK_TIERS[webgpu ? 'high' : 'low'];
   Object.assign(theme, {
     background: C.background,
     backgroundSky: C.sky,
     ground: C.ground,
-    ambient: { color: C.ambient, intensity: 0.5 },
-    hemi: { sky: C.hemiSky, ground: C.hemiGround, intensity: 0.45 },
+    ambient: { color: C.ambient, intensity: t.ambient },
+    hemi: { sky: C.hemiSky, ground: C.hemiGround, intensity: t.hemi },
     lights: [
-      { position: [...KEY_POSITION], color: C.key, intensity: 1.6, castShadow: true },
-      { position: [...FILL_POSITION], color: C.fill, intensity: 0.3 },
+      { position: [...KEY_POSITION], color: C.key, intensity: t.key, castShadow: true },
+      { position: [...FILL_POSITION], color: C.fill, intensity: t.fill },
     ],
-    toneMappingExposure: 0.86,
+    toneMappingExposure: t.exposure,
     clayTints: {
       wall: C.clayWall,
       floor: C.clayFloor,
@@ -53,5 +71,5 @@ export function applyRenderLook(theme: RenderLookTheme, ssgi: RenderLookSsgi): v
       glazing: C.clayGlazing,
     },
   } satisfies RenderLookTheme);
-  Object.assign(ssgi, SSGI);
+  Object.assign(ssgi, RENDER_LOOK_SSGI);
 }

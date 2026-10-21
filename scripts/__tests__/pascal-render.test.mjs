@@ -34,7 +34,29 @@ describe('pascal-render', () => {
   it('ném lỗi kèm tên tệp khi chuỗi gốc không còn hoặc lặp', () => {
     const id = path.join(PACKAGES, 'viewer/src/components/viewer/scene-environment.tsx');
     assert.throws(() => transformRender('const X = 1', id), /scene-environment\.tsx/);
-    assert.throws(() => transformRender('const ENV_INTENSITY_DARK = 0.2\nconst ENV_INTENSITY_DARK = 0.2', id), /2 lần/);
+    const imp = "import * as THREE from 'three/webgpu'";
+    assert.throws(() => transformRender(`${imp}\n${imp}`, id), /2 lần/);
+  });
+
+  it('hỏng khi neo của dáng render (bloom, RoomEnvironment, bóng) không còn', () => {
+    const at = (f) => path.join(PACKAGES, 'viewer/src/components/viewer', f);
+    const drop = (f, anchor) => readFileSync(at(f), 'utf8').replace(anchor, '// gone');
+    assert.throws(() => transformRender(drop('post-processing.tsx', 'const withOverlay = mix('), at('post-processing.tsx')), /withOverlay.*0 lần/);
+    assert.throws(() => transformRender(drop('post-processing.tsx', '  contrast: 1.05,'), at('post-processing.tsx')), /contrast.*0 lần/);
+    assert.throws(() => transformRender(drop('scene-environment.tsx', 'export function SceneEnvironment() {'), at('scene-environment.tsx')), /SceneEnvironment.*0 lần/);
+    assert.throws(() => transformRender(drop('lights.tsx', 'const MAX_SHADOW_INTENSITY = 0.75'), at('lights.tsx')), /MAX_SHADOW_INTENSITY.*0 lần/);
+  });
+
+  it('dáng render: bloom + vignette chỉ ở rendered, RoomEnvironment chỉ chủ đề tối có WebGPU', () => {
+    const at = (f) => path.join(PACKAGES, 'viewer/src/components/viewer', f);
+    const post = transformRender(readFileSync(at('post-processing.tsx'), 'utf8'), at('post-processing.tsx'));
+    assert.match(post, /import \{ bloom \} from 'three\/addons\/tsl\/display\/BloomNode\.js'/);
+    assert.match(post, /if \(shading === 'rendered' && !transparentBackground\) \{\s+const lampGlow = bloom\(/);
+    assert.match(post, /const withOverlay = mix\(looked, overlayColor\.rgb, overlayColor\.a\)/);
+    const env = transformRender(readFileSync(at('scene-environment.tsx'), 'utf8'), at('scene-environment.tsx'));
+    assert.match(env, /\(appearance === 'dark' && buildRoomEnvironment\(gl\)\) \|\| buildGradientSky\(\)/);
+    assert.match(env, /!\('gpu' in navigator\)\) return null/);
+    assert.match(env, /const ENV_INTENSITY_DARK = 0\.6/);
   });
 
   it('giữ CRLF', () => {
