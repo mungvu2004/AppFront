@@ -2,3 +2,142 @@
  * Lớp đè giao diện vendor cho thanh bên (ray, lưới công cụ, cây, cài đặt) và bảng thuộc tính node.
  * Chỉ dùng token --pa-* của pascal-theme.css. Chỉ đổi phần nhìn.
  */
+
+/* Vùng: thanh bên trái (.bg-sidebar) và thẻ thuộc tính nổi ([class*="bg-sidebar/95"]). */
+
+/* ---- Ray biểu tượng ---- */
+.bg-sidebar { background: var(--pa-surface); }
+.bg-sidebar [class*="border-border/"] { border-color: var(--pa-border); }
+.bg-sidebar [class*="bg-border/"] { background: var(--pa-border); }
+.bg-sidebar button.h-11.w-11 {
+  border-radius: var(--pa-radius-lg);
+  color: var(--pa-text-2);
+  box-shadow: none;
+  transition: background-color 120ms var(--pa-ease), color 120ms var(--pa-ease);
+}
+.bg-sidebar button.h-11.w-11:hover { background: var(--pa-sunken); color: var(--pa-text); }
+.bg-sidebar button.h-11.w-11[aria-pressed="true"] { background: var(--pa-selected); color: var(--pa-accent); }
+
+/* ---- Tab Structure/Furnish/Zones (thanh nền tối cứng) ---- */
+.bg-sidebar [class*="bg-[#2C2C2E]"],
+.bg-sidebar [class*="bg-[#252527]"],
+.bg-sidebar [class*="bg-[#343437]"],
+[class*="bg-sidebar/95"] [class*="bg-[#2C2C2E]"],
+[class*="bg-sidebar/95"] [class*="bg-[#252527]"],
+[class*="bg-sidebar/95"] [class*="bg-[#343437]"] { background: var(--pa-sunken); }
+.bg-sidebar [class*="bg-[#3e3e3e]"],
+[class*="bg-sidebar/95"] [class*="bg-[#3e3e3e]"] {
+  background: var(--pa-surface);
+  box-shadow: var(--pa-shadow-rest);
+  --tw-ring-color: var(--pa-border);
+}
+
+/* ---- Hover/nền mờ trắng-đen -> token ---- */
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) :is([class*="hover:bg-white/"], [class*="hover:bg-black/"], [class*="hover:bg-accent/"], [class*="hover:bg-[#3e3e3e]"], button[class*="hover:bg-accent"]):hover {
+  background: var(--pa-sunken);
+  color: var(--pa-text);
+}
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) :is([class*="bg-white/"]:not([class*="hover:bg-white/"]), [class*="bg-black/"]:not([class*="hover:bg-black/"])) {
+  background: var(--pa-sunken);
+}
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) [class*="border-white/"] { border-color: var(--pa-border); }
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) [class*="text-white/"] { color: var(--pa-text-2); }
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) [class*="bg-muted/"]:not([class*="hover:"]) { background: var(--pa-sunken); }
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) .text-muted-foreground { color: var(--pa-text-2); }
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) [class*="divide-border"] > :not(:first-child),
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) .border-t,
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) .border-b { border-color: var(--pa-border); }
+
+/* ---- Lưới công cụ ---- */
+.bg-sidebar button.aspect-square {
+  background: var(--pa-surface);
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-radius-lg);
+  opacity: 1;
+  color: var(--pa-text-2);
+  box-shadow: none;
+  transition: background-color 120ms var(--pa-ease), border-color 120ms var(--pa-ease);
+}
+.bg-sidebar button.aspect-square:hover { background: var(--pa-sunken); color: var(--pa-text); }
+.bg-sidebar button.aspect-square[class*="ring-primary"] {
+  background: var(--pa-selected);
+  border-color: var(--pa-accent);
+  color: var(--pa-accent);
+}
+.bg-sidebar button.aspect-square { padding: 2px; }
+.bg-sidebar button.aspect-square span > span { font-size: 11px; line-height: 16px; font-weight: 500; }
+
+/* ---- Nút trong panel (Button outline/secondary) ---- */
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) button[class*="border-input"],
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) button[class*="bg-secondary"] {
+  background: var(--pa-surface);
+  color: var(--pa-text);
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-radius);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: none;
+  min-width: 0;
+  transition: background-color 120ms var(--pa-ease);
+}
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) button[class*="border-input"]:hover,
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) button[class*="bg-secondary"]:hover { background: var(--pa-sunken); }
+.bg-sidebar button[class*="border-input"].justify-start { padding-inline: 8px; gap: 6px; white-space: nowrap; }
+.bg-sidebar button[class*="border-input"].justify-start > span,
+.bg-sidebar button[class*="border-input"].justify-start { overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- Ô nhập / chọn ---- */
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) :is(input:not([type=checkbox]):not([type=range]), select, textarea, [role=combobox]) {
+  background: var(--pa-surface);
+  color: var(--pa-text);
+  border-color: var(--pa-border-control);
+  border-radius: var(--pa-radius);
+}
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) :is(input, select, textarea, [role=combobox])::placeholder { color: var(--pa-text-3); }
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) summary { border-color: var(--pa-border); border-radius: var(--pa-radius); }
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) :is(fieldset, [class*="rounded-md border"]) { border-color: var(--pa-border); }
+
+/* ---- Tiêu đề nhóm ---- */
+.bg-sidebar label.uppercase,
+.bg-sidebar h4 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--pa-text-2);
+}
+.bg-sidebar label.uppercase { text-transform: uppercase; }
+
+/* ---- Công tắc, thanh trượt ---- */
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) [role=switch][data-state=checked] { background: var(--pa-accent); }
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) [role=switch][data-state=unchecked] { background: var(--pa-border-control); }
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) [role=slider] { border-color: var(--pa-accent); background: var(--pa-surface); }
+
+/* ---- Focus ---- */
+:is(.bg-sidebar, [class*="bg-sidebar/95"]) :is(button, a, summary, [role=switch], [role=slider], [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--pa-focus);
+}
+
+/* ---- Thẻ thuộc tính node nổi ---- */
+[class*="bg-sidebar/95"] {
+  background: var(--pa-surface);
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-radius-lg);
+  box-shadow: var(--pa-shadow-float);
+  backdrop-filter: none;
+  color: var(--pa-text);
+}
+[class*="bg-sidebar/95"] h2 { font-size: 15px; font-weight: 500; color: var(--pa-text); }
+[class*="bg-sidebar/95"] button.h-7.w-7 {
+  width: 28px; height: 28px;
+  background: transparent;
+  color: var(--pa-text-2);
+  border-radius: var(--pa-radius);
+  transition: background-color 120ms var(--pa-ease), color 120ms var(--pa-ease);
+}
+[class*="bg-sidebar/95"] button.h-7.w-7:hover { background: var(--pa-sunken); color: var(--pa-text); }
+[class*="bg-sidebar/95"] button.h-7.w-7[aria-pressed="true"] { background: var(--pa-selected); color: var(--pa-accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-sidebar *, [class*="bg-sidebar/95"] * { transition-duration: 0.01ms !important; }
+}
