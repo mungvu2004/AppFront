@@ -32,7 +32,7 @@ function BackLink({ href, projectName }: Omit<BackToProjectCardProps, 'save'>) {
   return (
     <a
       {...(projectName !== undefined ? { 'aria-label': `Về dự án: ${projectName}` } : {})}
-      className={`${FOCUS_OUT} inline-flex h-8 max-w-56 items-center gap-1.5 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-2.5 font-medium text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] motion-reduce:transition-none @max-[800px]/appbar:min-w-0! @max-[800px]/appbar:px-2`}
+      className={`${FOCUS_OUT} inline-flex h-8 max-w-56 items-center gap-1.5 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-2.5 font-medium text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] motion-reduce:transition-none @max-[800px]/appbar:min-w-8! @max-[800px]/appbar:px-2`}
       href={href}
     >
       <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
@@ -162,7 +162,7 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
             {VIEWER_STEP + 1}
           </span>
           <span className="hidden @min-[1200px]/appbar:inline">{current.label}</span>
-          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)]" />
+          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[720px]/appbar:hidden" />
         </summary>
         <ol aria-label="Danh sách bước" className="absolute top-full left-0 z-50 mt-1 min-w-48 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-overlay)]">
           {PROJECT_STEPS.map((step, index) => (

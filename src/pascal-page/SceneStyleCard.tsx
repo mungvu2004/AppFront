@@ -78,7 +78,7 @@ export function SceneStyleCard({ saveNow, flushAutosaves, reload, source = curre
       >
         <Palette aria-hidden="true" className="h-4 w-4 shrink-0 @min-[1300px]/appbar:hidden" />
         <span className="hidden @min-[1300px]/appbar:inline">Phong cách</span>
-        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)]" />
+        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[720px]/appbar:hidden" />
       </summary>
       <ul
         aria-label="Danh sách phong cách"
