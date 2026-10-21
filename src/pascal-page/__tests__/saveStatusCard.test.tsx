@@ -69,7 +69,7 @@ describe('SaveStatusCard (v3 V3 — trạng thái lưu thật trên trang Pascal
 
     const toast = screen.getByRole('alert');
     expect(toast).toHaveTextContent('Không lưu được: món đồ đặt lên đồ khác.');
-    expect(toast.className).toContain('text-destructive');
+    expect(toast.className).toContain('text-[var(--pa-danger)]');
   });
 
   it('BackToProjectCard: không có `save` (chỉ đọc) thì chỉ có lối về', () => {

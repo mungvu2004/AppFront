@@ -15,12 +15,12 @@ export function ScaleBanner({ projectId, readScale }: { readonly projectId: stri
   if (scale.status !== 'unresolved') return null;
   return (
     <div
-      className="pointer-events-auto absolute top-14 left-1/2 z-20 inline-flex max-w-[calc(100%-32px)] -translate-x-1/2 items-center gap-2 rounded-xl border border-border bg-background/90 px-3 py-1.5 text-foreground text-xs shadow-2xl backdrop-blur-md"
+      className="pointer-events-auto absolute top-14 left-1/2 z-20 inline-flex max-w-[calc(100%-32px)] -translate-x-1/2 items-center gap-2 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-3 py-1.5 text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)]"
       role="status"
     >
-      <TriangleAlert aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+      <TriangleAlert aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-warn)]" />
       <span>{SCALE_BANNER_TEXT}</span>
-      <a className="font-medium underline hover:text-primary" href={ROUTES.project.scale(projectId, scale.floorId)}>
+      <a className="rounded font-medium text-[var(--pa-accent)] underline outline-none hover:text-[var(--pa-accent-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pa-accent)]" href={ROUTES.project.scale(projectId, scale.floorId)}>
         Hiệu chỉnh tỷ lệ
       </a>
     </div>

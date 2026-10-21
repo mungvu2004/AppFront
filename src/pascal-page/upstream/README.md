@@ -51,3 +51,8 @@ FE3D-FIX-002:
     every corner of the plan box (floor to 3 m) lands inside 80% of the viewport below the 70 px toolbar.
 
 `next/image` / `next/link` resolve to `vendor/pascal/shims/*` (aliases in `vite.pascal.config.ts`, paths in `tsconfig.json`).
+
+pascal-polish T3 (look only, no logic change): `components/viewer-toolbar.tsx` and `components/toolbar-tooltip.tsx` are
+restyled with AppFront `--pa-*` tokens (solid float surface, sunken hover, selected+accent "on" state, inset focus ring,
+labels collapse to icon-only by the `appbar` container width, tooltip like AppFront Tooltip with an optional `shortcut`
+chip prop). Same edit pass: `../{BackToProjectCard,SceneStyleCard,LightingCard,SwapModelCard,scaleBanner}.tsx`.

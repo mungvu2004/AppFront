@@ -26,28 +26,30 @@ export function BackToProjectCard({ href, projectName, save }: BackToProjectCard
   );
 }
 
+const FOCUS_OUT = 'outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pa-accent)]';
+
 function BackLink({ href, projectName }: Omit<BackToProjectCardProps, 'save'>) {
   return (
     <a
       aria-label="Về dự án"
-      className="inline-flex h-8 max-w-56 items-center gap-1.5 rounded-xl border border-border bg-background/90 px-2.5 font-medium text-foreground text-xs shadow-2xl backdrop-blur-md hover:bg-accent"
+      className={`${FOCUS_OUT} inline-flex h-8 max-w-56 items-center gap-1.5 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-2.5 font-medium text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] motion-reduce:transition-none @max-[800px]/appbar:min-w-0! @max-[800px]/appbar:px-2`}
       href={href}
     >
       <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
-      <span className="truncate">{projectName ?? 'Về dự án'}</span>
+      <span className="truncate @max-[800px]/appbar:sr-only">{projectName ?? 'Về dự án'}</span>
     </a>
   );
 }
 
-const CARD = 'h-8 shrink-0 items-center rounded-xl border border-border bg-background/90 text-foreground text-xs shadow-2xl backdrop-blur-md';
+const CARD = 'h-8 shrink-0 items-center rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)]';
 /** Như `CARD` nhưng màu viền/chữ theo trạng thái — hai lớp màu cùng loại thì Tailwind không chắc lớp nào thắng. */
-const STATUS_CARD = 'h-8 shrink items-center rounded-xl border bg-background/90 text-xs shadow-2xl backdrop-blur-md';
+const STATUS_CARD = 'h-8 shrink items-center rounded-xl border bg-[var(--pa-surface)] text-[13px] shadow-[var(--pa-shadow-float)]';
 /**
  * FE3D-FIX-004 V10: thông báo nổi (toast) góc phải dưới thanh trên, cổng ra `body` nên không chiếm
  * chỗ trong thanh và đè được canvas (thanh nằm trong khối `clipPath` của vendor).
  */
 const TOAST =
-  'fixed top-14 right-3 z-[100] inline-flex h-8 max-w-[min(28rem,calc(100vw-2rem))] items-center gap-1.5 rounded-xl border bg-background/95 px-2.5 text-xs shadow-2xl backdrop-blur-md';
+  'fixed top-14 right-3 z-[100] inline-flex min-h-10 max-w-[min(28rem,calc(100vw-2rem))] items-center gap-3 rounded-xl border bg-[var(--pa-surface)] px-4 py-2 text-[14px] leading-[22px] shadow-[var(--pa-shadow-overlay)]';
 const SAVING_TEXT = 'Đang lưu…';
 
 /**
@@ -70,14 +72,15 @@ export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
       {text !== null && (
         <div
           aria-live="polite"
-          className={`${STATUS_CARD} inline-flex min-w-12 max-w-96 gap-2 px-2.5 @max-[1100px]/appbar:max-w-48 ${alert ? 'border-destructive text-destructive' : 'border-border text-muted-foreground'}`}
+          className={`${STATUS_CARD} inline-flex min-w-12 max-w-96 gap-2 px-2.5 @max-[1100px]/appbar:max-w-48 ${alert ? 'border-[var(--pa-danger)] text-[var(--pa-danger)]' : 'border-[var(--pa-border)] text-[var(--pa-text-2)]'}`}
           role={alert ? 'alert' : 'status'}
         >
+          <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${alert ? 'bg-[var(--pa-danger)]' : save.state === 'saving' ? 'bg-[var(--pa-warn)]' : 'bg-[var(--pa-ok)]'}`} />
           <span className="truncate" title={text}>
             {text}
           </span>
           {save.state === 'blocked' && (
-            <button className="shrink-0 rounded-lg px-1.5 font-medium text-foreground hover:bg-accent" onClick={save.onReloadFloor} type="button">
+            <button className={`${FOCUS_OUT} shrink-0 rounded-lg px-1.5 font-medium text-[var(--pa-accent)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-accent-hover)]`} onClick={save.onReloadFloor} type="button">
               Tải lại tầng
             </button>
           )}
@@ -86,14 +89,15 @@ export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
       {save.notice !== null &&
         createPortal(
           <div
-            className={`${TOAST} ${save.noticeTone === 'alert' ? 'border-destructive text-destructive' : 'border-border text-foreground'}`}
+            className={`${TOAST} ${save.noticeTone === 'alert' ? 'border-[var(--pa-danger)] text-[var(--pa-danger)]' : 'border-[var(--pa-border)] text-[var(--pa-text)]'}`}
             data-appfront-toast=""
             role={save.noticeTone === 'alert' ? 'alert' : 'status'}
           >
+            <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${save.noticeTone === 'alert' ? 'bg-[var(--pa-danger)]' : 'bg-[var(--pa-ok)]'}`} />
             <span className="truncate" title={save.notice}>
               {save.notice}
             </span>
-            <button aria-label="Đóng thông báo" className="shrink-0 rounded-lg p-0.5 hover:bg-accent" onClick={save.dismissNotice} type="button">
+            <button aria-label="Đóng thông báo" className={`${FOCUS_OUT} flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[var(--pa-text-2)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)]`} onClick={save.dismissNotice} type="button">
               <X className="h-3.5 w-3.5" />
             </button>
           </div>,
@@ -126,8 +130,8 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
           {PROJECT_STEPS.map((step, index) =>
             index === VIEWER_STEP ? (
               <li key={step.id}>
-                <span aria-current="step" className="flex h-6 items-center gap-1.5 rounded-lg bg-accent px-1.5 font-semibold" title={step.label}>
-                  <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                <span aria-current="step" className="flex h-6 items-center gap-1.5 rounded-lg bg-[var(--pa-selected)] px-1.5 font-medium text-[var(--pa-accent)]" title={step.label}>
+                  <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--pa-accent)] text-[10px] text-[var(--pa-surface)]">
                     {index + 1}
                   </span>
                   <span className="sr-only @min-[1600px]/appbar:not-sr-only">{step.label}</span>
@@ -137,7 +141,7 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
               <li key={step.id}>
                 <a
                   aria-label={`Bước ${index + 1}: ${step.label}`}
-                  className="flex h-6 w-6 items-center justify-center rounded-lg text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
+                  className={`${FOCUS_OUT} flex h-6 w-6 items-center justify-center rounded-lg text-[12px] text-[var(--pa-text-2)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)] motion-reduce:transition-none`}
                   href={step.path(projectId)}
                   title={step.label}
                 >
@@ -152,23 +156,23 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
         <summary
           aria-label={`Bước ${VIEWER_STEP + 1}/${PROJECT_STEPS.length}: ${current.label} — mở danh sách bước`}
           title={`Bước ${VIEWER_STEP + 1}: ${current.label}`}
-          className={`${CARD} flex cursor-pointer list-none gap-1.5 whitespace-nowrap px-2 font-semibold hover:bg-accent [&::-webkit-details-marker]:hidden`}
+          className={`${CARD} flex cursor-pointer list-none gap-1.5 whitespace-nowrap px-2 font-medium transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] motion-reduce:transition-none ${FOCUS_OUT} [&::-webkit-details-marker]:hidden`}
         >
-          <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+          <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--pa-accent)] text-[10px] text-[var(--pa-surface)]">
             {VIEWER_STEP + 1}
           </span>
           <span className="hidden @min-[1200px]/appbar:inline">{current.label}</span>
-          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)]" />
         </summary>
-        <ol aria-label="Danh sách bước" className="absolute top-full left-0 z-50 mt-1 min-w-48 rounded-xl border border-border bg-popover/95 p-1 text-xs shadow-2xl backdrop-blur-xl">
+        <ol aria-label="Danh sách bước" className="absolute top-full left-0 z-50 mt-1 min-w-48 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-overlay)]">
           {PROJECT_STEPS.map((step, index) => (
             <li key={step.id}>
               <a
                 {...(index === VIEWER_STEP ? { 'aria-current': 'step' as const } : {})}
-                className="flex h-7 items-center gap-2 whitespace-nowrap rounded-lg px-2 hover:bg-accent aria-[current=step]:bg-accent aria-[current=step]:font-semibold"
+                className={`${FOCUS_OUT} flex h-8 items-center gap-2 whitespace-nowrap rounded-lg px-2 text-[var(--pa-text-2)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)] aria-[current=step]:bg-[var(--pa-selected)] aria-[current=step]:font-medium aria-[current=step]:text-[var(--pa-accent)]`}
                 href={step.path(projectId)}
               >
-                <span className="w-3 text-muted-foreground">{index + 1}</span>
+                <span className="w-3 text-[var(--pa-text-3)]">{index + 1}</span>
                 {step.label}
               </a>
             </li>
@@ -178,7 +182,7 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
       {next !== undefined && (
         <a
           aria-label={`Bước tiếp theo: ${next.label}`}
-          className={`${CARD} hidden gap-1 whitespace-nowrap px-2.5 font-medium hover:bg-accent @min-[1050px]/appbar:inline-flex`}
+          className={`${FOCUS_OUT} hidden h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl border border-transparent bg-[var(--pa-accent)] px-3 font-medium text-[13px] text-[var(--pa-surface)] shadow-[var(--pa-shadow-float)] transition-colors duration-[120ms] hover:bg-[var(--pa-accent-hover)] active:bg-[var(--pa-accent-active)] motion-reduce:transition-none @min-[1050px]/appbar:inline-flex`}
           href={next.path(projectId)}
         >
           <span className="@min-[1600px]/appbar:hidden">Tiếp:</span>

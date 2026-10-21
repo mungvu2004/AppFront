@@ -2,6 +2,7 @@
 /**
  * VERBATIM copy of upstream Pascal apps/editor/components/viewer-toolbar.tsx (F:\pascal-editor, commit cd14090, MIT).
  * Edits: import paths only (`@/components/*`, `@/lib/*` -> relative).
+ * pascal-polish T3: className/presentation only (AppFront surface/selected/accent tokens, label collapse thresholds).
  */
 
 import { Icon as IconifyIcon } from '@iconify/react'
@@ -68,11 +69,22 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './toolbar-tooltip'
 // in pascal.css; the sidebar width counts, not just the viewport). "Xem trước" keeps its label down
 // to 760px; "Chia đôi" goes icon-only below 760px. Tooltips/aria-labels keep every name.
 
+// pascal-polish T3: AppFront float surface (solid, 1px border, 12px radius, float shadow); ghost buttons hover
+// to --pa-sunken, the "on" state is --pa-selected + accent text; focus ring is inset (the group clips overflow).
 const TOOLBAR_CONTAINER =
-  'inline-flex h-8 shrink-0 items-stretch overflow-hidden whitespace-nowrap rounded-xl border border-border bg-background/90 shadow-2xl backdrop-blur-md'
+  'inline-flex h-8 shrink-0 items-stretch overflow-hidden whitespace-nowrap rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] shadow-[var(--pa-shadow-float)]'
 
-const TOOLBAR_BTN =
-  'flex w-8 items-center justify-center text-muted-foreground/80 transition-colors hover:bg-white/8 hover:text-foreground/90'
+const BTN_FOCUS =
+  'outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--pa-accent)]'
+const BTN_GHOST =
+  'text-[var(--pa-text-2)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)] active:bg-[var(--pa-selected)] disabled:opacity-40 motion-reduce:transition-none ' +
+  BTN_FOCUS
+const BTN_ON = 'bg-[var(--pa-selected)] text-[var(--pa-accent)] hover:bg-[var(--pa-selected)] hover:text-[var(--pa-accent)]'
+
+const TOOLBAR_BTN = `flex w-8 items-center justify-center ${BTN_GHOST}`
+// Label wrappers: icon-only (sr-only text) below the given bar width.
+const LABEL_1300 = 'sr-only @min-[1300px]/appbar:not-sr-only'
+const LABEL_1000 = 'sr-only @min-[1000px]/appbar:not-sr-only'
 
 function requestWalkthroughPointerLock() {
   const canvas = document.querySelector<HTMLCanvasElement>('[data-pascal-viewer-3d] canvas')
@@ -119,12 +131,10 @@ const VIEW_MODES: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
     id: '2d',
     label: '2D',
     icon: (
-      <Image
-        alt=""
-        className="h-3.5 w-3.5 object-contain"
-        height={14}
-        src="/icons/blueprint.webp"
-        width={14}
+      // The blueprint icon is solid white (made for a dark bar): draw it as a mask so it follows the text colour.
+      <span
+        aria-hidden="true"
+        className="inline-block h-3.5 w-3.5 bg-current [mask:url(/icons/blueprint.webp)_center/contain_no-repeat]"
       />
     ),
   },
@@ -199,16 +209,15 @@ function ViewModeControl() {
               aria-label={mode.label}
               aria-pressed={isActive}
               className={cn(
-                'flex items-center justify-center gap-1.5 px-2.5 font-medium text-xs transition-colors',
-                isActive
-                  ? 'bg-white/10 text-foreground'
-                  : 'text-muted-foreground/70 hover:bg-white/8 hover:text-muted-foreground',
+                'flex min-w-8 items-center justify-center gap-1.5 px-2 font-medium text-[13px]',
+                BTN_GHOST,
+                isActive && BTN_ON,
               )}
               onClick={() => setViewMode(mode.id)}
               type="button"
             >
               {mode.icon}
-              <span className={mode.id === 'split' ? 'sr-only @min-[760px]/appbar:not-sr-only' : undefined}>{mode.label}</span>
+              <span className={LABEL_1000}>{mode.label}</span>
             </button>
           </ToolbarTooltip>
         )
@@ -268,8 +277,8 @@ function LevelModeToggle() {
       <button
         className={cn(
           TOOLBAR_BTN,
-          'w-auto gap-1.5 px-2.5',
-          !isDefault && 'bg-white/10 text-foreground/90',
+          'w-auto min-w-8 gap-1.5 px-2',
+          !isDefault && BTN_ON,
         )}
         onClick={cycle}
         type="button"
@@ -281,7 +290,7 @@ function LevelModeToggle() {
         ) : (
           <IconifyIcon height={14} icon="charm:stack-push" width={14} />
         )}
-        <span className="font-medium text-xs sr-only @min-[1300px]/appbar:not-sr-only">{levelModeLabels[levelMode] ?? 'Tầng: chồng'}</span>
+        <span className={`font-medium text-[13px] ${LABEL_1300}`}>{levelModeLabels[levelMode] ?? 'Tầng: chồng'}</span>
       </button>
     </ToolbarTooltip>
   )
@@ -303,16 +312,14 @@ function WallModeToggle() {
       <button
         className={cn(
           TOOLBAR_BTN,
-          'w-auto gap-1.5 px-2.5',
-          wallMode !== 'cutaway'
-            ? 'bg-white/10'
-            : 'opacity-60 grayscale hover:opacity-100 hover:grayscale-0',
+          'w-auto min-w-8 gap-1.5 px-2',
+          wallMode !== 'cutaway' ? BTN_ON : 'opacity-70 hover:opacity-100',
         )}
         onClick={cycle}
         type="button"
       >
         <Image alt="" className="h-4 w-4 object-contain" height={16} src={config.icon} width={16} />
-        <span className="font-medium text-xs sr-only @min-[1300px]/appbar:not-sr-only">{config.label}</span>
+        <span className={`font-medium text-[13px] ${LABEL_1300}`}>{config.label}</span>
       </button>
     </ToolbarTooltip>
   )
@@ -327,7 +334,7 @@ const EDGE_OPTIONS = [
   { id: 'strong', name: 'Đậm', detail: 'Đường cạnh rõ, không trong suốt' },
 ] as const satisfies readonly { id: EdgeMode; name: string; detail: string }[]
 
-const SUBMENU_CONTENT_CLASS = 'min-w-56 rounded-xl border-border/45 bg-popover/95 backdrop-blur-xl'
+const SUBMENU_CONTENT_CLASS = 'min-w-56 rounded-xl border-[var(--pa-border)] bg-[var(--pa-surface)] shadow-[var(--pa-shadow-overlay)]'
 
 function DisplayMenu() {
   const viewMode = useEditor((state) => state.viewMode)
@@ -379,17 +386,17 @@ function DisplayMenu() {
         <DropdownMenuTrigger asChild>
           <button
             aria-label="Cài đặt hiển thị"
-            className={cn(TOOLBAR_BTN, 'w-auto gap-1.5 px-2.5 text-foreground/90')}
+            className={cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1.5 px-2')}
             type="button"
           >
             <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />
-            <span className="font-medium text-xs sr-only @min-[1300px]/appbar:not-sr-only">Hiển thị</span>
+            <span className={`font-medium text-[13px] ${LABEL_1300}`}>Hiển thị</span>
           </button>
         </DropdownMenuTrigger>
       </ToolbarTooltip>
       <DropdownMenuContent
         align="end"
-        className="w-60 rounded-xl border-border/45 bg-popover/95 backdrop-blur-xl"
+        className="w-60 rounded-xl border-[var(--pa-border)] bg-[var(--pa-surface)] shadow-[var(--pa-shadow-overlay)]"
         side="bottom"
         sideOffset={8}
       >
@@ -630,7 +637,7 @@ function DisplayMenu() {
               {activeTheme.name}
             </span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="min-w-48 rounded-xl border-border/45 bg-popover/95 backdrop-blur-xl">
+          <DropdownMenuSubContent className="min-w-48 rounded-xl border-[var(--pa-border)] bg-[var(--pa-surface)] shadow-[var(--pa-shadow-overlay)]">
             {SCENE_THEMES.map((theme) => {
               const swatches = (['wall', 'roof', 'floor', 'glazing'] as const).map(
                 (role) => theme.clayTints?.[role] ?? CLAY_PALETTE[role],
@@ -678,7 +685,7 @@ function WalkthroughButton() {
         aria-label="Đi bộ trong nhà"
         className={cn(
           TOOLBAR_BTN,
-          isFirstPersonMode && 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20',
+          isFirstPersonMode && BTN_ON,
         )}
         onClick={handleClick}
         type="button"
@@ -779,12 +786,12 @@ function PreviewButton() {
     <ToolbarTooltip label="Xem trước (Esc để thoát)">
       <button
         aria-label="Xem trước"
-        className="flex items-center gap-1.5 px-2.5 font-medium text-muted-foreground/80 text-xs transition-colors hover:bg-white/8 hover:text-foreground/90"
+        className={cn('flex min-w-8 items-center justify-center gap-1.5 px-2 font-medium text-[13px]', BTN_GHOST)}
         onClick={() => useEditor.getState().setPreviewMode(true)}
         type="button"
       >
         <Eye className="h-3.5 w-3.5 shrink-0" />
-        <span aria-hidden="true" className="hidden @min-[760px]/appbar:inline">Xem trước</span>
+        <span aria-hidden="true" className="hidden @min-[1000px]/appbar:inline">Xem trước</span>
       </button>
     </ToolbarTooltip>
   )
@@ -806,7 +813,7 @@ function VRButton({
       <button
         aria-label={label}
         aria-pressed={active}
-        className={cn(TOOLBAR_BTN, active && 'bg-sky-500/15 text-sky-400 hover:bg-sky-500/20')}
+        className={cn(TOOLBAR_BTN, active && BTN_ON)}
         disabled={disabled}
         onClick={onToggle}
         type="button"
@@ -846,9 +853,9 @@ export function CommunityViewerToolbarRight({
     <div className={TOOLBAR_CONTAINER} data-appfront-bar="">
       <LevelModeToggle />
       <WallModeToggle />
-      <div className="my-1.5 w-px bg-border/50" />
+      <div className="my-1.5 w-px bg-[var(--pa-border)]" />
       <DisplayMenu />
-      <div className="my-1.5 w-px bg-border/50" />
+      <div className="my-1.5 w-px bg-[var(--pa-border)]" />
       <FitViewButton />
       <CameraButtons />
       <WalkthroughButton />
