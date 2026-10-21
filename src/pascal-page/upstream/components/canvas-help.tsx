@@ -21,9 +21,9 @@
 import { type AnyNodeId, useScene } from '@pascal-app/core'
 import { useEditor } from '@pascal-app/editor'
 import { ChevronDown, ChevronUp, CircleHelp, Mouse } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { requestTour } from '../../tour/tourLogic'
-import { clampShift } from '../lib/clamp-shift'
+import { clampShift, clearOfShift } from '../lib/clamp-shift'
 
 const OPEN_KEY = 'appfront-3d-help-open:v1'
 
@@ -166,11 +166,40 @@ const PREVIEW_HINTS: Array<[string, string]> = [
   ['Phóng to/thu nhỏ', 'Lăn chuột'],
 ]
 
+/** Floating floor card (vendor `floating-level-selector`) the centred pill must not cover on narrow canvases. */
+const FLOOR_CARD = '.absolute.top-14.left-3.z-20'
+
+/** pascal-polish: nudge the pill right while it would overlap the floor card (same rAF pattern as above). */
+function useClearOfFloorCard(ref: { current: HTMLElement | null }) {
+  useEffect(() => {
+    let frame = 0
+    const tick = () => {
+      const el = ref.current
+      const card = document.querySelector<HTMLElement>(FLOOR_CARD)?.getBoundingClientRect()
+      if (el) {
+        const prev = Number(el.dataset.clearX ?? 0)
+        const r = el.getBoundingClientRect()
+        const base = { left: r.left - prev, right: r.right - prev, top: r.top, bottom: r.bottom }
+        const x = card && card.width ? Math.round(clearOfShift(base, card)) : 0
+        if (x !== prev) {
+          el.dataset.clearX = String(x)
+          el.style.translate = x ? `${x}px 0` : ''
+        }
+      }
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [ref])
+}
+
 export function CanvasHelp() {
   const [open, setOpen] = useState(false)
   const isPreview = useEditor((state) => state.isPreviewMode)
   const isDelete = useEditor((state) => state.mode === 'delete')
   useClampActionBars()
+  const pillRef = useRef<HTMLDivElement>(null)
+  useClearOfFloorCard(pillRef)
 
   useEffect(() => setOpen(readOpen()), [])
   useEffect(() => {
@@ -189,7 +218,7 @@ export function CanvasHelp() {
     <>
       <style>{SCOPED_CSS}</style>
       <div className="appfront-canvas-help pointer-events-none absolute top-14 left-1/2 z-40 -translate-x-1/2">
-        <div className="pointer-events-auto flex flex-col items-center gap-1.5">
+        <div className="pointer-events-auto flex flex-col items-center gap-1.5" ref={pillRef}>
           {isDelete ? (
             <div
               className="pointer-events-none rounded-full bg-destructive px-4 py-1.5 font-medium text-background text-sm shadow-lg"

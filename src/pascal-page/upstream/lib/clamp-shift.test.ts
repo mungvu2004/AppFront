@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampShift } from './clamp-shift'
+import { clampShift, clearOfShift } from './clamp-shift'
 
 describe('clampShift (G5-09)', () => {
   it('leaves a bar that fits alone', () => {
@@ -19,5 +19,16 @@ describe('clampShift (G5-09)', () => {
       dx: 58,
       dy: 54,
     })
+  })
+})
+
+describe('clearOfShift (pascal-polish)', () => {
+  const card = { left: 356, right: 486, top: 56, bottom: 94 }
+  it('pushes an overlapping pill right of the card plus the gap', () => {
+    expect(clearOfShift({ left: 330, right: 690, top: 56, bottom: 88 }, card)).toBe(168)
+  })
+  it('leaves a pill that is already clear or on another row', () => {
+    expect(clearOfShift({ left: 540, right: 900, top: 56, bottom: 88 }, card)).toBe(0)
+    expect(clearOfShift({ left: 330, right: 690, top: 120, bottom: 150 }, card)).toBe(0)
   })
 })
