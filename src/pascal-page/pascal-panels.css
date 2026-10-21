@@ -114,7 +114,8 @@
 
 /* ---- Focus ---- */
 :is(.bg-sidebar, [class*="bg-sidebar/95"]) :is(button, a, summary, [role=switch], [role=slider], [tabindex]):focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
   box-shadow: var(--pa-focus);
 }
 
@@ -129,12 +130,14 @@
 }
 [class*="bg-sidebar/95"] h2 { font-size: 15px; font-weight: 500; color: var(--pa-text); }
 [class*="bg-sidebar/95"] button.h-7.w-7 {
+  position: relative;
   width: 28px; height: 28px;
   background: transparent;
   color: var(--pa-text-2);
   border-radius: var(--pa-radius);
   transition: background-color 120ms var(--pa-ease), color 120ms var(--pa-ease);
 }
+[class*="bg-sidebar/95"] button.h-7.w-7::after { content: ""; position: absolute; inset: -2px; }
 [class*="bg-sidebar/95"] button.h-7.w-7:hover { background: var(--pa-sunken); color: var(--pa-text); }
 [class*="bg-sidebar/95"] button.h-7.w-7[aria-pressed="true"] { background: var(--pa-selected); color: var(--pa-accent); }
 

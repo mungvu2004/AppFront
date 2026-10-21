@@ -12,8 +12,8 @@
   backdrop-filter: none;
 }
 .fixed.bottom-6.rounded-2xl button.h-11.w-11 {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--pa-radius);
   color: var(--pa-text-2);
   transition: background-color 120ms var(--pa-ease), color 120ms var(--pa-ease);
@@ -48,7 +48,7 @@
 }
 .fixed.bottom-6.rounded-2xl button > div.absolute.right-1.bottom-1 > span {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--pa-text-2);
 }
@@ -62,8 +62,8 @@
   backdrop-filter: none;
 }
 .absolute.top-14.left-3.z-20 button.rounded-full.h-4.w-4 {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   background: var(--pa-surface);
   border: 1px solid var(--pa-border-control);
   color: var(--pa-text-2);
@@ -180,10 +180,26 @@
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* ---- Focus bàn phím (không đụng canvas) ---- */
+/* outline trong suốt: box-shadow biến mất ở forced-colors, outline thì hiện lại */
 button:focus-visible, [role="menuitem"]:focus-visible, [role="tab"]:focus-visible,
 a:focus-visible, input:focus-visible, summary:focus-visible, [role="switch"]:focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
   box-shadow: var(--pa-focus);
+}
+.appfront-help-btn:focus-visible { box-shadow: var(--pa-focus), var(--pa-shadow-float); }
+@media (forced-colors: active) {
+  button:focus-visible, [role="menuitem"]:focus-visible, [role="tab"]:focus-visible,
+  a:focus-visible, input:focus-visible, summary:focus-visible, [role="switch"]:focus-visible,
+  :is(.bg-sidebar, [class*="bg-sidebar/95"]) :is([role=slider], [tabindex]):focus-visible { outline-color: Highlight; }
+}
+/* thao tác chạm: bỏ trễ double-tap-zoom, không áp cho canvas */
+button, [role="button"], [role="tab"], [role="menuitem"] { touch-action: manipulation; }
+/* vendor transition-all -> chỉ các thuộc tính cần, khoanh trong chrome/panel */
+:is(.bg-sidebar, [class*="bg-sidebar/95"], .fixed.bottom-6, .absolute.top-14.left-3.z-20, [data-slot]) [class*="transition-all"],
+:is(.bg-sidebar, [class*="bg-sidebar/95"], .fixed.bottom-6, .absolute.top-14.left-3.z-20)[class*="transition-all"],
+[data-slot][class*="transition-all"] {
+  transition-property: color, background-color, border-color, box-shadow, opacity;
 }
 canvas:focus-visible { outline: none; box-shadow: none; }
 @media (prefers-reduced-motion: reduce) {
