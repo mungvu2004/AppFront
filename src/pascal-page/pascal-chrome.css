@@ -2,3 +2,190 @@
  * Lớp đè giao diện vendor cho chrome nổi: thanh trên, thanh công cụ dưới, ô tầng, menu thả, popover,
  * tooltip, hộp thoại, toast. Chỉ dùng token --pa-* của pascal-theme.css. Chỉ đổi phần nhìn.
  */
+
+/* ---- Thanh công cụ dưới (ActionMenu) ---- */
+.fixed.bottom-6.rounded-2xl {
+  background: var(--pa-surface);
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-radius-lg);
+  box-shadow: var(--pa-shadow-float);
+  backdrop-filter: none;
+}
+.fixed.bottom-6.rounded-2xl button.h-11.w-11 {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--pa-radius);
+  color: var(--pa-text-2);
+  transition: background-color 120ms var(--pa-ease), color 120ms var(--pa-ease);
+}
+.fixed.bottom-6.rounded-2xl button.h-11.w-11:hover {
+  background: var(--pa-sunken);
+  color: var(--pa-text);
+}
+.fixed.bottom-6.rounded-2xl button.h-11.w-11.bg-white\/10,
+.fixed.bottom-6.rounded-2xl button.h-11.w-11[class*=" bg-blue-500"],
+.fixed.bottom-6.rounded-2xl button.h-11.w-11[class*=" bg-green-500"] {
+  background: var(--pa-selected);
+  color: var(--pa-accent);
+}
+.fixed.bottom-6.rounded-2xl button.h-11.w-11[class*=" bg-red-500/20"] {
+  background: var(--pa-danger-tint);
+  color: var(--pa-danger);
+}
+.fixed.bottom-6.rounded-2xl button.h-11.w-11.hover\:bg-white\/5:hover,
+.fixed.bottom-6.rounded-2xl button.h-11.w-11.hover\:bg-white\/10:hover {
+  background: var(--pa-sunken);
+}
+.fixed.bottom-6.rounded-2xl .bg-border { background: var(--pa-border); }
+.fixed.bottom-6.rounded-2xl .border-border\/50 { border-color: var(--pa-border); }
+/* chip phím tắt */
+.fixed.bottom-6.rounded-2xl button > div.absolute.right-1.bottom-1 {
+  background: var(--pa-sunken);
+  border: 1px solid var(--pa-border);
+  border-radius: 4px;
+  backdrop-filter: none;
+  padding: 1px 3px;
+}
+.fixed.bottom-6.rounded-2xl button > div.absolute.right-1.bottom-1 > span {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--pa-text-2);
+}
+
+/* ---- Ô tầng nổi + nút tròn ---- */
+.absolute.top-14.left-3.z-20 .rounded-xl.border {
+  background: var(--pa-surface);
+  border-color: var(--pa-border);
+  border-radius: var(--pa-radius-lg);
+  box-shadow: var(--pa-shadow-float);
+  backdrop-filter: none;
+}
+.absolute.top-14.left-3.z-20 button.rounded-full.h-4.w-4 {
+  width: 20px;
+  height: 20px;
+  background: var(--pa-surface);
+  border: 1px solid var(--pa-border-control);
+  color: var(--pa-text-2);
+  box-shadow: var(--pa-shadow-rest);
+}
+.absolute.top-14.left-3.z-20 button.rounded-full.h-4.w-4:hover {
+  background: var(--pa-selected);
+  color: var(--pa-accent);
+  border-color: var(--pa-accent);
+}
+.absolute.top-14.left-3.z-20 .rounded-lg.bg-white\/10 {
+  background: var(--pa-selected);
+  color: var(--pa-accent);
+}
+.absolute.top-14.left-3.z-20 .hover\:bg-white\/5:hover,
+.absolute.top-14.left-3.z-20 .hover\:bg-white\/10:hover { background: var(--pa-sunken); }
+.absolute.top-14.left-3.z-20 .text-muted-foreground\/70 { color: var(--pa-text-2); }
+.absolute.top-14.left-3.z-20 .text-muted-foreground\/50,
+.absolute.top-14.left-3.z-20 .text-muted-foreground\/40 { color: var(--pa-text-3); }
+
+/* ---- La bàn ---- */
+.pointer-events-auto.absolute.bottom-3.left-3.rounded-full {
+  background: var(--pa-surface);
+  border: 1px solid var(--pa-border);
+  box-shadow: var(--pa-shadow-float);
+  backdrop-filter: none;
+}
+.pointer-events-auto.absolute.bottom-3.left-3.rounded-full:hover { background: var(--pa-sunken); }
+
+/* ---- Menu thả / ngữ cảnh / popover ---- */
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"],
+[data-slot="context-menu-content"],
+[data-slot="context-menu-sub-content"],
+[data-slot="popover-content"] {
+  background: var(--pa-surface);
+  color: var(--pa-text);
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-radius-lg);
+  box-shadow: var(--pa-shadow-overlay);
+  padding: 6px;
+}
+[data-slot="dropdown-menu-item"],
+[data-slot="dropdown-menu-checkbox-item"],
+[data-slot="dropdown-menu-radio-item"],
+[data-slot="dropdown-menu-sub-trigger"],
+[data-slot="context-menu-item"],
+[data-slot="context-menu-checkbox-item"],
+[data-slot="context-menu-radio-item"],
+[data-slot="context-menu-sub-trigger"] {
+  min-height: 32px;
+  border-radius: var(--pa-radius);
+  font-size: 13px;
+  transition: background-color 120ms var(--pa-ease);
+}
+[data-slot$="-item"]:focus,
+[data-slot$="-item"][data-highlighted],
+[data-slot$="-sub-trigger"]:focus,
+[data-slot$="-sub-trigger"][data-state="open"] {
+  background: var(--pa-sunken);
+  color: var(--pa-text);
+}
+[data-slot$="-checkbox-item"] svg,
+[data-slot$="-radio-item"] svg { color: var(--pa-accent); }
+[data-slot$="-separator"] { background: var(--pa-border); }
+[data-slot$="-shortcut"], [data-slot$="-label"] { color: var(--pa-text-2); }
+[data-slot="popover-content"] .hover\:bg-white\/10:hover,
+[data-slot="popover-content"] .hover\:bg-white\/5:hover,
+[data-slot$="-content"] .hover\:bg-white\/10:hover,
+[data-slot$="-content"] .hover\:bg-white\/5:hover,
+[data-slot$="-content"] .hover\:bg-white\/8:hover { background: var(--pa-sunken); }
+
+/* ---- Tooltip ---- */
+[data-slot="tooltip-content"] {
+  background: var(--pa-text);
+  color: var(--pa-surface);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  line-height: 18px;
+  box-shadow: var(--pa-shadow-overlay);
+}
+[data-slot="tooltip-content"] > span[role="presentation"],
+[data-slot="tooltip-content"] svg { background: var(--pa-text); fill: var(--pa-text); }
+
+/* ---- Hộp thoại ---- */
+[data-slot="dialog-overlay"],
+[data-slot="alert-dialog-overlay"],
+[data-slot="sheet-overlay"] { background: var(--pa-overlay); }
+[data-slot="dialog-content"],
+[data-slot="alert-dialog-content"] {
+  background: var(--pa-surface);
+  color: var(--pa-text);
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-radius-xl);
+  box-shadow: var(--pa-shadow-modal);
+}
+[data-slot="dialog-title"], [data-slot="alert-dialog-title"] { font-size: 18px; font-weight: 600; color: var(--pa-text); }
+[data-slot="dialog-description"], [data-slot="alert-dialog-description"] { font-size: 13px; color: var(--pa-text-2); }
+
+/* ---- Palette lệnh (cmdk) ---- */
+[cmdk-item] { border-radius: var(--pa-radius); min-height: 32px; }
+[cmdk-item][data-selected="true"] { background: var(--pa-sunken); color: var(--pa-text); }
+[cmdk-item] kbd, [cmdk-item] .bg-muted\/60 {
+  background: var(--pa-sunken); border-color: var(--pa-border); color: var(--pa-text-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px;
+}
+[cmdk-input-wrapper], [cmdk-input] { color: var(--pa-text); }
+
+/* ---- Thanh cuộn ---- */
+* { scrollbar-width: thin; scrollbar-color: var(--pa-border) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--pa-border); border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ---- Focus bàn phím (không đụng canvas) ---- */
+button:focus-visible, [role="menuitem"]:focus-visible, [role="tab"]:focus-visible,
+a:focus-visible, input:focus-visible, summary:focus-visible, [role="switch"]:focus-visible {
+  outline: none;
+  box-shadow: var(--pa-focus);
+}
+canvas:focus-visible { outline: none; box-shadow: none; }
+@media (prefers-reduced-motion: reduce) {
+  [data-slot], [cmdk-item], .fixed.bottom-6.rounded-2xl button { transition: none !important; animation: none !important; }
+}
