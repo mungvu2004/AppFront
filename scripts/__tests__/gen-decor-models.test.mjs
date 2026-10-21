@@ -2,7 +2,7 @@
  * Mẫu trang trí AppFront (FE3D-FIX-004 D): mọi thư mục có GLB + ảnh nhỏ, hộp bao GLB khớp dòng
  * APPFRONT_MODELS (đáy y = 0, tâm x/z), khe vật liệu đúng tên, và bộ sinh thủ tục cho ra đúng byte cũ.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { NodeIO, getBounds } from '@gltf-transform/core';
@@ -44,4 +44,21 @@ describe('gen-decor-models', () => {
     expect(thumb.subarray(8, 12).toString()).toBe('WEBP');
     if (SLOTS[folder]) expect(doc.getRoot().listMaterials().map((m) => m.getName()).sort()).toEqual(SLOTS[folder]);
   });
+
+  // CSP (connect-src không có blob:): ảnh nhúng trong GLB bị GLTFLoader biến thành blob: URL rồi fetch -> vi phạm.
+  // Ảnh phải là tệp cạnh model.glb (uri tương đối), BIN chỉ còn hình học (không byte mồ côi).
+  it.each(readdirSync(OUT_DIR).filter((f) => existsSync(join(OUT_DIR, f, 'model.glb'))))(
+    '%s: ảnh GLB là uri tương đối tới tệp có thật, không bufferView, BIN gọn',
+    (folder) => {
+      const glb = readFileSync(join(OUT_DIR, folder, 'model.glb'));
+      const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8'));
+      for (const img of json.images ?? []) {
+        expect(img.bufferView, `${folder}/${img.name}`).toBeUndefined();
+        expect(img.uri).toMatch(/^[\w.-]+\.webp$/u);
+        expect(existsSync(join(OUT_DIR, folder, img.uri)), `${folder}/${img.uri}`).toBe(true);
+      }
+      const used = (json.bufferViews ?? []).reduce((n, v) => n + v.byteLength, 0);
+      expect(json.buffers?.[0]?.byteLength ?? 0).toBeLessThanOrEqual(used + 3 * (json.bufferViews?.length ?? 0));
+    },
+  );
 });

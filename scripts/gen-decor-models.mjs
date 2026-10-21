@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { Document, NodeIO, getBounds } from '@gltf-transform/core';
+import { Document, Format, NodeIO, getBounds } from '@gltf-transform/core';
 import { ALL_EXTENSIONS, KHRDracoMeshCompression } from '@gltf-transform/extensions';
 import { center, dedup, draco, prune, simplify, textureCompress, weld } from '@gltf-transform/functions';
 import draco3d from 'draco3dgltf';
@@ -211,12 +211,40 @@ const statsOf = (doc) => {
   return { tris, size: b.max.map((v, i) => Math.round((v - b.min[i]) * 1000) / 1000), min: b.min, max: b.max };
 };
 
+/**
+ * GLB whose images are sibling files (`<name>.webp` next to model.glb), not bufferViews.
+ * Embedded images make GLTFLoader fetch `blob:` URLs, which nginx CSP `connect-src` forbids;
+ * a relative `uri` resolves against the GLB url (`/pascal/items/<folder>/`), same origin.
+ */
+const glbWithExternalImages = async (io, doc, dir) => {
+  for (const t of doc.getRoot().listTextures()) t.setURI(`${t.getName()}.webp`);
+  const { json, resources } = await io.writeJSON(doc, { format: Format.GLTF, basename: 'model' });
+  if (json.buffers?.length !== 1) throw new Error(`expected 1 buffer, got ${json.buffers?.length}`);
+  for (const img of json.images ?? []) writeFileSync(join(dir, img.uri), resources[img.uri]);
+  const bin = Buffer.from(resources[json.buffers[0].uri]);
+  delete json.buffers[0].uri;
+  const pad = (b, fill) => Buffer.concat([b, Buffer.alloc((4 - (b.length % 4)) % 4, fill)]);
+  const jsonChunk = pad(Buffer.from(JSON.stringify(json)), 0x20);
+  const binChunk = pad(bin, 0);
+  const head = Buffer.alloc(12);
+  head.writeUInt32LE(0x46546c67, 0); // 'glTF'
+  head.writeUInt32LE(2, 4);
+  head.writeUInt32LE(12 + 8 + jsonChunk.length + 8 + binChunk.length, 8);
+  const chunk = (data, type) => {
+    const h = Buffer.alloc(8);
+    h.writeUInt32LE(data.length, 0);
+    h.writeUInt32LE(type, 4);
+    return [h, data];
+  };
+  return Buffer.concat([head, ...chunk(jsonChunk, 0x4e4f534a), ...chunk(binChunk, 0x004e4942)]);
+};
+
 const writeModel = async (io, folder, doc, label) => {
   await doc.transform(center({ pivot: 'below' }), dedup(), prune(), draco({ method: 'edgebreaker', quantizePosition: 14 }));
   doc.createExtension(KHRDracoMeshCompression).setRequired(true);
   const dir = join(OUT_DIR, folder);
   mkdirSync(dir, { recursive: true });
-  const glb = await io.writeBinary(doc);
+  const glb = doc.getRoot().listTextures().length ? await glbWithExternalImages(io, doc, dir) : await io.writeBinary(doc);
   writeFileSync(join(dir, 'model.glb'), glb);
   writeFileSync(join(dir, 'thumbnail.webp'), await thumbnailOf(label));
   const s = statsOf(doc);
