@@ -7,10 +7,11 @@ import './selfHost';
 import './probe';
 import './icons';
 import './firstOpen';
-import { acquireSceneReadOnlyLease, type SceneGraph } from '@pascal-app/core';
+import { acquireSceneReadOnlyLease, type SceneGraph, useScene } from '@pascal-app/core';
+import { CATALOG_ITEMS } from '@pascal-app/editor';
 import { loadPlugin } from '@pascal-app/core/registry';
 import { builtinPlugin } from '@pascal-app/nodes';
-import { getSceneTheme, SSGI_PARAMS } from '@pascal-app/viewer';
+import { getSceneTheme, SSGI_PARAMS, useViewer } from '@pascal-app/viewer';
 import { type ReactNode, StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -20,6 +21,7 @@ import { savePascalNow, usePascalProjectBridge } from './bridge';
 import { BackToProjectCard, ProjectStepsCard } from './BackToProjectCard';
 import { applyRenderLook } from './renderLook';
 import { SceneStyleCard } from './SceneStyleCard';
+import { SwapModelCard } from './SwapModelCard';
 import Home from './upstream/page';
 // CSS của trang (Tailwind 4, không bọc phạm vi) — bản dựng xuất thành `/assets/pascal/style.css`.
 import './pascal.css';
@@ -67,6 +69,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
           <BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} save={bridge.save} />
           <ProjectStepsCard projectId={projectId} />
           <SceneStyleCard flushAutosaves={flushAutosaves} reload={() => window.location.reload()} saveNow={savePascalNow} />
+          <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
         </>
       }
       onLoad={onLoad}

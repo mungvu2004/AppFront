@@ -56,7 +56,7 @@ import {
 } from 'lucide-react'
 import { emitter, useScene } from '@pascal-app/core'
 import Image from 'next/image'
-import { computeSceneBoundsXZ } from '../../../../vendor/pascal/packages/editor/src/lib/scene-bounds'
+import { computeSceneBoundsXZ, type SceneBoundsXZ } from '../../../../vendor/pascal/packages/editor/src/lib/scene-bounds'
 import { type ReactNode, useCallback } from 'react'
 import { flushSync } from 'react-dom'
 import { isTopDown, topViewPose } from '../lib/top-view-pose'
@@ -689,13 +689,27 @@ function WalkthroughButton() {
   )
 }
 
+/** Biên theo tường + vùng phòng (như khung mở đầu), đổi về dạng min/max của Pascal; không có thì biên của Pascal. */
+function sceneBoundsOfPlan(nodes: ReturnType<typeof useScene.getState>['nodes']) {
+  const plan = planBoundsXZ(nodes)
+  if (plan === null) return computeSceneBoundsXZ(nodes)
+  const [cx, cz] = plan.center
+  const [w, d] = plan.size
+  const bounds: SceneBoundsXZ = {
+    min: [cx - w / 2, cz - d / 2],
+    max: [cx + w / 2, cz + d / 2],
+    center: [cx, cz],
+    size: [w, d],
+  }
+  return bounds
+}
+
 /**
  * AppFront edit (P40, G5-06 / G5-07 / G5-48): frame the whole model, using the editor's own
  * `camera-controls:fit-scene` event (the one `useAutoFrame` emits after a load).
  */
 export function fitWholeModel() {
-  const nodes = useScene.getState().nodes
-  const bounds = planBoundsXZ(nodes) ?? computeSceneBoundsXZ(nodes)
+  const bounds = sceneBoundsOfPlan(useScene.getState().nodes)
   emitter.emit('camera-controls:fit-scene', bounds ? { bounds } : {})
 }
 
@@ -724,8 +738,7 @@ export function topViewToggle() {
     emitter.emit('camera-controls:top-view')
     return
   }
-  const nodes = useScene.getState().nodes
-  const bounds = planBoundsXZ(nodes) ?? computeSceneBoundsXZ(nodes)
+  const bounds = sceneBoundsOfPlan(useScene.getState().nodes)
   const aspect = window.innerWidth / Math.max(1, window.innerHeight)
   emitter.emit(
     'camera-controls:apply-pose',
