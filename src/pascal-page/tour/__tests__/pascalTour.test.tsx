@@ -5,7 +5,9 @@ import { PascalTour } from '../PascalTour';
 import { markDone, placeCard, requestTour, shouldAutoOpen, TOUR_KEY, TOUR_STEPS } from '../tourLogic';
 
 beforeEach(() => window.localStorage.clear());
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('tourLogic', () => {
   it('lần đầu bật, sau khi đánh dấu thì không', () => {

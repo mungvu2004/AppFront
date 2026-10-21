@@ -16,6 +16,7 @@ import { SpatialGraphDocumentSchema } from '../src/api/schemas/spatialGraph';
 import { fixtureF1, fixtureF2, fixtureF4, type Fixture } from '../src/lib/pascal/__fixtures__';
 import { toPascalId } from '../src/lib/pascal/ids';
 import { floorMaterialOf } from '../src/lib/pascal/sceneDressing';
+import { weldWallEnds } from '../src/lib/pascal/structureFixes';
 import { toPascalScene } from '../src/lib/pascal/toPascal';
 import type { PascalProbe } from '../src/pascal-page/createProbe';
 
@@ -97,7 +98,11 @@ for (const [name, make] of [
     const byId = new Map(walls.map((w) => [w.id, w]));
     const rows: string[] = [];
     let worst = 0;
-    for (const wall of graphOf(fixture).walls) {
+    /* V6 (78d2483a): toPascalScene dồn đầu tường gần nhau (<= min(50 mm, nửa dày)); mong đợi = tường đã dồn. */
+    const graphWalls = graphOf(fixture).walls;
+    const welded = weldWallEnds(graphWalls);
+    for (const raw of graphWalls) {
+      const wall = welded.get(raw.id) ?? raw;
       const got = byId.get(toPascalId('wall', wall.id));
       expect.soft(got, `C9 ${wall.id} có trong store`).toBeDefined();
       if (!got) continue;
