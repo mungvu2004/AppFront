@@ -64,7 +64,9 @@ const problemOf = (ref: string): string | null => {
 
 /** Khe `slot_*` của GLB → `extras.pascal_material` (tên khe như `deriveSlotId`). */
 const glbSlotRefs = (folder: string): Record<string, string> => {
-  const buf = readFileSync(resolve(ASSETS, 'items', folder, 'model.glb'));
+  // Mẫu AppFront (FE3D-FIX-004 D) nằm ở assets/appfront-items, không ở vendor.
+  const own = resolve(ROOT, 'assets/appfront-items', folder, 'model.glb');
+  const buf = readFileSync(existsSync(own) ? own : resolve(ASSETS, 'items', folder, 'model.glb'));
   const json = JSON.parse(buf.subarray(20, 20 + buf.readUInt32LE(12)).toString('utf8')) as {
     materials?: { name?: string; extras?: { pascal_material?: string } }[];
   };

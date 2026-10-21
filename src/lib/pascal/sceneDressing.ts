@@ -130,6 +130,8 @@ const SLOT_FAMILY: Readonly<Record<string, Readonly<Record<string, SlotFamily | 
   bookshelf: { body: 'wood', shelf: 'wood' },
   // Thân tủ áo vân gỗ: màu sơn tủ phẳng làm tủ cao thành khối be trơn (V5 D2).
   closet: { body: 'wood' },
+  // Đồ trang trí AppFront (gen-decor-models.mjs): vải + kim loại theo phong cách.
+  curtain: { fabric: 'fabric', metal: 'metal' },
   'coffee-table': { top: 'wood' },
   'dining-chair': { legs: 'wood', seat: 'fabric', headrest: 'fabric' },
   'dining-table': { top: 'wood' },
@@ -141,6 +143,7 @@ const SLOT_FAMILY: Readonly<Record<string, Readonly<Record<string, SlotFamily | 
   'kitchen-shelf': { cabinet: 'cabinetry', handle: 'metal' },
   'livingroom-chair': { pillow: 'fabric', cushion: 'fabric' },
   'office-table': { cabinet: 'wood', handle: 'metal' },
+  pillow: { fabric: 'fabric' },
   palm: { trunk: 'bark' },
   // Tranh: vải dệt treo tường — sứ/đá phẳng làm tranh thành tấm trắng trơn.
   picture: { picture: 'rug' },
@@ -151,7 +154,9 @@ const SLOT_FAMILY: Readonly<Record<string, Readonly<Record<string, SlotFamily | 
   shelf: { shelf: 'wood' },
   sofa: { pillow: 'fabric', cushion: 'fabric' },
   toilet: { toilet: 'ceramic' },
+  'throw-blanket': { fabric: 'fabric' },
   'tv-stand': { body: 'wood' },
+  'wall-sconce': { metal: 'metal' },
 };
 
 /** Khe đè cho mô hình ở `/items/<folder>/` theo phong cách; `undefined` = để nguyên vật liệu của GLB. */

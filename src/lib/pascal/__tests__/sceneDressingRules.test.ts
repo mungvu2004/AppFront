@@ -12,8 +12,14 @@ import type {
 } from '@/domain/spatial/types';
 
 import { doorSwingRects, rectInsidePolygon, rectOfFurniture, rectsOverlap } from '../placement';
-import { dressingOf } from '../sceneDressingRules';
-import { sceneStyleOf } from '../sceneStyles';
+import { dressingOf as allDressingOf } from '../sceneDressingRules';
+import { sceneStyleOf, type SceneStyle } from '../sceneStyles';
+
+/** Đồ trang trí AppFront (D): các ca J10 cũ chỉ xét 4 quy tắc đầu. */
+const DECOR = /^DRESS-(pillow|throw|vase|frame|curtain)-/;
+const dressingOf = (graph: SpatialGraph, style: SceneStyle): Furniture[] =>
+  allDressingOf(graph, style).filter((i) => !DECOR.test(i.id));
+const decorOf = (graph: SpatialGraph): Furniture[] => allDressingOf(graph, STYLE).filter((i) => DECOR.test(i.id));
 
 const META = { confidence: 1, source: 'human', reviewed: true } as const;
 const LEVEL = 'L-1' as const;
@@ -223,5 +229,132 @@ describe('dressingOf — tất định', () => {
 
     expect(once).toHaveLength(4);
     expect(dressingOf(graphOf([...rooms].reverse(), [...furniture].reverse()), STYLE)).toEqual(once);
+  });
+});
+
+describe('dressingOf — đồ trang trí AppFront (FE3D-FIX-004 D)', () => {
+  const bedroom = roomOf('bed', 'bedroom', 4000, 5000);
+  const living = roomOf('liv', 'livingRoom', 5000, 4000);
+  const bed = piece('bed', 'bed', 'bed', [2000, 1100], [1600, 2000], { variant: 'bed' });
+  /** Tường nằm ngang tim ở `y`, dày 200 (mặt trong của tường y = −100 là y = 0). */
+  const wallAt = (id: string, y: number, len: number): Wall =>
+    ({
+      ...META,
+      id: `W-${id}`,
+      levelId: LEVEL,
+      centreline: { start: { x: 0, y }, end: { x: len, y } },
+      thicknessMm: 200,
+      heightMm: 3000,
+      kind: 'exterior',
+      openingIds: [],
+    }) as unknown as Wall;
+  const opening = (id: string, wallId: string, kind: 'door' | 'window', offsetMm: number, widthMm: number): Opening =>
+    ({
+      ...META,
+      id: `O-${id}`,
+      wallId: `W-${wallId}`,
+      kind,
+      offsetMm,
+      widthMm,
+      heightMm: kind === 'door' ? 2100 : 1400,
+      sillHeightMm: kind === 'door' ? 0 : 900,
+      swing: 'left',
+    }) as unknown as Opening;
+
+  it('giường: 2 gối sát đầu giường (mặt quay về chân) + chăn gấp ở chân, trên mặt nệm, mẫu AppFront', () => {
+    const items = decorOf(graphOf([bedroom], [bed]));
+    expect(items.map((i) => i.id)).toEqual(['DRESS-pillow-F-bed-0', 'DRESS-pillow-F-bed-1', 'DRESS-throw-F-bed']);
+    // Đầu giường y = 100: tâm gối = 100 + 90 (đầu giường) + 75. Giường 1600 × 2000 = cỡ catalog → cao 710, nệm 0,65.
+    expect(items.slice(0, 2).map(rectOfFurniture)).toEqual([
+      { cx: 1745, cy: 265, w: 450, d: 150, rotationDeg: 0 },
+      { cx: 2255, cy: 265, w: 450, d: 150, rotationDeg: 0 },
+    ]);
+    expect(rectOfFurniture(items[2]!)).toEqual({ cx: 2000, cy: 1700, w: 1200, d: 500, rotationDeg: 0 });
+    for (const item of items) {
+      expect(item.liftMm).toBe(462);
+      expect(item.variant).toBeUndefined();
+      expect(item.slots?.fabric).toBe(STYLE.families.fabric);
+    }
+    expect(items[0]?.model).toEqual({ id: 'appfront-decor-pillow', src: '/items/pillow/model.glb' });
+    expect(items[2]?.model?.src).toBe('/items/throw-blanket/model.glb');
+  });
+
+  it('giường xoay 90°, đầu tựa tường phải: gối quay mặt về −x (+y riêng của giường), chăn ở phía chân', () => {
+    const turned = piece('bed', 'bed', 'bed', [2900, 2500], [1600, 2000], { rotationDeg: 90 });
+    const items = decorOf(graphOf([bedroom], [turned]));
+    const [p0, , blanket] = items.map(rectOfFurniture);
+    expect(p0).toMatchObject({ cx: 3735, rotationDeg: 90 });
+    expect(blanket).toMatchObject({ cx: 2900 - 1000 + 150 + 250, cy: 2500, rotationDeg: 90 });
+  });
+
+  it('sofa dài ≥ 1800: 3 gối tựa lưng; sofa ngắn: 2', () => {
+    const sofa = piece('sofa', 'chair', 'liv', [2500, 550], [2000, 900], { variant: 'sofa' });
+    const three = decorOf(graphOf([living], [sofa]));
+    expect(three.map((i) => i.id)).toEqual(['DRESS-pillow-F-sofa-0', 'DRESS-pillow-F-sofa-1', 'DRESS-pillow-F-sofa-2']);
+    // Lưng sofa ở y = 100: tâm gối = 100 + 220 + 75.
+    expect(three.map((i) => rectOfFurniture(i).cy)).toEqual([395, 395, 395]);
+    expect(three.map((i) => rectOfFurniture(i).cx)).toEqual([1970, 2500, 3030]);
+    const short = piece('sofa', 'chair', 'liv', [2500, 550], [1600, 900], { variant: 'sofa' });
+    expect(decorOf(graphOf([living], [short]))).toHaveLength(2);
+  });
+
+  it('bình gốm giữa bàn ăn và bàn phụ, nâng bằng mặt bàn; tủ đầu giường đã có đèn: không bình', () => {
+    const table = piece('dt', 'table', 'liv', [2500, 2000], [1600, 900], { variant: 'table' });
+    const side = piece('st', 'table', 'liv', [500, 3000], [450, 400], { variant: 'sideTable', heightMm: 500 });
+    const items = decorOf(graphOf([living], [table, side]));
+    expect(items.map((i) => i.id)).toEqual(['DRESS-vase-F-dt', 'DRESS-vase-F-st']);
+    expect(items[0]).toMatchObject({ variant: 'vase', centre: table.centre, liftMm: 519 });
+    expect(rectOfFurniture(items[0]!)).toMatchObject({ w: 204, d: 204 });
+    expect(items[1]).toMatchObject({ centre: side.centre, liftMm: 500 });
+
+    const ns = piece('ns1', 'table', 'bed', [925, 320], [450, 400], { variant: 'nightstand' });
+    expect(decorOf(graphOf([bedroom], [ns])).filter((i) => i.id.startsWith('DRESS-vase'))).toEqual([]);
+  });
+
+  it('khung tranh áp tường sau đầu giường, ≥ 1250 mm; tường có cửa sổ sau giường: không treo', () => {
+    const wall = wallAt('s', -100, 4000);
+    const frame = decorOf(graphOf([bedroom], [bed], [wall])).find((i) => (i.id as string) === 'DRESS-frame-F-bed');
+    expect(frame?.model?.src).toBe('/items/fancy-picture-frame/model.glb');
+    expect(rectOfFurniture(frame!)).toEqual({ cx: 2000, cy: 10, w: 604, d: 20, rotationDeg: 0 });
+    expect(frame?.liftMm).toBe(1250);
+    // Không tường sau lưng: không khung.
+    expect(decorOf(graphOf([bedroom], [bed])).some((i) => i.id.startsWith('DRESS-frame'))).toBe(false);
+    const win = opening('w', 's', 'window', 1700, 600);
+    expect(decorOf(graphOf([bedroom], [bed], [wall], [win])).some((i) => i.id.startsWith('DRESS-frame'))).toBe(false);
+  });
+
+  it('rèm hai bên cửa sổ phòng khách, áp mặt tường, quay vào phòng; cửa đi vướng thì phủ sâu hơn', () => {
+    const wall = wallAt('n', 4100, 5000);
+    const win = opening('w', 'n', 'window', 2000, 1200);
+    const items = decorOf(graphOf([living], [], [wall], [win]));
+    expect(items.map((i) => i.id)).toEqual(['DRESS-curtain-O-w-L', 'DRESS-curtain-O-w-R']);
+    expect(items.map(rectOfFurniture)).toEqual([
+      { cx: 1750, cy: 3929, w: 800, d: 102, rotationDeg: 180 },
+      { cx: 3450, cy: 3929, w: 800, d: 102, rotationDeg: 180 },
+    ]);
+    expect(items[0]).toMatchObject({ liftMm: 0, model: { src: '/items/curtain/model.glb' } });
+    expect(items[0]?.slots).toMatchObject({ fabric: STYLE.families.fabric, metal: STYLE.families.metal });
+
+    const door = opening('d', 'n', 'door', 600, 900);
+    const shifted = decorOf(graphOf([living], [], [wall], [win, door]));
+    expect(rectOfFurniture(shifted.find((i) => i.id.endsWith('-L'))!).cx).toBe(1900);
+    const swings = doorSwingRects(graphOf([living], [], [wall], [door]), LEVEL);
+    for (const item of shifted) expect(swings.some((sw) => rectsOverlap(rectOfFurniture(item), sw))).toBe(false);
+  });
+
+  it('phòng tắm có cửa sổ: không rèm; cùng đầu vào đảo thứ tự: cùng kết quả', () => {
+    const bath = roomOf('wc', 'bathroom', 2000, 2000);
+    const wall = wallAt('n', 2100, 2000);
+    expect(decorOf(graphOf([bath], [], [wall], [opening('w', 'n', 'window', 500, 800)]))).toEqual([]);
+    const sofa = piece('sofa', 'chair', 'liv', [2500, 550], [2000, 900], { variant: 'sofa' });
+    const table = piece('dt', 'table', 'liv', [2500, 2500], [1600, 900], { variant: 'table' });
+    const walls = [wallAt('s', -100, 5000), wallAt('n', 4100, 5000)];
+    const ops = [opening('w', 'n', 'window', 2000, 1200)];
+    const rooms = [living, roomOf('wc2', 'bathroom', 2000, 2000, 6000)];
+    const once = allDressingOf(graphOf(rooms, [sofa, table], walls, ops), STYLE);
+    expect(once.length).toBeGreaterThan(6);
+    expect(
+      allDressingOf(graphOf([...rooms].reverse(), [table, sofa], [...walls].reverse(), [...ops].reverse()), STYLE),
+    ).toEqual(once);
   });
 });

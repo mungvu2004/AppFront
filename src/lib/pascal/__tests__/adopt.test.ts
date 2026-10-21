@@ -66,7 +66,9 @@ describe('nhận nuôi đồ bày biện sinh ra', () => {
       expect(item.id).toMatch(/^F-/);
       expect(item).toMatchObject({ source: 'human', reviewed: false, confidence: 1, roomId });
       // W3b: variant/heightMm/liftMm theo món sinh ra; khe/mẫu chưa sơn chưa thay thì vắng.
-      for (const key of ['slots', 'model']) expect(item).not.toHaveProperty(key);
+      // Đồ trang trí AppFront (D) giữ mẫu của nó (`model` appfront-decor-*), còn khe theo phong cách thì vắng.
+      expect(item).not.toHaveProperty('slots');
+      if (!(item.model?.id ?? '').startsWith('appfront-decor-')) expect(item).not.toHaveProperty('model');
     }
 
     expect(added.some((item) => item.centre.x === Math.round(moved.position[0] * 1000))).toBe(true);

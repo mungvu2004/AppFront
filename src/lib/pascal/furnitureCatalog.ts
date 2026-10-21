@@ -14,7 +14,8 @@ export interface CatalogModel {
   readonly interactive?: unknown;
 }
 
-export const CATALOG_MODELS: Readonly<Record<string, CatalogModel>> = {
+/** Dòng chép từ catalog-items.tsx của Pascal — test bắt khớp từng trường. */
+export const VENDOR_MODELS: Readonly<Record<string, CatalogModel>> = {
   'double-bed': {
     folder: 'double-bed',
     dimensions: [1.52, 0.71, 2],
@@ -351,6 +352,52 @@ export const CATALOG_MODELS: Readonly<Record<string, CatalogModel>> = {
   },
 };
 
+/** Ánh sáng của đèn tường AppFront: nguồn sáng trong chao (khung mô hình, chưa nhân scale). */
+const SCONCE_INTERACTIVE = {
+  controls: [
+    { kind: 'toggle' },
+    { kind: 'slider', label: 'Intensity', min: 0, max: 100, unit: '%', displayMode: 'dial', default: 100 },
+  ],
+  effects: [{ kind: 'light', intensityRange: [0, 2], color: SCENE_PALETTE.catalogLight, offset: [0, 0.2, 0] }],
+};
+
+/**
+ * Mẫu riêng của AppFront (FE3D-FIX-004 D), không có dòng trong catalog Pascal: nguồn ở
+ * `assets/appfront-items/<folder>/` (sinh bằng `scripts/gen-decor-models.mjs`; 4 mẫu CC0 Poly Haven —
+ * xem LICENSES.md), `copy-pascal-assets.mjs` chép tới `/pascal/items/`. Quy ước như mẫu Pascal: mét,
+ * tâm x/z, đáy y = 0, mặt trước +z — nên offset/rotation đều 0. Kích thước = hộp bao của GLB.
+ */
+export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
+  curtain: { folder: 'curtain', dimensions: [0.8, 2.272, 0.102], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  pillow: { folder: 'pillow', dimensions: [0.45, 0.45, 0.15], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  'throw-blanket': { folder: 'throw-blanket', dimensions: [1.2, 0.057, 0.5], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  'wall-sconce': {
+    folder: 'wall-sconce',
+    dimensions: [0.15, 0.23, 0.15],
+    offset: [0, 0, 0],
+    rotation: [0, 0, 0],
+    attachTo: 'wall-side',
+    interactive: SCONCE_INTERACTIVE,
+  },
+  'ceramic-vase': { folder: 'ceramic-vase', dimensions: [0.204, 0.4, 0.204], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  'ceramic-vase-slim': {
+    folder: 'ceramic-vase-slim',
+    dimensions: [0.112, 0.414, 0.112],
+    offset: [0, 0, 0],
+    rotation: [0, 0, 0],
+  },
+  'fancy-picture-frame': {
+    folder: 'fancy-picture-frame',
+    dimensions: [0.604, 0.464, 0.02],
+    offset: [0, 0, 0],
+    rotation: [0, 0, 0],
+    attachTo: 'wall-side',
+  },
+  ottoman: { folder: 'ottoman', dimensions: [0.884, 0.624, 0.622], offset: [0, 0, 0], rotation: [0, 0, 0] },
+};
+
+export const CATALOG_MODELS: Readonly<Record<string, CatalogModel>> = { ...VENDOR_MODELS, ...APPFRONT_MODELS };
+
 /** Variant đăng nhập → model Pascal; null = không có model hợp, dùng fallback. liftMm = độ cao đặt trên sàn. */
 export const VARIANT_MODEL: Readonly<
   Record<string, { readonly folder: string; readonly liftMm?: number } | null>
@@ -378,17 +425,16 @@ export const VARIANT_MODEL: Readonly<
   stool: { folder: 'stool' },
   cabinet: { folder: 'dresser' },
   sofa: { folder: 'sofa' },
-  // Đèn tường: không có GLB đèn tường — đèn âm trần nhỏ ở độ cao đèn tường, có phát sáng.
-  sconce: { folder: 'recessed-light', liftMm: 1800 },
+  // Đèn tường AppFront (đế áp tường + chao vải), có phát sáng; đáy ở 1,8 m.
+  sconce: { folder: 'wall-sconce', liftMm: 1800 },
   tv: { folder: 'television' },
   armchair: { folder: 'livingroom-chair' },
   sideTable: { folder: 'bedside-table' },
   floorLamp: { folder: 'floor-lamp' },
-  // Không có GLB ghế băng: kệ thấp dài (kéo dài theo hộp) gần dáng nhất. null sẽ thành hộp đỏ
-  // "hỏng" của Pascal (`asset://` không tải được), còn đoán theo hộp ra sofa/cây.
-  bench: { folder: 'tv-stand' },
+  // Ghế đôn bọc vải (Poly Haven Ottoman_01, CC0) — trước đây mượn kệ TV.
+  bench: { folder: 'ottoman' },
   pendant: { folder: 'ceiling-lamp', liftMm: 1500 },
-  vase: { folder: 'cactus' },
+  vase: { folder: 'ceramic-vase' },
   lounger: { folder: 'sunbed' },
   planter: { folder: 'bush' },
   bamboo: { folder: 'indoor-plant' },

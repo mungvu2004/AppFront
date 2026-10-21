@@ -109,6 +109,8 @@ const AUDIO_TARGET = join('public', 'audios');
  */
 const ITEMS_SOURCE = join('vendor', 'pascal', 'assets', 'items');
 const ITEMS_TARGET = join('public', 'pascal', 'items');
+/** Mẫu của AppFront (không thuộc catalog Pascal): `scripts/gen-decor-models.mjs` sinh ra, giấy phép ở LICENSES.md. */
+const APPFRONT_ITEMS_SOURCE = join('assets', 'appfront-items');
 
 /** Đếm đệ quy, để dòng tổng kết nói được số thật chứ không nói "xong". */
 const countFiles = (dir) => {
@@ -236,6 +238,8 @@ const missing = referenced.filter(
 
 rmSync(ITEMS_TARGET, { force: true, recursive: true });
 cpSync(ITEMS_SOURCE, ITEMS_TARGET, { recursive: true });
+// Đồ trang trí riêng của AppFront (FE3D-FIX-004 D): mẫu sinh/CC0 ở assets/appfront-items, chép cạnh đồ của Pascal.
+cpSync(APPFRONT_ITEMS_SOURCE, ITEMS_TARGET, { recursive: true, filter: (src) => !src.endsWith('.md') });
 
 rmSync(ICON_TARGET, { force: true, recursive: true });
 cpSync(ICON_SOURCE, ICON_TARGET, { recursive: true });

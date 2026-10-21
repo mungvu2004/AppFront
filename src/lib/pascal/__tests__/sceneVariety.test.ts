@@ -127,14 +127,14 @@ describe('sceneVariety (J7)', () => {
   });
 
   it('C1: đèn tường/bình hoa/bồn cây/tre/ghế băng có mô hình riêng, không đoán theo hộp', () => {
-    expect(modelFolderOf(item('V1', 'other', 300, 200, { variant: 'sconce' }), AM_AP, 'bedroom')).toBe('recessed-light');
-    expect(modelFolderOf(item('V2', 'other', 300, 300, { variant: 'vase' }), AM_AP, 'livingRoom')).toBe('cactus');
+    expect(modelFolderOf(item('V1', 'other', 300, 200, { variant: 'sconce' }), AM_AP, 'bedroom')).toBe('wall-sconce');
+    expect(modelFolderOf(item('V2', 'other', 300, 300, { variant: 'vase' }), AM_AP, 'livingRoom')).toBe('ceramic-vase');
     expect(modelFolderOf(item('V4', 'other', 1200, 400, { variant: 'planter' }), AM_AP, 'livingRoom')).toBe('bush');
     expect(['indoor-plant', 'small-indoor-plant']).toContain(
       modelFolderOf(item('V5', 'other', 500, 500, { variant: 'bamboo' }), AM_AP, 'livingRoom'),
     );
-    expect(modelFolderOf(item('V3', 'other', 400, 1200, { variant: 'bench' }), withPrefer({}), 'bedroom')).toBe('tv-stand');
-    expect(modelFolderOf(item('V6', 'chair', 900, 2100, { variant: 'bench' }), AM_AP, 'livingRoom')).toBe('tv-stand');
+    expect(modelFolderOf(item('V3', 'other', 400, 1200, { variant: 'bench' }), withPrefer({}), 'bedroom')).toBe('ottoman');
+    expect(modelFolderOf(item('V6', 'chair', 900, 2100, { variant: 'bench' }), AM_AP, 'livingRoom')).toBe('ottoman');
   });
 
   it('sofa và bàn trà chỉ ở phòng khách', () => {
