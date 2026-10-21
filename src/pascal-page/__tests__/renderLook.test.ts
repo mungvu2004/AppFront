@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { RENDER_LOOK_PALETTE } from '@/lib/pascal/scenePalette';
 
-import { applyRenderLook, RENDER_LOOK_TIERS } from '../renderLook';
+import { applyDayLook, applyRenderLook, DAY_LOOK_TIERS, DAY_THEME_ID, RENDER_LOOK_TIERS } from '../renderLook';
 
 const nightLike = () => ({
   id: 'night',
@@ -81,5 +81,35 @@ describe('applyRenderLook', () => {
     const once = structuredClone({ theme, ssgi });
     applyRenderLook(theme, ssgi, true);
     expect({ theme, ssgi }).toEqual(once);
+  });
+});
+
+describe('applyDayLook (Ban ngày)', () => {
+  const studioLike = () => ({ ...nightLike(), id: 'studio', name: 'Studio', appearance: 'light' as const, background: '#fbfbfa' });
+
+  it.each(['high', 'low'] as const)('bậc %s: phơi sáng < 1.05, ánh sáng nền < ⅓ nắng', (tier) => {
+    const t = DAY_LOOK_TIERS[tier];
+    expect(t.exposure).toBeLessThan(1.05);
+    expect(t.ambient + t.hemi).toBeLessThan(t.key / 3);
+    expect(t.key).toBeGreaterThan(RENDER_LOOK_TIERS[tier].key); // nắng mạnh hơn đèn đêm
+  });
+
+  it('đè đèn + phơi sáng, nắng ấm đổ bóng; giữ appearance sáng (Pascal tắt đèn trong nhà) và phông của studio', () => {
+    const theme = studioLike();
+    applyDayLook(theme, true);
+    expect(DAY_THEME_ID).toBe('studio');
+    expect(theme).toMatchObject({ id: 'studio', appearance: 'light', background: '#fbfbfa' });
+    expect(theme.lights[0]).toMatchObject({ color: RENDER_LOOK_PALETTE.key, intensity: DAY_LOOK_TIERS.high.key, castShadow: true });
+    expect(theme.ambient.intensity).toBe(DAY_LOOK_TIERS.high.ambient);
+    expect(theme.hemi.intensity).toBe(DAY_LOOK_TIERS.high.hemi);
+    expect(theme.toneMappingExposure).toBe(DAY_LOOK_TIERS.high.exposure);
+    applyDayLook(theme, false);
+    expect(theme.toneMappingExposure).toBe(DAY_LOOK_TIERS.low.exposure);
+  });
+
+  it('đêm giữ appearance tối (đèn trong nhà bật)', () => {
+    const theme = nightLike();
+    applyRenderLook(theme, ssgiLike(), true);
+    expect(theme.appearance).toBe('dark');
   });
 });

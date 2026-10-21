@@ -57,6 +57,7 @@ describe('pascal-render', () => {
     assert.match(env, /\(appearance === 'dark' && buildRoomEnvironment\(gl\)\) \|\| buildGradientSky\(\)/);
     assert.match(env, /!\('gpu' in navigator\)\) return null/);
     assert.match(env, /const ENV_INTENSITY_DARK = 0\.3/);
+    assert.match(env, /const ENV_INTENSITY = 0\.8\s/);
   });
 
   it('giữ CRLF', () => {

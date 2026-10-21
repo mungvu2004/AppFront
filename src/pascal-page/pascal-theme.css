@@ -1,9 +1,10 @@
 /*
- * Áo của trang 3D theo dáng tối của AppFront (`src/styles/globals.css`, khối `html.dark`).
- * Trang này không nạp globals.css, nên mỗi giá trị là một bản chép: chú thích `= --token` nêu
- * token gốc và `__tests__/pascalTheme.test.ts` giữ hai bên khớp nhau. Pascal luôn tối (body.dark),
- * nên chỉ đè dáng tối; `body .dark` phủ cả phần tử con tự gắn lớp `dark` (specificity
- * cao hơn `.dark` của pascal.css, không cần !important). Chỉ đổi màu/bo góc/phông — bố cục giữ nguyên.
+ * Áo của trang 3D theo AppFront (`src/styles/globals.css`): khối tối chép `html.dark`, khối sáng
+ * chép `:root`. Trang này không nạp globals.css, nên mỗi giá trị là một bản chép: chú thích
+ * `= --token` nêu token gốc và `__tests__/pascalTheme.test.ts` giữ hai bên khớp nhau.
+ * Sáng hay tối theo lớp `dark` trên `<html>` (`./chromeTheme.ts`, như `useTheme` của app). Pascal
+ * tự gắn `dark` lên `<body>` và nhiều khung con, nên khối sáng phủ cả `.dark` khi `<html>` không
+ * có `dark` (specificity cao hơn khối tối, không cần !important). Chỉ đổi màu/bo góc/phông.
  */
 body.dark,
 body.dark .dark {
@@ -51,4 +52,45 @@ body.dark .dark {
      nên vô hiệu; cho chúng một chồng phông hệ thống như app. */
   --font-barlow: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-geist-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+html:not(.dark) body,
+html:not(.dark) body .dark {
+  --background: #f6f4f0; /* = --bg-app */
+  --foreground: #33322f; /* = --text-primary */
+  --card: #ffffff; /* = --bg-surface */
+  --card-foreground: #33322f; /* = --text-primary */
+  --popover: #ffffff; /* = --bg-surface */
+  --popover-foreground: #33322f; /* = --text-primary */
+  --primary: #4d6e87; /* = --accent */
+  --primary-foreground: #ffffff; /* = --bg-surface */
+  --secondary: #ffffff; /* = --bg-surface */
+  --secondary-foreground: #33322f; /* = --text-primary */
+  --muted: #f1eee8; /* = --bg-sunken */
+  --muted-foreground: #6d6a67; /* = --text-muted */
+  --accent: #edf2f6; /* = --accent-wash */
+  --accent-foreground: #33322f; /* = --text-primary */
+  --destructive: #c0685a; /* = --state-violation */
+  --border: #e3ded6; /* = --border-default */
+  --input: #8c8986; /* = --border-control */
+  --ring: #4d6e87; /* = --accent */
+  --sidebar: #ffffff; /* = --bg-surface */
+  --sidebar-foreground: #33322f; /* = --text-primary */
+  --sidebar-primary: #4d6e87; /* = --accent */
+  --sidebar-primary-foreground: #ffffff; /* = --bg-surface */
+  --sidebar-accent: #edf2f6; /* = --accent-wash */
+  --sidebar-accent-foreground: #33322f; /* = --text-primary */
+  --sidebar-border: #e3ded6; /* = --border-default */
+  --sidebar-ring: #4d6e87; /* = --accent */
+
+  /* Bóng nhạt như app; viền "kính" sáng của Pascal vô hình trên nền sáng → thay bằng viền mờ tối. */
+  --shadow-color: rgba(43, 42, 40, 0.04); /* = --shadow-color-panel */
+  --dm-hi-base: transparent;
+  --dm-hi-mid: transparent;
+  --dm-hi-high: transparent;
+  --dm-hi-peak: transparent;
+  --dm-ring-base: rgba(43, 42, 40, 0.06);
+  --dm-ring-mid: rgba(43, 42, 40, 0.08);
+  --dm-ring-high: rgba(43, 42, 40, 0.1);
+  color-scheme: light;
 }

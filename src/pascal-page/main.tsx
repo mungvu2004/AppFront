@@ -19,7 +19,9 @@ import { flushAutosaves } from '@/hooks/useAutosave';
 
 import { savePascalNow, usePascalProjectBridge } from './bridge';
 import { BackToProjectCard, ProjectStepsCard } from './BackToProjectCard';
-import { applyRenderLook } from './renderLook';
+import { syncChromeTheme } from './chromeTheme';
+import { LightingCard } from './LightingCard';
+import { applyDayLook, applyRenderLook, DAY_THEME_ID } from './renderLook';
 import { SceneStyleCard } from './SceneStyleCard';
 import { SwapModelCard } from './SwapModelCard';
 import Home from './upstream/page';
@@ -31,6 +33,10 @@ import './pascal-theme.css';
 const builtinsLoaded = loadPlugin(builtinPlugin);
 // Dáng render ấm: đè chủ đề `night` + SSGI trước khi vẽ (cả khung sửa lẫn Preview đọc chung).
 applyRenderLook(getSceneTheme('night'), SSGI_PARAMS);
+// "Ban ngày" của thẻ Ánh sáng: đè chủ đề sáng `studio` cùng cách.
+applyDayLook(getSceneTheme(DAY_THEME_ID));
+// Áo trang theo sáng/tối của AppFront (`app-theme-mode`), trước lượt vẽ đầu.
+syncChromeTheme();
 
 function Notice({ children }: { readonly children: ReactNode }) {
   return (
@@ -69,6 +75,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
           <BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} save={bridge.save} />
           <ProjectStepsCard projectId={projectId} />
           <SceneStyleCard flushAutosaves={flushAutosaves} reload={() => window.location.reload()} saveNow={savePascalNow} />
+          <LightingCard projectId={projectId} useViewer={useViewer} />
           <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
         </>
       }

@@ -12,6 +12,15 @@
  */
 import { RENDER_LOOK_PALETTE as C } from '@/lib/pascal/scenePalette';
 
+/** Chủ đề Pascal của hai chế độ ánh sáng (thẻ "Ánh sáng", `./LightingCard`). */
+export const NIGHT_THEME_ID = 'night';
+/**
+ * Ban ngày đè `studio`: phông trắng trung tính (#fbfbfa, đất #e9e7e2) sẵn đúng ý, có đủ đèn
+ * chính + đèn phụ, `appearance: 'light'` nên Pascal tắt đèn trong nhà. `overcast` chỉ một đèn
+ * yếu, phông xám xanh — trời âm u, trái với nắng.
+ */
+export const DAY_THEME_ID = 'studio';
+
 /** Phần của `SceneTheme` (viewer/src/lib/scene-themes.ts) mà dáng này đè. */
 export interface RenderLookTheme {
   background: string;
@@ -72,4 +81,31 @@ export function applyRenderLook(theme: RenderLookTheme, ssgi: RenderLookSsgi, we
     },
   } satisfies RenderLookTheme);
   Object.assign(ssgi, RENDER_LOOK_SSGI);
+}
+
+// Nắng chiều thấp hơn đèn đêm (~40°) để lọt qua cửa sổ vào sàn.
+const SUN_POSITION: [number, number, number] = [14, 14, 10];
+const SKY_FILL_POSITION: [number, number, number] = [-12, 14, -10];
+
+/**
+ * Số của "Ban ngày". Nắng mạnh mà phơi sáng < 1 + môi trường 0.8 (`scripts/pascal-render.mjs`)
+ * nên tường trắng không cháy; ánh sáng nền < ⅓ nắng để còn bóng đổ và hướng sáng.
+ */
+export const DAY_LOOK_TIERS = {
+  high: { ambient: 0.2, hemi: 0.35, key: 2.6, fill: 0.3, exposure: 0.85 },
+  low: { ambient: 0.3, hemi: 0.45, key: 2.6, fill: 0.35, exposure: 0.9 },
+} as const;
+
+/** Đè chủ đề ban ngày (`DAY_THEME_ID`) tại chỗ; giữ phông/đất/màu đất sét của `studio`. */
+export function applyDayLook(theme: RenderLookTheme, webgpu = hasWebGpu()): void {
+  const t = DAY_LOOK_TIERS[webgpu ? 'high' : 'low'];
+  Object.assign(theme, {
+    ambient: { color: C.hemiSky, intensity: t.ambient },
+    hemi: { sky: C.hemiSky, ground: C.clayFloor, intensity: t.hemi },
+    lights: [
+      { position: [...SUN_POSITION], color: C.key, intensity: t.key, castShadow: true },
+      { position: [...SKY_FILL_POSITION], color: C.hemiSky, intensity: t.fill },
+    ],
+    toneMappingExposure: t.exposure,
+  } satisfies Partial<RenderLookTheme>);
 }

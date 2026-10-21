@@ -17,6 +17,9 @@
  * 9. bloom nhẹ chỉ ở điểm sáng của đèn (ngưỡng cao) + vignette mềm, chỉ ở `rendered`
  *    (chuỗi hậu kỳ chỉ dựng khi có WebGPU nên WebGL2 không tốn thêm gì).
  *
+ * "Ban ngày" (FE3D-FIX-004 thẻ L; số đèn ở `renderLook.ts` `applyDayLook`):
+ * 10. ánh sáng môi trường (dải trời) của chủ đề sáng 0.6 → 0.8: phòng trong bóng vẫn sáng như ban ngày.
+ *
  * Báo đỏ thay vì im lặng: chuỗi gốc không còn hoặc xuất hiện hơn một lần trong tệp, hay
  * tệp trong bảng không được dựng tới → ném lỗi, lượt dựng hỏng.
  */
@@ -67,6 +70,7 @@ export const RENDER_RULES = {
       "import * as THREE from 'three/webgpu'",
       "import * as THREE from 'three/webgpu'\nimport { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'",
     ],
+    ['const ENV_INTENSITY = 0.6', 'const ENV_INTENSITY = 0.8'],
     ['const ENV_INTENSITY_DARK = 0.2', 'const ENV_INTENSITY_DARK = 0.3'],
     [
       'export function SceneEnvironment() {',
