@@ -177,6 +177,31 @@ const readOneOf = <T extends string>(fields: Fields, key: string, allowed: reado
     : null;
 };
 
+/** Một điểm mặt bằng (mm) trong `fields[key][side]`, hoặc `null`. */
+const readPlanPoint = (fields: Fields, key: string, side: 'start' | 'end'): { x: number; y: number } | null => {
+  const line = fields[key];
+  const point = typeof line === 'object' && line !== null ? (line as Record<string, unknown>)[side] : undefined;
+  if (typeof point !== 'object' || point === null) return null;
+  const { x, y } = point as Record<string, unknown>;
+  return typeof x === 'number' && typeof y === 'number' && isUsable(x, y) ? { x, y } : null;
+};
+
+/** Ngưỡng (mm): đầu tường cách điểm đã dồn trong ngưỡng này là người dùng chưa dời nó. */
+const WELD_UNTOUCHED_MM = 1;
+
+/**
+ * V6 — đầu tường lúc đổi sang Pascal bị dồn (`weldWallEnds`): đầu vẫn nằm ở điểm dồn
+ * (`weldedTo`) thì trả trục gốc (`weldedFrom`), để sửa sơn/chiều cao không lưu một cú dời ~25 mm.
+ */
+const unweldedEndOf = (wall: PascalWallNode, side: 'start' | 'end'): { x: number; y: number } => {
+  const [xM, yM] = wall[side];
+  const at = { x: millimetresOf(xM), y: millimetresOf(yM) };
+  const fields = fieldsOf(wall);
+  const to = readPlanPoint(fields, 'weldedTo', side);
+  const from = readPlanPoint(fields, 'weldedFrom', side);
+  return to !== null && from !== null && Math.hypot(at.x - to.x, at.y - to.y) <= WELD_UNTOUCHED_MM ? from : at;
+};
+
 /* -------------------------------------------------------------------------- */
 /* W3a — sơn sàn/tường.                                                        */
 /* -------------------------------------------------------------------------- */
@@ -676,8 +701,8 @@ const collectLevelChildren = (
           id: wallId,
           levelId,
           centreline: {
-            start: { x: millimetresOf(child.start[0]), y: millimetresOf(child.start[1]) },
-            end: { x: millimetresOf(child.end[0]), y: millimetresOf(child.end[1]) },
+            start: unweldedEndOf(child, 'start'),
+            end: unweldedEndOf(child, 'end'),
           },
           thicknessMm: millimetresOf(thickness),
           heightMm: millimetresOf(height),

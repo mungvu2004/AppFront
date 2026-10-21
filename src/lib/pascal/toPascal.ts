@@ -673,6 +673,8 @@ const stairNodesOf = (
   ];
 };
 
+const SWAPPED_MODEL_SRC = /^\/items\/([a-z0-9_-]+)\/model\.glb$/;
+
 const itemNodeOf = (
   furniture: Furniture,
   levelNodeId: PascalNodeId,
@@ -683,7 +685,14 @@ const itemNodeOf = (
   const label = FURNITURE_KIND_LABELS[furniture.kind];
   const widthM = metresOf(furniture.boundingBox.max.x - furniture.boundingBox.min.x);
   const depthM = metresOf(furniture.boundingBox.max.y - furniture.boundingBox.min.y);
-  const folder = furniture.model === undefined ? furnitureFolderOf(furniture, style, usage) : null;
+  // Mẫu đã đổi (thẻ "Đổi mẫu") vẫn khớp hộp bao theo thư mục của nó; `asset.id/src` giữ `model`.
+  const swappedFolder = furniture.model?.src.match(SWAPPED_MODEL_SRC)?.[1];
+  const folder =
+    furniture.model === undefined
+      ? furnitureFolderOf(furniture, style, usage)
+      : swappedFolder !== undefined && Object.prototype.hasOwnProperty.call(CATALOG_MODELS, swappedFolder)
+        ? swappedFolder
+        : null;
   const model =
     folder === null
       ? null
@@ -1100,7 +1109,7 @@ export const toPascalScene = (
 
       /* V5 — ký hiệu dò nhầm (0,25 × 0,84 m) không dựng cột thang, nhưng node vẫn phải có:
          thiếu node là lượt lưu đọc thành xoá. Ẩn đi; lượt về không đọc `visible`. */
-      nodes[stair.id] = isPlausibleStair(furniture) ? stair : ({ ...stair, visible: false } as PascalStairNode);
+      nodes[stair.id] = isPlausibleStair(furniture) ? stair : { ...stair, visible: false };
       nodes[segment.id] = segment;
       adopt(levelNodeId, stair.id);
       continue;

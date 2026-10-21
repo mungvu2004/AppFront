@@ -91,6 +91,8 @@ interface PascalNodeCommon {
   readonly id: PascalNodeId;
   readonly parentId: PascalNodeId | null;
   readonly name?: string;
+  /** `false` = Pascal không vẽ node (mặc định hiện). */
+  readonly visible?: boolean;
   readonly metadata?: PascalMetadata;
 }
 

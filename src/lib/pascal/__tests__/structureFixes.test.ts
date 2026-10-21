@@ -172,6 +172,46 @@ describe('V6 — đầu tường gần nhau dồn một điểm', () => {
   });
 });
 
+describe('V6 — lượt về trả trục gốc cho tường đã dồn', () => {
+  const curveOf = (base: Wall): Wall[] =>
+    Array.from({ length: 4 }, (_unused, i) => {
+      const at = (k: number, jitter: number) => ({
+        x: 100000 + 3000 * Math.cos((k * Math.PI) / 8) + jitter,
+        y: 100000 + 3000 * Math.sin((k * Math.PI) / 8) - jitter,
+      });
+      return {
+        ...base,
+        id: `W-CURVRT${i}0000` as WallId,
+        openingIds: [],
+        thicknessMm: 150,
+        centreline: { start: at(i, i === 0 ? 0 : 7), end: at(i + 1, i === 3 ? 0 : -9) },
+      };
+    });
+
+  it('toPascal → toSpatial trả trục gốc; người dùng dời đầu tường (> 1 mm) thì lưu toạ độ mới', () => {
+    const graph = createSampleBuilding();
+    const base = graph.walls[0];
+    if (base === undefined) throw new Error('mẫu chuẩn phải có tường');
+    const curve = curveOf(base);
+    graph.walls = [...graph.walls, ...curve];
+
+    const { scene } = toPascalScene(graph);
+    expect(curve.every((w) => fieldsOf(scene.nodes[`wall_${w.id}`])['weldedFrom'] !== undefined)).toBe(true);
+    const back = toSpatialGraph(scene).graph.walls;
+    for (const wall of curve) {
+      expect(back.find((w) => w.id === wall.id)?.centreline).toEqual(wall.centreline);
+    }
+
+    const id = `wall_${curve[1]!.id}`;
+    const node = scene.nodes[id];
+    if (node?.type !== 'wall') throw new Error('thiếu tường');
+    const moved = { ...scene, nodes: { ...scene.nodes, [id]: { ...node, end: [node.end[0] + 0.05, node.end[1]] as const } } };
+    const saved = toSpatialGraph(moved).graph.walls.find((w) => w.id === curve[1]!.id);
+    expect(saved?.centreline.start).toEqual(curve[1]!.centreline.start);
+    expect(saved?.centreline.end.x).toBe(Math.round((node.end[0] + 0.05) * 1000));
+  });
+});
+
 describe('V1 — dãy tủ bếp chữ L cho bằng một hộp bao', () => {
   /** Phòng 0 của mẫu chuẩn, dãy tủ 2,2 × 2,6 m ở góc (min x, min y). */
   const sampleWithLRun = () => {

@@ -12,7 +12,7 @@ import type { Furniture, SpatialGraph } from '@/domain/spatial/types';
 import { fixtureF2 } from '../__fixtures__';
 import { createPascalEditCommand } from '../fromPascal';
 import { toPascalScene } from '../toPascal';
-import { adoptableRoomOf } from '../toSpatial';
+import { adoptableRoomOf, toSpatialGraph } from '../toSpatial';
 import type { PascalItemNode, PascalNode, PascalScene } from '../types';
 
 /* F1-ext gốc không còn đồ tự bày (FE3D-FIX-004 C2: bàn ăn phòng khách chặn bộ bàn ăn trong bếp, đúng
@@ -146,6 +146,28 @@ describe('W3b — đồ đạc giữ khe, mẫu, độ cao', () => {
     expect(adopted.every((candidate) => candidate.id.startsWith('F-'))).toBe(true);
     expect(same?.variant).toBe(fields['variant']);
     expect(same?.heightMm).toBe(fields['heightMm']);
+  });
+});
+
+describe('Đổi mẫu — nạp lại vẫn khớp hộp bao theo thư mục của mẫu', () => {
+  it('model /items/sofa/…: asset.scale vừa hộp bao, id/src giữ nguyên; lượt về giữ model', () => {
+    const model = { id: 'x', src: '/items/sofa/model.glb' };
+    const swapped = withItem({ ...item, model });
+    const scene = sceneOf(swapped);
+    const asset = (scene.nodes[nodeId] as PascalItemNode).asset;
+    const widthM = (item.boundingBox.max.x - item.boundingBox.min.x) / 1000;
+    const depthM = (item.boundingBox.max.y - item.boundingBox.min.y) / 1000;
+
+    expect(asset).toMatchObject({ id: 'x', src: model.src, thumbnail: '/items/sofa/thumbnail.webp' });
+    expect(asset.scale).toBeDefined();
+    expect((asset.scale?.[0] ?? Infinity) * 2.06).toBeLessThanOrEqual(widthM + 1e-9);
+    expect((asset.scale?.[2] ?? Infinity) * 1.01).toBeLessThanOrEqual(depthM + 1e-9);
+    expect(toSpatialGraph(scene).graph.furniture.find((f) => f.id === item.id)?.model).toEqual(model);
+    const again = commit(swapped, scene, nodeId);
+    expect(again.ok ? 'ok' : again.error.code).toBe('PASCAL_NO_CHANGE');
+
+    // Thư mục không có trong catalog: không khớp (như trước).
+    expect((sceneOf(withItem({ ...item, model: { id: 'y', src: '/items/nope/model.glb' } })).nodes[nodeId] as PascalItemNode).asset.scale).toBeUndefined();
   });
 });
 
