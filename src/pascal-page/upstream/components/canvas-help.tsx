@@ -47,7 +47,7 @@ const SCOPED_CSS = `
 }
 .appfront-help-btn:hover { background: var(--pa-sunken); color: var(--pa-text); }
 .appfront-help-btn:active { background: var(--pa-selected); }
-.appfront-help-btn:focus-visible { outline: none; box-shadow: var(--pa-focus); }
+.appfront-help-btn:focus-visible { outline: 2px solid transparent; outline-offset: 2px; box-shadow: var(--pa-focus), var(--pa-shadow-float); }
 .appfront-help-panel {
   padding: 12px 16px; font-size: 13px; color: var(--pa-text);
   background: var(--pa-surface); border: 1px solid var(--pa-border); border-radius: var(--pa-radius-lg, 12px);
@@ -156,7 +156,7 @@ function renderKeys(text: string) {
 
 const EDITOR_HINTS:Array<[string, string]> = [
   ['Xoay', 'Giữ chuột phải và kéo'],
-  ['Kéo khung', 'Space + chuột trái, hoặc chuột giữa'],
+  ['Kéo khung', 'Space + chuột trái, hoặc chuột giữa'],
   ['Phóng to/thu nhỏ', 'Lăn chuột'],
   ['Chọn', 'Bấm chuột trái vào đối tượng'],
 ]
@@ -219,16 +219,15 @@ export function CanvasHelp() {
             </button>
           </div>
           {open ? (
-            <section
-              aria-label="Hướng dẫn điều khiển camera"
-              className="appfront-help-panel grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1.5"
-            >
+            <section aria-label="Hướng dẫn điều khiển camera" className="appfront-help-panel">
+              <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1.5">
               {hints.map(([action, how]) => (
                 <div className="contents" key={action}>
-                  <span className="font-medium">{action}</span>
-                  <span className="appfront-help-how">{renderKeys(how)}</span>
+                  <dt className="font-medium">{action}</dt>
+                  <dd className="appfront-help-how m-0">{renderKeys(how)}</dd>
                 </div>
               ))}
+              </dl>
             </section>
           ) : null}
         </div>
@@ -257,7 +256,7 @@ export function MeasureClearButton() {
         {count} vạch đo · Esc để thoát thước · Ctrl+Z để hoàn tác
       </span>
       <button
-        className="rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-accent"
+        className="min-h-7 rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-accent"
         onClick={clear}
         type="button"
       >

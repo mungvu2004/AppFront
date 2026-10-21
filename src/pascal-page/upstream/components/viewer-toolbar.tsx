@@ -75,7 +75,7 @@ const TOOLBAR_CONTAINER =
   'inline-flex h-8 shrink-0 items-stretch overflow-hidden whitespace-nowrap rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] shadow-[var(--pa-shadow-float)]'
 
 const BTN_FOCUS =
-  'outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--pa-accent)]'
+  'outline-2 -outline-offset-2 outline-transparent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--pa-accent)]'
 const BTN_GHOST =
   'text-[var(--pa-text-2)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)] active:bg-[var(--pa-selected)] disabled:opacity-40 motion-reduce:transition-none ' +
   BTN_FOCUS

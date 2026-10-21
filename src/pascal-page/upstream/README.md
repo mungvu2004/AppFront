@@ -56,3 +56,8 @@ pascal-polish T3 (look only, no logic change): `components/viewer-toolbar.tsx` a
 restyled with AppFront `--pa-*` tokens (solid float surface, sunken hover, selected+accent "on" state, inset focus ring,
 labels collapse to icon-only by the `appbar` container width, tooltip like AppFront Tooltip with an optional `shortcut`
 chip prop). Same edit pass: `../{BackToProjectCard,SceneStyleCard,LightingCard,SwapModelCard,scaleBanner}.tsx`.
+
+pascal-polish F2/T4 (look + a11y only): `components/canvas-help.tsx` restyled with `--pa-*` tokens, key table as
+`dl/dt/dd`, plus a "Hướng dẫn" button that reopens `../tour/PascalTour.tsx`; `components/build-tab.tsx`
+`transition-all` -> `transition-colors`, modular-cabinet button gets `aria-label`; focus rings keep a transparent
+outline for forced-colors.

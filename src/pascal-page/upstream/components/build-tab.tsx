@@ -159,7 +159,7 @@ export function BuildTab() {
                 <TooltipTrigger asChild>
                   <button
                     className={cn(
-                      'group relative flex aspect-square items-center justify-center rounded-xl p-1 transition-all duration-200',
+                      'group relative flex aspect-square items-center justify-center rounded-xl p-1 transition-colors duration-200',
                       active
                         ? 'bg-primary/10 ring-1 ring-primary/50'
                         : 'bg-muted/40 opacity-70 grayscale hover:bg-muted hover:opacity-100 hover:grayscale-0',
@@ -265,7 +265,7 @@ export function BuildTab() {
                           <button
                             aria-pressed={active}
                             className={cn(
-                              'group relative flex aspect-square items-center justify-center rounded-xl p-1 transition-all duration-200',
+                              'group relative flex aspect-square items-center justify-center rounded-xl p-1 transition-colors duration-200',
                               active
                                 ? 'bg-primary/10 ring-1 ring-primary/50'
                                 : 'bg-muted/40 opacity-70 grayscale hover:bg-muted hover:opacity-100 hover:grayscale-0',
@@ -308,7 +308,8 @@ export function BuildTab() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    className="group relative flex aspect-square items-center justify-center rounded-xl bg-primary/10 p-1 ring-1 ring-primary/50 transition-all duration-200"
+                    aria-label="Tủ module"
+                    className="group relative flex aspect-square items-center justify-center rounded-xl bg-primary/10 p-1 ring-1 ring-primary/50 transition-colors duration-200"
                     onClick={() => {
                       triggerSFX('sfx:menu-click')
                       activateModularCabinetTool()
@@ -317,7 +318,7 @@ export function BuildTab() {
                     type="button"
                   >
                     <Image
-                      alt="Modular Cabinet"
+                      alt=""
                       className="size-full object-contain transition-transform duration-200 group-hover:scale-110"
                       height={48}
                       src={MODULAR_CABINET_ICON}
@@ -348,7 +349,7 @@ export function BuildTab() {
                       <button
                         aria-pressed={active}
                         className={cn(
-                          'group relative flex aspect-square items-center justify-center rounded-xl transition-all duration-200',
+                          'group relative flex aspect-square items-center justify-center rounded-xl transition-colors duration-200',
                           active
                             ? 'bg-primary/10 ring-1 ring-primary/50'
                             : 'bg-muted/40 opacity-70 grayscale hover:bg-muted hover:opacity-100 hover:grayscale-0',
@@ -407,7 +408,7 @@ export function BuildTab() {
               <span className="text-muted-foreground text-xs">Ống lỏng</span>
               <button
                 className={cn(
-                  'flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm transition-all duration-200',
+                  'flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm transition-colors duration-200',
                   follow ? 'bg-primary/10 ring-1 ring-primary/50' : 'bg-muted/40 hover:bg-muted',
                 )}
                 onClick={() => {

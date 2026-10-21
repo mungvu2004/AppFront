@@ -75,7 +75,7 @@ describe('SaveStatusCard (v3 V3 — trạng thái lưu thật trên trang Pascal
   it('BackToProjectCard: không có `save` (chỉ đọc) thì chỉ có lối về', () => {
     render(<BackToProjectCard href="/projects/p1/floors" projectName="Nhà mẫu" />);
 
-    expect(screen.getByRole('link', { name: 'Về dự án' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Về dự án: Nhà mẫu' })).toBeInTheDocument();
     expect(screen.queryByRole('status')).toBeNull();
   });
 });

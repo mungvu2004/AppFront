@@ -26,16 +26,16 @@ export function BackToProjectCard({ href, projectName, save }: BackToProjectCard
   );
 }
 
-const FOCUS_OUT = 'outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pa-accent)]';
+const FOCUS_OUT = 'outline-2 outline-transparent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pa-accent)]';
 
 function BackLink({ href, projectName }: Omit<BackToProjectCardProps, 'save'>) {
   return (
     <a
-      aria-label="Về dự án"
+      {...(projectName !== undefined ? { 'aria-label': `Về dự án: ${projectName}` } : {})}
       className={`${FOCUS_OUT} inline-flex h-8 max-w-56 items-center gap-1.5 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-2.5 font-medium text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] motion-reduce:transition-none @max-[800px]/appbar:min-w-0! @max-[800px]/appbar:px-2`}
       href={href}
     >
-      <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
+      <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
       <span className="truncate @max-[800px]/appbar:sr-only">{projectName ?? 'Về dự án'}</span>
     </a>
   );
@@ -80,7 +80,7 @@ export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
             {text}
           </span>
           {save.state === 'blocked' && (
-            <button className={`${FOCUS_OUT} shrink-0 rounded-lg px-1.5 font-medium text-[var(--pa-accent)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-accent-hover)]`} onClick={save.onReloadFloor} type="button">
+            <button className={`${FOCUS_OUT} min-h-7 shrink-0 rounded-lg px-1.5 font-medium text-[var(--pa-accent)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-accent-hover)]`} onClick={save.onReloadFloor} type="button">
               Tải lại tầng
             </button>
           )}
@@ -97,8 +97,8 @@ export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
             <span className="truncate" title={save.notice}>
               {save.notice}
             </span>
-            <button aria-label="Đóng thông báo" className={`${FOCUS_OUT} flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[var(--pa-text-2)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)]`} onClick={save.dismissNotice} type="button">
-              <X className="h-3.5 w-3.5" />
+            <button aria-label="Đóng thông báo" className={`${FOCUS_OUT} flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--pa-text-2)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)]`} onClick={save.dismissNotice} type="button">
+              <X aria-hidden="true" className="h-3.5 w-3.5" />
             </button>
           </div>,
           document.body,
@@ -141,7 +141,7 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
               <li key={step.id}>
                 <a
                   aria-label={`Bước ${index + 1}: ${step.label}`}
-                  className={`${FOCUS_OUT} flex h-6 w-6 items-center justify-center rounded-lg text-[12px] text-[var(--pa-text-2)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)] motion-reduce:transition-none`}
+                  className={`${FOCUS_OUT} relative flex h-6 w-6 items-center justify-center rounded-lg text-[12px] after:absolute after:-inset-1 after:content-[''] text-[var(--pa-text-2)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)] motion-reduce:transition-none`}
                   href={step.path(projectId)}
                   title={step.label}
                 >
@@ -188,7 +188,7 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
           <span className="@min-[1600px]/appbar:hidden">Tiếp:</span>
           <span className="hidden @min-[1600px]/appbar:inline">Bước tiếp theo:</span>
           {next.label}
-          <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+          <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
         </a>
       )}
     </>
