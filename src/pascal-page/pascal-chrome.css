@@ -1,0 +1,4 @@
+/*
+ * Lớp đè giao diện vendor cho chrome nổi: thanh trên, thanh công cụ dưới, ô tầng, menu thả, popover,
+ * tooltip, hộp thoại, toast. Chỉ dùng token --pa-* của pascal-theme.css. Chỉ đổi phần nhìn.
+ */

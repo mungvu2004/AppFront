@@ -35,6 +35,35 @@ body.dark .dark {
   --sidebar-border: #3a3733; /* = --border-default */
   --sidebar-ring: #7fa6c4; /* = --accent */
 
+  /* Token ngữ nghĩa dùng chung cho lớp đè giao diện (pascal-chrome.css, pascal-panels.css, tour). */
+  --pa-surface: #262421; /* = --bg-surface */
+  --pa-sunken: #151413; /* = --bg-sunken */
+  --pa-hover: rgba(236, 233, 227, 0.06); /* = --bg-hover */
+  --pa-overlay: rgba(10, 9, 8, 0.6); /* = --bg-overlay */
+  --pa-selected: #23303a; /* = --bg-selected */
+  --pa-text: #ece9e3; /* = --text-primary */
+  --pa-text-2: #b2ada4; /* = --text-secondary */
+  --pa-text-3: #9d9891; /* = --text-muted */
+  --pa-border: #3a3733; /* = --border-default */
+  --pa-border-control: #746f67; /* = --border-control */
+  --pa-accent: #7fa6c4; /* = --accent */
+  --pa-accent-hover: #93b5cf; /* = --accent-hover */
+  --pa-accent-active: #a7c4d9; /* = --accent-active */
+  --pa-danger: #eda595; /* = --state-violation-text */
+  --pa-danger-tint: #2e1f1c; /* = --state-violation-tint */
+  --pa-ok: #a7cdb1; /* = --state-verified-text */
+  --pa-warn: #e3cb92; /* = --state-attention-text */
+  --pa-shadow-rest: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --pa-shadow-float: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --pa-shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --pa-shadow-modal: 0 12px 32px rgba(0, 0, 0, 0.65);
+  --pa-radius-sm: 6px;
+  --pa-radius: 8px;
+  --pa-radius-lg: 12px;
+  --pa-radius-xl: 16px;
+  --pa-focus: 0 0 0 2px #262421, 0 0 0 4px #7fa6c4;
+  --pa-ease: cubic-bezier(0.4, 0, 0.6, 1);
+
   /* Nút của app bo 8px (rounded-lg). */
   --radius: 0.5rem;
 
@@ -82,6 +111,34 @@ html:not(.dark) body .dark {
   --sidebar-accent-foreground: #33322f; /* = --text-primary */
   --sidebar-border: #e3ded6; /* = --border-default */
   --sidebar-ring: #4d6e87; /* = --accent */
+
+  --pa-surface: #ffffff; /* = --bg-surface */
+  --pa-sunken: #f1eee8; /* = --bg-sunken */
+  --pa-hover: rgba(43, 42, 40, 0.035); /* = --bg-hover */
+  --pa-overlay: rgba(43, 42, 40, 0.28); /* = --bg-overlay */
+  --pa-selected: #edf2f6; /* = --bg-selected */
+  --pa-text: #33322f; /* = --text-primary */
+  --pa-text-2: #605d58; /* = --text-secondary */
+  --pa-text-3: #6d6a67; /* = --text-muted */
+  --pa-border: #e3ded6; /* = --border-default */
+  --pa-border-control: #8c8986; /* = --border-control */
+  --pa-accent: #4d6e87; /* = --accent */
+  --pa-accent-hover: #436078; /* = --accent-hover */
+  --pa-accent-active: #395468; /* = --accent-active */
+  --pa-danger: #9a4034; /* = --state-violation-text */
+  --pa-danger-tint: #f9efed; /* = --state-violation-tint */
+  --pa-ok: #3e6b4c; /* = --state-verified-text */
+  --pa-warn: #7a5f16; /* = --state-attention-text */
+  --pa-shadow-rest: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --pa-shadow-float: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --pa-shadow-overlay: 0 8px 24px rgba(43, 42, 40, 0.07);
+  --pa-shadow-modal: 0 12px 32px rgba(0, 0, 0, 0.15);
+  --pa-radius-sm: 6px;
+  --pa-radius: 8px;
+  --pa-radius-lg: 12px;
+  --pa-radius-xl: 16px;
+  --pa-focus: 0 0 0 2px #ffffff, 0 0 0 4px #4d6e87;
+  --pa-ease: cubic-bezier(0.4, 0, 0.6, 1);
 
   /* Bóng nhạt như app; viền "kính" sáng của Pascal vô hình trên nền sáng → thay bằng viền mờ tối. */
   --shadow-color: rgba(43, 42, 40, 0.04); /* = --shadow-color-panel */
