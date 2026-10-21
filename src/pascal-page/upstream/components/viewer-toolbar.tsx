@@ -645,7 +645,7 @@ function DisplayMenu() {
               return (
                 <DropdownMenuItem key={theme.id} onSelect={() => setSceneTheme(theme.id)}>
                   <span
-                    className="grid h-5 w-5 shrink-0 grid-cols-2 overflow-hidden rounded-sm border border-black/10"
+                    className="grid h-5 w-5 shrink-0 grid-cols-2 overflow-hidden rounded-sm border border-[var(--pa-border)]"
                     style={{ backgroundColor: theme.background }}
                   >
                     {swatches.map((color, index) => (

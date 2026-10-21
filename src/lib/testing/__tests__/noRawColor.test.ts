@@ -33,6 +33,8 @@ const COLOUR_FIXTURE_FILES: readonly string[] = [
   'src/lib/coloring/__tests__/legend.test.ts',
   'src/lib/coloring/__tests__/coloring.test.ts',
   'src/lib/three/present/__tests__/palette.test.ts',
+  // Pins the Pascal scene theme background that `renderLook.ts` overrides: scene data, not a token.
+  'src/pascal-page/__tests__/renderLook.test.ts',
 ];
 
 /**

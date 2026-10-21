@@ -1,7 +1,31 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { existsSync, readFileSync } from 'node:fs';
 import os from 'os';
 import path from 'path';
+
+/**
+ * Gói Pascal khai `exports` trỏ vào `dist/` (không dựng). Giữ khớp
+ * `vite.pascal.config.ts`: đổi `./dist/x.js` thành `src/x.ts(x)`.
+ */
+function pascalSourceAliases() {
+  const root = path.resolve(__dirname, './vendor/pascal/packages');
+  const aliases: { find: RegExp; replacement: string }[] = [];
+  for (const pkg of ['core', 'viewer', 'nodes', 'editor']) {
+    const dir = path.join(root, pkg);
+    const { name, exports } = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8')) as {
+      name: string;
+      exports: Record<string, string | { import: string }>;
+    };
+    for (const [sub, target] of Object.entries(exports)) {
+      const file = typeof target === 'string' ? target : target.import;
+      const base = path.join(dir, file.replace(/^\.\/dist\//, './src/').replace(/\.js$/, ''));
+      const src = ['', '.ts', '.tsx'].map((ext) => base + ext).find((f) => /\.tsx?$/.test(f) && existsSync(f));
+      if (src) aliases.push({ find: new RegExp(`^${name + sub.slice(1)}$`), replacement: src });
+    }
+  }
+  return aliases;
+}
 
 /**
  * Ngưỡng độ phủ, đặt theo tầng chứ không đặt một con số cho cả repo.
@@ -259,7 +283,7 @@ export default defineConfig({
     // kiểm của họ chạy bằng `bun test`, không bằng vitest, và chúng cần bộ
     // công cụ riêng — để vitest tự nhặt chúng là chuốc lấy một rừng đỏ không
     // liên quan tới AppFront. `qa/**` là bộ Playwright QA (`qa/tsconfig.json` riêng).
-    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/vendor/**', 'qa/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/vendor/**', 'qa/**', '.claude/**'],
     coverage: {
       provider: 'v8',
       // `text` để đọc ngay trên terminal, `json-summary` để script đọc máy được,
@@ -315,14 +339,15 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+    alias: [
+      ...pascalSourceAliases(),
+      { find: '@', replacement: path.resolve(__dirname, './src') },
       // Giữ khớp với `vite.config.ts`: vitest KHÔNG hợp nhất cấu hình của
       // vite, nó thay thế hoàn toàn (xem khối chú thích đầu `vite.config.ts`).
       // Thiếu hai dòng này thì mọi bài kiểm chạm tới `vendor/pascal` sẽ hỏng ở
       // `next/image` dù bản dựng sản phẩm vẫn chạy.
-      'next/image': path.resolve(__dirname, './vendor/pascal/shims/next-image.tsx'),
-      'next/link': path.resolve(__dirname, './vendor/pascal/shims/next-link.tsx'),
-    },
+      { find: 'next/image', replacement: path.resolve(__dirname, './vendor/pascal/shims/next-image.tsx') },
+      { find: 'next/link', replacement: path.resolve(__dirname, './vendor/pascal/shims/next-link.tsx') },
+    ],
   },
 });

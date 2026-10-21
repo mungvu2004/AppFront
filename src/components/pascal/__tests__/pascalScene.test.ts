@@ -68,7 +68,9 @@ describe('nạp cảnh AppFront vào Pascal thật', () => {
     const result = await loadSceneIntoPascal(scene);
 
     expect(result.droppedIds).toEqual([]);
-    expect(result.nodeCount).toBe(EXPECTED_NODE_COUNT);
+    // Sàn nhà sinh thêm trần, đèn và đồ trang trí (toPascal) nên số node chỉ có cận dưới cố định;
+    // đẳng thức thật là dòng dưới: store giữ đúng mọi node cảnh đưa vào.
+    expect(result.nodeCount).toBeGreaterThanOrEqual(EXPECTED_NODE_COUNT);
     expect(result.nodeCount).toBe(Object.keys(scene.nodes).length);
   });
 
