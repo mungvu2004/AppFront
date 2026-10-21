@@ -83,6 +83,7 @@ function buildDevOnlyRoutes(): RouteObject[] {
   const RouteShellDemo = lazy(() => import('../screens/ShellDemo').then(m => ({ default: m.ShellDemo })));
   const RouteCanvasOverlaysDemo = lazy(() => import('../screens/CanvasOverlaysDemo').then(m => ({ default: m.CanvasOverlaysDemo })));
   const RouteFeedbackDemo = lazy(() => import('../screens/FeedbackDemo').then(m => ({ default: m.FeedbackDemo })));
+  const RouteWelcomeLab = lazy(() => import('../screens/landing-lab/LabRoute').then(m => ({ default: m.LabRoute })));
 
   return [
     { path: ROUTE_PATTERNS.demoGallery, element: suspended(<RouteDemoGallery />) },
@@ -92,6 +93,7 @@ function buildDevOnlyRoutes(): RouteObject[] {
     { path: ROUTE_PATTERNS.shellDemo, element: suspended(<RouteShellDemo />) },
     { path: ROUTE_PATTERNS.canvasOverlaysDemo, element: suspended(<RouteCanvasOverlaysDemo />) },
     { path: ROUTE_PATTERNS.feedbackDemo, element: suspended(<RouteFeedbackDemo />) },
+    { path: ROUTE_PATTERNS.welcomeLab, element: suspendedOutsideMain(<RouteWelcomeLab />) },
   ];
 }
 

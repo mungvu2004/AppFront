@@ -112,6 +112,7 @@ export const ROUTE_PATTERNS = {
   projectWalls: `${PROJECTS_ROOT}/:projectId/floors/:floorId/layers/walls`,
   shellDemo: '/shell-demo',
   welcome: '/welcome',
+  welcomeLab: '/welcome-lab/:idea',
 } as const;
 
 /**
@@ -231,4 +232,5 @@ export const DEV_PUBLIC_ROUTE_PATTERNS = [
   ROUTE_PATTERNS.canvasOverlaysDemo,
   ROUTE_PATTERNS.feedbackDemo,
   ROUTE_PATTERNS.designSystemStates,
+  ROUTE_PATTERNS.welcomeLab,
 ] as const;
