@@ -9,6 +9,7 @@ const IDEAS: Record<string, LazyExoticComponent<ComponentType>> = {
   maquette: lazy(() => import('./maquette/index')),
   cinema: lazy(() => import('./cinema/index')),
   blueprint: lazy(() => import('./blueprint/index')),
+  export: lazy(() => import('./_export/index')),
 };
 
 export function LabRoute() {
