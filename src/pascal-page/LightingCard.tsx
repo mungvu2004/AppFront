@@ -74,7 +74,7 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
     <details className="relative" data-appfront-menu="">
       <summary
         aria-label={`Ánh sáng: ${current?.label ?? 'tuỳ chỉnh'} — mở danh sách ánh sáng`}
-        className="flex h-8 shrink-0 cursor-pointer list-none items-center gap-1.5 rounded-xl border border-border bg-background/90 px-2.5 font-medium text-foreground text-xs shadow-2xl backdrop-blur-md hover:bg-accent [&::-webkit-details-marker]:hidden"
+        className="flex h-8 shrink-0 cursor-pointer list-none items-center gap-1.5 whitespace-nowrap rounded-xl border border-border bg-background/90 px-2.5 font-medium text-foreground text-xs shadow-2xl backdrop-blur-md hover:bg-accent [&::-webkit-details-marker]:hidden"
       >
         Ánh sáng
         <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

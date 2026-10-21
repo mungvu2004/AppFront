@@ -112,7 +112,9 @@ const VIEWER_STEP = PROJECT_STEPS.findIndex((step) => step.id === 'viewer');
  * hiện tại ẩn và lối tiếp viết gọn "Tiếp:".
  * QA-2 L1: các ngưỡng dưới đây đo theo bề rộng thanh trên (container `appbar`, khai ở pascal.css),
  * không theo khổ màn — thanh bên mở/kéo rộng cũng làm thanh hẹp lại. Thanh < 1400px: dải sáu bước
- * thu thành một chip "bước hiện tại + menu" (`<details>`); < 900px: ẩn lối tiếp (đã có trong menu).
+ * thu thành một chip "bước hiện tại + menu" (`<details>`), < 1200px chip chỉ còn số bước; < 1050px: ẩn
+ * lối tiếp (đã có trong menu). FE3D-FIX-004: thêm Ánh sáng + Đổi mẫu nên các ngưỡng nâng lên, mọi nhãn
+ * không xuống dòng.
  */
 export function ProjectStepsCard({ projectId }: { readonly projectId: string }) {
   const next = PROJECT_STEPS[VIEWER_STEP + 1];
@@ -150,12 +152,12 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
         <summary
           aria-label={`Bước ${VIEWER_STEP + 1}/${PROJECT_STEPS.length}: ${current.label} — mở danh sách bước`}
           title={`Bước ${VIEWER_STEP + 1}: ${current.label}`}
-          className={`${CARD} flex cursor-pointer list-none gap-1.5 px-2 font-semibold hover:bg-accent [&::-webkit-details-marker]:hidden`}
+          className={`${CARD} flex cursor-pointer list-none gap-1.5 whitespace-nowrap px-2 font-semibold hover:bg-accent [&::-webkit-details-marker]:hidden`}
         >
           <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
             {VIEWER_STEP + 1}
           </span>
-          <span className="hidden @min-[1000px]/appbar:inline">{current.label}</span>
+          <span className="hidden @min-[1200px]/appbar:inline">{current.label}</span>
           <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         </summary>
         <ol aria-label="Danh sách bước" className="absolute top-full left-0 z-50 mt-1 min-w-48 rounded-xl border border-border bg-popover/95 p-1 text-xs shadow-2xl backdrop-blur-xl">
@@ -176,7 +178,7 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
       {next !== undefined && (
         <a
           aria-label={`Bước tiếp theo: ${next.label}`}
-          className={`${CARD} hidden gap-1 whitespace-nowrap px-2.5 font-medium hover:bg-accent @min-[900px]/appbar:inline-flex`}
+          className={`${CARD} hidden gap-1 whitespace-nowrap px-2.5 font-medium hover:bg-accent @min-[1050px]/appbar:inline-flex`}
           href={next.path(projectId)}
         >
           <span className="@min-[1600px]/appbar:hidden">Tiếp:</span>
