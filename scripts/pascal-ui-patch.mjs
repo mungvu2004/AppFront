@@ -28,6 +28,19 @@ export const UI_PATCHES = {
     ],
     ['bg-[#b8b8b8] shadow-inner dark:bg-neutral-700"', 'bg-muted shadow-inner"', 1],
   ],
+  // Nhãn trình đọc màn hình cho nút chỉ-biểu-tượng (chỉ thêm thuộc tính). Nhãn Mở/Thu gọn đã do pascal-vi dịch.
+  'editor/src/components/ui/panels/panel-wrapper.tsx': [
+    ['onClick={onBack}', 'aria-label="Quay lại" title="Quay lại" onClick={onBack}', 1],
+    ['onClick={onReset}', 'aria-label="Đặt lại" title="Đặt lại" onClick={onReset}', 1],
+    ['onClick={onClose}', 'aria-label="Đóng bảng" title="Đóng bảng" onClick={onClose}', 1],
+  ],
+  'editor/src/components/ui/floating-level-selector.tsx': [
+    [
+      'className="flex h-5 w-4 shrink-0 items-center justify-center text-muted-foreground/40 opacity-0 transition-all hover:text-foreground group-hover/level:opacity-100"',
+      'aria-label="Tùy chọn tầng" className="flex h-5 w-4 shrink-0 items-center justify-center text-muted-foreground/40 opacity-0 transition-all hover:text-foreground group-hover/level:opacity-100"',
+      1,
+    ],
+  ],
 };
 
 export function applyUiPatches(code, file, pairs) {

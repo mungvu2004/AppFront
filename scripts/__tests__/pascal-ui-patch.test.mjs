@@ -12,7 +12,8 @@ describe('pascal-ui-patch', () => {
     const out = applyUiPatches(readFileSync(path.join(PACKAGES, file), 'utf8'), file, pairs);
     for (const [from, to] of pairs) {
       expect(out).toContain(to);
-      expect(out).not.toContain(from);
+      // Vá chỉ-thêm-thuộc tính giữ nguyên neo trong kết quả; còn lại neo phải biến mất.
+      if (!to.includes(from)) expect(out).not.toContain(from);
     }
   });
 
