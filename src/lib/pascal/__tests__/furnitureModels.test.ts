@@ -126,27 +126,22 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     }
   });
 
-  it('tre 500×500×2000 → thông (cây cao hẹp) cao ~2 m; không heightMm thì chặn ở 2,2 m (cây cao) và trần tầng', () => {
-    const levelH = metresOfMm(graphOf(fixtureF2().doc).levels[0]!.heightMm);
-    const tall = (heightMm?: number): number => {
-      const [item] = itemsOf(
-        withFurniture((base) => [
-          {
-            ...base,
-            kind: 'other',
-            variant: 'bamboo',
-            ...(heightMm === undefined ? {} : { heightMm: millimetres(heightMm) }),
-            boundingBox: { min: { x: 0, y: 0 }, max: { x: 500, y: 500 } } as Furniture['boundingBox'],
-            centre: { x: 250, y: 250 } as Furniture['centre'],
-          },
-        ]),
-      );
-      expect(item!.asset.src).toBe('/items/fir-tree/model.glb');
-      // Thông không có scale riêng của catalog: GLB gốc cao đúng 3 m.
-      return CATALOG_MODELS['fir-tree']!.dimensions[1] * item!.asset.scale![1];
-    };
-    expect(tall(2000)).toBeCloseTo(2, 2);
-    expect(tall()).toBeCloseTo(Math.min(levelH, 2.2), 2);
+  it('tre 500×500×2000 → cây trong nhà (không còn cây thông), không cao quá heightMm', () => {
+    const [item] = itemsOf(
+      withFurniture((base) => [
+        {
+          ...base,
+          kind: 'other',
+          variant: 'bamboo',
+          heightMm: millimetres(2000),
+          boundingBox: { min: { x: 0, y: 0 }, max: { x: 500, y: 500 } } as Furniture['boundingBox'],
+          centre: { x: 250, y: 250 } as Furniture['centre'],
+        },
+      ]),
+    );
+    const folder = /^\/items\/([^/]+)\//.exec(item!.asset.src)?.[1];
+    expect(['indoor-plant', 'small-indoor-plant']).toContain(folder);
+    expect(CATALOG_MODELS[folder!]!.dimensions[1] * item!.asset.scale![1]).toBeLessThanOrEqual(2.0001);
   });
 
   it('bụi cây (catalog scale 0,96): asset.scale nhân cả scale riêng của catalog', () => {
@@ -207,6 +202,78 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     expect(srcIn('bathroom')).toBe('/items/washing-machine/model.glb');
     expect(srcIn('utility')).toBe('/items/washing-machine/model.glb');
     expect(srcIn('kitchen')).toBe('/items/dresser/model.glb');
+  });
+
+  /** Một món ở gốc, hộp `w × d` mm, với `variant` / `heightMm` cho trước. */
+  const oneItem = (variant: NonNullable<Furniture['variant']>, w: number, d: number, heightMm?: number): PascalItemNode =>
+    itemsOf(
+      withFurniture((base) => [
+        {
+          ...base,
+          kind: 'other',
+          variant,
+          ...(heightMm === undefined ? {} : { heightMm: millimetres(heightMm) }),
+          boundingBox: { min: { x: 0, y: 0 }, max: { x: w, y: d } } as Furniture['boundingBox'],
+          centre: { x: w / 2, y: d / 2 } as Furniture['centre'],
+        },
+      ]),
+    )[0]!;
+  /** Mặt bằng mô hình đã khớp (m): [rộng, sâu] = catalog × asset.scale ÷ scale riêng catalog. */
+  const footprintOf = (item: PascalItemNode): readonly [number, number] => {
+    const folder = /^\/items\/([^/]+)\//.exec(item.asset.src)![1]!;
+    const cat = CATALOG_MODELS[folder]!;
+    const k = cat.scale ?? [1, 1, 1];
+    return [(cat.dimensions[0] * item.asset.scale![0]) / k[0], (cat.dimensions[2] * item.asset.scale![2]) / k[2]];
+  };
+
+  it('C1 khớp theo nhóm: thảm phủ đúng mặt bằng dù heightMm 10', () => {
+    const rug = oneItem('rug', 3000, 2000, 10);
+    expect(rug.asset.src).toMatch(/carpet/);
+    const [w, d] = footprintOf(rug);
+    expect(w).toBeCloseTo(3, 3);
+    expect(d).toBeCloseTo(2, 3);
+    expect(rug.scale).toEqual([1, 1, 1]);
+  });
+
+  it('C1 khớp theo nhóm: tủ áo 3 × 0,6 m phủ ≥ 90% mặt bằng, cao theo heightMm', () => {
+    const wardrobe = oneItem('wardrobe', 3000, 600, 2200);
+    expect(wardrobe.asset.src).toBe('/items/closet/model.glb');
+    const [w, d] = footprintOf(wardrobe);
+    expect((w * d) / (3 * 0.6)).toBeGreaterThanOrEqual(0.9);
+    expect(CATALOG_MODELS.closet!.dimensions[1] * wardrobe.asset.scale![1]).toBeCloseTo(2.2, 3);
+    expect(wardrobe.asset.dimensions[1]).toBeCloseTo(2.2, 3);
+  });
+
+  it('C1 khớp theo nhóm: dãy bếp rất dài bị chặn lệch 1,8× và nằm giữa hộp', () => {
+    const run = oneItem('baseRun', 5000, 600, 900);
+    const [sx, , sz] = run.asset.scale!;
+    expect(sx / sz).toBeCloseTo(1.8, 4);
+    const [w] = footprintOf(run);
+    expect(w).toBeLessThan(5);
+    expect(run.position[0]).toBeCloseTo(2.5); // tâm giữ đúng centre — mô hình ngắn hơn nằm giữa
+  });
+
+  it('C1 khớp theo nhóm: đồ thường (giường) vẫn một tỉ lệ chung như cũ', () => {
+    const bed = oneItem('bed', 1800, 2100, 700);
+    const [sx, sy, sz] = bed.asset.scale!;
+    const [cw, ch, cd] = CATALOG_MODELS['double-bed']!.dimensions;
+    const s = Math.min(1.8 / cw, 2.1 / cd, 0.7 / ch);
+    expect([sx, sy, sz]).toEqual([s, s, s]);
+    expect(bed.asset.dimensions[1]).toBeCloseTo(0.7);
+  });
+
+  it('C1 đèn: đèn cây/bàn/trần/tường có interactive phát sáng bật sẵn; đồ khác không', () => {
+    for (const variant of ['floorLamp', 'tableLamp', 'pendant', 'sconce'] as const) {
+      const lamp = oneItem(variant, 500, 500);
+      const interactive = lamp.asset.interactive as {
+        controls: { kind: string; default?: unknown }[];
+        effects: { kind: string }[];
+      };
+      expect(interactive, variant).toBeDefined();
+      expect(interactive.effects.some((e) => e.kind === 'light'), variant).toBe(true);
+      expect(interactive.controls.find((c) => c.kind === 'toggle')?.default, variant).toBe(true);
+    }
+    expect(oneItem('bed', 1800, 2100).asset.interactive).toBeUndefined();
   });
 
   it('F2 (không variant): đoán thư mục theo loại + phòng + hộp bao; thang thành node stair thật', () => {

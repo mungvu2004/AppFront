@@ -40,7 +40,14 @@ import { FURNITURE_KIND_LABELS, WALL_KIND_LABELS } from '@/lib/commands/business
 
 import { CATALOG_MODELS, VARIANT_MODEL, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
-import { ceilingNodesOf, floorMaterialOf, itemSlotsOf, SCENE_MATERIALS, wallDressingOf } from './sceneDressing';
+import {
+  ceilingNodesOf,
+  floorMaterialOf,
+  itemSlotsOf,
+  lampInteractiveOf,
+  SCENE_MATERIALS,
+  wallDressingOf,
+} from './sceneDressing';
 import { SCENE_STYLE_MATERIALS, sceneStyleOf, type SceneStyle } from './sceneStyles';
 import { dressingOf } from './sceneDressingRules';
 import { furnishEmptyRooms } from './sceneFurnish';
@@ -548,6 +555,29 @@ const furnitureFolderOf = (furniture: Furniture, style: SceneStyle, usage: RoomU
 const TALL_PLANT_FOLDERS: ReadonlySet<string> = new Set(['palm', 'fir-tree']);
 const TALL_PLANT_MAX_M = 2.2;
 
+/** Thảm: phủ đúng mặt bằng hộp bao; dày theo `heightMm` hoặc nửa catalog (10 mm từng làm `s` chung = 0,25). */
+const RUG_FOLDERS: ReadonlySet<string> = new Set(['rectangular-carpet', 'round-carpet']);
+const RUG_SCALE_Y = 0.5;
+/**
+ * Đồ kéo dài được theo từng trục (dãy tủ, kệ, chậu rửa liền tủ, bồn cây…): một tỉ lệ chung
+ * thu cả dãy 3 m về một mô-đun. Mỗi trục ngang ≤ `MAX_STRETCH_RATIO` × trục ngang nhỏ hơn —
+ * quá thì giữ mức kéo tối đa và đặt giữa hộp, để tủ không thành sợi mì.
+ */
+const STRETCH_FOLDERS: ReadonlySet<string> = new Set([
+  'closet',
+  'kitchen-cabinet',
+  'kitchen-counter',
+  'kitchen-shelf',
+  'kitchen',
+  'bookshelf',
+  'shelf',
+  'bush',
+  'bathroom-sink',
+  'dresser',
+  'tv-stand',
+]);
+const MAX_STRETCH_RATIO = 1.8;
+
 /** Chiều cao một bậc mục tiêu, mét — số bậc = max(3, round(chiều cao tầng / số này)). */
 const STAIR_RISER_M = 0.175;
 /** Vật liệu thành thang: vữa trát (đã giải được hôm nay, J6). */
@@ -674,7 +704,20 @@ const itemNodeOf = (
     const maxH =
       fixedH ??
       Math.min(metresOf(levelHeightMm), TALL_PLANT_FOLDERS.has(model.folder) ? TALL_PLANT_MAX_M : ch * 1.25);
-    const s = Math.min(widthM / cw, depthM / cd, maxH / ch);
+    // Tỉ lệ từng trục [sx, sy, sz] theo nhóm: thảm phủ mặt bằng, đồ kéo dài co giãn từng trục
+    // (có chặn lệch), còn lại một tỉ lệ chung như cũ. Chỉ `asset.scale` lệch trục — lượt về
+    // chỉ đọc `node.scale` nên không đổi gì.
+    const [sx, sy, sz] = ((): PascalVec3 => {
+      if (RUG_FOLDERS.has(model.folder)) return [widthM / cw, fixedH === undefined ? RUG_SCALE_Y : fixedH / ch, depthM / cd];
+      if (STRETCH_FOLDERS.has(model.folder)) {
+        const lo = Math.min(widthM / cw, depthM / cd);
+        const cap = lo * MAX_STRETCH_RATIO;
+        const y = fixedH === undefined ? Math.min(lo, maxH / ch) : fixedH / ch;
+        return [Math.min(widthM / cw, cap), y, Math.min(depthM / cd, cap)];
+      }
+      const s = Math.min(widthM / cw, depthM / cd, maxH / ch);
+      return [s, s, s];
+    })();
     // `asset.scale` nhân thẳng vào GLB gốc; catalog nào có scale riêng thì `dimensions`
     // là cỡ sau scale đó (cọ: GLB cao 11,9 m × 0,37) — phải nhân lại, không thì cao gấp đôi tường.
     const [kx, ky, kz] = catalog.scale ?? [1, 1, 1];
@@ -682,14 +725,14 @@ const itemNodeOf = (
     // bộ, phía tường) thay vì treo lơ lửng giữa hộp. Dời bằng `asset.offset` chứ
     // không dời `position`: tâm món đồ phải giữ đúng `centre` để lượt về không trôi.
     // `attachTo` không ghi ra — Pascal sẽ đòi một bức tường cha mà node này không có.
-    const backShift = catalog.attachTo === 'wall-side' ? -(depthM - cd * s) / 2 : 0;
+    const backShift = catalog.attachTo === 'wall-side' ? -(depthM - cd * sz) / 2 : 0;
     const [ox, oy, oz] = catalog.offset;
 
     return {
       folder: model.folder,
-      heightM: fixedH ?? ch * s,
-      scale: [s * kx, s * ky, s * kz] as PascalVec3,
-      offset: [ox * s, oy * s, oz * s + backShift] as PascalVec3,
+      heightM: fixedH ?? ch * sy,
+      scale: [sx * kx, sy * ky, sz * kz] as PascalVec3,
+      offset: [ox * sx, oy * sy, oz * sz + backShift] as PascalVec3,
       rotation: [...catalog.rotation] as PascalVec3,
     };
   })();
@@ -699,6 +742,7 @@ const itemNodeOf = (
   // Khe phong cách cho, rồi khe người dùng đã sơn đè lên (W3b `Furniture.slots`).
   const styleSlots = fit === null ? {} : itemSlotsOf(fit.folder, style);
   const slots = { ...styleSlots, ...furniture.slots };
+  const lampOf = fit === null ? undefined : lampInteractiveOf(fit.folder, style);
 
   return {
     object: 'node',
@@ -721,6 +765,8 @@ const itemNodeOf = (
       src: furniture.model?.src ?? (fit === null ? `asset://appfront/${furniture.kind}` : modelSrcOf(fit.folder)),
       dimensions: [widthM, heightM, depthM],
       ...(fit === null ? {} : { offset: fit.offset, rotation: fit.rotation, scale: fit.scale }),
+      // Đèn của bản vẽ (cây/bàn/trần/tường) phát sáng thật, bật sẵn, theo phong cách.
+      ...(lampOf === undefined ? {} : { interactive: lampOf }),
     },
     metadata: {
       appfront: originOf(furniture, {

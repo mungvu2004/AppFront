@@ -317,6 +317,38 @@ export const CATALOG_MODELS: Readonly<Record<string, CatalogModel>> = {
     rotation: [0, 0, 0],
     scale: [0.96, 0.96, 0.96],
   },
+  // Có sẵn ở vendor/pascal/assets/items, đăng ký để biến thể / bày biện dùng được.
+  cactus: {
+    folder: 'cactus',
+    dimensions: [0.34, 0.39, 0.27],
+    offset: [-0.0039, 0, 0],
+    rotation: [0, 0, 0],
+  },
+  books: {
+    folder: 'books',
+    dimensions: [0.22, 0.22, 0.18],
+    offset: [-0.0851, 0.003, 0.0209],
+    rotation: [0, 0, 0],
+  },
+  'tv-stand': {
+    folder: 'tv-stand',
+    dimensions: [1.86, 0.35, 0.32],
+    offset: [0, 0.2066, 0],
+    rotation: [0, 0, 0],
+  },
+  'lounge-chair': {
+    folder: 'lounge-chair',
+    dimensions: [0.68, 1.03, 1.26],
+    offset: [0, 0.0034, 0.0894],
+    rotation: [0, 0, 0],
+  },
+  shelf: {
+    folder: 'shelf',
+    dimensions: [0.74, 0.04, 0.32],
+    offset: [0, 0.02, 0],
+    rotation: [0, 0, 0],
+    attachTo: 'wall-side',
+  },
 };
 
 /** Variant đăng nhập → model Pascal; null = không có model hợp, dùng fallback. liftMm = độ cao đặt trên sàn. */
@@ -346,17 +378,20 @@ export const VARIANT_MODEL: Readonly<
   stool: { folder: 'stool' },
   cabinet: { folder: 'dresser' },
   sofa: { folder: 'sofa' },
-  sconce: null,
+  // Đèn tường: không có GLB đèn tường — đèn âm trần nhỏ ở độ cao đèn tường, có phát sáng.
+  sconce: { folder: 'recessed-light', liftMm: 1800 },
   tv: { folder: 'television' },
   armchair: { folder: 'livingroom-chair' },
   sideTable: { folder: 'bedside-table' },
   floorLamp: { folder: 'floor-lamp' },
-  bench: null,
+  // Không có GLB ghế băng: kệ thấp dài (kéo dài theo hộp) gần dáng nhất. null sẽ thành hộp đỏ
+  // "hỏng" của Pascal (`asset://` không tải được), còn đoán theo hộp ra sofa/cây.
+  bench: { folder: 'tv-stand' },
   pendant: { folder: 'ceiling-lamp', liftMm: 1500 },
-  vase: null,
+  vase: { folder: 'cactus' },
   lounger: { folder: 'sunbed' },
-  planter: { folder: 'small-indoor-plant' },
-  bamboo: { folder: 'fir-tree' },
+  planter: { folder: 'bush' },
+  bamboo: { folder: 'indoor-plant' },
   shrub: { folder: 'bush' },
 };
 

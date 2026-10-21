@@ -27,6 +27,9 @@ import type {
   PascalWallNode,
 } from './types';
 
+/** Độ đục kính cửa sổ (`mat_appfront_glass`): < 0,6 để Pascal phủ fresnel. */
+export const GLASS_OPACITY = 0.25;
+
 const flat = (id: PascalSceneMaterial['id'], name: string, color: string, roughness: number): PascalSceneMaterial => ({
   id,
   name,
@@ -43,8 +46,9 @@ const flat = (id: PascalSceneMaterial['id'], name: string, color: string, roughn
 export const SCENE_MATERIALS: readonly PascalSceneMaterial[] = [
   flat('mat_appfront_plaster', 'Trần vữa', SCENE_PALETTE.plaster, 0.9),
   flat('mat_appfront_bark', 'Thân cây', SCENE_PALETTE.bark, 0.9),
-  // Kính cửa sổ: đục 0,6 = ngưỡng kính của Pascal (`viewer/src/lib/materials.ts` GLASS_OPACITY_THRESHOLD),
-  // không bị phủ fresnel phản chiếu môi trường tối của `night` → ô kính sáng như nhà trang đăng nhập.
+  // Kính cửa sổ: trong (đục 0,25) với màu xanh xám nhạt. Dưới ngưỡng 0,6 của Pascal
+  // (`viewer/src/lib/materials.ts` GLASS_OPACITY_THRESHOLD) nên được fresnel: nhìn thẳng thấy
+  // xuyên, nhìn xiên phản chiếu môi trường. 0,6 cũ ra tấm xám đục. Giữ nguyên id (khe đã lưu trỏ vào).
   {
     id: 'mat_appfront_glass',
     name: 'Kính cửa sổ',
@@ -52,9 +56,9 @@ export const SCENE_MATERIALS: readonly PascalSceneMaterial[] = [
       preset: 'custom',
       properties: {
         color: RENDER_LOOK_PALETTE.clayGlazing,
-        roughness: 0.05,
+        roughness: 0.02,
         metalness: 0,
-        opacity: 0.6,
+        opacity: GLASS_OPACITY,
         transparent: true,
         side: 'front',
       },
@@ -144,8 +148,10 @@ const SLOT_FAMILY: Readonly<Record<string, Readonly<Record<string, SlotFamily | 
   'round-carpet': { a: 'rug' },
   'single-bed': { frame: 'wood' },
   'small-indoor-plant': { pot: 'pot' },
+  shelf: { shelf: 'wood' },
   sofa: { pillow: 'fabric', cushion: 'fabric' },
   toilet: { toilet: 'ceramic' },
+  'tv-stand': { body: 'wood' },
 };
 
 /** Khe đè cho mô hình ở `/items/<folder>/` theo phong cách; `undefined` = để nguyên vật liệu của GLB. */
@@ -215,6 +221,25 @@ const lightInteractiveOf = (interactive: unknown, style: SceneStyle): unknown =>
   }
 
   return copy;
+};
+
+/** Đèn bàn: catalog không khai `interactive` — mượn khối của đèn cây, nguồn sáng ở chụp đèn. */
+const TABLE_LAMP_LIGHT_Y_M = 0.55;
+
+/**
+ * Khối `interactive` (đèn bật sẵn, sáng theo phong cách) cho đồ đạc là đèn; `undefined` = không
+ * phải đèn. Chỉ đèn âm trần sinh ra có ánh sáng trước đây — đèn cây/bàn/trần của bản vẽ tối om.
+ */
+export const lampInteractiveOf = (folder: string, style: SceneStyle = DEFAULT_STYLE): unknown => {
+  if (folder === 'table-lamp') {
+    const base = structuredClone(CATALOG_MODELS['floor-lamp']?.interactive) as
+      | { effects?: { kind: string; offset?: number[] }[] }
+      | undefined;
+    for (const effect of base?.effects ?? []) if (effect.kind === 'light') effect.offset = [0, TABLE_LAMP_LIGHT_Y_M, 0];
+    return base === undefined ? undefined : lightInteractiveOf(base, style);
+  }
+  const interactive = CATALOG_MODELS[folder]?.interactive;
+  return interactive === undefined ? undefined : lightInteractiveOf(interactive, style);
 };
 
 /** Các x nơi cạnh đa giác cắt đường ngang `y`, tăng dần (quy tắc nửa mở: đỉnh không đếm hai lần). */

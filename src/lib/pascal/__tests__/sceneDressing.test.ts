@@ -6,7 +6,7 @@ import { millimetres } from '@/domain/units/types';
 
 import { fixtureF1, fixtureF2, type Fixture } from '../__fixtures__';
 import { SITE_NODE_ID, toPascalId } from '../ids';
-import { floorMaterialOf, itemSlotsOf, SCENE_MATERIALS, wallDressingOf } from '../sceneDressing';
+import { floorMaterialOf, GLASS_OPACITY, itemSlotsOf, lampInteractiveOf, SCENE_MATERIALS, wallDressingOf } from '../sceneDressing';
 import { SCENE_STYLE_IDS, SCENE_STYLE_MATERIALS, SCENE_STYLES, sceneStyleOf } from '../sceneStyles';
 import { toPascalScene } from '../toPascal';
 import type { PascalSlabNode, PascalWallNode } from '../types';
@@ -23,6 +23,27 @@ const run = (fixture: Fixture) => {
 };
 
 describe('sceneDressing (I3) — sàn, tường, vật liệu cảnh', () => {
+  it('C1: kính cửa sổ trong suốt (đục < 0,6 → Pascal phủ fresnel), id giữ nguyên', () => {
+    const glass = SCENE_MATERIALS.find((m) => m.id === 'mat_appfront_glass');
+    const props = glass?.material.properties as { opacity: number; transparent: boolean; roughness: number } | undefined;
+    expect(props?.transparent).toBe(true);
+    expect(props?.opacity).toBe(GLASS_OPACITY);
+    expect(GLASS_OPACITY).toBeGreaterThanOrEqual(0.2);
+    expect(GLASS_OPACITY).toBeLessThanOrEqual(0.3);
+    expect(props?.roughness).toBeLessThanOrEqual(0.05);
+  });
+
+  it('C1: lampInteractiveOf — đèn bàn mượn khối đèn cây, ánh sáng theo phong cách; đồ khác undefined', () => {
+    const style = sceneStyleOf(undefined);
+    for (const folder of ['floor-lamp', 'table-lamp', 'ceiling-lamp', 'recessed-light']) {
+      const lamp = lampInteractiveOf(folder, style) as { effects: { kind: string; color?: string; intensityRange?: number[] }[] };
+      const light = lamp.effects.find((e) => e.kind === 'light');
+      expect(light?.color, folder).toBe(style.lampColour);
+      expect(light?.intensityRange, folder).toEqual([0, style.lampIntensity]);
+    }
+    expect(lampInteractiveOf('sofa', style)).toBeUndefined();
+  });
+
   it('F2: mặt sàn theo công năng khi phòng không khai finish (phong cách mặc định)', () => {
     const { graph, slabOf } = run(fixtureF2());
     const byUsage: Record<RoomUsage, string> = {

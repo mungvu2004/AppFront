@@ -67,6 +67,16 @@ describe('furnitureCatalog', () => {
     }
   });
 
+  it('C1: variant trước đây null/sai nay có mô hình hợp (không còn null nào)', () => {
+    expect(VARIANT_MODEL.sconce).toEqual({ folder: 'recessed-light', liftMm: 1800 });
+    expect(VARIANT_MODEL.vase).toEqual({ folder: 'cactus' });
+    expect(VARIANT_MODEL.planter).toEqual({ folder: 'bush' });
+    expect(VARIANT_MODEL.bamboo).toEqual({ folder: 'indoor-plant' });
+    expect(VARIANT_MODEL.bench).toEqual({ folder: 'tv-stand' });
+    expect(Object.values(VARIANT_MODEL)).not.toContain(null);
+    for (const f of ['cactus', 'books', 'tv-stand', 'lounge-chair', 'shelf']) expect(CATALOG_MODELS[f], f).toBeDefined();
+  });
+
   it('modelSrcOf / thumbnailOf', () => {
     expect(modelSrcOf('sofa')).toBe('/items/sofa/model.glb');
     expect(thumbnailOf('sofa')).toBe('/items/sofa/thumbnail.webp');
