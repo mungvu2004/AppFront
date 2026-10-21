@@ -9,8 +9,16 @@ import { create } from 'zustand';
 import { LightingCard, lightingKey } from '../LightingCard';
 
 const viewerWith = (sceneTheme: string) => {
-  const setSceneTheme = vi.fn((id: string) => useViewer.setState({ sceneTheme: id }));
-  const useViewer = create<{ sceneTheme: string; setSceneTheme: (id: string) => void }>(() => ({ sceneTheme, setSceneTheme }));
+  const setSceneTheme = vi.fn<(id: string) => void>();
+  const useViewer = create<{ sceneTheme: string; setSceneTheme: (id: string) => void }>((set) => ({
+    sceneTheme,
+    setSceneTheme: (id) => {
+      setSceneTheme(id);
+      /* eslint-disable-next-line local/no-direct-set -- kho giả đứng thay `useViewer` của Pascal (không phải kho
+         AppFront), nên không có commit(patch, label) để đi qua. */
+      set({ sceneTheme: id });
+    },
+  }));
   return { useViewer, setSceneTheme };
 };
 
