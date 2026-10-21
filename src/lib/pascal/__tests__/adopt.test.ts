@@ -9,7 +9,7 @@ import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Furniture, SpatialGraph } from '@/domain/spatial/types';
 
-import { fixtureF1 } from '../__fixtures__';
+import { fixtureF2 } from '../__fixtures__';
 import { createPascalEditCommand } from '../fromPascal';
 import { isGeneratedLightId } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
@@ -17,7 +17,9 @@ import { adoptableRoomOf, type PascalIdBook } from '../toSpatial';
 import type { PascalItemNode, PascalNode, PascalScene } from '../types';
 
 const ACTOR = 'U-1';
-const graph: SpatialGraph = SpatialGraphDocumentSchema.parse(fixtureF1({ ext: true }).doc).graph;
+/* F1-ext gốc không còn đồ tự bày (FE3D-FIX-004 C2: bàn ăn phòng khách chặn bộ bàn ăn trong bếp, đúng
+   như nhà thật). F2 vẫn có giường + tủ đầu giường tự bày trong một phòng và đồ thật — đủ cho ca "nhận nuôi". */
+const graph: SpatialGraph = SpatialGraphDocumentSchema.parse(fixtureF2().doc).graph;
 const scene = toPascalScene(graph).scene;
 const items = (of: PascalScene): PascalItemNode[] =>
   Object.values(of.nodes).filter((node): node is PascalItemNode => node.type === 'item');
@@ -101,6 +103,34 @@ describe('nhận nuôi đồ bày biện sinh ra', () => {
     expect(second.ok ? second.data.changes.map((change) => change.after?.id) : []).toEqual(
       first.ok ? first.data.changes.map((change) => change.after?.id) : [],
     );
+  });
+});
+
+describe('N1 — sửa tiếp sau khi đã nhận nuôi (cảnh vẫn giữ node sinh ra)', () => {
+  it('lượt thứ hai trên món khác của cùng phòng: một lần sửa, không thêm lại cả bộ', () => {
+    const book: PascalIdBook = new Map();
+    const first = adopt(book);
+
+    if (!first.ok) throw new Error(first.error.reasons.join(' '));
+
+    const saved: SpatialGraph = {
+      ...graph,
+      furniture: [...graph.furniture, ...first.data.changes.map((change) => change.after as Furniture)],
+    };
+    const other = dressOf(scene, roomId)[1] as PascalItemNode;
+    const shifted: PascalNode = { ...other, position: [other.position[0], other.position[1], other.position[2] + 0.2] };
+    const second = createPascalEditCommand({
+      graph: normalizeSpatial(saved),
+      scene: { ...editedScene, nodes: { ...editedScene.nodes, [shifted.id]: shifted } },
+      commit: { origin: 'local', changedNodeIds: [shifted.id] },
+      actorId: ACTOR,
+      idBook: book,
+    });
+
+    if (!second.ok) throw new Error(second.error.reasons.join(' '));
+    expect(second.data.changes).toHaveLength(1);
+    expect(second.data.changes[0]?.before).toMatchObject({ id: book.get(shifted.id) });
+    expect((second.data.changes[0]?.after as Furniture).centre.y).toBe(Math.round(shifted.position[2] * 1000));
   });
 });
 

@@ -11,7 +11,15 @@
 import type { Furniture, FurnitureId, FurnitureVariant, Point, Room, SpatialGraph } from '@/domain/spatial/types';
 
 import { CATALOG_MODELS, VARIANT_MODEL } from './furnitureCatalog';
-import { doorSwingRects, rectInsidePolygon, rectOfFurniture, rectsOverlap, type Rect } from './placement';
+import {
+  doorSwingRects,
+  rectCorners,
+  rectInsidePolygon,
+  rectOfFurniture,
+  rectsOverlap,
+  wallRects,
+  type Rect,
+} from './placement';
 import { roleOf, type FurnitureRole } from './sceneVariety';
 import type { SceneStyle } from './sceneStyles';
 
@@ -21,6 +29,8 @@ const FURNITURE_GAP_MM = 50;
 const RUG_SCALES = [1, 0.8] as const;
 /** Thảm phòng khách 2000 × 1400, mép sau luồn 300 mm dưới mặt trước sofa. */
 const LIVING_RUG = { long: 2000, deep: 1400, underSofa: 300 } as const;
+/** Thảm theo nhóm sofa: dài hơn sofa 400, phủ quá mép xa bàn nước 300; trần 3200 × 2600. */
+const GROUP_RUG = { extraLong: 400, pastTable: 300, maxLong: 3200, maxDeep: 2600 } as const;
 /** Thảm giường: rộng hơn giường 600, sâu 1400, phủ 2/3 phía chân giường. */
 const BED_RUG = { extraWidth: 600, deep: 1400 } as const;
 const BATH_MAT = { long: 700, deep: 450 } as const;
@@ -118,6 +128,7 @@ export const dressingOf = (graph: SpatialGraph, _style: SceneStyle): readonly Fu
 
   for (const room of [...graph.rooms].sort(byId)) {
     const swings = doorSwingRects(graph, room.levelId);
+    const walls = wallRects(graph, room.levelId);
     const inRoom = graph.furniture
       .filter((f) => f.roomId === room.id)
       .sort(byId)
@@ -137,6 +148,7 @@ export const dressingOf = (graph: SpatialGraph, _style: SceneStyle): readonly Fu
         (r) =>
           rectInsidePolygon(r, room.outline, ROOM_INSET_MM) &&
           !swings.some((s) => rectsOverlap(r, s)) &&
+          !walls.some((w) => rectsOverlap(r, w)) &&
           !placed.some(
             (p) => p.levelId === room.levelId && !hosts.has(p.id) && rectsOverlap(r, p.rect, FURNITURE_GAP_MM),
           ),
@@ -171,9 +183,22 @@ export const dressingOf = (graph: SpatialGraph, _style: SceneStyle): readonly Fu
         const depthAxis = rect.w >= rect.d ? 1 : 0;
         const depth = depthAxis === 1 ? rect.d : rect.w;
         const front = openSideOf(rect, depthAxis, room.outline);
+        // Cỡ theo nhóm: phủ tới quá mép xa nhất của bàn nước phía trước sofa.
+        const axis = axesOf(rect.rotationDeg)[depthAxis];
+        const frontPlane = depth / 2 - LIVING_RUG.underSofa;
+        const reach = Math.max(
+          0,
+          ...group
+            .filter((item) => item.role === 'coffeeTable')
+            .flatMap((item) => rectCorners(item.rect))
+            .map((c) => front * ((c.x - rect.cx) * axis.x + (c.y - rect.cy) * axis.y) - frontPlane),
+        );
+        const sofaLong = depthAxis === 1 ? rect.w : rect.d;
+        const fullLong = Math.min(GROUP_RUG.maxLong, Math.max(LIVING_RUG.long, sofaLong + GROUP_RUG.extraLong));
+        const fullDeep = Math.min(GROUP_RUG.maxDeep, Math.max(LIVING_RUG.deep, reach + GROUP_RUG.pastTable));
         const candidates = RUG_SCALES.map((k) => {
-          const long = LIVING_RUG.long * k;
-          const deep = LIVING_RUG.deep * k;
+          const long = fullLong * k;
+          const deep = fullDeep * k;
           const offset = front * (depth / 2 - LIVING_RUG.underSofa + deep / 2);
           return depthAxis === 1 ? rectAt(rect, 0, offset, long, deep) : rectAt(rect, offset, 0, deep, long);
         });

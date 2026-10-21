@@ -123,22 +123,47 @@ describe('dressingOf — phòng khách', () => {
   const sofa = piece('sofa', 'chair', 'liv', [2500, 550], [2000, 900], { variant: 'sofa' });
   const coffee = piece('coffee', 'table', 'liv', [2500, 1750], [1100, 600], { heightMm: 400 });
 
-  it('một thảm dưới nhóm sofa, được chồng sofa + bàn trà', () => {
+  it('một thảm dưới nhóm sofa, cỡ theo nhóm (C2): dài hơn sofa 400, phủ quá mép xa bàn trà 300', () => {
     const graph = graphOf([living], [sofa, coffee]);
     const items = dressingOf(graph, STYLE);
 
     expect(items.map((i) => i.id)).toEqual(['DRESS-rug-R-liv']);
-    expect(rectOfFurniture(items[0]!)).toEqual({ cx: 2500, cy: 1400, w: 2000, d: 1400, rotationDeg: 0 });
+    // Mép sau luồn 300 dưới sofa (y = 700); bàn trà tới y = 2050 → sâu 2050 − 700 + 300 = 1650.
+    expect(rectOfFurniture(items[0]!)).toEqual({ cx: 2500, cy: 1525, w: 2400, d: 1650, rotationDeg: 0 });
     expectValid(graph, items);
   });
 
   it('vướng tủ sát mép: thảm lùi về 80%; đã có thảm: không thêm', () => {
     const shelf = piece('shelf', 'wardrobe', 'liv', [3760, 1450], [480, 500], { heightMm: 1800 });
     const shrunk = dressingOf(graphOf([living], [sofa, coffee, shelf]), STYLE);
-    expect(shrunk.map((i) => rectOfFurniture(i).w)).toEqual([1600]);
+    expect(shrunk.map((i) => rectOfFurniture(i).w)).toEqual([1920]);
 
     const rug = piece('rug', 'other', 'liv', [1000, 3000], [1200, 800], { variant: 'rug' });
     expect(dressingOf(graphOf([living], [sofa, coffee, rug]), STYLE)).toEqual([]);
+  });
+});
+
+describe('dressingOf — tường (C2)', () => {
+  it('thảm không cắt tường ngăn không nằm trên outline: cả cỡ đầy đủ lẫn 80% đều vướng → bỏ', () => {
+    const living = roomOf('liv', 'livingRoom', 5000, 4000);
+    const sofa = piece('sofa', 'chair', 'liv', [2500, 3300], [2000, 900], { variant: 'sofa', rotationDeg: 180 });
+    // Tường ngăn vắt ngang phòng ở y = 2000 (không nằm trên outline).
+    const wall: Wall = {
+      ...META,
+      id: 'W-mid',
+      levelId: LEVEL,
+      centreline: { start: { x: 0, y: 2000 }, end: { x: 5000, y: 2000 } },
+      thicknessMm: 120,
+      heightMm: 3000,
+      kind: 'partition',
+      openingIds: [],
+    };
+    const graph = graphOf([living], [sofa], [wall]);
+    const items = dressingOf(graph, STYLE);
+    const wallRect = { cx: 2500, cy: 2000, w: 5000, d: 120, rotationDeg: 0 };
+    for (const item of items) expect(rectsOverlap(rectOfFurniture(item), wallRect), item.id).toBe(false);
+    expect(items).toEqual([]);
+    expect(dressingOf(graphOf([living], [sofa]), STYLE)).toHaveLength(1);
   });
 });
 

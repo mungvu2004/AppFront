@@ -13,6 +13,7 @@ import {
   rectOfFurniture,
   rectsOverlap,
   roomEdges,
+  wallRects,
   type Rect,
 } from '../placement';
 
@@ -126,6 +127,31 @@ describe('roomEdges', () => {
   it('tường xa cạnh hơn dày/2 + 50 mm không tính', () => {
     const far = wallOf('W-A', { x: 0, y: -300 }, { x: 4000, y: -300 });
     expect(roomEdges(room, graphOf([far], [doorOf('O-D', 'W-A', 1000)]))[0]?.openings).toEqual([]);
+  });
+});
+
+describe('wallRects + wallHalfMm (C2)', () => {
+  it('thân tường = dài tâm tường × dày, xoay theo tường; chỉ tường cùng tầng', () => {
+    const wall = { ...wallOf('W-A', { x: 0, y: 0 }, { x: 0, y: 3000 }), thicknessMm: 300 };
+    const other = { ...wallOf('W-B', { x: 0, y: 0 }, { x: 1000, y: 0 }), levelId: 'L-OTHER' } as Wall;
+    const [r] = wallRects(graphOf([wall, other], []), LEVEL);
+    expect(wallRects(graphOf([wall, other], []), LEVEL)).toHaveLength(1);
+    expect(r).toMatchObject({ cx: 0, cy: 1500, w: 3000, d: 300, rotationDeg: 90 });
+    // Món lùi 100 mm khỏi tâm tường 300 vẫn cắt thân tường; lùi 151 thì không.
+    expect(rectsOverlap(rect(100 + 250, 1500, 500, 500), r as Rect)).toBe(true);
+    expect(rectsOverlap(rect(151 + 250, 1500, 500, 500), r as Rect)).toBe(false);
+  });
+
+  it('cạnh phòng mang nửa dày lớn nhất của tường nằm trên nó; không tường → 0', () => {
+    const outline: Point[] = [
+      { x: 0, y: 0 },
+      { x: 4000, y: 0 },
+      { x: 4000, y: 3000 },
+      { x: 0, y: 3000 },
+    ];
+    const thick = { ...wallOf('W-A', { x: 0, y: 0 }, { x: 4000, y: 0 }), thicknessMm: 300 };
+    const edges = roomEdges({ levelId: LEVEL, outline }, graphOf([thick], []));
+    expect(edges.map((e) => e.wallHalfMm)).toEqual([150, 0, 0, 0]);
   });
 });
 

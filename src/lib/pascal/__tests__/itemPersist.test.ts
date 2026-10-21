@@ -9,13 +9,15 @@ import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Furniture, SpatialGraph } from '@/domain/spatial/types';
 
-import { fixtureF1 } from '../__fixtures__';
+import { fixtureF2 } from '../__fixtures__';
 import { createPascalEditCommand } from '../fromPascal';
 import { toPascalScene } from '../toPascal';
 import { adoptableRoomOf } from '../toSpatial';
 import type { PascalItemNode, PascalNode, PascalScene } from '../types';
 
-const graph: SpatialGraph = SpatialGraphDocumentSchema.parse(fixtureF1({ ext: true }).doc).graph;
+/* F1-ext gốc không còn đồ tự bày (FE3D-FIX-004 C2: bàn ăn phòng khách chặn bộ bàn ăn trong bếp, đúng
+   như nhà thật). F2 vẫn có giường + tủ đầu giường tự bày trong một phòng và đồ thật — đủ cho ca "nhận nuôi". */
+const graph: SpatialGraph = SpatialGraphDocumentSchema.parse(fixtureF2().doc).graph;
 const sceneOf = (of: SpatialGraph): PascalScene => toPascalScene(of).scene;
 const items = (of: PascalScene): PascalItemNode[] =>
   Object.values(of.nodes).filter((node): node is PascalItemNode => node.type === 'item');
@@ -120,7 +122,8 @@ describe('W3b — đồ đạc giữ khe, mẫu, độ cao', () => {
       ),
     );
 
-    expect(after.heightMm).toBe(Math.round(node.asset.dimensions[1] * 1.5 * 1000));
+    // ±1 mm: chiều cao khớp mẫu (C1 khớp theo trục) và `dimensions` làm tròn ở hai chỗ khác nhau.
+    expect(Math.abs((after.heightMm ?? 0) - Math.round(node.asset.dimensions[1] * 1.5 * 1000))).toBeLessThanOrEqual(1);
     expect(after.liftMm).toBe(Math.round((node.position[1] + 0.3) * 1000));
     expectStable(after);
   });
@@ -143,5 +146,34 @@ describe('W3b — đồ đạc giữ khe, mẫu, độ cao', () => {
     expect(adopted.every((candidate) => candidate.id.startsWith('F-'))).toBe(true);
     expect(same?.variant).toBe(fields['variant']);
     expect(same?.heightMm).toBe(fields['heightMm']);
+  });
+});
+
+describe('N1 — đồ thả lên mặt một món khác (Pascal gắn làm con của món ấy)', () => {
+  it('giữ tâm thế giới và độ nâng, không ghi lần xoá nào', () => {
+    const scene = sceneOf(graph);
+    const real = items(scene).filter((node) => node.id.startsWith('item_F-'));
+    const host = real[0] as PascalItemNode;
+    const guest = real.find((node) => node.parentId === host.parentId && node.id !== host.id) as PascalItemNode;
+    const level = scene.nodes[host.parentId ?? ''] as PascalNode & { readonly children: readonly string[] };
+    const yaw = host.rotation[1];
+    const local = [0.1, 0.75, 0.2] as const;
+    const nodes: Record<string, PascalNode> = {
+      ...scene.nodes,
+      [level.id]: { ...level, children: level.children.filter((id) => id !== guest.id) } as PascalNode,
+      [host.id]: { ...host, children: [guest.id] } as PascalNode,
+      [guest.id]: { ...guest, parentId: host.id, position: [...local], rotation: [0, 0.3, 0] },
+    };
+    const result = commit(graph, { ...scene, nodes }, guest.id, host.id, level.id);
+
+    if (!result.ok) throw new Error(result.error.reasons.join(' '));
+
+    expect(result.data.changes.some((change) => change.after === null)).toBe(false);
+
+    const after = result.data.changes.find((change) => change.after?.id === guest.id.slice('item_'.length))?.after as Furniture;
+
+    expect(after.centre.x).toBeCloseTo((host.position[0] + local[0] * Math.cos(yaw) + local[2] * Math.sin(yaw)) * 1000, 0);
+    expect(after.centre.y).toBeCloseTo((host.position[2] - local[0] * Math.sin(yaw) + local[2] * Math.cos(yaw)) * 1000, 0);
+    expect(after.liftMm).toBe(Math.round((host.position[1] + local[1]) * 1000));
   });
 });
