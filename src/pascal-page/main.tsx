@@ -24,6 +24,7 @@ import { LightingCard } from './LightingCard';
 import { applyDayLook, applyRenderLook, DAY_THEME_ID } from './renderLook';
 import { SceneStyleCard } from './SceneStyleCard';
 import { SwapModelCard } from './SwapModelCard';
+import { PascalTour } from './tour/PascalTour';
 import Home from './upstream/page';
 // CSS của trang (Tailwind 4, không bọc phạm vi) — bản dựng xuất thành `/assets/pascal/style.css`.
 import './pascal.css';
@@ -71,6 +72,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
   // Cầu khai kiểu lỏng (`PascalSceneGraph`, `unknown`) để không nhập Pascal; ở đây là chỗ ráp với `SceneGraph`.
   const onLoad = bridge.onLoad as unknown as () => Promise<SceneGraph>;
   return (
+    <>
     <Home
       backCard={
         <>
@@ -87,6 +89,8 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
       projectName={bridge.projectName}
       readOnly={readOnly}
     />
+    <PascalTour />
+    </>
   );
 }
 

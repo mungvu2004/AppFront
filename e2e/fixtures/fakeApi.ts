@@ -39,6 +39,8 @@ export interface FakeApiOptions {
   readonly graphDoc: WireGraphDocument;
   /** Khoá ghép đè lên tài liệu N16 của từng tầng (theo mã tầng), ví dụ `{ scaleStatus: 'unresolved' }`. */
   readonly layers?: Readonly<Record<string, Wire>>;
+  /** `true` = để hướng dẫn thao tác trang 3D tự bật (mặc định tắt để không che giao diện). */
+  readonly tour?: boolean;
 }
 
 export interface FakeResponse {
@@ -215,6 +217,15 @@ export async function installFakeApi(
   options: FakeApiOptions,
 ): Promise<{ unexpected: string[]; puts: unknown[] }> {
   const backend = createFakeBackend(options);
+  if (!options.tour) {
+    await page.addInitScript(() => {
+      try {
+        window.localStorage.setItem('appfront.pascal.tour.v1', 'done');
+      } catch {
+        /* bộ nhớ bị chặn */
+      }
+    });
+  }
 
   await page.route(
     (url) => url.pathname.startsWith('/api/'),

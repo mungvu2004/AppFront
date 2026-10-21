@@ -20,8 +20,9 @@
 
 import { type AnyNodeId, useScene } from '@pascal-app/core'
 import { useEditor } from '@pascal-app/editor'
-import { ChevronDown, ChevronUp, Mouse } from 'lucide-react'
+import { ChevronDown, ChevronUp, CircleHelp, Mouse } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { requestTour } from '../../tour/tourLogic'
 import { clampShift } from '../lib/clamp-shift'
 
 const OPEN_KEY = 'appfront-3d-help-open:v1'
@@ -38,6 +39,26 @@ const VENDOR_CAMERA_BUTTON = '> button img[src*="/topview."], > button img[src*=
 const MEASURE_LABEL = 'div.whitespace-nowrap.font-medium.text-base.text-white'
 
 const SCOPED_CSS = `
+.appfront-help-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+  font-size: 13px; font-weight: 500; color: var(--pa-text-2); cursor: pointer;
+  background: var(--pa-surface); border: 1px solid var(--pa-border); border-radius: var(--pa-radius-lg, 12px);
+  box-shadow: var(--pa-shadow-float); transition: background 120ms var(--pa-ease), color 120ms var(--pa-ease);
+}
+.appfront-help-btn:hover { background: var(--pa-sunken); color: var(--pa-text); }
+.appfront-help-btn:active { background: var(--pa-selected); }
+.appfront-help-btn:focus-visible { outline: none; box-shadow: var(--pa-focus); }
+.appfront-help-panel {
+  padding: 12px 16px; font-size: 13px; color: var(--pa-text);
+  background: var(--pa-surface); border: 1px solid var(--pa-border); border-radius: var(--pa-radius-lg, 12px);
+  box-shadow: var(--pa-shadow-float);
+}
+.appfront-help-how { color: var(--pa-text-2); }
+.appfront-help-kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; padding: 1px 6px;
+  border: 1px solid var(--pa-border); background: var(--pa-sunken); color: var(--pa-text-2); border-radius: 4px;
+}
+@media (prefers-reduced-motion: reduce) { .appfront-help-btn { transition: none; } }
 section[aria-label="Camera controls hint"] { display: none !important; }
 [data-appfront-help="closed"] ${SHORTCUT_PANEL} { display: none !important; }
 button[title="Thêm tầng phía trên"], button[title="Thêm tầng phía dưới"] {
@@ -120,7 +141,20 @@ function writeOpen(open: boolean) {
   } catch {}
 }
 
-const EDITOR_HINTS: Array<[string, string]> = [
+/** Chữ "Space" hiện bằng chip kbd. */
+function renderKeys(text: string) {
+  return text.split(/(Space)/).map((part, i) =>
+    part === 'Space' ? (
+      <kbd className="appfront-help-kbd" key={`${part}-${i}`}>
+        Space
+      </kbd>
+    ) : (
+      part
+    ),
+  )
+}
+
+const EDITOR_HINTS:Array<[string, string]> = [
   ['Xoay', 'Giữ chuột phải và kéo'],
   ['Kéo khung', 'Space + chuột trái, hoặc chuột giữa'],
   ['Phóng to/thu nhỏ', 'Lăn chuột'],
@@ -164,29 +198,35 @@ export function CanvasHelp() {
               Đang ở chế độ xoá: bấm vào đối tượng sẽ xoá nó · Esc để thoát
             </div>
           ) : null}
-          <button
-            aria-expanded={open}
-            className="flex items-center gap-1.5 rounded-full border border-border/50 bg-background/90 px-3 py-1 font-medium text-foreground text-xs shadow-md backdrop-blur-md transition-colors hover:bg-accent"
-            onClick={toggle}
-            type="button"
-          >
-            <Mouse aria-hidden="true" className="h-3.5 w-3.5" />
-            {open ? 'Ẩn hướng dẫn điều khiển' : 'Điều khiển chuột và phím tắt'}
-            {open ? (
-              <ChevronUp aria-hidden="true" className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
-            )}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button aria-expanded={open} className="appfront-help-btn" onClick={toggle} type="button">
+              <Mouse aria-hidden="true" className="h-4 w-4" />
+              {open ? 'Ẩn hướng dẫn điều khiển' : 'Điều khiển chuột và phím tắt'}
+              {open ? (
+                <ChevronUp aria-hidden="true" className="h-4 w-4" />
+              ) : (
+                <ChevronDown aria-hidden="true" className="h-4 w-4" />
+              )}
+            </button>
+            <button
+              aria-label="Xem lại hướng dẫn thao tác"
+              className="appfront-help-btn"
+              onClick={requestTour}
+              type="button"
+            >
+              <CircleHelp aria-hidden="true" className="h-4 w-4" />
+              Hướng dẫn
+            </button>
+          </div>
           {open ? (
             <section
               aria-label="Hướng dẫn điều khiển camera"
-              className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 rounded-xl border border-border/50 bg-background/90 px-3.5 py-2.5 text-xs shadow-md backdrop-blur-md"
+              className="appfront-help-panel grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1.5"
             >
               {hints.map(([action, how]) => (
                 <div className="contents" key={action}>
-                  <span className="font-medium text-foreground">{action}</span>
-                  <span className="text-foreground/80">{how}</span>
+                  <span className="font-medium">{action}</span>
+                  <span className="appfront-help-how">{renderKeys(how)}</span>
                 </div>
               ))}
             </section>
