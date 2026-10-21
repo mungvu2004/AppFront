@@ -144,3 +144,10 @@
 @media (prefers-reduced-motion: reduce) {
   .bg-sidebar *, [class*="bg-sidebar/95"] * { transition-duration: 0.01ms !important; }
 }
+
+/* Hai nút "Thêm tầng" / "Thêm tầng hầm" chung một hàng 2 cột: bớt đệm để chữ không bị cắt ở thanh bên hẹp. */
+.bg-sidebar .grid.grid-cols-2.gap-2 > button {
+  padding-inline: 8px;
+  gap: 6px;
+  justify-content: center;
+}

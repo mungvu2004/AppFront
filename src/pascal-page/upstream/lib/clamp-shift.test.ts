@@ -25,10 +25,13 @@ describe('clampShift (G5-09)', () => {
 describe('clearOfShift (pascal-polish)', () => {
   const card = { left: 356, right: 486, top: 56, bottom: 94 }
   it('pushes an overlapping pill right of the card plus the gap', () => {
-    expect(clearOfShift({ left: 330, right: 690, top: 56, bottom: 88 }, card)).toBe(168)
+    expect(clearOfShift({ left: 330, right: 690, top: 56, bottom: 88 }, card, 1024)).toEqual({ dx: 168, dy: 0 })
+  })
+  it('drops the pill below the card when moving right would leave the window', () => {
+    expect(clearOfShift({ left: 330, right: 690, top: 56, bottom: 88 }, card, 768)).toEqual({ dx: 0, dy: 50 })
   })
   it('leaves a pill that is already clear or on another row', () => {
-    expect(clearOfShift({ left: 540, right: 900, top: 56, bottom: 88 }, card)).toBe(0)
-    expect(clearOfShift({ left: 330, right: 690, top: 120, bottom: 150 }, card)).toBe(0)
+    expect(clearOfShift({ left: 540, right: 900, top: 56, bottom: 88 }, card, 1440)).toEqual({ dx: 0, dy: 0 })
+    expect(clearOfShift({ left: 330, right: 690, top: 120, bottom: 150 }, card, 1440)).toEqual({ dx: 0, dy: 0 })
   })
 })

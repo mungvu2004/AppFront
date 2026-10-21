@@ -62,7 +62,7 @@ const SCOPED_CSS = `
 section[aria-label="Camera controls hint"] { display: none !important; }
 [data-appfront-help="closed"] ${SHORTCUT_PANEL} { display: none !important; }
 button[title="Thêm tầng phía trên"], button[title="Thêm tầng phía dưới"] {
-  width: 1.25rem !important; height: 1.25rem !important;
+  width: 1.5rem !important; height: 1.5rem !important; /* ≥ 24px vùng bấm (WCAG 2.5.8) */
   color: var(--foreground) !important;
 }
 button[title="Thêm tầng phía trên"] {
@@ -169,7 +169,7 @@ const PREVIEW_HINTS: Array<[string, string]> = [
 /** Floating floor card (vendor `floating-level-selector`) the centred pill must not cover on narrow canvases. */
 const FLOOR_CARD = '.absolute.top-14.left-3.z-20'
 
-/** pascal-polish: nudge the pill right while it would overlap the floor card (same rAF pattern as above). */
+/** pascal-polish: nudge the pill right (or below) while it would overlap the floor card (same rAF pattern as above). */
 function useClearOfFloorCard(ref: { current: HTMLElement | null }) {
   useEffect(() => {
     let frame = 0
@@ -177,13 +177,16 @@ function useClearOfFloorCard(ref: { current: HTMLElement | null }) {
       const el = ref.current
       const card = document.querySelector<HTMLElement>(FLOOR_CARD)?.getBoundingClientRect()
       if (el) {
-        const prev = Number(el.dataset.clearX ?? 0)
+        const prevX = Number(el.dataset.clearX ?? 0)
+        const prevY = Number(el.dataset.clearY ?? 0)
         const r = el.getBoundingClientRect()
-        const base = { left: r.left - prev, right: r.right - prev, top: r.top, bottom: r.bottom }
-        const x = card && card.width ? Math.round(clearOfShift(base, card)) : 0
-        if (x !== prev) {
+        const base = { left: r.left - prevX, right: r.right - prevX, top: r.top - prevY, bottom: r.bottom - prevY }
+        const { dx, dy } = card && card.width ? clearOfShift(base, card, window.innerWidth) : { dx: 0, dy: 0 }
+        const [x, y] = [Math.round(dx), Math.round(dy)]
+        if (x !== prevX || y !== prevY) {
           el.dataset.clearX = String(x)
-          el.style.translate = x ? `${x}px 0` : ''
+          el.dataset.clearY = String(y)
+          el.style.translate = x || y ? `${x}px ${y}px` : ''
         }
       }
       frame = requestAnimationFrame(tick)

@@ -23,11 +23,14 @@ export function clampShift(
 type Box = { left: number; right: number; top: number; bottom: number }
 
 /**
- * AppFront addition (pascal-polish): rightward shift that keeps `rect` clear of `obstacle` (with `gap`)
- * when they overlap on both axes; 0 otherwise. Used to keep the centred help pill off the floor card.
+ * AppFront addition (pascal-polish): shift that keeps `rect` clear of `obstacle` (with `gap`) when they
+ * overlap on both axes. Prefer moving right; if that would leave the window (`width`), drop below instead.
+ * Used to keep the centred help pill off the floor card.
  */
-export function clearOfShift(rect: Box, obstacle: Box, gap = 12): number {
+export function clearOfShift(rect: Box, obstacle: Box, width: number, gap = 12): { dx: number; dy: number } {
   const overlapY = rect.top < obstacle.bottom && rect.bottom > obstacle.top
   const overlapX = rect.left < obstacle.right + gap && rect.right > obstacle.left
-  return overlapY && overlapX ? obstacle.right + gap - rect.left : 0
+  if (!overlapY || !overlapX) return { dx: 0, dy: 0 }
+  const dx = obstacle.right + gap - rect.left
+  return rect.right + dx <= width - EDGE ? { dx, dy: 0 } : { dx: 0, dy: obstacle.bottom + gap - rect.top }
 }
