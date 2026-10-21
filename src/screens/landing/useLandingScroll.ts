@@ -56,6 +56,8 @@ const MAX_REBUILDS = 3;
 /** Benchmark lúc mở đầu (màn đầu đứng yên): bỏ vài khung đầu, lấy trung vị phần còn lại. */
 const BENCH_FRAMES = 30;
 const BENCH_SKIP = 6;
+/** One scroll event moving p further than this is a jump, not Lenis smoothing (~1.5 screens at 1440). */
+const JUMP_P = 0.03;
 
 export function useLandingScroll(opts: LandingScrollOptions): void {
   const optsRef = useRef(opts);
@@ -80,6 +82,10 @@ export function useLandingScroll(opts: LandingScrollOptions): void {
     const onScroll = (): void => {
       const next = progressAt(lenis.scroll, span);
       if (next !== p) {
+        // Nhảy (rail 01–06, "Xem lại từ đầu", Home/End, kéo thanh cuộn): khung kế tiếp vẽ thẳng đích, không giảm
+        // chấn lướt qua mọi cảnh ở giữa (lóe khung cũ). Cuộn Lenis mượt chỉ đi vài phần nghìn mỗi khung.
+        // Không vẽ đồng bộ ở đây: vẽ ngoài ticker chen vào lượt warm-up, WebGL báo GL_INVALID_OPERATION.
+        if (Math.abs(next - p) > JUMP_P) shown = next;
         p = next;
         mark();
       }

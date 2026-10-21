@@ -9,7 +9,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { PUBLIC_ROUTE_PATTERNS, ROUTES } from '@/routes/paths';
 
-import { copyPhase, eyebrow, labelsFor } from './landing.copy';
+import { EXPORT_FORMAT_IDS } from '@/screens/export/ExportPanel/types';
+
+import { copyPhase, eyebrow, EXPORTS, labelsFor, STEPS } from './landing.copy';
 import { scrimAt, stepAt, stepStartP } from './overlay';
 
 const reduced = vi.hoisted(() => ({ value: false }));
@@ -23,7 +25,7 @@ vi.mock('@/lib/landing/timeline', () => ({
 vi.mock('@/lib/landing/stage', () => ({
   createStage: () => Promise.reject(new Error('NoWebGL2Error')),
 }));
-vi.mock('@/lib/landing/house', () => ({ LANDING_HOUSE: { checks: [] }, planSvg: () => '<svg></svg>' }));
+vi.mock('@/lib/landing/house', () => ({ LANDING_HOUSE: { checks: [], plan: { levels: [], walls: [], rooms: [] } }, planSvg: () => '<svg></svg>' }));
 vi.mock('lenis', () => ({
   default: class {
     scroll = 0;
@@ -73,12 +75,18 @@ describe('/welcome', () => {
     expect(PUBLIC_ROUTE_PATTERNS).toContain(ROUTES.welcome);
   });
 
-  it('bản cuộn có tiêu đề, "Bỏ qua" và nút bắt đầu tới /login', () => {
+  it('bản cuộn có tiêu đề, lối tắt tới phần bắt đầu và nút bắt đầu tới /login', () => {
     const { container } = renderRoute();
 
     expect(container.querySelector('h1')?.textContent).toBe('Bản vẽ biết trở thành ngôi nhà.');
     expect(container.querySelectorAll('h2').length).toBeGreaterThan(5);
-    expect(screen.getAllByRole('link', { name: /Bỏ qua/ })).toHaveLength(1);
+    expect(screen.getAllByRole('link', { name: /Tới phần bắt đầu/ })).toHaveLength(1);
+    // Nút bắt đầu ở cảnh đầu (h1) và ở cảnh cuối, cả hai tới /login; cái ở cảnh đầu đứng trước thanh bước theo Tab.
+    const ctas = Array.from(container.querySelectorAll('a.landing-cta'));
+    expect(ctas.map((a) => a.textContent)).toEqual(['Bắt đầu dự án →', 'Bắt đầu dự án →']);
+    expect(ctas.map((a) => a.getAttribute('href'))).toEqual([ROUTES.login, ROUTES.login]);
+    const rail = screen.getByRole('navigation', { name: 'Sáu bước' });
+    expect(ctas[0]!.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Đăng nhập' }).getAttribute('href')).toBe(ROUTES.login);
     expect(screen.getByRole('navigation', { name: 'Sáu bước' }).querySelectorAll('a')).toHaveLength(6);
     expect(container.querySelector('#bat-dau')?.getAttribute('href')).toBe(ROUTES.login);
@@ -92,6 +100,7 @@ describe('/welcome', () => {
     expect(container.querySelector('[data-mode="static"]')).not.toBeNull();
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Bản vẽ biết trở thành ngôi nhà.');
     expect(container.querySelectorAll('.landing-steps li')).toHaveLength(6);
+    expect(screen.getAllByRole('link', { name: /Bắt đầu dự án/ })).toHaveLength(2);
     expect(container.querySelector('#bat-dau')?.getAttribute('href')).toBe(ROUTES.login);
   });
 
@@ -99,6 +108,20 @@ describe('/welcome', () => {
     const { container } = renderRoute();
 
     await vi.waitFor(() => expect(container.querySelector('[data-mode="static"]')).not.toBeNull());
+  });
+});
+
+describe('định dạng xuất', () => {
+  // Phần mở rộng thật của từng định dạng ở màn Xuất (useExportPanel.ts EXTENSION_LABEL).
+  const EXT: Record<(typeof EXPORT_FORMAT_IDS)[number], string> = { glb: '.glb', pdf: '.pdf', image: '.png', 'spatial-json': '.json' };
+
+  it('trang giới thiệu nêu đúng bốn định dạng màn Xuất có, không IFC', () => {
+    expect(EXPORTS.map((e) => e.id).sort()).toEqual([...EXPORT_FORMAT_IDS].sort());
+    EXPORTS.forEach((e) => expect(e.format).toBe(EXT[e.id]));
+    const text = JSON.stringify([STEPS, EXPORTS]);
+    expect(text).not.toMatch(/IFC|BIM/);
+    // Mọi ".xxx" trong chữ của các bước và danh sách xuất là đúng bốn phần mở rộng thật.
+    expect(new Set(text.match(/\.[a-z]{3,4}\b/g))).toEqual(new Set(Object.values(EXT)));
   });
 });
 

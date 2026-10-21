@@ -52,7 +52,6 @@ const DEEP = '#3E5A2E';
 const MID = '#557043';
 const TIPS = '#6E7E4A';
 const FROND = '#647349';
-const BOUGAINVILLEA = '#A3346B';
 /** Bark: grey-brown, never pink (low red-blue spread). */
 const BARK = '#5A5045';
 const PALM_TRUNK = '#6B6457';
@@ -72,8 +71,8 @@ function foliageOf(p: SitePlant): string {
     return FROND;
   }
   if (p.slug === 'bush') {
-    // Bougainvillea only against the boundary walls, never in the house-front beds.
-    return p.variant !== 'topiary' && !p.id.startsWith('P-HEDGE-H') && s < 0.12 ? BOUGAINVILLEA : DEEP;
+    // A lighter bush now and then against the boundary walls (was magenta bougainvillea: read as a missing texture).
+    return p.variant !== 'topiary' && !p.id.startsWith('P-HEDGE-H') && s < 0.12 ? MID : DEEP;
   }
   if (p.variant === 'bonsai') {
     return MID;

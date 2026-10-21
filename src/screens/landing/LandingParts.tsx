@@ -6,17 +6,23 @@
 import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
 
-import type { ComplianceCheck } from '@/lib/landing/types';
+import { levelPlanSvg } from '@/lib/landing/house/planSvg';
+import type { ComplianceCheck, LandingHouse } from '@/lib/landing/types';
 import { ROUTES } from '@/routes/paths';
 
 import {
   CHECKS_HEAD,
+  CTA_HINT,
   checkSummary,
   DESCRIPTOR,
   EXPORTS,
   failingChecks,
+  FLOORS_HEAD,
   FOOTER_NOTE,
+  levelName,
+  PLAN_TAG,
   type SceneCopy,
+  SKIP_LABEL,
   STEPS,
   stepNumber,
   WORDMARK,
@@ -44,7 +50,7 @@ export function Header({ onSkip }: { onSkip?: () => void }) {
               }
         }
       >
-        Bỏ qua <span aria-hidden="true">↓</span>
+        {SKIP_LABEL} <span aria-hidden="true">↓</span>
       </a>
     </header>
   );
@@ -168,6 +174,40 @@ export function StartCta({ secondary }: { secondary: { label: string; onClick: (
         {secondary.label}
       </button>
     </p>
+  );
+}
+
+/** Nút bắt đầu ngay ở cảnh đầu: không cần cuộn hết trang mới tới được. Chưa có đăng ký, nên dẫn tới đăng nhập. */
+export function HeroCta({ delay }: { delay?: string }) {
+  return (
+    <p className="landing-actions landing-hero-cta" data-delay={delay}>
+      <Link className="landing-cta" to={ROUTES.login}>
+        Bắt đầu dự án <span aria-hidden="true">→</span>
+      </Link>
+      <span className="landing-cta-hint">{CTA_HINT}</span>
+    </p>
+  );
+}
+
+/** Mặt bằng ở S01–S04 là tầng 1: nói rõ để khỏi lẫn với ba tầng ở S05+. */
+export function PlanTag() {
+  return <p className="landing-caption landing-plan-tag">{PLAN_TAG}</p>;
+}
+
+/** Một mặt bằng nhỏ cho mỗi tầng, vẽ từ cùng dữ liệu căn nhà, để thấy tầng 2 và 3 từ đâu ra. */
+export function FloorStrip({ house, delay }: { house: LandingHouse; delay?: string }) {
+  return (
+    <figure className="landing-floors" data-delay={delay}>
+      <ol>
+        {house.plan.levels.map((l) => (
+          <li key={l.id}>
+            <span dangerouslySetInnerHTML={{ __html: levelPlanSvg(house, l.id) }} />
+            {levelName(l.id)}
+          </li>
+        ))}
+      </ol>
+      <figcaption className="landing-caption">{FLOORS_HEAD}</figcaption>
+    </figure>
   );
 }
 

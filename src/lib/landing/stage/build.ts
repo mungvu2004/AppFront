@@ -23,6 +23,8 @@ function rise(grower: Grower, amount: number, material: number, lift: number, ca
   grower.uniforms.uMat.value = material;
 }
 
+/** Joinery is cut this far under the wall cap (coplanar clamps flicker). */
+const JOINERY_UNDER_CUT_M = 0.02;
 const RENDER_WHITE = new Color('#F4F6F7');
 const NO_EYE = { x: -1e6, y: 0, z: -1e6 };
 const CUT_DARK = new Color('#7D7972');
@@ -65,7 +67,9 @@ export function applyBuild(h: StageHouse, s: LandingState, eye: { x: number; y: 
   const far = exterior && Math.hypot(eye.x - (ix0 + ix1) / 2, eye.y, eye.z - (iz0 + iz1) / 2) > INTERIOR_HIDE_M;
   for (const piece of h.furniture.values()) {
     const cap = piece.heightM > pieceCap ? piece.heightM + (pieceCap - piece.heightM) * build.cutaway : Infinity;
-    rise(piece, far ? 0 : (build.furniture[piece.id] ?? 0), build.material, liftOf(piece), cap);
+    // Hung pieces (pendants, hood, wall art) go with the ceiling and wall tops, or they float over the cut.
+    const hungAway = piece.baseY - piece.floorY > pieceCap && build.cutaway > SHOWN;
+    rise(piece, far || hungAway ? 0 : (build.furniture[piece.id] ?? 0), build.material, liftOf(piece), cap);
   }
   const flipped = h.look.far !== far;
   h.look.far = far;
@@ -96,9 +100,10 @@ export function applyBuild(h: StageHouse, s: LandingState, eye: { x: number; y: 
   for (const part of h.joinery) {
     const opacity = part.id === h.failedDoorId ? build.joinery * doorFade : build.joinery;
     part.object.visible = opacity > SHOWN;
-    // Frames and leaves are cut with the walls, or a window frame floats above a 1.2 m wall.
+    // Frames and leaves are cut with the walls, or a window frame floats above a 1.2 m wall; a little
+    // below the wall's cut, or the frame's clamped top z-fights with the wall's cap (dark saw-tooth).
     part.uniforms.uRiseY.value =
-      build.cutaway > SHOWN ? part.floorY + liftOf(part) + storeyM + (CUTAWAY_HEIGHT_M - storeyM) * build.cutaway : NO_CLAMP_Y;
+      build.cutaway > SHOWN ? part.floorY + liftOf(part) + storeyM + (CUTAWAY_HEIGHT_M - storeyM) * build.cutaway - JOINERY_UNDER_CUT_M : NO_CLAMP_Y;
     part.uniforms.uOpacity.value = opacity;
     // Negative drop = raised: it settles into place as joinery reaches 1.
     part.uniforms.uDrop.value = -JOINERY_DROP_M * (1 - build.joinery);

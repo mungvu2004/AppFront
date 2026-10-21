@@ -10,6 +10,7 @@
 
 import { formatNumber } from '@/lib/format/number';
 import type { ComplianceCheck, LandingHouse } from '@/lib/landing/types';
+import type { ExportFormatId } from '@/screens/export/ExportPanel/types';
 
 /** Tên sản phẩm trên đầu và chân trang; chủ dự án có thể đổi ở đây. */
 export const WORDMARK = 'AppFront';
@@ -23,10 +24,10 @@ export type Tone = 'ink' | 'blue' | 'amber' | 'jade' | 'coral' | 'mineral';
 export const STEPS: readonly { name: string; tone: Tone; text: string }[] = [
   { name: 'Tải lên', tone: 'ink', text: `Ảnh chụp, bản quét hoặc PDF của mặt${NB}bằng.` },
   { name: 'Nhận diện', tone: 'blue', text: `Tường, phòng, cửa và đồ đạc được nhận ra từ bản${NB}vẽ.` },
-  { name: 'Rà soát', tone: 'amber', text: 'Bạn kiểm tra từng tầng và sửa chỗ nhận diện chưa đúng.' },
+  { name: 'Chỉnh sửa', tone: 'amber', text: 'Bạn xem từng tầng và sửa chỗ AI nhận diện chưa đúng.' },
   { name: 'Dựng 3D', tone: 'mineral', text: `Một công trình thống nhất về kích thước, có thể khám${NB}phá.` },
-  { name: 'Kiểm tra', tone: 'jade', text: 'Đối chiếu với các yêu cầu đã cấu hình.' },
-  { name: 'Xuất', tone: 'ink', text: 'GLB, IFC, PDF, JSON và PNG.' },
+  { name: 'Kiểm tra tự động', tone: 'jade', text: `Mô hình tự đối chiếu với các yêu cầu đã cấu${NB}hình.` },
+  { name: 'Xuất', tone: 'ink', text: `Tệp .glb, .pdf, .png và${NB}.json.` },
 ];
 
 /** id cảnh (timeline/scenes.ts) → bước, cùng phần phụ của dòng mắt khi một bước có nhiều cảnh. */
@@ -87,14 +88,20 @@ export const SCENE_COPY: readonly SceneCopy[] = [
 export const HERO = SCENE_COPY[0] as SceneCopy;
 export const FINAL = { title: 'Bản vẽ của bạn.', sub: 'Bắt đầu một công trình mới.' } as const;
 export const FOOTER_NOTE = 'Dữ liệu trên trang là minh hoạ.';
+export const CTA_HINT = 'Đăng nhập để tạo dự án';
+export const SKIP_LABEL = 'Tới phần bắt đầu';
+export const PLAN_TAG = 'Mặt bằng tầng 1 · Dữ liệu minh hoạ';
+export const FLOORS_HEAD = 'Mặt bằng từng tầng · Dữ liệu minh hoạ';
+/** 'T2' → 'Tầng 2'. */
+export const levelName = (id: string): string => `Tầng ${id.replace(/^T/, '')}`;
 export const CHECKS_HEAD = 'Kiểm tra yêu cầu · Dữ liệu minh hoạ';
 
-export const EXPORTS: readonly { format: string; label: string }[] = [
-  { format: 'GLB', label: 'Xem 3D' },
-  { format: 'IFC', label: 'BIM' },
-  { format: 'PDF', label: 'Bản in' },
-  { format: 'JSON', label: 'Dữ liệu' },
-  { format: 'PNG', label: 'Chia sẻ' },
+/** Đúng bốn định dạng màn Xuất có (ExportPanel/types.ts), mỗi cái kèm thứ người dùng nhận được. */
+export const EXPORTS: readonly { id: ExportFormatId; format: string; label: string }[] = [
+  { id: 'glb', format: '.glb', label: 'Mô hình 3D' },
+  { id: 'pdf', format: '.pdf', label: 'Hồ sơ in' },
+  { id: 'image', format: '.png', label: 'Ảnh mặt bằng' },
+  { id: 'spatial-json', format: '.json', label: 'Dữ liệu cho phần mềm khác' },
 ];
 
 /* -------------------------------------------------------------------------- */

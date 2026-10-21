@@ -9,8 +9,8 @@ import { useEffect, useState } from 'react';
 
 import type { LandingHouse } from '@/lib/landing/types';
 
-import { ChecksCard, Eyebrow, ExportGrid, FooterStrip, Header, StartCta, Title } from './LandingParts';
-import { eyebrow, FINAL, HERO, STEPS, stepNumber } from './landing.copy';
+import { ChecksCard, Eyebrow, ExportGrid, FloorStrip, FooterStrip, Header, HeroCta, StartCta, Title } from './LandingParts';
+import { eyebrow, FINAL, HERO, PLAN_TAG, STEPS, stepNumber } from './landing.copy';
 
 const STILL = '/landing/fallback/house.webp';
 const top = (): void => window.scrollTo({ top: 0 });
@@ -39,11 +39,12 @@ export function StaticLanding() {
             <Eyebrow text={eyebrow('s01')} />
             <Title copy={HERO} level={1} />
             <p className="landing-sub">{HERO.sub}</p>
+            <HeroCta />
           </div>
           {house !== null && (
             <figure className="landing-plan">
-              <div role="img" aria-label="Mặt bằng tầng trệt của ngôi nhà mẫu" dangerouslySetInnerHTML={{ __html: house.plan }} />
-              <figcaption className="landing-caption">Tầng trệt · Dữ liệu minh hoạ</figcaption>
+              <div role="img" aria-label="Mặt bằng tầng 1 của ngôi nhà mẫu" dangerouslySetInnerHTML={{ __html: house.plan }} />
+              <figcaption className="landing-caption">{PLAN_TAG}</figcaption>
             </figure>
           )}
         </section>
@@ -62,6 +63,7 @@ export function StaticLanding() {
             <figcaption className="landing-caption">Ngôi nhà mẫu dựng từ cùng bản vẽ</figcaption>
           </figure>
         )}
+        {house !== null && <FloorStrip house={house.data} />}
         {house !== null && <ChecksCard checks={house.data.checks} />}
         <section className="landing-final">
           <Eyebrow text={eyebrow('s09')} />

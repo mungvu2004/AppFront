@@ -129,3 +129,21 @@ export function planSvg(house: LandingHouse): string {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW.join(' ')}" role="img" aria-label="Mặt bằng tổng thể và tầng 1" preserveAspectRatio="xMidYMid meet">${parts.join('')}</svg>`;
 }
+
+/**
+ * A small outline plan of one storey (rooms + walls only) for the per-floor strip in S07.
+ * Every storey shares the ground floor's frame, so the three thumbnails line up.
+ */
+export function levelPlanSvg(house: LandingHouse, levelId: string): string {
+  const { plan } = house;
+  const base = plan.levels[0]?.id ?? 'T1';
+  const xs = plan.walls.filter((w) => w.levelId === base).flatMap((w) => [w.start[0] ?? 0, w.end[0] ?? 0]);
+  const ys = plan.walls.filter((w) => w.levelId === base).flatMap((w) => [w.start[1] ?? 0, w.end[1] ?? 0]);
+  const pad = 600;
+  const box = [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) - Math.min(...xs) + 2 * pad, Math.max(...ys) - Math.min(...ys) + 2 * pad];
+  const rooms = plan.rooms
+    .filter((r) => r.levelId === levelId)
+    .map((r) => `<polygon data-room="${r.id}" points="${r.outline.map((p) => `${p[0] ?? 0},${p[1] ?? 0}`).join(' ')}" fill="${C.mineral}" fill-opacity="0.45"/>`);
+  const walls = plan.walls.filter((w) => w.levelId === levelId).map(wallShapes);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box.map(f).join(' ')}" aria-hidden="true">${rooms.join('')}${walls.join('')}</svg>`;
+}

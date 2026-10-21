@@ -6,7 +6,7 @@
 
 import type { LandingHouse } from '@/lib/landing/types';
 
-import { ChecksCard, Eyebrow, ExportGrid, FooterStrip, Header, StartCta, StepRail, Title } from './LandingParts';
+import { ChecksCard, Eyebrow, ExportGrid, FloorStrip, FooterStrip, Header, HeroCta, PlanTag, StartCta, StepRail, Title } from './LandingParts';
 import { eyebrow, FINAL, labelsFor, SCENE_COPY } from './landing.copy';
 
 export interface LandingViewProps {
@@ -37,7 +37,7 @@ export function LandingView({ trackVh, sceneIds, house, onSkip, onStep, refs }: 
           <canvas ref={refs.canvas} className="landing-canvas" aria-hidden="true" />
           <div className="landing-scrim" aria-hidden="true" />
           <Header onSkip={onSkip} />
-          <StepRail onStep={onStep} />
+          <PlanTag />
           {house === null && (
             <p className="landing-loading" role="status">
               Đang dựng bản vẽ
@@ -56,6 +56,8 @@ export function LandingView({ trackVh, sceneIds, house, onSkip, onStep, refs }: 
                       {c.sub}
                     </p>
                   )}
+                  {index === 0 && <HeroCta delay="0.2" />}
+                  {c.id === 's07' && house !== null && <FloorStrip house={house} delay="0.2" />}
                   {c.id === 's08' && house !== null && <ChecksCard checks={house.checks} delay="0.22" />}
                   {c.note !== undefined && (
                     <p className="landing-note" data-delay="0.3">
@@ -84,6 +86,8 @@ export function LandingView({ trackVh, sceneIds, house, onSkip, onStep, refs }: 
               </div>
             </footer>
           </div>
+          {/* Sau khối chữ trong DOM: Tab đi từ đầu trang tới nút bắt đầu ở cảnh đầu trước, rồi mới tới sáu bước. */}
+          <StepRail onStep={onStep} />
           <div className="landing-labels">
             {house !== null &&
               labelsFor(house).map((l) => (

@@ -78,7 +78,11 @@ describe('buildStageHouse', () => {
     expect(pieces.some((o) => o.visible)).toBe(false);
     expect(applyBuild(h, outside, far)).toBe(false);
     expect(applyBuild(h, state(1, { ...roofed, cutaway: 1 }), far)).toBe(true);
-    expect(pieces.every((o) => o.visible)).toBe(true);
+    // In the cutaway every standing piece is back; pieces hung above the cut (pendants, hood, wall art) are not.
+    const furniture = [...h.furniture.values()];
+    const hung = furniture.filter((f) => f.baseY - f.floorY > CUTAWAY_HEIGHT_M + 0.15);
+    expect(hung.map((f) => f.id).sort()).toEqual(['F-G3-PEND1', 'F-G3-PEND2', 'F-G4-HOOD', 'F-P1-ART']);
+    expect(furniture.every((f) => f.object.visible === !hung.includes(f))).toBe(true);
   });
 
   it('gives each object its own patched clones', () => {
@@ -123,7 +127,8 @@ describe('build fixes', () => {
     applyBuild(h, { ...state(1, { cutaway: 1 }), compliance: { bathDoor: 1, stair: 0, passMarks: 0 } } as LandingState);
     expect(leaf?.object.visible).toBe(false);
     const frame = h.joinery.find((j) => !j.upper && j.id !== failedDoor?.targetId);
-    expect(frame?.uniforms.uRiseY.value).toBeCloseTo(CUTAWAY_HEIGHT_M);
+    // 2 cm under the walls' cut, so the clamped frame top never z-fights with the wall cap.
+    expect(frame?.uniforms.uRiseY.value).toBeCloseTo(CUTAWAY_HEIGHT_M - 0.02);
   });
 });
 
