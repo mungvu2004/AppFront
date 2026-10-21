@@ -35,6 +35,7 @@ export const INPUT_PATHS = [
   'scripts/pascal-material-webp.mjs',
   'scripts/pascal-material-local.mjs',
   'scripts/pascal-render.mjs',
+  'scripts/pascal-ui-patch.mjs',
   'assets/appfront-items',
   'package.json',
   'pnpm-lock.yaml',

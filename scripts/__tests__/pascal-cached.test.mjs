@@ -184,11 +184,19 @@ describe('readStamp / writeStamp', () => {
 describe('INPUT_PATHS / OUTPUT_DIRS', () => {
   // Review PERF-01: entry Pascal nằm trong `src/` và kéo `src/lib`, `src/domain` qua import —
   // băm thiếu `src` thì sửa mã đó vẫn "băm khớp", lượt dựng bị bỏ qua và bản cũ được ship.
-  it('băm phủ entry thư viện của vite.pascal.config.ts', () => {
+  it('băm phủ mọi entry thư viện của vite.pascal.config.ts', () => {
     const config = readFileSync('vite.pascal.config.ts', 'utf8');
-    const entry = /entry: path\.resolve\(__dirname, '\.\/([^']+)'\)/.exec(config)?.[1];
-    expect(entry).toBeDefined();
-    expect(INPUT_PATHS.some((input) => entry.startsWith(`${input}/`))).toBe(true);
+    const entries = [...config.matchAll(/path\.resolve\(__dirname, '\.\/(src\/[^']+)'\)/g)].map((m) => m[1]);
+    expect(entries.length).toBeGreaterThanOrEqual(2);
+    for (const entry of entries) expect(INPUT_PATHS.some((input) => entry.startsWith(`${input}/`))).toBe(true);
+  });
+
+  // Plugin vá lúc dựng mà thiếu trong băm thì sửa plugin vẫn "băm khớp" và bản cũ được ship.
+  it('băm phủ mọi plugin scripts/*.mjs mà vite.pascal.config.ts nhập', () => {
+    const config = readFileSync('vite.pascal.config.ts', 'utf8');
+    const plugins = [...config.matchAll(/from '\.\/(scripts\/[\w-]+\.mjs)'/g)].map((m) => m[1]);
+    expect(plugins.length).toBeGreaterThanOrEqual(5);
+    for (const plugin of plugins) expect(INPUT_PATHS).toContain(plugin);
   });
 
   it('băm phủ mọi kịch bản chép tài sản mà lượt dựng gọi tới', () => {
