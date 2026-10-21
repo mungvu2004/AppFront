@@ -25,18 +25,20 @@ const nightLike = () => ({
 const ssgiLike = () => ({ enabled: true, sliceCount: 1, stepCount: 4, radius: 1, aoIntensity: 1.5, giIntensity: 0 });
 
 describe('applyRenderLook', () => {
-  it('có WebGPU: ánh sáng nền thấp, đèn chính ấm mạnh, phơi sáng 1, SSGI có GI; giữ các trường khác', () => {
+  it('có WebGPU: ánh sáng nền thấp, đèn chính ấm mạnh, phơi sáng dưới 1 (không cháy trắng), SSGI có GI; giữ các trường khác', () => {
     const theme = nightLike();
     const ssgi = ssgiLike();
     applyRenderLook(theme, ssgi, true);
     expect(theme).toMatchObject({ id: 'night', name: 'Night', appearance: 'dark' });
     expect(theme.background).toBe(RENDER_LOOK_PALETTE.background);
     expect(theme.backgroundSky).toBe(RENDER_LOOK_PALETTE.sky);
-    expect(theme.ambient).toEqual({ color: RENDER_LOOK_PALETTE.ambient, intensity: 0.2 });
-    expect(theme.hemi.intensity).toBe(0.2);
+    expect(theme.ambient).toEqual({ color: RENDER_LOOK_PALETTE.ambient, intensity: RENDER_LOOK_TIERS.high.ambient });
+    expect(theme.hemi.intensity).toBe(RENDER_LOOK_TIERS.high.hemi);
+    expect(RENDER_LOOK_TIERS.high.ambient + RENDER_LOOK_TIERS.high.hemi).toBeLessThan(RENDER_LOOK_TIERS.high.key / 4);
     expect(theme.lights).toHaveLength(2);
-    expect(theme.lights[0]).toMatchObject({ color: RENDER_LOOK_PALETTE.key, intensity: 2.3, castShadow: true });
-    expect(theme.toneMappingExposure).toBe(1);
+    expect(theme.lights[0]).toMatchObject({ color: RENDER_LOOK_PALETTE.key, intensity: RENDER_LOOK_TIERS.high.key, castShadow: true });
+    expect(theme.toneMappingExposure).toBe(RENDER_LOOK_TIERS.high.exposure);
+    expect(theme.toneMappingExposure).toBeLessThan(1);
     expect(theme.clayTints.wall).toBe(RENDER_LOOK_PALETTE.clayWall);
     expect(ssgi).toEqual({ enabled: true, sliceCount: 2, stepCount: 8, radius: 2, aoIntensity: 1.5, giIntensity: 0.6 });
   });

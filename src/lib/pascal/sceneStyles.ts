@@ -97,7 +97,7 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     },
     prefer: { plant: ['indoor-plant'], roundRug: ['round-carpet'], desk: ['office-table'] },
     lampColour: STYLE_PALETTE.lampWarm,
-    lampIntensity: 8,
+    lampIntensity: 6,
   },
   // Sàn gỗ xương cá sáng (bớt cam hơn ván floorplank1), gạch men, tường trắng lạnh, crôm.
   'hien-dai-sang': {
@@ -123,7 +123,7 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     },
     prefer: { plant: ['small-indoor-plant', 'indoor-plant'], rug: ['rectangular-carpet'] },
     lampColour: STYLE_PALETTE.lampNeutral,
-    lampIntensity: 9,
+    lampIntensity: 7,
   },
   // Gỗ đậm: sàn ván nâu vừa, tủ óc chó, da bò sáp (bớt đỏ hơn nhung), đồng đỏ.
   'go-am': {
@@ -149,7 +149,7 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     },
     prefer: { plant: ['indoor-plant'], rug: ['rectangular-carpet'], desk: ['dining-table', 'office-table'] },
     lampColour: STYLE_PALETTE.lampAmber,
-    lampIntensity: 7,
+    lampIntensity: 5,
   },
   // Ít chi tiết: tường xám nhạt, sàn ván sồi xám, gạch xám, bê tông thô, thép.
   'toi-gian': {
@@ -175,7 +175,7 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     },
     prefer: { plant: ['small-indoor-plant'], diningChair: ['stool', 'dining-chair'], roundRug: ['round-carpet'] },
     lampColour: STYLE_PALETTE.lampNeutral,
-    lampIntensity: 8,
+    lampIntensity: 6,
   },
   // Tường nâu xám (đủ sáng để đọc được đồ đạc), sàn gỗ đậm, đá trắng, da đen, đồng thau bóng.
   'sang-trong-toi': {
@@ -201,7 +201,7 @@ export const SCENE_STYLES: Readonly<Record<SceneStyleId, SceneStyle>> = {
     },
     prefer: { plant: ['indoor-plant'], roundRug: ['round-carpet'], desk: ['office-table'] },
     lampColour: STYLE_PALETTE.lampAmber,
-    lampIntensity: 11,
+    lampIntensity: 9,
   },
 };
 

@@ -56,7 +56,7 @@ describe('pascal-render', () => {
     const env = transformRender(readFileSync(at('scene-environment.tsx'), 'utf8'), at('scene-environment.tsx'));
     assert.match(env, /\(appearance === 'dark' && buildRoomEnvironment\(gl\)\) \|\| buildGradientSky\(\)/);
     assert.match(env, /!\('gpu' in navigator\)\) return null/);
-    assert.match(env, /const ENV_INTENSITY_DARK = 0\.6/);
+    assert.match(env, /const ENV_INTENSITY_DARK = 0\.3/);
   });
 
   it('giữ CRLF', () => {

@@ -38,8 +38,8 @@ const FILL_POSITION: [number, number, number] = [-12, 12, -10];
 
 /** Số của từng bậc; `high` = có WebGPU (hậu kỳ chạy), `low` = WebGL2 (không hậu kỳ). */
 export const RENDER_LOOK_TIERS = {
-  high: { ambient: 0.2, hemi: 0.2, key: 2.3, fill: 0.25, exposure: 1 },
-  low: { ambient: 0.35, hemi: 0.35, key: 2, fill: 0.3, exposure: 0.95 },
+  high: { ambient: 0.12, hemi: 0.15, key: 1.7, fill: 0.2, exposure: 0.8 },
+  low: { ambient: 0.3, hemi: 0.3, key: 1.8, fill: 0.25, exposure: 0.85 },
 } as const;
 
 // SSGI: 2 lát × 8 bước, bán kính 2 m; GI 0.6 cho ánh dội từ sàn gỗ. GI của Pascal không qua

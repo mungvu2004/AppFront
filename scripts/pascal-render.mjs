@@ -50,7 +50,7 @@ export const RENDER_RULES = {
         '      // luminance threshold, pre-tone-map) + soft vignette. Rendered shading only.',
         '      let looked: any = composited',
         "      if (shading === 'rendered' && !transparentBackground) {",
-        '        const lampGlow = bloom(vec4(sceneColor.rgb.mul(contentAlpha), tslFloat(1)), 0.22, 0.35, 2.2)',
+        '        const lampGlow = bloom(vec4(sceneColor.rgb.mul(contentAlpha), tslFloat(1)), 0.15, 0.3, 3)',
         '        resources.passes.push(lampGlow as any)',
         '        const edge = smoothstep(tslFloat(0.4), tslFloat(0.78), screenUV.sub(0.5).length())',
         '        looked = add(composited, vec4(lampGlow).rgb).mul(mix(tslFloat(1), tslFloat(0.84), edge))',
@@ -67,7 +67,7 @@ export const RENDER_RULES = {
       "import * as THREE from 'three/webgpu'",
       "import * as THREE from 'three/webgpu'\nimport { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'",
     ],
-    ['const ENV_INTENSITY_DARK = 0.2', 'const ENV_INTENSITY_DARK = 0.6'],
+    ['const ENV_INTENSITY_DARK = 0.2', 'const ENV_INTENSITY_DARK = 0.3'],
     [
       'export function SceneEnvironment() {',
       [
