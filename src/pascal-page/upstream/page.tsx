@@ -43,7 +43,7 @@ import {
 } from './components/viewer-toolbar'
 import { computeSceneBoundsXZ } from '../../../vendor/pascal/packages/editor/src/lib/scene-bounds'
 import { useEditorPreferencesPersistence } from './lib/editor-preferences'
-import { fitPose, fitWhenControlsReady } from './lib/fit-on-ready'
+import { fitPose, fitWhenControlsReady, planBoundsXZ } from './lib/fit-on-ready'
 import { translateDefinition } from './lib/pascal-vi'
 import { isMeasureActive } from './lib/select-exits-measure'
 import { useSelectExitsMeasure } from './lib/use-select-exits-measure'
@@ -155,7 +155,9 @@ function applyStartParams() {
 
 /** Frame the whole model; `apply-pose`, because upstream's `fit-scene` is ignored in Preview. */
 function fitModel() {
-  const bounds = computeSceneBoundsXZ(useScene.getState().nodes)
+  // FE3D-FIX-004 V14: frame walls + zones; vendor bounds only for a scene without either.
+  const { nodes } = useScene.getState()
+  const bounds = planBoundsXZ(nodes) ?? computeSceneBoundsXZ(nodes)
   emitter.emit('camera-controls:apply-pose', fitPose(bounds, useViewer.getState().cameraMode))
 }
 

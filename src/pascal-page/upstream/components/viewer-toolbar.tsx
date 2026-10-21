@@ -60,6 +60,7 @@ import { computeSceneBoundsXZ } from '../../../../vendor/pascal/packages/editor/
 import { type ReactNode, useCallback } from 'react'
 import { flushSync } from 'react-dom'
 import { isTopDown, topViewPose } from '../lib/top-view-pose'
+import { planBoundsXZ } from '../lib/fit-on-ready'
 import { cn } from '../lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from './toolbar-tooltip'
 // AppFront edit (P40, G5-11; QA-2 L1): text labels of the level/wall/display buttons collapse to
@@ -693,7 +694,8 @@ function WalkthroughButton() {
  * `camera-controls:fit-scene` event (the one `useAutoFrame` emits after a load).
  */
 export function fitWholeModel() {
-  const bounds = computeSceneBoundsXZ(useScene.getState().nodes)
+  const nodes = useScene.getState().nodes
+  const bounds = planBoundsXZ(nodes) ?? computeSceneBoundsXZ(nodes)
   emitter.emit('camera-controls:fit-scene', bounds ? { bounds } : {})
 }
 
@@ -722,7 +724,8 @@ export function topViewToggle() {
     emitter.emit('camera-controls:top-view')
     return
   }
-  const bounds = computeSceneBoundsXZ(useScene.getState().nodes)
+  const nodes = useScene.getState().nodes
+  const bounds = planBoundsXZ(nodes) ?? computeSceneBoundsXZ(nodes)
   const aspect = window.innerWidth / Math.max(1, window.innerHeight)
   emitter.emit(
     'camera-controls:apply-pose',

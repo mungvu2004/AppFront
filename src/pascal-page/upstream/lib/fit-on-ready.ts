@@ -4,9 +4,11 @@
  * editor, the Viewer default in Preview) and upstream's `fit-scene` handler ignores Preview.
  * A fixed timer fired before the controls existed on a cold first open, so the fit was lost.
  * Here we wait for the controls to publish their first pose, then fit with `apply-pose`
- * (honoured in Preview too). The pose follows upstream `handleFitScene` (45° azimuth), but
- * higher (≈40° elevation instead of ≈30°) with a narrower 40° lens (upstream 50°) (FE3D-FIX-002
- * Q2), at the distance that makes the plan fill ~80% of the free viewport (V5 D13).
+ * (honoured in Preview too). The pose is ≈40° elevation with a 40° lens (upstream 50°) (FE3D-FIX-002
+ * Q2), at the distance that makes the plan fill ~80% of the canvas (V5 D13).
+ * FE3D-FIX-004 V14: bounds come from walls + zones only (`planBoundsXZ`), the frame is the real
+ * canvas rect (not the window, which counts the sidebar), and the azimuth turns the long side of
+ * the plan across the screen.
  */
 import type { CameraPose } from '@pascal-app/core'
 
@@ -22,16 +24,63 @@ const TOOLBAR_PX = 70
 /** Walls stand above the XZ bounds; frame their tops too. ponytail: fixed 3 m, not per level. */
 const WALL_TOP = 3
 const MIN_DISTANCE = 6
-
-const viewportOf = (): Viewport =>
-  typeof window === 'undefined'
-    ? { width: 1920, height: 1080 }
-    : { width: window.innerWidth || 1920, height: window.innerHeight || 1080 }
+/** Long plans: look ~25° off the short axis so the long side runs across the screen. */
+const LONG_PLAN_RATIO = 1.3
+const OFF_SHORT_AXIS = (25 * Math.PI) / 180
 
 /**
- * 45° azimuth, 40° elevation, 40° lens. The distance is the smallest one at which every corner of
- * the plan box (floor to wall tops) projects inside FILL of the viewport below the toolbar — exact
- * per-corner perspective test, so long or square plans fill the frame alike.
+ * XZ bounds of the house itself: wall endpoints and zone polygons, both in level coordinates.
+ * Vendor `computeSceneBoundsXZ` also adds raw node positions (doors/windows are wall-local,
+ * building/stair sit at the origin) and the site polygon, so the origin was always inside the box
+ * and long houses came out tiny. ponytail: ignores building/level offsets (AppFront keeps them 0).
+ */
+export function planBoundsXZ(nodes: Record<string, unknown> | unknown[]): Bounds | null {
+  let minX = Infinity
+  let minZ = Infinity
+  let maxX = -Infinity
+  let maxZ = -Infinity
+  const add = (p: unknown) => {
+    if (!Array.isArray(p) || typeof p[0] !== 'number' || typeof p[1] !== 'number') return
+    if (!Number.isFinite(p[0]) || !Number.isFinite(p[1])) return
+    minX = Math.min(minX, p[0])
+    maxX = Math.max(maxX, p[0])
+    minZ = Math.min(minZ, p[1])
+    maxZ = Math.max(maxZ, p[1])
+  }
+  for (const node of Object.values(nodes) as { type?: unknown; start?: unknown; end?: unknown; polygon?: unknown }[]) {
+    if (node?.type === 'wall') {
+      add(node.start)
+      add(node.end)
+    } else if (node?.type === 'zone' && Array.isArray(node.polygon)) {
+      for (const p of node.polygon) add(p)
+    }
+  }
+  if (minX > maxX) return null
+  return { center: [(minX + maxX) / 2, (minZ + maxZ) / 2], size: [maxX - minX, maxZ - minZ] }
+}
+
+/** Largest canvas on the page (the 3D view; thumbnails/previews are smaller), else the window. */
+const viewportOf = (): Viewport => {
+  if (typeof document === 'undefined') return { width: 1920, height: 1080 }
+  let best: Viewport | null = null
+  for (const canvas of document.querySelectorAll('canvas')) {
+    const { width, height } = canvas.getBoundingClientRect()
+    if (width > 0 && height > 0 && (!best || width * height > best.width * best.height)) best = { width, height }
+  }
+  return best ?? { width: window.innerWidth || 1920, height: window.innerHeight || 1080 }
+}
+
+/** Azimuth (from +Z towards +X): 45° for squarish plans; long plans look ~25° off the short axis. */
+export function fitAzimuth([sx, sz]: [number, number]): number {
+  if (sx >= sz * LONG_PLAN_RATIO) return OFF_SHORT_AXIS
+  if (sz >= sx * LONG_PLAN_RATIO) return Math.PI / 2 - OFF_SHORT_AXIS
+  return Math.PI / 4
+}
+
+/**
+ * Azimuth from `fitAzimuth`, 40° elevation, 40° lens. The distance is the smallest one at which every
+ * corner of the plan box (floor to wall tops) projects inside FILL of the canvas below the toolbar —
+ * exact per-corner perspective test, so long or square plans fill the frame alike.
  */
 export function fitPose(
   bounds: Bounds | null,
@@ -43,10 +92,13 @@ export function fitPose(
   const [sx, sz] = bounds.size
   const cos = Math.cos(ELEVATION)
   const sin = Math.sin(ELEVATION)
+  const azimuth = fitAzimuth([sx, sz])
+  const sa = Math.sin(azimuth)
+  const ca = Math.cos(azimuth)
   // Camera basis: back (target -> camera), right, up.
-  const back = [cos * Math.SQRT1_2, sin, cos * Math.SQRT1_2] as const
-  const right = [Math.SQRT1_2, 0, -Math.SQRT1_2] as const
-  const up = [-sin * Math.SQRT1_2, cos, -sin * Math.SQRT1_2] as const
+  const back = [cos * sa, sin, cos * ca] as const
+  const right = [ca, 0, -sa] as const
+  const up = [-sin * sa, cos, -sin * ca] as const
   const tanV = Math.tan((FIT_FOV * Math.PI) / 360)
   const tanH = tanV * (viewport.width / viewport.height)
   // The toolbar covers the top TOOLBAR_PX of the upper half-frame; the target stays at the canvas centre.

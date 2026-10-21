@@ -154,7 +154,7 @@ export function CanvasHelp() {
   return (
     <>
       <style>{SCOPED_CSS}</style>
-      <div className="pointer-events-none absolute top-14 left-1/2 z-40 -translate-x-1/2">
+      <div className="appfront-canvas-help pointer-events-none absolute top-14 left-1/2 z-40 -translate-x-1/2">
         <div className="pointer-events-auto flex flex-col items-center gap-1.5">
           {isDelete ? (
             <div

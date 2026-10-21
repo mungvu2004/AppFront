@@ -4,6 +4,7 @@
  * của upstream `viewer-toolbar.tsx`.
  */
 import { ArrowLeft, ArrowRight, ChevronDown, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 import { PROJECT_STEPS } from '@/routes/projectSteps';
 
@@ -40,7 +41,13 @@ function BackLink({ href, projectName }: Omit<BackToProjectCardProps, 'save'>) {
 
 const CARD = 'h-8 shrink-0 items-center rounded-xl border border-border bg-background/90 text-foreground text-xs shadow-2xl backdrop-blur-md';
 /** Như `CARD` nhưng màu viền/chữ theo trạng thái — hai lớp màu cùng loại thì Tailwind không chắc lớp nào thắng. */
-const STATUS_CARD = 'h-8 shrink-0 items-center rounded-xl border bg-background/90 text-xs shadow-2xl backdrop-blur-md';
+const STATUS_CARD = 'h-8 shrink items-center rounded-xl border bg-background/90 text-xs shadow-2xl backdrop-blur-md';
+/**
+ * FE3D-FIX-004 V10: thông báo nổi (toast) góc phải dưới thanh trên, cổng ra `body` nên không chiếm
+ * chỗ trong thanh và đè được canvas (thanh nằm trong khối `clipPath` của vendor).
+ */
+const TOAST =
+  'fixed top-14 right-3 z-[100] inline-flex h-8 max-w-[min(28rem,calc(100vw-2rem))] items-center gap-1.5 rounded-xl border bg-background/95 px-2.5 text-xs shadow-2xl backdrop-blur-md';
 const SAVING_TEXT = 'Đang lưu…';
 
 /**
@@ -63,7 +70,7 @@ export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
       {text !== null && (
         <div
           aria-live="polite"
-          className={`${STATUS_CARD} inline-flex max-w-96 gap-2 px-2.5 ${alert ? 'border-destructive text-destructive' : 'border-border text-muted-foreground'}`}
+          className={`${STATUS_CARD} inline-flex min-w-12 max-w-96 gap-2 px-2.5 @max-[1100px]/appbar:max-w-48 ${alert ? 'border-destructive text-destructive' : 'border-border text-muted-foreground'}`}
           role={alert ? 'alert' : 'status'}
         >
           <span className="truncate" title={text}>
@@ -76,16 +83,22 @@ export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
           )}
         </div>
       )}
-      {save.notice !== null && (
-        <div className={`${CARD} inline-flex max-w-[28rem] gap-1.5 px-2.5`} role="status">
-          <span className="truncate" title={save.notice}>
-            {save.notice}
-          </span>
-          <button aria-label="Đóng thông báo" className="shrink-0 rounded-lg p-0.5 hover:bg-accent" onClick={save.dismissNotice} type="button">
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
+      {save.notice !== null &&
+        createPortal(
+          <div
+            className={`${TOAST} ${save.noticeTone === 'alert' ? 'border-destructive text-destructive' : 'border-border text-foreground'}`}
+            data-appfront-toast=""
+            role={save.noticeTone === 'alert' ? 'alert' : 'status'}
+          >
+            <span className="truncate" title={save.notice}>
+              {save.notice}
+            </span>
+            <button aria-label="Đóng thông báo" className="shrink-0 rounded-lg p-0.5 hover:bg-accent" onClick={save.dismissNotice} type="button">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
@@ -133,7 +146,7 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
           )}
         </ol>
       </nav>
-      <details className="relative @min-[1400px]/appbar:hidden">
+      <details className="relative @min-[1400px]/appbar:hidden" data-appfront-menu="">
         <summary
           aria-label={`Bước ${VIEWER_STEP + 1}/${PROJECT_STEPS.length}: ${current.label} — mở danh sách bước`}
           title={`Bước ${VIEWER_STEP + 1}: ${current.label}`}

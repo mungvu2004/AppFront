@@ -70,7 +70,7 @@ export function SceneStyleCard({ saveNow, flushAutosaves, reload, source = curre
   };
 
   return (
-    <details className="relative">
+    <details className="relative" data-appfront-menu="">
       <summary
         aria-label={`Phong cách: ${SCENE_STYLES[current].label} — mở danh sách phong cách`}
         className="flex h-8 shrink-0 cursor-pointer list-none items-center gap-1.5 rounded-xl border border-border bg-background/90 px-2.5 font-medium text-foreground text-xs shadow-2xl backdrop-blur-md hover:bg-accent [&::-webkit-details-marker]:hidden"

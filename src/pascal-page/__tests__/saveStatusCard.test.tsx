@@ -46,6 +46,32 @@ describe('SaveStatusCard (v3 V3 — trạng thái lưu thật trên trang Pascal
     expect(save.dismissNotice).toHaveBeenCalledTimes(1);
   });
 
+  it('V10 — câu thông báo là toast cổng ra body (không chiếm chỗ trên thanh), chip lưu co được', () => {
+    const save = status({ notice: 'Chưa lưu được: màu sàn.' });
+    const { container } = render(
+      <div data-testid="bar">
+        <SaveStatusCard save={save} />
+      </div>,
+    );
+
+    const toast = screen.getByText('Chưa lưu được: màu sàn.').closest('[role="status"]')!;
+    expect(container.contains(toast)).toBe(false);
+    expect(toast.parentElement).toBe(document.body);
+    expect(toast.className).toContain('fixed');
+    expect(toast.querySelector('button[aria-label="Đóng thông báo"]')).not.toBeNull();
+    const chip = screen.getByText('Đã lưu lúc 10:00').parentElement!;
+    expect(container.contains(chip)).toBe(true);
+    expect(chip.className).not.toContain('shrink-0');
+  });
+
+  it('N1 — lượt lưu bị từ chối: toast là cảnh báo (role alert, màu đỏ)', () => {
+    render(<SaveStatusCard save={status({ notice: 'Không lưu được: món đồ đặt lên đồ khác.', noticeTone: 'alert' })} />);
+
+    const toast = screen.getByRole('alert');
+    expect(toast).toHaveTextContent('Không lưu được: món đồ đặt lên đồ khác.');
+    expect(toast.className).toContain('text-destructive');
+  });
+
   it('BackToProjectCard: không có `save` (chỉ đọc) thì chỉ có lối về', () => {
     render(<BackToProjectCard href="/projects/p1/floors" projectName="Nhà mẫu" />);
 

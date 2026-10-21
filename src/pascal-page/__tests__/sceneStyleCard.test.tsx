@@ -1,9 +1,14 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SCENE_STYLE_STORAGE_KEY, SCENE_STYLES, sceneStylePreviewKey } from '@/lib/pascal/sceneStyles';
 
 import { SceneStyleCard } from '../SceneStyleCard';
+
+const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8');
 
 describe('SceneStyleCard', () => {
   beforeEach(() => localStorage.clear());
@@ -88,5 +93,24 @@ describe('SceneStyleCard', () => {
     expect((await screen.findByRole('alert')).textContent).toContain('Chưa lưu được');
     expect(reload).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: SCENE_STYLES['go-am'].label }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('V11 — menu mở thì chip "Điều khiển chuột và phím tắt" ẩn (không đè mục đầu "Ấm áp")', () => {
+    const rule = /([^{}]*\.appfront-canvas-help)\s*\{\s*visibility:\s*hidden/.exec(read('../pascal.css'));
+    expect(rule).not.toBeNull();
+    const selector = rule![1]!.replace(/\/\*[\s\S]*?\*\//g, '').trim();
+    expect(read('../upstream/components/canvas-help.tsx')).toContain('className="appfront-canvas-help ');
+
+    const { container } = render(
+      <>
+        <SceneStyleCard flushAutosaves={vi.fn()} reload={vi.fn()} saveNow={vi.fn()} source={{ projectId: 'p1', id: 'go-am' }} />
+        <div className="appfront-canvas-help" data-testid="chip" />
+      </>,
+    );
+    const chip = screen.getByTestId('chip');
+    expect(document.querySelector(selector)).toBeNull();
+    container.querySelector('details')!.open = true;
+    expect(document.querySelector(selector)).toBe(chip);
+    fireEvent.click(screen.getByRole('button', { name: SCENE_STYLES['am-ap'].label }));
   });
 });

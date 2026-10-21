@@ -558,3 +558,10 @@ div.z-20:has(> div > [data-appfront-bar]) {
  * ellipsizes instead of pushing the right-hand buttons out of the bar. */
 div.z-20:has(> div > [data-appfront-bar]) > div:first-child { min-width: 0; }
 div.z-20:has(> div > [data-appfront-bar]) > div:first-child > a:first-child { min-width: 5rem; }
+
+/* FE3D-FIX-004 V11: the canvas-help chip (canvas-help.tsx, z-40 in the canvas area) paints over the
+ * toolbar's <details> menus (Phong cách, steps), whose z-50 is trapped under the vendor clipPath
+ * stacking context. While any menu is open, hide the chip so the first menu item stays clickable. */
+html:has(details[data-appfront-menu][open]) .appfront-canvas-help {
+  visibility: hidden;
+}
