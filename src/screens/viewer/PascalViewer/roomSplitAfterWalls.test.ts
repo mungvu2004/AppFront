@@ -8,8 +8,17 @@ import { createId } from '@/domain/spatial/ids';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Furniture, Level, Point, Room, Wall } from '@/domain/spatial/types';
 import { changeForAdd, createCommand } from '@/lib/commands/createCommand';
+import { createPascalEditCommand } from '@/lib/pascal/fromPascal';
 import { roomSplitNotice, splitRoomsAfterWalls } from '@/lib/pascal/roomSplitAfterWalls';
+import { toPascalScene } from '@/lib/pascal/toPascal';
+import type { PascalNode } from '@/lib/pascal/types';
 import { buildSplitRoomCommandFromWalls } from '@/screens/qc/RoomLabelReview/roomLabelReviewGateway';
+
+interface PascalWallLike {
+  readonly id: string;
+  readonly thickness?: number;
+  readonly height?: number;
+}
 
 const META = { confidence: 1, source: 'human', reviewed: true } as const;
 const level = { ...META, id: createId('level'), name: 'Tầng 1', order: 0, elevationMm: 0, heightMm: 3000 } as Level;
@@ -80,4 +89,47 @@ describe('tách phòng sau khi vẽ vách trong Pascal', () => {
 
     expect(splitRoomsAfterWalls(graph, pascal, buildSplitRoomCommandFromWalls)).toEqual({ command: pascal, notices: [] });
   });
+
+  it('V13 — qua đường Pascal: tường chủ bị Pascal cắt đôi (xoá + 2 tường thay), vách không thickness/height: phòng tách 2', () => {
+    const raw = { building: { ...META, name: 'Nhà', datumElevationMm: 0 }, levels: [level], walls, openings: [], furniture: [bed], rooms: [room], axes: [], dimensions: [], notes: [] };
+    const scene = toPascalScene(raw as never).scene;
+    const levelNode = scene.nodes[`level_${level.id}`] as PascalNode & { readonly children: readonly string[] };
+    const [left, right] = [walls[3], walls[1]].map((wall) => scene.nodes[`wall_${wall?.id ?? ''}`] as PascalNode & PascalWallLike);
+    if (left === undefined || right === undefined) throw new Error('phòng phải có tường trái/phải');
+    const piece = (from: PascalWallLike, id: string, start: [number, number], end: [number, number]) =>
+      ({ ...from, id, children: [], metadata: {}, start, end }) as unknown as PascalNode;
+    const partition = Object.fromEntries(
+      Object.entries(piece(left, 'wall_qv1partition', [0, 3], [4, 3])).filter(([key]) => key !== 'thickness' && key !== 'height'),
+    ) as Omit<PascalNode & PascalWallLike, 'thickness' | 'height'>;
+    const added = [
+      piece(left, 'wall_qv1leftlow', [0, 6], [0, 3]),
+      piece(left, 'wall_qv1lefthigh', [0, 3], [0, 0]),
+      piece(right, 'wall_qv1rightlow', [4, 0], [4, 3]),
+      piece(right, 'wall_qv1righthigh', [4, 3], [4, 6]),
+      partition as unknown as PascalNode,
+    ];
+    const nodes: Record<string, PascalNode> = { ...scene.nodes };
+    delete nodes[left.id];
+    delete nodes[right.id];
+    for (const node of added) nodes[node.id] = node;
+    nodes[levelNode.id] = {
+      ...levelNode,
+      children: [...levelNode.children.filter((id) => id !== left.id && id !== right.id), ...added.map((node) => node.id)],
+    } as PascalNode;
+    const edit = createPascalEditCommand({
+      graph,
+      scene: { ...scene, nodes },
+      commit: { origin: 'local', changedNodeIds: [left.id, right.id, ...added.map((node) => node.id), levelNode.id], removedNodeIds: [left.id, right.id] },
+      actorId: 'U-1',
+    });
+
+    if (!edit.ok) throw new Error(edit.error.reasons.join(' '));
+
+    const { command, notices } = splitRoomsAfterWalls(graph, edit.data, buildSplitRoomCommandFromWalls);
+
+    expect(notices).toEqual([]);
+    expect(command.changes.filter((change) => change.kind === 'wall' && change.before === null)).toHaveLength(5);
+    expect(command.changes.filter((change) => change.kind === 'room')).toHaveLength(2);
+  });
 });
+

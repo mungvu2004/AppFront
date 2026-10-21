@@ -183,6 +183,40 @@ describe('usePascalEdits', () => {
     expect(onNotice).toHaveBeenCalledWith('Phòng "Room 0" có vách mới — mở màn Phòng để tách.');
   });
 
+  it('N2 — tường công cụ vẽ không mang thickness/height: vẫn lưu, dày 100 mm, cao bằng tầng', async () => {
+    const { result } = mount();
+    const wallsBefore = useStore.getState().spatial?.byKind.wall.length ?? 0;
+    const scene = withNewWall();
+    const bare = Object.fromEntries(
+      Object.entries(scene.nodes['wall_w3d_new'] as object).filter(([key]) => key !== 'thickness' && key !== 'height'),
+    ) as Omit<Extract<PascalNode, { readonly type: 'wall' }>, 'thickness' | 'height'>;
+    const level = scene.nodes[bare.parentId ?? ''] as Extract<PascalNode, { readonly type: 'level' }>;
+    let ok = false;
+
+    await act(async () => {
+      ok = await result.current.onSceneCommit({ ...scene, nodes: { ...scene.nodes, [bare.id]: bare as PascalNode } });
+    });
+
+    const walls = useStore.getState().spatial?.byKind.wall ?? [];
+    const addedId = walls.find((id) => !SPATIAL.byKind.wall.includes(id)) ?? '';
+    const added = useStore.getState().spatial?.byId[addedId];
+
+    expect(ok).toBe(true);
+    expect(walls).toHaveLength(wallsBefore + 1);
+    expect(added).toMatchObject({ thicknessMm: 100, heightMm: Math.round(level.height * 1000) });
+  });
+
+  it('V9 — mỗi lượt lưu gọi onUnsaved, kể cả khi không còn gì chưa lưu (danh sách rỗng)', async () => {
+    const onUnsaved = vi.fn();
+    const { result } = mount({ onUnsaved });
+
+    await act(async () => {
+      await result.current.onSceneCommit(thickened());
+    });
+
+    expect(onUnsaved).toHaveBeenCalledWith([]);
+  });
+
   it('v3 V3 — sửa chỉ màu đồ đạc: không có gì để ghi, nhưng báo "màu đồ đạc" chưa lưu được', async () => {
     const onUnsaved = vi.fn();
     const onRejected = vi.fn();

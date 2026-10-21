@@ -65,6 +65,7 @@ import {
 import { AUTHORED_BY_HAND, toPointMm } from '@/lib/commands/business/shared';
 
 import { appFrontIdOf, BUILDING_NODE_ID } from './ids';
+import { LIBRARY_MATERIAL_IDS } from './libraryMaterialIds';
 import { isGeneratedLightId, isGeneratedNodeId, SCENE_MATERIALS } from './sceneDressing';
 import { SCENE_STYLE_MATERIALS, SCENE_STYLES, sceneStyleOf } from './sceneStyles';
 import type {
@@ -105,6 +106,9 @@ const ANGLE_PRECISION = 1e6;
 
 /** Số điểm tối thiểu để một đường bao là một đa giác. */
 const MIN_OUTLINE_POINTS = 3;
+
+/** `DEFAULT_WALL_THICKNESS` của vendor (`core/src/systems/wall/wall-footprint.ts`), mét. */
+const DEFAULT_WALL_THICKNESS_M = 0.1;
 
 const isUsable = (...values: readonly number[]): boolean => values.every(Number.isFinite);
 
@@ -180,10 +184,9 @@ const readOneOf = <T extends string>(fields: Fields, key: string, allowed: reado
 const MATERIAL_REF = /^(library|scene):[a-z0-9_-]{1,64}$/;
 
 /**
- * Vật liệu ghi được: vật liệu phẳng của AppFront + mọi tham chiếu mà các phong cách
- * dùng. Màu tự pha (`scene.materials` người dùng thêm) chưa lưu được — thông báo V3 nói ra.
- * ponytail: thư viện = các ref phong cách dùng, không phải cả MATERIAL_CATALOG của vendor;
- * nới khi danh sách thư viện có đủ tệp được xuất ra lúc chạy.
+ * Vật liệu ghi được: vật liệu phẳng của AppFront, mọi tham chiếu các phong cách dùng, và
+ * mọi vật liệu thư viện của vendor (`LIBRARY_MATERIAL_IDS`, máy chủ nhận mọi `library:<id>`).
+ * Màu tự pha (`scene.materials` người dùng thêm) chưa lưu được — thông báo V3 nói ra.
  */
 const SAVEABLE_REFS: ReadonlySet<string> = new Set([
   ...[...SCENE_MATERIALS, ...SCENE_STYLE_MATERIALS].map((material) => `scene:${material.id}`),
@@ -193,7 +196,7 @@ const SAVEABLE_REFS: ReadonlySet<string> = new Set([
     style.wall.exterior,
     ...Object.values(style.families),
   ]),
-  'library:preset-glass',
+  ...LIBRARY_MATERIAL_IDS.map((id) => `library:${id}`),
 ]);
 
 export const saveableRef = (ref: string | undefined): ref is MaterialRef =>
@@ -570,6 +573,78 @@ const collectWallChildren = (
   }
 };
 
+/**
+ * Một món đồ, rồi mọi món đặt LÊN nó (N1): Pascal gắn đồ thả trên mặt bàn làm con của bàn,
+ * toạ độ cục bộ theo bàn. Không đi xuống thì đồ ấy biến khỏi đồ thị và lượt về ghi một lần xoá.
+ * Con đổi sang toạ độ thế giới: vị trí = vị trí bàn + R_y(yaw bàn)·cục bộ, yaw = yaw bàn + yaw con.
+ * ponytail: bỏ qua `scale` của món chủ khi đổi toạ độ con; thêm khi đồ chủ kéo giãn mang con.
+ */
+const collectItem = (scene: PascalScene, item: PascalItemNode, levelId: LevelId, collector: Collector): void => {
+  if (!positionIsUsable(item.position) || !positionIsUsable(item.rotation)) {
+    collector.skip(item.id, 'đồ đạc', 'Vị trí hoặc góc quay của đồ đạc không phải một số đo được.');
+    return;
+  }
+
+  // Đồ bày biện / đèn AppFront tự sinh (J10): dựng lại mỗi lần mở, không bao giờ thành đồ đạc —
+  // trừ khi người dùng vừa sửa một món của phòng ấy: cả bộ của phòng thành đồ thật, id `F-` mới (V4).
+  // Đồ người dùng đặt LÊN món sinh ra thì vẫn đi xuống bên dưới.
+  if (!isGeneratedNodeId(item.id) || collector.adoptRoomIds.has(adoptableRoomOf(item) ?? '')) {
+    const fields = fieldsOf(item);
+    const knownId = appFrontIdOf('furniture', item.id);
+    const centre: Point = {
+      x: millimetresOf(item.position[0]),
+      y: millimetresOf(item.position[2]),
+    };
+    const min = readCorner(fields, 'min');
+    const max = readCorner(fields, 'max');
+    const roomId = readString(fields, 'roomId');
+    const kind = readOneOf(fields, 'kind', FURNITURE_KINDS) ?? 'other';
+
+    collector.furniture.push({
+      ...reviewOf(item, knownId !== null),
+      id: knownId ?? collector.mint('furniture', item.id),
+      levelId,
+      kind,
+      centre,
+      boundingBox: itemBoxOf(
+        centre,
+        min !== null && max !== null ? { min, max } : null,
+        item.asset.dimensions,
+        item.scale,
+      ),
+      rotationDeg: planDegreesOf(item.rotation[1]),
+      ...(roomId !== null && isIdOfKind('room', roomId) ? { roomId } : {}),
+      ...itemFieldsOf(item, kind),
+    });
+  }
+
+  const yaw = item.rotation[1];
+
+  for (const child of childrenOf(scene, item)) {
+    if (child.type !== 'item') {
+      collector.skip(child.id, child.type, `Loại node "${child.type}" đặt trên đồ đạc chưa có đối tượng tương ứng trong bản vẽ.`);
+      continue;
+    }
+
+    const [x, y, z] = child.position;
+
+    collectItem(
+      scene,
+      {
+        ...child,
+        position: [
+          item.position[0] + x * Math.cos(yaw) + z * Math.sin(yaw),
+          item.position[1] + y,
+          item.position[2] - x * Math.sin(yaw) + z * Math.cos(yaw),
+        ],
+        rotation: [child.rotation[0], yaw + child.rotation[1], child.rotation[2]],
+      },
+      levelId,
+      collector,
+    );
+  }
+};
+
 const collectLevelChildren = (
   scene: PascalScene,
   levelNode: PascalLevelNode,
@@ -579,7 +654,12 @@ const collectLevelChildren = (
   for (const child of childrenOf(scene, levelNode)) {
     switch (child.type) {
       case 'wall': {
-        if (!isUsable(...child.start, ...child.end, child.thickness, child.height)) {
+        /* N2 — tường công cụ vẽ ra không mang `thickness`/`height` (lược đồ để tuỳ chọn): lấy
+           bề dày mặc định của vendor (`DEFAULT_WALL_THICKNESS`) và chiều cao tầng, như Pascal vẽ. */
+        const thickness = (child.thickness as number | undefined) ?? DEFAULT_WALL_THICKNESS_M;
+        const height = (child.height as number | undefined) ?? levelNode.height;
+
+        if (!isUsable(...child.start, ...child.end, thickness, height)) {
           collector.skip(child.id, 'tường', 'Trục tường hoặc kích thước tường không phải một số đo được.');
           break;
         }
@@ -599,8 +679,8 @@ const collectLevelChildren = (
             start: { x: millimetresOf(child.start[0]), y: millimetresOf(child.start[1]) },
             end: { x: millimetresOf(child.end[0]), y: millimetresOf(child.end[1]) },
           },
-          thicknessMm: millimetresOf(child.thickness),
-          heightMm: millimetresOf(child.height),
+          thicknessMm: millimetresOf(thickness),
+          heightMm: millimetresOf(height),
           kind: readOneOf(fieldsOf(child), 'kind', WALL_KINDS) ?? 'partition',
           openingIds,
           ...(paint === null ? {} : { paint }),
@@ -644,43 +724,7 @@ const collectLevelChildren = (
       }
 
       case 'item': {
-        // Đồ bày biện / đèn AppFront tự sinh (J10): dựng lại mỗi lần mở, không bao giờ thành đồ đạc —
-        // trừ khi người dùng vừa sửa một món của phòng ấy: cả bộ của phòng thành đồ thật, id `F-` mới (V4).
-        if (isGeneratedNodeId(child.id) && !collector.adoptRoomIds.has(adoptableRoomOf(child) ?? '')) break;
-
-        if (!positionIsUsable(child.position) || !positionIsUsable(child.rotation)) {
-          collector.skip(child.id, 'đồ đạc', 'Vị trí hoặc góc quay của đồ đạc không phải một số đo được.');
-          break;
-        }
-
-        const fields = fieldsOf(child);
-        const knownId = appFrontIdOf('furniture', child.id);
-        const centre: Point = {
-          x: millimetresOf(child.position[0]),
-          y: millimetresOf(child.position[2]),
-        };
-        const min = readCorner(fields, 'min');
-        const max = readCorner(fields, 'max');
-        const roomId = readString(fields, 'roomId');
-
-        const kind = readOneOf(fields, 'kind', FURNITURE_KINDS) ?? 'other';
-
-        collector.furniture.push({
-          ...reviewOf(child, knownId !== null),
-          id: knownId ?? collector.mint('furniture', child.id),
-          levelId,
-          kind,
-          centre,
-          boundingBox: itemBoxOf(
-            centre,
-            min !== null && max !== null ? { min, max } : null,
-            child.asset.dimensions,
-            child.scale,
-          ),
-          rotationDeg: planDegreesOf(child.rotation[1]),
-          ...(roomId !== null && isIdOfKind('room', roomId) ? { roomId } : {}),
-          ...itemFieldsOf(child, kind),
-        });
+        collectItem(scene, child, levelId, collector);
         break;
       }
 

@@ -112,7 +112,8 @@ vi.mock('@/screens/viewer/PascalViewer/usePascalEdits', () => ({
   }) => ({
     onSceneCommit: () => {
       if (commit.reason !== null) onRejected(commit.reason);
-      if (commit.unsaved.length > 0) onUnsaved(commit.unsaved);
+      // Như hook thật (V9): mọi lượt không bị từ chối đều gọi onUnsaved, kể cả danh sách rỗng.
+      else onUnsaved(commit.unsaved);
       commit.notices.forEach(onNotice);
 
       return Promise.resolve(commit.ok);
@@ -384,4 +385,41 @@ describe('usePascalProjectBridge', () => {
     });
     expect(result.current.save?.notice).toBe('Phòng "Ngủ" có vách mới — mở màn Phòng để tách.');
   });
+
+  it('V9 — lượt lưu sau không còn gì chưa lưu: câu báo cũ được gỡ, nhãn ấy báo lại được', async () => {
+    const { result } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    commit.unsaved = ['màu sàn'];
+    await act(async () => {
+      await result.current.onSave({ nodes: {}, rootNodeIds: [] });
+    });
+    expect(result.current.save?.notice).toBe(unsavedNoticeOf(['màu sàn']));
+
+    commit.unsaved = [];
+    await act(async () => {
+      await result.current.onSave({ nodes: {}, rootNodeIds: [] });
+    });
+    expect(result.current.save?.notice).toBeNull();
+
+    commit.unsaved = ['màu sàn'];
+    await act(async () => {
+      await result.current.onSave({ nodes: {}, rootNodeIds: [] });
+    });
+    expect(result.current.save?.notice).toBe(unsavedNoticeOf(['màu sàn']));
+  });
+
+  it('N1 — lượt bị từ chối: lý do lên thẻ dạng cảnh báo, không im lặng "đã lưu"', async () => {
+    const { result } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    commit.ok = false;
+    commit.reason = 'Món đồ này đã có trong bản vẽ.';
+    await act(async () => {
+      await expect(result.current.onSave({ nodes: {}, rootNodeIds: [] })).rejects.toThrow(commit.reason ?? '');
+    });
+    expect(result.current.save?.notice).toBe('Món đồ này đã có trong bản vẽ.');
+    expect(result.current.save?.noticeTone).toBe('alert');
+  });
 });
+

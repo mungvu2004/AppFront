@@ -12,6 +12,9 @@ import { describe, expect, it } from 'vitest';
 
 import type { Furniture, Level, Room, SpatialGraph, Wall } from '@/domain/spatial/types';
 
+import { normalizeSpatial } from '@/domain/spatial/normalize';
+
+import { createPascalEditCommand } from '../fromPascal';
 import { BUILDING_NODE_ID, SITE_NODE_ID } from '../ids';
 import { ceilingNodesOf, isGeneratedNodeId } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
@@ -429,3 +432,42 @@ describe('toSpatialGraph — đường hỏng', () => {
     expect(graph.levels).toHaveLength(1);
   });
 });
+
+describe('N2 — node vừa đổi không được rơi im lặng', () => {
+  const source = graphOf({ walls: [WALL], rooms: [ROOM] });
+  const { scene } = toPascalScene(source);
+  const levelNode = scene.nodes['level_L-AAAA000001'] as PascalLevelNode;
+  const withChild = (child: PascalNode): PascalScene => ({
+    ...scene,
+    nodes: { ...scene.nodes, [child.id]: child, [levelNode.id]: { ...levelNode, children: [...levelNode.children, child.id] } },
+  });
+
+  it('tường thiếu thickness/height: vào đồ thị dày 100 mm, cao bằng tầng, không vào danh sách bỏ qua', () => {
+    const host = scene.nodes[`wall_${WALL.id}`] as PascalNode;
+    const bare = Object.fromEntries(
+      Object.entries({ ...host, id: 'wall_qv1tool0wall', children: [] }).filter(([key]) => key !== 'thickness' && key !== 'height'),
+    );
+    const { graph, skipped } = toSpatialGraph(withChild(bare as PascalNode));
+
+    expect(skipped).toEqual([]);
+    expect(graph.walls).toHaveLength(2);
+    expect(graph.walls[1]).toMatchObject({ thicknessMm: 100, heightMm: LEVEL.heightMm });
+  });
+
+  it('tấm sàn tự vẽ vừa đổi: lượt sửa bị từ chối kèm lý do của dòng bỏ qua, không ra "không có gì để ghi"', () => {
+    const slab = scene.nodes[`slab_${ROOM.id}`] as PascalNode;
+    const drawn = { ...slab, id: 'slab_qv1drawn0slab' } as PascalNode;
+    const result = createPascalEditCommand({
+      graph: normalizeSpatial(source),
+      scene: withChild(drawn),
+      commit: { origin: 'local', changedNodeIds: [drawn.id, levelNode.id] },
+      actorId: 'U-1',
+    });
+
+    expect(result.ok ? 'ok' : result.error).toMatchObject({
+      code: 'PASCAL_UNKNOWN_NODE',
+      reasons: ['Tấm sàn vẽ trong Pascal chưa có đối tượng tương ứng trong bản vẽ.'],
+    });
+  });
+});
+

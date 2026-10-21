@@ -10,9 +10,11 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { MaterialRef, Room, SpatialGraph, Wall } from '@/domain/spatial/types';
 
 import { fixtureF1 } from '../__fixtures__';
+import { LIBRARY_MATERIAL_IDS } from '../libraryMaterialIds';
 import { createPascalEditCommand } from '../fromPascal';
 import { sceneStyleOf } from '../sceneStyles';
 import { toPascalScene } from '../toPascal';
+import { saveableRef } from '../toSpatial';
 import type { PascalNode, PascalScene } from '../types';
 
 const graph: SpatialGraph = SpatialGraphDocumentSchema.parse(fixtureF1({ ext: true }).doc).graph;
@@ -116,6 +118,15 @@ describe('W3a — sơn sàn và tường', () => {
     const again = commit(withWall(after), reopened, wallId);
 
     expect(again.ok ? 'ok' : again.error.code).toBe('PASCAL_NO_CHANGE');
+  });
+
+  it('vật liệu thư viện ngoài bộ phong cách (`library:<id>` của MATERIAL_CATALOG): lưu được', () => {
+    const ref = `library:${LIBRARY_MATERIAL_IDS.at(-1) ?? ''}` as MaterialRef;
+    const after = afterOf<Wall>(commit(graph, paint(sceneOf(graph), wallId, { exterior: ref }), wallId));
+
+    expect(saveableRef(ref)).toBe(true);
+    expect(saveableRef('library:khong-co-trong-thu-vien')).toBe(false);
+    expect(after.paint).toEqual({ exterior: ref });
   });
 
   it('màu tự pha (scene.materials của người dùng) chưa lưu: không có lệnh', () => {

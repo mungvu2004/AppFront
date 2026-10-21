@@ -75,7 +75,7 @@ export interface UsePascalEditsOptions {
    * `confirmMassDelete(nodeIds)` rồi cho editor xoá lại đúng các node ấy.
    */
   readonly onMassDelete?: (request: PascalMassDeleteRequest) => void;
-  /** Lượt sửa có phần máy chủ chưa nhận (`unsavedPascalEdits`) — màn báo người dùng. */
+  /** Phần máy chủ chưa nhận của mỗi lượt sửa (`unsavedPascalEdits`, có thể rỗng) — màn báo người dùng. */
   readonly onUnsaved?: (labels: readonly string[]) => void;
   /** Câu báo sau một lượt đã lưu, vd "Phòng X có vách mới — mở màn Phòng để tách". */
   readonly onNotice?: (message: string) => void;
@@ -342,11 +342,10 @@ export function usePascalEdits({
 
       if (built === null) return false;
 
-      // Phần máy chủ chưa nhận: báo cả khi phần còn lại lưu được lẫn khi chỉ còn "không có gì để ghi".
-      if ((built.ok || built.error.code === 'PASCAL_NO_CHANGE') && previous !== null && onUnsaved !== undefined) {
-        const unsaved = unsavedPascalEdits(previous, scene);
-
-        if (unsaved.length > 0) onUnsaved(unsaved);
+      /* Phần máy chủ chưa nhận: báo cả khi phần còn lại lưu được lẫn khi chỉ còn "không có gì để ghi".
+         Gọi cả khi danh sách rỗng (V9): màn dựa vào đó để gỡ câu báo cũ. */
+      if ((built.ok || built.error.code === 'PASCAL_NO_CHANGE') && previous !== null) {
+        onUnsaved?.(unsavedPascalEdits(previous, scene));
       }
 
       if (!built.ok) {

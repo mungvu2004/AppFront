@@ -65,8 +65,6 @@ import { appFrontIdOf, bodyOfPascalId } from './ids';
 import { isGeneratedNodeId } from './sceneDressing';
 import {
   adoptableRoomOf,
-  CEILING_FIXTURE_KIND,
-  CEILING_FIXTURE_REASON,
   isEditedGenerated,
   toSpatialGraph,
   type PascalIdBook,
@@ -433,6 +431,18 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
 
     const before = graphEntity(input.graph, entityId);
     const now = afterById.get(entityId);
+
+    /* N1 — node còn trong cảnh mà không thành đối tượng: không bao giờ là một lần xoá. Từ chối
+       kèm lý do (dòng bỏ qua của nó, nếu có) thay vì ghi xoá thứ người dùng vẫn đang thấy. */
+    if (now === undefined && before !== undefined && input.scene.nodes[nodeId] !== undefined) {
+      const reason = skipped.find((entry) => entry.id === nodeId)?.reason;
+
+      return err({
+        type: PASCAL_COMMAND_TYPE,
+        code: 'PASCAL_UNKNOWN_NODE',
+        reasons: [reason ?? 'Đối tượng này vẫn còn trong cảnh nhưng không đọc lại được nên thay đổi bị từ chối.'],
+      });
+    }
     // V4 — đồ thật vừa dời: `roomId` theo phòng mới chứa tâm nó.
     const moved =
       now !== undefined &&
@@ -450,7 +460,10 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
   for (const node of Object.values(input.scene.nodes)) {
     const minted = adoptRoomIds.has(adoptableRoomOf(node) ?? '') ? idBook.get(node.id) : undefined;
     const change =
-      minted === undefined || seen.has(minted) ? null : changeBetween('furniture', undefined, afterById.get(minted));
+      minted === undefined || seen.has(minted)
+        ? null
+        : // Đã nhận nuôi ở lượt trước thì đối tượng đã có trong bản vẽ: lượt này là sửa (hoặc không gì), không phải thêm.
+          changeBetween('furniture', graphEntity(input.graph, minted), afterById.get(minted));
 
     if (minted !== undefined && change !== null) {
       seen.add(minted);
@@ -458,11 +471,13 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
     }
   }
 
-  // R3-F2 — đồ gắn dưới trần không thành đồ đạc được; lặng lẽ bỏ là mất món người dùng vừa đặt.
+  /* R3-F2, N2 — node vừa đổi mà rơi vào danh sách bỏ qua (đồ gắn trần, tường hỏng số đo, sàn
+     tự vẽ…) không thành đối tượng được; lặng lẽ bỏ là mất thứ người dùng vừa làm. Từ chối kèm lý do. */
   const changed = new Set(input.commit.changedNodeIds);
+  const dropped = skipped.find((entry) => changed.has(entry.id));
 
-  if (skipped.some((entry) => entry.kind === CEILING_FIXTURE_KIND && changed.has(entry.id))) {
-    return err({ type: PASCAL_COMMAND_TYPE, code: 'PASCAL_UNKNOWN_NODE', reasons: [CEILING_FIXTURE_REASON] });
+  if (dropped !== undefined) {
+    return err({ type: PASCAL_COMMAND_TYPE, code: 'PASCAL_UNKNOWN_NODE', reasons: [dropped.reason] });
   }
 
   if (unknown.length > 0) {

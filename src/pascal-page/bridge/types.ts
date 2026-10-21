@@ -18,6 +18,8 @@ export interface PascalSaveStatus {
   readonly onReloadFloor: () => void;
   /** "Chưa lưu được: màu sàn, … — sẽ có ở bản sau." (mỗi nhãn một lần mỗi phiên). */
   readonly notice: string | null;
+  /** `alert` = lượt sửa vừa bị từ chối (N1), thẻ phải hiện như cảnh báo (`role="alert"`); còn lại `info`. */
+  readonly noticeTone?: 'info' | 'alert';
   readonly dismissNotice: () => void;
 }
 

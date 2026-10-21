@@ -176,20 +176,29 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
   const engineState = useSyncExternalStore(autosave.subscribe, autosave.getState, autosave.getState);
 
   // Phần sửa chưa lưu được: mỗi nhãn báo một lần mỗi phiên, gộp vào một câu.
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ readonly text: string; readonly tone: 'info' | 'alert' } | null>(null);
   const noticed = useRef(new Set<string>());
+  const noticedMessages = useRef(new Set<string>());
   const onUnsaved = useCallback((labels: readonly string[]) => {
+    /* V9 — lượt sửa không còn phần nào chưa lưu: gỡ câu báo cũ và cho các nhãn báo lại được.
+       Lời báo của chính lượt này (`onNotice`) tới SAU câu gọi này nên không bị gỡ. */
+    if (labels.length === 0) {
+      noticed.current.clear();
+      setNotice(null);
+      return;
+    }
+
     const fresh = labels.filter((item) => !noticed.current.has(item));
 
     if (fresh.length === 0) return;
     fresh.forEach((item) => noticed.current.add(item));
-    setNotice(unsavedNoticeOf(fresh));
+    setNotice({ text: unsavedNoticeOf(fresh), tone: 'info' });
   }, []);
   // Lời báo của lượt sửa (vd. vách mới cần tách phòng — W3d): mỗi câu một lần mỗi phiên, nối vào thẻ.
   const onNotice = useCallback((message: string) => {
-    if (noticed.current.has(message)) return;
-    noticed.current.add(message);
-    setNotice((current) => (current === null ? message : `${current} ${message}`));
+    if (noticedMessages.current.has(message)) return;
+    noticedMessages.current.add(message);
+    setNotice((current) => (current === null ? { text: message, tone: 'info' } : { ...current, text: `${current.text} ${message}` }));
   }, []);
   const dismissNotice = useCallback(() => setNotice(null), []);
 
@@ -207,7 +216,8 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
     label: savedLabel,
     blockMessage: saveBlock?.message ?? null,
     onReloadFloor: () => void reloadBlockedFloor(),
-    notice,
+    notice: notice?.text ?? null,
+    noticeTone: notice?.tone ?? 'info',
     dismissNotice,
   };
 
@@ -216,6 +226,8 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
   const rejection = useRef<string | null>(null);
   const onRejected = useCallback((reason: string) => {
     rejection.current = reason;
+    // N1 — lượt bị từ chối phải thấy được trên thẻ, không chỉ là lỗi ném cho editor (nó có thể nuốt).
+    setNotice({ text: reason, tone: 'alert' });
   }, []);
   const { onSceneCommit } = usePascalEdits({
     spatial,
