@@ -1,28 +1,32 @@
-// Danh sách 14 vật liệu thư viện Pascal được thay ktx2 (thiếu trong upstream) bằng webp 512 sinh
-// từ ảnh gốc trong vendor/pascal/assets/material/** (FE3D-FIX-002 J2, v2/Q1.md).
-// Dùng chung bởi copy-pascal-assets.mjs (sinh webp) và pascal-material-local.mjs (đổi đường dẫn).
-import { readdirSync } from 'node:fs';
+// Vật liệu thư viện Pascal được thay ktx2 (thiếu trong upstream) bằng webp 512 sinh từ ảnh gốc
+// trong vendor/pascal/assets/material/** (FE3D-FIX-002 J2; FE3D-FIX-004 V12: rút từ bản kê thay vì
+// gõ tay 14 id — 35 vật liệu như terrazzo bị bỏ sót và 404).
+// Dùng chung bởi copy-pascal-assets.mjs (sinh webp + ảnh xem trước) và pascal-material-local.mjs.
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ASSETS = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'vendor', 'pascal', 'assets');
+export const LIBRARY_FILE = resolve(ASSETS, '..', 'packages', 'core', 'src', 'material-library.ts');
 
-export const WEBP_MATERIAL_IDS = Object.freeze([
-  'wood-woodplank48',
-  'wood-floorplank1',
-  'wood-hungarianparquet10',
-  'wood-woodplank19',
-  'wood-finewood27',
-  'wood-hungarianparquet2',
-  'wood-woodenparquet11',
-  'flooring-woodparquet76',
-  'flooring-tile79',
-  'flooring-tiles4',
-  'flooring-lightceramic24',
-  'flooring-statuarettowhite',
-  'flooring-tile20',
-  'flooring-ceramic53',
-]);
+/** `[{ id, maps, thumb }]` của mọi vật liệu trong `material-library.ts` (maps = đường `.ktx2` trước `mapProperties`). */
+export function parseLibrary(code) {
+  return code
+    .replaceAll('\r\n', '\n')
+    .split(/\n {4}id: '/)
+    .slice(1)
+    .map((block) => {
+      const cut = block.indexOf('mapProperties');
+      const body = cut < 0 ? block : block.slice(0, cut);
+      return {
+        id: block.slice(0, block.indexOf("'")),
+        maps: [...body.matchAll(/'(\/material\/[^']+\.ktx2)'/g)].map((m) => m[1]),
+        thumb: /previewThumbnailUrl: '([^']+)'/.exec(block)?.[1],
+      };
+    });
+}
+
+export const LIBRARY_MATERIALS = Object.freeze(parseLibrary(readFileSync(LIBRARY_FILE, 'utf8')));
 
 export function webpPathOf(ktx2Path) {
   if (!/_512\.ktx2$/.test(ktx2Path)) throw new Error(`webpPathOf: không phải đường dẫn _512.ktx2: ${ktx2Path}`);
@@ -57,3 +61,22 @@ export function sourceFor(ktx2Path) {
   }
   return join(dir, hits[0]);
 }
+
+const hasSource = (map) => {
+  try {
+    sourceFor(map);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** id thiếu ít nhất một `.ktx2` trong repo mà mọi map đều có ảnh gốc → dựng webp cho cả bộ map. */
+export const WEBP_MATERIAL_IDS = Object.freeze(
+  LIBRARY_MATERIALS.filter(
+    ({ maps }) =>
+      maps.length > 0 &&
+      maps.some((map) => !existsSync(join(ASSETS, map))) &&
+      maps.every((map) => /_512\.ktx2$/.test(map) && hasSource(map)),
+  ).map(({ id }) => id),
+);

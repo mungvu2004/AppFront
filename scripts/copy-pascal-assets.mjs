@@ -41,7 +41,7 @@ import {
 import { join, dirname } from 'node:path';
 import sharp from 'sharp';
 
-import { WEBP_MATERIAL_IDS, roleOf, sourceFor, webpPathOf } from './pascal-material-webp.mjs';
+import { LIBRARY_MATERIALS, WEBP_MATERIAL_IDS, roleOf, sourceFor, webpPathOf } from './pascal-material-webp.mjs';
 
 // `packages/` là upstream nguyên vẹn (không fork, không vá — xem `vendor/pascal/NGUON.md`):
 // upstream nạp Draco từ gstatic (CSP chặn mọi máy ngoài), nên lúc build
@@ -141,22 +141,35 @@ const walk = (dir, prefix = '') => {
 const library = readFileSync(LIBRARY_SOURCE, 'utf8');
 
 /*
- * FE3D-FIX-002: 14 vật liệu trong `WEBP_MATERIAL_IDS` thiếu `.ktx2` ở upstream. Sinh `.webp` 512 từ ảnh
- * nguồn trong `vendor/pascal/assets/material/**`; `pascal-material-local.mjs` đổi đường dẫn map của
- * đúng 14 id ấy sang `.webp` lúc build (viewer nạp đuôi khác `.ktx2` bằng TextureLoader thường).
+ * Vật liệu trong `WEBP_MATERIAL_IDS` (rút từ bản kê: thiếu `.ktx2` mà có ảnh nguồn) dùng `.webp` 512
+ * sinh từ ảnh nguồn trong `vendor/pascal/assets/material/**`; `pascal-material-local.mjs` đổi đường
+ * dẫn map của đúng các id ấy sang `.webp` lúc build (viewer nạp đuôi khác `.ktx2` bằng TextureLoader).
  */
-const webpMaps = WEBP_MATERIAL_IDS.flatMap((id) => {
-  const at = library.indexOf(`id: '${id}'`);
-  if (at < 0) throw new Error(`copy-pascal-assets: bản kê vật liệu không còn id ${id}`);
-  const block = library.slice(at, library.indexOf('mapProperties', at));
-  const maps = [...block.matchAll(/'(\/material\/[^']+_512\.ktx2)'/g)].map((match) => match[1]);
-  if (maps.length === 0) throw new Error(`copy-pascal-assets: ${id} không có map _512.ktx2`);
-  return maps;
-});
-/** Đường `.webp` tương đối so với MATERIAL_TARGET — lượt dọn dưới đây giữ lại chúng. */
-const webpTargets = new Set(webpMaps.map((map) => webpPathOf(map).replace('/material/', '')));
+const WEBP_IDS = new Set(WEBP_MATERIAL_IDS);
+const webpMaps = LIBRARY_MATERIALS.filter(({ id }) => WEBP_IDS.has(id)).flatMap(({ maps }) => maps);
 
-// Dọn mọi thứ trừ `.webp` đã sinh: giữ để lượt sau bỏ qua tệp còn mới hơn ảnh nguồn.
+/*
+ * Ảnh xem trước của bảng chọn vật liệu (L8): bản kê trỏ 63 `…_thumb.webp`, repo chỉ có một phần.
+ * Có sẵn thì chép; thiếu thì dựng 128 px từ ảnh basecolor nguồn (hoặc `.ktx2`-vắng → ảnh nguồn webp).
+ */
+const thumbJobs = LIBRARY_MATERIALS.filter(({ thumb }) => thumb !== undefined).map(({ id, thumb, maps }) => {
+  const own = join('vendor', 'pascal', 'assets', thumb);
+  const albedo = maps.find((map) => roleOf(map) === 'basecolor');
+  let source = own;
+  if (!existsSync(own)) {
+    if (albedo === undefined) throw new Error(`copy-pascal-assets: ${id} thiếu ảnh xem trước và không có map basecolor`);
+    source = sourceFor(albedo);
+  }
+  return { rel: thumb.replace('/material/', ''), source, copy: source === own };
+});
+
+/** Đường `.webp` tương đối so với MATERIAL_TARGET — lượt dọn dưới đây giữ lại chúng. */
+const webpTargets = new Set([
+  ...webpMaps.map((map) => webpPathOf(map).replace('/material/', '')),
+  ...thumbJobs.filter((job) => !job.copy).map((job) => job.rel),
+]);
+
+// Dọn mọi thứ trừ `.webp` đã sinh (map + ảnh xem trước): giữ để lượt sau bỏ qua tệp còn mới hơn ảnh nguồn.
 if (existsSync(MATERIAL_TARGET)) {
   for (const rel of walk(MATERIAL_TARGET)) {
     if (!webpTargets.has(rel)) rmSync(join(MATERIAL_TARGET, rel), { force: true });
@@ -188,6 +201,21 @@ for (const map of webpMaps) {
   }
   webpBytes += statSync(target).size;
 }
+
+let thumbCopied = 0;
+let thumbMade = 0;
+for (const { rel, source, copy } of thumbJobs) {
+  const target = join(MATERIAL_TARGET, rel);
+  mkdirSync(dirname(target), { recursive: true });
+  if (copy) {
+    copyFileSync(source, target);
+    thumbCopied += 1;
+  } else if (!existsSync(target) || statSync(target).mtimeMs < statSync(source).mtimeMs) {
+    await sharp(source).resize(128, 128, { fit: 'cover' }).webp({ quality: 80 }).toFile(target);
+    thumbMade += 1;
+  }
+}
+const thumbPresent = thumbJobs.filter(({ rel }) => existsSync(join(MATERIAL_TARGET, rel))).length;
 
 /*
  * Đối chiếu bản kê với thứ vừa chép. Không ném lỗi: 187 tệp thiếu là trạng thái
@@ -226,6 +254,10 @@ console.log(`Đã chép ${String(materialCount)} tệp vật liệu Pascal vào 
 console.log(
   `Đã có ${String(webpMaps.length)} tệp .webp cho ${String(WEBP_MATERIAL_IDS.length)} vật liệu thiếu .ktx2 ` +
     `(sinh mới ${String(webpMade)}, ${(webpBytes / 1024).toFixed(1)} KiB)`,
+);
+console.log(
+  `Ảnh xem trước vật liệu: ${String(thumbPresent)}/${String(thumbJobs.length)} ` +
+    `(chép ${String(thumbCopied)}, sinh mới ${String(thumbMade)})`,
 );
 console.log(`Đã chép ${String(countFiles(ITEMS_TARGET))} tệp thư viện đồ đạc vào ${ITEMS_TARGET}/`);
 

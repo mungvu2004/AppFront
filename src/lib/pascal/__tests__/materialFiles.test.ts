@@ -4,7 +4,7 @@
  * Repo Pascal chỉ commit một phần `.ktx2` của thư viện vật liệu; tham chiếu tới cái
  * thiếu là 404 im lặng (máy chủ dev trả `index.html` mã 200) và mặt ra không vân.
  * Đọc thẳng nguồn đã commit (`vendor/pascal/assets`) để bài không cần `pnpm pascal`.
- * Riêng 14 id `WEBP_MATERIAL_IDS` dùng `.webp` tự dựng (`pascal-material-local.mjs`): có
+ * Riêng các id `WEBP_MATERIAL_IDS` (rút từ bản kê) dùng `.webp` tự dựng (`pascal-material-local.mjs`): có
  * `public/pascal/material` (đã `pnpm pascal`) thì tệp webp phải có ở đó.
  */
 
@@ -79,9 +79,25 @@ const glbSlotRefs = (folder: string): Record<string, string> => {
 };
 
 describe('vật liệu chỉ trỏ tới tệp có thật (T21)', () => {
-  it('bảng thư viện đọc được và có cả vật liệu đủ tệp lẫn thiếu tệp', () => {
+  it('mọi vật liệu thư viện có map đều dựng được (V12: 17 ktx2 + webp cho phần còn lại)', () => {
+    const withMaps = [...LIBRARY_MAPS].filter(([, maps]) => maps.length > 0);
+    expect(withMaps).toHaveLength(66);
+    expect(withMaps.map(([id]) => [id, problemOf(`library:${id}`)]).filter(([, p]) => p !== null)).toEqual([]);
+  });
+
+  it('L8: ảnh xem trước của bảng chọn có đủ trong public/pascal (khi đã pnpm pascal)', () => {
+    const thumbs = [...readFileSync(resolve(ROOT, 'vendor/pascal/packages/core/src/material-library.ts'), 'utf8').matchAll(
+      /previewThumbnailUrl: '\/material\/([^']+)'/gu,
+    )].map((m) => m[1]!);
+    expect(thumbs).toHaveLength(63);
+    if (!existsSync(PUBLIC_MATERIAL)) return;
+    expect(thumbs.filter((rel) => !existsSync(resolve(PUBLIC_MATERIAL, rel)))).toEqual([]);
+  });
+
+  it('bảng thư viện đọc được; id lạ báo lỗi', () => {
     expect(problemOf('library:concrete-polished')).toBeNull();
-    expect(problemOf('library:flooring-ground13')).toMatch(/thiếu/u);
+    expect(problemOf('library:flooring-terrazzo19')).toBeNull();
+    expect(problemOf('library:nope')).toMatch(/không có/u);
     expect(problemOf('library:wood-woodplank48')).toBeNull();
     // Bộ đọc GLB thấy khe thật — không thì hai bài dưới xanh vì không quét gì.
     expect(glbSlotRefs('bookshelf')).toMatchObject({ body: 'library:wood-finewood27' });
