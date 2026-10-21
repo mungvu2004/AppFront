@@ -51,6 +51,7 @@ import {
 import { SCENE_STYLE_MATERIALS, sceneStyleOf, type SceneStyle } from './sceneStyles';
 import { dressingOf } from './sceneDressingRules';
 import { furnishEmptyRooms } from './sceneFurnish';
+import { furnishingUsageOf, isPlausibleStair, lShapedRunArms, weldWallEnds } from './structureFixes';
 import { modelFolderOf } from './sceneVariety';
 import type {
   AppFrontOrigin,
@@ -785,6 +786,36 @@ const itemNodeOf = (
   };
 };
 
+/**
+ * V1 — node thật của dãy tủ chữ L dựng theo nhánh dài: mô hình dời bằng `asset.offset` (hộp không
+ * xoay nên khung riêng = mặt bằng), còn `position` và hộp bao trong metadata giữ đúng món đồ gốc
+ * để lượt về không thấy gì đổi.
+ */
+const longArmNodeOf = (
+  furniture: Furniture,
+  arm: Pick<Furniture, 'centre'>,
+  armNode: PascalItemNode,
+): PascalItemNode => {
+  const [ox, oy, oz] = armNode.asset.offset ?? [0, 0, 0];
+  const origin = armNode.metadata?.appfront;
+
+  return {
+    ...armNode,
+    position: [metresOf(furniture.centre.x), armNode.position[1], metresOf(furniture.centre.y)],
+    asset: {
+      ...armNode.asset,
+      offset: [
+        ox + metresOf(arm.centre.x - furniture.centre.x),
+        oy,
+        oz + metresOf(arm.centre.y - furniture.centre.y),
+      ],
+    },
+    ...(origin === undefined
+      ? {}
+      : { metadata: { ...armNode.metadata, appfront: { ...origin, fields: { ...origin.fields, boundingBox: furniture.boundingBox } } } }),
+  };
+};
+
 /* -------------------------------------------------------------------------- */
 /* Lượt đổi.                                                                   */
 /* -------------------------------------------------------------------------- */
@@ -887,7 +918,8 @@ export const toPascalScene = (
   const levelNodeIdOf = new Map<string, PascalNodeId>();
   /* Chiều cao tầng: cái thang dựng cao trọn tầng, và trần của phòng. */
   const levelHeightMmOf = new Map<string, number>();
-  const roomUsageOf = new Map<string, RoomUsage>(graph.rooms.map((room) => [room.id, room.usage]));
+  /* Công năng để BÀY ĐỒ (V2): phòng `other` đoán theo tên; zone/slab/metadata vẫn giữ `room.usage`. */
+  const roomUsageOf = new Map<string, RoomUsage>(graph.rooms.map((room) => [room.id, furnishingUsageOf(room)]));
   /* Phòng và đồ thật đã dựng được: đồ sinh ra chỉ suy từ chúng (toạ độ hỏng thì không vào). */
   const builtWalls: Wall[] = [];
   const builtOpenings: Opening[] = [];
@@ -916,6 +948,15 @@ export const toPascalScene = (
 
   const wallNodeIdOf = new Map<string, PascalNodeId>();
   const wallCountOfLevel = new Map<string, number>();
+  /* V6 — đầu tường gần nhau dồn một điểm để vendor nối góc (tường cong dò thành chuỗi đoạn). Chỉ
+     node mang toạ độ dồn; `builtWalls` (cửa, bày đồ) giữ tường gốc. */
+  const weldedWallOf = weldWallEnds(
+    graph.walls.filter(
+      (w) =>
+        levelNodeIdOf.has(w.levelId) &&
+        isUsable(w.centreline.start.x, w.centreline.start.y, w.centreline.end.x, w.centreline.end.y, w.thicknessMm, w.heightMm),
+    ),
+  );
 
   for (const wall of graph.walls) {
     const levelNodeId = levelNodeIdOf.get(wall.levelId);
@@ -941,7 +982,20 @@ export const toPascalScene = (
 
     const ordinal = (wallCountOfLevel.get(wall.levelId) ?? 0) + 1;
     wallCountOfLevel.set(wall.levelId, ordinal);
-    const node = wallNodeOf(wall, ordinal, levelNodeId, childrenFor(toPascalId('wall', wall.id)), style, graph.rooms);
+    const welded = weldedWallOf.get(wall.id);
+    const built = wallNodeOf(welded ?? wall, ordinal, levelNodeId, childrenFor(toPascalId('wall', wall.id)), style, graph.rooms);
+    const origin = built.metadata?.appfront;
+    /* Trục gốc + trục đã dồn (mm) để lượt về trả lại trục gốc khi người dùng chưa dời tường. */
+    const node: PascalWallNode =
+      welded === undefined || origin === undefined
+        ? built
+        : {
+            ...built,
+            metadata: {
+              ...built.metadata,
+              appfront: { ...origin, fields: { ...origin.fields, weldedFrom: wall.centreline, weldedTo: welded.centreline } },
+            },
+          };
 
     builtWalls.push(wall);
     nodes[node.id] = node;
@@ -1044,17 +1098,34 @@ export const toPascalScene = (
     if (furniture.kind === 'stair') {
       const [stair, segment] = stairNodesOf(furniture, levelNodeId, levelHeightMm, style);
 
-      nodes[stair.id] = stair;
+      /* V5 — ký hiệu dò nhầm (0,25 × 0,84 m) không dựng cột thang, nhưng node vẫn phải có:
+         thiếu node là lượt lưu đọc thành xoá. Ẩn đi; lượt về không đọc `visible`. */
+      nodes[stair.id] = isPlausibleStair(furniture) ? stair : ({ ...stair, visible: false } as PascalStairNode);
       nodes[segment.id] = segment;
       adopt(levelNodeId, stair.id);
       continue;
     }
 
     const usage = furniture.roomId === undefined ? undefined : roomUsageOf.get(furniture.roomId);
-    const node = itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage);
+    const room =
+      builtRooms.find((r) => r.id === furniture.roomId) ??
+      builtRooms.find((r) => r.levelId === furniture.levelId && insideOutline(furniture.centre, r.outline));
+    const arms = lShapedRunArms(furniture, room, { ...graph, walls: builtWalls, openings: builtOpenings });
+    const node =
+      arms === null
+        ? itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage)
+        : longArmNodeOf(furniture, arms.long, itemNodeOf({ ...furniture, ...arms.long }, levelNodeId, levelHeightMm, style, usage));
 
     nodes[node.id] = node;
     adopt(levelNodeId, node.id);
+
+    /* V1 — nhánh thứ hai của dãy tủ chữ L: đồ sinh ra, không bao giờ lưu (`isGeneratedNodeId`). */
+    if (arms !== null) {
+      const leg = itemNodeOf(arms.leg, levelNodeId, levelHeightMm, style, usage);
+
+      nodes[leg.id] = { ...leg, metadata: { ...leg.metadata, generated: 'dressing' } };
+      adopt(levelNodeId, leg.id);
+    }
   }
 
   /*
@@ -1062,7 +1133,13 @@ export const toPascalScene = (
    * đồ thật. Không bao giờ được lưu (`isGeneratedNodeId`), không tính vào `skipped`: món nào
    * không dựng được thì bỏ im lặng.
    */
-  const usable = { ...graph, walls: builtWalls, openings: builtOpenings, rooms: builtRooms, furniture: builtFurniture };
+  const usable = {
+    ...graph,
+    walls: builtWalls,
+    openings: builtOpenings,
+    rooms: builtRooms.map((room) => ({ ...room, usage: furnishingUsageOf(room) })),
+    furniture: builtFurniture,
+  };
   const furnished = furnishEmptyRooms(usable, style);
   const dressed = dressingOf({ ...usable, furniture: [...builtFurniture, ...furnished] }, style);
 
