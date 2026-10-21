@@ -81,6 +81,7 @@ body.dark .dark {
      nên vô hiệu; cho chúng một chồng phông hệ thống như app. */
   --font-barlow: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-geist-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: dark;
 }
 
 html:not(.dark) body,
