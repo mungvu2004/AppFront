@@ -12,7 +12,7 @@ import { requirePlatformFetch } from '@/lib/http';
 import { applyBlocks, applyCounters, applySlides, collect, tone } from '@/lib/landing-lab/combo/dom';
 import { CH } from '@/lib/landing-lab/combo/layout';
 import { renderPrintPlan, type PrintPlan } from '@/lib/landing-lab/combo/printPlan';
-import { loadRegistration, openB, openSeq, REG_STANDIN } from '@/lib/landing-lab/combo/sources';
+import { loadMotion, loadRegistration, openB, openSeq, REG_STANDIN } from '@/lib/landing-lab/combo/sources';
 import { createStage, type Stage, type StageInput } from '@/lib/landing-lab/combo/stage';
 import { JUMP, LENIS_LERP, NEEDS, scrollAt, storyAt, TRANSITIONS, WHEEL_MULTIPLIER } from '@/lib/landing-lab/combo/timeline';
 
@@ -163,6 +163,7 @@ export function useCombo(
         loadRegistration(http),
         ...FONTS.map((f) => document.fonts.load(f, SAMPLE).catch(() => [])),
       ]);
+      await loadMotion(http, [a, b.main]);
       if (disposed) return;
       const paper = img === null ? pal.paper : (ctx.createPattern(img, 'repeat') ?? pal.paper);
       // A's registration describes A's real intro frame; with the maquette stand-in keep the eyeballed rect.

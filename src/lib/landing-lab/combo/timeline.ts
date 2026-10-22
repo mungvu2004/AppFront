@@ -33,15 +33,25 @@ export const SEGMENTS: readonly Segment[] = [
   { to: 0.375, vh: 90, transition: 'trang sách → bàn' }, // ink → photographed print (match cut)
   // 4 white model: all 250 of A's frames (pull-back, then walls rise, floors settle, roof, trees) play here.
   // ~16 px of scroll per frame at 1080p, so one wheel notch moves ~6 frames and a flick never skips the walls.
-  { to: 0.5, vh: 380 },
+  // +101 vh for the pull-back (FLAT): it swept 38 % of the screen width per notch.
+  { to: 0.5, vh: 481 },
   { to: 0.57, vh: 150, transition: 'mô hình → nhà thật' }, // 5 A → clay → materials paint in
   { to: 0.78, vh: 230 }, // 6 exterior to the door
   // 7 interior walk (173 frames int2_ from INSIDE_AT, ~10 cm of camera path each): ~3.5 vh per frame, one frame
   // drawn at a time (a neighbour cross-fade ghosted 2-3 copies of the lamp whenever a stand-in was on screen).
   // Owner: the walk into the living room felt far too fast at 87 frames / 330 vh.
-  { to: 0.8, vh: 130, transition: 'qua cửa' }, // threshold into the house
-  { to: 1, vh: 480 }, // into the living room, closing line
+  // +171 vh over the walk for its fast turns (FLAT): frames 20-60 swept 25 % of the width per notch.
+  { to: 0.8, vh: 171, transition: 'qua cửa' }, // threshold into the house
+  { to: 1, vh: 633 }, // into the living room, closing line
 ];
+
+/**
+ * Knob: motion-weighted frames (Seq.warp, motion.json). Inside a photographed chapter a frame gets scroll in
+ * proportion to max(its on-screen motion, FLAT) (% of width per frame), so a wheel notch moves the picture at most
+ * ~8 % of the width (85 px notch on an 866 px window); frames that move less than FLAT keep their old share. FLAT =
+ * 8 x (old vh per frame) / 9.8 vh per notch. Change a chapter's vh in SEGMENTS together with its FLAT.
+ */
+export const FLAT = { a: 1.25, exterior: 2.54, walk: 2.55 } as const;
 
 /*
  * Why no speed cap, transition clamp or "wait for frames" gate any more (removed after owner testing): people

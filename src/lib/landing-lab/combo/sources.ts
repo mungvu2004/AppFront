@@ -15,6 +15,10 @@ export class Seq {
   private store: FrameStore | null = null;
   /** B only: index of the first interior frame (int_0000 / int2_0000); 0 when unknown (the walk then plays linearly). */
   inside = 0;
+  /** Per frame: on-screen motion from the previous frame (% of width, motion.json); empty when unknown. */
+  motion: readonly number[] = [];
+  private readonly cum = new Map<string, number[]>();
+  private speed = 0;
 
   constructor(
     readonly urlOf: (i: number) => string,
@@ -56,8 +60,11 @@ export class Seq {
     const st = this.start();
     const k = Math.min(this.count - 1, Math.max(0, Math.round(i)));
     const fwd = k >= this.lastK;
+    // A flick crosses many frames per draw: decode further ahead the faster it goes (stand-ins jumped up to 23 frames).
+    this.speed = Math.max(Math.abs(k - this.lastK), this.speed * 0.9);
+    const ahead = Math.min(36, 12 + Math.round(3 * this.speed));
     this.lastK = k;
-    st.warm(fwd ? k - 2 : k - 12, fwd ? k + 12 : k + 2);
+    st.warm(fwd ? k - 2 : k - ahead, fwd ? k + ahead : k + 2);
     const own = st.bitmap(k, 0);
     this.draws += 1;
     if (own === null) this.misses += 1;
@@ -82,6 +89,28 @@ export class Seq {
     const miss: number[] = [];
     for (let i = 0; i < this.count; i += 1) if (this.store?.has(i) !== true) miss.push(i);
     return `${String(this.count - miss.length)}/${String(this.count)} missing ${miss.slice(0, 12).join(',')}`;
+  }
+
+  /**
+   * Frame for progress u (0..1) over frames from..to, spaced by on-screen motion: a frame that moves the picture more
+   * than `flat` (% of width) gets proportionally more scroll, so one wheel notch never sweeps the picture across the
+   * screen. Linear without a motion table.
+   */
+  warp(u: number, from: number, to: number, flat: number): number {
+    if (this.motion.length !== this.count || to <= from) return from + u * (to - from);
+    const key = `${String(from)},${String(to)},${String(flat)}`;
+    let c = this.cum.get(key);
+    if (c === undefined) {
+      c = [0];
+      for (let i = from + 1; i <= to; i += 1) c.push((c[c.length - 1] ?? 0) + Math.max(this.motion[i] ?? 0, flat));
+      this.cum.set(key, c);
+    }
+    const x = Math.min(1, Math.max(0, u)) * (c[c.length - 1] ?? 0);
+    let k = 0;
+    while (k < c.length - 2 && (c[k + 1] ?? 0) < x) k += 1;
+    const a = c[k] ?? 0;
+    const b = c[k + 1] ?? a;
+    return from + k + (b > a ? (x - a) / (b - a) : 0);
   }
 
   /** Is a decoded frame within ±tol of i? (The readiness gate: nearest-frame drawing is fine that close.) */
@@ -252,6 +281,14 @@ export async function openB(
         ? new Seq(clayAt, bridge, false, bridge, onFrame, 1, blobs(http))
         : null,
   };
+}
+
+/** Fills each sequence's per-frame motion from `combo/motion.json` (keyed by file name; written by video/flow/flow.py). */
+export async function loadMotion(http: Http, seqs: readonly (Seq | null)[]): Promise<void> {
+  const t = (await json<{ motion?: Record<string, number> }>(http, '/landing-lab/combo/motion.json'))?.motion;
+  if (t === undefined) return;
+  for (const s of seqs)
+    if (s !== null) s.motion = Array.from({ length: s.count }, (_, i) => t[s.urlOf(i).replace(/^.*\//, '')] ?? 0);
 }
 
 /** Screen placement (1920x1080 frame px) of print-plan.png in A's intro frame 0. */

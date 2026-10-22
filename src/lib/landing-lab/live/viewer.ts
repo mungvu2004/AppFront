@@ -52,8 +52,17 @@ export interface LiveViewer {
   dispose(): void;
 }
 
-/** Blender lens shift: a fraction of the frame width, applied as an off-axis projection. */
+/** The baked photos are 16:9, drawn object-fit: cover. */
+const PHOTO_ASPECT = 16 / 9;
+
+/**
+ * Matches the photo on screen: pose.fov is the vertical field of a 16:9 frame; a wider screen crops the photo top and
+ * bottom (its horizontal field stays), so the 3D narrows its vertical field to match. Then the Blender lens shift (a
+ * fraction of the frame width) as an off-axis projection.
+ */
 function applyShift(cam: PerspectiveCamera, pose: LivePose) {
+  const t = Math.tan((pose.fov * Math.PI) / 360) * Math.min(1, PHOTO_ASPECT / cam.aspect);
+  cam.fov = (Math.atan(t) * 360) / Math.PI;
   cam.updateProjectionMatrix();
   cam.projectionMatrix.elements[8] = 2 * pose.shiftX;
   cam.projectionMatrix.elements[9] = 2 * pose.shiftY * cam.aspect;
