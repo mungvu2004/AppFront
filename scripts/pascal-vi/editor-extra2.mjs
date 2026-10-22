@@ -153,3 +153,8 @@ EDITOR_EXTRA2_VI['editor/src/components/editor/floorplan-panel.tsx'].push(
   ['\n                Cancel\n              </button>\n              <button\n                className="h-8 rounded-lg bg-foreground', '\n                Huỷ\n              </button>\n              <button\n                className="h-8 rounded-lg bg-foreground'],
   ['\n                Save Scale\n', '\n                Áp dụng tỉ lệ\n'],
 );
+// Q2-02: câu gợi ý dưới thanh chế độ của overlay chụp ảnh (N-01 sót).
+EDITOR_EXTRA2_VI['editor/src/components/editor/snapshot-capture-overlay.tsx'].push([
+  "              A <b className=\"font-semibold text-white\">snapshot</b>\n              {' freezes this exact camera angle as a reusable reference for renders & videos.'}",
+  "              <b className=\"font-semibold text-white\">Ảnh chụp</b>\n              {' giữ đúng góc máy này để dùng lại làm tham chiếu cho ảnh render và video.'}",
+]);
