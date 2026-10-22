@@ -10,7 +10,7 @@
  * Không nhập store: `main.tsx` (thẻ R1) gọi `setDetailsEnabled(flags.details)`.
  */
 
-let enabled = true
+let enabled = false
 
 export function setDetailsEnabled(value: boolean): void {
   enabled = value

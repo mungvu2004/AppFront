@@ -181,7 +181,7 @@ describe('the flag table', () => {
       'viewer.realism-traa': true,
       'viewer.realism-hdri': true,
       'viewer.realism-materials': true,
-      'viewer.realism-details': true,
+      'viewer.realism-details': false,
     });
   });
 

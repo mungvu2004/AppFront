@@ -21,7 +21,7 @@ describe('realism store', () => {
     expect(s.flags).toEqual(DEFAULT_REALISM_FLAGS);
   });
 
-  it('cờ thiếu = bật, cờ false = tắt', () => {
+  it('cờ thiếu = mặc định, cờ false = tắt', () => {
     expect(realismFlagsFrom({ 'viewer.realism-traa': false })).toEqual({ ...DEFAULT_REALISM_FLAGS, traa: false });
   });
 });

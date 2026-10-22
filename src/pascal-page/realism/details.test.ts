@@ -1,11 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   realismRoofSegmentDefaults,
   realismWallDefaults,
   setDetailsEnabled,
 } from './details'
 
-afterEach(() => setDetailsEnabled(true))
+beforeEach(() => setDetailsEnabled(true))
+afterEach(() => setDetailsEnabled(false))
 
 describe('realism details (R6)', () => {
   it('new roof segment gets fascia + auto gutters', () => {

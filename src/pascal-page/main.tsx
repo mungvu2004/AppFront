@@ -23,6 +23,7 @@ import { BackToProjectCard, ProjectStepsCard } from './BackToProjectCard';
 import { syncChromeTheme } from './chromeTheme';
 import { LightingCard } from './LightingCard';
 import { realismFlagsFrom, useRealism } from './realism/store';
+import { setDetailsEnabled } from './realism/details';
 import { applyDayLook, applyRenderLook, DAY_THEME_ID } from './renderLook';
 import { SceneStyleCard } from './SceneStyleCard';
 import { SwapModelCard } from './SwapModelCard';
@@ -42,6 +43,8 @@ applyRenderLook(getSceneTheme('night'), SSGI_PARAMS);
 applyDayLook(getSceneTheme(DAY_THEME_ID));
 // editor-realism: cờ `viewer.realism-*` → store (đọc một lần lúc mở trang: mặc định + override dev).
 useRealism.setState({ flags: realismFlagsFrom(getFeatureFlagsSnapshot().values) });
+// R6 tắt mặc định: skirting/fascia/autoGutter chưa lưu về BE (DECISIONS.md #4).
+setDetailsEnabled(useRealism.getState().flags.details);
 // Backend thật (vendor ghi sau khi renderer init) khác phép thử `navigator.gpu` → đè lại số đèn.
 // ponytail: đè tại chỗ, đèn đã vẽ chỉ đổi ở lượt dựng lại kế tiếp (đổi chủ đề/tải lại); GĐ3 nếu cần tức thì.
 useRealism.subscribe((state, prev) => {

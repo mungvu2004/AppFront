@@ -26,7 +26,7 @@ export interface RealismState {
   flags: RealismFlags;
 }
 
-export const DEFAULT_REALISM_FLAGS: RealismFlags = { idle: true, traa: true, hdri: true, materials: true, details: true };
+export const DEFAULT_REALISM_FLAGS: RealismFlags = { idle: true, traa: true, hdri: true, materials: true, details: false };
 
 export const useRealism = create<RealismState>()(() => ({
   backend: 'unknown',
@@ -35,8 +35,8 @@ export const useRealism = create<RealismState>()(() => ({
   flags: { ...DEFAULT_REALISM_FLAGS },
 }));
 
-/** Giá trị cờ `viewer.realism-*` → `flags` của store (cờ thiếu = bật, như mặc định bảng cờ). */
+/** Giá trị cờ `viewer.realism-*` → `flags` của store (cờ thiếu = mặc định của bảng cờ). */
 export function realismFlagsFrom(values: Readonly<Record<string, boolean>>): RealismFlags {
-  const on = (key: keyof RealismFlags) => values[`viewer.realism-${key}`] !== false;
+  const on = (key: keyof RealismFlags) => values[`viewer.realism-${key}`] ?? DEFAULT_REALISM_FLAGS[key];
   return { idle: on('idle'), traa: on('traa'), hdri: on('hdri'), materials: on('materials'), details: on('details') };
 }

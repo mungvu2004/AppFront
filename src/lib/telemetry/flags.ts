@@ -188,7 +188,7 @@ export const FEATURE_FLAGS = {
   },
   'viewer.realism-details': {
     key: 'viewer.realism-details',
-    defaultValue: true,
+    defaultValue: false,
     description: 'Chi tiết hình khối mặc định cho node vẽ mới (diềm mái, máng xối, len chân tường); thêm hình học.',
     removeBy: '2026-12-31',
   },
