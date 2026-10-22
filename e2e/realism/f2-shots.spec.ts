@@ -1,6 +1,6 @@
 /**
  * F2: chụp thường (tải về máy) + HQ lạnh/ấm cho F1, F5; ghi lỗi console "sample count".
- *   E2E_PORT=5398 npx playwright test e2e/realism/f2-shots.spec.ts --workers=1 --reporter=line
+ *   E2E_PORT=5401 npx playwright test e2e/realism/f2-shots.spec.ts --workers=1 --reporter=line
  * Ảnh + timings.jsonl -> F:/App-review/editor-realism/f2/
  */
 import fs from 'node:fs';
@@ -9,7 +9,7 @@ import type { Page } from '@playwright/test';
 import { fixtureF1, fixtureF5, type Fixture } from '../../src/lib/pascal/__fixtures__';
 import { installFakeApi, type WireGraphDocument } from '../fixtures/fakeApi';
 
-const OUT = 'F:/App-review/editor-realism/f2';
+const OUT = process.env.F2_OUT ?? 'F:/App-review/editor-realism/f2';
 const PROJECT_ID = 'P-FIXTURE0001';
 test.use({
   headless: false,
@@ -50,16 +50,24 @@ async function shoot(page: Page, name: string, label: string, hq: boolean) {
   const d = await dl;
   const res = await page.evaluate((t0) => {
     const b = (window as any).__f2Blobs;
-    return { ms: Math.round((b[b.length - 1]?.t ?? performance.now()) - t0), hqMs: (window as any).__r3sLastMs ?? null };
+    const blobAt = b[b.length - 1]?.t ?? performance.now();
+    const tm = (window as any).__r3sTimings ?? null;
+    return { ms: Math.round(blobAt - t0), hqMs: (window as any).__r3sLastMs ?? null, tm: tm && { ...tm, encodeMs: Math.round(blobAt - tm.doneAt), doneAt: undefined } };
   }, t0);
   const file = d.suggestedFilename();
   const ext = file.split('.').pop();
   await d.saveAs(`${OUT}/${name}-${label}.${ext}`);
-  const row = { name, label, hq, file, clickToBlobMs: res.ms, hqRenderReadbackMs: hq ? res.hqMs : null, bytes: fs.statSync(`${OUT}/${name}-${label}.${ext}`).size };
+  const row = { name, label, hq, file, clickToBlobMs: res.ms, hqRenderReadbackMs: hq ? res.hqMs : null, hqSplit: hq ? res.tm : null, bytes: fs.statSync(`${OUT}/${name}-${label}.${ext}`).size };
   console.log(JSON.stringify(row));
   fs.appendFileSync(`${OUT}/timings.jsonl`, JSON.stringify(row) + '\n');
   // overlay báo "saved" rồi tự đóng sau 1,5 s; chờ đóng hẳn mới mở lại
-  await page.locator('button[aria-label="Take snapshot"]').waitFor({ state: 'detached', timeout: 10_000 });
+  // F2b: trang không phát 'snapshot:saved' sau khi tải về -> overlay kẹt 'capturing'; thoát bằng Esc
+  const btn = page.locator('button[aria-label="Take snapshot"]');
+  if (!(await btn.waitFor({ state: 'detached', timeout: 3_000 }).then(() => true, () => false))) {
+    console.log('OVERLAY_STUCK', name, label);
+    await page.keyboard.press('Escape');
+    await btn.waitFor({ state: 'detached', timeout: 10_000 });
+  }
 }
 
 for (const [name, fx] of [['F1', () => fixtureF1({ ext: true })], ['F5', fixtureF5]] as [string, () => Fixture][]) {
@@ -83,11 +91,18 @@ for (const [name, fx] of [['F1', () => fixtureF1({ ext: true })], ['F5', fixture
     await page.waitForFunction(() => { const p = (window as any).__pascalProbe; return p?.ready() && (p.counts().wall ?? 0) > 0; }, null, { timeout: 150_000 });
     await page.waitForTimeout(5_000);
     capturing = true;
-    await shoot(page, name, 'thuong', false);
-    await shoot(page, name, 'cao-lanh', true);
-    await shoot(page, name, 'cao-am', true);
+    if (process.env.F2_HQ_FIRST) {
+      // F2b: HQ là lần chụp đầu tiên của phiên (lạnh thật: pipeline chụp chưa dựng)
+      await shoot(page, name, 'cao-lanh0', true);
+      await shoot(page, name, 'cao-am0', true);
+      await shoot(page, name, 'thuong0', false);
+    } else {
+      await shoot(page, name, 'thuong', false);
+      await shoot(page, name, 'cao-lanh', true);
+      await shoot(page, name, 'cao-am', true);
+    }
     console.log(JSON.stringify({ name, depthErrs }));
     fs.appendFileSync(`${OUT}/timings.jsonl`, JSON.stringify({ name, depthErrs }) + '\n');
-    expect(fs.readdirSync(OUT).some((f) => f.startsWith(`${name}-thuong.`))).toBe(true);
+    expect(fs.readdirSync(OUT).some((f) => f.startsWith(`${name}-thuong`))).toBe(true);
   });
 }

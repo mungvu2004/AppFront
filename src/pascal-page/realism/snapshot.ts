@@ -145,8 +145,10 @@ export function captureHq({
   const saved = [giPass.sliceCount.value, giPass.stepCount.value]
   giPass.sliceCount.value = HQ_SSGI.sliceCount
   giPass.stepCount.value = HQ_SSGI.stepCount
+  const frameMs: number[] = []
   try {
     withJitter(camera, width, height, jitterOffsets(frames), (i) => {
+      const tf = performance.now()
       // scenePass chỉ vẽ lại khi node frame tiến (xem advanceNodeFrame của thumbnail-generator)
       renderer._nodes?.nodeFrame?.update?.()
       renderer.setRenderTarget(targets[i])
@@ -155,11 +157,13 @@ export function captureHq({
       } finally {
         renderer.setRenderTarget(null)
       }
+      frameMs.push(Math.round(performance.now() - tf))
     })
   } finally {
     giPass.sliceCount.value = saved[0]!
     giPass.stepCount.value = saved[1]!
   }
+  const tSubmit = performance.now()
   return (async () => {
     let pixels: Uint8Array[]
     try {
@@ -169,9 +173,19 @@ export function captureHq({
     } finally {
       for (const t of targets.slice(1)) t.dispose()
     }
+    const tRead = performance.now()
     const out = averageFrames(pixels)
-    lastHqCaptureMs = Math.round(performance.now() - t0)
-    ;(globalThis as { __r3sLastMs?: number }).__r3sLastMs = lastHqCaptureMs
+    const tEnd = performance.now()
+    lastHqCaptureMs = Math.round(tEnd - t0)
+    // đo đạc (F2b): khung 0 đồng bộ ~ biên dịch shader/pipeline; readback gồm cả thời gian GPU vẽ
+    const g = globalThis as { __r3sLastMs?: number; __r3sTimings?: unknown }
+    g.__r3sLastMs = lastHqCaptureMs
+    g.__r3sTimings = {
+      frameSyncMs: frameMs,
+      readbackMs: Math.round(tRead - tSubmit),
+      averageMs: Math.round(tEnd - tRead),
+      doneAt: tEnd,
+    }
     return out
   })()
 }
