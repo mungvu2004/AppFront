@@ -13,7 +13,7 @@ import { FrameStore, type LoadBlob } from './frames';
  */
 export class Seq {
   private store: FrameStore | null = null;
-  /** B only: index of the first interior frame (int_0000); 0 when unknown (the walk then plays linearly). */
+  /** B only: index of the first interior frame (int_0000 / int2_0000); 0 when unknown (the walk then plays linearly). */
   inside = 0;
 
   constructor(
@@ -211,7 +211,7 @@ export async function openB(
         bridge = until;
         continue;
       }
-      if (part.prefix === 'int_') inside = urls.length;
+      if (part.prefix.startsWith('int')) inside = urls.length; // int_ (87 frames) or int2_ (173, double density)
       for (let i = 0; i < n; i += 1) urls.push(at(i));
       if (part.prefix === 'bridge_') {
         bridge = n;
