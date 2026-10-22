@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { __resetIdle, decide, HOLD_MS, markDirty, pollDirty, SETTLE_FRAMES, shouldDraw } from './idle';
+import { __resetIdle, decide, HOLD_MS, markDirty, pollDirty, SETTLE_FRAMES, SETTLE_MAX_MS, shouldDraw } from './idle';
 import { useRealism } from './store';
 
 const cam = (x = 0) => {
@@ -18,6 +18,9 @@ describe('decide', () => {
     r = decide(s, 201, true); expect(r.draw).toBe(true); s = r.next;
     expect(decide(s, 202, true).draw).toBe(false);
     expect(decide(s, 202, false).draw).toBe(true);
+  });
+  it('khung tích luỹ có trần SETTLE_MAX_MS (GPU chậm)', () => {
+    expect(decide({ until: 100, settle: 5 }, 100 + SETTLE_MAX_MS + 1, true).draw).toBe(false);
   });
 });
 

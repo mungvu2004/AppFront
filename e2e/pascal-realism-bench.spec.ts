@@ -372,4 +372,17 @@ test(`r2 idle ${GPU} F1`, async ({ page }) => {
   await page.mouse.move(960, 560, { steps: 5 });
   await page.waitForTimeout(200);
   expect(await drawn() - c, 'hover/di chuột mà không vẽ lại').toBeGreaterThan(0);
+
+  // F1: sửa nút (store scene) → vẽ lại; rồi lại đứng yên.
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(3_000);
+  const d = await drawn();
+  await page.evaluate((id) => (window as any).__pascalProbe.editNode(id, { height: 3.1 }), walls[0].id);
+  await page.waitForTimeout(300);
+  expect(await drawn() - d, 'sửa nút mà không vẽ lại').toBeGreaterThan(0);
+  await page.waitForTimeout(3_000);
+  const e = await drawn();
+  await page.waitForTimeout(2_000);
+  console.log('f1 idle stats end', JSON.stringify(await page.evaluate(() => (window as any).__pascalIdle())));
+  expect(await drawn() - e, 'sau khi sửa, đứng yên 2 s vẫn vẽ').toBe(0);
 });

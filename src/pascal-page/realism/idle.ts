@@ -10,6 +10,8 @@ import { useRealism } from './store';
 export const HOLD_MS = 150;
 /** ≈ 1 s ở 50 FPS (DECISIONS.md #2). */
 export const SETTLE_FRAMES = 48;
+/** Trần thời gian tích luỹ: GPU chậm (10 FPS) thì 48 khung kéo ~5 s — vẫn chỉ vẽ thêm ~1 s (DECISIONS #2). */
+export const SETTLE_MAX_MS = 1000;
 
 export interface IdleState {
   /** Vẽ tới mốc này (ms, `performance.now()`). */
@@ -21,7 +23,7 @@ export interface IdleState {
 /** Hàm thuần duy nhất quyết định vẽ hay không; trả state mới (đã trừ khung tích luỹ nếu dùng). */
 export function decide(s: IdleState, nowMs: number, enabled: boolean): { draw: boolean; next: IdleState } {
   if (!enabled || nowMs <= s.until) return { draw: true, next: s };
-  if (s.settle > 0) return { draw: true, next: { until: s.until, settle: s.settle - 1 } };
+  if (s.settle > 0 && nowMs <= s.until + SETTLE_MAX_MS) return { draw: true, next: { until: s.until, settle: s.settle - 1 } };
   return { draw: false, next: s };
 }
 
@@ -29,11 +31,18 @@ let state: IdleState = { until: 0, settle: SETTLE_FRAMES };
 let lastReason = 'init';
 let drawn = 0;
 let skipped = 0;
+/** Đếm lý do bẩn (chẩn đoán nguồn bẩn giả). */
+const reasons: Record<string, number> = {};
+/** 12 lần bẩn gần nhất `[ms, lý do]` — tìm nguồn bẩn lặp. */
+const recent: [number, string][] = [];
 
 /** Gọi từ mọi nguồn "động". `holdMs` dài hơn cho hiệu ứng lerp theo thời gian (đổi theme). */
 export function markDirty(reason: string, holdMs = HOLD_MS, nowMs = performance.now()): void {
   state = { until: Math.max(state.until, nowMs + holdMs), settle: SETTLE_FRAMES };
   lastReason = reason;
+  reasons[reason] = (reasons[reason] ?? 0) + 1;
+  recent.push([Math.round(nowMs), reason]);
+  if (recent.length > 12) recent.shift();
 }
 
 /** `?disable=idle` (cùng quy ước `?disable=` của vendor): tắt để bộ đo so trước/sau cùng tải GPU. */
@@ -50,7 +59,7 @@ export function shouldDraw(nowMs = performance.now()): boolean {
 
 /** Cho e2e/bộ đo (`window.__pascalIdle`). */
 export function idleStats() {
-  return { drawn, skipped, lastReason, idle: useRealism.getState().flags.idle && !URL_OFF };
+  return { drawn, skipped, lastReason, reasons: { ...reasons }, recent: recent.slice(), now: Math.round(performance.now()), idle: useRealism.getState().flags.idle && !URL_OFF };
 }
 
 // --- Nguồn "động" kiểm mỗi tick (rẻ: so 32 số + độ dài mảng) --------------------------------
