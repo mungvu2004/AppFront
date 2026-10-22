@@ -184,7 +184,11 @@ async function openProject(page: Page, fixture: Fixture, search = '') {
   await page.addInitScript(INIT);
   await installFakeApi(page, { projectId: PROJECT_ID, graphDoc: fixture.doc as unknown as WireGraphDocument });
   const t0 = Date.now();
-  await page.goto(`/editor3d.html?project=${PROJECT_ID}&probe=1${search}`);
+  // BENCH_PERF=1: thêm `?perf` → mẫu GPU timestamp ở `window.__pascalPerf` (R2).
+  const perf = process.env.BENCH_PERF === '1' ? '&perf' : '';
+  // BENCH_IDLE=off: `?disable=idle` tắt realism-idle để so trước/sau cùng tải GPU (R2).
+  const perfIdle = process.env.BENCH_IDLE === 'off' ? `${perf}&disable=idle` : perf;
+  await page.goto(`/editor3d.html?project=${PROJECT_ID}&probe=1${perfIdle}${search}`);
   await page.waitForFunction(
     () => {
       const p = (window as any).__pascalProbe;
@@ -311,6 +315,8 @@ for (const [name, make] of PROJECTS) {
       requestCount: reqs.length,
       rotate20s: { ...rotateFrames!, cpuTaskMsPerS: rotateCpu, gpu3dPct: rotateGpu, source: 'rAF delta' },
       idle10s: { ...idleFrames!, cpuTaskMsPerS: idleCpu, gpu3dPct: idleGpu },
+      // R2: bộ đếm vẽ/bỏ của realism-idle + mẫu GPU timestamp (`?perf`), nếu trang có.
+      realism: await page.evaluate(() => ({ idle: (window as any).__pascalIdle?.() ?? null, gpuRenderMs: ((window as any).__pascalPerf ?? []).slice(-120) })),
       poses,
       shots,
       facts,
@@ -340,3 +346,30 @@ if (THERMAL) {
     });
   }
 }
+
+// R2: đứng yên → ngừng vẽ; camera đổi (không qua chuột) / hover → vẽ lại ngay. Đếm qua `window.__pascalIdle`.
+test(`r2 idle ${GPU} F1`, async ({ page }) => {
+  test.skip(process.env.BENCH_IDLE === 'off', 'cờ idle đang tắt');
+  test.setTimeout(180_000);
+  await openProject(page, fixtureF1({ ext: true }));
+  const drawn = () => page.evaluate(() => (window as any).__pascalIdle().drawn as number);
+  await page.waitForTimeout(3_000); // HOLD + SETTLE_FRAMES đã qua
+  const a = await drawn();
+  await page.waitForTimeout(2_000);
+  const stats = await page.evaluate(() => (window as any).__pascalIdle());
+  console.log('r2 idle stats', JSON.stringify(stats));
+  expect(stats.drawn - a, `đứng yên 2 s vẫn vẽ (${stats.lastReason})`).toBe(0);
+
+  const walls = await page.evaluate(() => (window as any).__pascalProbe.walls());
+  const p = posesFor(bounds(walls))['high-diag'];
+  const b = await drawn();
+  await page.evaluate((x) => (window as any).__pascalProbe.setCamera(x.position, x.target, x.fov), p);
+  await page.waitForTimeout(300);
+  expect(await drawn() - b, 'camera đổi mà không vẽ lại').toBeGreaterThan(0);
+
+  await page.waitForTimeout(3_000);
+  const c = await drawn();
+  await page.mouse.move(960, 560, { steps: 5 });
+  await page.waitForTimeout(200);
+  expect(await drawn() - c, 'hover/di chuột mà không vẽ lại').toBeGreaterThan(0);
+});
