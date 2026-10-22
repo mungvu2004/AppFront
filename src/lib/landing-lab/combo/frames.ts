@@ -17,6 +17,11 @@ const LOAD_TIMEOUT_MS = 10000;
 const RETRIES = 3;
 /** Knob: decoded bitmaps kept this far outside the warm window before they are freed (~8 MB each at full HD). */
 const KEEP_SLACK = 6;
+/**
+ * Knob: decodes in flight at once. Starting a whole warm window together (up to 36 on a flick) made the frame on
+ * screen wait behind far ones on a busy CPU; the rest queue nearest-to-the-playhead first.
+ */
+const MAX_DECODES = 3;
 
 /** Reads one frame's bytes; null on failure. Handed in by the screen (repo rule: no direct fetch in src/lib). */
 export type LoadBlob = (url: string, signal: AbortSignal) => Promise<Blob | null>;
@@ -25,6 +30,8 @@ export class FrameStore {
   private readonly blobs: (Blob | null)[];
   private readonly bitmaps = new Map<number, ImageBitmap>();
   private readonly pending = new Set<number>();
+  /** Frames the warm window wants decoded, nearest to the playhead first. */
+  private wanted: number[] = [];
   /** Never freed: the first frame and the last one (chapter entries and the A → B hand-over draw them). */
   private readonly pinned: Set<number>;
   private stopped = false;
@@ -82,15 +89,29 @@ export class FrameStore {
           return;
         }
         this.bitmaps.set(i, bmp);
+        this.pump();
         // Repaint: a stand-in may be on screen and the loop sleeps once the scroll has settled.
         this.onFrame();
       },
-      () => this.pending.delete(i),
+      () => {
+        this.pending.delete(i);
+        this.pump();
+      },
     );
   }
 
-  /** Decodes frames from..to off the main thread and frees bitmaps far outside that window. */
-  warm(from: number, to: number): void {
+  /** Starts queued decodes up to MAX_DECODES in flight. */
+  private pump(): void {
+    while (this.pending.size < MAX_DECODES && this.wanted.length > 0) {
+      const i = this.wanted.shift();
+      if (i !== undefined && this.blobs[i] && !this.bitmaps.has(i) && !this.pending.has(i)) this.decode(i);
+    }
+  }
+
+  /**
+   * Decodes frames from..to off the main thread, nearest to `at` first, and frees bitmaps far outside that window.
+   */
+  warm(from: number, to: number, at = from): void {
     const lo = Math.max(0, Math.round(from));
     const hi = Math.min(this.blobs.length - 1, Math.round(to));
     for (const [i, bmp] of this.bitmaps) {
@@ -99,7 +120,12 @@ export class FrameStore {
         this.bitmaps.delete(i);
       }
     }
-    for (let i = lo; i <= hi; i += 1) this.decode(i);
+    const c = Math.round(at);
+    this.wanted = [];
+    for (let i = lo; i <= hi; i += 1)
+      if (this.blobs[i] && !this.bitmaps.has(i) && !this.pending.has(i)) this.wanted.push(i);
+    this.wanted.sort((a, b) => Math.abs(a - c) - Math.abs(b - c));
+    this.pump();
   }
 
   /** The decoded bitmap nearest to `i` within ±tol, or null. */

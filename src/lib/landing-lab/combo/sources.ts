@@ -13,7 +13,7 @@ import { FrameStore, type LoadBlob } from './frames';
  */
 export class Seq {
   private store: FrameStore | null = null;
-  /** B only: index of the first interior frame (int_0000 / int2_0000); 0 when unknown (the walk then plays linearly). */
+  /** B only: index of the first interior frame (int_0000 / int2_0000 / int3_0000); 0 when unknown (the walk then plays linearly). */
   inside = 0;
   /** Per frame: on-screen motion from the previous frame (% of width, motion.json); empty when unknown. */
   motion: readonly number[] = [];
@@ -64,7 +64,7 @@ export class Seq {
     this.speed = Math.max(Math.abs(k - this.lastK), this.speed * 0.9);
     const ahead = Math.min(36, 12 + Math.round(3 * this.speed));
     this.lastK = k;
-    st.warm(fwd ? k - 2 : k - ahead, fwd ? k + ahead : k + 2);
+    st.warm(fwd ? k - 2 : k - ahead, fwd ? k + ahead : k + 2, k);
     const own = st.bitmap(k, 0);
     this.draws += 1;
     if (own === null) this.misses += 1;
@@ -251,7 +251,7 @@ export async function openB(
         bridge = until;
         continue;
       }
-      if (part.prefix.startsWith('int')) inside = urls.length; // int_ (87 frames) or int2_ (173, double density)
+      if (part.prefix.startsWith('int')) inside = urls.length; // int_ (87 frames), int2_ (173) or int3_ (389, in-betweens on the fast turns)
       for (let i = 0; i < n; i += 1) urls.push(at(i));
       if (part.prefix === 'bridge_') {
         bridge = n;
