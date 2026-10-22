@@ -13,6 +13,7 @@ declare global {
   interface Window {
     __liveReady?: Promise<void>;
     __livePose?: (name: string) => void;
+    __liveBench?: (n: number) => number[];
   }
 }
 
@@ -31,6 +32,7 @@ export default function Live() {
     const v = createLiveViewer(canvas, `/landing-lab/live/${scene}`, pose);
     window.__liveReady = v.ready;
     window.__livePose = v.setPose;
+    window.__liveBench = v.bench;
     return () => v.dispose();
   }, [scene, pose]);
 

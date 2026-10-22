@@ -47,6 +47,8 @@ export interface LiveScene {
 export interface LiveViewer {
   ready: Promise<void>;
   setPose(name: string): void;
+  /** Dev: render n frames while turning the orbit, each followed by a 1-px readback (GPU sync); returns sorted frame costs (ms). */
+  bench(n: number): number[];
   dispose(): void;
 }
 
@@ -83,7 +85,7 @@ function liveMaterial(src: Material, env: Texture | null): Material {
     combine: MixOperation,
     reflectivity: 0.35,
     transparent: true,
-    opacity: 0.45,
+    opacity: 0.3,
     depthWrite: false,
     toneMapped: false,
   });
@@ -169,9 +171,26 @@ export function createLiveViewer(canvas: HTMLCanvasElement, base: string, startP
     tick();
   })();
 
+  const bench = (n: number) => {
+    const gl = renderer.getContext();
+    const out: number[] = [];
+    const px = new Uint8Array(4);
+    const off = cam.position.clone().sub(controls.target);
+    for (let i = 0; i < n; i++) {
+      cam.position.copy(controls.target).add(off.clone().applyAxisAngle(new Vector3(0, 1, 0), (i / n) * 1.2));
+      cam.lookAt(controls.target);
+      const t = performance.now();
+      renderer.render(scene, cam);
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); // forces the GPU to finish the frame
+      out.push(performance.now() - t);
+    }
+    return out.sort((a, b) => a - b);
+  };
+
   return {
     ready,
     setPose,
+    bench,
     dispose() {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
