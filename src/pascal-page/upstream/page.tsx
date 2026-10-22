@@ -34,6 +34,7 @@ import {
 import { Hammer, Layers, Package, Settings, X } from 'lucide-react'
 import Image from 'next/image'
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { downloadSnapshot } from '../realism/snapshot'
 import { ScaleBanner } from '../scaleBanner'
 import { BuildTab } from './components/build-tab'
 import { CanvasHelp, MeasureClearButton } from './components/canvas-help'
@@ -392,6 +393,8 @@ export default function Home({ projectId, onLoad, onSave, backCard, projectName 
         layoutVersion="v2"
         onLoad={handleLoad}
         {...(onSave ? { onSave } : {})}
+        // F2: không có API lưu snapshot -> nút chụp tải ảnh về máy (trước đây báo "Snapshot storage is unavailable").
+        onThumbnailCapture={(blob) => downloadSnapshot(blob, projectName)}
         projectId={projectId}
         sidebarTabs={SIDEBAR_TABS}
         viewerToolbarLeft={

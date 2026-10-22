@@ -13,13 +13,32 @@
  */
 import { create } from 'zustand'
 
-export const HQ_FRAMES = 8
+// F2: 8 -> 4 khung (đọc ngược song song) để rút thời gian chụp.
+export const HQ_FRAMES = 4
 /** SSGI mức high (chế độ thường dùng SSGI_PARAMS của vendor: 2 lát × 8 bước). */
 export const HQ_SSGI = { sliceCount: 3, stepCount: 16 }
 
+const HQ_KEY = 'appfront.pascal.snapshot-hq'
+
+function readHq(): boolean {
+  try {
+    return localStorage.getItem(HQ_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+/** Lựa chọn HQ nhớ qua lần tải trang (localStorage; lỗi -> chỉ nhớ trong phiên). */
 export const useSnapshotHq = create<{ hq: boolean; setHq: (hq: boolean) => void }>((set) => ({
-  hq: false,
-  setHq: (hq) => set({ hq }),
+  hq: readHq(),
+  setHq: (hq) => {
+    try {
+      localStorage.setItem(HQ_KEY, hq ? '1' : '0')
+    } catch {
+      // private mode: nhớ trong phiên thôi
+    }
+    set({ hq })
+  },
 }))
 
 function halton(index: number, base: number): number {
@@ -142,11 +161,11 @@ export function captureHq({
     giPass.stepCount.value = saved[1]!
   }
   return (async () => {
-    const pixels: Uint8Array[] = []
+    let pixels: Uint8Array[]
     try {
-      for (const t of targets) {
-        pixels.push(await renderer.readRenderTargetPixelsAsync(t, 0, 0, width, height))
-      }
+      pixels = await Promise.all(
+        targets.map((t) => renderer.readRenderTargetPixelsAsync(t, 0, 0, width, height) as Promise<Uint8Array>),
+      )
     } finally {
       for (const t of targets.slice(1)) t.dispose()
     }
@@ -160,12 +179,20 @@ export function captureHq({
 /** Thời gian (ms) vẽ + đọc ngược của lần chụp HQ gần nhất — cho đo đạc. */
 export let lastHqCaptureMs = 0
 
-/** Nơi lưu dự phòng cho ảnh HQ khi trang không truyền `onThumbnailCapture`: tải file về máy. */
-export function downloadSnapshot(blob: Blob): void {
+/** `<tên dự án>-<yyyyMMdd-HHmm>.webp|png` (giờ máy); ký tự cấm trong tên file -> '-'. */
+export function snapshotFileName(projectName: string | null | undefined, type: string, now = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0')
+  const stamp = `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}`
+  const base = (projectName ?? '').replace(/[\/:*?"<>|\u0000-\u001f]+/g, '-').trim() || 'anh-chup'
+  return `${base}-${stamp}.${type === 'image/png' ? 'png' : 'webp'}`
+}
+
+/** Trang 3D không có API lưu snapshot: ảnh chụp (thường lẫn HQ) tải file về máy. */
+export function downloadSnapshot(blob: Blob, projectName?: string | null): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `anh-chup-${new Date().toISOString().replace(/[:.]/g, '-')}.${blob.type === 'image/png' ? 'png' : 'webp'}`
+  a.download = snapshotFileName(projectName, blob.type)
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 10_000)
 }
