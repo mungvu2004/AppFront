@@ -79,17 +79,29 @@ ${maps}
 /** Neo: cuối mảng `MATERIAL_CATALOG`, ngay trước khi tập id tĩnh được dựng. */
 export const ANCHOR = '\n]\n\nconst STATIC_CATALOG_IDS = new Set(MATERIAL_CATALOG.map((item) => item.id))';
 
-/** Chèn khối mục mới (giữ kiểu xuống dòng của tệp); neo mất/trùng hoặc id đã có → ném lỗi (lượt dựng đỏ). */
-export function applyR5(source) {
-  const code = source.replaceAll('\r\n', '\n');
-  const hits = code.split(ANCHOR).length - 1;
-  if (hits !== 1) throw new Error(`r5-materials: neo cuối MATERIAL_CATALOG gặp ${hits} lần (cần 1) — upstream đã đổi, cập nhật scripts/realism/r5-materials.mjs`);
-  for (const { id } of R5_MATERIALS) {
-    if (code.includes(`id: '${id}',`)) throw new Error(`r5-materials: id "${id}" đã có trong material-library.ts — đổi id`);
-  }
-  const out = code.replace(ANCHOR, `\n${R5_MATERIALS.map(entryCode).join('').replace(/\n$/, '')}${ANCHOR}`);
-  return source.includes('\r\n') ? out.replaceAll('\n', '\r\n') : out;
-}
+const ENTRIES = R5_MATERIALS.map(entryCode).join('').replace(/\n$/, '');
 
-export const rules = [{ name: 'r5-materials', file: /\/core\/src\/material-library\.ts$/, apply: applyR5 }];
-export default rules;
+/**
+ * Luật cho `scripts/pascal-realism.mjs` (thẻ R1): `[gốc, mới, sốLần]`. `sốLần = 0` khẳng định id mới
+ * CHƯA có trong upstream (upstream thêm trùng id → lượt dựng đỏ); sau đó chèn khối mục ở neo cuối mảng.
+ */
+export const RULES = {
+  'core/src/material-library.ts': [
+    ...R5_MATERIALS.map(({ id }) => [`id: '${id}',`, `id: '${id}',`, 0]),
+    [ANCHOR, `\n${ENTRIES}${ANCHOR}`, 1],
+  ],
+};
+
+/** Áp `RULES` như plugin (đúng sốLần, giữ CRLF) — để test không phụ thuộc plugin. */
+export function applyR5(source) {
+  const crlf = source.includes('\r\n');
+  const fix = (s) => (crlf ? s.replaceAll('\n', '\r\n') : s);
+  let out = source;
+  for (const [rawFrom, rawTo, times] of RULES['core/src/material-library.ts']) {
+    const from = fix(rawFrom);
+    const count = out.split(from).length - 1;
+    if (count !== times) throw new Error(`r5-materials: ${JSON.stringify(rawFrom.slice(0, 40))} gặp ${count} lần (cần ${times}) — ${times === 0 ? 'id đã có' : 'neo mất'}`);
+    out = out.split(from).join(fix(rawTo));
+  }
+  return out;
+}
