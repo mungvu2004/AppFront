@@ -7,8 +7,10 @@
   --cb-light: #f6f1e7;
   --cb-light-soft: color-mix(in srgb, var(--cb-light) 84%, transparent);
   --cb-night: #12161d;
+  /* Đất sét trắng (bản thay thế khi B chưa có lượt clay): phủ "screen" lên ảnh đã khử màu. */
+  --cb-clay: rgba(236, 230, 220, 0.55);
 }
-.cb-track { position: relative; height: 1300vh; }
+.cb-track { position: relative; } /* chiều cao: timeline.ts (TRACK_VH) */
 
 /* Dòng chữ lộ qua mặt nạ: mỗi dòng trượt lên khỏi khe của nó. */
 .cb-line { display: block; overflow: hidden; padding-bottom: 0.08em; margin-bottom: -0.08em; }
@@ -66,3 +68,17 @@
 @media (max-aspect-ratio: 11/10) {
   .cb-demo { bottom: 72px; }
 }
+
+/* Nút tầng (bàn phím): nằm đè lên nhãn "Tầng n" trên canvas, chỉ hiện viền khi được chọn bằng Tab. */
+.cb-floors { position: absolute; inset: 0; pointer-events: none; }
+.cb-floor {
+  position: absolute; left: 0; top: 0; pointer-events: auto; visibility: hidden;
+  width: 120px; height: 40px; padding: 0; border: 0; background: transparent; color: transparent; cursor: pointer;
+  border-radius: 2px;
+}
+.cb-floor:focus-visible { outline: 1.5px solid var(--cb-red); outline-offset: 2px; }
+
+/* Cú nhảy (Home/End, kéo thanh cuộn): khung mới hiện dần 340 ms thay vì lóe qua mọi cảnh ở giữa. */
+.cb .bp-canvas.cb-jump { animation: cb-jump 340ms ease-out; }
+@keyframes cb-jump { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .cb .bp-canvas.cb-jump { animation: none; } }

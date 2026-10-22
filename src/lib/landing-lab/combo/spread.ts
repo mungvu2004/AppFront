@@ -131,3 +131,10 @@ export function drawGroundFloor(base: Kit, p: number, intro: number, W: number, 
 export function flyFrom(W: number, H: number): V2[] {
   return spreadCells(SPREAD.zoom[0], W, H).map((r) => [r.x + r.w / 2, r.y + r.h / 2]);
 }
+
+/** Cameras of the small plans of tầng 2 and 3 (for pointer hit tests). */
+export function miniCams(p: number, W: number, H: number): Cam[] {
+  return spreadCells(p, W, H)
+    .slice(1, 3)
+    .map((r) => planCam(r, CELL));
+}

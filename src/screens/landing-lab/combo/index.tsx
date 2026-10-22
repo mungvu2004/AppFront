@@ -7,6 +7,7 @@ import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 
 import { ALL_COUNTS } from '@/lib/landing-lab/combo/sheet';
+import { TRACK_VH } from '@/lib/landing-lab/combo/timeline';
 
 import '../blueprint/blueprint.css';
 import './combo.css';
@@ -52,7 +53,7 @@ export default function Combo() {
 
   return (
     <div className="bp cb" ref={rootRef} data-tone="paper">
-      <div className="cb-track" ref={trackRef}>
+      <div className="cb-track" ref={trackRef} style={{ height: `${String(TRACK_VH)}vh` }}>
         <div className="bp-stage cb-stage">
           <canvas className="bp-canvas" ref={canvasRef} aria-hidden="true" />
           <div className="cb-scrim" data-win="0.37,0.39,0.49,0.51" aria-hidden="true">
@@ -143,6 +144,13 @@ export default function Combo() {
             </div>
             <span className="bp-folio">1</span>
           </footer>
+          <div className="cb-floors" aria-label="Các tầng trong hình tách tầng">
+            {['Tầng 1', 'Tầng 2', 'Tầng 3'].map((t, i) => (
+              <button key={t} type="button" className="cb-floor" data-floor={i} aria-pressed="false">
+                {t}
+              </button>
+            ))}
+          </div>
           <p className="cb-demo">Dữ liệu minh hoạ</p>
         </div>
       </div>

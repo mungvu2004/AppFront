@@ -11,6 +11,7 @@ import { drawFloor, type Cat, type Kit } from '../blueprint/floor';
 import { drawMarks } from '../blueprint/marks';
 import { FLOORS, type Floor, type V2 } from '../blueprint/model';
 import { PEN, rand } from '../blueprint/pen';
+import { LIFT_MM, type Hits } from './interact';
 import { drawSection, levelMarks } from './section';
 import { SHEET } from './sheet';
 
@@ -144,6 +145,8 @@ export interface AxoExtra {
   readonly section: Rect;
   /** Screen centres of the small plans (tầng 1-3) the upper floors fly in from. */
   readonly from: readonly V2[];
+  /** Per floor 0..1 interaction lift. */
+  readonly lift: readonly number[];
 }
 
 function slabCentre(cam: Cam, f: Floor, z: number): V2 {
@@ -187,7 +190,7 @@ function guides(kit: Kit, cam: Cam, ex: AxoExtra, alpha: number, r: number, col:
 }
 
 /** The whole 2b frame. `kit.k` stays the plan's pen scale so line weights do not jump. */
-export function drawAxo(kit: Kit, cam: Cam, ps: AxoPose, ex: AxoExtra): void {
+export function drawAxo(kit: Kit, cam: Cam, ps: AxoPose, ex: AxoExtra, hits: Hits): void {
   const t1 = FLOORS[0];
   if (t1 === undefined) return;
   const pa = ps.plan;
@@ -195,8 +198,10 @@ export function drawAxo(kit: Kit, cam: Cam, ps: AxoPose, ex: AxoExtra): void {
   drawSection({ ...kit, k: kit.k * 0.8 }, ex.section, 1, sa);
   const col = Math.max(...FLOORS.map((f, i) => eastCorner(cam, f, i * EXPLODED)[0])) + 36 * kit.k;
   guides(kit, cam, ex, sa, span(ps.u, 0.06, 0.3), col);
+  // Interaction: a hovered / chosen floor rises a little while the floors hang apart.
+  const zAt = (i: number): number => (ps.z[i] ?? 0) + (ex.lift[i] ?? 0) * LIFT_MM * ps.labels;
   drawAxes(kit, cam, pa, 1);
-  drawFloor(kit, cam, t1, { z0: 0, cut: ps.cut, ink: 1, slab: Math.min(1, Math.max(0, ps.tilt)), slabMm: PLINTH, reveal: () => 1 });
+  drawFloor(kit, cam, t1, { z0: zAt(0), cut: ps.cut, ink: 1, slab: Math.min(1, Math.max(0, ps.tilt)), slabMm: PLINTH, reveal: () => 1 });
   drawOverhead(kit, cam, pa, 1);
   drawDims(kit, cam, pa, 1);
   drawTags(kit, cam, t1, pa, 1);
@@ -206,17 +211,20 @@ export function drawAxo(kit: Kit, cam: Cam, ps: AxoPose, ex: AxoExtra): void {
     const i = j + 1;
     const ink = ps.ink[i] ?? 0;
     if (ps.up <= 0 || ink <= 0.003) return;
-    leaders(kit, cam, FLOORS[i - 1], f, ps.z[i - 1] ?? 0, ps.z[i] ?? 0, Math.min(ink, ps.labels * 1.5));
+    leaders(kit, cam, FLOORS[i - 1], f, zAt(i - 1), zAt(i), Math.min(ink, ps.labels * 1.5));
     // Fly in from its small plan on the spread while it tilts and lifts.
     const from = ex.from[i];
     const fly = 1 - easeInOut(span(ps.u, 0.18, 0.42));
-    const c = slabCentre(cam, f, ps.z[i] ?? 0);
+    const c = slabCentre(cam, f, zAt(i));
     kit.ctx.save();
     if (from !== undefined && fly > 0) kit.ctx.translate((from[0] - c[0]) * fly, (from[1] - c[1]) * fly);
-    drawFloor(kit, cam, f, { z0: ps.z[i] ?? 0, cut: CUT, ink, slab: 1, slabMm: SLAB, reveal: (cat, k, n) => stagger(ps.up, UP_WIN[cat], k, n, i + 3) });
+    drawFloor(kit, cam, f, { z0: zAt(i), cut: CUT, ink, slab: 1, slabMm: SLAB, reveal: (cat, k, n) => stagger(ps.up, UP_WIN[cat], k, n, i + 3) });
     kit.ctx.restore();
   });
-  if (ps.labels > 0) {
-    FLOORS.forEach((f, i) => label(kit, cam, f, ps.z[i] ?? 0, i, ps.labels, col));
-  }
+  const live = ps.labels > 0.5;
+  FLOORS.forEach((f, i) => {
+    hits.floors[i] = live ? f.slab.map((q) => project(cam, q[0], q[1], zAt(i))) : null;
+    hits.labels[i] = live ? [col, eastCorner(cam, f, zAt(i))[1]] : null;
+    if (ps.labels > 0) label(kit, cam, f, zAt(i), i, ps.labels, col);
+  });
 }

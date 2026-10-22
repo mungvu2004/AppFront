@@ -1,16 +1,22 @@
 /**
- * Cuộn → p (0..1) → vẽ canvas của bản kết hợp và chạy chữ (lộ từng dòng, đếm số, trượt khung sách).
- * p hiển thị bám p thật bằng giảm chấn theo thời gian. Khung ảnh A/B nạp dần; ảnh về thì vẽ lại.
- * Chỉ bản dev: `__landingSeek(p)`, `__landingReady`, `__comboPrintPlan()` (hợp đồng 1: tờ bản vẽ in cho A).
+ * Vòng chạy của bản kết hợp. Lenis làm mượt cuộn → timeline.ts đổi chỗ cuộn thành tiến độ câu chuyện (có vùng
+ * "dừng chân" quanh mỗi chuyển cảnh) → kẹp tốc độ trong chuyển cảnh → cổng sẵn sàng (khung ảnh cần chưa giải mã
+ * thì giữ ở mép chuyển cảnh) → vẽ canvas, chạy chữ. Con trỏ: rê phòng, nâng tầng, thị sai nhẹ (useComboInput).
+ * Chỉ bản dev: `__landingSeek(p)`, `__landingReady`, `__comboP()`, `__comboPrintPlan()`.
  */
 
+import Lenis from 'lenis';
 import { useEffect, type RefObject } from 'react';
 
 import { requirePlatformFetch } from '@/lib/http';
 import { applyBlocks, applyCounters, applySlides, collect, tone } from '@/lib/landing-lab/combo/dom';
+import { CH } from '@/lib/landing-lab/combo/layout';
 import { renderPrintPlan, type PrintPlan } from '@/lib/landing-lab/combo/printPlan';
-import { loadRegistration, openSeq } from '@/lib/landing-lab/combo/sources';
-import { CH, createStage } from '@/lib/landing-lab/combo/stage';
+import { loadRegistration, openB, openSeq, REG_STANDIN } from '@/lib/landing-lab/combo/sources';
+import { createStage, type Stage, type StageInput } from '@/lib/landing-lab/combo/stage';
+import { follow, GATE_MAX_MS, JUMP, LENIS_LERP, NEEDS, scrollAt, storyAt, TRANSITIONS } from '@/lib/landing-lab/combo/timeline';
+
+import { createComboInput } from './useComboInput';
 
 const FONTS = ['300 40px Newsreader', 'italic 300 40px Newsreader', '400 20px "Patrick Hand"', '300 12px "Be Vietnam Pro"', '400 16px "Be Vietnam Pro"'];
 const SAMPLE = 'Bản vẽ ữ ạ ẻ ờ đ';
@@ -20,6 +26,7 @@ declare global {
     __landingSeek?: (p: number) => Promise<void>;
     __landingReady?: Promise<void>;
     __comboPrintPlan?: () => Promise<PrintPlan>;
+    __comboP?: () => { target: number; shown: number; gated: boolean; lenis: number; transitions: typeof TRANSITIONS; a: string; b: string };
   }
 }
 
@@ -43,23 +50,36 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const { blocks, counters, slides } = collect(root);
     const css = getComputedStyle(root);
-    const pal = { paper: css.getPropertyValue('--cb-paper').trim(), ink: css.getPropertyValue('--cb-ink').trim(), red: css.getPropertyValue('--cb-red').trim() };
-    let stage: ReturnType<typeof createStage> | null = null;
-    let parts: Omit<Parameters<typeof createStage>[0], 'ctx' | 'layer' | 'W' | 'H' | 'dpr'> | null = null;
+    const v = (name: string): string => css.getPropertyValue(name).trim();
+    const pal = { paper: v('--cb-paper'), ink: v('--cb-ink'), red: v('--cb-red'), clay: v('--cb-clay') };
+    const lenis = new Lenis({ autoRaf: false, lerp: reduce ? 1 : LENIS_LERP });
+    let stage: Stage | null = null;
+    let parts: Omit<StageInput, 'ctx' | 'layer' | 'W' | 'H' | 'dpr'> | null = null;
     let target = 0;
-    let shown = -1;
+    let prevTarget = 0;
+    let prevScroll = 0;
+    let shown = 0;
     let drawn = -1;
     let dirty = true;
+    let gated = false;
+    let gatedSince = 0;
     let intro = reduce ? 1 : 0;
     let frames = 0;
     let raf = 0;
     let last = performance.now();
     let disposed = false;
+    const wake = (): void => {
+      if (raf === 0 && !disposed) {
+        last = performance.now();
+        raf = requestAnimationFrame(tick);
+      }
+    };
+    const input = createComboInput(root, () => stage, wake);
 
-    const progress = (): number => {
-      const top = track.getBoundingClientRect().top + scrollY;
-      const range = track.offsetHeight - innerHeight;
-      return range > 0 ? Math.min(1, Math.max(0, (scrollY - top) / range)) : 0;
+    const range = (): { top: number; len: number } => ({ top: track.getBoundingClientRect().top + scrollY, len: Math.max(1, track.offsetHeight - innerHeight) });
+    const storyNow = (): number => {
+      const r = range();
+      return storyAt((lenis.scroll - r.top) / r.len);
     };
 
     const build = (): void => {
@@ -77,36 +97,54 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
     };
 
     const paint = (p: number): void => {
-      if (stage !== null && (dirty || Math.abs(p - drawn) > 1e-6)) {
-        dirty = !stage.draw(p, intro);
+      if (stage !== null && (dirty || input.moving() || Math.abs(p - drawn) > 1e-6)) {
+        dirty = !stage.draw(p, intro, input.ui());
         drawn = p;
         applyBlocks(blocks, p, intro);
         applyCounters(counters, p);
         applySlides(slides, p, CH.cut[0], CH.cut[0] + 0.035);
-        root.dataset['tone'] = tone(p);
+        input.place(stage.hits());
+        const tn = tone(p);
+        if (root.dataset['tone'] !== tn) root.dataset['tone'] = tn;
       }
       frames += 1;
     };
 
-    const tick = (now: number): void => {
+    function tick(now: number): void {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
-      shown = shown < 0 || reduce ? target : shown + (target - shown) * (1 - Math.exp(-dt * 8));
-      if (Math.abs(target - shown) < 1e-4) shown = target;
+      lenis.raf(now);
+      target = storyNow();
+      input.step(dt);
+      // Speed cap + transition clamp (timeline.ts). A jump of the scroll itself (Home/End, scrollbar) lands at once
+      // behind a 340 ms fade; a gap that grew while the gate held is not a jump, so a held transition still plays.
+      const jumped = Math.abs(target - prevTarget) > JUMP;
+      prevTarget = target;
+      let next = jumped ? target : follow(shown, target, dt);
+      if (jumped) fadeIn();
+      stage?.prefetch(next, Math.abs(target - prevScroll) > 1e-5 || lenis.isScrolling !== false);
+      prevScroll = target;
+      // Readiness gate: hold where we are until the frames this p needs are decoded (never longer than GATE_MAX_MS).
+      const notReady = stage !== null && !stage.ready(next);
+      if (!notReady) gatedSince = 0;
+      else if (gatedSince === 0) gatedSince = now;
+      gated = notReady && now - gatedSince < GATE_MAX_MS && !jumped;
+      if (gated) next = shown;
+      shown = next;
       paint(shown);
-      raf = shown === target && !dirty ? 0 : requestAnimationFrame(tick);
+      const busy = lenis.isScrolling !== false || shown !== target || dirty || gated || input.moving();
+      raf = busy ? requestAnimationFrame(tick) : 0;
+    }
+    const onScroll = (): void => wake();
+    /** The 340 ms fade a jump lands behind (token duration). */
+    const fadeIn = (): void => {
+      canvas.classList.remove('cb-jump');
+      void canvas.offsetWidth;
+      canvas.classList.add('cb-jump');
     };
-    const wake = (): void => {
-      if (raf === 0 && !disposed) {
-        last = performance.now();
-        raf = requestAnimationFrame(tick);
-      }
-    };
-    const onScroll = (): void => {
-      target = progress();
-      wake();
-    };
+    // A frame that lands only matters while photographs are on screen; on the drawings it must not cost a redraw.
     const onFrame = (): void => {
+      if (shown < NEEDS.a.from - 0.01) return;
       dirty = true;
       wake();
     };
@@ -117,16 +155,16 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
       const [img, a, b, reg] = await Promise.all([
         loadImage('/landing-lab/blueprint/paper.webp'),
         openSeq(http, 'a', wide, onFrame),
-        openSeq(http, 'b', wide, onFrame),
+        openB(http, wide, onFrame),
         loadRegistration(http),
         ...FONTS.map((f) => document.fonts.load(f, SAMPLE).catch(() => [])),
       ]);
       if (disposed) return;
       const paper = img === null ? pal.paper : (ctx.createPattern(img, 'repeat') ?? pal.paper);
-      parts = { pal, paper, a, b, reg };
+      // A's registration describes A's real intro frame; with the maquette stand-in keep the eyeballed rect.
+      parts = { pal, paper, a, b: b.main, clay: b.clay, reg: a === null || a.standIn ? REG_STANDIN : reg };
       build();
-      target = progress();
-      shown = target;
+      shown = target = prevTarget = storyNow();
       paint(shown);
       // Headline lines and the exterior walls ink in on load (700 ms), then the scroll takes over.
       const t0 = performance.now();
@@ -139,32 +177,45 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
           if (intro < 1) requestAnimationFrame(step);
           else resolve();
         };
-        requestAnimationFrame(step);
+        if (intro < 1) requestAnimationFrame(step);
+        else resolve();
       });
-      await Promise.all([a?.store.first, b?.store.first]);
     })();
 
     const observer = new ResizeObserver(() => {
       build();
-      paint(shown < 0 ? 0 : shown);
+      paint(shown);
     });
     observer.observe(canvas);
+    // Lenis only moves inside our rAF: any input that can start a scroll must wake the loop.
+    lenis.on('scroll', onScroll);
+    lenis.on('virtual-scroll', onScroll);
     addEventListener('scroll', onScroll, { passive: true });
+    for (const ev of ['wheel', 'touchmove', 'keydown'] as const) addEventListener(ev, onScroll, { passive: true });
 
     if (import.meta.env.DEV) {
       window.__landingReady = ready;
       window.__comboPrintPlan = () => Promise.resolve(renderPrintPlan(pal));
+      window.__comboP = () => ({ target, shown, gated, lenis: lenis.scroll, transitions: TRANSITIONS, a: parts?.a?.loaded() ?? '', b: parts?.b?.loaded() ?? '' });
       window.__landingSeek = async (p: number): Promise<void> => {
         await ready;
         const clamped = Math.min(1, Math.max(0, p));
-        const top = track.getBoundingClientRect().top + scrollY;
-        scrollTo({ top: top + clamped * (track.offsetHeight - innerHeight), behavior: 'instant' });
+        const r = range();
+        lenis.scrollTo(r.top + scrollAt(clamped) * r.len, { immediate: true, force: true });
         target = clamped;
+        prevTarget = clamped;
         shown = clamped;
         dirty = true;
+        stage?.prefetch(clamped);
+        const t0 = performance.now();
+        while (stage !== null && !stage.ready(clamped) && performance.now() - t0 < 8000) {
+          // eslint-disable-next-line local/no-raw-duration -- dev-only poll while frames decode, not motion
+          await new Promise((res) => setTimeout(res, 50));
+        }
         const from = frames;
         await new Promise<void>((resolve) => {
           const wait = (): void => {
+            dirty = true;
             paint(shown);
             if (frames >= from + 2) resolve();
             else requestAnimationFrame(wait);
@@ -176,15 +227,20 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
 
     return () => {
       disposed = true;
-      parts?.a?.store.stop();
-      parts?.b?.store.stop();
+      parts?.a?.stop();
+      parts?.b?.stop();
+      parts?.clay?.stop();
       cancelAnimationFrame(raf);
       observer.disconnect();
+      input.dispose();
+      lenis.destroy();
       removeEventListener('scroll', onScroll);
+      for (const ev of ['wheel', 'touchmove', 'keydown'] as const) removeEventListener(ev, onScroll);
       if (import.meta.env.DEV) {
         delete window.__landingSeek;
         delete window.__landingReady;
         delete window.__comboPrintPlan;
+        delete window.__comboP;
       }
     };
   }, [rootRef, trackRef, canvasRef]);
