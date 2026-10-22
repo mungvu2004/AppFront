@@ -1,7 +1,7 @@
 /**
  * Vòng chạy của bản kết hợp. Lenis làm mượt cuộn → timeline.ts đổi chỗ cuộn thành tiến độ câu chuyện (có vùng
- * "dừng chân" quanh mỗi chuyển cảnh) → kẹp tốc độ trong chuyển cảnh → cổng sẵn sàng (khung ảnh cần chưa giải mã
- * thì giữ ở mép chuyển cảnh) → vẽ canvas, chạy chữ. Con trỏ: rê phòng, nâng tầng, thị sai nhẹ (useComboInput).
+ * "dừng chân" quanh mỗi chuyển cảnh, chỉ bằng độ dài cuộn) → vẽ canvas (khung ảnh giải mã sẵn phía trước,
+ * frames.ts), chạy chữ. Con trỏ: rê phòng, nâng tầng, thị sai nhẹ (useComboInput).
  * Chỉ bản dev: `__landingSeek(p)`, `__landingReady`, `__comboP()`, `__comboPrintPlan()`.
  */
 
@@ -14,7 +14,7 @@ import { CH } from '@/lib/landing-lab/combo/layout';
 import { renderPrintPlan, type PrintPlan } from '@/lib/landing-lab/combo/printPlan';
 import { loadRegistration, openB, openSeq, REG_STANDIN } from '@/lib/landing-lab/combo/sources';
 import { createStage, type Stage, type StageInput } from '@/lib/landing-lab/combo/stage';
-import { follow, GATE_MAX_MS, JUMP, LENIS_LERP, NEEDS, scrollAt, storyAt, TRANSITIONS } from '@/lib/landing-lab/combo/timeline';
+import { JUMP, LENIS_LERP, NEEDS, scrollAt, storyAt, TRANSITIONS, WHEEL_MULTIPLIER } from '@/lib/landing-lab/combo/timeline';
 
 import { createComboInput } from './useComboInput';
 
@@ -26,7 +26,7 @@ declare global {
     __landingSeek?: (p: number) => Promise<void>;
     __landingReady?: Promise<void>;
     __comboPrintPlan?: () => Promise<PrintPlan>;
-    __comboP?: () => { target: number; shown: number; gated: boolean; lenis: number; transitions: typeof TRANSITIONS; a: string; b: string };
+    __comboP?: () => { target: number; shown: number; lenis: number; transitions: typeof TRANSITIONS; a: string; b: string };
   }
 }
 
@@ -52,7 +52,7 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
     const css = getComputedStyle(root);
     const v = (name: string): string => css.getPropertyValue(name).trim();
     const pal = { paper: v('--cb-paper'), ink: v('--cb-ink'), red: v('--cb-red'), clay: v('--cb-clay') };
-    const lenis = new Lenis({ autoRaf: false, lerp: reduce ? 1 : LENIS_LERP });
+    const lenis = new Lenis({ autoRaf: false, lerp: reduce ? 1 : LENIS_LERP, wheelMultiplier: WHEEL_MULTIPLIER });
     let stage: Stage | null = null;
     let parts: Omit<StageInput, 'ctx' | 'layer' | 'W' | 'H' | 'dpr'> | null = null;
     let target = 0;
@@ -61,8 +61,6 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
     let shown = 0;
     let drawn = -1;
     let dirty = true;
-    let gated = false;
-    let gatedSince = 0;
     let intro = reduce ? 1 : 0;
     let frames = 0;
     let raf = 0;
@@ -116,23 +114,15 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
       lenis.raf(now);
       target = storyNow();
       input.step(dt);
-      // Speed cap + transition clamp (timeline.ts). A jump of the scroll itself (Home/End, scrollbar) lands at once
-      // behind a 340 ms fade; a gap that grew while the gate held is not a jump, so a held transition still plays.
-      const jumped = Math.abs(target - prevTarget) > JUMP;
+      // The picture sits exactly where the Lenis-smoothed scroll is (timeline.ts says why there is no cap/gate).
+      // A jump of the scroll itself (Home/End, scrollbar drag) lands behind a 340 ms fade.
+      if (Math.abs(target - prevTarget) > JUMP) fadeIn();
       prevTarget = target;
-      let next = jumped ? target : follow(shown, target, dt);
-      if (jumped) fadeIn();
-      stage?.prefetch(next, Math.abs(target - prevScroll) > 1e-5 || lenis.isScrolling !== false);
+      stage?.prefetch(target, Math.abs(target - prevScroll) > 1e-5 || lenis.isScrolling !== false);
       prevScroll = target;
-      // Readiness gate: hold where we are until the frames this p needs are decoded (never longer than GATE_MAX_MS).
-      const notReady = stage !== null && !stage.ready(next);
-      if (!notReady) gatedSince = 0;
-      else if (gatedSince === 0) gatedSince = now;
-      gated = notReady && now - gatedSince < GATE_MAX_MS && !jumped;
-      if (gated) next = shown;
-      shown = next;
+      shown = target;
       paint(shown);
-      const busy = lenis.isScrolling !== false || shown !== target || dirty || gated || input.moving();
+      const busy = lenis.isScrolling !== false || dirty || input.moving();
       raf = busy ? requestAnimationFrame(tick) : 0;
     }
     const onScroll = (): void => wake();
@@ -196,7 +186,7 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
     if (import.meta.env.DEV) {
       window.__landingReady = ready;
       window.__comboPrintPlan = () => Promise.resolve(renderPrintPlan(pal));
-      window.__comboP = () => ({ target, shown, gated, lenis: lenis.scroll, transitions: TRANSITIONS, a: parts?.a?.loaded() ?? '', b: parts?.b?.loaded() ?? '' });
+      window.__comboP = () => ({ target, shown, lenis: lenis.scroll, transitions: TRANSITIONS, a: parts?.a?.loaded() ?? '', b: parts?.b?.loaded() ?? '' });
       window.__landingSeek = async (p: number): Promise<void> => {
         await ready;
         const clamped = Math.min(1, Math.max(0, p));

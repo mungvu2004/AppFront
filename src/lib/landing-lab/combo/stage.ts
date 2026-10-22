@@ -113,23 +113,15 @@ export function createStage(input: StageInput): Stage {
   const seqAt = (seq: Seq | null, f: number, c: CanvasRenderingContext2D): boolean => {
     if (seq === null) return true;
     const img = seq.frame(f);
-    if (img !== null) drawCover(c, img, img.naturalWidth, img.naturalHeight, w, h, 0.5);
+    if (img !== null) drawCover(c, img, img.width, img.height, w, h, 0.5);
     return seq.near(f, 0);
   };
 
-  /** Stand-in clay: the beauty frame desaturated and lifted towards white card (until B's clay pass lands). */
-  const clayAt = (f: number, c: CanvasRenderingContext2D): boolean => {
-    if (input.clay !== null) return seqAt(input.clay, f, c);
-    const ok = seqAt(input.b, f, c);
-    c.globalCompositeOperation = 'saturation';
-    c.fillStyle = '#808080';
-    c.fillRect(0, 0, w, h);
-    c.globalCompositeOperation = 'screen';
-    c.fillStyle = input.pal.clay;
-    c.fillRect(0, 0, w, h);
-    c.globalCompositeOperation = 'source-over';
-    return ok;
-  };
+  /**
+   * The clay pass under the paint-in. Without B's clay frames the beauty frame stands in as is: the old greyed
+   * stand-in (two full-screen composite passes) cost 60–240 ms a frame on Intel UHD and looked like a grey roof.
+   */
+  const clayAt = (f: number, c: CanvasRenderingContext2D): boolean => seqAt(input.clay ?? input.b, f, c);
 
   const aFrame = (p: number): number => span(p, A_RUN[0], A_RUN[1]) * ((input.a?.count ?? 1) - 1);
   const bridge = (): number => Math.max(1, input.b?.bridge ?? 1);
@@ -163,7 +155,7 @@ export function createStage(input: StageInput): Stage {
       ctx.translate(w * ENTRANCE[0], h * ENTRANCE[1]);
       ctx.scale(z, z);
       ctx.translate(-w * ENTRANCE[0], -h * ENTRANCE[1]);
-      drawCover(ctx, img, img.naturalWidth, img.naturalHeight, w, h, 0.5, 1 - xa);
+      drawCover(ctx, img, img.width, img.height, w, h, 0.5, 1 - xa);
       ctx.restore();
     }
     return ok;

@@ -7,8 +7,6 @@
  * `SEGMENTS` gives each stretch of story a scroll length in vh. Transitions get more vh per unit of story than
  * the stretches around them: the "dwell" that makes a cut slow down instead of flashing by. The knots are joined
  * by a monotone cubic (Fritsch–Carlson), so story speed changes smoothly — gentle plateaus, never a kink.
- * Inside a transition the shown p may not move faster than `CLAMP_S` seconds per transition (velocity clamp),
- * and a transition that needs photographed frames waits at its edge until they are decoded (readiness gate).
  */
 
 export interface Segment {
@@ -28,47 +26,35 @@ export interface Segment {
 export const SEGMENTS: readonly Segment[] = [
   { to: 0.1, vh: 110 }, // 1 drawing set draws itself
   { to: 0.13, vh: 50 }, // 2 light red-pencil pass on all four
-  { to: 0.155, vh: 80, transition: 'set → tầng 1' }, // tầng 1 grows into the plate
+  { to: 0.155, vh: 70, transition: 'set → tầng 1' }, // tầng 1 grows into the plate
   { to: 0.2, vh: 80 }, // main red pencil + tally
-  { to: 0.32, vh: 210 }, // 2b exploded axonometric and back down
+  { to: 0.32, vh: 220 }, // 2b exploded axonometric and back down
   { to: 0.345, vh: 40 }, // book chrome slides away
-  { to: 0.375, vh: 100, transition: 'trang sách → bàn' }, // ink → photographed print (match cut)
-  { to: 0.5, vh: 150 }, // 4 white model on the desk
-  { to: 0.57, vh: 170, transition: 'mô hình → nhà thật' }, // 5 A → clay → materials paint in
-  { to: 0.78, vh: 210 }, // 6 exterior to the door
+  { to: 0.375, vh: 90, transition: 'trang sách → bàn' }, // ink → photographed print (match cut)
+  // 4 white model: all 250 of A's frames (pull-back, then walls rise, floors settle, roof, trees) play here.
+  // ~16 px of scroll per frame at 1080p, so one wheel notch moves ~6 frames and a flick never skips the walls.
+  { to: 0.5, vh: 380 },
+  { to: 0.57, vh: 150, transition: 'mô hình → nhà thật' }, // 5 A → clay → materials paint in
+  { to: 0.78, vh: 230 }, // 6 exterior to the door
   { to: 0.8, vh: 70, transition: 'qua cửa' }, // threshold into the house
-  { to: 1, vh: 200 }, // 7 interior, closing line
+  { to: 1, vh: 260 }, // 7 interior walk into the living room, closing line
 ];
 
-/**
- * Knob: top speed of the shown story anywhere, story units per second, after Lenis. 0.18 ≈ 2.5 viewport heights
- * of scroll per second at the track's average density (1 story over ~14 screens): a fast flick glides instead of
- * bursting through frames (and their decodes). The scrollbar stays honest: only the drawing lags, then catches up.
+/*
+ * Why no speed cap, transition clamp or "wait for frames" gate any more (removed after owner testing): people
+ * scroll in bursts — 3 to 8 notches in a flick, a pause, sometimes a notch back. A cap made the drawing trail the
+ * wheel and keep moving after the hand stopped; the gate froze the picture for up to 2.5 s. Both read as jank.
+ * Now the picture is exactly where the (Lenis-smoothed) scrollbar is: slow moments get scroll LENGTH in
+ * SEGMENTS instead, and frames are decoded ahead off the main thread (frames.ts), the nearest one drawn meanwhile.
  */
-export const MAX_STORY_PER_S = 0.18;
-/** Knob: how quickly the shown story eases toward the target (1/s); the cap above limits it further. */
-export const EASE_PER_S = 12;
-/** Knob: a scroll jump larger than this in one frame (Home/End, scrollbar drag) lands at once with a 340 ms fade. */
+
+/** Knob: a scroll jump larger than this in one frame (Home/End, scrollbar drag) lands behind a 340 ms fade. */
 export const JUMP = 0.1;
-/** Knob: longest the readiness gate may hold (ms) before drawing the nearest frames anyway. */
-export const GATE_MAX_MS = 2500;
 
-/** Knob: minimum seconds the shown story spends inside any transition, whatever the scroll speed. */
-export const CLAMP_S = 1.25;
-/**
- * One frame of the shown story: ease toward the Lenis-smoothed target, cap the speed (MAX_STORY_PER_S), then the
- * transition clamp. No stepping: the eased step only ever shrinks.
- */
-export function follow(shown: number, target: number, dt: number): number {
-  const eased = (target - shown) * (1 - Math.exp(-EASE_PER_S * dt));
-  const cap = MAX_STORY_PER_S * dt;
-  const want = shown + Math.max(-cap, Math.min(cap, eased));
-  const next = clampStep(shown, want, dt);
-  return Math.abs(target - next) < 1e-5 ? target : next;
-}
-
-/** Knob: Lenis smoothing (0..1 per frame; lower = more glide). */
-export const LENIS_LERP = 0.11;
+/** Knob: Lenis smoothing (0..1 per frame; lower = more glide). Turns a burst of notches into one eased glide. */
+export const LENIS_LERP = 0.09;
+/** Knob: Lenis wheel multiplier: < 1 makes a notch cover a little less of the story. */
+export const WHEEL_MULTIPLIER = 0.85;
 
 export const TRACK_VH = SEGMENTS.reduce((s, g) => s + g.vh, 0) + 100;
 
@@ -148,25 +134,6 @@ export interface Transition {
 export const TRANSITIONS: readonly Transition[] = SEGMENTS.flatMap((g, i) =>
   g.transition === undefined ? [] : [{ name: g.transition, from: SEGMENTS[i - 1]?.to ?? 0, to: g.to }],
 );
-
-/**
- * One frame of the velocity clamp. Outside transitions `shown` follows the Lenis-smoothed target freely, but stops
- * at the edge of the next transition; inside a transition it moves at most (width / CLAMP_S) × dt per frame, so
- * every transition lasts ≥ CLAMP_S seconds however fast the wheel turns.
- */
-export function clampStep(shown: number, target: number, dt: number): number {
-  if (target === shown) return target;
-  const fwd = target > shown;
-  const eps = 1e-6;
-  const next = fwd
-    ? TRANSITIONS.find((t) => t.to > shown + eps && t.from < target)
-    : [...TRANSITIONS].reverse().find((t) => t.from < shown - eps && t.to > target);
-  if (next === undefined) return target;
-  const inside = fwd ? shown >= next.from - eps : shown <= next.to + eps;
-  if (!inside) return fwd ? Math.min(target, next.from) : Math.max(target, next.to);
-  const step = ((next.to - next.from) / CLAMP_S) * Math.max(dt, 0);
-  return fwd ? Math.min(target, shown + step) : Math.max(target, shown - step);
-}
 
 /**
  * Knob: which story p ranges need which photographed sequence, and when each starts downloading. Earlier than one

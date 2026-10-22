@@ -5,7 +5,7 @@
  * Also loads A's registration rect when A has published it (copied to `combo/c/`).
  */
 
-import { FrameStore } from './frames';
+import { FrameStore, type LoadBlob } from './frames';
 
 /**
  * A frame sequence that only starts downloading when asked (`start`), so the next chapter's frames can be
@@ -22,10 +22,11 @@ export class Seq {
     readonly bridge: number,
     private readonly onFrame: () => void,
     private readonly concurrency: number,
+    private readonly load: LoadBlob,
   ) {}
 
   start(): FrameStore {
-    this.store ??= new FrameStore(this.urlOf, this.count, this.onFrame, this.concurrency);
+    this.store ??= new FrameStore(this.urlOf, this.count, this.onFrame, this.load, this.concurrency);
     return this.store;
   }
 
@@ -37,18 +38,25 @@ export class Seq {
     this.store?.pause(on);
   }
 
-  /** The loaded frame nearest to i (null before any); decodes a short window ahead of it. */
-  frame(i: number): HTMLImageElement | null {
+  private lastK = 0;
+
+  /**
+   * What to draw for frame i: the nearest already-decoded bitmap (never decodes on the main thread). Decoding runs
+   * ahead in the direction of travel; while it catches up the closest decoded frame stands in.
+   */
+  frame(i: number): ImageBitmap | null {
     const st = this.start();
     const k = Math.min(this.count - 1, Math.max(0, Math.round(i)));
-    st.warm(k - 3, k + 10);
-    return st.exact(k) ?? st.nearest(k);
+    const fwd = k >= this.lastK;
+    this.lastK = k;
+    st.warm(fwd ? k - 2 : k - 12, fwd ? k + 12 : k + 2);
+    return st.bitmap(k, 6) ?? st.nearestBitmap(k);
   }
 
   /** Decoded frames so far (dev diagnostics). */
   loaded(): string {
     const miss: number[] = [];
-    for (let i = 0; i < this.count; i += 1) if (this.store?.exact(i) == null) miss.push(i);
+    for (let i = 0; i < this.count; i += 1) if (this.store?.has(i) !== true) miss.push(i);
     return `${String(this.count - miss.length)}/${String(this.count)} missing ${miss.slice(0, 12).join(',')}`;
   }
 
@@ -56,7 +64,7 @@ export class Seq {
   near(i: number, tol = 4): boolean {
     const st = this.start();
     const k = Math.round(i);
-    for (let d = 0; d <= tol; d += 1) if (st.exact(k - d) !== null || st.exact(k + d) !== null) return true;
+    for (let d = 0; d <= tol; d += 1) if (st.has(k - d) || st.has(k + d)) return true;
     return false;
   }
 }
@@ -71,6 +79,14 @@ interface Set {
 
 /** Static files are read through a transport handed in by the screen (repo rule: no direct fetch in src/lib). */
 export type Http = (url: string, init?: RequestInit) => Promise<Response>;
+
+/** Frame bytes through the screen's transport. */
+const blobs =
+  (http: Http): LoadBlob =>
+  async (url, signal) => {
+    const r = await http(url, { signal });
+    return r.ok ? r.blob() : null;
+  };
 
 /** A webp that really exists (the dev server answers missing files with the SPA's HTML). */
 async function exists(http: Http, url: string): Promise<boolean> {
@@ -110,7 +126,7 @@ function sets(which: 'a' | 'b', wide: boolean): Set[] {
 export async function openSeq(http: Http, which: 'a' | 'b', wide: boolean, onFrame: () => void): Promise<Seq | null> {
   for (const s of sets(which, wide)) {
     const count = await countFrames(http, s.urlOf);
-    if (count > 1) return new Seq(s.urlOf, count, s.standIn, which === 'b' ? STANDIN_BRIDGE : 0, onFrame, 2);
+    if (count > 1) return new Seq(s.urlOf, count, s.standIn, which === 'b' ? STANDIN_BRIDGE : 0, onFrame, 2, blobs(http));
   }
   return null;
 }
@@ -172,8 +188,8 @@ export async function openB(http: Http, wide: boolean, onFrame: () => void): Pro
   const clayAt = prefixed(list?.clay?.prefix ?? 'bridge_clay_');
   const clayCount = realBridge ? await countFrames(http, clayAt) : 0;
   return {
-    main: new Seq((i) => urls[i] ?? '', urls.length, false, bridge, onFrame, 2),
-    clay: realBridge && clayCount >= bridge ? new Seq(clayAt, bridge, false, bridge, onFrame, 1) : null,
+    main: new Seq((i) => urls[i] ?? '', urls.length, false, bridge, onFrame, 2, blobs(http)),
+    clay: realBridge && clayCount >= bridge ? new Seq(clayAt, bridge, false, bridge, onFrame, 1, blobs(http)) : null,
   };
 }
 
