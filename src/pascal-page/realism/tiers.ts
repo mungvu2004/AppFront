@@ -34,7 +34,8 @@ export const TIERS: Record<RealismTier, TierConfig> = {
 };
 
 const ORDER: RealismTier[] = ['low', 'medium', 'high'];
-export const FRAME_BUDGET_MS = 20;
+/** 33 ms = dưới 30 FPS (DECISIONS #7: 20 ms hạ cả dGPU đang bận giữa phiên). */
+export const FRAME_BUDGET_MS = 33;
 export const SLOW_SECONDS = 5;
 /** Bỏ qua mẫu lúc đầu / sau khi đổi mức (biên dịch shader khựng tới ~3,6 s, R-R0). */
 export const WARMUP_MS = 8000;

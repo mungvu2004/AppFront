@@ -14,6 +14,9 @@ describe('tiers', () => {
     expect(autoTier('high', [slow, slow, slow, slow, slow])).toBe('medium');
     expect(autoTier('low', [slow, slow, slow, slow, slow])).toBe('low');
     expect(autoTier('low', [1, 1, 1, 1, 1])).toBe('low');
+    // DECISIONS #7: 25 ms (~40 FPS) không còn bị hạ.
+    expect(FRAME_BUDGET_MS).toBe(33);
+    expect(autoTier('medium', [25, 25, 25, 25, 25])).toBe('medium');
     expect(lowerTier('low')).toBe('low');
   });
 

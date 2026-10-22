@@ -17,8 +17,36 @@ export type HdriVariant = 'pure' | 'gradient';
 export const HDRI_VARIANT: HdriVariant = 'gradient';
 /** Tỉ lệ gradient khi pha (0 = HDRI thuần, 1 = gradient thuần). */
 export const HDRI_GRADIENT_WEIGHT = 0.5;
-/** Hạ độ sáng HDRI (Venice hoàng hôn sáng hơn trời gradient nhiều; 1 = nguyên → cảnh cháy trắng). */
-export const HDRI_SCALE = 0.4;
+/**
+ * Hệ số thêm sau khi chuẩn hoá (`hdriAutoScale`): 1 = môi trường HDRI sáng TRUNG BÌNH bằng trời
+ * gradient của master. F4 (Q1-01): hằng 0.4 cũ làm Ban ngày tối hơn master ~29 %.
+ */
+export const HDRI_SCALE = 1;
+
+const luma = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+/**
+ * Hệ số đưa độ sáng trung bình (theo diện tích cầu, cos vĩ độ) của HDRI về bằng trời gradient
+ * vendor → ánh sáng môi trường giữ mức master, HDRI chỉ đổi hướng/màu/phản chiếu.
+ * Venice hoàng hôn nguyên sáng hơn gradient nhiều (Nắng chiều cháy trắng); hằng cố định thì lệch.
+ */
+export function hdriAutoScale(data: Float32Array, width: number, height: number): number {
+  let h = 0;
+  let g = 0;
+  for (let y = 0; y < height; y++) {
+    const lat = 1 - ((y + 0.5) / height) * 2;
+    const area = Math.cos((lat * Math.PI) / 2);
+    const gc = gradientAt(lat);
+    let row = 0;
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      row += luma(data[i]!, data[i + 1]!, data[i + 2]!);
+    }
+    h += (row / width) * area;
+    g += luma(gc[0], gc[1], gc[2]) * area;
+  }
+  return h > 0 ? g / h : 1;
+}
 
 /** Chỉ WebGPU (có PMREM + hậu kỳ), cờ `viewer.realism-hdri` bật, chủ đề sáng (tối dùng RoomEnvironment). */
 export function shouldLoadHdri(opts: { backend: string; flag: boolean; appearance: string }): boolean {

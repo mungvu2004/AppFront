@@ -5,6 +5,38 @@
 const UI = 'editor/src/components/ui/';
 
 export const EDITOR_EXTRA2_VI = {
+  // F4 (N-01): overlay chụp ảnh. Giữ nguyên aria-label (e2e tìm nút theo 'Take snapshot').
+  ['editor/src/components/editor/snapshot-capture-overlay.tsx']: [
+    ["  standard: 'Standard',\n  viewport: 'Viewport',\n  area: 'Area',\n", "  standard: 'Tiêu chuẩn',\n  viewport: 'Khung nhìn',\n  area: 'Vùng chọn',\n"],
+    ["action: 'move' }", "action: 'di chuyển' }"],
+    ["action: 'jump' }", "action: 'nhảy' }"],
+    ["action: 'open' }", "action: 'mở' }"],
+    ["action: 'lens' }", "action: 'ống kính' }"],
+    ["action: 'free cursor' }", "action: 'thả chuột' }"],
+    ["action: 'shoot' }", "action: 'chụp' }"],
+    ["action: 'up' }", "action: 'lên' }"],
+    ["action: 'down' }", "action: 'xuống' }"],
+    ["action: 'boost' }", "action: 'tăng tốc' }"],
+    ["action: 'slow' }", "action: 'chậm' }"],
+    ["'Wheel'", "'Con lăn'"],
+    ["'Click'", "'Nhấp'"],
+    ["'Switch back to orbit to drag a capture area'", "'Về chế độ Xoay để kéo vùng chụp'"],
+    ["'Drag the area you want to capture'", "'Kéo chọn vùng muốn chụp'"],
+    ['\n              Crop\n', '\n              Khung\n'],
+    ['\n              Format\n', '\n              Cỡ ảnh\n'],
+    ["'Preset · square'", "'Mẫu · vuông'"],
+    ['\n                  Lens\n', '\n                  Ống kính\n'],
+    ["{!isMobile && 'Esc to cancel'}", "{!isMobile && 'Esc để huỷ'}"],
+    ['label="Orbit"', 'label="Xoay"'],
+    ['label="Walk"', 'label="Đi bộ"'],
+    ['label="Drone"', 'label="Bay"'],
+    ["label={isMobile ? undefined : 'Standard'}", "label={isMobile ? undefined : 'Tiêu chuẩn'}"],
+    ["label={isMobile ? undefined : 'Viewport'}", "label={isMobile ? undefined : 'Khung nhìn'}"],
+    ["label={isMobile ? undefined : 'Area'}", "label={isMobile ? undefined : 'Vùng chọn'}"],
+    ["? 'Capturing…'", "? 'Đang chụp…'"],
+    ["? 'Saved'", "? 'Đã lưu'"],
+    ["\n                ? 'Capture'\n                : 'Take snapshot'}", "\n                ? 'Chụp'\n                : 'Chụp ảnh'}"],
+  ],
   [`${UI}action-menu/measurement-control.tsx`]: [
     ["label: 'Distance'", "label: 'Khoảng cách'"],
     ["label: 'Angle'", "label: 'Góc'"],
