@@ -13,6 +13,8 @@ import { FrameStore, type LoadBlob } from './frames';
  */
 export class Seq {
   private store: FrameStore | null = null;
+  /** B only: index of the first interior frame (int_0000); 0 when unknown (the walk then plays linearly). */
+  inside = 0;
 
   constructor(
     readonly urlOf: (i: number) => string,
@@ -26,7 +28,13 @@ export class Seq {
   ) {}
 
   start(): FrameStore {
-    this.store ??= new FrameStore(this.urlOf, this.count, this.onFrame, this.load, this.concurrency);
+    this.store ??= new FrameStore(
+      this.urlOf,
+      this.count,
+      this.onFrame,
+      this.load,
+      this.concurrency,
+    );
     return this.store;
   }
 
@@ -51,6 +59,11 @@ export class Seq {
     this.lastK = k;
     st.warm(fwd ? k - 2 : k - 12, fwd ? k + 12 : k + 2);
     return st.bitmap(k, 6) ?? st.nearestBitmap(k);
+  }
+
+  /** Frame i's own bitmap if decoded, else null (the cross-fade partner; never a stand-in). */
+  exact(i: number): ImageBitmap | null {
+    return this.start().bitmap(Math.round(i), 0);
   }
 
   /** Decoded frames so far (dev diagnostics). */
@@ -115,7 +128,10 @@ const pad = (i: number, n: number): string => String(i).padStart(n, '0');
 
 function sets(which: 'a' | 'b', wide: boolean): Set[] {
   const size = wide ? '1920' : '1280';
-  const final: Set = { urlOf: (i) => `/landing-lab/combo/${which}/${size}/${pad(i, 4)}.webp`, standIn: false };
+  const final: Set = {
+    urlOf: (i) => `/landing-lab/combo/${which}/${size}/${pad(i, 4)}.webp`,
+    standIn: false,
+  };
   const stand: Set =
     which === 'a'
       ? { urlOf: (i) => `/landing-lab/maquette/${size}/f_${pad(i, 3)}.webp`, standIn: true }
@@ -123,10 +139,24 @@ function sets(which: 'a' | 'b', wide: boolean): Set[] {
   return [final, stand];
 }
 
-export async function openSeq(http: Http, which: 'a' | 'b', wide: boolean, onFrame: () => void): Promise<Seq | null> {
+export async function openSeq(
+  http: Http,
+  which: 'a' | 'b',
+  wide: boolean,
+  onFrame: () => void,
+): Promise<Seq | null> {
   for (const s of sets(which, wide)) {
     const count = await countFrames(http, s.urlOf);
-    if (count > 1) return new Seq(s.urlOf, count, s.standIn, which === 'b' ? STANDIN_BRIDGE : 0, onFrame, 2, blobs(http));
+    if (count > 1)
+      return new Seq(
+        s.urlOf,
+        count,
+        s.standIn,
+        which === 'b' ? STANDIN_BRIDGE : 0,
+        onFrame,
+        2,
+        blobs(http),
+      );
   }
   return null;
 }
@@ -144,19 +174,32 @@ interface BPart {
   readonly files?: readonly string[];
 }
 
-export async function openB(http: Http, wide: boolean, onFrame: () => void): Promise<{ main: Seq | null; clay: Seq | null }> {
+export async function openB(
+  http: Http,
+  wide: boolean,
+  onFrame: () => void,
+): Promise<{ main: Seq | null; clay: Seq | null }> {
   const size = wide ? '1920' : '1280';
   const dir = `/landing-lab/combo/b/${size}/`;
   const cine = (i: number): string => `/landing-lab/cinema/${size}/b_${pad(i, 3)}.webp`;
-  const prefixed = (prefix: string) => (i: number): string => `${dir}${prefix}${pad(i, 4)}.webp`;
-  const list = await json<{ parts?: readonly BPart[]; clay?: { prefix?: string } }>(http, '/landing-lab/combo/b/b-sequence.json');
+  const prefixed =
+    (prefix: string) =>
+    (i: number): string =>
+      `${dir}${prefix}${pad(i, 4)}.webp`;
+  const list = await json<{ parts?: readonly BPart[]; clay?: { prefix?: string } }>(
+    http,
+    '/landing-lab/combo/b/b-sequence.json',
+  );
   const urls: string[] = [];
   let bridge = 0;
+  let inside = 0;
   let realBridge = false;
   const parts = list?.parts ?? [];
   for (const [k, part] of parts.entries()) {
-    if (part.files !== undefined) urls.push(...part.files.map((f) => (f.startsWith('/') ? f : dir + f)));
-    else if (part.cinema !== undefined) for (let i = part.cinema[0]; i <= part.cinema[1]; i += 1) urls.push(cine(i));
+    if (part.files !== undefined)
+      urls.push(...part.files.map((f) => (f.startsWith('/') ? f : dir + f)));
+    else if (part.cinema !== undefined)
+      for (let i = part.cinema[0]; i <= part.cinema[1]; i += 1) urls.push(cine(i));
     else if (part.prefix !== undefined) {
       const at = prefixed(part.prefix);
       // Only the frames that are really there (B renders in chunks); never more than the list promises.
@@ -168,6 +211,7 @@ export async function openB(http: Http, wide: boolean, onFrame: () => void): Pro
         bridge = until;
         continue;
       }
+      if (part.prefix === 'int_') inside = urls.length;
       for (let i = 0; i < n; i += 1) urls.push(at(i));
       if (part.prefix === 'bridge_') {
         bridge = n;
@@ -176,20 +220,26 @@ export async function openB(http: Http, wide: boolean, onFrame: () => void): Pro
     }
   }
   if (list === null) {
-    const inside = await countFrames(http, prefixed('int_'));
-    if (inside > 0) {
+    const rooms = await countFrames(http, prefixed('int_'));
+    if (rooms > 0) {
       const outside = await countFrames(http, cine);
       for (let i = 0; i < outside; i += 1) urls.push(cine(i));
-      for (let i = 0; i < inside; i += 1) urls.push(prefixed('int_')(i));
+      inside = urls.length;
+      for (let i = 0; i < rooms; i += 1) urls.push(prefixed('int_')(i));
       bridge = STANDIN_BRIDGE;
     }
   }
   if (urls.length < 2) return { main: await openSeq(http, 'b', wide, onFrame), clay: null };
   const clayAt = prefixed(list?.clay?.prefix ?? 'bridge_clay_');
   const clayCount = realBridge ? await countFrames(http, clayAt) : 0;
+  const main = new Seq((i) => urls[i] ?? '', urls.length, false, bridge, onFrame, 2, blobs(http));
+  main.inside = inside;
   return {
-    main: new Seq((i) => urls[i] ?? '', urls.length, false, bridge, onFrame, 2, blobs(http)),
-    clay: realBridge && clayCount >= bridge ? new Seq(clayAt, bridge, false, bridge, onFrame, 1, blobs(http)) : null,
+    main,
+    clay:
+      realBridge && clayCount >= bridge
+        ? new Seq(clayAt, bridge, false, bridge, onFrame, 1, blobs(http))
+        : null,
   };
 }
 
@@ -217,7 +267,12 @@ async function json<T>(http: Http, url: string): Promise<T | null> {
 }
 
 interface RegFile {
-  readonly print_png_rect_px?: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
+  readonly print_png_rect_px?: {
+    readonly x: number;
+    readonly y: number;
+    readonly w: number;
+    readonly h: number;
+  };
   readonly print_rotation_deg?: number;
 }
 

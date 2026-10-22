@@ -12,7 +12,18 @@ import { drawCover } from '../cinema/frames';
 import { axoCam, axoPose, drawAxo } from './axo';
 import { Dissolve } from './dissolve';
 import { drawRoomHover, emptyHits, PARALLAX_PX, type Hits, type Ui } from './interact';
-import { A_RUN, bookRect, CH, coverRect, ENTRANCE, mix, sectionRect, smooth, XFADE } from './layout';
+import {
+  A_RUN,
+  bookRect,
+  CH,
+  coverRect,
+  ENTRANCE,
+  INSIDE_AT,
+  mix,
+  sectionRect,
+  smooth,
+  XFADE,
+} from './layout';
 import { drawSheet, makeKit, penScale, sheetCam } from './sheet';
 import type { Registration, Seq } from './sources';
 import { drawGroundFloor, drawOthers, flyFrom, miniCams, SPREAD } from './spread';
@@ -24,7 +35,12 @@ export interface StageInput {
   readonly W: number;
   readonly H: number;
   readonly dpr: number;
-  readonly pal: { readonly paper: string; readonly ink: string; readonly red: string; readonly clay: string };
+  readonly pal: {
+    readonly paper: string;
+    readonly ink: string;
+    readonly red: string;
+    readonly clay: string;
+  };
   readonly paper: CanvasPattern | string;
   readonly a: Seq | null;
   readonly b: Seq | null;
@@ -61,7 +77,8 @@ export function createStage(input: StageInput): Stage {
     // Pointer parallax on the drawing, gone by the time the drawing has to register on the print.
     const pf = PARALLAX_PX * (1 - span(p, CH.cut[0], XFADE[0]));
     const off: V2 = [ui.parallax[0] * pf, ui.parallax[1] * pf];
-    const base = (c: CanvasRenderingContext2D): void => c.setTransform(dpr, 0, 0, dpr, off[0] * dpr, off[1] * dpr);
+    const base = (c: CanvasRenderingContext2D): void =>
+      c.setTransform(dpr, 0, 0, dpr, off[0] * dpr, off[1] * dpr);
     target.save();
     base(target);
     const t1 = floor('T1');
@@ -91,7 +108,13 @@ export function createStage(input: StageInput): Stage {
     } else if (p < CH.axo[1]) {
       // 2b keeps the plan's pen scale (from `cam`) while its own camera tilts and frames the exploded stack.
       const ps = axoPose(span(p, CH.axo[0], CH.axo[1]));
-      drawAxo(kit, axoCam(ps, r), ps, { section: sectionRect(W, H), from: flyFrom(W, H), lift: ui.lift }, hits);
+      drawAxo(
+        kit,
+        axoCam(ps, r),
+        ps,
+        { section: sectionRect(W, H), from: flyFrom(W, H), lift: ui.lift },
+        hits,
+      );
     } else {
       if (reg.rot !== 0 && t > 0) {
         const cx = r.x + r.w / 2;
@@ -105,7 +128,8 @@ export function createStage(input: StageInput): Stage {
     }
     const room = ui.room;
     const hit = room === null ? undefined : hits.plans.find((q) => q.floor.id === room.level);
-    if (room !== null && hit !== undefined) drawRoomHover({ ...kit, k: Math.max(0.8, kit.k) }, hit.cam, hit.floor, room);
+    if (room !== null && hit !== undefined)
+      drawRoomHover({ ...kit, k: Math.max(0.8, kit.k) }, hit.cam, hit.floor, room);
     target.restore();
   };
 
@@ -121,12 +145,36 @@ export function createStage(input: StageInput): Stage {
    * The clay pass under the paint-in. Without B's clay frames the beauty frame stands in as is: the old greyed
    * stand-in (two full-screen composite passes) cost 60–240 ms a frame on Intel UHD and looked like a grey roof.
    */
-  const clayAt = (f: number, c: CanvasRenderingContext2D): boolean => seqAt(input.clay ?? input.b, f, c);
+  const clayAt = (f: number, c: CanvasRenderingContext2D): boolean =>
+    seqAt(input.clay ?? input.b, f, c);
 
   const aFrame = (p: number): number => span(p, A_RUN[0], A_RUN[1]) * ((input.a?.count ?? 1) - 1);
   const bridge = (): number => Math.max(1, input.b?.bridge ?? 1);
-  const bFrame = (p: number): number =>
-    p < CH.walk[0] ? span(p, CH.real[0], CH.real[1]) * (bridge() - 1) : bridge() - 1 + span(p, CH.walk[0], CH.walk[1]) * ((input.b?.count ?? 1) - bridge());
+  /**
+   * B's frame for story p: the bridge over chapter 5, then the exterior up to INSIDE_AT and the interior walk after
+   * it, each on its own stretch of scroll (the interior path covers more ground per frame, so it gets more scroll).
+   */
+  const bFrame = (p: number): number => {
+    const from = bridge() - 1;
+    if (p < CH.walk[0]) return span(p, CH.real[0], CH.real[1]) * from;
+    const last = (input.b?.count ?? 1) - 1;
+    const at = input.b?.inside ?? 0;
+    if (at <= from + 1) return from + span(p, CH.walk[0], CH.walk[1]) * (last - from);
+    // int_0000 repeats the last exterior pose, so the exterior ends one frame before it.
+    if (p < INSIDE_AT) return from + span(p, CH.walk[0], INSIDE_AT) * (at - 1 - from);
+    return at + span(p, INSIDE_AT, CH.walk[1]) * (last - at);
+  };
+
+  /** The interior walk: frame k with k+1 faded over it by the fraction, so a slow scroll glides between renders. */
+  const walkAt = (seq: Seq | null, f: number, c: CanvasRenderingContext2D): boolean => {
+    if (seq === null) return true;
+    const k = Math.floor(f);
+    const ok = seqAt(seq, k, c);
+    const t = f - k;
+    const next = t > 0.02 ? seq.exact(k + 1) : null;
+    if (next !== null) drawCover(c, next, next.width, next.height, w, h, 0.5, t);
+    return ok;
+  };
 
   /** 5: A's desk frame keeps pushing in and fades; under it the clay bridge, painted over from the entrance. */
   const realise = (p: number): boolean => {
@@ -171,6 +219,7 @@ export function createStage(input: StageInput): Stage {
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, w, h);
+    if (p >= INSIDE_AT) return walkAt(input.b, bFrame(p), ctx);
     if (p >= CH.walk[0]) return seqAt(input.b, bFrame(p), ctx);
     if (p >= CH.real[0]) return realise(p);
     const x = smooth(span(p, XFADE[0], XFADE[1]));

@@ -36,8 +36,10 @@ export const SEGMENTS: readonly Segment[] = [
   { to: 0.5, vh: 380 },
   { to: 0.57, vh: 150, transition: 'mô hình → nhà thật' }, // 5 A → clay → materials paint in
   { to: 0.78, vh: 230 }, // 6 exterior to the door
-  { to: 0.8, vh: 70, transition: 'qua cửa' }, // threshold into the house
-  { to: 1, vh: 260 }, // 7 interior walk into the living room, closing line
+  // 7 interior walk (87 frames from INSIDE_AT): the camera covers ~20 cm per frame indoors, so ~7 vh per frame,
+  // with neighbour frames cross-faded in stage.ts. Owner: the walk into the living room felt far too fast.
+  { to: 0.8, vh: 130, transition: 'qua cửa' }, // threshold into the house
+  { to: 1, vh: 480 }, // into the living room, closing line
 ];
 
 /*
@@ -78,7 +80,9 @@ const KNOTS: readonly Knot[] = (() => {
 const TANGENTS: readonly number[] = (() => {
   const n = KNOTS.length;
   const d = KNOTS.slice(1).map((k, i) => (k.p - (KNOTS[i]?.p ?? 0)) / (k.s - (KNOTS[i]?.s ?? 0)));
-  const m = KNOTS.map((_, i) => (i === 0 ? (d[0] ?? 0) : i === n - 1 ? (d[n - 2] ?? 0) : ((d[i - 1] ?? 0) + (d[i] ?? 0)) / 2));
+  const m = KNOTS.map((_, i) =>
+    i === 0 ? (d[0] ?? 0) : i === n - 1 ? (d[n - 2] ?? 0) : ((d[i - 1] ?? 0) + (d[i] ?? 0)) / 2,
+  );
   for (let i = 0; i < n - 1; i += 1) {
     const di = d[i] ?? 0;
     if (di === 0) {
@@ -109,7 +113,10 @@ export function storyAt(s: number): number {
   const t2 = t * t;
   const t3 = t2 * t;
   return (
-    (2 * t3 - 3 * t2 + 1) * a.p + (t3 - 2 * t2 + t) * h * (TANGENTS[i] ?? 0) + (-2 * t3 + 3 * t2) * b.p + (t3 - t2) * h * (TANGENTS[i + 1] ?? 0)
+    (2 * t3 - 3 * t2 + 1) * a.p +
+    (t3 - 2 * t2 + t) * h * (TANGENTS[i] ?? 0) +
+    (-2 * t3 + 3 * t2) * b.p +
+    (t3 - t2) * h * (TANGENTS[i + 1] ?? 0)
   );
 }
 
@@ -132,7 +139,9 @@ export interface Transition {
 }
 
 export const TRANSITIONS: readonly Transition[] = SEGMENTS.flatMap((g, i) =>
-  g.transition === undefined ? [] : [{ name: g.transition, from: SEGMENTS[i - 1]?.to ?? 0, to: g.to }],
+  g.transition === undefined
+    ? []
+    : [{ name: g.transition, from: SEGMENTS[i - 1]?.to ?? 0, to: g.to }],
 );
 
 /**
