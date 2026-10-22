@@ -64,6 +64,10 @@ function liveMaterial(src: Material, env: Texture | null): Material {
   const m = src as MeshBasicMaterial;
   if (src.name.startsWith('lm_')) {
     if (m.map) m.map.colorSpace = SRGBColorSpace;
+    // sheer curtain: both sides of the folds, see-through like the Cycles translucent fabric
+    if (src.name === 'lm_sheer') {
+      return new MeshBasicMaterial({ map: m.map, side: DoubleSide, transparent: true, opacity: 0.7, toneMapped: false });
+    }
     return new MeshBasicMaterial({ map: m.map, toneMapped: false });
   }
   if (src.name.startsWith('vc_')) return new MeshBasicMaterial({ vertexColors: true, toneMapped: false });
@@ -83,7 +87,7 @@ function liveMaterial(src: Material, env: Texture | null): Material {
     color: new Color(0.16, 0.17, 0.18),
     envMap: env,
     combine: MixOperation,
-    reflectivity: 0.35,
+    reflectivity: 0.6,
     transparent: true,
     opacity: 0.3,
     depthWrite: false,
