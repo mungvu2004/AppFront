@@ -24,6 +24,12 @@ export const RULES = {
     ],
   ],
   'editor/src/components/editor/thumbnail-generator.tsx': [
+    ["\nimport { useCallback, useEffect, useRef } from 'react'", "\nimport { useCallback, useEffect, useRef } from 'react'\nimport { downloadSnapshot } from '@pascal-realism/snapshot'"],
+    // Trang 3D của app không truyền onThumbnailCapture -> ảnh HQ tải về máy; ảnh thường giữ lỗi cũ.
+    [
+      "\n          const onCapture = onThumbnailCaptureRef.current\n",
+      "\n          const onCapture = onThumbnailCaptureRef.current ?? ((event as { hq?: boolean }).hq === true ? downloadSnapshot : undefined)\n",
+    ],
     [
       'pipeline.capture({ captureMode, cropRegion, standardSize: encodeSize, mime }),',
       'pipeline.capture({ captureMode, cropRegion, standardSize: encodeSize, mime, hq: (event as { hq?: boolean }).hq === true }),',

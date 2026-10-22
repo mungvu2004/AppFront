@@ -159,3 +159,13 @@ export function captureHq({
 
 /** Thời gian (ms) vẽ + đọc ngược của lần chụp HQ gần nhất — cho đo đạc. */
 export let lastHqCaptureMs = 0
+
+/** Nơi lưu dự phòng cho ảnh HQ khi trang không truyền `onThumbnailCapture`: tải file về máy. */
+export function downloadSnapshot(blob: Blob): void {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `anh-chup-${new Date().toISOString().replace(/[:.]/g, '-')}.${blob.type === 'image/png' ? 'png' : 'webp'}`
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+}
