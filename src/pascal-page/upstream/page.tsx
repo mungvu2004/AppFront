@@ -394,7 +394,11 @@ export default function Home({ projectId, onLoad, onSave, backCard, projectName 
         onLoad={handleLoad}
         {...(onSave ? { onSave } : {})}
         // F2: không có API lưu snapshot -> nút chụp tải ảnh về máy (trước đây báo "Snapshot storage is unavailable").
-        onThumbnailCapture={(blob) => downloadSnapshot(blob, projectName)}
+        // Overlay chỉ đóng khi nghe `snapshot:saved` — không phát thì nút chụp khoá mãi.
+        onThumbnailCapture={(blob) => {
+          downloadSnapshot(blob, projectName)
+          emitter.emit('snapshot:saved', { projectId, id: 'download', url: '', width: 0, height: 0 })
+        }}
         projectId={projectId}
         sidebarTabs={SIDEBAR_TABS}
         viewerToolbarLeft={
