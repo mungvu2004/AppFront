@@ -28,7 +28,7 @@ import {
 import { drawSheet, makeKit, penScale, sheetCam } from './sheet';
 import type { Registration, Seq } from './sources';
 import { drawGroundFloor, drawOthers, flyFrom, miniCams, SPREAD } from './spread';
-import { FLAT, NEEDS } from './timeline';
+import { NEEDS } from './timeline';
 
 export interface StageInput {
   readonly ctx: CanvasRenderingContext2D;
@@ -150,23 +150,23 @@ export function createStage(input: StageInput): Stage {
     seqAt(input.clay ?? input.b, f, c);
 
   const aFrame = (p: number): number =>
-    input.a?.warp(span(p, A_RUN[0], A_RUN[1]), 0, input.a.count - 1, FLAT.a) ?? 0;
+    input.a?.warp(span(p, A_RUN[0], A_RUN[1]), 0, input.a.count - 1) ?? 0;
   const bridge = (): number => Math.max(1, input.b?.bridge ?? 1);
   /**
    * B's frame for story p: the bridge over chapter 5, then the exterior up to INSIDE_AT and the interior walk after
    * it, each on its own stretch of scroll (the interior path covers more ground per frame, so it gets more scroll).
    */
   const bFrame = (p: number): number => {
-    const from = bridge() - 1;
-    if (p < CH.walk[0]) return span(p, CH.real[0], CH.real[1]) * from;
-    const last = (input.b?.count ?? 1) - 1;
-    const at = input.b?.inside ?? 0;
-    if (at <= from + 1) return from + span(p, CH.walk[0], CH.walk[1]) * (last - from);
-    // int_0000 repeats the last exterior pose, so the exterior ends one frame before it.
     const b = input.b;
     if (b === null) return 0;
-    if (p < INSIDE_AT) return b.warp(span(p, CH.walk[0], INSIDE_AT), from, at - 1, FLAT.exterior);
-    return b.warp(span(p, INSIDE_AT, WALK_END), at, last, FLAT.walk);
+    const from = bridge() - 1;
+    if (p < CH.walk[0]) return b.warp(span(p, CH.real[0], CH.real[1]), 0, from);
+    const last = b.count - 1;
+    const at = b.inside;
+    if (at <= from + 1) return from + span(p, CH.walk[0], CH.walk[1]) * (last - from);
+    // int_0000 repeats the last exterior pose, so the exterior ends one frame before it.
+    if (p < INSIDE_AT) return b.warp(span(p, CH.walk[0], INSIDE_AT), from, at - 1);
+    return b.warp(span(p, INSIDE_AT, WALK_END), at, last);
   };
 
 

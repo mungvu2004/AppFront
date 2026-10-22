@@ -31,30 +31,23 @@ export const SEGMENTS: readonly Segment[] = [
   { to: 0.32, vh: 220 }, // 2b exploded axonometric and back down
   { to: 0.345, vh: 40 }, // book chrome slides away
   { to: 0.375, vh: 90, transition: 'trang sách → bàn' }, // ink → photographed print (match cut)
-  // 4 white model: all 250 of A's frames (pull-back, then walls rise, floors settle, roof, trees) play here.
-  // ~16 px of scroll per frame at 1080p, so one wheel notch moves ~6 frames and a flick never skips the walls.
-  // +101 vh for the pull-back (FLAT): it swept 38 % of the screen width per notch.
+  // 4 white model: A's 335 frames (pull-back, then walls rise, floors settle, roof, trees) play here.
+  // +101 vh for the pull-back: it swept 38 % of the screen width per notch before the motion-weighted frames.
   { to: 0.5, vh: 481 },
-  { to: 0.57, vh: 150, transition: 'mô hình → nhà thật' }, // 5 A → clay → materials paint in
-  { to: 0.78, vh: 230 }, // 6 exterior to the door
-  // 7 interior walk (389 frames int3_ from INSIDE_AT, motion-weighted, see FLAT): one frame
-  // drawn at a time (a neighbour cross-fade ghosted 2-3 copies of the lamp whenever a stand-in was on screen).
-  // Owner: the walk into the living room felt far too fast at 87 frames / 330 vh.
-  // +311 vh over the walk for its fast turns: one notch swept 25 % of the width (int2_ frames 20-60, the dining pan).
-  // int3_ (389 frames: int2_ + 216 in-betweens) measured 20 % more motion than int2_'s flow said, hence the extra.
-  { to: 0.8, vh: 205, transition: 'qua cửa' }, // threshold into the house
-  { to: 1, vh: 758 }, // into the living room, closing line
+  { to: 0.57, vh: 150, transition: 'mô hình → nhà thật' }, // 5 A → clay → materials paint in (bridge2_, 42 frames)
+  { to: 0.78, vh: 230 }, // 6 exterior to the door (ext_, 103 frames)
+  // 7 interior walk (int4_, 542 frames from INSIDE_AT): one frame drawn at a time (a neighbour cross-fade ghosted
+  // 2-3 copies of the lamp whenever a stand-in was on screen). Owner: the walk felt far too fast at 87 frames / 330 vh.
+  // ~875 vh of walk: a notch moves the picture ~10 % of the width through the sofa turn and the dining pan.
+  { to: 0.8, vh: 211, transition: 'qua cửa' }, // threshold into the house
+  { to: 1, vh: 780 }, // into the living room, closing line
 ];
 
-/**
- * Knob: motion-weighted frames (Seq.warp, motion.json). Inside a photographed chapter a frame gets scroll in
- * proportion to max(its on-screen motion, FLAT) (% of width per frame), so a wheel notch moves the picture at most
- * ~8 % of the width (85 px notch on an 866 px window); frames that move less than FLAT keep their old share. FLAT =
- * 8 x (old vh per frame) / 9.8 vh per notch. Change a chapter's vh in SEGMENTS together with its FLAT.
- * The walk's int3_ entries come pre-floored from assemble_int3.py (a piece of an int2_ pair split n ways gets 2.55 / n),
- * so its FLAT is 0.
+/*
+ * Inside each photographed chapter the frames are spaced by combo/motion.json (Seq.warp): a pacing weight per frame,
+ * max(on-screen motion % of width, the frame's old share), written by video/flow/assemble_all.py. Frames that move
+ * the picture more get more scroll; the chapter lengths above stay the knobs.
  */
-export const FLAT = { a: 1.25, exterior: 2.54, walk: 0 } as const;
 
 /*
  * Why no speed cap, transition clamp or "wait for frames" gate any more (removed after owner testing): people

@@ -92,17 +92,17 @@ export class Seq {
   }
 
   /**
-   * Frame for progress u (0..1) over frames from..to, spaced by on-screen motion: a frame that moves the picture more
-   * than `flat` (% of width) gets proportionally more scroll, so one wheel notch never sweeps the picture across the
-   * screen. Linear without a motion table.
+   * Frame for progress u (0..1) over frames from..to, spaced by the motion table's pacing weights (on-screen motion,
+   * never below the frame's old share of scroll): one wheel notch never sweeps the picture across the screen.
+   * Linear without a motion table.
    */
-  warp(u: number, from: number, to: number, flat: number): number {
+  warp(u: number, from: number, to: number): number {
     if (this.motion.length !== this.count || to <= from) return from + u * (to - from);
-    const key = `${String(from)},${String(to)},${String(flat)}`;
+    const key = `${String(from)},${String(to)}`;
     let c = this.cum.get(key);
     if (c === undefined) {
       c = [0];
-      for (let i = from + 1; i <= to; i += 1) c.push((c[c.length - 1] ?? 0) + Math.max(this.motion[i] ?? 0, flat));
+      for (let i = from + 1; i <= to; i += 1) c.push((c[c.length - 1] ?? 0) + Math.max(this.motion[i] ?? 0, 1e-3));
       this.cum.set(key, c);
     }
     const x = Math.min(1, Math.max(0, u)) * (c[c.length - 1] ?? 0);
@@ -244,7 +244,7 @@ export async function openB(
       const at = prefixed(part.prefix);
       // Only the frames that are really there (B renders in chunks); never more than the list promises.
       const n = Math.min(part.count ?? Number.POSITIVE_INFINITY, await countFrames(http, at));
-      if (part.prefix === 'bridge_' && n < (part.count ?? 1)) {
+      if (part.prefix.startsWith('bridge') && n < (part.count ?? 1)) {
         // Bridge not (fully) rendered yet: the cinema crane before the listed cinema range stands in for it.
         const until = parts[k + 1]?.cinema?.[0] ?? STANDIN_BRIDGE;
         for (let i = 0; i < until; i += 1) urls.push(cine(i));
@@ -253,7 +253,7 @@ export async function openB(
       }
       if (part.prefix.startsWith('int')) inside = urls.length; // int_ (87 frames), int2_ (173) or int3_ (389, in-betweens on the fast turns)
       for (let i = 0; i < n; i += 1) urls.push(at(i));
-      if (part.prefix === 'bridge_') {
+      if (part.prefix.startsWith('bridge')) {
         bridge = n;
         realBridge = true;
       }
