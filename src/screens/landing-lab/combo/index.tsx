@@ -6,6 +6,8 @@
 import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 
+import { ALL_COUNTS } from '@/lib/landing-lab/combo/sheet';
+
 import '../blueprint/blueprint.css';
 import './combo.css';
 import { useCombo } from './useCombo';
@@ -24,9 +26,9 @@ function Lines({ lines, as: Tag = 'p', className }: { lines: readonly string[]; 
 }
 
 const NOTES = [
-  { win: '0.055,0.07,0.09,0.1', num: '01', title: ['Mặt bằng,', 'từng nét một'], body: 'Trục, tường, cửa, đồ đạc, rồi kích thước: bản vẽ được đọc theo đúng thứ tự người vẽ.' },
-  { win: '0.1,0.115,0.185,0.2', num: '02', title: ['AI chấm bài', 'bằng bút chì đỏ'], body: 'AI khoanh cửa, gạch chân tường, ghi tên và diện tích từng phòng. Chỗ nào chưa đúng, bạn sửa lại.' },
-  { win: '0.2,0.215,0.3,0.315', num: '03', title: ['Ba tầng,', 'tách ra để đọc'], body: 'Mặt bằng nghiêng thành trục đo, các tầng nhấc ra theo đúng cao độ, rồi ghép lại thành một mô hình.' },
+  { win: '0.055,0.07,0.09,0.1', num: '01', title: ['Một bộ bản vẽ,', 'từng nét một'], body: 'Mặt bằng ba tầng và một mặt cắt. Trục, tường, cửa, đồ đạc: được đọc theo đúng thứ tự người vẽ.' },
+  { win: '0.1,0.115,0.185,0.2', num: '02', title: ['AI chấm bài', 'bằng bút chì đỏ'], body: 'AI đọc cả bốn hình: khoanh cửa, gạch chân tường, ghi tên và diện tích từng phòng, đọc cao độ từng tầng. Chỗ nào chưa đúng, bạn sửa lại.' },
+  { win: '0.2,0.215,0.3,0.315', num: '03', title: ['Ba tầng,', 'tách ra để đọc'], body: 'Cao độ lấy từ mặt cắt. Ba mặt bằng nghiêng thành trục đo, nhấc lên đúng tầng của mình, rồi ghép lại thành một mô hình.' },
   { win: '0.32,0.335,0.355,0.37', num: '04', title: ['Từ trang sách', 'lên bàn làm việc'], body: 'Cùng tờ bản vẽ ấy, in ra và đặt trên bàn.' },
   { win: '0.37,0.385,0.41,0.425', num: '', title: ['Trên bàn,', 'bản vẽ đã sẵn sàng.'], body: 'Tờ giấy nằm trên tấm kê cắt, cạnh thước và nắng chiều. Mỗi nét in sắp thành một bức tường.' },
   { win: '0.425,0.44,0.485,0.5', num: '05', title: ['Tường dựng lên', 'từ nét in'], body: 'Mô hình 3D nhiều tầng dựng từ đúng mặt bằng đó: tường, cửa, sàn, mái.' },
@@ -37,9 +39,9 @@ const NOTES = [
 ] as const;
 
 const CAPTIONS = [
-  { win: '0,0,0.095,0.105', text: 'Hình 1 — Mặt bằng tầng 1, tỉ lệ 1:100' },
-  { win: '0.1,0.11,0.195,0.205', text: 'Hình 2 — Mặt bằng tầng 1, AI đánh dấu tường, cửa và phòng' },
-  { win: '0.2,0.21,2,2', text: 'Hình 3 — Trục đo tách tầng, tầng 1 đến tầng 3' },
+  { win: '0,0,0.135,0.145', text: 'Bộ bản vẽ nhà ở 3 tầng, tỉ lệ 1:100' },
+  { win: '0.14,0.15,0.195,0.205', text: 'Hình 1 — Mặt bằng tầng 1, AI đánh dấu tường, cửa và phòng' },
+  { win: '0.2,0.21,2,2', text: 'Hình 5 — Trục đo tách tầng, cao độ theo mặt cắt A–A' },
 ] as const;
 
 export default function Combo() {
@@ -102,7 +104,8 @@ export default function Combo() {
               <p data-rest="">{n.body}</p>
               {n.num === '02' && (
                 <p className="cb-tally" data-rest="">
-                  <b data-count="17,0.12,0.175">0</b> tường · <b data-count="8,0.13,0.18">0</b> cửa · <b data-count="12,0.14,0.19">0</b> phòng
+                  <b data-count={`${String(ALL_COUNTS.walls)},0.11,0.18`}>0</b> tường · <b data-count={`${String(ALL_COUNTS.doors)},0.12,0.185`}>0</b> cửa ·{' '}
+                  <b data-count={`${String(ALL_COUNTS.rooms)},0.13,0.19`}>0</b> phòng · 3 tầng
                 </p>
               )}
             </section>

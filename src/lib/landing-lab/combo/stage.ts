@@ -5,10 +5,11 @@
  * → 5 noise dissolve from the entrance, A's white model → B's real house → 6-7 B's sequence to the door and inside.
  */
 
-import { drawCover, drawSequence } from '../cinema/frames';
+import { drawCover } from '../cinema/frames';
 import { easeInOut, lerp, span, type Rect } from '../blueprint/camera';
 import { Dissolve } from './dissolve';
 import { drawSheet, makeKit, penScale, sheetCam } from './sheet';
+import { drawGroundFloor, drawOthers, flyFrom, SPREAD } from './spread';
 import { axoCam, axoPose, drawAxo } from './axo';
 import type { Registration, Seq } from './sources';
 
@@ -36,6 +37,8 @@ export interface StageInput {
 
 /** Smoothstep of a 0..1 progress (camera.ts's `smooth` takes an edge pair). */
 const smooth = (t: number): number => t * t * (3 - 2 * t);
+/** Where the section sits during 2b: under the text column, its level lines become the guides. */
+const sectionRect = (W: number, H: number): Rect => ({ x: 0.04 * W, y: 0.6 * H, w: 0.3 * W, h: 0.26 * H });
 const mix = (r: Rect, s: Rect, t: number): Rect => ({ x: lerp(r.x, s.x, t), y: lerp(r.y, s.y, t), w: lerp(r.w, s.w, t), h: lerp(r.h, s.h, t) });
 
 /** The book plate on the right of the spread, pushed in very slowly over chapters 1-2. */
@@ -72,29 +75,48 @@ export function createStage(input: StageInput): { draw: (p: number, intro: numbe
     const kit = makeKit(target, input.pal, input.paper, dpr, penScale(cam));
     target.save();
     target.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (reg.rot !== 0 && t > 0) {
-      const cx = r.x + r.w / 2;
-      const cy = r.y + r.h / 2;
-      target.translate(cx, cy);
-      target.rotate(reg.rot * t);
-      target.translate(-cx, -cy);
-    }
-    if (p > CH.axo[0] && p < CH.axo[1]) {
+    if (p < CH.axo[0]) {
+      // 1-2: the drawing set; tầng 1 grows into the plate while the other three fade.
+      drawGroundFloor(kit, p, intro, W, H, r);
+      const fade = 1 - span(p, SPREAD.zoom[0], SPREAD.zoom[0] + 0.02);
+      if (fade >= 1) drawOthers(kit, p, intro, W, H);
+      else if (fade > 0) {
+        layer.setTransform(1, 0, 0, 1, 0, 0);
+        layer.clearRect(0, 0, w, h);
+        layer.setTransform(dpr, 0, 0, dpr, 0, 0);
+        drawOthers({ ...kit, ctx: layer }, p, intro, W, H);
+        layer.setTransform(1, 0, 0, 1, 0, 0);
+        target.setTransform(1, 0, 0, 1, 0, 0);
+        target.globalAlpha = fade;
+        target.drawImage(layer.canvas, 0, 0);
+        target.globalAlpha = 1;
+      }
+    } else if (p < CH.axo[1]) {
       // 2b keeps the plan's pen scale (from `cam`) while its own camera tilts and frames the exploded stack.
       const ps = axoPose(span(p, CH.axo[0], CH.axo[1]));
-      drawAxo(kit, axoCam(ps, r), ps);
-    } else
-      drawSheet(kit, cam, {
-        d: span(p, 0.005, 0.09),
-        intro,
-        q: span(p, CH.ai[0] + 0.005, CH.ai[1] - 0.01),
-        under: 0.3 * (1 - span(p, 0.05, 0.1)),
-      });
+      drawAxo(kit, axoCam(ps, r), ps, { section: sectionRect(W, H), from: flyFrom(W, H) });
+    } else {
+      if (reg.rot !== 0 && t > 0) {
+        const cx = r.x + r.w / 2;
+        const cy = r.y + r.h / 2;
+        target.translate(cx, cy);
+        target.rotate(reg.rot * t);
+        target.translate(-cx, -cy);
+      }
+      drawSheet(kit, cam, { d: 1, intro: 1, q: 1, under: 0 });
+    }
     target.restore();
   };
 
   // No sequence at all = nothing to wait for (true); a sequence whose frames are still loading = redraw later (false).
-  const seqAt = (seq: Seq | null, f: number, c: CanvasRenderingContext2D): boolean => (seq === null ? true : drawSequence(c, seq.store, f, w, h, 0.5));
+  // Nearest frame only (no neighbour cross-fade): one full-screen draw per sequence keeps p95 down on Intel UHD.
+  const seqAt = (seq: Seq | null, f: number, c: CanvasRenderingContext2D): boolean => {
+    if (seq === null) return true;
+    const i = Math.min(seq.count - 1, Math.max(0, Math.round(f)));
+    const img = seq.store.exact(i) ?? seq.store.nearest(i);
+    if (img !== null) drawCover(c, img, img.naturalWidth, img.naturalHeight, w, h, 0.5);
+    return seq.store.exact(i) !== null;
+  };
 
   const draw = (p: number, intro: number): boolean => {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
