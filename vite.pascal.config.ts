@@ -33,7 +33,9 @@ import { pascalCatalogLocal } from './scripts/pascal-catalog-local.mjs';
 import { pascalMaterialLocal } from './scripts/pascal-material-local.mjs';
 import { pascalCssScope } from './scripts/pascal-css-scope.mjs';
 import { pascalNoEval } from './scripts/pascal-no-eval.mjs';
+import { pascalRealism } from './scripts/pascal-realism.mjs';
 import { pascalRender } from './scripts/pascal-render.mjs';
+import { PASCAL_REALISM_ALIASES } from './vite.pascal.aliases';
 import { pascalSelfHost, WORKER_SELF_HOST_RULES } from './scripts/pascal-self-host.mjs';
 import { pascalVi } from './scripts/pascal-vi.mjs';
 import { pascalUiPatch } from './scripts/pascal-ui-patch.mjs';
@@ -122,6 +124,8 @@ export default defineConfig({
     pascalVi({ packagesDir: PASCAL_PACKAGES }),
     pascalUiPatch({ packagesDir: PASCAL_PACKAGES }),
     pascalRender(),
+    // Sau pascalRender: luật editor-realism (scripts/realism/*.mjs) có thể neo trên chuỗi đã vá.
+    pascalRealism(),
     pascalSelfHost(),
     // zod 4 dò `new Function` → vi phạm CSP `script-src eval` trên editor3d.html.
     pascalNoEval(),
@@ -137,6 +141,7 @@ export default defineConfig({
     alias: [
       ...pascalSourceAliases(),
       ...EDITOR_DEP_ALIASES,
+      ...PASCAL_REALISM_ALIASES,
       { find: '@', replacement: path.resolve(__dirname, './src') },
       { find: 'next/image', replacement: path.resolve(__dirname, './vendor/pascal/shims/next-image.tsx') },
       { find: 'next/link', replacement: path.resolve(__dirname, './vendor/pascal/shims/next-link.tsx') },
