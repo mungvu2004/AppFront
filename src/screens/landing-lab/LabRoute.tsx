@@ -10,6 +10,7 @@ const IDEAS: Record<string, LazyExoticComponent<ComponentType>> = {
   cinema: lazy(() => import('./cinema/index')),
   blueprint: lazy(() => import('./blueprint/index')),
   combo: lazy(() => import('./combo/index')),
+  live: lazy(() => import('./live/index')),
   export: lazy(() => import('./_export/index')),
 };
 
