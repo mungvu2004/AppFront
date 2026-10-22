@@ -79,7 +79,7 @@ function edges(kit: Kit, cam: Cam, poly: readonly V2[], z0: number, mm: number):
   const c = centre(poly);
   poly.forEach((a, i) => {
     const b = poly[(i + 1) % poly.length] ?? a;
-    if (!facesViewer(cam.theta, outward(a, b, c))) return;
+    if (!facesViewer(cam.theta, outward(a, b, c), cam.flip === true)) return;
     const q = [project(cam, a[0], a[1], z0), project(cam, b[0], b[1], z0), project(cam, b[0], b[1], z0 - mm), project(cam, a[0], a[1], z0 - mm)];
     ctx.beginPath();
     tracePoly(ctx, q);
@@ -146,12 +146,12 @@ function walls(kit: Kit, cam: Cam, f: Floor, st: FloorStyle): void {
       b.poly.forEach((a, i) => {
         const e = b.poly[(i + 1) % b.poly.length] ?? a;
         const n = outward(a, e, c);
-        if (!facesViewer(cam.theta, n)) return;
+        if (!facesViewer(cam.theta, n, cam.flip === true)) return;
         const q = [project(cam, a[0], a[1], st.z0), project(cam, e[0], e[1], st.z0), project(cam, e[0], e[1], st.z0 + h), project(cam, a[0], a[1], st.z0 + h)];
         // Light from the upper left: outer faces of exterior walls turned to the right take a fine hatch.
         const right = n[0] * Math.cos(cam.theta) - n[1] * Math.sin(cam.theta) > 0.5;
         const outer = b.exterior && n[0] * ((a[0] + e[0]) / 2 - sc[0]) + n[1] * ((a[1] + e[1]) / 2 - sc[1]) > 0;
-        faces.push({ q, d: depth(cam.theta, (a[0] + e[0]) / 2, (a[1] + e[1]) / 2), shaded: right && outer, r });
+        faces.push({ q, d: depth(cam.theta, (a[0] + e[0]) / 2, (a[1] + e[1]) / 2, cam.flip === true), shaded: right && outer, r });
       });
     }
     faces.sort((x, y) => y.d - x.d);

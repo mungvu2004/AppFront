@@ -153,7 +153,7 @@ export function drawOverhead(kit: Kit, cam: Cam, alpha: number, r: number): void
 export function drawPlate(kit: Kit, cam: Cam, alpha: number): void {
   if (alpha <= 0) return;
   const { ctx, k } = kit;
-  const [x, y] = project(cam, 24000, 4300, 0);
+  const [x, y] = project(cam, 24000, cam.flip === true ? 3700 : 4300, 0);
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.strokeStyle = kit.pal.ink;
@@ -172,17 +172,18 @@ export function drawPlate(kit: Kit, cam: Cam, alpha: number): void {
   ['0', '1', '2', '3', '4', '5 m'].forEach((s, i) => ctx.fillText(s, x + i * m + (i === 5 ? 6 * k : 0), y + 9 * k));
   const nx = x + 5 * m + 34 * k;
   const ny = y - 4 * k;
+  const up = cam.flip === true ? -1 : 1; // north points down the sheet in the true top view
   ctx.beginPath();
   ctx.arc(nx, ny, 11 * k, 0, 2 * Math.PI);
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(nx, ny - 11 * k);
-  ctx.lineTo(nx + 4.5 * k, ny + 6 * k);
-  ctx.lineTo(nx, ny + 3 * k);
+  ctx.moveTo(nx, ny - 11 * k * up);
+  ctx.lineTo(nx + 4.5 * k, ny + 6 * k * up);
+  ctx.lineTo(nx, ny + 3 * k * up);
   ctx.closePath();
   ctx.fill();
   ctx.font = `italic 400 ${String(12 * k)}px ${SERIF}`;
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillText('B', nx, ny - 15 * k);
+  ctx.textBaseline = up === 1 ? 'alphabetic' : 'top';
+  ctx.fillText('B', nx, ny - 15 * k * up);
   ctx.restore();
 }

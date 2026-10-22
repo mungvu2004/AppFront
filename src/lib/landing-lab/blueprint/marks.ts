@@ -14,7 +14,7 @@ export const HAND = "'Patrick Hand', 'Segoe Print', cursive";
 type Mark =
   | { kind: 'loop'; at: V2; rx: number; ry: number; t: [number, number]; seed: number }
   | { kind: 'line'; a: V2; b: V2; t: [number, number]; seed: number }
-  | { kind: 'text'; at: V2; dx: number; dy: number; text: string; size: number; t: [number, number]; arrow?: V2 };
+  | { kind: 'text'; at: V2; dx: number; dy: number; text: string; size: number; t: [number, number]; arrow?: V2; flip?: { at?: V2; dy?: number } };
 
 const room = (id: string): { name: string; m2: number } => {
   const r = FLOORS[0]?.rooms.find((x) => x.id === id);
@@ -33,19 +33,20 @@ const MARKS: readonly Mark[] = [
   { kind: 'loop', at: [d1[0], d1[1] + 450], rx: 1150, ry: 900, t: [0, 0.13], seed: 3 },
   { kind: 'text', at: [d1[0] + 1100, d1[1] - 900], dx: 4, dy: 6, text: 'Cửa', size: 21, t: [0.1, 0.18], arrow: [d1[0] + 700, d1[1] - 250] },
   { kind: 'line', a: [4300, 8460], b: [11400, 8460], t: [0.16, 0.28], seed: 7 },
-  { kind: 'text', at: [4300, 8460], dx: 0, dy: 24, text: 'Tường ngoài · 220', size: 19, t: [0.25, 0.34] },
+  { kind: 'text', at: [4300, 8460], dx: 0, dy: 24, text: 'Tường ngoài · 220', size: 19, t: [0.25, 0.34], flip: { dy: -8 } },
   { kind: 'loop', at: [dg6[0] - 300, dg6[1]], rx: 780, ry: 820, t: [0.3, 0.39], seed: 11 },
   { kind: 'loop', at: [dg5[0], dg5[1] - 380], rx: 820, ry: 720, t: [0.35, 0.44], seed: 17 },
   { kind: 'text', at: [16700, 20200], dx: 0, dy: 0, text: named('G2'), size: 23, t: [0.44, 0.56] },
   { kind: 'text', at: [4700, 16200], dx: 0, dy: 0, text: named('G4'), size: 21, t: [0.53, 0.63] },
   { kind: 'text', at: [10500, 16000], dx: 0, dy: 0, text: named('G3'), size: 21, t: [0.6, 0.7] },
-  { kind: 'text', at: [6900, 9450], dx: 0, dy: 0, text: named('G6', 'Ngủ'), size: 21, t: [0.67, 0.77] },
+  { kind: 'text', at: [6900, 9450], dx: 0, dy: 0, text: named('G6', 'Ngủ'), size: 21, t: [0.67, 0.77], flip: { at: [6900, 10250] } },
   { kind: 'text', at: [16600, 10000], dx: 0, dy: 0, text: named('G5', 'Sinh hoạt'), size: 21, t: [0.73, 0.83] },
   {
     kind: 'text',
     at: [4000, 25000],
     dx: 0,
     dy: -16,
+    flip: { dy: 26 },
     text: `Đã đọc: ${String(T1_COUNTS.walls)} tường, ${String(T1_COUNTS.doors)} cửa, ${String(T1_COUNTS.rooms)} phòng`,
     size: 20,
     t: [0.84, 0.98],
@@ -85,9 +86,11 @@ export function drawMarks(kit: Kit, cam: Cam, q: number, alpha: number): void {
     } else if (m.kind === 'line') {
       pencil(ctx, underline(project(cam, m.a[0], m.a[1], 0), project(cam, m.b[0], m.b[1], 0), m.seed), e, m.seed, kit.pal.red, PEN.red * k);
     } else {
-      const [x, y] = project(cam, m.at[0], m.at[1], 0);
+      const alt = cam.flip === true ? m.flip : undefined;
+      const at = alt?.at ?? m.at;
+      const [x, y] = project(cam, at[0], at[1], 0);
       const tx = x + m.dx * k;
-      const ty = y + m.dy * k;
+      const ty = y + (alt?.dy ?? m.dy) * k;
       ctx.globalAlpha = alpha;
       write(kit, tx, ty, m.text, m.size, e);
       if (m.arrow !== undefined) {

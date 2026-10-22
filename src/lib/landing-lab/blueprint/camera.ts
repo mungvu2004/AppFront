@@ -15,6 +15,11 @@ export interface Cam {
   readonly s: number;
   readonly ox: number;
   readonly oy: number;
+  /**
+   * True = plan y runs DOWN the screen (street at the top): the true top view of the 3D house, the frame
+   * of walls.json / the shared plan SVGs. False = the book's north-up plan.
+   */
+  readonly flip?: boolean;
 }
 
 export interface Rect {
@@ -25,27 +30,29 @@ export interface Rect {
 }
 
 /** Unscaled projection: [screen x, screen y] in mm. */
-export function raw(theta: number, phi: number, x: number, y: number, z: number): V2 {
+export function raw(theta: number, phi: number, x: number, y: number, z: number, flip = false): V2 {
   const c = Math.cos(theta);
   const s = Math.sin(theta);
   const xr = x * c - y * s;
   const yr = x * s + y * c;
-  return [xr, -yr * Math.sin(phi) - z * Math.cos(phi)];
+  return [xr, (flip ? yr : -yr) * Math.sin(phi) - z * Math.cos(phi)];
 }
 
 export function project(cam: Cam, x: number, y: number, z: number): V2 {
-  const [u, v] = raw(cam.theta, cam.phi, x, y, z);
+  const [u, v] = raw(cam.theta, cam.phi, x, y, z, cam.flip === true);
   return [cam.ox + u * cam.s, cam.oy + v * cam.s];
 }
 
-/** Distance from the viewer (larger = further), for back-to-front sorting. */
-export function depth(theta: number, x: number, y: number): number {
-  return x * Math.sin(theta) + y * Math.cos(theta);
+/** Distance from the viewer (larger = further), for back-to-front sorting. With `flip` the viewer is on the +y side. */
+export function depth(theta: number, x: number, y: number, flip = false): number {
+  const d = x * Math.sin(theta) + y * Math.cos(theta);
+  return flip ? -d : d;
 }
 
 /** Is a vertical face with outward plan normal `n` turned towards the viewer? */
-export function facesViewer(theta: number, n: V2): boolean {
-  return n[0] * Math.sin(theta) + n[1] * Math.cos(theta) < -1e-6;
+export function facesViewer(theta: number, n: V2, flip = false): boolean {
+  const d = n[0] * Math.sin(theta) + n[1] * Math.cos(theta);
+  return flip ? d > 1e-6 : d < -1e-6;
 }
 
 export interface Bounds {

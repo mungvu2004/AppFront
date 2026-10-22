@@ -1,0 +1,68 @@
+/* /welcome-lab/combo: dùng lại trang sách của blueprint (.bp), thêm màu theo cảnh (giấy / bàn / ảnh). Màu khai ở đây. */
+.cb {
+  --cb-paper: #f3eee4;
+  --cb-ink: #1d2430;
+  --cb-red: #b3261e;
+  /* Chữ trên ảnh: giấy sáng trên lớp tối (scrim) ≥ 7:1. */
+  --cb-light: #f6f1e7;
+  --cb-light-soft: color-mix(in srgb, var(--cb-light) 84%, transparent);
+  --cb-night: #12161d;
+}
+.cb-track { position: relative; height: 1300vh; }
+
+/* Dòng chữ lộ qua mặt nạ: mỗi dòng trượt lên khỏi khe của nó. */
+.cb-line { display: block; overflow: hidden; padding-bottom: 0.08em; margin-bottom: -0.08em; }
+.cb-line > span { display: block; will-change: transform; }
+.cb .bp-col { will-change: transform; }
+.cb [data-rest] { will-change: opacity, transform; }
+
+.cb-scrim { position: absolute; inset: 0; pointer-events: none; }
+.cb-scrim > div { position: absolute; inset: 0; }
+.cb-scrim-desk { background: linear-gradient(90deg, color-mix(in srgb, var(--cb-paper) 88%, transparent) 0%, color-mix(in srgb, var(--cb-paper) 70%, transparent) 30%, transparent 46%); }
+.cb-scrim-photo { background: linear-gradient(90deg, color-mix(in srgb, var(--cb-night) 78%, transparent) 0%, color-mix(in srgb, var(--cb-night) 52%, transparent) 30%, transparent 52%); }
+
+.cb-top {
+  position: absolute; top: 28px; left: var(--bp-margin); right: var(--bp-margin);
+  display: flex; justify-content: space-between; align-items: baseline; font-size: 14px;
+}
+/* Pill under the header items while photos run beneath them: ink on cream, ≥ 4.5:1 over ruler, desk and photo. */
+.cb-top > * {
+  color: var(--cb-ink); background: color-mix(in srgb, var(--cb-paper) 90%, transparent); padding: 5px 14px 6px; border-radius: 999px;
+  box-shadow: 0 0 0 0.5px color-mix(in srgb, var(--cb-ink) 18%, transparent);
+}
+.cb-top a { text-decoration: none; }
+.cb-top a:hover { background: var(--cb-paper); }
+
+.cb-tally { margin-top: 22px !important; font-family: 'Patrick Hand', cursive; font-size: 24px !important; color: var(--cb-red) !important; }
+.cb-tally b { font-weight: 400; font-variant-numeric: tabular-nums; display: inline-block; min-width: 1.1em; text-align: right; }
+
+.cb-cap { display: block; }
+.cb-demo {
+  position: absolute; left: var(--bp-margin); bottom: 64px; margin: 0; padding: 4px 10px 5px;
+  font-size: 12.5px; color: var(--cb-red); background: color-mix(in srgb, var(--cb-paper) 92%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--cb-red) 45%, transparent); border-radius: 1px;
+}
+
+.cb-chips { display: flex; gap: 10px; list-style: none; padding: 0; margin: 30px 0 0; }
+.cb-chips li {
+  font-family: var(--bp-serif); font-style: italic; font-size: 16px; padding: 4px 12px 5px;
+  background: var(--cb-paper); color: var(--cb-ink); border: 0.5px solid var(--cb-ink);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--cb-night) 25%, transparent); transform: rotate(-1.5deg);
+}
+.cb-chips li:nth-child(even) { transform: rotate(1.2deg); }
+
+/* Cảnh ảnh (chương 5-6): chữ sáng trên lớp tối. */
+.cb[data-tone='photo'] .cb-note,
+.cb[data-tone='photo'] .cb-close { color: var(--cb-light); }
+.cb[data-tone='photo'] .cb-note h2,
+.cb[data-tone='photo'] .cb-note .bp-num,
+.cb[data-tone='photo'] .cb-close .bp-h1 { color: var(--cb-light); }
+.cb[data-tone='photo'] .cb-note p,
+.cb[data-tone='photo'] .cb-close .bp-sub { color: var(--cb-light-soft); }
+.cb[data-tone='photo'] .bp-rule { border-color: var(--cb-light); }
+.cb[data-tone='photo'] .bp-cta { background: var(--cb-light); color: var(--cb-ink); }
+.cb[data-tone='photo'] .bp-quiet { color: var(--cb-light); border-color: var(--cb-light-soft); }
+
+@media (max-aspect-ratio: 11/10) {
+  .cb-demo { bottom: 72px; }
+}
