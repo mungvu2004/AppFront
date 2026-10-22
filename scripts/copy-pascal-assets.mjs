@@ -42,6 +42,7 @@ import { join, dirname } from 'node:path';
 import sharp from 'sharp';
 
 import { LIBRARY_MATERIALS, WEBP_MATERIAL_IDS, roleOf, sourceFor, webpPathOf } from './pascal-material-webp.mjs';
+import { R5_MATERIALS, ROLES as R5_ROLES, mapPath as r5MapPath, sourceOf as r5SourceOf, thumbPath as r5ThumbPath } from './realism/r5-materials.mjs';
 
 // `packages/` là upstream nguyên vẹn (không fork, không vá — xem `vendor/pascal/NGUON.md`):
 // upstream nạp Draco từ gstatic (CSP chặn mọi máy ngoài), nên lúc build
@@ -166,7 +167,17 @@ const thumbJobs = LIBRARY_MATERIALS.filter(({ thumb }) => thumb !== undefined).m
 });
 
 /** Đường `.webp` tương đối so với MATERIAL_TARGET — lượt dọn dưới đây giữ lại chúng. */
+/*
+ * Vật liệu mới của R5 (editor-realism GĐ5): ảnh nguồn CC0 ở `vendor-extra/materials/<id>/`, luật
+ * `scripts/realism/r5-materials.mjs` chèn mục vào thư viện lúc dựng. Dựng webp 512 + ảnh xem trước 128.
+ */
+const r5Jobs = R5_MATERIALS.flatMap(({ id }) => [
+  ...Object.keys(R5_ROLES).map((role) => ({ rel: r5MapPath(id, role).replace('/material/', ''), source: r5SourceOf(id, role), size: 512, cover: false, normal: role === 'normal' })),
+  { rel: r5ThumbPath(id).replace('/pascal/material/', ''), source: r5SourceOf(id, 'basecolor'), size: 128, cover: true, normal: false },
+]);
+
 const webpTargets = new Set([
+  ...r5Jobs.map((job) => job.rel),
   ...webpMaps.map((map) => webpPathOf(map).replace('/material/', '')),
   ...thumbJobs.filter((job) => !job.copy).map((job) => job.rel),
 ]);
@@ -217,6 +228,15 @@ for (const { rel, source, copy } of thumbJobs) {
     thumbMade += 1;
   }
 }
+let r5Made = 0;
+for (const { rel, source, size, cover, normal } of r5Jobs) {
+  const target = join(MATERIAL_TARGET, rel);
+  if (existsSync(target) && statSync(target).mtimeMs >= statSync(source).mtimeMs) continue;
+  mkdirSync(dirname(target), { recursive: true });
+  await sharp(source).resize(size, size, { fit: cover ? 'cover' : 'fill' }).webp({ quality: normal ? 90 : 80 }).toFile(target);
+  r5Made += 1;
+}
+
 const thumbPresent = thumbJobs.filter(({ rel }) => existsSync(join(MATERIAL_TARGET, rel))).length;
 
 /*
@@ -263,6 +283,7 @@ console.log(
   `Ảnh xem trước vật liệu: ${String(thumbPresent)}/${String(thumbJobs.length)} ` +
     `(chép ${String(thumbCopied)}, sinh mới ${String(thumbMade)})`,
 );
+console.log(`Vật liệu R5: ${String(R5_MATERIALS.length)} mục, ${String(r5Jobs.length)} tệp .webp (sinh mới ${String(r5Made)})`);
 console.log(`Đã chép ${String(countFiles(ITEMS_TARGET))} tệp thư viện đồ đạc vào ${ITEMS_TARGET}/`);
 
 if (missing.length > 0) {
