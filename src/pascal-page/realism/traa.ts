@@ -4,10 +4,10 @@
  */
 import { useRealism } from './store';
 
-/** F3: TRAA + SSGI lọc thời gian đã tự khử hạt AO → bỏ denoise không gian của AO (nó xoá bóng tiếp xúc). */
-export const TRAA_AO_DENOISE = false;
+/** F3: bán kính denoise AO khi TRAA. Đã thử 0 (bỏ denoise) và 2: còn hạt dưới chân ghế → giữ 4, bù bằng ao^k. */
+export const TRAA_AO_DENOISE_RADIUS = 4;
 /** F3: đậm AO thêm chút khi TRAA (ao^k, k > 1) cho bóng chân đồ/góc trần gần ảnh không TRAA. */
-export const TRAA_AO_POW = 1.25;
+export const TRAA_AO_POW = 2;
 
 export function traaEnabledFor(flagOn: boolean, search: string): boolean {
   const disable = new URLSearchParams(search).get('disable') ?? '';

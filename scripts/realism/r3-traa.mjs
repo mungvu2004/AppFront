@@ -11,7 +11,7 @@ export const RULES = {
   [PP]: [
     [
       "import { denoise } from 'three/examples/jsm/tsl/display/DenoiseNode.js'\n",
-      "import { denoise } from 'three/examples/jsm/tsl/display/DenoiseNode.js'\nimport { traa } from 'three/examples/jsm/tsl/display/TRAANode.js'\nimport { velocity } from 'three/tsl'\nimport { TRAA_AO_DENOISE, TRAA_AO_POW, traaEnabled } from '@pascal-realism/traa'\n",
+      "import { denoise } from 'three/examples/jsm/tsl/display/DenoiseNode.js'\nimport { traa } from 'three/examples/jsm/tsl/display/TRAANode.js'\nimport { velocity } from 'three/tsl'\nimport { TRAA_AO_DENOISE_RADIUS, TRAA_AO_POW, traaEnabled } from '@pascal-realism/traa'\n",
     ],
     // TRAA thay MSAA: chép depth vào lịch sử cần depth 1 mẫu (MSAA 4 → lỗi CopyTextureToTexture).
     [
@@ -49,10 +49,10 @@ export const RULES = {
       }
 `,
     ],
-    // F3: AO khi TRAA: bo denoise khong gian (TRAA tich luy thay), dam them ao^k.
+    // F3: AO khi TRAA: denoise AO ban kinh nho hon (giu bong tiep xuc), dam them ao^k.
     [
-      '        if (denoiseEnabled) {\n          // DenoiseNode only denoises RGB',
-      '        if (denoiseEnabled && (!traaOn || TRAA_AO_DENOISE)) {\n          // DenoiseNode only denoises RGB',
+      '          denoisePass.radius.value = 4\n',
+      '          denoisePass.radius.value = traaOn ? TRAA_AO_DENOISE_RADIUS : 4\n',
     ],
     [
       '        // AO is a near/mid-field cue like the ink:',
