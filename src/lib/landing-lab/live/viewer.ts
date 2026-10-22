@@ -95,17 +95,27 @@ function liveMaterial(src: Material, env: Texture | null): Material {
   });
 }
 
-export function createLiveViewer(canvas: HTMLCanvasElement, base: string, startPose: string): LiveViewer {
+export interface LiveOptions {
+  /** Wheel zoom (off inside a scrolling page, so the wheel keeps scrolling it). */
+  zoom?: boolean;
+  /** Keep the orbit within this many degrees of the start pose (yaw, pitch), drag sensitivity scaled down to match. */
+  limitDeg?: readonly [number, number];
+  /** Orbit point this far ahead (m) instead of the focus distance: a small value turns the orbit into looking around. */
+  pivot?: number;
+}
+
+export function createLiveViewer(canvas: HTMLCanvasElement, base: string, startPose: string, opts: LiveOptions = {}): LiveViewer {
   const renderer = new WebGLRenderer({ canvas, antialias: true });
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = NoToneMapping;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   const scene = new Scene();
   const cam = new PerspectiveCamera(40, 16 / 9, 0.05, 2000);
   const controls = new OrbitControls(cam, canvas);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.enablePan = false;
+  controls.enableZoom = opts.zoom ?? true;
+  if (opts.limitDeg) controls.rotateSpeed = 0.35;
   let manifest: LiveScene | null = null;
   let pose: LivePose | null = null;
   let raf = 0;
@@ -114,6 +124,8 @@ export function createLiveViewer(canvas: HTMLCanvasElement, base: string, startP
   const resize = () => {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
+    // At most ~2.5 MP per frame: a 2x-density screen otherwise renders 6.5 MP, too much fill for Intel UHD.
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5, Math.sqrt(2.5e6 / Math.max(1, w * h))));
     renderer.setSize(w, h, false);
     cam.aspect = w / h;
     if (pose) applyShift(cam, pose);
@@ -131,12 +143,22 @@ export function createLiveViewer(canvas: HTMLCanvasElement, base: string, startP
     cam.fov = p.fov;
     // orbit about the focus point on the view axis, so the first frame keeps the exact baked orientation
     const fwd = new Vector3(0, 0, -1).applyQuaternion(new Quaternion().fromArray(p.quaternion));
-    controls.target.copy(cam.position).addScaledVector(fwd, p.focusDistance);
-    const d = p.focusDistance;
+    const d = opts.pivot ?? p.focusDistance;
+    controls.target.copy(cam.position).addScaledVector(fwd, d);
     controls.minDistance = d * 0.45;
     controls.maxDistance = d * 1.6;
     applyShift(cam, p);
     controls.update();
+    if (opts.limitDeg) {
+      // Bounded around the photographed pose, so a drag never ends facing a bare wall.
+      const [yaw, pitch] = opts.limitDeg.map((deg) => (deg * Math.PI) / 180) as [number, number];
+      const az = controls.getAzimuthalAngle();
+      const po = controls.getPolarAngle();
+      controls.minAzimuthAngle = az - yaw;
+      controls.maxAzimuthAngle = az + yaw;
+      controls.minPolarAngle = po - pitch;
+      controls.maxPolarAngle = po + pitch;
+    }
     active = 2;
   };
 
@@ -163,6 +185,7 @@ export function createLiveViewer(canvas: HTMLCanvasElement, base: string, startP
       env.colorSpace = SRGBColorSpace;
       scene.background = env;
     }
+    MeshoptDecoder.useWorkers(2); // decode the meshopt buffers off the main thread
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
     const gltf = await loader.loadAsync(`${base}/${manifest.glb}`);
     gltf.scene.traverse((o) => {

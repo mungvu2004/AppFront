@@ -49,13 +49,23 @@ export default function Combo() {
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  useCombo(rootRef, trackRef, canvasRef);
+  const liveRef = useRef<HTMLCanvasElement>(null);
+  const liveButtonRef = useRef<HTMLButtonElement>(null);
+  useCombo(rootRef, trackRef, canvasRef, liveRef, liveButtonRef);
 
   return (
     <div className="bp cb" ref={rootRef} data-tone="paper">
       <div className="cb-track" ref={trackRef} style={{ height: `${String(TRACK_VH)}vh` }}>
         <div className="bp-stage cb-stage">
           <canvas className="bp-canvas" ref={canvasRef} aria-hidden="true" />
+          <canvas className="cb-live" ref={liveRef} role="img" aria-label="Phòng khách minh hoạ dựng 3D, kéo chuột để xoay" />
+          <p className="cb-live-hint" aria-hidden="true">
+            Kéo để nhìn quanh phòng khách
+          </p>
+          <button type="button" className="cb-live-btn" ref={liveButtonRef}>
+            <span className="cb-live-go">Xem phòng khách 3D</span>
+            <span className="cb-live-wait">Đang tải mô hình 3D…</span>
+          </button>
           <div className="cb-scrim" data-win="0.37,0.39,0.49,0.51" aria-hidden="true">
             <div className="cb-scrim-desk" data-rest="" />
           </div>

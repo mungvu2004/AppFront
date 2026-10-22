@@ -16,17 +16,23 @@ import { loadRegistration, openB, openSeq, REG_STANDIN } from '@/lib/landing-lab
 import { createStage, type Stage, type StageInput } from '@/lib/landing-lab/combo/stage';
 import { JUMP, LENIS_LERP, NEEDS, scrollAt, storyAt, TRANSITIONS, WHEEL_MULTIPLIER } from '@/lib/landing-lab/combo/timeline';
 
+import { createComboLive } from './comboLive';
 import { createComboInput } from './useComboInput';
 
 const FONTS = ['300 40px Newsreader', 'italic 300 40px Newsreader', '400 20px "Patrick Hand"', '300 12px "Be Vietnam Pro"', '400 16px "Be Vietnam Pro"'];
 const SAMPLE = 'Bản vẽ ữ ạ ẻ ờ đ';
+/**
+ * Knob: most canvas pixels drawn per frame (~Full HD x 1.2). The photographs are 1920 wide, so more pixels add no
+ * detail; at 2x density (3860x1690) every frame filled 6.5 MP and Intel UHD went to p95 35 ms (7 % of frames > 33 ms).
+ */
+const MAX_CANVAS_PX = 1920 * 1080 * 1.2;
 
 declare global {
   interface Window {
     __landingSeek?: (p: number) => Promise<void>;
     __landingReady?: Promise<void>;
     __comboPrintPlan?: () => Promise<PrintPlan>;
-    __comboP?: () => { target: number; shown: number; lenis: number; transitions: typeof TRANSITIONS; a: string; b: string };
+    __comboP?: () => { target: number; shown: number; lenis: number; transitions: typeof TRANSITIONS; a: string; b: string; aStats: string; bStats: string };
   }
 }
 
@@ -39,7 +45,13 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
   );
 }
 
-export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefObject<HTMLElement | null>, canvasRef: RefObject<HTMLCanvasElement | null>): void {
+export function useCombo(
+  rootRef: RefObject<HTMLElement | null>,
+  trackRef: RefObject<HTMLElement | null>,
+  canvasRef: RefObject<HTMLCanvasElement | null>,
+  liveRef: RefObject<HTMLCanvasElement | null>,
+  liveButtonRef: RefObject<HTMLButtonElement | null>,
+): void {
   useEffect(() => {
     const root = rootRef.current;
     const track = trackRef.current;
@@ -73,6 +85,7 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
       }
     };
     const input = createComboInput(root, () => stage, wake);
+    const live = createComboLive(root, liveRef.current, liveButtonRef.current, !reduce);
 
     const range = (): { top: number; len: number } => ({ top: track.getBoundingClientRect().top + scrollY, len: Math.max(1, track.offsetHeight - innerHeight) });
     const storyNow = (): number => {
@@ -82,9 +95,9 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
 
     const build = (): void => {
       if (parts === null) return;
-      const dpr = Math.min(2, devicePixelRatio || 1);
       const W = canvas.clientWidth;
       const H = canvas.clientHeight;
+      const dpr = Math.min(2, devicePixelRatio || 1, Math.sqrt(MAX_CANVAS_PX / Math.max(1, W * H)));
       canvas.width = Math.round(W * dpr);
       canvas.height = Math.round(H * dpr);
       layer.canvas.width = canvas.width;
@@ -122,6 +135,7 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
       prevScroll = target;
       shown = target;
       paint(shown);
+      live.step(shown);
       const busy = lenis.isScrolling !== false || dirty || input.moving();
       raf = busy ? requestAnimationFrame(tick) : 0;
     }
@@ -156,6 +170,7 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
       build();
       shown = target = prevTarget = storyNow();
       paint(shown);
+      live.step(shown);
       // Headline lines and the exterior walls ink in on load (700 ms), then the scroll takes over.
       const t0 = performance.now();
       await new Promise<void>((resolve) => {
@@ -186,7 +201,7 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
     if (import.meta.env.DEV) {
       window.__landingReady = ready;
       window.__comboPrintPlan = () => Promise.resolve(renderPrintPlan(pal));
-      window.__comboP = () => ({ target, shown, lenis: lenis.scroll, transitions: TRANSITIONS, a: parts?.a?.loaded() ?? '', b: parts?.b?.loaded() ?? '' });
+      window.__comboP = () => ({ target, shown, lenis: lenis.scroll, transitions: TRANSITIONS, a: parts?.a?.loaded() ?? '', b: parts?.b?.loaded() ?? '', aStats: parts?.a?.stats() ?? '', bStats: parts?.b?.stats() ?? '' });
       window.__landingSeek = async (p: number): Promise<void> => {
         await ready;
         const clamped = Math.min(1, Math.max(0, p));
@@ -223,6 +238,7 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
       cancelAnimationFrame(raf);
       observer.disconnect();
       input.dispose();
+      live.dispose();
       lenis.destroy();
       removeEventListener('scroll', onScroll);
       for (const ev of ['wheel', 'touchmove', 'keydown'] as const) removeEventListener(ev, onScroll);
@@ -233,5 +249,5 @@ export function useCombo(rootRef: RefObject<HTMLElement | null>, trackRef: RefOb
         delete window.__comboP;
       }
     };
-  }, [rootRef, trackRef, canvasRef]);
+  }, [rootRef, trackRef, canvasRef, liveRef, liveButtonRef]);
 }

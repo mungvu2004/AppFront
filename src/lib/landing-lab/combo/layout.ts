@@ -18,6 +18,10 @@ export const XFADE: readonly [number, number] = [0.345, 0.375];
 export const A_RUN: readonly [number, number] = [0.375, 0.5];
 /** Chapter 6 → 7: B's exterior frames play before this p, the interior walk (int_*) after it ('qua cửa' in timeline.ts). */
 export const INSIDE_AT = 0.78;
+/** The walk reaches its last frame here; the rest of the scroll holds it while the live room takes over. */
+export const WALK_END = 0.97;
+/** From here the baked live living room (same pose as the last frame) replaces the photograph and can be dragged. */
+export const LIVE_AT = 0.975;
 /** Where the materials start painting in: the entrance in the bridge frames (fractions of the frame). */
 export const ENTRANCE: readonly [number, number] = [0.6, 0.62];
 const FRAME_W = 1920;

@@ -58,7 +58,18 @@ export class Seq {
     const fwd = k >= this.lastK;
     this.lastK = k;
     st.warm(fwd ? k - 2 : k - 12, fwd ? k + 12 : k + 2);
-    return st.bitmap(k, 6) ?? st.nearestBitmap(k);
+    const own = st.bitmap(k, 0);
+    this.draws += 1;
+    if (own === null) this.misses += 1;
+    return own ?? st.bitmap(k, 6) ?? st.nearestBitmap(k);
+  }
+
+  private draws = 0;
+  private misses = 0;
+
+  /** Dev: how often the frame asked for was not decoded yet and a neighbour stood in. */
+  stats(): string {
+    return `${String(this.misses)}/${String(this.draws)} drawn with a stand-in`;
   }
 
   /** Frame i's own bitmap if decoded, else null (the cross-fade partner; never a stand-in). */

@@ -22,6 +22,7 @@ import {
   mix,
   sectionRect,
   smooth,
+  WALK_END,
   XFADE,
 } from './layout';
 import { drawSheet, makeKit, penScale, sheetCam } from './sheet';
@@ -162,7 +163,7 @@ export function createStage(input: StageInput): Stage {
     if (at <= from + 1) return from + span(p, CH.walk[0], CH.walk[1]) * (last - from);
     // int_0000 repeats the last exterior pose, so the exterior ends one frame before it.
     if (p < INSIDE_AT) return from + span(p, CH.walk[0], INSIDE_AT) * (at - 1 - from);
-    return at + span(p, INSIDE_AT, CH.walk[1]) * (last - at);
+    return at + span(p, INSIDE_AT, WALK_END) * (last - at);
   };
 
   /** The interior walk: frame k with k+1 faded over it by the fraction, so a slow scroll glides between renders. */
