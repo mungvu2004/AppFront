@@ -1,6 +1,7 @@
 /**
  * Thẻ "Ánh sáng" của trang 3D, cạnh "Phong cách": Buổi tối (chủ đề `night` đã chỉnh, đèn trong
- * nhà bật — mặc định) hoặc Ban ngày (chủ đề sáng đã chỉnh, nắng qua cửa sổ, đèn tắt). Độc lập
+ * nhà bật — mặc định), Ban ngày (chủ đề sáng đã chỉnh, nắng qua cửa sổ, đèn tắt) hoặc Nắng chiều
+ * (chủ đề `sunset`, mặt trời thấp ~15°, ấm). Độc lập
  * với sáng/tối của áo trang (`./chromeTheme`). Số đèn ở `./renderLook`.
  *
  * Đổi = `viewer.setSceneTheme` (tức thì, không nạp lại). Nhớ THEO DỰ ÁN trên máy này
@@ -12,13 +13,14 @@
 import { ChevronDown, Sun } from 'lucide-react';
 import { type MouseEvent, useEffect } from 'react';
 
-import { DAY_THEME_ID, NIGHT_THEME_ID } from './renderLook';
+import { DAY_THEME_ID, NIGHT_THEME_ID, SUNSET_THEME_ID } from './renderLook';
 
-export type LightingMode = 'night' | 'day';
+export type LightingMode = 'night' | 'day' | 'sunset';
 
 export const LIGHTING_MODES: readonly { id: LightingMode; label: string; theme: string }[] = [
   { id: 'night', label: 'Buổi tối', theme: NIGHT_THEME_ID },
   { id: 'day', label: 'Ban ngày', theme: DAY_THEME_ID },
+  { id: 'sunset', label: 'Nắng chiều', theme: SUNSET_THEME_ID },
 ];
 
 export const lightingKey = (projectId: string): string => `appfront.pascal.lighting.v1:${projectId}`;
@@ -41,7 +43,7 @@ const themeOf = (mode: LightingMode) => LIGHTING_MODES.find((m) => m.id === mode
 function readMode(projectId: string): LightingMode | null {
   try {
     const value = localStorage.getItem(lightingKey(projectId));
-    return value === 'night' || value === 'day' ? value : null;
+    return LIGHTING_MODES.some((m) => m.id === value) ? (value as LightingMode) : null;
   } catch {
     return null;
   }
@@ -52,12 +54,12 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
   const current = LIGHTING_MODES.find((m) => m.theme === sceneTheme);
 
   // Lúc mở: áp lựa chọn của dự án. Chưa chọn thì giữ chủ đề đang có, trừ "Ban ngày" mang sang
-  // từ dự án khác (chủ đề Pascal nhớ chung một khoá) — về mặc định Buổi tối.
+  // / "Nắng chiều" từ dự án khác (chủ đề Pascal nhớ chung một khoá) — về mặc định Buổi tối.
   useEffect(() => {
     const viewer = useViewer.getState();
     const stored = readMode(projectId);
     if (stored !== null) viewer.setSceneTheme(themeOf(stored));
-    else if (viewer.sceneTheme === DAY_THEME_ID) viewer.setSceneTheme(NIGHT_THEME_ID);
+    else if (viewer.sceneTheme === DAY_THEME_ID || viewer.sceneTheme === SUNSET_THEME_ID) viewer.setSceneTheme(NIGHT_THEME_ID);
   }, [projectId, useViewer]);
 
   const choose = (mode: LightingMode, event: MouseEvent<HTMLButtonElement>) => {

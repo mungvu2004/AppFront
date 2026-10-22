@@ -30,7 +30,7 @@ describe('LightingCard', () => {
     const { container } = render(<LightingCard projectId="p1" useViewer={useViewer} />);
 
     const buttons = screen.getByRole('list', { name: 'Danh sách ánh sáng' }).querySelectorAll('button');
-    expect([...buttons].map((b) => b.textContent)).toEqual(['Buổi tối', 'Ban ngày']);
+    expect([...buttons].map((b) => b.textContent)).toEqual(['Buổi tối', 'Ban ngày', 'Nắng chiều']);
     expect(screen.getByRole('button', { pressed: true }).textContent).toBe('Buổi tối');
     expect(container.querySelector('details[data-appfront-menu]')).not.toBeNull();
   });

@@ -267,6 +267,9 @@ rmSync(AUDIO_TARGET, { force: true, recursive: true });
 cpSync(AUDIO_SOURCE, AUDIO_TARGET, { recursive: true });
 // Con trỏ của khung vẽ mặt bằng: `url('/cursor.svg')` trong `floorplan-panel.tsx`.
 copyFileSync(join('vendor', 'pascal', 'assets', 'cursor.svg'), join('public', 'cursor.svg'));
+// R4 (editor-realism): HDRI tự host cho chủ đề sáng (`src/pascal-page/realism/lighting.ts` HDRI_URL).
+mkdirSync(join('public', 'pascal', 'hdri'), { recursive: true });
+copyFileSync(join('vendor', 'pascal', 'assets', 'hdri', 'venice_sunset_1k.hdr'), join('public', 'pascal', 'hdri', 'venice-sunset-v1-1k.hdr'));
 
 mkdirSync(BASIS_TARGET, { recursive: true });
 const basisCopied = readdirSync(BASIS_SOURCE).filter((name) => BASIS_WANTED.test(name));

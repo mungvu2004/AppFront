@@ -22,6 +22,8 @@ export const NIGHT_THEME_ID = 'night';
  * yếu, phông xám xanh — trời âm u, trái với nắng.
  */
 export const DAY_THEME_ID = 'studio';
+/** "Nắng chiều" = chủ đề `sunset` sẵn có của Pascal, mặt trời hạ ~15° + ấm hơn (`scripts/realism/r4-lighting.mjs`). */
+export const SUNSET_THEME_ID = 'sunset';
 
 /** Phần của `SceneTheme` (viewer/src/lib/scene-themes.ts) mà dáng này đè. */
 export interface RenderLookTheme {
