@@ -1,11 +1,11 @@
 /**
  * R3T: mức chất lượng (low/medium/high) + mất thiết bị. Logic ở `src/pascal-page/realism/tiers.ts`.
- * - post-processing: low = không dựng hậu kỳ (đổi tên prop disablePostFx), SSGI đọc `tierSsgi(tier, SSGI_PARAMS)`,
+ * - post-processing: low = tắt SSGI lúc dựng (như ?disable=ao); postFx:false thì không dựng hậu kỳ (đổi tên prop disablePostFx), SSGI đọc `tierSsgi(tier, SSGI_PARAMS)`,
  *   effect dựng pipeline phụ thuộc `realismTier` để dựng lại khi đổi mức.
  * - index: chọn mức khởi đầu khi renderer có, DPR tối đa theo mức, mất thiết bị → low + dựng lại canvas (key).
  * - lights: cỡ bóng theo mức (neo trên chuỗi đã qua pascal-render: 2048).
  */
-const IMPORT = "import { initTier, onDeviceLost, tierConfig, tierSsgi, useDeviceEpoch, useTier } from '@pascal-realism/tiers'";
+const IMPORT = "import { currentTier, initTier, onDeviceLost, tierConfig, tierSsgi, useDeviceEpoch, useTier } from '@pascal-realism/tiers'";
 
 const GI_KEYS = [
   'sliceCount',
@@ -23,6 +23,8 @@ const GI_KEYS = [
 export const RULES = {
   'viewer/src/components/viewer/post-processing.tsx': [
     ["import { getSceneTheme } from '../../lib/scene-themes'", `import { getSceneTheme } from '../../lib/scene-themes'\n${IMPORT}`],
+    // low: SSGI (+ denoise) off at pipeline build, like `?disable=ao` (outline/hover stay).
+    ["    ao: set.has('ao'),\n", "    ao: set.has('ao') || !tierConfig(currentTier()).ssgiOn,\n"],
     ['  disablePostFx = false,\n', '  disablePostFx: disablePostFxProp = false,\n'],
     [
       '  const lastProjectIdRef = useRef(projectId)\n',

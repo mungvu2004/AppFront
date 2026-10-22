@@ -5,7 +5,7 @@
  * Ghép với `renderLook.ts`: `applyRenderLook` đè `RENDER_LOOK_SSGI` lên `SSGI_PARAMS` (dáng chung,
  * cũng dùng cho ảnh chụp). Lúc dựng pipeline vendor đọc `tierSsgi(tier, SSGI_PARAMS)`: tier là nguồn
  * CUỐI — `medium` giữ nguyên SSGI_PARAMS (= dáng hôm nay), `high` đè số lát/bước, `low` không dựng
- * hậu kỳ nào (disablePostFx).
+ * SSGI (cờ `ao` của `readPerfDisableFlags`).
  */
 import { create } from 'zustand';
 
@@ -14,8 +14,10 @@ import { useRealism, type RealismTier } from './store';
 import { emitRealism } from './telemetry';
 
 export interface TierConfig {
-  /** false = không dựng chuỗi hậu kỳ (vẽ thẳng `renderer.render`). */
+  /** false = không dựng chuỗi hậu kỳ (vẽ thẳng `renderer.render`, mất cả viền chọn). */
   postFx: boolean;
+  /** false = không dựng SSGI + denoise (như `?disable=ao`); viền chọn/hover vẫn còn. */
+  ssgiOn: boolean;
   /** Đè số lát/bước SSGI; không có = giữ `SSGI_PARAMS`. */
   ssgi?: { sliceCount: number; stepCount: number };
   dprMax: number;
@@ -23,10 +25,12 @@ export interface TierConfig {
 }
 
 // `medium` = đúng hành vi trước R3T (SSGI 2×8 của renderLook, DPR 1.5, bóng 2048) để dGPU không đổi mặt.
+// `low` theo số iGPU (R-R3T.md): SSGI là thứ nặng (p50 382 ms → 49 ms khi tắt); bỏ cả hậu kỳ chỉ
+// lợi thêm ~6 ms p50, p95 như nhau, mà mất viền chọn → giữ hậu kỳ, tắt SSGI.
 export const TIERS: Record<RealismTier, TierConfig> = {
-  low: { postFx: false, dprMax: 1, shadow: 1024 },
-  medium: { postFx: true, dprMax: 1.5, shadow: 2048 },
-  high: { postFx: true, ssgi: { sliceCount: 3, stepCount: 16 }, dprMax: 2, shadow: 2048 },
+  low: { postFx: true, ssgiOn: false, dprMax: 1, shadow: 1024 },
+  medium: { postFx: true, ssgiOn: true, dprMax: 1.5, shadow: 2048 },
+  high: { postFx: true, ssgiOn: true, ssgi: { sliceCount: 3, stepCount: 16 }, dprMax: 2, shadow: 2048 },
 };
 
 const ORDER: RealismTier[] = ['low', 'medium', 'high'];
@@ -35,6 +39,8 @@ export const SLOW_SECONDS = 5;
 /** Bỏ qua mẫu lúc đầu / sau khi đổi mức (biên dịch shader khựng tới ~3,6 s, R-R0). */
 export const WARMUP_MS = 8000;
 
+/** Đọc mức ngoài React (lúc dựng pipeline). */
+export const currentTier = (): RealismTier => useRealism.getState().tier;
 export const tierConfig = (tier: RealismTier): TierConfig => TIERS[tier];
 /** Hook cho vendor: mức đang dùng. */
 export const useTier = (): RealismTier => useRealism((s) => s.tier);
