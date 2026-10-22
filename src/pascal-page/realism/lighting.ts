@@ -17,6 +17,8 @@ export type HdriVariant = 'pure' | 'gradient';
 export const HDRI_VARIANT: HdriVariant = 'gradient';
 /** Tỉ lệ gradient khi pha (0 = HDRI thuần, 1 = gradient thuần). */
 export const HDRI_GRADIENT_WEIGHT = 0.5;
+/** Hạ độ sáng HDRI (Venice hoàng hôn sáng hơn trời gradient nhiều; 1 = nguyên → cảnh cháy trắng). */
+export const HDRI_SCALE = 0.4;
 
 /** Chỉ WebGPU (có PMREM + hậu kỳ), cờ `viewer.realism-hdri` bật, chủ đề sáng (tối dùng RoomEnvironment). */
 export function shouldLoadHdri(opts: { backend: string; flag: boolean; appearance: string }): boolean {
@@ -42,12 +44,12 @@ export function gradientAt(lat: number): [number, number, number] {
  * Pha gradient vào ảnh equirect RGBA float tại chỗ. HDRLoader cho hàng 0 = đỉnh (flipY = false),
  * khác DataTexture của vendor (hàng 0 = đáy).
  */
-export function mixGradient(data: Float32Array, width: number, height: number, weight = HDRI_GRADIENT_WEIGHT): void {
+export function mixGradient(data: Float32Array, width: number, height: number, weight = HDRI_GRADIENT_WEIGHT, scale = 1): void {
   for (let y = 0; y < height; y++) {
     const g = gradientAt(1 - ((y + 0.5) / height) * 2);
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) * 4;
-      for (let c = 0; c < 3; c++) data[i + c] = data[i + c] * (1 - weight) + g[c] * weight;
+      for (let c = 0; c < 3; c++) data[i + c] = data[i + c] * scale * (1 - weight) + g[c] * weight;
     }
   }
 }

@@ -6,7 +6,7 @@
 import { EquirectangularReflectionMapping, FloatType, type Scene, type Texture } from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 
-import { HDRI_TIMEOUT_MS, HDRI_URL, HDRI_VARIANT, type HdriVariant, mixGradient, shouldLoadHdri } from './lighting';
+import { HDRI_SCALE, HDRI_TIMEOUT_MS, HDRI_URL, HDRI_VARIANT, type HdriVariant, mixGradient, shouldLoadHdri } from './lighting';
 import { useRealism } from './store';
 
 /** Trả hàm dọn (gỡ HDRI, trả môi trường cũ). */
@@ -32,10 +32,8 @@ export function installHdri(scene: Scene, appearance: string): () => void {
       (texture) => {
         if (done) return texture.dispose();
         clearTimeout(timer);
-        if (variant === 'gradient') {
-          const { data, width, height } = texture.image as { data: Float32Array; width: number; height: number };
-          mixGradient(data, width, height);
-        }
+        const { data, width, height } = texture.image as { data: Float32Array; width: number; height: number };
+        mixGradient(data, width, height, variant === 'gradient' ? undefined : 0, HDRI_SCALE);
         texture.mapping = EquirectangularReflectionMapping;
         texture.needsUpdate = true;
         hdr = texture;
