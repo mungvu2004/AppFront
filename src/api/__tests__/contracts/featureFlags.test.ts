@@ -10,10 +10,13 @@ import { FeatureFlagsSchema } from '../../schemas/featureFlags';
  * Schema này cố ý không có nơi gọi lúc chạy (`lib/telemetry/flags.ts:60-72`
  * đọc bảng cờ mà không giải mã, để `zod` khỏi lên trang đầu), nên **file này
  * là một trong hai chỗ duy nhất nó được dùng** — chỗ kia là runner đối chiếu
- * golden của backend. Bài kiểm so năm khoá với `FEATURE_FLAG_KEYS` vì thế
+ * golden của backend. Bài kiểm so năm khoá với `SERVER_FLAG_KEYS` vì thế
  * không phải thủ tục: không có nó, hai danh sách trôi khỏi nhau mà không cổng
  * nào đỏ.
  */
+
+/** Cờ chỉ có ở client (editor-realism, BE chưa biết): server không gửi, client theo mặc định bảng. */
+const SERVER_FLAG_KEYS = FEATURE_FLAG_KEYS.filter((key): key is keyof typeof allFlags => !key.startsWith('viewer.realism-'));
 
 const allFlags = {
   'export.pdf-vector': false,
@@ -32,14 +35,14 @@ describe('FeatureFlagsSchema', () => {
     expect(FeatureFlagsSchema.parse({})).toStrictEqual({});
   });
 
-  it.each(FEATURE_FLAG_KEYS)('nhận bảng chỉ mang một cờ: %s', (key) => {
+  it.each(SERVER_FLAG_KEYS)('nhận bảng chỉ mang một cờ: %s', (key) => {
     expect(FeatureFlagsSchema.parse({ [key]: true })).toStrictEqual({ [key]: true });
   });
 
   it('khai đúng năm khoá mà lib/telemetry/flags.ts liệt kê', () => {
-    expect(FEATURE_FLAG_KEYS).toHaveLength(5);
+    expect(SERVER_FLAG_KEYS).toHaveLength(5);
     expect(FeatureFlagsSchema.parse(allFlags)).toStrictEqual(
-      Object.fromEntries(FEATURE_FLAG_KEYS.map((key) => [key, allFlags[key]])),
+      Object.fromEntries(SERVER_FLAG_KEYS.map((key) => [key, allFlags[key]])),
     );
   });
 
@@ -47,7 +50,7 @@ describe('FeatureFlagsSchema', () => {
     expect(FeatureFlagsSchema.safeParse({ 'scene.instanced_walls': true }).success).toBe(false);
   });
 
-  it.each(FEATURE_FLAG_KEYS)('từ chối null ở trường tuỳ chọn %s', (key) => {
+  it.each(SERVER_FLAG_KEYS)('từ chối null ở trường tuỳ chọn %s', (key) => {
     expect(FeatureFlagsSchema.safeParse({ [key]: null }).success).toBe(false);
   });
 

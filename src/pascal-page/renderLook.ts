@@ -12,6 +12,8 @@
  */
 import { RENDER_LOOK_PALETTE as C } from '@/lib/pascal/scenePalette';
 
+import { useRealism } from './realism/store';
+
 /** Chủ đề Pascal của hai chế độ ánh sáng (thẻ "Ánh sáng", `./LightingCard`). */
 export const NIGHT_THEME_ID = 'night';
 /**
@@ -55,8 +57,15 @@ export const RENDER_LOOK_TIERS = {
 // khử nhiễu (chỉ AO qua), nên giữ GI vừa phải thay vì tăng lát. Chỉ chạy khi có WebGPU.
 export const RENDER_LOOK_SSGI = { sliceCount: 2, stepCount: 8, radius: 2, giIntensity: 0.6 } as const;
 
-/** Trình duyệt có WebGPU không (cùng phép thử Pascal dùng để bật hậu kỳ). */
-export const hasWebGpu = (): boolean => typeof navigator !== 'undefined' && 'gpu' in navigator;
+/**
+ * Backend thật là WebGPU không (store realism, ghi sau khi renderer init). Chưa biết → phép thử cũ
+ * `'gpu' in navigator` (có `navigator.gpu` vẫn có thể rơi về WebGL2).
+ */
+export const hasWebGpu = (): boolean => {
+  const { backend } = useRealism.getState();
+  if (backend !== 'unknown') return backend === 'webgpu';
+  return typeof navigator !== 'undefined' && 'gpu' in navigator;
+};
 
 /** Đè tại chỗ; gọi lại nhiều lần cũng ra cùng giá trị. */
 export function applyRenderLook(theme: RenderLookTheme, ssgi: RenderLookSsgi, webgpu = hasWebGpu()): void {

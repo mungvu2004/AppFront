@@ -34,3 +34,9 @@ export const useRealism = create<RealismState>()(() => ({
   tierMode: 'auto',
   flags: { ...DEFAULT_REALISM_FLAGS },
 }));
+
+/** Giá trị cờ `viewer.realism-*` → `flags` của store (cờ thiếu = bật, như mặc định bảng cờ). */
+export function realismFlagsFrom(values: Readonly<Record<string, boolean>>): RealismFlags {
+  const on = (key: keyof RealismFlags) => values[`viewer.realism-${key}`] !== false;
+  return { idle: on('idle'), traa: on('traa'), hdri: on('hdri'), materials: on('materials'), details: on('details') };
+}

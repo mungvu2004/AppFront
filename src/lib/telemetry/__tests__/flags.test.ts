@@ -170,13 +170,18 @@ describe('the flag table', () => {
     expect(MAX_FEATURE_FLAG_KEY_LENGTH).toBe(MAX_TELEMETRY_CODE_LENGTH);
   });
 
-  it('defaults every heavy feature to off', () => {
+  it('defaults every heavy feature to off (editor-realism: on, approved staged rollout)', () => {
     expect(featureFlagDefaults()).toEqual({
       'scene.instanced-walls': false,
       'scene.soft-shadows': false,
       'rules.parallel-run': false,
       'export.pdf-vector': false,
       'qc.live-collaboration': false,
+      'viewer.realism-idle': true,
+      'viewer.realism-traa': true,
+      'viewer.realism-hdri': true,
+      'viewer.realism-materials': true,
+      'viewer.realism-details': true,
     });
   });
 

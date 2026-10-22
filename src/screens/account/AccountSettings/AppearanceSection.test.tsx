@@ -434,6 +434,11 @@ describe('R2 — không cài đặt nào của màn này có khoá O-02', () => 
       'rules.parallel-run',
       'export.pdf-vector',
       'qc.live-collaboration',
+      'viewer.realism-idle',
+      'viewer.realism-traa',
+      'viewer.realism-hdri',
+      'viewer.realism-materials',
+      'viewer.realism-details',
     ]);
 
     for (const setting of ['theme', 'viewportDark', 'reducedMotion', 'showGrid', 'density']) {

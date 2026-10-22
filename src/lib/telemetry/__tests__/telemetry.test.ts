@@ -135,6 +135,10 @@ const SAMPLE_EVENTS: Readonly<Record<TelemetryEventName, TelemetryEventInput>> =
     undo: false,
     durationMs: 240,
   },
+  'viewer.frame_p95': { name: 'viewer.frame_p95', p50Ms: 8, p95Ms: 17, frameCount: 3600, backend: 'webgpu', tier: 'high' },
+  'viewer.device_lost': { name: 'viewer.device_lost', reason: 'unknown' },
+  'viewer.backend': { name: 'viewer.backend', backend: 'webgl' },
+  'viewer.tier_change': { name: 'viewer.tier_change', from: 'high', to: 'medium', auto: true },
 };
 
 const wallEdit = (latencyMs: number): TelemetryEventInput => ({

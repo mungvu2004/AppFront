@@ -89,6 +89,11 @@ export const FEATURE_FLAG_KEYS = [
   'rules.parallel-run',
   'export.pdf-vector',
   'qc.live-collaboration',
+  'viewer.realism-idle',
+  'viewer.realism-traa',
+  'viewer.realism-hdri',
+  'viewer.realism-materials',
+  'viewer.realism-details',
 ] as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[number];
@@ -120,6 +125,9 @@ export interface FeatureFlagDefinition {
  * Every default is `false`. That is not a coincidence and not a style: a heavy
  * feature that defaults to on is a heavy feature shipped to everybody, and the
  * fallback path — no server, no answer, broken payload — must be the cheap one.
+ *
+ * Ngoại lệ đã duyệt: `viewer.realism-*` mặc định bật (editor-realism ra mắt từng phần qua cờ ở GĐ7;
+ * tắt cờ = về dáng cũ, không phải che lỗi).
  */
 export const FEATURE_FLAGS = {
   'scene.instanced-walls': {
@@ -152,6 +160,37 @@ export const FEATURE_FLAGS = {
     defaultValue: false,
     description: 'Đồng bộ con trỏ và ghi chú theo thời gian thực giữa nhiều người soát; tốn băng thông và kết nối.',
     removeBy: '2027-03-31',
+  },
+  // editor-realism (docs/editor-realism-plan.md): bật mặc định, ra mắt từng phần qua cờ ở GĐ7.
+  'viewer.realism-idle': {
+    key: 'viewer.realism-idle',
+    defaultValue: true,
+    description: 'Trang 3D tích luỹ khung khi camera đứng yên (ảnh mịn dần); tốn GPU vài giây sau mỗi lần dừng.',
+    removeBy: '2026-12-31',
+  },
+  'viewer.realism-traa': {
+    key: 'viewer.realism-traa',
+    defaultValue: true,
+    description: 'Khử răng cưa theo thời gian (TRAA) trên chuỗi hậu kỳ WebGPU; thêm một lượt vận tốc mỗi khung.',
+    removeBy: '2026-12-31',
+  },
+  'viewer.realism-hdri': {
+    key: 'viewer.realism-hdri',
+    defaultValue: true,
+    description: 'Ánh sáng môi trường từ ảnh HDRI thay dải màu trời; tải thêm ảnh và tốn bộ nhớ GPU.',
+    removeBy: '2026-12-31',
+  },
+  'viewer.realism-materials': {
+    key: 'viewer.realism-materials',
+    defaultValue: true,
+    description: 'Bộ vật liệu ảnh thật mới (thạch cao, đá, sỏi, đất, cỏ) trong thư viện Pascal; tải thêm ảnh.',
+    removeBy: '2026-12-31',
+  },
+  'viewer.realism-details': {
+    key: 'viewer.realism-details',
+    defaultValue: true,
+    description: 'Chi tiết hình khối mặc định cho node vẽ mới (diềm mái, máng xối, len chân tường); thêm hình học.',
+    removeBy: '2026-12-31',
   },
 } as const satisfies Readonly<Record<FeatureFlagKey, FeatureFlagDefinition>>;
 

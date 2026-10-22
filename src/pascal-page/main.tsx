@@ -16,11 +16,13 @@ import { type ReactNode, StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { flushAutosaves } from '@/hooks/useAutosave';
+import { getFeatureFlagsSnapshot } from '@/lib/telemetry/flags';
 
 import { savePascalNow, usePascalProjectBridge } from './bridge';
 import { BackToProjectCard, ProjectStepsCard } from './BackToProjectCard';
 import { syncChromeTheme } from './chromeTheme';
 import { LightingCard } from './LightingCard';
+import { realismFlagsFrom, useRealism } from './realism/store';
 import { applyDayLook, applyRenderLook, DAY_THEME_ID } from './renderLook';
 import { SceneStyleCard } from './SceneStyleCard';
 import { SwapModelCard } from './SwapModelCard';
@@ -38,6 +40,15 @@ const builtinsLoaded = loadPlugin(builtinPlugin);
 applyRenderLook(getSceneTheme('night'), SSGI_PARAMS);
 // "Ban ngày" của thẻ Ánh sáng: đè chủ đề sáng `studio` cùng cách.
 applyDayLook(getSceneTheme(DAY_THEME_ID));
+// editor-realism: cờ `viewer.realism-*` → store (đọc một lần lúc mở trang: mặc định + override dev).
+useRealism.setState({ flags: realismFlagsFrom(getFeatureFlagsSnapshot().values) });
+// Backend thật (vendor ghi sau khi renderer init) khác phép thử `navigator.gpu` → đè lại số đèn.
+// ponytail: đè tại chỗ, đèn đã vẽ chỉ đổi ở lượt dựng lại kế tiếp (đổi chủ đề/tải lại); GĐ3 nếu cần tức thì.
+useRealism.subscribe((state, prev) => {
+  if (state.backend === prev.backend) return;
+  applyRenderLook(getSceneTheme('night'), SSGI_PARAMS);
+  applyDayLook(getSceneTheme(DAY_THEME_ID));
+});
 // Áo trang theo sáng/tối của AppFront (`app-theme-mode`), trước lượt vẽ đầu.
 syncChromeTheme();
 

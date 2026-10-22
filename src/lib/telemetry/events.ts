@@ -419,6 +419,44 @@ const projectOpenSchema = z.object({
   status: z.enum(PROJECT_PIPELINE_STATUSES),
 });
 
+/**
+ * Trang 3D editor-realism: backend thật, tier chất lượng, thời gian khung, mất thiết bị.
+ * Chỉ mã đóng và số — không id dự án.
+ */
+export const VIEWER_BACKENDS = ['webgpu', 'webgl'] as const;
+export const VIEWER_TIERS = ['low', 'medium', 'high'] as const;
+export const VIEWER_DEVICE_LOST_REASONS = ['destroyed', 'unknown'] as const;
+
+/** p50/p95 thời gian khung trong một cửa sổ đo (mặc định 60 s). */
+const viewerFrameP95Schema = z.object({
+  name: z.literal('viewer.frame_p95'),
+  p50Ms: durationMsSchema,
+  p95Ms: durationMsSchema,
+  frameCount: countSchema,
+  backend: z.enum(VIEWER_BACKENDS),
+  tier: z.enum(VIEWER_TIERS),
+});
+
+/** WebGPU device bị mất (driver reset, hết bộ nhớ, tab nền). */
+const viewerDeviceLostSchema = z.object({
+  name: z.literal('viewer.device_lost'),
+  reason: z.enum(VIEWER_DEVICE_LOST_REASONS),
+});
+
+/** Backend thật sau khi renderer init (gửi một lần). */
+const viewerBackendSchema = z.object({
+  name: z.literal('viewer.backend'),
+  backend: z.enum(VIEWER_BACKENDS),
+});
+
+/** Tier chất lượng đổi (tự động hoặc người dùng chọn). */
+const viewerTierChangeSchema = z.object({
+  name: z.literal('viewer.tier_change'),
+  from: z.enum(VIEWER_TIERS),
+  to: z.enum(VIEWER_TIERS),
+  auto: z.boolean(),
+});
+
 /* -------------------------------------------------------------------------- */
 /* The union, and the door into it.                                            */
 /* -------------------------------------------------------------------------- */
@@ -443,6 +481,10 @@ export const TELEMETRY_EVENT_SCHEMA = z.discriminatedUnion('name', [
   sceneFrameRateSchema,
   projectOpenSchema,
   userRoleChangeSchema,
+  viewerFrameP95Schema,
+  viewerDeviceLostSchema,
+  viewerBackendSchema,
+  viewerTierChangeSchema,
 ]);
 
 /** An event as it travels: durations and counts already whole numbers. */
@@ -474,6 +516,10 @@ export const TELEMETRY_EVENT_NAMES = [
   'scene.frame-rate',
   'project.open',
   'user.role-change',
+  'viewer.frame_p95',
+  'viewer.device_lost',
+  'viewer.backend',
+  'viewer.tier_change',
 ] as const satisfies readonly TelemetryEventName[];
 
 export type DrawingUploadEvent = Extract<TelemetryEvent, { name: 'drawing.upload' }>;
