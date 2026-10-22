@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+const { it: test } = globalThis.describe ? globalThis : await import('node:test');
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import ts from 'typescript';
