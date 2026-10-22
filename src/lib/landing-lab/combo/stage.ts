@@ -166,16 +166,6 @@ export function createStage(input: StageInput): Stage {
     return at + span(p, INSIDE_AT, WALK_END) * (last - at);
   };
 
-  /** The interior walk: frame k with k+1 faded over it by the fraction, so a slow scroll glides between renders. */
-  const walkAt = (seq: Seq | null, f: number, c: CanvasRenderingContext2D): boolean => {
-    if (seq === null) return true;
-    const k = Math.floor(f);
-    const ok = seqAt(seq, k, c);
-    const t = f - k;
-    const next = t > 0.02 ? seq.exact(k + 1) : null;
-    if (next !== null) drawCover(c, next, next.width, next.height, w, h, 0.5, t);
-    return ok;
-  };
 
   /** 5: A's desk frame keeps pushing in and fades; under it the clay bridge, painted over from the entrance. */
   const realise = (p: number): boolean => {
@@ -220,7 +210,6 @@ export function createStage(input: StageInput): Stage {
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, w, h);
-    if (p >= INSIDE_AT) return walkAt(input.b, bFrame(p), ctx);
     if (p >= CH.walk[0]) return seqAt(input.b, bFrame(p), ctx);
     if (p >= CH.real[0]) return realise(p);
     const x = smooth(span(p, XFADE[0], XFADE[1]));

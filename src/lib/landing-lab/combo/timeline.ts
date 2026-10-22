@@ -36,8 +36,9 @@ export const SEGMENTS: readonly Segment[] = [
   { to: 0.5, vh: 380 },
   { to: 0.57, vh: 150, transition: 'mô hình → nhà thật' }, // 5 A → clay → materials paint in
   { to: 0.78, vh: 230 }, // 6 exterior to the door
-  // 7 interior walk (173 frames int2_ from INSIDE_AT, ~10 cm of camera path each): ~3.5 vh per frame, neighbour
-  // frames cross-faded in stage.ts. Owner: the walk into the living room felt far too fast at 87 frames / 330 vh.
+  // 7 interior walk (173 frames int2_ from INSIDE_AT, ~10 cm of camera path each): ~3.5 vh per frame, one frame
+  // drawn at a time (a neighbour cross-fade ghosted 2-3 copies of the lamp whenever a stand-in was on screen).
+  // Owner: the walk into the living room felt far too fast at 87 frames / 330 vh.
   { to: 0.8, vh: 130, transition: 'qua cửa' }, // threshold into the house
   { to: 1, vh: 480 }, // into the living room, closing line
 ];
