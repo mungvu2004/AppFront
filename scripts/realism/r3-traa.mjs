@@ -11,7 +11,7 @@ export const RULES = {
   [PP]: [
     [
       "import { denoise } from 'three/examples/jsm/tsl/display/DenoiseNode.js'\n",
-      "import { denoise } from 'three/examples/jsm/tsl/display/DenoiseNode.js'\nimport { traa } from 'three/examples/jsm/tsl/display/TRAANode.js'\nimport { velocity } from 'three/tsl'\nimport { TRAA_AO_DENOISE_RADIUS, TRAA_AO_POW, traaEnabled } from '@pascal-realism/traa'\n",
+      "import { denoise } from 'three/examples/jsm/tsl/display/DenoiseNode.js'\nimport { traa } from 'three/examples/jsm/tsl/display/TRAANode.js'\nimport { step, velocity } from 'three/tsl'\nimport { TRAA_AO_DENOISE_RADIUS, TRAA_AO_POW, traaEnabled } from '@pascal-realism/traa'\n",
     ],
     // TRAA thay MSAA: chép depth vào lịch sử cần depth 1 mẫu (MSAA 4 → lỗi CopyTextureToTexture).
     [
@@ -45,7 +45,12 @@ export const RULES = {
           camera,
         )
         resources.passes.push(traaPass as any)
-        composited = add(traaPass.rgb, sceneComposite.sub(sceneColor.rgb).mul(contentAlpha))
+        // Q2-01: pixel không hình học (trời) ra đen sau TRAA — chọn nền thẳng, không qua lịch sử.
+        composited = mix(
+          composited,
+          add(traaPass.rgb, sceneComposite.sub(sceneColor.rgb).mul(contentAlpha)),
+          step(tslFloat(0.0001), contentAlpha),
+        )
       }
 `,
     ],
