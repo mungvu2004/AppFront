@@ -11,7 +11,7 @@ export const RULES = {
   [PP]: [
     [
       "import { denoise } from 'three/examples/jsm/tsl/display/DenoiseNode.js'\n",
-      "import { denoise } from 'three/examples/jsm/tsl/display/DenoiseNode.js'\nimport { traa } from 'three/examples/jsm/tsl/display/TRAANode.js'\nimport { velocity } from 'three/tsl'\nimport { traaEnabled } from '@pascal-realism/traa'\n",
+      "import { denoise } from 'three/examples/jsm/tsl/display/DenoiseNode.js'\nimport { traa } from 'three/examples/jsm/tsl/display/TRAANode.js'\nimport { velocity } from 'three/tsl'\nimport { TRAA_AO_DENOISE, TRAA_AO_POW, traaEnabled } from '@pascal-realism/traa'\n",
     ],
     // TRAA thay MSAA: chép depth vào lịch sử cần depth 1 mẫu (MSAA 4 → lỗi CopyTextureToTexture).
     [
@@ -48,6 +48,15 @@ export const RULES = {
         composited = add(traaPass.rgb, sceneComposite.sub(sceneColor.rgb).mul(contentAlpha))
       }
 `,
+    ],
+    // F3: AO khi TRAA: bo denoise khong gian (TRAA tich luy thay), dam them ao^k.
+    [
+      '        if (denoiseEnabled) {\n          // DenoiseNode only denoises RGB',
+      '        if (denoiseEnabled && (!traaOn || TRAA_AO_DENOISE)) {\n          // DenoiseNode only denoises RGB',
+    ],
+    [
+      '        // AO is a near/mid-field cue like the ink:',
+      '        if (traaOn) ao = ao.pow(tslFloat(TRAA_AO_POW))\n        // AO is a near/mid-field cue like the ink:',
     ],
   ],
 };

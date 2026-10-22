@@ -13,6 +13,7 @@
 import { ChevronDown, Sun } from 'lucide-react';
 import { type MouseEvent, useEffect } from 'react';
 
+import { QualityCard } from './QualityCard';
 import { DAY_THEME_ID, NIGHT_THEME_ID, SUNSET_THEME_ID } from './renderLook';
 
 export type LightingMode = 'night' | 'day' | 'sunset';
@@ -72,7 +73,9 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
     event.currentTarget.closest('details')?.removeAttribute('open');
   };
 
+  // F3: thẻ "Chất lượng" đặt ngay sau thẻ này (cùng hàng nút).
   return (
+    <>
     <details className="relative" data-appfront-menu="">
       <summary
         aria-label={`Ánh sáng: ${current?.label ?? 'tuỳ chỉnh'} — mở danh sách ánh sáng`}
@@ -101,5 +104,7 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
         ))}
       </ul>
     </details>
+    <QualityCard />
+    </>
   );
 }
