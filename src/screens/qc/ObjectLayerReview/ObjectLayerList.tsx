@@ -121,7 +121,7 @@ function ObjectLayerListRow({
         một dòng với nó, kích thước 1440 bị cắt còn "900 x 2…" (BUG-400). `title` cho khổ hẹp hơn nữa.
       */}
       <div className="flex items-center gap-2">
-        <span className="w-14 shrink-0 truncate font-mono text-text-primary">{row.codeLabel}</span>
+        <span className="w-14 shrink-0 truncate tabular-nums text-text-primary">{row.codeLabel}</span>
         <span
           className="min-w-0 flex-1 truncate font-mono tabular-nums text-text-secondary"
           title={row.sizeLabel}

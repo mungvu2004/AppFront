@@ -162,10 +162,10 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
       </details>
       {next !== undefined && (
         <a
-          aria-label={`Bước tiếp theo: ${next.label}`}
+          aria-label={`Tiếp: ${next.label}`}
           className={`${FOCUS_OUT} inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl border border-transparent bg-[var(--pa-accent)] px-3 font-medium text-[13px] text-[var(--pa-surface)] shadow-[var(--pa-shadow-float)] transition-colors duration-[120ms] hover:bg-[var(--pa-accent-hover)] active:bg-[var(--pa-accent-active)] motion-reduce:transition-none`}
           href={next.path(projectId)}
-          title={`Bước tiếp theo: ${next.label}`}
+          title={`Tiếp: ${next.label}`}
         >
           <span>
             Tiếp<span className="hidden @min-[1500px]/appbar:inline">: {next.label}</span>

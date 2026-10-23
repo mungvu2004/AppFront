@@ -10,7 +10,7 @@
  * View thuần: mọi dữ liệu đến qua props; liên kết dùng `Link` của router.
  */
 import { useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, Box, ChevronDown, ChevronRight, LogOut } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, LogOut } from 'lucide-react';
 import { Link, NavLink, useLocation, useMatch, useNavigate } from 'react-router-dom';
 
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -21,6 +21,7 @@ import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/routes/paths';
 import { FLOOR_LAYERS, PROJECT_STEPS } from '@/routes/projectSteps';
+import { BrandMark } from './BrandMark';
 import { ProjectNav } from './ProjectNav';
 
 export interface AppHeaderProject {
@@ -160,9 +161,7 @@ export function AppHeader({ accountInitials, accountLabel, showAdmin, notificati
     <header className="shrink-0 border-b border-border-default bg-bg-surface">
       <div className="flex h-12 items-center gap-x-4 px-4 sm:px-6">
         <Link to={ROUTES.dashboard} className="flex shrink-0 items-center gap-2 rounded-md text-text-primary">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white" aria-hidden="true">
-            <Box size={18} />
-          </span>
+          <BrandMark size={22} />
           <span className="text-[15px] font-semibold">AppFront</span>
         </Link>
 
