@@ -127,6 +127,7 @@ interface Figures {
   readonly total: number;
   readonly passed: number;
   readonly warnings: number;
+  readonly suggestions: number;
   readonly violations: number;
 }
 
@@ -136,6 +137,7 @@ async function figuresOf(page: Page): Promise<Figures> {
     total: await settledInt(summaryValue(page, 'Tổng số kiểm tra')),
     passed: await settledInt(summaryValue(page, 'Đạt')),
     warnings: await settledInt(summaryValue(page, 'Cảnh báo')),
+    suggestions: await settledInt(summaryValue(page, 'Gợi ý')),
     violations: await settledInt(summaryValue(page, 'Nghiêm trọng')),
   };
 }
@@ -230,7 +232,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
       const nav = page.getByRole('navigation', { name: 'Đường dẫn trang', exact: true });
       const spatialReads = (): number => api.filter((e) => e.method === 'GET' && spatialRe(project.id).test(e.path)).length;
       const configReads = (): ApiEntry[] => api.filter((e) => e.method === 'GET' && ruleConfigRe(project.id).test(e.path));
-      let first: Figures = { total: 0, passed: 0, warnings: 0, violations: 0 };
+      let first: Figures = { total: 0, passed: 0, warnings: 0, suggestions: 0, violations: 0 };
       let firstTitles: string[] = [];
       let firstOpenSum = 0;
 
@@ -306,13 +308,13 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await shot(page, '28-C-003', 'violations');
       });
 
-      await test.step('[28-C-004] Cảnh báo = headers − Nghiêm trọng', async () => {
-        expect.soft(first.warnings, 'Cảnh báo').toBe(firstTitles.length - first.violations);
+      await test.step('[28-C-004] Cảnh báo + Gợi ý = headers − Nghiêm trọng', async () => {
+        expect.soft(first.warnings + first.suggestions, 'Cảnh báo + Gợi ý').toBe(firstTitles.length - first.violations);
         await shot(page, '28-C-004', 'warnings');
       });
 
-      await test.step('[28-C-005] Tổng = Đạt + Cảnh báo + Nghiêm trọng', async () => {
-        expect.soft(first.total, 'identity').toBe(first.passed + first.warnings + first.violations);
+      await test.step('[28-C-005] Tổng = Đạt + Cảnh báo + Gợi ý + Nghiêm trọng', async () => {
+        expect.soft(first.total, 'identity').toBe(first.passed + first.warnings + first.suggestions + first.violations);
         await shot(page, '28-C-005', 'identity');
       });
 
@@ -522,7 +524,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await expect(levelRadio(page, 'Cảnh báo')).toHaveAttribute('aria-checked', 'true');
         const severities = (await headerInfos(page)).map((info) => info.severity);
         expect.soft(severities).toContain('Cảnh báo');
-        expect.soft(severities).toContain('Gợi ý');
+        expect.soft(severities).not.toContain('Gợi ý'); // "Gợi ý" now has its own filter option and figure
         expect.soft(severities).not.toContain('Nghiêm trọng');
         await shot(page, '28-A-027', 'warnings');
       });
@@ -1705,7 +1707,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.ruleSettings(project.id));
         // The settings route is lazy: until its chunk renders, the router keeps the report mounted (transition), so a Back
         // right after the URL change never left the screen and the session state survived (p06-rr: "Đã xử lý" count 1).
-        await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 2 })).toBeVisible(); // RuleSettings.tsx:263
+        await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 1 })).toBeVisible(); // RuleSettings.tsx:263
         await page.goBack();
         await expect(reportHeading(page)).toBeVisible();
         await expect.soft(resolvedHeader(page)).toHaveCount(0);

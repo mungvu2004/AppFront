@@ -145,9 +145,7 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
                 ? DEAD_REASON_MESSAGES[deadReason]
                 : AUTH_MESSAGES.invitation.expired
           }
-          linkLabel={AUTH_MESSAGES.actions.goToSignIn}
-          href={ROUTES.login}
-          onLinkClick={goToSignIn}
+          link={{ label: AUTH_MESSAGES.actions.goToSignIn, href: ROUTES.login, onClick: goToSignIn }}
         />
       ) : isPreviewPending ? (
         <p role="status" aria-busy="true" className="text-[14px] leading-5 text-text-secondary">

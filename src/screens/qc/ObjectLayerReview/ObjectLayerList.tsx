@@ -32,7 +32,7 @@
  */
 
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
@@ -98,6 +98,7 @@ function ObjectLayerListRow({
     <div
       aria-label={`${row.codeLabel} — ${STATUS_LABEL[row.statusCode]}`}
       aria-selected={isSelected}
+      data-object-id={row.id}
       className={cn(
         'flex cursor-pointer flex-col gap-1 rounded-lg px-2 py-1.5 text-[13px] outline-hidden',
         'transition-colors duration-120 hover:bg-bg-hover',
@@ -272,8 +273,28 @@ export function ObjectLayerList({
   const shownRows =
     needle === '' ? rows : rows.filter((row) => row.codeLabel.replace(/^#/, '').toLowerCase().includes(needle));
 
+  /* Mũi tên / A đổi dòng chọn: cuộn tới dòng mới, và kéo tiêu điểm theo nếu nó đang trong danh sách (Impeccable A3). */
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const container = containerRef.current;
+
+    if (selectedObjectId === null || container === null) {
+      return;
+    }
+
+    const target = container.querySelector<HTMLElement>(`[data-object-id="${selectedObjectId}"]`);
+
+    target?.scrollIntoView?.({ block: 'nearest' });
+
+    const focused = document.activeElement;
+
+    if (target !== null && focused !== null && container.contains(focused) && focused.getAttribute('role') === 'option' && target !== focused) {
+      target.focus({ preventScroll: true });
+    }
+  }, [selectedObjectId]);
+
   return (
-    <div aria-label={LIST_LABEL} className="flex flex-col gap-1" role="group">
+    <div aria-label={LIST_LABEL} className="flex flex-col gap-1" ref={containerRef} role="group">
       <Input
         aria-label={SEARCH_LABEL}
         className="text-[13px]"

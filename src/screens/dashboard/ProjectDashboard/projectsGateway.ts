@@ -154,3 +154,61 @@ export const PLAN_OUTLINE_SEGMENTS: readonly (readonly [number, number, number, 
     [62, 10, 62, 50], [62, 50, 144, 50], [16, 62, 100, 62], [100, 50, 100, 86],
   ],
 ];
+
+type PlanSegment = readonly [number, number, number, number];
+
+/** Small seeded PRNG (mulberry32): the same project always draws the same sketch. */
+function seededRandom(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const SKETCH_DOOR = 8;
+
+/**
+ * A per-project plan sketch in the same 160×96 box as {@link PLAN_OUTLINE_SEGMENTS}: the card thumbnails were four
+ * near-identical outlines (A1 P3 #6). The card data has no geometry, only the wall count and the area, so this is a
+ * sketch, not the real plan: more walls → more rooms, a larger area → a wider outline, the id seeds the splits.
+ * Each partition keeps a door gap. Returns [] without walls (the card shows "Chưa có mặt bằng" then).
+ */
+// ponytail: procedural from counts; draw the traced walls once the summary endpoint returns a footprint.
+export function planSketchOf(id: string, wallsTotalCount: number, areaM2: number): readonly PlanSegment[] {
+  if (wallsTotalCount <= 0) return [];
+  let hash = 0;
+  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  const rand = seededRandom(hash ^ Math.imul(wallsTotalCount, 2654435761));
+  const widthShare = Math.min(1, 0.7 + Math.log10(Math.max(1, areaM2)) * 0.12);
+  const w = Math.round(140 * widthShare);
+  const h = Math.round(56 + rand() * 20);
+  const x0 = Math.round((160 - w) / 2);
+  const y0 = Math.round((96 - h) / 2);
+  const out: PlanSegment[] = [
+    [x0, y0, x0 + w, y0], [x0 + w, y0, x0 + w, y0 + h], [x0 + w, y0 + h, x0, y0 + h], [x0, y0 + h, x0, y0],
+  ];
+  const rooms = Math.min(7, Math.max(2, Math.round(wallsTotalCount / 8)));
+  const rects: [number, number, number, number][] = [[x0, y0, w, h]];
+  for (let k = 1; k < rooms; k += 1) {
+    rects.sort((a, b) => b[2] * b[3] - a[2] * a[3]);
+    const [rx, ry, rw, rh] = rects.shift() as [number, number, number, number];
+    const cut = 0.35 + rand() * 0.3;
+    const door = 0.2 + rand() * 0.6;
+    if (rw >= rh) {
+      const x = Math.round(rx + rw * cut);
+      const gy = Math.round(ry + (rh - SKETCH_DOOR) * door);
+      out.push([x, ry, x, gy], [x, gy + SKETCH_DOOR, x, ry + rh]);
+      rects.push([rx, ry, x - rx, rh], [x, ry, rx + rw - x, rh]);
+    } else {
+      const y = Math.round(ry + rh * cut);
+      const gx = Math.round(rx + (rw - SKETCH_DOOR) * door);
+      out.push([rx, y, gx, y], [gx + SKETCH_DOOR, y, rx + rw, y]);
+      rects.push([rx, ry, rw, y - ry], [rx, y, rw, ry + rh - y]);
+    }
+  }
+  return out;
+}

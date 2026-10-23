@@ -94,6 +94,7 @@ function baseProps(): PasswordResetViewProps {
     setConfirmPassword: noop,
     submit: noop,
     goToSignIn: noop,
+    requestNewLink: noop,
     expand: noop,
   };
 }
@@ -155,7 +156,7 @@ describe('PasswordResetView — the seven states', () => {
     expect(screen.getByText(AUTH.passwordReset.expired)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: AUTH.actions.goToSignIn })).toHaveAttribute('href', '/login');
     // The only way on from the dead end: a 44 px target under 640, 24 px from sm (BUG-041).
-    expect(screen.getByRole('link', { name: AUTH.actions.goToSignIn })).toHaveClass('min-h-11', 'sm:min-h-6');
+    expect(screen.getByRole('link', { name: AUTH.actions.goToSignIn })).toHaveClass('min-h-11', 'fine:min-h-6');
   });
 
   it('puts the failure strip under the submit button, so it never pushes the button (BUG-008)', () => {
@@ -213,6 +214,15 @@ describe('PasswordResetView — the seven states', () => {
 
     fireEvent.click(link);
     expect(goToSignIn).toHaveBeenCalledTimes(1);
+  });
+
+  it('leads a dead link to a new one first: "Gửi lại liên kết" is the main button (A1 P2 #3)', () => {
+    const requestNewLink = vi.fn();
+    render(<PasswordResetView {...PROPS_BY_STATE.forbidden()} requestNewLink={requestNewLink} />);
+
+    fireEvent.click(screen.getByRole('button', { name: AUTH.actions.requestNewLink }));
+    expect(requestNewLink).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('link', { name: AUTH.actions.goToSignIn })).toHaveAttribute('href', '/login');
   });
 
   it('holds no raw colour', () => {

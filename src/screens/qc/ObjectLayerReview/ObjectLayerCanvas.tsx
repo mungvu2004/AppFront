@@ -24,7 +24,8 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouse
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
-import { useCanvasPan } from '@/components/canvas/useCanvasPan';
+import { useCanvasZoomPan } from '@/components/canvas/useCanvasZoomPan';
+import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import type { ContextMenuGroup } from '@/hooks/useContextMenu';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
@@ -207,7 +208,8 @@ export function ObjectLayerCanvas({
 }: ObjectLayerCanvasViewProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   /* Kéo bản vẽ: chuột giữa hoặc giữ Space + kéo (G4a-28, G4b-08; P06 mục 1). */
-  const pan = useCanvasPan();
+  /* Cụm zoom góc phải dưới như màn Tường (Impeccable A3): 100% là "vừa khung", lăn chuột cũng phóng. */
+  const { pan, scale, zoomCluster } = useCanvasZoomPan();
   const setPanEl = pan.ref;
   const setFrameRef = useCallback(
     (element: HTMLDivElement | null) => {
@@ -294,7 +296,7 @@ export function ObjectLayerCanvas({
     <div
       aria-describedby={isInteractive ? undefined : OBJECT_CANVAS_READ_ONLY_ID}
       aria-label={OBJECT_CANVAS_TEXT.canvasLabel}
-      className={OBJECT_CANVAS_FRAME_CLASSES}
+      className={`${OBJECT_CANVAS_FRAME_CLASSES} ${pan.surfaceClassName}`}
       onMouseLeave={() => onHover(null)}
       ref={setFrameRef}
       role="group"
@@ -302,7 +304,7 @@ export function ObjectLayerCanvas({
       {...pan.handlers}
     >
       {/* Ảnh nền, `<svg>` và lớp phủ đứng ở pixel KHUNG do hook tính (BUG-403). */}
-      <div className="absolute inset-0" style={{ transform: pan.transform }}>
+      <div className="absolute inset-0" style={{ transform: `${pan.transform} scale(${scale})` }}>
         {backgroundImageUrl === null ? (
           <div aria-hidden="true" className="absolute inset-0 bg-bg-sunken" />
         ) : (
@@ -414,6 +416,7 @@ export function ObjectLayerCanvas({
       ) : null}
 
       <ObjectLayerCanvasLegend count={isLoading ? null : placements.length} layerVisibility={layerVisibility} />
+      <ZoomCluster {...zoomCluster} />
 
       <ContextMenu
         groups={menu.groups}

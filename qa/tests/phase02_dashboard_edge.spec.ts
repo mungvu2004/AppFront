@@ -136,7 +136,7 @@ const EMPTY_DESCRIPTION = 'Tạo dự án đầu tiên để bắt đầu số h
 const EMPTY_ACTION = 'Tạo dự án mới'; // PD:267
 const CLEAR_FILTERS = 'Xoá bộ lọc'; // PD:274
 const COMPACT_FILTER = 'Lọc theo trạng thái'; // PD:231
-const FILTERS = { all: 'Tất cả', processing: 'Đang xử lý', qc: 'Cần QC', done: 'Hoàn thành' } as const; // UPD:76-81
+const FILTERS = { all: 'Tất cả', processing: 'Đang xử lý', qc: 'Cần duyệt', done: 'Hoàn thành' } as const; // UPD:76-81
 const SORT = { updated: 'Cập nhật gần đây', name: 'Tên A–Z', floors: 'Số tầng nhiều nhất', area: 'Diện tích lớn nhất' } as const; // UPD:83-88
 const unreadRowsNotice = (count: number): string => `Có ${String(count)} dự án chưa đọc được`; // UPD:482
 const renamedToast = (name: string): string => `Đã đổi tên thành "${name}"`; // UPD:424
@@ -182,7 +182,8 @@ const NOTIF_EMPTY_BY_FILTER = { all: NOTIF_EMPTY, unread: 'Không có thông bá
 const NOTIF_SHOW_EVERYTHING = 'Hiện mọi thông báo';
 const NOTIF_ERROR_TITLE = 'Không tải được thông báo'; // NC:68
 const NOTIF_FILTERS = { all: 'Tất cả', unread: 'Chưa đọc', mentions: 'Nhắc đến tôi' } as const; // NM:114-118
-const MENTION_ACTION = 'Xem bình luận'; // NCG:181 (the only kind filtered by "Nhắc đến tôi", UNC:331-332)
+// Mention rows (the only kind filtered by "Nhắc đến tôi", UNC:331-332) are the only ones with a comment excerpt; the "Xem bình luận" button is gone.
+const MENTION_MARK = 'span.line-clamp-2';
 const LIVE = {
   empty: 'Không có thông báo nào', // UNC:156
   allRead: 'Không còn thông báo chưa đọc', // UNC:157
@@ -1114,11 +1115,11 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
         const { page } = admin;
         await expect(stateAnnouncement(page)).toHaveText(STATE.collapsed); // UPD:90-107, :392
         const filter = page.getByRole('radiogroup', { name: COMPACT_FILTER, exact: true }); // PD:229-236
-        await expect(filter.getByRole('radio')).toHaveText([FILTERS.all, FILTERS.processing, FILTERS.qc, FILTERS.done]);
+        await expect(filter.getByRole('radio')).toHaveText([FILTERS.all, FILTERS.processing, FILTERS.qc, FILTERS.done].map((l) => new RegExp(`^${l} \\(\\d+\\)$`, 'u'))); // narrow tabs carry the count: "Cần duyệt (n)"
         await expect(statusFilterButton(page, FILTERS.all)).toHaveCount(0); // PD:101
         await expect(countLine(page)).toBeVisible(); // PD:187 (collapsed)
-        await filter.getByRole('radio', { name: FILTERS.processing, exact: true }).click();
-        await expect(filter.getByRole('radio', { name: FILTERS.processing, exact: true })).toHaveAttribute('aria-checked', 'true');
+        await filter.getByRole('radio', { name: new RegExp(`^${FILTERS.processing}`, 'u') }).click();
+        await expect(filter.getByRole('radio', { name: new RegExp(`^${FILTERS.processing}`, 'u') })).toHaveAttribute('aria-checked', 'true');
         await captureEvidence(page, 'E02_dash_compact_375.png');
 
         // The wizard's own narrow probe (UCPM:334-351, CPM:95): one column on step 1.
@@ -1408,7 +1409,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
     });
   });
 
-  test('E02 · SCR-05 [mocked response] status routing: a "Cần QC" card opens its walls screen, a "Hoàn thành" card opens /3d; badges, review captions and counters follow N1', async ({ browser }) => {
+  test('E02 · SCR-05 [mocked response] status routing: a "Cần duyệt" card opens its walls screen, a "Hoàn thành" card opens /3d; badges, review captions and counters follow N1', async ({ browser }) => {
     // unpairable now: "qc"/"done" need an uploaded drawing and reviewed walls (BE:apps/api/projects/summaries.py:181-187),
     // Phase 3/4 data; re-pair with a real card click once CP-5 exists (coverage gap #55). Only two fixture rows are changed.
     await withAdmin(browser, async (admin) => {
@@ -1444,7 +1445,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
         await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key]));
       }
-      await captureEvidence(page, 'E02_status_routing_cards.png', { caption: `mocked N1: "${qc.name}" Cần QC 3/10, "${done.name}" Hoàn thành 4/4` });
+      await captureEvidence(page, 'E02_status_routing_cards.png', { caption: `mocked N1: "${qc.name}" Cần duyệt 3/10, "${done.name}" Hoàn thành 4/4` });
 
       const landed: string[] = [];
       for (const [project, expected] of [[qc, qcPath], [done, donePath]] as const) {
@@ -2443,11 +2444,11 @@ test.describe('E02 SCR-06 notifications', () => {
       const rows = drawer.locator('li');
       const all = await rows.count();
       const unread = await drawer.getByRole('button', { name: MARK_READ, exact: true }).count();
-      const mentions = await rows.filter({ has: page.getByRole('button', { name: MENTION_ACTION, exact: true }) }).count();
+      const mentions = await rows.filter({ has: page.locator(MENTION_MARK) }).count();
       const group = drawer.getByRole('radiogroup', { name: NOTIF_FILTER, exact: true });
 
       // No row to show (empty inbox or no match) is the 'empty' state, worded per tab (BUG-126/179); never the "partial" strip.
-      const expectFiltered = async (expected: number, marker: string, tab: keyof typeof NOTIF_EMPTY_BY_FILTER): Promise<void> => {
+      const expectFiltered = async (expected: number, marker: string | Locator, tab: keyof typeof NOTIF_EMPTY_BY_FILTER): Promise<void> => {
         if (expected === 0) {
           await expect(drawer.getByText(NOTIF_EMPTY_BY_FILTER[tab], { exact: true })).toBeVisible();
           await expect(drawer.getByRole('button', { name: NOTIF_SHOW_EVERYTHING, exact: true })).toBeVisible(); // filtered tabs only
@@ -2455,7 +2456,7 @@ test.describe('E02 SCR-06 notifications', () => {
           await expect(rows).toHaveCount(0);
         } else {
           await expect(rows).toHaveCount(expected);
-          await expect(rows.filter({ hasNot: page.getByRole('button', { name: marker, exact: true }) })).toHaveCount(0);
+          await expect(rows.filter({ hasNot: typeof marker === 'string' ? page.getByRole('button', { name: marker, exact: true }) : marker })).toHaveCount(0);
         }
       };
 
@@ -2467,7 +2468,7 @@ test.describe('E02 SCR-06 notifications', () => {
 
       await page.keyboard.press('ArrowRight');
       await expect(group.getByRole('radio', { name: NOTIF_FILTERS.mentions, exact: true })).toHaveAttribute('aria-checked', 'true');
-      await expectFiltered(mentions, MENTION_ACTION, 'mentions'); // UNC:331-332
+      await expectFiltered(mentions, drawer.locator(MENTION_MARK), 'mentions'); // UNC:331-332
 
       await page.keyboard.press('ArrowRight'); // wraps
       await expect(group.getByRole('radio', { name: NOTIF_FILTERS.all, exact: true })).toHaveAttribute('aria-checked', 'true');

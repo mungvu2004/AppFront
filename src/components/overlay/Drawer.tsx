@@ -317,7 +317,7 @@ const BottomSheet = forwardRef<HTMLDivElement, BottomSheetProps>(
                 <button
                   type="button"
                   onClick={() => onSnapChange(level)}
-                  className="flex h-6 w-6 items-center justify-center rounded-full outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
+                  className="relative flex h-6 w-6 items-center justify-center rounded-full outline-hidden focus-visible:ring-2 focus-visible:ring-accent coarse:after:absolute coarse:after:left-1/2 coarse:after:top-1/2 coarse:after:h-11 coarse:after:w-11 coarse:after:-translate-x-1/2 coarse:after:-translate-y-1/2 coarse:after:content-['']"
                   aria-label={`Mức ${level + 1}`}
                   aria-describedby={`${hintId}-${String(level)}`}
                   aria-pressed={snapLevel === level}

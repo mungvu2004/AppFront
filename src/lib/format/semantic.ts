@@ -218,13 +218,14 @@ function formatQuantityPair(
   quantity: FieldQuantity,
   oldValue: unknown,
   newValue: unknown,
+  forceMm: boolean,
 ): readonly [string, string] {
   const before = toFiniteNumber(oldValue);
   const after = toFiniteNumber(newValue);
 
   switch (quantity) {
     case 'lengthMm': {
-      const unit = sharedLengthUnit(before, after);
+      const unit = forceMm ? 'mm' : sharedLengthUnit(before, after);
       return [formatLength(before, { unit }), formatLength(after, { unit })];
     }
     case 'elevationM': {
@@ -265,6 +266,11 @@ function describeGenericValue(value: unknown): string {
   return String(value);
 }
 
+/** `lengthsInMm`: write every millimetre length in mm (a list that must read in one unit). */
+export interface ChangeFormatOptions {
+  readonly lengthsInMm?: boolean;
+}
+
 /**
  * Write one diff entry as a Vietnamese sentence.
  *
@@ -278,7 +284,7 @@ function describeGenericValue(value: unknown): string {
  *                field: 'thickness_mm', oldValue: 200, newValue: 220 })
  * // "Tường W-014 dày 200 mm → 220 mm"
  */
-export function formatChange(entry: ChangeEntry): string {
+export function formatChange(entry: ChangeEntry, options: ChangeFormatOptions = {}): string {
   const label = ENTITY_LABELS[entry.entityType];
 
   if (entry.kind === 'added') {
@@ -293,7 +299,12 @@ export function formatChange(entry: ChangeEntry): string {
   const subject = `${capitalise(label)} ${entry.entityId}`;
 
   if (descriptor !== undefined) {
-    const [before, after] = formatQuantityPair(descriptor.quantity, entry.oldValue, entry.newValue);
+    const [before, after] = formatQuantityPair(
+      descriptor.quantity,
+      entry.oldValue,
+      entry.newValue,
+      options.lengthsInMm === true,
+    );
     return `${subject} ${descriptor.phrase} ${before} ${CHANGE_ARROW} ${after}`;
   }
 
@@ -313,5 +324,5 @@ export function formatChange(entry: ChangeEntry): string {
 
 /** Write every entry of a diff, in the order it was given. */
 export function formatChanges(entries: readonly ChangeEntry[]): string[] {
-  return entries.map(formatChange);
+  return entries.map((entry) => formatChange(entry));
 }

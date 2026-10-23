@@ -192,7 +192,7 @@ const ContextMenuItemComponent = forwardRef<HTMLButtonElement, ContextMenuItemPr
         aria-disabled={disabled}
         className={cn(
           // 44 px rows below `sm` (a thumb target, like `Button`), 32 px from 640 px up (BUG-156).
-          'w-full flex h-11 items-center gap-2 px-3 text-sm sm:h-8',
+          'w-full flex h-11 items-center gap-2 px-3 text-sm fine:h-8',
           'transition-colors duration-120 text-left',
           'hover:bg-bg-hover',
           'focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent',

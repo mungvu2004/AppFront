@@ -465,7 +465,7 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
       const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_PARTIAL, detail: null, isCollapsed };
       const { unmount } = renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
       const links = await screen.findAllByRole('button', { name: /^Gửi lại lời mời cho / }); // BUG-P08-024: tên nêu người nhận
-      for (const link of links) expect(link).toHaveClass('inline-flex', 'min-h-11', 'sm:min-h-6');
+      for (const link of links) expect(link).toHaveClass('inline-flex', 'min-h-11', 'fine:min-h-6');
       expect(screen.queryByRole('button', { name: 'gửi lại' })).toBeNull();
       unmount();
     }
@@ -623,9 +623,16 @@ describe('SCR-37 đọc (phase 08, D-a): BUG-P08-014..021', () => {
     return renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
   }
 
-  it('[37U-A-002] breadcrumb: đúng một aria-current, ở mục cuối', async () => {
-    // Như hook thật dựng (useUserManagement.ts:1229-1232): cả hai mục đều href null.
-    const breadcrumbItems = SUCCESS.breadcrumbItems.map((item) => ({ ...item, href: null }));
+  it('breadcrumb hai cấp (lặp thanh tab) bị bỏ', async () => {
+    const { container } = await renderModel(SUCCESS);
+    expect(container.querySelector('nav[aria-label="Đường dẫn trang"]')).toBeNull();
+  });
+
+  it('[37U-A-002] breadcrumb sâu hơn tab: đúng một aria-current, ở mục cuối', async () => {
+    const breadcrumbItems = [
+      ...SUCCESS.breadcrumbItems.map((item) => ({ ...item, href: null })),
+      { href: null, label: 'Chi tiết' },
+    ];
     const { container } = await renderModel({ ...SUCCESS, breadcrumbItems });
     const nav = container.querySelector('nav[aria-label]') as HTMLElement;
     const current = nav.querySelectorAll('[aria-current]');

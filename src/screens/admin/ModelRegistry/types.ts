@@ -77,6 +77,8 @@ export interface ActivateDialogModel {
   /** Câu lỗi 422/404 của lượt gửi vừa rồi. */
   readonly errorMessage: string | null;
   readonly confirmLabel: string;
+  /** Hộp xác nhận tắt AI: nút xác nhận kiểu cảnh báo. */
+  readonly isDestructive?: boolean;
   readonly isSubmitting: boolean;
   /** Đang chờ N27 của bản đang dùng: nút xác nhận tắt, không quay vòng như đang gửi. */
   readonly isWaiting: boolean;

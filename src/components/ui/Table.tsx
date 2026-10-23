@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useRef, useCallback } from 'react';
 import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { twMerge } from '../../lib/utils';
 import { motion } from '../motion';
 import { ChevronUp, ChevronDown, AlertCircle, Inbox } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Checkbox } from './Checkbox';
+import { TableCheckboxCell, TableCheckboxHead } from './TableCheckbox';
 import { EmptyState } from '../feedback/EmptyState';
 import { durationSeconds } from '../../lib/motion';
 import { Skeleton } from '../feedback/Skeleton';
@@ -305,51 +305,6 @@ function TableError({ colSpan, message = 'Đã xảy ra lỗi', onRetry }: Table
   );
 }
 TableError.displayName = 'Table.Error';
-
-// ─── Table.CheckboxHead ───────────────────────────────────────────────────────
-// Header checkbox: select every row / none
-
-interface TableCheckboxHeadProps {
-  checked: boolean;
-  indeterminate: boolean;
-  onChange: (checked: boolean) => void;
-}
-
-function TableCheckboxHead({ checked, indeterminate, onChange }: TableCheckboxHeadProps) {
-  return (
-    <th className="h-10 w-10 px-3 align-middle bg-bg-sunken sticky left-0 z-20" aria-label="Chọn tất cả">
-      <Checkbox
-        checked={checked}
-        indeterminate={indeterminate}
-        onChange={onChange}
-        aria-label="Chọn tất cả"
-      />
-    </th>
-  );
-}
-TableCheckboxHead.displayName = 'Table.CheckboxHead';
-
-// ─── Table.CheckboxCell ───────────────────────────────────────────────────────
-
-interface TableCheckboxCellProps {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  rowId: string;
-}
-
-function TableCheckboxCell({ checked, onChange, rowId }: TableCheckboxCellProps) {
-  return (
-    <td className="h-10 w-10 px-3 align-middle sticky left-0 z-10 bg-inherit">
-      <Checkbox
-        checked={checked}
-        onChange={onChange}
-        aria-label={`Chọn dòng ${rowId}`}
-        onClick={(e) => e.stopPropagation()}
-      />
-    </td>
-  );
-}
-TableCheckboxCell.displayName = 'Table.CheckboxCell';
 
 // ─── Table.Virtual ────────────────────────────────────────────────────────────
 // Virtualized body — enables when rows > 100

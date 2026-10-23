@@ -171,12 +171,12 @@ describe('BUG-P08-025: mở khối mời đưa focus vào ô email', () => {
 });
 
 describe('FL-37W-01: Esc khi đang gõ trong ô mời', () => {
-  it('[37W-E-003] Esc trong ô email giữ khối mời; Esc ngoài ô đóng khối', () => {
+  it('[37W-E-003] Esc trong ô email đã có chữ giữ khối mời; ô trống hoặc ngoài ô thì Esc đóng khối', () => {
     const actions = noActions();
     const model: UserManagementViewModel = {
       ...USER_MANAGEMENT_SCENARIO_SUCCESS,
       detail: null,
-      invite: { ...USER_MANAGEMENT_SCENARIO_SUCCESS.invite, isOpen: true },
+      invite: { ...USER_MANAGEMENT_SCENARIO_SUCCESS.invite, isOpen: true, rawEmails: 'a@b.vn' },
     };
     renderWithProviders(<UserManagement actions={actions} model={model} />);
 

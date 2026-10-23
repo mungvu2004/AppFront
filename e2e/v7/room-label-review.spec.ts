@@ -324,7 +324,7 @@ test('đường nạp thật: Ctrl+Z ngay sau lượt nạp không trả màn v�
 
   /* Ngoài ô nhập, để phím đi tới `global.undo` của vỏ (`router.tsx`). */
   /* P14 (G4a-38): dòng tiến độ thay tiêu đề cũ làm chỗ bấm ngoài ô nhập. */
-  await page.getByTestId('room-approve-progress').click();
+  await page.getByTestId('qc-progress').click();
   await page.keyboard.press('Control+z');
 
   await expect(roomOptions(page)).toHaveCount(A14_ROOMS.length);

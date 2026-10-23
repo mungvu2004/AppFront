@@ -58,29 +58,22 @@
  * do).
  */
 
-import {
-  ArrowLeft,
-  ArrowLeftRight,
-  ArrowRight,
-  Bed,
-  Blinds,
-  Box,
-  Columns2,
-  DoorOpen,
-  Sofa,
-  UtensilsCrossed,
-} from 'lucide-react';
-import type { ComponentType } from 'react';
+import { ArrowLeft, ArrowLeftRight, ArrowRight, Columns2 } from 'lucide-react';
+import { useEffect, useState, type ComponentType } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
 import { FieldRow } from '@/components/ui/FieldRow';
+import { Kbd } from '@/components/ui/Kbd';
 import { Radio } from '@/components/ui/Radio';
 import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/utils';
 
+import { ConfirmDeleteDialog } from '../shared/ConfirmDeleteDialog';
+
 import { ObjectLayerPositionField } from './ObjectLayerPositionField';
+import { ObjectSubtypeIcon, type OutlineIconProps } from './objectLayerSubtypeIcons';
 import {
   OBJECT_SUBTYPES,
   OBJECT_SUBTYPE_LABELS,
@@ -88,65 +81,6 @@ import {
   type ObjectLayerInspectorProps,
   type ObjectSubtype,
 } from './objectLayerTypes';
-
-interface OutlineIconProps {
-  readonly className?: string | undefined;
-}
-
-/** Ký hiệu tự vẽ cho "bồn cầu" — viền nét, không tô đầy màu. */
-function ToiletIcon({ className }: OutlineIconProps) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      viewBox="0 0 24 24"
-    >
-      <rect height="5" rx="1" width="8" x="8" y="3" />
-      <path d="M7 8h10" />
-      <path d="M8 8c-1 3-1 7 0.5 10a4 4 0 0 0 7 0c1.5-3 1.5-7 0.5-10" />
-    </svg>
-  );
-}
-
-/** Ký hiệu tự vẽ cho "chậu rửa" — viền nét, không tô đầy màu. */
-function BasinIcon({ className }: OutlineIconProps) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      viewBox="0 0 24 24"
-    >
-      <path d="M11 3v4" />
-      <path d="M8 5h6" />
-      <path d="M3 11h18" />
-      <path d="M4 11a8 4 0 0 0 16 0" />
-      <path d="M9 15v2a3 3 0 0 0 3 3 3 3 0 0 0 3-3v-2" />
-    </svg>
-  );
-}
-
-/** Bảng tra icon theo loại con — viền nét, không tô đầy màu (CẤM TUYỆT ĐỐI). */
-const SUBTYPE_ICONS: Readonly<Record<ObjectSubtype, ComponentType<OutlineIconProps>>> = {
-  singleDoor: DoorOpen,
-  doubleDoor: Columns2,
-  window: Blinds,
-  bed: Bed,
-  sofa: Sofa,
-  diningTable: UtensilsCrossed,
-  toilet: ToiletIcon,
-  basin: BasinIcon,
-  otherFurniture: Box,
-};
 
 /** Bốn hướng mở có radio riêng — xem lý do "bốn, không phải năm" ở đầu file. */
 interface SwingOption {
@@ -201,7 +135,7 @@ export function ObjectLayerInspector({
   return (
     <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-0 xl:h-full xl:w-[344px]">
       <div className="flex h-14 shrink-0 items-center px-5">
-        <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
+        <h2 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h2>
       </div>
 
       {inspector === null ? (
@@ -242,7 +176,14 @@ function ObjectInspectorBody({
   onSelectHostWall,
 }: ObjectInspectorBodyProps) {
   const { hostWallId, hostWallLabel } = inspector;
-  const CurrentTypeIcon = SUBTYPE_ICONS[inspector.subtype];
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  /* Phím Delete đi qua cùng hộp xác nhận với nút (Impeccable A3): hook đưa số yêu cầu mới. */
+  const deleteRequestSeq = inspector.deleteRequestSeq;
+  useEffect(() => {
+    if (deleteRequestSeq !== undefined) {
+      setIsDeleteOpen(true);
+    }
+  }, [deleteRequestSeq]);
   const isFurniture = OBJECT_SUBTYPE_LAYER[inspector.subtype] === 'furniture'; // loại, hướng mở chỉ đọc (BUG-590)
 
   return (
@@ -254,7 +195,7 @@ function ObjectInspectorBody({
           aria-hidden="true"
           className="flex h-[46px] w-[46px] sm:h-[38px] sm:w-[38px] shrink-0 items-center justify-center rounded-lg bg-bg-sunken text-text-secondary"
         >
-          <CurrentTypeIcon className="h-[18px] w-[18px]" />
+          <ObjectSubtypeIcon className="h-[18px] w-[18px]" subtype={inspector.subtype} />
         </span>
 
         {isViewerRole || isFurniture ? (
@@ -271,12 +212,10 @@ function ObjectInspectorBody({
             <Select.Trigger aria-label={TYPE_SELECT_LABEL} options={TYPE_OPTIONS} />
             <Select.Content>
               {OPENING_SUBTYPES.map((subtype, index) => {
-                const Icon = SUBTYPE_ICONS[subtype];
-
                 return (
                   <Select.Item index={index} key={subtype} value={subtype}>
                     <span className="flex items-center gap-2">
-                      <Icon className="h-4 w-4 shrink-0 text-text-secondary" />
+                      <ObjectSubtypeIcon className="h-4 w-4 shrink-0 text-text-secondary" subtype={subtype} />
                       <span>{OBJECT_SUBTYPE_LABELS[subtype]}</span>
                     </span>
                   </Select.Item>
@@ -389,17 +328,32 @@ function ObjectInspectorBody({
       </div>
 
       {!isViewerRole && (
-        /* Dính đáy panel để nút duyệt luôn thấy ở 1440×900; nút xoá tách xa nút duyệt (G4a-27). Xoá có toast hoàn tác (A8), nên không hỏi. */
+        /* Dính đáy panel để nút duyệt luôn thấy ở 1440×900; nút xoá tách xa nút duyệt (G4a-27). Xoá ghi thẳng máy chủ nên hỏi lại (Impeccable A3 P0), sau đó vẫn có toast hoàn tác (A8). */
         <div className="sticky bottom-0 mt-auto flex flex-col gap-4 bg-bg-surface px-5 pb-3 pt-4">
           <Button
             disabled={inspector.reviewed}
             fullWidth
+            aria-keyshortcuts="A"
             onClick={() => onApprove(inspector.id)}
             variant="primary"
           >
             {APPROVE_LABEL}
           </Button>
-          <Button fullWidth onClick={() => onDelete(inspector.id)} variant="ghost">{DELETE_LABEL}</Button>
+          <p className="-mt-2 text-[12px] text-text-muted">
+            Duyệt xong tự sang đối tượng chưa duyệt kế tiếp · phím <Kbd>A</Kbd>
+          </p>
+          <Button fullWidth onClick={() => setIsDeleteOpen(true)} variant="ghost">{DELETE_LABEL}</Button>
+          <ConfirmDeleteDialog
+            body={`${OBJECT_SUBTYPE_LABELS[inspector.subtype]} ${inspector.codeLabel} sẽ bị xoá khỏi bản vẽ và lưu ngay lên máy chủ. Bạn vẫn hoàn tác được trong vài giây sau khi xoá.`}
+            confirmLabel={DELETE_LABEL}
+            isOpen={isDeleteOpen}
+            onCancel={() => setIsDeleteOpen(false)}
+            onConfirm={() => {
+              setIsDeleteOpen(false);
+              onDelete(inspector.id);
+            }}
+            title={`Xoá ${OBJECT_SUBTYPE_LABELS[inspector.subtype].toLowerCase()} ${inspector.codeLabel}?`}
+          />
         </div>
       )}
     </div>

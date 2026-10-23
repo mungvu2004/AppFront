@@ -195,7 +195,7 @@ export function DimensionOcrCanvas({
     <div
       aria-describedby={isInteractive ? undefined : CANVAS_READ_ONLY_NOTICE_ID}
       aria-label={DIMENSION_OCR_TEXT.screen.canvasAriaLabel}
-      className={CANVAS_FRAME_CLASSES}
+      className={`${CANVAS_FRAME_CLASSES} ${pan.surfaceClassName}`}
       ref={pan.ref}
       {...pan.handlers}
       role="group"

@@ -122,7 +122,7 @@ const PipelineStep = forwardRef<HTMLDivElement, PipelineStepProps>(
                   {step.errorMessage}
                 </p>
                 {step.errorCode && (
-                  <span className="text-[12px] font-medium tabular-nums text-state-violation">
+                  <span className="text-[12px] font-medium tabular-nums text-state-violation-text">
                     {step.errorCode}
                   </span>
                 )}
@@ -140,8 +140,8 @@ const PipelineStep = forwardRef<HTMLDivElement, PipelineStepProps>(
           <div className="mt-2.5 ml-8 h-[3px] bg-bg-sunken rounded-full overflow-hidden relative" role="progressbar" aria-valuenow={Math.round(tweenedProgress)} aria-valuemin={0} aria-valuemax={100}>
             {/* Base progress */}
             <div
-              className="absolute left-0 top-0 h-full bg-accent transition-all duration-260"
-              style={{ width: `${Math.max(0, Math.min(100, tweenedProgress))}%` }}
+              className="absolute inset-0 origin-left bg-accent transition-transform duration-260"
+              style={{ transform: `scaleX(${Math.max(0, Math.min(100, tweenedProgress)) / 100})` }}
             />
             {/* Sweeping highlight, two ambient beats per pass. */}
             <div

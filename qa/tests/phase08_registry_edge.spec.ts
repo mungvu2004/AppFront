@@ -1,6 +1,6 @@
 /**
  * Phase 8 · SCR-36 Model AI registry (`/admin/training/models`) — real edge flows FL-36R-01..05 (C3). Read-only: dialogs are
- * only opened and cancelled behind `guardWrites` (PUT …/active aborted + counted, asserted 0); "Quay về đường cổ điển" is never confirmed.
+ * only opened and cancelled behind `guardWrites` (PUT …/active aborted + counted, asserted 0); "Tắt AI, dùng thuật toán cũ" is never confirmed.
  * Sources: MR/MRA/MRV/MRD/UMR (src/screens/admin/ModelRegistry/), SEG (src/components/ui/SegmentedControl.tsx); see support/p08/P7.ts.
  *
  * Request budget per run (BE defaults): admin UI logins 1 (FL-01) + 1 (FL-02) + 1 (FL-03) + 1 (FL-04) + 1 admin API (FL-04 candidate)
@@ -54,14 +54,12 @@ test.describe('E08 SCR-36 registry (real)', () => {
       const wallActive = activeIdOf(families, 'wallSegmentation');
       const crumb = page.getByRole('navigation', { name: 'Đường dẫn trang', exact: true });
       await test.step('[36R-A-001] open as admin: breadcrumb + h1', async () => {
-        await expect(crumb.getByText(REG.crumbParent, { exact: true })).toBeVisible(); // MR:51-55
-        await expect(crumb.getByText(REG.crumbHere, { exact: true })).toHaveAttribute('aria-current', 'page');
+        await expect(crumb, 'breadcrumb removed (admin tab bar names the section)').toHaveCount(0);
         await expect(page.getByRole('heading', { level: 1, name: REG.title, exact: true })).toBeVisible();
         await ev(page, '36R-A-001');
       });
       await test.step('[36R-E-009] breadcrumb semantics', async () => {
-        await expect.soft(crumb).toBeVisible();
-        await expect.soft(crumb.locator('[aria-hidden="true"]', { hasText: '›' }).first()).toBeAttached();
+        await expect.soft(crumb).toHaveCount(0);
         await ev(page, '36R-E-009');
       });
       await test.step('[36R-A-003] default family', async () => {

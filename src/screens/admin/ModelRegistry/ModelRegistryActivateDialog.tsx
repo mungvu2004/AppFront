@@ -39,7 +39,7 @@ export function ModelRegistryActivateDialog({ actions, dialog }: ModelRegistryAc
               disabled={dialog.isSubmitting || dialog.isWaiting}
               loading={dialog.isSubmitting}
               onClick={actions.onConfirmDialog}
-              variant="primary"
+              variant={dialog.isDestructive === true ? 'danger' : 'primary'}
             >
               {dialog.confirmLabel}
             </Button>

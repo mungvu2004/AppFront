@@ -2,8 +2,8 @@
  * Aspect-aware shot composition: turns a shot *intent* into a camera.
  *
  * The page's type sits in the left ~38 % on landscape (a little wider at 4:3, where the
- * 56 px title takes more of the width) and the bottom ~35 % on portrait (the model is
- * centred at ~42 % height there), so a shot is not a fixed position: it is "this subject, seen from
+ * 56 px title takes more of the width) and the bottom ~45 % on portrait (the model is
+ * centred at ~32 % height there), so a shot is not a fixed position: it is "this subject, seen from
  * this direction, placed in the free part of the frame". Two kinds:
  *
  * - `fit` (exterior / overview): a world box seen from an azimuth + elevation
@@ -53,7 +53,8 @@ export interface Framed {
 
 /** Free region in NDC for an aspect: [x0, x1, y0, y1]. */
 export function freeRegion(aspect: number): readonly [number, number, number, number] {
-  if (aspect < 1) return [-0.84, 0.84, -0.3, 0.64];
+  // Portrait: the copy block (eyebrow, two-line title, sub, CTA) takes the bottom ~45 % at 768 px wide.
+  if (aspect < 1) return [-0.84, 0.84, -0.1, 0.74];
   // x0 starts right of the two-line headline; x1 stops at the step rail (right ~17 %).
   return [0.02, aspect < 1.5 ? 0.78 : 0.66, -0.78, 0.74];
 }

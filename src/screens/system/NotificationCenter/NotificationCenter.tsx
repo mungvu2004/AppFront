@@ -193,7 +193,8 @@ export function NotificationActions({ unreadBadge, screenState, onMarkAllRead, o
 
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={onMarkAllRead} disabled={isMarkAllDisabled}>
+      {/* Chữ thường + khoá nhạt vừa: ghost (chữ phụ) × opacity-40 từng gần như biến mất trên nền tấm trượt (A1, Sam). */}
+      <Button variant="ghost" size="sm" className="text-text-primary disabled:opacity-60" onClick={onMarkAllRead} disabled={isMarkAllDisabled}>
         {MARK_ALL_READ_LABEL}
       </Button>
       <IconButton icon={<Settings size={18} />} aria-label={SETTINGS_LABEL} size="sm" onClick={onOpenSettings} />

@@ -209,6 +209,9 @@ const partialSentence = (failedNames: string, othersRunning: boolean): string =>
   othersRunning ? `${failedNames} gặp lỗi. Các tầng còn lại vẫn đang được xử lý.` : `${failedNames} gặp lỗi.`;
 
 /** Ví dụ `"Có 9 đối tượng có độ tin cậy dưới 0,75 cần bạn xem lại."` — ngưỡng của dự án (BUG-354). */
+const NO_DIMENSION_SENTENCE =
+  'Không đọc được chuỗi kích thước nào, nên hệ thống chưa tự suy ra tỷ lệ: bạn cần đặt tỷ lệ ở màn Hiệu chỉnh tỷ lệ.';
+
 const lowConfidenceSentence = (count: string, threshold: string): string =>
   `Có ${count} ${UNIT.object} có độ tin cậy dưới ${threshold} cần bạn xem lại.`;
 
@@ -1395,6 +1398,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         countLabel(total.roomCount, UNIT.room),
         formatArea(totalArea(total.roomOutlinesMm)),
       ],
+      ...(total.dimensionCount === 0 ? { noDimensionSentence: NO_DIMENSION_SENTENCE } : {}),
       ...(threshold === null
         ? {}
         : {

@@ -215,10 +215,10 @@ describe('Bảng và chi tiết', () => {
     expect(actions.onLoadMore).toHaveBeenCalledTimes(1);
   });
 
-  it('đầu trang: breadcrumb nhãn, h1, liên kết sang model AI', () => {
+  it('đầu trang: không breadcrumb lặp tab, h1, liên kết sang model AI', () => {
     renderView(TRAINING_JOBS_SCENARIO_SUCCESS);
 
-    expect(screen.getByRole('navigation', { name: 'Đường dẫn trang' }).textContent).toBe('Quản trị›Huấn luyện');
+    expect(screen.queryByRole('navigation', { name: 'Đường dẫn trang' })).toBeNull();
     expect(screen.getByRole('heading', { level: 1, name: 'Huấn luyện mô hình AI' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sang tab Mô hình AI' })).toHaveAttribute('href', ROUTES.adminTrainingModels);
     expect(ROUTES.adminTrainingJobs).toBe('/admin/training/jobs');
@@ -267,8 +267,8 @@ describe('Hộp thoại A9 và biểu mẫu', () => {
         baseModel: 'mitB0',
         baseModelError: null,
         baseModels: [
-          { label: 'mitB0', value: 'mitB0' },
-          { label: 'mitB1', value: 'mitB1' },
+          { label: 'Nhỏ, nhanh (mitB0)', value: 'mitB0' },
+          { label: 'Lớn, chính xác hơn (mitB1)', value: 'mitB1' },
         ],
         canSubmit: false,
         datasetId: null,
@@ -301,8 +301,8 @@ describe('Hộp thoại A9 và biểu mẫu', () => {
         baseModel: 'mitB0',
         baseModelError: null,
         baseModels: [
-          { label: 'mitB0', value: 'mitB0' },
-          { label: 'mitB1', value: 'mitB1' },
+          { label: 'Nhỏ, nhanh (mitB0)', value: 'mitB0' },
+          { label: 'Lớn, chính xác hơn (mitB1)', value: 'mitB1' },
         ],
         canSubmit: true,
         datasetId: null,

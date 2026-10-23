@@ -18,8 +18,8 @@
  * - {@link GROUP_LABELS} mirrors `RULE_GROUP_LABELS` for the same reason as the
  *   severities, and feeds the group filter.
  *
- * Nothing here computes. The four filter options are a constant because the
- * contract fixes them at four, and `RuleReportLevelFilter` is what makes a fifth
+ * Nothing here computes. The five filter options are a constant because the
+ * contract fixes them at five, and `RuleReportLevelFilter` is what makes a fifth
  * one a type error rather than a design drift.
  */
 
@@ -101,12 +101,12 @@ export const GROUP_ORDER: readonly RuleGroup[] = [
 /** The value both `Select`s use for "no narrowing at all". */
 export const ANY_OPTION = 'all';
 
-/** The four segments, fixed by the contract. A fifth one would not type-check. */
+/** The five segments: three severities, plus everything and the clean rules. */
 export const LEVEL_FILTER_OPTIONS: readonly { label: string; value: RuleReportLevelFilter }[] = [
   { label: 'Tất cả', value: 'all' },
   { label: 'Nghiêm trọng', value: 'violation' },
-  // R-2: tab và ô này gộp cả gợi ý, nên nhãn phải nói đủ.
-  { label: 'Cảnh báo, gợi ý', value: 'warning' },
+  { label: 'Cảnh báo', value: 'warning' },
+  { label: 'Gợi ý', value: 'suggestion' },
   { label: 'Đạt', value: 'passed' },
 ];
 

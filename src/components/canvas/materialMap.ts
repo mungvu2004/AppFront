@@ -21,11 +21,11 @@ import type { WallThickness } from '../../types/spatial';
 export function wallStrokeToken(thickness: WallThickness): string {
   switch (thickness) {
     case 110:
-      return 'var(--wall-110)';
+      return 'var(--wall-110-stroke)'; // ≥ 3:1 trên canvas ở cả hai chủ đề (globals.css)
     case 220:
       return 'var(--wall-220)';
     case 330:
-      return 'var(--wall-330)';
+      return 'var(--wall-330-stroke)';
     case 'CONCRETE_COLUMN':
       return 'var(--text-primary)';
     default:

@@ -220,7 +220,9 @@ const USAGE_GROUP_TOKENS: Readonly<Record<UsageGroup, ColorTokenName>> = {
   sleeping: '--wall-220',
   service: '--wall-110',
   circulation: '--wall-idle',
-  other: '--bg-sunken',
+  // `--bg-sunken` cũ trùng gần hẳn nền canvas trắng: phòng "Khác" (mặc định của AI)
+  // không hiện vùng. Xám trung tính ở giữa sinh hoạt và ngủ, vẫn ngoài màu nhấn/trạng thái.
+  other: '--text-muted',
 };
 
 const USAGE_GROUP_LABELS: Readonly<Record<UsageGroup, string>> = {

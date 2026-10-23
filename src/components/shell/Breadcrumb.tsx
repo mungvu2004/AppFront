@@ -26,7 +26,7 @@ const NAV_LABEL = 'Đường dẫn trang';
 const CRUMB_LINK_CLASS = cn(
   // Dưới 640 px vùng chạm 44×44 px như mọi nút — cả bề ngang: "Dự án" chỉ rộng 39 px
   // (BUG-108, run-20); từ 640 px giữ dòng chữ 24 px.
-  'inline-flex min-h-11 min-w-11 items-center sm:min-h-6 sm:min-w-0 text-[13px] font-medium text-text-secondary leading-none',
+  'inline-flex min-h-11 min-w-11 items-center fine:min-h-6 fine:min-w-0 text-[13px] font-medium text-text-secondary leading-none',
   'hover:text-text-primary transition-colors duration-120',
   'rounded-sm px-0.5 -mx-0.5',
   'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2'
@@ -75,7 +75,7 @@ export function Breadcrumb({ ariaLabel = NAV_LABEL, items }: BreadcrumbProps) {
                     type="button"
                     onClick={() => isDropdownOpen ? closeDropdown() : openDropdown(item.id)}
                     className={cn(
-                      'inline-flex min-h-11 min-w-11 items-center sm:min-h-6 sm:min-w-0 text-[13px] font-medium text-text-secondary leading-none',
+                      'inline-flex min-h-11 min-w-11 items-center fine:min-h-6 fine:min-w-0 text-[13px] font-medium text-text-secondary leading-none',
                       'hover:text-text-primary transition-colors duration-120',
                       'rounded-sm px-0.5 -mx-0.5',
                       'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',

@@ -62,7 +62,7 @@ const TabsList = forwardRef<HTMLDivElement, TabsListProps>(
       <div
         ref={ref}
         role="tablist"
-        aria-label={ariaLabel || 'Tabs'}
+        aria-label={ariaLabel || 'Thẻ'}
         className={cn('flex border-b border-border-default', className)}
         {...props}
       >
@@ -131,7 +131,7 @@ const TabsTab = forwardRef<HTMLButtonElement, TabsTabProps>(
         onKeyDown={handleKeyDown}
         className={cn(
           // 44 px dưới `sm` (vùng chạm), 36 px từ `sm` như cũ.
-          'relative h-11 sm:h-9 px-4 flex items-center justify-center gap-1.5 text-[14px] font-medium',
+          'relative h-11 fine:h-9 px-4 flex items-center justify-center gap-1.5 text-[14px] font-medium',
           'transition-colors duration-120 outline-hidden',
           'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded-sm',
           isActive ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary',

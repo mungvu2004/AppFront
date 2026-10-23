@@ -26,21 +26,18 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { GridLayer } from '@/components/canvas/GridLayer';
 import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
-import { MiniMap } from '@/components/canvas/MiniMap';
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
 import { useCanvasPan } from '@/components/canvas/useCanvasPan';
 import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import { Skeleton } from '@/components/feedback/Skeleton';
-import type { ContextMenuGroup } from '@/hooks/useContextMenu';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { cn } from '@/lib/utils';
 
-import { backgroundFrameRect } from '../shared/canvasFit';
-import { WallLayerLegend } from './WallLayerLegend';
+import { WallDraftGuide, WallDrawingBackground, WallLayerLegend, WallLayerMiniMap } from './WallLayerCanvasParts';
+import { drawingPointOf, wallMenuGroups } from './wallLayerCanvasActions';
 import { WallHatchDefs, WallShapeFigure } from './WallLayerShapeFigure';
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
-import { BACKGROUND_IMAGE_OPACITY, toSvgPoints, wallThicknessFillToken } from './wallLayerHatch';
 
 /** Hợp đồng props của lớp canvas, mang ra đây cho nơi gọi khỏi phải biết hai đường nhập. */
 export type * from './wallLayerHatch';
@@ -54,21 +51,10 @@ type WallId = NonNullable<WallLayerCanvasViewProps['selectedWallId']>;
 
 const NO_SELECTED_WALLS: readonly WallId[] = [];
 
-/* Chuỗi tiếng Việt tĩnh — khớp `i18n.fragment.json` của màn (A6). */
-
-const MENU_LABELS = {
-  approve: 'Duyệt',
-  changeThickness: 'Đổi độ dày',
-  split: 'Tách đoạn',
-  remove: 'Xoá',
-} as const;
-
 const WAITING_FRAME_LABEL = 'Chưa có ảnh bản vẽ của tầng này';
-const MINIMAP_LABEL = 'Mặt bằng thu nhỏ';
-/** `zoomPercent` lúc "vừa khung": 100% là cả mặt bằng nằm trong khung. */
-const FIT_ZOOM_PERCENT = 100;
 const FORBIDDEN_DESCRIPTION =
   'Bản vẽ vẫn xem và phóng to được, nhưng không chọn hay sửa được đoạn tường nào. Nhờ người có quyền sửa dự án duyệt giúp.';
+
 const FORBIDDEN_DESCRIPTION_ID = 'wall-layer-canvas-forbidden';
 
 /**
@@ -190,36 +176,18 @@ export function WallLayerCanvas({
   }, [selectedWallId, hoveredWallId, haloSelect, haloHover, haloDeselect]);
 
   /**
-   * Toạ độ con trỏ cho thanh trạng thái — KHÔNG một phép tính nào ở đây.
-   *
-   * `getScreenCTM().inverse()` của `<svg>` (mang `viewBox` pixel bản vẽ) trả thẳng toạ độ PIXEL
-   * BẢN VẼ, đã gộp dịch và phóng; hook quy ra milimét. jsdom không cài `getScreenCTM`, nên nhánh
-   * `null` là đường của bài kiểm — nó gọi thẳng `canvas.onPointerMove(...)`.
+   * Toạ độ con trỏ cho thanh trạng thái — KHÔNG một phép tính nào ở đây (`drawingPointOf`: trình
+   * duyệt đổi, hook quy ra milimét). jsdom trả `null`, nên bài kiểm gọi thẳng `canvas.onPointerMove(...)`.
    */
-  const readPointer = useCallback(
-    (event: ReactMouseEvent<SVGSVGElement>): { readonly xPx: number; readonly yPx: number } | null => {
-      const matrix = event.currentTarget.getScreenCTM?.();
-
-      if (matrix === null || matrix === undefined) {
-        return null;
-      }
-
-      const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
-
-      return { xPx: point.x, yPx: point.y };
-    },
-    [],
-  );
-
   const handlePointerMove = useCallback(
     (event: ReactMouseEvent<SVGSVGElement>) => {
-      const reading = readPointer(event);
+      const reading = drawingPointOf(event.currentTarget, event.clientX, event.clientY);
 
       if (reading !== null) {
         onPointerMove(reading);
       }
     },
-    [onPointerMove, readPointer],
+    [onPointerMove],
   );
 
   /**
@@ -254,13 +222,7 @@ export function WallLayerCanvas({
         return;
       }
 
-      const matrix = svg.getScreenCTM?.();
-      const reading =
-        matrix === null || matrix === undefined
-          ? null
-          : (({ x, y }) => ({ xPx: x, yPx: y }))(
-              new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse()),
-            );
+      const reading = drawingPointOf(svg, event.clientX, event.clientY);
 
       if (reading !== null) {
         onCanvasPoint(reading);
@@ -275,30 +237,9 @@ export function WallLayerCanvas({
 
   const openWallMenu = useCallback(
     (x: number, y: number, wallId: WallId) => {
-      /* Tường đã duyệt: "Duyệt" không làm gì, nên không đưa nó ra (BUG-604). */
       const isReviewed = shapes.find((shape) => shape.id === wallId)?.isReviewed ?? false;
-      const groups: ContextMenuGroup[] = [
-        {
-          id: 'wall',
-          items: [
-            ...(isReviewed ? [] : [{ id: 'approve', label: MENU_LABELS.approve, action: () => onApprove(wallId) }]),
-            {
-              id: 'thickness',
-              label: MENU_LABELS.changeThickness,
-              action: () => onRequestThicknessChange(wallId),
-            },
-            { id: 'split', label: MENU_LABELS.split, action: () => onRequestSplit(wallId) },
-            {
-              id: 'remove',
-              label: MENU_LABELS.remove,
-              isDestructive: true,
-              action: () => onDelete(wallId),
-            },
-          ],
-        },
-      ];
 
-      openMenu(x, y, groups);
+      openMenu(x, y, wallMenuGroups(wallId, isReviewed, { onApprove, onDelete, onRequestSplit, onRequestThicknessChange }));
     },
     [onApprove, onDelete, onRequestSplit, onRequestThicknessChange, openMenu, shapes],
   );
@@ -333,21 +274,6 @@ export function WallLayerCanvas({
     return contentBoundsPx;
   }, [contentBoundsPx, drawingSizePx]);
 
-  /* J-10: ảnh nền đặt theo độ phân giải THẬT của ảnh (lưới pixel của tường), đo khi ảnh tải xong. */
-  const [loadedImage, setLoadedImage] = useState<{
-    readonly url: string | null;
-    readonly width: number;
-    readonly height: number;
-  } | null>(null);
-  const imageNaturalPx =
-    loadedImage !== null && loadedImage.url === backgroundImageUrl ? loadedImage : null;
-  const backgroundRectPx =
-    surface === null || surfaceRectPx === null
-      ? surfaceRectPx
-      : backgroundFrameRect(surface, surfaceRectPx, imageNaturalPx);
-
-  const viewBox =
-    surface === null ? undefined : `${surface.x} ${surface.y} ${surface.width} ${surface.height}`;
   const frameViewBox =
     viewBoxPx === null
       ? undefined
@@ -359,10 +285,12 @@ export function WallLayerCanvas({
       aria-label={canvasLabel}
       className={cn(
         FRAME_CLASSES,
+        pan.surfaceClassName,
         pan.isPanning ? 'cursor-grabbing' : pan.spaceHeld ? 'cursor-grab' : undefined,
       )}
       onClick={handleCanvasClick}
       onMouseLeave={handlePointerLeave}
+      onLostPointerCapture={pan.handlers.onLostPointerCapture}
       onPointerCancel={pan.handlers.onPointerCancel}
       onPointerDown={(event) => {
         pointerDownAtRef.current = { x: event.clientX, y: event.clientY };
@@ -395,41 +323,12 @@ export function WallLayerCanvas({
           ) : (
             <>
               {/* Ảnh nền + `<svg>` + lớp phủ đứng ở pixel KHUNG do hook tính (BUG-403): không lớp `scale()` nào. */}
-              {surfaceRectPx === null ? null : backgroundImageUrl === null ? (
-                <div
-                  aria-hidden="true"
-                  className="absolute bg-bg-sunken"
-                  style={{
-                    height: surfaceRectPx.height,
-                    left: surfaceRectPx.x,
-                    top: surfaceRectPx.y,
-                    width: surfaceRectPx.width,
-                  }}
-                />
-              ) : (
-                <img
-                  alt={backgroundImageAlt}
-                  // J-10: preflight `img { max-width: 100% }` bóp ảnh về bề rộng khung khi phóng to → nền lệch tường.
-                  className="pointer-events-none absolute block max-w-none select-none"
-                  draggable={false}
-                  onLoad={(event) => {
-                    const { naturalHeight, naturalWidth } = event.currentTarget;
-                    setLoadedImage({
-                      url: backgroundImageUrl,
-                      width: naturalWidth,
-                      height: naturalHeight,
-                    });
-                  }}
-                  src={backgroundImageUrl}
-                  style={{
-                    height: (backgroundRectPx ?? surfaceRectPx).height,
-                    left: (backgroundRectPx ?? surfaceRectPx).x,
-                    opacity: BACKGROUND_IMAGE_OPACITY,
-                    top: (backgroundRectPx ?? surfaceRectPx).y,
-                    width: (backgroundRectPx ?? surfaceRectPx).width,
-                  }}
-                />
-              )}
+              <WallDrawingBackground
+                backgroundImageAlt={backgroundImageAlt}
+                backgroundImageUrl={backgroundImageUrl}
+                surface={surface}
+                surfaceRectPx={surfaceRectPx}
+              />
 
               <svg
                 aria-label={canvasLabel}
@@ -459,32 +358,7 @@ export function WallLayerCanvas({
                   />
                 ))}
 
-                {/* G4a-23: nét xem trước của Vẽ tường / dấu cắt của Tách đoạn — accent, nét đứt. */}
-                {draftGuidePx === null ? null : draftGuidePx.fromPx === null ? (
-                  <circle
-                    cx={draftGuidePx.toPx.x}
-                    cy={draftGuidePx.toPx.y}
-                    data-testid="wall-draft-guide"
-                    fill="none"
-                    pointerEvents="none"
-                    r={6 * unitPx}
-                    stroke="var(--accent)"
-                    strokeDasharray={`${3 * unitPx} ${2 * unitPx}`}
-                    strokeWidth={2 * unitPx}
-                  />
-                ) : (
-                  <line
-                    data-testid="wall-draft-guide"
-                    pointerEvents="none"
-                    stroke="var(--accent)"
-                    strokeDasharray={`${6 * unitPx} ${4 * unitPx}`}
-                    strokeWidth={2 * unitPx}
-                    x1={draftGuidePx.fromPx.x}
-                    x2={draftGuidePx.toPx.x}
-                    y1={draftGuidePx.fromPx.y}
-                    y2={draftGuidePx.toPx.y}
-                  />
-                )}
+                {draftGuidePx === null ? null : <WallDraftGuide draftGuidePx={draftGuidePx} unitPx={unitPx} />}
               </svg>
 
               {haloRectPx === null ? null : (
@@ -515,7 +389,8 @@ export function WallLayerCanvas({
 
       <WallLayerLegend
         isWallLayerVisible={isWallLayerVisible}
-        levels={legendLevels}
+        legendLevels={legendLevels}
+        shapes={shapes}
         state={state}
       />
       <ZoomCluster
@@ -525,27 +400,13 @@ export function WallLayerCanvas({
         onZoomOut={onZoomOut}
         zoomLevel={zoomPercent}
       />
-      <MiniMap
-        /*
-         * Ở "vừa khung" (100%) cả mặt bằng đã nằm trong khung: bản đồ nhỏ không có gì để chỉ, chỉ
-         * đè góc trên phải bản vẽ (khung tên). Phóng to qua 100% thì hiện.
-         */
-        isVisible={surface !== null && zoomPercent > FIT_ZOOM_PERCENT}
-        onViewportChange={onMiniMapViewportChange}
-        viewport={miniMapViewport}
-      >
-        {viewBox === undefined ? null : (
-          <svg aria-label={MINIMAP_LABEL} className="h-full w-full" role="img" viewBox={viewBox}>
-            {shapes.map((shape) => (
-              <polygon
-                fill={wallThicknessFillToken(shape.thicknessMm)}
-                key={shape.id}
-                points={toSvgPoints(shape.outline)}
-              />
-            ))}
-          </svg>
-        )}
-      </MiniMap>
+      <WallLayerMiniMap
+        miniMapViewport={miniMapViewport}
+        onMiniMapViewportChange={onMiniMapViewportChange}
+        shapes={shapes}
+        surface={surface}
+        zoomPercent={zoomPercent}
+      />
 
       <ContextMenu
         groups={menu.groups}

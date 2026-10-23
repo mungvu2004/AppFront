@@ -587,7 +587,7 @@ async function runChain(
     const family = families.items.find((item) => item.family === OPENING_FAMILY);
 
     if (family === undefined) throw new Error(`N23 không có họ ${OPENING_FAMILY}`);
-    const familyPicker = page.getByRole('radiogroup', { name: 'Họ model' });
+    const familyPicker = page.getByRole('radiogroup', { name: 'Loại mô hình' });
 
     await expectScreenAlive(page, familyPicker);
 

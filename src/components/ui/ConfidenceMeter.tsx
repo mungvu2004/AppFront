@@ -1,5 +1,5 @@
 import React from 'react';
-import { twMerge } from 'tailwind-merge';
+import { twMerge } from '../../lib/utils';
 import { clsx } from 'clsx';
 import { confidenceLevel } from '@/lib/format/semantic';
 import { formatNumber } from '@/lib/format/number';
@@ -43,7 +43,7 @@ function ConfidenceMeterInner({ value, className, noTooltip: _, ...props }: Conf
         {/* Fill bar */}
         <div
           className={clsx(
-            'absolute top-0 left-0 h-full rounded-full transition-all duration-340',
+            'absolute top-0 left-0 h-full rounded-full transition-[width] duration-340',
             isAttention ? 'bg-state-attention' : 'bg-text-muted'
           )}
           style={{ width: `${percentage}%` }}

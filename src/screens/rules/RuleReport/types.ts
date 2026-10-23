@@ -60,9 +60,11 @@ export interface RuleReportSummary {
   readonly passed: number;
   readonly warnings: number;
   readonly violations: number;
+  /** Luật chỉ có mục "Gợi ý" — không bao giờ đếm vào ô "Cảnh báo". */
+  readonly suggestions: number;
 }
 
-export type RuleReportLevelFilter = 'all' | 'violation' | 'warning' | 'passed';
+export type RuleReportLevelFilter = 'all' | 'violation' | 'warning' | 'suggestion' | 'passed';
 
 export interface RuleReportFilters {
   readonly level: RuleReportLevelFilter;

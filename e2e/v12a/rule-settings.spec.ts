@@ -113,7 +113,7 @@ test('màn cài đặt bộ luật tới được từ màn kiểm tra luật b�
 }) => {
   await page.goto(ROUTES.project.rules('project-1'));
 
-  await expect(page.getByRole('heading', { name: 'Kiểm tra luật không gian' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Quy chuẩn' })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   await page.getByRole('link', { name: 'cài đặt bộ luật' }).click();

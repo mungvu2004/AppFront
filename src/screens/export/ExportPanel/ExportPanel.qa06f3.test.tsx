@@ -17,8 +17,9 @@ describe('QA-06b F3 — màn Xuất', () => {
     expect(radios.map((radio) => radio.tabIndex)).toEqual([0, -1, -1, -1]);
     radios[0]?.focus();
     fireEvent.keyDown(radios[0] as HTMLElement, { key: 'ArrowDown' });
-    expect(onSelectFormat).toHaveBeenCalledWith('pdf');
-    expect(document.activeElement).toBe(radios[1]);
+    // PDF và ảnh "Chưa hỗ trợ" (aria-disabled) — mũi tên bỏ qua, sang thẻ .json.
+    expect(onSelectFormat).toHaveBeenCalledWith('spatial-json');
+    expect(document.activeElement).toBe(radios[3]);
   });
 
   it('30-C-015: .json không có ô chọn tầng (nó xuất cả đồ thị), chỉ có câu giải thích', () => {

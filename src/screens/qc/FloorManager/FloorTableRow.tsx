@@ -346,7 +346,7 @@ export function FloorTableRow({
               {/* Chip đã nói "Chưa có bản vẽ": không lặp chữ ấy lần nữa ngay cạnh nó (BUG-250). */}
               <Badge variant="attention">{NEEDS_DRAWING_LABEL}</Badge>
               <button
-                className="inline-flex min-h-11 items-center rounded-md px-1.5 text-[12px] text-accent underline-offset-2 sm:min-h-6 hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="inline-flex min-h-11 items-center rounded-md px-1.5 text-[12px] text-accent underline-offset-2 fine:min-h-6 hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 onClick={(event) => {
                   event.stopPropagation();
                   onUploadDrawing(row.id);

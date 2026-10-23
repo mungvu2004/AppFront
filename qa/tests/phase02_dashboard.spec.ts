@@ -33,7 +33,7 @@ const FLOOR_HEIGHT_M = '3';
 /** `WELCOME_SEEN_KEY_PREFIX` (`useWelcomeScreen.ts:164`); value written is `'true'`. */
 const WELCOME_SEEN_PREFIX = 'appfront:onboarding-welcome-seen:';
 /** Sidebar status filters (`PROJECT_STATUS_FILTER_OPTIONS`, `useProjectDashboard.ts:76`). */
-const STATUS_FILTERS = ['Đang xử lý', 'Cần QC', 'Hoàn thành'] as const;
+const STATUS_FILTERS = ['Đang xử lý', 'Cần duyệt', 'Hoàn thành'] as const;
 const TABLE_HEADERS = ['Tên dự án', 'Trạng thái', 'Chi tiết', 'Tiến độ duyệt', 'Cập nhật'] as const;
 /** `ContextMenu.tsx:102` aria-label (NOT "Tùy chọn": tone-mark placement changed in c6e6b126, coverage F1). */
 const CARD_MENU = 'Tuỳ chọn';

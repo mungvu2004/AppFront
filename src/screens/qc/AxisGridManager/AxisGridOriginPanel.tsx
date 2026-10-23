@@ -43,8 +43,8 @@ const PANEL_TITLE = 'Gốc toạ độ';
 const SELECT_LABEL = 'Chọn giao trục neo';
 const SELECT_DESCRIPTION =
   'Gốc toạ độ sẽ tính từ giao điểm trục này, khi di chuyển tầng để căn lên tầng gốc.';
-const OFFSET_X_PX_LABEL = 'Lệch X (pixel)';
-const OFFSET_Y_PX_LABEL = 'Lệch Y (pixel)';
+const OFFSET_X_PX_LABEL = 'Lệch ngang trên ảnh';
+const OFFSET_Y_PX_LABEL = 'Lệch dọc trên ảnh';
 const OFFSET_X_MM_LABEL = 'Lệch X (mm)';
 const OFFSET_Y_MM_LABEL = 'Lệch Y (mm)';
 const PX_SUFFIX = ' px';
@@ -85,7 +85,7 @@ export function AxisGridOriginPanel({
 
   return (
     <div className="flex w-[344px] shrink-0 flex-col gap-4 rounded-xl bg-bg-surface p-5 shadow-panel max-xl:w-full">
-      <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
+      <h2 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h2>
 
       {unavailableNotice !== null ? (
         <p className="text-[13px] text-text-secondary">{unavailableNotice}</p>

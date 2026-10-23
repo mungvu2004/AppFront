@@ -1218,13 +1218,13 @@ export function useFloorUploadScreen(
               ? null
               : {
                   id: serverDrawing.id,
-                  name: serverDrawing.name,
+                  name: drawingDisplayName(serverDrawing.name, floor.name),
                   // `Drawing` của máy chủ không mang dung lượng; `formatFileSize`
                   // trả `MISSING_VALUE` cho `undefined`, nên cột vẫn thẳng hàng.
                   sizeLabel: formatFileSize(undefined),
                   pageCountLabel: null,
                   isCadBranch: false,
-                  summaryLine: serverDrawing.name,
+                  summaryLine: drawingDisplayName(serverDrawing.name, floor.name),
                   pageOptions: [],
                   selectedPage: null,
                 };
@@ -1463,6 +1463,13 @@ function toTray(): Partial<Attachment> {
 }
 
 /** Câu báo khi một tệp bị đẩy về khay vì tầng của nó nhận tệp khác (NO-393). */
+/** Tên tệp máy chủ lưu dạng mã băm (`4ea5b72d….jpg`): không nói gì với người dùng, thay bằng "Bản vẽ tầng N". */
+const HASHED_FILE_NAME = /^[0-9a-f-]{16,}(\.[a-z0-9]+)?$/iu;
+
+function drawingDisplayName(fileName: string, floorName: string): string {
+  return HASHED_FILE_NAME.test(fileName) ? `Bản vẽ ${floorName.toLocaleLowerCase('vi')}` : fileName;
+}
+
 function displacedSentence(fileName: string): string {
   return `${fileName} đã về khay tệp chưa gán tầng vì tầng ấy đã có tệp khác`;
 }

@@ -138,7 +138,7 @@ export function ObjectLayerToolRail({
                   size="lg"
                 />
                 {/* Group name, not the bare key letter ("C"/"S"/"N" meant nothing, QA-1); the key sits in tooltip + aria-label. */}
-                <span aria-hidden="true" className="whitespace-nowrap text-[10px] leading-none text-text-muted">
+                <span aria-hidden="true" className="whitespace-nowrap text-caption leading-none text-text-muted">
                   {OBJECT_LAYER_LABELS[tool.id]}
                 </span>
               </div>
@@ -169,7 +169,7 @@ export function ObjectLayerToolRail({
                       onClick={() => onSelectSubtypeSlot(slot)}
                       size="lg"
                         />
-                    <span aria-hidden="true" className="font-mono text-[10px] leading-none text-text-muted">{slot}</span>
+                    <span aria-hidden="true" className="font-mono text-caption leading-none text-text-muted">{slot}</span>
                   </div>
                 );
               })}

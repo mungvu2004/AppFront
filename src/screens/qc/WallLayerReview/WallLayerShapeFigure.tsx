@@ -29,7 +29,8 @@ import {
   WALL_HATCH_PATTERN_ID,
   WALL_HATCH_PATTERN_TRANSFORM,
   WALL_HATCH_TILE_PX,
-  isThicknessBand,
+  VERIFIED_SHAPE_OPACITY,
+  wallThicknessBandOf,
   toSvgPoints,
   wallThicknessFillToken,
 } from './wallLayerHatch';
@@ -105,6 +106,13 @@ export function WallShapeFigure({
   unitPx,
 }: WallShapeFigureProps) {
   const points = toSvgPoints(shape.outline);
+  const isUnbanded = wallThicknessBandOf(shape.thicknessMm) === null;
+  /*
+   * Cần chú ý = chấm cam giữa tường, không phải viền: tầng mới xử lý thường gần như mọi đoạn đều "cần
+   * chú ý", viền cam khi ấy phủ kín bản vẽ và nuốt mất màu nhóm độ dày (ảnh sau-sửa 24-10).
+   */
+  const needsAttention = shape.statusCode === 'attention';
+  const outlineToken = isUnbanded ? UNBANDED_WALL_OUTLINE_TOKEN : null;
 
   /*
    * Ctrl (hoặc Cmd trên máy Mac) giữ vùng chọn cũ và thêm/bớt đúng tường vừa
@@ -130,33 +138,35 @@ export function WallShapeFigure({
       onContextMenu={isInteractive ? (event) => onOpenMenu(event, shape.id) : undefined}
       onMouseEnter={isInteractive ? () => onHover(shape.id) : undefined}
       onMouseLeave={isInteractive ? () => onHover(null) : undefined}
+      /* Đã duyệt thì lùi xuống nền để mắt dồn vào phần còn phải xem. */
+      opacity={shape.statusCode === 'verified' ? VERIFIED_SHAPE_OPACITY : undefined}
       role="presentation"
     >
       <polygon
         className="transition-colors duration-260 motion-reduce:transition-none"
         fill={wallThicknessFillToken(shape.thicknessMm)}
         points={points}
-        /* G4a-04: tường "Khác" (ngoài ba băng) tô nhạt gần nền — thêm viền đứt đậm để thấy được. */
-        {...(isThicknessBand(shape.thicknessMm)
+        /* Viền đứt khi độ dày ngoài ba nhóm chuẩn (G4a-04: nền `--wall-idle` gần trùng nền canvas). */
+        {...(outlineToken === null
           ? {}
           : {
-              stroke: UNBANDED_WALL_OUTLINE_TOKEN,
+              stroke: outlineToken,
               strokeDasharray: '4 3',
               strokeWidth: 1.5,
               vectorEffect: 'non-scaling-stroke' as const,
             })}
       />
 
-      {shape.isLowConfidence ? (
-        <>
-          <polygon fill={`url(#${WALL_HATCH_PATTERN_ID})`} points={points} />
-          <circle
-            cx={shape.attentionDotPx.x}
-            cy={shape.attentionDotPx.y}
-            fill={ATTENTION_TOKEN}
-            r={ATTENTION_DOT_RADIUS_PX * unitPx}
-          />
-        </>
+      {shape.isLowConfidence ? <polygon fill={`url(#${WALL_HATCH_PATTERN_ID})`} points={points} /> : null}
+
+      {shape.isLowConfidence || needsAttention ? (
+        <circle
+          cx={shape.attentionDotPx.x}
+          cy={shape.attentionDotPx.y}
+          fill={ATTENTION_TOKEN}
+          /* Dưới ngưỡng tin cậy chấm to hơn: tín hiệu nặng hơn "cần chú ý" thường. */
+          r={(shape.isLowConfidence ? ATTENTION_DOT_RADIUS_PX : ATTENTION_DOT_RADIUS_PX * 0.6) * unitPx}
+        />
       ) : null}
 
       {showCentrelines ? (

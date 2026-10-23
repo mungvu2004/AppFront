@@ -9,6 +9,8 @@ export type InlineAlertLevel = 'verified' | 'attention' | 'violation';
 export interface InlineAlertProps extends React.HTMLAttributes<HTMLDivElement> {
   level: InlineAlertLevel;
   title?: string;
+  /** Phần tử của tiêu đề; mặc định `p` để không nhảy cấp heading dưới h1. */
+  titleAs?: 'p' | 'h2' | 'h3' | 'h4';
   message: string;
   action?: {
     label: string;
@@ -22,6 +24,7 @@ export interface InlineAlertProps extends React.HTMLAttributes<HTMLDivElement> {
 export function InlineAlert({
   level,
   title,
+  titleAs: TitleTag = 'p',
   message,
   action,
   onDismiss,
@@ -58,9 +61,9 @@ export function InlineAlert({
 
         <div className="flex-1 flex flex-col gap-1 min-w-0">
           {title && (
-            <h4 className={cn('text-[14px] font-semibold leading-tight', textClass)}>
+            <TitleTag className={cn('text-[14px] font-semibold leading-tight', textClass)}>
               {title}
-            </h4>
+            </TitleTag>
           )}
           {/* `text-pretty`: không để một từ ("nhập.") đứng riêng ở dòng cuối khi khung hẹp (BUG-087). Chỉ đổi chỗ ngắt dòng. */}
           <p className={cn('text-pretty text-[14px] leading-relaxed', textClass, !title && 'mt-px')}>

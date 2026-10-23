@@ -28,7 +28,7 @@ export const MEASURE_TOOL = 'Đo (M)';
 export const MEASURE_PIN = 'Ghim phép đo (phím Enter)';
 export const MEASURE_PIN_BLOCKED =
   'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.'; // useMeasurementTool.ts:202
-export const RULES_HEADING = 'Kiểm tra luật không gian';
+export const RULES_HEADING = 'Quy chuẩn';
 export const RULES_RERUN = 'Chạy kiểm tra lại';
 export const RULES_CONFIRM = 'Xác nhận đã xử lý';
 

@@ -26,7 +26,7 @@ import { seedSpatial } from '../fixtures/seedSpatial';
 const PROJECT_ID = 'project-1';
 const RULES_URL = ROUTES.project.rules(PROJECT_ID);
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
-const SCREEN_HEADING = 'Kiểm tra luật không gian'; // RuleReport.tsx
+const SCREEN_HEADING = 'Quy chuẩn'; // RuleReport.tsx
 const CLASH_RULE = 'Đồ đạc không chồng lên tường hay lên nhau'; // domain/rules/geometry FURNITURE-CLASH name
 const DELETE_ACTION = 'Xoá đối tượng này'; // useViolationDetail actions
 const ADVANCE_BANNER = 'Sắp chuyển sang vi phạm kế tiếp.'; // ViolationDetail notices
@@ -43,7 +43,7 @@ const UNDO_WINDOW_MS = 8_100; // undoTicket.ts UNDO_WINDOW_MS 8000
 
 const sheet = (page: Page): Locator => page.getByRole('complementary', { name: SHEET, exact: true });
 const sheetTitle = (page: Page): Locator => sheet(page).getByRole('heading', { level: 2 });
-const allHeaders = (page: Page): Locator => page.getByRole('heading', { level: 3 }).getByRole('button');
+const allHeaders = (page: Page): Locator => page.getByRole('heading', { level: 2 }).getByRole('button');
 const resolvedHeader = (page: Page): Locator => allHeaders(page).filter({ hasText: /^\s*Đã xử lý/u });
 const groupHeaders = (page: Page): Locator => allHeaders(page).filter({ hasNotText: /^\s*Đã xử lý/u });
 const resolvedSection = (page: Page): Locator => page.locator('section').filter({ has: resolvedHeader(page) });

@@ -74,7 +74,7 @@ const FRAME_CENTRE: ImageRatioPoint = { x: 0.5, y: 0.5 };
 
 const FRAME_CLASSES =
   // G4b-10: square that fits the host's width AND height (host is a size container), so the zoom bar stays on screen.
-  'relative aspect-square w-[min(100cqw,100cqh)] shrink-0 overflow-hidden rounded-2xl border border-border-default bg-canvas-2d';
+  'relative aspect-square w-[min(100cqw,100cqh)] shrink-0 touch-none overflow-hidden rounded-2xl border border-border-default bg-canvas-2d';
 
 function clampRatio(value: number): number {
   return Math.min(1, Math.max(0, value));
@@ -338,6 +338,9 @@ export function ScaleCalibrationCanvas({
       aria-label={CANVAS_ARIA_LABEL}
       className={cn(FRAME_CLASSES, cursorClass)}
       onKeyDown={handleKeyDown}
+      onLostPointerCapture={() => setIsPanning(false)}
+      // Lượt chạm bị trình duyệt huỷ: dọn như khi con trỏ rời khung (bỏ nét đang kéo, thôi kéo khung).
+      onPointerCancel={handlePointerLeave}
       onPointerDown={handlePointerDown}
       onPointerLeave={handlePointerLeave}
       onPointerMove={handlePointerMove}

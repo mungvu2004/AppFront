@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest';
 // bóp bề rộng về khung khi phóng to → nền lệch tường. Mỗi ảnh nền kiểu này phải tắt max-width.
 describe('ảnh nền khung vẽ không bị preflight bóp bề rộng (J-10)', () => {
   it.each([
-    'src/screens/qc/WallLayerReview/WallLayerCanvas.tsx',
+    // Ảnh nền màn Tường nằm ở mảnh con `WallDrawingBackground` (tách cho trần 400 dòng).
+    'src/screens/qc/WallLayerReview/WallLayerCanvasParts.tsx',
     'src/screens/qc/ObjectLayerReview/ObjectLayerCanvas.tsx',
   ])('%s', (file) => {
     expect(readFileSync(file, 'utf8')).toMatch(/className="pointer-events-none absolute block max-w-none/);

@@ -23,7 +23,7 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
 const EMPTY_TITLE = 'Chưa có mô hình để kiểm tra luật';
 
 /** Vỏ màn — có ở mọi trạng thái, nên chờ nó không phụ thuộc chữ của `empty`. */
-const SCREEN_HEADING = 'Kiểm tra luật không gian';
+const SCREEN_HEADING = 'Quy chuẩn';
 
 test('B-V12-01: vào màn luật bằng đường sản phẩm (không bơm) thì cổng nạp kho dự án và màn có kết quả kiểm tra, không nói "chưa có mô hình"', async ({
   page,
@@ -47,9 +47,9 @@ test('có bơm kho: bảng luật hiện bốn con số nguyên, chạy lại kh
   const rerun = page.getByRole('button', { name: 'Chạy kiểm tra lại' });
   await expect(rerun).toBeVisible();
 
-  // Bốn ô `<dt>/<dd>` (`RuleReportSummary.tsx`): nhãn đúng thứ tự, số là số nguyên trần.
-  await expect(page.getByRole('term')).toHaveText(['Tổng số kiểm tra', 'Đạt', 'Cảnh báo', 'Vi phạm']);
-  await expect(page.getByRole('definition')).toHaveText([/^\d+$/u, /^\d+$/u, /^\d+$/u, /^\d+$/u]);
+  // Năm ô `<dt>/<dd>` (`RuleReportSummary.tsx`): nhãn đúng thứ tự, số là số nguyên trần.
+  await expect(page.getByRole('term')).toHaveText(['Nghiêm trọng', 'Cảnh báo', 'Gợi ý', 'Đạt', 'Tổng số kiểm tra']);
+  await expect(page.getByRole('definition')).toHaveText([/^\d+$/u, /^\d+$/u, /^\d+$/u, /^\d+$/u, /^\d+$/u]);
 
   const confirm = page.getByRole('button', { name: 'Xác nhận đã xử lý' });
   await expect(confirm).toBeDisabled();

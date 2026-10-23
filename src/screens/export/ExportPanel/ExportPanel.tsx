@@ -225,7 +225,7 @@ export function ExportPanel(props: ExportPanelProps) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 bg-bg-app p-8 text-center">
         <Lock aria-hidden="true" size={32} strokeWidth={1.5} className="text-text-muted" />
-        <h2 className="text-base font-semibold text-text-primary">Không có quyền xuất bản vẽ</h2>
+        <h1 className="text-title text-text-primary">Không có quyền xuất bản vẽ</h1>
         <p className="max-w-sm text-sm text-text-secondary">
           {permissionCaption ?? 'Chỉ một số vai trò trong dự án được xuất bản vẽ.'}
         </p>
@@ -242,7 +242,7 @@ export function ExportPanel(props: ExportPanelProps) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 bg-bg-app p-8 text-center">
         <FolderOpen aria-hidden="true" size={32} strokeWidth={1.5} className="text-text-muted" />
-        <h2 className="text-base font-semibold text-text-primary">Chưa có gì để xuất</h2>
+        <h1 className="text-title text-text-primary">Chưa có gì để xuất</h1>
         <p className="max-w-sm text-sm text-text-secondary">
           Dự án chưa có bản vẽ nào được xử lý xong. Tải bản vẽ lên, chờ xử lý xong rồi quay lại đây để xuất.
         </p>
@@ -257,7 +257,7 @@ export function ExportPanel(props: ExportPanelProps) {
       </div>
       <div className="flex flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
         <header className="flex items-center justify-between gap-4">
-          <h2 className="text-base font-semibold text-text-primary">Xuất bản vẽ</h2>
+          <h1 className="text-title text-text-primary">Xuất bản vẽ</h1>
           {onShare !== null && (
             <Button variant="secondary" size="sm" iconBefore={<Share2 aria-hidden="true" size={16} />} onClick={onShare}>
               Chia sẻ
@@ -285,7 +285,9 @@ export function ExportPanel(props: ExportPanelProps) {
             />
           </div>
 
-          <div className={cn('flex flex-col gap-4', !isCollapsed && 'lg:w-[344px] lg:shrink-0')}>
+          {/* Hẹp hơn `lg`: cột phải "tan" (`contents`) để phần "Kiểm tra trước khi xuất" lên
+              trên danh sách định dạng, không bị thanh đáy che (impeccable A4 export-768). */}
+          <div className={cn('contents', !isCollapsed && 'lg:flex lg:w-[344px] lg:shrink-0 lg:flex-col lg:gap-4')}>
             {selectedFormat !== null && (
               <ExportPanelOptions
                 floors={floors}
@@ -299,7 +301,9 @@ export function ExportPanel(props: ExportPanelProps) {
               />
             )}
 
-            <ExportPanelPreflight rows={preflight} onFollowFix={onFollowFix} />
+            <div className={cn('order-first', !isCollapsed && 'lg:order-none')}>
+              <ExportPanelPreflight rows={preflight} onFollowFix={onFollowFix} />
+            </div>
           </div>
         </div>
 

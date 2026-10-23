@@ -90,7 +90,7 @@ export function RuleReportSection({
 
   return (
     <section className="flex flex-col rounded-sm border border-border-default bg-bg-surface">
-      <h3 className="m-0">
+      <h2 className="m-0">
         <button
           type="button"
           aria-expanded={isOpen}
@@ -112,7 +112,7 @@ export function RuleReportSection({
           </span>
           <span className="shrink-0 text-xs text-text-secondary">{summary}</span>
         </button>
-      </h3>
+      </h2>
 
       <div id={bodyId} className={cn('px-3', isOpen && 'pb-3')}>
         {isOpen ? children : null}

@@ -26,7 +26,7 @@ describe('F4', () => {
     fireEvent.click(screen.getByRole('combobox', { name: 'Phiên bản' }));
     expect(screen.queryByRole('option', { name: /v99/ })).toBeNull();
     expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
-    expect(screen.queryByRole('button', { name: 'Phục hồi phiên bản này' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Phục hồi/u })).toBeNull();
   });
 
   it('32-A-044: bố cục hẹp có "Xem thêm phiên bản"', () => {
@@ -122,7 +122,7 @@ describe('F4', () => {
     );
     renderWithProviders(<VersionHistory {...props} />);
     expect(screen.getByText(/So với hiện tại: thêm 0, xoá 28, sửa 0/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Phục hồi phiên bản này', hidden: true }));
+    fireEvent.click(screen.getByRole('button', { name: /^Phục hồi về /u, hidden: true }));
     expect(requestRestore).toHaveBeenCalledWith(old.id);
   });
 });

@@ -364,11 +364,18 @@ function toSummary(violations: readonly Violation[]): RuleReportSummary {
     violations.filter((violation) => violation.severity === 'critical').map((violation) => violation.ruleCode),
   );
 
+  const warningRules = new Set(
+    violations
+      .filter((violation) => violation.severity === 'warning' && !criticalRules.has(violation.ruleCode))
+      .map((violation) => violation.ruleCode),
+  );
+
   return {
     evaluated: ENABLED_RULES.length,
     passed: ENABLED_RULES.length - rulesWithFindings.size,
-    warnings: rulesWithFindings.size - criticalRules.size,
+    warnings: warningRules.size,
     violations: criticalRules.size,
+    suggestions: rulesWithFindings.size - criticalRules.size - warningRules.size,
   };
 }
 
@@ -403,7 +410,7 @@ const SAMPLE_SKIPPED: SkippedRuleGroup = {
 function propsFor(scenario: SevenStateScenario): RuleReportViewProps {
   const base: RuleReportViewProps = {
     status: 'empty',
-    summary: { evaluated: 0, passed: 0, warnings: 0, violations: 0 },
+    summary: { evaluated: 0, passed: 0, warnings: 0, violations: 0, suggestions: 0 },
     groups: [],
     resolvedRows: [],
     passedRules: [],
@@ -596,7 +603,7 @@ describe('mục 0-BIS.9 — hook dùng useNavigate(), bắt buộc bọc MemoryR
     }
 
     // Không có báo cáo: đầu đề của màn không được dựng.
-    expect(screen.queryByRole('heading', { name: 'Kiểm tra luật không gian' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Quy chuẩn' })).toBeNull();
     // Mà có phần dự phòng của ranh giới lỗi, dựng bằng `EmptyState` từ
     // `report.description` (R-62). Lỗi này không thử lại được nên phần dự phòng
     // KHÔNG có nút — cái nhìn thấy được là đầu đề của nó.
@@ -889,11 +896,11 @@ describe('R-73 — chọn một vi phạm mở ViolationDetailContainer dạng t
     // Đợi lượt chạy xong rồi mở nhóm luật đầu tiên (mọi nhóm bắt đầu đóng —
     // `expandedRuleCodes` của `useRuleReport` rỗng lúc mở màn thật, khác
     // `propsFor` ở mục B vốn tự mở sẵn cho các phép kiểm view thuần). Neo vào
-    // `h3 button` — `RuleReportSection` là nút DUY NHẤT bọc trong `<h3>`; bộ lọc
+    // `h2 button` — `RuleReportSection` là nút DUY NHẤT bọc trong `<h2>`; bộ lọc
     // "Nhóm luật" ở `RuleReportFilterBar` cũng mang `aria-expanded` (nó là một
-    // ô chọn) nên một selector không neo `h3` bắt nhầm đúng cái đó trước.
+    // ô chọn) nên một selector không neo `h2` bắt nhầm đúng cái đó trước.
     const groupToggle = await waitFor(() => {
-      const toggle = container.querySelector<HTMLButtonElement>('h3 button[aria-expanded="false"]');
+      const toggle = container.querySelector<HTMLButtonElement>('h2 button[aria-expanded="false"]');
 
       if (toggle === null) {
         throw new Error('chưa có nhóm luật nào để mở — lượt chạy chưa xong');
@@ -973,7 +980,7 @@ describe('BUG-433 — route đo mốc thu gọn: dưới 1024 hàng là thẻ, k
     );
 
     const groupToggle = await waitFor(() => {
-      const toggle = container.querySelector<HTMLButtonElement>('h3 button[aria-expanded="false"]');
+      const toggle = container.querySelector<HTMLButtonElement>('h2 button[aria-expanded="false"]');
       if (toggle === null) {
         throw new Error('chưa có nhóm luật nào để mở — lượt chạy chưa xong');
       }
@@ -1056,7 +1063,7 @@ describe('F-10 — useRuleReport đọc cấu hình N21', () => {
     });
 
     expect(result.current.summary.violations).toBe(0);
-    expect(result.current.summary.warnings).toBeGreaterThan(0);
+    expect(result.current.summary.warnings + result.current.summary.suggestions).toBeGreaterThan(0);
     expect(result.current.status).toBe('ready');
     expect(result.current.groups.length).toBeGreaterThan(0);
   });
@@ -1079,11 +1086,11 @@ describe('F-10 — useRuleReport đọc cấu hình N21', () => {
       expect(result.current.status).not.toBe('loading');
     });
 
-    const { evaluated, passed, warnings, violations } = result.current.summary;
+    const { evaluated, passed, warnings, violations, suggestions } = result.current.summary;
     const groups = result.current.groups;
-    expect(passed + warnings + violations).toBe(evaluated);
+    expect(passed + warnings + violations + suggestions).toBe(evaluated);
     expect(violations).toBe(groups.filter((group) => group.rows.some((row) => row.severity === 'critical')).length);
-    expect(warnings + violations).toBe(groups.length);
+    expect(warnings + violations + suggestions).toBe(groups.length);
   });
 
   it('đổi revision (lượt lưu ở màn cài đặt) → báo cáo chạy lại với cấu hình mới', async () => {

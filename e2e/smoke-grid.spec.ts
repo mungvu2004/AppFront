@@ -117,7 +117,7 @@ const ROWS = {
   projectExploded: { anchor: { role: 'main', name: 'Khung nhìn mô hình' } },
   projectMeasure: { anchor: { role: 'main', name: 'Khung nhìn mô hình' } },
   projectViewerPascal: { anchor: { text: 'Màn xem 3D mới chưa bật cho tài khoản này.' } },
-  projectRules: { anchor: { role: 'heading', name: 'Kiểm tra luật không gian' } },
+  projectRules: { anchor: { role: 'heading', name: 'Quy chuẩn' } },
   projectRuleSettings: { anchor: { role: 'heading', name: 'Cài đặt bộ luật không gian' } },
   projectExport: { anchor: { role: 'heading', name: 'Xuất bản vẽ' } },
   projectData: { anchor: { label: 'Tìm theo khoá hoặc giá trị' } },

@@ -39,6 +39,7 @@ const base: PasswordResetViewProps = {
   setConfirmPassword: noop,
   submit: noop,
   goToSignIn: noop,
+  requestNewLink: noop,
   expand: noop,
 };
 

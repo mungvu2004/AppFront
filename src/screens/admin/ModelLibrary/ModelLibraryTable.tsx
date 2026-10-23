@@ -53,12 +53,22 @@ function ModelPreviewThumb({
   readonly sizeClassName: string;
 }) {
   const boxClassName = cn(
-    'flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-bg-sunken text-text-tertiary',
+    'flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-border-default bg-bg-sunken text-text-tertiary',
     sizeClassName,
   );
 
   if (row.previewUrl !== null && !row.isPreviewBroken) {
-    return <img alt="" className={cn(boxClassName, 'object-cover')} src={row.previewUrl} />;
+    return (
+      <img
+        alt=""
+        className={cn(boxClassName, 'object-cover')}
+        decoding="async"
+        height={96}
+        loading="lazy"
+        src={row.previewUrl}
+        width={96}
+      />
+    );
   }
 
   return (

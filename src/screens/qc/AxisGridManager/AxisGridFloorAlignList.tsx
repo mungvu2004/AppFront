@@ -131,7 +131,7 @@ export function AxisGridFloorAlignList({
   return (
     <div className="flex w-[344px] shrink-0 flex-col gap-3 rounded-xl bg-bg-surface p-5 shadow-panel max-xl:w-full">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
+        <h2 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h2>
         {isFullyAligned && <Badge variant="neutral">{APPROVED_BADGE_LABEL}</Badge>}
       </div>
 

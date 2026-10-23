@@ -133,6 +133,7 @@ import {
 } from './roomLabelReviewGateway';
 import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
+import { arrowStepHandler } from '../WallLayerReview/listArrowKeys';
 import type {
   RoomLabelMergeCandidate,
   RoomLabelNormalizePreview,
@@ -162,6 +163,9 @@ export const ROOM_LABEL_SCREEN_TEXT = {
   viewerRoleNotice:
     'Bạn đang xem với vai người xem: đổi tên, đổi công năng, gộp, tách và duyệt đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa lớp phòng.',
   undoShortcut: 'Hoàn tác thay đổi phòng gần nhất.',
+  arrowNextShortcut: 'Chọn phòng kế tiếp trong danh sách.',
+  arrowPreviousShortcut: 'Chọn phòng phía trên trong danh sách.',
+  approveNextShortcut: 'Duyệt phòng đang chọn rồi sang phòng chưa duyệt kế tiếp.',
 } as const;
 
 /** Toast "Hoàn tác" bị từ chối vì đã có bước mới hơn (BUG-579, cùng khuôn SCR-16/17/21). */
@@ -888,6 +892,76 @@ export function useRoomLabelReview(
       ...(options.shortcutRegistry === undefined ? {} : { registry: options.shortcutRegistry }),
       enabled: canEdit,
     },
+  );
+
+  /* Impeccable A3: mũi tên đổi dòng chọn, A duyệt rồi sang phòng chưa duyệt kế tiếp. */
+  const roomShortcutOptions = options.shortcutRegistry === undefined ? {} : { registry: options.shortcutRegistry };
+  const listOrderRef = useRef(visibleRows);
+  listOrderRef.current = visibleRows;
+  const selectedRoomIdRef = useRef(selectedRoomId);
+  selectedRoomIdRef.current = selectedRoomId;
+  const stepRoom = (direction: 1 | -1): void => {
+    const order = listOrderRef.current;
+    const current = selectedRoomIdRef.current;
+    const index = current === null ? -1 : order.findIndex((row) => row.id === current);
+    const target = index === -1 ? order[direction === 1 ? 0 : order.length - 1] : order[index + direction];
+
+    if (target !== undefined) {
+      onSelect(target.id);
+    }
+  };
+  const approveAndNext = (): void => {
+    const current = selectedRoomIdRef.current;
+
+    if (current === null) {
+      return;
+    }
+
+    const order = listOrderRef.current;
+    const start = order.findIndex((row) => row.id === current);
+    const next = [...order.slice(start + 1), ...order.slice(0, Math.max(start, 0))].find(
+      (row) => row.id !== current && row.status !== 'confirmed',
+    );
+
+    onApprove(current);
+
+    if (next !== undefined) {
+      onSelect(next.id);
+    }
+  };
+  useShortcut(
+    {
+      id: 'roomLabelReview.arrowNext',
+      combo: 'ArrowDown',
+      scope: 'canvas',
+      description: ROOM_LABEL_SCREEN_TEXT.arrowNextShortcut,
+      allowRepeat: true,
+      preventDefault: false,
+      onTrigger: arrowStepHandler(() => stepRoom(1)),
+    },
+    roomShortcutOptions,
+  );
+  useShortcut(
+    {
+      id: 'roomLabelReview.arrowPrevious',
+      combo: 'ArrowUp',
+      scope: 'canvas',
+      description: ROOM_LABEL_SCREEN_TEXT.arrowPreviousShortcut,
+      allowRepeat: true,
+      preventDefault: false,
+      onTrigger: arrowStepHandler(() => stepRoom(-1)),
+    },
+    roomShortcutOptions,
+  );
+  useShortcut(
+    {
+      id: 'roomLabelReview.approveNext',
+      combo: 'A',
+      scope: 'canvas',
+      description: ROOM_LABEL_SCREEN_TEXT.approveNextShortcut,
+      onTrigger: approveAndNext,
+    },
+    { ...roomShortcutOptions, enabled: canEdit && selectedRoomId !== null },
   );
 
   /* ---------------------------------------------------------------------- */

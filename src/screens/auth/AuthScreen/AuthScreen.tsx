@@ -16,10 +16,8 @@
  *   attempt answered — sits under the button, and each field keeps room for its
  *   own complaint, so nothing appearing or going moves a field or the button
  *   under the cursor (BUG-008). A strip stays until the attempt changes.
- * - **The left column is decoration that costs nothing.** It is a flat sunken
- *   panel with seven hairlines on it — no gradient, no image, no canvas (rule
- *   B). Below 1024 it is gone entirely rather than stacked, because a value
- *   proposition above a login form is something to scroll past on a laptop.
+ * - **The left column is the same ink-on-paper plan as /welcome** (`AuthFrame` + `ValuePanel`): a static
+ *   SVG, no canvas. Below 1024 it folds to a short band above the form instead of vanishing (A1 P1).
  * - **"Quên mật khẩu" replaces the form, it does not float over it.** There is
  *   no register tab: sign-up is closed in v1. The reset request is a second
  *   panel (`ForgotPasswordPanel`) in the same slot, so Esc means "back" and
@@ -31,7 +29,6 @@
  */
 
 import { useCallback, useRef } from 'react';
-import { PanelsTopLeft } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
@@ -49,11 +46,12 @@ import {
   type AuthScreenModel,
   type UseAuthScreenOptions,
 } from './useAuthScreen';
+import { AuthFrame } from '../AuthFrame';
 import { PasswordField } from '../PasswordField';
 import { FIELD_ERROR_SLOT } from '../RecoveryShell';
 import { useReturnFocus } from '../useReturnFocus';
 import { ForgotPasswordPanel } from './ForgotPasswordPanel';
-import { ValuePanel } from './ValuePanel';
+
 
 /* -------------------------------------------------------------------------- */
 /* The sign-in form.                                                           */
@@ -172,6 +170,24 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
         </div>
       </div>
 
+      {/* Every strip under the button, the opening ones too: above the fields, one appearing — or
+          going, as the opening one does on submit — moved the fields and the button under the
+          cursor (BUG-008). Right under it, above "Quên mật khẩu": a wrong password reads next to the button
+          that answered it (A1 §8). */}
+      {notice !== null && (
+        <div className="flex flex-col gap-3">
+          <InlineAlert
+            level={notice.tone}
+            {...(notice.title !== undefined ? { title: notice.title } : {})}
+            message={notice.message}
+          />
+          {stripAction !== undefined && (
+            <Button type="button" variant="secondary" size="lg" fullWidth onClick={stripAction.onClick}>
+              {stripAction.label}
+            </Button>
+          )}
+        </div>
+      )}
       {/* Under the button too: it appears while the address is being typed (BUG-008). */}
       {state === 'partial' && (
         <p className="text-[13px] leading-[18px] text-text-secondary">
@@ -205,29 +221,12 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           type="button"
           disabled={fieldsDisabled}
           onClick={actions.forgotPassword}
-          className="inline-flex min-h-11 items-center self-center py-1 text-[13px] sm:min-h-6 leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-11 items-center self-start py-1 text-[13px] fine:min-h-6 leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app disabled:cursor-not-allowed disabled:opacity-50"
         >
           {AUTH_MESSAGES.actions.forgotPassword}
         </button>
       </div>
 
-      {/* Every strip under the button, the opening ones too: above the fields, one appearing — or
-          going, as the opening one does on submit — moved the fields and the button under the
-          cursor (BUG-008). */}
-      {notice !== null && (
-        <div className="flex flex-col gap-3">
-          <InlineAlert
-            level={notice.tone}
-            {...(notice.title !== undefined ? { title: notice.title } : {})}
-            message={notice.message}
-          />
-          {stripAction !== undefined && (
-            <Button type="button" variant="secondary" size="lg" fullWidth onClick={stripAction.onClick}>
-              {stripAction.label}
-            </Button>
-          )}
-        </div>
-      )}
     </form>
   );
 }
@@ -304,76 +303,50 @@ export function AuthScreenView(props: AuthScreenViewProps) {
        English word — "partial" — to a Vietnamese screen-reader user, and the
        strip below already says the same thing in a sentence. A `data-`
        attribute is readable by a test and silent to everyone else. */
-    <main className="flex min-h-screen w-full bg-bg-app" data-auth-state={state}>
-      <ValuePanel />
-
-      {/* Anchored from the top, not centred: centred, every strip that appears lifts the whole form
-          and the field being typed in slides out from under the caret (BUG-008). The top padding
-          sits the empty form (~506 px, no SSO button: error slots and the 44 px link grew it) a little
-          above centre, leaving room under the button for the tallest strip and its action — the
-          signed-in strip plus "Về danh sách dự án" — inside 1024×768 and 375×812 without a scroll bar (BUG-058).
-          24 px sides under 640, as `RecoveryShell`: 48 px left a ~279 px column at 375 (BUG-052). */}
-      <div className="flex w-full flex-col items-center px-6 pb-6 pt-[max(3rem,calc(50vh-20.75rem))] sm:px-12 lg:w-[55%]">
-        <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
-          {/* The mark, and the screen's own name beside it. There is deliberately
-              no "thu gọn" button: `isCollapsed` is set by whoever mounts the
-              screen — an embedding host with less room — not by the visitor. A
-              control on a product screen whose only job is to switch it into
-              another of its seven states is the developer furniture list B
-              refuses, and it belongs on /design-system/states instead. */}
-          <div className="flex flex-col gap-3">
-            <PanelsTopLeft aria-hidden="true" className="h-8 w-8 text-accent" strokeWidth={1.5} />
-            <div className="flex flex-col gap-1">
-              <h1 className="text-[30px] font-semibold leading-10 text-text-primary">
-                {isForgot ? AUTH_MESSAGES.forgotPassword.title : AUTH_MESSAGES.tabs.signIn}
-              </h1>
-              <p className="text-[15px] leading-6 text-text-secondary">
-                {isForgot ? AUTH_MESSAGES.forgotPassword.subtitle : AUTH_MESSAGES.brand.subtitle}
-              </p>
-            </div>
-          </div>
-
-          {isCollapsed ? (
-            <div className="flex flex-col gap-4">
-              <p className="text-[14px] leading-5 text-text-secondary">
-                {AUTH_MESSAGES.notices.collapsed}
-              </p>
-              <Button size="lg" fullWidth onClick={expand}>
-                {AUTH_MESSAGES.actions.expand}
-              </Button>
-            </div>
-          ) : isForgot ? (
-            <div key={panel} className="animate-dropdown-open motion-reduce:animate-none">
-              <ForgotPasswordPanel
-                model={forgot}
-                actions={forgotActions}
-                onBack={closeForgot}
-                registerEmailField={registerFirstField}
-              />
-            </div>
-          ) : isBlocked ? (
-            <div className="flex flex-col gap-4">
-              <InlineAlert
-                level={notice?.tone ?? 'attention'}
-                title={notice?.title ?? AUTH_MESSAGES.errors.accountDisabled.title}
-                message={notice?.message ?? AUTH_MESSAGES.errors.accountDisabled.description}
-              />
-              <Button ref={catchDroppedFocus} type="button" variant="secondary" size="lg" fullWidth onClick={reopenForm}>
-                {AUTH_MESSAGES.actions.signInWithAnotherAccount}
-              </Button>
-            </div>
-          ) : (
-            <div key={panel} className="animate-dropdown-open motion-reduce:animate-none">
-              <CredentialForm
-                model={model}
-                actions={{ ...actions, forgotPassword: openForgot }}
-                registerFirstField={registerFirstField}
-              />
-            </div>
-          )}
+    <AuthFrame
+      state={state}
+      title={isForgot ? AUTH_MESSAGES.forgotPassword.title : AUTH_MESSAGES.tabs.signIn}
+      subtitle={isForgot ? AUTH_MESSAGES.forgotPassword.subtitle : AUTH_MESSAGES.brand.subtitle}
+    >
+      {isCollapsed ? (
+        <div className="flex flex-col gap-4">
+          <p className="text-[14px] leading-5 text-text-secondary">
+            {AUTH_MESSAGES.notices.collapsed}
+          </p>
+          <Button size="lg" fullWidth onClick={expand}>
+            {AUTH_MESSAGES.actions.expand}
+          </Button>
         </div>
-      </div>
-    </main>
+      ) : isForgot ? (
+        <div key={panel} className="animate-dropdown-open motion-reduce:animate-none">
+          <ForgotPasswordPanel
+            model={forgot}
+            actions={forgotActions}
+            onBack={closeForgot}
+            registerEmailField={registerFirstField}
+          />
+        </div>
+      ) : isBlocked ? (
+        <div className="flex flex-col gap-4">
+          <InlineAlert
+            level={notice?.tone ?? 'attention'}
+            title={notice?.title ?? AUTH_MESSAGES.errors.accountDisabled.title}
+            message={notice?.message ?? AUTH_MESSAGES.errors.accountDisabled.description}
+          />
+          <Button ref={catchDroppedFocus} type="button" variant="secondary" size="lg" fullWidth onClick={reopenForm}>
+            {AUTH_MESSAGES.actions.signInWithAnotherAccount}
+          </Button>
+        </div>
+      ) : (
+        <div key={panel} className="animate-dropdown-open motion-reduce:animate-none">
+          <CredentialForm
+            model={model}
+            actions={{ ...actions, forgotPassword: openForgot }}
+            registerFirstField={registerFirstField}
+          />
+        </div>
+      )}
+    </AuthFrame>
   );
 }
 

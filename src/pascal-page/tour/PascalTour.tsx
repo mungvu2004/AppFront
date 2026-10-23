@@ -27,7 +27,7 @@ const CSS = `
 .pascal-tour-ghost{background:transparent;color:var(--pa-text-2)}
 .pascal-tour-ghost:hover{background:var(--pa-sunken);color:var(--pa-text)}
 .pascal-tour-kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;border:1px solid var(--pa-border);background:var(--pa-sunken);color:var(--pa-text-2);border-radius:4px;padding:1px 6px}
-.pascal-tour-card{transition:left 180ms var(--pa-ease),top 180ms var(--pa-ease)}
+.pascal-tour-card{transition:transform 180ms var(--pa-ease)}
 @media (prefers-reduced-motion: reduce){.pascal-tour-card,.pascal-tour-btn{transition:none}}
 `;
 
@@ -142,8 +142,9 @@ export function PascalTour() {
         role="dialog"
         style={{
           position: 'fixed',
-          left: pos.left,
-          top: pos.top,
+          left: 0,
+          top: 0,
+          transform: `translate(${Math.round(pos.left)}px, ${Math.round(pos.top)}px)`,
           width: CARD_W,
           pointerEvents: 'auto',
           boxSizing: 'border-box',
@@ -171,12 +172,17 @@ export function PascalTour() {
             ))}
           </div>
         ) : null}
-        {/* T-11: cùng hình thức thẻ QC (EditorTour) — gợi ý Esc, hàng nút "Bỏ qua hướng dẫn" | "Tiếp theo", chấm ở giữa dưới. */}
+        {/* T-11: cùng hình thức thẻ QC (EditorTour) — gợi ý Esc, hàng nút "Bỏ qua hướng dẫn" | "Tiếp theo", chấm ở giữa dưới.
+            Bước cuối không còn "Bỏ qua": "Xong" đã đóng hướng dẫn, hai nút cùng việc chỉ làm phân vân. */}
         <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--pa-text-2)' }}>Bấm Esc để đóng hướng dẫn.</p>
         <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button className="pascal-tour-btn pascal-tour-ghost" onClick={close} type="button">
-            Bỏ qua hướng dẫn
-          </button>
+          {last ? (
+            <span />
+          ) : (
+            <button className="pascal-tour-btn pascal-tour-ghost" onClick={close} type="button">
+              Bỏ qua hướng dẫn
+            </button>
+          )}
           <div style={{ display: 'flex', gap: 8 }}>
             {index > 0 ? (
               <button className="pascal-tour-btn pascal-tour-ghost" onClick={() => setIndex(index - 1)} type="button">

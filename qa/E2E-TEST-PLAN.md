@@ -114,7 +114,7 @@ Roles: **A** admin, **E** engineer, **V** viewer, **∅** anonymous. `{work}` / 
 | SCR-05 | Dashboard | A | **Proven sequence:** "Tên dự án", then "Tiếp tục", then "Chiều cao áp cho mọi tầng"=3, then "Áp cho mọi tầng", then "Tiếp tục", then "Tạo dự án" | Click/Type | `POST /api/projects` 200 or 201. Card for **CP-2**. **Do not click the toast's "Hoàn tác".** | `05_dash_project_created.png` | P0 |
 | SCR-05 | Dashboard | wizard dirty | "Huỷ", then "Đóng, bỏ thay đổi" | Click | "Đóng và bỏ các thay đổi chưa lưu?", then the modal closes | `05_wizard_discard.png` | P2 |
 | SCR-05 | Dashboard | CP-2 | searchbox "Tìm dự án" = CP-2 name; then nonsense, then "Xoá bộ lọc" | Type/Click | One card; then "Không tìm thấy dự án phù hợp"; then the list is restored | `05_dash_search.png` | P1 |
-| SCR-05 | Dashboard | ≥1 project | sort "Tên A–Z"; "Kiểu xem" set to "Bảng"; status "Đang xử lý" / "Cần QC" / "Hoàn thành" | Select/Click | Order changes; table headers Tên dự án…Cập nhật; list filters (aria-pressed) | `05_dash_view_controls.png` | P2 |
+| SCR-05 | Dashboard | ≥1 project | sort "Tên A–Z"; "Kiểu xem" set to "Bảng"; status "Đang xử lý" / "Cần duyệt" / "Hoàn thành" | Select/Click | Order changes; table headers Tên dự án…Cập nhật; list filters (aria-pressed) | `05_dash_view_controls.png` | P2 |
 | SCR-05 | Dashboard | CP-2 | "Tuỳ chọn cho {name}", then "Đổi tên", then "Đổi tên {name}" + Enter, then toast "Hoàn tác" | Click/Type | `PATCH /projects/:id`; undo restores the name | `05_dash_rename_undo.png` | P1 |
 | SCR-05 | Dashboard | CP-2 | card click | Click | processing goes to `/pipeline`; qc goes to walls, or `/floors` if there is no default floor; done goes to `/3d` | `05_dash_open_project.png` | P1 |
 | SCR-06 | Notifications (bell on `/`) | A | `button "Thông báo"` **exact:true** | Click | Drawer "Thông báo"; radiogroup "Lọc thông báo" | `06_notif_drawer.png` | P1 |
@@ -226,9 +226,9 @@ Roles: **A** admin, **E** engineer, **V** viewer, **∅** anonymous. `{work}` / 
 | SCR-34 | Model Library (`/admin/models`) | A | "tìm model"; "danh mục"; sort `th` "Số tam giác" (**before** switching to Lưới); then "Lưới"; name, then "Chi tiết model", then Esc | Type/Click | Filter, `aria-sort`, grid, panel; no write controls | `34_library_browse.png` | P2 |
 | SCR-35 | Training Jobs (`/admin/training/jobs`) | A | tabs "Lượt huấn luyện" / "Bộ dữ liệu"; status filter; row, then "Chi tiết lượt huấn luyện" | Click | Panels; "Số đo" and "Nhật ký" | `35_training_browse.png` | P2 |
 | SCR-35 | Training Jobs | A | "Tạo lượt huấn luyện", then "Đóng" | Click | Dialog opens and closes; no POST | `35_training_dialog_cancel.png` | P2 |
-| SCR-36 | Model Registry (`/admin/training/models`) | A, CP-8 | **Record** `GET /admin/ml/model-families` → `openingAndFurnitureDetection.activeVersionId`. Then "Họ model" = "Nhận diện cửa và đồ đạc"; candidate row "Kích hoạt", then dialog "Kích hoạt" | Click | `PUT /admin/ml/model-families/openingAndFurnitureDetection/active` 200; "Đang dùng" moves | `36_registry_activated.png` | P1 |
+| SCR-36 | Model Registry (`/admin/training/models`) | A, CP-8 | **Record** `GET /admin/ml/model-families` → `openingAndFurnitureDetection.activeVersionId`. Then "Loại mô hình" = "Nhận diện cửa và đồ đạc"; candidate row "Kích hoạt", then dialog "Kích hoạt" | Click | `PUT /admin/ml/model-families/openingAndFurnitureDetection/active` 200; "Đang dùng" moves | `36_registry_activated.png` | P1 |
 | SCR-36 | Model Registry | after activation | **In a finally block:** "Kích hoạt" on the recorded original row, then "Kích hoạt" | Click | Active version equals the recorded id (**mandatory restore**, the same way the chain does it) | `36_registry_restored.png` | P0 |
-| SCR-36 | Model Registry | walls family | "Quay về đường cổ điển" | Assert only | Visible only for walls. **Do not click**: it sends `versionId:null` (classic, no model) | `36_registry_classic_visible.png` | P2 |
+| SCR-36 | Model Registry | walls family | "Tắt AI, dùng thuật toán cũ" | Assert only | Visible only for walls. **Do not click**: it sends `versionId:null` (classic, no model) | `36_registry_classic_visible.png` | P2 |
 | SCR-37 | User Management (`/admin/users`) | A | "Tìm người dùng"; "Vai" / "Trạng thái"; "Xem ma trận quyền", then close; row name, then "Chi tiết người dùng", then Esc | Type/Click | Filters, modal, detail | `37_users_browse.png` | P2 |
 | SCR-37 | User Management | own row | role select / "Vô hiệu hoá" | Assert | Inline text "Bạn không thể tự đổi vai của mình" / "…tự vô hiệu hoá…" replaces the control | `37_users_self_guard.png` | P1 |
 | SCR-37 | User Management | **opt-in (sends email)** | "Mời người dùng", then "Email người được mời" = `e2e+x@example.invalid`, then "Gửi lời mời" | Submit | `POST /users/invitations`; status "Chờ chấp nhận" | `37_users_invited.png` | P2 |
@@ -346,7 +346,7 @@ Track B (mock dev server, independent, can run any time):
 - **Structural fixes:**
   - The wizard needs the "Chiều cao áp cho mọi tầng" + "Áp cho mọi tầng" steps and creates 4 floors; floor names are now captured from the server.
   - Versions come from the pipeline and restores, not autosave; restore targets the AI row, never the oldest.
-  - **The registry test now uses the opening family and restores the recorded version.** v1's "Quay về đường cổ điển" would have left walls with no model, globally.
+  - **The registry test now uses the opening family and restores the recorded version.** v1's "Tắt AI, dùng thuật toán cũ" would have left walls with no model, globally.
   - Pipeline runs immediately after upload; the SCR-11 checkbox is conditional.
 - **Feasibility fixes:**
   - `dismissTour` ("Bỏ qua hướng dẫn").

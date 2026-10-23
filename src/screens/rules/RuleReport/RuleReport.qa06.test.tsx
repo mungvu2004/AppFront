@@ -54,7 +54,7 @@ function renderRoute(roles: readonly ('admin' | 'engineer' | 'viewer')[]) {
 
 async function openFirstViolation(container: HTMLElement): Promise<void> {
   const toggle = await waitFor(() => {
-    const found = container.querySelector<HTMLButtonElement>('h3 button[aria-expanded="false"]');
+    const found = container.querySelector<HTMLButtonElement>('h2 button[aria-expanded="false"]');
     if (found === null) throw new Error('lượt chạy chưa xong');
     return found;
   });
@@ -82,7 +82,7 @@ describe('28-D-004 / 28V-D-003 — route lấy quyền thật của người xem
   it('[9V-C-030] viewer: không có "Chạy kiểm tra lại"', async () => {
     renderRoute(['viewer']);
 
-    await screen.findByRole('heading', { name: 'Kiểm tra luật không gian' });
+    await screen.findByRole('heading', { name: 'Quy chuẩn' });
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: 'Đang kiểm tra' })).toBeNull();
     });

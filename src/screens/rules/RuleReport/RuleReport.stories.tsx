@@ -135,6 +135,7 @@ function toSummary(violations: readonly Violation[]): RuleReportSummary {
     passed: ENABLED_RULES.length - rulesWithFindings.size,
     warnings: rulesWithFindings.size - criticalRules.size,
     violations: criticalRules.size,
+    suggestions: 0,
   };
 }
 
@@ -177,7 +178,7 @@ const SAMPLE_SKIPPED: SkippedRuleGroup = {
 /** Props nền — mọi story ghi đè từ đây, giống hệt props rỗng thật của trạng thái 1. */
 const EMPTY_PROPS: RuleReportViewProps = {
   status: 'empty',
-  summary: { evaluated: 0, passed: 0, warnings: 0, violations: 0 },
+  summary: { evaluated: 0, passed: 0, warnings: 0, violations: 0, suggestions: 0 },
   groups: [],
   resolvedRows: [],
   passedRules: [],

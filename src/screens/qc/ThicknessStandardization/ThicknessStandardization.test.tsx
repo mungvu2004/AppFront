@@ -52,6 +52,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { lowerFirst } from '@/lib/format/sentence';
 
+import { counterLabelOf } from '@/domain/spatial/ids';
 import type { Wall, WallId } from '@/domain/spatial/types';
 import { createHistoryStack, type HistoryStack } from '@/lib/commands/history';
 import type { HttpError } from '@/lib/http/types';
@@ -361,7 +362,6 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
         onDismissReapplyWarning={noop}
         onOpenPreview={noop}
         onReapplyFilter={noop}
-        onUndo={noop}
         preview={{ totalWalls: 1, groupCount: 0, unchangedWalls: blocked, sentence: '1 tường → 0 nhóm chuẩn.' }}
         reapplyWarning={null}
         toleranceMm={DEFAULT_TOLERANCE_MM}
@@ -384,7 +384,6 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
           onDismissReapplyWarning={noop}
           onOpenPreview={noop}
           onReapplyFilter={noop}
-          onUndo={noop}
           preview={null}
           reapplyWarning={null}
           toleranceMm={DEFAULT_TOLERANCE_MM}
@@ -690,7 +689,8 @@ describe('P04 cụm C — điều khiển chỉ hiện khi dùng được', () =
 
     const row = screen
       .getAllByRole('row')
-      .find((entry) => within(entry).queryByRole('checkbox', { name: new RegExp(target.id, 'u') }) !== null);
+      /* Ô chọn đọc mã ngắn của tường ("Chọn dòng tường #W-001"), không đọc ULID (Impeccable A3). */
+      .find((entry) => within(entry).queryByRole('checkbox', { name: new RegExp(`tường #${counterLabelOf(target.id)}$`, 'u') }) !== null);
 
     fireEvent.click(within(row as HTMLElement).getByRole('combobox', { name: /^Độ dày chuẩn hoá của đoạn /u }));
 

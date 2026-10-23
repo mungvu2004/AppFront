@@ -365,7 +365,10 @@ export function buildDiffGroups(diff: VersionDiff): readonly DiffGroupModel[] {
         entityId: entry.entityId,
         entityType: entry.entityType,
         tone,
-        sentence: formatChange({ ...entry, entityId: shortIdOf(entry.entityType, entry.entityId) }),
+        sentence: formatChange(
+          { ...entry, entityId: shortIdOf(entry.entityType, entry.entityId) },
+          { lengthsInMm: true },
+        ),
       });
       rowsByKind.set(entry.entityType, rows);
     });

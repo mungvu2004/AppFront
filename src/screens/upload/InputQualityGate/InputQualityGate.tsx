@@ -53,6 +53,7 @@ import type { InputQualityGateViewProps } from './types';
 
 const BREADCRUMB_PROJECTS = 'Dự án';
 const BREADCRUMB_QUALITY = 'Kiểm tra chất lượng đầu vào';
+const PAGE_TITLE = 'Chất lượng ảnh đầu vào';
 
 /** Tiêu đề của lượt đo chất lượng hỏng — `status === 'error'`, không phải lỗi tệp. */
 const LOAD_ERROR_TITLE = 'Không đọc được kết quả kiểm tra chất lượng';
@@ -198,6 +199,7 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
             { id: 'current', label: BREADCRUMB_QUALITY },
           ]}
         />
+        <h1 className="text-title font-semibold text-text-primary">{PAGE_TITLE}</h1>
 
         {body}
 

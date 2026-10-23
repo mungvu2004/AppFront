@@ -36,6 +36,8 @@
  * đúng bảng chuỗi của hợp đồng.
  */
 
+import { Check } from 'lucide-react';
+
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { motion } from '@/components/motion';
 import { Button } from '@/components/ui/Button';
@@ -173,7 +175,7 @@ function QuietLink({ link, id, note }: QuietLinkProps) {
       aria-disabled={isDisabled ? true : undefined}
       aria-describedby={noteOf(link, note) === null ? undefined : noteIdOf(id)}
       className={cn(
-        'inline-flex min-h-11 items-center justify-center rounded-lg px-2 text-[13px] sm:min-h-6',
+        'inline-flex min-h-11 items-center justify-center rounded-lg px-2 text-[13px] fine:min-h-6',
         'transition-colors duration-fast motion-reduce:transition-none',
         FOCUS_RING_CLASS,
         // Gạch chân và màu nhấn (A2) là dấu hiệu "bấm được": chữ xám gạch chân vẫn đọc như chữ thường
@@ -197,6 +199,8 @@ function QuietNote({ link, id, note }: Pick<QuietLinkProps, 'link' | 'id' | 'not
     </span>
   );
 }
+
+const DONE_LABEL = 'Đã xong';
 
 interface StepCardProps {
   readonly card: OnboardingStepCard;
@@ -230,6 +234,13 @@ function StepCard({ card, delaySeconds }: StepCardProps) {
       <div className="flex shrink-0 items-center gap-3">
         <span className="text-[13px] font-medium tabular-nums text-text-muted">{card.ordinal}</span>
         <Glyph id={card.id} className={cn('h-6 w-6', isLocked ? 'text-text-muted' : 'text-text-secondary')} />
+        {/* Bước đã làm nói rõ "đã xong": trước đây chỉ khác ở nút phụ, người mới không biết bước 1-2 đã qua (A1, Jordan). */}
+        {card.state === 'done' && (
+          <span className="ml-auto inline-flex items-center gap-1 text-[12px] font-medium text-state-verified-text">
+            <Check size={14} strokeWidth={2} aria-hidden="true" />
+            {DONE_LABEL}
+          </span>
+        )}
       </div>
       <div className="flex flex-1 flex-col gap-1.5">
         <h2 className="text-[15px] font-semibold text-text-primary">{card.title}</h2>

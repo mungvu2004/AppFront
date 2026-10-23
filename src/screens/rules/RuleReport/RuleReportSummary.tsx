@@ -1,5 +1,5 @@
 /**
- * The two bands that sit above the list: four numbers, then the filters.
+ * The two bands that sit above the list: five numbers, then the filters.
  *
  * Both are here rather than in `RuleReport.tsx` because the frame crossed
  * invariant R-22's 400-line ceiling, and these two pieces are the ones nothing
@@ -31,8 +31,10 @@
  * building — the view still knows nothing it was not handed.
  */
 
-import { useMemo, useRef } from 'react';
+import { SlidersHorizontal } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 
+import { Button } from '@/components/ui/Button';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Select } from '@/components/ui/Select';
 import { useCountUp } from '@/hooks/useCountUp';
@@ -47,7 +49,7 @@ import type {
   RuleReportSummary as RuleReportSummaryModel,
 } from './types';
 
-/** One of the four figures: the number over the word that says what it counts. */
+/** One figure: the number over the word that says what it counts. */
 interface SummaryStatProps {
   readonly value: number;
   readonly label: string;
@@ -73,19 +75,20 @@ export interface RuleReportSummaryStripProps {
 }
 
 /**
- * The four figures, in the order the contract fixes them.
+ * The five figures.
  *
- * All four count RULES, so total = passed + warnings + violations (BUG-460).
- * `cảnh báo` holds rules whose findings are warnings or suggestions: a suggestion
- * is never counted as a violation, so the alarming number is the one that has
- * actually earned it. Each row still shows its own severity in words.
+ * All count RULES, so total = passed + violations + warnings + suggestions
+ * (BUG-460), each rule filed under its worst finding. A suggestion is never
+ * counted as a warning or a violation, so the alarming number is the one that
+ * has actually earned it (V-10: it alone is tinted red when above zero).
  */
 export function RuleReportSummaryStrip({ summary }: RuleReportSummaryStripProps) {
   return (
-    <dl className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+    <dl className="grid grid-cols-2 gap-6 sm:grid-cols-5">
       <SummaryStat value={summary.evaluated} label="Tổng số kiểm tra" />
       <SummaryStat value={summary.passed} label="Đạt" />
-      <SummaryStat value={summary.warnings} label="Cảnh báo, gợi ý" toneClassName="text-state-attention-text" />
+      <SummaryStat value={summary.suggestions} label="Gợi ý" />
+      <SummaryStat value={summary.warnings} label="Cảnh báo" toneClassName="text-state-attention-text" />
       <SummaryStat value={summary.violations} label="Nghiêm trọng" toneClassName="text-state-violation-text" />
     </dl>
   );
@@ -159,6 +162,10 @@ export function RuleReportFilterBar({
     [groups, resolvedRows],
   );
 
+  // Dưới 1280 hai ô chọn gom sau nút "Lọc", để hàng lọc không vỡ ba dòng ở 768.
+  const [isMoreOpen, setMoreOpen] = useState(false);
+  const narrowed = filters.group !== ANY_OPTION || filters.levelId !== ANY_OPTION;
+
   return (
     <div className="flex flex-wrap items-end gap-4">
       <SegmentedControl
@@ -170,6 +177,19 @@ export function RuleReportFilterBar({
         }}
       />
 
+      <Button
+        variant="secondary"
+        className="xl:hidden"
+        aria-expanded={isMoreOpen}
+        onClick={() => {
+          setMoreOpen((open) => !open);
+        }}
+      >
+        <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
+        {narrowed ? 'Lọc (đang thu hẹp)' : 'Lọc'}
+      </Button>
+
+      <div className={cn('w-full flex-wrap items-end gap-4 xl:flex xl:w-auto', isMoreOpen ? 'flex' : 'hidden')}>
       <Select
         label="Nhóm luật"
         className="w-[200px]"
@@ -195,6 +215,7 @@ export function RuleReportFilterBar({
           onFilterChange({ ...filters, levelId: value as RuleReportFilters['levelId'] });
         }}
       />
+      </div>
     </div>
   );
 }

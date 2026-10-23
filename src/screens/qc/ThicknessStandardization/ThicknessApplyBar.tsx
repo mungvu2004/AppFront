@@ -7,7 +7,7 @@
  * nhất còn lại (`expandedWallId`) chỉ điều khiển việc HIỆN/ẨN dòng giải thích
  * của một tường không đổi được — đúng khuôn `FloorTable.tsx`
  * (`duplicatingFloorId`) — không phải nơi quyết định nghiệp vụ; mọi thay đổi
- * thật đi qua `onApplyPreview`/`onReapplyFilter`/`onUndo`.
+ * thật đi qua `onApplyPreview`/`onReapplyFilter` (hoàn tác ở `QcStatusBar`).
  *
  * ## Sửa ở lượt T8 — lớp cảnh báo đọc THẲNG từ hook, không có bản sao cục bộ
  *
@@ -53,7 +53,6 @@ import type { ThicknessApplyBarProps, ThicknessSegmentRow } from './thicknessTyp
 const TOLERANCE_LABEL = 'Dung sai';
 /* Tên nói việc nó làm, và nó mở cùng bảng xem trước như "Xem trước" (BUG-593). */
 const REAPPLY_FILTER_LABEL = 'Áp lại cho mọi tường lệch nhóm';
-const UNDO_LABEL = 'Hoàn tác';
 const OPEN_PREVIEW_LABEL = 'Xem trước';
 const CANCEL_LABEL = 'Huỷ';
 const APPLY_LABEL = 'Áp dụng';
@@ -79,7 +78,6 @@ export function ThicknessApplyBar({
   onOpenPreview,
   onApplyPreview,
   onCancelPreview,
-  onUndo,
   reapplyWarning,
   onReapplyFilter,
   onDismissReapplyWarning,
@@ -130,9 +128,6 @@ export function ThicknessApplyBar({
         </div>
 
         <div className="ml-auto flex items-center gap-3">
-          <Button onClick={onUndo} size="sm" variant="ghost">
-            {UNDO_LABEL}
-          </Button>
           {preview === null && (
             <Button disabled={!canPreview} onClick={onOpenPreview} size="sm" variant="primary">
               {OPEN_PREVIEW_LABEL}

@@ -233,6 +233,7 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
                 { id: 'current', label: BREADCRUMB_PIPELINE },
               ]}
             />
+            <h1 className="mt-2 text-title text-text-primary">{BREADCRUMB_PIPELINE}</h1>
           </div>
           <ProcessingActions {...props} />
         </div>
@@ -271,7 +272,7 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
         {errorAlert?.isProjectMissing === true ? null : (
           <>
             {isDone ? (
-              <p className="text-[20px] font-semibold text-text-primary" role="status">
+              <p className="text-title-sm font-semibold text-text-primary" role="status">
                 {props.overallSummaryLine}
               </p>
             ) : null}

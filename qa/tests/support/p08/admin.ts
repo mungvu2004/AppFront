@@ -73,16 +73,16 @@ export const familyActiveRe = (family: string): RegExp => new RegExp(`^/api${fam
 
 /** Page heading per screen. Library and Users have no h1: their page title is the breadcrumb current item. */
 export const TITLE = {
-  library: 'Thư viện model', // ML:38 BREADCRUMB_CURRENT (also the h1, BUG-P08-006)
+  library: 'Thư viện mẫu 3D', // ML:38 BREADCRUMB_CURRENT (also the h1, BUG-P08-006)
   jobs: 'Huấn luyện mô hình AI', // TJ:30 (h1, TJ:55)
   registry: 'Model AI của chuỗi xử lý', // MR:29 (h1, MR:58)
   users: 'Người dùng', // UMH:134 breadcrumbUsers (aria-current="page", UM:~64; no h1)
 } as const;
 export const BREADCRUMB_NAV = 'Đường dẫn trang'; // ML:36, TJ:48, MR:51, UM:49
 
-/** Heading locator of a screen: h1 for jobs/registry, breadcrumb current item for library/users. */
+/** Heading locator of a screen: h1 for library/jobs/registry (their breadcrumb was removed), breadcrumb current item for users. */
 export const heading = (page: Page, screen: AdminScreen): Locator =>
-  screen === 'jobs' || screen === 'registry'
+  screen !== 'users'
     ? page.getByRole('heading', { level: 1, name: TITLE[screen], exact: true })
     : page.getByRole('navigation', { name: BREADCRUMB_NAV }).getByText(TITLE[screen], { exact: true });
 

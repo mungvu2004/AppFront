@@ -19,6 +19,7 @@
  */
 
 import type { Millimetres, SquareMetres } from '@/domain/units/types';
+import { FLOOR_LAYERS, type FloorLayerKey } from '@/routes/projectSteps';
 
 /* -------------------------------------------------------------------------- */
 /* Bảy trạng thái màn.                                                         */
@@ -411,7 +412,6 @@ export interface FloorManagerViewProps {
   readonly onOpenOverlay?: ((floorId: string) => void) | undefined;
   /** Lối vào các màn duyệt lớp của một tầng (menu "Duyệt lớp"); vắng thì không vẽ nút. */
   /** Lối vào màn cấp dự án (menu "Thêm" đầu màn); vắng thì không vẽ nút. */
-  readonly onOpenProjectScreen?: ((screen: ProjectMoreScreen) => void) | undefined;
   readonly onOpenFloorScreen?: ((floorId: string, screen: FloorReviewScreen) => void) | undefined;
   readonly onToggleCollapsed: () => void;
   readonly onRetry: () => void;
@@ -480,26 +480,20 @@ export const FLOOR_COLUMN_LABELS = {
 export const FLOOR_QC_SCORE_HINT =
   'Điểm kiểm tra luật = 100 − 8 × lỗi nghiêm trọng − 3 × cảnh báo − 1 × gợi ý, thấp nhất 0. Không phải chất lượng ảnh.';
 
-/** Các màn duyệt theo tầng mà menu "Duyệt lớp" ở mỗi dòng dẫn tới; khoá trùng tên builder `ROUTES.project.*`. */
-export const FLOOR_REVIEW_SCREENS = [
-  { id: 'walls', label: 'Duyệt tường' },
-  { id: 'objects', label: 'Cửa & nội thất' },
-  { id: 'dimensions', label: 'Kích thước (OCR)' },
-  { id: 'grids', label: 'Trục & gốc toạ độ' },
-  { id: 'rooms', label: 'Tên phòng' },
-  { id: 'thickness', label: 'Độ dày tường' },
+/**
+ * Menu "Duyệt lớp" ở mỗi dòng: đọc thẳng `FLOOR_LAYERS` (cùng tên, cùng thứ tự với dải lớp trên
+ * màn duyệt), rồi nhóm công cụ của tầng tách riêng. Khoá trùng tên builder `ROUTES.project.*`.
+ */
+export type FloorReviewScreen = FloorLayerKey | 'scale';
+
+export const FLOOR_REVIEW_SCREENS: readonly { readonly id: FloorReviewScreen; readonly label: string }[] = FLOOR_LAYERS.map(
+  (layer) => ({ id: layer.key, label: layer.label }),
+);
+
+/** Ô "Điểm luật" khi tầng chưa duyệt mục nào: không hiện "0%" gây hoảng. */
+export const QC_NOT_GRADED = 'Chưa chấm';
+
+/** Công cụ của tầng (không phải lớp duyệt): nhóm riêng, sau một vạch ngăn. */
+export const FLOOR_TOOL_SCREENS: readonly { readonly id: FloorReviewScreen; readonly label: string }[] = [
   { id: 'scale', label: 'Hiệu chỉnh tỷ lệ' },
-] as const;
-
-export type FloorReviewScreen = (typeof FLOOR_REVIEW_SCREENS)[number]['id'];
-
-/** Màn cấp dự án mà menu "Thêm" ở đầu màn dẫn tới; khoá trùng tên builder `ROUTES.project.*`. */
-export const PROJECT_MORE_SCREENS = [
-  { id: 'data', label: 'Dữ liệu dự án' },
-  { id: 'versions', label: 'Lịch sử phiên bản' },
-  { id: 'pipelineGraph', label: 'Sơ đồ xử lý' },
-  // N0-03: lối mở lại bước nắn ảnh sau khi luồng xử lý đã đi qua.
-  { id: 'quality', label: 'Xem lại chất lượng ảnh' },
-] as const;
-
-export type ProjectMoreScreen = (typeof PROJECT_MORE_SCREENS)[number]['id'];
+];

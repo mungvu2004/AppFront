@@ -48,8 +48,6 @@
  * bại duy nhất A11 tồn tại để chặn — không có chỗ xảy ra.
  */
 
-import { useEffect, useRef } from 'react';
-
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { InlineAlert, type InlineAlertLevel } from '@/components/feedback/InlineAlert';
 import {
@@ -58,25 +56,15 @@ import {
   PROJECT_NOT_FOUND_TITLE,
 } from '@/components/feedback/ProjectSpatialGate';
 import { Button } from '@/components/ui/Button';
-import { useCountUp } from '@/hooks/useCountUp';
-import type { NumberFormatOptions } from '@/lib/format/number';
 
 import { CadBranchConfirmDialog } from './CadBranchConfirmDialog';
-import {
-  AI_BRANCH_NOTICE,
-  CAD_BRANCH_CONFIRM_TEXT,
-  IMPORT_BUTTON_LABEL,
-} from './cadBranchConfirmText';
+import { CadBranchHandoff, NoCadFileActions } from './CadBranchHandoff';
+import { CAD_BRANCH_CONFIRM_TEXT } from './cadBranchConfirmText';
 import { CadImportOptions } from './CadImportOptions';
 import { CadLayerMappingPanel } from './CadLayerMappingPanel';
 import { CadLayerPreviewCanvas } from './CadLayerPreviewCanvas';
-import type {
-  CadBranchConfirmActions,
-  CadBranchConfirmProps,
-  CadBranchConfirmState,
-  CadBranchConfirmViewModel,
-  CadMappingSummary,
-} from './types';
+import { CadMappingSummaryBar } from './CadMappingSummaryBar';
+import type { CadBranchConfirmProps, CadBranchConfirmState, CadBranchConfirmViewModel } from './types';
 
 const PHASE_1_TEXT = CAD_BRANCH_CONFIRM_TEXT.phase1;
 
@@ -87,7 +75,6 @@ const PHASE_1_TEXT = CAD_BRANCH_CONFIRM_TEXT.phase1;
 const SCREEN_ARIA_LABEL = 'Màn phát hiện tệp CAD';
 const NOTICE_REGION_ARIA_LABEL = 'Trạng thái của màn phát hiện tệp CAD';
 const STAGE_TWO_ARIA_LABEL = 'Ánh xạ lớp và xem trước hình học';
-const SUMMARY_ARIA_LABEL = 'Tóm tắt số lớp đã ánh xạ';
 const LOADING_ARIA_LABEL = 'Đang đọc tệp CAD';
 
 const EMPTY_TITLE = 'Chưa có lớp nào để ánh xạ';
@@ -96,7 +83,6 @@ const ERROR_TITLE = 'Không thể đọc tệp CAD';
 const SUCCESS_TITLE = 'Đã nhập xong hình học';
 const FORBIDDEN_TITLE = 'Không có quyền xử lý CAD';
 
-const AI_HANDOFF_TITLE = 'Chuyển sang nhánh nhận dạng ảnh';
 const UNSUPPORTED_ENTITIES_TITLE = 'Thực thể không dựng lại được';
 const RETRY_LABEL = 'Đọc lại tệp';
 const COLLAPSE_PANEL_LABEL = 'Thu gọn bảng lớp';
@@ -110,22 +96,8 @@ const EXPAND_PANEL_LABEL = 'Mở bảng lớp';
  */
 const ERROR_CODE_PREFIX = 'Mã lỗi: ';
 
-const IMPORT_REASON_ID = 'cad-import-disabled-reason';
-
-/** Dấu ngăn hai vế của dòng tóm tắt, cùng dấu bảng lớp dùng cho dòng gợi ý. */
-const SUMMARY_SEPARATOR = ' · ';
-
 /** Dấu ngăn giữa tên loại thực thể và số lượng của nó. */
 const ENTITY_KIND_SEPARATOR = ' · ';
-
-/**
- * Số đối tượng là số đếm: không phần thập phân nào có nghĩa ở đây.
- *
- * Hằng nằm ngoài thân hàm để tham chiếu của nó đứng yên giữa hai lượt render —
- * `useCountUp` đọc từng trường của nó, nhưng một đối tượng dựng lại mỗi lần
- * render vẫn là thứ không cần thiết.
- */
-const COUNT_FORMAT: NumberFormatOptions = { fractionDigits: 0 };
 
 /** Mức màu của khối trạng thái. Đúng ba màu của A4, không có màu thứ tư. */
 const NOTICE_LEVELS: Readonly<Record<CadBranchConfirmState, InlineAlertLevel | null>> = {
@@ -173,122 +145,6 @@ function messageFor(model: CadBranchConfirmViewModel): string | null {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Dòng tóm tắt chân màn.                                                       */
-/* -------------------------------------------------------------------------- */
-
-interface CadMappingSummaryBarProps {
-  readonly summary: CadMappingSummary;
-  readonly canImportGeometry: boolean;
-  readonly disabledReason: string | null;
-  readonly isImporting: boolean;
-  readonly prefersReducedMotion: boolean;
-  readonly onImportGeometry: () => void;
-}
-
-/**
- * Chân màn: con số chạy, câu tóm tắt của hook, nút "Nhập hình học".
- *
- * Tách thành hàm riêng vì `useCountUp` là một hook — nó không được gọi trong một
- * nhánh điều kiện, mà dòng tóm tắt chỉ tồn tại ở giai đoạn 2
- * (`model.summary === null` ở giai đoạn 1).
- */
-function CadMappingSummaryBar({
-  canImportGeometry,
-  disabledReason,
-  isImporting,
-  onImportGeometry,
-  prefersReducedMotion,
-  summary,
-}: CadMappingSummaryBarProps) {
-  const runningObjectCount = useCountUp(summary.objectCount, {
-    format: COUNT_FORMAT,
-    reducedMotion: prefersReducedMotion,
-  });
-
-  return (
-    <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border-default px-4 py-3">
-      <div className="flex min-w-0 items-baseline gap-3">
-        <span
-          aria-hidden="true"
-          className="font-mono text-[20px] leading-none tabular-nums text-text-primary"
-        >
-          {runningObjectCount.text}
-        </span>
-        <p aria-label={SUMMARY_ARIA_LABEL} className="text-[13px] text-text-secondary" role="status">
-          {summary.mappedCountLabel}
-          {SUMMARY_SEPARATOR}
-          {summary.objectCountLabel}
-        </p>
-      </div>
-
-      <div className="flex flex-col items-end gap-1">
-        <Button
-          {...(disabledReason !== null ? { 'aria-describedby': IMPORT_REASON_ID } : {})}
-          disabled={!canImportGeometry}
-          loading={isImporting}
-          onClick={onImportGeometry}
-          variant="primary"
-        >
-          {IMPORT_BUTTON_LABEL}
-        </Button>
-        {disabledReason !== null ? (
-          <p className="text-[12px] text-text-secondary" id={IMPORT_REASON_ID}>
-            {disabledReason}
-          </p>
-        ) : null}
-      </div>
-    </footer>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Khối bàn giao nhánh AI — hoà tan 340 ms.                                     */
-/* -------------------------------------------------------------------------- */
-
-interface CadBranchHandoffProps {
-  readonly isCadChoiceDisabled: boolean;
-  readonly onChooseBranch: CadBranchConfirmActions['onChooseBranch'];
-}
-
-/**
- * Chỗ hộp thoại vừa đóng.
- *
- * Caption mức "cần chú ý" nói trước điều nhánh AI đòi: sẽ phải hiệu chỉnh tỷ lệ.
- * Hai nút là đúng hai lựa chọn chính của đặc tả; nút AI KHÔNG bao giờ bị khoá.
- */
-function CadBranchHandoff({ isCadChoiceDisabled, onChooseBranch }: CadBranchHandoffProps) {
-  const sectionRef = useRef<HTMLElement>(null);
-
-  // Khối này chỉ dựng khi hộp thoại vừa đóng. Hộp thoại mở lúc vào màn thường không có nút mở, nên
-  // bẫy trả tiêu điểm về `body`: khi đó khối nhận tiêu điểm vào nút đầu tiên bấm được (BUG-559). Có
-  // nút mở thật thì để tiêu điểm ở đó (A12). Effect gắn chạy sau effect dọn của `Modal`.
-  useEffect(() => {
-    if (document.activeElement === null || document.activeElement === document.body) {
-      sectionRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
-    }
-  }, []);
-
-  return (
-    <section className="animate-panel-rise px-4 pb-2 motion-reduce:animate-none" ref={sectionRef}>
-      <InlineAlert level="attention" message={AI_BRANCH_NOTICE} title={AI_HANDOFF_TITLE} />
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Button
-          disabled={isCadChoiceDisabled}
-          onClick={() => onChooseBranch('cad')}
-          size="sm"
-          variant="secondary"
-        >
-          {PHASE_1_TEXT.buttons.primary}
-        </Button>
-        <Button onClick={() => onChooseBranch('ai')} size="sm" variant="ghost">
-          {PHASE_1_TEXT.buttons.secondary}
-        </Button>
-      </div>
-    </section>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
 /* Vỏ màn.                                                                      */
 /* -------------------------------------------------------------------------- */
 
@@ -315,7 +171,11 @@ function CadBranchConfirmBody({ actions, model }: CadBranchConfirmProps) {
   const noticeLevel = NOTICE_LEVELS[model.state];
   const isError = model.state === 'error';
   const isStageTwoOpen = model.stage === 'layerMapping';
-  const isHandoffOpen = !isStageTwoOpen && !model.dialog.isOpen;
+  // Đang đọc thì chưa hiện khối bàn giao: hộp thoại có thể còn chưa kịp bật.
+  const isHandoffOpen = !isStageTwoOpen && !model.dialog.isOpen && model.state !== 'loading';
+  const isNoCadPage = isHandoffOpen && !model.dialog.hasCadFile;
+  // Tầng không có CAD: "chưa có lớp để ánh xạ" chỉ nhắc lại tiêu đề, bỏ đi.
+  const isNoticeShown = noticeLevel !== null && noticeMessage !== null && !(isNoCadPage && model.state === 'empty');
   const headerCopy = model.dialog.hasCadFile
     ? PHASE_1_TEXT.dialogStates.normal
     : PHASE_1_TEXT.dialogStates.noCadFile;
@@ -335,7 +195,7 @@ function CadBranchConfirmBody({ actions, model }: CadBranchConfirmProps) {
         </p>
       </header>
 
-      {noticeLevel !== null && noticeMessage !== null && (
+      {isNoticeShown && noticeLevel !== null && noticeMessage !== null && (
         <section aria-label={NOTICE_REGION_ARIA_LABEL} className="flex flex-col gap-2 px-4 pb-3">
           <InlineAlert
             level={noticeLevel}
@@ -392,7 +252,14 @@ function CadBranchConfirmBody({ actions, model }: CadBranchConfirmProps) {
         </div>
       )}
 
-      {isHandoffOpen && (
+      {isNoCadPage && (
+        <NoCadFileActions
+          onBackToLayerReview={actions.onBackToLayerReview}
+          onChooseBranch={actions.onChooseBranch}
+        />
+      )}
+
+      {isHandoffOpen && !isNoCadPage && (
         <CadBranchHandoff
           isCadChoiceDisabled={model.dialog.isCadChoiceDisabled}
           onChooseBranch={actions.onChooseBranch}

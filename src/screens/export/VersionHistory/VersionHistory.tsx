@@ -248,7 +248,7 @@ export function VersionHistory({ model, actions, breadcrumb }: VersionHistoryPro
                 }
               }}
             >
-              Phục hồi phiên bản này
+              {restoreRow === null ? 'Phục hồi phiên bản này' : `Phục hồi về ${restoreRow.label}`}
             </Button>
           )}
         </div>

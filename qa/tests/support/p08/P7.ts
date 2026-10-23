@@ -31,9 +31,9 @@ export const REG = {
   title: 'Model AI của chuỗi xử lý', // MR:29
   crumbHere: 'Model AI', // MR:28
   crumbParent: 'Quản trị',
-  picker: 'Họ model', // MR:30
+  picker: 'Loại mô hình', // MR:30
   active: 'Đang dùng', // MR:31
-  revert: 'Quay về đường cổ điển', // MR:32
+  revert: 'Tắt AI, dùng thuật toán cũ', // MR:32
   noActive: 'Chưa kích hoạt bản nào', // UMR:101
   related: 'Lượt huấn luyện', // UMR:94
   activate: 'Kích hoạt', // MRV:17

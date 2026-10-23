@@ -94,7 +94,7 @@ describe('A11 — bảy trạng thái', () => {
         'Họ này chưa có phiên bản nào. Tải trọng số bằng công cụ dòng lệnh, hoặc chờ một lượt huấn luyện xong. Đang dùng đường cổ điển.',
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole('radiogroup', { name: 'Họ model' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Loại mô hình' })).toBeInTheDocument();
   });
 
   it('một phần: dải chú ý đếm bản đang chờ', () => {
@@ -112,7 +112,7 @@ describe('A11 — bảy trạng thái', () => {
     expect(screen.getByText('Máy chủ đang bận. Thử lại sau ít phút.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
     expect(actions.onRetry).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('radiogroup', { name: 'Họ model' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Loại mô hình' })).toBeInTheDocument();
   });
 
   it('không có quyền: câu cố định, không bảng, không ô chọn họ', () => {
@@ -228,12 +228,10 @@ describe('Bảng phiên bản', () => {
 });
 
 describe('Đầu trang, chi tiết, dải 409', () => {
-  it('breadcrumb "Quản trị › Mô hình AI" có liên kết "Quản trị"; h1 viết hoa chữ đầu', () => {
+  it('không còn breadcrumb lặp thanh tab quản trị; h1 viết hoa chữ đầu', () => {
     renderView(MODEL_REGISTRY_SCENARIO_SUCCESS);
 
-    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
-    expect(nav.textContent).toBe('Quản trị›Mô hình AI');
-    expect(within(nav).getByRole('link', { name: 'Quản trị' })).toHaveAttribute('href', '/admin/users');
+    expect(screen.queryByRole('navigation', { name: 'Đường dẫn trang' })).toBeNull();
     expect(screen.getByRole('heading', { level: 1, name: 'Mô hình AI của chuỗi xử lý' })).toBeInTheDocument();
   });
 
@@ -265,7 +263,7 @@ describe('Đầu trang, chi tiết, dải 409', () => {
     renderView(MODEL_REGISTRY_SCENARIO_PARTIAL);
 
     const panel = screen.getByRole('complementary', { name: 'Chi tiết phiên bản' });
-    expect(within(panel).getByText('Lượt đánh giá không thành công. Lý do chi tiết chỉ có trong nhật ký máy chủ.')).toBeInTheDocument();
+    expect(within(panel).getByText('Lượt đánh giá không thành công. Thử chạy lại lượt huấn luyện hoặc kiểm tra tệp trọng số; lý do chi tiết chỉ có trong nhật ký máy chủ.')).toBeInTheDocument();
     expect(within(panel).getByText('Quản trị viên')).toBeInTheDocument();
     expect(panel.textContent).not.toContain('usr_');
   });

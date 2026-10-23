@@ -145,8 +145,8 @@ describe.each([
    sách dưới đây là toàn bộ nơi `src/screens` có `<main`: tất cả thuộc màn NGOÀI
    nhóm. Thêm một nơi mới là một quyết định phải đọc lại cả nhóm. */
 const MAIN_OWNERS = [
-  'auth/AuthScreen/AuthScreen.tsx',
-  'auth/RecoveryShell.tsx',
+  // Khung chung của AuthScreen và RecoveryShell (hai màn ngoài nhóm) dựng `<main>` thay chúng.
+  'auth/AuthFrame.tsx',
   'dashboard/ProjectDashboard/ProjectDashboard.tsx',
   'landing/LandingView.tsx',
   'landing/StaticLanding.tsx',

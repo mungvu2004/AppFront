@@ -17,7 +17,7 @@
 
 import { AlertCircle, Check } from 'lucide-react';
 
-import { cn } from '@/lib/utils';
+import { QcStatusBar } from '../shared/QcScreenFrame';
 
 export interface WallLayerStatusBarProps {
   /** Toạ độ con trỏ, đã định dạng sẵn — ví dụ "X: 124,50 · Y: 89,12". */
@@ -28,44 +28,30 @@ export interface WallLayerStatusBarProps {
   readonly saveLabel: string;
   /** Lượt lưu gần nhất thất bại — nhãn đổi sang màu vi phạm kèm biểu tượng (BUG-616). */
   readonly saveFailed: boolean;
+  /** Hoàn tác thao tác gần nhất (khe chung của thanh trạng thái). */
+  readonly onUndo?: (() => void) | undefined;
 }
 
-const STATUS_BAR_ARIA_LABEL = 'Thanh trạng thái';
 /** G4a-19: gợi ý kéo/phóng bản vẽ — khớp `wallLayerReview.statusBar.panHint`. */
 const PAN_HINT = 'Kéo nền hoặc giữ Space để di chuyển · lăn chuột để phóng';
 const SAVED_PREFIX = 'Đã lưu';
 
-export function WallLayerStatusBar({ cursorLabel, scaleLabel, saveLabel, saveFailed }: WallLayerStatusBarProps) {
+export function WallLayerStatusBar({ cursorLabel, scaleLabel, saveLabel, saveFailed, onUndo }: WallLayerStatusBarProps) {
   return (
-    <div
-      aria-label={STATUS_BAR_ARIA_LABEL}
-      className="flex h-8 shrink-0 select-none items-center justify-between gap-3 whitespace-nowrap border-t border-border-default bg-bg-surface px-4"
-      role="status"
-    >
+    <QcStatusBar onUndo={onUndo} saveFailed={saveFailed} saveLabel={saveLabel}>
       {/*
         Sans + tabular-nums, không mono: nhãn này cũng là câu ("Chưa rê chuột lên bản vẽ") — BUG-612.
         Dưới 640 chỉ giữ trạng thái lưu, hai mục kia không gãy thành nhiều dòng (BUG-324).
       */}
-      <span className="hidden min-w-0 truncate text-[12px] leading-none tabular-nums text-text-secondary sm:block">
-        {cursorLabel}
-      </span>
-      <span className="hidden min-w-0 truncate text-[12px] tabular-nums text-text-secondary sm:block">{scaleLabel}</span>
-      <span className="hidden min-w-0 truncate text-[12px] text-text-muted xl:block">{PAN_HINT}</span>
-      <span
-        aria-live="polite"
-        className={cn(
-          'flex min-w-0 items-center gap-1 truncate text-[13px] font-medium',
-          saveFailed ? 'text-state-violation-text' : 'text-text-secondary',
-        )}
-      >
-        {/* G4a-14 (A7): không thêm nút lưu — chỉ báo tự lưu đậm hơn, có biểu tượng. */}
-        {saveFailed ? (
-          <AlertCircle aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
-        ) : saveLabel.startsWith(SAVED_PREFIX) ? (
-          <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-state-verified-text" />
-        ) : null}
-        {saveLabel}
-      </span>
-    </div>
+      <span className="hidden min-w-0 truncate text-caption tabular-nums text-text-secondary sm:block">{cursorLabel}</span>
+      <span className="hidden min-w-0 truncate text-caption tabular-nums text-text-secondary sm:block">{scaleLabel}</span>
+      <span className="hidden min-w-0 truncate text-caption text-text-muted xl:block">{PAN_HINT}</span>
+      {/* G4a-14 (A7): không thêm nút lưu — chỉ báo tự lưu đậm hơn, có biểu tượng. */}
+      {saveFailed ? (
+        <AlertCircle aria-hidden="true" className="ml-auto h-3.5 w-3.5 shrink-0 text-state-violation" />
+      ) : saveLabel.startsWith(SAVED_PREFIX) ? (
+        <Check aria-hidden="true" className="ml-auto h-3.5 w-3.5 shrink-0 text-state-verified-text" />
+      ) : null}
+    </QcStatusBar>
   );
 }

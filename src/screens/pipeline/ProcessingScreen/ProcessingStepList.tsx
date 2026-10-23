@@ -144,10 +144,10 @@ function StepProgressBar({
     >
       <div
         className={clsx(
-          'absolute inset-y-0 left-0 rounded-full transition-[width] duration-standard ease-enter',
+          'absolute inset-0 origin-left rounded-full transition-transform duration-standard ease-enter',
           STAGE_BAR_CLASS[step.status],
         )}
-        style={{ width: `${String(step.percent)}%` }}
+        style={{ transform: `scaleX(${String(step.percent / 100)})` }}
       />
       {step.isScanning && !prefersReducedMotion ? (
         // Khung rộng một phần tư đường chạy, vạch thật là cạnh phải 2px của nó:
@@ -229,7 +229,7 @@ function StepRow({
           <div className="mt-2 flex flex-col items-start gap-1 pl-7">
             <p className="text-[13px] leading-snug text-state-violation-text">{step.errorMessage}</p>
             {step.errorCode !== undefined ? (
-              <span className="font-mono text-[12px] font-medium text-state-violation">{step.errorCode}</span>
+              <span className="font-mono text-[12px] font-medium text-state-violation-text">{step.errorCode}</span>
             ) : null}
           </div>
         ) : null}

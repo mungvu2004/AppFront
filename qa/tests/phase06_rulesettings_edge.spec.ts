@@ -98,7 +98,7 @@ const rulesIn = (card: Locator): Locator => card.getByRole('switch', { name: /^B
 /** The "Kiểm tra luật không gian" screen (SCR-28), opened as the old edge spec did (RRV:287,305). */
 async function openRules(page: Page, projectId: string): Promise<void> {
   await navigateThenWaitForApi(page, () => page.goto(ROUTES.project.rules(projectId), { waitUntil: 'commit' }), 'GET', spatialRe(projectId), [200]);
-  await expect(page.getByRole('heading', { name: 'Kiểm tra luật không gian', level: 2 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Quy chuẩn', level: 1 })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Chạy kiểm tra lại', exact: true })).toBeEnabled();
 }
 

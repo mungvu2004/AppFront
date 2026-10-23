@@ -280,7 +280,7 @@ export function RuleSettings(props: RuleSettingsProps) {
                 Quay lại kết quả kiểm tra
               </Link>
             )}
-            <h2 className="text-base font-semibold text-text-primary">Cài đặt bộ luật không gian</h2>
+            <h1 className="text-title text-text-primary">Cài đặt bộ luật không gian</h1>
             {hasConfig && (
               <p className="text-sm text-text-secondary">
                 {enabledText}/{totalText} luật đang bật

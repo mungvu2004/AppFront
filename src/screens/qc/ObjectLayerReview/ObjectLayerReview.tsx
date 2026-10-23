@@ -43,7 +43,8 @@ import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
-import { QcScreenFrame } from '../shared/QcScreenFrame';
+import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
+import { qcProgressLabel } from '../shared/qcLayers';
 
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
 import { ObjectLayerInspector } from './ObjectLayerInspector';
@@ -241,6 +242,39 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
   );
 }
 
+function ObjectLayerLeftColumn({ model }: { readonly model: ObjectLayerReviewModel }) {
+  return (
+    <>
+      <div className="shrink-0">
+        {/* Đang tải: khung xương thay bộ đếm "0/0" và "Tổng 0" như thể dữ liệu thật (BUG-618). */}
+        {model.state === 'loading' ? (
+          <div aria-hidden="true" className="flex flex-col gap-2 rounded-xl bg-bg-surface px-5 py-4 shadow-panel">
+            {SKELETON_ROWS.map((row) => (
+              <Skeleton key={row} preset="table-row" />
+            ))}
+          </div>
+        ) : (
+          <ObjectLayerLeftPanel
+            availableSubtypes={model.availableSubtypes}
+            counts={model.counts}
+            furnitureAttentionNotice={model.furnitureAttentionNotice}
+            layerVisibility={model.layerVisibility}
+            onToggleLayer={model.onToggleLayer}
+            onToggleSubtypeFilter={model.onToggleSubtypeFilter}
+            reviewCounter={model.reviewCounter}
+            reviewProgressLabel={model.reviewProgressLabel}
+            subtypeFilters={model.subtypeFilters}
+          />
+        )}
+      </div>
+
+      <div className="shrink-0 rounded-xl bg-bg-surface px-3 py-3 shadow-panel">
+        <ObjectLayerListRegion model={model} />
+      </div>
+    </>
+  );
+}
+
 export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
   /* Đọc cờ của vỏ màn, không `state`: ở vai người xem `forbidden` đứng trước `collapsed`, và nút thu gọn đổi nhãn mà panel không thu (BUG-601). */
   const isCollapsed = model.isCollapsed;
@@ -256,7 +290,13 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
 
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
-      {model.floorNav != null && <QcFloorNav {...model.floorNav} layer="objects" />}
+      {model.floorNav != null && (
+        <QcFloorNav
+          {...model.floorNav}
+          layer="objects"
+          progress={qcProgressLabel(model.reviewCounter.reviewed, model.reviewCounter.total)}
+        />
+      )}
       {model.saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={model.saveBlock} />
@@ -267,22 +307,27 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           <ProvisionalScaleBanner notice={model.provisionalScaleNotice} />
         </div>
       )}
-      {/*
-        Dưới 1280px bốn cột (ray + 280 + bản vẽ + 344) không vừa: hàng đầu là ray + bản vẽ, hai panel
-        xuống dòng (\`order-*\` trên gốc của chúng), cả vùng cuộn dọc — không cuộn ngang (BUG-317).
-      */}
-      <div className="relative flex min-h-0 flex-1 flex-wrap content-start gap-2 overflow-y-auto p-2 xl:flex-nowrap xl:overflow-visible">
-        {isCollapsed ? (
-          <div className="absolute left-4 top-4 z-10 rounded-xl bg-bg-surface shadow-panel">
-            <ObjectLayerToolRail
-              activeLayer={model.activeLayer}
-              activeSubtype={model.activeSubtype}
+      {/* Khe chung (A3): rail | panel trái | bản vẽ | chi tiết; 1024-1279 chi tiết phủ mép phải bản vẽ. */}
+      <QcWorkspace
+        canvas={<ObjectLayerCanvasRegion model={model} />}
+        canvasLabel={CANVAS_REGION_LABEL}
+        inspector={
+          isCollapsed ? null : (
+            <ObjectLayerInspector
+              inspector={model.inspector}
               isViewerRole={model.isViewerRole}
-              onSelectLayer={model.onSelectLayer}
-              onSelectSubtypeSlot={model.onSelectSubtypeSlot}
+              onApprove={model.onApprove}
+              onAttachToNearestWall={model.onAttachToNearestWall}
+              onChangeSubtype={model.onChangeSubtype}
+              onChangeSwing={model.onChangeSwing}
+              onDelete={model.onDelete}
+              onDragPosition={model.onDragPosition}
+              onSelectHostWall={model.onSelectHostWall}
             />
-          </div>
-        ) : (
+          )
+        }
+        left={isCollapsed ? null : <ObjectLayerLeftColumn model={model} />}
+        rail={
           <ObjectLayerToolRail
             activeLayer={model.activeLayer}
             activeSubtype={model.activeSubtype}
@@ -290,61 +335,8 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
             onSelectLayer={model.onSelectLayer}
             onSelectSubtypeSlot={model.onSelectSubtypeSlot}
           />
-        )}
-
-        {isCollapsed ? null : (
-          /* Dưới 1280 panel cao theo nội dung, vùng ngoài cuộn — không nén danh sách còn ~3 hàng (BUG-395). */
-          <div className="order-1 flex w-full shrink-0 flex-col gap-2 xl:order-0 xl:h-full xl:w-[280px] xl:overflow-y-auto">
-            <div className="shrink-0">
-              {/* Đang tải: khung xương thay bộ đếm "0/0" và "Tổng 0" như thể dữ liệu thật (BUG-618). */}
-              {model.state === 'loading' ? (
-                <div aria-hidden="true" className="flex flex-col gap-2 rounded-xl bg-bg-surface px-5 py-4 shadow-panel">
-                  {SKELETON_ROWS.map((row) => (
-                    <Skeleton key={row} preset="table-row" />
-                  ))}
-                </div>
-              ) : (
-              <ObjectLayerLeftPanel
-                counts={model.counts}
-                furnitureAttentionNotice={model.furnitureAttentionNotice}
-                layerVisibility={model.layerVisibility}
-                onToggleLayer={model.onToggleLayer}
-                onToggleSubtypeFilter={model.onToggleSubtypeFilter}
-                availableSubtypes={model.availableSubtypes}
-                reviewCounter={model.reviewCounter}
-                reviewProgressLabel={model.reviewProgressLabel}
-                subtypeFilters={model.subtypeFilters}
-              />
-              )}
-            </div>
-
-            <div className="shrink-0 rounded-xl bg-bg-surface px-3 py-3 shadow-panel">
-              <ObjectLayerListRegion model={model} />
-            </div>
-          </div>
-        )}
-
-        <section
-          aria-label={CANVAS_REGION_LABEL}
-          className="relative h-[60vh] min-h-80 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken xl:h-auto xl:min-h-0"
-        >
-          <ObjectLayerCanvasRegion model={model} />
-        </section>
-
-        {isCollapsed ? null : (
-          <ObjectLayerInspector
-            inspector={model.inspector}
-            isViewerRole={model.isViewerRole}
-            onApprove={model.onApprove}
-            onAttachToNearestWall={model.onAttachToNearestWall}
-            onChangeSubtype={model.onChangeSubtype}
-            onChangeSwing={model.onChangeSwing}
-            onDelete={model.onDelete}
-            onDragPosition={model.onDragPosition}
-            onSelectHostWall={model.onSelectHostWall}
-          />
-        )}
-      </div>
+        }
+      />
 
       <ObjectLayerStatusBar
         emptyNotice={model.emptyNotice}

@@ -1,7 +1,7 @@
 /**
  * Phase 8 — SCR-36 Model Registry, UI verify (QA-08 P3): FL-36R-U1..U5. `verifyUi` at 1920/1440/1024/768,
  * evidence `U08_<id>_registry_<w>.png` + `.json`. Global state is never written: real flows only open/cancel dialogs behind
- * a PUT guard (asserted 0); U5 answers PUT from a mock. "Quay về đường cổ điển" is never confirmed.
+ * a PUT guard (asserted 0); U5 answers PUT from a mock. "Tắt AI, dùng thuật toán cũ" is never confirmed.
  * Request budget: 1 admin UI sign-in per test (+1 engineer sign-in, shared pool user `p08-eng`, no invitation).
  */
 import { expect, test, type Page, type Route } from '@playwright/test';
@@ -115,13 +115,13 @@ test.describe('P08 SCR-36 registry UI', () => {
     await test.step('[36R-F-006] revert dialog open (wall): "Quay về đường cổ điển cho tách lớp tường?"', async () => {
       await openRegistry(page, 'walls');
       // Q13 (user decision): never activate/seed a wall version -> no revert button on the real stack (RR d5f9c7d8: click timeout x4); annotate, no fake pass.
-      if ((await page.getByRole('button', { name: 'Quay về đường cổ điển', exact: true }).count()) === 0) {
+      if ((await page.getByRole('button', { name: 'Tắt AI, dùng thuật toán cũ', exact: true }).count()) === 0) {
         test.info().annotations.push({ type: 'environment', description: 'no active wall version - Q13, DEBT' });
         return;
       }
       await verifyUi(page, 'U08_36R-F-006_registry', async (p) => {
         await openRegistry(p, 'walls');
-        await p.getByRole('button', { name: 'Quay về đường cổ điển', exact: true }).click();
+        await p.getByRole('button', { name: 'Tắt AI, dùng thuật toán cũ', exact: true }).click();
         await expect(p.getByRole('dialog', { name: 'Quay về đường cổ điển cho tách lớp tường?', exact: true })).toBeVisible();
       }, VPS, MODAL_SHOT);
     });

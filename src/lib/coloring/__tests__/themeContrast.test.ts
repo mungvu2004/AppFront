@@ -65,6 +65,11 @@ const TEXT_PAIRS: [ColorTokenName, ColorTokenName][] = [
 
 /** Rãnh `Toggle` khi tắt và núm trên nó (WCAG 1.4.11). */
 const NON_TEXT_PAIRS: [ColorTokenName, ColorTokenName][] = [
+  // Nét canvas 2D (WCAG 1.4.11): tường mỏng/dày và viền cần chú ý trên tấm vẽ.
+  ['--wall-110-stroke', '--canvas-2d'],
+  ['--wall-220', '--canvas-2d'],
+  ['--wall-330-stroke', '--canvas-2d'],
+  ['--state-attention-stroke', '--canvas-2d'],
   ['--border-control', '--bg-surface'],
   ['--border-control', '--bg-app'],
   ['--bg-surface', '--border-control'],

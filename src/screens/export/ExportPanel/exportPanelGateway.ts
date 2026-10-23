@@ -304,6 +304,7 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
   const unapprovedLevels = levels.filter((level) => !level.reviewed);
   const unreviewed = collectUnreviewed(graph, levels);
   const violationCount = violations.length;
+  const ruleCount = new Set(violations.map((violation) => violation.ruleCode)).size;
 
   const rows: PreflightRow[] = [
     {
@@ -326,7 +327,7 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
           ? 'Không còn vi phạm nào.'
           : // Đếm PHÁT HIỆN (mọi mức), không đếm luật: ô "Vi phạm" của báo cáo luật đếm luật có
             // phát hiện nghiêm trọng, nên "N vi phạm" ở đây sẽ nói ngược với nó (BUG-460).
-            `Còn ${formatNumber(violationCount)} phát hiện từ kiểm tra luật chưa xử lý.`,
+            `Còn ${formatNumber(violationCount)} phát hiện ở ${formatNumber(ruleCount)} luật chưa xử lý.`,
       tone: violationCount === 0 ? 'ok' : 'attention',
       fixHref: violationCount === 0 ? null : ROUTES.project.rules(projectId),
     },

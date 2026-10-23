@@ -1219,7 +1219,7 @@ export const toPascalScene = (
     object: 'node',
     id: SITE_NODE_ID,
     type: 'site',
-    name: 'khu đất',
+    name: 'Khu đất',
     parentId: null,
     children: [BUILDING_NODE_ID],
     polygon: sitePolygonOf(nodes),

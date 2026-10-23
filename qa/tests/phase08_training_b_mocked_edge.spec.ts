@@ -565,7 +565,7 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       await expect(dialog.getByText(T.baseMismatch)).toBeVisible();
       // E evidence: radios (which base model is checked) and POST count before/after the edit; a late response re-sets the error
       await attachState(page, 'E08_35T-C-014_before.json', { creates: mock.posts('create').length });
-      await dialog.getByText('mitB1', { exact: true }).click();
+      await dialog.getByText('Lớn, chính xác hơn (mitB1)', { exact: true }).click();
       await expect.soft(dialog.getByText(T.baseMismatch)).toBeHidden();
       await attachState(page, 'E08_35T-C-014_after.json', { creates: mock.posts('create').length });
     });

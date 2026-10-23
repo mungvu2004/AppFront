@@ -331,12 +331,13 @@ export function AxisGridCanvas({ background = null, canvas, isInteractive, onAxi
   }, [isInteractive, onAxisSelect]);
 
   const fit = fitCanvas(canvas.boundsPx, frame, FIT_MARGIN_PX, ZOOM_CLUSTER_RESERVE_PX);
+  const isFrameMeasured = typeof ResizeObserver === 'undefined' || (frame.width > 0 && frame.height > 0);
 
   return (
     <div
       aria-describedby={isInteractive ? undefined : CANVAS_READ_ONLY_NOTICE_ID}
       aria-label={CANVAS_ARIA_LABEL}
-      className={`${CANVAS_FRAME_CLASSES} ${canvas.axes.length === 0 ? CANVAS_EMPTY_BG : CANVAS_DRAWING_BG}`}
+      className={`${CANVAS_FRAME_CLASSES} ${pan.surfaceClassName} ${canvas.axes.length === 0 ? CANVAS_EMPTY_BG : CANVAS_DRAWING_BG}`}
       ref={pan.ref}
       {...pan.handlers}
       role="group"
@@ -354,6 +355,9 @@ export function AxisGridCanvas({ background = null, canvas, isInteractive, onAxi
         }}
         onPointerMove={handleSvgPointerMove}
         onPointerUp={handleSvgPointerUp}
+        /* Cảm ứng bị trình duyệt cướp giữa chừng: thả trục như nhấc tay, không để trục dính theo. */
+        onPointerCancel={handleSvgPointerUp}
+        onLostPointerCapture={handleSvgPointerUp}
         ref={svgRef}
         role="img"
         viewBox={fit.viewBox}
@@ -369,7 +373,9 @@ export function AxisGridCanvas({ background = null, canvas, isInteractive, onAxi
             y={0}
           />
         )}
-        <AxisGridGhostFloor ghostFloors={canvas.ghostFloors} unit={fit.unit} />
+        {/* A3: bóng tầng chỉ vẽ khi đã đo xong khung — lần tải đầu `unit` còn là giá trị dự phòng
+            nên bóng rải lệch giữa bản vẽ rồi mới nhảy về chỗ. Không có ResizeObserver (jsdom) thì vẽ luôn. */}
+        {isFrameMeasured ? <AxisGridGhostFloor ghostFloors={canvas.ghostFloors} unit={fit.unit} /> : null}
 
         {visibleAxes.map((axis) => (
           <AxisFigure

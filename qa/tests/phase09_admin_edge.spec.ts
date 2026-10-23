@@ -349,9 +349,9 @@ test('SCR-34/35/36/37 · FL-9A-04 · admin · positive reference + self guards',
   });
   await test.step('[9A-D-024] model registry: family select visible', async () => {
     await page.goto(ROUTES.adminTrainingModels);
-    // ModelRegistry.tsx:188 SegmentedControl aria-label TEXT.familyPicker 'Họ model' (role=radiogroup)
+    // ModelRegistry.tsx:188 SegmentedControl aria-label TEXT.familyPicker 'Loại mô hình' (role=radiogroup)
     await expect
-      .soft(page.getByRole('radiogroup', { name: 'Họ model' }))
+      .soft(page.getByRole('radiogroup', { name: 'Loại mô hình' }))
       .toBeVisible({ timeout: 15_000 });
     await expect.soft(forbiddenHeading).toHaveCount(0);
     await captureEvidence(page, '9A-D-024_admin-registry.png');
@@ -361,7 +361,7 @@ test('SCR-34/35/36/37 · FL-9A-04 · admin · positive reference + self guards',
     // R1: first family 'Tách lớp tường' had 0 versions (heading 'Chưa có phiên bản', rowCount 0) -> walk the families until one lists versions
     const activateBtn = page.getByRole('button', { name: ACTIVATE }).first();
     const emptyHeading = page.getByRole('heading', { name: 'Chưa có phiên bản', exact: true });
-    const families = page.getByRole('radiogroup', { name: 'Họ model' }).getByRole('radio');
+    const families = page.getByRole('radiogroup', { name: 'Loại mô hình' }).getByRole('radio');
     for (let i = 0; i < (await families.count()); i += 1) {
       await families.nth(i).click();
       await expect(activateBtn.or(emptyHeading).first()).toBeVisible({ timeout: 15_000 });

@@ -1467,7 +1467,7 @@ describe('[BUG-459] hộp phục hồi không tự mâu thuẫn về việc xoá
 });
 
 describe('[BUG-470] tích đúng một phiên bản thì nút phục hồi nhắm vào chính bản ấy', () => {
-  it('chỉ còn bản trái (v13) → "Phục hồi phiên bản này" bật và phục hồi v13', () => {
+  it('chỉ còn bản trái (v13) → "Phục hồi về v13" bật và phục hồi v13', () => {
     const requestRestore = vi.fn();
     const props = buildVersionHistoryProps(
       'success',
@@ -1475,7 +1475,7 @@ describe('[BUG-470] tích đúng một phiên bản thì nút phục hồi nhắ
       { requestRestore },
     );
     const { unmount } = renderWithProviders(<VersionHistory {...props} />);
-    const restore = screen.getByRole('button', { name: 'Phục hồi phiên bản này' });
+    const restore = screen.getByRole('button', { name: 'Phục hồi về v13' });
 
     expect(restore).not.toBeDisabled();
     act(() => {

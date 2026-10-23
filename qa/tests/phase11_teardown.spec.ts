@@ -207,7 +207,7 @@ test.describe('SCR-36 Model Registry: step 0 safety (R2/R5)', () => {
       }
 
       const radio = page
-        .getByRole('radiogroup', { name: 'Họ model' })
+        .getByRole('radiogroup', { name: 'Loại mô hình' })
         .getByRole('radio', { name: new RegExp(escapeRegExp(familyLabel), 'iu') });
 
       await expect(radio).toBeVisible();

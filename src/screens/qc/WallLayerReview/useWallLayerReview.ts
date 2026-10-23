@@ -189,6 +189,7 @@ import {
 import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
+import { wallThicknessBandOf } from './wallLayerHatch';
 import type { WallLayerCanvasViewProps, WallLayerMeasurementPx } from './wallLayerHatch';
 import type { WallLayerToolId, WallLayerToolRailProps } from './WallLayerToolRail';
 import type {
@@ -201,6 +202,7 @@ import type {
   WallRowViewModel,
   WallThicknessChoice,
 } from './types';
+import { arrowStepHandler } from './listArrowKeys';
 
 /* -------------------------------------------------------------------------- */
 /* Chuỗi của màn.                                                              */
@@ -250,6 +252,12 @@ export const WALL_LAYER_TEXT = {
   shortcutUndo: 'Hoàn tác thao tác gần nhất.',
   shortcutThickness: 'Đặt độ dày cho đoạn tường đang chọn.',
   shortcutTool: 'Vẽ tường.',
+  shortcutToolSelect: 'Công cụ chọn.',
+  shortcutToolMeasure: 'Công cụ đo.',
+  shortcutToolSplit: 'Tách đoạn tường.',
+  shortcutArrowNext: 'Chọn dòng kế tiếp trong danh sách.',
+  shortcutArrowPrevious: 'Chọn dòng phía trên trong danh sách.',
+  shortcutApproveNext: 'Duyệt đoạn đang chọn rồi sang đoạn chưa duyệt kế tiếp.',
   shortcutFit: 'Phủ khắp đoạn tường đang chọn.',
 } as const;
 
@@ -749,7 +757,7 @@ export function useWallLayerReview(
   /* G4a-21: lọc theo độ dày từ chú giải — áp cho cả danh sách lẫn bản vẽ. */
   const [thicknessFilter, setThicknessFilter] = useState<SpatialWallThickness | null>(null);
   const thicknessFilteredWalls = useMemo(
-    () => (thicknessFilter === null ? walls : walls.filter((wall) => wall.thicknessMm === thicknessFilter)),
+    () => (thicknessFilter === null ? walls : walls.filter((wall) => wallThicknessBandOf(wall.thicknessMm) === thicknessFilter)),
     [thicknessFilter, walls],
   );
   const visibleWalls = useMemo(
@@ -1393,6 +1401,48 @@ export function useWallLayerReview(
     },
     shortcutOptions,
   );
+  /* Impeccable A3: mũi tên lên/xuống đổi dòng chọn như J/K — danh sách tự cuộn và kéo tiêu điểm theo. */
+  useShortcut(
+    {
+      id: 'wallLayerReview.arrowNext',
+      combo: 'ArrowDown',
+      scope: 'canvas',
+      description: WALL_LAYER_TEXT.shortcutArrowNext,
+      allowRepeat: true,
+      preventDefault: false,
+      onTrigger: arrowStepHandler(() => step(1)),
+    },
+    shortcutOptions,
+  );
+  useShortcut(
+    {
+      id: 'wallLayerReview.arrowPrevious',
+      combo: 'ArrowUp',
+      scope: 'canvas',
+      description: WALL_LAYER_TEXT.shortcutArrowPrevious,
+      allowRepeat: true,
+      preventDefault: false,
+      onTrigger: arrowStepHandler(() => step(-1)),
+    },
+    shortcutOptions,
+  );
+  /* "Duyệt và sang mục kế": `onApprove` đã tự chọn tường chưa duyệt kế tiếp. */
+  const approveRef = useRef(onApprove);
+  approveRef.current = onApprove;
+  useShortcut(
+    {
+      id: 'wallLayerReview.approveNext',
+      combo: 'A',
+      scope: 'canvas',
+      description: WALL_LAYER_TEXT.shortcutApproveNext,
+      onTrigger: () => {
+        if (selectedRef.current !== null) {
+          approveRef.current(selectedRef.current);
+        }
+      },
+    },
+    { ...shortcutOptions, enabled: canEdit },
+  );
   useShortcut(
     {
       id: 'wallLayerReview.delete',
@@ -1514,7 +1564,7 @@ export function useWallLayerReview(
       id: 'wallLayerReview.tool.select',
       combo: shortcutForTool('select'),
       scope: 'canvas',
-      description: WALL_LAYER_TEXT.shortcutTool,
+      description: WALL_LAYER_TEXT.shortcutToolSelect,
       onTrigger: () => activateTool('select'),
     },
     shortcutOptions,
@@ -1534,7 +1584,7 @@ export function useWallLayerReview(
       id: 'wallLayerReview.tool.measure',
       combo: shortcutForTool('measure'),
       scope: 'canvas',
-      description: WALL_LAYER_TEXT.shortcutTool,
+      description: WALL_LAYER_TEXT.shortcutToolMeasure,
       onTrigger: () => activateTool('measure'),
     },
     /* Canvas người xem không nhận lượt bấm — công cụ đo không đo được gì (BUG-601). */
@@ -1547,7 +1597,7 @@ export function useWallLayerReview(
       id: 'wallLayerReview.tool.splitWall',
       combo: shortcutForTool('splitWall'),
       scope: 'canvas',
-      description: WALL_LAYER_TEXT.shortcutTool,
+      description: WALL_LAYER_TEXT.shortcutToolSplit,
       onTrigger: () => {
         if (selectedRef.current === null) {
           activateTool('splitWall');

@@ -76,7 +76,7 @@ const SAMPLE_ROW: ProjectCardModel = {
   statsLabel: '4 tầng · 1.860,00 m²',
   updatedLabel: '2 giờ trước',
   statusVariant: 'attention',
-  statusLabel: 'Cần QC',
+  statusLabel: 'Cần duyệt',
   progressLabel: '30/48 tường đã duyệt',
   progressRatio: 30 / 48,
   progressPercentLabel: '63%',
@@ -281,12 +281,12 @@ describe('ProjectDashboardView, seven states', () => {
     render(
       <ProjectDashboardView
         {...PROPS_BY_STATE.success()}
-        rows={[{ ...SAMPLE_ROW, statusVariant: 'attention', statusLabel: 'Cần QC', progressLabel: '30/48 tường đã duyệt' }]}
+        rows={[{ ...SAMPLE_ROW, statusVariant: 'attention', statusLabel: 'Cần duyệt', progressLabel: '30/48 tường đã duyệt' }]}
       />,
     );
 
     expect(screen.queryByText('hoàn thành')).not.toBeInTheDocument();
-    expect(screen.getAllByText('Cần QC').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Cần duyệt').length).toBeGreaterThan(0);
   });
 
   it('opens a project on Enter, from the keyboard alone', () => {
@@ -342,7 +342,7 @@ describe('ProjectDashboardView, seven states', () => {
 
     rerender(<ProjectDashboardView {...PROPS_BY_STATE.success()} renamingId={SAMPLE_ROW.id} />);
 
-    expect(title).toEqual(['h-11', 'sm:h-6']);
+    expect(title).toEqual(['h-11', 'fine:h-6']);
     expect(heightClasses(screen.getByRole('textbox', { name: `Đổi tên ${SAMPLE_ROW.name}` }))).toEqual(title);
   });
 
@@ -370,14 +370,15 @@ describe('ProjectDashboardView, seven states', () => {
   it('keeps the table name box while renaming, at every width: the field overlays it', () => {
     const { rerender } = render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" />);
     expect(screen.getByRole('heading', { name: SAMPLE_ROW.name }).className).toContain('max-sm:leading-8');
-    // The narrow name column at 1024 px cut "E2E-QA-20261011-0028" to "E2E-QA-202…": the name wraps to two lines first.
-    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name })).toHaveClass('line-clamp-2', 'whitespace-normal', 'wrap-break-word');
-    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name })).not.toHaveClass('truncate');
+    // A1 P1: at 1024 px the name column broke names mid-word; it is now >= 16rem, one line, full name in `title`.
+    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name })).toHaveClass('truncate');
+    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name })).toHaveAttribute('title', SAMPLE_ROW.name);
+    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name }).closest('td')).toHaveClass('min-w-[16rem]');
 
     rerender(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" renamingId={SAMPLE_ROW.id} />);
     const field = screen.getByRole('textbox', { name: `Đổi tên ${SAMPLE_ROW.name}` });
     const box = document.querySelector('tbody h3');
-    expect(box).toHaveClass('invisible', 'line-clamp-2', 'max-sm:line-clamp-1', 'max-sm:leading-8');
+    expect(box).toHaveClass('invisible', 'truncate', 'max-sm:line-clamp-1', 'max-sm:leading-8');
     expect(box).toHaveAttribute('aria-hidden', 'true');
     expect(field).toHaveClass('absolute', 'inset-0');
     // A 1-line name at >= sm is a 20 px box; the field reaches 2 px past it each way, so 24 px (WCAG 2.5.8) inside the 40 px row.

@@ -2,9 +2,10 @@
  * The dashboard's "Bảng" view: one row per project. Split out of `ProjectDashboard.tsx` once that
  * file crossed R-22's 400-line cap again (mục D), the way the card and the sidebar were.
  *
- * The name column takes what the others leave (`w-full max-w-0`): an 80-char name pushed "Cập nhật"
- * past the 1440 px window (BUG-149). The name wraps onto a second line before it is cut, so at 1024 px a
- * 117 px column still shows all of "E2E-QA-20261011-0028" instead of "E2E-QA-202…".
+ * The name column takes what the others leave (`w-full`) but never less than 16rem: at 1024 px it was
+ * squeezed to ~70 px and names broke mid-word (A1 P1). It is one line with an ellipsis and the full name in
+ * `title`; "Chi tiết" only shows from `xl` (1280 px). If the columns still need more room, `Table.Root`
+ * scrolls sideways with its edge shadow, so the actions column is never cut off.
  *
  * Below `sm` the table is laid out as blocks and each row stacks (`ROW_STACKED`): the name gets the full width on its own line, then
  * status, progress and update time wrap under it, and the header row goes. Three columns side by
@@ -19,7 +20,7 @@
  * A 2-line name's field (~44 px) may overlap the neighbouring rows by ~1 px, only while it is open and focused;
  * accepted rather than measuring line count in JS.
  *
- * Stacked, the header row is `display: none`, so a screen reader no longer pairs "Cần QC" with "Trạng thái" (and
+ * Stacked, the header row is `display: none`, so a screen reader no longer pairs "Cần duyệt" with "Trạng thái" (and
  * Safari drops the table roles once `display` changes). Each stacked cell says its column itself, below `sm` only.
  */
 
@@ -59,9 +60,9 @@ export function ProjectTable({ rows, onOpenViewer, renamingId, renameDraft, onOp
         <tr>
           <Table.Head>Tên dự án</Table.Head>
           <Table.Head>Trạng thái</Table.Head>
-          <Table.Head className="hidden sm:table-cell">Chi tiết</Table.Head>
+          <Table.Head className="hidden xl:table-cell">Chi tiết</Table.Head>
           <Table.Head>Tiến độ duyệt</Table.Head>
-          <Table.Head className="hidden sm:table-cell">Cập nhật</Table.Head>
+          <Table.Head className="hidden whitespace-nowrap sm:table-cell">Cập nhật</Table.Head>
           <Table.Head><span className="sr-only">Thao tác</span></Table.Head>
         </tr>
       </Table.Header>
@@ -80,11 +81,12 @@ export function ProjectTable({ rows, onOpenViewer, renamingId, renameDraft, onOp
               onMenu(project, event.clientX, event.clientY);
             }}
           >
-            <Table.Cell className={`w-full max-w-0 font-medium max-sm:min-w-0 max-sm:max-w-full max-sm:basis-full ${CELL_STACKED}`}>
+            <Table.Cell className={`w-full min-w-[16rem] max-w-0 font-medium max-sm:min-w-0 max-sm:max-w-full max-sm:basis-full ${CELL_STACKED}`}>
               <div className="relative">
                 <h3
                   aria-hidden={renamingId === project.id || undefined}
-                  className={`${NAME_CLASS} line-clamp-2 whitespace-normal wrap-break-word max-sm:line-clamp-1 max-sm:leading-8 ${renamingId === project.id ? 'invisible' : ''}`}
+                  title={project.name}
+                  className={`${NAME_CLASS} truncate max-sm:line-clamp-1 max-sm:leading-8 ${renamingId === project.id ? 'invisible' : ''}`}
                 >
                   {project.name}
                 </h3>
@@ -110,17 +112,17 @@ export function ProjectTable({ rows, onOpenViewer, renamingId, renameDraft, onOp
               <StackedLabel>Trạng thái</StackedLabel>
               <Badge variant={project.statusVariant}>{project.statusLabel}</Badge>
             </Table.Cell>
-            <Table.Cell className="hidden text-text-secondary sm:table-cell">{project.statsLabel}</Table.Cell>
-            <Table.Cell className={`text-text-secondary ${CELL_STACKED}`}>
+            <Table.Cell className="hidden text-text-secondary xl:table-cell">{project.statsLabel}</Table.Cell>
+            <Table.Cell className={`whitespace-nowrap text-text-secondary ${CELL_STACKED}`}>
               <StackedLabel>Tiến độ duyệt</StackedLabel>
               {project.progressLabel}
             </Table.Cell>
-            <Table.Cell className={`text-text-muted max-sm:ml-auto ${CELL_STACKED}`}>
+            <Table.Cell className={`whitespace-nowrap text-text-muted max-sm:ml-auto ${CELL_STACKED}`}>
               <StackedLabel>Cập nhật</StackedLabel>
               {project.updatedLabel}
             </Table.Cell>
             <Table.Cell className={`max-sm:ml-auto ${CELL_STACKED}`}>
-              <div className="flex items-center justify-end gap-1">
+              <div className="flex items-center justify-end gap-2">
                 {project.hasPlan && (
                   <button
                     type="button"
@@ -130,10 +132,10 @@ export function ProjectTable({ rows, onOpenViewer, renamingId, renameDraft, onOp
                       event.stopPropagation();
                       onOpenViewer(project.id);
                     }}
-                    className="flex h-7 items-center gap-1 rounded-full bg-bg-sunken px-2.5 text-[12px] font-medium text-text-secondary hover:bg-accent hover:text-white"
+                    className="flex min-h-11 items-center gap-1 whitespace-nowrap rounded-full bg-bg-sunken px-3 text-caption font-medium text-text-secondary hover:bg-accent hover:text-white fine:min-h-8"
                   >
                     <Box size={14} aria-hidden="true" />
-                    3D
+                    Xem 3D
                   </button>
                 )}
                 <button
@@ -144,7 +146,8 @@ export function ProjectTable({ rows, onOpenViewer, renamingId, renameDraft, onOp
                     const anchor = event.currentTarget.getBoundingClientRect();
                     onMenu(project, anchor.right - CONTEXT_MENU_WIDTH, anchor.bottom + 4);
                   }}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                  title="Tuỳ chọn"
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-full fine:min-h-8 fine:min-w-8 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                 >
                   <MoreHorizontal size={16} aria-hidden="true" />
                 </button>

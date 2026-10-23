@@ -1,156 +1,46 @@
 /**
- * The left column of `/login`: the drawing, the apartment standing on it, and
- * the two sentences beside them.
+ * Cột minh hoạ của khung tài khoản (`AuthFrame`): một mặt bằng nét mực trên nền giấy, cùng ngôn ngữ
+ * với `/welcome`, và hai câu giới thiệu.
  *
- * A sibling file rather than part of `AuthScreen.tsx` because that view crossed
- * R-22's four-hundred-line ceiling once this went in, and CLAUDE.md section D
- * says what to do about it — split the piece out, keep `index.ts` as the door so
- * no caller has to follow. This is the cohesive piece to move: it is scenery
- * end to end. It takes no props, holds no state, reads nothing from the model
- * and can say nothing about whether anyone is signed in.
+ * Trước đây là ảnh dựng 3D trên khung tối: sau cao trào của trang chào, /login như một app khác (A1 P1).
+ * Giờ chỉ là SVG tĩnh — không three.js, không canvas — nên không có gì để tải hay hỏng.
+ * Từ `lg` là cột trái 45%; dưới `lg` thu thành một dải gọn trên đầu (ở 768 vẫn còn nét vẽ, A1 hành trình trũng 2).
+ *
+ * `aria-hidden` cho hình: là hoạ tiết, tiêu đề `h1` của biểu mẫu đã nói nghĩa. Khẩu hiệu là `<p>`, không
+ * `<h1>`: h1 duy nhất của màn là tên biểu mẫu (BUG-047).
  */
-
-import { useEffect, useRef, useState } from 'react';
 
 /* Nhập THEO TÊN, không default: default export của `vi.json` là một object literal liền
    khối nên Rollup phải giữ cả cuốn từ điển trong chunk vào. Đừng "dọn" về default. */
 import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
-import type { HouseSceneHandle } from './houseScene';
+/** Tường ngoài có chừa cửa đi và cửa sổ, vách trong, cung mở cửa — nét mực như mặt bằng của /welcome. */
+const WALLS = 'M20 20 H132 M156 20 H220 V140 H124 M100 140 H20 V96 M20 64 V20 M100 20 V72 M100 96 V140 M100 84 H164 M188 84 H220';
+const WINDOW = 'M16 64 V96 M24 64 V96';
+const DOOR = 'M132 20 V44 A24 24 0 0 0 156 20';
+const DIMENSION = 'M20 152 H220 M20 148 V156 M220 148 V156';
 
-/**
- * The model, loaded only once the form is already on screen.
- *
- * three.js is by far the heaviest thing this route can pull, and `/login` is the
- * one page a signed-out visitor cannot get past — so it is imported at effect
- * time rather than at module time. The form paints, the fields are typeable, and
- * the flat arrives in its own chunk a moment later. Nobody waits on scenery to
- * sign in.
- *
- * The frame it sits in is painted `bg-scene-backdrop` by the panel, not by the
- * renderer alone: the chunk takes a moment, and a dark frame that appears dark
- * and then fills is one thing happening, where a pale frame that snaps dark is
- * a flash.
- *
- * The `cancelled` flag matters: a visitor who signs in quickly can unmount this
- * before the import settles, and mounting a WebGL context into a detached canvas
- * leaks it.
- */
-function HouseModel() {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  // Cờ "đã vẽ": chữ chờ chỉ hiện tới khi mô hình sẵn sàng, không dựa vào canvas che nó (RV5#15).
-  const [isReady, setReady] = useState(false);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-
-    if (canvas === null) {
-      return undefined;
-    }
-
-    let cancelled = false;
-    let handle: HouseSceneHandle | null = null;
-
-    void import('./houseScene')
-      .then((module) => {
-        if (cancelled) {
-          return undefined;
-        }
-        handle = module.mountHouseScene(canvas);
-        return handle.ready.then(() => {
-          if (!cancelled) setReady(true);
-        });
-      })
-      .catch(() => {
-        // No WebGL context — an old browser, a blocklisted GPU, a headless run
-        // — or a plan that never arrived. The panel keeps its dark frame and
-        // its two sentences, and signing in is unaffected: this is scenery,
-        // and scenery that fails must fail quietly rather than take the one
-        // screen a visitor cannot get past with it.
-      });
-
-    return () => {
-      cancelled = true;
-      handle?.dispose();
-    };
-  }, []);
-
+function AuthPlan({ className }: { readonly className: string }) {
   return (
-    <>
-      {isReady ? null : (
-        // `--scene-tile`: màu sáng đã cân trên `--scene-backdrop` ở cả hai chủ đề (token, không `text-white/70`).
-        <p className="absolute inset-0 flex items-center justify-center text-[14px] text-(--scene-tile)">
-          Đang dựng mô hình căn hộ…
-        </p>
-      )}
-      <canvas
-        ref={canvasRef}
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 h-full w-full"
-      />
-    </>
+    <svg aria-hidden="true" viewBox="0 0 240 164" fill="none" strokeLinecap="square" className={`auth-art ${className}`}>
+      <path d={WALLS} strokeWidth={4} />
+      <path d={WINDOW} strokeWidth={1.25} />
+      <path d={DOOR} strokeWidth={1.25} />
+      <path d={DIMENSION} strokeWidth={1} className="auth-art-accent" />
+    </svg>
   );
 }
 
-/** Where the hairlines sit on the left panel. Static: nothing here moves or measures. */
-const VERTICAL_RULE_OFFSETS = ['18%', '36%', '54%', '72%', '90%'] as const;
-const HORIZONTAL_RULE_OFFSETS = ['28%', '64%'] as const;
-
-/* -------------------------------------------------------------------------- */
-/* The left column.                                                            */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The value proposition: the drawing, and what the product makes out of one.
- *
- * The grid of hairlines is the drawing. The framed render standing on it is a
- * small flat — six rooms and a balcony — built by the product's own wall and
- * floor builders from `houseModel.json` and shown as an open box, the way a 3D
- * floor plan is shown. That is the whole pitch of the screen said without a
- * sentence. The frame is dark so the lit rooms stand out from the pale panel,
- * and it stays dark for anyone who asked motion to stop: the model then rests
- * at one angle rather than turning.
- *
- * `aria-hidden` on the rules and on the canvas because they are texture: a
- * screen reader that announced seven dividers before the form would be
- * describing the wallpaper.
- */
 export function ValuePanel() {
   return (
-    <section className="relative hidden w-[45%] shrink-0 overflow-hidden bg-bg-sunken p-12 lg:flex lg:flex-col lg:justify-center">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        {VERTICAL_RULE_OFFSETS.map((offset) => (
-          <span
-            key={offset}
-            className="absolute top-0 bottom-0 w-px bg-border-default"
-            style={{ left: offset }}
-          />
-        ))}
-        {HORIZONTAL_RULE_OFFSETS.map((offset) => (
-          <span
-            key={offset}
-            className="absolute right-0 left-0 h-px bg-border-default"
-            style={{ top: offset }}
-          />
-        ))}
-      </div>
-
-      <div className="relative flex flex-col gap-12">
-        <div className="relative h-[400px] overflow-hidden rounded-2xl border border-border-default bg-scene-backdrop shadow-panel">
-          {/* Chữ chờ nằm trong HouseModel, gỡ khi mô hình đã vẽ (G1-03, RV5#15). */}
-          <HouseModel />
-        </div>
-
-        <div className="flex max-w-[420px] flex-col gap-4 animate-panel-rise motion-reduce:animate-none">
-          {/* `text-balance`: ở 1024 cột chữ ~364 px, không cân thì "trường." đứng một mình ở dòng ba (BUG-046). */}
-          {/* `<p>`, không `<h1>`: h1 duy nhất của màn là tên biểu mẫu, khẩu hiệu không chen trước nó (BUG-047). */}
-          <p className="text-balance text-[28px] font-semibold leading-9 text-text-primary">
-            {AUTH_MESSAGES.hero.headline}
-          </p>
-          <p className="text-[15px] leading-6 text-text-secondary">
-            {AUTH_MESSAGES.hero.support}
-          </p>
-        </div>
+    <section className="auth-art-panel relative flex shrink-0 items-center gap-6 border-b px-6 py-4 sm:px-12 lg:w-[45%] lg:flex-col lg:items-start lg:justify-center lg:gap-12 lg:border-b-0 lg:border-r lg:p-12">
+      <AuthPlan className="h-20 w-auto shrink-0 lg:h-auto lg:w-full lg:max-w-[480px]" />
+      <div className="flex max-w-[420px] flex-col gap-4 animate-panel-rise motion-reduce:animate-none">
+        {/* `text-balance`: ở 1024 cột chữ ~364 px, không cân thì "trường." đứng một mình ở dòng ba (BUG-046). */}
+        <p className="hidden text-balance text-title-sm font-medium sm:block lg:text-[28px] lg:leading-9">
+          {AUTH_MESSAGES.hero.headline}
+        </p>
+        <p className="auth-art-soft hidden text-[15px] leading-6 lg:block">{AUTH_MESSAGES.hero.support}</p>
       </div>
     </section>
   );

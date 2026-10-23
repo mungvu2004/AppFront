@@ -4,7 +4,7 @@
  * crashed run restores the opening family on the next run, as `e2e/fullstack/chain.fullstack.ts` step 10 does.
  *
  * Global state: only FL-M-36R-01 activates a version (family openingAndFurnitureDetection); it records BEFORE and restores in `finally`.
- * Never clicked: "Bắt đầu huấn luyện", "Quay về đường cổ điển", "Gửi lời mời".
+ * Never clicked: "Bắt đầu huấn luyện", "Tắt AI, dùng thuật toán cũ", "Gửi lời mời".
  *
  * Request budget: 1 admin login + 1 adminApi login (beforeAll) + 2 adminApi logins (36R, 37U); 0-6 invitations from the admin
  * seed the first time the 6 SHARED_SLOTS are filled (none afterwards).
@@ -103,7 +103,7 @@ test('SCR-34 · FL-M-34L-01 · open, search, category, sort, grid, detail + Esc'
 
   await test.step('[34L-A-001] open /admin/models: breadcrumb, toolbar, table', async () => {
     await navigateThenWaitForApi(page, () => page.goto(ROUTES.adminModels, { waitUntil: 'commit' }), 'GET', LIBRARY_LIST_PATH, [200]);
-    await expect(page.getByRole('navigation', { name: 'Đường dẫn trang' }).getByText('Thư viện model', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Thư viện mẫu 3D', exact: true })).toBeVisible(); // the breadcrumb was removed
     await expect(search).toBeVisible();
     await expect(rows.first(), 'environment: library has at least one model').toBeVisible();
     name = (await rows.first().locator('td').nth(1).innerText()).trim();
@@ -178,9 +178,7 @@ test('SCR-35 · FL-M-35T-01 · navigate, tabs, filters, open/close the form', as
       [200],
     );
     await expect(page.getByRole('heading', { level: 1, name: 'Huấn luyện mô hình AI', exact: true })).toBeVisible();
-    const nav = page.getByRole('navigation', { name: 'Đường dẫn trang' });
-    await expect(nav.getByText('Quản trị', { exact: true })).toBeVisible();
-    await expect(nav.getByText('Huấn luyện', { exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByRole('navigation', { name: 'Đường dẫn trang' }), 'no breadcrumb: the admin tab bar already names the section').toHaveCount(0);
     await captureEvidence(page, 'E08_35T-A-001_main.png');
   });
 
@@ -254,7 +252,7 @@ async function openOpeningFamily(): Promise<{ readonly family: FamilyWire; reado
   const read = await navigateThenWaitForApi(page, () => page.goto(ROUTES.adminTrainingModels, { waitUntil: 'commit' }), 'GET', FAMILIES_PATH, [200]);
   const family = (itemsOf(read.json, 'GET model-families') as FamilyWire[]).find((f) => f.family === OPENING_FAMILY);
   if (family === undefined) throw new Error(`GET model-families: no family ${OPENING_FAMILY}`);
-  const picker = page.getByRole('radiogroup', { name: 'Họ model' });
+  const picker = page.getByRole('radiogroup', { name: 'Loại mô hình' });
   await expect(picker).toBeVisible();
   const versionsRead = waitForApiWhere(
     page,

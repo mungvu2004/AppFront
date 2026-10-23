@@ -122,10 +122,10 @@ interface DiffGroupSectionProps extends RowWiring {
 function DiffGroupSection({ group, ...wiring }: DiffGroupSectionProps) {
   return (
     <section aria-label={`${group.heading} — ${group.countLabel}`}>
-      <h4 className="mb-2 flex items-baseline gap-2">
+      <h2 className="mb-2 flex items-baseline gap-2">
         <span className="text-[14px] font-medium text-text-primary">{group.heading}</span>
         <span className="text-[13px] tabular-nums text-text-secondary">{group.countLabel}</span>
-      </h4>
+      </h2>
       <ul className="flex flex-col gap-1">
         {group.rows.map((row) => (
           <DiffRowItem key={row.id} row={row} {...wiring} />

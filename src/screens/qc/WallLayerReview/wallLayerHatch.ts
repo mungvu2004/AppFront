@@ -30,6 +30,7 @@
 
 import { wallStrokeToken } from '@/components/canvas/materialMap';
 import type { Point, WallId } from '@/domain/spatial/types';
+import { WALL_THICKNESS_TOLERANCE_MM } from '@/domain/walls/thicknessTolerance';
 import type { MeasurementState, Point as PointPx } from '@/hooks/useMeasurementLabel';
 import type { WallThickness as SpatialWallThickness } from '@/types/spatial';
 
@@ -109,7 +110,41 @@ export function isThicknessBand(thicknessMm: number): thicknessMm is WallThickne
  * lớp thứ hai là bề rộng hình học của chính đa giác và không nằm ở file này.
  */
 export function wallThicknessFillToken(thicknessMm: number): string {
-  return isThicknessBand(thicknessMm) ? wallStrokeToken(thicknessMm) : UNBANDED_WALL_TOKEN;
+  const band = wallThicknessBandOf(thicknessMm);
+
+  return band === null ? UNBANDED_WALL_TOKEN : wallStrokeToken(band);
+}
+
+/**
+ * Nhóm chuẩn (110/220/330) gần nhất trong dung sai CHUNG `WALL_THICKNESS_TOLERANCE_MM` (R-7, cùng
+ * hằng với cảnh báo độ dày và màn Chuẩn hoá) — A3: so khít từng mm thì tường 116 mm rơi vào "Khác"
+ * và canvas một màu xám. Một dung sai cho cả màu lẫn cảnh báo: tường không bị cảnh báo thì có màu nhóm.
+ * `null` = "không chuẩn".
+ */
+export function wallThicknessBandOf(thicknessMm: number): WallThicknessChoice | null {
+  let best: WallThicknessChoice | null = null;
+  for (const band of WALL_THICKNESS_CHOICES) {
+    const off = Math.abs(thicknessMm - band);
+    if (off <= WALL_THICKNESS_TOLERANCE_MM && (best === null || off < Math.abs(thicknessMm - best))) best = band;
+  }
+
+  return best;
+}
+
+/** Số tường theo nhóm, chỉ những nhóm có mặt — nguồn của chú giải có số đếm. */
+export function countWallBands(thicknesses: readonly number[]): {
+  readonly bands: ReadonlyMap<WallThicknessChoice, number>;
+  readonly unbanded: number;
+} {
+  const bands = new Map<WallThicknessChoice, number>();
+  let unbanded = 0;
+  for (const mm of thicknesses) {
+    const band = wallThicknessBandOf(mm);
+    if (band === null) unbanded += 1;
+    else bands.set(band, (bands.get(band) ?? 0) + 1);
+  }
+
+  return { bands: new Map([...bands].sort(([a], [b]) => a - b)), unbanded };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -132,10 +167,13 @@ export const WALL_HATCH_OPACITY = 0.06;
 export const WALL_HATCH_PATTERN_TRANSFORM = 'rotate(45)';
 
 /** Thang cần chú ý của P-06 — dùng cho cả nét gạch lẫn chấm cần chú ý. */
-export const ATTENTION_TOKEN = 'var(--state-attention)';
+export const ATTENTION_TOKEN = 'var(--state-attention-stroke)';
 
 /** Bán kính chấm cần chú ý, px MÀN (nhân với `unitPx`). */
 export const ATTENTION_DOT_RADIUS_PX = 5;
+
+/** Hình đã duyệt mờ đi còn chừng này (A3: trạng thái duyệt trước đây chỉ thấy trong danh sách). */
+export const VERIFIED_SHAPE_OPACITY = 0.45;
 
 /* -------------------------------------------------------------------------- */
 /* Ảnh bản vẽ gốc.                                                             */

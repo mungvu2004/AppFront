@@ -185,7 +185,12 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           <SegmentedControl
             aria-label="Lọc theo trạng thái"
             className="h-14 sm:h-9 max-sm:[&>button]:px-2"
-            options={PROJECT_STATUS_FILTER_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+            // Thu gọn thành tab vẫn giữ số đếm như cột bộ lọc (A1 §8); lỗi tải thắng trạng thái thu gọn
+            // (BUG-072) nên ở đây danh sách luôn có, số đếm luôn đúng.
+            options={PROJECT_STATUS_FILTER_OPTIONS.map((option) => ({
+              value: option.value,
+              label: `${option.label} (${String(statusCounts[option.value])})`,
+            }))}
             value={props.statusFilter}
             onChange={props.setStatusFilter}
           />

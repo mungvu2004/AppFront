@@ -148,7 +148,7 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
         aria-live="polite"
         aria-atomic="true"
         className={cn(
-          'relative w-80 bg-bg-surface shadow-float rounded-xl overflow-hidden pointer-events-auto transition-all duration-340 animate-toast-enter',
+          'relative w-80 bg-bg-surface shadow-float rounded-xl overflow-hidden pointer-events-auto transition-opacity duration-340 animate-toast-enter',
           isExiting && 'opacity-0 h-0! my-0! py-0!'
         )}
         style={{

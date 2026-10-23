@@ -55,7 +55,7 @@ import { cn } from '@/lib/utils';
 
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
-import { QcScreenFrame } from '../shared/QcScreenFrame';
+import { QcScreenFrame, QcStatusBar } from '../shared/QcScreenFrame';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import type { AxisCanvasBackground } from './useAxisGridManager';
 import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
@@ -250,7 +250,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
       {props.floorNav ?? (
         <header className="shrink-0 px-4 pb-1 pt-3">
           <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
-          <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
+          <h1 className="text-title-sm font-semibold text-text-primary">{SCREEN_TITLE}</h1>
           <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
         </header>
       )}
@@ -292,7 +292,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
 
         <section
           aria-label={CANVAS_SECTION_LABEL}
-          className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken max-lg:h-[360px] max-lg:flex-none lg:max-xl:h-[60vh]"
+          className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken max-lg:order-first max-lg:h-[60vh] max-lg:min-h-80 max-lg:flex-none lg:max-xl:h-[60vh]"
         >
           <AxisGridCanvas
             background={props.background ?? null}
@@ -345,6 +345,9 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
           </div>
         )}
       </div>
+
+      {/* Khe chung (A3): lưới trục chưa có ngăn hoàn tác — nút đứng cùng chỗ, tắt. */}
+      <QcStatusBar />
     </QcScreenFrame>
   );
 }

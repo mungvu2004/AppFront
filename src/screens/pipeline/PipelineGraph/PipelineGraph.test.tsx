@@ -349,6 +349,21 @@ describe('PipelineGraph — nghiệm thu', () => {
     expect(screen.queryByText(PIPELINE_GRAPH_TEXT.forbiddenLine)).toBeNull();
   });
 
+  it('có lượt xử lý mà cổng chưa báo nhánh: tô nhánh ảnh quét, không nói "chưa báo nhánh"', async () => {
+    renderWithProviders(
+      <PipelineGraphContainer
+        gateway={{
+          ...createMockPipelineGraphGateway({ supports: { branchReport: false } }),
+          readLatestRun: () => Promise.resolve({ floorId: 'floor-1', uploadId: 'upload-1' }),
+        }}
+        projectId="project-1"
+        roles={['admin']}
+      />,
+    );
+
+    expect(await screen.findByText(PIPELINE_GRAPH_TEXT.reasonInferredFromRun)).toBeTruthy();
+  });
+
   // F9U-4 (questions.md Q4): empty wins over forbidden.
   it('[F9U-4] chưa có lượt xử lý thì nói rỗng, kể cả khi vai không có quyền chi tiết', async () => {
     renderWithProviders(

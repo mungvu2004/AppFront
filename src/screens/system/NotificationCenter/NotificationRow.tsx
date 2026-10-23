@@ -54,7 +54,7 @@ export interface NotificationRowProps {
   readonly onItemAction: (item: NotificationItemVm) => void;
   readonly onMarkRead: (id: string) => void;
   readonly onInlineAction: (item: NotificationItemVm) => void;
-  /** Trang `/thong-bao`: tên dự án xuống dòng; tấm trượt 400 px vẫn cắt "…". */
+  /** Trang `/thong-bao`: tên dự án dài (không dấu cách) được ngắt ở bất kỳ đâu thay vì tràn. */
   readonly wrapProjectName?: boolean;
 }
 
@@ -69,6 +69,9 @@ export function NotificationRow({
 }: NotificationRowProps) {
   const Icon = KIND_ICON[item.kind];
   const dotDelaySeconds = (flatIndex * UNREAD_DOT_STAGGER_MS) / MS_IN_ONE_SECOND;
+  // Tên dự án nằm trong câu chính (ba dòng "AI đã xử lý xong Tầng 1" từng chỉ khác nhau ở dòng phụ nhỏ); câu đã
+  // có tên dự án thì không lặp.
+  const showProject = item.target.projectName.length > 0 && !item.sentence.includes(item.target.projectName);
 
   return (
     <motion.li
@@ -116,8 +119,10 @@ export function NotificationRow({
         >
           <span>
             {!item.isRead && <span className="sr-only">{`${UNREAD_SR_HINT}. `}</span>}
-            {item.sentence}{' '}
-            <span className="text-accent underline underline-offset-2">{item.target.label}</span>
+            {item.sentence} <span className="font-medium">{item.target.label}</span>
+            {showProject && (
+              <span className={cn('text-text-secondary', wrapProjectName ? 'wrap-anywhere' : undefined)}>{` · ${item.target.projectName}`}</span>
+            )}
           </span>
         </button>
 
@@ -134,10 +139,9 @@ export function NotificationRow({
         <div className="flex items-center gap-2">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
             <span className="whitespace-nowrap text-[13px] leading-[18px] text-text-muted">{item.relativeTime}</span>
-            {item.target.projectName.length > 0 && (
-              <span className={cn('min-w-0 max-w-full text-[13px] leading-[18px] text-text-muted', wrapProjectName ? 'wrap-anywhere' : 'truncate')}>{`· ${item.target.projectName}`}</span>
-            )}
-            {item.inlineAction !== undefined && (
+            {/* Chỉ nút GHI ("Chấp nhận") có chỗ ở đây: nút 'navigate' ("Xem kết quả"…) mở đúng đích của câu phía trên,
+                hai lối cùng đích trên một dòng (A1 #31). Câu là lối duy nhất. */}
+            {item.inlineAction?.kind === 'accept' && (
               // While the accept is in flight the button is `aria-disabled`, not `disabled`: a disabled button
               // drops keyboard focus to <body> inside the sheet (WCAG 2.4.3, review QA-02 P2-5).
               <Button

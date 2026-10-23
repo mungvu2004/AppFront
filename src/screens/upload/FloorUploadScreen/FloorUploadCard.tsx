@@ -176,8 +176,8 @@ function ProgressRail({ row }: { row: FloorUploadRowModel }) {
         className="absolute inset-x-0 bottom-0 h-1 overflow-hidden rounded-b-xl bg-bg-sunken"
       >
         <div
-          className="h-full bg-accent transition-[width] duration-instant"
-          style={{ width: `${String(row.percent)}%` }}
+          className="h-full origin-left bg-accent transition-transform duration-instant"
+          style={{ transform: `scaleX(${String(row.percent / 100)})` }}
         />
       </div>
       {/* Thanh tiến độ phải mang giá trị (ARIA 1.2, BUG-533), không chỉ một nhãn. */}

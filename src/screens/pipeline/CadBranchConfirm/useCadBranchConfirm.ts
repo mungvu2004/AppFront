@@ -778,6 +778,10 @@ export function useCadBranchConfirm(
     options.onNavigate?.(ROUTES.dashboard);
   }, [options]);
 
+  const onBackToLayerReview = useCallback(() => {
+    options.onNavigate?.(ROUTES.project.walls(projectId, floorId));
+  }, [floorId, options, projectId]);
+
   // #12 trả 404 `project`: dự án không có, không phải "không đọc được tệp CAD … NOT_FOUND" (BUG-563).
   const isProjectMissing = query.isError && isProjectNotFound(query.error);
 
@@ -892,7 +896,9 @@ export function useCadBranchConfirm(
       state,
       stage,
       dialog: {
-        isOpen: isDialogOpen,
+        // Tầng chỉ có ảnh không bật hộp thoại: trang tự giải thích và đưa lối về duyệt lớp.
+        // Chưa đọc xong thì chưa bật, để hộp thoại không loé lên rồi tắt với tầng không có CAD.
+        isOpen: isDialogOpen && (record !== null ? hasCadFile : !query.isPending),
         comparisonRows: COMPARISON_ROWS,
         floorAvailability: record?.floors ?? [],
         diagnostics: {
@@ -979,6 +985,7 @@ export function useCadBranchConfirm(
       onToggleMappingPanelCollapsed,
       onRetry,
       onBackToProjects,
+      onBackToLayerReview,
     },
     resolvedBranch,
   };

@@ -195,7 +195,7 @@ function WiredRuleReport(props: WiredRuleReportProps) {
           breadcrumb={[
             { id: 'projects', label: 'Dự án', onClick: () => void navigate(ROUTES.dashboard) },
             ...(projectName !== null ? [{ id: 'project', label: projectName }] : []),
-            { id: 'current', label: 'Kiểm tra luật không gian' },
+            { id: 'current', label: 'Quy chuẩn' },
           ]}
           onSelectRow={(rowKey) => {
             viewProps.onSelectRow(rowKey);
@@ -217,7 +217,8 @@ function WiredRuleReport(props: WiredRuleReportProps) {
             // hàng đã mở tấm lúc đầu không đổi `initialIndex` và tấm đứng yên (BUG-728 RF p06-rf).
             // `returnFocusKey` không đổi: đóng tấm vẫn trả tiêu điểm về hàng đã bấm (28V-E-008).
             const key = allRows.find(
-              (row) => row.entityId === shown.entityId && row.ruleCode === shown.ruleCode,
+              (row) =>
+                row.entityId === shown.entityId && row.ruleCode === shown.ruleCode && row.message === shown.message,
             )?.key;
             if (key !== undefined && key !== openRowKey) {
               viewProps.onSelectRow(key);

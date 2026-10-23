@@ -40,11 +40,11 @@ export function Skeleton({ preset, className, ...props }: SkeletonProps) {
           <div className={cn(baseClass, 'h-[132px] shrink-0 rounded-none border-b border-border-default')} />
           <div className="flex flex-col gap-2 p-4">
             <div className="flex flex-col gap-1">
-              <div className="flex h-11 items-center sm:h-6"><div className={cn(baseClass, 'h-4 w-3/4')} /></div>
+              <div className="flex h-11 items-center fine:h-6"><div className={cn(baseClass, 'h-4 w-3/4')} /></div>
               <div className="flex h-[18px] items-center"><div className={cn(baseClass, 'h-3 w-1/2')} /></div>
             </div>
             <div className={cn(baseClass, 'h-[26.5px] w-full')} />
-            <div className="flex h-11 items-center sm:h-7"><div className={cn(baseClass, 'h-7 w-7 rounded-full')} /></div>
+            <div className="flex h-11 items-center fine:h-7"><div className={cn(baseClass, 'h-7 w-7 rounded-full')} /></div>
           </div>
         </div>
       );

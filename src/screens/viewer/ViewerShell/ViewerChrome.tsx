@@ -112,7 +112,7 @@ function ClusterButton({
       aria-label={label}
       className={cn(
         /* 44 px dưới `sm` (vùng chạm cảm ứng), 28 px từ `sm` — BUG-374. */
-        'flex h-11 w-11 items-center justify-center rounded-lg sm:h-7 sm:w-7',
+        'flex h-11 w-11 items-center justify-center rounded-lg fine:h-7 fine:w-7',
         'text-text-secondary transition-colors duration-120 hover:bg-bg-hover',
         'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
       )}
@@ -148,7 +148,7 @@ export function ViewerZoomCluster({
         aria-label={`Mức thu phóng ${zoomLabel}, bấm để về mức chuẩn`}
         className={cn(
           /* Từng không có chiều cao: chỉ cao bằng dòng chữ 11 px (48×17, BUG-374). */
-          'h-11 min-w-12 rounded-lg px-1 text-[11px] tabular-nums text-text-secondary sm:h-7',
+          'h-11 min-w-12 rounded-lg px-1 text-[11px] tabular-nums text-text-secondary fine:h-7',
           'transition-colors duration-120 hover:bg-bg-hover',
           'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
         )}

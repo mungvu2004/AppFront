@@ -129,6 +129,12 @@ const config: Config = {
         // Thang có tên (T-02): `text-title` cho tiêu đề trang (h1), `text-heading` cho tiêu đề khối.
         title: ['1.5rem', { lineHeight: '2rem', fontWeight: '500' }],
         heading: ['1rem', { lineHeight: '1.5rem', fontWeight: '500' }],
+        // Tên thêm từ đợt Impeccable (không trùng thang trên). Cỡ 20 px dùng `text-xl`.
+        caption: ['0.75rem', { lineHeight: '1rem' }],
+        'body-sm': ['0.8125rem', { lineHeight: '1.25rem' }],
+        body: ['0.875rem', { lineHeight: '1.25rem' }],
+        'title-sm': ['1rem', { lineHeight: '1.5rem' }],
+        display: ['1.5rem', { lineHeight: '2rem' }],
       },
       // Be Vietnam Pro chỉ có 300/400/500 (`globals.css`): để trình duyệt tự in đậm giả 600/700
       // thì nét nhoè, nên hai lớp đậm hơn đều vẽ ở 500.
@@ -260,6 +266,7 @@ const config: Config = {
     'blur', 'collapse', 'container', 'filter', 'grow', 'invert', 'isolate', 'lowercase', 'ordinal', 'resize', 'ring',
     'shadow', 'shrink', '!container', '!contents', '!hidden', '!outline', '!table', '!visible',
   ],
+  // Variant `fine:`/`coarse:` (loại con trỏ) khai bằng `@custom-variant` trong `src/styles/globals.css`.
   plugins: [],
 };
 

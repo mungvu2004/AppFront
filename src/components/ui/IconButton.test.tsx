@@ -50,7 +50,7 @@ describe('IconButton', () => {
 
   it('applies sm size: 44px with its ring on phones, 36px from sm up (BUG-077, BUG-086)', () => {
     render(<IconButton icon={<Settings size={16} />} aria-label="Cài đặt" size="sm" />);
-    expect(screen.getByRole('button')).toHaveClass('h-10', 'w-10', 'sm:h-8', 'sm:w-8', 'p-0.5');
+    expect(screen.getByRole('button')).toHaveClass('h-10', 'w-10', 'fine:h-8', 'fine:w-8', 'p-0.5');
   });
 
   it('applies lg size', () => {

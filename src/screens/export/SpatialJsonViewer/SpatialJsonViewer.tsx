@@ -9,7 +9,7 @@
  *
  * Thanh trên 56 · dải kiểm tra hợp lệ · cây trái 400 · nửa phải co giãn · chân
  * 32. Dưới 1024 chỉ một khung chiếm trọn chiều rộng — cây khi "Cây", khung JSON /
- * Xem trước khi "Thô" — đó cũng là trạng thái "thu gọn" của A11, không phải một chế độ thứ hai.
+ * Xem trước khi "JSON và xem trước" — đó cũng là trạng thái "thu gọn" của A11, không phải một chế độ thứ hai.
  *
  * ## Màn này không có nút Lưu, và cũng không có nút Sửa
  *
@@ -42,7 +42,7 @@ import type { SpatialJsonViewerProps, SpatialJsonViewMode } from './types';
 
 const VIEW_MODE_OPTIONS: ReadonlyArray<{ readonly label: string; readonly value: SpatialJsonViewMode }> = [
   { label: 'Cây', value: 'tree' },
-  { label: 'Thô', value: 'raw' },
+  { label: 'JSON và xem trước', value: 'raw' },
 ];
 
 const EMPTY_TITLE = 'Chưa có dữ liệu không gian';
@@ -70,8 +70,8 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
   const selectedNode = model.nodes.find((node) => node.id === model.selectedNodeId) ?? null;
   // Rỗng thì chỉ một khung nói "chưa có dữ liệu" — khung JSON cạnh nó kể chuyện ngược lại (BUG-454).
   const isEmpty = model.state === 'empty';
-  // "Thô" ở mọi cỡ: bỏ cây, chỉ còn khung JSON — để nút đổi chế độ thấy được tác dụng (G5-40).
-  const isRawOnly = model.viewMode === 'raw' && !isEmpty;
+  // Khổ hẹp + "JSON và xem trước": bỏ cây, chỉ còn khung nội dung (BUG-450). Khổ rộng luôn có cả hai.
+  const isRawOnly = model.viewMode === 'raw' && !isEmpty && model.isNarrow;
 
   if (model.state === 'forbidden') {
     return (
@@ -155,12 +155,16 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
           </>
         )}
 
-        <SegmentedControl
-          aria-label="Cách hiện cấu trúc"
-          options={[...VIEW_MODE_OPTIONS]}
-          value={model.viewMode}
-          onChange={actions.onChangeViewMode}
-        />
+        {/* Một bộ chuyển duy nhất: khổ rộng luôn có cây bên trái và tab JSON / Xem trước bên phải, nên
+            không cần bộ thứ hai; chỉ khổ hẹp (một khung) mới phải chọn giữa cây và nội dung. */}
+        {model.isNarrow ? (
+          <SegmentedControl
+            aria-label="Cách hiện cấu trúc"
+            options={[...VIEW_MODE_OPTIONS]}
+            value={model.viewMode}
+            onChange={actions.onChangeViewMode}
+          />
+        ) : null}
 
         <Button variant="ghost" size="sm" iconBefore={<Copy size={16} aria-hidden="true" />} onClick={actions.onCopyBranch}>
           Sao chép nhánh đang chọn
@@ -235,9 +239,6 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
         {isEmpty || (model.isNarrow && !isRawOnly) ? null : (
           <SpatialJsonDetail
             activeTabId={model.activeTabId}
-            // "Thô" ở khổ rộng: không còn cây nên chỉ khung JSON (RV2#6). Khổ hẹp giữ hai tab (BUG-450):
-            // ở đó "Thô" là lối duy nhất tới tab Xem trước.
-            isJsonOnly={isRawOnly && !model.isNarrow}
             onChangeTab={actions.onChangeTab}
             focusLine={model.selectedRawLine}
             rawText={model.rawText}

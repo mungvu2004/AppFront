@@ -14,12 +14,13 @@ function renderNav(pathname: string, search = '') {
 }
 
 describe('ProjectNav', () => {
-  it('có đủ năm lối vào bằng chữ, đúng đích', () => {
+  it('menu dự án có đủ sáu lối vào bằng chữ, đúng đích', () => {
     renderNav('/projects/p1/floors');
     expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([
       'Lịch sử phiên bản',
       'Dữ liệu dự án',
       'Sơ đồ xử lý',
+      'Chất lượng ảnh đầu vào',
       'Thành viên',
       'Cài đặt',
     ]);

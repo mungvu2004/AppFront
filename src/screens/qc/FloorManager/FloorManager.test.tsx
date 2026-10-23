@@ -85,7 +85,9 @@ const PROJECT_ID = 'project-floor-manager';
 const SCREEN_ARIA_LABEL = 'Quản lý tầng';
 const SECTION_ARIA_LABEL = 'Lát cắt các tầng theo đúng tỷ lệ chiều cao';
 const TABLE_CAPTION_TEXT = 'Cao độ tính tự động từ chiều cao các tầng dưới.';
-const TABLE_CAPTION_MANUAL = 'Cao độ đang nhập tay; ô ghi "Ghi đè" khác cao độ tính từ các tầng dưới.';
+const TABLE_CAPTION_MANUAL = 'Cao độ đang nhập tay.';
+/* Câu về ô "Ghi đè" chỉ hiện khi bảng thật sự có ô ấy (A2 #6). */
+const TABLE_CAPTION_OVERRIDE = 'Cao độ đang nhập tay. Ô ghi "Ghi đè" khác cao độ tính từ các tầng dưới.';
 const ADD_FLOOR_LABEL = 'Thêm tầng';
 const REMOVE_FLOOR_MENU_ITEM = 'Xoá tầng';
 const EXPAND_SECTION_LABEL = 'Hiện lát cắt';
@@ -578,7 +580,7 @@ describe('breadcrumb chung (BUG-079)', () => {
     renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onBackToProjects={vi.fn()} />);
     const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
 
-    expect(within(nav).getByRole('button', { name: 'Dự án' })).toHaveClass('min-h-11', 'min-w-11', 'sm:min-h-6', 'sm:min-w-0');
+    expect(within(nav).getByRole('button', { name: 'Dự án' })).toHaveClass('min-h-11', 'min-w-11', 'fine:min-h-6', 'fine:min-w-0');
   });
 });
 
@@ -682,7 +684,7 @@ describe('vùng chạm của nút chữ (BUG-257, BUG-270)', () => {
 
     expect(targets.length).toBeGreaterThan(2);
     for (const target of targets) {
-      expect(target).toHaveClass('min-h-11', 'sm:min-h-6');
+      expect(target).toHaveClass('min-h-11', 'fine:min-h-6');
     }
   });
 });
@@ -693,7 +695,7 @@ describe('cao độ ghi đè (BUG-289)', () => {
     const rows = base.rows.map((row, index) => (index === 1 ? { ...row, isElevationOverridden: true } : row));
     const { unmount } = renderWithProviders(<FloorManager {...base} isAutoElevation={false} rows={rows} />);
 
-    expect(screen.getByText(TABLE_CAPTION_MANUAL)).toBeInTheDocument();
+    expect(screen.getByText(TABLE_CAPTION_OVERRIDE)).toBeInTheDocument();
     expect(screen.queryByText(TABLE_CAPTION_TEXT)).not.toBeInTheDocument();
     expect(screen.getAllByText('Ghi đè')).toHaveLength(1);
     expect(within(screen.getByRole('row', { name: new RegExp(`^${rows[1]!.name}, `, 'u') })).getByText('Ghi đè')).toBeInTheDocument();
@@ -827,7 +829,7 @@ describe('[SCR-22] lối vào Đối chiếu lớp phủ', () => {
 });
 
 describe('lối vào các màn duyệt lớp của tầng', () => {
-  it('nút "Duyệt lớp" mở menu bảy màn; chọn một mục bắn mã tầng và mã màn', async () => {
+  it('nút "Duyệt lớp" mở menu sáu lớp + một công cụ; chọn một mục bắn mã tầng và mã màn', async () => {
     const onOpenFloorScreen = vi.fn();
 
     renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onOpenFloorScreen={onOpenFloorScreen} />);
@@ -839,33 +841,25 @@ describe('lối vào các màn duyệt lớp của tầng', () => {
 
     const items = await screen.findAllByRole('menuitem');
 
+    // Cùng tên, cùng thứ tự với dải lớp (FLOOR_LAYERS); công cụ "Hiệu chỉnh tỷ lệ" ở nhóm cuối.
     expect(items.map((item) => item.textContent)).toEqual([
-      'Duyệt tường',
-      'Cửa & nội thất',
-      'Kích thước (OCR)',
-      'Trục & gốc toạ độ',
-      'Tên phòng',
+      'Tường',
+      'Cửa và nội thất',
+      'Phòng',
+      'Kích thước',
+      'Trục',
       'Độ dày tường',
       'Hiệu chỉnh tỷ lệ',
     ]);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Tên phòng' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Phòng' }));
     expect(onOpenFloorScreen).toHaveBeenCalledWith(expect.any(String), 'rooms');
   });
 });
 
-describe('menu "Thêm" ở đầu màn: lối vào màn cấp dự án', () => {
-  it('mở menu ba màn; chọn "Lịch sử phiên bản" bắn mã màn', async () => {
-    const onOpenProjectScreen = vi.fn();
-
-    renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onOpenProjectScreen={onOpenProjectScreen} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Các màn của dự án' }));
-
-    const items = await screen.findAllByRole('menuitem');
-
-    expect(items.map((item) => item.textContent)).toEqual(['Dữ liệu dự án', 'Lịch sử phiên bản', 'Sơ đồ xử lý', 'Xem lại chất lượng ảnh']);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Lịch sử phiên bản' }));
-    expect(onOpenProjectScreen).toHaveBeenCalledWith('versions');
+describe('màn không lặp menu dự án của header', () => {
+  it('không còn nút "Màn dự án" (các màn phụ ở menu dự án trên header)', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('success')} />);
+    expect(screen.queryByRole('button', { name: 'Các màn của dự án' })).toBeNull();
   });
 });
 

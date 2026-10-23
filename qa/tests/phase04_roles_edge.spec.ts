@@ -1187,6 +1187,7 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await page.getByRole('button', { name: AXIS.addH, exact: true }).click();
         await expect.soft(axisRows(page)).toHaveCount(before + 1);
         await page.getByRole('button', { name: /^Xoá trục /u }).last().click();
+        await page.getByRole('dialog').getByRole('button', { name: /^Xoá trục /u }).click(); // ConfirmDeleteDialog
         await expect.soft(axisRows(page)).toHaveCount(before);
         await captureEvidence(page, ev('19-D-008', 'engineer_axis_add_remove'));
       });

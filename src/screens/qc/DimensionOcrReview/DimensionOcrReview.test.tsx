@@ -847,7 +847,10 @@ describe('QA-04c SCR-18 trên màn đã ráp', () => {
   it('[BUG-413] màn có breadcrumb và tiêu đề như các màn QC anh em', async () => {
     renderState('partial');
 
-    expect(await screen.findByRole('heading', { name: DIMENSION_OCR_TEXT.screen.title })).toBeInTheDocument();
+    /* Đợt Impeccable 2: tiêu đề màn là h1 của `QcFloorNav` ("<lớp> · <tầng>"), đúng một h1 như màn anh em. */
+    expect(await screen.findByRole('heading', { level: 1, name: /^Kích thước · /u })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('navigation', { name: 'Đường dẫn trang' })).toBeInTheDocument();
   });
 
   it('[BUG-335/338/325] màn rỗng: khung bản vẽ có câu giải thích, biểu tượng thật, nút đủ lớn', async () => {

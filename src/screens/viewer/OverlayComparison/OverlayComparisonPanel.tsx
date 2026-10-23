@@ -59,6 +59,7 @@ const CONFIRM_BADGE_LABEL = 'Đã duyệt';
 const UNMEASURED_NOTICE = 'Chưa đo được độ lệch tự động — so hai lớp bằng mắt, khớp thì bấm xác nhận.';
 /** G4b-25: lối đi căn ảnh, không để người dùng kẹt ở câu "cần căn trước". */
 const ALIGN_LINK_LABEL = 'Đo lại tỷ lệ ở màn Hiệu chỉnh tỷ lệ';
+const CONFIRM_REASON_ID = 'overlay-confirm-disabled-reason';
 /** G4b-28: ô mm chỉ nhận chữ số, dấu phẩy/chấm thập phân và dấu trừ (dấu trừ có câu báo riêng). */
 const NON_NUMERIC_INPUT = /[^\d.,-]/;
 
@@ -215,6 +216,7 @@ export function OverlayComparisonPanel({
             `onClick` sẽ đưa một `SyntheticEvent` vào đối số đầu. Cùng cách hàng
             danh sách ngay trên đây và `Toggle` của thanh công cụ đang làm. */}
         <Button
+          {...(confirmation.disabledReason !== null ? { 'aria-describedby': CONFIRM_REASON_ID } : {})}
           disabled={!confirmation.canConfirm}
           fullWidth
           onClick={() => {
@@ -225,7 +227,9 @@ export function OverlayComparisonPanel({
           {confirmation.buttonLabel}
         </Button>
         {confirmation.disabledReason !== null && (
-          <p className="text-[12px] text-text-muted">{confirmation.disabledReason}</p>
+          <p className="text-[13px] text-text-secondary" id={CONFIRM_REASON_ID}>
+            {confirmation.disabledReason}
+          </p>
         )}
         {confirmation.confirmedNotice !== null && (
           <div className="flex items-start gap-2">

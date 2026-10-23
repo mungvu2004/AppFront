@@ -34,8 +34,9 @@
  * ## Camera — dịch tới phòng được chọn
  *
  * Không có prop `viewport`/`zoom` nào trong hợp đồng (khác
- * `WallLayerCanvasViewProps`), nên canvas này KHÔNG có phóng to/thu nhỏ theo
- * yêu cầu người dùng — chỉ một phép DỊCH CHUYỂN (translate) trên một `<div>`
+ * `WallLayerCanvasViewProps`): mức phóng (`ZoomCluster` góc phải dưới, lăn
+ * chuột) và độ kéo (`useCanvasPan`) là trạng thái cục bộ của canvas, cộng
+ * vào một phép DỊCH CHUYỂN (translate) trên một `<div>`
  * HTML thuần bọc ảnh nền và `<svg>`, đúng kỹ thuật của `WallLayerCanvas.tsx`
  * (dòng 308-317): chuyển động đặt trên CSS của một phần tử HTML, không trên
  * `transform` bên trong hệ toạ độ đã bị `viewBox` co giãn, để không phải đoán
@@ -45,6 +46,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
+import { useCanvasZoomPan } from '@/components/canvas/useCanvasZoomPan';
+import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { MOTION_EASINGS, cssDurationMs } from '@/lib/motion';
@@ -86,6 +89,16 @@ export function RoomLabelCanvas({
 }: RoomLabelCanvasProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
+  /* Cụm zoom + kéo bản vẽ như màn Tường (Impeccable A3): 100% là "vừa khung", lăn chuột cũng phóng. */
+  const { pan, scale, zoomCluster } = useCanvasZoomPan();
+  const setPanEl = pan.ref;
+  const setFrameRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      frameRef.current = element;
+      setPanEl(element);
+    },
+    [setPanEl],
+  );
   const halo = useSelectionHalo();
   const reducedMotion = useReducedMotion();
   const { select: haloSelect, hover: haloHover, deselect: haloDeselect } = halo;
@@ -149,8 +162,8 @@ export function RoomLabelCanvas({
       return ORIGIN;
     }
 
-    const focusBounds = selectedRoom === null ? contentBounds : computeRoomBoundsPx(selectedRoom, millimetresPerPixel);
-    const focusCentre = centreOfBounds(focusBounds);
+    // A3: chọn phòng KHÔNG dời khung nhìn — khung luôn căn theo cả bản vẽ, mất chỗ đang nhìn là cái giá quá đắt.
+    const focusCentre = centreOfBounds(contentBounds);
     const localCentreX = focusCentre.x - contentBounds.x;
     const localCentreY = focusCentre.y - contentBounds.y;
 
@@ -158,7 +171,7 @@ export function RoomLabelCanvas({
       x: keepInFrame(frameSize.width / 2 - localCentreX, frameSize.width - contentBounds.width),
       y: keepInFrame(frameSize.height / 2 - localCentreY, frameSize.height - contentBounds.height),
     };
-  }, [contentBounds, frameSize, millimetresPerPixel, selectedRoom]);
+  }, [contentBounds, frameSize]);
 
   const handleFrameMouseLeave = useCallback(() => onHover(null), [onHover]);
 
@@ -166,10 +179,12 @@ export function RoomLabelCanvas({
     <div
       aria-describedby={isInteractive ? undefined : FORBIDDEN_DESCRIPTION_ID}
       aria-label={ROOM_LABEL_CANVAS_COPY.canvasLabel}
-      className={ROOM_LABEL_CANVAS_FRAME_CLASSES}
+      className={cn(ROOM_LABEL_CANVAS_FRAME_CLASSES, pan.surfaceClassName)}
       onMouseLeave={handleFrameMouseLeave}
-      ref={frameRef}
+      ref={setFrameRef}
       role="group"
+      style={pan.isPanning ? { cursor: 'grabbing' } : pan.spaceHeld ? { cursor: 'grab' } : undefined}
+      {...pan.handlers}
     >
       {contentBounds === null ? (
         <div
@@ -179,12 +194,13 @@ export function RoomLabelCanvas({
         />
       ) : (
         <div
-          className="absolute left-0 top-0 origin-top-left motion-reduce:transition-none"
+          className="absolute left-0 top-0 origin-center motion-reduce:transition-none"
           style={{
             height: contentBounds.height,
-            transform: `translate(${panPx.x}px, ${panPx.y}px)`,
+            transform: `translate(${panPx.x + pan.offset.x}px, ${panPx.y + pan.offset.y}px) scale(${scale})`,
             transitionDuration: cssDurationMs('slow', { reducedMotion }),
-            transitionProperty: 'transform',
+            /* Đang kéo thì bản vẽ bám tay, không trôi theo nhịp 340 ms. */
+            transitionProperty: pan.isPanning ? 'none' : 'transform',
             transitionTimingFunction: MOTION_EASINGS.enter.css,
             width: contentBounds.width,
           }}
@@ -272,6 +288,8 @@ export function RoomLabelCanvas({
           {ROOM_LABEL_CANVAS_COPY.emptyCanvas}
         </p>
       ) : null}
+
+      <ZoomCluster {...zoomCluster} />
 
       {isInteractive ? null : (
         <p className="sr-only" id={FORBIDDEN_DESCRIPTION_ID}>

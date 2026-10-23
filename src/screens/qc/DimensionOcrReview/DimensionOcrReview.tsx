@@ -57,7 +57,8 @@ import { cn } from '@/lib/utils';
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
-import { QC_BODY_CLASS, QcCanvasFrame, QcScreenFrame } from '../shared/QcScreenFrame';
+import { QC_BODY_CLASS, QcCanvasFrame, QcScreenFrame, QcStatusBar } from '../shared/QcScreenFrame';
+import { qcProgressLabel } from '../shared/qcLayers';
 import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
 import { DimensionOcrCanvas } from './DimensionOcrCanvas';
 import { DimensionOcrCompareBar } from './DimensionOcrCompareBar';
@@ -95,11 +96,12 @@ const SKELETON_ROWS = [0, 1, 2, 3];
 const EMPTY_ACTION_CLASS_NAME = getButtonStyles({ variant: 'primary', size: 'md', className: 'self-center' });
 
 /** Đầu màn như SCR-19/20 (BUG-413): breadcrumb, tiêu đề, một câu mô tả. */
-function DimensionOcrHeader({ hasFloorNav }: { readonly hasFloorNav: boolean }) {
+/** Đầu màn khi không có `QcFloorNav` (story/test): khi có, tiêu đề + tiến độ nằm ở đầu chung. */
+function DimensionOcrHeader() {
   return (
     <header className="shrink-0 px-4 pb-1 pt-3">
-      {hasFloorNav ? null : <p className="text-[12px] text-text-muted">{DIMENSION_OCR_TEXT.screen.breadcrumb}</p>}
-      <h2 className="text-[18px] font-semibold text-text-primary">{DIMENSION_OCR_TEXT.screen.title}</h2>
+      <p className="text-[12px] text-text-muted">{DIMENSION_OCR_TEXT.screen.breadcrumb}</p>
+      <h1 className="text-title-sm font-semibold text-text-primary">{DIMENSION_OCR_TEXT.screen.title}</h1>
       <p className="text-[13px] text-text-secondary">{DIMENSION_OCR_TEXT.screen.description}</p>
     </header>
   );
@@ -272,15 +274,18 @@ export function DimensionOcrReview({
 
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
-      {floorNav != null && <QcFloorNav {...floorNav} layer="dimensions" />}
-      <DimensionOcrHeader hasFloorNav={floorNav != null} />
+      {floorNav != null && (
+        <QcFloorNav {...floorNav} layer="dimensions" progress={qcProgressLabel(model.reviewCounter.reviewed, model.reviewCounter.total)} />
+      )}
+      {floorNav != null ? null : <DimensionOcrHeader />}
       <DimensionOcrSaveStatus model={model} />
       <div className={cn('flex min-h-0 w-full flex-1 flex-col max-lg:overflow-y-auto lg:flex-row', QC_BODY_CLASS)}>
         {/* Nửa trái 60% — bản vẽ gốc. Bung ra cả khung khi bảng duyệt thu gọn. */}
         <QcCanvasFrame
           label={DIMENSION_OCR_TEXT.screen.canvasAriaLabel}
           className={cn(
-            'relative flex flex-col max-lg:shrink-0',
+            /* Dưới 1024 bản vẽ giữ chiều cao (60vh), không bị bảng duyệt bóp còn ~320 px (A3). */
+            'relative flex flex-col max-lg:h-[60vh] max-lg:min-h-80 max-lg:shrink-0',
             isCollapsed ? 'lg:w-full' : 'lg:w-[60%]',
           )}
         >
@@ -361,6 +366,9 @@ export function DimensionOcrReview({
           </aside>
         )}
       </div>
+
+      {/* Khe chung (A3): duyệt kích thước chưa có ngăn hoàn tác — nút đứng cùng chỗ, tắt. */}
+      <QcStatusBar saveLabel={model.saveLabel} />
     </QcScreenFrame>
   );
 }

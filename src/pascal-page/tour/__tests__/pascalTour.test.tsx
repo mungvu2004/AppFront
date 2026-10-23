@@ -36,6 +36,11 @@ describe('tourLogic', () => {
     expect(p.left).toBe(340);
     expect(p.top + 200).toBeLessThanOrEqual(700);
   });
+
+  it('neo là cả canvas thì thẻ về góc phải, chừa dải dưới cho dock', () => {
+    const p = placeCard({ left: 0, top: 0, width: 768, height: 1024 }, 200, 768, 1024);
+    expect(p.top + 200).toBeLessThanOrEqual(1024 - 96);
+  });
 });
 
 describe('PascalTour', () => {
@@ -55,6 +60,7 @@ describe('PascalTour', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
     expect(screen.getByText(`1 / ${TOUR_STEPS.length}`)).toBeTruthy();
     for (let i = 1; i < TOUR_STEPS.length; i++) fireEvent.click(screen.getByRole('button', { name: 'Tiếp theo' }));
+    expect(screen.queryByRole('button', { name: 'Bỏ qua hướng dẫn' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Xong' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(window.localStorage.getItem(TOUR_KEY)).toBe('done');

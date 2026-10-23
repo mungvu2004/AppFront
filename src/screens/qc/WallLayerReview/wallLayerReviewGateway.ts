@@ -121,7 +121,7 @@ import {
   WALL_LAYER_FIXTURE_LEVEL,
   WALL_LAYER_FIXTURE_WALLS,
 } from './wallLayerReviewFixture';
-import { isThicknessBand } from './wallLayerHatch';
+import { wallThicknessBandOf } from './wallLayerHatch';
 import type {
   WallLayerCanvasShape,
   WallLayerLegendLevels,
@@ -1149,8 +1149,9 @@ export function drawingSizeOf(
  * `ColoringMode` giả chỉ để lọc ba con số là đi vòng cho xa hơn.
  */
 export const legendLevelsOf = (walls: readonly Wall[]): WallLayerLegendLevels => ({
-  levels: WALL_THICKNESS_CHOICES.filter((choice) => walls.some((wall) => wall.thicknessMm === choice)),
-  hasUnbanded: walls.some((wall) => !isThicknessBand(wall.thicknessMm)),
+  /* So theo băng (dung sai của `wallThicknessBandOf`), không so khít: 218 mm vẫn thuộc băng 220. */
+  levels: WALL_THICKNESS_CHOICES.filter((choice) => walls.some((wall) => wallThicknessBandOf(wall.thicknessMm) === choice)),
+  hasUnbanded: walls.some((wall) => wallThicknessBandOf(wall.thicknessMm) === null),
 });
 
 /** Nhãn của khung canvas — "Mặt bằng Tầng 1 — 48 tường". */

@@ -270,15 +270,15 @@ describe('Bảy trạng thái', () => {
     unmount();
   });
 
-  it('RV2#6: khổ rộng + "Thô" chỉ còn khung JSON, không tab Xem trước, không nút mở rộng/thu gọn', () => {
+  it('RV2#6: khổ rộng chỉ có một bộ chuyển — tab JSON / Xem trước; không còn "Cây / Thô" thứ hai', () => {
     const props = buildSpatialJsonViewerProps('success');
     const { unmount } = renderWithProviders(
       <SpatialJsonViewer {...props} model={{ ...props.model, isNarrow: false, viewMode: 'raw', activeTabId: 'preview' }} />,
     );
 
-    expect(screen.queryByRole('tablist', { name: 'Cách xem nội dung' })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Mở rộng tất cả/u })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Thu gọn tất cả/u })).toBeNull();
+    expect(screen.queryByRole('radiogroup', { name: 'Cách hiện cấu trúc' })).toBeNull();
+    expect(screen.getByRole('tree', { name: 'Cấu trúc dữ liệu không gian' })).toBeTruthy();
+    expect(screen.getByRole('tablist', { name: 'Cách xem nội dung' })).toBeTruthy();
 
     unmount();
   });

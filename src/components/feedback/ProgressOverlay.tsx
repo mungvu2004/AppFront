@@ -26,7 +26,7 @@ export function ProgressOverlay({
       aria-modal="true"
       aria-label={title}
       className={cn(
-        'absolute inset-0 z-50 flex flex-col items-center justify-center bg-bg-app-88 [backdrop-filter:blur(4px)] transition-opacity duration-340',
+        'absolute inset-0 z-50 flex flex-col items-center justify-center bg-bg-surface-92 transition-opacity duration-340',
         className
       )}
       {...props}
@@ -54,7 +54,7 @@ export function ProgressOverlay({
               strokeLinecap="round"
               strokeDasharray={circumference}
               strokeDashoffset={offset}
-              className="stroke-accent transition-all duration-340 ease-out motion-reduce:transition-none"
+              className="stroke-accent transition-[stroke-dashoffset] duration-340 ease-out motion-reduce:transition-none"
             />
           </svg>
           <div className="absolute flex flex-col items-center">

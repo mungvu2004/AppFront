@@ -269,7 +269,10 @@ export function RuleReport(props: RuleReportViewProps) {
       <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-6 p-6">
         {props.breadcrumb === undefined ? null : <Breadcrumb items={props.breadcrumb} />}
         <header className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="text-base font-semibold text-text-primary">Kiểm tra luật không gian</h2>
+          <div className="flex flex-col gap-1">
+            <h1 className="text-title text-text-primary">Quy chuẩn</h1>
+            <p className="text-body text-text-secondary">Kiểm tra luật không gian</p>
+          </div>
 
           <div className="flex items-center gap-3">
             {lastRunLabel === null ? null : (

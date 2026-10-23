@@ -70,7 +70,7 @@ import { cn } from '@/lib/utils';
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
-import { QcScreenFrame } from '../shared/QcScreenFrame';
+import { QcScreenFrame, QcStatusBar } from '../shared/QcScreenFrame';
 
 import { ThicknessApplyBar } from './ThicknessApplyBar';
 import { ThicknessGroupTable } from './ThicknessGroupTable';
@@ -330,9 +330,12 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
     <QcScreenFrame label={SCREEN_TITLE} scroll>
       {props.floorNav != null && <QcFloorNav {...props.floorNav} layer="thickness" />}
       <div className="flex w-full flex-col gap-4 p-2">
+        {/* Có đầu chung (QcFloorNav) thì tiêu đề ở đó; chỉ giữ một câu mô tả, không lặp tiêu đề (A3). */}
         <header className="shrink-0 px-2 pt-1">
-          <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
-          <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
+          {props.floorNav != null ? null : (
+            <h1 className="text-title-sm font-semibold text-text-primary">{SCREEN_TITLE}</h1>
+          )}
+          <p className="text-body-sm text-text-secondary">{SCREEN_DESCRIPTION}</p>
         </header>
 
         {saveBlock == null ? null : <FloorLayerSaveBanner saveBlock={saveBlock} />}
@@ -376,7 +379,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
          * không riêng bảng nào. Vắng mặt hẳn ở vai Người xem — xem đầu file.
          */}
         {isViewerRole ? null : (
-          <div data-sticky-footer className="sticky bottom-0 z-10 overflow-hidden rounded-xl bg-bg-surface shadow-panel">
+          <div data-sticky-footer className="sticky bottom-11 z-10 overflow-hidden rounded-xl bg-bg-surface shadow-panel">
             <ThicknessApplyBar
               canPreview={props.segmentRows.length > 0}
               onApplyPreview={onApplyPreview}
@@ -385,13 +388,16 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
               onDismissReapplyWarning={onDismissReapplyWarning}
               onOpenPreview={onOpenPreview}
               onReapplyFilter={onReapplyFilter}
-              onUndo={onUndo}
               preview={preview}
               reapplyWarning={reapplyWarning}
               toleranceMm={toleranceMm}
             />
           </div>
         )}
+      </div>
+
+      <div className="sticky bottom-0 z-10 mt-auto">
+        <QcStatusBar onUndo={isViewerRole ? undefined : onUndo} />
       </div>
     </QcScreenFrame>
   );

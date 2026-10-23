@@ -3,12 +3,14 @@
  * Nằm đầu khe `viewerToolbarLeft` nên không đè thanh bên; kiểu chép từ `TOOLBAR_CONTAINER`
  * của upstream `viewer-toolbar.tsx`.
  */
-import { ArrowLeft, ArrowRight, ChevronDown, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown, TriangleAlert, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 import { PROJECT_STEPS } from '@/routes/projectSteps';
 
 import type { PascalSaveStatus } from './bridge/types';
+import { SCALE_NEXT_REASON } from './scaleBanner';
+import { useScaleUnresolved } from './scaleUnresolved';
 
 export interface BackToProjectCardProps {
   readonly href: string;
@@ -32,7 +34,7 @@ function BackLink({ href, projectName }: Omit<BackToProjectCardProps, 'save'>) {
   return (
     <a
       {...(projectName !== undefined ? { 'aria-label': `Về dự án: ${projectName}` } : {})}
-      className={`${FOCUS_OUT} inline-flex h-8 max-w-56 items-center gap-1.5 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-2.5 font-medium text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] motion-reduce:transition-none @max-[800px]/appbar:min-w-8! @max-[800px]/appbar:px-2`}
+      className={`${FOCUS_OUT} inline-flex h-8 max-w-56 items-center gap-1.5 @min-[1500px]/appbar:max-w-80 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-2.5 font-medium text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] transition-colors duration-120 hover:bg-[var(--pa-sunken)] motion-reduce:transition-none @max-[800px]/appbar:min-w-8! @max-[800px]/appbar:px-2`}
       href={href}
     >
       <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
@@ -118,6 +120,10 @@ export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
   );
 }
 
+/** Lối tiếp thường: nút nhấn chính. Khi tỷ lệ chưa hiệu chỉnh: viền cảnh báo, vẫn bấm được, lý do ở `title`/nhãn đọc. */
+const NEXT_OK = 'border-transparent bg-[var(--pa-accent)] text-[var(--pa-surface)] hover:bg-[var(--pa-accent-hover)] active:bg-[var(--pa-accent-active)]';
+const NEXT_WARN = 'border-[var(--pa-warn)] bg-[var(--pa-surface)] text-[var(--pa-text)] hover:bg-[var(--pa-sunken)]';
+
 const VIEWER_STEP = PROJECT_STEPS.findIndex((step) => step.id === 'viewer');
 
 /**
@@ -126,18 +132,20 @@ const VIEWER_STEP = PROJECT_STEPS.findIndex((step) => step.id === 'viewer');
  * thẻ về dự án): chip "bước hiện tại + menu sáu bước" rồi nút "Tiếp". Dải sáu số cũ bỏ — nó chiếm
  * ~250px và làm thanh tràn ở 1440. Ngưỡng đo theo bề rộng thanh (container `appbar`, pascal.css):
  * < 1200px chip chỉ còn số bước; < 1500px nút chỉ còn "Tiếp →" (tên bước ở `title`/nhãn đọc) — đủ chỗ
- * cho nhóm nút phải của vendor ở 1440; nút không bao giờ ẩn.
+ * cho nhóm nút phải của vendor ở 1440; nút không bao giờ ẩn. Tỷ lệ chưa hiệu chỉnh: nút đổi sang viền
+ * cảnh báo, vẫn bấm được, lý do ở `title`/nhãn đọc.
  */
 export function ProjectStepsCard({ projectId }: { readonly projectId: string }) {
   const next = PROJECT_STEPS[VIEWER_STEP + 1];
   const current = PROJECT_STEPS[VIEWER_STEP] ?? PROJECT_STEPS[0]!;
+  const scaleWarn = useScaleUnresolved();
   return (
     <nav aria-label="Các bước của dự án" className="inline-flex shrink-0 items-center gap-1.5">
       <details className="relative" data-appfront-menu="">
         <summary
           aria-label={`Bước ${VIEWER_STEP + 1}/${PROJECT_STEPS.length}: ${current.label} — mở danh sách bước`}
           title={`Bước ${VIEWER_STEP + 1}: ${current.label}`}
-          className={`${CARD} flex cursor-pointer list-none gap-1.5 whitespace-nowrap px-2 font-medium transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] motion-reduce:transition-none ${FOCUS_OUT} [&::-webkit-details-marker]:hidden`}
+          className={`${CARD} flex cursor-pointer list-none gap-1.5 whitespace-nowrap px-2 font-medium transition-colors duration-120 hover:bg-[var(--pa-sunken)] motion-reduce:transition-none ${FOCUS_OUT} [&::-webkit-details-marker]:hidden`}
         >
           <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--pa-accent)] text-[10px] tabular-nums text-[var(--pa-surface)]">
             {VIEWER_STEP + 1}
@@ -162,11 +170,12 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
       </details>
       {next !== undefined && (
         <a
-          aria-label={`Tiếp: ${next.label}`}
-          className={`${FOCUS_OUT} inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl border border-transparent bg-[var(--pa-accent)] px-3 font-medium text-[13px] text-[var(--pa-surface)] shadow-[var(--pa-shadow-float)] transition-colors duration-[120ms] hover:bg-[var(--pa-accent-hover)] active:bg-[var(--pa-accent-active)] motion-reduce:transition-none`}
+          aria-label={scaleWarn ? `Tiếp: ${next.label}. ${SCALE_NEXT_REASON}` : `Tiếp: ${next.label}`}
+          className={`${FOCUS_OUT} inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl border px-3 font-medium text-[13px] shadow-[var(--pa-shadow-float)] transition-colors duration-120 motion-reduce:transition-none ${scaleWarn ? NEXT_WARN : NEXT_OK}`}
           href={next.path(projectId)}
-          title={`Tiếp: ${next.label}`}
+          title={scaleWarn ? SCALE_NEXT_REASON : `Tiếp: ${next.label}`}
         >
+          {scaleWarn && <TriangleAlert aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-warn)]" />}
           <span>
             Tiếp<span className="hidden @min-[1500px]/appbar:inline">: {next.label}</span>
           </span>

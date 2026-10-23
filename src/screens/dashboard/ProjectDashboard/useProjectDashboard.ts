@@ -64,6 +64,7 @@ import { CREATE_PROJECT_SHORTCUT } from './dashboardShortcuts';
 import {
   createProjectsGateway,
   DASHBOARD_CAPABILITIES,
+  planSketchOf,
   type DashboardProject,
   type DashboardProjectList,
   type DashboardProjectMember,
@@ -82,7 +83,7 @@ export const PROJECT_STATUS_FILTER_OPTIONS: ReadonlyArray<{ value: ProjectStatus
   { value: 'all', label: 'Tất cả' },
   { value: 'noplan', label: 'Chưa có bản vẽ' },
   { value: 'processing', label: 'Đang xử lý' },
-  { value: 'qc', label: 'Cần QC' },
+  { value: 'qc', label: 'Cần duyệt' },
   { value: 'done', label: 'Hoàn thành' },
 ];
 
@@ -128,6 +129,8 @@ export interface ProjectCardModel {
   readonly progressPercentLabel: string;
   readonly members: readonly DashboardProjectMember[];
   readonly planVariant: 0 | 1 | 2 | 3;
+  /** Per-project sketch (`planSketchOf`); absent → the fixed outline of `planVariant`. */
+  readonly planSketch?: readonly (readonly [number, number, number, number])[];
   /** Whether a plan was traced yet (walls detected); without one the card shows a placeholder, not a made-up plan. */
   readonly hasPlan: boolean;
 }
@@ -371,7 +374,7 @@ export function useProjectDashboard(
         const statusVariant = status === 'done' ? 'verified' : status === 'processing' ? 'neutral' : 'attention';
         const hasPlan = project.wallsTotalCount > 0;
         // Chưa có bản vẽ nào thì chưa có gì để xử lý: không gắn "Đang xử lý" (G1-17, G3-02).
-        const statusLabel = !hasPlan && status === 'processing' ? 'Chưa có bản vẽ' : status === 'done' ? 'Hoàn thành' : status === 'processing' ? 'Đang xử lý' : 'Cần QC';
+        const statusLabel = !hasPlan && status === 'processing' ? 'Chưa có bản vẽ' : status === 'done' ? 'Hoàn thành' : status === 'processing' ? 'Đang xử lý' : 'Cần duyệt';
         const reviewed = formatNumber(project.wallsReviewedCount, { grouping: false });
         const total = formatNumber(project.wallsTotalCount, { grouping: false });
         const progressRatio = project.wallsTotalCount > 0 ? project.wallsReviewedCount / project.wallsTotalCount : 0;
@@ -388,6 +391,7 @@ export function useProjectDashboard(
           progressPercentLabel: formatPercent(progressRatio, { fractionDigits: 0 }),
           members: project.members,
           planVariant: project.planVariant,
+          planSketch: planSketchOf(project.id, project.wallsTotalCount, project.areaM2),
           hasPlan,
         };
       }),

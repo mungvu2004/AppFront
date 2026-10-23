@@ -36,7 +36,7 @@ export const requestsSince = (log: readonly ApiEntry[], mark: number): ApiEntry[
 
 /* ---- SCR-28 copy (each from RuleReport*.tsx / ViolationDetail*.tsx / ProjectSpatialGate.tsx) ---- */
 export const RR = {
-  heading: 'Kiểm tra luật không gian',
+  heading: 'Quy chuẩn',
   trail: 'Đường dẫn trang',
   rerun: 'Chạy kiểm tra lại',
   settingsLink: 'Cài đặt bộ luật',
@@ -71,7 +71,7 @@ export const RULE_NAME = {
 export const levelFilter = (page: Page): Locator => page.getByRole('radiogroup', { name: RR.levelFilter, exact: true });
 export const rerunButton = (page: Page): Locator => page.getByRole('button', { name: RR.rerun, exact: true });
 /** RuleReportGroups: the group toggle is a button inside an `<h3>`. */
-export const groupExpanders = (page: Page): Locator => page.getByRole('heading', { level: 3 }).getByRole('button');
+export const groupExpanders = (page: Page): Locator => page.getByRole('heading', { level: 2 }).getByRole('button');
 export const summaryValue = (page: Page, label: string): Locator =>
   page
     .locator('dl > div')

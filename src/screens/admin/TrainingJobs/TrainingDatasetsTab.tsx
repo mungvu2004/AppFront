@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 import type { DatasetFamilyId, TrainingJobsProps } from './types';
 
 const TEXT = {
-  family: 'Họ model',
+  family: 'Loại mô hình',
   list: 'Danh sách bộ dữ liệu',
   versions: 'Phiên bản',
   note: 'Trang này chỉ xem; bộ dữ liệu dựng bằng công cụ dòng lệnh.',

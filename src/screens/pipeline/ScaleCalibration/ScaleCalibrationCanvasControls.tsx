@@ -71,8 +71,9 @@ export function DimensionRowBox({ row, onHover, onSelect }: DimensionRowBoxProps
     >
       <span
         className={cn(
-          'pointer-events-none whitespace-nowrap font-mono text-[11px]',
-          row.isLowConfidence ? 'text-state-attention' : 'text-accent',
+          // Nền đặc sau chữ: chữ nằm trên nét bản vẽ, không nền thì vàng chỉ còn 2,6:1 (impeccable 1024).
+          'pointer-events-none whitespace-nowrap rounded-sm bg-bg-surface px-1 font-mono text-[12px]',
+          row.isLowConfidence ? 'text-state-attention-text' : 'text-accent',
         )}
       >
         {row.valueLabel}

@@ -244,7 +244,7 @@ export function ExportPanelOptions({
           aria-expanded={options.isExpanded}
           onClick={onToggleOptionsExpanded}
           className={cn(
-            'flex min-h-11 w-full items-center justify-between gap-2 rounded-sm px-1 py-1 text-left sm:min-h-6',
+            'flex min-h-11 w-full items-center justify-between gap-2 rounded-sm px-1 py-1 text-left fine:min-h-6',
             FOCUS_RING,
           )}
         >

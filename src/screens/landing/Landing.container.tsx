@@ -21,8 +21,13 @@ import { useLandingScroll } from './useLandingScroll';
 import landingCss from './landing.css?inline';
 
 const SCENE_IDS = SCENES.map((s) => s.id);
-/** Đoạn cuộn: TRACK_SCREENS màn cho p 0→1 cộng một màn ghim (start 'top top', end 'bottom bottom'). */
-const TRACK_VH = TRACK_SCREENS + 1;
+/**
+ * Một màn của dòng thời gian (đơn vị của ngân sách chuyển động) ứng với 0,7 chiều cao cửa sổ: trang ngắn đi ~30 %
+ * (A1 P2 #4: ~56 màn), mọi cảnh rút đều nên nhịp giữa các bước giữ nguyên; máy quay đi nhanh hơn ~1,4 lần mỗi màn cuộn.
+ */
+const SCROLL_PER_SCREEN = 0.7;
+/** Đoạn cuộn: TRACK_SCREENS màn (đã rút) cho p 0→1 cộng một màn ghim (start 'top top', end 'bottom bottom'). */
+const TRACK_VH = TRACK_SCREENS * SCROLL_PER_SCREEN + 1;
 
 function LandingContent() {
   const reduced = useReducedMotion();

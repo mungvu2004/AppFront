@@ -120,19 +120,19 @@ describe('Button', () => {
   // BUG-048: 44px under `sm` (640px), the 40px of the design system from there up.
   it('is 44px tall on phones at size lg and 40px from sm up', () => {
     render(<Button size="lg">Đăng nhập</Button>);
-    expect(screen.getByRole('button')).toHaveClass('h-11', 'min-h-11', 'sm:h-10', 'sm:min-h-10');
+    expect(screen.getByRole('button')).toHaveClass('h-11', 'min-h-11', 'sm:h-10', 'fine:min-h-10');
   });
 
   // QA-01b nợ #14: md is the default size, so it is the dialog/form button on a phone.
   it('is 44px tall on phones at the default md size and 36px from sm up', () => {
     render(<Button>Lưu thay đổi</Button>);
-    expect(screen.getByRole('button')).toHaveClass('h-11', 'min-h-11', 'sm:h-9', 'sm:min-h-9');
+    expect(screen.getByRole('button')).toHaveClass('h-11', 'min-h-11', 'fine:h-9', 'fine:min-h-9');
   });
 
   // BUG-077: sm is the size of toolbar, table-row and alert actions — thumb targets on a phone too.
   it('is 44px tall on phones at size sm and 32px from sm up', () => {
     render(<Button size="sm">Lọc</Button>);
-    expect(screen.getByRole('button')).toHaveClass('h-11', 'min-h-11', 'sm:h-8', 'sm:min-h-8');
+    expect(screen.getByRole('button')).toHaveClass('h-11', 'min-h-11', 'fine:h-8', 'fine:min-h-8');
   });
 
   it('keeps icon-only md buttons at their size on phones', () => {

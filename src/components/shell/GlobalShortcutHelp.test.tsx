@@ -67,7 +67,7 @@ describe('[GlobalShortcutHelp] đang mở', () => {
       render(<GlobalShortcutHelp isOpen onClose={() => {}} />, { wrapper: MemoryRouter });
 
       expect(screen.getByText('Toàn cục')).toBeInTheDocument();
-      expect(screen.getByText('Khung nhìn 3D')).toBeInTheDocument();
+      expect(screen.getByText('Khung vẽ')).toBeInTheDocument();
       expect(screen.getByText('ví dụ phím toàn cục')).toBeInTheDocument();
       expect(screen.getByText('ví dụ phím khung nhìn')).toBeInTheDocument();
       expect(screen.queryByText('không bao giờ được hiện ra')).not.toBeInTheDocument();

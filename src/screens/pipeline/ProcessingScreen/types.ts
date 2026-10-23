@@ -152,6 +152,8 @@ export interface ProcessingSummaryViewModel {
   readonly metricLabels: readonly string[];
   /** Cả câu, đã ghép số — ví dụ `"Có 9 đối tượng có độ tin cậy dưới 0,75 cần bạn xem lại."`. */
   readonly lowConfidenceSentence?: string;
+  /** Không đọc được chuỗi kích thước nào: câu hệ quả (phải tự đặt tỷ lệ). Vắng khi có ít nhất một chuỗi. */
+  readonly noDimensionSentence?: string;
   readonly onReviewWalls: () => void;
   readonly onCalibrateScale: () => void;
 }

@@ -97,6 +97,8 @@ export function MiniMap({
           'border border-border-default rounded-lg',
           // Nền nhẹ
           'bg-bg-sunken',
+          // Ngón tay kéo khung nhìn chứ không cuộn trang.
+          'touch-none',
           isDragging ? 'cursor-grabbing' : 'cursor-pointer'
         )}
         style={{ width: 160, height: 120 }}
@@ -105,6 +107,7 @@ export function MiniMap({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onLostPointerCapture={handlePointerUp}
         aria-label="Bấm để di chuyển vùng nhìn"
         role="button"
         tabIndex={0}

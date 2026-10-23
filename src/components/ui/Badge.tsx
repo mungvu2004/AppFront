@@ -1,6 +1,6 @@
 import React from 'react';
 import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { twMerge } from '../../lib/utils';
 
 // ─── Badge ────────────────────────────────────────────────────────────────────
 // h-[22px], bo-[6px], text-[13px], light tint bg + strong text token

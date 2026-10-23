@@ -119,7 +119,8 @@ export function AccessDenied({
         className={cn('flex flex-col items-center text-center', isCompact ? 'gap-4' : 'gap-6')}
         style={{ width: CONTENT_COLUMN_PX }}
       >
-        {!isCompact && <AccessDeniedPlan />}
+        {/* Cả bản gọn (768) giữ hình, như 404. */}
+        <AccessDeniedPlan />
 
         <h2 className="text-[20px] font-semibold text-text-primary">{title}</h2>
         <p className="text-[14px] leading-relaxed text-text-secondary">{restrictionSentence}</p>

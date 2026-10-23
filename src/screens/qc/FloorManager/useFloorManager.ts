@@ -174,6 +174,7 @@ import type {
   SectionBandVm,
   UseFloorManagerResult,
 } from './floorManagerTypes';
+import { QC_NOT_GRADED } from './floorManagerTypes';
 
 /* -------------------------------------------------------------------------- */
 /* Chuỗi cố định của màn — một chỗ duy nhất (A6: thường, kiểu câu).            */
@@ -1684,7 +1685,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         roomCountText: countText(counts?.roomCount ?? null),
         areaText: counts === null ? MISSING_VALUE : formatArea(counts.areaM2),
         areaM2: counts === null ? null : squareMetres(counts.areaM2),
-        qcProgressText: hasDrawing ? formatPercent(qcProgressRatio, { fractionDigits: 0 }) : MISSING_VALUE,
+        qcProgressText: !hasDrawing ? MISSING_VALUE : qcProgressRatio === 0 ? QC_NOT_GRADED : formatPercent(qcProgressRatio, { fractionDigits: 0 }),
         qcProgressRatio,
         isSelected: selectedFloorId === id,
         isHovered: hoveredFloorId === id,

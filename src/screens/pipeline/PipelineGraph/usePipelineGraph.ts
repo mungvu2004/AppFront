@@ -352,7 +352,12 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
     [branchReport],
   );
 
-  const activeBranch = branchReport?.activeBranch;
+  // Cổng chưa báo nhánh nhưng đã có lượt xử lý: lượt đó chạy các bước nhận dạng bản vẽ
+  // (drawings.progress) — nhánh CAD chưa có endpoint nhập nào — nên nó đi nhánh ảnh quét.
+  // ponytail: suy từ "có lượt chạy"; khi backend báo nhánh thật thì `branchReport` thắng.
+  const isBranchInferred = branchReport === null && run !== undefined;
+  const activeBranch: PipelineBranchId | undefined =
+    branchReport?.activeBranch ?? (isBranchInferred ? 'ai' : undefined);
   const hasBranchFailure = (branchReport?.floors ?? []).some((floor) => floor.hasFailed);
   const isMixedBranch = branchReport !== null && activeBranch === undefined;
 
@@ -684,12 +689,12 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
       comparisonRows,
       evidenceRows,
       reasonLine:
-        activeBranch !== undefined
-          ? PIPELINE_GRAPH_TEXT.reasonByBranch[activeBranch]
-          : isMixedBranch
-            ? PIPELINE_GRAPH_TEXT.reasonUnknown
-            : run !== undefined
-              ? PIPELINE_GRAPH_TEXT.reasonRunNoBranch
+        isBranchInferred
+          ? PIPELINE_GRAPH_TEXT.reasonInferredFromRun
+          : activeBranch !== undefined
+            ? PIPELINE_GRAPH_TEXT.reasonByBranch[activeBranch]
+            : isMixedBranch
+              ? PIPELINE_GRAPH_TEXT.reasonUnknown
               : PIPELINE_GRAPH_TEXT.reasonNoReport,
       // Nút đổi nhánh chỉ có nghĩa khi còn nhánh khác để đổi sang: hồ sơ đã chạy
       // nhánh ảnh quét rồi thì "đổi sang nhánh ảnh quét" là một nút không làm gì.

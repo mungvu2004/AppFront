@@ -235,7 +235,7 @@ export function ViewerShell(props: ViewerShellProps) {
               : 'px-3 pb-3 opacity-100 max-lg:w-full! lg:py-3 lg:pl-0',
             frame.reducedMotion
               ? 'transition-none'
-              : 'transition-all duration-standard ease-in-out',
+              : 'transition-opacity duration-standard ease-in-out',
           )}
           style={{ width: isCollapsed ? 0 : VIEWER_LAYOUT.inspectorPx }}
         >

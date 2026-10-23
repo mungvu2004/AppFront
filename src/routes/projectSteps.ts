@@ -70,3 +70,50 @@ export function projectLocationOf(pathname: string): ProjectLocation | null {
   const layerIndex = match[4] === 'layers' ? FLOOR_LAYER_SEGMENTS.indexOf(match[5] ?? '') : -1;
   return { projectId, stepIndex, floorId, layerIndex };
 }
+
+/** Trạng thái một bước trên thanh bước: xong (dấu tích), còn việc (chấm attention), chưa tới. */
+export type ProjectStepState = 'done' | 'attention' | 'todo';
+
+/**
+ * Trạng thái sáu bước suy từ #24 (đã có ở header, không gọi thêm API). Chỉ khẳng định
+ * điều dữ liệu cho biết chắc: có bản vẽ → bước 1 xong; dự án đã duyệt → bốn bước đầu xong;
+ * xử lý lỗi hoặc đang chạy → bước 2 còn việc. Chưa biết thì để "chưa tới", không đoán "xong".
+ */
+export function projectStepStates(input: { readonly status?: string | undefined; readonly hasDrawings?: boolean | undefined }): readonly ProjectStepState[] {
+  const approved = input.status === 'approved';
+  return PROJECT_STEPS.map((step): ProjectStepState => {
+    if (step.id === 'upload') return input.hasDrawings === true ? 'done' : input.hasDrawings === false ? 'attention' : 'todo';
+    if (step.id === 'pipeline') {
+      if (input.status === 'error' || input.status === 'processing') return 'attention';
+      return approved ? 'done' : 'todo';
+    }
+    if (step.id === 'floors' || step.id === 'viewer') return approved ? 'done' : 'todo';
+    return 'todo';
+  });
+}
+
+/** Tên màn ngoài sáu bước, theo đoạn đường sau `/projects/:projectId/`. */
+const OFF_STEP_TITLES: Readonly<Record<string, string>> = {
+  quality: 'Chất lượng ảnh đầu vào',
+  versions: 'Lịch sử phiên bản',
+  data: 'Dữ liệu dự án',
+  settings: 'Cài đặt dự án',
+  graph: 'Sơ đồ xử lý',
+};
+
+/** Tên màn cho tiêu đề tab: lớp đang duyệt, màn phụ, hoặc tên bước; ngoài dự án → null. */
+export function projectScreenTitleOf(pathname: string): string | null {
+  const location = projectLocationOf(pathname);
+  if (location === null) return null;
+  if (location.stepIndex === -1) {
+    const segment = /\/pipeline\/graph/.test(pathname) ? 'graph' : (/^\/projects\/[^/]+\/([^/]+)/.exec(pathname)?.[1] ?? '');
+    return OFF_STEP_TITLES[segment] ?? null;
+  }
+  const layer = location.layerIndex !== undefined && location.layerIndex >= 0 ? FLOOR_LAYERS[location.layerIndex] : undefined;
+  if (layer !== undefined) return `Duyệt lớp ${layer.label.toLowerCase()}`;
+  if (location.floorId !== undefined) {
+    if (pathname.endsWith('/scale')) return 'Hiệu chỉnh tỷ lệ';
+    if (pathname.endsWith('/overlay')) return 'Đối chiếu lớp phủ';
+  }
+  return PROJECT_STEPS[location.stepIndex]?.label ?? null;
+}

@@ -118,6 +118,13 @@ const DEFAULT_FILTERS: RuleReportFilters = Object.freeze({
   levelId: 'all',
 });
 
+/** Thứ hạng mức độ: số nhỏ = nặng hơn. */
+const SEVERITY_RANK: Readonly<Record<RuleReportRow['severity'], number>> = {
+  critical: 0,
+  warning: 1,
+  suggestion: 2,
+};
+
 const EMPTY_VIOLATIONS: readonly Violation[] = Object.freeze([]);
 const EMPTY_CODES: ReadonlyMap<string, string> = new Map();
 const EMPTY_ROWS: readonly RuleReportRow[] = Object.freeze([]);
@@ -132,6 +139,7 @@ const EMPTY_SUMMARY: RuleReportSummary = Object.freeze({
   passed: 0,
   warnings: 0,
   violations: 0,
+  suggestions: 0,
 });
 
 /** Câu báo lỗi của trạng thái 4. Bộ luật chạy tại chỗ nên không có lỗi mạng để dịch. */
@@ -297,7 +305,10 @@ const groupRowsByRule = (
     });
   }
 
-  return groups;
+  // Nặng trước nhẹ sau, cùng mức thì nhiều mục chưa xử lý lên trước (sort ổn định).
+  return groups.sort(
+    (a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity] || b.openCount - a.openCount,
+  );
 };
 
 /* -------------------------------------------------------------------------- */
@@ -483,20 +494,21 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
       return EMPTY_SUMMARY;
     }
 
-    const criticalByRule = new Map<string, boolean>();
+    // Mức nặng nhất của từng luật quyết định nó rơi vào ô nào.
+    const worstByRule = new Map<string, number>();
     for (const violation of run.violations) {
-      criticalByRule.set(
-        violation.ruleCode,
-        criticalByRule.get(violation.ruleCode) === true || violation.severity === 'critical',
-      );
+      const rank = SEVERITY_RANK[violation.severity];
+      worstByRule.set(violation.ruleCode, Math.min(worstByRule.get(violation.ruleCode) ?? rank, rank));
     }
-    const violatedRules = [...criticalByRule.values()].filter(Boolean).length;
+    const ranks = [...worstByRule.values()];
+    const countRank = (rank: number): number => ranks.filter((value) => value === rank).length;
 
     return {
       evaluated: run.ranRuleCodes.length,
-      passed: run.ranRuleCodes.length - criticalByRule.size,
-      warnings: criticalByRule.size - violatedRules,
-      violations: violatedRules,
+      passed: run.ranRuleCodes.length - worstByRule.size,
+      warnings: countRank(SEVERITY_RANK.warning),
+      violations: countRank(SEVERITY_RANK.critical),
+      suggestions: countRank(SEVERITY_RANK.suggestion),
     };
   }, [run]);
 
@@ -534,7 +546,11 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
         return false;
       }
 
-      if (filters.level === 'warning' && row.severity === 'critical') {
+      if (filters.level === 'warning' && row.severity !== 'warning') {
+        return false;
+      }
+
+      if (filters.level === 'suggestion' && row.severity !== 'suggestion') {
         return false;
       }
 
@@ -607,7 +623,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
     }
 
     // 28-B-005: cảnh báo/gợi ý cũng là mục cần liệt kê — `done` chỉ khi không còn mục nào.
-    return summary.violations + summary.warnings > 0 ? 'ready' : 'done';
+    return summary.violations + summary.warnings + summary.suggestions > 0 ? 'ready' : 'done';
   }, [
     configQuery.isLoadingError,
     configQuery.isPending,

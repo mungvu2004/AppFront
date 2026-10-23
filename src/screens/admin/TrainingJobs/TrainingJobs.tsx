@@ -17,7 +17,6 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Select } from '@/components/ui/Select';
 import { Tabs } from '@/components/ui/Tabs';
 import { cn } from '@/lib/utils';
-import { ROUTES } from '@/routes/paths';
 
 import { TrainingDatasetsTab } from './TrainingDatasetsTab';
 import { TrainingJobCancelDialog, TrainingJobDetail } from './TrainingJobDetail';
@@ -26,9 +25,6 @@ import { TrainingJobsTable } from './TrainingJobsTable';
 import type { TrainingJobsProps, TrainingJobsViewModel, TrainingTabId } from './types';
 
 const TEXT = {
-  breadcrumbNav: 'Đường dẫn trang',
-  breadcrumbAdmin: 'Quản trị',
-  breadcrumbHere: 'Huấn luyện',
   title: 'Huấn luyện mô hình AI',
   tabsLabel: 'Phần của trang huấn luyện',
   tabJobs: 'Lượt huấn luyện',
@@ -47,17 +43,7 @@ function Header({ model }: { readonly model: TrainingJobsViewModel }) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="flex flex-col gap-1">
-        <nav aria-label={TEXT.breadcrumbNav} className="text-[13px] text-text-secondary">
-          <ol className="flex items-center gap-1.5">
-            <li>
-              <Link className="hover:text-text-primary hover:underline" to={ROUTES.adminUsers}>
-                {TEXT.breadcrumbAdmin}
-              </Link>
-            </li>
-            <li aria-hidden="true">›</li>
-            <li aria-current="page">{TEXT.breadcrumbHere}</li>
-          </ol>
-        </nav>
+        {/* Không breadcrumb: thanh tab quản trị đã chỉ đúng mục này. */}
         <h1 className="text-title text-text-primary">{TEXT.title}</h1>
       </div>
       <Link className="text-[13px] font-medium text-accent underline-offset-2 hover:underline" to={model.relatedLink.href}>
@@ -69,7 +55,7 @@ function Header({ model }: { readonly model: TrainingJobsViewModel }) {
 
 function Toolbar({ actions, model }: TrainingJobsProps) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-end gap-3">
       <SegmentedControl
         aria-label={TEXT.familyFilter}
         onChange={actions.onFilterFamily}
@@ -82,7 +68,7 @@ function Toolbar({ actions, model }: TrainingJobsProps) {
         options={[...model.statusFilters]}
         value={model.statusFilter}
       >
-        <Select.Label className="sr-only">{TEXT.statusFilter}</Select.Label>
+        <Select.Label className="text-[12px] text-text-secondary">{TEXT.statusFilter}</Select.Label>
         <Select.Trigger options={[...model.statusFilters]} />
         <Select.Content>
           {model.statusFilters.map((option, index) => (
@@ -92,9 +78,21 @@ function Toolbar({ actions, model }: TrainingJobsProps) {
           ))}
         </Select.Content>
       </Select.Root>
-      <Button className="ml-auto" onClick={actions.onOpenForm} variant="primary">
-        {TEXT.create}
-      </Button>
+      <div className="ml-auto flex items-center gap-3">
+        {model.createDisabledReason !== null && (
+          <span className="text-[13px] text-text-secondary" id="training-create-reason">
+            {model.createDisabledReason}
+          </span>
+        )}
+        <Button
+          aria-describedby={model.createDisabledReason !== null ? 'training-create-reason' : undefined}
+          disabled={model.createDisabledReason !== null}
+          onClick={actions.onOpenForm}
+          variant="primary"
+        >
+          {TEXT.create}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -37,8 +37,8 @@ import {
   ChevronsRight,
   Columns2,
   Contrast,
+  Ellipsis,
   Eye,
-  EyeOff,
   Footprints,
   Grid2X2,
   Layers3,
@@ -58,16 +58,17 @@ import {
 import { emitter, useScene } from '@pascal-app/core'
 import Image from 'next/image'
 import { computeSceneBoundsXZ, type SceneBoundsXZ } from '../../../../vendor/pascal/packages/editor/src/lib/scene-bounds'
-import { type ReactNode, useCallback } from 'react'
+import { type ReactNode, useCallback, useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import { isTopDown, topViewPose } from '../lib/top-view-pose'
 import { planBoundsXZ } from '../lib/fit-on-ready'
 import { cn } from '../lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from './toolbar-tooltip'
-// AppFront edit (P40, G5-11; QA-2 L1): text labels of the level/wall/display buttons collapse to
-// screen-reader text when the top bar itself is narrower than 1300px (container `appbar`, declared
-// in pascal.css; the sidebar width counts, not just the viewport). "Xem trước" keeps its label down
-// to 760px; "Chia đôi" goes icon-only below 760px. Tooltips/aria-labels keep every name.
+// AppFront edit (P40, G5-11; QA-2 L1; impeccable D1): text labels of the level/wall/display buttons
+// collapse to screen-reader text when the top bar itself is narrower than 1500px (container `appbar`,
+// declared in pascal.css; the sidebar width counts, not just the viewport). The 3D/2D/Chia đôi and
+// "Xem trước" labels go below 1200px, where the camera group also folds into the "…" menu, so the bar
+// never overlaps or clips between 1024 and 1920. Tooltips/aria-labels keep every name.
 
 // pascal-polish T3: AppFront float surface (solid, 1px border, 12px radius, float shadow); ghost buttons hover
 // to --pa-sunken, the "on" state is --pa-selected + accent text; focus ring is inset (the group clips overflow).
@@ -83,8 +84,30 @@ const BTN_ON = 'bg-[var(--pa-selected)] text-[var(--pa-accent)] hover:bg-[var(--
 
 const TOOLBAR_BTN = `flex w-8 items-center justify-center ${BTN_GHOST}`
 // Label wrappers: icon-only (sr-only text) below the given bar width.
-const LABEL_1300 = 'sr-only @min-[1300px]/appbar:not-sr-only'
-const LABEL_1000 = 'sr-only @min-[1000px]/appbar:not-sr-only'
+const LABEL_WIDE = 'sr-only @min-[1500px]/appbar:not-sr-only'
+const LABEL_MID = 'sr-only @min-[1200px]/appbar:not-sr-only'
+
+// Menu Hiển thị: mọi mục bật/tắt cùng một kiểu chữ trạng thái (Impeccable A5).
+function OnOff({ on }: { on: boolean }) {
+  return <span className="ml-auto text-muted-foreground text-xs">{on ? 'Bật' : 'Tắt'}</span>
+}
+
+// Tên giao diện cảnh của vendor là tiếng Anh; id lạ thì giữ tên gốc.
+const THEME_VI: Record<string, string> = {
+  studio: 'Studio',
+  paper: 'Giấy',
+  sunset: 'Hoàng hôn',
+  overcast: 'Trời âm u',
+  blueprint: 'Bản vẽ xanh',
+  mediterranean: 'Địa Trung Hải',
+  twilight: 'Chạng vạng',
+  night: 'Ban đêm',
+  verdant: 'Xanh cây',
+}
+
+function themeName(id: string, fallback: string): string {
+  return THEME_VI[id] ?? fallback
+}
 
 function requestWalkthroughPointerLock() {
   const canvas = document.querySelector<HTMLCanvasElement>('[data-pascal-viewer-3d] canvas')
@@ -217,7 +240,7 @@ function ViewModeControl() {
               type="button"
             >
               {mode.icon}
-              <span className={LABEL_1000}>{mode.label}</span>
+              <span className={LABEL_MID}>{mode.label}</span>
             </button>
           </ToolbarTooltip>
         )
@@ -254,45 +277,45 @@ function CollapseSidebarButton() {
   )
 }
 
+const LEVEL_MODE_ICONS: Record<(typeof levelModeOrder)[number], string> = {
+  stacked: 'charm:stack-push',
+  exploded: 'charm:stack-pop',
+  solo: 'lucide:diamond',
+}
+
+/** impeccable D1: a menu (chồng / tách / một tầng) instead of a blind 3-way cycle; the button names the current state. */
 function LevelModeToggle() {
   const levelMode = useViewer((state) => state.levelMode)
   const setLevelMode = useViewer((state) => state.setLevelMode)
   const isDefault = levelMode === 'stacked' || levelMode === 'manual'
-
-  const cycle = () => {
-    if (levelMode === 'manual') {
-      setLevelMode('stacked')
-      return
-    }
-
-    const index = levelModeOrder.indexOf(levelMode as (typeof levelModeOrder)[number])
-    const next = levelModeOrder[(index + 1) % levelModeOrder.length]
-    if (next) setLevelMode(next)
-  }
-
-  const label = `${levelMode === 'manual' ? 'Tầng: tuỳ chỉnh' : (levelModeLabels[levelMode] ?? 'Tầng: chồng')} (bấm để đổi; cần từ 2 tầng)`
+  const current = levelMode === 'manual' ? 'Tầng: tuỳ chỉnh' : (levelModeLabels[levelMode] ?? 'Tầng: chồng')
+  const icon = levelMode === 'solo' || levelMode === 'exploded' ? LEVEL_MODE_ICONS[levelMode] : LEVEL_MODE_ICONS.stacked
+  const label = `Cách xếp tầng, đang chọn: ${current.replace('Tầng: ', '')} (cần từ 2 tầng)`
 
   return (
-    <ToolbarTooltip label={label}>
-      <button
-        className={cn(
-          TOOLBAR_BTN,
-          'w-auto min-w-8 gap-1.5 px-2',
-          !isDefault && BTN_ON,
-        )}
-        onClick={cycle}
-        type="button"
-      >
-        {levelMode === 'solo' ? (
-          <IconifyIcon height={14} icon="lucide:diamond" width={14} />
-        ) : levelMode === 'exploded' ? (
-          <IconifyIcon height={14} icon="charm:stack-pop" width={14} />
-        ) : (
-          <IconifyIcon height={14} icon="charm:stack-push" width={14} />
-        )}
-        <span className={`font-medium text-[13px] ${LABEL_1300}`}>{levelModeLabels[levelMode] ?? 'Tầng: chồng'}</span>
-      </button>
-    </ToolbarTooltip>
+    <DropdownMenu>
+      <ToolbarTooltip label={label}>
+        <DropdownMenuTrigger asChild>
+          <button
+            aria-label={label}
+            className={cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1.5 px-2', !isDefault && BTN_ON)}
+            type="button"
+          >
+            <IconifyIcon height={14} icon={icon} width={14} />
+            <span className={`font-medium text-[13px] ${LABEL_WIDE}`}>{current}</span>
+          </button>
+        </DropdownMenuTrigger>
+      </ToolbarTooltip>
+      <DropdownMenuContent align="start" className={SUBMENU_CONTENT_CLASS} side="bottom" sideOffset={8}>
+        {levelModeOrder.map((mode) => (
+          <DropdownMenuItem key={mode} onSelect={() => setLevelMode(mode)}>
+            <IconifyIcon height={14} icon={LEVEL_MODE_ICONS[mode]} width={14} />
+            <span>{levelModeLabels[mode]}</span>
+            {levelMode === mode ? <Check className="ml-auto h-4 w-4" /> : null}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -319,7 +342,7 @@ function WallModeToggle() {
         type="button"
       >
         <Image alt="" className="h-4 w-4 object-contain" height={16} src={config.icon} width={16} />
-        <span className={`font-medium text-[13px] ${LABEL_1300}`}>{config.label}</span>
+        <span className={`font-medium text-[13px] ${LABEL_WIDE}`}>{config.label}</span>
       </button>
     </ToolbarTooltip>
   )
@@ -390,7 +413,7 @@ function DisplayMenu() {
             type="button"
           >
             <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />
-            <span className={`font-medium text-[13px] ${LABEL_1300}`}>Hiển thị</span>
+            <span className={`font-medium text-[13px] ${LABEL_WIDE}`}>Hiển thị</span>
           </button>
         </DropdownMenuTrigger>
       </ToolbarTooltip>
@@ -403,11 +426,7 @@ function DisplayMenu() {
         <DropdownMenuItem onSelect={(e) => keepOpen(e, () => setShowGrid(!showGrid))}>
           <Grid2X2 className="h-4 w-4" />
           <span>Lưới</span>
-          {showGrid ? (
-            <Eye className="ml-auto h-4 w-4 text-foreground" />
-          ) : (
-            <EyeOff className="ml-auto h-4 w-4 text-muted-foreground" />
-          )}
+          <OnOff on={showGrid} />
         </DropdownMenuItem>
         {viewMode !== '2d' ? (
           <DropdownMenuItem
@@ -415,11 +434,7 @@ function DisplayMenu() {
           >
             <Ruler className="h-4 w-4" />
             <span>{viewMode === 'split' ? 'Số đo 3D' : 'Số đo'}</span>
-            {showMeasurements ? (
-              <Eye className="ml-auto h-4 w-4 text-foreground" />
-            ) : (
-              <EyeOff className="ml-auto h-4 w-4 text-muted-foreground" />
-            )}
+            <OnOff on={showMeasurements} />
           </DropdownMenuItem>
         ) : null}
         {viewMode !== '3d' ? (
@@ -466,11 +481,7 @@ function DisplayMenu() {
                         >
                           <OptionIcon className="h-4 w-4" />
                           <span>{option.name}</span>
-                          {visible ? (
-                            <Eye className="ml-auto h-4 w-4 text-foreground" />
-                          ) : (
-                            <EyeOff className="ml-auto h-4 w-4 text-muted-foreground" />
-                          )}
+                          <OnOff on={visible} />
                         </DropdownMenuItem>
                       )
                     })}
@@ -514,14 +525,12 @@ function DisplayMenu() {
         <DropdownMenuItem onSelect={(e) => keepOpen(e, () => setMagneticSnap(!magneticSnap))}>
           <Magnet className="h-4 w-4" />
           <span>Bắt dính</span>
-          <span className="ml-auto text-muted-foreground text-xs">
-            {magneticSnap ? 'Bật' : 'Tắt'}
-          </span>
+          <OnOff on={magneticSnap} />
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={(e) => keepOpen(e, () => setShadows(!shadows))}>
           <Contrast className="h-4 w-4" />
           <span>Đổ bóng</span>
-          <span className="ml-auto text-muted-foreground text-xs">{shadows ? 'Bật' : 'Tắt'}</span>
+          <OnOff on={shadows} />
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={(e) =>
@@ -634,7 +643,7 @@ function DisplayMenu() {
             <SwatchBook className="h-4 w-4" />
             <span>Giao diện</span>
             <span className="ml-auto truncate text-muted-foreground text-xs">
-              {activeTheme.name}
+              {themeName(activeTheme.id, activeTheme.name)}
             </span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="min-w-48 rounded-xl border-[var(--pa-border)] bg-[var(--pa-surface)] shadow-[var(--pa-shadow-overlay)]">
@@ -652,7 +661,7 @@ function DisplayMenu() {
                       <span key={`${theme.id}-${index}`} style={{ backgroundColor: color }} />
                     ))}
                   </span>
-                  <span className="text-foreground">{theme.name}</span>
+                  <span className="text-foreground">{themeName(theme.id, theme.name)}</span>
                   {sceneTheme === theme.id ? (
                     <Check className="ml-auto h-4 w-4 text-foreground" />
                   ) : null}
@@ -781,6 +790,51 @@ function CameraButtons() {
   )
 }
 
+/** Below 1200px the rotate / top-view / walk buttons live here, so the bar never clips. */
+function MoreCameraMenu() {
+  const is2dOnly = useEditor((state) => state.viewMode === '2d')
+  const walkthrough = () => {
+    const { isFirstPersonMode, setFirstPersonMode } = useEditor.getState()
+    if (isFirstPersonMode) {
+      setFirstPersonMode(false)
+      return
+    }
+    flushSync(() => setFirstPersonMode(true))
+    requestWalkthroughPointerLock()
+  }
+  return (
+    <div className="contents @min-[1200px]/appbar:hidden">
+      <DropdownMenu>
+        <ToolbarTooltip label="Thêm thao tác camera">
+          <DropdownMenuTrigger asChild>
+            <button aria-label="Thêm thao tác camera" className={TOOLBAR_BTN} type="button">
+              <Ellipsis className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+        </ToolbarTooltip>
+        <DropdownMenuContent align="end" className={SUBMENU_CONTENT_CLASS} side="bottom" sideOffset={8}>
+          {CAMERA_BUTTONS.map(({ label, icon: ItemIcon, onClick }) => (
+            <DropdownMenuItem key={label} onSelect={onClick}>
+              <ItemIcon className="h-4 w-4" />
+              <span>{label}</span>
+            </DropdownMenuItem>
+          ))}
+          {is2dOnly ? null : (
+            <DropdownMenuItem onSelect={topViewToggle}>
+              <ArrowDownToDot className="h-4 w-4" />
+              <span>Nhìn từ trên</span>
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onSelect={walkthrough}>
+            <Footprints className="h-4 w-4" />
+            <span>Đi bộ trong nhà</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
 function PreviewButton() {
   return (
     <ToolbarTooltip label="Xem trước (Esc để thoát)">
@@ -791,7 +845,7 @@ function PreviewButton() {
         type="button"
       >
         <Eye className="h-3.5 w-3.5 shrink-0" />
-        <span aria-hidden="true" className="hidden @min-[1000px]/appbar:inline">Xem trước</span>
+        <span aria-hidden="true" className="hidden @min-[1200px]/appbar:inline">Xem trước</span>
       </button>
     </ToolbarTooltip>
   )
@@ -857,8 +911,11 @@ export function CommunityViewerToolbarRight({
       <DisplayMenu />
       <div className="my-1.5 w-px bg-[var(--pa-border)]" />
       <FitViewButton />
-      <CameraButtons />
-      <WalkthroughButton />
+      <div className="hidden @min-[1200px]/appbar:contents">
+        <CameraButtons />
+        <WalkthroughButton />
+      </div>
+      <MoreCameraMenu />
       {onVRToggle || vrButton
         ? (vrButton ??
           (onVRToggle ? (

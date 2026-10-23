@@ -30,6 +30,7 @@ import type {
   FloorTableFooterVm,
   SectionBandVm,
 } from './floorManagerTypes';
+import { QC_NOT_GRADED } from './floorManagerTypes';
 
 /**
  * Mọi thứ view thuần nhận TRỪ mười lăm hàm xử lý.
@@ -165,7 +166,7 @@ function buildRow(seed: FloorSeed): FloorRowVm {
     roomCountText: seed.roomCount === null ? MISSING_VALUE : formatNumber(seed.roomCount),
     areaText: formatArea(seed.areaM2),
     areaM2: seed.areaM2,
-    qcProgressText: hasDrawing ? formatPercent(seed.qcProgressRatio, { fractionDigits: 0 }) : MISSING_VALUE,
+    qcProgressText: !hasDrawing ? MISSING_VALUE : seed.qcProgressRatio === 0 ? QC_NOT_GRADED : formatPercent(seed.qcProgressRatio, { fractionDigits: 0 }),
     qcProgressRatio: seed.qcProgressRatio,
     isSelected: false,
     isHovered: false,

@@ -4,13 +4,13 @@
  *
  * Hàng trên (48 px): thương hiệu, điều hướng toàn cục, tên dự án đang mở (bấm mở menu các màn khác
  * của dự án — tách khỏi nav toàn cục), chuông, tài khoản, đăng xuất.
- * Hàng dưới (40 px), chỉ khi đang ở trong một dự án: sáu bước của dự án và nút "Tiếp: <bước>",
- * để từ bất cứ màn nào cũng đi tiếp được mà không phải quay về danh sách. Hai hàng ≤ 96 px (V-16).
+ * Hàng dưới (40 px), chỉ khi đang ở trong một dự án: sáu bước (kèm trạng thái xong/còn việc) và nút
+ * "Tiếp: <bước>", để từ bất cứ màn nào cũng đi tiếp được mà không phải quay về danh sách. Hai hàng ≤ 96 px (V-16).
  *
  * View thuần: mọi dữ liệu đến qua props; liên kết dùng `Link` của router.
  */
 import { useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, LogOut } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, LogOut } from 'lucide-react';
 import { Link, NavLink, useLocation, useMatch, useNavigate } from 'react-router-dom';
 
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/Button';
 import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/routes/paths';
-import { FLOOR_LAYERS, PROJECT_STEPS } from '@/routes/projectSteps';
+import { FLOOR_LAYERS, PROJECT_STEPS, type ProjectStepState } from '@/routes/projectSteps';
 import { BrandMark } from './BrandMark';
 import { ProjectNav } from './ProjectNav';
 
@@ -38,6 +38,8 @@ export interface AppHeaderProject {
   readonly blocker?: 'no-drawings' | 'processing' | 'pipeline-error' | undefined;
   /** Màn kiểm tra tầng gần nhất của dự án này (G4a-34/N4-08): ô bước 3 quay về đó thay vì danh sách tầng. */
   readonly lastFloorPath?: string | undefined;
+  /** Trạng thái sáu bước (cùng thứ tự PROJECT_STEPS); vắng thì mọi bước "chưa tới". */
+  readonly stepStates?: readonly ProjectStepState[] | undefined;
 }
 
 export interface AppHeaderProps {
@@ -57,6 +59,29 @@ const navLinkClass = ({ isActive }: { isActive: boolean }): string =>
     isActive ? 'bg-accent-wash text-accent' : 'text-text-secondary hover:bg-bg-sunken hover:text-text-primary',
   );
 
+const STEP_STATE_TEXT: Readonly<Record<ProjectStepState, string>> = {
+  done: 'đã xong',
+  attention: 'còn việc',
+  todo: 'chưa tới',
+};
+
+function StepMarker({ index, isCurrent, state }: { readonly index: number; readonly isCurrent: boolean; readonly state: ProjectStepState }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold',
+        isCurrent ? 'bg-accent text-white' : state === 'done' ? 'bg-state-verified-tint text-state-verified-text' : 'bg-bg-sunken text-text-secondary',
+      )}
+    >
+      {state === 'done' && !isCurrent ? <Check size={12} strokeWidth={3} /> : index + 1}
+      {state === 'attention' && (
+        <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-state-attention ring-2 ring-bg-surface" />
+      )}
+    </span>
+  );
+}
+
 function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
   const navigate = useNavigate();
   // 'default' = trang mở thẳng (không có màn trước trong app): Back của trình duyệt sẽ rời app.
@@ -75,32 +100,31 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
         ? project.lastFloorPath
         : (PROJECT_STEPS[index]?.path(project.id) ?? ROUTES.dashboard);
 
+  // Màn Tải bản vẽ tự có nút chính "Bắt đầu xử lý": nút đi tiếp của thanh bước lùi xuống kiểu phụ (A2 #4).
+  const nextClass = cn(getButtonStyles({ variant: project.stepIndex === 0 ? 'secondary' : 'primary', size: 'sm' }), 'shrink-0 gap-2 whitespace-nowrap');
+
   return (
     <nav aria-label="Các bước của dự án" className="flex h-10 items-center gap-3 border-t border-border-default px-4 sm:px-6">
       <ol className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
         {PROJECT_STEPS.map((step, index) => {
           const isCurrent = index === project.stepIndex;
+          const state = project.stepStates?.[index] ?? 'todo';
           return (
             <li key={step.id} className="flex shrink-0 items-center gap-1">
               {index > 0 && <ChevronRight size={14} aria-hidden="true" className="text-text-muted" />}
               <Link
                 to={stepPath(index)}
                 aria-current={isCurrent ? 'step' : undefined}
+                aria-label={`Bước ${index + 1}: ${step.label}, ${STEP_STATE_TEXT[state]}`}
+                title={step.label}
                 className={cn(
                   'flex h-7 items-center gap-2 rounded-md px-2 text-[13px] transition-colors duration-fast',
                   isCurrent ? 'bg-accent-wash font-semibold text-accent' : 'text-text-secondary hover:bg-bg-sunken hover:text-text-primary',
                 )}
               >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold',
-                    isCurrent ? 'bg-accent text-white' : 'bg-bg-sunken text-text-secondary',
-                  )}
-                >
-                  {index + 1}
-                </span>
-                {step.label}
+                <StepMarker index={index} isCurrent={isCurrent} state={state} />
+                {/* Dưới 1024 chỉ bước đang đứng hiện chữ, để cả thanh và nút đi tiếp nằm trên một dòng. */}
+                <span className={cn(!isCurrent && 'hidden lg:inline')}>{step.label}</span>
               </Link>
             </li>
           );
@@ -143,7 +167,7 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
         </Link>
       ) : (
         next !== undefined && (
-          <Link to={next.path(project.id)} className={cn(getButtonStyles({ variant: 'primary', size: 'sm' }), 'shrink-0 gap-2')}>
+          <Link to={next.path(project.id)} className={nextClass}>
             Tiếp: {next.label}
             <ArrowRight size={16} aria-hidden="true" />
           </Link>
@@ -189,7 +213,16 @@ export function AppHeader({ accountInitials, accountLabel, showAdmin, notificati
         {project !== null && (
           // Nav của dự án nằm trong menu tên dự án, không cùng hàng với nav toàn cục (aesthetic 2.1 #1).
           // ponytail: <details> gốc, không đóng khi bấm ra ngoài; cần thì đổi sang Popover.
-          <details key={location.pathname} className="relative min-w-0 border-l border-border-default pl-4">
+          <details
+            key={location.pathname}
+            className="relative min-w-0 border-l border-border-default pl-4"
+            // A12: Esc đóng lớp trên cùng — menu đang mở thì Esc đóng nó và trả tiêu điểm về nút.
+            onKeyDown={(event) => {
+              if (event.key !== 'Escape' || !event.currentTarget.open) return;
+              event.currentTarget.open = false;
+              event.currentTarget.querySelector('summary')?.focus();
+            }}
+          >
             <summary
               aria-label={project.name === null ? 'Màn khác của dự án' : `${project.name}: màn khác của dự án`}
               className="flex h-8 min-w-0 cursor-pointer list-none items-center gap-1 rounded-md px-2 text-[13px] hover:bg-bg-sunken [&::-webkit-details-marker]:hidden"

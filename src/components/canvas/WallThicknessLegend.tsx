@@ -29,6 +29,10 @@ interface WallThicknessLegendProps {
   /** Lọc điều khiển từ ngoài (G4a-21): có `onFilterChange` thì màn cha giữ trạng thái lọc. */
   activeFilter?: WallThickness | null | undefined;
   onFilterChange?: ((thickness: WallThickness | null) => void) | undefined;
+  /** Số tường của từng nhóm (khoá = `String(độ dày)`); có thì hiện cạnh nhãn. */
+  counts?: Readonly<Partial<Record<string, number>>> | undefined;
+  /** Số tường của mục `otherLabel`. */
+  otherCount?: number | undefined;
 }
 
 /** Màu của tường ngoài bốn cấp — đúng màu `wallStrokeToken` trả cho độ dày lạ. */
@@ -47,6 +51,8 @@ export function WallThicknessLegend({
   className,
   activeFilter,
   onFilterChange,
+  counts,
+  otherCount,
 }: WallThicknessLegendProps) {
   const internal = useWallThicknessLegend();
   const activeThickness = onFilterChange ? (activeFilter ?? null) : internal.activeThickness;
@@ -192,6 +198,11 @@ export function WallThicknessLegend({
             <span className="font-mono text-sm text-text-primary leading-none">
               {label}
             </span>
+            {counts?.[key] === undefined ? null : (
+              <span className="ml-auto pl-2 font-mono text-xs tabular-nums text-text-muted leading-none">
+                {counts[key]}
+              </span>
+            )}
           </button>
         );
       })}
@@ -211,6 +222,11 @@ export function WallThicknessLegend({
             aria-hidden="true"
           />
           <span className="font-mono text-sm text-text-primary leading-none">{otherLabel}</span>
+          {otherCount === undefined ? null : (
+            <span className="ml-auto pl-2 font-mono text-xs tabular-nums text-text-muted leading-none">
+              {otherCount}
+            </span>
+          )}
         </div>
       )}
     </div>

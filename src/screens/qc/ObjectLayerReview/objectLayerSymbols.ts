@@ -77,20 +77,19 @@ import { OBJECT_LAYER_IDS } from './objectLayerTypes';
 /**
  * Ba lớp con, ba màu dữ liệu. Không có màu thứ tư ở màn này.
  *
- * Ba bậc lấy từ `SEQUENTIAL_RAMP` của `src/lib/coloring/scales.ts` — một họ
- * trung tính ấm giảm độ sáng đều, nên ba lớp phân biệt được cả khi in đen trắng
- * và cả với người không phân biệt được màu. Chúng KHÔNG phải ba màu trạng thái
- * của A4 (`--state-verified/attention/violation`) và KHÔNG phải màu nhấn của
- * A2: màu nhấn dành riêng cho thứ tương tác được, còn một cái giường không
- * tương tác được chỉ vì nó là cái giường.
+ * Impeccable A3 (gói C): ba bậc xám ấm cũ của `SEQUENTIAL_RAMP` quá nhạt trên
+ * nền bản vẽ, nên đổi sang ba bậc trung tính đậm/vừa/nhạt (`--text-primary`,
+ * `--text-secondary`, `--text-muted`, đều trên 3:1 ở cả nền sáng lẫn tối). Không
+ * dùng `--accent` (A2) hay màu trạng thái (A4); hình ký hiệu riêng từng loại
+ * (cửa sổ rỗng ruột) gánh phần phân biệt còn lại.
  *
  * Độ tin cậy KHÔNG được đếm thêm một màu thứ tư vào đây — nó nói bằng
  * `ConfidenceMeter` và bằng chip cần chú ý ở danh sách, không bằng màu ký hiệu.
  */
 export const OBJECT_LAYER_COLOR_TOKENS: Readonly<Record<ObjectLayerId, string>> = {
-  door: 'var(--wall-330)',
-  window: 'var(--wall-220)',
-  furniture: 'var(--wall-110)',
+  door: 'var(--text-primary)',
+  window: 'var(--text-secondary)',
+  furniture: 'var(--text-muted)',
 };
 
 /**
@@ -328,9 +327,9 @@ export interface ObjectLayerListViewProps extends ObjectLayerListProps {
  * ## Ba màu, không bao giờ bốn
  *
  * Ba lớp con dùng ba token của {@link OBJECT_LAYER_COLOR_TOKENS}. Độ tin cậy
- * KHÔNG được đếm thêm một màu: nó nói bằng `ConfidenceMeter` ở danh sách. Màu
- * nhấn của vòng chọn cũng không phải màu dữ liệu — theo A2 nó là màu của "thứ
- * đang tương tác", nên nó không vào bảng chú giải và không vào phép đếm.
+ * KHÔNG được đếm thêm một màu: nó nói bằng `ConfidenceMeter` ở danh sách. Vòng
+ * chọn (`SelectionHalo`) không phải màu dữ liệu, nên nó không vào bảng chú giải
+ * và không vào phép đếm, dù cửa sổ cũng mang `--accent`.
  *
  * ## Chuyển động — 260 ms, không phải 240 ms
  *

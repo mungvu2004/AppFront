@@ -141,8 +141,8 @@ const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
         onClick={toggle}
         onKeyDown={handleKeyDown}
         className={cn(
-          'flex h-[46px] sm:h-[38px] w-full items-center justify-between rounded-lg bg-bg-surface px-3',
-          'border border-border-control transition-all duration-120',
+          'flex h-[46px] fine:h-[38px] w-full items-center justify-between rounded-lg bg-bg-surface px-3',
+          'border border-border-control transition-[border-color,box-shadow] duration-120',
           !disabled && 'hover:border-text-primary',
           disabled && 'opacity-50 cursor-not-allowed bg-bg-sunken',
           'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface focus-visible:animate-focus-ring',
@@ -325,7 +325,7 @@ const SelectSkeleton = forwardRef<HTMLDivElement, { label?: React.ReactNode; cla
   ({ label, className }, ref) => (
     <div ref={ref} className={cn('flex flex-col', className)}>
       {label && <span className="mb-2 text-[14px] font-medium text-text-secondary">{label}</span>}
-      <div className="h-[46px] sm:h-[38px] w-full rounded-lg bg-border-default animate-pulse motion-reduce:animate-none" />
+      <div className="h-[46px] fine:h-[38px] w-full rounded-lg bg-border-default animate-pulse motion-reduce:animate-none" />
     </div>
   ),
 );
@@ -358,7 +358,7 @@ export const Select = Object.assign(
           {label && (
             <span className="mb-2 text-[14px] font-medium text-text-secondary">{label}</span>
           )}
-          <div className="flex h-[46px] sm:h-[38px] w-full items-center px-3 text-text-primary">
+          <div className="flex h-[46px] fine:h-[38px] w-full items-center px-3 text-text-primary">
             {selectedOption ? selectedOption.label : placeholder}
           </div>
         </div>

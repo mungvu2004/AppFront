@@ -485,6 +485,8 @@ export interface CadBranchConfirmActions {
   readonly onRetry: () => void;
   /** Về danh sách dự án — lối ra duy nhất khi dự án không tồn tại (BUG-563). */
   readonly onBackToProjects: () => void;
+  /** Về duyệt lớp tường của tầng — lối ra của trang giải thích khi tầng không có CAD. */
+  readonly onBackToLayerReview?: () => void;
 }
 
 /* -------------------------------------------------------------------------- */

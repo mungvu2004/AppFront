@@ -26,7 +26,8 @@ import { AppLayout } from './AppLayout';
 import { ROUTE_PATTERNS } from './paths';
 import { ExplodedViewRedirect, MeasureViewRedirect, Pascal3dPage, PascalViewerRedirect } from './viewerRedirects';
 import { RouteErrorScreen } from './RouteErrorScreen';
-import { PendingShell, SessionBootstrap } from './SessionBootstrap';
+import { SessionBootstrap } from './SessionBootstrap';
+import { SlowPendingShell } from './SlowPendingShell';
 // Màn nạp lười: khai ở `lazyScreens.ts` để file này dưới trần 400 dòng.
 import * as Screens from './lazyScreens';
 
@@ -40,7 +41,7 @@ import * as Screens from './lazyScreens';
  * không thêm byte nào vào đường tải đầu.
  */
 const suspended = (node: React.ReactNode) => (
-  <React.Suspense fallback={<PendingShell label="Đang tải màn hình" />}>{node}</React.Suspense>
+  <React.Suspense fallback={<SlowPendingShell label="Đang tải màn hình" />}>{node}</React.Suspense>
 );
 
 /**
@@ -52,7 +53,7 @@ const suspendedOutsideMain = (node: React.ReactNode) => (
   <React.Suspense
     fallback={
       <ScreenMain>
-        <PendingShell label="Đang tải màn hình" />
+        <SlowPendingShell label="Đang tải màn hình" />
       </ScreenMain>
     }
   >

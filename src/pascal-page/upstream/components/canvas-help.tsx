@@ -21,7 +21,8 @@
 import { type AnyNodeId, useScene } from '@pascal-app/core'
 import { useEditor } from '@pascal-app/editor'
 import { ChevronDown, ChevronUp, CircleHelp, Mouse } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { useScaleUnresolved } from '../../scaleUnresolved'
 import { requestTour } from '../../tour/tourLogic'
 import { clampShift, clearOfShift } from '../lib/clamp-shift'
 
@@ -65,11 +66,14 @@ button[title="Thêm tầng phía trên"], button[title="Thêm tầng phía dư�
   width: 1.5rem !important; height: 1.5rem !important; /* ≥ 24px vùng bấm (WCAG 2.5.8) */
   color: var(--foreground) !important;
 }
+/* "+" buttons stay 8px clear of the level card: "above" sits right of the card (above it is the top
+ * bar), "below" 8px under it. */
 button[title="Thêm tầng phía trên"] {
-  translate: -50% -50% !important;
+  top: 50% !important; left: 100% !important; bottom: auto !important; right: auto !important;
+  translate: 8px -50% !important;
 }
 button[title="Thêm tầng phía dưới"] {
-  translate: -50% calc(100% + 2px) !important;
+  translate: -50% calc(100% + 8px) !important;
 }
 button[title="Chiều cao tầng"] {
   color: var(--foreground) !important; opacity: 0.85; font-size: 11px !important;
@@ -196,7 +200,12 @@ function useClearOfFloorCard(ref: { current: HTMLElement | null }) {
   }, [ref])
 }
 
-export function CanvasHelp() {
+/**
+ * `banner` (the scale warning) heads the same centred column, so it never sits under the help pills;
+ * while it shows, the pills fold to icons (names stay as aria-label + title).
+ */
+export function CanvasHelp({ banner }: { banner?: ReactNode }) {
+  const compact = useScaleUnresolved()
   const [open, setOpen] = useState(false)
   const isPreview = useEditor((state) => state.isPreviewMode)
   const isDelete = useEditor((state) => state.mode === 'delete')
@@ -216,12 +225,14 @@ export function CanvasHelp() {
     })
   }
   const hints = isPreview ? PREVIEW_HINTS : EDITOR_HINTS
+  const toggleLabel = open ? 'Ẩn hướng dẫn điều khiển' : 'Điều khiển chuột và phím tắt'
 
   return (
     <>
       <style>{SCOPED_CSS}</style>
       <div className="appfront-canvas-help pointer-events-none absolute top-14 left-1/2 z-40 -translate-x-1/2">
         <div className="pointer-events-auto flex flex-col items-center gap-1.5" ref={pillRef}>
+          {banner}
           {isDelete ? (
             <div
               className="pointer-events-none rounded-full bg-destructive px-4 py-1.5 font-medium text-background text-sm shadow-lg"
@@ -231,9 +242,16 @@ export function CanvasHelp() {
             </div>
           ) : null}
           <div className="flex items-center gap-1.5">
-            <button aria-expanded={open} className="appfront-help-btn" onClick={toggle} type="button">
+            <button
+              aria-expanded={open}
+              aria-label={toggleLabel}
+              className="appfront-help-btn"
+              onClick={toggle}
+              title={compact ? toggleLabel : undefined}
+              type="button"
+            >
               <Mouse aria-hidden="true" className="h-4 w-4" />
-              {open ? 'Ẩn hướng dẫn điều khiển' : 'Điều khiển chuột và phím tắt'}
+              {compact ? null : toggleLabel}
               {open ? (
                 <ChevronUp aria-hidden="true" className="h-4 w-4" />
               ) : (
@@ -244,10 +262,11 @@ export function CanvasHelp() {
               aria-label="Xem lại hướng dẫn thao tác"
               className="appfront-help-btn"
               onClick={requestTour}
+              title={compact ? 'Xem lại hướng dẫn thao tác' : undefined}
               type="button"
             >
               <CircleHelp aria-hidden="true" className="h-4 w-4" />
-              Hướng dẫn
+              {compact ? null : 'Hướng dẫn'}
             </button>
           </div>
           {open ? (

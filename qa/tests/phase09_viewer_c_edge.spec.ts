@@ -64,7 +64,7 @@ test.describe('phase 09 viewer edge (real stack)', () => {
         await shot(page, '9V-B-001', 'pin_delete');
       });
       await test.step('[9V-C-034] "Xác nhận đã xử lý" xong không lỗi', async () => {
-        await gotoAs(page, ROUTES.project.rules(projectId), 'Kiểm tra luật không gian');
+        await gotoAs(page, ROUTES.project.rules(projectId), 'Quy chuẩn');
         const confirm = page.getByRole('button', { name: 'Xác nhận đã xử lý' }); // RuleReport.tsx:358
         // RF red: the seeded own project has 4 criticals (png: "4 Nghiêm trọng"), so confirm is DISABLED by design
         // (RuleReport.tsx:353 disabled={summary.violations > 0}; useRuleReport.ts:680; phase06 28-A-025). Button PRESENT = engineer canEdit

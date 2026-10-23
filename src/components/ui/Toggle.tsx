@@ -85,7 +85,8 @@ export function Toggle(props: ToggleProps) {
       id={toggleId}
       role="switch"
       aria-checked={currentChecked}
-      aria-label={!label ? ariaLabel : undefined}
+      // Tên luôn có: nhãn chữ thì dùng luôn làm aria-label dự phòng, phòng khi aria-labelledby không phân giải được.
+      aria-label={ariaLabel ?? (typeof label === 'string' ? label : undefined)}
       aria-labelledby={label ? `${toggleId}-label` : undefined}
       aria-describedby={describedBy}
       disabled={disabled || isReadOnly}

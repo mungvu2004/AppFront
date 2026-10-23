@@ -55,7 +55,7 @@ export function ExportPanelPreflight({ rows, onFollowFix }: ExportPanelPreflight
                 }}
                 // Vùng chạm 44 px dưới `sm`, 24 px từ `sm` (WCAG 2.5.8) — cùng khuôn Breadcrumb (BUG-442).
                 className={cn(
-                  'inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center whitespace-nowrap font-medium text-accent no-underline hover:underline sm:min-h-6 sm:min-w-0',
+                  'inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center whitespace-nowrap font-medium text-accent no-underline hover:underline fine:min-h-6 fine:min-w-0',
                   FOCUS_RING,
                 )}
               >

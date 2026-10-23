@@ -17,7 +17,6 @@ import { Drawer } from '@/components/overlay/Drawer';
 import { Button } from '@/components/ui/Button';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { cn } from '@/lib/utils';
-import { ROUTES } from '@/routes/paths';
 
 import { ModelRegistryActivateDialog } from './ModelRegistryActivateDialog';
 import { ModelRegistryDetail } from './ModelRegistryDetail';
@@ -25,14 +24,11 @@ import { ModelRegistryVersionTable } from './ModelRegistryVersionTable';
 import type { ActiveCardModel, ModelFamilyId, ModelRegistryActions, ModelRegistryProps, ModelRegistryViewModel } from './types';
 
 const TEXT = {
-  breadcrumbNav: 'Đường dẫn trang',
-  breadcrumbAdmin: 'Quản trị',
-  breadcrumbHere: 'Mô hình AI',
   title: 'Mô hình AI của chuỗi xử lý',
-  familyPicker: 'Họ model',
+  familyPicker: 'Loại mô hình',
   activeTitle: 'Đang dùng',
-  revert: 'Quay về đường cổ điển',
-  revertHint: 'Bỏ model AI, chuỗi xử lý dùng lại thuật toán không học máy cho họ này.',
+  revert: 'Tắt AI, dùng thuật toán cũ',
+  revertHint: 'Bỏ mô hình AI, chuỗi xử lý dùng lại thuật toán không học máy cho loại này.',
   reload: 'Tải lại',
   retry: 'Thử lại',
   errorTitle: 'Không đọc được danh sách model',
@@ -51,17 +47,7 @@ function Header({ model }: { readonly model: ModelRegistryViewModel }) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="flex flex-col gap-1">
-        <nav aria-label={TEXT.breadcrumbNav} className="text-[13px] text-text-secondary">
-          <ol className="flex items-center gap-1.5">
-            <li>
-              <Link className="hover:text-text-primary hover:underline" to={ROUTES.adminUsers}>
-                {TEXT.breadcrumbAdmin}
-              </Link>
-            </li>
-            <li aria-hidden="true">›</li>
-            <li aria-current="page">{TEXT.breadcrumbHere}</li>
-          </ol>
-        </nav>
+        {/* Không breadcrumb: thanh tab quản trị đã chỉ đúng mục này. */}
         <h1 className="text-title text-text-primary">{TEXT.title}</h1>
       </div>
       {model.relatedLink !== null && (
@@ -182,7 +168,7 @@ function VersionsArea({ actions, model }: ModelRegistryProps) {
 export function ModelRegistry({ actions, model }: ModelRegistryProps) {
   if (model.state === 'forbidden') {
     return (
-      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8">
+      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[120rem]:max-w-[1440px]">
         <Header model={model} />
         <EmptyState description={TEXT.forbiddenBody} icon={<Lock aria-hidden="true" />} title={TEXT.forbiddenTitle} />
       </div>
@@ -214,7 +200,7 @@ export function ModelRegistry({ actions, model }: ModelRegistryProps) {
       )}
 
       <div className="flex items-start gap-6">
-        <div className={cn('flex-1', model.isCollapsed ? 'min-w-0' : 'min-w-[640px]')}>
+        <div className="min-w-0 flex-1">
           <VersionsArea actions={actions} model={model} />
         </div>
         {showsSidePanel && (

@@ -79,6 +79,8 @@ export interface PasswordResetActions {
   readonly setConfirmPassword: (value: string) => void;
   readonly submit: () => void;
   readonly goToSignIn: () => void;
+  /** Ngõ cụt: mở /login/forgot để xin liên kết mới (A1 P2 #3). */
+  readonly requestNewLink: () => void;
   readonly expand: () => void;
 }
 
@@ -213,6 +215,10 @@ export function usePasswordReset(options: UsePasswordResetOptions): {
     port.navigate(ROUTES.login);
   }, [port]);
 
+  const requestNewLink = useCallback(() => {
+    port.navigate(ROUTES.forgotPassword);
+  }, [port]);
+
   const expand = useCallback(() => {
     onExpand?.();
   }, [onExpand]);
@@ -254,6 +260,6 @@ export function usePasswordReset(options: UsePasswordResetOptions): {
 
   return {
     model,
-    actions: { setNewPassword, setConfirmPassword, submit, goToSignIn, expand },
+    actions: { setNewPassword, setConfirmPassword, submit, goToSignIn, requestNewLink, expand },
   };
 }

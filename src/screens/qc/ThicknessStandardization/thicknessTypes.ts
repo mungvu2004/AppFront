@@ -451,15 +451,15 @@ export interface ThicknessSummaryProps {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Thanh áp dụng — dung sai, xem trước, áp, hoàn tác, áp dụng lại bộ lọc.       */
+/* Thanh áp dụng — dung sai, xem trước, áp, áp dụng lại bộ lọc.               */
 /* -------------------------------------------------------------------------- */
 
 /**
  * Mọi thứ thanh áp dụng nhận. `preview` là `null` cho tới khi
  * {@link onOpenPreview} được gọi — đúng khuôn `RoomLabelNormalizePreviewProps`
- * (CẤM TUYỆT ĐỐI: bảng xem trước luôn hiện trước khi áp). `onUndo` là MỘT
- * hành động cho cả lượt áp (CẤM TUYỆT ĐỐI: không tách thành nhiều bước hoàn
- * tác).
+ * (CẤM TUYỆT ĐỐI: bảng xem trước luôn hiện trước khi áp). "Hoàn tác" (MỘT
+ * bước cho cả lượt áp — CẤM TUYỆT ĐỐI tách nhiều bước) nằm ở `QcStatusBar`
+ * chung, không lặp lại ở thanh này.
  */
 export interface ThicknessApplyBarProps {
   /** `false` khi tầng chưa có đoạn tường nào: "Xem trước" không có gì để xem (BUG-412). */
@@ -470,8 +470,6 @@ export interface ThicknessApplyBarProps {
   readonly onOpenPreview: () => void;
   readonly onApplyPreview: () => void;
   readonly onCancelPreview: () => void;
-  /** Hoàn tác thao tác gần nhất (A8) — thường đi cùng toast, không tham số. */
-  readonly onUndo: () => void;
   /** `null` khi chưa bấm "áp dụng lại bộ lọc" hoặc không có tường đã duyệt bị ảnh hưởng. */
   readonly reapplyWarning: ReapplyFilterWarning | null;
   /** Xác nhận áp dụng lại — CẤM TUYỆT ĐỐI: không bao giờ ghi đè im lặng tường đã duyệt. */

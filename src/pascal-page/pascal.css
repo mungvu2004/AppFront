@@ -346,15 +346,29 @@
   scrollbar-width: none; /* Firefox */
 }
 
+/* Reduced motion (impeccable D1): drop movement (transitions, keyframe motion, smooth scroll) but keep
+ * progress visible: loaders and spinners swap their motion for a slow opacity pulse instead of freezing. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  *:not(.animate-spin, .animate-pulse, [class*="pascal-loader-"]),
+  *:not(.animate-spin, .animate-pulse, [class*="pascal-loader-"])::before,
+  *:not(.animate-spin, .animate-pulse, [class*="pascal-loader-"])::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .animate-spin,
+  [class*="pascal-loader-"] {
+    animation: appfront-rm-pulse 1.6s ease-in-out infinite !important;
+  }
+}
+@keyframes appfront-rm-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 
 /* Loaders */

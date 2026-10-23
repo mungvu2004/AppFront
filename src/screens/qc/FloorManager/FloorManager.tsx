@@ -66,7 +66,6 @@ import { cn } from '@/lib/utils';
 import { FloorSectionCut } from './FloorSectionCut';
 import { FloorTable } from './FloorTable';
 import type { FloorManagerViewProps } from './floorManagerTypes';
-import { ProjectMoreMenu } from './ProjectMoreMenu';
 
 const SCREEN_TITLE = 'Quản lý tầng';
 /** Cùng component, cùng dấu "›" với màn tải bản vẽ và cổng chất lượng (BUG-079). */
@@ -78,7 +77,7 @@ const FORBIDDEN_NOTICE_TITLE = 'Không có quyền sửa tầng';
 const UNSUPPORTED_NOTICES_TITLE = 'Một số thay đổi chưa được lưu';
 
 const EXPAND_BUTTON_CLASS_NAME = cn(
-  'inline-flex min-h-11 items-center self-start rounded-md px-1.5 text-[13px] text-accent sm:min-h-6',
+  'inline-flex min-h-11 items-center self-start rounded-md px-1.5 text-[13px] text-accent fine:min-h-6',
   'transition-colors duration-120 hover:bg-accent-wash',
   'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
 );
@@ -129,10 +128,7 @@ export function FloorManager(props: FloorManagerViewProps) {
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
           {/* Lối sang 3D là nút "Bước tiếp theo: Mô hình 3D" của thanh bước; màn không vẽ nút
-              chính thứ hai cùng đích (K5). */}
-          <div className="flex items-center gap-2">
-            {props.onOpenProjectScreen !== undefined && <ProjectMoreMenu onOpen={props.onOpenProjectScreen} />}
-          </div>
+              chính thứ hai cùng đích (K5). Các màn phụ của dự án ở menu dự án trên header. */}
         </div>
         <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
       </header>

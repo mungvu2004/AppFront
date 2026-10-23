@@ -221,7 +221,8 @@ export function ThicknessSegmentTable({
                   <Table.CheckboxCell
                     checked={selected.has(row.wallId)}
                     onChange={(checked) => onToggleRowSelected(row.wallId, checked)}
-                    rowId={row.wallId}
+                    /* `rowId` chỉ dựng nhãn "Chọn dòng …": đọc mã ngắn của tường, không đọc ULID (Impeccable A3). */
+                    rowId={`tường ${row.code}`}
                   />
                 )}
                 <Table.Cell className="font-mono tabular-nums">{row.code}</Table.Cell>

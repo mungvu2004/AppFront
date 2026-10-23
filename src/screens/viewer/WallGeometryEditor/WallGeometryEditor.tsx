@@ -81,11 +81,13 @@ function ErrorBanner({ content }: { content: Extract<WallGeometryEditorProps['st
 
 function ContentBody({
   content,
+  onPointerCancel,
   onPointerMove,
   onPointerUp,
   overlayRef,
 }: {
   content: WallGeometryEditorContent;
+  onPointerCancel: () => void;
   onPointerMove: (event: PointerEvent<HTMLDivElement>) => void;
   onPointerUp: (event: PointerEvent<HTMLDivElement>) => void;
   overlayRef: (element: HTMLDivElement | null) => void;
@@ -95,6 +97,8 @@ function ContentBody({
       <div
         aria-label={TEXT.dimensionChain.regionLabel}
         className="relative min-h-0 flex-1"
+        // Trình duyệt huỷ lượt chạm (cuộn, cử chỉ hệ thống): bỏ phiên kéo như Esc, không để tay nắm treo.
+        onPointerCancel={onPointerCancel}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         ref={overlayRef}
@@ -213,6 +217,7 @@ export function WallGeometryEditor({
 
       <ContentBody
         content={state}
+        onPointerCancel={() => state.drag?.onCancel()}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         overlayRef={setOverlayNode}

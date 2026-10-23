@@ -62,7 +62,8 @@ import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
-import { QcScreenFrame } from '../shared/QcScreenFrame';
+import { QcScreenFrame, QcStatusBar, QcWorkspace } from '../shared/QcScreenFrame';
+import { qcProgressLabel } from '../shared/qcLayers';
 
 import { RoomLabelCanvas } from './RoomLabelCanvas';
 import { RoomLabelInspector } from './RoomLabelInspector';
@@ -227,7 +228,6 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
     backgroundImageUrl,
     hoveredRoomId,
     isCollapsed,
-    isCompact,
     isViewerRole,
     mergeCandidates,
     millimetresPerPixel,
@@ -270,18 +270,12 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
 
   return (
     <QcScreenFrame label={SCREEN_TITLE}>
-      {props.floorNav != null && <QcFloorNav {...props.floorNav} layer="rooms" />}
-      <p className="shrink-0 px-4 pt-1 text-[12px] text-text-secondary" data-testid="room-approve-progress">
-        {`${rooms.filter((room) => room.status === 'confirmed').length}/${rooms.length} phòng đã duyệt`}
-      </p>
-      {props.saveStatus != null && (
-        <p
-          className="shrink-0 px-4 pt-1 text-[12px] text-text-muted"
-          data-testid="room-save-status"
-          role="status"
-        >
-          {props.saveStatus}
-        </p>
+      {props.floorNav != null && (
+        <QcFloorNav
+          {...props.floorNav}
+          layer="rooms"
+          progress={qcProgressLabel(rooms.filter((room) => room.status === 'confirmed').length, rooms.length)}
+        />
       )}
 
       {props.saveBlock != null && (
@@ -296,20 +290,9 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         </div>
       )}
 
-      {/* BUG-319/393/404: dưới 1280 ba cột cố định (280 + canvas + 344) bóp canvas (1024: còn ~366 px, bản vẽ ~250 px) — 1024–1279: cột trái + bản vẽ cao 60vh ở hàng đầu, cột phải xuống dòng, cuộn dọc (như Tường); dưới 1024 xếp dọc, bản vẽ 360 px. */}
-      <div
-        className={cn(
-          'flex min-h-0 flex-1 gap-2 p-2',
-          isCompact ? 'flex-col' : 'flex-row',
-          'max-lg:flex-col max-lg:overflow-y-auto lg:max-xl:flex-wrap lg:max-xl:content-start lg:max-xl:overflow-y-auto',
-        )}
-      >
-        {isCollapsed ? null : <RoomLabelLeftColumn {...props} />}
-
-        <section
-          aria-label={CANVAS_SECTION_LABEL}
-          className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken max-lg:h-[360px] max-lg:flex-none lg:max-xl:h-[60vh]"
-        >
+      {/* Khe chung (A3): panel trái | bản vẽ | chi tiết; 1024-1279 chi tiết phủ mép phải bản vẽ. */}
+      <QcWorkspace
+        canvas={
           <RoomLabelCanvas
             backgroundImageAlt={backgroundImageAlt}
             backgroundImageSizeMm={backgroundImageSizeMm}
@@ -323,37 +306,42 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
             selectedRoomId={selectedRoomId}
             showEmptyNotice={props.isFloorWithoutRooms}
           />
-        </section>
+        }
+        canvasLabel={CANVAS_SECTION_LABEL}
+        inspector={
+          isCollapsed ? (
+            <div className="flex shrink-0 items-start justify-end p-1">
+              <button className={LINK_CLASS_NAME} onClick={onToggleCollapsed} type="button">
+                {EXPAND_PANEL_LABEL}
+              </button>
+            </div>
+          ) : (
+            <RoomLabelInspector
+              extras={{
+                nameSuggestions,
+                usageOptions,
+                areaCaption,
+                mergeCandidates,
+                onNavigateToWalls,
+                splitPointMm,
+                viewerRoleNotice,
+              }}
+              inspector={{
+                room: selectedRoom,
+                isViewerRole,
+                onRename,
+                onChangeUsage,
+                onMerge,
+                onSplit,
+                onApprove,
+              }}
+            />
+          )
+        }
+        left={isCollapsed ? null : <RoomLabelLeftColumn {...props} />}
+      />
 
-        {isCollapsed ? (
-          <div className="flex shrink-0 items-start justify-end p-1">
-            <button className={LINK_CLASS_NAME} onClick={onToggleCollapsed} type="button">
-              {EXPAND_PANEL_LABEL}
-            </button>
-          </div>
-        ) : (
-          <RoomLabelInspector
-            extras={{
-              nameSuggestions,
-              usageOptions,
-              areaCaption,
-              mergeCandidates,
-              onNavigateToWalls,
-              splitPointMm,
-              viewerRoleNotice,
-            }}
-            inspector={{
-              room: selectedRoom,
-              isViewerRole,
-              onRename,
-              onChangeUsage,
-              onMerge,
-              onSplit,
-              onApprove,
-            }}
-          />
-        )}
-      </div>
+      <QcStatusBar onUndo={isViewerRole ? undefined : props.onUndo} saveLabel={props.saveStatus ?? null} />
 
       {/*
        * Hộp thoại xem trước treo NGOÀI ba cột và luôn được gắn: nó tự đóng khi

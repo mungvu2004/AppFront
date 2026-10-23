@@ -10,7 +10,8 @@
  * phần tử focus được mang `data-autofocus` (`focusTrap.ts`). Một `autoFocus` sẽ
  * đẩy tiêu điểm vào TRƯỚC lượt `activate()`, bẫy ghi nhớ nhầm "nơi đã mở", và lúc
  * đóng tiêu điểm rơi về `body` — hỏng lời hứa của A12. Khi nhánh CAD bị khoá, nút
- * chính `disabled` không nhận được tiêu điểm, nên dấu chuyển sang nút "AI" (nợ B #6).
+ * chính `disabled` không nhận được tiêu điểm, nên dấu chuyển sang nút "Huỷ" — KHÔNG sang
+ * "Vẫn dùng AI": nút đó đổi nhánh, lỡ bấm Enter là đổi nhánh ngoài ý muốn.
  *
  * Không hộp thoại nào được mở từ trong hộp thoại này (cấm tuyệt đối của đặc tả).
  */
@@ -30,15 +31,15 @@ const TEXT = CAD_BRANCH_CONFIRM_TEXT.phase1;
 
 export function CadBranchConfirmDialog({ model, actions }: CadBranchConfirmDialogProps) {
   const rememberNoteId = useId();
-  const aiButtonRef = useRef<HTMLButtonElement>(null);
+  const dismissButtonRef = useRef<HTMLButtonElement>(null);
   const wasCadChoiceDisabledRef = useRef(model.isCadChoiceDisabled);
 
   // Nhánh CAD bị khoá SAU khi bẫy đã kích hoạt (đọc xong mới biết lỗi): `data-autofocus` dời sang
-  // nút AI không còn tác dụng và nút CAD vừa `disabled` làm tiêu điểm rơi mất — đưa nó về nút AI
-  // (BUG-560). Chỉ khi cờ ĐỔI: lúc mở, `data-autofocus` vẫn là đường đúng (xem đầu file).
+  // nút Huỷ không còn tác dụng và nút CAD vừa `disabled` làm tiêu điểm rơi mất — đưa nó về nút Huỷ
+  // (BUG-560), không về nút đổi nhánh. Chỉ khi cờ ĐỔI: lúc mở, `data-autofocus` vẫn là đường đúng (xem đầu file).
   useEffect(() => {
     if (model.isOpen && model.isCadChoiceDisabled && !wasCadChoiceDisabledRef.current) {
-      aiButtonRef.current?.focus();
+      dismissButtonRef.current?.focus();
     }
 
     wasCadChoiceDisabledRef.current = model.isCadChoiceDisabled;
@@ -91,13 +92,16 @@ export function CadBranchConfirmDialog({ model, actions }: CadBranchConfirmDialo
         )}
 
         <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
-          <Button variant="ghost" onClick={actions.onDismiss}>
+          <Button
+            ref={dismissButtonRef}
+            variant="ghost"
+            data-autofocus={model.isCadChoiceDisabled ? true : undefined}
+            onClick={actions.onDismiss}
+          >
             {TEXT.buttons.dismiss}
           </Button>
           <Button
-            ref={aiButtonRef}
             variant={model.isCadChoiceDisabled ? 'primary' : 'secondary'}
-            data-autofocus={model.isCadChoiceDisabled ? true : undefined}
             onClick={() => actions.onChooseBranch('ai')}
           >
             {TEXT.buttons.secondary}

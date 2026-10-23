@@ -25,7 +25,7 @@ const T = {
   create: 'Tạo lượt huấn luyện',
   related: 'Model AI của chuỗi xử lý',
   emptyFiltered: 'Không có lượt nào khớp bộ lọc.',
-  dsFamily: 'Họ model',
+  dsFamily: 'Loại mô hình',
   dsList: 'Danh sách bộ dữ liệu',
   dsVersions: 'Phiên bản',
   dsNote: 'Trang này chỉ xem; bộ dữ liệu dựng bằng công cụ dòng lệnh.',
@@ -78,10 +78,7 @@ test.describe('SCR-35 training edge (real)', () => {
 
     await test.step('[35T-E-012] breadcrumb › aria-hidden', async () => {
       const nav = page.getByRole('navigation', { name: 'Đường dẫn trang', exact: true });
-      await expect(nav).toBeVisible();
-      const seps = nav.getByText('›');
-      expect.soft(await seps.count(), 'separator count').toBeGreaterThan(0);
-      for (const sep of await seps.all()) await expect.soft(sep).toHaveAttribute('aria-hidden', 'true');
+      await expect(nav, 'breadcrumb removed').toHaveCount(0);
       await captureEvidence(page, 'E08_35T-E-012_header_filters.png', { caption: 'breadcrumb separators aria-hidden' });
     });
 
@@ -217,7 +214,7 @@ test.describe('SCR-35 training edge (real)', () => {
     });
 
     const group = page.getByRole('tabpanel').getByRole('radiogroup', { name: T.dsFamily, exact: true });
-    await test.step('[35T-A-011] "Họ model" 3 mục, mỗi lần chuyển datasets?family=', async () => {
+    await test.step('[35T-A-011] "Loại mô hình" 3 mục, mỗi lần chuyển datasets?family=', async () => {
       await expect.soft(group.getByRole('radio')).toHaveText([FAMILY.walls, FAMILY.opening, FAMILY.dim]);
       const read = datasetsRead(page, 'dimensionReading');
       await group.getByRole('radio', { name: FAMILY.dim, exact: true }).click();

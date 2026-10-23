@@ -255,12 +255,12 @@ describe('ProcessingScreen — bảy trạng thái (A11, R-63)', () => {
   });
 });
 
-describe('ProcessingScreen — tab "Xem trước"/"Nhật ký" cao 44 dưới 640 px', () => {
-  it('hai tab theo khuôn nút chạm của Button: 44 dưới sm, 36 từ sm', () => {
+describe('ProcessingScreen — tab "Xem trước"/"Nhật ký" cao 44 khi chạm', () => {
+  it('hai tab theo khuôn nút chạm của Button: 44 khi chạm (máy tính bảng), 36 khi dùng chuột', () => {
     renderWithProviders(<ProcessingScreen {...scenarioFor('success')} />);
 
     for (const name of ['Xem trước', 'Nhật ký']) {
-      expect(screen.getByRole('tab', { name })).toHaveClass('h-11', 'sm:h-9');
+      expect(screen.getByRole('tab', { name })).toHaveClass('h-11', 'fine:h-9');
     }
   });
 });
@@ -462,7 +462,7 @@ describe('ProcessingScreenContainer — R-73', () => {
     );
 
     expect(container.textContent?.trim()).not.toBe('');
-    expect(screen.getByText('Xử lý')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Xử lý' })).toBeInTheDocument();
   });
 
   it('không ai truyền floorUploads thì màn tự đọc N7 và theo dõi lượt có sẵn (B-V4-01)', async () => {

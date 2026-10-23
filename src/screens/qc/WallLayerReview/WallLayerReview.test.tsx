@@ -309,12 +309,13 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
     expect(await screen.findByText(expectation?.name ?? '')).toBeInTheDocument();
   });
 
-  it('[BUG-416] tường ngoài ba băng (175/235/90 mm của bộ mẫu) có mục "Khác" ở cả partial lẫn success', async () => {
+  /* Đợt Impeccable 1: độ dày gom về nhóm chuẩn gần nhất trong dung sai chung 30 mm (`wallThicknessBandOf`) — 235/90 vào nhóm, 175 còn lại ra "Không chuẩn". */
+  it('[BUG-416] tường ngoài ba băng (175/235/90 mm của bộ mẫu) có mục "Không chuẩn" ở cả partial lẫn success', async () => {
     for (const state of ['partial', 'success'] as const) {
       const { unmount } = renderState(state);
       const legend = await screen.findByRole('group', { name: 'Lọc theo độ dày tường' });
 
-      expect(within(legend).getByText('Khác')).toBeInTheDocument();
+      expect(within(legend).getByText('Không chuẩn')).toBeInTheDocument();
       unmount();
     }
   });
@@ -349,9 +350,9 @@ describe('ba độ dày phân biệt được khi che hết chữ và chuyển �
     const tokens = [THIN, MEDIUM, THICK].map((thickness) => wallStrokeToken(thickness));
 
     expect(new Set(tokens).size).toBe(3);
-    expect(tokens[0]).toBe('var(--wall-110)');
+    expect(tokens[0]).toBe('var(--wall-110-stroke)');
     expect(tokens[1]).toBe('var(--wall-220)');
-    expect(tokens[2]).toBe('var(--wall-330)');
+    expect(tokens[2]).toBe('var(--wall-330-stroke)');
   });
 
   it('[NGHIEM-4] LỚP BỀ RỘNG: đa giác tô đầy theo độ dày thật, tỉ lệ 1:2:3', () => {
@@ -761,7 +762,8 @@ describe('bộ đếm ở trạng thái Xong (BT-08)', () => {
      * việc của người duyệt — chứ không từ một điểm số nào của AI.
      */
     expect(container.querySelectorAll('.bg-state-verified').length).toBeGreaterThan(0);
-    expect(container.querySelectorAll('.text-state-verified').length).toBeGreaterThan(0);
+    /* Chữ trạng thái dùng token `-text` (đủ tương phản), màu thô chỉ cho thanh/icon. */
+    expect(container.querySelectorAll('.text-state-verified-text').length).toBeGreaterThan(0);
   });
 
   it('trạng thái Một phần thì KHÔNG có token đó ở bộ đếm', async () => {
@@ -929,7 +931,8 @@ describe('đợt sửa P04 — SCR-16', () => {
 
     expect(failed).toHaveClass('text-state-violation-text');
     expect(failed).not.toHaveClass('text-text-muted');
-    expect(failed.querySelector('svg')).not.toBeNull();
+    /* Đợt Impeccable 2: biểu tượng đứng ngay trước nhãn trong `QcStatusBar` chung, không lồng trong nhãn. */
+    expect(failed.closest('[role="status"]')?.querySelector('svg.text-state-violation')).not.toBeNull();
   });
 
   it('[BUG-329] thẻ Đoạn tường trống có đệm dưới', () => {

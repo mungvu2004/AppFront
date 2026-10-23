@@ -428,3 +428,26 @@ describe('Table.Head sortable is keyboard operable', () => {
     expect(onSort).not.toHaveBeenCalled();
   });
 });
+
+describe('Table.CheckboxCell label', () => {
+  const renderCell = (label?: string) =>
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <Table.CheckboxCell checked={false} label={label} onChange={() => undefined} rowId="wall-7f3a" />
+          </tr>
+        </tbody>
+      </table>,
+    );
+
+  it('dùng nhãn màn truyền vào thay cho id thô', () => {
+    renderCell('Chọn tường W-003');
+    expect(screen.getByRole('checkbox', { name: 'Chọn tường W-003' })).toBeInTheDocument();
+  });
+
+  it('không có nhãn thì giữ "Chọn dòng <rowId>"', () => {
+    renderCell();
+    expect(screen.getByRole('checkbox', { name: 'Chọn dòng wall-7f3a' })).toBeInTheDocument();
+  });
+});

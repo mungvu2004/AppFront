@@ -37,8 +37,9 @@ export const TOUR_STEPS: readonly TourStep[] = [
   },
   {
     title: 'Phong cách, Ánh sáng và về dự án',
-    body: 'Phong cách và Ánh sáng đổi diện mạo cảnh. Mọi thay đổi được tự lưu; xong việc, bấm Về dự án. Bấm nút Hướng dẫn bất cứ lúc nào để xem lại.',
-    anchor: { selector: 'a[aria-label="Về dự án"]' },
+    body: 'Hai nút Phong cách và Ánh sáng ở thanh trên đổi diện mạo cảnh. Thay đổi tự lưu, xem chip trạng thái lưu cạnh nút về dự án. Bấm nút Hướng dẫn bất cứ lúc nào để xem lại.',
+    // Nhóm Phong cách (thẻ `<details>`); Ánh sáng nằm ngay cạnh.
+    anchor: { selector: 'summary[aria-label^="Phong cách"]', up: 1 },
   },
 ];
 
@@ -84,6 +85,8 @@ export interface Box {
 export const CARD_W = 320;
 const GAP = 12;
 const MARGIN = 16;
+/** Chừa dải dưới cho thanh công cụ dưới (dock `bottom-6`, cao ~56px) khi thẻ rơi về góc/giữa dưới. */
+const DOCK_CLEAR = 96;
 
 /** Neo gần cả khung nhìn (canvas) thì không khoét lỗ. */
 export const isHuge = (a: Box, vw: number, vh: number): boolean => a.width > vw * 0.7 && a.height > vh * 0.6;
@@ -98,11 +101,12 @@ export function placeCard(
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, Math.max(lo, hi)));
   const x = (v: number) => clamp(v, MARGIN, vw - CARD_W - MARGIN);
   const y = (v: number) => clamp(v, MARGIN, vh - cardH - MARGIN);
+  const low = Math.max(MARGIN, vh - cardH - DOCK_CLEAR);
   if (!anchor || anchor.width <= 0 || anchor.height <= 0) {
-    return { left: x((vw - CARD_W) / 2), top: Math.max(MARGIN, vh - cardH - 24) };
+    return { left: x((vw - CARD_W) / 2), top: low };
   }
-  // Góc phải dưới, như thẻ hướng dẫn của màn 2D.
-  if (isHuge(anchor, vw, vh)) return { left: x(vw), top: y(vh) };
+  // Góc phải dưới (như thẻ hướng dẫn của màn 2D), đặt trên dock để không che thanh công cụ.
+  if (isHuge(anchor, vw, vh)) return { left: x(vw), top: low };
   const cx = anchor.left + anchor.width / 2 - CARD_W / 2;
   const cy = anchor.top + anchor.height / 2 - cardH / 2;
   const below = anchor.top + anchor.height + GAP;
@@ -113,7 +117,7 @@ export function placeCard(
   if (above >= MARGIN) return { left: x(cx), top: above };
   if (right + CARD_W <= vw - MARGIN) return { left: right, top: y(cy) };
   if (left >= MARGIN) return { left, top: y(cy) };
-  return { left: x(vw), top: y(vh) };
+  return { left: x(vw), top: low };
 }
 
 export function resolveAnchor(step: TourStep, root: ParentNode = document): HTMLElement | null {

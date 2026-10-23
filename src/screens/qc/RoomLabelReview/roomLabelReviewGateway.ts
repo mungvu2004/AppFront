@@ -694,6 +694,7 @@ export function gapsOf(
   return detected.graph.weldedGaps.map((gap) => ({
     wallIds: [...gap.wallIds].sort(),
     /* Mã hiển thị như SCR-16 (#W-001), không phải id thô (BUG-626). */
+    /* Nhãn "Tường liên quan:" đứng trước nên chip chỉ cần mã (Impeccable A3 + BUG-626). */
     wallCodeLabels: [...gap.wallIds].sort().map((wallId) => `#${wallCodes.get(wallId) ?? wallId}`),
     gapText: formatLength(gap.gapMm),
     positionMm: gap.position,

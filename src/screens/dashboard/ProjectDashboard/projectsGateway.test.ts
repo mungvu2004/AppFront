@@ -5,7 +5,7 @@ import { ProjectSummarySchema, type ProjectSummary } from '@/api/schemas/project
 import { createApiClient } from '@/api/client';
 import type { HttpClient, HttpError } from '@/lib/http';
 
-import { createProjectsGateway, planVariantOf } from './projectsGateway';
+import { createProjectsGateway, planSketchOf, planVariantOf } from './projectsGateway';
 
 const ID_A = `prj_${'0'.repeat(25)}A`;
 const ID_B = `prj_${'0'.repeat(25)}B`;
@@ -199,5 +199,18 @@ describe('planVariantOf', () => {
   it('is deterministic and stays within the four outlines', () => {
     expect(planVariantOf(ID_A)).toBe(planVariantOf(ID_A));
     for (const id of [ID_A, ID_B, USER_ID, 'x']) expect([0, 1, 2, 3]).toContain(planVariantOf(id));
+  });
+});
+
+describe('planSketchOf', () => {
+  it('is deterministic, differs per project, grows with the wall count, stays in the 160x96 box', () => {
+    expect(planSketchOf(ID_A, 40, 120)).toEqual(planSketchOf(ID_A, 40, 120));
+    expect(planSketchOf(ID_A, 40, 120)).not.toEqual(planSketchOf(ID_B, 40, 120));
+    expect(planSketchOf(ID_A, 60, 120).length).toBeGreaterThan(planSketchOf(ID_A, 8, 120).length);
+    expect(planSketchOf(ID_A, 0, 120)).toEqual([]);
+    for (const [x1, y1, x2, y2] of planSketchOf(ID_B, 81, 900)) {
+      for (const x of [x1, x2]) expect(x >= 0 && x <= 160).toBe(true);
+      for (const y of [y1, y2]) expect(y >= 0 && y <= 96).toBe(true);
+    }
   });
 });

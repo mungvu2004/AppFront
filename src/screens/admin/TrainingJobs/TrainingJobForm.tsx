@@ -18,7 +18,7 @@ import type { FormModel, Option, TrainableFamilyId, TrainingJobsActions } from '
 
 const TEXT = {
   title: 'Tạo lượt huấn luyện',
-  family: 'Họ model',
+  family: 'Loại mô hình',
   dataset: 'Bộ dữ liệu',
   version: 'Phiên bản',
   baseModel: 'Model nền',
@@ -26,10 +26,10 @@ const TEXT = {
   close: 'Đóng',
   submit: 'Bắt đầu huấn luyện',
   choose: 'Chọn…',
-  noDataset: 'Họ model này chưa có bộ dữ liệu nào. Dựng bộ dữ liệu bằng công cụ dòng lệnh trước (xem tab Bộ dữ liệu).',
+  noDataset: 'Loại mô hình này chưa có bộ dữ liệu nào. Dựng bộ dữ liệu bằng công cụ dòng lệnh trước (xem tab Bộ dữ liệu).',
   noVersion: 'Chọn bộ dữ liệu trước; chỉ phiên bản đã dựng xong mới dùng để huấn luyện được.',
   baseModelHint: 'Mạng có sẵn để bắt đầu học; bản lớn hơn thường chính xác hơn nhưng học lâu hơn.',
-  epochsHint: 'Số lần model học lại toàn bộ bộ dữ liệu; nhiều vòng hơn thì lâu hơn.',
+  epochsHint: 'Một vòng là một lần máy đọc hết bộ dữ liệu để học; nhiều vòng hơn thì chính xác hơn nhưng lâu hơn.',
 } as const;
 
 interface PickerProps {

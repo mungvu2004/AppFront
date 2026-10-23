@@ -82,30 +82,58 @@ interface FormatCardProps {
 
 function FormatCard({ format, isLoading, blockedCaption, onSelect }: FormatCardProps) {
   const Icon = FORMAT_ICONS[format.id];
+  const isBlocked = blockedCaption !== null;
 
   return (
     <button
       type="button"
       role="radio"
       aria-checked={format.isSelected}
+      aria-disabled={isBlocked || undefined}
       // Roving tabindex: chỉ thẻ đang chọn nằm trong thứ tự Tab, mũi tên đi giữa các thẻ.
       tabIndex={format.isSelected ? 0 : -1}
       onClick={() => {
-        onSelect(format.id);
+        // Định dạng chưa hỗ trợ không chọn được: chọn rồi mới biết không xuất được là bẫy.
+        if (!isBlocked) {
+          onSelect(format.id);
+        }
       }}
       className={cn(
         'flex items-start gap-3 rounded-lg border p-4 text-left transition-colors duration-standard',
         FOCUS_RING,
         format.isSelected
           ? 'border-accent bg-bg-selected'
-          : 'border-border-default bg-bg-surface hover:bg-bg-hover',
+          : isBlocked
+            ? 'cursor-not-allowed border-border-default bg-bg-sunken'
+            : 'border-border-default bg-bg-surface hover:bg-bg-hover',
       )}
     >
-      <Icon aria-hidden="true" size={20} strokeWidth={1.75} className="mt-0.5 shrink-0 text-text-secondary" />
+      {/* Dấu radio rõ: vòng tròn rỗng / chấm đặc, không chỉ dựa vào viền màu. */}
+      <span
+        aria-hidden="true"
+        className={cn(
+          'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2',
+          format.isSelected ? 'border-accent' : 'border-border-control',
+          isBlocked && 'opacity-50',
+        )}
+      >
+        {format.isSelected && <span className="h-2 w-2 rounded-full bg-accent" />}
+      </span>
+      <Icon
+        aria-hidden="true"
+        size={20}
+        strokeWidth={1.75}
+        className={cn('mt-0.5 shrink-0', isBlocked ? 'text-text-muted' : 'text-text-secondary')}
+      />
 
-      <div className="flex min-w-0 flex-col gap-1">
+      <div className={cn('flex min-w-0 flex-col gap-1', isBlocked && 'opacity-70')}>
         <div className="flex flex-wrap items-baseline gap-2">
           <span className="text-sm font-medium text-text-primary">{format.extensionLabel}</span>
+          {isBlocked && (
+            <span className="rounded-sm bg-bg-app px-1.5 text-caption font-medium text-text-secondary">
+              Chưa hỗ trợ
+            </span>
+          )}
           {format.pageCountLabel !== null &&
             (isLoading ? (
               <SkeletonText className="h-3 w-14" />
@@ -158,10 +186,18 @@ export function ExportPanelFormats({
         event.preventDefault();
         const radios = event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]');
         const current = Array.from(radios).findIndex((radio) => radio === document.activeElement);
-        const next = (Math.max(current, 0) + step + formats.length) % formats.length;
+        // Mũi tên bỏ qua thẻ chưa hỗ trợ, như radio bị khoá.
+        let next = Math.max(current, 0);
+        for (let hop = 0; hop < formats.length; hop += 1) {
+          next = (next + step + formats.length) % formats.length;
+          const candidate = formats[next];
+          if (candidate !== undefined && blockedCaptionOf(candidate.id, capabilities) === null) {
+            break;
+          }
+        }
         const target = formats[next];
 
-        if (target !== undefined) {
+        if (target !== undefined && blockedCaptionOf(target.id, capabilities) === null) {
           onSelectFormat(target.id);
           radios[next]?.focus();
         }

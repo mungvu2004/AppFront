@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { Breadcrumb } from '@/components/shell/Breadcrumb';
@@ -25,6 +26,8 @@ export interface QcFloorNavProps {
   readonly layer: QcLayerKey;
   readonly floors?: readonly QcFloorNavFloor[] | undefined;
   readonly projectName?: string | undefined;
+  /** Dòng tiến độ cạnh tiêu đề, đã định dạng ("12/40 đã duyệt"). Vắng thì ẩn gọn. */
+  readonly progress?: string | null | undefined;
 }
 
 const PROJECT_FALLBACK = 'Dự án';
@@ -43,7 +46,7 @@ function rememberedProjectName(projectId: string): string | undefined {
   }
 }
 
-export function QcFloorNav({ projectId, floorId, layer, floors = [], projectName }: QcFloorNavProps) {
+export function QcFloorNav({ projectId, floorId, layer, floors = [], projectName, progress }: QcFloorNavProps) {
   const navigate = useNavigate();
   const current = QC_LAYERS.find((item) => item.key === layer) ?? QC_LAYERS[0]!;
   const floorLabel = floors.find((floor) => floor.id === floorId)?.label ?? FLOOR_FALLBACK;
@@ -73,26 +76,36 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], projectName
         ]}
       />
       <nav aria-label={LAYER_BAR_LABEL} className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto border-l border-border-default pl-3">
-        {QC_LAYERS.map((item) => {
+        {QC_LAYERS.map((item, index) => {
           const isCurrent = item.key === layer;
+          /* Tỷ lệ, Chồng lớp: công cụ của tầng, không phải lớp duyệt — nhóm riêng sau vạch ngăn. */
+          const startsToolGroup = item.group === 'tool' && QC_LAYERS[index - 1]?.group !== 'tool';
           return (
-            <Link
-              aria-current={isCurrent ? 'page' : undefined}
-              className={cn(
-                'shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 text-[13px] transition-colors duration-120',
-                'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-                isCurrent
-                  ? 'bg-accent-wash font-medium text-accent'
-                  : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
-              )}
-              key={item.key}
-              to={item.route(projectId, floorId)}
-            >
-              {item.label}
-            </Link>
+            <Fragment key={item.key}>
+              {startsToolGroup && <span aria-hidden="true" className="mx-1 h-4 w-px shrink-0 bg-border-default" />}
+              <Link
+                aria-current={isCurrent ? 'page' : undefined}
+                className={cn(
+                  'shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 text-[13px] transition-colors duration-120',
+                  'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+                  isCurrent
+                    ? 'bg-accent-wash font-medium text-accent'
+                    : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
+                )}
+                to={item.route(projectId, floorId)}
+              >
+                {item.label}
+              </Link>
+            </Fragment>
           );
         })}
       </nav>
+      {/* Tiến độ của lớp (Impeccable A3), cuối cùng hàng 32 px — không thêm hàng (V-16). */}
+      {progress == null ? null : (
+        <p className="shrink-0 whitespace-nowrap text-[12px] tabular-nums text-text-secondary" data-testid="qc-progress">
+          {progress}
+        </p>
+      )}
     </div>
   );
 }

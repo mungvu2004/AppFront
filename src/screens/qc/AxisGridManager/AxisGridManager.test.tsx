@@ -174,7 +174,7 @@ describe('[NGHIEM-2] câu chặn 100 mm nêu đích danh hai trục', () => {
       <AxisGridManager {...scenarioArgsFor('partial')} spacingMessage={message} />,
     );
 
-    const alert = screen.getByRole('status');
+    const alert = screen.getAllByRole('status').find((node) => node.getAttribute('aria-label') !== 'Thanh trạng thái')!;
 
     /* Bản nghiệm thu đòi IN nguyên văn câu chặn, không chỉ khẳng định nó. */
     console.log(`câu chặn khoảng cách: ${alert.textContent ?? ''}`);
@@ -196,7 +196,7 @@ describe('[NGHIEM-3] độ lệch gốc toạ độ hiện bằng chữ, đủ h
   it('bốn nhãn lệch — hai pixel, hai milimét — cùng có mặt trên màn', () => {
     renderState('success');
 
-    const labels = ['Lệch X (pixel)', 'Lệch Y (pixel)', 'Lệch X (mm)', 'Lệch Y (mm)'];
+    const labels = ['Lệch ngang trên ảnh', 'Lệch dọc trên ảnh', 'Lệch X (mm)', 'Lệch Y (mm)'];
     const found = labels.filter((label) => screen.queryAllByText(label).length > 0);
 
     console.log(`nhãn độ lệch có mặt: ${String(found.length)}/4 — ${found.join(' · ')}`);
@@ -235,7 +235,7 @@ describe('[BUG-330][BUG-336] tầng chưa có trục: không số 0 giả, khôn
   it.each(['empty', 'error'] as const)('trạng thái "%s": hai panel nói chưa có trục, nút căn bị khoá, canvas có lời giải thích', (state) => {
     renderState(state);
 
-    expect(screen.queryByText('Lệch X (pixel)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Lệch ngang trên ảnh')).not.toBeInTheDocument();
     expect(screen.queryByText('Đã duyệt')).not.toBeInTheDocument();
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
     expect(screen.getByRole('button', { name: 'Căn chỉnh tự động' })).toBeDisabled();
@@ -261,7 +261,7 @@ describe('[BUG-330][BUG-336] tầng chưa có trục: không số 0 giả, khôn
     );
 
     expect(await screen.findByText('Chưa có trục nào nên chưa tính được gốc toạ độ.')).toBeInTheDocument();
-    expect(screen.queryByText('Lệch X (pixel)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Lệch ngang trên ảnh')).not.toBeInTheDocument();
     expect(screen.queryByText('Đã duyệt')).not.toBeInTheDocument();
     expect(screen.getByText('Chưa có trục nào để hiện trên bản vẽ.')).toBeInTheDocument();
   });
@@ -269,7 +269,7 @@ describe('[BUG-330][BUG-336] tầng chưa có trục: không số 0 giả, khôn
   it('trạng thái có trục vẫn hiện bốn độ lệch và nút căn bấm được', () => {
     renderState('success');
 
-    expect(screen.getByText('Lệch X (pixel)')).toBeInTheDocument();
+    expect(screen.getByText('Lệch ngang trên ảnh')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Căn chỉnh tự động' })).toBeEnabled();
   });
 
@@ -680,7 +680,7 @@ describe('QA-04c SCR-19 trên màn', () => {
   it('[BUG-613] bốn độ lệch gốc toạ độ: nhãn và giá trị cùng một dòng chữ (FieldRow isText)', () => {
     renderState('success');
 
-    const label = screen.getByText('Lệch X (pixel)');
+    const label = screen.getByText('Lệch ngang trên ảnh');
 
     expect(label.parentElement?.className ?? '').not.toContain('pt-[9px]');
   });
@@ -745,5 +745,25 @@ describe('[RV1] panel trục', () => {
 
     expect(screen.getByRole('alert').textContent).toMatch(/Đã có trục A/u);
     expect(screen.getByRole('button', { name: 'Thêm' })).toBeTruthy();
+  });
+
+  it('[A3-P0] thùng rác mở hộp xác nhận nêu tên trục; Để nguyên không xoá, nút nguy hiểm mới xoá', async () => {
+    const onAxisRemove = vi.fn();
+    const groups = renderPanel({ onAxisRemove });
+    const row = groups.flatMap((group) => group.rows)[0];
+    const label = row?.label ?? '';
+
+    fireEvent.click(screen.getByRole('button', { name: `Xoá trục ${label}` }));
+    expect(onAxisRemove).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog').textContent).toMatch(/lưu ngay lên máy chủ/u);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Để nguyên' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(onAxisRemove).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: `Xoá trục ${label}` }));
+    const confirmButtons = screen.getAllByRole('button', { name: `Xoá trục ${label}` });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1] as HTMLElement);
+    expect(onAxisRemove).toHaveBeenCalledWith(row?.id);
   });
 });

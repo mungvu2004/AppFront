@@ -332,7 +332,7 @@ test.describe('bàn phím và định dạng', () => {
       page.getByRole('radio', { name: 'Bảng' }),
       page.getByRole('button', { name: /^Tất cả/u }),
       page.getByRole('button', { name: /^Đang xử lý/u }),
-      page.getByRole('button', { name: /^Cần QC/u }),
+      page.getByRole('button', { name: /^Cần duyệt/u }),
       page.getByRole('button', { name: /^Hoàn thành/u }),
       card(page, SUNRISE),
       page.getByRole('button', { name: `Tuỳ chọn cho ${SUNRISE}`, exact: true }),

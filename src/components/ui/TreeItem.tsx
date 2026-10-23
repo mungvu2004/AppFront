@@ -1,8 +1,7 @@
 import React from 'react';
-import { twMerge } from 'tailwind-merge';
+import { cn, twMerge } from '../../lib/utils';
 import { clsx } from 'clsx';
 import { ChevronRight, Eye, EyeOff } from 'lucide-react';
-import { cn } from '../../lib/utils';
 
 // ─── TreeItem ─────────────────────────────────────────────────────────────────
 // Outer element is div[role="treeitem"] because <button> cannot contain

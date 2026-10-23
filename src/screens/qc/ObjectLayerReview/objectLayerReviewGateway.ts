@@ -1270,7 +1270,10 @@ export const OBJECT_LAYER_TEXT = {
   lowConfidenceDone: 'Đã duyệt hết mục dưới ngưỡng.',
   showAll: 'Hiện tất cả',
   deleteAction: 'Xoá đối tượng',
-  shortcutDelete: 'Xoá đối tượng đang chọn',
+  shortcutDelete: 'Xoá đối tượng đang chọn (hỏi lại trước khi xoá)',
+  shortcutArrowNext: 'Chọn dòng kế tiếp trong danh sách',
+  shortcutArrowPrevious: 'Chọn dòng phía trên trong danh sách',
+  shortcutApproveNext: 'Duyệt đối tượng đang chọn rồi sang đối tượng chưa duyệt kế tiếp',
   unattachedBadge: 'Chưa gắn vào tường nào',
   attachNearestAction: 'Gắn vào tường gần nhất',
   errorMessage: 'Không tải được lớp đối tượng của tầng.',
@@ -1295,19 +1298,20 @@ export const OBJECT_LAYER_TEXT = {
 /**
  * Màu dữ liệu của ba lớp con — ĐÚNG BA, không hơn (CẤM TUYỆT ĐỐI).
  *
- * Ba bậc liền nhau của `SEQUENTIAL_RAMP` (`src/lib/coloring/scales.ts`), tức ba
- * token thật của hệ thiết kế chứ không phải ba mã màu thô (A1). Cố ý KHÔNG
- * dùng ba màu trạng thái của A4 (`state-verified` / `state-attention` /
- * `state-violation`): chúng nói về TRẠNG THÁI của một đối tượng, và mượn chúng
- * làm màu lớp sẽ để hai câu chuyện khác nhau dùng chung một màu.
+ * Cùng bảng với `OBJECT_LAYER_COLOR_TOKENS` của `objectLayerSymbols.ts` (Impeccable
+ * A3, 10-2026): ba bậc trung tính đậm/vừa/nhạt `--text-primary`/`--text-secondary`/
+ * `--text-muted` — đủ tương phản trên nền bản vẽ (xám ấm cũ quá nhạt), và KHÔNG
+ * mượn `--accent` (A2: chỉ cho thứ bấm được) hay màu trạng thái (A4: đúng ba).
+ * Bộ đếm và canvas đọc cùng một màu cho mỗi lớp; trạng thái của đối tượng nói
+ * bằng viền/độ mờ và chip ở danh sách, không bằng màu lớp.
  *
  * `createLookupScale` đòi bảng đủ mọi khoá của `ObjectLayerId`, nên thêm một
  * lớp con thứ tư sẽ hỏng bản dựng ngay tại đây — đúng chỗ phải hỏng.
  */
 export const OBJECT_LAYER_TOKENS: Readonly<Record<ObjectLayerId, ColorTokenName>> = {
-  door: '--wall-330',
-  window: '--wall-220',
-  furniture: '--wall-110',
+  door: '--text-primary',
+  window: '--text-secondary',
+  furniture: '--text-muted',
 };
 
 /** Màu dữ liệu của một lớp con. */
@@ -2261,6 +2265,11 @@ export function toObjectPlacement(
     boundsPx: boundsPxOf(centreMm, object.widthMm, depthMm, scale),
     codeLabel: `#${object.id}`,
     isOrphan: isUnattachedOpening(object),
+    /* Cùng nguồn với hàng danh sách: canvas viền chú ý / làm mờ đã duyệt thống nhất với panel. */
+    statusCode: objectStatusCode(
+      { confidence: object.confidence, source: object.reviewed ? 'human' : 'ai', reviewed: object.reviewed },
+      isUnattachedOpening(object),
+    ),
   };
 }
 

@@ -30,7 +30,7 @@ const hqRenovation: ProjectCardModel = {
   statsLabel: '4 tầng · 1.860,00 m²',
   updatedLabel: '2 giờ trước',
   statusVariant: 'attention',
-  statusLabel: 'Cần QC',
+  statusLabel: 'Cần duyệt',
   progressLabel: '30/48 tường đã duyệt',
   progressRatio: 30 / 48,
   progressPercentLabel: '63%',

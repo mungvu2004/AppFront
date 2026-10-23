@@ -41,6 +41,7 @@ import {
   FLOOR_COLUMN_LABELS,
   FLOOR_QC_SCORE_HINT,
   FLOOR_REVIEW_SCREENS,
+  FLOOR_TOOL_SCREENS,
   type FloorManagerScreenState,
   type FloorManagerViewProps,
   type FloorRowVm,
@@ -85,7 +86,8 @@ const DUPLICATE_SELECTED_LABEL = 'Nhân bản tầng';
 const RETRY_LABEL = 'Thử lại';
 /* Chú thích theo đúng công tắc, không một câu cố định nói "tự động" khi công tắc tắt (BUG-289). */
 const CAPTION_AUTO = 'Cao độ tính tự động từ chiều cao các tầng dưới.';
-const CAPTION_MANUAL = 'Cao độ đang nhập tay; ô ghi "Ghi đè" khác cao độ tính từ các tầng dưới.';
+const CAPTION_MANUAL = 'Cao độ đang nhập tay.';
+const CAPTION_OVERRIDE = 'Ô ghi "Ghi đè" khác cao độ tính từ các tầng dưới.';
 const AUTO_ELEVATION_LABEL = 'Tự động tính cao độ';
 
 const EDITABLE_HEADERS = (Object.keys(FLOOR_COLUMN_LABELS) as (keyof typeof FLOOR_COLUMN_LABELS)[]).map(
@@ -181,6 +183,12 @@ export function FloorTable({
             label: row.isHiddenIn3d ? 'Hiện trong mô hình 3D' : 'Ẩn khỏi mô hình 3D',
             action: () => onToggleHiddenIn3d(row.id),
           },
+        ],
+      },
+      // Việc phá huỷ tách thành nhóm riêng, có vạch ngăn với "Ẩn khỏi mô hình 3D". Xoá có hoàn tác (Z), không hỏi lại.
+      {
+        id: 'row-danger',
+        items: [
           {
             id: 'remove',
             label: 'Xoá tầng',
@@ -200,6 +208,14 @@ export function FloorTable({
       {
         id: 'review-screens',
         items: FLOOR_REVIEW_SCREENS.map((screen) => ({
+          id: screen.id,
+          label: screen.label,
+          action: () => onOpenFloorScreen(row.id, screen.id),
+        })),
+      },
+      {
+        id: 'floor-tools',
+        items: FLOOR_TOOL_SCREENS.map((screen) => ({
           id: screen.id,
           label: screen.label,
           action: () => onOpenFloorScreen(row.id, screen.id),
@@ -336,7 +352,9 @@ export function FloorTable({
 
       {state !== 'loading' && (
         <>
-          <p className="shrink-0 text-[12px] text-text-muted">{isAutoElevation ? CAPTION_AUTO : CAPTION_MANUAL}</p>
+          <p className="shrink-0 text-[12px] text-text-muted">{isAutoElevation ? CAPTION_AUTO : CAPTION_MANUAL}
+            {!isAutoElevation && rows.some((row) => row.isElevationOverridden) && ` ${CAPTION_OVERRIDE}`}
+          </p>
           {canEdit && (
             <Toggle
               checked={isAutoElevation}

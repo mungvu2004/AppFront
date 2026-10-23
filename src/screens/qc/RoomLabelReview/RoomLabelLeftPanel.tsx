@@ -50,7 +50,7 @@ const GAPS_EMPTY_MESSAGE = 'Chưa thấy vòng tường hở nào ở tầng nà
 /** BUG-407: không có khe giữa hai đầu tường, nhưng có phòng chưa kín — nói rõ phạm vi, không phủ nhận nhắc của phòng. */
 const gapsEmptyWithUnclosedRooms = (count: number): string =>
   `Các đầu tường đều đã nối, nhưng ${count} phòng chưa kín vì có cạnh không có tường chạy dọc — chọn phòng để xem nhắc công năng.`;
-const GAP_WALLS_LABEL = 'Tường liên quan';
+const GAP_WALLS_LABEL = 'Tường liên quan:';
 const CHECK_GAPS_LABEL = 'Kiểm tra lại vòng hở';
 const NAVIGATE_WALLS_LABEL = 'Xem tại lớp tường';
 const NORMALIZE_LABEL = 'Chuẩn hoá tên';
@@ -108,23 +108,30 @@ export function RoomLabelGapsSection({
 }: RoomLabelGapsSectionProps) {
   return (
     <section aria-label={GAPS_TITLE} className="flex flex-col gap-2">
-      <h3 className="flex items-center gap-2 text-heading text-text-primary">
+      <h2 className="flex items-center gap-2 text-heading text-text-primary">
         {GAPS_TITLE}
         {gaps.length === 0 ? null : (
           <span className="text-[13px] font-normal tabular-nums text-state-attention-text">{gaps.length}</span>
         )}
-      </h3>
+      </h2>
       {gaps.length === 0 ? (
         <p className="text-[13px] text-text-secondary">
           {unclosedRoomCount > 0 ? gapsEmptyWithUnclosedRooms(unclosedRoomCount) : GAPS_EMPTY_MESSAGE}
         </p>
       ) : (
-        <ul className="flex flex-col divide-y divide-border-default border-y border-border-default">
-          {/* QA-1: hai tường có thể hở ở HAI chỗ (mỗi đầu một khe) — khoá kèm vị trí khe. */}
-          {gaps.map((gap) => (
-            <RoomLabelGapRow gap={gap} key={`${gap.wallIds.join('-')}@${gap.positionMm.x},${gap.positionMm.y}`} onNavigateToWalls={onNavigateToWalls} />
-          ))}
-        </ul>
+        /* Impeccable A3: gom các thẻ vòng hở thành một dòng thu gọn, bấm mới mở — danh sách phòng không bị đẩy xuống. */
+        <details className="group">
+          <summary className="flex min-h-11 fine:min-h-6 cursor-pointer list-none items-center gap-1 rounded-sm text-[13px] font-medium text-text-primary outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden">
+            {`${gaps.length} vòng tường hở`}
+            <span aria-hidden="true" className="transition-transform duration-120 group-open:rotate-90">▸</span>
+          </summary>
+          <ul className="mt-2 flex flex-col divide-y divide-border-default border-y border-border-default">
+            {/* QA-1: hai tường có thể hở ở HAI chỗ (mỗi đầu một khe) — khoá kèm vị trí khe. */}
+            {gaps.map((gap) => (
+              <RoomLabelGapRow gap={gap} key={`${gap.wallIds.join('-')}@${gap.positionMm.x},${gap.positionMm.y}`} onNavigateToWalls={onNavigateToWalls} />
+            ))}
+          </ul>
+        </details>
       )}
       {/* Hành động phụ của khối vòng hở là nút chữ, không thêm một nút rộng khác kiểu (BUG-615). */}
       {onCheckWallGaps === undefined ? null : (
@@ -146,15 +153,8 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice }: RoomLabelLe
 
   return (
     <div className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:w-full">
-      <div className="flex shrink-0 flex-col gap-3 px-5 pb-3 pt-4">
-        <p className="text-[13px] text-text-primary">
-          <span>{SUMMARY_PREFIX} </span>
-          <span className="font-mono font-semibold tabular-nums">{summary.totalAreaText}</span>
-          <span className="text-text-secondary"> · </span>
-          <span className="font-mono tabular-nums">{summary.roomCount}</span>
-          <span className="text-text-secondary"> {SUMMARY_ROOM_SUFFIX}</span>
-        </p>
-
+      {/* Danh sách phòng lên đầu cột (Impeccable A3): bộ lọc ngay trên danh sách, tóm tắt + vòng hở + chuẩn hoá xuống chân. */}
+      <div className="flex shrink-0 flex-col gap-3 px-5 pb-2 pt-4">
         <button
           aria-pressed={showOnlyUnnamed}
           className={cn(
@@ -171,6 +171,32 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice }: RoomLabelLe
           <span>{UNNAMED_FILTER_LABEL}</span>
           <span className="font-mono tabular-nums">{summary.unnamedCount}</span>
         </button>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+        {emptyListNotice !== null ? (
+          <p className="px-3 py-4 text-[13px] text-text-secondary" role="status">
+            {emptyListNotice}
+          </p>
+        ) : (
+          <RoomLabelList
+            isViewerRole={list.isViewerRole}
+            onHover={list.onHover}
+            onSelect={list.onSelect}
+            rooms={list.rooms}
+            selectedRoomId={list.selectedRoomId}
+          />
+        )}
+      </div>
+
+      <div className="flex max-h-[45%] shrink-0 flex-col gap-3 overflow-y-auto border-t border-border-default px-5 pb-4 pt-3">
+        <p className="text-[13px] text-text-primary">
+          <span>{SUMMARY_PREFIX} </span>
+          <span className="font-mono font-semibold tabular-nums">{summary.totalAreaText}</span>
+          <span className="text-text-secondary"> · </span>
+          <span className="font-mono tabular-nums">{summary.roomCount}</span>
+          <span className="text-text-secondary"> {SUMMARY_ROOM_SUFFIX}</span>
+        </p>
 
         <RoomLabelGapsSection
           gaps={gaps}
@@ -198,22 +224,6 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice }: RoomLabelLe
               </p>
             )}
           </>
-        )}
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-        {emptyListNotice !== null ? (
-          <p className="px-3 py-4 text-[13px] text-text-secondary" role="status">
-            {emptyListNotice}
-          </p>
-        ) : (
-          <RoomLabelList
-            isViewerRole={list.isViewerRole}
-            onHover={list.onHover}
-            onSelect={list.onSelect}
-            rooms={list.rooms}
-            selectedRoomId={list.selectedRoomId}
-          />
         )}
       </div>
     </div>

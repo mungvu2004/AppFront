@@ -79,7 +79,7 @@ const NO_MATCH_TITLE = 'Không tìm thấy dự án phù hợp'; // ProjectDashb
 const CLEAR_FILTERS = 'Xoá bộ lọc';
 const VIEW_MODE = 'Kiểu xem';
 const STATUS_FILTER_NARROW = 'Lọc theo trạng thái'; // ProjectDashboard.tsx, state 'collapsed' (< 1024 px)
-const STATUS_QC = 'Cần QC'; // PROJECT_STATUS_FILTER_OPTIONS, useProjectDashboard.ts:76-81
+const STATUS_QC = 'Cần duyệt'; // PROJECT_STATUS_FILTER_OPTIONS, useProjectDashboard.ts:76-81
 const SORT_DEFAULT = 'Cập nhật gần đây'; // PROJECT_SORT_OPTIONS, useProjectDashboard.ts:83-88
 const SORT_BY_NAME = 'Tên A–Z';
 const CARD_MENU = 'Tuỳ chọn'; // components/canvas/ContextMenu.tsx:102
@@ -504,13 +504,13 @@ test.describe('U02 UI verify — SCR-05 dashboard (with an 80-character project 
     });
   });
 
-  test('U02 · SCR-05 status filter "Cần QC" (sidebar ≥1024, segmented control <1024)', async ({ browser }) => {
+  test('U02 · SCR-05 status filter "Cần duyệt" (sidebar ≥1024, segmented control <1024)', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U02_dash_status_filter', async (p) => {
       await openWithLongProject(p);
       if (isNarrow(p)) {
         const radio = p
           .getByRole('radiogroup', { name: STATUS_FILTER_NARROW, exact: true })
-          .getByRole('radio', { name: STATUS_QC, exact: true });
+          .getByRole('radio', { name: new RegExp(`^${STATUS_QC}`, 'u') }); // narrow tabs read "Cần duyệt (n)"
         await radio.click();
         await expect(radio).toHaveAttribute('aria-checked', 'true');
       } else {

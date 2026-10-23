@@ -58,7 +58,7 @@ const LAYER_TREE_LABEL = 'Cây lớp';
 const TOTAL_PREFIX = 'Tổng ';
 const TOTAL_SUFFIX = ' đối tượng';
 const FILTER_ROW_LABEL = 'Lọc theo loại';
-const EMPTY_SUBTYPE_PREFIX = 'Tầng này không có ';
+const EMPTY_SUBTYPE_TITLE = 'Không có đối tượng loại này';
 const SHOW_LAYER_PREFIX = 'Hiện lớp ';
 const HIDE_LAYER_PREFIX = 'Ẩn lớp ';
 
@@ -178,7 +178,7 @@ export function ObjectLayerLeftPanel({
             aria-hidden="true"
             className={cn(
               'font-semibold tabular-nums',
-              isComplete && 'text-state-verified',
+              isComplete && 'text-state-verified-text',
             )}
           >
             {reviewedText}
@@ -193,7 +193,7 @@ export function ObjectLayerLeftPanel({
         <div aria-hidden="true" className="h-1 w-full overflow-hidden rounded-full bg-bg-sunken">
           <div
             className={cn(
-              'h-full rounded-full transition-[width] duration-340',
+              'h-full rounded-full transition-[width,background-color] duration-340',
               isComplete ? 'bg-state-verified' : 'bg-accent',
             )}
             style={{ width: `${progressFraction * 100}%` }}
@@ -246,6 +246,7 @@ export function ObjectLayerLeftPanel({
 
           return (
             <button
+              aria-disabled={isEmpty || undefined}
               aria-pressed={isOn}
               className={cn(
                 'rounded-full border px-2.5 py-1 text-[12px]',
@@ -254,15 +255,21 @@ export function ObjectLayerLeftPanel({
                 isOn
                   ? 'border-accent bg-accent-wash text-accent'
                   : 'border-border-default text-text-secondary hover:bg-bg-hover hover:text-text-primary',
-                'disabled:cursor-not-allowed disabled:text-text-muted disabled:hover:bg-transparent disabled:hover:text-text-muted',
+                /* Khoá thật (Impeccable A3): viền đứt, mờ, không đổi màu khi rê, kèm số (0) — vẫn focus được để đọc lý do. */
+                isEmpty &&
+                  'cursor-not-allowed border-dashed opacity-50 hover:bg-transparent hover:text-text-secondary',
               )}
-              disabled={isEmpty}
               key={subtype}
-              onClick={() => onToggleSubtypeFilter(subtype)}
-              title={isEmpty ? `${EMPTY_SUBTYPE_PREFIX}${OBJECT_SUBTYPE_LABELS[subtype].toLowerCase()}.` : undefined}
+              onClick={() => {
+                if (!isEmpty) {
+                  onToggleSubtypeFilter(subtype);
+                }
+              }}
+              title={isEmpty ? EMPTY_SUBTYPE_TITLE : undefined}
               type="button"
             >
               {OBJECT_SUBTYPE_LABELS[subtype]}
+              {isEmpty && <span className="font-mono tabular-nums"> (0)</span>}
             </button>
           );
         })}

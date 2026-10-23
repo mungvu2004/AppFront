@@ -4,10 +4,11 @@
  * `src/components`: nó chỉ có hai nơi dùng và cả hai là màn của nhóm này.
  */
 
-import { CheckCircle2, PanelsTopLeft, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, type LucideIcon } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 
+import { AuthFrame } from './AuthFrame';
 import type { RecoveryNotice } from './recoveryShared';
 
 export interface RecoveryShellProps {
@@ -19,29 +20,11 @@ export interface RecoveryShellProps {
 }
 
 export function RecoveryShell({ title, subtitle, state, children }: RecoveryShellProps) {
+  // Cùng một khung với /login (A1 P2 #5): giấy, mực, logo và cột minh hoạ như nhau ở cả bốn màn.
   return (
-    // Neo từ trên, không căn giữa dọc: căn giữa thì dải lỗi chèn vào đẩy cả khối, ô nhập trôi khỏi con trỏ (BUG-008).
-    // Lề 24 px dưới 640, 48 px từ đó: ở 375 lề 48 px chỉ để lại cột ~279 px (BUG-052).
-    // Lề trên 12vh (không 15vh): chỗ giữ câu lỗi cao thêm 12 px mỗi ô (BUG-073), ba ô của lời mời cộng dải lỗi
-    // dưới nút vẫn vừa 1024×768.
-    <main
-      className="flex min-h-screen w-full items-start justify-center bg-bg-app px-6 pb-6 pt-[12vh] sm:px-12 sm:pb-12"
-      data-auth-state={state}
-    >
-      <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
-        {/* Cùng dấu hiệu với /login để hai màn mở từ thư không trông như trang lạ (G1-08, G1-11). */}
-        <PanelsTopLeft aria-hidden="true" className="h-8 w-8 text-accent" strokeWidth={1.5} />
-        <div className="flex flex-col gap-1">
-          <h1 className="text-[30px] font-semibold leading-10 text-text-primary">{title}</h1>
-          {subtitle !== undefined && (
-            // `text-balance`, không `pretty` như ô nhập và dải báo: phụ đề chỉ một–hai dòng ngắn, chia đều hai
-            // dòng đọc dễ hơn lấp đầy dòng đầu; vẫn không để "bạn." một mình ở dòng cuối (BUG-052).
-            <p className="text-balance text-[15px] leading-6 text-text-secondary">{subtitle}</p>
-          )}
-        </div>
-        {children}
-      </div>
-    </main>
+    <AuthFrame state={state} title={title} subtitle={subtitle}>
+      {children}
+    </AuthFrame>
   );
 }
 
@@ -52,13 +35,15 @@ export function RecoveryShell({ title, subtitle, state, children }: RecoveryShel
  * cũ làm câu dính nhãn ô dưới (BUG-073). Câu lỗi dài nhất của `/login` vừa hai dòng ở cột từ ~258 px
  * (màn 320 trừ lề 24 px mỗi bên). Chỗ này đã là khoảng cách giữa hai ô — đừng thêm `gap`.
  */
-export const FIELD_ERROR_SLOT = 'min-h-[132px] sm:min-h-[124px]';
+// A1 P2 #5: chỗ chờ cố định 132 px làm biểu mẫu thưa. Giờ chỉ giữ chỗ cho MỘT dòng lỗi; câu dài hơn mới đẩy
+// phần dưới — chấp nhận, vì nó chỉ xảy ra sau khi người dùng đã rời ô (blur), không lúc đang gõ.
+export const FIELD_ERROR_SLOT = 'min-h-[96px] fine:min-h-[88px]';
 
 /**
  * Như {@link FIELD_ERROR_SLOT} nhưng cho câu lỗi BA dòng: thêm một dòng 18. Dành cho ô họ tên của
  * lời mời — `fullNameInvalid` (109 ký tự) xuống ba dòng ở cột 375 px (QA-01c nợ #10).
  */
-export const FIELD_ERROR_SLOT_THREE_LINES = 'min-h-[150px] sm:min-h-[142px]';
+export const FIELD_ERROR_SLOT_THREE_LINES = 'min-h-[96px] fine:min-h-[88px]';
 
 export function RecoveryNoticeStrip({ notice }: { readonly notice: RecoveryNotice | null }) {
   if (notice === null) {
@@ -68,6 +53,7 @@ export function RecoveryNoticeStrip({ notice }: { readonly notice: RecoveryNotic
   return (
     <InlineAlert
       level={notice.tone}
+      titleAs="h2"
       {...(notice.title !== undefined ? { title: notice.title } : {})}
       message={notice.message}
     />
@@ -124,8 +110,9 @@ export function RecoveryLink({ label, href, onClick }: RecoveryLinkProps) {
         event.preventDefault();
         onClick();
       }}
-      // Vùng chạm 44 px dưới 640, 24 px từ `sm` — giữ cỡ chữ (BUG-041); ở ngõ cụt đây là lối đi duy nhất.
-      className="inline-flex min-h-11 items-center self-start py-1 text-[14px] sm:min-h-6 leading-5 text-accent-hover transition-colors duration-120 hover:text-accent-active rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
+      // Vùng chạm 44 px trên màn cảm ứng, 24 px với chuột — giữ cỡ chữ (BUG-041); ở ngõ cụt đây là lối đi duy nhất.
+      // `self-start` ở cả bốn màn: link phụ cùng căn trái với biểu mẫu (A1 heuristic 4).
+      className="inline-flex min-h-11 items-center self-start py-1 text-[14px] fine:min-h-6 leading-5 text-accent-hover transition-colors duration-120 hover:text-accent-active rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
     >
       {label}
     </a>
@@ -134,17 +121,16 @@ export function RecoveryLink({ label, href, onClick }: RecoveryLinkProps) {
 
 export interface RecoveryDeadEndProps {
   readonly message: string;
-  readonly linkLabel: string;
-  readonly href: string;
-  readonly onLinkClick: () => void;
+  /** Không có thì chỉ còn câu báo: màn tự đặt lối đi (đặt lại mật khẩu: "Gửi lại liên kết" + về /login). */
+  readonly link?: RecoveryLinkProps | undefined;
 }
 
-/** Mã không dùng được nữa: không còn biểu mẫu, chỉ một câu và đường về `/login`. */
-export function RecoveryDeadEnd({ message, linkLabel, href, onLinkClick }: RecoveryDeadEndProps) {
+/** Mã không dùng được nữa: không còn biểu mẫu, chỉ một câu và đường đi tiếp. */
+export function RecoveryDeadEnd({ message, link }: RecoveryDeadEndProps) {
   return (
     <div className="flex flex-col gap-4">
       <InlineAlert level="attention" message={message} />
-      <RecoveryLink label={linkLabel} href={href} onClick={onLinkClick} />
+      {link !== undefined && <RecoveryLink {...link} />}
     </div>
   );
 }

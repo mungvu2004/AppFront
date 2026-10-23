@@ -102,7 +102,7 @@ test('SCR-28 · FL-M-28-01 · Report and sheet on the pipeline project (read-onl
 
   await test.step('[28-A-001] open /rules: heading and trail', async () => {
     await openRules(page, projectId);
-    await expect(page.getByRole('heading', { name: RR.heading, level: 2 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: RR.heading, level: 1 })).toBeVisible();
     const trail = page.getByRole('navigation', { name: RR.trail, exact: true });
     await expect(trail.getByText('Dự án', { exact: true })).toBeVisible();
     await expect(trail.locator('[aria-current="page"]')).toHaveText(RR.heading);
@@ -128,7 +128,7 @@ test('SCR-28 · FL-M-28-01 · Report and sheet on the pipeline project (read-onl
   await test.step('[28-A-007] first group header opens its table', async () => {
     const section = await expandGroup(page);
     opened = section;
-    await expect.soft(section.getByRole('heading', { level: 3 }).getByRole('button')).toHaveAttribute('aria-expanded', 'true');
+    await expect.soft(section.getByRole('heading', { level: 2 }).getByRole('button')).toHaveAttribute('aria-expanded', 'true');
     for (const name of RR.columns) await expect.soft(section.getByRole('columnheader', { name, exact: true })).toBeVisible();
     await expect.soft(section.getByRole('button', { name: RR.view, exact: true }).first()).toBeVisible();
     await shot('E06r', '28-A-007', 'group_open');
@@ -149,7 +149,7 @@ test('SCR-28 · FL-M-28-01 · Report and sheet on the pipeline project (read-onl
   await test.step('[28V-A-022] close button hides the sheet, report stays', async () => {
     await page.getByRole('button', { name: RR.sheetClose, exact: true }).click();
     await expect.soft(sheetOf(page)).toHaveCount(0);
-    await expect.soft(page.getByRole('heading', { name: RR.heading, level: 2 })).toBeVisible();
+    await expect.soft(page.getByRole('heading', { name: RR.heading, level: 1 })).toBeVisible();
     await shot('E06r', '28V-A-022', 'sheet_closed');
   });
 
@@ -166,7 +166,7 @@ test('SCR-28 · FL-M-28-01 · Report and sheet on the pipeline project (read-onl
   await test.step('[28-A-019] Back returns to the report', async () => {
     await page.goBack();
     await softly.poll(() => pathOf(page)).toBe(ROUTES.project.rules(projectId));
-    await expect.soft(page.getByRole('heading', { name: RR.heading, level: 2 })).toBeVisible();
+    await expect.soft(page.getByRole('heading', { name: RR.heading, level: 1 })).toBeVisible();
     await shot('E06r', '28-A-019', 'back_to_report');
   });
 
@@ -193,7 +193,7 @@ test('SCR-29 · FL-M-29-01 · admin mở cài đặt trên dự án pipeline, t�
 
   await test.step('[29-A-001] open /rules/settings: heading and enabled count', async () => {
     await navigateThenWaitForApi(page, () => page.goto(ROUTES.project.ruleSettings(projectId), { waitUntil: 'commit' }), 'GET', ruleConfigRe(projectId), [200]);
-    await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 2 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 1 })).toBeVisible();
     // 25 rules in the registry, 2 stood down by the function group -> 23 on (domain/rules/defaults.ts)
     await expect.soft(page.getByText('23/25 luật đang bật', { exact: true })).toBeVisible();
     await shot('E06s', '29-A-001', 'settings_open');
@@ -214,7 +214,7 @@ test('SCR-29 · FL-M-29-01 · admin mở cài đặt trên dự án pipeline, t�
     const report = await context.newPage();
     try {
       await report.goto(ROUTES.project.rules(projectId));
-      await expect(report.getByRole('heading', { name: RR.heading, level: 2 })).toBeVisible();
+      await expect(report.getByRole('heading', { name: RR.heading, level: 1 })).toBeVisible();
       await expect(levelFilter(report)).toBeVisible();
       const headers = await groupExpanders(report).allInnerTexts();
       for (const impact of impacts.filter((item) => item.count > 0)) {

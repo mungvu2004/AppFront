@@ -793,7 +793,8 @@ export function useInputQualityGate(
         valueText: valueTexts[id],
         level,
         statusCode: STATUS_CODE_BY_LEVEL[level],
-        recommendation: level === 'good' ? null : recommendations[id],
+        // Có thẻ "Phát hiện" cho chỉ số này thì lời khuyên đã nằm ở thẻ — không nói lần hai.
+        recommendation: level === 'good' || regionIdByMetric.has(id) ? null : recommendations[id],
         regionId: regionIdByMetric.get(id) ?? null,
       };
     });

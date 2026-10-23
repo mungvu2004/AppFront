@@ -532,12 +532,18 @@ describe('Lỗi N33 → đúng ô', () => {
     await waitFor(() => {
       expect(result.current.model.state).toBe('empty');
     });
+    // Bộ dữ liệu được đọc sớm (nút "Tạo lượt huấn luyện" cần biết có bộ nào): chờ lượt đọc ấy xong rồi mới tính.
+    await waitFor(() => {
+      expect(client.listDatasets).toHaveBeenCalled();
+    });
     const gets = client.listDatasets.mock.calls.length;
 
     onlineManager.setOnline(false);
     try {
       act(() => {
         result.current.actions.onSelectTab('datasets');
+        // Họ mặc định đã đọc sớm (có sẵn trong bộ nhớ đệm): chọn họ chưa đọc lần nào để thử đúng ca "mở tab lúc mất mạng".
+        result.current.actions.onSelectDatasetFamily('openingAndFurnitureDetection');
       });
       await waitFor(() => {
         expect(result.current.model.state).toBe('error');
@@ -549,6 +555,14 @@ describe('Lỗi N33 → đúng ô', () => {
     }
     await waitFor(() => {
       expect(client.listDatasets.mock.calls.length).toBeGreaterThan(gets);
+    });
+  });
+
+  it('nút tạo bị tắt kèm lý do khi loại mô hình chưa có bộ dữ liệu, không cần mở biểu mẫu', async () => {
+    const client = makeClient({ listJobs: async () => page<TrainingJob>([]), listDatasets: async () => page<Dataset>([]) });
+    const { result } = renderTrainingHook(client);
+    await waitFor(() => {
+      expect(result.current.model.createDisabledReason).toBe('Loại mô hình này chưa có bộ dữ liệu để huấn luyện.');
     });
   });
 
@@ -591,8 +605,8 @@ describe('Lỗi N33 → đúng ô', () => {
       expect(within(dialog).getByRole('button', { name: 'Bắt đầu huấn luyện' })).toBeEnabled();
     });
 
-    await user.click(within(dialog).getByRole('radio', { name: 'mitB1' }));
-    expect(within(dialog).getByRole('radio', { name: 'mitB1' })).toBeChecked();
+    await user.click(within(dialog).getByRole('radio', { name: 'Lớn, chính xác hơn (mitB1)' }));
+    expect(within(dialog).getByRole('radio', { name: 'Lớn, chính xác hơn (mitB1)' })).toBeChecked();
     await user.click(within(dialog).getByRole('radio', { name: 'Nhận diện cửa và đồ đạc' }));
     expect(client.createJob).not.toHaveBeenCalled();
     await waitFor(() => {

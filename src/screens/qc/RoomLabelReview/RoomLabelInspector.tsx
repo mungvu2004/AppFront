@@ -108,7 +108,7 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
   return (
     <div className="flex h-full w-[344px] shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-xl:h-auto max-xl:w-full">
       <div className="flex h-14 shrink-0 items-center px-5">
-        <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
+        <h2 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h2>
       </div>
 
       {room === null ? (

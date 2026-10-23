@@ -28,7 +28,7 @@ export function ObjectLayerCanvasLegend({
   return (
     <div
       aria-label={OBJECT_CANVAS_TEXT.legendLabel}
-      className="absolute bottom-4 left-4 flex flex-wrap items-center gap-3 whitespace-nowrap rounded-lg bg-bg-surface-90 px-3 py-2 shadow-panel"
+      className="absolute bottom-16 left-4 z-10 flex flex-col gap-1 whitespace-nowrap rounded-xl bg-bg-surface p-3 shadow-float"
     >
       {OBJECT_LAYER_IDS.filter((layer) => layerVisibility[layer]).map((layer) => (
         <span className="flex items-center gap-1.5 text-[12px] text-text-secondary" key={layer}>

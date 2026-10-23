@@ -214,7 +214,7 @@ export const ROOM_LABEL_CANVAS_FRAME_CLASSES =
 export { QC_BACKGROUND_OPACITY as BACKGROUND_IMAGE_OPACITY } from '../shared/qcBackground';
 
 /** Viền mặc định của một đa giác phòng chưa chọn — chỉ để phân tách hai phòng cùng một băng màu. */
-export const ROOM_STROKE_TOKEN = '--border-default';
+export const ROOM_STROKE_TOKEN = '--border-control';
 export const ROOM_STROKE_WIDTH_PX = 1;
 
 /** Viền của phòng đang chọn — đúng "2px màu --accent" của đặc tả (A2: màu nhấn chỉ cho thứ tương tác được). */

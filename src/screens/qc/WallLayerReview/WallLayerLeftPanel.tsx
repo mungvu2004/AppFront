@@ -282,7 +282,7 @@ export function WallLayerLeftPanel({
               aria-hidden="true"
               className={cn(
                 'font-semibold tabular-nums',
-                isComplete && 'text-state-verified',
+                isComplete && 'text-state-verified-text',
               )}
             >
               {reviewedText}
@@ -298,7 +298,7 @@ export function WallLayerLeftPanel({
           <div aria-hidden="true" className="h-1 w-full overflow-hidden rounded-full bg-bg-sunken">
             <div
               className={cn(
-                'h-full rounded-full transition-[width] duration-340',
+                'h-full rounded-full transition-[width,background-color] duration-340',
                 isComplete ? 'bg-state-verified' : 'bg-accent',
               )}
               style={{ width: `${progressFraction * 100}%` }}
@@ -329,6 +329,7 @@ export function WallLayerLeftPanel({
         <div className="flex flex-col gap-1">
           {/* Nhãn 13 px ngang cây lớp, và một tiêu đề cho nhóm lọc (BUG-614). */}
           <Checkbox
+            aria-label={CENTRELINES_LABEL}
             checked={extras.showCentrelines}
             label={CENTRELINES_LABEL}
             onChange={extras.onToggleCentrelines}
@@ -337,6 +338,7 @@ export function WallLayerLeftPanel({
           <p className="pt-2 text-[12px] text-text-muted">{FILTER_GROUP_TITLE}</p>
           {FILTER_KEYS.map((key) => (
             <Checkbox
+              aria-label={FILTER_LABELS[key]}
               checked={filters[key]}
               key={key}
               label={FILTER_LABELS[key]}
@@ -351,7 +353,7 @@ export function WallLayerLeftPanel({
       {panel.rows.length > 0 && panel.state !== 'loading' && (
         <div
           aria-hidden="true"
-          className="flex shrink-0 items-center gap-1 border-b border-border-default px-5 pb-1 text-[11px] text-text-muted"
+          className="flex shrink-0 items-center gap-1 border-b border-border-default px-5 pb-1 text-caption text-text-muted"
         >
           <span className="w-12 shrink-0">{COLUMN_CODE}</span>
           <span className="w-[76px] shrink-0">{COLUMN_THICKNESS}</span>

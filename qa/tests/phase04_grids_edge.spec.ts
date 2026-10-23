@@ -75,7 +75,7 @@ const TOASTS = 'Thông báo'; // Toast.tsx viewport
 const UNDO = 'Hoàn tác';
 const ORIGIN_NOT_PERSISTED =
   'Đã ghim gốc toạ độ cho phiên làm việc này. Hệ thống chưa có chỗ lưu lựa chọn đó, nên nó mất sau khi tải lại trang.'; // UAG:AXIS_GRID_TEXT.originNotPersisted
-const OFFSET_LABELS = ['Lệch X (pixel)', 'Lệch Y (pixel)', 'Lệch X (mm)', 'Lệch Y (mm)'] as const; // AOP:50-53
+const OFFSET_LABELS = ['Lệch ngang trên ảnh', 'Lệch dọc trên ảnh', 'Lệch X (mm)', 'Lệch Y (mm)'] as const; // AOP:50-53
 const SPACING_NOTICE = /^Không thể đặt .+ và .+ cách nhau dưới 100 mm — khoảng cách tối thiểu này giữ cho bước dò hai trục khác nhau phân biệt được\. Khoảng cách hiện tại: [\d.]+ mm\.$/u; // AGG:675-681
 const SPACING_ANNOUNCE = /^Không thể đặt .+ và .+ cách dưới 100 mm$/u; // AGG:684-689
 
@@ -109,6 +109,8 @@ const region = (page: Page): Locator => page.getByRole('region', { name: SCREEN,
 const group = (page: Page, title: string): Locator => page.getByRole('listbox', { name: title, exact: true });
 const rows = (page: Page, title: string): Locator => group(page, title).getByRole('option');
 const addButton = (page: Page, which: 'h' | 'v'): Locator => page.getByRole('button', { name: which === 'h' ? ADD_H : ADD_V, exact: true });
+/** Deleting an axis now asks first (ConfirmDeleteDialog): the danger button repeats the trash label. */
+const confirmRemove = async (page: Page): Promise<void> => page.getByRole('dialog').getByRole('button', { name: /^Xoá trục /u }).click();
 const removeButton = (page: Page, label: string): Locator => page.getByRole('button', { name: `Xoá trục ${label}`, exact: true });
 const hideButton = (page: Page, label: string): Locator => page.getByRole('button', { name: new RegExp(`^(Ẩn|Hiện) trục ${escapeRegExp(label)}$`, 'u') });
 const rowOf = (page: Page, title: string, label: string): Locator => group(page, title).getByRole('option', { name: new RegExp(`^Trục ${escapeRegExp(label)}, `, 'u') });
@@ -346,6 +348,7 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         // Expected by the spec: a preview row either deletes or has no delete button. Today the click does nothing.
         if ((await button.count()) > 0) {
           await button.click();
+          await confirmRemove(page);
           expect.soft(await total(), 'a visible "Xoá trục A" must delete the row').toBe(3);
           expect.soft((await announced()).length, 'and say so').toBeGreaterThan(before);
           // The first edit stores the whole preview (useAxisGridManager.ts:477,660-690); one Mod+Z returns the preview, the rest of the flow starts from it.
@@ -396,6 +399,7 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         // same-type toasts within 5 s merge (notificationBus.ts:8,150-170): start from none so the text is this delete's alone
         await expect(toasts(page).getByRole('button', { name: UNDO, exact: true })).toHaveCount(0, { timeout: 15_000 });
         await removeButton(page, 'A').click();
+        await confirmRemove(page);
         await expect.soft(rows(page, H_GROUP)).toHaveCount(1); // UAG:682-697,777-807
         const toast = toasts(page).getByText('Đã xoá trục A.', { exact: true });
         await expect.soft(toast).toBeVisible();
@@ -424,6 +428,7 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         await expect(toasts(page).getByRole('button', { name: UNDO, exact: true })).toHaveCount(0);
         const rowsBefore = await total();
         await removeButton(page, 'A').click(); // a fresh toast: its window starts now
+        await confirmRemove(page);
         // Diagnostic for the next run (rr5: no toast although the row went): what IS on screen right after the click.
         await expect.soft(page.getByText('Đã xoá trục A.', { exact: true }).first(), 'the text is somewhere (toast or announcer)').toBeVisible({ timeout: 3000 });
         await attachJson('E04_19-A-011_after-click.json', {
@@ -454,6 +459,7 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         const stored = left;
         for (let step = 0; step < stored; step += 1) {
           await page.getByRole('button', { name: /^Xoá trục /u }).first().click();
+          await confirmRemove(page);
           left -= 1;
           if (left > 0) await expect(page.getByRole('option')).toHaveCount(left);
         }
@@ -648,8 +654,8 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         await expect.poll(async () => Math.abs(viNumber((await offsets())[2] as string))).toBeGreaterThan(0);
         const [xPx, yPx, xMm, yMm] = (await offsets()).map(viNumber) as [number, number, number, number];
         await attachJson('E04_19-C-007_offsets.json', { xPx, yPx, xMm, yMm, floorScaleMmPerPx: 25 });
-        expect.soft(Math.abs(xPx), 'Lệch X (pixel) = mm / floor scale').toBeCloseTo(Math.abs(xMm) / 25, 1); // AGG:1122; axisGridFixture.ts:331
-        expect.soft(Math.abs(yPx), 'Lệch Y (pixel) = mm / floor scale').toBeCloseTo(Math.abs(yMm) / 25, 1);
+        expect.soft(Math.abs(xPx), 'Lệch ngang trên ảnh = mm / floor scale').toBeCloseTo(Math.abs(xMm) / 25, 1); // AGG:1122; axisGridFixture.ts:331
+        expect.soft(Math.abs(yPx), 'Lệch dọc trên ảnh = mm / floor scale').toBeCloseTo(Math.abs(yMm) / 25, 1);
         await ev(page, '19-C-007', 'offsets-px');
       });
     });

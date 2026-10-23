@@ -214,7 +214,7 @@ export async function openMocked(browser: Browser, viewport = { width: 1440, hei
 
 /** goto the registry (commit only; the caller waits for what it needs). */
 export const gotoRegistry = (page: Page): Promise<unknown> => page.goto(ROUTES.adminTrainingModels, { waitUntil: 'commit' });
-export const picker = (page: Page) => page.getByRole('radiogroup', { name: 'Họ model', exact: true });
+export const picker = (page: Page) => page.getByRole('radiogroup', { name: 'Loại mô hình', exact: true });
 export const activeCard = (page: Page) => page.locator('section[aria-label="Đang dùng"]'); // ModelRegistry.tsx:90
 export const rowOf = (page: Page, label: string) => page.locator('tr').filter({ has: page.getByRole('button', { name: label, exact: true }) });
 export const dialog = (page: Page) => page.getByRole('dialog');

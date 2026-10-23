@@ -182,6 +182,7 @@ const UNREVIEWED_OK_LABEL = 'Không còn đối tượng nào do AI phát hiện
 
 /** Số vi phạm THẬT của bộ mẫu "toà nhà có lỗi" — không viết tay (R-70). */
 export const SAMPLE_VIOLATION_COUNT = VIOLATED_BUILDING_SCENARIO.violations.length;
+const SAMPLE_RULE_COUNT = new Set(VIOLATED_BUILDING_SCENARIO.violations.map((violation) => violation.ruleCode)).size;
 
 /** Ba dòng, không dòng nào chặn nút "Xuất" — đúng dòng còn vi phạm. */
 export function buildPreflightWithViolations(): readonly PreflightRow[] {
@@ -189,7 +190,7 @@ export function buildPreflightWithViolations(): readonly PreflightRow[] {
     { id: 'approval', label: APPROVAL_OK_LABEL, tone: 'ok', fixHref: null },
     {
       id: 'violations',
-      label: `Còn ${wholeNumber(SAMPLE_VIOLATION_COUNT)} phát hiện từ kiểm tra luật chưa xử lý.`,
+      label: `Còn ${wholeNumber(SAMPLE_VIOLATION_COUNT)} phát hiện ở ${wholeNumber(SAMPLE_RULE_COUNT)} luật chưa xử lý.`,
       tone: 'attention',
       fixHref: ROUTES.project.rules(SAMPLE_PROJECT_ID),
     },

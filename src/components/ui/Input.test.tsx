@@ -55,7 +55,7 @@ describe('Input', () => {
   it('is a 44px touch target on phones and keeps 38px from sm up', () => {
     const { container } = render(<Input />);
     const wrapper = container.querySelector('.focus-within\\:ring-2');
-    expect(wrapper).toHaveClass('h-[46px]', 'sm:h-[38px]');
+    expect(wrapper).toHaveClass('h-[46px]', 'fine:h-[38px]');
   });
 
   // BUG-045: the edge has to reach 3:1 against the field and the page.

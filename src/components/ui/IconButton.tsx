@@ -17,7 +17,7 @@ export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEl
 
 const sizeMap = {
   // 40 + the 2 px `p-0.5` ring on each side = 44 px under 640 px (BUG-077, BUG-086); 36 px from 640 px up.
-  sm: 'h-10 w-10 sm:h-8 sm:w-8',
+  sm: 'h-10 w-10 fine:h-8 fine:w-8',
   md: 'h-9 w-9',
   lg: 'h-10 w-10',
 };
@@ -39,7 +39,9 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         className={cn(
           'group relative box-content flex -m-0.5 p-0.5 items-center justify-center outline-hidden',
           sizeMap[size],
-          'rounded-xl bg-clip-content transition-all duration-120',
+          // Vùng chạm 44px trên cảm ứng mà không đổi cỡ nhìn thấy.
+          "coarse:after:absolute coarse:after:left-1/2 coarse:after:top-1/2 coarse:after:h-11 coarse:after:w-11 coarse:after:-translate-x-1/2 coarse:after:-translate-y-1/2 coarse:after:content-['']",
+          'rounded-xl bg-clip-content transition-[background-color,color,transform] duration-120',
           'motion-reduce:transition-colors motion-reduce:active:scale-100',
           'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface focus-visible:animate-focus-ring',
           !isActive && !isDisabled && 'hover:bg-bg-hover active:scale-[0.985]',

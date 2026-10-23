@@ -39,6 +39,18 @@ describe('AppHeader', () => {
     expect(screen.getByRole('link', { name: 'Về quản lý tầng' })).toHaveAttribute('href', ROUTES.project.floors('p1'));
   });
 
+  it('lớp cuối (Độ dày tường) vẫn nhãn "Tiếp: …", trỏ sang bước kế', () => {
+    renderHeader({ project: { id: 'p1', name: null, stepIndex: 2, floorId: 'f1', layerIndex: 5 } });
+    expect(screen.getByRole('link', { name: /Tiếp: Mô hình 3D/ })).toHaveAttribute('href', ROUTES.project.viewer('p1'));
+  });
+
+  it('thanh bước nói trạng thái từng bước; màn Tải bản vẽ dùng nút đi tiếp kiểu phụ', () => {
+    renderHeader({ project: { id: 'p1', name: null, stepIndex: 0, stepStates: ['done', 'attention', 'todo', 'todo', 'todo', 'todo'] } });
+    expect(screen.getByRole('link', { name: 'Bước 1: Tải bản vẽ, đã xong' })).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByRole('link', { name: 'Bước 2: Xử lý, còn việc' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Tiếp: Xử lý/ }).className).not.toContain('bg-accent ');
+  });
+
   it('màn xác nhận CAD: không mời "Về duyệt lớp tường" (RV5 #10)', () => {
     const props: AppHeaderProps = { accountLabel: 'Hà', showAdmin: false, onSignOut: vi.fn(), project: { id: 'p1', name: null, stepIndex: 2, floorId: 'f1', layerIndex: -1 } };
     render(
@@ -79,6 +91,15 @@ describe('AppHeader', () => {
     const projectNav = screen.getByRole('navigation', { name: 'Màn khác của dự án' });
     expect(projectNav.closest('details')).not.toBeNull();
     expect(within(projectNav).getByRole('link', { name: 'Lịch sử phiên bản' })).toHaveAttribute('href', ROUTES.project.versions('p1'));
+  });
+
+  it('Esc đóng menu dự án đang mở (A12)', () => {
+    renderHeader({ project: { id: 'p1', name: 'Nhà A', stepIndex: 2 } });
+    const details = screen.getByRole('navigation', { name: 'Màn khác của dự án' }).closest('details');
+    if (details === null) throw new Error('thiếu <details>');
+    details.open = true;
+    fireEvent.keyDown(details, { key: 'Escape' });
+    expect(details.open).toBe(false);
   });
 
   it('quản trị viên thấy liên kết "Quản trị"', () => {

@@ -142,6 +142,8 @@ export interface DatasetsTabModel {
 export interface TrainingJobsViewModel {
   readonly state: SevenState;
   readonly activeTab: TrainingTabId;
+  /** Lý do nút "Tạo lượt huấn luyện" bị tắt (loại mô hình chưa có bộ dữ liệu); null thì nút dùng được. */
+  readonly createDisabledReason: string | null;
   readonly familyFilters: readonly Option[];
   readonly familyFilter: string;
   readonly statusFilters: readonly Option[];

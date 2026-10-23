@@ -1,5 +1,5 @@
 import React from 'react';
-import { twMerge } from 'tailwind-merge';
+import { twMerge } from '../../lib/utils';
 import { motion, AnimatePresence } from '../motion';
 import { Check, X, Layers, SlidersHorizontal } from 'lucide-react';
 import { Button } from './Button';

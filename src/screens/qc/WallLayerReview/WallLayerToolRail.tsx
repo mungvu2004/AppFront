@@ -80,6 +80,8 @@ const MERGE_HINT = 'Chọn hai đoạn thẳng hàng để nối (Ctrl hoặc Sh
 const RAIL_ARIA_LABEL = 'Công cụ lớp tường';
 const COLLAPSE_LABEL = 'Thu gọn hai panel';
 const EXPAND_LABEL = 'Mở lại hai panel';
+const COLLAPSE_SHORT_LABEL = 'Thu gọn';
+const EXPAND_SHORT_LABEL = 'Mở panel';
 
 /**
  * Vị trí của "nối đoạn" trên ray — TRƯỚC "đo" (BC-02).
@@ -105,7 +107,7 @@ export function WallLayerToolRail({
   const CollapseIcon = isCollapsed ? PanelLeftOpen : PanelLeftClose;
 
   const mergeButton = readOnly ? null : (
-    <div className="relative flex w-full justify-center" key="merge">
+    <div className="relative flex w-full flex-col items-center gap-0.5" key="merge">
       <Tooltip label={canMerge ? MERGE_LABEL : MERGE_HINT}>
         {/* Nút tắt không nhận rê chuột — bọc span để lý do khoá vẫn hiện (G4a-12). */}
         <span className="inline-flex">
@@ -119,6 +121,7 @@ export function WallLayerToolRail({
           />
         </span>
       </Tooltip>
+      <span aria-hidden="true" className="whitespace-nowrap text-caption leading-none text-text-muted">{MERGE_LABEL}</span>
     </div>
   );
 
@@ -126,7 +129,7 @@ export function WallLayerToolRail({
     <div
       aria-label={RAIL_ARIA_LABEL}
       aria-orientation="vertical"
-      className="flex w-14 shrink-0 flex-col items-center gap-1 py-2"
+      className="flex w-16 shrink-0 flex-col items-center gap-1 py-2"
       role="toolbar"
     >
       {TOOLS.map((tool) => {
@@ -138,7 +141,7 @@ export function WallLayerToolRail({
         const Icon = tool.icon;
 
         const button = (
-          <div className="relative flex w-full justify-center" key={tool.id}>
+          <div className="relative flex w-full flex-col items-center gap-0.5" key={tool.id}>
             {isActive && (
               <span
                 aria-hidden="true"
@@ -156,6 +159,8 @@ export function WallLayerToolRail({
                 tooltip={false}
               />
             </Tooltip>
+            {/* Nhãn chữ dưới icon (A3): rail không còn icon trần, cùng kiểu rail Cửa và nội thất. */}
+            <span aria-hidden="true" className="whitespace-nowrap text-caption leading-none text-text-muted">{tool.label}</span>
           </div>
         );
 
@@ -171,7 +176,7 @@ export function WallLayerToolRail({
         );
       })}
 
-      <div className="relative mt-1 flex w-full justify-center">
+      <div className="relative mt-1 flex w-full flex-col items-center gap-0.5">
         <Tooltip label={collapseLabel}>
           <IconButton
             aria-label={collapseLabel}
@@ -181,6 +186,7 @@ export function WallLayerToolRail({
             tooltip={false}
           />
         </Tooltip>
+        <span aria-hidden="true" className="whitespace-nowrap text-caption leading-none text-text-muted">{isCollapsed ? EXPAND_SHORT_LABEL : COLLAPSE_SHORT_LABEL}</span>
       </div>
     </div>
   );

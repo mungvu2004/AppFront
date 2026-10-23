@@ -57,7 +57,8 @@ import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScre
 import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
-import { QcScreenFrame } from '../shared/QcScreenFrame';
+import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
+import { qcProgressLabel } from '../shared/qcLayers';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { WallLayerInspector } from './WallLayerInspector';
 import {
@@ -143,7 +144,14 @@ export function WallLayerReview({
    */
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
-      {floorNav != null && <QcFloorNav {...floorNav} floors={leftPanel.floors} layer="walls" />}
+      {floorNav != null && (
+        <QcFloorNav
+          {...floorNav}
+          floors={leftPanel.floors}
+          layer="walls"
+          progress={qcProgressLabel(panel.reviewCounter.reviewed, panel.reviewCounter.total)}
+        />
+      )}
       {saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={saveBlock} />
@@ -154,34 +162,25 @@ export function WallLayerReview({
           <ProvisionalScaleBanner notice={provisionalScaleNotice} />
         </div>
       )}
-      {/*
-        Dưới 1280px bốn cột (ray + 280 + bản vẽ + 344) không vừa: hàng đầu là ray + bản vẽ, hai panel
-        xuống dòng (\`order-*\` trên gốc của chúng), cả vùng cuộn dọc — không cuộn ngang (BUG-317).
-      */}
-      <div className="relative flex min-h-0 flex-1 flex-wrap content-start gap-2 overflow-y-auto p-2 xl:flex-nowrap xl:overflow-visible">
-        {/* Thu gọn: ray vẫn đứng trong luồng cạnh bản vẽ, không nổi đè lên nét vẽ (G4a-20). */}
-        <WallLayerToolRail {...toolRail} readOnly={panel.isViewerRole} />
+      {/* Khe chung (A3): rail | panel trái | bản vẽ | chi tiết; 1024-1279 chi tiết phủ mép phải bản vẽ. */}
+      <QcWorkspace
+        canvas={canvasSlot ?? <CanvasFallback canvas={canvas} />}
+        canvasLabel={canvas.backgroundImageAlt || CANVAS_REGION_FALLBACK_ALT}
+        inspector={isCollapsed ? null : <WallLayerInspector panel={panel} />}
+        left={
+          isCollapsed ? null : (
+            <WallLayerLeftPanel
+              extras={leftPanel}
+              onNavigateFloor={onNavigateFloor}
+              onNavigateLayer={onNavigateLayer}
+              panel={panel}
+            />
+          )
+        }
+        rail={<WallLayerToolRail {...toolRail} readOnly={panel.isViewerRole} />}
+      />
 
-        {!isCollapsed && (
-          <WallLayerLeftPanel
-            extras={leftPanel}
-            onNavigateFloor={onNavigateFloor}
-            onNavigateLayer={onNavigateLayer}
-            panel={panel}
-          />
-        )}
-
-        <section
-          aria-label={canvas.backgroundImageAlt || CANVAS_REGION_FALLBACK_ALT}
-          className="h-[60vh] min-h-80 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken xl:h-auto xl:min-h-0"
-        >
-          {canvasSlot ?? <CanvasFallback canvas={canvas} />}
-        </section>
-
-        {!isCollapsed && <WallLayerInspector panel={panel} />}
-      </div>
-
-      <WallLayerStatusBar {...statusBar} />
+      <WallLayerStatusBar {...statusBar} onUndo={panel.isViewerRole ? undefined : panel.onUndo} />
     </QcScreenFrame>
   );
 }

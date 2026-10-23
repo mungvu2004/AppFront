@@ -13,6 +13,8 @@ import path from 'node:path';
 import { EDITOR_VI } from './pascal-vi/editor.mjs';
 import { EDITOR_EXTRA_VI } from './pascal-vi/editor-extra.mjs';
 import { EDITOR_EXTRA2_VI } from './pascal-vi/editor-extra2.mjs';
+import { EDITOR_EXTRA3_VI } from './pascal-vi/editor-extra3.mjs';
+import { EDITOR_EXTRA4_VI } from './pascal-vi/editor-extra4.mjs';
 import { MATERIALS_UI_VI } from './pascal-vi/materials-ui.mjs';
 import { BEHAVIOUR_PATCHES } from './pascal-vi/behaviour.mjs';
 
@@ -22,7 +24,7 @@ function mergeTables(...tables) {
   return out;
 }
 
-export const PASCAL_VI_TABLES = mergeTables(EDITOR_VI, EDITOR_EXTRA_VI, EDITOR_EXTRA2_VI, MATERIALS_UI_VI, BEHAVIOUR_PATCHES);
+export const PASCAL_VI_TABLES = mergeTables(EDITOR_VI, EDITOR_EXTRA_VI, EDITOR_EXTRA2_VI, EDITOR_EXTRA3_VI, EDITOR_EXTRA4_VI, MATERIALS_UI_VI, BEHAVIOUR_PATCHES);
 
 /** Thay mọi cặp `[gốc, Việt]` trong `code`; thiếu chuỗi gốc thì ném lỗi. */
 export function applyTable(code, file, pairs) {

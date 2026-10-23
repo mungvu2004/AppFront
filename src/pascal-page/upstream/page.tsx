@@ -18,7 +18,7 @@
  *   9. UI review fix R3d: registry strings in Vietnamese (G5-03, ./lib/pascal-vi.ts), saved
  *      preferences (BUG-648, ./lib/editor-preferences.ts), sidebar auto-collapses under 1100 px
  *      (G5-11), Preview header shows the project name (G5-15), one-time orbit hint (G5-08).
- *   10. FE3D WP8: `viewerBanner` = ../scaleBanner.tsx (drawing-scale warning) - see ./README.md.
+ *   10. FE3D WP8: ../scaleBanner.tsx (drawing-scale warning) heads the CanvasHelp column - see ./README.md.
  */
 
 import { emitter, nodeRegistry, onRegistryChange, useScene } from '@pascal-app/core'
@@ -408,11 +408,10 @@ export default function Home({ projectId, onLoad, onSave, backCard, projectName 
           </>
         }
         viewerToolbarRight={<CommunityViewerToolbarRight vrButton={null} vrLabel="Enter VR" />}
-        viewerBanner={<ScaleBanner projectId={projectId} />}
       />
       <PreviewHeader projectName={projectName} />
       <OrbitHint />
-      <CanvasHelp />
+      <CanvasHelp banner={<ScaleBanner projectId={projectId} />} />
       <MeasureClearButton />
     </div>
   )

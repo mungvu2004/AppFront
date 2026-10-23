@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { QC_BODY_CLASS, QcCanvasFrame, QcScreenFrame } from './QcScreenFrame';
+import { QC_BODY_CLASS, QC_NO_CHANGES_LABEL, QC_UNDO_LABEL, QcCanvasFrame, QcScreenFrame, QcStatusBar } from './QcScreenFrame';
 
 describe('QcScreenFrame (BUG-324, BUG-329, BUG-413)', () => {
   it('[BUG-324] gốc màn cao bằng khung nhìn (h-screen), không phụ thuộc cha không có chiều cao', () => {
@@ -31,5 +31,12 @@ describe('QcScreenFrame (BUG-324, BUG-329, BUG-413)', () => {
 
     expect(canvas.className).toContain('bg-bg-sunken');
     expect(canvas.className).toContain('rounded-2xl');
+  });
+
+  it('[A3] thanh trạng thái chung: Hoàn tác tắt khi màn chưa có ngăn hoàn tác, mặc định "Chưa có thay đổi"', () => {
+    render(<QcStatusBar />);
+
+    expect(screen.getByRole('button', { name: QC_UNDO_LABEL })).toBeDisabled();
+    expect(screen.getByRole('status', { name: 'Thanh trạng thái' })).toHaveTextContent(QC_NO_CHANGES_LABEL);
   });
 });

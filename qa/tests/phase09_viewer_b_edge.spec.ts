@@ -24,7 +24,7 @@ const VERSION_LIST = 'Danh sách phiên bản';
 const VERSION_RESTORE = 'Phục hồi phiên bản này';
 const VERSION_LABEL = 'Gắn nhãn phiên bản này';
 const VERSION_EXPORT = 'Xuất phiên bản này'; // VersionHistory.tsx:171
-const RULES_HEADING = 'Kiểm tra luật không gian';
+const RULES_HEADING = 'Quy chuẩn';
 
 const unknown = (id: string, why: string): void => {
   test.info().annotations.push({ type: 'UNKNOWN', description: `[${id}] UNKNOWN — NEED VERIFICATION: ${why}` });

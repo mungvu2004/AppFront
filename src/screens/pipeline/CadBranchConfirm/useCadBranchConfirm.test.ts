@@ -368,6 +368,8 @@ describe('useCadBranchConfirm — hai giai đoạn', () => {
     expect(dialog.hasCadFile).toBe(false);
     expect(dialog.isCadChoiceDisabled).toBe(true);
     expect(dialog.cadChoiceDisabledReason).toMatch(/chưa có tệp CAD/u);
+    // Không bật hộp thoại ngay khi mở trang: trang tự giải thích (impeccable 1024).
+    expect(dialog.isOpen).toBe(false);
   });
 
   it('chọn CAD thì hộp thoại ĐÓNG rồi panel ánh xạ mới mở — không lồng hộp thoại', async () => {

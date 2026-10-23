@@ -142,13 +142,13 @@ const TRAIN = {
   errorTitle: 'Không đọc được dữ liệu huấn luyện', // TJT:19
   readFallback: 'Không đọc được dữ liệu huấn luyện.', // TJG:134
   retry: 'Thử lại', // TJT:18
-  dsFamily: 'Họ model', // TDT:19
+  dsFamily: 'Loại mô hình', // TDT:19
   dsList: 'Danh sách bộ dữ liệu', // TDT:20
   dsVersions: 'Phiên bản', // TDT:21
   dsNote: 'Trang này chỉ xem; bộ dữ liệu dựng bằng công cụ dòng lệnh.', // TDT:22
   dsEmptyTitle: 'Chưa có bộ dữ liệu', // TDT:25
   dsEmpty: 'Chưa có bộ dữ liệu nào. Dựng bằng công cụ dòng lệnh.', // UTJ:148
-  formFamily: 'Họ model', // TJF:20
+  formFamily: 'Loại mô hình', // TJF:20
   formDataset: 'Bộ dữ liệu', // TJF:21
   formBaseModel: 'Model nền', // TJF:23
   epochs: 'Số vòng', // TJF:24
@@ -179,9 +179,9 @@ const FAMILY_NAME: Readonly<Record<MlFamily, string>> = {
 const REG = {
   title: 'Mô hình AI của chuỗi xử lý', // MR:29
   crumbHere: 'Mô hình AI', // MR:28
-  picker: 'Họ model', // MR:30
+  picker: 'Loại mô hình', // MR:30
   active: 'Đang dùng', // MR:31, MRV:18
-  revert: 'Quay về đường cổ điển', // MR:32
+  revert: 'Tắt AI, dùng thuật toán cũ', // MR:32
   errorTitle: 'Không đọc được danh sách model', // MR:35
   readFallback: 'Không đọc được danh sách model.', // MRE:20
   retry: 'Thử lại', // MR:34
@@ -907,7 +907,7 @@ test.describe('E08 SCR-35 Training Jobs', () => {
     });
   });
 
-  test('E08 · SCR-35 "Bộ dữ liệu" tab: read-only note, "Họ model" switch reads datasets per family, list or empty copy', async ({ browser }) => {
+  test('E08 · SCR-35 "Bộ dữ liệu" tab: read-only note, "Loại mô hình" switch reads datasets per family, list or empty copy', async ({ browser }) => {
     await asAdminUi(browser, async ({ page }) => {
       await openTraining(page);
       const checkBranch = async (items: Json[], family: MlFamily): Promise<void> => {
@@ -1036,7 +1036,7 @@ test.describe('E08 SCR-35 Training Jobs', () => {
       await openTraining(page);
       // TJ:44-62 header: breadcrumb (current "Huấn luyện"), h1, related link (UTJ:161 RELATED_LINK).
       const crumbs = page.getByRole('navigation', { name: 'Đường dẫn trang', exact: true });
-      await expect(crumbs.locator('[aria-current="page"]')).toHaveText(TRAIN.crumbHere);
+      await expect(crumbs, 'breadcrumb removed').toHaveCount(0);
       await expect(page.getByRole('heading', { level: 1, name: TRAIN.title, exact: true })).toBeVisible();
 
       const families = readOf(page, FAMILIES);
@@ -1044,7 +1044,7 @@ test.describe('E08 SCR-35 Training Jobs', () => {
       await families;
       await expect.poll(() => pathOf(page.url())).toBe(ROUTES.adminTrainingModels);
       await expect(page.getByRole('heading', { level: 1, name: REG.title, exact: true })).toBeVisible(); // MR:58
-      await expect(crumbs.locator('[aria-current="page"]')).toHaveText(REG.crumbHere);
+      await expect(crumbs, 'breadcrumb removed').toHaveCount(0);
       await captureEvidence(page, 'E08_related_links_registry.png', { caption: `"${TRAIN.related}" → ${pathOf(page.url())}` });
 
       const jobs = readOf(page, JOBS);

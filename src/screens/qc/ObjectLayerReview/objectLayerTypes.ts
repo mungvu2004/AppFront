@@ -444,6 +444,11 @@ export interface ObjectInspectorViewModel {
   /** `true` khi {@link isOrphanObject} — điều khiển hiện badge + hành động "Gắn vào tường gần nhất". */
   readonly isOrphan: boolean;
   readonly reviewed: boolean;
+  /**
+   * Phím Delete/Backspace xin xoá đối tượng này: số tăng mỗi lần bấm, thanh tra mở
+   * `ConfirmDeleteDialog` khi thấy số mới (Impeccable A3). Vắng khi chưa ai xin.
+   */
+  readonly deleteRequestSeq?: number;
 }
 
 /** Mọi thứ view panel phải (inspector) nhận. */
@@ -698,6 +703,8 @@ export interface ObjectPlacementViewModel {
   /** Ví dụ `"#D-007"`. */
   readonly codeLabel: string;
   readonly isOrphan: boolean;
+  /** Cùng ý nghĩa với {@link ObjectListRowViewModel.statusCode} — canvas viền chú ý, làm mờ đã duyệt. */
+  readonly statusCode: ViewStatusCode;
 }
 
 /**

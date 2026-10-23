@@ -14,7 +14,7 @@
  *   - No admin write from the browser: every case asserts the page sent NO non-GET `/api/` request other than the
  *     session refresh (`verifyIn` guard). Never clicked: "Bắt đầu huấn luyện" (the create form is only opened, its
  *     "Số vòng" refused by the field itself), the activate dialog's "Kích hoạt" (only the row button that OPENS the
- *     dialog — R2: the registry is never switched here), "Quay về đường cổ điển" (plan: do not click), "Gửi lời mời".
+ *     dialog — R2: the registry is never switched here), "Tắt AI, dùng thuật toán cũ" (plan: do not click), "Gửi lời mời".
  *   - SCR-37 long data: 1 admin API login (`signedInApi`), 1 invitation (30 / h per admin) of a run-unique viewer whose
  *     address is 254 chars (BE `MAX_EMAIL_LENGTH`, apps/api/auth/emails.py:20; its name is derived from the address,
  *     users/service.py `_display_name`), then 1 `DELETE /api/users/:id` and its mail removed in `afterAll`.
@@ -68,7 +68,7 @@ const EPOCHS_LABEL = 'Số vòng';
 const EPOCHS_BELOW_MIN = /^Giá trị không nhỏ hơn 1\.$/u;
 
 /* ---- SCR-36 copy: ModelRegistry.tsx, ModelRegistryVersionTable.tsx, useModelRegistry.ts ---- */
-const FAMILY_PICKER = 'Họ model';
+const FAMILY_PICKER = 'Loại mô hình';
 const FAMILY_LABELS = {
   walls: 'Tách lớp tường',
   opening: 'Nhận diện cửa và đồ đạc',
@@ -151,8 +151,8 @@ async function pickOption(page: Page, combobox: Locator, option: string): Promis
 }
 
 const isNarrow = (page: Page): boolean => (page.viewportSize()?.width ?? 0) < NARROW_PX;
-/** The screen container (parent of the one breadcrumb nav), so lists in the app shell are never matched. */
-const screenOf = (page: Page): Locator => page.locator('nav[aria-label="Đường dẫn trang"]').locator('xpath=..');
+/** The screen container (parent of the h1; the breadcrumb nav was removed), so lists in the app shell are never matched. */
+const screenOf = (page: Page): Locator => page.getByRole('heading', { level: 1 }).locator('xpath=..');
 /** An inline side panel (≥1024) or the same content in a drawer (<1024), both named `label`. */
 const panelOrDrawer = (page: Page, label: string): Locator =>
   page.locator(`aside[aria-label="${label}"]`).or(page.getByRole('dialog', { name: label, exact: true }));

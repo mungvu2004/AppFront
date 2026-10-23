@@ -1515,23 +1515,24 @@ describe('đợt sửa P04 — SCR-17', () => {
     mounted.unmount();
   });
 
-  it('[BUG-589] Delete và Backspace xoá đối tượng đang chọn; thanh tra có nút "Xoá đối tượng"', async () => {
+  it('[BUG-589] Delete và Backspace xin xoá qua hộp xác nhận như nút "Xoá đối tượng" (Impeccable A3)', async () => {
     const mounted = await mountSettled();
 
     await run(() => mounted.result.current.onSelect('D-004'));
     await pressKey(mounted.registry, 'Delete');
-    await waitFor(() => expect(entityInStore('D-004', 'door')).toBeUndefined());
+    await waitFor(() => expect(mounted.result.current.inspector?.deleteRequestSeq).toBe(1));
+    /* Phím không xoá thẳng: chưa xác nhận thì đối tượng còn nguyên. */
+    expect(entityInStore('D-004', 'door')).toBeDefined();
 
-    await run(() => mounted.result.current.onSelect('D-006'));
     await pressKey(mounted.registry, 'Backspace');
-    await waitFor(() => expect(entityInStore('D-006', 'door')).toBeUndefined());
+    await waitFor(() => expect(mounted.result.current.inspector?.deleteRequestSeq).toBe(2));
 
-    await run(() => mounted.result.current.onSelect('D-007'));
     const onDelete = vi.fn();
 
     renderView(mounted.result.current, { onDelete });
-    screen.getByRole('button', { name: 'Xoá đối tượng' }).click();
-    expect(onDelete).toHaveBeenCalledWith('D-007');
+    const dialog = await screen.findByRole('dialog');
+    within(dialog).getByRole('button', { name: 'Xoá đối tượng' }).click();
+    expect(onDelete).toHaveBeenCalledWith('D-004');
 
     mounted.unmount();
   });
@@ -1545,11 +1546,20 @@ describe('đợt sửa P04 — SCR-17', () => {
       expect(bus.list().map((item) => item.title)).toContain('Chỉ đổi được loại giữa cửa đơn, cửa đôi và cửa sổ.');
     });
 
-    /* Chip của loại không có trên tầng bị tắt, chip có dữ liệu thì bấm được. */
+    /*
+     * Chip của loại không có trên tầng bị khoá, chip có dữ liệu thì bấm được.
+     * Impeccable A3: khoá bằng `aria-disabled` (vẫn focus được để đọc lý do) kèm số "(0)".
+     */
     expect(mounted.result.current.availableSubtypes.has('otherFurniture')).toBe(false);
-    renderView(mounted.result.current);
-    expect(screen.getByRole('button', { name: 'Nội thất khác' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Sofa' })).toBeEnabled();
+    const onToggleSubtypeFilter = vi.fn();
+
+    renderView(mounted.result.current, { onToggleSubtypeFilter });
+    const emptyChip = screen.getByRole('button', { name: 'Nội thất khác (0)' });
+
+    expect(emptyChip).toHaveAttribute('aria-disabled', 'true');
+    emptyChip.click();
+    expect(onToggleSubtypeFilter).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Sofa' })).not.toHaveAttribute('aria-disabled');
 
     mounted.unmount();
   });

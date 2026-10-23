@@ -523,7 +523,7 @@ describe('[VS-8] panel phải trượt vào', () => {
     const classes = reset.className.split(/\s+/u);
 
     // Thiếu chiều cao thì nút chỉ cao bằng dòng chữ 11 px — 48×17, dưới 24 px của WCAG 2.5.8.
-    expect(classes).toEqual(expect.arrayContaining(['h-11', 'sm:h-7']));
+    expect(classes).toEqual(expect.arrayContaining(['h-11', 'fine:h-7']));
 
     unmount();
   });

@@ -5,7 +5,7 @@
  * `src/domain` — test được chỉ từ props (mục D, R-60).
  *
  * **Bố cục.** Một cột rộng `CONTENT_COLUMN_PX`, căn giữa cả ngang lẫn dọc,
- * nền `--bg-app`: hình minh hoạ (`PlanFragment`, bỏ khi `isCompact`) → `h2`
+ * nền `--bg-app`: hình minh hoạ (`PlanFragment`, cả khi `isCompact`) → `h2`
  * `title` → một câu `description` → hai nút cạnh nhau → khối "Có thể bạn
  * đang tìm" → caption chân trang chọn được.
  *
@@ -102,7 +102,8 @@ export function NotFound({
         )}
         style={{ width: CONTENT_COLUMN_PX }}
       >
-        {!isCompact && <PlanFragment prefersReducedMotion={prefersReducedMotion} />}
+        {/* Hình giữ cả ở bản gọn (< 1024, máy tính bảng 768): 404 từng trơn chữ cạnh 403 có hình (A1). */}
+        <PlanFragment prefersReducedMotion={prefersReducedMotion} />
 
         <h2 className="text-[20px] font-semibold text-text-primary">{title}</h2>
         <p className="text-[14px] leading-relaxed text-text-secondary">{description}</p>

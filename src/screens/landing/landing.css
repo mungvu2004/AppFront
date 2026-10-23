@@ -50,7 +50,7 @@
 .landing-scene { position: absolute; left: var(--l-gutter); top: 50%; translate: 0 -50%; width: fit-content; max-width: var(--l-col); isolation: isolate; text-shadow: 0 0 3px var(--l-paper), 0 0 10px var(--l-paper); }
 .landing-scene::before { content: ''; position: absolute; inset: -44px -56px; z-index: -1; border-radius: 40px; background: color-mix(in srgb, var(--l-paper) 66%, transparent); backdrop-filter: blur(10px); mask-image: radial-gradient(ellipse farthest-corner at 50% 50%, #000 45%, transparent 100%); opacity: var(--l-panel, 0); }
 .landing-footer.landing-scene::before, .landing-footer::before { content: none; }
-.landing-phase > *, .landing-exports li { will-change: opacity, transform; }
+/* Không will-change thường trực (A1 P2 #4): giữ lớp GPU cho mọi chữ cả khi đứng yên; trình duyệt tự nâng lớp khi đổi transform/opacity. */
 .landing-final a, .landing-final button, .landing-footer a, .landing-hero-cta a { pointer-events: auto; }
 /* Lớp giấy sau cột chữ: đặc tới 0,8 cột rồi nhạt hết trong 96 px (lông ngắn: mép giấy, không phải sương), để nhà ở hai phần ba bên phải không bị phủ (overlay.ts ghi --l-scrim); chữ dài giữ quầng giấy riêng. */
 .landing-scrim { position: absolute; inset: 0; opacity: calc(var(--l-scrim, 0) * var(--l-wash, 1)); pointer-events: none; background: linear-gradient(to right, var(--l-paper) 0, var(--l-paper) calc(var(--l-gutter) + 0.5 * var(--l-col)), transparent calc(var(--l-gutter) + 0.8 * var(--l-col) + 40px)); }
@@ -74,7 +74,8 @@
 .landing-rail ol { list-style: none; margin: 0; padding: 0; }
 .landing-rail li { position: relative; }
 .landing-rail a { text-shadow: 0 0 3px var(--l-paper), 0 0 8px var(--l-paper); display: flex; flex-direction: row-reverse; gap: 8px; align-items: center; min-height: 28px; color: var(--l-ink-soft); text-decoration: none; font-variant-numeric: tabular-nums; }
-.landing-rail-num { font-size: 0.75rem; font-weight: 500; width: 2ch; text-align: right; }
+/* Số bước trên chip giấy đặc, chữ mực: trên cây 3D số xám mảnh từng chìm mất (A1 P2 #4, Sam). */
+.landing-rail-num { font-size: 0.75rem; font-weight: 500; min-width: 2ch; padding: 1px 4px; text-align: right; color: var(--l-ink); background: var(--l-paper); border-radius: 3px; text-shadow: none; }
 .landing-rail-name { position: absolute; right: 56px; top: 50%; translate: 0 -50%; padding: 2px 8px; white-space: nowrap; font-size: 0.8125rem; background: color-mix(in srgb, var(--l-paper) 88%, transparent); }
 .landing-rail-tick { position: relative; width: 20px; height: 1px; background: color-mix(in srgb, var(--l-ink) 40%, transparent); }
 .landing-rail [data-active] a { color: var(--l-ink); font-weight: 500; }
@@ -150,6 +151,8 @@
 .landing-footer-row a { color: inherit; display: inline-flex; align-items: center; min-height: 24px; padding: 0 4px; margin: 0 -4px; }
 /* Hẹp: hai cột, để danh sách không chạy sang căn nhà. */
 @media (max-width: 1439px) { .landing-exports { grid-template-columns: repeat(2, minmax(0, 9.5rem)); gap: 12px 20px; } }
+/* Bản cuộn: lưới định dạng luôn 2×2 trong cột chữ, kể cả ≥ 1440 px: bốn cột từng chạy sang căn nhà ở bước 06 (A1 P2 #4). */
+.landing[data-mode='pinned'] .landing-exports { grid-template-columns: repeat(2, minmax(0, 9.5rem)); gap: 12px 20px; }
 .landing-cta-hint { font-size: 0.8125rem; color: var(--l-ink-soft); }
 .landing-hero-cta { margin-top: 2rem; }
 /* Điện thoại dọc: khối chữ neo đáy, cao thêm là đè lên bản vẽ/ngôi nhà. Đầu trang vẫn có "Đăng nhập" và
@@ -179,7 +182,9 @@
 .landing-label[data-kind='room'] { --l-lead: 24px; justify-items: start; font-size: 0.875rem; text-shadow: 0 0 2px var(--l-paper), 0 0 6px var(--l-paper); }
 .landing-label[data-kind='room'] .landing-label-name::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; vertical-align: 0.1em; background: var(--l-jade); }
 .landing-label[data-kind='room'] .landing-label-meta { padding-left: 12px; font-size: 0.75rem; font-weight: 400; color: color-mix(in srgb, var(--l-ink) 65%, transparent); }
-.landing-label[data-kind='mark'] { grid-auto-flow: column; gap: 8px; align-items: baseline; padding: 4px 8px 4px 6px; background: var(--l-paper); border: 1px solid var(--l-tone); border-left-width: 3px; }
+.landing-label[data-kind='mark'] { grid-auto-flow: column; gap: 8px; align-items: baseline; padding: 4px 8px; background: var(--l-paper); border: 1px solid var(--l-tone); }
+/* Nhãn lỗi: viền đều + chấm màu (không dùng mẫu thẻ viền trái dày). */
+.landing-label[data-kind='mark']::before { content: ''; align-self: center; width: 6px; height: 6px; border-radius: 50%; background: var(--l-tone); }
 .landing-label[data-kind='mark'] .landing-label-meta { color: var(--l-ink-soft); }
 .landing-label-rule { font-size: 0.75rem; color: var(--l-coral-ink); }
 .landing-label[data-label='gap'] { --l-lead: 56px; }
@@ -188,7 +193,8 @@
 /* Dọc (tablet đứng): chữ ở dưới, thanh bước thành hàng ở đáy, lớp giấy từ dưới lên. */
 @media (max-aspect-ratio: 1/1) {
   .landing { --l-col: calc(100vw - 2 * var(--l-gutter)); }
-  .landing-scene { top: auto; bottom: calc(var(--l-gutter) + 100px); translate: none; }
+  /* Sát hàng bước ở đáy (cao ~86 px) để khối chữ không lên tới mặt bằng (framing.ts: mô hình ở trên y −0,1). */
+  .landing-scene { top: auto; bottom: calc(var(--l-gutter) + 72px); translate: none; }
   .landing-scrim { background: linear-gradient(to top, var(--l-paper) 0, var(--l-paper) 50%, transparent 70%); }
   .landing-label[data-kind='room'] .landing-label-meta { display: none; }
 }
@@ -211,3 +217,9 @@
 .landing[data-mode='static'] .landing-footer { position: static; }
 @media (max-width: 1100px) { .landing-static-hero { grid-template-columns: 1fr; gap: 40px; } }
 @media (max-width: 800px) { .landing-steps { grid-template-columns: repeat(2, 1fr); } }
+
+/* Khung tài khoản (AuthFrame: /login, quên/đặt lại mật khẩu, lời mời): cùng giấy và mực với trang chào. */
+.auth-art-panel { border-color: var(--l-hair); color: var(--l-ink); }
+.auth-art { stroke: var(--l-ink); }
+.auth-art .auth-art-accent { stroke: var(--l-blue-ink); }
+.auth-art-soft { color: var(--l-ink-soft); }

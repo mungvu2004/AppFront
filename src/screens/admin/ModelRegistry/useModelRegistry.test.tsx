@@ -215,7 +215,7 @@ describe('Họ và trạng thái', () => {
 
     expect(await screen.findByText('Họ này chưa có phiên bản nào. Tải trọng số bằng công cụ dòng lệnh, hoặc chờ một lượt huấn luyện xong. Đang dùng đường cổ điển.')).toBeInTheDocument();
     expect(screen.getByText('Đường cổ điển')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Quay về đường cổ điển' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tắt AI, dùng thuật toán cũ' })).toBeNull();
 
     await chooseFamily('Nhận diện cửa và đồ đạc');
 
@@ -380,9 +380,9 @@ describe('Kích hoạt — hộp thoại A9, baseVersion, quay về', () => {
     const client = makeWallActiveClient();
     const { published } = renderScreen(client);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Quay về đường cổ điển' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Tắt AI, dùng thuật toán cũ' }));
     const dialog = await screen.findByRole('dialog', { name: 'Quay về đường cổ điển cho tách lớp tường?' });
-    fireEvent.click(confirmButton(dialog, 'Quay về đường cổ điển'));
+    fireEvent.click(confirmButton(dialog, 'Tắt AI, dùng thuật toán cũ'));
 
     await waitFor(() => {
       expect(client.activateVersion).toHaveBeenCalledWith({ baseVersion: 7, family: 'wallSegmentation', versionId: null });
@@ -406,7 +406,7 @@ describe('Kích hoạt — hộp thoại A9, baseVersion, quay về', () => {
 
     await chooseFamily('Nhận diện cửa và đồ đạc');
     await screen.findByRole('button', { name: 'Huấn luyện lượt 3' });
-    expect(screen.queryByRole('button', { name: 'Quay về đường cổ điển' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tắt AI, dùng thuật toán cũ' })).toBeNull();
   });
 
   it('họ khác họ tường đang trống: không hoàn tác, không bao giờ gửi versionId null (P1-1)', async () => {
@@ -629,8 +629,8 @@ describe('Làm mới trang đầu hỏng khi đã có hàng (N-B)', () => {
     });
     renderScreen(client);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Quay về đường cổ điển' }));
-    fireEvent.click(confirmButton(await screen.findByRole('dialog'), 'Quay về đường cổ điển'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Tắt AI, dùng thuật toán cũ' }));
+    fireEvent.click(confirmButton(await screen.findByRole('dialog'), 'Tắt AI, dùng thuật toán cũ'));
 
     expect(await screen.findByText(MODEL_REGISTRY_ERROR_TEXT.busy)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Huấn luyện tường lượt 1' })).toBeInTheDocument();

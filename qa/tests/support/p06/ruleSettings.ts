@@ -132,10 +132,10 @@ export const severityCombo = (page: Page, sentence: string): Locator =>
 export const numberField = (page: Page, label: string): Locator => page.getByRole('textbox', { name: label, exact: true });
 export const groupCard = (page: Page, label: string): Locator => page.getByRole('region', { name: label, exact: true });
 export const allRuleSwitches = (page: Page): Locator => page.getByRole('switch', { name: /^Bật hoặc tắt luật: /u });
-export const heading = (page: Page): Locator => page.getByRole('heading', { name: RS.heading, level: 2 });
+export const heading = (page: Page): Locator => page.getByRole('heading', { name: RS.heading, level: 1 });
 /** The autosave indicator in the screen header (SaveIndicator.tsx role=status). */
 export const indicator = (page: Page): Locator =>
-  page.locator('header', { has: page.getByRole('heading', { name: RS.heading, level: 2 }) }).getByRole('status');
+  page.locator('header', { has: page.getByRole('heading', { name: RS.heading, level: 1 }) }).getByRole('status');
 export const toastRegion = (page: Page): Locator => page.getByRole('region', { name: RS.toastRegion, exact: true });
 /** The toast (role=status inside the "Thông báo" region) whose text contains `message`. */
 export const toast = (page: Page, message: string | RegExp): Locator =>

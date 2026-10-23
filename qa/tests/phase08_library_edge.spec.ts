@@ -508,7 +508,7 @@ test('SCR-34 · FL-34L-08 · admin gate and accessible names/landmarks', async (
     await ev(page, '34L-E-009', 'h1');
   });
   await test.step('[34L-E-010] breadcrumb nav landmark', async () => {
-    await expect.soft(page.getByRole('navigation', { name: TEXT.breadcrumb, exact: true })).toBeVisible();
+    await expect.soft(page.getByRole('navigation', { name: TEXT.breadcrumb, exact: true })).toHaveCount(0); // breadcrumb removed
     await ev(page, '34L-E-010', 'breadcrumb');
   });
 });

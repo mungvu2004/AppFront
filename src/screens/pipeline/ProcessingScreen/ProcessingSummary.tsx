@@ -56,6 +56,10 @@ export function ProcessingSummary({ summary }: ProcessingSummaryProps) {
         </ul>
       ) : null}
 
+      {summary.noDimensionSentence !== undefined ? (
+        <p className="text-[14px] leading-relaxed text-state-attention-text">{summary.noDimensionSentence}</p>
+      ) : null}
+
       {summary.lowConfidenceSentence !== undefined ? (
         <p className="text-[14px] leading-relaxed text-text-secondary">{summary.lowConfidenceSentence}</p>
       ) : null}

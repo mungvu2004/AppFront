@@ -26,6 +26,7 @@ import { AnimatePresence, motion } from '@/components/motion';
 import { Button } from '@/components/ui/Button';
 import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
 import { FieldRow } from '@/components/ui/FieldRow';
+import { Kbd } from '@/components/ui/Kbd';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { durationSeconds } from '@/lib/motion';
 import { cn } from '@/lib/utils';
@@ -120,7 +121,7 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
   return (
     <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-0 xl:h-full xl:w-[344px]">
       <div className="flex h-14 shrink-0 items-center px-5">
-        <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
+        <h2 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h2>
       </div>
 
       {inspector === null ? (
@@ -235,11 +236,16 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
                 <Button
                   disabled={isSelectedReviewed}
                   fullWidth
+                  aria-keyshortcuts="A"
                   onClick={() => onApprove(inspector.id)}
                   variant="primary"
                 >
                   {APPROVE_LABEL}
                 </Button>
+                {/* Duyệt xong hook tự chọn đoạn chưa duyệt kế tiếp — nói ra, kèm phím tắt (Impeccable A3). */}
+                <p className="text-[12px] text-text-muted">
+                  Duyệt xong tự sang đoạn chưa duyệt kế tiếp · phím <Kbd>A</Kbd>
+                </p>
                 {isSelectedReviewed && onUnapprove !== undefined ? (
                   <Button fullWidth onClick={() => onUnapprove(inspector.id)} variant="secondary">
                     {UNAPPROVE_LABEL}

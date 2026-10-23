@@ -47,6 +47,8 @@ const RESEND_INVITE_LABEL = 'Gửi lại';
 const DISABLE_LABEL = 'Vô hiệu hoá';
 const ENABLE_LABEL = 'Bật lại';
 const REMOVE_LABEL = 'Xoá';
+const ROLE_DISABLED_REASON = 'Bật lại tài khoản để đổi vai';
+const REMOVE_CLASS = 'text-state-violation-text hover:text-state-violation-text';
 const ROW_HEIGHT = 'h-12';
 /**
  * `Table.Cell` cấm xuống dòng (`whitespace-nowrap`); ở bảng này thì ngược lại: câu lý do
@@ -86,23 +88,29 @@ function RoleCell({ actions, roleOptions, row }: RoleCellProps) {
 
   const options = roleOptions.map((option) => ({ label: option.label, value: option.role as string }));
 
+  const isDisabled = row.status === 'disabled';
+
   return (
-    <Select.Root
-      className="w-[140px]"
-      onChange={(value) => actions.onChangeRole(row.id, value as ProjectRole)}
-      options={options}
-      value={row.role}
-    >
-      <Select.Label className="sr-only">{roleSelectLabel(row.name)}</Select.Label>
-      <Select.Trigger options={options} />
-      <Select.Content>
-        {options.map((option) => (
-          <Select.Item key={option.value} value={option.value}>
-            {option.label}
-          </Select.Item>
-        ))}
-      </Select.Content>
-    </Select.Root>
+    <div className="flex flex-col gap-1">
+      <Select.Root
+        className="w-[140px]"
+        disabled={isDisabled}
+        onChange={(value) => actions.onChangeRole(row.id, value as ProjectRole)}
+        options={options}
+        value={row.role}
+      >
+        <Select.Label className="sr-only">{roleSelectLabel(row.name)}</Select.Label>
+        <Select.Trigger options={options} />
+        <Select.Content>
+          {options.map((option) => (
+            <Select.Item key={option.value} value={option.value}>
+              {option.label}
+            </Select.Item>
+          ))}
+        </Select.Content>
+      </Select.Root>
+      {isDisabled && <p className="text-[12px] text-text-secondary">{ROLE_DISABLED_REASON}</p>}
+    </div>
   );
 }
 
@@ -113,7 +121,7 @@ interface StatusCellProps {
 
 function StatusCell({ actions, row }: StatusCellProps) {
   return (
-    <div className="flex flex-col items-start gap-1">
+    <div className="flex flex-row flex-wrap items-center gap-x-3 gap-y-1">
       <Badge className="whitespace-nowrap" variant="neutral">
         {row.statusLabel}
       </Badge>
@@ -126,11 +134,11 @@ function StatusCell({ actions, row }: StatusCellProps) {
       {row.canResendInvite && (
         // Q5 (questions.md): "Gửi lại" ở MỌI hàng chờ, BE cho gửi lại mọi lời mời đang chờ.
         // BUG-P08-024: tên truy cập nêu người nhận để các nút cùng chữ phân biệt được.
-        // Link chữ, nhưng vùng chạm 44 px dưới 640 và 24 px từ đó — như link chữ của màn đăng nhập (BUG-077, BUG-041).
+        // Link chữ, nhưng vùng chạm 44 px với ngón tay/bút và 24 px với chuột — như link chữ của màn đăng nhập (BUG-077, BUG-041).
         <button
           aria-label={`${RESEND_INVITE_LABEL} lời mời cho ${row.email}`}
           className={cn(
-            'inline-flex min-h-11 items-center text-left text-[13px] font-medium text-accent hover:underline sm:min-h-6',
+            'inline-flex min-h-11 items-center text-left text-[13px] font-medium text-accent hover:underline fine:min-h-6',
             FOCUS_RING,
           )}
           onClick={() => actions.onResendInvite(row.id)}
@@ -179,9 +187,12 @@ function RowActions({ actions, row }: RowActionsProps) {
       {row.removeBlockedReason !== null ? (
         <span className={BLOCKED_REASON_CLASS}>{row.removeBlockedReason}</span>
       ) : (
-        <Button onClick={() => actions.onOpenRemove(row.id)} size="sm" variant="ghost">
-          {REMOVE_LABEL}
-        </Button>
+        // Nguy hiểm, không hoàn tác: chữ đỏ và một vạch ngăn khỏi "Vô hiệu hoá" để khỏi bấm nhầm.
+        <span className="ml-2 border-l border-border-default pl-3">
+          <Button className={REMOVE_CLASS} onClick={() => actions.onOpenRemove(row.id)} size="sm" variant="ghost">
+            {REMOVE_LABEL}
+          </Button>
+        </span>
       )}
     </div>
   );

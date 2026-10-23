@@ -63,6 +63,7 @@ import {
   createMockCadBranchConfirmGateway,
 } from './cadBranchConfirmGateway';
 import {
+  DISMISS_BUTTON_LABEL,
   IMPORT_BUTTON_LABEL,
   PRIMARY_BUTTON_LABEL,
   REMEMBER_CHOICE_LABEL,
@@ -279,6 +280,30 @@ describe('CadBranchConfirm — bảy trạng thái (A11, R-63)', () => {
     expect(screen.getByRole('button', { name: PRIMARY_BUTTON_LABEL })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: SECONDARY_BUTTON_LABEL })).toBeEnabled();
   });
+
+  it('tầng không có CAD: không hộp thoại, một trang giải thích có lối "Về duyệt lớp", không lặp cảnh báo', () => {
+    const base = branchHandoffScenario();
+    const onBackToLayerReview = vi.fn();
+    renderWithProviders(
+      <CadBranchConfirm
+        actions={{ ...base.actions, onBackToLayerReview }}
+        model={{
+          ...base.model,
+          state: 'empty',
+          emptyNotice: 'Chưa có lớp',
+          partialNotice: null,
+          dialog: { ...base.model.dialog, hasCadFile: false, isCadChoiceDisabled: true, isOpen: false },
+        }}
+      />,
+    );
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Chưa có tệp CAD' })).toBeInTheDocument();
+    expect(screen.queryByText(AI_HANDOFF_TITLE)).not.toBeInTheDocument();
+    expect(screen.queryByText('Chưa có lớp')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Về duyệt lớp' }));
+    expect(onBackToLayerReview).toHaveBeenCalledTimes(1);
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -371,7 +396,8 @@ describe('CadBranchConfirm — hai giai đoạn trong một route [NGHIEM-2]', (
   it('chọn nhánh CAD thì hộp thoại ĐÓNG rồi panel ánh xạ mở ra, không cái nào lồng cái nào', async () => {
     renderWiredScreen();
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    // Hộp thoại chỉ bật khi đọc xong tệp (không loé lên với tầng không có CAD).
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
 
     await chooseCadBranch();
 
@@ -458,7 +484,7 @@ describe('CadBranchConfirm — xem trước cập nhật trực tiếp [NGHIEM-3
 
     // Không một nút "gửi" nào tồn tại giữa hai bước: nét đổi ngay sau lượt gán.
     await waitFor(() => {
-      expect(canvasStrokes(container)).toContain('var(--wall-330)');
+      expect(canvasStrokes(container)).toContain('var(--wall-330-stroke)');
     });
   });
 
@@ -671,7 +697,7 @@ describe('CadBranchConfirm — tiêu điểm khi không có nút mở (BUG-559, 
     expect(screen.getByText(AI_HANDOFF_TITLE).closest('section')?.contains(document.activeElement)).toBe(true);
   });
 
-  it('nhánh CAD bị khoá sau khi bẫy đã bật: tiêu điểm chuyển về "Vẫn dùng AI" (BUG-560)', async () => {
+  it('nhánh CAD bị khoá: tiêu điểm ở nút Huỷ, không ở nút đổi nhánh "Vẫn dùng AI" (BUG-560)', async () => {
     const pending: { resolve: () => void } = { resolve: () => undefined };
     const base = createMockCadBranchConfirmGateway();
     const gateway = {
@@ -700,7 +726,7 @@ describe('CadBranchConfirm — tiêu điểm khi không có nút mở (BUG-559, 
     });
 
     expect(document.activeElement).toBe(
-      within(screen.getByRole('dialog')).getByRole('button', { name: SECONDARY_BUTTON_LABEL }),
+      within(screen.getByRole('dialog')).getByRole('button', { name: DISMISS_BUTTON_LABEL }),
     );
   });
 });

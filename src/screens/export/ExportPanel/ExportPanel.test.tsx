@@ -185,7 +185,7 @@ describe('khối kiểm tra trước khi xuất không bao giờ chặn nút "Xu
       expect(button).not.toBeDisabled();
     }
 
-    expect(container.textContent).toMatch(/Còn \d+ phát hiện từ kiểm tra luật chưa xử lý\./u);
+    expect(container.textContent).toMatch(/Còn \d+ phát hiện ở \d+ luật chưa xử lý\./u);
   });
 });
 
@@ -223,10 +223,11 @@ describe('[BUG-466] .glb mà chưa chọn tầng nào: không nút "Xuất", kh�
 });
 
 describe('[BUG-460] dòng kiểm tra đếm phát hiện, không gọi chúng là "vi phạm"', () => {
-  it('ba phát hiện → "Còn 3 phát hiện từ kiểm tra luật chưa xử lý."', () => {
-    const rows = buildPreflightRows({ projectId: 'P-1', graph: null, levels: [], violations: [{}, {}, {}] as never });
+  it('ba phát hiện ở hai luật → "Còn 3 phát hiện ở 2 luật chưa xử lý."', () => {
+    const violations = [{ ruleCode: 'A' }, { ruleCode: 'A' }, { ruleCode: 'B' }] as never;
+    const rows = buildPreflightRows({ projectId: 'P-1', graph: null, levels: [], violations });
 
-    expect(rows.find((row) => row.id === 'violations')?.label).toBe('Còn 3 phát hiện từ kiểm tra luật chưa xử lý.');
+    expect(rows.find((row) => row.id === 'violations')?.label).toBe('Còn 3 phát hiện ở 2 luật chưa xử lý.');
   });
 });
 
@@ -486,8 +487,8 @@ describe('[BUG-442] liên kết "Sửa" và nút "Tuỳ chọn": vùng chạm đ
 
     const [link] = screen.getAllByRole('link', { name: /^Sửa/u });
     expect(link).toHaveAccessibleName(/^Sửa\s*:\s*Còn \d+ phát hiện/u);
-    expect(link).toHaveClass('min-h-11', 'sm:min-h-6');
-    expect(screen.getByRole('button', { name: 'Tuỳ chọn' })).toHaveClass('min-h-11', 'sm:min-h-6');
+    expect(link).toHaveClass('min-h-11', 'fine:min-h-6');
+    expect(screen.getByRole('button', { name: 'Tuỳ chọn' })).toHaveClass('min-h-11', 'fine:min-h-6');
   });
 });
 

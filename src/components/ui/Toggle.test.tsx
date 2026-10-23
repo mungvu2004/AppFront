@@ -89,4 +89,9 @@ describe('Toggle', () => {
     expect(track).toHaveClass('bg-border-control');
     expect(track).not.toHaveClass('bg-bg-sunken');
   });
+
+  it('luôn có tên truy cập khi có label (kể cả không có aria-label)', () => {
+    render(<Toggle label="Tự động tính cao độ" />);
+    expect(screen.getByRole('switch', { name: 'Tự động tính cao độ' })).toBeInTheDocument();
+  });
 });

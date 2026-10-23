@@ -62,7 +62,7 @@ export function Slider({
 
   const handlePointerUp = (e: React.PointerEvent) => {
     setIsDragging(false);
-    e.currentTarget.releasePointerCapture(e.pointerId);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   };
 
   const updateValue = (clientX: number) => {
@@ -97,13 +97,14 @@ export function Slider({
   return (
     <div
       className={cn(
-        'relative flex items-center w-full h-8',
+        'relative flex items-center w-full h-8 touch-none',
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
       )}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onLostPointerCapture={() => setIsDragging(false)}
     >
       {endLabels && (
         <span className="font-mono text-[13px] leading-none text-text-secondary mr-3 select-none">
@@ -145,7 +146,7 @@ export function Slider({
             aria-valuemin={min}
             aria-valuemax={max}
             aria-valuenow={value}
-            aria-label={ariaLabel || 'Slider'}
+            aria-label={ariaLabel || 'Thanh trượt'}
             aria-readonly={readOnly}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}

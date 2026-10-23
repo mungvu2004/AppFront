@@ -69,13 +69,34 @@ function Notice({ children }: { readonly children: ReactNode }) {
   );
 }
 
+/** Màn tải: hai bước (tải mô hình đang chạy, dựng cảnh chờ), chỉ báo nhấp nháy opacity (không chuyển vị). */
+function LoadingNotice() {
+  return (
+    <Notice>
+      <div aria-live="polite" role="status">
+        <p className="font-medium">Đang mở mô hình 3D…</p>
+        <ol className="mx-auto mt-4 flex w-fit flex-col gap-2 text-left text-[var(--pa-text-2)]">
+          <li className="flex items-center gap-2 text-[var(--pa-text)]">
+            <span aria-hidden="true" className="h-2 w-2 animate-pulse rounded-full bg-[var(--pa-accent)]" />
+            Tải mô hình
+          </li>
+          <li className="flex items-center gap-2">
+            <span aria-hidden="true" className="h-2 w-2 rounded-full border border-[var(--pa-border)]" />
+            Dựng cảnh
+          </li>
+        </ol>
+      </div>
+    </Notice>
+  );
+}
+
 function PascalPage({ projectId }: { readonly projectId: string }) {
   const bridge = usePascalProjectBridge(projectId);
   const readOnly = bridge.status === 'ready' && bridge.readOnly;
 
   useEffect(() => (readOnly ? acquireSceneReadOnlyLease() : undefined), [readOnly]);
 
-  if (bridge.status === 'loading') return <Notice>Đang mở mô hình 3D…</Notice>;
+  if (bridge.status === 'loading') return <LoadingNotice />;
   if (bridge.status === 'error') {
     return (
       <Notice>

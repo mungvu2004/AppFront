@@ -592,8 +592,9 @@ class ApplyFixError extends Error {
  * Tên luật chỉ có mặt khi sổ đăng ký biết mã ấy — không có tên thì câu ngắn đi
  * một vế chứ không để lại một chỗ trống.
  */
+// Có câu mô tả: một đối tượng có thể vướng cùng luật hai lần (hai đầu một tường hở, 28-A-040).
 const violationKeyOf = (item: Violation | undefined): string =>
-  item === undefined ? '' : `${item.ruleCode}|${item.entityId}`;
+  item === undefined ? '' : `${item.ruleCode}|${item.entityId}|${item.message}`;
 
 const resolvedMessageOf = (ruleName: string | null): string =>
   ruleName === null
@@ -663,11 +664,15 @@ export function useViolationDetail(
   // sắp xếp lại, tấm trượt đi theo vi phạm nó đang hiển thị.
   const openedKeyRef = useRef(violationKeyOf(violations[initialIndex]));
   const shownKeyRef = useRef(violationKeyOf(violations[initialIndex]));
+  // Cha vừa mở hàng khác, `setIndex` chưa áp: vi phạm đang hiển thị đã cũ, đừng báo nó lên
+  // (báo thì cha nhảy về hàng cũ, hai bên giằng co mãi — 28-A-040).
+  const pendingIndexRef = useRef(false);
 
   // Khai báo TRƯỚC hiệu ứng bên dưới: cùng một lượt commit mà `index` đổi (J/K, tự
   // chuyển) thì khoá đã mới trước khi hiệu ứng tìm lại vị trí chạy.
   useEffect(() => {
     shownKeyRef.current = violationKeyOf(violations[index]);
+    pendingIndexRef.current = false;
     // Chỉ khi `index` đổi: đổi danh sách thì giữ khoá cũ để tìm lại vị trí mới.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
@@ -677,6 +682,7 @@ export function useViolationDetail(
 
     if (openedKeyRef.current !== openedKey) {
       openedKeyRef.current = openedKey;
+      if (openedKey !== shownKeyRef.current) pendingIndexRef.current = true;
       setIndex(initialIndex);
       return;
     }
@@ -698,7 +704,7 @@ export function useViolationDetail(
   const onShownChangeRef = useRef(onShownChange);
   onShownChangeRef.current = onShownChange;
   useEffect(() => {
-    if (violation !== null && violationKeyOf(violation) === shownKeyRef.current)
+    if (violation !== null && !pendingIndexRef.current && violationKeyOf(violation) === shownKeyRef.current)
       onShownChangeRef.current?.(violation);
   }, [violation]);
 

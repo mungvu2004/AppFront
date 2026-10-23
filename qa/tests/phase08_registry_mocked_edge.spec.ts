@@ -48,7 +48,7 @@ const READ_TITLE = 'Không đọc được danh sách model'; // MR:40
 const BUSY = 'Máy chủ đang bận. Thử lại sau ít phút.'; // MRE:19
 const RETRY = 'Thử lại';
 const FORBIDDEN = 'Không có quyền truy cập'; // MR:42
-const CLASSIC = 'Quay về đường cổ điển';
+const CLASSIC = 'Tắt AI, dùng thuật toán cũ';
 
 /** 200 answer of the default PUT (same shape the mock builds). */
 const ok = (family: FamilyId, b: Json): Answer => {
@@ -446,7 +446,7 @@ test.describe('SCR-36 registry [mocked response]', () => {
         await expect.soft(toast(page, 'Chưa kích hoạt được bản này. Thử lại sau.')).toBeVisible();
         await shot(page, '36R-C-015');
       });
-      await test.step('[36R-A-019] wall "Quay về đường cổ điển": PUT body + success toast; ends on a real read', async () => {
+      await test.step('[36R-A-019] wall "Tắt AI, dùng thuật toán cũ": PUT body + success toast; ends on a real read', async () => {
         mock.reset();
         await fresh(s, 'Bản tường 1');
         const base = mock.puts.length;

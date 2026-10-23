@@ -81,7 +81,7 @@ export function TransformGizmo({
       className={cn('absolute pointer-events-none', className)}
       style={{ left: cx - 80, top: cy - 80, width: 160, height: 160 }}
       role="group"
-      aria-label="Transform gizmo"
+      aria-label="Tay nắm biến đổi"
     >
       <svg
         className="overflow-visible w-full h-full"

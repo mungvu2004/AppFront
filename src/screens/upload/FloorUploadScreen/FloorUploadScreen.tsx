@@ -64,6 +64,7 @@ import type { FloorUploadActions, FloorUploadScreenViewProps } from './types';
 /** Mẩu vụn đường dẫn, đúng `floorUpload.breadcrumb.*` trong `vi.json`. */
 const BREADCRUMB_PROJECTS = 'Dự án';
 const BREADCRUMB_UPLOAD = 'Tải lên bản vẽ';
+const PAGE_TITLE = 'Tải bản vẽ';
 
 /** Tiêu đề của lượt đọc danh sách tầng hỏng — `state === 'error'`, không phải lỗi tệp. */
 const LOAD_ERROR_TITLE = 'Không tải được danh sách tầng';
@@ -251,6 +252,8 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
             { id: 'current', label: BREADCRUMB_UPLOAD },
           ]}
         />
+
+        <h1 className="text-title font-semibold text-text-primary">{PAGE_TITLE}</h1>
 
         {props.offlineNotice !== null && (
           <InlineAlert level="attention" message={props.offlineNotice} />

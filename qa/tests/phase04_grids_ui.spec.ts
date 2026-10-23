@@ -126,6 +126,7 @@ test.describe('E04 SCR-19 axes — UI verify (QA-04c P4)', () => {
             await openRect(p, built);
             await p.getByRole('button', { name: 'Thêm trục dọc', exact: true }).click();
             await p.getByRole('button', { name: 'Xoá trục 3', exact: true }).click();
+            await p.getByRole('dialog').getByRole('button', { name: /^Xoá trục /u }).click(); // ConfirmDeleteDialog
             await expect(p.getByRole('region', { name: 'Thông báo', exact: true }).getByText('Đã xoá trục 3.', { exact: true })).toBeVisible(); // Toast.tsx
           },
           UI_VIEWPORTS,

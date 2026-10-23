@@ -36,7 +36,7 @@ export type PasswordResetViewProps = PasswordResetModel & PasswordResetActions;
 
 export function PasswordResetView(props: PasswordResetViewProps) {
   const { state, values, problems, notice, canSubmit, isSubmitting, isDone, isLinkIncomplete } = props;
-  const { setNewPassword, setConfirmPassword, submit, goToSignIn, expand } = props;
+  const { setNewPassword, setConfirmPassword, submit, goToSignIn, requestNewLink, expand } = props;
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -73,14 +73,18 @@ export function PasswordResetView(props: PasswordResetViewProps) {
           </Button>
         </div>
       ) : state === 'forbidden' ? (
-        <RecoveryDeadEnd
-          message={
-            isLinkIncomplete ? AUTH_MESSAGES.passwordReset.incomplete : AUTH_MESSAGES.passwordReset.expired
-          }
-          linkLabel={AUTH_MESSAGES.actions.goToSignIn}
-          href={ROUTES.login}
-          onLinkClick={goToSignIn}
-        />
+        <div className="flex flex-col gap-4">
+          <RecoveryDeadEnd
+            message={
+              isLinkIncomplete ? AUTH_MESSAGES.passwordReset.incomplete : AUTH_MESSAGES.passwordReset.expired
+            }
+          />
+          {/* Lối đi chính sau liên kết hỏng là xin liên kết mới, không chỉ "Về trang đăng nhập" (A1 P2 #3). */}
+          <Button size="lg" fullWidth onClick={requestNewLink}>
+            {AUTH_MESSAGES.actions.requestNewLink}
+          </Button>
+          <RecoveryLink label={AUTH_MESSAGES.actions.goToSignIn} href={ROUTES.login} onClick={goToSignIn} />
+        </div>
       ) : (
         <form
           ref={focusReturn.ref}

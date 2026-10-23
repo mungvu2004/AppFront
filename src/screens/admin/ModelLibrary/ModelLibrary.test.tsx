@@ -438,12 +438,12 @@ describe('R-72 — expectAccessible trên cây render thật', () => {
  * ========================================================================== */
 
 describe('A6 — đường dẫn trang viết hoa chữ đầu như màn quản trị người dùng (lỗi B-V12b-04)', () => {
-  it('nav tên đúng "Đường dẫn trang", chữ "Quản trị › Thư viện mẫu 3D"', async () => {
+  it('không còn breadcrumb lặp thanh tab quản trị; h1 là "Thư viện mẫu 3D"', async () => {
     const ModelLibraryView = await loadModelLibraryView();
     renderWithProviders(<ModelLibraryView {...buildModelLibraryProps('success')} />);
 
-    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
-    expect(nav.textContent).toBe('Quản trị › Thư viện mẫu 3D');
+    expect(screen.queryByRole('navigation', { name: 'Đường dẫn trang' })).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Thư viện mẫu 3D' })).toBeInTheDocument();
   });
 });
 

@@ -334,7 +334,7 @@ export const onlyRule = (keep: string): Json =>
 
 /* ---------------------------------------------------------------- screen helpers */
 
-export const reportHeading = (page: Page): Locator => page.getByRole('heading', { name: 'Kiểm tra luật không gian', level: 2 });
+export const reportHeading = (page: Page): Locator => page.getByRole('heading', { name: 'Quy chuẩn', level: 1 });
 export const rerunButton = (page: Page): Locator => page.getByRole('button', { name: 'Chạy kiểm tra lại', exact: true });
 export const confirmButton = (page: Page): Locator => page.getByRole('button', { name: 'Xác nhận đã xử lý', exact: true });
 export const levelFilter = (page: Page): Locator => page.getByRole('radiogroup', { name: 'Lọc theo mức độ', exact: true });
@@ -381,9 +381,12 @@ export async function headerInfos(page: Page): Promise<HeaderInfo[]> {
   const raw = await groupHeaders(page).evaluateAll((buttons) =>
     buttons.map((button) => {
       const spans = Array.from(button.querySelectorAll(':scope > span'));
+      // The severity is now a badge leading the title (first span of the left cluster); the right span has only "N mục chưa xử lý ...".
+      const left = Array.from(spans[0]?.querySelectorAll(':scope > span') ?? []);
+      const badge = (left.length > 1 ? left[0]?.textContent : '') ?? '';
       return {
-        title: (spans[0]?.textContent ?? '').trim(),
-        summary: (spans[1]?.textContent ?? '').trim(),
+        title: (left.at(-1)?.textContent ?? '').trim(),
+        summary: `${badge.trim()} · ${(spans[1]?.textContent ?? '').trim()}`,
         expanded: button.getAttribute('aria-expanded') === 'true',
         controls: button.getAttribute('aria-controls') ?? '',
       };

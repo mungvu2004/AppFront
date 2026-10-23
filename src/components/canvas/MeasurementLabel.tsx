@@ -112,11 +112,13 @@ export function MeasurementLabel({
 
       {/* Nhãn pill */}
       <div
-        className="absolute pointer-events-none transition-all duration-120"
+        /* Dời bằng transform (không gây layout); đang kéo thì bám tay, không trễ theo transition. */
+        className={cn(
+          'absolute left-0 top-0 pointer-events-none',
+          isCommitted && 'transition-transform duration-120 motion-reduce:transition-none'
+        )}
         style={{
-          left: labelX,
-          top: labelY,
-          transform: 'translate(-50%, -50%)',
+          transform: `translate(${labelX}px, ${labelY}px) translate(-50%, -50%)`,
         }}
       >
         <span

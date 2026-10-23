@@ -26,7 +26,11 @@ export interface CanvasPanState {
     onPointerMove: (e: ReactPointerEvent<HTMLElement>) => void;
     onPointerUp: (e: ReactPointerEvent<HTMLElement>) => void;
     onPointerCancel: (e: ReactPointerEvent<HTMLElement>) => void;
+    /** Trình duyệt tự thu hồi capture (cảm ứng bị cuộn trang cướp, cửa sổ mất focus): xoá trạng thái kéo. */
+    onLostPointerCapture: (e: ReactPointerEvent<HTMLElement>) => void;
   };
+  /** Gắn vào mặt kéo: `touch-none` để ngón tay kéo bản vẽ thay vì cuộn/phóng trang. */
+  surfaceClassName: string;
 }
 
 /** Quyết định một lần nhấn chuột có bắt đầu kéo không (tách riêng để test). */
@@ -120,6 +124,8 @@ export function useCanvasPan(onWheelZoom?: (direction: 1 | -1) => void): CanvasP
       },
       onPointerUp: end,
       onPointerCancel: end,
+      onLostPointerCapture: end,
     },
+    surfaceClassName: 'touch-none',
   };
 }

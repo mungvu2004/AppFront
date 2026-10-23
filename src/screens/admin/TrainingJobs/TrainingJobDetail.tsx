@@ -19,6 +19,8 @@ import { cn } from '@/lib/utils';
 
 import type { CancelDialogModel, JobDetailModel, TrainingJobsActions } from './types';
 
+const IOU_HINT = 'IoU: độ khớp giữa vùng máy đoán và vùng chuẩn, từ 0 đến 1; càng gần 1 càng tốt.';
+
 const TEXT = {
   placeholder: 'Chọn một lượt để xem chi tiết.',
   cancel: 'Huỷ lượt',
@@ -57,7 +59,9 @@ function MetricsTable({ detail }: { readonly detail: JobDetailModel }) {
         <Table.Header>
           <Table.Row>
             {headers.map((header) => (
-              <Table.Head key={header}>{header}</Table.Head>
+              <Table.Head key={header}>
+                {header === 'IoU' ? <span title={IOU_HINT}>{header}</span> : header}
+              </Table.Head>
             ))}
           </Table.Row>
         </Table.Header>
@@ -183,6 +187,7 @@ export function TrainingJobDetail({ actions, detail }: TrainingJobDetailProps) {
       </div>
       <Section title={TEXT.metrics}>
         <p className="text-[13px] tabular-nums text-text-secondary">{detail.metricsSummary ?? TEXT.noMetrics}</p>
+        {detail.scoreName === 'IoU' && <p className="text-[12px] text-text-secondary">{IOU_HINT}</p>}
         <MetricsTable detail={detail} />
       </Section>
       <Section title={TEXT.logs}>

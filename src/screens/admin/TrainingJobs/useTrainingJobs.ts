@@ -112,6 +112,11 @@ export const FAMILY_LABELS: Readonly<Record<DatasetFamilyId, string>> = {
   dimensionReading: 'Đọc kích thước',
 };
 
+const BASE_MODEL_LABEL: Readonly<Record<string, string>> = {
+  mitB0: 'Nhỏ, nhanh (mitB0)',
+  mitB1: 'Lớn, chính xác hơn (mitB1)',
+};
+
 const SCORE_NAME: Readonly<Record<TrainableFamilyId, string>> = {
   wallSegmentation: 'IoU',
   openingAndFurnitureDetection: 'mAP50',
@@ -147,6 +152,7 @@ export const TRAINING_JOBS_TEXT = {
   emptyFiltered: 'Không có lượt nào khớp bộ lọc.',
   emptyDatasets: 'Chưa có bộ dữ liệu nào. Dựng bằng công cụ dòng lệnh.',
   noReadyVersion: 'Bộ dữ liệu này chưa có phiên bản sẵn sàng.',
+  noDatasetForCreate: 'Loại mô hình này chưa có bộ dữ liệu để huấn luyện.',
   resultLink: 'Xem model AI đã tạo',
   relatedLink: 'Sang tab Mô hình AI',
   fieldFamily: 'Họ',
@@ -519,7 +525,7 @@ export function useTrainingJobs({
   /* ---- N28 · N30 -------------------------------------------------------- */
 
   const formDatasetsQuery = useQuery({
-    enabled: enabled && isFormOpen,
+    enabled,
     queryFn: ({ signal }) => readAllPages((cursor) => gateway.listDatasets({ cursor, family: formFamily, signal })),
     queryKey: queryKeys.adminMl.datasets(formFamily),
   });
@@ -783,7 +789,7 @@ export function useTrainingJobs({
       : {
           baseModel: effectiveBaseModel,
           baseModelError: formErrors.baseModel,
-          baseModels: baseModels.map((value) => ({ label: value, value })),
+          baseModels: baseModels.map((value) => ({ label: BASE_MODEL_LABEL[value] ?? value, value })),
           canSubmit,
           datasetId: effectiveDatasetId,
           datasets: formDatasets.map((dataset) => ({ label: dataset.name, value: dataset.id })),
@@ -810,6 +816,8 @@ export function useTrainingJobs({
 
     return {
       activeTab,
+      createDisabledReason:
+        formDatasetsQuery.data !== undefined && formDatasets.length === 0 ? TRAINING_JOBS_TEXT.noDatasetForCreate : null,
       cancelDialog: isCancelOpen ? { errorMessage: cancelError, isSubmitting: cancelMutation.isPending } : null,
       datasets: {
         datasets: tabDatasets.map((dataset) => ({
@@ -872,6 +880,7 @@ export function useTrainingJobs({
     formEpochs,
     epochsValid,
     formFamily,
+    formDatasetsQuery.data,
     formDatasetsQuery.error,
     formDatasetsQuery.isLoading,
     formVersionsQuery.error,

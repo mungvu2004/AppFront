@@ -103,6 +103,7 @@ function scenario(
     familyFilter: FILTER_ALL,
     familyFilters: FAMILY_FILTERS,
     form: null,
+    createDisabledReason: null,
     hasMore: false,
     isCollapsed: options.isCollapsed ?? false,
     isLoadingMore: false,

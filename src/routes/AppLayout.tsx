@@ -19,8 +19,21 @@ import { initialsOf } from '@/lib/format/initials';
 import { cachedProjectName } from '@/lib/query/cachedProjectName';
 import { queryKeys } from '@/lib/query/queryKeys';
 
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+
 import { ROUTES } from './paths';
-import { projectLocationOf } from './projectSteps';
+import { projectLocationOf, projectScreenTitleOf, projectStepStates } from './projectSteps';
+
+/** Đích của skip link "Bỏ qua tới nội dung": vùng chứa màn con dưới header. */
+const MAIN_CONTENT_ID = 'noi-dung';
+
+/** Tên màn ngoài dự án cho tiêu đề tab. */
+function appScreenTitleOf(pathname: string): string | null {
+  if (pathname === ROUTES.dashboard) return 'Dự án';
+  if (pathname.startsWith('/admin')) return 'Quản trị';
+  if (pathname.startsWith(ROUTES.account)) return 'Tài khoản';
+  return null;
+}
 
 function readLastProject(): { readonly id: string; readonly name: string } | null {
   try {
@@ -119,12 +132,29 @@ export function AppLayout() {
           ? ('no-drawings' as const)
           : undefined;
 
+  const stepStates = projectStepStates({ status: detail.data?.status, hasDrawings: floors?.some((floor) => floor.drawings.length > 0) });
+
+  // Tiêu đề tab tiếng Việt cho mọi màn sau đăng nhập: "<Màn> · <Dự án> · AppFront".
+  const screenTitle = location === null ? appScreenTitleOf(routerLocation.pathname) : projectScreenTitleOf(routerLocation.pathname);
+  useDocumentTitle([screenTitle, projectName].filter((part): part is string => part !== null && part !== '').join(' · ') || null);
+
   const handleSignOut = useCallback((): void => {
     void signOut().finally(() => navigate(ROUTES.login));
   }, [navigate]);
 
   return (
     <div className="flex h-dvh flex-col bg-bg-app">
+      <a
+        href={`#${MAIN_CONTENT_ID}`}
+        className="sr-only z-[100] rounded-md bg-bg-surface px-4 py-2 text-[13px] font-medium text-accent shadow-float focus:not-sr-only focus:fixed focus:left-4 focus:top-2 focus:outline-hidden focus:ring-2 focus:ring-accent"
+        onClick={(event) => {
+          // Đưa focus vào vùng nội dung (không đổi URL, router không bắt hash).
+          event.preventDefault();
+          document.getElementById(MAIN_CONTENT_ID)?.focus();
+        }}
+      >
+        Bỏ qua tới nội dung
+      </a>
       <AppHeader
         accountInitials={initialsOf(session.user?.name ?? '', session.user?.email ?? '')}
         accountLabel={session.user?.name || session.user?.email || 'Tài khoản'}
@@ -137,12 +167,12 @@ export function AppLayout() {
         project={
           location === null
             ? null
-            : { id: location.projectId, name: projectName, stepIndex: location.stepIndex, floorId: location.floorId, layerIndex: location.layerIndex, blocker, lastFloorPath }
+            : { id: location.projectId, name: projectName, stepIndex: location.stepIndex, floorId: location.floorId, layerIndex: location.layerIndex, blocker, lastFloorPath, stepStates }
         }
         returnProject={lastProject}
         onSignOut={handleSignOut}
       />
-      <div data-app-content className="relative flex min-h-0 flex-1 flex-col overflow-auto">
+      <div data-app-content id={MAIN_CONTENT_ID} tabIndex={-1} className="relative flex min-h-0 flex-1 flex-col overflow-auto outline-hidden">
         <Outlet />
       </div>
     </div>

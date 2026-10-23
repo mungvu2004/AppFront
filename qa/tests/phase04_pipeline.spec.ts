@@ -927,6 +927,7 @@ test.describe('SCR-19 Axis Grid Manager', () => {
 
     await test.step('[19-A-009] "Xoá trục X" removes the row and publishes the undo toast "Đã xoá trục X."', async () => {
       await page.getByRole('button', { name: `Xoá trục ${added}`, exact: true }).click();
+      await page.getByRole('dialog').getByRole('button', { name: /^Xoá trục /u }).click(); // ConfirmDeleteDialog
       await expect(axisRows).toHaveCount(before.length);
       await expect.soft(toasts.getByText(`Đã xoá trục ${added}.`, { exact: true })).toBeVisible();
     });

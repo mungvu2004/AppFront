@@ -31,7 +31,7 @@ const AvatarRoot = forwardRef<HTMLDivElement, AvatarProps>(
           {src ? (
             <img
               src={src}
-              alt={alt || initials || 'Avatar'}
+              alt={alt || initials || 'Ảnh đại diện'}
               className="w-full h-full object-cover"
             />
           ) : (

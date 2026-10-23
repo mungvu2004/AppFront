@@ -40,15 +40,18 @@ export function ExportPanelFooter({
 }: ExportPanelFooterProps) {
   const footerRef = useRef<HTMLElement>(null);
   const isRunning = progress !== null;
-  const isFirstRender = useRef(true);
+  // So với lần trước thay vì cờ "lần đầu": StrictMode chạy effect hai lần lúc mount,
+  // cờ cũ để lần hai cướp focus vào nút phụ "Về dự án" ngay khi mở màn.
+  const wasRunning = useRef(isRunning);
 
   // Nút vừa bấm bị thay bằng nút khác khi chân trang đổi: nếu focus rơi về
   // `<body>` thì đưa nó sang nút mới (30-E-013).
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
+    if (wasRunning.current === isRunning) {
       return;
     }
+
+    wasRunning.current = isRunning;
 
     const active = document.activeElement;
 
@@ -79,8 +82,8 @@ export function ExportPanelFooter({
           className="h-2 w-full overflow-hidden rounded-full bg-bg-sunken"
         >
           <div
-            className="h-full rounded-full bg-accent transition-[width] duration-standard"
-            style={{ width: `${progress.ratio * 100}%` }}
+            className="h-full w-full origin-left rounded-full bg-accent transition-transform duration-standard"
+            style={{ transform: `scaleX(${String(progress.ratio)})` }}
           />
         </div>
       </footer>

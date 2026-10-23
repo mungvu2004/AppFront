@@ -19,6 +19,7 @@ const PROJECT_NAV_LABELS = {
   versions: 'Lịch sử phiên bản',
   data: 'Dữ liệu dự án',
   graph: 'Sơ đồ xử lý',
+  quality: 'Chất lượng ảnh đầu vào',
   members: 'Thành viên',
   settings: 'Cài đặt',
 } as const;
@@ -31,6 +32,8 @@ function entriesFor(projectId: string): readonly ProjectNavEntry[] {
     { id: 'versions', label: PROJECT_NAV_LABELS.versions, to: ROUTES.project.versions(projectId), isActive: (p) => p.startsWith(ROUTES.project.versions(projectId)) },
     { id: 'data', label: PROJECT_NAV_LABELS.data, to: ROUTES.project.data(projectId), isActive: (p) => p.startsWith(ROUTES.project.data(projectId)) },
     { id: 'graph', label: PROJECT_NAV_LABELS.graph, to: ROUTES.project.pipelineGraph(projectId), isActive: (p) => p.startsWith(ROUTES.project.pipelineGraph(projectId)) },
+    // N0-03: lối mở lại bước nắn ảnh sau khi luồng xử lý đã đi qua (trước đây ở menu "Màn dự án" của Quản lý tầng).
+    { id: 'quality', label: PROJECT_NAV_LABELS.quality, to: ROUTES.project.quality(projectId), isActive: (p) => p.startsWith(ROUTES.project.quality(projectId)) },
     { id: 'members', label: PROJECT_NAV_LABELS.members, to: `${settings}${MEMBERS_TAB_QUERY}`, isActive: isMembers },
     { id: 'settings', label: PROJECT_NAV_LABELS.settings, to: settings, isActive: (p, s) => p === settings && !isMembers(p, s) },
   ];
@@ -58,7 +61,7 @@ export function ProjectNav({ className, pathname, projectId, search = '' }: Proj
                 to={entry.to}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'flex h-8 items-center whitespace-nowrap rounded-md px-2.5 text-[13px] font-medium transition-colors duration-120',
+                  'flex min-h-11 fine:min-h-8 items-center whitespace-nowrap rounded-md px-2.5 text-[13px] font-medium transition-colors duration-120',
                   'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
                   active
                     ? 'bg-bg-selected text-text-primary'

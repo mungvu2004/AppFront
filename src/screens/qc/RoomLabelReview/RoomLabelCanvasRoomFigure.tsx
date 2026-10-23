@@ -17,7 +17,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { applyEmphasis } from '@/lib/coloring/legend';
 import { fitText } from '@/lib/export/fitText';
 import { MOTION_EASINGS, cssDurationMs } from '@/lib/motion';
 
@@ -50,6 +49,15 @@ export interface RoomLabelCanvasRoomFigureProps {
   /** Có bản vẽ nền: nhãn dời lên mép trên phòng để không đè chữ gốc ở giữa phòng (G4a-29). */
   readonly hasBackground?: boolean;
 }
+
+/**
+ * Độ phủ nền phòng theo công năng. `DIMMED_OPACITY` (0,12) của `applyEmphasis` làm
+ * phòng gần như biến mất trên bản vẽ (đánh giá A3: "không vẽ vùng phòng cho tới khi
+ * chọn"), nên canvas Phòng dùng nấc riêng: thấy vùng ngay khi mở, nhãn vẫn ≥ 4,5:1.
+ * Phòng đang chọn đậm hơn rõ (0,35), cộng viền nhấn 2px và phóng 10%.
+ */
+const ROOM_FILL_OPACITY = 0.22;
+const ROOM_SELECTED_FILL_OPACITY = 0.35;
 
 /** Khoảng cách từ mép trên phòng tới tâm nhãn khi dời nhãn (G4a-29). */
 const TOP_LABEL_INSET_PX = ROOM_LABEL_NAME_FONT_PX + ROOM_LABEL_LINE_OFFSET_PX + 4;
@@ -226,14 +234,13 @@ export function RoomLabelCanvasRoomFigure({
     transitionTimingFunction: MOTION_EASINGS.enter.css,
   };
 
-  const fill = applyEmphasis(room.fillToken, 'dimmed');
 
   return (
     <g aria-hidden="true" className="pointer-events-none motion-reduce:transition-none" role="presentation">
       <g style={groupStyle}>
         <polygon
-          fill={cssVar(fill.token)}
-          fillOpacity={fill.opacity}
+          fill={cssVar(room.fillToken)}
+          fillOpacity={isSelected ? ROOM_SELECTED_FILL_OPACITY : ROOM_FILL_OPACITY}
           points={points}
           stroke={isSelected ? cssVar(ROOM_SELECTED_STROKE_TOKEN) : cssVar(ROOM_STROKE_TOKEN)}
           strokeWidth={isSelected ? ROOM_SELECTED_STROKE_WIDTH_PX : ROOM_STROKE_WIDTH_PX}

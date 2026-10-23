@@ -106,7 +106,7 @@ export type FamilyKey = keyof typeof FAMILY_LABELS;
 export const FAMILY_ORDER: readonly FamilyKey[] = ['walls', 'opening', 'dimension'];
 export const versionLabels = (page: Page): Locator => page.locator('table button[aria-pressed], li button[aria-pressed]');
 export const enabledActivate = (page: Page): Locator => page.getByRole('button', { name: 'Kích hoạt', exact: true }).and(page.locator(':enabled'));
-export const picker = (page: Page): Locator => page.getByRole('radiogroup', { name: 'Họ model' });
+export const picker = (page: Page): Locator => page.getByRole('radiogroup', { name: 'Loại mô hình' });
 
 export async function selectFamily(page: Page, family: FamilyKey): Promise<void> {
   const radio = picker(page).getByRole('radio', { name: FAMILY_LABELS[family], exact: true });

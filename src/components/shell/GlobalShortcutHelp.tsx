@@ -59,7 +59,7 @@ const DISPLAY_SCOPES: readonly Exclude<ShortcutScope, 'dialog'>[] = ['global', '
 
 const SCOPE_LABELS: Readonly<Record<Exclude<ShortcutScope, 'dialog'>, string>> = {
   global: 'Toàn cục',
-  canvas: 'Khung nhìn 3D',
+  canvas: 'Khung vẽ',
   sidePanel: 'Bảng bên',
 };
 

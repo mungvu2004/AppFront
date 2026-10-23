@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ROUTES } from './paths';
-import { PROJECT_STEPS, projectLocationOf } from './projectSteps';
+import { PROJECT_STEPS, projectLocationOf, projectScreenTitleOf, projectStepStates } from './projectSteps';
 
 describe('projectLocationOf', () => {
   it.each([
@@ -38,5 +38,20 @@ describe('projectLocationOf', () => {
     PROJECT_STEPS.forEach((step, index) => {
       expect(projectLocationOf(step.path('p1'))?.stepIndex).toBe(index);
     });
+  });
+
+  it('trạng thái bước chỉ khẳng định điều dữ liệu cho biết chắc', () => {
+    expect(projectStepStates({ hasDrawings: true, status: 'draft' })).toEqual(['done', 'todo', 'todo', 'todo', 'todo', 'todo']);
+    expect(projectStepStates({ hasDrawings: false, status: 'error' }).slice(0, 2)).toEqual(['attention', 'attention']);
+    expect(projectStepStates({ hasDrawings: true, status: 'approved' })).toEqual(['done', 'done', 'done', 'done', 'todo', 'todo']);
+    expect(projectStepStates({})).toEqual(['todo', 'todo', 'todo', 'todo', 'todo', 'todo']);
+  });
+
+  it('tên màn cho tiêu đề tab', () => {
+    expect(projectScreenTitleOf(ROUTES.project.walls('p1', 'f1'))).toBe('Duyệt lớp tường');
+    expect(projectScreenTitleOf(ROUTES.project.settings('p1'))).toBe('Cài đặt dự án');
+    expect(projectScreenTitleOf(ROUTES.project.pipelineGraph('p1'))).toBe('Sơ đồ xử lý');
+    expect(projectScreenTitleOf(ROUTES.project.upload('p1'))).toBe('Tải bản vẽ');
+    expect(projectScreenTitleOf(ROUTES.dashboard)).toBeNull();
   });
 });

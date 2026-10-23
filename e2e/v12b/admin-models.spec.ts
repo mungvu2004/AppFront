@@ -39,7 +39,7 @@ test.describe('admin (đăng nhập, G2-25)', () => {
     // `exact`: Playwright so tên không phân biệt hoa/thường khi không có nó, nên
     // `Đường dẫn trang` cũ lọt qua mà không ai thấy (F14).
     const breadcrumb = page.getByRole('navigation', { name: 'Đường dẫn trang', exact: true });
-    await expect(breadcrumb).toHaveText(/^Quản trị\s*›\s*Thư viện mẫu 3D$/u);
+    await expect(breadcrumb).toHaveCount(0); // breadcrumb removed; the h1 names the screen
   });
 
   test('MD-1 lọc không ra gì thì nói ra bằng lời, xoá ô thì về đủ 16 (A11 empty)', async ({ page }) => {

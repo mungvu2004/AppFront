@@ -17,6 +17,9 @@ import type { ModelRegistryActions, VersionRowModel } from './types';
 const ACTIVATE_LABEL = 'Kích hoạt';
 const ACTIVE_BADGE = 'Đang dùng';
 const HEADERS = ['Nhãn', 'Định dạng', 'Đánh giá', 'Số đo', 'Nguồn', 'Ngày tạo'] as const;
+/** Dưới 1600px hai cột này nằm trong thẻ chi tiết, để nút Kích hoạt luôn thấy. */
+const WIDE_ONLY: ReadonlySet<string> = new Set([HEADERS[1], HEADERS[4]]);
+const WIDE_CLASS = 'hidden min-[1600px]:table-cell';
 const ACTIONS_HEADER = 'Thao tác';
 const FOCUS_RING =
   'rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
@@ -30,7 +33,8 @@ function LabelButton({ actions, row }: RowPartProps) {
   return (
     <button
       aria-pressed={row.isSelected}
-      className={cn('truncate text-left font-medium text-text-primary', FOCUS_RING)}
+      className={cn('block max-w-[22ch] truncate text-left font-medium text-text-primary', FOCUS_RING)}
+      title={row.label}
       onClick={() => actions.onSelectVersion(row.isSelected ? null : row.id)}
       type="button"
     >
@@ -114,7 +118,9 @@ export function ModelRegistryVersionTable({ actions, isCollapsed, rows }: ModelR
       <Table.Header>
         <Table.Row>
           {HEADERS.map((header) => (
-            <Table.Head key={header}>{header}</Table.Head>
+            <Table.Head className={WIDE_ONLY.has(header) ? WIDE_CLASS : ''} key={header}>
+              {header}
+            </Table.Head>
           ))}
           <Table.Head>
             <span>{ACTIONS_HEADER}</span>
@@ -127,12 +133,12 @@ export function ModelRegistryVersionTable({ actions, isCollapsed, rows }: ModelR
             <Table.Cell>
               <LabelButton actions={actions} row={row} />
             </Table.Cell>
-            <Table.Cell className="font-mono">{row.formatLabel}</Table.Cell>
+            <Table.Cell className={cn(WIDE_CLASS, 'font-mono')}>{row.formatLabel}</Table.Cell>
             <Table.Cell>
               <EvaluationBadge row={row} />
             </Table.Cell>
             <Table.Cell className="tabular-nums">{row.metricLabel}</Table.Cell>
-            <Table.Cell className="text-text-secondary">{row.sourceLabel}</Table.Cell>
+            <Table.Cell className={cn(WIDE_CLASS, 'text-text-secondary')}>{row.sourceLabel}</Table.Cell>
             <Table.Cell className="text-text-secondary">{row.createdLabel}</Table.Cell>
             <Table.Cell>
               <ActivateControl actions={actions} row={row} />

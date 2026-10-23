@@ -22,7 +22,7 @@
  */
 
 import { Inbox } from 'lucide-react';
-import { useRef, type KeyboardEvent } from 'react';
+import { useEffect, useRef, type KeyboardEvent } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { cn } from '@/lib/utils';
@@ -131,7 +131,9 @@ export function RoomLabelList({ rooms, selectedRoomId, onSelect, onHover }: Room
       return;
     }
 
-    const next = items[event.key === 'ArrowDown' ? current + 1 : current - 1];
+    const nextIndex = event.key === 'ArrowDown' ? current + 1 : current - 1;
+    const next = items[nextIndex];
+    const nextRoom = rooms[nextIndex];
 
     if (next === undefined) {
       return;
@@ -139,7 +141,36 @@ export function RoomLabelList({ rooms, selectedRoomId, onSelect, onHover }: Room
 
     event.preventDefault();
     next.focus();
+
+    /* Mũi tên đổi luôn dòng chọn, không chỉ dời tiêu điểm (Impeccable A3). */
+    if (nextRoom !== undefined) {
+      onSelect(nextRoom.id);
+    }
   };
+
+  /* Chọn đổi từ bản vẽ hay phím A: cuộn tới dòng, kéo tiêu điểm theo nếu nó đang ở một dòng. */
+  useEffect(() => {
+    const container = containerRef.current;
+
+    if (selectedRoomId === null || container === null) {
+      return;
+    }
+
+    const index = rooms.findIndex((room) => room.id === selectedRoomId);
+    const target = index === -1 ? undefined : container.querySelectorAll<HTMLElement>('[role="option"]')[index];
+
+    if (target === undefined) {
+      return;
+    }
+
+    target.scrollIntoView?.({ block: 'nearest' });
+
+    const focused = document.activeElement;
+
+    if (focused !== null && focused !== target && container.contains(focused) && focused.getAttribute('role') === 'option') {
+      target.focus({ preventScroll: true });
+    }
+  }, [rooms, selectedRoomId]);
 
   if (rooms.length === 0) {
     return <EmptyState description={EMPTY_DESCRIPTION} icon={<Inbox />} title={EMPTY_TITLE} />;

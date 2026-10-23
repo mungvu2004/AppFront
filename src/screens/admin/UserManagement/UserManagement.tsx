@@ -75,6 +75,8 @@ function BreadcrumbLink({ item, isCurrent = true }: { readonly item: BreadcrumbI
 }
 
 function UserManagementBreadcrumb({ items }: { readonly items: readonly BreadcrumbItemModel[] }) {
+  // Chỉ giữ khi có cấp sâu hơn tab: "Quản trị › Người dùng" lặp đúng thanh tab ngay trên nó.
+  if (items.length <= 2) return null;
   return (
     <nav aria-label={BREADCRUMB_NAV_LABEL} className="text-[13px] text-text-secondary">
       <ol className="flex items-center gap-1.5">
@@ -193,7 +195,7 @@ export function UserManagement({ model, actions }: UserManagementProps) {
     <div className={SCREEN_CONTAINER_CLASS}>
       <div className="flex items-center justify-between gap-4">
         <UserManagementBreadcrumb items={model.breadcrumbItems} />
-        <Button
+        <Button className="ml-auto"
           iconBefore={<ShieldCheck aria-hidden="true" size={16} />}
           onClick={actions.onOpenPermissionReference}
           size="sm"

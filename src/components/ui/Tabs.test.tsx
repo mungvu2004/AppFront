@@ -70,7 +70,7 @@ describe('Tabs', () => {
   it('tab cao 44 px dưới sm, 36 px từ sm (vùng chạm, QA-05)', () => {
     render(<Tabs tabs={tabs} activeId="walls" onChange={() => {}} />);
     for (const tab of screen.getAllByRole('tab')) {
-      expect(tab).toHaveClass('h-11', 'sm:h-9');
+      expect(tab).toHaveClass('h-11', 'fine:h-9');
     }
   });
 

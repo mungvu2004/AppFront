@@ -275,7 +275,7 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
       const puts = (): number => writes.filter((r) => r.method() === 'PUT' && ruleConfigRe(projectId).test(new URL(r.url()).pathname)).length;
       await page.clock.install();
       await page.goto(ROUTES.project.ruleSettings(projectId));
-      await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 2 })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 1 })).toBeVisible();
       const stripBase = (value: unknown): unknown => Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([key]) => !/^(revision|version|baseVersion|updatedAt|etag)$/u.test(key)));
       const defaultRes = await api.get(`/api/projects/${projectId}/rule-config`);
       expect(defaultRes.status(), 'GET rule-config of the fresh project').toBe(200);
@@ -351,7 +351,7 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
         const afterReset = (await get);
         expect(afterReset.status(), 'GET rule-config after reset').toBe(200);
         expect(stripRev(await afterReset.json()), 'config = default').toEqual(defaultConfig);
-        await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 2 })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 1 })).toBeVisible();
         await expect.soft(footerText(page)).toHaveCount(0); // server config is the default again
         await expect.soft(restoreDefaults(page)).toHaveCount(0);
         // BUG-P11-028: the header count runs up for 260 ms (useCountUp); wait for the settled value before the shot.

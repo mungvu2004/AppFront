@@ -39,7 +39,7 @@ function PresetButton({ preset, onApplyPreset }: PresetButtonProps) {
       {preset.changedRuleCount === 0 ? (
         <span className="text-xs font-medium text-accent">Đang dùng</span>
       ) : (
-        <span className="font-mono text-xs tabular-nums text-text-secondary">
+        <span className="text-caption tabular-nums text-text-secondary">
           {changedText} luật sẽ đổi
         </span>
       )}

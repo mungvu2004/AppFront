@@ -142,6 +142,7 @@ import {
   type ObjectLayerReviewGateway,
 } from './objectLayerReviewGateway';
 import {
+  OBJECT_LAYER_IDS,
   OBJECT_SUBTYPES,
   OBJECT_SUBTYPE_LAYER,
   isOrphanObject,
@@ -168,6 +169,7 @@ import {
 } from '../shared/canvasFit';
 import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
+import { arrowStepHandler } from '../WallLayerReview/listArrowKeys';
 
 /* -------------------------------------------------------------------------- */
 /* Hợp đồng vào.                                                               */
@@ -1415,10 +1417,20 @@ export function useObjectLayerReview(
     },
     { ...shortcutOptions, enabled: selectedObjectId !== null || flownWallId !== null },
   );
-  /* BUG-589: xoá bằng phím như màn tường (Backspace), cộng Delete — không chỉ chuột phải. */
+  /*
+   * BUG-589: xoá bằng phím như màn tường (Backspace), cộng Delete — không chỉ chuột phải.
+   * Impeccable A3: phím đi qua đúng hộp `ConfirmDeleteDialog` của nút trong thanh tra —
+   * hook chỉ phát một yêu cầu (số thứ tự tăng dần), thanh tra mở hộp khi thấy số mới.
+   */
+  const [deleteRequest, setDeleteRequest] = useState<{ readonly id: string; readonly seq: number } | null>(null);
+  useEffect(() => {
+    setDeleteRequest(null);
+  }, [selectedObjectId]);
   const deleteSelected = (): void => {
-    if (selectedObjectIdRef.current !== null) {
-      onDelete(selectedObjectIdRef.current);
+    const objectId = selectedObjectIdRef.current;
+
+    if (objectId !== null) {
+      setDeleteRequest((previous) => ({ id: objectId, seq: (previous?.seq ?? 0) + 1 }));
     }
   };
   useShortcut(
@@ -1474,8 +1486,92 @@ export function useObjectLayerReview(
 
     const wall = isOrphanObject(selectedObject) ? null : wallOfObject(selectedObject.hostWallId);
 
-    return toObjectInspector(selectedObject, wall, wallCodes);
-  }, [selectedObject, wallCodes, wallOfObject]);
+    const base = toObjectInspector(selectedObject, wall, wallCodes);
+
+    return deleteRequest !== null && deleteRequest.id === base.id ? { ...base, deleteRequestSeq: deleteRequest.seq } : base;
+  }, [deleteRequest, selectedObject, wallCodes, wallOfObject]);
+
+  /*
+   * Impeccable A3: thứ tự dòng như danh sách đang vẽ — theo nhóm loại, bỏ nhóm đang thu gọn.
+   * ponytail: bỏ qua ô tìm mã của danh sách (state cục bộ của view); cần thì đưa ô tìm lên hook.
+   */
+  const listOrderRef = useRef<readonly string[]>([]);
+  listOrderRef.current = OBJECT_LAYER_IDS.flatMap((layer) =>
+    collapsedGroups[layer] ? [] : rows.filter((row) => row.layer === layer).map((row) => row.id),
+  );
+  const stepObject = useCallback(
+    (direction: 1 | -1) => {
+      const order = listOrderRef.current;
+      const current = selectedObjectIdRef.current;
+      const index = current === null ? -1 : order.indexOf(current);
+      const target = index === -1 ? order[direction === 1 ? 0 : order.length - 1] : order[index + direction];
+
+      if (target !== undefined) {
+        onSelect(target);
+      }
+    },
+    [onSelect],
+  );
+
+  /* "Duyệt và sang mục kế": tìm đối tượng chưa duyệt kế tiếp TRƯỚC khi cờ đổi, như màn tường. */
+  const reviewedRef = useRef<ReadonlyMap<string, boolean>>(new Map());
+  reviewedRef.current = new Map(objects.map((object) => [object.id, object.reviewed]));
+  const onApproveAndNext = useCallback(
+    (objectId: string) => {
+      const order = listOrderRef.current;
+      const start = order.indexOf(objectId);
+      const nextId =
+        [...order.slice(start + 1), ...order.slice(0, Math.max(start, 0))].find(
+          (id) => id !== objectId && reviewedRef.current.get(id) === false,
+        ) ?? null;
+
+      onApprove(objectId);
+
+      if (nextId !== null) {
+        onSelect(nextId);
+      }
+    },
+    [onApprove, onSelect],
+  );
+
+  useShortcut(
+    {
+      id: 'objectLayerReview.arrowNext',
+      combo: 'ArrowDown',
+      scope: 'canvas',
+      description: OBJECT_LAYER_TEXT.shortcutArrowNext,
+      allowRepeat: true,
+      preventDefault: false,
+      onTrigger: arrowStepHandler(() => stepObject(1)),
+    },
+    shortcutOptions,
+  );
+  useShortcut(
+    {
+      id: 'objectLayerReview.arrowPrevious',
+      combo: 'ArrowUp',
+      scope: 'canvas',
+      description: OBJECT_LAYER_TEXT.shortcutArrowPrevious,
+      allowRepeat: true,
+      preventDefault: false,
+      onTrigger: arrowStepHandler(() => stepObject(-1)),
+    },
+    shortcutOptions,
+  );
+  useShortcut(
+    {
+      id: 'objectLayerReview.approveNext',
+      combo: 'A',
+      scope: 'canvas',
+      description: OBJECT_LAYER_TEXT.shortcutApproveNext,
+      onTrigger: () => {
+        if (selectedObjectIdRef.current !== null) {
+          onApproveAndNext(selectedObjectIdRef.current);
+        }
+      },
+    },
+    { ...shortcutOptions, enabled: canEdit && selectedObjectId !== null },
+  );
 
   const paintSubjects = useMemo(
     () => (level === null ? [] : objects.map((object) => toPaintSubject(object, level.id))),
@@ -1642,7 +1738,7 @@ export function useObjectLayerReview(
     onChangeSwing,
     onDragPosition,
     onDelete,
-    onApprove,
+    onApprove: onApproveAndNext,
     onAttachToNearestWall,
     onSelectHostWall,
 

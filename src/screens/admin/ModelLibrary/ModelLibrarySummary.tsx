@@ -39,7 +39,7 @@ export function ModelLibrarySummary({ summary }: ModelLibrarySummaryProps) {
       <SummaryFigure caption={TOTAL_SIZE_CAPTION} value={summary.totalSizeLabel} />
       <SummaryFigure
         caption={HEAVY_COUNT_CAPTION}
-        toneClassName={summary.isAllWithinBudget ? undefined : 'text-state-attention-text'}
+        toneClassName={summary.isAllWithinBudget ? 'text-xl text-text-secondary' : 'text-state-attention-text'}
         value={summary.heavyCountLabel}
       />
     </dl>

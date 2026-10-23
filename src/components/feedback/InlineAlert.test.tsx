@@ -49,3 +49,16 @@ describe('InlineAlert — ngắt dòng thân (BUG-087)', () => {
     expect(screen.getByText('Hãy yêu cầu liên kết mới ở trang đăng nhập.')).toHaveClass('text-pretty');
   });
 });
+
+describe('InlineAlert — cấp heading', () => {
+  it('tiêu đề mặc định là đoạn chữ, không phải heading (không nhảy cấp dưới h1)', () => {
+    render(<InlineAlert level="attention" title="Chú ý" message="Nội dung" />);
+    expect(screen.queryByRole('heading')).toBeNull();
+    expect(screen.getByText('Chú ý').tagName).toBe('P');
+  });
+
+  it('titleAs="h2" cho tiêu đề thành heading cấp 2', () => {
+    render(<InlineAlert level="attention" title="Chú ý" titleAs="h2" message="Nội dung" />);
+    expect(screen.getByRole('heading', { level: 2, name: 'Chú ý' })).toBeInTheDocument();
+  });
+});

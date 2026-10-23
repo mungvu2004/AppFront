@@ -133,6 +133,13 @@ export function OverlayComparisonCanvasDivider({
     onDraggingChange(false);
   }, [onDraggingChange]);
 
+  // Lượt chạm bị huỷ hoặc mất bắt con trỏ: kết thúc phiên kéo, không để vạch chia dính theo tay.
+  const handlePointerAbort = useCallback(() => {
+    if (isDragging) {
+      handlePointerUp();
+    }
+  }, [handlePointerUp, isDragging]);
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
       if (!isInteractive) {
@@ -168,10 +175,12 @@ export function OverlayComparisonCanvasDivider({
       aria-valuemin={0}
       aria-valuenow={swipePosition}
       className={cn(
-        'group absolute inset-y-0 z-10 flex -translate-x-1/2 cursor-col-resize items-stretch justify-center',
+        'group absolute inset-y-0 z-10 flex -translate-x-1/2 cursor-col-resize touch-none items-stretch justify-center',
         'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent',
       )}
       onKeyDown={handleKeyDown}
+      onLostPointerCapture={handlePointerAbort}
+      onPointerCancel={handlePointerAbort}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
