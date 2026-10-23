@@ -95,9 +95,12 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
         <>
           <BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} save={bridge.save} />
           <ProjectStepsCard projectId={projectId} />
-          <SceneStyleCard flushAutosaves={flushAutosaves} reload={() => window.location.reload()} saveNow={savePascalNow} />
-          <LightingCard projectId={projectId} useViewer={useViewer} />
-          <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
+          {/* UI-1023 V-01: các chỉnh cảnh là một cụm liền khối (pascal-chrome.css `[data-appfront-cluster]`). */}
+          <div aria-label="Cảnh" className="inline-flex shrink-0 items-center" data-appfront-cluster="" role="group">
+            <SceneStyleCard flushAutosaves={flushAutosaves} reload={() => window.location.reload()} saveNow={savePascalNow} />
+            <LightingCard projectId={projectId} useViewer={useViewer} />
+            <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
+          </div>
         </>
       }
       onLoad={onLoad}

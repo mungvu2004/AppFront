@@ -121,55 +121,25 @@ export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
 const VIEWER_STEP = PROJECT_STEPS.findIndex((step) => step.id === 'viewer');
 
 /**
- * Dải sáu bước gọn của dự án (bước "Mô hình 3D" đang mở) và lối "Bước tiếp theo" — trang 3D
- * không có header chung của app nên tự vẽ lại hai thứ này từ cùng bảng `PROJECT_STEPS` (G5-04, N0-07).
- * Khe thanh công cụ hẹp: bước khác chỉ hiện số (tên ở `title`/nhãn đọc); dưới 1536px tên bước
- * hiện tại ẩn và lối tiếp viết gọn "Tiếp:".
- * QA-2 L1: các ngưỡng dưới đây đo theo bề rộng thanh trên (container `appbar`, khai ở pascal.css),
- * không theo khổ màn — thanh bên mở/kéo rộng cũng làm thanh hẹp lại. Thanh < 1400px: dải sáu bước
- * thu thành một chip "bước hiện tại + menu" (`<details>`), < 1200px chip chỉ còn số bước; < 1050px: ẩn
- * lối tiếp (đã có trong menu). FE3D-FIX-004: thêm Ánh sáng + Đổi mẫu nên các ngưỡng nâng lên, mọi nhãn
- * không xuống dòng.
+ * Cụm "bước của dự án" trên thanh 3D (G5-04, N0-07; UI-1023 V-01): trang 3D không có header chung
+ * của app nên tự vẽ lại từ cùng bảng `PROJECT_STEPS`. Một cụm có nhãn, luôn cùng một chỗ (ngay sau
+ * thẻ về dự án): chip "bước hiện tại + menu sáu bước" rồi nút "Tiếp". Dải sáu số cũ bỏ — nó chiếm
+ * ~250px và làm thanh tràn ở 1440. Ngưỡng đo theo bề rộng thanh (container `appbar`, pascal.css):
+ * < 1200px chip chỉ còn số bước; < 1500px nút chỉ còn "Tiếp →" (tên bước ở `title`/nhãn đọc) — đủ chỗ
+ * cho nhóm nút phải của vendor ở 1440; nút không bao giờ ẩn.
  */
 export function ProjectStepsCard({ projectId }: { readonly projectId: string }) {
   const next = PROJECT_STEPS[VIEWER_STEP + 1];
   const current = PROJECT_STEPS[VIEWER_STEP] ?? PROJECT_STEPS[0]!;
   return (
-    <>
-      <nav aria-label="Các bước của dự án" className={`${CARD} hidden px-1 @min-[1400px]/appbar:inline-flex`}>
-        <ol className="flex items-center gap-0.5">
-          {PROJECT_STEPS.map((step, index) =>
-            index === VIEWER_STEP ? (
-              <li key={step.id}>
-                <span aria-current="step" className="flex h-6 items-center gap-1.5 rounded-lg bg-[var(--pa-selected)] px-1.5 font-medium text-[var(--pa-accent)]" title={step.label}>
-                  <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--pa-accent)] text-[10px] text-[var(--pa-surface)]">
-                    {index + 1}
-                  </span>
-                  <span className="sr-only @min-[1600px]/appbar:not-sr-only">{step.label}</span>
-                </span>
-              </li>
-            ) : (
-              <li key={step.id}>
-                <a
-                  aria-label={`Bước ${index + 1}: ${step.label}`}
-                  className={`${FOCUS_OUT} relative flex h-6 w-6 items-center justify-center rounded-lg text-[12px] after:absolute after:-inset-1 after:content-[''] text-[var(--pa-text-2)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)] motion-reduce:transition-none`}
-                  href={step.path(projectId)}
-                  title={step.label}
-                >
-                  {index + 1}
-                </a>
-              </li>
-            ),
-          )}
-        </ol>
-      </nav>
-      <details className="relative @min-[1400px]/appbar:hidden" data-appfront-menu="">
+    <nav aria-label="Các bước của dự án" className="inline-flex shrink-0 items-center gap-1.5">
+      <details className="relative" data-appfront-menu="">
         <summary
           aria-label={`Bước ${VIEWER_STEP + 1}/${PROJECT_STEPS.length}: ${current.label} — mở danh sách bước`}
           title={`Bước ${VIEWER_STEP + 1}: ${current.label}`}
           className={`${CARD} flex cursor-pointer list-none gap-1.5 whitespace-nowrap px-2 font-medium transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] motion-reduce:transition-none ${FOCUS_OUT} [&::-webkit-details-marker]:hidden`}
         >
-          <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--pa-accent)] text-[10px] text-[var(--pa-surface)]">
+          <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--pa-accent)] text-[10px] tabular-nums text-[var(--pa-surface)]">
             {VIEWER_STEP + 1}
           </span>
           <span className="hidden @min-[1200px]/appbar:inline">{current.label}</span>
@@ -179,11 +149,11 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
           {PROJECT_STEPS.map((step, index) => (
             <li key={step.id}>
               <a
-                {...(index === VIEWER_STEP ? { 'aria-current': 'step' as const } : {})}
+                {...(index === VIEWER_STEP ? { 'aria-current': 'step' as const } : { 'aria-label': `Bước ${index + 1}: ${step.label}` })}
                 className={`${FOCUS_OUT} flex h-8 items-center gap-2 whitespace-nowrap rounded-lg px-2 text-[var(--pa-text-2)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)] aria-[current=step]:bg-[var(--pa-selected)] aria-[current=step]:font-medium aria-[current=step]:text-[var(--pa-accent)]`}
                 href={step.path(projectId)}
               >
-                <span className="w-3 text-[var(--pa-text-3)]">{index + 1}</span>
+                <span className="w-3 tabular-nums text-[var(--pa-text-3)]">{index + 1}</span>
                 {step.label}
               </a>
             </li>
@@ -193,15 +163,16 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
       {next !== undefined && (
         <a
           aria-label={`Bước tiếp theo: ${next.label}`}
-          className={`${FOCUS_OUT} hidden h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl border border-transparent bg-[var(--pa-accent)] px-3 font-medium text-[13px] text-[var(--pa-surface)] shadow-[var(--pa-shadow-float)] transition-colors duration-[120ms] hover:bg-[var(--pa-accent-hover)] active:bg-[var(--pa-accent-active)] motion-reduce:transition-none @min-[1050px]/appbar:inline-flex`}
+          className={`${FOCUS_OUT} inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl border border-transparent bg-[var(--pa-accent)] px-3 font-medium text-[13px] text-[var(--pa-surface)] shadow-[var(--pa-shadow-float)] transition-colors duration-[120ms] hover:bg-[var(--pa-accent-hover)] active:bg-[var(--pa-accent-active)] motion-reduce:transition-none`}
           href={next.path(projectId)}
+          title={`Bước tiếp theo: ${next.label}`}
         >
-          <span className="@min-[1600px]/appbar:hidden">Tiếp:</span>
-          <span className="hidden @min-[1600px]/appbar:inline">Bước tiếp theo:</span>
-          {next.label}
+          <span>
+            Tiếp<span className="hidden @min-[1500px]/appbar:inline">: {next.label}</span>
+          </span>
           <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
         </a>
       )}
-    </>
+    </nav>
   );
 }

@@ -23,4 +23,13 @@ describe('ProjectStepsCard', () => {
     expect(menu.querySelectorAll('a')).toHaveLength(6);
     expect(menu.querySelector('[aria-current="step"]')?.getAttribute('href')).toBe('/projects/p1/3d');
   });
+
+  it('UI-1023 V-01: bước + "Tiếp" là một cụm; nút "Tiếp" không bao giờ ẩn theo bề rộng thanh', () => {
+    render(<ProjectStepsCard projectId="p1" />);
+    const nav = screen.getByRole('navigation', { name: 'Các bước của dự án' });
+    const next = screen.getByRole('link', { name: 'Bước tiếp theo: Quy chuẩn' });
+    expect(nav.contains(next)).toBe(true);
+    expect(next.className.split(/\s+/)).not.toContain('hidden');
+    expect(next.textContent).toContain('Tiếp');
+  });
 });
