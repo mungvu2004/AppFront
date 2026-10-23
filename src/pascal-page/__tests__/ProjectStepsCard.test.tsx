@@ -10,7 +10,7 @@ describe('ProjectStepsCard', () => {
     expect(nav.querySelectorAll('li')).toHaveLength(6);
     expect(nav.querySelector('[aria-current="step"]')?.textContent).toContain('Mô hình 3D');
     expect(screen.getByRole('link', { name: 'Bước 3: Kiểm tra tầng' }).getAttribute('href')).toBe('/projects/p1/floors');
-    expect(screen.getByRole('link', { name: 'Bước tiếp theo: Quy chuẩn' }).getAttribute('href')).toBe('/projects/p1/rules');
+    expect(screen.getByRole('link', { name: 'Tiếp: Quy chuẩn' }).getAttribute('href')).toBe('/projects/p1/rules');
   });
 
   it('QA-2 L1: chip thu gọn "bước hiện tại + menu" cho thanh hẹp, menu đủ sáu bước', () => {
@@ -22,5 +22,14 @@ describe('ProjectStepsCard', () => {
     const menu = screen.getByRole('list', { name: 'Danh sách bước' });
     expect(menu.querySelectorAll('a')).toHaveLength(6);
     expect(menu.querySelector('[aria-current="step"]')?.getAttribute('href')).toBe('/projects/p1/3d');
+  });
+
+  it('UI-1023 V-01: bước + "Tiếp" là một cụm; nút "Tiếp" không bao giờ ẩn theo bề rộng thanh', () => {
+    render(<ProjectStepsCard projectId="p1" />);
+    const nav = screen.getByRole('navigation', { name: 'Các bước của dự án' });
+    const next = screen.getByRole('link', { name: 'Tiếp: Quy chuẩn' });
+    expect(nav.contains(next)).toBe(true);
+    expect(next.className.split(/\s+/)).not.toContain('hidden');
+    expect(next.textContent).toContain('Tiếp');
   });
 });

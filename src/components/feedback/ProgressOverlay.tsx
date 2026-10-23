@@ -9,7 +9,7 @@ export interface ProgressOverlayProps extends React.HTMLAttributes<HTMLDivElemen
 }
 
 export function ProgressOverlay({
-  title = 'Đang xử lý...',
+  title = 'Đang xử lý…',
   progress,
   onBackground,
   className,

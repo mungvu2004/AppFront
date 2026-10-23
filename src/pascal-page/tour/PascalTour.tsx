@@ -21,13 +21,11 @@ const PAD = 4;
 
 const CSS = `
 .pascal-tour-btn{font:inherit;font-size:13px;font-weight:500;border-radius:var(--pa-radius,8px);height:32px;padding:0 12px;cursor:pointer;border:1px solid transparent;transition:background 120ms var(--pa-ease),color 120ms var(--pa-ease)}
-.pascal-tour-btn:focus-visible,.pascal-tour-link:focus-visible{outline:2px solid transparent;outline-offset:2px;box-shadow:var(--pa-focus)}
+.pascal-tour-btn:focus-visible{outline:2px solid transparent;outline-offset:2px;box-shadow:var(--pa-focus)}
 .pascal-tour-primary{background:var(--pa-accent);color:var(--pa-surface)}
 .pascal-tour-primary:hover{background:var(--pa-accent-hover)}
 .pascal-tour-ghost{background:transparent;color:var(--pa-text-2)}
 .pascal-tour-ghost:hover{background:var(--pa-sunken);color:var(--pa-text)}
-.pascal-tour-link{font:inherit;font-size:13px;min-height:32px;background:none;border:0;padding:0 6px;color:var(--pa-text-2);cursor:pointer;text-decoration:underline;border-radius:4px}
-.pascal-tour-link:hover{color:var(--pa-text)}
 .pascal-tour-kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;border:1px solid var(--pa-border);background:var(--pa-sunken);color:var(--pa-text-2);border-radius:4px;padding:1px 6px}
 .pascal-tour-card{transition:left 180ms var(--pa-ease),top 180ms var(--pa-ease)}
 @media (prefers-reduced-motion: reduce){.pascal-tour-card,.pascal-tour-btn{transition:none}}
@@ -85,6 +83,7 @@ export function PascalTour() {
       if (cardRef.current) setCardH(cardRef.current.offsetHeight);
     };
     measure();
+    // eslint-disable-next-line local/no-raw-duration -- chu kỳ đo lại vị trí neo, không phải chuyển động
     const id = window.setInterval(measure, 400);
     window.addEventListener('resize', measure);
     return () => {
@@ -157,7 +156,7 @@ export function PascalTour() {
         }}
       >
         <div style={{ fontSize: 12, color: 'var(--pa-text-2)', marginBottom: 6, fontVariantNumeric: 'tabular-nums' }}>
-          {index + 1} / {TOUR_STEPS.length}
+          {index + 1}&nbsp;/&nbsp;{TOUR_STEPS.length}
         </div>
         <h2 id="pascal-tour-title" style={{ margin: 0, fontSize: 15, fontWeight: 500, lineHeight: 1.35 }}>
           {step.title}
@@ -172,25 +171,12 @@ export function PascalTour() {
             ))}
           </div>
         ) : null}
-        <div style={{ marginTop: 14 }}>
-          <button className="pascal-tour-link" onClick={close} type="button">
+        {/* T-11: cùng hình thức thẻ QC (EditorTour) — gợi ý Esc, hàng nút "Bỏ qua hướng dẫn" | "Tiếp theo", chấm ở giữa dưới. */}
+        <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--pa-text-2)' }}>Bấm Esc để đóng hướng dẫn.</p>
+        <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button className="pascal-tour-btn pascal-tour-ghost" onClick={close} type="button">
             Bỏ qua hướng dẫn
           </button>
-        </div>
-        <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div aria-hidden="true" style={{ display: 'flex', gap: 6 }}>
-            {TOUR_STEPS.map((s, i) => (
-              <span
-                key={s.title}
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 9999,
-                  background: i === index ? 'var(--pa-accent)' : 'var(--pa-border)',
-                }}
-              />
-            ))}
-          </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {index > 0 ? (
               <button className="pascal-tour-btn pascal-tour-ghost" onClick={() => setIndex(index - 1)} type="button">
@@ -206,6 +192,20 @@ export function PascalTour() {
               {last ? 'Xong' : 'Tiếp theo'}
             </button>
           </div>
+        </div>
+        <div aria-hidden="true" style={{ marginTop: 12, display: 'flex', justifyContent: 'center', gap: 6 }}>
+          {TOUR_STEPS.map((s, i) => (
+            <span
+              data-current={i === index ? 'true' : undefined}
+              key={s.title}
+              style={{
+                width: i === index ? 16 : 6,
+                height: 6,
+                borderRadius: 9999,
+                background: i === index ? 'var(--pa-accent)' : 'var(--pa-border)',
+              }}
+            />
+          ))}
         </div>
       </div>
     </div>

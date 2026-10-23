@@ -77,6 +77,7 @@ const config: Config = {
         primary: 'var(--text-primary)',
         secondary: 'var(--text-secondary)',
         muted: 'var(--text-muted)',
+        tertiary: 'var(--text-tertiary)',
       },
       danger: {
         tint: 'var(--danger-tint)',
@@ -125,6 +126,18 @@ const config: Config = {
         xl: ['1.25rem', { lineHeight: '1.75rem' }],
         '2xl': ['1.5rem', { lineHeight: '2rem' }],
         '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
+        // Thang có tên (T-02): `text-title` cho tiêu đề trang (h1), `text-heading` cho tiêu đề khối.
+        title: ['1.5rem', { lineHeight: '2rem', fontWeight: '500' }],
+        heading: ['1rem', { lineHeight: '1.5rem', fontWeight: '500' }],
+      },
+      // Be Vietnam Pro chỉ có 300/400/500 (`globals.css`): để trình duyệt tự in đậm giả 600/700
+      // thì nét nhoè, nên hai lớp đậm hơn đều vẽ ở 500.
+      fontFamily: {
+        sans: ['"Be Vietnam Pro"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
+      fontWeight: {
+        semibold: '500',
+        bold: '500',
       },
       transitionDuration: {
         // The numeric names the existing views already use.

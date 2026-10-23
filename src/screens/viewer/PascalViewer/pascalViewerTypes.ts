@@ -177,7 +177,7 @@ export const PASCAL_VIEWER_TITLE = 'Mô hình 3D';
 export const PASCAL_LEAVE_LABEL = 'Về quản lý tầng';
 
 /** Nút chính trên thanh trên cùng: sang bước quy chuẩn. */
-export const PASCAL_NEXT_LABEL = 'Bước tiếp theo: Quy chuẩn →';
+export const PASCAL_NEXT_LABEL = 'Tiếp: Quy chuẩn';
 
 /** Hành động của trạng thái rỗng, sang màn xử lý bản vẽ. */
 export const PASCAL_REPROCESS_LABEL = 'Xử lý lại bản vẽ';

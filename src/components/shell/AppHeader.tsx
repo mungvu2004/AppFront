@@ -2,14 +2,15 @@
  * Header chung của ứng dụng — có mặt ở mọi màn sau đăng nhập (gắn một lần ở
  * `routes/AppLayout.tsx`, không màn nào tự vẽ lại).
  *
- * Hàng trên: thương hiệu · điều hướng chính · tên dự án đang mở · chuông · tài khoản · đăng xuất.
- * Hàng dưới, chỉ khi đang ở trong một dự án: sáu bước của dự án và nút "Bước tiếp theo",
- * để từ bất cứ màn nào cũng đi tiếp được mà không phải quay về danh sách.
+ * Hàng trên (48 px): thương hiệu, điều hướng toàn cục, tên dự án đang mở (bấm mở menu các màn khác
+ * của dự án — tách khỏi nav toàn cục), chuông, tài khoản, đăng xuất.
+ * Hàng dưới (40 px), chỉ khi đang ở trong một dự án: sáu bước của dự án và nút "Tiếp: <bước>",
+ * để từ bất cứ màn nào cũng đi tiếp được mà không phải quay về danh sách. Hai hàng ≤ 96 px (V-16).
  *
  * View thuần: mọi dữ liệu đến qua props; liên kết dùng `Link` của router.
  */
 import { useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, Box, ChevronRight, LogOut } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, LogOut } from 'lucide-react';
 import { Link, NavLink, useLocation, useMatch, useNavigate } from 'react-router-dom';
 
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -20,6 +21,7 @@ import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/routes/paths';
 import { FLOOR_LAYERS, PROJECT_STEPS } from '@/routes/projectSteps';
+import { BrandMark } from './BrandMark';
 import { ProjectNav } from './ProjectNav';
 
 export interface AppHeaderProject {
@@ -74,8 +76,8 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
         : (PROJECT_STEPS[index]?.path(project.id) ?? ROUTES.dashboard);
 
   return (
-    <nav aria-label="Các bước của dự án" className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-default px-4 py-1 sm:px-6">
-      <ol className="flex min-w-0 basis-full items-center gap-1 overflow-x-auto lg:flex-1 lg:basis-0">
+    <nav aria-label="Các bước của dự án" className="flex h-10 items-center gap-3 border-t border-border-default px-4 sm:px-6">
+      <ol className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
         {PROJECT_STEPS.map((step, index) => {
           const isCurrent = index === project.stepIndex;
           return (
@@ -85,7 +87,7 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
                 to={stepPath(index)}
                 aria-current={isCurrent ? 'step' : undefined}
                 className={cn(
-                  'flex h-8 items-center gap-2 rounded-md px-2 text-[13px] transition-colors duration-fast',
+                  'flex h-7 items-center gap-2 rounded-md px-2 text-[13px] transition-colors duration-fast',
                   isCurrent ? 'bg-accent-wash font-semibold text-accent' : 'text-text-secondary hover:bg-bg-sunken hover:text-text-primary',
                 )}
               >
@@ -125,7 +127,7 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
           </button>
         ) : (
           <Link to={ROUTES.project.floors(project.id)} className={cn(getButtonStyles({ variant: 'secondary', size: 'sm' }), 'shrink-0')}>
-            Về Quản lý tầng
+            Về quản lý tầng
           </Link>
         )
       ) : nextLayer !== undefined && project.floorId !== undefined ? (
@@ -142,7 +144,7 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
       ) : (
         next !== undefined && (
           <Link to={next.path(project.id)} className={cn(getButtonStyles({ variant: 'primary', size: 'sm' }), 'shrink-0 gap-2')}>
-            Bước tiếp theo: {next.label}
+            Tiếp: {next.label}
             <ArrowRight size={16} aria-hidden="true" />
           </Link>
         )
@@ -157,11 +159,9 @@ export function AppHeader({ accountInitials, accountLabel, showAdmin, notificati
   const [confirmOut, setConfirmOut] = useState(false);
   return (
     <header className="shrink-0 border-b border-border-default bg-bg-surface">
-      <div className="flex min-h-14 flex-wrap items-center gap-x-4 px-4 sm:px-6">
+      <div className="flex h-12 items-center gap-x-4 px-4 sm:px-6">
         <Link to={ROUTES.dashboard} className="flex shrink-0 items-center gap-2 rounded-md text-text-primary">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white" aria-hidden="true">
-            <Box size={18} />
-          </span>
+          <BrandMark size={22} />
           <span className="text-[15px] font-semibold">AppFront</span>
         </Link>
 
@@ -187,17 +187,24 @@ export function AppHeader({ accountInitials, accountLabel, showAdmin, notificati
         )}
 
         {project !== null && (
-          <div className="flex min-w-0 items-center gap-2 text-[13px]">
-            <ChevronRight size={14} aria-hidden="true" className="shrink-0 text-text-muted" />
-            {project.name === null ? (
-              <Skeleton preset="block" className="h-4 w-32" aria-label="Đang tải tên dự án" />
-            ) : (
-              <span className="truncate font-medium text-text-primary">{project.name}</span>
-            )}
-          </div>
-        )}
-        {project !== null && (
-          <ProjectNav projectId={project.id} pathname={location.pathname} search={location.search} className="order-last min-w-0 basis-full overflow-x-auto pb-2 xl:order-0 xl:basis-auto xl:pb-0" />
+          // Nav của dự án nằm trong menu tên dự án, không cùng hàng với nav toàn cục (aesthetic 2.1 #1).
+          // ponytail: <details> gốc, không đóng khi bấm ra ngoài; cần thì đổi sang Popover.
+          <details key={location.pathname} className="relative min-w-0 border-l border-border-default pl-4">
+            <summary
+              aria-label={project.name === null ? 'Màn khác của dự án' : `${project.name}: màn khác của dự án`}
+              className="flex h-8 min-w-0 cursor-pointer list-none items-center gap-1 rounded-md px-2 text-[13px] hover:bg-bg-sunken [&::-webkit-details-marker]:hidden"
+            >
+              {project.name === null ? (
+                <Skeleton preset="block" className="h-4 w-32" aria-label="Đang tải tên dự án" />
+              ) : (
+                <span className="truncate font-medium text-text-primary">{project.name}</span>
+              )}
+              <ChevronDown size={14} aria-hidden="true" className="shrink-0 text-text-muted" />
+            </summary>
+            <div className="absolute left-4 top-full z-30 mt-1 min-w-[200px] rounded-md border border-border-default bg-bg-surface p-1 shadow-float">
+              <ProjectNav projectId={project.id} pathname={location.pathname} search={location.search} />
+            </div>
+          </details>
         )}
 
         <div className="ml-auto flex shrink-0 items-center gap-2">

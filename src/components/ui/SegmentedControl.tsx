@@ -61,6 +61,7 @@ export interface SegmentedItemProps extends Omit<React.ButtonHTMLAttributes<HTML
   layoutId?: string;
 }
 
+// V-04: nhãn dài xuống dòng trong ô (khung cao theo nội dung) thay vì tràn ngang khỏi panel hẹp.
 const SegmentedItem = React.forwardRef<HTMLButtonElement, SegmentedItemProps>(
   ({ value, swatch, isActive = false, layoutId, children, className, ...props }, ref) => (
     <button
@@ -70,7 +71,7 @@ const SegmentedItem = React.forwardRef<HTMLButtonElement, SegmentedItemProps>(
       role="radio"
       aria-checked={isActive}
       className={cn(
-        'relative flex h-full flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-sm px-3 text-sm font-medium outline-hidden transition-colors duration-120',
+        'relative flex min-w-0 flex-1 items-center justify-center gap-1.5 self-stretch rounded-sm px-3 py-1 text-center text-sm leading-tight font-medium outline-hidden transition-colors duration-120',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-sunken',
         isActive ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary',
         props.disabled && 'cursor-not-allowed opacity-40 hover:text-text-secondary',
@@ -107,7 +108,7 @@ const SegmentedRoot = React.forwardRef<HTMLDivElement, SegmentedRootProps>(
     <div
       ref={ref}
       role="radiogroup"
-      className={cn('relative flex h-9 items-center rounded-lg bg-bg-sunken p-1', className)}
+      className={cn('relative flex min-h-9 items-stretch rounded-lg bg-bg-sunken p-1', className)}
       {...props}
     >
       {children}

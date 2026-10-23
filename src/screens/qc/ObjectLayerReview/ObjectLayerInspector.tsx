@@ -247,7 +247,7 @@ function ObjectInspectorBody({
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto pb-5">
-      <p className="px-5 pb-4 font-mono text-[16px] text-text-primary">{inspector.codeLabel}</p>
+      <p className="px-5 pb-4 text-[16px] tabular-nums text-text-primary">{inspector.codeLabel}</p>
 
       <div className="flex items-center gap-2 px-5 pb-4">
         <span

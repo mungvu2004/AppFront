@@ -56,7 +56,7 @@ export const SCALE = {
   allFloors: 'Áp cho mọi tầng', // USC COPY.scopeAllFloors
   collapse: 'Thu gọn bảng', // SCP:43
   expand: 'Bung bảng', // SCP:44
-  badge: 'đã duyệt', // SCP:45
+  badge: 'Đã duyệt', // SCP:45
   current: 'Tỷ lệ hiện tại', // SCP:47
   shortcuts: 'Phím tắt', // SCP:50
   computation: 'Phép tính ra tỷ lệ', // SCP:52

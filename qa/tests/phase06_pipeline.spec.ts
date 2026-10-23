@@ -747,8 +747,8 @@ test('SCR-32 · FL-M-32-04 · restore the AI version (LAST test of the file)', a
 
   await test.step('[32-A-033] the list refetches: v3 (before) and v4 (after, "Hiện tại")', async () => {
     await expect(versionRow('v4')).toBeVisible();
-    await expect.soft(versionRow('v3')).toContainText('trạng thái trước khi phục hồi phiên bản v2');
-    await expect.soft(versionRow('v4')).toContainText('phục hồi nội dung của phiên bản v2');
+    await expect.soft(versionRow('v3')).toContainText('Trạng thái trước khi phục hồi phiên bản v2');
+    await expect.soft(versionRow('v4')).toContainText('Phục hồi nội dung của phiên bản v2');
     await expect.soft(versionRow('v4')).toContainText('Hiện tại');
     focusAfter = await page.evaluate(() => {
       const active = document.activeElement;

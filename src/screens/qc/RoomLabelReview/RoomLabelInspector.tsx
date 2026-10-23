@@ -118,7 +118,7 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 pb-5">
           <div className="flex items-center justify-between gap-2">
             {/* Chữ hoa trong mã phòng là ngoại lệ được phép của A6. */}
-            <p className="font-mono text-[16px] text-text-primary">{room.codeLabel}</p>
+            <p className="text-[16px] tabular-nums text-text-primary">{room.codeLabel}</p>
             {room.status === 'confirmed' && <Badge variant="verified">{APPROVED_BADGE}</Badge>}
           </div>
 

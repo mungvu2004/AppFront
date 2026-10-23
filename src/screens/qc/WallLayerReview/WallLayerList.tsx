@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import type { WallThickness } from '@/types/spatial';
 
+import { displayStatusCode } from './displayStatusCode';
 import type { WallLayerViewProps, WallRowViewModel } from './types';
 
 export interface WallLayerListProps {
@@ -123,6 +124,7 @@ function WallLayerListRow({
   style,
 }: WallLayerListRowProps) {
   const showHatch = row.isLowConfidence && row.statusCode === 'attention';
+  const status = displayStatusCode(row);
 
   /* Ctrl/Cmd giữ vùng chọn cũ — cách duy nhất chọn đủ hai đoạn để "nối đoạn". */
   const pick = (withModifier: boolean) => {
@@ -189,9 +191,9 @@ function WallLayerListRow({
         />
       )}
 
-      <span className="relative w-12 shrink-0 truncate font-mono text-text-primary">{row.codeLabel}</span>
+      <span className="relative w-12 shrink-0 truncate tabular-nums text-text-primary">{row.codeLabel}</span>
 
-      <Badge className="relative shrink-0 gap-1 px-1.5 font-mono" noDot variant="neutral">
+      <Badge className="relative shrink-0 gap-1 px-1.5 tabular-nums" noDot variant="neutral">
         <span
           aria-hidden="true"
           className="h-3 w-3 rounded-xs border border-border-default-50"
@@ -208,22 +210,22 @@ function WallLayerListRow({
         Cần chú ý: biểu tượng + màu, không huy hiệu chữ — huy hiệu 70 px bị mép panel cắt đôi
         (BUG-396). Tên trạng thái vẫn nằm ở `aria-label` của hàng và ở `title`.
       */}
-      {row.statusCode === 'attention' ? (
+      {status === 'attention' ? (
         <span className="relative ml-auto flex shrink-0 items-center text-state-attention-text" title={ATTENTION_BADGE_LABEL}>
           <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5" />
         </span>
       ) : (
         /* Đã duyệt / vi phạm mang hình riêng, không chỉ khác màu chấm (BUG-638). */
         <span
-          className={cn('relative ml-auto flex shrink-0 items-center', STATUS_ICON_TEXT[row.statusCode])}
-          title={STATUS_DOT_LABEL[row.statusCode]}
+          className={cn('relative ml-auto flex shrink-0 items-center', STATUS_ICON_TEXT[status])}
+          title={STATUS_DOT_LABEL[status]}
         >
-          {row.statusCode === 'verified' ? (
+          {status === 'verified' ? (
             <Check aria-hidden="true" className="h-3.5 w-3.5" />
-          ) : row.statusCode === 'violation' ? (
+          ) : status === 'violation' ? (
             <XCircle aria-hidden="true" className="h-3.5 w-3.5" />
           ) : (
-            <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT_TOKEN[row.statusCode])} />
+            <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT_TOKEN[status])} />
           )}
         </span>
       )}

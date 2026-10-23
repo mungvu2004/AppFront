@@ -281,13 +281,13 @@ export function WallLayerLeftPanel({
             <span
               aria-hidden="true"
               className={cn(
-                'font-mono font-semibold tabular-nums',
+                'font-semibold tabular-nums',
                 isComplete && 'text-state-verified',
               )}
             >
               {reviewedText}
             </span>
-            <span aria-hidden="true" className="font-mono tabular-nums text-text-muted">
+            <span aria-hidden="true" className="tabular-nums text-text-muted">
               /{reviewCounter.total}
             </span>
             <span aria-hidden="true" className="text-text-secondary">
@@ -298,7 +298,7 @@ export function WallLayerLeftPanel({
           <div aria-hidden="true" className="h-1 w-full overflow-hidden rounded-full bg-bg-sunken">
             <div
               className={cn(
-                'h-full rounded-full transition-all duration-340',
+                'h-full rounded-full transition-[width] duration-340',
                 isComplete ? 'bg-state-verified' : 'bg-accent',
               )}
               style={{ width: `${progressFraction * 100}%` }}

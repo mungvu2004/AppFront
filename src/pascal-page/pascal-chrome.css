@@ -205,3 +205,24 @@ canvas:focus-visible { outline: none; box-shadow: none; }
 @media (prefers-reduced-motion: reduce) {
   [data-slot], [cmdk-item], .fixed.bottom-6.rounded-2xl button { transition: none !important; animation: none !important; }
 }
+
+/* UI-1023 V-01: Phong cách / Ánh sáng / Chất lượng / Đổi mẫu thành một cụm liền khối ("Cảnh", main.tsx):
+ * bỏ khe, viền giữa và bóng riêng của từng viên; bo góc + bóng chỉ ở hai đầu cụm. Không đụng màu/kích thước. */
+[data-appfront-cluster] {
+  border-radius: var(--pa-radius-lg);
+  box-shadow: var(--pa-shadow-float);
+}
+[data-appfront-cluster] > details > summary {
+  border-radius: 0;
+  border-right-width: 0;
+  box-shadow: none;
+}
+[data-appfront-cluster] > details:first-child > summary {
+  border-start-start-radius: var(--pa-radius-lg);
+  border-end-start-radius: var(--pa-radius-lg);
+}
+[data-appfront-cluster] > details:last-child > summary {
+  border-right-width: 1px;
+  border-start-end-radius: var(--pa-radius-lg);
+  border-end-end-radius: var(--pa-radius-lg);
+}

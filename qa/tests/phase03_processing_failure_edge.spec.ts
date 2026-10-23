@@ -78,7 +78,7 @@ test.describe('SCR-12 processing — failed runs', () => {
         // QA-03e (BUG-545): S-11 draws its own "Tiến độ theo tầng" strip (PipelineFailureProgress.tsx:51) from the floors the
         // processing screen read; the processing chips are gone, so exactly one list of that name remains.
         await expect(page.getByRole('list', { name: PR.chips, exact: true })).toHaveCount(1);
-        await expect(page.getByText(/^Đã xong \d+\/\d+ tầng/u)).toHaveCount(0);
+        await expect(page.getByText(/^Đã xử lý xong \d+\/\d+ tầng/u)).toHaveCount(0);
         await captureEvidence(page, 'E03_12-A-034_failure-replaces.png');
       });
 
@@ -249,7 +249,7 @@ test.describe('SCR-12 processing — failed runs', () => {
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(project.projectId));
       });
 
-      await test.step('[12-A-045] upload drawing.png on the failed floor, "Bắt đầu xử lý" → /pipeline: new run, PipelineFailure gone, "Đã xong 1/1 tầng"', async () => {
+      await test.step('[12-A-045] upload drawing.png on the failed floor, "Bắt đầu xử lý" → /pipeline: new run, PipelineFailure gone, "Đã xử lý xong 1/1 tầng"', async () => {
         await expect(page.getByTestId(DROPZONE)).toBeVisible({ timeout: 45_000 });
         const complete = waitForApi(page, 'POST', new RegExp(`^/api/projects/${escapeRegExp(project.projectId)}/drawings/uploads/[^/]+/complete$`, 'u'), [200]);
         await page.getByTestId(FILE_INPUT).setInputFiles(process.env.E2E_DRAWING_PNG ?? '');

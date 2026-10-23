@@ -40,6 +40,8 @@ import { cn } from '@/lib/utils';
 import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import { useCanvasPan } from '@/components/canvas/useCanvasPan';
 
+import { QC_BACKGROUND_OPACITY } from '../shared/qcBackground';
+
 import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
 import type { DimensionChainViewModel, DimensionOcrCanvasProps } from './dimensionOcrTypes';
 
@@ -66,7 +68,7 @@ const SELECTED_STROKE_WIDTH_PX = 2;
 const TICK_HALF_LENGTH_PX = 5;
 const VALUE_LABEL_FONT_SIZE_PX = 13;
 /** Mờ ảnh nền, cùng khuôn `WallLayerCanvas` (`BACKGROUND_IMAGE_OPACITY`). */
-const BACKGROUND_IMAGE_OPACITY = 0.3;
+const BACKGROUND_IMAGE_OPACITY = QC_BACKGROUND_OPACITY;
 
 /** Khung canvas: tối thiểu 640 từ 1280px, bo 16, thụt 12; dưới 1280 tối thiểu 60vh (như FIX-1506), dưới 1024 tối thiểu 320 (FIX-1528) — BUG-317. */
 const CANVAS_FRAME_CLASSES =

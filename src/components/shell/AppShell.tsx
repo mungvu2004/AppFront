@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { motion } from '../motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
-  MousePointer2, Ruler, Square, DoorOpen, Box,
+  MousePointer2, Ruler, Square, DoorOpen,
   HelpCircle, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,
   type LucideIcon,
 } from 'lucide-react';
 import { DURATION, EASE } from '../../lib/motion';
 import { useAppShell } from '../../hooks/useAppShell';
+import { BrandMark } from './BrandMark';
 import { StatusBar } from './StatusBar';
 import { Breadcrumb } from './Breadcrumb';
 import type { BreadcrumbItem } from '../../hooks/useBreadcrumb';
@@ -191,12 +192,7 @@ export function AppShell({
         aria-label={FOCUS_REGIONS.topBar.label}
       >
         {/* Logo */}
-        <div
-          className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center shrink-0"
-          aria-hidden="true"
-        >
-          <Box className="w-[18px] h-[18px] text-white" />
-        </div>
+        <BrandMark size={22} className="shrink-0 text-text-primary" />
 
         <Breadcrumb items={breadcrumbs} />
 

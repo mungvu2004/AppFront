@@ -11,13 +11,13 @@ const options = [
 
 describe('Select', () => {
   it('renders trigger button', () => {
-    render(<Select options={options} placeholder="Chọn..." />);
+    render(<Select options={options} placeholder="Chọn…" />);
     expect(screen.getByRole('combobox')).toBeInTheDocument();
   });
 
   it('shows placeholder when no value', () => {
-    render(<Select options={options} placeholder="Chọn tầng..." />);
-    expect(screen.getByText('Chọn tầng...')).toBeInTheDocument();
+    render(<Select options={options} placeholder="Chọn tầng…" />);
+    expect(screen.getByText('Chọn tầng…')).toBeInTheDocument();
   });
 
   it('shows selected label', () => {

@@ -109,7 +109,7 @@ export function AppLayout() {
   const lastFloorId = lastFloorPath === undefined ? undefined : projectLocationOf(lastFloorPath)?.floorId;
   if (lastFloorId === undefined || floors?.some((floor) => floor.id === lastFloorId) !== true) lastFloorPath = undefined;
 
-  // Nút "Bước tiếp theo" theo trạng thái dự án (G3-06, G3-28, G3-32): chưa có bản vẽ / xử lý lỗi thì không mời đi tiếp.
+  // Nút "Tiếp: <bước>" theo trạng thái dự án (G3-06, G3-28, G3-32): chưa có bản vẽ / xử lý lỗi thì không mời đi tiếp.
   const blocker =
     detail.data?.status === 'error'
       ? ('pipeline-error' as const)

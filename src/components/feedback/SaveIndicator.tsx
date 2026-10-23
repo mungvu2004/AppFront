@@ -30,7 +30,7 @@ export function SaveIndicator({ saveState, label, flash, className, ...props }: 
       break;
     case 'saving':
       Icon = CloudUpload;
-      text = label || 'Đang lưu...';
+      text = label || 'Đang lưu…';
       iconColor = 'text-accent animate-pulse';
       break;
     case 'saved':

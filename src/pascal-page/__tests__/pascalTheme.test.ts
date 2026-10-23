@@ -69,3 +69,14 @@ describe('pascal-theme.css — hai khối', () => {
     expect(pairs(LIGHT.page)).toEqual(pairs(DARK.page));
   });
 });
+
+describe('pascal-theme.css — phông (UI-1023 aesthetic 2.7 #2)', () => {
+  it('sans là Be Vietnam Pro tự lưu, như app', () => {
+    expect(themeCss).toMatch(/--font-barlow:\s*'Be Vietnam Pro'/);
+    expect(themeCss).toContain("url('/landing/fonts/BeVietnamPro-400-vietnamese.woff2')");
+  });
+
+  it('"3,0 m" trên chip tầng không dùng mono', () => {
+    expect(themeCss).toMatch(/button\[title="Level height"\]\.font-mono\s*\{\s*font-family:\s*var\(--font-barlow\)/);
+  });
+});

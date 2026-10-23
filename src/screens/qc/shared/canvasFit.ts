@@ -33,8 +33,8 @@ export interface CanvasFitView {
   readonly zoom: number;
 }
 
-/** Chừa 10% lề quanh vùng phủ, để đường viền ngoài cùng không dính mép khung. */
-export const CANVAS_FIT_MARGIN_RATIO = 0.9;
+/** Bản vẽ chiếm ~85% khung khi mở: chừa lề để đường viền ngoài cùng không dính mép, còn chỗ cho nhãn. */
+export const CANVAS_FIT_MARGIN_RATIO = 0.85;
 
 const HALF = 2;
 

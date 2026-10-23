@@ -53,7 +53,7 @@ export const Combobox = Object.assign(
       value,
       onChange,
       options = [],
-      placeholder = 'Chọn...',
+      placeholder = 'Chọn…',
       className,
       disabled = false,
       isReadOnly = false,

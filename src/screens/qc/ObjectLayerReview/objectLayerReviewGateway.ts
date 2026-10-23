@@ -1281,7 +1281,7 @@ export const OBJECT_LAYER_TEXT = {
     'Tầng này chưa có đoạn tường nào, nên chưa có chỗ đặt cửa hay cửa sổ. Duyệt lớp tường trước rồi quay lại đây.',
   emptyNoDrawing:
     'Tầng này chưa có bản vẽ, nên chưa có tường hay cửa nào để duyệt. Tải bản vẽ cho tầng ở Quản lý tầng rồi quay lại đây.',
-  openFloorsAction: 'Về Quản lý tầng',
+  openFloorsAction: 'Về quản lý tầng',
   addRefused: 'Không thêm được đối tượng vào tường.',
   shortcutLayer: 'Đặt nhóm loại cho đối tượng đang chọn',
   shortcutSubtype: 'Đổi loại trong nhóm đang chọn',

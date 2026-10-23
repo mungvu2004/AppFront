@@ -114,7 +114,7 @@ test('SCR-34 · FL-M-34L-01 · open, search, category, sort, grid, detail + Esc'
   await test.step('[34L-A-002] search narrows the rows', async () => {
     await search.fill(name);
     await expect.soft(rows.locator('td:nth-child(2)').getByRole('button', { name, exact: true })).toBeVisible();
-    await expect.soft(search).toHaveAttribute('placeholder', 'Tìm theo tên mẫu 3D...');
+    await expect.soft(search).toHaveAttribute('placeholder', 'Tìm theo tên mẫu 3D…');
     await captureEvidence(page, 'E08_34L-A-002_main.png');
     await search.fill('');
   });

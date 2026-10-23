@@ -629,7 +629,7 @@ describe('useProcessingScreen', () => {
     expect(doneStepCount(props)).toBe(STAGES.length);
     expect(props.steps.every((step) => step.percent === 100)).toBe(true);
     expect(props.state).toBe('success');
-    expect(props.overallSummaryLine).toContain('Đã xong 1/1 tầng đã có bản vẽ');
+    expect(props.overallSummaryLine).toContain('Đã xử lý xong 1/1 tầng');
 
     mounted.unmount();
   });
@@ -681,7 +681,7 @@ describe('useProcessingScreen', () => {
   });
 
   // BUG-352: every stage timed, so the estimate exists — and is 0 once all is done.
-  it('a run that finished stage by stage says only "Đã xong 1/1 tầng đã có bản vẽ", no "Còn lại khoảng 0 giây" (BUG-352)', async () => {
+  it('a run that finished stage by stage says only "Đã xử lý xong 1/1 tầng", no "Còn lại khoảng 0 giây" (BUG-352)', async () => {
     const harness = makeScriptedClient();
     const uploads = await readFloorUploads(harness.client, 1);
     const upload = uploads[0]!;
@@ -701,7 +701,7 @@ describe('useProcessingScreen', () => {
       });
 
       // R1-03: the remaining time is its own field, kept out of the status line.
-      expect(mounted.result.current.overallSummaryLine).toBe('Đã xong 0/1 tầng đã có bản vẽ');
+      expect(mounted.result.current.overallSummaryLine).toBe('Đã xử lý xong 0/1 tầng');
       remainingLines.push(mounted.result.current.remainingLine);
     }
 
@@ -713,7 +713,7 @@ describe('useProcessingScreen', () => {
     });
 
     expect(mounted.result.current.state).toBe('success');
-    expect(mounted.result.current.overallSummaryLine).toBe('Đã xong 1/1 tầng đã có bản vẽ');
+    expect(mounted.result.current.overallSummaryLine).toBe('Đã xử lý xong 1/1 tầng');
     expect(mounted.result.current.remainingLine).toBeUndefined();
 
     mounted.unmount();
@@ -1087,7 +1087,7 @@ describe('useProcessingScreen', () => {
     expect(props.summary).toBeUndefined();
     expect(props.previewPanel.detectedGeometryPaths).toHaveLength(0);
     expect(props.steps).toHaveLength(0);
-    // BUG-165: nothing runs, so no "Đã xong 0/0 tầng đã có bản vẽ" and no promise to notify.
+    // BUG-165: nothing runs, so no "Đã xử lý xong 0/0 tầng" and no promise to notify.
     expect(props.overallSummaryLine).toBe('Chưa có lượt xử lý nào đang chạy.');
     expect(props.canRunInBackground).toBe(false);
 

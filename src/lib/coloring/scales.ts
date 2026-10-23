@@ -76,6 +76,7 @@ export const COLOR_TOKEN_NAMES = [
   '--text-primary',
   '--text-secondary',
   '--text-muted',
+  '--text-tertiary',
   '--danger-tint',
   '--danger-border',
   '--state-verified',

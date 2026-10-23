@@ -306,7 +306,7 @@ export function NotificationCenterPage(props: NotificationCenterProps) {
     <div className="mx-auto flex w-full max-w-[880px] flex-col gap-6 p-8 max-lg:p-6">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-          <h1 className="text-[20px] font-semibold text-text-primary">{TITLE_LABEL}</h1>
+          <h1 className="text-title text-text-primary">{TITLE_LABEL}</h1>
           {unreadBadge !== '' && (
             <span className="font-mono text-[14px] tabular-nums text-text-secondary">{unreadBadge}</span>
           )}

@@ -93,7 +93,7 @@ export interface ComboboxTriggerProps extends Omit<React.ButtonHTMLAttributes<HT
 }
 
 export const ComboboxTrigger = forwardRef<HTMLButtonElement, ComboboxTriggerProps>(
-  ({ placeholder = 'Chọn...', options = [], className, ...props }, ref) => {
+  ({ placeholder = 'Chọn…', options = [], className, ...props }, ref) => {
     const { isOpen, value, disabled, toggle, handleKeyDown, triggerRef, triggerId, listboxId } =
       useComboboxContext('Combobox.Trigger');
 

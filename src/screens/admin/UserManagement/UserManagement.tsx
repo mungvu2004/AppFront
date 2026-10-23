@@ -91,7 +91,7 @@ function UserManagementBreadcrumb({ items }: { readonly items: readonly Breadcru
 
 /** Màn có đúng một `h1` (BUG-P08-020): đọc được cho trình đọc màn hình, tên màn = mục cuối breadcrumb. */
 function ScreenHeading({ items }: { readonly items: readonly BreadcrumbItemModel[] }) {
-  return <h1 className="text-[20px] font-semibold text-text-primary">{items[items.length - 1]?.label}</h1>;
+  return <h1 className="text-title text-text-primary">{items[items.length - 1]?.label}</h1>;
 }
 
 function renderContent(model: UserManagementViewModel, actions: UserManagementActions) {

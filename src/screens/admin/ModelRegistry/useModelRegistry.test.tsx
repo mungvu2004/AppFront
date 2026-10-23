@@ -717,7 +717,8 @@ describe('Chi tiết bản — chọn lại và lỗi đọc (BUG-P08-010, BUG-P
     fireEvent.click(screen.getByRole('button', { name: 'Đọc số tải lên' }));
 
     expect(screen.getByRole('button', { name: 'Đọc số tải lên' })).toHaveAttribute('aria-pressed', 'false');
-    expect(within(screen.getByRole('complementary', { name: 'Chi tiết phiên bản' })).getByText('Chọn một phiên bản để xem chi tiết.')).toBeInTheDocument();
+    // V-05: bỏ chọn thì panel chi tiết đóng, bảng lấy lại đủ bề rộng.
+    expect(screen.queryByRole('complementary', { name: 'Chi tiết phiên bản' })).toBeNull();
   });
 
   it('[36R-B-021] GET chi tiết 404 khi hàng còn trong danh sách: trường danh sách vẫn hiện kèm câu lỗi', async () => {
@@ -760,8 +761,10 @@ describe('Chọn bản — hàng xóm của 36R-A-009', () => {
 
     await chooseFamily('Nhận diện cửa và đồ đạc');
 
-    const panel = await screen.findByRole('complementary', { name: 'Chi tiết phiên bản' });
-    expect(within(panel).getByText('Chọn một phiên bản để xem chi tiết.')).toBeInTheDocument();
+    // V-05: không còn bản chọn thì panel chi tiết đóng.
+    await waitFor(() => {
+      expect(screen.queryByRole('complementary', { name: 'Chi tiết phiên bản' })).toBeNull();
+    });
   });
 
   it('[36R-A-022] khổ hẹp: Esc đóng ngăn kéo, nhãn aria-pressed=false', async () => {

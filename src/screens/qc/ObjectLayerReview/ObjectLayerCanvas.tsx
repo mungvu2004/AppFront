@@ -31,6 +31,8 @@ import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { staggerDelayMs } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
+import { QC_BACKGROUND_OPACITY } from '../shared/qcBackground';
+
 import {
   HOST_WALL_HIGHLIGHT_TOKEN,
   OBJECT_CANVAS_FRAME_CLASSES,
@@ -307,14 +309,15 @@ export function ObjectLayerCanvas({
           <img
             alt={backgroundImageAlt}
             // J-10: không để preflight `max-width: 100%` bóp ảnh nền khi khung ảnh rộng hơn khung vẽ.
-            className="pointer-events-none absolute block max-w-none select-none opacity-20"
+            className="pointer-events-none absolute block max-w-none select-none"
             draggable={false}
             src={backgroundImageUrl}
             style={
               surfaceRectPx === null
-                ? undefined
+                ? { opacity: QC_BACKGROUND_OPACITY }
                 : {
                     height: surfaceRectPx.height,
+                    opacity: QC_BACKGROUND_OPACITY,
                     left: surfaceRectPx.x,
                     top: surfaceRectPx.y,
                     width: surfaceRectPx.width,
