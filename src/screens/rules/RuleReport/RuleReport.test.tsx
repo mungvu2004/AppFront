@@ -195,7 +195,7 @@ describe('D-13 — số vi phạm THẬT từ runRules, không phải mảng vi�
     expect(ENABLED_RULES.length).toBe(23);
   });
 
-  it('runRules trên VIOLATED_BUILDING_SCENARIO = 189, KHÁC mảng .violations viết tay (7) — sự thật phải ghi lại', () => {
+  it('runRules trên VIOLATED_BUILDING_SCENARIO = 188, KHÁC mảng .violations viết tay (7) — sự thật phải ghi lại', () => {
     const runRulesCount = VIOLATED_RESULT.violations.length;
     const fixtureArrayCount = VIOLATED_BUILDING_SCENARIO.violations.length;
 
@@ -205,7 +205,7 @@ describe('D-13 — số vi phạm THẬT từ runRules, không phải mảng vi�
     );
 
     // Con số THẬT của bộ máy luật — đây là nguồn màn RuleReport phải đọc.
-    expect(runRulesCount).toBe(189);
+    expect(runRulesCount).toBe(188);
 
     // Mảng viết tay trong fixture chỉ mô phỏng DUY NHẤT khiếm khuyết cố ý (7
     // tường bị làm mỏng) mà `createViolatedBuildingScenario()` thêm vào để chốt
@@ -222,10 +222,10 @@ describe('D-13 — số vi phạm THẬT từ runRules, không phải mảng vi�
     expect(runRulesCount).not.toBe(fixtureArrayCount);
   });
 
-  it('runRules trên CLEAN_BUILDING_SCENARIO = 182 (KHÔNG phải 0 — bộ mẫu chuẩn không "sạch")', () => {
+  it('runRules trên CLEAN_BUILDING_SCENARIO = 181 (KHÔNG phải 0 — bộ mẫu chuẩn không "sạch")', () => {
     console.log(`[W3] runRules(CLEAN) = ${String(CLEAN_RESULT.violations.length)}`);
 
-    expect(CLEAN_RESULT.violations.length).toBe(182);
+    expect(CLEAN_RESULT.violations.length).toBe(181);
   });
 
   it('runRules trên EMPTY_PROJECT_SCENARIO = 0', () => {

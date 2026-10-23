@@ -45,7 +45,7 @@ import {
 const NOISY_RULE = 'WALL-DANGLING-END';
 const NOISY_RULE_VIOLATIONS = 96;
 /** Tổng vi phạm của bộ mẫu chuẩn khi chưa ai chỉnh luật (A14). */
-const TOTAL_WITH_DEFAULT_RULES = 182;
+const TOTAL_WITH_DEFAULT_RULES = 181; // J-13: mẫu toàn tường partition → hết 1 ESCAPE-DISTANCE
 
 const configWith = (overrides: RuleConfig['overrides']): RuleConfig => ({
   overrides,

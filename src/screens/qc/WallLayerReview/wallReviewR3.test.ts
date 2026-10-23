@@ -19,7 +19,7 @@ const first = (): Wall => {
 describe('R-7: độ dày so trong dung sai, không so bằng đúng', () => {
   it('116 mm (bội 23,13 mm của chuẩn 110) không bị ⚠', () => {
     expect(isStandardThickness(116)).toBe(true);
-    const wall: Wall = { ...first(), thicknessMm: 116, reviewed: false };
+    const wall: Wall = { ...first(), thicknessMm: 116, reviewed: false, confidence: 1 };
     expect(wallStatusCode(wall)).not.toBe('attention');
   });
 

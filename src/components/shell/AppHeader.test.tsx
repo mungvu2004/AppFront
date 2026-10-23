@@ -58,7 +58,7 @@ describe('AppHeader', () => {
 
   it('J-4: đang xử lý thì không mời tải bản vẽ lần nữa', () => {
     renderHeader({ project: { id: 'p1', name: null, stepIndex: 1, blocker: 'processing' } });
-    expect(screen.queryByRole('link', { name: /Tải bản vẽ/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Tải bản vẽ để bắt đầu/ })).toBeNull();
     expect(screen.getByText('Đang xử lý bản vẽ: chờ xong rồi đi tiếp')).toBeInTheDocument();
   });
 

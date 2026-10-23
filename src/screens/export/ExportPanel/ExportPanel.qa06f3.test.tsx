@@ -60,6 +60,6 @@ describe('QA-06b F3 — màn Xuất', () => {
   it('30-B-006: trạng thái rỗng nói việc cần làm, không có liên kết', () => {
     render(<ExportPanel {...buildExportPanelProps('empty')} />);
     expect(screen.queryByRole('link')).toBeNull();
-    expect(screen.getByText(/Dự án chưa có tầng nào/)).toBeTruthy();
+    expect(screen.getByText(/Dự án chưa có bản vẽ nào được xử lý xong/)).toBeTruthy();
   });
 });
