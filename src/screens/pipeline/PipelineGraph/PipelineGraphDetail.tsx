@@ -179,7 +179,7 @@ function GraphNode({
       className={clsx(
         'flex flex-col gap-1.5 rounded-xl bg-bg-surface p-4 text-left',
         'transition-opacity duration-180 ease-enter',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+        'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         isAbsolute ? 'absolute' : 'relative w-full',
         node.isSelected
           ? 'border-2 border-accent'

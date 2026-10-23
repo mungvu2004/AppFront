@@ -34,7 +34,7 @@ export function ObjectLayerCanvasLegend({
         <span className="flex items-center gap-1.5 text-[12px] text-text-secondary" key={layer}>
           <span
             aria-hidden="true"
-            className="h-3 w-3 rounded-sm border-2"
+            className="h-3 w-3 rounded-xs border-2"
             style={{
               backgroundColor: OBJECT_LAYER_COLOR_TOKENS[layer],
               borderColor: OBJECT_LAYER_COLOR_TOKENS[layer],

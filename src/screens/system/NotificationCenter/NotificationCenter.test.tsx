@@ -34,7 +34,7 @@
  *     đầu. Polyfill toàn cục, `matches: false` (desktop), chép từ
  *     `AppShell.test.tsx:12-28`.
  * (b) `expectAccessible` phải nhận `ignoreSelector: '[role=dialog]'` — phần tử
- *     dialog của Drawer có `tabIndex={-1}` + `outline-none`, không phải lỗi
+ *     dialog của Drawer có `tabIndex={-1}` + `outline-hidden`, không phải lỗi
  *     tiêu điểm thật.
  * (c) Không dùng `installFakeClock` trong file này — không bài nào cần đồng
  *     hồ giả, nên không giẫm vào bẫy "đặt trước waitFor".
@@ -401,7 +401,7 @@ describe('R-72 — mọi trạng thái tiếp cận được, tiếng Việt có
       const { container } = render(<NotificationCenter {...propsFor(scenario)} />);
 
       // Bẫy (b): phần tử role="dialog" của Drawer có tabIndex={-1} +
-      // outline-none — không phải lỗi tiêu điểm thật, phải bỏ qua đúng vùng đó.
+      // outline-hidden — không phải lỗi tiêu điểm thật, phải bỏ qua đúng vùng đó.
       expectAccessible(container, { ignoreSelector: '[role=dialog]' });
       expectVietnamese(container);
     },

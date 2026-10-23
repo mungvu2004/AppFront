@@ -1,8 +1,9 @@
 /**
  * Chặn tái phát nợ QA-01c #13: mọi màu trong `tailwind.config.ts` là `var(--token)`
- * trần, không `<alpha-value>`, nên hậu tố độ mờ `/NN` trên chúng bị Tailwind bỏ IM
- * LẶNG — không lỗi, không CSS. Cặp màu + độ mờ thật sự cần thì viết thành lớp
- * `-NN` trong `@layer utilities` của `globals.css` (bằng `color-mix`).
+ * trần, không `<alpha-value>`, nên hậu tố độ mờ `/NN` trên chúng bị Tailwind 3 bỏ IM
+ * LẶNG — không lỗi, không CSS. Tailwind 4 sinh được `/NN`, nhưng vẫn giữ một cách viết:
+ * cặp màu + độ mờ thật sự cần thì viết thành `@utility` `-NN` trong `globals.css`
+ * (bằng `color-mix`; `@utility` để `hover:` vẫn gắn được).
  *
  * Danh sách token đọc thẳng từ config, không chép tay.
  */
@@ -62,12 +63,12 @@ describe('lớp màu có độ mờ trên token var()', () => {
 
   it('mọi lớp `-NN` đang dùng đều được định nghĩa trong globals.css', () => {
     const used = new Set(FILES.flatMap(({ text }) => text.match(DASH_OPACITY) ?? []));
-    const missing = [...used].filter((cls) => !GLOBALS.includes(`.${cls} {`));
+    const missing = [...used].filter((cls) => !GLOBALS.includes(`@utility ${cls} {`));
     expect(missing).toEqual([]);
   });
 
   it('mỗi lớp `-NN` trong globals.css trộn đúng token và đúng phần trăm', () => {
-    const rule = new RegExp(`\\.((?:${PREFIXES})-(${TOKENS})-(\\d+)) \\{([^}]*)\\}`, 'g');
+    const rule = new RegExp(`@utility ((?:${PREFIXES})-(${TOKENS})-(\\d+)) \\{([^}]*)\\}`, 'g');
     const rules = [...GLOBALS.matchAll(rule)];
     expect(rules.length).toBeGreaterThan(0);
     const wrong = rules

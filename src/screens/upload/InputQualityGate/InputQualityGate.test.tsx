@@ -98,7 +98,7 @@ const ALLOWED_WORDS = [...UNIT_WORDS, ...SHARED_COMPONENT_DEBT_WORDS];
 /**
  * **Nợ A-12b — nợ CỦA REPO, không phải của màn Cổng chất lượng đầu vào.**
  *
- * `Table.Row` (`src/components/ui/Table.tsx:84`) đặt `outline-none` kèm
+ * `Table.Row` (`src/components/ui/Table.tsx:84`) đặt `outline-hidden` kèm
  * `tabIndex={-1}` và chỉ vẽ viền tiêu điểm khi prop `focused` bật — viền vẽ
  * theo TRẠNG THÁI chứ không theo `:focus-visible`, nên bàn phím không có viền
  * nào. Đó là nợ có sẵn của `Table.Row`, nên bài bỏ qua `'tbody > tr'`.
@@ -627,7 +627,7 @@ describe('InputQualityGate — hỏi trước khi nắn thẳng, không toast ho
     const dialog = screen.getByRole('dialog', { name: /nắn thẳng bản vẽ tầng tầng 1\?/iu });
 
     expect(within(dialog).getByText(/việc này không hoàn tác được/iu)).toBeInTheDocument();
-    // `Modal.tsx` đặt `outline-none` lên vỏ `tabIndex={-1}` — nợ dùng chung đã nêu ở ShareDialog.test.tsx.
+    // `Modal.tsx` đặt `outline-hidden` lên vỏ `tabIndex={-1}` — nợ dùng chung đã nêu ở ShareDialog.test.tsx.
     expectAccessible(document.body, { ignoreSelector: `${TABLE_ROW_DEBT_SELECTOR}, [role="dialog"]` });
 
     fireEvent.keyDown(dialog, { key: 'Escape' });

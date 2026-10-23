@@ -120,7 +120,7 @@ export function DimensionOcrCrop({ crop, isMagnified = false }: DimensionOcrCrop
       aria-label={crop.alt}
       className={cn(
         'shrink-0 overflow-hidden rounded-lg border border-border-default bg-bg-sunken',
-        'h-[var(--dim-crop-h)] w-[var(--dim-crop-h)] xl:w-[var(--dim-crop-w)]',
+        'h-(--dim-crop-h) w-(--dim-crop-h) xl:w-(--dim-crop-w)',
       )}
       role="img"
       style={
@@ -296,7 +296,7 @@ export function DimensionOcrRow({
       aria-label={row.codeLabel}
       aria-selected={isSelected}
       className={cn(
-        'flex cursor-pointer gap-4 rounded-xl border bg-bg-surface p-4 outline-none',
+        'flex cursor-pointer gap-4 rounded-xl border bg-bg-surface p-4 outline-hidden',
         'transition-colors duration-120 hover:bg-bg-hover',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         STATUS_BORDER_TOKEN[row.statusCode],

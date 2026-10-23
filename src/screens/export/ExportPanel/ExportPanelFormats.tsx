@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import type { ExportCapabilities, ExportFormatCard, ExportFormatId } from './types';
 
 export const FOCUS_RING =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app';
+  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app';
 
 /**
  * Vì sao thẻ PDF chưa tải về được, dù số trang trên nó là số thật.
@@ -68,7 +68,7 @@ export function SkeletonText({ className }: { readonly className: string }) {
   return (
     <span
       aria-hidden="true"
-      className={cn('inline-block animate-pulse rounded bg-border-default motion-reduce:animate-none', className)}
+      className={cn('inline-block animate-pulse rounded-sm bg-border-default motion-reduce:animate-none', className)}
     />
   );
 }

@@ -112,7 +112,7 @@ export function NotificationRow({
         <button
           type="button"
           onClick={() => onItemAction(item)}
-          className="flex min-h-6 rounded text-left text-[15px] leading-5 text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface max-sm:min-h-11"
+          className="flex min-h-6 rounded-sm text-left text-[15px] leading-5 text-text-primary outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface max-sm:min-h-11"
         >
           <span>
             {!item.isRead && <span className="sr-only">{`${UNREAD_SR_HINT}. `}</span>}
@@ -123,7 +123,7 @@ export function NotificationRow({
 
         {item.excerpt !== undefined && (
           // Kẹp dòng ở lớp trong: `line-clamp` cắt ở mép padding, nên kẹp trên khung có padding để lộ nửa dòng 3 (BUG-203).
-          <p className="rounded bg-bg-sunken px-2 py-1.5 text-[13px] leading-[18px] text-text-secondary">
+          <p className="rounded-sm bg-bg-sunken px-2 py-1.5 text-[13px] leading-[18px] text-text-secondary">
             <span className="line-clamp-2">{item.excerpt}</span>
           </p>
         )}
@@ -135,7 +135,7 @@ export function NotificationRow({
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
             <span className="whitespace-nowrap text-[13px] leading-[18px] text-text-muted">{item.relativeTime}</span>
             {item.target.projectName.length > 0 && (
-              <span className={cn('min-w-0 max-w-full text-[13px] leading-[18px] text-text-muted', wrapProjectName ? '[overflow-wrap:anywhere]' : 'truncate')}>{`· ${item.target.projectName}`}</span>
+              <span className={cn('min-w-0 max-w-full text-[13px] leading-[18px] text-text-muted', wrapProjectName ? 'wrap-anywhere' : 'truncate')}>{`· ${item.target.projectName}`}</span>
             )}
             {item.inlineAction !== undefined && (
               // While the accept is in flight the button is `aria-disabled`, not `disabled`: a disabled button
@@ -152,7 +152,7 @@ export function NotificationRow({
               </Button>
             )}
             {item.statusNote !== undefined && (
-              <span ref={takeOrphanedFocus} tabIndex={-1} className="text-[13px] font-medium leading-[18px] text-text-secondary outline-none">
+              <span ref={takeOrphanedFocus} tabIndex={-1} className="text-[13px] font-medium leading-[18px] text-text-secondary outline-hidden">
                 {item.statusNote}
               </span>
             )}

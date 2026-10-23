@@ -40,7 +40,7 @@ import {
 const TEXT = WALL_GEOMETRY_EDITOR_TEXT;
 
 const BUTTON_FOCUS_CLASS =
-  'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 /** Toạ độ con trỏ, đổi sang pixel TƯƠNG ĐỐI của chính lớp phủ. Không quy đổi đơn vị. */
 function toOverlayPoint(event: PointerEvent<HTMLDivElement>): WallGeometryPointPx {
@@ -114,7 +114,7 @@ function ContentBody({
         )}
 
         {content.dimensionChain.totalLabel !== null && (
-          <span className="pointer-events-none absolute bottom-3 left-3 rounded bg-bg-surface px-2 py-1 font-mono text-[11px] text-text-secondary shadow-panel">
+          <span className="pointer-events-none absolute bottom-3 left-3 rounded-sm bg-bg-surface px-2 py-1 font-mono text-[11px] text-text-secondary shadow-panel">
             {TEXT.dimensionChain.total(content.dimensionChain.totalLabel)}
           </span>
         )}

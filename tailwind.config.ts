@@ -114,6 +114,18 @@ const config: Config = {
       },
     },
     extend: {
+      // Chiều cao dòng bằng rem như Tailwind 3. Thang mặc định của v4 là tỉ lệ không đơn vị,
+      // nên con `text-[12px]` trong cha `text-sm` thừa hưởng 1,43 × 12 = 17 px thay vì 20 px:
+      // hàng bảng, nhãn và nút thấp đi vài px (đo ở màn Quản lý tầng).
+      fontSize: {
+        xs: ['0.75rem', { lineHeight: '1rem' }],
+        sm: ['0.875rem', { lineHeight: '1.25rem' }],
+        base: ['1rem', { lineHeight: '1.5rem' }],
+        lg: ['1.125rem', { lineHeight: '1.75rem' }],
+        xl: ['1.25rem', { lineHeight: '1.75rem' }],
+        '2xl': ['1.5rem', { lineHeight: '2rem' }],
+        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
+      },
       transitionDuration: {
         // The numeric names the existing views already use.
         '120': speed('instant'),
@@ -235,15 +247,6 @@ const config: Config = {
     'blur', 'collapse', 'container', 'filter', 'grow', 'invert', 'isolate', 'lowercase', 'ordinal', 'resize', 'ring',
     'shadow', 'shrink', '!container', '!contents', '!hidden', '!outline', '!table', '!visible',
   ],
-  // Không màn nào dùng; tắt thì `*, ::before, ::after` và `::backdrop` không còn mang biến `--tw-*` của chúng.
-  corePlugins: {
-    borderSpacing: false, contain: false, gradientColorStops: false, scrollSnapType: false,
-    // Lọc: hai chỗ dùng viết thẳng `[filter:blur(2px)]` và `[backdrop-filter:blur(4px)]` — không cần chuỗi chín biến.
-    blur: false, brightness: false, contrast: false, dropShadow: false, grayscale: false, hueRotate: false,
-    invert: false, saturate: false, sepia: false, filter: false, backdropBlur: false, backdropBrightness: false,
-    backdropContrast: false, backdropGrayscale: false, backdropHueRotate: false, backdropInvert: false,
-    backdropOpacity: false, backdropSaturate: false, backdropSepia: false, backdropFilter: false,
-  },
   plugins: [],
 };
 

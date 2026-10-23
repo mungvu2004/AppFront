@@ -99,7 +99,7 @@ function SkippedNotice({ skipped }: SkippedNoticeProps) {
           </div>
           <a
             href={item.remedyPath}
-            className={cn('rounded text-sm text-accent underline', FOCUS_RING)}
+            className={cn('rounded-sm text-sm text-accent underline', FOCUS_RING)}
           >
             {item.remedyLabel}
           </a>
@@ -123,7 +123,7 @@ interface DonePanelProps {
  */
 function DonePanel({ evaluated, onConfirmResolved }: DonePanelProps) {
   return (
-    <section className="flex flex-col items-start gap-3 rounded border border-border-default bg-bg-surface p-4">
+    <section className="flex flex-col items-start gap-3 rounded-sm border border-border-default bg-bg-surface p-4">
       <p className="text-sm text-text-primary">Không phát hiện vi phạm nào.</p>
       <p className="text-sm text-text-secondary">
         {formatNumber(evaluated, { fractionDigits: 0 })} luật đã chạy trên bản vẽ này và không luật
@@ -278,7 +278,7 @@ export function RuleReport(props: RuleReportViewProps) {
             {props.settingsPath === undefined ? null : (
               <a
                 href={props.settingsPath}
-                className={cn('rounded py-1 text-sm text-accent underline', FOCUS_RING)}
+                className={cn('rounded-sm py-1 text-sm text-accent underline', FOCUS_RING)}
               >
                 Cài đặt bộ luật
               </a>
@@ -333,9 +333,9 @@ export function RuleReport(props: RuleReportViewProps) {
           {capabilities.canPreview3d && !props.isCompact ? (
             <aside
               aria-label="Xem trước mô hình"
-              className={cn('shrink-0 rounded border border-border-default', PREVIEW_WIDTH)}
+              className={cn('shrink-0 rounded-sm border border-border-default', PREVIEW_WIDTH)}
             >
-              <canvas ref={props.previewRef} className="h-[240px] w-full rounded bg-canvas-3d" />
+              <canvas ref={props.previewRef} className="h-[240px] w-full rounded-sm bg-canvas-3d" />
             </aside>
           ) : null}
         </div>

@@ -166,7 +166,7 @@ function SegmentedField<T extends string>(props: SegmentedFieldProps<T>) {
               // quyết định chứ không phải một thời lượng.
               props.motionOff && 'duration-0',
               // Không còn `motion.div` để vẽ con trượt, nên ô đang chọn tự tô nền.
-              props.motionOff && isActive && 'rounded bg-bg-surface shadow-rest',
+              props.motionOff && isActive && 'rounded-sm bg-bg-surface shadow-rest',
             )}
           >
             {option.label}

@@ -25,7 +25,7 @@ const TEXT = {
 const HEADERS = ['Họ', 'Model nền', 'Phiên bản bộ dữ liệu', 'Vòng', 'Trạng thái', 'Bắt đầu', 'Kết thúc'] as const;
 const PANEL = 'rounded-xl border border-border-default bg-bg-surface p-5';
 const FOCUS_RING =
-  'rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
+  'rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 function OpenButton({ actions, row }: { readonly actions: TrainingJobsActions; readonly row: JobRowModel }) {
   return (

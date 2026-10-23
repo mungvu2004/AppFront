@@ -19,7 +19,7 @@ const ACTIVE_BADGE = 'Đang dùng';
 const HEADERS = ['Nhãn', 'Định dạng', 'Đánh giá', 'Số đo', 'Nguồn', 'Ngày tạo'] as const;
 const ACTIONS_HEADER = 'Thao tác';
 const FOCUS_RING =
-  'rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
+  'rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 interface RowPartProps {
   readonly row: VersionRowModel;

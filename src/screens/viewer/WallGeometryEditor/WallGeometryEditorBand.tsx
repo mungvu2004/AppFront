@@ -10,7 +10,7 @@ import type { ReactNode } from 'react';
 import { WALL_GEOMETRY_EDITOR_LAYOUT, type WallGeometryEditBand } from './wallGeometryEditorTypes';
 
 const BUTTON_FOCUS_CLASS =
-  'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 export interface WallGeometryEditorBandProps {
   readonly band: WallGeometryEditBand;

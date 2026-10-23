@@ -118,7 +118,7 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
             {/* 33P-A-010: lối ra khỏi trang. Route này nằm ngoài khung ứng dụng nên không có gì khác dẫn về. */}
             <Link
               to={ROUTES.dashboard}
-              className="w-fit rounded text-[13px] text-text-secondary underline hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app">
+              className="w-fit rounded-sm text-[13px] text-text-secondary underline hover:text-text-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app">
               {viMessages.account.backToDashboard}
             </Link>
             <h1 className="text-[20px] font-semibold text-text-primary">Cài đặt tài khoản</h1>
@@ -141,7 +141,7 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
                 <a
                   key={id}
                   href={`#${id}`}
-                  className="rounded text-text-secondary underline hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
+                  className="rounded-sm text-text-secondary underline hover:text-text-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
                 >
                   {label}
                 </a>
@@ -184,7 +184,7 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
               {/* N0-03: màn chào chỉ tự hiện một lần; đây là lối mở lại nó. */}
               <Link
                 to={`${ROUTES.onboarding}?again=1`}
-                className="mt-4 inline-block w-fit rounded text-[13px] text-text-secondary underline hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface">
+                className="mt-4 inline-block w-fit rounded-sm text-[13px] text-text-secondary underline hover:text-text-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface">
                 Xem lại hướng dẫn bắt đầu
               </Link>
             </AccountBlock>

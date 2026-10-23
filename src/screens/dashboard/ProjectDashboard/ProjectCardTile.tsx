@@ -88,7 +88,7 @@ export function ProjectCardTile({
         layout: { duration: durationSeconds('standard') },
         default: { duration: durationSeconds('fast'), delay: shouldStagger ? staggerDelayMs(index) / 1000 : 0 },
       }}
-      className="flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border-default bg-bg-surface shadow-rest outline-none transition-[transform,box-shadow] duration-fast hover:-translate-y-px hover:shadow-float focus-visible:ring-2 focus-visible:ring-accent"
+      className="flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border-default bg-bg-surface shadow-rest outline-hidden transition-[transform,box-shadow] duration-fast hover:-translate-y-px hover:shadow-float focus-visible:ring-2 focus-visible:ring-accent"
     >
       <div className="relative h-[132px] shrink-0 border-b border-border-default bg-bg-sunken">
         {/* Below the badge/menu row, so no stroke runs through the status label (BUG-119). */}
@@ -136,7 +136,7 @@ export function ProjectCardTile({
                 if (event.key === 'Enter') onRenameCommit();
                 if (event.key === 'Escape') onRenameCancel();
               }}
-              className={cn(titleClassName, 'rounded border border-accent bg-bg-surface px-1 outline-none')}
+              className={cn(titleClassName, 'rounded-sm border border-accent bg-bg-surface px-1 outline-hidden')}
             />
           ) : (
             <h3 className={cn(titleClassName, 'truncate leading-[44px] sm:leading-6')}>{project.name}</h3>

@@ -169,7 +169,7 @@ export function OverlayComparisonCanvasDivider({
       aria-valuenow={swipePosition}
       className={cn(
         'group absolute inset-y-0 z-10 flex -translate-x-1/2 cursor-col-resize items-stretch justify-center',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent',
+        'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent',
       )}
       onKeyDown={handleKeyDown}
       onPointerDown={handlePointerDown}

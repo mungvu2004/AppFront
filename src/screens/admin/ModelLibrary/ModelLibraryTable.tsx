@@ -38,7 +38,7 @@ const COLUMN_COUNT = 6;
 const ROW_HEIGHT = 'h-12';
 
 const FOCUS_RING =
-  'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 const retryPreviewLabel = (name: string): string => `Thử tải lại ảnh xem trước của ${name}`;
 

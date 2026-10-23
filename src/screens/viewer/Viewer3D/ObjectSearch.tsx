@@ -82,7 +82,7 @@ export interface ObjectSearchProps {
 
 /** Viền tiêu điểm 2px kèm offset 2px — cùng khuôn ViewCube của vỏ (A12). */
 const FOCUS_RING =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
+  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 /** Kẹp một chỉ số vào khoảng của danh sách, cuộn vòng ở hai đầu. */
 function wrapIndex(index: number, count: number): number {

@@ -40,7 +40,7 @@ import {
 
 /** Viền tiêu điểm 2px, offset 2px — đúng thứ A12 và `expectAccessible` đòi. */
 export const FURNITURE_CARD_FOCUS_RING =
-  'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 const USED_BADGE_LABEL = 'Đã dùng';
 const HEAVY_WARNING = 'Mô hình nặng, có thể làm chậm khung cảnh khi thả vào.';
@@ -64,7 +64,7 @@ const CARD_CLASS =
  */
 const THUMBNAIL_IMAGE_CLASS =
   'h-full w-full object-contain transition-transform duration-700 ease-in-out ' +
-  'group-hover:rotate-[30deg] motion-reduce:transition-none motion-reduce:group-hover:rotate-0';
+  'group-hover:rotate-30 motion-reduce:transition-none motion-reduce:group-hover:rotate-0';
 
 const { cardRadiusPx, cardSizePx, gridGapPx, gridColumns, loadingSkeletonCount } =
   FURNITURE_LIBRARY_PANEL_LAYOUT;

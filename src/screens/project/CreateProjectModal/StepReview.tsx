@@ -15,7 +15,7 @@ import type { CreateProjectModalViewProps } from './useCreateProjectModal';
 /** A read-only value in a text {@link FieldRow} (`isText`, BUG-121). A long code or address breaks anywhere rather than overflowing its column. */
 function ReviewValue({ children }: { readonly children: React.ReactNode }) {
   return (
-    <span className="block text-[14px] text-text-primary [overflow-wrap:anywhere]">
+    <span className="block text-[14px] text-text-primary wrap-anywhere">
       {children}
     </span>
   );

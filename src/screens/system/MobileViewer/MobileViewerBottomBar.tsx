@@ -87,7 +87,7 @@ function PanelRow({ label, isActive, onActivate, trailing }: PanelRowProps) {
     <button
       aria-pressed={isActive}
       className={cn(
-        'flex w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-[14px] outline-none',
+        'flex w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-[14px] outline-hidden',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
         isActive ? 'bg-bg-selected text-text-primary' : 'text-text-secondary hover:bg-bg-hover',
       )}

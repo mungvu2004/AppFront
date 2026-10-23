@@ -142,7 +142,7 @@ function WallLayerListRow({
       data-wall-id={row.id}
       className={cn(
         /* Một hàng vừa 240 px của panel 280 (mã 48 · độ dày ~75 · tin cậy 84 · dấu 14 · khe 4): không gì tràn mép phải (BUG-396). */
-        'absolute inset-x-0 top-0 flex h-10 cursor-pointer items-center gap-1 overflow-hidden px-2 text-[13px] outline-none',
+        'absolute inset-x-0 top-0 flex h-10 cursor-pointer items-center gap-1 overflow-hidden px-2 text-[13px] outline-hidden',
         'transition-colors duration-120 hover:bg-bg-hover',
         'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
         isSelected && 'bg-bg-selected hover:bg-bg-selected',
@@ -194,7 +194,7 @@ function WallLayerListRow({
       <Badge className="relative shrink-0 gap-1 px-1.5 font-mono" noDot variant="neutral">
         <span
           aria-hidden="true"
-          className="h-3 w-3 rounded-sm border border-border-default-50"
+          className="h-3 w-3 rounded-xs border border-border-default-50"
           style={{ backgroundColor: wallStrokeToken(row.thicknessMm as WallThickness) }}
         />
         {row.thicknessLabel}

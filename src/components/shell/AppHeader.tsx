@@ -197,7 +197,7 @@ export function AppHeader({ accountInitials, accountLabel, showAdmin, notificati
           </div>
         )}
         {project !== null && (
-          <ProjectNav projectId={project.id} pathname={location.pathname} search={location.search} className="order-last min-w-0 basis-full overflow-x-auto pb-2 xl:order-none xl:basis-auto xl:pb-0" />
+          <ProjectNav projectId={project.id} pathname={location.pathname} search={location.search} className="order-last min-w-0 basis-full overflow-x-auto pb-2 xl:order-0 xl:basis-auto xl:pb-0" />
         )}
 
         <div className="ml-auto flex shrink-0 items-center gap-2">

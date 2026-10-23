@@ -55,10 +55,10 @@ export function FieldRow({
         {...props}
       >
         <div className="flex-1 flex flex-col justify-center">
-          <div className="h-4 w-24 rounded bg-border-default animate-pulse motion-reduce:animate-none" />
+          <div className="h-4 w-24 rounded-sm bg-border-default animate-pulse motion-reduce:animate-none" />
         </div>
         <div className="flex-1">
-          <div className="h-4 w-full rounded bg-border-default animate-pulse motion-reduce:animate-none" />
+          <div className="h-4 w-full rounded-sm bg-border-default animate-pulse motion-reduce:animate-none" />
         </div>
       </div>
     );
@@ -80,12 +80,12 @@ export function FieldRow({
         Nhãn 13 px, căn giữa trong đúng ô 36 px của giá trị (\`h-9\`) — \`pt-[9px]\` cũ lệch ~5 px so với
         giá trị căn giữa, và nhãn 14 px đậm trông to hơn giá trị (BUG-613). Xếp dọc (\`isStacked\`): nhãn ở trên, rộng hết.
       */}
-      <div className={cn('flex-shrink-0', isStacked ? 'w-full' : ['w-[40%] pr-4', !isText && 'flex min-h-9 items-center'])}>
+      <div className={cn('shrink-0', isStacked ? 'w-full' : ['w-[40%] pr-4', !isText && 'flex min-h-9 items-center'])}>
         <span className="text-[13px] leading-5 text-text-secondary">
           {label}
         </span>
       </div>
-      <div className={cn(isStacked ? 'w-full' : 'w-[60%]', 'flex-shrink-0', isText && 'leading-5')}>
+      <div className={cn(isStacked ? 'w-full' : 'w-[60%]', 'shrink-0', isText && 'leading-5')}>
         {isMixed ? (
           <span className="flex h-9 items-center text-[14px] text-text-muted">—</span>
         ) : (

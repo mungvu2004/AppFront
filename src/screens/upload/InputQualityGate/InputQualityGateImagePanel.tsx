@@ -76,7 +76,7 @@ const FRAME_CLASSES =
   'relative w-full max-w-[640px] overflow-hidden rounded-2xl border border-border-default bg-bg-sunken';
 
 const ZOOMED_FRAME_CLASSES =
-  'overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent';
+  'overflow-auto focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent';
 
 /**
  * Khung đang phóng giữ phím mũi tên cho việc cuộn của trình duyệt: chặn lan lên `window` để

@@ -133,7 +133,7 @@ export function ProcessingLogPanel({
             {visibleLines.map((line) => (
               <li className="flex gap-2" key={line.id}>
                 <span className="shrink-0 text-text-muted">{line.timeLabel}</span>
-                <span className="whitespace-pre-wrap break-words">{line.text}</span>
+                <span className="whitespace-pre-wrap wrap-break-word">{line.text}</span>
               </li>
             ))}
           </ul>

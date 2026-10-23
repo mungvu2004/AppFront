@@ -246,7 +246,7 @@ export function MeasurementTool(props: MeasurementToolProps) {
             className={cn(
               'pointer-events-auto px-3 py-1.5 text-[12px] leading-none text-text-secondary',
               'transition-colors duration-instant hover:text-text-primary',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
+              'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
               FLOATING_SURFACE,
             )}
             onClick={props.onToggleCollapsed}

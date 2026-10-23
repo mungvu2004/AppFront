@@ -19,7 +19,7 @@
  * ## Hai cách né đã đo, không phải phỏng đoán
  *
  *  1. `expectAccessible` gọi trên `document.body` với `ignoreSelector: '[role="dialog"]'` —
- *     `Modal.tsx` tự đặt `outline-none` lên vỏ `tabIndex={-1}` của nó, component dùng chung,
+ *     `Modal.tsx` tự đặt `outline-hidden` lên vỏ `tabIndex={-1}` của nó, component dùng chung,
  *     không phải lỗi của màn. Tiền lệ: `ShareDialog.test.tsx:24`.
  *  2. `expectVietnamese` gọi kèm `ignore` cho URL/email nếu DOM có địa chỉ dạng đó, và
  *     `allowWords: ['JSON']` cho nhãn tab thứ hai — "JSON" là chữ viết tắt kỹ thuật, không

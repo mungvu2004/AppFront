@@ -114,9 +114,9 @@ export function DemoSharedControls() {
           activeId={tabId} 
           onChange={setTabId} 
           tabs={[
-            { id: 'tab1', label: 'Properties', content: <div className="p-4 bg-bg-sunken rounded">Properties Panel Content</div> },
-            { id: 'tab2', label: 'History', content: <div className="p-4 bg-bg-sunken rounded">History Panel Content</div> },
-            { id: 'tab3', label: 'Comments', content: <div className="p-4 bg-bg-sunken rounded">Comments Panel Content</div> },
+            { id: 'tab1', label: 'Properties', content: <div className="p-4 bg-bg-sunken rounded-sm">Properties Panel Content</div> },
+            { id: 'tab2', label: 'History', content: <div className="p-4 bg-bg-sunken rounded-sm">History Panel Content</div> },
+            { id: 'tab3', label: 'Comments', content: <div className="p-4 bg-bg-sunken rounded-sm">Comments Panel Content</div> },
           ]} 
         />
       </section>

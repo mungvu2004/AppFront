@@ -9,7 +9,7 @@
  * KHÔNG dùng `Table.Row`: bảng "component nào KHÔNG dùng được với
  * `expectAccessible`" của hợp đồng giao diện (T2) đánh dấu nó KHÔNG dùng được
  * — vòng tiêu điểm của nó vẽ theo PROP `focused` chứ không theo
- * `focus-visible:`, nên một hàng ở trạng thái mặc định chỉ còn `outline-none`
+ * `focus-visible:`, nên một hàng ở trạng thái mặc định chỉ còn `outline-hidden`
  * và `expectAccessible` báo `focus-ring`. Cách thay thế mà hợp đồng chỉ ra
  * (và hai màn QC trước đã chạy thật: `WallLayerList.tsx`,
  * `FloorTableRow.tsx`) là một hàng `role="option"` thuần với vòng tiêu điểm
@@ -70,7 +70,7 @@ function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus }: 
       aria-label={`${room.codeLabel} · ${nameText} · ${room.areaText} · ${STATUS_LABEL[room.status]}`}
       aria-selected={isSelected}
       className={cn(
-        'flex cursor-pointer items-center gap-2 rounded-lg px-2 text-[13px] outline-none',
+        'flex cursor-pointer items-center gap-2 rounded-lg px-2 text-[13px] outline-hidden',
         ROW_HEIGHT_CLASS,
         'transition-colors duration-120 hover:bg-bg-hover',
         'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent focus-visible:ring-offset-2',
@@ -93,11 +93,11 @@ function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus }: 
       tabIndex={0}
     >
       <span className="w-16 shrink-0 truncate font-mono text-text-secondary">{room.codeLabel}</span>
-      <span className={cn('min-w-0 flex-1 break-words', room.hasName ? 'text-text-primary' : 'text-text-muted')}>
+      <span className={cn('min-w-0 flex-1 wrap-break-word', room.hasName ? 'text-text-primary' : 'text-text-muted')}>
         {nameText}
       </span>
       {/* Diện tích co được tới 45% hàng, chữ đầy đủ ở `title`: "Chưa có · tỷ lệ tạm" không còn nuốt tên phòng (BUG-624). */}
-      <span className="max-w-[45%] break-words text-right font-mono tabular-nums text-text-secondary" title={room.areaText}>
+      <span className="max-w-[45%] wrap-break-word text-right font-mono tabular-nums text-text-secondary" title={room.areaText}>
         {room.areaText}
       </span>
       <span aria-hidden="true" className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_CLASS[room.status])} />

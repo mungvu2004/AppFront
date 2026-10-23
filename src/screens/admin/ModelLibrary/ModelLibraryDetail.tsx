@@ -313,7 +313,7 @@ export function ModelLibraryDetail({ actions, model }: ModelLibraryDetailProps) 
       <header className="flex items-start gap-2">
         {/* `h2` vì panel là một vùng trong trang đã có `h1`; thứ bậc đọc không nhảy cấp. */}
         <h2
-          className="min-w-0 flex-1 break-words text-base font-semibold text-text-primary outline-none"
+          className="min-w-0 flex-1 wrap-break-word text-base font-semibold text-text-primary outline-hidden"
           ref={headingRef}
           tabIndex={-1}
         >

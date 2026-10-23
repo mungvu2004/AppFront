@@ -152,14 +152,14 @@ export function ThicknessApplyBar({
           {/* `min-h-6`: nút chữ đạt vùng chạm 24 px (BUG-325). */}
           <div className="flex items-center gap-3 pl-3">
             <button
-              className="inline-flex min-h-6 items-center rounded text-[13px] text-text-secondary underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              className="inline-flex min-h-6 items-center rounded-sm text-[13px] text-text-secondary underline-offset-2 outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               onClick={() => onReapplyFilter(false)}
               type="button"
             >
               {APPLY_TO_ALL_LABEL}
             </button>
             <button
-              className="inline-flex min-h-6 items-center rounded text-[13px] text-text-secondary underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              className="inline-flex min-h-6 items-center rounded-sm text-[13px] text-text-secondary underline-offset-2 outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               onClick={onDismissReapplyWarning}
               type="button"
             >
@@ -189,7 +189,7 @@ export function ThicknessApplyBar({
                         <span className="font-mono text-[13px] text-text-secondary">{wall.measuredLabel}</span>
                         <button
                           aria-expanded={isExpanded}
-                          className="ml-auto inline-flex min-h-6 items-center rounded text-[13px] text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                          className="ml-auto inline-flex min-h-6 items-center rounded-sm text-[13px] text-accent underline-offset-2 outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                           onClick={() => toggleExpanded(wall.wallId)}
                           type="button"
                         >

@@ -331,7 +331,7 @@ describe('expectAccessible', () => {
   it('leaves a well-built screen alone', () => {
     const container = mount(`
       <section style="background-color: white">
-        <button class="outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+        <button class="outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2"
                 style="color: black">Hoàn tác</button>
         <img alt="" />
         <label for="thickness">Bề dày</label>
@@ -393,7 +393,7 @@ describe('expectAccessible', () => {
 
   it('catches a focus ring that was switched off and never replaced', () => {
     const issues = inspectAccessibility(
-      mount('<div><button class="outline-none" aria-label="Lưu"></button></div>'),
+      mount('<div><button class="outline-hidden" aria-label="Lưu"></button></div>'),
     ).issues;
 
     expect(issues).toHaveLength(1);
@@ -421,7 +421,7 @@ describe('expectAccessible', () => {
         mount(`
           <div class="focus-within:ring-2 focus-within:ring-offset-2">
             <label for="email">Thư điện tử</label>
-            <input id="email" class="outline-none" />
+            <input id="email" class="outline-hidden" />
           </div>
         `),
       ).issues,
@@ -433,7 +433,7 @@ describe('expectAccessible', () => {
       mount(`
         <div class="focus-within:ring-2">
           <label for="email">Thư điện tử</label>
-          <input id="email" class="outline-none" />
+          <input id="email" class="outline-hidden" />
         </div>
       `),
     ).issues;
@@ -447,7 +447,7 @@ describe('expectAccessible', () => {
       mount(`
         <div class="ring-2 ring-offset-2">
           <label for="email">Thư điện tử</label>
-          <input id="email" class="outline-none" />
+          <input id="email" class="outline-hidden" />
         </div>
       `),
     ).issues;

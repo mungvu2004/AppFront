@@ -99,7 +99,7 @@ function MobileViewerChunkFallback() {
   return (
     <main className="contents">
       <div className="flex h-full w-full items-center justify-center bg-canvas-3d" role="status">
-        <span className="rounded-md bg-bg-surface px-3 py-1.5 text-[13px] text-text-secondary shadow-sm">
+        <span className="rounded-md bg-bg-surface px-3 py-1.5 text-[13px] text-text-secondary shadow-xs">
           Đang tải mô hình
         </span>
       </div>

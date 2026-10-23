@@ -74,7 +74,7 @@ export function Toggle(props: ToggleProps) {
     return (
       <div className={cn('flex items-center gap-3', className)}>
         <div className="h-5 w-9 rounded-full bg-border-default animate-pulse" />
-        {label && <div className="h-4 w-20 rounded bg-border-default animate-pulse" />}
+        {label && <div className="h-4 w-20 rounded-sm bg-border-default animate-pulse" />}
       </div>
     );
   }
@@ -96,7 +96,7 @@ export function Toggle(props: ToggleProps) {
         // Hộp 36×24 thật (WCAG 2.5.8) mà rãnh nhìn thấy vẫn 36×20: lớp giả `::before` cũ cho vùng bấm 24
         // nhưng hộp phần tử vẫn 20, nên mọi phép đo vùng chạm (getBoundingClientRect, axe) vẫn đọc 20 (BUG-158).
         // `-my-0.5` trả lại 4 px ấy cho bố cục: hàng nào cũng giữ đúng chỗ như rãnh 20 px.
-        'group relative flex h-6 w-9 -my-0.5 shrink-0 items-center rounded-full outline-none',
+        'group relative flex h-6 w-9 -my-0.5 shrink-0 items-center rounded-full outline-hidden',
         (disabled || isReadOnly) && 'cursor-not-allowed opacity-40',
       )}
     >

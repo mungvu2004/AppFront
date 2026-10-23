@@ -126,7 +126,7 @@ export function VersionPlanDiff({ plan, isPairPicked = true, onHover, onPick }: 
         role="img"
         aria-label={SVG_LABEL_PREFIX + plan.floorLabel}
         viewBox={plan.viewBox}
-        className="order-first min-h-[160px] w-full flex-1 rounded-lg xl:order-none border border-border-default bg-bg-sunken"
+        className="order-first min-h-[160px] w-full flex-1 rounded-lg xl:order-0 border border-border-default bg-bg-sunken"
       >
         {plan.rooms.map((room) => {
           const c = centroidOf(room.points);

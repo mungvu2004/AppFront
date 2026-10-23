@@ -65,7 +65,7 @@ function ReadOnlyThickness({ choices, value }: ReadOnlyThicknessProps) {
         <span className="flex items-center gap-1.5" key={choice}>
           <span
             aria-hidden="true"
-            className="h-3 w-3 rounded-sm"
+            className="h-3 w-3 rounded-xs"
             style={{ backgroundColor: wallStrokeToken(choice) }}
           />
           <span
@@ -118,7 +118,7 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
   }, [thicknessFocusRequest]);
 
   return (
-    <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-none xl:h-full xl:w-[344px]">
+    <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-0 xl:h-full xl:w-[344px]">
       <div className="flex h-14 shrink-0 items-center px-5">
         <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
       </div>
@@ -186,7 +186,7 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
             <button
               aria-controls={advancedId}
               aria-expanded={isAdvancedOpen}
-              className="flex w-full items-center justify-between py-2 text-[13px] font-medium text-text-secondary outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="flex w-full items-center justify-between py-2 text-[13px] font-medium text-text-secondary outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
               onClick={() => setAdvancedOpen((open) => !open)}
               type="button"
             >

@@ -136,7 +136,7 @@ export function Slider({
 
         {/* Knob */}
         <div
-          className="absolute flex items-center justify-center outline-none"
+          className="absolute flex items-center justify-center outline-hidden"
           style={{ left: `${percentage}%`, transform: 'translateX(-50%)' }}
         >
           <div
@@ -151,7 +151,7 @@ export function Slider({
             onBlur={() => setIsFocused(false)}
             onKeyDown={handleKeyDown}
             className={cn(
-              'h-3.5 w-3.5 rounded-full bg-bg-surface border border-border-control shadow-rest outline-none',
+              'h-3.5 w-3.5 rounded-full bg-bg-surface border border-border-control shadow-rest outline-hidden',
               'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
               isFocused && 'ring-2 ring-accent ring-offset-2'
             )}
@@ -165,7 +165,7 @@ export function Slider({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 4, scale: 0.9 }}
                 transition={{ duration: durationSeconds('instant') }}
-                className="absolute bottom-6 font-mono text-[13px] bg-bg-surface text-text-primary px-2 py-1 rounded shadow-float whitespace-nowrap pointer-events-none select-none border border-border-default"
+                className="absolute bottom-6 font-mono text-[13px] bg-bg-surface text-text-primary px-2 py-1 rounded-sm shadow-float whitespace-nowrap pointer-events-none select-none border border-border-default"
               >
                 {Number.isInteger(value) ? value : formatNumber(value, { fractionDigits: 2, grouping: false })}
               </motion.div>

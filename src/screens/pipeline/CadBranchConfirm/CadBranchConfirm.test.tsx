@@ -25,7 +25,7 @@
  * ## Vì sao `[role="dialog"]` bị bỏ qua trong `expectAccessible`
  *
  * `Modal.Root` (`src/components/overlay/Modal.tsx`) đặt `tabIndex={-1}` và
- * `outline-none` lên chính khung hộp thoại để bẫy tiêu điểm của
+ * `outline-hidden` lên chính khung hộp thoại để bẫy tiêu điểm của
  * `src/lib/input/focusTrap` nhận được tiêu điểm lập trình mà không vẽ viền —
  * đúng khuôn `CreateProjectModal.test.tsx` đã chốt. Mọi thứ BÊN TRONG hộp thoại
  * vẫn được soát đủ: `ignoreSelector` chỉ bỏ qua đúng phần tử khớp, không bỏ qua

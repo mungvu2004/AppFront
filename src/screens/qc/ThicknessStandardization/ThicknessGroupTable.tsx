@@ -17,7 +17,7 @@
  * ## Vì sao `tabIndex={undefined}` trên mọi `Table.Row`
  *
  * Bẫy R-72 (`docs/notes/thickness/ui.md` mục 1): `Table.Row` luôn mang
- * `tabindex="-1"` mặc định cộng `outline-none`, và chỉ vẽ vòng tiêu điểm khi
+ * `tabindex="-1"` mặc định cộng `outline-hidden`, và chỉ vẽ vòng tiêu điểm khi
  * prop `focused` được đặt tay — nếu không, `expectAccessible` báo lỗi
  * `focus-ring` cho MỌI hàng vì `[tabindex]` khớp bộ chọn "phần tử nhận được
  * tiêu điểm". Bảng này không có hàng nào cần tự nhận tiêu điểm (ô `Checkbox`

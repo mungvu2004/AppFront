@@ -148,7 +148,7 @@ function HistoryEntityLinks({
         <button
           aria-label={`${ENTITY_LINK_PREFIX} ${entity.label}`}
           className={cn(
-            'rounded font-mono text-[13px] leading-[18px] text-accent underline underline-offset-2',
+            'rounded-sm font-mono text-[13px] leading-[18px] text-accent underline underline-offset-2',
             'transition-colors duration-fast motion-reduce:transition-none hover:text-accent-hover',
             FOCUS_RING_CLASS,
           )}
@@ -266,7 +266,7 @@ export function HistoryItemRow({
             <button
               aria-expanded={isExpanded}
               className={cn(
-                'flex items-center gap-1 self-start rounded text-[13px] leading-[18px] text-text-secondary',
+                'flex items-center gap-1 self-start rounded-sm text-[13px] leading-[18px] text-text-secondary',
                 'transition-colors duration-fast motion-reduce:transition-none hover:text-text-primary',
                 FOCUS_RING_CLASS,
               )}
@@ -299,7 +299,7 @@ export function HistoryItemRow({
             >
               <button
                 className={cn(
-                  'rounded px-2 py-1 text-[13px] leading-[18px] text-accent',
+                  'rounded-sm px-2 py-1 text-[13px] leading-[18px] text-accent',
                   'transition-colors duration-fast motion-reduce:transition-none hover:bg-bg-hover',
                   FOCUS_RING_CLASS,
                 )}

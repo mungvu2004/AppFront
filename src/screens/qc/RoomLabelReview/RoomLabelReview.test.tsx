@@ -45,7 +45,7 @@
  * ## Lối trừ `[role="dialog"]` của `expectAccessible`
  *
  * `Modal.Root` (`src/components/overlay/Modal.tsx`) bọc phần tử `role="dialog"`
- * bằng `tabIndex={-1}` + `outline-none`, nên `expectAccessible` báo `focus-ring`
+ * bằng `tabIndex={-1}` + `outline-hidden`, nên `expectAccessible` báo `focus-ring`
  * trên chính phần tử của `src/components/**` đó, không phải trên phần màn dựng
  * — và sửa `src/components/**` bị R-68 cấm. Tiền lệ trong kho:
  * `DangerZone.test.tsx:189`. `ignoreSelector` chỉ loại CHÍNH phần tử khớp

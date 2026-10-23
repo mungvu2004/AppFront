@@ -205,7 +205,7 @@ function PanelToggle({
       aria-expanded={isOpen}
       className={cn(
         'rounded-md px-2 py-1 text-[13px] font-medium max-sm:min-h-11',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+        'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent',
         isOpen ? 'bg-bg-hover text-text-primary' : 'text-text-secondary hover:bg-bg-hover',
       )}
       onClick={() => {
@@ -251,7 +251,7 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
             aria-pressed={props.isWallEditing}
             className={cn(
               'w-full rounded-md px-2 py-1 text-[13px] font-medium',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+              'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent',
               props.isWallEditing
                 ? 'bg-bg-hover text-text-primary'
                 : 'text-accent hover:bg-bg-hover',
@@ -282,7 +282,7 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
           <button
             className={cn(
               'rounded-md px-2 py-1 text-[13px] font-medium text-accent hover:bg-bg-hover max-sm:min-h-11',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+              'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent',
             )}
             key={screenId}
             onClick={() => {

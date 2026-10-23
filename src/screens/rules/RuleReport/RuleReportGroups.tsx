@@ -86,7 +86,7 @@ export function RuleReportSection({
   const Chevron = isOpen ? ChevronDown : ChevronRight;
 
   return (
-    <section className="flex flex-col rounded border border-border-default bg-bg-surface">
+    <section className="flex flex-col rounded-sm border border-border-default bg-bg-surface">
       <h3 className="m-0">
         <button
           type="button"
@@ -94,7 +94,7 @@ export function RuleReportSection({
           aria-controls={bodyId}
           onClick={onToggle}
           className={cn(
-            'flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded px-3 py-2 text-left',
+            'flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-sm px-3 py-2 text-left',
             'transition-colors duration-standard hover:bg-bg-hover',
             FOCUS_RING,
           )}
@@ -164,7 +164,7 @@ function RowMessage({ row, onSelectRow }: RowContentProps) {
       onClick={() => {
         onSelectRow(row.key);
       }}
-      className={cn('rounded text-left text-sm text-text-primary', FOCUS_RING)}
+      className={cn('rounded-sm text-left text-sm text-text-primary', FOCUS_RING)}
     >
       {row.message}
     </button>
@@ -218,7 +218,7 @@ export function RuleReportRows({
               key={row.key}
               style={pulseOf(isSelected)}
               className={cn(
-                'flex flex-col gap-2 rounded border border-border-default p-2',
+                'flex flex-col gap-2 rounded-sm border border-border-default p-2',
                 isSelected && 'animate-pulse ring-2 ring-inset ring-accent',
               )}
             >
@@ -344,7 +344,7 @@ export interface RuleReportPassedListProps {
 /** The "Đạt" segment: rules that ran and found nothing, by name. */
 export function RuleReportPassedList({ passedRules }: RuleReportPassedListProps) {
   return (
-    <ul className="flex flex-col divide-y divide-border-default rounded border border-border-default bg-bg-surface">
+    <ul className="flex flex-col divide-y divide-border-default rounded-sm border border-border-default bg-bg-surface">
       {passedRules.map((rule) => (
         <li key={rule.ruleCode} className="flex items-center justify-between gap-3 px-3 py-2">
           <span className="text-sm text-text-primary">{rule.ruleName}</span>

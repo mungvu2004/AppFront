@@ -119,8 +119,8 @@ export function ViewerViewport({
         /* `tabIndex={-1}` cho phép lập trình đưa tiêu điểm vào khung nhìn (liên
            kết bỏ qua, và phím tắt phạm vi canvas). Đưa được tiêu điểm vào thì
            A12 đòi phải THẤY nó, nên viền tiêu điểm đi theo `focus-visible` của
-           trình duyệt thay vì bị `outline-none` xoá đi. */
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
+           trình duyệt thay vì bị `outline-hidden` xoá đi. */
+        'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
       )}
       onDoubleClick={onDoubleClick}
       onPointerDown={(event): void => {

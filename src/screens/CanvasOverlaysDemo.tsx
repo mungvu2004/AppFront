@@ -98,7 +98,7 @@ export function CanvasOverlaysDemo() {
       <div className="flex-1 relative p-8">
         <div
           ref={canvasRef}
-          className="relative w-full h-full rounded shadow-panel overflow-hidden cursor-crosshair select-none"
+          className="relative w-full h-full rounded-sm shadow-panel overflow-hidden cursor-crosshair select-none"
           style={{
             backgroundColor: is3D ? 'var(--canvas-3d)' : 'var(--canvas-2d)',
           }}

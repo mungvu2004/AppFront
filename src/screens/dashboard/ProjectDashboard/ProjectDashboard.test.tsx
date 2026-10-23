@@ -371,7 +371,7 @@ describe('ProjectDashboardView, seven states', () => {
     const { rerender } = render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" />);
     expect(screen.getByRole('heading', { name: SAMPLE_ROW.name }).className).toContain('max-sm:leading-8');
     // The narrow name column at 1024 px cut "E2E-QA-20261011-0028" to "E2E-QA-202…": the name wraps to two lines first.
-    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name })).toHaveClass('line-clamp-2', 'whitespace-normal', 'break-words');
+    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name })).toHaveClass('line-clamp-2', 'whitespace-normal', 'wrap-break-word');
     expect(screen.getByRole('heading', { name: SAMPLE_ROW.name })).not.toHaveClass('truncate');
 
     rerender(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" renamingId={SAMPLE_ROW.id} />);
@@ -570,7 +570,7 @@ describe('ProjectDashboardView — F-07', () => {
     render(<ProjectDashboardView {...baseProps()} rows={[SAMPLE_ROW]} pendingDeleteId={SAMPLE_ROW.id} pendingDeleteName={name} />);
 
     const sentence = within(screen.getByRole('dialog')).getByText(new RegExp(name, 'u'));
-    expect(sentence.closest('.break-words')).not.toBeNull();
+    expect(sentence.closest('.wrap-break-word')).not.toBeNull();
   });
 
   it('không có "Nhân bản" trong menu của dự án', () => {

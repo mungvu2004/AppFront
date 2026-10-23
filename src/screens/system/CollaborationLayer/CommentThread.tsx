@@ -84,7 +84,7 @@ const EXIT_TRANSITION = {
 } as const;
 
 const ROW_FOCUS_STYLES =
-  'outline-none transition-colors duration-120 hover:bg-bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
+  'outline-hidden transition-colors duration-120 hover:bg-bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 /* --- Chuỗi dựng từ dữ liệu. --- */
 

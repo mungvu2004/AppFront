@@ -200,11 +200,11 @@ function CollaboratorCursor({
           strokeWidth={PRESENCE_ICON_STROKE}
         />
         <span className="flex flex-col items-start gap-1">
-          <span className="rounded bg-bg-surface px-1 text-[11px] leading-tight text-text-secondary shadow-rest">
+          <span className="rounded-sm bg-bg-surface px-1 text-[11px] leading-tight text-text-secondary shadow-rest">
             {collaborator.name}
           </span>
           {collaborator.selectionLabel !== null && (
-            <span className="rounded border border-dashed border-text-muted px-1 text-[11px] leading-tight text-text-muted">
+            <span className="rounded-sm border border-dashed border-text-muted px-1 text-[11px] leading-tight text-text-muted">
               {`${SELECTING_PREFIX} ${collaborator.selectionLabel}`}
             </span>
           )}

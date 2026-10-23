@@ -121,7 +121,7 @@ describe('Popover', () => {
     render(<Harness />);
     await openViaTrigger();
 
-    // `Popover`'s panel carries `tabIndex={-1}` + `outline-none` như
+    // `Popover`'s panel carries `tabIndex={-1}` + `outline-hidden` như
     // `Modal.Root`/`Drawer.Root` — vòng lặp tiêu điểm dành cho các phần tử
     // BÊN TRONG, không phải cho chính lớp container. Cùng khuôn miễn trừ
     // `DangerZone.test.tsx` đã dùng cho `Modal.Root`.

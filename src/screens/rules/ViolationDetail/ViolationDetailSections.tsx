@@ -38,7 +38,7 @@ type BadgeVariant = 'verified' | 'attention' | 'violation' | 'neutral';
  * phải nhìn thấy được khi tới bằng Tab, không chỉ khi trỏ chuột vào.
  */
 const FOCUS_RING =
-  'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 /**
  * Chỗ duy nhất màu vi phạm được phép xuất hiện trong phần chữ.
@@ -152,7 +152,7 @@ export function ViolationFindingsSection({
         {objects.map((object) => (
           <li key={object.entityId}>
             <button
-              className={`flex w-full items-center gap-2 rounded px-1 py-1 text-left hover:bg-bg-sunken ${FOCUS_RING}`}
+              className={`flex w-full items-center gap-2 rounded-sm px-1 py-1 text-left hover:bg-bg-sunken ${FOCUS_RING}`}
               onClick={() => {
                 onSelectObject(object.entityId);
               }}

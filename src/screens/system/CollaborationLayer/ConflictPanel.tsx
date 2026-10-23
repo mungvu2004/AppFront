@@ -125,7 +125,7 @@ function ConflictSide({ heading, side }: ConflictSideProps) {
     <section className="flex flex-col gap-2 rounded-md border border-border-default bg-bg-sunken p-3">
       <h3 className="text-[13px] font-medium leading-[18px] text-text-secondary">{heading}</h3>
 
-      <code className="block break-words font-mono text-[15px] leading-5 text-text-primary">
+      <code className="block wrap-break-word font-mono text-[15px] leading-5 text-text-primary">
         {side.valueLabel}
       </code>
 

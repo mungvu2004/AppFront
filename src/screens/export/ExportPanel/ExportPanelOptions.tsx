@@ -70,7 +70,7 @@ function ExportPanelScope({ floors, onToggleFloor }: ExportPanelScopeProps) {
       <h3 className="text-sm font-medium text-text-secondary">Phạm vi</h3>
       <div className="flex flex-col gap-2">
         {sortedFloors.map((floor) => (
-          <div key={floor.id} className="flex flex-col gap-1 rounded border border-border-default p-2">
+          <div key={floor.id} className="flex flex-col gap-1 rounded-sm border border-border-default p-2">
             <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
               <Checkbox
                 label={floor.name}
@@ -230,7 +230,7 @@ export function ExportPanelOptions({
             <button
               type="button"
               onClick={onOpenData}
-              className={cn('self-start rounded text-sm font-medium text-accent hover:underline', FOCUS_RING)}
+              className={cn('self-start rounded-sm text-sm font-medium text-accent hover:underline', FOCUS_RING)}
             >
               Xem trước
             </button>
@@ -244,7 +244,7 @@ export function ExportPanelOptions({
           aria-expanded={options.isExpanded}
           onClick={onToggleOptionsExpanded}
           className={cn(
-            'flex min-h-11 w-full items-center justify-between gap-2 rounded px-1 py-1 text-left sm:min-h-6',
+            'flex min-h-11 w-full items-center justify-between gap-2 rounded-sm px-1 py-1 text-left sm:min-h-6',
             FOCUS_RING,
           )}
         >

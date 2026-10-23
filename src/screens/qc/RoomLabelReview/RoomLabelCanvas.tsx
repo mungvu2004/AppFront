@@ -320,7 +320,7 @@ function RoomLabelCanvasSelectButton({
     <button
       aria-label={label}
       aria-pressed={isSelected}
-      className="absolute rounded border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-default"
+      className="absolute rounded-sm border-0 bg-transparent p-0 outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-default"
       disabled={!isInteractive}
       onBlur={() => onHover(null)}
       onClick={() => onSelect(roomId)}

@@ -36,7 +36,7 @@ const SEVERITY_OPTIONS: readonly { label: string; value: RuleSeverity }[] = [
 ];
 
 export const FOCUS_RING =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app';
+  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app';
 
 interface SeverityPickerProps {
   readonly ruleSentence: string;

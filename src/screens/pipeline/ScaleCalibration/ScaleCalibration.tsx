@@ -242,7 +242,7 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
 
           <section
             aria-label={CANVAS_REGION_ARIA_LABEL}
-            className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-2xl bg-bg-sunken [container-type:size]"
+            className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-2xl bg-bg-sunken @container-size"
             ref={canvasHostRef}
           >
             <ScaleCalibrationCanvas
