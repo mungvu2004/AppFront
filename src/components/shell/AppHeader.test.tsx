@@ -23,20 +23,20 @@ describe('AppHeader', () => {
     expect(screen.queryByRole('link', { name: 'Quản trị' })).toBeNull();
   });
 
-  it('trong dự án: đánh dấu bước hiện tại và trỏ nút "Bước tiếp theo" sang bước sau', () => {
+  it('trong dự án: đánh dấu bước hiện tại và trỏ nút "Tiếp: <bước>" sang bước sau', () => {
     const { container } = renderHeader({ project: { id: 'p1', name: 'Nhà A', stepIndex: 2 } });
     expect(screen.getByText('Nhà A')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Kiểm tra tầng/ })).toHaveAttribute('aria-current', 'step');
-    expect(screen.getByRole('link', { name: /Bước tiếp theo: Mô hình 3D/ })).toHaveAttribute('href', ROUTES.project.viewer('p1'));
+    expect(screen.getByRole('link', { name: /Tiếp: Mô hình 3D/ })).toHaveAttribute('href', ROUTES.project.viewer('p1'));
     expectVietnamese(container, { allowWords: ['AppFront'] });
   });
 
-  it('bước cuối không có "Bước tiếp theo"; ngoài sáu bước, mở thẳng: "Về Quản lý tầng"', () => {
+  it('bước cuối không có nút "Tiếp"; ngoài sáu bước, mở thẳng: "Về quản lý tầng"', () => {
     const { unmount } = renderHeader({ project: { id: 'p1', name: null, stepIndex: 5 } });
-    expect(screen.queryByRole('link', { name: /Bước tiếp theo/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Tiếp:/ })).toBeNull();
     unmount();
     renderHeader({ project: { id: 'p1', name: null, stepIndex: -1 } });
-    expect(screen.getByRole('link', { name: 'Về Quản lý tầng' })).toHaveAttribute('href', ROUTES.project.floors('p1'));
+    expect(screen.getByRole('link', { name: 'Về quản lý tầng' })).toHaveAttribute('href', ROUTES.project.floors('p1'));
   });
 
   it('màn xác nhận CAD: không mời "Về duyệt lớp tường" (RV5 #10)', () => {
@@ -47,7 +47,7 @@ describe('AppHeader', () => {
       </MemoryRouter>,
     );
     expect(screen.queryByRole('link', { name: /Về duyệt lớp/ })).toBeNull();
-    expect(screen.queryByRole('link', { name: /Bước tiếp theo/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Tiếp:/ })).toBeNull();
   });
 
   it('trong một lớp của tầng: ô bước 3 về lớp Tường, nút chính mời lớp kế tiếp', () => {
@@ -64,12 +64,21 @@ describe('AppHeader', () => {
 
   it('chưa có bản vẽ hoặc xử lý lỗi: nút chính không mời sang bước sau', () => {
     const { unmount } = renderHeader({ project: { id: 'p1', name: null, stepIndex: 1, blocker: 'no-drawings' } });
-    expect(screen.queryByRole('link', { name: /Bước tiếp theo/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Tiếp:/ })).toBeNull();
     expect(screen.getByRole('link', { name: /Tải bản vẽ để bắt đầu/ })).toHaveAttribute('href', ROUTES.project.upload('p1'));
     unmount();
     renderHeader({ project: { id: 'p1', name: null, stepIndex: 1, blocker: 'pipeline-error' } });
-    expect(screen.queryByRole('link', { name: /Bước tiếp theo/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Tiếp:/ })).toBeNull();
     expect(screen.getByText(/Xử lý gặp lỗi/)).toBeInTheDocument();
+  });
+
+  it('nav dự án nằm trong menu tên dự án, tách khỏi nav toàn cục (aesthetic 2.1 #1)', () => {
+    renderHeader({ project: { id: 'p1', name: 'Nhà A', stepIndex: 2 } });
+    const global = screen.getByRole('navigation', { name: 'Điều hướng chính' });
+    expect(within(global).queryByRole('link', { name: 'Lịch sử phiên bản' })).toBeNull();
+    const projectNav = screen.getByRole('navigation', { name: 'Màn khác của dự án' });
+    expect(projectNav.closest('details')).not.toBeNull();
+    expect(within(projectNav).getByRole('link', { name: 'Lịch sử phiên bản' })).toHaveAttribute('href', ROUTES.project.versions('p1'));
   });
 
   it('quản trị viên thấy liên kết "Quản trị"', () => {

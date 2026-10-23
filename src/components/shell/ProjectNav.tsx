@@ -49,7 +49,7 @@ interface ProjectNavProps {
 export function ProjectNav({ className, pathname, projectId, search = '' }: ProjectNavProps) {
   return (
     <nav aria-label="Màn khác của dự án" className={cn('flex min-w-0 items-center', className)}>
-      <ul className="flex items-center gap-1">
+      <ul className="flex flex-col gap-0.5">
         {entriesFor(projectId).map((entry) => {
           const active = entry.isActive(pathname, search);
           return (
@@ -58,7 +58,7 @@ export function ProjectNav({ className, pathname, projectId, search = '' }: Proj
                 to={entry.to}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'inline-flex h-8 items-center whitespace-nowrap rounded-md px-2.5 text-[13px] font-medium transition-colors duration-120',
+                  'flex h-8 items-center whitespace-nowrap rounded-md px-2.5 text-[13px] font-medium transition-colors duration-120',
                   'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
                   active
                     ? 'bg-bg-selected text-text-primary'
