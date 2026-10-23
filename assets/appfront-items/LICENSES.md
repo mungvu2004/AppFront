@@ -12,5 +12,11 @@ Thumbnails are neutral icon cards with the item name (sharp, no 3D render).
 | ceramic-vase-slim | https://polyhaven.com/a/ceramic_vase_03 | CC0 1.0 (Poly Haven) |
 | fancy-picture-frame | https://polyhaven.com/a/fancy_picture_frame_01 | CC0 1.0 (Poly Haven) |
 | ottoman | https://polyhaven.com/a/Ottoman_01 | CC0 1.0 (Poly Haven) |
+| sofa-ph | https://polyhaven.com/a/sofa_02 (2k glTF, textures -> 512 webp) | CC0 1.0 (Poly Haven) |
+| armchair-ph | https://polyhaven.com/a/Armchair_01 (homepage-audit `public/models/armchair.glb`, already simplified) | CC0 1.0 (Poly Haven) |
+| dining-chair-ph | https://polyhaven.com/a/dining_chair_02 (homepage-audit `public/models/dining-chair.glb`) | CC0 1.0 (Poly Haven) |
 
 Downloaded 2026-10-21 from `https://api.polyhaven.com/files/<id>` -> `gltf.1k`.
+
+editor-realism B1 (2026-10-23): `--polyhaven F:/App-review/homepage-v6/cinema/assets/models --glb <homepage-audit>/public/models --only sofa_02,Armchair_01,dining_chair_02`.
+These three have a single material (wood + fabric in one texture atlas), so it is not named `slot_*`: the colour is fixed and does not follow the scene style.

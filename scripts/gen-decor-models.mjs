@@ -3,7 +3,8 @@
  * `copy-pascal-assets.mjs` copies that dir next to the vendor items (`/pascal/items/<folder>/`).
  *
  *   node scripts/gen-decor-models.mjs                       procedural: curtain, pillow, throw-blanket, wall-sconce
- *   node scripts/gen-decor-models.mjs --polyhaven <dir>     convert the 4 CC0 Poly Haven 1k glTFs in <dir>/<id>/<id>_1k.gltf
+ *   node scripts/gen-decor-models.mjs --polyhaven <dir>     convert the CC0 Poly Haven glTFs in <dir>/<id>/<id>_1k.gltf (or `file`)
+ *        [--glb <dir2>] [--only id,id]                    entries with `glb` read <dir2>/<glb> (homepage-audit public/models)
  *
  * Convention (same as vendor items): metres, x/z centred, base at y = 0, front faces +z.
  * Material names are `slot_<slot>` so `sceneDressing.ts` SLOT_FAMILY can recolour them per style.
@@ -217,7 +218,7 @@ const statsOf = (doc) => {
  * a relative `uri` resolves against the GLB url (`/pascal/items/<folder>/`), same origin.
  */
 const glbWithExternalImages = async (io, doc, dir) => {
-  for (const t of doc.getRoot().listTextures()) t.setURI(`${t.getName()}.webp`);
+  for (const t of doc.getRoot().listTextures()) t.setURI(`${t.getName().replace(/\.(png|jpe?g)$/i, '')}.webp`);
   const { json, resources } = await io.writeJSON(doc, { format: Format.GLTF, basename: 'model' });
   if (json.buffers?.length !== 1) throw new Error(`expected 1 buffer, got ${json.buffers?.length}`);
   for (const img of json.images ?? []) writeFileSync(join(dir, img.uri), resources[img.uri]);
@@ -257,12 +258,17 @@ export const POLYHAVEN = {
   ceramic_vase_03: { folder: 'ceramic-vase-slim', label: 'Vase', simplify: 0.2 },
   fancy_picture_frame_01: { folder: 'fancy-picture-frame', label: 'Frame' },
   Ottoman_01: { folder: 'ottoman', label: 'Ottoman' },
+  // editor-realism B1: one material (wood + fabric in one atlas) -> NOT named slot_*, colour fixed per model.
+  sofa_02: { folder: 'sofa-ph', label: 'Sofa', file: 'sofa_02/sofa_02_2k.gltf' },
+  Armchair_01: { folder: 'armchair-ph', label: 'Armchair', glb: 'armchair.glb' },
+  dining_chair_02: { folder: 'dining-chair-ph', label: 'Chair', glb: 'dining-chair.glb' },
 };
 
-const convertPolyHaven = async (io, src) => {
+const convertPolyHaven = async (io, src, glbDir, only) => {
   await MeshoptSimplifier.ready;
-  for (const [id, { folder, label, simplify: ratio }] of Object.entries(POLYHAVEN)) {
-    const doc = await io.read(join(src, id, `${id}_1k.gltf`));
+  for (const [id, { folder, label, simplify: ratio, file, glb }] of Object.entries(POLYHAVEN)) {
+    if (only && !only.includes(id)) continue;
+    const doc = await io.read(glb ? join(glbDir, glb) : join(src, file ?? join(id, `${id}_1k.gltf`)));
     doc.getRoot().getAsset().generator = 'AppFront gen-decor-models';
     await doc.transform(
       weld(),
@@ -277,7 +283,8 @@ const convertPolyHaven = async (io, src) => {
 const main = async () => {
   const io = await ioOf();
   const at = process.argv.indexOf('--polyhaven');
-  if (at > -1) return convertPolyHaven(io, process.argv[at + 1]);
+  const arg = (flag) => (process.argv.includes(flag) ? process.argv[process.argv.indexOf(flag) + 1] : undefined);
+  if (at > -1) return convertPolyHaven(io, process.argv[at + 1], arg('--glb'), arg('--only')?.split(','));
   for (const [folder, { parts, label }] of Object.entries(PROCEDURAL)) await writeModel(io, folder, docOf(parts()), label);
 };
 
