@@ -112,6 +112,8 @@ export const ROUTE_PATTERNS = {
   projectViewerPascal: `${PROJECTS_ROOT}/:projectId/3d/pascal`,
   projectWalls: `${PROJECTS_ROOT}/:projectId/floors/:floorId/layers/walls`,
   shellDemo: '/shell-demo',
+  welcome: '/welcome',
+  welcomeLab: '/welcome-lab/:idea',
 } as const;
 
 /**
@@ -176,6 +178,7 @@ export const ROUTES = {
     walls: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/walls`,
   },
+  welcome: ROUTE_PATTERNS.welcome,
 } as const;
 
 /**
@@ -207,6 +210,8 @@ export const PUBLIC_ROUTE_PATTERNS = [
   '/login/forgot',
   '/login/invitation/*',
   '/login/reset-password/*',
+  /** Trang giới thiệu cuộn (landing): ai cũng xem được, không cần phiên. */
+  '/welcome',
 ] as const;
 
 /**
@@ -230,6 +235,7 @@ export const DEV_PUBLIC_ROUTE_PATTERNS = [
   ROUTE_PATTERNS.canvasOverlaysDemo,
   ROUTE_PATTERNS.feedbackDemo,
   ROUTE_PATTERNS.designSystemStates,
+  ROUTE_PATTERNS.welcomeLab,
 ] as const;
 
 /** Địa chỉ trang 3D riêng của Pascal; query cũ (vd `?tool=measure`) đi theo, `project` ghi đè. */
