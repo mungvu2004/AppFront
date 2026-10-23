@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  backgroundFrameRect,
   fitCanvasView,
   rotatedBounds,
   toFramePoint,
@@ -50,5 +51,24 @@ describe('fitCanvasView (BUG-403)', () => {
     expect(box.height).toBeCloseTo(900);
     expect(box.x + box.width / 2).toBeCloseTo(450);
     expect(box.y + box.height / 2).toBeCloseTo(110);
+  });
+});
+
+describe('backgroundFrameRect (J-10)', () => {
+  it('dat anh theo do phan giai that tu goc (0; 0) ban ve, khong theo khung tuong', () => {
+    // Khung tuong 100..700 px ban ve hien o 50..350 px khung (zoom 0,5); anh that 900 x 600 px.
+    const rect = backgroundFrameRect(
+      { x: 100, y: 100, width: 600, height: 400 },
+      { x: 50, y: 40, width: 300, height: 200 },
+      { width: 900, height: 600 },
+    );
+
+    expect(rect).toEqual({ x: 0, y: -10, width: 450, height: 300 });
+  });
+
+  it('giu khung cu khi anh chua tai xong', () => {
+    const frame = { x: 5, y: 6, width: 70, height: 80 };
+
+    expect(backgroundFrameRect({ x: 0, y: 0, width: 10, height: 10 }, frame, null)).toBe(frame);
   });
 });
