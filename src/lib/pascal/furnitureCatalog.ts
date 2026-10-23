@@ -12,6 +12,8 @@ export interface CatalogModel {
   readonly scale?: readonly [number, number, number];
   readonly attachTo?: string;
   readonly interactive?: unknown;
+  /** Mét (khung mẫu): mặt nệm/mặt bàn để đặt đồ trang trí; bỏ = tỉ lệ mặc định của luật bày đồ. */
+  readonly topY?: number;
 }
 
 /** Dòng chép từ catalog-items.tsx của Pascal — test bắt khớp từng trường. */
@@ -437,6 +439,20 @@ export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
   'planter-long': { folder: 'planter-long', dimensions: [2.378, 0.873, 0.653], offset: [0, 0, 0], rotation: [0, 0, 0] },
   // Gói 4B: tủ sinh bằng code (scripts/realism-assets/cabinets.mjs) thay tủ khối hộp Pascal — chân đế lùi, cánh tách
   // khe 3 mm, mép vát, tay nắm thanh, mặt đá nhô. Khe vật liệu đúng tên mẫu Pascal; hộp = hộp Pascal.
+  // Gói 5: Sketchfab CC BY 4.0 (ghi nguồn ở LICENSES.md). topY = mặt kính đo từ hình học.
+  'wardrobe-sf': { folder: 'wardrobe-sf', dimensions: [1.203, 2.2, 0.637], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  'fridge-sf': { folder: 'fridge-sf', dimensions: [0.921, 1.85, 0.795], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  'toilet-sf': { folder: 'toilet-sf', dimensions: [0.476, 0.74, 0.604], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  'vanity-sf': { folder: 'vanity-sf', dimensions: [0.917, 1.13, 0.636], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  'dining-table-sf': {
+    folder: 'dining-table-sf',
+    dimensions: [2.407, 0.76, 0.926],
+    offset: [0, 0, 0],
+    rotation: [0, 0, 0],
+    topY: 0.63,
+  },
+  'dresser-sf': { folder: 'dresser-sf', dimensions: [1.096, 0.96, 0.55], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  'tv-sf': { folder: 'tv-sf', dimensions: [1.16, 0.716, 0.366], offset: [0, 0, 0], rotation: [0, 0, 0] },
   'closet-gen': { folder: 'closet-gen', dimensions: [1.95, 2.26, 0.6], offset: [0, 0, 0], rotation: [0, 0, 0] },
   'kitchen-counter-gen': {
     folder: 'kitchen-counter-gen',
@@ -483,7 +499,14 @@ export const REALISM_MODEL_SWAP: Readonly<Record<string, string>> = {
   'ceiling-lamp': 'ceiling-lamp-ph',
   picture: 'picture-ph',
   // Gói 4B: tủ sinh bằng code (giữ khe slot_* như mẫu Pascal; khe mới slot_handle màu kim loại tối cố định).
-  closet: 'closet-gen',
+  // Gói 5: mẫu Sketchfab CC BY 4.0 (người dùng tải, scripts/realism-assets/sketchfab.mjs). Tủ áo thay closet-gen.
+  closet: 'wardrobe-sf',
+  fridge: 'fridge-sf',
+  toilet: 'toilet-sf',
+  'bathroom-sink': 'vanity-sf',
+  'dining-table': 'dining-table-sf',
+  dresser: 'dresser-sf',
+  television: 'tv-sf',
   'kitchen-counter': 'kitchen-counter-gen',
   'kitchen-cabinet': 'kitchen-cabinet-gen',
   'kitchen-shelf': 'kitchen-shelf-gen',

@@ -340,9 +340,15 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     expect(modelSrcOf('bush')).toBe('/items/bush/model.glb');
   });
 
-  it('gói 4B: cờ realism bật → tủ áo / tủ bếp / kệ TV dùng mẫu -gen, hộp + gắn tường theo dòng mới; tắt → mẫu Pascal', () => {
+  it('gói 4B + 5: cờ realism bật → tủ bếp / kệ TV dùng mẫu -gen, đồ Sketchfab dùng mẫu -sf; tắt → mẫu Pascal', () => {
     const swaps = {
-      closet: 'closet-gen',
+      closet: 'wardrobe-sf',
+      fridge: 'fridge-sf',
+      toilet: 'toilet-sf',
+      'bathroom-sink': 'vanity-sf',
+      'dining-table': 'dining-table-sf',
+      dresser: 'dresser-sf',
+      television: 'tv-sf',
       'kitchen-counter': 'kitchen-counter-gen',
       'kitchen-cabinet': 'kitchen-cabinet-gen',
       'kitchen-shelf': 'kitchen-shelf-gen',

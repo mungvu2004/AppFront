@@ -397,7 +397,11 @@ export const dressingOf = (graph: SpatialGraph, style: SceneStyle): readonly Fur
         ...(slots === undefined ? {} : { slots }),
       };
     };
-    const topOf = (f: Furniture, fraction = 1): number => fraction * hostHeightMm(f, style, room.usage);
+    // Mẫu có `topY` (giường đầu cao, bàn có đồ trên mặt): mặt đặt đồ đo sẵn thay tỉ lệ mặc định.
+    const topOf = (f: Furniture, fraction = 1): number => {
+      const m = CATALOG_MODELS[modelFolderOf(f, style, room.usage) ?? ''];
+      return (m?.topY !== undefined ? m.topY / m.dimensions[1] : fraction) * hostHeightMm(f, style, room.usage);
+    };
     /** Món chủ + mọi thảm (thật và sinh ra): đồ trang trí nằm trên/treo trên thảm được. */
     const over = (...ids: string[]): ReadonlySet<string> =>
       new Set([...ids, ...withRole(RUG_ROLES).map((i) => i.f.id as string), ...out.filter((o) => o.variant === 'rug').map((o) => o.id as string)]);

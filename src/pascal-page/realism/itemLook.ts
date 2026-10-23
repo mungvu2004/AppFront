@@ -17,7 +17,8 @@ export type MaterialKind =
   | 'mirror'
   | 'screen'
   | 'steel'
-  | 'porcelain';
+  | 'porcelain'
+  | 'steelMapped';
 
 /**
  * Ghi đè theo thư mục mẫu. Khoá: slotId, hoặc ref vật liệu (`library:…`),
@@ -57,6 +58,8 @@ export const ITEM_KIND: Record<string, Record<string, MaterialKind>> = {
   'kitchen-counter-gen': { handle: 'metal' },
   'kitchen-cabinet-gen': { handle: 'metal' },
   'kitchen-shelf-gen': { handle: 'metal' },
+  // Gói 5: tủ lạnh Sketchfab "grey polished metal" kim loại 100 % ra đen trong phòng → inox pha.
+  'fridge-sf': { '*': 'steelMapped' },
   'tv-stand-gen': { handle: 'metal' },
   dresser: { handle: 'metal' },
   'office-table': { handle: 'metal' },
@@ -141,6 +144,8 @@ export const KIND_LOOK: Record<MaterialKind, KindLook> = {
   mirror: { roughness: 0.08, metalness: 0.5, color: '#dfe4e6' },
   screen: { roughness: 0.15, metalness: 0, color: '#0b0c0e' },
   steel: { roughness: 0.35, metalness: 0.6, color: '#cfd2d4' },
+  // Mẫu đã có ảnh nhám/kim loại (three nhân hệ số với kênh ảnh): giữ độ nhám gốc, bớt kim loại.
+  steelMapped: { roughness: 1, metalness: 0.5 },
   porcelain: { roughness: 0.12, metalness: 0, color: '#f3f3f0' },
 };
 

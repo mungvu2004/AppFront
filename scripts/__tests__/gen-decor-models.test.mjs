@@ -27,7 +27,7 @@ const SLOTS = {
 
 describe('gen-decor-models', () => {
   // scripts/realism-assets/{plants,carpet}.mjs chạy ngay khi nhập → liệt kê tay.
-  const REALISM_ASSETS = ['plant-ph', 'planter-ph', 'rug-nf', 'planter-long'];
+  const REALISM_ASSETS = ['plant-ph', 'planter-ph', 'rug-nf', 'wardrobe-sf', 'fridge-sf', 'toilet-sf', 'vanity-sf', 'dining-table-sf', 'dresser-sf', 'tv-sf', 'planter-long'];
   const folders = [
     ...Object.keys(PROCEDURAL),
     ...Object.values(POLYHAVEN).map((p) => p.folder),

@@ -34,3 +34,17 @@ editor-realism P1 (2026-10-23): `node scripts/realism-assets/plants.mjs F:/tmp/p
 editor-realism review2 pack 1 (2026-10-23): pillow/throw-blanket regenerated (roundedBox winding was inside-out); dining-chair-ph diffuse `linear(2.2, 10)` (`--only dining_chair_02`); rug-nf via `node scripts/realism-assets/carpet.mjs`.
 editor-realism review2 pack 2A (2026-10-23): downloads in `F:/tmp/ph-pack2/<id>/` (1k glTF). `node scripts/gen-decor-models.mjs --polyhaven F:/tmp/ph-pack2 --only side_table_01,wooden_display_shelves_01,modern_ceiling_lamp_01,hanging_picture_frame_02`; `node scripts/realism-assets/planter-long.mjs F:/tmp/ph-pack2` (planter_box_02 + potted_plant_02; box 1.5k + 3 x 1.4k plants joined into one mesh per material = 5.7k tris; 5 plants cost the dGPU 7 -> 14-21 ms per frame).
 editor-realism pack 4B (2026-10-24): `node scripts/realism-assets/cabinets.mjs` -> closet-gen / kitchen-counter-gen / kitchen-cabinet-gen / kitchen-shelf-gen / tv-stand-gen (bounding box = the Pascal box, slot names as the Pascal model + `slot_handle` dark metal, box-projected UV in metres).
+
+## Sketchfab (CC BY 4.0 — ghi nguồn bắt buộc)
+
+Tải 2026-10-24 bằng tài khoản Sketchfab của chủ dự án (bản glTF), chuyển bằng `node scripts/realism-assets/sketchfab.mjs <dlDir>` (xoay mặt trước +z, đổi về mét, giảm lưới, ảnh webp 512/1024). Đã sửa đổi: cắt phần thừa (tường mẫu, ghế của bàn ăn, 2 món khác của bộ tủ), giảm lưới.
+
+| Folder | Source | License |
+|---|---|---|
+| wardrobe-sf | "Modern Wardrobe IKEA Style (White colors)" by Igor Piotrowiak (@Relowsky) — https://sketchfab.com/3d-models/b1c75cea276f4239b65d08d34c5eabe5 | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
+| fridge-sf | "Refrigerator - Grey Polished Metal" by Glowbox 3D (@glowbox3d) — https://sketchfab.com/3d-models/2071bda681b642218b6829b82e4fd93b | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
+| toilet-sf | "Toilet" by HippoStance (@hippostance) — https://sketchfab.com/3d-models/132a8ee2af3a40d39d270fbed3d3666c | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
+| vanity-sf | "Designer vessel on wooden vanity unit" by attilakozma (@attilakozma) — https://sketchfab.com/3d-models/b0b478131827419c8965132a19eb8993 | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
+| dining-table-sf | "Dining Table Glass" by Francesco Coldesina (@topfrank2013) — https://sketchfab.com/3d-models/c41a27d7a1b24dc484bc603e1bc2d0ef | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
+| dresser-sf | "Cabinets and shelf IKEA style" by janexx (@janexx) — https://sketchfab.com/3d-models/a1a84be7512f4389af7fd7bbd7060c2f | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
+| tv-sf | "Flat Screen Television" by HippoStance (@hippostance) — https://sketchfab.com/3d-models/f90d4fb91dd34b6791e8d66d00f96591 | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
