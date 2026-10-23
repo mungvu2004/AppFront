@@ -3,6 +3,7 @@
  * không giới hạn tầm (distance 0) nên sáng xuyên sang phòng bên. Vendor `item-light-system.tsx` +
  * `glb-interactive.tsx` gọi hai hàm dưới (luật scripts/realism/r8-pack1.mjs). Cờ `materials` tắt → y cũ.
  */
+import { DAY_THEME_ID } from '../renderLook';
 import { useRealism } from './store';
 
 /** Cường độ còn lại so với dữ liệu đồ (0,4 = bớt 60 %; 0,6 vẫn cháy tường ở review2). */
@@ -12,8 +13,10 @@ export const ITEM_LIGHT_DISTANCE = 4;
 
 const on = () => useRealism.getState().flags.materials;
 
-export function itemLightIntensity(value: number): number {
-  return on() ? value * ITEM_LIGHT_SCALE : value;
+/** Ban ngày: đèn trong nhà tắt (thẻ Ánh sáng hứa vậy; nắng + HDRI lo). Nắng chiều giữ đèn. */
+export function itemLightIntensity(value: number, sceneTheme?: string): number {
+  if (!on()) return value;
+  return sceneTheme === DAY_THEME_ID ? 0 : value * ITEM_LIGHT_SCALE;
 }
 
 export function itemLightDistance(distance: number): number {

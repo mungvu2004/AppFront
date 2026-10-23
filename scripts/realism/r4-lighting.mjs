@@ -11,7 +11,7 @@ export const RULES = {
     ],
     [
       '  useEffect(() => {\n    // An atmosphere owns environmentIntensity',
-      '  // R4: HDRI tự host (chỉ chủ đề sáng + WebGPU + cờ hdri), đặt đè sau khi tải xong.\n  useEffect(() => installHdri(scene, appearance), [scene, texture, appearance])\n\n  useEffect(() => {\n    // An atmosphere owns environmentIntensity',
+      '  // R4: HDRI tự host (chỉ chủ đề sáng + WebGPU + cờ hdri), đặt đè sau khi tải xong; gói 2B: HDRI theo chủ đề.\n  const realismThemeId = useViewer((state) => state.sceneTheme)\n  useEffect(() => installHdri(scene, appearance, realismThemeId), [scene, texture, appearance, realismThemeId])\n\n  useEffect(() => {\n    // An atmosphere owns environmentIntensity',
     ],
   ],
   'viewer/src/lib/scene-themes.ts': [

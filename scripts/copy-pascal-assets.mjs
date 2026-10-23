@@ -270,6 +270,8 @@ copyFileSync(join('vendor', 'pascal', 'assets', 'cursor.svg'), join('public', 'c
 // R4 (editor-realism): HDRI tự host cho chủ đề sáng (`src/pascal-page/realism/lighting.ts` HDRI_URL).
 mkdirSync(join('public', 'pascal', 'hdri'), { recursive: true });
 copyFileSync(join('vendor', 'pascal', 'assets', 'hdri', 'venice_sunset_1k.hdr'), join('public', 'pascal', 'hdri', 'venice-sunset-v1-1k.hdr'));
+// Gói 2B: HDRI trời sáng có mây cho Ban ngày (Poly Haven CC0, `assets/hdri/LICENSE.md`; lighting.ts DAY_HDRI_URL).
+copyFileSync(join('assets', 'hdri', 'kloofendal_48d_partly_cloudy_puresky_1k.hdr'), join('public', 'pascal', 'hdri', 'kloofendal-puresky-v1-1k.hdr'));
 
 mkdirSync(BASIS_TARGET, { recursive: true });
 const basisCopied = readdirSync(BASIS_SOURCE).filter((name) => BASIS_WANTED.test(name));

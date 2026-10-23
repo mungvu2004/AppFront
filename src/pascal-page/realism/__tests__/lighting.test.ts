@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { gradientAt, hdriAutoScale, mixGradient, shouldLoadHdri } from '../lighting';
+import { ceilingCastsShadow, DAY_HDRI_URL, gradientAt, HDRI_URL, hdriAutoScale, hdriUrlFor, mixGradient, shouldLoadHdri } from '../lighting';
 
 describe('lighting (R4)', () => {
   it('chỉ tải HDRI khi WebGPU + cờ bật + chủ đề sáng', () => {
@@ -30,5 +30,20 @@ describe('lighting (R4)', () => {
     expect(hdriAutoScale(grad, w, h)).toBeCloseTo(1, 5);
     expect(hdriAutoScale(grad.map((v) => v * 5), w, h)).toBeCloseTo(0.2, 5); // sáng gấp 5 → 1/5
     expect(hdriAutoScale(new Float32Array(w * h * 4), w, h)).toBe(1); // ảnh đen: không chia 0
+  });
+
+  it('gói 2B: Ban ngày (studio) dùng HDRI trời trưa, Nắng chiều giữ Venice', () => {
+    expect(hdriUrlFor('studio')).toBe(DAY_HDRI_URL);
+    expect(hdriUrlFor('sunset')).toBe(HDRI_URL);
+    expect(DAY_HDRI_URL).not.toBe(HDRI_URL);
+  });
+
+  it('gói 2B: trần đổ bóng chỉ khi chủ đề sáng, mức Vừa/Cao, camera dưới trần', () => {
+    const base = { appearance: 'light', tier: 'medium', cameraY: 1.6, ceilingY: 2.4 };
+    expect(ceilingCastsShadow(base)).toBe(true);
+    expect(ceilingCastsShadow({ ...base, tier: 'high' })).toBe(true);
+    expect(ceilingCastsShadow({ ...base, tier: 'low' })).toBe(false);
+    expect(ceilingCastsShadow({ ...base, appearance: 'dark' })).toBe(false);
+    expect(ceilingCastsShadow({ ...base, cameraY: 12 })).toBe(false); // nhìn từ trên: nhà không tối
   });
 });
