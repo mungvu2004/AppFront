@@ -83,7 +83,7 @@ describe('/welcome', () => {
     expect(screen.getAllByRole('link', { name: /Tới phần bắt đầu/ })).toHaveLength(1);
     // Nút bắt đầu ở cảnh đầu (h1) và ở cảnh cuối, cả hai tới /login; cái ở cảnh đầu đứng trước thanh bước theo Tab.
     const ctas = Array.from(container.querySelectorAll('a.landing-cta'));
-    expect(ctas.map((a) => a.textContent)).toEqual(['Bắt đầu dự án →', 'Bắt đầu dự án →']);
+    expect(ctas.map((a) => a.textContent)).toEqual(['Bắt đầu dự án', 'Bắt đầu dự án']);
     expect(ctas.map((a) => a.getAttribute('href'))).toEqual([ROUTES.login, ROUTES.login]);
     const rail = screen.getByRole('navigation', { name: 'Sáu bước' });
     expect(ctas[0]!.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -140,8 +140,8 @@ describe('bước và nhãn', () => {
   const scenes = ['s01', 's02', 's03', 's04', 's05', 's06', 's07', 's08', 's09'].map((id, i) => ({ id, start: i / 9, end: (i + 1) / 9 }));
 
   it('dòng mắt đánh số theo sáu bước', () => {
-    expect(eyebrow('s03')).toBe('Bước 02 / 06 — Nhận diện');
-    expect(eyebrow('s07')).toBe('Bước 04 / 06 — Dựng 3D · Ba tầng');
+    expect(eyebrow('s03')).toBe('Bước 2 / 6: Nhận diện');
+    expect(eyebrow('s07')).toBe('Bước 4 / 6: Dựng 3D, ba tầng');
   });
 
   it('bước 04 phủ ba cảnh và tiến độ chạy trong cả ba', () => {
