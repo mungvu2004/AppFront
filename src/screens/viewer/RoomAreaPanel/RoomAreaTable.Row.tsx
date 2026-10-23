@@ -39,12 +39,12 @@ const STATUS_BADGE_VARIANTS: Readonly<Record<RoomAreaStatus, BadgeVariant>> = {
 const RENAME_INPUT_CLASS_NAME = cn(
   'w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-text-primary',
   'transition-colors duration-180 hover:border-border-default',
-  'focus-visible:border-border-default focus-visible:outline-none focus-visible:ring-2',
+  'focus-visible:border-border-default focus-visible:outline-hidden focus-visible:ring-2',
   'focus-visible:ring-accent focus-visible:ring-offset-2',
 );
 
 const ROW_CLASS_NAME = cn(
-  'h-10 cursor-pointer border-b border-border-default-50 outline-none',
+  'h-10 cursor-pointer border-b border-border-default-50 outline-hidden',
   'transition-colors duration-180 hover:bg-bg-hover focus-visible:bg-bg-hover',
   'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
   'focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',

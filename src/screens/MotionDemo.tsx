@@ -44,7 +44,7 @@ const PHASE_LABELS: Readonly<Record<string, string>> = {
 const chipClass = (active: boolean): string =>
   [
     'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-120',
-    'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+    'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
     'focus-visible:ring-offset-bg-app',
     active ? 'bg-bg-selected text-accent' : 'bg-bg-sunken text-text-secondary hover:bg-bg-hover',
   ].join(' ');

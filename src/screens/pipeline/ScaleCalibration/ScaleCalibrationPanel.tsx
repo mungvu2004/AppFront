@@ -69,13 +69,13 @@ const SCOPE_ARIA_LABEL = 'Phạm vi áp tỷ lệ';
 const PANEL_CONTAINER_CLASSES = clsx(
   'flex w-full flex-col border-t border-border-default bg-bg-surface',
   // G4b-10/G4b-12: from 768 the panel sits beside the drawing and scrolls on its own; the page does not scroll.
-  'md:w-[344px] md:flex-shrink-0 md:overflow-y-auto md:border-t-0 md:border-l lg:w-[344px]',
+  'md:w-[344px] md:shrink-0 md:overflow-y-auto md:border-t-0 md:border-l lg:w-[344px]',
 );
 
 /** Thu gọn thì cột co về 48 px chỉ còn nút "Bung bảng" — canvas `flex-1` rộng ra (BUG-609, như SCR-16). */
 const COLLAPSED_CONTAINER_CLASSES = clsx(
   'flex w-full justify-end border-t border-border-default bg-bg-surface p-2',
-  'md:w-12 md:flex-shrink-0 md:flex-col md:items-center md:justify-start md:border-t-0 md:border-l lg:w-12',
+  'md:w-12 md:shrink-0 md:flex-col md:items-center md:justify-start md:border-t-0 md:border-l lg:w-12',
 );
 
 /** Cùng bảng ánh xạ mà `ScaleCalibrationMethodReference` dùng — cảnh báo ở màn này luôn `'attention'`. */

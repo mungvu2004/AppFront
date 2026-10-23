@@ -205,7 +205,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           type="button"
           disabled={fieldsDisabled}
           onClick={actions.forgotPassword}
-          className="inline-flex min-h-11 items-center self-center py-1 text-[13px] sm:min-h-6 leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-11 items-center self-center py-1 text-[13px] sm:min-h-6 leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app disabled:cursor-not-allowed disabled:opacity-50"
         >
           {AUTH_MESSAGES.actions.forgotPassword}
         </button>
@@ -313,7 +313,7 @@ export function AuthScreenView(props: AuthScreenViewProps) {
           above centre, leaving room under the button for the tallest strip and its action — the
           signed-in strip plus "Về danh sách dự án" — inside 1024×768 and 375×812 without a scroll bar (BUG-058).
           24 px sides under 640, as `RecoveryShell`: 48 px left a ~279 px column at 375 (BUG-052). */}
-      <div className="flex w-full flex-col items-center px-6 pb-6 pt-[max(3rem,calc(50vh_-_20.75rem))] sm:px-12 lg:w-[55%]">
+      <div className="flex w-full flex-col items-center px-6 pb-6 pt-[max(3rem,calc(50vh-20.75rem))] sm:px-12 lg:w-[55%]">
         <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
           {/* The mark, and the screen's own name beside it. There is deliberately
               no "thu gọn" button: `isCollapsed` is set by whoever mounts the

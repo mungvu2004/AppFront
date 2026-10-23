@@ -84,7 +84,7 @@ export function ProjectTable({ rows, onOpenViewer, renamingId, renameDraft, onOp
               <div className="relative">
                 <h3
                   aria-hidden={renamingId === project.id || undefined}
-                  className={`${NAME_CLASS} line-clamp-2 whitespace-normal break-words max-sm:line-clamp-1 max-sm:leading-8 ${renamingId === project.id ? 'invisible' : ''}`}
+                  className={`${NAME_CLASS} line-clamp-2 whitespace-normal wrap-break-word max-sm:line-clamp-1 max-sm:leading-8 ${renamingId === project.id ? 'invisible' : ''}`}
                 >
                   {project.name}
                 </h3>
@@ -101,7 +101,7 @@ export function ProjectTable({ rows, onOpenViewer, renamingId, renameDraft, onOp
                       if (event.key === 'Enter') onRenameCommit();
                       if (event.key === 'Escape') onRenameCancel();
                     }}
-                    className={`${NAME_CLASS} absolute inset-0 sm:-inset-y-0.5 rounded border border-accent bg-bg-surface px-1 outline-none`}
+                    className={`${NAME_CLASS} absolute inset-0 sm:-inset-y-0.5 rounded-sm border border-accent bg-bg-surface px-1 outline-hidden`}
                   />
                 )}
               </div>

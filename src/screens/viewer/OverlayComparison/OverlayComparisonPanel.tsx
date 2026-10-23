@@ -132,7 +132,7 @@ export function OverlayComparisonPanel({
           <p className="text-[13px] text-text-secondary">{UNMEASURED_NOTICE}</p>
           {alignHref !== undefined && (
             <Link
-              className="rounded-md text-[13px] text-accent underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="rounded-md text-[13px] text-accent underline-offset-2 hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               to={alignHref}
             >
               {ALIGN_LINK_LABEL}

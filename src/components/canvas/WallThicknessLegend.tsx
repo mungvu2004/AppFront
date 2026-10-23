@@ -86,8 +86,8 @@ export function WallThicknessLegend({
       >
         {[...Array(4)].map((_, i) => (
           <div key={`wall-thickness-skeleton-${i}`} className="flex items-center gap-2 px-2 py-1">
-            <div className="w-4 h-4 rounded bg-border-default animate-pulse" />
-            <div className="w-16 h-3 rounded bg-border-default animate-pulse" />
+            <div className="w-4 h-4 rounded-sm bg-border-default animate-pulse" />
+            <div className="w-16 h-3 rounded-sm bg-border-default animate-pulse" />
           </div>
         ))}
       </div>
@@ -149,7 +149,7 @@ export function WallThicknessLegend({
         {hasActiveFilter && (
           <button
             onClick={clearFilter}
-            className="font-mono text-[10px] text-accent leading-none hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="font-mono text-[10px] text-accent leading-none hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             aria-label="Xoá lọc"
           >
             Xoá
@@ -173,7 +173,7 @@ export function WallThicknessLegend({
             className={cn(
               'flex items-center gap-2 px-2 py-1 rounded-md transition-colors duration-180',
               'hover:bg-bg-hover',
-              'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+              'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
               isDimmed ? 'opacity-40' : 'opacity-100'
             )}
             aria-pressed={isActive}

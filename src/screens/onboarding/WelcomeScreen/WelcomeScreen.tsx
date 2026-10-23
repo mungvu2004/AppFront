@@ -77,7 +77,7 @@ const CARD_CLASS = 'flex flex-col gap-3 rounded-2xl border border-border-default
 
 /** Vòng tiêu điểm 2px offset 2px mà A12 đòi, cho hai nút không đi qua `Button`. */
 const FOCUS_RING_CLASS =
-  'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app';
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app';
 
 /**
  * Ba thẻ nằm ngang từ 1024 trở lên, xếp dọc dưới đó.

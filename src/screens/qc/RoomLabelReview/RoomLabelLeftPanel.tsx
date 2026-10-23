@@ -78,7 +78,7 @@ function RoomLabelGapRow({ gap, onNavigateToWalls }: RoomLabelGapRowProps) {
            * dung thẻ đó (đúng chỗ cho một mã kỹ thuật), và thẻ này cũng nói
            * đúng bản chất chuỗi — một định danh, không phải câu người đọc.
            */
-          <code className="rounded bg-bg-sunken px-1 font-mono text-text-primary" key={wallId} title={wallId}>
+          <code className="rounded-sm bg-bg-sunken px-1 font-mono text-text-primary" key={wallId} title={wallId}>
             {gap.wallCodeLabels[index] ?? wallId}
           </code>
         ))}
@@ -123,7 +123,7 @@ export function RoomLabelGapsSection({
       {/* Hành động phụ của khối vòng hở là nút chữ, không thêm một nút rộng khác kiểu (BUG-615). */}
       {onCheckWallGaps === undefined ? null : (
         <button
-          className="inline-flex min-h-6 w-fit items-center rounded text-[13px] text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          className="inline-flex min-h-6 w-fit items-center rounded-sm text-[13px] text-accent underline-offset-2 outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           onClick={onCheckWallGaps}
           type="button"
         >
@@ -153,7 +153,7 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice }: RoomLabelLe
           aria-pressed={showOnlyUnnamed}
           className={cn(
             'flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px]',
-            'transition-colors duration-120 outline-none',
+            'transition-colors duration-120 outline-hidden',
             'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
             showOnlyUnnamed
               ? 'border-accent bg-accent-wash text-accent'

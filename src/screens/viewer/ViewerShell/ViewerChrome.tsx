@@ -69,7 +69,7 @@ export function ViewerBreadcrumb({ items }: ViewerBreadcrumbProps) {
                 className={cn(
                   'truncate whitespace-nowrap rounded-md px-1 text-[13px] text-text-secondary',
                   'transition-colors duration-120 hover:text-text-primary',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
+                  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
                 )}
                 onClick={item.onClick}
                 type="button"
@@ -114,7 +114,7 @@ function ClusterButton({
         /* 44 px dưới `sm` (vùng chạm cảm ứng), 28 px từ `sm` — BUG-374. */
         'flex h-11 w-11 items-center justify-center rounded-lg sm:h-7 sm:w-7',
         'text-text-secondary transition-colors duration-120 hover:bg-bg-hover',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
+        'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
       )}
       onClick={onClick}
       type="button"
@@ -150,7 +150,7 @@ export function ViewerZoomCluster({
           /* Từng không có chiều cao: chỉ cao bằng dòng chữ 11 px (48×17, BUG-374). */
           'h-11 min-w-12 rounded-lg px-1 text-[11px] tabular-nums text-text-secondary sm:h-7',
           'transition-colors duration-120 hover:bg-bg-hover',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
+          'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
         )}
         onClick={onZoomReset}
         type="button"

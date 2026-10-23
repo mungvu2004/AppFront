@@ -188,7 +188,7 @@ describe('vùng nguy hiểm — view dựng chỉ từ props', () => {
     expectVietnamese(document.body);
 
     // Bỏ đúng MỘT phần tử: cái vỏ `role="dialog"` của `Modal.Root`. Nó mang
-    // `tabIndex={-1}` cùng `outline-none` vì bẫy tiêu điểm gọi `.focus()` lên
+    // `tabIndex={-1}` cùng `outline-hidden` vì bẫy tiêu điểm gọi `.focus()` lên
     // nó khi mở, và một vòng sáng quanh cả hộp thoại lúc ấy là thứ không trình
     // duyệt nào vẽ. `ignoreSelector` chỉ bỏ phần tử KHỚP, không bỏ cây con —
     // nên mọi nút và ô bên trong hộp thoại vẫn bị soát đủ. Cái vỏ ấy nằm ở

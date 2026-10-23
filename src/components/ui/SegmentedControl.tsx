@@ -70,7 +70,7 @@ const SegmentedItem = React.forwardRef<HTMLButtonElement, SegmentedItemProps>(
       role="radio"
       aria-checked={isActive}
       className={cn(
-        'relative flex h-full flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 text-sm font-medium outline-none transition-colors duration-120',
+        'relative flex h-full flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-sm px-3 text-sm font-medium outline-hidden transition-colors duration-120',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-sunken',
         isActive ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary',
         props.disabled && 'cursor-not-allowed opacity-40 hover:text-text-secondary',
@@ -79,12 +79,12 @@ const SegmentedItem = React.forwardRef<HTMLButtonElement, SegmentedItemProps>(
       {...props}
     >
       {isActive && layoutId && (
-        <span aria-hidden="true" className="absolute inset-0 rounded bg-bg-surface shadow-rest" data-segment-thumb />
+        <span aria-hidden="true" className="absolute inset-0 rounded-sm bg-bg-surface shadow-rest" data-segment-thumb />
       )}
       <span className="relative z-10 flex items-center justify-center gap-1.5">
         {swatch && (
           <span
-            className="block h-3 w-3 rounded-sm"
+            className="block h-3 w-3 rounded-xs"
             style={{ backgroundColor: swatch }}
             aria-hidden="true"
           />

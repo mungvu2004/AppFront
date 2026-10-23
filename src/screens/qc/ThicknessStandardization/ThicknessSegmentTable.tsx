@@ -12,7 +12,7 @@
  * ## Vì sao `tabIndex={undefined}` trên mọi `Table.Row`
  *
  * Bẫy R-72 (`docs/notes/thickness/ui.md` mục 1): `Table.Row` luôn mang
- * `tabindex="-1"` mặc định cộng `outline-none`, chỉ vẽ vòng tiêu điểm khi
+ * `tabindex="-1"` mặc định cộng `outline-hidden`, chỉ vẽ vòng tiêu điểm khi
  * `focused` được đặt tay — nếu không, `expectAccessible` báo lỗi `focus-ring`
  * cho MỌI hàng vì bộ chọn "phần tử nhận được tiêu điểm" khớp bất kỳ thứ gì
  * mang thuộc tính `tabindex`, kể cả `-1`. Hàng ở bảng này không cần tự nhận
@@ -289,7 +289,7 @@ export function ThicknessSegmentTable({
             options={GROUP_OPTIONS}
             value={pendingGroupKey}
           />
-          <div className="flex w-full gap-2 sm:ml-auto sm:w-auto [&>*]:flex-1 sm:[&>*]:flex-none">
+          <div className="flex w-full gap-2 sm:ml-auto sm:w-auto *:flex-1 sm:*:flex-none">
             <Button onClick={closeGroupPicker} size="sm" variant="ghost">
               {CANCEL_LABEL}
             </Button>

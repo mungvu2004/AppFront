@@ -123,7 +123,7 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
           <button
             className={cn(
               'rounded-full border border-border-default px-2.5 py-1 text-[12px] text-text-secondary',
-              'transition-colors duration-120 outline-none hover:bg-bg-hover hover:text-text-primary',
+              'transition-colors duration-120 outline-hidden hover:bg-bg-hover hover:text-text-primary',
               'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
               suggestion === draft && 'border-accent bg-accent-wash text-accent',
             )}

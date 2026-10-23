@@ -146,7 +146,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
               // the first 12 px fade out so a cut glyph reads as "more text this way".
               prefix={<Search size={16} aria-hidden="true" className="mr-1" />}
               onScroll={(event) => event.currentTarget.toggleAttribute('data-scrolled', event.currentTarget.scrollLeft > 0)}
-              className="pl-0 data-[scrolled]:[mask-image:linear-gradient(to_right,transparent,black_12px)]"
+              className="pl-0 data-scrolled:mask-[linear-gradient(to_right,transparent,black_12px)]"
               wrapperClassName="w-full sm:w-72"
             />
             <Select

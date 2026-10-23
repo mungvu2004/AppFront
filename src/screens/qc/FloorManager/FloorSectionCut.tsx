@@ -100,7 +100,7 @@ function SectionBand({ band, onSelectFloor, onHoverFloor }: SectionBandProps) {
       aria-pressed={band.isSelected}
       className={cn(
         'relative flex shrink-0 basis-0 items-center gap-2 overflow-hidden border-y border-border-default px-2',
-        'cursor-pointer outline-none transition-all duration-260',
+        'cursor-pointer outline-hidden transition-all duration-260',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         band.needsDrawing ? 'bg-state-attention-tint' : 'bg-bg-sunken',
         band.isHiddenIn3d && 'border-dashed',
@@ -152,7 +152,7 @@ export function FloorSectionCut({
           className={cn(
             'inline-flex min-h-11 shrink-0 items-center rounded-md px-1.5 text-[12px] text-text-secondary sm:min-h-6',
             'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
-            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+            'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
           )}
           onClick={onToggleCollapsed}
           type="button"

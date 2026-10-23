@@ -38,7 +38,7 @@ export function StateGallery() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-bg-app">
-      <div className="p-6 border-b border-border-default flex-shrink-0">
+      <div className="p-6 border-b border-border-default shrink-0">
         <h1 className="text-2xl font-bold text-text-primary mb-6">State Gallery (QA)</h1>
         
         <DevStateSwitcher 

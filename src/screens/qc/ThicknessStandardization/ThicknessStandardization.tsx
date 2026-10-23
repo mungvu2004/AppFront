@@ -129,7 +129,7 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 const LINK_CLASS_NAME = cn(
   'self-start rounded-md px-1.5 py-1 text-[13px] text-accent',
   'transition-colors duration-120 hover:bg-accent-wash',
-  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+  'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
 );
 
 /* -------------------------------------------------------------------------- */

@@ -95,7 +95,7 @@ const ZOOM_BUTTON_STEP = 1.25;
 const ERROR_LINK_CLASS_NAME =
   'self-center rounded-md px-1.5 py-0.5 text-[13px] text-accent ' +
   'transition-colors duration-120 hover:bg-accent-wash ' +
-  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+  'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
 /** Chữ thường của trạng thái đang tải: không có màu nào trong ba màu A4 phù hợp. */
 const LOADING_NOTICE_CLASS_NAME =
@@ -209,7 +209,7 @@ export function OverlayComparison({ actions, alignHref, model, nav }: OverlayCom
           hai bên rìa canvas — kéo khung nhìn, chọn vùng lệch — sẽ bị nó chặn dù
           không có gì để bấm ở đó.
         */}
-        <div className="pointer-events-none z-10 order-first flex flex-col items-center gap-2 px-3 py-2 lg:absolute lg:inset-x-0 lg:top-3 lg:order-none lg:py-0">
+        <div className="pointer-events-none z-10 order-first flex flex-col items-center gap-2 px-3 py-2 lg:absolute lg:inset-x-0 lg:top-3 lg:order-0 lg:py-0">
           <div className="pointer-events-auto max-w-full">
             <OverlayComparisonToolbar
               activeFloorId={model.activeFloorId}

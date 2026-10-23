@@ -58,7 +58,7 @@ function ScreenRow({ screen, coverage, isSelected, onSelectScreen }: ScreenRowPr
         className={[
           'flex w-full flex-col gap-1 rounded-md px-2 py-1.5 text-left',
           'transition-colors duration-120 hover:bg-bg-hover',
-          'outline-none focus-visible:ring-2 focus-visible:ring-accent',
+          'outline-hidden focus-visible:ring-2 focus-visible:ring-accent',
           'focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
           isSelected ? 'bg-bg-selected' : 'bg-transparent',
         ].join(' ')}

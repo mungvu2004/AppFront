@@ -235,15 +235,6 @@ const config: Config = {
     'blur', 'collapse', 'container', 'filter', 'grow', 'invert', 'isolate', 'lowercase', 'ordinal', 'resize', 'ring',
     'shadow', 'shrink', '!container', '!contents', '!hidden', '!outline', '!table', '!visible',
   ],
-  // Không màn nào dùng; tắt thì `*, ::before, ::after` và `::backdrop` không còn mang biến `--tw-*` của chúng.
-  corePlugins: {
-    borderSpacing: false, contain: false, gradientColorStops: false, scrollSnapType: false,
-    // Lọc: hai chỗ dùng viết thẳng `[filter:blur(2px)]` và `[backdrop-filter:blur(4px)]` — không cần chuỗi chín biến.
-    blur: false, brightness: false, contrast: false, dropShadow: false, grayscale: false, hueRotate: false,
-    invert: false, saturate: false, sepia: false, filter: false, backdropBlur: false, backdropBrightness: false,
-    backdropContrast: false, backdropGrayscale: false, backdropHueRotate: false, backdropInvert: false,
-    backdropOpacity: false, backdropSaturate: false, backdropSepia: false, backdropFilter: false,
-  },
   plugins: [],
 };
 

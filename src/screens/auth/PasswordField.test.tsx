@@ -72,7 +72,7 @@ describe('PasswordField — the eye button (BUG-051)', () => {
     render(<PasswordField label={LABEL} />);
 
     expect(screen.getByRole('button', { name: AUTH.actions.showPassword })).toHaveClass(
-      'outline-none',
+      'outline-hidden',
       'focus-visible:ring-2',
       'focus-visible:ring-accent',
       'focus-visible:ring-offset-2',

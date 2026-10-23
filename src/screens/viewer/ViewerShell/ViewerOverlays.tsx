@@ -57,7 +57,7 @@ export function ViewerCube({ presets, activePresetId, onCubeFaceSelect }: Viewer
           className={cn(
             'flex items-center justify-center text-[9px] leading-tight',
             'transition-colors duration-120',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
+            'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
             preset.id === activePresetId
               ? 'bg-accent-wash text-text-primary'
               : 'bg-bg-sunken text-text-secondary hover:bg-bg-hover',

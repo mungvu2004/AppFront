@@ -104,7 +104,7 @@ export const ComboboxSearch = forwardRef<HTMLInputElement, Omit<React.InputHTMLA
             aria-controls={listboxId}
             aria-expanded={true}
             className={cn(
-              'h-9 w-full rounded-lg bg-bg-sunken pl-9 pr-3 text-[14px] text-text-primary outline-none',
+              'h-9 w-full rounded-lg bg-bg-sunken pl-9 pr-3 text-[14px] text-text-primary outline-hidden',
               'focus:ring-2 focus:ring-accent',
               className
             )}
@@ -183,7 +183,7 @@ export const ComboboxItem = forwardRef<HTMLDivElement, ComboboxItemProps>(
         {...props}
       >
         <span className="truncate">{children}</span>
-        {isSelected && <Check className="ml-2 h-4 w-4 flex-shrink-0" />}
+        {isSelected && <Check className="ml-2 h-4 w-4 shrink-0" />}
       </div>
     );
   }

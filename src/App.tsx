@@ -73,7 +73,7 @@ export function App() {
             {Object.entries(screens).map(([id, screen]) => (
               <button
                 key={id}
-                className={`w-full text-left px-2 py-1.5 rounded-md text-[14px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface ${
+                className={`w-full text-left px-2 py-1.5 rounded-md text-[14px] transition-colors outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface ${
                   activeScreen === id ? 'bg-bg-selected font-medium text-text-primary' : 'text-text-secondary hover:bg-bg-hover'
                 }`}
                 onClick={() => setActiveScreen(id as ScreenId)}

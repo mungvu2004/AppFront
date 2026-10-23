@@ -20,7 +20,7 @@ export function AdminNav() {
           to={to}
           className={({ isActive }) =>
             cn(
-              '-mb-px border-b-2 px-3 py-2 text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-accent',
+              '-mb-px border-b-2 px-3 py-2 text-[14px] outline-hidden focus-visible:ring-2 focus-visible:ring-accent',
               isActive
                 ? 'border-accent font-semibold text-text-primary'
                 : 'border-transparent text-text-secondary hover:text-text-primary',

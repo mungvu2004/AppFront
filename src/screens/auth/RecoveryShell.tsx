@@ -125,7 +125,7 @@ export function RecoveryLink({ label, href, onClick }: RecoveryLinkProps) {
         onClick();
       }}
       // Vùng chạm 44 px dưới 640, 24 px từ `sm` — giữ cỡ chữ (BUG-041); ở ngõ cụt đây là lối đi duy nhất.
-      className="inline-flex min-h-11 items-center self-start py-1 text-[14px] sm:min-h-6 leading-5 text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
+      className="inline-flex min-h-11 items-center self-start py-1 text-[14px] sm:min-h-6 leading-5 text-accent-hover transition-colors duration-120 hover:text-accent-active rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
     >
       {label}
     </a>

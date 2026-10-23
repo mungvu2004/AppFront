@@ -50,7 +50,7 @@ describe('Modal.Root', () => {
   it('wraps long unbroken words in the body (BUG-195)', () => {
     render(<Harness tick={0} />);
 
-    expect(screen.getByRole('textbox', { name: 'trường nhập' }).parentElement).toHaveClass('break-words');
+    expect(screen.getByRole('textbox', { name: 'trường nhập' }).parentElement).toHaveClass('wrap-break-word');
   });
 
   // BUG-255 was one dialog; three buttons in any footer overrun a 375 px frame unless the row wraps.

@@ -65,7 +65,7 @@ function HandleButton({
       aria-disabled={!handle.isEnabled}
       aria-label={handle.ariaLabel}
       className={cn(
-        'pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 border-solid bg-white outline-none',
+        'pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 border-solid bg-white outline-hidden',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
         handle.kind === 'vertex' ? 'rounded-full' : 'rounded-[1px]',
         !handle.isEnabled && 'opacity-40',
@@ -147,7 +147,7 @@ export function WallGeometryEditorOverlay({
       {dimensionChain.segments.map((segment) => (
         <span
           className={cn(
-            'pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-bg-surface px-1 font-mono text-[11px] text-text-primary shadow-panel',
+            'pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-sm bg-bg-surface px-1 font-mono text-[11px] text-text-primary shadow-panel',
             segment.isLive && 'text-accent',
           )}
           key={segment.id}

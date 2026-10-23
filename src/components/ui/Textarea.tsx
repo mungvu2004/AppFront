@@ -93,7 +93,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
             aria-invalid={error ? true : undefined}
             aria-describedby={describedBy}
             className={cn(
-              'w-full min-h-[72px] max-h-60 px-3 py-2.5 text-[14px] leading-[22px] bg-bg-surface border rounded-lg outline-none resize-none',
+              'w-full min-h-[72px] max-h-60 px-3 py-2.5 text-[14px] leading-[22px] bg-bg-surface border rounded-lg outline-hidden resize-none',
               'transition-[height,border-color,box-shadow] duration-180',
               error
                 ? 'border-state-violation focus-visible:ring-2 focus-visible:ring-state-violation focus-visible:ring-offset-2'

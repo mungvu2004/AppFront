@@ -22,7 +22,7 @@
  * ## Ba cách né đã đo, không phải phỏng đoán
  *
  *  1. `expectAccessible` gọi trên `document.body` với `ignoreSelector: '[role="dialog"]'` —
- *     `Modal.tsx:131` tự đặt `outline-none` lên cái vỏ `tabIndex={-1}` của nó, và đó là
+ *     `Modal.tsx:131` tự đặt `outline-hidden` lên cái vỏ `tabIndex={-1}` của nó, và đó là
  *     component dùng chung, không phải lỗi của màn. Tiền lệ: `DangerZone.test.tsx:189`.
  *     `ignoreSelector` chỉ bỏ phần tử KHỚP chứ không bỏ cây con, nên mọi nút và ô BÊN
  *     TRONG hộp thoại vẫn bị soát đủ.

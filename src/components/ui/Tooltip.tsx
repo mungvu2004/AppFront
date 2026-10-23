@@ -162,7 +162,7 @@ export function Tooltip({ label, kbd, children, disabled = false, side = 'top' }
         <div
           key="tooltip"
           ref={tipRef}
-          className="pointer-events-none z-[9999]"
+          className="pointer-events-none z-9999"
           style={{
             position: 'absolute',
             top: coords.top,

@@ -45,7 +45,7 @@ const TEXT = {
 
 const PANEL = 'rounded-xl border border-border-default bg-bg-surface p-5';
 const FOCUS_RING =
-  'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 function Header({ model }: { readonly model: ModelRegistryViewModel }) {
   return (

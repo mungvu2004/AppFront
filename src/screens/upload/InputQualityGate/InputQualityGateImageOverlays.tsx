@@ -156,8 +156,8 @@ export function ImageRegionLayer({
           <button
             aria-label={region.label}
             className={clsx(
-              'absolute rounded transition-opacity ease-in-out',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+              'absolute rounded-sm transition-opacity ease-in-out',
+              'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
               // Chỉ viền, không nền: tint đặc của token che bản vẽ mà người duyệt phải nhìn
               // (vùng RESOLUTION_TOO_LOW phủ cả ảnh, BUG-537).
               REGION_BORDER_CLASSES[region.level],
@@ -283,7 +283,7 @@ export function CornerHandleLayer({
       {corners.map((corner) => (
         <button
           aria-label={cornerLabel(corner)}
-          className="group absolute flex -translate-x-1/2 -translate-y-1/2 touch-none items-center justify-center rounded-full focus-visible:outline-none"
+          className="group absolute flex -translate-x-1/2 -translate-y-1/2 touch-none items-center justify-center rounded-full focus-visible:outline-hidden"
           key={corner.id}
           onKeyDown={(event) => {
             const nudge = nudgeOf(event.key);

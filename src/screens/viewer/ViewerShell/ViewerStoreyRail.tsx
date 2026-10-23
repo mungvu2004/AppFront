@@ -6,7 +6,7 @@
  *
  * ## Vì sao thanh trượt là `input type="range"` chứ không phải `Slider` dùng chung
  *
- * `src/components/ui/Slider.tsx:143-155` đặt `outline-none` vô điều kiện rồi vẽ
+ * `src/components/ui/Slider.tsx:143-155` đặt `outline-hidden` vô điều kiện rồi vẽ
  * viền tiêu điểm từ STATE của React (`onFocus`/`onBlur` → `isFocused &&
  * 'ring-2'`) thay vì dùng biến thể `focus-visible:`. `expectAccessible` bắt
  * đúng lỗi đó, nên một màn đặt `Slider` lên bề mặt tới được bằng bàn phím
@@ -74,7 +74,7 @@ export function ViewerStoreyRail({
                 className={cn(
                   'flex h-8 w-10 items-center justify-center rounded-lg text-[12px] font-medium max-sm:h-11 max-sm:w-11',
                   'transition-colors duration-120',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
+                  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
                   storey.isActive
                     ? 'bg-accent-wash text-text-primary'
                     : 'text-text-secondary hover:bg-bg-hover',
@@ -97,7 +97,7 @@ export function ViewerStoreyRail({
                 className={cn(
                   'mt-0.5 flex h-6 w-6 items-center justify-center rounded-md',
                   'text-text-muted transition-colors duration-120 hover:bg-bg-hover',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
+                  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
                 )}
                 onClick={(): void => {
                   onStoreyVisibilityToggle(storey.id);
@@ -123,7 +123,7 @@ export function ViewerStoreyRail({
           className={cn(
             'h-24 w-6 cursor-pointer accent-accent disabled:cursor-not-allowed disabled:opacity-50 [direction:rtl] [writing-mode:vertical-lr]',
             'max-md:h-6 max-md:w-24 max-md:[direction:ltr] max-md:[writing-mode:horizontal-tb]',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
+            'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
           )}
           disabled={separationDisabled}
           max={MAX_SEPARATION}

@@ -98,7 +98,7 @@ function ObjectLayerTreeRow({ layer, count, isVisible, onToggle }: ObjectLayerTr
         className={cn(
           'flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px]',
           'transition-colors duration-120',
-          'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+          'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
           isVisible ? 'text-text-primary' : 'text-text-muted',
           'hover:bg-bg-hover',
         )}
@@ -108,7 +108,7 @@ function ObjectLayerTreeRow({ layer, count, isVisible, onToggle }: ObjectLayerTr
       >
         <span
           aria-hidden="true"
-          className="h-3 w-3 shrink-0 rounded-sm border border-border-default-50"
+          className="h-3 w-3 shrink-0 rounded-xs border border-border-default-50"
           style={{ backgroundColor: OBJECT_LAYER_COLOR_TOKENS[layer] }}
         />
         <span className="truncate">{label}</span>
@@ -120,7 +120,7 @@ function ObjectLayerTreeRow({ layer, count, isVisible, onToggle }: ObjectLayerTr
         className={cn(
           'shrink-0 rounded-lg p-1.5 text-text-secondary',
           'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
-          'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+          'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         )}
         onClick={() => onToggle(layer)}
         type="button"
@@ -250,7 +250,7 @@ export function ObjectLayerLeftPanel({
               className={cn(
                 'rounded-full border px-2.5 py-1 text-[12px]',
                 'transition-colors duration-120',
-                'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+                'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
                 isOn
                   ? 'border-accent bg-accent-wash text-accent'
                   : 'border-border-default text-text-secondary hover:bg-bg-hover hover:text-text-primary',

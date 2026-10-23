@@ -507,7 +507,7 @@ describe('[VS-8] panel phải trượt vào', () => {
     const classesOf = (element: HTMLElement): string[] => element.className.split(/\s+/u);
 
     // Bề ngang 344 nội tuyến chỉ còn hiệu lực từ `lg`; dưới đó `!w-full` thắng nó.
-    expect(classesOf(wrapper)).toContain('max-lg:!w-full');
+    expect(classesOf(wrapper)).toContain('max-lg:w-full!');
     // 480 px tối thiểu (cộng hai ray và panel ~960) là thứ đẩy vỏ tràn ở 768 và 375.
     expect(classesOf(viewport)).not.toContain('min-w-[480px]');
     expect(classesOf(viewport)).toContain('lg:min-w-[480px]');

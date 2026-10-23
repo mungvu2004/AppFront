@@ -199,7 +199,7 @@ export function ObjectLayerInspector({
   onSelectHostWall,
 }: ObjectLayerInspectorProps) {
   return (
-    <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-none xl:h-full xl:w-[344px]">
+    <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-0 xl:h-full xl:w-[344px]">
       <div className="flex h-14 shrink-0 items-center px-5">
         <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
       </div>
@@ -321,7 +321,7 @@ function ObjectInspectorBody({
             <span className="flex h-9 items-center text-[14px] text-text-muted">{FREE_STANDING_LABEL}</span>
           ) : (
             <button
-              className="flex h-9 items-center rounded font-mono text-[14px] text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              className="flex h-9 items-center rounded-sm font-mono text-[14px] text-accent underline-offset-2 outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               onClick={() => onSelectHostWall(hostWallId)}
               type="button"
             >

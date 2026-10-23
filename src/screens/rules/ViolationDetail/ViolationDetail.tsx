@@ -273,7 +273,7 @@ function ViolationDetailBody({ props }: BodyProps) {
       {/* N3-08: lối đi thẳng tới lớp 2D sửa được đối tượng lỗi, trên đúng tầng. */}
       {props.fixTarget === null ? null : (
         <Link
-          className="self-start rounded border border-border-default px-3 py-1.5 text-sm text-accent outline-none hover:bg-bg-sunken focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
+          className="self-start rounded-sm border border-border-default px-3 py-1.5 text-sm text-accent outline-hidden hover:bg-bg-sunken focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
           to={props.fixTarget.path}
         >
           Sửa ở lớp {props.fixTarget.layerLabel} →

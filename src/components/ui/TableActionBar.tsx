@@ -124,7 +124,7 @@ export function TableActionBar({
               onClick={onDeselect}
               aria-label="Bỏ chọn tất cả"
               id="table-action-deselect"
-              className="inline-flex items-center gap-1.5 text-[13px] text-text-secondary hover:text-text-primary transition-colors duration-120 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded outline-none px-2 py-1"
+              className="inline-flex items-center gap-1.5 text-[13px] text-text-secondary hover:text-text-primary transition-colors duration-120 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded-sm outline-hidden px-2 py-1"
             >
               <Layers size={14} />
               Bỏ chọn

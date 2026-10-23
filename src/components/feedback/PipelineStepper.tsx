@@ -145,7 +145,7 @@ const PipelineStep = forwardRef<HTMLDivElement, PipelineStepProps>(
             />
             {/* Sweeping highlight, two ambient beats per pass. */}
             <div
-              className="absolute left-0 top-0 h-full bg-white opacity-40 w-1/3 [filter:blur(2px)] animate-pipeline-sweep motion-reduce:animate-none"
+              className="absolute left-0 top-0 h-full bg-white opacity-40 w-1/3 filter-[blur(2px)] animate-pipeline-sweep motion-reduce:animate-none"
             />
           </div>
         )}
@@ -166,7 +166,7 @@ const PipelineRoot = forwardRef<HTMLDivElement, PipelineRootProps>(
     <div
       ref={ref}
       role="list"
-      className={cn('flex flex-col border border-border-default rounded-xl bg-bg-surface overflow-hidden py-2 w-full max-w-md shadow-sm', className)}
+      className={cn('flex flex-col border border-border-default rounded-xl bg-bg-surface overflow-hidden py-2 w-full max-w-md shadow-xs', className)}
       {...props}
     >
       {/* We inject the sweep keyframes directly here for convenience if not in tailwind.config */}

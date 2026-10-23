@@ -37,7 +37,7 @@ const LOG_HEADERS = ['Lúc', 'Mức', 'Nội dung'] as const;
 /** Cách mép dưới bao nhiêu px thì vẫn tính là "đang ở cuối". */
 const BOTTOM_SLACK_PX = 8;
 const FOCUS_RING =
-  'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 function Section({ children, title }: { readonly title: string; readonly children: ReactNode }) {
   return (
@@ -115,7 +115,7 @@ function LogsTable({ detail }: { readonly detail: JobDetailModel }) {
               <Table.Cell>
                 <Badge variant={row.levelVariant}>{row.levelLabel}</Badge>
               </Table.Cell>
-              <Table.Cell className="break-words">{row.message}</Table.Cell>
+              <Table.Cell className="wrap-break-word">{row.message}</Table.Cell>
             </Table.Row>
           )}
           rows={[...detail.logRows]}
@@ -152,7 +152,7 @@ export function TrainingJobDetail({ actions, detail }: TrainingJobDetailProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 className={cn('min-w-0 flex-1 break-words text-base font-semibold text-text-primary', FOCUS_RING)} ref={headingRef} tabIndex={-1}>
+        <h2 className={cn('min-w-0 flex-1 wrap-break-word text-base font-semibold text-text-primary', FOCUS_RING)} ref={headingRef} tabIndex={-1}>
           {detail.title}
         </h2>
         <Badge variant={detail.statusVariant}>{detail.statusLabel}</Badge>

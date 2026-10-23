@@ -54,7 +54,7 @@ export function RuleSettingsGroupCard({
       id={sectionId}
       tabIndex={-1}
       aria-labelledby={`${sectionId}-title`}
-      className="flex scroll-mt-4 flex-col gap-4 rounded border border-border-default bg-bg-surface p-4"
+      className="flex scroll-mt-4 flex-col gap-4 rounded-sm border border-border-default bg-bg-surface p-4"
     >
       <header className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
@@ -115,7 +115,7 @@ export function RuleSettingsGeneralThresholdsCard({
       id={sectionId}
       tabIndex={-1}
       aria-labelledby={`${sectionId}-title`}
-      className="flex scroll-mt-4 flex-col gap-4 rounded border border-border-default bg-bg-surface p-4"
+      className="flex scroll-mt-4 flex-col gap-4 rounded-sm border border-border-default bg-bg-surface p-4"
     >
       <div className="flex flex-col gap-1">
         <h3 className="text-base font-semibold text-text-primary" id={`${sectionId}-title`}>

@@ -302,10 +302,10 @@ export function DeviationLayer({
           }`}
           aria-pressed={mark.isSelected}
           className={cn(
-            'absolute rounded bg-transparent p-0',
-            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent',
+            'absolute rounded-sm bg-transparent p-0',
+            'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent',
             mark.isOverTolerance ? 'border border-state-attention' : 'border-0',
-            mark.isSelected ? 'outline outline-2 outline-accent' : undefined,
+            mark.isSelected ? 'outline-solid outline-2 outline-accent' : undefined,
             mark.hasJustCrossedTolerance ? 'animate-pulse motion-reduce:animate-none' : undefined,
           )}
           data-deviation-mark={mark.id}

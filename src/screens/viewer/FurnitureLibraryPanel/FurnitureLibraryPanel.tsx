@@ -105,8 +105,8 @@ const PANEL_BASE_CLASS = 'flex min-h-0 flex-col overflow-hidden bg-bg-surface';
 
 /** Panel trái cố định; dưới `collapsedBreakpointPx` (lg) thành tấm trượt đáy. */
 const PANEL_CLASS =
-  `${PANEL_BASE_CLASS} h-full w-[var(--flp-panel-width)] ` +
-  'max-lg:h-[var(--flp-sheet-height)] max-lg:w-full';
+  `${PANEL_BASE_CLASS} h-full w-(--flp-panel-width) ` +
+  'max-lg:h-(--flp-sheet-height) max-lg:w-full';
 
 /** Biến thể `collapsed`: luôn là tấm trượt đáy, bất kể bề rộng khung nhìn. */
 /**

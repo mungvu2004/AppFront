@@ -95,7 +95,7 @@ export function InlineAlert({
           aria-label="Ẩn thông báo"
           title="Ẩn thông báo"
           onClick={onDismiss}
-          className={cn('shrink-0 rounded p-1 hover:bg-bg-sunken focus-visible:outline focus-visible:outline-2', iconColorClass, !action && 'ml-auto')}
+          className={cn('shrink-0 rounded-sm p-1 hover:bg-bg-sunken focus-visible:outline-solid focus-visible:outline-2', iconColorClass, !action && 'ml-auto')}
         >
           <X size={16} strokeWidth={2} aria-hidden="true" />
         </button>

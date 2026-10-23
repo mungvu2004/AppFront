@@ -886,8 +886,8 @@ describe('[G01] hàng kích thước vừa panel 400 px ở 1024', () => {
     const crop = screen.getAllByRole('img').find((node) => node.className.includes('--dim-crop-h'));
     const input = screen.getAllByRole('textbox')[0];
 
-    expect(crop?.className).toContain('xl:w-[var(--dim-crop-w)]');
-    expect(crop?.className).not.toContain('lg:w-[var(--dim-crop-w)]');
+    expect(crop?.className).toContain('xl:w-(--dim-crop-w)');
+    expect(crop?.className).not.toContain('lg:w-(--dim-crop-w)');
     expect(input?.closest('.gap-3')?.className).toContain('flex-wrap');
   });
 });

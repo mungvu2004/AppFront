@@ -1,6 +1,138 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss' source(none);
+
+@config '../../tailwind.config.ts';
+
+/* Tailwind 4 đọc cấu hình JS cũ qua `@config`: bảng màu token, `duration-*` sinh từ
+   `src/lib/motion/tokens.ts` và các bài test đọc thẳng `tailwind.config.ts` — tệp ấy vẫn là
+   nguồn duy nhất, không chép sang `@theme`. `source(none)`: chỉ quét đúng `content` của
+   cấu hình (bỏ test, stories, màn demo ở bản dựng), không tự quét cả repo. */
+
+/* Hai mặc định v3 mà preflight v4 bỏ, giữ lại để giao diện không đổi: chữ gợi ý xám
+   (#9ca3af, v4 lấy màu chữ 50 %) và con trỏ bàn tay trên nút. */
+@layer base {
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af;
+  }
+
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* Màu có độ mờ (QA-01c #13). Bảng màu là `var(--token)` trần: Tailwind 3 bỏ im lặng hậu tố
+   `/NN` trên chúng. Tailwind 4 đã sinh được `/NN` (bằng `color-mix`), nhưng giữ một cách viết:
+   mỗi cặp màu + độ mờ thật sự dùng là một lớp `-NN` ở đây. `tokenOpacity.test.ts` cấm `/NN`
+   trên token và đòi mọi lớp `-NN` đang dùng phải có mặt ở đây. Lớp không ai dùng thì
+   Tailwind tự loại khỏi bản dựng — nhưng hãy xoá nó khỏi đây luôn. */
+
+@utility bg-bg-surface-92 {
+  background-color: color-mix(in srgb, var(--bg-surface) 92%, transparent);
+}
+
+@utility bg-bg-surface-90 {
+  background-color: color-mix(in srgb, var(--bg-surface) 90%, transparent);
+}
+
+@utility bg-bg-surface-80 {
+  background-color: color-mix(in srgb, var(--bg-surface) 80%, transparent);
+}
+
+@utility bg-bg-surface-60 {
+  background-color: color-mix(in srgb, var(--bg-surface) 60%, transparent);
+}
+
+@utility bg-bg-app-88 {
+  background-color: color-mix(in srgb, var(--bg-app) 88%, transparent);
+}
+
+@utility bg-bg-sunken-60 {
+  background-color: color-mix(in srgb, var(--bg-sunken) 60%, transparent);
+}
+
+@utility bg-bg-hover-50 {
+  background-color: color-mix(in srgb, var(--bg-hover) 50%, transparent);
+}
+
+@utility bg-accent-wash-20 {
+  background-color: color-mix(in srgb, var(--accent-wash) 20%, transparent);
+}
+
+@utility bg-state-verified-10 {
+  background-color: color-mix(in srgb, var(--state-verified) 10%, transparent);
+}
+
+@utility bg-state-attention-10 {
+  background-color: color-mix(in srgb, var(--state-attention) 10%, transparent);
+}
+
+@utility bg-state-violation-10 {
+  background-color: color-mix(in srgb, var(--state-violation) 10%, transparent);
+}
+
+@utility bg-state-verified-90 {
+  background-color: color-mix(in srgb, var(--state-verified) 90%, transparent);
+}
+
+@utility bg-state-attention-90 {
+  background-color: color-mix(in srgb, var(--state-attention) 90%, transparent);
+}
+
+@utility bg-state-violation-90 {
+  background-color: color-mix(in srgb, var(--state-violation) 90%, transparent);
+}
+
+@utility bg-white-90 {
+  background-color: color-mix(in srgb, var(--white) 90%, transparent);
+}
+
+@utility bg-white-10 {
+  background-color: color-mix(in srgb, var(--white) 10%, transparent);
+}
+
+@utility bg-black-5 {
+  background-color: color-mix(in srgb, var(--black) 5%, transparent);
+}
+
+@utility bg-border-default-50 {
+  background-color: color-mix(in srgb, var(--border-default) 50%, transparent);
+}
+
+@utility border-white-20 {
+  border-color: color-mix(in srgb, var(--white) 20%, transparent);
+}
+
+@utility border-border-default-50 {
+  border-color: color-mix(in srgb, var(--border-default) 50%, transparent);
+}
+
+@utility border-border-default-60 {
+  border-color: color-mix(in srgb, var(--border-default) 60%, transparent);
+}
+
+/* Vạch nhấn 2 px bên trái hàng bảng (Table.Row): một bộ quy tắc thay cho mười hai biến thể
+   `[&>td:first-child]:before:*`, mỗi biến thể kéo theo `content: var(--tw-content)` (ngân sách CSS 12 KiB).
+   Hiện khi hàng được chọn hoặc chính hàng đang được rê chuột (ND-R2: không cần `group` tổ tiên).
+   Rê chuột gác bằng `(hover: hover)`: màn cảm ứng giữ `:hover` trên hàng vừa chạm, trông như hàng được chọn.
+   CSS thường trong lớp `utilities` (không phải `@utility`): không ai gắn biến thể lên nó, và
+   `Table.test.tsx` đọc thẳng các bộ chọn này. */
+@layer utilities {
+  .row-edge > td:first-child { position: relative; }
+  .row-edge > td:first-child::before {
+    content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background-color: var(--accent);
+    transform: scaleY(0); transform-origin: center; transition: transform theme('transitionDuration.instant') theme('transitionTimingFunction.enter');
+  }
+  .row-edge-on > td:first-child::before { transform: scaleY(1); }
+  @media (hover: hover) { .row-edge:hover > td:first-child::before { transform: scaleY(1); } }
+}
+
+@utility bg-hover-over-surface {
+  /* `--bg-hover` là một lớp phủ trong suốt (6% / 3,5%): đặt thẳng làm nền thì vật thể
+     nổi trên canvas (ghim bình luận) trong suốt khi rê chuột. Phủ nó LÊN nền surface. */
+  background-color: var(--bg-surface);
+  background-image: linear-gradient(var(--bg-hover), var(--bg-hover));
+}
 
 @layer base {
   /* ------------------------------------------------------------------------
@@ -261,55 +393,6 @@
 
   body {
     @apply bg-bg-app text-text-primary antialiased;
-  }
-}
-
-/* Màu có độ mờ (QA-01c #13). Bảng màu là `var(--token)` trần, không `<alpha-value>`,
-   nên Tailwind bỏ im lặng hậu tố `/NN` (`bg-bg-surface/90` không sinh CSS). Mỗi cặp
-   màu + độ mờ thật sự dùng là một lớp `-NN` ở đây; bọc cả bảng màu bằng `<alpha-value>`
-   thì CSS vượt ngân sách 12 KiB của `pnpm size`. `tokenOpacity.test.ts` cấm `/NN` trên
-   token và đòi mọi lớp `-NN` đang dùng phải có mặt ở đây. Lớp không ai dùng thì
-   Tailwind tự loại khỏi bản dựng — nhưng hãy xoá nó khỏi đây luôn. */
-@layer utilities {
-  .bg-bg-surface-92 { background-color: color-mix(in srgb, var(--bg-surface) 92%, transparent); }
-  .bg-bg-surface-90 { background-color: color-mix(in srgb, var(--bg-surface) 90%, transparent); }
-  .bg-bg-surface-80 { background-color: color-mix(in srgb, var(--bg-surface) 80%, transparent); }
-  .bg-bg-surface-60 { background-color: color-mix(in srgb, var(--bg-surface) 60%, transparent); }
-  .bg-bg-app-88 { background-color: color-mix(in srgb, var(--bg-app) 88%, transparent); }
-  .bg-bg-sunken-60 { background-color: color-mix(in srgb, var(--bg-sunken) 60%, transparent); }
-  .bg-bg-hover-50 { background-color: color-mix(in srgb, var(--bg-hover) 50%, transparent); }
-  .bg-accent-wash-20 { background-color: color-mix(in srgb, var(--accent-wash) 20%, transparent); }
-  .bg-state-verified-10 { background-color: color-mix(in srgb, var(--state-verified) 10%, transparent); }
-  .bg-state-attention-10 { background-color: color-mix(in srgb, var(--state-attention) 10%, transparent); }
-  .bg-state-violation-10 { background-color: color-mix(in srgb, var(--state-violation) 10%, transparent); }
-  .bg-state-verified-90 { background-color: color-mix(in srgb, var(--state-verified) 90%, transparent); }
-  .bg-state-attention-90 { background-color: color-mix(in srgb, var(--state-attention) 90%, transparent); }
-  .bg-state-violation-90 { background-color: color-mix(in srgb, var(--state-violation) 90%, transparent); }
-  .bg-white-90 { background-color: color-mix(in srgb, var(--white) 90%, transparent); }
-  .bg-white-10 { background-color: color-mix(in srgb, var(--white) 10%, transparent); }
-  .bg-black-5 { background-color: color-mix(in srgb, var(--black) 5%, transparent); }
-  .bg-border-default-50 { background-color: color-mix(in srgb, var(--border-default) 50%, transparent); }
-  .border-white-20 { border-color: color-mix(in srgb, var(--white) 20%, transparent); }
-  .border-border-default-50 { border-color: color-mix(in srgb, var(--border-default) 50%, transparent); }
-  .border-border-default-60 { border-color: color-mix(in srgb, var(--border-default) 60%, transparent); }
-
-  /* Vạch nhấn 2 px bên trái hàng bảng (Table.Row): một bộ quy tắc thay cho mười hai biến thể
-     `[&>td:first-child]:before:*`, mỗi biến thể kéo theo `content: var(--tw-content)` (ngân sách CSS 12 KiB).
-     Hiện khi hàng được chọn hoặc chính hàng đang được rê chuột (ND-R2: không cần `group` tổ tiên).
-     Rê chuột gác bằng `(hover: hover)`: màn cảm ứng giữ `:hover` trên hàng vừa chạm, trông như hàng được chọn. */
-  .row-edge > td:first-child { position: relative; }
-  .row-edge > td:first-child::before {
-    content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background-color: var(--accent);
-    transform: scaleY(0); transform-origin: center; transition: transform theme('transitionDuration.instant') theme('transitionTimingFunction.enter');
-  }
-  .row-edge-on > td:first-child::before { transform: scaleY(1); }
-  @media (hover: hover) { .row-edge:hover > td:first-child::before { transform: scaleY(1); } }
-
-  /* `--bg-hover` là một lớp phủ trong suốt (6% / 3,5%): đặt thẳng làm nền thì vật thể
-     nổi trên canvas (ghim bình luận) trong suốt khi rê chuột. Phủ nó LÊN nền surface. */
-  .bg-hover-over-surface {
-    background-color: var(--bg-surface);
-    background-image: linear-gradient(var(--bg-hover), var(--bg-hover));
   }
 }
 

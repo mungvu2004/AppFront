@@ -149,7 +149,7 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
         aria-atomic="true"
         className={cn(
           'relative w-80 bg-bg-surface shadow-float rounded-xl overflow-hidden pointer-events-auto transition-all duration-340 animate-toast-enter',
-          isExiting && 'opacity-0 !h-0 !my-0 !py-0'
+          isExiting && 'opacity-0 h-0! my-0! py-0!'
         )}
         style={{
           height: isPeek ? '4px' : 'auto',
@@ -163,10 +163,10 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
         }}
       >
         <div className={cn('p-4 flex items-center gap-3 transition-opacity duration-340', isPeek ? 'opacity-0' : 'opacity-100')}>
-          {/* BUG-131: min-w-0 lets the span shrink, break-words wraps a name with no space — "Hoàn tác" stays in.
+          {/* BUG-131: min-w-0 lets the span shrink, wrap-break-word wraps a name with no space — "Hoàn tác" stays in.
               BUG-229: an 80-char name ran to 5 lines and the dot sat in the middle of the block. Three lines at most,
               then "…" (the full text stays in the DOM for screen readers), and the dot hangs beside the first line. */}
-          <span className="relative line-clamp-3 min-w-0 flex-1 break-words pl-[18px] text-[15px] font-medium leading-[22px] text-text-primary">
+          <span className="relative line-clamp-3 min-w-0 flex-1 wrap-break-word pl-[18px] text-[15px] font-medium leading-[22px] text-text-primary">
             <span className={cn('absolute left-0 top-2 h-1.5 w-1.5 rounded-full', dotColor)} aria-hidden="true" />
             {toast.message}
           </span>

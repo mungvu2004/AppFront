@@ -131,7 +131,7 @@ export function ShortcutHelp({ isOpen, onClose }: ShortcutHelpProps) {
             transition={{ duration: prefersReducedMotion ? DURATION.fast : DURATION.default, ease: EASE.out }}
             className={cn(
               'relative bg-bg-surface rounded-2xl shadow-modal pointer-events-auto',
-              'w-full max-w-[480px] max-h-[80vh] overflow-y-auto outline-none'
+              'w-full max-w-[480px] max-h-[80vh] overflow-y-auto outline-hidden'
             )}
           >
             {/* Header */}

@@ -56,7 +56,7 @@ const WRAP_CELL = cn(ROW_HEIGHT, 'whitespace-normal');
 // Trần 160 px chỉ cho cột hành động của bảng (≥ 1024); trong thẻ hẹp câu lý do dùng hết bề ngang (review-1).
 const BLOCKED_REASON_CLASS = 'whitespace-normal text-[13px] text-text-secondary lg:max-w-40';
 const FOCUS_RING =
-  'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 const roleSelectLabel = (name: string): string => `Vai của ${name}`;
 
@@ -224,8 +224,8 @@ function UserManagementCardList({ actions, roleOptions, rows }: UserListProps) {
               onClick={() => actions.onSelectUser(row.id)}
               type="button"
             >
-              <p className="font-medium text-text-primary [overflow-wrap:anywhere]">{row.name}</p>
-              <p className="text-[13px] text-text-secondary [overflow-wrap:anywhere]">{row.email}</p>
+              <p className="font-medium text-text-primary wrap-anywhere">{row.name}</p>
+              <p className="text-[13px] text-text-secondary wrap-anywhere">{row.email}</p>
             </button>
           </div>
           {/* Dưới dòng tên, không cạnh nó: cạnh nhau thì email chỉ còn ~110 px và bị cắt (BUG-075). */}
@@ -326,13 +326,13 @@ export function UserManagementTable({
                 <Avatar alt={row.name} initials={initialsOf(row.name, row.email)} size="default" {...avatarSrcProp(row.avatarUrl)} />
                 <div className="flex min-w-0 flex-col">
                   <button
-                    className={cn('min-h-6 text-left font-medium text-text-primary [overflow-wrap:anywhere]', FOCUS_RING)}
+                    className={cn('min-h-6 text-left font-medium text-text-primary wrap-anywhere', FOCUS_RING)}
                     onClick={() => actions.onSelectUser(row.id)}
                     type="button"
                   >
                     {row.name}
                   </button>
-                  <span className="text-[13px] text-text-secondary [overflow-wrap:anywhere]">{row.email}</span>
+                  <span className="text-[13px] text-text-secondary wrap-anywhere">{row.email}</span>
                   {!withSecondary && (
                     <div className="pt-1">
                       <StatusCell actions={actions} row={row} />

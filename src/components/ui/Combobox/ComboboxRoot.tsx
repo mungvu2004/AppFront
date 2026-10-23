@@ -127,7 +127,7 @@ export const ComboboxTrigger = forwardRef<HTMLButtonElement, ComboboxTriggerProp
         </span>
         <ChevronDown
           className={cn(
-            'ml-2 h-[18px] w-[18px] flex-shrink-0 text-text-secondary transition-transform duration-180',
+            'ml-2 h-[18px] w-[18px] shrink-0 text-text-secondary transition-transform duration-180',
             isOpen && 'rotate-180'
           )}
         />

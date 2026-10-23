@@ -19,7 +19,7 @@ function Kbd({ children }: KbdProps) {
     <kbd
       className={cn(
         'ml-auto font-mono text-[11px] text-text-muted leading-none',
-        'px-1 py-0.5 rounded bg-bg-sunken border border-border-default',
+        'px-1 py-0.5 rounded-sm bg-bg-sunken border border-border-default',
         'shrink-0'
       )}
     >
@@ -142,7 +142,7 @@ const ContextMenuRoot = forwardRef<HTMLDivElement, ContextMenuRootProps>(
         aria-label="Tuỳ chọn"
         tabIndex={-1}
         className={cn(
-          'fixed z-[9999] bg-bg-surface py-1 outline-none',
+          'fixed z-9999 bg-bg-surface py-1 outline-hidden',
           'rounded-xl shadow-float',
           'animate-dropdown-open', // 120ms từ tailwind config
           className
@@ -195,7 +195,7 @@ const ContextMenuItemComponent = forwardRef<HTMLButtonElement, ContextMenuItemPr
           'w-full flex h-11 items-center gap-2 px-3 text-sm sm:h-8',
           'transition-colors duration-120 text-left',
           'hover:bg-bg-hover',
-          'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent',
+          'focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent',
           'disabled:opacity-40 disabled:cursor-not-allowed',
           isDestructive ? 'text-state-violation-text' : 'text-text-primary',
           className

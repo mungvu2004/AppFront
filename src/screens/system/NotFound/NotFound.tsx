@@ -72,7 +72,7 @@ const STYLE_TEXT = `
 
 /** Vành tiêu điểm 2px offset 2px A12 đòi, cho hàng dự án không đi qua `Button`. */
 const ROW_FOCUS_RING_CLASS =
-  'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app';
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app';
 
 export function NotFound({
   title,

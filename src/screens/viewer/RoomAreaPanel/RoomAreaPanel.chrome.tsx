@@ -177,7 +177,7 @@ export function RoomAreaBandBar({ bands }: { bands: readonly RoomAreaBand[] }) {
           <li className="flex items-center gap-1.5" key={band.key}>
             <span
               aria-hidden="true"
-              className={cn('h-2 w-2 shrink-0 rounded-sm', BAND_TONE_CLASS[band.tone])}
+              className={cn('h-2 w-2 shrink-0 rounded-xs', BAND_TONE_CLASS[band.tone])}
             />
             <span className="text-[13px] leading-[18px] text-text-muted">{band.label}</span>
           </li>
@@ -280,7 +280,7 @@ export function RoomAreaPanelSkeleton() {
     <div aria-busy="true" aria-label={LOADING_LABEL} className="flex min-h-0 flex-1 flex-col">
       <div className="px-4 pb-3 pt-4">
         <div className="h-6 w-32 animate-pulse rounded-lg bg-border-default motion-reduce:animate-none" />
-        <div className="mt-2 h-4 w-48 animate-pulse rounded bg-border-default motion-reduce:animate-none" />
+        <div className="mt-2 h-4 w-48 animate-pulse rounded-sm bg-border-default motion-reduce:animate-none" />
       </div>
       <div className="flex flex-col gap-1 px-2">
         {Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
