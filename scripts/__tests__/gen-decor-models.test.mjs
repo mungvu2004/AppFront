@@ -25,7 +25,9 @@ const SLOTS = {
 };
 
 describe('gen-decor-models', () => {
-  const folders = [...Object.keys(PROCEDURAL), ...Object.values(POLYHAVEN).map((p) => p.folder)];
+  // scripts/realism-assets/{plants,carpet}.mjs chạy ngay khi nhập → liệt kê tay.
+  const REALISM_ASSETS = ['plant-ph', 'planter-ph', 'rug-nf'];
+  const folders = [...Object.keys(PROCEDURAL), ...Object.values(POLYHAVEN).map((p) => p.folder), ...REALISM_ASSETS];
 
   it('mỗi mẫu sinh ra / chuyển đổi đều có dòng catalog AppFront và ngược lại', () => {
     expect(folders.sort()).toEqual(Object.keys(APPFRONT_MODELS).sort());

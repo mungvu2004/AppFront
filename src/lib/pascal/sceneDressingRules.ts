@@ -46,8 +46,7 @@ const THROW = { w: 1200, d: 500, fromFoot: 150 } as const;
 /** Mặt nệm / mặt đệm ngồi theo tỉ lệ chiều cao mô hình (giường 0,71 m → nệm ≈ 0,46 m; sofa 0,74 → 0,43). */
 const BED_MATTRESS_FRACTION = 0.65;
 const SOFA_SEAT_FRACTION = 0.58;
-/** Bề dày đầu giường / lưng sofa nằm trong hộp bao. */
-const HEADBOARD_MM = 90;
+/** Bề dày lưng sofa nằm trong hộp bao. */
 const SOFA_BACK_MM = 220;
 const SOFA_THREE_PILLOWS_MM = 1800;
 const FRAME_FOLDER = 'fancy-picture-frame';
@@ -403,24 +402,13 @@ export const dressingOf = (graph: SpatialGraph, style: SceneStyle): readonly Fur
     const over = (...ids: string[]): ReadonlySet<string> =>
       new Set([...ids, ...withRole(RUG_ROLES).map((i) => i.f.id as string), ...out.filter((o) => o.variant === 'rug').map((o) => o.id as string)]);
 
-    // (5) Gối tựa đầu giường (2; giường hẹp 1) + (6) chăn gấp ở chân giường, trên mặt nệm.
+    // (6) Chăn gấp ở chân giường, trên mặt nệm. (5) Gối tựa đầu giường đã bỏ (review2): mẫu `double-bed`
+    // của mọi giường có sẵn 3 gối, gối dựng thêm cắt vào đầu giường.
     for (const { f, rect } of withRole(BED_ROLES)) {
       const lengthAxis = rect.d >= rect.w ? 1 : 0;
       const length = lengthAxis === 1 ? rect.d : rect.w;
-      const width = lengthAxis === 1 ? rect.w : rect.d;
       const foot = openSideOf(rect, lengthAxis, room.outline);
       const lift = topOf(f, BED_MATTRESS_FRACTION);
-      const along = -foot * (length / 2 - HEADBOARD_MM - PILLOW.d / 2);
-      const across = width >= 2 * PILLOW.w + PILLOW.gap ? [-1, 1].map((k) => k * (PILLOW.w + PILLOW.gap) / 2) : [0];
-      across.forEach((a, n) =>
-        tryPlace(
-          `DRESS-pillow-${f.id}-${n}`,
-          [facing(rect, lengthAxis, a, along, PILLOW.w, PILLOW.d, foot)],
-          over(f.id),
-          undefined,
-          decor('pillow', lift),
-        ),
-      );
       const throwAlong = foot * (length / 2 - THROW.d / 2 - THROW.fromFoot);
       tryPlace(
         `DRESS-throw-${f.id}`,

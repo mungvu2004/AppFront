@@ -5,11 +5,12 @@
  * (cache theo uuid gốc + loại), giữ màu, đổi roughness/metalness, thêm map vải/da.
  * Cờ `flags.materials` tắt, textures=false (clay), kính → trả nguyên vật liệu.
  */
-import type { Material, Texture } from 'three';
+import type { Color, Material, Texture } from 'three';
 import { folderOf, itemKindOf, KIND_LOOK, tunedRoughness } from './itemLook';
 import { useRealism } from './store';
 
 type TunableMaterial = Material & {
+  color?: Color;
   roughness?: number;
   metalness?: number;
   normalMap?: Texture | null;
@@ -86,6 +87,12 @@ export function tuneItemMaterial(mat: Material, ctx: TuneContext): Material {
   next.name = `${mat.name}|${kind}`;
   next.roughness = tunedRoughness(kind, m.roughness);
   if (look.metalness != null) next.metalness = look.metalness;
+  // clone() đã chép màu sang Color riêng; nhân thẳng (tuyến tính, không qua setRGB/sRGB).
+  if (look.tint && next.color) {
+    next.color.r *= look.tint[0];
+    next.color.g *= look.tint[1];
+    next.color.b *= look.tint[2];
+  }
   // KHR_materials_specular của mẫu gốc làm trắng bóng: đưa về mặc định.
   if (typeof next.specularIntensity === 'number') next.specularIntensity = Math.min(next.specularIntensity, 0.5);
   if (look.donor && ctx.donor && (!next.normalMap || !next.roughnessMap)) {

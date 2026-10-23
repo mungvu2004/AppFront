@@ -261,29 +261,20 @@ describe('dressingOf — đồ trang trí AppFront (FE3D-FIX-004 D)', () => {
       swing: 'left',
     }) as unknown as Opening;
 
-  it('giường: 2 gối sát đầu giường (mặt quay về chân) + chăn gấp ở chân, trên mặt nệm, mẫu AppFront', () => {
+  it('giường: chăn gấp ở chân, trên mặt nệm, mẫu AppFront; không gối dựng (mẫu giường có sẵn gối)', () => {
     const items = decorOf(graphOf([bedroom], [bed]));
-    expect(items.map((i) => i.id)).toEqual(['DRESS-pillow-F-bed-0', 'DRESS-pillow-F-bed-1', 'DRESS-throw-F-bed']);
-    // Đầu giường y = 100: tâm gối = 100 + 90 (đầu giường) + 75. Giường 1600 × 2000 = cỡ catalog → cao 710, nệm 0,65.
-    expect(items.slice(0, 2).map(rectOfFurniture)).toEqual([
-      { cx: 1745, cy: 265, w: 450, d: 150, rotationDeg: 0 },
-      { cx: 2255, cy: 265, w: 450, d: 150, rotationDeg: 0 },
-    ]);
-    expect(rectOfFurniture(items[2]!)).toEqual({ cx: 2000, cy: 1700, w: 1200, d: 500, rotationDeg: 0 });
-    for (const item of items) {
-      expect(item.liftMm).toBe(462);
-      expect(item.variant).toBeUndefined();
-      expect(item.slots?.fabric).toBe(STYLE.families.fabric);
-    }
-    expect(items[0]?.model).toEqual({ id: 'appfront-decor-pillow', src: '/items/pillow/model.glb' });
-    expect(items[2]?.model?.src).toBe('/items/throw-blanket/model.glb');
+    expect(items.map((i) => i.id)).toEqual(['DRESS-throw-F-bed']);
+    // Giường 1600 × 2000 = cỡ catalog → cao 710, nệm 0,65.
+    expect(rectOfFurniture(items[0]!)).toEqual({ cx: 2000, cy: 1700, w: 1200, d: 500, rotationDeg: 0 });
+    expect(items[0]?.liftMm).toBe(462);
+    expect(items[0]?.variant).toBeUndefined();
+    expect(items[0]?.slots?.fabric).toBe(STYLE.families.fabric);
+    expect(items[0]?.model?.src).toBe('/items/throw-blanket/model.glb');
   });
 
-  it('giường xoay 90°, đầu tựa tường phải: gối quay mặt về −x (+y riêng của giường), chăn ở phía chân', () => {
+  it('giường xoay 90°, đầu tựa tường phải: chăn ở phía chân', () => {
     const turned = piece('bed', 'bed', 'bed', [2900, 2500], [1600, 2000], { rotationDeg: 90 });
-    const items = decorOf(graphOf([bedroom], [turned]));
-    const [p0, , blanket] = items.map(rectOfFurniture);
-    expect(p0).toMatchObject({ cx: 3735, rotationDeg: 90 });
+    const [blanket] = decorOf(graphOf([bedroom], [turned])).map(rectOfFurniture);
     expect(blanket).toMatchObject({ cx: 2900 - 1000 + 150 + 250, cy: 2500, rotationDeg: 90 });
   });
 

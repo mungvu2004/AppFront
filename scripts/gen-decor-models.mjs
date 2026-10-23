@@ -78,9 +78,15 @@ const normalsOf = ({ pos, idx }) => {
   return n;
 };
 
-/** Superellipsoid (rounded box) of half sizes hx,hy,hz centred at c; e < 1 = boxier. */
+/**
+ * Superellipsoid (rounded box) of half sizes hx,hy,hz centred at c; e < 1 = boxier.
+ * flip: (u = longitude, v = latitude) winds inward, which rendered pillows/throws inside-out (review2).
+ */
 const roundedBox = (hx, hy, hz, c, e, bend = () => 0) =>
-  grid(32, 20, (u, v) => {
+  grid(
+    32,
+    20,
+    (u, v) => {
     const th = u * 2 * Math.PI;
     const ph = (v - 0.5) * Math.PI;
     const s = (x) => Math.sign(x) * Math.abs(x) ** e;
@@ -88,7 +94,9 @@ const roundedBox = (hx, hy, hz, c, e, bend = () => 0) =>
     const y = hy * s(Math.sin(ph));
     const z = hz * s(Math.cos(ph)) * s(Math.sin(th));
     return [c[0] + x, c[1] + y + bend(x), c[2] - z];
-  });
+    },
+    true,
+  );
 
 /** Cylinder along axis 'x' or 'z', radius r, from a to b, centre (p, q) on the other two axes. */
 const cylinder = (axis, r, a, b, p, q, caps = true) => {
@@ -269,15 +277,21 @@ export const POLYHAVEN = {
     simplify: 0.3,
     lighten: ['modern_arm_chair_01_pillow'],
   },
-  dining_chair_02: { folder: 'dining-chair-ph', label: 'Chair', glb: 'dining-chair.glb' },
+  // review2: diffuse mean ~(42,29,21) reads almost black in the room -> linear lift to mid brown.
+  dining_chair_02: { folder: 'dining-chair-ph', label: 'Chair', glb: 'dining-chair.glb', brighten: [2.2, 10] },
 };
 
 const convertPolyHaven = async (io, src, glbDir, only) => {
   await MeshoptSimplifier.ready;
-  for (const [id, { folder, label, simplify: ratio, file, glb, lighten }] of Object.entries(POLYHAVEN)) {
+  for (const [id, { folder, label, simplify: ratio, file, glb, lighten, brighten }] of Object.entries(POLYHAVEN)) {
     if (only && !only.includes(id)) continue;
     const doc = await io.read(glb ? join(glbDir, glb) : join(src, file ?? join(id, `${id}_1k.gltf`)));
     for (const m of doc.getRoot().listMaterials()) {
+      const base = brighten && m.getBaseColorTexture();
+      if (base) {
+        base.setImage(await sharp(base.getImage()).linear(...brighten).jpeg().toBuffer());
+        base.setMimeType('image/jpeg');
+      }
       const tex = lighten?.includes(m.getName()) && m.getBaseColorTexture();
       if (!tex) continue;
       // grey -> lift into a light neutral grey; keeps the weave/seams of the original diffuse (greyscale runs last in sharp, so no tint).

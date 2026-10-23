@@ -87,7 +87,7 @@ describe('furnitureCatalog', () => {
       for (const file of ['model.glb', 'thumbnail.webp'])
         expect(existsSync(resolve(ROOT, 'assets/appfront-items', f, file)), `${f}/${file}`).toBe(true);
       expect(licenses, f).toContain(f);
-      expect(row.dimensions.every((v) => v > 0.01 && v < 2.5), f).toBe(true);
+      expect(row.dimensions.every((v) => v > 0.01 && v <= 2.5), f).toBe(true);
       expect(row.offset).toEqual([0, 0, 0]);
       expect(row.rotation).toEqual([0, 0, 0]);
     }

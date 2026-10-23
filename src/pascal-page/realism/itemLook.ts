@@ -5,6 +5,7 @@
 
 export type MaterialKind =
   | 'fabric'
+  | 'bedding'
   | 'leather'
   | 'wood'
   | 'metal'
@@ -24,8 +25,11 @@ export const ITEM_KIND: Record<string, Record<string, MaterialKind>> = {
   'livingroom-chair': { 'library:preset-taupe': 'fabric' },
   'dining-chair': { 'library:preset-taupe': 'fabric' },
   'rectangular-carpet': { 'library:preset-taupe': 'fabric' },
+  // Gói 1: thảm bỏ tua (mẫu `rug-nf`, cùng khe với rectangular-carpet).
+  'rug-nf': { 'library:preset-taupe': 'fabric' },
   // Ba mẫu không khe, vật liệu gốc trắng r0.364 + specular ("nhựa trắng").
-  'double-bed': { '*': 'fabric' },
+  // Giường: UV nhỏ → normal vải lặp dày thành hạt giấy nhám (review2) → vải trơn, không map.
+  'double-bed': { '*': 'bedding' },
   fridge: { '*': 'matte' },
   'ceiling-lamp': { '*': 'matte' },
 };
@@ -72,12 +76,16 @@ export interface KindLook {
   metalness?: number;
   /** Vật liệu thư viện lấy normalMap/roughnessMap khi bản thân không có. */
   donor?: string;
+  /** Nhân màu (r, g, b): gỗ bớt cam. */
+  tint?: readonly [number, number, number];
 }
 
 export const KIND_LOOK: Record<MaterialKind, KindLook> = {
   fabric: { roughness: 0.95, donor: 'library:fabric-cotton' },
+  bedding: { roughness: 0.92 },
   leather: { roughness: 0.55, donor: 'library:leather-calf' },
-  wood: { roughness: null, roughnessScale: 1.6, roughnessMin: 0.45 },
+  // Gói 1: gỗ đồ (tủ đầu giường, bàn) dưới đèn ấm ra cam rực → kéo về trung tính, tối nhẹ.
+  wood: { roughness: null, roughnessScale: 1.6, roughnessMin: 0.45, tint: [0.8, 0.86, 0.95] },
   metal: { roughness: 0.3, metalness: 1 },
   ceramic: { roughness: 0.25 },
   leaf: { roughness: 0.7 },

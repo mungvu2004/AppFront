@@ -12,7 +12,7 @@ describe('itemLook', () => {
   });
   it('phân loại theo thư mục/khe/ref', () => {
     expect(itemKindOf('sofa', 'slot_body', 'library:preset-taupe')).toBe('fabric');
-    expect(itemKindOf('double-bed', null, undefined)).toBe('fabric');
+    expect(itemKindOf('double-bed', null, undefined)).toBe('bedding');
     expect(itemKindOf('fridge', null, undefined)).toBe('matte');
     expect(itemKindOf('closet', 'slot_body', 'library:wood-finewood27')).toBe('wood');
     expect(itemKindOf('kitchen-cabinet', 'slot_h', 'library:metal-brass')).toBe('metal');
@@ -53,6 +53,14 @@ describe('tuneItemMaterial', () => {
     expect(a.map).toBe(tex);
     expect(a.normalMap).toBe(tex);
     vi.useRealTimers();
+  });
+  it('gỗ nhân tint, gốc giữ màu', () => {
+    clearItemMaterialCache();
+    const base = new MeshStandardMaterial({ roughness: 0.5 });
+    const a = tuneItemMaterial(base, { ...ctx, src: '/items/dining-table/model.glb', ref: 'library:wood-oak' }) as MeshStandardMaterial;
+    expect(a.color.r).toBeCloseTo(0.8);
+    expect(a.color.b).toBeCloseTo(0.95);
+    expect(base.color.r).toBe(1);
   });
   it('cờ tắt / textures=false / kính → y cũ', () => {
     const base = new MeshStandardMaterial({ roughness: 0.9 });

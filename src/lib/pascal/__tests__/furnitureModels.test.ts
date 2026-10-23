@@ -304,6 +304,8 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
       const ph = srcs().filter((s) => s.includes('-ph/'));
       expect(new Set(ph)).toEqual(new Set(['/items/sofa-ph/model.glb', '/items/armchair-ph/model.glb', '/items/dining-chair-ph/model.glb', '/items/plant-ph/model.glb', '/items/planter-ph/model.glb']));
       for (const s of ph) expect(existsSync(resolve(ROOT, 'assets/appfront-items', `.${s.slice('/items'.length)}`)), s).toBe(true);
+      expect(modelSrcOf('rectangular-carpet')).toBe('/items/rug-nf/model.glb');
+      expect(existsSync(resolve(ROOT, 'assets/appfront-items/rug-nf/model.glb'))).toBe(true);
     } finally {
       setRealismModels(false);
     }

@@ -407,6 +407,8 @@ export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
   // plant-ph: cây kim ngân pachira_aquatica_01 (cây cao nhất) trồng trong chậu potted_plant_02.
   'plant-ph': { folder: 'plant-ph', dimensions: [0.844, 1.809, 0.798], offset: [0, 0, 0], rotation: [0, 0, 0] },
   'planter-ph': { folder: 'planter-ph', dimensions: [0.691, 0.769, 0.605], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  // review2 gói 1: thảm chữ nhật Pascal bỏ tua (scripts/realism-assets/carpet.mjs), giữ khe slot_a/slot_b.
+  'rug-nf': { folder: 'rug-nf', dimensions: [2.5, 0.03, 1.8], offset: [0, 0, 0], rotation: [0, 0, 0] },
 };
 
 /**
@@ -424,6 +426,7 @@ export const REALISM_MODEL_SWAP: Readonly<Record<string, string>> = {
   // Chậu nhỏ (cây khi hộp < 0,25 m², phong cách ưu tiên cây nhỏ). Không thay `bush`: `planter`/`shrub` ở F1 là
   // luống dài sát lan can (bush kéo giãn theo trục), mẫu chậu tròn khớp đều sẽ teo thành chậu tí hon.
   'small-indoor-plant': 'planter-ph',
+  'rectangular-carpet': 'rug-nf',
 };
 const realismModels = { on: false };
 export const setRealismModels = (on: boolean): void => {

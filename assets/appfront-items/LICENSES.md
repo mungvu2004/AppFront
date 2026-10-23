@@ -17,6 +17,7 @@ Thumbnails are neutral icon cards with the item name (sharp, no 3D render).
 | dining-chair-ph | https://polyhaven.com/a/dining_chair_02 (homepage-audit `public/models/dining-chair.glb`) | CC0 1.0 (Poly Haven) |
 | plant-ph | https://polyhaven.com/a/pachira_aquatica_01 (tallest of the 4 trees) in the pot + soil of https://polyhaven.com/a/potted_plant_02 (1k glTF, real `*_leaves_alpha_1k.png`; P1) | CC0 1.0 (Poly Haven) |
 | planter-ph | https://polyhaven.com/a/potted_plant_02 (1k glTF, real `*_leaves_alpha_1k.png`; P1) | CC0 1.0 (Poly Haven) |
+| rug-nf | vendor Pascal `rectangular-carpet` with the fringe tabs removed (`scripts/realism-assets/carpet.mjs`; review2 pack 1) | same as vendor/pascal assets |
 
 Downloaded 2026-10-21 from `https://api.polyhaven.com/files/<id>` -> `gltf.1k`.
 
@@ -24,3 +25,4 @@ editor-realism B1 (2026-10-23): `--polyhaven F:/App-review/homepage-v6/cinema/as
 editor-realism B1b (2026-10-23): `--polyhaven F:/App-review/homepage-v6/cinema/assets/models --only sofa_02,modern_arm_chair_01`.
 sofa-ph / dining-chair-ph have a single material (wood + fabric in one atlas); armchair-ph has two (legs, pillow). None is named `slot_*`: the colour is fixed and does not follow the scene style.
 editor-realism P1 (2026-10-23): `node scripts/realism-assets/plants.mjs F:/tmp/ph-plants/dl` (Poly Haven 1k glTF downloads). Leaves = diffuse + the real alpha map (RGBA webp, MASK 0.5, double sided); triangles cut by dropping whole leaf islands (seeded shuffle) after a light meshopt pass, trunk/pot simplified. plant-ph 7.8k tris, planter-ph 4.8k tris.
+editor-realism review2 pack 1 (2026-10-23): pillow/throw-blanket regenerated (roundedBox winding was inside-out); dining-chair-ph diffuse `linear(2.2, 10)` (`--only dining_chair_02`); rug-nf via `node scripts/realism-assets/carpet.mjs`.
