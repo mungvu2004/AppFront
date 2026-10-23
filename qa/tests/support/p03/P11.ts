@@ -198,7 +198,7 @@ export async function screenState(page: Page, kind: ScreenKind): Promise<string>
       return settled(page, async () => `quality ${flat(await report.getByRole('row').allInnerTexts())}`);
     }
     case 'pipeline': {
-      const done = page.getByText(/^Đã xong \d+\/\d+ tầng/u); // UPR:172-178
+      const done = page.getByText(/^Đã xử lý xong \d+\/\d+ tầng/u); // UPR:172-178
       await expect(done.first()).toBeVisible();
       return settled(page, async () => `pipeline ${await done.first().innerText()} chips=${flat(await chipTexts(page))}`);
     }

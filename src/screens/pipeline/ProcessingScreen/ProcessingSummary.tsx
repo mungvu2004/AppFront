@@ -11,6 +11,8 @@
  * không cần hộp thoại xác nhận của A9 — và màn này không có hộp thoại nào.
  */
 
+import { clsx } from 'clsx';
+
 import { Button } from '@/components/ui/Button';
 
 import type { ProcessingSummaryProps } from './types';
@@ -19,24 +21,47 @@ const SUMMARY_ARIA_LABEL = 'Báo cáo tổng kết';
 const REVIEW_WALLS_LABEL = 'Duyệt lớp tường';
 const CALIBRATE_SCALE_LABEL = 'Hiệu chỉnh tỷ lệ';
 
+/**
+ * `"48 tường"` → số `"48"` + nhãn `"tường"` để in "số lớn + nhãn nhỏ" (aesthetic 2.5 #3). Chỉ tách
+ * chuỗi đã định dạng ở khoảng trắng đầu tiên — không đụng tới số (A15). Không có khoảng trắng thì
+ * cả chuỗi là phần số.
+ */
+export function splitMetricLabel(metric: string): { readonly value: string; readonly unit: string } {
+  const space = metric.indexOf(' ');
+  return space < 0 ? { value: metric, unit: '' } : { value: metric.slice(0, space), unit: metric.slice(space + 1) };
+}
+
 export function ProcessingSummary({ summary }: ProcessingSummaryProps) {
   const metrics = summary.metricLabels;
 
   return (
     <section
       aria-label={SUMMARY_ARIA_LABEL}
-      className="flex flex-col gap-4 rounded-xl border border-border-default bg-bg-surface p-4"
+      className="flex flex-col gap-4 rounded-lg border border-border-default bg-bg-surface p-4"
     >
       {metrics.length > 0 ? (
-        <ul className="flex flex-wrap gap-2">
-          {metrics.map((metric) => (
-            <li
-              className="rounded-lg bg-bg-sunken px-3 py-1.5 text-[14px] font-medium text-text-primary"
-              key={metric}
-            >
-              {metric}
-            </li>
-          ))}
+        // Plain figures, no chip frame, so they no longer look like the buttons below; a zero count
+        // (e.g. "0 chuỗi kích thước" — likely a miss) is marked for attention (aesthetic 2.5 #3).
+        <ul className="flex flex-wrap gap-x-8 gap-y-3">
+          {metrics.map((metric) => {
+            const { value, unit } = splitMetricLabel(metric);
+            const isZero = value === '0';
+            return (
+              <li aria-label={metric} className="flex flex-col" key={metric}>
+                <span
+                  className={clsx(
+                    'text-heading tabular-nums',
+                    isZero ? 'text-state-attention-text' : 'text-text-primary',
+                  )}
+                >
+                  {value}
+                </span>
+                <span className={clsx('text-[12px]', isZero ? 'text-state-attention-text' : 'text-text-secondary')}>
+                  {unit}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
 

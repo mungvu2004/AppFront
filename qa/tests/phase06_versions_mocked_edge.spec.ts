@@ -260,7 +260,7 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
 
       await test.step('[32-C-002] row description is the version note, or the fallback when there is none', async () => {
         await openVersionsPage(page, projectId);
-        await expect(versionRow(page, 'v54')).toContainText('phục hồi nội dung của phiên bản v2'); // VHM:205
+        await expect(versionRow(page, 'v54')).toContainText('Phục hồi nội dung của phiên bản v2'); // VHM:205
         await expect.soft(versionRow(page, 'v53')).toContainText(VH.noNote);
         await captureEvidence(page, 'E06v_32-C-002_note-fallback.png');
       });

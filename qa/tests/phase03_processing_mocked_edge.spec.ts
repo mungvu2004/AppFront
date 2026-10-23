@@ -114,10 +114,10 @@ const chip = (page: Page, floor: string): Locator => chips(page).filter({ hasTex
 const chipDot = (page: Page, floor: string): Locator => chip(page, floor).locator('span[aria-hidden="true"]').first();
 const stepRows = (page: Page): Locator => page.locator(`ol[aria-label="${STEPS}"] > li`);
 const stepRow = (page: Page, label: string): Locator => stepRows(page).filter({ hasText: label });
-/** The live part only: `<span role="status">Đã xong x/y tầng</span>` (PR:289, BUG-554). */
-const overall = (page: Page): Locator => page.getByText(/^Đã xong \d+\/\d+ tầng/u);
+/** The live part only: `<span role="status">Đã xử lý xong x/y tầng</span>` (PR:289, BUG-554). */
+const overall = (page: Page): Locator => page.getByText(/^Đã xử lý xong \d+\/\d+ tầng/u);
 /** The whole line: the status span plus " · Còn lại khoảng …", which stays OUTSIDE the live region (PR:288-291, R1-03). */
-const overallLine = (page: Page): Locator => page.locator('p:has(> span[role="status"])').filter({ hasText: /^Đã xong \d+\/\d+ tầng/u });
+const overallLine = (page: Page): Locator => page.locator('p:has(> span[role="status"])').filter({ hasText: /^Đã xử lý xong \d+\/\d+ tầng/u });
 /** The always-present live region of the partial notice, right after the overall line (PR:292-296). */
 const partialRegion = (page: Page): Locator => page.locator('p:has(> span[role="status"]) + div[role="status"]');
 const skeletonRows = (page: Page): Locator => page.locator('div.flex.items-center.gap-4.p-3:has(> .animate-pulse)');
@@ -241,11 +241,11 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await captureEvidence(page, 'E03_12-B-031_stage-preprocess.png');
       });
 
-      await test.step('[12-B-004] chip "Đang xử lý" aria-current, running step sweep, "Đã xong 0/1 tầng", "Để chạy nền…" (remaining → [12-C-004])', async () => {
+      await test.step('[12-B-004] chip "Đang xử lý" aria-current, running step sweep, "Đã xử lý xong 0/1 tầng", "Để chạy nền…" (remaining → [12-C-004])', async () => {
         await expect.soft(chip(page, floor.name)).toContainText('Đang xử lý'); // UPR:146
         await expect.soft(chip(page, floor.name)).toHaveAttribute('aria-current', 'true');
         await expect.soft(stepRow(page, stageLabel('preprocess')).locator('.animate-pipeline-sweep')).toHaveCount(1); // PSL:147
-        await expect.soft(overallLine(page)).toHaveText('Đã xong 0/1 tầng'); // no estimate before 3 timed stages (UPR:1342-1349)
+        await expect.soft(overallLine(page)).toHaveText('Đã xử lý xong 0/1 tầng'); // no estimate before 3 timed stages (UPR:1342-1349)
         await expect.soft(page.getByRole('button', { name: BACKGROUND, exact: true })).toBeVisible(); // UPR:844
         note('[12-B-004] "Còn khoảng …" is checked in [12-C-004] after [12-B-034]: estimateRemainingSeconds needs 3 done stages with a measured duration (pipeline.ts)');
         await captureEvidence(page, 'E03_12-B-004_running-focus.png');
@@ -261,14 +261,14 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await expect.soft(chips(page).first()).toHaveText(new RegExp(`${floor.name}\\s*Đang xử lý`, 'u'));
       });
 
-      await test.step('[12-E-010] "Đã xong x/y tầng" is announced from its own role=status outside the tabs; steps and chips stay out of live regions; the panel is a named region', async () => {
+      await test.step('[12-E-010] "Đã xử lý xong x/y tầng" is announced from its own role=status outside the tabs; steps and chips stay out of live regions; the panel is a named region', async () => {
         // BUG-554 (FIX-2276) + R1-03 (FIX-2342): PR:285-296 — span[role=status] for the done clause, an always-present
         // div[role=status] for the partial notice, both outside the tabpanels; BUG-547 (FIX-2275): PPP:76,90 role=region.
         const live = await page.evaluate(() => {
           const near = (el: Element | null): string | null =>
             el?.closest('[aria-live], [role="status"], [role="alert"], [role="log"]')?.outerHTML.slice(0, 80) ?? null;
           const overallStatus = [...document.querySelectorAll('[role="status"]')].find((el) =>
-            /^Đã xong \d+\/\d+ tầng$/u.test(el.textContent?.trim() ?? ''),
+            /^Đã xử lý xong \d+\/\d+ tầng$/u.test(el.textContent?.trim() ?? ''),
           );
           return {
             overallStatus: overallStatus?.outerHTML.slice(0, 80) ?? null,
@@ -346,8 +346,8 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
       await test.step('[12-C-004] (moved after [12-B-034]) "Còn khoảng {duration}" only on the running step row; overall "· Còn lại khoảng"', async () => {
         await expect.soft(stepRows(page).filter({ hasText: /Còn khoảng / })).toHaveCount(1); // UPR:177,1188-1190
         await expect.soft(stepRow(page, stageLabel('dimensionReading'))).toContainText(/Còn khoảng \S/u);
-        await expect.soft(overallLine(page)).toHaveText(/^Đã xong 0\/1 tầng · Còn lại khoảng \S/u); // UPR:185,1342-1349; PR:288-291
-        await expect.soft(overall(page), '"Còn lại khoảng …" outside the live region (R1-03)').toHaveText('Đã xong 0/1 tầng');
+        await expect.soft(overallLine(page)).toHaveText(/^Đã xử lý xong 0\/1 tầng · Còn lại khoảng \S/u); // UPR:185,1342-1349; PR:288-291
+        await expect.soft(overall(page), '"Còn lại khoảng …" outside the live region (R1-03)').toHaveText('Đã xử lý xong 0/1 tầng');
         await captureEvidence(page, 'E03_12-C-004_remaining-on-running-row.png');
       });
 
@@ -526,7 +526,7 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await expect.poll(() => stepLine(page)).toBe(runningAt(4)); // UPR:642-686 seed from #8
         runs.progressOf.set(u2, ok(progress(u2, 'completed', 'qualityCheck', 100)));
         await sse.send(u2, [progress(u2, 'completed', 'qualityCheck', 100)]);
-        await expect(overallLine(page)).toHaveText('Đã xong 1/1 tầng'); // no "Còn lại khoảng 0 giây" (BUG-352)
+        await expect(overallLine(page)).toHaveText('Đã xử lý xong 1/1 tầng'); // no "Còn lại khoảng 0 giây" (BUG-352)
         await expect.soft(page.getByRole('region', { name: SUMMARY, exact: true })).toBeVisible();
         await attachJson('E03_12-A-026_sse-connections.json', { u2: sse.of(u2).map((c) => c.url) });
         await captureEvidence(page, 'E03_12-A-026_reload-then-done.png');
@@ -710,12 +710,12 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
 
       const u1c = fakeUploadId();
       const u2c = fakeUploadId();
-      await test.step('[12-B-007] reload, N7 2 floors: floor 1 completed, floor 2 running → "Báo cáo tổng kết" for floor 1 and "Đã xong 1/2 tầng"', async () => {
+      await test.step('[12-B-007] reload, N7 2 floors: floor 1 completed, floor 2 running → "Báo cáo tổng kết" for floor 1 and "Đã xử lý xong 1/2 tầng"', async () => {
         set(u1c, progress(u1c, 'completed', 'qualityCheck', 100));
         set(u2c, progress(u2c, 'running', 'wallSegmentation', 20));
         await reloadWith([uploadOf(project, 0, u1c), uploadOf(project, 1, u2c)]);
         await expect.soft(page.getByRole('region', { name: SUMMARY, exact: true })).toBeVisible(); // UPR:1223-1251
-        await expect.soft(overall(page)).toHaveText(/^Đã xong 1\/2 tầng/u);
+        await expect.soft(overall(page)).toHaveText(/^Đã xử lý xong 1\/2 tầng/u);
         await captureEvidence(page, 'E03_12-B-007_partial-summary.png');
       });
 

@@ -327,7 +327,7 @@ test.describe('SCR-32 versions — AI project (PV)', () => {
         await expect(dots).toHaveText(/^\+\d+\s*−\d+\s*~\d+$/u);
         const colours = dots.locator('span.rounded-full');
         await expect(colours).toHaveCount(3);
-        for (const [index, token] of ['--state-verified', '--state-violation', '--state-attention'].entries()) {
+        for (const [index, token] of ['--accent', '--state-violation', '--state-attention'].entries()) {
           await expect.soft(colours.nth(index)).toHaveAttribute('style', new RegExp(`var\\(${token}\\)`, 'u')); // types.ts DIFF_TONE_TOKENS
         }
         await expect.soft(versionRow(page, 'v2').locator('span.sr-only')).toHaveText(/^Thêm \d+, xoá \d+, thay đổi \d+$/u);
@@ -358,7 +358,7 @@ test.describe('SCR-32 versions — AI project (PV)', () => {
           );
         expect(rows.length, 'the default pair has changes').toBeGreaterThan(0);
         for (const row of rows) {
-          const token = row.sentence.startsWith('Thêm') ? '--state-verified' : row.sentence.startsWith('Xoá') ? '--state-violation' : '--state-attention';
+          const token = row.sentence.startsWith('Thêm') ? '--accent' : row.sentence.startsWith('Xoá') ? '--state-violation' : '--state-attention';
           expect.soft(row.style, row.sentence).toContain(`var(${token})`); // VG:44-52
           expect.soft(row.opacity, row.sentence).toBe('0.08'); // DIFF_TINT_OPACITY
         }

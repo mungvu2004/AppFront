@@ -107,11 +107,11 @@ export const DIFF_TINT_OPACITY = 0.08;
  * một tham chiếu `var(--x)` hợp lệ đi qua `style` không phải mã màu thô, nên không vi phạm
  * A1 / `local/no-raw-color`.
  *
- * `added` mang màu "đã xác minh" là chỉ định thẳng của đặc tả. A5 cấm **đầu ra của AI** đặt
- * màu đó; ở đây nó đánh dấu một dòng đã thêm trong bản so, không phải một khẳng định đã duyệt.
+ * `added` dùng màu nhấn `--accent`, không dùng xanh "đã xác minh": phần thêm trong một bản do
+ * máy ghi không phải việc người đã duyệt, và A5 dành xanh cho đúng việc đó (aesthetic 2.6, "+0").
  */
 export const DIFF_TONE_TOKENS: Readonly<Record<DiffTone, string>> = {
-  added: 'var(--state-verified)',
+  added: 'var(--accent)',
   removed: 'var(--state-violation)',
   changed: 'var(--state-attention)',
 };

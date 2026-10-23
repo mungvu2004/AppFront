@@ -91,7 +91,7 @@ const NO_FLOORS_REASON = 'Dự án chưa có tầng nào. Thêm tầng ở màn 
 const BLOCK_NOTICE = 'floor-upload-block-notice'; // FUF:22
 const NOT_FOUND_TITLE = 'Không tìm thấy dự án này'; // PSGATE:37
 const GENERIC_NOT_FOUND = 'Nội dung này có thể đã bị xoá, hoặc đường dẫn chưa đúng.'; // I18N errors.notFound.description
-const DONE_RE = (n: number): RegExp => new RegExp(`^Đã xong ${String(n)}/${String(n)} tầng`, 'u'); // UPR:172-178
+const DONE_RE = (n: number): RegExp => new RegExp(`^Đã xử lý xong ${String(n)}/${String(n)} tầng`, 'u'); // UPR:172-178
 const COPY_CODE = 'Sao chép mã lỗi'; // pipelineFailureText.ts copyCodeAriaLabel
 const FILE_CORRUPT_SENTENCE = 'Tệp bản vẽ bị hỏng nên không mở được.'; // pipelineErrorText.ts:62
 const UPLOAD_CLEARER = 'Tải lên bản vẽ rõ hơn'; // pipelineFailureText.ts uploadClearerLabel
@@ -163,7 +163,7 @@ async function waitDone(page: Page, floors: number): Promise<void> {
         failedPolls = (await failure.first().isVisible()) ? failedPolls + 1 : 0;
         return failedPolls >= 3 ? 'failed' : 'waiting';
       },
-      { message: `"Đã xong ${String(floors)}/${String(floors)} tầng" on /pipeline`, timeout: PIPELINE_TIMEOUT_MS, intervals: [2_000] },
+      { message: `"Đã xử lý xong ${String(floors)}/${String(floors)} tầng" on /pipeline`, timeout: PIPELINE_TIMEOUT_MS, intervals: [2_000] },
     )
     .not.toBe('waiting');
   if (!(await done.first().isVisible())) throw new Error('the pipeline run failed (see the screenshot)');
@@ -256,7 +256,7 @@ test.describe('X cross-screen journeys', () => {
         await attachJson('E03_X-A-002_submit.json', { submitWrites, uploads, copiedLines: copied === '' ? 0 : copied.split('\n').length });
       });
 
-      await test.step('[X-A-009] both floors processed: "Đã xong 2/2 tầng", both chips "đã xong", progress read for both upload ids', async () => {
+      await test.step('[X-A-009] both floors processed: "Đã xử lý xong 2/2 tầng", both chips "đã xong", progress read for both upload ids', async () => {
         await page.getByRole('tablist', { name: PROCESSING.tabs }).getByRole('tab', { name: 'Xem trước', exact: true }).click();
         await waitDone(page, 2);
         const texts = await chipTexts(page);
@@ -377,7 +377,7 @@ test.describe('X cross-screen journeys', () => {
         await expect(card(page, floorB.id)).toBeVisible();
         await expect(card(page, floorA.id)).toHaveCount(0);
         await spaGo(page, ROUTES.project.pipeline(pid));
-        await expect(page.getByText(/^Đã xong \d+\/\d+ tầng/u).first()).toBeVisible();
+        await expect(page.getByText(/^Đã xử lý xong \d+\/\d+ tầng/u).first()).toBeVisible();
         await softly.poll(async () => (await chipTexts(page)).some((t) => t.includes(renamed)), { message: 'SCR-12 chip of the deleted floor is gone', timeout: 10_000 }).toBe(false);
         const texts = await chipTexts(page);
         await captureEvidence(page, 'E03_X-A-006_pipeline_after_delete.png', { caption: [`deleted "${renamed}"; SCR-12 chips: ${texts.join(' | ')}`] });
@@ -507,7 +507,7 @@ test.describe('X cross-screen journeys', () => {
         await expect(card(page, floor.id)).toBeVisible();
       });
 
-      await test.step('[X-D-001] engineer uploads → SCR-11 "Tiếp tục xử lý" → "Đã xong 1/1 tầng"; every write 2xx; no "Vùng nguy hiểm" on SCR-08', async () => {
+      await test.step('[X-D-001] engineer uploads → SCR-11 "Tiếp tục xử lý" → "Đã xử lý xong 1/1 tầng"; every write 2xx; no "Vùng nguy hiểm" on SCR-08', async () => {
         await uploadViaTray(page, pid, floor, { name: 'drawing.png', mimeType: 'image/png', buffer: envDrawingPng() });
         await page.goto(ROUTES.project.quality(pid));
         const proceed = page.getByRole('button', { name: QUALITY_CONTINUE, exact: true });
@@ -613,7 +613,7 @@ test.describe('X cross-screen journeys', () => {
       const { page, api } = open;
       let goodUpload = '';
 
-      await test.step('[X-A-011] crafted PNG → /pipeline FILE_CORRUPT failure; "Sao chép mã lỗi" → clipboard; back to SCR-10, good PNG → "Đã xong 1/1 tầng"', async () => {
+      await test.step('[X-A-011] crafted PNG → /pipeline FILE_CORRUPT failure; "Sao chép mã lỗi" → clipboard; back to SCR-10, good PNG → "Đã xử lý xong 1/1 tầng"', async () => {
         await page.goto(ROUTES.project.upload(pid));
         await expect(card(page, floor.id)).toBeVisible();
         await uploadViaTray(page, pid, floor, { name: 'hong.png', mimeType: 'image/png', buffer: corruptPng() });
@@ -791,7 +791,7 @@ test.describe('X cross-screen journeys', () => {
           await expect.soft(page.getByRole('dialog', { name: CAD.dialog, exact: true })).toBeVisible();
           await captureEvidence(page, 'E03_X-B-003_reload_last_route.png', { caption: rows.map((r) => `${r.after === r.before ? 'same' : 'DIFF'} ${r.after}`) });
           await attachJson('E03_X-B-003_reload_states.json', { rows });
-          expect.soft(rows.find((r) => r.route === ROUTES.project.pipeline(pid))?.after ?? '', 'pipeline after reload').toMatch(/Đã xong 1\/1 tầng/u);
+          expect.soft(rows.find((r) => r.route === ROUTES.project.pipeline(pid))?.after ?? '', 'pipeline after reload').toMatch(/Đã xử lý xong 1\/1 tầng/u);
         });
       } finally {
         await closePage(open);

@@ -13,7 +13,7 @@ export interface StatusBarProps {
   scaleRatio: string;
   /** Mật độ px, ví dụ "12 mm/px" */
   scaleDensity: string;
-  /** Văn bản trạng thái lưu, ví dụ "Đã lưu lúc 14:32" hoặc "Đang lưu..." */
+  /** Văn bản trạng thái lưu, ví dụ "Đã lưu lúc 14:32" hoặc "Đang lưu…" */
   saveText: string;
 }
 

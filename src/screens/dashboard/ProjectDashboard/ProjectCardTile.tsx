@@ -16,7 +16,6 @@ import { motion } from '@/components/motion';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { durationSeconds } from '@/lib/motion';
-import { staggerDelayMs } from '@/lib/motion/stagger';
 import { cn } from '@/lib/utils';
 
 import { PLAN_OUTLINE_SEGMENTS } from './projectsGateway';
@@ -52,8 +51,6 @@ export interface ProjectCardTileProps {
 
 export function ProjectCardTile({
   project,
-  index,
-  shouldStagger,
   renamingId,
   renameDraft,
   onOpen,
@@ -82,13 +79,9 @@ export function ProjectCardTile({
         event.preventDefault();
         onMenu(project, event.clientX, event.clientY);
       }}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        layout: { duration: durationSeconds('standard') },
-        default: { duration: durationSeconds('fast'), delay: shouldStagger ? staggerDelayMs(index) / 1000 : 0 },
-      }}
-      className="flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border-default bg-bg-surface shadow-rest outline-hidden transition-[transform,box-shadow] duration-fast hover:-translate-y-px hover:shadow-float focus-visible:ring-2 focus-visible:ring-accent"
+      // No fade-up/stagger on load and no hover lift (aesthetic 2.2 #2); `layout` still animates add/remove.
+      transition={{ layout: { duration: durationSeconds('standard') } }}
+      className="flex cursor-pointer flex-col overflow-hidden rounded-lg border border-border-default bg-bg-surface outline-hidden transition-colors duration-fast hover:border-border-control focus-visible:ring-2 focus-visible:ring-accent"
     >
       <div className="relative h-[132px] shrink-0 border-b border-border-default bg-bg-sunken">
         {/* Below the badge/menu row, so no stroke runs through the status label (BUG-119). */}
@@ -150,10 +143,8 @@ export function ProjectCardTile({
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-bg-sunken">
             <div className="h-full rounded-full bg-accent" style={{ width: `${String(project.progressRatio * 100)}%` }} />
           </div>
-          <div className="flex items-center justify-between gap-2 text-[11px] text-text-muted">
-            <span>{project.progressLabel}</span>
-            <span className="font-medium text-text-secondary">{project.progressPercentLabel}</span>
-          </div>
+          {/* One way to say it: the count, not the count and a percent too (aesthetic 2.2 #4). */}
+          <span className="text-[11px] tabular-nums text-text-muted">{project.progressLabel}</span>
         </div>
         <div className="flex items-center gap-2">
           {project.members.length > 0 && (
