@@ -1,0 +1,16 @@
+{
+  "$comment": "IT-ML golden set (docs/it-ml/IT-PLAN.md §4). G1-G5 = CubiCasa5k TEST split (extracted/cubicasa5k/test.txt, F1_scaled.png), never in train. 'expect' ranges are null until the baseline run is reviewed by a person; then fill [min, max] = baseline ±25 % (at least ±2) and set baseline.approvedBy/runId. IT-ML-016 fails while a range is null.",
+  "baseline": { "runId": null, "approvedBy": null, "approvedAt": null },
+  "maxWindowMm": null,
+  "samples": {
+    "G1-small": { "source": "colorful/11578", "px": [654, 1246], "svg": { "walls": 10, "doors": 4, "windows": 1, "spaces": 5 }, "expect": { "walls": null, "doors": null, "windows": null, "furniture": null } },
+    "G2-medium": { "source": "high_quality_architectural/20019", "px": [1543, 1133], "svg": { "walls": 17, "doors": 7, "windows": 3, "spaces": 7 }, "expect": { "walls": null, "doors": null, "windows": null, "furniture": null } },
+    "G3-large": { "source": "high_quality_architectural/4589", "px": [3164, 1385], "svg": { "walls": 30, "doors": 15, "windows": 15, "spaces": 21 }, "expect": { "walls": null, "doors": null, "windows": null, "furniture": null } },
+    "G4-rooms": { "source": "high_quality_architectural/6276", "px": [2171, 2708], "svg": { "walls": 55, "doors": 29, "windows": 32, "spaces": 38 }, "expect": { "walls": null, "doors": null, "windows": null, "furniture": null } },
+    "G5-windows": { "source": "high_quality_architectural/5135", "px": [4162, 3153], "svg": { "walls": 151, "doors": 35, "windows": 61, "spaces": 34 }, "expect": { "walls": null, "doors": null, "windows": null, "furniture": null } }
+  },
+  "negatives": {
+    "N1-photo": "PolyHaven CC0 leafy_grass_diff_2k.jpg resized to 1024x1024 PNG: not a drawing -> NOT_A_FLOOR_PLAN",
+    "N4-large": "G5-windows upscaled x1.5 nearest (6243x4729 = 29.5 MP < 40 MP pipeline_max_pixels): time/RAM case"
+  }
+}
