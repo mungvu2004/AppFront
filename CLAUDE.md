@@ -24,6 +24,7 @@ tiếng Anh — xem mục B và E.11.
 | `pnpm coverage` | có đối chiếu ngưỡng. CI chạy cái này, không chạy `test` |
 | `pnpm cycles` | `import/no-cycle` — tách khỏi `pnpm lint` vì nó chậm trên 500+ file |
 | `pnpm length` | Độ dài file component: nhắc 250, hỏng 400, đếm dòng CÓ NỘI DUNG |
+| `pnpm dev:3d` | Như `dev:be` (mở http://localhost:18080), cộng trang 3D `/editor3d.html` **tự cập nhật** khi sửa `src/pascal-page/**` hay `vendor/pascal/**` — không cần `pnpm pascal` lại. Dev server Pascal chạy ở 18082, 18080 chuyển tiếp sang. Sửa `vite.pascal.config.ts`/`scripts/pascal-*.mjs` thì khởi động lại. Bản dựng sản phẩm vẫn là tệp tĩnh từ `pnpm pascal` |
 
 Các lệnh còn lại (`dev`, `typecheck`, `build`, `size`, `e2e`, `e2e:visual`, `storybook`,
 `draco`) là lệnh chuẩn — xem `scripts` trong `package.json`.
