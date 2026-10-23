@@ -95,7 +95,8 @@ export const ANY_OPTION = 'all';
 export const LEVEL_FILTER_OPTIONS: readonly { label: string; value: RuleReportLevelFilter }[] = [
   { label: 'Tất cả', value: 'all' },
   { label: 'Nghiêm trọng', value: 'violation' },
-  { label: 'Cảnh báo', value: 'warning' },
+  // R-2: tab và ô này gộp cả gợi ý, nên nhãn phải nói đủ.
+  { label: 'Cảnh báo, gợi ý', value: 'warning' },
   { label: 'Đạt', value: 'passed' },
 ];
 

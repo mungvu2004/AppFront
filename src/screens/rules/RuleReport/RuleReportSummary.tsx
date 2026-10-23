@@ -80,7 +80,7 @@ export function RuleReportSummaryStrip({ summary }: RuleReportSummaryStripProps)
     <dl className="grid grid-cols-2 gap-6 sm:grid-cols-4">
       <SummaryStat value={summary.evaluated} label="Tổng số kiểm tra" />
       <SummaryStat value={summary.passed} label="Đạt" />
-      <SummaryStat value={summary.warnings} label="Cảnh báo" />
+      <SummaryStat value={summary.warnings} label="Cảnh báo, gợi ý" />
       <SummaryStat value={summary.violations} label="Nghiêm trọng" />
     </dl>
   );
