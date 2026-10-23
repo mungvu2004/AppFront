@@ -55,7 +55,7 @@ export function ViewerCube({ presets, activePresetId, onCubeFaceSelect }: Viewer
           aria-label={preset.label}
           aria-pressed={preset.id === activePresetId}
           className={cn(
-            'flex items-center justify-center text-[9px] leading-tight',
+            'flex items-center justify-center text-[11px] leading-tight',
             'transition-colors duration-120',
             'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
             preset.id === activePresetId

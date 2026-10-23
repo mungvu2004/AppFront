@@ -37,7 +37,7 @@ function PendingDetail({ actions, model }: ConnectionStatesProps) {
   return (
     <Drawer isOpen={model.isDetailOpen} onClose={actions.onCloseDetail} size={DETAIL_WIDTH_PX}>
       <div className="flex flex-col gap-5">
-        <h2 className="text-[19px] font-medium leading-7 text-text-primary">{DETAIL_TITLE}</h2>
+        <h2 className="text-[20px] font-medium leading-7 text-text-primary">{DETAIL_TITLE}</h2>
 
         {model.lastSyncLabel !== null ? (
           <p className="text-[13px] leading-[18px] text-text-secondary">{model.lastSyncLabel}</p>
@@ -147,7 +147,7 @@ export function ConnectionStates({ actions, model }: ConnectionStatesProps) {
         className="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay"
       >
         <div className="flex w-[420px] flex-col gap-5 rounded-xl bg-bg-surface p-6 shadow-modal">
-          <p className="text-[19px] font-medium leading-7 text-text-primary">{model.headline}</p>
+          <p className="text-[20px] font-medium leading-7 text-text-primary">{model.headline}</p>
           <p className="text-[15px] leading-6 text-text-secondary">
             Những thay đổi này vẫn được giữ nguyên trong máy của bạn. Đăng nhập lại là chúng được gửi đi
             tiếp, không mất gì cả.

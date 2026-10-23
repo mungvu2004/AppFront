@@ -327,7 +327,7 @@ function CadBranchConfirmBody({ actions, model }: CadBranchConfirmProps) {
       role="region"
     >
       <header className="flex flex-col gap-1 px-4 pb-3 pt-4">
-        <h1 className="text-[17px] font-semibold text-text-primary">
+        <h1 className="text-[16px] font-semibold text-text-primary">
           {headerCopy.title}
         </h1>
         <p className="text-[13px] text-text-secondary">
