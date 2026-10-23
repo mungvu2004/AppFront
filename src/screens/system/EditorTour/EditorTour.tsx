@@ -125,7 +125,8 @@ function backdropPanels(
  * Giữa cạnh dưới (B-V2-05): đo cả ba màn chủ ở 1280×720 và 1440×900, chỗ này không đè
  * điều khiển nào. Bài: e2e/v2v3/tour-chip.spec.ts.
  */
-const DEFAULT_CHIP_ANCHOR = 'bottom-4 right-4';
+// B4-10/J-16: màn có chân dính đáy (`data-sticky-footer`, như màn Xuất) thì chip đứng trên chân đó — cùng mẹo với Toast.
+const DEFAULT_CHIP_ANCHOR = 'bottom-4 right-4 [html:has([data-sticky-footer])_&]:bottom-24';
 
 export function EditorTour(props: EditorTourProps) {
   const {

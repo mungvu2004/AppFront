@@ -997,6 +997,8 @@ describe('NO-208 — vị trí chip do màn chủ truyền', () => {
     );
 
     expect(chipWrapper()?.className).toContain('bottom-4 right-4');
+    // B4-10/J-16: trên màn có chân dính đáy (màn Xuất) chip phải nhấc lên, không đè nút "Xuất".
+    expect(chipWrapper()?.className).toContain('[html:has([data-sticky-footer])_&]:bottom-24');
   });
 
   it('theo chipAnchorClassName của màn chủ, và bỏ góc mặc định', () => {

@@ -1041,6 +1041,9 @@ export const AXIS_AUTO_ALIGN_NOTIFICATION_TYPE = 'axisGrid.autoAlign';
 /** Loại thông báo của lượt xoá trục. */
 export const AXIS_REMOVE_NOTIFICATION_TYPE = 'axisGrid.remove';
 
+/** Lưu trục lên máy chủ hỏng — toast nhìn thấy được, không chỉ đọc cho máy đọc màn hình (B2-20). */
+export const AXIS_SAVE_FAILED_NOTIFICATION_TYPE = 'axisGrid.saveFailed';
+
 /** Câu trên toast hoàn tác sau khi xoá một trục. */
 export const removeToastDescription = (label: string): string => `Đã xoá trục ${label}.`;
 

@@ -113,3 +113,35 @@ export function rotatedBounds(rect: CanvasFitRect, angleDeg: number): CanvasFitR
     height,
   };
 }
+
+/**
+ * Where the drawing image sits on the frame (J-10).
+ *
+ * Wall coordinates are pixels of the scanned image (mm / level scale), so the
+ * image must be laid out at its OWN resolution from drawing pixel (0; 0) -
+ * the same grid the overlay screen uses. Sizing it from the drawing's stored
+ * `widthMm` / `heightMm` (or from the wall bounds while those are missing)
+ * shrank and shifted it away from the walls.
+ *
+ * `surface` is the drawing-pixel box that `surfaceFrame` shows on the frame;
+ * `naturalPx` is the image's real size, `null` until it has loaded - then the
+ * old box is kept.
+ */
+export function backgroundFrameRect(
+  surface: CanvasFitRect,
+  surfaceFrame: CanvasFitRect,
+  naturalPx: CanvasFitSize | null,
+): CanvasFitRect {
+  if (naturalPx === null || surface.width <= 0 || naturalPx.width <= 0 || naturalPx.height <= 0) {
+    return surfaceFrame;
+  }
+
+  const zoom = surfaceFrame.width / surface.width;
+
+  return {
+    x: surfaceFrame.x - surface.x * zoom,
+    y: surfaceFrame.y - surface.y * zoom,
+    width: naturalPx.width * zoom,
+    height: naturalPx.height * zoom,
+  };
+}

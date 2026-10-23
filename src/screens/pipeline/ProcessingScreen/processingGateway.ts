@@ -235,6 +235,8 @@ export interface ProcessingRawLogLine {
 export interface ProcessingExtractionSummary {
   readonly wallCount: number;
   readonly openingCount: number;
+  /** Đồ đạc trên tầng: cũng là "đối tượng" như ở màn Xuất (R-1). */
+  readonly furnitureCount: number;
   readonly dimensionCount: number;
   readonly roomCount: number;
   /**
@@ -810,17 +812,18 @@ export function toExtractionSummary(
   document: FloorLayerDocument,
   confidenceThreshold: number | null,
 ): ProcessingExtractionSummary {
-  const { openings, rooms, walls } = document.layer;
+  const { furniture, openings, rooms, walls } = document.layer;
   const lowConfidenceCount =
     confidenceThreshold === null
       ? 0
-      : [...walls, ...openings, ...rooms].filter(
+      : [...walls, ...openings, ...furniture, ...rooms].filter(
           (item) => !item.reviewed && item.confidence < confidenceThreshold,
         ).length;
 
   return {
     wallCount: walls.length,
     openingCount: openings.length,
+    furnitureCount: furniture.length,
     dimensionCount: document.dimensions.length,
     roomCount: rooms.length,
     roomOutlinesMm: rooms.map((room) => room.outline.map(toPointMm)),

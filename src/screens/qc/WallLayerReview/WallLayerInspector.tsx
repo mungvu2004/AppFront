@@ -49,6 +49,7 @@ const THICKNESS_ARIA_LABEL = 'Độ dày tường';
 const CURRENT_THICKNESS_PREFIX = 'Độ dày hiện tại: ';
 const NON_STANDARD_SUFFIX = ' (không chuẩn, chọn một mức để đổi)';
 const APPROVE_LABEL = 'Duyệt đoạn này';
+const UNAPPROVE_LABEL = 'Bỏ duyệt đoạn này';
 const SKIP_LABEL = 'Bỏ qua';
 const EMPTY_MESSAGE = 'Chọn một đoạn tường trên bản vẽ hoặc trong danh sách để xem chi tiết.';
 
@@ -94,6 +95,7 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
     isViewerRole,
     viewerRoleNotice,
     onApprove,
+    onUnapprove,
     onSkip,
     onChangeThickness,
     rows,
@@ -238,6 +240,11 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
                 >
                   {APPROVE_LABEL}
                 </Button>
+                {isSelectedReviewed && onUnapprove !== undefined ? (
+                  <Button fullWidth onClick={() => onUnapprove(inspector.id)} variant="secondary">
+                    {UNAPPROVE_LABEL}
+                  </Button>
+                ) : null}
                 <Button fullWidth onClick={() => onSkip(inspector.id)} variant="ghost">
                   {SKIP_LABEL}
                 </Button>

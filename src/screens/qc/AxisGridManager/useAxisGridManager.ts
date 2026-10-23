@@ -103,6 +103,7 @@ import {
   axesOfLevel,
   AXIS_AUTO_ALIGN_NOTIFICATION_TYPE,
   AXIS_REMOVE_NOTIFICATION_TYPE,
+  AXIS_SAVE_FAILED_NOTIFICATION_TYPE,
   AUTO_ALIGN_UNDONE_MESSAGE,
   addAxisDescription,
   buildAddAxisCommand,
@@ -666,19 +667,35 @@ export function useAxisGridManager(
   );
 
   /* G4b-17: lưu trục của tầng qua #35 rồi mới làm mới cache, để lượt đọc lại thấy bản đã lưu. */
+  /** Lượt lưu gần nhất (`true` = đã lưu); toast "Đã xoá" chờ nó để không báo thành công khi lưu hỏng (B2-20). */
+  const lastSaveRef = useRef<Promise<boolean>>(Promise.resolve(true));
+
   const invalidate = useCallback(() => {
     const graphNow = useStore.getState().spatial;
-    const save =
+    const save: Promise<boolean> =
       gateway.supports.persistAxisGrid && graphNow !== null
-        ? gateway.persistAxisGrid({ floorId, projectId, graph: graphNow }).catch(() => {
-            announce(AXIS_GRID_TEXT.saveFailed);
-          })
-        : Promise.resolve();
+        ? gateway.persistAxisGrid({ floorId, projectId, graph: graphNow }).then(
+            () => true,
+            () => {
+              announce(AXIS_GRID_TEXT.saveFailed);
+              // B2-20: lỗi lưu phải HIỆN ra, và gỡ mọi toast thành công vừa nói sai.
+              notifications.withdraw(AXIS_REMOVE_NOTIFICATION_TYPE);
+              notifications.withdraw(AXIS_AUTO_ALIGN_NOTIFICATION_TYPE);
+              notifications.publish({
+                type: AXIS_SAVE_FAILED_NOTIFICATION_TYPE,
+                title: AXIS_GRID_TEXT.saveFailed,
+                description: '',
+              });
+              return false;
+            },
+          )
+        : Promise.resolve(true);
 
+    lastSaveRef.current = save;
     void save.then(() => {
       applyInvalidation(queryClient, 'changeAxis', { floorId, projectId });
     });
-  }, [announce, floorId, gateway, projectId, queryClient]);
+  }, [announce, floorId, gateway, notifications, projectId, queryClient]);
 
   /** Chạy một lệnh qua đủ năm bước; `false` khi vai trò không cho sửa hoặc lệnh rỗng. */
   const run = useCallback(
@@ -1091,8 +1108,9 @@ export function useAxisGridManager(
           ? buildAddAxisCommand({ axes: previewEntities({ rowId: axisId }), actorId: gateway.actorId })
           : buildRemoveAxisCommand({ axis, actorId: gateway.actorId });
 
-      void run(command).then((ok) => {
-        if (!ok) {
+      void run(command).then(async (ok) => {
+        // B2-20: chỉ báo "Đã xoá" khi máy chủ đã lưu; lưu hỏng thì `invalidate` báo lỗi thay.
+        if (!ok || !(await lastSaveRef.current)) {
           return;
         }
 

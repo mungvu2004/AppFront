@@ -113,9 +113,11 @@ export function AppLayout() {
   const blocker =
     detail.data?.status === 'error'
       ? ('pipeline-error' as const)
-      : floors !== undefined && !floors.some((floor) => floor.drawings.length > 0)
-        ? ('no-drawings' as const)
-        : undefined;
+      : detail.data?.status === 'processing'
+        ? ('processing' as const) // J-4: đang xử lý thì không mời tải bản vẽ lần nữa
+        : floors !== undefined && !floors.some((floor) => floor.drawings.length > 0)
+          ? ('no-drawings' as const)
+          : undefined;
 
   const handleSignOut = useCallback((): void => {
     void signOut().finally(() => navigate(ROUTES.login));
