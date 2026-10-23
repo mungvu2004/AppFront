@@ -62,7 +62,7 @@ function Header({ model }: { readonly model: ModelRegistryViewModel }) {
             <li aria-current="page">{TEXT.breadcrumbHere}</li>
           </ol>
         </nav>
-        <h1 className="text-[20px] font-semibold text-text-primary">{TEXT.title}</h1>
+        <h1 className="text-title text-text-primary">{TEXT.title}</h1>
       </div>
       {model.relatedLink !== null && (
         <Link className="text-[13px] font-medium text-accent underline-offset-2 hover:underline" to={model.relatedLink.href}>
@@ -189,7 +189,9 @@ export function ModelRegistry({ actions, model }: ModelRegistryProps) {
     );
   }
 
-  const showsSidePanel = !model.isCollapsed && model.state !== 'loading' && model.state !== 'error';
+  /* V-05: panel chi tiết chỉ mở khi đã chọn bản — chưa chọn thì bảng lấy đủ bề rộng, cột "Thao tác" không bị cắt. */
+  const showsSidePanel =
+    !model.isCollapsed && model.state !== 'loading' && model.state !== 'error' && model.detail !== null;
 
   return (
     <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[120rem]:max-w-[1440px]">

@@ -1046,3 +1046,18 @@ describe('BUG-716: the card plus its dots row must not cover the anchor (placeme
     }
   });
 });
+
+describe('V-11 — ≤1024 (thu gọn) thẻ là thẻ nổi nhỏ góc phải dưới, không tấm đáy', () => {
+  it('khung thẻ thu gọn neo bottom-4 right-4, thẻ w-72, không full chiều ngang; chấm hiện tại màu nhấn', () => {
+    render(<EditorTour {...baseProps({ isCollapsed: true, activeIndex: 1, cutout: null })} />);
+    const frame = screen.getByTestId('editor-tour-frame');
+    expect(frame.className).toContain('bottom-4');
+    expect(frame.className).toContain('right-4');
+    expect(frame.style.left).toBe('');
+    const card = frame.querySelector('section');
+    expect(card?.className).toContain('w-72');
+    expect(card?.className).not.toContain('w-full');
+    const current = screen.getAllByRole('button', { name: /^Tới bước/ })[1];
+    expect(current?.querySelector('span')?.className).toContain('bg-accent');
+  });
+});

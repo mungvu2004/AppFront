@@ -243,6 +243,13 @@ describe('Đầu trang, chi tiết, dải 409', () => {
     expect(screen.getByRole('link', { name: 'Lượt huấn luyện' })).toHaveAttribute('href', '/admin/training/jobs');
   });
 
+  it('V-05: chưa chọn bản thì không có panel chi tiết — bảng lấy đủ bề rộng', () => {
+    renderView({ ...MODEL_REGISTRY_SCENARIO_SUCCESS, detail: null });
+
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: 'Chi tiết phiên bản' })).toBeNull();
+  });
+
   it('chi tiết bản gốc: người tạo "Hệ thống AI", mã băm chữ đều, câu về tập kiểm tổng hợp', () => {
     renderView(MODEL_REGISTRY_SCENARIO_SUCCESS);
 

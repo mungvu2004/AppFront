@@ -57,7 +57,7 @@ function ModelLibraryShell({ children }: { readonly children: ReactNode }) {
         <span aria-hidden="true"> › </span>
         <span className="text-text-primary">{BREADCRUMB_CURRENT}</span>
       </nav>
-      <h1 className="text-[20px] font-semibold text-text-primary">{BREADCRUMB_CURRENT}</h1>
+      <h1 className="text-title text-text-primary">{BREADCRUMB_CURRENT}</h1>
       {children}
     </div>
   );

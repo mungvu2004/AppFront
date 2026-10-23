@@ -122,7 +122,7 @@ const PipelineStep = forwardRef<HTMLDivElement, PipelineStepProps>(
                   {step.errorMessage}
                 </p>
                 {step.errorCode && (
-                  <span className="text-[11px] font-mono font-medium text-state-violation uppercase">
+                  <span className="text-[12px] font-medium tabular-nums text-state-violation">
                     {step.errorCode}
                   </span>
                 )}

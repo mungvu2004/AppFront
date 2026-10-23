@@ -38,14 +38,14 @@ export function EmptyState({
         className="w-12 h-12 rounded-full bg-bg-sunken flex items-center justify-center text-text-muted mb-4"
         aria-hidden="true"
       >
-        {/* We assume the icon passed has size 32, strokeWidth 1.5, or we clone it to force it */}
+        {/* We assume the icon passed has size 32, strokeWidth 1.25, or we clone it to force it */}
         {/* BUG-338: a bare DOM element (a blank `<div>` circle) is an empty disc in the ring: use a glyph. */}
         {React.isValidElement(icon) && typeof icon.type === 'string' ? (
-          <Inbox size={32} strokeWidth={1.5} className="text-text-muted" />
+          <Inbox size={32} strokeWidth={1.25} className="text-text-muted" />
         ) : React.isValidElement(icon)
           ? React.cloneElement(icon as React.ReactElement<{ size?: number; strokeWidth?: number; className?: string }>, {
               size: 32,
-              strokeWidth: 1.5,
+              strokeWidth: 1.25, // V-14: cùng độ mảnh nét mực với InkPlan (404/403)
               className: cn('text-text-muted', (icon.props as { className?: string }).className),
             })
           : icon}

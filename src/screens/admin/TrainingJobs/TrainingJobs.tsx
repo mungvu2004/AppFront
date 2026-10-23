@@ -58,7 +58,7 @@ function Header({ model }: { readonly model: TrainingJobsViewModel }) {
             <li aria-current="page">{TEXT.breadcrumbHere}</li>
           </ol>
         </nav>
-        <h1 className="text-[20px] font-semibold text-text-primary">{TEXT.title}</h1>
+        <h1 className="text-title text-text-primary">{TEXT.title}</h1>
       </div>
       <Link className="text-[13px] font-medium text-accent underline-offset-2 hover:underline" to={model.relatedLink.href}>
         {model.relatedLink.label}
