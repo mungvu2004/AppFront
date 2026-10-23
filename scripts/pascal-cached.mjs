@@ -40,6 +40,7 @@ export const INPUT_PATHS = [
   'scripts/pascal-render.mjs',
   'scripts/pascal-ui-patch.mjs',
   'assets/appfront-items',
+  'vendor-extra',
   'package.json',
   'pnpm-lock.yaml',
 ];
