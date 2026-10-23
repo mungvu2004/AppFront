@@ -13,7 +13,7 @@ import type { Furniture, RoomUsage, SpatialGraph } from '@/domain/spatial/types'
 import { millimetres } from '@/domain/units/types';
 
 import { fixtureF1, fixtureF2 } from '../__fixtures__';
-import { CATALOG_MODELS, setRealismModels } from '../furnitureCatalog';
+import { APPFRONT_MODELS, CATALOG_MODELS, VARIANT_MODEL, modelSrcOf, setRealismModels } from '../furnitureCatalog';
 import { toPascalId } from '../ids';
 import { isGeneratedNodeId } from '../sceneDressing';
 import { SCENE_STYLES, type SceneStyle } from '../sceneStyles';
@@ -302,12 +302,33 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     try {
       setRealismModels(true);
       const ph = srcs().filter((s) => s.includes('-ph/'));
-      expect(new Set(ph)).toEqual(new Set(['/items/sofa-ph/model.glb', '/items/armchair-ph/model.glb', '/items/dining-chair-ph/model.glb']));
+      expect(new Set(ph)).toEqual(new Set(['/items/sofa-ph/model.glb', '/items/armchair-ph/model.glb', '/items/dining-chair-ph/model.glb', '/items/plant-ph/model.glb', '/items/planter-ph/model.glb']));
       for (const s of ph) expect(existsSync(resolve(ROOT, 'assets/appfront-items', `.${s.slice('/items'.length)}`)), s).toBe(true);
     } finally {
       setRealismModels(false);
     }
     expect(srcs()).toEqual(old);
     expect(old.some((s) => s.includes('-ph/'))).toBe(false);
+  });
+
+  it('P1: cờ realism bật → cây cao dùng plant-ph, chậu nhỏ dùng planter-ph, luống ban công (bush) giữ nguyên', () => {
+    const before = CATALOG_MODELS['indoor-plant'];
+    try {
+      setRealismModels(true);
+      expect(modelSrcOf('indoor-plant')).toBe('/items/plant-ph/model.glb');
+      expect(CATALOG_MODELS['indoor-plant']?.dimensions).toEqual(APPFRONT_MODELS['plant-ph']?.dimensions);
+      expect(modelSrcOf('small-indoor-plant')).toBe('/items/planter-ph/model.glb');
+      expect(CATALOG_MODELS['small-indoor-plant']?.dimensions).toEqual(APPFRONT_MODELS['planter-ph']?.dimensions);
+      expect(VARIANT_MODEL.planter).toEqual({ folder: 'bush' });
+      expect(modelSrcOf('bush')).toBe('/items/bush/model.glb');
+      for (const f of ['plant-ph', 'planter-ph']) {
+        expect(existsSync(resolve(ROOT, 'assets/appfront-items', f, 'model.glb')), f).toBe(true);
+      }
+    } finally {
+      setRealismModels(false);
+    }
+    expect(CATALOG_MODELS['indoor-plant']).toBe(before);
+    expect(modelSrcOf('indoor-plant')).toBe('/items/indoor-plant/model.glb');
+    expect(modelSrcOf('small-indoor-plant')).toBe('/items/small-indoor-plant/model.glb');
   });
 });
