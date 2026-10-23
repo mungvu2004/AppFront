@@ -435,6 +435,30 @@ export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
   },
   // Luống ban công (bush): bồn gỗ dài planter_box_02 + 5 cây lá alpha thật (potted_plant_02), tỉ lệ ≈ hộp bush.
   'planter-long': { folder: 'planter-long', dimensions: [2.378, 0.873, 0.653], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  // Gói 4B: tủ sinh bằng code (scripts/realism-assets/cabinets.mjs) thay tủ khối hộp Pascal — chân đế lùi, cánh tách
+  // khe 3 mm, mép vát, tay nắm thanh, mặt đá nhô. Khe vật liệu đúng tên mẫu Pascal; hộp = hộp Pascal.
+  'closet-gen': { folder: 'closet-gen', dimensions: [1.95, 2.26, 0.6], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  'kitchen-counter-gen': {
+    folder: 'kitchen-counter-gen',
+    dimensions: [1.96, 0.73, 0.63],
+    offset: [0, 0, 0],
+    rotation: [0, 0, 0],
+  },
+  'kitchen-cabinet-gen': {
+    folder: 'kitchen-cabinet-gen',
+    dimensions: [1.65, 1.09, 0.77],
+    offset: [0, 0, 0],
+    rotation: [0, 0, 0],
+  },
+  // Tủ bếp trên: giữ gắn tường như dòng Pascal (swap thay cả dòng). Pascal dời y 0,4478 vì GLB tâm giữa; mẫu này đáy y = 0.
+  'kitchen-shelf-gen': {
+    folder: 'kitchen-shelf-gen',
+    dimensions: [2.21, 0.89, 0.52],
+    offset: [0, 0, 0],
+    rotation: [0, 0, 0],
+    attachTo: 'wall-side',
+  },
+  'tv-stand-gen': { folder: 'tv-stand-gen', dimensions: [1.86, 0.35, 0.32], offset: [0, 0, 0], rotation: [0, 0, 0] },
 };
 
 /**
@@ -458,6 +482,12 @@ export const REALISM_MODEL_SWAP: Readonly<Record<string, string>> = {
   bookshelf: 'bookshelf-ph',
   'ceiling-lamp': 'ceiling-lamp-ph',
   picture: 'picture-ph',
+  // Gói 4B: tủ sinh bằng code (giữ khe slot_* như mẫu Pascal; khe mới slot_handle màu kim loại tối cố định).
+  closet: 'closet-gen',
+  'kitchen-counter': 'kitchen-counter-gen',
+  'kitchen-cabinet': 'kitchen-cabinet-gen',
+  'kitchen-shelf': 'kitchen-shelf-gen',
+  'tv-stand': 'tv-stand-gen',
 };
 const realismModels = { on: false };
 export const setRealismModels = (on: boolean): void => {

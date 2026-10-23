@@ -23,6 +23,7 @@ Thumbnails are neutral icon cards with the item name (sharp, no 3D render).
 | picture-ph | https://polyhaven.com/a/hanging_picture_frame_02 (1k glTF; pack 2A) | CC0 1.0 (Poly Haven) |
 | planter-long | https://polyhaven.com/a/planter_box_02 (stretched 1.9 x 0.9 x 1.4) + 3 copies of the foliage of https://polyhaven.com/a/potted_plant_02 (real `*_leaves_alpha_1k.png`; pack 2A) | CC0 1.0 (Poly Haven) |
 | rug-nf | vendor Pascal `rectangular-carpet` with the fringe tabs removed (`scripts/realism-assets/carpet.mjs`; review2 pack 1) | same as vendor/pascal assets |
+| closet-gen, kitchen-counter-gen, kitchen-cabinet-gen, kitchen-shelf-gen, tv-stand-gen | procedural, `scripts/realism-assets/cabinets.mjs` (AppFront; pack 4B, replace the Pascal box cabinets) | project code |
 
 Downloaded 2026-10-21 from `https://api.polyhaven.com/files/<id>` -> `gltf.1k`.
 
@@ -32,3 +33,4 @@ sofa-ph / dining-chair-ph have a single material (wood + fabric in one atlas); a
 editor-realism P1 (2026-10-23): `node scripts/realism-assets/plants.mjs F:/tmp/ph-plants/dl` (Poly Haven 1k glTF downloads). Leaves = diffuse + the real alpha map (RGBA webp, MASK 0.5, double sided); triangles cut by dropping whole leaf islands (seeded shuffle) after a light meshopt pass, trunk/pot simplified. plant-ph 7.8k tris, planter-ph 4.8k tris.
 editor-realism review2 pack 1 (2026-10-23): pillow/throw-blanket regenerated (roundedBox winding was inside-out); dining-chair-ph diffuse `linear(2.2, 10)` (`--only dining_chair_02`); rug-nf via `node scripts/realism-assets/carpet.mjs`.
 editor-realism review2 pack 2A (2026-10-23): downloads in `F:/tmp/ph-pack2/<id>/` (1k glTF). `node scripts/gen-decor-models.mjs --polyhaven F:/tmp/ph-pack2 --only side_table_01,wooden_display_shelves_01,modern_ceiling_lamp_01,hanging_picture_frame_02`; `node scripts/realism-assets/planter-long.mjs F:/tmp/ph-pack2` (planter_box_02 + potted_plant_02; box 1.5k + 3 x 1.4k plants joined into one mesh per material = 5.7k tris; 5 plants cost the dGPU 7 -> 14-21 ms per frame).
+editor-realism pack 4B (2026-10-24): `node scripts/realism-assets/cabinets.mjs` -> closet-gen / kitchen-counter-gen / kitchen-cabinet-gen / kitchen-shelf-gen / tv-stand-gen (bounding box = the Pascal box, slot names as the Pascal model + `slot_handle` dark metal, box-projected UV in metres).

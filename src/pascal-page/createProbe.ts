@@ -30,6 +30,8 @@ export interface PascalProbe {
   editNode(id: string, patch: object): void;
   /** Bật/tắt mọi đèn (công tắc trong `useInteractive.lampItems`) — C10 đo màu sàn khi tắt đèn. */
   setLights(on: boolean): void;
+  /** Chẩn đoán vật liệu lúc chạy của các item có `src` chứa `match` (tên, loại, trong suốt, màu, kim loại, nhám, map). */
+  itemMaterials(match: string): Record<string, unknown>[];
 }
 
 export interface ProbeItem {
@@ -62,6 +64,22 @@ interface LooseNode {
   readonly asset?: { readonly src?: string };
 }
 
+interface ProbeObject {
+  name: string;
+  material?: ProbeMaterial | ProbeMaterial[];
+}
+interface ProbeMaterial {
+  name: string;
+  type: string;
+  transparent?: boolean;
+  opacity?: number;
+  metalness?: number;
+  roughness?: number;
+  side?: number;
+  color?: { getHexString(): string };
+  map?: unknown;
+}
+
 type CameraPose =
   | { position: Vec3; target: Vec3; projection: 'orthographic' }
   | { position: Vec3; target: Vec3; projection: 'perspective'; fov: number };
@@ -70,7 +88,9 @@ type CameraPose =
 export interface PascalProbeStores {
   readonly useScene: { getState(): { nodes: object; updateNode(id: string, data: object): void } };
   readonly useViewer: { getState(): { itemLoadFailures: object; shading?: string } };
-  readonly sceneRegistry: { nodes: { get(id: string): { userData: Record<string, unknown> } | undefined } };
+  readonly sceneRegistry: {
+    nodes: { get(id: string): { userData: Record<string, unknown>; traverse?(fn: (o: ProbeObject) => void): void } | undefined };
+  };
   readonly emitter: { emit(event: 'camera-controls:apply-pose', pose: CameraPose): void };
   readonly useInteractive: {
     getState(): { lampItems: Record<string, number[]>; setControlValue(id: string, index: number, value: boolean): void };
@@ -121,6 +141,20 @@ export const createPascalProbe = ({ useScene, useViewer, sceneRegistry, emitter,
     setLights: (on) => {
       const { lampItems, setControlValue } = useInteractive.getState();
       for (const [id, indices] of Object.entries(lampItems)) for (const i of indices) setControlValue(id, i, on);
+    },
+    itemMaterials: (match) => {
+      const out: Record<string, unknown>[] = [];
+      for (const [id, n] of entriesOf('item')) {
+        if (!n.asset?.src?.includes(match)) continue;
+        sceneRegistry.nodes.get(id)?.traverse?.((o) => {
+          for (const m of [o.material ?? []].flat())
+            out.push({
+              id, mesh: o.name, name: m.name, type: m.type, transparent: m.transparent, opacity: m.opacity,
+              metalness: m.metalness, roughness: m.roughness, side: m.side, color: m.color?.getHexString(), map: Boolean(m.map),
+            });
+        });
+      }
+      return out;
     },
   };
 };

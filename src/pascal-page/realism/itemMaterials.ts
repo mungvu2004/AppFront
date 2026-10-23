@@ -72,8 +72,10 @@ function retry(step: () => boolean): void {
 export function tuneItemMaterial(mat: Material, ctx: TuneContext): Material {
   if (!ctx.textures || !useRealism.getState().flags.materials) return mat;
   const m = mat as TunableMaterial;
-  if (typeof m.roughness !== 'number' || m.transparent || m.name.toLowerCase() === 'glass') return mat;
+  if (typeof m.roughness !== 'number') return mat;
   const kind = itemKindOf(folderOf(ctx.src), ctx.slotId, ctx.ref);
+  // Kính thật giữ nguyên; riêng gương: khe `glass` là kính thư viện trong suốt → nhìn xuyên ra tấm đáy đen.
+  if (kind !== 'mirror' && (m.transparent || m.name.toLowerCase() === 'glass')) return mat;
   if (!kind) return mat;
 
   const key = `${mat.uuid}|${kind}`;
@@ -87,12 +89,19 @@ export function tuneItemMaterial(mat: Material, ctx: TuneContext): Material {
   next.name = `${mat.name}|${kind}`;
   next.roughness = tunedRoughness(kind, m.roughness);
   if (look.metalness != null) next.metalness = look.metalness;
+  if (kind === 'mirror') {
+    next.transparent = false;
+    next.opacity = 1;
+    next.depthWrite = true;
+  }
   // clone() đã chép màu sang Color riêng; nhân thẳng (tuyến tính, không qua setRGB/sRGB).
   if (look.tint && next.color) {
     next.color.r *= look.tint[0];
     next.color.g *= look.tint[1];
     next.color.b *= look.tint[2];
   }
+  // Color.set nhận hex sRGB, tự đổi sang tuyến tính. Khe có ref thư viện giữ màu người chọn.
+  if (look.color && next.color && !ctx.ref) next.color.set(look.color);
   // KHR_materials_specular của mẫu gốc làm trắng bóng: đưa về mặc định.
   if (typeof next.specularIntensity === 'number') next.specularIntensity = Math.min(next.specularIntensity, 0.5);
   if (look.donor && ctx.donor && (!next.normalMap || !next.roughnessMap)) {

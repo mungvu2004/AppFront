@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import { APPFRONT_MODELS } from '../../src/lib/pascal/furnitureCatalog';
 import { OUT_DIR, POLYHAVEN, PROCEDURAL } from '../gen-decor-models.mjs';
+import { CABINETS } from '../realism-assets/cabinets.mjs';
 
 const io = new NodeIO()
   .registerExtensions(ALL_EXTENSIONS)
@@ -27,7 +28,12 @@ const SLOTS = {
 describe('gen-decor-models', () => {
   // scripts/realism-assets/{plants,carpet}.mjs chạy ngay khi nhập → liệt kê tay.
   const REALISM_ASSETS = ['plant-ph', 'planter-ph', 'rug-nf', 'planter-long'];
-  const folders = [...Object.keys(PROCEDURAL), ...Object.values(POLYHAVEN).map((p) => p.folder), ...REALISM_ASSETS];
+  const folders = [
+    ...Object.keys(PROCEDURAL),
+    ...Object.values(POLYHAVEN).map((p) => p.folder),
+    ...REALISM_ASSETS,
+    ...Object.keys(CABINETS),
+  ];
 
   it('mỗi mẫu sinh ra / chuyển đổi đều có dòng catalog AppFront và ngược lại', () => {
     expect(folders.sort()).toEqual(Object.keys(APPFRONT_MODELS).sort());
@@ -63,4 +69,23 @@ describe('gen-decor-models', () => {
       expect(json.buffers?.[0]?.byteLength ?? 0).toBeLessThanOrEqual(used + 3 * (json.bufferViews?.length ?? 0));
     },
   );
+
+  // Gói 4B: swap giữ node.slots của thư mục Pascal → mẫu mới phải có mọi khe của mẫu Pascal (+ slot_handle),
+  // có UV (vân gỗ/đá của phong cách), ≤ 3k tam giác, hộp = hộp Pascal (±5 %) để kéo giãn không méo.
+  it.each(Object.entries(CABINETS))('%s: khe ⊇ khe Pascal, có UV, ≤ 3k tam giác, hộp ≈ hộp Pascal', async (folder, { pascal }) => {
+    const doc = await io.read(join(OUT_DIR, folder, 'model.glb'));
+    const old = await io.read(join(OUT_DIR, '../../vendor/pascal/assets/items', pascal, 'model.glb'));
+    const names = (d) => d.getRoot().listMaterials().map((m) => m.getName());
+    expect(names(doc)).toEqual(expect.arrayContaining(names(old)));
+    expect(names(doc).every((n) => n.startsWith('slot_'))).toBe(true);
+    const prims = doc.getRoot().listMeshes().flatMap((m) => m.listPrimitives());
+    for (const p of prims) expect(p.getAttribute('TEXCOORD_0'), folder).not.toBeNull();
+    expect(prims.reduce((n, p) => n + p.getIndices().getCount() / 3, 0)).toBeLessThanOrEqual(3000);
+    const sizeOf = (d) => {
+      const { min, max } = getBounds(d.getRoot().listScenes()[0]);
+      return max.map((v, i) => v - min[i]);
+    };
+    const want = sizeOf(old);
+    sizeOf(doc).forEach((v, i) => expect(Math.abs(v / want[i] - 1), `${folder} trục ${i}`).toBeLessThan(0.05));
+  });
 });

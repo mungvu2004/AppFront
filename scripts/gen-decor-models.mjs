@@ -25,7 +25,7 @@ import sharp from 'sharp';
 
 export const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'appfront-items');
 
-const ioOf = async () =>
+export const ioOf = async () =>
   new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
     'draco3d.decoder': await draco3d.createDecoderModule(),
     'draco3d.encoder': await draco3d.createEncoderModule(),
@@ -50,7 +50,7 @@ const grid = (nu, nv, f, flip = false) => {
   return { pos, idx };
 };
 
-const merge = (...parts) => {
+export const merge = (...parts) => {
   const pos = [];
   const idx = [];
   for (const p of parts) {
@@ -62,7 +62,7 @@ const merge = (...parts) => {
 };
 
 /** Smooth vertex normals (area weighted). */
-const normalsOf = ({ pos, idx }) => {
+export const normalsOf = ({ pos, idx }) => {
   const n = new Float32Array(pos.length);
   for (let t = 0; t < idx.length; t += 3) {
     const [a, b, c] = [idx[t] * 3, idx[t + 1] * 3, idx[t + 2] * 3];
@@ -120,7 +120,7 @@ const cone = (r0, r1, y0, y1, cx, cz) => {
   return merge(grid(24, 1, f), grid(24, 1, f, true));
 };
 
-const box = (x0, x1, y0, y1, z0, z1) => {
+export const box = (x0, x1, y0, y1, z0, z1) => {
   const p = [
     [x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
     [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1],
@@ -248,8 +248,9 @@ const glbWithExternalImages = async (io, doc, dir) => {
   return Buffer.concat([head, ...chunk(jsonChunk, 0x4e4f534a), ...chunk(binChunk, 0x004e4942)]);
 };
 
-const writeModel = async (io, folder, doc, label) => {
-  await doc.transform(center({ pivot: 'below' }), dedup(), prune(), draco({ method: 'edgebreaker', quantizePosition: 14 }));
+/** `keepAttributes`: giữ TEXCOORD_0 dù vật liệu chưa có ảnh (phong cách gắn ảnh vân sau, cabinets.mjs). */
+export const writeModel = async (io, folder, doc, label, { keepAttributes = false } = {}) => {
+  await doc.transform(center({ pivot: 'below' }), dedup(), prune({ keepAttributes }), draco({ method: 'edgebreaker', quantizePosition: 14 }));
   doc.createExtension(KHRDracoMeshCompression).setRequired(true);
   const dir = join(OUT_DIR, folder);
   mkdirSync(dir, { recursive: true });

@@ -339,4 +339,28 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     expect(modelSrcOf('small-indoor-plant')).toBe('/items/small-indoor-plant/model.glb');
     expect(modelSrcOf('bush')).toBe('/items/bush/model.glb');
   });
+
+  it('gói 4B: cờ realism bật → tủ áo / tủ bếp / kệ TV dùng mẫu -gen, hộp + gắn tường theo dòng mới; tắt → mẫu Pascal', () => {
+    const swaps = {
+      closet: 'closet-gen',
+      'kitchen-counter': 'kitchen-counter-gen',
+      'kitchen-cabinet': 'kitchen-cabinet-gen',
+      'kitchen-shelf': 'kitchen-shelf-gen',
+      'tv-stand': 'tv-stand-gen',
+    };
+    try {
+      setRealismModels(true);
+      for (const [pascal, gen] of Object.entries(swaps)) {
+        expect(modelSrcOf(pascal)).toBe(`/items/${gen}/model.glb`);
+        expect(CATALOG_MODELS[pascal]?.dimensions).toEqual(APPFRONT_MODELS[gen]?.dimensions);
+        expect(CATALOG_MODELS[pascal]?.folder).toBe(pascal);
+        expect(existsSync(resolve(ROOT, 'assets/appfront-items', gen, 'model.glb')), gen).toBe(true);
+      }
+      expect(CATALOG_MODELS['kitchen-shelf']?.attachTo).toBe('wall-side');
+    } finally {
+      setRealismModels(false);
+    }
+    for (const pascal of Object.keys(swaps)) expect(modelSrcOf(pascal)).toBe(`/items/${pascal}/model.glb`);
+  });
 });
+

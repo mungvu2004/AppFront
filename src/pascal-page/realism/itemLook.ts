@@ -13,7 +13,11 @@ export type MaterialKind =
   | 'leaf'
   | 'bark'
   | 'plastic'
-  | 'matte';
+  | 'matte'
+  | 'mirror'
+  | 'screen'
+  | 'steel'
+  | 'porcelain';
 
 /**
  * Ghi đè theo thư mục mẫu. Khoá: slotId, hoặc ref vật liệu (`library:…`),
@@ -23,15 +27,47 @@ export const ITEM_KIND: Record<string, Record<string, MaterialKind>> = {
   // Thân sofa/ghế bành là preset-taupe phẳng = khối nâu trơn → bọc vải.
   sofa: { 'library:preset-taupe': 'fabric' },
   'livingroom-chair': { 'library:preset-taupe': 'fabric' },
-  'dining-chair': { 'library:preset-taupe': 'fabric' },
+  'dining-chair': { 'library:preset-taupe': 'fabric', legs: 'metal' },
   'rectangular-carpet': { 'library:preset-taupe': 'fabric' },
   // Gói 1: thảm bỏ tua (mẫu `rug-nf`, cùng khe với rectangular-carpet).
   'rug-nf': { 'library:preset-taupe': 'fabric' },
   // Ba mẫu không khe, vật liệu gốc trắng r0.364 + specular ("nhựa trắng").
   // Giường: UV nhỏ → normal vải lặp dày thành hạt giấy nhám (review2) → vải trơn, không map.
   'double-bed': { '*': 'bedding' },
-  fridge: { '*': 'matte' },
+  // Gói 4A: tủ lạnh một vật liệu không tay nắm → trắng bóng vẫn là hộp trắng;
+  // inox chải phản chiếu HDRI/RoomEnvironment cho thấy khối và đọc ra đồ bếp.
+  fridge: { '*': 'steel' },
   'ceiling-lamp': { '*': 'matte' },
+  // Gói 4A: đồ còn "nhựa xám mờ" (review2 R-assets). Khe = slotId (tên vật liệu bỏ `slot_`).
+  'round-mirror': { glass: 'mirror' },
+  television: { screen: 'screen', frame: 'matte' },
+  computer: { screen: 'screen' },
+  toilet: { toilet: 'porcelain', buttons: 'porcelain' },
+  'bathroom-sink': { '*': 'porcelain' },
+  bathtub: { tub: 'porcelain', fixtures: 'metal' },
+  // Kính vách tắm (`glass`) để nguyên: gói 1 đã sửa preset-glass, không bật transmission.
+  'shower-angle': { fixtures: 'metal' },
+  'shower-square': { fixtures: 'metal' },
+  'toilet-paper': { holder: 'metal' },
+  // Tay nắm + chân đen: kim loại, giữ màu khe. Chân gán ref gỗ → refKind thắng (itemKindOf).
+  'kitchen-cabinet': { handle: 'metal' },
+  'kitchen-shelf': { handle: 'metal' },
+  // Gói 4B: mẫu tủ sinh bằng code (swap sau cờ materials) — tra theo thư mục tệp mới.
+  'closet-gen': { handle: 'metal' },
+  'kitchen-counter-gen': { handle: 'metal' },
+  'kitchen-cabinet-gen': { handle: 'metal' },
+  'kitchen-shelf-gen': { handle: 'metal' },
+  'tv-stand-gen': { handle: 'metal' },
+  dresser: { handle: 'metal' },
+  'office-table': { handle: 'metal' },
+  microwave: { handle: 'metal' },
+  'bedside-table': { handle: 'metal', legs: 'metal' },
+  'dining-table': { legs: 'metal' },
+  'coffee-table': { legs: 'metal' },
+  'lounge-chair': { legs: 'metal' },
+  'floor-lamp': { legs: 'metal' },
+  'ironing-board': { legs: 'metal' },
+  stove: { legs: 'metal' },
 };
 
 /** Đoán loại theo tên ref (`library:fabric-linen`, `scene:mat_appfront_bark`…). */
@@ -54,6 +90,9 @@ export function folderOf(src: string | undefined | null): string | null {
   return m ? m[1] : null;
 }
 
+/** Loại do chính khe quyết định, không để ref thư viện của phong cách đè. */
+const SLOT_NATURE: ReadonlySet<MaterialKind> = new Set<MaterialKind>(['mirror', 'screen', 'porcelain', 'steel']);
+
 export function itemKindOf(
   folder: string | null,
   slotId: string | null,
@@ -61,7 +100,10 @@ export function itemKindOf(
 ): MaterialKind | null {
   const table = folder ? ITEM_KIND[folder] : undefined;
   if (table) {
-    if (slotId != null && table[slotId]) return table[slotId];
+    // Người dùng gán vật liệu thư viện cho khe (gỗ cho chân…) → loại theo ref thắng; trừ loại "bản chất"
+    // của khe (gương/màn hình/sứ/inox): phong cách gán ref kim loại cho kính gương → gương ra kim loại nhám đen.
+    const own = slotId != null ? table[slotId] : undefined;
+    if (own) return SLOT_NATURE.has(own) ? own : (refKind(ref) ?? own);
     if (ref && table[ref]) return table[ref];
     if (slotId == null && table['*']) return table['*'];
   }
@@ -78,6 +120,8 @@ export interface KindLook {
   donor?: string;
   /** Nhân màu (r, g, b): gỗ bớt cam. */
   tint?: readonly [number, number, number];
+  /** Đè màu (hex sRGB) — chỉ cho vật liệu gốc của mẫu (không có ref thư viện). */
+  color?: string;
 }
 
 export const KIND_LOOK: Record<MaterialKind, KindLook> = {
@@ -92,6 +136,12 @@ export const KIND_LOOK: Record<MaterialKind, KindLook> = {
   bark: { roughness: 0.9 },
   plastic: { roughness: 0.5 },
   matte: { roughness: 0.8 },
+  // Gói 4A. Gương: bạc phản chiếu; màn tắt: đen bóng; inox chải; men sứ bóng.
+  // metalness 1 ra đen trong phòng (môi trường phản chiếu trong nhà tối, review2 gói 4) → pha nửa khuếch tán.
+  mirror: { roughness: 0.08, metalness: 0.5, color: '#dfe4e6' },
+  screen: { roughness: 0.15, metalness: 0, color: '#0b0c0e' },
+  steel: { roughness: 0.35, metalness: 0.6, color: '#cfd2d4' },
+  porcelain: { roughness: 0.12, metalness: 0, color: '#f3f3f0' },
 };
 
 export function tunedRoughness(kind: MaterialKind, current: number): number {
