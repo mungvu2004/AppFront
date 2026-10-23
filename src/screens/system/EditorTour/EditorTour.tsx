@@ -220,8 +220,9 @@ export function EditorTour(props: EditorTourProps) {
   const origin =
     anchor === null ? null : cardOrigin(anchor, placement, cardHeight, viewWidth, viewHeight);
 
+  /* V-11: ≤1024 (thu gọn) là thẻ nổi nhỏ góc phải dưới — cùng chỗ với chip, không tấm đáy che việc. */
   const framePosition: CSSProperties = isCollapsed
-    ? { left: 0, right: 0, bottom: 0 }
+    ? {}
     : origin === null
       ? { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }
       : { left: origin.left, top: origin.top };
@@ -247,9 +248,7 @@ export function EditorTour(props: EditorTourProps) {
             ...(placement === 'left' ? { right: ARROW_OUT } : { left: ARROW_OUT }),
           };
 
-  const cardShape = isCollapsed
-    ? 'w-full rounded-t-xl border-t'
-    : 'w-80 rounded-xl border';
+  const cardShape = isCollapsed ? 'w-72 rounded-xl border' : 'w-80 rounded-xl border';
 
   return (
     <div className="pointer-events-none fixed inset-0 z-40">
@@ -283,7 +282,12 @@ export function EditorTour(props: EditorTourProps) {
       )}
 
       {showsCard && (
-        <div ref={cardRef} className="fixed" style={framePosition}>
+        <div
+          ref={cardRef}
+          data-testid="editor-tour-frame"
+          className={cn('fixed', isCollapsed && DEFAULT_CHIP_ANCHOR)}
+          style={framePosition}
+        >
           <section
             aria-labelledby={titleId}
             className={`pointer-events-auto relative border-border-default bg-bg-surface p-5 shadow-float ${cardShape}`}
@@ -337,7 +341,7 @@ export function EditorTour(props: EditorTourProps) {
             ) : (
               step !== null && (
                 <>
-                  <p className="font-mono text-[13px] text-text-muted">
+                  <p className="text-[13px] tabular-nums text-text-muted">
                     {activeIndex + 1} / {steps.length}
                   </p>
                   <h3 id={titleId} className="mt-2 text-[15px] font-medium text-text-primary">
@@ -384,8 +388,8 @@ export function EditorTour(props: EditorTourProps) {
                 >
                   <span
                     aria-hidden="true"
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      index === activeIndex ? 'bg-accent' : 'bg-text-muted'
+                    className={`h-1.5 rounded-full ${
+                      index === activeIndex ? 'w-4 bg-accent' : 'w-1.5 bg-text-muted opacity-40'
                     }`}
                   />
                 </button>

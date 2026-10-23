@@ -79,3 +79,14 @@ describe('PascalTour', () => {
     expect(screen.getByText(`1 / ${TOUR_STEPS.length}`)).toBeTruthy();
   });
 });
+
+describe('T-11 — thẻ tour 3D cùng hình thức thẻ QC', () => {
+  it('bỏ qua là nút ghost (không link gạch chân), có gợi ý Esc, chấm hiện tại dài hơn', () => {
+    render(<PascalTour />);
+    const skip = screen.getByRole('button', { name: 'Bỏ qua hướng dẫn' });
+    expect(skip.className).toContain('pascal-tour-ghost');
+    expect(screen.getByText('Bấm Esc để đóng hướng dẫn.')).toBeTruthy();
+    const current = screen.getByRole('dialog').querySelector('[data-current="true"]') as HTMLElement | null;
+    expect(current?.style.width).toBe('16px');
+  });
+});
