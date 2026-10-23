@@ -148,7 +148,7 @@ export const ATTENTION_DOT_RADIUS_PX = 5;
  * dạng (A15); repo không có hằng độ mờ nào đặt tên sẵn cho việc này
  * (`docs/contracts/canvas.md` mục NOT FOUND #5), nên nó được đặt tên ở đây.
  */
-export const BACKGROUND_IMAGE_OPACITY = 0.2;
+export { QC_BACKGROUND_OPACITY as BACKGROUND_IMAGE_OPACITY } from '../shared/qcBackground';
 
 /* -------------------------------------------------------------------------- */
 /* Đa giác.                                                                    */

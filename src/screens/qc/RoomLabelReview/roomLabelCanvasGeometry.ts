@@ -211,7 +211,7 @@ export const ROOM_LABEL_CANVAS_FRAME_CLASSES =
   'relative h-full min-h-80 w-full overflow-hidden rounded-2xl border border-border-default bg-canvas-2d p-3 lg:min-h-[60vh] xl:min-h-[640px]';
 
 /** Độ mờ ảnh nền bản vẽ gốc — cùng mức với `ObjectLayerCanvas` (đặc tả gốc). */
-export const BACKGROUND_IMAGE_OPACITY = 0.2;
+export { QC_BACKGROUND_OPACITY as BACKGROUND_IMAGE_OPACITY } from '../shared/qcBackground';
 
 /** Viền mặc định của một đa giác phòng chưa chọn — chỉ để phân tách hai phòng cùng một băng màu. */
 export const ROOM_STROKE_TOKEN = '--border-default';

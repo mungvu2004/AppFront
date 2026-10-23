@@ -36,6 +36,7 @@ import { useMemo, useRef } from 'react';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Select } from '@/components/ui/Select';
 import { useCountUp } from '@/hooks/useCountUp';
+import { cn } from '@/lib/utils';
 
 import { ANY_OPTION, GROUP_LABELS, GROUP_ORDER, LEVEL_FILTER_OPTIONS } from './RuleReportLabels';
 import type {
@@ -50,15 +51,19 @@ import type {
 interface SummaryStatProps {
   readonly value: number;
   readonly label: string;
+  /** V-10: colour of the number when it is above zero — red for violations, amber for warnings. */
+  readonly toneClassName?: string;
 }
 
-function SummaryStat({ value, label }: SummaryStatProps) {
+function SummaryStat({ value, label, toneClassName }: SummaryStatProps) {
   const { text } = useCountUp(value, { format: { fractionDigits: 0 } });
 
   return (
     <div className="flex flex-col-reverse gap-1">
       <dt className="text-sm text-text-secondary">{label}</dt>
-      <dd className="font-mono text-3xl tabular-nums text-text-primary">{text}</dd>
+      <dd className={cn('text-3xl tabular-nums', value > 0 && toneClassName ? toneClassName : 'text-text-primary')}>
+        {text}
+      </dd>
     </div>
   );
 }
@@ -80,8 +85,8 @@ export function RuleReportSummaryStrip({ summary }: RuleReportSummaryStripProps)
     <dl className="grid grid-cols-2 gap-6 sm:grid-cols-4">
       <SummaryStat value={summary.evaluated} label="Tổng số kiểm tra" />
       <SummaryStat value={summary.passed} label="Đạt" />
-      <SummaryStat value={summary.warnings} label="Cảnh báo, gợi ý" />
-      <SummaryStat value={summary.violations} label="Nghiêm trọng" />
+      <SummaryStat value={summary.warnings} label="Cảnh báo, gợi ý" toneClassName="text-state-attention-text" />
+      <SummaryStat value={summary.violations} label="Nghiêm trọng" toneClassName="text-state-violation-text" />
     </dl>
   );
 }

@@ -135,23 +135,24 @@ export function visibleDataColorTokens(visibility: ObjectLayerVisibility): reado
 /* Hằng vẽ.                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/** Viền 1px — đúng đặc tả. `vector-effect="non-scaling-stroke"` giữ nó 1px ở mọi mức phóng. */
-export const SYMBOL_STROKE_WIDTH_PX = 1;
+/** Viền 1,5px (V-02). `vector-effect="non-scaling-stroke"` giữ nó cố định ở mọi mức phóng. */
+export const SYMBOL_STROKE_WIDTH_PX = 1.5;
 
 /**
- * Kiểu nét riêng từng lớp con để phân biệt không chỉ bằng màu (G4a-28): cửa đi nét liền 2px,
- * cửa sổ nét đứt 1,5px, nội thất nét mảnh 1px. Chú giải dùng đúng kiểu này.
+ * Kiểu nét riêng từng lớp con để phân biệt không chỉ bằng màu (G4a-28): cửa đi nét liền 2,5px,
+ * cửa sổ nét đứt 2px, nội thất nét liền 1,5px. Chú giải dùng đúng kiểu này.
+ * V-02: nét AI đậm như mực để nổi trên bản gốc mờ (`QC_BACKGROUND_OPACITY`).
  */
 export const OBJECT_LAYER_STROKE_STYLES: Readonly<
   Record<ObjectLayerId, { readonly widthPx: number; readonly dashArray: string | null; readonly legendBorder: 'solid' | 'dashed' }>
 > = {
-  door: { widthPx: 2, dashArray: null, legendBorder: 'solid' },
-  window: { widthPx: 1.5, dashArray: '4 2', legendBorder: 'dashed' },
+  door: { widthPx: 2.5, dashArray: null, legendBorder: 'solid' },
+  window: { widthPx: 2, dashArray: '4 2', legendBorder: 'dashed' },
   furniture: { widthPx: SYMBOL_STROKE_WIDTH_PX, dashArray: null, legendBorder: 'solid' },
 };
 
-/** Nền 6% của chính màu dữ liệu — đúng đặc tả. Một vệt, không phải một mảng màu. */
-export const SYMBOL_WASH_OPACITY = 0.06;
+/** Nền 12% của chính màu dữ liệu (V-02: đủ thấy trên bản gốc mờ). Một vệt, không phải một mảng màu. */
+export const SYMBOL_WASH_OPACITY = 0.12;
 
 /** Nét đứt 4-2 của cửa sổ: gạch 4, trống 2 — đúng đặc tả. */
 export const WINDOW_DASH_ARRAY = '4 2';

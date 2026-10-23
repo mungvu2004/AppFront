@@ -67,6 +67,16 @@ export const SEVERITY_BADGE: Readonly<Record<RuleSeverity, BadgeVariant>> = {
 };
 
 /**
+ * V-10: a severity dot beside each rule group, so the rows can be scanned by
+ * colour (A4) before reading. Same mapping as {@link SEVERITY_BADGE}.
+ */
+export const SEVERITY_DOT: Readonly<Record<RuleSeverity, string>> = {
+  critical: 'bg-state-violation',
+  warning: 'bg-state-attention',
+  suggestion: 'bg-text-muted',
+};
+
+/**
  * What the interface calls each rule group.
  *
  * Mirror of `RULE_GROUP_LABELS` (`src/domain/rules/registry.ts:82-88`).
