@@ -26,8 +26,8 @@ const PanelHeader = forwardRef<HTMLDivElement, PanelHeaderProps>(
       className={cn('flex items-center justify-between px-5 h-14 shrink-0', className)}
       {...props}
     >
-      {/* Nhãn section — sentence case, không IN HOA */}
-      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary leading-none select-none">
+      {/* Nhãn section — kiểu câu, không IN HOA giãn chữ (V-08, aesthetic 2.1 #6) */}
+      <h3 className="text-sm font-medium text-text-primary leading-none select-none">
         {title ?? children}
       </h3>
 
