@@ -84,6 +84,7 @@ function buildDevOnlyRoutes(): RouteObject[] {
   const RouteShellDemo = lazy(() => import('../screens/ShellDemo').then(m => ({ default: m.ShellDemo })));
   const RouteCanvasOverlaysDemo = lazy(() => import('../screens/CanvasOverlaysDemo').then(m => ({ default: m.CanvasOverlaysDemo })));
   const RouteFeedbackDemo = lazy(() => import('../screens/FeedbackDemo').then(m => ({ default: m.FeedbackDemo })));
+  const RouteWelcomeLab = lazy(() => import('../screens/landing-lab/LabRoute').then(m => ({ default: m.LabRoute })));
 
   return [
     { path: ROUTE_PATTERNS.demoGallery, element: suspended(<RouteDemoGallery />) },
@@ -93,6 +94,7 @@ function buildDevOnlyRoutes(): RouteObject[] {
     { path: ROUTE_PATTERNS.shellDemo, element: suspended(<RouteShellDemo />) },
     { path: ROUTE_PATTERNS.canvasOverlaysDemo, element: suspended(<RouteCanvasOverlaysDemo />) },
     { path: ROUTE_PATTERNS.feedbackDemo, element: suspended(<RouteFeedbackDemo />) },
+    { path: ROUTE_PATTERNS.welcomeLab, element: suspendedOutsideMain(<RouteWelcomeLab />) },
   ];
 }
 
@@ -329,6 +331,8 @@ export const routes: RouteObject[] = [
       ...DEV_ONLY_ROUTES,
       { path: ROUTE_PATTERNS.login, element: suspendedOutsideMain(<Screens.RouteAuth />) },
       { path: ROUTE_PATTERNS.forgotPassword, element: suspendedOutsideMain(<Screens.RouteAuth />) },
+      /* Trang giới thiệu cuộn: công khai, toàn màn hình, ngoài `AppLayout`; tự mang `<main>`. */
+      { path: ROUTE_PATTERNS.welcome, element: suspendedOutsideMain(<Screens.RouteLanding />) },
       { path: ROUTE_PATTERNS.invitationAccept, element: suspendedOutsideMain(<Screens.RouteInvitationAccept />) },
       { path: ROUTE_PATTERNS.passwordReset, element: suspendedOutsideMain(<Screens.RoutePasswordReset />) },
       /* Mô hình 3D: trang riêng toàn màn hình, KHÔNG header/thanh bước của `AppLayout`;

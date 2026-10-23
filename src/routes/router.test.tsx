@@ -224,3 +224,13 @@ describe('[router] đường vào của đăng nhập, lời mời và đặt l�
     expect(PUBLIC_ROUTE_PATTERNS).toContain(`${ROUTE_PATTERNS.passwordReset}/*`);
   });
 });
+
+describe('[router] trang giới thiệu /welcome', () => {
+  it('có route riêng ngoài AppLayout và nằm trong bảng đường công khai', () => {
+    const top = routes[0]?.children ?? [];
+
+    expect(top.map((child) => child.path)).toContain(ROUTE_PATTERNS.welcome);
+    expect(ROUTES.welcome).toBe('/welcome');
+    expect(PUBLIC_ROUTE_PATTERNS).toContain(ROUTE_PATTERNS.welcome);
+  });
+});

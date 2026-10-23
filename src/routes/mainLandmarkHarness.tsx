@@ -20,6 +20,7 @@ export const DEMO_PATHS: readonly string[] = [
   ROUTE_PATTERNS.shellDemo,
   ROUTE_PATTERNS.canvasOverlaysDemo,
   ROUTE_PATTERNS.feedbackDemo,
+  ROUTE_PATTERNS.welcomeLab,
 ];
 
 export interface ProductRoute {
@@ -86,6 +87,7 @@ export const SHELL_PATHS: readonly string[] = [
   '/login/forgot',
   '/login/invitation',
   '/login/reset-password',
+  '/welcome',
   '/',
   '/khong-co-quyen',
   '/onboarding',

@@ -1,0 +1,23 @@
+/* /welcome-lab/live: cảnh 3D nướng sáng, xoay được. Màu khai một lần ở đây. */
+.lv {
+  --lv-bg: #1a1714;
+  --lv-pill: rgb(20 14 8 / 60%);
+  --lv-text: #f5efe6;
+  position: fixed;
+  inset: 0;
+  background: var(--lv-bg);
+}
+.lv-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.lv-canvas:active { cursor: grabbing; }
+.lv-note {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--lv-pill);
+  color: var(--lv-text);
+  font: 400 13px/1.4 'Be Vietnam Pro', system-ui, sans-serif;
+  pointer-events: none;
+}
