@@ -13,7 +13,7 @@ import type { Furniture, RoomUsage, SpatialGraph } from '@/domain/spatial/types'
 import { millimetres } from '@/domain/units/types';
 
 import { fixtureF1, fixtureF2 } from '../__fixtures__';
-import { CATALOG_MODELS } from '../furnitureCatalog';
+import { CATALOG_MODELS, setRealismModels } from '../furnitureCatalog';
 import { toPascalId } from '../ids';
 import { isGeneratedNodeId } from '../sceneDressing';
 import { SCENE_STYLES, type SceneStyle } from '../sceneStyles';
@@ -294,5 +294,20 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     for (const item of items) {
       expect(item.asset.src, item.asset.category).toBe(expected[item.asset.category]);
     }
+  });
+
+  it('B1: cờ realism bật → sofa/ghế bành/ghế ăn F1 dùng mẫu Poly Haven có tệp; tắt (mặc định) → mẫu cũ', () => {
+    const srcs = () => itemsOf(graphOf(fixtureF1({ ext: false }).doc)).map((i) => i.asset.src);
+    const old = srcs();
+    try {
+      setRealismModels(true);
+      const ph = srcs().filter((s) => s.includes('-ph/'));
+      expect(new Set(ph)).toEqual(new Set(['/items/sofa-ph/model.glb', '/items/armchair-ph/model.glb', '/items/dining-chair-ph/model.glb']));
+      for (const s of ph) expect(existsSync(resolve(ROOT, 'assets/appfront-items', `.${s.slice('/items'.length)}`)), s).toBe(true);
+    } finally {
+      setRealismModels(false);
+    }
+    expect(srcs()).toEqual(old);
+    expect(old.some((s) => s.includes('-ph/'))).toBe(false);
   });
 });

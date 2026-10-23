@@ -394,9 +394,40 @@ export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
     attachTo: 'wall-side',
   },
   ottoman: { folder: 'ottoman', dimensions: [0.884, 0.624, 0.622], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  // editor-realism B1: Poly Haven CC0 (sofa_02, Armchair_01, dining_chair_02), một vật liệu, màu cố định.
+  'sofa-ph': { folder: 'sofa-ph', dimensions: [1.807, 0.709, 0.818], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  'armchair-ph': { folder: 'armchair-ph', dimensions: [0.848, 1.065, 0.766], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  'dining-chair-ph': {
+    folder: 'dining-chair-ph',
+    dimensions: [0.431, 0.971, 0.576],
+    offset: [0, 0, 0],
+    rotation: [0, 0, 0],
+  },
 };
 
+/**
+ * Mẫu thật thay sofa/ghế bành/ghế ăn (editor-realism B1). Đổi ở tầng thư mục → tệp: vai trò, phong cách,
+ * `node.slots` vẫn theo thư mục cũ; chỉ `asset.src`/thumbnail và hộp khớp (CATALOG_MODELS) trỏ sang mẫu `-ph`.
+ * Chỉ khi trang 3D bật cờ `viewer.realism-materials` (`setRealismModels(useRealism.getState().flags.materials)`
+ * trong `src/pascal-page/main.tsx`). Mặc định TẮT: chỗ khác chạy `toPascalScene` (ngoài trang 3D, test) y cũ.
+ */
+export const REALISM_MODEL_SWAP: Readonly<Record<string, string>> = {
+  sofa: 'sofa-ph',
+  'livingroom-chair': 'armchair-ph',
+  'dining-chair': 'dining-chair-ph',
+};
+const realismModels = { on: false };
+export const setRealismModels = (on: boolean): void => {
+  realismModels.on = on;
+};
+const fileFolderOf = (folder: string): string => (realismModels.on ? REALISM_MODEL_SWAP[folder] : undefined) ?? folder;
+
 export const CATALOG_MODELS: Readonly<Record<string, CatalogModel>> = { ...VENDOR_MODELS, ...APPFRONT_MODELS };
+for (const [folder, ph] of Object.entries(REALISM_MODEL_SWAP)) {
+  const base = CATALOG_MODELS[folder] as CatalogModel;
+  const swapped = { ...(APPFRONT_MODELS[ph] as CatalogModel), folder };
+  Object.defineProperty(CATALOG_MODELS, folder, { enumerable: true, get: () => (realismModels.on ? swapped : base) });
+}
 
 /** Variant đăng nhập → model Pascal; null = không có model hợp, dùng fallback. liftMm = độ cao đặt trên sàn. */
 export const VARIANT_MODEL: Readonly<
@@ -441,5 +472,5 @@ export const VARIANT_MODEL: Readonly<
   shrub: { folder: 'bush' },
 };
 
-export const modelSrcOf = (folder: string): string => `/items/${folder}/model.glb`;
-export const thumbnailOf = (folder: string): string => `/items/${folder}/thumbnail.webp`;
+export const modelSrcOf = (folder: string): string => `/items/${fileFolderOf(folder)}/model.glb`;
+export const thumbnailOf = (folder: string): string => `/items/${fileFolderOf(folder)}/thumbnail.webp`;

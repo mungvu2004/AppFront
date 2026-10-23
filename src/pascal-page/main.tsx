@@ -16,6 +16,7 @@ import { type ReactNode, StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { flushAutosaves } from '@/hooks/useAutosave';
+import { setRealismModels } from '@/lib/pascal/furnitureCatalog';
 import { getFeatureFlagsSnapshot } from '@/lib/telemetry/flags';
 
 import { savePascalNow, usePascalProjectBridge } from './bridge';
@@ -45,6 +46,8 @@ applyDayLook(getSceneTheme(DAY_THEME_ID));
 useRealism.setState({ flags: realismFlagsFrom(getFeatureFlagsSnapshot().values) });
 // R6 tắt mặc định: skirting/fascia/autoGutter chưa lưu về BE (DECISIONS.md #4).
 setDetailsEnabled(useRealism.getState().flags.details);
+// B1 (bước 2): sofa/ghế bành/ghế ăn → mẫu Poly Haven `-ph` khi bật cờ materials (furnitureCatalog.ts).
+setRealismModels(useRealism.getState().flags.materials);
 // Backend thật (vendor ghi sau khi renderer init) khác phép thử `navigator.gpu` → đè lại số đèn.
 // ponytail: đè tại chỗ, đèn đã vẽ chỉ đổi ở lượt dựng lại kế tiếp (đổi chủ đề/tải lại); GĐ3 nếu cần tức thì.
 useRealism.subscribe((state, prev) => {
