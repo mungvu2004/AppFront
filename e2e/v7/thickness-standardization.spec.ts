@@ -83,7 +83,7 @@ test('đường nạp thật: tầng chưa có lớp thì màn nói thật "chư
   await open(page, 'L1');
 
   await expect(page.getByRole('heading', { name: 'Chưa có đoạn tường nào để chuẩn hoá' })).toBeVisible();
-  for (const label of ['Tổng số đoạn tường', 'Đã ở đúng nhóm chuẩn', 'Lệch quá dung sai', 'Cột bê tông cốt thép']) {
+  for (const label of ['Tổng số đoạn tường', 'Trong dung sai nhóm chuẩn', 'Lệch quá dung sai', 'Cột bê tông cốt thép']) {
     await expect(stat(page, label)).toHaveText(new RegExp(`^0\\s+${label}$`, 'u'));
   }
 });
@@ -91,7 +91,7 @@ test('đường nạp thật: tầng chưa có lớp thì màn nói thật "chư
 test('bơm bộ mẫu: bốn thẻ đếm đúng bộ mẫu, số thập phân dùng dấu phẩy (V7-THICK-02, A15)', async ({ page }) => {
   await openSeeded(page);
 
-  await expect(stat(page, 'Đã ở đúng nhóm chuẩn')).toHaveText(/^3\s+Đã ở đúng nhóm chuẩn$/u);
+  await expect(stat(page, 'Trong dung sai nhóm chuẩn')).toHaveText(/^3\s+Trong dung sai nhóm chuẩn$/u);
   await expect(stat(page, 'Lệch quá dung sai')).toHaveText(/^2\s+Lệch quá dung sai$/u);
   await expect(stat(page, 'Cột bê tông cốt thép')).toHaveText(/^1\s+Cột bê tông cốt thép$/u);
   await expect(
@@ -143,11 +143,11 @@ test('bơm bộ mẫu: tích đồng ý bằng phím, xem trước, áp — 10 t
   await page.getByRole('button', { name: 'Áp dụng', exact: true }).click();
 
   await expect(toast(page)).toContainText('Chuẩn hoá độ dày 10 tường.');
-  await expect(stat(page, 'Đã ở đúng nhóm chuẩn')).toHaveText(/^13\s+Đã ở đúng nhóm chuẩn$/u);
+  await expect(stat(page, 'Trong dung sai nhóm chuẩn')).toHaveText(/^13\s+Trong dung sai nhóm chuẩn$/u);
 
   await toast(page).getByRole('button', { name: 'Hoàn tác' }).click();
 
-  await expect(stat(page, 'Đã ở đúng nhóm chuẩn')).toHaveText(/^3\s+Đã ở đúng nhóm chuẩn$/u);
+  await expect(stat(page, 'Trong dung sai nhóm chuẩn')).toHaveText(/^3\s+Trong dung sai nhóm chuẩn$/u);
   await expect(
     page.getByRole('checkbox', { name: 'Đồng ý chuẩn hoá 10 tường 195 mm về 220 mm' }),
   ).toBeVisible();

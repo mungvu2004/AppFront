@@ -130,6 +130,7 @@ import type { ProjectRole } from '@/types/project';
 
 import {
   buildApproveWallCommand,
+  buildUnapproveWallCommand,
   buildChangeThicknessCommand,
   buildDeleteWallCommand,
   buildMergeWallsCommand,
@@ -956,6 +957,19 @@ export function useWallLayerReview(
       });
     },
     [gateway, onSelect, run, visibleWalls, wallById, wallCodes],
+  );
+
+  const onUnapprove = useCallback(
+    (wallId: WallId) => {
+      const wall = wallById(wallId);
+
+      if (wall === null || !wall.reviewed) {
+        return;
+      }
+
+      void run(() => buildUnapproveWallCommand(wall, gateway.actorId, wallCodes));
+    },
+    [gateway, run, wallById, wallCodes],
   );
 
   /* G74: hàng danh sách xin mở menu bằng phím — chọn tường, canvas mở menu của nó. */
@@ -2032,6 +2046,7 @@ export function useWallLayerReview(
         : null,
     errorMessage,
     onApprove,
+    onUnapprove,
     onSkip,
     onOpenRowMenu,
     onChangeThickness,

@@ -124,6 +124,7 @@
  */
 
 import type { Confidence, Point, WallId } from '@/domain/spatial/types';
+import { WALL_THICKNESS_TOLERANCE_MM } from '@/domain/walls/thicknessTolerance';
 import type { WallThickness } from '@/types/spatial';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
@@ -163,7 +164,7 @@ export const THICKNESS_GROUP_LABELS: Readonly<Record<ThicknessGroup, string>> = 
 /* -------------------------------------------------------------------------- */
 
 /** Dung sai mặc định, mm. ĐÃ CHỐT = 30 (KHÔNG phải 20 trong câu ví dụ của đặc tả) — xem "X3". */
-export const DEFAULT_TOLERANCE_MM = 30;
+export const DEFAULT_TOLERANCE_MM = WALL_THICKNESS_TOLERANCE_MM;
 
 /** Bề rộng một cột biểu đồ, mm. */
 export const HISTOGRAM_BIN_MM = 5;
@@ -288,7 +289,7 @@ export interface ThicknessSummary {
 /** Nhãn tiếng Việt cho từng con số của {@link ThicknessSummary}, viết thường kiểu câu. */
 export const THICKNESS_SUMMARY_LABELS: Readonly<Record<keyof ThicknessSummary, string>> = {
   segmentCount: 'Tổng số đoạn tường',
-  normalizedCount: 'Đã ở đúng nhóm chuẩn',
+  normalizedCount: 'Trong dung sai nhóm chuẩn',
   exceedingToleranceCount: 'Lệch quá dung sai',
   concreteColumnCount: 'Cột bê tông cốt thép',
 };

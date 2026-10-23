@@ -682,7 +682,8 @@ export function summaryOf(rows: readonly ThicknessSegmentRow[]): ThicknessSummar
 
     if (standardMm === null) {
       concreteColumnCount += 1;
-    } else if (standardMm === row.measuredMm) {
+    } else if (!row.exceedsTolerance) {
+      /* R-3: "trong dung sai" khớp với ô "Lệch quá dung sai" — trước so `===` nên tường 116 mm (chuẩn 110) không vào ô nào. */
       normalizedCount += 1;
     }
 
