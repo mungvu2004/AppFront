@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "pnpm pascal && vite",
     "dev:be": "pnpm pascal && vite --mode be --port 18080 --strictPort",
+    "dev:3d": "pnpm pascal && node scripts/dev-3d.mjs",
     "build": "pnpm pascal && tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
