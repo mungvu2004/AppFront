@@ -409,6 +409,11 @@ describe('createFloorLayerSaver — F-04x-1 bước 4', () => {
     [httpError(413, { code: 'PAYLOAD_TOO_LARGE', requestId: 'req-1' }), LAYER_SAVE_MESSAGES.unknown],
     [httpError(422, { code: 'LAYER_INTEGRITY_BROKEN', requestId: 'req-1' }), LAYER_SAVE_MESSAGES.unknown],
     [httpError(400, { code: 'SOMETHING_ODD', requestId: 'req-1' }), LAYER_SAVE_MESSAGES.unknown],
+    [
+      httpError(422, { code: 'VALIDATION', count: 7, field: 'body.layer.furniture.2.variant', requestId: 'req-1' }),
+      LAYER_SAVE_MESSAGES.rejected('body.layer.furniture.2.variant'),
+    ],
+    [httpError(422, { code: 'VALIDATION', requestId: 'req-1' }), LAYER_SAVE_MESSAGES.unknown],
   ])('câu khối theo mã; mã lạ không in mã (%#)', async (error, message) => {
     const { saver, writeLayer } = harness();
 

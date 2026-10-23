@@ -677,6 +677,16 @@ const collectLevelChildren = (
   collector: Collector,
 ): void => {
   for (const child of childrenOf(scene, levelNode)) {
+    /*
+     * G-9 / B3b-1 — vạch đo của công cụ thước là chú thích để xem, không phải đối tượng của bản vẽ:
+     * báo "bỏ qua" (toast đỏ) mỗi lần đo thì người dùng tưởng lưu hỏng. `PascalNode` không liệt kê
+     * loại này nên so trên chuỗi.
+     * ponytail: vạch đo không được lưu, tải lại trang là mất; cần giữ thì thêm chỗ chứa ở máy chủ.
+     */
+    if ((child.type as string) === 'measurement') {
+      continue;
+    }
+
     switch (child.type) {
       case 'wall': {
         /* N2 — tường công cụ vẽ ra không mang `thickness`/`height` (lược đồ để tuỳ chọn): lấy
