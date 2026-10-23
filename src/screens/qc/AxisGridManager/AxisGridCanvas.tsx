@@ -41,6 +41,8 @@ import { useCanvasPan } from '@/components/canvas/useCanvasPan';
 import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import { useZoomCluster } from '@/hooks/useZoomCluster';
 
+import { QC_BACKGROUND_OPACITY } from '../shared/qcBackground';
+
 import { fitCanvas } from './axisGridCanvasFit';
 import { AxisGridGhostFloor } from './AxisGridGhostFloor';
 import { AxisGridOriginMarker } from './AxisGridOriginMarker';
@@ -79,7 +81,7 @@ const FIT_MARGIN_PX = AXIS_BADGE_OVERHANG_PX + AXIS_BADGE_RADIUS_PX + 4;
 /** Cụm thu phóng nổi ở góc dưới phải cao ~58 px tính từ mép khung: chừa thêm ở đáy để nó không che bong bóng trục dọc (ảnh 1920). */
 const ZOOM_CLUSTER_RESERVE_PX = 56;
 
-const BACKGROUND_OPACITY = 0.5;
+const BACKGROUND_OPACITY = QC_BACKGROUND_OPACITY;
 
 const AXIS_TRANSITION_CLASSES = 'transition-colors duration-180 motion-reduce:transition-none';
 

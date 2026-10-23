@@ -162,7 +162,7 @@ export function RoomLabelNoticeList({ notices }: RoomLabelNoticeListProps) {
 
   return (
     <section aria-label={NOTICES_TITLE} className="flex flex-col gap-2">
-      <h4 className="text-[12px] font-semibold uppercase tracking-wide text-text-muted">{NOTICES_TITLE}</h4>
+      <h4 className="text-[13px] font-medium text-text-secondary">{NOTICES_TITLE}</h4>
       <ul className="flex flex-col gap-2">
         {notices.map((notice) => (
           <li className="flex flex-col gap-1 rounded-lg bg-bg-sunken px-2.5 py-2" key={notice.ruleCode}>

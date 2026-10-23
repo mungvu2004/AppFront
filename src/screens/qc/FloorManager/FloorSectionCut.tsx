@@ -100,7 +100,7 @@ function SectionBand({ band, onSelectFloor, onHoverFloor }: SectionBandProps) {
       aria-pressed={band.isSelected}
       className={cn(
         'relative flex shrink-0 basis-0 items-center gap-2 overflow-hidden border-y border-border-default px-2',
-        'cursor-pointer outline-hidden transition-all duration-260',
+        'cursor-pointer outline-hidden transition-colors duration-260',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         band.needsDrawing ? 'bg-state-attention-tint' : 'bg-bg-sunken',
         band.isHiddenIn3d && 'border-dashed',

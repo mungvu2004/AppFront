@@ -51,7 +51,7 @@ import { formatNumber } from '@/lib/format/number';
 import { cssDurationMs } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
-import { FOCUS_RING, GROUP_LABELS, SEVERITY_BADGE, SEVERITY_LABELS } from './RuleReportLabels';
+import { FOCUS_RING, GROUP_LABELS, SEVERITY_BADGE, SEVERITY_DOT, SEVERITY_LABELS } from './RuleReportLabels';
 import type { PassedRule, RuleReportGroup, RuleReportRow } from './types';
 
 /** How many times a freshly selected row rings before it holds still. */
@@ -69,6 +69,8 @@ export interface RuleReportSectionProps {
   readonly title: string;
   /** The short line beside the title — how many rows are inside. */
   readonly summary: string;
+  /** V-10: colour class of the severity dot before the title; omitted → no dot. */
+  readonly dotClassName?: string;
   readonly isOpen: boolean;
   readonly onToggle: () => void;
   readonly children: ReactNode;
@@ -78,6 +80,7 @@ export interface RuleReportSectionProps {
 export function RuleReportSection({
   title,
   summary,
+  dotClassName,
   isOpen,
   onToggle,
   children,
@@ -101,6 +104,9 @@ export function RuleReportSection({
         >
           <span className="flex min-w-0 items-center gap-2">
             <Chevron aria-hidden="true" className="h-4 w-4 shrink-0 text-text-muted" />
+            {dotClassName === undefined ? null : (
+              <span aria-hidden="true" className={cn('h-2 w-2 shrink-0 rounded-full', dotClassName)} />
+            )}
             {/* Không cắt: ở 375 tên luật xuống dòng, phần tóm tắt rơi xuống dưới (BUG-441). */}
             <span className="text-sm font-medium text-text-primary">{title}</span>
           </span>
@@ -317,6 +323,7 @@ export function RuleReportGroupList({
           <RuleReportSection
             key={group.ruleCode}
             title={`${group.ruleName} · ${GROUP_LABELS[group.group]}`}
+            dotClassName={SEVERITY_DOT[group.severity]}
             summary={`${SEVERITY_LABELS[group.severity]} · ${count(group.openCount)} mục chưa xử lý${resolvedNote}`}
             isOpen={isOpen}
             onToggle={() => {

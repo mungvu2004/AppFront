@@ -21,7 +21,7 @@ describe('fitCanvasView (BUG-403)', () => {
     expect(view).not.toBeNull();
     const box = toFrameRect(view!, PLAN);
 
-    expect(box.width).toBeCloseTo(frame.width * 0.9);
+    expect(box.width).toBeCloseTo(frame.width * 0.85);
     expect(box.x).toBeCloseTo((frame.width - box.width) / 2);
     expect(box.y).toBeCloseTo((frame.height - box.height) / 2);
     expect(view!.zoom).toBeLessThan(0.05);

@@ -65,12 +65,13 @@ interface RoomLabelGapRowProps {
 
 function RoomLabelGapRow({ gap, onNavigateToWalls }: RoomLabelGapRowProps) {
   return (
-    <li className="flex flex-col gap-1.5 rounded-lg bg-state-attention-tint px-2.5 py-2">
-      <p className="flex items-center gap-2 text-[13px] text-state-attention-text">
-        <Unlink aria-hidden="true" className="h-4 w-4 shrink-0" />
+    /* V-06: một hàng bảng trung tính, không thẻ vàng — nhiều khe hở không biến cột thành "bức tường vàng". */
+    <li className="flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 text-[13px]">
+      <p className="flex items-center gap-2 text-text-primary">
+        <Unlink aria-hidden="true" className="h-4 w-4 shrink-0 text-text-muted" />
         <span className="font-mono tabular-nums">{gap.gapText}</span>
       </p>
-      <p className="flex flex-wrap items-center gap-1 text-[12px] text-text-secondary">
+      <p className="flex min-w-0 flex-wrap items-center gap-1 text-[12px] text-text-secondary">
         <span>{GAP_WALLS_LABEL}</span>
         {gap.wallIds.map((wallId, index) => (
           /*
@@ -83,7 +84,7 @@ function RoomLabelGapRow({ gap, onNavigateToWalls }: RoomLabelGapRowProps) {
           </code>
         ))}
       </p>
-      <Button onClick={() => onNavigateToWalls(gap.wallIds[0])} size="sm" variant="ghost">
+      <Button className="ml-auto" onClick={() => onNavigateToWalls(gap.wallIds[0])} size="sm" variant="ghost">
         {NAVIGATE_WALLS_LABEL}
       </Button>
     </li>
@@ -107,13 +108,18 @@ export function RoomLabelGapsSection({
 }: RoomLabelGapsSectionProps) {
   return (
     <section aria-label={GAPS_TITLE} className="flex flex-col gap-2">
-      <h3 className="text-[12px] font-semibold uppercase tracking-wide text-text-muted">{GAPS_TITLE}</h3>
+      <h3 className="flex items-center gap-2 text-heading text-text-primary">
+        {GAPS_TITLE}
+        {gaps.length === 0 ? null : (
+          <span className="text-[13px] font-normal tabular-nums text-state-attention-text">{gaps.length}</span>
+        )}
+      </h3>
       {gaps.length === 0 ? (
         <p className="text-[13px] text-text-secondary">
           {unclosedRoomCount > 0 ? gapsEmptyWithUnclosedRooms(unclosedRoomCount) : GAPS_EMPTY_MESSAGE}
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col divide-y divide-border-default border-y border-border-default">
           {/* QA-1: hai tường có thể hở ở HAI chỗ (mỗi đầu một khe) — khoá kèm vị trí khe. */}
           {gaps.map((gap) => (
             <RoomLabelGapRow gap={gap} key={`${gap.wallIds.join('-')}@${gap.positionMm.x},${gap.positionMm.y}`} onNavigateToWalls={onNavigateToWalls} />
