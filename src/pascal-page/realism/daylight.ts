@@ -11,7 +11,7 @@ import { type Object3D, RepeatWrapping, SRGBColorSpace, type Texture, TextureLoa
 import { color, mix, positionWorld, texture, vec3 } from 'three/tsl';
 
 import { ceilingCastsShadow } from './lighting';
-import { useRealism } from './store';
+import { type GroundMode, useRealism } from './store';
 
 interface RegistryLike {
   nodes: Map<string, Object3D>;
@@ -31,20 +31,25 @@ export function syncCeilingShadows(registry: RegistryLike, cameraY: number, appe
   }
 }
 
-/** Ảnh Cỏ của R5 (`scripts/realism/r5-materials.mjs` `ground-grass`, `sizeM` 2.5). */
-export const GROUND_TEXTURE_URL = '/pascal/material/extra/ground-grass/ground-grass_basecolor_512.webp';
+/** Ảnh nền của R5 (`scripts/realism/r5-materials.mjs`, `sizeM` 2.5). */
+const groundUrl = (id: 'ground-grass' | 'ground-gravel') => `/pascal/material/extra/${id}/${id}_basecolor_512.webp`;
 export const GROUND_TILE_M = 2.5;
+/** Nền trơn: xám sáng hơi lạnh thay màu đất be của chủ đề (be dưới nắng ấm đọc ra "mặt phẳng nâu vô tận"). */
+export const PLAIN_GROUND = '#d6d9db';
+export const PLAIN_GROUND_MIX = 1;
 
-let grass: Texture | null = null;
-function grassTexture(): Texture {
-  if (!grass) {
-    grass = new TextureLoader().load(GROUND_TEXTURE_URL);
-    grass.wrapS = RepeatWrapping;
-    grass.wrapT = RepeatWrapping;
-    grass.colorSpace = SRGBColorSpace;
-    grass.anisotropy = 8;
+const textures = new Map<string, Texture>();
+function groundTexture(url: string): Texture {
+  let t = textures.get(url);
+  if (!t) {
+    t = new TextureLoader().load(url);
+    t.wrapS = RepeatWrapping;
+    t.wrapT = RepeatWrapping;
+    t.colorSpace = SRGBColorSpace;
+    t.anisotropy = 8;
+    textures.set(url, t);
   }
-  return grass;
+  return t;
 }
 
 /** Ảnh `leafy_grass` lẫn nhiều lá khô (trung bình nâu ~(151,131,89)) → kéo về xanh bãi cỏ theo độ sáng. */
@@ -52,10 +57,19 @@ export const GRASS_GREEN = '#7da35a';
 export const GRASS_GAIN = 3.5;
 export const GRASS_GREEN_MIX = 0.65;
 
-/** Màu nền cho vật liệu đất site: chủ đề tối giữ màu phẳng `base`, chủ đề sáng dùng cỏ. */
-export function groundAlbedo(base: string, appearance: string) {
-  if (appearance === 'dark') return color(base);
-  const tex = texture(grassTexture(), positionWorld.xz.div(GROUND_TILE_M)).rgb;
+/** Đổi mặt đất → site renderer dựng lại vật liệu. */
+export const useGroundMode = (): GroundMode => useRealism((s) => s.ground);
+
+/**
+ * Màu nền cho vật liệu đất site. Chủ đề tối hoặc cờ materials tắt: màu phẳng `base` như vendor.
+ * Chủ đề sáng: theo lựa chọn mặt đất của dự án.
+ */
+export function groundAlbedo(base: string, appearance: string, mode: GroundMode = 'plain') {
+  if (appearance === 'dark' || !useRealism.getState().flags.materials) return color(base);
+  if (mode === 'plain') return mix(color(base), color(PLAIN_GROUND), PLAIN_GROUND_MIX);
+  const uv = positionWorld.xz.div(GROUND_TILE_M);
+  if (mode === 'gravel') return texture(groundTexture(groundUrl('ground-gravel')), uv).rgb;
+  const tex = texture(groundTexture(groundUrl('ground-grass')), uv).rgb;
   const lawn = tex.dot(vec3(0.2126, 0.7152, 0.0722)).mul(color(GRASS_GREEN)).mul(GRASS_GAIN);
   return mix(tex, lawn, GRASS_GREEN_MIX);
 }

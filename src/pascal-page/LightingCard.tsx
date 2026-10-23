@@ -14,6 +14,7 @@ import { ChevronDown, Sun } from 'lucide-react';
 import { type MouseEvent, useEffect } from 'react';
 
 import { QualityCard } from './QualityCard';
+import { type GroundMode, useRealism } from './realism/store';
 import { DAY_THEME_ID, NIGHT_THEME_ID, SUNSET_THEME_ID } from './renderLook';
 
 export type LightingMode = 'night' | 'day' | 'sunset';
@@ -25,6 +26,27 @@ export const LIGHTING_MODES: readonly { id: LightingMode; label: string; theme: 
 ];
 
 export const lightingKey = (projectId: string): string => `appfront.pascal.lighting.v1:${projectId}`;
+
+/**
+ * Mặt đất quanh nhà (chỉ chủ đề sáng): dự án không cho biết chung cư hay nhà mặt đất, nên để người
+ * dùng chọn; mặc định nền trơn (căn hộ trên tầng không có bãi cỏ). Nhớ theo dự án như ánh sáng.
+ */
+export const GROUND_MODES: readonly { id: GroundMode; label: string }[] = [
+  { id: 'plain', label: 'Nền trơn' },
+  { id: 'gravel', label: 'Sân sỏi' },
+  { id: 'grass', label: 'Bãi cỏ' },
+];
+
+export const groundKey = (projectId: string): string => `appfront.pascal.ground.v1:${projectId}`;
+
+function readGround(projectId: string): GroundMode {
+  try {
+    const value = localStorage.getItem(groundKey(projectId));
+    return GROUND_MODES.find((m) => m.id === value)?.id ?? 'plain';
+  } catch {
+    return 'plain';
+  }
+}
 
 interface LightingViewer {
   sceneTheme: string;
@@ -53,6 +75,20 @@ function readMode(projectId: string): LightingMode | null {
 export function LightingCard({ projectId, useViewer }: LightingCardProps) {
   const sceneTheme = useViewer((state) => state.sceneTheme);
   const current = LIGHTING_MODES.find((m) => m.theme === sceneTheme);
+  const ground = useRealism((s) => s.ground);
+
+  useEffect(() => {
+    useRealism.setState({ ground: readGround(projectId) });
+  }, [projectId]);
+
+  const chooseGround = (mode: GroundMode) => {
+    useRealism.setState({ ground: mode });
+    try {
+      localStorage.setItem(groundKey(projectId), mode);
+    } catch {
+      // Bộ nhớ bị chặn: đổi trong phiên này.
+    }
+  };
 
   // Lúc mở: áp lựa chọn của dự án. Chưa chọn thì giữ chủ đề đang có, trừ "Ban ngày" mang sang
   // / "Nắng chiều" từ dự án khác (chủ đề Pascal nhớ chung một khoá) — về mặc định Buổi tối.
@@ -102,6 +138,24 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
             </button>
           </li>
         ))}
+        <li aria-hidden="true" className="mx-2 my-1 border-t border-[var(--pa-border)]" />
+        <li className="px-2 pt-1 pb-0.5 text-[11px] text-[var(--pa-text-3)]">Mặt đất (Ban ngày, Nắng chiều)</li>
+        <li>
+          <ul aria-label="Mặt đất">
+            {GROUND_MODES.map((mode) => (
+              <li key={mode.id}>
+                <button
+                  aria-pressed={mode.id === ground}
+                  className="flex h-8 w-full items-center whitespace-nowrap rounded-lg px-2 text-left text-[var(--pa-text-2)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)] aria-pressed:bg-[var(--pa-selected)] aria-pressed:font-medium aria-pressed:text-[var(--pa-accent)] motion-reduce:transition-none outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--pa-accent)]"
+                  onClick={() => chooseGround(mode.id)}
+                  type="button"
+                >
+                  {mode.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </li>
       </ul>
     </details>
     <QualityCard />

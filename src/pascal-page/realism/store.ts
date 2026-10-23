@@ -24,7 +24,12 @@ export interface RealismState {
   tierMode: 'auto' | RealismTier;
   /** Từ cờ `viewer.realism-*` (main.tsx nạp lúc khởi động). */
   flags: RealismFlags;
+  /** Mặt đất quanh nhà ở chủ đề sáng (thẻ Ánh sáng, nhớ theo dự án). */
+  ground: GroundMode;
 }
+
+/** `plain` = nền trơn sáng (hợp chung cư, mặc định); `gravel` = sân sỏi; `grass` = bãi cỏ (nhà mặt đất). */
+export type GroundMode = 'plain' | 'gravel' | 'grass';
 
 export const DEFAULT_REALISM_FLAGS: RealismFlags = { idle: true, traa: true, hdri: true, materials: true, details: false };
 
@@ -33,6 +38,7 @@ export const useRealism = create<RealismState>()(() => ({
   tier: 'medium',
   tierMode: 'auto',
   flags: { ...DEFAULT_REALISM_FLAGS },
+  ground: 'plain',
 }));
 
 /** Giá trị cờ `viewer.realism-*` → `flags` của store (cờ thiếu = mặc định của bảng cờ). */

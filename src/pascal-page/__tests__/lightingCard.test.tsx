@@ -6,7 +6,13 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { create } from 'zustand';
 
-import { LightingCard, lightingKey } from '../LightingCard';
+import { LightingCard, groundKey, lightingKey } from '../LightingCard';
+import { useRealism } from '../realism/store';
+
+/** Nút ánh sáng (con trực tiếp của danh sách; nút mặt đất nằm trong danh sách con). */
+const lightButtons = () =>
+  [...screen.getByRole('list', { name: 'Danh sách ánh sáng' }).querySelectorAll(':scope > li > button')] as HTMLButtonElement[];
+const pressedLight = () => lightButtons().find((b) => b.getAttribute('aria-pressed') === 'true')?.textContent;
 
 const viewerWith = (sceneTheme: string) => {
   const setSceneTheme = vi.fn<(id: string) => void>();
@@ -29,9 +35,8 @@ describe('LightingCard', () => {
     const { useViewer } = viewerWith('night');
     const { container } = render(<LightingCard projectId="p1" useViewer={useViewer} />);
 
-    const buttons = screen.getByRole('list', { name: 'Danh sách ánh sáng' }).querySelectorAll('button');
-    expect([...buttons].map((b) => b.textContent)).toEqual(['Buổi tối', 'Ban ngày', 'Nắng chiều']);
-    expect(screen.getByRole('button', { pressed: true }).textContent).toBe('Buổi tối');
+    expect(lightButtons().map((b) => b.textContent)).toEqual(['Buổi tối', 'Ban ngày', 'Nắng chiều']);
+    expect(pressedLight()).toBe('Buổi tối');
     expect(container.querySelector('details[data-appfront-menu]')).not.toBeNull();
   });
 
@@ -45,7 +50,7 @@ describe('LightingCard', () => {
     expect(setSceneTheme).toHaveBeenLastCalledWith('studio');
     expect(localStorage.getItem(lightingKey('p1'))).toBe('day');
     expect(details.open).toBe(false);
-    expect(screen.getByRole('button', { pressed: true }).textContent).toBe('Ban ngày');
+    expect(pressedLight()).toBe('Ban ngày');
 
     fireEvent.click(screen.getByRole('button', { name: 'Buổi tối' }));
     expect(setSceneTheme).toHaveBeenLastCalledWith('night');
@@ -68,5 +73,23 @@ describe('LightingCard', () => {
     const other = viewerWith('twilight');
     render(<LightingCard projectId="p3" useViewer={other.useViewer} />);
     expect(other.setSceneTheme).not.toHaveBeenCalled();
+  });
+
+  it('mặt đất: mặc định Nền trơn; chọn Bãi cỏ → store + nhớ theo dự án; mở lại áp lựa chọn đã nhớ', () => {
+    const { useViewer } = viewerWith('studio');
+    const { unmount } = render(<LightingCard projectId="p1" useViewer={useViewer} />);
+    const ground = screen.getByRole('list', { name: 'Mặt đất' });
+    expect([...ground.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Nền trơn', 'Sân sỏi', 'Bãi cỏ']);
+    expect(useRealism.getState().ground).toBe('plain');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bãi cỏ' }));
+    expect(useRealism.getState().ground).toBe('grass');
+    expect(localStorage.getItem(groundKey('p1'))).toBe('grass');
+    unmount();
+
+    useRealism.setState({ ground: 'plain' });
+    render(<LightingCard projectId="p1" useViewer={useViewer} />);
+    expect(useRealism.getState().ground).toBe('grass');
+    expect(screen.getByRole('button', { name: 'Bãi cỏ' }).getAttribute('aria-pressed')).toBe('true');
   });
 });
