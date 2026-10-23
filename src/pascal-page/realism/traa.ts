@@ -6,8 +6,10 @@ import { useRealism } from './store';
 
 /** F3: bán kính denoise AO khi TRAA. Đã thử 0 (bỏ denoise) và 2: còn hạt dưới chân ghế → giữ 4, bù bằng ao^k. */
 export const TRAA_AO_DENOISE_RADIUS = 4;
-/** F3: đậm AO thêm chút khi TRAA (ao^k, k > 1) cho bóng chân đồ/góc trần. F4 (Q1-01): k = 2 làm cả cảnh tối hơn master 10-18 % → 1.25 (denoise 4 vẫn giữ, hết hạt là nhờ bán kính). */
-export const TRAA_AO_POW = 1.25;
+/** F3: đậm AO thêm chút khi TRAA (ao^k, k > 1) cho bóng chân đồ/góc trần. F4 (Q1-01): k = 2 làm cả cảnh tối hơn master 10-18 %; 1.25 mất bóng tiếp xúc cạnh sofa → 1.6 (so mắt, step1/zoom-interior.png). */
+export const TRAA_AO_POW = 1.6;
+/** Làm nét RCAS sau TRAA (0 = nét nhất, 2 = tắt): TRAA làm mềm vân gỗ/đá so với MSAA. */
+export const TRAA_SHARPNESS = 0.2;
 
 export function traaEnabledFor(flagOn: boolean, search: string): boolean {
   const disable = new URLSearchParams(search).get('disable') ?? '';
