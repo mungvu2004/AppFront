@@ -355,7 +355,7 @@ export function WallLayerLeftPanel({
           aria-hidden="true"
           className="flex shrink-0 items-center gap-1 border-b border-border-default px-5 pb-1 text-caption text-text-muted"
         >
-          <span className="w-12 shrink-0">{COLUMN_CODE}</span>
+          <span className="w-14 shrink-0">{COLUMN_CODE}</span>
           <span className="w-[76px] shrink-0">{COLUMN_THICKNESS}</span>
           <span className="min-w-0 flex-1">{COLUMN_CONFIDENCE}</span>
           <span className="shrink-0">{COLUMN_STATUS}</span>

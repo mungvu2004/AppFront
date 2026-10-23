@@ -191,7 +191,7 @@ function WallLayerListRow({
         />
       )}
 
-      <span className="relative w-12 shrink-0 truncate tabular-nums text-text-primary">{row.codeLabel}</span>
+      <span className="relative w-14 shrink-0 whitespace-nowrap tabular-nums text-text-primary">{row.codeLabel}</span>
 
       <Badge className="relative shrink-0 gap-1 px-1.5 tabular-nums" noDot variant="neutral">
         <span
