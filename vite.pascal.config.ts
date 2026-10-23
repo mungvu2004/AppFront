@@ -22,7 +22,7 @@
  *
  * Chạy: `pnpm build:pascal`. Phải chạy **trước** `pnpm build`.
  */
-import { defineConfig, type Alias } from 'vite';
+import { defineConfig, type Alias, type Plugin, type PluginOption } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { existsSync, readFileSync } from 'fs';
@@ -119,23 +119,83 @@ const PASCAL_ENV_DEFINES = {
   'process.env': '{}',
 };
 
-export default defineConfig({
+/**
+ * Dev không thay chữ trong mã: client của vite gán từng khoá lên `globalThis` theo thứ tự,
+ * nên `'process.env': '{}'` (gán sau cùng) xoá mất các khoá trên → vật liệu lại xin CDN
+ * `editor.pascal.app`. Bỏ khoá đó; React bản development để Fast Refresh vẽ lại được.
+ */
+function devDefines() {
+  const defines = Object.entries(PASCAL_ENV_DEFINES).filter(([key]) => key !== 'process.env');
+  return { ...Object.fromEntries(defines), 'process.env.NODE_ENV': '"development"' };
+}
+
+/**
+ * `pnpm dev:3d` (`scripts/dev-3d.mjs`): trang 3D chạy từ mã nguồn, có HMR, thay vì từ
+ * bản dựng tĩnh. Phục vụ `/editor3d.html` (dev server chính chuyển tiếp tới đây) từ chính
+ * `public/editor3d.html`, đổi bó đã dựng sang lối vào nguồn. Bỏ `style.css`: ở dev, CSS
+ * đi theo `import` trong JS.
+ */
+function pascalDevPage(): Plugin {
+  const builtScript = '/assets/pascal/pascal-page.js';
+  const builtStyle = /\s*<link rel="stylesheet" href="\/assets\/pascal\/style\.css" \/>/;
+  return {
+    name: 'pascal-dev-page',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (req.url?.split('?')[0] !== '/editor3d.html') return next();
+        const html = readFileSync(path.resolve(__dirname, 'public/editor3d.html'), 'utf8');
+        if (!html.includes(builtScript) || !builtStyle.test(html)) {
+          return next(new Error('pascal-dev-page: public/editor3d.html đã đổi thẻ nạp bó — cập nhật vite.pascal.config.ts'));
+        }
+        // Đường tính từ gốc dự án; `transformIndexHtml` tự thêm `base`.
+        const dev = html.replace(builtStyle, '').replace(builtScript, '/src/pascal-page/main.tsx');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.end(await server.transformIndexHtml('/editor3d.html', dev));
+      });
+    },
+  };
+}
+
+/**
+ * Ở dev, module chỉ được biến đổi khi trình duyệt xin tới, nên phép kiểm "mọi luật đều
+ * khớp" ở `buildEnd` của các plugin `pascal-*` (chạy lúc đóng server) chỉ báo đỏ giả.
+ * Gói trong `node_modules` (drei, zod) được vite gói sẵn, không qua plugin: ở dev drei
+ * còn trỏ CDN Draco, zod còn dò `new Function` — dev không có CSP nên vẫn chạy.
+ */
+function devPlugins(command: 'build' | 'serve', plugins: Plugin[]): PluginOption[] {
+  return command === 'build' ? plugins : plugins.map((plugin) => ({ ...plugin, buildEnd: undefined }));
+}
+
+export default defineConfig(({ command }) => ({
   plugins: [
-    pascalVi({ packagesDir: PASCAL_PACKAGES }),
-    pascalUiPatch({ packagesDir: PASCAL_PACKAGES }),
-    pascalRender(),
-    // Sau pascalRender: luật editor-realism (scripts/realism/*.mjs) có thể neo trên chuỗi đã vá.
-    pascalRealism(),
-    pascalSelfHost(),
-    // zod 4 dò `new Function` → vi phạm CSP `script-src eval` trên editor3d.html.
-    pascalNoEval(),
-    pascalCatalogLocal(),
-    pascalMaterialLocal(),
+    ...devPlugins(command, [
+      pascalVi({ packagesDir: PASCAL_PACKAGES }),
+      pascalUiPatch({ packagesDir: PASCAL_PACKAGES }),
+      pascalRender(),
+      // Sau pascalRender: luật editor-realism (scripts/realism/*.mjs) có thể neo trên chuỗi đã vá.
+      pascalRealism(),
+      pascalSelfHost(),
+      // zod 4 dò `new Function` → vi phạm CSP `script-src eval` trên editor3d.html.
+      pascalNoEval(),
+      pascalCatalogLocal(),
+      pascalMaterialLocal(),
+    ]),
     react(),
+    pascalDevPage(),
   ],
   // Worker có đồ thị plugin riêng: không có dòng này thì luật tự host không chạm tới nó.
   worker: { plugins: () => [pascalSelfHost({ rules: WORKER_SELF_HOST_RULES })] },
-  publicDir: false,
+  // Dev (`pnpm dev:3d`): app chính chuyển cả `/assets/pascal/**` sang đây, mà trình xem
+  // (`usePascalViewer`) vẫn nạp bó ĐÃ DỰNG `pascal-mount.js` + chunk của nó — phục vụ chúng
+  // như tệp tĩnh.
+  publicDir: command === 'build' ? false : 'public/assets/pascal',
+  // `pnpm dev:3d` chạy hai dev server cùng gốc: chung `node_modules/.vite` thì chúng
+  // giành nhau thư mục gói sẵn (Windows: EPERM khi đổi tên `deps`).
+  cacheDir: 'node_modules/.vite-pascal',
+  // Dev: bộ gói sẵn khoá theo TÊN gói, nên zod 3 (`src/**`, viewer) và zod 4 (core, editor)
+  // gộp làm một → "z.templateLiteral is not a function". zod là ESM thuần: phục vụ thẳng.
+  optimizeDeps: { exclude: ['zod'] },
   base: '/assets/pascal/',
   resolve: {
     alias: [
@@ -147,7 +207,7 @@ export default defineConfig({
       { find: 'next/link', replacement: path.resolve(__dirname, './vendor/pascal/shims/next-link.tsx') },
     ],
   },
-  define: PASCAL_ENV_DEFINES,
+  define: command === 'build' ? PASCAL_ENV_DEFINES : devDefines(),
   // CSS của chính Pascal: Tailwind v4 như app gốc, rồi khoanh vào `.pascal-root`
   // (lý do ở `scripts/pascal-css-scope.mjs`). Cấu hình nội tuyến nên
   // `postcss.config.js` (Tailwind 3 của AppFront) không chạy ở lượt dựng này.
@@ -167,4 +227,4 @@ export default defineConfig({
       fileName: (_format, entryName) => `${entryName}.js`,
     },
   },
-});
+}));
