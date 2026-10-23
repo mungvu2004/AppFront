@@ -13,7 +13,7 @@ const TABS = [
 /** Thanh điều hướng chung cho bốn màn quản trị; liên kết thật nên bấm giữa/Tab đều dùng được. */
 export function AdminNav() {
   return (
-    <nav aria-label="Mục quản trị" className="mx-auto flex w-full max-w-[1280px] gap-1 border-b border-border-default px-8 pt-4 min-[1920px]:max-w-[1440px]">
+    <nav aria-label="Mục quản trị" className="mx-auto flex w-full max-w-[1280px] gap-1 border-b border-border-default px-8 pt-4 min-[120rem]:max-w-[1440px]">
       {TABS.map(({ to, label }) => (
         <NavLink
           key={to}

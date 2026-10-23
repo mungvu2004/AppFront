@@ -49,7 +49,7 @@ const PREVIEW_HEADER = 'Ảnh xem trước';
 
 function ModelLibraryShell({ children }: { readonly children: ReactNode }) {
   return (
-    <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[1920px]:max-w-[1440px]">
+    <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[120rem]:max-w-[1440px]">
       <nav aria-label={BREADCRUMB_NAV_LABEL} className="text-[13px] text-text-secondary">
         <Link className="hover:text-text-primary hover:underline" to={ROUTES.adminUsers}>
           {BREADCRUMB_PARENT}
@@ -115,12 +115,12 @@ export function ModelLibrary({ actions, model }: ModelLibraryProps) {
       <ModelLibraryToolbar actions={actions} model={model} />
       <ModelLibrarySummary summary={model.summary} />
       {/* G2-17: panel chi tiết đứng cạnh bảng (≥1024), không rơi xuống dưới cuối danh sách. */}
-      <div className="flex flex-col gap-4 min-[1024px]:flex-row min-[1024px]:items-start">
+      <div className="flex flex-col gap-4 min-[64rem]:flex-row min-[64rem]:items-start">
         <div className="min-w-0 flex-1">
           <ModelLibraryTable actions={actions} model={model} />
         </div>
         {model.detail !== null && (
-          <div className="min-[1024px]:sticky min-[1024px]:top-4 min-[1024px]:max-h-[calc(100vh-2rem)]">
+          <div className="min-[64rem]:sticky min-[64rem]:top-4 min-[64rem]:max-h-[calc(100vh-2rem)]">
             <ModelLibraryDetail actions={actions} model={model.detail} />
           </div>
         )}

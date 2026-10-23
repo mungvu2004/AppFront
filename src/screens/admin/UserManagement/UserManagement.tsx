@@ -45,7 +45,7 @@ import type {
   UserManagementViewModel,
 } from './types';
 
-const SCREEN_CONTAINER_CLASS = 'mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[1920px]:max-w-[1440px]';
+const SCREEN_CONTAINER_CLASS = 'mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[120rem]:max-w-[1440px]';
 const BREADCRUMB_NAV_LABEL = 'Đường dẫn trang';
 const PERMISSION_REFERENCE_BUTTON_LABEL = 'Xem ma trận quyền';
 const PERMISSION_REFERENCE_MODAL_TITLE = 'Ma trận quyền theo vai trò';

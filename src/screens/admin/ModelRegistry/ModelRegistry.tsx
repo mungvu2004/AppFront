@@ -192,7 +192,7 @@ export function ModelRegistry({ actions, model }: ModelRegistryProps) {
   const showsSidePanel = !model.isCollapsed && model.state !== 'loading' && model.state !== 'error';
 
   return (
-    <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[1920px]:max-w-[1440px]">
+    <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[120rem]:max-w-[1440px]">
       <Header model={model} />
 
       <SegmentedControl<ModelFamilyId>
@@ -216,7 +216,7 @@ export function ModelRegistry({ actions, model }: ModelRegistryProps) {
           <VersionsArea actions={actions} model={model} />
         </div>
         {showsSidePanel && (
-          <aside aria-label={TEXT.detailPanel} className={cn(PANEL, 'w-[344px] shrink-0 min-[1920px]:w-[400px]')}>
+          <aside aria-label={TEXT.detailPanel} className={cn(PANEL, 'w-[344px] shrink-0 min-[120rem]:w-[400px]')}>
             <ModelRegistryDetail detail={model.detail} />
           </aside>
         )}
