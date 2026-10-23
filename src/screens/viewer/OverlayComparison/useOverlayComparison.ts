@@ -114,13 +114,13 @@ const COPY = {
     'Mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.',
   confirmedWithDeviations:
     'Bạn đã xác nhận tầng này khớp bản vẽ, dù vẫn còn vùng vượt dung sai.',
+  confirmedByEye: 'Bạn đã xác nhận bằng mắt tầng này khớp bản vẽ; máy chưa đo được vùng lệch.',
   emptyNotice: 'Tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.',
   errorFrameNotice: 'Không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.',
   errorReadNotice: 'Không đọc được ảnh bản vẽ gốc của tầng này.',
   errorScaleNotice: 'Không căn được vì hai tầng đang dùng tỷ lệ khác nhau.',
   errorLayerNotice: 'Không đọc được mô hình của tầng này nên chưa có gì để đối chiếu.',
   confirmNeedsEdit: 'Chỉ người có quyền sửa mới xác nhận được.',
-  confirmNeedsMeasurement: 'Cần đo được vùng lệch trước khi xác nhận.',
   shortcutFitView: 'Vừa khung',
   shortcutZoomIn: 'Phóng to khung đối chiếu',
   shortcutZoomOut: 'Thu nhỏ khung đối chiếu',
@@ -1024,8 +1024,7 @@ export function useOverlayComparison(
       canEdit &&
       !isConfirmed &&
       !confirmMutation.isPending &&
-      !query.isLoading &&
-      measured !== null;
+      !query.isLoading;
 
     // Nút tắt thì nói vì sao (BUG-599). Đang tải/đang gửi/đã xác nhận: không có gì để giải thích.
     const disabledReason =
@@ -1033,9 +1032,7 @@ export function useOverlayComparison(
         ? null
         : !canEdit
           ? COPY.confirmNeedsEdit
-          : measured === null
-            ? COPY.confirmNeedsMeasurement
-            : null;
+          : null;
 
     return {
       buttonLabel: COPY.confirmButton,
@@ -1044,10 +1041,13 @@ export function useOverlayComparison(
       disabledReason,
       confirmedNotice: isConfirmed
         ? {
+            // J-7/B2-14: bản vẽ không khung thì không đo được — vẫn cho xác nhận bằng mắt, và nói rõ là bằng mắt.
             text:
-              measured !== null && measured.overToleranceCount === 0
-                ? COPY.confirmedWithinTolerance
-                : COPY.confirmedWithDeviations,
+              measured === null
+                ? COPY.confirmedByEye
+                : measured.overToleranceCount === 0
+                  ? COPY.confirmedWithinTolerance
+                  : COPY.confirmedWithDeviations,
             statusCode: 'verified',
           }
         : null,

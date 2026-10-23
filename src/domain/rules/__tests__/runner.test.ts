@@ -323,7 +323,6 @@ describe('a violation', () => {
       'ROOM-NOT-CLOSED': 14,
       'ROOM-NO-DOOR': 13,
       'ROOM-NO-WINDOW': 14,
-      'ESCAPE-DISTANCE': 1,
       'FURNITURE-CLASH': 21,
       'WINDOW-ON-INNER-WALL': 7,
     });
@@ -569,8 +568,8 @@ describe('switching a rule while a session is open', () => {
 
     expect(after.evaluated).toHaveLength(0);
     expect(after.violations.some((found) => found.ruleCode === 'OPENING-IN-WALL')).toBe(false);
-    // The sample's 182 findings, less the 16 that rule raised.
-    expect(after.violations).toHaveLength(166);
+    // The sample's 181 findings, less the 16 that rule raised.
+    expect(after.violations).toHaveLength(165);
   });
 
   it('runs a rule registered mid-session even though nothing changed', () => {
@@ -786,7 +785,7 @@ describe('speed', () => {
     const result = runRules(normalizeSpatial(createSampleBuilding()), { registry });
     const elapsedMs = performance.now() - startedAt;
 
-    expect(result.violations).toHaveLength(182);
+    expect(result.violations).toHaveLength(181);
     expect(elapsedMs).toBeLessThan(200);
   });
 

@@ -56,6 +56,12 @@ describe('AppHeader', () => {
     expect(screen.getByRole('link', { name: /Tiếp: Cửa và nội thất/ })).toHaveAttribute('href', ROUTES.project.objects('p1', 'f1'));
   });
 
+  it('J-4: đang xử lý thì không mời tải bản vẽ lần nữa', () => {
+    renderHeader({ project: { id: 'p1', name: null, stepIndex: 1, blocker: 'processing' } });
+    expect(screen.queryByRole('link', { name: /Tải bản vẽ để bắt đầu/ })).toBeNull();
+    expect(screen.getByText('Đang xử lý bản vẽ: chờ xong rồi đi tiếp')).toBeInTheDocument();
+  });
+
   it('chưa có bản vẽ hoặc xử lý lỗi: nút chính không mời sang bước sau', () => {
     const { unmount } = renderHeader({ project: { id: 'p1', name: null, stepIndex: 1, blocker: 'no-drawings' } });
     expect(screen.queryByRole('link', { name: /Bước tiếp theo/ })).toBeNull();

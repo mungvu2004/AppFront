@@ -779,7 +779,8 @@ describe('useProcessingScreen', () => {
     });
     await settle(clock);
 
-    const objectLabel = `${String(sample.walls.length + sample.openings.length + sample.rooms.length)} đối tượng`;
+    // R-1: đồ đạc cũng là đối tượng, như ở màn Xuất.
+    const objectLabel = `${String(sample.walls.length + sample.openings.length + sample.furniture.length + sample.rooms.length)} đối tượng`;
     expect(mounted.result.current.floors[0]?.objectCountLabel).toBe(objectLabel);
     expect(mounted.result.current.summary?.metricLabels[1]).toBe(objectLabel);
     expect(mounted.result.current.summary?.metricLabels[2]).toBe(`${String(dimensions.length)} chuỗi kích thước`);
@@ -822,7 +823,7 @@ describe('useProcessingScreen', () => {
     });
     await settle(clock);
 
-    const low = [...sample.walls, ...sample.openings, ...sample.rooms].filter(
+    const low = [...sample.walls, ...sample.openings, ...sample.furniture, ...sample.rooms].filter(
       (item) => !item.reviewed && item.confidence < threshold,
     ).length;
     expect(mounted.result.current.summary?.lowConfidenceSentence).toBe(

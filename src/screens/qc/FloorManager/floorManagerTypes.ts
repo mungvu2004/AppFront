@@ -469,9 +469,16 @@ export const FLOOR_COLUMN_LABELS = {
   walls: 'Tường',
   rooms: 'Phòng',
   area: 'Diện tích',
-  qc: 'Điểm chất lượng',
+  qc: 'Điểm luật',
   actions: 'Hành động',
 } as const;
+
+/**
+ * R-5: chú thích công thức của cột "Điểm luật" (tiêu đề cột đọc ở `title`) — trước nhãn là "Điểm chất lượng",
+ * trùng với chất lượng ảnh / bước "Kiểm tra chất lượng", và 0% không nói được là điểm luật chạm sàn.
+ */
+export const FLOOR_QC_SCORE_HINT =
+  'Điểm kiểm tra luật = 100 − 8 × lỗi nghiêm trọng − 3 × cảnh báo − 1 × gợi ý, thấp nhất 0. Không phải chất lượng ảnh.';
 
 /** Các màn duyệt theo tầng mà menu "Duyệt lớp" ở mỗi dòng dẫn tới; khoá trùng tên builder `ROUTES.project.*`. */
 export const FLOOR_REVIEW_SCREENS = [

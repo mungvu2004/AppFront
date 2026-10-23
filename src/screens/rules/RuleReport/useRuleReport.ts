@@ -62,6 +62,7 @@ import {
   type Violation,
 } from '@/domain/rules/registry';
 import { evaluatedRuleCodes, runRules } from '@/domain/rules/runner';
+import { hasElements } from '@/domain/spatial/elementCount';
 import { displayCodeIn, isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { LevelId } from '@/domain/spatial/types';
 import { formatTimestamp } from '@/lib/format/datetime';
@@ -596,7 +597,8 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
       return 'loading';
     }
 
-    if (graph === null || run === null) {
+    // S-3: mô hình chỉ có tầng, chưa có tường/phòng nào thì không có gì để báo "Đạt".
+    if (graph === null || run === null || !hasElements(graph)) {
       return 'empty';
     }
 

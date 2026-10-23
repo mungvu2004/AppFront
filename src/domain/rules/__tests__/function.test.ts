@@ -830,8 +830,12 @@ describe('the way out', () => {
   });
 
   it('reports a room whose doors lead nowhere out', () => {
+    // The plan names its envelope, and the door is not in it.
     const plan = planOf({
-      walls: [wall('WINNER', { x: 0, y: 0 }, { x: 6000, y: 0 })],
+      walls: [
+        wall('WINNER', { x: 0, y: 0 }, { x: 6000, y: 0 }),
+        envelope('WOUTER', { x: 0, y: 4000 }, { x: 6000, y: 4000 }),
+      ],
       openings: [opening('DINNER', wallId('WINNER'), 2650, 700)],
       rooms: [
         room(
@@ -843,7 +847,7 @@ describe('the way out', () => {
             { x: 6000, y: 4000 },
             { x: 0, y: 4000 },
           ],
-          [wallId('WINNER')],
+          [wallId('WINNER'), wallId('WOUTER')],
           24,
         ),
       ],
@@ -853,6 +857,50 @@ describe('the way out', () => {
 
     expect(found).toHaveLength(1);
     expect(found[0]?.message).toContain('không có đường nào');
+  });
+
+  it('counts a door on the outer edge as a way out when the AI marked no envelope (J-13)', () => {
+    // Every wall comes back `partition` from the AI. KITCHEN's door in the top
+    // wall opens onto it alone, so the other side is outdoors; LIVING gets out
+    // through the door between the two rooms.
+    const plan = planOf({
+      walls: [
+        wall('WTOP', { x: 0, y: 4000 }, { x: 8000, y: 4000 }),
+        wall('WMID', { x: 4000, y: 0 }, { x: 4000, y: 4000 }),
+      ],
+      openings: [
+        opening('DFRONT', wallId('WTOP'), 1650, 700),
+        opening('DLINK', wallId('WMID'), 1650, 700),
+      ],
+      rooms: [
+        room(
+          'KITCHEN',
+          'kitchen',
+          [
+            { x: 0, y: 0 },
+            { x: 4000, y: 0 },
+            { x: 4000, y: 4000 },
+            { x: 0, y: 4000 },
+          ],
+          [wallId('WTOP'), wallId('WMID')],
+          16,
+        ),
+        room(
+          'LIVING',
+          'livingRoom',
+          [
+            { x: 4000, y: 0 },
+            { x: 8000, y: 0 },
+            { x: 8000, y: 4000 },
+            { x: 4000, y: 4000 },
+          ],
+          [wallId('WTOP'), wallId('WMID')],
+          16,
+        ),
+      ],
+    });
+
+    expect(runCheck(checkEscapeDistance, plan)).toEqual([]);
   });
 
   it('leaves a room with no door at all to ROOM-NO-DOOR', () => {
