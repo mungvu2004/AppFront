@@ -409,7 +409,8 @@ export function WallLayerCanvas({
               ) : (
                 <img
                   alt={backgroundImageAlt}
-                  className="pointer-events-none absolute block select-none"
+                  // J-10: preflight `img { max-width: 100% }` bóp ảnh về bề rộng khung khi phóng to → nền lệch tường.
+                  className="pointer-events-none absolute block max-w-none select-none"
                   draggable={false}
                   onLoad={(event) => {
                     const { naturalHeight, naturalWidth } = event.currentTarget;
