@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { displayStatusCode } from './WallLayerList';
+import { displayStatusCode } from './displayStatusCode';
 
 // V-06: tam giác chỉ khi thật cần — tường AI chưa duyệt, tin cậy đủ, độ dày chuẩn → chấm trung tính.
 describe('displayStatusCode', () => {

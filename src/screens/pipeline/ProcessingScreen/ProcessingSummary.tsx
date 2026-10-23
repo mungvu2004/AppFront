@@ -15,21 +15,12 @@ import { clsx } from 'clsx';
 
 import { Button } from '@/components/ui/Button';
 
+import { splitMetricLabel } from './splitMetricLabel';
 import type { ProcessingSummaryProps } from './types';
 
 const SUMMARY_ARIA_LABEL = 'Báo cáo tổng kết';
 const REVIEW_WALLS_LABEL = 'Duyệt lớp tường';
 const CALIBRATE_SCALE_LABEL = 'Hiệu chỉnh tỷ lệ';
-
-/**
- * `"48 tường"` → số `"48"` + nhãn `"tường"` để in "số lớn + nhãn nhỏ" (aesthetic 2.5 #3). Chỉ tách
- * chuỗi đã định dạng ở khoảng trắng đầu tiên — không đụng tới số (A15). Không có khoảng trắng thì
- * cả chuỗi là phần số.
- */
-export function splitMetricLabel(metric: string): { readonly value: string; readonly unit: string } {
-  const space = metric.indexOf(' ');
-  return space < 0 ? { value: metric, unit: '' } : { value: metric.slice(0, space), unit: metric.slice(space + 1) };
-}
 
 export function ProcessingSummary({ summary }: ProcessingSummaryProps) {
   const metrics = summary.metricLabels;

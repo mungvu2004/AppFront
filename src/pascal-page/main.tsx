@@ -43,6 +43,7 @@ applyRenderLook(getSceneTheme('night'), SSGI_PARAMS);
 // "Ban ngày" của thẻ Ánh sáng: đè chủ đề sáng `studio` cùng cách.
 applyDayLook(getSceneTheme(DAY_THEME_ID));
 // editor-realism: cờ `viewer.realism-*` → store (đọc một lần lúc mở trang: mặc định + override dev).
+// eslint-disable-next-line local/no-direct-set -- store cờ realism riêng của trang Pascal (không phải store dự án), nạp một lần lúc mở trang.
 useRealism.setState({ flags: realismFlagsFrom(getFeatureFlagsSnapshot().values) });
 // R6 tắt mặc định: skirting/fascia/autoGutter chưa lưu về BE (DECISIONS.md #4).
 setDetailsEnabled(useRealism.getState().flags.details);

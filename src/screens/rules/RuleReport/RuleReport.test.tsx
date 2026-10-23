@@ -745,9 +745,14 @@ describe('CẤM TUYỆT ĐỐI — đỏ chỉ xuất hiện dưới dạng chip
     const props = propsFor(scenarioOf('success'));
     const { container } = renderRuleReport(RuleReportView, props);
 
-    const violationColored = [
+    /* V-10 (chủ ý): số KPI "Nghiêm trọng" ở dải tổng kết tô chữ đỏ khi > 0. Đó là chữ số,
+       không phải mảng/dải đỏ, nên tách riêng: đúng một ô số, còn lại vẫn phải là chip/chấm. */
+    const allViolationColored = [
       ...container.querySelectorAll<HTMLElement>('[class*="state-violation"]'),
     ];
+    const kpiNumbers = allViolationColored.filter((element) => element.tagName === 'DD');
+    expect(kpiNumbers.length).toBeLessThanOrEqual(1);
+    const violationColored = allViolationColored.filter((element) => element.tagName !== 'DD');
     const criticalRowCount = VIOLATED_RESULT.violations.filter(
       (violation) => violation.severity === 'critical',
     ).length;

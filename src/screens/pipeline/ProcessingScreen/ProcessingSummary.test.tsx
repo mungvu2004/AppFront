@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ProcessingSummary, splitMetricLabel } from './ProcessingSummary';
+import { ProcessingSummary } from './ProcessingSummary';
+import { splitMetricLabel } from './splitMetricLabel';
 
 describe('splitMetricLabel (aesthetic 2.5 #3)', () => {
   it('splits a formatted label at the first space, keeping the number as written', () => {

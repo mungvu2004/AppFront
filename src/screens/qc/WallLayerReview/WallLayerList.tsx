@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import type { WallThickness } from '@/types/spatial';
 
+import { displayStatusCode } from './displayStatusCode';
 import type { WallLayerViewProps, WallRowViewModel } from './types';
 
 export interface WallLayerListProps {
@@ -60,19 +61,6 @@ const EMPTY_LIST_TITLE = 'Chưa có đoạn tường nào';
 const NO_MATCH_MESSAGE =
   'Không có đoạn tường nào khớp bộ lọc đang bật. Bỏ bớt một bộ lọc để thấy lại danh sách.';
 const ATTENTION_BADGE_LABEL = 'Cần chú ý';
-
-/**
- * V-06: tam giác chỉ khi thật cần (tin cậy thấp hoặc độ dày ngoài chuẩn). Tường AI
- * chưa duyệt mà không có lý do nào → chấm trung tính, để cảnh báo còn hiếm.
- */
-export function displayStatusCode(
-  row: Pick<WallRowViewModel, 'statusCode' | 'isLowConfidence' | 'isNonStandardThickness'>,
-): ViewStatusCode {
-  if (row.statusCode === 'attention' && !row.isLowConfidence && !row.isNonStandardThickness) {
-    return 'neutral';
-  }
-  return row.statusCode;
-}
 
 const STATUS_DOT_TOKEN: Readonly<Record<ViewStatusCode, string>> = {
   verified: 'bg-state-verified',

@@ -83,6 +83,7 @@ export function PascalTour() {
       if (cardRef.current) setCardH(cardRef.current.offsetHeight);
     };
     measure();
+    // eslint-disable-next-line local/no-raw-duration -- chu kỳ đo lại vị trí neo, không phải chuyển động
     const id = window.setInterval(measure, 400);
     window.addEventListener('resize', measure);
     return () => {
@@ -155,7 +156,7 @@ export function PascalTour() {
         }}
       >
         <div style={{ fontSize: 12, color: 'var(--pa-text-2)', marginBottom: 6, fontVariantNumeric: 'tabular-nums' }}>
-          {index + 1} / {TOUR_STEPS.length}
+          {index + 1}&nbsp;/&nbsp;{TOUR_STEPS.length}
         </div>
         <h2 id="pascal-tour-title" style={{ margin: 0, fontSize: 15, fontWeight: 500, lineHeight: 1.35 }}>
           {step.title}

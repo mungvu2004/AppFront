@@ -940,7 +940,9 @@ describe('hợp đồng canvas mở rộng', () => {
 
     const before = mounted.result.current.canvas.miniMapViewport;
 
-    for (let step = 0; step < 6; step += 1) {
+    /* Vừa khung chừa lề 15% (CANVAS_FIT_MARGIN_RATIO 0,85): 6 nấc (250%) chưa đủ để chiều cao
+       nhìn thấy hẹp hơn bản vẽ trong khung 300×480, nên phóng 10 nấc (350%). */
+    for (let step = 0; step < 10; step += 1) {
       act(() => mounted.result.current.canvas.onZoomIn());
     }
 
