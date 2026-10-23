@@ -132,6 +132,8 @@ export const LAYER_SAVE_MESSAGES = {
   reload: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.',
   unnamedRoom: 'Có phòng chưa đặt tên nên chưa lưu được tầng này. Đặt tên cho phòng đó rồi lưu lại.',
   scaleRedirtied: 'Tỷ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới.',
+  rejected: (field: string): string =>
+    `Máy chủ không nhận dữ liệu của tầng này (${field}) nên thay đổi chưa được lưu. Báo quản trị kèm câu này.`,
   unknown: 'Không lưu được thay đổi của tầng này.',
 } as const;
 
@@ -172,8 +174,14 @@ const blockMessageOf = (kind: LayerSaveBlock['kind'], error: unknown): string =>
     return LAYER_SAVE_MESSAGES.unnamedRoom;
   }
 
-  return wire?.code === 'LAYER_INTEGRITY_BROKEN' && typeof count === 'number'
-    ? LAYER_SAVE_MESSAGES.integrity(count)
+  if (wire?.code === 'LAYER_INTEGRITY_BROKEN' && typeof count === 'number') {
+    return LAYER_SAVE_MESSAGES.integrity(count);
+  }
+
+  /* B3b-11 — máy chủ từ chối hình dạng thân (thường là máy chủ cũ hơn bản giao diện): nêu trường để
+     người quản trị tìm ra ngay, thay vì câu chung "không lưu được". */
+  return wire?.code === 'VALIDATION' && wire.field !== undefined
+    ? LAYER_SAVE_MESSAGES.rejected(wire.field)
     : LAYER_SAVE_MESSAGES.unknown;
 };
 

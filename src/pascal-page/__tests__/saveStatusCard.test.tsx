@@ -56,8 +56,8 @@ describe('SaveStatusCard (v3 V3 — trạng thái lưu thật trên trang Pascal
 
     const toast = screen.getByText('Chưa lưu được: màu sàn.').closest('[role="status"]')!;
     expect(container.contains(toast)).toBe(false);
-    expect(toast.parentElement).toBe(document.body);
-    expect(toast.className).toContain('fixed');
+    expect(toast.parentElement!.parentElement).toBe(document.body);
+    expect(toast.parentElement!.className).toContain('fixed');
     expect(toast.querySelector('button[aria-label="Đóng thông báo"]')).not.toBeNull();
     const chip = screen.getByText('Đã lưu lúc 10:00').parentElement!;
     expect(container.contains(chip)).toBe(true);
@@ -70,6 +70,22 @@ describe('SaveStatusCard (v3 V3 — trạng thái lưu thật trên trang Pascal
     const toast = screen.getByRole('alert');
     expect(toast).toHaveTextContent('Không lưu được: món đồ đặt lên đồ khác.');
     expect(toast.className).toContain('text-[var(--pa-danger)]');
+  });
+
+  it('B3-09 — lưu hỏng: câu đầy đủ + "Tải lại tầng" ở toast ngoài thanh, chip chỉ "Chưa lưu" và không co', () => {
+    const { container } = render(
+      <div>
+        <SaveStatusCard save={status({ state: 'blocked', blockMessage: 'Máy chủ không nhận dữ liệu của tầng này.' })} />
+      </div>,
+    );
+
+    const toast = screen.getByRole('alert');
+    expect(container.contains(toast)).toBe(false);
+    expect(toast).toHaveTextContent('Máy chủ không nhận dữ liệu của tầng này.');
+    expect(toast).toContainElement(screen.getByRole('button', { name: 'Tải lại tầng' }));
+    const chip = screen.getByRole('status');
+    expect(chip).toHaveTextContent('Chưa lưu');
+    expect(chip.className).toContain('shrink-0');
   });
 
   it('BackToProjectCard: không có `save` (chỉ đọc) thì chỉ có lối về', () => {
