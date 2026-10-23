@@ -367,6 +367,8 @@ export interface WallLayerViewProps {
 
   /* -- Hành động trên một dòng ---------------------------------------------- */
   readonly onApprove: (wallId: WallId) => void;
+  /** S2-5: bỏ duyệt một tường đã duyệt. Không có → nút "Bỏ duyệt" không hiện. */
+  readonly onUnapprove?: (wallId: WallId) => void;
   readonly onSkip: (wallId: WallId) => void;
   /** Shift+F10 / phím ContextMenu trên một hàng: mở menu của tường đó (G74 16-E-010, A12). */
   readonly onOpenRowMenu?: (wallId: WallId) => void;

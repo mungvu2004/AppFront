@@ -44,7 +44,7 @@ function DemoContent() {
           <button
             key={s}
             onClick={() => setViewState(s)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 ${
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors focus:outline-hidden focus:ring-2 focus:ring-accent focus:ring-offset-2 ${
               viewState === s ? 'bg-accent text-white' : 'bg-bg-sunken text-text-primary hover:bg-black-5'
             }`}
           >

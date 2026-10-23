@@ -244,7 +244,7 @@ export function ExportPanel(props: ExportPanelProps) {
         <FolderOpen aria-hidden="true" size={32} strokeWidth={1.5} className="text-text-muted" />
         <h2 className="text-base font-semibold text-text-primary">Chưa có gì để xuất</h2>
         <p className="max-w-sm text-sm text-text-secondary">
-          Dự án chưa có tầng nào. Tải bản vẽ lên hoặc thêm một tầng rồi quay lại đây để xuất.
+          Dự án chưa có bản vẽ nào được xử lý xong. Tải bản vẽ lên, chờ xử lý xong rồi quay lại đây để xuất.
         </p>
       </div>
     );

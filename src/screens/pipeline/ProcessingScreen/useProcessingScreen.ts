@@ -188,12 +188,18 @@ const doneFloorsSentence = (done: string, total: string): string =>
 /** Ví dụ `"Còn lại khoảng 4 phút 20 giây"` — ngoài vùng `role=status`: đổi mỗi giây (R1-03). */
 const overallRemainingSentence = (duration: string): string => `Còn lại khoảng ${duration}`;
 
-/** Một cách đếm "đối tượng" cho cả chip tầng lẫn báo cáo tổng kết: tường + ô mở + phòng (BUG-353). */
-const objectTotalOf = (counts: Pick<ProcessingExtractionSummary, 'openingCount' | 'roomCount' | 'wallCount'>): number =>
-  counts.wallCount + counts.openingCount + counts.roomCount;
+/**
+ * Một cách đếm "đối tượng" cho cả chip tầng lẫn báo cáo tổng kết (BUG-353), cùng định nghĩa với
+ * `countElements` của màn Xuất: tường + ô mở + đồ đạc + phòng (R-1: trước đây bỏ đồ đạc, 91 cạnh 95).
+ */
+const objectTotalOf = (
+  counts: Pick<ProcessingExtractionSummary, 'furnitureCount' | 'openingCount' | 'roomCount' | 'wallCount'>,
+): number => counts.wallCount + counts.openingCount + counts.furnitureCount + counts.roomCount;
 
 /** Không lượt nào: "Đã xong 0/0 tầng" cạnh một thẻ ghi 4 tầng là câu sai (BUG-165). */
 const NO_RUN_SENTENCE = 'Chưa có lượt xử lý nào đang chạy.';
+/** S2-7: lúc N7 còn đang tải thì chưa biết có lượt nào — không được nói "chưa có". */
+const LOADING_RUNS_SENTENCE = 'Đang tải các lượt xử lý…';
 
 /** Ví dụ `"Đang chờ hàng đợi — vị trí 2"`. */
 const queueSentence = (position: string): string => `Đang chờ hàng đợi — vị trí ${position}`;
@@ -661,6 +667,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     enabled: readsLatestUploads,
   });
   const floorUploads = options.floorUploads ?? latestUploadsQuery.data ?? EMPTY_UPLOADS;
+  const uploadsPending = readsLatestUploads && latestUploadsQuery.isPending;
 
   // N2-02 — tầng chưa có bản vẽ: mọi tầng của dự án trừ tầng N7 đã có lượt tải. Chỉ
   // trên đường N7 (danh sách cố định của test/story không phải "cả dự án").
@@ -1354,6 +1361,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       (accumulated, part) => ({
         wallCount: accumulated.wallCount + part.wallCount,
         openingCount: accumulated.openingCount + part.openingCount,
+        furnitureCount: accumulated.furnitureCount + part.furnitureCount,
         dimensionCount: accumulated.dimensionCount + part.dimensionCount,
         roomCount: accumulated.roomCount + part.roomCount,
         roomOutlinesMm: [...accumulated.roomOutlinesMm, ...part.roomOutlinesMm],
@@ -1365,6 +1373,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       {
         wallCount: 0,
         openingCount: 0,
+        furnitureCount: 0,
         dimensionCount: 0,
         roomCount: 0,
         roomOutlinesMm: [],
@@ -1402,13 +1411,13 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   }, [extractions, floorStatuses, navigate, projectId]);
 
   const overallSummaryLine = useMemo(() => {
-    if (records.length === 0) return NO_RUN_SENTENCE;
+    if (records.length === 0) return uploadsPending ? LOADING_RUNS_SENTENCE : NO_RUN_SENTENCE;
 
     return doneFloorsSentence(
       formatNumber(doneCount, { fractionDigits: 0 }),
       formatNumber(records.length, { fractionDigits: 0 }),
     );
-  }, [doneCount, records.length]);
+  }, [doneCount, records.length, uploadsPending]);
 
   const remainingLine = useMemo(() => {
     const slowest = records

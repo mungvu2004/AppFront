@@ -96,8 +96,8 @@ function DetailProfile({ user, onClose }: ProfileProps) {
       />
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <h2 className="text-[16px] font-semibold text-text-primary [overflow-wrap:anywhere]">{user.name}</h2>
-        <p className="text-[13px] text-text-secondary [overflow-wrap:anywhere]">{user.email}</p>
+        <h2 className="text-[16px] font-semibold text-text-primary wrap-anywhere">{user.name}</h2>
+        <p className="text-[13px] text-text-secondary wrap-anywhere">{user.email}</p>
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <Badge variant="neutral">{user.roleLabel}</Badge>
           <Badge variant="neutral">{user.statusLabel}</Badge>
@@ -208,12 +208,12 @@ function DetailMemberships({
 
 function ActivityObjectLink({ activity }: { readonly activity: UserActivityRowModel }) {
   if (activity.objectHref === null) {
-    return <span className="text-[13px] text-text-secondary [overflow-wrap:anywhere]">{activity.objectLabel}</span>;
+    return <span className="text-[13px] text-text-secondary wrap-anywhere">{activity.objectLabel}</span>;
   }
 
   return (
     <a
-      className="w-fit text-[13px] text-accent no-underline [overflow-wrap:anywhere] hover:underline"
+      className="w-fit text-[13px] text-accent no-underline wrap-anywhere hover:underline"
       href={activity.objectHref}
     >
       {activity.objectLabel}

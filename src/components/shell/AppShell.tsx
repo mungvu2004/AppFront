@@ -177,7 +177,7 @@ export function AppShell({
       {/* ── Liên kết bỏ qua — phần tử focus đầu tiên của trang ─────────── */}
       <a
         href={`#${SKIP_LINK.targetDomId}`}
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:px-3 focus:py-2 focus:rounded-lg focus:bg-bg-surface focus:text-text-primary focus:shadow-panel focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 outline-none text-[13px]"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:px-3 focus:py-2 focus:rounded-lg focus:bg-bg-surface focus:text-text-primary focus:shadow-panel focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 outline-hidden text-[13px]"
         style={{ zIndex: Z_INDEX.toast }}
       >
         {SKIP_LINK.label}
@@ -262,7 +262,7 @@ export function AppShell({
 
         {/* ── Canvas ── flex-1 min-w-[640px] ── */}
         <main
-          className="flex-1 min-w-[640px] bg-bg-surface rounded-xl shadow-panel overflow-hidden relative outline-none"
+          className="flex-1 min-w-[640px] bg-bg-surface rounded-xl shadow-panel overflow-hidden relative outline-hidden"
           data-region="canvas"
           id={FOCUS_REGIONS.canvas.domId}
           aria-label={FOCUS_REGIONS.canvas.label}

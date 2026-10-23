@@ -55,6 +55,7 @@ import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
 import { measureDistance, type Measurement } from '@/domain/measure/measure';
 import { mergeWalls, splitWall } from '@/domain/walls/edit';
+import { isWithinThicknessTolerance } from '@/domain/walls/thicknessTolerance';
 import { resolveWallShapes } from '@/domain/walls/joints';
 import { centrelineLength, type Wall as SolidWall } from '@/domain/walls/types';
 import { millimetresPerPixel, pixels, scaleFromRatio, type Scale } from '@/domain/units/scale';
@@ -551,6 +552,32 @@ export function buildApproveWallCommand(
     type: WALL_APPROVE_COMMAND_TYPE,
     actorId,
     description: approveDescription(before.id, codes),
+    changes: [changeForUpdate('wall', before, after)],
+  });
+}
+
+/** Loại của lệnh bỏ duyệt (S2-5) — chỗ duy nhất viết chuỗi này. */
+export const WALL_UNAPPROVE_COMMAND_TYPE = 'wall.unapprove';
+
+/** Câu mô tả trên nút hoàn tác và nhật ký hoạt động. */
+export const unapproveDescription = (wallId: WallId, codes?: ReadonlyMap<string, string>): string =>
+  `Bỏ duyệt tường ${wallLabelOf(wallId, codes)}.`;
+
+/**
+ * Lệnh bỏ duyệt một tường (S2-5): lỡ tay duyệt thì sửa lại được, kể cả sau khi tải lại trang.
+ * Chỉ hạ `reviewed` về `false`; `source` giữ nguyên vì hình học vẫn là bản người đã sửa.
+ */
+export function buildUnapproveWallCommand(
+  before: Wall,
+  actorId: string,
+  codes?: ReadonlyMap<string, string>,
+): Command {
+  const after: Wall = { ...before, reviewed: false };
+
+  return createCommand({
+    type: WALL_UNAPPROVE_COMMAND_TYPE,
+    actorId,
+    description: unapproveDescription(before.id, codes),
     changes: [changeForUpdate('wall', before, after)],
   });
 }
@@ -1231,7 +1258,8 @@ export function measurementOutcomeToPx(
  * của màn này KHÔNG dùng nó — xem chú thích {@link WALL_THICKNESS_CHOICES}.
  */
 export const isStandardThickness = (thicknessMm: number): boolean =>
-  WALL_THICKNESS_CHOICES.some((choice) => choice === thicknessMm);
+  /* R-7: so trong dung sai chung (30 mm) như màn Chuẩn hoá độ dày, không so `===` — bản cũ báo ⚠ cả 81/81 tường. */
+  isWithinThicknessTolerance(thicknessMm, WALL_THICKNESS_CHOICES);
 
 /**
  * Tường này có dưới ngưỡng độ tin cậy của dự án không (N5 `confidenceThreshold`, BUG-354 — cùng nguồn

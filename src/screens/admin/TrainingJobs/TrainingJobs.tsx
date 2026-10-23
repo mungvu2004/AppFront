@@ -124,7 +124,7 @@ function JobsPanel({ actions, model }: TrainingJobsProps) {
           )}
         </div>
         {showsSidePanel && (
-          <aside aria-label={TEXT.detailPanel} className={cn(PANEL, 'w-[400px] shrink-0 min-[1920px]:w-[480px]')}>
+          <aside aria-label={TEXT.detailPanel} className={cn(PANEL, 'w-[400px] shrink-0 min-[120rem]:w-[480px]')}>
             <TrainingJobDetail actions={actions} detail={model.detail} />
           </aside>
         )}
@@ -134,7 +134,7 @@ function JobsPanel({ actions, model }: TrainingJobsProps) {
 }
 
 export function TrainingJobs({ actions, model }: TrainingJobsProps) {
-  const shell = 'mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[1920px]:max-w-[1440px]';
+  const shell = 'mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[120rem]:max-w-[1440px]';
 
   if (model.state === 'forbidden') {
     return (

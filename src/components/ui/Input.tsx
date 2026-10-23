@@ -65,9 +65,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             <div className="h-[46px] sm:h-[38px] w-full rounded-lg bg-border-default animate-pulse motion-reduce:animate-none" />
           ) : isReadOnly ? (
             <div className="flex h-[46px] sm:h-[38px] w-full items-center px-3 text-text-primary">
-              {prefix && <span className="mr-2 flex-shrink-0 text-text-muted">{prefix}</span>}
+              {prefix && <span className="mr-2 shrink-0 text-text-muted">{prefix}</span>}
               <span className="flex-1 truncate">{props.value as React.ReactNode}</span>
-              {suffix && <span className="ml-2 flex-shrink-0 text-text-muted">{suffix}</span>}
+              {suffix && <span className="ml-2 shrink-0 text-text-muted">{suffix}</span>}
             </div>
           ) : (
             /* 46 px under `sm`: the field inside the 1 px border is a 44 px touch target (BUG-048). */
@@ -93,7 +93,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 disabled={disabled}
                 aria-invalid={isError || undefined}
                 className={cn(
-                  'flex-1 h-full min-w-0 bg-transparent px-3 text-text-primary outline-none placeholder:text-text-muted',
+                  'flex-1 h-full min-w-0 bg-transparent px-3 text-text-primary outline-hidden placeholder:text-text-muted',
                   prefix && 'pl-1',
                   suffix && 'pr-1',
                   className
@@ -114,7 +114,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <div className="mt-1.5 flex items-start">
             {error ? (
               <>
-                <span className="mt-1.5 mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-state-violation" aria-hidden="true" />
+                <span className="mt-1.5 mr-2 h-1.5 w-1.5 shrink-0 rounded-full bg-state-violation" aria-hidden="true" />
                 {/* `pretty`, không `balance`: balance thu cả câu về ~210 px trong ô 360 px và ngắt "Kiểm / tra" (BUG-073);
                     pretty lấp đầy bề rộng ô, chỉ tránh một từ lẻ ở dòng cuối (BUG-057). Firefox chưa có: ngắt thường. */}
                 <p id={`${inputId}-error`} role="alert" className="text-pretty text-[13px] leading-[18px] text-state-violation-text">{error}</p>

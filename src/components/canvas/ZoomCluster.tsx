@@ -50,7 +50,7 @@ export function ZoomCluster({
     'flex items-center justify-center w-7 h-7 rounded-lg',
     'text-text-secondary hover:text-text-primary hover:bg-bg-hover',
     'transition-colors duration-120',
-    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+    'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
   );
 
   return (
@@ -92,7 +92,7 @@ export function ZoomCluster({
             'min-w-[52px] h-7 px-1 rounded-lg',
             'font-mono text-sm text-text-primary',
             'hover:bg-bg-hover transition-colors duration-120',
-            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+            'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
           )}
           aria-label={`Mức thu phóng ${zoomLabel}, bấm để về 100%`}
           title="Bấm để về 100%"

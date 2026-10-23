@@ -15,7 +15,7 @@
  * ## Vì sao hàng là `<li>` tự dựng, không phải `Table.Row`
  *
  * Phán quyết PQ-2 của điều phối viên: `src/components/ui/Table.tsx:84` đặt
- * `outline-none` rồi chỉ đổi màu nền ở `focus-visible`, còn vòng
+ * `outline-hidden` rồi chỉ đổi màu nền ở `focus-visible`, còn vòng
  * `ring-2 ring-accent` (dòng 89) chạy bằng prop `focused` do CHA điều khiển —
  * không phải tiêu điểm thật của bàn phím. `expectAccessible` từ chối đúng hình
  * dạng đó ("tắt viền tiêu điểm mặc định mà không thay bằng cái khác"), và
@@ -88,7 +88,7 @@ const GROUP_COUNT_SUFFIX = 'phòng';
 
 /** Vòng tiêu điểm 2px, lệch 2px — đúng A12, và lấy hẳn từ token. */
 const FOCUS_RING_CLASS =
-  'outline-none focus-visible:ring-2 focus-visible:ring-accent ' +
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent ' +
   'focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 export interface RoomAreaRowItemProps
@@ -171,7 +171,7 @@ export function RoomAreaRowItem({
         <button
           aria-label={`${AREA_BUTTON_LABEL_PREFIX} ${row.name}, ${row.areaText} ${unitLabel}`}
           className={cn(
-            'shrink-0 rounded px-2 py-1 font-mono text-[13px] tabular-nums text-text-primary',
+            'shrink-0 rounded-sm px-2 py-1 font-mono text-[13px] tabular-nums text-text-primary',
             'transition-colors duration-fast motion-reduce:transition-none hover:bg-bg-sunken',
             FOCUS_RING_CLASS,
           )}

@@ -45,7 +45,7 @@ export const OnIcon: Story = {
   render: () => (
     <Tooltip label="Thông tin chi tiết" side="right">
       <button
-        className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 outline-none"
+        className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 outline-hidden"
         aria-label="Thông tin"
       >
         <Info size={16} className="text-text-secondary" />

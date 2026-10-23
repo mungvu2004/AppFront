@@ -75,7 +75,7 @@ export function ObjectLayerStatusBar({
         {/* Người xem không hoàn tác được gì: không đưa nút chết (BUG-601). */}
         {isViewer ? null : (
         <button
-          className="inline-flex h-6 items-center rounded px-1.5 text-[12px] font-medium text-text-secondary outline-none hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          className="inline-flex h-6 items-center rounded-sm px-1.5 text-[12px] font-medium text-text-secondary outline-hidden hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           onClick={onUndo}
           type="button"
         >

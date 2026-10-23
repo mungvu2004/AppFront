@@ -690,6 +690,14 @@ function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[
   const onOutlineToleranceMm =
     context.thresholds?.['escape.openingOnOutlineToleranceMm'] ?? OPENING_ON_OUTLINE_TOLERANCE_MM;
   const links: DoorLink[] = [];
+  // The AI pipeline marks every wall `partition`, so a plan without a single
+  // envelope wall says nothing about which side is outdoors. There, a door
+  // that opens onto exactly one room has nothing behind it but the outside.
+  // ponytail: an undetected inner space (a corridor the AI missed) also reads
+  // as outdoors; drop this once the pipeline marks envelope walls itself.
+  const plannedEnvelope = entitiesInScope(context, 'wall').some(
+    (item) => item.kind === 'envelope',
+  );
 
   for (const opening of entitiesInScope(context, 'opening')) {
     if (opening.kind !== 'door') {
@@ -704,15 +712,17 @@ function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[
 
     const at = openingCentre(wall, opening);
 
+    // Only the rooms this door is actually cut into; naming the wall is not
+    // enough, or one long party wall would join every room along it.
+    const roomIds = (byWall.get(wall.id) ?? [])
+      .filter((room) => opensOnto(at, room, onOutlineToleranceMm))
+      .map((room) => room.id);
+
     links.push({
       openingId: opening.id,
       at,
-      // Only the rooms this door is actually cut into; naming the wall is not
-      // enough, or one long party wall would join every room along it.
-      roomIds: (byWall.get(wall.id) ?? [])
-        .filter((room) => opensOnto(at, room, onOutlineToleranceMm))
-        .map((room) => room.id),
-      leadsOutside: wall.kind === 'envelope',
+      roomIds,
+      leadsOutside: wall.kind === 'envelope' || (!plannedEnvelope && roomIds.length === 1),
     });
   }
 

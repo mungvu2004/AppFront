@@ -219,7 +219,7 @@ function DrawerRoot({ isOpen, onClose, children, size, label }: DrawerRootProps)
                   duration: prefersReducedMotion ? DURATION.fast : DURATION.slow,
                   ease: EASE.default,
                 }}
-                className="relative my-2 mr-2 bg-bg-surface rounded-2xl shadow-modal pointer-events-auto flex flex-col outline-none overflow-hidden"
+                className="relative my-2 mr-2 bg-bg-surface rounded-2xl shadow-modal pointer-events-auto flex flex-col outline-hidden overflow-hidden"
                 style={{ width: `${drawerWidth}px` }}
               >
                 {children}
@@ -293,7 +293,7 @@ const BottomSheet = forwardRef<HTMLDivElement, BottomSheetProps>(
             if (snapLevel < 2) onSnapChange((snapLevel + 1) as SnapLevel);
           }
         }}
-        className="absolute bottom-0 left-0 right-0 bg-bg-surface rounded-t-[20px] shadow-modal pointer-events-auto flex flex-col outline-none overflow-hidden"
+        className="absolute bottom-0 left-0 right-0 bg-bg-surface rounded-t-[20px] shadow-modal pointer-events-auto flex flex-col outline-hidden overflow-hidden"
         style={{ height: `${height}px` }}
       >
         {/* Handle kéo */}
@@ -317,7 +317,7 @@ const BottomSheet = forwardRef<HTMLDivElement, BottomSheetProps>(
                 <button
                   type="button"
                   onClick={() => onSnapChange(level)}
-                  className="flex h-6 w-6 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  className="flex h-6 w-6 items-center justify-center rounded-full outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
                   aria-label={`Mức ${level + 1}`}
                   aria-describedby={`${hintId}-${String(level)}`}
                   aria-pressed={snapLevel === level}

@@ -76,7 +76,7 @@ const RELOAD = 'Tải lại'; // FSB:37
 const TOLERANCE_WARNING_RE = /Áp dụng lại bộ lọc sẽ đổi tường đã duyệt/u;
 const STAT_LABELS = {
   total: 'Tổng số đoạn tường',
-  normalized: 'Đã ở đúng nhóm chuẩn',
+  normalized: 'Trong dung sai nhóm chuẩn',
   exceeding: 'Lệch quá dung sai',
   column: 'Cột bê tông cốt thép',
 } as const; // TT:289-294

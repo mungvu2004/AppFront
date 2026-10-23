@@ -149,7 +149,7 @@ function ModalRoot({
               }}
               // `max-w-full`: at 375 px the dialog is the 343 px the `p-4` frame leaves, whatever the
               // content's min-content width — not only when flex shrink happens to allow it (nợ B #4).
-              className="relative bg-bg-surface rounded-2xl shadow-modal pointer-events-auto flex flex-col max-h-[90vh] max-w-full outline-none"
+              className="relative bg-bg-surface rounded-2xl shadow-modal pointer-events-auto flex flex-col max-h-[90vh] max-w-full outline-hidden"
               style={{ width: `${width}px` }}
             >
               {children}
@@ -207,8 +207,8 @@ const ModalBody = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement
   ({ children, className, ...props }, ref) => (
     <div
       ref={ref}
-      // break-words (inherited): a long unbroken name wraps instead of scrolling the body sideways, in every dialog (BUG-195).
-      className={cn('px-8 overflow-y-auto flex-1 text-[14px] text-text-primary leading-relaxed break-words', className)}
+      // wrap-break-word (inherited): a long unbroken name wraps instead of scrolling the body sideways, in every dialog (BUG-195).
+      className={cn('px-8 overflow-y-auto flex-1 text-[14px] text-text-primary leading-relaxed wrap-break-word', className)}
       {...props}
     >
       {children}

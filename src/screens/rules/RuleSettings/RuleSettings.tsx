@@ -147,7 +147,7 @@ function RuleSettingsNav({ items, activeId, isCollapsed, onSelect }: RuleSetting
               onSelect(item.id);
             }}
             className={cn(
-              'rounded px-3 py-2 text-left text-sm no-underline transition-colors duration-standard',
+              'rounded-sm px-3 py-2 text-left text-sm no-underline transition-colors duration-standard',
               FOCUS_RING,
               isActive
                 ? 'bg-bg-selected font-medium text-accent'
@@ -275,7 +275,7 @@ export function RuleSettings(props: RuleSettingsProps) {
             {props.backPath === undefined ? null : (
               <Link
                 to={props.backPath}
-                className={cn('w-fit rounded text-sm text-accent underline', FOCUS_RING)}
+                className={cn('w-fit rounded-sm text-sm text-accent underline', FOCUS_RING)}
               >
                 Quay lại kết quả kiểm tra
               </Link>

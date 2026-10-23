@@ -29,7 +29,7 @@ function PresetButton({ preset, onApplyPreset }: PresetButtonProps) {
         onApplyPreset(preset.kind);
       }}
       className={cn(
-        'flex flex-col items-start gap-1 rounded border border-border-default bg-bg-surface p-3 text-left',
+        'flex flex-col items-start gap-1 rounded-sm border border-border-default bg-bg-surface p-3 text-left',
         'transition-colors duration-standard hover:bg-bg-hover',
         FOCUS_RING,
       )}

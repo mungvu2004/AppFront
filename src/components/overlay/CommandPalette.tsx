@@ -224,7 +224,7 @@ export function CommandPalette({ commands = DEFAULT_COMMANDS }: CommandPalettePr
                               'text-[13px] text-text-primary',
                               'flex items-center justify-between gap-3',
                               'transition-colors duration-120',
-                              'outline-none',
+                              'outline-hidden',
                               isSelected ? 'bg-bg-selected' : 'hover:bg-bg-hover'
                             )}
                           >

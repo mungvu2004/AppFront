@@ -97,7 +97,7 @@ function StateFrame({ entry, isSpacingGridVisible }: StateFrameProps) {
         ) : (
           <p className="relative flex flex-col items-center gap-1 px-3 text-center">
             <span className="text-[13px] leading-[18px] text-text-secondary">{STORY_NAME_LABEL}</span>
-            <code className="rounded bg-bg-surface px-1.5 py-0.5 text-[13px] text-text-primary">
+            <code className="rounded-sm bg-bg-surface px-1.5 py-0.5 text-[13px] text-text-primary">
               {entry.storyExportName}
             </code>
           </p>

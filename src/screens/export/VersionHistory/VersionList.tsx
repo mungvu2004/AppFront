@@ -40,7 +40,7 @@ function VersionDiffDots({ row }: { row: VersionRowModel }) {
       <span
         role="status"
         aria-label="Đang tính số thay đổi"
-        className="h-4 w-24 animate-pulse rounded bg-bg-sunken"
+        className="h-4 w-24 animate-pulse rounded-sm bg-bg-sunken"
       />
     );
   }

@@ -28,7 +28,7 @@ export function ModelRegistryDetail({ detail }: { readonly detail: VersionDetail
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="min-w-0 flex-1 break-words text-base font-semibold text-text-primary">{detail.title}</h2>
+        <h2 className="min-w-0 flex-1 wrap-break-word text-base font-semibold text-text-primary">{detail.title}</h2>
         {detail.evaluationLabel !== null && <Badge variant={detail.evaluationVariant}>{detail.evaluationLabel}</Badge>}
       </div>
       {detail.errorMessage !== null && <InlineAlert level="violation" message={detail.errorMessage} />}

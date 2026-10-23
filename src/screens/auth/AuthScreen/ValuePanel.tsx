@@ -79,7 +79,7 @@ function HouseModel() {
     <>
       {isReady ? null : (
         // `--scene-tile`: màu sáng đã cân trên `--scene-backdrop` ở cả hai chủ đề (token, không `text-white/70`).
-        <p className="absolute inset-0 flex items-center justify-center text-[14px] text-[color:var(--scene-tile)]">
+        <p className="absolute inset-0 flex items-center justify-center text-[14px] text-(--scene-tile)">
           Đang dựng mô hình căn hộ…
         </p>
       )}

@@ -151,7 +151,7 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
             className={cn(
               'self-start rounded-full border px-2.5 py-1 text-[12px]',
               'transition-colors duration-120',
-              'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+              'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
               model.isLowConfidenceOnly
                 ? 'border-accent bg-accent-wash text-accent'
                 : 'border-border-default text-text-secondary hover:bg-bg-hover hover:text-text-primary',
@@ -168,7 +168,7 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
         <div className="flex items-center justify-between gap-2 px-2 py-2">
           <p className="text-[13px] text-text-secondary">{LOW_CONFIDENCE_DONE}</p>
           <button
-            className="inline-flex h-8 shrink-0 items-center rounded px-2 text-[13px] font-medium text-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            className="inline-flex h-8 shrink-0 items-center rounded-sm px-2 text-[13px] font-medium text-accent outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
             onClick={model.onToggleLowConfidenceOnly}
             type="button"
           >
@@ -294,7 +294,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
 
         {isCollapsed ? null : (
           /* Dưới 1280 panel cao theo nội dung, vùng ngoài cuộn — không nén danh sách còn ~3 hàng (BUG-395). */
-          <div className="order-1 flex w-full shrink-0 flex-col gap-2 xl:order-none xl:h-full xl:w-[280px] xl:overflow-y-auto">
+          <div className="order-1 flex w-full shrink-0 flex-col gap-2 xl:order-0 xl:h-full xl:w-[280px] xl:overflow-y-auto">
             <div className="shrink-0">
               {/* Đang tải: khung xương thay bộ đếm "0/0" và "Tổng 0" như thể dữ liệu thật (BUG-618). */}
               {model.state === 'loading' ? (

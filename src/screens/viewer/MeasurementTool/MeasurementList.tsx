@@ -54,7 +54,7 @@ const MODE_ICON: Readonly<Record<MeasureMode, typeof Ruler>> = {
 const UNIT_OPTIONS = MEASURE_UNITS.map((value) => ({ value, label: MEASURE_UNIT_LABELS[value] }));
 
 const FOCUS_RING_CLASS =
-  'outline-none focus-visible:ring-2 focus-visible:ring-accent ' +
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent ' +
   'focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 const SECTION_TITLE = 'Phép đo';

@@ -39,6 +39,13 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
           changeOrigin: false,
         },
+        // `pnpm dev:3d` (`scripts/dev-3d.mjs`): trang 3D lấy từ dev server Pascal (HMR)
+        // thay vì bản dựng tĩnh trong `public/`. `base` của Pascal là `/assets/pascal/`
+        // nên client, `@fs`, deps và websocket HMR của nó đều nằm dưới tiền tố đó.
+        ...(env.PASCAL_DEV_URL && {
+          '/editor3d.html': { target: env.PASCAL_DEV_URL },
+          '/assets/pascal/': { target: env.PASCAL_DEV_URL, ws: true },
+        }),
       },
     },
     build: {

@@ -22,7 +22,7 @@
  *   other screen it appears on. `tabindex="-1"` on a real control takes it out
  *   of the keyboard's reach entirely — legitimate for a roving-focus list item,
  *   which is why `data-roving-focus` opts out, and a bug everywhere else.
- * - **A focus ring that was switched off.** `outline-none` with no ring class
+ * - **A focus ring that was switched off.** `outline-hidden` with no ring class
  *   next to it is the classic: the designer disliked the browser's outline, the
  *   replacement never arrived, and keyboard users lost the cursor. A ring
  *   without `ring-offset-2` is refused too, because A12 says 2px offset 2px and
@@ -676,7 +676,7 @@ const FOCUS_GROUP_RING = 'group-focus-visible:ring-2';
  *
  * A text input inside a bordered box is the common case and the reason this
  * exists: the box owns the border, so it must own the ring too, and the input
- * carries `outline-none` precisely so there are not two rings drawn a pixel
+ * carries `outline-hidden` precisely so there are not two rings drawn a pixel
  * apart. Judging the input alone reads that as a ring switched off and never
  * replaced, which is the opposite of what the markup says.
  *
@@ -769,7 +769,7 @@ function isRovingFocusItem(element: Element): boolean {
 
 /** Has the browser's own focus outline been switched off? */
 function suppressesOutline(element: Element): boolean {
-  if (hasClassToken(element, 'outline-none')) {
+  if (hasClassToken(element, 'outline-hidden')) {
     return true;
   }
 

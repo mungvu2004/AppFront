@@ -145,7 +145,7 @@ function WallLayerTreeRow({
       className={cn(
         'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px]',
         'transition-colors duration-120',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+        'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         isCurrent
           ? 'bg-accent-wash text-accent'
           : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
@@ -181,7 +181,7 @@ function WallLayerTreeRow({
         className={cn(
           'shrink-0 rounded-lg p-1.5 text-text-secondary',
           'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
-          'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+          'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         )}
         onClick={visibility.onToggle}
         type="button"
@@ -223,7 +223,7 @@ function WallLayerFloorNav({
           className={cn(
             'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px]',
             'transition-colors duration-120',
-            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+            'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
             floor.isCurrent
               ? 'bg-accent-wash text-accent'
               : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
@@ -270,7 +270,7 @@ export function WallLayerLeftPanel({
      * Từ 1024 panel đứng cạnh bản vẽ, cao bằng nó, danh sách cuộn bên trong; chỉ thanh tra xuống
      * dòng dưới (G4a-07).
      */
-    <div className="order-1 flex w-full shrink-0 flex-col rounded-xl bg-bg-surface shadow-panel lg:order-none lg:h-[60vh] lg:min-h-80 lg:w-[280px] lg:overflow-hidden xl:h-full xl:min-h-0">
+    <div className="order-1 flex w-full shrink-0 flex-col rounded-xl bg-bg-surface shadow-panel lg:order-0 lg:h-[60vh] lg:min-h-80 lg:w-[280px] lg:overflow-hidden xl:h-full xl:min-h-0">
       <div className="flex shrink-0 flex-col gap-3 px-5 pb-2 pt-4">
         <div aria-label={reviewProgressLabel} className="flex flex-col gap-1.5" role="img">
           {/* Đang tải thì chưa có số: "0/0" trông như tầng không có tường (G4a-02). */}

@@ -56,9 +56,9 @@ const HEADER_OBJECT = 'đối tượng';
 const NO_DEVIATIONS_NOTICE = 'Không có vùng lệch nào được ghi nhận.';
 const CONFIRM_BADGE_LABEL = 'Đã duyệt';
 /** Ba ô gạch ngang nổi hơn cả nhãn của chúng: chưa đo thì một dòng nói thẳng (BUG-331, AES-13). */
-const UNMEASURED_NOTICE = 'Chưa có số đo — cần căn ảnh quét vào mô hình trước.';
+const UNMEASURED_NOTICE = 'Chưa đo được độ lệch tự động — so hai lớp bằng mắt, khớp thì bấm xác nhận.';
 /** G4b-25: lối đi căn ảnh, không để người dùng kẹt ở câu "cần căn trước". */
-const ALIGN_LINK_LABEL = 'Căn ảnh ở màn Hiệu chỉnh tỷ lệ';
+const ALIGN_LINK_LABEL = 'Đo lại tỷ lệ ở màn Hiệu chỉnh tỷ lệ';
 /** G4b-28: ô mm chỉ nhận chữ số, dấu phẩy/chấm thập phân và dấu trừ (dấu trừ có câu báo riêng). */
 const NON_NUMERIC_INPUT = /[^\d.,-]/;
 
@@ -132,7 +132,7 @@ export function OverlayComparisonPanel({
           <p className="text-[13px] text-text-secondary">{UNMEASURED_NOTICE}</p>
           {alignHref !== undefined && (
             <Link
-              className="rounded-md text-[13px] text-accent underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="rounded-md text-[13px] text-accent underline-offset-2 hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               to={alignHref}
             >
               {ALIGN_LINK_LABEL}

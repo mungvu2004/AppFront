@@ -99,7 +99,7 @@ function ObjectLayerListRow({
       aria-label={`${row.codeLabel} — ${STATUS_LABEL[row.statusCode]}`}
       aria-selected={isSelected}
       className={cn(
-        'flex cursor-pointer flex-col gap-1 rounded-lg px-2 py-1.5 text-[13px] outline-none',
+        'flex cursor-pointer flex-col gap-1 rounded-lg px-2 py-1.5 text-[13px] outline-hidden',
         'transition-colors duration-120 hover:bg-bg-hover',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         isSelected && 'bg-bg-selected hover:bg-bg-selected',
@@ -142,7 +142,7 @@ function ObjectLayerListRow({
               className={cn(
                 'rounded-md px-1.5 py-0.5 text-[12px] text-accent',
                 'transition-colors duration-120 hover:bg-accent-wash',
-                'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+                'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
               )}
               onClick={(event) => {
                 /* Bấm hành động KHÔNG kéo theo một lượt chọn dòng ngoài ý muốn. */
@@ -209,7 +209,7 @@ function ObjectLayerListGroup({
         className={cn(
           'flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-text-secondary',
           'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
-          'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+          'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         )}
         onClick={() => onToggleGroupCollapsed(layer)}
         type="button"
@@ -221,7 +221,7 @@ function ObjectLayerListGroup({
         )}
         <span
           aria-hidden="true"
-          className="h-3 w-3 shrink-0 rounded-sm border border-border-default-50"
+          className="h-3 w-3 shrink-0 rounded-xs border border-border-default-50"
           style={{ backgroundColor: OBJECT_LAYER_COLOR_TOKENS[layer] }}
         />
         <span className="truncate">{label}</span>
@@ -284,7 +284,7 @@ export function ObjectLayerList({
       />
       {needle === '' ? null : (
         <button
-          className="self-start rounded px-2 py-0.5 text-[12px] text-accent hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+          className="self-start rounded-sm px-2 py-0.5 text-[12px] text-accent hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent"
           onClick={() => setCodeQuery('')}
           type="button"
         >

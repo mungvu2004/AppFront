@@ -306,7 +306,8 @@ export function ObjectLayerCanvas({
         ) : (
           <img
             alt={backgroundImageAlt}
-            className="pointer-events-none absolute block select-none opacity-20"
+            // J-10: không để preflight `max-width: 100%` bóp ảnh nền khi khung ảnh rộng hơn khung vẽ.
+            className="pointer-events-none absolute block max-w-none select-none opacity-20"
             draggable={false}
             src={backgroundImageUrl}
             style={

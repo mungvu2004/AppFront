@@ -308,6 +308,23 @@ describe('toSpatialGraph — đường hỏng', () => {
     expect(skipped[0]?.reason).toContain('roof');
   });
 
+  it('G-9 — vạch đo của thước không vào đồ thị và không thành dòng bỏ qua', () => {
+    const ruler = { object: 'node', id: 'measurement_abc', type: 'measurement', parentId: 'level_L-AAAA000001', children: [] };
+    const { skipped } = toSpatialGraph(
+      sceneOf(
+        [
+          site([BUILDING_NODE_ID]),
+          building(BUILDING_NODE_ID, ['level_L-AAAA000001']),
+          level(['measurement_abc']),
+          ruler as unknown as PascalNode,
+        ],
+        [SITE_NODE_ID],
+      ),
+    );
+
+    expect(skipped).toEqual([]);
+  });
+
   it('bỏ qua node lạ gắn dưới tường, tường vẫn dựng lại', () => {
     const wall: PascalNode = {
       object: 'node',

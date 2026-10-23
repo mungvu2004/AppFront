@@ -102,12 +102,12 @@ export const PANEL_CLASS =
 export const SHEET_CLASS =
   'fixed inset-x-0 bottom-0 z-10 flex max-h-[70vh] w-full flex-col overflow-hidden ' +
   'rounded-t-2xl border-t border-border-default bg-bg-surface shadow-overlay ' +
-  'lg:static lg:z-auto lg:h-full lg:min-h-0 lg:w-[344px] lg:max-h-none lg:flex-shrink-0 ' +
+  'lg:static lg:z-auto lg:h-full lg:min-h-0 lg:w-[344px] lg:max-h-none lg:shrink-0 ' +
   'lg:rounded-xl lg:border-0 lg:shadow-panel';
 
 /** Vòng tiêu điểm 2px, lệch 2px — đúng A12, lấy hẳn từ token. */
 export const FOCUS_RING_CLASS =
-  'outline-none focus-visible:ring-2 focus-visible:ring-accent ' +
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent ' +
   'focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 /* -------------------------------------------------------------------------- */

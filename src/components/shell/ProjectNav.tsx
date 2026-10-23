@@ -59,7 +59,7 @@ export function ProjectNav({ className, pathname, projectId, search = '' }: Proj
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'inline-flex h-8 items-center whitespace-nowrap rounded-md px-2.5 text-[13px] font-medium transition-colors duration-120',
-                  'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+                  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
                   active
                     ? 'bg-bg-selected text-text-primary'
                     : 'text-text-secondary hover:bg-bg-sunken hover:text-text-primary',

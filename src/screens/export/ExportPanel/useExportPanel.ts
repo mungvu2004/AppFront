@@ -50,6 +50,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { hasElements } from '@/domain/spatial/elementCount';
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level } from '@/domain/spatial/types';
 import { ENDPOINTS } from '@/api/endpoints';
@@ -657,7 +658,8 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
       return 'error';
     }
 
-    if (graph === null || floors.length === 0) {
+    // S-3b: có tầng mà chưa có tường/phòng nào thì kiểm tra trước khi xuất không được báo xanh.
+    if (graph === null || floors.length === 0 || !hasElements(graph)) {
       return 'empty';
     }
 
@@ -706,7 +708,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     // còn Spatial JSON lấy cả đồ thị nên nó không phụ thuộc lựa chọn tầng.
     // View không dựng hành động xuất trong cả ba cảnh; đây là lớp chặn thứ
     // hai, không phải nơi báo lỗi.
-    if (exportLockRef.current || !canExport || !canExportSelected || exportMutation.isPending || spatialLoading) {
+    if (exportLockRef.current || !canExport || !canExportSelected || !hasElements(graph) || exportMutation.isPending || spatialLoading) {
       return;
     }
 
@@ -716,7 +718,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
 
     exportLockRef.current = true;
     exportMutation.mutate(selectedFormatId);
-  }, [canExport, canExportSelected, exportMutation, selectedFormatId, selectedLevels.length, spatialLoading]);
+  }, [canExport, canExportSelected, exportMutation, graph, selectedFormatId, selectedLevels.length, spatialLoading]);
 
   const onCancel = useCallback((): void => {
     gateway.cancel(projectId);

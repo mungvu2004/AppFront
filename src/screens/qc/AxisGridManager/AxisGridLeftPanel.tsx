@@ -216,7 +216,7 @@ function AxisGridRow({
         aria-label={axisRowAriaLabel(row)}
         aria-selected={row.isSelected}
         className={cn(
-          'flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-left text-[13px] outline-none',
+          'flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-left text-[13px] outline-hidden',
           'transition-colors duration-120',
           'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
           row.isSelected ? 'bg-bg-selected text-text-primary' : 'text-text-primary hover:bg-bg-hover',

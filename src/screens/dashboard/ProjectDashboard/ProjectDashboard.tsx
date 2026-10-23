@@ -82,7 +82,7 @@ const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
  * One grid for every card, so cards are the same size at every width: a 730 px hero beside 340 px side cards
  * above a two-column grid gave three card widths on one screen (BUG-119, BUG-157). One column below `sm`.
  */
-const GRID_COLUMNS_CLASS = 'grid grid-cols-1 gap-5 sm:grid-cols-2 min-[1440px]:grid-cols-3 min-[1920px]:grid-cols-4';
+const GRID_COLUMNS_CLASS = 'grid grid-cols-1 gap-5 sm:grid-cols-2 min-[90rem]:grid-cols-3 min-[120rem]:grid-cols-4';
 
 export type ProjectDashboardViewProps = ProjectDashboardModel & ProjectDashboardActions;
 
@@ -146,7 +146,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
               // the first 12 px fade out so a cut glyph reads as "more text this way".
               prefix={<Search size={16} aria-hidden="true" className="mr-1" />}
               onScroll={(event) => event.currentTarget.toggleAttribute('data-scrolled', event.currentTarget.scrollLeft > 0)}
-              className="pl-0 data-[scrolled]:[mask-image:linear-gradient(to_right,transparent,black_12px)]"
+              className="pl-0 data-scrolled:mask-[linear-gradient(to_right,transparent,black_12px)]"
               wrapperClassName="w-full sm:w-72"
             />
             <Select

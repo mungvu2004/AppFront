@@ -17,7 +17,7 @@
  * hộp thoại thứ hai trong sản phẩm có bẫy tiêu điểm riêng, và phạm vi task này
  * cấm tạo component mới.
  *
- * LƯU Ý CHO BÀI KIỂM: `Modal.Root` đặt `tabIndex={-1}` cộng `outline-none` lên
+ * LƯU Ý CHO BÀI KIỂM: `Modal.Root` đặt `tabIndex={-1}` cộng `outline-hidden` lên
  * chính khung hộp thoại để bẫy tiêu điểm nhận được tiêu điểm lập trình mà không
  * vẽ hai vòng viền. `expectAccessible` đọc đó là "điều khiển bàn phím không tới
  * được", nên lượt soát bỏ qua đúng phần tử ấy bằng

@@ -66,7 +66,7 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], projectName
               aria-current={isCurrent ? 'page' : undefined}
               className={cn(
                 'rounded-lg px-2.5 py-1 text-[13px] transition-colors duration-120',
-                'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+                'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
                 isCurrent
                   ? 'bg-accent-wash font-medium text-accent'
                   : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',

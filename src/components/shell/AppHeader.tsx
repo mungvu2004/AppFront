@@ -33,7 +33,7 @@ export interface AppHeaderProject {
   /** Lớp đang duyệt (chỉ số trong FLOOR_LAYERS): nút chính mời sang lớp kế tiếp trước khi sang 3D. */
   readonly layerIndex?: number | undefined;
   /** Dự án chưa có bản vẽ / lượt xử lý lỗi: nút chính không mời sang bước sau. */
-  readonly blocker?: 'no-drawings' | 'pipeline-error' | undefined;
+  readonly blocker?: 'no-drawings' | 'processing' | 'pipeline-error' | undefined;
   /** Màn kiểm tra tầng gần nhất của dự án này (G4a-34/N4-08): ô bước 3 quay về đó thay vì danh sách tầng. */
   readonly lastFloorPath?: string | undefined;
 }
@@ -113,6 +113,8 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
             <ArrowRight size={16} aria-hidden="true" />
           </Link>
         )
+      ) : project.stepIndex >= 0 && project.blocker === 'processing' ? (
+        <span className="shrink-0 text-[13px] text-text-secondary">Đang xử lý bản vẽ: chờ xong rồi đi tiếp</span>
       ) : project.stepIndex === 1 && project.blocker === 'pipeline-error' ? (
         <span className="shrink-0 text-[13px] text-text-secondary">Xử lý gặp lỗi: xem chi tiết bên dưới trước khi đi tiếp</span>
       ) : project.stepIndex === -1 ? (
@@ -195,7 +197,7 @@ export function AppHeader({ accountInitials, accountLabel, showAdmin, notificati
           </div>
         )}
         {project !== null && (
-          <ProjectNav projectId={project.id} pathname={location.pathname} search={location.search} className="order-last min-w-0 basis-full overflow-x-auto pb-2 xl:order-none xl:basis-auto xl:pb-0" />
+          <ProjectNav projectId={project.id} pathname={location.pathname} search={location.search} className="order-last min-w-0 basis-full overflow-x-auto pb-2 xl:order-0 xl:basis-auto xl:pb-0" />
         )}
 
         <div className="ml-auto flex shrink-0 items-center gap-2">

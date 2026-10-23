@@ -155,7 +155,7 @@ const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
         </span>
         <ChevronDown
           className={cn(
-            'ml-2 h-[18px] w-[18px] flex-shrink-0 text-text-secondary transition-transform duration-180',
+            'ml-2 h-[18px] w-[18px] shrink-0 text-text-secondary transition-transform duration-180',
             isOpen && 'rotate-180',
           )}
         />
@@ -297,7 +297,7 @@ const SelectItem = forwardRef<HTMLDivElement, SelectItemProps>(
         {...props}
       >
         <span className="truncate">{children}</span>
-        {isSelected && <Check className="ml-2 h-4 w-4 flex-shrink-0" />}
+        {isSelected && <Check className="ml-2 h-4 w-4 shrink-0" />}
       </div>
     );
   },

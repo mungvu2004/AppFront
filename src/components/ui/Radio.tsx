@@ -73,7 +73,7 @@ const RadioItem = forwardRef<HTMLInputElement, RadioItemProps>(
       <label
         htmlFor={internalId}
         className={cn(
-          'group/radio flex items-start min-h-8 cursor-pointer outline-none',
+          'group/radio flex items-start min-h-8 cursor-pointer outline-hidden',
           isDisabled && 'opacity-50 cursor-not-allowed',
           className
         )}
@@ -172,7 +172,7 @@ function IconRadioGroup({ value, onChange, options, disabled = false, className 
           onClick={() => onChange(opt.value)}
           className={cn(
             'w-9 h-9 flex items-center justify-center rounded-lg transition-colors duration-120',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+            'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
             disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-bg-hover',
             value === opt.value ? 'bg-accent-wash text-accent' : 'text-text-secondary'
           )}

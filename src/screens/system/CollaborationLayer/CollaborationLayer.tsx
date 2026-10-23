@@ -311,7 +311,7 @@ export function CollaborationLayer({
         type="button"
         aria-expanded={isRosterOpen}
         aria-label={ROSTER_TOGGLE_LABEL}
-        className="pointer-events-auto flex items-center gap-2 rounded-full bg-bg-surface px-1 py-1 shadow-rest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
+        className="pointer-events-auto flex items-center gap-2 rounded-full bg-bg-surface px-1 py-1 shadow-rest focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
         onClick={() => setRosterOpen((open) => !open)}
       >
         {isCollapsed ? (

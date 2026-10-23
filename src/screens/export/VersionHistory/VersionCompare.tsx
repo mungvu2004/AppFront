@@ -231,7 +231,7 @@ export function VersionCompare({ model, actions }: VersionCompareProps) {
       <div className="flex h-full flex-col gap-3 xl:flex-row" onKeyDown={onEscape}>
         <div ref={planColumnRef} className="flex h-full min-h-[340px] min-w-0 shrink-0 flex-col gap-3 xl:flex-1">
           {/* Màn hẹp panel chỉ cao ~220 px: hình lên đầu để luôn nằm trong khung, nút chuyển 2D/3D xuống dưới. */}
-          <div className="order-last flex flex-col gap-3 xl:order-none">{header}</div>
+          <div className="order-last flex flex-col gap-3 xl:order-0">{header}</div>
           <VersionPlanDiff
             plan={model.plan}
             isPairPicked={model.leftVersionId !== null && model.rightVersionId !== null}
@@ -323,7 +323,7 @@ export function VersionCompare({ model, actions }: VersionCompareProps) {
               hidden={tabId !== model.activeTab}
               className={cn(
                 'min-h-0 flex-1 overflow-y-auto rounded-lg pt-4',
-                'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+                'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
               )}
             >
               {panelOf(tabId)}

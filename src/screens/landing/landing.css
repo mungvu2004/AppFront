@@ -45,7 +45,7 @@
 .landing-track { height: calc(var(--landing-total) * 100svh); }
 .landing-sticky { position: sticky; top: 0; height: 100svh; overflow: hidden; }
 .landing-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.landing-loading { position: absolute; right: var(--l-gutter); bottom: var(--l-gutter); margin: 0; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--l-ink-soft); }
+.landing-loading { position: absolute; right: var(--l-gutter); bottom: var(--l-gutter); margin: 0; font-size: 0.8125rem; color: var(--l-ink-soft); }
 .landing-copy, .landing-labels { position: absolute; inset: 0; pointer-events: none; }
 .landing-scene { position: absolute; left: var(--l-gutter); top: 50%; translate: 0 -50%; width: fit-content; max-width: var(--l-col); isolation: isolate; text-shadow: 0 0 3px var(--l-paper), 0 0 10px var(--l-paper); }
 .landing-scene::before { content: ''; position: absolute; inset: -44px -56px; z-index: -1; border-radius: 40px; background: color-mix(in srgb, var(--l-paper) 66%, transparent); backdrop-filter: blur(10px); mask-image: radial-gradient(ellipse farthest-corner at 50% 50%, #000 45%, transparent 100%); opacity: var(--l-panel, 0); }
@@ -69,8 +69,8 @@
 @media (max-width: 1100px) { .landing-wordmark span { display: none; } }
 @media (max-width: 480px) { .landing-header { gap: 0 14px; } .landing-navlink { font-size: 0.8125rem; } }
 
-/* Thanh sáu bước: cột hẹp sát mép phải, dưới phải; chỉ bước đang ở có tên (trên chip giấy riêng). */
-.landing-rail { position: absolute; right: 12px; bottom: 96px; z-index: 2; width: 96px; }
+/* Thanh sáu bước: cột hẹp dưới phải, thẳng mép chữ đầu trang (sát mép thì đè thanh cuộn); chỉ bước đang ở có tên (trên chip giấy riêng). */
+.landing-rail { position: absolute; right: var(--l-gutter); bottom: 96px; z-index: 2; width: 96px; }
 .landing-rail ol { list-style: none; margin: 0; padding: 0; }
 .landing-rail li { position: relative; }
 .landing-rail a { text-shadow: 0 0 3px var(--l-paper), 0 0 8px var(--l-paper); display: flex; flex-direction: row-reverse; gap: 8px; align-items: center; min-height: 28px; color: var(--l-ink-soft); text-decoration: none; font-variant-numeric: tabular-nums; }
@@ -110,22 +110,21 @@
   .landing-sticky[data-step='5'] .landing-rail { visibility: hidden; }
 }
 
-/* Chữ */
-.landing-eyebrow { display: flex; gap: 12px; align-items: center; margin: 0 0 1.25rem; font-size: 0.75rem; line-height: 1.6; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--l-ink) 82%, var(--l-paper)); }
-.landing-eyebrow::before { content: ''; width: 32px; height: 1px; background: color-mix(in srgb, var(--l-ink) 40%, transparent); }
+/* Chữ: nhãn viết kiểu câu (không viết hoa giãn chữ, không gạch đầu). */
+.landing-eyebrow { margin: 0 0 1.25rem; font-size: 0.875rem; line-height: 1.6; font-weight: 500; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--l-ink) 82%, var(--l-paper)); }
 .landing-title { margin: 0; font-size: clamp(2.5rem, 0.6rem + 3.4vw, 4.75rem); line-height: 1.04; font-weight: 300; letter-spacing: -0.022em; }
 .landing-line { display: block; }
 @media (min-width: 801px) { .landing-line { white-space: nowrap; } }
 .landing-title em { font-style: normal; color: var(--l-tone); }
 .landing-sub { margin: 1.5rem 0 0; max-width: 30ch; font-size: clamp(1.125rem, 0.95rem + 0.35vw, 1.375rem); line-height: 1.45; text-wrap: pretty; color: color-mix(in srgb, var(--l-ink) 82%, var(--l-paper)); }
-.landing-note, .landing-caption { margin: 2rem 0 0; font-size: 0.75rem; line-height: 1.4; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--l-ink-soft); }
+.landing-note, .landing-caption { margin: 2rem 0 0; font-size: 0.8125rem; line-height: 1.4; font-weight: 500; color: var(--l-ink-soft); }
 .landing-note { display: inline-block; padding: 2px 8px; border: 1px dashed color-mix(in srgb, var(--l-ink) 35%, transparent); }
 @media (max-width: 800px) { .landing-title { font-weight: 400; } }
 
 /* Thẻ kiểm tra */
 .landing-checks { width: min(22rem, 100%); margin-top: 2rem; padding: 20px 24px; background: color-mix(in srgb, var(--l-paper) 94%, transparent); border: 1px solid color-mix(in srgb, var(--l-ink) 14%, transparent); font-variant-numeric: tabular-nums; }
 .landing-checks p { margin: 0; }
-.landing-checks-head { font-size: 0.75rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--l-ink-soft); }
+.landing-checks-head { font-size: 0.8125rem; font-weight: 500; color: var(--l-ink-soft); }
 .landing-checks-sum { display: flex; gap: 20px; align-items: baseline; padding: 10px 0 14px; border-bottom: 1px solid color-mix(in srgb, var(--l-ink) 15%, transparent); font-size: 0.8125rem; }
 .landing-checks-sum b { font-size: 2rem; font-weight: 300; margin-right: 4px; color: var(--l-tone, var(--l-ink)); }
 .landing-checks ul { list-style: none; margin: 0; padding: 0; }
@@ -142,9 +141,9 @@
 .landing-exports span { font-size: 0.8125rem; line-height: 1.35; color: var(--l-ink-soft); }
 .landing-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.75rem; margin: 2rem 0 0; }
 .landing-cta, .landing-exports { text-shadow: none; }
-.landing-cta { display: inline-flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 28px; background: var(--l-ink); color: var(--l-paper); font-size: 1rem; font-weight: 500; letter-spacing: 0.005em; text-decoration: none; }
-.landing-cta:hover { background: color-mix(in srgb, var(--l-ink) 88%, var(--l-blue)); }
-.landing-cta:hover span { translate: 4px 0; }
+/* Nút chính dùng đúng token nút chính của app (globals.css: chữ --bg-surface trên --accent), để bấm vào không như sang sản phẩm khác. */
+.landing-cta { display: inline-flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 28px; background: var(--accent); color: var(--bg-surface); font-size: 1rem; font-weight: 500; letter-spacing: 0.005em; text-decoration: none; }
+.landing-cta:hover { background: var(--accent-hover); }
 .landing-link { background: none; border: 0; padding: 0; min-height: 48px; font: inherit; font-size: 0.9375rem; color: inherit; text-decoration: underline; text-underline-offset: 0.25em; cursor: pointer; }
 .landing-footer { position: absolute; left: var(--l-gutter); right: var(--l-gutter); bottom: 24px; }
 .landing-footer-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 32px; padding-top: 16px; border-top: 1px solid color-mix(in srgb, var(--l-ink) 12%, transparent); font-size: 0.75rem; color: var(--l-ink-soft); }

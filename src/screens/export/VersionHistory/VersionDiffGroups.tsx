@@ -89,7 +89,7 @@ function DiffRowItem({ row, onHover, onPick, pinnedEntityId = null }: DiffRowIte
       aria-current={isPinned ? 'true' : undefined}
       className={cn(
         'relative overflow-hidden rounded-md px-3 py-2',
-        'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+        'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         onPick !== undefined && 'cursor-pointer',
         isPinned && 'ring-2 ring-accent',
       )}

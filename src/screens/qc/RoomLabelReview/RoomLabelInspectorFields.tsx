@@ -170,7 +170,7 @@ export function RoomLabelNoticeList({ notices }: RoomLabelNoticeListProps) {
             <p className="text-[13px] text-text-primary">{notice.message}</p>
             <p className="text-[13px] text-text-secondary">{notice.suggestion}</p>
             <a
-              className="inline-flex min-h-6 w-fit items-center rounded text-[13px] text-accent underline outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              className="inline-flex min-h-6 w-fit items-center rounded-sm text-[13px] text-accent underline outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               href={notice.ruleRouteHref}
             >
               {NOTICE_LINK_LABEL}

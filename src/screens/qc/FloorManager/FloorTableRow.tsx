@@ -220,7 +220,7 @@ export function FloorTableRow({
       aria-label={`${row.name}, cao độ ${row.elevationText}, cao ${row.heightText}, ${row.hasDrawing ? `điểm chất lượng ${row.qcProgressText}` : NEEDS_DRAWING_ROW_SUFFIX}`}
       aria-selected={row.isSelected}
       className={cn(
-        'h-10 border-b border-border-default-50 outline-none transition-colors duration-120',
+        'h-10 border-b border-border-default-50 outline-hidden transition-colors duration-120',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         row.isSelected ? 'bg-bg-selected' : row.isHovered ? 'bg-bg-hover' : undefined,
         row.isHiddenIn3d && 'opacity-50',
@@ -346,7 +346,7 @@ export function FloorTableRow({
               {/* Chip đã nói "Chưa có bản vẽ": không lặp chữ ấy lần nữa ngay cạnh nó (BUG-250). */}
               <Badge variant="attention">{NEEDS_DRAWING_LABEL}</Badge>
               <button
-                className="inline-flex min-h-11 items-center rounded-md px-1.5 text-[12px] text-accent underline-offset-2 sm:min-h-6 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="inline-flex min-h-11 items-center rounded-md px-1.5 text-[12px] text-accent underline-offset-2 sm:min-h-6 hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 onClick={(event) => {
                   event.stopPropagation();
                   onUploadDrawing(row.id);

@@ -52,7 +52,7 @@ export function DimensionRowBox({ row, onHover, onSelect }: DimensionRowBoxProps
     <button
       aria-label={`${ROW_ARIA_LABEL_PREFIX}${row.valueLabel}`}
       className={cn(
-        'absolute flex items-center justify-center rounded border-2 bg-transparent p-0',
+        'absolute flex items-center justify-center rounded-sm border-2 bg-transparent p-0',
         row.isLowConfidence ? 'border-state-attention' : 'border-accent',
       )}
       onBlur={() => onHover(null)}

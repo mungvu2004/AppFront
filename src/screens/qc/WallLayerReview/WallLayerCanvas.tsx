@@ -36,6 +36,7 @@ import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { cn } from '@/lib/utils';
 
+import { backgroundFrameRect } from '../shared/canvasFit';
 import { WallLayerLegend } from './WallLayerLegend';
 import { WallHatchDefs, WallShapeFigure } from './WallLayerShapeFigure';
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
@@ -332,6 +333,19 @@ export function WallLayerCanvas({
     return contentBoundsPx;
   }, [contentBoundsPx, drawingSizePx]);
 
+  /* J-10: ảnh nền đặt theo độ phân giải THẬT của ảnh (lưới pixel của tường), đo khi ảnh tải xong. */
+  const [loadedImage, setLoadedImage] = useState<{
+    readonly url: string | null;
+    readonly width: number;
+    readonly height: number;
+  } | null>(null);
+  const imageNaturalPx =
+    loadedImage !== null && loadedImage.url === backgroundImageUrl ? loadedImage : null;
+  const backgroundRectPx =
+    surface === null || surfaceRectPx === null
+      ? surfaceRectPx
+      : backgroundFrameRect(surface, surfaceRectPx, imageNaturalPx);
+
   const viewBox =
     surface === null ? undefined : `${surface.x} ${surface.y} ${surface.width} ${surface.height}`;
   const frameViewBox =
@@ -395,15 +409,24 @@ export function WallLayerCanvas({
               ) : (
                 <img
                   alt={backgroundImageAlt}
-                  className="pointer-events-none absolute block select-none"
+                  // J-10: preflight `img { max-width: 100% }` bóp ảnh về bề rộng khung khi phóng to → nền lệch tường.
+                  className="pointer-events-none absolute block max-w-none select-none"
                   draggable={false}
+                  onLoad={(event) => {
+                    const { naturalHeight, naturalWidth } = event.currentTarget;
+                    setLoadedImage({
+                      url: backgroundImageUrl,
+                      width: naturalWidth,
+                      height: naturalHeight,
+                    });
+                  }}
                   src={backgroundImageUrl}
                   style={{
-                    height: surfaceRectPx.height,
-                    left: surfaceRectPx.x,
+                    height: (backgroundRectPx ?? surfaceRectPx).height,
+                    left: (backgroundRectPx ?? surfaceRectPx).x,
                     opacity: BACKGROUND_IMAGE_OPACITY,
-                    top: surfaceRectPx.y,
-                    width: surfaceRectPx.width,
+                    top: (backgroundRectPx ?? surfaceRectPx).y,
+                    width: (backgroundRectPx ?? surfaceRectPx).width,
                   }}
                 />
               )}

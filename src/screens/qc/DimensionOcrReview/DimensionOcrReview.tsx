@@ -40,7 +40,7 @@
  * Hai nửa xếp dọc (`flex-col lg:flex-row`), cả khung cuộn dọc và bảng duyệt cao theo nội dung — không cắt nút ở đáy thẻ (ảnh 768); và ảnh cắt của mỗi hàng thu về ô
  * vuông `displayHeightPx` — 96 theo `DIMENSION_CROP_DISPLAY_HEIGHT_PX` của
  * `dimensionOcrTypes.ts`. Việc thu ấy do `DimensionOcrCrop` làm bằng cặp lớp
- * `w-[var(--dim-crop-h)] xl:w-[var(--dim-crop-w)]`; ở đây chỉ có điểm ngắt của
+ * `w-(--dim-crop-h) xl:w-(--dim-crop-w)`; ở đây chỉ có điểm ngắt của
  * khung, và không một con số nào viết thô ngoài bề rộng khung (R-71).
  */
 

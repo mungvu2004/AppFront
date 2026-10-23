@@ -104,7 +104,7 @@ function MetricRow({ metric, onHoverRegion }: MetricRowProps) {
     <li>
       <div
         className={clsx(
-          'flex items-center gap-3 rounded-lg border border-transparent px-2 py-1.5 outline-none transition-colors duration-fast',
+          'flex items-center gap-3 rounded-lg border border-transparent px-2 py-1.5 outline-hidden transition-colors duration-fast',
           isLinked && clsx('hover:border-accent focus-within:border-accent', FOCUS_RING_CLASSES),
         )}
         {...(isLinked
@@ -171,7 +171,7 @@ function FindingListItem({
       ) : (
         <div
           className={clsx(
-            'flex flex-col gap-3 rounded-xl border border-transparent bg-bg-surface p-4 outline-none',
+            'flex flex-col gap-3 rounded-xl border border-transparent bg-bg-surface p-4 outline-hidden',
             'transition-colors duration-fast hover:border-accent focus-within:border-accent',
             FOCUS_RING_CLASSES,
           )}

@@ -40,7 +40,7 @@ function AutoOpenPalette({ query = '' }: { query?: string }) {
   return (
     <div className="h-screen w-screen bg-bg-app flex items-center justify-center">
       <p className="text-[13px] text-text-muted select-none">
-        Nhấn <kbd className="px-1.5 py-0.5 rounded bg-bg-hover text-text-secondary font-mono text-[11px]">⌘K</kbd> để mở lại
+        Nhấn <kbd className="px-1.5 py-0.5 rounded-sm bg-bg-hover text-text-secondary font-mono text-[11px]">⌘K</kbd> để mở lại
       </p>
       <CommandPalette />
     </div>
@@ -53,7 +53,7 @@ function ClosedPalette() {
   return (
     <div className="h-screen w-screen bg-bg-app flex items-center justify-center">
       <p className="text-[13px] text-text-muted select-none">
-        Nhấn <kbd className="px-1.5 py-0.5 rounded bg-bg-hover text-text-secondary font-mono text-[11px]">⌘K</kbd> để mở bảng lệnh
+        Nhấn <kbd className="px-1.5 py-0.5 rounded-sm bg-bg-hover text-text-secondary font-mono text-[11px]">⌘K</kbd> để mở bảng lệnh
       </p>
       <CommandPalette />
     </div>

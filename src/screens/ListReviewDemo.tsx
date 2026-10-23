@@ -98,7 +98,7 @@ export function ListReviewDemo() {
         </div>
 
         {/* Main Table Area */}
-        <div className="flex-1 flex flex-col relative overflow-hidden focus:outline-none" tabIndex={0} onKeyDown={review.handleKeyDown}>
+        <div className="flex-1 flex flex-col relative overflow-hidden focus:outline-hidden" tabIndex={0} onKeyDown={review.handleKeyDown}>
           
           {demoState === 'error' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-bg-surface z-20">
@@ -138,7 +138,7 @@ export function ListReviewDemo() {
                     type="checkbox" 
                     checked={review.selectedIds.size === review.data.length && review.data.length > 0}
                     onChange={review.handleSelectAll}
-                    className="rounded border-border-default text-accent focus:ring-accent"
+                    className="rounded-sm border-border-default text-accent focus:ring-accent"
                   />
                 </TableHead>
                 <TableHead sortable sortDirection={review.sortConfig.key === 'code' ? review.sortConfig.direction : null} onSort={() => review.handleSort('code')}>
@@ -197,7 +197,7 @@ export function ListReviewDemo() {
                         type="checkbox" 
                         checked={isSelected}
                         onChange={(e) => review.handleSelect(item.id, (e.nativeEvent as PointerEvent).shiftKey)}
-                        className="rounded border-border-default text-accent focus:ring-accent relative z-10"
+                        className="rounded-sm border-border-default text-accent focus:ring-accent relative z-10"
                       />
                     </TableCell>
                     <TableCell className="font-medium">{item.code}</TableCell>

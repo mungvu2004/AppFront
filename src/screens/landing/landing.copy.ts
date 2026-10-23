@@ -46,12 +46,12 @@ export const SCENE_STEP: Readonly<Record<string, { step: number; part?: string }
 const pad = (n: number): string => String(n).padStart(2, '0');
 export const stepNumber = (i: number): string => pad(i + 1);
 
-/** "Bước 02 / 06 — Nhận diện" (CSS viết hoa). */
+/** "Bước 2 / 6: Nhận diện", "Bước 4 / 6: Dựng 3D, ba tầng" (kiểu câu, như "Bước 2 / 3" của hộp tạo dự án). */
 export function eyebrow(sceneId: string): string {
   const at = SCENE_STEP[sceneId];
   if (at === undefined) return '';
-  const head = `Bước ${pad(at.step + 1)} / ${pad(STEPS.length)} — ${STEPS[at.step]?.name ?? ''}`;
-  return at.part === undefined ? head : `${head} · ${at.part}`;
+  const head = `Bước ${String(at.step + 1)} / ${String(STEPS.length)}: ${STEPS[at.step]?.name ?? ''}`;
+  return at.part === undefined ? head : `${head}, ${at.part.toLowerCase()}`;
 }
 
 /** Một cảnh có chữ. `accent` là một từ trong tiêu đề tô bằng sắc mang nghĩa của cảnh. */
@@ -90,11 +90,11 @@ export const FINAL = { title: 'Bản vẽ của bạn.', sub: 'Bắt đầu mộ
 export const FOOTER_NOTE = 'Dữ liệu trên trang là minh hoạ.';
 export const CTA_HINT = 'Đăng nhập để tạo dự án';
 export const SKIP_LABEL = 'Tới phần bắt đầu';
-export const PLAN_TAG = 'Mặt bằng tầng 1 · Dữ liệu minh hoạ';
-export const FLOORS_HEAD = 'Mặt bằng từng tầng · Dữ liệu minh hoạ';
+export const PLAN_TAG = 'Mặt bằng tầng 1 (dữ liệu minh hoạ)';
+export const FLOORS_HEAD = 'Mặt bằng từng tầng (dữ liệu minh hoạ)';
 /** 'T2' → 'Tầng 2'. */
 export const levelName = (id: string): string => `Tầng ${id.replace(/^T/, '')}`;
-export const CHECKS_HEAD = 'Kiểm tra yêu cầu · Dữ liệu minh hoạ';
+export const CHECKS_HEAD = 'Kiểm tra yêu cầu (dữ liệu minh hoạ)';
 
 /** Đúng bốn định dạng màn Xuất có (ExportPanel/types.ts), mỗi cái kèm thứ người dùng nhận được. */
 export const EXPORTS: readonly { id: ExportFormatId; format: string; label: string }[] = [

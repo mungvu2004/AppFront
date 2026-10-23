@@ -29,7 +29,7 @@ const TEXT = {
 const HEADERS = ['Số thứ tự', 'Trạng thái', 'Nguồn', 'Huấn luyện / kiểm định / kiểm tra', 'Ngày tạo', 'Ghi chú'] as const;
 const PANEL = 'rounded-xl border border-border-default bg-bg-surface p-5';
 const FOCUS_RING =
-  'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 function VersionsTable({ model }: Pick<TrainingJobsProps, 'model'>) {
   const tab = model.datasets;

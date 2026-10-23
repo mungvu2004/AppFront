@@ -70,7 +70,7 @@ export const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>((
       onKeyDown={handleRowKeyDown}
       className={cn(
         'group flex items-center w-full h-8 px-2 rounded-lg text-sm text-text-primary',
-        'hover:bg-bg-hover outline-none',
+        'hover:bg-bg-hover outline-hidden',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         selected && 'bg-bg-selected',
         className
@@ -88,7 +88,7 @@ export const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>((
           onToggleExpand?.();
         }}
         className={twMerge(
-          'flex items-center justify-center w-5 h-5 mr-1 rounded',
+          'flex items-center justify-center w-5 h-5 mr-1 rounded-sm',
           'hover:bg-accent-wash text-text-secondary shrink-0',
           !hasChildren && 'pointer-events-none opacity-0'
         )}
@@ -112,7 +112,7 @@ export const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>((
       {/* Legacy colorChip (only shown when no typeIcon) */}
       {!typeIcon && colorChip && (
         <div
-          className="w-3 h-3 rounded-sm mr-2 shrink-0 border border-border-default-50"
+          className="w-3 h-3 rounded-xs mr-2 shrink-0 border border-border-default-50"
           style={{ backgroundColor: colorChip }}
           aria-hidden="true"
         />
@@ -139,7 +139,7 @@ export const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>((
           onToggleVisible?.();
         }}
         className={clsx(
-          'ml-2 flex items-center justify-center w-6 h-6 rounded',
+          'ml-2 flex items-center justify-center w-6 h-6 rounded-sm',
           'hover:bg-accent-wash text-text-secondary transition-opacity duration-120 shrink-0',
           visible
             ? 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'
