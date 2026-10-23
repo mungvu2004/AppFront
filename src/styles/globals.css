@@ -7,19 +7,6 @@
    nguồn duy nhất, không chép sang `@theme`. `source(none)`: chỉ quét đúng `content` của
    cấu hình (bỏ test, stories, màn demo ở bản dựng), không tự quét cả repo. */
 
-/* Chiều cao dòng của thang cỡ chữ như v3 (rem cố định). Thang mặc định của v4 là tỉ lệ
-   không đơn vị, nên con `text-[12px]` trong cha `text-sm` thừa hưởng 1,43 × 12 = 17 px thay
-   vì 20 px: hàng bảng, nhãn và nút thấp đi vài px (đo ở màn Quản lý tầng). */
-@theme {
-  --text-xs--line-height: 1rem;
-  --text-sm--line-height: 1.25rem;
-  --text-base--line-height: 1.5rem;
-  --text-lg--line-height: 1.75rem;
-  --text-xl--line-height: 1.75rem;
-  --text-2xl--line-height: 2rem;
-  --text-3xl--line-height: 2.25rem;
-}
-
 /* Ba mặc định v3 mà preflight v4 bỏ, giữ lại để giao diện không đổi: chữ gợi ý xám
    (#9ca3af, v4 lấy màu chữ 50 %), con trỏ bàn tay trên nút, và đệm 1 px của ô bảng
    (preflight v4 xoá `padding` của mọi phần tử; v3 để nguyên mặc định của trình duyệt). */
