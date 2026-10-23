@@ -15,6 +15,7 @@ import { Buffer } from 'node:buffer';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 import { Format, NodeIO, getBounds } from '@gltf-transform/core';
 import { ALL_EXTENSIONS, KHRDracoMeshCompression } from '@gltf-transform/extensions';
@@ -59,8 +60,8 @@ export const PLANTS = {
 };
 
 const SOIL_TRIS = 400;
-const isLeaf = (mat) => /leaves$/.test(mat?.getName() ?? '');
-const triCount = (p) => p.getIndices().getCount() / 3;
+export const isLeaf = (mat) => /leaves$/.test(mat?.getName() ?? '');
+export const triCount = (p) => p.getIndices().getCount() / 3;
 const trisOf = (doc) =>
   doc
     .getRoot()
@@ -76,7 +77,7 @@ const rng = (seed) => () => {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
-const simplifyPrim = (p, ratio, error) => {
+export const simplifyPrim = (p, ratio, error) => {
   const idx = Uint32Array.from(p.getIndices().getArray());
   const pos = Float32Array.from(p.getAttribute('POSITION').getArray());
   const target = Math.max(3, Math.floor((idx.length * ratio) / 3) * 3);
@@ -96,7 +97,7 @@ const islandsOf = (idx, n) => {
   return Array.from({ length: idx.length / 3 }, (_, t) => find(idx[t * 3]));
 };
 
-const dropLeaves = (prims, budget, seed) => {
+export const dropLeaves = (prims, budget, seed) => {
   // Shuffle every leaf island (seeded), keep them in that order until the budget is spent:
   // a uniform random subset over the whole crown, never a partial leaf.
   const rand = rng(seed);
@@ -127,7 +128,7 @@ const dropLeaves = (prims, budget, seed) => {
 };
 
 /** Leaf diffuse + real alpha map -> RGBA PNG (webp-compressed later). */
-const withAlpha = async (doc, dir, id) => {
+export const withAlpha = async (doc, dir, id) => {
   const mat = doc.getRoot().listMaterials().find(isLeaf);
   const alphaFile = join(dir, 'textures', `${id}_leaves_alpha_1k.png`);
   const tex = mat.getBaseColorTexture();
@@ -150,7 +151,7 @@ const withAlpha = async (doc, dir, id) => {
 };
 
 /** Same GLB layout as gen-decor-models.mjs glbWithExternalImages (not exported there). */
-const glbWithExternalImages = async (io, doc, dir) => {
+export const glbWithExternalImages = async (io, doc, dir) => {
   for (const t of doc.getRoot().listTextures()) t.setURI(`${t.getName()}.webp`);
   const { json, resources } = await io.writeJSON(doc, { format: Format.GLTF, basename: 'model' });
   if (json.buffers?.length !== 1) throw new Error(`expected 1 buffer, got ${json.buffers?.length}`);
@@ -173,7 +174,7 @@ const glbWithExternalImages = async (io, doc, dir) => {
   return Buffer.concat([head, ...chunk(jsonChunk, 0x4e4f534a), ...chunk(binChunk, 0x004e4942)]);
 };
 
-const dropNodes = (doc, keep) => {
+export const dropNodes = (doc, keep) => {
   for (const n of doc.getRoot().listNodes())
     if (n.getMesh() && !keep.test(n.getName())) n.dispose();
 };
@@ -309,4 +310,4 @@ const main = async (dl) => {
   }
 };
 
-await main(process.argv[2]);
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) await main(process.argv[2]);

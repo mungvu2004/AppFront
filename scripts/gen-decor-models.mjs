@@ -279,11 +279,27 @@ export const POLYHAVEN = {
   },
   // review2: diffuse mean ~(42,29,21) reads almost black in the room -> linear lift to mid brown.
   dining_chair_02: { folder: 'dining-chair-ph', label: 'Chair', glb: 'dining-chair.glb', brighten: [2.2, 10] },
+  // review2 goi 2A: weak Pascal boxes -> Poly Haven CC0 (light oak / light frame), one material each unless noted.
+  side_table_01: { folder: 'bedside-table-ph', label: 'Side table' },
+  // depth runs along x in the source; bins open both sides, so either yaw faces +z.
+  wooden_display_shelves_01: { folder: 'bookshelf-ph', label: 'Shelves', rotateY: 90 },
+  // glass + metal + globe materials; light sits in the globe (interactive copied from the Pascal row).
+  modern_ceiling_lamp_01: { folder: 'ceiling-lamp-ph', label: 'Lamp' },
+  hanging_picture_frame_02: { folder: 'picture-ph', label: 'Picture' },
+};
+
+/** Wrap the scene roots in one node turned `deg` about +y (source front not on +z). */
+const yaw = (doc, deg) => {
+  const scene = doc.getRoot().listScenes()[0];
+  const a = (deg * Math.PI) / 360;
+  const pivot = doc.createNode('yaw').setRotation([0, Math.sin(a), 0, Math.cos(a)]);
+  for (const n of scene.listChildren()) pivot.addChild(n);
+  scene.addChild(pivot);
 };
 
 const convertPolyHaven = async (io, src, glbDir, only) => {
   await MeshoptSimplifier.ready;
-  for (const [id, { folder, label, simplify: ratio, file, glb, lighten, brighten }] of Object.entries(POLYHAVEN)) {
+  for (const [id, { folder, label, simplify: ratio, file, glb, lighten, brighten, rotateY }] of Object.entries(POLYHAVEN)) {
     if (only && !only.includes(id)) continue;
     const doc = await io.read(glb ? join(glbDir, glb) : join(src, file ?? join(id, `${id}_1k.gltf`)));
     for (const m of doc.getRoot().listMaterials()) {
@@ -299,6 +315,7 @@ const convertPolyHaven = async (io, src, glbDir, only) => {
       tex.setMimeType('image/jpeg');
     }
     doc.getRoot().getAsset().generator = 'AppFront gen-decor-models';
+    if (rotateY) yaw(doc, rotateY);
     await doc.transform(
       weld(),
       ...(ratio ? [simplify({ simplifier: MeshoptSimplifier, ratio, error: 0.002 })] : []),

@@ -409,6 +409,32 @@ export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
   'planter-ph': { folder: 'planter-ph', dimensions: [0.691, 0.769, 0.605], offset: [0, 0, 0], rotation: [0, 0, 0] },
   // review2 gói 1: thảm chữ nhật Pascal bỏ tua (scripts/realism-assets/carpet.mjs), giữ khe slot_a/slot_b.
   'rug-nf': { folder: 'rug-nf', dimensions: [2.5, 0.03, 1.8], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  // review2 gói 2A: Poly Haven CC0 thay hộp Pascal yếu (gỗ sồi sáng / khung sáng), màu cố định.
+  'bedside-table-ph': {
+    folder: 'bedside-table-ph',
+    dimensions: [0.55, 0.551, 0.45],
+    offset: [0, 0, 0],
+    rotation: [0, 0, 0],
+  },
+  'bookshelf-ph': { folder: 'bookshelf-ph', dimensions: [1.078, 1.556, 0.372], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  // Đèn thả trần: giữ attachTo + interactive (công tắc, độ sáng, nguồn sáng) của dòng Pascal — swap thay cả dòng.
+  'ceiling-lamp-ph': {
+    folder: 'ceiling-lamp-ph',
+    dimensions: [0.432, 0.952, 0.432],
+    offset: [0, 0, 0],
+    rotation: [0, 0, 0],
+    attachTo: 'ceiling',
+    interactive: VENDOR_MODELS['ceiling-lamp']?.interactive,
+  },
+  'picture-ph': {
+    folder: 'picture-ph',
+    dimensions: [0.752, 0.5, 0.033],
+    offset: [0, 0, 0],
+    rotation: [0, 0, 0],
+    attachTo: 'wall-side',
+  },
+  // Luống ban công (bush): bồn gỗ dài planter_box_02 + 5 cây lá alpha thật (potted_plant_02), tỉ lệ ≈ hộp bush.
+  'planter-long': { folder: 'planter-long', dimensions: [2.378, 0.873, 0.653], offset: [0, 0, 0], rotation: [0, 0, 0] },
 };
 
 /**
@@ -423,10 +449,15 @@ export const REALISM_MODEL_SWAP: Readonly<Record<string, string>> = {
   'dining-chair': 'dining-chair-ph',
   // P1: phủ `plant` + `bamboo` (cùng thư mục indoor-plant). Chậu theo phong cách (khe `pot`) không áp: màu cố định.
   'indoor-plant': 'plant-ph',
-  // Chậu nhỏ (cây khi hộp < 0,25 m², phong cách ưu tiên cây nhỏ). Không thay `bush`: `planter`/`shrub` ở F1 là
-  // luống dài sát lan can (bush kéo giãn theo trục), mẫu chậu tròn khớp đều sẽ teo thành chậu tí hon.
+  // Chậu nhỏ (cây khi hộp < 0,25 m², phong cách ưu tiên cây nhỏ).
   'small-indoor-plant': 'planter-ph',
   'rectangular-carpet': 'rug-nf',
+  // Gói 2A: `planter`/`shrub` ở F1 là luống dài sát lan can (bush kéo giãn theo trục) → bồn dài cùng tỉ lệ.
+  bush: 'planter-long',
+  'bedside-table': 'bedside-table-ph',
+  bookshelf: 'bookshelf-ph',
+  'ceiling-lamp': 'ceiling-lamp-ph',
+  picture: 'picture-ph',
 };
 const realismModels = { on: false };
 export const setRealismModels = (on: boolean): void => {

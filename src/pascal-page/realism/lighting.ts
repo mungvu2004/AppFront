@@ -2,9 +2,14 @@
  * R4 (GĐ4) ánh sáng: HDRI tự host thay trời gradient cho chủ đề SÁNG (Ban ngày, Nắng chiều).
  * Phần thuần (quyết định tải, pha gradient) ở đây để vitest chạy; phần nạp ở `./lighting-hdri`.
  */
+import { DAY_THEME_ID } from '../renderLook';
 
 /** Chép từ `vendor/pascal/assets/hdri/venice_sunset_1k.hdr` bởi `scripts/copy-pascal-assets.mjs`. */
 export const HDRI_URL = '/pascal/hdri/venice-sunset-v1-1k.hdr';
+/** Gói 2B: trời trưa có mây cho Ban ngày (`assets/hdri/`, Poly Haven CC0). Nắng chiều giữ Venice. */
+export const DAY_HDRI_URL = '/pascal/hdri/kloofendal-puresky-v1-1k.hdr';
+/** HDRI theo chủ đề: Ban ngày (`DAY_THEME_ID`) → trời trưa, chủ đề sáng khác → Venice. */
+export const hdriUrlFor = (themeId: string): string => (themeId === DAY_THEME_ID ? DAY_HDRI_URL : HDRI_URL);
 /** Quá hạn này giữ môi trường cũ (trời gradient / RoomEnvironment), bỏ kết quả về muộn. */
 export const HDRI_TIMEOUT_MS = 10_000;
 
@@ -22,6 +27,14 @@ export const HDRI_GRADIENT_WEIGHT = 0.5;
  * gradient của master. F4 (Q1-01): hằng 0.4 cũ làm Ban ngày tối hơn master ~29 %.
  */
 export const HDRI_SCALE = 1;
+
+/**
+ * Gói 2B: trần chỉ đổ bóng nắng khi camera ở DƯỚI trần (góc trong nhà) — nhìn từ trên xuống trần
+ * vốn vô hình (BackSide), đổ bóng thì cả nhà tối. Chủ đề tối và mức Thấp giữ như cũ.
+ */
+export function ceilingCastsShadow(o: { appearance: string; tier: string; cameraY: number; ceilingY: number }): boolean {
+  return o.appearance !== 'dark' && o.tier !== 'low' && o.cameraY < o.ceilingY;
+}
 
 const luma = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 

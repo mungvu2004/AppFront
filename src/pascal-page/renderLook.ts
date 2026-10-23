@@ -94,16 +94,19 @@ export function applyRenderLook(theme: RenderLookTheme, ssgi: RenderLookSsgi, we
   Object.assign(ssgi, RENDER_LOOK_SSGI);
 }
 
-// Nắng chiều thấp hơn đèn đêm (~40°) để lọt qua cửa sổ vào sàn.
+// Nắng Ban ngày cao ~39° (atan(14 / √(14² + 10²))): lọt qua cửa sổ thành vệt trên sàn. Trần chặn
+// nắng khi camera trong nhà (gói 2B, `realism/daylight.ts`), nên chỉ còn vệt qua cửa sổ.
 const SUN_POSITION: [number, number, number] = [14, 14, 10];
 const SKY_FILL_POSITION: [number, number, number] = [-12, 14, -10];
 
 /**
  * Số của "Ban ngày". Nắng mạnh mà phơi sáng < 1 + môi trường 0.8 (`scripts/pascal-render.mjs`)
- * nên tường trắng không cháy; ánh sáng nền < ⅓ nắng để còn bóng đổ và hướng sáng.
+ * nên tường trắng không cháy. Gói 2B (`high` = WebGPU): nắng 2.6 → 3.2, nền (ambient + hemi + đèn
+ * phụ) 0.85 → 0.5 — đèn nền/đèn phụ không có bóng, xuyên trần + tường, nên phải thấp để vệt nắng
+ * và bóng đổ trong nhà đọc ra; phần sáng dội trong nhà để IBL HDRI + SSGI lo. `low` (WebGL2) giữ cũ.
  */
 export const DAY_LOOK_TIERS = {
-  high: { ambient: 0.2, hemi: 0.35, key: 2.6, fill: 0.3, exposure: 0.85 },
+  high: { ambient: 0.1, hemi: 0.25, key: 3.2, fill: 0.15, exposure: 0.85 },
   low: { ambient: 0.3, hemi: 0.45, key: 2.6, fill: 0.35, exposure: 0.9 },
 } as const;
 

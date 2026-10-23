@@ -29,11 +29,11 @@ export const RULES = {
   'viewer/src/systems/item-light/item-light-system.tsx': [
     ["\nimport useViewer from '../../store/use-viewer'\n", "\nimport useViewer from '../../store/use-viewer'\n" + ITEM_LIGHT_IMPORT],
     ['light.distance = reg.distance\n', 'light.distance = itemLightDistance(reg.distance)\n', 2],
-    ['? reg.getIntensity() : 0', '? itemLightIntensity(reg.getIntensity()) : 0'],
+    ['? reg.getIntensity() : 0', '? itemLightIntensity(reg.getIntensity(), useViewer.getState().sceneTheme) : 0'],
   ],
   'viewer/src/components/viewer/glb-interactive.tsx': [
     ["\nimport useViewer from '../../store/use-viewer'\n", "\nimport useViewer from '../../store/use-viewer'\n" + ITEM_LIGHT_IMPORT],
     ['light.distance = reg.distance\n', 'light.distance = itemLightDistance(reg.distance)\n', 2],
-    ['? reg.getIntensity() : 0', '? itemLightIntensity(reg.getIntensity()) : 0'],
+    ['? reg.getIntensity() : 0', '? itemLightIntensity(reg.getIntensity(), useViewer.getState().sceneTheme) : 0'],
   ],
 };

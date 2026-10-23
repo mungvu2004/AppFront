@@ -6,11 +6,11 @@
 import { EquirectangularReflectionMapping, FloatType, type Scene, type Texture } from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 
-import { HDRI_SCALE, HDRI_TIMEOUT_MS, HDRI_URL, HDRI_VARIANT, type HdriVariant, hdriAutoScale, mixGradient, shouldLoadHdri } from './lighting';
+import { HDRI_SCALE, HDRI_TIMEOUT_MS, HDRI_VARIANT, type HdriVariant, hdriAutoScale, hdriUrlFor, mixGradient, shouldLoadHdri } from './lighting';
 import { useRealism } from './store';
 
-/** Trả hàm dọn (gỡ HDRI, trả môi trường cũ). */
-export function installHdri(scene: Scene, appearance: string): () => void {
+/** Trả hàm dọn (gỡ HDRI, trả môi trường cũ). `themeId` chọn HDRI (Ban ngày khác Nắng chiều, gói 2B). */
+export function installHdri(scene: Scene, appearance: string, themeId = ''): () => void {
   const { backend, flags } = useRealism.getState();
   // `?hdri=pure|gradient|off` để chấm mù hai biến thể (không có = HDRI_VARIANT).
   const asked = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('hdri');
@@ -28,7 +28,7 @@ export function installHdri(scene: Scene, appearance: string): () => void {
   idle(() => {
     if (done) return;
     new HDRLoader().setDataType(FloatType).load(
-      HDRI_URL,
+      hdriUrlFor(themeId),
       (texture) => {
         if (done) return texture.dispose();
         clearTimeout(timer);
