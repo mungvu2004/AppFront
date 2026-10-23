@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { MeshStandardMaterial } from 'three';
+import { describe, expect, it, vi } from 'vitest';
+import { MeshStandardMaterial, Texture } from 'three';
 import { folderOf, itemKindOf, tunedRoughness } from './itemLook';
 import { clearItemMaterialCache, tuneItemMaterial } from './itemMaterials';
 import { useRealism } from './store';
@@ -38,6 +38,21 @@ describe('tuneItemMaterial', () => {
     expect(a.color.getHexString()).toBe('8f7a64');
     expect(base.roughness).toBe(0.9);
     expect(tuneItemMaterial(base, ctx)).toBe(a);
+  });
+  it('gốc nạp ảnh sau khi clone → clone theo kịp (đồ gỗ không ra trắng)', () => {
+    vi.useFakeTimers();
+    clearItemMaterialCache();
+    const base = new MeshStandardMaterial({ roughness: 0.5 });
+    const a = tuneItemMaterial(base, { ...ctx, src: '/items/dining-table/model.glb', ref: 'library:wood-finewood27' }) as MeshStandardMaterial;
+    expect(a).not.toBe(base);
+    expect(a.map).toBeNull();
+    const tex = new Texture();
+    base.map = tex;
+    base.normalMap = tex;
+    vi.advanceTimersByTime(300);
+    expect(a.map).toBe(tex);
+    expect(a.normalMap).toBe(tex);
+    vi.useRealTimers();
   });
   it('cờ tắt / textures=false / kính → y cũ', () => {
     const base = new MeshStandardMaterial({ roughness: 0.9 });
