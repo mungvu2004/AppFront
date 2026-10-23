@@ -39,6 +39,7 @@ import { useContextMenu } from '@/hooks/useContextMenu';
 import { CELL, FloorTableRow } from './FloorTableRow';
 import {
   FLOOR_COLUMN_LABELS,
+  FLOOR_QC_SCORE_HINT,
   FLOOR_REVIEW_SCREENS,
   type FloorManagerScreenState,
   type FloorManagerViewProps,
@@ -274,7 +275,7 @@ export function FloorTable({
           <Table.Header className={isStacked ? 'hidden' : undefined}>
             <tr>
               {headers.map((header) => (
-                <Table.Head className={CELL} key={header.key}>
+                <Table.Head className={CELL} key={header.key} title={header.key === 'qc' ? FLOOR_QC_SCORE_HINT : undefined}>
                   {header.key === 'handle' || header.key === 'actions' ? (
                     <span className="sr-only">{header.label}</span>
                   ) : (
