@@ -259,16 +259,31 @@ export const POLYHAVEN = {
   fancy_picture_frame_01: { folder: 'fancy-picture-frame', label: 'Frame' },
   Ottoman_01: { folder: 'ottoman', label: 'Ottoman' },
   // editor-realism B1: one material (wood + fabric in one atlas) -> NOT named slot_*, colour fixed per model.
-  sofa_02: { folder: 'sofa-ph', label: 'Sofa', file: 'sofa_02/sofa_02_2k.gltf' },
-  Armchair_01: { folder: 'armchair-ph', label: 'Armchair', glb: 'armchair.glb' },
+  // B1b: modern light style. No light-fabric sofa on disk (sofa_03 is brown vintage) -> sofa_02 shape, atlas lightened to light grey.
+  sofa_02: { folder: 'sofa-ph', label: 'Sofa', file: 'sofa_02/sofa_02_2k.gltf', lighten: ['sofa_02'] },
+  // light oak legs + black cushion -> cushion lightened to light grey; 8.9k tris -> simplify.
+  modern_arm_chair_01: {
+    folder: 'armchair-ph',
+    label: 'Armchair',
+    file: 'modern_arm_chair_01/modern_arm_chair_01_2k.gltf',
+    simplify: 0.3,
+    lighten: ['modern_arm_chair_01_pillow'],
+  },
   dining_chair_02: { folder: 'dining-chair-ph', label: 'Chair', glb: 'dining-chair.glb' },
 };
 
 const convertPolyHaven = async (io, src, glbDir, only) => {
   await MeshoptSimplifier.ready;
-  for (const [id, { folder, label, simplify: ratio, file, glb }] of Object.entries(POLYHAVEN)) {
+  for (const [id, { folder, label, simplify: ratio, file, glb, lighten }] of Object.entries(POLYHAVEN)) {
     if (only && !only.includes(id)) continue;
     const doc = await io.read(glb ? join(glbDir, glb) : join(src, file ?? join(id, `${id}_1k.gltf`)));
+    for (const m of doc.getRoot().listMaterials()) {
+      const tex = lighten?.includes(m.getName()) && m.getBaseColorTexture();
+      if (!tex) continue;
+      // grey -> lift into a light neutral grey; keeps the weave/seams of the original diffuse (greyscale runs last in sharp, so no tint).
+      tex.setImage(await sharp(tex.getImage()).greyscale().linear(0.35, 165).jpeg().toBuffer());
+      tex.setMimeType('image/jpeg');
+    }
     doc.getRoot().getAsset().generator = 'AppFront gen-decor-models';
     await doc.transform(
       weld(),

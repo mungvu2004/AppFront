@@ -396,7 +396,7 @@ export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
   ottoman: { folder: 'ottoman', dimensions: [0.884, 0.624, 0.622], offset: [0, 0, 0], rotation: [0, 0, 0] },
   // editor-realism B1: Poly Haven CC0 (sofa_02, Armchair_01, dining_chair_02), một vật liệu, màu cố định.
   'sofa-ph': { folder: 'sofa-ph', dimensions: [1.807, 0.709, 0.818], offset: [0, 0, 0], rotation: [0, 0, 0] },
-  'armchair-ph': { folder: 'armchair-ph', dimensions: [0.848, 1.065, 0.766], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  'armchair-ph': { folder: 'armchair-ph', dimensions: [0.82, 1.023, 0.987], offset: [0, 0, 0], rotation: [0, 0, 0] },
   'dining-chair-ph': {
     folder: 'dining-chair-ph',
     dimensions: [0.431, 0.971, 0.576],
