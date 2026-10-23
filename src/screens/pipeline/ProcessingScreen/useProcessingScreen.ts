@@ -181,9 +181,9 @@ const UNIT = {
 /** Ví dụ `"còn khoảng 2 phút"`. */
 const remainingSentence = (duration: string): string => `Còn khoảng ${duration}`;
 
-/** Ví dụ `"Đã xong 2/4 tầng"`. */
+/** Ví dụ `"Đã xử lý xong 2/4 tầng"` — đếm trên các tầng đã có bản vẽ (aesthetic 2.5 #4: bỏ "đã" thứ hai). */
 const doneFloorsSentence = (done: string, total: string): string =>
-  `Đã xong ${done}/${total} ${UNIT.floor} đã có bản vẽ`;
+  `Đã xử lý xong ${done}/${total} ${UNIT.floor}`;
 
 /** Ví dụ `"Còn lại khoảng 4 phút 20 giây"` — ngoài vùng `role=status`: đổi mỗi giây (R1-03). */
 const overallRemainingSentence = (duration: string): string => `Còn lại khoảng ${duration}`;

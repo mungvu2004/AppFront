@@ -108,7 +108,7 @@ export const ComboboxSearch = forwardRef<HTMLInputElement, Omit<React.InputHTMLA
               'focus:ring-2 focus:ring-accent',
               className
             )}
-            placeholder="Tìm kiếm..."
+            placeholder="Tìm kiếm…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}

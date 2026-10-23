@@ -24,7 +24,7 @@ import { FILTER_ALL } from './types';
 import type { RoleFilter, StatusFilter, UserManagementToolbarProps } from './types';
 
 const SEARCH_LABEL = 'Tìm người dùng';
-const SEARCH_PLACEHOLDER = 'Tìm theo tên hoặc email...';
+const SEARCH_PLACEHOLDER = 'Tìm theo tên hoặc email…';
 const ROLE_FILTER_LABEL = 'Vai';
 const STATUS_FILTER_LABEL = 'Trạng thái';
 const ALL_OPTION_LABEL = 'Tất cả';

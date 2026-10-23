@@ -109,7 +109,7 @@ const writesSince = (s: Session, mark: number): string[] =>
     .filter((e) => e.method !== 'GET' && e.path !== '/api/auth/refresh' && !e.path.startsWith('/api/telemetry'))
     .map((e) => `${e.method} ${e.path} ${String(e.status)}`);
 
-/** Opens /pipeline and waits for "Đã xong {n}/{n} tầng" (fails fast with the failure screen's copy button). */
+/** Opens /pipeline and waits for "Đã xử lý xong {n}/{n} tầng" (fails fast with the failure screen's copy button). */
 async function openDone(page: Page, projectId: string, floors = 1, url = ROUTES.project.pipeline(projectId)): Promise<void> {
   await page.goto(url);
   await expect(page.getByText(doneLine(floors, floors))).toBeVisible({ timeout: 45_000 });
@@ -250,7 +250,7 @@ test.describe('SCR-12 processing — real flows', () => {
       await expect(page.getByTestId(DROPZONE)).toBeVisible({ timeout: 45_000 });
       await uploadThroughTray(page, project.projectId, floor);
 
-      await test.step('[12-A-002] "Bắt đầu xử lý" → /pipeline with no request; list from N7; run reaches "Đã xong 1/1 tầng"', async () => {
+      await test.step('[12-A-002] "Bắt đầu xử lý" → /pipeline with no request; list from N7; run reaches "Đã xử lý xong 1/1 tầng"', async () => {
         const mark = s.log.length;
         await button(page, SUBMIT).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(project.projectId)); // UFU navigate only
@@ -265,7 +265,7 @@ test.describe('SCR-12 processing — real flows', () => {
         const chip = list(page, PR.chips).getByRole('listitem');
         await expect.soft(chip).toHaveCount(1);
         await expect.soft(chip).toContainText('đã xong'); // UPR COPY.statusDone
-        await expect.soft(chip.locator('span.bg-state-verified')).toHaveCount(1); // processingStatusTokens STAGE_DOT_CLASS.done
+        await expect.soft(chip.locator('span.bg-text-secondary')).toHaveCount(1); // processingStatusTokens STAGE_DOT_CLASS.done (neutral, A5)
         // PSL StepIcon done = polyline "20 6 9 17 4 12".
         await expect.soft(list(page, PR.steps).locator('polyline[points="20 6 9 17 4 12"]')).toHaveCount(6);
         await captureEvidence(page, 'E03_12-B-029_done-tokens.png');
@@ -384,7 +384,7 @@ test.describe('SCR-12 processing — real flows', () => {
       const s = await session(f, browser);
       const { page } = s;
 
-      await test.step('[12-C-001] "Đã xong 6/6 tầng": done counts only done floors, total = N7 floors with an upload', async () => {
+      await test.step('[12-C-001] "Đã xử lý xong 6/6 tầng": done counts only done floors, total = N7 floors with an upload', async () => {
         await openDone(page, project.projectId, 6);
         await captureEvidence(page, 'E03_12-C-001_six-done.png');
       });
@@ -431,7 +431,7 @@ test.describe('SCR-12 processing — real flows', () => {
       const sse = /^\/api\/streams\/projects\/[^/]+\/uploads\/[^/]+\/progress$/u;
       let sseHold: Awaited<ReturnType<typeof holdFirst>> | undefined;
 
-      await test.step('[12-C-009] after "Đã xong 1/1 tầng", POST …/quality/straighten (#32) → six steps back to queued/0, old done record replaced', async () => {
+      await test.step('[12-C-009] after "Đã xử lý xong 1/1 tầng", POST …/quality/straighten (#32) → six steps back to queued/0, old done record replaced', async () => {
         // run-33-P8: an SPA "back" to /pipeline sent no #8 read for a final run within 10 min (the done copy stays), so the
         // screen is opened fresh: hold its first #8 read and the SSE, straighten, then let the #8 read through — it
         // answers the NEW run's first state (UPR floorQueries → applySnapshot; PRG toStageBreakdown pending → queued).
@@ -452,7 +452,7 @@ test.describe('SCR-12 processing — real flows', () => {
         await captureEvidence(page, 'E03_12-C-009_rerun-reset.png');
       });
 
-      await test.step('[12-A-030] the straightened re-run ends "Đã xong 1/1 tầng" again', async () => {
+      await test.step('[12-A-030] the straightened re-run ends "Đã xử lý xong 1/1 tầng" again', async () => {
         await sseHold?.release();
         await expect(page.getByText(doneLine(1, 1))).toBeVisible({ timeout: PIPELINE_TIMEOUT_MS });
         await captureEvidence(page, 'E03_12-A-030_rerun-done.png');
@@ -503,7 +503,7 @@ test.describe('SCR-12 processing — shared finished run', () => {
       const { page } = s;
       const streams = (from: number): string[] => s.sent.slice(from).filter((p) => p.startsWith('/api/streams/'));
 
-      await test.step('[12-A-025] /pipeline → "Đã xong 1/1 tầng"; reload → same done state from #8 and NO /api/streams/…/progress request', async () => {
+      await test.step('[12-A-025] /pipeline → "Đã xử lý xong 1/1 tầng"; reload → same done state from #8 and NO /api/streams/…/progress request', async () => {
         await openDone(page, s3.projectId);
         const mark = s.sent.length;
         await page.reload();
@@ -577,7 +577,7 @@ test.describe('SCR-12 processing — shared finished run', () => {
         await tab(page, PR.tabPreview).click();
       });
 
-      await test.step('[12-A-028] /pipeline?uploadId=<random uuid>#x → ignored; same N7 list and "Đã xong 1/1 tầng"', async () => {
+      await test.step('[12-A-028] /pipeline?uploadId=<random uuid>#x → ignored; same N7 list and "Đã xử lý xong 1/1 tầng"', async () => {
         const stray = randomUUID();
         const mark = s.sent.length;
         await openDone(page, s3.projectId, 1, `${ROUTES.project.pipeline(s3.projectId)}?uploadId=${stray}#x`);

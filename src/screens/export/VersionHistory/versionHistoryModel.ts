@@ -87,7 +87,13 @@ const TODAY_HEADING = 'Hôm nay';
 /* 2 — Ba số đếm                                                              */
 /* -------------------------------------------------------------------------- */
 
+/** Chữ đầu viết hoa, phần còn lại giữ nguyên (A6, aesthetic 2.6 #1). */
+export function sentenceCaseNote(note: string): string {
+  return note.charAt(0).toLocaleUpperCase('vi') + note.slice(1);
+}
+
 /** Không có gì để so: ba số không, và một câu nói đúng điều đó. */
+
 export const EMPTY_DIFF_COUNTS: DiffCountsModel = Object.freeze({
   added: 0,
   removed: 0,
@@ -228,7 +234,8 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
       row: {
         id: metadata.id,
         label: `v${formatNumber(metadata.sequence, { grouping: false })}`,
-        description: metadata.note ?? 'Không có ghi chú cho phiên bản này',
+        // Server notes start lower-case ("phục hồi nội dung của phiên bản v3"); a row reads as a sentence (A6).
+        description: typeof metadata.note === 'string' ? sentenceCaseNote(metadata.note) : 'Không có ghi chú cho phiên bản này',
         // `creatorName` do máy chủ ghép (N17); `system:pipeline` đã thành "hệ thống AI".
         authorName,
         authorInitials: initialsOf(authorName),

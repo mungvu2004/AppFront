@@ -10,14 +10,14 @@ const options = [
 
 describe('Combobox', () => {
   it('renders trigger button', () => {
-    render(<Combobox options={options} placeholder="Chọn..." />);
+    render(<Combobox options={options} placeholder="Chọn…" />);
     // Trigger is a button with aria-haspopup
     expect(screen.getByRole('button')).toBeInTheDocument();
   });
 
   it('shows placeholder when no value', () => {
-    render(<Combobox options={options} placeholder="Chọn loại..." />);
-    expect(screen.getByText('Chọn loại...')).toBeInTheDocument();
+    render(<Combobox options={options} placeholder="Chọn loại…" />);
+    expect(screen.getByText('Chọn loại…')).toBeInTheDocument();
   });
 
   it('shows selected label', () => {
@@ -35,7 +35,7 @@ describe('Combobox', () => {
   it('filters options by query', () => {
     render(<Combobox options={options} />);
     fireEvent.click(screen.getByRole('button'));
-    const searchInput = screen.getByPlaceholderText('Tìm kiếm...');
+    const searchInput = screen.getByPlaceholderText('Tìm kiếm…');
     if (searchInput) {
       fireEvent.change(searchInput, { target: { value: '220' } });
       expect(screen.getByRole('option', { name: 'Tường gạch 220mm' })).toBeInTheDocument();
@@ -46,7 +46,7 @@ describe('Combobox', () => {
   it('shows empty message when no results', () => {
     render(<Combobox options={options} />);
     fireEvent.click(screen.getByRole('button'));
-    const searchInput = screen.getByPlaceholderText('Tìm kiếm...');
+    const searchInput = screen.getByPlaceholderText('Tìm kiếm…');
     if (searchInput) {
       fireEvent.change(searchInput, { target: { value: 'xyz không tồn tại' } });
       expect(screen.getByText(/Không tìm thấy/)).toBeInTheDocument();

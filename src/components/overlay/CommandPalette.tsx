@@ -170,7 +170,7 @@ export function CommandPalette({ commands = DEFAULT_COMMANDS }: CommandPalettePr
               aria-activedescendant={flatItems[selectedIndex] ? `cmd-item-${flatItems[selectedIndex].id}` : undefined}
               prefix={<Search className="w-4 h-4" aria-hidden="true" />}
               suffix={<Kbd>Esc</Kbd>}
-              placeholder="Tìm lệnh, dự án, tầng, lớp..."
+              placeholder="Tìm lệnh, dự án, tầng, lớp…"
               value={query}
               onChange={e => handleQueryChange(e.target.value)}
               wrapperClassName="px-3 pt-3 pb-2 border-b border-border-default shrink-0"

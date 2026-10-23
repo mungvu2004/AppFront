@@ -581,8 +581,8 @@ test.describe('SCR-12 Processing', () => {
     expect(api.slice(mark).some((entry) => entry.status < 400), 'at least one real /api/ response').toBe(true);
     await captureEvidence(page, '12_pipeline_complete.png');
 
-    await test.step('[12-B-003] CP-2 has 6 floors and 1 drawing → exactly "Đã xong 1/1 tầng"', async () => {
-      await expect.soft(page.getByText(/^Đã xong 1\/1 tầng/u)).toBeVisible();
+    await test.step('[12-B-003] CP-2 has 6 floors and 1 drawing → exactly "Đã xử lý xong 1/1 tầng"', async () => {
+      await expect.soft(page.getByText(/^Đã xử lý xong 1\/1 tầng/u)).toBeVisible();
       await captureEvidence(page, 'M03_12-B-003_done_one_of_one.png');
     });
 

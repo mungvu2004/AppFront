@@ -69,7 +69,7 @@ const partialNotice = (names: string): string => `${names} gặp lỗi. Các t�
 
 const chips = (page: Page): Locator => page.getByRole('list', { name: CHIPS, exact: true }).getByRole('listitem');
 const readAlert = (page: Page): Locator => page.getByRole('alert').filter({ has: page.getByRole('button', { name: RETRY, exact: true }) });
-const doneAll = (page: Page, n: number): Locator => page.getByText(new RegExp(`^Đã xong ${String(n)}/${String(n)} tầng`, 'u'));
+const doneAll = (page: Page, n: number): Locator => page.getByText(new RegExp(`^Đã xử lý xong ${String(n)}/${String(n)} tầng`, 'u'));
 const width = (page: Page): number => page.viewportSize()?.width ?? 0;
 
 const uploadOf = (project: SeededProject, index: number, uploadId: string): UploadItem => {
@@ -128,7 +128,7 @@ test.describe('U03 UI verify — SCR-12 processing flows (QA-03d P9)', () => {
           await p.goto(pipeline);
           await expect(chips(p)).toHaveCount(2);
           await expect(p.getByRole('region', { name: SUMMARY, exact: true })).toBeVisible(); // PR:198-225
-          await expect(p.getByText(/^Đã xong 1\/2 tầng/u)).toBeVisible();
+          await expect(p.getByText(/^Đã xử lý xong 1\/2 tầng/u)).toBeVisible();
         });
       });
 

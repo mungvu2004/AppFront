@@ -751,13 +751,13 @@
       "sectionLabel": "Báo cáo chất lượng",
       "qualityLevel": {
         "good": "Tốt",
-        "attention": "cần chú ý",
+        "attention": "Cần chú ý",
         "poor": "Kém"
       },
       "findingsHeading": "Phát hiện",
       "floorsHeading": "Các tầng đã đo",
       "column": {
-        "floor": "tầng",
+        "floor": "Tầng",
         "summary": "Kết quả đo",
         "level": "Mức"
       },
@@ -784,9 +784,9 @@
     },
     "metric": {
       "resolution": "Độ phân giải",
-      "skew": "độ nghiêng",
+      "skew": "Độ nghiêng",
       "contrast": "Độ tương phản",
-      "noise": "nhiễu"
+      "noise": "Nhiễu"
     },
     "recommendation": {
       "resolution": "Nên dùng ảnh có cạnh ngắn từ {{goodShortEdgePx}} px trở lên.",
@@ -1192,7 +1192,7 @@
       "noDrawingDescription": "Chưa có bản vẽ nào được tải lên cho tầng này. Tải bản vẽ lên và chờ bước tiền xử lý xong rồi mới hiệu chỉnh tỷ lệ.",
       "successTitle": "Đã áp tỷ lệ cho bản vẽ",
       "successDescription": "Mọi kích thước dẫn xuất đã được tính lại theo tỷ lệ mới.",
-      "successBadge": "đã duyệt",
+      "successBadge": "Đã duyệt",
       "forbiddenTitle": "Bạn không có quyền hiệu chỉnh tỷ lệ",
       "forbiddenDescription": "Bản vẽ vẫn xem và phóng to được, nhưng không kéo được đường tham chiếu. Nhờ người có quyền sửa dự án đặt tỷ lệ giúp.",
       "collapsedTitle": "Bảng hiệu chỉnh đang thu gọn",
@@ -3500,7 +3500,7 @@
     },
     "toolbar": {
       "searchLabel": "Tìm mẫu 3D",
-      "searchPlaceholder": "Tìm theo tên mẫu 3D...",
+      "searchPlaceholder": "Tìm theo tên mẫu 3D…",
       "categoryLabel": "Danh mục",
       "viewModeLabel": "Chế độ xem",
       "viewModeTable": "Bảng",
@@ -3712,7 +3712,7 @@
     },
     "toolbar": {
       "searchLabel": "Tìm người dùng",
-      "searchPlaceholder": "Tìm theo tên hoặc email...",
+      "searchPlaceholder": "Tìm theo tên hoặc email…",
       "roleFilterLabel": "Vai",
       "statusFilterLabel": "Trạng thái",
       "allOptionLabel": "Tất cả",
@@ -3724,7 +3724,7 @@
     "invite": {
       "roleLabel": "Vai cho lời mời",
       "emailsLabel": "Email người được mời",
-      "emailsPlaceholder": "Nhập email, cách nhau bằng dấu phẩy hoặc xuống dòng...",
+      "emailsPlaceholder": "Nhập email, cách nhau bằng dấu phẩy hoặc xuống dòng…",
       "submitLabel": "Gửi lời mời",
       "cancelLabel": "Huỷ",
       "hint": "Ngăn cách nhiều địa chỉ bằng dấu phẩy hoặc xuống dòng",

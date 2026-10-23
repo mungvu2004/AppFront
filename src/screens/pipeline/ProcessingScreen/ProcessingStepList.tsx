@@ -134,7 +134,12 @@ function StepProgressBar({
       aria-valuemax={100}
       aria-valuemin={0}
       aria-valuenow={step.percent}
-      className="relative mt-2.5 h-[3px] w-full overflow-hidden rounded-full bg-bg-sunken"
+      // Bar shows only while the step runs (or failed mid-way): a full bar under a ✓ said "done" twice
+      // (aesthetic 2.5 #1). Otherwise it stays in the a11y tree as `sr-only` — same role, name and value.
+      className={clsx(
+        'relative w-full overflow-hidden rounded-full bg-bg-sunken',
+        step.status === 'running' || step.status === 'failed' ? 'mt-2.5 h-[3px]' : 'sr-only',
+      )}
       role="progressbar"
     >
       <div
@@ -174,10 +179,10 @@ function StepRow({
   const children = step.children ?? [];
 
   return (
-    <li className={clsx('flex flex-col gap-2', isChild && 'pl-6')}>
+    <li className={clsx('flex flex-col', isChild && 'pl-6')}>
       <div
         className={clsx(
-          'rounded-lg border border-border-default p-3 transition-colors duration-slow',
+          'px-4 py-3 transition-colors duration-slow',
           isFlashing ? 'bg-bg-flash' : 'bg-bg-surface',
         )}
       >
@@ -231,7 +236,7 @@ function StepRow({
       </div>
 
       {children.length > 0 ? (
-        <ol className="flex flex-col gap-2">
+        <ol className="flex flex-col divide-y divide-border-default border-t border-border-default">
           {children.map((child) => (
             <StepRow isChild key={child.id} prefersReducedMotion={prefersReducedMotion} step={child} />
           ))}
@@ -243,7 +248,11 @@ function StepRow({
 
 export function ProcessingStepList({ prefersReducedMotion, steps }: ProcessingStepListProps) {
   return (
-    <ol aria-label={STEPS_ARIA_LABEL} className="flex flex-col gap-2">
+    // One list in one frame with hairline rows, not six identical cards (aesthetic 2.5 #1).
+    <ol
+      aria-label={STEPS_ARIA_LABEL}
+      className="flex flex-col divide-y divide-border-default overflow-hidden rounded-lg border border-border-default bg-bg-surface"
+    >
       {steps.map((step) => (
         <StepRow isChild={false} key={step.id} prefersReducedMotion={prefersReducedMotion} step={step} />
       ))}

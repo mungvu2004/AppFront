@@ -114,7 +114,7 @@ function CountChip({ tone, value, label }: CountChipProps) {
         className="h-2 w-2 shrink-0 rounded-full"
         style={{ backgroundColor: DIFF_TONE_TOKENS[tone] }}
       />
-      <span className="font-mono text-[14px] tabular-nums text-text-primary">
+      <span className="text-[14px] tabular-nums text-text-primary">
         {done ? label : text}
       </span>
     </span>
@@ -285,10 +285,10 @@ export function VersionCompare({ model, actions }: VersionCompareProps) {
           onChange={actions.selectRightVersion}
           className="min-w-[180px]"
         />
-        <div className="ml-auto">
-          <CompareCounts counts={model.totals} />
-        </div>
       </div>
+
+      {/* Legend +−~ sits right above the tabs and lists it describes, not floating at the far right (aesthetic 2.6 #4). */}
+      <CompareCounts counts={model.totals} />
 
       <Tabs.Root activeId={model.activeTab} onChange={handleTabChange}>
         <Tabs.List aria-label={TABS_LABEL}>

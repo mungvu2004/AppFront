@@ -28,7 +28,7 @@ export function DataEntryDemo() {
         <div className="grid grid-cols-2 gap-8">
           <div>
             <h3 className="text-[14px] font-medium text-text-secondary mb-3">1. Empty</h3>
-            <NumericField placeholder="Nhập giá trị..." unit="mm" />
+            <NumericField placeholder="Nhập giá trị…" unit="mm" />
           </div>
           <div>
             <h3 className="text-[14px] font-medium text-text-secondary mb-3">2. Valid / Committed</h3>

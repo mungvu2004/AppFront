@@ -123,7 +123,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
       <div className="mx-auto flex w-full max-w-[1920px] flex-1 flex-col gap-6 p-4 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-[20px] font-semibold text-text-primary">Dự án của tôi</h1>
+            <h1 className="text-title text-text-primary">Dự án của tôi</h1>
             {/* Every state that has a list says how many it shows — "0 dự án" for a search with no match
                 included: dropping the line there made the whole column jump up 11 px (BUG-117). */}
             {state === 'error' && <div aria-hidden="true" className="h-5" />}
@@ -141,7 +141,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
               aria-label="Tìm dự án"
               value={props.searchQuery}
               onChange={(event) => props.setSearchQuery(event.target.value)}
-              placeholder="Tìm dự án theo tên..."
+              placeholder="Tìm dự án theo tên…"
               // The 8 px after the icon is the icon's margin, not the input's padding (BUG-169); while scrolled
               // the first 12 px fade out so a cut glyph reads as "more text this way".
               prefix={<Search size={16} aria-hidden="true" className="mr-1" />}

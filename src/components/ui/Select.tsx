@@ -120,7 +120,7 @@ export interface SelectTriggerProps
 }
 
 const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
-  ({ placeholder = 'Chọn...', options = [], className, ...props }, ref) => {
+  ({ placeholder = 'Chọn…', options = [], className, ...props }, ref) => {
     const { isOpen, value, disabled, toggle, handleKeyDown, triggerRef, triggerId, listboxId } =
       useSelectContext('Select.Trigger');
 
@@ -340,7 +340,7 @@ export const Select = Object.assign(
       value,
       onChange,
       options = [],
-      placeholder = 'Chọn...',
+      placeholder = 'Chọn…',
       className,
       disabled = false,
       isReadOnly = false,

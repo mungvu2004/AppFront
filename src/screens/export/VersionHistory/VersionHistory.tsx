@@ -91,19 +91,20 @@ export function VersionHistory({ model, actions, breadcrumb }: VersionHistoryPro
           <Breadcrumb items={breadcrumb} />
         </div>
       )}
-      <h1 className={cn('px-4 text-[20px] font-semibold text-text-primary', breadcrumb === undefined && 'pt-4')}>
-        Lịch sử phiên bản
-      </h1>
-      {model.floorSelect !== null && model.state !== 'forbidden' && (
-        <div className="max-w-2xl px-4">
-          <Select
-            label={model.floorSelect.label}
-            options={model.floorSelect.options.map((option) => ({ label: option.label, value: option.id }))}
-            value={model.floorSelect.selectedId}
-            onChange={actions.selectFloor}
-          />
-        </div>
-      )}
+      {/* Floor picker sized to its value and set beside the title, not a 640 px row of its own (aesthetic 2.6 #2). */}
+      <div className={cn('flex flex-wrap items-end gap-x-6 gap-y-2 px-4', breadcrumb === undefined && 'pt-4')}>
+        <h1 className="text-title text-text-primary">Lịch sử phiên bản</h1>
+        {model.floorSelect !== null && model.state !== 'forbidden' && (
+          <div className="w-48">
+            <Select
+              label={model.floorSelect.label}
+              options={model.floorSelect.options.map((option) => ({ label: option.label, value: option.id }))}
+              value={model.floorSelect.selectedId}
+              onChange={actions.selectFloor}
+            />
+          </div>
+        )}
+      </div>
       {content}
     </div>
   );
@@ -206,8 +207,8 @@ export function VersionHistory({ model, actions, breadcrumb }: VersionHistoryPro
           {reviewedRow !== null && (
             <p className="text-[13px] tabular-nums text-text-primary">
               {restoreRow !== null && restoreRow.id !== reviewedRow.id
-                ? `Gắn nhãn, xuất: ${reviewedRow.label} · Phục hồi: ${restoreRow.label}`
-                : `Các nút bên phải áp dụng cho ${reviewedRow.label}`}
+                ? `Gắn nhãn và xuất áp dụng cho ${reviewedRow.label}, phục hồi về ${restoreRow.label}.`
+                : `Các nút bên phải áp dụng cho ${reviewedRow.label}.`}
             </p>
           )}
           {model.canRestore && reviewedVersionId === null && (

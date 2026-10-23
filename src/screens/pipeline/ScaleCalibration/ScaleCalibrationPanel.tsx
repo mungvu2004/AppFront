@@ -45,7 +45,7 @@ const PANEL_ARIA_LABEL = 'Bảng hiệu chỉnh tỷ lệ';
 const TITLE = 'Hiệu chỉnh tỷ lệ';
 const COLLAPSE_LABEL = 'Thu gọn bảng';
 const EXPAND_LABEL = 'Bung bảng';
-const SUCCESS_BADGE = 'đã duyệt';
+const SUCCESS_BADGE = 'Đã duyệt';
 
 const CURRENT_SCALE_TITLE = 'Tỷ lệ hiện tại';
 const METHOD_TITLE = 'Cách xác định';

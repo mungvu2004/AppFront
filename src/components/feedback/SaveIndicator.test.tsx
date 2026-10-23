@@ -45,7 +45,7 @@ describe('SaveIndicator', () => {
     });
 
     // Now it should be saving
-    expect(screen.getByText('Đang lưu...')).toBeInTheDocument();
+    expect(screen.getByText('Đang lưu…')).toBeInTheDocument();
     expect(mockSave).toHaveBeenCalled();
 
     // Advance 500ms for the save promise to resolve

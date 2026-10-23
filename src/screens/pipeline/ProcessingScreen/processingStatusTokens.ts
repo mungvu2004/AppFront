@@ -19,15 +19,12 @@
  * phải một trạng thái để tô, và cấp cho nó một màu riêng là đúng thứ A4 tồn tại
  * để chặn.
  *
- * ## A5 — vì sao xanh `verified` ở đây không phạm luật
+ * ## A5 — bước máy chạy xong là trung tính
  *
- * A5 nói xanh "đã xác minh" chỉ đánh dấu việc NGƯỜI DUYỆT, và đầu ra của AI
- * không bao giờ được đặt nó. Ở màn này màu xanh đánh dấu **một bước của tiến
- * trình đã chạy xong** — một sự kiện của tiến trình, không phải một phán quyết
- * về chất lượng dữ liệu mà AI vừa sinh ra. Phán quyết chất lượng vẫn tuyệt đối
- * không được tô xanh từ máy: `useInputQualityGate.ts:172-176` map `'good'` sang
- * `'neutral'`, không bao giờ sang `'verified'`, và màn này không đụng tới đường
- * đó.
+ * A5 dành xanh "đã xác minh" cho việc NGƯỜI duyệt. Một bước AI chạy xong không
+ * phải người duyệt, nên `done` dùng chữ phụ (`text-secondary`), không dùng xanh
+ * `verified` (aesthetic 2.5 #2) — trước đây trên màn xanh của máy trông y hệt
+ * xanh của người duyệt.
  */
 
 import type { ProcessingStageStatus } from './types';
@@ -36,7 +33,7 @@ import type { ProcessingStageStatus } from './types';
 export const STAGE_DOT_CLASS: Readonly<Record<ProcessingStageStatus, string>> = {
   queued: 'bg-text-muted',
   running: 'bg-state-attention',
-  done: 'bg-state-verified',
+  done: 'bg-text-secondary',
   failed: 'bg-state-violation',
 };
 
@@ -44,7 +41,7 @@ export const STAGE_DOT_CLASS: Readonly<Record<ProcessingStageStatus, string>> = 
 export const STAGE_TEXT_CLASS: Readonly<Record<ProcessingStageStatus, string>> = {
   queued: 'text-text-secondary',
   running: 'text-text-primary',
-  done: 'text-state-verified-text',
+  done: 'text-text-primary',
   failed: 'text-state-violation-text',
 };
 
@@ -52,7 +49,7 @@ export const STAGE_TEXT_CLASS: Readonly<Record<ProcessingStageStatus, string>> =
 export const STAGE_BAR_CLASS: Readonly<Record<ProcessingStageStatus, string>> = {
   queued: 'bg-text-muted',
   running: 'bg-state-attention',
-  done: 'bg-state-verified',
+  done: 'bg-text-secondary',
   failed: 'bg-state-violation',
 };
 
@@ -60,6 +57,6 @@ export const STAGE_BAR_CLASS: Readonly<Record<ProcessingStageStatus, string>> = 
 export const STAGE_ICON_CLASS: Readonly<Record<ProcessingStageStatus, string>> = {
   queued: 'text-text-muted',
   running: 'text-state-attention',
-  done: 'text-state-verified',
+  done: 'text-text-secondary',
   failed: 'text-state-violation',
 };
