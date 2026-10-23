@@ -968,8 +968,9 @@ describe('useOverlayComparison — QA-04c SCR-22 (BUG-588, 599, 600, 608)', () =
     const model = mounted.result.current.model;
     expect(model.viewport).toEqual({ x: 0, y: 0, zoom: 1 });
     expect(model.scanOpacityPercent).toBe(70);
-    expect(model.confirmation.canConfirm).toBe(false);
-    expect(model.confirmation.disabledReason).toBe('Cần đo được vùng lệch trước khi xác nhận.');
+    // J-7/B2-14: chưa đo được vùng lệch vẫn xác nhận được bằng mắt — không còn ngõ cụt.
+    expect(model.confirmation.canConfirm).toBe(true);
+    expect(model.confirmation.disabledReason).toBeNull();
     expect(model.canLockAlignment).toBe(false);
   });
 });

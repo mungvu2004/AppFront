@@ -841,6 +841,26 @@ describe('QA-04c SCR-19', () => {
     expect(notifications.list()[0]?.title).toMatch(/^Đã xoá trục /u);
   });
 
+  it('[B2-20] lưu trục lên máy chủ hỏng: không báo "Đã xoá", hiện toast lỗi lưu', async () => {
+    const notifications = createNotificationBus();
+    const base = createMockAxisGridManagerGateway({ canPersist: true });
+    const gateway = { ...base, persistAxisGrid: () => Promise.reject(new Error('500')) };
+    const mounted = await mountSettled({ notifications, gateway });
+    const target = rowsOf(mounted)[0];
+
+    await act(async () => {
+      mounted.result.current.onAxisRemove(target?.id ?? '');
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(notifications.list().map((item) => item.title)).toEqual([
+        'Chưa lưu được thay đổi trục lên máy chủ. Kiểm tra kết nối rồi sửa lại một lần nữa.',
+      ]);
+    });
+    expect(notifications.list().some((item) => item.title.startsWith('Đã xoá trục'))).toBe(false);
+  });
+
   it('[19-A-011] xoá lần hai sau khi toast đầu đã đóng (8 s): lại hiện một toast mới có vé hoàn tác', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] });
     const notifications = createNotificationBus();
