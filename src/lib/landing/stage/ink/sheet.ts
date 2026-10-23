@@ -13,8 +13,12 @@ import { inverseNeutral } from '../tone';
 
 import { PAPER } from './lines';
 
-/** Wide enough that the sheet's edge never enters the frame in scenes 01–04. */
-export const SHEET_MARGIN_M = 40;
+/**
+ * Wide enough that the sheet's edge never enters the frame in scenes 01–04. Scene 01's camera sits off the
+ * sheet's centre and sees ~65 m either side at 16:10; 40 m let the edge (and its shadow's dark rim) in as a
+ * vertical band at x ≈ 300 px on 1440-wide windows. 160 m covers 21:9.
+ */
+export const SHEET_MARGIN_M = 160;
 
 const GRAIN_VERTEX = /* glsl */ `
   uniform float uLift;

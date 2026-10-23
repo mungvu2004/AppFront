@@ -168,7 +168,7 @@ export function StartCta({ secondary }: { secondary: { label: string; onClick: (
   return (
     <p className="landing-actions">
       <Link id="bat-dau" className="landing-cta" to={ROUTES.login}>
-        Bắt đầu dự án <span aria-hidden="true">→</span>
+        Bắt đầu dự án
       </Link>
       <button type="button" className="landing-link" onClick={secondary.onClick}>
         {secondary.label}
@@ -182,7 +182,7 @@ export function HeroCta({ delay }: { delay?: string }) {
   return (
     <p className="landing-actions landing-hero-cta" data-delay={delay}>
       <Link className="landing-cta" to={ROUTES.login}>
-        Bắt đầu dự án <span aria-hidden="true">→</span>
+        Bắt đầu dự án
       </Link>
       <span className="landing-cta-hint">{CTA_HINT}</span>
     </p>
