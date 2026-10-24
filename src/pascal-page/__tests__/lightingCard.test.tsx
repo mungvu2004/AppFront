@@ -6,7 +6,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { create } from 'zustand';
 
-import { LightingCard, groundKey, lightingKey } from '../LightingCard';
+import { LightingCard, groundKey, lightingKey, sunKey } from '../LightingCard';
 import { useRealism } from '../realism/store';
 
 /** Nút ánh sáng (con trực tiếp của danh sách; nút mặt đất nằm trong danh sách con). */
@@ -91,5 +91,26 @@ describe('LightingCard', () => {
     render(<LightingCard projectId="p1" useViewer={useViewer} />);
     expect(useRealism.getState().ground).toBe('grass');
     expect(screen.getByRole('button', { name: 'Bãi cỏ' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('hướng nắng: mặc định 0°; kéo → store + nhớ theo dự án; mở lại áp; "Mặc định" về 0 và xoá khoá', () => {
+    const { useViewer } = viewerWith('studio');
+    const { unmount } = render(<LightingCard projectId="p1" useViewer={useViewer} />);
+    const slider = screen.getByRole('slider', { name: /Hướng nắng/ }) as HTMLInputElement;
+    expect(useRealism.getState().sunAzimuth).toBe(0);
+    expect(screen.getByRole('button', { name: 'Mặc định' })).toHaveProperty('disabled', true);
+
+    fireEvent.change(slider, { target: { value: '120' } });
+    expect(useRealism.getState().sunAzimuth).toBe(120);
+    expect(localStorage.getItem(sunKey('p1'))).toBe('120');
+    unmount();
+
+    useRealism.setState({ sunAzimuth: 0 });
+    render(<LightingCard projectId="p1" useViewer={useViewer} />);
+    expect(useRealism.getState().sunAzimuth).toBe(120);
+    fireEvent.click(screen.getByRole('button', { name: 'Mặc định' }));
+    expect(useRealism.getState().sunAzimuth).toBe(0);
+    expect(localStorage.getItem(sunKey('p1'))).toBeNull();
+    expect(lightButtons().map((b) => b.textContent)).toEqual(['Buổi tối', 'Ban ngày', 'Nắng chiều']);
   });
 });

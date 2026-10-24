@@ -26,6 +26,8 @@ export interface RealismState {
   flags: RealismFlags;
   /** Mặt đất quanh nhà ở chủ đề sáng (thẻ Ánh sáng, nhớ theo dự án). */
   ground: GroundMode;
+  /** Hướng nắng: độ xoay đèn chính quanh trục đứng (0–359°, 0 = hướng gốc của chủ đề). */
+  sunAzimuth: number;
 }
 
 /** `plain` = nền trơn sáng (hợp chung cư, mặc định); `gravel` = sân sỏi; `grass` = bãi cỏ (nhà mặt đất). */
@@ -39,6 +41,7 @@ export const useRealism = create<RealismState>()(() => ({
   tierMode: 'auto',
   flags: { ...DEFAULT_REALISM_FLAGS },
   ground: 'plain',
+  sunAzimuth: 0,
 }));
 
 /** Giá trị cờ `viewer.realism-*` → `flags` của store (cờ thiếu = mặc định của bảng cờ). */

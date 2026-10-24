@@ -48,6 +48,18 @@ function readGround(projectId: string): GroundMode {
   }
 }
 
+/** Hướng nắng (độ xoay quanh trục đứng, 0 = mặc định của chủ đề). Nhớ theo dự án như mặt đất. */
+export const sunKey = (projectId: string): string => `appfront.pascal.sun.v1:${projectId}`;
+
+function readSun(projectId: string): number {
+  try {
+    const value = Number(localStorage.getItem(sunKey(projectId)) ?? 0);
+    return Number.isFinite(value) ? ((Math.round(value) % 360) + 360) % 360 : 0;
+  } catch {
+    return 0;
+  }
+}
+
 interface LightingViewer {
   sceneTheme: string;
   setSceneTheme: (id: string) => void;
@@ -76,10 +88,21 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
   const sceneTheme = useViewer((state) => state.sceneTheme);
   const current = LIGHTING_MODES.find((m) => m.theme === sceneTheme);
   const ground = useRealism((s) => s.ground);
+  const sunAzimuth = useRealism((s) => s.sunAzimuth);
 
   useEffect(() => {
-    useRealism.setState({ ground: readGround(projectId) });
+    useRealism.setState({ ground: readGround(projectId), sunAzimuth: readSun(projectId) });
   }, [projectId]);
+
+  const chooseSun = (deg: number) => {
+    useRealism.setState({ sunAzimuth: deg });
+    try {
+      if (deg === 0) localStorage.removeItem(sunKey(projectId));
+      else localStorage.setItem(sunKey(projectId), String(deg));
+    } catch {
+      // Bộ nhớ bị chặn: đổi trong phiên này.
+    }
+  };
 
   const chooseGround = (mode: GroundMode) => {
     useRealism.setState({ ground: mode });
@@ -155,6 +178,30 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
               </li>
             ))}
           </ul>
+        </li>
+        <li aria-hidden="true" className="mx-2 my-1 border-t border-[var(--pa-border)]" />
+        <li className="px-2 pt-1 pb-1.5">
+          <div className="flex items-center justify-between gap-2 text-[11px] text-[var(--pa-text-3)]">
+            <label htmlFor={`sun-${projectId}`}>Hướng nắng: {sunAzimuth}°</label>
+            <button
+              className="rounded px-1 text-[var(--pa-text-2)] hover:text-[var(--pa-text)] disabled:opacity-40 outline-none focus-visible:outline-2 focus-visible:outline-[var(--pa-accent)]"
+              disabled={sunAzimuth === 0}
+              onClick={() => chooseSun(0)}
+              type="button"
+            >
+              Mặc định
+            </button>
+          </div>
+          <input
+            className="mt-1 w-full accent-[var(--pa-accent)]"
+            id={`sun-${projectId}`}
+            max={359}
+            min={0}
+            onChange={(event) => chooseSun(Number(event.currentTarget.value))}
+            step={1}
+            type="range"
+            value={sunAzimuth}
+          />
         </li>
       </ul>
     </details>
