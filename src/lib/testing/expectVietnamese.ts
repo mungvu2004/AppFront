@@ -295,6 +295,8 @@ export const TECHNICAL_TOKENS: ReadonlySet<string> = new Set([
   'pdf', 'dxf', 'dwg', 'ifc', 'png', 'jpg', 'jpeg', 'svg', 'csv', 'json', 'xml',
   'id', 'url', 'api', 'qc', 'ui', 'ux', 'http', 'https', 'www',
   'ctrl', 'shift', 'alt', 'esc', 'enter', 'del', 'backspace', 'space',
+  // Tên sản phẩm: đứng cạnh dấu ở header và khung tài khoản, không dịch.
+  'appfront',
 ]);
 
 /**
