@@ -2,6 +2,7 @@
  * Gói 2B — nắng Ban ngày/Nắng chiều + mặt đất. Logic ở `src/pascal-page/realism/daylight.ts`.
  * - `lights.tsx`: mỗi khung bật/tắt `castShadow` của trần (chỉ khi camera dưới trần, chủ đề sáng,
  *   mức Vừa/Cao) → nắng chỉ lọt qua cửa sổ. PCF bán kính 2 → 3 cho mép bóng mềm hơn (cùng số mẫu).
+ * - `item/renderer.tsx`: kính nhận theo tên chứa glass/vetro (`isGlassLike`) → không đổ bóng đặc.
  * - `site/renderer.tsx`: tấm site + đĩa chân trời chủ đề sáng theo mặt đất chọn ở thẻ Ánh sáng
  *   (trơn sáng mặc định / sỏi / cỏ) thay màu be phẳng.
  */
@@ -16,6 +17,14 @@ export const RULES = {
       '    if (shadows) {\n      syncCeilingShadows(sceneRegistry as any, state.camera.position.y, theme.appearance)\n      const now = state.clock.elapsedTime',
     ],
     ['shadow-radius={2}', 'shadow-radius={3}'],
+  ],
+  'nodes/src/item/renderer.tsx': [
+    [
+      "import { BlockFaceHostFrame } from '../shared/block-face-host'",
+      "import { isGlassLike } from '@pascal-realism/daylight'\nimport { BlockFaceHostFrame } from '../shared/block-face-host'",
+      1,
+    ],
+    ["material === glassMaterial || material.name.toLowerCase() === 'glass'", 'material === glassMaterial || isGlassLike(material)', 1],
   ],
   'nodes/src/site/renderer.tsx': [
     [
