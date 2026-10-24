@@ -44,3 +44,17 @@ export function glassTwinParams(m: any) {
     metalness: 0,
   };
 }
+
+export type ProbeStep = 'idle' | 'start' | 'finish' | 'drop';
+/**
+ * Lịch chụp probe theo khung. Chụp + đổi kính làm sinh shader/pipeline mới (kính bản thay, vật liệu bóng có
+ * envMap probe, mọi vật liệu vẽ vào đích probe) → làm đồng bộ trong một khung thì khựng ~2,7 s. Nên:
+ * đứng yên + cảnh đổi → `start` (biên dịch trước bằng `compileAsync`, không chặn khung); đang biên dịch →
+ * `idle`; xong mà camera vẫn yên → `finish` (đổi kính + chụp, pipeline đã sẵn); xong mà camera đã đi → `drop`.
+ */
+export function probeStep(s: { busy: boolean; ready: boolean; moving: boolean; changed: boolean }): ProbeStep {
+  if (s.busy) return 'idle';
+  if (s.ready) return s.moving ? 'drop' : 'finish';
+  if (s.moving) return 'idle';
+  return s.changed ? 'start' : 'idle';
+}

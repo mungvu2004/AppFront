@@ -13,12 +13,17 @@ import {
   DataTexture,
   EquirectangularReflectionMapping,
   FloatType,
+  Group,
+  HalfFloatType,
   LinearFilter,
+  LinearSRGBColorSpace,
+  CubeUVReflectionMapping,
+  Mesh,
+  PerspectiveCamera,
   type Material,
   type Object3D,
-  type PerspectiveCamera,
   RGBAFormat,
-  type RenderTarget,
+  RenderTarget,
   type Scene,
   type Texture,
   Vector3,
@@ -26,7 +31,7 @@ import {
 import { equirectUV, float, mix, positionViewDirection, smoothstep, texture, transformedNormalView, uniform } from 'three/tsl';
 import { MeshStandardNodeMaterial, PMREMGenerator, type WebGPURenderer } from 'three/webgpu';
 
-import { glassTwinParams, isGlossy, isLambertGlass, reflectProbeWanted } from './reflectRules';
+import { glassTwinParams, isGlossy, isLambertGlass, probeStep, reflectProbeWanted } from './reflectRules';
 import { useRealism } from './store';
 import { currentTier } from './tiers';
 
@@ -40,8 +45,11 @@ const skyTex = texture(placeholder);
 const skyWeight = uniform(0);
 let skyHdri: Texture | null = null;
 
-/** Số đo probe, đọc qua `__pascalProbe.reflect()` (`?probe=1`). `lastMs` = thời gian CPU của `fromScene`. */
-export const reflectStats = { captures: 0, lastMs: 0, maxMs: 0, glossy: 0, inside: false };
+/**
+ * Số đo probe, đọc qua `__pascalProbe.reflect()` (`?probe=1`). `lastMs` = thời gian CPU của `fromScene`;
+ * `warmMs` = thời gian biên dịch trước (không chặn khung); `finishMs` = khung chụp + đổi kính; `at` = performance.now() lúc chụp.
+ */
+export const reflectStats = { captures: 0, lastMs: 0, maxMs: 0, glossy: 0, inside: false, warmMs: 0, finishMs: 0, maxFinishMs: 0, at: 0 };
 (globalThis as { __realismReflect?: object }).__realismReflect = reflectStats;
 
 /**
@@ -147,31 +155,92 @@ function restore(scene: Scene) {
   applied = false;
 }
 
-/**
- * Gọi mỗi khung từ `Lights` (vendor). Rẻ khi không chụp: so vị trí camera + đếm node.
- * Chụp khi camera đứng yên (bằng khung trước) và đã đi > 1,5 m / cảnh thêm node so với lần chụp trước.
- */
-export function syncReflectionProbe(renderer: unknown, scene: Scene, camera: PerspectiveCamera, registry: RegistryLike): void {
-  const p = camera.position;
-  const moving = p.distanceToSquared(prev) > 1e-6;
-  prev.copy(p);
-  const { tier, backend, flags } = useRealism.getState();
-  const enabled = backend === 'webgpu' && flags.materials && tier !== 'low';
-  if (!enabled) {
-    if (applied) restore(scene);
-    if (glassSwapped) restoreGlass(scene);
-    lastCount = -1; // bật lại → đổi kính ngay lần đứng yên đầu
-    return;
+// Đích probe giống hệt `_createRenderTarget` của PMREMGenerator (size 256) → biên dịch trước khớp pipeline khi chụp.
+function makeProbeTarget(): RenderTarget {
+  const rt = new RenderTarget(3 * 256, 4 * 256, {
+    magFilter: LinearFilter,
+    minFilter: LinearFilter,
+    generateMipmaps: false,
+    type: HalfFloatType,
+    format: RGBAFormat,
+    colorSpace: LinearSRGBColorSpace,
+    depthBuffer: true,
+  });
+  rt.texture.mapping = CubeUVReflectionMapping;
+  rt.texture.name = 'PMREM.cubeUv';
+  (rt.texture as any).isPMREMTexture = true;
+  rt.scissorTest = true;
+  return rt;
+}
+
+// Bản sao vật liệu bóng có envMap = probe, chỉ để biên dịch trước (giữ sống → pipeline không bị thu hồi).
+const envClones = new WeakMap<Material, Material>();
+function withEnv(m: Material, env: Texture): Material {
+  let c = envClones.get(m);
+  if (!c) {
+    c = m.clone();
+    envClones.set(m, c);
   }
-  if (moving) return;
-  const count = registry.nodes.size;
-  if (count === lastCount && last.distanceToSquared(p) < 2.25) return;
-  last.copy(p);
-  lastCount = count;
+  (c as any).envMap = env;
+  return c;
+}
+
+const cubeCam = new PerspectiveCamera(90, 1, 0.05, 60);
+const FACES: [number, number, number][] = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+let busy = false;
+let ready = false;
+const at = new Vector3();
+let wantInside = false;
+
+/**
+ * Biên dịch trước (bất đồng bộ, khung vẫn chạy) mọi pipeline mà `finish` sẽ cần: kính bản thay và vật liệu
+ * bóng mang envMap probe ở đích chính (qua mesh giả cùng geometry), cả cảnh ở đích probe theo 6 hướng.
+ */
+async function warm(r: WebGPURenderer, scene: Scene, camera: PerspectiveCamera, p: Vector3, inside: boolean): Promise<void> {
+  const t0 = performance.now();
+  probeRT ??= makeProbeTarget();
+  const env = probeRT.texture;
+  const g = new Group();
+  scene.traverse((o) => {
+    const mesh = o as any;
+    if (!mesh.isMesh || !o.layers.isEnabled(0)) return;
+    for (const m of [mesh.material ?? []].flat() as Material[]) {
+      const twin: any = isLambertGlass(m) ? glassTwin(m) : m;
+      const want = inside && isGlossy(twin) && twin.envMap !== env ? withEnv(twin, env) : twin !== m ? twin : null;
+      if (!want) continue;
+      const proxy = new Mesh(mesh.geometry, want);
+      proxy.matrixAutoUpdate = false;
+      proxy.matrixWorld.copy(o.matrixWorld);
+      proxy.frustumCulled = false;
+      g.add(proxy);
+    }
+  });
+  if (g.children.length) await r.compileAsync(g, camera, scene);
+  if (inside) {
+    const old = r.getRenderTarget();
+    const bg = scene.background;
+    for (const [x, y, z] of FACES) {
+      cubeCam.position.copy(p);
+      cubeCam.up.set(0, y === 0 ? 1 : 0, y === 0 ? 0 : 1);
+      cubeCam.lookAt(p.x + x, p.y + y, p.z + z);
+      cubeCam.updateMatrixWorld();
+      if (skyHdri && skyWeight.value > 0) scene.background = skyHdri;
+      r.setRenderTarget(probeRT); // compileAsync đọc đích ngay lúc gọi (đồng bộ) → trả lại đích cũ liền
+      const job = r.compileAsync(scene, cubeCam);
+      r.setRenderTarget(old);
+      scene.background = bg;
+      await job;
+    }
+  }
+  reflectStats.warmMs = performance.now() - t0;
+}
+
+/** Khung chụp: đổi kính + chụp PMREM + gán envMap (pipeline đã biên dịch ở `warm`). */
+function finish(renderer: unknown, scene: Scene, p: Vector3, inside: boolean) {
+  const t0 = performance.now();
   swapGlass(scene);
-  const ceilings = [...(registry.byType.ceiling ?? [])].map((id) => registry.nodes.get(id)).filter(Boolean) as Object3D[];
-  reflectStats.inside = reflectProbeWanted(p, ceilings);
-  if (!reflectStats.inside) {
+  reflectStats.inside = inside;
+  if (!inside) {
     if (applied) restore(scene);
     return;
   }
@@ -179,12 +248,12 @@ export function syncReflectionProbe(renderer: unknown, scene: Scene, camera: Per
   const bg = scene.background;
   // Cửa sổ trong ảnh chụp thấy trời HDRI thay màu nền phẳng.
   if (skyHdri && skyWeight.value > 0) scene.background = skyHdri;
-  const t0 = performance.now();
   probeRT = pmrem.fromScene(scene, 0, 0.05, 60, { size: 256, position: p, renderTarget: probeRT });
   scene.background = bg;
   reflectStats.lastMs = performance.now() - t0;
   reflectStats.maxMs = Math.max(reflectStats.maxMs, reflectStats.lastMs);
   reflectStats.captures++;
+  reflectStats.at = t0;
   reflectStats.glossy = 0;
   const env = probeRT.texture;
   eachGlossy(scene, (m) => {
@@ -196,4 +265,51 @@ export function syncReflectionProbe(renderer: unknown, scene: Scene, camera: Per
     }
   });
   applied = true;
+  reflectStats.finishMs = performance.now() - t0;
+  reflectStats.maxFinishMs = Math.max(reflectStats.maxFinishMs, reflectStats.finishMs);
+}
+
+/**
+ * Gọi mỗi khung từ `Lights` (vendor). Rẻ khi không chụp: so vị trí camera + đếm node.
+ * Khi camera đứng yên và đã đi > 1,5 m / cảnh thêm node: biên dịch trước (`warm`) rồi chụp ở khung sau (`probeStep`).
+ */
+export function syncReflectionProbe(renderer: unknown, scene: Scene, camera: PerspectiveCamera, registry: RegistryLike): void {
+  const p = camera.position;
+  const moving = p.distanceToSquared(prev) > 1e-6;
+  prev.copy(p);
+  const { tier, backend, flags } = useRealism.getState();
+  const enabled = backend === 'webgpu' && flags.materials && tier !== 'low';
+  if (!enabled) {
+    if (applied) restore(scene);
+    if (glassSwapped) restoreGlass(scene);
+    lastCount = -1; // bật lại → đổi kính ngay lần đứng yên đầu
+    ready = false;
+    return;
+  }
+  const count = registry.nodes.size;
+  const changed = count !== lastCount || last.distanceToSquared(p) >= 2.25;
+  const step = probeStep({ busy, ready, moving: moving || (ready && at.distanceToSquared(p) > 1e-6), changed });
+  if (step === 'idle') return;
+  if (step === 'drop') {
+    ready = false;
+    lastCount = -1; // camera đã đi trong lúc biên dịch → làm lại khi đứng yên
+    return;
+  }
+  if (step === 'finish') {
+    ready = false;
+    finish(renderer, scene, p, wantInside);
+    return;
+  }
+  last.copy(p);
+  lastCount = count;
+  at.copy(p);
+  const ceilings = [...(registry.byType.ceiling ?? [])].map((id) => registry.nodes.get(id)).filter(Boolean) as Object3D[];
+  wantInside = reflectProbeWanted(p, ceilings);
+  busy = true;
+  warm(renderer as WebGPURenderer, scene, camera, at.clone(), wantInside)
+    .catch(() => undefined) // biên dịch trước hỏng thì vẫn chụp (đồng bộ như cũ)
+    .finally(() => {
+      busy = false;
+      ready = true;
+    });
 }
