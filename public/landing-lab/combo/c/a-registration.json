@@ -1,0 +1,54 @@
+{
+ "frame": "intro frame 0 = combo/a/1920/0000.webp, 1920x1080 px, y down",
+ "print_png_corners_px": {
+  "top_left": [
+   285.6,
+   34.1
+  ],
+  "top_right": [
+   1634.4,
+   34.1
+  ],
+  "bottom_right": [
+   1636.7,
+   1047.4
+  ],
+  "bottom_left": [
+   283.3,
+   1047.4
+  ]
+ },
+ "print_png_rect_px": {
+  "x": 283.3,
+  "y": 34.1,
+  "w": 1353.4,
+  "h": 1013.3
+ },
+ "print_rotation_deg": 0.0,
+ "print_png_meaning": "corners of print-plan.png (its full extent, VIEW (0, 2.5, 32, 24) m) as printed on A's sheet",
+ "exterior_walls_bbox_plan_m": [
+  4,
+  9,
+  28,
+  21
+ ],
+ "exterior_walls_corners_px": [
+  [
+   453.7,
+   307.8
+  ],
+  [
+   1466.3,
+   307.8
+  ],
+  [
+   1467.1,
+   814.5
+  ],
+  [
+   452.9,
+   814.5
+  ]
+ ],
+ "note": "Camera is 0.5 deg off nadir (no keystone worth noting); C can place its drawing with an affine map from print-plan.png px to these corners."
+}
