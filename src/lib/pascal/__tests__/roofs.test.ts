@@ -1,6 +1,7 @@
 /** Mái lưu về bản vẽ và dựng lại (roof-contract.md). */
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { useScene } from '@pascal-app/core';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
@@ -108,7 +109,10 @@ const roofOf = (graph: SpatialGraph): Roof => {
   return roof;
 };
 
-afterEach(() => setDetailsEnabled(true));
+afterEach(() => {
+  setDetailsEnabled(true);
+  vi.unstubAllGlobals();
+});
 
 describe.each([true, false])('mái, cờ details = %s', (details) => {
   it('F1-ext nạp rồi đọc ngược ra: 0 lệnh, có mái cũng vậy', () => {
@@ -260,5 +264,66 @@ describe('dây', () => {
     expect(() =>
       SpatialGraphDocumentSchema.parse({ ...doc, graph: { ...doc.graph, roofs: [{ ...roofOf(savedRoofGraph()), nodes: [] }] } }),
     ).toThrow();
+  });
+});
+
+describe('durable gutter — mái nạp lại có máng ngay (luật r9g-load-gutters)', () => {
+  type Live = Record<string, { type?: string; parentId?: string | null; children?: string[] | undefined; metadata?: unknown }>;
+
+  const guttersOf = (nodes: Live, segmentId: string): string[] =>
+    (nodes[segmentId]?.children ?? []).filter((id) => nodes[id]?.type === 'gutter');
+
+  /** Đúng việc luật vá làm sau `setScene`: gửi lại `metadata` của mặt mái bật autoGutter mà chưa có máng. */
+  const refreshLoadedGutters = (): void => {
+    const nodes = useScene.getState().nodes as unknown as Live;
+    const gutterless = Object.entries(nodes).filter(
+      ([id, node]) =>
+        node.type === 'roof-segment' &&
+        (node.metadata as { autoGutter?: unknown } | undefined)?.autoGutter === true &&
+        guttersOf(nodes, id).length === 0,
+    );
+
+    useScene
+      .getState()
+      .updateNodes(gutterless.map(([id, node]) => ({ id: id as never, data: { metadata: node.metadata } as never })));
+
+    const refreshed: Live = { ...(useScene.getState().nodes as unknown as Live) };
+
+    for (const [id, node] of gutterless) refreshed[id] = { ...node, children: refreshed[id]?.children ?? node.children };
+    useScene.setState({ nodes: refreshed as never });
+  };
+
+  it('nạp → có máng; đọc ngược 0 lệnh; sửa mặt mái không nhân đôi máng', () => {
+    setDetailsEnabled(true);
+
+    const graph = savedRoofGraph();
+    vi.stubGlobal('requestAnimationFrame', () => 0);
+    vi.stubGlobal('cancelAnimationFrame', () => undefined);
+    const built = toPascalScene(graph).scene;
+
+    useScene.getState().setScene(built.nodes as never, built.rootNodeIds as never);
+    const loadedRoofs = toSpatialGraph({ ...built, nodes: useScene.getState().nodes } as unknown as PascalScene).graph.roofs;
+
+    expect(loadedRoofs).toHaveLength(1);
+    expect(guttersOf(useScene.getState().nodes as unknown as Live, 'rseg_a1b2c3d4e5f6')).toEqual([]);
+
+    refreshLoadedGutters();
+
+    const live = (): Live => useScene.getState().nodes as unknown as Live;
+    const gutters = guttersOf(live(), 'rseg_a1b2c3d4e5f6');
+
+    expect(gutters.length).toBeGreaterThan(0);
+    expect(guttersOf(live(), 'rseg_f6e5d4c3b2a1')).toEqual([]);
+
+    // setScene tự đổi roofHeight → pitch (migrateNodes, có từ trước luật này); máng không thêm gì vào bản lưu.
+    expect(toSpatialGraph({ ...built, nodes: live() } as unknown as PascalScene).graph.roofs).toEqual(loadedRoofs);
+
+    refreshLoadedGutters();
+    useScene.getState().updateNodes([{ id: 'rseg_a1b2c3d4e5f6' as never, data: { width: 9 } as never }]);
+
+    const after = guttersOf(live(), 'rseg_a1b2c3d4e5f6');
+
+    expect(after).toHaveLength(gutters.length);
+    expect(Object.values(live()).filter((node) => node.type === 'gutter')).toHaveLength(gutters.length);
   });
 });
