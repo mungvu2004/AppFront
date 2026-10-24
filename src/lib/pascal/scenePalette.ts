@@ -45,9 +45,11 @@ export const SCENE_PALETTE = {
 export const RENDER_LOOK_PALETTE = {
   // Trời = gradient trung tính sáng (trước #8d8c89/#a3a29f qua chỉnh màu ra nâu đục, nhà như
   // đặt trong hộp tối). `background` (dưới chân trời) giữ tối hơn tường sáng (test renderLook).
-  background: '#979899',
+  // Đất + phông dưới chân trời hơi lạnh, sáng hơn (trước #979899/#74726e): đèn chính/ambient ấm
+  // + tương phản hậu kỳ biến xám trung tính thành nâu bùn khi nhìn từ trên. Vẫn tối hơn tường.
+  background: '#aaaeb1',
   sky: '#d8dadb',
-  ground: '#74726e',
+  ground: '#9a9ea1',
   ambient: '#fff1e0',
   hemiSky: '#fff6ea',
   hemiGround: '#6b5640',
