@@ -57,6 +57,13 @@ describe('sceneVariety (J7)', () => {
     for (const style of Object.values(SCENE_STYLES)) expect(modelFolderOf(chair, style)).not.toBe('sofa');
   });
 
+  it('variant table thấp hơn 0,5 m là bàn trà, cao thì vẫn bàn ăn', () => {
+    const coffee = item('CT', 'table', 900, 900, { variant: 'table', heightMm: 420 });
+    expect(roleOf(coffee, 'livingRoom')).toBe('coffeeTable');
+    expect(modelFolderOf(coffee, AM_AP, 'livingRoom')).toBe('coffee-table');
+    expect(modelFolderOf(item('DT', 'table', 1800, 900, { variant: 'table', heightMm: 750 }), AM_AP)).toBe('dining-table');
+  });
+
   it('lọc fill ≥ 0,6: ưu tiên không vừa hộp thì bỏ', () => {
     // Thảm dài 3 × 0,8 m: thảm tròn 1,99 × 1,99 có fill ≈ 0,4 → không được chọn.
     const runner = item('R1', 'other', 3000, 800, { heightMm: 20 });

@@ -576,6 +576,8 @@ const STRETCH_FOLDERS: ReadonlySet<string> = new Set([
   'bathroom-sink',
   'dresser',
   'tv-stand',
+  // Bàn trà chữ nhật vào ô vuông 0,9 × 0,9 (F1): co đều thì chỉ còn sâu 0,5 m.
+  'coffee-table',
 ]);
 const MAX_STRETCH_RATIO = 1.8;
 

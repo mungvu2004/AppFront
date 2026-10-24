@@ -87,8 +87,17 @@ const footprintOf = (f: Shaped): readonly [number, number] => {
 const roleOfFolder = (folder: string): FurnitureRole =>
   (Object.keys(ROLE_MODELS) as FurnitureRole[]).find((role) => ROLE_MODELS[role][0] === folder) ?? 'fixed';
 
-/** Mô hình của variant; variant không có mô hình (null) coi như không có variant. */
-const variantModelOf = (f: Shaped) => (f.variant === undefined ? null : VARIANT_MODEL[f.variant] ?? null);
+const COFFEE_TABLE_MAX_MM = 500;
+
+/**
+ * Mô hình của variant; variant không có mô hình (null) coi như không có variant.
+ * Bàn `table` thấp hơn 0,5 m là bàn trà (F-LIVING-COFFEE 900 × 900 × 420), không phải bàn ăn.
+ */
+const variantModelOf = (f: Shaped) => {
+  if (f.variant === undefined) return null;
+  if (f.variant === 'table' && f.heightMm !== undefined && f.heightMm < COFFEE_TABLE_MAX_MM) return { folder: 'coffee-table' };
+  return VARIANT_MODEL[f.variant] ?? null;
+};
 
 /** Bàn cỡ bàn làm việc chỉ là `desk` ở các phòng này (hoặc không rõ phòng); bếp, phòng khách… là bàn ăn. */
 const DESK_USAGES: ReadonlySet<RoomUsage | undefined> = new Set([undefined, 'bedroom', 'utility', 'other']);

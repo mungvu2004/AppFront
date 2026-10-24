@@ -63,7 +63,7 @@ const WINDOW_CLEAR_MM = 300;
 const DEFAULT_LEVEL_HEIGHT_MM = 2700;
 
 const RUG_ROLES: ReadonlySet<FurnitureRole> = new Set(['rug', 'roundRug']);
-const VASE_HOST_ROLES: ReadonlySet<FurnitureRole> = new Set(['diningTable', 'nightstand']);
+const VASE_HOST_ROLES: ReadonlySet<FurnitureRole> = new Set(['diningTable', 'coffeeTable', 'nightstand']);
 const SOFA_GROUP_ROLES: ReadonlySet<FurnitureRole> = new Set(['sofa', 'armchair', 'coffeeTable']);
 const BED_ROLES: ReadonlySet<FurnitureRole> = new Set(['doubleBed', 'singleBed']);
 const WET_ROLES: ReadonlySet<FurnitureRole> = new Set(['shower', 'bathtub']);

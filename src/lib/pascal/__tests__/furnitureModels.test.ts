@@ -340,7 +340,7 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     expect(modelSrcOf('bush')).toBe('/items/bush/model.glb');
   });
 
-  it('gói 4B + 5: cờ realism bật → tủ bếp / kệ TV dùng mẫu -gen, đồ Sketchfab dùng mẫu -sf; tắt → mẫu Pascal', () => {
+  it('gói 4B + 5 + 6: cờ realism bật → tủ bếp / kệ TV dùng mẫu -gen, đồ Sketchfab dùng mẫu -sf; tắt → mẫu Pascal', () => {
     const swaps = {
       closet: 'wardrobe-sf',
       fridge: 'fridge-sf',
@@ -349,6 +349,11 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
       'dining-table': 'dining-table-sf',
       dresser: 'dresser-sf',
       television: 'tv-sf',
+      'double-bed': 'bed-sf',
+      'shower-square': 'shower-sf',
+      hood: 'hood-sf',
+      stove: 'stove-sf',
+      'coffee-table': 'coffee-table-sf',
       'kitchen-counter': 'kitchen-counter-gen',
       'kitchen-cabinet': 'kitchen-cabinet-gen',
       'kitchen-shelf': 'kitchen-shelf-gen',
@@ -363,6 +368,7 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
         expect(existsSync(resolve(ROOT, 'assets/appfront-items', gen, 'model.glb')), gen).toBe(true);
       }
       expect(CATALOG_MODELS['kitchen-shelf']?.attachTo).toBe('wall-side');
+      expect(CATALOG_MODELS.hood?.attachTo).toBe('wall-side');
     } finally {
       setRealismModels(false);
     }

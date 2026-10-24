@@ -18,6 +18,7 @@ import {
   compactPrimitive,
   flatten,
   join as joinPrims,
+  metalRough,
   simplify,
   textureCompress,
   transformMesh,
@@ -29,7 +30,8 @@ import sharp from 'sharp';
 import { ioOf, writeModel } from '../gen-decor-models.mjs';
 
 /**
- * dir → folder AppFront. `yaw` (độ) quay quanh y để mặt trước nhìn +z. `fit` = [trục sau xoay, mét].
+ * dir → folder AppFront. `yaw` (độ) quay quanh y để mặt trước nhìn +z. `fit` = [trục sau xoay, mét]
+ * (giữ tỉ lệ) hoặc `size` = [x, y, z] mét (co giãn từng trục cho vừa ô vuông/ô bàn trà của editor).
  * `keep`/`drop` = regex tên nút; `clipX` = bỏ tam giác có tâm |x| > giá trị (đơn vị gốc, trước xoay).
  */
 export const SKETCHFAB = {
@@ -62,16 +64,38 @@ export const SKETCHFAB = {
     folder: 'tv-sf', label: 'TV', yaw: -90, fit: ['x', 1.16],
     credit: ['Flat Screen Television', 'HippoStance (@hippostance)', 'f90d4fb91dd34b6791e8d66d00f96591'],
   },
+  // Gói 6.
+  'soho_bed_-_3d_model': {
+    folder: 'bed-sf', label: 'Bed', yaw: 0, fit: ['x', 1.8], tris: 12000, texture: 1024,
+    credit: ['Soho bed - 3D Model', 'BertO (@bertosalotti)', '97e361e8beda4112ac5b1b5bcd388cdf'],
+  },
+  // Cabin 1,3 × 1,05 m, ô tắm của editor gần vuông (~0,9 m) → ép vuông, không thì co đều chỉ còn cao 1,5 m.
+  shower_cabin: {
+    folder: 'shower-sf', label: 'Shower', yaw: 0, size: [0.95, 2.0, 0.95], tris: 8000,
+    credit: ['Shower Cabin', 'Heliona (@Heliona)', 'e2c6a8dd490e4e4398378e1f6c9121a8'],
+  },
+  range_hood_kitchen_hood: {
+    folder: 'hood-sf', label: 'Hood', yaw: 0, fit: ['x', 0.76],
+    credit: ['Range Hood (Kitchen Hood)', 'govindu94 (@govindu94)', 'e846cb48e88446808af55976ff76b1da'],
+  },
+  ikea_range_with_gas_cooktop: {
+    folder: 'stove-sf', label: 'Stove', yaw: 0, fit: ['x', 0.76], tris: 12000,
+    credit: ['IKEA Range with Gas Cooktop', 'MUSHROOM_BUILDS (@MUSHROOM_BUILDS)', '0568b8cf6a8444099c55eab7ca1a7de0'],
+  },
+  simple_wooden_coffee_table__game_asset: {
+    folder: 'coffee-table-sf', label: 'Coffee table', yaw: 0, size: [1.2, 0.42, 0.65],
+    credit: ['Simple Wooden Coffee Table – Game Asset', 'AspectStudios (@AspectStudio)', 'e80cccd7091049d2becc13384e218bc5'],
+  },
 };
 
 const AXIS = { x: 0, y: 1, z: 2 };
 
-/** Ma trận cột (glTF) quay quanh y góc `deg` rồi nhân `s`. */
-const yawScale = (deg, s) => {
+/** Ma trận cột (glTF) quay quanh y góc `deg` rồi nhân từng trục [sx, sy, sz]. */
+const yawScale = (deg, [sx, sy, sz]) => {
   const r = (deg * Math.PI) / 180;
-  const c = Math.cos(r) * s;
-  const n = Math.sin(r) * s;
-  return [c, 0, -n, 0, 0, s, 0, 0, n, 0, c, 0, 0, 0, 0, 1];
+  const c = Math.cos(r);
+  const n = Math.sin(r);
+  return [sx * c, 0, -sz * n, 0, 0, sy, 0, 0, sx * n, 0, sz * c, 0, 0, 0, 0, 1];
 };
 
 const underMatch = (node, re) => {
@@ -82,6 +106,8 @@ const underMatch = (node, re) => {
 const convert = async (io, dl, dir, cfg) => {
   await MeshoptSimplifier.ready;
   const doc = await io.read(join(dl, dir, 'scene.gltf'));
+  // Mẫu cũ dùng KHR_materials_pbrSpecularGlossiness (giường Soho) → three đọc thành kim loại trắng.
+  await doc.transform(metalRough());
   const root = doc.getRoot();
   for (const node of root.listNodes()) {
     if (!node.getMesh()) continue;
@@ -115,10 +141,12 @@ const convert = async (io, dl, dir, cfg) => {
   const b0 = getBounds(scene);
   // Kích thước dùng để quy về mét đo SAU khi xoay (x ↔ z khi yaw ±90).
   const swap = Math.abs(cfg.yaw) === 90;
-  const ax = AXIS[cfg.fit[0]];
-  const srcAx = swap && ax !== 1 ? 2 - ax : ax;
-  const scale = cfg.fit[1] / (b0.max[srcAx] - b0.min[srcAx]);
-  const m = yawScale(cfg.yaw, scale);
+  const extent = (ax) => {
+    const src = swap && ax !== 1 ? 2 - ax : ax;
+    return b0.max[src] - b0.min[src];
+  };
+  const fitS = cfg.fit && cfg.fit[1] / extent(AXIS[cfg.fit[0]]);
+  const m = yawScale(cfg.yaw, cfg.size ? cfg.size.map((v, ax) => v / extent(ax)) : [fitS, fitS, fitS]);
   for (const mesh of root.listMeshes()) transformMesh(mesh, m);
   const before = root.listMeshes().reduce((n, me) => n + me.listPrimitives().reduce((k, p) => k + p.getIndices().getCount() / 3, 0), 0);
   const ratio = cfg.tris && before > cfg.tris ? cfg.tris / before : 0;

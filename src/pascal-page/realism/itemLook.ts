@@ -60,6 +60,8 @@ export const ITEM_KIND: Record<string, Record<string, MaterialKind>> = {
   'kitchen-shelf-gen': { handle: 'metal' },
   // Gói 5: tủ lạnh Sketchfab "grey polished metal" kim loại 100 % ra đen trong phòng → inox pha.
   'fridge-sf': { '*': 'steelMapped' },
+  // Gói 6: giường Soho bọc vải (spec/gloss đã đổi sang metal/rough khi chuyển).
+  'bed-sf': { '*': 'fabric' },
   'tv-stand-gen': { handle: 'metal' },
   dresser: { handle: 'metal' },
   'office-table': { handle: 'metal' },

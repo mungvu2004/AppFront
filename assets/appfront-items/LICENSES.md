@@ -37,7 +37,7 @@ editor-realism pack 4B (2026-10-24): `node scripts/realism-assets/cabinets.mjs` 
 
 ## Sketchfab (CC BY 4.0 — ghi nguồn bắt buộc)
 
-Tải 2026-10-24 bằng tài khoản Sketchfab của chủ dự án (bản glTF), chuyển bằng `node scripts/realism-assets/sketchfab.mjs <dlDir>` (xoay mặt trước +z, đổi về mét, giảm lưới, ảnh webp 512/1024). Đã sửa đổi: cắt phần thừa (tường mẫu, ghế của bàn ăn, 2 món khác của bộ tủ), giảm lưới.
+Tải 2026-10-24 bằng tài khoản Sketchfab của chủ dự án (bản glTF), chuyển bằng `node scripts/realism-assets/sketchfab.mjs <dlDir>` (xoay mặt trước +z, đổi về mét, giảm lưới, ảnh webp 512/1024). Đã sửa đổi: cắt phần thừa (tường mẫu, ghế của bàn ăn, 2 món khác của bộ tủ), giảm lưới; gói 6 (2026-10-24): đổi vật liệu spec/gloss sang metal/rough (giường), ép cabin tắm và bàn trà theo tỉ lệ ô của editor.
 
 | Folder | Source | License |
 |---|---|---|
@@ -48,3 +48,8 @@ Tải 2026-10-24 bằng tài khoản Sketchfab của chủ dự án (bản glTF)
 | dining-table-sf | "Dining Table Glass" by Francesco Coldesina (@topfrank2013) — https://sketchfab.com/3d-models/c41a27d7a1b24dc484bc603e1bc2d0ef | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
 | dresser-sf | "Cabinets and shelf IKEA style" by janexx (@janexx) — https://sketchfab.com/3d-models/a1a84be7512f4389af7fd7bbd7060c2f | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
 | tv-sf | "Flat Screen Television" by HippoStance (@hippostance) — https://sketchfab.com/3d-models/f90d4fb91dd34b6791e8d66d00f96591 | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
+| bed-sf | "Soho bed - 3D Model" by BertO (@bertosalotti) — https://sketchfab.com/3d-models/97e361e8beda4112ac5b1b5bcd388cdf | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
+| shower-sf | "Shower Cabin" by Heliona (@Heliona) — https://sketchfab.com/3d-models/e2c6a8dd490e4e4398378e1f6c9121a8 | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
+| hood-sf | "Range Hood (Kitchen Hood)" by govindu94 (@govindu94) — https://sketchfab.com/3d-models/e846cb48e88446808af55976ff76b1da | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
+| stove-sf | "IKEA Range with Gas Cooktop" by MUSHROOM_BUILDS (@MUSHROOM_BUILDS) — https://sketchfab.com/3d-models/0568b8cf6a8444099c55eab7ca1a7de0 | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
+| coffee-table-sf | "Simple Wooden Coffee Table – Game Asset" by AspectStudios (@AspectStudio) — https://sketchfab.com/3d-models/e80cccd7091049d2becc13384e218bc5 | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
