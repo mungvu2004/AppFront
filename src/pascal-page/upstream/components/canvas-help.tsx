@@ -24,7 +24,7 @@ import { ChevronDown, ChevronUp, CircleHelp, Mouse } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useScaleUnresolved } from '../../scaleUnresolved'
 import { requestTour } from '../../tour/tourLogic'
-import { clampShift, clearOfShift } from '../lib/clamp-shift'
+import { clampShift, clearOfShift, unionBox } from '../lib/clamp-shift'
 
 const OPEN_KEY = 'appfront-3d-help-open:v1'
 
@@ -172,6 +172,16 @@ const PREVIEW_HINTS: Array<[string, string]> = [
 
 /** Floating floor card (vendor `floating-level-selector`) the centred pill must not cover on narrow canvases. */
 const FLOOR_CARD = '.absolute.top-14.left-3.z-20'
+/** Its "+" add-level dots sit outside the card edge (G5-16 CSS above), so the card's own rect misses them. */
+const ADD_LEVEL = 'button[title="Thêm tầng phía trên"], button[title="Thêm tầng phía dưới"]'
+
+/** Floor card rect grown to cover its "+" dots (768 px: the scale banner covered the right-hand "+"). */
+function floorCardBox() {
+  const card = document.querySelector<HTMLElement>(FLOOR_CARD)
+  if (!card) return undefined
+  const dots = [...card.querySelectorAll<HTMLElement>(ADD_LEVEL)].map((dot) => dot.getBoundingClientRect())
+  return unionBox(card.getBoundingClientRect(), dots.filter((r) => r.width))
+}
 
 /** pascal-polish: nudge the pill right (or below) while it would overlap the floor card (same rAF pattern as above). */
 function useClearOfFloorCard(ref: { current: HTMLElement | null }) {
@@ -179,13 +189,13 @@ function useClearOfFloorCard(ref: { current: HTMLElement | null }) {
     let frame = 0
     const tick = () => {
       const el = ref.current
-      const card = document.querySelector<HTMLElement>(FLOOR_CARD)?.getBoundingClientRect()
+      const card = floorCardBox()
       if (el) {
         const prevX = Number(el.dataset.clearX ?? 0)
         const prevY = Number(el.dataset.clearY ?? 0)
         const r = el.getBoundingClientRect()
         const base = { left: r.left - prevX, right: r.right - prevX, top: r.top - prevY, bottom: r.bottom - prevY }
-        const { dx, dy } = card && card.width ? clearOfShift(base, card, window.innerWidth) : { dx: 0, dy: 0 }
+        const { dx, dy } = card && card.right > card.left ? clearOfShift(base, card, window.innerWidth) : { dx: 0, dy: 0 }
         const [x, y] = [Math.round(dx), Math.round(dy)]
         if (x !== prevX || y !== prevY) {
           el.dataset.clearX = String(x)

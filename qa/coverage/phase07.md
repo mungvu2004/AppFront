@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 <!-- qa-sources fe=c08468bf -->
 # Phase 07 - Account Settings (SCR-33): FE coverage inventory
 
@@ -308,7 +307,9 @@ Deferred: `33S-A-026` (change-email click in the password flow) duplicates `33P-
 | 33S-G-004 | `phase07_security_b_edge.spec.ts` | FL-33S-05 | ui |
 | 33S-G-005 | `phase07_security_b_edge.spec.ts` | FL-33S-07 | ui |
 | 33S-G-007 | `phase07_security_edge.spec.ts` | FL-33S-04 | ui |
-=======
+
+---
+
 <!-- qa-sources fe=ccd645a5 -->
 # Phase 07 — Account: FE coverage inventory
 
@@ -478,4 +479,3 @@ Others: `CA` src/lib/autosave/createAutosave.ts, `I18N` src/i18n/vi.json, `TST` 
   #7 crash fallback; (3) biên — #27 max-wait, #17 toast grouping/expiry, #48 avatar picker by keyboard;
   (4) hiển thị — #14 transient indicator labels, #32 row flash, #38 uploading status, #66 key caps. No gap is caused by the FE changes since
   82e18a88, so no edge test was added in this pass.
->>>>>>> Stashed changes

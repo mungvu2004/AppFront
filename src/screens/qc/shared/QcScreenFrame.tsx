@@ -59,6 +59,11 @@ interface QcWorkspaceProps {
   readonly canvas: ReactNode;
   /** Panel chi tiết phải. 1024-1279: lớp phủ trên mép phải bản vẽ, không rơi xuống dưới. */
   readonly inspector?: ReactNode;
+  /**
+   * Khoá đối tượng đang chọn (null/vắng = chưa chọn). 1024-1279: ngăn chi tiết đóng khi chưa
+   * chọn gì (không che bản vẽ), tự mở khi chọn; người dùng ẩn/hiện tay theo từng lần chọn.
+   */
+  readonly selectionKey?: string | null | undefined;
 }
 
 const DRAWER_HIDE_LABEL = 'Ẩn chi tiết';
@@ -70,8 +75,10 @@ const DRAWER_SHOW_LABEL = 'Hiện chi tiết';
  * - 1024-1279: chi tiết thành ngăn kéo phủ mép phải bản vẽ (ẩn/hiện được), panel trái giữ cột.
  * - <1024: rail + bản vẽ ở hàng đầu (bản vẽ trước danh sách), hai panel xuống dòng, cả vùng cuộn dọc.
  */
-export function QcWorkspace({ rail, left, canvasLabel, canvas, inspector }: QcWorkspaceProps) {
-  const [isDrawerOpen, setDrawerOpen] = useState(true);
+export function QcWorkspace({ rail, left, canvasLabel, canvas, inspector, selectionKey = null }: QcWorkspaceProps) {
+  // Ẩn/hiện tay chỉ áp cho lần chọn đang có; đổi lựa chọn thì về mặc định (mở khi có chọn).
+  const [manual, setManual] = useState<{ readonly key: string | null; readonly open: boolean } | null>(null);
+  const isDrawerOpen = manual?.key === selectionKey ? manual.open : selectionKey != null;
   const hasInspector = inspector != null && inspector !== false;
   const hasLeft = left != null && left !== false;
 
@@ -92,7 +99,7 @@ export function QcWorkspace({ rail, left, canvasLabel, canvas, inspector }: QcWo
           <button
             aria-expanded={isDrawerOpen}
             className="absolute right-3 top-3 z-30 hidden rounded-lg bg-bg-surface px-2.5 py-1 text-body-sm text-text-secondary shadow-float hover:text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent lg:max-xl:block"
-            onClick={() => setDrawerOpen((open) => !open)}
+            onClick={() => setManual({ key: selectionKey, open: !isDrawerOpen })}
             type="button"
           >
             {isDrawerOpen ? DRAWER_HIDE_LABEL : DRAWER_SHOW_LABEL}

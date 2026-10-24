@@ -339,6 +339,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
           )
         }
         left={isCollapsed ? null : <RoomLabelLeftColumn {...props} />}
+        selectionKey={selectedRoomId}
       />
 
       <QcStatusBar onUndo={isViewerRole ? undefined : props.onUndo} saveLabel={props.saveStatus ?? null} />
