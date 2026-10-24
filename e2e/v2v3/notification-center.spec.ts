@@ -27,7 +27,7 @@ import { ROUTES } from '../fixtures/routes';
  *
  * Bảy trạng thái, cuộn khi tin đến, nút `chấp nhận` của lời mời, chấm chưa đọc,
  * không âm thanh: `NotificationCenter.test.tsx` phủ. Nhận tin thời gian thực: luồng
- * SSE 404 ở bộ mẫu. A6 của nhãn hoa đầu câu ("Đánh dấu tất cả đã đọc"): chưa đối
+ * SSE 404 ở bộ mẫu. A6 của nhãn hoa đầu câu ("Đánh dấu đã đọc hết"): chưa đối
  * chiếu `LUAT_MAN_HINH.md`, kế hoạch để ngỏ.
  */
 
@@ -51,7 +51,7 @@ test.beforeAll(async ({ browser }) => {
   test.setTimeout(COLD_START_TIMEOUT_MS);
   const page = await browser.newPage();
   await page.goto(ROUTES.notifications);
-  await expect(page.getByRole('heading', { name: 'Thông báo' })).toBeVisible({ timeout: COLD_START_TIMEOUT_MS });
+  await expect(page.getByRole('heading', { name: 'Xem việc mới từ thông báo' })).toBeVisible({ timeout: COLD_START_TIMEOUT_MS });
   await page.close();
 });
 
@@ -63,7 +63,7 @@ function panel(page: Page) {
 /** Mở THẲNG `/thong-bao` — một lượt tải trang, không có mục lịch sử nào trong ứng dụng. */
 async function openDirect(page: Page): Promise<void> {
   await page.goto(ROUTES.notifications);
-  await expect(page.getByRole('heading', { name: 'Thông báo' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Xem việc mới từ thông báo' })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 }
@@ -73,7 +73,7 @@ test('mở trực tiếp /thong-bao là một trang trong khung ứng dụng: kh
 }) => {
   await openDirect(page);
 
-  await expect(page.getByRole('heading', { level: 1, name: 'Thông báo' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Xem việc mới từ thông báo' })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByText('Trung tâm thông báo')).toHaveCount(0);
   await expect(panel(page).getByRole('button', { name: 'Xem tất cả' })).toHaveCount(0);
@@ -81,7 +81,7 @@ test('mở trực tiếp /thong-bao là một trang trong khung ứng dụng: kh
   await page.keyboard.press('Escape');
 
   await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.notifications);
-  await expect(page.getByRole('heading', { level: 1, name: 'Thông báo' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Xem việc mới từ thông báo' })).toBeVisible();
 });
 
 test('768: ba nút chọn chiều cao tấm trượt của chuông nằm trong cây truy cập, có tên và trạng thái (B-V1-46)', async ({
@@ -103,7 +103,7 @@ test('768: ba nút chọn chiều cao tấm trượt của chuông nằm trong c
   await expect(levels.getByRole('button', { name: 'Mức 2', pressed: true })).toBeVisible();
 });
 
-test('"Đánh dấu tất cả đã đọc" xoá số chưa đọc, khoá nút, và trạng thái nói "Không còn thông báo chưa đọc" khi danh sách vẫn còn (B-V2-02)', async ({
+test('"Đánh dấu đã đọc hết" xoá số chưa đọc, khoá nút, và trạng thái nói "Không còn thông báo chưa đọc" khi danh sách vẫn còn (B-V2-02)', async ({
   page,
 }) => {
   await openDirect(page);
@@ -115,7 +115,7 @@ test('"Đánh dấu tất cả đã đọc" xoá số chưa đọc, khoá nút, 
     `Có ${UNREAD_COUNT} thông báo chưa đọc`,
   );
 
-  const markAll = drawer.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' });
+  const markAll = drawer.getByRole('button', { name: 'Đánh dấu đã đọc hết' });
   await markAll.click();
 
   await expect(markAll).toBeDisabled();
@@ -167,18 +167,18 @@ test('bấm một thông báo ở /thong-bao mở thẳng đưa người dùng t
 });
 
 /*
- * B-V2-06 (đã sửa): "Đánh dấu tất cả đã đọc" từng ghi ngay, không toast, không đường
+ * B-V2-06 (đã sửa): "Đánh dấu đã đọc hết" từng ghi ngay, không toast, không đường
  * quay lại — máy chủ không có lệnh "đánh dấu lại chưa đọc". Nay lệnh được giữ 8 giây
  * sau toast "Hoàn tác" (A8). Bước bấm lại phủ phần sửa kênh chung: toast đã hoàn tác
  * không được nuốt lượt kế tiếp trong cửa sổ gộp 5 giây. Đã kiểm đỏ trước sửa.
  */
-test('"Đánh dấu tất cả đã đọc" hiện toast kèm nút "Hoàn tác", và Hoàn tác trả lại số chưa đọc (B-V2-06)', async ({
+test('"Đánh dấu đã đọc hết" hiện toast kèm nút "Hoàn tác", và Hoàn tác trả lại số chưa đọc (B-V2-06)', async ({
   page,
 }) => {
   await openDirect(page);
 
   const drawer = panel(page);
-  const markAll = drawer.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' });
+  const markAll = drawer.getByRole('button', { name: 'Đánh dấu đã đọc hết' });
   const undo = page.getByRole('button', { name: 'Hoàn tác' });
   const unreadStatus = page.getByRole('status').filter({ hasText: 'thông báo chưa đọc' });
 

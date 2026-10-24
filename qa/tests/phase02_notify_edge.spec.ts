@@ -93,9 +93,9 @@ const COMPACT = { width: 375, height: 812 } as const;
 type Viewport = { readonly width: number; readonly height: number };
 
 /* SCR-06 copy. */
-const MARK_ALL_READ = 'Đánh dấu tất cả đã đọc'; // NC:55
+const MARK_ALL_READ = 'Đánh dấu đã đọc hết'; // NC:55
 const MARK_READ = 'Đánh dấu đã đọc'; // NC:56
-const NOTIF_TITLE = 'Thông báo'; // NC:54 (drawer / sheet heading)
+const NOTIF_PAGE_TITLE = 'Xem việc mới từ thông báo'; // NotificationCenter.tsx PAGE_TITLE (h1 of /thong-bao)
 const NOTIF_SETTINGS = 'Mở cài đặt thông báo'; // NC:57
 const NOTIF_FILTER = 'Lọc thông báo'; // NC:58
 const VIEW_ALL = 'Xem tất cả'; // NC:59
@@ -208,7 +208,8 @@ const headerBadge = (scope: Locator): Locator => scope.locator('h3 + span'); // 
 const filterRadio = (scope: Locator, label: string): Locator =>
   scope.getByRole('radiogroup', { name: NOTIF_FILTER, exact: true }).getByRole('radio', { name: label, exact: true });
 const toastWith = (page: Page, text: string): Locator => page.getByRole('status').filter({ hasText: text });
-const greeting = (page: Page): Locator => page.getByRole('heading', { level: 1 });
+// Chào {tên}, bắt đầu trong ba bước nay là eyebrow (p) của PageHead, không còn là h1.
+const greeting = (page: Page): Locator => page.getByText(/^Chào .+, bắt đầu trong ba bước$/u);
 
 /** Bell drawer open and painted (NC:243-285), slide finished. */
 async function openDrawer(page: Page): Promise<Locator> {
@@ -592,7 +593,7 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
     });
   });
 
-  test('E02 · SCR-06 "Đánh dấu tất cả đã đọc" with 2 real unread: rows read at once, then ONE POST /read with both ids after 8 s (no read-all); reload keeps them read', async ({ browser }) => {
+  test('E02 · SCR-06 "Đánh dấu đã đọc hết" with 2 real unread: rows read at once, then ONE POST /read with both ids after 8 s (no read-all); reload keeps them read', async ({ browser }) => {
     await asInvitee(browser, async (session) => {
       const { page, api } = session;
       const a = await sharedProject(session, 'ntf-all-a');
@@ -669,7 +670,7 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
     });
   });
 
-  test('E02 · SCR-06 keyboard: Enter on the bell focuses "Đánh dấu tất cả đã đọc"; Shift+Tab wraps to "Xem tất cả"; Tab reaches a row, which reveals "Đánh dấu đã đọc"; Enter opens it', async ({ browser }) => {
+  test('E02 · SCR-06 keyboard: Enter on the bell focuses "Đánh dấu đã đọc hết"; Shift+Tab wraps to "Xem tất cả"; Tab reaches a row, which reveals "Đánh dấu đã đọc"; Enter opens it', async ({ browser }) => {
     await asInvitee(browser, async (session) => {
       const { page } = session;
       const project = await sharedProject(session, 'ntf-keys');
@@ -708,7 +709,7 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
 
   test('E02 · SCR-06 BUG-114: with nothing unread the gear takes the opening focus; opened by click no tooltip shows (BUG-205), opened by Enter its tooltip is inside the viewport, near the gear, no horizontal scroll', async ({ browser }) => {
     await asInvitee(browser, async ({ page }) => {
-      expect(await loadWithInbox(page), 'precondition: empty inbox → "Đánh dấu tất cả đã đọc" disabled').toEqual([]);
+      expect(await loadWithInbox(page), 'precondition: empty inbox → "Đánh dấu đã đọc hết" disabled').toEqual([]);
       // FIX-1031 (BUG-205): the tooltip shows on `:focus-visible` only (TT handleFocus), so a mouse-opened drawer pops none.
       // Reverse check first (review-1 #7): open by click, pointer parked off the drawer, wait past the 400 ms dwell
       // (TT TOOLTIP_DWELL_MS) — the gear holds the focus but no tooltip stands over the tabs.
@@ -852,7 +853,7 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
         async ({ page }) => {
           await loadWithInbox(page, ROUTES.notifications);
           const route = routePage(page);
-          await expect(route.getByRole('heading', { level: 1, name: NOTIF_TITLE, exact: true })).toBeVisible();
+          await expect(route.getByRole('heading', { level: 1, name: NOTIF_PAGE_TITLE, exact: true })).toBeVisible();
           await expect(filterRadio(route, NOTIF_FILTERS.mentions)).toBeInViewport();
           await expect(route.getByRole('button', { name: VIEW_ALL, exact: true })).toHaveCount(0);
           await expect(panel(page)).toHaveCount(0);

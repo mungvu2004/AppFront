@@ -244,7 +244,7 @@ test.describe('SCR-33 profile edge', () => {
       await test.step('[33P-D-002] engineer sees the whole screen', async () => {
         await expect.soft(page.locator('section[aria-labelledby] h2')).toHaveText(BLOCKS.map((b) => b.title));
         await expect.soft(page.getByRole('heading', { name: 'Phiên đăng nhập', exact: true })).toHaveCount(0);
-        await expect.soft(page.getByRole('heading', { name: 'Vùng nguy hiểm', exact: true })).toHaveCount(0);
+        await expect.soft(page.getByRole('heading', { name: 'Xoá tài khoản', exact: true })).toHaveCount(0);
         await expect.soft(saveIndicator(page)).toHaveText(IND.idle);
         await captureEvidence(page, 'E07_33P-D-002_engineer_screen.png', { fullPage: true });
       });

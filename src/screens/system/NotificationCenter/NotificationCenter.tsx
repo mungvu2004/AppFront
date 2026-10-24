@@ -30,6 +30,8 @@ import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { PageHead } from '@/components/shell/PageHead';
+import { Section } from '@/components/shell/Section';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { durationMs, durationSeconds } from '@/lib/motion';
@@ -51,7 +53,14 @@ import type { NotificationCenterProps } from './useNotificationCenter';
 /* -------------------------------------------------------------------------- */
 
 const TITLE_LABEL = 'Thông báo';
-const MARK_ALL_READ_LABEL = 'Đánh dấu tất cả đã đọc';
+const MARK_ALL_READ_LABEL = 'Đánh dấu đã đọc hết';
+const PAGE_EYEBROW = 'Tài khoản · Thông báo';
+const PAGE_TITLE = 'Xem việc mới từ thông báo';
+const UNREAD_SUFFIX = 'chưa đọc';
+const ALL_READ_LABEL = 'Đã đọc hết';
+const NEWEST_PREFIX = 'Mới nhất';
+const OPEN_NEWEST_LABEL = 'Mở thông báo mới nhất';
+const PAGE_FOOT = 'Mở trang này không tự đánh dấu đã đọc. Bấm vào thông báo hoặc nút dấu ✓ để đánh dấu.';
 const SETTINGS_LABEL = 'Mở cài đặt thông báo';
 const FILTER_ARIA_LABEL = 'Lọc thông báo';
 const VIEW_ALL_LABEL = 'Xem tất cả';
@@ -111,6 +120,8 @@ export interface NotificationListProps extends NotificationCenterProps {
   readonly onRowInlineAction: (item: NotificationItemVm) => void;
   /** Trang đầy đủ: tên dự án xuống dòng thay vì cắt "…" (LOOK-L2). */
   readonly wrapProjectName?: boolean;
+  /** Trang đầy đủ (demo S-41): mỗi hàng có một lối đi thẳng tới việc ở mép phải. */
+  readonly showNavigateAction?: boolean;
 }
 
 /** Thân danh sách theo `screenState` — dùng chung cho tấm trượt và trang `/thong-bao` (G1-15). */
@@ -118,6 +129,7 @@ export function NotificationList(props: NotificationListProps) {
   const {
     screenState, filter, onFilterChange, groups, onMarkRead, errorMessage, onRetry, arrivedIds,
     canLoadOlder, isLoadingOlder, onLoadOlder, onRowAction, onRowInlineAction, wrapProjectName = false,
+    showNavigateAction = false,
   } = props;
 
   if (screenState === 'loading') {
@@ -172,6 +184,7 @@ export function NotificationList(props: NotificationListProps) {
                 onMarkRead={onMarkRead}
                 onInlineAction={onRowInlineAction}
                 wrapProjectName={wrapProjectName}
+                showNavigateAction={showNavigateAction}
               />
             ))}
           </ul>
@@ -233,17 +246,9 @@ export function NotificationCenter(props: NotificationCenterProps) {
     <Drawer.Root isOpen={isOpen} onClose={onClose} label={TITLE_LABEL}>
       {/* Cột đủ cao của tấm: thân cuộn riêng, chân "Xem tất cả" ghim đáy cả ở tờ dưới 1024px (BUG-161). */}
       <div className="flex h-full min-h-0 flex-1 flex-col">
-        {/* lg:pt-10: on the side panel the gear sits 30 px from the window top, too close for its tooltip above,
-            so it flipped down over the "Nhắc đến tôi" tab (BUG-205). 16 px more lets it stay above, over empty header. */}
-        {/* max-sm:px-4: the 32 px gutters of the drawer left the 375 px sheet a 296 px header, too narrow for
-            "Đánh dấu tất cả đã đọc" and the gear beside the title (BUG-234), and squeezed every row (BUG-203). */}
+        {/* lg:pt-10: tooltip of the gear stays above (BUG-205); max-sm:px-4: 16 px gutters on the 375 px sheet (BUG-234, BUG-203). */}
         <Drawer.Header className={cn(SHEET_GUTTER, 'lg:pt-10')}>
-          {/*
-            Trạng thái 7 ("thu gọn"): khung hẹp thì nhóm nút rơi xuống hàng dưới thay vì
-            ép tiêu đề gãy dòng. Dùng `flex-wrap` chứ không đọc `isCollapsed`: bề ngang
-            thật của tấm (400px ở desktop) đủ cho một hàng, nên cùng
-            một bố cục với ngăn kéo (BUG-124/125). Tiêu đề không bao giờ gãy.
-          */}
+          {/* Trạng thái 7: khung hẹp thì nhóm nút rơi xuống hàng dưới (`flex-wrap`), tiêu đề không gãy (BUG-124/125). */}
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
               <h3 className="text-[15px] font-semibold text-text-primary">{TITLE_LABEL}</h3>
@@ -301,34 +306,73 @@ export function NotificationCenter(props: NotificationCenterProps) {
  * trang thường dưới header chung — không lớp phủ, không Esc, không "Xem tất cả" (chính là nó).
  */
 export function NotificationCenterPage(props: NotificationCenterProps) {
-  const { filter, onFilterChange, unreadBadge, liveMessage, onItemClick, onInlineAction } = props;
+  const { filter, onFilterChange, unreadBadge, liveMessage, onItemClick, onInlineAction, groups } = props;
+  const items = groups.flatMap((group) => group.items);
+  const newest = items[0];
+  const newestUnread = items.find((item) => !item.isRead);
+  const nextLabel =
+    newestUnread?.inlineAction?.kind === 'navigate' ? newestUnread.inlineAction.label : OPEN_NEWEST_LABEL;
 
   return (
-    <div className="mx-auto flex w-full max-w-[880px] flex-col gap-6 p-8 max-lg:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-          <h1 className="text-title text-text-primary">{TITLE_LABEL}</h1>
-          {unreadBadge !== '' && (
-            <span className="font-mono text-[14px] tabular-nums text-text-secondary">{unreadBadge}</span>
-          )}
-        </div>
-        <div className="ml-auto flex shrink-0 items-center gap-1">
-          <NotificationActions {...props} />
-        </div>
-      </div>
-      <SegmentedControl
-        className="max-w-md"
-        aria-label={FILTER_ARIA_LABEL}
-        options={FILTER_OPTIONS}
-        value={filter}
-        onChange={onFilterChange}
+    <div className="mx-auto flex w-full max-w-[1280px] flex-col px-20 py-8 max-xl:px-8 max-lg:p-6">
+      <PageHead
+        eyebrow={PAGE_EYEBROW}
+        title={PAGE_TITLE}
+        status={
+          <>
+            {unreadBadge !== '' ? (
+              <Badge variant="neutral" noDot>
+                <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                {`${unreadBadge} ${UNREAD_SUFFIX}`}
+              </Badge>
+            ) : (
+              <Badge variant="verified">{ALL_READ_LABEL}</Badge>
+            )}
+            {newest !== undefined && (
+              <span className="min-w-0">{`${NEWEST_PREFIX} ${newest.relativeTime}: ${newest.sentence} ${newest.target.label}`}</span>
+            )}
+          </>
+        }
+        next={
+          newestUnread !== undefined && (
+            <Button variant="primary" onClick={() => onItemClick(newestUnread)}>
+              {nextLabel}
+            </Button>
+          )
+        }
       />
       <p className="sr-only" role="status" aria-live="polite">
         {liveMessage}
       </p>
-      <div className="flex flex-col gap-1 rounded-lg border border-border-default bg-bg-surface p-4">
-        <NotificationList {...props} onRowAction={onItemClick} onRowInlineAction={onInlineAction} wrapProjectName />
-      </div>
+      <Section
+        flush
+        title={TITLE_LABEL}
+        actions={
+          <>
+            <SegmentedControl
+              className="shrink-0 whitespace-nowrap"
+              aria-label={FILTER_ARIA_LABEL}
+              options={FILTER_OPTIONS}
+              value={filter}
+              onChange={onFilterChange}
+            />
+            <NotificationActions {...props} />
+          </>
+        }
+      >
+        <div className="flex flex-col gap-1 px-5 py-4">
+          <NotificationList
+            {...props}
+            onRowAction={onItemClick}
+            onRowInlineAction={onInlineAction}
+            wrapProjectName
+            showNavigateAction
+          />
+        </div>
+        <p className="border-t border-border-default px-5 py-3 text-[13px] leading-[18px] text-text-secondary">
+          {PAGE_FOOT}
+        </p>
+      </Section>
     </div>
   );
 }

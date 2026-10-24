@@ -120,6 +120,7 @@ const BASE: WelcomeScreenProps = {
   onFinish: noop,
   isDissolving: false,
   skipNotice: 'Màn chào sẽ không hiện lại trên trình duyệt này.',
+  progressLabel: '0/3 bước xong',
 };
 
 /* -------------------------------------------------------------------------- */
@@ -131,7 +132,7 @@ export const Empty: Story = { args: BASE };
 
 /** 2 — đang tải: ba khung xương đúng cỡ thẻ, không tiêu đề thẻ và không nút. */
 export const Loading: Story = {
-  args: { ...BASE, screenState: 'loading' },
+  args: { ...BASE, screenState: 'loading', progressLabel: null },
 };
 
 /** 3 — một phần: đã có dự án, chưa dò ra tường nào, nên thẻ 2 là thẻ chính. */
@@ -140,6 +141,7 @@ export const Partial: Story = {
     ...BASE,
     screenState: 'partial',
     cards: [stepOne('done', false), stepTwo('open', true), stepThree('locked', false)],
+    progressLabel: '1/3 bước xong',
   },
 };
 
@@ -148,6 +150,7 @@ export const ErrorState: Story = {
   args: {
     ...BASE,
     screenState: 'error',
+    progressLabel: null,
     errorMessage: 'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
   },
 };
@@ -158,6 +161,7 @@ export const Success: Story = {
     ...BASE,
     screenState: 'success',
     cards: [stepOne('done', false), stepTwo('done', false), stepThree('done', false)],
+    progressLabel: '3/3 bước xong',
     finishLabel: 'Vào danh sách dự án',
   },
 };
@@ -168,6 +172,7 @@ export const Forbidden: Story = {
     ...BASE,
     screenState: 'forbidden',
     cards: [stepThree('open', true)],
+    progressLabel: null,
   },
 };
 

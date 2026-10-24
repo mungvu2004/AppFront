@@ -23,7 +23,7 @@ import {
 } from './support/p10/P1';
 
 const MISSING_PROJECT = '00000000-0000-4000-8000-000000000000';
-const DESCRIPTION = 'Trang bạn tìm đã bị xoá hoặc đã chuyển đi nơi khác.'; // useNotFound.ts NOT_FOUND_TEXT.description
+const DESCRIPTION = 'Trang có thể đã bị xoá, đã chuyển chỗ, hoặc đường dẫn bị cắt mất một đoạn khi chép vào thư.'; // useNotFound.ts NOT_FOUND_TEXT.description
 const PROJECT_MISSING_TITLE = 'Không tìm thấy dự án này'; // ProjectSpatialGate.tsx:37
 const TELEMETRY_CODE = /system\.not-found/u; // notFoundModel.ts:150 NOT_FOUND_SCREEN_CODE
 const CAPTION = 'Mã lỗi: 404 · /khong-ton-tai'; // useNotFound.ts:354
@@ -71,7 +71,7 @@ test('SCR-39 · FL-10N-01 · admin · nội dung, thứ tự, chữ, telemetry (
       await expect(recentHeading(page)).toBeVisible();
       await expect.soft(page.getByText(DESCRIPTION, { exact: true })).toBeVisible();
       await expect.soft(page.getByRole('button', { name: 'Về danh sách dự án', exact: true })).toBeVisible();
-      await expect.soft(page.getByRole('button', { name: 'Quay lại', exact: true })).toBeVisible();
+      await expect.soft(page.getByRole('button', { name: 'Quay lại trang trước', exact: true })).toBeVisible();
       await expect.soft(page.getByRole('main').locator('svg[aria-hidden="true"]').first()).toBeVisible(); // PlanFragment.tsx:75
       await captureEvidence(page, 'N10_10N-B-001_success.png');
     });
@@ -148,7 +148,7 @@ test('SCR-39 · FL-10N-01 · admin · nội dung, thứ tự, chữ, telemetry (
 test('SCR-39 · FL-10N-02 · admin · điều hướng + bàn phím (DP3)', async ({ browser }) => {
   const { context, page } = await openAdminPage(browser, VIEWPORT_1920);
   const dashboardButton = page.getByRole('button', { name: 'Về danh sách dự án', exact: true });
-  const backButton = page.getByRole('button', { name: 'Quay lại', exact: true });
+  const backButton = page.getByRole('button', { name: 'Quay lại trang trước', exact: true });
   const links = recentLinks(page);
   const open = async (): Promise<void> => {
     await page.goto(NOT_FOUND_PATH);
@@ -159,8 +159,8 @@ test('SCR-39 · FL-10N-02 · admin · điều hướng + bàn phím (DP3)', asyn
     await test.step('[10N-E-003] landmarks: main có h2 + h3, svg aria-hidden', async () => {
       await open();
       const main = page.getByRole('main');
-      await expect(main.getByRole('heading', { name: NOT_FOUND_TITLE, level: 2 })).toBeVisible();
-      await expect(main.getByRole('heading', { name: 'Dự án gần đây', level: 3 })).toBeVisible();
+      await expect(main.getByRole('heading', { name: NOT_FOUND_TITLE, level: 1 })).toBeVisible();
+      await expect(main.getByRole('heading', { name: 'Có thể bạn đang tìm', level: 2 })).toBeVisible();
       await expect.soft(main.locator('svg[aria-hidden="true"]').first()).toBeVisible();
     });
 

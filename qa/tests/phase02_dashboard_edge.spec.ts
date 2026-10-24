@@ -171,7 +171,7 @@ const FLOOR_COUNT_MAX = 50; // LIM:27
 
 /* SCR-06 copy. */
 const MARK_READ = 'Đánh dấu đã đọc'; // NC:56
-const MARK_ALL_READ = 'Đánh dấu tất cả đã đọc'; // NC:55
+const MARK_ALL_READ = 'Đánh dấu đã đọc hết'; // NC:55
 const NOTIF_SETTINGS = 'Mở cài đặt thông báo'; // NC:57
 const NOTIF_FILTER = 'Lọc thông báo'; // NC:58
 const VIEW_ALL = 'Xem tất cả'; // NC:59
@@ -214,7 +214,7 @@ const ONBOARD = {
   errorTitle: 'Không đọc được tiến độ', // WS:67
   errorDescription: 'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
 } as const;
-const GREETING = /^Chào .+, bắt đầu trong ba bước$/u; // UWS:123-125
+const GREETING = 'Bắt đầu dự án đầu tiên trong ba bước'; // WelcomeScreen.tsx PAGE_TITLE (h1)
 
 /* ---------------------------------------------------------------- small helpers */
 
@@ -2477,7 +2477,7 @@ test.describe('E02 SCR-06 notifications', () => {
     });
   });
 
-  test('E02 · SCR-06 "Đánh dấu tất cả đã đọc": disabled with nothing unread, else marks every row, "Hoàn tác" restores and nothing is sent', async ({ browser }) => {
+  test('E02 · SCR-06 "Đánh dấu đã đọc hết": disabled with nothing unread, else marks every row, "Hoàn tác" restores and nothing is sent', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       let drawer = await openDrawer(page);
@@ -2486,7 +2486,7 @@ test.describe('E02 SCR-06 notifications', () => {
       const unread = await markButtons(drawer).count();
       if (unread === 0) {
         await expect(markAll).toBeDisabled(); // NC:239
-        await captureEvidence(page, 'E02_notif_mark_all.png', { caption: 'no unread notification → "Đánh dấu tất cả đã đọc" disabled' });
+        await captureEvidence(page, 'E02_notif_mark_all.png', { caption: 'no unread notification → "Đánh dấu đã đọc hết" disabled' });
         await attachJson('E02_notif_mark_all.json', { unread, branch: 'disabled' });
         return;
       }
@@ -2618,7 +2618,7 @@ test.describe('E02 SCR-06 notifications', () => {
       await drawer.getByRole('button', { name: VIEW_ALL, exact: true }).click(); // UNC:767-770
       await expect.poll(() => pathname(page)).toBe(ROUTES.notifications);
       // G1-15: a page under the shared header, not the drawer pinned open over a grey backdrop.
-      await expect(page.getByRole('heading', { level: 1, name: 'Thông báo', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: 'Xem việc mới từ thông báo', exact: true })).toBeVisible();
       await expect(notificationDrawer(page)).toHaveCount(0);
       await expect(dashboardHeading(page)).toHaveCount(0);
       await captureEvidence(page, 'E02_notif_viewall.png', {

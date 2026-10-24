@@ -473,7 +473,7 @@ test.describe('E07 SCR-33 preferences edge', () => {
 
       await test.step('[33R-B-012] attribute survives leaving the screen', async () => {
         await spaNavigate(page, '/');
-        await expect(page.getByRole('heading', { level: 1, name: 'Cài đặt tài khoản', exact: true })).toHaveCount(0);
+        await expect(page.getByRole('heading', { level: 1, name: 'Đổi thông tin và tuỳ chọn tài khoản', exact: true })).toHaveCount(0);
         await expect.soft(html(page)).toHaveAttribute(REDUCED_ATTR, 'true'); // UAP:105-111
         await ev(page, '33R-B-012', 'reduced_motion_survives_unmount');
       });

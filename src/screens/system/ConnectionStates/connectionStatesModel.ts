@@ -111,9 +111,9 @@ export function headlineOf(connectionCase: ConnectionCase, pendingCount: number)
     case 'queueFull':
       return `Hàng đợi ngoại tuyến đã đầy với ${describePending(pendingCount)}. Nối mạng lại để đồng bộ; làm tiếp lúc này có thể mất thay đổi mới.`;
     case 'syncing':
-      return 'Đang đồng bộ lại những thay đổi đã làm khi ngoại tuyến.';
+      return 'Đang gửi thay đổi làm khi ngoại tuyến.';
     case 'offline':
-      return `Đang làm việc ngoại tuyến · ${describePending(pendingCount)}.`;
+      return `Đang làm việc ngoại tuyến, ${describePending(pendingCount)}.`;
     case 'synced':
       return 'Đã đồng bộ xong.';
     case 'degraded':

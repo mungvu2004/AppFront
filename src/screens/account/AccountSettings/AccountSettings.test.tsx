@@ -101,7 +101,7 @@ afterEach(() => {
 const BLOCK_TITLES = ['Hồ sơ', 'Giao diện', 'Thông báo', 'Phím tắt', 'Mật khẩu'] as const;
 
 /** Hai khối của v2: vắng khỏi DOM chứ không bị vô hiệu hoá. */
-const ABSENT_BLOCK_TITLES = ['Phiên đăng nhập', 'Vùng nguy hiểm'] as const;
+const ABSENT_BLOCK_TITLES = ['Phiên đăng nhập', 'Xoá tài khoản'] as const;
 
 /** Cổng đọc được ngay, ghi vào một mảng để test đếm số lượt lưu. */
 function createRecordingGateway(): {
@@ -138,7 +138,7 @@ describe('khung của màn', () => {
     renderWithProviders(<AccountSettingsContainer gateway={gateway} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 1, name: 'Cài đặt tài khoản' })).toBeTruthy();
+      expect(screen.getByRole('heading', { level: 1, name: 'Đổi thông tin và tuỳ chọn tài khoản' })).toBeTruthy();
     });
 
     for (const title of BLOCK_TITLES) {
@@ -153,20 +153,23 @@ describe('khung của màn', () => {
     expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
   });
 
-  it('[33P-A-010] đầu trang có liên kết thật về bảng điều khiển, đứng trước h1, với bàn phím tới được', async () => {
+  it('[33P-A-010] đầu trang có liên kết thật về bảng điều khiển, cạnh h1, trước mục lục, với bàn phím tới được', async () => {
     const { gateway } = createRecordingGateway();
 
     renderWithProviders(<AccountSettingsContainer gateway={gateway} />);
 
     const exit = await screen.findByRole('link', { name: viMessages.account.backToDashboard });
-    const h1 = screen.getByRole('heading', { level: 1, name: 'Cài đặt tài khoản' });
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Đổi thông tin và tuỳ chọn tài khoản' });
 
     expect(exit.getAttribute('href')).toBe(ROUTES.dashboard);
     expect(exit.getAttribute('href')).toBe('/');
     expect(exit.tabIndex).toBeGreaterThanOrEqual(0);
-    // Liên kết nằm trong <header> cùng h1 và đứng trước nó trong thứ tự đọc/Tab.
+    // S-05 bản Z: liên kết là "bước tiếp" của PageHead, cùng <header> với h1, đứng sau h1
+    // (bên phải) và trước mục lục trong thứ tự đọc/Tab.
     expect(exit.closest('header')).toBe(h1.closest('header'));
-    expect(exit.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(h1.compareDocumentPosition(exit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const toc = screen.getByRole('navigation', { name: 'Mục trong trang' });
+    expect(exit.compareDocumentPosition(toc) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('chuỗi hiển thị là tiếng Việt có dấu, và cây render tiếp cận được', async () => {

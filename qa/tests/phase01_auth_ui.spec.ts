@@ -265,7 +265,7 @@ const CLOSE_SHORTCUT_HELP = 'Đóng bảng phím tắt';
 /** testDataPrefix `qa-{runId}-` (qa.config.json): a search term no real user can match. */
 const NO_MATCH_TERM = `${TEST_DATA_PREFIX}khong-co-nguoi-dung`;
 
-const notFoundHeading = (page: Page) => page.getByRole('heading', { name: NOT_FOUND_TITLE, exact: true, level: 2 });
+const notFoundHeading = (page: Page) => page.getByRole('heading', { name: NOT_FOUND_TITLE, exact: true, level: 1 });
 
 /** /admin/users after `GET /api/users` 200, list or "empty" state rendered. Returns whether it is the empty state. */
 async function openUsers(page: Page): Promise<boolean> {

@@ -97,7 +97,7 @@ test('SCR-41 · FL-10K-01 · admin · NotFound: mở/đóng bằng mọi đườ
     await test.step('[10K-A-003] Esc đóng, NotFound còn', async () => {
       await page.keyboard.press('Escape');
       await expect.soft(help(page)).toBeHidden();
-      await expect.soft(page.getByRole('heading', { name: NF_TITLE, exact: true, level: 2 })).toBeVisible();
+      await expect.soft(page.getByRole('heading', { name: NF_TITLE, exact: true, level: 1 })).toBeVisible();
       await captureEvidence(page, 'K10_10K-A-003_closed_by_esc.png');
     });
 

@@ -13,7 +13,7 @@ import { createProject, deleteSeededProject, type SeededProject } from '../phase
 
 export const NOT_FOUND_PATH = '/khong-ton-tai';
 export const NOT_FOUND_TITLE = 'Không tìm thấy trang này'; // useNotFound.ts TITLE_BY_REASON.missing
-export const RECENT_HEADING = 'Dự án gần đây'; // useNotFound.ts
+export const RECENT_HEADING = 'Có thể bạn đang tìm'; // useNotFound.ts
 export const FLOORS_HREF = /^\/projects\/[^/]+\/floors$/u; // notFoundGateway.ts toRecentProjectVm
 export const VIEWPORT_1920 = { width: 1920, height: 1080 } as const;
 
@@ -58,10 +58,10 @@ export async function openAdminPage(
 
 /** NotFound title: h2 inside ScreenMain's `<main>` (NotFound.tsx:104). */
 export const notFoundHeading = (page: Page): Locator =>
-  page.getByRole('heading', { name: NOT_FOUND_TITLE, exact: true, level: 2 });
+  page.getByRole('heading', { name: NOT_FOUND_TITLE, exact: true, level: 1 });
 
 export const recentHeading = (page: Page): Locator =>
-  page.getByRole('heading', { name: RECENT_HEADING, exact: true, level: 3 });
+  page.getByRole('heading', { name: RECENT_HEADING, exact: true, level: 2 });
 
 /** The recent-project rows (NotFound.tsx: `<ul><li><a>`). */
 export const recentLinks = (page: Page): Locator => page.getByRole('main').getByRole('list').getByRole('link');

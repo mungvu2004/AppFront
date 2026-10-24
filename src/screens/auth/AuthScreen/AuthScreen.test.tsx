@@ -402,7 +402,7 @@ describe('AuthScreenView — wording and colour', () => {
   it('capitalises the first letter of every label (A6), typed out rather than read back from vi.json', () => {
     renderScreen();
 
-    expect(screen.getByRole('heading', { name: 'Đăng nhập' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Đăng nhập để tiếp tục dự án' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Đăng nhập' })).toBeInTheDocument();
     expect(screen.getByLabelText('Thư điện tử')).toBeInTheDocument();
     expect(screen.getByLabelText('Mật khẩu')).toBeInTheDocument();
@@ -544,13 +544,14 @@ describe('AuthScreen — keyboard', () => {
     expect(stops[2]).toBe(
       screen.getByRole('button', { name: AUTH_MESSAGES.actions.showPassword }),
     );
-    expect(stops[3]).toBe(screen.getByLabelText(AUTH_MESSAGES.fields.rememberMe));
-    expect(stops[4]).toBe(submitButton());
-    expect(stops[5]).toBe(
-      screen.getByRole('button', { name: AUTH_MESSAGES.actions.ssoSignIn }),
-    );
-    expect(stops[6]).toBe(
+    // "Quên mật khẩu" đứng ngang nhãn ô mật khẩu (Z/S-01), nên tới ngay sau nút mắt.
+    expect(stops[3]).toBe(
       screen.getByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword }),
+    );
+    expect(stops[4]).toBe(screen.getByLabelText(AUTH_MESSAGES.fields.rememberMe));
+    expect(stops[5]).toBe(submitButton());
+    expect(stops[6]).toBe(
+      screen.getByRole('button', { name: AUTH_MESSAGES.actions.ssoSignIn }),
     );
 
     type(emailField(), EMAIL);

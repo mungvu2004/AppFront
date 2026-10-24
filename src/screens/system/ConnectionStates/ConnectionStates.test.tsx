@@ -281,7 +281,7 @@ describe('Bảy trạng thái', () => {
 
 describe('câu chữ', () => {
   it('mỗi trường hợp đúng một câu', () => {
-    expect(headlineOf('offline', 12)).toBe('Đang làm việc ngoại tuyến · 12 thay đổi chờ đồng bộ.');
+    expect(headlineOf('offline', 12)).toBe('Đang làm việc ngoại tuyến, 12 thay đổi chờ đồng bộ.');
     expect(headlineOf('degraded', 0)).toBe('Kết nối chậm, thao tác có thể trễ.');
   });
 
@@ -462,7 +462,7 @@ describe('tấm trượt chi tiết', () => {
       />,
     );
 
-    expect(screen.getByText('Việc đang chờ đồng bộ')).toBeInTheDocument();
+    expect(screen.getByText('Đồng bộ thay đổi')).toBeInTheDocument();
     expect(screen.getAllByRole('listitem')).toHaveLength(SAMPLE_PENDING.length);
   });
 

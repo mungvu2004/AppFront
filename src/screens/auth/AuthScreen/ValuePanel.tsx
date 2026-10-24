@@ -22,6 +22,9 @@ import { drawablePlan } from './drawablePlan';
 
 const PLAN_CAPTION = 'Mặt bằng tầng 1 (dữ liệu minh hoạ)';
 
+/** Sáu bước của một dự án, đúng thứ tự thanh quy trình trong app (demo Z/S-01). */
+const PROJECT_STEPS = ['Tải bản vẽ', 'AI tìm tường, cửa, phòng', 'Duyệt', 'Mô hình 3D', 'Quy chuẩn', 'Xuất'] as const;
+
 function usePlanSvg(): string | null {
   const [plan, setPlan] = useState<string | null>(null);
 
@@ -47,7 +50,7 @@ export function ValuePanel() {
   const plan = usePlanSvg();
 
   return (
-    <section className="auth-art-panel relative flex shrink-0 items-center gap-6 border-b px-6 py-4 sm:px-12 lg:w-1/2 lg:flex-col lg:items-stretch lg:justify-between lg:gap-8 lg:border-b-0 lg:border-r lg:px-12 lg:py-10">
+    <section className="auth-art-panel relative flex shrink-0 items-center gap-6 border-b px-6 py-4 sm:px-12 lg:w-[45%] lg:flex-col lg:items-stretch lg:justify-between lg:gap-8 lg:border-b-0 lg:border-r lg:px-12 lg:py-10">
       <p className="auth-wordmark hidden lg:block">
         AppFront <span className="auth-art-soft">· Bản vẽ thành mô hình 3D</span>
       </p>
@@ -72,10 +75,19 @@ export function ValuePanel() {
       </figure>
       <div className="flex max-w-[460px] flex-col gap-3 animate-panel-rise motion-reduce:animate-none">
         {/* `text-balance`: ở 1024 cột chữ hẹp, không cân thì "trường." đứng một mình ở dòng cuối (BUG-046). */}
-        <p className="hidden text-balance text-title-sm font-medium sm:block lg:text-[28px] lg:leading-9">
+        <p className="hidden text-balance text-title-sm font-medium sm:block lg:text-[22px] lg:leading-[30px]">
           {AUTH_MESSAGES.hero.headline}
         </p>
-        <p className="auth-art-soft hidden text-[15px] leading-6 lg:block">{AUTH_MESSAGES.hero.support}</p>
+        <ol aria-label="Sáu bước của một dự án" className="auth-art-soft m-0 hidden list-none grid-cols-[repeat(3,max-content)] gap-x-6 gap-y-2 p-0 text-[13px] leading-5 lg:grid">
+          {PROJECT_STEPS.map((step, index) => (
+            <li key={step} className="flex items-center gap-1.5 whitespace-nowrap">
+              <span aria-hidden="true" className="grid h-5 w-5 place-items-center rounded-full bg-bg-sunken text-[12px] font-medium">
+                {index + 1}
+              </span>
+              {step}
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );

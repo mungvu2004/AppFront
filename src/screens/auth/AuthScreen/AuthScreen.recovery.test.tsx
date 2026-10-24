@@ -178,10 +178,12 @@ describe('AuthScreen — the forgot-password panel (N8)', () => {
   it('swaps the tagline under the title for the panel instruction, said once (BUG-023)', () => {
     setup();
 
-    expect(screen.getByText(AUTH.brand.subtitle)).toBeInTheDocument();
+    // Bản Z S-01: dưới H1 đăng nhập là câu trạng thái, không còn khẩu hiệu.
+    const signInStatus = 'Xong sẽ mở lại đúng trang bạn đang xem.';
+    expect(screen.getByText(signInStatus)).toBeInTheDocument();
     openPanel();
 
-    expect(screen.queryByText(AUTH.brand.subtitle)).toBeNull();
+    expect(screen.queryByText(signInStatus)).toBeNull();
     expect(screen.getAllByText(AUTH.forgotPassword.subtitle)).toHaveLength(1);
   });
 

@@ -20,7 +20,7 @@ const dashboardHeading = (page: Page) =>
 
 test('"Bỏ qua" đưa người dùng mới tới danh sách dự án', async ({ page }) => {
   await page.goto(ROUTES.onboarding);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Chào .+, bắt đầu trong ba bước$/u, {
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Bắt đầu dự án đầu tiên trong ba bước', {
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 

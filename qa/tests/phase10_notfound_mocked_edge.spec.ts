@@ -24,8 +24,8 @@ import { verifyUi } from './support/ui-verify';
 
 test.use({ viewport: { width: DESKTOP.width, height: DESKTOP.height } });
 
-const h2 = (page: Page, name: string) => page.getByRole('heading', { name, exact: true, level: 2 });
-const recentHeading = (page: Page) => page.getByRole('heading', { name: NF_RECENT, exact: true, level: 3 });
+const h2 = (page: Page, name: string) => page.getByRole('heading', { name, exact: true, level: 1 });
+const recentHeading = (page: Page) => page.getByRole('heading', { name: NF_RECENT, exact: true, level: 2 });
 // Recent list links: NotFound.tsx renders them in a list inside <main>.
 const recentLinks = (page: Page) => page.getByRole('main').getByRole('list').getByRole('link');
 /** Registered BEFORE the goto: resolves once the app has received the mocked list response. */

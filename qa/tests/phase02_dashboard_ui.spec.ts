@@ -146,7 +146,7 @@ const NOTIFICATION_FILTER = 'Lọc thông báo';
 const FILTER_UNREAD = 'Chưa đọc';
 const FILTER_MENTIONS = 'Nhắc đến tôi';
 const MARK_READ = 'Đánh dấu đã đọc'; // NotificationCenter.tsx:56
-const MARK_ALL_READ = 'Đánh dấu tất cả đã đọc'; // NotificationCenter.tsx:55
+const MARK_ALL_READ = 'Đánh dấu đã đọc hết'; // NotificationCenter.tsx:55
 const NOTIFICATIONS_EMPTY = 'Không có thông báo mới';
 const NOTIFICATIONS_EMPTY_DESCRIPTION = 'Chúng tôi sẽ báo khi AI xử lý xong hoặc có người nhắc đến bạn.'; // NotificationCenter.tsx:65
 const NOTIFICATIONS_PARTIAL = 'Có thể chưa cập nhật'; // NotificationCenter.tsx PARTIAL_NOTICE (a failed write, no longer a filter with no match)
@@ -165,7 +165,7 @@ const LONG_EXCERPT =
 const EXCERPT_LINE_PX = 18; // NotificationRow.tsx leading-[18px]
 /* SCR-07: useWelcomeScreen.ts:122-146, :164. */
 const WELCOME_SEEN_PREFIX = 'appfront:onboarding-welcome-seen:';
-const WELCOME_GREETING = /^Chào .+, bắt đầu trong ba bước$/u;
+const WELCOME_GREETING = 'Bắt đầu dự án đầu tiên trong ba bước'; // WelcomeScreen.tsx PAGE_TITLE (h1)
 const WELCOME_STEPS = ['Tạo dự án', 'Tải bản vẽ theo từng tầng', 'Duyệt kết quả và dựng 3D'] as const;
 const WELCOME_SKIP = 'Bỏ qua';
 const WELCOME_CREATE = 'Tạo dự án'; // STRINGS.step1Action
@@ -1041,7 +1041,7 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
   /**
    * BUG-174: the admin's inbox is empty on the shared stack, so every real drawer shot is the empty state. These three rows
    * (2 unread, 1 read; 1 of them a comment mention with an excerpt longer than 2 lines, BUG-203) give the row layout, the
-   * unread dots, "Đánh dấu tất cả đã đọc" enabled and filters that each keep their own rows. Wire shape: `NotificationSchema` (src/api/schemas/notifications.ts, `.strict()`).
+   * unread dots, "Đánh dấu đã đọc hết" enabled and filters that each keep their own rows. Wire shape: `NotificationSchema` (src/api/schemas/notifications.ts, `.strict()`).
  * `message` is the server's sentence WITHOUT the label: the FE appends `objectLabel` (AppBack apps/api/notifications/messages.py
  * `ai_completed`, `violation_found`, capitalised since AppBack bf83f815; BUG-206). No server template exists for a comment mention yet, so row 2 keeps its own.
    */
@@ -1063,7 +1063,7 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
           : route.fallback(),
     );
 
-  test('U02 · SCR-06 [mocked response] drawer with 3 rows: unread dots, "Đánh dấu tất cả đã đọc" enabled, "Chưa đọc" keeps 2, "Nhắc đến tôi" keeps 1', async ({ browser }) => {
+  test('U02 · SCR-06 [mocked response] drawer with 3 rows: unread dots, "Đánh dấu đã đọc hết" enabled, "Chưa đọc" keeps 2, "Nhắc đến tôi" keeps 1', async ({ browser }) => {
     // pair: phase02_notify_edge.spec.ts — the invitee's real inbox rows (see file header).
     test.setTimeout(240_000);
     const filters = [
@@ -1191,10 +1191,10 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
   test('U02 · SCR-06 /thong-bao notification page inside the app frame (G1-15)', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U02_notif_route', async (p) => {
       await p.goto(ROUTES.notifications);
-      // A real page under the shared header: h1 + filters + "Đánh dấu tất cả đã đọc"; no drawer, no grey backdrop.
-      await expect(p.getByRole('heading', { level: 1, name: BELL, exact: true })).toBeVisible();
+      // A real page under the shared header: h1 + filters + "Đánh dấu đã đọc hết"; no drawer, no grey backdrop.
+      await expect(p.getByRole('heading', { level: 1, name: 'Xem việc mới từ thông báo', exact: true })).toBeVisible();
       await expect(p.getByRole('radiogroup', { name: 'Lọc thông báo' })).toBeVisible();
-      await expect(p.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' })).toBeVisible();
+      await expect(p.getByRole('button', { name: 'Đánh dấu đã đọc hết' })).toBeVisible();
       await expect(p.getByRole('dialog', { name: BELL })).toHaveCount(0);
       await expect(p.getByText('Trung tâm thông báo', { exact: true })).toHaveCount(0);
     });

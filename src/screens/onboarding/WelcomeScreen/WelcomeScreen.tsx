@@ -36,10 +36,13 @@
  * đúng bảng chuỗi của hợp đồng.
  */
 
-import { Check } from 'lucide-react';
+import { Check, Lock } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { motion } from '@/components/motion';
+import { PageHead } from '@/components/shell/PageHead';
+import { Section } from '@/components/shell/Section';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { useMotionConditions } from '@/hooks/useMotionConditions';
 import { durationSeconds } from '@/lib/motion';
@@ -71,27 +74,28 @@ const ERROR_FALLBACK = 'Chưa lấy được danh sách dự án nên chưa bi�
 const RETRY_LABEL = 'Thử lại';
 const FORBIDDEN_NOTE = 'Vai người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.';
 
-/** Cỡ thẻ và cỡ khung xương lúc đang tải là MỘT con số, nên nó là một hằng. */
-const CARD_SIZE_CLASS = 'w-[300px] h-[220px]';
-
-/** Viền, nền, bo 16, đệm 20. Không thẻ nào có nền màu — đó là điều cấm tuyệt đối. */
-const CARD_CLASS = 'flex flex-col gap-3 rounded-2xl border border-border-default bg-bg-surface p-5';
+/** Câu 1 của màn (NGUYEN-TAC-BO-CUC §1), tên khung ba bước và nhãn cột việc tiếp, theo demo Z/S-06. */
+const PAGE_TITLE = 'Bắt đầu dự án đầu tiên trong ba bước';
+const STEPS_TITLE = 'Từ bản vẽ tới mô hình 3D';
+const NEXT_LABEL = 'Việc tiếp';
 
 /** Vòng tiêu điểm 2px offset 2px mà A12 đòi, cho hai nút không đi qua `Button`. */
 const FOCUS_RING_CLASS =
   'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app';
 
 /**
- * Ba thẻ nằm ngang từ 1024 trở lên, xếp dọc dưới đó.
+ * Ba cột nằm ngang từ 1024 trở lên, xếp dọc dưới đó — trong MỘT khung, ngăn bằng đường kẻ.
  *
  * Hai đường phải cùng chạy: `lg:` lo lúc chạy thật, `isCollapsed` lo story và
  * test — jsdom không có bề rộng cửa sổ để hỏi.
  */
-function cardRowClass(isCollapsed: boolean) {
-  return cn(
-    'flex w-full flex-col items-center gap-5',
-    !isCollapsed && 'lg:flex-row lg:items-stretch lg:justify-center',
-  );
+function columnsClass(isCollapsed: boolean) {
+  return cn('grid grid-cols-1', !isCollapsed && 'lg:grid-cols-3');
+}
+
+/** Đường kẻ giữa hai cột: trên khi xếp dọc, trái khi nằm ngang. */
+function dividerClass(isCollapsed: boolean) {
+  return cn('border-t border-border-default', !isCollapsed && 'lg:border-l lg:border-t-0');
 }
 
 /**
@@ -194,7 +198,7 @@ function QuietNote({ link, id, note }: Pick<QuietLinkProps, 'link' | 'id' | 'not
   const text = noteOf(link, note);
 
   return text === null ? null : (
-    <span id={noteIdOf(id)} className="text-center text-[12px] text-text-muted">
+    <span id={noteIdOf(id)} className="text-[13px] text-text-secondary">
       {text}
     </span>
   );
@@ -205,18 +209,19 @@ const DONE_LABEL = 'Đã xong';
 interface StepCardProps {
   readonly card: OnboardingStepCard;
   readonly delaySeconds: number;
+  readonly isFirst: boolean;
+  readonly isCollapsed: boolean;
 }
 
 /**
- * Một thẻ bước: số thứ tự · biểu tượng · tiêu đề · đúng một câu · một nút.
+ * Một cột bước: số thứ tự · biểu tượng · nhãn trạng thái · tiêu đề · đúng một câu · một nút.
  *
- * Thẻ không phải thứ bấm được — thứ bấm được là cái nút bên trong. Nhấc 1px khi
- * rê chuột và thu 0,985 khi bấm là hai phép biến đổi, không phải thời lượng, nên
- * chúng viết thẳng được. `lockedReason` là phần tử anh em cạnh nút vì `Button`
- * không có chỗ nào chở câu mô tả.
+ * Cột "việc tiếp" (`isPrimary`, chưa xong) có vạch accent trên và nhãn chữ: trạng thái nói bằng chữ,
+ * không chỉ bằng màu. Bước khoá giữ nút vô hiệu (số lựa chọn của màn không đổi) và nói lý do cạnh ổ khoá.
  */
-function StepCard({ card, delaySeconds }: StepCardProps) {
+function StepCard({ card, delaySeconds, isFirst, isCollapsed }: StepCardProps) {
   const isLocked = card.state === 'locked';
+  const isNext = card.isPrimary && card.state !== 'done';
   const reasonId = `onboarding-step-${card.id}-reason`;
 
   return (
@@ -224,30 +229,28 @@ function StepCard({ card, delaySeconds }: StepCardProps) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: durationSeconds('fast'), delay: delaySeconds }}
-      className={cn(
-        CARD_CLASS,
-        CARD_SIZE_CLASS,
-        'transition-transform duration-fast hover:-translate-y-px active:scale-[0.985]',
-        'motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100',
-      )}
+      className={cn('relative flex flex-col gap-4 px-6 pb-6 pt-5', !isFirst && dividerClass(isCollapsed))}
     >
-      <div className="flex shrink-0 items-center gap-3">
+      {isNext && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-accent" />}
+      <div className="flex min-h-6 shrink-0 items-center gap-2">
         <span className="text-[13px] font-medium tabular-nums text-text-muted">{card.ordinal}</span>
-        <Glyph id={card.id} className={cn('h-6 w-6', isLocked ? 'text-text-muted' : 'text-text-secondary')} />
-        {/* Bước đã làm nói rõ "đã xong": trước đây chỉ khác ở nút phụ, người mới không biết bước 1-2 đã qua (A1, Jordan). */}
+        <Glyph id={card.id} className={cn('h-5 w-5', isLocked ? 'text-text-muted' : 'text-text-secondary')} />
         {card.state === 'done' && (
-          <span className="ml-auto inline-flex items-center gap-1 text-[12px] font-medium text-state-verified-text">
+          <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-state-verified-tint px-2 py-0.5 text-[13px] font-medium text-state-verified-text">
             <Check size={14} strokeWidth={2} aria-hidden="true" />
             {DONE_LABEL}
           </span>
         )}
+        {isNext && (
+          <span className="ml-auto text-caption font-medium uppercase tracking-[0.06em] text-accent">{NEXT_LABEL}</span>
+        )}
       </div>
-      <div className="flex flex-1 flex-col gap-1.5">
-        <h2 className="text-[15px] font-semibold text-text-primary">{card.title}</h2>
-        <p className="text-[13px] leading-relaxed text-text-secondary">{card.sentence}</p>
+      <div className="flex flex-1 flex-col gap-1">
+        <h3 className={cn('text-heading', isLocked ? 'text-text-secondary' : 'text-text-primary')}>{card.title}</h3>
+        <p className="text-[14px] leading-5 text-text-secondary">{card.sentence}</p>
       </div>
-      {/* Chừa sẵn chỗ cho câu "cần … trước": thẻ khoá và thẻ mở có nút và tiêu đề cùng hàng (BUG-128). */}
-      <div className="flex min-h-14 shrink-0 flex-col gap-1.5">
+      {/* Chỗ nút cố định ở đáy cột: sang trạng thái khác không có gì nhảy (HOP-DONG-V6 §2.5, BUG-128). */}
+      <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-x-3 gap-y-2">
         <Button
           variant={card.isPrimary ? 'primary' : 'secondary'}
           size="sm"
@@ -258,7 +261,8 @@ function StepCard({ card, delaySeconds }: StepCardProps) {
           {card.actionLabel}
         </Button>
         {card.lockedReason !== null && (
-          <p id={reasonId} className="text-[12px] text-text-muted">
+          <p id={reasonId} className="flex items-center gap-2 text-[13px] text-text-secondary">
+            <Lock size={16} strokeWidth={1.75} aria-hidden="true" className="text-text-muted" />
             {card.lockedReason}
           </p>
         )}
@@ -267,16 +271,14 @@ function StepCard({ card, delaySeconds }: StepCardProps) {
   );
 }
 
-/** Ba hộp đúng cỡ thẻ. `Skeleton` không có preset nào ra hộp 300×220. */
+/** Ba cột xương đúng chỗ ba cột thật, trong cùng khung. */
 function LoadingCards({ isCollapsed }: { readonly isCollapsed: boolean }) {
   return (
-    <div className={cardRowClass(isCollapsed)} role="status" aria-busy="true">
-      {['one', 'two', 'three'].map((slot) => (
-        <div
-          key={slot}
-          aria-hidden="true"
-          className={cn(CARD_SIZE_CLASS, 'rounded-2xl bg-border-default animate-pulse motion-reduce:animate-none')}
-        />
+    <div className={columnsClass(isCollapsed)} role="status" aria-busy="true">
+      {['one', 'two', 'three'].map((slot, index) => (
+        <div key={slot} aria-hidden="true" className={cn('px-6 pb-6 pt-5', index > 0 && dividerClass(isCollapsed))}>
+          <div className="h-40 rounded-lg bg-border-default animate-pulse motion-reduce:animate-none" />
+        </div>
       ))}
     </div>
   );
@@ -297,68 +299,87 @@ export function WelcomeScreen({
   onFinish,
   isDissolving,
   skipNotice,
+  progressLabel,
 }: WelcomeScreenProps) {
   const conditions = useMotionConditions();
   const delays = staggerDelaysMs(3, conditions);
   const isLoading = screenState === 'loading';
 
   return (
-    <div className="min-h-full w-full bg-bg-app pb-16 pt-16">
+    <div className="min-h-full w-full bg-bg-app pb-12 pt-8">
       <div
         className={cn(
-          'mx-auto flex w-full max-w-[960px] flex-col items-center gap-8 px-6',
+          'mx-auto flex w-full max-w-[1280px] flex-col px-8 xl:px-0',
           'transition-opacity duration-standard motion-reduce:transition-none',
           isDissolving ? 'opacity-0' : 'opacity-100',
         )}
       >
-        <header className="flex flex-col items-center gap-3 text-center text-text-primary">
-          <Glyph id="title" className="h-10 w-10" selfDraws />
-          <h1 className="text-[28px] font-semibold tracking-tight">{greeting}</h1>
-          <p className="max-w-[640px] text-[14px] leading-relaxed text-text-secondary">{intro}</p>
-        </header>
+        {/* Ba câu (NGUYEN-TAC-BO-CUC §1): làm gì = h1, trạng thái = chip số bước + câu, bước tiếp = cột "Việc tiếp".
+            Bên phải chỉ còn lối thoát "Bỏ qua" (và nút kết thúc khi đủ ba bước). */}
+        <PageHead
+          eyebrow={greeting}
+          title={PAGE_TITLE}
+          status={
+            <>
+              {progressLabel !== null && <Badge variant="neutral">{progressLabel}</Badge>}
+              <span className="max-w-[720px]">{intro}</span>
+            </>
+          }
+          next={
+            <>
+              {finishLabel !== null && (
+                <Button variant="primary" onClick={onFinish}>
+                  {finishLabel}
+                </Button>
+              )}
+              {!isLoading && (
+                <div className="flex flex-wrap items-center gap-x-2">
+                  {sampleProjectLink === null ? null : <QuietLink id="onboarding-sample" link={sampleProjectLink} />}
+                  {tutorialLink === null ? null : <QuietLink id="onboarding-tutorial" link={tutorialLink} />}
+                  <QuietLink id="onboarding-skip" link={skipLink} note={skipNotice} />
+                </div>
+              )}
+            </>
+          }
+        />
 
-        {screenState === 'error' ? (
-          <EmptyState
-            className="h-auto"
-            icon={<Glyph id="reviewAndBuild" className="h-6 w-6" />}
-            title={ERROR_TITLE}
-            description={errorMessage ?? ERROR_FALLBACK}
-            action={{ label: RETRY_LABEL, onClick: onRetry }}
-          />
-        ) : isLoading ? (
-          <LoadingCards isCollapsed={isCollapsed} />
-        ) : (
-          <ul className={cardRowClass(isCollapsed)}>
-            {cards.map((card, index) => (
-              <StepCard key={card.id} card={card} delaySeconds={(delays[index] ?? 0) / 1000} />
-            ))}
-          </ul>
-        )}
+        <Section title={STEPS_TITLE} flush>
+          {screenState === 'error' ? (
+            <EmptyState
+              className="h-auto"
+              icon={<Glyph id="reviewAndBuild" className="h-6 w-6" />}
+              title={ERROR_TITLE}
+              description={errorMessage ?? ERROR_FALLBACK}
+              action={{ label: RETRY_LABEL, onClick: onRetry }}
+            />
+          ) : isLoading ? (
+            <LoadingCards isCollapsed={isCollapsed} />
+          ) : (
+            <ul className={columnsClass(isCollapsed)}>
+              {cards.map((card, index) => (
+                <StepCard
+                  key={card.id}
+                  card={card}
+                  isFirst={index === 0}
+                  isCollapsed={isCollapsed}
+                  delaySeconds={(delays[index] ?? 0) / 1000}
+                />
+              ))}
+            </ul>
+          )}
+        </Section>
 
-        {screenState === 'forbidden' && (
-          <p className="max-w-[640px] text-center text-[13px] text-text-muted">{FORBIDDEN_NOTE}</p>
-        )}
-
-        {finishLabel !== null && (
-          <Button variant="primary" onClick={onFinish}>
-            {finishLabel}
-          </Button>
-        )}
-
-        {!isLoading && (
-          <div className="flex flex-col items-center gap-2">
-            {sampleProjectLink === null && tutorialLink === null ? null : (
-              <div className="flex flex-wrap items-center justify-center gap-x-4">
-                {sampleProjectLink === null ? null : <QuietLink id="onboarding-sample" link={sampleProjectLink} />}
-                {tutorialLink === null ? null : <QuietLink id="onboarding-tutorial" link={tutorialLink} />}
-              </div>
-            )}
-            {sampleProjectLink === null ? null : <QuietNote id="onboarding-sample" link={sampleProjectLink} />}
-            {tutorialLink === null ? null : <QuietNote id="onboarding-tutorial" link={tutorialLink} />}
-            <QuietLink id="onboarding-skip" link={skipLink} note={skipNotice} />
-            <QuietNote id="onboarding-skip" link={skipLink} note={skipNotice} />
-          </div>
-        )}
+        {/* Câu hậu quả của "Bỏ qua" và các câu chú giải nằm dưới khung, luôn hiện (demo Z/S-06 mục 5). */}
+        <div className="mt-4 flex flex-col gap-1 text-[13px] text-text-secondary">
+          {screenState === 'forbidden' && <p>{FORBIDDEN_NOTE}</p>}
+          {!isLoading && (
+            <>
+              {sampleProjectLink === null ? null : <QuietNote id="onboarding-sample" link={sampleProjectLink} />}
+              {tutorialLink === null ? null : <QuietNote id="onboarding-tutorial" link={tutorialLink} />}
+              <QuietNote id="onboarding-skip" link={skipLink} note={skipNotice} />
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

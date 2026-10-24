@@ -88,10 +88,10 @@ const ROWS = {
   },
   // Chuông (B-V3-08) không mở luồng SSE thông báo khi chạy bộ mẫu dev (không có máy chủ SSE):
   // trước kia lỗi 500 của luồng ấy rơi vào mọi màn có chuông tuỳ nhịp tải, nay không màn nào được có.
-  notifications: { anchor: { role: 'heading', name: 'Thông báo' } },
+  notifications: { anchor: { role: 'heading', name: 'Xem việc mới từ thông báo' } },
   dashboard: { anchor: { role: 'heading', name: 'Dự án của tôi' } },
   projectSettings: { anchor: { role: 'heading', name: 'Cài đặt dự án' } },
-  account: { anchor: { role: 'heading', name: 'Cài đặt tài khoản' } },
+  account: { anchor: { role: 'heading', name: 'Đổi thông tin và tuỳ chọn tài khoản' } },
   adminUsers: { anchor: { text: 'Ma trận quyền theo vai trò' } },
   adminModels: { anchor: { label: 'Tìm mẫu 3D' } },
   adminTrainingJobs: { anchor: { role: 'heading', name: 'Huấn luyện mô hình AI' } },

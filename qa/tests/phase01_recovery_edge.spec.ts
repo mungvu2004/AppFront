@@ -30,7 +30,7 @@ import { expect, test } from '@playwright/test';
 import type { Page, Request, Response, Route } from '@playwright/test';
 
 import { ROUTES, pathOf } from '../../e2e/fixtures/routes';
-import { PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/session';
+import { PASSWORD_LABEL } from '../../e2e/fixtures/session';
 import { BE_SHORT_PASSWORD, signInAdmin } from './support/auth';
 import { attachJson, captureEvidence } from './support/evidence';
 
@@ -99,6 +99,7 @@ const fakeToken = (slug: string): string => `e01rec-${RUN_TAG}-${slug}`;
 
 const authMain = (page: Page, state: string) => page.locator(`main[data-auth-state="${state}"]`);
 const h1 = (page: Page, name: string) => page.getByRole('heading', { level: 1, name, exact: true });
+const SIGN_IN_TITLE = 'Đăng nhập để tiếp tục dự án'; // AuthScreen.tsx SIGN_IN_TITLE (h1 of the sign-in form)
 const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 const field = (page: Page, label: string) => page.getByLabel(label, { exact: true });
 /** The always-mounted live line inside the form (InvitationAccept.tsx:107-112, PasswordReset.tsx:68-70). */
@@ -318,7 +319,7 @@ for (const screen of [INVITE, RESET]) {
       await page.getByRole('link', { name: GO_TO_SIGN_IN, exact: true }).click();
 
       await expect.poll(() => pathOf(page.url())).toBe(ROUTES.login);
-      await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+      await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
       await attachJson(`E01_rec_${slug}_deadend_link.json`, { landed: pathOf(page.url()) }); // BUG-034
       await captureEvidence(page, `E01_rec_${slug}_deadend_link.png`);
     });
@@ -592,7 +593,7 @@ test.describe('SCR-03 InvitationAccept edges', () => {
 
     await page.getByRole('link', { name: GO_TO_SIGN_IN, exact: true }).click();
     await expect.poll(() => pathOf(page.url())).toBe(ROUTES.login);
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     // BUG-034: body and URL are not in the shots; the password value is never attached.
     await attachJson('E01_rec_invite_session_not_opened.json', {
       requests: seen.length,
@@ -801,7 +802,7 @@ test.describe('SCR-04 PasswordReset edges', () => {
 
     releaseLogout.open();
     await expect.poll(() => pathOf(page.url())).toBe(ROUTES.login);
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     await expect(page.getByText(PASSWORD_RESET_NOTICE, { exact: true })).toBeVisible();
     await attachJson('E01_rec_reset_login_notice.json', { // BUG-034; the password value is never attached
       confirmRequests: seen.length,
@@ -816,7 +817,7 @@ test.describe('SCR-04 PasswordReset edges', () => {
     );
     await page.reload({ waitUntil: 'commit' });
     await reloaded;
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     await expect(page.getByText(PASSWORD_RESET_NOTICE, { exact: true })).toHaveCount(0);
   });
 });

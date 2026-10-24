@@ -156,7 +156,7 @@ test.describe('P11 project UI', () => {
         expect(failed, 'project deleted before NotFound').toBeNull();
         await verifyUi(page, 'U11_11P-F-008_not_found', async (p) => {
           await p.goto(NOT_FOUND_PATH);
-          await expect(p.getByRole('heading', { name: NOT_FOUND_TITLE, exact: true, level: 2 })).toBeVisible(); // NF:98
+          await expect(p.getByRole('heading', { name: NOT_FOUND_TITLE, exact: true, level: 1 })).toBeVisible(); // NF:98
         }, DESKTOP_VIEWPORTS);
       });
     });

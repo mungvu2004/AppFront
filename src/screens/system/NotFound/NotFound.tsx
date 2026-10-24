@@ -1,58 +1,46 @@
 /**
- * `NotFound` — view thuần của route `*`. Mọi chuỗi tiếng Việt và mọi con số
- * đã thành chữ đến từ `NotFoundVm` (`notFoundModel.ts`, hợp đồng đông lạnh);
- * file này chỉ in ra (A15). Không store, không mạng, không `src/api`, không
- * `src/domain` — test được chỉ từ props (mục D, R-60).
+ * `NotFound` — view thuần của route `*` (S-43). Chữ của nút, tiêu đề, câu giải
+ * thích, mã lỗi và hàng gợi ý đến từ `NotFoundVm` (`notFoundModel.ts`); file này
+ * chỉ thêm nhãn trình bày cố định theo `reason` (eyebrow, chip trạng thái).
+ * Không store, không mạng, không `src/api`, không `src/domain` — test được chỉ
+ * từ props (mục D, R-60).
  *
- * **Bố cục.** Một cột rộng `CONTENT_COLUMN_PX`, căn giữa cả ngang lẫn dọc,
- * nền `--bg-app`: hình minh hoạ (`PlanFragment`, cả khi `isCompact`) → `h2`
- * `title` → một câu `description` → hai nút cạnh nhau → khối "Có thể bạn
- * đang tìm" → caption chân trang chọn được.
+ * **Bố cục (demo Z/S-43, vòng 6).** Một cột 720 căn giữa ngang, đặt từ trên
+ * xuống như mọi trang ngoài dự án: `PageHead` trả lời ba câu — eyebrow + H1
+ * (chuyện gì xảy ra), chip + câu trạng thái, dòng lý do, rồi hai lối ra (một
+ * nút chính). Dưới đó MỘT khung `Section` "Có thể bạn đang tìm" — đường phục
+ * hồi chính, hàng cao 72 như S-02, cả hàng bấm được. Cuối cùng là mã lỗi chọn
+ * được + "Chép mã". Không chữ số 404 lớn, không hình minh hoạ chung chung.
  *
- * **Khối gợi ý là đường phục hồi chính**, không phải hai cái nút — nó đứng
- * sau chúng trong luồng đọc nhưng mang trọng lượng thị giác của một danh
- * sách thật (nền `bg-surface`, viền, mỗi hàng đủ cao) chứ không nép thành
- * chữ nhỏ. Rỗng thì ẩn cả khối.
+ * **Không vẽ phần cần BE.** Nhánh "dự án đã xoá / khôi phục" và chip bước của
+ * từng dự án không có nguồn dữ liệu (xem docblock `notFoundModel.ts`), nên
+ * không có ở đây — không dữ liệu giả.
  *
- * **Ba hoạt cảnh, không con số thời lượng nào ngoài mục B.** `PlanFragment`
- * tự vẽ một lần bằng `AMBIENT_LOOP_MS`; nội dung nâng `CONTENT_LIFT_PX` khi
- * hiện ra trong `slow`; hàng dự án nâng `ROW_HOVER_LIFT_PX` khi trỏ vào qua
- * `hover:-translate-y-px` có sẵn của Tailwind (đúng 1px, đúng cách
- * `ProjectCardTile.tsx` đang dùng). `framer-motion` bị cấm trong
- * `src/screens/**` (`local/no-framer-outside-motion`) nên cả ba là CSS
- * thuần — hai hoạt cảnh đầu khai `@keyframes` cục bộ vì `tailwind.config.ts`
- * bị khoá (không có trong danh sách trắng hai file của lượt này).
- *
- * **Giảm chuyển động đọc từ prop, không tự `matchMedia`.** Mọi nhánh hoạt
- * cảnh rẽ theo `prefersReducedMotion` của `NotFoundVm` — nguồn duy nhất,
- * cũng là thứ khiến view test được chỉ từ props (không cần polyfill
- * `window.matchMedia` trong jsdom).
+ * **Hoạt cảnh** chỉ là nội dung nâng `CONTENT_LIFT_PX` khi hiện ra (`slow`),
+ * giảm chuyển động thì chỉ mờ dần — đọc từ `prefersReducedMotion` của VM.
  */
 
+import { ChevronLeft, ChevronRight, Copy, FileImage, Link2Off, Unplug, UserRound } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
+import { PageHead } from '@/components/shell/PageHead';
+import { Section } from '@/components/shell/Section';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { MOTION_DURATIONS_MS, cssDurationMs } from '@/lib/motion/tokens';
 import { cn } from '@/lib/utils';
 
 import {
-  CONTENT_COLUMN_PX,
   CONTENT_LIFT_PX,
   RECENT_PROJECT_LIMIT,
+  type NotFoundReason,
   type NotFoundVm,
 } from './notFoundModel';
-import { PlanFragment } from './PlanFragment';
 
 const ENTER_ANIMATION_NAME = 'nf-notfound-enter';
 const FADE_ANIMATION_NAME = 'nf-notfound-fade';
 
-/**
- * CSS cục bộ cho hoạt cảnh "nội dung hiện ra". `tailwind.config.ts` đã có
- * `panel-rise` cho cùng ý tưởng nhưng nâng 12px — đặc tả màn này xin đúng
- * `CONTENT_LIFT_PX` (8px), một con số khác, nên không tái dùng được; khai
- * cục bộ ở đây thay vì sửa file bị khoá. Cả hai hoạt cảnh đều
- * `animation-fill-mode: forwards`, không lặp.
- */
 const STYLE_TEXT = `
   @keyframes ${ENTER_ANIMATION_NAME} {
     from { opacity: 0; transform: translateY(${CONTENT_LIFT_PX}px); }
@@ -70,11 +58,43 @@ const STYLE_TEXT = `
   }
 `;
 
+interface HeadCopy {
+  readonly eyebrow: string;
+  readonly chip: string;
+  readonly icon: ReactNode;
+}
+
+/** Eyebrow + chip trạng thái cho từng nguyên nhân (câu 1 và câu 2 của màn). */
+const HEAD_BY_REASON: Readonly<Record<NotFoundReason, HeadCopy>> = {
+  missing: {
+    eyebrow: 'Đường dẫn không mở được',
+    chip: 'Đường dẫn không trỏ tới trang nào',
+    icon: <Link2Off size={14} aria-hidden="true" />,
+  },
+  forbidden: {
+    eyebrow: 'Cần đăng nhập',
+    chip: 'Bạn chưa đăng nhập',
+    icon: <UserRound size={14} aria-hidden="true" />,
+  },
+  offline: {
+    eyebrow: 'Mất kết nối',
+    chip: 'Đường truyền đang gián đoạn',
+    icon: <Unplug size={14} aria-hidden="true" />,
+  },
+};
+
+const UNHARMED_SENTENCE = 'Dữ liệu của bạn không bị ảnh hưởng';
+const PICK_BELOW_SENTENCE = 'Nếu bạn đang tìm một dự án, chọn ở danh sách dưới đây.';
+const RECENT_SUB_SUFFIX = ' dự án cập nhật gần nhất';
+const OPEN_LABEL = 'Mở';
+const COPY_LABEL = 'Chép mã';
+
 /** Vành tiêu điểm 2px offset 2px A12 đòi, cho hàng dự án không đi qua `Button`. */
 const ROW_FOCUS_RING_CLASS =
-  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app';
+  'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 export function NotFound({
+  reason,
   title,
   description,
   errorCaption,
@@ -85,64 +105,115 @@ export function NotFound({
   isCompact,
   prefersReducedMotion,
 }: NotFoundVm) {
-  // Hợp đồng nói `recentProjects` đã "tối đa RECENT_PROJECT_LIMIT hàng" và cổng
-  // thật cắt sẵn — nhưng con số người dùng THẤY là con số màn này chịu trách
-  // nhiệm, nên nó được ép ở đúng chỗ vẽ ra, không chỉ ở chỗ lấy dữ liệu.
+  // Con số người dùng THẤY là con số màn này chịu trách nhiệm, nên nó được ép
+  // ở đúng chỗ vẽ ra, không chỉ ở chỗ lấy dữ liệu.
   const visibleProjects = recentProjects.slice(0, RECENT_PROJECT_LIMIT);
   const hasRecentProjects = visibleProjects.length > 0;
+  const head = HEAD_BY_REASON[reason];
+
+  const copyCaption = (): void => {
+    void navigator.clipboard?.writeText(errorCaption).catch(() => undefined);
+  };
 
   return (
-    <div className="flex min-h-full w-full items-center justify-center bg-bg-app px-6 py-16">
+    <div className="min-h-full w-full bg-bg-app">
       <style>{STYLE_TEXT}</style>
       <div
         className={cn(
-          'flex flex-col items-center text-center',
-          isCompact ? 'gap-4' : 'gap-6',
+          'mx-auto box-content max-w-[720px] px-8 pb-12',
+          isCompact ? 'pt-12' : 'pt-[72px]',
           prefersReducedMotion ? FADE_ANIMATION_NAME : ENTER_ANIMATION_NAME,
         )}
-        style={{ width: CONTENT_COLUMN_PX }}
       >
-        {/* Hình giữ cả ở bản gọn (< 1024, máy tính bảng 768): 404 từng trơn chữ cạnh 403 có hình (A1). */}
-        <PlanFragment prefersReducedMotion={prefersReducedMotion} />
+        <PageHead
+          className="mb-0"
+          eyebrow={head.eyebrow}
+          title={title}
+          status={
+            <>
+              <Badge variant="neutral" noDot className="gap-1.5">
+                {head.icon}
+                {head.chip}
+              </Badge>
+              <span>{UNHARMED_SENTENCE}</span>
+            </>
+          }
+        />
+        <p className="mt-3 max-w-[600px] text-[14px] leading-[22px] text-text-secondary">
+          {description}
+          {hasRecentProjects && ` ${PICK_BELOW_SENTENCE}`}
+        </p>
 
-        <h2 className="text-[20px] font-semibold text-text-primary">{title}</h2>
-        <p className="text-[14px] leading-relaxed text-text-secondary">{description}</p>
-
-        <div className="flex items-center gap-3">
+        <div className="mt-6 flex flex-wrap items-center gap-2" role="group" aria-label="Lối ra">
           <Button variant="primary" onClick={primaryAction.onActivate}>
             {primaryAction.label}
           </Button>
-          <Button variant="ghost" onClick={secondaryAction.onActivate}>
+          <Button
+            variant="ghost"
+            iconBefore={<ChevronLeft size={16} aria-hidden="true" />}
+            onClick={secondaryAction.onActivate}
+          >
             {secondaryAction.label}
           </Button>
         </div>
 
         {hasRecentProjects && (
-          <div className="flex w-full flex-col items-stretch gap-2 text-left">
-            <h3 className="text-[13px] font-medium text-text-secondary">{recentHeading}</h3>
-            <ul className="flex flex-col gap-1.5">
+          <Section
+            className="mt-6"
+            flush
+            title={recentHeading}
+            actions={
+              <span className="text-[13px] text-text-muted">
+                {`${String(visibleProjects.length)}${RECENT_SUB_SUFFIX}`}
+              </span>
+            }
+          >
+            <ul className="flex flex-col p-2">
               {visibleProjects.map((project) => (
                 <li key={project.id}>
                   <Link
                     to={project.to}
                     className={cn(
-                      'group flex items-center justify-between gap-3 rounded-lg border border-border-default bg-bg-surface px-4 py-3',
-                      'text-text-primary transition-transform duration-instant hover:-translate-y-px focus-visible:-translate-y-px',
+                      'group flex h-[72px] items-center gap-4 rounded-lg px-3 text-text-primary transition-colors duration-instant hover:bg-bg-hover',
                       ROW_FOCUS_RING_CLASS,
                     )}
                   >
-                    <span className="truncate text-[14px] font-medium">{project.name}</span>
-                    <span className="shrink-0 text-[12px] text-text-muted opacity-0 transition-opacity duration-instant group-hover:opacity-100 group-focus-visible:opacity-100">
-                      {project.recencyLabel}
+                    <span
+                      className="grid h-12 w-16 shrink-0 place-items-center rounded-md bg-bg-sunken text-text-secondary"
+                      aria-hidden="true"
+                    >
+                      <FileImage size={18} />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-[14px] font-medium leading-5">{project.name}</span>
+                      <span className="mt-0.5 text-[13px] leading-[18px] text-text-secondary">
+                        {project.recencyLabel}
+                      </span>
+                    </span>
+                    <span className="inline-flex h-8 shrink-0 items-center gap-0.5 rounded-md px-2 text-[13px] font-medium text-accent group-hover:bg-accent-wash">
+                      {OPEN_LABEL}
+                      <ChevronRight size={16} aria-hidden="true" />
                     </span>
                   </Link>
                 </li>
               ))}
             </ul>
-          </div>
+          </Section>
         )}
 
-        <p className="select-text text-[12px] font-normal text-text-muted">{errorCaption}</p>
+        <div className="mt-6 flex items-center gap-2">
+          <samp className="select-all rounded bg-bg-sunken px-1.5 py-0.5 font-mono text-[12px] text-text-secondary">
+            {errorCaption}
+          </samp>
+          <Button
+            variant="ghost"
+            size="sm"
+            iconBefore={<Copy size={14} aria-hidden="true" />}
+            onClick={copyCaption}
+          >
+            {COPY_LABEL}
+          </Button>
+        </div>
       </div>
     </div>
   );
