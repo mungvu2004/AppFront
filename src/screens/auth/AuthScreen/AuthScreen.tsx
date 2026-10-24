@@ -63,11 +63,21 @@ const STATUS_SIGNED_OUT_NOTE = 'Xong sẽ mở lại đúng trang bạn đang xe
 const STATUS_REJECTED = 'Chưa đăng nhập được';
 const STATUS_REJECTED_NOTE = 'Máy chủ từ chối lần thử vừa rồi.';
 const STATUS_DONE = 'Đã đăng nhập';
+const STATUS_SESSION_OPEN = 'Đang có phiên đăng nhập';
 const NO_ACCOUNT_NOTE =
   'Chưa có tài khoản? Quản trị viên dự án gửi thư mời; mở liên kết trong thư để tạo tài khoản.';
 
 /** Câu 2 của màn: một chip + một câu, suy từ đúng trạng thái biểu mẫu đang theo. */
-function SignInStatus({ state, rejected }: { readonly state: string; readonly rejected: boolean }) {
+function SignInStatus({ state, rejected, sessionOpen }: { readonly state: string; readonly rejected: boolean; readonly sessionOpen: boolean }) {
+  // Đã có phiên: chip không được nói "Chưa đăng nhập" trong khi dải bên dưới nói "Bạn đang đăng nhập".
+  if (sessionOpen && !rejected && state !== 'success') {
+    return (
+      <Badge variant="attention" noDot>
+        <CircleAlert aria-hidden="true" size={14} strokeWidth={2} />
+        {STATUS_SESSION_OPEN}
+      </Badge>
+    );
+  }
   if (state === 'success') {
     return (
       <Badge variant="verified" noDot>
@@ -366,7 +376,7 @@ export function AuthScreenView(props: AuthScreenViewProps) {
       state={state}
       title={isForgot ? AUTH_MESSAGES.forgotPassword.title : SIGN_IN_TITLE}
       subtitle={isForgot ? AUTH_MESSAGES.forgotPassword.subtitle : undefined}
-      status={isForgot ? undefined : <SignInStatus state={state} rejected={props.credentialsRejected === true} />}
+      status={isForgot ? undefined : <SignInStatus state={state} rejected={props.credentialsRejected === true} sessionOpen={notice?.message === AUTH_MESSAGES.notices.signedIn} />}
       footer={isForgot ? undefined : NO_ACCOUNT_NOTE}
     >
       {isCollapsed ? (

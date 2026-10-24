@@ -350,6 +350,7 @@ export function NotificationCenterPage(props: NotificationCenterProps) {
         actions={
           <>
             <SegmentedControl
+              className="shrink-0 whitespace-nowrap"
               aria-label={FILTER_ARIA_LABEL}
               options={FILTER_OPTIONS}
               value={filter}

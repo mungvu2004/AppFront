@@ -168,9 +168,14 @@ export function NotificationRow({
               Nay là nút biểu tượng ở hàng giờ, nên câu dùng hết bề ngang. Chỉ ẩn-chờ-rê-chuột từ 640 px; hẹp
               hơn, hoặc màn không có hover, thì luôn hiện — không có nút vô hình bấm trúng. */}
           {showNavigateAction && item.inlineAction?.kind === 'navigate' && (
-            <Button variant="ghost" size="sm" className="shrink-0 text-accent" onClick={() => onInlineAction(item)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0 text-accent"
+              iconAfter={<ChevronRight size={16} aria-hidden="true" />}
+              onClick={() => onInlineAction(item)}
+            >
               {item.inlineAction.label}
-              <ChevronRight size={16} aria-hidden="true" />
             </Button>
           )}
           {!item.isRead && (
