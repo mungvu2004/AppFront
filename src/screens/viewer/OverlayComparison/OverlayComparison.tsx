@@ -189,6 +189,7 @@ export function OverlayComparison({ actions, alignHref, model, nav }: OverlayCom
         <OverlayComparisonCanvas
           compareMode={model.compareMode}
           geometry={model.geometry}
+          geometryFrame={model.geometryFrame ?? null}
           isInteractive={canEdit}
           layers={model.layers}
           marks={model.marks}

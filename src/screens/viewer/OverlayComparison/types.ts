@@ -129,6 +129,12 @@ export type OverlayComparisonState =
  * Không có lớp bản đồ nhiệt và không có thang màu cầu vồng. Ba token trên là toàn
  * bộ bảng màu của canvas.
  */
+/** Cỡ pixel của ảnh quét mà lớp hình học đặt khít theo (BUG-IT-005). */
+export interface GeometryFrame {
+  readonly widthPx: number;
+  readonly heightPx: number;
+}
+
 export const OVERLAY_LAYER_IDS = ['scan', 'geometry', 'deviation'] as const;
 
 /** Một trong đúng ba lớp. */
@@ -470,6 +476,11 @@ export interface OverlayComparisonViewModel {
    * {@link GeometryPolyline} — lớp này CÓ dữ liệu ngay hôm nay, khác lớp `scan`.
    */
   readonly geometry: readonly GeometryPolyline[];
+  /**
+   * Cỡ ảnh quét khi `geometry` đã chiếu theo khung ẢNH (BUG-IT-005): lớp hình học
+   * đặt khít ảnh `object-contain`. `null`/vắng thì `geometry` theo biên mô hình.
+   */
+  readonly geometryFrame?: GeometryFrame | null;
   readonly marks: readonly DeviationMarkViewModel[];
   readonly measurement: DeviationMeasurementViewModel | null;
 
@@ -602,6 +613,8 @@ export interface OverlayComparisonCanvasProps {
   readonly scanUrl: string | null;
   /** Nét của lớp `geometry`. Có dữ liệu ngay hôm nay — xem {@link GeometryPolyline}. */
   readonly geometry: readonly GeometryPolyline[];
+  /** Xem `OverlayComparisonViewModel.geometryFrame`. */
+  readonly geometryFrame?: GeometryFrame | null;
   readonly marks: readonly DeviationMarkViewModel[];
   readonly measurement: DeviationMeasurementViewModel | null;
   readonly swipePosition: number;

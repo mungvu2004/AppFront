@@ -286,6 +286,53 @@ function modelFrameOf(points: readonly Point[]): ModelFrame | null {
   return { minX, minY, acrossScale: frameScaleOf(spanX), upScale: frameScaleOf(spanY) };
 }
 
+/** Một nét mô hình, toạ độ mi-li-mét của đồ thị, trước khi chiếu xuống khung. */
+export interface ModelOutline {
+  readonly id: string;
+  readonly points: readonly Point[];
+  readonly isClosed: boolean;
+}
+
+/** Ảnh quét đo bằng mi-li-mét mô hình: `widthPx × tỷ lệ` và `heightPx × tỷ lệ`. */
+export interface ScanFrameMm {
+  readonly widthMm: number;
+  readonly heightMm: number;
+}
+
+/**
+ * Chiếu nét mô hình xuống hệ `0..1` của khung đối chiếu (BUG-IT-005).
+ *
+ * Bước dựng đặt toạ độ mô hình = pixel ảnh × tỷ lệ của tầng, gốc ở góc trên-trái
+ * ảnh. Nên khi biết cỡ ảnh và tỷ lệ, khung là **ảnh**, không phải biên mô hình:
+ * kéo biên mô hình ra cả khung làm tường lệch khỏi bản vẽ (rộng gấp đôi ở G1).
+ * Chưa biết một trong hai thì giữ khung biên mô hình như cũ.
+ */
+export function projectOutlines(
+  outlines: readonly ModelOutline[],
+  scanFrame: ScanFrameMm | null,
+): readonly GeometryPolyline[] {
+  const frame =
+    scanFrame === null
+      ? modelFrameOf(outlines.flatMap((outline) => [...outline.points]))
+      : modelFrameOf([
+          { x: 0, y: 0 },
+          { x: scanFrame.widthMm, y: scanFrame.heightMm },
+        ]);
+
+  if (frame === null) {
+    return EMPTY_GEOMETRY;
+  }
+
+  return outlines.map((outline) => ({
+    id: outline.id,
+    isClosed: outline.isClosed,
+    points: outline.points.map((point) => ({
+      x: frame.acrossScale.pixelsToMillimetres(pixels(point.x - frame.minX)),
+      y: frame.upScale.pixelsToMillimetres(pixels(point.y - frame.minY)),
+    })),
+  }));
+}
+
 /* -------------------------------------------------------------------------- */
 /* Bản ghi một lượt đọc.                                                       */
 /* -------------------------------------------------------------------------- */
@@ -572,6 +619,30 @@ export function useOverlayComparison(
    * **mô hình**. Chính lớp này định nghĩa khung đối chiếu: biên của mô hình là
    * biên của khung.
    */
+  const scanWidthPx = activeScan?.widthPx ?? null;
+  const scanHeightPx = activeScan?.heightPx ?? null;
+  const scanFrame = useMemo<ScanFrameMm | null>(() => {
+    const entity = activeFloorId === null ? undefined : spatial?.byId[activeFloorId];
+    const levelScale =
+      entity !== undefined && isEntityOfKind('level', entity) ? entity.scaleMillimetresPerPixel : undefined;
+    const scale = levelScale ?? floors.find((floor) => floor.id === activeFloorId)?.scaleMillimetresPerPixel;
+
+    if (scanWidthPx === null || scanHeightPx === null || scale === undefined) {
+      return null;
+    }
+
+    return { widthMm: scanWidthPx * scale, heightMm: scanHeightPx * scale };
+  }, [activeFloorId, floors, scanHeightPx, scanWidthPx, spatial]);
+
+  /** Cỡ ảnh để lớp hình học đặt khít ảnh `object-contain`; `null` thì khung = biên mô hình. */
+  const geometryFrame = useMemo(
+    () =>
+      scanFrame === null || scanWidthPx === null || scanHeightPx === null
+        ? null
+        : { widthPx: scanWidthPx as number, heightPx: scanHeightPx as number },
+    [scanFrame, scanHeightPx, scanWidthPx],
+  );
+
   const geometry = useMemo<readonly GeometryPolyline[]>(() => {
     if (spatial === null || activeFloorId === null) {
       return EMPTY_GEOMETRY;
@@ -601,21 +672,8 @@ export function useOverlayComparison(
       return [];
     });
 
-    const frame = modelFrameOf(outlines.flatMap((outline) => [...outline.points]));
-
-    if (frame === null) {
-      return EMPTY_GEOMETRY;
-    }
-
-    return outlines.map((outline) => ({
-      id: outline.id,
-      isClosed: outline.isClosed,
-      points: outline.points.map((point) => ({
-        x: frame.acrossScale.pixelsToMillimetres(pixels(point.x - frame.minX)),
-        y: frame.upScale.pixelsToMillimetres(pixels(point.y - frame.minY)),
-      })),
-    }));
-  }, [activeFloorId, spatial]);
+    return projectOutlines(outlines, scanFrame);
+  }, [activeFloorId, scanFrame, spatial]);
 
   const floorsWithScan = floorOptions.filter((floor) => floor.hasScan).length;
   const floorsWithoutGeometry = floorOptions.filter((floor) => !floor.hasGeometry).length;
@@ -1271,6 +1329,7 @@ export function useOverlayComparison(
       zoomPercent: Math.round(viewport.zoom * FULL_PERCENT),
       layers,
       geometry,
+      geometryFrame,
       marks,
       measurement,
       metrics,
@@ -1292,6 +1351,7 @@ export function useOverlayComparison(
       floorOptions,
       gateway,
       geometry,
+      geometryFrame,
       hasLayerReadFailed,
       hasReadFailed,
       isLockedByUser,
