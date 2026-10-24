@@ -27,9 +27,13 @@ function usePlanSvg(): string | null {
 
   useEffect(() => {
     let alive = true;
-    void import('@/lib/landing/house').then(({ LANDING_HOUSE, planSvg }) => {
-      if (alive) setPlan(drawablePlan(planSvg(LANDING_HOUSE)));
-    });
+    // Nhập thẳng hai tệp, không qua `@/lib/landing/house`: thùng đó còn xuất `buildStair` (three.js),
+    // nạp lười qua thùng kéo cả ~160 KiB gzip three vào trang đăng nhập.
+    void Promise.all([import('@/lib/landing/house/house'), import('@/lib/landing/house/planSvg')]).then(
+      ([{ LANDING_HOUSE }, { planSvg }]) => {
+        if (alive) setPlan(drawablePlan(planSvg(LANDING_HOUSE)));
+      },
+    );
 
     return () => {
       alive = false;

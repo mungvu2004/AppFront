@@ -22,7 +22,7 @@
  *
  * Chạy: `pnpm build:pascal`. Phải chạy **trước** `pnpm build`.
  */
-import { defineConfig, type Alias, type Plugin, type PluginOption } from 'vite';
+import { defineConfig, transformWithEsbuild, type Alias, type Plugin, type PluginOption } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { existsSync, readFileSync } from 'fs';
@@ -167,6 +167,33 @@ function devPlugins(command: 'build' | 'serve', plugins: Plugin[]): PluginOption
   return command === 'build' ? plugins : plugins.map((plugin) => ({ ...plugin, buildEnd: undefined }));
 }
 
+/**
+ * Minify từng chunk JS sau khi Rollup ghép xong.
+ *
+ * Chế độ `lib` + `formats: ['es']` của Vite 5 KHÔNG minify chunk, dù `build.minify: 'terser'`
+ * (đo 2026-10-24: `ids-*.js` 16 MB nguyên khoảng trắng và tên biến dài, 3,6 MB gzip). Bó này
+ * chạy thẳng trên trình duyệt, không qua bundler nào nữa, nên mất chú thích `@__PURE__` không
+ * hại gì. Dùng esbuild (không terser) vì nhanh hơn nhiều trên một bó cỡ này.
+ * Kết quả: 16 → 9,5 MB thô, 3,6 → 2,8 MB gzip.
+ */
+function pascalMinify(): Plugin {
+  return {
+    name: 'pascal-minify',
+    apply: 'build',
+    async renderChunk(code, chunk) {
+      const out = await transformWithEsbuild(code, chunk.fileName, {
+        loader: 'js',
+        format: 'esm',
+        target: 'es2022',
+        minify: true,
+        legalComments: 'none',
+      });
+
+      return { code: out.code, map: null };
+    },
+  };
+}
+
 export default defineConfig(({ command }) => ({
   plugins: [
     ...devPlugins(command, [
@@ -183,6 +210,7 @@ export default defineConfig(({ command }) => ({
     ]),
     react(),
     pascalDevPage(),
+    pascalMinify(),
   ],
   // Worker có đồ thị plugin riêng: không có dòng này thì luật tự host không chạm tới nó.
   worker: { plugins: () => [pascalSelfHost({ rules: WORKER_SELF_HOST_RULES })] },
