@@ -69,7 +69,8 @@ describe('NotificationCenterRoute', () => {
     if (first === undefined) throw new Error('bộ mẫu thông báo rỗng');
     const target = (await import('./notificationCenterGateway')).toNotificationItemVm(first, Date.now()).target.to;
 
-    const [row] = await screen.findAllByText(first.message, { exact: false });
+    // Câu "Mới nhất …" ở đầu trang cũng chứa chữ này; bấm vào dòng trong danh sách.
+    const row = (await screen.findAllByText(first.message, { exact: false })).find((el) => el.closest('li') !== null);
     if (row === undefined) throw new Error('không thấy dòng thông báo đầu');
     fireEvent.click(row);
     // Chạy hết mọi hẹn giờ: không lượt "đóng" muộn nào được kéo người dùng về.
@@ -91,7 +92,7 @@ describe('NotificationCenterRoute', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Thông báo' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Xem việc mới từ thông báo' })).toBeInTheDocument();
     const first = MOCK_NOTIFICATIONS[0];
     if (first === undefined) throw new Error('bộ mẫu thông báo rỗng');
     await screen.findAllByText(first.message, { exact: false });
@@ -99,13 +100,13 @@ describe('NotificationCenterRoute', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.queryByText('Trung tâm thông báo')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Xem tất cả' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Đánh dấu đã đọc hết' })).toBeInTheDocument();
     for (const name of ['Tất cả', 'Chưa đọc', 'Nhắc đến tôi']) {
       expect(screen.getByRole('radio', { name })).toBeInTheDocument();
     }
 
     // Esc không còn rời trang: đây là một trang thường, không phải lớp phủ.
     fireEvent.keyDown(document.body, { key: 'Escape' });
-    expect(screen.getByRole('heading', { level: 1, name: 'Thông báo' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Xem việc mới từ thông báo' })).toBeInTheDocument();
   });
 });

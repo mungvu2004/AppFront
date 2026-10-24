@@ -16,12 +16,13 @@
  * nhầm.
  */
 
-import { CloudOff, RefreshCw, WifiOff } from 'lucide-react';
+import { AlertTriangle, Check, CloudOff, RefreshCw, WifiOff } from 'lucide-react';
 
 import { Drawer } from '@/components/overlay/Drawer';
 import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
 
-import type { ConnectionStatesProps } from './types';
+import type { ConnectionCase, ConnectionStatesProps } from './types';
 
 /** Chiều cao dải, cố định để nội dung không nhảy. */
 const BAND_HEIGHT_PX = 32;
@@ -29,7 +30,30 @@ const BAND_HEIGHT_PX = 32;
 /** Bề rộng tấm trượt chi tiết, theo đặc tả. */
 const DETAIL_WIDTH_PX = 360;
 
-const DETAIL_TITLE = 'Việc đang chờ đồng bộ';
+const DETAIL_TITLE = 'Đồng bộ thay đổi';
+const OFFLINE_HINT = 'Lưu trên máy này, tự gửi khi có mạng.';
+const ROW_MADE_AT = 'Bạn làm lúc';
+const ROW_WAITING = 'chờ gửi';
+
+/** Màu đúng nghĩa, luôn kèm icon + chữ: vàng = chú ý, trung tính = đang chạy, xanh = xong. */
+const NEUTRAL_TONE = { icon: RefreshCw, box: 'bg-bg-surface ring-1 ring-border-default', text: 'text-text-primary' };
+const BAND_TONE: Readonly<Record<ConnectionCase, { icon: typeof Check; box: string; text: string }>> = {
+  offline: {
+    icon: WifiOff,
+    box: 'bg-state-attention-tint ring-1 ring-state-attention',
+    text: 'text-state-attention-text',
+  },
+  queueFull: {
+    icon: AlertTriangle,
+    box: 'bg-state-violation-tint ring-1 ring-state-violation',
+    text: 'text-state-violation-text',
+  },
+  syncing: NEUTRAL_TONE,
+  online: NEUTRAL_TONE,
+  degraded: NEUTRAL_TONE,
+  sessionExpired: NEUTRAL_TONE,
+  synced: { icon: Check, box: 'bg-state-verified-tint', text: 'text-state-verified-text' },
+};
 const DETAIL_EMPTY = 'Không còn thay đổi nào chờ đồng bộ.';
 const REPLAY_NOW = 'Thử đồng bộ lại ngay';
 
@@ -54,19 +78,15 @@ function PendingDetail({ actions, model }: ConnectionStatesProps) {
         ) : (
           <ul className="flex flex-col gap-1">
             {model.pendingRows.map((row) => (
-              <li
-                key={row.id}
-                className="flex h-9 items-center gap-3 rounded-lg px-3 hover:bg-bg-hover"
-              >
-                <span className="flex-1 truncate text-[14px] leading-5 text-text-primary">
-                  {row.label}
+              <li key={row.id} className="flex items-start gap-3 rounded-lg px-3 py-2 hover:bg-bg-hover">
+                <RefreshCw size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-text-secondary" />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-[14px] font-medium leading-5 text-text-primary">{row.label}</span>
+                  <span className="text-[13px] leading-[18px] text-text-secondary">
+                    {`${ROW_MADE_AT} ${row.createdAtLabel}, ${ROW_WAITING}`}
+                  </span>
                 </span>
-                <span className="shrink-0 font-mono text-[13px] leading-5 text-text-muted">
-                  {row.createdAtLabel}
-                </span>
-                <span className="shrink-0 font-mono text-[13px] leading-5 text-text-muted">
-                  {row.sizeLabel}
-                </span>
+                <span className="shrink-0 font-mono text-[13px] leading-5 text-text-muted">{row.sizeLabel}</span>
               </li>
             ))}
           </ul>
@@ -162,31 +182,50 @@ export function ConnectionStates({ actions, model }: ConnectionStatesProps) {
     );
   }
 
-  /* Tầng 3 — dải 32px. Chỗ của nó luôn được giữ sẵn. */
+  /* Tầng 3 — dải 32px. Chỗ của nó luôn được giữ sẵn; viên dải nằm giữa chỗ ấy (demo S-45). */
+  const tone = BAND_TONE[model.connectionCase];
+  const ToneIcon = tone.icon;
+  const isSynced = model.connectionCase === 'synced';
+
   return (
     <>
       <div
         role="status"
         style={{ height: `${String(BAND_HEIGHT_PX)}px` }}
-        className="flex w-full items-center justify-center gap-3 bg-state-attention-tint px-5 transition-opacity duration-fast"
+        className="flex w-full items-center justify-center px-5 transition-opacity duration-fast"
       >
-        {model.connectionCase === 'syncing' ? (
-          <RefreshCw size={14} aria-hidden="true" className="text-state-attention-text" />
-        ) : null}
-
-        <span className="text-[13px] leading-[18px] text-state-attention-text">{model.headline}</span>
-
-        {model.replayLabel !== null ? (
-          <span className="font-mono text-[13px] leading-5 text-state-attention-text">
-            {model.replayLabel}
+        <div
+          className={cn(
+            'relative flex h-8 max-w-full items-center gap-2 overflow-hidden whitespace-nowrap rounded-lg pl-3 text-[13px] leading-5 shadow-rest',
+            model.actionLabel !== null ? 'pr-1' : 'pr-3',
+            tone.box,
+          )}
+        >
+          <ToneIcon size={16} aria-hidden="true" className={cn('shrink-0', tone.text)} />
+          <span className={cn('font-medium', tone.text)}>
+            {isSynced ? (model.lastSyncLabel ?? model.headline) : model.headline}
           </span>
-        ) : null}
 
-        {model.actionLabel !== null ? (
-          <Button variant="ghost" size="sm" onClick={actions.onOpenDetail}>
-            {model.actionLabel}
-          </Button>
-        ) : null}
+          {model.replayLabel !== null ? (
+            <span className="font-mono font-medium tabular-nums text-text-primary">{model.replayLabel}</span>
+          ) : null}
+
+          {model.connectionCase === 'offline' ? (
+            <span className="truncate text-text-secondary max-xl:hidden">{OFFLINE_HINT}</span>
+          ) : null}
+
+          {model.actionLabel !== null ? (
+            <Button variant="ghost" size="sm" className="h-6 text-accent" aria-haspopup="dialog" onClick={actions.onOpenDetail}>
+              {model.actionLabel}
+            </Button>
+          ) : null}
+
+          {model.connectionCase === 'syncing' ? (
+            <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden bg-bg-sunken">
+              <span className="block h-full w-1/2 bg-accent" />
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <PendingDetail model={model} actions={actions} />

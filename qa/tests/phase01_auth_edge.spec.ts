@@ -189,6 +189,7 @@ const LONG_LOCAL = `${TEST_DATA_PREFIX}e01-long-`.padEnd(64, 'a');
 
 const authMain = (page: Page, state: string) => page.locator(`main[data-auth-state="${state}"]`);
 const h1 = (page: Page, name: string) => page.getByRole('heading', { level: 1, name, exact: true });
+const SIGN_IN_TITLE = 'Đăng nhập để tiếp tục dự án'; // AuthScreen.tsx SIGN_IN_TITLE (h1 of the sign-in form)
 const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 const emailBox = (page: Page) => page.getByLabel(EMAIL_LABEL, { exact: true });
 // `exact`: otherwise it also matches the "Hiện mật khẩu" button.
@@ -231,7 +232,7 @@ async function openWithBootstrap(page: Page, url: string, expected: readonly num
 /** Anonymous sign-in form, painted. */
 async function openAnonymousLogin(page: Page): Promise<void> {
   await openWithBootstrap(page, ROUTES.login);
-  await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+  await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
 }
 
 /**
@@ -399,7 +400,7 @@ test.describe('E01 SCR-01 Session gate', () => {
     await expect(shell).toBeVisible();
     await expect(shell).toHaveAttribute('aria-busy', 'true');
     await expect(shell.locator('p')).toHaveText(`${OPENING_SESSION}…`);
-    await expect(h1(page, SIGN_IN_LABEL)).toHaveCount(0);
+    await expect(h1(page, SIGN_IN_TITLE)).toHaveCount(0);
     await expect.poll(() => refresh.seen.length, { message: `POST ${REFRESH_PATH} held` }).toBe(1);
     await captureEvidence(page, 'E01_gate_opening_session.png');
 
@@ -408,7 +409,7 @@ test.describe('E01 SCR-01 Session gate', () => {
     await answered;
     await expect.poll(() => pathOf(page.url())).toBe(loginUrl(gated));
     expect(loginUrl(gated)).toBe('/login?next=%2Fthong-bao%3Fe01%3Dgate');
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     await expect(alertWith(page, SIGN_IN_REQUIRED_NOTICE)).toBeVisible();
     await attachJson('E01_gate_redirect_query.json', { gated, landedUrl: pathOf(page.url()) });
     await captureEvidence(page, 'E01_gate_redirect_query.png', { caption: `requested ${gated} → next keeps path AND query` }); // BUG-034
@@ -437,7 +438,7 @@ test.describe('E01 SCR-01 Session gate', () => {
     await expect(gate.getByText(GATE_UNREACHABLE_DESCRIPTION, { exact: true })).toBeVisible();
     await expect(gate.getByRole('button', { name: RETRY, exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 }), 'the gate is the only h1').toHaveCount(1);
-    await expect(h1(page, SIGN_IN_LABEL)).toHaveCount(0);
+    await expect(h1(page, SIGN_IN_TITLE)).toHaveCount(0);
     expect(pathOf(page.url()), 'no redirect while the session is unknown').toBe(ROUTES.dashboard);
     await attachJson('E01_gate_server_unreachable.json', { urlWhileUnknown: pathOf(page.url()) }); // BUG-034
     await captureEvidence(page, 'E01_gate_server_unreachable.png');
@@ -451,7 +452,7 @@ test.describe('E01 SCR-01 Session gate', () => {
     await first!.continue();
 
     await expect.poll(() => pathOf(page.url())).toBe(loginUrl(ROUTES.dashboard));
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     await expect(page.getByText(SESSION_ENDED_NOTICE, { exact: true })).toHaveCount(0);
     await expect(page.getByText(SIGN_IN_REQUIRED_NOTICE, { exact: true })).toHaveCount(0);
     await attachJson('E01_gate_retry_to_login.json', { landedUrl: pathOf(page.url()) }); // BUG-034
@@ -494,7 +495,7 @@ test.describe('E01 SCR-01 Session gate', () => {
       await gate.getByRole('button', { name: RELOAD_PAGE, exact: true }).click();
       await reloaded;
       await expect.poll(() => pathOf(page.url())).toBe(loginUrl(ROUTES.dashboard));
-      await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+      await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
       await expect(page.getByText(SIGN_IN_REQUIRED_NOTICE, { exact: true }), 'next = / → no notice').toHaveCount(0);
       await attachJson('E01_gate_setup_reloaded.json', { landedUrl: pathOf(page.url()) }); // BUG-034
       // captureEvidence waits for the hero canvas's first frame (waitForHeroFrame, BUG-061).
@@ -944,7 +945,7 @@ test.describe('E01 SCR-02 Login form', () => {
       const answered = waitForStatus(page, 'POST', REFRESH_API, [401]);
       await page.reload({ waitUntil: 'commit' });
       await answered;
-      await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+      await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     }
 
     await openAnonymousLogin(page);
@@ -1092,7 +1093,7 @@ test.describe('E01 SCR-02 Login failures', () => {
     await expect(emailBox(page)).toHaveCount(0);
     await expect(button(page, SIGN_IN_LABEL)).toHaveCount(0);
     await expect(button(page, FORGOT_PASSWORD)).toHaveCount(0);
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     expect(login.seen).toHaveLength(1);
     await expect(button(page, SIGN_IN_ANOTHER_ACCOUNT), 'dropped focus caught by the way out').toBeFocused();
     await captureEvidence(page, 'E01_login_account_disabled.png');
@@ -1310,7 +1311,7 @@ test.describe('E01 SCR-02 Forgot password', () => {
     await emailBox(page).fill(`x${address}`);
     await button(page, BACK_TO_SIGN_IN).focus();
     await page.keyboard.press('Enter');
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     await expect(emailBox(page)).toBeFocused();
     await expect(emailBox(page)).toHaveValue(address);
     await captureEvidence(page, 'E01_forgot_back_focus.png');
@@ -1507,7 +1508,7 @@ test.describe('E01 SCR-02 Forgot password', () => {
     await captureEvidence(page, 'E01_forgot_validation_email.png');
 
     await emailBox(page).press('Escape');
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     await openForgotByKeyboard(page);
     await expect(emailBox(page)).toHaveValue('');
     await expect(emailBox(page)).not.toHaveAttribute('aria-invalid', 'true');
@@ -1760,7 +1761,7 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
 
     await openWithBootstrap(page, ROUTES.dashboard);
     await expect.poll(() => pathOf(page.url())).toBe(loginUrl(ROUTES.dashboard));
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
 
     await emailBox(page).fill(email);
     await passwordBox(page).fill(password);
@@ -1773,7 +1774,7 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
     await page.goBack();
     await expect.poll(() => pathOf(page.url()), { message: 'after Back' }).toBe(ROUTES.invitationAccept);
     await expect(page.getByText(INVITATION_INCOMPLETE, { exact: true })).toBeVisible();
-    await expect(h1(page, SIGN_IN_LABEL)).toHaveCount(0);
+    await expect(h1(page, SIGN_IN_TITLE)).toHaveCount(0);
     await attachJson('E01_back_after_login.json', { status, landed, afterBack: pathOf(page.url()) });
     await captureEvidence(page, 'E01_back_after_login.png');
   });
@@ -1880,7 +1881,7 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
     await landsOnDashboard(page, '"Về danh sách dự án"');
     await page.goBack();
     await expect.poll(() => pathOf(page.url()), { message: 'Back after "Về danh sách dự án"' }).toBe(ROUTES.login);
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     await expect(signedInStrip).toBeVisible();
     await attachJson('E01_login_signed_in_return.json', { returnedTo: ROUTES.dashboard, afterBack: pathOf(page.url()) });
 
@@ -1946,7 +1947,7 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
     for (const [index, { slug, next }] of NEXT_CASES.entries()) {
       // First pass anonymous (fresh context), then signed in by the previous pass.
       await openWithBootstrap(page, loginUrl(next), index === 0 ? [401] : [200]);
-      await expect(h1(page, SIGN_IN_LABEL), `next=${next}`).toBeVisible();
+      await expect(h1(page, SIGN_IN_TITLE), `next=${next}`).toBeVisible();
       await emailBox(page).fill(email);
       await passwordBox(page).fill(password);
       const { status } = await captureLogin(page, () => button(page, SIGN_IN_LABEL).click());
@@ -2287,7 +2288,7 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
 
     await openWithBootstrap(page, gated);
     await expect.poll(() => pathOf(page.url())).toBe(loginUrl(gated));
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     await expect(alertWith(page, SIGN_IN_REQUIRED_NOTICE)).toBeVisible();
     await expect
       .poll(() => page.evaluate(() => (history.state as { usr?: { notice?: unknown } | null } | null)?.usr?.notice))
@@ -2297,14 +2298,14 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
     const reloaded = waitForStatus(page, 'POST', REFRESH_API, [401]);
     await page.reload({ waitUntil: 'commit' });
     await reloaded;
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     expect(pathOf(page.url()), 'same ?next= after F5').toBe(loginUrl(gated));
     await expect(page.getByText(SIGN_IN_REQUIRED_NOTICE, { exact: true }), 'F5: notice not re-derived from ?next=').toHaveCount(0);
     await captureEvidence(page, 'E01_gate_sign_in_required_f5.png');
 
     await openWithBootstrap(page, ROUTES.dashboard);
     await expect.poll(() => pathOf(page.url())).toBe(loginUrl(ROUTES.dashboard));
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     await expect(page.getByText(SIGN_IN_REQUIRED_NOTICE, { exact: true }), 'guest on / → nothing to explain').toHaveCount(0);
     await attachJson('E01_gate_sign_in_required.json', {
       gated,
@@ -2472,7 +2473,7 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
       });
       await link.click();
       await expect.poll(() => pathOf(page.url())).toBe(ROUTES.login);
-      await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+      await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
       const sameDocument = await page.evaluate(() => (window as unknown as { e01Marker?: number }).e01Marker === 1);
       expect(sameDocument, 'client-side navigation (no reload)').toBe(true);
       await nextFrame(page);
@@ -2761,7 +2762,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
 
     await openWithBootstrap(page, gated);
     await expect.poll(() => pathOf(page.url())).toBe(loginUrl(gated));
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     await expect(page.getByRole('alert'), 'no opening notice for the home page').toHaveCount(0);
     await expect(page.getByText(SIGN_IN_REQUIRED_NOTICE, { exact: true })).toHaveCount(0);
     await attachJson('E01_gate_root_query_no_notice.json', { gated, landedUrl: pathOf(page.url()) });
@@ -2788,7 +2789,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
     for (const { slug, path } of cases) {
       await openWithBootstrap(page, path);
       await expect.poll(() => pathOf(page.url()), { message: slug }).toBe(loginUrl(path));
-      await expect(h1(page, SIGN_IN_LABEL), slug).toBeVisible();
+      await expect(h1(page, SIGN_IN_TITLE), slug).toBeVisible();
       await expect(alertWith(page, SIGN_IN_REQUIRED_NOTICE), slug).toBeVisible();
       await expect(page.getByRole('heading', { level: 1 }), `${slug}: the sign-in title is the only h1`).toHaveCount(1);
       landed[slug] = pathOf(page.url());
@@ -2855,7 +2856,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
       await page.evaluate(() => window.dispatchEvent(new Event('online')));
       await answered;
       await expect.poll(() => pathOf(page.url())).toBe(loginUrl(ROUTES.dashboard));
-      await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+      await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
       expect(refreshes, '"online" after the ladder → exactly one fresh attempt').toBe(REFRESH_MAX_TRANSIENT_ATTEMPTS + 1);
       await attachJson('E01_gate_online_recovers.json', { refreshes, landedUrl: pathOf(page.url()) });
       await captureEvidence(page, 'E01_gate_online_recovers.png', {
@@ -2962,7 +2963,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
       const tab = await popup;
       try {
         await expect.poll(() => pathOf(tab.url()), { message: `${slug}: new tab` }).toBe(ROUTES.login);
-        await expect(h1(tab, SIGN_IN_LABEL)).toBeVisible();
+        await expect(h1(tab, SIGN_IN_TITLE)).toBeVisible();
         opened[slug] = pathOf(tab.url());
       } finally {
         await tab.close();
@@ -2974,7 +2975,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
 
     await page.getByRole('link', { name: GO_TO_SIGN_IN, exact: true }).click();
     await expect.poll(() => pathOf(page.url())).toBe(ROUTES.login);
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     await attachJson('E01_recovery_link_ctrl.json', { newTabs: opened, plainClickLanded: pathOf(page.url()) });
   });
 
@@ -3009,7 +3010,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
       await captureEvidence(page, 'E01_login_shortcut_help_closed.png');
 
       await page.keyboard.press('Escape');
-      await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+      await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
       await nextFrame(page);
       const writes = requests.sent.filter((line) => line.startsWith('POST ') && line !== `POST ${REFRESH_PATH}`);
       expect(writes, 'no POST besides session refreshes').toEqual([]);
@@ -3071,7 +3072,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
       await button(page, SET_NEW_PASSWORD).click();
 
       await expect.poll(() => pathOf(page.url()), { message: 'lands on /login despite the failed logout' }).toBe(ROUTES.login);
-      await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+      await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
       const notice = alertWith(page, PASSWORD_RESET_NOTICE);
       await expect(notice).toBeVisible();
       const noticeTop = (await notice.boundingBox())?.y ?? Number.NaN;
@@ -3109,7 +3110,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
           return { left: style.paddingLeft, right: style.paddingRight };
         });
         expect(padding, '/login side margins below 640').toEqual({ left: '24px', right: '24px' });
-        const titleBox = await h1(page, SIGN_IN_LABEL).boundingBox();
+        const titleBox = await h1(page, SIGN_IN_TITLE).boundingBox();
         expect(titleBox, 'title box').not.toBeNull();
         expect(Math.round(titleBox!.x), 'title starts at the 24 px margin').toBe(24);
 

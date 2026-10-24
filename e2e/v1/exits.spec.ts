@@ -54,13 +54,13 @@ for (const row of EXIT_ROWS) {
   });
 }
 
-test('mở thẳng một đường chết rồi bấm "Quay lại" thì về danh sách dự án, không ra khỏi ứng dụng (B-V1-01)', async ({
+test('mở thẳng một đường chết rồi bấm "Quay lại trang trước" thì về danh sách dự án, không ra khỏi ứng dụng (B-V1-01)', async ({
   page,
 }) => {
   await page.goto(UNKNOWN_PATH);
   const origin = new URL(page.url()).origin;
 
-  await page.getByRole('button', { name: 'Quay lại', exact: true }).click({
+  await page.getByRole('button', { name: 'Quay lại trang trước', exact: true }).click({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 

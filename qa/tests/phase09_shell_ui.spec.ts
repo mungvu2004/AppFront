@@ -38,7 +38,7 @@ test('SCR-05 · FL-9P-U1 · viewer · bốn khổ', async ({ browser }) => {
     await test.step('[9P-F-301] AccessDenied (viewer) + NotFound (viewer đã đăng nhập)', async () => {
       await uiState(page, '9P-F-301', 'access_denied', openAt(ROUTES.accessDenied, (p) => p.getByText(/Bạn chưa có quyền truy cập/u)));
       // Anonymous never reaches NotFound: the gate redirects an unknown path to /login?next (SessionBootstrap.tsx:288-301, phase09_shell_b_edge.spec.ts:226 [9P-D-307]); shot with the signed-in viewer.
-      await uiState(page, '9P-F-301', 'not_found_viewer', openAt(UNKNOWN_PATH, (p) => p.getByText('Trang bạn tìm đã bị xoá hoặc đã chuyển đi nơi khác.'))); // useNotFound.ts:105 (state 'missing'); vi.json:31 is the generic error copy, not this screen
+      await uiState(page, '9P-F-301', 'not_found_viewer', openAt(UNKNOWN_PATH, (p) => p.getByText('Trang có thể đã bị xoá, đã chuyển chỗ, hoặc đường dẫn bị cắt mất một đoạn khi chép vào thư.'))); // useNotFound.ts:105 (state 'missing'); vi.json:31 is the generic error copy, not this screen
     });
   });
 });

@@ -22,10 +22,10 @@ export const P7_TEXT = {
   retry: 'Thử lại', // PS:61-64
   settingsTitle: 'Cài đặt dự án', // PS h1
   notFoundTitle: 'Không tìm thấy trang này', // NFS TITLE_BY_REASON.missing (NF:98)
-  notFoundDescription: 'Trang bạn tìm đã bị xoá hoặc đã chuyển đi nơi khác.', // NF:103
+  notFoundDescription: 'Trang có thể đã bị xoá, đã chuyển chỗ, hoặc đường dẫn bị cắt mất một đoạn khi chép vào thư.', // NF:103
   gateTitle: 'Không tìm thấy dự án này', // PSGATE PROJECT_NOT_FOUND_TITLE (P10 GATE)
-  back: 'Quay lại', // NFT backLabel
-  recentHeading: 'Dự án gần đây', // NFT recentHeading
+  back: 'Quay lại trang trước', // NFT backLabel
+  recentHeading: 'Có thể bạn đang tìm', // NFT recentHeading
   deleteForbidden: 'Bạn không có quyền xoá dự án này.', // UPD:234
   deleteTitle: 'Xoá dự án?', // PD:287
   deleteConfirm: 'Xoá dự án', // PD:311

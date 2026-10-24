@@ -9,9 +9,9 @@ export const NOT_FOUND_PATH = '/khong-ton-tai';
 export const NF_TITLE = 'Không tìm thấy trang này';
 export const NF_OFFLINE_TITLE = 'Chưa kết nối được máy chủ';
 export const NF_OFFLINE_TEXT = 'Đường truyền đang gián đoạn, nên chưa xác nhận được trang này còn hay không.';
-export const NF_RECENT = 'Dự án gần đây';
+export const NF_RECENT = 'Có thể bạn đang tìm';
 export const NF_DASHBOARD = 'Về danh sách dự án';
-export const NF_BACK = 'Quay lại';
+export const NF_BACK = 'Quay lại trang trước';
 
 /** One project in the wire shape of `ProjectSchema` (src/api/schemas/index.ts:219). */
 export function wireProject(id: string, name: string, updatedAt: string): Record<string, unknown> {
@@ -49,8 +49,8 @@ export async function nextFrame(page: Page): Promise<void> {
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 }
 
-/** Opens NotFound and waits for its unconditional h2 (the milestone for absence checks). */
+/** Opens NotFound and waits for its unconditional h1 (the milestone for absence checks). */
 export async function openNotFound(page: Page, title: string = NF_TITLE): Promise<void> {
   await page.goto(NOT_FOUND_PATH);
-  await expect(page.getByRole('heading', { name: title, exact: true, level: 2 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: title, exact: true, level: 1 })).toBeVisible();
 }

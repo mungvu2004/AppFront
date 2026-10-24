@@ -192,7 +192,7 @@ test.describe('phase 11 · project edge B', () => {
           await expect.soft(page.getByRole('button', { name: P7_TEXT.restoreDefaults, exact: true })).toHaveCount(0);
         });
 
-        await test.step('[11P-A-040] NotFound "Dự án gần đây": deleted project absent', async () => {
+        await test.step('[11P-A-040] NotFound "Có thể bạn đang tìm": deleted project absent', async () => {
           await page.goto(UNKNOWN_PATH); // NotFound page proper (NF:88)
           await expect(page.getByRole('heading', { name: P7_TEXT.recentHeading, exact: true })).toBeVisible();
           await expect.soft(page.getByText(project.name)).toHaveCount(0);

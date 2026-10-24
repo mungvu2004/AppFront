@@ -14,11 +14,11 @@ import { requireState } from './support/state';
 import { verifyUi } from './support/ui-verify';
 
 const FLOORS_TITLE = 'Quản lý tầng'; // FloorManager.tsx:70 (h2)
-const NOT_FOUND_TITLE = 'Không tìm thấy trang này'; // useNotFound.ts:98 (h2)
+const NOT_FOUND_TITLE = 'Không tìm thấy trang này'; // useNotFound.ts:98 (h1)
 const SCENE_TIMEOUT_MS = 60_000;
 
 const floorsHeading = (page: Page) => page.getByRole('heading', { level: 2, name: FLOORS_TITLE, exact: true });
-const notFoundHeading = (page: Page) => page.getByRole('heading', { level: 2, name: NOT_FOUND_TITLE, exact: true });
+const notFoundHeading = (page: Page) => page.getByRole('heading', { level: 1, name: NOT_FOUND_TITLE, exact: true });
 
 async function expectHelpFits(page: Page): Promise<void> {
   await expect(helpDialog(page)).toBeVisible();

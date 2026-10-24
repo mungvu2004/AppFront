@@ -29,11 +29,14 @@
  */
 
 import { useCallback, useRef } from 'react';
+import { CircleAlert, CircleCheck, Lock } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Input } from '@/components/ui/Input';
+import { Kbd } from '@/components/ui/Kbd';
 
 /* Nhập THEO TÊN, không default: default export của `vi.json` là một object literal liền
    khối nên Rollup phải giữ cả cuốn từ điển trong chunk vào. Đừng "dọn" về default. */
@@ -52,6 +55,46 @@ import { FIELD_ERROR_SLOT } from '../RecoveryShell';
 import { useReturnFocus } from '../useReturnFocus';
 import { ForgotPasswordPanel } from './ForgotPasswordPanel';
 
+/* Chữ của bản Z S-01 (ba câu của màn). Chờ chuyển vào `vi.json` khối `auth` — khối đó đọc lúc chạy
+   và nằm ngoài thư mục màn, nên tạm là hằng ở đây. */
+const SIGN_IN_TITLE = 'Đăng nhập để tiếp tục dự án';
+const STATUS_SIGNED_OUT = 'Chưa đăng nhập';
+const STATUS_SIGNED_OUT_NOTE = 'Xong sẽ mở lại đúng trang bạn đang xem.';
+const STATUS_REJECTED = 'Chưa đăng nhập được';
+const STATUS_REJECTED_NOTE = 'Máy chủ từ chối lần thử vừa rồi.';
+const STATUS_DONE = 'Đã đăng nhập';
+const NO_ACCOUNT_NOTE =
+  'Chưa có tài khoản? Quản trị viên dự án gửi thư mời; mở liên kết trong thư để tạo tài khoản.';
+
+/** Câu 2 của màn: một chip + một câu, suy từ đúng trạng thái biểu mẫu đang theo. */
+function SignInStatus({ state, rejected }: { readonly state: string; readonly rejected: boolean }) {
+  if (state === 'success') {
+    return (
+      <Badge variant="verified" noDot>
+        <CircleCheck aria-hidden="true" size={14} strokeWidth={2} />
+        {STATUS_DONE}
+      </Badge>
+    );
+  }
+
+  return rejected ? (
+    <>
+      <Badge variant="violation" noDot>
+        <CircleAlert aria-hidden="true" size={14} strokeWidth={2} />
+        {STATUS_REJECTED}
+      </Badge>
+      <span>{STATUS_REJECTED_NOTE}</span>
+    </>
+  ) : (
+    <>
+      <Badge variant="neutral" noDot>
+        <Lock aria-hidden="true" size={14} strokeWidth={2} />
+        {STATUS_SIGNED_OUT}
+      </Badge>
+      <span>{STATUS_SIGNED_OUT_NOTE}</span>
+    </>
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /* The sign-in form.                                                           */
@@ -140,6 +183,9 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           onBlur={blur('email')}
         />
 
+        {/* "Quên mật khẩu" ngang hàng nhãn ô mật khẩu, nơi người quên tìm tới (Z/S-01 #5). Đặt sau ô trong DOM
+            và ngoài `<label>`: tên của ô vẫn đúng "Mật khẩu", nút không lọt vào tên ấy. */}
+        <div className="relative">
         <PasswordField
           label={AUTH_MESSAGES.fields.password}
           autoComplete="current-password"
@@ -153,6 +199,25 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           }}
           onBlur={blur('password')}
         />
+          <button
+            type="button"
+            disabled={fieldsDisabled}
+            onClick={actions.forgotPassword}
+            className="absolute -top-3 right-0 inline-flex min-h-11 items-center rounded-sm text-[13px] fine:-top-0.5 fine:min-h-6 font-medium leading-5 text-accent-hover transition-colors duration-120 hover:text-accent-active hover:underline underline-offset-2 outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {AUTH_MESSAGES.actions.forgotPassword}
+          </button>
+        </div>
+        {/* Sai mật khẩu nói ngay dưới ô mật khẩu, cạnh đối tượng (Z/S-01 #6); các dải khác vẫn dưới nút. */}
+        {credentialsRejected && notice !== null && (
+          <div className="mb-4">
+            <InlineAlert
+              level={notice.tone}
+              {...(notice.title !== undefined ? { title: notice.title } : {})}
+              message={notice.message}
+            />
+          </div>
+        )}
 
         <div className="flex flex-col gap-4">
           <Checkbox
@@ -166,6 +231,12 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
               shape while it is sending — the label swaps, the box does not. */}
           <Button type="submit" size="lg" fullWidth loading={isSubmitting} disabled={!canSubmit}>
             {isSubmitting ? AUTH_MESSAGES.actions.submitting : submitLabel}
+            {/* Phím của nút chính, ẩn khỏi tên nút: trình đọc màn hình vẫn đọc đúng "Đăng nhập". */}
+            {!isSubmitting && (
+              <span aria-hidden="true" className="ml-2 inline-flex">
+                <Kbd className="border-transparent bg-transparent text-current opacity-80">Enter</Kbd>
+              </span>
+            )}
           </Button>
         </div>
       </div>
@@ -174,7 +245,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           going, as the opening one does on submit — moved the fields and the button under the
           cursor (BUG-008). Right under it, above "Quên mật khẩu": a wrong password reads next to the button
           that answered it (A1 §8). */}
-      {notice !== null && (
+      {notice !== null && !credentialsRejected && (
         <div className="flex flex-col gap-3">
           <InlineAlert
             level={notice.tone}
@@ -195,9 +266,8 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
         </p>
       )}
 
-      <div className="flex flex-col gap-4">
-        {actions.ssoSignIn !== undefined && (
-          <>
+      {actions.ssoSignIn !== undefined && (
+        <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <span aria-hidden="true" className="h-px flex-1 bg-border-default" />
               <span className="text-[13px] leading-[18px] text-text-muted">{AUTH_MESSAGES.actions.or}</span>
@@ -214,19 +284,8 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
             >
               {AUTH_MESSAGES.actions.ssoSignIn}
             </Button>
-          </>
-        )}
-
-        <button
-          type="button"
-          disabled={fieldsDisabled}
-          onClick={actions.forgotPassword}
-          className="inline-flex min-h-11 items-center self-start py-1 text-[13px] fine:min-h-6 leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {AUTH_MESSAGES.actions.forgotPassword}
-        </button>
-      </div>
-
+        </div>
+      )}
     </form>
   );
 }
@@ -305,8 +364,10 @@ export function AuthScreenView(props: AuthScreenViewProps) {
        attribute is readable by a test and silent to everyone else. */
     <AuthFrame
       state={state}
-      title={isForgot ? AUTH_MESSAGES.forgotPassword.title : AUTH_MESSAGES.tabs.signIn}
-      subtitle={isForgot ? AUTH_MESSAGES.forgotPassword.subtitle : AUTH_MESSAGES.brand.subtitle}
+      title={isForgot ? AUTH_MESSAGES.forgotPassword.title : SIGN_IN_TITLE}
+      subtitle={isForgot ? AUTH_MESSAGES.forgotPassword.subtitle : undefined}
+      status={isForgot ? undefined : <SignInStatus state={state} rejected={props.credentialsRejected === true} />}
+      footer={isForgot ? undefined : NO_ACCOUNT_NOTE}
     >
       {isCollapsed ? (
         <div className="flex flex-col gap-4">

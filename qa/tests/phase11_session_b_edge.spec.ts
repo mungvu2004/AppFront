@@ -166,14 +166,14 @@ test.describe('phase 11 · session-b edge', () => {
 
       await test.step('[11U-A-201] /tai-khoan không có khối Phiên đăng nhập', async () => {
         await page.goto('/tai-khoan');
-        await expect(page.getByRole('heading', { level: 1, name: 'Cài đặt tài khoản', exact: true })).toBeVisible(); // AS:104
+        await expect(page.getByRole('heading', { level: 1, name: 'Đổi thông tin và tuỳ chọn tài khoản', exact: true })).toBeVisible(); // AS:104
         await expect.soft(page.getByText('Phiên đăng nhập', { exact: true })).toHaveCount(0); // AS:161-165
         await shot(page, '11U-A-201', 'no_sessions_block');
       });
 
-      await test.step('[11U-A-202] không có Vùng nguy hiểm / Xoá tài khoản', async () => {
-        await expect(page.getByRole('heading', { level: 1, name: 'Cài đặt tài khoản', exact: true })).toBeVisible();
-        await expect.soft(page.getByText('Vùng nguy hiểm', { exact: true })).toHaveCount(0); // AS:172-176
+      await test.step('[11U-A-202] không có Xoá tài khoản / Xoá tài khoản', async () => {
+        await expect(page.getByRole('heading', { level: 1, name: 'Đổi thông tin và tuỳ chọn tài khoản', exact: true })).toBeVisible();
+        await expect.soft(page.getByText('Xoá tài khoản', { exact: true })).toHaveCount(0); // AS:172-176
         await expect.soft(page.getByText('Xoá tài khoản', { exact: true })).toHaveCount(0);
         await shot(page, '11U-A-202', 'no_danger_zone');
       });

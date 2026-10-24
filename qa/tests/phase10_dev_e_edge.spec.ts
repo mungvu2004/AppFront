@@ -14,7 +14,7 @@ import { DESKTOP_VIEWPORTS } from './support/p10/viewports';
 import { verifyUi } from './support/ui-verify';
 
 const NOT_FOUND_TITLE = 'Không tìm thấy trang này'; // src/screens/system/NotFound/useNotFound.ts
-const notFoundHeading = (page: Page) => page.getByRole('heading', { name: NOT_FOUND_TITLE, exact: true, level: 2 });
+const notFoundHeading = (page: Page) => page.getByRole('heading', { name: NOT_FOUND_TITLE, exact: true, level: 1 });
 const DEV_CHUNK = /DataEntryDemo|ListReviewDemo|ShellDemo|CanvasOverlaysDemo|FeedbackDemo|StateGallery|DesignSystem/u;
 
 test('SCR-40e-6 · FL-10E-19 · admin · Dev URL trên bản prod → NotFound', async ({ browser }) => {

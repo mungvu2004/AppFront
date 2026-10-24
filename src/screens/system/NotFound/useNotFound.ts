@@ -85,8 +85,8 @@ import {
  * cấm tuyệt đối của đặc tả.
  */
 export const NOT_FOUND_TEXT = {
-  recentHeading: 'Dự án gần đây',
-  backLabel: 'Quay lại',
+  recentHeading: 'Có thể bạn đang tìm',
+  backLabel: 'Quay lại trang trước',
   signInLabel: 'Đăng nhập',
   dashboardLabel: 'Về danh sách dự án',
   errorCodePrefix: 'Mã lỗi: ',
@@ -102,7 +102,7 @@ export const TITLE_BY_REASON: Readonly<Record<NotFoundReason, string>> = {
 
 /** Một câu giải thích cho mỗi nguyên nhân. Nói đúng thứ đang biết, không hơn. */
 export const DESCRIPTION_BY_REASON: Readonly<Record<NotFoundReason, string>> = {
-  missing: 'Trang bạn tìm đã bị xoá hoặc đã chuyển đi nơi khác.',
+  missing: 'Trang có thể đã bị xoá, đã chuyển chỗ, hoặc đường dẫn bị cắt mất một đoạn khi chép vào thư.',
   forbidden: 'Đăng nhập xong bạn sẽ được đưa lại đúng trang vừa mở.',
   offline: 'Đường truyền đang gián đoạn, nên chưa xác nhận được trang này còn hay không.',
 };

@@ -47,7 +47,7 @@ export const ERROR_PAINT_TIMEOUT_MS = 30_000;
 /** createAutosave.ts OFFLINE_RECHECK_MS = 5 s, + debounce + round trip. */
 export const OFFLINE_FLUSH_TIMEOUT_MS = 20_000;
 
-export const TITLE = 'Cài đặt tài khoản'; // AS:104
+export const TITLE = 'Đổi thông tin và tuỳ chọn tài khoản'; // AS:104
 export const LOAD_ERROR_TITLE = 'Không tải được cài đặt tài khoản'; // AS:189
 export const RETRY = 'Thử lại'; // AS:191
 export const GENERIC_UNKNOWN = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút.'; // I18N errors.unknown.description

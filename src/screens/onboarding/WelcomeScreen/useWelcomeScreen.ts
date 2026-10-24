@@ -116,6 +116,8 @@ export interface WelcomeScreenViewModel {
   readonly isDissolving: boolean;
   /** Mô tả (aria-describedby) của "bỏ qua", luôn hiện: nói trước hệ quả của cú bấm. Cờ theo tài khoản, trên trình duyệt này (welcomeSeenKey). */
   readonly skipNotice: string;
+  /** Chip trạng thái đầu trang ("1/3 bước xong"), suy từ `cards`; null khi chưa biết tiến độ hoặc vai chỉ còn một bước. */
+  readonly progressLabel: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -145,6 +147,7 @@ export const STRINGS = Object.freeze({
   skip: 'Bỏ qua',
   skipNotice: 'Màn chào sẽ không hiện lại trên trình duyệt này.',
   finish: 'Vào danh sách dự án',
+  progressSuffix: ' bước xong',
   errorDescription: 'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
 });
 
@@ -447,5 +450,9 @@ export function useWelcomeScreen(options: UseWelcomeScreenOptions = {}): Welcome
     onFinish,
     isDissolving,
     skipNotice: STRINGS.skipNotice,
+    progressLabel:
+      cards.length === 3 && screenState !== 'loading' && screenState !== 'error'
+        ? `${String(cards.filter((card) => card.state === 'done').length)}/3${STRINGS.progressSuffix}`
+        : null,
   };
 }

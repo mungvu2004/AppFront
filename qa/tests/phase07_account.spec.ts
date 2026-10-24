@@ -77,8 +77,8 @@ test('SCR-33 · FL-M-33P-01 · open /tai-khoan, "Chức danh" autosave + revert,
       await expect.soft(page.locator('#account-sessions')).toHaveCount(0);
     });
 
-    await test.step('[33P-B-006] "Vùng nguy hiểm" is not rendered', async () => {
-      await expect.soft(page.getByRole('heading', { name: 'Vùng nguy hiểm', exact: true })).toHaveCount(0);
+    await test.step('[33P-B-006] "Xoá tài khoản" is not rendered', async () => {
+      await expect.soft(page.getByRole('heading', { name: 'Xoá tài khoản', exact: true })).toHaveCount(0);
       await expect.soft(page.getByText('Xoá tài khoản', { exact: true })).toHaveCount(0);
       await expect.soft(page.locator('#account-danger')).toHaveCount(0);
       await captureEvidence(page, '33_account_hidden_sections.png', { fullPage: true });

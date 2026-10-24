@@ -84,6 +84,7 @@ const DUMMY_PASSWORD = 'an-hien-e2e';
 
 const authMain = (page: Page, state: string) => page.locator(`main[data-auth-state="${state}"]`);
 const h1 = (page: Page, name: string) => page.getByRole('heading', { level: 1, name, exact: true });
+const SIGN_IN_TITLE = 'Đăng nhập để tiếp tục dự án'; // AuthScreen.tsx SIGN_IN_TITLE (h1 of the sign-in form)
 const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 
 /**
@@ -223,7 +224,7 @@ async function ensureSignedIn(page: Page): Promise<void> {
 async function openAnonymousLogin(page: Page): Promise<void> {
   await ensureAnonymous(page);
   await openWithBootstrap(page, ROUTES.login, 401);
-  await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+  await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
 }
 
 let context: BrowserContext;
@@ -250,7 +251,7 @@ test.describe('SCR-01 Session gate', () => {
 
     await expect.poll(() => pathOf(page.url())).toBe(loginUrl(GATED_PATH));
     expect(loginUrl(GATED_PATH)).toBe('/login?next=%2Fprojects%2Fx%2Ffloors');
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     await attachJson('01_gate_redirect.json', { gatedPath: GATED_PATH, landedUrl: pathOf(page.url()) });
     // The URL is written on the shot (BUG-034); the hero canvas is awaited by captureEvidence (BUG-061).
     await captureEvidence(page, '01_gate_redirect.png', { caption: `requested ${GATED_PATH} → ${pathOf(page.url())}` });
@@ -336,14 +337,14 @@ test.describe('SCR-02 Login', () => {
       await captureEvidence(page, '02_login_forgot_panel.png');
 
       await button(page, BACK_TO_SIGN_IN).click();
-      await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+      await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
 
       await button(page, FORGOT_PASSWORD).click();
       await expect(h1(page, FORGOT_PASSWORD)).toBeVisible();
       // The panel focuses its email box on open; Esc is handled by the panel's form (`ForgotPasswordPanel.tsx`).
       await expect(page.getByLabel(EMAIL_LABEL, { exact: true })).toBeFocused();
       await page.keyboard.press('Escape');
-      await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+      await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
 
       const resetRequests = requests.sent.filter((line) => line.endsWith(PASSWORD_RESET_API));
       expect(resetRequests).toEqual([]);
@@ -441,7 +442,7 @@ test.describe('SCR-02 Login', () => {
     await ensureSignedIn(page);
     await openWithBootstrap(page, ROUTES.login, 200);
 
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     await expect(page.getByLabel(EMAIL_LABEL, { exact: true })).toBeVisible();
     await expect(authMain(page, 'empty')).toBeVisible();
     expect(pathOf(page.url())).toBe(ROUTES.login);
@@ -605,7 +606,7 @@ test.describe('SCR-01 Session expiry (cross-tab)', () => {
     }
 
     // Sign in again so the saved session is valid for phases 2–11 (A is on /login?next=%2F, anonymous).
-    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(h1(page, SIGN_IN_TITLE)).toBeVisible();
     await submitAdminCredentials(page, api);
     await expect.poll(() => pathOf(page.url())).toBe(ROUTES.dashboard);
     // Re-saved last, so it holds the cookie of the last rotation.

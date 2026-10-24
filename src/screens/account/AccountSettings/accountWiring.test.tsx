@@ -861,7 +861,7 @@ describe('phiên đăng nhập và vùng nguy hiểm', () => {
     });
 
     expect(screen.queryByRole('heading', { level: 2, name: 'Phiên đăng nhập' })).toBeNull();
-    expect(screen.queryByRole('heading', { level: 2, name: 'Vùng nguy hiểm' })).toBeNull();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Xoá tài khoản' })).toBeNull();
     expect(container.querySelector('#account-sessions, #account-danger')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Xoá tài khoản' })).toBeNull();
     expect(auth.listSessions).not.toHaveBeenCalled();
@@ -883,7 +883,7 @@ describe('v2 — khi cổng bật năng lực', () => {
     await loaded();
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Phiên đăng nhập' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: 'Vùng nguy hiểm' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Xoá tài khoản' })).toBeTruthy();
     await waitFor(() => {
       expect(auth.listSessions).toHaveBeenCalled();
     });

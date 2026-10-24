@@ -3,7 +3,7 @@
  * file ấy dưới ngưỡng độ dài. VIEW THUẦN: mọi thứ tới qua props.
  */
 
-import { AlertTriangle, Check, MessageSquare, Sparkles, UserPlus } from 'lucide-react';
+import { AlertTriangle, Check, ChevronRight, MessageSquare, Sparkles, UserPlus } from 'lucide-react';
 
 import { motion } from '@/components/motion';
 import { Button } from '@/components/ui/Button';
@@ -56,6 +56,8 @@ export interface NotificationRowProps {
   readonly onInlineAction: (item: NotificationItemVm) => void;
   /** Trang `/thong-bao`: tên dự án dài (không dấu cách) được ngắt ở bất kỳ đâu thay vì tràn. */
   readonly wrapProjectName?: boolean;
+  /** Trang `/thong-bao` (demo S-41): nút 'navigate' hiện ở mép phải hàng, đi thẳng tới việc. */
+  readonly showNavigateAction?: boolean;
 }
 
 export function NotificationRow({
@@ -66,6 +68,7 @@ export function NotificationRow({
   onMarkRead,
   onInlineAction,
   wrapProjectName = false,
+  showNavigateAction = false,
 }: NotificationRowProps) {
   const Icon = KIND_ICON[item.kind];
   const dotDelaySeconds = (flatIndex * UNREAD_DOT_STAGGER_MS) / MS_IN_ONE_SECOND;
@@ -164,6 +167,12 @@ export function NotificationRow({
           {/* Nút ẩn từng là một cột chữ bên phải: opacity-0 vẫn giữ chỗ, câu bị bóp còn ~100 px (BUG-203).
               Nay là nút biểu tượng ở hàng giờ, nên câu dùng hết bề ngang. Chỉ ẩn-chờ-rê-chuột từ 640 px; hẹp
               hơn, hoặc màn không có hover, thì luôn hiện — không có nút vô hình bấm trúng. */}
+          {showNavigateAction && item.inlineAction?.kind === 'navigate' && (
+            <Button variant="ghost" size="sm" className="shrink-0 text-accent" onClick={() => onInlineAction(item)}>
+              {item.inlineAction.label}
+              <ChevronRight size={16} aria-hidden="true" />
+            </Button>
+          )}
           {!item.isRead && (
             <span
               className={cn(

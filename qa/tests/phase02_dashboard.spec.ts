@@ -39,7 +39,7 @@ const TABLE_HEADERS = ['Tên dự án', 'Trạng thái', 'Chi tiết', 'Tiến �
 const CARD_MENU = 'Tuỳ chọn';
 /* SCR-06 copy: NotificationCenter.tsx:55-56, useNotificationCenter.ts:160-161. */
 const MARK_READ = 'Đánh dấu đã đọc';
-const MARK_ALL_READ = 'Đánh dấu tất cả đã đọc';
+const MARK_ALL_READ = 'Đánh dấu đã đọc hết';
 const MARKED_ALL_READ = 'Đã đánh dấu tất cả là đã đọc';
 /* SCR-07 copy: useWelcomeScreen.ts:128-140 (STRINGS). */
 const ONBOARD_UPLOAD = 'Tải bản vẽ';
@@ -566,7 +566,7 @@ test.describe('SCR-06 Notifications', () => {
     ).toBeVisible();
     expect(await errorTitle.count(), 'notification list failed to load').toBe(0);
 
-    // `exact`: excludes "Đánh dấu tất cả đã đọc". Only unread rows carry this button.
+    // `exact`: excludes "Đánh dấu đã đọc hết". Only unread rows carry this button.
     const markButtons = drawer.getByRole('button', { name: MARK_READ, exact: true });
     const unread = await markButtons.count();
     test.skip(unread === 0, 'data: no unread notification for the admin right now (needs e.g. CP-5); nothing to mark read');
@@ -599,7 +599,7 @@ test.describe('SCR-06 Notifications', () => {
     await expect(markButtons).toHaveCount(unread);
   });
 
-  test('SCR-06 "Đánh dấu tất cả đã đọc" + "Hoàn tác": every unread row comes back, no POST /api/notifications/read*', async () => {
+  test('SCR-06 "Đánh dấu đã đọc hết" + "Hoàn tác": every unread row comes back, no POST /api/notifications/read*', async () => {
     await page.goto(ROUTES.dashboard);
     await expect(dashboardHeading(page)).toBeVisible();
     await bell(page).click();
@@ -617,7 +617,7 @@ test.describe('SCR-06 Notifications', () => {
       // Data branch (no unread notification before Phase 3): the control is there and disabled.
       await expect(markAll).toBeDisabled();
       await settled(drawer);
-      await captureEvidence(page, '06_notif_mark_all.png', { caption: 'no unread notification → "Đánh dấu tất cả đã đọc" disabled' });
+      await captureEvidence(page, '06_notif_mark_all.png', { caption: 'no unread notification → "Đánh dấu đã đọc hết" disabled' });
       await attachJson('06_notif_mark_all.json', { unread, branch: 'disabled' });
       return;
     }
@@ -648,7 +648,7 @@ test.describe('SCR-06 Notifications', () => {
 
   test('SCR-06 /thong-bao: a page inside the app frame (G1-15) — h1, filters, list; no dialog; Esc stays', async () => {
     await page.goto(ROUTES.notifications);
-    const heading = page.getByRole('heading', { level: 1, name: 'Thông báo', exact: true });
+    const heading = page.getByRole('heading', { level: 1, name: 'Xem việc mới từ thông báo', exact: true });
     await expect(heading).toBeVisible();
     await expect(page.getByRole('radiogroup', { name: 'Lọc thông báo' })).toBeVisible();
     await expect(page.getByRole('dialog', { name: 'Thông báo' })).toHaveCount(0);
@@ -676,7 +676,7 @@ test.describe('SCR-07 Onboarding (/onboarding)', () => {
     const walls = Number(newest.wallsTotalCount);
     const reviewed = Number(newest.wallsReviewedCount);
 
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Chào .+, bắt đầu trong ba bước$/u);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Bắt đầu dự án đầu tiên trong ba bước');
     const upload = page.getByRole('button', { name: ONBOARD_UPLOAD, exact: true });
     const review = page.getByRole('button', { name: ONBOARD_REVIEW, exact: true });
     await expect(upload).toBeEnabled(); // card 2 is locked only with no project (WelcomeScreen.tsx:226)
@@ -715,9 +715,9 @@ test.describe('SCR-07 Onboarding (/onboarding)', () => {
     const uid = stringField(asRecord(root.user, 'refresh.user'), 'id', 'refresh.user');
     const seenKey = `${WELCOME_SEEN_PREFIX}${uid}`;
 
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Chào .+, bắt đầu trong ba bước$/u);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Bắt đầu dự án đầu tiên trong ba bước');
     for (const title of ['Tạo dự án', 'Tải bản vẽ theo từng tầng', 'Duyệt kết quả và dựng 3D']) {
-      await expect(page.getByRole('heading', { level: 2, name: title, exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 3, name: title, exact: true })).toBeVisible();
     }
 
     await page.getByRole('button', { name: 'Bỏ qua', exact: true }).click();

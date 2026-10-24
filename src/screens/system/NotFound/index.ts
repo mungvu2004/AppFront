@@ -19,7 +19,7 @@
  * |---|---|---|
  * | `notFoundModel.ts` | hợp đồng | hình dạng dữ liệu, hằng ngưỡng, chữ ký cổng |
  * | `notFoundGateway.ts` · `useNotFound.ts` | T5 | cổng đọc dự án gần đây + ba nguyên nhân + bảy trạng thái |
- * | `NotFound.tsx` · `PlanFragment.tsx` | T6 | view thuần: một cột 560, hình mảnh mặt bằng, hàng gợi ý |
+ * | `NotFound.tsx` | T6 | view thuần: một cột 720, PageHead + khung gợi ý (demo Z/S-43) |
  * | `NotFound.test.tsx` · `.stories.tsx` · `notFoundScenarios.ts` | T7 | bảy trạng thái + tiếp cận + tiếng Việt + bốn bài nghiệm thu |
  * | `NotFound.container.tsx` · `index.ts` | T9 | ranh giới lỗi + nối đủ props (R-62, R-73) + đường nhập ổn định |
  * | `src/routes/router.tsx` · `src/i18n/vi.json` | T8 | route `*` và từ điển soát tiếng Việt |
@@ -34,8 +34,6 @@
 export { NotFoundContainer, NotFoundRoute } from './NotFound.container';
 export type { NotFoundContainerProps } from './NotFound.container';
 export { NotFound } from './NotFound';
-export { PlanFragment } from './PlanFragment';
-export type { PlanFragmentProps } from './PlanFragment';
 export { NOT_FOUND_TEXT, useNotFound } from './useNotFound';
 export type { UseNotFoundOptions } from './useNotFound';
 export {

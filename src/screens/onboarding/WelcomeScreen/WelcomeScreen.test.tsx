@@ -270,6 +270,7 @@ function propsFor(scenario: SevenStateScenario): WelcomeScreenProps {
     onFinish: noop,
     isDissolving: false,
     skipNotice: 'Màn chào sẽ không hiện lại trên trình duyệt này.',
+    progressLabel: cards.length === 3 ? `${String(cards.filter((card) => card.state === 'done').length)}/3 bước xong` : null,
   };
 }
 
@@ -455,6 +456,7 @@ describe('useWelcomeScreen suy ra ba bước từ dữ liệu truy vấn', () =>
 
     expect(vm().cards.map((card) => card.state)).toEqual(['done', 'open', 'locked']);
     expect(vm().cards[1]?.isPrimary).toBe(true);
+    expect(vm().progressLabel).toBe('1/3 bước xong');
   });
 
   it('có tường nhưng chưa duyệt hết: bước 3 mở, và màn chưa phải thành công', async () => {

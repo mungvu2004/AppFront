@@ -278,7 +278,7 @@ test.describe('chuông "Thông báo" ở danh sách dự án (B-V3-08)', () => {
     await page.getByRole('dialog', { name: 'Thông báo' }).getByRole('button', { name: 'Xem tất cả' }).click();
 
     await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.notifications);
-    await expect(page.getByRole('heading', { level: 1, name: 'Thông báo' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Xem việc mới từ thông báo' })).toBeVisible();
     await expect(page.getByRole('dialog', { name: 'Thông báo' })).toHaveCount(0);
 
     await page.goBack();

@@ -45,7 +45,7 @@ function saveIndicator(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto(ROUTES.account);
-  await expect(page.getByRole('heading', { level: 1, name: 'Cài đặt tài khoản' })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  await expect(page.getByRole('heading', { level: 1, name: 'Đổi thông tin và tuỳ chọn tài khoản' })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
 });
 
 test('AC-1 sửa họ tên: báo "chờ đồng bộ" ngay, tự lưu sau ≥ 800 ms đồng hồ thật (A7)', async ({ page }) => {
@@ -80,7 +80,7 @@ test('AC-2 phiên đăng nhập và vùng nguy hiểm vắng khỏi DOM khi năn
   await expect(page.getByRole('region', { name: 'mật khẩu' })).toBeVisible();
 
   await expect(page.getByRole('region', { name: 'phiên đăng nhập' })).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'Vùng nguy hiểm' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Xoá tài khoản' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Xoá tài khoản', exact: true })).toHaveCount(0);
 });
 
