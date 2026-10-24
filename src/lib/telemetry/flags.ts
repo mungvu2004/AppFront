@@ -188,8 +188,8 @@ export const FEATURE_FLAGS = {
   },
   'viewer.realism-details': {
     key: 'viewer.realism-details',
-    defaultValue: false,
-    description: 'Chi tiết hình khối mặc định cho node vẽ mới (diềm mái, máng xối, len chân tường); thêm hình học.',
+    defaultValue: true,
+    description: 'Chi tiết hình khối: phào chân ngoài tường bao (mọi dự án, dựng lúc nạp) + diềm mái, máng xối cho mái vẽ mới; thêm hình học.',
     removeBy: '2026-12-31',
   },
 } as const satisfies Readonly<Record<FeatureFlagKey, FeatureFlagDefinition>>;

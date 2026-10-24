@@ -33,7 +33,7 @@ export interface RealismState {
 /** `plain` = nền trơn sáng (hợp chung cư, mặc định); `gravel` = sân sỏi; `grass` = bãi cỏ (nhà mặt đất). */
 export type GroundMode = 'plain' | 'gravel' | 'grass';
 
-export const DEFAULT_REALISM_FLAGS: RealismFlags = { idle: true, traa: true, hdri: true, materials: true, details: false };
+export const DEFAULT_REALISM_FLAGS: RealismFlags = { idle: true, traa: true, hdri: true, materials: true, details: true };
 
 export const useRealism = create<RealismState>()(() => ({
   backend: 'unknown',
