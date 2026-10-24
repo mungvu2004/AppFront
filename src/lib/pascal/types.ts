@@ -173,6 +173,8 @@ export interface PascalWallTrim {
   readonly height: number;
   readonly proud: number;
   readonly profile: 'flat';
+  /** Cỡ riêng mặt ngoài (thêm bởi scripts/realism/r9u-skirt-sides.mjs); thiếu = như mặt trong. */
+  readonly exterior?: { readonly height: number; readonly proud: number; readonly profile: 'flat' };
 }
 
 /**
