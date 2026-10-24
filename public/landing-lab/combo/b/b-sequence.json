@@ -1,0 +1,22 @@
+{
+ "parts": [
+  {
+   "prefix": "bridge2_",
+   "count": 42
+  },
+  {
+   "prefix": "ext_",
+   "count": 103
+  },
+  {
+   "prefix": "int4_",
+   "count": 542
+  }
+ ],
+ "notes": "bridge_0000 = A's final camera pose (pixel-aligned with maquette f_199); bridge_0024 has the same pose as cinema b_045, and int_0000 the same pose as cinema b_119 (one repeated pose at each seam). cinema = public/landing-lab/cinema/<size>/b_NNN.webp, inclusive. bridge_/int_ = public/landing-lab/combo/b/<size>/<prefix>NNNN.webp. Sizes 1920 and 1280. Interior v2: int_0000-0011 approach, 0012-0086 door -> hall -> dining -> living room, last ~20 frames a slow drift on the hero vignette. Interior v3 (double density, Colab kit-b): int2_0000-0172; int2_(2k)=int_k for k>=12, int2_0000-0022 and all odd frames re-rendered in the current scene (see F:/App-review/homepage-v6/colab/incoming/int2/MAPPING.txt). Interior v4 (2026-10-22, Colab render_b.ipynb + int3x cell): int3_0000-0388 = int2_ plus 216 rendered in-betweens where an int2_ step moved > 1.5 % of the width (video/flow/walk-sub.json, assemble_int3.py). v5 (2026-10-23, Colab L4, video/flow/plan_all.py + assemble_all.py): bridge2_ = bridge_ + halves (42), ext_ = cinema b_045..b_119 re-rendered in the current scene + halves (103), int4_ = int3_ + in-betweens where a step moved > 2 % (542).",
+ "clay": {
+  "prefix": "bridge2_clay_",
+  "count": 42,
+  "note": "same cameras as bridge2_NNNN, house in A warm-white card material"
+ }
+}
