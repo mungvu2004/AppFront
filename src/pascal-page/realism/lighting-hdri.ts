@@ -7,6 +7,7 @@ import { EquirectangularReflectionMapping, FloatType, type Scene, type Texture }
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 
 import { HDRI_SCALE, HDRI_TIMEOUT_MS, HDRI_VARIANT, type HdriVariant, hdriAutoScale, hdriUrlFor, mixGradient, shouldLoadHdri } from './lighting';
+import { makeSkyTexture, setHdriSky } from './reflect';
 import { useRealism } from './store';
 
 /** Trả hàm dọn (gỡ HDRI, trả môi trường cũ). `themeId` chọn HDRI (Ban ngày khác Nắng chiều, gói 2B). */
@@ -18,6 +19,7 @@ export function installHdri(scene: Scene, appearance: string, themeId = ''): () 
   const variant: HdriVariant = asked === 'pure' || asked === 'gradient' ? asked : HDRI_VARIANT;
   let done = false;
   let hdr: Texture | null = null;
+  let sky: Texture | null = null;
   let previous: Scene['environment'] = null;
   const timer = setTimeout(() => {
     if (!hdr) done = true;
@@ -33,12 +35,16 @@ export function installHdri(scene: Scene, appearance: string, themeId = ''): () 
         if (done) return texture.dispose();
         clearTimeout(timer);
         const { data, width, height } = texture.image as { data: Float32Array; width: number; height: number };
-        mixGradient(data, width, height, variant === 'gradient' ? undefined : 0, hdriAutoScale(data, width, height) * HDRI_SCALE);
+        const scale = hdriAutoScale(data, width, height) * HDRI_SCALE;
+        // Phông trời qua kính dùng bản thuần (chép trước khi pha gradient).
+        sky = makeSkyTexture(data.slice(), width, height, scale);
+        mixGradient(data, width, height, variant === 'gradient' ? undefined : 0, scale);
         texture.mapping = EquirectangularReflectionMapping;
         texture.needsUpdate = true;
         hdr = texture;
         previous = scene.environment;
         scene.environment = texture;
+        setHdriSky(sky);
       },
       undefined,
       (error) => console.warn('[pascal-realism] HDRI không tải được, giữ môi trường cũ', error),
@@ -48,6 +54,8 @@ export function installHdri(scene: Scene, appearance: string, themeId = ''): () 
     done = true;
     clearTimeout(timer);
     if (hdr && scene.environment === hdr) scene.environment = previous;
+    if (sky) setHdriSky(null);
     hdr?.dispose();
+    sky?.dispose();
   };
 }
