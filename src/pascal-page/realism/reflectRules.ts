@@ -17,3 +17,44 @@ export function reflectProbeWanted(p: Vector3, ceilings: readonly Object3D[]): b
     return p.x >= box.min.x && p.x <= box.max.x && p.z >= box.min.z && p.z <= box.max.z && p.y < box.max.y && p.y > box.max.y - 4;
   });
 }
+
+/**
+ * Kính kiểu Lambert (vendor `glassMaterial`, vai `glazing`, kính vách kính…): Lambert chỉ nhận môi trường
+ * khuếch tán, không có phản xạ gương → kính phẳng, không thấy trời. Nhận diện: Lambert + (tên/transmission
+ * như `isGlassLike`, hoặc trong suốt opacity < 0,6 như ngưỡng fresnel của vendor).
+ */
+export const GLASS_OPACITY_MAX = 0.6;
+export function isLambertGlass(m: any): boolean {
+  if (!m || !(m.isMeshLambertNodeMaterial || m.isMeshLambertMaterial)) return false;
+  return (m.transmission ?? 0) > 0 || /glass|vetro/i.test(m.name ?? '') || (m.transparent === true && m.opacity < GLASS_OPACITY_MAX);
+}
+
+/** Tham số bản Standard thay kính Lambert: giữ màu/ảnh/opacity/mặt/depthWrite, thêm bóng (roughness thấp, metalness 0). */
+export const GLASS_ROUGHNESS = 0.05;
+export function glassTwinParams(m: any) {
+  return {
+    name: m.name ?? '',
+    color: m.color,
+    map: m.map ?? null,
+    opacity: m.opacity,
+    transparent: m.transparent,
+    side: m.side,
+    depthWrite: m.depthWrite,
+    roughness: GLASS_ROUGHNESS,
+    metalness: 0,
+  };
+}
+
+export type ProbeStep = 'idle' | 'start' | 'finish' | 'drop';
+/**
+ * Lịch chụp probe theo khung. Chụp + đổi kính làm sinh shader/pipeline mới (kính bản thay, vật liệu bóng có
+ * envMap probe, mọi vật liệu vẽ vào đích probe) → làm đồng bộ trong một khung thì khựng ~2,7 s. Nên:
+ * đứng yên + cảnh đổi → `start` (biên dịch trước bằng `compileAsync`, không chặn khung); đang biên dịch →
+ * `idle`; xong mà camera vẫn yên → `finish` (đổi kính + chụp, pipeline đã sẵn); xong mà camera đã đi → `drop`.
+ */
+export function probeStep(s: { busy: boolean; ready: boolean; moving: boolean; changed: boolean }): ProbeStep {
+  if (s.busy) return 'idle';
+  if (s.ready) return s.moving ? 'drop' : 'finish';
+  if (s.moving) return 'idle';
+  return s.changed ? 'start' : 'idle';
+}

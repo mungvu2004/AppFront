@@ -106,10 +106,15 @@ describe('sceneDressing (I3) — sàn, tường, vật liệu cảnh', () => {
           expect(node.skirting, wall.id).toBeUndefined();
         } else if (node.frontSide === 'exterior' || node.backSide === 'exterior') {
           outer += 1;
-          expect(node.skirting, wall.id).toEqual(EXTERIOR_SKIRTING);
+          // Mặt trong giữ len của phong cách; mặt ngoài phào cỡ EXTERIOR_SKIRTING.
+          const { height, proud, profile } = EXTERIOR_SKIRTING;
+          expect(node.skirting, wall.id).toEqual({
+            enabled: true, sides: 'both', height: 0.1, proud: 0.015, profile: 'flat',
+            exterior: { height, proud, profile },
+          });
         } else {
           inner += 1;
-          expect(node.skirting?.sides, wall.id).toBe('interior');
+          expect(node.skirting, wall.id).toEqual({ enabled: true, sides: 'interior', height: 0.1, proud: 0.015, profile: 'flat' });
         }
       }
       expect(outer).toBeGreaterThan(0);

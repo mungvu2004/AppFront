@@ -246,13 +246,17 @@ const wallSidesOf = (wall: Wall, rooms: readonly Room[]): Pick<PascalWallNode, '
  * GĐ6 bền qua tải lại: tường bao (đúng một mặt ra ngoài nhà theo `wallSidesOf`) nhận phào chân
  * ngoài như tường vẽ mới (`realismWallDefaults`), dựng lại mỗi lần nạp nên không cần lưu về BE.
  * Vách giữa hai phòng (cả hai mặt trong) và tường thấp kính (không len) giữ nguyên. Pascal mỗi tường
- * chỉ một `skirting` → mặt trong của tường bao mất len 0.1 m. Lượt về không đọc `skirting`: sửa
+ * chỉ một `skirting` → giữ len trong nhà của phong cách, mở `sides: 'both'` và gắn cỡ phào ngoài vào
+ * `skirting.exterior` (luật vá scripts/realism/r9u-skirt-sides.mjs). Lượt về không đọc `skirting`: sửa
  * phào của một tường trong phiên không lưu được, tải lại thì về như cũ.
  */
 const exteriorSkirtingOf = (wall: Wall, style: SceneStyle, rooms: readonly Room[]): Pick<PascalWallNode, 'skirting'> => {
-  if (!isDetailsEnabled() || wallDressingOf(wall, style).skirting === undefined) return {};
+  const interior = wallDressingOf(wall, style).skirting;
+  if (!isDetailsEnabled() || interior === undefined) return {};
   const { frontSide, backSide } = wallSidesOf(wall, rooms);
-  return frontSide === 'exterior' || backSide === 'exterior' ? { skirting: { ...EXTERIOR_SKIRTING } } : {};
+  if (frontSide !== 'exterior' && backSide !== 'exterior') return {};
+  const { height, proud, profile } = EXTERIOR_SKIRTING;
+  return { skirting: { ...interior, sides: 'both', exterior: { height, proud, profile } } };
 };
 
 const wallNodeOf = (
