@@ -47,8 +47,18 @@ const COLOUR_FIXTURE_FILES: readonly string[] = [
  */
 const SCENE_PALETTE_FILE = 'src/lib/pascal/scenePalette.ts';
 
-/** {@link SOURCE_ONLY}, minus the scene palette. */
-const SHIPPING = { ...SOURCE_ONLY, skipFiles: [...(SOURCE_ONLY.skipFiles ?? []), /src\/lib\/pascal\/scenePalette\.ts$/] };
+/**
+ * The landing page's 3D stage and its lab variants. Like the scene palette, these
+ * colours are data handed to three.js materials and a canvas 2D context on a page
+ * that does not load `globals.css`, so they cannot be token names.
+ */
+const LANDING_SCENE_TREES = /src\/lib\/(landing|landing-lab)\//;
+
+/** {@link SOURCE_ONLY}, minus the scene palette and the landing scene trees. */
+const SHIPPING = {
+  ...SOURCE_ONLY,
+  skipFiles: [...(SOURCE_ONLY.skipFiles ?? []), /src\/lib\/pascal\/scenePalette\.ts$/, LANDING_SCENE_TREES],
+};
 
 /** Paths as the allowlist writes them, whatever the platform hands back. */
 function relativePath(absolute: string): string {
@@ -62,9 +72,9 @@ describe('no raw colour ships', () => {
 
   it('holds colour literals to the files that test colour, and no others', () => {
     const offenders = new Set(
-      SCANNED_ROOTS.flatMap((root) => scanForRawColors(root)).map((finding) =>
-        relativePath(finding.path),
-      ),
+      SCANNED_ROOTS.flatMap((root) => scanForRawColors(root))
+        .map((finding) => relativePath(finding.path))
+        .filter((path) => !LANDING_SCENE_TREES.test(path)),
     );
 
     expect([...offenders].sort()).toEqual([...COLOUR_FIXTURE_FILES, SCENE_PALETTE_FILE].sort());

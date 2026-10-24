@@ -25,10 +25,14 @@ export function AuthFrame({ state, title, subtitle, children }: AuthFrameProps) 
   return (
     <main className="landing flex min-h-screen w-full flex-col lg:flex-row" data-auth-state={state}>
       <ValuePanel />
-      <div className="flex w-full flex-1 flex-col items-center px-6 pb-6 pt-[max(2.5rem,calc(40vh-16rem))] sm:px-12 lg:w-[55%]">
+      <div className="flex w-full flex-1 flex-col items-center px-6 pb-6 pt-[max(2.5rem,calc(40vh-16rem))] sm:px-12 lg:w-1/2">
         <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
-          <div className="flex flex-col gap-3">
-            <BrandMark size={32} />
+          <div className="flex flex-col gap-4">
+            {/* Chữ "AppFront" cạnh dấu: dấu nét bản vẽ đứng một mình khó nhận ra (người dùng chê 24-10). */}
+            <span className="flex items-center gap-2 text-text-primary">
+              <BrandMark size={28} />
+              <span className="text-[17px] font-medium tracking-[-0.01em]">AppFront</span>
+            </span>
             <div className="flex flex-col gap-1">
               <h1 className="text-[30px] font-semibold leading-10 text-text-primary">{title}</h1>
               {subtitle !== undefined && (

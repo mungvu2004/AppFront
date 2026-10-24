@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 <!-- qa-sources be=dc510655 fe=c08468bf -->
 # Phase 07 - Backend coverage (/api/me, SCR-33)
 
@@ -158,7 +157,9 @@ Deferred: `B07-G-112` (PY-NEW, `catalog-late-be.txt`, hash executor busy -> 503 
 | B07-C-053 | `phase07_me_api.spec.ts` | FL-A07-04 | api |
 | B07-C-054 | `pytest apps/api/me/tests/test_update_profile.py::test_me_update_profile_not_nullable_field_explicit_null_is_422` | - | be |
 | B07-C-070 | `phase07_me_b_api.spec.ts` | FL-A07-08 | api |
-=======
+
+---
+
 <!-- qa-sources be=2ee030c5 -->
 # Phase 07 — Backend coverage (account: /api/me N11 / N12 / N13 / N14, session refresh W16, login probe W1)
 
@@ -345,4 +346,3 @@ sessions revoked + new password signs in → "pwchange". Unpairable: N14 503 `DE
 | `me_avatar` per user | 10 / 900 s | 5 + 11 (designed 429) + 1 | edge 2 on its user | each on its own fresh user |
 | `me_password` per user | 5 / 900 s | pwrules 5 + designed 6th (429); pwchange 2 | edge 2 on its user | each on its own fresh user |
 | refresh fail bucket per (sid, token) | 20 / 60 s | deleted 1, pwchange 1 (each its own dead sid) | 0 | — |
->>>>>>> Stashed changes

@@ -34,3 +34,16 @@ export function clearOfShift(rect: Box, obstacle: Box, width: number, gap = 12):
   const dx = obstacle.right + gap - rect.left
   return rect.right + dx <= width - EDGE ? { dx, dy: 0 } : { dx: 0, dy: obstacle.bottom + gap - rect.top }
 }
+
+/** Smallest box holding `box` and every `extra` (pascal-polish: floor card plus its outside "+" dots). */
+export function unionBox(box: Box, extras: readonly Box[]): Box {
+  return extras.reduce<Box>(
+    (acc, r) => ({
+      left: Math.min(acc.left, r.left),
+      right: Math.max(acc.right, r.right),
+      top: Math.min(acc.top, r.top),
+      bottom: Math.max(acc.bottom, r.bottom),
+    }),
+    { left: box.left, right: box.right, top: box.top, bottom: box.bottom },
+  )
+}

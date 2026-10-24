@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { QC_BODY_CLASS, QC_NO_CHANGES_LABEL, QC_UNDO_LABEL, QcCanvasFrame, QcScreenFrame, QcStatusBar } from './QcScreenFrame';
+import { QC_BODY_CLASS, QC_NO_CHANGES_LABEL, QC_UNDO_LABEL, QcCanvasFrame, QcScreenFrame, QcStatusBar, QcWorkspace } from './QcScreenFrame';
 
 describe('QcScreenFrame (BUG-324, BUG-329, BUG-413)', () => {
   it('[BUG-324] gốc màn cao bằng khung nhìn (h-screen), không phụ thuộc cha không có chiều cao', () => {
@@ -38,5 +38,46 @@ describe('QcScreenFrame (BUG-324, BUG-329, BUG-413)', () => {
 
     expect(screen.getByRole('button', { name: QC_UNDO_LABEL })).toBeDisabled();
     expect(screen.getByRole('status', { name: 'Thanh trạng thái' })).toHaveTextContent(QC_NO_CHANGES_LABEL);
+  });
+
+  describe('[impeccable-1024] ngăn chi tiết 1024-1279 không che bản vẽ khi chưa chọn gì', () => {
+    const DRAWER_HIDDEN = 'lg:max-xl:hidden';
+    const renderWorkspace = (selectionKey: string | null) => (
+      <QcWorkspace canvas={<p>bản vẽ</p>} canvasLabel="Bản vẽ" inspector={<p>chi tiết thử</p>} selectionKey={selectionKey} />
+    );
+    const drawer = () => screen.getByText('chi tiết thử').parentElement;
+
+    it('chưa chọn: ngăn đóng, chỉ còn nút "Hiện chi tiết"; bấm thì mở', () => {
+      render(renderWorkspace(null));
+
+      expect(drawer()?.className).toContain(DRAWER_HIDDEN);
+      const toggle = screen.getByRole('button', { name: 'Hiện chi tiết' });
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+      fireEvent.click(toggle);
+      expect(drawer()?.className).not.toContain(DRAWER_HIDDEN);
+      expect(screen.getByRole('button', { name: 'Ẩn chi tiết' })).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('chọn đối tượng thì tự mở; ẩn tay giữ theo lần chọn; chọn cái khác mở lại; bỏ chọn thì đóng', () => {
+      const { rerender } = render(renderWorkspace('a'));
+      expect(drawer()?.className).not.toContain(DRAWER_HIDDEN);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Ẩn chi tiết' }));
+      expect(drawer()?.className).toContain(DRAWER_HIDDEN);
+
+      rerender(renderWorkspace('b'));
+      expect(drawer()?.className).not.toContain(DRAWER_HIDDEN);
+
+      rerender(renderWorkspace(null));
+      expect(drawer()?.className).toContain(DRAWER_HIDDEN);
+    });
+
+    it('≥1280 vẫn là cột cố định: lớp ẩn chỉ áp trong khoảng lg:max-xl', () => {
+      render(renderWorkspace(null));
+
+      expect(drawer()?.className).toContain('xl:w-[344px]');
+      expect(drawer()?.className.split(' ')).not.toContain('hidden');
+    });
   });
 });

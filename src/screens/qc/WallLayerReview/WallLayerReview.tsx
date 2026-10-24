@@ -178,6 +178,7 @@ export function WallLayerReview({
           )
         }
         rail={<WallLayerToolRail {...toolRail} readOnly={panel.isViewerRole} />}
+        selectionKey={panel.selectedWallId}
       />
 
       <WallLayerStatusBar {...statusBar} onUndo={panel.isViewerRole ? undefined : panel.onUndo} />

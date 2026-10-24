@@ -327,6 +327,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           )
         }
         left={isCollapsed ? null : <ObjectLayerLeftColumn model={model} />}
+        selectionKey={model.inspector?.id ?? null}
         rail={
           <ObjectLayerToolRail
             activeLayer={model.activeLayer}
