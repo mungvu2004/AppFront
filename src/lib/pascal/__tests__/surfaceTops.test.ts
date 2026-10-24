@@ -31,8 +31,7 @@ describe('surfaceTops.json (scripts/realism-assets/surface-tops.mjs)', () => {
     expect(topM('sofa')).toBeLessThan(0.5);
   });
 
-  it('`topY` tay vẫn thắng số đo (tủ bếp Pascal)', () => {
-    expect(topM('kitchen-cabinet')).toBeCloseTo(0.9, 3);
-    expect((SURFACE_TOPS as Record<string, number>)['kitchen-cabinet']).toBeGreaterThan(0.95);
+  it('tủ bếp Pascal: mặt đá đo được ở đỉnh hộp (~1,087 m), không còn số tay 0,9', () => {
+    expect(topM('kitchen-cabinet')).toBeCloseTo(1.087, 2);
   });
 });

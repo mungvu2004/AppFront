@@ -4,6 +4,7 @@ import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
 import { degrees, millimetres } from '@/domain/units/types';
 
 import { houseModelSpatial } from '../__fixtures__/houseModelSpatial';
+import { topFractionOf } from '../furnitureCatalog';
 import { SCENE_STYLES } from '../sceneStyles';
 import { modelFolderOf } from '../sceneVariety';
 import { toPascalScene } from '../toPascal';
@@ -31,7 +32,8 @@ describe('mặt bếp mỏng', () => {
     const node = items.find((n) => n.asset.src === '/items/hob-sf/model.glb');
     const counter = items.find((n) => n.asset.src === '/items/kitchen-cabinet/model.glb');
     // Tủ dưới cao 900 mm, mặt đá ở 0,9/1,09 của mẫu.
-    expect(node?.position[1]).toBeCloseTo((0.9 * 0.9) / 1.09, 3);
+    // Tủ dưới cao 900 mm, mặt đá đo từ GLB (surfaceTops) ở ~đỉnh mẫu.
+    expect(node?.position[1]).toBeCloseTo(0.9 * topFractionOf('kitchen-cabinet')!, 3);
     expect(node?.asset.scale?.[1]).toBeGreaterThan(0.5);
     expect(counter?.position[1]).toBe(0);
   });

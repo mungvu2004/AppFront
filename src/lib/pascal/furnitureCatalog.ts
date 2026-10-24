@@ -89,13 +89,11 @@ export const VENDOR_MODELS: Readonly<Record<string, CatalogModel>> = {
   },
   // `kitchen-counter` là khối hộp trơn (không cửa, không tay nắm) — chỉ giữ cho dữ liệu cũ.
   // Tủ bếp dưới: ngăn kéo + cửa + tay nắm (khe cabinet/countertop/handle).
-  // topY = mặt đá 0,9 m (tay) — số đo GLB ra đỉnh hộp 1,087 m (mặt trên kín 93 % mặt bằng), giữ số tay.
   'kitchen-cabinet': {
     folder: 'kitchen-cabinet',
     dimensions: [1.65, 1.09, 0.77],
     offset: [0, 0.0004, 0],
     rotation: [0, 0, 0],
-    topY: 0.9,
   },
   // Dãy bếp dài có chậu rửa + vòi + cửa tủ (một vật liệu GLB, không khe).
   kitchen: {
