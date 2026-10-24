@@ -1,0 +1,125 @@
+/**
+ * Phản chiếu + trời qua kính (bền, dùng chung mọi vật liệu). Vendor gọi qua `@pascal-realism/reflect`
+ * (luật `scripts/realism/r9t-reflect.mjs`).
+ *
+ * - `hdriBackdrop`: phông hậu kỳ vốn là gradient tự tính (`lib/backdrop.ts`), HDRI chỉ làm
+ *   `scene.environment` → nhìn qua kính chỉ thấy dải sương be ở chân trời. Trên chân trời giờ lấy
+ *   HDRI (đã pha gradient như môi trường); sát chân trời giữ gradient để đĩa chân trời khớp không viền.
+ * - `syncReflectionProbe`: gương/inox/kính/sàn bóng phản chiếu HDRI chung → "tấm bạc mờ". Khi camera
+ *   đứng yên trong nhà (dưới trần, trong hộp trần) chụp một PMREM tại camera, gán `envMap` cho vật
+ *   liệu bóng; ra ngoài nhà trả lại môi trường chung. Mức Thấp không chụp.
+ */
+import {
+  DataTexture,
+  FloatType,
+  LinearFilter,
+  type Material,
+  type Object3D,
+  type PerspectiveCamera,
+  RGBAFormat,
+  type RenderTarget,
+  type Scene,
+  type Texture,
+  Vector3,
+} from 'three';
+import { equirectUV, mix, smoothstep, texture, uniform } from 'three/tsl';
+import { PMREMGenerator, type WebGPURenderer } from 'three/webgpu';
+
+import { isGlossy, reflectProbeWanted } from './reflectRules';
+import { useRealism } from './store';
+import { currentTier } from './tiers';
+
+// Ảnh giữ chỗ cùng kiểu với HDRI (RGBA float) → đổi `value` không đổi bố cục binding.
+const placeholder = new DataTexture(new Float32Array(4), 1, 1, RGBAFormat, FloatType);
+placeholder.minFilter = LinearFilter;
+placeholder.magFilter = LinearFilter;
+placeholder.generateMipmaps = false;
+placeholder.needsUpdate = true;
+const skyTex = texture(placeholder);
+const skyWeight = uniform(0);
+let skyHdri: Texture | null = null;
+
+/** `installHdri` gọi khi HDRI nạp xong (null = gỡ). */
+export function setHdriSky(tex: Texture | null): void {
+  skyHdri = tex;
+  skyTex.value = tex ?? placeholder;
+  skyWeight.value = tex ? 1 : 0;
+}
+
+/** Phông trời: HDRI trên chân trời, gradient sát chân trời. Mức Thấp giữ gradient (không thêm lượt đọc ảnh). */
+export function hdriBackdrop(worldDir: any, gradient: any): any {
+  if (currentTier() === 'low') return gradient;
+  const sky = skyTex.sample(equirectUV(worldDir)).rgb;
+  return mix(gradient, sky, skyWeight.mul(smoothstep(0.02, 0.22, worldDir.y)));
+}
+
+interface RegistryLike {
+  nodes: Map<string, Object3D>;
+  byType: Record<string, Set<string> | undefined>;
+}
+
+const ENV_KEY = '__realismProbe';
+let pmrem: PMREMGenerator | null = null;
+let probeRT: RenderTarget | null = null;
+let applied = false;
+const last = new Vector3(Number.NaN, 0, 0);
+const prev = new Vector3();
+let lastCount = -1;
+
+function eachGlossy(scene: Scene, fn: (m: Material & { envMap: Texture | null }) => void) {
+  scene.traverse((o) => {
+    if (!(o as any).isMesh || !o.layers.isEnabled(0)) return;
+    for (const m of [(o as any).material ?? []].flat() as any[]) if (isGlossy(m)) fn(m);
+  });
+}
+
+function restore(scene: Scene) {
+  eachGlossy(scene, (m) => {
+    if (!(ENV_KEY in m.userData)) return;
+    m.envMap = m.userData[ENV_KEY];
+    delete m.userData[ENV_KEY];
+    m.needsUpdate = true;
+  });
+  applied = false;
+}
+
+/**
+ * Gọi mỗi khung từ `Lights` (vendor). Rẻ khi không chụp: so vị trí camera + đếm node.
+ * Chụp khi camera đứng yên (bằng khung trước) và đã đi > 1,5 m / cảnh thêm node so với lần chụp trước.
+ */
+export function syncReflectionProbe(renderer: unknown, scene: Scene, camera: PerspectiveCamera, registry: RegistryLike): void {
+  const p = camera.position;
+  const moving = p.distanceToSquared(prev) > 1e-6;
+  prev.copy(p);
+  const { tier, backend, flags } = useRealism.getState();
+  const enabled = backend === 'webgpu' && flags.materials && tier !== 'low';
+  if (!enabled) {
+    if (applied) restore(scene);
+    return;
+  }
+  if (moving) return;
+  const count = registry.nodes.size;
+  if (count === lastCount && last.distanceToSquared(p) < 2.25) return;
+  last.copy(p);
+  lastCount = count;
+  const ceilings = [...(registry.byType.ceiling ?? [])].map((id) => registry.nodes.get(id)).filter(Boolean) as Object3D[];
+  if (!reflectProbeWanted(p, ceilings)) {
+    if (applied) restore(scene);
+    return;
+  }
+  pmrem ??= new PMREMGenerator(renderer as WebGPURenderer);
+  const bg = scene.background;
+  // Cửa sổ trong ảnh chụp thấy trời HDRI thay màu nền phẳng.
+  if (skyHdri && skyWeight.value > 0) scene.background = skyHdri;
+  probeRT = pmrem.fromScene(scene, 0, 0.05, 60, { size: 256, position: p, renderTarget: probeRT });
+  scene.background = bg;
+  const env = probeRT.texture;
+  eachGlossy(scene, (m) => {
+    if (!(ENV_KEY in m.userData)) m.userData[ENV_KEY] = m.envMap;
+    if (m.envMap !== env) {
+      m.envMap = env;
+      m.needsUpdate = true;
+    }
+  });
+  applied = true;
+}
