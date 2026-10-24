@@ -78,7 +78,7 @@ export function gradientAt(lat: number): [number, number, number] {
     return [GROUND[0] * k, GROUND[1] * k, GROUND[2] * k];
   }
   const t = lat ** 0.65;
-  return [0, 1, 2].map((c) => HORIZON[c] + (ZENITH[c] - HORIZON[c]) * t) as [number, number, number];
+  return [0, 1, 2].map((c) => HORIZON[c]! + (ZENITH[c]! - HORIZON[c]!) * t) as [number, number, number];
 }
 
 /**
@@ -90,7 +90,7 @@ export function mixGradient(data: Float32Array, width: number, height: number, w
     const g = gradientAt(1 - ((y + 0.5) / height) * 2);
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) * 4;
-      for (let c = 0; c < 3; c++) data[i + c] = data[i + c] * scale * (1 - weight) + g[c] * weight;
+      for (let c = 0; c < 3; c++) data[i + c] = data[i + c]! * scale * (1 - weight) + g[c]! * weight;
     }
   }
 }

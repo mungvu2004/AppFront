@@ -178,7 +178,8 @@ function startLoop(): void {
       minuteStart = now;
       if (minute.length > 0) {
         const { backend, tier } = useRealism.getState();
-        emitRealism({
+        // Chưa biết backend (chưa khởi tạo xong) → số khung không gắn được backend, bỏ phút này.
+        if (backend !== 'unknown') emitRealism({
           name: 'viewer.frame_p95',
           p50Ms: Math.round(percentile(minute, 50)),
           p95Ms: Math.round(percentile(minute, 95)),

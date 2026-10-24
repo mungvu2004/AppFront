@@ -60,7 +60,7 @@ export function jitterOffsets(n: number): [number, number][] {
 export function averageFrames(frames: Uint8Array[]): Uint8Array {
   const len = frames[0]?.length ?? 0
   const sum = new Uint32Array(len)
-  for (const f of frames) for (let i = 0; i < len; i++) sum[i] += f[i]!
+  for (const f of frames) for (let i = 0; i < len; i++) sum[i] = sum[i]! + f[i]!
   const out = new Uint8Array(len)
   const n = frames.length
   for (let i = 0; i < len; i++) out[i] = Math.round(sum[i]! / n)

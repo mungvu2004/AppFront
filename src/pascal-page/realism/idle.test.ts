@@ -3,7 +3,7 @@ import { __resetIdle, decide, HOLD_MS, markDirty, pollDirty, SETTLE_FRAMES, SETT
 import { useRealism } from './store';
 
 const cam = (x = 0) => {
-  const e = Array.from({ length: 16 }, (_, i) => (i % 5 === 0 ? 1 : 0));
+  const e: number[] = Array.from({ length: 16 }, (_, i) => (i % 5 === 0 ? 1 : 0));
   e[12] = x;
   return { matrixWorld: { elements: e }, projectionMatrix: { elements: e } };
 };

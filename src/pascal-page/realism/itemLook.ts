@@ -93,7 +93,7 @@ export function refKind(ref: string | undefined | null): MaterialKind | null {
 /** `/items/sofa/model.glb` → `sofa` (cả `/appfront-items/<x>/`). */
 export function folderOf(src: string | undefined | null): string | null {
   const m = src ? /\/(?:appfront-)?items\/([^/?#]+)\//.exec(src) : null;
-  return m ? m[1] : null;
+  return m?.[1] ?? null;
 }
 
 /** Loại do chính khe quyết định, không để ref thư viện của phong cách đè. */
