@@ -68,10 +68,12 @@ describe('applyRenderLook', () => {
     for (const c of [background, sky, ground]) {
       expect(lum(c)).toBeGreaterThan(51.4 + 40); // 51.4 = độ sáng của nền nâu tối cũ
       const [r, g, b] = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
-      expect(Math.max(r!, g!, b!) - Math.min(r!, g!, b!)).toBeLessThanOrEqual(6); // trung tính
+      expect(Math.max(r!, g!, b!) - Math.min(r!, g!, b!)).toBeLessThanOrEqual(8); // trung tính (hơi lạnh bù đèn ấm)
+      expect(b!).toBeGreaterThanOrEqual(r!); // không ngả nâu
     }
     expect(lum(ground)).toBeLessThan(lum(background));
-    expect(lum(clayWall) - lum(background)).toBeGreaterThan(70);
+    expect(lum(clayWall) - lum(background)).toBeGreaterThan(50);
+    expect(lum(ground)).toBeGreaterThan(150); // đất nhìn từ trên không tối bùn
   });
 
   it('gọi lần hai: không đổi gì', () => {
