@@ -62,6 +62,7 @@ import { err, ok, type Result } from '@/lib/http/types';
 import { sameValue } from './diff';
 import type { PascalCommit } from './guard';
 import { appFrontIdOf, bodyOfPascalId } from './ids';
+import { roofIdOfSegment, roofNodeIdOf } from './roofs';
 import { isGeneratedNodeId } from './sceneDressing';
 import {
   adoptableRoomOf,
@@ -126,6 +127,8 @@ const KIND_OF_NODE_TYPE: Readonly<Record<PascalNodeType, EntityKind | null>> = {
   // Thang dựng từ đồ đạc `stair`; đoạn thang `sseg_<id đồ>` mang cùng id nên sửa nó = sửa món đồ.
   stair: 'furniture',
   'stair-segment': 'furniture',
+  roof: 'roof',
+  'roof-segment': 'roof',
 };
 
 /** Tên tiếng Việt của từng loại, cho câu mô tả trong nhật ký hoạt động. */
@@ -137,6 +140,7 @@ const KIND_LABELS: Readonly<Record<EntityKind, string>> = {
   room: 'phòng',
   axis: 'trục định vị',
   dimension: 'kích thước',
+  roof: 'mái',
 };
 
 /**
@@ -146,6 +150,35 @@ const KIND_LABELS: Readonly<Record<EntityKind, string>> = {
  * cho khu đất và công trình, hai node tổng hợp **không** có đối tượng tương
  * ứng và đổi chúng không phải là lỗi; `null` cho node không đọc nổi.
  */
+/**
+ * Tiền tố id của mặt mái và phụ kiện mái (máng, ống xả, ô thoáng…). Node đã xoá mang tiền tố này
+ * không phải đối tượng AppFront: mặt mái của mái chưa lưu, hoặc máng Pascal tự sinh lại.
+ */
+const ROOF_PART_PREFIXES: ReadonlySet<string> = new Set([
+  'rseg', 'gutter', 'downspout', 'rvent', 'bvent', 'tvent', 'eyebrow-vent',
+  'chimney', 'cupola', 'dormer', 'skylight', 'solarpanel', 'leanto',
+]);
+
+/** Sửa/xoá một mặt mái là sửa mái cha của nó: quy id mặt mái về id node mái. */
+const roofOwnerOf = (nodeId: string, scene: PascalScene, graph: NormalizedSpatial): string => {
+  const node = scene.nodes[nodeId];
+
+  if (node?.type === 'roof-segment') {
+    return node.parentId ?? nodeId;
+  }
+
+  if (node === undefined && nodeId.startsWith('rseg_')) {
+    const roofs = graph.byKind.roof
+      .map((id) => graph.byId[id])
+      .filter((entity): entity is EntityByKind['roof'] => entity !== undefined && isEntityOfKind('roof', entity));
+    const owner = roofIdOfSegment(roofs, nodeId);
+
+    return owner === null ? nodeId : roofNodeIdOf(owner);
+  }
+
+  return nodeId;
+};
+
 const kindOfNode = (
   nodeId: string,
   scene: PascalScene,
@@ -160,6 +193,10 @@ const kindOfNode = (
 
   if (node !== undefined) {
     return KIND_OF_NODE_TYPE[node.type] ?? 'structural';
+  }
+
+  if (ROOF_PART_PREFIXES.has(nodeId.slice(0, Math.max(0, nodeId.indexOf('_'))))) {
+    return 'structural';
   }
 
   // Node đã bị xoá khỏi cảnh: loại đọc từ id, qua sổ id nếu nó do Pascal đẻ.
@@ -401,6 +438,7 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
     ...after.furniture,
     ...after.rooms,
     ...after.axes,
+    ...(after.roofs ?? []),
   ]) {
     afterById.set(entity.id, entity);
   }
@@ -409,7 +447,8 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
   const unknown: string[] = [];
   const seen = new Set<string>();
 
-  for (const nodeId of input.commit.changedNodeIds) {
+  for (const changedId of input.commit.changedNodeIds) {
+    const nodeId = roofOwnerOf(changedId, input.scene, input.graph);
     const kind = kindOfNode(nodeId, input.scene, idBook);
 
     if (kind === null) {
@@ -473,7 +512,9 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
 
   /* R3-F2, N2 — node vừa đổi mà rơi vào danh sách bỏ qua (đồ gắn trần, tường hỏng số đo, sàn
      tự vẽ…) không thành đối tượng được; lặng lẽ bỏ là mất thứ người dùng vừa làm. Từ chối kèm lý do. */
-  const changed = new Set(input.commit.changedNodeIds);
+  const changed = new Set(
+    input.commit.changedNodeIds.flatMap((nodeId) => [nodeId, roofOwnerOf(nodeId, input.scene, input.graph)]),
+  );
   const dropped = skipped.find((entry) => changed.has(entry.id));
 
   if (dropped !== undefined) {

@@ -41,6 +41,7 @@ export const floorLayerToGraph = (document: FloorLayerDocument): SpatialGraph =>
   openings: document.layer.openings,
   rooms: document.layer.rooms,
   walls: document.layer.walls,
+  ...(document.layer.roofs === undefined ? {} : { roofs: document.layer.roofs }),
 });
 
 /** Đồ thị kho kèm `revision` N16 của từng tầng đã đọc — base lượt ghi đầu. */
@@ -129,6 +130,7 @@ export async function readProjectLayerRead(
     openings: graphs.flatMap((graph) => graph.openings),
     rooms: graphs.flatMap((graph) => graph.rooms),
     walls: graphs.flatMap((one) => one.walls),
+    roofs: graphs.flatMap((one) => one.roofs ?? []),
   });
 
   return {

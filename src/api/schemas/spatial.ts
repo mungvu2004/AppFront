@@ -13,6 +13,7 @@ import type {
   Opening,
   Point,
   ReviewMetadata,
+  Roof,
   Room,
   Segment,
   Wall,
@@ -361,7 +362,26 @@ export interface SpatialLayerShape {
   openings: readonly Opening[];
   rooms: readonly Room[];
   walls: readonly Wall[];
+  /** Mái của tầng; vắng = không có mái (roof-contract.md). */
+  roofs?: readonly Roof[];
 }
+
+/** Số node tối đa của một mái: node `roof` + 32 `roof-segment` (roof-contract.md). */
+export const ROOF_MAX_NODES = 33;
+
+/**
+ * Một mái. Máy chủ không đọc gì trong `nodes` (node Pascal bỏ `parentId`/`children`), nên ở
+ * đây chỉ kiểm khung; `lib/pascal/roofs.ts` kiểm phần còn lại lúc dựng cảnh.
+ */
+export const RoofSchema: z.ZodType<Roof, z.ZodTypeDef, unknown> = z
+  .object({
+    ...reviewMetadataShape,
+    id: entityId<Roof['id']>(),
+    levelId: levelIdSchema,
+    nodes: z.array(z.record(z.string(), z.unknown())).min(1).max(ROOF_MAX_NODES),
+  })
+  .strict()
+  .refine(humanOnlyReview, { path: ['reviewed'] });
 
 /**
  * Bốn danh sách mà `spatial.writeLayer` gửi đi và nhận về.
@@ -378,8 +398,11 @@ export const SpatialLayerSchema: z.ZodType<SpatialLayerShape, z.ZodTypeDef, unkn
     openings: z.array(OpeningSchema),
     rooms: z.array(RoomSchema),
     walls: z.array(WallSchema),
+    roofs: z.array(RoofSchema).optional(),
   })
-  .strict();
+  .strict()
+  // Vắng khi rỗng: lớp không mái giữ đúng hình cũ (máy chủ cũ không biết khoá này).
+  .transform(({ roofs, ...layer }) => (roofs === undefined || roofs.length === 0 ? layer : { ...layer, roofs }));
 
 /* -------------------------------------------------------------------------- */
 /* Năm thực thể còn lại của đồ thị.                                            */

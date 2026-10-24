@@ -1,4 +1,4 @@
-export type EntityKind = 'vertex' | 'wall' | 'door' | 'window' | 'furniture' | 'room' | 'dimension';
+export type EntityKind = 'vertex' | 'wall' | 'door' | 'window' | 'furniture' | 'room' | 'dimension' | 'roof';
 
 export interface FieldChange {
   entityId: string;

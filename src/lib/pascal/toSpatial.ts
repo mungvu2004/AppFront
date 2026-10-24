@@ -40,6 +40,7 @@ import type {
   Point,
   ReviewMetadata,
   MaterialRef,
+  Roof,
   Room,
   RoomFinish,
   RoomId,
@@ -66,6 +67,7 @@ import { AUTHORED_BY_HAND, toPointMm } from '@/lib/commands/business/shared';
 
 import { appFrontIdOf, BUILDING_NODE_ID } from './ids';
 import { LIBRARY_MATERIAL_IDS } from './libraryMaterialIds';
+import { roofOf } from './roofs';
 import { isGeneratedLightId, isGeneratedNodeId, SCENE_MATERIALS } from './sceneDressing';
 import { SCENE_STYLE_MATERIALS, SCENE_STYLES, sceneStyleOf } from './sceneStyles';
 import type {
@@ -436,6 +438,7 @@ interface Collector {
   readonly rooms: Room[];
   readonly furniture: Furniture[];
   readonly axes: Axis[];
+  readonly roofs: Roof[];
   /** Id tường phía Pascal → id tường phía AppFront, để phòng nối lại được. */
   readonly wallIdOfNode: Map<PascalNodeId, WallId>;
   /** Id phòng → id tường **phía Pascal** của nó, giải ở lượt cuối. */
@@ -814,6 +817,19 @@ const collectLevelChildren = (
         break;
       }
 
+      case 'roof': {
+        // Mái đi nguyên dạng node Pascal (`roofs.ts`); mặt mái con đi cùng, không thành đối tượng riêng.
+        const knownId = appFrontIdOf('roof', child.id);
+        const roof = roofOf(scene, child, knownId ?? collector.mint('roof', child.id), levelId, reviewOf(child, knownId !== null));
+
+        if (typeof roof === 'string') {
+          collector.skip(child.id, 'mái', roof);
+        } else {
+          collector.roofs.push(roof);
+        }
+        break;
+      }
+
       case 'structural-grid': {
         if (!isUsable(...child.start, ...child.end)) {
           collector.skip(child.id, 'trục định vị', 'Toạ độ hai đầu trục không phải một số đo được.');
@@ -963,6 +979,7 @@ export const toSpatialGraph = (
     rooms: [],
     furniture: [],
     axes: [],
+    roofs: [],
     wallIdOfNode: new Map(),
     boundaryNodeIdsOf: new Map(),
     mint,
@@ -1008,6 +1025,7 @@ export const toSpatialGraph = (
       axes: collector.axes,
       dimensions: [],
       notes: [],
+      ...(collector.roofs.length === 0 ? {} : { roofs: collector.roofs }),
     },
     skipped,
   };

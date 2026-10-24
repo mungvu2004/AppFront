@@ -39,7 +39,8 @@ import type { EntityId, LevelId } from '@/domain/spatial/types';
  * A level is a container, not something drawn on the plan, so it is excluded:
  * it carries no footprint and `resolveLevelId` reports no level for it.
  */
-export type SelectableKind = Exclude<EntityKind, 'level'>;
+/** Mái chỉ chọn/sửa trong editor 3D (Pascal), không vào lựa chọn của mặt bằng. */
+export type SelectableKind = Exclude<EntityKind, 'level' | 'roof'>;
 
 /** Whether a layer is drawn, and whether its objects may be picked. */
 export interface LayerState {
@@ -82,7 +83,7 @@ export const readLayerState = (layers: LayerStates, kind: SelectableKind): Layer
 export const selectableKindOf = (id: EntityId): SelectableKind | null => {
   const kind = readKindFromId(id);
 
-  return kind === null || kind === 'level' ? null : kind;
+  return kind === null || kind === 'level' || kind === 'roof' ? null : kind;
 };
 
 /**

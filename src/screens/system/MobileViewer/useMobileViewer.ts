@@ -315,7 +315,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
       const entityId = nodeId === null ? null : bodyOfPascalId(nodeId);
       const kind = entityId === null || spatial?.byId[entityId] === undefined ? null : readKindFromId(entityId);
       const pick: MobilePick | null =
-        entityId === null || kind === null || kind === 'level' ? null : { entityId, kind };
+        entityId === null || kind === null || kind === 'level' || kind === 'roof' ? null : { entityId, kind };
 
       setSelection(selectionOf(pick, spatial, canEditOnDesktop));
     },

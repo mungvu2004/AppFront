@@ -56,6 +56,7 @@ const partsOf = (graph: SpatialGraph, level: Level): LevelParts => {
     level,
     openings: graph.openings.filter((opening) => wallIds.has(opening.wallId)),
     rooms: graph.rooms.filter((room) => room.levelId === level.id),
+    roofs: (graph.roofs ?? []).filter((roof) => roof.levelId === level.id),
     walls,
   };
 };

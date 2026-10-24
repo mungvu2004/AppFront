@@ -139,7 +139,7 @@ describe('step — bản sao của PIPELINE_STAGES', () => {
 });
 
 describe('VERSION_ENTITY_KINDS', () => {
-  it('là đúng bảy họ của mergeStrategies, đúng thứ tự', () => {
+  it('là đúng tám họ của mergeStrategies (thêm mái), đúng thứ tự', () => {
     expect(VERSION_ENTITY_KINDS).toStrictEqual([
       'vertex',
       'wall',
@@ -148,6 +148,7 @@ describe('VERSION_ENTITY_KINDS', () => {
       'furniture',
       'room',
       'dimension',
+      'roof',
     ]);
   });
 });

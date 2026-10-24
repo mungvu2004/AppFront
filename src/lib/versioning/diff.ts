@@ -27,7 +27,7 @@ export interface VersionDiff {
   removed: DiffEntry[];
 }
 
-const ENTITY_KINDS: readonly EntityKind[] = ['vertex', 'wall', 'door', 'window', 'furniture', 'room', 'dimension'];
+const ENTITY_KINDS: readonly EntityKind[] = ['vertex', 'wall', 'door', 'window', 'furniture', 'room', 'dimension', 'roof'];
 
 const valuesEqual = (a: unknown, b: unknown): boolean => {
   if (a === b) {

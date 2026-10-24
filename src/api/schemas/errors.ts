@@ -159,6 +159,7 @@ export const VERSION_ENTITY_KINDS = [
   'furniture',
   'room',
   'dimension',
+  'roof',
 ] as const satisfies readonly EntityKind[];
 
 /**

@@ -38,6 +38,7 @@ export function toVersionSnapshot({ dimensions, layer }: VersionSnapshotSource):
     door: {},
     furniture: {},
     room: {},
+    roof: {},
     vertex: {},
     wall: {},
     window: {},

@@ -1935,7 +1935,7 @@ export const createMockApiClient = (): ApiClient => {
         const documents = floors.map((floor) =>
           makeLayerDocument(floor, layerRevisions.get(floor.id) ?? 0, writtenLayers.get(floor.id)),
         );
-        const ofLayer = <K extends keyof SpatialLayer>(key: K): SpatialLayer[K][number][] =>
+        const ofLayer = <K extends Exclude<keyof SpatialLayer, 'roofs'>>(key: K): SpatialLayer[K][number][] =>
           documents.flatMap((doc) => [...doc.layer[key]]);
 
         return ok({

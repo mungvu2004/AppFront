@@ -135,6 +135,7 @@ const ENTITY_KIND_LABELS: Readonly<Record<EntityKind, string>> = {
   room: 'Phòng',
   axis: 'Trục',
   dimension: 'Kích thước',
+  roof: 'Mái',
 };
 
 /* -------------------------------------------------------------------------- */
@@ -430,7 +431,8 @@ const DIFF_FIELDS_BY_KIND: Readonly<Record<EntityKind, readonly DiffField[]>> = 
   dimension: [
     { key: 'valueMm', label: 'Trị số đo', format: lengthPair },
     { key: 'overrideValueMm', label: 'Trị số ghi đè', format: lengthPair },
-  ],
+  ],  // Hình học mái là blob node Pascal: không có trường nào để dựng dòng "cũ → mới".
+  roof: [],
 };
 
 /**

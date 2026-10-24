@@ -195,6 +195,7 @@ const ENTITY_KIND_LABELS: Readonly<Record<EntityKind, string>> = {
   room: 'phòng',
   axis: 'trục',
   dimension: 'kích thước ghi',
+  roof: 'mái',
 };
 
 /* -------------------------------------------------------------------------- */
@@ -232,6 +233,7 @@ const CAUSE_BY_KIND: Readonly<Record<EntityKind, string>> = {
   axis: 'Trục này được dò từ nét mảnh kéo dài, nên một đường gióng cũng có thể được đọc thành trục.',
   dimension:
     'Kích thước ghi này được đọc từ chuỗi chữ trên bản vẽ, nên giá trị đọc được chưa chắc khớp với hình.',
+  roof: 'Mái này được vẽ tay trong editor 3D, nên hình dáng của nó là do người vẽ chọn.',
 };
 
 /** Khi mã luật không nằm trong sổ đăng ký đang dùng — một sự thật, không một lời trách. */

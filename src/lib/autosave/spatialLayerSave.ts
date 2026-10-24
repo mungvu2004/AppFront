@@ -6,7 +6,7 @@ import {
 } from '@/api/schemas/spatialLayer';
 import { isIdOfKind, type EntityKind } from '@/domain/spatial/ids';
 import { idsOnLevel, isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
-import type { Dimension, Furniture, LevelId, Opening, Room, Wall } from '@/domain/spatial/types';
+import type { Dimension, Furniture, LevelId, Opening, Roof, Room, Wall } from '@/domain/spatial/types';
 import { isTransientWireError, readWireError } from '@/lib/errors/wireError';
 import type { HttpError } from '@/lib/http/types';
 import { runExclusive } from '@/lib/mutations/entityQueue';
@@ -26,6 +26,7 @@ export function spatialLayerOf(graph: NormalizedSpatial, floorId: LevelId): Spat
   const openings: Opening[] = [];
   const rooms: Room[] = [];
   const walls: Wall[] = [];
+  const roofs: Roof[] = [];
 
   for (const id of idsOnLevel(graph, floorId)) {
     const entity = graph.byId[id];
@@ -43,10 +44,13 @@ export function spatialLayerOf(graph: NormalizedSpatial, floorId: LevelId): Spat
     } else if (isEntityOfKind('furniture', entity)) {
       // `model` đi theo lên dây từ J-v3 (BE nhận từ 55af7d9c) — thay mẫu Pascal được lưu (W3b).
       furniture.push(entity);
+    } else if (isEntityOfKind('roof', entity)) {
+      roofs.push(entity);
     }
   }
 
-  return { furniture, openings, rooms, walls };
+  // Vắng khi không có mái: máy chủ cũ không biết khoá `roofs` (roof-contract.md: vắng = []).
+  return { furniture, openings, rooms, walls, ...(roofs.length === 0 ? {} : { roofs }) };
 }
 
 /** Kích thước của MỘT tầng — thân PUT mang chúng (`body.dimensions`) khi chúng đổi, không nằm trong `SpatialLayer`. */
@@ -65,7 +69,7 @@ export function dimensionsOf(graph: NormalizedSpatial, floorId: LevelId): Dimens
 }
 
 /** Bốn loại thực thể `spatialLayerOf` gửi đi; trục, ghi chú không vào thân PUT. */
-const LAYER_KINDS: readonly EntityKind[] = ['wall', 'opening', 'room', 'furniture'];
+const LAYER_KINDS: readonly EntityKind[] = ['wall', 'opening', 'room', 'furniture', 'roof'];
 const DIMENSION_KINDS: readonly EntityKind[] = ['dimension'];
 
 const idsOfKindsOn = (
