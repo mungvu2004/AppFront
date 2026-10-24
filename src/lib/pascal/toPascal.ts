@@ -37,6 +37,7 @@ import type {
 } from '@/domain/spatial/types';
 import { degrees, degreesToRadians, millimetres, millimetresToMetres } from '@/domain/units/types';
 import { FURNITURE_KIND_LABELS, WALL_KIND_LABELS } from '@/lib/commands/business/shared';
+import { EXTERIOR_SKIRTING, isDetailsEnabled } from '@/pascal-page/realism/details';
 
 import { CATALOG_MODELS, VARIANT_MODEL, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
@@ -240,6 +241,19 @@ const wallSidesOf = (wall: Wall, rooms: readonly Room[]): Pick<PascalWallNode, '
   return { frontSide: front ? 'interior' : 'exterior', backSide: back ? 'interior' : 'exterior' };
 };
 
+/**
+ * GĐ6 bền qua tải lại: tường bao (đúng một mặt ra ngoài nhà theo `wallSidesOf`) nhận phào chân
+ * ngoài như tường vẽ mới (`realismWallDefaults`), dựng lại mỗi lần nạp nên không cần lưu về BE.
+ * Vách giữa hai phòng (cả hai mặt trong) và tường thấp kính (không len) giữ nguyên. Pascal mỗi tường
+ * chỉ một `skirting` → mặt trong của tường bao mất len 0.1 m. Lượt về không đọc `skirting`: sửa
+ * phào của một tường trong phiên không lưu được, tải lại thì về như cũ.
+ */
+const exteriorSkirtingOf = (wall: Wall, style: SceneStyle, rooms: readonly Room[]): Pick<PascalWallNode, 'skirting'> => {
+  if (!isDetailsEnabled() || wallDressingOf(wall, style).skirting === undefined) return {};
+  const { frontSide, backSide } = wallSidesOf(wall, rooms);
+  return frontSide === 'exterior' || backSide === 'exterior' ? { skirting: { ...EXTERIOR_SKIRTING } } : {};
+};
+
 const wallNodeOf = (
   wall: Wall,
   ordinal: number,
@@ -260,6 +274,7 @@ const wallNodeOf = (
   height: metresOf(wall.heightMm),
   ...wallSidesOf(wall, rooms),
   ...wallDressingOf(wall, style),
+  ...exteriorSkirtingOf(wall, style, rooms),
   // W3a — khe của phong cách (chưa sơn): lượt về chỉ ghi `Wall.paint` cho mặt khác cái này.
   metadata: {
     appfront: originOf(wall, { kind: wall.kind, styleSlots: wallDressingOf({ kind: wall.kind, heightMm: wall.heightMm }, style).slots }),

@@ -45,7 +45,7 @@ applyDayLook(getSceneTheme(DAY_THEME_ID));
 // editor-realism: cờ `viewer.realism-*` → store (đọc một lần lúc mở trang: mặc định + override dev).
 // eslint-disable-next-line local/no-direct-set -- store cờ realism riêng của trang Pascal (không phải store dự án), nạp một lần lúc mở trang.
 useRealism.setState({ flags: realismFlagsFrom(getFeatureFlagsSnapshot().values) });
-// R6 tắt mặc định: skirting/fascia/autoGutter chưa lưu về BE (DECISIONS.md #4).
+// R6: phào chân ngoài dựng lại trong `toPascalScene` mỗi lần nạp nên bền qua tải lại; fascia/gutter chỉ mái vẽ mới (mái chưa lưu về BE).
 setDetailsEnabled(useRealism.getState().flags.details);
 // B1 (bước 2): sofa/ghế bành/ghế ăn → mẫu Poly Haven `-ph` khi bật cờ materials (furnitureCatalog.ts).
 setRealismModels(useRealism.getState().flags.materials);

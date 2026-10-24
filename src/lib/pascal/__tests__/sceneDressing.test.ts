@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
 import type { RoomUsage } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
+import { EXTERIOR_SKIRTING, setDetailsEnabled } from '@/pascal-page/realism/details';
 
 import { fixtureF1, fixtureF2, type Fixture } from '../__fixtures__';
 import { SITE_NODE_ID, toPascalId } from '../ids';
@@ -89,6 +90,31 @@ describe('sceneDressing (I3) — sàn, tường, vật liệu cảnh', () => {
         expect(node.crown).toEqual({ enabled: true, sides: 'interior', height: 0.05, proud: 0.02, profile: 'flat' });
       }
     }
+  });
+
+  describe('GĐ6 — cờ details bật: phào chân ngoài dựng lúc nạp', () => {
+    afterEach(() => setDetailsEnabled(false));
+
+    it('tường bao (một mặt ra ngoài) có phào ngoài; vách giữa hai phòng giữ len trong; tường kính không len', () => {
+      setDetailsEnabled(true);
+      const { graph, wallOf } = run(fixtureF1({ ext: true }));
+      let outer = 0;
+      let inner = 0;
+      for (const wall of graph.walls) {
+        const node = wallOf(wall.id);
+        if (wall.heightMm <= 1200) {
+          expect(node.skirting, wall.id).toBeUndefined();
+        } else if (node.frontSide === 'exterior' || node.backSide === 'exterior') {
+          outer += 1;
+          expect(node.skirting, wall.id).toEqual(EXTERIOR_SKIRTING);
+        } else {
+          inner += 1;
+          expect(node.skirting?.sides, wall.id).toBe('interior');
+        }
+      }
+      expect(outer).toBeGreaterThan(0);
+      expect(inner).toBeGreaterThan(0);
+    });
   });
 
   it('lan can 1,1 m là kính ở mọi phong cách', () => {

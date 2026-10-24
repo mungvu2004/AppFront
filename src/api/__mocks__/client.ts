@@ -78,7 +78,7 @@ const MOCK_SERVER_FEATURE_FLAGS: Readonly<Record<FeatureFlagKey, boolean>> = {
   'viewer.realism-traa': true,
   'viewer.realism-hdri': true,
   'viewer.realism-materials': true,
-  'viewer.realism-details': false,
+  'viewer.realism-details': true,
 };
 
 const makeVersion = (): Version => ({

@@ -16,6 +16,7 @@ import {
   sampleWallId,
 } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { setDetailsEnabled } from '@/pascal-page/realism/details';
 import type { SpatialGraph } from '@/domain/spatial/types';
 
 import { fixtureF1 } from '../__fixtures__';
@@ -603,6 +604,20 @@ describe('F1-ext: lượt sửa không làm mất dữ liệu', () => {
       graph: normalizeSpatial(extGraph),
       scene: extScene,
       commit: { origin: 'load', changedNodeIds: Object.keys(extScene.nodes) },
+      actorId: ACTOR,
+    });
+
+    expect(result.ok ? null : result.error.code).toBe('PASCAL_NO_CHANGE');
+  });
+
+  it('cờ details bật (phào chân ngoài dựng lúc nạp): nạp F1-ext rồi đọc ngược ra vẫn 0 lệnh', () => {
+    setDetailsEnabled(true);
+    const detailed = toPascalScene(extGraph).scene;
+    setDetailsEnabled(false);
+    const result = createPascalEditCommand({
+      graph: normalizeSpatial(extGraph),
+      scene: detailed,
+      commit: { origin: 'load', changedNodeIds: Object.keys(detailed.nodes) },
       actorId: ACTOR,
     });
 
