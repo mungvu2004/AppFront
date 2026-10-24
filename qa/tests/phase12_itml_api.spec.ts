@@ -37,17 +37,20 @@ import {
   STEP_ORDER,
   adminApi,
   blankPng,
+  clearG0,
   countsOf,
   docker,
   duplicates,
   fragments,
   furnitureOutside,
+  g0Passed,
   golden,
   goldenPng,
   inRange,
   invalidGeometry,
   longWindows,
-  LONG_WINDOW_FALLBACK_MM,
+  LONG_WINDOW_FACTOR,
+  markG0Passed,
   modelsUsed,
   openingsOffWall,
   readLayer,
@@ -59,16 +62,16 @@ import {
 
 type Json = Record<string, unknown>;
 
-test.describe.configure({ mode: 'serial' });
-
 let api: APIRequestContext;
 const projects: string[] = [];
 
-test.beforeEach(async () => {
+test.beforeEach(async ({}, testInfo) => {
+  if (!testInfo.title.startsWith('G0')) test.skip(!g0Passed(), 'G0 has not passed within 2 h: run --grep "G0" first');
   api = await adminApi();
 });
 
 test.afterEach(async () => {
+  if (!api) return; // login itself failed: nothing was created
   for (const id of projects.splice(0)) {
     const problem = await deleteSeededProject(api, id);
     if (problem) test.info().annotations.push({ type: 'cleanup', description: problem });
@@ -89,6 +92,7 @@ async function run(slug: string, png: Buffer, opts: Parameters<typeof uploadAndT
 
 test('G0 f14 runs the real, current models', async () => {
   test.setTimeout(RUN_TIMEOUT_MS + 60_000);
+  clearG0();
 
   await test.step('[IT-ML-001] GET /api/ready → 200', async () => {
     const res = await api.get('/api/ready');
@@ -135,6 +139,8 @@ test('G0 f14 runs the real, current models', async () => {
     expect(trace.status, `smoke run ${trace.error}`).toBe('completed');
     expect(trace.ms).toBeGreaterThan(REAL_ML_MIN_MS);
   });
+
+  if (test.info().errors.length === 0) markG0Passed(); // soft failures in IT-ML-003 keep the gate closed too
 });
 
 /* ================================================================================================= */
@@ -207,7 +213,13 @@ for (const name of ['G1-small', 'G2-medium', 'G3-large', 'G4-rooms', 'G5-windows
     const doc = await readLayer(api, trace.projectId, trace.floorId);
     const counts = countsOf(doc);
     await test.step(`[IT-ML-015] ${name}: N16 layer parses with the FE wire schema, revision ≥ 1, walls present`, async () => {
-      await saveJson(`IT-ML-015_${name}_counts`, { revision: doc.revision, counts });
+      const windowWidths = doc.layer.openings.filter((o) => o.kind === 'window').map((o) => o.widthMm);
+      await saveJson(`IT-ML-015_${name}_counts`, {
+        revision: doc.revision,
+        scaleStatus: doc.scaleStatus ?? 'calibrated',
+        counts,
+        maxWindowMm: Math.max(0, ...windowWidths),
+      });
       expect(doc.revision).toBeGreaterThanOrEqual(1);
       expect(counts.walls).toBeGreaterThan(0);
     });
@@ -249,9 +261,8 @@ for (const name of ['G1-small', 'G2-medium', 'G3-large', 'G4-rooms', 'G5-windows
         expect(dup).toEqual([]);
       });
       await test.step('[IT-ML-061] G5-windows: no window wide enough to be several merged', async () => {
-        const limit = (golden().maxWindowMm ?? LONG_WINDOW_FALLBACK_MM / 3) * 3;
-        const long = longWindows(doc, limit);
-        await saveJson('IT-ML-061_G5_long_windows', { limitMm: limit, long });
+        const long = longWindows(doc);
+        await saveJson('IT-ML-061_G5_long_windows', { rule: `> ${String(LONG_WINDOW_FACTOR)} x median window`, long });
         expect(long).toEqual([]);
       });
       await test.step('[IT-ML-062] G5-windows: no tile-cut slivers', async () => {

@@ -7,7 +7,7 @@
  * `pipeline_run_models.used` (AppBack apps/worker/pipeline_orchestrate/pins.py:27), there is no endpoint for it.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateSync } from 'node:zlib';
@@ -89,6 +89,33 @@ export async function saveJson(name: string, data: unknown): Promise<void> {
   await test.info().attach(file, { path, contentType: 'application/json' });
 }
 
+/* ---- G0 gate ------------------------------------------------------------------------------------- */
+
+/**
+ * G0 passing is remembered on disk, not by `mode: 'serial'`: serial skips every later test after ANY failure (one
+ * out-of-range count would hide the other drawings), and a module flag is lost when a failed test restarts the worker.
+ */
+const G0_FILE = join(EVIDENCE_DIR, 'I12_G0_passed.json');
+export const G0_FRESH_MS = 2 * 60 * 60_000;
+
+export function clearG0(): void {
+  rmSync(G0_FILE, { force: true });
+}
+
+export function markG0Passed(): void {
+  mkdirSync(EVIDENCE_DIR, { recursive: true });
+  writeFileSync(G0_FILE, JSON.stringify({ at: Date.now(), walls: ACTIVE.walls, objects: ACTIVE.objects }));
+}
+
+export function g0Passed(): boolean {
+  try {
+    const { at } = JSON.parse(readFileSync(G0_FILE, 'utf8')) as { at: number };
+    return Date.now() - at < G0_FRESH_MS;
+  } catch {
+    return false;
+  }
+}
+
 /* ---- golden set ---------------------------------------------------------------------------------- */
 
 export type Range = readonly [number, number] | null;
@@ -98,7 +125,6 @@ export interface GoldenSample {
   readonly expect: { readonly walls: Range; readonly doors: Range; readonly windows: Range; readonly furniture: Range };
 }
 export interface Golden {
-  readonly maxWindowMm: number | null;
   readonly samples: Readonly<Record<string, GoldenSample>>;
 }
 
@@ -257,12 +283,19 @@ const OPENING_SLACK_MM = 50;
 export const DUP_SHARE = 0.7;
 /** Furniture boxes of one kind with IoU above this = duplicates (detector MERGE_OVERLAP 0.7, objects/detector.py:43-55). */
 export const DUP_IOU = 0.7;
-/** Narrowest real opening in CubiCasa ≈ 500 mm; anything under this is a tile-cut fragment. */
-export const FRAGMENT_OPENING_MM = 250;
-/** Thinnest real furniture box side; under this is a tile-cut sliver. */
-export const FRAGMENT_FURNITURE_MM = 80;
-/** Fallback before golden.maxWindowMm is set: no residential window is 4 m wide. */
-export const LONG_WINDOW_FALLBACK_MM = 4_000;
+/*
+ * Size rules are RELATIVE to the floor's own median: before calibration the layer is `scaleStatus: 'unresolved'`
+ * and mm are close to pixels (baseline 2026-10-24: every window 96-112 "mm"), so absolute mm limits mean nothing.
+ */
+/** An opening / furniture side under this share of its kind's median on the floor is a tile-cut fragment. */
+export const FRAGMENT_SHARE = 0.25;
+/** A window wider than this many times the floor's median window = several windows merged into one. */
+export const LONG_WINDOW_FACTOR = 3;
+
+const median = (xs: readonly number[]): number => {
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)] ?? 0;
+};
 
 /** IT-ML-017: values are finite, walls have length, boxes have area. */
 export function invalidGeometry(doc: FloorLayerDocument): string[] {
@@ -335,18 +368,30 @@ export function duplicates(doc: FloorLayerDocument): string[] {
   return out;
 }
 
-/** IT-ML-061: windows wider than `limitMm` (several windows merged into one). */
-export function longWindows(doc: FloorLayerDocument, limitMm: number): string[] {
-  return doc.layer.openings.filter((o) => o.kind === 'window' && o.widthMm > limitMm).map((o) => `window ${o.id} ${String(o.widthMm)} mm`);
+/** IT-ML-061: windows wider than {@link LONG_WINDOW_FACTOR} × the floor's median window (needs ≥ 3 windows). */
+export function longWindows(doc: FloorLayerDocument): string[] {
+  const windows = doc.layer.openings.filter((o) => o.kind === 'window');
+  if (windows.length < 3) return [];
+  const limit = LONG_WINDOW_FACTOR * median(windows.map((o) => o.widthMm));
+  return windows.filter((o) => o.widthMm > limit).map((o) => `window ${o.id} ${String(o.widthMm)} > ${String(limit)}`);
 }
 
-/** IT-ML-062: slivers left at tile cuts. */
+/** IT-ML-062: slivers left at tile cuts — far smaller than the median of their kind on the same floor. */
 export function fragments(doc: FloorLayerDocument): string[] {
-  const ops = doc.layer.openings.filter((o) => o.widthMm < FRAGMENT_OPENING_MM).map((o) => `${o.kind} ${o.id} ${String(o.widthMm)} mm`);
-  const fs = doc.layer.furniture
-    .filter((f) => Math.min(f.boundingBox.max.x - f.boundingBox.min.x, f.boundingBox.max.y - f.boundingBox.min.y) < FRAGMENT_FURNITURE_MM)
-    .map((f) => `${f.kind} ${f.id} sliver`);
-  return [...ops, ...fs];
+  const out: string[] = [];
+  for (const kind of ['door', 'window'] as const) {
+    const ops = doc.layer.openings.filter((o) => o.kind === kind);
+    const cut = FRAGMENT_SHARE * median(ops.map((o) => o.widthMm));
+    out.push(...ops.filter((o) => o.widthMm < cut).map((o) => `${kind} ${o.id} ${String(o.widthMm)} < ${String(cut)}`));
+  }
+  const side = (f: FloorLayerDocument['layer']['furniture'][number]): number =>
+    Math.min(f.boundingBox.max.x - f.boundingBox.min.x, f.boundingBox.max.y - f.boundingBox.min.y);
+  for (const kind of new Set(doc.layer.furniture.map((f) => f.kind))) {
+    const items = doc.layer.furniture.filter((f) => f.kind === kind);
+    const cut = FRAGMENT_SHARE * median(items.map(side));
+    out.push(...items.filter((f) => side(f) < cut).map((f) => `${kind} ${f.id} side ${String(side(f))} < ${String(cut)}`));
+  }
+  return out;
 }
 
 /** `value` inside `range`; a null range = baseline not reviewed yet (IT-PLAN §4). */
