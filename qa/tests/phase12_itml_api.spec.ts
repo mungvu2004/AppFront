@@ -41,7 +41,7 @@ import {
   countsOf,
   docker,
   duplicates,
-  fragments,
+  fragmentReport,
   furnitureOutside,
   g0Passed,
   golden,
@@ -266,8 +266,8 @@ for (const name of ['G1-small', 'G2-medium', 'G3-large', 'G4-rooms', 'G5-windows
         expect(long).toEqual([]);
       });
       await test.step('[IT-ML-062] G5-windows: no tile-cut slivers', async () => {
-        const frag = fragments(doc);
-        await saveJson('IT-ML-062_G5_fragments', { frag });
+        const { cut: frag, thinOffCut } = fragmentReport(doc, sample.px);
+        await saveJson('IT-ML-062_G5_fragments', { frag, thinOffCut });
         expect(frag).toEqual([]);
       });
     }

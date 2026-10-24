@@ -534,7 +534,8 @@ test.describe('SCR-12 Processing', () => {
     const priming = waitForApi(page, 'GET', /\/drawings\/uploads\/[^/]+\/progress$/u, [200]).catch(() => null);
     await expect(page.getByRole('navigation', { name: 'Xử lý' })).toBeVisible();
 
-    const done = page.getByText(/^Đã xong ([1-9]\d*)\/\1 tầng/u);
+    // useProcessingScreen.ts:186 renders "Đã xử lý xong N/N tầng" (older builds: "Đã xong …"); accept both.
+    const done = page.getByText(/^Đã (?:xử lý )?xong ([1-9]\d*)\/\1 tầng/u);
     const failure = page.getByRole('button', { name: 'Sao chép mã lỗi' });
     await expect(done.or(failure).first()).toBeVisible({ timeout: PIPELINE_TIMEOUT_MS });
 
@@ -909,7 +910,7 @@ test.describe('SCR-12 Processing summary', () => {
 
     await page.goto(ROUTES.project.pipeline(projectId));
     await expect(page.getByRole('navigation', { name: 'Xử lý' })).toBeVisible();
-    await expect(page.getByText(/^Đã xong ([1-9]\d*)\/\1 tầng/u)).toBeVisible();
+    await expect(page.getByText(/^Đã (?:xử lý )?xong ([1-9]\d*)\/\1 tầng/u)).toBeVisible();
     // Shot BEFORE the bug check, so a failing run still documents the finished screen.
     await captureEvidence(page, '12_pipeline_done_for_walls.png');
 

@@ -1769,7 +1769,8 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
 
       await test.step('[16-A-002] Entry from the SCR-12 summary "Duyệt lớp tường" lands on this floor\'s walls', async () => {
         await page.goto(ROUTES.project.pipeline(d1.projectId));
-        await expect(page.getByText(/^Đã xong ([1-9]\d*)\/\1 tầng/u)).toBeVisible();
+        // useProcessingScreen.ts:186 renders "Đã xử lý xong N/N tầng" (older builds: "Đã xong …"); accept both.
+        await expect(page.getByText(/^Đã (?:xử lý )?xong ([1-9]\d*)\/\1 tầng/u)).toBeVisible();
         const read = waitForApi(page, 'GET', layerRe(d1.projectId, d1.floorId), [200]);
         await page.getByRole('button', { name: WALL.screen, exact: true }).click();
         await read;

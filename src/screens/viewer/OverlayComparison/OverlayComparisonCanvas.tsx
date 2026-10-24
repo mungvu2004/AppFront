@@ -180,6 +180,7 @@ export function OverlayComparisonCanvas({
   layers,
   scanUrl,
   geometry,
+  geometryFrame,
   marks,
   measurement,
   swipePosition,
@@ -316,6 +317,7 @@ export function OverlayComparisonCanvas({
       <GeometryLayer
         clipPath={resultClipPath}
         geometry={geometry}
+        geometryFrame={geometryFrame}
         layer={layers.geometry}
         {...layerFrame}
       />

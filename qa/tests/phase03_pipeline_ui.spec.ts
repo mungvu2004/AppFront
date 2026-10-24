@@ -107,7 +107,8 @@ const ACK_LABEL = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản 
 const ACK_BLOCKED = 'Đánh dấu ô xác nhận bên trên rồi thử lại.';
 /* SCR-12: ProcessingScreen.tsx, ProcessingStepList.tsx, useProcessingScreen.ts:174. */
 const PIPELINE_NAV = 'Xử lý';
-const DONE = /^Đã xong ([1-9]\d*)\/\1 tầng/u;
+// useProcessingScreen.ts:186 renders "Đã xử lý xong N/N tầng" (older builds: "Đã xong …"); accept both.
+const DONE = /^Đã (?:xử lý )?xong ([1-9]\d*)\/\1 tầng/u;
 const FAILURE_COPY = 'Sao chép mã lỗi';
 const PIPELINE_EMPTY = 'Chưa có bước nào để theo dõi';
 const PIPELINE_TABS = 'Xem trước hoặc nhật ký';

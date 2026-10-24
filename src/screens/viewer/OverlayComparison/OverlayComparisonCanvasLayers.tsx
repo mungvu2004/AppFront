@@ -45,6 +45,7 @@ import { cn } from '@/lib/utils';
 
 import type {
   DeviationMarkViewModel,
+  GeometryFrame,
   GeometryPolyline,
   OverlayLayerViewModel,
 } from './types';
@@ -215,6 +216,8 @@ function pathOf(polyline: GeometryPolyline): string {
 
 export interface GeometryLayerProps extends OverlayLayerFrameProps {
   readonly geometry: readonly GeometryPolyline[];
+  /** Có thì đặt khít ảnh `object-contain` (cùng tâm, cùng tỉ lệ khung) thay vì kéo giãn cả khung. */
+  readonly geometryFrame?: GeometryFrame | null | undefined;
 }
 
 /**
@@ -230,15 +233,19 @@ export interface GeometryLayerProps extends OverlayLayerFrameProps {
  * ngược lại — `vector-effect="non-scaling-stroke"` giữ nó ở 2px trên màn dù khung
  * đang phóng to bao nhiêu, cùng lý lẽ với `ScaleCalibrationCanvas`.
  */
-export function GeometryLayer({ geometry, ...frame }: GeometryLayerProps) {
+export function GeometryLayer({ geometry, geometryFrame, ...frame }: GeometryLayerProps) {
+  // BUG-IT-005: `xMidYMid meet` trên khung cỡ ảnh = đúng phép đặt `object-contain` của lớp ảnh.
+  const fit = geometryFrame ?? null;
+
   return (
     <LayerFrame {...frame}>
       <svg
         aria-hidden="true"
         className="absolute inset-0 h-full w-full"
-        preserveAspectRatio="none"
-        viewBox="0 0 1 1"
+        preserveAspectRatio={fit === null ? 'none' : 'xMidYMid meet'}
+        viewBox={fit === null ? '0 0 1 1' : `0 0 ${fit.widthPx} ${fit.heightPx}`}
       >
+        <g transform={fit === null ? undefined : `scale(${fit.widthPx} ${fit.heightPx})`}>
         {geometry.map((polyline) => (
           <path
             d={pathOf(polyline)}
@@ -252,6 +259,7 @@ export function GeometryLayer({ geometry, ...frame }: GeometryLayerProps) {
             vectorEffect="non-scaling-stroke"
           />
         ))}
+        </g>
       </svg>
     </LayerFrame>
   );

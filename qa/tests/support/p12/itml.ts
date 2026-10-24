@@ -376,9 +376,42 @@ export function longWindows(doc: FloorLayerDocument): string[] {
   return windows.filter((o) => o.widthMm > limit).map((o) => `window ${o.id} ${String(o.widthMm)} > ${String(limit)}`);
 }
 
-/** IT-ML-062: slivers left at tile cuts — far smaller than the median of their kind on the same floor. */
-export function fragments(doc: FloorLayerDocument): string[] {
+/** Detector tiling (AppBack apps/ml/objects/tiles.py): 640 px tiles, overlap 640/4, last tile flush with the page. */
+const TILE_PX = 640;
+const TILE_STEP_PX = TILE_PX - TILE_PX / 4;
+/** `_EDGE_TOUCH_PX` is 2 in the detector; +1 for the integer mm on the wire. */
+const TILE_TOUCH_PX = 3;
+
+/** Inner tile edges along one page side (px): every start > 0 and every end < length. */
+export function tileInnerEdges(lengthPx: number): number[] {
+  if (lengthPx <= TILE_PX) return [];
+  const starts: number[] = [];
+  for (let s = 0; s <= lengthPx - TILE_PX; s += TILE_STEP_PX) starts.push(s);
+  if (starts.at(-1) !== lengthPx - TILE_PX) starts.push(lengthPx - TILE_PX);
+  return [...new Set([...starts.filter((s) => s > 0), ...starts.map((s) => s + TILE_PX).filter((e) => e < lengthPx)])];
+}
+
+/**
+ * IT-ML-062: slivers left at tile cuts — far smaller than the median of their kind on the same floor AND (furniture)
+ * touching an inner tile edge. R2: a thin box NOT on a tile edge was a model false positive (a window symbol read as a
+ * kitchen cabinet, evidence I12_IT-ML-062_G5_sliver2_crop.png) — model quality, not this seam; reported in `thinOffCut`.
+ * Furniture px = mm here: the layer is uncalibrated (`scaleSource=project_default`, 1 mm/px, origin top-left).
+ */
+export function fragmentReport(
+  doc: FloorLayerDocument,
+  pagePx?: readonly [number, number],
+): { readonly cut: string[]; readonly thinOffCut: string[] } {
+  const xs = pagePx ? tileInnerEdges(pagePx[0]) : [];
+  const ys = pagePx ? tileInnerEdges(pagePx[1]) : [];
+  const near = (v: number, edges: number[]): boolean => edges.some((e) => Math.abs(v - e) <= TILE_TOUCH_PX);
+  const onCut = (f: FloorLayerDocument['layer']['furniture'][number]): boolean =>
+    !pagePx ||
+    near(f.boundingBox.min.x, xs) ||
+    near(f.boundingBox.max.x, xs) ||
+    near(f.boundingBox.min.y, ys) ||
+    near(f.boundingBox.max.y, ys);
   const out: string[] = [];
+  const thinOffCut: string[] = [];
   for (const kind of ['door', 'window'] as const) {
     const ops = doc.layer.openings.filter((o) => o.kind === kind);
     const cut = FRAGMENT_SHARE * median(ops.map((o) => o.widthMm));
@@ -389,9 +422,11 @@ export function fragments(doc: FloorLayerDocument): string[] {
   for (const kind of new Set(doc.layer.furniture.map((f) => f.kind))) {
     const items = doc.layer.furniture.filter((f) => f.kind === kind);
     const cut = FRAGMENT_SHARE * median(items.map(side));
-    out.push(...items.filter((f) => side(f) < cut).map((f) => `${kind} ${f.id} side ${String(side(f))} < ${String(cut)}`));
+    for (const f of items.filter((item) => side(item) < cut)) {
+      (onCut(f) ? out : thinOffCut).push(`${kind} ${f.id} side ${String(side(f))} < ${String(cut)}`);
+    }
   }
-  return out;
+  return { cut: out, thinOffCut };
 }
 
 /** `value` inside `range`; a null range = baseline not reviewed yet (IT-PLAN §4). */

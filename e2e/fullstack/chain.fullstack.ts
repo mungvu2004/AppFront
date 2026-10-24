@@ -300,7 +300,8 @@ async function runChain(
     const priming = waitForApi(page, 'GET', /\/drawings\/uploads\/[^/]+\/progress$/u, [200]).catch(() => null);
 
     await expectScreenAlive(page, page.getByRole('navigation', { name: 'Xử lý' }));
-    const done = page.getByText(/^Đã xong ([1-9]\d*)\/\1 tầng/u);
+    // useProcessingScreen.ts:186 renders "Đã xử lý xong N/N tầng" (older builds: "Đã xong …"); accept both.
+    const done = page.getByText(/^Đã (?:xử lý )?xong ([1-9]\d*)\/\1 tầng/u);
     const failure = page.getByRole('button', { name: 'Sao chép mã lỗi' });
 
     await expect(done.or(failure).first()).toBeVisible({ timeout: PIPELINE_TIMEOUT_MS });
