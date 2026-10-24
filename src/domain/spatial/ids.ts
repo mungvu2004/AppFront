@@ -11,7 +11,7 @@
  *   back to `Math.random` when `crypto` is absent.
  */
 
-import type { AxisId, DimensionId, FurnitureId, LevelId, OpeningId, RoomId, WallId } from './types';
+import type { AxisId, DimensionId, FurnitureId, LevelId, OpeningId, RoofId, RoomId, WallId } from './types';
 
 /** Id prefix per entity kind. */
 export const ID_PREFIX_BY_KIND = {
@@ -22,6 +22,7 @@ export const ID_PREFIX_BY_KIND = {
   room: 'R',
   axis: 'A',
   dimension: 'M',
+  roof: 'RF',
 } as const;
 
 /** Entity kinds that carry a prefixed id. */
@@ -36,6 +37,7 @@ export interface IdByKind {
   room: RoomId;
   axis: AxisId;
   dimension: DimensionId;
+  roof: RoofId;
 }
 
 const BASE36_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -55,6 +57,7 @@ const counterByKind: { [K in EntityKind]: number } = {
   room: 0,
   axis: 0,
   dimension: 0,
+  roof: 0,
 };
 
 const kindByPrefix: ReadonlyMap<string, EntityKind> = new Map(
@@ -117,11 +120,12 @@ const isValidBody = (body: string): boolean => body.length >= MIN_BODY_LENGTH &&
 const splitId = (id: string): { prefix: string; body: string } | null => {
   const separatorIndex = id.indexOf('-');
 
-  if (separatorIndex !== 1) {
+  // Tiền tố một chữ, riêng mái hai chữ (`RF-`).
+  if (separatorIndex !== 1 && separatorIndex !== 2) {
     return null;
   }
 
-  return { prefix: id.slice(0, 1), body: id.slice(2) };
+  return { prefix: id.slice(0, separatorIndex), body: id.slice(separatorIndex + 1) };
 };
 
 /** Checks whether a string is a valid id for exactly the given entity kind. */

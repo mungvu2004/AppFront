@@ -1,7 +1,7 @@
 import type { AppError } from '@/lib/errors';
 import type { HttpClient, HttpError, HttpRequestOptions, Result } from '@/lib/http';
 import type { z, ZodTypeAny } from 'zod';
-import type { Furniture, Opening, Room, Wall } from '@/domain/spatial/types';
+import type { Furniture, Opening, Roof, Room, Wall } from '@/domain/spatial/types';
 import {
   FloorSchema,
   ImageQualityAssessmentSchema,
@@ -306,6 +306,8 @@ export interface SpatialLayer {
   openings: readonly Opening[];
   rooms: readonly Room[];
   walls: readonly Wall[];
+  /** Mái của tầng; vắng = không có mái (roof-contract.md). */
+  roofs?: readonly Roof[];
 }
 
 export interface ReadSpatialGraphInput extends RequestOptions {

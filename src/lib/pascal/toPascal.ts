@@ -41,6 +41,7 @@ import { EXTERIOR_SKIRTING, isDetailsEnabled } from '@/pascal-page/realism/detai
 
 import { CATALOG_MODELS, VARIANT_MODEL, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
+import { roofNodesOf } from './roofs';
 import {
   ceilingNodesOf,
   floorMaterialOf,
@@ -1262,6 +1263,26 @@ export const toPascalScene = (
 
     nodes[node.id] = node;
     adopt(levelNodeId, node.id);
+  }
+
+  /* Mái: node Pascal nguyên dạng từ `Roof.nodes` (`roofs.ts`), gắn dưới tầng của nó. */
+  for (const roof of graph.roofs ?? []) {
+    const levelNodeId = levelNodeIdOf.get(roof.levelId);
+
+    if (levelNodeId === undefined) {
+      skipped.push(skip(roof.id, 'mái', `Mái thuộc tầng ${roof.levelId} mà tầng ấy không có trong bản vẽ.`));
+      continue;
+    }
+
+    const built = roofNodesOf(roof, levelNodeId);
+
+    if (typeof built === 'string') {
+      skipped.push(skip(roof.id, 'mái', built));
+      continue;
+    }
+
+    for (const node of built) nodes[node.id] = node;
+    adopt(levelNodeId, toPascalId('roof', roof.id));
   }
 
   for (const dimension of graph.dimensions) {

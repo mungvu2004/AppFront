@@ -10,6 +10,7 @@ import {
   LevelSchema,
   NoteSchema,
   OpeningSchema,
+  RoofSchema,
   RoomSchema,
   WallSchema,
 } from './spatial';
@@ -91,8 +92,10 @@ export const SpatialGraphSchema: z.ZodType<SpatialGraph, z.ZodTypeDef, unknown> 
     openings: z.array(OpeningSchema),
     rooms: z.array(RoomSchema),
     walls: z.array(WallSchema),
+    roofs: z.array(RoofSchema).optional(),
   })
-  .strict();
+  .strict()
+  .transform(({ roofs, ...graph }) => (roofs === undefined || roofs.length === 0 ? graph : { ...graph, roofs }));
 
 /** `revision` hiện tại của một tầng, đủ để mở một lượt ghi có version lên nó. */
 export const FloorRevisionSchema = z

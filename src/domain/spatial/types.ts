@@ -86,7 +86,10 @@ export type AxisId = `A-${string}`;
 export type DimensionId = `M-${string}`;
 
 /** Id of any prefixed entity. */
-export type EntityId = LevelId | WallId | OpeningId | FurnitureId | RoomId | AxisId | DimensionId;
+/** Roof id, prefixed with `RF-` (two letters: `R-` is a room). */
+export type RoofId = `RF-${string}`;
+
+export type EntityId = LevelId | WallId | OpeningId | FurnitureId | RoomId | AxisId | DimensionId | RoofId;
 
 /** Note id; notes are outside the prefix table, so their id is free-form. */
 export type NoteId = string;
@@ -322,4 +325,17 @@ export interface SpatialGraph {
   axes: readonly Axis[];
   dimensions: readonly Dimension[];
   notes: readonly Note[];
+  /** Mái (Pascal `roof` + `roof-segment`); vắng = không có mái (roof-contract.md). */
+  roofs?: readonly Roof[];
+}
+
+/**
+ * Một mái vẽ trong editor 3D. Máy chủ không hiểu hình học mái: `nodes` là node Pascal
+ * nguyên dạng (mét, toạ độ cục bộ của Pascal) bỏ `parentId`/`children` — phần tử 0 là
+ * node `roof`, các phần tử sau là `roof-segment` con của nó. Chỉ `lib/pascal/roofs.ts` đọc/ghi.
+ */
+export interface Roof extends ReviewMetadata {
+  id: RoofId;
+  levelId: LevelId;
+  nodes: readonly Readonly<Record<string, unknown>>[];
 }

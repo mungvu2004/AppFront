@@ -49,6 +49,7 @@ const ENTITY_LABELS: Record<EntityKind, string> = {
   furniture: 'nội thất',
   room: 'phòng',
   dimension: 'chuỗi kích thước',
+  roof: 'mái',
 };
 
 const countDistinctEntitiesByType = (changes: readonly RemoteFieldChange[]): Map<EntityKind, number> => {

@@ -31,6 +31,7 @@ export interface WireGraphDocument {
     readonly openings: readonly Wire[];
     readonly rooms: readonly Wire[];
     readonly walls: readonly Wire[];
+    readonly roofs?: readonly Wire[];
   };
 }
 
@@ -49,7 +50,10 @@ export interface FakeResponse {
 }
 
 const LAYER_KEYS = ['furniture', 'openings', 'rooms', 'walls'] as const;
-type WireLayer = Record<(typeof LAYER_KEYS)[number], readonly Wire[]>;
+type WireLayer = Record<(typeof LAYER_KEYS)[number], readonly Wire[]> & { readonly roofs?: readonly Wire[] };
+
+/** Như máy chủ (roof-contract.md): khoá `roofs` vắng khi rỗng. */
+const roofsKey = (roofs: readonly Wire[]): { roofs?: readonly Wire[] } => (roofs.length === 0 ? {} : { roofs });
 
 /** Người đăng nhập giả: vai `engineer` để trình soạn thảo được sửa và tự lưu. */
 export const FAKE_USER = { email: 'ky-su@example.com', id: 'U-FAKEENGINEER', name: 'Kỹ sư thử', role: 'engineer' } as const;
@@ -77,6 +81,7 @@ export function createFakeBackend({ projectId, graphDoc, layers: overrides = {} 
         openings: onLevel('openings', level.id),
         rooms: onLevel('rooms', level.id),
         walls: onLevel('walls', level.id),
+        ...roofsKey((graph.roofs ?? []).filter((roof) => roof.levelId === level.id)),
       },
     ]),
   );
@@ -99,6 +104,7 @@ export function createFakeBackend({ projectId, graphDoc, layers: overrides = {} 
     graph: {
       ...graph,
       ...Object.fromEntries(LAYER_KEYS.map((key) => [key, levels.flatMap((level) => stored.get(String(level.id))![key])])),
+      ...roofsKey(levels.flatMap((level) => stored.get(String(level.id))!.roofs ?? [])),
     },
   });
 

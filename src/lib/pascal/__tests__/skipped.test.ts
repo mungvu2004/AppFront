@@ -291,21 +291,22 @@ describe('toSpatialGraph — đường hỏng', () => {
   });
 
   it('bỏ qua loại node AppFront không có, kèm tên loại trong lý do', () => {
-    const roof = { object: 'node', id: 'roof_abc', type: 'roof', parentId: 'level_L-AAAA000001', children: [] };
+    // Mái nay lưu được (`roofs.test.ts`); loại lạ dùng một node bịa.
+    const odd = { object: 'node', id: 'widget_abc', type: 'widget', parentId: 'level_L-AAAA000001', children: [] };
     const { graph, skipped } = toSpatialGraph(
       sceneOf(
         [
           site([BUILDING_NODE_ID]),
           building(BUILDING_NODE_ID, ['level_L-AAAA000001']),
-          level(['roof_abc']),
-          roof as unknown as PascalNode,
+          level(['widget_abc']),
+          odd as unknown as PascalNode,
         ],
         [SITE_NODE_ID],
       ),
     );
 
     expect(graph.walls).toEqual([]);
-    expect(skipped[0]?.reason).toContain('roof');
+    expect(skipped[0]?.reason).toContain('widget');
   });
 
   it('G-9 — vạch đo của thước không vào đồ thị và không thành dòng bỏ qua', () => {

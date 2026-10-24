@@ -101,7 +101,8 @@ export type ChangeEntityKind =
   | 'window'
   | 'furniture'
   | 'room'
-  | 'dimension';
+  | 'dimension'
+  | 'roof';
 
 /** What happened to the entity. */
 export type ChangeKind = 'added' | 'changed' | 'removed';
@@ -132,6 +133,7 @@ const ENTITY_LABELS: Readonly<Record<ChangeEntityKind, string>> = {
   door: 'cửa đi',
   furniture: 'nội thất',
   room: 'phòng',
+  roof: 'mái',
   vertex: 'điểm',
   wall: 'tường',
   window: 'cửa sổ',

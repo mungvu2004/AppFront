@@ -388,6 +388,22 @@ export interface PascalStairSegmentNode extends PascalNodeCommon {
 }
 
 /** Một node bất kỳ trong số các loại AppFront viết ra. */
+/**
+ * Mái (`core/schema/nodes/roof.ts`), id `roof_…`. AppFront không đọc hình học mái: node đi
+ * nguyên dạng qua `Roof.nodes` (`roofs.ts`), nên ở đây chỉ khai phần cây; các trường
+ * khác vẫn có mặt lúc chạy (đọc qua `Record<string, unknown>`).
+ */
+export interface PascalRoofNode extends PascalNodeCommon {
+  readonly type: 'roof';
+  readonly children: readonly PascalNodeId[];
+}
+
+/** Một mặt mái (`core/schema/nodes/roof-segment.ts`), id `rseg_…`; con của `roof`. */
+export interface PascalRoofSegmentNode extends PascalNodeCommon {
+  readonly type: 'roof-segment';
+  readonly children: readonly PascalNodeId[];
+}
+
 export type PascalNode =
   | PascalSiteNode
   | PascalBuildingNode
@@ -401,7 +417,9 @@ export type PascalNode =
   | PascalCeilingNode
   | PascalStructuralGridNode
   | PascalStairNode
-  | PascalStairSegmentNode;
+  | PascalStairSegmentNode
+  | PascalRoofNode
+  | PascalRoofSegmentNode;
 
 /** Loại node AppFront viết ra, đọc từ chính hợp trên. */
 export type PascalNodeType = PascalNode['type'];

@@ -162,6 +162,7 @@ const KIND_LABELS: Readonly<Record<EntityKind, string>> = {
   room: 'phòng',
   axis: 'trục',
   dimension: 'kích thước',
+  roof: 'mái',
 };
 
 /**

@@ -503,7 +503,7 @@ describe('createPascalEditCommand', () => {
     const result = createPascalEditCommand({
       graph,
       scene: baseScene,
-      commit: { origin: 'local', changedNodeIds: ['roof_qv12ab34cd56'] },
+      commit: { origin: 'local', changedNodeIds: ['widget_qv12ab34cd56'] },
       actorId: ACTOR,
     });
 

@@ -26,6 +26,7 @@ import type {
   LevelId,
   Note,
   Opening,
+  Roof,
   Room,
   SpatialGraph,
   Wall,
@@ -40,6 +41,7 @@ export interface EntityByKind {
   room: Room;
   axis: Axis;
   dimension: Dimension;
+  roof: Roof;
 }
 
 /** Any entity that lives in `byId`. */
@@ -96,6 +98,7 @@ const createEmptyKindIndex = (): Record<EntityKind, EntityId[]> => ({
   room: [],
   axis: [],
   dimension: [],
+  roof: [],
 });
 
 /**
@@ -176,6 +179,12 @@ export const normalizeSpatial = (graph: SpatialGraph): NormalizedSpatial => {
     registerOnLevel(dimension.levelId, dimension.id);
   }
 
+  for (const roof of graph.roofs ?? []) {
+    byId[roof.id] = roof;
+    registerId('roof', roof.id);
+    registerOnLevel(roof.levelId, roof.id);
+  }
+
   return {
     building: graph.building,
     byId,
@@ -224,6 +233,10 @@ export const denormalizeSpatial = (normalized: NormalizedSpatial): SpatialGraph 
   axes: collectByKind(normalized, 'axis'),
   dimensions: collectByKind(normalized, 'dimension'),
   notes: normalized.notes,
+  // Vắng khi rỗng: đồ thị cũ (không mái) đi một vòng vẫn y nguyên.
+  // `?.`: chỉ mục dựng tay trước khi có mái (bản cũ trong kho) không có khoá `roof`.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  ...((normalized.byKind.roof?.length ?? 0) === 0 ? {} : { roofs: collectByKind(normalized, 'roof') }),
 });
 
 /** Reads the ids placed on a level; returns a shared empty array when unknown. */
@@ -233,7 +246,7 @@ export const idsOnLevel = (normalized: NormalizedSpatial, levelId: LevelId): rea
 /** The kind an id's prefix names, or `undefined` for an id outside the prefix table (`BUILDING`). */
 const kindOfPrefix = (id: string): EntityKind | undefined =>
   (Object.keys(ID_PREFIX_BY_KIND) as EntityKind[]).find(
-    (candidate) => ID_PREFIX_BY_KIND[candidate] === id.slice(0, 1),
+    (candidate) => ID_PREFIX_BY_KIND[candidate] === id.split('-')[0],
   );
 
 /**

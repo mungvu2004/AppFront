@@ -75,7 +75,7 @@ function minutesBeforeStart(minutes: number): Date {
  * ========================================================================== */
 
 function emptySnapshot(): VersionSnapshot {
-  return { dimension: {}, door: {}, furniture: {}, room: {}, vertex: {}, wall: {}, window: {} };
+  return { dimension: {}, door: {}, furniture: {}, room: {}, roof: {}, vertex: {}, wall: {}, window: {} };
 }
 
 function wall(thicknessMm: number, extra: EntityRecord = {}): EntityRecord {

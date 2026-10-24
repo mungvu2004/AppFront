@@ -69,6 +69,7 @@ const ACTION_NAME_BY_FIELD: Readonly<Record<string, string>> = {
 const DRAFT_LABEL_BY_KIND: Readonly<Record<EntityKind, string>> = {
   axis: 'truc',
   dimension: 'kich-thuoc',
+  roof: 'mai',
   furniture: 'do-dac',
   level: 'tang',
   opening: 'lo-mo',

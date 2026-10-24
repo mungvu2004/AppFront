@@ -269,6 +269,8 @@ export function replaceFloorLayer(
 
   const spatial = replaceLevelEntities(current, floorId, {
     ...result.layer,
+    // Máy chủ bỏ khoá `roofs` khi tầng không có mái: vắng = [] (roof-contract.md).
+    roofs: result.layer.roofs ?? [],
     ...(result.dimensions === undefined ? {} : { dimensions: result.dimensions }),
     ...(result.level === undefined ? {} : { level: result.level }),
   });

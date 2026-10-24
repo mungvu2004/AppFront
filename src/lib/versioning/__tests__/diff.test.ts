@@ -17,6 +17,7 @@ const emptySnapshot = (): VersionSnapshot => ({
   door: {},
   furniture: {},
   room: {},
+  roof: {},
   vertex: {},
   wall: {},
   window: {},

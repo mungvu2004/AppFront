@@ -75,6 +75,7 @@ const ENTITY_KIND_LABEL: Readonly<Record<ConflictVm['entityType'], string>> = {
   furniture: 'nội thất',
   room: 'phòng',
   dimension: 'kích thước',
+  roof: 'mái',
 };
 
 /* -------------------------------------------------------------------------- */

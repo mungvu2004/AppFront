@@ -137,7 +137,9 @@ describe('id body', () => {
 
   it('is 16 characters of [0-9A-Z]', () => {
     for (const kind of ALL_KINDS) {
-      expect(createId(kind).slice(2)).toMatch(/^[0-9A-Z]{16}$/);
+      const id = createId(kind);
+
+      expect(id.slice(id.indexOf('-') + 1)).toMatch(/^[0-9A-Z]{16}$/);
     }
   });
 
