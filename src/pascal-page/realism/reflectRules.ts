@@ -17,3 +17,30 @@ export function reflectProbeWanted(p: Vector3, ceilings: readonly Object3D[]): b
     return p.x >= box.min.x && p.x <= box.max.x && p.z >= box.min.z && p.z <= box.max.z && p.y < box.max.y && p.y > box.max.y - 4;
   });
 }
+
+/**
+ * Kính kiểu Lambert (vendor `glassMaterial`, vai `glazing`, kính vách kính…): Lambert chỉ nhận môi trường
+ * khuếch tán, không có phản xạ gương → kính phẳng, không thấy trời. Nhận diện: Lambert + (tên/transmission
+ * như `isGlassLike`, hoặc trong suốt opacity < 0,6 như ngưỡng fresnel của vendor).
+ */
+export const GLASS_OPACITY_MAX = 0.6;
+export function isLambertGlass(m: any): boolean {
+  if (!m || !(m.isMeshLambertNodeMaterial || m.isMeshLambertMaterial)) return false;
+  return (m.transmission ?? 0) > 0 || /glass|vetro/i.test(m.name ?? '') || (m.transparent === true && m.opacity < GLASS_OPACITY_MAX);
+}
+
+/** Tham số bản Standard thay kính Lambert: giữ màu/ảnh/opacity/mặt/depthWrite, thêm bóng (roughness thấp, metalness 0). */
+export const GLASS_ROUGHNESS = 0.05;
+export function glassTwinParams(m: any) {
+  return {
+    name: m.name ?? '',
+    color: m.color,
+    map: m.map ?? null,
+    opacity: m.opacity,
+    transparent: m.transparent,
+    side: m.side,
+    depthWrite: m.depthWrite,
+    roughness: GLASS_ROUGHNESS,
+    metalness: 0,
+  };
+}

@@ -23,10 +23,10 @@ import {
   type Texture,
   Vector3,
 } from 'three';
-import { equirectUV, mix, smoothstep, texture, uniform } from 'three/tsl';
-import { PMREMGenerator, type WebGPURenderer } from 'three/webgpu';
+import { equirectUV, float, mix, positionViewDirection, smoothstep, texture, transformedNormalView, uniform } from 'three/tsl';
+import { MeshStandardNodeMaterial, PMREMGenerator, type WebGPURenderer } from 'three/webgpu';
 
-import { isGlossy, reflectProbeWanted } from './reflectRules';
+import { glassTwinParams, isGlossy, isLambertGlass, reflectProbeWanted } from './reflectRules';
 import { useRealism } from './store';
 import { currentTier } from './tiers';
 
@@ -93,6 +93,50 @@ function eachGlossy(scene: Scene, fn: (m: Material & { envMap: Texture | null })
   });
 }
 
+const GLASS_KEY = '__realismGlass';
+const twins = new WeakMap<Material, MeshStandardNodeMaterial>();
+let glassSwapped = false;
+
+/** Bản Standard (cache theo vật liệu gốc) của kính Lambert, fresnel giống `applyGlassFresnel` của vendor. */
+function glassTwin(src: Material): MeshStandardNodeMaterial {
+  let t = twins.get(src);
+  if (t) return t;
+  t = new MeshStandardNodeMaterial(glassTwinParams(src));
+  t.userData = { ...src.userData };
+  const facing = transformedNormalView.dot(positionViewDirection).clamp(0, 1);
+  t.opacityNode = mix(float(src.opacity), float(0.92), facing.oneMinus().pow(3));
+  t.envMapIntensity = 1.4;
+  twins.set(src, t);
+  return t;
+}
+
+/**
+ * Kính Lambert không phản chiếu → đổi sang bản Standard trên mesh (giữ gốc ở `userData`). Chạy cùng nhịp
+ * chụp probe (cảnh đổi số node / camera dời > 1,5 m), không mỗi khung.
+ * ponytail: vendor gán lại vật liệu mà số node không đổi → kính về Lambert tới lần đổi kế; cần thì móc vào renderer.
+ */
+function swapGlass(scene: Scene) {
+  scene.traverse((o) => {
+    const mesh = o as any;
+    if (!mesh.isMesh) return;
+    const mats = [mesh.material ?? []].flat() as Material[];
+    if (!mats.some(isLambertGlass)) return;
+    if (!(GLASS_KEY in mesh.userData)) mesh.userData[GLASS_KEY] = mesh.material;
+    const next = mats.map((m) => (isLambertGlass(m) ? glassTwin(m) : m));
+    mesh.material = Array.isArray(mesh.material) ? next : next[0];
+  });
+  glassSwapped = true;
+}
+
+function restoreGlass(scene: Scene) {
+  scene.traverse((o) => {
+    if (!(GLASS_KEY in o.userData)) return;
+    (o as any).material = o.userData[GLASS_KEY];
+    delete o.userData[GLASS_KEY];
+  });
+  glassSwapped = false;
+}
+
 function restore(scene: Scene) {
   eachGlossy(scene, (m) => {
     if (!(ENV_KEY in m.userData)) return;
@@ -115,6 +159,8 @@ export function syncReflectionProbe(renderer: unknown, scene: Scene, camera: Per
   const enabled = backend === 'webgpu' && flags.materials && tier !== 'low';
   if (!enabled) {
     if (applied) restore(scene);
+    if (glassSwapped) restoreGlass(scene);
+    lastCount = -1; // bật lại → đổi kính ngay lần đứng yên đầu
     return;
   }
   if (moving) return;
@@ -122,6 +168,7 @@ export function syncReflectionProbe(renderer: unknown, scene: Scene, camera: Per
   if (count === lastCount && last.distanceToSquared(p) < 2.25) return;
   last.copy(p);
   lastCount = count;
+  swapGlass(scene);
   const ceilings = [...(registry.byType.ceiling ?? [])].map((id) => registry.nodes.get(id)).filter(Boolean) as Object3D[];
   reflectStats.inside = reflectProbeWanted(p, ceilings);
   if (!reflectStats.inside) {
