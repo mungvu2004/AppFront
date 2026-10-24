@@ -43,8 +43,10 @@ export const SCENE_PALETTE = {
  * `clay*` là màu đất sét khi tô `solid`.
  */
 export const RENDER_LOOK_PALETTE = {
-  background: '#8d8c89',
-  sky: '#a3a29f',
+  // Trời = gradient trung tính sáng (trước #8d8c89/#a3a29f qua chỉnh màu ra nâu đục, nhà như
+  // đặt trong hộp tối). `background` (dưới chân trời) giữ tối hơn tường sáng (test renderLook).
+  background: '#979899',
+  sky: '#d8dadb',
   ground: '#74726e',
   ambient: '#fff1e0',
   hemiSky: '#fff6ea',
