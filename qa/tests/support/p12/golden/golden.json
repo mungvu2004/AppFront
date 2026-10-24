@@ -1,10 +1,10 @@
 {
-  "$comment": "IT-ML golden set (docs/it-ml/IT-PLAN.md §4). G1-G5 = CubiCasa5k TEST split (extracted/cubicasa5k/test.txt, F1_scaled.png), never in train. 'expect' = baseline counts ±25 % (at least ±2); baseline.approvedBy stays null until the owner reviews them. IT-ML-016 fails while a range is null.",
+  "$comment": "IT-ML golden set (docs/it-ml/IT-PLAN.md §4). G1-G5 = CubiCasa5k TEST split (extracted/cubicasa5k/test.txt, F1_scaled.png), never in train. 'expect' = baseline counts ±25 % (at least ±2); baseline.approvedBy/approvedAt record the owner's review. IT-ML-016 fails while a range is null.",
   "baseline": {
     "runId": "it-ml/r2 2026-10-24 (AppBack main 6fb48ec8: BUG-IT-001..004 fixed)",
-    "approvedBy": null,
-    "approvedAt": null,
-    "note": "ranges = r2 counts +-25 % (min +-2); PENDING owner review; baselineCountsBeforeFix = first baseline (2925da92)"
+    "approvedBy": "mungvu2004 (chủ dự án)",
+    "approvedAt": "2026-10-24",
+    "note": "ranges = r2 counts +-25 % (min +-2); approved by owner 2026-10-24; baselineCountsBeforeFix = first baseline (2925da92)"
   },
   "samples": {
     "G1-small": {
