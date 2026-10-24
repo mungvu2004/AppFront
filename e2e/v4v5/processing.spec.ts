@@ -25,7 +25,8 @@ async function expectSeededRun(page: Page): Promise<void> {
   await expect(page.getByRole('navigation', { name: 'Xử lý' })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
-  await expect(page.getByText('Đã xong 1/1 tầng')).toBeVisible();
+  // useProcessingScreen.ts:186 renders "Đã xử lý xong N/N tầng" (older builds: "Đã xong …"); accept both.
+  await expect(page.getByText(/^Đã (?:xử lý )?xong 1\/1 tầng/u)).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Chưa có bước nào để theo dõi' })).toHaveCount(0);
 }
 

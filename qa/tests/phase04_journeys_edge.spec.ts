@@ -732,7 +732,8 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
       await test.step('[X4-A-030] SCR-12 summary → SCR-14 → apply → Back: the summary is still finished, no new upload', async () => {
         const mark = run!.flow.sent.length;
         await on(screens.pipeline);
-        await expect(page.getByText(/^Đã xong ([1-9]\d*)\/\1 tầng/u)).toBeVisible({ timeout: 60_000 });
+        // useProcessingScreen.ts:186 renders "Đã xử lý xong N/N tầng" (older builds: "Đã xong …"); accept both.
+        await expect(page.getByText(/^Đã (?:xử lý )?xong ([1-9]\d*)\/\1 tầng/u)).toBeVisible({ timeout: 60_000 });
         await page.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ', exact: true }).click();
         await expect.poll(() => pathOf(page)).toBe(screens.scale);
         await drawReference(page, 6_000);
@@ -741,7 +742,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         expect((await applied).response.status()).toBe(200);
         await page.goBack();
         await expect.poll(() => pathOf(page)).toBe(screens.pipeline);
-        await expect.soft(page.getByText(/^Đã xong ([1-9]\d*)\/\1 tầng/u)).toBeVisible();
+        await expect.soft(page.getByText(/^Đã (?:xử lý )?xong ([1-9]\d*)\/\1 tầng/u)).toBeVisible();
         const uploads = run!.flow.sent.slice(mark).filter((r) => r.method === 'POST' && /\/drawings\/uploads/u.test(r.path));
         expect.soft(uploads, 'no new upload after Back').toHaveLength(0);
         await ev(page, 'X4-A-030', 'summary-still-finished');
