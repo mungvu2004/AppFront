@@ -116,7 +116,7 @@ const closetParts = ({ W, H, D }) => {
  * Tủ bếp dưới: chân đế lùi 10 cm, ô 1 = 3 ngăn kéo, các ô khác = ngăn kéo trên + cánh, mặt đá dày top
  * nhô 20 mm trước cánh; `top` = cao mặt đá (thấp hơn H thì phần còn lại là tấm ốp tường đá sau lưng).
  */
-const baseParts = ({ W, H, D }, top = H, topT = 0.04) => {
+const baseParts = ({ W, H, D }, top = H, topT = 0.04, bodyTop = top - topT) => {
   const zb = -D / 2;
   const zf = D / 2 - HP;
   const zd = zf - T;
@@ -149,7 +149,7 @@ const baseParts = ({ W, H, D }, top = H, topT = 0.04) => {
   return {
     cabinet: merge(
       box(xs[0], xs[1], 0, plinth, zb + 0.02, zd - 0.06),
-      bevelBox(xs[0], xs[1], plinth, top - topT, zb, zd, 0.002),
+      bevelBox(xs[0], xs[1], plinth, bodyTop, zb, zd, 0.002),
       ...fronts,
     ),
     countertop: merge(
@@ -158,6 +158,62 @@ const baseParts = ({ W, H, D }, top = H, topT = 0.04) => {
     ),
     handle: merge(...handles),
   };
+};
+
+/**
+ * Tủ bếp có chậu rửa (bồn 20 mm của bản vẽ nằm trên dãy tủ): như tủ bếp dưới nhưng mặt đá khoét lỗ,
+ * chậu inox âm bàn sâu 0,2 m, viền inox, vòi cổ ngỗng thấp sau chậu. Thân tủ hạ dưới đáy chậu
+ * (mặt trên thân che mất đáy chậu nếu cao hơn); ba mặt hông/lưng vẫn lên tới mặt đá.
+ */
+const sinkParts = ({ W, H, D }, top = 0.9) => {
+  const topT = 0.04;
+  const floor = top - 0.2;
+  const parts = baseParts({ W, H, D }, top, topT, floor - 0.01);
+  const zb = -D / 2;
+  const zf = D / 2 - HP;
+  const zd = zf - T;
+  const xs = [-W / 2 + 0.003, W / 2 - 0.003];
+  const [hx, hz0, hz1] = [0.28, -0.2, 0.26];
+  const wall = 0.0015;
+  const ring = 0.02;
+  const faucetZ = hz0 - 0.045;
+  // Mặt đá khoét lỗ: tấm trước + sau suốt chiều dài (mép trước liền, không đường nối), hai tấm hông lỗ
+  // (đường nối nằm dưới viền inox); tấm chắn sau (backsplash) giữ như tủ thường.
+  const slab = (x0, x1, z0, z1) => bevelBox(x0, x1, top - topT, top, z0, z1, 0.003);
+  parts.countertop = merge(
+    slab(-W / 2, W / 2, zb, hz0),
+    slab(-W / 2, W / 2, hz1, zf + 0.02),
+    box(-W / 2, -hx, top - topT, top, hz0, hz1),
+    box(hx, W / 2, top - topT, top, hz0, hz1),
+    ...(top < H - 0.01 ? [bevelBox(-W / 2, W / 2, top, H, zb, zb + 0.015, 0.002)] : []),
+  );
+  // Thân hạ dưới đáy chậu (baseParts `bodyTop`) → thêm hai hông + lưng lên tới dưới mặt đá.
+  parts.cabinet = merge(
+    parts.cabinet,
+    box(xs[0], xs[0] + T, floor - 0.01, top - topT, zb, zd),
+    box(xs[1] - T, xs[1], floor - 0.01, top - topT, zb, zd),
+    box(xs[0], xs[1], floor - 0.01, top - topT, zb, zb + T),
+  );
+  parts.steel = merge(
+    box(-hx, hx, floor, floor + wall, hz0, hz1),
+    box(-hx, -hx + wall, floor, top, hz0, hz1),
+    box(hx - wall, hx, floor, top, hz0, hz1),
+    box(-hx, hx, floor, top, hz0, hz0 + wall),
+    box(-hx, hx, floor, top, hz1 - wall, hz1),
+    // Viền 2 mm trên mặt đá quanh lỗ.
+    box(-hx - ring, hx + ring, top, top + 0.002, hz0 - ring, hz0),
+    box(-hx - ring, hx + ring, top, top + 0.002, hz1, hz1 + ring),
+    box(-hx - ring, -hx, top, top + 0.002, hz0, hz1),
+    box(hx, hx + ring, top, top + 0.002, hz0, hz1),
+    // Vòi: thân đứng, cần ngang vươn ra trên chậu, miệng chúc xuống, tay gạt bên phải.
+    bevelBox(-0.018, 0.018, top, H, faucetZ - 0.018, faucetZ + 0.018, 0.008),
+    bevelBox(-0.012, 0.012, H - 0.024, H, faucetZ, faucetZ + 0.2, 0.006),
+    bevelBox(-0.012, 0.012, H - 0.06, H - 0.024, faucetZ + 0.176, faucetZ + 0.2, 0.004),
+    bevelBox(0.018, 0.07, H - 0.06, H - 0.048, faucetZ - 0.006, faucetZ + 0.006, 0.003),
+    // Nắp thoát nước giữa đáy chậu.
+    box(-0.03, 0.03, floor + wall, floor + wall + 0.003, (hz0 + hz1) / 2 - 0.03, (hz0 + hz1) / 2 + 0.03),
+  );
+  return parts;
 };
 
 /** Tủ bếp trên treo tường: cánh đôi full cao, tay nắm dọc ngắn ở mép dưới, hai cánh mỗi cặp quay vào nhau. */
@@ -213,6 +269,8 @@ export const CABINETS = {
   'closet-gen': { pascal: 'closet', label: 'Wardrobe', size: { W: 1.95, H: 2.26, D: 0.6 }, parts: closetParts },
   'kitchen-counter-gen': { pascal: 'kitchen-counter', label: 'Counter', size: { W: 1.96, H: 0.73, D: 0.63 }, parts: (s) => baseParts(s) },
   'kitchen-cabinet-gen': { pascal: 'kitchen-cabinet', label: 'Kitchen', size: { W: 1.65, H: 1.09, D: 0.77 }, parts: (s) => baseParts(s, 0.9) },
+  // Thay `kitchen` (dãy bếp có chậu của Pascal, một vật liệu): cùng hộp với tủ bếp dưới để hai dãy cao bằng nhau.
+  'kitchen-sink-gen': { pascal: 'kitchen-cabinet', label: 'Sink', size: { W: 1.65, H: 1.09, D: 0.77 }, parts: (s) => sinkParts(s) },
   'kitchen-shelf-gen': { pascal: 'kitchen-shelf', label: 'Wall unit', size: { W: 2.21, H: 0.89, D: 0.52 }, parts: wallParts },
   'tv-stand-gen': { pascal: 'tv-stand', label: 'TV stand', size: { W: 1.86, H: 0.35, D: 0.32 }, parts: tvParts },
 };
@@ -223,6 +281,7 @@ const LOOK = {
   cabinet: { colour: [0.86, 0.85, 0.82, 1], rough: 0.6, metal: 0 },
   countertop: { colour: [0.62, 0.62, 0.6, 1], rough: 0.4, metal: 0 },
   handle: { colour: [0.12, 0.12, 0.12, 1], rough: 0.35, metal: 0.8 },
+  steel: { colour: [0.78, 0.79, 0.8, 1], rough: 0.3, metal: 0.6 },
 };
 
 /** Như docOf của gen-decor-models nhưng có TEXCOORD_0: chiếu hộp theo trục trội của pháp tuyến, đơn vị mét. */

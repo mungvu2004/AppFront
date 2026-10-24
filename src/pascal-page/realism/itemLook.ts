@@ -57,6 +57,7 @@ export const ITEM_KIND: Record<string, Record<string, MaterialKind>> = {
   'closet-gen': { handle: 'metal' },
   'kitchen-counter-gen': { handle: 'metal' },
   'kitchen-cabinet-gen': { handle: 'metal' },
+  'kitchen-sink-gen': { handle: 'metal', steel: 'steel' },
   'kitchen-shelf-gen': { handle: 'metal' },
   // Gói 5: tủ lạnh Sketchfab "grey polished metal" kim loại 100 % ra đen trong phòng → inox pha.
   'fridge-sf': { '*': 'steelMapped' },

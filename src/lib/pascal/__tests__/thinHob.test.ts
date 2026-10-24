@@ -35,4 +35,12 @@ describe('mặt bếp mỏng', () => {
     expect(node?.asset.scale?.[1]).toBeGreaterThan(0.5);
     expect(counter?.position[1]).toBe(0);
   });
+
+  it('F1: dãy tủ có chậu 20 mm (F-KITCHEN-SINK) dựng thành dãy bếp có chậu, các dãy khác vẫn tủ thường', () => {
+    const { scene } = toPascalScene(SpatialGraphDocumentSchema.parse(houseModelSpatial({ ext: true })).graph);
+    const srcs = Object.values(scene.nodes).flatMap((n) => (n.type === 'item' ? [n.asset.src] : []));
+    // Dãy tủ chân L chứa tâm chậu + chính món chậu mỏng (khuất trong tủ) đều là `kitchen`.
+    expect(srcs.filter((s) => s === '/items/kitchen/model.glb')).toHaveLength(2);
+    expect(srcs.filter((s) => s === '/items/kitchen-cabinet/model.glb').length).toBeGreaterThan(0);
+  });
 });

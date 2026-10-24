@@ -359,6 +359,7 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
       'coffee-table': 'coffee-table-sf',
       'kitchen-counter': 'kitchen-counter-gen',
       'kitchen-cabinet': 'kitchen-cabinet-gen',
+      kitchen: 'kitchen-sink-gen',
       'kitchen-shelf': 'kitchen-shelf-gen',
       'tv-stand': 'tv-stand-gen',
     };

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { APPFRONT_MODELS, CATALOG_MODELS, VARIANT_MODEL, VENDOR_MODELS, modelSrcOf, thumbnailOf } from '../furnitureCatalog';
+import { APPFRONT_MODELS, CATALOG_MODELS, REALISM_MODEL_SWAP, VARIANT_MODEL, VENDOR_MODELS, modelSrcOf, thumbnailOf } from '../furnitureCatalog';
 import { itemSlotsOf, lampInteractiveOf } from '../sceneDressing';
 
 const ROOT = resolve(__dirname, '../../../..');
@@ -104,14 +104,19 @@ describe('furnitureCatalog', () => {
     expect(thumbnailOf('sofa')).toBe('/items/sofa/thumbnail.webp');
   });
 
-  it('mọi khe đè vật liệu (itemSlotsOf) có thật trong GLB của mô hình (slot_<khe>)', () => {
-    for (const folder of Object.keys(CATALOG_MODELS)) {
-      const slots = itemSlotsOf(folder);
-      if (slots === undefined) continue;
+  it('mọi khe đè vật liệu (itemSlotsOf) có thật trong GLB của mô hình (slot_<khe>) hoặc mẫu realism thay nó', () => {
+    const materialsOf = (folder: string): string[] => {
       const dir = folder in APPFRONT_MODELS ? 'assets/appfront-items' : 'vendor/pascal/assets/items';
       const glb = readFileSync(resolve(ROOT, dir, folder, 'model.glb'));
       const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8')) as { materials?: { name?: string }[] };
-      const names = new Set((json.materials ?? []).map((m) => m.name));
+      return (json.materials ?? []).map((m) => m.name ?? '');
+    };
+    for (const folder of Object.keys(CATALOG_MODELS)) {
+      const slots = itemSlotsOf(folder);
+      if (slots === undefined) continue;
+      // `kitchen` của Pascal một vật liệu không khe; khe dành cho `kitchen-sink-gen` (cờ realism).
+      const swap = REALISM_MODEL_SWAP[folder];
+      const names = new Set([...materialsOf(folder), ...(swap === undefined ? [] : materialsOf(swap))]);
       for (const slot of Object.keys(slots)) expect(names.has(`slot_${slot}`), `${folder} slot_${slot}`).toBe(true);
     }
   });

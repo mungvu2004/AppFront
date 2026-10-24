@@ -52,7 +52,7 @@ import { SCENE_STYLE_MATERIALS, sceneStyleOf, type SceneStyle } from './sceneSty
 import { dressingOf, hostTopMm } from './sceneDressingRules';
 import { furnishEmptyRooms } from './sceneFurnish';
 import { furnishingUsageOf, isPlausibleStair, lShapedRunArms, weldWallEnds } from './structureFixes';
-import { isThinHob, modelFolderOf, roleOf } from './sceneVariety';
+import { isThinHob, isThinSink, modelFolderOf, roleOf } from './sceneVariety';
 import type {
   AppFrontOrigin,
   PascalDoorNode,
@@ -595,6 +595,23 @@ const coversPoint = (host: Furniture, p: { readonly x: number; readonly y: numbe
   );
 };
 
+/**
+ * Dãy tủ bếp dưới (vai trò `counter`) có chậu mỏng nằm trên → dựng bằng mẫu của variant `sink` (dãy bếp
+ * có chậu; realism: `kitchen-sink-gen` khoét lỗ mặt đá). Chỉ đổi mẫu, không đổi variant (variant lưu
+ * ngược ra). Chậu mỏng tự nó co về 20 mm, nằm khuất trong tủ.
+ * ponytail: chậu luôn ở giữa mô-đun, không theo tâm chậu trên bản vẽ — tách mô-đun nếu bản vẽ đặt chậu lệch.
+ */
+const sinkFolderOf = (
+  counter: Furniture,
+  all: readonly Furniture[],
+  usageOf: (f: Furniture) => RoomUsage | undefined,
+): string | undefined =>
+  counter.kind === 'kitchenCabinet' &&
+  roleOf(counter, usageOf(counter)) === 'counter' &&
+  all.some((s) => s !== counter && s.levelId === counter.levelId && isThinSink(s) && coversPoint(counter, s.centre))
+    ? VARIANT_MODEL.sink?.folder
+    : undefined;
+
 /** Mặt bếp mỏng: độ nâng = mặt đá của tủ bếp dưới (vai trò `counter`) chứa tâm nó; không có tủ thì 0 (sàn). */
 const counterTopMmOf = (
   hob: Furniture,
@@ -718,6 +735,8 @@ const itemNodeOf = (
   usage?: RoomUsage,
   /** Độ nâng khi cả món lẫn variant không có `liftMm` (mặt bếp trên mặt đá). */
   baseLiftMm = 0,
+  /** Mẫu thay cho mẫu tự chọn (dãy tủ có chậu mỏng nằm trên). */
+  folderOverride?: string,
 ): PascalItemNode => {
   const label = FURNITURE_KIND_LABELS[furniture.kind];
   const widthM = metresOf(furniture.boundingBox.max.x - furniture.boundingBox.min.x);
@@ -726,7 +745,7 @@ const itemNodeOf = (
   const swappedFolder = furniture.model?.src.match(SWAPPED_MODEL_SRC)?.[1];
   const folder =
     furniture.model === undefined
-      ? furnitureFolderOf(furniture, style, usage)
+      ? (folderOverride ?? furnitureFolderOf(furniture, style, usage))
       : swappedFolder !== undefined && Object.prototype.hasOwnProperty.call(CATALOG_MODELS, swappedFolder)
         ? swappedFolder
         : null;
@@ -1159,10 +1178,15 @@ export const toPascalScene = (
       builtRooms.find((r) => r.levelId === furniture.levelId && insideOutline(furniture.centre, r.outline));
     const arms = lShapedRunArms(furniture, room, { ...graph, walls: builtWalls, openings: builtOpenings });
     const usageOf = (f: Furniture) => (f.roomId === undefined ? undefined : roomUsageOf.get(f.roomId));
+    const sinkFolder = sinkFolderOf(furniture, graph.furniture, usageOf);
     const node =
       arms === null
-        ? itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage, counterTopMmOf(furniture, graph.furniture, style, usageOf))
-        : longArmNodeOf(furniture, arms.long, itemNodeOf({ ...furniture, ...arms.long }, levelNodeId, levelHeightMm, style, usage));
+        ? itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage, counterTopMmOf(furniture, graph.furniture, style, usageOf), sinkFolder)
+        : longArmNodeOf(
+            furniture,
+            arms.long,
+            itemNodeOf({ ...furniture, ...arms.long }, levelNodeId, levelHeightMm, style, usage, 0, sinkFolder),
+          );
 
     nodes[node.id] = node;
     adopt(levelNodeId, node.id);

@@ -490,6 +490,14 @@ export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
     rotation: [0, 0, 0],
     topY: 0.9,
   },
+  // Tủ bếp có chậu inox âm bàn + vòi (thay `kitchen` một vật liệu của Pascal); cùng hộp với tủ bếp dưới.
+  'kitchen-sink-gen': {
+    folder: 'kitchen-sink-gen',
+    dimensions: [1.65, 1.09, 0.77],
+    offset: [0, 0, 0],
+    rotation: [0, 0, 0],
+    topY: 0.9,
+  },
   // Tủ bếp trên: giữ gắn tường như dòng Pascal (swap thay cả dòng). Pascal dời y 0,4478 vì GLB tâm giữa; mẫu này đáy y = 0.
   'kitchen-shelf-gen': {
     folder: 'kitchen-shelf-gen',
@@ -538,6 +546,7 @@ export const REALISM_MODEL_SWAP: Readonly<Record<string, string>> = {
   'coffee-table': 'coffee-table-sf',
   'kitchen-counter': 'kitchen-counter-gen',
   'kitchen-cabinet': 'kitchen-cabinet-gen',
+  kitchen: 'kitchen-sink-gen',
   'kitchen-shelf': 'kitchen-shelf-gen',
   'tv-stand': 'tv-stand-gen',
 };

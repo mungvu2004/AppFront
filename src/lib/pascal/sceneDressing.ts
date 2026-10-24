@@ -139,6 +139,8 @@ const SLOT_FAMILY: Readonly<Record<string, Readonly<Record<string, SlotFamily | 
   'fir-tree': { trunk: 'bark' },
   'indoor-plant': { trunk: 'bark', pot: 'pot' },
   'kitchen-cabinet': { cabinet: 'cabinetry', countertop: 'countertop', handle: 'metal' },
+  // Mẫu Pascal `kitchen` một vật liệu không có khe; khe dành cho bản realism `kitchen-sink-gen`.
+  kitchen: { cabinet: 'cabinetry', countertop: 'countertop', handle: 'metal' },
   'kitchen-counter': { cabinet: 'cabinetry', countertop: 'countertop' },
   'kitchen-shelf': { cabinet: 'cabinetry', handle: 'metal' },
   'livingroom-chair': { pillow: 'fabric', cushion: 'fabric' },
