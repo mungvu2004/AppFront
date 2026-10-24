@@ -1,10 +1,10 @@
 {
   "$comment": "IT-ML golden set (docs/it-ml/IT-PLAN.md §4). G1-G5 = CubiCasa5k TEST split (extracted/cubicasa5k/test.txt, F1_scaled.png), never in train. 'expect' = baseline counts ±25 % (at least ±2); baseline.approvedBy stays null until the owner reviews them. IT-ML-016 fails while a range is null.",
   "baseline": {
-    "runId": "it-ml/baseline 2026-10-24",
+    "runId": "it-ml/r2 2026-10-24 (AppBack main 6fb48ec8: BUG-IT-001..004 fixed)",
     "approvedBy": null,
     "approvedAt": null,
-    "note": "ranges = baseline +-25 % (min +-2); PENDING owner review"
+    "note": "ranges = r2 counts +-25 % (min +-2); PENDING owner review; baselineCountsBeforeFix = first baseline (2925da92)"
   },
   "samples": {
     "G1-small": {
@@ -43,6 +43,13 @@
         "windows": 0,
         "furniture": 19,
         "rooms": 2
+      },
+      "baselineCountsBeforeFix": {
+        "walls": 25,
+        "doors": 4,
+        "windows": 0,
+        "furniture": 19,
+        "rooms": 2
       }
     },
     "G2-medium": {
@@ -63,8 +70,8 @@
           74
         ],
         "doors": [
-          0,
-          3
+          3,
+          7
         ],
         "windows": [
           3,
@@ -76,6 +83,13 @@
         ]
       },
       "baselineCounts": {
+        "walls": 59,
+        "doors": 5,
+        "windows": 5,
+        "furniture": 31,
+        "rooms": 5
+      },
+      "baselineCountsBeforeFix": {
         "walls": 59,
         "doors": 1,
         "windows": 5,
@@ -101,12 +115,12 @@
           150
         ],
         "doors": [
-          5,
-          9
+          9,
+          15
         ],
         "windows": [
-          12,
-          20
+          13,
+          23
         ],
         "furniture": [
           33,
@@ -114,6 +128,13 @@
         ]
       },
       "baselineCounts": {
+        "walls": 120,
+        "doors": 12,
+        "windows": 18,
+        "furniture": 44,
+        "rooms": 11
+      },
+      "baselineCountsBeforeFix": {
         "walls": 120,
         "doors": 7,
         "windows": 16,
@@ -139,19 +160,26 @@
           100
         ],
         "doors": [
-          10,
-          18
+          15,
+          25
         ],
         "windows": [
-          8,
-          14
+          9,
+          17
         ],
         "furniture": [
-          47,
-          79
+          45,
+          77
         ]
       },
       "baselineCounts": {
+        "walls": 80,
+        "doors": 20,
+        "windows": 13,
+        "furniture": 61,
+        "rooms": 14
+      },
+      "baselineCountsBeforeFix": {
         "walls": 80,
         "doors": 14,
         "windows": 11,
@@ -177,19 +205,26 @@
           329
         ],
         "doors": [
-          3,
-          7
+          11,
+          19
         ],
         "windows": [
-          16,
-          28
+          22,
+          38
         ],
         "furniture": [
-          51,
-          87
+          50,
+          84
         ]
       },
       "baselineCounts": {
+        "walls": 263,
+        "doors": 15,
+        "windows": 30,
+        "furniture": 67,
+        "rooms": 4
+      },
+      "baselineCountsBeforeFix": {
         "walls": 263,
         "doors": 5,
         "windows": 22,
