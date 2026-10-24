@@ -12,6 +12,7 @@
 
 import type { Room, RoomFinish, RoomUsage, Wall } from '@/domain/spatial/types';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
+import { INTERIOR_SKIRTING } from '@/pascal-page/realism/details';
 
 import { CATALOG_MODELS, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { bodyOfPascalId, toPascalId } from './ids';
@@ -112,7 +113,7 @@ export const wallDressingOf = (
   const { interior, exterior } = style.wall;
   return {
     slots: painted(interior, wall.kind === 'partition' ? interior : exterior),
-    skirting: { enabled: true, sides: 'interior', height: 0.1, proud: 0.015, profile: 'flat' },
+    skirting: { ...INTERIOR_SKIRTING },
     crown: { enabled: true, sides: 'interior', height: 0.05, proud: 0.02, profile: 'flat' },
   };
 };

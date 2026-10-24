@@ -35,8 +35,26 @@ export const EXTERIOR_SKIRTING = {
   profile: 'flat',
 } as const
 
-/** Mặc định cho tường mới. */
+/**
+ * Len chân trong nhà (mọi phong cách cùng cỡ). `wallDressingOf` (src/lib/pascal/sceneDressing.ts)
+ * dùng chung hằng này để tường vẽ mới và tường dựng lúc nạp không lệch nhau.
+ */
+export const INTERIOR_SKIRTING = {
+  enabled: true,
+  sides: 'interior',
+  height: 0.1,
+  proud: 0.015,
+  profile: 'flat',
+} as const
+
+/**
+ * Mặc định cho tường mới: len trong nhà + phào ngoài (`skirting.exterior`, luật r9u), giống
+ * `exteriorSkirtingOf` (toPascal.ts) dựng cho tường bao lúc nạp.
+ * ponytail: Pascal để vách mới giữa hai phòng ở frontSide/backSide 'unknown' (không phân biệt
+ * được với tường lẻ) nên vách mới cũng có phào ngoài ở mặt sau cho tới khi tải lại.
+ */
 export function realismWallDefaults(): Record<string, unknown> {
   if (!enabled) return {}
-  return { skirting: { ...EXTERIOR_SKIRTING } }
+  const { height, proud, profile } = EXTERIOR_SKIRTING
+  return { skirting: { ...INTERIOR_SKIRTING, sides: 'both', exterior: { height, proud, profile } } }
 }
