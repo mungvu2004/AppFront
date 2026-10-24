@@ -265,9 +265,9 @@ describe('dressingOf — đồ trang trí AppFront (FE3D-FIX-004 D)', () => {
   it('giường: chăn gấp ở chân, trên mặt nệm, mẫu AppFront; không gối dựng (mẫu giường có sẵn gối)', () => {
     const items = decorOf(graphOf([bedroom], [bed]));
     expect(items.map((i) => i.id)).toEqual(['DRESS-throw-F-bed']);
-    // Giường 1600 × 2000 = cỡ catalog → cao 710, nệm 0,65.
+    // Giường 1600 × 2000 = cỡ catalog → cao 710, mặt nệm đo từ GLB 0,568 (surfaceTops.json).
     expect(rectOfFurniture(items[0]!)).toEqual({ cx: 2000, cy: 1700, w: 1200, d: 500, rotationDeg: 0 });
-    expect(items[0]?.liftMm).toBe(462);
+    expect(items[0]?.liftMm).toBe(403);
     expect(items[0]?.variant).toBeUndefined();
     expect(items[0]?.slots?.fabric).toBe(STYLE.families.fabric);
     expect(items[0]?.model?.src).toBe('/items/throw-blanket/model.glb');
