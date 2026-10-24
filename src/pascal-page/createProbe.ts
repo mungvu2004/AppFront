@@ -32,6 +32,8 @@ export interface PascalProbe {
   setLights(on: boolean): void;
   /** Chẩn đoán vật liệu lúc chạy của các item có `src` chứa `match` (tên, loại, trong suốt, màu, kim loại, nhám, map). */
   itemMaterials(match: string): Record<string, unknown>[];
+  /** Số đo reflection probe (`realism/reflect.ts`): số lần chụp, ms CPU, số vật liệu bóng. */
+  reflect(): unknown;
 }
 
 export interface ProbeItem {
@@ -142,6 +144,7 @@ export const createPascalProbe = ({ useScene, useViewer, sceneRegistry, emitter,
       const { lampItems, setControlValue } = useInteractive.getState();
       for (const [id, indices] of Object.entries(lampItems)) for (const i of indices) setControlValue(id, i, on);
     },
+    reflect: () => ({ ...((globalThis as { __realismReflect?: object }).__realismReflect ?? {}) }),
     itemMaterials: (match) => {
       const out: Record<string, unknown>[] = [];
       for (const [id, n] of entriesOf('item')) {

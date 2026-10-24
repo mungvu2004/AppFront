@@ -11,6 +11,7 @@
  */
 import {
   DataTexture,
+  EquirectangularReflectionMapping,
   FloatType,
   LinearFilter,
   type Material,
@@ -39,6 +40,25 @@ const skyTex = texture(placeholder);
 const skyWeight = uniform(0);
 let skyHdri: Texture | null = null;
 
+/** Số đo probe, đọc qua `__pascalProbe.reflect()` (`?probe=1`). `lastMs` = thời gian CPU của `fromScene`. */
+export const reflectStats = { captures: 0, lastMs: 0, maxMs: 0, glossy: 0, inside: false };
+(globalThis as { __realismReflect?: object }).__realismReflect = reflectStats;
+
+/**
+ * Bản HDRI THUẦN cho phông trời (chỉ chuẩn độ sáng, không pha gradient như môi trường) — pha gradient
+ * làm mây nhạt, nhìn qua kính chỉ còn mảng xám. `raw` bị nhân `scale` tại chỗ.
+ */
+export function makeSkyTexture(raw: Float32Array, width: number, height: number, scale: number): Texture {
+  for (let i = 0; i < raw.length; i++) if (i % 4 !== 3) raw[i]! *= scale;
+  const t = new DataTexture(raw, width, height, RGBAFormat, FloatType);
+  t.minFilter = LinearFilter;
+  t.magFilter = LinearFilter;
+  t.generateMipmaps = false;
+  t.mapping = EquirectangularReflectionMapping;
+  t.needsUpdate = true;
+  return t;
+}
+
 /** `installHdri` gọi khi HDRI nạp xong (null = gỡ). */
 export function setHdriSky(tex: Texture | null): void {
   skyHdri = tex;
@@ -46,11 +66,11 @@ export function setHdriSky(tex: Texture | null): void {
   skyWeight.value = tex ? 1 : 0;
 }
 
-/** Phông trời: HDRI trên chân trời, gradient sát chân trời. Mức Thấp giữ gradient (không thêm lượt đọc ảnh). */
+/** Phông trời: HDRI ngay trên chân trời (đủ 3,4°: tầm mắt qua cửa sổ thấy mây), dưới giữ gradient. Mức Thấp giữ gradient (không thêm lượt đọc ảnh). */
 export function hdriBackdrop(worldDir: any, gradient: any): any {
   if (currentTier() === 'low') return gradient;
   const sky = skyTex.sample(equirectUV(worldDir)).rgb;
-  return mix(gradient, sky, skyWeight.mul(smoothstep(0.02, 0.22, worldDir.y)));
+  return mix(gradient, sky, skyWeight.mul(smoothstep(0, 0.06, worldDir.y)));
 }
 
 interface RegistryLike {
@@ -103,7 +123,8 @@ export function syncReflectionProbe(renderer: unknown, scene: Scene, camera: Per
   last.copy(p);
   lastCount = count;
   const ceilings = [...(registry.byType.ceiling ?? [])].map((id) => registry.nodes.get(id)).filter(Boolean) as Object3D[];
-  if (!reflectProbeWanted(p, ceilings)) {
+  reflectStats.inside = reflectProbeWanted(p, ceilings);
+  if (!reflectStats.inside) {
     if (applied) restore(scene);
     return;
   }
@@ -111,10 +132,16 @@ export function syncReflectionProbe(renderer: unknown, scene: Scene, camera: Per
   const bg = scene.background;
   // Cửa sổ trong ảnh chụp thấy trời HDRI thay màu nền phẳng.
   if (skyHdri && skyWeight.value > 0) scene.background = skyHdri;
+  const t0 = performance.now();
   probeRT = pmrem.fromScene(scene, 0, 0.05, 60, { size: 256, position: p, renderTarget: probeRT });
   scene.background = bg;
+  reflectStats.lastMs = performance.now() - t0;
+  reflectStats.maxMs = Math.max(reflectStats.maxMs, reflectStats.lastMs);
+  reflectStats.captures++;
+  reflectStats.glossy = 0;
   const env = probeRT.texture;
   eachGlossy(scene, (m) => {
+    reflectStats.glossy++;
     if (!(ENV_KEY in m.userData)) m.userData[ENV_KEY] = m.envMap;
     if (m.envMap !== env) {
       m.envMap = env;
