@@ -10,7 +10,7 @@
 
 import type { Furniture, FurnitureId, FurnitureVariant, Millimetres, Point, Room, SpatialGraph } from '@/domain/spatial/types';
 
-import { CATALOG_MODELS, VARIANT_MODEL, modelSrcOf } from './furnitureCatalog';
+import { CATALOG_MODELS, VARIANT_MODEL, modelSrcOf, topFractionOf } from './furnitureCatalog';
 import {
   doorSwingRects,
   rectCorners,
@@ -134,11 +134,9 @@ const hostHeightMm = (f: Furniture, style: SceneStyle, usage: Room['usage'] | un
   return dims[1] * Math.min(w / dims[0], d / dims[2], 1.25) * 1000;
 };
 
-/** Mặt đặt đồ của món chủ (mm trên sàn): mẫu có `topY` (giường, bàn, tủ bếp) dùng mặt đo sẵn, không thì `fraction` × cao. */
-export const hostTopMm = (f: Furniture, style: SceneStyle, usage: Room['usage'] | undefined, fraction = 1): number => {
-  const m = CATALOG_MODELS[modelFolderOf(f, style, usage) ?? ''];
-  return (m?.topY !== undefined ? m.topY / m.dimensions[1] : fraction) * hostHeightMm(f, style, usage);
-};
+/** Mặt đặt đồ của món chủ (mm trên sàn): mặt đo từ GLB (`topFractionOf`) × cao; mẫu chưa đo thì `fraction` × cao. */
+export const hostTopMm = (f: Furniture, style: SceneStyle, usage: Room['usage'] | undefined, fraction = 1): number =>
+  (topFractionOf(modelFolderOf(f, style, usage) ?? '') ?? fraction) * hostHeightMm(f, style, usage);
 
 /**
  * Khung tranh áp tường sau lưng món chủ (trục `axis`, phía `back`): dò ra xa dần tới khi chạm thân
@@ -403,7 +401,7 @@ export const dressingOf = (graph: SpatialGraph, style: SceneStyle): readonly Fur
         ...(slots === undefined ? {} : { slots }),
       };
     };
-    // Mẫu có `topY` (giường đầu cao, bàn có đồ trên mặt): mặt đặt đồ đo sẵn thay tỉ lệ mặc định.
+    // Mặt đặt đồ đo từ GLB (nệm, đệm ngồi, mặt bàn); tỉ lệ mặc định chỉ cho mẫu chưa đo.
     const topOf = (f: Furniture, fraction = 1): number => hostTopMm(f, style, room.usage, fraction);
     /** Món chủ + mọi thảm (thật và sinh ra): đồ trang trí nằm trên/treo trên thảm được. */
     const over = (...ids: string[]): ReadonlySet<string> =>
@@ -471,7 +469,8 @@ export const dressingOf = (graph: SpatialGraph, style: SceneStyle): readonly Fur
       const [fw, fh, fd] = [frame[0] * 1000, frame[1] * 1000, frame[2] * 1000];
       const mount = againstWall(rect, axis, back, half, fw, fd, walls);
       if (mount === undefined) continue;
-      const lift = Math.max(FRAME_MIN_LIFT_MM, topOf(f) + FRAME_ABOVE_HOST_MM);
+      // Tranh trên ĐỈNH món (đầu giường, tựa lưng sofa), không phải mặt đặt đồ.
+      const lift = Math.max(FRAME_MIN_LIFT_MM, hostHeightMm(f, style, room.usage) + FRAME_ABOVE_HOST_MM);
       if (windows.some((w) => rectsOverlap(mount, w)) || lift + fh > levelHeightMm) continue;
       tryPlace(`DRESS-frame-${f.id}`, [mount], over(f.id), undefined, decor(FRAME_FOLDER, lift), 0);
     }

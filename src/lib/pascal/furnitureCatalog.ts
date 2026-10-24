@@ -1,6 +1,7 @@
 // Bảng tay chép từ vendor/pascal catalog-items.tsx (không import: file đó mang 333 URL supabase,
 // còn toPascal được app chính import). furnitureCatalog.test.ts đối chiếu từng dòng với catalog.
 import { SCENE_PALETTE } from './scenePalette';
+import SURFACE_TOPS from './surfaceTops.json';
 
 export interface CatalogModel {
   readonly folder: string;
@@ -12,7 +13,7 @@ export interface CatalogModel {
   readonly scale?: readonly [number, number, number];
   readonly attachTo?: string;
   readonly interactive?: unknown;
-  /** Mét (khung mẫu): mặt nệm/mặt bàn để đặt đồ trang trí; bỏ = tỉ lệ mặc định của luật bày đồ. */
+  /** Mét (khung mẫu): mặt đặt đồ nhập tay, thắng số đo GLB `surfaceTops.json`; chỉ dùng khi số đo sai. */
   readonly topY?: number;
   /** Mẫu đã có chăn gối thật (giường Sketchfab): luật bày đồ không đặt chăn gấp lên nữa. */
   readonly dressed?: boolean;
@@ -88,7 +89,7 @@ export const VENDOR_MODELS: Readonly<Record<string, CatalogModel>> = {
   },
   // `kitchen-counter` là khối hộp trơn (không cửa, không tay nắm) — chỉ giữ cho dữ liệu cũ.
   // Tủ bếp dưới: ngăn kéo + cửa + tay nắm (khe cabinet/countertop/handle).
-  // topY = mặt đá (phía trên chỉ còn tấm ốp sau 1,5 cm) — mặt bếp `hob-sf` đặt lên đây.
+  // topY = mặt đá 0,9 m (tay) — số đo GLB ra đỉnh hộp 1,087 m (mặt trên kín 93 % mặt bằng), giữ số tay.
   'kitchen-cabinet': {
     folder: 'kitchen-cabinet',
     dimensions: [1.65, 1.09, 0.77],
@@ -443,7 +444,7 @@ export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
   'planter-long': { folder: 'planter-long', dimensions: [2.378, 0.873, 0.653], offset: [0, 0, 0], rotation: [0, 0, 0] },
   // Gói 4B: tủ sinh bằng code (scripts/realism-assets/cabinets.mjs) thay tủ khối hộp Pascal — chân đế lùi, cánh tách
   // khe 3 mm, mép vát, tay nắm thanh, mặt đá nhô. Khe vật liệu đúng tên mẫu Pascal; hộp = hộp Pascal.
-  // Gói 5: Sketchfab CC BY 4.0 (ghi nguồn ở LICENSES.md). topY = mặt kính đo từ hình học.
+  // Gói 5: Sketchfab CC BY 4.0 (ghi nguồn ở LICENSES.md).
   'wardrobe-sf': { folder: 'wardrobe-sf', dimensions: [1.203, 2.2, 0.637], offset: [0, 0, 0], rotation: [0, 0, 0] },
   'fridge-sf': { folder: 'fridge-sf', dimensions: [0.921, 1.85, 0.795], offset: [0, 0, 0], rotation: [0, 0, 0] },
   'toilet-sf': { folder: 'toilet-sf', dimensions: [0.476, 0.74, 0.604], offset: [0, 0, 0], rotation: [0, 0, 0] },
@@ -453,7 +454,6 @@ export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
     dimensions: [2.407, 0.76, 0.926],
     offset: [0, 0, 0],
     rotation: [0, 0, 0],
-    topY: 0.63,
   },
   'dresser-sf': { folder: 'dresser-sf', dimensions: [1.096, 0.96, 0.55], offset: [0, 0, 0], rotation: [0, 0, 0] },
   'tv-sf': { folder: 'tv-sf', dimensions: [1.16, 0.716, 0.366], offset: [0, 0, 0], rotation: [0, 0, 0] },
@@ -488,7 +488,6 @@ export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
     dimensions: [1.65, 1.09, 0.77],
     offset: [0, 0, 0],
     rotation: [0, 0, 0],
-    topY: 0.9,
   },
   // Tủ bếp có chậu inox âm bàn + vòi (thay `kitchen` một vật liệu của Pascal); cùng hộp với tủ bếp dưới.
   'kitchen-sink-gen': {
@@ -496,7 +495,6 @@ export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
     dimensions: [1.65, 1.09, 0.77],
     offset: [0, 0, 0],
     rotation: [0, 0, 0],
-    topY: 0.9,
   },
   // Tủ bếp trên: giữ gắn tường như dòng Pascal (swap thay cả dòng). Pascal dời y 0,4478 vì GLB tâm giữa; mẫu này đáy y = 0.
   'kitchen-shelf-gen': {
@@ -608,3 +606,13 @@ export const VARIANT_MODEL: Readonly<
 
 export const modelSrcOf = (folder: string): string => `/items/${fileFolderOf(folder)}/model.glb`;
 export const thumbnailOf = (folder: string): string => `/items/${fileFolderOf(folder)}/thumbnail.webp`;
+
+/**
+ * Mặt đặt đồ của mẫu, tỉ lệ chiều cao (0 = đáy, 1 = đỉnh): `topY` tay thắng, không thì số đo GLB của
+ * thư mục file thật (đã swap realism) — `node scripts/realism-assets/surface-tops.mjs`. undefined = chưa đo.
+ */
+export const topFractionOf = (folder: string): number | undefined => {
+  const m = CATALOG_MODELS[folder];
+  if (m === undefined) return undefined;
+  return m.topY !== undefined ? m.topY / m.dimensions[1] : (SURFACE_TOPS as Record<string, number>)[fileFolderOf(folder)];
+};
