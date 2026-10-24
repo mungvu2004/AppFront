@@ -409,6 +409,7 @@ export const dressingOf = (graph: SpatialGraph, style: SceneStyle): readonly Fur
     // (6) Chăn gấp ở chân giường, trên mặt nệm. (5) Gối tựa đầu giường đã bỏ (review2): mẫu `double-bed`
     // của mọi giường có sẵn 3 gối, gối dựng thêm cắt vào đầu giường.
     for (const { f, rect } of withRole(BED_ROLES)) {
+      if (CATALOG_MODELS[modelFolderOf(f, style, room.usage) ?? '']?.dressed) continue;
       const lengthAxis = rect.d >= rect.w ? 1 : 0;
       const length = lengthAxis === 1 ? rect.d : rect.w;
       const foot = openSideOf(rect, lengthAxis, room.outline);

@@ -14,6 +14,8 @@ export interface CatalogModel {
   readonly interactive?: unknown;
   /** Mét (khung mẫu): mặt nệm/mặt bàn để đặt đồ trang trí; bỏ = tỉ lệ mặc định của luật bày đồ. */
   readonly topY?: number;
+  /** Mẫu đã có chăn gối thật (giường Sketchfab): luật bày đồ không đặt chăn gấp lên nữa. */
+  readonly dressed?: boolean;
 }
 
 /** Dòng chép từ catalog-items.tsx của Pascal — test bắt khớp từng trường. */
@@ -453,8 +455,8 @@ export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
   },
   'dresser-sf': { folder: 'dresser-sf', dimensions: [1.096, 0.96, 0.55], offset: [0, 0, 0], rotation: [0, 0, 0] },
   'tv-sf': { folder: 'tv-sf', dimensions: [1.16, 0.716, 0.366], offset: [0, 0, 0], rotation: [0, 0, 0] },
-  // Gói 6: giường (topY = mặt nệm), cabin tắm ép vuông, máy hút mùi áp tường, bếp liền lò, bàn trà gỗ.
-  'bed-sf': { folder: 'bed-sf', dimensions: [1.8, 0.938, 2.252], offset: [0, 0, 0], rotation: [0, 0, 0], topY: 0.51 },
+  // Gói 6: giường (có sẵn chăn gối), cabin tắm ép vuông, máy hút mùi áp tường, bếp liền lò, bàn trà gỗ.
+  'bed-sf': { folder: 'bed-sf', dimensions: [1.8, 0.938, 2.252], offset: [0, 0, 0], rotation: [0, 0, 0], dressed: true },
   'shower-sf': { folder: 'shower-sf', dimensions: [0.95, 1.998, 0.95], offset: [0, 0, 0], rotation: [0, 0, 0] },
   'hood-sf': {
     folder: 'hood-sf',

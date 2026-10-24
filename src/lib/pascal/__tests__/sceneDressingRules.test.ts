@@ -11,6 +11,7 @@ import type {
   Wall,
 } from '@/domain/spatial/types';
 
+import { setRealismModels } from '../furnitureCatalog';
 import { doorSwingRects, rectInsidePolygon, rectOfFurniture, rectsOverlap } from '../placement';
 import { dressingOf as allDressingOf } from '../sceneDressingRules';
 import { sceneStyleOf, type SceneStyle } from '../sceneStyles';
@@ -270,6 +271,15 @@ describe('dressingOf — đồ trang trí AppFront (FE3D-FIX-004 D)', () => {
     expect(items[0]?.variant).toBeUndefined();
     expect(items[0]?.slots?.fabric).toBe(STYLE.families.fabric);
     expect(items[0]?.model?.src).toBe('/items/throw-blanket/model.glb');
+  });
+
+  it('mẫu giường thật (realism, có sẵn chăn gối): không đặt chăn gấp', () => {
+    setRealismModels(true);
+    try {
+      expect(decorOf(graphOf([bedroom], [bed]))).toEqual([]);
+    } finally {
+      setRealismModels(false);
+    }
   });
 
   it('giường xoay 90°, đầu tựa tường phải: chăn ở phía chân', () => {
