@@ -52,4 +52,5 @@ Tải 2026-10-24 bằng tài khoản Sketchfab của chủ dự án (bản glTF)
 | shower-sf | "Shower Cabin" by Heliona (@Heliona) — https://sketchfab.com/3d-models/e2c6a8dd490e4e4398378e1f6c9121a8 | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
 | hood-sf | "Range Hood (Kitchen Hood)" by govindu94 (@govindu94) — https://sketchfab.com/3d-models/e846cb48e88446808af55976ff76b1da | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
 | stove-sf | "IKEA Range with Gas Cooktop" by MUSHROOM_BUILDS (@MUSHROOM_BUILDS) — https://sketchfab.com/3d-models/0568b8cf6a8444099c55eab7ca1a7de0 | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
+| hob-sf | "IKEA Range with Gas Cooktop" (cooktop part only) by MUSHROOM_BUILDS (@MUSHROOM_BUILDS) — https://sketchfab.com/3d-models/0568b8cf6a8444099c55eab7ca1a7de0 | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
 | coffee-table-sf | "Simple Wooden Coffee Table – Game Asset" by AspectStudios (@AspectStudio) — https://sketchfab.com/3d-models/e80cccd7091049d2becc13384e218bc5 | CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) |
