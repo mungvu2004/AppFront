@@ -38,4 +38,5 @@ export const RouteModelLibrary = lazy(() => import('../screens/admin/ModelLibrar
 export const RouteModelRegistry = lazy(() => import('../screens/admin/ModelRegistry').then(m => ({ default: m.ModelRegistryRoute })));
 export const RouteTrainingJobs = lazy(() => import('../screens/admin/TrainingJobs').then(m => ({ default: m.TrainingJobsRoute })));
 export const RouteUserManagement = lazy(() => import('../screens/admin/UserManagement').then(m => ({ default: m.UserManagementRoute })));
-export const RouteLanding = lazy(() => import('../screens/landing/Landing.container').then(m => ({ default: m.LandingRoute })));
+// `/welcome` = bản kết hợp v6 (`landing-lab/combo`), chủ dự án chốt 24-10; trang cuộn cũ `screens/landing` thôi dùng.
+export const RouteLanding = lazy(() => import('../screens/landing-lab/combo/index'));

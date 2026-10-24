@@ -150,6 +150,8 @@ const MAIN_OWNERS = [
   'dashboard/ProjectDashboard/ProjectDashboard.tsx',
   'landing/LandingView.tsx',
   'landing/StaticLanding.tsx',
+  // `/welcome` từ 24-10 (bản kết hợp v6); hai tệp `landing/` ở trên chỉ còn test riêng của chúng.
+  'landing-lab/combo/index.tsx',
   'system/MobileViewer/MobileViewer.tsx',
   'viewer/ViewerShell/ViewerViewport.tsx',
 ];

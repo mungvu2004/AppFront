@@ -53,117 +53,120 @@ export default function Combo() {
   const liveButtonRef = useRef<HTMLButtonElement>(null);
   useCombo(rootRef, trackRef, canvasRef, liveRef, liveButtonRef);
 
+  // `<main>`: từ 24-10 đây là trang `/welcome` thật (ngoài `AppLayout`, tự mang landmark của mình).
   return (
-    <div className="bp cb" ref={rootRef} data-tone="paper">
-      <div className="cb-track" ref={trackRef} style={{ height: `${String(TRACK_VH)}vh` }}>
-        <div className="bp-stage cb-stage">
-          <canvas className="bp-canvas" ref={canvasRef} aria-hidden="true" />
-          <canvas className="cb-live" ref={liveRef} role="img" aria-label="Phòng khách minh hoạ dựng 3D, kéo chuột để xoay" />
-          <p className="cb-live-hint" aria-hidden="true">
-            Kéo để nhìn quanh phòng khách
-          </p>
-          <button type="button" className="cb-live-btn" ref={liveButtonRef}>
-            <span className="cb-live-go">Xem phòng khách 3D</span>
-            <span className="cb-live-wait">Đang tải mô hình 3D…</span>
-          </button>
-          <div className="cb-scrim" data-win="0.37,0.39,0.49,0.51" aria-hidden="true">
-            <div className="cb-scrim-desk" data-rest="" />
-          </div>
-          <div className="cb-scrim" data-win="0.5,0.53,2,2" aria-hidden="true">
-            <div className="cb-scrim-photo" data-rest="" />
-          </div>
-
-          <header className="bp-run" data-slide="up">
-            <span className="bp-brand">AppFront</span>
-            <span>Bản vẽ thành nhà · một cuốn sách nhỏ về mặt bằng</span>
-            <nav>
-              <Link to="/login">Đăng nhập</Link>
-            </nav>
-          </header>
-          <div className="cb-top" data-win="0.35,0.37,2,2">
-            <span className="bp-brand" data-rest="">
-              AppFront
-            </span>
-            <Link to="/login" data-rest="">
-              Đăng nhập
-            </Link>
-          </div>
-
-          <section className="bp-col bp-hero cb-hero" data-win="load,1,0.035,0.06">
-            <p className="bp-kicker" data-rest="">
-              <b>Chương 1</b> Từ mặt bằng 2D đến mô hình 3D nhiều tầng
+    <main>
+      <div className="bp cb" ref={rootRef} data-tone="paper">
+        <div className="cb-track" ref={trackRef} style={{ height: `${String(TRACK_VH)}vh` }}>
+          <div className="bp-stage cb-stage">
+            <canvas className="bp-canvas" ref={canvasRef} aria-hidden="true" />
+            <canvas className="cb-live" ref={liveRef} role="img" aria-label="Phòng khách minh hoạ dựng 3D, kéo chuột để xoay" />
+            <p className="cb-live-hint" aria-hidden="true">
+              Kéo để nhìn quanh phòng khách
             </p>
-            <Lines as="h1" className="bp-h1" lines={['Bản vẽ của bạn,', 'đọc như một cuốn sách,', 'dựng như một ngôi nhà.']} />
-            <p className="bp-sub" data-rest="">
-              Tải lên mặt bằng 2D, AI nhận ra tường, cửa và phòng; bạn chỉnh lại, rồi có mô hình 3D nhiều tầng để xem và xuất.
-            </p>
-            <div className="bp-actions" data-rest="">
-              <Link className="bp-cta" to="/login">
-                Bắt đầu dự án
-              </Link>
-              <Link className="bp-quiet" to="/login">
-                Đăng nhập
-              </Link>
+            <button type="button" className="cb-live-btn" ref={liveButtonRef}>
+              <span className="cb-live-go">Xem phòng khách 3D</span>
+              <span className="cb-live-wait">Đang tải mô hình 3D…</span>
+            </button>
+            <div className="cb-scrim" data-win="0.37,0.39,0.49,0.51" aria-hidden="true">
+              <div className="cb-scrim-desk" data-rest="" />
             </div>
-          </section>
-
-          {NOTES.map((n) => (
-            <section key={n.win} className="bp-col bp-note cb-note" data-win={n.win} aria-label={n.title.join(' ')}>
-              {n.num !== '' && <Lines className="bp-num" lines={[n.num]} />}
-              <Lines as="h2" lines={n.title} />
-              <div className="bp-rule" data-rest="" />
-              <p data-rest="">{n.body}</p>
-              {n.num === '02' && (
-                <p className="cb-tally" data-rest="">
-                  <b data-count={`${String(ALL_COUNTS.walls)},0.11,0.18`}>0</b> tường · <b data-count={`${String(ALL_COUNTS.doors)},0.12,0.185`}>0</b> cửa ·{' '}
-                  <b data-count={`${String(ALL_COUNTS.rooms)},0.13,0.19`}>0</b> phòng · 3 tầng
-                </p>
-              )}
-            </section>
-          ))}
-
-          <section className="bp-col bp-close cb-close" data-win="0.9,0.93,2,2">
-            <Lines as="h2" className="bp-h1" lines={['Từ một tờ giấy', 'đến một ngôi nhà.']} />
-            <p className="bp-sub" data-rest="">
-              Mở dự án đầu tiên với chính bản vẽ của bạn.
-            </p>
-            <div className="bp-actions" data-rest="">
-              <Link className="bp-cta" to="/login">
-                Bắt đầu dự án
-              </Link>
-              <Link className="bp-quiet" to="/login">
-                Đăng nhập
-              </Link>
+            <div className="cb-scrim" data-win="0.5,0.53,2,2" aria-hidden="true">
+              <div className="cb-scrim-photo" data-rest="" />
             </div>
-            <ul className="cb-chips" data-rest="" aria-label="Định dạng xuất">
-              {['.glb', '.pdf', '.png', '.json'].map((x) => (
-                <li key={x}>{x}</li>
-              ))}
-            </ul>
-          </section>
 
-          <footer className="bp-foot" data-slide="down">
-            <div className="bp-caption">
-              <span className="bp-caption-lines">
-                {CAPTIONS.map((c) => (
-                  <span key={c.text} className="bp-fig cb-cap" data-win={c.win}>
-                    <span data-rest="">{c.text}</span>
-                  </span>
-                ))}
+            <header className="bp-run" data-slide="up">
+              <span className="bp-brand">AppFront</span>
+              <span>Bản vẽ thành nhà · một cuốn sách nhỏ về mặt bằng</span>
+              <nav>
+                <Link to="/login">Đăng nhập</Link>
+              </nav>
+            </header>
+            <div className="cb-top" data-win="0.35,0.37,2,2">
+              <span className="bp-brand" data-rest="">
+                AppFront
               </span>
+              <Link to="/login" data-rest="">
+                Đăng nhập
+              </Link>
             </div>
-            <span className="bp-folio">1</span>
-          </footer>
-          <div className="cb-floors" aria-label="Các tầng trong hình tách tầng">
-            {['Tầng 1', 'Tầng 2', 'Tầng 3'].map((t, i) => (
-              <button key={t} type="button" className="cb-floor" data-floor={i} aria-pressed="false">
-                {t}
-              </button>
+
+            <section className="bp-col bp-hero cb-hero" data-win="load,1,0.035,0.06">
+              <p className="bp-kicker" data-rest="">
+                <b>Chương 1</b> Từ mặt bằng 2D đến mô hình 3D nhiều tầng
+              </p>
+              <Lines as="h1" className="bp-h1" lines={['Bản vẽ của bạn,', 'đọc như một cuốn sách,', 'dựng như một ngôi nhà.']} />
+              <p className="bp-sub" data-rest="">
+                Tải lên mặt bằng 2D, AI nhận ra tường, cửa và phòng; bạn chỉnh lại, rồi có mô hình 3D nhiều tầng để xem và xuất.
+              </p>
+              <div className="bp-actions" data-rest="">
+                <Link className="bp-cta" to="/login">
+                  Bắt đầu dự án
+                </Link>
+                <Link className="bp-quiet" to="/login">
+                  Đăng nhập
+                </Link>
+              </div>
+            </section>
+
+            {NOTES.map((n) => (
+              <section key={n.win} className="bp-col bp-note cb-note" data-win={n.win} aria-label={n.title.join(' ')}>
+                {n.num !== '' && <Lines className="bp-num" lines={[n.num]} />}
+                <Lines as="h2" lines={n.title} />
+                <div className="bp-rule" data-rest="" />
+                <p data-rest="">{n.body}</p>
+                {n.num === '02' && (
+                  <p className="cb-tally" data-rest="">
+                    <b data-count={`${String(ALL_COUNTS.walls)},0.11,0.18`}>0</b> tường · <b data-count={`${String(ALL_COUNTS.doors)},0.12,0.185`}>0</b> cửa ·{' '}
+                    <b data-count={`${String(ALL_COUNTS.rooms)},0.13,0.19`}>0</b> phòng · 3 tầng
+                  </p>
+                )}
+              </section>
             ))}
+
+            <section className="bp-col bp-close cb-close" data-win="0.9,0.93,2,2">
+              <Lines as="h2" className="bp-h1" lines={['Từ một tờ giấy', 'đến một ngôi nhà.']} />
+              <p className="bp-sub" data-rest="">
+                Mở dự án đầu tiên với chính bản vẽ của bạn.
+              </p>
+              <div className="bp-actions" data-rest="">
+                <Link className="bp-cta" to="/login">
+                  Bắt đầu dự án
+                </Link>
+                <Link className="bp-quiet" to="/login">
+                  Đăng nhập
+                </Link>
+              </div>
+              <ul className="cb-chips" data-rest="" aria-label="Định dạng xuất">
+                {['.glb', '.pdf', '.png', '.json'].map((x) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ul>
+            </section>
+
+            <footer className="bp-foot" data-slide="down">
+              <div className="bp-caption">
+                <span className="bp-caption-lines">
+                  {CAPTIONS.map((c) => (
+                    <span key={c.text} className="bp-fig cb-cap" data-win={c.win}>
+                      <span data-rest="">{c.text}</span>
+                    </span>
+                  ))}
+                </span>
+              </div>
+              <span className="bp-folio">1</span>
+            </footer>
+            <div className="cb-floors" aria-label="Các tầng trong hình tách tầng">
+              {['Tầng 1', 'Tầng 2', 'Tầng 3'].map((t, i) => (
+                <button key={t} type="button" className="cb-floor" data-floor={i} aria-pressed="false">
+                  {t}
+                </button>
+              ))}
+            </div>
+            <p className="cb-demo">Dữ liệu minh hoạ</p>
           </div>
-          <p className="cb-demo">Dữ liệu minh hoạ</p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
