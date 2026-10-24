@@ -17,8 +17,58 @@ export type MaterialKind =
   | 'mirror'
   | 'screen'
   | 'steel'
-  | 'porcelain'
-  | 'steelMapped';
+  | 'porcelain';
+
+/**
+ * Luật chung cho MỌI vật liệu mẫu (cả mẫu lạ/người dùng tải lên); ITEM_KIND chỉ là ngoại lệ.
+ * Phòng trong nhà phản chiếu tối → kim loại 100 % ra đen: kẹp hệ số kim loại
+ * (có metalnessMap: three nhân hệ số với kênh ảnh → phần gỗ/vải kênh 0 không đổi).
+ */
+export const AUTO = {
+  metalMax: 0.6,
+  metalMaxMapped: 0.5,
+  /** Kim loại bóng gương (r≈0) phản chiếu phòng tối → kẹp nhám. */
+  metalRoughMin: 0.25,
+  roughMin: 0.12,
+  anisotropy: 8,
+} as const;
+
+export interface MatFacts {
+  metalness: number;
+  roughness: number;
+  metalnessMap: boolean;
+  roughnessMap: boolean;
+  transparent: boolean;
+}
+
+export interface MatPatch {
+  metalness?: number;
+  roughness?: number;
+}
+
+/** Thuộc tính vật liệu → phần cần đổi (rỗng = giữ nguyên). Kính trong suốt: chỉ kẹp kim loại. */
+export function autoPatch(f: MatFacts): MatPatch {
+  const p: MatPatch = {};
+  const cap = f.metalnessMap ? AUTO.metalMaxMapped : AUTO.metalMax;
+  if (f.metalness > cap) p.metalness = cap;
+  if (!f.roughnessMap && !f.transparent) {
+    const min = (p.metalness ?? f.metalness) >= 0.5 ? AUTO.metalRoughMin : AUTO.roughMin;
+    if (f.roughness < min) p.roughness = min;
+  }
+  return p;
+}
+
+/**
+ * Loại đoán theo tên vật liệu GLB (mẫu không có trong ITEM_KIND). Gương luôn nhận;
+ * đã có ảnh màu = PBR tác giả làm sẵn → không đoán. Kim loại để `autoPatch` lo (giữ màu).
+ */
+export function nameKind(name: string, hasMap: boolean): MaterialKind | null {
+  const n = name.toLowerCase();
+  if (/mirror|specchio|spiegel/.test(n)) return 'mirror';
+  if (hasMap || /glass|vetr|crystal/.test(n)) return null;
+  const k = refKind(n);
+  return k === 'metal' ? null : k;
+}
 
 /**
  * Ghi đè theo thư mục mẫu. Khoá: slotId, hoặc ref vật liệu (`library:…`),
@@ -59,8 +109,7 @@ export const ITEM_KIND: Record<string, Record<string, MaterialKind>> = {
   'kitchen-cabinet-gen': { handle: 'metal' },
   'kitchen-sink-gen': { handle: 'metal', steel: 'steel' },
   'kitchen-shelf-gen': { handle: 'metal' },
-  // Gói 5: tủ lạnh Sketchfab "grey polished metal" kim loại 100 % ra đen trong phòng → inox pha.
-  'fridge-sf': { '*': 'steelMapped' },
+  // Gói 5 `fridge-sf` (kim loại 100 % + metalnessMap ra đen) → nay luật chung `autoPatch` lo.
   // Gói 6: giường Soho bọc vải (spec/gloss đã đổi sang metal/rough khi chuyển).
   'bed-sf': { '*': 'fabric' },
   'tv-stand-gen': { handle: 'metal' },
@@ -81,7 +130,7 @@ export function refKind(ref: string | undefined | null): MaterialKind | null {
   if (!ref) return null;
   const r = ref.toLowerCase();
   if (/leather/.test(r)) return 'leather';
-  if (/fabric|linen|wool|velvet|boucle|cotton|suede/.test(r)) return 'fabric';
+  if (/fabric|textile|cloth|linen|wool|velvet|boucle|cotton|suede/.test(r)) return 'fabric';
   if (/bark/.test(r)) return 'bark';
   if (/preset-forest|leaf|foliage/.test(r)) return 'leaf';
   if (/marble|statuar|ceramic|terracotta|porcelain|tile/.test(r)) return 'ceramic';
@@ -147,8 +196,6 @@ export const KIND_LOOK: Record<MaterialKind, KindLook> = {
   mirror: { roughness: 0.08, metalness: 0.5, color: '#dfe4e6' },
   screen: { roughness: 0.15, metalness: 0, color: '#0b0c0e' },
   steel: { roughness: 0.35, metalness: 0.6, color: '#cfd2d4' },
-  // Mẫu đã có ảnh nhám/kim loại (three nhân hệ số với kênh ảnh): giữ độ nhám gốc, bớt kim loại.
-  steelMapped: { roughness: 1, metalness: 0.5 },
   porcelain: { roughness: 0.12, metalness: 0, color: '#f3f3f0' },
 };
 

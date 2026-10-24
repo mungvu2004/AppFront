@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MeshStandardMaterial, Texture } from 'three';
-import { folderOf, itemKindOf, tunedRoughness } from './itemLook';
-import { clearItemMaterialCache, tuneItemMaterial } from './itemMaterials';
+import { autoPatch, folderOf, itemKindOf, nameKind, tunedRoughness } from './itemLook';
+import { clearItemMaterialCache, specGlossPlugin, tuneItemMaterial } from './itemMaterials';
 import { useRealism } from './store';
 
 describe('itemLook', () => {
@@ -124,5 +124,88 @@ describe('tuneItemMaterial', () => {
   it('gương: ref kim loại của phong cách không đè loại gương', () => {
     expect(itemKindOf('round-mirror', 'glass', 'library:metal-brushed')).toBe('mirror');
     expect(itemKindOf('dining-table', 'legs', 'library:wood-finewood27')).toBe('wood');
+  });
+});
+
+describe('luật chung (mẫu lạ, không có trong ITEM_KIND)', () => {
+  const f = { metalness: 0, roughness: 0.5, metalnessMap: false, roughnessMap: false, transparent: false };
+  it('autoPatch: kẹp kim loại + nhám tối thiểu', () => {
+    expect(autoPatch(f)).toEqual({});
+    // Kim loại 100 % bóng gương (vanity-sf Chrome m1 r0) → pha nửa khuếch tán, nhám ≥ 0.25.
+    expect(autoPatch({ ...f, metalness: 1, roughness: 0 })).toEqual({ metalness: 0.6, roughness: 0.25 });
+    // Có metalnessMap (fridge-sf, PolyHaven): hệ số ≤ 0.5, kênh ảnh lo phần còn lại; có roughnessMap → giữ nhám.
+    expect(autoPatch({ ...f, metalness: 1, roughness: 1, metalnessMap: true, roughnessMap: true })).toEqual({ metalness: 0.5 });
+    expect(autoPatch({ ...f, metalness: 0.6, roughness: 0.3 })).toEqual({});
+    expect(autoPatch({ ...f, roughness: 0.02 })).toEqual({ roughness: 0.12 });
+    // Kính trong suốt: chỉ kẹp kim loại, giữ bóng.
+    expect(autoPatch({ ...f, metalness: 1, roughness: 0, transparent: true })).toEqual({ metalness: 0.6 });
+  });
+  it('nameKind: gương luôn nhận; mẫu có ảnh màu không đoán; kim loại/kính để luật chung', () => {
+    expect(nameKind('Bathroom_Mirror', true)).toBe('mirror');
+    expect(nameKind('slot_fabric', false)).toBe('fabric');
+    expect(nameKind('Oak_Wood', false)).toBe('wood');
+    expect(nameKind('wooden_display_shelves_01', true)).toBeNull();
+    expect(nameKind('Chrome', false)).toBeNull();
+    expect(nameKind('Glass_tile', false)).toBeNull();
+    expect(nameKind('Material.008', false)).toBeNull();
+    // `tile` trong `textile` không thành gốm.
+    expect(nameKind('textile_sofa', false)).toBe('fabric');
+  });
+  it('tuneItemMaterial: mẫu lạ kim loại 100 % → clone kẹp; vật liệu thường giữ nguyên', () => {
+    clearItemMaterialCache();
+    useRealism.setState({ flags: { ...useRealism.getState().flags, materials: true } });
+    const ctx = { src: '/items/user-upload-123/model.glb', slotId: null, textures: true };
+    const chrome = new MeshStandardMaterial({ name: 'Chrome', color: '#8a8a8a', metalness: 1, roughness: 0 });
+    const a = tuneItemMaterial(chrome, ctx) as MeshStandardMaterial;
+    expect(a).not.toBe(chrome);
+    expect([a.metalness, a.roughness]).toEqual([0.6, 0.25]);
+    expect(a.color.getHexString()).toBe('8a8a8a');
+    expect(chrome.metalness).toBe(1);
+    expect(tuneItemMaterial(chrome, ctx)).toBe(a);
+    const plain = new MeshStandardMaterial({ name: 'Material.001', roughness: 0.6 });
+    expect(tuneItemMaterial(plain, ctx)).toBe(plain);
+    // Gương theo tên dù trong suốt.
+    const mirror = new MeshStandardMaterial({ name: 'mirror', transparent: true, opacity: 0.3 });
+    const mm = tuneItemMaterial(mirror, ctx) as MeshStandardMaterial;
+    expect([mm.transparent, mm.metalness]).toEqual([false, 0.5]);
+    // Kính PBR metal 1 có ảnh (picture-ph): chỉ kẹp kim loại, vẫn trong suốt.
+    const glass = new MeshStandardMaterial({ name: 'frame_glass', transparent: true, metalness: 1, roughness: 1 });
+    glass.metalnessMap = new Texture();
+    const g = tuneItemMaterial(glass, ctx) as MeshStandardMaterial;
+    expect([g.transparent, g.metalness, g.roughness]).toEqual([true, 0.5, 1]);
+  });
+  it('tuneItemMaterial: fridge-sf (bỏ khỏi ITEM_KIND) ra như steelMapped cũ', () => {
+    clearItemMaterialCache();
+    const m = new MeshStandardMaterial({ name: 'Material', metalness: 1, roughness: 1 });
+    m.map = new Texture();
+    m.metalnessMap = new Texture();
+    m.roughnessMap = new Texture();
+    const a = tuneItemMaterial(m, { src: '/appfront-items/fridge-sf/model.glb', slotId: null, textures: true }) as MeshStandardMaterial;
+    expect([a.metalness, a.roughness]).toEqual([0.5, 1]);
+  });
+  it('anisotropy cho mọi ảnh, kể cả khi không clone', () => {
+    clearItemMaterialCache();
+    const m = new MeshStandardMaterial({ roughness: 0.6 });
+    m.map = new Texture();
+    expect(tuneItemMaterial(m, { src: '/items/x/model.glb', slotId: null, textures: true })).toBe(m);
+    expect(m.map.anisotropy).toBe(8);
+  });
+  it('spec/gloss lúc nạp: khuếch tán → màu, bóng → nhám, kim loại 0', async () => {
+    const assigned: string[] = [];
+    const parser = {
+      json: { materials: [{ extensions: { KHR_materials_pbrSpecularGlossiness: { diffuseFactor: [0.5, 0.4, 0.3, 0.8], glossinessFactor: 0.7, diffuseTexture: { index: 0 } } } }, {}] },
+      assignTexture: (_p: Record<string, unknown>, key: string) => (assigned.push(key), Promise.resolve()),
+    };
+    const plugin = specGlossPlugin(parser);
+    const params: Record<string, unknown> = { metalness: 1, roughness: 1 };
+    await plugin.extendMaterialParams(0, params);
+    expect(params.metalness).toBe(0);
+    expect(params.roughness).toBeCloseTo(0.3);
+    expect(params.opacity).toBe(0.8);
+    expect((params.color as { r: number }).r).toBeCloseTo(0.5);
+    expect(assigned).toEqual(['map']);
+    const other: Record<string, unknown> = { metalness: 1 };
+    await plugin.extendMaterialParams(1, other);
+    expect(other.metalness).toBe(1);
   });
 });
