@@ -49,10 +49,10 @@ import {
   wallDressingOf,
 } from './sceneDressing';
 import { SCENE_STYLE_MATERIALS, sceneStyleOf, type SceneStyle } from './sceneStyles';
-import { dressingOf } from './sceneDressingRules';
+import { dressingOf, hostTopMm } from './sceneDressingRules';
 import { furnishEmptyRooms } from './sceneFurnish';
 import { furnishingUsageOf, isPlausibleStair, lShapedRunArms, weldWallEnds } from './structureFixes';
-import { modelFolderOf } from './sceneVariety';
+import { isThinHob, modelFolderOf, roleOf } from './sceneVariety';
 import type {
   AppFrontOrigin,
   PascalDoorNode,
@@ -580,6 +580,39 @@ const STRETCH_FOLDERS: ReadonlySet<string> = new Set([
   'coffee-table',
 ]);
 const MAX_STRETCH_RATIO = 1.8;
+/** `heightMm` là bề dày tấm trên bản vẽ (mặt bếp 20 mm), không phải cao mẫu: khớp theo mặt bằng, giữ cao thật. */
+const OWN_HEIGHT_FOLDERS: ReadonlySet<string> = new Set(['hob-sf']);
+
+/** Tâm `p` nằm trong mặt bằng (đã xoay) của `host`. */
+const coversPoint = (host: Furniture, p: { readonly x: number; readonly y: number }): boolean => {
+  const t = (host.rotationDeg * Math.PI) / 180;
+  const dx = p.x - host.centre.x;
+  const dy = p.y - host.centre.y;
+  const b = host.boundingBox;
+  return (
+    Math.abs(dx * Math.cos(t) + dy * Math.sin(t)) <= (b.max.x - b.min.x) / 2 &&
+    Math.abs(-dx * Math.sin(t) + dy * Math.cos(t)) <= (b.max.y - b.min.y) / 2
+  );
+};
+
+/** Mặt bếp mỏng: độ nâng = mặt đá của tủ bếp dưới (vai trò `counter`) chứa tâm nó; không có tủ thì 0 (sàn). */
+const counterTopMmOf = (
+  hob: Furniture,
+  all: readonly Furniture[],
+  style: SceneStyle,
+  usageOf: (f: Furniture) => RoomUsage | undefined,
+): number => {
+  if (!isThinHob(hob)) return 0;
+  const host = all.find(
+    (h) =>
+      h !== hob &&
+      h.levelId === hob.levelId &&
+      h.kind === 'kitchenCabinet' &&
+      roleOf(h, usageOf(h)) === 'counter' &&
+      coversPoint(h, hob.centre),
+  );
+  return host === undefined ? 0 : Math.round(hostTopMm(host, style, usageOf(host)));
+};
 
 /** Chiều cao một bậc mục tiêu, mét — số bậc = max(3, round(chiều cao tầng / số này)). */
 const STAIR_RISER_M = 0.175;
@@ -683,6 +716,8 @@ const itemNodeOf = (
   levelHeightMm: number,
   style: SceneStyle,
   usage?: RoomUsage,
+  /** Độ nâng khi cả món lẫn variant không có `liftMm` (mặt bếp trên mặt đá). */
+  baseLiftMm = 0,
 ): PascalItemNode => {
   const label = FURNITURE_KIND_LABELS[furniture.kind];
   const widthM = metresOf(furniture.boundingBox.max.x - furniture.boundingBox.min.x);
@@ -710,7 +745,8 @@ const itemNodeOf = (
     }
 
     const [cw, ch, cd] = catalog.dimensions;
-    const fixedH = furniture.heightMm === undefined ? undefined : metresOf(furniture.heightMm);
+    const fixedH =
+      furniture.heightMm === undefined || OWN_HEIGHT_FOLDERS.has(model.folder) ? undefined : metresOf(furniture.heightMm);
     // Không có `heightMm` (bản quét AI) thì chỉ hộp bao quyết định `s` — món đồ có thể
     // phình cao vô lý. Chặn: ≤ 1,25× cỡ catalog, cây cao ≤ 2,2 m, và không quá trần tầng.
     const maxH =
@@ -749,7 +785,7 @@ const itemNodeOf = (
     };
   })();
   const heightM = fit?.heightM ?? heightOfFurniture(furniture, levelHeightMm);
-  const liftMm = furniture.liftMm ?? model?.liftMm ?? 0;
+  const liftMm = furniture.liftMm ?? model?.liftMm ?? baseLiftMm;
   const liftM = metresOf(liftMm);
   // Khe phong cách cho, rồi khe người dùng đã sơn đè lên (W3b `Furniture.slots`).
   const styleSlots = fit === null ? {} : itemSlotsOf(fit.folder, style);
@@ -1122,9 +1158,10 @@ export const toPascalScene = (
       builtRooms.find((r) => r.id === furniture.roomId) ??
       builtRooms.find((r) => r.levelId === furniture.levelId && insideOutline(furniture.centre, r.outline));
     const arms = lShapedRunArms(furniture, room, { ...graph, walls: builtWalls, openings: builtOpenings });
+    const usageOf = (f: Furniture) => (f.roomId === undefined ? undefined : roomUsageOf.get(f.roomId));
     const node =
       arms === null
-        ? itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage)
+        ? itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage, counterTopMmOf(furniture, graph.furniture, style, usageOf))
         : longArmNodeOf(furniture, arms.long, itemNodeOf({ ...furniture, ...arms.long }, levelNodeId, levelHeightMm, style, usage));
 
     nodes[node.id] = node;

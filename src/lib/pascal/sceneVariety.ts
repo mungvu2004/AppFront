@@ -88,14 +88,21 @@ const roleOfFolder = (folder: string): FurnitureRole =>
   (Object.keys(ROLE_MODELS) as FurnitureRole[]).find((role) => ROLE_MODELS[role][0] === folder) ?? 'fixed';
 
 const COFFEE_TABLE_MAX_MM = 500;
+/** Bếp `hob` thấp hơn chừng này là mặt bếp nằm trên mặt đá (F-KITCHEN-HOB 600 × 500 × 20), không phải bếp liền lò. */
+const THIN_HOB_MAX_MM = 300;
+
+export const isThinHob = (f: Pick<Furniture, 'variant'> & Partial<Pick<Furniture, 'heightMm'>>): boolean =>
+  f.variant === 'hob' && f.heightMm !== undefined && f.heightMm < THIN_HOB_MAX_MM;
 
 /**
  * Mô hình của variant; variant không có mô hình (null) coi như không có variant.
- * Bàn `table` thấp hơn 0,5 m là bàn trà (F-LIVING-COFFEE 900 × 900 × 420), không phải bàn ăn.
+ * Bàn `table` thấp hơn 0,5 m là bàn trà (F-LIVING-COFFEE 900 × 900 × 420), không phải bàn ăn;
+ * bếp `hob` mỏng là mặt bếp `hob-sf` (bếp liền lò `stove` cao 0,85–1,09 m co đều về 20 mm thì biến mất).
  */
 const variantModelOf = (f: Shaped) => {
   if (f.variant === undefined) return null;
   if (f.variant === 'table' && f.heightMm !== undefined && f.heightMm < COFFEE_TABLE_MAX_MM) return { folder: 'coffee-table' };
+  if (isThinHob(f)) return { folder: 'hob-sf' };
   return VARIANT_MODEL[f.variant] ?? null;
 };
 

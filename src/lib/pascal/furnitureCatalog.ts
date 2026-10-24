@@ -86,11 +86,13 @@ export const VENDOR_MODELS: Readonly<Record<string, CatalogModel>> = {
   },
   // `kitchen-counter` là khối hộp trơn (không cửa, không tay nắm) — chỉ giữ cho dữ liệu cũ.
   // Tủ bếp dưới: ngăn kéo + cửa + tay nắm (khe cabinet/countertop/handle).
+  // topY = mặt đá (phía trên chỉ còn tấm ốp sau 1,5 cm) — mặt bếp `hob-sf` đặt lên đây.
   'kitchen-cabinet': {
     folder: 'kitchen-cabinet',
     dimensions: [1.65, 1.09, 0.77],
     offset: [0, 0.0004, 0],
     rotation: [0, 0, 0],
+    topY: 0.9,
   },
   // Dãy bếp dài có chậu rửa + vòi + cửa tủ (một vật liệu GLB, không khe).
   kitchen: {
@@ -464,6 +466,8 @@ export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
     attachTo: 'wall-side',
   },
   'stove-sf': { folder: 'stove-sf', dimensions: [0.76, 1.09, 0.659], offset: [0, 0, 0], rotation: [0, 0, 0] },
+  // Mặt bếp gas (hob mỏng trên mặt đá): phần trên mặt lò của cùng mẫu stove-sf, không có mẫu Pascal tương ứng.
+  'hob-sf': { folder: 'hob-sf', dimensions: [0.76, 0.127, 0.617], offset: [0, 0, 0], rotation: [0, 0, 0] },
   'coffee-table-sf': {
     folder: 'coffee-table-sf',
     dimensions: [1.2, 0.42, 0.65],
@@ -482,6 +486,7 @@ export const APPFRONT_MODELS: Readonly<Record<string, CatalogModel>> = {
     dimensions: [1.65, 1.09, 0.77],
     offset: [0, 0, 0],
     rotation: [0, 0, 0],
+    topY: 0.9,
   },
   // Tủ bếp trên: giữ gắn tường như dòng Pascal (swap thay cả dòng). Pascal dời y 0,4478 vì GLB tâm giữa; mẫu này đáy y = 0.
   'kitchen-shelf-gen': {

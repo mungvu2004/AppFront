@@ -125,13 +125,19 @@ const facing = (
 };
 
 /** Chiều cao dựng của món (mm) như toPascal khớp mô hình: `heightMm`, không thì cỡ catalog × tỉ lệ chung. */
-const hostHeightMm = (f: Furniture, style: SceneStyle, usage: Room['usage']): number => {
+const hostHeightMm = (f: Furniture, style: SceneStyle, usage: Room['usage'] | undefined): number => {
   if (f.heightMm !== undefined) return f.heightMm;
   const dims = CATALOG_MODELS[modelFolderOf(f, style, usage) ?? '']?.dimensions;
   if (dims === undefined) return 0;
   const w = (f.boundingBox.max.x - f.boundingBox.min.x) / 1000;
   const d = (f.boundingBox.max.y - f.boundingBox.min.y) / 1000;
   return dims[1] * Math.min(w / dims[0], d / dims[2], 1.25) * 1000;
+};
+
+/** Mặt đặt đồ của món chủ (mm trên sàn): mẫu có `topY` (giường, bàn, tủ bếp) dùng mặt đo sẵn, không thì `fraction` × cao. */
+export const hostTopMm = (f: Furniture, style: SceneStyle, usage: Room['usage'] | undefined, fraction = 1): number => {
+  const m = CATALOG_MODELS[modelFolderOf(f, style, usage) ?? ''];
+  return (m?.topY !== undefined ? m.topY / m.dimensions[1] : fraction) * hostHeightMm(f, style, usage);
 };
 
 /**
@@ -398,10 +404,7 @@ export const dressingOf = (graph: SpatialGraph, style: SceneStyle): readonly Fur
       };
     };
     // Mẫu có `topY` (giường đầu cao, bàn có đồ trên mặt): mặt đặt đồ đo sẵn thay tỉ lệ mặc định.
-    const topOf = (f: Furniture, fraction = 1): number => {
-      const m = CATALOG_MODELS[modelFolderOf(f, style, room.usage) ?? ''];
-      return (m?.topY !== undefined ? m.topY / m.dimensions[1] : fraction) * hostHeightMm(f, style, room.usage);
-    };
+    const topOf = (f: Furniture, fraction = 1): number => hostTopMm(f, style, room.usage, fraction);
     /** Món chủ + mọi thảm (thật và sinh ra): đồ trang trí nằm trên/treo trên thảm được. */
     const over = (...ids: string[]): ReadonlySet<string> =>
       new Set([...ids, ...withRole(RUG_ROLES).map((i) => i.f.id as string), ...out.filter((o) => o.variant === 'rug').map((o) => o.id as string)]);

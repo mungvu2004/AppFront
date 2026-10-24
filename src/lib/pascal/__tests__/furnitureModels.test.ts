@@ -31,7 +31,9 @@ const metresOfMm = (mm: number): number => mm / 1000;
 const ROOT = resolve(__dirname, '../../../..');
 const modelExists = (src: string): boolean =>
   existsSync(resolve(ROOT, 'public/pascal', `.${src}`)) ||
-  existsSync(resolve(ROOT, 'vendor/pascal/assets', `.${src}`).replace(/model\.glb$/, ''));
+  existsSync(resolve(ROOT, 'vendor/pascal/assets', `.${src}`).replace(/model\.glb$/, '')) ||
+  // Mẫu AppFront không có bản Pascal (mặt bếp hob-sf).
+  existsSync(resolve(ROOT, 'assets/appfront-items', `.${src.slice('/items'.length)}`));
 
 /** F2 với danh sách đồ thay bằng `furniture` (giữ tầng + phòng của F2). */
 const withFurniture = (furniture: (base: Furniture) => Furniture[]): SpatialGraph => {
@@ -116,7 +118,8 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
         // Cao thật = cao GLB gốc × asset.scale; GLB gốc = dimensions ÷ scale riêng của catalog.
         const rendered = (cat.dimensions[1] * item.asset.scale![1]) / (cat.scale?.[1] ?? 1);
         const limit =
-          f.heightMm === undefined
+          // hob-sf: heightMm (20 mm) là bề dày tấm trên bản vẽ, mẫu giữ cao thật (OWN_HEIGHT_FOLDERS).
+          f.heightMm === undefined || folder === 'hob-sf'
             ? folder === 'palm' || folder === 'fir-tree' ? 2.2 : levelH
             : metresOfMm(f.heightMm);
         const why = `${ext ? 'ext' : 'plain'} ${f.id} ${folder} rendered=${rendered.toFixed(2)} limit=${limit}`;

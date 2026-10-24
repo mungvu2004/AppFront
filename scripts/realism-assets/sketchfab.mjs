@@ -32,7 +32,8 @@ import { ioOf, writeModel } from '../gen-decor-models.mjs';
 /**
  * dir → folder AppFront. `yaw` (độ) quay quanh y để mặt trước nhìn +z. `fit` = [trục sau xoay, mét]
  * (giữ tỉ lệ) hoặc `size` = [x, y, z] mét (co giãn từng trục cho vừa ô vuông/ô bàn trà của editor).
- * `keep`/`drop` = regex tên nút; `clipX` = bỏ tam giác có tâm |x| > giá trị (đơn vị gốc, trước xoay).
+ * `keep`/`drop` = regex tên nút; `clipX` = bỏ tam giác có tâm |x| > giá trị, `minY` = bỏ tam giác có tâm y < giá trị
+ * (đơn vị gốc, trước xoay). `dir` = thư mục tải khi một bản tải sinh hai mẫu (khoá phải khác nhau).
  */
 export const SKETCHFAB = {
   modern_wardrobe_ikea_style_white_colors: {
@@ -82,6 +83,13 @@ export const SKETCHFAB = {
     folder: 'stove-sf', label: 'Stove', yaw: 0, fit: ['x', 0.76], tris: 12000,
     credit: ['IKEA Range with Gas Cooktop', 'MUSHROOM_BUILDS (@MUSHROOM_BUILDS)', '0568b8cf6a8444099c55eab7ca1a7de0'],
   },
+  // Mặt bếp (hob mỏng trên mặt đá): cùng bản tải, chỉ giữ phần trên mặt lò (y gốc ≥ 0,05 m: tấm mặt, vỉ, đầu đốt).
+  // Bỏ tấm chắn sau + màn hình (Object_10/11), núm + dải điều khiển mặt trước (Object_4-7, 19) — chúng thòng xuống thân lò.
+  'ikea_range_with_gas_cooktop#hob': {
+    dir: 'ikea_range_with_gas_cooktop', folder: 'hob-sf', label: 'Hob', yaw: 0, fit: ['x', 0.76], tris: 8000,
+    minY: 0.05, drop: /^Object_(4|5|6|7|10|11|19)$/,
+    credit: ['IKEA Range with Gas Cooktop', 'MUSHROOM_BUILDS (@MUSHROOM_BUILDS)', '0568b8cf6a8444099c55eab7ca1a7de0'],
+  },
   simple_wooden_coffee_table__game_asset: {
     folder: 'coffee-table-sf', label: 'Coffee table', yaw: 0, size: [1.2, 0.42, 0.65],
     credit: ['Simple Wooden Coffee Table – Game Asset', 'AspectStudios (@AspectStudio)', 'e80cccd7091049d2becc13384e218bc5'],
@@ -123,15 +131,16 @@ const convert = async (io, dl, dir, cfg) => {
     seen.add(node.getMesh());
     clearNodeTransform(node);
   }
-  if (cfg.clipX) {
+  const inside = cfg.clipX ? (c) => Math.abs(c[0]) <= cfg.clipX : cfg.minY !== undefined ? (c) => c[1] >= cfg.minY : null;
+  if (inside) {
     for (const prim of root.listMeshes().flatMap((m) => m.listPrimitives())) {
       const pos = prim.getAttribute('POSITION').getArray();
       const idx = prim.getIndices();
       const a = idx.getArray();
       const keep = [];
       for (let t = 0; t < a.length; t += 3) {
-        const cx = (pos[a[t] * 3] + pos[a[t + 1] * 3] + pos[a[t + 2] * 3]) / 3;
-        if (Math.abs(cx) <= cfg.clipX) keep.push(a[t], a[t + 1], a[t + 2]);
+        const c = [0, 1, 2].map((k) => (pos[a[t] * 3 + k] + pos[a[t + 1] * 3 + k] + pos[a[t + 2] * 3 + k]) / 3);
+        if (inside(c)) keep.push(a[t], a[t + 1], a[t + 2]);
       }
       idx.setArray(new Uint32Array(keep));
       compactPrimitive(prim);
@@ -169,7 +178,7 @@ const main = async () => {
   const io = await ioOf();
   for (const [dir, cfg] of Object.entries(SKETCHFAB)) {
     if (only && !only.includes(cfg.folder)) continue;
-    await convert(io, dl, dir, cfg);
+    await convert(io, dl, cfg.dir ?? dir, cfg);
   }
 };
 
