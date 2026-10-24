@@ -4,8 +4,10 @@
  *
  * - `syncCeilingShadows`: trần Pascal không `castShadow` → nắng xuyên trần phủ kín sàn, không có
  *   vệt nắng qua cửa sổ. Bật đổ bóng cho trần khi camera ở dưới trần (`ceilingCastsShadow`).
- *   Trần được node-batch gộp vào `BatchedMesh` (nguồn ẩn khỏi mọi camera, kể cả camera bóng) →
- *   phải bật trên lô chứa vật liệu trần, bật trên mesh nguồn không có tác dụng.
+ *   node-batch gộp trần vào `BatchedMesh` (cờ bóng chụp lúc gộp, nguồn sang `BATCHED_LAYER` mà
+ *   camera bóng không thấy) → mức Vừa/Cao không gộp trần (`ceilingSkipsBatch`, luật
+ *   `scripts/realism/r9c-ceiling-batch.mjs`), trần tự vẽ và `castShadow` trên mesh có tác dụng.
+ *   Mức Thấp gộp như cũ; đổi qua lại Thấp → `subscribeCeilingBatch` cho lô gom lại trần.
  * - `isGlassLike`: kính của mô hình đồ (cửa kính, khung ảnh, chao đèn) không đổ bóng đặc chặn nắng.
  * - `groundAlbedo`: tấm site + đĩa chân trời của chủ đề sáng dùng ảnh Cỏ R5 (lặp theo mét) thay
  *   màu be phẳng; đĩa chân trời vẫn tan vào phông như cũ (fade của vendor).
@@ -32,20 +34,19 @@ export function syncCeilingShadows(registry: RegistryLike, cameraY: number, appe
     // matrixWorld của khung trước — đủ, trần chỉ đổi khi sửa.
     const cast = ceilingCastsShadow({ appearance, tier, cameraY, ceilingY: mesh.matrixWorld.elements[13]! });
     mesh.castShadow = cast;
-    setBatchShadow(mesh, cast);
   }
 }
 
-/** Lô `BatchedMesh` cùng vật liệu nằm dưới gốc tầng (tổ tiên gần của trần) — tìm vài cấp. */
-function setBatchShadow(mesh: Mesh, cast: boolean): void {
-  let parent = mesh.parent;
-  for (let depth = 0; parent && depth < 3; depth++, parent = parent.parent) {
-    for (const child of parent.children) {
-      if ((child as Mesh & { isBatchedMesh?: boolean }).isBatchedMesh && (child as Mesh).material === mesh.material) {
-        child.castShadow = cast;
-      }
-    }
-  }
+/** Trần không vào node-batch ở mức Vừa/Cao (cần đổ bóng thật); mức Thấp gộp như cũ. */
+export function ceilingSkipsBatch(type: string): boolean {
+  return type === 'ceiling' && useRealism.getState().tier !== 'low';
+}
+
+/** Gọi `onChange` khi đổi giữa Thấp và Vừa/Cao → node-batch thả/gom lại trần. */
+export function subscribeCeilingBatch(onChange: () => void): () => void {
+  return useRealism.subscribe((s, p) => {
+    if ((s.tier === 'low') !== (p.tier === 'low')) onChange();
+  });
 }
 
 /** Vendor chỉ coi tên đúng "glass" là kính; GLB thật đặt `m_glass_door`, `*_glass`, `Vetro`… */
