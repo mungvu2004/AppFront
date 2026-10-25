@@ -40,3 +40,4 @@ export const RouteTrainingJobs = lazy(() => import('../screens/admin/TrainingJob
 export const RouteUserManagement = lazy(() => import('../screens/admin/UserManagement').then(m => ({ default: m.UserManagementRoute })));
 // `/welcome` = bản kết hợp v6 (`landing-lab/combo`), chủ dự án chốt 24-10; trang cuộn cũ `screens/landing` thôi dùng.
 export const RouteLanding = lazy(() => import('../screens/landing-lab/combo/index'));
+export const RouteSharedModel = lazy(() => import('../screens/share/SharedModelPage').then(m => ({ default: m.SharedModelPage })));
