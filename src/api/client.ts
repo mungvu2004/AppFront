@@ -514,6 +514,8 @@ export interface ListPropertyTemplatesInput extends RequestOptions {
 export interface ProjectsApi {
   create(input: CreateProjectInput): Promise<ApiResult<Project>>;
   delete(input: DeleteProjectInput): Promise<ApiResult<Project>>;
+  /** Người tạo huỷ dự án vừa tạo (không cần vai admin); 409 `CREATE_UNDO_CLOSED` khi hết cửa sổ. */
+  cancelCreate(input: DeleteProjectInput): Promise<ApiResult<Project>>;
   list(options?: RequestOptions): Promise<ApiResult<Project[]>>;
   read(input: ReadProjectInput): Promise<ApiResult<Project>>;
   update(input: UpdateProjectInput): Promise<ApiResult<Project>>;
@@ -1277,6 +1279,12 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         'projects.delete',
       );
     },
+    cancelCreate: async (input) =>
+      decodeSingle(
+        await callDelete<unknown>(http, ENDPOINTS.projects.cancelCreate(input.projectId), input),
+        ProjectSchema,
+        'projects.cancelCreate',
+      ),
     list: async (options) =>
       decodeList(await callGet<unknown>(http, ENDPOINTS.projects.list, options?.signal), ProjectSchema, 'projects.list'),
     read: async ({ projectId, signal }) =>
