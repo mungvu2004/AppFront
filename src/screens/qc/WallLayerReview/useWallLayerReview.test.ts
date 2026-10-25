@@ -301,7 +301,8 @@ describe('phép ghép thuần của màn Duyệt lớp tường', () => {
   });
 
   it('ba cờ lọc lọc đúng cái chúng nói', () => {
-    const walls = FIXTURE_WALLS;
+    /* Thang sáu bậc (100–400): bộ mẫu 90/175/235 đều trong dung sai, nên thêm một tường 260 mm (lệch 40 khỏi 220/300). */
+    const walls: readonly Wall[] = [...FIXTURE_WALLS, { ...FIXTURE_WALLS[0]!, id: 'W-NONSTD-260' as Wall['id'], thicknessMm: 260 as Wall['thicknessMm'], reviewed: true }];
 
     const unreviewed = applyWallFilters(walls, {
       onlyUnreviewed: true,
@@ -875,8 +876,8 @@ describe('hợp đồng canvas mở rộng', () => {
     expect(canvas.canvasLabel).toContain(FIXTURE_LEVEL.name);
     expect(canvas.canvasLabel).toContain(String(WALL_LAYER_FIXTURE_TOTAL));
     expect(canvas.isWallLayerVisible).toBe(true);
-    /* Bộ mẫu có tường 175/235/90 mm: chú giải cần mục "Khác" cho chúng (BUG-416). */
-    expect(canvas.legendLevels).toMatchObject({ levels: [...WALL_LAYER_THICKNESS_CHOICES], hasUnbanded: true, activeFilter: null });
+    /* Thang sáu bậc: 175/235/90 mm nay nằm trong dung sai (150/220/100), chú giải ba nhóm màu, không có mục "Khác". */
+    expect(canvas.legendLevels).toMatchObject({ levels: [110, 220, 330], hasUnbanded: false, activeFilter: null });
     expect(canvas.drawingSizePx).not.toBeNull();
     expect(canvas.measurement).toBeNull();
 

@@ -310,12 +310,14 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
   });
 
   /* Đợt Impeccable 1: độ dày gom về nhóm chuẩn gần nhất trong dung sai chung 30 mm (`wallThicknessBandOf`) — 235/90 vào nhóm, 175 còn lại ra "Không chuẩn". */
-  it('[BUG-416] tường ngoài ba băng (175/235/90 mm của bộ mẫu) có mục "Không chuẩn" ở cả partial lẫn success', async () => {
+  /* Thang sáu bậc: 175/235/90 mm của bộ mẫu nay trong dung sai, nên không có mục "Không chuẩn";
+   * ca có tường ngoài danh mục (260 mm → mục "Khác") khoá ở wallThicknessScale.test.ts. */
+  it('[BUG-416] bộ mẫu toàn độ dày trong danh mục: không có mục "Không chuẩn" ở cả partial lẫn success', async () => {
     for (const state of ['partial', 'success'] as const) {
       const { unmount } = renderState(state);
       const legend = await screen.findByRole('group', { name: 'Lọc theo độ dày tường' });
 
-      expect(within(legend).getByText('Không chuẩn')).toBeInTheDocument();
+      expect(within(legend).queryByText('Không chuẩn')).toBeNull();
       unmount();
     }
   });
