@@ -291,7 +291,8 @@ export function buildRow(
   const room = entry.room;
   const outline = outlineOf(room);
   const level = graph.levels.find((candidate) => candidate.id === room.levelId);
-  const isUnnamed = room.name.trim() === '';
+  // Tên tạm do lượt lưu đặt (spatialLayerOf) vẫn là chưa đặt tên.
+  const isUnnamed = room.name.trim() === '' || room.name === UNNAMED_ROOM_LABEL;
   const counts = countOpeningsByKind(openingsOfRoom(room, graph.walls, graph.openings));
 
   return {

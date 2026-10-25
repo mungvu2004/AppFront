@@ -10,6 +10,7 @@ import type { Dimension, Furniture, LevelId, Opening, Roof, Room, Wall } from '@
 import { isTransientWireError, readWireError } from '@/lib/errors/wireError';
 import type { HttpError } from '@/lib/http/types';
 import { runExclusive } from '@/lib/mutations/entityQueue';
+import { UNNAMED_ROOM_LABEL } from '@/lib/viewmodel/toViewModel';
 
 /**
  * Bốn danh sách thực thể của MỘT tầng, đúng hình dạng `SpatialLayer` mà
@@ -21,6 +22,17 @@ import { runExclusive } from '@/lib/mutations/entityQueue';
  * chỉ mục `byLevel` mà `normalizeSpatial` đã dựng sẵn — không một phép duyệt
  * hình học nào ở đây, chỉ đọc id.
  */
+/**
+ * #35 bắt buộc tên phòng không rỗng (AppBack `Room.name: HumanText`). Phòng chưa đặt tên không được
+ * chặn cả tầng: gửi với tên tạm `UNNAMED_ROOM_LABEL` và `reviewed: false` (tên tạm không phải dữ liệu
+ * đã duyệt). Bảng diện tích coi tên tạm là chưa đặt tên, nên cảnh báo vẫn hiện tới khi người đặt tên.
+ */
+const withSendableName = (room: Room): Room =>
+  room.name.trim() === '' ? { ...room, name: UNNAMED_ROOM_LABEL, reviewed: false } : room;
+
+const withSendableNames = (layer: SpatialLayer | null): SpatialLayer | null =>
+  layer && { ...layer, rooms: layer.rooms.map(withSendableName) };
+
 export function spatialLayerOf(graph: NormalizedSpatial, floorId: LevelId): SpatialLayer {
   const furniture: Furniture[] = [];
   const openings: Opening[] = [];
@@ -40,7 +52,7 @@ export function spatialLayerOf(graph: NormalizedSpatial, floorId: LevelId): Spat
     } else if (isEntityOfKind('opening', entity)) {
       openings.push(entity);
     } else if (isEntityOfKind('room', entity)) {
-      rooms.push(entity);
+      rooms.push(withSendableName(entity));
     } else if (isEntityOfKind('furniture', entity)) {
       // `model` đi theo lên dây từ J-v3 (BE nhận từ 55af7d9c) — thay mẫu Pascal được lưu (W3b).
       furniture.push(entity);
@@ -365,7 +377,7 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
   const flushFloor = (floorId: string): Promise<FloorFailure | undefined> | undefined => {
     const first = held.get(floorId);
     // `readLayer` null (kho thiếu tầng) → giữ bẩn, không PUT: một PUT rỗng xoá sạch tầng.
-    const layer = sendable(floorId) ? ports.readLayer(floorId) : null;
+    const layer = sendable(floorId) ? withSendableNames(ports.readLayer(floorId)) : null;
 
     if (!first && !layer) {
       return undefined;
@@ -407,7 +419,7 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
     }
 
     const pending = held.get(floorId);
-    const fresh = sendable(floorId) ? ports.readLayer(floorId) : null;
+    const fresh = sendable(floorId) ? withSendableNames(ports.readLayer(floorId)) : null;
     const layer = fresh ?? pending?.body.layer;
     const freshDimensions = fresh && dimensionsDirty.has(floorId) ? (ports.readDimensions?.(floorId) ?? null) : null;
     const dimensions = freshDimensions ?? pending?.body.dimensions;

@@ -17,6 +17,7 @@ import { applyPatch, readEntity } from '@/domain/spatial/applyPatch';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { isTransientWireError } from '@/lib/errors/wireError';
 import { runExclusive } from '@/lib/mutations/entityQueue';
+import { UNNAMED_ROOM_LABEL } from '@/lib/viewmodel/toViewModel';
 
 import {
   changedDimensionLevelIds,
@@ -365,7 +366,7 @@ describe('createFloorLayerSaver — F-04x-1 bước 4', () => {
     expect(saver.getBlock(FLOOR_A)).toBeNull();
   });
 
-  it('phòng chưa đặt tên → không PUT, câu khối nói rõ lý do thay vì câu chung', async () => {
+  it('phòng chưa đặt tên → vẫn PUT cả tầng, phòng đó mang tên tạm chưa duyệt, không khối', async () => {
     const { layers, saver, writeLayer } = harness();
     const named = FloorLayerWriteResultSchema.parse({
       layer: {
@@ -396,12 +397,12 @@ describe('createFloorLayerSaver — F-04x-1 bước 4', () => {
 
     layers.set(FLOOR_A, { ...named, rooms: named.rooms.map((room) => ({ ...room, name: '' })) });
     saver.markDirty([FLOOR_A]);
-    await expect(saver.flush()).rejects.toBeDefined();
+    await saver.flush();
 
-    expect(writeLayer).not.toHaveBeenCalled();
-    expect(saver.getBlock(FLOOR_A)?.message).toBe(
-      'Có phòng chưa đặt tên nên chưa lưu được tầng này. Đặt tên cho phòng đó rồi lưu lại.',
-    );
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    expect(writeLayer.mock.calls[0]?.[0].body.layer?.rooms[0]).toMatchObject({ name: UNNAMED_ROOM_LABEL, reviewed: false });
+    expect(saver.getBlock(FLOOR_A)).toBeNull();
+    expect(saver.hasDirty()).toBe(false);
   });
 
   it.each([
