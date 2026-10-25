@@ -43,7 +43,7 @@
  * Phần bổ sung thật của màn này — thứ `WallThickness` không mang — là NHÃN
  * TIẾNG VIỆT và THỨ TỰ HIỂN THỊ cho từng nhóm: {@link THICKNESS_GROUPS_MM},
  * {@link CONCRETE_COLUMN_GROUP}, {@link THICKNESS_GROUP_DISPLAY_ORDER},
- * {@link THICKNESS_GROUP_LABELS}.
+ * {@link thicknessGroupLabel}.
  *
  * ## X3 — dung sai mặc định là 30 mm, không phải 20 mm
  *
@@ -126,6 +126,8 @@
 import type { Confidence, Point, WallId } from '@/domain/spatial/types';
 import { WALL_THICKNESS_TOLERANCE_MM } from '@/domain/walls/thicknessTolerance';
 import type { WallThickness } from '@/types/spatial';
+import { STANDARD_THICKNESSES_MM } from '@/domain/walls/cleanup';
+import { CONCRETE_COLUMN_THRESHOLD_MM } from '@/lib/geometry/standardize';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
@@ -140,7 +142,7 @@ import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 export type ThicknessGroup = WallThickness;
 
 /** Ba nhóm SỐ, theo thứ tự hiển thị tăng dần. Không gồm cột bê tông cốt thép. */
-export const THICKNESS_GROUPS_MM = [110, 220, 330] as const;
+export const THICKNESS_GROUPS_MM: readonly number[] = STANDARD_THICKNESSES_MM; // sáu bậc của máy chủ
 
 /** Nhóm thứ tư — cột bê tông cốt thép. Đếm được, hiển thị được, không có lệnh áp (X2). */
 export const CONCRETE_COLUMN_GROUP: ThicknessGroup = 'CONCRETE_COLUMN';
@@ -152,12 +154,8 @@ export const THICKNESS_GROUP_DISPLAY_ORDER: readonly ThicknessGroup[] = [
 ];
 
 /** Nhãn tiếng Việt của từng nhóm, viết thường kiểu câu trừ mã trục/số (A6). */
-export const THICKNESS_GROUP_LABELS: Readonly<Record<ThicknessGroup, string>> = {
-  110: '110 mm',
-  220: '220 mm',
-  330: '330 mm',
-  CONCRETE_COLUMN: 'Cột bê tông cốt thép',
-};
+export const thicknessGroupLabel = (group: ThicknessGroup): string =>
+  group === 'CONCRETE_COLUMN' ? 'Cột bê tông cốt thép' : `${group} mm`;
 
 /* -------------------------------------------------------------------------- */
 /* Dung sai, ngưỡng, kích thước khung xương — xem "X3" ở đầu file.             */
@@ -180,10 +178,13 @@ export const THICKNESS_PREVIEW_CANVAS_WIDTH_PX = 320;
  * 110↔220, 220↔330, 330↔cột bê tông cốt thép. Chỉ số (0/1/2) khớp tham số
  * `index` của {@link ThicknessHistogramProps.onThresholdDrag}.
  */
-export type ThicknessThresholds = readonly [lowMm: number, midMm: number, highMm: number];
+export type ThicknessThresholds = readonly number[];
 
 /** Mặc định ĐÚNG BA số của `standardizeThickness` (`src/lib/geometry/standardize.ts:12-15`). */
-export const DEFAULT_THICKNESS_THRESHOLDS: ThicknessThresholds = [165, 275, 350];
+export const DEFAULT_THICKNESS_THRESHOLDS: ThicknessThresholds = [
+  ...STANDARD_THICKNESSES_MM.slice(1).map((value, index) => ((STANDARD_THICKNESSES_MM[index] ?? value) + value) / 2),
+  CONCRETE_COLUMN_THRESHOLD_MM,
+]; // điểm giữa các bậc (125, 175, 210, 260, 350) + ngưỡng cột BTCT 450
 
 /* -------------------------------------------------------------------------- */
 /* Bảy trạng thái (A11/R-63) — xem bảng ở đầu file.                            */

@@ -28,7 +28,7 @@
  * giờ `'violation'` ở màn này".
  */
 
-import { wallStrokeToken } from '@/components/canvas/materialMap';
+import { wallStrokeToken, wallThicknessColorBand } from '@/components/canvas/materialMap';
 import type { Point, WallId } from '@/domain/spatial/types';
 import { WALL_THICKNESS_TOLERANCE_MM } from '@/domain/walls/thicknessTolerance';
 import type { MeasurementState, Point as PointPx } from '@/hooks/useMeasurementLabel';
@@ -131,11 +131,7 @@ export function wallThicknessColorGroupOf(thicknessMm: number): WallThicknessCol
   return band === null ? null : wallThicknessColorBand(band);
 }
 
-/** Sáu bậc danh mục → ba token màu: ≤150 mỏng, ≤220 vừa, còn lại dày. */
-export function wallThicknessColorBand(choice: WallThicknessChoice): 110 | 220 | 330 {
-  if (choice <= 150) return 110;
-  return choice <= 220 ? 220 : 330;
-}
+export { wallThicknessColorBand };
 
 /**
  * Nhóm chuẩn (110/220/330) gần nhất trong dung sai CHUNG `WALL_THICKNESS_TOLERANCE_MM` (R-7, cùng

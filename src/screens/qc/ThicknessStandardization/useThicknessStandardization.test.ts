@@ -271,7 +271,7 @@ describe('phép ghép thuần của màn Chuẩn hoá độ dày tường', () =
   });
 
   it('[BUG-606] kéo qua ngưỡng kề thì bị kẹp, không đẩy ngưỡng kia đi', () => {
-    const [low, mid, high] = DEFAULT_THICKNESS_THRESHOLDS;
+    const [low, mid, high] = DEFAULT_THICKNESS_THRESHOLDS as readonly [number, number, number];
 
     expect(withThresholdAt(DEFAULT_THICKNESS_THRESHOLDS, 0, 400)).toEqual([mid - HISTOGRAM_BIN_MM, mid, high]);
     expect(withThresholdAt(DEFAULT_THICKNESS_THRESHOLDS, 2, 0)).toEqual([low, mid, mid + HISTOGRAM_BIN_MM]);

@@ -31,7 +31,7 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { Table } from '@/components/ui/Table';
 import { cn } from '@/lib/utils';
 
-import { THICKNESS_GROUP_LABELS, type ThicknessGroup, type ThicknessGroupTableProps } from './thicknessTypes';
+import { thicknessGroupLabel, type ThicknessGroup, type ThicknessGroupTableProps } from './thicknessTypes';
 
 const HEADER_MEASURED = 'Độ dày đo được';
 const HEADER_WALL_COUNT = 'Số tường';
@@ -40,7 +40,7 @@ const HEADER_ACCEPTED = 'Đồng ý';
 const EMPTY_MESSAGE = 'Chưa có nhóm nào để chuẩn hoá.';
 
 function acceptCheckboxLabel(measuredMm: number, wallCount: number, suggestedGroup: ThicknessGroup): string {
-  return `Đồng ý chuẩn hoá ${wallCount} tường ${measuredMm} mm về ${lowerFirst(THICKNESS_GROUP_LABELS[suggestedGroup])}`;
+  return `Đồng ý chuẩn hoá ${wallCount} tường ${measuredMm} mm về ${lowerFirst(thicknessGroupLabel(suggestedGroup))}`;
 }
 
 export function ThicknessGroupTable({
@@ -75,7 +75,7 @@ export function ThicknessGroupTable({
             >
               <Table.Cell className="font-mono tabular-nums">{row.measuredMm} mm</Table.Cell>
               <Table.Cell className="font-mono tabular-nums">{row.wallCount}</Table.Cell>
-              <Table.Cell>{THICKNESS_GROUP_LABELS[row.suggestedGroup]}</Table.Cell>
+              <Table.Cell>{thicknessGroupLabel(row.suggestedGroup)}</Table.Cell>
               {isReadOnly ? null : (
                 <Table.Cell>
                   <Checkbox

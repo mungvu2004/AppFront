@@ -91,7 +91,7 @@ import {
   createMockThicknessStandardizationGateway,
   deviationOf,
 } from './thicknessStandardizationGateway';
-import { DEFAULT_TOLERANCE_MM, THICKNESS_GROUP_LABELS } from './thicknessTypes';
+import { DEFAULT_TOLERANCE_MM, thicknessGroupLabel } from './thicknessTypes';
 
 /* -------------------------------------------------------------------------- */
 /* Nhãn đọc trên màn — cùng chữ mà view và các mảnh con dựng.                   */
@@ -105,8 +105,8 @@ const APPLY_LABEL = 'Áp dụng';
 const UNDO_LABEL = 'Hoàn tác';
 const REAPPLY_FILTER_LABEL = 'Áp lại cho mọi tường lệch nhóm';
 const REAPPLY_WARNING_TITLE = 'Áp lại cho mọi tường lệch nhóm sẽ đổi tường đã duyệt';
-const LOW_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[110])} và ${lowerFirst(THICKNESS_GROUP_LABELS[220])}`;
-const HIGH_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[330])} và ${lowerFirst(THICKNESS_GROUP_LABELS.CONCRETE_COLUMN)}`;
+const LOW_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(thicknessGroupLabel(110))} và ${lowerFirst(thicknessGroupLabel(220))}`;
+const HIGH_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(thicknessGroupLabel(330))} và ${lowerFirst(thicknessGroupLabel('CONCRETE_COLUMN'))}`;
 
 const PROJECT_ID = 'project-1';
 const FLOOR_ID = THICKNESS_FIXTURE_LEVELS[0]?.id ?? '';
@@ -557,7 +557,7 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
     const { container } = await renderMain();
     const valueOf = (name: string): number =>
       Number(within(container).getByRole('slider', { name }).getAttribute('aria-valuenow'));
-    const midName = `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[220])} và ${lowerFirst(THICKNESS_GROUP_LABELS[330])}`;
+    const midName = `Ngưỡng giữa ${lowerFirst(thicknessGroupLabel(220))} và ${lowerFirst(thicknessGroupLabel(330))}`;
     const minBefore = within(container).getByRole('slider', { name: LOW_THRESHOLD_LABEL }).getAttribute('aria-valuemin');
 
     fireEvent.keyDown(within(container).getByRole('slider', { name: HIGH_THRESHOLD_LABEL }), { key: 'Home' });

@@ -45,7 +45,7 @@ import {
   HISTOGRAM_HEIGHT_PX,
   THICKNESS_GROUPS_MM,
   THICKNESS_GROUP_DISPLAY_ORDER,
-  THICKNESS_GROUP_LABELS,
+  thicknessGroupLabel,
   type ThicknessGroup,
   type ThicknessHistogramProps,
 } from './thicknessTypes';
@@ -90,7 +90,7 @@ const AXIS_UNIT_LABEL = 'mm';
 const THRESHOLD_LABELS: readonly string[] = THICKNESS_GROUPS_MM.map((group, index) => {
   const next: ThicknessGroup = THICKNESS_GROUP_DISPLAY_ORDER[index + 1] ?? CONCRETE_COLUMN_GROUP;
 
-  return `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[group])} và ${lowerFirst(THICKNESS_GROUP_LABELS[next])}`;
+  return `Ngưỡng giữa ${lowerFirst(thicknessGroupLabel(group))} và ${lowerFirst(thicknessGroupLabel(next))}`;
 });
 
 /* -------------------------------------------------------------------------- */
