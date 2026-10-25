@@ -373,7 +373,10 @@ function OrbitHint() {
   )
 }
 
-export default function Home({ projectId, onLoad, onSave, backCard, projectName }: HomeProps) {
+/** V1 (viewer-measure): người xem không dựng/đặt đồ — bỏ tab Dựng + Đồ vật; đo nằm ở thanh hành động. */
+const READ_ONLY_SIDEBAR_TABS = SIDEBAR_TABS.filter((tab) => tab.id !== 'build' && tab.id !== 'items')
+
+export default function Home({ projectId, onLoad, onSave, readOnly, backCard, projectName }: HomeProps) {
   useEditorPreferencesPersistence()
   usePascalVi()
   useEscapeExits()
@@ -400,7 +403,7 @@ export default function Home({ projectId, onLoad, onSave, backCard, projectName 
           emitter.emit('snapshot:saved', { projectId, id: 'download', url: '', width: 0, height: 0 })
         }}
         projectId={projectId}
-        sidebarTabs={SIDEBAR_TABS}
+        sidebarTabs={readOnly ? READ_ONLY_SIDEBAR_TABS : SIDEBAR_TABS}
         viewerToolbarLeft={
           <>
             {backCard}
