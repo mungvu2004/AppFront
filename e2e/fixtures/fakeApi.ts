@@ -173,6 +173,9 @@ export function createFakeBackend({ projectId, graphDoc, layers: overrides = {},
         },
       };
     }
+    /* Thư viện nội thất máy chủ (a592a003): trang Pascal đọc trước lượt dựng đầu. Rỗng = chỉ danh mục
+       đóng gói — đúng thứ spec tính cảnh mong đợi trong Node (không gọi `registerServerLibrary`). */
+    if (method === 'GET' && pathname === '/api/library') return { status: 200, body: [] };
     // N5 — thân tối thiểu hợp lệ (trang Pascal đọc kiểu cảnh của dự án, FE3D-FIX-003).
     if (method === 'GET' && pathname === `${project}/settings`) {
       return {
