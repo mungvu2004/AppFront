@@ -36,7 +36,7 @@ const WORKERS = opt('workers', '4');
 const HISTORY = Number(opt('history', '6'));
 const F14 = 'F:/App/AppBack/backend/dieu-phoi/chay/F-14';
 // chuoi.sh builds from this detached worktree (its BE default), not from config.backendSourceRoot (the main checkout).
-const BE_SRC = 'C:/Users/mxuan/orca/workspaces/AppBack/qa-main';
+const BE_SRC = process.env.QA_BE_SRC ?? 'F:/worktrees/AppBack/qa-main';
 const STAMP = join(F14, '.built-be');
 
 const sh = (cmd, cwd = SUITE) => spawnSync(cmd, { cwd, shell: true, encoding: 'utf8' });
