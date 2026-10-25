@@ -14,7 +14,7 @@ import { useRealism } from './store';
 
 export const WINDOW_LIGHT_MAX = 8;
 /** cd mỗi m² ô cửa (decay 2 → độ rọi I/d²). */
-export const WINDOW_LIGHT_PER_M2 = 4;
+export const WINDOW_LIGHT_PER_M2 = 3;
 export const WINDOW_LIGHT_RANGE_M = 7;
 export const WINDOW_AMBIENT_SCALE = 0.6;
 /** Lùi đèn vào trong phòng theo pháp tuyến ô cửa → rèm/khung sát cửa không bị đốm cháy. */
