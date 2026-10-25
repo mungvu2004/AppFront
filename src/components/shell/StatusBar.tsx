@@ -45,9 +45,8 @@ export function StatusBar({ x, y, scaleRatio, scaleDensity, saveText }: StatusBa
 
       {/* Mục 2: Tỷ lệ */}
       <span className="text-[12px] text-text-secondary tabular-nums">
-        <span>{scaleRatio}</span>
-        <span className="mx-1 text-text-muted" aria-hidden="true">·</span>
-        <span>{scaleDensity}</span>
+        {/* mm/px là số của máy: chỉ để trong chú thích, chữ hiện là tỷ lệ 1:N. */}
+        <span title={scaleDensity}>{scaleRatio}</span>
       </span>
 
       {/* Mục 3: Trạng thái lưu — chỉ một trong ba mục */}

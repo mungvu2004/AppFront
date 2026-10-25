@@ -10,7 +10,7 @@ import type { FloorRowVm } from './floorManagerTypes';
 
 const SCALE_LABEL = 'Hiệu chỉnh tỷ lệ';
 const SCALE_LOCKED_REASON = 'Tầng chưa có bản vẽ, hãy tải bản vẽ lên trước.';
-const REVIEW_MENU_LABEL = 'Duyệt lớp';
+const REVIEW_MENU_LABEL = 'Duyệt';
 
 export interface FloorRowLinksProps {
   readonly row: FloorRowVm;
@@ -46,7 +46,7 @@ export function FloorRowLinks({ row, onOpenReviewMenu }: FloorRowLinksProps) {
           size="sm"
           variant="ghost"
         >
-          {REVIEW_MENU_LABEL} ▾
+          {REVIEW_MENU_LABEL}
         </Button>
       )}
     </>

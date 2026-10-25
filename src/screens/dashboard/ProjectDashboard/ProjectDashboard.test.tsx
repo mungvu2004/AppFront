@@ -324,7 +324,7 @@ describe('ProjectDashboardView, seven states', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.success()} rows={[{ ...SAMPLE_ROW, hasPlan: false }]} />);
 
     const card = screen.getByRole('listitem', { name: SAMPLE_ROW.name });
-    expect(within(card).getByText('Chưa có mặt bằng')).toBeInTheDocument();
+    expect(within(card).getByText('Chưa có bản vẽ')).toBeInTheDocument();
     expect(within(card).queryByRole('img', { name: 'Sơ đồ mặt bằng' })).not.toBeInTheDocument();
   });
 

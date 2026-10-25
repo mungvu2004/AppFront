@@ -58,9 +58,9 @@ import { summarizeQualityGate } from './inputQualitySummary';
 import type { InputQualityGateViewProps } from './types';
 
 const BREADCRUMB_PROJECTS = 'Dự án';
-const BREADCRUMB_QUALITY = 'Kiểm tra chất lượng đầu vào';
+const BREADCRUMB_QUALITY = 'Chất lượng ảnh';
 const PAGE_EYEBROW = 'Bước 1 · Tải bản vẽ';
-const PAGE_TITLE = 'Kiểm tra ảnh trước khi xử lý';
+const PAGE_TITLE = 'Chất lượng ảnh';
 const IMAGE_TITLE = 'Ảnh bản vẽ';
 
 /** Tiêu đề của lượt đo chất lượng hỏng — `status === 'error'`, không phải lỗi tệp. */
@@ -128,7 +128,6 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
       summary={summary}
     />
   );
-  const hasPanels = model.status !== 'loading' && model.status !== 'error' && model.noDrawingNotice === null;
 
   const body =
     model.status === 'loading' ? (
@@ -214,7 +213,6 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
                 remainingFindingCount={model.remainingFindingCount}
               />
             </div>
-            {footer}
           </Section>
         </div>
       </div>
@@ -233,19 +231,12 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
         <PageHead
           className="mb-0"
           eyebrow={PAGE_EYEBROW}
-          status={
-            <>
-              <Badge variant={summary.chipVariant}>{summary.chipText}</Badge>
-              {summary.sentence !== null && <span>{summary.sentence}</span>}
-            </>
-          }
-          title={PAGE_TITLE}
+          next={footer}
+          status={<Badge variant={summary.chipVariant}>{summary.chipText}</Badge>}
+          title={activeFloor === undefined ? PAGE_TITLE : `${PAGE_TITLE} của ${activeFloor.label}`}
         />
 
         {body}
-
-        {/* Đang đọc / lỗi / chưa có bản vẽ: không có khung kết quả, chân nút đứng dưới thân. */}
-        {!hasPanels && footer}
 
         <InputQualityGateConfirmDialog
           actions={{ onCancelWrite: actions.onCancelWrite, onConfirmWrite: actions.onConfirmWrite }}

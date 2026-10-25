@@ -400,7 +400,7 @@ describe('[NGHIEM-3] tổng số đối tượng', () => {
 
     expect(mounted.result.current.state).toBe('partial');
     expect(mounted.result.current.isLowConfidenceOnly).toBe(false);
-    expect(mounted.result.current.partialNotice).toBe('5 mục dưới ngưỡng tin cậy');
+    expect(mounted.result.current.partialNotice).toBe('5 mục máy chưa chắc');
     expect(mounted.result.current.rows).toHaveLength(21);
 
     await run(() => mounted.result.current.onToggleLowConfidenceOnly());
@@ -1674,8 +1674,8 @@ describe('đợt sửa P04 — SCR-17', () => {
       onToggleLowConfidenceOnly,
     });
 
-    expect(screen.getByRole('button', { name: 'Chỉ hiện mục dưới ngưỡng' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText('Đã duyệt hết mục dưới ngưỡng.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Chỉ hiện chỗ máy chưa chắc' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Đã duyệt hết chỗ máy chưa chắc.')).toBeInTheDocument();
     screen.getByRole('button', { name: 'Hiện tất cả' }).click();
     expect(onToggleLowConfidenceOnly).toHaveBeenCalledTimes(1);
 
@@ -1719,7 +1719,7 @@ describe('đợt sửa P04 — SCR-17', () => {
 
     expect(screen.getByRole('region', { name: 'Lớp đối tượng' })).toHaveClass('h-screen');
     expect(document.body.innerHTML).not.toContain('h-[560px]');
-    expect(screen.getByText(/Chọn một đối tượng trên bản vẽ/u)).toHaveClass('pb-5');
+    expect(screen.getByText(/Chọn một mục/u)).toHaveClass('pb-5');
 
     mounted.unmount();
   });

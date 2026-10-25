@@ -224,7 +224,7 @@ test.describe('Phase 09 viewer edge B', () => {
       });
       await test.step('[9V-C-001] rule report rerun + confirm visible', async () => {
         await gotoAs(page, ROUTES.project.rules(s.projectId), RULES_HEADING);
-        await expect.soft(page.getByRole('button', { name: 'Chạy kiểm tra lại' })).toBeVisible(); // RuleReport.tsx:305
+        await expect.soft(page.getByRole('button', { name: 'Kiểm tra lại' })).toBeVisible(); // RuleReport.tsx:305
         // Kỹ sư giữ cổng: "Xem vi phạm kế" khi còn vi phạm nghiêm trọng, "Xem cảnh báo" / "Sang Xuất" khi đã sạch.
         await expect.soft(page.getByTestId('flow-gate').getByRole('button', { name: /^(Xem vi phạm kế|Xem cảnh báo|Sang Xuất)$/u })).toBeVisible();
         await captureEvidence(page, 'E09_9V-C-001_rules_controls.png');

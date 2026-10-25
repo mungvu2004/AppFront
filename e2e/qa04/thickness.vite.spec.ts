@@ -16,7 +16,7 @@ import { captureEvidence } from '../../qa/tests/support/evidence';
 
 test.use({ baseURL: MOCK_BASE_URL });
 
-const SCREEN = 'Chuẩn hoá độ dày tường'; // ThicknessStandardization.tsx title
+const SCREEN = 'Độ dày tường'; // ThicknessStandardization.tsx title
 /** QcPanelHead status sentence (thicknessBatch.ts statusSentenceOf): "51/81 đoạn không chuẩn, 30 đúng chuẩn". */
 const STATUS_SENTENCE = /^\d+\/[1-9]\d* đoạn không chuẩn, \d+ đúng chuẩn$/u;
 const HISTOGRAM_SECTION = 'Phân bố độ dày đo được'; // ThicknessStandardization.tsx HISTOGRAM_SECTION_LABEL
@@ -43,17 +43,17 @@ test.describe('E04 SCR-21 thickness — layout on Vite [mocked response]', () =>
     test(`SCR-21 · FL-21-V1 · BUG-405/406/611 at ${String(width)}`, async ({ page }) => {
       await openSeeded(page, width, height);
 
-      await test.step(`[BUG-406] x-axis labels do not touch at ${String(width)}`, async () => {
-        const ticks = page
-          .getByRole('region', { name: HISTOGRAM_SECTION })
-          .locator('span.tabular-nums.text-text-muted')
-          .filter({ hasText: /^\d{2,3}$/u });
+      await test.step(`[BUG-406] threshold labels do not touch at ${String(width)}`, async () => {
+        // UX 26/10: trục dưới biểu đồ đã bỏ; nhãn ngưỡng nằm trên biểu đồ, xếp so le hai hàng (top-0 / top-4).
+        const ticks = page.getByRole('region', { name: HISTOGRAM_SECTION }).locator('span.tabular-nums.text-text-secondary');
         expect(await ticks.count()).toBeGreaterThan(1);
         const boxes = await ticks.evaluateAll((els) =>
-          els.map((el) => el.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right })),
+          els.map((el) => el.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right, t: r.top, b: r.bottom })),
         );
-        const glued = boxes.flatMap((b, i) => (i > 0 && b.l < (boxes[i - 1]?.r ?? 0) + 4 ? [i] : []));
-        expect.soft(glued, 'ticks closer than 4 px').toEqual([]);
+        const glued = boxes.flatMap((x, i) =>
+          boxes.slice(0, i).some((y) => x.l < y.r + 4 && y.l < x.r + 4 && x.t < y.b && y.t < x.b) ? [i] : [],
+        );
+        expect.soft(glued, 'labels overlapping or closer than 4 px').toEqual([]);
       });
 
       await test.step(`[BUG-611] the status sentence numbers are plain text, not the approved green at ${String(width)}`, async () => {

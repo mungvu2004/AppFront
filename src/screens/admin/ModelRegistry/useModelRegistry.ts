@@ -191,9 +191,10 @@ function metricLabel(version: ModelVersion): string {
   const metric = METRIC_BY_FAMILY[version.family];
   const value = version.metrics?.[metric.key];
 
-  return value === undefined
-    ? MISSING_VALUE
-    : `${metric.name} ${formatNumber(value, { fractionDigits: METRIC_FRACTION_DIGITS })}`;
+  if (value === undefined) return MISSING_VALUE;
+  // Hai số đo tỉ lệ (IoU, mAP50) nói cho kỹ sư là "Độ chính xác %"; CER là tỉ lệ lỗi nên giữ nguyên.
+  if (metric.key !== 'cer') return `Độ chính xác ${formatNumber(value * 100, { fractionDigits: 1 })}%`;
+  return `${metric.name} ${formatNumber(value, { fractionDigits: METRIC_FRACTION_DIGITS })}`;
 }
 
 const isSeed = (version: ModelVersion): boolean =>
@@ -414,7 +415,7 @@ interface ActivateVariables {
 export function useModelRegistry({
   gateway,
   isNarrow = false,
-  relatedLink = TRAINING_JOBS_LINK,
+  relatedLink = null,
 }: UseModelRegistryOptions): ModelRegistryResult {
   const session = useSession();
   const queryClient = useQueryClient();

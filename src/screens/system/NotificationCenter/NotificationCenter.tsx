@@ -58,9 +58,6 @@ const PAGE_EYEBROW = 'Tài khoản · Thông báo';
 const PAGE_TITLE = 'Xem việc mới từ thông báo';
 const UNREAD_SUFFIX = 'chưa đọc';
 const ALL_READ_LABEL = 'Đã đọc hết';
-const NEWEST_PREFIX = 'Mới nhất';
-const OPEN_NEWEST_LABEL = 'Mở thông báo mới nhất';
-const PAGE_FOOT = 'Mở trang này không tự đánh dấu đã đọc. Bấm vào thông báo hoặc nút dấu ✓ để đánh dấu.';
 const SETTINGS_LABEL = 'Mở cài đặt thông báo';
 const FILTER_ARIA_LABEL = 'Lọc thông báo';
 const VIEW_ALL_LABEL = 'Xem tất cả';
@@ -306,12 +303,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
  * trang thường dưới header chung — không lớp phủ, không Esc, không "Xem tất cả" (chính là nó).
  */
 export function NotificationCenterPage(props: NotificationCenterProps) {
-  const { filter, onFilterChange, unreadBadge, liveMessage, onItemClick, onInlineAction, groups } = props;
-  const items = groups.flatMap((group) => group.items);
-  const newest = items[0];
-  const newestUnread = items.find((item) => !item.isRead);
-  const nextLabel =
-    newestUnread?.inlineAction?.kind === 'navigate' ? newestUnread.inlineAction.label : OPEN_NEWEST_LABEL;
+  const { filter, onFilterChange, unreadBadge, liveMessage, onItemClick, onInlineAction } = props;
 
   return (
     <div className="mx-auto flex w-full max-w-[1280px] flex-col px-20 py-8 max-xl:px-8 max-lg:p-6">
@@ -328,17 +320,7 @@ export function NotificationCenterPage(props: NotificationCenterProps) {
             ) : (
               <Badge variant="verified">{ALL_READ_LABEL}</Badge>
             )}
-            {newest !== undefined && (
-              <span className="min-w-0">{`${NEWEST_PREFIX} ${newest.relativeTime}: ${newest.sentence} ${newest.target.label}`}</span>
-            )}
           </>
-        }
-        next={
-          newestUnread !== undefined && (
-            <Button variant="primary" onClick={() => onItemClick(newestUnread)}>
-              {nextLabel}
-            </Button>
-          )
         }
       />
       <p className="sr-only" role="status" aria-live="polite">
@@ -367,9 +349,6 @@ export function NotificationCenterPage(props: NotificationCenterProps) {
             showNavigateAction
           />
         </div>
-        <p className="border-t border-border-default px-5 py-3 text-[13px] leading-[18px] text-text-secondary">
-          {PAGE_FOOT}
-        </p>
       </Section>
     </div>
   );

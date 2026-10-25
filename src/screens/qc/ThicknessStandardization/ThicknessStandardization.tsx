@@ -26,7 +26,6 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Drawer } from '@/components/overlay/Drawer';
-import { FlowGate } from '@/components/shell/FlowGate';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Kbd } from '@/components/ui/Kbd';
@@ -34,6 +33,7 @@ import { Kbd } from '@/components/ui/Kbd';
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import { FloorReviewGate } from '../shared/FloorReviewGate.container';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcPanelHead } from '../shared/QcPanelHead';
 import { QcScreenFrame, QcStatusBar } from '../shared/QcScreenFrame';
@@ -72,8 +72,7 @@ export type ThicknessStandardizationViewProps = ThicknessStandardizationProps &
 /* Chuỗi tĩnh (A6 — chữ thường kiểu câu, trừ tên riêng và mã).                 */
 /* -------------------------------------------------------------------------- */
 
-const SCREEN_TITLE = 'Chuẩn hoá độ dày tường';
-const EYEBROW = 'Bước 3 · Kiểm tra tầng · Tường';
+const SCREEN_TITLE = 'Độ dày tường';
 const PANEL_LABEL = 'Bảng chuẩn hoá độ dày';
 const CANVAS_REGION_LABEL = 'Bản vẽ theo nhóm độ dày';
 const HISTOGRAM_SECTION_LABEL = 'Phân bố độ dày đo được';
@@ -84,8 +83,6 @@ const EMPTY_TITLE = 'Chưa có đoạn tường nào để chuẩn hoá';
 const EMPTY_DESCRIPTION = 'Sang lớp tường để dò lại các đoạn tường, rồi quay lại đây.';
 const EXPAND_PREVIEW_LABEL = 'Mở khung xem trước';
 const DETAIL_TITLE = 'Bảng từng đoạn tường';
-const GATE_WALLS = 'Tường';
-const GATE_PROGRESS = 'Tường đã duyệt';
 const STATUS_HINT = 'Rê một nhóm hoặc một cột để sáng các đoạn trên bản vẽ';
 const KEY_HINTS = [
   { key: 'Enter', label: 'đổi' },
@@ -123,25 +120,13 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
   }
 
   const badge = STATUS_BADGE[props.batchStatus];
-  const hasWork = !isViewerRole && props.candidateCount > 0;
 
   return (
     <QcScreenFrame label={SCREEN_TITLE}>
       {props.floorNav != null && <QcFloorNav {...props.floorNav} layer="thickness" titled />}
 
-      {/* Câu 3: cổng giống S-15. Còn việc đổi thì nút chính ở chân panel, cổng chỉ là nút phụ. */}
-      <FlowGate
-        conditions={[{ label: GATE_WALLS, done: segmentCount > 0 && props.reviewedCount === segmentCount }]}
-        done={props.reviewedCount}
-        progressLabel={GATE_PROGRESS}
-        total={segmentCount}
-      >
-        {props.onNavigateToWalls === undefined ? null : (
-          <Button onClick={props.onNavigateToWalls} size="sm" variant={hasWork ? 'secondary' : 'primary'}>
-            {NAVIGATE_WALLS_LABEL}
-          </Button>
-        )}
-      </FlowGate>
+      {/* Câu 3: cổng chung của tầng. */}
+      {props.floorNav != null && <FloorReviewGate floorId={props.floorNav.floorId} projectId={props.floorNav.projectId} />}
 
       <div className="flex min-h-0 flex-1 gap-2 p-2">
         <aside
@@ -149,7 +134,6 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
           className="flex w-[300px] shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel lg:w-[320px] xl:w-[400px]"
         >
           <QcPanelHead
-            eyebrow={EYEBROW}
             status={
               <>
                 <Badge variant={badge.variant}>{badge.label}</Badge>
@@ -162,7 +146,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
             title={SCREEN_TITLE}
           />
 
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-6 pt-4">
             {props.saveBlock == null ? null : <FloorLayerSaveBanner saveBlock={props.saveBlock} />}
             {props.provisionalScaleNotice == null ? null : (
               <ProvisionalScaleBanner notice={props.provisionalScaleNotice} />

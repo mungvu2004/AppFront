@@ -20,13 +20,11 @@
  * giảm chuyển động thì chỉ mờ dần — đọc từ `prefersReducedMotion` của VM.
  */
 
-import { ChevronLeft, ChevronRight, Copy, FileImage, Link2Off, Unplug, UserRound } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { ChevronLeft, ChevronRight, FileImage } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { PageHead } from '@/components/shell/PageHead';
 import { Section } from '@/components/shell/Section';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { MOTION_DURATIONS_MS, cssDurationMs } from '@/lib/motion/tokens';
 import { cn } from '@/lib/utils';
@@ -60,26 +58,18 @@ const STYLE_TEXT = `
 
 interface HeadCopy {
   readonly eyebrow: string;
-  readonly chip: string;
-  readonly icon: ReactNode;
 }
 
-/** Eyebrow + chip trạng thái cho từng nguyên nhân (câu 1 và câu 2 của màn). */
+/** Eyebrow cho từng nguyên nhân (câu 1 và câu 2 của màn). */
 const HEAD_BY_REASON: Readonly<Record<NotFoundReason, HeadCopy>> = {
   missing: {
     eyebrow: 'Đường dẫn không mở được',
-    chip: 'Đường dẫn không trỏ tới trang nào',
-    icon: <Link2Off size={14} aria-hidden="true" />,
   },
   forbidden: {
     eyebrow: 'Cần đăng nhập',
-    chip: 'Bạn chưa đăng nhập',
-    icon: <UserRound size={14} aria-hidden="true" />,
   },
   offline: {
     eyebrow: 'Mất kết nối',
-    chip: 'Đường truyền đang gián đoạn',
-    icon: <Unplug size={14} aria-hidden="true" />,
   },
 };
 
@@ -87,7 +77,6 @@ const UNHARMED_SENTENCE = 'Dữ liệu của bạn không bị ảnh hưởng';
 const PICK_BELOW_SENTENCE = 'Nếu bạn đang tìm một dự án, chọn ở danh sách dưới đây.';
 const RECENT_SUB_SUFFIX = ' dự án cập nhật gần nhất';
 const OPEN_LABEL = 'Mở';
-const COPY_LABEL = 'Chép mã';
 
 /** Vành tiêu điểm 2px offset 2px A12 đòi, cho hàng dự án không đi qua `Button`. */
 const ROW_FOCUS_RING_CLASS =
@@ -111,10 +100,6 @@ export function NotFound({
   const hasRecentProjects = visibleProjects.length > 0;
   const head = HEAD_BY_REASON[reason];
 
-  const copyCaption = (): void => {
-    void navigator.clipboard?.writeText(errorCaption).catch(() => undefined);
-  };
-
   return (
     <div className="min-h-full w-full bg-bg-app">
       <style>{STYLE_TEXT}</style>
@@ -131,10 +116,6 @@ export function NotFound({
           title={title}
           status={
             <>
-              <Badge variant="neutral" noDot className="gap-1.5">
-                {head.icon}
-                {head.chip}
-              </Badge>
               <span>{UNHARMED_SENTENCE}</span>
             </>
           }
@@ -205,14 +186,6 @@ export function NotFound({
           <samp className="select-all rounded bg-bg-sunken px-1.5 py-0.5 font-mono text-[12px] text-text-secondary">
             {errorCaption}
           </samp>
-          <Button
-            variant="ghost"
-            size="sm"
-            iconBefore={<Copy size={14} aria-hidden="true" />}
-            onClick={copyCaption}
-          >
-            {COPY_LABEL}
-          </Button>
         </div>
       </div>
     </div>

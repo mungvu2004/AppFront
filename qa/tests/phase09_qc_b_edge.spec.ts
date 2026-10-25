@@ -192,7 +192,7 @@ test('SCR-16..21 · FL-9Q-07 · engineer · sửa được trên dự án riêng
     });
 
     await test.step('[9Q-E-006] engineer đổi tên phòng + duyệt thành công', async () => {
-      await openLayerScreen(page, ROUTES.project.rooms(qe.projectId, qe.floorId), qe, 'Duyệt tên phòng');
+      await openLayerScreen(page, ROUTES.project.rooms(qe.projectId, qe.floorId), qe, 'Duyệt phòng');
       await roomRows.first().click();
       const name = page.getByRole('textbox', { name: 'Tên phòng' });
       const renamed = waitLayerPut(page, qe);
@@ -229,7 +229,7 @@ test('SCR-16..21 · FL-9Q-07 · engineer · sửa được trên dự án riêng
     await test.step('[9Q-F-005] engineer áp chuẩn hoá một nhóm thành công', async () => {
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await openLayerScreen(page, ROUTES.project.thickness(qe.projectId, qe.floorId), qe, null);
-      await expect(page.getByRole('heading', { name: 'Chuẩn hoá độ dày tường' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Độ dày tường' })).toBeVisible();
       const accept = page.getByRole('checkbox', { name: /^Đồng ý chuẩn hoá \d+ tường /u }).first();
       await expect(accept).toBeVisible(); // qcLayer seeds two 200 mm partitions
       await pressSpaceOn(accept);
@@ -327,14 +327,14 @@ test('SCR-16..21 · FL-9Q-09 · admin · đối chứng dương', async ({ brows
       await captureEvidence(page, ev('9Q-D-007', 'admin_grids'));
     });
     await test.step('[9Q-E-008] admin đối chứng', async () => {
-      await openLayerScreen(page, ROUTES.project.rooms(qa.projectId, qa.floorId), qa, 'Duyệt tên phòng');
+      await openLayerScreen(page, ROUTES.project.rooms(qa.projectId, qa.floorId), qa, 'Duyệt phòng');
       await page.getByRole('listbox', { name: ROOM_LIST, exact: true }).getByRole('option').first().click();
       await expect(page.getByText('Chỉ xem', { exact: true })).toHaveCount(0);
       await captureEvidence(page, ev('9Q-E-008', 'admin_rooms'));
     });
     await test.step('[9Q-F-007] admin đối chứng', async () => {
       await openLayerScreen(page, ROUTES.project.thickness(qa.projectId, qa.floorId), qa, null);
-      await expect(page.getByRole('heading', { name: 'Chuẩn hoá độ dày tường' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Độ dày tường' })).toBeVisible();
       // ThicknessStandardization.tsx:375 apply bar (rendered for edit roles)
       await expect(page.getByRole('button', { name: 'Xem trước', exact: true })).toBeVisible();
       await captureEvidence(page, ev('9Q-F-007', 'admin_thickness'));

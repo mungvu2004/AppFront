@@ -17,9 +17,9 @@ describe('summarizeQualityGate', () => {
     expect(summary.kind).toBe('warning');
     expect(summary.chipText).toBe('Ảnh mờ, vẫn xử lý được');
     expect(summary.sentence).toBe('2 chỉ số kém, 1 cần chú ý');
-    expect(summary.primaryLabel).toBe('Xử lý dù ảnh mờ');
+    expect(summary.primaryLabel).toBe('Vẫn xử lý');
     expect(summary.secondaryLabel).toBe('Tải ảnh nét hơn');
-    expect(summary.consent).toMatch(/^Bấm là chấp nhận/u);
+    expect(summary.consent).toMatch(/^Vẫn xử lý: /u);
   });
 
   it('chỉ có mức cần chú ý thì không nói "chỉ số kém"', () => {

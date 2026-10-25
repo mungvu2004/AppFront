@@ -29,14 +29,11 @@
  */
 
 import { useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 
-import { FlowGate } from '@/components/shell/FlowGate';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { getButtonStyles } from '@/components/ui/buttonVariants';
 
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
@@ -75,6 +72,8 @@ export interface AxisGridManagerViewProps
   readonly background?: AxisCanvasBackground | null | undefined;
   /** `QcFloorNav titled` (breadcrumb dự án › tầng › lớp + thanh lớp) — route truyền vào. */
   readonly floorNav?: ReactNode;
+  /** Cổng chung của tầng (`FloorReviewGate`); vắng (story/test) thì không vẽ cổng. */
+  readonly floorGate?: ReactNode;
   /** BUG-594/601: vì sao "Căn tự động" bị khoá; `null` khi bấm được. */
   readonly autoAlignBlockedReason: string | null;
   /** Đọc lớp hỏng khi chưa có tài liệu → cả màn là một trạng thái lỗi (BUG-326). */
@@ -86,8 +85,10 @@ export interface AxisGridManagerViewProps
 }
 
 /** Tên vùng giữ nguyên (e2e/qa neo theo nó); H1 thấy được là động từ (vòng 6). */
-const SCREEN_TITLE = 'Quản lý trục và gốc toạ độ';
-const PANEL_TITLE = 'Kiểm trục và gốc toạ độ';
+const SCREEN_TITLE = 'Trục và gốc toạ độ';
+const PANEL_TITLE = 'Trục và gốc toạ độ';
+/* Khác tên vùng của màn để hai vùng không trùng tên truy cập. */
+const PANEL_ARIA_LABEL = 'Bảng trục';
 const CANVAS_SECTION_LABEL = 'Khung xem bản vẽ quản lý trục và gốc toạ độ';
 const FORBIDDEN_TITLE = 'Không có quyền sửa trục';
 const EXPAND_PANEL_LABEL = 'Bảng trục đang thu gọn';
@@ -104,21 +105,16 @@ const STATUS_TEXT = {
   missingHorizontal: 'Thiếu trục ngang',
   missingVertical: 'Thiếu trục dọc',
   lagging: (floor: string): string => `${floor} lệch quá ngưỡng`,
-  ready: 'Đủ điều kiện sang 3D',
-  notReady: 'Chưa đủ điều kiện',
   axisCount: (count: number): string => `${count} trục`,
-  originAt: (anchor: string): string => `gốc ±0.000 tại ${anchor}`,
+  originAt: (anchor: string): string => `gốc tại ${anchor}`,
   noOrigin: 'chưa đặt được gốc',
   noAxisLine: 'Chưa có trục nào để kiểm',
-  viewLagging: (floor: string): string => `Xem lệch ${floor}`,
   laggingLine: (floor: string, offset: string): string => `${floor} lệch ${offset} so với tầng gốc.`,
   alignedLine: 'Các tầng thẳng trục trong ngưỡng.',
-  toModel: 'Sang Mô hình 3D',
 } as const;
 
 const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 const PANEL_CLASS = 'flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:flex-none';
-const GATE_PRIMARY_CLASS = getButtonStyles({ variant: 'primary', size: 'sm' });
 
 /** Thẻ trên bản vẽ: lỗi → rỗng → thiếu một hướng; `null` khi lưới đủ hai hướng. */
 function cardKindOf(props: AxisGridManagerViewProps, gate: AxisGridGate): AxisGridCanvasCardKind | null {
@@ -134,6 +130,7 @@ function cardKindOf(props: AxisGridManagerViewProps, gate: AxisGridGate): AxisGr
 function AxisGridStatus({ viewModel, gate }: { readonly viewModel: AxisGridManagerViewProps['viewModel']; readonly gate: AxisGridGate }) {
   const axisCount = viewModel.groups.reduce((sum, group) => sum + group.rows.length, 0);
   const anchor = viewModel.origin.anchorOptions.find((option) => option.value === viewModel.origin.selectedAnchor)?.label;
+  const summary = `${STATUS_TEXT.axisCount(axisCount)}, ${anchor === undefined ? STATUS_TEXT.noOrigin : STATUS_TEXT.originAt(anchor)}`;
   const [variant, chip] =
     viewModel.state === 'loading'
       ? (['neutral', STATUS_TEXT.loading] as const)
@@ -145,18 +142,16 @@ function AxisGridStatus({ viewModel, gate }: { readonly viewModel: AxisGridManag
             ? (['attention', gate.missingDirection === 'horizontal' ? STATUS_TEXT.missingHorizontal : STATUS_TEXT.missingVertical] as const)
             : gate.laggingFloor !== null
               ? (['attention', STATUS_TEXT.lagging(gate.laggingFloor.name)] as const)
-              : gate.isReady
-                ? (['neutral', STATUS_TEXT.ready] as const)
-                : (['attention', STATUS_TEXT.notReady] as const);
+              : (['neutral', summary] as const);
   const line =
     viewModel.state === 'loading' || viewModel.hasNoAxes || viewModel.errorMessage !== null
       ? viewModel.state === 'loading'
         ? null
         : STATUS_TEXT.noAxisLine
-      : `${STATUS_TEXT.axisCount(axisCount)}, ${anchor === undefined ? STATUS_TEXT.noOrigin : STATUS_TEXT.originAt(anchor)}.`;
+      : null;
 
   const alignLine =
-    line === null || viewModel.hasNoAxes || viewModel.errorMessage !== null
+    viewModel.state === 'loading' || viewModel.hasNoAxes || viewModel.errorMessage !== null
       ? null
       : gate.laggingFloor !== null
         ? STATUS_TEXT.laggingLine(gate.laggingFloor.name, gate.laggingFloor.offsetText)
@@ -219,38 +214,6 @@ function AxisGridLeftBody(props: AxisGridManagerViewProps) {
   );
 }
 
-/** MỘT nút của cổng: đủ → chính "Sang Mô hình 3D"; chưa đủ → phụ tới việc còn thiếu. */
-function AxisGridGateButton({ props, gate }: { readonly props: AxisGridManagerViewProps; readonly gate: AxisGridGate }) {
-  if (gate.isReady) {
-    return props.modelStepHref === undefined ? null : (
-      <Link className={GATE_PRIMARY_CLASS} to={props.modelStepHref}>
-        {STATUS_TEXT.toModel}
-      </Link>
-    );
-  }
-  if (props.viewModel.errorMessage !== null) {
-    return (
-      <Button onClick={props.onRetry} size="sm" type="button" variant="secondary">
-        {AXIS_CARD_TEXT.retry}
-      </Button>
-    );
-  }
-  if (gate.missingDirection !== null && !props.viewModel.isViewerRole) {
-    const direction = gate.missingDirection;
-    return (
-      <Button onClick={() => props.onAxisAdd(direction)} size="sm" type="button" variant="secondary">
-        {direction === 'horizontal' ? AXIS_CARD_TEXT.drawHorizontal : AXIS_CARD_TEXT.drawVertical}
-      </Button>
-    );
-  }
-  const lagging = gate.laggingFloor;
-  return lagging === null ? null : (
-    <Button onClick={() => props.onViewFloorOnDrawing(lagging.levelId)} size="sm" type="button" variant="secondary">
-      {STATUS_TEXT.viewLagging(lagging.name)}
-    </Button>
-  );
-}
-
 export function AxisGridManager(props: AxisGridManagerViewProps) {
   const { viewModel, spacingMessage } = props;
   const [unsavedDismissed, setUnsavedDismissed] = useState(false);
@@ -272,7 +235,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
     cardKind === null && !gate.isReady && gate.laggingFloor !== null && props.autoAlignBlockedReason === null;
 
   const left = (
-    <section aria-label={PANEL_TITLE} className={PANEL_CLASS}>
+    <section aria-label={PANEL_ARIA_LABEL} className={PANEL_CLASS}>
       <QcPanelHead status={<AxisGridStatus gate={gate} viewModel={viewModel} />} title={PANEL_TITLE} />
       {isCollapsed ? (
         <div className="p-4">
@@ -300,6 +263,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
         origin={viewModel.origin}
         unavailableNotice={hasNoAxis ? ORIGIN_UNAVAILABLE_NOTICE : null}
       />
+      {props.projectFloorCount === 1 ? null : (
       <AxisGridFloorAlignList
         blockedReason={props.autoAlignBlockedReason}
         floors={viewModel.floors}
@@ -310,15 +274,14 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
         unavailableNotice={hasNoAxis ? ALIGN_UNAVAILABLE_NOTICE : null}
         warningBanner={viewModel.warningBanner}
       />
+      )}
     </div>
   );
 
   return (
     <QcScreenFrame label={SCREEN_TITLE}>
       {props.floorNav}
-      <FlowGate conditions={gate.conditions} done={gate.conditions.filter((c) => c.done).length} progressLabel="Điều kiện sang Mô hình 3D" total={gate.conditions.length}>
-        <AxisGridGateButton gate={gate} props={props} />
-      </FlowGate>
+      {props.floorGate}
 
       {props.provisionalScaleNotice == null ? null : (
         <div className="shrink-0 px-4 pb-1">

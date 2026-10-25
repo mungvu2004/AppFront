@@ -14,12 +14,10 @@ function renderNav(pathname: string, search = '') {
 }
 
 describe('ProjectNav', () => {
-  it('menu dự án có đủ sáu lối vào bằng chữ, đúng đích', () => {
+  it('menu dự án có đủ bốn lối vào bằng chữ, đúng đích', () => {
     renderNav('/projects/p1/floors');
     expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([
       'Lịch sử phiên bản',
-      'Dữ liệu dự án',
-      'Sơ đồ xử lý',
       'Chất lượng ảnh đầu vào',
       'Thành viên',
       'Cài đặt',
@@ -34,9 +32,10 @@ describe('ProjectNav', () => {
     expect(screen.getByRole('link', { name: 'Cài đặt' })).not.toHaveAttribute('aria-current');
   });
 
-  it('đánh dấu Sơ đồ xử lý trên route sơ đồ', () => {
+  it('không còn mục kỹ thuật "Sơ đồ xử lý" và "Dữ liệu dự án"', () => {
     renderNav('/projects/p1/pipeline/graph');
-    expect(screen.getByRole('link', { name: 'Sơ đồ xử lý' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('link', { name: 'Sơ đồ xử lý' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Dữ liệu dự án' })).toBeNull();
   });
 });
 

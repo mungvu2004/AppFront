@@ -170,14 +170,6 @@ function SettingsToc(props: ProjectSettingsViewProps) {
   );
 }
 
-/** Câu thứ hai của dòng trạng thái: vai này làm được gì ở đây. */
-function roleSentence(props: ProjectSettingsViewProps): string {
-  if (props.isReadOnly) return viMessages.project.settings.readOnlyNotice;
-  return props.canDelete
-    ? 'Vai Quản trị: sửa được mọi mục, kể cả xoá dự án.'
-    : 'Sửa được thông tin, đơn vị đo và thành viên. Chỉ quản trị viên xoá được tầng hoặc dự án.';
-}
-
 /** Cuộn tới khung một nhóm (jsdom không có `scrollIntoView`). */
 function scrollToGroup(id: ProjectSettingsTabId): void {
   const target = document.getElementById(groupAnchor(id));
@@ -235,13 +227,18 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
             showForm ? (
               <>
                 {props.isReadOnly ? (
-                  <Badge variant="neutral">Chỉ xem</Badge>
-                ) : (
-                  <Badge variant="verified">Tự lưu khi bạn sửa</Badge>
-                )}
-                <span>{roleSentence(props)}</span>
+                  <>
+                    <Badge variant="neutral">Chỉ xem</Badge>
+                    <span>{viMessages.project.settings.readOnlyNotice}</span>
+                  </>
+                ) : null}
                 {/* Một nguồn: chỉ báo lưu tự nói "chưa lưu vì còn ô cần sửa" khi hook từ chối lượt lưu. */}
-                {props.isReadOnly ? null : <SaveIndicator saveState={props.saveState} label={props.saveLabel} />}
+                {props.isReadOnly ? null : (
+                  <>
+                    <span>Tự lưu khi bạn sửa</span>
+                    <SaveIndicator saveState={props.saveState} label={props.saveLabel} />
+                  </>
+                )}
               </>
             ) : null
           }

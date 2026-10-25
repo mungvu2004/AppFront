@@ -13,6 +13,7 @@
 
 import { Link } from 'react-router-dom';
 
+import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { NumericField } from '@/components/ui/NumericField';
 import { Table } from '@/components/ui/Table';
 
@@ -23,9 +24,9 @@ const DEVIATION_LIST_LABEL = 'Danh sách vùng lệch';
 const METRICS_LABEL = 'Sai số đo được';
 const NO_DEVIATIONS_NOTICE = 'Không có vùng lệch nào được ghi nhận.';
 /** Chưa đo thì một dòng nói thẳng, không ô gạch ngang (BUG-331, AES-13). */
-const UNMEASURED_NOTICE = 'Chưa đo được độ lệch tự động — so hai lớp bằng mắt, khớp thì bấm xác nhận.';
+const UNMEASURED_NOTICE = 'Máy chưa đo được độ lệch. So hai lớp bằng mắt; thấy khớp thì xác nhận.';
 /** G4b-25: lối đi căn ảnh, không để người dùng kẹt ở câu "cần căn trước". */
-const ALIGN_LINK_LABEL = 'Đo lại tỷ lệ ở màn Hiệu chỉnh tỷ lệ';
+const ALIGN_LINK_LABEL = 'Lệch nhiều? Đặt tỷ lệ';
 /** G4b-28: ô mm chỉ nhận chữ số, dấu phẩy/chấm thập phân và dấu trừ (dấu trừ có câu báo riêng). */
 const NON_NUMERIC_INPUT = /[^\d.,-]/;
 
@@ -103,6 +104,7 @@ export function OverlayComparisonPanel({
   onSelectRegion,
   notice,
   alignHref,
+  action,
 }: OverlayComparisonPanelProps) {
   const isUnmeasured = metrics.overToleranceCount === null;
   const overRows = rows.filter((row) => row.statusCode === 'attention');
@@ -113,20 +115,17 @@ export function OverlayComparisonPanel({
       {head}
       {notice === undefined ? null : <div className="px-4 pt-4">{notice}</div>}
 
-      {isUnmeasured && showUnmeasuredNotice && (
-        <div className="flex flex-col items-start gap-1 px-4 pt-4">
-          <p className="text-body-sm text-text-secondary">{UNMEASURED_NOTICE}</p>
-          {alignHref !== undefined && (
-            <Link
-              className="rounded-md text-body-sm text-accent underline-offset-2 hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              to={alignHref}
-            >
-              {ALIGN_LINK_LABEL}
-            </Link>
-          )}
-        </div>
-      )}
+      <div className="flex flex-col items-start gap-2 px-4 pt-4">
+        {isUnmeasured && showUnmeasuredNotice && <p className="text-body-sm text-text-secondary">{UNMEASURED_NOTICE}</p>}
+        {action}
+        {isUnmeasured && showUnmeasuredNotice && alignHref !== undefined && (
+          <Link className={getButtonStyles({ variant: 'secondary', size: 'sm' })} to={alignHref}>
+            {ALIGN_LINK_LABEL}
+          </Link>
+        )}
+      </div>
 
+      {(!isUnmeasured || !showUnmeasuredNotice) && (
       <div className="flex flex-col gap-3 border-b border-border-default px-4 py-4">
         <NumericField
           disabled={!canEdit}
@@ -153,6 +152,7 @@ export function OverlayComparisonPanel({
           </div>
         )}
       </div>
+      )}
 
       <div className="px-1 pb-3">
         {rows.length === 0 ? (

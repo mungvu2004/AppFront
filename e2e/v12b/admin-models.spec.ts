@@ -50,7 +50,7 @@ test.describe('admin (đăng nhập, G2-25)', () => {
     await expect(page.getByText('Không có mẫu 3D nào khớp với từ khoá hoặc danh mục đang chọn.')).toBeVisible();
     await expect(figure(page, 'model-library-total-count')).toHaveText('0');
     await expect(figure(page, 'model-library-total-size')).toHaveText('0 B');
-    await expect(figure(page, 'model-library-heavy-count')).toHaveText('0');
+    await expect(page.getByTestId('model-library-heavy-count')).toHaveCount(0); // chip "N mẫu nặng" ẩn khi 0
 
     await search(page).fill('');
     await expect(figure(page, 'model-library-total-count')).toHaveText(String(MODEL_COUNT));

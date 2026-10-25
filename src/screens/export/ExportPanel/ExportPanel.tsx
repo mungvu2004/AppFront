@@ -55,7 +55,6 @@ import type {
   ExportCapabilities,
   ExportedFileRow,
   ExportFloorChoice,
-  ExportFormatCard,
   ExportFormatId,
   ExportPanelProps,
 } from './types';
@@ -168,14 +167,11 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
 
 interface StatusProps {
   readonly props: ExportPanelProps;
-  readonly selectedFormat: ExportFormatCard | null;
 }
 
 /** Câu 2: chip + một câu có số thật (định dạng, tầng, tệp đã xuất). */
-function ExportPanelStatus({ props, selectedFormat }: StatusProps) {
-  const { status, progress, preflight, floors, exportedFiles } = props;
-  const attention = preflight.filter((row) => row.tone === 'attention').length;
-  const selectedFloors = floors.filter((floor) => floor.isSelected).length;
+function ExportPanelStatus({ props }: StatusProps) {
+  const { status, progress, exportedFiles, preflight } = props;
 
   // Không chip xanh: A5 giữ màu "đã xác minh" cho việc của người duyệt, không cho lượt xuất.
   const badge =
@@ -183,17 +179,14 @@ function ExportPanelStatus({ props, selectedFormat }: StatusProps) {
       <Badge variant="neutral">Đang xuất</Badge>
     ) : status === 'error' ? (
       <Badge variant="violation">Xuất chưa thành công</Badge>
-    ) : attention > 0 ? (
-      <Badge variant="attention">{`${count(attention)} mục nên xem trước khi xuất`}</Badge>
     ) : (
-      <Badge variant="neutral">Sẵn sàng xuất</Badge>
+      // Còn việc nên xem thì nói thẳng "xuất được, còn N việc" — "Sẵn sàng" cạnh ba cảnh báo làm người mới hoang mang.
+      <Badge variant={preflight.length > 0 ? 'attention' : 'neutral'}>
+        {preflight.length > 0 ? `Xuất được · còn ${count(preflight.length)} việc nên xem` : 'Sẵn sàng xuất'}
+      </Badge>
     );
 
   const parts = [
-    selectedFormat === null ? null : `Đang chọn ${selectedFormat.extensionLabel}`,
-    selectedFormat === null || selectedFormat.id === 'spatial-json'
-      ? null
-      : `${count(selectedFloors)}/${count(floors.length)} tầng`,
     exportedFiles.length > 0 ? `đã xuất ${count(exportedFiles.length)} tệp trong phiên này` : null,
   ].filter((part): part is string => part !== null);
 
@@ -260,7 +253,7 @@ export function ExportPanel(props: ExportPanelProps) {
       title="Xuất mô hình"
       status={
         withStatus ? (
-          <ExportPanelStatus props={props} selectedFormat={selectedFormat} />
+          <ExportPanelStatus props={props} />
         ) : (
           <Badge variant="neutral">{status === 'forbidden' ? 'Chỉ được xem' : 'Chưa có mô hình để xuất'}</Badge>
         )
@@ -345,6 +338,7 @@ export function ExportPanel(props: ExportPanelProps) {
               capabilities={capabilities}
               isLoading={isLoading}
               onSelectFormat={onSelectFormat}
+              {...(onOpenData !== undefined ? { onOpenData } : {})}
             />
           </Section>
 
@@ -358,7 +352,6 @@ export function ExportPanel(props: ExportPanelProps) {
                 onToggleFloor={onToggleFloor}
                 onChangeOptions={onChangeOptions}
                 onToggleOptionsExpanded={onToggleOptionsExpanded}
-                {...(onOpenData !== undefined ? { onOpenData } : {})}
               />
             </div>
           )}

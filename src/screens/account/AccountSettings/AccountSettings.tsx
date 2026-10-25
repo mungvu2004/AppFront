@@ -42,7 +42,7 @@ import { AppearanceSection } from './AppearanceSection';
 import { DangerZone } from './DangerZone';
 import { NotificationsSection } from './NotificationsSection';
 import { PasswordSection } from './PasswordSection';
-import { ProfileSection, type ProfileSectionProps } from './ProfileSection';
+import { ProfileSection } from './ProfileSection';
 import { SessionsSection } from './SessionsSection';
 import { ShortcutsSection } from './ShortcutsSection';
 import type { AccountSettingsViewModel } from './useAccountSettings';
@@ -50,31 +50,6 @@ import type { AccountSettingsViewModel } from './useAccountSettings';
 /** Lớp vòng tiêu điểm chung cho liên kết trên nền khung. */
 const FOCUS_RING =
   'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
-
-/** Năm trường hồ sơ đếm cho câu trạng thái "Hồ sơ đã điền n/5 mục" (GHI-CHU: tính ở FE). */
-const PROFILE_FIELDS: readonly (readonly ['fullName' | 'jobTitle' | 'email' | 'phone' | 'language', string])[] = [
-  ['fullName', 'họ tên'],
-  ['jobTitle', 'chức danh'],
-  ['email', 'thư điện tử'],
-  ['phone', 'điện thoại'],
-  ['language', 'ngôn ngữ'],
-];
-
-/** Câu trạng thái có số của trang: đã điền bao nhiêu mục hồ sơ, còn thiếu mục nào. */
-function profileStatusSentence(profile: ProfileSectionProps): string {
-  const total = PROFILE_FIELDS.length;
-  const missing = PROFILE_FIELDS.filter(([key]) => profile[key].trim() === '').map(([, label]) => label);
-
-  if (missing.length === 0) {
-    return `Hồ sơ đã điền đủ ${total} mục`;
-  }
-
-  const last = missing[missing.length - 1];
-  const rest = missing.slice(0, -1);
-  const list = rest.length === 0 ? last : `${rest.join(', ')} và ${last}`;
-
-  return `Hồ sơ đã điền ${total - missing.length}/${total} mục, còn ${list}`;
-}
 
 interface TocEntry {
   readonly id: string;
@@ -189,13 +164,12 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
             // thì chưa có gì để lưu: không hiện chỉ báo cạnh banner lỗi (BUG-504).
             vm.errorMessage === null ? (
               <>
-                {isLoading ? null : (
-                  <>
-                    <Badge variant="verified">Tự lưu khi bạn sửa</Badge>
-                    <span>{profileStatusSentence(profile)}</span>
-                  </>
+                {/* Một chỉ báo: chưa sửa gì thì "Tự lưu khi bạn sửa", có sửa thì trạng thái lưu. */}
+                {isLoading ? null : vm.saveState === 'idle' ? (
+                  <Badge variant="verified">Tự lưu khi bạn sửa</Badge>
+                ) : (
+                  <SaveIndicator saveState={vm.saveState} label={vm.saveLabel} />
                 )}
-                <SaveIndicator saveState={vm.saveState} label={vm.saveLabel} />
               </>
             ) : null
           }
@@ -241,7 +215,7 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
 
               <AccountBlock
                 id="account-notifications"
-                title="Thông báo"
+                title="Báo cho tôi khi…"
                 description="Việc nào báo trong ứng dụng, việc nào gửi thư"
                 isLoading={isLoading}
               >

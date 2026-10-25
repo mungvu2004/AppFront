@@ -68,7 +68,6 @@ const COMPARISON_LABEL = 'So sánh trước và sau khi nắn';
 const CANCEL_CORNERS_LABEL = 'Huỷ chọn góc';
 const COMPARISON_HINT = 'Phần bên trái đường chia là ảnh đã nắn, bên phải là ảnh gốc.';
 const COMPARISON_UNIT = '%';
-const SKEW_LABEL_PREFIX = 'Độ nghiêng đo được so với phương ngang: ';
 const ZOOMED_FRAME_LABEL = 'Bản vẽ đang phóng, cuộn để xem phần còn lại';
 
 /** Khung ảnh không bao giờ rộng quá con số đặc tả đặt ra. */
@@ -224,13 +223,6 @@ export function InputQualityGateImagePanel({ actions, image }: InputQualityImage
           />
         </div>
       ) : null}
-
-      {image.skewLine === null ? null : (
-        <p className="text-[13px] leading-[18px] text-text-secondary">
-          {SKEW_LABEL_PREFIX}
-          {image.skewLine.angleLabel}
-        </p>
-      )}
 
       {image.corners === null ? null : (
         <div className="flex max-w-[640px] flex-wrap items-center justify-between gap-2">

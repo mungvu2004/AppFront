@@ -330,7 +330,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await shot(page, '28-C-006', 'rows');
       });
 
-      await test.step('[28-A-005] "Chạy kiểm tra lại" writes nothing and does not re-read N15', async () => {
+      await test.step('[28-A-005] "Kiểm tra lại" writes nothing and does not re-read N15', async () => {
         const mark = api.length;
         await rerunButton(page).click();
         await expect(rerunButton(page)).toBeEnabled();
@@ -1094,7 +1094,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         // Cổng (FlowGate) nằm ở thanh bước của header, trước nội dung trang.
         const gate = at((x) => x.text === 'Xem vi phạm kế');
         const settings = at((x) => x.text === 'Cài đặt bộ luật', gate + 1);
-        const rerun = at((x) => x.text.includes('Chạy kiểm tra lại'), settings + 1);
+        const rerun = at((x) => x.text.includes('Kiểm tra lại'), settings + 1);
         const radio = at((x) => x.role === 'radio', rerun + 1);
         const groupBox = at((x) => x.role === 'combobox', radio + 1);
         const floorBox = at((x) => x.role === 'combobox', groupBox + 1);

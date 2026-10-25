@@ -571,7 +571,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
       await step('14-A-012', '`R` (focus off the text field) = "Đo lại": line and "Chiều dài thật" cleared', async () => {
         await clearLine(page);
         await drawStandard(page);
-        await page.getByRole('heading', { name: 'Đặt tỷ lệ bản vẽ', exact: true }).click(); // focus leaves the text field
+        await page.getByRole('heading', { name: 'Tỷ lệ bản vẽ', exact: true }).click(); // focus leaves the text field
         await page.keyboard.press('r');
         await expect.soft(handleEnd(page)).toHaveCount(0);
         await expect.soft(lengthField(page)).toHaveValue('');
@@ -1437,9 +1437,9 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-G-020', 'image-200');
       });
 
-      await step('14-A-002', 'entry from the SCR-12 summary "Hiệu chỉnh tỷ lệ" lands on this floor\'s scale route', async () => {
+      await step('14-A-002', 'entry from the SCR-12 summary "Đặt tỷ lệ" lands on this floor\'s scale route', async () => {
         await page.goto(ROUTES.project.pipeline(df.projectId));
-        const calibrate = btn(page, 'Hiệu chỉnh tỷ lệ');
+        const calibrate = btn(page, 'Đặt tỷ lệ');
         await expect(calibrate).toBeVisible({ timeout: 45_000 });
         await calibrate.click();
         await softExpect.poll(() => pathOf(page)).toBe(ROUTES.project.scale(df.projectId, df.floorId));

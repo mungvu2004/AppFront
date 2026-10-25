@@ -34,7 +34,7 @@ const OVERLAY_ANY_FLOOR = new RegExp(`^${ROUTES.project.overlay(PROJECT_ID, '[^/
 const CASES = [
   { label: 'Tách tầng', path: new RegExp(`^${EXPLODED_PATH}$`, 'u'), landmark: 'Nội dung tách tầng' },
   { label: 'Công cụ đo', path: new RegExp(`^${MEASURE_PATH}$`, 'u'), landmark: 'Lớp phủ công cụ đo' },
-  { label: 'Đối chiếu bản vẽ', path: OVERLAY_ANY_FLOOR, landmark: 'Màn đối chiếu bản vẽ' },
+  { label: 'Đối chiếu bản vẽ', path: OVERLAY_ANY_FLOOR, landmark: 'So với bản vẽ' },
 ] as const;
 
 for (const { label, path, landmark } of CASES) {

@@ -44,10 +44,8 @@ const CHANGE_THICKNESS_LABEL = 'Đổi độ dày';
 const NON_STANDARD_LABEL = 'Không chuẩn';
 const REVIEWED_LABEL = 'Đã duyệt';
 const UNREVIEWED_LABEL = 'Chưa duyệt';
-const REMAINING_SUFFIX = 'tường còn chờ duyệt';
-const MULTI_SELECT_HINT = 'Giữ Ctrl hoặc Shift khi bấm để chọn nhiều đoạn, ví dụ để nối hai đoạn.';
 const EMPTY_MESSAGE =
-  'Chọn một đoạn tường trên bản vẽ hoặc trong danh sách, hoặc bấm J để mở đoạn đầu tiên cần duyệt.';
+  'Chọn một đoạn tường trên bản vẽ hoặc trong danh sách để duyệt.';
 
 function ReadOnlyThickness({ choices, value }: { readonly choices: readonly WallThicknessChoice[]; readonly value: number }) {
   return (
@@ -97,8 +95,6 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
   const isNonStandard =
     inspector !== null && (row?.isNonStandardThickness ?? !(thicknessChoices as readonly number[]).includes(inspector.thicknessMm));
   const selectedCount = panel.selectedWallIds?.length ?? 0;
-  const remaining = panel.reviewCounter.total - panel.reviewCounter.reviewed;
-  const nonStandardCount = queue?.nonStandardCount ?? 0;
 
   return (
     <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-0 xl:h-full xl:w-full">
@@ -110,19 +106,6 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
         /* Đệm dưới bằng đệm ngang: câu không sát đáy thẻ (BUG-329). */
         <div className="flex flex-col">
           <p className="px-5 pb-5 pt-2 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
-          {/* Hàng đợi gọn khi chưa chọn (demo Z/S-15 idle): một số để hành động, không ước tính giả. */}
-          {remaining > 0 ? (
-            <div className="mx-5 rounded-lg bg-bg-sunken px-4 py-3">
-              <p className="tabular-nums text-text-primary">
-                <span className="text-[32px] font-medium leading-10">{remaining}</span>
-                <span className="ml-1.5 text-body-sm text-text-secondary">{REMAINING_SUFFIX}</span>
-              </p>
-              {nonStandardCount > 0 ? (
-                <p className="mt-1 text-body-sm text-state-attention-text">{`${nonStandardCount} không chuẩn nằm đầu danh sách`}</p>
-              ) : null}
-            </div>
-          ) : null}
-          {isViewerRole ? null : <p className="px-5 pt-4 text-caption text-text-secondary">{MULTI_SELECT_HINT}</p>}
         </div>
       ) : (
         <div className="flex flex-1 flex-col overflow-y-auto pb-5">

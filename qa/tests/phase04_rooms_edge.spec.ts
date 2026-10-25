@@ -1,5 +1,5 @@
 /**
- * Phase 4 — SCR-20 "Duyệt tên phòng" (RoomLabelReview), EDGE layer, REAL stack: nine sequential user flows
+ * Phase 4 — SCR-20 "Duyệt phòng" (RoomLabelReview), EDGE layer, REAL stack: nine sequential user flows
  * (QA-04c P5, `flow-plan.md` "phase04_rooms_edge.spec.ts"). One `test()` per flow, one `test.step('[<row id>] …')` per
  * catalog row, in the planned order. `H` rows use a hard `expect` (the flow cannot go on without them), `S` rows
  * `expect.soft`; every step captures `E04_<row id>_<slug>.png`. ⚑ steps assert the CORRECT behaviour and stay red while the
@@ -1379,7 +1379,7 @@ test('SCR-20 · FL-20-08 · drawing floor: background, crop, provisional measure
     });
 
     await test.step('[20-G-025] ⚑ Back from the scale screen keeps the background image (the drawing cache is shared with SCR-14)', async () => {
-      await expect(page.getByRole('region', { name: 'Màn hiệu chỉnh tỷ lệ', exact: true })).toBeVisible();
+      await expect(page.getByRole('region', { name: 'Tỷ lệ bản vẽ', exact: true })).toBeVisible();
       await page.goBack();
       await expect(page.getByRole('region', { name: ROOM.screen, exact: true })).toBeVisible();
       await expect.soft(page.getByRole('listbox', { name: ROOM.list, exact: true })).toBeVisible();
@@ -1427,7 +1427,7 @@ test('SCR-20 · FL-20-09 · entries, load requests, 409 and reload, floor delete
 
     await test.step('[20-A-049] entry from SCR-28: the skipped-rules remedy "Mở màn nhãn phòng" opens the rooms of the first level', async () => {
       await page.goto(ROUTES.project.rules(projectId));
-      await expect(page.getByRole('button', { name: 'Chạy kiểm tra lại', exact: true })).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByRole('button', { name: 'Kiểm tra lại', exact: true })).toBeVisible({ timeout: 30_000 });
       const remedy = page.getByRole('button', { name: 'Mở màn nhãn phòng', exact: true }).or(page.getByRole('link', { name: 'Mở màn nhãn phòng', exact: true }));
       // useRuleReport.ts:311-350 lists a skipped group only for a rule that did not run, and a level-scope rule always runs on
       // every level of the model, so with real data the remedy is shown only for a model with no level (then its label is

@@ -45,7 +45,7 @@ export function ProvisionalScaleBanner({ notice }: ProvisionalScaleBannerProps) 
 
   return (
     <InlineAlert
-      {...(onCalibrate === undefined ? {} : { action: { label: 'Hiệu chỉnh tỷ lệ', onClick: onCalibrate } })}
+      {...(onCalibrate === undefined ? {} : { action: { label: 'Đặt tỷ lệ', onClick: onCalibrate } })}
       className="items-center gap-y-1 px-3 py-1.5 [&_p]:leading-snug"
       level="attention"
       message={notice.message}

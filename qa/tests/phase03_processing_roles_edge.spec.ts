@@ -108,7 +108,7 @@ test.describe('SCR-12 processing — roles', () => {
         await captureEvidence(page, 'E03_12-D-004_viewer-collapse.png', { caption: 'viewer pressed "Thu gọn": collapsed summary only' });
       });
 
-      await test.step('[12-D-002] owner uploads drawing.png on the floor; viewer reloads → done screen with the gate primary button ("Sang Kiểm tra tầng" or "Hiệu chỉnh tỷ lệ"), no read-only banner', async () => {
+      await test.step('[12-D-002] owner uploads drawing.png on the floor; viewer reloads → done screen with the gate primary button ("Sang Duyệt tầng" or "Đặt tỷ lệ"), no read-only banner', async () => {
         const { outcomes } = await uploadAndSettle(f.ownerApi, project.projectId, [[floor, envDrawingPng()]]);
         expect(outcomes[0]?.status, 'setup: drawing.png run completed').toBe('completed');
         await page.reload();

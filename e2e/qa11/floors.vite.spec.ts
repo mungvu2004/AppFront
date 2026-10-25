@@ -11,7 +11,7 @@ import { expect, test } from '@playwright/test';
 import { ROUTES } from '../fixtures/routes';
 import { QCB_FLOOR, QCB_PROJECT, seedQcb } from '../v7/seedQcb';
 
-const SCREEN = 'Chuẩn hoá độ dày tường'; // vi.json (TV:105)
+const SCREEN = 'Độ dày tường'; // vi.json (TV:105)
 const ACCEPT = /^Đồng ý đổi các đoạn /u; // S-21 Z: ô đồng ý của từng nhóm (ThicknessBatchPanel.tsx TEXT.acceptGroup), không tích sẵn
 
 test('SCR-21 · FL-11F-04 · [mocked response] focus + Space ticks the "Đồng ý" box once', async ({ page }) => {

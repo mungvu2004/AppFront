@@ -87,7 +87,7 @@ const BLOCKED_TITLE = 'Không thể bắt đầu xử lý'; // UFU:115
 const NO_FLOORS_REASON = 'Dự án chưa có tầng nào. Thêm tầng ở màn Quản lý tầng trước khi xử lý.'; // UFU:117
 const WAITING = 'Chờ xử lý'; // UFU:123
 const UPLOADING = 'Đang tải lên'; // UFU:124
-const ATTACHED = 'Đã gắn kèm'; // UFU:125
+const ATTACHED = 'Đã có bản vẽ'; // UFU:125
 const STATUS_ERROR = 'Lỗi'; // UFU:126
 const NO_DRAWING = 'Chưa có bản vẽ'; // UFU:140 (BUG-263)
 const PICK_PAGE_SENTENCE = 'Hãy chọn trang bản vẽ để bắt đầu tải'; // UFU:263
@@ -681,7 +681,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         expect.soft(trail.filter((t) => t.covered).map((t) => t.name), 'focused controls under the sticky footer').toEqual([]);
       });
 
-      await test.step('[10-E-003] tray "Gán cho tầng khác" by keyboard: aria-expanded; Esc closes; ArrowDown + Enter picks Tầng 1 → "Đã gắn kèm"', async () => {
+      await test.step('[10-E-003] tray "Gán cho tầng khác" by keyboard: aria-expanded; Esc closes; ArrowDown + Enter picks Tầng 1 → "Đã có bản vẽ"', async () => {
         const combo = trayItem(page, 'mat-bang-a.png').getByRole('combobox', { name: ASSIGN });
         await combo.focus();
         await expect(combo).toHaveAttribute('aria-expanded', 'false');
@@ -763,7 +763,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         await waitAttached(page, t3);
       });
 
-      await test.step('[10-A-041] 16 MiB PNG on Tầng 1; after chunk 0 breadcrumb "Dự án" → no prompt; complete still 200; reopened Tầng 1 "Đã gắn kèm"', async () => {
+      await test.step('[10-A-041] 16 MiB PNG on Tầng 1; after chunk 0 breadcrumb "Dự án" → no prompt; complete still 200; reopened Tầng 1 "Đã có bản vẽ"', async () => {
         await pick(page, big);
         const chunk0 = waitForApi(page, 'POST', CHUNK_RE, [200], 60_000);
         const complete = waitForApi(page, 'POST', COMPLETE_RE, [200], 120_000);
@@ -945,7 +945,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         if (openAfterOutside) await menuButton(page, t1).click();
       });
 
-      await test.step('[10-A-026] menu "Xoá bản vẽ ban-ve.png" is local; "Hoàn tác" → "Đã gắn kèm"; remove again + reload → server copy, no menu', async () => {
+      await test.step('[10-A-026] menu "Xoá bản vẽ ban-ve.png" is local; "Hoàn tác" → "Đã có bản vẽ"; remove again + reload → server copy, no menu', async () => {
         const mark = flow.sent.length;
         await removeFromCard(page, t1, 'ban-ve.png');
         const toast = toastWith(page, removedToast('ban-ve.png')).first();
@@ -1015,7 +1015,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
     try {
       await openUpload(page, project.projectId, project.floors);
 
-      await test.step('[10-A-012] tang-1.png → no tray; init on Tầng 1; hint; "Đã gắn kèm" in the attention variant, not verified', async () => {
+      await test.step('[10-A-012] tang-1.png → no tray; init on Tầng 1; hint; "Đã có bản vẽ" in the attention variant, not verified', async () => {
         const mark = flow.sent.length;
         await pick(page, { name: 'tang-1.png', mimeType: 'image/png', buffer: png });
         const [init] = await inits(flow, mark, 1);
@@ -1167,7 +1167,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         await attachJson('E03_10-E-004_page-picker-keys.json', { highlighted });
       });
 
-      await test.step('[10-A-017] pick "Trang 2" → init pageIndex 1 → chunks → complete → "Đã gắn kèm"', async () => {
+      await test.step('[10-A-017] pick "Trang 2" → init pageIndex 1 → chunks → complete → "Đã có bản vẽ"', async () => {
         const mark = flow.sent.length;
         await card(page, t1).getByRole('combobox', { name: PICK_PAGE }).click();
         await page.getByRole('option', { name: 'Trang 2', exact: true }).click(); // UFU:856-869
@@ -1177,7 +1177,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         await captureEvidence(page, 'E03_10-A-017_page-2-attached.png', { caption: `init body: ${JSON.stringify(init)}` });
       });
 
-      await test.step('[10-A-018] change to "Trang 3" → a new init with pageIndex 2 → "Đã gắn kèm"', async () => {
+      await test.step('[10-A-018] change to "Trang 3" → a new init with pageIndex 2 → "Đã có bản vẽ"', async () => {
         const mark = flow.sent.length;
         await card(page, t1).getByRole('combobox', { name: PICK_PAGE }).click();
         await page.getByRole('option', { name: 'Trang 3', exact: true }).click();
@@ -1187,7 +1187,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         await captureEvidence(page, 'E03_10-A-018_page-3-attached.png', { caption: `init body: ${JSON.stringify(init)}` });
       });
 
-      await test.step('[10-A-019] 1-page PDF on Tầng 2 → no "Chọn trang"; init without pageIndex; "{name} · {size} · 1 trang"; "Đã gắn kèm"', async () => {
+      await test.step('[10-A-019] 1-page PDF on Tầng 2 → no "Chọn trang"; init without pageIndex; "{name} · {size} · 1 trang"; "Đã có bản vẽ"', async () => {
         const onePage = makePdf(1);
         await pick(page, pdf('mot-trang.pdf', onePage));
         await expect(trayItem(page, 'mot-trang.pdf').getByText(`mot-trang.pdf · ${String(onePage.length)} B · 1 trang`, { exact: true })).toBeVisible();
@@ -1404,7 +1404,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         await captureEvidence(page, 'E03_10-B-010_one-of-two.png');
       });
 
-      await test.step('[10-B-013] Tầng 1: "Đã gắn kèm", summary = server file name, no menu, no progress rail (QA-03e: rail only while uploading)', async () => {
+      await test.step('[10-B-013] Tầng 1: "Đã có bản vẽ", summary = server file name, no menu, no progress rail (QA-03e: rail only while uploading)', async () => {
         await expect.soft(card(page, t1).getByText(ATTACHED, { exact: true })).toBeVisible(); // UFU:1097-1098 server drawing → attached
         await expect.soft(card(page, t1).getByText(serverName, { exact: true })).toBeVisible(); // UFU:1096-1119
         await expect.soft(menuButton(page, t1)).toHaveCount(0); // FUC:82-86

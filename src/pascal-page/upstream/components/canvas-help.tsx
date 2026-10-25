@@ -60,7 +60,7 @@ const SCOPED_CSS = `
   border: 1px solid var(--pa-border); background: var(--pa-sunken); color: var(--pa-text-2); border-radius: 4px;
 }
 @media (prefers-reduced-motion: reduce) { .appfront-help-btn { transition: none; } }
-section[aria-label="Camera controls hint"] { display: none !important; }
+section[aria-label="Camera controls hint"], section[aria-label="Gợi ý điều khiển camera"] { display: none !important; }
 [data-appfront-help="closed"] ${SHORTCUT_PANEL} { display: none !important; }
 button[title="Thêm tầng phía trên"], button[title="Thêm tầng phía dưới"] {
   width: 1.5rem !important; height: 1.5rem !important; /* ≥ 24px vùng bấm (WCAG 2.5.8) */
@@ -216,7 +216,9 @@ function useClearOfFloorCard(ref: { current: HTMLElement | null }) {
  */
 export function CanvasHelp({ banner }: { banner?: ReactNode }) {
   const compact = useScaleUnresolved()
-  const [open, setOpen] = useState(false)
+  const [userOpen, setOpen] = useState(false)
+  const [tourOn, setTourOn] = useState(false)
+  const open = userOpen && !tourOn // tour đang hiện thì gập, tránh chồng lấn
   const isPreview = useEditor((state) => state.isPreviewMode)
   const isDelete = useEditor((state) => state.mode === 'delete')
   useClampActionBars()
@@ -224,6 +226,12 @@ export function CanvasHelp({ banner }: { banner?: ReactNode }) {
   useClearOfFloorCard(pillRef)
 
   useEffect(() => setOpen(readOpen()), [])
+  useEffect(() => {
+    const sync = () => setTourOn(document.documentElement.dataset.pascalTour === 'open')
+    sync()
+    window.addEventListener('pascal-tour:state', sync)
+    return () => window.removeEventListener('pascal-tour:state', sync)
+  }, [])
   useEffect(() => {
     document.documentElement.dataset.appfrontHelp = open ? 'open' : 'closed'
   }, [open])

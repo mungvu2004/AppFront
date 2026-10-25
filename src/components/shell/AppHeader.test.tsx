@@ -23,36 +23,41 @@ describe('AppHeader', () => {
     expect(screen.queryByRole('link', { name: 'Quản trị' })).toBeNull();
   });
 
-  it('trong dự án: đánh dấu bước hiện tại và trỏ nút "Tiếp: <bước>" sang bước sau', () => {
-    const { container } = renderHeader({ project: { id: 'p1', name: 'Nhà A', stepIndex: 2 } });
+  it('trong dự án: đánh dấu bước hiện tại; bước đã xong thì nút "Tiếp: <bước>" trỏ sang bước sau', () => {
+    const { container } = renderHeader({ project: { id: 'p1', name: 'Nhà A', stepIndex: 2, stepStates: ['done', 'done', 'done', 'todo', 'todo', 'todo'] } });
     expect(screen.getByText('Nhà A')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Kiểm tra tầng/ })).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByRole('link', { name: /Bước 3: Duyệt tầng/ })).toHaveAttribute('aria-current', 'step');
     expect(screen.getByRole('link', { name: /Tiếp: Mô hình 3D/ })).toHaveAttribute('href', ROUTES.project.viewer('p1'));
     expectVietnamese(container, { allowWords: ['AppFront'] });
   });
 
-  it('bước cuối không có nút "Tiếp"; ngoài sáu bước, mở thẳng: "Về quản lý tầng"', () => {
-    const { unmount } = renderHeader({ project: { id: 'p1', name: null, stepIndex: 5 } });
-    expect(screen.queryByRole('link', { name: /^Tiếp:/ })).toBeNull();
+  it('bước chưa xong: vẫn "Tiếp: …" kiểu phụ; bước cuối không có "Tiếp"', () => {
+    const { unmount } = renderHeader({ project: { id: 'p1', name: null, stepIndex: 2, stepStates: ['done', 'done', 'todo', 'todo', 'todo', 'todo'] } });
+    expect(screen.getByRole('link', { name: /Tiếp: Mô hình 3D/ }).className).not.toContain('bg-accent ');
     unmount();
-    renderHeader({ project: { id: 'p1', name: null, stepIndex: -1 } });
-    expect(screen.getByRole('link', { name: 'Về quản lý tầng' })).toHaveAttribute('href', ROUTES.project.floors('p1'));
+    renderHeader({ project: { id: 'p1', name: null, stepIndex: 5, stepStates: ['done', 'done', 'done', 'done', 'done', 'done'] } });
+    expect(screen.queryByRole('link', { name: /^Tiếp:/ })).toBeNull();
   });
 
-  it('lớp cuối (Độ dày tường) vẫn nhãn "Tiếp: …", trỏ sang bước kế', () => {
-    renderHeader({ project: { id: 'p1', name: null, stepIndex: 2, floorId: 'f1', layerIndex: 5 } });
-    expect(screen.getByRole('link', { name: /Tiếp: Mô hình 3D/ })).toHaveAttribute('href', ROUTES.project.viewer('p1'));
+  it('màn ngoài sáu bước: "Tiếp tục: <bước đầu chưa xong>", không còn "Về quản lý tầng"', () => {
+    const { unmount } = renderHeader({ project: { id: 'p1', name: null, stepIndex: -1, stepStates: ['done', 'done', 'todo', 'todo', 'todo', 'todo'] } });
+    expect(screen.getByRole('link', { name: /Tiếp tục: Duyệt tầng/ })).toHaveAttribute('href', ROUTES.project.floors('p1'));
+    expect(screen.queryByRole('link', { name: 'Về quản lý tầng' })).toBeNull();
+    unmount();
+    renderHeader({ project: { id: 'p1', name: null, stepIndex: -1, lastFloorPath: ROUTES.project.rooms('p1', 'f1'), stepStates: ['done', 'done', 'todo', 'todo', 'todo', 'todo'] } });
+    expect(screen.getByRole('link', { name: /Tiếp tục: Duyệt tầng/ })).toHaveAttribute('href', ROUTES.project.rooms('p1', 'f1'));
   });
 
   it('thanh bước nói trạng thái từng bước; màn Tải bản vẽ dùng nút đi tiếp kiểu phụ', () => {
     renderHeader({ project: { id: 'p1', name: null, stepIndex: 0, stepStates: ['done', 'attention', 'todo', 'todo', 'todo', 'todo'] } });
+    // Bước 1 đã xong: nút đi tiếp có, nhưng kiểu phụ vì màn có nút chính riêng.
     expect(screen.getByRole('link', { name: 'Bước 1: Tải bản vẽ, đã xong' })).toHaveAttribute('aria-current', 'step');
     expect(screen.getByRole('link', { name: 'Bước 2: Xử lý, còn việc' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Tiếp: Xử lý/ }).className).not.toContain('bg-accent ');
   });
 
-  it('màn xác nhận CAD: không mời "Về duyệt lớp tường" (RV5 #10)', () => {
-    const props: AppHeaderProps = { accountLabel: 'Hà', showAdmin: false, onSignOut: vi.fn(), project: { id: 'p1', name: null, stepIndex: 2, floorId: 'f1', layerIndex: -1 } };
+  it('màn xác nhận CAD (bước 2): header không mời gì, màn tự có nút đi tiếp (RV5 #10)', () => {
+    const props: AppHeaderProps = { accountLabel: 'Hà', showAdmin: false, onSignOut: vi.fn(), project: { id: 'p1', name: null, stepIndex: 1, stepStates: ['done', 'done', 'todo', 'todo', 'todo', 'todo'] } };
     render(
       <MemoryRouter initialEntries={[ROUTES.project.cadConfirm('p1', 'f1')]}>
         <AppHeader {...props} />
@@ -62,10 +67,13 @@ describe('AppHeader', () => {
     expect(screen.queryByRole('link', { name: /^Tiếp:/ })).toBeNull();
   });
 
-  it('trong một lớp của tầng: ô bước 3 về lớp Tường, nút chính mời lớp kế tiếp', () => {
-    renderHeader({ project: { id: 'p1', name: null, stepIndex: 2, floorId: 'f1', layerIndex: 0 } });
-    expect(screen.getByRole('link', { name: /Kiểm tra tầng/ })).toHaveAttribute('href', ROUTES.project.walls('p1', 'f1'));
-    expect(screen.getByRole('link', { name: /Tiếp: Cửa và nội thất/ })).toHaveAttribute('href', ROUTES.project.objects('p1', 'f1'));
+  it('trong tầng: ô bước 3 về lớp Tường; header không mời lớp kế hay "Về duyệt lớp" (cổng tầng lo)', () => {
+    const { unmount } = renderHeader({ project: { id: 'p1', name: null, stepIndex: 2, floorId: 'f1', layerIndex: 0 } });
+    expect(screen.getByRole('link', { name: /Bước 3: Duyệt tầng/ })).toHaveAttribute('href', ROUTES.project.walls('p1', 'f1'));
+    expect(screen.queryByRole('link', { name: /Tiếp: Cửa và nội thất/ })).toBeNull();
+    unmount();
+    renderHeader({ project: { id: 'p1', name: null, stepIndex: 2, floorId: 'f1', layerIndex: -1 } });
+    expect(screen.queryByRole('link', { name: /Về duyệt lớp/ })).toBeNull();
   });
 
   it('J-4: đang xử lý thì không mời tải bản vẽ lần nữa', () => {

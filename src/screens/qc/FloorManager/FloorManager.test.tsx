@@ -82,7 +82,7 @@ import {
 } from './floorManagerGateway';
 
 const PROJECT_ID = 'project-floor-manager';
-const SCREEN_ARIA_LABEL = 'Quản lý tầng';
+const SCREEN_ARIA_LABEL = 'Duyệt tầng';
 const SECTION_ARIA_LABEL = 'Lát cắt các tầng theo đúng tỷ lệ chiều cao';
 const TABLE_CAPTION_TEXT = 'Cao độ tính tự động từ chiều cao các tầng dưới.';
 const TABLE_CAPTION_MANUAL = 'Cao độ đang nhập tay.';
@@ -564,7 +564,7 @@ describe('breadcrumb chung (BUG-079)', () => {
     renderWithProviders(<FloorManager {...scenarioArgsFor('success')} />);
 
     const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
-    expect(nav).toHaveTextContent('Dự án›Quản lý tầng');
+    expect(nav).toHaveTextContent('Dự án›Duyệt tầng');
     expect(nav.textContent).not.toContain('>');
     expect(within(nav).queryByRole('button')).toBeNull();
   });
@@ -833,12 +833,12 @@ describe('[SCR-22] lối vào Đối chiếu lớp phủ', () => {
 });
 
 describe('lối vào các màn duyệt lớp của tầng', () => {
-  it('nút "Duyệt lớp" mở menu sáu lớp + một công cụ; chọn một mục bắn mã tầng và mã màn', async () => {
+  it('nút "Duyệt" mở menu sáu lớp + một công cụ; chọn một mục bắn mã tầng và mã màn', async () => {
     const onOpenFloorScreen = vi.fn();
 
     renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onOpenFloorScreen={onOpenFloorScreen} />);
 
-    const [first] = screen.getAllByRole('button', { name: /^Duyệt lớp/ });
+    const [first] = screen.getAllByRole('button', { name: /^Duyệt tầng/ });
 
     expect(first).toBeDefined();
     fireEvent.click(first!);

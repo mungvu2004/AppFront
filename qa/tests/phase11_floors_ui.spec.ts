@@ -25,14 +25,14 @@ const DROPZONE = 'floor-upload-dropzone'; // FUD:30
 const SELECT_FILE = 'Chọn tệp'; // UFU:101
 const SUBMIT = 'Bắt đầu xử lý'; // UFU:113
 const ASSIGN = 'Gán cho tầng khác'; // FUT:20, FUC:39
-const ATTACHED = 'Đã gắn kèm'; // UFU:125
+const ATTACHED = 'Đã có bản vẽ'; // UFU:125
 const TRAY = 'Tệp chưa gán tầng'; // UFU:104
 const removedToast = (name: string): string => `Đã xoá bản vẽ ${name}`; // UFU:921
 const REPORT = 'Báo cáo chất lượng'; // IQR:281
 const STRAIGHTEN = 'Tự động nắn'; // UIQ COPY.straightenAction
 const STRAIGHTEN_DIALOG = /^Nắn thẳng bản vẽ tầng .+\?$/u; // UIQ
 const CORNERS_DIALOG = /^Cắt và nắn bản vẽ tầng .+ theo bốn góc\?$/u; // UIQ
-const THICK_SCREEN = 'Chuẩn hoá độ dày tường'; // TV:105
+const THICK_SCREEN = 'Độ dày tường'; // TV:105
 const THICK_SELECT_ALL = /^Chọn (cả \d+ nhóm|nhóm này) \(\d+ đoạn\)$/u; // bản Z TBP:TEXT.selectAll
 const THICK_ACCEPT = /^Đồng ý đổi các đoạn .+ về \d+ mm$/u; // bản Z TBP:TEXT.acceptGroup
 const DELETE_FLOOR_MENU = 'Xoá tầng'; // FT:180

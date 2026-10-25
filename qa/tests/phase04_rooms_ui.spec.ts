@@ -1,5 +1,5 @@
 /**
- * Phase 4 — SCR-20 "Duyệt tên phòng", dedicated UI-verification case (skill `qa-verify-ui`): ONE flow, `FL-20-U1`, with one
+ * Phase 4 — SCR-20 "Duyệt phòng", dedicated UI-verification case (skill `qa-verify-ui`): ONE flow, `FL-20-U1`, with one
  * step per catalog row of the F block (+ `20-E-016` focus rings). Every step is one screen state at 1920 / 1440 / 1024 / 768
  * (`support/ui-verify.ts` `verifyUi`: it re-opens the state per width, measures horizontal scroll, controls pushed off-screen,
  * broken images, clipped text, overlaps and small targets, shoots `U04_<row id>_<slug>_<width>.png` and writes

@@ -33,7 +33,7 @@ import { closeSession, openPool, type Session } from './P6';
 
 /* ---- copy (each cites its source) ---- */
 export const GRAPH = {
-  title: 'Theo dõi bản vẽ đi qua nhánh xử lý nào', // S-12 PageHead h1 (breadcrumb + diagram group keep "Sơ đồ xử lý")
+  title: 'Bản vẽ được xử lý theo đường nào', // S-12 PageHead h1 (breadcrumb + diagram group keep "Sơ đồ xử lý")
   crumb: 'Sơ đồ xử lý', // breadcrumb + diagram group name (unchanged)
   lead: 'Hồ sơ này đi qua nhánh nào, và vì sao hệ thống chọn nhánh đó cho từng tầng.', // PGT leadLine
   emptyTitle: 'Chưa có lượt xử lý nào để kể lại', // PGT emptyTitle
@@ -68,7 +68,7 @@ export const CAD = {
   dialog: 'Phát hiện tệp CAD', // CBT PHASE_1_DIALOG_STATES.normal.title
   description: 'Hồ sơ này có tệp bản vẽ gốc từ AutoCAD hoặc các phần mềm thiết kế khác.', // CBT (first sentence)
   useCad: 'Dùng đường từ CAD', // CBT PRIMARY_BUTTON_LABEL
-  useAi: 'Vẫn dùng AI', // CBT SECONDARY_BUTTON_LABEL
+  useAi: 'Tiếp tục duyệt tường', // CBT SECONDARY_BUTTON_LABEL
   dismiss: 'Huỷ', // CBT DISMISS_BUTTON_LABEL
   closeIcon: 'Đóng hộp thoại', // MODAL header IconButton
   remember: 'Ghi nhớ lựa chọn cho dự án này', // CBT REMEMBER_CHOICE_LABEL
@@ -97,10 +97,10 @@ export const CAD = {
   collapse: 'Thu gọn bảng lớp', // CB
   expand: 'Mở bảng lớp', // CB
   inspectionMissing:
-    'Bản này chưa đọc được lớp của tệp CAD, nên chưa ánh xạ và nhập được hình học. Hãy chọn "Vẫn dùng AI".', // UCB:112-113
+    'Bản này chưa đọc được lớp của tệp CAD, nên chưa ánh xạ và nhập được hình học. Hãy chọn "Tiếp tục duyệt tường".', // UCB:112-113
   forbiddenNotice:
     'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. Liên hệ quản trị viên để được cấp quyền.', // UCB:118-119
-  importUnsupported: 'Bản này chưa nhập được hình học từ tệp CAD. Hãy chọn "Vẫn dùng AI".', // UCB:116
+  importUnsupported: 'Bản này chưa nhập được hình học từ tệp CAD. Hãy chọn "Tiếp tục duyệt tường".', // UCB:116
   importButton: 'Nhập hình học', // CBT IMPORT_BUTTON_LABEL
   importReasonId: 'cad-import-disabled-reason', // CB IMPORT_REASON_ID
   summaryZero: 'Đã ánh xạ 0/0 lớp · 0 đối tượng sẽ được nhập', // UCB:490-491 + CB SUMMARY_SEPARATOR

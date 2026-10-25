@@ -29,7 +29,7 @@ export const MEASURE_PIN = 'Ghim phép đo (phím Enter)';
 export const MEASURE_PIN_BLOCKED =
   'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.'; // useMeasurementTool.ts:202
 export const RULES_HEADING = 'Kiểm tra quy chuẩn';
-export const RULES_RERUN = 'Chạy kiểm tra lại';
+export const RULES_RERUN = 'Kiểm tra lại';
 export const RULES_CONFIRM = 'Sang Xuất';
 
 /** Pascal mount point (PascalViewer.tsx data-testid="pascal-canvas"); /3d mounts the vendored Pascal editor since F-15 (router.tsx:382). */

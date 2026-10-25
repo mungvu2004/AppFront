@@ -111,13 +111,13 @@ const NO_CAD_FILE_REASON = PHASE_1_DIALOG_STATES.noCadFile.reason;
 
 const COPY = {
   emptyNotice:
-    'Tệp CAD không có lớp nào được đặt tên, nên không có lớp nào để ánh xạ và chưa nhập được hình học. Hãy chọn "Vẫn dùng AI".',
+    'Tệp CAD không có lớp nào được đặt tên, nên không có lớp nào để ánh xạ và chưa nhập được hình học. Hãy chọn "Tiếp tục duyệt tường".',
   /** Cổng chưa đọc được lớp CAD: 0 lớp là giới hạn của bản này, không phải lỗi của tệp (review-1 #2). */
   inspectionMissingNotice:
-    'Bản này chưa đọc được lớp của tệp CAD, nên chưa ánh xạ và nhập được hình học. Hãy chọn "Vẫn dùng AI".',
+    'Bản này chưa đọc được lớp của tệp CAD, nên chưa ánh xạ và nhập được hình học. Hãy chọn "Tiếp tục duyệt tường".',
   /** Ba lý do nút "Nhập hình học" khoá — nút không bao giờ khoá câm (BUG-314). */
   importNoLayers: 'Không có lớp nào để ánh xạ, nên chưa có hình học để nhập.',
-  importUnsupported: 'Bản này chưa nhập được hình học từ tệp CAD. Hãy chọn "Vẫn dùng AI".',
+  importUnsupported: 'Bản này chưa nhập được hình học từ tệp CAD. Hãy chọn "Tiếp tục duyệt tường".',
   importNoMapped: 'Gán vai trò cho ít nhất một lớp để nhập hình học.',
   forbiddenNotice:
     'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. Liên hệ quản trị viên để được cấp quyền.',

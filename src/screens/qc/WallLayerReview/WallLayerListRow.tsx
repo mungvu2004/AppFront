@@ -119,10 +119,10 @@ export function WallLayerListRow({
             <WallThicknessSwatch kind={swatch} />
           </span>
         )}
-        <span className="relative min-w-0 flex-1 truncate tabular-nums text-text-primary">{row.codeLabel}</span>
-        <span className="relative w-14 shrink-0 text-right tabular-nums text-text-secondary">{extra?.lengthText ?? ''}</span>
+        <span className="relative min-w-0 flex-1 whitespace-nowrap tabular-nums text-text-primary">{row.codeLabel}</span>
+        <span className="relative w-12 shrink-0 text-right tabular-nums text-text-secondary">{extra?.lengthText ?? ''}</span>
         {showUnapprove ? null : (
-          <span className="relative w-16 shrink-0 whitespace-nowrap text-right tabular-nums text-text-primary">
+          <span className="relative w-14 shrink-0 whitespace-nowrap text-right tabular-nums text-text-primary">
             {extra?.thicknessText ?? row.thicknessLabel}
             {extra?.nearText == null ? null : <span className="ml-1 text-caption text-text-secondary">{extra.nearText}</span>}
           </span>

@@ -38,7 +38,7 @@
  * | `loading`   | canvas: dự phòng khung xương; panel trái: 12 dòng `Skeleton`      |
  * | `partial`   | mặc định — danh sách + thanh tra bình thường                      |
  * | `error`     | `InlineAlert` trong panel trái; đọc lớp hỏng khi chưa có tài liệu → cả màn là `FloorLayerReadFailureScreen` (BUG-326) |
- * | `success`   | cổng ở thanh bước (`WallLayerGate`) đổi sang nút chính "Tiếp: Cửa" |
+ * | `success`   | cổng ở thanh bước (`WallLayerGate`) là cổng chung của tầng (`FloorReviewGate`) |
  * | `forbidden` | ray ẩn công cụ sửa; thanh tra bỏ viền + một câu giải thích         |
  * | `collapsed` | hai panel ẩn; ray công cụ vẫn đứng cạnh canvas (G4a-20)            |
  *
@@ -118,7 +118,6 @@ export function WallLayerReview({
   statusBar,
   leftPanel,
   canvasSlot,
-  onNavigateLayer,
   queue,
   floorNav,
   saveBlock,
@@ -130,14 +129,11 @@ export function WallLayerReview({
    * thu gọn đổi nhãn mà hai panel không thu (BUG-601).
    */
   const isCollapsed = toolRail.isCollapsed;
-  const goToNextLayer = () => onNavigateLayer?.('openingsAndFurniture');
 
   if (readFailure != null) {
     return (
       <QcScreenFrame label={SCREEN_ARIA_LABEL}>
         <FloorLayerReadFailureScreen failure={readFailure} />
-        {/* Lớp không đọc được: cổng khoá, nói lý do — không mời đi tiếp. */}
-        <WallLayerGate locked panel={panel} />
       </QcScreenFrame>
     );
   }
@@ -150,7 +146,7 @@ export function WallLayerReview({
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
       {/* H1 thấy được ở đầu panel trái (QcPanelHead); tiến độ ở dòng trạng thái + cổng, không lặp ở đây. */}
       {floorNav != null && <QcFloorNav {...floorNav} floors={leftPanel.floors} layer="walls" titled={!isCollapsed} />}
-      <WallLayerGate onNextLayer={goToNextLayer} panel={panel} queue={queue} />
+      <WallLayerGate floorNav={floorNav} panel={panel} queue={queue} />
       {saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={saveBlock} />

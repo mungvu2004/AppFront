@@ -24,8 +24,7 @@ import { cn } from '@/lib/utils';
 import { PLAN_OUTLINE_SEGMENTS } from './projectsGateway';
 import type { ProjectCardModel } from './useProjectDashboard';
 
-const NO_PLAN_LABEL = 'Chưa có mặt bằng';
-const NO_PLAN_PROGRESS = 'Chưa có tường để duyệt';
+const NO_PLAN_LABEL = 'Chưa có bản vẽ';
 
 function PlanPreview({ variant, sketch }: { readonly variant: 0 | 1 | 2 | 3; readonly sketch?: ProjectCardModel['planSketch'] }) {
   const segments = sketch !== undefined && sketch.length > 0 ? sketch : PLAN_OUTLINE_SEGMENTS[variant];
@@ -173,8 +172,8 @@ export function ProjectCardTile({
       </div>
 
       <div className="flex min-h-[22px] items-center gap-3">
-        <Badge variant={project.statusVariant}>{project.statusLabel}</Badge>
-        {project.hasPlan ? (
+        {project.hasPlan && <Badge variant={project.statusVariant}>{project.statusLabel}</Badge>}
+        {project.hasPlan && (
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <div className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-bg-sunken">
               <div className="h-full rounded-full bg-accent" style={{ width: `${String(project.progressRatio * 100)}%` }} />
@@ -182,8 +181,6 @@ export function ProjectCardTile({
             {/* One way to say it: the count, not the count and a percent too (aesthetic 2.2 #4). */}
             <span className="shrink-0 text-caption tabular-nums text-text-secondary">{project.progressLabel}</span>
           </div>
-        ) : (
-          <span className="truncate text-caption text-text-secondary">{NO_PLAN_PROGRESS}</span>
         )}
       </div>
 

@@ -41,7 +41,7 @@ export const DIM = {
   emptyTitle: 'Chưa đọc được chuỗi kích thước nào', // DT:140
   emptyDescription:
     'Chuỗi kích thước trên bản vẽ có nét mảnh hoặc không rõ, nên OCR không tách được số. Hiệu chỉnh tỷ lệ bằng tay để đo độ dài từ bản vẽ.', // DT:141-142
-  toScale: 'Hiệu chỉnh tỷ lệ', // DT:143
+  toScale: 'Đặt tỷ lệ', // DT:143
   errorTitle: 'Không đọc được kích thước', // DT:174
   errorDescription: 'Hệ thống gặp lỗi khi xử lý bản vẽ. Thử lại để chạy lại bước này.', // DT:175
   retry: 'Thử lại', // DT:176

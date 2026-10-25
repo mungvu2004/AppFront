@@ -1,5 +1,5 @@
 /**
- * Mọi chuỗi cố định người dùng đọc của màn "Đọc kích thước OCR", đúng một chỗ.
+ * Mọi chuỗi cố định người dùng đọc của màn "Kích thước", đúng một chỗ.
  *
  * Chuỗi ghép theo số thì ở những hàm dưới. Khoá i18n tương ứng nằm ở
  * `.orca-notes/S14-T4-i18n.fragment.json` để T8 đưa vào `src/i18n/vi.json`.
@@ -122,14 +122,14 @@ export const filterLowConfidenceLabel = 'Độ tin cậy thấp';
 export const filterUnreviewedLabel = 'Chưa duyệt';
 
 /**
- * Câu lọc cho trạng thái một phần, khi OCR mới xong một phần bản vẽ.
+ * Câu lọc cho trạng thái một phần, khi máy mới xong một phần bản vẽ.
  * Số mục đã được định dạng sẵn.
  */
 export const lowConfidencePartialNotice = (count: string): string =>
   `${count} mục dưới ngưỡng tin cậy, đã lọc sẵn`;
 
 /** Nhãn aria của canvas: "Bản vẽ lớp kích thước OCR". */
-export const canvasAriaLabel = 'Bản vẽ lớp kích thước OCR';
+export const canvasAriaLabel = 'Bản vẽ lớp kích thước';
 
 /** Nhãn aria của danh sách kích thước. */
 export const dimensionListAriaLabel = 'Danh sách kích thước đọc được';
@@ -156,10 +156,10 @@ export const approveButtonAriaLabel = (dimensionCode: string): string =>
  * Kèm nhãn nút dẫn sang đó.
  */
 export const DIMENSION_OCR_EMPTY_STATE = {
-  title: 'Chưa đọc được chuỗi kích thước nào',
+  title: 'Máy chưa đọc được số kích thước nào',
   description:
-    'Chuỗi kích thước trên bản vẽ có nét mảnh hoặc không rõ, nên OCR không tách được số. Hiệu chỉnh tỷ lệ bằng tay để đo độ dài từ bản vẽ.',
-  actionLabel: 'Hiệu chỉnh tỷ lệ',
+    'Chuỗi kích thước trên bản vẽ có nét mảnh hoặc không rõ, nên máy không tách được số. Đặt tỷ lệ bằng tay để đo độ dài từ bản vẽ.',
+  actionLabel: 'Đặt tỷ lệ',
 } as const;
 
 /**
@@ -174,7 +174,7 @@ export const DIMENSION_OCR_LOADING_STATE = {
  * Trạng thái 3: Một phần — 9 mục dưới ngưỡng.
  *
  * Kèm nhãn bộ lọc "chỉ hiện mục cần xem".
- * Biến thể câu cho trường hợp OCR mới xong một phần bản vẽ.
+ * Biến thể câu cho trường hợp máy mới xong một phần bản vẽ.
  */
 export const DIMENSION_OCR_PARTIAL_STATE = {
   title: 'Một phần kích thước đã duyệt',
@@ -209,7 +209,7 @@ export const DIMENSION_OCR_DONE_STATE = {
 export const DIMENSION_OCR_FORBIDDEN_STATE = {
   title: 'Không có quyền duyệt kích thước',
   description:
-    'Vai trò hiện tại chỉ được xem, không được chỉnh sửa lớp kích thước OCR. Liên hệ quản trị dự án nếu cần.',
+    'Vai trò hiện tại chỉ được xem, không được chỉnh sửa lớp kích thước. Liên hệ quản trị dự án nếu cần.',
 } as const;
 
 /**
@@ -236,9 +236,9 @@ export const DIMENSION_INSPECTOR_TEXT = {
  */
 export const DIMENSION_OCR_TEXT = {
   screen: {
-    title: 'Đọc kích thước OCR',
-    breadcrumb: 'Dự án > Đọc kích thước OCR',
-    description: 'Đối chiếu số OCR đọc được với ảnh cắt gốc, sửa số sai rồi duyệt từng chuỗi.',
+    title: 'Kích thước',
+    breadcrumb: 'Dự án > Kích thước',
+    description: 'Đối chiếu số máy đọc được với ảnh cắt gốc, sửa số sai rồi duyệt từng chuỗi.',
     canvasEmptyNotice,
     canvasAriaLabel,
     dimensionListAriaLabel,

@@ -55,6 +55,8 @@ interface QcWorkspaceProps {
   readonly rail?: ReactNode;
   /** Panel trái (bộ lọc, danh sách). Vắng thì ẩn gọn. */
   readonly left?: ReactNode;
+  /** Cột trái rộng 320 thay 240 ở >=1024 (thẻ có ảnh cắt + ô nhập). */
+  readonly wideLeft?: boolean;
   readonly canvasLabel: string;
   readonly canvas: ReactNode;
   /** Panel chi tiết phải. 1024-1279: lớp phủ trên mép phải bản vẽ, không rơi xuống dưới. */
@@ -75,7 +77,7 @@ const DRAWER_SHOW_LABEL = 'Hiện chi tiết';
  * - 1024-1279: chi tiết thành ngăn kéo phủ mép phải bản vẽ (ẩn/hiện được), panel trái giữ cột.
  * - <1024: rail + bản vẽ ở hàng đầu (bản vẽ trước danh sách), hai panel xuống dòng, cả vùng cuộn dọc.
  */
-export function QcWorkspace({ rail, left, canvasLabel, canvas, inspector, selectionKey = null }: QcWorkspaceProps) {
+export function QcWorkspace({ rail, left, wideLeft = false, canvasLabel, canvas, inspector, selectionKey = null }: QcWorkspaceProps) {
   // Ẩn/hiện tay chỉ áp cho lần chọn đang có; đổi lựa chọn thì về mặc định (mở khi có chọn).
   const [manual, setManual] = useState<{ readonly key: string | null; readonly open: boolean } | null>(null);
   const isDrawerOpen = manual?.key === selectionKey ? manual.open : selectionKey != null;
@@ -86,7 +88,7 @@ export function QcWorkspace({ rail, left, canvasLabel, canvas, inspector, select
     <div className="relative flex min-h-0 flex-1 gap-2 p-2 max-lg:flex-wrap max-lg:content-start max-lg:overflow-y-auto">
       {rail}
       {hasLeft ? (
-        <div className="flex min-h-0 shrink-0 flex-col gap-2 max-lg:order-1 max-lg:w-full lg:w-[240px] lg:overflow-y-auto">
+        <div className={cn('flex min-h-0 shrink-0 flex-col gap-2 max-lg:order-1 max-lg:w-full lg:overflow-y-auto', wideLeft ? 'lg:w-[320px]' : 'lg:w-[240px]')}>
           {left}
         </div>
       ) : null}

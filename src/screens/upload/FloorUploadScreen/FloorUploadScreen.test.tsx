@@ -653,11 +653,11 @@ describe('FloorUploadScreen — tốc độ cập nhật tiến trình (tiêu ch
     });
 
     // Bộ tiết chế bỏ bớt các nhịp giữa chừng, không được bỏ nhịp cuối: đúng
-    // thẻ tầng vừa nhận tệp phải kết thúc ở "Đã gắn kèm".
+    // thẻ tầng vừa nhận tệp phải kết thúc ở "Đã có bản vẽ".
     const uploadedCard = document.querySelector('[data-floor-id="L2"]');
 
     expect(uploadedCard, 'thẻ của Tầng 2 phải còn trên trang').not.toBeNull();
-    expect(uploadedCard?.textContent).toContain('Đã gắn kèm');
+    expect(uploadedCard?.textContent).toContain('Đã có bản vẽ');
   });
 });
 
@@ -708,7 +708,7 @@ describe('FloorUploadScreen — tệp chọn trước lượt kiểm mạng đ�
       });
     }
 
-    expect(document.querySelector('[data-floor-id="L2"]')?.textContent).toContain('Đã gắn kèm');
+    expect(document.querySelector('[data-floor-id="L2"]')?.textContent).toContain('Đã có bản vẽ');
     expect(counterStatusText()).toBe('2 / 4 tầng đã có bản vẽ');
   });
 
@@ -790,7 +790,7 @@ describe('FloorUploadScreen — tệp chọn trước lượt kiểm mạng đ�
       });
     }
 
-    expect(document.querySelector('[data-floor-id="L2"]')?.textContent).toContain('Đã gắn kèm');
+    expect(document.querySelector('[data-floor-id="L2"]')?.textContent).toContain('Đã có bản vẽ');
     expect(counterStatusText()).toBe('2 / 4 tầng đã có bản vẽ');
   });
 });

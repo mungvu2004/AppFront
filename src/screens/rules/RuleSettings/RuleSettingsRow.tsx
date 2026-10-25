@@ -164,8 +164,8 @@ export function RuleSettingsRuleRow({
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className={cn('flex flex-col gap-0.5', dimmed)}>
           <p className="text-sm text-text-primary">{row.sentence}</p>
-          <p className="text-xs text-text-secondary">{row.description}</p>
-          <p className="text-xs text-text-secondary">{row.impactCaption}</p>
+          {row.description === '' ? null : <p className="text-xs text-text-secondary">{row.description}</p>}
+          {row.impactCaption === '' ? null : <p className="text-xs text-text-secondary">{row.impactCaption}</p>}
         </div>
         {row.supersededBy !== null && (
           <p className="text-xs text-state-attention-text">
@@ -185,7 +185,7 @@ export function RuleSettingsRuleRow({
         />
       </div>
 
-      {row.thresholds.length > 0 && (
+      {row.enabled && row.thresholds.length > 0 && (
         <div className={cn('flex basis-full flex-wrap items-center gap-2 pl-11', dimmed)}>
           {row.thresholds.map((threshold) => (
             <ThresholdField

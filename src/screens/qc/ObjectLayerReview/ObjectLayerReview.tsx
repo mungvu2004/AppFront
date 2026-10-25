@@ -79,8 +79,8 @@ const ADD_ACTIONS = [
   { kind: 'window', label: '+ Thêm cửa sổ' },
 ] as const;
 const OPEN_WALL_LAYER_ACTION = 'Sang duyệt tường';
-const LOW_CONFIDENCE_FILTER = 'Chỉ hiện mục dưới ngưỡng';
-const LOW_CONFIDENCE_DONE = 'Đã duyệt hết mục dưới ngưỡng.';
+const LOW_CONFIDENCE_FILTER = 'Chỉ hiện chỗ máy chưa chắc';
+const LOW_CONFIDENCE_DONE = 'Đã duyệt hết chỗ máy chưa chắc.';
 const SHOW_ALL = 'Hiện tất cả';
 /* Chưa có số đếm thật thì không in "0/0 đối tượng đã duyệt" (BUG-618). */
 const LOADING_PROGRESS_LABEL = 'Đang đọc lớp đối tượng…';

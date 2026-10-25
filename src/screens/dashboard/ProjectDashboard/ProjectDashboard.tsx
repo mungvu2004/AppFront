@@ -235,6 +235,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           hasUnread={unreadNotice !== null}
           canCreate={props.canCreate}
           onCreate={props.createProject}
+          onShowQc={() => props.setStatusFilter('qc')}
         />
 
         <Section flush title="Dự án" actions={neverHadProject ? undefined : toolbar}>

@@ -12,9 +12,8 @@
  *    quy chuẩn".
  * 2. **Where it stands** — the status line: one badge carrying the worst finding
  *    with its real count, one sentence with the rest, and when the run happened.
- * 3. **How to go on** — `FlowGate` in the step bar: "Không còn vi phạm nghiêm
- *    trọng" + "Đã xem cảnh báo". Not met: a secondary "Xem vi phạm kế" (opens the
- *    next critical finding) or "Xem cảnh báo". Met: the one primary "Sang Xuất".
+ * 3. **How to go on** — `FlowGate` in the step bar: one "Sang Xuất" button, always
+ *    shown; primary when no critical rule is left, secondary otherwise (export still works).
  *
  * ## The three things this screen refuses to do
  *
@@ -234,8 +233,6 @@ export function RuleReport(props: RuleReportViewProps) {
   // Starts open: "Mục đã xử lý phải còn nhìn thấy" — a group that starts shut hides
   // exactly the rows the ban is about. The reader can still collapse it.
   const [isResolvedOpen, setResolvedOpen] = useState(true);
-  // "Đã xem cảnh báo" — the reader opened the warnings filter at least once in this view.
-  const [hasSeenWarnings, setSeenWarnings] = useState(false);
 
   const isRunning = status === 'loading';
   const hasResults = status !== 'empty' && status !== 'error';
@@ -244,12 +241,10 @@ export function RuleReport(props: RuleReportViewProps) {
   const canAct = capabilities.canEdit && status !== 'forbidden';
 
   const onFilterChange = (next: RuleReportFilters): void => {
-    if (next.level === 'warning') setSeenWarnings(true);
     props.onFilterChange(next);
   };
 
   const noCritical = summary.violations === 0;
-  const warningsSeen = summary.warnings === 0 || hasSeenWarnings || filters.level === 'warning';
   const criticalKeys = openCriticalKeys(props.groups);
 
   const showNextViolation = (): void => {
@@ -271,17 +266,17 @@ export function RuleReport(props: RuleReportViewProps) {
       </a>
     );
 
+  // Một nút duy nhất, luôn hiện: màn Xuất vẫn cho xuất khi còn lỗi nên cổng không được chặn.
   const gateButton =
-    status === 'empty' ? processLink : !hasResults || isRunning ? null : !noCritical ? (
-      <Button size="sm" variant="secondary" onClick={showNextViolation}>
-        Xem vi phạm kế
-      </Button>
-    ) : !warningsSeen ? (
-      <Button size="sm" variant="secondary" onClick={() => onFilterChange({ ...filters, level: 'warning' })}>
-        Xem cảnh báo
-      </Button>
-    ) : (
-      <Button size="sm" variant="primary" iconAfter={<ArrowRight aria-hidden="true" size={16} />} onClick={props.onConfirmResolved}>
+    status === 'empty' ? (
+      processLink
+    ) : !hasResults || isRunning ? null : (
+      <Button
+        size="sm"
+        variant={noCritical ? 'primary' : 'secondary'}
+        iconAfter={<ArrowRight aria-hidden="true" size={16} />}
+        onClick={props.onConfirmResolved}
+      >
         Sang Xuất
       </Button>
     );
@@ -294,8 +289,10 @@ export function RuleReport(props: RuleReportViewProps) {
             status === 'empty'
               ? [{ label: 'Có mô hình để kiểm tra', done: false }]
               : [
-                  { label: 'Không còn vi phạm nghiêm trọng', done: hasResults && !isRunning && noCritical },
-                  { label: 'Đã xem cảnh báo', done: hasResults && !isRunning && warningsSeen },
+                  {
+                    label: noCritical ? 'Không còn luật nghiêm trọng' : `Còn ${count(summary.violations)} luật nghiêm trọng`,
+                    done: hasResults && !isRunning && noCritical,
+                  },
                 ]
           }
           done={summary.passed}
@@ -323,8 +320,8 @@ export function RuleReport(props: RuleReportViewProps) {
               {/* `empty` = chưa có mô hình: một lượt chạy chỉ rơi vào `error` (B-V12-02).
                   `error` có sẵn "Thử lại" trong thân — hai nút chạy lại là thừa (BUG-465). */}
               {status === 'empty' || status === 'error' || !canAct ? null : (
-                <Button variant="secondary" loading={isRunning} onClick={props.onRerun}>
-                  Chạy kiểm tra lại
+                <Button variant="secondary" size="sm" loading={isRunning} onClick={props.onRerun}>
+                  Kiểm tra lại
                 </Button>
               )}
             </>
@@ -361,12 +358,6 @@ export function RuleReport(props: RuleReportViewProps) {
                       ? { activeLevel: filters.level, onFilterLevel: (level: RuleReportLevelFilter) => onFilterChange({ ...filters, level }) }
                       : {})}
                   />
-                  {/* G5-30: ô số đếm LUẬT, danh sách đếm ĐỐI TƯỢNG — nói ra để hai số không vênh nhau. */}
-                  {status !== 'done' ? (
-                    <p className="text-[13px] text-text-secondary">
-                      Các số trên đếm theo luật, bấm một số để lọc. Danh sách liệt kê từng đối tượng, nên một luật có thể có nhiều mục.
-                    </p>
-                  ) : null}
                 </div>
 
                 {canFilter ? (
@@ -376,6 +367,14 @@ export function RuleReport(props: RuleReportViewProps) {
                     resolvedRows={props.resolvedRows}
                     onFilterChange={onFilterChange}
                   />
+                ) : null}
+
+                {canAct && !noCritical && canFilter ? (
+                  <div>
+                    <Button size="sm" variant="secondary" onClick={showNextViolation}>
+                      Xem vi phạm kế
+                    </Button>
+                  </div>
                 ) : null}
 
                 <RuleReportBody

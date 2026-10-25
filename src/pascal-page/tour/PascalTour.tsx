@@ -56,6 +56,12 @@ export function PascalTour() {
     if (el?.isConnected) el.focus?.();
   }, []);
 
+  // Báo cho viên "Điều khiển chuột" (canvas-help) gập lại khi tour đang hiện.
+  useEffect(() => {
+    document.documentElement.dataset.pascalTour = open ? 'open' : 'closed';
+    window.dispatchEvent(new Event('pascal-tour:state'));
+  }, [open]);
+
   useEffect(() => {
     if (shouldAutoOpen()) setOpen(true);
     window.addEventListener(TOUR_OPEN_EVENT, openTour);

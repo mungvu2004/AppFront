@@ -170,6 +170,10 @@ function WiredSpatialJsonViewer({ onCopy, onDownload, projectId }: SpatialJsonVi
     navigate(ROUTES.project.floors(projectId));
   }, [navigate, projectId]);
 
+  const onBackToExport = useCallback(() => {
+    navigate(ROUTES.project.export(projectId));
+  }, [navigate, projectId]);
+
   const [model, actions] = useSpatialJsonViewer({
     canView,
     errorMessage: derived.errorMessage,
@@ -178,6 +182,7 @@ function WiredSpatialJsonViewer({ onCopy, onDownload, projectId }: SpatialJsonVi
     isNarrow,
     issues: derived.issues,
     onReopenFloors,
+    onBackToExport,
     ...(onCopy !== undefined ? { onCopy } : {}),
     ...(onDownload !== undefined ? { onDownload } : {}),
   });

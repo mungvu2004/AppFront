@@ -37,7 +37,7 @@ export const UP = {
   blockedTitle: 'Không thể bắt đầu xử lý', // UFU COPY.blockedTitle
   waiting: 'Chờ xử lý', // UFU STATUS_LABELS
   uploading: 'Đang tải lên',
-  attached: 'Đã gắn kèm',
+  attached: 'Đã có bản vẽ',
   error: 'Lỗi',
   noDrawing: 'Chưa có bản vẽ', // UFU NO_DRAWING_LABEL
   autoMatch: 'Ghép tự động từ tên tệp — kiểm tra lại', // UFU COPY.autoMatch

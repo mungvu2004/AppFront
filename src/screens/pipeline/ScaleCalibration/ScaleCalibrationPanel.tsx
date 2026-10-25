@@ -30,14 +30,13 @@ const EXPAND_LABEL = 'Bung bảng';
 const SUCCESS_BADGE = 'Đã duyệt';
 
 const CROSS_CHECKS_TITLE = 'Kiểm chứng';
-const CROSS_CHECKS_UNAVAILABLE =
-  'Chưa đủ dữ liệu để kiểm chứng tỷ lệ: cần tỷ lệ đã đo và độ dày tường, bề rộng cửa hoặc phòng lớn nhất đọc được từ bản vẽ.';
 const CROSS_CHECKS_ARIA_LABEL = 'Ba đại lượng dẫn xuất để kiểm chứng tỷ lệ';
 const WARNING_ARIA_LABEL = 'Cảnh báo về tỷ lệ';
 const APPLY_PRIMARY = 'Áp dụng tỷ lệ';
 const APPLY_APPLYING = 'Đang áp tỷ lệ…';
 const OPEN_VIEWER_LABEL = 'Xem mô hình 3D →';
 const SCOPE_ARIA_LABEL = 'Phạm vi áp tỷ lệ';
+const SCOPE_LABEL = 'Áp dụng cho:';
 
 const PANEL_CONTAINER_CLASSES = clsx(
   'flex w-full flex-col bg-bg-surface md:min-h-0 md:flex-1',
@@ -109,14 +108,12 @@ export function ScaleCalibrationPanel({
 
         {!isLoading && (
           <>
+            {!panel.crossChecks.every((row) => row.valueLabel === MISSING_VALUE) && (
             <section aria-label={CROSS_CHECKS_ARIA_LABEL} className="flex flex-col">
               <h3 className="mb-1 text-[13px] font-medium text-text-secondary">
                 {CROSS_CHECKS_TITLE}
               </h3>
-              {/* Ba dòng đều "—": nói ra là chưa đủ dữ liệu, không để ba gạch không lý do (BUG-631). */}
-              {panel.crossChecks.every((row) => row.valueLabel === MISSING_VALUE) ? (
-                <p className="text-[13px] text-text-muted">{CROSS_CHECKS_UNAVAILABLE}</p>
-              ) : panel.crossChecks.map((row, index) => (
+              {panel.crossChecks.map((row, index) => (
                 <FieldRow
                   isLast={index === panel.crossChecks.length - 1}
                   isText
@@ -140,6 +137,8 @@ export function ScaleCalibrationPanel({
               ))}
             </section>
 
+            )}
+
             {panel.warnings.length > 0 && (
               <section aria-label={WARNING_ARIA_LABEL} className="flex flex-col gap-2">
                 {panel.warnings.map((notice, index) => (
@@ -157,6 +156,7 @@ export function ScaleCalibrationPanel({
       {!panel.areActionsHidden && (
         <div className="flex shrink-0 flex-col gap-2 border-t border-border-default bg-bg-surface px-4 py-3">
           {/* BUG-410: short labels ("Mọi tầng" / "Tầng này") keep both options on one line in the 288 px column. */}
+          <p className="text-[13px] text-text-secondary">{SCOPE_LABEL}</p>
           <SegmentedControl
             aria-label={SCOPE_ARIA_LABEL}
             onChange={actions.onChangeApplyScope}

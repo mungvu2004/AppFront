@@ -152,7 +152,7 @@ test.describe('SCR-22 overlay — drawing floor D1 (read-only walks)', () => {
       await openOverlay(page, floor.projectId, floor.floorId);
       await expect(alertWith(page, OV.frameMissing)).toBeVisible();
 
-      await test.step('[22-A-002] "Chồng lớp" checked by default; one group holds exactly the 3 overlay layers', async () => {
+      await test.step('[22-A-002] "So với bản vẽ" checked by default; one group holds exactly the 3 overlay layers', async () => {
         await expect(modeRadio(page, OV.overlay)).toHaveAttribute('aria-checked', 'true');
         await expect(overlayLayers(page)).toHaveCount(3);
         await expect(canvasFrame(page).locator('[data-overlay-layer]')).toHaveCount(3);
@@ -295,7 +295,7 @@ test.describe('SCR-22 overlay — drawing floor D1 (read-only walks)', () => {
         await link.click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.scale(floor.projectId, floor.floorId));
         // Marker: SCR-14 is painted (ScaleCalibration.tsx:66,184-186), so a full load has finished and the evaluate has a live context.
-        await expect(page.getByRole('region', { name: 'Màn hiệu chỉnh tỷ lệ', exact: true })).toBeVisible();
+        await expect(page.getByRole('region', { name: 'Tỷ lệ bản vẽ', exact: true })).toBeVisible();
         await page.waitForLoadState('domcontentloaded');
         expect.soft(await shellKept(page), 'the click is a plain <a href>: a full document load').toBe(false);
         await ev(page, '22-A-019', 'scale_link_target');
@@ -465,11 +465,11 @@ test.describe('SCR-22 overlay — drawing floor D1 (read-only walks)', () => {
         await expect.soft(panel(page).getByText(/^0(,0+)? mm$/u)).toHaveCount(0);
       });
 
-      await test.step('[22-A-025] "Xác nhận khớp bản vẽ" is disabled (nothing measured)', async () => {
+      await test.step('[22-A-025] "Khớp rồi, xác nhận" is disabled (nothing measured)', async () => {
         await expect.soft(page.getByRole('button', { name: OV.confirm, exact: true })).toBeDisabled(); // S-28 v6: confirm lives in the step-bar gate
       });
 
-      await test.step('[22-A-024] reload resets mode / opacity / divider / lock / tolerance to "Chồng lớp" / 25% / 0.5 / off / 20', async () => {
+      await test.step('[22-A-024] reload resets mode / opacity / divider / lock / tolerance to "So với bản vẽ" / 25% / 0.5 / off / 20', async () => {
         await opacitySlider(page).focus();
         await page.keyboard.press('Home');
         await page.reload();

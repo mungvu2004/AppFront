@@ -14,7 +14,7 @@
  * Folds (old isolated tests of `phase03_pipeline_edge.spec.ts`, deleted by the integrator):
  *   SCR-13 own project … only the #24 project read → FL-13-01 [13-A-001] [13-D-001] [13-B-002] [13-B-005]
  *   SCR-13 unknown project → its own not-found state and way out → FL-13-01 [13-B-006] [13-A-003]
- *   SCR-15 "Vẫn dùng AI" in the dialog → /pipeline, no write; no "Ghi nhớ…" → FL-15-01 [15-A-001] [15-A-005]
+ *   SCR-15 "Tiếp tục duyệt tường" in the dialog → /pipeline, no write; no "Ghi nhớ…" → FL-15-01 [15-A-001] [15-A-005]
  *   SCR-15 Esc closes the dialog → hand-off; … "Thu gọn bảng lớp" ↔ "Mở bảng lớp" → FL-15-01 [15-E-002],
  *     FL-15-02 [15-A-007] [15-D-001] [15-A-010]
  */
@@ -362,7 +362,7 @@ test('SCR-15 · FL-15-01 · admin opens CAD confirm, reads the dialog, leaves it
       await captureEvidence(page, 'E03_15-B-002_empty_notice.png');
     });
 
-    await test.step('[15-A-008] hand-off "Vẫn dùng AI" → /pipeline, no write', async () => {
+    await test.step('[15-A-008] hand-off "Tiếp tục duyệt tường" → /pipeline, no write', async () => {
       const mark = sent.length;
       await handoff(page).getByRole('button', { name: CAD.useAi, exact: true }).click();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(pid));
@@ -394,7 +394,7 @@ test('SCR-15 · FL-15-01 · admin opens CAD confirm, reads the dialog, leaves it
       await expect(handoffAlert(page)).toBeVisible();
     });
 
-    await test.step('[15-A-005] reload → no "Ghi nhớ lựa chọn…" checkbox; dialog "Vẫn dùng AI" → /pipeline, no write', async () => {
+    await test.step('[15-A-005] reload → no "Ghi nhớ lựa chọn…" checkbox; dialog "Tiếp tục duyệt tường" → /pipeline, no write', async () => {
       await page.reload();
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole('checkbox', { name: CAD.remember })).toHaveCount(0);
@@ -607,7 +607,7 @@ test('SCR-15 · FL-15-02 · admin picks the CAD branch and works stage 2 (mappin
       await expect.soft(origin, '15-A-014: origin choice not kept').toHaveText(CAD.origins[0]);
     });
 
-    await test.step('[15-A-009] empty notice "Vẫn dùng AI" (BUG-314) → /pipeline', async () => {
+    await test.step('[15-A-009] empty notice "Tiếp tục duyệt tường" (BUG-314) → /pipeline', async () => {
       await notice(page).getByRole('button', { name: CAD.useAi, exact: true }).click();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(pid));
     });
@@ -659,7 +659,7 @@ test('SCR-15 · FL-15-03 · CAD confirm with a bogus floor id, on an unknown pro
       route.request().method() === 'GET' ? fulfillJson(route, 500, { code: 'INTERNAL', requestId: 'qa-p10-mock' }) : route.fallback();
     await page.route(`**/api/projects/${pid}/floors`, failRead);
     try {
-      await test.step('[15-E-004] [mocked response] #12 500 while the dialog is open → CAD disabled, focus moves to "Vẫn dùng AI"', async () => {
+      await test.step('[15-E-004] [mocked response] #12 500 while the dialog is open → CAD disabled, focus moves to "Tiếp tục duyệt tường"', async () => {
         await page.goto(ROUTES.project.cadConfirm(pid, bogusFloorId()));
         await expect(dialog.getByRole('alert')).toBeVisible({ timeout: 45_000 });
         // BUG-560: CadBranchConfirmDialog.tsx:37-45 focuses the AI button when isCadChoiceDisabled flips to true while open.
@@ -686,7 +686,7 @@ test('SCR-15 · FL-15-03 · CAD confirm with a bogus floor id, on an unknown pro
         await expect.soft(notice(page)).toContainText(CAD.errorTitle, { timeout: 45_000 });
       });
 
-      await test.step('[15-A-018] error notice "Vẫn dùng AI" → /pipeline', async () => {
+      await test.step('[15-A-018] error notice "Tiếp tục duyệt tường" → /pipeline', async () => {
         await notice(page).getByRole('button', { name: CAD.useAi, exact: true }).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(pid));
       });

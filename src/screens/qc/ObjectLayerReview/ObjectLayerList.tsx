@@ -323,7 +323,7 @@ export function ObjectLayerList({
           {CLEAR_SEARCH}
         </button>
       )}
-      {QUEUE_GROUPS.map(({ id, label }) => (
+      {QUEUE_GROUPS.filter(({ id }) => id === 'pending' || shownRows.some((row) => row.isReviewed)).map(({ id, label }) => (
         <ObjectLayerListGroup
           group={id}
           isCollapsed={collapsed.has(id)}

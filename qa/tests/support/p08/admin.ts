@@ -73,7 +73,7 @@ export const familyActiveRe = (family: string): RegExp => new RegExp(`^/api${fam
 
 /** Page heading (h1 in PageHead) per screen. */
 export const TITLE = {
-  library: 'Quản lý thư viện mẫu 3D', // ML PAGE_TITLE (h1)
+  library: 'Xem thư viện mẫu 3D', // ML PAGE_TITLE (h1)
   jobs: 'Theo dõi huấn luyện', // TJ TEXT.title (h1)
   registry: 'Chọn mô hình AI đang dùng', // MR TEXT.title (h1)
   users: 'Phân vai người dùng', // UM PAGE_TITLE (h1)

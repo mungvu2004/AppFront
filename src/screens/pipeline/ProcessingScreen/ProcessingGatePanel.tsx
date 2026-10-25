@@ -20,6 +20,8 @@ const CANCEL_CONFIRM_QUESTION = 'Huỷ lượt xử lý này?';
 const CANCEL_CONFIRM_LABEL = 'Xác nhận huỷ';
 const CANCEL_DISMISS_LABEL = 'Giữ nguyên';
 const ALL_STEPS_LABEL = 'Xem tất cả các bước';
+const AI_READ_LABEL = 'AI đọc xong';
+const STEPS_DETAIL_LABEL = 'Xem chi tiết các bước';
 const AI_DONE_LABEL = 'AI xử lý xong';
 const SCALE_LABEL = 'Tỷ lệ bản vẽ';
 const CONFIDENCE_LABEL = 'Độ tin cậy';
@@ -95,6 +97,11 @@ export function ProcessingGatePanel({
 }) {
   const lowConfidence = gate.isAiDone ? props.summary?.lowConfidenceSentence : undefined;
   const metrics = props.summary?.metricLabels ?? [];
+  // Xong rồi: sáu bước thu thành một dòng tóm tắt, chi tiết mở ra khi cần.
+  const hasSummary = gate.isAiDone && metrics.length >= 5;
+  const summaryLine = hasSummary
+    ? `${AI_READ_LABEL}: ${metrics[0] ?? ''}, ${metrics[1] ?? ''}, ${metrics[3] ?? ''} (${metrics[4] ?? ''})`
+    : undefined;
   const list = (
     <ProcessingStepList
       prefersReducedMotion={props.prefersReducedMotion}
@@ -125,12 +132,19 @@ export function ProcessingGatePanel({
               {list}
             </details>
           </div>
+        ) : summaryLine !== undefined ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-[14px] text-text-primary">{summaryLine}</p>
+            <details>
+              <summary className="cursor-pointer select-none text-[13px] font-medium text-text-secondary hover:text-text-primary">
+                {STEPS_DETAIL_LABEL}
+              </summary>
+              {list}
+            </details>
+          </div>
         ) : (
           list
         )}
-        {gate.isAiDone && gate.resultByStepId.size === 0 && metrics.length > 0 ? (
-          <p className="text-[13px] text-text-secondary">{metrics.join(', ')}</p>
-        ) : null}
       </div>
 
       {/* Dưới 1024 px cổng đứng TRÊN danh sách bước; từ 1024 px dính đáy cột. */}
@@ -167,6 +181,16 @@ export function ProcessingGatePanel({
             </Button>
             {gate.action.note !== undefined ? (
               <p className="text-center text-[13px] text-text-secondary">{gate.action.note}</p>
+            ) : null}
+            {gate.secondaryAction !== undefined ? (
+              <Button
+                className="w-full"
+                iconAfter={<ArrowRight aria-hidden="true" size={16} />}
+                onClick={gate.secondaryAction.onClick}
+                variant="secondary"
+              >
+                {gate.secondaryAction.label}
+              </Button>
             ) : null}
           </div>
         ) : gate.kind === 'running' ? (

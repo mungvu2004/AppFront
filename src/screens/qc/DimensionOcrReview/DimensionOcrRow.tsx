@@ -122,7 +122,7 @@ export function DimensionOcrCrop({ crop, isMagnified = false }: DimensionOcrCrop
       aria-label={crop.alt}
       className={cn(
         'shrink-0 overflow-hidden rounded-lg border border-border-default bg-bg-sunken',
-        'h-(--dim-crop-h) w-(--dim-crop-h) xl:w-(--dim-crop-w)',
+        'h-(--dim-crop-h) w-(--dim-crop-h) max-w-full xl:w-(--dim-crop-w)',
       )}
       role="img"
       style={

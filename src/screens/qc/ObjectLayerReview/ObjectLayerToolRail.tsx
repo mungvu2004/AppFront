@@ -139,7 +139,7 @@ export function ObjectLayerToolRail({
                 />
                 {/* Group name, not the bare key letter ("C"/"S"/"N" meant nothing, QA-1); the key sits in tooltip + aria-label. */}
                 <span aria-hidden="true" className="whitespace-nowrap text-caption leading-none text-text-muted">
-                  {OBJECT_LAYER_LABELS[tool.id]}
+                  {`Vẽ ${lowerFirst(OBJECT_LAYER_LABELS[tool.id])}`}
                 </span>
               </div>
             );

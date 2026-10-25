@@ -33,7 +33,7 @@ export const PROJECTS = '/api/projects';
 
 /* ---- copy (each cites its source; SC ScaleCalibration.tsx, SCP …Panel.tsx, SMR …MethodReference.tsx, USC useScaleCalibration.ts) ---- */
 export const SCALE = {
-  screen: 'Màn hiệu chỉnh tỷ lệ', // SC:66
+  screen: 'Tỷ lệ bản vẽ', // SC:66
   canvasRegion: 'Khung bản vẽ để hiệu chỉnh tỷ lệ', // SC:67
   notice: 'Trạng thái của màn hiệu chỉnh tỷ lệ', // SC:68
   canvas: 'Bản vẽ đã nắn, kéo để vẽ đường tham chiếu', // SCV:69

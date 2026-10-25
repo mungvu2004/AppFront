@@ -140,7 +140,7 @@ export const PIPELINE_OVERVIEW_BLOCKS: readonly PipelineOverviewBlockViewModel[]
 export const PIPELINE_GRAPH_TEXT = {
   title: 'Sơ đồ xử lý',
   eyebrow: 'Bước 2 · Xử lý',
-  heading: 'Theo dõi bản vẽ đi qua nhánh xử lý nào',
+  heading: 'Bản vẽ được xử lý theo đường nào',
   diagramSectionTitle: 'Đường đi của bản vẽ',
   chipNotRun: 'Chưa xử lý',
   chipRunning: 'Đang chạy',

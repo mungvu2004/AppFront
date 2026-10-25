@@ -6,7 +6,7 @@ import { signInAs } from '../fixtures/session';
 
 /** S-02: the tile's one action reads "{động từ của bước} {tên}" (WCAG 2.5.3), e.g. "Xem 3D Nhà máy Bắc Ninh". */
 const openButton = (page: Page, name: string) =>
-  page.getByRole('button', { name: new RegExp(`^(Duyệt tường|Xem tiến độ|Xem 3D|Mở dự án) ${name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`, 'u') });
+  page.getByRole('button', { name: new RegExp(`^(Duyệt tường|Xem tiến độ|Xem 3D|Mở dự án|Tải bản vẽ) ${name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`, 'u') });
 
 /**
  * Nhóm V3 — bảng điều khiển "Dự án của tôi" (`ROUTES.dashboard`, `/`).
@@ -70,7 +70,7 @@ function screenStatus(page: Page, label: string) {
 
 test.describe('V3-DASH-1 — "Mở" đưa tới màn dự án', () => {
   const DESTINATIONS = [
-    { name: SUNRISE, path: ROUTES.project.pipeline('prj_01HZX3K9M2Q4R6T8V0W1Y3A5C8') },
+    { name: SUNRISE, path: ROUTES.project.upload('prj_01HZX3K9M2Q4R6T8V0W1Y3A5C8') },
     { name: HQ, path: ROUTES.project.walls('prj_01HZX3K9M2Q4R6T8V0W1Y3A5C7', 'floor-01') },
     // "Xem 3D" đi `/3d`, rồi `/3d` điều hướng cả trang sang trang Pascal riêng (`viewerRedirects.tsx`, 29eba219).
     { name: BAC_NINH, path: '/editor3d.html' },
@@ -129,7 +129,7 @@ test.describe('V3-DASH-2 — phím N chỉ mở hộp thoại tạo khi có quy�
         exact: true,
       }),
     ).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Tạo dự án\s*N$/u })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Tạo dự án$/u })).toHaveCount(0);
 
     await page.keyboard.press('n');
     // Trạng thái dương để chờ: phím đã đi qua bộ đăng ký mà màn vẫn nguyên.
@@ -345,11 +345,16 @@ test.describe('bàn phím và định dạng', () => {
       page.getByRole('button', { name: 'Thông báo', exact: true }),
       page.getByRole('link', { name: 'Tài khoản của bạn', exact: true }),
       page.getByRole('button', { name: 'Đăng xuất', exact: true }),
-      page.getByRole('button', { name: /^Tạo dự án\s*N$/u }),
+      page.getByRole('button', { name: /dự án cần duyệt$/u }), // UX 26/10: chip nhắc việc đứng trước nút tạo
+      page.getByRole('button', { name: /^Tạo dự án$/u }),
       page.getByRole('searchbox', { name: 'Tìm dự án' }),
       page.getByRole('combobox'),
       page.getByRole('radio', { name: 'Lưới' }),
       page.getByRole('radio', { name: 'Tất cả' }),
+      // UX 26/10: dự án cần duyệt (HQ) xếp trước nên ba điểm dừng của nó đến trước Sunrise.
+      card(page, HQ),
+      page.getByRole('button', { name: `Tuỳ chọn cho ${HQ}`, exact: true }),
+      openButton(page, HQ),
       card(page, SUNRISE),
       page.getByRole('button', { name: `Tuỳ chọn cho ${SUNRISE}`, exact: true }),
       openButton(page, SUNRISE),

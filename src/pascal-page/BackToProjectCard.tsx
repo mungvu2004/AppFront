@@ -163,10 +163,7 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
           title={`Bước ${VIEWER_STEP + 1}: ${current.label}`}
           className={`${CARD} flex cursor-pointer list-none gap-1.5 whitespace-nowrap px-2 font-medium transition-colors duration-120 hover:bg-[var(--pa-sunken)] motion-reduce:transition-none ${FOCUS_OUT} [&::-webkit-details-marker]:hidden`}
         >
-          <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--pa-accent)] text-[10px] tabular-nums text-[var(--pa-surface)] @min-[1500px]/appbar:hidden">
-            {VIEWER_STEP + 1}
-          </span>
-          <span className="hidden @min-[1500px]/appbar:inline">
+          <span>
             Bước {VIEWER_STEP + 1} · {current.label}
           </span>
           <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[720px]/appbar:hidden" />

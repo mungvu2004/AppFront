@@ -38,7 +38,7 @@ export const requestsSince = (log: readonly ApiEntry[], mark: number): ApiEntry[
 export const RR = {
   heading: 'Kiểm tra quy chuẩn',
   trail: 'Đường dẫn trang',
-  rerun: 'Chạy kiểm tra lại',
+  rerun: 'Kiểm tra lại',
   settingsLink: 'Cài đặt bộ luật',
   confirm: 'Sang Xuất',
   doneText: 'Không phát hiện vi phạm nào.',

@@ -70,7 +70,7 @@ const DELETE_DIALOG_TITLE = 'Xoá dự án này?'; // useProjectSettings.ts:522
 const DELETE_CONFIRM_FIELD = 'Gõ lại tên dự án để xác nhận'; // ProjectSettings.tsx Modal
 const KEEP = 'Để nguyên'; // ProjectSettings.tsx Modal
 /* SCR-09: FloorManager.tsx, FloorTable.tsx, FloorTableRow.tsx, FloorSectionCut.tsx. */
-const FLOORS_TITLE = 'Theo dõi từng tầng và làm tiếp tầng cần nhất';
+const FLOORS_TITLE = 'Duyệt từng tầng';
 const SECTION_LABEL = 'Lát cắt các tầng theo đúng tỷ lệ chiều cao';
 const COLLAPSE_SECTION = 'Thu gọn lát cắt';
 const EXPAND_SECTION = 'Hiện lát cắt';

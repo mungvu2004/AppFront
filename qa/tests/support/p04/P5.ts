@@ -1,5 +1,5 @@
 /**
- * QA-04c P5 helpers (SCR-20 "Duyệt tên phòng", flows FL-20-*). Owned by P5 only; the shared seeds stay in
+ * QA-04c P5 helpers (SCR-20 "Duyệt phòng", flows FL-20-*). Owned by P5 only; the shared seeds stay in
  * `../layerSeed.ts` / `../phase03Seed.ts` / `../drawingSeed.ts` (re-used, never edited).
  *
  * - Seeds: layer builders named after the flow plan (`rooms3`, `rooms1`, `roomsAB`, `roomsNormalize`, `roomsMerge`,
@@ -50,7 +50,7 @@ export const uniq = (): string => `${Date.now().toString(36)}${Math.random().toS
  *  RIF RoomLabelInspectorFields.tsx, RNF RoomLabelNameField.tsx, RAD RoomLabelActionDialogs.tsx, RNP RoomLabelNormalizePreview.tsx,
  *  RCG roomLabelCanvasGeometry.ts, URR useRoomLabelReview.ts. */
 export const ROOM = {
-  screen: 'Duyệt tên phòng', // RRV:80
+  screen: 'Duyệt phòng', // RRV:80
   breadcrumb: 'Dự án > Nhãn phòng', // RRV:82
   description: 'Đối chiếu tên và công năng từng phòng với bản vẽ gốc, rồi xác nhận từng phòng một.', // RRV:84
   canvasSection: 'Khung xem bản vẽ duyệt tên phòng', // RRV:86
@@ -109,7 +109,7 @@ export const ROOM = {
   noticeLink: 'Xem luật không gian', // RIF:51
   provisional: 'Chưa có — tỷ lệ tạm', // provisionalScale.ts:14
   provisionalBanner: 'Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.', // provisionalScale.ts:16
-  toScale: 'Hiệu chỉnh tỷ lệ', // PSB:21
+  toScale: 'Đặt tỷ lệ', // PSB:21
   conflict: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.', // vi.json floorLayerSave.reloadConflict
   reload: 'Tải lại', // FSB:37
   reloadFailed: 'Không tải lại được tầng này. Thử lại sau.', // vi.json floorLayerSave.reloadFailed

@@ -5,7 +5,7 @@
  *
  * Quyết định của chủ dự án: tỷ lệ bản vẽ là ĐIỀU KIỆN CHẶN. Xong mà chưa có tỷ lệ
  * (0 chuỗi kích thước, hoặc chưa đọc được số liệu) thì nút chính là "Hiệu chỉnh tỷ
- * lệ", không mời sang Kiểm tra tầng.
+ * lệ", không mời sang Duyệt tầng.
  */
 
 import type { ProcessingScreenProps } from './types';
@@ -30,17 +30,19 @@ export interface ProcessingGateModel {
   readonly scaleNote?: string;
   readonly isScaleOk: boolean;
   readonly action?: ProcessingGateAction;
+  /** Tỷ lệ chưa kiểm (máy đoán/mặc định): lối đi tiếp mềm, không chặn cứng. */
+  readonly secondaryAction?: ProcessingGateAction;
   /** Kết quả hiện trên hàng bước, theo `step.id`. */
   readonly resultByStepId: ReadonlyMap<string, string>;
   readonly warnStepIds: readonly string[];
 }
 
-export const GATE_LABEL = 'Để sang Kiểm tra tầng';
-export const CALIBRATE_LABEL = 'Hiệu chỉnh tỷ lệ';
-export const GO_REVIEW_LABEL = 'Sang Kiểm tra tầng';
-export const WAITING_NOTE = 'Khi AI xong, nút sang Kiểm tra tầng hiện ở đây.';
+export const GATE_LABEL = 'Để sang Duyệt tầng';
+export const CALIBRATE_LABEL = 'Đặt tỷ lệ';
+export const GO_REVIEW_LABEL = 'Sang Duyệt tầng';
+export const WAITING_NOTE = 'Khi AI xong, nút sang Duyệt tầng hiện ở đây.';
 
-const NO_DIMENSION_NOTE = 'Không đọc được chuỗi kích thước nào';
+const NO_DIMENSION_NOTE = 'Không đọc được số kích thước nào';
 const NO_METRIC_NOTE = 'Chưa đọc được số liệu của lượt xử lý';
 const CALIBRATE_NOTE = 'Đo một đoạn đã biết chiều dài, khoảng 1 phút.';
 
@@ -67,12 +69,14 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
   const isAiDone = props.state === 'success';
   const summary = props.summary;
   const noDimension = summary?.noDimensionSentence !== undefined;
-  const scaleMissing = noDimension || (summary?.metricLabels.length ?? 0) === 0;
+  // Tầng đã có tỷ lệ đặt tay thì không thiếu, dù không đọc được chuỗi kích thước.
+  const scaleKnown = summary?.scaleKnown === true;
+  const scaleMissing = !scaleKnown && (noDimension || (summary?.metricLabels.length ?? 0) === 0);
   const base = {
     doneStepsLabel,
     isAiDone,
     resultByStepId: resultsOf(props),
-    warnStepIds: isAiDone && noDimension ? ['dimensionReading'] : [],
+    warnStepIds: isAiDone && noDimension && !scaleKnown ? ['dimensionReading'] : [],
   };
 
   if (props.state === 'error') {
@@ -106,9 +110,9 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
     return {
       ...base,
       kind: 'needs-scale',
-      chipLabel: 'Xong, thiếu tỷ lệ',
+      chipLabel: 'Xong · tỷ lệ chưa kiểm',
       chipVariant: 'attention',
-      title: 'Còn 1 việc: hiệu chỉnh tỷ lệ',
+      title: 'Còn 1 việc: đặt tỷ lệ',
       scaleValue: 'Chưa có',
       scaleNote: noDimension ? NO_DIMENSION_NOTE : NO_METRIC_NOTE,
       isScaleOk: false,
@@ -120,6 +124,7 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
               isForward: false,
               onClick: summary.onCalibrateScale,
             },
+            secondaryAction: { label: GO_REVIEW_LABEL, isForward: true, onClick: summary.onReviewWalls },
           }
         : {}),
     };
@@ -130,8 +135,8 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
     kind: 'ready',
     chipLabel: `Xong ${doneStepsLabel}`,
     chipVariant: 'verified',
-    title: 'Sẵn sàng kiểm tra tầng',
-    scaleValue: 'Suy từ chuỗi kích thước',
+    title: 'Sẵn sàng duyệt tầng',
+    scaleValue: scaleKnown && noDimension ? 'Đã đặt' : 'Suy từ chuỗi kích thước',
     isScaleOk: true,
     action: { label: GO_REVIEW_LABEL, isForward: true, onClick: summary.onReviewWalls },
   };

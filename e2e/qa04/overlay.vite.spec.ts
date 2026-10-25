@@ -17,7 +17,7 @@ const VIEWPORT = { width: 1440, height: 900 } as const;
 /** The bug left the frame ~290 px tall in a 900 px page; the fix makes the screen as tall as the viewport. */
 const MIN_FRAME_SHARE = 0.6;
 /** vi labels of the screen regions (OverlayComparison.tsx:79-81, :80). */
-const SCREEN_REGION = 'Màn đối chiếu bản vẽ';
+const SCREEN_REGION = 'So với bản vẽ';
 const CANVAS_REGION = 'Khung đối chiếu bản vẽ gốc và mô hình';
 
 test.use({ baseURL: MOCK_BASE_URL, viewport: VIEWPORT });

@@ -143,6 +143,8 @@ export interface ExportPanelFormatsProps {
   readonly capabilities: ExportCapabilities;
   readonly isLoading: boolean;
   readonly onSelectFormat: (id: ExportFormatId) => void;
+  /** Mở màn Dữ liệu (xem trước nội dung .json). */
+  readonly onOpenData?: () => void;
 }
 
 /**
@@ -155,9 +157,9 @@ export function ExportPanelFormats({
   capabilities,
   isLoading,
   onSelectFormat,
+  onOpenData,
 }: ExportPanelFormatsProps) {
   const offered = formats.filter((format) => blockedCaptionOf(format.id, capabilities) === null);
-  const blocked = formats.filter((format) => blockedCaptionOf(format.id, capabilities) !== null);
   // Roving tabindex cần đúng một điểm dừng, kể cả khi định dạng đang chọn không nằm trong danh sách.
   const tabStopId = offered.find((format) => format.isSelected)?.id ?? offered[0]?.id;
 
@@ -188,31 +190,26 @@ export function ExportPanelFormats({
         }}
       >
         {offered.map((format) => (
-          <FormatCard
-            key={format.id}
-            format={format}
-            isLoading={isLoading}
-            isTabStop={format.id === tabStopId}
-            onSelect={onSelectFormat}
-          />
+          <div key={format.id} className="flex flex-col gap-1">
+            <FormatCard
+              format={format}
+              isLoading={isLoading}
+              isTabStop={format.id === tabStopId}
+              onSelect={onSelectFormat}
+            />
+            {format.id === 'spatial-json' && onOpenData !== undefined && (
+              <button
+                type="button"
+                onClick={onOpenData}
+                className={cn('self-start rounded-sm px-4 text-[13px] font-medium text-accent hover:underline', FOCUS_RING)}
+              >
+                Xem trước nội dung
+              </button>
+            )}
+          </div>
         ))}
       </div>
 
-      {blocked.length > 0 && (
-        <div className="flex flex-col gap-1 border-t border-border-default pt-3 text-[13px] text-text-secondary">
-          <p>Chưa xuất được ở bản này:</p>
-          <ul aria-label="Định dạng chưa xuất được" className="flex flex-col gap-1">
-            {blocked.map((format) => (
-              <li key={format.id} className="flex flex-wrap items-baseline gap-x-2">
-                <span className="font-medium text-text-primary">{format.extensionLabel}</span>
-                {format.pageCountLabel !== null &&
-                  (isLoading ? <SkeletonText className="h-3 w-14" /> : <span>{format.pageCountLabel}</span>)}
-                <span>{format.audienceSentence}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }

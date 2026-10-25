@@ -1,39 +1,39 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it } from 'vitest';
-
-import { LAST_PROJECT_KEY } from '@/lib/auth';
+import { describe, expect, it } from 'vitest';
 
 import { QcFloorNav } from './QcFloorNav';
 
-function renderNav(projectName?: string) {
+function renderNav() {
   render(
     <MemoryRouter>
-      <QcFloorNav floorId="f1" layer="walls" projectId="p1" projectName={projectName} />
+      <QcFloorNav floorId="f1" floors={[{ id: 'f1', label: 'Tầng 1' }]} layer="walls" projectId="p1" projectName="Nhà A" />
     </MemoryRouter>,
   );
 }
 
 describe('QcFloorNav', () => {
-  afterEach(() => sessionStorage.clear());
-
   it('đường dẫn và tab lớp cùng một hàng phụ', () => {
-    renderNav('Nhà A');
+    renderNav();
     const crumbs = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
     const layers = screen.getByRole('navigation', { name: 'Các lớp kiểm tra' });
     expect(crumbs.closest('div.h-8')).toBe(layers.parentElement);
   });
 
-  it('nơi gọi không truyền tên: breadcrumb vẫn có tên dự án đã nhớ', () => {
-    sessionStorage.setItem(LAST_PROJECT_KEY, JSON.stringify({ id: 'p1', name: 'Nhà B' }));
+  it('breadcrumb chỉ còn Tầng › màn: tên dự án đã có ở header', () => {
     renderNav();
-    expect(screen.getByRole('button', { name: 'Nhà B' })).toBeInTheDocument();
+    expect(screen.queryByText('Nhà A')).toBeNull();
+    const crumbs = within(screen.getByRole('navigation', { name: 'Đường dẫn trang' }));
+    expect(crumbs.getByText('Tầng 1')).toBeInTheDocument();
+    expect(crumbs.getByText('Duyệt tường')).toBeInTheDocument();
   });
 
-  it('tên đã nhớ của dự án khác thì không dùng', () => {
-    sessionStorage.setItem(LAST_PROJECT_KEY, JSON.stringify({ id: 'p2', name: 'Nhà C' }));
+  it('ba lớp bắt buộc đánh số, rồi nhóm "Công cụ (không bắt buộc):" có "So với bản vẽ"', () => {
     renderNav();
-    expect(screen.queryByText('Nhà C')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Dự án' })).toBeInTheDocument();
+    const layers = screen.getByRole('navigation', { name: 'Các lớp kiểm tra' });
+    expect(layers.textContent).toContain('Cần duyệt:1Tường2Cửa và nội thất3Phòng');
+    expect(within(layers).getByText('Công cụ (không bắt buộc):')).toBeInTheDocument();
+    expect(within(layers).getByRole('link', { name: 'So với bản vẽ' })).toBeInTheDocument();
+    expect(within(layers).queryByText('Chồng lớp')).toBeNull();
   });
 });

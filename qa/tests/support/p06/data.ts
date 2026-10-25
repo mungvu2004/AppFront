@@ -49,7 +49,7 @@ const FLOOR_HEIGHT_MM = 3_000;
 
 /** SJ = src/screens/export/SpatialJsonViewer/ (SJV view, SJT tree, SJD detail, USJ hook, SJM model, SJC container). */
 export const SJ = {
-  title: 'Xem dữ liệu không gian', // SJV PageHead h1 (S-36 v6)
+  title: 'Xem trước dữ liệu xuất (.json)', // SJV PageHead h1 (S-36 v6)
   tree: 'Cấu trúc dữ liệu không gian', // SJT:60
   search: 'Tìm theo khoá hoặc giá trị', // SJV:104
   previous: 'Kết quả trước', // SJV:122
@@ -66,8 +66,8 @@ export const SJ = {
   emptyTitle: 'Chưa có dữ liệu không gian', // SJV:48
   emptyDescription:
     'Bản vẽ này chưa được xử lý xong, nên chưa có tường, phòng hay đối tượng nào để xem. Xử lý bản vẽ của tầng rồi quay lại đây.', // SJV:49-50
-  valid: 'Hợp lệ — 0 lỗi.', // SJM:286
-  validity: /^(Hợp lệ — 0 lỗi\.|\d[\d.]* lỗi nghiêm trọng · \d[\d.]* cảnh báo\.)$/u, // SJM:268-270
+  valid: 'Tệp đúng cấu trúc', // SJM:286
+  validity: /^(Tệp đúng cấu trúc|\d[\d.]* lỗi nghiêm trọng · \d[\d.]* cảnh báo\.)$/u, // SJM:268-270
   noSelection: 'Chọn một nút ở cây bên trái để xem chi tiết của nó.', // SJD:80
   entityCode: 'Mã đối tượng', // SJD:110
   elementCount: 'Số phần tử', // SJD:102

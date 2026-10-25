@@ -7,7 +7,7 @@
  *
  * ## Ba câu của màn
  *
- * 1. Làm gì: `PageHead` — eyebrow "Bước 6 · Xuất", H1 "Xem dữ liệu không gian".
+ * 1. Làm gì: `PageHead` — H1 "Xem trước dữ liệu xuất (.json)".
  * 2. Trạng thái: chip kiểm tra schema (câu `validity.summary` của model, màu theo mức lỗi) + số
  *    đối tượng thật (`countsLabel`) + cỡ tệp. Rỗng thì không có chip — chưa có gì để kiểm (B-V12-07).
  * 3. Việc chính: MỘT nút chính ở `PageHead next` — "Tải xuống .json" khi nơi gọi cấp đường tải,
@@ -57,8 +57,7 @@ const VIEW_MODE_OPTIONS: ReadonlyArray<{ readonly label: string; readonly value:
   { label: 'JSON và xem trước', value: 'raw' },
 ];
 
-const PAGE_EYEBROW = 'Bước 6 · Xuất';
-const PAGE_TITLE = 'Xem dữ liệu không gian';
+const PAGE_TITLE = 'Xem trước dữ liệu xuất (.json)';
 
 const EMPTY_TITLE = 'Chưa có dữ liệu không gian';
 const EMPTY_DESCRIPTION =
@@ -111,23 +110,34 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
   );
 
   // Một nút chính: tải JSON khi có đường tải, không thì sao chép.
+  const backButton =
+    actions.onBackToExport === undefined ? null : (
+      <Button variant="secondary" size="sm" onClick={actions.onBackToExport}>
+        ← Về Xuất
+      </Button>
+    );
+
   const next =
     // Rỗng: chưa có gì để chép hay tải — lối ra nằm ngay trong khung rỗng, không nút chính chết ở đầu trang.
-    model.state === 'error' || model.state === 'forbidden' || isEmpty ? undefined : onDownload !== null ? (
+    model.state === 'error' || model.state === 'forbidden' || isEmpty ? backButton : onDownload !== null ? (
       <>
+        {backButton}
         {copyButton('secondary')}
         <Button variant="primary" size="sm" iconBefore={<Download size={16} aria-hidden="true" />} onClick={onDownload}>
           Tải xuống .json
         </Button>
       </>
     ) : (
-      copyButton('primary')
+      <>
+        {backButton}
+        {copyButton('primary')}
+      </>
     );
 
   const withHeader = (content: ReactNode) => (
     <div className="flex h-full flex-col bg-bg-app">
       <div className="mx-auto flex min-h-0 w-full max-w-[1344px] flex-1 flex-col px-4 pb-6 pt-6 xl:px-8">
-        <PageHead eyebrow={PAGE_EYEBROW} next={next} status={status} title={PAGE_TITLE} />
+        <PageHead next={next} status={status} title={PAGE_TITLE} />
         {content}
       </div>
     </div>

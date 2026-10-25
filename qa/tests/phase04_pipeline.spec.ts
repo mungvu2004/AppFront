@@ -957,7 +957,7 @@ async function openRooms(): Promise<void> {
   const body = await openLayerScreen(ROUTES.project.rooms(projectId, floorId));
 
   roomCount = arrayOf(layerOf(body, 'N16').rooms, 'N16.layer.rooms').length;
-  await expect(page.getByRole('region', { name: 'Duyệt tên phòng', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Duyệt phòng', exact: true })).toBeVisible();
   await dismissTour(page);
 }
 
@@ -966,9 +966,9 @@ test.describe('SCR-20 Room Label Review', () => {
   test.beforeEach(useSeededFloor);
 
   test('SCR-20 edit: option in "Danh sách phòng"; "Tên phòng"; "Công năng"; "Duyệt phòng này" → PUT layer', async () => {
-    await test.step('[20-A-001] deep link opens the screen: region "Duyệt tên phòng" and its heading', async () => {
+    await test.step('[20-A-001] deep link opens the screen: region "Duyệt phòng" and its heading', async () => {
       await openRooms();
-      await expect.soft(page.getByRole('heading', { name: 'Duyệt tên phòng', exact: true })).toBeVisible();
+      await expect.soft(page.getByRole('heading', { name: 'Duyệt phòng', exact: true })).toBeVisible();
       if (roomCount === 0) {
         await expect(page.getByRole('heading', { name: 'Chưa dò ra phòng nào' })).toBeVisible();
         await captureEvidence(page, '20_rooms_edit.png');
@@ -1092,8 +1092,8 @@ test.describe('SCR-21 Thickness Standardization', () => {
 
       await test.step('[21-A-001] deep link renders the region, heading and the tables or the empty state', async () => {
         await openLayerScreen(ROUTES.project.thickness(projectId, floorId));
-        await expect(page.getByRole('heading', { name: 'Chuẩn hoá độ dày tường' })).toBeVisible();
-        await expect.soft(page.getByRole('region', { name: 'Chuẩn hoá độ dày tường', exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Độ dày tường' })).toBeVisible();
+        await expect.soft(page.getByRole('region', { name: 'Độ dày tường', exact: true })).toBeVisible();
         await dismissTour(page);
 
         const noGroups = page.getByText('Không còn đoạn nào cần đổi.', { exact: true }); // TB:nothingLeft
@@ -1217,9 +1217,9 @@ test.describe('SCR-14 Scale Calibration', () => {
 
     qualityRead.catch(() => undefined);
 
-    await test.step('[14-A-001] deep link opens the screen: drawing "Bản vẽ đã nắn", panel "Hiệu chỉnh tỷ lệ"', async () => {
+    await test.step('[14-A-001] deep link opens the screen: drawing "Bản vẽ đã nắn", panel "Đặt tỷ lệ"', async () => {
       await openScale();
-      await expect.soft(page.getByRole('region', { name: 'Màn hiệu chỉnh tỷ lệ', exact: true })).toBeVisible();
+      await expect.soft(page.getByRole('region', { name: 'Tỷ lệ bản vẽ', exact: true })).toBeVisible();
       await expect.soft(page.getByRole('img', { name: /^Bản vẽ đã nắn của / })).toBeVisible();
     });
     await test.step('[14-G-001] GET …/floors/{f}/quality answers 200 (the drawing snapshot)', async () => {
@@ -1314,7 +1314,7 @@ test.describe('SCR-22 Overlay Comparison', () => {
     await test.step('[22-A-001] deep link: region "Màn đối chiếu bản vẽ" with its toolbar', async () => {
       await page.goto(ROUTES.project.overlay(projectId, floorId));
       await dismissTour(page);
-      await expect(page.getByRole('region', { name: 'Màn đối chiếu bản vẽ', exact: true })).toBeVisible();
+      await expect(page.getByRole('region', { name: 'So với bản vẽ', exact: true })).toBeVisible();
       await expect.soft(page.getByRole('toolbar', { name: 'Thanh công cụ đối chiếu bản vẽ', exact: true })).toBeVisible();
     });
     await test.step('[22-G-001] GET …/floors/{f}/quality answers 200 (the scans of every listed floor)', async () => {

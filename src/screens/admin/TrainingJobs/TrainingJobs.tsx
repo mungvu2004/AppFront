@@ -10,7 +10,6 @@
  */
 
 import { Lock } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -85,18 +84,9 @@ function Head({ actions, model }: TrainingJobsProps) {
       status={forbidden ? undefined : <JobsStatus model={model} />}
       next={
         <>
-          <Link className="text-[13px] font-medium text-accent underline-offset-2 hover:underline" to={model.relatedLink.href}>
-            {model.relatedLink.label}
-          </Link>
-          {!forbidden && model.createDisabledReason !== null && (
-            <span className="max-w-[280px] text-[13px] text-text-secondary" id="training-create-reason">
-              {model.createDisabledReason}
-            </span>
-          )}
-          {!forbidden && (
+          {/* Không có bộ dữ liệu thì không có nút chết: ô trống bên dưới nói lý do. */}
+          {!forbidden && model.createDisabledReason === null && (
             <Button
-              aria-describedby={model.createDisabledReason !== null ? 'training-create-reason' : undefined}
-              disabled={model.createDisabledReason !== null}
               onClick={actions.onOpenForm}
               variant="primary"
             >

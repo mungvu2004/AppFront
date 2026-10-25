@@ -97,31 +97,32 @@ describe('28-D-004 / 28V-D-003 — route lấy quyền thật của người xem
   });
 
   // 9V-C-030/031 (questions.md Q2: khoá cho viewer) — nút chạy lại cũng bị gỡ, như nút xác nhận.
-  it('[9V-C-030] viewer: không có "Chạy kiểm tra lại"', async () => {
+  it('[9V-C-030] viewer: không có "Kiểm tra lại"', async () => {
     renderRoute(['viewer']);
 
     await screen.findByRole('heading', { name: 'Kiểm tra quy chuẩn' });
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: 'Đang kiểm tra' })).toBeNull();
     });
-    expect(screen.queryByRole('button', { name: 'Chạy kiểm tra lại' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Kiểm tra lại' })).toBeNull();
   });
 
-  it('[9V-C-001] engineer: vẫn có "Chạy kiểm tra lại"', async () => {
+  it('[9V-C-001] engineer: vẫn có "Kiểm tra lại"', async () => {
     renderRoute(['engineer']);
 
-    expect(await screen.findByRole('button', { name: 'Chạy kiểm tra lại' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Kiểm tra lại' })).toBeInTheDocument();
   });
 
-  it('engineer: cổng còn vi phạm nghiêm trọng mời "Xem vi phạm kế" (nút phụ), không mời sang Xuất', async () => {
+  it('engineer: còn vi phạm nghiêm trọng thì cổng vẫn có "Sang Xuất" (nút phụ), "Xem vi phạm kế" nằm trong thân', async () => {
     const unmountSlot = mountGateSlot();
     const { container } = renderRoute(['engineer']);
 
     await openFirstViolation(container);
 
     const gate = screen.getByTestId('flow-gate');
-    expect(within(gate).getByRole('button', { name: 'Xem vi phạm kế' })).toBeInTheDocument();
-    expect(within(gate).queryByRole('button', { name: 'Sang Xuất' })).toBeNull();
+    expect(within(gate).getByRole('button', { name: 'Sang Xuất' })).toBeInTheDocument();
+    expect(within(gate).queryByRole('button', { name: 'Xem vi phạm kế' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Xem vi phạm kế' })).toBeInTheDocument();
     unmountSlot();
   });
 });

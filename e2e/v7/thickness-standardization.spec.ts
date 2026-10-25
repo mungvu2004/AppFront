@@ -6,7 +6,7 @@ import { ROUTES } from '../fixtures/routes';
 import { QCB_FLOOR, QCB_PROJECT, seedQcb } from './seedQcb';
 
 /**
- * Nhóm V7 — `projectThickness` "Chuẩn hoá độ dày tường" (`plan.md` V7 mục 3).
+ * Nhóm V7 — `projectThickness` "Độ dày tường" (`plan.md` V7 mục 3).
  *
  * Hai loại bài, tên bài nói ra mình thuộc loại nào:
  * - **đường nạp thật** — KHÔNG bơm. Từ B-V6-01 (phần V7) màn đọc N16 khi kho rỗng: tầng
@@ -23,7 +23,7 @@ import { QCB_FLOOR, QCB_PROJECT, seedQcb } from './seedQcb';
 /** Lần tải đầu của một route bắt Vite dịch nguội; tiền lệ `smoke-grid.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
-const TITLE = 'Chuẩn hoá độ dày tường';
+const TITLE = 'Độ dày tường';
 
 /** Tầng 2 của bộ mẫu A14 qua N16: 12 tường ngăn, đều 220 mm. */
 const A14_FLOOR = 'L-LEVEL000001';
@@ -76,8 +76,8 @@ test('đường dẫn đầu màn không gõ cứng "Tầng 01": "Dự án › T
   await open(page);
 
   const breadcrumb = page.getByRole('navigation', { name: 'Đường dẫn trang', exact: true });
-  /* Mục đầu là tên dự án thật (AppLayout nhớ), chỉ rơi về "Dự án" khi chưa biết tên: đo cấu trúc ba mục. */
-  await expect(breadcrumb).toHaveText(/^.+›.+›Độ dày tường$/u);
+  /* UX 26/10: breadcrumb là "Tầng ▾ › <tên màn>", không còn tên dự án: đo hai mục. */
+  await expect(breadcrumb).toHaveText(/^Tầng.*›Độ dày tường$/u);
   await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText('Độ dày tường');
   await expect(breadcrumb).not.toContainText('Tầng 01');
 });
@@ -95,7 +95,7 @@ test('bơm bộ mẫu: nhóm không tích sẵn, không đoạn xem tay khi tầ
 
   await expect(page.getByRole('checkbox', { name: 'Đồng ý đổi các đoạn 65 mm về 100 mm' })).not.toBeChecked();
   await expect(page.getByRole('checkbox', { name: 'Đồng ý đổi các đoạn 265 mm về 300 mm' })).not.toBeChecked();
-  await expect(page.getByRole('button', { name: 'Chọn cả 2 nhóm (2 đoạn)' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Chọn cả 2 nhóm để đổi (2 đoạn)' })).toBeVisible();
   await expect(page.getByText('Dày bất thường, có thể là cột BTCT', { exact: true })).toHaveCount(0);
 
   /* A15: không một số thập phân nào dùng dấu chấm trên cả màn. */

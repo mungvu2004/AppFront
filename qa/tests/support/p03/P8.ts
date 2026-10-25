@@ -197,10 +197,10 @@ export const PR = {
   previewEmpty: 'Chưa có tầng nào để xem trước', // NO_FLOOR_TITLE
   previewEmptyDescription: 'Panel sẽ hiện bản vẽ ngay khi có tầng bắt đầu xử lý.', // NO_FLOOR_DESCRIPTION
   // S-10: the summary region and the "Duyệt lớp tường" button are gone; the gate Section is named by processingGate.ts `title`,
-  // its one primary button is "Hiệu chỉnh tỷ lệ" (scale missing) or "Sang Kiểm tra tầng" (ready).
+  // its one primary button is "Đặt tỷ lệ" (scale missing) or "Sang Duyệt tầng" (ready).
   summary: /^(?:Sẵn sàng kiểm tra tầng|Còn 1 việc: hiệu chỉnh tỷ lệ)$/u,
-  reviewWalls: 'Sang Kiểm tra tầng', // processingGate.ts GO_REVIEW_LABEL (was "Duyệt lớp tường")
-  calibrate: 'Hiệu chỉnh tỷ lệ', // processingGate.ts CALIBRATE_LABEL
+  reviewWalls: 'Sang Duyệt tầng', // processingGate.ts GO_REVIEW_LABEL (was "Duyệt lớp tường")
+  calibrate: 'Đặt tỷ lệ', // processingGate.ts CALIBRATE_LABEL
 } as const;
 
 /**

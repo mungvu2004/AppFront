@@ -76,6 +76,10 @@ import {
 } from './dimensionOcrReviewGateway';
 import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
 
+/* Cổng tầng có test riêng; ở đây nó đọc N16 thật qua CÙNG khoá cache với hook và chặn cổng giả. */
+vi.mock('../shared/FloorReviewGate.container', () => ({ FloorReviewGate: () => null }));
+
+
 const SCREEN_DIRECTORY = 'src/screens/qc/DimensionOcrReview';
 
 /** 34 và 18 — đọc ra từ bộ mẫu, không gõ tay lại (R-71). */
@@ -848,7 +852,7 @@ describe('QA-04c SCR-18 trên màn đã ráp', () => {
     renderState('partial');
 
     /* Vòng 6 (Z/S-17): h1 động từ ở đầu panel trái (`QcPanelHead`), `QcFloorNav titled` bỏ h1 ẩn — đúng một h1. */
-    expect(await screen.findByRole('heading', { level: 1, name: 'Kiểm kích thước' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Kích thước' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('navigation', { name: 'Đường dẫn trang' })).toBeInTheDocument();
   });

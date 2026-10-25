@@ -28,14 +28,13 @@ const SECONDARY_LINK_CLASS = getButtonStyles({ variant: 'secondary', size: 'md' 
 interface DimensionOcrCanvasCardProps {
   readonly model: DimensionOcrReviewModel;
   readonly scaleCalibrationHref: string;
-  readonly wallReviewHref: string | undefined;
 }
 
 /**
  * Đặt góc trên trái (không che giữa bản vẽ). App chưa có lệnh thêm kích thước tay
- * (CẦN BE), nên lối ra chính là "Hiệu chỉnh tỷ lệ", lối phụ là "Về duyệt tường".
+ * (CẦN BE), nên lối ra chính là "Đặt tỷ lệ".
  */
-export function DimensionOcrCanvasCard({ model, scaleCalibrationHref, wallReviewHref }: DimensionOcrCanvasCardProps) {
+export function DimensionOcrCanvasCard({ model, scaleCalibrationHref }: DimensionOcrCanvasCardProps) {
   const isError = model.errorMessage !== null;
 
   if (!isError && model.emptyNotice === null) {
@@ -77,11 +76,6 @@ export function DimensionOcrCanvasCard({ model, scaleCalibrationHref, wallReview
             <Link className={PRIMARY_LINK_CLASS} to={scaleCalibrationHref}>
               {DIMENSION_OCR_TEXT.states.empty.actionLabel}
             </Link>
-            {wallReviewHref === undefined ? null : (
-              <Link className={SECONDARY_LINK_CLASS} to={wallReviewHref}>
-                {DIMENSION_INSPECTOR_TEXT.backToWallsLabel}
-              </Link>
-            )}
           </>
         )}
       </div>

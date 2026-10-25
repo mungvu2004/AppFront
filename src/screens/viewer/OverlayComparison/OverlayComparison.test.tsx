@@ -280,11 +280,11 @@ describe('OverlayComparison — ba câu của màn (bản Z S-28)', () => {
   it('H1 động từ + chip Lệch + câu có số; cổng có nút phụ "Vùng kế", không nút xác nhận chính', () => {
     renderInRouter(<OverlayComparison {...scenarioFor('partial')} />);
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Đối chiếu bản vẽ với mô hình' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'So với bản vẽ' })).toBeInTheDocument();
     expect(screen.getByText('Lệch')).toBeInTheDocument();
     expect(screen.getByText('3/14 vùng vượt dung sai 20 mm.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Vùng kế W-12' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Xác nhận khớp bản vẽ' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Khớp rồi, xác nhận' })).toBeNull();
   });
 
   it('không có quyền xác nhận: cổng nói lý do thay cho một nút tắt (BUG-599)', () => {
@@ -305,12 +305,11 @@ describe('OverlayComparison — ba câu của màn (bản Z S-28)', () => {
     expect(screen.getByText('Chỉ người có quyền sửa mới xác nhận được.')).toBeInTheDocument();
   });
 
-  it('đã xác nhận: chip xanh + câu điềm đạm, cổng dẫn sang bước sau', () => {
+  it('đã xác nhận: chip xanh + câu điềm đạm, không còn nút xác nhận', () => {
     const base = scenarioFor('success');
-    renderInRouter(<OverlayComparison {...base} nextStep={{ label: 'Sang Mô hình 3D', href: '/projects/p/3d' }} />);
+    renderInRouter(<OverlayComparison {...base} />);
 
     expect(screen.getByText('Đã xác nhận khớp')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Sang Mô hình 3D' })).toHaveAttribute('href', '/projects/p/3d');
     expect(screen.queryByRole('button', { name: base.model.confirmation.buttonLabel })).toBeNull();
   });
 });

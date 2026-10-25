@@ -30,18 +30,26 @@ export interface DashboardHeadProps {
   readonly hasUnread: boolean;
   readonly canCreate: boolean;
   readonly onCreate: () => void;
+  /** Bấm chip "N dự án cần duyệt" → lọc tab Cần duyệt. */
+  readonly onShowQc: () => void;
 }
 
 /** Một chip cho cả danh sách: việc cần người làm thắng, rồi tới việc đang chờ AI, rồi tới chỗ còn thiếu bản vẽ. */
-function StatusBadge({ counts }: { readonly counts: ProjectStatusCounts }) {
-  if (counts.qc > 0) return <Badge variant="attention">{`${String(counts.qc)} dự án cần duyệt`}</Badge>;
+function StatusBadge({ counts, onShowQc }: { readonly counts: ProjectStatusCounts; readonly onShowQc: () => void }) {
+  if (counts.qc > 0) {
+    return (
+      <button type="button" onClick={onShowQc} className="rounded-full outline-hidden focus-visible:ring-2 focus-visible:ring-accent">
+        <Badge variant="attention">{`${String(counts.qc)} dự án cần duyệt`}</Badge>
+      </button>
+    );
+  }
   if (counts.processing > 0) return <Badge variant="neutral">{`${String(counts.processing)} dự án AI đang xử lý`}</Badge>;
   if (counts.noplan > 0) return <Badge variant="neutral">{`${String(counts.noplan)} dự án chưa có bản vẽ`}</Badge>;
   // A5: `done` chỉ đếm dự án mà người duyệt đã duyệt hết tường (`derivedStatusOf`), nên xanh ở đây là việc người.
   return counts.done > 0 ? <Badge variant="verified">Mọi dự án đã duyệt xong</Badge> : null;
 }
 
-function HeadStatus({ state, statusCounts, totalProjects, visibleCount, isFiltering, hasUnread, canCreate }: DashboardHeadProps) {
+function HeadStatus({ state, statusCounts, totalProjects, visibleCount, isFiltering, hasUnread, canCreate, onShowQc }: DashboardHeadProps) {
   if (state === 'loading') {
     // Giữ chỗ dòng trạng thái để khung "Dự án" không nhảy khi danh sách về (BUG-228).
     return <Skeleton aria-hidden="true" preset="block" className="h-[22px] w-56" />;
@@ -54,7 +62,7 @@ function HeadStatus({ state, statusCounts, totalProjects, visibleCount, isFilter
     : `${String(totalProjects)} dự án`;
   return (
     <>
-      <StatusBadge counts={statusCounts} />
+      <StatusBadge counts={statusCounts} onShowQc={onShowQc} />
       <span>{sentence}</span>
       {!canCreate && (
         <span className="flex items-center gap-2">
@@ -78,7 +86,7 @@ export function DashboardHead(props: DashboardHeadProps) {
             variant="primary"
             iconBefore={<Plus size={16} aria-hidden="true" />}
             onClick={props.onCreate}
-            shortcut={CREATE_PROJECT_SHORTCUT.combo}
+            title={`${CREATE_PROJECT_LABEL} (phím ${CREATE_PROJECT_SHORTCUT.combo})`}
           >
             {CREATE_PROJECT_LABEL}
           </Button>

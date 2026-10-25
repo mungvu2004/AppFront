@@ -120,7 +120,7 @@ const APPROVE_HINT = 'Duyệt xong tự sang đối tượng chưa duyệt kế 
 /* Hoàn tác thay hộp hỏi (Z/S-16): xoá tức thì, toast hoàn tác tám giây (A8). */
 const DELETE_OPENING_LABEL = 'Không phải cửa, xoá';
 const DELETE_FURNITURE_LABEL = 'Không phải nội thất, xoá';
-const EMPTY_MESSAGE = 'Chọn một đối tượng trên bản vẽ hoặc trong danh sách để xem chi tiết.';
+const EMPTY_MESSAGE = 'Chọn một mục để xem chi tiết.';
 
 export function ObjectLayerInspector({
   inspector,

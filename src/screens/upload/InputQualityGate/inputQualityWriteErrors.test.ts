@@ -35,7 +35,7 @@ describe('describeWriteError — bảng câu lỗi ghi', () => {
     expect(describeWriteError(httpError(422, 'QUALITY_LAYER_REVIEWED'), FALLBACK)).toEqual({
       reread: false,
       sentence:
-        'Tầng này đã có tỉ lệ hoặc hình học do người chỉnh, nên không nắn hay cắt lại bản vẽ được nữa.',
+        'Tầng này đã có tỷ lệ hoặc hình học do người chỉnh, nên không nắn hay cắt lại bản vẽ được nữa.',
     });
   });
 

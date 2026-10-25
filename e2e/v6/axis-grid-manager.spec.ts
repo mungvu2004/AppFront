@@ -46,7 +46,7 @@ test('[bơm] bộ mẫu trục ở đúng mã tầng hiện tám trục A–D, 1
 }) => {
   await page.goto(ROUTES.project.grids(QC_PROJECT, QC_FLOOR.grids));
   /* N0-01: đầu màn cũ (h2) nhường chỗ cho QcFloorNav (P15) — chờ vùng mang tên màn thay vì tiêu đề. */
-  await expect(page.getByRole('region', { name: 'Quản lý trục và gốc toạ độ', exact: true })).toBeVisible({
+  await expect(page.getByRole('region', { name: 'Trục và gốc toạ độ', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   await seedQc(page, 'grids');

@@ -19,7 +19,6 @@ type Props = Pick<WallLayerCanvasViewProps, 'isWallLayerVisible' | 'legendLevels
 
 const TRAY = 'absolute bottom-16 left-4 z-10 rounded-xl bg-bg-surface p-3 shadow-float';
 const GROUP_LABEL = 'Lọc theo độ dày tường';
-const TITLE = 'Chú giải';
 const NON_STANDARD_LABEL = 'Không chuẩn';
 const REVIEWED_LABEL = 'Đã duyệt';
 const CLEAR_LABEL = 'Xoá lọc';
@@ -57,11 +56,7 @@ export function WallLayerLegendTray({ isWallLayerVisible, legendLevels, shapes, 
   const { activeFilter, onFilterChange } = legendLevels;
 
   return (
-    <div aria-label={GROUP_LABEL} className={cn(TRAY, 'flex max-w-[calc(100%-2rem)] flex-col gap-1')} role="group">
-      <div className="flex items-center justify-between gap-3 px-1.5">
-        <span className="text-caption font-medium text-text-secondary">{TITLE}</span>
-        <span className="text-caption text-text-secondary">{`Chuẩn: lệch không quá ${THICKNESS_TOLERANCE_MM} mm`}</span>
-      </div>
+    <div aria-label={GROUP_LABEL} className={cn(TRAY, "max-w-[calc(100%-2rem)] p-1.5")} role="group" title={`Chuẩn: lệch không quá ${THICKNESS_TOLERANCE_MM} mm`}>
       <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
         {[...counts.bands].map(([band, count]) => {
           const isActive = activeFilter === band;

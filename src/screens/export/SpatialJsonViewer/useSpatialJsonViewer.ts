@@ -82,6 +82,7 @@ export interface UseSpatialJsonViewerOptions {
   readonly isNarrow: boolean;
   readonly errorMessage: string | null;
   readonly onReopenFloors: () => void;
+  readonly onBackToExport?: (() => void) | undefined;
   readonly onDownload?: (() => void) | undefined;
   readonly onCopy?: ((text: string) => void) | undefined;
 }
@@ -106,6 +107,7 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
     onCopy,
     onDownload,
     onReopenFloors,
+    onBackToExport,
   } = options;
 
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(
@@ -345,6 +347,7 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
     onNextMatch,
     onPreviousMatch,
     onReopenFloors,
+    ...(onBackToExport !== undefined ? { onBackToExport } : {}),
     onSearchChange,
     onSelectIssue,
     onSelectNode,

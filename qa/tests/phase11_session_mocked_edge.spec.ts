@@ -49,10 +49,11 @@ test.describe('SCR-37/38 [mocked response]', () => {
       await test.step('[11U-B-122] disable trả 500 → hàng hoàn về "Vô hiệu hoá" + toast lỗi', async () => {
         // useUserManagement.ts:159 setEnabledFailedTitle
         const failed = page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === `/api/users/${fu.id}/disable`);
+        await userRow(page, fu.email).locator('summary').click(); // UX 26/10: row actions live in the "⋯" menu
         await userRow(page, fu.email).getByRole('button', { name: 'Vô hiệu hoá', exact: true }).click();
         expect((await failed).status(), 'mocked POST disable').toBe(500);
         await expect(page.getByText('Không đổi được trạng thái tài khoản')).toBeVisible();
-        await expect(userRow(page, fu.email).getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toBeVisible();
+        await expect(userRow(page, fu.email).getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toBeAttached();
         await expect(userRow(page, fu.email).getByRole('button', { name: 'Bật lại', exact: true })).toHaveCount(0);
         await captureEvidence(page, 'E11_11U-B-122_disable-failed.png');
       });

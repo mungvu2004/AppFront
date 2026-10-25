@@ -730,7 +730,7 @@ describe('BUG-465 — chưa có kết quả thì không có gì để xác nhậ
     const props = propsFor(scenarioOf('error'));
     renderRuleReport(RuleReportView, props);
 
-    expect(screen.queryByRole('button', { name: 'Chạy kiểm tra lại' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Kiểm tra lại' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
     expect(props.onRerun).toHaveBeenCalledTimes(1);
   });

@@ -262,6 +262,7 @@ export function RuleSettings(props: RuleSettingsProps) {
 
   const hasContent =
     model.status === 'ready' || model.status === 'partial' || model.status === 'collapsed';
+  const activePreset = model.presets.find((preset) => preset.changedRuleCount === 0);
   const showRestoreDefaults = hasContent && !model.isDefault && capabilities.canEditRules;
   // Chưa đọc được cấu hình (đang tải, lỗi, không có quyền) thì chưa có số luật hay
   // trạng thái lưu nào để nói — số cũ ở đầu trang mâu thuẫn với câu lỗi (BUG-464).
@@ -274,7 +275,7 @@ export function RuleSettings(props: RuleSettingsProps) {
       {model.disableAllWarning !== null ? (
         <Badge variant="attention">Mọi luật đang tắt</Badge>
       ) : (
-        <Badge variant="neutral">{model.isDefault ? 'Bộ mặc định' : 'Đã chỉnh khác mặc định'}</Badge>
+        <Badge variant="neutral">{activePreset === undefined ? 'Đã chỉnh khác bộ luật sẵn' : `Đang dùng: ${activePreset.label}`}</Badge>
       )}
       <span className="tabular-nums">
         {enabledText}/{totalText} luật đang bật
@@ -289,7 +290,7 @@ export function RuleSettings(props: RuleSettingsProps) {
       {props.backPath === undefined ? null : (
         <FlowGate>
           <Link to={props.backPath} className={cn(getButtonStyles({ variant: 'secondary', size: 'sm' }), 'whitespace-nowrap')}>
-            Xem kết quả kiểm tra
+            ← Về kết quả kiểm tra
           </Link>
         </FlowGate>
       )}

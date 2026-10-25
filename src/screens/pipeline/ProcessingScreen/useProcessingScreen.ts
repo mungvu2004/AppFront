@@ -210,13 +210,13 @@ const partialSentence = (failedNames: string, othersRunning: boolean): string =>
 
 /** Ví dụ `"Có 9 đối tượng có độ tin cậy dưới 0,75 cần bạn xem lại."` — ngưỡng của dự án (BUG-354). */
 const NO_DIMENSION_SENTENCE =
-  'Không đọc được chuỗi kích thước nào, nên hệ thống chưa tự suy ra tỷ lệ: bạn cần đặt tỷ lệ ở màn Hiệu chỉnh tỷ lệ.';
+  'Không đọc được số kích thước nào, nên hệ thống chưa tự suy ra tỷ lệ: bạn cần đặt tỷ lệ.';
 
-const lowConfidenceSentence = (count: string, threshold: string): string =>
-  `Có ${count} ${UNIT.object} có độ tin cậy dưới ${threshold} cần bạn xem lại.`;
+const lowConfidenceSentence = (count: string): string =>
+  `${count} chỗ máy chưa chắc, nên xem lại.`;
 
 const noLowConfidenceSentence = (threshold: string): string =>
-  `Không có ${UNIT.object} nào có độ tin cậy dưới ${threshold}.`;
+  `Không có chỗ nào máy chưa chắc (ngưỡng ${threshold}).`;
 
 /* -------------------------------------------------------------------------- */
 /* Hằng lấy từ thư viện, không viết tay (R-71).                                 */
@@ -1346,7 +1346,10 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     );
     // Hiệu chỉnh tỷ lệ dẫn tới đúng tầng thiếu tỷ lệ (0 chuỗi kích thước), không phải tầng xong đầu tiên.
     const noScaleIndex = floorStatuses.findIndex(
-      (status, index) => status === 'done' && extractions[index]?.dimensionCount === 0,
+      (status, index) =>
+        status === 'done' &&
+        extractions[index]?.dimensionCount === 0 &&
+        extractions[index]?.hasScale !== true,
     );
     const goTo = (route: (projectId: string, floorId: string) => string, index = doneIndex) => () => {
       const upload = uploadsRef.current[index];
@@ -1403,16 +1406,14 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         formatArea(totalArea(total.roomOutlinesMm)),
       ],
       ...(total.dimensionCount === 0 ? { noDimensionSentence: NO_DIMENSION_SENTENCE } : {}),
+      ...(parts.every((part) => part.hasScale === true) ? { scaleKnown: true } : {}),
       ...(threshold === null
         ? {}
         : {
             lowConfidenceSentence:
               total.lowConfidenceCount === 0
                 ? noLowConfidenceSentence(threshold)
-                : lowConfidenceSentence(
-                    formatNumber(total.lowConfidenceCount, { fractionDigits: 0 }),
-                    threshold,
-                  ),
+                : lowConfidenceSentence(formatNumber(total.lowConfidenceCount, { fractionDigits: 0 })),
           }),
       ...actions,
     };

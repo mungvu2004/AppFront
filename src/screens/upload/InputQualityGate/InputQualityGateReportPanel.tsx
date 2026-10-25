@@ -37,7 +37,6 @@ import { AnimatePresence, motion } from '@/components/motion';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Table } from '@/components/ui/Table';
-import { useCountUp } from '@/hooks/useCountUp';
 import { durationSeconds } from '@/lib/motion';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
@@ -78,7 +77,7 @@ const STATUS_TEXT_TOKEN: Record<ViewStatusCode, string> = {
   neutral: 'text-text-secondary',
 };
 
-const FINDINGS_HEADING = 'Phát hiện';
+const FINDINGS_HEADING = 'Cần chú ý';
 const FLOORS_HEADING = 'Các tầng đã đo';
 const COLUMN_FLOOR = 'Tầng';
 const COLUMN_SUMMARY = 'Kết quả đo';
@@ -268,14 +267,7 @@ export function InputQualityGateReportPanel({
   passNotice,
   remainingFindingCount,
 }: InputQualityReportPanelProps) {
-  // Bộ đếm chỉ chạy khi có danh sách phát hiện để đếm — trạng thái "đạt" không
-  // vẽ bộ đếm này (xem nhánh `passNotice` dưới). Gọi hook vô điều kiện (luật
-  // hook), chỉ ẩn phần hiển thị khi rỗng — cùng khuôn `FloorUploadFooter.tsx`.
   const hasFindings = findings.length > 0;
-  const remaining = useCountUp(hasFindings ? remainingFindingCount : Number.NaN, {
-    format: { fractionDigits: 0, grouping: false },
-    from: remainingFindingCount,
-  });
 
   return (
     <section aria-label="Báo cáo chất lượng" className="flex h-full flex-col gap-5">
@@ -300,10 +292,6 @@ export function InputQualityGateReportPanel({
             <h3 className="text-[13px] font-medium text-text-secondary">{FINDINGS_HEADING}</h3>
             {hasFindings && (
               <p className="text-[13px] text-text-secondary">
-                <span aria-hidden="true">
-                  {remaining.text}
-                  {REMAINING_SUFFIX}
-                </span>
                 <span className="sr-only" role="status">
                   {remainingFindingCount}
                   {REMAINING_SUFFIX}
@@ -329,7 +317,8 @@ export function InputQualityGateReportPanel({
         </div>
       )}
 
-      <FloorsTable floors={floors} onSelectFloor={actions.onSelectFloor} />
+      {/* Một tầng thì bảng chỉ lặp lại kết quả ở trên. */}
+      {floors.length > 1 ? <FloorsTable floors={floors} onSelectFloor={actions.onSelectFloor} /> : null}
     </section>
   );
 }

@@ -380,8 +380,6 @@ export interface RoomLabelCanvasProps {
   readonly backgroundImageSizeMm?: { readonly widthMm: number; readonly heightMm: number } | null | undefined;
   /** `false` ở trạng thái `forbidden`: xem/phóng to được, chọn thì không. */
   readonly isInteractive: boolean;
-  /** Xem `RoomLabelReviewProps.isFloorWithoutRooms` — canvas không tự suy từ `rooms` rỗng. */
-  readonly showEmptyNotice: boolean;
   readonly onSelect: (roomId: RoomId | null) => void;
   readonly onHover: (roomId: RoomId | null) => void;
 }

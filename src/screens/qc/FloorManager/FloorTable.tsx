@@ -165,9 +165,11 @@ export function FloorTable({
   };
 
   /* Cột hành động có mặt đúng khi dòng có ô hành động — số cột tiêu đề = số ô của dòng. */
+  // Một tầng: không có gì để đổi thứ tự hay tự tính cao độ.
+  const canReorder = canEdit && rows.length > 1;
   const hasActions = canEdit || onOpenOverlay !== undefined || onOpenFloorScreen !== undefined;
   const headers = EDITABLE_HEADERS.filter(
-    (header) => (canEdit || header.key !== 'handle') && (hasActions || header.key !== 'actions'),
+    (header) => (canReorder || header.key !== 'handle') && (hasActions || header.key !== 'actions'),
   );
   const columnCount = headers.length;
 
@@ -290,7 +292,9 @@ export function FloorTable({
       actions={
         canEdit && state !== 'loading' ? (
           <>
-            <Toggle checked={isAutoElevation} label={AUTO_ELEVATION_LABEL} onChange={onToggleAutoElevation} />
+            {rows.length > 1 && (
+              <Toggle checked={isAutoElevation} label={AUTO_ELEVATION_LABEL} onChange={onToggleAutoElevation} />
+            )}
             {selectedRow !== null && (
               <Button
                 onClick={() => {
@@ -346,6 +350,7 @@ export function FloorTable({
               rows.map((row, index) => (
                 <FloorTableRow
                   canEdit={canEdit}
+                  canReorder={canReorder}
                   copyFurniture={copyFurniture}
                   duplicatingFloorId={duplicatingFloorId}
                   index={index}
@@ -393,7 +398,7 @@ export function FloorTable({
             {isAutoElevation ? CAPTION_AUTO : CAPTION_MANUAL}
             {!isAutoElevation && rows.some((row) => row.isElevationOverridden) && ` ${CAPTION_OVERRIDE}`}
           </span>{' '}
-          {canEdit && `${CAPTION_REORDER} `}
+          {canReorder && `${CAPTION_REORDER} `}
           {footer.floorCountText} · tổng cao {footer.totalHeightText} · {footer.totalAreaText}
         </p>
       )}

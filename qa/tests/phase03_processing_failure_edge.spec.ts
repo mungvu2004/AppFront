@@ -255,8 +255,8 @@ test.describe('SCR-12 processing — failed runs', () => {
         await page.getByRole('region', { name: TRAY, exact: true }).getByRole('combobox', { name: ASSIGN }).click();
         await page.getByRole('option', { name: RENAMED, exact: true }).click();
         await complete;
-        // Submit only once the card says "Đã gắn kèm": while it is still "Đang tải lên" the submit is refused (UFU blocked).
-        await expect(page.locator(`[data-floor-id="${floor.id}"]`).getByText('Đã gắn kèm', { exact: true })).toBeVisible();
+        // Submit only once the card says "Đã có bản vẽ": while it is still "Đang tải lên" the submit is refused (UFU blocked).
+        await expect(page.locator(`[data-floor-id="${floor.id}"]`).getByText('Đã có bản vẽ', { exact: true })).toBeVisible();
         await button(page, SUBMIT).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(project.projectId));
         await expect(page.getByText(doneLine(1, 1))).toBeVisible({ timeout: PIPELINE_TIMEOUT_MS });

@@ -696,7 +696,9 @@ describe('relatedLink — F-12', () => {
   it('màn có liên kết "Lượt huấn luyện" sang /admin/training/jobs; `null` thì ẩn', async () => {
     renderScreen(makeClient());
 
-    expect(await screen.findByRole('link', { name: 'Sang tab Huấn luyện' })).toHaveAttribute('href', '/admin/training/jobs');
+    // Thanh tab quản trị đã dẫn sang Huấn luyện: mặc định không còn link chéo.
+    await chooseFamily('Đọc kích thước');
+    expect(screen.queryByRole('link', { name: 'Sang tab Huấn luyện' })).toBeNull();
 
     cleanup();
     renderWithProviders(<ModelRegistryContainer client={makeClient()} now={() => NOW} relatedLink={null} />);

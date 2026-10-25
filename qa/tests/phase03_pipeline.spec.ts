@@ -513,7 +513,7 @@ test.describe('SCR-10 Floor Upload (CP-4)', () => {
       draft.checkpoints.uploadId = uploadId;
     });
 
-    await expect(page.locator(`[data-floor-id="${workId}"]`).getByText('Đã gắn kèm', { exact: true })).toBeVisible();
+    await expect(page.locator(`[data-floor-id="${workId}"]`).getByText('Đã có bản vẽ', { exact: true })).toBeVisible();
     await captureEvidence(page, '10_upload_attached.png');
   });
 });
@@ -862,13 +862,13 @@ test.describe('SCR-15 CAD Branch Confirm', () => {
     await expect(dialog).toHaveCount(0);
     await expect(page.getByText('Chưa có lớp nào để ánh xạ', { exact: true }).first()).toBeVisible();
     await captureEvidence(page, '15_cad_empty.png');
-    await test.step('[15-A-002] after "Huỷ": hand-off alert "Chuyển sang nhánh nhận dạng ảnh" + AI note, "Dùng đường từ CAD" / "Vẫn dùng AI"', async () => {
+    await test.step('[15-A-002] after "Huỷ": hand-off alert "Chuyển sang nhánh nhận dạng ảnh" + AI note, "Dùng đường từ CAD" / "Tiếp tục duyệt tường"', async () => {
       // CadBranchConfirm.tsx:92 AI_HANDOFF_TITLE, cadBranchConfirmText.ts:84,87,164.
       const handoff = page.getByRole('alert').filter({ hasText: 'Chuyển sang nhánh nhận dạng ảnh' });
       await expect.soft(handoff).toBeVisible();
       await expect.soft(handoff).toContainText('Nếu bạn chọn nhánh AI, sẽ cần hiệu chỉnh tỷ lệ sau khi nhập hình học.');
       await expect.soft(page.getByRole('button', { name: 'Dùng đường từ CAD', exact: true })).toBeVisible();
-      await expect.soft(page.getByRole('button', { name: 'Vẫn dùng AI', exact: true })).toBeVisible();
+      await expect.soft(page.getByRole('button', { name: 'Tiếp tục duyệt tường', exact: true })).toBeVisible();
       await captureEvidence(page, 'M03_15-A-002_cad_handoff.png');
     });
   });
@@ -881,7 +881,7 @@ test.describe('SCR-15 CAD Branch Confirm', () => {
 test.describe('SCR-12 Processing summary', () => {
   // [BUG-285] asserts the bug log's "Mong đợi". Since FIX-1380 the processing screen derives "Báo cáo tổng kết" from N16
   // spatial/layer once a floor's run is done (useProcessingScreen.ts:733-745, :1208-1276) and shows the block — with
-  // "Duyệt lớp tường" / "Hiệu chỉnh tỷ lệ" — even when N16 fails, so this should pass (coverage F10/P9). Kept last in
+  // "Duyệt lớp tường" / "Đặt tỷ lệ" — even when N16 fails, so this should pass (coverage F10/P9). Kept last in
   // this serial file so a regression skips nothing; CP-5 is read back from the API here, not from the CP-5 test's screen.
   test('[BUG-285] SCR-12 finished run (CP-5 from the API) → "Duyệt lớp tường" → /projects/:id/floors/{workId}/layers/walls', async () => {
     requireState((s) => s.checkpoints.pipelineComplete, 'checkpoints.pipelineComplete', 'Phase 3 SCR-12 (CP-5)');
@@ -905,8 +905,8 @@ test.describe('SCR-12 Processing summary', () => {
     // Shot BEFORE the bug check, so a failing run still documents the finished screen.
     await captureEvidence(page, '12_pipeline_done_for_walls.png');
 
-    const browseWalls = page.getByRole('button', { name: 'Sang Kiểm tra tầng', exact: true });
-    await expect(browseWalls, 'BUG-285: a finished run offers "Sang Kiểm tra tầng" (processingGate, was "Duyệt lớp tường")').toBeVisible();
+    const browseWalls = page.getByRole('button', { name: 'Sang Duyệt tầng', exact: true });
+    await expect(browseWalls, 'BUG-285: a finished run offers "Sang Duyệt tầng" (processingGate, was "Duyệt lớp tường")').toBeVisible();
     await browseWalls.click();
     await expect.poll(() => pathOf(page)).toBe(ROUTES.project.walls(projectId, workId));
     await captureEvidence(page, '12_pipeline_to_walls.png');

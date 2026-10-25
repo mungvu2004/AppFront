@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 
 import type { FloorStepVm } from './floorProgress';
 import { FloorRowLinks } from './FloorRowLinks';
-import { FLOOR_COLUMN_LABELS, FLOOR_QC_SCORE_HINT, type FloorManagerViewProps, type FloorRowVm } from './floorManagerTypes';
+import { FLOOR_COLUMN_LABELS, FLOOR_QC_SCORE_HINT, QC_NOT_GRADED, type FloorManagerViewProps, type FloorRowVm } from './floorManagerTypes';
 
 const UPLOAD_LINK_LABEL = 'Tải bản vẽ';
 const NEXT_STEP_PREFIX = 'Việc tiếp:';
@@ -122,8 +122,9 @@ export function FloorNameCell({
         )}
         {/* Dòng phụ: số tường, phòng, diện tích và điểm luật (bản Z gộp bốn cột cũ vào đây). */}
         {row.hasDrawing && (
-          <span className="truncate text-[12px] text-text-secondary" title={FLOOR_QC_SCORE_HINT}>
-            {summaryText} · {FLOOR_COLUMN_LABELS.qc} {row.qcProgressText}
+          <span className="text-[12px] text-text-secondary" title={FLOOR_QC_SCORE_HINT}>
+            {summaryText}
+            {row.qcProgressText === QC_NOT_GRADED ? '' : ` · ${FLOOR_COLUMN_LABELS.qc} ${row.qcProgressText}`}
           </span>
         )}
       </div>
@@ -140,8 +141,7 @@ export function FloorProgressCell({ className, step }: { readonly className: str
               các bước AI đọc / đang duyệt / duyệt xong / lỗi CẦN BE (GHI-CHU S-19). */}
           <div className="flex min-w-0 flex-col items-start gap-1">
             <Badge variant={step.tone}>{step.label}</Badge>
-            {/* Một dòng, cắt "…"; câu đủ nằm ở title. */}
-            <span className="block w-full truncate text-[12px] text-text-secondary" title={`${NEXT_STEP_PREFIX} ${step.nextText}`}>
+            <span className="block w-full text-[12px] text-text-secondary">
               {NEXT_STEP_PREFIX} {step.nextText}
             </span>
           </div>

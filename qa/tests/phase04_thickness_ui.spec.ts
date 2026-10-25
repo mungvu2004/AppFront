@@ -31,7 +31,7 @@ import { holdFirst } from './support/p03/P4';
 import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
 import { reseed, thkUiProject, type Built } from './support/p04/P4';
 
-const SCREEN = 'Chuẩn hoá độ dày tường';
+const SCREEN = 'Độ dày tường';
 
 let adminApi: APIRequestContext;
 

@@ -92,7 +92,7 @@ describe('31-B-019 chữ dải hợp lệ', () => {
   it('không có thuật ngữ nội bộ', () => {
     renderWithProviders(<SpatialJsonViewer {...buildSpatialJsonViewerProps('success')} />);
 
-    expect(screen.getByText('Hợp lệ — 0 lỗi.')).toBeTruthy();
+    expect(screen.getByText('Tệp đúng cấu trúc')).toBeTruthy();
   });
 });
 

@@ -1247,7 +1247,7 @@ export const filteredCountLabel = (shown: number, total: number): string =>
 
 /** Câu của trạng thái một phần — "5 mục dưới ngưỡng tin cậy". */
 export const lowConfidenceNotice = (count: number): string =>
-  `${formatObjectCount(count)} mục dưới ngưỡng tin cậy`;
+  `${formatObjectCount(count)} mục máy chưa chắc`;
 
 /**
  * Mọi chuỗi cố định người dùng đọc, đúng một chỗ (R-71).
@@ -1267,7 +1267,7 @@ export const OBJECT_LAYER_TEXT = {
   subtypeRefused: 'Chỉ đổi được loại giữa cửa đơn, cửa đôi và cửa sổ.',
   subtypeSame: 'Đối tượng đã ở đúng loại đó nên không có gì thay đổi.',
   subtypeNeedsWall: 'Gắn đối tượng vào tường trước rồi mới đổi loại.',
-  lowConfidenceDone: 'Đã duyệt hết mục dưới ngưỡng.',
+  lowConfidenceDone: 'Đã duyệt hết chỗ máy chưa chắc.',
   showAll: 'Hiện tất cả',
   deleteAction: 'Xoá đối tượng',
   shortcutDelete: 'Xoá đối tượng đang chọn (hỏi lại trước khi xoá)',

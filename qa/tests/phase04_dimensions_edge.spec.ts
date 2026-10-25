@@ -40,7 +40,7 @@ import { bogusFloorId, unknownProjectId } from './support/p03/P10';
 import { markShell, shellKept, spaGo } from './support/p03/P11';
 import { DIM, canvasFrame, errorAlert, keyboardSection, note, openDims, panel, region } from './support/p04/P3';
 
-const SCALE_SCREEN = 'Màn hiệu chỉnh tỷ lệ'; // src/screens/pipeline/ScaleCalibration/ScaleCalibration.tsx:66
+const SCALE_SCREEN = 'Tỷ lệ bản vẽ'; // src/screens/pipeline/ScaleCalibration/ScaleCalibration.tsx:66
 const FLOOR_MISSING = 'Không mở được tầng này'; // src/screens/qc/shared/floorLayerReadFailure.ts:21 FLOOR_MISSING_TITLE (BUG-326 screen; the sentence 'Tầng này không còn tồn tại.' is only its description, :23)
 const PROJECT_NOT_FOUND = 'Không tìm thấy dự án này'; // ProjectSpatialGate.tsx:36
 const N16_PATH = /^\/api\/projects\/[^/]+\/floors\/[^/]+\/spatial\/layer$/u;
@@ -117,7 +117,7 @@ test.describe('E04 SCR-18 dimension OCR review — real flows (QA-04c P3)', () =
         await ev(page, '18-E-001', 'accessible_names');
       });
 
-      await test.step('[18-B-002] empty: title, explanation and link "Hiệu chỉnh tỷ lệ"', async () => {
+      await test.step('[18-B-002] empty: title, explanation and link "Đặt tỷ lệ"', async () => {
         await expect.soft(panel(page).getByText(DIM.emptyTitle, { exact: true })).toBeVisible();
         await expect.soft(panel(page).getByText(DIM.emptyDescription, { exact: true })).toBeVisible();
         await expect.soft(panel(page).getByRole('link', { name: DIM.toScale, exact: true })).toBeVisible();
@@ -157,7 +157,7 @@ test.describe('E04 SCR-18 dimension OCR review — real flows (QA-04c P3)', () =
         await ev(page, '18-C-031', 'no_request_toggle');
       });
 
-      await test.step('[18-A-024] empty-state link "Hiệu chỉnh tỷ lệ" → scale route of this floor', async () => {
+      await test.step('[18-A-024] empty-state link "Đặt tỷ lệ" → scale route of this floor', async () => {
         await expect.soft(panel(page).getByRole('link', { name: DIM.toScale, exact: true })).toHaveAttribute('href', scalePath);
         await ev(page, '18-A-024', 'link_href');
       });

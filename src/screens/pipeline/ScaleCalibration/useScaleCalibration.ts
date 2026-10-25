@@ -181,14 +181,11 @@ const COPY = {
   derivedLineProvisional: (density: string): string => `đang dùng tạm ${density} do máy ước, chưa được duyệt`,
   methodDimensionString: 'Từ chuỗi kích thước',
   methodReferenceLine: 'Vẽ đường tham chiếu',
-  methodDimensionDisabled:
-    'Không đọc được chuỗi kích thước nào trên bản vẽ này, nên chỉ còn cách vẽ đường tham chiếu.',
   dimensionEmpty:
-    'OCR không tìm thấy chuỗi kích thước nào trên bản vẽ này. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.',
+    'Máy không tìm thấy số kích thước nào trên bản vẽ này. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.',
   tooFewSamples: 'Chưa đủ chuỗi kích thước để suy ra tỷ lệ, nên phải đặt bằng tay.',
   lowConfidenceInference: 'Độ tin cậy chung còn thấp, nên tỷ lệ phải được xác nhận bằng tay.',
   realLengthPlaceholder: 'Ví dụ 4800',
-  realLengthNoHint: 'Không có chuỗi kích thước nào gần đoạn này để gợi ý.',
   realLengthInvalid: 'Chiều dài thật phải là một số lớn hơn 0, ví dụ 4800.',
   referenceTooShort:
     'Đoạn quá ngắn — kéo giữa hai đầu một kích thước đã biết, hoặc dời đầu cuối bằng phím mũi tên.',
@@ -215,7 +212,7 @@ const COPY = {
   warpingNotice:
     'Bước tiền xử lý đã xong nhưng máy không tìm thấy khung bản vẽ, nên ảnh có thể chưa được nắn thẳng. Nếu thấy ảnh méo, quay lại bước tiền xử lý để nắn lại, vì tỷ lệ đo trên ảnh méo sẽ sai theo.',
   emptyNotice:
-    'Bản vẽ này không có chuỗi kích thước nào OCR đọc được. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.',
+    'Máy không đọc được số kích thước nào trên bản vẽ này. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.',
   partialNotice:
     'Đã có đoạn tham chiếu nhưng chưa có chiều dài thật, hoặc một số chuỗi kích thước đọc được với độ tin cậy thấp.',
   forbiddenNotice:
@@ -290,7 +287,7 @@ const lowConfidenceNotice = (count: string): string =>
   `Có ${count} chuỗi đọc được với độ tin cậy thấp, đã đánh dấu mức cần chú ý.`;
 
 /** Ví dụ `"OCR đọc được 4.800 ngay cạnh đoạn này."`. */
-const realLengthHint = (value: string): string => `OCR đọc được ${value} ngay cạnh đoạn này.`;
+const realLengthHint = (value: string): string => `Máy đọc được ${value} ngay cạnh đoạn này.`;
 
 /** Ví dụ `"khoảng hợp lý 60 mm – 400 mm"`. */
 const expectedRange = (min: string, max: string): string => `khoảng hợp lý ${min} – ${max}`;
@@ -1998,7 +1995,8 @@ export function useScaleCalibration(
               ),
         method: effectiveMethod,
         methodOptions,
-        methodNotice: rows.length === 0 ? COPY.methodDimensionDisabled : null,
+        // Banner trống đã nói "không đọc được kích thước": không nhắc lại ở khối phương pháp.
+        methodNotice: null,
         dimension: {
           rows,
           selectedRowId,
@@ -2022,9 +2020,7 @@ export function useScaleCalibration(
               ? COPY.realLengthInvalid
               : null,
           realLengthHint:
-            nearestOcrValue === null
-              ? COPY.realLengthNoHint
-              : realLengthHint(formatNumber(nearestOcrValue)),
+            nearestOcrValue === null ? null : realLengthHint(formatNumber(nearestOcrValue)),
           resultLabel: proposedRatio === null ? null : formatScaleDensity(proposedRatio),
           // Cùng một cảnh báo với khối dưới, đặt cạnh ô nhập: nó hiện NGAY KHI
           // GÕ vì `realLengthText` là thứ nuôi `proposedRatio`, không đợi rời ô.

@@ -25,7 +25,7 @@ const SCALE_SENTENCE =
   'Bản vẽ vẫn xem và phóng to được, nhưng không kéo được đường tham chiếu. Nhờ người có quyền sửa dự án đặt tỷ lệ giúp.'; // USC:210
 const OVERLAY_NOTICE = 'Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.'; // UOC:128
 const OVERLAY_REASON = 'Chỉ người có quyền sửa mới xác nhận được.'; // UOC:122
-const CONFIRM = 'Xác nhận khớp bản vẽ';
+const CONFIRM = 'Khớp rồi, xác nhận';
 const QUALITY_ACK = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này'; // checkbox removed in S-09 (the count-0 assertion below stays true)
 
 /** Waits a bounded window for any non-GET /api request, then asserts no recorded write (matching `only`) exists. */
@@ -346,7 +346,7 @@ test('SCR-14 · SCR-15 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + do
 
     await test.step('[9U-D-063] viewer, SCR-15: read-only warning band', async () => {
       await page.goto(ROUTES.project.overlay(seeded.projectId, seeded.floorId));
-      await expect(page.getByRole('region', { name: 'Màn đối chiếu bản vẽ', exact: true })).toBeVisible(); // VV:74
+      await expect(page.getByRole('region', { name: 'So với bản vẽ', exact: true })).toBeVisible(); // VV:74
       await expect(page.getByText(OVERLAY_NOTICE, { exact: true })).toBeVisible(); // UOC:128,878
       await captureEvidence(page, 'E09_9U-D-063_overlay_notice.png');
     });

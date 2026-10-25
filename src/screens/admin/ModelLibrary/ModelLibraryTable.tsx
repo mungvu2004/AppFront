@@ -28,7 +28,7 @@ const HEADER_PREVIEW = 'Ảnh xem trước';
 const HEADER_NAME = 'Tên';
 const HEADER_GROUP = 'Danh mục';
 const HEADER_BOUNDS = 'Kích thước bao';
-const HEADER_TRIANGLES = 'Số tam giác';
+const HEADER_TRIANGLES = 'Độ chi tiết (tam giác)';
 const HEADER_FILE_SIZE = 'Dung lượng';
 const EMPTY_MESSAGE = 'Không có mẫu 3D nào khớp với từ khoá hoặc danh mục đang chọn.';
 const EMPTY_TITLE = 'Không tìm thấy mẫu 3D';
@@ -143,7 +143,7 @@ function ModelLibraryCardList({ actions, rows }: RowLayoutProps) {
               <dd className="tabular-nums">{row.boundsLabel}</dd>
             </div>
             <div className="flex justify-between gap-2">
-              <dt className="text-text-secondary">Số tam giác</dt>
+              <dt className="text-text-secondary">Độ chi tiết (tam giác)</dt>
               <dd>
                 <TriangleCountValue row={row} />
               </dd>

@@ -43,7 +43,7 @@ const COUNTER = 'floor-upload-counter-number'; // FUF:25
 const BLOCK_NOTICE = 'floor-upload-block-notice'; // FUF:22
 const ASSIGN = 'Gán cho tầng khác'; // FUT:20, FUC:39
 const UNDO = 'Hoàn tác'; // TST:149
-const ATTACHED = 'Đã gắn kèm'; // UFU:125
+const ATTACHED = 'Đã có bản vẽ'; // UFU:125
 const NO_DRAWING = 'Chưa có bản vẽ'; // UFU:140
 const SUBMIT = 'Bắt đầu xử lý'; // UFU:113
 const displaced = (name: string): string => `${name} đã về khay tệp chưa gán tầng vì tầng ấy đã có tệp khác`; // UFU:1334-1336

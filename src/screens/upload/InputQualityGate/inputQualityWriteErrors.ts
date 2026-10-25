@@ -18,7 +18,7 @@ export interface WriteFailureSentence {
 const SENTENCES = Object.freeze({
   drawingChanged: 'Bản vẽ của tầng vừa đổi, kết quả đo đã được đọc lại; hãy xem rồi thử lại.',
   layerReviewed:
-    'Tầng này đã có tỉ lệ hoặc hình học do người chỉnh, nên không nắn hay cắt lại bản vẽ được nữa.',
+    'Tầng này đã có tỷ lệ hoặc hình học do người chỉnh, nên không nắn hay cắt lại bản vẽ được nữa.',
   invalidCorners: 'Bốn góc chưa tạo thành một khung hợp lệ; hãy chọn lại.',
   imageTooLarge: 'Ảnh bản vẽ lớn hơn mức xử lý được; hãy tải bản vẽ nhỏ hơn.',
   pdfUnreadable: 'Không đọc được trang PDF của bản vẽ; hãy tải lại tệp.',

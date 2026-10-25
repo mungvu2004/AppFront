@@ -13,7 +13,7 @@ import { DESKTOP_VIEWPORTS } from './support/p10/viewports';
 import { requireState } from './support/state';
 import { verifyUi } from './support/ui-verify';
 
-const FLOORS_TITLE = 'Theo dõi từng tầng và làm tiếp tầng cần nhất'; // FloorManager.tsx:70 (h2)
+const FLOORS_TITLE = 'Duyệt từng tầng'; // FloorManager.tsx:70 (h2)
 const NOT_FOUND_TITLE = 'Không tìm thấy trang này'; // useNotFound.ts:98 (h1)
 const SCENE_TIMEOUT_MS = 60_000;
 

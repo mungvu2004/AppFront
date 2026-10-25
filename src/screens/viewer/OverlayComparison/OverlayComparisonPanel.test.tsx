@@ -76,7 +76,7 @@ describe('OverlayComparisonPanel', () => {
     renderWithProviders(<OverlayComparisonPanel {...panelPropsOf('empty')} />);
 
     expect(screen.queryByText('0 mm')).not.toBeInTheDocument();
-    expect(screen.getByText('Chưa đo được độ lệch tự động — so hai lớp bằng mắt, khớp thì bấm xác nhận.')).toBeInTheDocument();
+    expect(screen.getByText('Máy chưa đo được độ lệch. So hai lớp bằng mắt; thấy khớp thì xác nhận.')).toBeInTheDocument();
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.queryByText('—')).toBeNull();
   });
@@ -94,7 +94,7 @@ describe('OverlayComparisonPanel', () => {
       </MemoryRouter>,
     );
 
-    const link = screen.getByRole('link', { name: 'Đo lại tỷ lệ ở màn Hiệu chỉnh tỷ lệ' });
+    const link = screen.getByRole('link', { name: 'Lệch nhiều? Đặt tỷ lệ' });
     expect(link).toHaveAttribute('href', '/projects/p/floors/f/scale');
     // RV4#8: router Link, so the app navigates in place instead of reloading the page.
     fireEvent.click(link);

@@ -313,9 +313,9 @@ describe('useCadBranchConfirm — bảy trạng thái', () => {
     const { model } = mounted.result.current;
     expect(model.state).toBe('empty');
     expect(model.emptyNotice).toBe(
-      'Bản này chưa đọc được lớp của tệp CAD, nên chưa ánh xạ và nhập được hình học. Hãy chọn "Vẫn dùng AI".',
+      'Bản này chưa đọc được lớp của tệp CAD, nên chưa ánh xạ và nhập được hình học. Hãy chọn "Tiếp tục duyệt tường".',
     );
-    expect(model.importDisabledReason).toBe('Bản này chưa nhập được hình học từ tệp CAD. Hãy chọn "Vẫn dùng AI".');
+    expect(model.importDisabledReason).toBe('Bản này chưa nhập được hình học từ tệp CAD. Hãy chọn "Tiếp tục duyệt tường".');
   });
 
   it('trạng thái Lỗi mang số phiên bản tệp và mã máy đọc ra tới view', async () => {

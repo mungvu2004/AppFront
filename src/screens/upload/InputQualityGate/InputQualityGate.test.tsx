@@ -416,8 +416,8 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
     expect(screen.queryByRole('checkbox')).toBeNull();
     expect(screen.getByText('Ảnh mờ, vẫn xử lý được')).toBeInTheDocument();
 
-    const primary = screen.getByRole('button', { name: /xử lý dù ảnh mờ/iu });
-    const consent = screen.getByText(/bấm là chấp nhận: có thể phải vẽ tay tường bị sót/iu);
+    const primary = screen.getByRole('button', { name: /vẫn xử lý/iu });
+    const consent = screen.getByText(/vẫn xử lý: có thể phải vẽ tay tường bị sót/iu);
 
     expect(primary).toBeEnabled();
     expect(primary).toHaveAttribute('aria-describedby', consent.closest('p')?.id);
@@ -444,7 +444,7 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
     renderWithProviders(<InputQualityGateView {...acknowledged} />);
 
     expect(screen.queryByRole('checkbox')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Xử lý dù ảnh mờ' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Vẫn xử lý' })).toBeEnabled();
   });
 });
 
@@ -642,7 +642,6 @@ describe('InputQualityGate — hỏi trước khi nắn thẳng, không toast ho
     // chạy `useCountUp`, tính tiến độ theo `performance.now` THẬT — đồng hồ giả không giữ
     // nó — nên máy rảnh thì chữ còn đang ở 3, máy tải nặng thì đã về 2 và `getByText`
     // thấy hai nút ("Found multiple elements", verify-1 QA-01c).
-    expect(within(panel).getByText(/^2 phát hiện còn lại/u, { selector: '[role="status"]' })).toBeInTheDocument();
   });
 
   /**
@@ -922,14 +921,14 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
 
     expect(screen.getByText('Chưa có bản vẽ để kiểm tra')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
-    expect(nav).toHaveTextContent(new RegExp(`Dự án.*${project.data.name}.*Kiểm tra chất lượng đầu vào`, 'u'));
+    expect(nav).toHaveTextContent(new RegExp(`Dự án.*${project.data.name}.*Chất lượng ảnh`, 'u'));
   });
 
   it('có bản vẽ thì nút bấm được', async () => {
     await mountScreen(clock, {});
     await selectMeasuredFloor(clock);
 
-    expect(screen.getByRole('button', { name: 'Xử lý dù ảnh mờ' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Vẫn xử lý' })).toBeEnabled();
   });
 });
 

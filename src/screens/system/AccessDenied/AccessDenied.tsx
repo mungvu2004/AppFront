@@ -22,8 +22,7 @@
  * ảnh bản vẽ, dù làm mờ, cũng là lộ dữ liệu khi chưa có quyền.
  */
 
-import { Clock3, KeyRound, Link2Off, TimerOff, UserPlus } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Clock3 } from 'lucide-react';
 
 import { PageHead } from '@/components/shell/PageHead';
 import { Section } from '@/components/shell/Section';
@@ -36,7 +35,7 @@ import { initialsOf } from '@/lib/format/initials';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { cn } from '@/lib/utils';
 
-import type { AccessDeniedReason, AccessDeniedVm } from './accessDeniedModel';
+import type { AccessDeniedVm } from './accessDeniedModel';
 
 const SWAP_ANIMATION_NAME = 'ad-request-swap';
 
@@ -66,14 +65,6 @@ const REQUEST_HEADING = 'Xin quyền từ chủ dự án';
 const REQUEST_SENT_BADGE = 'Đã gửi yêu cầu';
 const PASSWORD_HEADING = 'Mở bằng mật khẩu liên kết';
 
-/** Chip trạng thái theo lý do — trung tính, có icon, không màu cảnh báo. */
-const CHIP_BY_REASON: Readonly<Record<AccessDeniedReason, { text: string; icon: ReactNode }>> = {
-  unknown: { text: 'Chỉ mở cho thành viên được mời', icon: <UserPlus size={14} aria-hidden="true" /> },
-  revoked: { text: 'Quyền xem đã bị thu hồi', icon: <Link2Off size={14} aria-hidden="true" /> },
-  expired: { text: 'Đường dẫn đã hết hạn', icon: <TimerOff size={14} aria-hidden="true" /> },
-  password: { text: 'Cần mật khẩu liên kết', icon: <KeyRound size={14} aria-hidden="true" /> },
-};
-
 /** Hàng người: vòng chữ tắt + tên/email + một nút bên phải. */
 const WHO_ROW_CLASS = 'flex items-center gap-3';
 
@@ -81,7 +72,6 @@ export function AccessDenied({
   capabilities,
   title,
   restrictionSentence,
-  reason,
   reasonSentence,
   whoCanGrantSentence,
   currentEmail,
@@ -105,7 +95,6 @@ export function AccessDenied({
   const showRequestSection = showRequestPanel || showOwnerPanel;
   // Một nút chính mỗi màn: nút gửi yêu cầu hoặc "Mở dự án" giữ vai chính khi có.
   const backIsPrimary = enterProject === null && !(showRequestPanel && requestAccess !== null && request === null);
-  const chip = CHIP_BY_REASON[reason];
 
   return (
     <div className="min-h-full w-full bg-bg-app">
@@ -117,10 +106,6 @@ export function AccessDenied({
           title={title}
           status={
             <>
-              <Badge variant="neutral" noDot className="gap-1.5">
-                {chip.icon}
-                {chip.text}
-              </Badge>
               <span>{restrictionSentence}</span>
             </>
           }

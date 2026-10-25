@@ -1,5 +1,5 @@
 /**
- * Panel trái (280px) của màn Duyệt tên phòng (demo Z/S-20) — MỘT khung: đầu panel (3 câu),
+ * Panel trái (lấp cột 240px của khung) của màn Duyệt tên phòng (demo Z/S-20) — MỘT khung: đầu panel (3 câu),
  * hàng lọc + "Chuẩn hoá tên…", rồi vùng cuộn gồm danh sách phòng và nhóm "Vòng tường hở".
  *
  * View THUẦN (R-60): nhận đúng {@link RoomLabelLeftPanelProps} và {@link RoomLabelListProps}
@@ -14,7 +14,6 @@
 import { ChevronRight, Unlink } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-import { Button } from '@/components/ui/Button';
 import type { RoomId, WallId } from '@/domain/spatial/types';
 import { cn } from '@/lib/utils';
 
@@ -34,43 +33,32 @@ export interface RoomLabelLeftPanelViewProps {
 
 const UNNAMED_FILTER_LABEL = 'Chưa đặt tên';
 const GAPS_TITLE = 'Vòng tường hở';
-const GAPS_HINT = 'Khe hở làm phòng không khép kín nên chưa có diện tích. Nối hai tường ở lớp tường.';
+const GAPS_HINT = 'Bấm một khe để tới chỗ đó ở lớp tường và nối lại.';
+const gapsHeadline = (gaps: number, rooms: number): string =>
+  `${gaps} chỗ tường chưa khép kín nên máy chỉ tìm được ${rooms} phòng`;
 const GAPS_EMPTY_MESSAGE = 'Chưa thấy vòng tường hở nào ở tầng này.';
 /** BUG-407: không có khe giữa hai đầu tường, nhưng có phòng chưa kín — nói rõ phạm vi. */
 const gapsEmptyWithUnclosedRooms = (count: number): string =>
   `Các đầu tường đều đã nối, nhưng ${count} phòng chưa kín vì có cạnh không có tường chạy dọc — chọn phòng để xem nhắc công năng.`;
 const CHECK_GAPS_LABEL = 'Kiểm tra lại vòng hở';
-const JOIN_LABEL = 'Nối';
-/* "…" vì nút mở bảng xem trước. Luôn bấm được: không có gì để đổi thì bảng nói thế (B1-10). */
 const NORMALIZE_LABEL = 'Chuẩn hoá tên…';
 
 const LINK_CLASS =
   'inline-flex min-h-8 shrink-0 items-center gap-0.5 rounded-sm text-[13px] text-accent outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2';
 
 function RoomLabelGapRow({ gap, onNavigateToWalls }: { readonly gap: RoomLabelGapViewModel; readonly onNavigateToWalls: (wallId?: WallId) => void }) {
-  const codes = gap.wallIds.map((wallId, index) => gap.wallCodeLabels[index] ?? wallId);
-
   return (
-    /* V-06: một hàng trung tính, không thẻ vàng — nhiều khe hở không biến cột thành "bức tường vàng". */
-    <li className="flex items-center gap-2 py-1 text-[13px]">
-      <Unlink aria-hidden="true" className="h-4 w-4 shrink-0 text-state-attention-text" />
-      <span className="shrink-0 font-mono tabular-nums text-text-primary">{gap.gapText}</span>
-      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1 text-[12px] text-text-secondary">
-        {gap.wallIds.map((wallId, index) => (
-          /* Mã tường trong `<code>`: một định danh, không phải câu người đọc (expectVietnamese bỏ qua). */
-          <code className="font-mono" key={wallId} title={wallId}>
-            {codes[index]}
-          </code>
-        ))}
-      </span>
+    /* Bấm cả dòng để tới chỗ hở; không in mã tường (người mới không đọc được), mã nằm ở aria-label. */
+    <li>
       <button
-        aria-label={`${JOIN_LABEL} ${codes.join(' và ')} ở lớp tường`}
-        className={LINK_CLASS}
+        aria-label={`Khe ${gap.gapText}, ${gap.wallCodeLabels.join(' và ')}: nối ở lớp tường`}
+        className="flex w-full items-center gap-2 rounded-sm py-1 text-left text-[13px] hover:bg-bg-hover"
         onClick={() => onNavigateToWalls(gap.wallIds[0])}
         type="button"
       >
-        {JOIN_LABEL}
-        <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
+        <Unlink aria-hidden="true" className="h-4 w-4 shrink-0 text-state-attention-text" />
+        <span className="font-mono tabular-nums text-text-primary">{`Khe ${gap.gapText}`}</span>
+        <ChevronRight aria-hidden="true" className="ml-auto h-3.5 w-3.5 shrink-0 text-accent" />
       </button>
     </li>
   );
@@ -79,18 +67,27 @@ function RoomLabelGapRow({ gap, onNavigateToWalls }: { readonly gap: RoomLabelGa
 interface RoomLabelGapsSectionProps {
   readonly gaps: readonly RoomLabelGapViewModel[];
   readonly unclosedRoomCount: number;
+  /** Số phòng máy đã tìm được, để nói "chỉ tìm được M phòng". */
+  readonly roomCount?: number;
   readonly onNavigateToWalls: (wallId?: WallId) => void;
   /** Bỏ qua khi nút "Kiểm tra lại vòng hở" đã có chỗ khác trên cùng cột (màn rỗng: nút của EmptyState). */
   readonly onCheckWallGaps?: () => void;
 }
 
 /** Khối "Vòng tường hở": dùng ở panel trái VÀ ở cột rỗng (20-D-007: tầng rỗng vì vòng hở vẫn cần lối sang lớp tường). */
-export function RoomLabelGapsSection({ gaps, unclosedRoomCount, onNavigateToWalls, onCheckWallGaps }: RoomLabelGapsSectionProps) {
+export function RoomLabelGapsSection({ gaps: allGaps, unclosedRoomCount, roomCount, onNavigateToWalls, onCheckWallGaps }: RoomLabelGapsSectionProps) {
+  /* Gộp các dòng cùng cặp tường (hai đầu hở cùng một cặp chỉ hiện một dòng). */
+  const seen = new Set<string>();
+  const gaps = allGaps.filter((gap) => {
+    const key = gap.wallIds.join('-');
+
+    return seen.has(key) ? false : (seen.add(key), true);
+  });
+
   return (
     <section aria-label={GAPS_TITLE} className="flex flex-col gap-1.5">
-      <h2 className="flex items-center gap-2 text-[13px] font-medium text-text-secondary">
-        {GAPS_TITLE}
-        {gaps.length === 0 ? null : <span className="tabular-nums text-state-attention-text">{gaps.length}</span>}
+      <h2 className="text-[13px] font-medium text-text-secondary">
+        {gaps.length === 0 || roomCount === undefined ? GAPS_TITLE : gapsHeadline(gaps.length, roomCount)}
       </h2>
       {gaps.length === 0 ? (
         <p className="text-[13px] text-text-secondary">
@@ -124,9 +121,9 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice, head, oversiz
   const { summary, gaps, showOnlyUnnamed, onToggleUnnamedFilter, onOpenNormalizePreview } = panel;
 
   return (
-    <div className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:w-full">
+    <div className="flex h-full w-full flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:w-full">
       {head}
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border-default px-4 py-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border-default px-4 py-3">
         <button
           aria-pressed={showOnlyUnnamed}
           className={cn(
@@ -145,13 +142,23 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice, head, oversiz
         </button>
         {/* Vai Người xem: KHÔNG hộp thoại, chỉ ẩn nút thao tác hàng loạt. */}
         {panel.isViewerRole ? null : (
-          <Button onClick={onOpenNormalizePreview} size="sm" variant="secondary">
+          <button className={cn(LINK_CLASS, 'ml-auto')} onClick={onOpenNormalizePreview} type="button">
             {NORMALIZE_LABEL}
-          </Button>
+          </button>
         )}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2 pb-4 pt-2">
+        {/* Cảnh báo tường hở đặt lên đầu: nó là lý do máy tìm thiếu phòng. */}
+        <div className={cn('rounded-lg px-3 py-2', gaps.length > 0 && 'bg-state-attention-tint')}>
+          <RoomLabelGapsSection
+            gaps={gaps}
+            onCheckWallGaps={panel.onCheckWallGaps}
+            onNavigateToWalls={panel.onNavigateToWalls}
+            roomCount={summary.roomCount}
+            unclosedRoomCount={summary.unclosedRoomCount}
+          />
+        </div>
         {emptyListNotice !== null ? (
           <p className="px-3 py-4 text-[13px] text-text-secondary" role="status">
             {emptyListNotice}
@@ -166,15 +173,6 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice, head, oversiz
             selectedRoomId={list.selectedRoomId}
           />
         )}
-
-        <div className="border-t border-border-default px-2 pt-3">
-          <RoomLabelGapsSection
-            gaps={gaps}
-            onCheckWallGaps={panel.onCheckWallGaps}
-            onNavigateToWalls={panel.onNavigateToWalls}
-            unclosedRoomCount={summary.unclosedRoomCount}
-          />
-        </div>
       </div>
     </div>
   );

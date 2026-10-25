@@ -61,6 +61,7 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerReadFailureScreen } from '../../qc/shared/FloorLayerReadFailureScreen';
+import { FloorReviewGate } from '../../qc/shared/FloorReviewGate.container';
 import { QcFloorNav } from '../../qc/shared/QcFloorNav';
 import { QC_BODY_CLASS, QcScreenFrame } from '../../qc/shared/QcScreenFrame';
 import { FloorLayerSaveBanner } from '../../qc/WallLayerReview/FloorLayerSaveBanner';
@@ -70,11 +71,11 @@ import { ScaleCalibrationPanel } from './ScaleCalibrationPanel';
 import { ScaleCalibrationSidebar } from './ScaleCalibrationSidebar';
 import type { ScaleCalibrationProps, ScaleCalibrationState, ScaleCalibrationViewModel } from './types';
 
-const SCREEN_ARIA_LABEL = 'Màn hiệu chỉnh tỷ lệ';
+const SCREEN_ARIA_LABEL = 'Tỷ lệ bản vẽ';
 const CANVAS_REGION_ARIA_LABEL = 'Khung bản vẽ để hiệu chỉnh tỷ lệ';
 const NOTICE_REGION_ARIA_LABEL = 'Trạng thái của màn hiệu chỉnh tỷ lệ';
 
-const EMPTY_TITLE = 'Chưa có chuỗi kích thước nào để đối chiếu';
+const EMPTY_TITLE = 'Máy chưa đọc được số kích thước nào';
 const PARTIAL_TITLE = 'Chưa đủ dữ liệu để chốt tỷ lệ';
 // G3-31: tiền xử lý không thất bại (BE chỉ báo FRAME_NOT_FOUND mức cần chú ý, màn Xử lý đánh ✓),
 // nên tiêu đề không nói "thất bại" và khối dùng màu cần chú ý, không màu vi phạm.
@@ -185,7 +186,9 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
     };
   }, [onCanvasSizeChange]);
 
-  const noticeMessage = messageFor(model);
+  // Tầng ĐÃ có tỷ lệ (chip "Đã đặt"): "máy chưa đọc được số" không còn là lỗi, đừng dựng khung vàng.
+  const hasStoredScale = model.panel.scaleCheck?.status.label.startsWith('Đã đặt') === true;
+  const noticeMessage = model.state === 'empty' && hasStoredScale ? null : messageFor(model);
   const noticeLevel = NOTICE_LEVELS[model.state];
   const isError = model.state === 'error';
   // Ảnh méo là nhánh `'error'` không có tiêu đề riêng (lỗi đọc luôn mang `errorTitle`, B-V5-04).
@@ -202,8 +205,9 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
 
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
-      {/* Panel phải đã có H1 thấy được ("Đặt tỷ lệ bản vẽ"): bỏ H1 ẩn của nav để trang chỉ một H1. */}
+      {/* Panel trái đã có H1 thấy được ("Tỷ lệ bản vẽ"): bỏ H1 ẩn của nav để trang chỉ một H1. */}
       {floorNav !== undefined && <QcFloorNav {...floorNav} layer="scale" titled />}
+      {floorNav !== undefined && <FloorReviewGate floorId={floorNav.floorId} projectId={floorNav.projectId} />}
       <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch md:overflow-hidden">
         <div className={cn('flex min-w-0 flex-1 flex-col xl:order-2', QC_BODY_CLASS)}>
           {/* Xung đột 409 / tầng khoá lưu: có "Tải lại", không thì mọi lượt áp sau hỏng im lặng (BUG-598). */}

@@ -17,8 +17,6 @@ interface ProjectNavEntry {
 /** Mỗi màn phụ một tên, dùng chung cho menu, tiêu đề màn và đường dẫn trang. */
 const PROJECT_NAV_LABELS = {
   versions: 'Lịch sử phiên bản',
-  data: 'Dữ liệu dự án',
-  graph: 'Sơ đồ xử lý',
   quality: 'Chất lượng ảnh đầu vào',
   members: 'Thành viên',
   settings: 'Cài đặt',
@@ -30,8 +28,7 @@ function entriesFor(projectId: string): readonly ProjectNavEntry[] {
     pathname === settings && new URLSearchParams(search).get('tab') === 'members';
   return [
     { id: 'versions', label: PROJECT_NAV_LABELS.versions, to: ROUTES.project.versions(projectId), isActive: (p) => p.startsWith(ROUTES.project.versions(projectId)) },
-    { id: 'data', label: PROJECT_NAV_LABELS.data, to: ROUTES.project.data(projectId), isActive: (p) => p.startsWith(ROUTES.project.data(projectId)) },
-    { id: 'graph', label: PROJECT_NAV_LABELS.graph, to: ROUTES.project.pipelineGraph(projectId), isActive: (p) => p.startsWith(ROUTES.project.pipelineGraph(projectId)) },
+    // "Dữ liệu" (.json) và "Sơ đồ xử lý" (màn kỹ thuật) bỏ khỏi menu; route vẫn giữ, màn Xuất có lối xem .json.
     // N0-03: lối mở lại bước nắn ảnh sau khi luồng xử lý đã đi qua (trước đây ở menu "Màn dự án" của Quản lý tầng).
     { id: 'quality', label: PROJECT_NAV_LABELS.quality, to: ROUTES.project.quality(projectId), isActive: (p) => p.startsWith(ROUTES.project.quality(projectId)) },
     { id: 'members', label: PROJECT_NAV_LABELS.members, to: `${settings}${MEMBERS_TAB_QUERY}`, isActive: isMembers },

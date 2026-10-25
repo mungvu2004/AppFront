@@ -103,8 +103,8 @@ import { createMockRoomLabelReviewGateway, roomCodeLabel } from './roomLabelRevi
 /** Nền của khung canvas — thứ đa giác phòng ở `DIMMED_OPACITY` chồng lên. */
 const CANVAS_GROUND_TOKEN: ColorTokenName = '--bg-sunken';
 
-const SCREEN_ARIA_LABEL = 'Duyệt tên phòng';
-const CANVAS_ARIA_LABEL = 'Khung xem bản vẽ duyệt tên phòng';
+const SCREEN_ARIA_LABEL = 'Duyệt phòng';
+const CANVAS_ARIA_LABEL = 'Khung xem bản vẽ duyệt phòng';
 const NORMALIZE_BUTTON_LABEL = 'Chuẩn hoá tên…';
 const NORMALIZE_DIALOG_TITLE = 'Xem trước chuẩn hoá tên';
 /* Dòng trạng thái đầu panel (Z/S-20): "x/y phòng đã duyệt, sàn 248,60 m²". */
@@ -541,11 +541,11 @@ describe('dải lưu lớp (F-04x-1)', () => {
 describe('dải tỷ lệ tạm (F-04x-2)', () => {
   const NOTICE = provisionalScaleNoticeOf('unresolved')?.message ?? '';
 
-  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỷ lệ", tổng diện tích là PROVISIONAL_MEASURE_TEXT', async () => {
+  it('tầng unresolved: dải chú ý + "Đặt tỷ lệ", tổng diện tích là PROVISIONAL_MEASURE_TEXT', async () => {
     renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('partial')} {...ProvisionalScale.args} />);
 
     expect(await screen.findByText(NOTICE)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Đặt tỷ lệ' })).toBeInTheDocument();
     expect(screen.getAllByText(PROVISIONAL_MEASURE_TEXT).length).toBeGreaterThan(0);
   });
 
@@ -553,7 +553,7 @@ describe('dải tỷ lệ tạm (F-04x-2)', () => {
     await renderSettled('partial');
 
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỷ lệ' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Đặt tỷ lệ' })).not.toBeInTheDocument();
     expect(screen.queryByText(PROVISIONAL_MEASURE_TEXT)).not.toBeInTheDocument();
   });
 });
@@ -603,10 +603,11 @@ describe('[BUG-328] câu "Chưa dò được phòng nào" không đi cùng trạ
     expect(screen.queryByText(EMPTY_CANVAS)).not.toBeInTheDocument();
   });
 
-  it('trạng thái rỗng thật: canvas vẫn nói chưa dò được phòng nào', async () => {
+  it('trạng thái rỗng thật: chỉ bảng trái nói chưa có phòng, canvas không lặp lại', async () => {
     renderState('empty');
 
-    expect(await screen.findByText(EMPTY_CANVAS)).toBeInTheDocument();
+    expect(await screen.findByText(/^Chưa dò ra phòng nào ở tầng này/u)).toBeInTheDocument();
+    expect(screen.queryByText(EMPTY_CANVAS)).not.toBeInTheDocument();
   });
 });
 
@@ -786,12 +787,13 @@ describe('P04 cụm C — thanh tra phòng chỉ mời việc làm được (SCR
     expect(screen.getAllByText(/Nhờ người quản trị dự án đổi vai/u)).toHaveLength(1);
   });
 
-  it('[BUG-626] vòng tường hở kê mã tường hiển thị, id thô chỉ ở title', async () => {
+  it('[BUG-626] vòng tường hở: dòng khe ghi "Khe N mm", mã tường chỉ nằm ở aria-label', async () => {
     await renderSettled('partial');
-    const codes = screen.getAllByText(/^#W-\d{3}$/u);
+    const rows = screen.getAllByRole('button', { name: /^Khe .*#W-[0-9]{3}.*nối ở lớp tường$/u });
 
-    expect(codes.length).toBeGreaterThan(0);
-    expect(codes[0]).toHaveAttribute('title');
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows[0]).toHaveTextContent(/^Khe /u);
+    expect(rows[0]).not.toHaveTextContent(/#W-/u);
   });
 
   it('[BUG-602] phòng chưa tên: "Duyệt #R-…" tắt và nói vì sao', async () => {
@@ -843,7 +845,7 @@ describe('[20-D-007] tầng rỗng vì vòng hở vẫn có lối "Nối" sang l
     renderState('empty');
 
     const gapsSection = () => within(screen.getByRole('region', { name: 'Vòng tường hở' }));
-    await waitFor(() => expect(gapsSection().getAllByRole('button', { name: /^Nối / })[0]).toBeInTheDocument());
+    await waitFor(() => expect(gapsSection().getAllByRole('button', { name: /^Khe / })[0]).toBeInTheDocument());
     expect(screen.getAllByRole('button', { name: 'Kiểm tra lại vòng hở' })).toHaveLength(1);
   });
 
@@ -852,7 +854,7 @@ describe('[20-D-007] tầng rỗng vì vòng hở vẫn có lối "Nối" sang l
     renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('empty')} onNavigate={onNavigate} />);
 
     const gapsSection = () => within(screen.getByRole('region', { name: 'Vòng tường hở' }));
-    const button = await waitFor(() => gapsSection().getAllByRole('button', { name: /^Nối / })[0] as HTMLElement);
+    const button = await waitFor(() => gapsSection().getAllByRole('button', { name: /^Khe / })[0] as HTMLElement);
     fireEvent.click(button);
 
     expect(onNavigate).toHaveBeenCalledWith(expect.stringMatching(/\/walls\?wall=.+/u));
@@ -863,7 +865,7 @@ describe('[20-D-007] tầng rỗng vì vòng hở vẫn có lối "Nối" sang l
     renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('empty')} roles={viewerRoles} />);
 
     const gapsSection = () => within(screen.getByRole('region', { name: 'Vòng tường hở' }));
-    await waitFor(() => expect(gapsSection().getAllByRole('button', { name: /^Nối / })[0]).toBeInTheDocument());
+    await waitFor(() => expect(gapsSection().getAllByRole('button', { name: /^Khe / })[0]).toBeInTheDocument());
   });
 });
 

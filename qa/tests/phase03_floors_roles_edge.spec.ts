@@ -159,7 +159,7 @@ test.describe('SCR-09 floors — roles', () => {
       // QA-03e (BUG-522): error is checked first, so a viewer gets the not-found alert + "Về danh sách dự án" (FloorTable.tsx:202-213).
       await test.step('[09-D-013] viewer opens an unknown project → "Không tìm thấy dự án này" + "Về danh sách dự án"', async () => {
         await page.goto(ROUTES.project.floors(unknownProjectId()));
-        await expect(page.getByRole('heading', { name: 'Theo dõi từng tầng và làm tiếp tầng cần nhất', exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Duyệt từng tầng', exact: true })).toBeVisible();
         await page.waitForTimeout(1_500); // the 404 read settles
         await captureEvidence(page, 'E03_09-D-013_viewer_unknown_project.png');
         await expect.soft(page.getByText(NOT_FOUND_TITLE, { exact: true }), 'not-found for a viewer').toBeVisible();

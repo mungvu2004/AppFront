@@ -834,7 +834,7 @@ describe('ProcessingScreen — khổ hẹp (BUG-294)', () => {
     }
     // No fixed overlay left to cover "Duyệt lớp tường" (BUG-285 at 768/375).
     expect(container.querySelector('.fixed')).toBeNull();
-    expect(screen.getByRole('button', { name: /Hiệu chỉnh tỷ lệ|Sang Kiểm tra tầng/u })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Đặt tỷ lệ|Sang Duyệt tầng/u }).length).toBeGreaterThan(0);
   });
 });
 
@@ -861,7 +861,7 @@ describe('ProcessingScreen — tầng chưa có bản vẽ, lối chất lượn
     fireEvent.click(within(missing).getByRole('button', { name: 'Tải bản vẽ cho tầng này: Tầng 3' }));
     expect(onUploadDrawings).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra chất lượng ảnh đầu vào' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chất lượng ảnh' }));
     expect(onOpenQuality).toHaveBeenCalledTimes(1);
 
     const runs = screen.getByRole('region', { name: 'Các lượt xử lý gần đây' });
@@ -870,7 +870,7 @@ describe('ProcessingScreen — tầng chưa có bản vẽ, lối chất lượn
 });
 
 describe('ProcessingScreen — tỷ lệ là điều kiện chặn (quyết định chủ dự án, Z/S-10)', () => {
-  it('xong mà 0 chuỗi kích thước: nút chính là "Hiệu chỉnh tỷ lệ", không mời sang Kiểm tra tầng', () => {
+  it('xong mà 0 số kích thước: nút chính là "Đặt tỷ lệ", "Sang Duyệt tầng" chỉ là nút phụ', () => {
     const onCalibrateScale = vi.fn();
     const onReviewWalls = vi.fn();
     renderWithProviders(
@@ -878,7 +878,7 @@ describe('ProcessingScreen — tỷ lệ là điều kiện chặn (quyết đ�
         {...scenarioFor('success')}
         summary={{
           ...SAMPLE_SUMMARY,
-          metricLabels: ['81 tường', '95 đối tượng', '0 chuỗi kích thước', '2 phòng', '73,90 m²'],
+          metricLabels: ['81 tường', '95 đối tượng', '0 số kích thước', '2 phòng', '73,90 m²'],
           noDimensionSentence: 'Không đọc được chuỗi kích thước nào.',
           onCalibrateScale,
           onReviewWalls,
@@ -886,26 +886,25 @@ describe('ProcessingScreen — tỷ lệ là điều kiện chặn (quyết đ�
       />,
     );
 
-    expect(screen.queryByRole('button', { name: /Sang Kiểm tra tầng/u })).not.toBeInTheDocument();
-    expect(screen.getByText('Xong, thiếu tỷ lệ')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ' }));
+    expect(screen.getByRole('button', { name: /Sang Duyệt tầng/u })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt tỷ lệ' }));
     expect(onCalibrateScale).toHaveBeenCalledTimes(1);
     expect(onReviewWalls).not.toHaveBeenCalled();
   });
 
-  it('xong và có chuỗi kích thước: nút chính là "Sang Kiểm tra tầng"', () => {
+  it('xong và có chuỗi kích thước: nút chính là "Sang Duyệt tầng"', () => {
     const onReviewWalls = vi.fn();
     renderWithProviders(<ProcessingScreen {...scenarioFor('success')} summary={{ ...SAMPLE_SUMMARY, onReviewWalls }} />);
 
-    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỷ lệ' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Sang Kiểm tra tầng/u }));
+    expect(screen.queryByRole('button', { name: 'Đặt tỷ lệ' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Sang Duyệt tầng/u }));
     expect(onReviewWalls).toHaveBeenCalledTimes(1);
   });
 
   it('đang chạy: không có nút chính, chỉ câu chờ', () => {
     renderWithProviders(<ProcessingScreen {...scenarioFor('partial')} />);
 
-    expect(screen.queryByRole('button', { name: /Sang Kiểm tra tầng|Hiệu chỉnh tỷ lệ/u })).not.toBeInTheDocument();
-    expect(screen.getByText('Khi AI xong, nút sang Kiểm tra tầng hiện ở đây.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Sang Duyệt tầng|Đặt tỷ lệ/u })).not.toBeInTheDocument();
+    expect(screen.getByText('Khi AI xong, nút sang Duyệt tầng hiện ở đây.')).toBeInTheDocument();
   });
 });

@@ -131,7 +131,7 @@ test('SCR-10 · FL-10-12 · engineer member uploads a drawing', async ({ browser
   test.setTimeout(150_000);
   await asMember(browser, '10-d-008', 'engineer', true, async ({ project }, _user, { page }) => {
     const floor = floorAt(project, 0);
-    await test.step('[10-D-008] ban-ve.png → Tầng 1: init → chunks → complete → "Đã gắn kèm"', async () => {
+    await test.step('[10-D-008] ban-ve.png → Tầng 1: init → chunks → complete → "Đã có bản vẽ"', async () => {
       await openUpload(page, project.projectId, floorIds(project));
       const init = page.waitForResponse((r) => r.request().method() === 'POST' && initRe(project.projectId).test(pathname(r.request())));
       const complete = page.waitForResponse((r) => r.request().method() === 'POST' && /\/drawings\/uploads\/[^/]+\/complete$/u.test(pathname(r.request())), { timeout: 60_000 });

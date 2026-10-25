@@ -63,7 +63,7 @@ test.describe('E04 journeys — UI verification flow (QA-04c P1)', () => {
           await openWalls(p, onFloor.projectId, onFloor.floorId, { tour: false });
           await dismissTour(p, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
           await expect(banner(p)).toBeVisible();
-          await expect(p.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ', exact: true })).toBeVisible();
+          await expect(p.getByRole('button', { name: 'Đặt tỷ lệ', exact: true })).toBeVisible();
         });
       });
 
@@ -91,7 +91,7 @@ test.describe('E04 journeys — UI verification flow (QA-04c P1)', () => {
       await test.step('[20-F-009] Provisional scale banner on SCR-20', async () => {
         await verifyUi(page, uiName('20-F-009', 'provisional-rooms'), async (p) => {
           await p.goto(ROUTES.project.rooms(onFloor.projectId, onFloor.floorId));
-          await expect(p.getByLabel('Duyệt tên phòng', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+          await expect(p.getByLabel('Duyệt phòng', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
           await expect(banner(p)).toBeVisible();
         });
       });
@@ -100,7 +100,7 @@ test.describe('E04 journeys — UI verification flow (QA-04c P1)', () => {
         const reached: string[] = [];
         await verifyUi(page, uiName('20-F-016', 'room-inspector-crop'), async (p) => {
           await p.goto(ROUTES.project.rooms(onFloor.projectId, onFloor.floorId));
-          await expect(p.getByLabel('Duyệt tên phòng', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+          await expect(p.getByLabel('Duyệt phòng', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
           const rooms = p.getByRole('listbox', { name: 'Danh sách phòng', exact: true }).getByRole('option');
           // UNKNOWN — NEED VERIFICATION: whether the fake-ML layer of D1 has a room; without one there is no inspector to show.
           await expect(rooms.first(), 'D1 holds at least one room to inspect').toBeVisible({ timeout: 10_000 });
@@ -113,7 +113,7 @@ test.describe('E04 journeys — UI verification flow (QA-04c P1)', () => {
       await test.step('[21-F-012] Provisional banner on SCR-21', async () => {
         await verifyUi(page, uiName('21-F-012', 'provisional-thickness'), async (p) => {
           await p.goto(ROUTES.project.thickness(onFloor.projectId, onFloor.floorId));
-          await expect(p.getByLabel('Chuẩn hoá độ dày tường', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+          await expect(p.getByLabel('Độ dày tường', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
           await expect(banner(p)).toBeVisible();
         });
       });

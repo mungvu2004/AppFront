@@ -82,7 +82,7 @@ export interface RoomLabelInspectorViewProps {
 
 const PANEL_TITLE = 'Phòng';
 const USAGE_LABEL = 'Công năng';
-const EMPTY_MESSAGE = 'Chọn một phòng trên bản vẽ hoặc trong danh sách để xem chi tiết.';
+const EMPTY_MESSAGE = 'Chọn một phòng để xem chi tiết.';
 const APPROVE_PREFIX = 'Duyệt';
 const APPROVED_BADGE = 'Đã duyệt';
 const MERGE_LABEL = 'Gộp phòng';

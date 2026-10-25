@@ -190,7 +190,7 @@ export function buildPreflightWithViolations(): readonly PreflightRow[] {
     { id: 'approval', label: APPROVAL_OK_LABEL, tone: 'ok', fixHref: null },
     {
       id: 'violations',
-      label: `Còn ${wholeNumber(SAMPLE_VIOLATION_COUNT)} phát hiện ở ${wholeNumber(SAMPLE_RULE_COUNT)} luật chưa xử lý.`,
+      label: `Quy chuẩn: còn ${wholeNumber(SAMPLE_RULE_COUNT)} luật nghiêm trọng.`,
       tone: 'attention',
       fixHref: ROUTES.project.rules(SAMPLE_PROJECT_ID),
     },

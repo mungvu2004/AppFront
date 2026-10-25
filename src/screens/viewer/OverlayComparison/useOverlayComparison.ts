@@ -109,7 +109,7 @@ const KEY_ZOOM_STEP = 1.25;
 const KEY_PAN_STEP_PX = 40;
 
 const COPY = {
-  confirmButton: 'Xác nhận khớp bản vẽ',
+  confirmButton: 'Khớp rồi, xác nhận',
   confirmedWithinTolerance:
     'Mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.',
   confirmedWithDeviations:

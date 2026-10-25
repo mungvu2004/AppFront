@@ -99,7 +99,7 @@ test('B-V1-43: mở dự án không có ở /3d thì trang 3D có câu và lối
   await page.unrouteAll();
   await page.getByRole('link', { name: 'Về dự án', exact: true }).click();
 
-  await expect(page.getByRole('heading', { name: 'Theo dõi từng tầng và làm tiếp tầng cần nhất', exact: true })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Duyệt từng tầng', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   expect(pathOf(page.url())).toBe(ROUTES.project.floors('project-missing'));

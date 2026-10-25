@@ -105,7 +105,7 @@ export function DimensionOcrKeyboardMode({
       phương án dự phòng.
     */
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         {/* BUG-325: `Button` — vùng chạm 44 px dưới 640 px, không phải chữ 24 px. */}
         <Button className="shrink-0" onClick={onToggle} size="sm" type="button" variant="ghost">
           {DIMENSION_OCR_TEXT.keyboard.toggleOnLabel}

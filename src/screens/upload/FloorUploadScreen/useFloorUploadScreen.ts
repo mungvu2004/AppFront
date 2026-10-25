@@ -124,7 +124,7 @@ const COPY = Object.freeze({
 const STATUS_LABELS: Readonly<Record<FloorUploadStatus, string>> = {
   waiting: 'Chờ xử lý',
   uploading: 'Đang tải lên',
-  attached: 'Đã gắn kèm',
+  attached: 'Đã có bản vẽ',
   error: 'Lỗi',
 };
 

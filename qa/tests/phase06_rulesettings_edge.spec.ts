@@ -99,7 +99,7 @@ const rulesIn = (card: Locator): Locator => card.getByRole('switch', { name: /^B
 async function openRules(page: Page, projectId: string): Promise<void> {
   await navigateThenWaitForApi(page, () => page.goto(ROUTES.project.rules(projectId), { waitUntil: 'commit' }), 'GET', spatialRe(projectId), [200]);
   await expect(page.getByRole('heading', { name: 'Kiểm tra quy chuẩn', level: 1 })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Chạy kiểm tra lại', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Kiểm tra lại', exact: true })).toBeEnabled();
 }
 
 test.describe('SCR-29 Rule Settings · edge (real stack)', () => {

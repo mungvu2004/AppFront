@@ -35,32 +35,33 @@ export function InputQualityGateFooter({ actions, footer, summary }: InputQualit
   const disabledReason = footer.continueDisabledReason ?? null;
   const isDisabled = disabledReason !== null;
   const note = disabledReason ?? summary.consent;
+  const warns = summary.consent !== null;
 
   return (
-    <footer aria-label="Hành động tiếp theo" className="flex flex-col gap-3 border-t border-border-default p-5">
+    // Đứng ở đầu trang (PageHead `next`). Ảnh kém (có câu đồng ý): nút chính là "Tải ảnh nét hơn",
+    // "Vẫn xử lý" là nút phụ; ảnh đạt: nút chính là "Bắt đầu xử lý".
+    <footer aria-label="Hành động tiếp theo" className="flex flex-wrap items-start justify-end gap-2">
+      <div className="flex max-w-[260px] flex-col items-end gap-1.5">
+        <Button
+          {...(note !== null ? { 'aria-describedby': CONTINUE_NOTE_ID } : {})}
+          {...(isDisabled ? { 'aria-disabled': true } : {})}
+          iconAfter={<ArrowRight aria-hidden="true" />}
+          onClick={isDisabled ? undefined : actions.onContinue}
+          variant={warns ? 'secondary' : 'primary'}
+        >
+          {summary.primaryLabel}
+        </Button>
+        {note !== null && (
+          <p className="flex items-start gap-1.5 text-[13px] text-text-secondary" id={CONTINUE_NOTE_ID}>
+            <TriangleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-state-attention-text" />
+            <span>{note}</span>
+          </p>
+        )}
+      </div>
       <Button
-        {...(note !== null ? { 'aria-describedby': CONTINUE_NOTE_ID } : {})}
-        {...(isDisabled ? { 'aria-disabled': true } : {})}
-        className="w-full"
-        iconAfter={<ArrowRight aria-hidden="true" />}
-        onClick={isDisabled ? undefined : actions.onContinue}
-        variant="primary"
-      >
-        {summary.primaryLabel}
-      </Button>
-
-      {note !== null && (
-        <p className="flex items-start gap-2 text-[13px] text-text-secondary" id={CONTINUE_NOTE_ID}>
-          <TriangleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-state-attention-text" />
-          <span>{note}</span>
-        </p>
-      )}
-
-      <Button
-        className="w-full"
         iconBefore={<Upload aria-hidden="true" />}
         onClick={actions.onUploadAnother}
-        variant="secondary"
+        variant={warns ? 'primary' : 'secondary'}
       >
         {summary.secondaryLabel}
       </Button>

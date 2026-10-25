@@ -13,7 +13,9 @@ import { Table } from '@/components/ui/Table';
 import { cn } from '@/lib/utils';
 
 import type { JobRowModel, TrainingJobsActions, TrainingJobsProps } from './types';
+import { TRAINING_JOBS_TEXT } from './useTrainingJobs';
 
+const NO_READY_DATASET = 'Chưa có bộ dữ liệu sẵn sàng để huấn luyện.';
 const TEXT = {
   retry: 'Thử lại',
   errorTitle: 'Không đọc được dữ liệu huấn luyện',
@@ -129,7 +131,11 @@ export function TrainingJobsTable({ actions, model }: TrainingJobsProps) {
         <div className="p-5">
           <EmptyState
             action={{ label: TEXT.toDatasets, onClick: () => actions.onSelectTab('datasets'), variant: 'secondary' }}
-            description={model.emptyMessage} icon={<History aria-hidden="true" />} title={TEXT.emptyTitle} />
+            description={
+              model.createDisabledReason !== null && model.emptyMessage === TRAINING_JOBS_TEXT.emptyJobs
+                ? NO_READY_DATASET
+                : model.emptyMessage
+            } icon={<History aria-hidden="true" />} title={TEXT.emptyTitle} />
         </div>
       ) : model.isCollapsed ? (
         <div className="p-5">

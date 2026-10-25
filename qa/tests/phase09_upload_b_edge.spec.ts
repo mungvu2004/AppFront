@@ -32,14 +32,14 @@ const NO_RUN = 'Chưa có lượt xử lý nào để kể lại';
 const APPLY_SCALE = 'Áp dụng tỷ lệ';
 const NEED_EDIT = 'Chỉ người có quyền sửa mới xác nhận được.';
 const USE_CAD = 'Dùng đường từ CAD';
-const USE_AI = 'Vẫn dùng AI';
+const USE_AI = 'Tiếp tục duyệt tường';
 const IMPORT_GEO = 'Nhập hình học';
 const TECH = 'Chi tiết kỹ thuật';
 const CONTINUE = /^(?:Xử lý dù ảnh mờ|Bắt đầu xử lý)$/u; // S-09
 const OTHER_DRAWING = /^(?:Tải ảnh nét hơn|Tải ảnh khác)$/u; // S-09
 const FAILED_ALERT = /không hoàn tất được/u; // failed-run alert of the pipeline screen
-const OVERLAY_REGION = 'Màn đối chiếu bản vẽ';
-const CONFIRM_MODEL = 'Xác nhận khớp bản vẽ';
+const OVERLAY_REGION = 'So với bản vẽ';
+const CONFIRM_MODEL = 'Khớp rồi, xác nhận';
 
 const ev = (page: Page, id: string, slug: string): Promise<unknown> => captureEvidence(page, `E09_${id}_${slug}.png`);
 const btn = (page: Page, name: string | RegExp) => page.getByRole('button', { name, exact: true });

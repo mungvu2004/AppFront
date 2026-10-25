@@ -12,7 +12,7 @@ describe('ProjectStepsCard', () => {
     const nav = screen.getByRole('navigation', { name: 'Các bước của dự án' });
     expect(nav.querySelectorAll('li')).toHaveLength(6);
     expect(nav.querySelector('[aria-current="step"]')?.textContent).toContain('Mô hình 3D');
-    expect(screen.getByRole('link', { name: 'Bước 3: Kiểm tra tầng' }).getAttribute('href')).toBe('/projects/p1/floors');
+    expect(screen.getByRole('link', { name: 'Bước 3: Duyệt tầng' }).getAttribute('href')).toBe('/projects/p1/floors');
     const next = screen.getByRole('link', { name: 'Sang Quy chuẩn' });
     expect(next.getAttribute('href')).toBe('/projects/p1/rules');
     expect(next.className).toContain('bg-[var(--pa-accent)]');

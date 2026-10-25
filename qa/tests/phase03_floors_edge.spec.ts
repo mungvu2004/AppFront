@@ -55,7 +55,7 @@ import {
 
 /* ---------------------------------------------------------------- copy (each cites its source) */
 
-const SCREEN = 'Theo dõi từng tầng và làm tiếp tầng cần nhất'; // FM:70
+const SCREEN = 'Duyệt từng tầng'; // FM:70
 const SECTION = 'Lát cắt các tầng theo đúng tỷ lệ chiều cao'; // FSC:43
 const SCALE = 'Thang cao độ'; // FSC:47
 const COLLAPSE = 'Thu gọn lát cắt'; // FSC:45

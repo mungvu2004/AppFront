@@ -584,7 +584,7 @@ export async function findingsTotal(flow: ExportFlow, projectId: string): Promis
   try {
     await page.goto(ROUTES.project.rules(projectId));
     await expect(page.getByRole('heading', { name: 'Kiểm tra quy chuẩn', level: 1 })).toBeVisible(); // RRV:287
-    await expect(page.getByRole('button', { name: 'Chạy kiểm tra lại', exact: true })).toBeEnabled(); // RRV:305
+    await expect(page.getByRole('button', { name: 'Kiểm tra lại', exact: true })).toBeEnabled(); // RRV:305
     const toggles = page.getByRole('heading', { level: 3 }).getByRole('button'); // RRG:90-108
     const count = await toggles.count();
     for (let i = 0; i < count; i += 1) {

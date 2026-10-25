@@ -519,7 +519,7 @@ function scaleProblemFor(value: number | null): string | null {
   if (value === null) return 'Chưa nhập tỉ lệ bản vẽ.';
   if (value < LIMITS.scaleMinMmPerPx || value > LIMITS.scaleMaxMmPerPx) {
     return (
-      `Tỉ lệ bản vẽ áp dụng từ ${formatNumber(LIMITS.scaleMinMmPerPx, { maxFractionDigits: 2 })} ` +
+      `Tỷ lệ bản vẽ áp dụng từ ${formatNumber(LIMITS.scaleMinMmPerPx, { maxFractionDigits: 2 })} ` +
       `đến ${formatNumber(LIMITS.scaleMaxMmPerPx)} milimét trên mỗi điểm ảnh.`
     );
   }

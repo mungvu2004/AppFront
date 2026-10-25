@@ -12,10 +12,12 @@ import { Button } from '@/components/ui/Button';
 import { Table } from '@/components/ui/Table';
 import { cn } from '@/lib/utils';
 
+import { MODEL_REGISTRY_TEXT } from './useModelRegistry';
 import type { ModelRegistryActions, VersionRowModel } from './types';
 
 const ACTIVATE_LABEL = 'Kích hoạt';
 const ACTIVE_BADGE = 'Đang dùng';
+const NOT_EVALUATED_REASON = MODEL_REGISTRY_TEXT.blockedNotEvaluated;
 const HEADERS = ['Nhãn', 'Định dạng', 'Đánh giá', 'Số đo', 'Nguồn', 'Ngày tạo'] as const;
 /** Dưới 1600px hai cột này nằm trong thẻ chi tiết, để nút Kích hoạt luôn thấy. */
 const WIDE_ONLY: ReadonlySet<string> = new Set([HEADERS[1], HEADERS[4]]);
@@ -56,7 +58,8 @@ function ActivateControl({ actions, row }: RowPartProps) {
         <Button aria-describedby={reasonId} disabled size="sm" variant="secondary">
           {ACTIVATE_LABEL}
         </Button>
-        <span className="text-[12px] text-text-secondary" id={reasonId}>
+        {/* "Chưa đánh giá" đã có một chú thích chung trên đầu trang; chỉ lý do khác mới ghi ở dòng. */}
+        <span className={row.activateBlockedReason === NOT_EVALUATED_REASON ? 'sr-only' : 'text-[12px] text-text-secondary'} id={reasonId}>
           {row.activateBlockedReason}
         </span>
       </div>

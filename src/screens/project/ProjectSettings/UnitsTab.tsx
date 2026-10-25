@@ -1,6 +1,6 @@
 /**
  * Thẻ "đơn vị đo": đơn vị chiều dài, đơn vị diện tích, dung sai bắt điểm,
- * ngưỡng tin cậy và tỉ lệ bản vẽ.
+ * ngưỡng tin cậy và tỷ lệ bản vẽ.
  *
  * View thuần (R-60). Mọi con số đọc được — "50 mm", "75%", "100 điểm ảnh ứng
  * với 250 mm" — do `useProjectSettings` dựng; ở đây chỉ có ô nhập và nhãn.
@@ -52,6 +52,13 @@ export function UnitsTab(props: UnitsTabProps) {
         <p className="text-[14px] text-text-primary">{props.areaUnitLabel}</p>
       </div>
 
+      <details
+        className="flex flex-col gap-4 rounded-md border border-border-default px-4 py-3"
+        open={Boolean(problems.snapToleranceMm || problems.confidenceThreshold || problems.scaleMmPerPx) || undefined}
+      >
+        <summary className="cursor-pointer text-[14px] font-medium text-text-secondary">Nâng cao</summary>
+        <p className="mt-2 text-[13px] text-text-secondary">Chỉ đổi khi máy đọc sai nhiều.</p>
+        <div className="mt-3 flex flex-col gap-4">
       {/* G3-10: không truyền min/max cho ô — ô tự chặn thì giá trị sai không tới hook, nên viên lưu vẫn
           "Đã lưu" và thẻ không có số lỗi. Hook kiểm khoảng (snap/confidence/scaleProblemFor) và chặn tự lưu. */}
       <NumericField
@@ -73,7 +80,7 @@ export function UnitsTab(props: UnitsTabProps) {
       />
 
       <NumericField
-        label="Tỉ lệ bản vẽ"
+        label="Tỷ lệ bản vẽ"
         value={props.scaleMmPerPx ?? undefined}
         onChange={props.setScaleMmPerPx}
         hint={props.scaleLabel}
@@ -81,6 +88,8 @@ export function UnitsTab(props: UnitsTabProps) {
         isReadOnly={isReadOnly}
       />
       <p className="text-[13px] text-text-secondary">{props.scalePreviewLabel}</p>
+        </div>
+      </details>
     </div>
   );
 }

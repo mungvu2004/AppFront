@@ -1797,16 +1797,16 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await ev(page, '16-E-001', 'region-names');
       });
 
-      await test.step('[16-B-014] Provisional scale: banner + "Hiệu chỉnh tỷ lệ"; the inspector length reads "Chưa có — tỷ lệ tạm"', async () => {
+      await test.step('[16-B-014] Provisional scale: banner + "Đặt tỷ lệ"; the inspector length reads "Chưa có — tỷ lệ tạm"', async () => {
         await expect.soft(page.getByText('Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.', { exact: true })).toBeVisible();
-        await expect.soft(page.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ', exact: true })).toBeVisible();
+        await expect.soft(page.getByRole('button', { name: 'Đặt tỷ lệ', exact: true })).toBeVisible();
         await wallRows(page).first().click();
         await expect.soft(inspector(page).getByText('Chưa có — tỷ lệ tạm', { exact: true })).toBeVisible();
         await ev(page, '16-B-014', 'provisional-banner');
       });
 
-      await test.step('[16-B-015] "Hiệu chỉnh tỷ lệ" opens the scale screen', async () => {
-        await page.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ', exact: true }).click();
+      await test.step('[16-B-015] "Đặt tỷ lệ" opens the scale screen', async () => {
+        await page.getByRole('button', { name: 'Đặt tỷ lệ', exact: true }).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.scale(d1.projectId, d1.floorId));
         await ev(page, '16-B-015', 'scale-screen');
       });

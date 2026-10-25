@@ -83,17 +83,17 @@ function statusOf(
   ratio: string | null,
   knownTone: 'verified' | 'attention' | null,
 ): ScaleCheckViewModel['status'] {
-  const withRatio = ratio === null ? `${densityLabel} mm/px` : `${densityLabel} mm/px ${ratio}`;
+  const withRatio = ratio ?? `${densityLabel} mm/px`;
 
   switch (input.source) {
     case 'proposed':
-      return { tone: 'neutral', label: 'Đang đo, chưa áp dụng', sentence: `Đo được ${withRatio}, bấm Áp dụng để dùng.` };
+      return { tone: 'neutral', label: 'Đang đo, chưa áp dụng', sentence: `Đo được tỷ lệ ${withRatio}, bấm Áp dụng để dùng.` };
     case 'stored':
       return knownTone === 'attention'
-        ? { tone: 'attention', label: 'Đã đặt, lệch kích thước', sentence: `Đang dùng ${withRatio}. Kiểm lại kích thước đã biết bên phải.` }
-        : { tone: 'verified', label: 'Đã đặt', sentence: `Đang dùng ${withRatio}.` };
+        ? { tone: 'attention', label: 'Đã đặt, lệch kích thước', sentence: `Đang dùng tỷ lệ ${withRatio}. Kiểm lại kích thước đã biết bên phải.` }
+        : { tone: 'verified', label: 'Đã đặt', sentence: `Đang dùng tỷ lệ ${withRatio}.` };
     case 'provisional':
-      return { tone: 'attention', label: 'Tỷ lệ tạm, chưa xác nhận', sentence: `Đang tạm dùng ${withRatio}. Đo 2 điểm để xác nhận.` };
+      return { tone: 'attention', label: 'Tỷ lệ tạm, chưa xác nhận', sentence: `Đang tạm dùng tỷ lệ ${withRatio}. Đo 2 điểm để xác nhận.` };
     default:
       return { tone: 'neutral', label: 'Chưa đặt tỷ lệ', sentence: 'Đo 2 điểm trên một kích thước đã biết rồi bấm Áp dụng.' };
   }
@@ -109,7 +109,7 @@ export function buildScaleCheck(input: ScaleCheckInput): ScaleCheckViewModel {
   const densityValue = hasScale ? density(mmPerPx) : null;
   const ratioLine =
     hasScale && hasEdge && dpiLabel !== null
-      ? `≈ ${formatDrawingScaleRatio(mmPerPx, shortEdgePx)} ở ${dpiLabel}`
+      ? `≈ ${formatDrawingScaleRatio(mmPerPx, shortEdgePx)}`
       : null;
 
   let knownCheck: ScaleCheckViewModel['knownCheck'] = null;

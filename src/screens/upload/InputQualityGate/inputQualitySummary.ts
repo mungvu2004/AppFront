@@ -72,9 +72,9 @@ export function summarizeQualityGate(model: SummaryInput): QualitySummary {
     chipText: 'Ảnh mờ, vẫn xử lý được',
     sentence: parts.filter((part) => part !== null).join(', '),
     sideTitle: 'AI sẽ đọc kém ở đâu',
-    primaryLabel: 'Xử lý dù ảnh mờ',
+    primaryLabel: 'Vẫn xử lý',
     secondaryLabel: 'Tải ảnh nét hơn',
     // ponytail: thời gian xử lý ước tính chưa có từ BE nên không in "khoảng N phút".
-    consent: 'Bấm là chấp nhận: có thể phải vẽ tay tường bị sót.',
+    consent: 'Vẫn xử lý: có thể phải vẽ tay tường bị sót.',
   };
 }

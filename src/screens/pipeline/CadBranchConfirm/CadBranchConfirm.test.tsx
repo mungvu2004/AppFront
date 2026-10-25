@@ -281,12 +281,11 @@ describe('CadBranchConfirm — bảy trạng thái (A11, R-63)', () => {
     expect(screen.getByRole('button', { name: SECONDARY_BUTTON_LABEL })).toBeEnabled();
   });
 
-  it('tầng không có CAD: không hộp thoại, PageHead + một khung hai lối ra, còn lối "Về duyệt lớp", không lặp cảnh báo', () => {
+  it('tầng không có CAD: không hộp thoại, thông báo chưa hỗ trợ .dwg và một nút chính, không lặp cảnh báo', () => {
     const base = branchHandoffScenario();
-    const onBackToLayerReview = vi.fn();
     renderWithProviders(
       <CadBranchConfirm
-        actions={{ ...base.actions, onBackToLayerReview }}
+        actions={base.actions}
         model={{
           ...base.model,
           state: 'empty',
@@ -301,12 +300,11 @@ describe('CadBranchConfirm — bảy trạng thái (A11, R-63)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Nhập tầng từ tệp CAD' })).toBeInTheDocument();
     // Trạng thái nằm ở chip của PageHead; hai lối ra trong MỘT khung, nút AI là nút chính.
     expect(screen.getByText('Chưa có tệp CAD')).toBeInTheDocument();
-    const exits = screen.getByRole('region', { name: 'Hai lối đi tiếp khi tầng chưa có tệp CAD' });
+    const exits = screen.getByRole('region', { name: 'Tầng chưa có tệp CAD' });
     expect(exits).toContainElement(screen.getByRole('button', { name: SECONDARY_BUTTON_LABEL }));
     expect(screen.queryByText(AI_HANDOFF_TITLE)).not.toBeInTheDocument();
     expect(screen.queryByText('Chưa có lớp')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Về duyệt lớp' }));
-    expect(onBackToLayerReview).toHaveBeenCalledTimes(1);
+    expect(exits).toHaveTextContent('Chưa hỗ trợ tệp CAD (.dwg)');
   });
 });
 
@@ -415,7 +413,7 @@ describe('CadBranchConfirm — hai giai đoạn trong một route [NGHIEM-2]', (
     expect(screen.getByLabelText(SCREEN_ARIA_LABEL)).toBeInTheDocument();
   });
 
-  it('nhánh AI luôn còn đường về: bấm "Vẫn dùng AI" điều hướng sang phần cài đặt AI', async () => {
+  it('nhánh AI luôn còn đường về: bấm "Tiếp tục duyệt tường" điều hướng sang phần cài đặt AI', async () => {
     const onNavigate = vi.fn();
 
     renderWiredScreen(onNavigate);
@@ -701,7 +699,7 @@ describe('CadBranchConfirm — tiêu điểm khi không có nút mở (BUG-559, 
     expect(screen.getByText(AI_HANDOFF_TITLE).closest('section')?.contains(document.activeElement)).toBe(true);
   });
 
-  it('nhánh CAD bị khoá: tiêu điểm ở nút Huỷ, không ở nút đổi nhánh "Vẫn dùng AI" (BUG-560)', async () => {
+  it('nhánh CAD bị khoá: tiêu điểm ở nút Huỷ, không ở nút đổi nhánh "Tiếp tục duyệt tường" (BUG-560)', async () => {
     const pending: { resolve: () => void } = { resolve: () => undefined };
     const base = createMockCadBranchConfirmGateway();
     const gateway = {

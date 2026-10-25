@@ -8,7 +8,7 @@ import { dismissTour } from '../fixtures/tour';
 import { QCB_FLOOR, QCB_PROJECT, seedQcb } from './seedQcb';
 
 /**
- * Nhóm V7 — `projectRooms` "Duyệt tên phòng" (`plan.md` V7 mục 1).
+ * Nhóm V7 — `projectRooms` "Duyệt phòng" (`plan.md` V7 mục 1).
  *
  * Hai loại bài, tên bài nói ra mình thuộc loại nào:
  * - **đường nạp thật** — KHÔNG bơm. Từ B-V6-01 (phần V7) màn đọc N16 khi kho rỗng; bộ
@@ -59,8 +59,8 @@ function nameField(page: Page) {
 
 async function open(page: Page, floorId: string = QCB_FLOOR.rooms): Promise<void> {
   await page.goto(ROUTES.project.rooms(QCB_PROJECT, floorId));
-  /* P14 (N2-08, G4a-29): bỏ tiêu đề hiện "Duyệt tên phòng"; tên ấy còn là nhãn vùng màn. */
-  await expect(page.getByRole('region', { name: 'Duyệt tên phòng', exact: true })).toBeVisible({
+  /* P14 (N2-08, G4a-29): bỏ tiêu đề hiện "Duyệt phòng"; tên ấy còn là nhãn vùng màn. */
+  await expect(page.getByRole('region', { name: 'Duyệt phòng', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 }
@@ -104,9 +104,9 @@ test('đường dẫn đầu màn không gõ cứng "Tầng 01": "Dự án › T
   await open(page);
 
   const breadcrumb = page.getByRole('navigation', { name: 'Đường dẫn trang', exact: true });
-  /* Mục đầu là tên dự án thật (AppLayout nhớ), chỉ rơi về "Dự án" khi chưa biết tên: đo cấu trúc ba mục. */
-  await expect(breadcrumb).toHaveText(/^.+›.+›Phòng$/u);
-  await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText('Phòng');
+  /* UX 26/10: breadcrumb là "Tầng ▾ › <tên màn>", không còn tên dự án: đo hai mục. */
+  await expect(breadcrumb).toHaveText(/^Tầng.*›Duyệt phòng$/u);
+  await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText('Duyệt phòng');
   await expect(breadcrumb).not.toContainText('Tầng 01');
 });
 
@@ -335,7 +335,7 @@ test('đường nạp thật: Ctrl+Z ngay sau lượt nạp không trả màn v�
 
   /* Ngoài ô nhập, để phím đi tới `global.undo` của vỏ (`router.tsx`). */
   /* Z/S-20: H1 đầu panel làm chỗ bấm ngoài ô nhập (dòng tiến độ của thanh lớp đã bỏ). */
-  await page.getByRole('heading', { level: 1, name: 'Duyệt tên phòng' }).click();
+  await page.getByRole('heading', { level: 1, name: 'Duyệt phòng' }).click();
   await page.keyboard.press('Control+z');
 
   await expect(roomOptions(page)).toHaveCount(A14_ROOMS.length);

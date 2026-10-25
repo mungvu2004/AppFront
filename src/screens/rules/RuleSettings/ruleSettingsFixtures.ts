@@ -29,7 +29,6 @@ import {
   MIN_WALL_THICKNESS_MM,
   RULE_GROUPS,
   RULE_GROUP_LABELS,
-  RULE_SEVERITY_LABELS,
   type Rule,
   type RuleCode,
 } from '@/domain/rules/registry';
@@ -177,7 +176,7 @@ function impactCaptionFor(mode: ImpactMode, count: number | null): string {
     return NO_MODEL_IMPACT_CAPTION;
   }
 
-  return `Đang ảnh hưởng ${formatNumber(count, { fractionDigits: 0 })} đối tượng`;
+  return count === 0 ? '' : `${formatNumber(count, { fractionDigits: 0 })} chỗ đang sai`;
 }
 
 interface RowOptions {
@@ -191,7 +190,7 @@ function toRow(rule: Rule, options: RowOptions): RuleSettingsRow {
   return {
     code: rule.code,
     sentence: rule.name,
-    description: `${RULE_GROUP_LABELS[rule.group]} · mức ${lowerFirst(RULE_SEVERITY_LABELS[rule.severity])}.`,
+    description: '',
     enabled: options.allDisabled ? false : DEFAULT_REGISTRY.isEnabled(rule.code),
     severity: rule.severity,
     thresholds: thresholdsFor(rule.code),

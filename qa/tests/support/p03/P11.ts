@@ -122,7 +122,7 @@ export async function cardOrder(page: Page): Promise<string[]> {
 
 export type UploadFile = string | { readonly name: string; readonly mimeType: string; readonly buffer: Buffer };
 
-/** Tray upload of `file` to `floor`; resolves with the #5 upload id once #7 answered 200 and the card says "Đã gắn kèm". */
+/** Tray upload of `file` to `floor`; resolves with the #5 upload id once #7 answered 200 and the card says "Đã có bản vẽ". */
 export async function uploadViaTray(
   page: Page,
   projectId: string,
@@ -136,7 +136,7 @@ export async function uploadViaTray(
   await page.getByRole('option', { name: floor.name, exact: true }).click();
   const { json } = await init;
   await complete;
-  await expect(card(page, floor.id).getByText('Đã gắn kèm', { exact: true })).toBeVisible(); // UFU:123
+  await expect(card(page, floor.id).getByText('Đã có bản vẽ', { exact: true })).toBeVisible(); // UFU:123
   const id = (json as Record<string, unknown> | null)?.id;
   if (typeof id !== 'string') throw new Error('upload init (#5) answered without an id');
   return id;
@@ -203,7 +203,7 @@ export async function screenState(page: Page, kind: ScreenKind): Promise<string>
       return settled(page, async () => `pipeline ${await done.first().innerText()} chips=${flat(await chipTexts(page))}`);
     }
     case 'graph': {
-      const h1 = page.getByRole('heading', { level: 1, name: 'Theo dõi bản vẽ đi qua nhánh xử lý nào', exact: true }); // S-12
+      const h1 = page.getByRole('heading', { level: 1, name: 'Bản vẽ được xử lý theo đường nào', exact: true }); // S-12
       await expect(h1).toBeVisible();
       const empty = page.getByText('Chưa có lượt xử lý nào để kể lại', { exact: true }); // PGT:208
       return settled(page, async () => `graph h1 empty=${String(await empty.isVisible())}`);

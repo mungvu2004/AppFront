@@ -84,7 +84,7 @@ test('có bơm kho: link "Sửa" của khối kiểm tra trước khi xuất đ�
 
   const preflight = page.getByRole('region', { name: 'Kiểm tra trước khi xuất' });
   // S-33: dòng nói theo luật ("Còn 181 phát hiện ở 7 luật chưa xử lý."), link "Sửa" mang câu ấy làm tên.
-  const fixViolations = preflight.getByRole('link', { name: /^Sửa.*phát hiện ở \d+ luật chưa xử lý/u });
+  const fixViolations = preflight.getByRole('link', { name: /^Sửa.*Quy chuẩn: còn \d+ luật nghiêm trọng/u });
 
   let reloads = 0;
   page.on('load', () => {

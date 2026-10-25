@@ -171,7 +171,7 @@ interface TriangleCountsProps {
  */
 function TriangleCounts({ declaredLabel, measuredLabel }: TriangleCountsProps) {
   return (
-    <section aria-label="Số tam giác" className="flex flex-col gap-2">
+    <section aria-label="Độ chi tiết (tam giác)" className="flex flex-col gap-2">
       <dl className="flex items-start gap-6">
         <div className="flex min-w-0 flex-col gap-1">
           <dt className="text-[12px] text-text-muted">Máy chủ khai</dt>

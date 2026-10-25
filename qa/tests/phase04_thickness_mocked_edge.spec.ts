@@ -23,7 +23,7 @@ import { closeFlow, openFlow, type Flow } from './support/p03/P5';
 import { errorBody, holdFirst } from './support/p03/P4';
 import { reseed, thkMix } from './support/p04/P4';
 
-const SCREEN = 'Chuẩn hoá độ dày tường';
+const SCREEN = 'Độ dày tường';
 const EMPTY_TITLE = 'Chưa có đoạn tường nào để chuẩn hoá';
 const RETRY_LADDER_MS = 60_000;
 

@@ -16,6 +16,8 @@ describe('PageHead', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Đổi thông tin tài khoản' })).toBeInTheDocument();
     expect(screen.getByText('Đã lưu 14:02')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Về danh sách dự án' })).toBeInTheDocument();
+    // Eyebrow không còn vẽ: vị trí đã có ở thanh bước.
+    expect(screen.queryByText('Tài khoản')).toBeNull();
   });
 });
 

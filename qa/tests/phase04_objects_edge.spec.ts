@@ -1912,14 +1912,14 @@ test('SCR-17 · FL-17-11 drawing floor: background image, provisional banner →
       await ev(page, '17-G-001', 'background_read');
     });
 
-    await test.step('[17-B-017] Provisional scale: banner "Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ." + "Hiệu chỉnh tỷ lệ"', async () => {
+    await test.step('[17-B-017] Provisional scale: banner "Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ." + "Đặt tỷ lệ"', async () => {
       await expect.soft(page.getByText('Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.', { exact: true })).toBeVisible();
-      await expect.soft(page.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ', exact: true })).toBeVisible();
+      await expect.soft(page.getByRole('button', { name: 'Đặt tỷ lệ', exact: true })).toBeVisible();
       await ev(page, '17-B-017', 'provisional_scale_banner');
     });
 
-    await test.step('[17-A-051] Provisional-scale banner "Hiệu chỉnh tỷ lệ" → scale route of this floor', async () => {
-      await page.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ', exact: true }).click();
+    await test.step('[17-A-051] Provisional-scale banner "Đặt tỷ lệ" → scale route of this floor', async () => {
+      await page.getByRole('button', { name: 'Đặt tỷ lệ', exact: true }).click();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.scale(pid, fid));
       await ev(page, '17-A-051', 'banner_to_scale');
     });

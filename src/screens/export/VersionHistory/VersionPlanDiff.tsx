@@ -19,7 +19,7 @@ const LEGEND_LABEL = 'Chú giải mặt bằng';
 const SAME_LABEL = 'Không đổi';
 const NO_PLAN_TEXT =
   'Chưa vẽ được mặt bằng vì một trong hai bản chưa có ảnh chụp. Danh sách thay đổi vẫn đủ.';
-const NO_PAIR_TEXT = 'Tích đủ hai phiên bản để xem mặt bằng chồng hai bản.';
+const NO_PAIR_TEXT = 'Chọn đủ hai phiên bản để xem mặt bằng chồng hai bản.';
 const EMPTY_PLAN_TEXT = 'Tầng này chưa có tường, phòng hay đồ đạc nào ở cả hai bản, nên không có gì để vẽ.';
 /** Chú giải đếm HÌNH trên mặt bằng; số +/−/~ phía trên đếm mọi mục thay đổi (QA-2 L7). */
 const SHAPE_UNIT = ' hình';

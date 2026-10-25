@@ -279,13 +279,20 @@ function actionLabelOf(status: TelemetryPipelineStatus, hasPlan: boolean): strin
   if (status === 'done') return 'Xem 3D';
   if (status === 'qc') return 'Duyệt tường';
   // Chưa có bản vẽ vẫn tới màn tiến trình (`routeForProject`), nên chưa hứa "Tải bản vẽ".
-  return hasPlan ? 'Xem tiến độ' : 'Mở dự án';
+  return hasPlan ? 'Xem tiến độ' : 'Tải bản vẽ';
+}
+
+function attentionRank(project: DashboardProject): number {
+  const status = derivedStatusOf(project);
+  if (status === 'qc') return 0;
+  return status === 'processing' && project.wallsTotalCount > 0 ? 1 : 2;
 }
 
 function routeForProject(project: DashboardProject, status: TelemetryPipelineStatus): string {
   switch (status) {
     case 'processing':
-      return ROUTES.project.pipeline(project.id);
+      // Chưa có bản vẽ thì việc cần làm là tải bản vẽ lên.
+      return project.wallsTotalCount > 0 ? ROUTES.project.pipeline(project.id) : ROUTES.project.upload(project.id);
     case 'qc':
       return project.defaultFloorId === undefined
         ? ROUTES.project.floors(project.id)
@@ -359,7 +366,10 @@ export function useProjectDashboard(
         return list.sort((a, b) => b.areaM2 - a.areaM2);
       case 'updated':
       default:
-        return list.sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+        // Việc cần làm (cần duyệt, đang xử lý) lên trước, rồi mới theo thời gian sửa.
+        return list.sort(
+          (a, b) => attentionRank(a) - attentionRank(b) || b.updatedAtMs - a.updatedAtMs,
+        );
     }
   }, [filteredProjects, sortBy]);
 

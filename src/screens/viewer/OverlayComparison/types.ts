@@ -570,6 +570,8 @@ export interface OverlayComparisonProps {
   readonly fixTargetOf?: (objectCode: string) => OverlayFixTarget | null;
   /** Bước sau khi tầng đã xác nhận khớp (nút của cổng). Vắng thì cổng không có nút đi tiếp. */
   readonly nextStep?: Readonly<{ label: string; href: string }>;
+  /** Cổng chung của tầng (`FloorReviewGate`), container dựng. Vắng thì không có cổng. */
+  readonly gate?: ReactNode;
 }
 
 /** Lớp duyệt để sửa một đối tượng lệch: tên lớp và đường dẫn tới lớp ấy của tầng. */
@@ -615,6 +617,8 @@ export interface OverlayComparisonPanelProps {
   readonly notice?: ReactNode;
   /** G4b-25: lối sang màn căn ảnh (Hiệu chỉnh tỷ lệ), hiện dưới câu "chưa có số đo". */
   readonly alignHref?: string;
+  /** Nút việc chính của màn (xác nhận khớp), đặt ngay dưới câu hướng dẫn. */
+  readonly action?: ReactNode;
 }
 
 /** Props của canvas đối chiếu, rộng toàn vùng còn lại. */

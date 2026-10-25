@@ -317,6 +317,7 @@ describe('ProjectSettingsView, bảy trạng thái', () => {
     render(<ProjectSettingsView {...PROPS_BY_STATE.error()} />);
 
     expect(screen.queryByText('Chưa có thay đổi')).toBeNull();
+    expect(screen.queryByText('Tự lưu khi bạn sửa')).toBeNull();
     expect(screen.queryByText(/^Trạng thái:/)).toBeNull();
   });
 
@@ -324,6 +325,7 @@ describe('ProjectSettingsView, bảy trạng thái', () => {
     render(<ProjectSettingsView {...PROPS_BY_STATE.success()} saveLabel="Chưa có thay đổi" />);
 
     expect(screen.getAllByText('Chưa có thay đổi')).toHaveLength(1);
+    expect(screen.getByText('Tự lưu khi bạn sửa')).toBeInTheDocument();
     expect(screen.queryByText(/^Trạng thái:/)).toBeNull();
   });
 

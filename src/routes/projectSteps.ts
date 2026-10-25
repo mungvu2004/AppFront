@@ -1,6 +1,6 @@
 /**
  * Sáu bước của một dự án, theo đúng thứ tự người dùng đi: tải bản vẽ → xử lý
- * → kiểm tra tầng → mô hình 3D → quy chuẩn → xuất. Header chung đọc bảng này để
+ * → duyệt tầng → mô hình 3D → quy chuẩn → xuất. Header chung đọc bảng này để
  * vẽ thanh bước và nút "Bước tiếp theo" ở mọi màn `/projects/:projectId/*`.
  *
  * Chỉ nhập `./paths` (file không nhập gì), nên không vòng nào đi qua đây.
@@ -18,30 +18,32 @@ export interface ProjectStep {
 export const PROJECT_STEPS: readonly ProjectStep[] = [
   { id: 'upload', label: 'Tải bản vẽ', path: ROUTES.project.upload, segments: ['upload'] },
   { id: 'pipeline', label: 'Xử lý', path: ROUTES.project.pipeline, segments: ['pipeline'] },
-  { id: 'floors', label: 'Kiểm tra tầng', path: ROUTES.project.floors, segments: ['floors'] },
+  { id: 'floors', label: 'Duyệt tầng', path: ROUTES.project.floors, segments: ['floors'] },
   { id: 'viewer', label: 'Mô hình 3D', path: ROUTES.project.viewer, segments: ['3d'] },
   { id: 'rules', label: 'Quy chuẩn', path: ROUTES.project.rules, segments: ['rules'] },
   { id: 'export', label: 'Xuất', path: ROUTES.project.export, segments: ['export'] },
 ];
 
 /**
- * Màn của dự án nằm ngoài sáu bước (lịch sử phiên bản, dữ liệu, sơ đồ xử lý,
- * chất lượng đầu vào, cài đặt): thanh bước không sáng ô nào. Đường nào không
+ * Màn của dự án nằm ngoài sáu bước (lịch sử phiên bản, dữ liệu, cài đặt):
+ * thanh bước không sáng ô nào. Màn phụ của một bước (chất lượng ảnh, sơ đồ xử lý,
+ * xác nhận CAD) sáng ô bước đó, xem {@link projectLocationOf}. Đường nào không
  * thuộc bước lẫn danh sách này là trang 404, header không vẽ thanh bước.
  */
-const OFF_STEP_SEGMENTS: readonly string[] = ['quality', 'versions', 'data', 'settings'];
+const OFF_STEP_SEGMENTS: readonly string[] = ['versions', 'data', 'settings'];
 
 /** Thứ tự duyệt các lớp của một tầng trong bước 3 (cùng thứ tự dải thẻ lớp trên màn). */
 export type FloorLayerKey = 'walls' | 'objects' | 'rooms' | 'dimensions' | 'grids' | 'thickness';
 
 /** Nguồn duy nhất cho tên và thứ tự lớp duyệt; `screens/qc/shared/qcLayers.ts` dựng thanh lớp từ đây. */
-export const FLOOR_LAYERS: readonly { readonly key: FloorLayerKey; readonly label: string; readonly path: (projectId: string, floorId: string) => string }[] = [
-  { key: 'walls', label: 'Tường', path: ROUTES.project.walls },
-  { key: 'objects', label: 'Cửa và nội thất', path: ROUTES.project.objects },
-  { key: 'rooms', label: 'Phòng', path: ROUTES.project.rooms },
-  { key: 'dimensions', label: 'Kích thước', path: ROUTES.project.dimensions },
-  { key: 'grids', label: 'Trục', path: ROUTES.project.grids },
-  { key: 'thickness', label: 'Độ dày tường', path: ROUTES.project.thickness },
+/** `title` = tên màn (tiêu đề tab, khớp H1 của màn). */
+export const FLOOR_LAYERS: readonly { readonly key: FloorLayerKey; readonly label: string; readonly title: string; readonly path: (projectId: string, floorId: string) => string }[] = [
+  { key: 'walls', label: 'Tường', title: 'Duyệt tường', path: ROUTES.project.walls },
+  { key: 'objects', label: 'Cửa và nội thất', title: 'Duyệt cửa và nội thất', path: ROUTES.project.objects },
+  { key: 'rooms', label: 'Phòng', title: 'Duyệt phòng', path: ROUTES.project.rooms },
+  { key: 'dimensions', label: 'Kích thước', title: 'Kích thước', path: ROUTES.project.dimensions },
+  { key: 'grids', label: 'Trục', title: 'Trục và gốc toạ độ', path: ROUTES.project.grids },
+  { key: 'thickness', label: 'Độ dày tường', title: 'Độ dày tường', path: ROUTES.project.thickness },
 ];
 const FLOOR_LAYER_SEGMENTS: readonly string[] = FLOOR_LAYERS.map((layer) => layer.key);
 
@@ -61,8 +63,10 @@ export function projectLocationOf(pathname: string): ProjectLocation | null {
   if (match?.[1] === undefined) return null;
   const projectId = decodeURIComponent(match[1]);
   const segment = match[2] ?? '';
-  // Sơ đồ xử lý mở từ nhiều nơi, không phải bước "Xử lý".
-  if (segment === 'pipeline' && match[3] === 'graph') return { projectId, stepIndex: -1 };
+  // Màn phụ sáng ô bước của nó: chất lượng ảnh → bước 1; xác nhận CAD → bước 2 (đi trước việc duyệt lớp).
+  // Không gắn floorId cho xác nhận CAD để ô bước 3 không nhớ màn này làm "màn duyệt tầng gần nhất".
+  if (segment === 'quality') return { projectId, stepIndex: 0 };
+  if (segment === 'floors' && match[4] === 'cad-confirm') return { projectId, stepIndex: 1 };
   const stepIndex = PROJECT_STEPS.findIndex((step) => step.segments.includes(segment));
   if (stepIndex === -1) return OFF_STEP_SEGMENTS.includes(segment) ? { projectId, stepIndex } : null;
   if (segment !== 'floors' || match[3] === undefined) return { projectId, stepIndex };
@@ -76,16 +80,22 @@ export type ProjectStepState = 'done' | 'attention' | 'todo';
 
 /**
  * Trạng thái sáu bước suy từ #24 (đã có ở header, không gọi thêm API). Chỉ khẳng định
- * điều dữ liệu cho biết chắc: có bản vẽ → bước 1 xong; dự án đã duyệt → bốn bước đầu xong;
- * xử lý lỗi hoặc đang chạy → bước 2 còn việc. Chưa biết thì để "chưa tới", không đoán "xong".
+ * điều dữ liệu cho biết chắc: có bản vẽ → bước 1 xong; có tầng đã xử lý (`areaM2`)
+ * → bước 2 xong; dự án đã duyệt → bốn bước đầu xong; xử lý lỗi hoặc đang chạy →
+ * bước 2 còn việc. Chưa biết thì để "chưa tới", không đoán "xong".
  */
-export function projectStepStates(input: { readonly status?: string | undefined; readonly hasDrawings?: boolean | undefined }): readonly ProjectStepState[] {
+export function projectStepStates(input: {
+  readonly status?: string | undefined;
+  readonly hasDrawings?: boolean | undefined;
+  /** Có tầng đã ra kết quả xử lý (#24 không gửi `progress`; `areaM2` của tầng chỉ có sau khi AI dựng xong). */
+  readonly hasProcessedFloor?: boolean | undefined;
+}): readonly ProjectStepState[] {
   const approved = input.status === 'approved';
   return PROJECT_STEPS.map((step): ProjectStepState => {
     if (step.id === 'upload') return input.hasDrawings === true ? 'done' : input.hasDrawings === false ? 'attention' : 'todo';
     if (step.id === 'pipeline') {
       if (input.status === 'error' || input.status === 'processing') return 'attention';
-      return approved ? 'done' : 'todo';
+      return approved || input.hasProcessedFloor === true ? 'done' : 'todo';
     }
     if (step.id === 'floors' || step.id === 'viewer') return approved ? 'done' : 'todo';
     return 'todo';
@@ -98,22 +108,22 @@ const OFF_STEP_TITLES: Readonly<Record<string, string>> = {
   versions: 'Lịch sử phiên bản',
   data: 'Dữ liệu dự án',
   settings: 'Cài đặt dự án',
-  graph: 'Sơ đồ xử lý',
 };
 
 /** Tên màn cho tiêu đề tab: lớp đang duyệt, màn phụ, hoặc tên bước; ngoài dự án → null. */
 export function projectScreenTitleOf(pathname: string): string | null {
   const location = projectLocationOf(pathname);
   if (location === null) return null;
-  if (location.stepIndex === -1) {
-    const segment = /\/pipeline\/graph/.test(pathname) ? 'graph' : (/^\/projects\/[^/]+\/([^/]+)/.exec(pathname)?.[1] ?? '');
-    return OFF_STEP_TITLES[segment] ?? null;
-  }
+  if (/\/pipeline\/graph\/?$/.test(pathname)) return 'Sơ đồ xử lý';
+  if (pathname.endsWith('/cad-confirm')) return 'Xác nhận tệp CAD';
+  const segment = /^\/projects\/[^/]+\/([^/]+)/.exec(pathname)?.[1] ?? '';
+  const offStepTitle = OFF_STEP_TITLES[segment];
+  if (offStepTitle !== undefined) return offStepTitle;
   const layer = location.layerIndex !== undefined && location.layerIndex >= 0 ? FLOOR_LAYERS[location.layerIndex] : undefined;
-  if (layer !== undefined) return `Duyệt lớp ${layer.label.toLowerCase()}`;
+  if (layer !== undefined) return layer.title;
   if (location.floorId !== undefined) {
-    if (pathname.endsWith('/scale')) return 'Hiệu chỉnh tỷ lệ';
-    if (pathname.endsWith('/overlay')) return 'Đối chiếu lớp phủ';
+    if (pathname.endsWith('/scale')) return 'Tỷ lệ bản vẽ';
+    if (pathname.endsWith('/overlay')) return 'So với bản vẽ';
   }
   return PROJECT_STEPS[location.stepIndex]?.label ?? null;
 }

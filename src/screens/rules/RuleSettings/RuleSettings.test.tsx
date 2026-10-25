@@ -432,7 +432,7 @@ describe('2.(b).4 — tắt toàn bộ luật thì câu cảnh báo hậu quả 
 });
 
 describe('2.(b).5 — mỗi dòng luật nói rõ số đối tượng đang bị ảnh hưởng', () => {
-  it('impactCaption của cả 25 dòng khớp mẫu "Đang ảnh hưởng N đối tượng" và hiện trong DOM', async () => {
+  it('impactCaption của cả 25 dòng là "N chỗ đang sai" (rỗng khi 0) và hiện trong DOM', async () => {
     const RuleSettingsView = await loadRuleSettingsView();
     const props = buildRuleSettingsProps({ status: 'ready' });
     const rows = props.model.groups.flatMap((group) => group.rows);
@@ -440,7 +440,7 @@ describe('2.(b).5 — mỗi dòng luật nói rõ số đối tượng đang b�
     expect(rows).toHaveLength(25);
 
     for (const row of rows) {
-      expect(row.impactCaption).toMatch(/^Đang ảnh hưởng [\d.]+ đối tượng$/);
+      expect(row.impactCaption).toMatch(/^([\d.]+ chỗ đang sai)?$/);
     }
 
     render(<RuleSettingsView {...props} />);
@@ -453,17 +453,17 @@ describe('2.(b).5 — mỗi dòng luật nói rõ số đối tượng đang b�
     // trường hợp vẽ thừa một dòng.
     let captionNodeCount = 0;
 
-    for (const row of rows) {
-      const found = screen.getAllByText(row.impactCaption);
+    const shown = rows.filter((row) => row.impactCaption !== '');
 
-      expect(found.length).toBeGreaterThan(0);
+    for (const row of shown) {
+      expect(screen.getAllByText(row.impactCaption).length).toBeGreaterThan(0);
     }
 
-    for (const caption of new Set(rows.map((row) => row.impactCaption))) {
+    for (const caption of new Set(shown.map((row) => row.impactCaption))) {
       captionNodeCount += screen.getAllByText(caption).length;
     }
 
-    expect(captionNodeCount, 'đúng 25 câu "Đang ảnh hưởng N đối tượng" trong DOM').toBe(25);
+    expect(captionNodeCount, 'mỗi dòng có số chỗ sai > 0 hiện đúng một câu').toBe(shown.length);
   });
 });
 

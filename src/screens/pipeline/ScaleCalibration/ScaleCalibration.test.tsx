@@ -87,6 +87,7 @@ import {
   type ScaleDrawingSnapshot,
   type ScaleRawDimensionString,
 } from './scaleCalibrationGateway';
+import { buildScaleCheck } from './scaleCheck';
 import { useScaleCalibration } from './useScaleCalibration';
 import type { ImageRatioPoint, ScaleCalibrationActions, UseScaleCalibrationResult } from './types';
 
@@ -118,6 +119,7 @@ const REFERENCE_WALL_WIDTH: Pixels = pixels(12);
 const REAL_LENGTH_LABEL = 'Chiều dài thật';
 const APPLY_LABEL = 'Áp dụng tỷ lệ';
 
+const NOTICE_REGION_LABEL = 'Trạng thái của màn hiệu chỉnh tỷ lệ';
 /** Nhãn thật của khung canvas — hằng chuỗi của `ScaleCalibrationCanvas.tsx`. */
 const CANVAS_ARIA_LABEL = 'Bản vẽ đã nắn, kéo để vẽ đường tham chiếu';
 
@@ -530,6 +532,26 @@ describe('ScaleCalibration — bảy trạng thái (A11, R-63)', () => {
     expect(rendered).toBe(7);
   });
 
+  it('trống nhưng tầng ĐÃ có tỷ lệ: không dựng khung vàng "Máy chưa đọc được"; chưa có tỷ lệ thì giữ', () => {
+    const empty = scenarioFor('empty');
+    const stored = {
+      ...empty,
+      model: {
+        ...empty.model,
+        panel: {
+          ...empty.model.panel,
+          scaleCheck: buildScaleCheck({ mmPerPx: 12, source: 'stored', shortEdgePx: 837, knownDimension: null }),
+        },
+      },
+    };
+    const { unmount } = renderWithProviders(<ScaleCalibration {...stored} />);
+    expect(screen.queryByRole('region', { name: NOTICE_REGION_LABEL })).not.toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<ScaleCalibration {...empty} />);
+    expect(screen.getByRole('region', { name: NOTICE_REGION_LABEL })).toBeInTheDocument();
+  });
+
   it('trạng thái không có quyền: nút áp dụng biến MẤT, không phải mờ đi', () => {
     renderWithProviders(<ScaleCalibration {...scenarioFor('forbidden')} />);
 
@@ -699,16 +721,14 @@ describe('ScaleCalibration — phép tính hiện đủ ba vế [NGHIEM-4]', () 
     expect(block).toHaveTextContent(computation.resultLabel);
   });
 
-  it('thiếu một vế thì vế thiếu vẫn có chỗ đứng, không biến mất', () => {
+  it('thiếu một vế thì không hiện phép tính rỗng', () => {
     const scenario = scenarioFor('partial');
 
     renderWithProviders(<ScaleCalibration {...scenario} />);
 
-    const block = screen.getByLabelText('Phép tính ra tỷ lệ');
-
+    // Thiếu vế: không dựng phép tính rỗng "… ÷ — = —"; chỉ hiện khi đủ số.
     expect(scenario.model.panel.computation.isComplete).toBe(false);
-    expect(block).toHaveTextContent(scenario.model.panel.computation.denominatorLabel);
-    expect(block).toHaveTextContent('—');
+    expect(screen.queryByLabelText('Phép tính ra tỷ lệ')).toBeNull();
   });
 });
 
@@ -725,9 +745,8 @@ describe('ScaleCalibration — kịch bản bốn bước [NGHIEM-2]', () => {
     /* Bước 1 — kéo một đoạn dài đúng 400 px. */
     await dragReferenceLine(mounted);
 
-    expect(screen.getByLabelText('Phép tính ra tỷ lệ')).toHaveTextContent(
-      `${formatNumber(REFERENCE_PIXEL_LENGTH)} px`,
-    );
+    // Chưa nhập chiều dài thật: chưa có phép tính (chỉ hiện khi đủ số).
+    expect(screen.queryByLabelText('Phép tính ra tỷ lệ')).toBeNull();
 
     /* Bước 2 — nhập 4800 mm, qua DOM thật. */
     typeRealLength(typedNumber(REFERENCE_REAL_LENGTH));
@@ -737,9 +756,10 @@ describe('ScaleCalibration — kịch bản bốn bước [NGHIEM-2]', () => {
 
     expect(computationBlock).toHaveTextContent(formatLength(REFERENCE_REAL_LENGTH, { unit: 'mm' }));
     expect(computationBlock).toHaveTextContent(`${formatNumber(REFERENCE_PIXEL_LENGTH)} px`);
-    expect(computationBlock).toHaveTextContent(
-      `${formatNumber(REFERENCE_SCALE.millimetresPerPixel)} mm/px`,
-    );
+    // mm/px chỉ còn trong tooltip của số tỷ lệ lớn (số lớn hiện "≈ 1:N").
+    expect(
+      screen.getAllByTitle(`${REFERENCE_SCALE.millimetresPerPixel} mm/px`)[0],
+    ).toBeInTheDocument();
 
     /* Bước 4a — áp tỷ lệ qua nút thật: PUT #35 trước, kho đổi khi máy chủ nhận (A7: không có nút lưu). */
     expect(storedRatio()).toBeUndefined();
@@ -1080,14 +1100,14 @@ describe('ScaleCalibration — QA-04c SCR-14', () => {
     const scenario = scenarioFor('success');
     renderWithProviders(<ScaleCalibration {...scenario} />);
 
-    expect(screen.getByRole('heading', { name: 'Đặt tỷ lệ bản vẽ' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Tỷ lệ bản vẽ' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Kiểm tra con số' })).toBeInTheDocument();
     const check = scenario.model.panel.scaleCheck;
     expect(check).toBeDefined();
     // Một nguồn: chip trái và khối số phải cùng đọc `scaleCheck`.
     expect(screen.getByText(check?.status.label ?? '')).toBeInTheDocument();
     expect(screen.getByText(check?.ratioLine ?? '')).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Đối chiếu nhanh: 1 px bằng bao nhiêu mm' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Đối chiếu nhanh: 1 px bằng bao nhiêu mm' })).toBeNull();
   });
 
   it('thu gọn bảng thì cột co lại, chỉ còn nút "Bung bảng" (BUG-609)', () => {

@@ -77,8 +77,8 @@ const PREVIEW = 'Xem trước bản vẽ đang xử lý'; // PPP:47
 const WAITING_IMAGE = 'Đang chờ ảnh xem trước…'; // PPP:50
 const EMPTY_TITLE = 'Chưa có bước nào để theo dõi'; // PR:80
 const SUMMARY = /^(?:Sẵn sàng kiểm tra tầng|Còn 1 việc: hiệu chỉnh tỷ lệ)$/u; // S-10: gate Section name (processingGate.ts title); the old "Báo cáo tổng kết" region is gone
-const REVIEW_WALLS = 'Sang Kiểm tra tầng'; // processingGate.ts GO_REVIEW_LABEL (was "Duyệt lớp tường")
-const CALIBRATE = 'Hiệu chỉnh tỷ lệ'; // ProcessingSummary.tsx:20
+const REVIEW_WALLS = 'Sang Duyệt tầng'; // processingGate.ts GO_REVIEW_LABEL (was "Duyệt lớp tường")
+const CALIBRATE = 'Đặt tỷ lệ'; // ProcessingSummary.tsx:20
 const BG_STARTED = 'Sẽ báo cho bạn khi xử lý xong'; // UPR:152
 const BG_STARTED_DESC = 'Xử lý vẫn chạy khi bạn rời màn này. Đóng thẻ trình duyệt thì không báo được nữa.'; // UPR:156-157
 const BG_DONE_DESC = 'Mở lại màn xử lý để xem kết quả.'; // UPR:158
@@ -1100,7 +1100,7 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
       const isLayer = (url: URL): boolean => url.pathname === layerPath;
       const settings500 = fail500(settingsPath);
 
-      await test.step('[12-C-021] #8 completed + N16 500 → gate with "Hiệu chỉnh tỷ lệ" as the primary (no "Sang Kiểm tra tầng"), no metrics (BUG-285)', async () => {
+      await test.step('[12-C-021] #8 completed + N16 500 → gate with "Đặt tỷ lệ" as the primary (no "Sang Duyệt tầng"), no metrics (BUG-285)', async () => {
         const u3 = fakeUploadId();
         runs.uploads = [uploadOf(project, 0, u3)];
         runs.progressOf.set(u3, ok(progress(u3, 'completed', 'qualityCheck', 100)));

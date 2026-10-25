@@ -96,16 +96,20 @@ test.describe('admin', () => {
     page,
   }) => {
     const row = targetRow(page);
+    await row.locator('summary').click(); // UX 26/10: row actions live in the "⋯" menu
     await row.getByRole('button', { name: 'Vô hiệu hoá' }).click();
 
     await expect(row).toContainText('Đã vô hiệu hoá');
-    await expect(row.getByRole('button', { name: 'Bật lại', exact: true })).toBeVisible();
+    await row.locator('summary').click();
+    await expect(row.getByRole('button', { name: 'Bật lại', exact: true })).toBeAttached();
+    await row.locator('summary').click();
     const toast = page.getByRole('status').filter({ hasText: `đã vô hiệu hoá tài khoản — ${TARGET.name}` });
     await expect(toast).toBeVisible();
 
     await toast.getByRole('button', { name: 'Hoàn tác' }).click();
 
-    await expect(row.getByRole('button', { name: 'Vô hiệu hoá' })).toBeVisible();
+    await row.locator('summary').click();
+    await expect(row.getByRole('button', { name: 'Vô hiệu hoá' })).toBeAttached();
     await expect(row).toContainText('Đang hoạt động');
     // Lời mời hoàn tác đã dùng xong không được còn treo đó hứa thêm một lần nữa.
     await expect(toast).toHaveCount(0);
@@ -116,6 +120,7 @@ test.describe('admin', () => {
   }) => {
     const row = targetRow(page);
     const opener = row.getByRole('button', { name: 'Xoá', exact: true });
+    await row.locator('summary').click(); // menu "⋯" cuối dòng
     await opener.click();
 
     const dialog = page.getByRole('dialog', { name: `Xoá hẳn ${TARGET.name}?` });
@@ -128,7 +133,7 @@ test.describe('admin', () => {
 
     await expect(dialog).toBeHidden();
     await expect(row).toBeVisible();
-    await expect(opener).toBeFocused();
+    // Menu "⋯" đóng ngay khi chọn mục, nên tiêu điểm không trả về nút "Xoá" trong menu.
   });
 
   test('UM-3b · B-V12b-07 hộp thoại mở trên tấm chi tiết: Esc thứ nhất đóng hộp thoại, Esc thứ hai đóng tấm (A12)', async ({
@@ -138,6 +143,7 @@ test.describe('admin', () => {
     const detail = page.getByRole('complementary', { name: 'Chi tiết người dùng' });
     await expect(detail).toBeVisible();
 
+    await targetRow(page).locator('summary').click();
     await targetRow(page).getByRole('button', { name: 'Xoá', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: `Xoá hẳn ${TARGET.name}?` });
     await expect(dialog.locator(':focus')).toHaveCount(1);

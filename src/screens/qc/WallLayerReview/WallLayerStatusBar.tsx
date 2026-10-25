@@ -38,18 +38,17 @@ export interface WallLayerStatusBarProps {
 
 /** Thanh phím: tối đa 3 phím việc lặp lại + "?" mở bảng mọi phím (NGUYEN-TAC §5, demo Z/S-15). */
 const KEY_HINTS: readonly { readonly key: string; readonly label: string; readonly edit: boolean }[] = [
-  { key: 'C', label: 'đổi chuẩn', edit: true },
   { key: 'A', label: 'duyệt', edit: true },
   { key: 'J', label: 'kế tiếp', edit: false },
 ];
-const ALL_KEYS_LABEL = 'mọi phím';
+const ALL_KEYS_LABEL = 'Phím tắt';
 const ALL_KEYS_TITLE = 'Bấm ? để xem mọi phím tắt: S để sau, F vừa khung, 1 2 3 đặt độ dày, K đoạn trước.';
 
 /** G4a-19: gợi ý kéo/phóng bản vẽ — khớp `wallLayerReview.statusBar.panHint`. */
 const PAN_HINT = 'Kéo nền hoặc giữ Space để di chuyển · lăn chuột để phóng';
 const SAVED_PREFIX = 'Đã lưu';
 
-export function WallLayerStatusBar({ cursorLabel, scaleLabel, saveLabel, saveFailed, onUndo, readOnly = false }: WallLayerStatusBarProps) {
+export function WallLayerStatusBar({ saveLabel, saveFailed, onUndo, readOnly = false }: WallLayerStatusBarProps) {
   return (
     /* Trạng thái lưu đã nằm ở đầu panel (QcPanelHead); thanh này chỉ nhắc lại khi lưu hỏng. */
     <QcStatusBar onUndo={onUndo} saveFailed={saveFailed} saveLabel={saveFailed ? saveLabel : false}>
@@ -57,8 +56,6 @@ export function WallLayerStatusBar({ cursorLabel, scaleLabel, saveLabel, saveFai
         Sans + tabular-nums, không mono: nhãn này cũng là câu ("Chưa rê chuột lên bản vẽ") — BUG-612.
         Dưới 640 chỉ giữ trạng thái lưu, hai mục kia không gãy thành nhiều dòng (BUG-324).
       */}
-      <span className="hidden min-w-0 truncate text-caption tabular-nums text-text-secondary sm:block">{cursorLabel}</span>
-      <span className="hidden min-w-0 truncate text-caption tabular-nums text-text-secondary sm:block">{scaleLabel}</span>
       <span className="hidden min-w-0 truncate text-caption text-text-secondary 2xl:block">{PAN_HINT}</span>
       <span aria-label="Phím tắt" className="ml-auto hidden shrink-0 items-center gap-3 text-caption text-text-secondary lg:flex" role="group">
         {KEY_HINTS.filter((hint) => !readOnly || !hint.edit).map((hint) => (

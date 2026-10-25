@@ -31,10 +31,8 @@ import { Link } from 'react-router-dom';
 
 import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import { InlineAlert, type InlineAlertLevel } from '@/components/feedback/InlineAlert';
-import { FlowGate } from '@/components/shell/FlowGate';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { Kbd } from '@/components/ui/Kbd';
 
 import { FloorLayerReadFailureScreen } from '../../qc/shared/FloorLayerReadFailureScreen';
@@ -46,11 +44,12 @@ import { OverlayComparisonToolbar } from './OverlayComparisonToolbar';
 import { overlayStatusOf, type OverlayStatus } from './overlayStatus';
 import type { OverlayComparisonActions, OverlayComparisonProps, OverlayComparisonState, OverlayComparisonViewModel } from './types';
 
-const SCREEN_ARIA_LABEL = 'Màn đối chiếu bản vẽ';
+const SCREEN_ARIA_LABEL = 'So với bản vẽ';
 const CANVAS_REGION_ARIA_LABEL = 'Khung đối chiếu bản vẽ gốc và mô hình';
 const NOTICE_REGION_ARIA_LABEL = 'Trạng thái của màn đối chiếu bản vẽ';
 
 const ERROR_LINK_LABEL = 'Sang màn hiệu chỉnh tỷ lệ';
+const SUBTITLE = 'Đặt mô hình máy dựng chồng lên bản vẽ gốc để xem có khớp không';
 const LEGEND_ARIA_LABEL = 'Chú giải nét';
 /** BUG-420: lối ra của tầng chưa có bản vẽ — cùng nhãn nút của màn Hiệu chỉnh tỷ lệ. */
 const UPLOAD_LINK_LABEL = 'Tải bản vẽ lên';
@@ -75,35 +74,19 @@ const NOTICE_LEVELS: Readonly<Partial<Record<OverlayComparisonState, InlineAlert
   forbidden: 'attention',
 };
 
-/** Nút của cổng: đúng MỘT nút, không nút chết (HOP-DONG-V6 câu 3). */
-function GateAction({
+/** Nút việc chính của màn, đặt ở bảng trái: xác nhận khớp, hoặc nhảy tới vùng lệch kế. */
+function BodyAction({
   status,
   model,
   actions,
-  nextStep,
 }: {
   readonly status: OverlayStatus;
   readonly model: OverlayComparisonViewModel;
   readonly actions: OverlayComparisonActions;
-  readonly nextStep: OverlayComparisonProps['nextStep'];
 }) {
   const { confirmation } = model;
 
-  if (confirmation.isConfirmed) {
-    return nextStep === undefined ? null : (
-      <Link className={getButtonStyles({ variant: 'primary', size: 'sm' })} to={nextStep.href}>
-        {nextStep.label}
-      </Link>
-    );
-  }
-  if (status.kind === 'noModel') return null;
-  if (status.kind === 'noDrawing') {
-    return model.uploadHref === null ? null : (
-      <Link className={getButtonStyles({ variant: 'secondary', size: 'sm' })} to={model.uploadHref}>
-        {UPLOAD_LINK_LABEL}
-      </Link>
-    );
-  }
+  if (confirmation.isConfirmed || status.kind === 'noModel' || status.kind === 'noDrawing') return null;
   if (status.kind === 'deviating') {
     const next = status.nextOverRow;
     return next === null ? null : (
@@ -122,16 +105,16 @@ function GateAction({
   }
   // Không có quyền thì nói vì sao thay cho một nút tắt (BUG-599).
   if (!confirmation.canConfirm && confirmation.disabledReason !== null) {
-    return <span className="whitespace-nowrap text-[13px] text-text-secondary">{confirmation.disabledReason}</span>;
+    return <span className="text-[13px] text-text-secondary">{confirmation.disabledReason}</span>;
   }
   return (
-    <Button disabled={!confirmation.canConfirm} onClick={() => actions.confirmMatch()} size="sm" variant="primary">
+    <Button disabled={!confirmation.canConfirm} onClick={() => actions.confirmMatch()} variant="primary">
       {confirmation.buttonLabel}
     </Button>
   );
 }
 
-export function OverlayComparison({ actions, alignHref, model, nav, fixTargetOf, nextStep }: OverlayComparisonProps) {
+export function OverlayComparison({ actions, alignHref, model, nav, fixTargetOf, gate }: OverlayComparisonProps) {
   const canEdit = model.role !== null && model.role !== 'viewer';
   const isStacked = model.state === 'collapsed';
   const isError = model.state === 'error';
@@ -197,9 +180,10 @@ export function OverlayComparison({ actions, alignHref, model, nav, fixTargetOf,
           )}
         </>
       }
-      title="Đối chiếu bản vẽ với mô hình"
+      title="So với bản vẽ"
     />
   );
+  const subtitle = <p className="px-4 pt-3 text-body-sm text-text-secondary">{SUBTITLE}</p>;
 
   return (
     <div
@@ -209,14 +193,13 @@ export function OverlayComparison({ actions, alignHref, model, nav, fixTargetOf,
       role="region"
     >
       {nav}
-      <FlowGate conditions={status.conditions} done={status.doneCount} progressLabel="Điều kiện đối chiếu" total={status.conditions.length}>
-        <GateAction actions={actions} model={model} nextStep={nextStep} status={status} />
-      </FlowGate>
+      {gate}
       {/* Dưới 1024 panel trái lên trên canvas (cao ≤ 40 %); panel phải là ngăn kéo đè lên canvas. */}
       <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-x-clip lg:flex-row">
         <OverlayComparisonPanel
           canEdit={canEdit}
-          head={head}
+          action={<BodyAction actions={actions} model={model} status={status} />}
+          head={<>{head}{subtitle}</>}
           showUnmeasuredNotice={status.kind === 'unmeasured'}
           metrics={model.metrics}
           onSelectRegion={actions.selectRegion}

@@ -62,20 +62,19 @@
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { PageHead } from '@/components/shell/PageHead';
-import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 
 import { FloorNextTask } from './FloorNextTask';
-import { nextTaskOf, stackSummaryText } from './floorProgress';
+import { nextTaskOf } from './floorProgress';
 import { FloorSectionCut } from './FloorSectionCut';
 import { FloorTable } from './FloorTable';
 import type { FloorManagerViewProps } from './floorManagerTypes';
 
-const SCREEN_TITLE = 'Quản lý tầng';
+const SCREEN_TITLE = 'Duyệt tầng';
 /** Cùng component, cùng dấu "›" với màn tải bản vẽ và cổng chất lượng (BUG-079). */
 const BREADCRUMB_PROJECTS = 'Dự án';
 /* H1 bắt đầu bằng động từ (NGUYEN-TAC-BO-CUC §1, bản Z). */
-const PAGE_TITLE = 'Theo dõi từng tầng và làm tiếp tầng cần nhất';
+const PAGE_TITLE = 'Duyệt từng tầng';
 const PAGE_TITLE_EMPTY = 'Tạo các tầng cho dự án';
 const SECTION_CUT_BASE_PX = 120;
 const SECTION_CUT_PER_FLOOR_PX = 120;
@@ -104,9 +103,8 @@ export function FloorManager(props: FloorManagerViewProps) {
      lát cắt trống cạnh nó là nói về những tầng chưa đọc được (BUG-060). */
   const isLoadError = state === 'error';
   const nextTask = nextTaskOf(props.rows);
-  const summaryText = stackSummaryText(props.rows);
   const sectionCut =
-    isLoadError || isCollapsed ? null : (
+    isLoadError || isCollapsed || props.rows.length === 1 ? null : (
       <div
         className={cn('shrink-0 self-start', isCompact ? 'w-full' : 'w-[360px]')}
         // Khung cao theo số tầng, không kéo dài 400 px trống khi chỉ có một tầng (bản Z).
@@ -143,16 +141,6 @@ export function FloorManager(props: FloorManagerViewProps) {
         <PageHead
           className="mb-0"
           eyebrow={props.projectName ? `Dự án ${props.projectName} · ${SCREEN_TITLE}` : SCREEN_TITLE}
-          status={
-            nextTask === null || summaryText === null || isLoadError ? undefined : (
-              <>
-                <Badge variant={nextTask.doneCount === nextTask.totalCount ? 'verified' : 'attention'}>
-                  {nextTask.meterText}
-                </Badge>
-                <span>{summaryText}</span>
-              </>
-            )
-          }
           title={state === 'empty' ? PAGE_TITLE_EMPTY : PAGE_TITLE}
         />
         {nextTask === null || isLoadError || state === 'loading' ? null : (
@@ -211,7 +199,7 @@ export function FloorManager(props: FloorManagerViewProps) {
             isCompact || isCollapsed ? 'flex-col' : 'flex-row',
           )}
         >
-          {isLoadError || !isCollapsed ? null : (
+          {isLoadError || !isCollapsed || props.rows.length === 1 ? null : (
             <button className={EXPAND_BUTTON_CLASS_NAME} onClick={onToggleCollapsed} type="button">
               {EXPAND_SECTION_LABEL}
             </button>

@@ -828,8 +828,8 @@ describe('useProcessingScreen', () => {
     ).length;
     expect(mounted.result.current.summary?.lowConfidenceSentence).toBe(
       low === 0
-        ? `Không có đối tượng nào có độ tin cậy dưới ${label}.`
-        : `Có ${String(low)} đối tượng có độ tin cậy dưới ${label} cần bạn xem lại.`,
+        ? `Không có chỗ nào máy chưa chắc (ngưỡng ${label}).`
+        : `${String(low)} chỗ máy chưa chắc, nên xem lại.`,
     );
 
     mounted.unmount();

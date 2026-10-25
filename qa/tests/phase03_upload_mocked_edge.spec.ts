@@ -224,7 +224,7 @@ test('SCR-10 · FL-10-17 · [mocked response] uploads in flight: four at once, p
 
     // QA-03e (BUG-532, FIX-2252): floorUploadGateway wraps every task's `start` in one createUploadScheduler
     // (MAX_PARALLEL_UPLOADS = 3), so the 4th init waits for a slot.
-    await test.step('[10-C-022] tang-1..tang-4.png auto-matched with inits held → 3 init POSTs in flight (cap 3); released → 4 "Đã gắn kèm"', async () => {
+    await test.step('[10-C-022] tang-1..tang-4.png auto-matched with inits held → 3 init POSTs in flight (cap 3); released → 4 "Đã có bản vẽ"', async () => {
       const hold = await holdRequests(page, isPost(initRe(pid)));
       try {
         await pickFiles(page, [1, 2, 3, 4].map((n) => png(`tang-${String(n)}.png`)));
@@ -338,7 +338,7 @@ test('SCR-10 · FL-10-17 · [mocked response] uploads in flight: four at once, p
       await removeViaMenu(page, f5.id, f5.name, small);
     });
 
-    await test.step('[10-C-024] ban-ve-dua.png → Tầng 5 with its init held, re-assigned to Tầng 1 at once, released → Tầng 1 ends "Đã gắn kèm"', async () => {
+    await test.step('[10-C-024] ban-ve-dua.png → Tầng 5 with its init held, re-assigned to Tầng 1 at once, released → Tầng 1 ends "Đã có bản vẽ"', async () => {
       const racy = 'ban-ve-dua.png';
       const holdInit = await holdRequests(page, isPost(initRe(pid)), 1);
       await pickFiles(page, [png(racy)]);
@@ -410,7 +410,7 @@ test('SCR-10 · FL-10-18 · [mocked response] init, chunk and complete failures 
       await removeViaMenu(page, f1.id, f1.name, 'loi-mang.png');
     });
 
-    await test.step('[10-A-022] init aborted again, unrouted, menu "Thử lại" → new init, chunks from 0 → "Đã gắn kèm"', async () => {
+    await test.step('[10-A-022] init aborted again, unrouted, menu "Thử lại" → new init, chunks from 0 → "Đã có bản vẽ"', async () => {
       await failOn('thu-lai.png', f1);
       await unroute();
       const mark = sent.length;
@@ -484,7 +484,7 @@ test('SCR-10 · FL-10-18 · [mocked response] init, chunk and complete failures 
       if (chunk503 === 1) await fulfillJson(route, 503, { code: 'SERVICE_UNAVAILABLE', requestId: 'qa-p06-mock' });
       else await route.fallback();
     });
-    await test.step('[10-B-025] first chunk 503 once → 2 POSTs for chunkIndex 0, no error, "Đã gắn kèm"', async () => {
+    await test.step('[10-B-025] first chunk 503 once → 2 POSTs for chunkIndex 0, no error, "Đã có bản vẽ"', async () => {
       const mark = sent.length;
       await pickFiles(page, [png('ban-ve-503.png')]);
       await assignFromTray(page, 'ban-ve-503.png', f2.name);
@@ -620,7 +620,7 @@ test('SCR-10 · FL-10-19 · [mocked response] offline: wait for the network, rem
         await captureEvidence(page, 'E03_10-A-044_offline_removed.png');
       });
 
-      await test.step('[10-A-043] Tầng 1 "Chờ xử lý" + await banner + queued command; online → "Đã gắn kèm", command gone', async () => {
+      await test.step('[10-A-043] Tầng 1 "Chờ xử lý" + await banner + queued command; online → "Đã có bản vẽ", command gone', async () => {
         const card1 = card(page, f1.id);
         await expect(badge(card1, UP.waiting)).toBeVisible();
         await expect(page.getByText(UP.awaitNetwork, { exact: true }).first()).toBeVisible();

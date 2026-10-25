@@ -84,7 +84,7 @@ export interface NotificationsSectionProps {
 }
 
 /** Câu đặt tên cho bảng, chỉ trình đọc màn hình nghe thấy. */
-const TABLE_CAPTION = 'Hàng là sự việc, cột là kênh nhận thông báo.';
+const TABLE_CAPTION = 'Chọn kênh nhận thông báo cho từng sự việc.';
 
 export function NotificationsSection({
   channels,

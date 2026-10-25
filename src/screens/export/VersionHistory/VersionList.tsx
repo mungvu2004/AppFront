@@ -9,7 +9,6 @@
  */
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
-import { Checkbox } from '@/components/ui/Checkbox';
 import { AnimatePresence, motion } from '@/components/motion';
 import { durationSeconds } from '@/lib/motion';
 import type { MouseEvent } from 'react';
@@ -24,7 +23,6 @@ import { SNAPSHOT_RETRY_LABEL } from './versionHistoryModel';
 
 export interface VersionListProps {
   readonly groups: readonly VersionGroupModel[];
-  readonly onToggleCompareSelection: (versionId: string) => void;
   /** Nạp lại N18 của một hàng hỏng tạm thời; vắng thì không có nút. */
   readonly onRetrySnapshot?: ((versionId: string) => void) | undefined;
 }
@@ -58,7 +56,7 @@ function VersionDiffDots({ row }: { row: VersionRowModel }) {
 
   return (
     <span
-      className="flex items-center gap-2 tabular-nums text-[13px] text-text-secondary"
+      className="flex flex-wrap items-center justify-end gap-x-2 tabular-nums text-[13px] text-text-secondary"
       aria-hidden="true"
     >
       {DIFF_DOT_TONES.map((tone) => (
@@ -76,11 +74,9 @@ function VersionDiffDots({ row }: { row: VersionRowModel }) {
 
 function VersionListRow({
   row,
-  onToggleCompareSelection,
   onRetrySnapshot,
 }: {
   readonly row: VersionRowModel;
-  readonly onToggleCompareSelection: (versionId: string) => void;
   readonly onRetrySnapshot?: ((versionId: string) => void) | undefined;
 }) {
   const retry = (event: MouseEvent<HTMLButtonElement>): void => {
@@ -99,12 +95,6 @@ function VersionListRow({
       transition={{ duration: durationSeconds('fast') }}
       className="flex min-h-12 items-center gap-3 border-b py-1.5 border-border-default px-3"
     >
-      <Checkbox
-        checked={row.isSelectedForCompare}
-        disabled={!row.isPickable}
-        onChange={() => onToggleCompareSelection(row.id)}
-        aria-label={`Chọn phiên bản ${row.label} để so sánh`}
-      />
       <Avatar
         {...(row.avatarUrl !== null ? { src: row.avatarUrl } : {})}
         initials={row.authorInitials}
@@ -152,7 +142,6 @@ function VersionListRow({
 
 export function VersionList({
   groups,
-  onToggleCompareSelection,
   onRetrySnapshot,
 }: VersionListProps) {
   const failures = groups
@@ -178,7 +167,6 @@ export function VersionList({
                 <VersionListRow
                   key={row.id}
                   row={row}
-                  onToggleCompareSelection={onToggleCompareSelection}
                   onRetrySnapshot={onRetrySnapshot}
                 />
               ))}

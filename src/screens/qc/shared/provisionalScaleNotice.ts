@@ -16,7 +16,7 @@ export interface ProvisionalScaleNotice {
 }
 
 /**
- * `null` khi tầng không ở tỷ lệ tạm; `onCalibrate` mở màn Hiệu chỉnh tỷ lệ của tầng.
+ * `null` khi tầng không ở tỷ lệ tạm; `onCalibrate` mở màn Tỷ lệ bản vẽ của tầng.
  * `canCalibrate` = false (người xem) thì bỏ nút.
  */
 export function useProvisionalScaleNotice(

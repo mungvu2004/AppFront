@@ -71,6 +71,7 @@ import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
+import { FloorReviewGate } from '../shared/FloorReviewGate.container';
 import { QcFloorNav } from '../shared/QcFloorNav';
 
 import { AxisGridManager } from './AxisGridManager';
@@ -113,6 +114,8 @@ export interface AxisGridManagerContainerProps {
   readonly onNavigate?: (path: string) => void;
   /** `QcFloorNav` dựng ở route (cần Router); vắng thì view giữ đầu màn cũ. */
   readonly floorNav?: ReactNode;
+  /** Cổng chung của tầng (`FloorReviewGate`), dựng ở route. */
+  readonly floorGate?: ReactNode;
   /** RV1-7: số tầng của dự án (`useProjectFloors` ở route) cho câu của công tắc bóng ma. */
   readonly projectFloorCount?: number;
 }
@@ -193,6 +196,7 @@ function WiredAxisGridManager(props: AxisGridManagerContainerProps) {
       provisionalScaleNotice={result.provisionalScaleNotice}
       background={result.background}
       floorNav={props.floorNav}
+      floorGate={props.floorGate}
       modelStepHref={ROUTES.project.viewer(props.projectId)}
       projectFloorCount={props.projectFloorCount}
       autoAlignBlockedReason={result.autoAlignBlockedReason}
@@ -241,6 +245,7 @@ function AxisGridManagerRouteBody({
   return (
     <AxisGridManagerContainer
       floorId={floorId}
+      floorGate={<FloorReviewGate floorId={floorId} projectId={projectId} />}
       floorNav={<QcFloorNav floorId={floorId} floors={floors} layer="grids" projectId={projectId} titled />}
       levelId={levelId}
       onNavigate={onNavigate}

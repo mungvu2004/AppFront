@@ -7,8 +7,9 @@ import { PROJECT_STEPS, projectLocationOf, projectScreenTitleOf, projectStepStat
 describe('projectLocationOf', () => {
   it.each([
     [ROUTES.project.upload('p1'), 0],
-    [ROUTES.project.quality('p1'), -1],
-    [ROUTES.project.pipelineGraph('p1'), -1],
+    [ROUTES.project.quality('p1'), 0],
+    [ROUTES.project.pipelineGraph('p1'), 1],
+    [ROUTES.project.cadConfirm('p1', 'f1'), 1],
     [ROUTES.project.floors('p1'), 2],
     [ROUTES.project.measure('p1'), 3],
     [ROUTES.project.ruleSettings('p1'), 4],
@@ -45,10 +46,16 @@ describe('projectLocationOf', () => {
     expect(projectStepStates({ hasDrawings: false, status: 'error' }).slice(0, 2)).toEqual(['attention', 'attention']);
     expect(projectStepStates({ hasDrawings: true, status: 'approved' })).toEqual(['done', 'done', 'done', 'done', 'todo', 'todo']);
     expect(projectStepStates({})).toEqual(['todo', 'todo', 'todo', 'todo', 'todo', 'todo']);
+    // Bước 2 xong khi lượt xử lý cuối đã xong, không đợi dự án duyệt.
+    expect(projectStepStates({ hasDrawings: true, status: 'draft', hasProcessedFloor: true }).slice(0, 3)).toEqual(['done', 'done', 'todo']);
   });
 
   it('tên màn cho tiêu đề tab', () => {
-    expect(projectScreenTitleOf(ROUTES.project.walls('p1', 'f1'))).toBe('Duyệt lớp tường');
+    expect(projectScreenTitleOf(ROUTES.project.walls('p1', 'f1'))).toBe('Duyệt tường');
+    expect(projectScreenTitleOf(ROUTES.project.grids('p1', 'f1'))).toBe('Trục và gốc toạ độ');
+    expect(projectScreenTitleOf(ROUTES.project.scale('p1', 'f1'))).toBe('Tỷ lệ bản vẽ');
+    expect(projectScreenTitleOf(ROUTES.project.overlay('p1', 'f1'))).toBe('So với bản vẽ');
+    expect(projectScreenTitleOf(ROUTES.project.quality('p1'))).toBe('Chất lượng ảnh đầu vào');
     expect(projectScreenTitleOf(ROUTES.project.settings('p1'))).toBe('Cài đặt dự án');
     expect(projectScreenTitleOf(ROUTES.project.pipelineGraph('p1'))).toBe('Sơ đồ xử lý');
     expect(projectScreenTitleOf(ROUTES.project.upload('p1'))).toBe('Tải bản vẽ');

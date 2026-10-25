@@ -11,7 +11,7 @@
  *
  * `PageHead` (eyebrow, H1 động từ + đối tượng, chip + câu trạng thái), rồi hai
  * khung. Trái: bản vẽ của tầng, tab "Bản vẽ" / "Nhật ký". Phải: sáu bước có kết
- * quả trên hàng và cổng "Để sang Kiểm tra tầng" cố định ở đáy khung. Chip, tiêu đề
+ * quả trên hàng và cổng "Để sang Duyệt tầng" cố định ở đáy khung. Chip, tiêu đề
  * khung, điều kiện và nút chính sinh từ MỘT hàm `deriveProcessingGate`.
  *
  * ## Bảy trạng thái (A11)
@@ -42,7 +42,6 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { PageHead } from '@/components/shell/PageHead';
 import { Section } from '@/components/shell/Section';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Tabs } from '@/components/ui/Tabs';
 
@@ -78,17 +77,12 @@ const SKELETON_ROW_COUNT = 4;
 const NO_DRAWING_ARIA_LABEL = 'Tầng chưa có bản vẽ';
 const NO_DRAWING_LABEL = 'chưa có bản vẽ';
 const UPLOAD_FLOOR_LABEL = 'Tải bản vẽ cho tầng này';
-const OPEN_QUALITY_LABEL = 'Kiểm tra chất lượng ảnh đầu vào';
+const OPEN_QUALITY_LABEL = 'Chất lượng ảnh';
 
 /** Nút chìm cạnh `.ph`: chạy nền, lối sang chất lượng ảnh, huỷ — luôn có mặt kể cả lúc tải. */
 function ProcessingHeadActions(props: ProcessingScreenProps) {
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {props.onOpenQuality !== undefined ? (
-        <Button onClick={props.onOpenQuality} size="sm" variant="ghost">
-          {OPEN_QUALITY_LABEL}
-        </Button>
-      ) : null}
       {props.canRunInBackground ? (
         <Button onClick={props.onRunInBackground} size="sm" variant="ghost">
           {RUN_IN_BACKGROUND_LABEL}
@@ -116,10 +110,17 @@ function ProcessingDrawingSection({
     >
       <Section
         actions={
-          <Tabs.List aria-label={TABS_ARIA_LABEL}>
-            <Tabs.Tab id="preview">{TAB_PREVIEW_LABEL}</Tabs.Tab>
-            <Tabs.Tab id="log">{TAB_LOG_LABEL}</Tabs.Tab>
-          </Tabs.List>
+          <div className="flex items-center gap-3">
+            <Tabs.List aria-label={TABS_ARIA_LABEL}>
+              <Tabs.Tab id="preview">{TAB_PREVIEW_LABEL}</Tabs.Tab>
+              <Tabs.Tab id="log">{TAB_LOG_LABEL}</Tabs.Tab>
+            </Tabs.List>
+            {props.onOpenQuality !== undefined ? (
+              <Button onClick={props.onOpenQuality} size="sm" variant="ghost">
+                {OPEN_QUALITY_LABEL}
+              </Button>
+            ) : null}
+          </div>
         }
         className="h-full"
         title={floorLabel === undefined ? DRAWING_PREFIX : `${DRAWING_PREFIX} ${floorLabel}`}
@@ -229,7 +230,6 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
           status={
             showsState ? (
               <>
-                <Badge variant={gate.chipVariant}>{gate.chipLabel}</Badge>
                 {/* Thời gian còn lại đổi mỗi giây nên đứng ngoài vùng `role=status` (R1-03). */}
                 <p>
                   <span role="status">{props.overallSummaryLine}</span>

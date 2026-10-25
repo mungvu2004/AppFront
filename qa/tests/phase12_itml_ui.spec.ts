@@ -95,7 +95,7 @@ test('B G1 through the screens: upload → processing → walls → objects → 
       await page.getByRole('option', { name: floor.name, exact: true }).click();
     }
     await complete;
-    await expect(page.locator(`[data-floor-id="${floor.id}"]`).getByText('Đã gắn kèm', { exact: true })).toBeVisible();
+    await expect(page.locator(`[data-floor-id="${floor.id}"]`).getByText('Đã có bản vẽ', { exact: true })).toBeVisible();
     await captureEvidence(page, 'U12_IT-ML-030_upload_attached.png');
   });
 

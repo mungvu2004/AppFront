@@ -154,6 +154,8 @@ export interface ProcessingSummaryViewModel {
   readonly lowConfidenceSentence?: string;
   /** Không đọc được chuỗi kích thước nào: câu hệ quả (phải tự đặt tỷ lệ). Vắng khi có ít nhất một chuỗi. */
   readonly noDimensionSentence?: string;
+  /** Mọi tầng xong đều đã có tỷ lệ (đặt tay): không đòi "Đặt tỷ lệ" dù không đọc được kích thước. */
+  readonly scaleKnown?: boolean;
   readonly onReviewWalls: () => void;
   readonly onCalibrateScale: () => void;
 }

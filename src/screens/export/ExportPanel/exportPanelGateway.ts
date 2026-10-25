@@ -71,6 +71,7 @@ import {
   type NormalizedSpatial,
   type SpatialEntity,
 } from '@/domain/spatial/normalize';
+import type { EntityKind } from '@/domain/spatial/ids';
 import type { Furniture, Level, LevelId, SpatialGraph } from '@/domain/spatial/types';
 import { MAX_WALL_THICKNESS_MM, MIN_WALL_THICKNESS_MM } from '@/domain/walls/types';
 import { can } from '@/lib/auth/permissions';
@@ -307,7 +308,12 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
   const unapprovedLevels = levels.filter((level) => !level.reviewed);
   const unreviewed = collectUnreviewed(graph, levels);
   const violationCount = violations.length;
-  const ruleCount = new Set(violations.map((violation) => violation.ruleCode)).size;
+  const ruleCounts = ruleCountsBySeverity(violations);
+  const ruleParts = [
+    ruleCounts.critical > 0 ? `${formatNumber(ruleCounts.critical)} luật nghiêm trọng` : null,
+    ruleCounts.warning > 0 ? `${formatNumber(ruleCounts.warning)} cảnh báo` : null,
+    ruleCounts.suggestion > 0 ? `${formatNumber(ruleCounts.suggestion)} gợi ý` : null,
+  ].filter((part): part is string => part !== null);
 
   const rows: PreflightRow[] = [
     {
@@ -328,9 +334,8 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
       label:
         violationCount === 0
           ? 'Không còn vi phạm nào.'
-          : // Đếm PHÁT HIỆN (mọi mức), không đếm luật: ô "Vi phạm" của báo cáo luật đếm luật có
-            // phát hiện nghiêm trọng, nên "N vi phạm" ở đây sẽ nói ngược với nó (BUG-460).
-            `Còn ${formatNumber(violationCount)} phát hiện ở ${formatNumber(ruleCount)} luật chưa xử lý.`,
+          : // Cùng đơn vị với màn Quy chuẩn: đếm LUẬT theo mức nặng nhất của luật ấy (BUG-460).
+            `Quy chuẩn: còn ${ruleParts.join(', ')}.`,
       tone: violationCount === 0 ? 'ok' : 'attention',
       fixHref: violationCount === 0 ? null : ROUTES.project.rules(projectId),
     },
@@ -339,7 +344,7 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
       label:
         unreviewed.count === 0
           ? 'Mọi đối tượng trên các tầng đã chọn đều đã duyệt.'
-          : `Còn ${formatNumber(unreviewed.count)} đối tượng chưa duyệt.`,
+          : `Còn ${formatNumber(unreviewed.count)} mục chưa duyệt (${unreviewed.breakdown}).`,
       tone: unreviewed.count === 0 ? 'ok' : 'attention',
       fixHref:
         unreviewed.levelId === null
@@ -357,9 +362,44 @@ interface UnreviewedTally {
   readonly count: number;
   /** Tầng của đối tượng chưa duyệt đầu tiên — nơi liên kết "đi sửa" dẫn tới. */
   readonly levelId: LevelId | null;
+  /** "80 tường, 8 cửa, 2 phòng" — mục chưa duyệt theo loại, loại nhiều nhất trước. */
+  readonly breakdown: string;
 }
 
-const NO_UNREVIEWED: UnreviewedTally = Object.freeze({ count: 0, levelId: null });
+const NO_UNREVIEWED: UnreviewedTally = Object.freeze({ count: 0, levelId: null, breakdown: '' });
+
+const KIND_NOUN: Readonly<Record<EntityKind, string>> = {
+  level: 'tầng',
+  wall: 'tường',
+  opening: 'cửa',
+  furniture: 'nội thất',
+  room: 'phòng',
+  axis: 'trục',
+  dimension: 'kích thước',
+  roof: 'mái',
+};
+
+/** Số luật theo mức nặng nhất của từng luật (cùng cách đếm với báo cáo Quy chuẩn). */
+function ruleCountsBySeverity(violations: readonly Violation[]): Record<'critical' | 'warning' | 'suggestion', number> {
+  const rank = { critical: 3, warning: 2, suggestion: 1 } as const;
+  const worst = new Map<string, keyof typeof rank>();
+
+  for (const violation of violations) {
+    const current = worst.get(violation.ruleCode);
+
+    if (current === undefined || rank[violation.severity] > rank[current]) {
+      worst.set(violation.ruleCode, violation.severity);
+    }
+  }
+
+  const counts = { critical: 0, warning: 0, suggestion: 0 };
+
+  for (const severity of worst.values()) {
+    counts[severity] += 1;
+  }
+
+  return counts;
+}
 
 function collectUnreviewed(
   graph: NormalizedSpatial | null,
@@ -371,6 +411,7 @@ function collectUnreviewed(
 
   let count = 0;
   let levelId: LevelId | null = null;
+  const byKind = new Map<EntityKind, number>();
 
   for (const level of levels) {
     for (const id of idsOnLevel(graph, level.id)) {
@@ -379,11 +420,21 @@ function collectUnreviewed(
       if (entity !== undefined && !entity.reviewed) {
         count += 1;
         levelId ??= level.id;
+        const kind = (Object.keys(KIND_NOUN) as EntityKind[]).find((candidate) => isEntityOfKind(candidate, entity));
+
+        if (kind !== undefined) {
+          byKind.set(kind, (byKind.get(kind) ?? 0) + 1);
+        }
       }
     }
   }
 
-  return { count, levelId };
+  const breakdown = [...byKind]
+    .sort((left, right) => right[1] - left[1])
+    .map(([kind, n]) => `${formatNumber(n)} ${KIND_NOUN[kind]}`)
+    .join(', ');
+
+  return { count, levelId, breakdown };
 }
 
 /* -------------------------------------------------------------------------- */

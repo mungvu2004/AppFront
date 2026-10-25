@@ -37,7 +37,6 @@ const STEP_RESULT_TITLE = 'Kết quả';
 const DRAW_HINT = 'Giữ Shift để khoá đoạn theo trục ngang hoặc dọc.';
 const REAL_LENGTH_LABEL = 'Chiều dài thật';
 const REAL_LENGTH_UNIT = 'mm';
-const REAL_LENGTH_NO_HINT = 'Không có chuỗi kích thước nào gần đoạn này để gợi ý.';
 const REMEASURE_LABEL = 'Đo lại';
 const MISSING_VALUE = '—';
 
@@ -108,7 +107,7 @@ export function ScaleCalibrationMethodReference({ actions, reference }: ScaleCal
           inputMode="decimal"
           label={REAL_LENGTH_LABEL}
           error={reference.realLengthError ?? undefined}
-          hint={reference.realLengthHint ?? REAL_LENGTH_NO_HINT}
+          hint={reference.realLengthHint ?? undefined}
           onChange={(event) => {
             actions.onChangeRealLength(event.target.value);
           }}

@@ -243,7 +243,7 @@ async function runChain(
   });
 
   await test.step('3. tạo dự án', async () => {
-    await page.getByRole('button', { name: /^Tạo dự án\s*N$/u }).click();
+    await page.getByRole('button', { name: /^Tạo dự án$/u }).click();
     const dialog = page.getByRole('dialog');
 
     await dialog.getByLabel('Tên dự án').fill(`e2e-${String(Date.now())}`);

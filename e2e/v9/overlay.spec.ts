@@ -20,7 +20,7 @@ import {
  * Ba số khớp, vùng lệch, xác nhận (A5) là của tầng đơn vị (`plan.md` V9 3.5).
  */
 
-const REGION = 'Màn đối chiếu bản vẽ';
+const REGION = 'So với bản vẽ';
 const NO_FLOOR = 'Dự án này chưa có tầng nào để đối chiếu.';
 const NO_FRAME = 'Không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.';
 const NO_SCAN = 'Tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.';
@@ -42,7 +42,7 @@ test('vào thẳng một tầng: màn nói chưa căn được và mở lối sa
     ROUTES.project.scale(PROJECT_ID, 'L1'),
   );
   // S-28: tầng chưa có mô hình thì cổng (FlowGate) không có nút xác nhận — không còn nút tắt đứng chờ.
-  await expect(page.getByRole('button', { name: 'Xác nhận khớp bản vẽ' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Khớp rồi, xác nhận' })).toHaveCount(0);
 
   const divider = page.getByRole('slider', { name: /^Đường chia đôi/u });
   await expect(divider).toHaveCount(0);

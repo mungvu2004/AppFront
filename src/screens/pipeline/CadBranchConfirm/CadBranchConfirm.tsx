@@ -79,7 +79,7 @@ const NOTICE_REGION_ARIA_LABEL = 'Trạng thái của màn phát hiện tệp CA
 const STAGE_TWO_ARIA_LABEL = 'Ánh xạ lớp và xem trước hình học';
 const LOADING_ARIA_LABEL = 'Đang đọc tệp CAD';
 
-const EYEBROW = 'Bước 2 · Xử lý · Nhánh tệp CAD';
+const EYEBROW = 'Nhập từ tệp CAD';
 /** H1 của trang "tầng chưa có CAD": động từ + đối tượng; "Chưa có tệp CAD" xuống chip trạng thái. */
 const NO_CAD_PAGE_TITLE = 'Nhập tầng từ tệp CAD';
 
@@ -218,7 +218,6 @@ function CadBranchConfirmBody({ actions, model }: CadBranchConfirmProps) {
         {isNoCadPage && (
           <NoCadFileActions
             floors={model.dialog.floorAvailability}
-            onBackToLayerReview={actions.onBackToLayerReview}
             onChooseBranch={actions.onChooseBranch}
           />
         )}

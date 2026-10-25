@@ -152,11 +152,11 @@ describe('spatialJsonModel', () => {
     expect(tokenizeJsonLine('  "note": null').some((s) => s.tone === 'number')).toBe(true);
   });
 
-  it('dải kiểm tra nói "0 lỗi" khi không có lỗi nào', () => {
+  it('dải kiểm tra nói "đúng cấu trúc" khi không có lỗi nào', () => {
     const validity = summariseValidity([]);
 
     expect(validity.isValid).toBe(true);
-    expect(validity.summary).toContain('0 lỗi');
+    expect(validity.summary).toContain('đúng cấu trúc');
   });
 
   it('đếm riêng lỗi nghiêm trọng và cảnh báo', () => {
@@ -312,7 +312,7 @@ describe('Bảy trạng thái', () => {
       const { unmount } = renderWithProviders(<SpatialJsonViewer {...buildSpatialJsonViewerProps(state)} />);
 
       expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent), `trạng thái: ${state}`).toEqual([
-        'Xem dữ liệu không gian',
+        'Xem trước dữ liệu xuất (.json)',
       ]);
       unmount();
     }
@@ -609,13 +609,13 @@ describe('B-V12-07 / B-V12-08 — dải hợp lệ và số dòng ẩn', () => {
   it('B-V12-07: "empty" không hiện dải "Hợp lệ … 0 lỗi" — chưa có gì để kiểm', () => {
     renderWithProviders(<SpatialJsonViewer {...buildSpatialJsonViewerProps('empty')} />);
 
-    expect(screen.queryByText(/Hợp lệ — 0 lỗi/u)).toBeNull();
+    expect(screen.queryByText(/đúng cấu trúc/u)).toBeNull();
   });
 
   it('B-V12-07: có dữ liệu thì dải hợp lệ vẫn hiện', () => {
     renderWithProviders(<SpatialJsonViewer {...buildSpatialJsonViewerProps('success')} />);
 
-    expect(screen.getByText(/Hợp lệ — 0 lỗi|lỗi nghiêm trọng/u)).toBeTruthy();
+    expect(screen.getByText(/đúng cấu trúc|lỗi nghiêm trọng/u)).toBeTruthy();
   });
 
   it('B-V12-08: số dòng còn ẩn của chữ thô có dấu nhóm nghìn như mọi số khác trên màn', () => {

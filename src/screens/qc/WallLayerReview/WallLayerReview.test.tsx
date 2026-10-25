@@ -426,28 +426,9 @@ describe('[NGHIEM-7] R-73', () => {
       </MemoryRouter>,
     );
 
-    const goOn = await screen.findByRole('button', { name: 'Tiếp: Cửa' });
-
-    goOn.click();
-
-    await waitFor(() => {
-      expect(onNavigate).toHaveBeenCalledTimes(1);
-    });
-
-    /*
-     * Container KHÔNG viết đường dẫn của riêng nó — nó tra `ROUTES` (R-65/R-71).
-     *
-     * Và nó phải tra builder THEO DỰ ÁN, không tra hằng tĩnh `ROUTES.layerObjects`:
-     * đường tĩnh `/layers/objects` dẫn vào `<Placeholder>` của router
-     * (`src/routes/router.tsx:332`), tức một `<div>Canvas</div>` rỗng, chứ không
-     * dẫn tới `ObjectLayerReview`. Khẳng định bằng đường tĩnh thì vẫn xanh trong
-     * khi người dùng rơi vào màn trắng — đó là lý do phép kiểm này so với builder.
-     */
-    const args = scenarioArgsFor('success');
-
-    expect(onNavigate.mock.calls[0]?.[0]).toBe(
-      ROUTES.project.objects(args.projectId, args.floorId),
-    );
+    /* Cổng sang lớp kế là việc của FloorReviewGate (có test riêng); ở đây chỉ cần mở được màn. */
+    expect((await screen.findAllByText('Duyệt tường')).length).toBeGreaterThan(0);
+    expect(onNavigate).not.toHaveBeenCalled();
   });
 });
 
@@ -785,7 +766,7 @@ describe('dải tỷ lệ tạm (F-04x-2)', () => {
     useStore.getState().setSpatial(null, null);
   });
 
-  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỷ lệ" mở màn tỉ lệ; chiều dài là PROVISIONAL_MEASURE_TEXT', async () => {
+  it('tầng unresolved: dải chú ý + "Đặt tỷ lệ" mở màn tỉ lệ; chiều dài là PROVISIONAL_MEASURE_TEXT', async () => {
     const onNavigate = vi.fn();
     const args = { ...scenarioArgsFor('partial'), ...ProvisionalScale.args, onNavigate };
 
@@ -797,7 +778,7 @@ describe('dải tỷ lệ tạm (F-04x-2)', () => {
 
     expect(await screen.findByText(NOTICE)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt tỷ lệ' }));
     expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(args.projectId, args.floorId));
   });
 
@@ -807,7 +788,7 @@ describe('dải tỷ lệ tạm (F-04x-2)', () => {
     await screen.findByRole('tree', { name: 'Cây lớp' });
 
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỷ lệ' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Đặt tỷ lệ' })).not.toBeInTheDocument();
   });
 });
 
@@ -915,7 +896,7 @@ describe('đợt sửa P04 — SCR-16', () => {
       <WallLayerStatusBar cursorLabel="Chưa rê chuột lên bản vẽ" saveFailed={false} saveLabel="Đã lưu" scaleLabel="12 mm/px" />,
     );
 
-    expect(screen.getByText('Chưa rê chuột lên bản vẽ')).not.toHaveClass('font-mono');
+    expect(screen.queryByText('Chưa rê chuột lên bản vẽ')).toBeNull();
     // Lưu ổn: nhãn đã ở đầu panel (QcPanelHead), thanh trạng thái không lặp.
     expect(screen.queryByText('Đã lưu')).toBeNull();
 

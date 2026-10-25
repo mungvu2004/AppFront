@@ -11,6 +11,7 @@ describe('toExtractionSummary (R-1)', () => {
   it('đếm đồ đạc và tính cả đồ đạc vào "tin cậy thấp"', () => {
     const document = {
       dimensions: [],
+      level: { scaleMillimetresPerPixel: 10 },
       layer: {
         walls: [item(0.9), item(0.5)],
         openings: [item(0.9)],

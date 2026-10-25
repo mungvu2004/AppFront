@@ -60,7 +60,8 @@ const TOTAL_OBJECTS = OBJECT_LAYER_FIXTURE_COUNTS.total;
 /* Nhãn tra cứu — chép từ chính các view con, một chỗ viết duy nhất. */
 const LAYER_FILTER_LABEL = 'Lọc theo loại';
 const LIST_LABEL = 'Danh sách đối tượng';
-const LEGEND_LABEL = 'Chú giải màu lớp';
+/* Chú giải nổi trên canvas đã bỏ có chủ ý: canvas giờ nhận diện bằng nhóm này. */
+const CANVAS_LABEL = 'Mặt bằng lớp đối tượng';
 const STATUS_BAR_LABEL = 'Thanh trạng thái';
 const TOOL_RAIL_LABEL = 'Công cụ lớp đối tượng';
 const EMPTY_ACTION = 'Thêm thủ công';
@@ -192,11 +193,10 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
     /* 3. Danh sách — đếm chính số dòng đang vẽ, không đọc một con số truyền riêng. */
     const listTotal = within(list).getAllByRole('option').length;
 
-    /* 4. Canvas — chú giải hiện tổng lấy từ chính mảng `placements`. */
-    const legend = screen.getByLabelText(LEGEND_LABEL);
-    const canvasTotal = firstNumberIn(
-      (legend.textContent ?? '').replace(/^[^\d]*/u, ''),
-    );
+    /* 4. Canvas — đếm chính số ký hiệu đối tượng đang vẽ trong <svg>. */
+    const canvasTotal = screen
+      .getByRole('group', { name: CANVAS_LABEL })
+      .querySelectorAll('svg > g[role="presentation"]').length;
 
     /* Bản nghiệm thu đòi IN cả bốn con số, không chỉ khẳng định chúng. */
     console.log(`tổng đối tượng — cây lớp:  ${treeTotal} (${layerCounts.join(' + ')})`);
@@ -294,7 +294,7 @@ describe('[NGHIEM-3] thu gọn và không có quyền', () => {
     expect(screen.getByRole('toolbar', { name: TOOL_RAIL_LABEL })).toBeInTheDocument();
     expect(screen.getByRole('status', { name: STATUS_BAR_LABEL })).toBeInTheDocument();
     expect(screen.queryByRole('group', { name: LAYER_FILTER_LABEL })).not.toBeInTheDocument();
-    expect(screen.getByLabelText(LEGEND_LABEL)).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: CANVAS_LABEL })).toBeInTheDocument();
   });
 
   it('trạng thái không có quyền: xem được, chỉ mất nút sửa — KHÔNG khoá mờ cả màn', async () => {
@@ -303,7 +303,7 @@ describe('[NGHIEM-3] thu gọn và không có quyền', () => {
     /* Người xem đang tải thấy khung chờ trước (17-D-010); bộ lọc loại có khi dữ liệu tới. */
     expect(await screen.findByRole('group', { name: LAYER_FILTER_LABEL })).toBeInTheDocument();
     expect(screen.getByRole('status', { name: STATUS_BAR_LABEL })).toBeInTheDocument();
-    expect(screen.getByLabelText(LEGEND_LABEL)).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: CANVAS_LABEL })).toBeInTheDocument();
   });
 
   it('trạng thái lỗi: một trạng thái lỗi có lối ra, không dựng bộ lọc và số đếm 0/0 giả (BUG-326)', async () => {
@@ -313,7 +313,7 @@ describe('[NGHIEM-3] thu gọn và không có quyền', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
     expect(screen.getByRole('button', { name: 'Thử lại' })).toBeInTheDocument();
-    expect(screen.queryByLabelText(LEGEND_LABEL)).toBeNull();
+    expect(screen.queryByRole('group', { name: CANVAS_LABEL })).toBeNull();
   });
 });
 

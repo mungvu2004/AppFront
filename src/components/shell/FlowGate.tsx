@@ -19,7 +19,8 @@ export interface FlowGateCondition {
 }
 
 export interface FlowGateProps {
-  /** ≤3 điều kiện chặn; cảnh báo không đếm ở đây. Dưới 1280 ẩn, chỉ còn thanh + số. */
+  /** ≤3 điều kiện chặn; cảnh báo không đếm ở đây. Có điều kiện thì từ 1280 chỉ vẽ danh sách này
+   *  (thanh + số ẩn cho đỡ rối); dưới 1280 danh sách ẩn, chỉ còn số. */
   readonly conditions?: readonly FlowGateCondition[];
   /** Tiến độ của việc đang làm (vd 2/81 tường). Vắng `total` thì không vẽ thanh. */
   readonly done?: number;
@@ -61,7 +62,7 @@ export function FlowGate({ conditions = [], done = 0, total, progressLabel = 'Ti
         </ul>
       )}
       {total !== undefined && total > 0 && (
-        <span className="flex items-center gap-2">
+        <span className={cn('flex items-center gap-2', conditions.length > 0 && 'xl:hidden')}>
           <span
             aria-label={progressLabel}
             aria-valuemax={total}

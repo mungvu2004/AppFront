@@ -33,16 +33,16 @@ function referenceScenario(missingChecks: boolean) {
 }
 
 describe('ScaleCalibration — trạng thái nhìn', () => {
-  it('[BUG-631] ba dòng kiểm chứng đều trống: một câu nói chưa đủ dữ liệu', () => {
+  it('[BUG-631] ba dòng kiểm chứng đều trống: không dựng khối Kiểm chứng', () => {
     renderWithProviders(<ScaleCalibration {...referenceScenario(true)} />);
 
-    expect(screen.getByText(/Chưa đủ dữ liệu để kiểm chứng tỷ lệ/u)).toBeInTheDocument();
+    expect(screen.queryByText('Kiểm chứng')).toBeNull();
   });
 
   it('[BUG-632][BUG-633] phím tắt chỉ một chỗ, có mô tả, ẩn dưới 640 px', () => {
     renderWithProviders(<ScaleCalibration {...referenceScenario(false)} />);
 
     expect(screen.getAllByText('Shift')).toHaveLength(1);
-    expect(screen.getByRole('list', { name: 'Phím tắt' })).toHaveClass('max-sm:hidden');
+    expect(screen.getByRole('list', { name: 'Phím tắt' }).closest('details')).toHaveClass('max-sm:hidden');
   });
 });

@@ -45,7 +45,7 @@ describe('khung chiều cao của màn có chân dính / cột cuộn riêng', (
   });
 
   it('danh sách phiên bản lấp phần còn lại của cột (chừa chỗ "Xem thêm") và cuộn trong cột', () => {
-    render(<VersionList groups={[]} onToggleCompareSelection={vi.fn()} onRetrySnapshot={vi.fn()} />);
+    render(<VersionList groups={[]} onRetrySnapshot={vi.fn()} />);
 
     const nav = document.querySelector('nav[aria-label="Danh sách phiên bản"]');
     expect(nav).toHaveClass('min-h-0', 'flex-1', 'overflow-y-auto');

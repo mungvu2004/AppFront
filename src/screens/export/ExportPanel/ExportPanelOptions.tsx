@@ -84,11 +84,6 @@ function ExportPanelScope({ floors, onToggleFloor }: ExportPanelScopeProps) {
                 {floor.isApproved ? 'Đã duyệt' : 'Chưa duyệt'}
               </Badge>
             </div>
-            {!floor.isApproved && (
-              <p className="pl-6 text-xs text-state-attention-text">
-                Tầng chưa duyệt vẫn xuất được, nhưng cần chú ý trước khi gửi đi.
-              </p>
-            )}
           </div>
         ))}
       </div>
@@ -205,7 +200,6 @@ export interface ExportPanelOptionsProps {
   readonly onToggleFloor: (id: string) => void;
   readonly onChangeOptions: (next: ExportOptionsView) => void;
   readonly onToggleOptionsExpanded: () => void;
-  readonly onOpenData?: () => void;
 }
 
 export function ExportPanelOptions({
@@ -216,7 +210,6 @@ export function ExportPanelOptions({
   onToggleFloor,
   onChangeOptions,
   onToggleOptionsExpanded,
-  onOpenData,
 }: ExportPanelOptionsProps) {
   return (
     <Section title="Phạm vi và tuỳ chọn">
@@ -228,15 +221,6 @@ export function ExportPanelOptions({
           <section aria-label="Phạm vi" className="flex flex-col gap-1">
             <h3 className="text-sm font-medium text-text-secondary">Phạm vi</h3>
             <p className="text-sm text-text-secondary">Tệp này gồm toàn bộ dự án, không chọn theo tầng.</p>
-            {onOpenData !== undefined && (
-              <button
-                type="button"
-                onClick={onOpenData}
-                className={cn('self-start rounded-sm text-sm font-medium text-accent hover:underline', FOCUS_RING)}
-              >
-                Xem trước
-              </button>
-            )}
           </section>
         )}
 

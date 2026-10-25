@@ -22,8 +22,8 @@ describe('scaleCheck', () => {
   it('tỷ lệ vừa đo: số mm/px, ≈ 1:N ở DPI ảnh, câu bảo bấm Áp dụng', () => {
     const check = buildScaleCheck({ mmPerPx: 24.878, source: 'proposed', shortEdgePx: 837, knownDimension: null });
     expect(check.densityValue).toBe('24,878');
-    expect(check.ratioLine).toBe('≈ 1:70 ở 72 DPI');
-    expect(check.status.sentence).toBe('Đo được 24,878 mm/px ≈ 1:70 ở 72 DPI, bấm Áp dụng để dùng.');
+    expect(check.ratioLine).toBe('≈ 1:70');
+    expect(check.status.sentence).toBe('Đo được tỷ lệ ≈ 1:70, bấm Áp dụng để dùng.');
     expect(check.knownCheckMissing).not.toBeNull();
   });
 
@@ -54,6 +54,6 @@ describe('scaleCheck', () => {
     expect(check.ratioLine).toBeNull();
     expect(check.dpiNote).toBeNull();
     expect(check.table).toBeNull();
-    expect(check.status.sentence).toBe('Đang dùng 12 mm/px.');
+    expect(check.status.sentence).toBe('Đang dùng tỷ lệ 12 mm/px.');
   });
 });

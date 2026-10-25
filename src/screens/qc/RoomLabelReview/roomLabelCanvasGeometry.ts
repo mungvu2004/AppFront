@@ -246,5 +246,4 @@ export const ROOM_LABEL_CANVAS_COPY = {
   forbiddenNotice:
     'Bản vẽ vẫn xem được, nhưng không chọn được phòng nào ở đây. Nhờ người có quyền sửa dự án duyệt giúp.',
   unnamedPlaceholder: '(chưa đặt tên)',
-  emptyCanvas: 'Chưa dò được phòng nào trên bản vẽ này.',
 } as const;

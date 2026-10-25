@@ -96,7 +96,7 @@ const TOUR_FIRST_TITLE = 'Chọn công cụ ở ray bên trái';
 const TOUR_SUMMARY_TITLE = 'Bấy nhiêu phím là đủ dùng';
 const TOUR_FINISH = 'Bắt đầu làm việc';
 const PROVISIONAL = 'Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.';
-const CALIBRATE = 'Hiệu chỉnh tỷ lệ';
+const CALIBRATE = 'Đặt tỷ lệ';
 
 /** Pool admin of this file + the env admin client (pool bookkeeping only). */
 async function ownerOf(slot: string): Promise<{ admin: APIRequestContext; pool: PoolUser; owner: APIRequestContext }> {
@@ -290,10 +290,10 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
           ['SCR-17', ROUTES.project.objects(d1.projectId, d1.floorId), 'Lớp đối tượng'],
           ['SCR-18', ROUTES.project.dimensions(d1.projectId, d1.floorId), 'Đọc kích thước OCR'],
           ['SCR-19', ROUTES.project.grids(d1.projectId, d1.floorId), 'Quản lý trục và gốc toạ độ'],
-          ['SCR-20', ROUTES.project.rooms(d1.projectId, d1.floorId), 'Duyệt tên phòng'],
-          ['SCR-21', ROUTES.project.thickness(d1.projectId, d1.floorId), 'Chuẩn hoá độ dày tường'],
-          ['SCR-14', ROUTES.project.scale(d1.projectId, d1.floorId), 'Màn hiệu chỉnh tỷ lệ'],
-          ['SCR-22', ROUTES.project.overlay(d1.projectId, d1.floorId), 'Màn đối chiếu bản vẽ'],
+          ['SCR-20', ROUTES.project.rooms(d1.projectId, d1.floorId), 'Duyệt phòng'],
+          ['SCR-21', ROUTES.project.thickness(d1.projectId, d1.floorId), 'Độ dày tường'],
+          ['SCR-14', ROUTES.project.scale(d1.projectId, d1.floorId), 'Tỷ lệ bản vẽ'],
+          ['SCR-22', ROUTES.project.overlay(d1.projectId, d1.floorId), 'So với bản vẽ'],
         ];
         const seen: Record<string, number> = {};
         for (const [name, route, label] of screens) {
@@ -437,10 +437,10 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
           ['objects', ROUTES.project.objects(q2.projectId, one.id), 'Lớp đối tượng'],
           ['dimensions', ROUTES.project.dimensions(q2.projectId, one.id), 'Đọc kích thước OCR'],
           ['grids', ROUTES.project.grids(q2.projectId, one.id), 'Quản lý trục và gốc toạ độ'],
-          ['rooms', ROUTES.project.rooms(q2.projectId, one.id), 'Duyệt tên phòng'],
-          ['thickness', ROUTES.project.thickness(q2.projectId, one.id), 'Chuẩn hoá độ dày tường'],
-          ['scale', ROUTES.project.scale(q2.projectId, one.id), 'Màn hiệu chỉnh tỷ lệ'],
-          ['overlay', ROUTES.project.overlay(q2.projectId, one.id), 'Màn đối chiếu bản vẽ'],
+          ['rooms', ROUTES.project.rooms(q2.projectId, one.id), 'Duyệt phòng'],
+          ['thickness', ROUTES.project.thickness(q2.projectId, one.id), 'Độ dày tường'],
+          ['scale', ROUTES.project.scale(q2.projectId, one.id), 'Tỷ lệ bản vẽ'],
+          ['overlay', ROUTES.project.overlay(q2.projectId, one.id), 'So với bản vẽ'],
         ];
         const outcome: Record<string, string> = {};
         for (const [name, route, label] of routes) {
@@ -514,16 +514,16 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         quality: ROUTES.project.quality(d1.projectId),
         pipeline: ROUTES.project.pipeline(d1.projectId),
       } as const;
-      const scaleScreen = (): Locator => page.getByLabel('Màn hiệu chỉnh tỷ lệ', { exact: true }).first();
+      const scaleScreen = (): Locator => page.getByLabel('Tỷ lệ bản vẽ', { exact: true }).first();
       const wallsBack = async (): Promise<void> => {
         await expect.poll(() => pathOf(page)).toBe(screens.walls);
         await expect(wallRows(page).first()).toBeVisible();
       };
-      const screenLabels: Record<'objects' | 'rooms' | 'thickness', string> = { objects: 'Lớp đối tượng', rooms: 'Duyệt tên phòng', thickness: 'Chuẩn hoá độ dày tường' };
+      const screenLabels: Record<'objects' | 'rooms' | 'thickness', string> = { objects: 'Lớp đối tượng', rooms: 'Duyệt phòng', thickness: 'Độ dày tường' };
       let scaleBefore: unknown;
       let wallsBefore: Json[] = [];
 
-      await test.step('[X4-A-018] The provisional banner on SCR-16: "Hiệu chỉnh tỷ lệ" opens SCR-14 of the same floor (SPA)', async () => {
+      await test.step('[X4-A-018] The provisional banner on SCR-16: "Đặt tỷ lệ" opens SCR-14 of the same floor (SPA)', async () => {
         await openWalls(page, onFloor.projectId, onFloor.floorId);
         await expect(bannerOf(page)).toBeVisible();
         await markShell(page);
@@ -534,7 +534,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await ev(page, 'X4-A-018', 'banner-to-scale');
       });
 
-      await test.step('[14-A-004] The banner action "Hiệu chỉnh tỷ lệ" on SCR-16 / 17 / 20 / 21 (SPA) opens SCR-14', async () => {
+      await test.step('[14-A-004] The banner action "Đặt tỷ lệ" on SCR-16 / 17 / 20 / 21 (SPA) opens SCR-14', async () => {
         await page.goBack();
         await wallsBack();
         for (const name of ['objects', 'rooms', 'thickness'] as const) {
@@ -559,7 +559,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await ev(page, 'X4-A-021', 'banner-on-three-screens');
       });
 
-      await test.step('[21-B-010] SCR-21: the provisional banner + "Hiệu chỉnh tỷ lệ"', async () => {
+      await test.step('[21-B-010] SCR-21: the provisional banner + "Đặt tỷ lệ"', async () => {
         await on(screens.thickness);
         await expect(bannerOf(page)).toBeVisible();
         await ev(page, '21-B-010', 'thickness-banner');
@@ -697,7 +697,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await on(screens.quality);
         await expect(page.getByText('Kiểm tra chất lượng đầu vào').first()).toBeVisible({ timeout: 60_000 });
         await on(screens.overlay);
-        await expect(page.getByLabel('Màn đối chiếu bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+        await expect(page.getByLabel('So với bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
         // The floor has a drawing: the "no drawing" notice (shape-collision symptom) must not appear on SCR-22.
         await expect.soft(page.getByText(/^Tầng này chưa có bản vẽ nào/u), 'SCR-22 has a drawing').toHaveCount(0);
         await on(screens.quality);
@@ -733,7 +733,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await on(screens.pipeline);
         // useProcessingScreen.ts:186 renders "Đã xử lý xong N/N tầng" (older builds: "Đã xong …"); accept both.
         await expect(page.getByText(/^Đã (?:xử lý )?xong ([1-9]\d*)\/\1 tầng/u)).toBeVisible({ timeout: 60_000 });
-        await page.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ', exact: true }).click();
+        await page.getByRole('button', { name: 'Đặt tỷ lệ', exact: true }).click();
         await expect.poll(() => pathOf(page)).toBe(screens.scale);
         await drawReference(page, 6_000);
         const applied = waitForLayerPut(page, onFloor.projectId, onFloor.floorId, (body) => typeof body.scaleMillimetresPerPixel === 'number');
@@ -749,7 +749,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
 
       await test.step('[X4-A-034] SCR-22 "Sang màn hiệu chỉnh tỷ lệ" → SCR-14 → apply → Back → SCR-22 re-reads #30', async () => {
         await on(screens.overlay);
-        await expect(page.getByLabel('Màn đối chiếu bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+        await expect(page.getByLabel('So với bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
         const toScale = page.getByRole('button', { name: 'Sang màn hiệu chỉnh tỷ lệ', exact: true }).or(page.getByRole('link', { name: 'Sang màn hiệu chỉnh tỷ lệ', exact: true }));
         await expect(toScale.first()).toBeVisible({ timeout: 30_000 });
         await toScale.first().click();
@@ -762,7 +762,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         expect((await applied).response.status()).toBe(200);
         await page.goBack();
         await expect.poll(() => pathOf(page)).toBe(screens.overlay);
-        await expect(page.getByLabel('Màn đối chiếu bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+        await expect(page.getByLabel('So với bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
         await expect.poll(() => qualityReads() - before, { timeout: 15_000, message: 'SCR-22 re-reads #30 after the new scale' }).toBeGreaterThanOrEqual(1);
         await ev(page, 'X4-A-034', 'overlay-rereads-quality');
       });
@@ -806,7 +806,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await markShell(page);
         await spaGo(page, overlayOf(f1.id));
         await expect.poll(() => pathOf(page)).toBe(overlayOf(f1.id));
-        await expect(page.getByLabel('Màn đối chiếu bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+        await expect(page.getByLabel('So với bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
         expect.soft(await shellKept(page), 'a client-side route change').toBe(true);
         expect.soft(layerGets() - before, 'N16 GETs caused by the hop').toBe(0);
         await picker().click();
@@ -849,7 +849,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         // notices are checked on 'Tầng 1' (has a scan): Back to floor 1 here, Forward to floor 2 after 22-B-012 (X4-A-032 needs it).
         await page.goBack();
         await expect.poll(() => pathOf(page)).toBe(overlayOf(f1.id));
-        await expect(page.getByLabel('Màn đối chiếu bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+        await expect(page.getByLabel('So với bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
         // The partial sentences are joined into ONE notice paragraph (useOverlayComparison.ts:898-912 sentences.join(' ')): match the sentence inside it, not the whole element.
         await expect.soft(page.getByText('Còn 1 tầng chưa dựng hình học.').first()).toBeVisible();
         await ev(page, '22-B-011', 'partial-no-geometry');
@@ -868,7 +868,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         expect.soft(overlayUrl, '"Chọn tầng" and the URL agree').toBe(overlayOf(f2.id));
         await page.goBack();
         await expect.poll(() => pathOf(page)).toBe(overlayOf(f1.id));
-        await expect(page.getByLabel('Màn đối chiếu bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+        await expect(page.getByLabel('So với bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
         await attachJson('E04_X4-A-032_active-floor.json', { overlayUrl, selectedFloor: f2.name, afterBack: pathOf(page) });
         expect.soft((await picker().innerText()).trim(), 'after Back the select follows the URL floor').toContain('Tầng 1');
         await ev(page, 'X4-A-032', 'active-floor-vs-url');
@@ -877,7 +877,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
       await test.step('[X4-A-033] ⚑ The URL floor wins on SPA Back / Forward: Forward to the overlay URL of floor 2, the select shows floor 2', async () => {
         await page.goForward();
         await expect.poll(() => pathOf(page)).toBe(overlayOf(f2.id));
-        await expect(page.getByLabel('Màn đối chiếu bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+        await expect(page.getByLabel('So với bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
         const shown = (await picker().innerText()).trim();
         await attachJson('E04_X4-A-033_forward.json', { url: pathOf(page), picker: shown });
         // The URL names floor 2; the screen must follow it.

@@ -21,7 +21,7 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
 const EMPTY_TITLE = 'Chưa có dữ liệu không gian';
 
 /** H1 của màn — có ở mọi trạng thái. Ô tìm (S-36) chỉ hiện khi đã có dữ liệu, nên không làm mốc được. */
-const SCREEN_ANCHOR = 'Xem dữ liệu không gian';
+const SCREEN_ANCHOR = 'Xem trước dữ liệu xuất (.json)';
 
 test('B-V12-01: vào màn dữ liệu bằng đường sản phẩm (không bơm) thì cổng nạp kho — bản xem trước mang các tầng của dự án từ máy chủ, và vì tầng chưa có hình nên màn nói thật "chưa có dữ liệu", không tự khen hợp lệ (B-V12-07)', async ({
   page,

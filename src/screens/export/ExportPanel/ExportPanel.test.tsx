@@ -153,7 +153,8 @@ describe('bốn định dạng, đúng bốn — không có định dạng thứ
     render(<ExportPanelView {...props} />);
 
     for (const format of DEFAULT_FORMATS) {
-      expect(screen.getAllByText(format.extensionLabel)).toHaveLength(1);
+      // PDF và ảnh chưa xuất được ở bản này: không còn thẻ (khối "Chưa xuất được" đã bỏ).
+      expect(screen.queryAllByText(format.extensionLabel)).toHaveLength(format.id === 'pdf' || format.id === 'image' ? 0 : 1);
     }
   });
 
@@ -185,7 +186,7 @@ describe('khối kiểm tra trước khi xuất không bao giờ chặn nút "Xu
       expect(button).not.toBeDisabled();
     }
 
-    expect(container.textContent).toMatch(/Còn \d+ phát hiện ở \d+ luật chưa xử lý\./u);
+    expect(container.textContent).toMatch(/Quy chuẩn: còn \d+ luật nghiêm trọng/u);
   });
 });
 
@@ -223,11 +224,15 @@ describe('[BUG-466] .glb mà chưa chọn tầng nào: không nút "Xuất", kh�
 });
 
 describe('[BUG-460] dòng kiểm tra đếm phát hiện, không gọi chúng là "vi phạm"', () => {
-  it('ba phát hiện ở hai luật → "Còn 3 phát hiện ở 2 luật chưa xử lý."', () => {
-    const violations = [{ ruleCode: 'A' }, { ruleCode: 'A' }, { ruleCode: 'B' }] as never;
+  it('ba phát hiện ở hai luật → "Quy chuẩn: còn 1 luật nghiêm trọng, 1 cảnh báo."', () => {
+    const violations = [
+      { ruleCode: 'A', severity: 'warning' },
+      { ruleCode: 'A', severity: 'critical' },
+      { ruleCode: 'B', severity: 'warning' },
+    ] as never;
     const rows = buildPreflightRows({ projectId: 'P-1', graph: null, levels: [], violations });
 
-    expect(rows.find((row) => row.id === 'violations')?.label).toBe('Còn 3 phát hiện ở 2 luật chưa xử lý.');
+    expect(rows.find((row) => row.id === 'violations')?.label).toBe('Quy chuẩn: còn 1 luật nghiêm trọng, 1 cảnh báo.');
   });
 });
 
@@ -272,7 +277,7 @@ describe('tầng chưa duyệt vẫn chọn được', () => {
     fireEvent.click(control);
     expect(onToggleFloor).toHaveBeenCalledWith(unapproved.id);
 
-    expect(container.textContent).toMatch(/chú ý/iu);
+    expect(container.textContent).toMatch(/Chưa duyệt/u);
   });
 });
 
@@ -346,7 +351,7 @@ describe('capabilities false → giao diện tương ứng rời khỏi DOM, kh�
    * chốt chặn chống người sau lén thêm lại một điều khiển không chạy.
    * ---------------------------------------------------------------------- */
 
-  it('canRenderPdfBytes=false: PDF không thành thẻ chọn, chỉ là dòng "chưa xuất được" kèm số trang thật; không còn khả năng tải nào', async () => {
+  it('canRenderPdfBytes=false: PDF không thành thẻ chọn, không còn hiện; không còn khả năng tải nào', async () => {
     const ExportPanelView = await loadExportPanelView();
     const pdfCard = DEFAULT_FORMATS.find((format) => format.id === 'pdf');
 
@@ -360,15 +365,15 @@ describe('capabilities false → giao diện tương ứng rời khỏi DOM, kh�
     });
     const { container } = render(<ExportPanelView {...props} />);
 
-    // PDF còn hiện (dòng ghi chú dưới danh sách), và số trang trên đó là số thật.
-    expect(screen.getAllByText('.pdf')).toHaveLength(1);
-    expect(container.textContent).toContain(pdfCard.pageCountLabel);
+    // PDF chưa xuất được: không còn thẻ, cũng không còn dòng ghi chú.
+    expect(screen.queryByText('.pdf')).toBeNull();
+    expect(container.textContent).not.toContain(pdfCard.pageCountLabel);
 
     // Nút Xuất vẫn có mặt nhưng mờ, kèm lý do ở chân trang.
     expect(screen.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toHaveProperty('disabled', true);
   });
 
-  it('canCaptureImage=false: ảnh không thành thẻ chọn, chỉ là dòng "chưa xuất được"; không còn khả năng tải nào', async () => {
+  it('canCaptureImage=false: ảnh không thành thẻ chọn, không còn hiện; không còn khả năng tải nào', async () => {
     const ExportPanelView = await loadExportPanelView();
     const props = buildExportPanelProps('success', {
       formats: formatsSelecting('image'),
@@ -377,7 +382,7 @@ describe('capabilities false → giao diện tương ứng rời khỏi DOM, kh�
 
     render(<ExportPanelView {...props} />);
 
-    expect(screen.getAllByText('.png')).toHaveLength(1);
+    expect(screen.queryByText('.png')).toBeNull();
     expect(screen.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toHaveProperty('disabled', true);
   });
 
@@ -486,7 +491,7 @@ describe('[BUG-442] liên kết "Sửa" và nút "Tuỳ chọn": vùng chạm đ
     render(<ExportPanelView {...buildExportPanelProps('success')} />);
 
     const [link] = screen.getAllByRole('link', { name: /^Sửa/u });
-    expect(link).toHaveAccessibleName(/^Sửa\s*:\s*Còn \d+ phát hiện/u);
+    expect(link).toHaveAccessibleName(/^Sửa\s*:\s*Quy chuẩn: còn \d+ luật nghiêm trọng/u);
     expect(link).toHaveClass('min-h-11', 'fine:min-h-6');
     expect(screen.getByRole('button', { name: 'Tuỳ chọn' })).toHaveClass('min-h-11', 'fine:min-h-6');
   });

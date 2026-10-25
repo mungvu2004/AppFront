@@ -307,7 +307,7 @@ function describeFinding(finding: ImageQualityFinding, floor: FloorImageQuality)
         title: 'Độ phân giải thấp',
         consequence:
           `Độ phân giải thấp${size}.${shortEdge} tường ngăn mỏng nhất chỉ còn vài pixel bề dày ` +
-          'và bước dò có thể bỏ sót nó. ' +
+          'và AI có thể bỏ sót nó. ' +
           `Nên dùng ảnh có cạnh ngắn từ ${formatPixels(RESOLUTION_GOOD_SHORT_EDGE_PX)} px trở lên.`,
         actionKind: null,
       };
@@ -330,7 +330,7 @@ function describeFinding(finding: ImageQualityFinding, floor: FloorImageQuality)
         title: 'Không tìm thấy khung bản vẽ',
         consequence:
           'Không tìm thấy khung bản vẽ. Không có khung thì hệ thống không biết đâu là mép bản ' +
-          'vẽ, nên tỉ lệ quy đổi ra kích thước thật lệch theo và mọi kích thước đọc được đều ' +
+          'vẽ, nên tỷ lệ quy đổi ra kích thước thật lệch theo và mọi kích thước đọc được đều ' +
           'sai. Bạn có thể tự chọn 4 góc.',
         actionKind: 'pickCorners',
       };
@@ -341,8 +341,8 @@ function describeFinding(finding: ImageQualityFinding, floor: FloorImageQuality)
       return {
         title: 'Độ tương phản thấp',
         consequence:
-          `Độ tương phản thấp${score}. Ở mức này nét mảnh nhất của bản vẽ rụng khỏi ảnh ngay ở ` +
-          'bước nhị phân hoá, nên đường ghi kích thước đứt quãng và ô mở mất nét đứt của nó. ' +
+          `Độ tương phản thấp${score}. Ở mức này nét mảnh nhất của bản vẽ biến mất khỏi ảnh, ` +
+          'nên đường ghi kích thước đứt quãng và ô cửa mất nét đứt. ' +
           'Nên quét lại với nền sáng đều hơn.',
         actionKind: null,
       };
@@ -355,7 +355,7 @@ function describeFinding(finding: ImageQualityFinding, floor: FloorImageQuality)
         title: 'Nhiễu cao',
         consequence:
           `Nhiễu cao${score}. Ở mức này đốm nhiễu dính lại thành vệt dài ngang vạch thật, nên ` +
-          'bước dò đọc chúng thành tường không tồn tại. Nên quét lại ở chế độ ảnh nét, không ' +
+          'AI đọc chúng thành tường không có thật. Nên quét lại ở chế độ ảnh nét, không ' +
           'nén mạnh.',
         actionKind: null,
       };
@@ -384,7 +384,7 @@ function describeFinding(finding: ImageQualityFinding, floor: FloorImageQuality)
         title: 'Phát hiện chưa có mô tả',
         consequence:
           `Hệ thống báo mã ${finding.code} nhưng chưa có câu giải thích cho mã này. Hãy xem ` +
-          'vùng được đánh dấu trên ảnh và kiểm tra lại bản vẽ trước khi chạy bước dò.',
+          'vùng được đánh dấu trên ảnh và kiểm tra lại bản vẽ trước khi xử lý.',
         actionKind: null,
       };
   }
@@ -778,7 +778,7 @@ export function useInputQualityGate(
       noise: 'Quét lại ở chế độ ảnh nét và không nén mạnh để bớt đốm giả.',
       resolution: `Nên dùng ảnh có cạnh ngắn từ ${formatPixels(RESOLUTION_GOOD_SHORT_EDGE_PX)} px trở lên.`,
       skew: skewNotMeasured
-        ? 'Ảnh có quá ít nét thẳng để đo. Hãy xem ảnh bằng mắt trước khi chạy bước dò.'
+        ? 'Ảnh có quá ít nét thẳng để đo. Hãy xem ảnh bằng mắt trước khi xử lý.'
         : 'Bấm "Tự động nắn" để hệ thống xoay ảnh về phương ngang.',
     };
 

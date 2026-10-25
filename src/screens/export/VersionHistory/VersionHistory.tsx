@@ -218,14 +218,10 @@ export function VersionHistory({ model, actions, breadcrumb }: VersionHistoryPro
           <Section
             flush
             title="Phiên bản"
-            actions={<span className="text-[13px] text-text-secondary">Tích hai bản để so</span>}
             className={cn('w-[360px] shrink-0', fillBody)}
           >
-            {/* N3-03: luật "tối đa hai bản" phải nói ra, không để ô xám tự giải thích. */}
-            <p className="sr-only">Tích hai phiên bản để so sánh. Đã đủ hai thì bỏ tích một bản để chọn bản khác.</p>
             <VersionList
               groups={model.groups}
-              onToggleCompareSelection={actions.toggleCompareSelection}
               onRetrySnapshot={actions.retrySnapshot}
             />
             {loadMore}
@@ -304,7 +300,7 @@ export function VersionHistory({ model, actions, breadcrumb }: VersionHistoryPro
           )}
           {restoreImpact === null ? (
             <p className="text-[13px] text-text-secondary">
-              Chưa xem trước thay đổi: tích thêm bản "Hiện tại" để so sánh trước khi phục hồi.
+              Chưa xem trước thay đổi: chọn thêm bản "Hiện tại" để so sánh trước khi phục hồi.
             </p>
           ) : (
             <p className="flex items-center gap-1.5 tabular-nums text-text-primary">

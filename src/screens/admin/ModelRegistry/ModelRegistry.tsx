@@ -115,7 +115,7 @@ interface ActiveCardProps {
 }
 
 function ActiveCard({ actions, card, focusKey }: ActiveCardProps) {
-  const facts = [card.formatLabel, card.metricLabel, card.createdLabel].filter((fact): fact is string => fact !== null);
+  const facts = [card.metricLabel, card.createdLabel].filter((fact): fact is string => fact !== null);
   const sectionRef = useRef<HTMLElement>(null);
   /** Khoá lúc gắn: thẻ gắn lại (đổi họ, Thử lại) không được cướp tiêu điểm (A12). */
   const seenKeyRef = useRef(focusKey);
@@ -143,10 +143,9 @@ function ActiveCard({ actions, card, focusKey }: ActiveCardProps) {
       </div>
       {card.canRevert && (
         <div className="flex max-w-[280px] flex-col items-end gap-1">
-          <Button onClick={actions.onRequestRevert} size="sm" variant="secondary">
+          <Button onClick={actions.onRequestRevert} size="sm" title={TEXT.revertHint} variant="ghost">
             {TEXT.revert}
           </Button>
-          <p className="text-right text-[12px] text-text-secondary">{TEXT.revertHint}</p>
         </div>
       )}
     </section>

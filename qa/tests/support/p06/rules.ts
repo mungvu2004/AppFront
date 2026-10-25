@@ -335,7 +335,7 @@ export const onlyRule = (keep: string): Json =>
 /* ---------------------------------------------------------------- screen helpers */
 
 export const reportHeading = (page: Page): Locator => page.getByRole('heading', { name: 'Kiểm tra quy chuẩn', level: 1 });
-export const rerunButton = (page: Page): Locator => page.getByRole('button', { name: 'Chạy kiểm tra lại', exact: true });
+export const rerunButton = (page: Page): Locator => page.getByRole('button', { name: 'Kiểm tra lại', exact: true });
 export const confirmButton = (page: Page): Locator => page.getByRole('button', { name: 'Sang Xuất', exact: true });
 /** Cổng ở thanh bước (FlowGate): còn vi phạm nghiêm trọng thì nút phụ "Xem vi phạm kế" thay cho nút chính "Sang Xuất". */
 export const flowGate = (page: Page): Locator => page.getByTestId('flow-gate');

@@ -32,7 +32,11 @@ function appScreenTitleOf(pathname: string): string | null {
   if (pathname === ROUTES.dashboard) return 'Dự án';
   if (pathname.startsWith('/admin')) return 'Quản trị';
   if (pathname.startsWith(ROUTES.account)) return 'Tài khoản';
-  return null;
+  if (pathname === ROUTES.notifications) return 'Thông báo';
+  if (pathname === ROUTES.accessDenied) return 'Không có quyền';
+  if (pathname === ROUTES.onboarding || pathname.startsWith('/m/')) return null; // giữ như cũ: không đặt tên màn
+  // Còn lại trong khung này là route `*` (gồm đường lạ trong dự án, xem projectLocationOf).
+  return 'Không tìm thấy trang';
 }
 
 function readLastProject(): { readonly id: string; readonly name: string } | null {
@@ -67,7 +71,7 @@ export function AppLayout() {
   const detail = useQuery<{
     readonly name?: string;
     readonly status?: string;
-    readonly floors?: readonly { readonly id?: string; readonly drawings: readonly unknown[] }[];
+    readonly floors?: readonly { readonly id?: string; readonly drawings: readonly unknown[]; readonly areaM2?: number }[];
   }>({
     queryKey: queryKeys.project.detail(projectId),
     // Tự nạp chi tiết khi đang trong dự án, để tên có ở mọi màn (cùng khóa nên dùng chung bộ đệm với màn con).
@@ -132,7 +136,13 @@ export function AppLayout() {
           ? ('no-drawings' as const)
           : undefined;
 
-  const stepStates = projectStepStates({ status: detail.data?.status, hasDrawings: floors?.some((floor) => floor.drawings.length > 0) });
+  // Bước 2 "xong" khi có tầng đã ra kết quả xử lý, không đợi dự án duyệt.
+  const stepStates = projectStepStates({
+    status: detail.data?.status,
+    // ponytail: tầng 0 m² (AI không dựng được phòng nào) vẫn coi là chưa xử lý; cần cờ "đã xử lý" từ BE nếu hay gặp.
+    hasProcessedFloor: floors?.some((floor) => floor.drawings.length > 0 && (floor.areaM2 ?? 0) > 0),
+    hasDrawings: floors?.some((floor) => floor.drawings.length > 0),
+  });
 
   // Tiêu đề tab tiếng Việt cho mọi màn sau đăng nhập: "<Màn> · <Dự án> · AppFront".
   const screenTitle = location === null ? appScreenTitleOf(routerLocation.pathname) : projectScreenTitleOf(routerLocation.pathname);

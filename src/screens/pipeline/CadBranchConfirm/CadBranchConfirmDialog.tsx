@@ -11,7 +11,7 @@
  * đẩy tiêu điểm vào TRƯỚC lượt `activate()`, bẫy ghi nhớ nhầm "nơi đã mở", và lúc
  * đóng tiêu điểm rơi về `body` — hỏng lời hứa của A12. Khi nhánh CAD bị khoá, nút
  * chính `disabled` không nhận được tiêu điểm, nên dấu chuyển sang nút "Huỷ" — KHÔNG sang
- * "Vẫn dùng AI": nút đó đổi nhánh, lỡ bấm Enter là đổi nhánh ngoài ý muốn.
+ * "Tiếp tục duyệt tường": nút đó đổi nhánh, lỡ bấm Enter là đổi nhánh ngoài ý muốn.
  *
  * Không hộp thoại nào được mở từ trong hộp thoại này (cấm tuyệt đối của đặc tả).
  */

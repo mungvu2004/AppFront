@@ -57,7 +57,6 @@ export interface WallLayerLeftPanelProps {
   readonly saveFailed?: boolean | undefined;
 }
 
-const EYEBROW = 'Bước 3 · Kiểm tra tầng';
 const TITLE = 'Duyệt tường';
 const TITLE_HINT = 'Duyệt tường AI tìm thấy ở tầng này';
 const DONE_LABEL = 'Xong';
@@ -71,7 +70,7 @@ const SHOW_WALL_LAYER_LABEL = 'Hiện lớp tường';
 const HIDE_WALL_LAYER_LABEL = 'Ẩn lớp tường';
 const FILTER_LABELS: Readonly<Record<WallLayerFilterKey, string>> = {
   onlyUnreviewed: 'Chỉ hiện chưa duyệt',
-  onlyLowConfidence: 'Chỉ hiện độ tin cậy thấp',
+  onlyLowConfidence: 'Chỉ hiện chỗ máy chưa chắc',
   onlyNonStandardThickness: 'Chỉ hiện độ dày không chuẩn',
 };
 const COLUMN_CODE = 'Đoạn';
@@ -126,7 +125,7 @@ function WallLayerTreeRow({ isVisible, onToggle }: { readonly isVisible: boolean
           type="button"
         >
           <Square aria-hidden="true" className="h-4 w-4 shrink-0" />
-          <span className="truncate">{WALL_LAYER_LABEL}</span>
+          <span className="truncate">{SHOW_WALL_LAYER_LABEL}</span>
         </button>
         <button
           aria-label={isVisible ? HIDE_WALL_LAYER_LABEL : SHOW_WALL_LAYER_LABEL}
@@ -160,7 +159,7 @@ export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed
      */
     <div className="order-1 flex w-full shrink-0 flex-col rounded-xl bg-bg-surface shadow-panel lg:order-0 lg:h-full lg:min-h-0 lg:w-full lg:overflow-hidden">
       <QcPanelHead
-        eyebrow={EYEBROW}
+        eyebrow={null}
         status={<PanelStatus panel={panel} queue={queue} saveFailed={saveFailed} saveLabel={saveLabel} />}
         title={<span title={TITLE_HINT}>{TITLE}</span>}
       />
@@ -202,8 +201,8 @@ export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed
       {panel.rows.length > 0 && panel.state !== 'loading' && (
         <div aria-hidden="true" className="flex shrink-0 items-center gap-2 px-5 pb-1 pt-3 text-caption text-text-secondary">
           <span className="min-w-0 flex-1 pl-5">{COLUMN_CODE}</span>
-          <span className="w-14 shrink-0 text-right">{COLUMN_LENGTH}</span>
-          <span className="w-16 shrink-0 text-right">{COLUMN_THICKNESS}</span>
+          <span className="w-12 shrink-0 text-right">{COLUMN_LENGTH}</span>
+          <span className="w-14 shrink-0 text-right">{COLUMN_THICKNESS}</span>
         </div>
       )}
 

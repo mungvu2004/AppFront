@@ -98,7 +98,7 @@ afterEach(() => {
 });
 
 /** Năm tiêu đề mà khung vẽ ở v1. Phiên đăng nhập và vùng nguy hiểm rời DOM (cổng không có năng lực). */
-const BLOCK_TITLES = ['Hồ sơ', 'Giao diện', 'Thông báo', 'Phím tắt', 'Mật khẩu'] as const;
+const BLOCK_TITLES = ['Hồ sơ', 'Giao diện', 'Báo cho tôi khi…', 'Phím tắt', 'Mật khẩu'] as const;
 
 /** Hai khối của v2: vắng khỏi DOM chứ không bị vô hiệu hoá. */
 const ABSENT_BLOCK_TITLES = ['Phiên đăng nhập', 'Xoá tài khoản'] as const;

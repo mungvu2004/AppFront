@@ -954,7 +954,7 @@ describe('BUG-178 — địa chỉ có neo cuộn tới thẻ và đặt tiêu �
     mount(settingsGateway());
     await loaded();
 
-    const heading = screen.getByRole('heading', { name: 'Thông báo' });
+    const heading = screen.getByRole('heading', { name: 'Báo cho tôi khi…' });
 
     await waitFor(() => {
       expect(heading).toHaveFocus();

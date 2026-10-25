@@ -104,7 +104,7 @@ export const MODEL_LIBRARY_TEXT = {
   autoSpinNote: 'Khung xem trước không tự quay; kéo chuột trong khung để xoay model',
   loadFailed: 'Không đọc được danh mục mẫu 3D',
   fieldBounds: 'Kích thước bao',
-  fieldTriangles: 'Số tam giác',
+  fieldTriangles: 'Độ chi tiết (tam giác)',
   fieldFileSize: 'Dung lượng',
   fieldGroup: 'Nhóm',
 } as const;

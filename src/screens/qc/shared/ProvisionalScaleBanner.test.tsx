@@ -25,10 +25,10 @@ describe('ProvisionalScaleBanner (G4a-01, G2-22)', () => {
     expect(screen.getByText(MESSAGE)).toBeInTheDocument();
   });
 
-  it('không có onCalibrate (người xem) thì không có nút Hiệu chỉnh tỷ lệ', () => {
+  it('không có onCalibrate (người xem) thì không có nút Đặt tỷ lệ', () => {
     render(<ProvisionalScaleBanner notice={{ dismissKey: 'p/f3', message: MESSAGE }} />);
 
     expect(screen.getByText(MESSAGE)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỷ lệ' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Đặt tỷ lệ' })).not.toBeInTheDocument();
   });
 });

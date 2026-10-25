@@ -105,7 +105,9 @@ export function AxisGridOriginPanel({
             <p className="text-[13px] text-text-secondary">{SELECT_DESCRIPTION}</p>
           </div>
 
-          <div className="flex flex-col">
+          <details className="text-body-sm">
+            <summary className="cursor-pointer text-text-secondary">Chi tiết số</summary>
+          <div className="mt-2 flex flex-col">
             <OffsetFieldRow label={OFFSET_X_PX_LABEL} suffix={PX_SUFFIX} text={isUnmeasured ? origin.offsetXPxText : offsetXPx.text} />
             <OffsetFieldRow label={OFFSET_Y_PX_LABEL} suffix={PX_SUFFIX} text={isUnmeasured ? origin.offsetYPxText : offsetYPx.text} />
             <OffsetFieldRow label={OFFSET_X_MM_LABEL} suffix={MM_SUFFIX} text={isUnmeasured ? origin.offsetXMmText : offsetXMm.text} />
@@ -116,6 +118,7 @@ export function AxisGridOriginPanel({
               text={isUnmeasured ? origin.offsetYMmText : offsetYMm.text}
             />
           </div>
+          </details>
         </>
       )}
     </div>

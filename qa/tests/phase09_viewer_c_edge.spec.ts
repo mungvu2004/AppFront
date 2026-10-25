@@ -73,7 +73,7 @@ test.describe('phase 09 viewer edge (real stack)', () => {
         // Cụm 6: còn vi phạm nghiêm trọng thì cổng mời "Xem vi phạm kế" (nút phụ), không có "Sang Xuất" bị tắt.
         await expect(confirm).toBeVisible({ timeout: 30_000 });
         await expect.soft(gate.getByRole('button', { name: 'Sang Xuất' })).toHaveCount(0);
-        await expect.soft(page.getByRole('button', { name: 'Chạy kiểm tra lại' })).toBeVisible();
+        await expect.soft(page.getByRole('button', { name: 'Kiểm tra lại' })).toBeVisible();
         await expect.soft(page.getByRole('alert')).toHaveCount(0);
         await shot(page, '9V-C-034', 'confirm');
       });

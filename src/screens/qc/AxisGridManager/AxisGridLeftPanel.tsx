@@ -1,6 +1,6 @@
 /**
  * Panel trái (280px) — danh sách trục, hai nhóm "Trục ngang"/"Trục dọc", và
- * bóng ma tầng dưới ở cuối panel.
+ * mờ tầng dưới ở cuối panel.
  *
  * View THUẦN (R-60): không `@/api`, `@/store`, `@/domain`, `@/lib/http`. Props
  * dùng `Pick<AxisGridManagerProps, ...>` thay vì tự khai lại chữ ký handler —
@@ -56,7 +56,7 @@ export interface AxisGridLeftPanelProps
   > {
   readonly groups: readonly AxisGroupViewModel[];
   readonly ghostEnabled: boolean;
-  /** G4b-24: false khi chưa có tầng nào khác để vẽ bóng ma — công tắc khoá kèm lý do. */
+  /** G4b-24: false khi chưa có tầng nào khác để vẽ mờ — công tắc khoá kèm lý do. */
   readonly hasGhostFloors?: boolean;
   /** RV1-7: số tầng của dự án (`useProjectFloors`); vắng thì coi như chưa biết. */
   readonly projectFloorCount?: number | undefined;
@@ -68,10 +68,10 @@ export interface AxisGridLeftPanelProps
 
 const PANEL_TITLE = 'Trục';
 /** Nhãn tĩnh của Toggle — không đổi theo trạng thái bật/tắt, cùng khuôn `CENTRELINES_LABEL`. */
-const GHOST_TOGGLE_LABEL = 'Hiện bóng ma tầng dưới';
-const GHOST_TOGGLE_NO_FLOORS = 'Dự án chỉ có một tầng nên chưa có tầng nào để hiện bóng ma.';
+const GHOST_TOGGLE_LABEL = 'Hiện mờ tầng dưới';
+const GHOST_TOGGLE_NO_FLOORS = 'Dự án chỉ có một tầng nên chưa có tầng nào để hiện mờ.';
 /** RV1-7: dự án nhiều tầng nhưng chưa tầng nào khác được tải (hoặc chưa có tường). */
-const GHOST_TOGGLE_NOT_LOADED = 'Chưa tải tầng khác hoặc tầng khác chưa có tường, nên chưa có bóng ma để hiện.';
+const GHOST_TOGGLE_NOT_LOADED = 'Chưa tải tầng khác hoặc tầng khác chưa có tường, nên chưa có mờ để hiện.';
 /** Dấu gạch ngang chờ cho trục cuối nhóm (`spacingText === null`) — cùng khuôn `ScaleCalibrationMethodReference.tsx`. */
 const MISSING_DISTANCE = '—';
 
@@ -134,7 +134,7 @@ function AxisGridRow({
         aria-label={axisRowAriaLabel(row)}
         aria-selected={row.isSelected}
         className={cn(
-          'flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-left text-[13px] outline-hidden',
+          'flex h-10 min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-lg px-2 text-left text-[13px] outline-hidden',
           'transition-colors duration-120',
           'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
           row.isSelected ? 'bg-bg-selected text-text-primary' : 'text-text-primary hover:bg-bg-hover',
@@ -150,34 +150,37 @@ function AxisGridRow({
         type="button"
       >
         <span className="w-8 shrink-0 font-mono font-semibold">{row.label}</span>
-        <span className="ml-auto shrink-0 font-mono tabular-nums text-text-secondary">
+        <span className="ml-auto shrink-0 whitespace-nowrap pr-1 font-mono tabular-nums text-text-secondary">
           {row.spacingText ?? MISSING_DISTANCE}
         </span>
       </button>
-      {canEdit ? (
+      {/* Bút, mắt, xoá nằm trong một cụm không co, hiện rõ khi rê/chọn; xoá màu xám, đỏ khi rê. */}
+      <span className="flex shrink-0 items-center">
+        {canEdit ? (
+          <IconButton
+            aria-label={`Sửa trục ${row.label}`}
+            icon={<Pencil className="h-4 w-4" />}
+            onClick={() => setIsEditing(true)}
+            size="sm"
+          />
+        ) : null}
         <IconButton
-          aria-label={`Sửa trục ${row.label}`}
-          icon={<Pencil className="h-4 w-4" />}
-          onClick={() => setIsEditing(true)}
+          aria-label={axisToggleAriaLabel(row)}
+          aria-pressed={row.isVisible}
+          icon={row.isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          onClick={() => onToggleVisibility(row.id)}
           size="sm"
         />
-      ) : null}
-      <IconButton
-        aria-label={axisToggleAriaLabel(row)}
-        aria-pressed={row.isVisible}
-        icon={row.isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-        onClick={() => onToggleVisibility(row.id)}
-        size="sm"
-      />
-      {isViewerRole ? null : (
-        <IconButton
-          aria-label={axisRemoveAriaLabel(row)}
-          className="ml-2 text-state-violation hover:bg-state-violation-tint"
-          icon={<Trash2 className="h-4 w-4" />}
-          onClick={() => onRemove(row.id)}
-          size="sm"
-        />
-      )}
+        {isViewerRole ? null : (
+          <IconButton
+            aria-label={axisRemoveAriaLabel(row)}
+            className="ml-1 text-text-muted hover:bg-state-violation-tint hover:text-state-violation"
+            icon={<Trash2 className="h-4 w-4" />}
+            onClick={() => onRemove(row.id)}
+            size="sm"
+          />
+        )}
+      </span>
     </div>
   );
 }
@@ -355,21 +358,23 @@ export function AxisGridLeftPanel({
         ))}
       </div>
 
-      <div className="shrink-0 border-t border-border-default px-4 py-3">
-        <Toggle
-          checked={hasGhostFloors && ghostEnabled}
-          description={
-            hasGhostFloors
-              ? undefined
-              : projectFloorCount !== undefined && projectFloorCount > 1
-                ? GHOST_TOGGLE_NOT_LOADED
-                : GHOST_TOGGLE_NO_FLOORS
-          }
-          disabled={!hasGhostFloors}
-          label={GHOST_TOGGLE_LABEL}
-          onChange={() => onGhostToggle()}
-        />
-      </div>
+      {projectFloorCount === 1 ? null : (
+        <div className="shrink-0 border-t border-border-default px-4 py-3">
+          <Toggle
+            checked={hasGhostFloors && ghostEnabled}
+            description={
+              hasGhostFloors
+                ? undefined
+                : projectFloorCount !== undefined && projectFloorCount > 1
+                  ? GHOST_TOGGLE_NOT_LOADED
+                  : GHOST_TOGGLE_NO_FLOORS
+            }
+            disabled={!hasGhostFloors}
+            label={GHOST_TOGGLE_LABEL}
+            onChange={() => onGhostToggle()}
+          />
+        </div>
+      )}
 
       <ConfirmDeleteDialog
         body={`Trục ${pendingRemove?.label ?? ''} sẽ bị xoá khỏi lưới trục của tầng này và lưu ngay lên máy chủ. Bạn vẫn hoàn tác được trong vài giây sau khi xoá.`}

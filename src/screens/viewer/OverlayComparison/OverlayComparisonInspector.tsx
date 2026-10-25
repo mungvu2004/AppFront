@@ -45,6 +45,9 @@ export function OverlayComparisonInspector({
   // Một nút chính mỗi màn: khi lệch và chưa xác nhận, nút sửa là việc chính; cổng chỉ có nút phụ.
   const fixIsPrimary = isOver && status.kind === 'deviating' && !confirmation.isConfirmed;
 
+  /* Chưa đo được và chưa chọn vùng nào: không có gì để xem, khỏi dựng bảng trống. */
+  if (row === null && status.kind === 'unmeasured') return null;
+
   return (
     <aside
       aria-label="Vùng đang chọn"

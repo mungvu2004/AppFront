@@ -127,7 +127,7 @@ const OBJ = {
 
 /* SCR-20 */
 const ROOM = {
-  screen: 'Duyệt tên phòng', // RLR:SCREEN_TITLE
+  screen: 'Duyệt phòng', // RLR:SCREEN_TITLE
   list: 'Danh sách phòng', // RoomLabelList LIST_ARIA_LABEL
   canvas: 'Khung xem bản vẽ duyệt tên phòng', // RLR:CANVAS_SECTION_LABEL
   canvasNoteId: 'room-label-canvas-forbidden', // RCV:FORBIDDEN_DESCRIPTION_ID
@@ -153,7 +153,7 @@ const ROOM = {
 
 /* SCR-21 */
 const THICK = {
-  screen: 'Chuẩn hoá độ dày tường', // TV:SCREEN_TITLE
+  screen: 'Độ dày tường', // TV:SCREEN_TITLE
   tables: 'Nhóm đổi về chuẩn', // bản Z TBP:TEXT.groupsTitle (group section; the per-wall table is in the drawer)
   forbiddenTitle: 'Không có quyền sửa độ dày tường', // TV:FORBIDDEN_TITLE
   viewerNotice:
@@ -188,7 +188,7 @@ const AXIS = {
 
 /* SCR-14 */
 const SCALE = {
-  screen: 'Màn hiệu chỉnh tỷ lệ', // SC:SCREEN_ARIA_LABEL
+  screen: 'Tỷ lệ bản vẽ', // SC:SCREEN_ARIA_LABEL
   notice: 'Trạng thái của màn hiệu chỉnh tỷ lệ', // SC:NOTICE_REGION_ARIA_LABEL
   forbiddenTitle: 'Bạn không có quyền hiệu chỉnh tỷ lệ', // SC:FORBIDDEN_TITLE
   forbiddenNotice:
@@ -212,7 +212,7 @@ const SCALE = {
 
 /* SCR-22 */
 const OVERLAY = {
-  screen: 'Màn đối chiếu bản vẽ', // OC:SCREEN_ARIA_LABEL
+  screen: 'So với bản vẽ', // OC:SCREEN_ARIA_LABEL
   notice: 'Trạng thái của màn đối chiếu bản vẽ', // OC:NOTICE_REGION_ARIA_LABEL
   forbidden: 'Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.', // UOC COPY.forbiddenNotice
   readOnlyLine: 'Bạn không có quyền sửa, các điều khiển đang tắt.', // OCT:READ_ONLY_NOTICE
@@ -224,7 +224,7 @@ const OVERLAY = {
   opacity: 'Độ mờ ảnh nguồn', // OCT:SCAN_OPACITY_ARIA_LABEL
   lock: 'Khoá căn', // OCT:ALIGNMENT_LOCK_LABEL
   tolerance: 'Dung sai', // UOC COPY.toleranceLabel
-  confirm: 'Xác nhận khớp bản vẽ', // UOC COPY.confirmButton
+  confirm: 'Khớp rồi, xác nhận', // UOC COPY.confirmButton
   divider: 'Đường chia đôi, dùng phím mũi tên trái và phải để dịch', // OCD:DIVIDER_ARIA_LABEL
 } as const;
 

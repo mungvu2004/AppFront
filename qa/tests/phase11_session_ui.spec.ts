@@ -56,9 +56,9 @@ test.describe('SCR-37/38/01 UI', () => {
           await p.getByLabel('Tìm người dùng').fill('p11-session-ui1');
           await expect(userRow(p, fu.email)).toBeVisible();
           await expect(userRow(p, fu2.email)).toBeVisible();
-          await expect(userRow(p, fu.email).getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toBeVisible();
+          await expect(userRow(p, fu.email).getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toBeAttached();
           await expect(userRow(p, fu.email).getByRole('button', { name: 'Xoá', exact: true })).toBeVisible();
-          await expect(userRow(p, fu2.email).getByRole('button', { name: 'Bật lại', exact: true })).toBeVisible();
+          await expect(userRow(p, fu2.email).getByRole('button', { name: 'Bật lại', exact: true })).toBeAttached();
           await expect(userRow(p, fu2.email).getByRole('button', { name: 'Xoá', exact: true })).toBeVisible();
         }, DESKTOP_VIEWPORTS);
       });

@@ -78,9 +78,6 @@ const ENTITY_KIND_LABELS: Readonly<Record<EntityKind, string>> = {
 /** Thứ tự đọc ba mảng diff: thêm trước, xoá sau, thay đổi cuối — đúng `describeChanges`. */
 const TONE_ORDER: readonly DiffTone[] = ['added', 'removed', 'changed'];
 
-/** Dấu trừ toán học (U+2212), không phải dấu gạch nối của bàn phím. */
-const MINUS_SIGN = '−';
-
 /** Ngày hôm nay không đọc thành "08/09/2026" — người ta gọi nó là hôm nay. */
 const TODAY_HEADING = 'Hôm nay';
 
@@ -99,9 +96,9 @@ export const EMPTY_DIFF_COUNTS: DiffCountsModel = Object.freeze({
   added: 0,
   removed: 0,
   changed: 0,
-  addedLabel: `+${formatNumber(0)}`,
-  removedLabel: `${MINUS_SIGN}${formatNumber(0)}`,
-  changedLabel: `~${formatNumber(0)}`,
+  addedLabel: `thêm ${formatNumber(0)}`,
+  removedLabel: `xoá ${formatNumber(0)}`,
+  changedLabel: `sửa ${formatNumber(0)}`,
   ariaLabel: 'Không có thay đổi nào',
 });
 
@@ -124,9 +121,9 @@ export function countsOf(diff: VersionDiff): DiffCountsModel {
     added,
     removed,
     changed,
-    addedLabel: `+${formatNumber(added)}`,
-    removedLabel: `${MINUS_SIGN}${formatNumber(removed)}`,
-    changedLabel: `~${formatNumber(changed)}`,
+    addedLabel: `thêm ${formatNumber(added)}`,
+    removedLabel: `xoá ${formatNumber(removed)}`,
+    changedLabel: `sửa ${formatNumber(changed)}`,
     ariaLabel: `Thêm ${formatNumber(added)}, xoá ${formatNumber(removed)}, thay đổi ${formatNumber(changed)}`,
   };
 }
@@ -200,6 +197,9 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
     summaries,
   } = context;
   const pickedCount = (leftVersionId === null ? 0 : 1) + (rightVersionId === null ? 0 : 1);
+  // Không bản nào khớp revision của tầng: bản mới nhất vẫn là bản hiện tại (không để người dùng tự đoán).
+  const hasRevisionMatch =
+    currentRevision !== null && history.some((entry) => summaries.get(entry.version.id)?.floorRevision === currentRevision);
 
   return history.map((entry, index): VersionRowBuild => {
     const metadata = entry.version;
@@ -249,7 +249,7 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
         isCountsLoading,
         ...(isCountsUnknown ? { countsUnavailableLabel: COUNTS_UNAVAILABLE_LABEL } : {}),
         // HOP-DONG-MOI §5: hiện tại ⇔ `floorRevision` bằng `revision` của tầng, không phải "hàng đầu".
-        isCurrent: currentRevision !== null && summary?.floorRevision === currentRevision,
+        isCurrent: hasRevisionMatch ? summary?.floorRevision === currentRevision : index === 0,
         tagLabel: summary?.label ?? null,
         isMetadataOnly,
         retentionNotice: isMetadataOnly ? RETENTION_NOTICE : null,

@@ -115,17 +115,17 @@ const ROWS = {
   // F-05b: màn chỉ mở SSE cho tầng đang xem chưa xong sau lượt #8 mồi; bộ mẫu dev không có
   // lượt nào đang chạy nên không còn lượt mở luồng 404 (B-V4-10) để chờ.
   projectPipeline: { anchor: { role: 'navigation', name: 'Xử lý' } },
-  projectPipelineGraph: { anchor: { role: 'heading', name: 'Theo dõi bản vẽ đi qua nhánh xử lý nào' } },
-  projectScale: { anchor: { role: 'heading', name: 'Đặt tỷ lệ bản vẽ' } },
+  projectPipelineGraph: { anchor: { role: 'heading', name: 'Bản vẽ được xử lý theo đường nào' } },
+  projectScale: { anchor: { role: 'heading', name: 'Tỷ lệ bản vẽ' } },
   projectCadConfirm: { anchor: { role: 'heading', name: 'Nhập tầng từ tệp CAD' } },
   projectWalls: { anchor: { role: 'region', name: 'Duyệt lớp tường' } },
   projectObjects: { anchor: { role: 'region', name: 'Lớp đối tượng' } },
-  projectDimensions: { anchor: { role: 'region', name: 'Đọc kích thước OCR' } },
-  projectGrids: { anchor: { role: 'heading', name: 'Kiểm trục và gốc toạ độ' } },
-  projectRooms: { anchor: { role: 'heading', name: 'Duyệt tên phòng' } },
-  projectFloors: { anchor: { role: 'heading', name: 'Theo dõi từng tầng và làm tiếp tầng cần nhất' } },
-  projectThickness: { anchor: { role: 'heading', name: 'Chuẩn hoá độ dày tường' } },
-  projectOverlay: { anchor: { role: 'region', name: 'Màn đối chiếu bản vẽ' } },
+  projectDimensions: { anchor: { role: 'region', name: 'Kích thước' } },
+  projectGrids: { anchor: { role: 'heading', name: 'Trục và gốc toạ độ' } },
+  projectRooms: { anchor: { role: 'heading', name: 'Duyệt phòng' } },
+  projectFloors: { anchor: { role: 'heading', name: 'Duyệt từng tầng' } },
+  projectThickness: { anchor: { role: 'heading', name: 'Độ dày tường' } },
+  projectOverlay: { anchor: { role: 'region', name: 'So với bản vẽ' } },
   projectViewer: { anchor: { redirect: '/editor3d.html' } },
   projectExploded: { anchor: { redirect: '/editor3d.html' } },
   projectMeasure: { anchor: { redirect: '/editor3d.html' } },
@@ -134,7 +134,7 @@ const ROWS = {
   projectRuleSettings: { anchor: { role: 'heading', name: 'Chọn luật áp dụng' } },
   projectExport: { anchor: { role: 'heading', name: 'Xuất mô hình' } },
   // Ô tìm chỉ có khi đã có dữ liệu (không vẽ ô chết trên ca rỗng); bộ mẫu dev chưa có tường nào, nên mốc là H1.
-  projectData: { anchor: { role: 'heading', name: 'Xem dữ liệu không gian' } },
+  projectData: { anchor: { role: 'heading', name: 'Xem trước dữ liệu xuất (.json)' } },
   projectVersions: { anchor: { role: 'navigation', name: 'Danh sách phiên bản' } },
   sharedModel: { anchor: { role: 'heading', name: 'Liên kết không còn hiệu lực' } },
 } as const satisfies Record<ProductRouteKey, Row>;
@@ -214,7 +214,7 @@ test('hộp thoại tạo dự án mở từ nút "Dự án mới", Escape đón
   page,
 }) => {
   await page.goto(ROUTE_PATTERNS.dashboard);
-  await page.getByRole('button', { name: /^Tạo dự án\s*N$/u }).click({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  await page.getByRole('button', { name: /^Tạo dự án$/u }).click({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toHaveCount(1);

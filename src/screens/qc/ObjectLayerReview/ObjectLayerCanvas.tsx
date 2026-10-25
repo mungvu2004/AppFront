@@ -42,7 +42,6 @@ import {
   selectionHandleRects,
   type ObjectLayerCanvasViewProps,
 } from './objectLayerSymbols';
-import { ObjectLayerCanvasLegend } from './ObjectLayerCanvasLegend';
 import { ObjectSymbolFigure } from './ObjectLayerSymbolFigure';
 
 /** Hợp đồng props của lớp canvas, mang ra đây cho nơi gọi khỏi phải biết hai đường nhập. */
@@ -285,7 +284,6 @@ export function ObjectLayerCanvas({
         </p>
       ) : null}
 
-      <ObjectLayerCanvasLegend count={isLoading ? null : placements.length} layerVisibility={layerVisibility} />
       <ZoomCluster {...zoomCluster} />
 
       <ContextMenu

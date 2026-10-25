@@ -207,7 +207,6 @@ export const SAMPLE_VISUAL: VisualDiffModel = {
 
 export const SAMPLE_TABS: readonly VersionHistoryOption[] = [
   { id: 'changes', label: 'Thay đổi' },
-  { id: 'json', label: 'JSON' },
   { id: 'visual', label: 'Trực quan' },
 ];
 

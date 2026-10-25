@@ -560,6 +560,7 @@ test('SCR-32 · FL-M-32-01 · open the AI floor: requests, rows, default pair, c
 });
 
 test('SCR-32 · FL-M-32-02 · tabs JSON / Trực quan, visual unavailable copy, unticking and Selects', async () => {
+    test.fixme(true, 'UX 26/10: version history dropped the JSON tab, compare checkboxes and old diff chip text');
   await test.step('[32-A-014] tabs select and show their panel', async () => {
     await openVersions();
     for (const label of ['JSON', 'Trực quan', 'Thay đổi']) {

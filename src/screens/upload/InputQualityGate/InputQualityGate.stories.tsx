@@ -249,7 +249,7 @@ const FINDING_COPY: Readonly<Record<string, FindingCopy>> = {
     title: 'Không tìm thấy khung bản vẽ',
     consequence:
       'Không tìm thấy khung bản vẽ. Không có khung thì hệ thống không biết đâu là mép bản vẽ, nên ' +
-      'tỉ lệ quy đổi ra kích thước thật lệch theo và mọi kích thước đọc được đều sai. ' +
+      'tỷ lệ quy đổi ra kích thước thật lệch theo và mọi kích thước đọc được đều sai. ' +
       'Bạn có thể tự chọn 4 góc.',
   },
   RESOLUTION_TOO_LOW: {

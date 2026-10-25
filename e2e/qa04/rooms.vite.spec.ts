@@ -21,7 +21,7 @@ const VIEWPORTS = [
 const MIN_BOTTOM_GAP_PX = 16;
 /** vi text of the inspector (RoomLabelInspector.tsx:83,85); the title is an h2 since 13a0ba40 (one heading level per panel). */
 const PANEL_TITLE = 'Phòng';
-const EMPTY_MESSAGE = 'Chọn một phòng trên bản vẽ hoặc trong danh sách để xem chi tiết.';
+const EMPTY_MESSAGE = 'Chọn một phòng để xem chi tiết.';
 
 test.use({ baseURL: MOCK_BASE_URL });
 

@@ -215,12 +215,12 @@ describe('Bảng và chi tiết', () => {
     expect(actions.onLoadMore).toHaveBeenCalledTimes(1);
   });
 
-  it('đầu trang: không breadcrumb lặp tab, h1, liên kết sang model AI', () => {
+  it('đầu trang: không breadcrumb lặp tab, h1, không có link chéo sang tab khác', () => {
     renderView(TRAINING_JOBS_SCENARIO_SUCCESS);
 
     expect(screen.queryByRole('navigation', { name: 'Đường dẫn trang' })).toBeNull();
     expect(screen.getByRole('heading', { level: 1, name: 'Theo dõi huấn luyện' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Sang tab Mô hình AI' })).toHaveAttribute('href', ROUTES.adminTrainingModels);
+    expect(screen.queryByRole('link', { name: 'Sang tab Mô hình AI' })).toBeNull();
     expect(ROUTES.adminTrainingJobs).toBe('/admin/training/jobs');
   });
 

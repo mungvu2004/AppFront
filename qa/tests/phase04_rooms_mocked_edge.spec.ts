@@ -1,5 +1,5 @@
 /**
- * Phase 4 — SCR-20 "Duyệt tên phòng", EDGE layer, MOCKED RESPONSES: two sequential user flows (QA-04c P5, `flow-plan.md`
+ * Phase 4 — SCR-20 "Duyệt phòng", EDGE layer, MOCKED RESPONSES: two sequential user flows (QA-04c P5, `flow-plan.md`
  * "phase04_rooms_mocked_edge.spec.ts"). One `test()` per flow, one `test.step('[<row id>] …')` per catalog row, in the
  * planned order. Every title carries `[mocked response]`: a 5xx, an aborted request or a 422 that only the server's own rules
  * could produce cannot be produced on the shared stack. What is real: the project, its floor layer (written through #35),

@@ -57,7 +57,7 @@ export const layerApi = (api: APIRequestContext): LayerApi => ({ request: api, h
 /* ---- copy ------------------------------------------------------------------------------------- */
 
 export const OV = {
-  screen: 'Màn đối chiếu bản vẽ', // OC:74
+  screen: 'So với bản vẽ', // OC:74
   canvasSection: 'Khung đối chiếu bản vẽ gốc và mô hình', // OC:75
   canvasGroup: 'Khung đối chiếu bản vẽ và mô hình', // OCV:83
   sourceFrame: 'Khung bản vẽ nguồn', // OCV:84
@@ -68,7 +68,7 @@ export const OV = {
   floorSelect: 'Chọn tầng', // OCT:57
   noScanSuffix: 'Không có ảnh bản vẽ gốc', // OCT:58
   modes: 'Kiểu đối chiếu', // OCT:59
-  overlay: 'Chồng lớp', // types.ts COMPARE_MODE_LABELS
+  overlay: 'So với bản vẽ', // types.ts COMPARE_MODE_LABELS
   swipe: 'Trượt',
   sideBySide: 'Cạnh nhau',
   sideBySideDisabled: 'Khung quá hẹp để đặt hai khung nhìn cạnh nhau; hãy dùng trượt.', // UOC:122
@@ -78,7 +78,7 @@ export const OV = {
   divider: 'Đường chia đôi, dùng phím mũi tên trái và phải để dịch', // OCD:25
   tolerance: 'Dung sai', // UOC:122
   deviationList: 'Danh sách vùng lệch', // OCP:51
-  confirm: 'Xác nhận khớp bản vẽ', // UOC:104
+  confirm: 'Khớp rồi, xác nhận', // UOC:104
   toScale: 'Sang màn hiệu chỉnh tỷ lệ', // OC:78
   toUpload: 'Tải bản vẽ lên', // OC:80
   layerScan: 'Ảnh quét gốc', // UOC:115

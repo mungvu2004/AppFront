@@ -49,7 +49,7 @@ export const COMPARISON_TABLE: readonly ComparisonRowText[] = [
     aspect: 'Độ chính xác',
     cadBranch: 'Lấy thẳng từ tệp CAD gốc, độ chính xác tuyệt đối.',
     aiBranch:
-      'Dựa trên nhận dạng ảnh; cần hiệu chỉnh tỷ lệ và kiểm tra từng chi tiết. Không nhỏ hơn CAD nhưng yêu cầu xác minh.',
+      'Dựa trên nhận dạng ảnh; cần đặt tỷ lệ và kiểm tra từng chi tiết. Không nhỏ hơn CAD nhưng yêu cầu xác minh.',
   },
   {
     aspect: 'Công việc QC',
@@ -91,7 +91,7 @@ export const UNIT_DECLARATION_WARNING_MESSAGE =
 export const PRIMARY_BUTTON_LABEL = 'Dùng đường từ CAD';
 
 /** Nút phụ: tiếp tục với nhánh AI. */
-export const SECONDARY_BUTTON_LABEL = 'Vẫn dùng AI';
+export const SECONDARY_BUTTON_LABEL = 'Tiếp tục duyệt tường';
 
 /** Nút mờ: huỷ bỏ hộp thoại. */
 export const DISMISS_BUTTON_LABEL = 'Huỷ';
@@ -168,7 +168,7 @@ export const UNASSIGNED_LAYER_HINT =
 
 /** Caption mức cần chú ý khi người dùng chọn nhánh AI. */
 export const AI_BRANCH_NOTICE =
-  'Nếu bạn chọn nhánh AI, sẽ cần hiệu chỉnh tỷ lệ sau khi nhập hình học.';
+  'Nếu bạn chọn nhánh AI, sẽ cần đặt tỷ lệ sau khi nhập hình học.';
 
 /**
  * Xuất toàn bộ cấu trúc dưới dạng một module duy nhất cho dễ nhập vào view model.

@@ -223,12 +223,11 @@ describe('R-72 — expectAccessible trên cây render thật', () => {
 });
 
 describe('R-67 — expectVietnamese trên cây render thật', () => {
-  it('trạng thái "thành công": toàn chữ tiếng Việt có dấu, trừ nhãn tab "JSON"', async () => {
+  it('trạng thái "thành công": toàn chữ tiếng Việt có dấu', async () => {
     const VersionHistoryView = await loadVersionHistoryView();
     const { container } = renderWithProviders(<VersionHistoryView {...buildVersionHistoryProps('success')} />);
 
     expectVietnamese(container, {
-      allowWords: ['JSON'],
       ignore: [/^https?:\/\//u, /^[\w.+-]+@[\w-]+\.[\w.-]+$/u],
     });
   });
@@ -1386,7 +1385,7 @@ describe('đổi tab giữ nguyên vị trí cuộn', () => {
     rerender(
       <VersionHistoryView
         {...props}
-        model={{ ...props.model, compare: { ...props.model.compare, activeTab: 'json' } }}
+        model={{ ...props.model, compare: { ...props.model.compare, activeTab: 'visual' } }}
       />,
     );
     rerender(

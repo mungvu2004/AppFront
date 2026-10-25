@@ -77,7 +77,7 @@ test('Esc huỷ đoạn đang kéo, ở lại màn, và lượt kéo sau vẫn v
   await page.mouse.up();
 
   await expect(page.getByRole('button', { name: HANDLE_START })).toHaveCount(0);
-  await expect(page.getByText('Chưa có chuỗi kích thước nào để đối chiếu', { exact: true })).toBeVisible();
+  await expect(page.getByText('Máy chưa đọc được số kích thước nào', { exact: true })).toBeVisible();
   expect(pathOf(page.url())).toBe(scaleOf('L2'));
 
   await drag(page, canvas);

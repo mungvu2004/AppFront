@@ -43,7 +43,6 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { BACK_TO_PROJECTS_LABEL, PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
 import { Breadcrumb } from '@/components/shell/Breadcrumb';
-import { FlowGate } from '@/components/shell/FlowGate';
 import { PageHead } from '@/components/shell/PageHead';
 import { Section } from '@/components/shell/Section';
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -64,7 +63,6 @@ const BREADCRUMB_UPLOAD = 'Tải lên bản vẽ';
 const EYEBROW = 'Bước 1 · Tải bản vẽ';
 const PAGE_TITLE = 'Tải bản vẽ mặt bằng cho từng tầng';
 const SECTION_TITLE = 'Bản vẽ theo tầng';
-const GATE_PROGRESS_LABEL = 'Điều kiện để xử lý';
 
 /** Chữ của dòng trạng thái. "Sẵn sàng xử lý" chỉ ở tiêu đề khung điều kiện, không lặp ở đây. */
 const STATUS_READY = 'Đủ điều kiện';
@@ -240,7 +238,8 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
           className="mb-0"
           eyebrow={EYEBROW}
           status={
-            isSettled ? (
+            // Đủ điều kiện: checklist bên phải đã nói, không lặp chip + câu ở đầu trang.
+            isSettled && !gate.isReady ? (
               <>
                 <Badge variant={status.variant}>{status.label}</Badge>
                 <span>{status.sentence}</span>
@@ -322,9 +321,6 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
           </div>
         )}
       </div>
-
-      {/* Thanh bước chỉ nhận thanh + số; nút nằm ở khung điều kiện, không lặp (HOP-DONG-V6 §1). */}
-      {isSettled && <FlowGate done={gate.doneCount} progressLabel={GATE_PROGRESS_LABEL} total={gate.total} />}
     </div>
   );
 }

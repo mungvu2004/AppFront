@@ -45,6 +45,7 @@ import { useSession } from '@/hooks/useSession';
 import { useProjectFloors } from '@/hooks/useProjectFloors';
 import { ROUTES } from '@/routes/paths';
 import { FLOOR_LAYERS, PROJECT_STEPS, type FloorLayerKey } from '@/routes/projectSteps';
+import { FloorReviewGate } from '../../qc/shared/FloorReviewGate.container';
 import { QcFloorNav } from '@/screens/qc/shared/QcFloorNav';
 import type { ProjectRole } from '@/types/project';
 
@@ -137,6 +138,7 @@ function WiredOverlayComparison(props: OverlayComparisonContainerProps) {
       // Route tỷ lệ nhận mã tầng API như route này (G4b-25).
       alignHref={ROUTES.project.scale(props.projectId, props.floorId)}
       fixTargetOf={(objectCode) => fixTargetFor(props.projectId, props.floorId, objectCode)}
+      gate={<FloorReviewGate floorId={props.floorId} projectId={props.projectId} />}
       model={model}
       nav={<QcFloorNav floorId={props.floorId} floors={floors} layer="overlay" projectId={props.projectId} titled />}
       {...(VIEWER_STEP === undefined

@@ -93,7 +93,7 @@ describe('VersionPlanDiff', () => {
   it('RV2#12: chưa tích đủ hai bản ⇒ nhắc tích, không báo thiếu ảnh chụp', () => {
     render(<VersionPlanDiff plan={null} isPairPicked={false} onHover={noop} onPick={noop} />);
 
-    expect(screen.getByText(/Tích đủ hai phiên bản/)).toBeTruthy();
+    expect(screen.getByText(/Chọn đủ hai phiên bản/)).toBeTruthy();
     expect(screen.queryByText(/chưa có ảnh chụp/)).toBeNull();
   });
 });

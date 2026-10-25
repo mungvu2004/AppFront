@@ -337,7 +337,7 @@
         "areaUnitValue": "Mét vuông — ví dụ {{example}}",
         "snapTolerance": "Dung sai bắt điểm",
         "confidenceThreshold": "Ngưỡng tin cậy",
-        "scale": "Tỉ lệ bản vẽ",
+        "scale": "Tỷ lệ bản vẽ",
         "scaleValue": "{{value}} milimét trên mỗi điểm ảnh",
         "scalePreview": "{{pixels}} điểm ảnh ứng với {{length}} ngoài thực tế.",
         "scalePreviewUnknown": "Chưa nói được quãng thật vì tỉ lệ chưa hợp lệ."
@@ -401,7 +401,7 @@
         "snapOutOfRange": "Dung sai bắt điểm áp dụng từ {{min}} đến {{max}}.",
         "confidenceOutOfRange": "Ngưỡng tin cậy nằm trong khoảng {{min}} đến {{max}}.",
         "scaleRequired": "Chưa nhập tỉ lệ bản vẽ.",
-        "scaleOutOfRange": "Tỉ lệ bản vẽ áp dụng từ {{min}} đến {{max}} milimét trên mỗi điểm ảnh.",
+        "scaleOutOfRange": "Tỷ lệ bản vẽ áp dụng từ {{min}} đến {{max}} milimét trên mỗi điểm ảnh.",
         "forbiddenChar": "{{field}} có {{kind}} ({{codePoint}}); hãy xoá ký tự đó."
       },
       "load": {
@@ -1089,7 +1089,7 @@
       "rowAriaLabelPrefix": "Chuỗi kích thước ",
       "pixelLength": "{{pixels}} đo được",
       "confidenceLabel": "Độ tin cậy",
-      "emptyTitle": "Chưa đọc được chuỗi kích thước nào",
+      "emptyTitle": "Máy chưa đọc được số kích thước nào",
       "emptyDescription": "OCR không tìm thấy chuỗi kích thước nào trên bản vẽ này. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.",
       "lowConfidence": "Có {{count}} chuỗi đọc được với độ tin cậy thấp, đã đánh dấu mức cần chú ý.",
       "tooFewSamples": "Chưa đủ chuỗi kích thước để suy ra tỷ lệ, nên phải đặt bằng tay.",
@@ -1104,7 +1104,7 @@
       "realLengthLabel": "Chiều dài thật",
       "realLengthUnit": "mm",
       "realLengthPlaceholder": "4800",
-      "realLengthHint": "OCR đọc được {{value}} ngay cạnh đoạn này.",
+      "realLengthHint": "Máy đọc được {{value}} ngay cạnh đoạn này.",
       "realLengthNoHint": "Không có chuỗi kích thước nào gần đoạn này để gợi ý.",
       "realLengthInvalid": "Chiều dài thật phải là một số lớn hơn 0, ví dụ 4800.",
       "remeasure": "Đo lại",
@@ -1179,8 +1179,8 @@
       "nudgeCoarse": "Nhích đầu đoạn mười pixel"
     },
     "state": {
-      "emptyTitle": "Chưa có chuỗi kích thước nào để đối chiếu",
-      "emptyDescription": "Bản vẽ này không có chuỗi kích thước nào OCR đọc được. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.",
+      "emptyTitle": "Máy chưa đọc được số kích thước nào",
+      "emptyDescription": "Máy không đọc được số kích thước nào trên bản vẽ này. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.",
       "loadingTitle": "Đang tải bản vẽ đã nắn",
       "loadingDescription": "Ảnh 3000×3000 pixel đang được tải. Bảng hiệu chỉnh sẽ mở ngay khi ảnh sẵn sàng.",
       "partialTitle": "Chưa đủ dữ liệu để chốt tỷ lệ",
@@ -1740,7 +1740,7 @@
     },
     "states": {
       "empty": {
-        "title": "Chưa đọc được chuỗi kích thước nào",
+        "title": "Máy chưa đọc được số kích thước nào",
         "description": "Chuỗi kích thước trên bản vẽ có nét mảnh hoặc không rõ, nên OCR không tách được số. Hiệu chỉnh tỷ lệ bằng tay để đo độ dài từ bản vẽ.",
         "actionLabel": "Hiệu chỉnh tỷ lệ"
       },
@@ -4127,7 +4127,7 @@
     "forbiddenTitle": "Không có quyền xem dữ liệu",
     "forbiddenMessage": "Bạn không có quyền xem dữ liệu không gian của dự án này. Hãy hỏi quản trị viên dự án để được cấp quyền xem.",
     "refreshing": "Đang làm mới dữ liệu của bản vẽ này. Phần đang hiện vẫn đúng với lượt tải trước.",
-    "validityOk": "Hợp lệ — 0 lỗi.",
+    "validityOk": "Tệp đúng cấu trúc",
     "validityBroken": "{{critical}} lỗi nghiêm trọng · {{warning}} cảnh báo.",
     "rawTruncated": "Còn {{count}} dòng nữa. Bấm Tải xuống .json để lấy toàn bộ.",
     "previewEmpty": "Chọn một nút ở cây bên trái để xem chi tiết của nó.",

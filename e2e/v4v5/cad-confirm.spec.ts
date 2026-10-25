@@ -36,7 +36,7 @@ test('tầng chỉ có ảnh: không tự mở hộp thoại, không có nút "D
   await expect(page.getByRole('heading', { name: 'Phát hiện tệp CAD' })).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Dùng đường từ CAD' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Vẫn dùng AI' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tiếp tục duyệt tường' })).toBeVisible();
   expect(pathOf(page.url())).toBe(CAD);
   expect(writes).toEqual([]);
 });
@@ -47,7 +47,7 @@ test('vai Người xem: màn nói không có quyền, nhánh AI vẫn mở và �
   await expect(page.getByText('Không có quyền xử lý CAD', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Dùng đường từ CAD' })).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Vẫn dùng AI' }).click();
+  await page.getByRole('button', { name: 'Tiếp tục duyệt tường' }).click();
 
   await expect.poll(() => pathOf(page.url())).toBe(ROUTES.project.pipeline(PROJECT_ID));
 });

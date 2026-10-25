@@ -95,7 +95,7 @@ import { DEFAULT_TOLERANCE_MM, thicknessGroupLabel } from './thicknessTypes';
 /* Nhãn đọc trên màn — cùng chữ mà view và các mảnh con dựng.                   */
 /* -------------------------------------------------------------------------- */
 
-const SCREEN_ARIA_LABEL = 'Chuẩn hoá độ dày tường';
+const SCREEN_ARIA_LABEL = 'Độ dày tường';
 const HISTOGRAM_SECTION_LABEL = 'Phân bố độ dày đo được';
 const UNDO_LABEL = 'Hoàn tác';
 const DETAIL_LABEL = /^Xem bảng từng đoạn \(\d+\)$/u;
@@ -389,7 +389,7 @@ describe('[NGHIEM-2] đổi ba nhóm là ĐÚNG MỘT bước hoàn tác', () =>
 
     expect(screen.queryByRole('button', { name: /^Đổi \d+ đoạn/u })).toBeNull();
     fireEvent.click(
-      screen.getByRole('button', { name: `Chọn cả ${String(BATCH_GROUPS.length)} nhóm (${String(targets.length)} đoạn)` }),
+      screen.getByRole('button', { name: `Chọn cả ${String(BATCH_GROUPS.length)} nhóm để đổi (${String(targets.length)} đoạn)` }),
     );
 
     /* Tích là CHỌN: chưa một độ dày nào đổi. */
@@ -665,14 +665,14 @@ describe('dải lưu lớp (F-04x-1)', () => {
 describe('dải tỷ lệ tạm (F-04x-2)', () => {
   const NOTICE = provisionalScaleNoticeOf('unresolved')?.message ?? '';
 
-  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỷ lệ" gọi onNavigate', async () => {
+  it('tầng unresolved: dải chú ý + "Đặt tỷ lệ" gọi onNavigate', async () => {
     const onNavigate = vi.fn();
     renderWithProviders(
       <ThicknessStandardizationContainer {...scenarioArgsFor('partial')} {...ProvisionalScale.args} onNavigate={onNavigate} />,
     );
 
     expect(await screen.findByText(NOTICE)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt tỷ lệ' }));
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });
 
@@ -682,7 +682,7 @@ describe('dải tỷ lệ tạm (F-04x-2)', () => {
     await waitFor(() => {
       expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
     });
-    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỷ lệ' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Đặt tỷ lệ' })).not.toBeInTheDocument();
   });
 });
 

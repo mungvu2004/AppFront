@@ -70,11 +70,12 @@ test.describe('SCR-37 users read [mocked response]', () => {
     }
   });
 
-  test('SCR-37 · FL-37U-U1 (37U-F-007) · "Xoá" stays centred in rows of different height [mocked response]', async ({ page }) => {
+  test('SCR-37 · FL-37U-U1 (37U-F-007) · menu "⋯" stays centred in rows of different height [mocked response]', async ({ page }) => {
     await openUsers(page);
     const m = await page.locator('tbody tr').evaluateAll((rows) =>
       rows.flatMap((r) => {
-        const b = [...r.querySelectorAll('button')].find((x) => x.textContent?.trim().startsWith('Xoá'));
+        // UX 26/10: "Xoá" nằm trong menu <details> "⋯" cuối dòng; đo nút mở menu.
+        const b = r.querySelector('details > summary');
         if (!b) return [];
         const br = b.getBoundingClientRect();
         const rr = r.getBoundingClientRect();

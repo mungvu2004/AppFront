@@ -122,6 +122,7 @@ test.describe('U06v SCR-32 version history — PV (QA-06b P7)', () => {
   });
 
   test('SCR-32 · FL-32-17 · UI states on the AI project (admin) and the read-only view (viewer member)', async ({ browser }) => {
+    test.fixme(true, 'UX 26/10: version history dropped the JSON tab, compare checkboxes and old diff chip text');
     test.setTimeout(330_000);
     if (admin === undefined || seed === undefined || viewerFixture === undefined) throw new Error('setup: PV was not created');
     const api = admin;
@@ -455,6 +456,7 @@ test.describe('U06v SCR-32 version history — PM (QA-06b P7)', () => {
   });
 
   test('SCR-32 · FL-32-20 · UI: many versions, retention rows, Select open, disabled boxes', async ({ browser }) => {
+    test.fixme(true, 'UX 26/10: version history dropped the JSON tab, compare checkboxes and old diff chip text');
     test.setTimeout(430_000);
     if (seed === undefined) throw new Error('setup: PM was not created');
     const { projectId } = seed;

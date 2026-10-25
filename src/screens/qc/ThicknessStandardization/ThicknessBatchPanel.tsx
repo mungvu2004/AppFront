@@ -21,11 +21,11 @@ const TEXT = {
   colMeasured: 'Độ dày đo',
   colTarget: 'Đổi về',
   colCount: 'Số đoạn',
-  manualTitle: (count: number) => `Không đổi, giữ ở lớp Tường để xem tay (${String(count)})`,
+  manualTitle: (count: number) => `Để bạn tự xem ở Duyệt tường (${String(count)} đoạn)`,
   openWall: (code: string) => `Mở đoạn ${code} ở màn duyệt tường`,
   acceptGroup: (range: string, target: string) => `Đồng ý đổi các đoạn ${range} về ${target}`,
   selectAll: (groups: number, walls: number) =>
-    groups > 1 ? `Chọn cả ${String(groups)} nhóm (${String(walls)} đoạn)` : `Chọn nhóm này (${String(walls)} đoạn)`,
+    groups > 1 ? `Chọn cả ${String(groups)} nhóm để đổi (${String(walls)} đoạn)` : `Chọn ${String(walls)} đoạn để đổi`,
   apply: (walls: number) => `Đổi ${String(walls)} đoạn`,
   undoLead: 'Một lần',
   undoHint: 'trả lại cả lô',

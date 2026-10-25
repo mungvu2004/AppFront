@@ -31,7 +31,7 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
  * bằng vai `button` và khớp trọn.
  */
 const HOSTS = [
-  { host: 'dashboard', path: ROUTES.dashboard, opener: /^Tạo dự án\s*N$/u },
+  { host: 'dashboard', path: ROUTES.dashboard, opener: /^Tạo dự án$/u },
   { host: 'onboarding', path: ROUTES.onboarding, opener: /^Tạo dự án$/u },
 ] as const;
 

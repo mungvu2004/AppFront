@@ -13,7 +13,7 @@ import { seedMeasurement, seedThicknessLayer, withSlotMember, writeLog } from '.
 
 const SLOT = 'floors-d';
 const THICK = {
-  screen: 'Chuẩn hoá độ dày tường', // TV:SCREEN_TITLE
+  screen: 'Độ dày tường', // TV:SCREEN_TITLE
   undo: 'Hoàn tác',
   tolerance: 'Dung sai', // removed in bản Z (fixed 30 mm)
   accept: /^Đồng ý đổi các đoạn .+ về 220 mm$/u, // TBP:TEXT.acceptGroup

@@ -27,7 +27,7 @@ const SCREEN_HEADING = 'Kiểm tra quy chuẩn';
 
 /*
  * Mock trả bốn tầng chưa có hình cho `project-1`, nên câu ĐÚNG của màn khi không bơm là "chưa có
- * mô hình" (cùng chuyện `data.spec.ts` B-V12-07) — bài cũ đòi "Chạy kiểm tra lại" là đòi màn tự khen.
+ * mô hình" (cùng chuyện `data.spec.ts` B-V12-07) — bài cũ đòi "Kiểm tra lại" là đòi màn tự khen.
  * Bằng chứng cổng đã nạp kho là bốn tầng của dự án nằm trong kho, đọc thẳng như `seedSpatial`.
  */
 test('B-V12-01: vào màn luật bằng đường sản phẩm (không bơm) thì cổng nạp kho dự án; tầng chưa có hình nên màn nói thật "chưa có mô hình" và cổng dẫn về bước Xử lý', async ({
@@ -52,7 +52,7 @@ test('B-V12-01: vào màn luật bằng đường sản phẩm (không bơm) th�
     'href',
     ROUTES.project.pipeline(PROJECT_ID),
   );
-  await expect(page.getByRole('button', { name: 'Chạy kiểm tra lại' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Kiểm tra lại' })).toHaveCount(0);
 });
 
 test('có bơm kho: bảng luật hiện bốn con số nguyên, chạy lại không rơi về rỗng, và cổng mời "Xem vi phạm kế" (không "Sang Xuất") khi còn vi phạm', async ({
@@ -64,7 +64,7 @@ test('có bơm kho: bảng luật hiện bốn con số nguyên, chạy lại kh
   });
   await seedSpatial(page, { projectId: PROJECT_ID });
 
-  const rerun = page.getByRole('button', { name: 'Chạy kiểm tra lại' });
+  const rerun = page.getByRole('button', { name: 'Kiểm tra lại' });
   await expect(rerun).toBeVisible();
 
   // Năm ô `<dt>/<dd>` (`RuleReportSummary.tsx`): nhãn đúng thứ tự (tổng trước, rồi từ nhẹ tới nặng), số là số nguyên trần.
@@ -72,8 +72,9 @@ test('có bơm kho: bảng luật hiện bốn con số nguyên, chạy lại kh
   await expect(page.getByRole('definition')).toHaveText([/^\d+$/u, /^\d+$/u, /^\d+$/u, /^\d+$/u, /^\d+$/u]);
 
   const gate = page.getByTestId('flow-gate');
-  await expect(gate.getByRole('button', { name: 'Xem vi phạm kế' })).toBeVisible();
-  await expect(gate.getByRole('button', { name: 'Sang Xuất' })).toHaveCount(0);
+  // UX 26/10: "Xem vi phạm kế" nằm trong thân màn; cổng luôn có "Sang Xuất".
+  await expect(page.getByRole('button', { name: 'Xem vi phạm kế' })).toBeVisible();
+  await expect(gate.getByRole('button', { name: 'Sang Xuất' })).toBeVisible();
 
   await rerun.click();
   await expect(page.getByRole('heading', { name: EMPTY_TITLE })).toHaveCount(0);
@@ -120,7 +121,7 @@ test('có bơm kho: tấm chi tiết vi phạm mở từ một dòng, J sang vi 
   await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0);
   expect(pathOf(page.url())).toBe(RULES_URL);
-  await expect(page.getByRole('button', { name: 'Chạy kiểm tra lại' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Kiểm tra lại' })).toBeVisible();
 });
 
 test('có bơm kho: chip của hàng và tấm chi tiết gọi lỗ mở bằng mã người đọc như câu luật, không bằng mã máy (B-V7-31)', async ({

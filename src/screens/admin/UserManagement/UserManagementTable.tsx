@@ -20,7 +20,6 @@ import { SearchX } from 'lucide-react';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Table } from '@/components/ui/Table';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -115,39 +114,15 @@ function RoleCell({ actions, roleOptions, row }: RoleCellProps) {
 }
 
 interface StatusCellProps {
-  readonly actions: UserManagementActions;
   readonly row: UserRowModel;
 }
 
-function StatusCell({ actions, row }: StatusCellProps) {
+function StatusCell({ row }: StatusCellProps) {
+  // Một chip: lời mời hết hạn thay chữ trạng thái, không thêm dòng phụ.
   return (
-    <div className="flex flex-row flex-wrap items-center gap-x-3 gap-y-1">
-      <Badge className="whitespace-nowrap" variant="neutral">
-        {row.statusLabel}
-      </Badge>
-      {row.inviteExpired && (
-        <div className="flex items-center gap-1.5 text-[13px] text-state-attention-text">
-          <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-state-attention" />
-          <span>{INVITE_EXPIRED_LABEL}</span>
-        </div>
-      )}
-      {row.canResendInvite && (
-        // Q5 (questions.md): "Gửi lại" ở MỌI hàng chờ, BE cho gửi lại mọi lời mời đang chờ.
-        // BUG-P08-024: tên truy cập nêu người nhận để các nút cùng chữ phân biệt được.
-        // Link chữ, nhưng vùng chạm 44 px với ngón tay/bút và 24 px với chuột — như link chữ của màn đăng nhập (BUG-077, BUG-041).
-        <button
-          aria-label={`${RESEND_INVITE_LABEL} lời mời cho ${row.email}`}
-          className={cn(
-            'inline-flex min-h-11 items-center text-left text-[13px] font-medium text-accent hover:underline fine:min-h-6',
-            FOCUS_RING,
-          )}
-          onClick={() => actions.onResendInvite(row.id)}
-          type="button"
-        >
-          {RESEND_INVITE_LABEL}
-        </button>
-      )}
-    </div>
+    <Badge className="whitespace-nowrap" variant="neutral">
+      {row.inviteExpired ? INVITE_EXPIRED_LABEL : row.statusLabel}
+    </Badge>
   );
 }
 
@@ -155,6 +130,11 @@ interface RowActionsProps {
   readonly actions: UserManagementActions;
   readonly row: UserRowModel;
 }
+
+const MENU_ITEM_CLASS = cn(
+  'block w-full rounded-sm px-3 py-1.5 text-left text-[13px] hover:bg-bg-hover disabled:text-text-secondary',
+  FOCUS_RING,
+);
 
 function RowActions({ actions, row }: RowActionsProps) {
   if (row.isSelf && (row.removeBlockedReason !== null || row.disableBlockedReason !== null)) {
@@ -169,31 +149,59 @@ function RowActions({ actions, row }: RowActionsProps) {
     );
   }
 
-  return (
-    // Một hàng ở mọi khổ (K4: ở 1024 "Vô hiệu hoá" và "Xoá" xếp dọc, hàng cao lệch).
-    <div className="flex flex-nowrap items-center justify-end gap-2 whitespace-nowrap">
-      {row.status === 'disabled' ? (
-        <Button onClick={() => actions.onEnableUser(row.id)} size="sm" variant="ghost">
-          {ENABLE_LABEL}
-        </Button>
-      ) : row.disableBlockedReason !== null ? (
-        <span className={BLOCKED_REASON_CLASS}>{row.disableBlockedReason}</span>
-      ) : (
-        <Button onClick={() => actions.onDisableUser(row.id)} size="sm" variant="ghost">
-          {DISABLE_LABEL}
-        </Button>
-      )}
+  // Menu "⋯" gốc (<details>): bấm mục nào thì đóng menu rồi chạy hành động.
+  const run = (fn: () => void) => (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.currentTarget.closest('details')?.removeAttribute('open');
+    fn();
+  };
 
-      {row.removeBlockedReason !== null ? (
-        <span className={BLOCKED_REASON_CLASS}>{row.removeBlockedReason}</span>
-      ) : (
-        // Nguy hiểm, không hoàn tác: chữ đỏ và một vạch ngăn khỏi "Vô hiệu hoá" để khỏi bấm nhầm.
-        <span className="ml-2 border-l border-border-default pl-3">
-          <Button className={REMOVE_CLASS} onClick={() => actions.onOpenRemove(row.id)} size="sm" variant="ghost">
-            {REMOVE_LABEL}
-          </Button>
-        </span>
-      )}
+  return (
+    <div className="flex justify-end">
+      <details className="relative">
+        <summary
+          aria-label={`Thao tác với ${row.name}`}
+          className={cn(
+            'flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md text-text-secondary hover:bg-bg-hover [&::-webkit-details-marker]:hidden',
+            FOCUS_RING,
+          )}
+        >
+          <span aria-hidden="true">⋯</span>
+        </summary>
+        <div className="absolute right-0 z-20 mt-1 flex min-w-40 flex-col rounded-md border border-border-default bg-bg-surface p-1 shadow-lg">
+          {row.canResendInvite && (
+            <button
+              aria-label={`${RESEND_INVITE_LABEL} lời mời cho ${row.email}`}
+              className={MENU_ITEM_CLASS}
+              onClick={run(() => actions.onResendInvite(row.id))}
+              type="button"
+            >
+              {RESEND_INVITE_LABEL}
+            </button>
+          )}
+          {row.status === 'disabled' ? (
+            <button className={MENU_ITEM_CLASS} onClick={run(() => actions.onEnableUser(row.id))} type="button">
+              {ENABLE_LABEL}
+            </button>
+          ) : row.disableBlockedReason !== null ? (
+            <span className={cn(BLOCKED_REASON_CLASS, 'px-3 py-1.5')}>{row.disableBlockedReason}</span>
+          ) : (
+            <button className={MENU_ITEM_CLASS} onClick={run(() => actions.onDisableUser(row.id))} type="button">
+              {DISABLE_LABEL}
+            </button>
+          )}
+          {row.removeBlockedReason !== null ? (
+            <span className={cn(BLOCKED_REASON_CLASS, 'px-3 py-1.5')}>{row.removeBlockedReason}</span>
+          ) : (
+            <button
+              className={cn(MENU_ITEM_CLASS, REMOVE_CLASS)}
+              onClick={run(() => actions.onOpenRemove(row.id))}
+              type="button"
+            >
+              {REMOVE_LABEL}
+            </button>
+          )}
+        </div>
+      </details>
     </div>
   );
 }
@@ -240,7 +248,7 @@ function UserManagementCardList({ actions, roleOptions, rows }: UserListProps) {
             </button>
           </div>
           {/* Dưới dòng tên, không cạnh nó: cạnh nhau thì email chỉ còn ~110 px và bị cắt (BUG-075). */}
-          <StatusCell actions={actions} row={row} />
+          <StatusCell row={row} />
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
             <div className="flex flex-col gap-1">
               <dt className="text-text-secondary">{HEADER_ROLE}</dt>
@@ -349,7 +357,7 @@ export function UserManagementTable({
                   <span className="text-[13px] text-text-secondary wrap-anywhere xl:whitespace-nowrap">{row.email}</span>
                   {!withSecondary && (
                     <div className="pt-1">
-                      <StatusCell actions={actions} row={row} />
+                      <StatusCell row={row} />
                     </div>
                   )}
                 </div>
@@ -370,7 +378,7 @@ export function UserManagementTable({
             )}
             {withSecondary && (
               <Table.Cell className={WRAP_CELL}>
-                <StatusCell actions={actions} row={row} />
+                <StatusCell row={row} />
               </Table.Cell>
             )}
             <Table.Cell className={WRAP_CELL}>

@@ -95,6 +95,8 @@ export interface FloorTableRowProps {
   readonly index: number;
   readonly rows: readonly FloorRowVm[];
   readonly canEdit: boolean;
+  /** Từ 2 tầng mới có tay nắm đổi thứ tự. */
+  readonly canReorder: boolean;
   readonly isAutoElevation: boolean;
   readonly duplicatingFloorId: string | null;
   readonly copyFurniture: boolean;
@@ -142,6 +144,7 @@ export function FloorTableRow({
   index,
   rows,
   canEdit,
+  canReorder,
   isAutoElevation,
   duplicatingFloorId,
   copyFurniture,
@@ -240,7 +243,7 @@ export function FloorTableRow({
       onMouseLeave={() => onHoverFloor(null)}
       tabIndex={0}
     >
-      {canEdit && (
+      {canReorder && (
         <Table.Cell className={cn(cell, 'w-10 sm:w-8')}>
           <IconButton
             aria-keyshortcuts="ArrowUp ArrowDown"

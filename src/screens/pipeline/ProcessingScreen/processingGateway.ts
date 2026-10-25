@@ -238,6 +238,8 @@ export interface ProcessingExtractionSummary {
   /** Đồ đạc trên tầng: cũng là "đối tượng" như ở màn Xuất (R-1). */
   readonly furnitureCount: number;
   readonly dimensionCount: number;
+  /** Tầng đã có tỷ lệ do người đặt tay (không còn `scaleStatus: unresolved`). */
+  readonly hasScale?: boolean;
   readonly roomCount: number;
   /**
    * Đường bao các phòng của tầng (mm). Hook cộng mọi tầng bằng `totalArea` — cộng mm² rồi
@@ -825,6 +827,8 @@ export function toExtractionSummary(
     openingCount: openings.length,
     furnitureCount: furniture.length,
     dimensionCount: document.dimensions.length,
+    hasScale:
+      document.level.scaleMillimetresPerPixel !== undefined && document.scaleStatus === undefined,
     roomCount: rooms.length,
     roomOutlinesMm: rooms.map((room) => room.outline.map(toPointMm)),
     confidenceThreshold,

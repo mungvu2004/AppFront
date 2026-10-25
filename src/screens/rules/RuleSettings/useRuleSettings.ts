@@ -69,7 +69,6 @@ import {
   setRuleEnabled,
   setRuleSeverity,
   setRuleThreshold,
-  type ResolvedRule,
   type RuleConfig,
   type RuleThresholdSpec,
 } from '@/domain/rules/config';
@@ -87,7 +86,6 @@ import {
   type RuleCode,
   type RuleGroup,
   type RuleRegistry,
-  type RuleScope,
   type RuleSeverity,
 } from '@/domain/rules/registry';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
@@ -213,12 +211,6 @@ const toDisplayValue = (spec: RuleThresholdSpec, value: number): number =>
 const toDomainValue = (spec: RuleThresholdSpec, shown: number): number =>
   Math.round((shown / displayScale(spec.unit)) * ROUNDING_STEPS) / ROUNDING_STEPS;
 
-/** Phạm vi một luật soi, thành câu. `RuleScope` không có bảng nhãn nào trong repo. */
-const SCOPE_PHRASE: Readonly<Record<RuleScope, string>> = Object.freeze({
-  level: 'Soi trên từng tầng',
-  building: 'Soi trên cả công trình',
-});
-
 /**
  * Luật nào thay thế luật nào.
  *
@@ -316,27 +308,9 @@ const outOfRangeText = (spec: RuleThresholdSpec, fallback: string): string => {
   return `${spec.label} nhận giá trị từ ${low} đến ${high} ${UNIT_SUFFIX[spec.unit]}.`;
 };
 
-/**
- * Câu mô tả một luật, ghép từ dữ liệu THẬT của chính nó.
- *
- * Sổ đăng ký không có trường `description`, và bịa một câu giới thiệu cho từng
- * luật là đúng thứ "không khai báo lại danh sách luật trong màn" cấm. Nên câu
- * này chỉ nói hai điều đọc được từ `Rule`: nó soi ở phạm vi nào, và nó có ngưỡng
- * nào chỉnh được.
- */
-const describeRule = (resolved: ResolvedRule, specs: readonly RuleThresholdSpec[]): string => {
-  const scope = SCOPE_PHRASE[resolved.rule.scope];
-
-  if (specs.length === 0) {
-    return `${scope} · không có ngưỡng chỉnh được`;
-  }
-
-  return `${scope} · chỉnh được: ${specs.map((spec) => spec.label).join(', ')}`;
-};
-
-/** `Đang ảnh hưởng 7 đối tượng`, hoặc câu "chưa có dữ liệu" khi chưa có mô hình. */
+/** `7 chỗ đang sai` (rỗng khi 0), hoặc câu "chưa có dữ liệu" khi chưa có mô hình. */
 const describeImpact = (count: number | null): string =>
-  count === null ? IMPACT_UNKNOWN_CAPTION : `Đang ảnh hưởng ${formatNumber(count)} đối tượng`;
+  count === null ? IMPACT_UNKNOWN_CAPTION : count === 0 ? '' : `${formatNumber(count)} chỗ đang sai`;
 
 /* -------------------------------------------------------------------------- */
 /* Hook.                                                                       */
@@ -752,7 +726,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
         code,
         // `Rule.name` đã là một câu tiếng Việt viết thường — dùng thẳng.
         sentence: item.rule.name,
-        description: describeRule(item, specs),
+        description: '',
         enabled: item.enabled,
         severity: item.severity,
         thresholds: specs.map((spec) =>

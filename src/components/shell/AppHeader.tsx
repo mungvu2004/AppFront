@@ -4,14 +4,16 @@
  *
  * Hàng trên (48 px): thương hiệu, điều hướng toàn cục, tên dự án đang mở (bấm mở menu các màn khác
  * của dự án — tách khỏi nav toàn cục), chuông, tài khoản, đăng xuất.
- * Hàng dưới (40 px), chỉ khi đang ở trong một dự án: sáu bước (kèm trạng thái xong/còn việc) và nút
- * "Tiếp: <bước>", để từ bất cứ màn nào cũng đi tiếp được mà không phải quay về danh sách. Hai hàng ≤ 96 px (V-16).
+ * Hàng dưới (40 px), chỉ khi đang ở trong một dự án: sáu bước (kèm trạng thái xong/còn việc) và góc
+ * phải mang MỘT nghĩa: việc kế tiếp. Bước đang đứng đã xong → nút chính "Tiếp: <bước>"; chưa xong → vẫn
+ * "Tiếp: <bước>" nhưng kiểu phụ (cổng mềm); màn ngoài bước → "Tiếp tục: <bước đầu chưa xong>"; màn giữ
+ * cổng riêng (FlowGate) thì cổng thay chỗ này. Hai hàng ≤ 96 px (V-16).
  *
  * View thuần: mọi dữ liệu đến qua props; liên kết dùng `Link` của router.
  */
 import { useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, LogOut } from 'lucide-react';
-import { Link, NavLink, useLocation, useMatch, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useMatch } from 'react-router-dom';
 
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Modal } from '@/components/overlay/Modal';
@@ -31,9 +33,9 @@ export interface AppHeaderProject {
   readonly name: string | null;
   /** -1 khi màn hiện tại nằm ngoài sáu bước. */
   readonly stepIndex: number;
-  /** Tầng đang mở trong bước 3: ô "Kiểm tra tầng" trỏ về lớp đầu của tầng này. */
+  /** Tầng đang mở trong bước 3: ô "Duyệt tầng" trỏ về lớp đầu của tầng này. */
   readonly floorId?: string | undefined;
-  /** Lớp đang duyệt (chỉ số trong FLOOR_LAYERS): nút chính mời sang lớp kế tiếp trước khi sang 3D. */
+  /** Lớp đang duyệt (chỉ số trong FLOOR_LAYERS); -1 ở màn công cụ của tầng. Cổng tầng (FloorReviewGate) lo nút đi tiếp. */
   readonly layerIndex?: number | undefined;
   /** Dự án chưa có bản vẽ / lượt xử lý lỗi: nút chính không mời sang bước sau. */
   readonly blocker?: 'no-drawings' | 'processing' | 'pipeline-error' | undefined;
@@ -84,20 +86,19 @@ function StepMarker({ index, isCurrent, state }: { readonly index: number; reado
 }
 
 function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
-  const navigate = useNavigate();
-  // 'default' = trang mở thẳng (không có màn trước trong app): Back của trình duyệt sẽ rời app.
   const routerLocation = useLocation();
-  const hasHistory = routerLocation.key !== 'default';
   // RV5 #10: xác nhận CAD đi TRƯỚC việc duyệt lớp; màn đó tự có nút đi tiếp, header không mời gì.
   const onCadConfirm = routerLocation.pathname.endsWith('/cad-confirm');
   // Màn Xử lý tự giữ cổng sang bước sau (thiếu tỷ lệ thì chặn, S-10 cụm 3): header không mời "Tiếp" song song.
   const onPipelineScreen = /\/pipeline\/?$/u.test(routerLocation.pathname);
   // Màn đang giữ cổng riêng (FlowGate): nút "Tiếp" mặc định nhường chỗ cho cổng của màn.
   const gateOwned = useFlowGateOwned();
+  // Bước đang đứng xong → nút chính; chưa xong → nút phụ (màn tự có nút chính trong thân trang).
+  const currentDone = project.stepStates?.[project.stepIndex] === 'done';
   const next = PROJECT_STEPS[project.stepIndex + 1];
-  const nextLayer = project.floorId !== undefined && project.layerIndex !== undefined && project.layerIndex >= 0
-    ? FLOOR_LAYERS[project.layerIndex + 1]
-    : undefined;
+  // Màn ngoài bước: quay lại bước đầu tiên chưa xong (hết bước thì về bước cuối).
+  const firstOpen = PROJECT_STEPS.findIndex((_, index) => project.stepStates?.[index] !== 'done');
+  const resumeIndex = firstOpen === -1 ? PROJECT_STEPS.length - 1 : firstOpen;
   const stepPath = (index: number): string =>
     index === 2 && project.floorId !== undefined
       ? (FLOOR_LAYERS[0]?.path(project.id, project.floorId) ?? ROUTES.project.floors(project.id))
@@ -105,8 +106,8 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
         ? project.lastFloorPath
         : (PROJECT_STEPS[index]?.path(project.id) ?? ROUTES.dashboard);
 
-  // Màn Tải bản vẽ tự có nút chính "Bắt đầu xử lý": nút đi tiếp của thanh bước lùi xuống kiểu phụ (A2 #4).
-  const nextClass = cn(getButtonStyles({ variant: project.stepIndex === 0 ? 'secondary' : 'primary', size: 'sm' }), 'shrink-0 gap-2 whitespace-nowrap');
+  // Màn Tải bản vẽ tự có nút chính "Bắt đầu xử lý": nút đi tiếp của thanh bước luôn kiểu phụ (A2 #4).
+  const nextClass = cn(getButtonStyles({ variant: currentDone && project.stepIndex !== 0 ? 'primary' : 'secondary', size: 'sm' }), 'shrink-0 gap-2 whitespace-nowrap');
 
   return (
     <nav aria-label="Các bước của dự án" className="flex h-10 items-center gap-3 border-t border-border-default px-4 sm:px-6">
@@ -150,28 +151,11 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
       ) : project.stepIndex === 1 && project.blocker === 'pipeline-error' ? (
         <span className="shrink-0 text-[13px] text-text-secondary">Xử lý gặp lỗi: xem chi tiết bên dưới trước khi đi tiếp</span>
       ) : project.stepIndex === -1 ? (
-        hasHistory ? (
-          <button type="button" onClick={() => navigate(-1)} className={cn(getButtonStyles({ variant: 'secondary', size: 'sm' }), 'shrink-0 gap-2')}>
-            <ArrowLeft size={16} aria-hidden="true" />
-            Quay lại màn trước
-          </button>
-        ) : (
-          <Link to={ROUTES.project.floors(project.id)} className={cn(getButtonStyles({ variant: 'secondary', size: 'sm' }), 'shrink-0')}>
-            Về quản lý tầng
-          </Link>
-        )
-      ) : nextLayer !== undefined && project.floorId !== undefined ? (
-        <Link to={nextLayer.path(project.id, project.floorId)} className={cn(getButtonStyles({ variant: 'primary', size: 'sm' }), 'shrink-0 gap-2')}>
-          Tiếp: {nextLayer.label}
+        <Link to={stepPath(resumeIndex)} className={cn(getButtonStyles({ variant: 'secondary', size: 'sm' }), 'shrink-0 gap-2 whitespace-nowrap')}>
+          Tiếp tục: {PROJECT_STEPS[resumeIndex]?.label}
           <ArrowRight size={16} aria-hidden="true" />
         </Link>
-      ) : onCadConfirm || onPipelineScreen ? null : project.floorId !== undefined && project.layerIndex === -1 ? (
-        // Màn công cụ của tầng (tỷ lệ, chồng lớp): quay về việc duyệt lớp, không mời sang 3D (G4b-29).
-        <Link to={FLOOR_LAYERS[0]?.path(project.id, project.floorId) ?? ROUTES.project.floors(project.id)} className={cn(getButtonStyles({ variant: 'secondary', size: 'sm' }), 'shrink-0 gap-2')}>
-          <ArrowLeft size={16} aria-hidden="true" />
-          Về duyệt lớp {FLOOR_LAYERS[0]?.label.toLowerCase()}
-        </Link>
-      ) : (
+      ) : onCadConfirm || onPipelineScreen ? null : (
         next !== undefined && (
           <Link to={next.path(project.id)} className={nextClass}>
             Tiếp: {next.label}

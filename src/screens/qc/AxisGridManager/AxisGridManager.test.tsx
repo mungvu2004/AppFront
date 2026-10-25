@@ -72,7 +72,7 @@ import {
 } from './axisGridManagerGateway';
 import { axisGridScenarioFor } from './axisGridManagerScenarios';
 
-const SCREEN_ARIA_LABEL = 'Quản lý trục và gốc toạ độ';
+const SCREEN_ARIA_LABEL = 'Trục và gốc toạ độ';
 const CANVAS_ARIA_LABEL = 'Khung xem bản vẽ quản lý trục và gốc toạ độ';
 const AXIS_PANEL_TITLE = 'Trục';
 const ORIGIN_PANEL_TITLE = 'Gốc ±0.000';
@@ -478,7 +478,7 @@ describe('QA-04c SCR-19 trên màn', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt tỷ lệ' }));
 
     expect(onCalibrate).toHaveBeenCalledTimes(1);
   });
@@ -646,7 +646,7 @@ describe('QA-04c SCR-19 trên màn', () => {
   it('[G20] màn cao bằng khung nhìn — danh sách 20 trục cuộn trong panel, không đẩy cả trang', () => {
     renderState('success');
 
-    expect(screen.getByRole('region', { name: 'Quản lý trục và gốc toạ độ' })).toHaveClass('h-screen');
+    expect(screen.getByRole('region', { name: 'Trục và gốc toạ độ' })).toHaveClass('h-screen');
   });
 
   it('[G16] bấm một trục trên canvas giữ trục được chọn — click bị pointer capture đẩy về svg không bỏ chọn', () => {

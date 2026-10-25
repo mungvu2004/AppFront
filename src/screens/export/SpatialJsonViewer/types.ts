@@ -171,6 +171,8 @@ export interface SpatialJsonViewerActions {
    * dữ liệu, và đó là việc của màn quản lý tầng.
    */
   readonly onReopenFloors: () => void;
+  /** Về màn Xuất — nơi người dùng đi tới màn này. Vắng thì không có nút. */
+  readonly onBackToExport?: () => void;
   readonly onDownload: (() => void) | null;
 }
 

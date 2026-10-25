@@ -82,7 +82,7 @@ const DROPZONE = 'floor-upload-dropzone'; // FloorUploadDropZone.tsx:30
 const TRAY = 'Tệp chưa gán tầng'; // useFloorUploadScreen.ts COPY.trayTitle
 const ASSIGN = 'Gán cho tầng khác'; // FloorUploadTray.tsx:20
 const SUBMIT = 'Bắt đầu xử lý'; // useFloorUploadScreen.ts COPY.submit
-const ATTACHED = 'Đã gắn kèm'; // useFloorUploadScreen.ts STATUS attached
+const ATTACHED = 'Đã có bản vẽ'; // useFloorUploadScreen.ts STATUS attached
 
 /* SCR-08 / SCR-16 bits (FL-12-05). */
 const SETTINGS_TABS = 'Nhóm cài đặt'; // ProjectSettings.tsx tablist
@@ -307,16 +307,16 @@ test.describe('SCR-12 processing — real flows', () => {
         await captureEvidence(page, 'E03_12-A-007_log-copied.png', { caption: ['clipboard:', ...copied.split('\n').slice(0, 4)] });
       });
 
-      await test.step('[12-E-007] gate panel: Tab reaches its one primary button ("Hiệu chỉnh tỷ lệ") with visible focus', async () => {
+      await test.step('[12-E-007] gate panel: Tab reaches its one primary button ("Đặt tỷ lệ") with visible focus', async () => {
         await expect(summary(page)).toBeVisible();
         await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-        expect.soft(await tabTo(page, PR.calibrate), 'Tab reaches "Hiệu chỉnh tỷ lệ"').toBeGreaterThan(0);
+        expect.soft(await tabTo(page, PR.calibrate), 'Tab reaches "Đặt tỷ lệ"').toBeGreaterThan(0);
         await expect.soft(button(summary(page), PR.calibrate)).toBeFocused();
-        expect.soft(await focusRingShown(page), 'focus ring on "Hiệu chỉnh tỷ lệ"').toBe(true);
+        expect.soft(await focusRingShown(page), 'focus ring on "Đặt tỷ lệ"').toBe(true);
         await captureEvidence(page, 'E03_12-E-007_summary-focus.png');
       });
 
-      await test.step('[12-A-014] Enter on "Hiệu chỉnh tỷ lệ" → /projects/:id/floors/:fid/scale', async () => {
+      await test.step('[12-A-014] Enter on "Đặt tỷ lệ" → /projects/:id/floors/:fid/scale', async () => {
         await button(summary(page), PR.calibrate).focus();
         await page.keyboard.press('Enter');
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.scale(project.projectId, floor.id));
@@ -344,7 +344,7 @@ test.describe('SCR-12 processing — real flows', () => {
         await captureEvidence(page, 'E03_12-C-017_threshold-080.png', { caption: `N16: ${String(n)} item(s) below 0,80` });
       });
 
-      await test.step('[12-C-019] "Sang Kiểm tra tầng" (was "Duyệt lớp tường") → SCR-16 approve one low-confidence wall → back: count is n-1', async () => {
+      await test.step('[12-C-019] "Sang Duyệt tầng" (was "Duyệt lớp tường") → SCR-16 approve one low-confidence wall → back: count is n-1', async () => {
         const target = counts.walls.find((w) => !w.reviewed && w.confidence < 0.8);
         expect.soft(target, 'precondition: N16 has an unreviewed wall below 0,80').toBeDefined();
         if (target === undefined) return;
@@ -406,7 +406,7 @@ test.describe('SCR-12 processing — real flows', () => {
         await expectMetricsShown(page, metricLabelsOf(counts));
       });
 
-      await test.step('[12-A-015] "Sang Kiểm tra tầng" (was "Duyệt lớp tường") → first floor (Floor.order) …/layers/walls; back; "Hiệu chỉnh tỷ lệ" → same floor /scale', async () => {
+      await test.step('[12-A-015] "Sang Duyệt tầng" (was "Duyệt lớp tường") → first floor (Floor.order) …/layers/walls; back; "Đặt tỷ lệ" → same floor /scale', async () => {
         const first = project.floors[0]!; // createProject sorts by `order`
         await button(summary(page), PR.reviewWalls).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.walls(project.projectId, first.id));

@@ -30,7 +30,7 @@ import { ModelLibraryToolbar } from './ModelLibraryToolbar';
 import type { ModelLibraryModel, ModelLibraryProps } from './types';
 
 const PAGE_EYEBROW = 'Quản trị';
-const PAGE_TITLE = 'Quản lý thư viện mẫu 3D';
+const PAGE_TITLE = 'Xem thư viện mẫu 3D';
 const EMPTY_TITLE = 'Chưa có mẫu 3D nào';
 const EMPTY_DESCRIPTION = 'Thư viện chưa có mẫu 3D nào.';
 const EMPTY_BADGE = 'Chưa có mẫu 3D';
@@ -52,12 +52,14 @@ function LibraryStatus({ model }: { readonly model: ModelLibraryModel }) {
   const { summary } = model;
   return (
     <>
-      <Badge variant={summary.isAllWithinBudget ? 'neutral' : 'attention'}>
-        <span className="tabular-nums" data-testid="model-library-heavy-count">
-          {summary.heavyCountLabel}
-        </span>{' '}
-        {HEAVY_SUFFIX}
-      </Badge>
+      {!summary.isAllWithinBudget && (
+        <Badge variant="attention">
+          <span className="tabular-nums" data-testid="model-library-heavy-count">
+            {summary.heavyCountLabel}
+          </span>{' '}
+          {HEAVY_SUFFIX}
+        </Badge>
+      )}
       <span>
         <span className="tabular-nums" data-testid="model-library-total-count">
           {summary.totalCountLabel}
@@ -96,7 +98,7 @@ export function ModelLibrary({ actions, model }: ModelLibraryProps) {
                 <Table.Head>Tên</Table.Head>
                 <Table.Head>Danh mục</Table.Head>
                 <Table.Head>Kích thước bao</Table.Head>
-                <Table.Head>Số tam giác</Table.Head>
+                <Table.Head>Độ chi tiết (tam giác)</Table.Head>
                 <Table.Head>Dung lượng</Table.Head>
               </Table.Row>
             </Table.Header>

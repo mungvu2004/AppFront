@@ -8,7 +8,7 @@
  */
 
 import { lowerFirst } from '@/lib/format/sentence';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 
 import { wallStrokeToken } from '@/components/canvas/materialMap';
@@ -43,19 +43,12 @@ const DIMMED_BAR_OPACITY = 0.45;
 /** Đệm hai đầu trục, tính bằng số bậc cột, để đường ngưỡng ngoài cùng vẫn nắm được. */
 const AXIS_PADDING_BINS = 4;
 
-/** Số vạch chữ tối đa trên trục x; nhiều hơn thì chữ chồng nhau. */
-const AXIS_TICK_TARGET = 6;
-
-/** Khoảng cách tối thiểu giữa hai nhãn trục x (nhãn 3 chữ số mono 11 px rộng ~20 px) — BUG-394. */
-const AXIS_TICK_MIN_GAP_PX = 32;
-
 /* -------------------------------------------------------------------------- */
 /* Chuỗi tiếng Việt tĩnh — khớp `docs/notes/thickness/t6.i18n.fragment.json`.  */
 /* -------------------------------------------------------------------------- */
 
 const HISTOGRAM_LABEL = 'Biểu đồ phân bố độ dày tường theo mi-li-mét';
 const LOADING_LABEL = 'Đang tải biểu đồ phân bố độ dày';
-const AXIS_UNIT_LABEL = 'mm';
 
 /** Trục dừng ở ngưỡng xem tay mặc định + 100 mm: một đoạn 1.014 mm không bóp dẹt cả biểu đồ (S-21). */
 const AXIS_OVERFLOW_MM = 100;
@@ -147,48 +140,6 @@ export function ThicknessHistogram({
       };
     });
   }, [maxMm, minMm, percentAt, thresholds]);
-
-  /* Bề rộng vùng vẽ: nhãn trục x thưa theo PIXEL, không chỉ theo số cột (BUG-394). */
-  const [plotWidthPx, setPlotWidthPx] = useState(0);
-
-  useEffect(() => {
-    const plot = plotRef.current;
-
-    if (plot === null || typeof ResizeObserver === 'undefined') {
-      return undefined;
-    }
-
-    const observer = new ResizeObserver(() => setPlotWidthPx(plot.clientWidth));
-
-    observer.observe(plot);
-
-    return () => observer.disconnect();
-    /* Lúc đang tải vùng vẽ chưa có trong cây: đo lại khi nó xuất hiện. */
-  }, [isLoading]);
-
-  /**
-   * Vạch chữ trên trục x — thưa dần khi cột nhiều, tối đa {@link AXIS_TICK_TARGET}, và bỏ nhãn
-   * nào đứng gần nhãn trước hơn {@link AXIS_TICK_MIN_GAP_PX}: năm cột 200–220 mm trên trục
-   * 0–400 mm từng dính thành "200205210215220" ở 768.
-   */
-  const ticks = useMemo(() => {
-    const stride = Math.max(1, Math.ceil(bins.length / AXIS_TICK_TARGET));
-    const kept: { startMm: number; leftPercent: number }[] = [];
-
-    for (const [index, bin] of bins.entries()) {
-      const leftPercent = percentAt(bin.startMm);
-      const last = kept[kept.length - 1];
-      const isCrowded =
-        last !== undefined &&
-        ((leftPercent - last.leftPercent) * plotWidthPx) / PERCENT < AXIS_TICK_MIN_GAP_PX;
-
-      if (index % stride === 0 && !isCrowded) {
-        kept.push({ startMm: bin.startMm, leftPercent });
-      }
-    }
-
-    return kept;
-  }, [bins, percentAt, plotWidthPx]);
 
   /** Vị trí con trỏ thành mi-li-mét, bắt về đúng bậc cột gần nhất. */
   const millimetresAt = useCallback(
@@ -293,11 +244,11 @@ export function ThicknessHistogram({
   return (
     <section aria-label={HISTOGRAM_LABEL} className="flex w-full flex-col gap-2">
       {/* Nhãn ba ngưỡng, chữ đều, nằm trên vùng vẽ để không bị cắt ở hai mép. */}
-      <div className="relative h-4 w-full">
+      <div className="relative h-8 w-full">
         {thresholds.map((value, index) => (
           <motion.span
             key={String(index)}
-            className="absolute top-0 -translate-x-1/2 whitespace-nowrap text-caption leading-4 tabular-nums text-text-secondary"
+            className={`absolute ${index % 2 === 0 ? 'top-0' : 'top-4'} -translate-x-1/2 whitespace-nowrap text-caption leading-4 tabular-nums text-text-secondary`}
             initial={false}
             animate={{ left: `${String(percentAt(value))}%` }}
             transition={{ duration: durationSeconds('standard') }}
@@ -394,21 +345,6 @@ export function ThicknessHistogram({
         ))}
       </div>
 
-      {/* Trục x, chữ đều, đơn vị mi-li-mét. */}
-      <div className="relative h-4 w-full">
-        {ticks.map((tick) => (
-          <span
-            key={String(tick.startMm)}
-            className="absolute top-0 -translate-x-1/2 text-caption leading-4 tabular-nums text-text-muted"
-            style={{ left: `${String(tick.leftPercent)}%` }}
-          >
-            {tick.startMm}
-          </span>
-        ))}
-        <span className="absolute right-0 top-0 text-caption leading-4 text-text-muted">
-          {AXIS_UNIT_LABEL}
-        </span>
-      </div>
     </section>
   );
 }

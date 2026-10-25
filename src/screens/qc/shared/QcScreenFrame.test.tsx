@@ -40,6 +40,13 @@ describe('QcScreenFrame (BUG-324, BUG-329, BUG-413)', () => {
     expect(screen.getByRole('status', { name: 'Thanh trạng thái' })).toHaveTextContent(QC_NO_CHANGES_LABEL);
   });
 
+  it('wideLeft: cột trái 320 thay vì 240 ở >=1024', () => {
+    const { rerender } = render(<QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" left={<p>trái</p>} />);
+    expect(screen.getByText('trái').parentElement?.className).toContain('lg:w-[240px]');
+    rerender(<QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" left={<p>trái</p>} wideLeft />);
+    expect(screen.getByText('trái').parentElement?.className).toContain('lg:w-[320px]');
+  });
+
   describe('[impeccable-1024] ngăn chi tiết 1024-1279 không che bản vẽ khi chưa chọn gì', () => {
     const DRAWER_HIDDEN = 'lg:max-xl:hidden';
     const renderWorkspace = (selectionKey: string | null) => (

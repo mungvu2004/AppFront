@@ -27,21 +27,18 @@
  * Chế độ duyệt bàn phím: khi CÒN chuỗi để duyệt, cả màn thu về `DimensionOcrKeyboardMode`.
  */
 
-import { Link } from 'react-router-dom';
-
-import { FlowGate } from '@/components/shell/FlowGate';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
+import { FloorReviewGate } from '../shared/FloorReviewGate.container';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcPanelHead } from '../shared/QcPanelHead';
 import { QC_BODY_CLASS, QcScreenFrame, QcStatusBar, QcWorkspace } from '../shared/QcScreenFrame';
-import { DIMENSION_INSPECTOR_TEXT, DIMENSION_OCR_TEXT } from './dimensionOcrText';
+import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
 import { DimensionOcrCanvas } from './DimensionOcrCanvas';
 import { DimensionOcrCanvasCard, DimensionOcrInspector } from './DimensionOcrInspector';
 import { DimensionOcrKeyboardMode } from './DimensionOcrKeyboardMode';
@@ -53,10 +50,8 @@ import type { DimensionOcrReviewModel } from './useDimensionOcrReview';
  * đường dẫn (liên kết thật: bàn phím, chuột giữa, trình đọc màn hình — A12).
  */
 export interface DimensionOcrReviewViewProps extends DimensionOcrReviewModel {
-  /** Hiệu chỉnh tỷ lệ thủ công: lối ra của trạng thái rỗng và của chuỗi lệch > 2 %. */
+  /** Đặt tỷ lệ thủ công: lối ra của trạng thái rỗng và của chuỗi lệch > 2 %. */
   readonly scaleCalibrationHref: string;
-  /** Lớp tường của tầng — nút cổng "Về duyệt tường". Vắng (story) thì cổng không có nút. */
-  readonly wallReviewHref?: string | undefined;
   /** Breadcrumb dự án › tầng › lớp + thanh lớp (N0-01, N2-06). */
   readonly floorNav?: Omit<QcFloorNavProps, 'layer'> | undefined;
 }
@@ -64,7 +59,7 @@ export interface DimensionOcrReviewViewProps extends DimensionOcrReviewModel {
 const SCREEN_ARIA_LABEL = DIMENSION_OCR_TEXT.screen.title;
 const PANEL_ARIA_LABEL = DIMENSION_OCR_TEXT.panel.title;
 const EXPAND_PANEL_LABEL = DIMENSION_OCR_TEXT.states.collapsed.title;
-const PANEL_TITLE = 'Kiểm kích thước';
+const PANEL_TITLE = 'Kích thước';
 
 /** Chữ của dòng trạng thái và panel khi chưa có hàng nào. */
 const STATUS_TEXT = {
@@ -75,14 +70,13 @@ const STATUS_TEXT = {
   done: 'Đã duyệt hết',
   viewer: 'Chỉ xem',
   noData: 'Chưa có số liệu kích thước',
-  emptyCount: (floor: string): string => `OCR đọc được 0 chuỗi trên ${floor}`,
+  emptyCount: (floor: string): string => `Máy đọc được 0 kích thước trên ${floor}`,
   emptyList: 'Chưa có chuỗi nào. Chuỗi kích thước đọc được hiện ở đây, kèm ảnh cắt gốc và độ lệch so với tỷ lệ.',
   errorList: 'Chưa có chuỗi kích thước để hiện. Danh sách có ngay khi đọc lại được.',
 } as const;
 const FLOOR_FALLBACK = 'tầng này';
 
 const SKELETON_ROWS = [0, 1, 2, 3];
-const GATE_LINK_CLASS = getButtonStyles({ variant: 'secondary', size: 'sm' });
 
 type StatusVariant = 'verified' | 'attention' | 'violation' | 'neutral';
 
@@ -209,7 +203,6 @@ function DimensionOcrPanelFooter({ model }: { readonly model: DimensionOcrReview
 
 export function DimensionOcrReview({
   scaleCalibrationHref,
-  wallReviewHref,
   floorNav,
   ...model
 }: DimensionOcrReviewViewProps) {
@@ -243,6 +236,8 @@ export function DimensionOcrReview({
   }
 
   const isCollapsed = model.state === 'collapsed';
+  /* Rỗng: chỉ còn MỘT thông báo (thẻ trên bản vẽ), không bảng trái/phải lặp lại. */
+  const isEmpty = model.errorMessage === null && model.emptyNotice !== null;
   const currentFloorId = floorNav?.floorId;
   const floorLabel = floorNav?.floors?.find((floor) => floor.id === currentFloorId)?.label ?? FLOOR_FALLBACK;
 
@@ -271,15 +266,9 @@ export function DimensionOcrReview({
 
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
-      {floorNav != null && <QcFloorNav {...floorNav} layer="dimensions" titled />}
-      {/* Câu 3: kích thước không chặn sang 3D — cổng chỉ dẫn về việc chặn thật (duyệt tường). */}
-      <FlowGate>
-        {wallReviewHref === undefined ? null : (
-          <Link className={GATE_LINK_CLASS} to={wallReviewHref}>
-            {DIMENSION_INSPECTOR_TEXT.backToWallsLabel}
-          </Link>
-        )}
-      </FlowGate>
+      {/* Màn rỗng ẩn bảng trái (nơi có H1), nên khi đó dải tầng tự đặt H1 "Kích thước · Tầng". */}
+      {floorNav != null && <QcFloorNav {...floorNav} layer="dimensions" titled={!isEmpty} />}
+      {floorNav != null && <FloorReviewGate floorId={floorNav.floorId} projectId={floorNav.projectId} />}
       {model.saveBlock === null ? null : (
         <div className="shrink-0 px-4 pb-1">
           <FloorLayerSaveBanner saveBlock={model.saveBlock} />
@@ -300,19 +289,16 @@ export function DimensionOcrReview({
               selectedDimensionId={model.selectedDimensionId}
               zoom={model.canvasZoom}
             />
-            <DimensionOcrCanvasCard model={model} scaleCalibrationHref={scaleCalibrationHref} wallReviewHref={wallReviewHref} />
+            <DimensionOcrCanvasCard model={model} scaleCalibrationHref={scaleCalibrationHref} />
           </>
         }
+        wideLeft
         canvasLabel={DIMENSION_OCR_TEXT.screen.canvasAriaLabel}
-        inspector={isCollapsed ? null : <DimensionOcrInspector model={model} scaleCalibrationHref={scaleCalibrationHref} />}
-        left={left}
+        inspector={isCollapsed || isEmpty ? null : <DimensionOcrInspector model={model} scaleCalibrationHref={scaleCalibrationHref} />}
+        left={isEmpty ? null : left}
         selectionKey={model.selectedDimensionId}
       />
-      <QcStatusBar saveLabel={false}>
-        {model.scaleLabel == null ? null : (
-          <span className="text-body-sm tabular-nums text-text-secondary">{model.scaleLabel}</span>
-        )}
-      </QcStatusBar>
+      <QcStatusBar saveLabel={false} />
     </QcScreenFrame>
   );
 }

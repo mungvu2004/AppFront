@@ -54,7 +54,7 @@ import {
 
 /* ---------------------------------------------------------------- copy (each cites its source) */
 
-const SCREEN = 'Chuẩn hoá độ dày tường'; // TV:SCREEN_TITLE
+const SCREEN = 'Độ dày tường'; // TV:SCREEN_TITLE
 const PANEL = 'Bảng chuẩn hoá độ dày'; // TV:PANEL_LABEL
 const HIST_SECTION = 'Phân bố độ dày đo được'; // TV:HISTOGRAM_SECTION_LABEL
 const GROUPS_SECTION = 'Nhóm đổi về chuẩn'; // TBP:TEXT.groupsTitle
@@ -250,7 +250,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       const sent: number[] = [];
       let applied: ApiResult | undefined;
 
-      await test.step('[21-E-001] region "Chuẩn hoá độ dày tường": the panel, its histogram and group sections, the drawing', async () => {
+      await test.step('[21-E-001] region "Độ dày tường": the panel, its histogram and group sections, the drawing', async () => {
         await expect(region(page)).toBeVisible(); // TV
         await expect.soft(panel(page)).toBeVisible();
         await expect.soft(region(page).getByRole('heading', { level: 1, name: SCREEN, exact: true })).toBeVisible();

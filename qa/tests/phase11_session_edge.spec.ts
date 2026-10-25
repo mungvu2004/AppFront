@@ -69,16 +69,17 @@ test('SCR-37 · FL-11U-01 · admin · vô hiệu / hoàn tác / bật lại', as
     await test.step('[11U-A-101] bảng có hàng fu1 với Vô hiệu hoá và Xoá', async () => {
       await openUsers(page, user.email);
       await expect(row).toBeVisible(); // UMT:45,157
-      await expect(row.getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toBeVisible();
+      await expect(row.getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toBeAttached();
       await expect(row.getByRole('button', { name: 'Xoá', exact: true })).toBeVisible();
       await captureEvidence(page, 'E11_11U-A-101_users.png');
     });
     await test.step('[11U-A-102] bấm Vô hiệu hoá: hàng Đã vô hiệu hoá, nút Bật lại', async () => {
       const done = userResponse(page, user.id, 'disable');
+      await row.locator('summary').click(); // UX 26/10: row actions live in the "⋯" menu
       await row.getByRole('button', { name: 'Vô hiệu hoá', exact: true }).click();
       expect((await done).status()).toBe(200);
       await expect.soft(row.getByText('Đã vô hiệu hoá', { exact: true })).toBeVisible(); // UMG:138
-      await expect.soft(row.getByRole('button', { name: 'Bật lại', exact: true })).toBeVisible(); // UMT:46
+      await expect.soft(row.getByRole('button', { name: 'Bật lại', exact: true })).toBeAttached(); // UMT:46
       await captureEvidence(page, 'E11_11U-A-102_disabled.png');
     });
     await test.step('[11U-A-103] toast Đã vô hiệu hoá tài khoản + tên + Hoàn tác', async () => {
@@ -98,25 +99,27 @@ test('SCR-37 · FL-11U-01 · admin · vô hiệu / hoàn tác / bật lại', as
       const done = userResponse(page, user.id, 'enable');
       await toastWith(page, 'Đã vô hiệu hoá tài khoản').getByRole('button', { name: 'Hoàn tác', exact: true }).click();
       expect((await done).status()).toBe(200);
-      await expect.soft(row.getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toBeVisible();
+      await expect.soft(row.getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toBeAttached();
       await expect.soft(toastWith(page, 'Đã bật lại tài khoản')).toHaveCount(0); // UMH:845-847 (isUndo returns)
       await captureEvidence(page, 'E11_11U-A-104_undone.png');
     });
     await test.step('[11U-B-124] hàng đã vô hiệu: chỉ Bật lại, Xoá còn', async () => {
       const again = userResponse(page, user.id, 'disable'); // precondition, not the checked behaviour
+      await row.locator('summary').click(); // UX 26/10: row actions live in the "⋯" menu
       await row.getByRole('button', { name: 'Vô hiệu hoá', exact: true }).click();
       expect((await again).status()).toBe(200);
-      await expect.soft(row.getByRole('button', { name: 'Bật lại', exact: true })).toBeVisible();
+      await expect.soft(row.getByRole('button', { name: 'Bật lại', exact: true })).toBeAttached();
       await expect.soft(row.getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toHaveCount(0); // UMT:145-148
       await expect.soft(row.getByRole('button', { name: 'Xoá', exact: true })).toBeVisible(); // UMT:151-155
       await captureEvidence(page, 'E11_11U-B-124_disabledrow.png');
     });
     await test.step('[11U-A-105] bấm Bật lại: toast Đã bật lại tài khoản, hàng Vô hiệu hoá', async () => {
       const done = userResponse(page, user.id, 'enable');
+      await row.locator('summary').click(); // UX 26/10: row actions live in the "⋯" menu
       await row.getByRole('button', { name: 'Bật lại', exact: true }).click();
       expect((await done).status()).toBe(200);
       await expect.soft(toastWith(page, 'Đã bật lại tài khoản')).toBeVisible(); // UMH:158
-      await expect.soft(row.getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toBeVisible();
+      await expect.soft(row.getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toBeAttached();
       await captureEvidence(page, 'E11_11U-A-105_enabled.png');
     });
     await test.step('[11U-E-165] toast nằm trong vùng role=status', async () => {
@@ -162,9 +165,10 @@ test('SCR-37/SCR-01 · FL-11U-02 · admin + user bị vô hiệu · phiên và �
     };
     await test.step('[11U-A-107] admin vô hiệu: /api/me của fu2 401, tab về /login có thông báo phiên kết thúc', async () => {
       const done = userResponse(page, user.id, 'disable');
+      await row.locator('summary').click(); // UX 26/10: row actions live in the "⋯" menu
       await row.getByRole('button', { name: 'Vô hiệu hoá', exact: true }).click();
       expect((await done).status()).toBe(200);
-      await expect(row.getByRole('button', { name: 'Bật lại', exact: true })).toBeVisible();
+      await expect(row.getByRole('button', { name: 'Bật lại', exact: true })).toBeAttached();
       // /api/me with cookies only is always 401 (core/routing.py:130-133): the proof is a refresh with the dead session cookie.
       const refresh = await c2.request.post('/api/auth/refresh', { headers: { Origin: apiBaseUrl() } });
       expect(refresh.status()).toBe(401); // oracle: auth/sessions.py:452-453
@@ -188,6 +192,7 @@ test('SCR-37/SCR-01 · FL-11U-02 · admin + user bị vô hiệu · phiên và �
     });
     await test.step('[11U-A-108] admin Bật lại: fu2 đăng nhập lại, vào Dự án của tôi', async () => {
       const done = userResponse(page, user.id, 'enable');
+      await row.locator('summary').click(); // UX 26/10: row actions live in the "⋯" menu
       await row.getByRole('button', { name: 'Bật lại', exact: true }).click();
       expect((await done).status()).toBe(200);
       // After A-106 the blocked strip replaces the form (AuthScreen.tsx:351-361): reopen it first (RR red: form never came back).

@@ -44,8 +44,8 @@ export function Breadcrumb({ ariaLabel = NAV_LABEL, items }: BreadcrumbProps) {
       <ol className="flex items-center gap-0">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
-          const isMiddle = !isLast && index > 0;
-          const hasDropdown = isMiddle && Array.isArray(item.options) && item.options.length > 0;
+          // Cấp đầu cũng mở được danh sách khi có lựa chọn (breadcrumb tầng của QC bắt đầu bằng "Tầng ▾").
+          const hasDropdown = !isLast && Array.isArray(item.options) && item.options.length > 0;
           const isDropdownOpen = openDropdownId === item.id;
 
           return (

@@ -319,7 +319,7 @@ export function summariseValidity(issues: readonly SpatialJsonIssue[]): SpatialJ
   const isValid = issues.length === 0;
 
   const summary = isValid
-    ? 'Hợp lệ — 0 lỗi.'
+    ? 'Tệp đúng cấu trúc'
     : `${formatNumber(criticalCount)} lỗi nghiêm trọng · ${formatNumber(warningCount)} cảnh báo.`;
 
   return { criticalCount, isValid, issues, summary, warningCount };

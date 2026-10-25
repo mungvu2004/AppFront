@@ -11,7 +11,7 @@ import { FIRST_PAINT_TIMEOUT_MS, PROJECT_ID } from './files';
  *
  * Màn mỏng nhất nhóm (19 bài đơn vị, không bài nào cho riêng hook), nên ở đây đi
  * sâu hơn: Esc thật trong chế độ bốn góc, hộp thoại hỏi trước "Tự động nắn" trong cây thật,
- * nút "Xử lý dù ảnh mờ" (không còn ô xác nhận), điều hướng router thật.
+ * nút "Vẫn xử lý" (không còn ô xác nhận), điều hướng router thật.
  *
  * Bộ mẫu: tầng mồi là Tầng hầm (chưa đo) ⇒ mặc định `partial`. Tầng 1 đo xong ở
  * mức Kém với ba phát hiện (độ phân giải thấp · nghiêng · không thấy khung).
@@ -89,15 +89,15 @@ test('Esc thoát chế độ chọn bốn góc, ở lại đúng tầng và đú
   await expect(page.getByRole('button', { name: 'Chọn góc thủ công' })).toBeVisible();
 });
 
-test('B-V4-02: ảnh kém không còn ô xác nhận; "Xử lý dù ảnh mờ" là một lần bấm đồng ý và sang màn xử lý', async ({
+test('B-V4-02: ảnh kém không còn ô xác nhận; "Vẫn xử lý" là một lần bấm đồng ý và sang màn xử lý', async ({
   page,
 }) => {
   await openFloorOne(page);
 
   await expect(page.getByRole('checkbox')).toHaveCount(0);
-  await expect(page.getByText('Bấm là chấp nhận: có thể phải vẽ tay tường bị sót.')).toBeVisible();
+  await expect(page.getByText('Vẫn xử lý: có thể phải vẽ tay tường bị sót.')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Xử lý dù ảnh mờ' }).click();
+  await page.getByRole('button', { name: 'Vẫn xử lý' }).click();
 
   await expect.poll(() => pathOf(page.url())).toBe(ROUTES.project.pipeline(PROJECT_ID));
   await expect(page.getByRole('navigation', { name: 'Xử lý' })).toBeVisible();
@@ -124,6 +124,6 @@ test('vai Người xem đọc được báo cáo nhưng hai nút hành động b
   const zoom = page.getByRole('group', { name: 'Cụm thu phóng', exact: true });
   await expect(zoom).toBeVisible();
   await expect(zoom.getByRole('button', { name: /^Mức thu phóng \d+%, bấm để về 100%$/u })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^(?:Xử lý dù ảnh mờ|Bắt đầu xử lý)$/u })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^(?:Vẫn xử lý|Bắt đầu xử lý)$/u })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^(?:Tải ảnh nét hơn|Tải ảnh khác)$/u })).toHaveCount(0);
 });

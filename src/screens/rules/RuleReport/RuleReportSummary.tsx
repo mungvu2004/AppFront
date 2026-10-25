@@ -35,12 +35,11 @@ import { SlidersHorizontal } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
-import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Select } from '@/components/ui/Select';
 import { useCountUp } from '@/hooks/useCountUp';
 import { cn } from '@/lib/utils';
 
-import { ANY_OPTION, FOCUS_RING, GROUP_LABELS, GROUP_ORDER, LEVEL_FILTER_OPTIONS } from './RuleReportLabels';
+import { ANY_OPTION, FOCUS_RING, GROUP_LABELS, GROUP_ORDER } from './RuleReportLabels';
 import type {
   RuleReportFilters,
   RuleReportGroup,
@@ -79,7 +78,7 @@ function SummaryStat({ value, label, toneClassName, filter }: SummaryStatProps) 
             onClick={filter.onClick}
             className={cn(
               '-mx-2 rounded-md px-2 transition-colors duration-fast hover:bg-bg-hover',
-              filter.isActive && 'bg-bg-selected',
+              filter.isActive && 'bg-bg-selected ring-1 ring-accent',
               FOCUS_RING,
             )}
           >
@@ -207,17 +206,6 @@ export function RuleReportFilterBar({
 
   return (
     <div className="flex flex-wrap items-end gap-4">
-      {/* Ô chia đều bề ngang làm "Nghiêm trọng" xuống hai dòng: mỗi ô rộng theo chữ của nó. */}
-      <SegmentedControl
-        className="[&_button]:flex-none [&_button]:whitespace-nowrap"
-        aria-label="Lọc theo mức độ"
-        options={LEVEL_FILTER_OPTIONS.map((option) => ({ ...option }))}
-        value={filters.level}
-        onChange={(value: RuleReportLevelFilter) => {
-          onFilterChange({ ...filters, level: value });
-        }}
-      />
-
       <Button
         variant="secondary"
         className="xl:hidden"

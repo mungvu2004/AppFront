@@ -263,14 +263,14 @@ test.describe('phase 09 viewer edge', () => {
         await expect.soft(pinBlocked).toBeVisible(); // useMeasurementTool.ts:266 — the caption appears once roles arrived
         await captureEvidence(page, 'E09_9V-B-036_roles-known.png');
       });
-      await test.step('[9V-C-030] ⚑ viewer: không thấy/không dùng được Chạy kiểm tra lại', async () => {
+      await test.step('[9V-C-030] ⚑ viewer: không thấy/không dùng được Kiểm tra lại', async () => {
         await gotoAs(page, ROUTES.project.rules(projectId), RULES_HEADING);
         // locked for viewer: QA-09 questions.md Q2 (decision "Khoá"); RuleReport.tsx hides rerun, RuleReport.container.tsx:268 passes canEdit
         await expect.soft(page.getByRole('button', { name: RULES_RERUN })).toHaveCount(0);
         await expect.soft(page.getByRole('button', { name: RULES_CONFIRM })).toHaveCount(0);
         await captureEvidence(page, 'E09_9V-C-030_rules-gated.png');
       });
-      await test.step('[9V-C-031] ⚑ viewer bấm "Chạy kiểm tra lại": không request ghi', async () => {
+      await test.step('[9V-C-031] ⚑ viewer bấm "Kiểm tra lại": không request ghi', async () => {
         const rerun = page.getByRole('button', { name: RULES_RERUN });
         await expect.soft(rerun).toHaveCount(0);
         const mark = rec.writes.length;

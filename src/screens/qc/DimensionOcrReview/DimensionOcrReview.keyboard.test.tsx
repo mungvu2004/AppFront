@@ -2,7 +2,7 @@
 
 import { cleanup, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders } from '@/lib/testing/render';
 import { resetSelectorCaches } from '@/store/selectors';
@@ -11,6 +11,10 @@ import { useStore } from '@/store';
 import { DimensionOcrReviewContainer } from './DimensionOcrReview.container';
 import { scenarioArgsFor } from './DimensionOcrReview.stories';
 import { DIMENSION_OCR_TEXT, keyboardModeToggleLabel } from './dimensionOcrText';
+
+/* Cổng tầng có test riêng; ở đây nó đọc N16 thật qua CÙNG khoá cache với hook và chặn cổng giả. */
+vi.mock('../shared/FloorReviewGate.container', () => ({ FloorReviewGate: () => null }));
+
 
 function renderState(state: Parameters<typeof scenarioArgsFor>[0]) {
   const store = useStore.getState();

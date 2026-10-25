@@ -259,12 +259,13 @@ test.describe('cài đặt dự án — định dạng số (A15)', () => {
     await openSettings(page);
     await page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: 'Đơn vị đo' }).click();
     const units = page.getByRole('region', { name: 'Đơn vị đo' });
+    await units.getByText('Nâng cao', { exact: true }).click(); // UX 26/10: dung sai/ngưỡng/tỷ lệ nằm trong "Nâng cao"
 
     await expect(units.getByLabel('Ngưỡng tin cậy')).toHaveValue('0,75');
     // G3-11: dòng dưới ô ghi cách nhập kèm nghĩa phần trăm.
     await expect(units.getByText('Nhập từ 0 đến 1; 0,75 nghĩa là 75%.', { exact: true })).toBeVisible();
 
-    const scale = units.getByLabel('Tỉ lệ bản vẽ');
+    const scale = units.getByLabel('Tỷ lệ bản vẽ');
     await scale.fill('1,25');
     await scale.press('Tab');
     // Ô số chạy số đếm lên tới giá trị mới (`useNumericField` → `useCountUp`), nên chờ đích.

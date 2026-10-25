@@ -100,8 +100,8 @@ const PROCESSING = {
   copyLog: 'Sao chép nhật ký', // PLP:29
   logCopied: 'Đã chép nhật ký', // UPR:153
   summary: /^(?:Sẵn sàng kiểm tra tầng|Còn 1 việc: hiệu chỉnh tỷ lệ)$/u, // S-10 gate Section name
-  calibrate: 'Hiệu chỉnh tỷ lệ', // PSU:20
-  reviewWalls: 'Sang Kiểm tra tầng', // processingGate.ts GO_REVIEW_LABEL
+  calibrate: 'Đặt tỷ lệ', // PSU:20
+  reviewWalls: 'Sang Duyệt tầng', // processingGate.ts GO_REVIEW_LABEL
   cancel: 'Huỷ xử lý', // PR:65
   background: 'Chạy nền, báo tôi khi xong', // PR RUN_IN_BACKGROUND_LABEL
 } as const;
@@ -124,7 +124,7 @@ const GRAPH = {
 const CAD = {
   dialog: 'Phát hiện tệp CAD', // CBT:30
   useCad: 'Dùng đường từ CAD', // CBT:84
-  useAi: 'Vẫn dùng AI', // CBT:87
+  useAi: 'Tiếp tục duyệt tường', // CBT:87
   cancel: 'Huỷ',
   handoffTitle: 'Chuyển sang nhánh nhận dạng ảnh', // CB:92
   noLayers: 'Chưa có lớp nào để ánh xạ',
@@ -271,7 +271,7 @@ test.describe('X cross-screen journeys', () => {
         for (const s of seen) expect.soft(s.sse + s.read, `progress of upload ${s.id} read (SSE or #8)`).toBeGreaterThan(0);
       });
 
-      await test.step('[X-A-004] summary "Hiệu chỉnh tỷ lệ" → that floor\'s scale → "Áp dụng tỷ lệ" → Back → summary still finished, no new upload/run', async () => {
+      await test.step('[X-A-004] summary "Đặt tỷ lệ" → that floor\'s scale → "Áp dụng tỷ lệ" → Back → summary still finished, no new upload/run', async () => {
         const summary = page.getByRole('region', { name: PROCESSING.summary, exact: true });
         await expect(summary).toBeVisible();
         await expect.soft(summary.getByRole('button', { name: PROCESSING.calibrate, exact: true })).toBeVisible(); // fold BUG-285 (S-10: calibrate is the primary when scale is missing)
@@ -561,7 +561,7 @@ test.describe('X cross-screen journeys', () => {
 
       await test.step('[13-D-002] engineer graph: forbidden line, overview at full opacity, no empty story, no "Chi tiết kỹ thuật"', async () => {
         await page.goto(ROUTES.project.pipelineGraph(pid));
-        await expect(page.getByRole('heading', { level: 1, name: 'Theo dõi bản vẽ đi qua nhánh xử lý nào', exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { level: 1, name: 'Bản vẽ được xử lý theo đường nào', exact: true })).toBeVisible();
         await expect.soft(page.getByText(GRAPH.forbiddenLine, { exact: true })).toBeVisible();
         await expect.soft(page.getByText(GRAPH.emptyTitle, { exact: true })).toHaveCount(0);
         await expect.soft(page.getByRole('button', { name: GRAPH.detail })).toHaveCount(0);
@@ -741,7 +741,7 @@ test.describe('X cross-screen journeys', () => {
           await captureEvidence(page, 'E03_15-D-003_viewer_cad_dialog.png');
         });
 
-        await test.step('[15-D-004] "Huỷ" → hand-off "Dùng đường từ CAD" disabled, "Vẫn dùng AI" enabled → /pipeline', async () => {
+        await test.step('[15-D-004] "Huỷ" → hand-off "Dùng đường từ CAD" disabled, "Tiếp tục duyệt tường" enabled → /pipeline', async () => {
           const dialog = page.getByRole('dialog', { name: CAD.dialog, exact: true });
           await dialog.getByRole('button', { name: CAD.cancel, exact: true }).click();
           await expect(dialog).toHaveCount(0);

@@ -198,8 +198,8 @@ describe('Bảng phiên bản', () => {
   it('số đo định dạng ở hook: dấu phẩy, ba chữ số, kèm tên số đo của họ', () => {
     renderView(MODEL_REGISTRY_SCENARIO_SUCCESS);
 
-    expect(screen.getAllByText('mAP50 0,612').length).toBeGreaterThan(0);
-    expect(screen.getByText('mAP50 0,684')).toBeInTheDocument();
+    expect(screen.getAllByText('Độ chính xác 61,2%').length).toBeGreaterThan(0);
+    expect(screen.getByText('Độ chính xác 68,4%')).toBeInTheDocument();
   });
 
   it('bấm nhãn mở chi tiết; bấm "Kích hoạt" xin mở hộp thoại', () => {
