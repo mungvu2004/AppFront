@@ -115,7 +115,7 @@ const REVIEWED_AND_CHANGEABLE: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter(
 });
 
 /** Ba số đo dùng cho bài "áp ba nhóm" — mỗi số một nhóm chuẩn khác nhau. */
-const THREE_MEASUREMENTS = [100, 195, 315] as const;
+const THREE_MEASUREMENTS = [110, 195, 315] as const; // 100 nay đúng bậc, không còn hàng đề xuất
 
 const wallsOfMeasurement = (measuredMm: number): readonly Wall[] =>
   THICKNESS_FIXTURE_WALLS.filter((wall) => wall.thicknessMm === measuredMm);
@@ -492,8 +492,8 @@ describe('áp chuẩn hoá', () => {
     console.log(`[S-18] câu xem trước = ${String(preview?.sentence)}`);
 
     expect(preview).not.toBeNull();
-    /* Ba đoạn đo đúng giá trị nhóm chuẩn không còn là dòng đề xuất (BUG-421), nên không nằm trong lượt áp. */
-    expect(preview?.totalWalls).toBe(FIXTURE_SEGMENT_COUNT - 3);
+    /* Bốn đoạn đo đúng bậc (100/200/220/400) không còn là dòng đề xuất (BUG-421), nên không nằm trong lượt áp. */
+    expect(preview?.totalWalls).toBe(FIXTURE_SEGMENT_COUNT - 4);
     expect(preview?.unchangedWalls).toHaveLength(FIXTURE_EXCEEDING_COUNT);
     expect(preview?.sentence).toBe(
       '45 tường → 3 nhóm chuẩn. 6 tường lệch quá 30 mm sẽ không đổi.',
@@ -669,7 +669,7 @@ describe('áp chuẩn hoá', () => {
     /* Đa giác được dựng LẠI: cùng số hình, nhưng không phải cùng object cũ. */
     expect(shapesAfter).toHaveLength(shapesBefore.length);
     expect(shapesAfter).not.toBe(shapesBefore);
-    expect(shapesAfter.find((shape) => shape.wallId === target.id)?.group).toBe(220);
+    expect(shapesAfter.find((shape) => shape.wallId === target.id)?.group).toBe(200);
   });
 
   it('gán một nhóm cho các hàng đang chọn cũng chỉ một bước lịch sử', async () => {
@@ -1035,7 +1035,7 @@ describe('Bảy trạng thái', () => {
     const [first, ...rest] = THICKNESS_SCENARIO_EMPTY.walls;
     const mounted = await mountScenario({
       ...THICKNESS_SCENARIO_EMPTY,
-      walls: [{ ...(first as Wall), thicknessMm: 160 }, ...rest],
+      walls: [{ ...(first as Wall), thicknessMm: 260 }, ...rest], // lệch 40 khỏi 220/300
     });
 
     expect(mounted.result.current.state).toBe('empty');

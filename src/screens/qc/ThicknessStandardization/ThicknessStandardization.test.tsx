@@ -602,8 +602,8 @@ describe('[NGHIEM-4] áp dụng lại bộ lọc không bao giờ ghi đè im l�
         `${String(affected)} trên tổng ${String(FIXTURE_REVIEWED_COUNT)} tường đã duyệt của bộ mẫu`,
     );
 
-    /* Con số đếm TỪ bộ mẫu, không gõ tay — và với bộ mẫu hiện tại nó bằng 9/12. */
-    expect(affected).toBe(9);
+    /* Con số đếm TỪ bộ mẫu, không gõ tay — với bộ mẫu thang sáu bậc nó bằng 10/12. */
+    expect(affected).toBe(10);
     expect(FIXTURE_REVIEWED_COUNT).toBe(12);
     expect(affected).toBeLessThan(FIXTURE_REVIEWED_COUNT);
     expect(warningText).toContain(`${String(affected)} tường đã duyệt sẽ bị đổi`);

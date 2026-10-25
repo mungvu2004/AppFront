@@ -119,7 +119,7 @@ const thresholdsKey = (projectId: string): string => `thickness-thresholds:${pro
 function readSavedThresholds(projectId: string): ThicknessThresholds {
   try {
     const raw: unknown = JSON.parse(window.sessionStorage.getItem(thresholdsKey(projectId)) ?? 'null');
-    if (Array.isArray(raw) && raw.length === 3 && raw.every((v) => typeof v === 'number')) {
+    if (Array.isArray(raw) && raw.length === DEFAULT_THICKNESS_THRESHOLDS.length && raw.every((v) => typeof v === 'number')) {
       return raw as unknown as ThicknessThresholds;
     }
   } catch {
