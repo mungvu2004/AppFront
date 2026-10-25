@@ -496,7 +496,7 @@ describe('áp chuẩn hoá', () => {
     expect(preview?.totalWalls).toBe(FIXTURE_SEGMENT_COUNT - 4);
     expect(preview?.unchangedWalls).toHaveLength(FIXTURE_EXCEEDING_COUNT);
     expect(preview?.sentence).toBe(
-      '45 tường → 3 nhóm chuẩn. 6 tường lệch quá 30 mm sẽ không đổi.',
+      '44 tường → 5 nhóm chuẩn. 6 tường lệch quá 30 mm sẽ không đổi.',
     );
 
     /* Xem trước là XEM: ngăn xếp vẫn trống, kho chưa đổi một số nào. */

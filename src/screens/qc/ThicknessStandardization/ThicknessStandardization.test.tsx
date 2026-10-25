@@ -497,23 +497,24 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
     const rowsBefore = within(container).getAllByRole('row').length;
 
     /*
-     * Ngưỡng 330 ↔ cột bê tông cốt thép, kéo bằng BÀN PHÍM (A12): jsdom trả bề
+     * Ngưỡng thấp 100 ↔ 150 (125 mm; quanh ngưỡng cao 450 không có tường nào nên
+     * kéo nó không đổi số), kéo bằng BÀN PHÍM (A12): jsdom trả bề
      * rộng 0 cho mọi phần tử nên đường chuột của biểu đồ không đo được, còn
      * đường bàn phím thì đi qua đúng `onThresholdDrag` ấy. Năm lượt, có qua có
-     * lại: +5 +5 +5 −5 +5 = +15 mm.
+     * lại: +5 +5 +5 −5 +5 = +15 mm → 140 mm, tường 135 mm sang nhóm 100 và lệch quá dung sai.
      */
-    const slider = within(container).getByRole('slider', { name: HIGH_THRESHOLD_LABEL });
+    const slider = within(container).getByRole('slider', { name: LOW_THRESHOLD_LABEL });
     const before = slider.getAttribute('aria-valuenow');
 
     for (const key of ['ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowLeft', 'ArrowRight']) {
       fireEvent.keyDown(
-        within(container).getByRole('slider', { name: HIGH_THRESHOLD_LABEL }),
+        within(container).getByRole('slider', { name: LOW_THRESHOLD_LABEL }),
         { key },
       );
     }
 
     const after = within(container)
-      .getByRole('slider', { name: HIGH_THRESHOLD_LABEL })
+      .getByRole('slider', { name: LOW_THRESHOLD_LABEL })
       .getAttribute('aria-valuenow');
     /* Số trong ô chạy đếm lên (BUG-340: một con số trong câu trạng thái) — đợi nó dừng, không đọc giữa chừng. */
     await waitFor(() => {
@@ -523,7 +524,7 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
     const summaryAfter = summaryLines(container);
 
     console.log(
-      `[S-18][NGHIEM-3] ngưỡng cao: ${String(before)} mm → ${String(after)} mm sau 5 lượt kéo · ` +
+      `[S-18][NGHIEM-3] ngưỡng thấp: ${String(before)} mm → ${String(after)} mm sau 5 lượt kéo · ` +
         `${String(history.undoSteps().length)} bước lịch sử`,
     );
     console.log(`[S-18][NGHIEM-3] bốn số TRƯỚC = ${summaryBefore.join(' · ')}`);

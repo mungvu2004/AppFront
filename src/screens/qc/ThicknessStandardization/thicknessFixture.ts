@@ -32,7 +32,7 @@
  *   không phải số bịa — chúng minh hoạ đúng lý do màn này cần một dung sai
  *   riêng khỏi việc gán nhóm.
  * - **12 đoạn còn lại** trải quanh cả bốn nhóm, TRONG dung sai: quanh 110
- *   (110/100/130), quanh 330 (330/315/345), ba cột bê tông cốt thép
+ *   (110/100/135), quanh 330 (330/315/345), ba cột bê tông cốt thép
  *   (360/400/450), và thêm quanh 220 (220/200/210) cho đủ cỡ mẫu.
  *
  * Tổng: 30 + 6 + 12 = 48 = {@link FIXTURE_SEGMENT_COUNT}.
@@ -143,7 +143,7 @@ export const THICKNESS_FIXTURE_WALLS: readonly Wall[] = [
   wall(30, LEVEL_3_ID, point(27000, 0), point(30000, 0), 195, 'partition', 0.65, false),
 
   // -- 6 đoạn lệch quá 30 mm khỏi mọi bậc 100/150/200/220/300/400 -----------------------
-  wall(31, LEVEL_1_ID, point(30000, 0), point(33000, 0), 40, 'partition', 0.91, false),
+  wall(31, LEVEL_1_ID, point(30000, 0), point(33000, 0), 65, 'partition', 0.91, false),
   wall(32, LEVEL_2_ID, point(30000, 0), point(33000, 0), 60, 'partition', 0.77, false),
   wall(33, LEVEL_3_ID, point(30000, 0), point(33000, 0), 255, 'partition', 0.6, true),
   wall(34, LEVEL_1_ID, point(33000, 0), point(36000, 0), 265, 'loadBearing', 0.88, false),
@@ -153,7 +153,7 @@ export const THICKNESS_FIXTURE_WALLS: readonly Wall[] = [
   // -- 12 đoạn còn lại — trải bốn nhóm, TRONG dung sai --------------------------
   wall(37, LEVEL_1_ID, point(36000, 0), point(39000, 0), 110, 'partition', 0.95, true),
   wall(38, LEVEL_2_ID, point(36000, 0), point(39000, 0), 100, 'partition', 0.72, false),
-  wall(39, LEVEL_3_ID, point(36000, 0), point(39000, 0), 130, 'partition', 0.58, false),
+  wall(39, LEVEL_3_ID, point(36000, 0), point(39000, 0), 135, 'partition', 0.58, false),
   wall(40, LEVEL_1_ID, point(39000, 0), point(42000, 0), 330, 'loadBearing', 0.99, false),
   wall(41, LEVEL_2_ID, point(39000, 0), point(42000, 0), 315, 'loadBearing', 0.81, true),
   wall(42, LEVEL_3_ID, point(39000, 0), point(42000, 0), 310, 'loadBearing', 0.65, false),

@@ -99,6 +99,7 @@ import {
   DEFAULT_THICKNESS_SORT_KEY,
   DEFAULT_THICKNESS_THRESHOLDS,
   DEFAULT_TOLERANCE_MM,
+  THICKNESS_GROUPS_MM,
   type ApplyPreview,
   type ReapplyFilterWarning,
   type ThicknessApplyBarProps,
@@ -114,7 +115,7 @@ import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /** Ngưỡng nhớ theo dự án trong phiên (G4a-33); tải lại trang vẫn giữ. */
-const MIN_THRESHOLD_MM = 110;
+const MIN_THRESHOLD_MM = THICKNESS_GROUPS_MM[0] ?? 100; // bậc nhỏ nhất của thang sáu bậc
 const thresholdsKey = (projectId: string): string => `thickness-thresholds:${projectId}`;
 function readSavedThresholds(projectId: string): ThicknessThresholds {
   try {
@@ -711,7 +712,7 @@ export function useThicknessStandardization(
 
   const onThresholdDrag = useCallback((index: number, mm: number) => {
     setThresholds((previous) => {
-      /* Không kéo xuống dưới nhóm chuẩn nhỏ nhất (110 mm): tường mỏng không nhảy nhóm (G4a-33). */
+      /* Không kéo xuống dưới nhóm chuẩn nhỏ nhất (100 mm): tường mỏng không nhảy nhóm (G4a-33). */
       const next = withThresholdAt(previous, index, Math.max(mm, MIN_THRESHOLD_MM));
       saveThresholds(projectId, next);
       return next;
