@@ -12,7 +12,7 @@ import { WallThicknessLegend } from '@/components/canvas/WallThicknessLegend';
 import { backgroundFrameRect } from '../shared/canvasFit';
 
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
-import { BACKGROUND_IMAGE_OPACITY, countWallBands, toSvgPoints, wallThicknessFillToken } from './wallLayerHatch';
+import { BACKGROUND_IMAGE_OPACITY, countWallBands, toSvgPoints, wallThicknessFillToken, WALL_THICKNESS_GROUP_LABELS } from './wallLayerHatch';
 
 type Props = WallLayerCanvasViewProps;
 
@@ -118,6 +118,7 @@ export function WallLayerLegend({
       activeFilter={legendLevels.activeFilter}
       availableLevels={[...bandCounts.bands.keys()]}
       className="whitespace-nowrap"
+      labels={WALL_THICKNESS_GROUP_LABELS}
       counts={Object.fromEntries([...bandCounts.bands].map(([band, count]) => [String(band), count]))}
       isVisible={isWallLayerVisible}
       onFilterChange={legendLevels.onFilterChange}

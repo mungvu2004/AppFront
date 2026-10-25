@@ -189,7 +189,7 @@ import {
 import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
-import { wallThicknessBandOf } from './wallLayerHatch';
+import { wallThicknessColorGroupOf } from './wallLayerHatch';
 import type { WallLayerCanvasViewProps, WallLayerMeasurementPx } from './wallLayerHatch';
 import type { WallLayerToolId, WallLayerToolRailProps } from './WallLayerToolRail';
 import type {
@@ -757,7 +757,7 @@ export function useWallLayerReview(
   /* G4a-21: lọc theo độ dày từ chú giải — áp cho cả danh sách lẫn bản vẽ. */
   const [thicknessFilter, setThicknessFilter] = useState<SpatialWallThickness | null>(null);
   const thicknessFilteredWalls = useMemo(
-    () => (thicknessFilter === null ? walls : walls.filter((wall) => wallThicknessBandOf(wall.thicknessMm) === thicknessFilter)),
+    () => (thicknessFilter === null ? walls : walls.filter((wall) => wallThicknessColorGroupOf(wall.thicknessMm) === thicknessFilter)),
     [thicknessFilter, walls],
   );
   const visibleWalls = useMemo(

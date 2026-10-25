@@ -22,6 +22,7 @@ import { ChevronDown } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { wallStrokeToken } from '@/components/canvas/materialMap';
+import { wallThicknessColorBand } from './wallLayerHatch';
 import { AnimatePresence, motion } from '@/components/motion';
 import { Button } from '@/components/ui/Button';
 import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
@@ -67,7 +68,7 @@ function ReadOnlyThickness({ choices, value }: ReadOnlyThicknessProps) {
           <span
             aria-hidden="true"
             className="h-3 w-3 rounded-xs"
-            style={{ backgroundColor: wallStrokeToken(choice) }}
+            style={{ backgroundColor: wallStrokeToken(wallThicknessColorBand(choice)) }}
           />
           <span
             className={cn(
@@ -146,7 +147,7 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
                 onChange={(value) => onChangeThickness(inspector.id, Number(value) as WallThicknessChoice)}
                 options={thicknessChoices.map((choice) => ({
                   label: `${choice} mm`,
-                  swatch: wallStrokeToken(choice),
+                  swatch: wallStrokeToken(wallThicknessColorBand(choice)),
                   value: String(choice),
                 }))}
                 value={String(inspector.thicknessMm)}

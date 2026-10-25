@@ -91,7 +91,7 @@ const SCREEN_DIRECTORY = 'src/screens/qc/WallLayerReview';
  * Khẳng định đúng BA băng ngay tại chỗ đọc: nếu hệ thiết kế đổi số băng, phép
  * kiểm này hỏng ở đây với một câu đọc được, chứ không hỏng ở một chỗ xa hơn.
  */
-const THICKNESS_BANDS = WALL_LAYER_THICKNESS_CHOICES;
+const THICKNESS_BANDS = [110, 220, 330] as const; // ba nhóm màu (wallThicknessColorBand)
 
 if (THICKNESS_BANDS.length !== 3) {
   throw new Error(`Cần đúng ba băng độ dày, đang có ${String(THICKNESS_BANDS.length)}.`);

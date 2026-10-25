@@ -112,7 +112,29 @@ export function isThicknessBand(thicknessMm: number): thicknessMm is WallThickne
 export function wallThicknessFillToken(thicknessMm: number): string {
   const band = wallThicknessBandOf(thicknessMm);
 
-  return band === null ? UNBANDED_WALL_TOKEN : wallStrokeToken(band);
+  return band === null ? UNBANDED_WALL_TOKEN : wallStrokeToken(wallThicknessColorBand(band));
+}
+
+/** Nhóm màu của chú giải/bộ lọc: ba token, mỗi nhóm gồm hai bậc danh mục. */
+export type WallThicknessColorGroup = 110 | 220 | 330;
+
+/** Nhãn chú giải của ba nhóm màu — nói đúng bậc danh mục, không nói 110/220/330. */
+export const WALL_THICKNESS_GROUP_LABELS: Readonly<Record<string, string>> = {
+  '110': '100–150 mm',
+  '220': '200–220 mm',
+  '330': '300–400 mm',
+};
+
+/** Nhóm màu của một độ dày đo; `null` = không chuẩn. */
+export function wallThicknessColorGroupOf(thicknessMm: number): WallThicknessColorGroup | null {
+  const band = wallThicknessBandOf(thicknessMm);
+  return band === null ? null : wallThicknessColorBand(band);
+}
+
+/** Sáu bậc danh mục → ba token màu: ≤150 mỏng, ≤220 vừa, còn lại dày. */
+export function wallThicknessColorBand(choice: WallThicknessChoice): 110 | 220 | 330 {
+  if (choice <= 150) return 110;
+  return choice <= 220 ? 220 : 330;
 }
 
 /**
@@ -133,13 +155,13 @@ export function wallThicknessBandOf(thicknessMm: number): WallThicknessChoice | 
 
 /** Số tường theo nhóm, chỉ những nhóm có mặt — nguồn của chú giải có số đếm. */
 export function countWallBands(thicknesses: readonly number[]): {
-  readonly bands: ReadonlyMap<WallThicknessChoice, number>;
+  readonly bands: ReadonlyMap<WallThicknessColorGroup, number>;
   readonly unbanded: number;
 } {
-  const bands = new Map<WallThicknessChoice, number>();
+  const bands = new Map<WallThicknessColorGroup, number>();
   let unbanded = 0;
   for (const mm of thicknesses) {
-    const band = wallThicknessBandOf(mm);
+    const band = wallThicknessColorGroupOf(mm);
     if (band === null) unbanded += 1;
     else bands.set(band, (bands.get(band) ?? 0) + 1);
   }
@@ -281,7 +303,7 @@ export interface WallLayerViewportPx {
  * vẽ bằng màu riêng mà chú giải từng không có mục nào cho nó (BUG-416).
  */
 export interface WallLayerLegendLevels {
-  readonly levels: readonly WallThicknessChoice[];
+  readonly levels: readonly WallThicknessColorGroup[];
   readonly hasUnbanded: boolean;
   /** Lọc theo độ dày từ chú giải (G4a-21) — hook giữ, danh sách + bản vẽ lọc theo. */
   readonly activeFilter?: SpatialWallThickness | null;
