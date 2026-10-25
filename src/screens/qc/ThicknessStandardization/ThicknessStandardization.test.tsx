@@ -77,12 +77,10 @@ import { useStore } from '@/store';
 
 import { BACK_TO_FLOORS_LABEL, FLOOR_MISSING_TITLE } from '../shared/floorLayerReadFailure';
 
-import { ThicknessApplyBar } from './ThicknessApplyBar';
 import { ThicknessPreviewCanvas } from './ThicknessPreviewCanvas';
 import { ThicknessStandardizationContainer } from './ThicknessStandardization.container';
 import { ProvisionalScale, scenarioArgsFor } from './ThicknessStandardization.stories';
 import {
-  FIXTURE_REVIEWED_COUNT,
   FIXTURE_SEGMENT_COUNT,
   THICKNESS_FIXTURE_LEVELS,
   THICKNESS_FIXTURE_WALLS,
@@ -99,12 +97,8 @@ import { DEFAULT_TOLERANCE_MM, THICKNESS_GROUP_LABELS } from './thicknessTypes';
 
 const SCREEN_ARIA_LABEL = 'Chuẩn hoá độ dày tường';
 const HISTOGRAM_SECTION_LABEL = 'Phân bố độ dày đo được';
-const SUMMARY_GROUP_LABEL = 'Tóm tắt chuẩn hoá độ dày tường';
-const OPEN_PREVIEW_LABEL = 'Xem trước';
-const APPLY_LABEL = 'Áp dụng';
 const UNDO_LABEL = 'Hoàn tác';
-const REAPPLY_FILTER_LABEL = 'Áp lại cho mọi tường lệch nhóm';
-const REAPPLY_WARNING_TITLE = 'Áp lại cho mọi tường lệch nhóm sẽ đổi tường đã duyệt';
+const DETAIL_LABEL = /^Xem bảng từng đoạn \(\d+\)$/u;
 const LOW_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[110])} và ${lowerFirst(THICKNESS_GROUP_LABELS[220])}`;
 const HIGH_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[330])} và ${lowerFirst(THICKNESS_GROUP_LABELS.CONCRETE_COLUMN)}`;
 
@@ -125,9 +119,6 @@ const EDITOR_ROLES: readonly ProjectRole[] = ['engineer'];
  */
 const HEAVY_TEST_TIMEOUT_MS = 120000;
 
-/** Ba số đo dùng cho bài "áp ba nhóm" — mỗi số một nhóm chuẩn khác nhau. */
-const THREE_MEASUREMENTS = [100, 195, 315] as const;
-
 /**
  * Hai từ tiếng Việt KHÔNG có dấu trong tiếng Việt chuẩn.
  *
@@ -138,7 +129,8 @@ const THREE_MEASUREMENTS = [100, 195, 315] as const;
  * `PipelineFailure.test.tsx`, `CadBranchConfirm.test.tsx`), không phải một
  * lượt nới khẳng định: từng từ vẫn bị soát, chỉ hai từ được kê tên là bỏ qua.
  */
-const ALLOWED_WORDS: readonly string[] = ['dung', 'sai'];
+/* "Xem tay" (nhãn nhóm ≥ 400 mm, S-21) cũng viết đúng mà không mang dấu nào. */
+const ALLOWED_WORDS: readonly string[] = ['dung', 'sai', 'xem', 'tay'];
 
 /* -------------------------------------------------------------------------- */
 /* Bộ mẫu — đọc ra, không viết tay lại.                                        */
@@ -151,12 +143,20 @@ function fixtureDeviationOf(wall: Wall): number | null {
   return typeof standardized === 'number' ? deviationOf(wall.thicknessMm, standardized) : null;
 }
 
-/** Những đoạn ĐÃ DUYỆT mà một lượt chuẩn hoá thật sự đổi được — xem đầu file. */
-const REVIEWED_AND_CHANGEABLE: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter((wall) => {
+/**
+ * Lô của bản Z (S-21): đoạn KHÔNG chuẩn (lệch quá dung sai), không phải xem tay, chưa duyệt.
+ * Đếm lại từ bộ mẫu: 164 → 110, 274 → 220, 276/280 → 330 (166 đã duyệt nên đứng ngoài lô).
+ */
+const BATCH_WALLS: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter((wall) => {
   const deviation = fixtureDeviationOf(wall);
 
-  return wall.reviewed && deviation !== null && deviation !== 0 && deviation <= DEFAULT_TOLERANCE_MM;
+  return !wall.reviewed && wall.thicknessMm >= 80 && deviation !== null && deviation > DEFAULT_TOLERANCE_MM;
 });
+
+/** Đoạn xem tay: dưới 80 mm hoặc từ 400 mm (nhóm không có giá trị chuẩn). */
+const MANUAL_WALLS: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter(
+  (wall) => wall.thicknessMm < 80 || fixtureDeviationOf(wall) === null,
+);
 
 const wallsOfMeasurement = (measuredMm: number): readonly Wall[] =>
   THICKNESS_FIXTURE_WALLS.filter((wall) => wall.thicknessMm === measuredMm);
@@ -232,14 +232,8 @@ async function renderMain(options: { readonly notifications?: NotificationBus } 
   return { container: rendered.container, history, unmount: rendered.unmount } satisfies Rendered;
 }
 
-/** Bốn con số tóm tắt, đọc TỪ MÀN — mỗi ô là một `role="status"`. */
-function summaryLines(container: HTMLElement): readonly string[] {
-  const group = within(container).getByRole('group', { name: SUMMARY_GROUP_LABEL });
-
-  return within(group)
-    .getAllByRole('status')
-    .map((line) => line.textContent ?? '');
-}
+/** Câu trạng thái dưới H1 ("x/48 đoạn không chuẩn, y đúng chuẩn"). */
+const statusText = (): string => screen.getByText(/đoạn không chuẩn,/u).textContent ?? '';
 
 /**
  * Mảng thứ hai của `expectSevenStates` chỉ để thoả kiểu; đầu vào thật của mỗi
@@ -345,61 +339,26 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
     }
   }, HEAVY_TEST_TIMEOUT_MS);
 
-  it('[BUG-637] nút bung khung xem trước nói việc làm; "Áp dụng" tắt khi không đoạn nào đổi', () => {
-    const noop = (): void => undefined;
+  it('[BUG-637] thu gọn: nút bung khung xem trước nói việc làm', () => {
     const collapsed = renderState('collapsed');
 
     expect(screen.getByRole('button', { name: 'Mở khung xem trước' })).toBeInTheDocument();
     collapsed.unmount();
+  });
 
-    const blocked = THICKNESS_FIXTURE_WALLS.slice(0, 1).map((wall) => ({ wallId: wall.id })) as never;
+  it('[BUG-412] chưa có hình tường: khung xem trước không còn ô chú giải trắng mồ côi', () => {
+    const noop = (): void => undefined;
     const { unmount } = renderWithProviders(
-      <ThicknessApplyBar
-        canPreview
-        onApplyPreview={noop}
-        onCancelPreview={noop}
-        onChangeTolerance={noop}
-        onDismissReapplyWarning={noop}
-        onOpenPreview={noop}
-        onReapplyFilter={noop}
-        preview={{ totalWalls: 1, groupCount: 0, unchangedWalls: blocked, sentence: '1 tường → 0 nhóm chuẩn.' }}
-        reapplyWarning={null}
-        toleranceMm={DEFAULT_TOLERANCE_MM}
+      <ThicknessPreviewCanvas
+        hoveredGroup={null}
+        hoveredWallId={null}
+        isCollapsed={false}
+        legend={[]}
+        onHoverWall={noop}
+        shapes={[]}
       />,
     );
 
-    expect(screen.getByRole('button', { name: APPLY_LABEL })).toBeDisabled();
-    unmount();
-  });
-
-  it('[BUG-412] chưa có đoạn nào: "Xem trước" tắt, khung xem trước không còn ô chú giải trắng mồ côi', () => {
-    const noop = (): void => undefined;
-    const { unmount } = renderWithProviders(
-      <>
-        <ThicknessApplyBar
-          canPreview={false}
-          onApplyPreview={noop}
-          onCancelPreview={noop}
-          onChangeTolerance={noop}
-          onDismissReapplyWarning={noop}
-          onOpenPreview={noop}
-          onReapplyFilter={noop}
-          preview={null}
-          reapplyWarning={null}
-          toleranceMm={DEFAULT_TOLERANCE_MM}
-        />
-        <ThicknessPreviewCanvas
-          hoveredGroup={null}
-          hoveredWallId={null}
-          isCollapsed={false}
-          legend={[]}
-          onHoverWall={noop}
-          shapes={[]}
-        />
-      </>,
-    );
-
-    expect(screen.getByRole('button', { name: OPEN_PREVIEW_LABEL })).toBeDisabled();
     expect(screen.queryByRole('list', { name: 'Chú giải độ dày tường' })).toBeNull();
 
     unmount();
@@ -407,33 +366,28 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* [NGHIEM-2] Áp ba nhóm TỪ MÀN → MỘT bước lịch sử, hoàn tác trả nguyên trạng.  */
+/* [NGHIEM-2] Đổi cả lô TỪ MÀN → MỘT bước lịch sử, hoàn tác trả nguyên trạng.   */
 /* -------------------------------------------------------------------------- */
 
-describe('[NGHIEM-2] áp ba nhóm là ĐÚNG MỘT bước hoàn tác', () => {
-  it('tích ba nhóm, xem trước, áp — một bước; rồi "Hoàn tác" trả về nguyên trạng', async () => {
+describe('[NGHIEM-2] đổi ba nhóm là ĐÚNG MỘT bước hoàn tác', () => {
+  it('chưa tích thì nút chính là "Chọn cả 3 nhóm"; "Đổi N đoạn" cho một bước; "Hoàn tác" trả nguyên trạng', async () => {
     const notifications: NotificationBus = createNotificationBus();
     const { history } = await renderMain({ notifications });
-
-    const targets = THREE_MEASUREMENTS.flatMap((measuredMm) => wallsOfMeasurement(measuredMm));
+    const targets = BATCH_WALLS;
 
     expect(targets.length).toBeGreaterThan(0);
     expect(history.undoSteps()).toHaveLength(0);
 
     /* CẤM TUYỆT ĐỐI: không tích sẵn — mọi ô đồng ý bắt đầu ở trạng thái tắt. */
-    for (const measuredMm of THREE_MEASUREMENTS) {
-      const box = screen.getByRole('checkbox', {
-        name: new RegExp(`tường ${String(measuredMm)} mm`, 'u'),
-      });
-
-      expect(box).not.toBeChecked();
-      fireEvent.click(box);
+    for (const group of [110, 220, 330]) {
+      expect(screen.getByRole('checkbox', { name: new RegExp(`về ${String(group)} mm$`, 'u') })).not.toBeChecked();
     }
 
-    fireEvent.click(screen.getByRole('button', { name: OPEN_PREVIEW_LABEL }));
+    expect(screen.queryByRole('button', { name: /^Đổi \d+ đoạn/u })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: `Chọn cả 3 nhóm (${String(targets.length)} đoạn)` }));
 
-    /* Xem trước là XEM: chưa một độ dày nào đổi ở đúng lúc bảng hiện ra. */
-    const applyButton = await screen.findByRole('button', { name: APPLY_LABEL });
+    /* Tích là CHỌN: chưa một độ dày nào đổi. */
+    const applyButton = await screen.findByRole('button', { name: new RegExp(`^Đổi ${String(targets.length)} đoạn`, 'u') });
 
     expect(history.undoSteps()).toHaveLength(0);
     expect(thicknessInStore(targets[0]?.id as WallId)).toBe(targets[0]?.thicknessMm);
@@ -444,12 +398,6 @@ describe('[NGHIEM-2] áp ba nhóm là ĐÚNG MỘT bước hoàn tác', () => {
       expect(history.undoSteps()).toHaveLength(1);
     });
 
-    console.log(
-      `[S-18][NGHIEM-2] áp ${String(THREE_MEASUREMENTS.length)} nhóm (${String(targets.length)} tường) = ` +
-        `${String(history.undoSteps().length)} bước lịch sử · ${String(history.undoSteps()[0]?.commands.length)} lệnh trong bước`,
-    );
-
-    expect(history.undoSteps()).toHaveLength(1);
     expect(history.undoSteps()[0]?.commands).toHaveLength(targets.length);
 
     for (const wall of targets) {
@@ -465,16 +413,21 @@ describe('[NGHIEM-2] áp ba nhóm là ĐÚNG MỘT bước hoàn tác', () => {
       expect(thicknessInStore(targets[0]?.id as WallId)).toBe(targets[0]?.thicknessMm);
     });
 
-    const restored = targets.filter((wall) => thicknessInStore(wall.id) === wall.thicknessMm);
-
-    console.log(
-      `[S-18][NGHIEM-2] sau MỘT lượt hoàn tác: ${String(restored.length)}/${String(targets.length)} tường về nguyên trạng · ` +
-        `${String(history.undoSteps().length)} bước lịch sử còn lại`,
-    );
-
-    expect(restored).toHaveLength(targets.length);
+    expect(targets.filter((wall) => thicknessInStore(wall.id) === wall.thicknessMm)).toHaveLength(targets.length);
     expect(history.undoSteps()).toHaveLength(0);
     expect(history.canRedo()).toBe(true);
+  }, HEAVY_TEST_TIMEOUT_MS);
+
+  it('đoạn xem tay đứng ngoài lô, mỗi mã là link sang màn duyệt tường', async () => {
+    await renderMain();
+
+    expect(MANUAL_WALLS.length).toBeGreaterThan(0);
+
+    for (const wall of MANUAL_WALLS) {
+      expect(
+        screen.getByRole('button', { name: `Mở đoạn #${counterLabelOf(wall.id)} ở màn duyệt tường` }),
+      ).toBeInTheDocument();
+    }
   }, HEAVY_TEST_TIMEOUT_MS);
 });
 
@@ -489,11 +442,9 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
 
     const graphBefore = useStore.getState().spatial;
     const thicknessBefore = THICKNESS_FIXTURE_WALLS.map((wall) => thicknessInStore(wall.id));
-    /* Đợi lượt đếm lên đầu tiên dừng (số đầu = tổng đoạn) rồi mới lấy mốc "trước". */
-    await waitFor(() => {
-      expect(summaryLines(container)[0]).toMatch(new RegExp(`^${String(THICKNESS_FIXTURE_WALLS.length)}\\b`));
-    });
-    const summaryBefore = summaryLines(container);
+    const groupText = (): string => screen.getByTestId('thickness-group-330').textContent ?? '';
+    const statusBefore = statusText();
+    const summaryBefore = groupText();
     const rowsBefore = within(container).getAllByRole('row').length;
 
     /*
@@ -516,18 +467,18 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
       .getByRole('slider', { name: HIGH_THRESHOLD_LABEL })
       .getAttribute('aria-valuenow');
     /* Số trong ô chạy đếm lên (BUG-340: một con số trong câu trạng thái) — đợi nó dừng, không đọc giữa chừng. */
+    /* Đoạn 400 mm rời nhóm xem tay, vào nhóm 330: dòng nhóm đổi số đoạn. */
     await waitFor(() => {
-      expect(summaryLines(container)).not.toEqual(summaryBefore);
+      expect(groupText()).not.toEqual(summaryBefore);
     });
 
-    const summaryAfter = summaryLines(container);
+    const summaryAfter = groupText();
 
     console.log(
       `[S-18][NGHIEM-3] ngưỡng cao: ${String(before)} mm → ${String(after)} mm sau 5 lượt kéo · ` +
         `${String(history.undoSteps().length)} bước lịch sử`,
     );
-    console.log(`[S-18][NGHIEM-3] bốn số TRƯỚC = ${summaryBefore.join(' · ')}`);
-    console.log(`[S-18][NGHIEM-3] bốn số SAU   = ${summaryAfter.join(' · ')}`);
+    console.log(`[S-21][NGHIEM-3] nhóm 330 TRƯỚC = ${summaryBefore} · SAU = ${summaryAfter} · ${statusBefore}`);
 
     /* KHÔNG một lượt ghi nào: ngăn xếp trống, kho giữ nguyên THAM CHIẾU cũ. */
     expect(history.undoSteps()).toHaveLength(0);
@@ -580,82 +531,27 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
 });
 
 /* -------------------------------------------------------------------------- */
-/* [NGHIEM-4] Áp dụng lại bộ lọc: cảnh báo TRƯỚC, ghi SAU.                      */
+/* [NGHIEM-4] Tường đã duyệt không bao giờ bị ghi đè im lặng.                   */
 /* -------------------------------------------------------------------------- */
 
-describe('[NGHIEM-4] áp dụng lại bộ lọc không bao giờ ghi đè im lặng tường đã duyệt', () => {
-  it('lượt bấm đầu HIỆN cảnh báo mang đúng số tường đã duyệt sẽ bị đổi', async () => {
-    const { container, history } = await renderMain();
-
-    expect(screen.queryByText(REAPPLY_WARNING_TITLE)).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: REAPPLY_FILTER_LABEL }));
-
-    /* Cảnh báo phải HIỆN RA — đây là thứ bản T7 làm rơi mất, xem `ThicknessApplyBar`. */
-    const warningTitle = await screen.findByText(REAPPLY_WARNING_TITLE);
-    const warningText = warningTitle.closest('div')?.textContent ?? '';
-
-    const affected = REVIEWED_AND_CHANGEABLE.length;
-
-    console.log(
-      `[S-18][NGHIEM-4] cảnh báo trên màn = "${warningText}" · ` +
-        `${String(affected)} trên tổng ${String(FIXTURE_REVIEWED_COUNT)} tường đã duyệt của bộ mẫu`,
-    );
-
-    /* Con số đếm TỪ bộ mẫu, không gõ tay — và với bộ mẫu hiện tại nó bằng 9/12. */
-    expect(affected).toBe(9);
-    expect(FIXTURE_REVIEWED_COUNT).toBe(12);
-    expect(affected).toBeLessThan(FIXTURE_REVIEWED_COUNT);
-    expect(warningText).toContain(`${String(affected)} tường đã duyệt sẽ bị đổi`);
-
-    /* Cảnh báo là CẢNH BÁO: chưa một độ dày nào đổi. */
-    expect(history.undoSteps()).toHaveLength(0);
-    expect(container).toBeTruthy();
-  }, HEAVY_TEST_TIMEOUT_MS);
-
-  it('"Huỷ" bỏ cảnh báo mà không áp gì — cùng đường phím Escape đang gọi', async () => {
+describe('[NGHIEM-4] tường đã duyệt đứng ngoài lô, câu tóm tắt nói rõ số đó', () => {
+  it('chọn cả lô rồi đổi: không tường đã duyệt nào đổi độ dày', async () => {
     const { history } = await renderMain();
+    const reviewed = THICKNESS_FIXTURE_WALLS.filter((wall) => wall.reviewed);
 
-    fireEvent.click(screen.getByRole('button', { name: REAPPLY_FILTER_LABEL }));
-    await screen.findByText(REAPPLY_WARNING_TITLE);
+    fireEvent.click(screen.getByRole('button', { name: /^Chọn cả \d+ nhóm/u }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+    expect(screen.getByText(new RegExp(`${String(reviewed.length)} tường đã duyệt không nằm trong lô`, 'u'))).toBeInTheDocument();
 
-    await waitFor(() => {
-      expect(screen.queryByText(REAPPLY_WARNING_TITLE)).toBeNull();
-    });
-
-    expect(history.undoSteps()).toHaveLength(0);
-  }, HEAVY_TEST_TIMEOUT_MS);
-
-  it('"Loại tường đã duyệt ra rồi xem trước" giữ nguyên độ dày của tường đã duyệt', async () => {
-    const { history } = await renderMain();
-
-    fireEvent.click(screen.getByRole('button', { name: REAPPLY_FILTER_LABEL }));
-    await screen.findByText(REAPPLY_WARNING_TITLE);
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Loại tường đã duyệt ra rồi xem trước' }),
-    );
-
-    /* BUG-593: đường áp lại mở bảng xem trước; chỉ "Áp dụng" trong bảng mới ghi. */
-    expect(history.undoSteps()).toHaveLength(0);
-    fireEvent.click(await screen.findByRole('button', { name: 'Áp dụng' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Đổi \d+ đoạn/u }));
 
     await waitFor(() => {
       expect(history.undoSteps()).toHaveLength(1);
     });
 
-    const untouched = REVIEWED_AND_CHANGEABLE.filter(
-      (wall) => thicknessInStore(wall.id) === wall.thicknessMm,
-    );
-
-    console.log(
-      `[S-18][NGHIEM-4] sau khi loại tường đã duyệt: ${String(untouched.length)}/${String(REVIEWED_AND_CHANGEABLE.length)} ` +
-        `tường đã duyệt giữ nguyên độ dày`,
-    );
-
-    expect(untouched).toHaveLength(REVIEWED_AND_CHANGEABLE.length);
+    for (const wall of reviewed) {
+      expect(thicknessInStore(wall.id)).toBe(wall.thicknessMm);
+    }
   }, HEAVY_TEST_TIMEOUT_MS);
 });
 
@@ -685,6 +581,10 @@ describe('P04 cụm C — điều khiển chỉ hiện khi dùng được', () =
     const { history } = await renderMain();
     const target = wallsOfMeasurement(195)[0] as Wall;
 
+    /* Bảng từng đoạn nằm trong ngăn kéo (bản Z). */
+    fireEvent.click(screen.getByRole('button', { name: DETAIL_LABEL }));
+    await screen.findByRole('dialog');
+
     expect(screen.queryAllByRole('radiogroup', { name: /^Độ dày chuẩn hoá của đoạn /u })).toHaveLength(0);
 
     const row = screen
@@ -703,17 +603,6 @@ describe('P04 cụm C — điều khiển chỉ hiện khi dùng được', () =
     expect(thicknessInStore(target.id)).toBe(330);
   }, HEAVY_TEST_TIMEOUT_MS);
 
-  it('[BUG-611/340] mỗi ô tóm tắt chỉ có một con số', async () => {
-    const { container } = await renderMain();
-    const group = within(container).getByRole('group', { name: SUMMARY_GROUP_LABEL });
-
-    for (const line of within(group).getAllByRole('status')) {
-      // Mỗi ô có đúng MỘT con số (BUG-340): không số lớn aria-hidden cộng số sr-only.
-      expect((line.textContent ?? '').match(/[0-9]+/gu)).toHaveLength(1);
-    }
-
-    expect(group.querySelector('.text-state-verified-text')).toBeNull();
-  }, HEAVY_TEST_TIMEOUT_MS);
 });
 
 describe('đường dẫn đầu màn (B-V6-43)', () => {
@@ -829,7 +718,7 @@ describe('[11F-A-302] phím Space tích ô "Đồng ý" đúng một lần', () 
   it('focus + Space: ô chuyển sang tích và vẫn tích', async () => {
     await renderMain();
     const user = userEvent.setup({ delay: null });
-    const box = screen.getByRole('checkbox', { name: new RegExp(`tường ${String(THREE_MEASUREMENTS[0])} mm`, 'u') });
+    const box = screen.getByRole('checkbox', { name: /về 110 mm$/u });
 
     expect(box).not.toBeChecked();
     box.focus();

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 
 import { ROUTES } from '../fixtures/routes';
+import { seedSpatial } from '../fixtures/seedSpatial';
 import { TOUR_CHIP_NAME, TOUR_SKIP_NAME, TOUR_TITLES } from '../fixtures/tour';
 
 /**
@@ -80,10 +81,18 @@ async function openViewer(page: Page): Promise<void> {
   });
 }
 
-/** goto → cổng nạp kho (B-V12-01) → nút "xuất" (neo của bước tour) có mặt. */
+/**
+ * goto → cổng nạp kho (B-V12-01) xong (heading "Xuất mô hình") → bơm bộ mẫu A14 → nút "xuất"
+ * (neo của bước tour) có mặt. Không bơm thì bộ mẫu dev chưa có mô hình nào để xuất, màn chỉ
+ * có trạng thái rỗng — cùng cách `v12a/export.spec.ts` (`seedAndSettle`).
+ */
 async function openExport(page: Page): Promise<void> {
   await page.goto(EXPORT);
-  await expect(page.getByRole('button', { name: 'Xuất', exact: true })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Xuất mô hình' })).toBeVisible({
+    timeout: FIRST_PAINT_TIMEOUT_MS,
+  });
+  await seedSpatial(page, { projectId: PROJECT_ID });
+  await expect(page.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 }
@@ -107,8 +116,9 @@ test.beforeAll(async ({ browser }) => {
   await expect(page.getByRole('region', { name: 'Duyệt lớp tường' })).toBeVisible({
     timeout: COLD_START_TIMEOUT_MS,
   });
-  await page.goto(VIEWER);
-  await expect(page.getByText('Mô hình 3D đã dựng xong.', { exact: true })).toBeAttached({
+  // Hâm màn xuất thay vỏ 3D: `/3d` không còn dựng Viewer3D (sang editor3d.html từ 29eba219).
+  await page.goto(EXPORT);
+  await expect(page.getByRole('heading', { name: 'Xuất mô hình' })).toBeVisible({
     timeout: COLD_START_TIMEOUT_MS,
   });
   await page.close();
@@ -148,6 +158,10 @@ for (const host of HOSTS) {
     test(`${host.name}, ${viewport.width}×${viewport.height}: sau khi bỏ qua tour, chip "Xem hướng dẫn" không nằm đè điều khiển nào của màn (B-V2-05)`, async ({
       page,
     }) => {
+      test.skip(
+        host.open === openViewer,
+        'Viewer3D cũ không còn route từ 29eba219 — tour của trang 3D: xem e2e/pascal-tour.spec.ts',
+      );
       await page.setViewportSize(viewport);
       await host.open(page);
       const chip = await skipTour(page, host.tourTitle);

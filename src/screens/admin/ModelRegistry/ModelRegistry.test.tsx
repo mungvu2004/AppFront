@@ -232,7 +232,7 @@ describe('Đầu trang, chi tiết, dải 409', () => {
     renderView(MODEL_REGISTRY_SCENARIO_SUCCESS);
 
     expect(screen.queryByRole('navigation', { name: 'Đường dẫn trang' })).toBeNull();
-    expect(screen.getByRole('heading', { level: 1, name: 'Mô hình AI của chuỗi xử lý' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Chọn mô hình AI đang dùng' })).toBeInTheDocument();
   });
 
   it('relatedLink null thì không có liên kết; có thì hiện', () => {

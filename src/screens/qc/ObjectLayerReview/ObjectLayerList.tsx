@@ -1,5 +1,6 @@
 /**
- * Danh sách đối tượng của panel trái — gộp theo BA NHÓM GẤP ĐƯỢC, mỗi dòng là
+ * Danh sách đối tượng của panel trái — hàng đợi hai nhóm gấp được (Cần duyệt, tin cậy
+ * thấp lên đầu · Đã duyệt; Z/S-16), mỗi dòng là
  * mã · kích thước · tường chủ · độ tin cậy.
  *
  * View THUẦN của mục D (R-60): mọi thứ vào bằng {@link ObjectLayerListViewProps},
@@ -40,9 +41,7 @@ import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 
 import type { ObjectLayerListViewProps } from './objectLayerSymbols';
-import { OBJECT_LAYER_COLOR_TOKENS } from './objectLayerSymbols';
-import type { ObjectLayerId, ObjectListRowViewModel } from './objectLayerTypes';
-import { OBJECT_LAYER_IDS, OBJECT_LAYER_LABELS } from './objectLayerTypes';
+import type { ObjectListRowViewModel } from './objectLayerTypes';
 
 /* Chuỗi tiếng Việt tĩnh — chép từ `.orca-notes/S13-SPEC-GOC.md` phần IV (A6). */
 
@@ -175,44 +174,53 @@ function ObjectLayerListRow({
 /* Một nhóm gấp được.                                                          */
 /* -------------------------------------------------------------------------- */
 
+type QueueGroupId = 'pending' | 'reviewed';
+
+const QUEUE_GROUPS: readonly { readonly id: QueueGroupId; readonly label: string }[] = [
+  { id: 'pending', label: 'Cần duyệt' },
+  { id: 'reviewed', label: 'Đã duyệt' },
+];
+
 interface ObjectLayerListGroupProps {
   readonly isFiltered: boolean;
-  readonly layer: ObjectLayerId;
+  readonly group: QueueGroupId;
+  readonly label: string;
   readonly rows: readonly ObjectListRowViewModel[];
   readonly isCollapsed: boolean;
   readonly selectedObjectId: string | null;
-  readonly onToggleGroupCollapsed: (layer: ObjectLayerId) => void;
+  readonly onToggleCollapsed: (group: QueueGroupId) => void;
   readonly onSelect: (objectId: string | null) => void;
   readonly onHover: (objectId: string | null) => void;
   readonly onAttachToNearestWall: (objectId: string) => void;
 }
 
+/** Một nhóm của hàng đợi (Z/S-16): "Cần duyệt" (tin cậy thấp lên đầu — hook đã xếp) hoặc "Đã duyệt". */
 function ObjectLayerListGroup({
   isFiltered,
-  layer,
+  group,
+  label,
   rows,
   isCollapsed,
   selectedObjectId,
-  onToggleGroupCollapsed,
+  onToggleCollapsed,
   onSelect,
   onHover,
   onAttachToNearestWall,
 }: ObjectLayerListGroupProps) {
-  const label = OBJECT_LAYER_LABELS[layer];
-  const bodyId = `object-layer-group-${layer}`;
+  const bodyId = `object-layer-group-${group}`;
 
   return (
     <section className="flex flex-col">
       <button
         aria-controls={bodyId}
         aria-expanded={!isCollapsed}
-        aria-label={`${isCollapsed ? EXPAND_PREFIX : COLLAPSE_PREFIX}${label}`}
+        aria-label={`${isCollapsed ? EXPAND_PREFIX : COLLAPSE_PREFIX}${label.toLowerCase()}`}
         className={cn(
-          'flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-text-secondary',
+          'flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] font-medium text-text-secondary',
           'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
           'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         )}
-        onClick={() => onToggleGroupCollapsed(layer)}
+        onClick={() => onToggleCollapsed(group)}
         type="button"
       >
         {isCollapsed ? (
@@ -220,19 +228,12 @@ function ObjectLayerListGroup({
         ) : (
           <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0" />
         )}
-        <span
-          aria-hidden="true"
-          className="h-3 w-3 shrink-0 rounded-xs border border-border-default-50"
-          style={{ backgroundColor: OBJECT_LAYER_COLOR_TOKENS[layer] }}
-        />
         <span className="truncate">{label}</span>
-        <span className="ml-auto shrink-0 font-mono tabular-nums text-text-muted">
-          ({rows.length})
-        </span>
+        <span className="tabular-nums text-text-muted">{rows.length}</span>
       </button>
 
       {isCollapsed ? null : (
-        <div aria-label={label} className="flex flex-col gap-0.5 pl-2" id={bodyId} role="listbox">
+        <div aria-label={label} className="flex flex-col gap-0.5" id={bodyId} role="listbox">
           {rows.length === 0 ? (
             <p className="px-2 py-3 text-[12px] text-text-muted">{isFiltered ? EMPTY_FILTERED : EMPTY_GROUP}</p>
           ) : (
@@ -258,15 +259,25 @@ function ObjectLayerListGroup({
 /* -------------------------------------------------------------------------- */
 
 export function ObjectLayerList({
-  collapsedGroups,
   isFiltered = false,
   onAttachToNearestWall,
   onHover,
   onSelect,
-  onToggleGroupCollapsed,
   rows,
   selectedObjectId,
 }: ObjectLayerListViewProps) {
+  /* Gấp nhóm là việc trình bày thuần của danh sách — state cục bộ, không lên hook. */
+  const [collapsed, setCollapsed] = useState<ReadonlySet<QueueGroupId>>(new Set());
+  const toggleCollapsed = (group: QueueGroupId) =>
+    setCollapsed((previous) => {
+      const next = new Set(previous);
+
+      if (!next.delete(group)) {
+        next.add(group);
+      }
+
+      return next;
+    });
   /* Ô tìm mã chỉ lọc dòng của danh sách — UI thuần, không đụng canvas hay bộ lọc của hook. */
   const [codeQuery, setCodeQuery] = useState('');
   const needle = codeQuery.trim().replace(/^#/, '').toLowerCase();
@@ -312,17 +323,18 @@ export function ObjectLayerList({
           {CLEAR_SEARCH}
         </button>
       )}
-      {OBJECT_LAYER_IDS.map((layer) => (
+      {QUEUE_GROUPS.map(({ id, label }) => (
         <ObjectLayerListGroup
-          isCollapsed={collapsedGroups[layer]}
+          group={id}
+          isCollapsed={collapsed.has(id)}
           isFiltered={isFiltered || needle !== ''}
-          key={layer}
-          layer={layer}
+          key={id}
+          label={label}
           onAttachToNearestWall={onAttachToNearestWall}
           onHover={onHover}
           onSelect={onSelect}
-          onToggleGroupCollapsed={onToggleGroupCollapsed}
-          rows={shownRows.filter((row) => row.layer === layer)}
+          onToggleCollapsed={toggleCollapsed}
+          rows={shownRows.filter((row) => row.isReviewed === (id === 'reviewed'))}
           selectedObjectId={selectedObjectId}
         />
       ))}

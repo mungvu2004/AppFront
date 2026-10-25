@@ -39,7 +39,7 @@ const CONTINUE = /^(?:Xử lý dù ảnh mờ|Bắt đầu xử lý)$/u; // S-09
 const OTHER_DRAWING = /^(?:Tải ảnh nét hơn|Tải ảnh khác)$/u; // S-09
 const FAILED_ALERT = /không hoàn tất được/u; // failed-run alert of the pipeline screen
 const OVERLAY_REGION = 'Màn đối chiếu bản vẽ';
-const CONFIRM_MODEL = 'Xác nhận mô hình khớp bản vẽ';
+const CONFIRM_MODEL = 'Xác nhận khớp bản vẽ';
 
 const ev = (page: Page, id: string, slug: string): Promise<unknown> => captureEvidence(page, `E09_${id}_${slug}.png`);
 const btn = (page: Page, name: string | RegExp) => page.getByRole('button', { name, exact: true });

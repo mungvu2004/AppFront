@@ -172,7 +172,8 @@ test('SCR-28 · FL-28-U1a · UI verify of the report states (`verifyUi`, 4 sizes
       await verifyUi(page, 'U06r_28-F-006_done', async (p) => {
         await openRules(p, r3);
         await expect(p.getByRole('radiogroup', { name: RR.levelFilter })).toBeVisible();
-        await expect(p.getByRole('button', { name: RR.confirm, exact: true })).toBeInViewport();
+        // Cụm 6: chỉ còn cảnh báo thì cổng ở thanh bước mời "Xem cảnh báo" trước khi có "Sang Xuất".
+        await expect(p.getByTestId('flow-gate').getByRole('button', { name: 'Xem cảnh báo', exact: true })).toBeInViewport();
         await expect(p.getByText(RR.doneText, { exact: true })).toHaveCount(0);
         expect(await hasHorizontalScroll(p)).toBe(false);
       });

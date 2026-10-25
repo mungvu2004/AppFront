@@ -27,7 +27,7 @@ import {
 
 test.use({ viewport: DESKTOP });
 
-const DASH = 'Dự án của tôi';
+const DASH = 'Chọn dự án để làm tiếp';
 const settingsPath = (id: string): string => ROUTES.project.settings(id);
 
 test.describe('phase09 shell B edge', () => {
@@ -49,7 +49,7 @@ test.describe('phase09 shell B edge', () => {
 
       await test.step('[9P-A-002] "Dự án mới" tạo dự án, thẻ mới hiện (POST 201)', async () => {
         await gotoAs(page, '/', DASH);
-        await page.getByRole('button', { name: /^Dự án mới/u }).click(); // PD:154
+        await page.getByRole('button', { name: /^Tạo dự án\s*N$/u }).click(); // PD:154
         created.push(await createViaWizard(page, wizName));
         await expect(projectCard(page, wizName)).toBeVisible();
         await captureEvidence(page, 'E09_9P-A-002_engineer_created.png');
@@ -157,7 +157,7 @@ test.describe('phase09 shell B edge', () => {
       await gotoAs(page, '/', DASH);
       await expect(page.getByText('Chưa có dự án nào', { exact: true })).toBeVisible();
       await expect(page.getByText('Bạn chưa được thêm vào dự án nào', { exact: false })).toHaveCount(0);
-      await expect.soft(page.getByRole('button', { name: 'Tạo dự án mới', exact: true })).toBeVisible(); // PD:249
+      await expect.soft(page.getByRole('button', { name: /^Tạo dự án\s*N$/u })).toBeVisible(); // PageHead next
       await captureEvidence(page, 'E09_9P-B-004_engineer_empty.png');
     });
 
@@ -270,7 +270,7 @@ test.describe('phase09 shell B edge', () => {
       await test.step('[9P-D-005] `/`: "Dự án mới" hiện, "Xoá" bật, không dòng vai', async () => {
         await gotoAs(page, '/', DASH);
         await expect(projectCard(page, mp.projectName)).toBeVisible();
-        await expect(page.getByRole('button', { name: /^Dự án mới/u })).toBeVisible();
+        await expect(page.getByRole('button', { name: /^Tạo dự án\s*N$/u })).toBeVisible();
         await expect(page.getByText(VIEWER_LINE, { exact: true })).toHaveCount(0);
         const menu = await openCardMenu(page, mp.projectName);
         await expect.soft(menuItem(menu, 'Xoá')).toBeEnabled();

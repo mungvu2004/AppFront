@@ -133,6 +133,8 @@ export interface ProjectCardModel {
   readonly planSketch?: readonly (readonly [number, number, number, number])[];
   /** Whether a plan was traced yet (walls detected); without one the card shows a placeholder, not a made-up plan. */
   readonly hasPlan: boolean;
+  /** Động từ của việc tiếp theo, một cho mỗi bước: "Duyệt tường", "Xem tiến độ", "Xem 3D" hoặc "Mở dự án". */
+  readonly actionLabel: string;
 }
 
 export interface ProjectStatusCounts {
@@ -272,6 +274,14 @@ function listErrorMessageOf(error: unknown): string {
     : 'Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.';
 }
 
+/** Một động từ cho mỗi bước, khớp nơi `routeForProject` đưa tới (vòng 8: ba động từ cho cùng một bước). */
+function actionLabelOf(status: TelemetryPipelineStatus, hasPlan: boolean): string {
+  if (status === 'done') return 'Xem 3D';
+  if (status === 'qc') return 'Duyệt tường';
+  // Chưa có bản vẽ vẫn tới màn tiến trình (`routeForProject`), nên chưa hứa "Tải bản vẽ".
+  return hasPlan ? 'Xem tiến độ' : 'Mở dự án';
+}
+
 function routeForProject(project: DashboardProject, status: TelemetryPipelineStatus): string {
   switch (status) {
     case 'processing':
@@ -382,7 +392,7 @@ export function useProjectDashboard(
         return {
           id: project.id,
           name: project.name,
-          statsLabel: `${formatNumber(project.floorCount, { grouping: false })} tầng · ${formatArea(project.areaM2)}`,
+          statsLabel: `${formatNumber(project.floorCount, { grouping: false })} tầng, ${formatArea(project.areaM2)}`,
           updatedLabel: formatTimestamp(project.updatedAtMs, now),
           statusVariant,
           statusLabel,
@@ -393,6 +403,7 @@ export function useProjectDashboard(
           planVariant: project.planVariant,
           planSketch: planSketchOf(project.id, project.wallsTotalCount, project.areaM2),
           hasPlan,
+          actionLabel: actionLabelOf(status, hasPlan),
         };
       }),
     [sortedProjects, now],
@@ -403,9 +414,9 @@ export function useProjectDashboard(
     let processing = 0;
     let qc = 0;
     let done = 0;
-    // Đếm theo ô tìm kiếm, để số ở cột lọc khớp với danh sách (G1-26).
+    // Đếm trên mọi dự án, không theo ô tìm: số chỉ còn ở dòng trạng thái đầu trang, nói về cả danh sách
+    // (ô lọc không còn mang số — luật "mỗi số một chỗ"), nên gõ tìm không được đổi nó.
     for (const project of allProjects) {
-      if (normalizedQuery !== '' && !project.name.normalize('NFC').toLowerCase().includes(normalizedQuery)) continue;
       const status = filterKeyOf(project);
       if (status === 'noplan') noplan += 1;
       else if (status === 'processing') processing += 1;
@@ -413,7 +424,7 @@ export function useProjectDashboard(
       else done += 1;
     }
     return { all: noplan + processing + qc + done, noplan, processing, qc, done };
-  }, [allProjects, normalizedQuery]);
+  }, [allProjects]);
 
   // The cause and the next step, under the view's "Không tải được danh sách dự án" heading — the old
   // fallback repeated that heading word for word, and `Error.message` could be raw English (BUG-130).

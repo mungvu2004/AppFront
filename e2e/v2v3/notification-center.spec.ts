@@ -110,7 +110,8 @@ test('"Đánh dấu đã đọc hết" xoá số chưa đọc, khoá nút, và t
 
   const drawer = panel(page);
   await expect(drawer).toBeVisible();
-  await expect(drawer.getByText(String(UNREAD_COUNT), { exact: true })).toBeVisible();
+  // Huy hiệu ở đầu trang (PageHead) ghi "{số} chưa đọc"; đọc hết thì đổi sang "Đã đọc hết".
+  await expect(drawer.getByText(`${UNREAD_COUNT} chưa đọc`, { exact: true })).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: 'thông báo chưa đọc' })).toHaveText(
     `Có ${UNREAD_COUNT} thông báo chưa đọc`,
   );
@@ -119,7 +120,8 @@ test('"Đánh dấu đã đọc hết" xoá số chưa đọc, khoá nút, và t
   await markAll.click();
 
   await expect(markAll).toBeDisabled();
-  await expect(drawer.getByText(String(UNREAD_COUNT), { exact: true })).toHaveCount(0);
+  await expect(drawer.getByText(`${UNREAD_COUNT} chưa đọc`, { exact: true })).toHaveCount(0);
+  await expect(drawer.getByText('Đã đọc hết', { exact: true })).toBeVisible();
   // Danh sách KHÔNG rỗng — nên câu "không có thông báo nào" sẽ là nói dối.
   await expect(drawer.getByRole('listitem')).toHaveCount(ITEM_COUNT);
   await expect(page.getByRole('status').filter({ hasText: 'thông báo' })).toHaveText(

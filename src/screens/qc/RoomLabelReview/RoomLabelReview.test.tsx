@@ -105,9 +105,10 @@ const CANVAS_GROUND_TOKEN: ColorTokenName = '--bg-sunken';
 
 const SCREEN_ARIA_LABEL = 'Duyệt tên phòng';
 const CANVAS_ARIA_LABEL = 'Khung xem bản vẽ duyệt tên phòng';
-const NORMALIZE_BUTTON_LABEL = 'Chuẩn hoá tên';
+const NORMALIZE_BUTTON_LABEL = 'Chuẩn hoá tên…';
 const NORMALIZE_DIALOG_TITLE = 'Xem trước chuẩn hoá tên';
-const SUMMARY_PREFIX = 'Tổng diện tích sàn';
+/* Dòng trạng thái đầu panel (Z/S-20): "x/y phòng đã duyệt, sàn 248,60 m²". */
+const SUMMARY_PREFIX = 'phòng đã duyệt, sàn';
 
 /* -------------------------------------------------------------------------- */
 /* Bộ dựng.                                                                    */
@@ -259,7 +260,7 @@ describe('[NGHIEM-2/3] diện tích hiện đúng trên màn', () => {
      * dòng. Con số nằm ở `<span>` kế bên, nên phép đọc phải leo lên `<p>`.
      */
     const summaryLabel = await screen.findByText(SUMMARY_PREFIX, { exact: false });
-    const summaryText = summaryLabel.closest('p')?.textContent ?? '';
+    const summaryText = summaryLabel.textContent ?? '';
 
     /* Con số kỳ vọng dựng từ BỘ MẪU qua `formatArea`, không gõ tay (R-71). */
     const expectedTotal = `${formatNumber(ROOM_LABEL_FIXTURE_TOTAL_AREA_M2, { fractionDigits: 2 })} m²`;
@@ -740,7 +741,7 @@ describe('[BUG-408] thẻ nhắc công năng đặt tên luật tiếng Việt, 
 });
 
 describe('P04 cụm C — thanh tra phòng chỉ mời việc làm được (SCR-20)', () => {
-  it('[BUG-641] không tên nào cần chuẩn hoá: "Chuẩn hoá tên" tắt và nói vì sao', async () => {
+  it('[BUG-641/B1-10] không tên nào cần chuẩn hoá: "Chuẩn hoá tên…" vẫn bấm được, bảng xem trước nói vì sao', async () => {
     const args = scenarioArgsFor('success');
     /* "Phòng ngủ N" đã đúng kiểu câu và có số thứ tự: `canonicalRoomName` không đổi tên nào. */
     const graph = normalizeSpatial({
@@ -758,14 +759,16 @@ describe('P04 cụm C — thanh tra phòng chỉ mời việc làm được (SCR
     renderWithProviders(<RoomLabelReviewContainer {...args} gateway={createMockRoomLabelReviewGateway({ graph })} />);
     const button = await screen.findByRole('button', { name: NORMALIZE_BUTTON_LABEL });
 
-    expect(button).toBeDisabled();
-    expect(button).toHaveAccessibleDescription('Mọi tên phòng đã đúng kiểu câu, chưa có gì để chuẩn hoá.');
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    expect(await screen.findByText('Không có tên nào cần chuẩn hoá — mọi tên phòng đã đúng kiểu câu.')).toBeInTheDocument();
   });
 
   it('[BUG-624] diện tích trong hàng co lại được, chữ đầy đủ ở title — tên phòng không còn một ký tự', async () => {
     await renderSettled('partial');
     const [firstRow] = screen.getAllByRole('option');
-    const area = firstRow?.lastElementChild?.previousElementSibling;
+    /* Hàng = dòng chính (mã · tên · diện tích · chấm) + dòng cờ tuỳ chọn. */
+    const area = firstRow?.firstElementChild?.lastElementChild?.previousElementSibling;
 
     expect(area).toHaveAttribute('title', area?.textContent ?? '');
     expect(area).not.toHaveClass('shrink-0');
@@ -791,12 +794,12 @@ describe('P04 cụm C — thanh tra phòng chỉ mời việc làm được (SCR
     expect(codes[0]).toHaveAttribute('title');
   });
 
-  it('[BUG-602] phòng chưa tên: "Duyệt phòng này" tắt và nói vì sao', async () => {
+  it('[BUG-602] phòng chưa tên: "Duyệt #R-…" tắt và nói vì sao', async () => {
     await renderSettled('partial');
 
     fireEvent.click(screen.getAllByRole('option', { name: /Cần chú ý$/u })[0] as HTMLElement);
 
-    const approve = await screen.findByRole('button', { name: 'Duyệt phòng này' });
+    const approve = await screen.findByRole('button', { name: /^Duyệt #R-/u });
 
     expect(approve).toBeDisabled();
     expect(approve).toHaveAccessibleDescription('Đặt tên phòng trước khi duyệt.');
@@ -835,21 +838,21 @@ describe('[20-D-006] Người xem trên tầng không có phòng', () => {
   });
 });
 
-describe('[20-D-007] tầng rỗng vì vòng hở vẫn có lối "Xem tại lớp tường"', () => {
+describe('[20-D-007] tầng rỗng vì vòng hở vẫn có lối "Nối" sang lớp tường', () => {
   it('kịch bản rỗng (vòng hở 62 mm): vùng "Vòng tường hở" có nút sang lớp tường, và chỉ MỘT nút "Kiểm tra lại vòng hở"', async () => {
     renderState('empty');
 
     const gapsSection = () => within(screen.getByRole('region', { name: 'Vòng tường hở' }));
-    await waitFor(() => expect(gapsSection().getByRole('button', { name: 'Xem tại lớp tường' })).toBeInTheDocument());
+    await waitFor(() => expect(gapsSection().getAllByRole('button', { name: /^Nối / })[0]).toBeInTheDocument());
     expect(screen.getAllByRole('button', { name: 'Kiểm tra lại vòng hở' })).toHaveLength(1);
   });
 
-  it('[G4a-39] nút "Xem tại lớp tường" của một vòng hở gắn ?wall=<tường đầu tiên>', async () => {
+  it('[G4a-39] link "Nối" của một vòng hở gắn ?wall=<tường đầu tiên>', async () => {
     const onNavigate = vi.fn();
     renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('empty')} onNavigate={onNavigate} />);
 
     const gapsSection = () => within(screen.getByRole('region', { name: 'Vòng tường hở' }));
-    const button = await waitFor(() => gapsSection().getByRole('button', { name: 'Xem tại lớp tường' }));
+    const button = await waitFor(() => gapsSection().getAllByRole('button', { name: /^Nối / })[0] as HTMLElement);
     fireEvent.click(button);
 
     expect(onNavigate).toHaveBeenCalledWith(expect.stringMatching(/\/walls\?wall=.+/u));
@@ -860,7 +863,7 @@ describe('[20-D-007] tầng rỗng vì vòng hở vẫn có lối "Xem tại l�
     renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('empty')} roles={viewerRoles} />);
 
     const gapsSection = () => within(screen.getByRole('region', { name: 'Vòng tường hở' }));
-    await waitFor(() => expect(gapsSection().getByRole('button', { name: 'Xem tại lớp tường' })).toBeInTheDocument());
+    await waitFor(() => expect(gapsSection().getAllByRole('button', { name: /^Nối / })[0]).toBeInTheDocument());
   });
 });
 

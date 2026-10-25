@@ -127,7 +127,7 @@ const LIB = {
 
 /* SCR-35 Training Jobs. */
 const TRAIN = {
-  title: 'Huấn luyện mô hình AI', // TJ:30
+  title: 'Theo dõi huấn luyện', // TJ:30
   crumbHere: 'Huấn luyện', // TJ:29
   tabs: 'Phần của trang huấn luyện', // TJ:31
   tabJobs: 'Lượt huấn luyện', // TJ:32
@@ -177,7 +177,7 @@ const FAMILY_NAME: Readonly<Record<MlFamily, string>> = {
 
 /* SCR-36 Model Registry. */
 const REG = {
-  title: 'Mô hình AI của chuỗi xử lý', // MR:29
+  title: 'Chọn mô hình AI đang dùng', // MR:29
   crumbHere: 'Mô hình AI', // MR:28
   picker: 'Loại mô hình', // MR:30
   active: 'Đang dùng', // MR:31, MRV:18
@@ -579,10 +579,8 @@ const libRows = (page: Page): Locator => page.locator('tbody tr');
 const libSearch = (page: Page): Locator => page.getByLabel(LIB.search, { exact: true });
 const viewRadio = (page: Page, name: string): Locator =>
   page.getByRole('radiogroup', { name: LIB.viewMode, exact: true }).getByRole('radio', { name, exact: true });
-const libSummary = (page: Page): Locator => page.locator('dl').filter({ hasText: LIB.totalCount });
 
 const userRow = (page: Page, email: string): Locator => page.locator('tbody tr').filter({ hasText: email });
-const usersSummary = (page: Page): Locator => page.locator('dl').filter({ hasText: USR.summaryPending });
 
 const familyOf = (families: readonly Json[], family: MlFamily): Json => {
   const record = families.find((item) => item.family === family);
@@ -649,8 +647,8 @@ test.describe('E08 SCR-34 Model Library', () => {
       const miss = `qa-e08-no-model-${uniq()}`;
       await libSearch(page).fill(miss);
       await expect(page.getByText(LIB.noMatch, { exact: true })).toBeVisible();
-      await expect(figure(libSummary(page), LIB.totalCount)).toHaveText('0');
-      await expect(figure(libSummary(page), LIB.heavyCount)).toHaveText('0');
+      await expect(page.getByTestId('model-library-total-count')).toHaveText('0');
+      await expect(page.getByTestId('model-library-heavy-count')).toHaveText('0');
       await captureEvidence(page, 'E08_library_search_miss_table.png', { caption: `tìm model = "${miss}"` });
 
       // Same miss in "Lưới": a plain <p> instead of the grid list (MLB:145-147).
@@ -1371,10 +1369,9 @@ test.describe('E08 SCR-37 User Management', () => {
       // UUM:627-633 summary: users.length, ACTIVE admins (UUM:262-271), pending invites.
       const admins = users.filter((u) => u.role === 'admin' && u.status === 'active').length;
       const pending = users.filter((u) => u.status === 'pending').length;
-      const dl = usersSummary(page);
-      await expect(figure(dl, USR.summaryUsers)).toHaveText(String(users.length));
-      await expect(figure(dl, USR.summaryAdmins)).toHaveText(String(admins));
-      await expect(figure(dl, USR.summaryPending)).toHaveText(String(pending));
+      await expect(page.getByTestId('user-summary-users')).toHaveText(String(users.length));
+      await expect(page.getByTestId('user-summary-admins')).toHaveText(String(admins));
+      await expect(page.getByTestId('user-summary-pending')).toHaveText(String(pending));
 
       // UUM:351-359 matchesSearch folds case on name AND email.
       const search = page.getByLabel(USR.search, { exact: true });
@@ -1484,7 +1481,7 @@ test.describe('E08 SCR-37 User Management', () => {
         await expect(page.getByLabel(USR.inviteEmails, { exact: true })).toHaveCount(0);
         await page.getByLabel(USR.search, { exact: true }).fill(email);
         await expect(userRow(page, email)).toContainText(STATUS_LABEL.pending);
-        await expect(figure(usersSummary(page), USR.summaryPending)).toHaveText(String(pendingBefore + 1));
+        await expect(page.getByTestId('user-summary-pending')).toHaveText(String(pendingBefore + 1));
         await captureEvidence(page, 'E08_users_invited_ui.png', { caption: `POST ${INVITATIONS} 201 → ${email} Chờ chấp nhận` });
         await attachJson('E08_users_invited_ui.json', { request: { emails: [email], role: 'viewer' }, status: 201, pendingBefore, pendingAfter: pendingBefore + 1 });
       });

@@ -239,13 +239,19 @@ export function gridsUiProject(api: APIRequestContext, slug: string): Promise<Bu
 const thkWalls = (specs: readonly Pick<WallSpec, 'thicknessMm' | 'reviewed' | 'confidence' | 'kind'>[], row0 = 0): WallSpec[] =>
   specs.map((spec, index) => ({ from: [0, (row0 + index) * 1_500], to: [4_000, (row0 + index) * 1_500], kind: 'partition', ...spec }));
 
-/** `QC:thk-mix`: 5 x 200 mm, one 150 mm, one 220 mm. */
+/*
+ * Luật S-21 (bản Z): lệch ≤ 30 mm so với 110/220/330 là ĐÚNG CHUẨN, không đổi; lệch hơn thì đổi theo khoảng
+ * 80–165 → 110, 166–275 → 220, 276–399 → 330; dưới 80 mm và từ 400 mm là xem tay. Các bộ mẫu dưới đây dùng 180 mm
+ * (lệch 40 → đổi về 220) thay cho 200 mm cũ (lệch 20 → nay đã chuẩn, không còn gì để đổi).
+ */
+
+/** `QC:thk-mix`: 5 x 180 mm, one 150 mm, one 220 mm. */
 export const thkMix = (api: APIRequestContext, slug: string): Promise<Built> =>
-  build(api, slug, ['Tầng 1'], [thkWalls([...[200, 200, 200, 200, 200, 150, 220].map((thicknessMm) => ({ thicknessMm }))])]);
+  build(api, slug, ['Tầng 1'], [thkWalls([...[180, 180, 180, 180, 180, 150, 220].map((thicknessMm) => ({ thicknessMm }))])]);
 
 /**
- * `QX:thk-tol`: floor A 150 / 189 / 190 / 200 mm (+ a 220 mm wall and a reviewed 200 mm wall, so the four row badges
- * "Trung tính" / "Đã duyệt" exist), floor B 200 mm only.
+ * `QX:thk-tol`: floor A 150 / 189 / 190 / 200 / 220 / 60 mm + a reviewed 180 mm wall (the four row badges "Cần chú ý" /
+ * "Trung tính" / "Vi phạm" (60 mm, xem tay) / "Đã duyệt" exist; 189 vs 190 is the 30 mm tolerance edge), floor B 180 mm only.
  */
 export const thkTol = (api: APIRequestContext, slug: string): Promise<Built> =>
   build(
@@ -253,24 +259,24 @@ export const thkTol = (api: APIRequestContext, slug: string): Promise<Built> =>
     slug,
     ['Tầng A', 'Tầng B'],
     [
-      thkWalls([...[150, 189, 190, 200, 220].map((thicknessMm) => ({ thicknessMm })), { thicknessMm: 200, reviewed: true }]),
-      thkWalls([{ thicknessMm: 200 }]),
+      thkWalls([...[150, 189, 190, 200, 220, 60].map((thicknessMm) => ({ thicknessMm })), { thicknessMm: 180, reviewed: true }]),
+      thkWalls([{ thicknessMm: 180 }]),
     ],
   );
 
-/** `QC:thk-spread`: 164 / 165 / 180 / 200 / 240 / 275 / 350 / 400 mm. */
+/** `QC:thk-spread`: the S-21 rounding edges 79 / 80 / 165 / 166 / 275 / 276 / 399 / 400 mm. */
 export const thkSpread = (api: APIRequestContext, slug: string): Promise<Built> =>
-  build(api, slug, ['Tầng 1'], [thkWalls([164, 165, 180, 200, 240, 275, 350, 400].map((thicknessMm) => ({ thicknessMm })))]);
+  build(api, slug, ['Tầng 1'], [thkWalls([79, 80, 165, 166, 275, 276, 399, 400].map((thicknessMm) => ({ thicknessMm })))]);
 
-/** `QX:thk-reapply`: [0] reviewed + unreviewed 200 mm, [1] unreviewed 200 mm only, [2] all 220 mm. */
+/** `QX:thk-reapply`: [0] reviewed + unreviewed 180 mm, [1] unreviewed 180 mm only, [2] all 220 mm. */
 export const thkReapply = (api: APIRequestContext, slug: string): Promise<Built> =>
   build(
     api,
     slug,
     ['Tầng duyệt một phần', 'Tầng chưa duyệt', 'Tầng chuẩn'],
     [
-      thkWalls([{ thicknessMm: 200, reviewed: true }, { thicknessMm: 200 }]),
-      thkWalls([{ thicknessMm: 200 }, { thicknessMm: 200 }]),
+      thkWalls([{ thicknessMm: 180, reviewed: true }, { thicknessMm: 180 }]),
+      thkWalls([{ thicknessMm: 180 }, { thicknessMm: 180 }]),
       thkWalls([{ thicknessMm: 220 }, { thicknessMm: 220 }]),
     ],
   );
@@ -279,16 +285,16 @@ export const thkReapply = (api: APIRequestContext, slug: string): Promise<Built>
 export const thkEntries = (api: APIRequestContext, slug: string): Promise<Built> =>
   build(api, slug, ['Tầng không tường', 'Tầng chuẩn'], [null, thkWalls([{ thicknessMm: 220 }, { thicknessMm: 220 }])]);
 
-/** `QX:thk-ui`: [0] mix, [1] 150 mm, [2] reviewed 200, [3] all 220, [4] no wall. */
+/** `QX:thk-ui`: [0] mix, [1] 150 mm, [2] reviewed 180, [3] all 220, [4] no wall. */
 export const thkUiProject = (api: APIRequestContext, slug: string): Promise<Built> =>
   build(
     api,
     slug,
     ['Tầng hỗn hợp', 'Tầng 150', 'Tầng đã duyệt', 'Tầng chuẩn', 'Tầng trống'],
     [
-      thkWalls([200, 200, 200, 150, 220].map((thicknessMm) => ({ thicknessMm }))),
+      thkWalls([180, 180, 180, 150, 220].map((thicknessMm) => ({ thicknessMm }))),
       thkWalls([{ thicknessMm: 150 }, { thicknessMm: 150 }]),
-      thkWalls([{ thicknessMm: 200, reviewed: true }, { thicknessMm: 200 }]),
+      thkWalls([{ thicknessMm: 180, reviewed: true }, { thicknessMm: 180 }]),
       thkWalls([{ thicknessMm: 220 }, { thicknessMm: 220 }]),
       null,
     ],

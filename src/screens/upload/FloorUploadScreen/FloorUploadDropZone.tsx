@@ -42,16 +42,26 @@ export const CHOOSE_FILE_BUTTON_ID = 'floor-upload-choose-file';
  * thuộc `isDragActive`, nên không có nhánh nào đổi được nó.
  */
 const ZONE_BOX_CLASSES =
-  'flex min-h-[180px] w-full flex-col items-center justify-center gap-3 rounded-2xl ' +
+  'flex w-full flex-col items-center justify-center gap-3 rounded-lg ' +
   'border-2 border-dashed px-6 py-4 text-center transition-colors duration-instant';
 
 export interface FloorUploadDropZoneProps {
   readonly model: FloorUploadDropZoneModel;
   readonly isDragActive: boolean;
   readonly onFilesChosen: (files: readonly File[]) => void;
+  /**
+   * Chưa có tệp nào: vùng thả là tiêu điểm của màn — cao hơn, và "Chọn tệp" là nút chính duy nhất
+   * (cổng lúc ấy chỉ có nút phụ). Cờ theo trạng thái màn, KHÔNG theo lúc kéo tệp qua.
+   */
+  readonly isProminent?: boolean;
 }
 
-export function FloorUploadDropZone({ model, isDragActive, onFilesChosen }: FloorUploadDropZoneProps) {
+export function FloorUploadDropZone({
+  model,
+  isDragActive,
+  onFilesChosen,
+  isProminent = false,
+}: FloorUploadDropZoneProps) {
   const inputId = 'floor-upload-file-input-control';
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -59,6 +69,7 @@ export function FloorUploadDropZone({ model, isDragActive, onFilesChosen }: Floo
     <div
       className={clsx(
         ZONE_BOX_CLASSES,
+        isProminent ? 'min-h-[320px]' : 'min-h-[140px]',
         isDragActive ? 'border-accent bg-accent-wash' : 'border-border-default bg-bg-surface',
       )}
       data-drag-active={isDragActive ? 'true' : 'false'}
@@ -66,7 +77,7 @@ export function FloorUploadDropZone({ model, isDragActive, onFilesChosen }: Floo
     >
       <UploadGlyph />
 
-      <p className="text-[15px] font-medium text-text-primary">{model.title}</p>
+      <p className="text-heading text-text-primary">{model.title}</p>
 
       <label className="sr-only" htmlFor={inputId}>
         {model.selectFileLabel}
@@ -96,12 +107,12 @@ export function FloorUploadDropZone({ model, isDragActive, onFilesChosen }: Floo
         onClick={() => inputRef.current?.click()}
         size="sm"
         type="button"
-        variant="secondary"
+        variant={isProminent ? 'primary' : 'secondary'}
       >
         {model.selectFileLabel}
       </Button>
 
-      <p className="text-[13px] text-text-muted">{model.formatsLine}</p>
+      <p className="text-body-sm text-text-secondary">{model.formatsLine}</p>
     </div>
   );
 }

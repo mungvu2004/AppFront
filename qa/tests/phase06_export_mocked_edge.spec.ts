@@ -36,6 +36,7 @@ import {
   fileSlug,
   focusInfo,
   formatGroup,
+  blockedFormat,
   formatRadio,
   historyRows,
   holdRoute,
@@ -263,7 +264,7 @@ test.describe('SCR-30 Bảng xuất — mocked responses', () => {
         loading = await holdRoute(page, spatialRe(project.id), 'hold');
         await page.goto(exportUrl, { waitUntil: 'commit' });
         await expect(skeleton(page).first()).toBeVisible(); // EPF:182-186, UEP:611
-        await expect(formatRadio(page, '.pdf')).not.toContainText(/\d[\d.]* trang/u);
+        await expect(blockedFormat(page, '.pdf')).not.toContainText(/\d[\d.]* trang/u);
         await shot(page, '30-B-001', 'loading_skeleton');
       });
 
@@ -283,7 +284,7 @@ test.describe('SCR-30 Bảng xuất — mocked responses', () => {
         await expect.soft(page.getByText('Chưa có mô hình để xuất.', { exact: false }), 'no failure banner from a click during loading').toHaveCount(0);
         await shot(page, '30-C-028', 'export_while_loading');
         loading?.release();
-        await expect(formatRadio(page, '.pdf')).toContainText(/\d[\d.]* trang/u); // the numbers replace the skeleton
+        await expect(blockedFormat(page, '.pdf')).toContainText(/\d[\d.]* trang/u); // the numbers replace the skeleton
         await loading?.stop();
       });
 

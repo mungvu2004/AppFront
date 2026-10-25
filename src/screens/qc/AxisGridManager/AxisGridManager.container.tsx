@@ -68,6 +68,7 @@ import { useProjectFloors } from '@/hooks/useProjectFloors';
 import type { Announcer } from '@/lib/input/announcer';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
+import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
 import { QcFloorNav } from '../shared/QcFloorNav';
@@ -192,6 +193,7 @@ function WiredAxisGridManager(props: AxisGridManagerContainerProps) {
       provisionalScaleNotice={result.provisionalScaleNotice}
       background={result.background}
       floorNav={props.floorNav}
+      modelStepHref={ROUTES.project.viewer(props.projectId)}
       projectFloorCount={props.projectFloorCount}
       autoAlignBlockedReason={result.autoAlignBlockedReason}
       viewModel={result.viewModel}
@@ -239,7 +241,7 @@ function AxisGridManagerRouteBody({
   return (
     <AxisGridManagerContainer
       floorId={floorId}
-      floorNav={<QcFloorNav floorId={floorId} floors={floors} layer="grids" projectId={projectId} />}
+      floorNav={<QcFloorNav floorId={floorId} floors={floors} layer="grids" projectId={projectId} titled />}
       levelId={levelId}
       onNavigate={onNavigate}
       projectFloorCount={floors.length}

@@ -111,11 +111,13 @@ function fixtureDeviationOf(wall: Wall): number | null {
 const REVIEWED_AND_CHANGEABLE: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter((wall) => {
   const deviation = fixtureDeviationOf(wall);
 
-  return wall.reviewed && deviation !== null && deviation !== 0 && deviation <= DEFAULT_TOLERANCE_MM;
+  /* S-21: đổi được = KHÔNG chuẩn (lệch quá dung sai), không phải xem tay (< 80 mm hoặc nhóm xem tay). */
+  return wall.reviewed && wall.thicknessMm >= 80 && deviation !== null && deviation > DEFAULT_TOLERANCE_MM;
 });
 
 /** Ba số đo dùng cho bài "áp ba nhóm" — mỗi số một nhóm chuẩn khác nhau. */
-const THREE_MEASUREMENTS = [100, 195, 315] as const;
+/* S-21: ba số đo KHÔNG chuẩn, chưa duyệt, mỗi số một nhóm (110 / 220 / 330). */
+const THREE_MEASUREMENTS = [164, 274, 280] as const;
 
 const wallsOfMeasurement = (measuredMm: number): readonly Wall[] =>
   THICKNESS_FIXTURE_WALLS.filter((wall) => wall.thicknessMm === measuredMm);
@@ -491,10 +493,9 @@ describe('áp chuẩn hoá', () => {
     expect(preview).not.toBeNull();
     /* Ba đoạn đo đúng giá trị nhóm chuẩn không còn là dòng đề xuất (BUG-421), nên không nằm trong lượt áp. */
     expect(preview?.totalWalls).toBe(FIXTURE_SEGMENT_COUNT - 3);
-    expect(preview?.unchangedWalls).toHaveLength(FIXTURE_EXCEEDING_COUNT);
-    expect(preview?.sentence).toBe(
-      '45 tường → 3 nhóm chuẩn. 6 tường lệch quá 30 mm sẽ không đổi.',
-    );
+    /* S-21: chỉ đoạn xem tay đứng ngoài lượt áp — 70 mm (nghi nhận nhầm), 400 và 450 mm (xem tay). */
+    expect(preview?.unchangedWalls).toHaveLength(3);
+    expect(preview?.sentence).toBe('45 tường → 3 nhóm chuẩn. 3 tường cần xem tay sẽ không đổi.');
 
     /* Xem trước là XEM: ngăn xếp vẫn trống, kho chưa đổi một số nào. */
     expect(mounted.history.undoSteps()).toHaveLength(0);
@@ -640,13 +641,14 @@ describe('áp chuẩn hoá', () => {
 
   it('áp xong thì M-04 dựng lại hình tường của phần xem trước', async () => {
     const mounted = await mountSettled();
-    const target = wallsOfMeasurement(195)[0] as Wall;
+    /* S-21: 274 mm lệch 54 mm (không chuẩn) → 220; 195 mm giờ đã trong dung sai nên không đổi. */
+    const target = wallsOfMeasurement(274)[0] as Wall;
 
     const shapesBefore = mounted.result.current.shapes;
 
     expect(shapesBefore.length).toBeGreaterThan(0);
 
-    acceptAndPreview(mounted, [195]);
+    acceptAndPreview(mounted, [274]);
 
     await act(async () => {
       mounted.result.current.onApplyPreview();
@@ -872,9 +874,8 @@ describe('áp dụng lại bộ lọc', () => {
     const changed = THICKNESS_FIXTURE_WALLS.filter((wall) => {
       const deviation = fixtureDeviationOf(wall);
 
-      return (
-        !wall.reviewed && deviation !== null && deviation !== 0 && deviation <= DEFAULT_TOLERANCE_MM
-      );
+      /* S-21: đổi được = không chuẩn (lệch quá dung sai) và không phải đoạn xem tay. */
+      return !wall.reviewed && wall.thicknessMm >= 80 && deviation !== null && deviation > DEFAULT_TOLERANCE_MM;
     });
 
     expect(changed.length).toBeGreaterThan(0);
@@ -1025,20 +1026,25 @@ describe('Bảy trạng thái', () => {
 
     expect(mounted.result.current.state).toBe('empty');
     expect(mounted.result.current.emptyNotice).not.toBeNull();
-    expect(mounted.result.current.emptyNotice ?? '').toContain('dung sai');
+    /* Bộ mẫu đã chuẩn vẫn còn hai đoạn ≥ 400 mm (xem tay): câu nói ra lối đi tiếp. */
+    expect(mounted.result.current.emptyNotice ?? '').toContain('màn duyệt tường');
   });
 
-  it('[BUG-619] còn đoạn lệch quá dung sai: không nói "mọi đoạn đã ở đúng nhóm chuẩn"', async () => {
+  it('[BUG-619] còn đoạn xem tay: không nói "mọi đoạn đã ở đúng nhóm chuẩn"', async () => {
     const [first, ...rest] = THICKNESS_SCENARIO_EMPTY.walls;
+    /* S-21: 60 mm < 80 mm là nghi AI nhận nhầm — xem tay, lô không đổi nên màn vẫn rỗng. */
     const mounted = await mountScenario({
       ...THICKNESS_SCENARIO_EMPTY,
-      walls: [{ ...(first as Wall), thicknessMm: 160 }, ...rest],
+      walls: [{ ...(first as Wall), thicknessMm: 60 }, ...rest],
     });
 
     expect(mounted.result.current.state).toBe('empty');
     expect(mounted.result.current.summary.exceedingToleranceCount).toBe(1);
     expect(mounted.result.current.emptyNotice).not.toContain('Mọi đoạn tường đã ở đúng nhóm chuẩn');
-    expect(mounted.result.current.emptyNotice).toContain('1 đoạn tường lệch quá dung sai');
+    /* 60 mm cộng các đoạn ≥ 400 mm vốn có của kịch bản rỗng. */
+    const manualCount = 1 + rest.filter((wall) => wall.thicknessMm >= 400).length;
+
+    expect(mounted.result.current.emptyNotice).toContain(`${String(manualCount)} đoạn tường cần xem tay`);
   });
 
   it('[BUG-421] mọi đoạn đã đúng nhóm: không còn dòng đề xuất "220 → 220" nào để tích', async () => {

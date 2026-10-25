@@ -313,7 +313,6 @@ export interface UserManagementProps {
 
 export interface UserManagementToolbarProps {
   readonly toolbar: ToolbarModel;
-  readonly summary: SummaryModel;
   readonly invite: InviteFormModel;
   readonly actions: UserManagementActions;
   /** Ô "Tìm người dùng" — view đưa tiêu điểm về đây sau "Xoá tìm kiếm và bộ lọc" (BUG-082, A12). */

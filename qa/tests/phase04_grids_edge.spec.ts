@@ -66,7 +66,7 @@ const ORIGIN_UNAVAILABLE = 'Chưa có trục nào nên chưa tính được gố
 const ALIGN_UNAVAILABLE = 'Chưa có trục nào nên chưa căn chỉnh được giữa các tầng.'; // AGV:105
 const ANCHOR = 'Chọn giao trục neo'; // AOP:46
 const GHOST = 'Hiện bóng ma tầng dưới'; // ALP:61
-const AUTO_ALIGN = 'Căn chỉnh tự động'; // AFL:62
+const AUTO_ALIGN = 'Căn tự động'; // AFL:62
 const APPROVED = 'Đã duyệt'; // AFL:64
 const ROOT_FLOOR = 'Tầng gốc'; // AFL:63
 const VIEW_ON_DRAWING = 'Xem trên bản vẽ'; // UAG:AXIS_GRID_TEXT.warningActionLabel
@@ -226,7 +226,7 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
       await test.step('[19-E-001] landmark and heading outline', async () => {
         const screen = region(page);
         await expect.soft(screen.getByRole('heading', { level: 2, name: SCREEN, exact: true })).toBeVisible();
-        for (const title of ['Trục', 'Gốc toạ độ', 'Căn chỉnh giữa các tầng']) {
+        for (const title of ['Trục', 'Gốc ±0.000', 'Lệch giữa các tầng']) {
           await expect.soft(screen.getByRole('heading', { level: 3, name: title, exact: true })).toBeVisible(); // ALP:198 AOP:85 AFL:128
         }
         for (const title of [H_GROUP, V_GROUP]) {

@@ -166,7 +166,9 @@ function WiredExportPanel(props: WiredExportPanelProps) {
           void navigate(ROUTES.project.data(props.projectId));
         }}
       />
-      {viewProps.status !== 'forbidden' && <EditorTourContainer hostId="export-panel" />}
+      {/* Chip đứng sát trên chân dính đáy (cao 69 px + 7 px hở), không `bottom-24` mặc định: ở 1280×720
+          mốc ấy đè nút "Tuỳ chọn" của cột phải (B-V2-05, e2e/v2v3/tour-chip.spec.ts). */}
+      {viewProps.status !== 'forbidden' && <EditorTourContainer hostId="export-panel" chipAnchorClassName="bottom-[76px] right-4" />}
       {SHARE_LINKS_SUPPORTED && (
         <ShareDialogContainer
           isOpen={isShareOpen}

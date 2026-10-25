@@ -23,19 +23,39 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
 const EMPTY_TITLE = 'Chưa có mô hình để kiểm tra luật';
 
 /** Vỏ màn — có ở mọi trạng thái, nên chờ nó không phụ thuộc chữ của `empty`. */
-const SCREEN_HEADING = 'Quy chuẩn';
+const SCREEN_HEADING = 'Kiểm tra quy chuẩn';
 
-test('B-V12-01: vào màn luật bằng đường sản phẩm (không bơm) thì cổng nạp kho dự án và màn có kết quả kiểm tra, không nói "chưa có mô hình"', async ({
+/*
+ * Mock trả bốn tầng chưa có hình cho `project-1`, nên câu ĐÚNG của màn khi không bơm là "chưa có
+ * mô hình" (cùng chuyện `data.spec.ts` B-V12-07) — bài cũ đòi "Chạy kiểm tra lại" là đòi màn tự khen.
+ * Bằng chứng cổng đã nạp kho là bốn tầng của dự án nằm trong kho, đọc thẳng như `seedSpatial`.
+ */
+test('B-V12-01: vào màn luật bằng đường sản phẩm (không bơm) thì cổng nạp kho dự án; tầng chưa có hình nên màn nói thật "chưa có mô hình" và cổng dẫn về bước Xử lý', async ({
   page,
 }) => {
   await page.goto(RULES_URL);
-  await expect(page.getByRole('button', { name: 'Chạy kiểm tra lại' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: EMPTY_TITLE })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
-  await expect(page.getByRole('heading', { name: EMPTY_TITLE })).toHaveCount(0);
+
+  const storeFloors = await page.evaluate(async (projectId) => {
+    const load = (path: string): Promise<unknown> => import(/* @vite-ignore */ path);
+    const store = (await load('/src/store/index.ts')) as {
+      useStore: { getState: () => { project: { id: string } | null; floors: readonly unknown[] } };
+    };
+    const state = store.useStore.getState();
+    return state.project?.id === projectId ? state.floors.length : -1;
+  }, PROJECT_ID);
+  expect(storeFloors, 'cổng đã nạp bốn tầng của dự án vào kho').toBe(4);
+
+  await expect(page.getByTestId('flow-gate').getByRole('link', { name: 'Mở bước Xử lý' })).toHaveAttribute(
+    'href',
+    ROUTES.project.pipeline(PROJECT_ID),
+  );
+  await expect(page.getByRole('button', { name: 'Chạy kiểm tra lại' })).toHaveCount(0);
 });
 
-test('có bơm kho: bảng luật hiện bốn con số nguyên, chạy lại không rơi về rỗng, và "Xác nhận đã xử lý" khoá khi còn vi phạm', async ({
+test('có bơm kho: bảng luật hiện bốn con số nguyên, chạy lại không rơi về rỗng, và cổng mời "Xem vi phạm kế" (không "Sang Xuất") khi còn vi phạm', async ({
   page,
 }) => {
   await page.goto(RULES_URL);
@@ -47,12 +67,13 @@ test('có bơm kho: bảng luật hiện bốn con số nguyên, chạy lại kh
   const rerun = page.getByRole('button', { name: 'Chạy kiểm tra lại' });
   await expect(rerun).toBeVisible();
 
-  // Năm ô `<dt>/<dd>` (`RuleReportSummary.tsx`): nhãn đúng thứ tự, số là số nguyên trần.
-  await expect(page.getByRole('term')).toHaveText(['Nghiêm trọng', 'Cảnh báo', 'Gợi ý', 'Đạt', 'Tổng số kiểm tra']);
+  // Năm ô `<dt>/<dd>` (`RuleReportSummary.tsx`): nhãn đúng thứ tự (tổng trước, rồi từ nhẹ tới nặng), số là số nguyên trần.
+  await expect(page.getByRole('term')).toHaveText(['Tổng số kiểm tra', 'Đạt', 'Gợi ý', 'Cảnh báo', 'Nghiêm trọng']);
   await expect(page.getByRole('definition')).toHaveText([/^\d+$/u, /^\d+$/u, /^\d+$/u, /^\d+$/u, /^\d+$/u]);
 
-  const confirm = page.getByRole('button', { name: 'Xác nhận đã xử lý' });
-  await expect(confirm).toBeDisabled();
+  const gate = page.getByTestId('flow-gate');
+  await expect(gate.getByRole('button', { name: 'Xem vi phạm kế' })).toBeVisible();
+  await expect(gate.getByRole('button', { name: 'Sang Xuất' })).toHaveCount(0);
 
   await rerun.click();
   await expect(page.getByRole('heading', { name: EMPTY_TITLE })).toHaveCount(0);

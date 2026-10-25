@@ -334,9 +334,14 @@ export const onlyRule = (keep: string): Json =>
 
 /* ---------------------------------------------------------------- screen helpers */
 
-export const reportHeading = (page: Page): Locator => page.getByRole('heading', { name: 'Quy chuẩn', level: 1 });
+export const reportHeading = (page: Page): Locator => page.getByRole('heading', { name: 'Kiểm tra quy chuẩn', level: 1 });
 export const rerunButton = (page: Page): Locator => page.getByRole('button', { name: 'Chạy kiểm tra lại', exact: true });
-export const confirmButton = (page: Page): Locator => page.getByRole('button', { name: 'Xác nhận đã xử lý', exact: true });
+export const confirmButton = (page: Page): Locator => page.getByRole('button', { name: 'Sang Xuất', exact: true });
+/** Cổng ở thanh bước (FlowGate): còn vi phạm nghiêm trọng thì nút phụ "Xem vi phạm kế" thay cho nút chính "Sang Xuất". */
+export const flowGate = (page: Page): Locator => page.getByTestId('flow-gate');
+export const nextViolationButton = (page: Page): Locator => flowGate(page).getByRole('button', { name: 'Xem vi phạm kế', exact: true });
+/** Hết vi phạm nghiêm trọng nhưng còn cảnh báo chưa xem: cổng mời "Xem cảnh báo" trước khi cho "Sang Xuất". */
+export const seeWarningsButton = (page: Page): Locator => flowGate(page).getByRole('button', { name: 'Xem cảnh báo', exact: true });
 export const levelFilter = (page: Page): Locator => page.getByRole('radiogroup', { name: 'Lọc theo mức độ', exact: true });
 export const groupSelect = (page: Page): Locator => page.getByRole('combobox', { name: 'Nhóm luật', exact: true });
 export const floorSelect = (page: Page): Locator => page.getByRole('combobox', { name: 'Tầng', exact: true });
@@ -438,7 +443,7 @@ export async function expandRule(page: Page, ruleName: string | RegExp): Promise
 export const rowsOf = (section: Locator): Locator => section.locator('tbody tr, ul > li');
 /** RuleReportGroups.tsx RowMessage: the message is a button in the "Mô tả" cell / card. */
 export const rowMessage = (row: Locator): Locator => row.getByRole('button').filter({ hasNotText: /^Xem$/u }).first();
-export const rowView = (row: Locator): Locator => row.getByRole('button', { name: 'Xem', exact: true });
+export const rowView = (row: Locator): Locator => row.getByRole('button', { name: 'Sửa', exact: true });
 export const rowCode = (row: Locator): Locator => row.locator('code');
 
 /** Clicks the message of `row` (or the button `from` itself) and waits for the sheet. */

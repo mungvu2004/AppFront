@@ -10,7 +10,7 @@ import { pascalCanvas, viewportReady } from './support/p09/P7';
 import { openRoleSession } from './support/p09/P8';
 import { gotoAs, mainProject } from './support/p09/roles';
 
-const RULE_SETTINGS_HEADING = 'Cài đặt bộ luật không gian'; // RuleSettings.tsx
+const RULE_SETTINGS_HEADING = 'Chọn luật áp dụng'; // RuleSettings.tsx
 const RULE_SETTINGS_READ_ONLY = 'Chỉ quản trị viên đổi được bộ luật; bạn đang xem ở quyền chỉ đọc.'; // ruleSettingsGateway.ts:98
 const OPENING_RULE_SWITCH = /^Bật hoặc tắt luật: lỗ mở nằm trọn/u; // RuleSettingsRow.tsx:100
 const EXPORT_FORBIDDEN = 'Không có quyền xuất bản vẽ'; // ExportPanel.tsx:211
@@ -24,7 +24,7 @@ const VERSION_LIST = 'Danh sách phiên bản';
 const VERSION_RESTORE = 'Phục hồi phiên bản này';
 const VERSION_LABEL = /^Gắn nhãn v[0-9]+$/u;
 const VERSION_EXPORT = /^Xuất (phiên bản này|v[0-9]+)$/u; // VersionHistory.tsx:171
-const RULES_HEADING = 'Quy chuẩn';
+const RULES_HEADING = 'Kiểm tra quy chuẩn';
 
 const unknown = (id: string, why: string): void => {
   test.info().annotations.push({ type: 'UNKNOWN', description: `[${id}] UNKNOWN — NEED VERIFICATION: ${why}` });
@@ -72,7 +72,7 @@ test.describe('Phase 09 viewer edge B', () => {
         await captureEvidence(page, 'E09_9V-E-031_caption.png');
       });
       await test.step('[9V-E-032] no Xuất button, no format cards', async () => {
-        await expect.soft(page.getByRole('button', { name: 'Xuất', exact: true })).toHaveCount(0);
+        await expect.soft(page.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toHaveCount(0);
         unknown('9V-E-032', 'format card role not traced; radio count used');
         await expect.soft(page.getByRole('radio')).toHaveCount(0);
         await captureEvidence(page, 'E09_9V-E-032_no_export.png');
@@ -225,7 +225,8 @@ test.describe('Phase 09 viewer edge B', () => {
       await test.step('[9V-C-001] rule report rerun + confirm visible', async () => {
         await gotoAs(page, ROUTES.project.rules(s.projectId), RULES_HEADING);
         await expect.soft(page.getByRole('button', { name: 'Chạy kiểm tra lại' })).toBeVisible(); // RuleReport.tsx:305
-        await expect.soft(page.getByRole('button', { name: 'Xác nhận đã xử lý' })).toBeVisible(); // :358
+        // Kỹ sư giữ cổng: "Xem vi phạm kế" khi còn vi phạm nghiêm trọng, "Xem cảnh báo" / "Sang Xuất" khi đã sạch.
+        await expect.soft(page.getByTestId('flow-gate').getByRole('button', { name: /^(Xem vi phạm kế|Xem cảnh báo|Sang Xuất)$/u })).toBeVisible();
         await captureEvidence(page, 'E09_9V-C-001_rules_controls.png');
       });
       await test.step('[9V-D-034] rule settings same read-only text, switch disabled', async () => {
@@ -247,8 +248,8 @@ test.describe('Phase 09 viewer edge B', () => {
       });
       await test.step('[9V-E-001] Xuất present and enabled, no forbidden title (not clicked)', async () => {
         await page.goto(ROUTES.project.export(s.projectId));
-        await expect(page.getByRole('heading', { name: 'Xuất bản vẽ', exact: true })).toBeVisible({ timeout: 15_000 });
-        await expect.soft(page.getByRole('button', { name: 'Xuất', exact: true })).toBeEnabled();
+        await expect(page.getByRole('heading', { name: 'Xuất mô hình', exact: true })).toBeVisible({ timeout: 15_000 });
+        await expect.soft(page.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toBeEnabled();
         await expect.soft(page.getByRole('heading', { name: EXPORT_FORBIDDEN, exact: true })).toHaveCount(0);
         expect.soft(rec.writes, 'engineer must not write on main chain').toEqual([]);
         await captureEvidence(page, 'E09_9V-E-001_export_enabled.png');

@@ -784,13 +784,13 @@ test('SCR-20 · FL-20-04 · "Chuẩn hoá tên": preview, close, canonical names
       await captureEvidence(page, 'E04_20-A-027_undone.png');
     });
 
-    await test.step('[20-A-023] nothing to change: "Chuẩn hoá tên" is disabled and the hint says so (no dialog opens)', async () => {
+    await test.step('[20-A-023] nothing to change: "Chuẩn hoá tên…" stays enabled and the preview says so (Z/S-20, B1-10)', async () => {
       await openRooms(page, projectId, f2.id);
-      // RoomLabelLeftPanel.tsx:150-163: disabled={!hasNamesToNormalize} + hint NOTHING_TO_NORMALIZE (id room-label-normalize-hint).
-      await expect(normalizeButton).toBeDisabled();
-      await expect.soft(page.getByText('Mọi tên phòng đã đúng kiểu câu, chưa có gì để chuẩn hoá.', { exact: true })).toBeVisible();
-      await expect.soft(normalizeButton).toHaveAccessibleDescription('Mọi tên phòng đã đúng kiểu câu, chưa có gì để chuẩn hoá.');
-      await expect.soft(dialog).toHaveCount(0);
+      // Z/S-20: the button is always enabled; the preview dialog says there is nothing to change and offers "Đóng" only.
+      await expect(normalizeButton).toBeEnabled();
+      await normalizeButton.click();
+      await expect.soft(dialog.getByText('Không có tên nào cần chuẩn hoá — mọi tên phòng đã đúng kiểu câu.', { exact: true })).toBeVisible();
+      await expect.soft(dialog.getByRole('button', { name: 'Áp dụng', exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E04_20-A-023_nothing-to-change.png');
     });
   } finally {
@@ -1125,7 +1125,7 @@ test('SCR-20 · FL-20-06 · "Chưa đặt tên" filter, open-loop gaps, rule not
       const wallCodes = codesOf(Object.values(gaps.walls)); // gateway gapsOf shows `#W-nnn` display codes, not raw ids (roomLabelReviewGateway.ts:697)
       expect.soft(shown).toEqual([wallCodes.get(gaps.walls.right as string) as string, wallCodes.get(gaps.walls.top as string) as string].sort());
       await captureEvidence(page, 'E04_20-A-043_gap-row.png');
-      await gapsSection.getByRole('button', { name: ROOM.toWalls, exact: true }).click();
+      await gapsSection.getByRole('button', { name: ROOM.toWalls }).first().click();
       await expect.soft(page).toHaveURL(new RegExp(`${ROUTES.project.walls(projectId, f1.id).replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`, 'u'));
     });
 
@@ -1212,8 +1212,8 @@ test('SCR-20 · FL-20-07 · measures, summary, confidence, OCR hint, many rooms,
       await captureEvidence(page, 'E04_20-B-008_measure-rows.png');
     });
 
-    await test.step('[20-B-010] summary line: "Tổng diện tích sàn {area} · {n} phòng"', async () => {
-      await expect.soft(page.locator('p').filter({ hasText: /^Tổng diện tích sàn/u })).toHaveText(`Tổng diện tích sàn ${areaTextOf(rect(0, 0, 8000, 4000))} · 2 phòng`);
+    await test.step('[20-B-010] status line (Z/S-20): "{x}/{n} phòng đã duyệt, sàn {area}"', async () => {
+      await expect.soft(page.getByText(/^\d+\/2 phòng đã duyệt, sàn /u)).toContainText(`sàn ${areaTextOf(rect(0, 0, 8000, 4000))}`);
       await captureEvidence(page, 'E04_20-B-010_summary.png');
     });
 
@@ -1353,7 +1353,7 @@ test('SCR-20 · FL-20-08 · drawing floor: background, crop, provisional measure
 
     await test.step('[20-B-009] provisional scale: the row area, the inspector area / perimeter and the total read "Chưa có — tỷ lệ tạm"', async () => {
       await expect.soft(optionOf(page, codeAi)).toHaveAccessibleName(new RegExp(` · ${ROOM.provisional} · `, 'u'));
-      await expect.soft(page.locator('p').filter({ hasText: /^Tổng diện tích sàn/u })).toHaveText(`Tổng diện tích sàn ${ROOM.provisional} · 2 phòng`);
+      await expect.soft(page.getByText(/^\d+\/2 phòng đã duyệt, sàn /u)).toContainText(`sàn ${ROOM.provisional}`);
       await selectRoom(page, codeAi);
       await expect.soft(panel.getByText(ROOM.provisional, { exact: true })).toHaveCount(2); // area + perimeter
       await captureEvidence(page, 'E04_20-B-009_provisional-measures.png');

@@ -12,7 +12,7 @@ import { signInAs } from '../fixtures/session';
 import { ROUTES } from '../fixtures/routes';
 
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
-const TITLE = 'Huấn luyện mô hình AI'; // TrainingJobs.tsx TEXT.title
+const TITLE = 'Theo dõi huấn luyện'; // TrainingJobs.tsx TEXT.title
 const DETAIL = 'Chi tiết lượt huấn luyện'; // fallback only, aside is matched by role complementary
 const MIN_TABLE_PX = 640;
 

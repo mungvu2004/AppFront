@@ -53,11 +53,11 @@ export function FloorUploadTray({ tray, actions }: FloorUploadTrayProps) {
     <section
       aria-label={tray.title}
       ref={sectionRef}
-      className="flex flex-col gap-3 rounded-xl border border-border-default bg-bg-surface p-5"
+      className="flex flex-col gap-3 border-t border-border-default pt-4"
     >
       <header className="flex items-baseline gap-2">
-        <h2 className="text-[15px] font-medium text-text-primary">{tray.title}</h2>
-        <span className="text-[13px] text-text-muted">{tray.countLabel}</span>
+        <h3 className="text-heading text-text-primary">{tray.title}</h3>
+        <span className="text-body-sm text-text-secondary">{tray.countLabel}</span>
       </header>
 
       <ul className="flex flex-col gap-3">

@@ -36,8 +36,8 @@ export const TOUR_STEPS: readonly TourStep[] = [
     anchor: { selector: 'button[aria-label="3D"]', up: 1 },
   },
   {
-    title: 'Phong cách, Ánh sáng và về dự án',
-    body: 'Hai nút Phong cách và Ánh sáng ở thanh trên đổi diện mạo cảnh. Thay đổi tự lưu, xem chip trạng thái lưu cạnh nút về dự án. Bấm nút Hướng dẫn bất cứ lúc nào để xem lại.',
+    title: 'Đổi diện mạo cảnh rồi sang bước sau',
+    body: 'Hai nút Phong cách và Ánh sáng ở thanh trên đổi diện mạo cảnh. Mọi thay đổi tự lưu, chip cạnh nút về dự án cho biết đã lưu chưa. Xong thì bấm "Sang Quy chuẩn"; nếu nút ghi "Hiệu chỉnh tỷ lệ" thì hiệu chỉnh trước. Bấm nút Hướng dẫn bất cứ lúc nào để xem lại.',
     // Nhóm Phong cách (thẻ `<details>`); Ánh sáng nằm ngay cạnh.
     anchor: { selector: 'summary[aria-label^="Phong cách"]', up: 1 },
   },

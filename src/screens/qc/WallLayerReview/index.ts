@@ -16,7 +16,7 @@
  *   cắm CÙNG một bộ mẫu thay vì bịa bảng dữ liệu thứ hai (R-70).
  *
  * KHÔNG tái xuất phần con nào của view (`WallLayerCanvas`, `WallLayerInspector`,
- * `WallLayerLeftPanel`, `WallLayerLegend`, `WallLayerList`, `WallLayerStatusBar`,
+ * `WallLayerLeftPanel`, `WallLayerLegendTray`, `WallLayerList`, `WallLayerStatusBar`,
  * `WallLayerToolRail`): chúng là mảnh của một view, không phải API của màn —
  * cùng lý lẽ `PipelineFailure/index.ts`. Riêng hai hợp đồng props của ray công
  * cụ và thanh trạng thái thì ĐI RA, vì chúng là hình dạng mà nơi gọi phải biết

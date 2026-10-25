@@ -252,6 +252,48 @@ describe('QA-06b F6 — kết quả sửa thuộc đúng vi phạm vừa sửa',
     );
   });
 
+  it('28V-A-016: báo cáo đánh số lại câu của hàng kế tiếp sau lượt sửa thì tấm trượt vẫn sang hàng đó và GIỮ ở đó (FL-28V-03)', async () => {
+    const first = VIOLATION as NonNullable<typeof VIOLATION>;
+    const second = SECOND as NonNullable<typeof SECOND>;
+    // Như báo cáo thật: hàng đã sửa xuống cuối, hàng kế tiếp mang câu mới (`#F-002` → `#F-001`).
+    const renumbered = { ...second, message: `${second.message} (đánh số lại)` };
+    function Renumbering() {
+      const gone = useStore((state) => state.spatial?.byId[first.entityId] === undefined);
+      const list = gone ? [renumbered, first] : [first, second];
+      const props = useViolationDetail({
+        floorId: FLOOR_ID,
+        initialIndex: list.indexOf(first),
+        onClose: () => undefined,
+        projectId: PROJECT,
+        canEdit: true,
+        seed: { apiClient: createMockApiClient() },
+        violations: list,
+      });
+      return <ViolationDetail {...props} />;
+    }
+    renderWithProviders(<Renumbering />);
+    await act(async () => {
+      useStore.getState().setSpatial(GRAPH, 'v-1', {
+        floorRevisions: Object.fromEntries(GRAPH.byKind.level.map((id) => [id, 0])),
+        projectId: PROJECT,
+      });
+      await vi.dynamicImportSettled();
+    });
+    await quickFix();
+
+    await waitFor(
+      () => {
+        expect(within(panel()).getByRole('heading', { level: 2 })).toHaveTextContent(renumbered.message);
+      },
+      { timeout: 2000 },
+    );
+    // Không bị kéo ngược về hàng vừa sửa sau nhịp chuyển.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+    });
+    expect(within(panel()).getByRole('heading', { level: 2 })).toHaveTextContent(renumbered.message);
+  });
+
   it('28V-A-016: báo cáo sắp xếp lại sau lượt sửa thì tấm trượt vẫn ở vi phạm đã chuyển tới', async () => {
     const first = VIOLATION as NonNullable<typeof VIOLATION>;
     const second = SECOND as NonNullable<typeof SECOND>;

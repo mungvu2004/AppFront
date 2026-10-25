@@ -37,6 +37,8 @@ import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
+import type { LayerGate } from './layerGate';
+
 /* -------------------------------------------------------------------------- */
 /* Ba lớp con.                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -444,11 +446,6 @@ export interface ObjectInspectorViewModel {
   /** `true` khi {@link isOrphanObject} — điều khiển hiện badge + hành động "Gắn vào tường gần nhất". */
   readonly isOrphan: boolean;
   readonly reviewed: boolean;
-  /**
-   * Phím Delete/Backspace xin xoá đối tượng này: số tăng mỗi lần bấm, thanh tra mở
-   * `ConfirmDeleteDialog` khi thấy số mới (Impeccable A3). Vắng khi chưa ai xin.
-   */
-  readonly deleteRequestSeq?: number;
 }
 
 /** Mọi thứ view panel phải (inspector) nhận. */
@@ -644,6 +641,14 @@ export interface ObjectLayerReviewModel {
    * màn Duyệt tường thay vào đó (BUG-422). `null` khi tầng có tường hoặc không có lối điều hướng.
    */
   readonly onOpenWallLayer: (() => void) | null;
+  /** Cổng sang bước sau (HOP-DONG-V6 câu 3): tường/cửa/phòng của tầng đã duyệt hết chưa. */
+  readonly layerGate?: LayerGate | undefined;
+  /** Đối tượng chưa duyệt kế tiếp (tin cậy thấp trước); `null` khi đã duyệt hết. */
+  readonly nextPending?: { readonly id: string; readonly codeLabel: string } | null | undefined;
+  /** "Đã lưu 14:02" đã định dạng; `null` khi chưa lưu lượt nào hoặc vai chỉ xem. */
+  readonly saveLabel?: string | null | undefined;
+  /** Mở lớp khác của tầng (cổng): `null` khi không có lối điều hướng (story, test). */
+  readonly onOpenLayer?: ((layer: 'walls' | 'rooms') => void) | null | undefined;
   /** Khối lưu lớp của tầng — dải "Tải lại" / "Không lưu được" (F-04x-1). */
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
   /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */

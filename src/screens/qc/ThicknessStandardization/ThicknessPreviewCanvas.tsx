@@ -1,7 +1,7 @@
 /**
- * Canvas xem trước của màn QC "Chuẩn hoá độ dày tường" — cột phải rộng
+ * Canvas của màn QC "Chuẩn hoá độ dày tường" — bản Z chiếm cả vùng giữa (trước: cột phải rộng
  * {@link THICKNESS_PREVIEW_CANVAS_WIDTH_PX}, mặt bằng thu nhỏ giữ ngữ cảnh
- * không gian cho biểu đồ và hai bảng bên trái.
+ * không gian cho biểu đồ và hai bảng bên trái). Phép chiếu tính theo kích thước khung đo được.
  *
  * View thuần của mục D (R-60): mọi thứ vào bằng
  * {@link ThicknessPreviewCanvasProps}, không `src/api`, không `src/store`,
@@ -37,13 +37,13 @@
  * vì props không hề bị đụng tới.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { wallStrokeToken } from '@/components/canvas/materialMap';
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
 
 import {
-  computePreviewProjection,
+  computeProjection,
   projectOutline,
   projectedBoundsOf,
   svgPointsAttr,
@@ -68,9 +68,43 @@ const NO_WALL_IDS: NonNullable<ThicknessPreviewCanvasProps['hoveredBinWallIds']>
 const CANVAS_LABEL = 'Mặt bằng xem trước theo nhóm độ dày';
 const LEGEND_LABEL = 'Chú giải độ dày tường';
 const EMPTY_NOTICE = 'Chưa có hình tường để xem trước';
+const ATTENTION_LEGEND = 'Không chuẩn';
+const ATTENTION_STROKE = 'var(--state-attention-stroke)';
+const ATTENTION_STROKE_WIDTH_PX = 2.5;
 
-/** Cạnh ô màu của một mục chú giải, px — cùng cỡ với ô của `WallThicknessLegend`. */
 const LEGEND_SWATCH_PX = 16;
+
+/** Dải đáy dành cho khay chú giải nổi: mặt bằng vừa khung PHÍA TRÊN khay, không bị che. */
+const LEGEND_RESERVE_PX = 56;
+
+/** Khung chưa đo được (jsdom, lượt vẽ đầu): dùng kích thước cũ 320 × 260. */
+const FALLBACK_SIZE = { width: THICKNESS_PREVIEW_CANVAS_WIDTH_PX, height: THICKNESS_PREVIEW_CANVAS_HEIGHT_PX };
+
+/** Kích thước thật của khung vẽ — bản Z: canvas chiếm hết vùng giữa (≥ 65 % bề ngang). */
+function useStageSize() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = useState(FALLBACK_SIZE);
+
+  useEffect(() => {
+    const stage = ref.current;
+
+    if (stage === null || typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+
+    const observer = new ResizeObserver(() => {
+      if (stage.clientWidth > 0 && stage.clientHeight > 0) {
+        setSize({ width: stage.clientWidth, height: stage.clientHeight });
+      }
+    });
+
+    observer.observe(stage);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return { ref, size };
+}
 
 /* -------------------------------------------------------------------------- */
 /* Canvas.                                                                     */
@@ -84,8 +118,13 @@ export function ThicknessPreviewCanvas({
   onHoverWall,
   isCollapsed,
   hoveredBinWallIds = NO_WALL_IDS,
+  attentionWallIds = NO_WALL_IDS,
 }: ThicknessPreviewCanvasProps) {
-  const projection = useMemo(() => computePreviewProjection(shapes), [shapes]);
+  const { ref, size } = useStageSize();
+  const projection = useMemo(
+    () => computeProjection(shapes, size.width, Math.max(size.height - LEGEND_RESERVE_PX, 0)),
+    [shapes, size.height, size.width],
+  );
 
   /** Mỗi tường một lần chiếu, dùng cho cả đa giác SVG lẫn hộp bao của `SelectionHalo`. */
   const figures = useMemo(
@@ -110,26 +149,20 @@ export function ThicknessPreviewCanvas({
 
   /* Rê một cột biểu đồ thì tường của cột đó sáng lên (BUG-606) — cùng cách một tường đang trỏ. */
   const binWalls = new Set(hoveredBinWallIds);
+  const attentionWalls = new Set(attentionWallIds);
   const isMatchedFigure = (figure: Pick<ThicknessWallShapeViewModel, 'wallId' | 'group'>): boolean =>
     figure.wallId === hoveredWallId || figure.group === hoveredGroup || binWalls.has(figure.wallId);
   const hasHover = hoveredGroup !== null || hoveredWallId !== null || binWalls.size > 0;
 
   return (
-    <aside
-      aria-label={CANVAS_LABEL}
-      className="w-full shrink-0"
-      style={{ maxWidth: THICKNESS_PREVIEW_CANVAS_WIDTH_PX }}
-    >
-      {/* Co theo bề rộng có được (tối đa 320) và giữ tỉ lệ khung: ở 375 không tràn khỏi thẻ (BUG-332). */}
+    <aside aria-label={CANVAS_LABEL} className="relative flex h-full w-full flex-col">
       <div
-        className="relative w-full overflow-hidden rounded-xl border border-border-default bg-canvas-2d"
-        style={{
-          aspectRatio: `${String(THICKNESS_PREVIEW_CANVAS_WIDTH_PX)} / ${String(THICKNESS_PREVIEW_CANVAS_HEIGHT_PX)}`,
-        }}
+        ref={ref}
+        className="relative min-h-0 w-full flex-1 overflow-hidden rounded-xl bg-canvas-2d shadow-panel"
         onMouseLeave={handleLeave}
       >
         {figures.length === 0 ? (
-          <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-text-muted">
+          <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-body-sm text-text-secondary">
             {EMPTY_NOTICE}
           </p>
         ) : (
@@ -138,7 +171,7 @@ export function ThicknessPreviewCanvas({
               aria-hidden="true"
               className="absolute inset-0 h-full w-full"
               role="presentation"
-              viewBox={`0 0 ${String(THICKNESS_PREVIEW_CANVAS_WIDTH_PX)} ${String(THICKNESS_PREVIEW_CANVAS_HEIGHT_PX)}`}
+              viewBox={`0 0 ${String(size.width)} ${String(size.height)}`}
             >
               {figures.map((figure) => {
                 const isMatched = isMatchedFigure(figure);
@@ -156,8 +189,8 @@ export function ThicknessPreviewCanvas({
                           : WALL_FILL_OPACITY
                     }
                     points={figure.points}
-                    stroke={figure.colorToken}
-                    strokeWidth={WALL_OUTLINE_STROKE_WIDTH_PX}
+                    stroke={attentionWalls.has(figure.wallId) ? ATTENTION_STROKE : figure.colorToken}
+                    strokeWidth={attentionWalls.has(figure.wallId) ? ATTENTION_STROKE_WIDTH_PX : WALL_OUTLINE_STROKE_WIDTH_PX}
                     onMouseEnter={() => {
                       onHoverWall(figure.wallId);
                     }}
@@ -166,7 +199,7 @@ export function ThicknessPreviewCanvas({
               })}
             </svg>
 
-            {/* Viền cho những tường khớp cột biểu đồ đang trỏ tới. */}
+            {/* Viền cho những tường khớp nhóm / cột biểu đồ đang trỏ tới. */}
             {figures
               .filter(isMatchedFigure)
               .map((figure) => (
@@ -182,33 +215,40 @@ export function ThicknessPreviewCanvas({
               ))}
           </>
         )}
-      </div>
 
-      {/*
-       * Chú giải độ dày — nhãn và token màu đã ghép sẵn ở hook (A1, A15). Rỗng thì không có khung
-       * trắng mồ côi (BUG-412). Nằm DƯỚI khung xem trước chứ không nổi trên nó: khung chỉ 320 px,
-       * nổi thì che mất tường góc dưới trái.
-       */}
-      {legend.length === 0 ? null : (
-        <ul aria-label={LEGEND_LABEL} className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-          {legend.map((entry) => (
-            <li key={String(entry.group)} className="flex items-center gap-2">
-              <span
-                aria-hidden="true"
-                className="shrink-0 rounded-[3px]"
-                style={{
-                  backgroundColor: entry.colorToken,
-                  height: LEGEND_SWATCH_PX,
-                  width: LEGEND_SWATCH_PX,
-                }}
-              />
-              <span className="font-mono text-xs leading-none text-text-primary">
-                {entry.label}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+        {/* Chú giải nổi trong khung (bản Z): rỗng thì không có khay trắng mồ côi (BUG-412). */}
+        {legend.length === 0 && attentionWalls.size === 0 ? null : (
+          <ul
+            aria-label={LEGEND_LABEL}
+            className="absolute bottom-3 left-3 flex flex-wrap gap-x-4 gap-y-1 rounded-lg bg-bg-surface px-3 py-2 shadow-panel"
+          >
+            {legend.map((entry) => (
+              <li key={String(entry.group)} className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="shrink-0 rounded-[3px]"
+                  style={{
+                    backgroundColor: entry.colorToken,
+                    height: LEGEND_SWATCH_PX,
+                    width: LEGEND_SWATCH_PX,
+                  }}
+                />
+                <span className="text-body-sm leading-none text-text-primary">{entry.label}</span>
+              </li>
+            ))}
+            {attentionWalls.size === 0 ? null : (
+              <li className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="shrink-0 rounded-[3px] border-2 bg-state-attention-tint"
+                  style={{ borderColor: ATTENTION_STROKE, height: LEGEND_SWATCH_PX, width: LEGEND_SWATCH_PX }}
+                />
+                <span className="text-body-sm leading-none text-text-primary">{ATTENTION_LEGEND}</span>
+              </li>
+            )}
+          </ul>
+        )}
+      </div>
     </aside>
   );
 }

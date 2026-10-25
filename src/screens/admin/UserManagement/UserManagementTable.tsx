@@ -256,7 +256,7 @@ function UserManagementCardList({ actions, roleOptions, rows }: UserListProps) {
               <dt className="text-text-secondary">{HEADER_LAST_ACTIVE}</dt>
               <dd>
                 <Tooltip label={row.lastActiveExactLabel}>
-                  <span className={FOCUS_RING} tabIndex={0}>{row.lastActiveLabel}</span>
+                  <span className={cn(FOCUS_RING, 'xl:whitespace-nowrap')} tabIndex={0}>{row.lastActiveLabel}</span>
                 </Tooltip>
               </dd>
             </div>
@@ -332,9 +332,12 @@ export function UserManagementTable({
             key={row.id}
             selected={row.id === selectedUserId}
           >
-            <Table.Cell className={cn(WRAP_CELL, 'min-w-[260px]')}>
+            {/* Dưới 1280 bỏ ảnh đại diện (tên + email đủ nhận ra người) để cột "Hành động" không bị cắt ở 1024. */}
+            <Table.Cell className={cn(WRAP_CELL, 'min-w-[200px] xl:min-w-[230px]')}>
               <div className="flex items-center gap-3">
-                <Avatar alt={row.name} initials={initialsOf(row.name, row.email)} size="default" {...avatarSrcProp(row.avatarUrl)} />
+                <span className="contents max-xl:hidden">
+                  <Avatar alt={row.name} initials={initialsOf(row.name, row.email)} size="default" {...avatarSrcProp(row.avatarUrl)} />
+                </span>
                 <div className="flex min-w-0 flex-col">
                   <button
                     className={cn('min-h-6 text-left font-medium text-text-primary wrap-anywhere', FOCUS_RING)}
@@ -343,7 +346,7 @@ export function UserManagementTable({
                   >
                     {row.name}
                   </button>
-                  <span className="text-[13px] text-text-secondary wrap-anywhere">{row.email}</span>
+                  <span className="text-[13px] text-text-secondary wrap-anywhere xl:whitespace-nowrap">{row.email}</span>
                   {!withSecondary && (
                     <div className="pt-1">
                       <StatusCell actions={actions} row={row} />
@@ -361,7 +364,7 @@ export function UserManagementTable({
             {withSecondary && (
               <Table.Cell className={WRAP_CELL}>
                 <Tooltip label={row.lastActiveExactLabel}>
-                  <span className={FOCUS_RING} tabIndex={0}>{row.lastActiveLabel}</span>
+                  <span className={cn(FOCUS_RING, 'xl:whitespace-nowrap')} tabIndex={0}>{row.lastActiveLabel}</span>
                 </Tooltip>
               </Table.Cell>
             )}

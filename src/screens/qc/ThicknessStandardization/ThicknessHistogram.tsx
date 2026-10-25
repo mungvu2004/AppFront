@@ -1,33 +1,11 @@
 /**
- * Biểu đồ phân bố độ dày đo được của màn QC "Chuẩn hoá độ dày tường".
+ * Biểu đồ phân bố độ dày đo được của màn QC "Chuẩn hoá độ dày tường" — view thuần (R-60):
+ * cột gộp sẵn ở hook, nhãn ngưỡng định dạng sẵn (A15); file này chỉ chiếu mm thành phần trăm.
  *
- * View thuần của mục D (R-60): mọi thứ vào bằng {@link ThicknessHistogramProps},
- * không `src/api`, không `src/store`, không `src/domain`, không `src/lib/http`.
- * Không một quyết định nghiệp vụ nào ở đây — cột đã gộp sẵn theo bậc
- * `HISTOGRAM_BIN_MM` ở hook, nhãn ngưỡng đã định dạng sẵn (`thresholdLabels`,
- * A15), và việc sắp lại ba ngưỡng sau khi kéo cũng là của hook. File này chỉ
- * làm hai việc: chiếu mi-li-mét thành phần trăm bề ngang, và báo ra ngoài.
- *
- * ## Vì sao cột KHÔNG BAO GIỜ mang màu nhóm
- *
- * Cấm tuyệt đối của đặc tả S-18. Cột là số đếm, thứ trung tính; cái mang màu là
- * DẢI NỀN giữa hai ngưỡng, tô đúng xám tường của nhóm ở {@link BAND_OPACITY}.
- * Nhờ vậy người đọc thấy ánh xạ "đoạn mi-li-mét này rơi vào nhóm nào" mà không
- * bị nhầm rằng cột nào cao hơn thì "quan trọng hơn". Nên bảng màu của file này
- * chỉ có đúng: `--text-muted` (cột), `--bg-sunken` (nền vùng vẽ), `--accent`
- * (ba đường ngưỡng — A2: màu nhấn dành cho thứ tương tác được; nhãn chữ của
- * chúng không bấm được nên là `--text-secondary`, BUG-611), và ba xám tường
- * lấy qua `wallStrokeToken` cho dải nền.
- *
- * ## Vì sao ba đường ngưỡng là `role="slider"` chứ không phải chuyện của chuột
- *
- * A12 — bàn phím là đường đi hạng nhất, không phải phương án dự phòng. Một
- * đường kẻ 1px chỉ kéo được bằng chuột thì ba ngưỡng của màn này không tồn tại
- * với người dùng bàn phím. Mỗi đường vì thế là một thanh trượt thật: mũi tên
- * trái/phải bước đúng một bậc cột, Home/End nhảy về hai đầu trục, và
- * `aria-valuenow`/`aria-valuemin`/`aria-valuemax`/`aria-valuetext` nói ra giá
- * trị hiện tại. Vùng bắt chuột rộng hơn nét vẽ (phần tử con trong suốt) vì 1px
- * là thứ không ai trỏ trúng.
+ * Cột KHÔNG BAO GIỜ mang màu nhóm (cột là số đếm, trung tính); màu nằm ở DẢI NỀN giữa hai
+ * ngưỡng. Vùng xem tay (dưới 80 mm, từ ngưỡng cao) nền lõm. Ba ngưỡng kéo được là
+ * `role="slider"` thật (A12: mũi tên bước một bậc cột, Home/End về hai đầu trục); vạch 80 mm
+ * cố định, không kéo.
  */
 
 import { lowerFirst } from '@/lib/format/sentence';
@@ -43,6 +21,7 @@ import {
   DEFAULT_THICKNESS_THRESHOLDS,
   HISTOGRAM_BIN_MM,
   HISTOGRAM_HEIGHT_PX,
+  THICKNESS_MIN_MM,
   THICKNESS_GROUPS_MM,
   THICKNESS_GROUP_DISPLAY_ORDER,
   THICKNESS_GROUP_LABELS,
@@ -58,7 +37,7 @@ import {
 const PERCENT = 100;
 
 /** Độ mờ của dải xám tường — đúng con số tiền lệ `WallLayerList.tsx:168` dùng. */
-const BAND_OPACITY = 0.08;
+const BAND_OPACITY = 0.16;
 
 /** Cột không được trỏ tới mờ đi khi có một cột khác đang được trỏ. */
 const DIMMED_BAR_OPACITY = 0.45;
@@ -79,6 +58,10 @@ const AXIS_TICK_MIN_GAP_PX = 32;
 const HISTOGRAM_LABEL = 'Biểu đồ phân bố độ dày tường theo mi-li-mét';
 const LOADING_LABEL = 'Đang tải biểu đồ phân bố độ dày';
 const AXIS_UNIT_LABEL = 'mm';
+const MIN_LINE_LABEL = `${String(THICKNESS_MIN_MM)} mm`;
+
+/** Trục dừng ở ngưỡng xem tay mặc định + 100 mm: một đoạn 1.014 mm không bóp dẹt cả biểu đồ (S-21). */
+const AXIS_OVERFLOW_MM = 100;
 
 /**
  * Nhãn bàn phím của ba đường ngưỡng, ghép từ chính bảng nhãn nhóm.
@@ -121,14 +104,17 @@ export function ThicknessHistogram({
     const padding = HISTOGRAM_BIN_MM * AXIS_PADDING_BINS;
     const first = bins[0];
     const last = bins[bins.length - 1];
-    const edges: number[] = [...DEFAULT_THICKNESS_THRESHOLDS];
+    const edges: number[] = [THICKNESS_MIN_MM, ...DEFAULT_THICKNESS_THRESHOLDS];
 
     if (first !== undefined && last !== undefined) {
       edges.push(first.startMm, last.endMm);
     }
 
     const low = Math.min(...edges) - padding;
-    const high = Math.max(...edges) + padding;
+    const high = Math.min(
+      Math.max(...edges) + padding,
+      DEFAULT_THICKNESS_THRESHOLDS[2] + AXIS_OVERFLOW_MM,
+    );
 
     return { minMm: low, maxMm: high, spanMm: Math.max(high - low, HISTOGRAM_BIN_MM) };
   }, [bins]);
@@ -147,7 +133,7 @@ export function ThicknessHistogram({
 
   /** Bốn dải nền, mỗi dải một nhóm, ranh giới là ba ngưỡng đang đặt. */
   const bands = useMemo(() => {
-    const edges: readonly number[] = [minMm, ...thresholds, maxMm];
+    const edges: readonly number[] = [Math.max(minMm, THICKNESS_MIN_MM), ...thresholds, maxMm];
 
     return THICKNESS_GROUP_DISPLAY_ORDER.map((group, index) => {
       const fromMm = edges[index] ?? minMm;
@@ -308,10 +294,16 @@ export function ThicknessHistogram({
     <section aria-label={HISTOGRAM_LABEL} className="flex w-full flex-col gap-2">
       {/* Nhãn ba ngưỡng, chữ đều, nằm trên vùng vẽ để không bị cắt ở hai mép. */}
       <div className="relative h-4 w-full">
+        <span
+          className="absolute top-0 -translate-x-1/2 whitespace-nowrap text-caption leading-4 tabular-nums text-text-secondary"
+          style={{ left: `${String(percentAt(THICKNESS_MIN_MM))}%` }}
+        >
+          {MIN_LINE_LABEL}
+        </span>
         {thresholds.map((value, index) => (
           <motion.span
             key={String(index)}
-            className="absolute top-0 -translate-x-1/2 whitespace-nowrap font-mono text-[11px] leading-4 tabular-nums text-text-secondary"
+            className="absolute top-0 -translate-x-1/2 whitespace-nowrap text-caption leading-4 tabular-nums text-text-secondary"
             initial={false}
             animate={{ left: `${String(percentAt(value))}%` }}
             transition={{ duration: durationSeconds('standard') }}
@@ -324,17 +316,32 @@ export function ThicknessHistogram({
       {/* Vùng vẽ — chiều cao đúng HISTOGRAM_HEIGHT_PX ở mọi trạng thái. */}
       <div
         ref={plotRef}
-        className="relative w-full overflow-hidden bg-bg-sunken"
+        className="relative w-full overflow-hidden rounded-md border border-border-default bg-bg-surface"
         style={{ height: HISTOGRAM_HEIGHT_PX }}
         onPointerLeave={handlePlotLeave}
       >
         {/* Dải nhóm: thứ DUY NHẤT mang màu xám tường, ở độ mờ thấp. */}
+        {/* Vùng xem tay (dưới 80 mm, từ ngưỡng cao): nền lõm, không mang màu nhóm. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-y-0 left-0 bg-bg-sunken"
+          style={{ width: `${String(percentAt(THICKNESS_MIN_MM))}%` }}
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-y-0 w-px bg-accent"
+          style={{ left: `${String(percentAt(THICKNESS_MIN_MM))}%` }}
+        />
         {bands.map((band) => (
           <motion.div
             key={String(band.group)}
             aria-hidden="true"
-            className="absolute inset-y-0"
-            style={{ backgroundColor: wallStrokeToken(band.group), opacity: BAND_OPACITY }}
+            className={band.group === CONCRETE_COLUMN_GROUP ? 'absolute inset-y-0 bg-bg-sunken' : 'absolute inset-y-0'}
+            style={
+              band.group === CONCRETE_COLUMN_GROUP
+                ? {}
+                : { backgroundColor: wallStrokeToken(band.group), opacity: BAND_OPACITY }
+            }
             initial={false}
             animate={{
               left: `${String(band.leftPercent)}%`,
@@ -408,13 +415,13 @@ export function ThicknessHistogram({
         {ticks.map((tick) => (
           <span
             key={String(tick.startMm)}
-            className="absolute top-0 -translate-x-1/2 font-mono text-[11px] leading-4 tabular-nums text-text-muted"
+            className="absolute top-0 -translate-x-1/2 text-caption leading-4 tabular-nums text-text-muted"
             style={{ left: `${String(tick.leftPercent)}%` }}
           >
             {tick.startMm}
           </span>
         ))}
-        <span className="absolute right-0 top-0 font-mono text-[11px] leading-4 text-text-muted">
+        <span className="absolute right-0 top-0 text-caption leading-4 text-text-muted">
           {AXIS_UNIT_LABEL}
         </span>
       </div>

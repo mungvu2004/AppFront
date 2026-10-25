@@ -9,6 +9,6 @@ import { expect, test } from '@playwright/test';
  */
 test('smoke test displays the app shell', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Dự án của tôi' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Chọn dự án để làm tiếp' })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Danh sách dự án' })).toBeVisible();
 });

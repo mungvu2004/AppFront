@@ -73,7 +73,7 @@ export async function ensureAdminSession(context: BrowserContext, storagePath: s
 }
 
 /** `ProjectDashboard.tsx` h1 — the dashboard screen has painted. */
-export const DASHBOARD_TITLE = 'Dự án của tôi';
+export const DASHBOARD_TITLE = 'Chọn dự án để làm tiếp';
 
 /**
  * BUG-089: the h1 paints before the project list; while `state === 'loading'` the list is six `Skeleton` cards

@@ -14,6 +14,8 @@ import { FIRST_PAINT_TIMEOUT_MS, PROJECT_ID } from './files';
  * `shortcutRegistry` thật (A12), và vai theo phiên. Phép tính, cảnh báo, nhích bằng
  * phím: 31 bài đơn vị.
  *
+ * Tiêu đề khối trạng thái là `InlineAlert` (`<p>`, không phải heading) nên bám bằng chữ.
+ *
  * Tầng: `L2` cho luồng chính. `L1` ra `error` THEO THIẾT KẾ của bộ mẫu — khung
  * bản vẽ của nó "không tìm thấy" (`FRAME_NOT_FOUND`, `src/api/__mocks__/client.ts`),
  * nên màn nói ảnh có thể méo. `ZZZ` không có trong dự án ⇒ lượt đọc hỏng.
@@ -55,7 +57,7 @@ test('kéo một đoạn, nhập chiều dài thật, tỷ lệ hiện bằng d�
 
   await drag(page, canvas);
   await expect(page.getByRole('button', { name: HANDLE_START })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Chưa đủ dữ liệu để chốt tỷ lệ' })).toBeVisible();
+  await expect(page.getByText('Chưa đủ dữ liệu để chốt tỷ lệ', { exact: true })).toBeVisible();
 
   await page.getByLabel('Chiều dài thật').fill('4800');
 
@@ -75,7 +77,7 @@ test('Esc huỷ đoạn đang kéo, ở lại màn, và lượt kéo sau vẫn v
   await page.mouse.up();
 
   await expect(page.getByRole('button', { name: HANDLE_START })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Chưa có chuỗi kích thước nào để đối chiếu' })).toBeVisible();
+  await expect(page.getByText('Chưa có chuỗi kích thước nào để đối chiếu', { exact: true })).toBeVisible();
   expect(pathOf(page.url())).toBe(scaleOf('L2'));
 
   await drag(page, canvas);
@@ -89,7 +91,7 @@ test('L1: bộ mẫu không tìm thấy khung bản vẽ ⇒ màn nói ảnh có
   await page.goto(scaleOf('L1'));
 
   await expect(
-    page.getByRole('heading', { name: 'Không tìm thấy khung bản vẽ, ảnh có thể chưa thẳng' }),
+    page.getByText('Không tìm thấy khung bản vẽ, ảnh có thể chưa thẳng', { exact: true }),
   ).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
   await expect(page.getByRole('button', { name: 'Quay lại bước tiền xử lý' })).toBeVisible();
 });
@@ -99,16 +101,18 @@ test('B-V5-04: tầng không có trong dự án là lỗi đọc, không bị g�
 }) => {
   await page.goto(scaleOf('ZZZ'));
 
-  await expect(page.getByRole('button', { name: 'Tải lại ảnh' })).toBeVisible({
+  // BUG-337: tầng không có bản vẽ (404 `upload`) mở lối "Tải bản vẽ lên", không phải "Tải lại ảnh".
+  await expect(page.getByText('Tầng này chưa có bản vẽ', { exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
+  await expect(page.getByRole('button', { name: 'Tải bản vẽ lên' })).toBeVisible();
   await expect(page.getByText(/Nắn ảnh thất bại/)).toHaveCount(0);
 });
 
 test('vai Người xem theo phiên thật thấy bản vẽ nhưng không áp được tỷ lệ', async ({ page }) => {
   await signInAs(page, 'viewer', scaleOf('L2'));
 
-  await expect(page.getByRole('heading', { name: 'Bạn không có quyền hiệu chỉnh tỷ lệ' })).toBeVisible();
+  await expect(page.getByText('Bạn không có quyền hiệu chỉnh tỷ lệ', { exact: true })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Bản vẽ đã nắn của Tầng 2' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Áp dụng tỷ lệ' })).toHaveCount(0);
 });
@@ -124,6 +128,6 @@ test('B-V5-01: vào thẳng route, áp tỷ lệ xong thì màn nói "Đã áp t
 
   await page.getByRole('button', { name: 'Áp dụng tỷ lệ' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Đã áp tỷ lệ cho bản vẽ' })).toBeVisible();
+  await expect(page.getByText('Đã áp tỷ lệ cho bản vẽ', { exact: true })).toBeVisible();
   await expect(page.getByText('Chưa nạp dữ liệu không gian của tầng này', { exact: false })).toHaveCount(0);
 });

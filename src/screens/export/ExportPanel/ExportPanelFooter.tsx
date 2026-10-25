@@ -18,6 +18,8 @@ export interface ExportPanelFooterProps {
   readonly progress: ExportProgressView | null;
   /** Định dạng đang chọn có sinh ra được một tệp thật không. */
   readonly canExportSelected: boolean;
+  /** Nhãn nút chính, nói rõ định dạng: "Xuất .glb", "Xuất .json". */
+  readonly exportLabel?: string;
   /** Vì sao nút "Xuất" đang mờ (định dạng chưa xuất được), `null` khi không có lý do riêng. */
   readonly blockedReason?: string | null;
   readonly destinationCaption: string;
@@ -31,6 +33,7 @@ export interface ExportPanelFooterProps {
 export function ExportPanelFooter({
   progress,
   canExportSelected,
+  exportLabel = 'Xuất',
   blockedReason = null,
   destinationCaption,
   isLoading = false,
@@ -62,7 +65,7 @@ export function ExportPanelFooter({
 
   if (progress !== null) {
     return (
-      <footer ref={footerRef} data-sticky-footer="" className="sticky bottom-0 flex flex-col gap-2 border-t border-border-default bg-bg-surface p-4 sm:px-6">
+      <footer ref={footerRef} data-sticky-footer="" className="sticky bottom-0 flex flex-col gap-2 border-t border-border-default bg-bg-surface p-4 sm:px-6 xl:px-[max(2rem,calc((100%_-_1280px)/2))]">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-0.5">
             <p className="truncate text-sm font-medium text-text-primary">{progress.stepLabel}</p>
@@ -91,7 +94,8 @@ export function ExportPanelFooter({
   }
 
   return (
-    <footer ref={footerRef} data-sticky-footer="" className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface p-4 sm:px-6">
+    <footer ref={footerRef} data-sticky-footer="" className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface p-4 sm:px-6 xl:px-[max(2rem,calc((100%_-_1280px)/2))]">
+      {/* Nút chính tắt thì câu bên cạnh nói vì sao (không nút chết). */}
       <p className="text-sm text-text-secondary">{canExportSelected ? destinationCaption : (blockedReason ?? destinationCaption)}</p>
       <div className="flex shrink-0 items-center gap-2">
         {onBackToProject !== undefined && (
@@ -102,7 +106,7 @@ export function ExportPanelFooter({
         {/* Nút luôn có mặt: mờ khi định dạng chưa xuất được, để người dùng thấy lý do thay vì tưởng nút hỏng.
             `data-tour-anchor`: móc neo cho lớp dạy việc (`screens/system/EditorTour`). */}
         <Button data-tour-anchor="exportResult" variant="primary" disabled={isLoading || !canExportSelected} onClick={onExport}>
-          Xuất
+          {exportLabel}
         </Button>
       </div>
     </footer>

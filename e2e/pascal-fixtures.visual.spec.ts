@@ -17,7 +17,7 @@ import { fixtureF1, fixtureF2, fixtureF4, type Fixture } from '../src/lib/pascal
 import { toPascalId } from '../src/lib/pascal/ids';
 import { floorMaterialOf } from '../src/lib/pascal/sceneDressing';
 import { weldWallEnds } from '../src/lib/pascal/structureFixes';
-import { toPascalScene } from '../src/lib/pascal/toPascal';
+import { toPascalScene, waitCameraStill } from './fixtures/pascalPageScene';
 import type { PascalProbe } from '../src/pascal-page/createProbe';
 
 import { installFakeApi, type WireGraphDocument } from './fixtures/fakeApi';
@@ -75,6 +75,7 @@ const setCamera = async (page: Page, pos: Vec3, target: Vec3, fov: number | 'top
     [pos, target, fov] as const,
   );
   await page.waitForTimeout(2500); // máy quay trượt dần tới tư thế mới
+  await waitCameraStill(page, await canvasBox(page));
 };
 
 const extentOf = (fixture: Fixture) => {
@@ -149,14 +150,18 @@ test('C10 + C11 F1-ext: màu sàn theo lớp hoàn thiện + ảnh cạnh nhau v
   const s = box.height / 2 / (height * half); // điểm ảnh / m tại mặt sàn
   const px = (xMm: number, yMm: number): Pt => [box.width / 2 + (xMm / 1000 - ext.cx) * s, box.height / 2 + (yMm / 1000 - ext.cz) * s];
 
-  const masks = graph.furniture.map((f) => {
+  /* Che mọi item của cảnh trang dựng (đồ của bản vẽ + đồ bày tự sinh `DRESS-*` như thảm, chăn; cỡ
+     theo mẫu realism) chứ không chỉ `graph.furniture`: thảm/đồ bày nằm đè sàn làm lệch màu trung vị. */
+  const items = Object.values(toPascalScene(graph).scene.nodes).flatMap((n) =>
+    n.type === 'item' && n.asset?.dimensions ? [{ pos: n.position, yaw: n.rotation?.[1] ?? 0, dims: n.asset.dimensions }] : [],
+  );
+  const masks = items.map(({ pos, yaw, dims }) => {
     // Hộp bao trục của khung đồ đã xoay (K1) + 100 mm bóng/viền. Dùng hình tròn ngoại tiếp
     // thì che kín phòng nhỏ (phòng làm việc F1-ext ra 0 điểm ảnh).
-    const t = (f.rotationDeg * Math.PI) / 180;
-    const [hw, hd] = [(f.boundingBox.max.x - f.boundingBox.min.x) / 2, (f.boundingBox.max.y - f.boundingBox.min.y) / 2];
-    const rx = Math.abs(hw * Math.cos(t)) + Math.abs(hd * Math.sin(t)) + 100;
-    const ry = Math.abs(hw * Math.sin(t)) + Math.abs(hd * Math.cos(t)) + 100;
-    const { x, y } = f.centre;
+    const [hw, hd] = [(dims[0] * 1000) / 2, (dims[2] * 1000) / 2];
+    const rx = Math.abs(hw * Math.cos(yaw)) + Math.abs(hd * Math.sin(yaw)) + 100;
+    const ry = Math.abs(hw * Math.sin(yaw)) + Math.abs(hd * Math.cos(yaw)) + 100;
+    const [x, y] = [pos[0] * 1000, pos[2] * 1000];
     return [px(x - rx, y - ry), px(x + rx, y - ry), px(x + rx, y + ry), px(x - rx, y + ry)] as const;
   });
   const rooms = await Promise.all(
@@ -208,11 +213,12 @@ test('C10 + C11 F1-ext: màu sàn theo lớp hoàn thiện + ảnh cạnh nhau v
   const persp = await page.screenshot({ clip: box });
   fs.writeFileSync(`${EVIDENCE}/C11-pascal-overview.png`, persp);
 
-  // (b) — trang đăng nhập (máy quay của trang tự lái, không đặt được góc trên xuống).
+  // (b) — trang đăng nhập: từ 2354b28e là mặt bằng SVG (không còn canvas three.js), chụp khung hình đó.
   await page.goto('/login');
-  await page.locator('canvas').first().waitFor({ state: 'visible', timeout: 30_000 });
+  const plan = page.locator('.auth-plan-art');
+  await plan.waitFor({ state: 'visible', timeout: 30_000 });
   await page.waitForTimeout(5000);
-  const login = await page.locator('canvas').first().screenshot();
+  const login = await plan.screenshot();
   fs.writeFileSync(`${EVIDENCE}/C11-login-house.png`, login);
 
   await sideBySide(
@@ -225,7 +231,7 @@ test('C10 + C11 F1-ext: màu sàn theo lớp hoàn thiện + ảnh cạnh nhau v
   await sideBySide(
     [
       { png: top, label: 'Pascal (sau sửa) — nhìn từ trên' },
-      { png: login, label: 'Trang đăng nhập (góc cố định của trang)' },
+      { png: login, label: 'Trang đăng nhập (mặt bằng SVG)' },
     ],
     `${EVIDENCE}/SBS-top.png`,
   );

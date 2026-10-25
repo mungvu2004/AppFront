@@ -62,7 +62,7 @@ test('SCR-34 · FL-34L-U1 · UI verify real states (default, no match, category 
     // ModelLibraryToolbar.tsx:17,19; ModelLibrarySummary.tsx:14; useModelLibrary.ts:107-108. Correct = first letter capital (rule A6).
     await expect.soft(page.getByLabel('Tìm mẫu 3D', { exact: true }), 'search label capital').toBeVisible();
     await expect.soft(page.getByRole('combobox', { name: 'Danh mục', exact: true }), 'category label capital').toBeVisible();
-    await expect.soft(page.getByText('Mẫu 3D nặng', { exact: true }), 'heavy count label capital').toBeVisible();
+    await expect.soft(page.getByTestId('model-library-heavy-count'), 'heavy count on the status line').toBeVisible();
     // Labels of the detail panel (useModelLibrary.ts:108-109 fieldFileSize / fieldGroup), not the table headers.
     await rowNames(page).first().click();
     const aside = page.locator(`aside[aria-label="${DETAIL}"]`);

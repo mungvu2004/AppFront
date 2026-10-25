@@ -1,20 +1,26 @@
 /**
- * S-36 — view thuần của màn xem Spatial JSON.
+ * S-36 — view thuần của màn xem Spatial JSON (bản Z vòng 6, theo NGUYEN-TAC-BO-CUC, khuôn
+ * `VersionHistory`).
  *
- * Không import `src/api`, `src/store`, `src/domain` hay `src/lib/http` (R-60):
- * mọi thứ vào bằng props, nên story và test dựng được nó mà không cần một
- * provider nào.
+ * Không import `src/api`, `src/store`, `src/domain` hay `src/lib/http` (R-60): mọi thứ vào bằng
+ * props, nên story và test dựng được nó mà không cần provider nào.
  *
- * ## Bố cục ở 1440
+ * ## Ba câu của màn
  *
- * Thanh trên 56 · dải kiểm tra hợp lệ · cây trái 400 · nửa phải co giãn · chân
- * 32. Dưới 1024 chỉ một khung chiếm trọn chiều rộng — cây khi "Cây", khung JSON /
- * Xem trước khi "JSON và xem trước" — đó cũng là trạng thái "thu gọn" của A11, không phải một chế độ thứ hai.
+ * 1. Làm gì: `PageHead` — eyebrow "Bước 6 · Xuất", H1 "Xem dữ liệu không gian".
+ * 2. Trạng thái: chip kiểm tra schema (câu `validity.summary` của model, màu theo mức lỗi) + số
+ *    đối tượng thật (`countsLabel`) + cỡ tệp. Rỗng thì không có chip — chưa có gì để kiểm (B-V12-07).
+ * 3. Việc chính: MỘT nút chính ở `PageHead next` — "Tải xuống .json" khi nơi gọi cấp đường tải,
+ *    không thì "Sao chép nhánh đang chọn". Màn nằm ngoài sáu bước (`/data`) nên không có cổng
+ *    `FlowGate` sang bước sau.
  *
- * ## Màn này không có nút Lưu, và cũng không có nút Sửa
+ * ## Bố cục
  *
- * A7 nói không màn nào có nút lưu. S-36 đi xa hơn: nó chỉ đọc, nên không một ô
- * nhập nào ở đây ngoài ô tìm kiếm — thứ không sửa dữ liệu.
+ * Mỗi phần một `Section`: "Lỗi schema" (chỉ khi có lỗi, mỗi lỗi bấm được + lối "Mở lại từ quản lý
+ * tầng"), "Cấu trúc" (tìm + cây, rộng 400) và "Chi tiết" (JSON / Xem trước). Dưới 1024 chỉ một khung
+ * chiếm trọn chiều rộng, chọn bằng "Cây / JSON và xem trước" — trạng thái "thu gọn" của A11.
+ *
+ * Màn chỉ đọc: không nút Lưu, không nút Sửa (A7); ô duy nhất là ô tìm kiếm.
  */
 
 import {
@@ -25,16 +31,22 @@ import {
   Copy,
   Download,
   FileJson,
+  Lock,
   Search,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import { PageHead } from '@/components/shell/PageHead';
+import { Section } from '@/components/shell/Section';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { Input } from '@/components/ui/Input';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { cn } from '@/lib/utils';
 
 import { SpatialJsonDetail } from './SpatialJsonDetail';
 import { SpatialJsonTree } from './SpatialJsonTree';
@@ -45,6 +57,9 @@ const VIEW_MODE_OPTIONS: ReadonlyArray<{ readonly label: string; readonly value:
   { label: 'JSON và xem trước', value: 'raw' },
 ];
 
+const PAGE_EYEBROW = 'Bước 6 · Xuất';
+const PAGE_TITLE = 'Xem dữ liệu không gian';
+
 const EMPTY_TITLE = 'Chưa có dữ liệu không gian';
 const EMPTY_DESCRIPTION =
   'Bản vẽ này chưa được xử lý xong, nên chưa có tường, phòng hay đối tượng nào để xem. Xử lý bản vẽ của tầng rồi quay lại đây.';
@@ -52,191 +67,180 @@ const EMPTY_DESCRIPTION =
 const ERROR_TITLE = 'Không đọc được dữ liệu không gian';
 const FORBIDDEN_TITLE = 'Không có quyền xem dữ liệu';
 const REFRESHING_MESSAGE = 'Đang làm mới dữ liệu của bản vẽ này. Phần đang hiện vẫn đúng với lượt tải trước.';
+const REOPEN_LABEL = 'Mở lại từ quản lý tầng';
+const COPY_LABEL = 'Sao chép nhánh đang chọn';
 
-/** Chấm trạng thái của dải kiểm tra. Ba màu trạng thái, không màu thứ tư (A4). */
-function ValidityDot({ isValid }: { readonly isValid: boolean }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`h-2 w-2 shrink-0 rounded-full ${isValid ? 'bg-state-verified' : 'bg-state-violation'}`}
-    />
-  );
-}
-
-/** Tiêu đề trang ở mọi trạng thái, như các màn có h1 sẵn (BUG-454); lề 20 px như thanh công cụ. */
-const pageTitle = <h1 className="px-5 pt-4 text-[20px] font-semibold text-text-primary">Dữ liệu dự án</h1>;
+/** Thân `Section` giãn hết khung và cuộn bên trong; đầu khung giữ nguyên (khuôn VersionHistory). */
+const FILL_BODY =
+  'flex min-h-0 flex-col [&>div:last-child]:flex [&>div:last-child]:min-h-0 [&>div:last-child]:flex-1 [&>div:last-child]:flex-col';
 
 export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
   const selectedNode = model.nodes.find((node) => node.id === model.selectedNodeId) ?? null;
   // Rỗng thì chỉ một khung nói "chưa có dữ liệu" — khung JSON cạnh nó kể chuyện ngược lại (BUG-454).
   const isEmpty = model.state === 'empty';
+  const isLoading = model.state === 'loading';
   // Khổ hẹp + "JSON và xem trước": bỏ cây, chỉ còn khung nội dung (BUG-450). Khổ rộng luôn có cả hai.
   const isRawOnly = model.viewMode === 'raw' && !isEmpty && model.isNarrow;
+  const onDownload = model.canDownload ? actions.onDownload : null;
+  const { validity } = model;
+
+  const status =
+    model.state === 'error' || model.state === 'forbidden' || isLoading ? null : (
+      <>
+        {/* Chưa có dữ liệu thì chưa có gì để kiểm: "hợp lệ — 0 lỗi" lúc ấy là nói thừa (B-V12-07). */}
+        {isEmpty ? <Badge variant="neutral">Chưa có dữ liệu</Badge> : (
+          <Badge variant={validity.isValid ? 'verified' : validity.criticalCount > 0 ? 'violation' : 'attention'}>
+            {validity.summary}
+          </Badge>
+        )}
+        <span className="tabular-nums">{model.countsLabel}</span>
+        <span className="whitespace-nowrap font-mono text-[13px] text-text-muted">{model.sizeLabel}</span>
+        {/* Phản hồi sau "Sao chép nhánh" cạnh nút chính, thấy được ở mọi khổ (BUG-719). */}
+        {model.copyNotice === null ? null : (
+          <span role="status" className="text-[13px] text-text-secondary">
+            {model.copyNotice}
+          </span>
+        )}
+      </>
+    );
+
+  const copyButton = (variant: 'primary' | 'secondary') => (
+    <Button variant={variant} size="sm" iconBefore={<Copy size={16} aria-hidden="true" />} onClick={actions.onCopyBranch}>
+      {COPY_LABEL}
+    </Button>
+  );
+
+  // Một nút chính: tải JSON khi có đường tải, không thì sao chép.
+  const next =
+    // Rỗng: chưa có gì để chép hay tải — lối ra nằm ngay trong khung rỗng, không nút chính chết ở đầu trang.
+    model.state === 'error' || model.state === 'forbidden' || isEmpty ? undefined : onDownload !== null ? (
+      <>
+        {copyButton('secondary')}
+        <Button variant="primary" size="sm" iconBefore={<Download size={16} aria-hidden="true" />} onClick={onDownload}>
+          Tải xuống .json
+        </Button>
+      </>
+    ) : (
+      copyButton('primary')
+    );
+
+  const withHeader = (content: ReactNode) => (
+    <div className="flex h-full flex-col bg-bg-app">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1344px] flex-1 flex-col px-4 pb-6 pt-6 xl:px-8">
+        <PageHead eyebrow={PAGE_EYEBROW} next={next} status={status} title={PAGE_TITLE} />
+        {content}
+      </div>
+    </div>
+  );
 
   if (model.state === 'forbidden') {
-    return (
-      <div className="flex h-full flex-col bg-bg-app">
-        {pageTitle}
-        <div className="flex flex-1 items-center justify-center p-6">
-          <EmptyState
-            icon={<div className="h-8 w-8 rounded-full bg-state-attention-tint" aria-hidden="true" />}
-            title={FORBIDDEN_TITLE}
-            description={model.forbiddenMessage ?? FORBIDDEN_TITLE}
-          />
-        </div>
-      </div>
+    return withHeader(
+      <EmptyState
+        icon={<Lock aria-hidden="true" />}
+        title={FORBIDDEN_TITLE}
+        description={model.forbiddenMessage ?? FORBIDDEN_TITLE}
+      />,
     );
   }
 
   if (model.state === 'error') {
-    return (
-      <div className="flex h-full flex-col bg-bg-app">
-        {pageTitle}
-        <div className="flex flex-1 items-center justify-center p-6">
-          <EmptyState
-            icon={<div className="h-8 w-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
-            title={ERROR_TITLE}
-            description={model.errorMessage ?? ERROR_TITLE}
-            action={{ label: 'Mở lại từ quản lý tầng', onClick: actions.onReopenFloors }}
-          />
-        </div>
-      </div>
+    return withHeader(
+      <InlineAlert
+        level="violation"
+        title={ERROR_TITLE}
+        message={model.errorMessage ?? ERROR_TITLE}
+        action={{ label: REOPEN_LABEL, onClick: actions.onReopenFloors }}
+      />,
     );
   }
 
-  return (
-    <div className="flex h-full flex-col bg-bg-app">
-      {pageTitle}
-      {/* Dưới `sm` hàng công cụ xuống dòng thay vì đẩy trang cuộn ngang: ô tìm co lại, cụm mở/thu/
-          kiểu xem/sao chép sang hàng hai. */}
-      <header className="flex min-h-14 shrink-0 flex-wrap items-center gap-3 px-5 py-2">
-        <div className="min-w-[180px] flex-1 sm:w-[280px] sm:flex-none">
-          <Input
-            aria-label="Tìm theo khoá hoặc giá trị"
-            placeholder="Tìm theo khoá hoặc giá trị"
-            value={model.searchQuery}
-            prefix={<Search size={16} aria-hidden="true" />}
-            onChange={(event) => {
-              actions.onSearchChange(event.target.value);
-            }}
-          />
-        </div>
-
-        {model.matchLabel !== null ? (
-          <span className="text-[13px] leading-5 tabular-nums text-text-secondary" aria-live="polite">
-            {model.matchLabel}
-          </span>
-        ) : null}
-
-        <IconButton
-          icon={<ChevronUp size={18} aria-hidden="true" />}
-          aria-label="Kết quả trước"
-          size="sm"
-          onClick={actions.onPreviousMatch}
-        />
-        <IconButton
-          icon={<ChevronDown size={18} aria-hidden="true" />}
-          aria-label="Kết quả sau"
-          size="sm"
-          onClick={actions.onNextMatch}
-        />
-
-        <span className="flex-1" />
-
-        {/* Không có cây ("Thô") thì mở rộng/thu gọn không có gì để tác động (RV2#6). */}
-        {isRawOnly ? null : (
+  const treeSection = isRawOnly ? null : (
+    <Section
+      aria-label="Cấu trúc dự án"
+      flush
+      title="Cấu trúc"
+      actions={
+        isEmpty ? undefined : (
           <>
-            <Button variant="ghost" size="sm" iconBefore={<ChevronsUpDown size={16} aria-hidden="true" />} onClick={actions.onExpandAll}>
-              Mở rộng tất cả
-            </Button>
-            <Button variant="ghost" size="sm" iconBefore={<ChevronsDownUp size={16} aria-hidden="true" />} onClick={actions.onCollapseAll}>
-              Thu gọn tất cả
-            </Button>
+            <IconButton
+              icon={<ChevronsUpDown size={16} aria-hidden="true" />}
+              aria-label="Mở rộng tất cả"
+              // Đầu khung cao 56 như khung "Chi tiết": nút 32 không đẩy đầu khung lên 64.
+              className="-my-2"
+              size="sm"
+              tooltip
+              onClick={actions.onExpandAll}
+            />
+            <IconButton
+              icon={<ChevronsDownUp size={16} aria-hidden="true" />}
+              aria-label="Thu gọn tất cả"
+              // Đầu khung cao 56 như khung "Chi tiết": nút 32 không đẩy đầu khung lên 64.
+              className="-my-2"
+              size="sm"
+              tooltip
+              onClick={actions.onCollapseAll}
+            />
           </>
-        )}
-
-        {/* Một bộ chuyển duy nhất: khổ rộng luôn có cây bên trái và tab JSON / Xem trước bên phải, nên
-            không cần bộ thứ hai; chỉ khổ hẹp (một khung) mới phải chọn giữa cây và nội dung. */}
-        {model.isNarrow ? (
-          <SegmentedControl
-            aria-label="Cách hiện cấu trúc"
-            options={[...VIEW_MODE_OPTIONS]}
-            value={model.viewMode}
-            onChange={actions.onChangeViewMode}
-          />
-        ) : null}
-
-        <Button variant="ghost" size="sm" iconBefore={<Copy size={16} aria-hidden="true" />} onClick={actions.onCopyBranch}>
-          Sao chép nhánh đang chọn
-        </Button>
-      </header>
-
-      {/* Chưa có dữ liệu thì chưa có gì để kiểm: "hợp lệ — 0 lỗi" lúc ấy là nói thừa (B-V12-07). */}
-      {model.state === 'empty' || model.state === 'loading' ? null : (
-        <div className="flex shrink-0 items-center gap-2 px-5 pb-3">
-          <ValidityDot isValid={model.validity.isValid} />
-          <p className="text-[13px] leading-[18px] text-text-secondary">{model.validity.summary}</p>
+        )
+      }
+      className={cn('min-w-0 overflow-hidden', FILL_BODY, isEmpty ? 'w-full self-start' : model.isNarrow ? 'flex-1' : 'w-[400px] shrink-0')}
+    >
+      {isEmpty ? null : (
+        <div className="flex shrink-0 items-center gap-2 border-b border-border-default px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <Input
+              aria-label="Tìm theo khoá hoặc giá trị"
+              placeholder="Tìm theo khoá hoặc giá trị"
+              value={model.searchQuery}
+              prefix={<Search size={16} aria-hidden="true" />}
+              onChange={(event) => {
+                actions.onSearchChange(event.target.value);
+              }}
+            />
+          </div>
+          {model.matchLabel !== null ? (
+            <span className="whitespace-nowrap text-[13px] tabular-nums text-text-secondary" aria-live="polite">
+              {model.matchLabel}
+            </span>
+          ) : null}
+          <IconButton icon={<ChevronUp size={18} aria-hidden="true" />} aria-label="Kết quả trước" size="sm" onClick={actions.onPreviousMatch} />
+          <IconButton icon={<ChevronDown size={18} aria-hidden="true" />} aria-label="Kết quả sau" size="sm" onClick={actions.onNextMatch} />
         </div>
       )}
-
-      {model.validity.issues.length > 0 ? (
-        <ul className="mb-3 flex shrink-0 flex-col gap-1 px-5">
-          {model.validity.issues.map((issue) => (
-            <li key={issue.id}>
-              <button
-                type="button"
-                className="flex w-full items-baseline gap-3 rounded-lg bg-bg-sunken px-3 py-2 text-left hover:bg-bg-hover"
-                onClick={() => {
-                  actions.onSelectIssue(issue.path);
-                }}
-              >
-                <code className="shrink-0 font-mono text-[13px] leading-5 text-text-primary">{issue.path}</code>
-                <span className="text-[13px] leading-[18px] text-text-secondary">{issue.problem}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
-      {model.isRefreshing ? (
-        <div className="mb-3 shrink-0 px-5">
-          <InlineAlert level="attention" message={REFRESHING_MESSAGE} />
-        </div>
-      ) : null}
-
-      <div className="flex min-h-0 flex-1 gap-3 px-5 pb-3">
-        {/* Dưới 1024 chỉ có chỗ cho một khung: "Thô" đổi cây lấy khung JSON / Xem trước (BUG-450). */}
-        {isRawOnly ? null : (
-          <section
-            aria-label="Cấu trúc dự án"
-            className={`min-h-0 overflow-auto rounded-xl bg-bg-surface ${
-              model.isNarrow || isEmpty ? 'flex-1' : 'w-[400px] shrink-0'
-            }`}
-          >
-            {model.state === 'loading' ? (
-              <div className="p-5">
-                <Skeleton preset="property-panel" />
-              </div>
-            ) : model.state === 'empty' ? (
-              <div className="flex h-full items-center justify-center p-5">
-                <EmptyState
-                  icon={<FileJson aria-hidden="true" />}
-                  title={EMPTY_TITLE}
-                  description={EMPTY_DESCRIPTION}
-                />
-              </div>
-            ) : (
-              <SpatialJsonTree
-                nodes={model.nodes}
-                selectedNodeId={model.selectedNodeId}
-                onToggle={actions.onToggleNode}
-                onSelect={actions.onSelectNode}
-              />
-            )}
-          </section>
+      <div className="min-h-0 flex-1 overflow-auto">
+        {isLoading ? (
+          <div className="p-5">
+            <Skeleton preset="property-panel" />
+          </div>
+        ) : isEmpty ? (
+          <div className="flex items-center justify-center px-5 py-12">
+            <EmptyState
+              icon={<FileJson aria-hidden="true" />}
+              title={EMPTY_TITLE}
+              description={EMPTY_DESCRIPTION}
+              action={{ label: REOPEN_LABEL, onClick: actions.onReopenFloors }}
+            />
+          </div>
+        ) : (
+          <SpatialJsonTree
+            nodes={model.nodes}
+            selectedNodeId={model.selectedNodeId}
+            onToggle={actions.onToggleNode}
+            onSelect={actions.onSelectNode}
+          />
         )}
+      </div>
+    </Section>
+  );
 
-        {isEmpty || (model.isNarrow && !isRawOnly) ? null : (
+  const detailSection =
+    isEmpty || (model.isNarrow && !isRawOnly) ? null : (
+      <Section
+        flush
+        title="Chi tiết"
+        className={cn('min-w-0 flex-1 overflow-hidden', FILL_BODY)}
+      >
+        <div className="flex min-h-0 flex-1 flex-col px-5 py-4">
           <SpatialJsonDetail
             activeTabId={model.activeTabId}
             onChangeTab={actions.onChangeTab}
@@ -244,33 +248,59 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
             rawText={model.rawText}
             selectedNode={selectedNode}
           />
-        )}
-      </div>
+        </div>
+      </Section>
+    );
 
-      <footer className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-4 px-5 pb-3">
-        {model.state === 'loading' ? null : (
-          <span className="whitespace-nowrap font-mono text-[13px] leading-5 text-text-secondary">{model.sizeLabel}</span>
-        )}
-        {model.state === 'loading' ? null : (
-          <span className="text-[13px] leading-[18px] text-text-muted">{model.countsLabel}</span>
-        )}
-        {model.copyNotice === null ? null : (
-          <span role="status" className="text-[13px] leading-[18px] text-text-secondary">
-            {model.copyNotice}
-          </span>
-        )}
-        <span className="flex-1" />
-        {model.canDownload && actions.onDownload !== null ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            iconBefore={<Download size={16} aria-hidden="true" />}
-            onClick={actions.onDownload}
-          >
-            Tải xuống .json
-          </Button>
-        ) : null}
-      </footer>
-    </div>
+  return withHeader(
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      {model.isRefreshing ? <InlineAlert level="attention" message={REFRESHING_MESSAGE} /> : null}
+
+      {/* Lỗi đặt cạnh dữ liệu: mỗi lỗi bấm được để tới nút cây của nó, cộng lối mở lại bản vẽ. */}
+      {validity.issues.length > 0 ? (
+        <Section
+          flush
+          title="Lỗi schema"
+          actions={
+            <Button variant="ghost" size="sm" onClick={actions.onReopenFloors}>
+              {REOPEN_LABEL}
+            </Button>
+          }
+          className="shrink-0"
+        >
+          <ul className="flex max-h-[160px] flex-col overflow-auto py-1">
+            {validity.issues.map((issue) => (
+              <li key={issue.id}>
+                <button
+                  type="button"
+                  className="flex w-full items-baseline gap-3 px-5 py-2 text-left hover:bg-bg-hover focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+                  onClick={() => {
+                    actions.onSelectIssue(issue.path);
+                  }}
+                >
+                  <code className="shrink-0 font-mono text-[13px] leading-5 text-text-primary">{issue.path}</code>
+                  <span className="text-[13px] leading-[18px] text-text-secondary">{issue.problem}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
+      {/* Khổ hẹp chỉ có chỗ cho một khung: chọn giữa cây và nội dung (BUG-450). */}
+      {model.isNarrow && !isEmpty ? (
+        <SegmentedControl
+          aria-label="Cách hiện cấu trúc"
+          options={[...VIEW_MODE_OPTIONS]}
+          value={model.viewMode}
+          onChange={actions.onChangeViewMode}
+        />
+      ) : null}
+
+      <div className="flex min-h-0 flex-1 gap-6">
+        {treeSection}
+        {detailSection}
+      </div>
+    </div>,
   );
 }

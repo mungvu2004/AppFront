@@ -13,6 +13,7 @@
  * điểm dừng nào vào thứ tự Tab.
  */
 
+import { Section } from '@/components/shell/Section';
 import { lowerFirst } from '@/lib/format/sentence';
 import { NumericField } from '@/components/ui/NumericField';
 import { Toggle } from '@/components/ui/Toggle';
@@ -50,19 +51,14 @@ export function RuleSettingsGroupCard({
   onChangeThreshold,
 }: RuleSettingsGroupCardProps) {
   return (
-    <section
+    // MỘT khung cho mỗi nhóm (NGUYEN-TAC-BO-CUC §2): tên nhóm + công tắc tổng ở đầu khung.
+    <Section
       id={sectionId}
       tabIndex={-1}
-      aria-labelledby={`${sectionId}-title`}
-      className="flex scroll-mt-4 flex-col gap-4 rounded-sm border border-border-default bg-bg-surface p-4"
-    >
-      <header className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-col gap-1">
-          <h3 className="text-base font-semibold text-text-primary" id={`${sectionId}-title`}>
-            {group.label}
-          </h3>
-          <p className="text-sm text-text-secondary">{group.description}</p>
-        </div>
+      aria-label={group.label}
+      className="scroll-mt-4"
+      title={group.label}
+      actions={
         <Toggle
           aria-label={`Bật hoặc tắt cả nhóm: ${lowerFirst(group.label)}`}
           checked={group.enabled}
@@ -71,8 +67,9 @@ export function RuleSettingsGroupCard({
             onToggleGroup(group.group, checked);
           }}
         />
-      </header>
-
+      }
+    >
+      <p className="mb-2 text-sm text-text-secondary">{group.description}</p>
       <div className="flex flex-col">
         {group.rows.map((row) => (
           <RuleSettingsRuleRow
@@ -87,7 +84,7 @@ export function RuleSettingsGroupCard({
           />
         ))}
       </div>
-    </section>
+    </Section>
   );
 }
 
@@ -111,20 +108,10 @@ export function RuleSettingsGeneralThresholdsCard({
   onChangeGeneralThreshold,
 }: RuleSettingsGeneralThresholdsCardProps) {
   return (
-    <section
-      id={sectionId}
-      tabIndex={-1}
-      aria-labelledby={`${sectionId}-title`}
-      className="flex scroll-mt-4 flex-col gap-4 rounded-sm border border-border-default bg-bg-surface p-4"
-    >
-      <div className="flex flex-col gap-1">
-        <h3 className="text-base font-semibold text-text-primary" id={`${sectionId}-title`}>
-          Ngưỡng chung
-        </h3>
-        <p className="text-sm text-text-secondary">
-          Dung sai hình học dùng chung cho nhiều luật trong bộ này.
-        </p>
-      </div>
+    <Section id={sectionId} tabIndex={-1} aria-label="Ngưỡng chung" className="scroll-mt-4" title="Ngưỡng chung">
+      <p className="mb-4 text-sm text-text-secondary">
+        Dung sai hình học dùng chung cho nhiều luật trong bộ này.
+      </p>
 
       {thresholds.length === 0 ? (
         <p className="text-sm text-text-secondary">Chưa có ngưỡng chung nào để chỉnh.</p>
@@ -150,6 +137,6 @@ export function RuleSettingsGeneralThresholdsCard({
           ))}
         </div>
       )}
-    </section>
+    </Section>
   );
 }

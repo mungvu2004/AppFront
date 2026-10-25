@@ -117,7 +117,7 @@ test.describe('U04 UI verify — SCR-22 overlay flows (QA-04c P7)', () => {
         expect.soft(seen).toEqual(['1440: two frames', '1920: two frames', '1024: swipe fallback', '768: swipe fallback']);
       });
 
-      await test.step('[22-F-011] ⚑ below 1024 the panel sits under the canvas (max 45 % height) and the canvas is not 0 px (QA-04 B-3)', async () => {
+      await test.step('[22-F-011] ⚑ below 1024 the panel sits above the canvas (max 45 % height) and the canvas is not 0 px (QA-04 B-3)', async () => {
         const rows: string[] = [];
         for (const vp of UI_VIEWPORTS) {
           await page.setViewportSize(vp);
@@ -130,10 +130,10 @@ test.describe('U04 UI verify — SCR-22 overlay flows (QA-04c P7)', () => {
           expect.soft(canvas.height, `${String(vp.width)}: the canvas keeps a real height`).toBeGreaterThan(150);
           expect.soft(canvas.width, `${String(vp.width)}: the canvas keeps a real width`).toBeGreaterThan(150);
           if (stacked) {
-            expect.soft(side.y, `${String(vp.width)}: panel under the canvas`).toBeGreaterThanOrEqual(canvas.y + canvas.height - 1);
+            expect.soft(side.y + side.height, `${String(vp.width)}: panel above the canvas (S-28 v6)`).toBeLessThanOrEqual(canvas.y + 1);
             expect.soft(side.height, `${String(vp.width)}: panel ≤ 45 % of the viewport`).toBeLessThanOrEqual(vp.height * 0.45 + 1);
           } else {
-            expect.soft(side.x, `${String(vp.width)}: panel beside the canvas`).toBeGreaterThanOrEqual(canvas.x + canvas.width - 1);
+            expect.soft(side.x + side.width, `${String(vp.width)}: panel left of the canvas (S-28 v6)`).toBeLessThanOrEqual(canvas.x + 1);
           }
         }
         note(`22-F-011: ${rows.join(' | ')}`);

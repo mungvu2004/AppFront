@@ -202,7 +202,8 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
 
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
-      {floorNav !== undefined && <QcFloorNav {...floorNav} layer="scale" />}
+      {/* Panel phải đã có H1 thấy được ("Đặt tỷ lệ bản vẽ"): bỏ H1 ẩn của nav để trang chỉ một H1. */}
+      {floorNav !== undefined && <QcFloorNav {...floorNav} layer="scale" titled />}
       <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch md:overflow-hidden">
         <div className={cn('flex min-w-0 flex-1 flex-col xl:order-2', QC_BODY_CLASS)}>
           {/* Xung đột 409 / tầng khoá lưu: có "Tải lại", không thì mọi lượt áp sau hỏng im lặng (BUG-598). */}

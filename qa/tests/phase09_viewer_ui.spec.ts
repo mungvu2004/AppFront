@@ -17,7 +17,7 @@ test('SCR-25..32 · FL-9V-U1 · viewer · verifyUi 4 khổ trạng thái chỉ �
       await uiState(page, '9V-B-060', 'measure_pin_blocked', openAt(P.measure(projectId), (p) => p.getByRole('alert').filter({ hasText: 'Bạn chỉ có quyền xem dự án này' })));
     });
     await test.step('[9V-C-060] viewer rule_report 4 kho', async () => {
-      await uiState(page, '9V-C-060', 'rule_report', openAt(P.rules(projectId), (p) => p.getByRole('heading', { name: 'Quy chuẩn' })));
+      await uiState(page, '9V-C-060', 'rule_report', openAt(P.rules(projectId), (p) => p.getByRole('heading', { name: 'Kiểm tra quy chuẩn' })));
     });
     await test.step('[9V-D-060] viewer rule_settings_readonly 4 kho', async () => {
       await uiState(page, '9V-D-060', 'rule_settings_readonly', openAt(P.ruleSettings(projectId), (p) => p.getByText('Chỉ quản trị viên đổi được bộ luật; bạn đang xem ở quyền chỉ đọc.')));

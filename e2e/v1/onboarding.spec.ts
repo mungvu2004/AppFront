@@ -16,7 +16,7 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
 const skipButton = (page: Page) => page.getByRole('button', { name: 'Bỏ qua', exact: true });
 const dashboardHeading = (page: Page) =>
-  page.getByRole('heading', { name: 'Dự án của tôi', exact: true });
+  page.getByRole('heading', { name: 'Chọn dự án để làm tiếp', exact: true });
 
 test('"Bỏ qua" đưa người dùng mới tới danh sách dự án', async ({ page }) => {
   await page.goto(ROUTES.onboarding);

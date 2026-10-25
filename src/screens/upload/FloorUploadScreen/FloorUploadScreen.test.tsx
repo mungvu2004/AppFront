@@ -60,7 +60,7 @@ import {
 import { FloorUploadScreenView } from './FloorUploadScreen';
 import { FloorUploadScreenContainer } from './FloorUploadScreen.container';
 import { DROP_ZONE_TEST_ID, FILE_INPUT_TEST_ID } from './FloorUploadDropZone';
-import { BLOCK_NOTICE_TEST_ID, COUNTER_NUMBER_TEST_ID } from './FloorUploadFooter';
+import { BLOCK_NOTICE_TEST_ID, COUNTER_NUMBER_TEST_ID, GATE_PANEL_ID } from './FloorUploadGatePanel';
 import { createFloorUploadGateway, type FloorUploadGateway } from './floorUploadGateway';
 import { blockedScenario, scenarioFor, trayScenario } from './FloorUploadScreen.stories';
 
@@ -874,7 +874,7 @@ function preferReducedMotion(): void {
   });
 }
 
-describe('FloorUploadFooter — bộ đếm "3 / 4" chạy số khi đổi', () => {
+describe('FloorUploadGatePanel — bộ đếm "3 / 4" chạy số khi đổi', () => {
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -994,31 +994,18 @@ describe('FloorUploadScreenView — QA-03e', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Chọn tệp' }));
   });
 
-  // FL-11F-U1 / 11F-F-001: Toast.tsx:224 lifts toasts above `[data-sticky-footer]`; without it the toast covers "Bắt đầu xử lý".
-  it('[11F-F-001] chân trang dính mang data-sticky-footer, cả khi blockNotice hiện (toast đứng trên nó)', () => {
+  // S-08 (Z): chân trang dính đã bỏ — nút và lời chặn nằm trong khung "Điều kiện để xử lý" cạnh danh sách.
+  it('nút "Bắt đầu xử lý" và lời chặn nằm trong khung điều kiện, cùng một nguồn với thanh bước', () => {
     const view = renderWithProviders(<FloorUploadScreenView {...trayScenario()} />);
-    expect(screen.getByRole('button', { name: 'Bắt đầu xử lý' }).closest('[data-sticky-footer]')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Bắt đầu xử lý' }).closest(`#${GATE_PANEL_ID}`)).not.toBeNull();
     view.unmount();
     renderWithProviders(<FloorUploadScreenView {...blockedScenario(2)} />);
     const notice = screen.getByTestId(BLOCK_NOTICE_TEST_ID);
-    expect(notice.closest('[data-sticky-footer]')).not.toBeNull();
-  });
-
-  // BUG-526: the sticky footer covered the focused control, and the last card's menu.
-  it('tiêu điểm rơi dưới chân trang dính thì trang cuộn lên đủ chỗ (BUG-526)', () => {
-    renderWithProviders(<FloorUploadScreenView {...trayScenario()} />);
-    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
-    const footer = screen.getByRole('button', { name: 'Bắt đầu xử lý' }).closest('.sticky');
-    const trash = screen.getByRole('button', { name: 'Xoá bản vẽ ban-ve-khong-ro-tang.dwg' });
-
-    expect(footer).not.toBeNull();
-    vi.spyOn(footer as HTMLElement, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 700, 800, 100));
-    vi.spyOn(trash, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 720, 32, 32));
-
-    act(() => trash.focus());
-
-    expect(scrollBy).toHaveBeenCalledTimes(1);
-    expect((scrollBy.mock.calls[0]?.[1] as number | undefined) ?? 0).toBeGreaterThanOrEqual(52);
+    const panel = notice.closest(`#${GATE_PANEL_ID}`);
+    expect(panel).not.toBeNull();
+    // Chưa đủ điều kiện: nút phụ, bấm được, tiêu đề khung đếm n/3.
+    expect(within(panel as HTMLElement).getByRole('heading', { level: 2 })).toHaveTextContent(/^Điều kiện để xử lý · [0-2]\/3$/u);
+    expect(screen.getByRole('button', { name: 'Bắt đầu xử lý' })).toBeEnabled();
   });
 
   // R1-02: a Select option (portal) took focus on mousedown, the page scrolled mid-click and the
@@ -1028,10 +1015,8 @@ describe('FloorUploadScreenView — QA-03e', () => {
     const onReassign = vi.fn();
     renderWithProviders(<FloorUploadScreenView {...trayScenario()} onReassign={onReassign} />);
     const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
-    const footer = screen.getByRole('button', { name: 'Bắt đầu xử lý' }).closest('.sticky') as HTMLElement;
     const trayRow = screen.getByRole('button', { name: 'Xoá bản vẽ ban-ve-khong-ro-tang.dwg' }).closest('li') as HTMLElement;
 
-    vi.spyOn(footer, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 700, 800, 100));
     vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 720, 32, 32));
 
     fireEvent.click(within(trayRow).getByRole('combobox', { name: 'Gán cho tầng' }));

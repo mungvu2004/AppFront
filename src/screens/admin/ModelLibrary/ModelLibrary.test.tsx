@@ -438,12 +438,12 @@ describe('R-72 — expectAccessible trên cây render thật', () => {
  * ========================================================================== */
 
 describe('A6 — đường dẫn trang viết hoa chữ đầu như màn quản trị người dùng (lỗi B-V12b-04)', () => {
-  it('không còn breadcrumb lặp thanh tab quản trị; h1 là "Thư viện mẫu 3D"', async () => {
+  it('không còn breadcrumb lặp thanh tab quản trị; h1 là "Quản lý thư viện mẫu 3D"', async () => {
     const ModelLibraryView = await loadModelLibraryView();
     renderWithProviders(<ModelLibraryView {...buildModelLibraryProps('success')} />);
 
     expect(screen.queryByRole('navigation', { name: 'Đường dẫn trang' })).toBeNull();
-    expect(screen.getByRole('heading', { level: 1, name: 'Thư viện mẫu 3D' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Quản lý thư viện mẫu 3D' })).toBeInTheDocument();
   });
 });
 
@@ -659,13 +659,13 @@ describe('[34L-B-004] lỗi đọc thư viện có nút "Thử lại" gọi retr
 });
 
 describe('[34L-C-017] nhãn chữ hoa đầu (luật A6, BUG-595)', () => {
-  it('thanh công cụ: "Tìm mẫu 3D"; dải tóm tắt: "Mẫu 3D nặng"', async () => {
+  it('thanh công cụ: "Tìm mẫu 3D"; dòng trạng thái: "mẫu nặng"', async () => {
     const ModelLibraryView = await loadModelLibraryView();
 
     renderWithProviders(<ModelLibraryView {...buildModelLibraryProps('success')} />);
 
     expect(screen.getByLabelText('Tìm mẫu 3D')).toBeTruthy();
-    expect(screen.getByText('Mẫu 3D nặng')).toBeTruthy();
+    expect(screen.getByTestId('model-library-heavy-count')).toBeTruthy();
   });
 
   it('nhãn trường chi tiết "Dung lượng" và "Nhóm"', async () => {
@@ -677,14 +677,14 @@ describe('[34L-C-017] nhãn chữ hoa đầu (luật A6, BUG-595)', () => {
 });
 
 describe('[34L-E-009] màn có đúng một h1 ở mọi trạng thái đã dựng khung', () => {
-  it.each(['success', 'loading', 'error', 'empty', 'forbidden'] as const)('state %s: một h1 "Thư viện mẫu 3D"', async (state) => {
+  it.each(['success', 'loading', 'error', 'empty', 'forbidden'] as const)('state %s: một h1 "Quản lý thư viện mẫu 3D"', async (state) => {
     const ModelLibraryView = await loadModelLibraryView();
 
     renderWithProviders(<ModelLibraryView {...buildModelLibraryProps(state)} />);
     const headings = screen.getAllByRole('heading', { level: 1 });
 
     expect(headings).toHaveLength(1);
-    expect(headings[0]?.textContent).toBe('Thư viện mẫu 3D');
+    expect(headings[0]?.textContent).toBe('Quản lý thư viện mẫu 3D');
   });
 });
 

@@ -35,7 +35,7 @@ import type { SevenStateScenario } from '@/lib/testing/sevenStateScenarios';
 import { STRINGS } from '@/screens/onboarding/WelcomeScreen/useWelcomeScreen';
 
 import { EditorTour } from './EditorTour';
-import { useEditorTour, TOUR_STEP_IDS, TOUR_STEPS } from './useEditorTour';
+import { findExportButton, useEditorTour, TOUR_STEP_IDS, TOUR_STEPS } from './useEditorTour';
 import type {
   EditorTourProps,
   TourRect,
@@ -1059,5 +1059,27 @@ describe('V-11 — ≤1024 (thu gọn) thẻ là thẻ nổi nhỏ góc phải d
     expect(card?.className).not.toContain('w-full');
     const current = screen.getAllByRole('button', { name: /^Tới bước/ })[1];
     expect(current?.querySelector('span')?.className).toContain('bg-accent');
+  });
+});
+
+describe('neo bước "Lấy tệp mang đi" — không nhận nhầm nút "Đăng xuất"', () => {
+  const host = (html: string): HTMLElement => {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div;
+  };
+
+  it('chỉ có nút "Đăng xuất" ở header thì không có neo', () => {
+    expect(findExportButton(host('<header><button aria-label="Đăng xuất"></button></header>'))).toBeNull();
+  });
+
+  it('nút mang data-tour-anchor thắng, dù "Đăng xuất" đứng trước trong DOM', () => {
+    const root = host('<button aria-label="Đăng xuất"></button><button data-tour-anchor="exportResult">Tải về</button>');
+    expect(findExportButton(root)?.textContent).toBe('Tải về');
+  });
+
+  it('không có neo thì nhận nút có nhãn BẮT ĐẦU bằng "Xuất"', () => {
+    const root = host('<button>Đăng xuất</button><button> Xuất .glb</button>');
+    expect(findExportButton(root)?.textContent).toBe(' Xuất .glb');
   });
 });

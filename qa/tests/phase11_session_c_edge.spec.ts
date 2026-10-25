@@ -48,7 +48,7 @@ test.describe('SCR-38 / SCR-01 session edge (C)', () => {
 
       await test.step('[11U-A-301] denied page text', async () => {
         await b.goto(ROUTES.dashboard);
-        await expect(b.getByRole('heading', { level: 1, name: 'Dự án của tôi', exact: true })).toBeVisible();
+        await expect(b.getByRole('heading', { level: 1, name: 'Chọn dự án để làm tiếp', exact: true })).toBeVisible();
         await a.goto(ROUTES.accessDenied);
         await expect(a.getByText(DENIED, { exact: true })).toBeVisible();
         // AD:136 the email is a sibling <span> of the label span: assert on their shared parent.
@@ -77,7 +77,7 @@ test.describe('SCR-38 / SCR-01 session edge (C)', () => {
       await test.step('[11U-A-302] back to the project list keeps the session', async () => {
         await back.click();
         await soft.poll(() => pathname(a.url())).toBe(ROUTES.dashboard);
-        await soft(a.getByRole('heading', { level: 1, name: 'Dự án của tôi', exact: true })).toBeVisible();
+        await soft(a.getByRole('heading', { level: 1, name: 'Chọn dự án để làm tiếp', exact: true })).toBeVisible();
         await captureEvidence(a, 'E11_11U-A-302_home.png');
         await a.goBack();
         await soft(a.getByText(DENIED, { exact: true })).toBeVisible();

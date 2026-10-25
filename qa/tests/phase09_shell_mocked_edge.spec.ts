@@ -29,7 +29,7 @@ test('SCR-05 · FL-9P-X1 · viewer · [mocked response] loading trước forbidd
     });
     await test.step('[9P-B-002] skeleton trước, dòng vai chưa hiện; sau khi trả về mới có dòng vai', async () => {
       await page.goto('/');
-      await expect(page.getByRole('heading', { name: 'Dự án của tôi', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Chọn dự án để làm tiếp', exact: true })).toBeVisible();
       await expect(page.locator('main .animate-pulse').first()).toBeVisible(); // UPD:402 loading wins
       await expect.poll(() => held, { message: 'project-summaries request is being held' }).toBe(true);
       await expect.soft(page.getByText(VIEWER_LINE, { exact: true })).toHaveCount(0);

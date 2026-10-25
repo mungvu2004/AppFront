@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useState } from 'react';
 import { cn } from '../../lib/utils';
 
 // ─── Avatar.Root ──────────────────────────────────────────────────────────────
@@ -19,6 +19,9 @@ const AvatarRoot = forwardRef<HTMLDivElement, AvatarProps>(
 
     // Initials: max 2 characters, shown as given — callers pass `initialsOf()` (lib/format/initials), already upper-case (A6)
     const displayInitials = initials?.substring(0, 2) ?? '';
+    // Ảnh hỏng (URL hết hạn) thì về chữ cái đầu, không để biểu tượng ảnh vỡ + alt bị cắt.
+    const [failedSrc, setFailedSrc] = useState<string | null>(null);
+    const showImage = Boolean(src) && failedSrc !== src;
 
     return (
       <div ref={ref} className={cn('relative inline-block shrink-0', sizeClass, className)}>
@@ -28,8 +31,9 @@ const AvatarRoot = forwardRef<HTMLDivElement, AvatarProps>(
             presence && 'ring-2 ring-accent ring-offset-2 ring-offset-bg-surface'
           )}
         >
-          {src ? (
+          {showImage ? (
             <img
+              onError={() => setFailedSrc(src ?? null)}
               src={src}
               alt={alt || initials || 'Ảnh đại diện'}
               className="w-full h-full object-cover"

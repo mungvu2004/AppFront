@@ -68,6 +68,8 @@ export interface DimensionOcrRowViewProps extends DimensionOcrRowProps {
    * `null` khi giá trị hợp lý. Hook so ngưỡng, view chỉ hiển thị.
    */
   readonly outlierMessage: string | null;
+  /** Hàng đang chọn lệch > 2 %: "Đặt lại tỷ lệ" ở cột chi tiết là nút chính, "Duyệt" lùi về nút phụ. */
+  readonly isApproveDemoted?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -290,13 +292,15 @@ export function DimensionOcrRow({
   onApprove,
   onCancelEdit,
   outlierMessage,
+  isApproveDemoted = false,
 }: DimensionOcrRowViewProps) {
   return (
     <div
       aria-label={row.codeLabel}
       aria-selected={isSelected}
       className={cn(
-        'flex cursor-pointer gap-4 rounded-xl border bg-bg-surface p-4 outline-hidden',
+        /* Panel trái 280 (khung S-15): ảnh cắt nằm TRÊN ô số, mỗi số vẫn có ảnh gốc ngay cạnh. */
+        'flex cursor-pointer flex-col gap-3 rounded-xl border bg-bg-surface p-3 outline-hidden',
         'transition-colors duration-120 hover:bg-bg-hover',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         STATUS_BORDER_TOKEN[row.statusCode],
@@ -374,7 +378,7 @@ export function DimensionOcrRow({
             }}
             size="sm"
             type="button"
-            variant={isSelected ? 'primary' : 'secondary'}
+            variant={isSelected && !isApproveDemoted ? 'primary' : 'secondary'}
           >
             {DIMENSION_OCR_TEXT.row.approveLabel}
           </Button>

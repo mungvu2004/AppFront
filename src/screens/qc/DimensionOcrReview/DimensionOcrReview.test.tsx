@@ -594,9 +594,9 @@ describe('[NGHIEM-5] bộ đếm duyệt', () => {
   it('mở màn ở 18/34 và tới 34/34 sau khi duyệt hết trên chính màn hình', async () => {
     renderState('partial');
 
-    const list = await screen.findByRole('group', { name: LIST_LABEL });
-    const counterOf = (): string =>
-      within(list).getByText(/kích thước đã duyệt$/u).textContent ?? '';
+    await screen.findByRole('group', { name: LIST_LABEL });
+    /* Vòng 6: bộ đếm ở dòng trạng thái đầu panel (một chỗ), không còn trong đầu danh sách. */
+    const counterOf = (): string => screen.getByTestId('dimension-ocr-progress').textContent ?? '';
 
     const opening = counterOf();
 
@@ -847,8 +847,8 @@ describe('QA-04c SCR-18 trên màn đã ráp', () => {
   it('[BUG-413] màn có breadcrumb và tiêu đề như các màn QC anh em', async () => {
     renderState('partial');
 
-    /* Đợt Impeccable 2: tiêu đề màn là h1 của `QcFloorNav` ("<lớp> · <tầng>"), đúng một h1 như màn anh em. */
-    expect(await screen.findByRole('heading', { level: 1, name: /^Kích thước · /u })).toBeInTheDocument();
+    /* Vòng 6 (Z/S-17): h1 động từ ở đầu panel trái (`QcPanelHead`), `QcFloorNav titled` bỏ h1 ẩn — đúng một h1. */
+    expect(await screen.findByRole('heading', { level: 1, name: 'Kiểm kích thước' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('navigation', { name: 'Đường dẫn trang' })).toBeInTheDocument();
   });
@@ -859,7 +859,8 @@ describe('QA-04c SCR-18 trên màn đã ráp', () => {
     const title = await screen.findByText(DIMENSION_OCR_TEXT.states.empty.title);
     const canvas = screen.getByRole('region', { name: DIMENSION_OCR_TEXT.screen.canvasAriaLabel });
 
-    expect(within(canvas).getByText(DIMENSION_OCR_TEXT.screen.canvasEmptyNotice)).toBeInTheDocument();
+    /* Vòng 6: thẻ rỗng nằm góc trên trái bản vẽ (nguyên nhân + hai lối ra), thay câu ghim giữa. */
+    expect(within(canvas).getByText(DIMENSION_OCR_TEXT.states.empty.title)).toBeInTheDocument();
     expect(title.parentElement?.querySelector('svg')).not.toBeNull();
     expect(screen.queryByRole('button', { name: DIMENSION_OCR_TEXT.keyboard.toggleOnLabel })).toBeNull();
     expect(screen.getByRole('link', { name: DIMENSION_OCR_TEXT.states.empty.actionLabel }).className).toContain(

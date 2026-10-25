@@ -85,7 +85,7 @@ const WALL = {
   collapse: 'Thu gọn hai panel', // WTR:COLLAPSE_LABEL
   expand: 'Mở lại hai panel', // WTR:EXPAND_LABEL
   approve: 'Duyệt đoạn này', // WI:APPROVE_LABEL
-  skip: 'Bỏ qua', // WI:SKIP_LABEL
+  skip: 'Để sau', // WI:LATER_LABEL (WallLayerInspectorActions)
   thickness: 'Độ dày tường', // WI:THICKNESS_ARIA_LABEL
   viewerNotice:
     'Bạn đang xem với vai người xem, nên không duyệt hay sửa được đoạn tường nào. Nhờ người có quyền sửa dự án duyệt giúp.', // UW WALL_LAYER_TEXT.viewerRoleNotice
@@ -113,7 +113,7 @@ const OBJ = {
   undo: 'Hoàn tác', // OS:UNDO_LABEL
   collapse: 'Thu gọn hai panel', // OS:COLLAPSE_LABEL
   expand: 'Mở lại hai panel', // OS:EXPAND_LABEL
-  approve: 'Duyệt đối tượng này', // OI:APPROVE_LABEL
+  approve: /^Duyệt #/u, // OI: "Duyệt #D-002" (Z/S-16)
   type: 'Loại đối tượng', // OI:TYPE_SELECT_LABEL
   swing: 'Hướng mở', // OI:SWING_LABEL
   position: 'Vị trí trên tường', // OI:POSITION_LABEL
@@ -140,30 +140,29 @@ const ROOM = {
     'Chưa dò ra phòng nào ở tầng này: vòng tường bao quanh các phòng chưa khép kín. Sang lớp tường khép các đoạn còn hở, rồi bấm "Kiểm tra lại vòng hở" để dò lại.', // URR emptyNotice
   filterNoMatch: 'Không có phòng nào khớp bộ lọc đang bật. Tắt bộ lọc "Chưa đặt tên" để thấy lại cả danh sách.', // RLL EMPTY_DESCRIPTION
   noRoomTitle: 'Chưa có phòng nào', // RLL EMPTY_TITLE
-  normalize: 'Chuẩn hoá tên', // RLP:NORMALIZE_LABEL
+  normalize: 'Chuẩn hoá tên…', // RLP:NORMALIZE_LABEL
   name: 'Tên phòng', // RNF:NAME_LABEL
   usage: 'Công năng', // RIN:USAGE_LABEL
-  approve: 'Duyệt phòng này', // RIN:APPROVE_LABEL
+  approve: /^Duyệt #R-/u, // RIN: "Duyệt #R-002" (Z/S-20)
   merge: 'Gộp phòng', // RIN:MERGE_LABEL
   split: 'Tách phòng', // RIN:SPLIT_LABEL
   checkGaps: 'Kiểm tra lại vòng hở', // RLP:CHECK_GAPS_LABEL
-  toWalls: 'Xem tại lớp tường', // RLP:NAVIGATE_WALLS_LABEL
+  toWalls: /^Nối /u, // RLP: link "Nối" của vòng hở (Z/S-20)
   gaps: 'Vòng tường hở', // RLP:GAPS_TITLE
 } as const;
 
 /* SCR-21 */
 const THICK = {
   screen: 'Chuẩn hoá độ dày tường', // TV:SCREEN_TITLE
-  tables: 'Bảng nhóm và bảng chi tiết từng đoạn', // TV:TABLES_SECTION_LABEL
+  tables: 'Nhóm đổi về chuẩn', // bản Z TBP:TEXT.groupsTitle (group section; the per-wall table is in the drawer)
   forbiddenTitle: 'Không có quyền sửa độ dày tường', // TV:FORBIDDEN_TITLE
   viewerNotice:
     'Bạn đang xem với vai người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường.', // UT THICKNESS_SCREEN_TEXT.viewerRoleNotice
   emptyTitle: 'Chưa có đoạn tường nào để chuẩn hoá', // TV:EMPTY_TITLE
-  screenDescription: 'Đối chiếu số đo độ dày của từng đoạn tường với bốn nhóm chuẩn, xem trước rồi áp một lượt duy nhất.', // TV:SCREEN_DESCRIPTION
   emptyNoMeasurement:
     'Chưa có số đo độ dày nào cho công trình này. Sang lớp tường để dò lại các đoạn tường, rồi quay lại đây để chuẩn hoá độ dày.', // UT emptyNoMeasurementNotice
-  preview: 'Xem trước', // TAB:56
-  apply: 'Áp dụng', // TAB:58
+  mainAction: /^(Chọn (cả \d+ nhóm|nhóm này) \(\d+ đoạn\)|Đổi \d+ đoạn)/u, // bản Z TBP: the panel's one main button
+  apply: 'Áp dụng', // TST picker
   changeThickness: 'Đổi độ dày', // TableActionBar
   slider: 'Ngưỡng giữa 110 mm và 220 mm', // ThicknessHistogram threshold label
 } as const;
@@ -176,7 +175,7 @@ const AXIS = {
   canvasNoteId: 'axis-grid-canvas-read-only', // ACV:CANVAS_READ_ONLY_NOTICE_ID
   addH: 'Thêm trục ngang', // UAG group addButtonLabel
   addV: 'Thêm trục dọc', // UAG group addButtonLabel
-  autoAlign: 'Căn chỉnh tự động', // AFL:AUTO_ALIGN_BUTTON_LABEL
+  autoAlign: 'Căn tự động', // AFL:AUTO_ALIGN_BUTTON_LABEL
   ghost: 'Hiện bóng ma tầng dưới', // ALP:GHOST_TOGGLE_LABEL
   anchor: 'Chọn giao trục neo', // AGM origin panel SELECT_LABEL
   emptyTitle: 'Chưa có trục nào', // AGV:EMPTY_TITLE
@@ -225,7 +224,7 @@ const OVERLAY = {
   opacity: 'Độ mờ ảnh nguồn', // OCT:SCAN_OPACITY_ARIA_LABEL
   lock: 'Khoá căn', // OCT:ALIGNMENT_LOCK_LABEL
   tolerance: 'Dung sai', // UOC COPY.toleranceLabel
-  confirm: 'Xác nhận mô hình khớp bản vẽ', // UOC COPY.confirmButton
+  confirm: 'Xác nhận khớp bản vẽ', // UOC COPY.confirmButton
   divider: 'Đường chia đôi, dùng phím mũi tên trái và phải để dịch', // OCD:DIVIDER_ARIA_LABEL
 } as const;
 
@@ -700,14 +699,14 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
       await test.step('[20-D-007] viewer: "Kiểm tra lại vòng hở" works (GET only) and "Xem tại lớp tường" navigates', async () => {
         await openOn(flow, ROUTES.project.rooms(seed.projectId, gapFloor.floorId), seed.projectId, gapFloor.floorId, ROOM.screen);
         const gaps = page.getByRole('region', { name: ROOM.gaps, exact: true });
-        await expect(gaps.getByRole('button', { name: ROOM.toWalls, exact: true })).toBeVisible();
+        await expect(gaps.getByRole('button', { name: ROOM.toWalls }).first()).toBeVisible();
         const mark = flow.sent.length;
         const reread = waitForApi(page, 'GET', layerRe(seed.projectId, gapFloor.floorId), [200]);
         await page.getByRole('button', { name: ROOM.checkGaps, exact: true }).click();
         await reread;
         expect.soft(writesSince(flow, mark), 'the re-check only reads').toEqual([]);
         await captureEvidence(page, ev('20-D-007', 'viewer_room_check_gaps'));
-        await gaps.getByRole('button', { name: ROOM.toWalls, exact: true }).click();
+        await gaps.getByRole('button', { name: ROOM.toWalls }).first().click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.walls(seed.projectId, gapFloor.floorId));
       });
     } finally {
@@ -746,7 +745,7 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
       });
 
       await test.step('[21-D-001] ⚑ viewer: group checkboxes, row controls, row checkboxes and the "Đổi độ dày" picker must not be live', async () => {
-        const accept = tables.getByRole('checkbox', { name: /^Đồng ý chuẩn hoá \d+ tường /u });
+        const accept = tables.getByRole('checkbox', { name: /^Đồng ý đổi các đoạn / });
         const rowBoxes = tables.getByRole('checkbox', { name: /^Chọn dòng /u });
         const rowGroups = tables.getByRole('radiogroup', { name: /^Độ dày chuẩn hoá của đoạn /u });
         // Soft: the fix may well remove the group checkboxes for a viewer; the counts below then pass on 0 (review QA-04c).
@@ -884,7 +883,7 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         const notice = alertWith(page, THICK.forbiddenTitle);
         await expect.soft(notice).toBeVisible();
         await expect.soft(notice).toContainText(THICK.viewerNotice);
-        await expect.soft(thickRegion.getByRole('button', { name: THICK.preview, exact: true })).toHaveCount(0);
+        await expect.soft(thickRegion.getByRole('button', { name: THICK.mainAction })).toHaveCount(0);
         await captureEvidence(page, ev('21-B-008', 'viewer_thickness_no_apply_bar'));
       });
     } finally {
@@ -1149,7 +1148,7 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await openOn(flow, ROUTES.project.rooms(q1.projectId, q1Floor.floorId), q1.projectId, q1Floor.floorId, ROOM.screen);
         await expect.soft(page.getByRole('button', { name: ROOM.normalize, exact: true })).toBeEnabled();
         await openOn(flow, ROUTES.project.thickness(q1.projectId, q1Floor.floorId), q1.projectId, q1Floor.floorId, THICK.screen);
-        await expect.soft(page.getByRole('button', { name: THICK.preview, exact: true })).toBeEnabled();
+        await expect.soft(page.getByText(THICK.forbiddenTitle, { exact: true }), 'no viewer notice for the engineer').toHaveCount(0);
         await openOn(flow, ROUTES.project.scale(df.projectId, df.floorId), df.projectId, df.floorId, SCALE.screen);
         await expect.soft(page.getByRole('button', { name: SCALE.apply, exact: true })).toBeVisible();
         await openOn(flow, ROUTES.project.overlay(df.projectId, df.floorId), df.projectId, df.floorId, OVERLAY.screen);
@@ -1205,20 +1204,23 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await captureEvidence(page, ev('20-D-009', 'engineer_room_rename_put'));
       });
 
-      await test.step('[21-D-004] engineer: apply bar present, "Xem trước" and "Áp dụng" enabled, apply works', async () => {
-        await page.emulateMedia({ reducedMotion: 'reduce' }); // group rows slide (layoutId): no click on a moving row
+      await test.step('[21-D-004] engineer: no viewer notice; the panel main button is live when there is something to change', async () => {
         await openOn(flow, ROUTES.project.thickness(q1.projectId, q1Floor.floorId), q1.projectId, q1Floor.floorId, THICK.screen);
         const thick = region(page, THICK.screen);
-        const accept = thick.getByRole('checkbox', { name: /^Đồng ý chuẩn hoá \d+ tường /u }).first();
-        await expect(accept).toBeVisible();
-        await pressSpaceOn(accept);
-        await expect(accept).toBeChecked();
-        await thick.getByRole('button', { name: THICK.preview, exact: true }).click();
-        const apply = thick.getByRole('button', { name: THICK.apply, exact: true });
-        await expect(apply).toBeEnabled();
-        const put = nextPut(page, q1.projectId, q1Floor.floorId, [200]);
-        await apply.click();
-        await put;
+        await expect.soft(thick.getByText(THICK.forbiddenTitle, { exact: true })).toHaveCount(0);
+        const accept = thick.getByRole('checkbox', { name: /^Đồng ý đổi các đoạn / }).first();
+        // S-21: qcLayer's 200 mm partitions are within 30 mm of 220, i.e. standard: nothing to change on Q1 (apply: FL-21-01).
+        if ((await accept.count()) === 0) {
+          await expect.soft(thick.getByText('Không còn đoạn nào cần đổi.', { exact: true })).toBeVisible();
+          test.info().annotations.push({ type: 'note', description: '[21-D-004] Q1 is all standard under S-21; the engineer apply is proven in phase04_thickness_edge FL-21-01' });
+        } else {
+          await pressSpaceOn(accept);
+          const change = thick.getByRole('button', { name: /^Đổi \d+ đoạn/u });
+          await expect(change).toBeEnabled();
+          const put = nextPut(page, q1.projectId, q1Floor.floorId, [200]);
+          await change.click();
+          await put;
+        }
         await captureEvidence(page, ev('21-D-004', 'engineer_thickness_apply_put'));
       });
 

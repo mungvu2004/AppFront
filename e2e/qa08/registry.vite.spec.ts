@@ -16,7 +16,7 @@ import { signInAs } from '../fixtures/session';
 import { ROUTES } from '../fixtures/routes';
 
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
-const TITLE = 'Mô hình AI của chuỗi xử lý'; // ModelRegistry.tsx:30
+const TITLE = 'Chọn mô hình AI đang dùng'; // ModelRegistry.tsx:30
 const PICKER = 'Loại mô hình'; // ModelRegistry.tsx:30
 const FAMILIES = ['Tách lớp tường', 'Nhận diện cửa và đồ đạc', 'Đọc kích thước']; // useModelRegistry.ts:71-75
 const ACTIVATE = 'Kích hoạt'; // ModelRegistryVersionTable.tsx:17

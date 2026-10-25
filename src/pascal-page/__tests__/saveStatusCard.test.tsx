@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { BackToProjectCard, SaveStatusCard } from '../BackToProjectCard';
+import { BackToProjectCard, READ_ONLY_REASON, SaveStatusCard } from '../BackToProjectCard';
 import type { PascalSaveStatus } from '../bridge/types';
 
 const status = (patch: Partial<PascalSaveStatus> = {}): PascalSaveStatus => ({
@@ -88,10 +88,17 @@ describe('SaveStatusCard (v3 V3 — trạng thái lưu thật trên trang Pascal
     expect(chip.className).toContain('shrink-0');
   });
 
-  it('BackToProjectCard: không có `save` (chỉ đọc) thì chỉ có lối về', () => {
+  it('BackToProjectCard: không có `save` (chỉ đọc) thì có lối về và câu nói vì sao chỉ xem, không có chip lưu', () => {
     render(<BackToProjectCard href="/projects/p1/floors" projectName="Nhà mẫu" />);
 
     expect(screen.getByRole('link', { name: 'Về dự án: Nhà mẫu' })).toBeInTheDocument();
     expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.getByRole('note')).toHaveTextContent(READ_ONLY_REASON);
+  });
+
+  it('BackToProjectCard: có `save` thì không hiện chip chỉ xem', () => {
+    render(<BackToProjectCard href="/projects/p1/floors" projectName="Nhà mẫu" save={status()} />);
+
+    expect(screen.queryByRole('note')).toBeNull();
   });
 });

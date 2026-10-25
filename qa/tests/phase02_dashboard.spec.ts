@@ -81,7 +81,7 @@ function cp2Name(now = new Date()): string {
 }
 
 /* Locators — every label verified in src/ (file noted). */
-const dashboardHeading = (page: Page): Locator => page.getByRole('heading', { name: 'Dự án của tôi', exact: true });
+const dashboardHeading = (page: Page): Locator => page.getByRole('heading', { name: 'Chọn dự án để làm tiếp', exact: true });
 const projectList = (page: Page): Locator => page.getByRole('list', { name: 'Danh sách dự án', exact: true });
 /** `ProjectCardTile.tsx`: `<article role="listitem" aria-label={name}>`. */
 const projectCards = (page: Page): Locator => projectList(page).locator('article[role="listitem"]');
@@ -93,13 +93,13 @@ const wizard = (page: Page): Locator => page.getByRole('dialog', { name: 'Tạo 
 const toastWith = (page: Page, text: string): Locator => page.getByRole('status').filter({ hasText: text });
 /** `DashboardSidebar.tsx`: label + count spans inside one `aria-pressed` button. */
 const statusFilterButton = (page: Page, label: string): Locator =>
-  page.getByRole('button', { name: new RegExp(`^${escapeRegExp(label)}\\s*\\d+$`, 'u') });
+  page.getByRole('radiogroup', { name: 'Lọc theo trạng thái', exact: true }).getByRole('radio', { name: label, exact: true }); // S-02: radiogroup in the "Dự án" section, no counts
 const bell = (page: Page): Locator => page.getByRole('button', { name: 'Thông báo', exact: true });
 const notificationDrawer = (page: Page): Locator => page.getByRole('dialog', { name: 'Thông báo', exact: true });
 
 async function openWizard(page: Page): Promise<Locator> {
   // The button carries the `N` shortcut hint, hence the prefix match (chain.fullstack.ts step 3).
-  await page.getByRole('button', { name: /^Dự án mới/u }).click();
+  await page.getByRole('button', { name: /^Tạo dự án\s*N$/u }).click();
   const dialog = wizard(page);
   await expect(dialog).toBeVisible();
   return dialog;
@@ -350,7 +350,7 @@ test.describe('SCR-05 Dashboard (/)', () => {
     for (const label of STATUS_FILTERS) {
       const filter = statusFilterButton(page, label);
       await filter.click();
-      await expect(filter).toHaveAttribute('aria-pressed', 'true');
+      await expect(filter).toHaveAttribute('aria-checked', 'true');
       const count = Number(/(\d+)$/u.exec((await filter.innerText()).trim())?.[1] ?? Number.NaN);
       expect(Number.isInteger(count), `count shown on "${label}"`).toBe(true);
       if (count === 0) {
@@ -364,7 +364,7 @@ test.describe('SCR-05 Dashboard (/)', () => {
     // BUG-166: the loop above ends on the last filter ("Hoàn thành", usually 0 rows → only the no-match state). The shot is
     // taken back on "Tất cả" so it shows what the case claims: "Bảng" on, header row and the rows in "Tên A–Z" order.
     await statusFilterButton(page, 'Tất cả').click();
-    await expect(statusFilterButton(page, 'Tất cả')).toHaveAttribute('aria-pressed', 'true');
+    await expect(statusFilterButton(page, 'Tất cả')).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByRole('main').locator('thead th')).toHaveText([...TABLE_HEADERS]);
     await expect(rows.first()).toBeVisible();
     await captureEvidence(page, '05_dash_view_controls.png', { caption: 'view "Bảng", sort "Tên A–Z", filter "Tất cả"' });

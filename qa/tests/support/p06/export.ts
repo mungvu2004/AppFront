@@ -49,16 +49,18 @@ export const asRecord = (value: unknown, what: string): Json => {
 
 /** `src/screens/export/ExportPanel/` — EPV ExportPanel.tsx, EPF …Formats, EPO …Options, EPP …Preflight, EPT …Footer, UEP useExportPanel.ts, EPG …Gateway. */
 export const EP = {
-  title: 'Xuất bản vẽ', // EPV:248
+  title: 'Xuất mô hình', // EPV:248
   formats: 'Định dạng xuất', // EPF:144
+  /** ExportPanelFormats: PDF và ảnh chưa xuất được là dòng chữ trong danh sách này, không phải thẻ chọn. */
+  blockedList: 'Định dạng chưa xuất được',
   options: 'Tuỳ chọn', // EPO:232
   scope: 'Phạm vi', // EPO:69
   preflight: 'Kiểm tra trước khi xuất', // EPP:26
   history: 'Tệp đã xuất', // EPV:123
-  historyCaption: 'Chỉ trong phiên làm việc này, sẽ mất khi tải lại trang.', // EPV:129
+  historyCaption: 'Chỉ trong phiên này, mất khi làm mới trang.', // ExportPanel.tsx (đầu khung Tệp đã xuất)
   historyHeads: ['Tệp', 'Thời điểm', 'Dung lượng'], // EPV:140-146
   redownload: 'Tải lại', // EPV:163
-  exportButton: 'Xuất', // EPT:69
+  exportButton: /^Xuất (\.glb|\.json|PDF|ảnh)$/u, // ExportPanelFooter: "Xuất <định dạng>"
   cancel: 'Huỷ', // EPT:39-41
   share: 'Chia sẻ', // EPV:251
   confidence: 'Gồm độ tin cậy từng đối tượng', // EPO:190
@@ -100,7 +102,7 @@ export const EP = {
   loginHint: 'Hãy đăng nhập để tiếp tục.', // phase01 login redirect copy (catalog 30-D-006)
   progress: { build: 'Đang dựng hình', encode: 'Đang mã hoá' }, // UEP:143-146
   errorHint: 'Thử hạ mức chi tiết xuống mức gọn hơn rồi xuất lại.', // UEP:183
-  errorRetry: 'thử lại', // EPV:260 (lower case, A6)
+  errorRetry: 'Thử lại', // ExportPanel.tsx (A6: viết hoa chữ đầu)
   aiSentenceStart: 'Xử lý AI thất bại', // vi.json errors.processing.description (30-B-026)
   gateRetry: 'Thử lại', // PSG:84
   /** GLB:133-138 `YYYY-MM-DD_HH-mm-ss`. */
@@ -411,8 +413,11 @@ export const projectRe = (projectId: string): RegExp => new RegExp(`^/api/projec
 
 export const formatGroup = (page: Page): Locator => page.getByRole('radiogroup', { name: EP.formats, exact: true });
 export const formatRadio = (page: Page, extension: string): Locator =>
-  formatGroup(page).getByRole('radio', { name: new RegExp(`^${escapeRegExp(extension)}`, 'u') }); // EPF:89,106 name starts with the extension
-export const exportButton = (page: Page): Locator => page.getByRole('button', { name: EP.exportButton, exact: true });
+  formatGroup(page).getByRole('radio', { name: new RegExp(escapeRegExp(extension), 'u') }); // nhãn thẻ "Mô hình 3D (.glb)" chứa phần mở rộng
+/** Một định dạng chưa xuất được (PDF, ảnh): dòng chữ dưới danh sách thẻ, không bấm được. */
+export const blockedFormat = (page: Page, extension: string): Locator =>
+  page.getByRole('list', { name: EP.blockedList, exact: true }).getByRole('listitem').filter({ hasText: extension });
+export const exportButton = (page: Page): Locator => page.getByRole('button', { name: EP.exportButton });
 export const region = (page: Page, name: string): Locator => page.getByRole('region', { name, exact: true });
 export const historyRegion = (page: Page): Locator => region(page, EP.history);
 export const scopeRegion = (page: Page): Locator => region(page, EP.scope);
@@ -578,7 +583,7 @@ export async function findingsTotal(flow: ExportFlow, projectId: string): Promis
   const page = await flow.context.newPage();
   try {
     await page.goto(ROUTES.project.rules(projectId));
-    await expect(page.getByRole('heading', { name: 'Quy chuẩn', level: 1 })).toBeVisible(); // RRV:287
+    await expect(page.getByRole('heading', { name: 'Kiểm tra quy chuẩn', level: 1 })).toBeVisible(); // RRV:287
     await expect(page.getByRole('button', { name: 'Chạy kiểm tra lại', exact: true })).toBeEnabled(); // RRV:305
     const toggles = page.getByRole('heading', { level: 3 }).getByRole('button'); // RRG:90-108
     const count = await toggles.count();

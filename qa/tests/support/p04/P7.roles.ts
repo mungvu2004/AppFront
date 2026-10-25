@@ -140,7 +140,7 @@ export const roomsViewer = (env: RolesEnv, slug: string): Promise<RoleProject> =
   ]);
 
 /**
- * QX:viewer-21-19 — floor 0 = thickness mix (two 200 mm walls within the 30 mm tolerance of the 220 group, a 150 mm and a
+ * QX:viewer-21-19 — floor 0 = thickness mix (two 200 mm walls within the 30 mm tolerance of 220 = standard, a 150 mm (→ 110 group) and a
  * 330 mm wall); floor 1 = empty; floor 2 = Q1 (the load-bearing rectangle SCR-19 derives axes from).
  */
 export const viewer2119 = (env: RolesEnv, slug: string): Promise<RoleProject> =>

@@ -7,6 +7,7 @@
  * định có render component này hay không, ở nơi gọi.
  */
 
+import { Section } from '@/components/shell/Section';
 import { useCountUp } from '@/hooks/useCountUp';
 import { cn } from '@/lib/utils';
 
@@ -55,13 +56,13 @@ export interface RuleSettingsPresetsRowProps {
 /** Ba nút bộ luật sẵn (nhà ở / thương mại / công nghiệp), đầu trang. */
 export function RuleSettingsPresetsRow({ presets, onApplyPreset }: RuleSettingsPresetsRowProps) {
   return (
-    <section aria-label="Bộ luật sẵn" className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium text-text-secondary">Bộ luật sẵn</h3>
+    // Bấm là áp ngay, không hộp hỏi: số luật sẽ đổi đã hiện trên nút, và toast có "Hoàn tác" 8 giây (A8).
+    <Section aria-label="Bộ luật sẵn" title="Bộ luật sẵn" actions={<span className="text-[13px] text-text-secondary">Bấm để áp, hoàn tác được</span>}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {presets.map((preset) => (
           <PresetButton key={preset.kind} preset={preset} onApplyPreset={onApplyPreset} />
         ))}
       </div>
-    </section>
+    </Section>
   );
 }

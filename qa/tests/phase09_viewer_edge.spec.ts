@@ -297,7 +297,7 @@ test.describe('phase 09 viewer edge', () => {
         await expect.soft(page.getByRole('button', { name: /^Vi phạm (trước|sau)$/u }).first()).toBeVisible(); // ViolationDetail.tsx:158-166
         await captureEvidence(page, 'E09_9V-C-033_violation-detail.png');
       });
-      await test.step('[9V-C-050] viewer: không có "Xác nhận đã xử lý" để focus', async () => {
+      await test.step('[9V-C-050] viewer: không có "Sang Xuất" để focus', async () => {
         const confirm = page.getByRole('button', { name: RULES_CONFIRM });
         // a viewer cannot reach the confirm control at all (⚑ correct behaviour)
         await expect.soft(confirm).toHaveCount(0);

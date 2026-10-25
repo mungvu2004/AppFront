@@ -27,7 +27,7 @@ const TEXT = {
 } as const;
 
 const HEADERS = ['Số thứ tự', 'Trạng thái', 'Nguồn', 'Huấn luyện / kiểm định / kiểm tra', 'Ngày tạo', 'Ghi chú'] as const;
-const PANEL = 'rounded-xl border border-border-default bg-bg-surface p-5';
+const PANEL = 'rounded-xl bg-bg-surface p-5 shadow-panel';
 const FOCUS_RING =
   'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 

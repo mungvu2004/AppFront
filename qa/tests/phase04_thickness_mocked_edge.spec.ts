@@ -2,7 +2,7 @@
  * Phase 4 — SCR-21 thickness, EDGE layer, MOCKED RESPONSES: one sequential flow (QA-04c P4, FL-21-M1, `[mocked response]`).
  * The N16 read (`GET …/floors/:f/spatial/layer`) is held, answered 500 after the first success, or the apply's PUT #35 is
  * answered 500 / aborted — none of which the shared stack can produce on demand. What is real: the project, its layer
- * (`thkMix`: 5 x 200 mm, 150 mm, 220 mm), the session and the page. One `test.step('[<row id>] …')` per catalog row, in the
+ * (`thkMix`: 5 x 180 mm, 150 mm, 220 mm), the session and the page. Bản Z (S-21): tick a group, then "Đổi N đoạn". One `test.step('[<row id>] …')` per catalog row, in the
  * planned order. Pairs: BE4-G-218 (pytest), FL-A4-03 (A4 write happy path).
  *
  * Source (FE, this branch): TV src/screens/qc/ThicknessStandardization/ThicknessStandardization.tsx · UT …/useThicknessStandardization.ts ·
@@ -25,7 +25,6 @@ import { reseed, thkMix } from './support/p04/P4';
 
 const SCREEN = 'Chuẩn hoá độ dày tường';
 const EMPTY_TITLE = 'Chưa có đoạn tường nào để chuẩn hoá';
-const COLLAPSE = 'Thu gọn khung xem trước';
 const RETRY_LADDER_MS = 60_000;
 
 let adminApi: APIRequestContext;
@@ -42,11 +41,11 @@ test.afterAll(async () => {
 const region = (page: Page): Locator => page.getByRole('region', { name: SCREEN, exact: true });
 const button = (page: Page, name: string): Locator => region(page).getByRole('button', { name, exact: true });
 const skeletonRows = (page: Page): Locator => page.locator('div.flex.items-center.gap-4.p-3.w-full:has(> .animate-pulse)');
-const acceptBox = (page: Page): Locator => region(page).getByRole('checkbox', { name: /^Đồng ý chuẩn hoá 5 tường 200 mm / });
+const acceptBox = (page: Page): Locator => region(page).getByRole('checkbox', { name: /^Đồng ý đổi các đoạn 180 mm về 220 mm$/u }); // TBP:TEXT.acceptGroup
 const toasts = (page: Page): Locator => page.getByRole('region', { name: 'Thông báo', exact: true });
 
 test.describe('E04 SCR-21 thickness — mocked-response flow (QA-04c P4)', () => {
-  test('SCR-21 · FL-21-M1 · [mocked response] held read, refetch error, collapsed while loading, apply PUT 500 / abort', async ({ browser }) => {
+  test('SCR-21 · FL-21-M1 · [mocked response] held read, refetch error, loading is not empty, apply PUT 500 / abort', async ({ browser }) => {
     test.setTimeout(480_000);
     const built = await thkMix(adminApi, '21-M1');
     const floorId = built.floorIds[0] as string;
@@ -64,19 +63,19 @@ test.describe('E04 SCR-21 thickness — mocked-response flow (QA-04c P4)', () =>
         return () => page.unroute(matcher, wrapped);
       };
 
-      await test.step('[21-B-001] loading: the histogram is aria-busy "Đang tải biểu đồ phân bố độ dày", six table-row skeletons', async () => {
+      await test.step('[21-B-001] loading: the histogram is aria-busy "Đang tải biểu đồ phân bố độ dày", four table-row skeletons', async () => {
         const hold = await holdFirst(page, isRead);
         try {
           await page.goto(url);
           await hold.seen;
           const busy = page.getByRole('region', { name: 'Đang tải biểu đồ phân bố độ dày', exact: true }); // TH:78,291-302
           await expect(busy).toHaveAttribute('aria-busy', 'true');
-          await expect.soft(skeletonRows(page)).toHaveCount(6); // TV:164-175
+          await expect.soft(skeletonRows(page)).toHaveCount(4); // TV:SKELETON_ROWS
           await captureEvidence(page, 'E04_21-B-001_loading.png');
         } finally {
           await hold.release();
         }
-        await expect(region(page).getByRole('checkbox', { name: /^Đồng ý chuẩn hoá/ }).first()).toBeVisible();
+        await expect(region(page).getByRole('checkbox', { name: /^Đồng ý đổi các đoạn / }).first()).toBeVisible();
         await expect.soft(skeletonRows(page)).toHaveCount(0);
       });
 
@@ -111,16 +110,15 @@ test.describe('E04 SCR-21 thickness — mocked-response flow (QA-04c P4)', () =>
         }
       });
 
-      await test.step('[21-B-009] ⚑ collapsed while loading: expected the skeleton, not "Chưa có đoạn tường nào…"', async () => {
+      await test.step('[21-B-009] ⚑ loading is never shown as empty (bản Z: no collapse toggle; the drawing is the main view)', async () => {
         const hold = await holdFirst(page, isRead);
         try {
           await page.goto(url);
           await hold.seen;
-          await expect(skeletonRows(page)).toHaveCount(6);
-          await page.getByRole('button', { name: COLLAPSE, exact: true }).click(); // UT:236-246, TV:164,178
-          await expect.soft(skeletonRows(page), 'the collapse toggle must not turn loading into empty').toHaveCount(6);
-          await expect.soft(page.getByText(EMPTY_TITLE, { exact: true })).toHaveCount(0);
-          await captureEvidence(page, 'E04_21-B-009_collapsed-loading.png');
+          await expect(skeletonRows(page)).toHaveCount(4);
+          await expect.soft(page.getByRole('button', { name: 'Thu gọn khung xem trước', exact: true })).toHaveCount(0);
+          await expect.soft(page.getByText(EMPTY_TITLE, { exact: true }), 'loading must not read as empty').toHaveCount(0);
+          await captureEvidence(page, 'E04_21-B-009_loading-not-empty.png');
         } finally {
           await hold.release();
         }
@@ -137,8 +135,7 @@ test.describe('E04 SCR-21 thickness — mocked-response flow (QA-04c P4)', () =>
             await acceptBox(page).focus();
             await page.keyboard.press('Space');
           }
-          await button(page, 'Xem trước').click();
-          await button(page, 'Áp dụng').click();
+          await region(page).getByRole('button', { name: /^Đổi 5 đoạn/u }).click();
         };
 
         let stop = await answer('PUT', (route) => route.fulfill({ status: 500, contentType: 'application/json', body: errorBody('INTERNAL') }));

@@ -50,7 +50,7 @@ export const VH = {
 } as const;
 
 export const RS = {
-  heading: 'Cài đặt bộ luật không gian', // RSV:267
+  heading: 'Chọn luật áp dụng', // RSV:267
   restoreDefaults: 'Khôi phục mặc định', // RS:328
 } as const;
 

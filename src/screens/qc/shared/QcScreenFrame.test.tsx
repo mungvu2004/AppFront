@@ -76,7 +76,7 @@ describe('QcScreenFrame (BUG-324, BUG-329, BUG-413)', () => {
     it('≥1280 vẫn là cột cố định: lớp ẩn chỉ áp trong khoảng lg:max-xl', () => {
       render(renderWorkspace(null));
 
-      expect(drawer()?.className).toContain('xl:w-[344px]');
+      expect(drawer()?.className).toContain('xl:w-[240px]');
       expect(drawer()?.className.split(' ')).not.toContain('hidden');
     });
   });

@@ -58,7 +58,7 @@ const SCREEN_DIRECTORY = 'src/screens/qc/ObjectLayerReview';
 const TOTAL_OBJECTS = OBJECT_LAYER_FIXTURE_COUNTS.total;
 
 /* Nhãn tra cứu — chép từ chính các view con, một chỗ viết duy nhất. */
-const LAYER_TREE_LABEL = 'Cây lớp';
+const LAYER_FILTER_LABEL = 'Lọc theo loại';
 const LIST_LABEL = 'Danh sách đối tượng';
 const LEGEND_LABEL = 'Chú giải màu lớp';
 const STATUS_BAR_LABEL = 'Thanh trạng thái';
@@ -173,12 +173,12 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
     /* Lượt đọc của cổng là bất đồng bộ: trước khi nó lắng, màn ở `loading`. */
     const list = await screen.findByRole('group', { name: LIST_LABEL });
 
-    /* 1. Cây lớp — ba lớp con, mỗi lớp một số đếm trong ngoặc. */
-    const tree = screen.getByRole('tree', { name: LAYER_TREE_LABEL });
+    /* 1. Lọc theo loại (Z/S-16) — ba nút loại, mỗi nút một số đếm. */
+    const tree = screen.getByRole('group', { name: LAYER_FILTER_LABEL });
     /* A6 · B-V6-04: nút con mắt ghép tiền tố viết thường với tên lớp viết thường. */
     expect(screen.getByRole('button', { name: 'Ẩn lớp cửa đi' })).toBeInTheDocument();
     const layerCounts = within(tree)
-      .getAllByRole('treeitem')
+      .getAllByRole('button')
       .map((item) => firstNumberIn(item.textContent ?? ''));
     const treeTotal = layerCounts.reduce((sum, count) => sum + count, 0);
 
@@ -216,15 +216,12 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
     expect(TOTAL_OBJECTS).toBe(21);
   });
 
-  it('[BUG-417] "Tổng 21 đối tượng" viết hoa chữ đầu và chỉ một lần; nhãn panel phải viết hoa (A6)', async () => {
+  it('[BUG-417] màn có đúng một H1 động từ "Duyệt cửa và nội thất"; nhãn panel phải viết hoa (A6)', async () => {
     renderState('success');
 
     const list = await screen.findByRole('group', { name: LIST_LABEL });
-    const totals = [...document.querySelectorAll('p')].filter((p) =>
-      /^tổng \d+ đối tượng$/iu.test(p.textContent ?? ''),
-    );
 
-    expect(totals.map((p) => p.textContent)).toEqual([`Tổng ${TOTAL_OBJECTS} đối tượng`]);
+    expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual(['Duyệt cửa và nội thất']);
 
     fireEvent.click(within(list).getAllByRole('option')[0] as HTMLElement);
 
@@ -236,8 +233,16 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
     renderState('success');
 
     const list = await screen.findByRole('group', { name: LIST_LABEL });
+    /* Hàng đợi xếp theo tin cậy (Z/S-16): chọn một cửa đi ĐÃ gắn tường — dòng đầu có thể là nội thất hay cửa mồ côi (#D-009). */
+    const door = within(list)
+      .getAllByRole('option')
+      .find(
+        (option) =>
+          option.getAttribute('aria-label')?.startsWith('#D-') === true &&
+          !(option.textContent ?? '').includes('Chưa gắn vào tường nào'),
+      );
 
-    fireEvent.click(within(list).getAllByRole('option')[0] as HTMLElement);
+    fireEvent.click(door as HTMLElement);
 
     expect(await screen.findByText('Cách đầu tường')).toBeInTheDocument();
     expect(screen.getByText('Cách cuối tường')).toBeInTheDocument();
@@ -251,10 +256,10 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
     expect(screen.queryByText(/^Tổng 0/u)).toBeNull();
   });
 
-  it('[17-F-015] đang tải: bốn dòng khung xương cho bộ đếm cộng bốn dòng cho danh sách', () => {
+  it('[17-F-015] đang tải: bốn dòng khung xương cho danh sách (bộ đếm nằm ở dòng trạng thái đầu panel)', () => {
     const { container } = renderState('loading');
 
-    expect(container.querySelectorAll('div.flex.items-center.gap-4.p-3:has(> .animate-pulse)')).toHaveLength(8);
+    expect(container.querySelectorAll('div.flex.items-center.gap-4.p-3:has(> .animate-pulse)')).toHaveLength(4);
   });
 });
 
@@ -288,15 +293,15 @@ describe('[NGHIEM-3] thu gọn và không có quyền', () => {
 
     expect(screen.getByRole('toolbar', { name: TOOL_RAIL_LABEL })).toBeInTheDocument();
     expect(screen.getByRole('status', { name: STATUS_BAR_LABEL })).toBeInTheDocument();
-    expect(screen.queryByRole('tree', { name: LAYER_TREE_LABEL })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: LAYER_FILTER_LABEL })).not.toBeInTheDocument();
     expect(screen.getByLabelText(LEGEND_LABEL)).toBeInTheDocument();
   });
 
   it('trạng thái không có quyền: xem được, chỉ mất nút sửa — KHÔNG khoá mờ cả màn', async () => {
     renderState('forbidden');
 
-    /* Người xem đang tải thấy khung chờ trước (17-D-010); cây lớp có khi dữ liệu tới. */
-    expect(await screen.findByRole('tree', { name: LAYER_TREE_LABEL })).toBeInTheDocument();
+    /* Người xem đang tải thấy khung chờ trước (17-D-010); bộ lọc loại có khi dữ liệu tới. */
+    expect(await screen.findByRole('group', { name: LAYER_FILTER_LABEL })).toBeInTheDocument();
     expect(screen.getByRole('status', { name: STATUS_BAR_LABEL })).toBeInTheDocument();
     expect(screen.getByLabelText(LEGEND_LABEL)).toBeInTheDocument();
   });
@@ -322,8 +327,8 @@ describe('trạng thái rỗng', () => {
 
     const button = await screen.findByRole('button', { name: EMPTY_ACTION });
 
-    /* Trước khi bấm: bộ mẫu rỗng, cây lớp nói 0. */
-    expect(within(screen.getByRole('tree', { name: LAYER_TREE_LABEL })).getAllByRole('treeitem')
+    /* Trước khi bấm: bộ mẫu rỗng, ba nút loại nói 0. */
+    expect(within(screen.getByRole('group', { name: LAYER_FILTER_LABEL })).getAllByRole('button')
       .map((item) => firstNumberIn(item.textContent ?? ''))).toEqual([0, 0, 0]);
 
     fireEvent.click(button);

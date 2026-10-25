@@ -105,7 +105,7 @@ const COPY = Object.freeze({
   autoMatch: 'Ghép tự động từ tên tệp — kiểm tra lại',
   trayTitle: 'Tệp chưa gán tầng',
   trayTitleKey: 'floorUpload.unassignedTray',
-  empty: 'Chưa có tầng nào có bản vẽ. Kéo thả tệp đầu tiên để bắt đầu.',
+  empty: 'Chưa có tầng nào có bản vẽ.',
   emptyKey: 'floorUpload.emptyState',
   offline: 'Đang làm việc ngoại tuyến',
   offlineKey: 'floorUpload.offlineBanner',
@@ -1435,6 +1435,10 @@ export function useFloorUploadScreen(
         : undefined,
     onBackToProjects:
       options.onNavigate === undefined ? undefined : () => options.onNavigate?.(ROUTES.dashboard),
+    // Xác nhận "đúng tầng" chỉ gỡ cờ ghép tự động; tệp đã tải không tải lại.
+    onConfirmMatch: (fileId) => {
+      if (canEdit) patchAttachment(fileId, { isAutoMatched: false });
+    },
     // Lỗi của một tệp đóng lại một mình; không hàng nào khác đổi.
     onDismissError: (fileId) =>
       // Đọc lỗi ngay trong lượt cập nhật, không từ bản vẽ cũ của closure: lượt kiểm tệp có thể vừa

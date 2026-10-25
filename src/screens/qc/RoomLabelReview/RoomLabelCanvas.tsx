@@ -189,7 +189,7 @@ export function RoomLabelCanvas({
       {contentBounds === null ? (
         <div
           aria-label={ROOM_LABEL_CANVAS_COPY.waitingFrameLabel}
-          className="absolute inset-3 rounded-xl bg-bg-sunken"
+          className="absolute inset-0 bg-bg-sunken"
           role="img"
         />
       ) : (

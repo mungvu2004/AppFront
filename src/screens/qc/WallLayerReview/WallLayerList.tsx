@@ -1,43 +1,25 @@
 /**
- * Danh sách tường ảo hoá (dòng cao 40) của panel trái — `src/screens/qc/WallLayerReview`.
+ * Hàng đợi tường của panel trái — ảo hoá (`@tanstack/react-virtual`), chia nhóm theo đúng thứ tự
+ * hook đã xếp (demo Z/S-15): Không chuẩn (kèm nút "Đổi n/N tường về chuẩn…") → Đúng chuẩn →
+ * Đã duyệt (thu gọn, tự mở khi đang chọn một hàng trong đó hoặc không còn hàng nào khác).
  *
- * View THUẦN (R-60): nhận nguyên `WallLayerViewProps` (đúng khuôn
- * `ScaleCalibrationPanel` nhận `model.panel`) và chỉ hiển thị. Ảo hoá thật bằng
- * `@tanstack/react-virtual` — đã là phụ thuộc có sẵn của repo (dùng lại ở
- * `Table.tsx#TableVirtual`), không cài thư viện mới.
- *
- * KHÔNG dùng `Table.Row`: `docs/contracts/ui.md` mục H1 cảnh báo nó có vòng
- * tiêu điểm điều khiển bằng state, làm hỏng `expectAccessible`. Dòng ở đây
- * dùng `role="option"` thuần cùng `focus-visible:` (class-based, không state)
- * — đúng cách khắc phục mục H1 chỉ ra.
- *
- * Hàng dưới ngưỡng tin cậy CHƯA duyệt (`statusCode === 'attention'` và
- * `isLowConfidence`) mang gạch chéo 45° 2px ở 6% — không bao giờ đổi màu đặc
- * (không đỏ, A5 + P-06). Chấm trạng thái dùng đúng ba token trạng thái của A4,
- * xanh "đã xác minh" chỉ khi `statusCode === 'verified'` (tức người đã duyệt).
- *
- * Độ dày và "cần chú ý" là CHIP (`Badge`), đúng chữ đặc tả dùng (BC-11, BT-05)
- * chứ không phải hai `<span>` trần. `Badge` cao 22px nên hàng vẫn đúng
- * {@link ROW_HEIGHT_PX} = 40 và ảo hoá không lệch; vòng tiêu điểm vẫn là
- * `focus-visible:` dạng class, không phải một vòng điều khiển bằng state
+ * View THUẦN (R-60). `rows` đã xếp theo hàng đợi ở hook, nên danh sách, J/K, "Duyệt tiếp" và tự
+ * chuyển sau "Duyệt" đi cùng một thứ tự. Hàng dùng `role="option"` + `focus-visible:` dạng class
  * (cảnh báo H1 của `docs/contracts/ui.md`).
  */
 
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { AlertTriangle, Check, Inbox, XCircle } from 'lucide-react';
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { ChevronDown, Inbox } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
-import { wallStrokeToken } from '@/components/canvas/materialMap';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Skeleton } from '@/components/feedback/Skeleton';
-import { Badge } from '@/components/ui/Badge';
-import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
+import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
-import type { ViewStatusCode } from '@/lib/viewmodel/types';
-import type { WallThickness } from '@/types/spatial';
 
-import { displayStatusCode } from './displayStatusCode';
 import type { WallLayerViewProps, WallRowViewModel } from './types';
+import { LIST_ROW_HEIGHT_PX, WallLayerListRow } from './WallLayerListRow';
+import type { WallQueueGroup, WallReviewQueue } from './wallReviewQueue';
 
 export interface WallLayerListProps {
   readonly panel: WallLayerViewProps;
@@ -45,43 +27,33 @@ export interface WallLayerListProps {
   readonly flashingWallId: WallRowViewModel['id'] | null;
   /** Ctrl/Cmd-bấm một hàng: thêm/bớt khỏi vùng chọn (NL-07). */
   readonly onToggleSelect: (wallId: WallRowViewModel['id']) => void;
+  readonly queue?: WallReviewQueue | undefined;
+  /** Mở xem trước đổi hàng loạt; vắng = không có nút (người xem, hoặc không đoạn nào đổi được). */
+  readonly onOpenBulk?: (() => void) | undefined;
 }
 
-const ROW_HEIGHT_PX = 40;
+type ListItem =
+  | { readonly kind: 'header'; readonly group: WallQueueGroup; readonly count: number }
+  | { readonly kind: 'bulk' }
+  | { readonly kind: 'row'; readonly row: WallRowViewModel };
+
+const HEADER_HEIGHT_PX = 36;
+const BULK_HEIGHT_PX = 44;
 const LOADING_SKELETON_ROWS = 12;
-/*
- * Ba câu dưới đây đọc theo `src/i18n/vi.json#wallLayerReview` chứ không theo
- * bản viết tay cũ: `aria.wallList` là "Danh sách đoạn tường" (không phải "Danh
- * sách tường") và `state.filterNoMatch` nói ra cả cách thoát khỏi bộ lọc. Mã và
- * từ điển kiểm tra trôi khỏi nhau là thứ không cổng nào bắt được, nên chúng
- * được kéo về đúng một bản.
- */
 const LIST_ARIA_LABEL = 'Danh sách đoạn tường';
 const EMPTY_LIST_TITLE = 'Chưa có đoạn tường nào';
 const NO_MATCH_MESSAGE =
   'Không có đoạn tường nào khớp bộ lọc đang bật. Bỏ bớt một bộ lọc để thấy lại danh sách.';
-const ATTENTION_BADGE_LABEL = 'Cần chú ý';
-
-const STATUS_DOT_TOKEN: Readonly<Record<ViewStatusCode, string>> = {
-  verified: 'bg-state-verified',
-  attention: 'bg-state-attention',
-  violation: 'bg-state-violation',
-  neutral: 'bg-text-muted',
+const GROUP_TITLE: Readonly<Record<WallQueueGroup, string>> = {
+  nonStandard: 'Không chuẩn',
+  standard: 'Đúng chuẩn',
+  reviewed: 'Đã duyệt',
 };
 
-const STATUS_ICON_TEXT: Readonly<Record<ViewStatusCode, string>> = {
-  verified: 'text-state-verified-text',
-  attention: 'text-state-attention-text',
-  violation: 'text-state-violation-text',
-  neutral: '',
-};
-
-const STATUS_DOT_LABEL: Readonly<Record<ViewStatusCode, string>> = {
-  verified: 'Đã duyệt',
-  attention: 'Cần chú ý',
-  violation: 'Vi phạm',
-  neutral: 'Bình thường',
-};
+/** Nhóm của một hàng: theo hàng đợi ở hook; không có hàng đợi (story cũ) thì suy từ cờ của hàng. */
+const groupOf = (row: WallRowViewModel, queue: WallReviewQueue | undefined): WallQueueGroup =>
+  queue?.extras.get(row.id)?.group ??
+  (row.isReviewed ? 'reviewed' : row.isNonStandardThickness ? 'nonStandard' : 'standard');
 
 /** Đi lên DOM tìm tổ tiên cuộn gần nhất — đúng kỹ thuật `Table.tsx#TableVirtual`. */
 function findScrollParent(node: HTMLElement | null): HTMLElement | null {
@@ -100,150 +72,59 @@ function findScrollParent(node: HTMLElement | null): HTMLElement | null {
   return (document.scrollingElement as HTMLElement | null) ?? null;
 }
 
-interface WallLayerListRowProps {
-  readonly row: WallRowViewModel;
-  readonly isSelected: boolean;
-  readonly isHovered: boolean;
-  readonly isFlashing: boolean;
-  readonly onSelect: (wallId: WallRowViewModel['id']) => void;
-  readonly onToggleSelect: (wallId: WallRowViewModel['id']) => void;
-  readonly onHover: (wallId: WallRowViewModel['id'] | null) => void;
-  readonly onOpenMenu?: ((wallId: WallRowViewModel['id']) => void) | undefined;
-  readonly style: CSSProperties;
-}
+function buildItems(
+  rows: readonly WallRowViewModel[],
+  queue: WallReviewQueue | undefined,
+  showReviewedRows: boolean,
+  hasBulk: boolean,
+): readonly ListItem[] {
+  const groups: Record<WallQueueGroup, WallRowViewModel[]> = { nonStandard: [], standard: [], reviewed: [] };
 
-function WallLayerListRow({
-  row,
-  isSelected,
-  isHovered,
-  isFlashing,
-  onSelect,
-  onToggleSelect,
-  onHover,
-  onOpenMenu,
-  style,
-}: WallLayerListRowProps) {
-  const showHatch = row.isLowConfidence && row.statusCode === 'attention';
-  const status = displayStatusCode(row);
+  for (const row of rows) {
+    groups[groupOf(row, queue)].push(row);
+  }
 
-  /* Ctrl/Cmd giữ vùng chọn cũ — cách duy nhất chọn đủ hai đoạn để "nối đoạn". */
-  const pick = (withModifier: boolean) => {
-    if (withModifier) {
-      onToggleSelect(row.id);
+  const items: ListItem[] = [];
 
-      return;
+  for (const group of ['nonStandard', 'standard', 'reviewed'] as const) {
+    const members = groups[group];
+
+    if (members.length === 0) {
+      continue;
     }
 
-    onSelect(row.id);
-  };
+    items.push({ kind: 'header', group, count: members.length });
 
-  return (
-    <div
-      aria-label={`${row.codeLabel} — ${STATUS_DOT_LABEL[row.statusCode]}`}
-      aria-selected={isSelected}
-      data-wall-id={row.id}
-      className={cn(
-        /* Một hàng vừa 240 px của panel 280 (mã 48 · độ dày ~75 · tin cậy 84 · dấu 14 · khe 4): không gì tràn mép phải (BUG-396). */
-        'absolute inset-x-0 top-0 flex h-10 cursor-pointer items-center gap-1 overflow-hidden px-2 text-[13px] outline-hidden',
-        'transition-colors duration-120 hover:bg-bg-hover',
-        'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
-        isSelected && 'bg-bg-selected hover:bg-bg-selected',
-        isHovered && !isSelected && 'bg-bg-hover',
-        /*
-         * Nháy nền của TT-02 — token `bg-accent-wash` (không phải một mã màu
-         * thô) ở nhịp `duration-340` của thang chuyển động; đặc tả ghi 400 ms,
-         * và 400 không có trên thang. Đứng SAU hai nhánh trên để một hàng vừa
-         * đổi vẫn nhận ra được kể cả khi nó đang được chọn. Tiền lệ nguyên văn:
-         * `screens/account/AccountSettings/AppearanceSection.tsx`.
-         */
-        isFlashing && 'bg-accent-wash duration-340',
-      )}
-      onClick={(event) => pick(event.ctrlKey || event.metaKey || event.shiftKey)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          pick(event.ctrlKey || event.metaKey);
+    if (group === 'nonStandard' && hasBulk) {
+      items.push({ kind: 'bulk' });
+    }
 
-          return;
-        }
+    if (group !== 'reviewed' || showReviewedRows) {
+      items.push(...members.map((row) => ({ kind: 'row' as const, row })));
+    }
+  }
 
-        /* Đường bàn phím tới menu chuột phải (G74 16-E-010, A12). */
-        if (onOpenMenu !== undefined && (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))) {
-          event.preventDefault();
-          onOpenMenu(row.id);
-        }
-      }}
-      onMouseEnter={() => onHover(row.id)}
-      onMouseLeave={() => onHover(null)}
-      role="option"
-      style={style}
-      tabIndex={0}
-    >
-      {showHatch && (
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0"
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(45deg, var(--state-attention) 0, var(--state-attention) 2px, transparent 2px, transparent 8px)',
-            opacity: 0.06,
-          }}
-        />
-      )}
-
-      <span className="relative w-14 shrink-0 whitespace-nowrap tabular-nums text-text-primary">{row.codeLabel}</span>
-
-      <Badge className="relative shrink-0 gap-1 px-1.5 tabular-nums" noDot variant="neutral">
-        <span
-          aria-hidden="true"
-          className="h-3 w-3 rounded-xs border border-border-default-50"
-          style={{ backgroundColor: wallStrokeToken(row.thicknessMm as WallThickness) }}
-        />
-        {row.thicknessLabel}
-      </Badge>
-
-      <span className="relative min-w-0 shrink">
-        <ConfidenceMeter className="gap-1" noTooltip value={row.confidence} />
-      </span>
-
-      {/*
-        Cần chú ý: biểu tượng + màu, không huy hiệu chữ — huy hiệu 70 px bị mép panel cắt đôi
-        (BUG-396). Tên trạng thái vẫn nằm ở `aria-label` của hàng và ở `title`.
-      */}
-      {status === 'attention' ? (
-        <span className="relative ml-auto flex shrink-0 items-center text-state-attention-text" title={ATTENTION_BADGE_LABEL}>
-          <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5" />
-        </span>
-      ) : (
-        /* Đã duyệt / vi phạm mang hình riêng, không chỉ khác màu chấm (BUG-638). */
-        <span
-          className={cn('relative ml-auto flex shrink-0 items-center', STATUS_ICON_TEXT[status])}
-          title={STATUS_DOT_LABEL[status]}
-        >
-          {status === 'verified' ? (
-            <Check aria-hidden="true" className="h-3.5 w-3.5" />
-          ) : status === 'violation' ? (
-            <XCircle aria-hidden="true" className="h-3.5 w-3.5" />
-          ) : (
-            <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT_TOKEN[status])} />
-          )}
-        </span>
-      )}
-    </div>
-  );
+  return items;
 }
 
-export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLayerListProps) {
+const keyOf = (item: ListItem | undefined): string =>
+  item === undefined ? '' : item.kind === 'row' ? item.row.id : item.kind === 'header' ? `h-${item.group}` : 'bulk';
+
+const heightOf = (item: ListItem | undefined): number =>
+  item?.kind === 'header' ? HEADER_HEIGHT_PX : item?.kind === 'bulk' ? BULK_HEIGHT_PX : LIST_ROW_HEIGHT_PX;
+
+export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, onOpenBulk }: WallLayerListProps) {
   const { rows, selectedWallId, hoveredWallId, onSelect, onHover, onOpenRowMenu, state, emptyNotice } = panel;
   const selectedWallIds = panel.selectedWallIds ?? (selectedWallId === null ? [] : [selectedWallId]);
+  const [reviewedOpen, setReviewedOpen] = useState(false);
+  const selectedIsReviewed = rows.some((row) => row.id === selectedWallId && row.isReviewed);
+  const hasOthers = rows.some((row) => groupOf(row, queue) !== 'reviewed');
+  const showReviewedRows = reviewedOpen || selectedIsReviewed || !hasOthers;
+  const items = buildItems(rows, queue, showReviewedRows, onOpenBulk !== undefined && queue !== undefined);
   // Vai Người xem luôn ở `forbidden`; "đang tải" của họ đọc từ dữ liệu (bất biến 7), không từ vai (16-D-008).
   const isLoadingList =
     state === 'loading' ||
-    (panel.isViewerRole &&
-      rows.length === 0 &&
-      panel.reviewCounter.total === 0 &&
-      emptyNotice === null &&
-      panel.errorMessage === null);
+    (panel.isViewerRole && rows.length === 0 && panel.reviewCounter.total === 0 && emptyNotice === null && panel.errorMessage === null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const scrollParentRef = useRef<HTMLElement | null>(null);
 
@@ -252,34 +133,26 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLay
   }, []);
 
   const rowVirtualizer = useVirtualizer({
-    count: rows.length,
-    estimateSize: () => ROW_HEIGHT_PX,
+    count: items.length,
+    estimateSize: (index) => heightOf(items[index]),
+    getItemKey: (index) => keyOf(items[index]),
     getScrollElement: () => scrollParentRef.current,
     overscan: 8,
   });
 
+  const selectedIndex = items.findIndex((item) => item.kind === 'row' && item.row.id === selectedWallId);
+
   useEffect(() => {
-    if (selectedWallId === null) {
+    if (selectedIndex === -1) {
       return;
     }
 
-    const index = rows.findIndex((row) => row.id === selectedWallId);
+    rowVirtualizer.scrollToIndex(selectedIndex, { align: 'auto', behavior: 'smooth' });
 
-    if (index === -1) {
-      return;
-    }
-
-    // 180ms ("fast"): trình duyệt tự điều khiển `behavior: 'smooth'`, API gốc
-    // không nhận tham số mili-giây — không có số thời lượng nào để viết ra.
-    rowVirtualizer.scrollToIndex(index, { align: 'auto', behavior: 'smooth' });
-
-    /*
-     * Focus đang ở một hàng khác (J/K, bấm trên bản vẽ) thì đi theo hàng được chọn — không để
-     * viền focus ở dòng cũ và nền chọn ở dòng mới cùng "nổi" (G4a-16).
-     */
+    /* Focus đang ở một hàng khác (J/K, bấm trên bản vẽ) thì đi theo hàng được chọn (G4a-16). */
     const container = containerRef.current;
 
-    if (container === null || !container.contains(document.activeElement)) {
+    if (container === null || !container.contains(document.activeElement) || selectedWallId === null) {
       return;
     }
 
@@ -292,17 +165,14 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLay
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [selectedWallId, rows, rowVirtualizer]);
+  }, [selectedIndex, selectedWallId, rowVirtualizer]);
 
-  // Ref bọc ngoài LUÔN gắn vào một div ở cùng vị trí cây, bất kể nhánh nào bên
-  // dưới đang vẽ — nếu chỉ gắn ở nhánh danh sách ảo hoá, màn mount lần đầu ở
-  // `loading`, `empty` hay `error` thì `containerRef.current` không bao giờ
-  // được gán và ảo hoá im lặng hỏng ngay khi `rows` có dữ liệu sau đó.
+  // Ref bọc ngoài LUÔN gắn vào một div ở cùng vị trí cây, nhánh nào cũng vậy (ảo hoá cần nó).
   if (isLoadingList) {
     return (
       <div aria-label={LIST_ARIA_LABEL} className="flex flex-col" ref={containerRef} role="status">
         {Array.from({ length: LOADING_SKELETON_ROWS }, (_, index) => (
-          <Skeleton className="h-10" key={index} preset="table-row" />
+          <Skeleton className="h-9" key={index} preset="table-row" />
         ))}
       </div>
     );
@@ -316,8 +186,7 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLay
     );
   }
 
-  // `error`: panel cha đã hiện `InlineAlert` giải thích lý do rows rỗng — danh
-  // sách không vẽ thêm một thông báo "không khớp bộ lọc" gây hiểu lầm.
+  // `error`: panel cha đã hiện `InlineAlert` — không thêm câu "không khớp bộ lọc" gây hiểu lầm.
   if (rows.length === 0 && state === 'error') {
     return <div ref={containerRef} />;
   }
@@ -325,28 +194,61 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLay
   if (rows.length === 0) {
     return (
       <div ref={containerRef}>
-        <p className="px-2 py-8 text-center text-[13px] text-text-muted">{NO_MATCH_MESSAGE}</p>
+        <p className="px-2 py-8 text-center text-[13px] text-text-secondary">{NO_MATCH_MESSAGE}</p>
       </div>
     );
   }
 
   return (
-    <div
-      aria-label={LIST_ARIA_LABEL}
-      className="relative"
-      ref={containerRef}
-      role="listbox"
-      style={{ height: rowVirtualizer.getTotalSize() }}
-    >
-      {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-        const row = rows[virtualRow.index];
+    <div aria-label={LIST_ARIA_LABEL} className="relative" ref={containerRef} role="listbox" style={{ height: rowVirtualizer.getTotalSize() }}>
+      {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+        const item = items[virtualItem.index];
+        const style = { transform: `translateY(${virtualItem.start}px)` };
 
-        if (row === undefined) {
+        if (item === undefined) {
           return null;
         }
 
+        if (item.kind === 'header') {
+          const isReviewed = item.group === 'reviewed';
+          const isOpen = showReviewedRows;
+
+          return (
+            <div className="absolute inset-x-0 top-0 flex h-9 items-end px-2 pb-1" key={keyOf(item)} role="presentation" style={style}>
+              {isReviewed ? (
+                <button
+                  aria-expanded={isOpen}
+                  className="flex items-center gap-1 rounded-md text-caption font-medium uppercase tracking-[0.06em] text-text-secondary hover:text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  onClick={() => setReviewedOpen(!isOpen)}
+                  type="button"
+                >
+                  <ChevronDown aria-hidden="true" className={cn('h-3.5 w-3.5 transition-transform duration-180', !isOpen && '-rotate-90')} />
+                  {`${GROUP_TITLE[item.group]} ${item.count}`}
+                </button>
+              ) : (
+                <span className="text-caption font-medium uppercase tracking-[0.06em] text-text-secondary">
+                  {`${GROUP_TITLE[item.group]} ${item.count}`}
+                </span>
+              )}
+            </div>
+          );
+        }
+
+        if (item.kind === 'bulk') {
+          return (
+            <div className="absolute inset-x-0 top-0 flex h-11 items-center px-1" key="bulk" role="presentation" style={style}>
+              <Button fullWidth onClick={onOpenBulk} size="sm" variant="secondary">
+                {`Đổi ${queue?.bulk.changeCount ?? 0}/${queue?.bulk.totalCount ?? 0} tường về chuẩn…`}
+              </Button>
+            </div>
+          );
+        }
+
+        const { row } = item;
+
         return (
           <WallLayerListRow
+            extra={queue?.extras.get(row.id)}
             isFlashing={row.id === flashingWallId}
             isHovered={row.id === hoveredWallId}
             isSelected={selectedWallIds.includes(row.id)}
@@ -355,8 +257,10 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLay
             onOpenMenu={onOpenRowMenu}
             onSelect={onSelect}
             onToggleSelect={onToggleSelect}
+            onUnapprove={panel.isViewerRole ? undefined : panel.onUnapprove}
             row={row}
-            style={{ transform: `translateY(${virtualRow.start}px)` }}
+            showConfidence={queue?.showConfidence ?? true}
+            style={style}
           />
         );
       })}

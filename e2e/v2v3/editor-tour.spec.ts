@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../fixtures/routes';
+import { seedSpatial } from '../fixtures/seedSpatial';
 import {
   TOUR_CHIP_NAME,
   TOUR_FINISH_NAME,
@@ -68,6 +69,9 @@ const TOUR_SELF_APPEAR_TIMEOUT_MS = 6_000;
 function seenKey(hostId: string): string {
   return `appfront:system-editor-tour-seen:user-mock:${hostId}`;
 }
+
+/** Nút chính ở bước cuối của tour (`EditorTour.tsx`). */
+const TOUR_LAST_NEXT_NAME = 'Xong';
 
 const WALL_STEPS = [
   TOUR_TITLES.switchTool,
@@ -157,7 +161,9 @@ test('màn tường: đi hết bốn bước bằng "Tiếp theo", thẻ tổng 
     const card = tourCard(page, title);
     await expect(card).toBeVisible({ timeout: TOUR_SELF_APPEAR_TIMEOUT_MS });
     await expect(tourAnnouncement(page, `Bước ${index + 1} trên 4: ${title}`)).toBeAttached();
-    await card.getByRole('button', { name: TOUR_NEXT_NAME, exact: true }).click();
+    // Bước cuối mang nút "Xong" thay cho "Tiếp theo" (EditorTour.tsx, 3c8e7ee6).
+    const next = index === WALL_STEPS.length - 1 ? TOUR_LAST_NEXT_NAME : TOUR_NEXT_NAME;
+    await card.getByRole('button', { name: next, exact: true }).click();
   }
 
   const summary = tourCard(page, TOUR_TITLES.summary);
@@ -188,16 +194,17 @@ test('màn tường: Escape bỏ tour, chip "Xem hướng dẫn" hiện, khoá g
   await expectNoTourAfterReload(page);
 });
 
-test('màn tường: bấm chip "Xem hướng dẫn" sau khi bỏ qua mở lại tour từ bước đầu', async ({
+test('màn tường: bấm chip "Xem hướng dẫn" sau khi bỏ qua mở lại tour ở đúng bước đã dừng', async ({
   page,
 }) => {
   await openWalls(page);
   const first = tourCard(page, WALL_STEPS[0]);
   await expect(first).toBeVisible({ timeout: TOUR_SELF_APPEAR_TIMEOUT_MS });
 
-  // Sang bước 2 trước, để "từ bước đầu" là một khẳng định chứ không phải trùng hợp.
+  // Sang bước 2 trước, để "đúng bước đã dừng" là một khẳng định chứ không phải trùng hợp.
   await first.getByRole('button', { name: TOUR_NEXT_NAME, exact: true }).click();
-  await expect(tourCard(page, WALL_STEPS[1])).toBeVisible();
+  const second = tourCard(page, WALL_STEPS[1]);
+  await expect(second).toBeVisible();
 
   await page.keyboard.press('Escape');
   const chip = page.getByRole('button', { name: TOUR_CHIP_NAME, exact: true });
@@ -205,8 +212,9 @@ test('màn tường: bấm chip "Xem hướng dẫn" sau khi bỏ qua mở lại
 
   await chip.click();
 
-  await expect(first).toBeVisible();
-  await expect(tourAnnouncement(page, `Bước 1 trên 4: ${WALL_STEPS[0]}`)).toBeAttached();
+  // Mở lại ở bước đã dừng; chỉ lượt đã đi hết mới quay về bước 1 (useEditorTour `onReopen`, 195a3382).
+  await expect(second).toBeVisible();
+  await expect(tourAnnouncement(page, `Bước 2 trên 4: ${WALL_STEPS[1]}`)).toBeAttached();
   await expect(chip).toHaveCount(0);
 });
 
@@ -215,11 +223,14 @@ test('màn xuất (cổng nạp kho): nút xuất vừa có là tour tự hiện
 }) => {
   await page.setViewportSize(DESKTOP_VIEWPORT);
   await page.goto(EXPORT_PATH);
+  // Chưa có mô hình thì màn xuất hiện trạng thái rỗng (cụm 6, cố ý): bơm bộ mẫu A14 sau khi cổng
+  // nạp xong, cùng khuôn `v12a/export.spec.ts` › `seedAndSettle`.
+  await expect(page.getByRole('heading', { name: 'Xuất mô hình' })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  await seedSpatial(page, { projectId: PROJECT_ID });
 
   // Nút "xuất" mang neo `data-tour-anchor="exportResult"` và chỉ có khi có thứ để
-  // xuất — nó xuất hiện SAU lượt nạp kho bất đồng bộ của cổng (B-V12-01), và neo
-  // vào trang là đủ để bước sống lại (B-V2-01).
-  await expect(page.getByRole('button', { name: 'Xuất', exact: true })).toBeVisible({
+  // xuất — nó xuất hiện SAU lượt bơm kho, và neo vào trang là đủ để bước sống lại (B-V2-01).
+  await expect(page.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 
@@ -237,6 +248,7 @@ test('màn xuất (cổng nạp kho): nút xuất vừa có là tour tự hiện
 test('vỏ 3D: tour tự hiện đúng một bước "Đổi sang khung nhìn khối" khi người dùng lần đầu mở, không cần sự kiện cửa sổ nào', async ({
   page,
 }) => {
+  test.skip(true, 'Viewer3D cũ không còn route từ 29eba219: /3d chuyển sang editor3d.html, tour và tấm phụ của vỏ cũ không còn; tour trang Pascal kiểm ở pascal-tour.spec.ts.');
   await openViewer(page);
 
   await expect(tourCard(page, TOUR_TITLES.view3d)).toBeVisible({

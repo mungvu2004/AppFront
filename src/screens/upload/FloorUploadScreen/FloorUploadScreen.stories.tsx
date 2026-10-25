@@ -299,7 +299,7 @@ function modelOf(
     offlineNoticeKey: 'floorUpload.offlineBanner',
     readOnlyNotice: null,
     readOnlyNoticeKey: 'floorUpload.readOnlyNotice',
-    emptyMessage: 'Chưa có tầng nào có bản vẽ. Kéo thả tệp đầu tiên để bắt đầu.',
+    emptyMessage: 'Chưa có tầng nào có bản vẽ.',
     emptyMessageKey: 'floorUpload.emptyState',
     dropZone: { ...DROP_ZONE, isEnabled: canEdit },
     floors: rows,

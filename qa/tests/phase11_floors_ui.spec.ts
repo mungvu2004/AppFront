@@ -33,10 +33,8 @@ const STRAIGHTEN = 'Tự động nắn'; // UIQ COPY.straightenAction
 const STRAIGHTEN_DIALOG = /^Nắn thẳng bản vẽ tầng .+\?$/u; // UIQ
 const CORNERS_DIALOG = /^Cắt và nắn bản vẽ tầng .+ theo bốn góc\?$/u; // UIQ
 const THICK_SCREEN = 'Chuẩn hoá độ dày tường'; // TV:105
-const THICK_PREVIEW = 'Xem trước'; // TAB:56
-const THICK_ACCEPT = /^Đồng ý chuẩn hoá \d+ tường /u; // TGT:43
-const REAPPLY = 'Áp lại cho mọi tường lệch nhóm'; // TAB:55
-const REAPPLY_TITLE = 'Áp lại cho mọi tường lệch nhóm sẽ đổi tường đã duyệt'; // TAB:64
+const THICK_SELECT_ALL = /^Chọn (cả \d+ nhóm|nhóm này) \(\d+ đoạn\)$/u; // bản Z TBP:TEXT.selectAll
+const THICK_ACCEPT = /^Đồng ý đổi các đoạn .+ về \d+ mm$/u; // bản Z TBP:TEXT.acceptGroup
 const DELETE_FLOOR_MENU = 'Xoá tầng'; // FT:180
 
 const report = (page: Page): Locator => page.getByRole('region', { name: REPORT, exact: true });
@@ -202,7 +200,7 @@ test.describe('SCR-09/10/11/21/25 floors — UI verify (QA-11 P5)', () => {
     });
   });
 
-  test('SCR-21/25 · FL-11F-U4 · engineer · UI xem trước độ dày, cảnh báo áp lại, danh sách đo', async ({ browser }) => {
+  test('SCR-21/25 · FL-11F-U4 · engineer · UI lô độ dày, tường đã duyệt ngoài lô, danh sách đo', async ({ browser }) => {
     test.setTimeout(300_000);
     await withEngineer(browser, 'floors-ui', async (ctx) => {
       const thick = await ctx.project('11f-u4t', 1);
@@ -215,46 +213,33 @@ test.describe('SCR-09/10/11/21/25 floors — UI verify (QA-11 P5)', () => {
         return p.getByRole('region', { name: THICK_SCREEN, exact: true });
       };
 
-      await test.step('[11F-F-301] bảng xem trước + danh sách "tường không đổi được" ở 4 khổ: không tràn', async () => {
+      await test.step('[11F-F-301] lô đổi + danh sách "đoạn không đổi" (xem tay) ở 4 khổ: không tràn', async () => {
         await verifyUi(
           page,
           'U11_11F-F-301_floors',
           async (p) => {
             const region = await openThickness(p);
-            const boxes = p.getByRole('checkbox', { name: THICK_ACCEPT });
-            await expect(boxes.first()).toBeVisible();
-            for (let i = 0; i < (await boxes.count()); i += 1) {
-              await boxes.nth(i).focus();
-              await p.keyboard.press('Space'); // sr-only checkbox: keyboard, as phase04 pressSpaceOn; every group accepted so the 150 mm wall is a row
-            }
-            await btn(region, THICK_PREVIEW).click();
+            await expect(p.getByRole('checkbox', { name: THICK_ACCEPT }).first()).toBeVisible();
+            await region.getByRole('button', { name: THICK_SELECT_ALL }).click(); // every group ticked: the panel is the preview
             await expect(region.getByText(/nhóm chuẩn\./u)).toBeVisible();
-            // TAB: list shown when unchangedWalls > 0 = rows of accepted groups with exceedsTolerance (gateway:811); the 150 mm wall is 70 mm off 220 (> 30 mm)
-            await expect(region.getByText(/^\d+ tường không đổi được:$/u)).toBeVisible();
-            // evidence (E): every element the 150 mm matcher hits (strict-mode clash vs absent row) + the text around the list
-            const hits = region.getByText(/^150,0\s*mm$/u);
-            await attachJson('U11_11F-F-301_state.json', {
-              width: p.viewportSize()?.width,
-              url: p.url(),
-              hits150: await hits.count(),
-              hitsTexts: await hits.evaluateAll((els) => els.map((el) => `${el.tagName}.${el.parentElement?.tagName ?? ''} ${(el.parentElement?.textContent ?? '').slice(0, 80)}`)),
-              regionTail: (await region.innerText()).slice(-700),
-            });
-            // hits150 = 2 in R1/D: the table cell (TD) and the list row (SPAN); only the SPAN is the list row
-            await expect(region.getByText(/^150,0\s*mm$/u).and(region.locator('span')), 'row of the 150 mm wall in the list').toBeVisible();
+            // the 60 mm wall is under 80 mm: left for a manual review, listed with its reason (TB:toManualRows)
+            await expect(region.getByText(/^Không đổi, giữ ở lớp Tường để xem tay \(\d+\)$/u)).toBeVisible();
+            await attachJson('U11_11F-F-301_state.json', { width: p.viewportSize()?.width, url: p.url(), regionTail: (await region.innerText()).slice(-700) });
+            await expect(region.getByText('60 mm', { exact: true }), 'row of the 60 mm wall in the list').toBeVisible();
+            await expect(region.getByText('Nghi AI nhận nhầm', { exact: true })).toBeVisible();
           },
           DESKTOP_VIEWPORTS,
         );
       });
 
-      await test.step('[11F-F-302] cảnh báo áp lại ở 4 khổ: không tràn', async () => {
+      await test.step('[11F-F-302] tường đã duyệt đứng ngoài lô (thay cảnh báo áp lại) ở 4 khổ: không tràn', async () => {
         await verifyUi(
           page,
           'U11_11F-F-302_floors',
           async (p) => {
             const region = await openThickness(p);
-            await btn(region, REAPPLY).click(); // TAB:55: the first click builds the warning (UTS:814-823) because a reviewed wall deviates
-            await expect(region.getByText(REAPPLY_TITLE, { exact: true })).toBeVisible();
+            await region.getByRole('button', { name: THICK_SELECT_ALL }).click();
+            await expect(region.getByText(/1 tường đã duyệt không nằm trong lô\.$/u)).toBeVisible(); // TB:batchSentenceOf
           },
           DESKTOP_VIEWPORTS,
         );

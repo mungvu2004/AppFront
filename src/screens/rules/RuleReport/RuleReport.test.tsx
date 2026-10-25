@@ -603,7 +603,7 @@ describe('mục 0-BIS.9 — hook dùng useNavigate(), bắt buộc bọc MemoryR
     }
 
     // Không có báo cáo: đầu đề của màn không được dựng.
-    expect(screen.queryByRole('heading', { name: 'Quy chuẩn' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Kiểm tra quy chuẩn' })).toBeNull();
     // Mà có phần dự phòng của ranh giới lỗi, dựng bằng `EmptyState` từ
     // `report.description` (R-62). Lỗi này không thử lại được nên phần dự phòng
     // KHÔNG có nút — cái nhìn thấy được là đầu đề của nó.
@@ -718,11 +718,11 @@ describe('K5 — đường dẫn "Dự án › <tên dự án> › …" như cá
 });
 
 describe('BUG-465 — chưa có kết quả thì không có gì để xác nhận, và chỉ một nút thử lại', () => {
-  it.each([['error'], ['loading']] as const)('%s: không nút "Xác nhận đã xử lý"', async (state) => {
+  it.each([['error'], ['loading']] as const)('%s: không nút "Sang Xuất"', async (state) => {
     const RuleReportView = await loadRuleReportView();
     renderRuleReport(RuleReportView, propsFor(scenarioOf(state)));
 
-    expect(screen.queryByRole('button', { name: 'Xác nhận đã xử lý' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sang Xuất' })).toBeNull();
   });
 
   it('error: "Thử lại" ở thân là nút chạy lại duy nhất', async () => {
@@ -896,11 +896,11 @@ describe('R-73 — chọn một vi phạm mở ViolationDetailContainer dạng t
     // Đợi lượt chạy xong rồi mở nhóm luật đầu tiên (mọi nhóm bắt đầu đóng —
     // `expandedRuleCodes` của `useRuleReport` rỗng lúc mở màn thật, khác
     // `propsFor` ở mục B vốn tự mở sẵn cho các phép kiểm view thuần). Neo vào
-    // `h2 button` — `RuleReportSection` là nút DUY NHẤT bọc trong `<h2>`; bộ lọc
+    // `h3 button` — `RuleReportSection` là nút DUY NHẤT bọc trong `<h3>`; bộ lọc
     // "Nhóm luật" ở `RuleReportFilterBar` cũng mang `aria-expanded` (nó là một
-    // ô chọn) nên một selector không neo `h2` bắt nhầm đúng cái đó trước.
+    // ô chọn) nên một selector không neo `h3` bắt nhầm đúng cái đó trước.
     const groupToggle = await waitFor(() => {
-      const toggle = container.querySelector<HTMLButtonElement>('h2 button[aria-expanded="false"]');
+      const toggle = container.querySelector<HTMLButtonElement>('h3 button[aria-expanded="false"]');
 
       if (toggle === null) {
         throw new Error('chưa có nhóm luật nào để mở — lượt chạy chưa xong');
@@ -980,7 +980,7 @@ describe('BUG-433 — route đo mốc thu gọn: dưới 1024 hàng là thẻ, k
     );
 
     const groupToggle = await waitFor(() => {
-      const toggle = container.querySelector<HTMLButtonElement>('h2 button[aria-expanded="false"]');
+      const toggle = container.querySelector<HTMLButtonElement>('h3 button[aria-expanded="false"]');
       if (toggle === null) {
         throw new Error('chưa có nhóm luật nào để mở — lượt chạy chưa xong');
       }

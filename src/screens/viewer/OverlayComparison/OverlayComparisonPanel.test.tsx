@@ -40,11 +40,9 @@ function panelPropsOf(
     toleranceMm: scenario.toleranceMm,
     toleranceLabel: scenario.toleranceLabel,
     rows: scenario.rows,
-    confirmation: scenario.confirmation,
     canEdit: true,
     onSetToleranceMm: vi.fn(),
     onSelectRegion: vi.fn(),
-    onConfirmMatch: vi.fn(),
     ...overrides,
   };
 }
@@ -57,20 +55,15 @@ function setTolerance(text: string): void {
 }
 
 describe('OverlayComparisonPanel', () => {
-  it('hiện đúng ba con số khớp ở kịch bản một phần, và toàn màn là tiếng Việt', () => {
+  it('hiện hai con số sai số ở kịch bản một phần, và toàn màn là tiếng Việt', () => {
     const { container } = renderWithProviders(<OverlayComparisonPanel {...panelPropsOf('partial')} />);
 
-    /* "41 mm" trùng với độ lệch lớn nhất TRONG BẢNG (cùng là 41), nên khoanh
-       vùng đúng khối ba con số đầu panel — không phải cả màn — để tránh khớp
-       nhầm sang ô của bảng. */
-    const metricsRegion = screen.getByRole('status').closest('.grid');
-    if (metricsRegion === null) {
-      throw new Error('không tìm thấy khối ba con số khớp');
-    }
+    /* "41 mm" trùng với độ lệch lớn nhất TRONG BẢNG, nên khoanh vùng đúng khối sai số.
+       Số vùng vượt dung sai nằm ở câu trạng thái đầu màn (S-28 v6), xem OverlayComparison.test. */
+    const metricsRegion = screen.getByRole('group', { name: 'Sai số đo được' });
 
-    expect(within(metricsRegion as HTMLElement).getByText('8 mm')).toBeInTheDocument();
-    expect(within(metricsRegion as HTMLElement).getByText('41 mm')).toBeInTheDocument();
-    expect(screen.getByRole('status').textContent).toBe('Số vùng vượt ngưỡng: 3');
+    expect(within(metricsRegion).getByText('8 mm')).toBeInTheDocument();
+    expect(within(metricsRegion).getByText('41 mm')).toBeInTheDocument();
 
     /* "Dung sai" (từ `toleranceLabel` đóng băng trong overlayComparisonScenarios.ts)
        là tiếng Việt đúng chính tả nhưng không âm tiết nào mang dấu — đúng "điểm
@@ -108,19 +101,6 @@ describe('OverlayComparisonPanel', () => {
     expect(screen.getByText('Màn hiệu chỉnh')).toBeInTheDocument();
   });
 
-  it('nút xác nhận tắt thì có dòng lý do ngay dưới (BUG-599)', () => {
-    const props = panelPropsOf('empty');
-    renderWithProviders(
-      <OverlayComparisonPanel
-        {...props}
-        confirmation={{ ...props.confirmation, canConfirm: false, disabledReason: 'Cần đo được vùng lệch trước khi xác nhận.' }}
-      />,
-    );
-
-    expect(screen.getByRole('button', { name: 'Xác nhận mô hình khớp bản vẽ' })).toBeDisabled();
-    expect(screen.getByText('Cần đo được vùng lệch trước khi xác nhận.')).toBeInTheDocument();
-  });
-
   it('gọi onSetToleranceMm với số milimét khi đổi dung sai', () => {
     const onSetToleranceMm = vi.fn();
     renderWithProviders(<OverlayComparisonPanel {...panelPropsOf('partial', { onSetToleranceMm })} />);
@@ -151,21 +131,11 @@ describe('OverlayComparisonPanel', () => {
 
     const renderedOrder = screen
       .getAllByRole('row')
-      .slice(1) // bỏ hàng tiêu đề
+      .filter((row) => row.querySelector('td') !== null) // bỏ hàng tiêu đề cột và tiêu đề nhóm
       .map((row) => row.querySelector('td')?.textContent);
 
     const expectedOrder = OVERLAY_COMPARISON_SCENARIOS.partial.rows.map((row) => row.referenceLabel);
 
     expect(renderedOrder).toEqual(expectedOrder);
-  });
-
-  it('nút xác nhận không tự bật ở kịch bản xong khi canConfirm là false', () => {
-    renderWithProviders(<OverlayComparisonPanel {...panelPropsOf('success')} />);
-
-    const confirmButton = screen.getByRole('button', {
-      name: OVERLAY_COMPARISON_SCENARIOS.success.confirmation.buttonLabel,
-    });
-
-    expect(confirmButton).toBeDisabled();
   });
 });

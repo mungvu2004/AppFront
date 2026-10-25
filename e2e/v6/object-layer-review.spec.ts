@@ -99,7 +99,7 @@ test('[bơm] duyệt một đối tượng thì hệ thống tự lưu và trìn
   await openSeeded(page);
 
   await page.getByRole('option', { name: /^#D-004 /u }).click();
-  await page.getByRole('button', { name: 'Duyệt đối tượng này' }).click();
+  await page.getByRole('button', { name: /^Duyệt #/u }).click();
   await expect(page.getByText('10/20 đối tượng đã duyệt').first()).toBeVisible();
 
   await expect(page.getByRole('status').filter({ hasText: /^Đã lưu lúc \d{2}:\d{2}$/u })).toHaveCount(1);

@@ -7,6 +7,8 @@
  * `count === null` lúc đang tải: không in "0 đối tượng" khi dữ liệu chưa tới (BUG-618).
  */
 
+import { Check } from 'lucide-react';
+
 import {
   OBJECT_CANVAS_COLOR_COUNT_TEST_ID,
   OBJECT_CANVAS_TEXT,
@@ -15,6 +17,9 @@ import {
   visibleDataColorTokens,
 } from './objectLayerSymbols';
 import { OBJECT_LAYER_IDS, OBJECT_LAYER_LABELS, type ObjectLayerVisibility } from './objectLayerTypes';
+
+const LEGEND_ATTENTION = 'Cần xem';
+const LEGEND_REVIEWED = 'Đã duyệt';
 
 export function ObjectLayerCanvasLegend({
   count,
@@ -45,6 +50,15 @@ export function ObjectLayerCanvasLegend({
           {OBJECT_LAYER_LABELS[layer]}
         </span>
       ))}
+      {/* Z/S-16: hình nói loại, màu nói trạng thái — hai dòng trạng thái của nét (không chữ số: bài đếm đọc số đầu tiên sau đây). */}
+      <span className="mt-1 flex items-center gap-1.5 border-t border-border-default pt-1.5 text-[12px] text-text-secondary">
+        <span aria-hidden="true" className="h-3 w-3 rounded-xs border-2 border-state-attention" />
+        {LEGEND_ATTENTION}
+      </span>
+      <span className="flex items-center gap-1.5 text-[12px] text-text-secondary">
+        <Check aria-hidden="true" className="h-3 w-3 rounded-full bg-state-verified p-px text-bg-surface" strokeWidth={3} />
+        {LEGEND_REVIEWED}
+      </span>
       {count === null ? null : (
         <span className="text-[12px] tabular-nums text-text-primary">
           {count}

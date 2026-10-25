@@ -81,14 +81,7 @@ async function env(): Promise<{ e: Env; fill: (role: 'admin' | 'engineer' | 'vie
 
 const pendingCount = async (page: Page): Promise<number> =>
   Number(
-    await page
-      .locator('dl')
-      .filter({ hasText: T.summaryPending })
-      .locator('div')
-      .filter({ has: page.locator('dt', { hasText: T.summaryPending }) })
-      .locator('dd')
-      .first()
-      .innerText(),
+    await page.getByTestId('user-summary-pending').innerText(),
   );
 
 const search = (page: Page, text: string): Promise<void> => page.getByLabel(T.search, { exact: true }).fill(text);

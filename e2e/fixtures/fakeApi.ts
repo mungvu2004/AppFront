@@ -42,6 +42,8 @@ export interface FakeApiOptions {
   readonly layers?: Readonly<Record<string, Wire>>;
   /** `true` = để hướng dẫn thao tác trang 3D tự bật (mặc định tắt để không che giao diện). */
   readonly tour?: boolean;
+  /** Vai của người đăng nhập giả; mặc định `engineer` (sửa được). `viewer` để kiểm nhánh chỉ xem. */
+  readonly role?: 'engineer' | 'viewer';
 }
 
 export interface FakeResponse {
@@ -62,7 +64,8 @@ const STAMP = '2026-10-01T00:00:00.000Z';
 
 const errorBody = (code: string, extra: Wire = {}): Wire => ({ code, requestId: 'req-fake-api', ...extra });
 
-export function createFakeBackend({ projectId, graphDoc, layers: overrides = {} }: FakeApiOptions) {
+export function createFakeBackend({ projectId, graphDoc, layers: overrides = {}, role = FAKE_USER.role }: FakeApiOptions) {
+  const user = { ...FAKE_USER, role };
   const { graph } = graphDoc;
   const levels = graph.levels;
   const levelIds = new Set(levels.map((level) => String(level.id)));
@@ -151,8 +154,8 @@ export function createFakeBackend({ projectId, graphDoc, layers: overrides = {} 
         body: {
           accessToken: 'fake-access-token',
           expiresIn: 3600,
-          roles: [FAKE_USER.role],
-          user: { email: FAKE_USER.email, id: FAKE_USER.id, name: FAKE_USER.name, roles: [FAKE_USER.role] },
+          roles: [user.role],
+          user: { email: user.email, id: user.id, name: user.name, roles: [user.role] },
         },
       };
     }
@@ -163,7 +166,7 @@ export function createFakeBackend({ projectId, graphDoc, layers: overrides = {} 
           createdAt: STAMP,
           floors: levels.map(floorOf),
           id: projectId,
-          members: [FAKE_USER],
+          members: [user],
           name: 'Dự án thử 3D',
           status: 'draft',
           updatedAt: STAMP,

@@ -198,7 +198,7 @@ describe('[BUG-466] .glb mà chưa chọn tầng nào: không nút "Xuất", kh�
     });
     render(<ExportPanelView {...props} />);
 
-    expect(screen.getByRole('button', { name: 'Xuất' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toHaveProperty('disabled', true);
     // RV2#7: chân trang nói vì sao nút mờ, không phải câu thư mục tải xuống.
     expect(screen.getByText('Chọn ít nhất một tầng để xuất mô hình 3D.')).toBeTruthy();
   });
@@ -211,7 +211,7 @@ describe('[BUG-466] .glb mà chưa chọn tầng nào: không nút "Xuất", kh�
     });
     render(<ExportPanelView {...props} />);
 
-    expect(screen.getByRole('button', { name: 'Xuất' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toBeTruthy();
   });
 
   it('không tầng nào được chọn thì không có dòng "mọi đối tượng … đều đã duyệt"', () => {
@@ -346,7 +346,7 @@ describe('capabilities false → giao diện tương ứng rời khỏi DOM, kh�
    * chốt chặn chống người sau lén thêm lại một điều khiển không chạy.
    * ---------------------------------------------------------------------- */
 
-  it('canRenderPdfBytes=false: thẻ PDF vẫn ở lại và vẫn hiện số trang thật, nhưng không còn khả năng tải nào', async () => {
+  it('canRenderPdfBytes=false: PDF không thành thẻ chọn, chỉ là dòng "chưa xuất được" kèm số trang thật; không còn khả năng tải nào', async () => {
     const ExportPanelView = await loadExportPanelView();
     const pdfCard = DEFAULT_FORMATS.find((format) => format.id === 'pdf');
 
@@ -360,15 +360,15 @@ describe('capabilities false → giao diện tương ứng rời khỏi DOM, kh�
     });
     const { container } = render(<ExportPanelView {...props} />);
 
-    // Thẻ vẫn ở lại, và con số trên nó là số thật.
+    // PDF còn hiện (dòng ghi chú dưới danh sách), và số trang trên đó là số thật.
     expect(screen.getAllByText('.pdf')).toHaveLength(1);
     expect(container.textContent).toContain(pdfCard.pageCountLabel);
 
     // Nút Xuất vẫn có mặt nhưng mờ, kèm lý do ở chân trang.
-    expect(screen.getByRole('button', { name: 'Xuất' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toHaveProperty('disabled', true);
   });
 
-  it('canCaptureImage=false: thẻ ảnh vẫn ở lại nhưng không còn khả năng tải nào', async () => {
+  it('canCaptureImage=false: ảnh không thành thẻ chọn, chỉ là dòng "chưa xuất được"; không còn khả năng tải nào', async () => {
     const ExportPanelView = await loadExportPanelView();
     const props = buildExportPanelProps('success', {
       formats: formatsSelecting('image'),
@@ -378,7 +378,7 @@ describe('capabilities false → giao diện tương ứng rời khỏi DOM, kh�
     render(<ExportPanelView {...props} />);
 
     expect(screen.getAllByText('.png')).toHaveLength(1);
-    expect(screen.getByRole('button', { name: 'Xuất' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toHaveProperty('disabled', true);
   });
 
   it('canIncludeAxisGrid=false: không có công tắc "lưới trục" nào, kể cả khi mục tuỳ chọn đã mở', async () => {
@@ -402,7 +402,7 @@ describe('capabilities false → giao diện tương ứng rời khỏi DOM, kh�
       const props = buildExportPanelProps('success', { formats: formatsSelecting(id) });
       const { unmount } = render(<ExportPanelView {...props} />);
 
-      expect(screen.getByRole('button', { name: /^xuất$/iu })).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: /^Xuất (\.glb|\.json)$/u })).not.toBeDisabled();
       unmount();
     }
   });

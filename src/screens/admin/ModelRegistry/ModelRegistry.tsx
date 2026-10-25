@@ -2,8 +2,11 @@
  * View thuần của màn registry model (`/admin/training/models`, F-11) — mục D: mọi dữ liệu qua
  * `ModelRegistryProps`, không chạm store hay mạng.
  *
- * Đầu trang và ô chọn họ giữ nguyên ở mọi trạng thái trừ `forbidden`; chỉ vùng thẻ và bảng
- * đổi. Dải 409 phủ lên trạng thái đang có, không là trạng thái thứ tám.
+ * Ba câu của màn (NGUYEN-TAC-BO-CUC §1, ngoài dự án nên không có FlowGate): `PageHead` nói
+ * làm gì, trạng thái (Badge mô hình đang dùng + câu có số phiên bản), và ô chọn họ ở `next`
+ * (như ô "Tầng" của VersionHistory). Không có nút chính cấp trang: việc chính là "Kích hoạt"
+ * trên từng hàng. Thẻ "Đang dùng" là khối nổi bật tách khỏi danh sách; danh sách phiên bản
+ * nằm trong MỘT `Section`. Dải 409 phủ lên trạng thái đang có, không là trạng thái thứ tám.
  */
 
 import { Boxes, Lock } from 'lucide-react';
@@ -14,6 +17,9 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Drawer } from '@/components/overlay/Drawer';
+import { PageHead } from '@/components/shell/PageHead';
+import { Section } from '@/components/shell/Section';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { cn } from '@/lib/utils';
@@ -24,14 +30,20 @@ import { ModelRegistryVersionTable } from './ModelRegistryVersionTable';
 import type { ActiveCardModel, ModelFamilyId, ModelRegistryActions, ModelRegistryProps, ModelRegistryViewModel } from './types';
 
 const TEXT = {
-  title: 'Mô hình AI của chuỗi xử lý',
+  eyebrow: 'Quản trị',
+  title: 'Chọn mô hình AI đang dùng',
   familyPicker: 'Loại mô hình',
   activeTitle: 'Đang dùng',
+  versionsTitle: 'Phiên bản',
   revert: 'Tắt AI, dùng thuật toán cũ',
   revertHint: 'Bỏ mô hình AI, chuỗi xử lý dùng lại thuật toán không học máy cho loại này.',
   reload: 'Tải lại',
   retry: 'Thử lại',
   errorTitle: 'Không đọc được danh sách model',
+  errorBadge: 'Không đọc được',
+  betterBadge: 'Có bản tốt hơn',
+  aiBadge: 'Đang dùng mô hình AI',
+  noAiBadge: 'Chưa dùng mô hình AI',
   loadMore: 'Xem thêm',
   emptyTitle: 'Chưa có phiên bản',
   forbiddenTitle: 'Không có quyền truy cập',
@@ -39,23 +51,60 @@ const TEXT = {
   detailPanel: 'Chi tiết phiên bản',
 } as const;
 
-const PANEL = 'rounded-xl border border-border-default bg-bg-surface p-5';
+const PANEL = 'rounded-xl bg-bg-surface p-5 shadow-panel';
 const FOCUS_RING =
   'outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
-function Header({ model }: { readonly model: ModelRegistryViewModel }) {
+/** Badge nói mô hình nào đang chạy (hoặc có bản tốt hơn), câu nói số phiên bản — mỗi số một chỗ. */
+function RegistryStatus({ model }: { readonly model: ModelRegistryViewModel }) {
+  if (model.state === 'loading') return null;
+  if (model.state === 'error') return <Badge variant="violation">{TEXT.errorBadge}</Badge>;
+
+  const card = model.activeCard;
+  const badge =
+    card?.betterNote != null ? (
+      <Badge variant="attention">{TEXT.betterBadge}</Badge>
+    ) : (
+      <Badge variant="neutral">{card?.hasVersion === true ? TEXT.aiBadge : TEXT.noAiBadge}</Badge>
+    );
+  // Rỗng: EmptyState bên dưới đã nói "Chưa có phiên bản", dòng trạng thái chỉ giữ Badge.
+  if (model.rows.length === 0) return badge;
+
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex flex-col gap-1">
-        {/* Không breadcrumb: thanh tab quản trị đã chỉ đúng mục này. */}
-        <h1 className="text-title text-text-primary">{TEXT.title}</h1>
-      </div>
-      {model.relatedLink !== null && (
-        <Link className="text-[13px] font-medium text-accent underline-offset-2 hover:underline" to={model.relatedLink.href}>
-          {model.relatedLink.label}
-        </Link>
-      )}
-    </div>
+    <>
+      {badge}
+      <span className="tabular-nums">{`${String(model.rows.length)} phiên bản${model.hasMore ? ' đã tải' : ''}.`}</span>
+    </>
+  );
+}
+
+function Head({ actions, model }: ModelRegistryProps) {
+  const forbidden = model.state === 'forbidden';
+  return (
+    <PageHead
+      className="mb-0"
+      eyebrow={TEXT.eyebrow}
+      title={TEXT.title}
+      status={forbidden ? undefined : <RegistryStatus model={model} />}
+      next={
+        <>
+          {model.relatedLink !== null && (
+            <Link className="text-[13px] font-medium text-accent underline-offset-2 hover:underline" to={model.relatedLink.href}>
+              {model.relatedLink.label}
+            </Link>
+          )}
+          {!forbidden && (
+            <SegmentedControl<ModelFamilyId>
+              aria-label={TEXT.familyPicker}
+              className="shrink-0 whitespace-nowrap [&>button]:flex-auto"
+              onChange={actions.onSelectFamily}
+              options={[...model.families]}
+              value={model.selectedFamily}
+            />
+          )}
+        </>
+      }
+    />
   );
 }
 
@@ -142,34 +191,44 @@ function VersionsArea({ actions, model }: ModelRegistryProps) {
         />
       )}
       {model.partialNotice !== null && <InlineAlert level="attention" message={model.partialNotice} />}
-      {model.rows.length === 0 ? (
-        <EmptyState description={model.emptyMessage} icon={<Boxes aria-hidden="true" />} title={TEXT.emptyTitle} />
-      ) : (
-        <div className={PANEL}>
-          <ModelRegistryVersionTable actions={actions} isCollapsed={model.isCollapsed} rows={model.rows} />
-        </div>
-      )}
-      {model.loadMoreError !== null && <InlineAlert level="violation" message={model.loadMoreError} />}
-      {model.hasMore && (
-        <Button
-          className="self-start"
-          loading={model.isLoadingMore}
-          onClick={actions.onLoadMore}
-          size="sm"
-          variant="ghost"
-        >
-          {TEXT.loadMore}
-        </Button>
-      )}
+      <Section flush title={TEXT.versionsTitle}>
+        {model.rows.length === 0 ? (
+          <div className="p-5">
+            <EmptyState description={model.emptyMessage} icon={<Boxes aria-hidden="true" />} title={TEXT.emptyTitle} />
+          </div>
+        ) : (
+          <div className={model.isCollapsed ? 'p-5' : undefined}>
+            <ModelRegistryVersionTable actions={actions} isCollapsed={model.isCollapsed} rows={model.rows} />
+          </div>
+        )}
+        {(model.loadMoreError !== null || model.hasMore) && (
+          <div className="flex flex-col gap-3 border-t border-border-default px-5 py-3">
+            {model.loadMoreError !== null && <InlineAlert level="violation" message={model.loadMoreError} />}
+            {model.hasMore && (
+              <Button
+                className="self-start"
+                loading={model.isLoadingMore}
+                onClick={actions.onLoadMore}
+                size="sm"
+                variant="ghost"
+              >
+                {TEXT.loadMore}
+              </Button>
+            )}
+          </div>
+        )}
+      </Section>
     </div>
   );
 }
 
 export function ModelRegistry({ actions, model }: ModelRegistryProps) {
+  const shell = 'mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[120rem]:max-w-[1440px]';
+
   if (model.state === 'forbidden') {
     return (
-      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[120rem]:max-w-[1440px]">
-        <Header model={model} />
+      <div className={shell}>
+        <Head actions={actions} model={model} />
         <EmptyState description={TEXT.forbiddenBody} icon={<Lock aria-hidden="true" />} title={TEXT.forbiddenTitle} />
       </div>
     );
@@ -180,16 +239,8 @@ export function ModelRegistry({ actions, model }: ModelRegistryProps) {
     !model.isCollapsed && model.state !== 'loading' && model.state !== 'error' && model.detail !== null;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[120rem]:max-w-[1440px]">
-      <Header model={model} />
-
-      <SegmentedControl<ModelFamilyId>
-        aria-label={TEXT.familyPicker}
-        className="self-start"
-        onChange={actions.onSelectFamily}
-        options={[...model.families]}
-        value={model.selectedFamily}
-      />
+    <div className={shell}>
+      <Head actions={actions} model={model} />
 
       {model.conflictNotice !== null && (
         <InlineAlert

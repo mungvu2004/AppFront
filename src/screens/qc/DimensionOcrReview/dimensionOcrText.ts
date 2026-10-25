@@ -220,6 +220,17 @@ export const DIMENSION_OCR_COLLAPSED_STATE = {
   description: 'Bung bảng để xem danh sách kích thước và chỉnh sửa giá trị.',
 } as const;
 
+/** Cột chi tiết + thẻ trên bản vẽ của bố cục vòng 6 (Z/S-17). */
+export const DIMENSION_INSPECTOR_TEXT = {
+  ariaLabel: 'Chi tiết kích thước',
+  noSelectionTitle: 'Chưa chọn kích thước',
+  noSelectionBody: 'Kích thước đã biết dùng để kiểm chéo tỷ lệ. Mỗi chuỗi cho một số đo lại từ bản vẽ để so với số ghi.',
+  scaleLabel: 'Tỷ lệ đang dùng',
+  rescaleLabel: 'Đặt lại tỷ lệ từ số này',
+  rescaleHint: 'Lệch quá 2 % so với tỷ lệ: tỷ lệ có thể sai. Đặt lại tỷ lệ, hoặc sửa số rồi duyệt.',
+  backToWallsLabel: 'Về duyệt tường',
+} as const;
+
 /**
  * Mọi chuỗi cố định người dùng đọc (không sử dụng i18n động).
  */

@@ -58,6 +58,7 @@
 import type { SwingDirection } from '@/domain/spatial/types';
 import type { ContextMenuItem } from '@/hooks/useContextMenu';
 import type { MeasurementState } from '@/hooks/useMeasurementLabel';
+import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
 import type {
   ObjectLayerCanvasProps,
@@ -219,6 +220,8 @@ export interface ObjectPlacementViewModel {
   readonly boundsPx: ObjectRectPx;
   readonly codeLabel: string;
   readonly isOrphan: boolean;
+  /** Z/S-16: màu nét theo trạng thái (đã duyệt / cần chú ý). Vắng = màu lớp trung tính. */
+  readonly statusCode?: ViewStatusCode;
 }
 
 /**

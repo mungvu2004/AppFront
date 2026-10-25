@@ -30,6 +30,8 @@ const DEBT_CONTENT =
   'Tường, phòng và nội thất đi theo khi nhân bản hay xoá tầng chưa được lưu; tải lại trang sẽ mất phần thay đổi đó.';
 /** Câu ẩn 3D chỉ thêm vào dải khi có tầng đang ẩn (FIX-1424). */
 const DEBT_HIDE = 'Tầng đang ẩn khỏi mô hình 3D sẽ hiện lại sau khi tải lại trang.';
+/** Tổng cao của lát cắt (`FloorSectionCut.tsx`): mm nguyên, dấu chấm hàng nghìn — "14.100 mm", nhãn "cao tổng". */
+const TOTAL_HEIGHT = '14.100 mm';
 
 /** Hàng tầng: `<tr>` mang tên truy cập "<tên>, cao độ …" (`FloorTableRow.tsx`). */
 function floorRows(page: Page) {
@@ -83,12 +85,12 @@ test.fixme(
   },
 );
 
-test('bơm bộ mẫu: bốn tầng, cao độ và tổng cao dùng dấu phẩy (V7-FLOORS-02, A15)', async ({ page }) => {
+test('bơm bộ mẫu: bốn tầng, cao độ dùng dấu phẩy, tổng cao "14.100 mm" (V7-FLOORS-02, A15)', async ({ page }) => {
   await openSeeded(page);
 
   await expect(page.getByRole('row', { name: 'Tầng trệt, cao độ 0,0 m, cao 3,9 m, chưa có bản vẽ' })).toBeVisible();
   await expect(page.getByRole('row', { name: 'Tầng hầm, cao độ -3,0 m, cao 3,0 m, chưa có bản vẽ' })).toBeVisible();
-  await expect(page.getByText('14,1 m').first()).toBeVisible();
+  await expect(page.getByRole('region', { name: /^Lát cắt/u }).getByText(TOTAL_HEIGHT, { exact: true })).toBeVisible();
   /* G3-16: có hàng nhưng chưa nhân bản/xoá tầng thì chưa có gì chưa lưu — dải nợ chưa hiện. */
   await expect(page.getByRole('status').filter({ hasText: DEBT_CONTENT })).toHaveCount(0);
 });
@@ -112,7 +114,7 @@ test('bơm bộ mẫu: thêm tầng có toast hoàn tác, bấm hoàn tác thì 
   await toast(page).getByRole('button', { name: 'Hoàn tác' }).click();
 
   await expect(floorRows(page)).toHaveCount(4);
-  await expect(page.getByText('14,1 m').first()).toBeVisible();
+  await expect(page.getByRole('region', { name: /^Lát cắt/u }).getByText(TOTAL_HEIGHT, { exact: true })).toBeVisible();
 });
 
 /* Xoá tầng chủ ý KHÔNG hỏi (A8/D-05): an toàn của nó nằm hết ở vé hoàn tác. */
@@ -125,10 +127,13 @@ test('bơm bộ mẫu: xoá tầng không hỏi, toast hoàn tác trả tầng v
   await expect(floorRows(page)).toHaveCount(3);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(toast(page)).toContainText('Đã xoá tầng Tầng 2.');
-  /* G3-16: xoá tầng rồi thì dải nợ mới nói thật phần tường, phòng, nội thất chưa lưu. */
-  const debt = page.getByRole('status').filter({ hasText: DEBT_CONTENT });
-  await expect(debt).toBeVisible();
-  await expect(debt).toContainText(DEBT_TITLE);
+  /*
+   * G3-16 nay đã trả nợ: cổng thật khai `persistFloorContents: true` (PUT #35 lớp tầng,
+   * `floorManagerGateway.ts`), nên xoá tầng không còn phần nào chưa lưu — dải nợ không hiện.
+   * Câu nợ chỉ còn ở cổng dev không có đầu máy chủ (`supports.persistFloorContents: false`).
+   */
+  await expect(page.getByRole('status').filter({ hasText: DEBT_CONTENT })).toHaveCount(0);
+  await expect(page.getByRole('status').filter({ hasText: DEBT_TITLE })).toHaveCount(0);
 
   await toast(page).getByRole('button', { name: 'Hoàn tác' }).click();
 

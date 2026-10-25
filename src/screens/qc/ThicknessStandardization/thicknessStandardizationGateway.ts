@@ -94,6 +94,7 @@ import {
 import {
   DEFAULT_THICKNESS_THRESHOLDS,
   HISTOGRAM_BIN_MM,
+  THICKNESS_MIN_MM,
   THICKNESS_GROUP_DISPLAY_ORDER,
   THICKNESS_GROUP_LABELS,
   type ApplyPreview,
@@ -101,6 +102,7 @@ import {
   type ThicknessGroup,
   type ThicknessGroupRow,
   type ThicknessLegendEntry,
+  type ThicknessManualReason,
   type ThicknessSegmentRow,
   type ThicknessSummary,
   type ThicknessThresholds,
@@ -490,18 +492,28 @@ export function deviationOf(measuredMm: number, group: ThicknessGroup): number {
  */
 export function statusOfSegment(
   wall: Wall,
-  exceedsTolerance: boolean,
+  manualReview: ThicknessManualReason | null,
   willChange: boolean,
 ): ViewStatusCode {
   if (wall.reviewed) {
     return 'verified';
   }
 
-  if (exceedsTolerance) {
+  /* S-21: đoạn phải xem tay (< 80 mm, ≥ ngưỡng cao) là thứ lô không đổi được. */
+  if (manualReview !== null) {
     return 'violation';
   }
 
   return willChange ? 'attention' : 'neutral';
+}
+
+/** Đoạn phải xem tay: dưới 80 mm (nghi AI nhận nhầm) hoặc rơi vào nhóm xem tay (≥ ngưỡng cao). */
+export function manualReviewOf(measuredMm: number, group: ThicknessGroup): ThicknessManualReason | null {
+  if (measuredMm < THICKNESS_MIN_MM) {
+    return 'tooThin';
+  }
+
+  return standardValueOf(group) === null ? 'tooThick' : null;
 }
 
 export interface ToSegmentRowOptions {
@@ -524,7 +536,9 @@ export function toSegmentRow(wall: Wall, options: ToSegmentRowOptions): Thicknes
   const deviationMm = deviationOf(wall.thicknessMm, group);
   const standardMm = standardValueOf(group);
   const exceedsTolerance = deviationMm > options.toleranceMm;
-  const willChange = standardMm !== null && standardMm !== wall.thicknessMm;
+  const manualReview = manualReviewOf(wall.thicknessMm, group);
+  /* S-21: trong dung sai là đúng chuẩn, không đổi; ngoài dung sai và không phải xem tay thì đổi. */
+  const willChange = standardMm !== null && exceedsTolerance && manualReview === null;
 
   return {
     wallId: wall.id,
@@ -535,10 +549,11 @@ export function toSegmentRow(wall: Wall, options: ToSegmentRowOptions): Thicknes
     deviationMm,
     deviationLabel: lengthLabel(deviationMm),
     exceedsTolerance,
+    manualReview,
     confidence: wall.confidence,
     confidenceLabel: describeConfidence(wall.confidence).label,
     floorName: options.levels.get(wall.levelId)?.name ?? '',
-    status: statusOfSegment(wall, exceedsTolerance, willChange),
+    status: statusOfSegment(wall, manualReview, willChange),
     reviewed: wall.reviewed,
   };
 }
@@ -552,8 +567,9 @@ export function toSegmentRows(
 }
 
 /**
- * Dòng nào ÁP ĐƯỢC: nhóm có giá trị số, số đo khác giá trị đó, và sai lệch nằm
- * trong dung sai.
+ * Dòng nào ÁP ĐƯỢC (luật S-21, chủ dự án duyệt): nhóm có giá trị số, đoạn KHÔNG chuẩn
+ * (lệch quá dung sai — trong dung sai đã coi là chuẩn), và không phải đoạn xem tay
+ * (< 80 mm hoặc ≥ ngưỡng cao).
  *
  * Đây là định nghĩa dùng chung của bốn con số tóm tắt, bảng xem trước và bước
  * dựng lệnh — một chỗ duy nhất, nên ba nơi không thể lệch nhau.
@@ -561,7 +577,7 @@ export function toSegmentRows(
 export function isApplicable(row: ThicknessSegmentRow): boolean {
   const standardMm = standardValueOf(row.normalizedGroup);
 
-  return standardMm !== null && standardMm !== row.measuredMm && !row.exceedsTolerance;
+  return standardMm !== null && row.exceedsTolerance && row.manualReview == null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -792,10 +808,7 @@ export function applyPreviewSentence(input: {
     return head;
   }
 
-  return `${head} ${formatCount(input.unchangedCount)} tường lệch quá ${formatLength(
-    input.toleranceMm,
-    { unit: 'mm' },
-  )} sẽ không đổi.`;
+  return `${head} ${formatCount(input.unchangedCount)} tường cần xem tay sẽ không đổi.`;
 }
 
 /**
@@ -809,7 +822,7 @@ export function buildApplyPreview(
   rows: readonly ThicknessSegmentRow[],
   toleranceMm: number,
 ): ApplyPreview {
-  const unchangedWalls = rows.filter((row) => row.exceedsTolerance);
+  const unchangedWalls = rows.filter((row) => row.manualReview != null);
   const groupCount = new Set(rows.filter(isApplicable).map((row) => row.normalizedGroup)).size;
 
   return {

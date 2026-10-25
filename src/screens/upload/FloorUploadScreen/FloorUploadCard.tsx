@@ -28,15 +28,18 @@ import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { motion } from '@/components/motion';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { IconButton } from '@/components/ui/IconButton';
 import { Select } from '@/components/ui/Select';
 
 import { SheetGlyph } from './FloorUploadGlyphs';
 import type { FloorUploadActions, FloorUploadRowModel } from './types';
 
-/** Nhãn trường, đúng như `floorUpload.floorCard.*` và `common.*` trong `vi.json`. */
-const LABEL_ELEVATION = 'cao độ';
-const LABEL_HEIGHT = 'Chiều cao thông thuỷ';
+/** Nhãn trường. Chiều cao tầng = sàn đến sàn (`heightMm`: tầng trên đứng ở cao độ + chiều cao này). */
+const LABEL_ELEVATION = 'Cao độ sàn';
+const LABEL_HEIGHT = 'Chiều cao tầng';
+const LABEL_HEIGHT_NOTE = '(sàn đến sàn)';
+const LABEL_CONFIRM_PREFIX = 'Đã xác nhận là';
 const LABEL_REASSIGN = 'Gán cho tầng khác';
 const LABEL_PAGE_PICKER = 'Chọn trang';
 const LABEL_CAD_PILL = 'Bản vẽ CAD · độ chính xác cao';
@@ -173,7 +176,7 @@ function ProgressRail({ row }: { row: FloorUploadRowModel }) {
     <>
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 h-1 overflow-hidden rounded-b-xl bg-bg-sunken"
+        className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden bg-bg-sunken"
       >
         <div
           className="h-full origin-left bg-accent transition-transform duration-instant"
@@ -205,8 +208,8 @@ export function FloorUploadCard({
 }: FloorUploadCardProps) {
   const cardRef = useRef<HTMLLIElement | null>(null);
   const pickerRef = useRef<HTMLInputElement | null>(null);
-  // Bảng tuỳ chọn mở thì thẻ nổi trên chân trang dính (`z-20`): thẻ là một ngữ cảnh xếp chồng
-  // (`panel-rise` giữ `transform`), nên `z-10` của bảng không thoát ra được (BUG-526).
+  // Bảng tuỳ chọn mở thì hàng nổi trên hàng kế: hàng là một ngữ cảnh xếp chồng (`panel-rise` giữ
+  // `transform`), nên `z-10` của bảng không thoát ra được (BUG-526).
   const [isMenuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -223,9 +226,10 @@ export function FloorUploadCard({
   return (
     <li
       className={clsx(
-        'animate-panel-rise motion-reduce:animate-none relative rounded-xl border border-border-default bg-bg-surface p-5',
+        // Một hàng trong khung "Bản vẽ theo tầng", không phải thẻ nổi: khung đã là cái hộp duy nhất.
+        'animate-panel-rise motion-reduce:animate-none relative bg-bg-surface py-4',
         isMenuOpen && 'z-30',
-        isCollapsed ? 'flex flex-col gap-3' : 'flex min-h-24 flex-row flex-wrap items-center gap-4',
+        'flex flex-col gap-3',
       )}
       data-floor-id={row.floorId}
       ref={cardRef}
@@ -236,34 +240,46 @@ export function FloorUploadCard({
     >
       {/* Wraps, and the text keeps a floor: at 375 px the badge drops under the thumbnail instead of
           squeezing the floor name to "Tầng t…" and the subtitle to five lines (BUG-261). */}
-      <div className={clsx('flex min-w-0 flex-1 flex-wrap items-center gap-4', isCollapsed && 'w-full')}>
+      <div className="flex w-full min-w-0 items-start gap-4">
         <motion.div
-          className="flex h-[72px] w-24 shrink-0 items-center justify-center rounded-lg bg-bg-sunken"
+          className={clsx(
+            'flex shrink-0 items-center justify-center rounded-lg border border-border-default bg-bg-sunken',
+            isCollapsed ? 'h-[72px] w-24' : 'h-20 w-28',
+          )}
           {...(file === null ? {} : { layoutId: `floor-upload-thumb-${file.id}` })}
         >
           {file?.previewUrl ? (
-            <img alt="" className="h-full w-full rounded-lg object-contain" src={file.previewUrl} />
+            <img alt="" className="h-full w-full rounded-lg bg-bg-surface object-contain" src={file.previewUrl} />
           ) : (
             <SheetGlyph />
           )}
         </motion.div>
 
-        <div className="flex min-w-24 flex-1 flex-col gap-1">
-          <h3 className="truncate text-[15px] font-medium text-text-primary">{row.name}</h3>
-          <p className="text-[13px] text-text-muted">
-            {LABEL_ELEVATION} {row.elevationLabel} · {LABEL_HEIGHT} {row.storeyHeightLabel}
+        {/* Tên + trạng thái trên một dòng, thông số và nút xếp dưới: hàng không vỡ ở 1024/768. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <h3 className="truncate text-heading text-text-primary">{row.name}</h3>
+            <Badge className="shrink-0" variant={row.statusVariant}>
+              {row.status === 'uploading' ? `${row.statusLabel} ${row.percentLabel}` : row.statusLabel}
+            </Badge>
+            <div className="ml-auto shrink-0">
+              <CardMenu actions={actions} isOpen={isMenuOpen} row={row} setOpen={setMenuOpen} />
+            </div>
+          </div>
+          <p className="flex flex-wrap gap-x-4 text-body-sm text-text-secondary">
+            <span className="whitespace-nowrap">
+              {LABEL_ELEVATION} <span className="text-text-primary">{row.elevationLabel}</span>
+            </span>
+            <span className="whitespace-nowrap">
+              {LABEL_HEIGHT} <span className="text-text-primary">{row.storeyHeightLabel}</span>{' '}
+              {LABEL_HEIGHT_NOTE}
+            </span>
           </p>
           {file !== null && (
-            <p className="truncate text-[13px] text-text-secondary">{file.summaryLine}</p>
+            <p className="truncate text-body-sm text-text-secondary">{file.summaryLine}</p>
           )}
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <Badge variant={row.statusVariant}>
-            {row.status === 'uploading' ? `${row.statusLabel} ${row.percentLabel}` : row.statusLabel}
-          </Badge>
           {file === null && !isReadOnly && actions.onFilesForFloor !== undefined && (
-            <>
+            <div className="pt-1">
               <input
                 accept={acceptAttribute}
                 aria-label={`${LABEL_UPLOAD_FOR_FLOOR} ${row.name}`}
@@ -284,9 +300,8 @@ export function FloorUploadCard({
               <Button onClick={() => pickerRef.current?.click()} size="sm" type="button" variant="secondary">
                 {LABEL_UPLOAD_FOR_FLOOR}
               </Button>
-            </>
+            </div>
           )}
-          <CardMenu actions={actions} isOpen={isMenuOpen} row={row} setOpen={setMenuOpen} />
         </div>
       </div>
 
@@ -294,11 +309,22 @@ export function FloorUploadCard({
         (file !== null && file.isCadBranch) ||
         row.reassignOptions.length > 0 ||
         canPickPage) && (
-        <div className={clsx('flex flex-col gap-2', isCollapsed ? 'w-full' : 'w-[220px] shrink-0')}>
+        <div className={clsx('flex w-full max-w-[400px] flex-col gap-2', !isCollapsed && 'pl-32')}>
           {file !== null && file.isCadBranch && <CadPill />}
 
           {row.autoMatchHint !== null && (
-            <p className="text-[12px] text-state-attention-text">{row.autoMatchHint}</p>
+            <p className="text-caption text-state-attention-text">{row.autoMatchHint}</p>
+          )}
+
+          {/* Cảnh báo "đúng tầng" được gỡ ngay tại tầng: tích là xác nhận, không tải lại tệp. */}
+          {row.isAutoMatched && file !== null && !isReadOnly && actions.onConfirmMatch !== undefined && (
+            <Checkbox
+              label={`${LABEL_CONFIRM_PREFIX} ${row.name}`}
+              onChange={(checked) => {
+                if (checked) actions.onConfirmMatch?.(file.id);
+              }}
+              size="sm"
+            />
           )}
 
           {file !== null && row.reassignOptions.length > 0 && (

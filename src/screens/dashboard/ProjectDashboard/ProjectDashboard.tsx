@@ -6,15 +6,15 @@
  * Invariant D's split: {@link ProjectDashboardView} takes plain props and only
  * renders — no store, no network, no `Date` — which is why there is not one
  * `toFixed` or unit conversion below for `local/no-raw-number` to catch;
- * every string already arrived formatted from `useProjectDashboard`. The card
- * itself ({@link ProjectCardTile}), the table view ({@link ProjectTable}) and the status rail
- * ({@link DashboardSidebar}) live in sibling files — this file crossed R-22's 400-line cap once the grid
- * grew a sidebar, and mục D's answer is a folder, not a
- * shorter feature.
+ * every string already arrived formatted from `useProjectDashboard`. The head
+ * ({@link DashboardHead}), the tile ({@link ProjectCardTile}) and the table view
+ * ({@link ProjectTable}) live in sibling files (R-22's 400-line cap, mục D).
  *
- * Every card sits in one responsive grid at one size — the old featured
- * "hero" card for `rows[0]` made cards of three widths on one screen (BUG-119,
- * BUG-157).
+ * Layout (S-02, NGUYEN-TAC-BO-CUC): `PageHead` answers the three questions — what this
+ * screen is for, where the projects stand (one Badge + one sentence with real counts), and
+ * the one primary action "Tạo dự án". Below it ONE `Section` holds the list; its head holds
+ * search, sort and Lưới/Bảng, and the status filter opens its body. No side rail, no counter
+ * tiles, no activity block: there is no activity log to fill one (CẦN BE).
  *
  * `ProjectDashboard` is the wired screen. It owns the one thing the pure
  * view cannot: a `Toast.Provider`. Nothing mounts one globally yet — the same
@@ -26,7 +26,7 @@
  */
 
 import { useEffect, useRef, type ReactElement } from 'react';
-import { AlertCircle, Folder, FolderPlus, Lock, Plus, Search } from 'lucide-react';
+import { AlertCircle, Folder, FolderPlus, Search } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -36,6 +36,7 @@ import { Toast, useToast } from '@/components/feedback/Toast';
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { motion } from '@/components/motion';
 import { Modal } from '@/components/overlay/Modal';
+import { Section } from '@/components/shell/Section';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
@@ -44,8 +45,7 @@ import { useContextMenu } from '@/hooks/useContextMenu';
 import { durationSeconds } from '@/lib/motion';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
-import { DashboardSidebar, DashboardSidebarSkeleton } from './DashboardSidebar';
-import { CREATE_PROJECT_SHORTCUT } from './dashboardShortcuts';
+import { DashboardHead } from './DashboardHead';
 import { projectMenuGroups } from './projectMenuGroups';
 import { ProjectCardTile } from './ProjectCardTile';
 import { ProjectTable } from './ProjectTable';
@@ -66,8 +66,7 @@ const SKELETON_CARD_COUNT = 6;
  * What the `sr-only` status line says — the screen reader's only way to learn
  * which of the seven states the dashboard is in. It used to print the raw
  * `SevenState` key ("success", "forbidden"), English in a Vietnamese product
- * (A6). Its own copy, like `ProjectSettings.tsx` and `CreateProjectModal.tsx`:
- * `SEVEN_STATE_LABELS` lives in test infrastructure that never ships.
+ * (A6). `SEVEN_STATE_LABELS` lives in test infrastructure that never ships.
  */
 const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
   empty: 'rỗng',
@@ -78,20 +77,27 @@ const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
   forbidden: 'Danh sách dự án, chế độ chỉ xem.',
   collapsed: 'thu gọn',
 };
+
 /**
- * One grid for every card, so cards are the same size at every width: a 730 px hero beside 340 px side cards
- * above a two-column grid gave three card widths on one screen (BUG-119, BUG-157). One column below `sm`.
+ * One grid for every tile, so tiles are the same size at every width (BUG-119, BUG-157): two columns
+ * at 768–1279 px, three from 1280 (the 1280 content block leaves ~340 px a tile).
  */
-const GRID_COLUMNS_CLASS = 'grid grid-cols-1 gap-5 sm:grid-cols-2 min-[90rem]:grid-cols-3 min-[120rem]:grid-cols-4';
+const GRID_COLUMNS_CLASS = 'grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2 xl:grid-cols-3';
+
+const STATUS_FILTER_SEGMENTS = PROJECT_STATUS_FILTER_OPTIONS.map((option) => ({ value: option.value, label: option.label }));
+const SORT_SELECT_OPTIONS = PROJECT_SORT_OPTIONS.map((option) => ({ value: option.value, label: option.label }));
 
 export type ProjectDashboardViewProps = ProjectDashboardModel & ProjectDashboardActions;
 
 /** The dashboard as a function of its props — rendered directly by tests and stories. */
 export function ProjectDashboardView(props: ProjectDashboardViewProps) {
-  const { state, rows, errorMessage, pendingDeleteId, pendingDeleteName, shouldStagger, statusCounts, unreadNotice, deleteErrorMessage } = props;
+  const { state, rows, errorMessage, pendingDeleteId, pendingDeleteName, statusCounts, unreadNotice, deleteErrorMessage } = props;
   const contextMenu = useContextMenu();
-  const isCollapsed = state === 'collapsed';
-  const showSidebar = !isCollapsed && state !== 'loading';
+  // Never had a project — read from the counts and not from `state`: below 1024 px a filter or
+  // search with no match is `collapsed`, not `partial` (BUG-111).
+  const neverHadProject =
+    state !== 'loading' && state !== 'error' && rows.length === 0 && props.totalProjects === 0 && unreadNotice === null;
+  const isFiltering = props.searchQuery.trim() !== '' || props.statusFilter !== 'all';
 
   const openMenuFor = (project: ProjectCardModel, x: number, y: number): void =>
     contextMenu.openMenu(x, y, projectMenuGroups(project, props, props.canDelete, props.canDuplicate, props.canDeleteProject));
@@ -103,11 +109,10 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           key={project.id}
           project={project}
           index={index}
-          shouldStagger={shouldStagger}
+          shouldStagger={props.shouldStagger}
           renamingId={props.renamingId}
           renameDraft={props.renameDraft}
           onOpen={(id) => props.openProject(id, 'card')}
-          onOpenViewer={props.openProjectViewer}
           onMenu={openMenuFor}
           onRenameChange={props.setRenameDraft}
           onRenameCommit={props.commitRename}
@@ -117,151 +122,138 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
     </div>
   );
 
-  return (
-    <div className="flex min-h-screen flex-col bg-bg-app">
-      {/* 16 px gutters below `sm`: 32 px left the 375 px status strip 311 px for 324 px of tabs (BUG-154). */}
-      <div className="mx-auto flex w-full max-w-[1920px] flex-1 flex-col gap-6 p-4 sm:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-title text-text-primary">Dự án của tôi</h1>
-            {/* Every state that has a list says how many it shows — "0 dự án" for a search with no match
-                included: dropping the line there made the whole column jump up 11 px (BUG-117). */}
-            {state === 'error' && <div aria-hidden="true" className="h-5" />}
-            {state !== 'loading' && state !== 'error' && <p className="text-[13px] text-text-secondary">{rows.length} dự án</p>}
-            {/* Its line held while loading, so the toolbar and everything under it stay put (BUG-228). */}
-            {state === 'loading' && (
-              <div aria-hidden="true" className="flex h-5 items-center">
-                <Skeleton preset="block" className="h-3 w-14" />
-              </div>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Input
-              type="search"
-              aria-label="Tìm dự án"
-              value={props.searchQuery}
-              onChange={(event) => props.setSearchQuery(event.target.value)}
-              placeholder="Tìm dự án theo tên…"
-              // The 8 px after the icon is the icon's margin, not the input's padding (BUG-169); while scrolled
-              // the first 12 px fade out so a cut glyph reads as "more text this way".
-              prefix={<Search size={16} aria-hidden="true" className="mr-1" />}
-              onScroll={(event) => event.currentTarget.toggleAttribute('data-scrolled', event.currentTarget.scrollLeft > 0)}
-              className="pl-0 data-scrolled:mask-[linear-gradient(to_right,transparent,black_12px)]"
-              wrapperClassName="w-full sm:w-72"
-            />
-            <Select
-              options={PROJECT_SORT_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
-              value={props.sortBy}
-              onChange={(value) => props.setSortBy(value as ProjectSortOption)}
-              className="w-[200px]"
-            />
-            {/* 56 px strip = 48 px segments below `sm` (≥ 44 px), the touch size `Button`/`Input` use (BUG-156). */}
-            <SegmentedControl
-              aria-label="Kiểu xem"
-              className="h-14 sm:h-9"
-              options={[
-                { label: 'Lưới', value: 'grid' },
-                { label: 'Bảng', value: 'table' },
-              ]}
-              value={props.viewMode}
-              onChange={props.setViewMode}
-            />
-            {props.canCreate && (
-              <Button variant="primary" size="sm" iconBefore={<Plus size={16} aria-hidden="true" />} onClick={props.createProject} shortcut={CREATE_PROJECT_SHORTCUT.combo}>
-                Dự án mới
-              </Button>
-            )}
-          </div>
+  const renderBody = (): ReactElement => {
+    if (state === 'loading') {
+      return (
+        <div className={GRID_COLUMNS_CLASS}>
+          {Array.from({ length: SKELETON_CARD_COUNT }, (_unused, index) => (
+            <Skeleton key={index} preset="project-card" />
+          ))}
         </div>
-
-        {(state === 'forbidden' || (isCollapsed && !props.canCreate)) && (
-          <p className="flex items-center gap-2 text-[13px] text-text-secondary">
-            <Lock size={14} aria-hidden="true" />
-            Vai người xem: chỉ có thể mở dự án, không tạo hoặc xoá được.
-          </p>
-        )}
-
-        {isCollapsed && (
-          <SegmentedControl
-            aria-label="Lọc theo trạng thái"
-            className="h-14 sm:h-9 max-sm:[&>button]:px-2"
-            // Thu gọn thành tab vẫn giữ số đếm như cột bộ lọc (A1 §8); lỗi tải thắng trạng thái thu gọn
-            // (BUG-072) nên ở đây danh sách luôn có, số đếm luôn đúng.
-            options={PROJECT_STATUS_FILTER_OPTIONS.map((option) => ({
-              value: option.value,
-              label: `${option.label} (${String(statusCounts[option.value])})`,
-            }))}
-            value={props.statusFilter}
-            onChange={props.setStatusFilter}
+      );
+    }
+    if (state === 'error') {
+      return (
+        <InlineAlert
+          level="violation"
+          title="Không tải được danh sách dự án"
+          message={errorMessage ?? 'Đã có lỗi xảy ra.'}
+          {...(props.canRetry ? { action: { label: 'Thử lại', onClick: props.retryLoad, variant: 'secondary' as const } } : {})}
+        />
+      );
+    }
+    if (neverHadProject) {
+      // No button here: "Tạo dự án" in the page head is the one primary action (vòng 6: two `.pri` on one screen).
+      return (
+        <EmptyState
+          // Không tạo được thì không vẽ dấu cộng: nó hứa một nút không có (G2-12).
+          icon={props.canCreate ? <FolderPlus aria-hidden="true" /> : <Folder aria-hidden="true" />}
+          title="Chưa có dự án nào"
+          description={
+            props.canCreate
+              ? 'Tạo dự án đầu tiên để bắt đầu số hoá bản vẽ.'
+              : 'Bạn chưa được thêm vào dự án nào. Khi được mời, dự án sẽ hiện ở đây.'
+          }
+        />
+      );
+    }
+    if (rows.length === 0) {
+      // The one place "Xoá bộ lọc" lives (vòng 7: it sat in three).
+      return (
+        <EmptyState
+          icon={<Search aria-hidden="true" />}
+          title="Không tìm thấy dự án phù hợp"
+          description="Không có dự án nào khớp với tìm kiếm và bộ lọc hiện tại."
+          action={{ label: 'Xoá bộ lọc', onClick: props.clearFilters, variant: 'secondary' }}
+        />
+      );
+    }
+    return (
+      <motion.div key={props.pulseKey} initial={{ opacity: 0.6 }} animate={{ opacity: 1 }} transition={{ duration: durationSeconds('fast') }}>
+        {props.viewMode === 'grid' ? (
+          renderProjectGrid()
+        ) : (
+          <ProjectTable
+            rows={rows}
+            renamingId={props.renamingId}
+            renameDraft={props.renameDraft}
+            onOpen={(id) => props.openProject(id, 'row')}
+            onMenu={openMenuFor}
+            onRenameChange={props.setRenameDraft}
+            onRenameCommit={props.commitRename}
+            onRenameCancel={props.cancelRename}
           />
         )}
+      </motion.div>
+    );
+  };
 
-        {state === 'loading' && <Skeleton preset="block" aria-hidden="true" className="h-14 w-full sm:h-9 lg:hidden" />}
+  const toolbar = (
+    <>
+      <Input
+        type="search"
+        aria-label="Tìm dự án"
+        value={props.searchQuery}
+        onChange={(event) => props.setSearchQuery(event.target.value)}
+        placeholder="Tìm theo tên"
+        // The 8 px after the icon is the icon's margin, not the input's padding (BUG-169); while scrolled
+        // the first 12 px fade out so a cut glyph reads as "more text this way".
+        prefix={<Search size={16} aria-hidden="true" className="mr-1" />}
+        onScroll={(event) => event.currentTarget.toggleAttribute('data-scrolled', event.currentTarget.scrollLeft > 0)}
+        className="pl-0 data-scrolled:mask-[linear-gradient(to_right,transparent,black_12px)]"
+        wrapperClassName="w-52 xl:w-64"
+      />
+      <Select
+        options={SORT_SELECT_OPTIONS}
+        value={props.sortBy}
+        onChange={(value) => props.setSortBy(value as ProjectSortOption)}
+        className="w-[184px]"
+      />
+      <SegmentedControl
+        aria-label="Kiểu xem"
+        className="h-11 shrink-0 fine:h-9"
+        options={[
+          { label: 'Lưới', value: 'grid' },
+          { label: 'Bảng', value: 'table' },
+        ]}
+        value={props.viewMode}
+        onChange={props.setViewMode}
+      />
+    </>
+  );
 
-        <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
-          {state === 'loading' && <DashboardSidebarSkeleton />}
-          {showSidebar && (
-            <DashboardSidebar statusCounts={statusCounts} countsHidden={state === 'error'} statusFilter={props.statusFilter} onStatusFilterChange={props.setStatusFilter} />
-          )}
+  return (
+    <div className="flex min-h-screen flex-col bg-bg-app">
+      {/* The screen's one `<main>` (it sits outside the `ScreenMain` group, `mainLandmark.shell.test.tsx`). */}
+      <main className="mx-auto flex w-full max-w-[1280px] flex-1 flex-col px-20 py-8 max-xl:px-8 max-lg:px-6">
+        <DashboardHead
+          state={state}
+          statusCounts={statusCounts}
+          totalProjects={props.totalProjects}
+          visibleCount={rows.length}
+          isFiltering={isFiltering}
+          hasUnread={unreadNotice !== null}
+          canCreate={props.canCreate}
+          onCreate={props.createProject}
+        />
 
-          <main className="flex min-w-0 flex-1 flex-col gap-5">
-            {unreadNotice !== null && <InlineAlert level="attention" message={unreadNotice} />}
-            {state === 'loading' ? (
-              <div className={GRID_COLUMNS_CLASS}>
-                {Array.from({ length: SKELETON_CARD_COUNT }, (_unused, index) => (
-                  <Skeleton key={index} preset="project-card" />
-                ))}
-              </div>
-            ) : state === 'error' ? (
-              <InlineAlert
-                level="violation"
-                title="Không tải được danh sách dự án"
-                message={errorMessage ?? 'Đã có lỗi xảy ra.'}
-                {...(props.canRetry ? { action: { label: 'Thử lại', onClick: props.retryLoad, variant: 'secondary' as const } } : {})}
+        <Section flush title="Dự án" actions={neverHadProject ? undefined : toolbar}>
+          <div className="flex flex-col gap-5 p-5">
+            {!neverHadProject && state !== 'error' && (
+              <SegmentedControl
+                aria-label="Lọc theo trạng thái"
+                // Segments size to their label: equal `flex-1` widths broke "Chưa có bản vẽ" onto two lines.
+                className="h-11 self-start whitespace-nowrap fine:h-9 [&>button]:flex-none"
+                options={STATUS_FILTER_SEGMENTS}
+                value={props.statusFilter}
+                onChange={props.setStatusFilter}
               />
-            ) : rows.length === 0 && props.totalProjects === 0 && unreadNotice === null ? (
-              // Never had a project — the `empty` rule of `useProjectDashboard`, read from the counts and not
-              // from `state`: below 1024 px a filter or search with no match is `collapsed`, not `partial` (BUG-111).
-              <EmptyState
-                // Không tạo được thì không vẽ dấu cộng: nó hứa một nút không có (G2-12).
-                icon={props.canCreate ? <FolderPlus aria-hidden="true" /> : <Folder aria-hidden="true" />}
-                title="Chưa có dự án nào"
-                description={
-                  props.canCreate
-                    ? 'Tạo dự án đầu tiên để bắt đầu số hoá bản vẽ.'
-                    : 'Bạn chưa được thêm vào dự án nào. Khi được mời, dự án sẽ hiện ở đây.'
-                }
-                {...(props.canCreate ? { action: { label: 'Tạo dự án mới', onClick: props.createProject } } : {})}
-              />
-            ) : rows.length === 0 ? (
-              <EmptyState
-                icon={<Search aria-hidden="true" />}
-                title="Không tìm thấy dự án phù hợp"
-                description="Không có dự án nào khớp với bộ lọc hiện tại."
-                action={{ label: 'Xoá bộ lọc', onClick: props.clearFilters, variant: 'secondary' }}
-              />
-            ) : (
-              <motion.div key={props.pulseKey} initial={{ opacity: 0.6 }} animate={{ opacity: 1 }} transition={{ duration: durationSeconds('fast') }}>
-                {props.viewMode === 'grid' ? (
-                  renderProjectGrid()
-                ) : (
-                  <ProjectTable
-                    rows={rows}
-                    renamingId={props.renamingId}
-                    renameDraft={props.renameDraft}
-                    onOpen={(id) => props.openProject(id, 'row')}
-                    onOpenViewer={props.openProjectViewer}
-                    onMenu={openMenuFor}
-                    onRenameChange={props.setRenameDraft}
-                    onRenameCommit={props.commitRename}
-                    onRenameCancel={props.cancelRename}
-                  />
-                )}
-              </motion.div>
             )}
-          </main>
-        </div>
-      </div>
+            {unreadNotice !== null && <InlineAlert level="attention" message={unreadNotice} />}
+            {renderBody()}
+          </div>
+        </Section>
+      </main>
 
       <ContextMenu isVisible={contextMenu.isVisible} position={contextMenu.position} groups={contextMenu.groups} onClose={contextMenu.closeMenu} />
 
@@ -289,11 +281,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           <Button variant="ghost" onClick={props.cancelDelete}>
             Để nguyên
           </Button>
-          <Button
-            variant="danger"
-            onClick={props.confirmDelete}
-            loading={props.isDeleting}
-          >
+          <Button variant="danger" onClick={props.confirmDelete} loading={props.isDeleting}>
             Xoá dự án
           </Button>
         </Modal.Footer>

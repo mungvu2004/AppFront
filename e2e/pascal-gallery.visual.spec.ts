@@ -12,7 +12,8 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { SpatialGraphDocumentSchema } from '../src/api/schemas/spatialGraph';
-import { toPascalScene } from '../src/lib/pascal/toPascal';
+import { sceneStyleOf } from '../src/lib/pascal/sceneStyles';
+import { toPascalScene, waitCameraStill } from './fixtures/pascalPageScene';
 import type { PascalProbe } from '../src/pascal-page/createProbe';
 
 import { installFakeApi, type WireGraphDocument } from './fixtures/fakeApi';
@@ -57,7 +58,8 @@ for (const entry of entries) {
     test.setTimeout(120_000);
     const raw: unknown = JSON.parse(fs.readFileSync(path.join(DIR, entry.doc), 'utf8'));
     const { graph } = SpatialGraphDocumentSchema.parse(raw);
-    const { scene, skipped } = toPascalScene(graph);
+    // Cùng phong cách trang đọc từ khoá J9 bên dưới (id lạ/thiếu → mặc định, như `readSceneStyle`).
+    const { scene, skipped } = toPascalScene(graph, { style: sceneStyleOf(STYLE) });
     const tally: Record<string, number> = {};
     for (const node of Object.values(scene.nodes)) tally[node.type] = (tally[node.type] ?? 0) + 1;
     const counts = Object.fromEntries(COUNTED_TYPES.map((t) => [t, tally[t] ?? 0]));
@@ -117,6 +119,7 @@ for (const entry of entries) {
         [pos, [cx, 0, cz] as Vec3, fov] as const,
       );
       await page.waitForTimeout(2500); // máy quay trượt dần tới tư thế mới
+      await waitCameraStill(page, box);
       return page.screenshot({ clip: box });
     };
 

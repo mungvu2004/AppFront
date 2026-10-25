@@ -20,7 +20,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import type { ComponentType, ReactNode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -534,8 +534,8 @@ describe('2.(b).7 — áp bộ luật sẵn "nhà xưởng": số luật đổi 
     expect(INDUSTRIAL_PRESET.caption).toContain(String(INDUSTRIAL_PRESET.changedRuleCount));
 
     fireEvent.click(screen.getByRole('button', { name: new RegExp(INDUSTRIAL_PRESET.label, 'i') }));
-    expect(onApplyPreset).not.toHaveBeenCalled(); // G5-36: hỏi trước
-    fireEvent.click(screen.getByRole('button', { name: 'Áp bộ luật' }));
+    // Không hộp hỏi (brief cụm 6): số luật đổi hiện trên nút trước khi bấm, bấm là áp, toast có hoàn tác.
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(onApplyPreset).toHaveBeenCalledWith('industrial');
   });
 
@@ -572,9 +572,8 @@ describe('2.(b).7 — áp bộ luật sẵn "nhà xưởng": số luật đổi 
 
     const restoreButton = screen.getByRole('button', { name: /khôi phục mặc định/i });
     fireEvent.click(restoreButton);
-    expect(onRestoreDefaults).not.toHaveBeenCalled(); // G5-37: hỏi trước
-    const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Khôi phục mặc định' }));
+    // Không hộp hỏi: khôi phục áp ngay, vé hoàn tác 8 giây do hook phát kèm toast.
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(onRestoreDefaults).toHaveBeenCalled();
   });
 });

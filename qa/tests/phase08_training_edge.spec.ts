@@ -72,7 +72,7 @@ test.describe('SCR-35 training edge (real)', () => {
       await expect(page).toHaveURL(/\/admin\/training\/models$/u);
       await page.goBack();
       await expect(page).toHaveURL(/\/admin\/training\/jobs$/u);
-      await expect(page.getByRole('heading', { level: 1, name: 'Huấn luyện mô hình AI', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: 'Theo dõi huấn luyện', exact: true })).toBeVisible();
       await captureEvidence(page, 'E08_35T-A-002_header_filters.png', { caption: 'related link, Back to jobs' });
     });
 

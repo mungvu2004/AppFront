@@ -83,7 +83,7 @@ export interface RoomLabelInspectorViewProps {
 const PANEL_TITLE = 'Phòng';
 const USAGE_LABEL = 'Công năng';
 const EMPTY_MESSAGE = 'Chọn một phòng trên bản vẽ hoặc trong danh sách để xem chi tiết.';
-const APPROVE_LABEL = 'Duyệt phòng này';
+const APPROVE_PREFIX = 'Duyệt';
 const APPROVED_BADGE = 'Đã duyệt';
 const MERGE_LABEL = 'Gộp phòng';
 const SPLIT_LABEL = 'Tách phòng';
@@ -106,21 +106,25 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
   const [mergeCandidateId, setMergeCandidateId] = useState<RoomLabelViewModel['id'] | null>(null);
 
   return (
-    <div className="flex h-full w-[344px] shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-xl:h-auto max-xl:w-full">
-      <div className="flex h-14 shrink-0 items-center px-5">
-        <h2 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h2>
+    /* `h-full` cả ở 1024 (ngăn kéo có chiều cao chặn): khối nút ghim đáy luôn thấy (Z/S-20). */
+    <div className="flex h-full w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:h-auto">
+      <div className="flex h-14 shrink-0 items-center gap-2 px-5">
+        <h2 className="text-[13px] font-medium text-text-secondary">{PANEL_TITLE}</h2>
+        {room === null ? null : (
+          <>
+            {/* Chữ hoa trong mã phòng là ngoại lệ được phép của A6. */}
+            <span className="text-heading tabular-nums text-text-primary">{room.codeLabel}</span>
+            {room.status === 'confirmed' && <Badge variant="verified">{APPROVED_BADGE}</Badge>}
+          </>
+        )}
       </div>
 
       {room === null ? (
         // `pb-5` như khối có phòng: câu không sát đáy thẻ (BUG-329).
         <p className="px-5 pb-5 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
       ) : (
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 pb-5">
-          <div className="flex items-center justify-between gap-2">
-            {/* Chữ hoa trong mã phòng là ngoại lệ được phép của A6. */}
-            <p className="text-[16px] tabular-nums text-text-primary">{room.codeLabel}</p>
-            {room.status === 'confirmed' && <Badge variant="verified">{APPROVED_BADGE}</Badge>}
-          </div>
+        <>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-5">
 
           <RoomLabelNameField
             isReadOnly={isViewerRole}
@@ -154,7 +158,25 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
 
           <RoomLabelNoticeList notices={room.notices} />
 
-          <div className="mt-auto flex flex-col gap-2 pt-2">
+          {/* Tách và sang lớp tường: việc hiếm, ở cuối vùng cuộn — khối ghim đáy chỉ giữ việc lặp lại. */}
+          {isViewerRole ? null : (
+            <div className="flex flex-col gap-2 border-t border-border-default pt-3">
+              {extras.splitPointMm === null ? (
+                <p className="text-[13px] text-text-secondary">{SPLIT_MISSING_POINT}</p>
+              ) : (
+                <Button fullWidth onClick={() => setSplitOpen(true)} variant="secondary">
+                  {SPLIT_LABEL}
+                </Button>
+              )}
+              <Button fullWidth onClick={() => extras.onNavigateToWalls()} size="sm" variant="ghost">
+                {NAVIGATE_WALLS_LABEL}
+              </Button>
+            </div>
+          )}
+        </div>
+
+          {/* Khối nút NGOÀI vùng cuộn, ghim đáy panel: nút duyệt luôn thấy ở 1024×768. */}
+          <div className="flex shrink-0 flex-col gap-2 border-t border-border-default px-5 py-3">
             {isViewerRole ? (
               /* Câu đầy đủ đã ở băng cảnh báo đầu cột trái — ở đây chỉ một nhãn, không lặp đoạn văn (BUG-636). */
               extras.viewerRoleNotice !== null && (
@@ -166,12 +188,14 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
               <>
                 <Button
                   aria-describedby={room.status === 'unnamed' ? APPROVE_HINT_ID : undefined}
+                  aria-keyshortcuts="A"
                   disabled={room.status === 'confirmed' || room.status === 'unnamed'}
                   fullWidth
                   onClick={() => onApprove(room.id)}
-                  variant="primary"
+                  {...(room.status === 'suggested' ? { shortcut: 'A' } : {})}
+                  variant={room.status === 'confirmed' ? 'secondary' : 'primary'}
                 >
-                  {room.status === 'confirmed' ? APPROVED_BADGE : APPROVE_LABEL}
+                  {room.status === 'confirmed' ? APPROVED_BADGE : `${APPROVE_PREFIX} ${room.codeLabel}`}
                 </Button>
                 {room.status === 'unnamed' && (
                   <p className="text-[13px] text-text-secondary" id={APPROVE_HINT_ID}>
@@ -189,16 +213,6 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
                   variant="secondary"
                 >
                   {MERGE_LABEL}
-                </Button>
-                {extras.splitPointMm === null ? (
-                  <p className="text-[13px] text-text-secondary">{SPLIT_MISSING_POINT}</p>
-                ) : (
-                  <Button fullWidth onClick={() => setSplitOpen(true)} variant="secondary">
-                    {SPLIT_LABEL}
-                  </Button>
-                )}
-                <Button fullWidth onClick={() => extras.onNavigateToWalls()} size="sm" variant="ghost">
-                  {NAVIGATE_WALLS_LABEL}
                 </Button>
               </>
             )}
@@ -236,7 +250,7 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
             }}
             roomCodeLabel={room.codeLabel}
           />
-        </div>
+        </>
       )}
     </div>
   );

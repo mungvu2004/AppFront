@@ -4,6 +4,8 @@ import type { Page } from '@playwright/test';
 import type { DEV_PUBLIC_ROUTE_PATTERNS } from '../src/routes/paths';
 
 import { ROUTE_PATTERNS, UNKNOWN_PATH } from './fixtures/routes';
+import { signInAs } from './fixtures/session';
+import type { Role } from './fixtures/session';
 
 /**
  * Chặng 1 — lưới chống màn trắng (`docs/notes/e2e/plan.md` mục 6).
@@ -52,13 +54,21 @@ type Anchor =
         | 'list'
         | 'tree'
         | 'status';
-      readonly name: string;
+      readonly name: string | RegExp;
     }
   | { readonly text: string }
-  | { readonly label: string };
+  | { readonly label: string }
+  /**
+   * Route không dựng màn mà điều hướng cả trang sang tài liệu khác (`/3d…` → `editor3d.html`,
+   * `viewerRedirects.tsx`, từ 29eba219). Mốc là đường hạ cánh + `?project=`; nội dung trang 3D
+   * do `pascal-fixtures.spec.ts` kiểm với máy chủ giả.
+   */
+  | { readonly redirect: string };
 
 interface Row {
   readonly anchor: Anchor;
+  /** Vai đăng nhập trước khi mở (mặc định: vai `engineer` dự phòng của bộ mẫu, không qua biểu mẫu). */
+  readonly role?: Role;
   /** Màn mở được nhưng nội dung đang hỏng — vào tên bài. */
   readonly known?: string;
   /** Mặc định `L1`. */
@@ -76,7 +86,8 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
 const ROWS = {
   login: { anchor: { role: 'button', name: 'Đăng nhập' } },
   forgotPassword: { anchor: { role: 'heading', name: 'Quên mật khẩu' } },
-  welcome: { anchor: { role: 'heading', name: 'Bản vẽ biết trở thành ngôi nhà.' } },
+  // `/welcome` là bản kết hợp v6 (5be42f2a); H1 ba dòng, mỗi dòng một khối.
+  welcome: { anchor: { role: 'heading', name: /^Bản vẽ của bạn,\s*đọc như một cuốn sách,\s*dựng như một ngôi nhà\.$/u } },
   invitationAccept: { anchor: { role: 'heading', name: 'Nhận lời mời' } },
   passwordReset: { anchor: { role: 'heading', name: 'Đặt lại mật khẩu' } },
   onboarding: { anchor: { role: 'button', name: 'Tạo dự án' } },
@@ -89,13 +100,15 @@ const ROWS = {
   // Chuông (B-V3-08) không mở luồng SSE thông báo khi chạy bộ mẫu dev (không có máy chủ SSE):
   // trước kia lỗi 500 của luồng ấy rơi vào mọi màn có chuông tuỳ nhịp tải, nay không màn nào được có.
   notifications: { anchor: { role: 'heading', name: 'Xem việc mới từ thông báo' } },
-  dashboard: { anchor: { role: 'heading', name: 'Dự án của tôi' } },
+  dashboard: { anchor: { role: 'heading', name: 'Chọn dự án để làm tiếp' } },
   projectSettings: { anchor: { role: 'heading', name: 'Đặt thông tin, đơn vị đo và thành viên của dự án' } },
   account: { anchor: { role: 'heading', name: 'Đổi thông tin và tuỳ chọn tài khoản' } },
-  adminUsers: { anchor: { text: 'Ma trận quyền theo vai trò' } },
-  adminModels: { anchor: { label: 'Tìm mẫu 3D' } },
-  adminTrainingJobs: { anchor: { role: 'heading', name: 'Huấn luyện mô hình AI' } },
-  adminTrainingModels: { anchor: { role: 'heading', name: 'Mô hình AI của chuỗi xử lý' } },
+  // Khu Quản trị chỉ mở cho vai admin (`AdminGate`, 10a4db04); vai dự phòng `engineer` chỉ thấy màn chặn.
+  // Ma trận quyền nay nằm sau nút "Xem ma trận quyền"; mốc là H1 của màn.
+  adminUsers: { anchor: { role: 'heading', name: 'Phân vai người dùng' }, role: 'admin' },
+  adminModels: { anchor: { label: 'Tìm mẫu 3D' }, role: 'admin' },
+  adminTrainingJobs: { anchor: { role: 'heading', name: 'Theo dõi huấn luyện' }, role: 'admin' },
+  adminTrainingModels: { anchor: { role: 'heading', name: 'Chọn mô hình AI đang dùng' }, role: 'admin' },
   // FIX-775 (BUG-079): breadcrumb dùng chung, `nav` tên "Đường dẫn trang"; chữ của cấp cuối mới nói đây là màn nào.
   projectUpload: { anchor: { text: 'Tải lên bản vẽ' } },
   projectQuality: { anchor: { role: 'region', name: 'Báo cáo chất lượng' } },
@@ -108,19 +121,20 @@ const ROWS = {
   projectWalls: { anchor: { role: 'region', name: 'Duyệt lớp tường' } },
   projectObjects: { anchor: { role: 'region', name: 'Lớp đối tượng' } },
   projectDimensions: { anchor: { role: 'region', name: 'Đọc kích thước OCR' } },
-  projectGrids: { anchor: { role: 'heading', name: 'Quản lý trục và gốc toạ độ' } },
+  projectGrids: { anchor: { role: 'heading', name: 'Kiểm trục và gốc toạ độ' } },
   projectRooms: { anchor: { role: 'heading', name: 'Duyệt tên phòng' } },
   projectFloors: { anchor: { role: 'heading', name: 'Theo dõi từng tầng và làm tiếp tầng cần nhất' } },
   projectThickness: { anchor: { role: 'heading', name: 'Chuẩn hoá độ dày tường' } },
   projectOverlay: { anchor: { role: 'region', name: 'Màn đối chiếu bản vẽ' } },
-  projectViewer: { anchor: { role: 'main', name: 'Khung nhìn mô hình' } },
-  projectExploded: { anchor: { role: 'main', name: 'Khung nhìn mô hình' } },
-  projectMeasure: { anchor: { role: 'main', name: 'Khung nhìn mô hình' } },
-  projectViewerPascal: { anchor: { text: 'Màn xem 3D mới chưa bật cho tài khoản này.' } },
-  projectRules: { anchor: { role: 'heading', name: 'Quy chuẩn' } },
-  projectRuleSettings: { anchor: { role: 'heading', name: 'Cài đặt bộ luật không gian' } },
-  projectExport: { anchor: { role: 'heading', name: 'Xuất bản vẽ' } },
-  projectData: { anchor: { label: 'Tìm theo khoá hoặc giá trị' } },
+  projectViewer: { anchor: { redirect: '/editor3d.html' } },
+  projectExploded: { anchor: { redirect: '/editor3d.html' } },
+  projectMeasure: { anchor: { redirect: '/editor3d.html' } },
+  projectViewerPascal: { anchor: { redirect: '/editor3d.html' } },
+  projectRules: { anchor: { role: 'heading', name: 'Kiểm tra quy chuẩn' } },
+  projectRuleSettings: { anchor: { role: 'heading', name: 'Chọn luật áp dụng' } },
+  projectExport: { anchor: { role: 'heading', name: 'Xuất mô hình' } },
+  // Ô tìm chỉ có khi đã có dữ liệu (không vẽ ô chết trên ca rỗng); bộ mẫu dev chưa có tường nào, nên mốc là H1.
+  projectData: { anchor: { role: 'heading', name: 'Xem dữ liệu không gian' } },
   projectVersions: { anchor: { role: 'navigation', name: 'Danh sách phiên bản' } },
 } as const satisfies Record<ProductRouteKey, Row>;
 
@@ -130,7 +144,7 @@ function pathFor(key: ProductRouteKey, row: Row): string {
   return pattern.replace(':projectId', PROJECT_ID).replace(':floorId', row.floorId ?? 'L1');
 }
 
-function locate(page: Page, anchor: Anchor) {
+function locate(page: Page, anchor: Exclude<Anchor, { readonly redirect: string }>) {
   if ('role' in anchor) return page.getByRole(anchor.role, { name: anchor.name, exact: true });
   if ('text' in anchor) return page.getByText(anchor.text, { exact: true });
   return page.getByLabel(anchor.label, { exact: true });
@@ -153,10 +167,26 @@ for (const [key, row] of Object.entries(ROWS) as [ProductRouteKey, Row][]) {
     });
     page.on('pageerror', (error) => pageErrors.push(error.message));
 
-    await page.setViewportSize(row.viewport ?? { width: 1440, height: 900 });
-    await page.goto(pathFor(key, row));
+    const anchor = row.anchor;
+    if ('redirect' in anchor) {
+      await page.goto(pathFor(key, row));
+      await expect
+        .poll(() => new URL(page.url()).pathname, { timeout: FIRST_PAINT_TIMEOUT_MS })
+        .toBe(anchor.redirect);
+      expect(new URL(page.url()).searchParams.get('project')).toBe(PROJECT_ID);
+      // Trang 3D gọi HTTP thật (không có bộ mẫu), nên lỗi mạng của nó không thuộc lưới này; chỉ lỗi trang.
+      expect(pageErrors).toEqual([]);
+      return;
+    }
 
-    await expect(locate(page, row.anchor).first()).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+    if (row.role === undefined) {
+      await page.setViewportSize(row.viewport ?? { width: 1440, height: 900 });
+      await page.goto(pathFor(key, row));
+    } else {
+      await signInAs(page, row.role, pathFor(key, row));
+    }
+
+    await expect(locate(page, anchor).first()).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
     const expected = row.expectedConsole;
     if (expected !== undefined) {
@@ -183,7 +213,7 @@ test('hộp thoại tạo dự án mở từ nút "Dự án mới", Escape đón
   page,
 }) => {
   await page.goto(ROUTE_PATTERNS.dashboard);
-  await page.getByRole('button', { name: 'Dự án mới' }).click({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  await page.getByRole('button', { name: /^Tạo dự án\s*N$/u }).click({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toHaveCount(1);
@@ -192,5 +222,5 @@ test('hộp thoại tạo dự án mở từ nút "Dự án mới", Escape đón
 
   await expect(dialog).toHaveCount(0);
   expect(new URL(page.url()).pathname).toBe(ROUTE_PATTERNS.dashboard);
-  await expect(page.getByRole('heading', { name: 'Dự án của tôi', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Chọn dự án để làm tiếp', exact: true })).toBeVisible();
 });

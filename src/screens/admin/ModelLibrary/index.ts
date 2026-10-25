@@ -14,7 +14,7 @@
  * worker viết song song — mà container, view, hook và bộ test cùng nhập; barrel này chỉ tái
  * xuất, không chép lại hình dạng.
  *
- * Bốn file anh em (`ModelLibraryToolbar`, `ModelLibrarySummary`, `ModelLibraryTable`,
+ * Ba file anh em (`ModelLibraryToolbar`, `ModelLibraryTable`,
  * `ModelLibraryDetail`) **không** ra khỏi thư mục: chúng là phần con của một màn, không phải
  * component dùng chung, và R-68 cấm màn này dựng component mới cho cả repo dùng.
  *

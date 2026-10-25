@@ -49,7 +49,7 @@ const FLOOR_HEIGHT_MM = 3_000;
 
 /** SJ = src/screens/export/SpatialJsonViewer/ (SJV view, SJT tree, SJD detail, USJ hook, SJM model, SJC container). */
 export const SJ = {
-  title: 'Dữ liệu không gian', // SJV:67 pageTitle (h1)
+  title: 'Xem dữ liệu không gian', // SJV PageHead h1 (S-36 v6)
   tree: 'Cấu trúc dữ liệu không gian', // SJT:60
   search: 'Tìm theo khoá hoặc giá trị', // SJV:104
   previous: 'Kết quả trước', // SJV:122

@@ -1000,6 +1000,28 @@ describe('[X4-A-036 / BUG-326] mã tầng của route không có trong kho', () 
 
     expect(mounted.result.current.model.readFailure?.title).toBe(FLOOR_MISSING_TITLE);
   });
+
+  it('kho đã nạp với mã Level khác mã tầng API của route: đọc N16 của route rồi đối chiếu qua mã ấy, không báo tầng đã xoá (overlay race)', async () => {
+    const spatial = useStore.getState().spatial;
+    if (spatial === null) throw new Error('kho chưa có đồ thị');
+    // Như bộ mẫu API: route `L1`, N16 của nó mang mã `Level` của kho (`FLOOR_WARPED`).
+    const readFloorLayer = vi.fn(() =>
+      Promise.resolve({ ...spatial, byKind: { ...spatial.byKind, level: [FLOOR_WARPED] } }),
+    );
+    const mounted = mountHook(withOverlayCapabilities(await makeGateway(), { readFloorLayer }), {
+      floorId: 'L1' as LevelId,
+    });
+    await settle(mounted);
+    for (let turn = 0; turn < SETTLE_TURNS; turn += 1) {
+      await act(async () => {
+        await clock.advance(1);
+      });
+    }
+
+    expect(readFloorLayer).toHaveBeenCalled();
+    expect(mounted.result.current.model.readFailure ?? null).toBeNull();
+    expect(mounted.result.current.model.activeFloorId).toBe(FLOOR_WARPED);
+  });
 });
 
 describe('[G36 22-E-016] khung đối chiếu đi được bằng bàn phím (A12)', () => {

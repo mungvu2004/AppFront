@@ -465,8 +465,8 @@ test.describe('SCR-22 overlay — drawing floor D1 (read-only walks)', () => {
         await expect.soft(panel(page).getByText(/^0(,0+)? mm$/u)).toHaveCount(0);
       });
 
-      await test.step('[22-A-025] "Xác nhận mô hình khớp bản vẽ" is disabled (nothing measured)', async () => {
-        await expect.soft(panel(page).getByRole('button', { name: OV.confirm, exact: true })).toBeDisabled();
+      await test.step('[22-A-025] "Xác nhận khớp bản vẽ" is disabled (nothing measured)', async () => {
+        await expect.soft(page.getByRole('button', { name: OV.confirm, exact: true })).toBeDisabled(); // S-28 v6: confirm lives in the step-bar gate
       });
 
       await test.step('[22-A-024] reload resets mode / opacity / divider / lock / tolerance to "Chồng lớp" / 25% / 0.5 / off / 20', async () => {

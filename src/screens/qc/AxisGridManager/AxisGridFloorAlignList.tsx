@@ -50,10 +50,13 @@ export interface AxisGridFloorAlignListProps
   readonly unavailableNotice: string | null;
   /** BUG-594/601: nút căn bấm vào không làm được gì (vai xem, một tầng, đã khớp) — khoá và nói vì sao. */
   readonly blockedReason: string | null;
+  /** Lệch tầng là việc chặn sang 3D: "Căn tự động" là nút chính của màn khi không có việc chính khác. */
+  readonly isPrimaryAction?: boolean;
 }
 
-const PANEL_TITLE = 'Căn chỉnh giữa các tầng';
-const AUTO_ALIGN_BUTTON_LABEL = 'Căn chỉnh tự động';
+/** Vòng 6 (Z/S-18): khối cố định thứ hai — lệch mỗi tầng so với tầng gốc, vượt ngưỡng 150 mm tô cần chú ý. */
+const PANEL_TITLE = 'Lệch giữa các tầng';
+const AUTO_ALIGN_BUTTON_LABEL = 'Căn tự động';
 const ROOT_FLOOR_LABEL = 'Tầng gốc';
 const APPROVED_BADGE_LABEL = 'Đã duyệt';
 
@@ -87,7 +90,8 @@ function FloorAlignRow({ floor, onHover }: FloorAlignRowProps) {
       aria-label={floorRowAriaLabel(floor)}
       className={cn(
         'flex h-10 items-center gap-2 rounded-lg px-2 text-[13px] transition-colors duration-120',
-        floor.isHovered && 'bg-bg-hover',
+        /* Vượt ngưỡng (cờ của hook, M-11): nền cần chú ý + chữ, không chỉ chấm màu. */
+        floor.status === 'warning' ? 'bg-state-attention-tint' : floor.isHovered && 'bg-bg-hover',
       )}
       onMouseEnter={() => onHover(floor.levelId)}
       onMouseLeave={() => onHover(null)}
@@ -117,6 +121,7 @@ export function AxisGridFloorAlignList({
   onViewFloorOnDrawing,
   unavailableNotice,
   blockedReason,
+  isPrimaryAction = false,
 }: AxisGridFloorAlignListProps) {
   const isUnavailable = unavailableNotice !== null;
   /* Tầng chưa có trục đã có câu riêng; không chép thêm câu khoá thứ hai. */
@@ -129,18 +134,18 @@ export function AxisGridFloorAlignList({
     floors.every((floor) => floor.status === 'ok');
 
   return (
-    <div className="flex w-[344px] shrink-0 flex-col gap-3 rounded-xl bg-bg-surface p-5 shadow-panel max-xl:w-full">
+    <div className="flex flex-col gap-3 p-5">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h2>
+        <h2 className="text-heading text-text-primary">{PANEL_TITLE}</h2>
         {isFullyAligned && <Badge variant="neutral">{APPROVED_BADGE_LABEL}</Badge>}
       </div>
 
       <Button
-        className="self-start"
+        className={isPrimaryAction ? 'w-full' : 'self-start'}
         disabled={isUnavailable || blockedReason !== null}
         onClick={() => onAutoAlign()}
-        size="sm"
-        variant="secondary"
+        size={isPrimaryAction ? 'md' : 'sm'}
+        variant={isPrimaryAction ? 'primary' : 'secondary'}
       >
         {AUTO_ALIGN_BUTTON_LABEL}
       </Button>

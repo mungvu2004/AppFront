@@ -27,8 +27,18 @@ const A14_FLOOR = 'L-LEVEL000001';
 const A14_WALLS_ON_FLOOR = 12;
 
 const FIXTURE_WALLS = 48;
+const FIXTURE_REVIEWED = 12;
 
 const list = (page: Page) => page.getByRole('listbox', { name: 'Danh sách đoạn tường' });
+/**
+ * Câu tiến độ ở đầu panel. Danh sách ảo hoá và nhóm "Đã duyệt" thu gọn (S-15), nên đếm
+ * `option` không còn ra đủ 48 — đếm bằng câu "12/48 tường đã duyệt" của hook.
+ */
+const progress = (page: Page, reviewed: number, total: number) =>
+  page.getByText(`${String(reviewed)}/${String(total)} tường đã duyệt`, { exact: true });
+/** Đầu panel (QcPanelHead): trạng thái lưu nằm ở đây, thanh trạng thái chỉ nhắc khi lưu hỏng. */
+const panelHead = (page: Page) =>
+  page.locator('header').filter({ has: page.getByRole('heading', { name: 'Duyệt tường', level: 1 }) });
 
 async function openSeeded(page: Page): Promise<void> {
   await page.goto(ROUTES.project.walls(QC_PROJECT, QC_FLOOR.walls));
@@ -36,7 +46,7 @@ async function openSeeded(page: Page): Promise<void> {
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   await seedQc(page, 'walls');
-  await expect(list(page).getByRole('option')).toHaveCount(FIXTURE_WALLS);
+  await expect(progress(page, FIXTURE_REVIEWED, FIXTURE_WALLS)).toBeVisible();
   /* Tour hướng dẫn phủ màn tường (W02): bỏ nó trước cú bấm đầu, không để cú bấm bỏ hộ. */
   await dismissTour(page);
 }
@@ -65,7 +75,7 @@ test.describe('đường nạp thật (không bơm)', () => {
     });
     await dismissTour(page);
 
-    const statusBar = page.getByRole('status', { name: 'Thanh trạng thái' });
+    const statusBar = panelHead(page);
     // Ghi mọi lần chữ đổi TRƯỚC thao tác: câu "chờ" chỉ sống 800 ms (khuôn `account.spec.ts` AC-1).
     await statusBar.evaluate((node) => {
       const log: string[] = [];
@@ -106,10 +116,10 @@ test.describe('[bơm] bộ mẫu riêng của màn tường', () => {
 
     await list(page).getByRole('option').first().click();
     await page.keyboard.press('Backspace');
-    await expect(list(page).getByRole('option')).toHaveCount(FIXTURE_WALLS - 1);
+    await expect(progress(page, FIXTURE_REVIEWED, FIXTURE_WALLS - 1)).toBeVisible();
 
     await page.keyboard.press('Control+z');
-    await expect(list(page).getByRole('option')).toHaveCount(FIXTURE_WALLS);
+    await expect(progress(page, FIXTURE_REVIEWED, FIXTURE_WALLS)).toBeVisible();
   });
 
   test('[bơm] toast xoá gọi tường bằng nhãn của danh sách, không lộ mã máy (B-V6-02)', async ({ page }) => {
@@ -126,9 +136,10 @@ test.describe('[bơm] bộ mẫu riêng của màn tường', () => {
   test('[bơm] J/K đi giữa các hàng và phím 1 đổi độ dày của tường đang chọn', async ({ page }) => {
     await openSeeded(page);
 
+    /* Hàng đợi S-15: không chuẩn (W-006) → đúng chuẩn → đã duyệt (W-002 thu gọn), nên sau W-001 là W-003. */
     await list(page).getByRole('option', { name: /^#W-001 / }).click();
     await page.keyboard.press('j');
-    await expect(list(page).getByRole('option', { name: /^#W-002 / })).toHaveAttribute('aria-selected', 'true');
+    await expect(list(page).getByRole('option', { name: /^#W-003 / })).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('k');
     await expect(list(page).getByRole('option', { name: /^#W-001 / })).toHaveAttribute('aria-selected', 'true');
 
@@ -138,16 +149,16 @@ test.describe('[bơm] bộ mẫu riêng của màn tường', () => {
 
   /*
    * Trước B-V7-09 vé hoàn tác trả vùng chọn TRƯỚC lần chọn gần nhất (#W-001), không phải
-   * vùng chọn lúc lệnh chạy (#W-002) — hoàn tác nhảy vùng chọn về hàng cũ.
+   * vùng chọn lúc lệnh chạy (#W-003 — hàng kế theo hàng đợi S-15) — hoàn tác nhảy vùng chọn về hàng cũ.
    */
   test('[bơm] Ctrl+Z trả độ dày và giữ tường đang chọn lúc đổi (B-V7-09, A8)', async ({ page }) => {
     await openSeeded(page);
 
     await list(page).getByRole('option', { name: /^#W-001 / }).click();
     await page.keyboard.press('j');
-    const second = list(page).getByRole('option', { name: /^#W-002 / });
+    const second = list(page).getByRole('option', { name: /^#W-003 / });
     await expect(second).toHaveAttribute('aria-selected', 'true');
-    /* #W-002 của bộ mẫu là tường bao 330 mm (`wallLayerReviewFixture.ts`). */
+    /* #W-003 của bộ mẫu là tường bao 330 mm (`wallLayerReviewFixture.ts`). */
     await expect(page.getByRole('radio', { name: '330 mm' })).toHaveAttribute('aria-checked', 'true');
 
     await page.keyboard.press('1');

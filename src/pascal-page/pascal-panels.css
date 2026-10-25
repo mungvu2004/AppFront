@@ -145,6 +145,29 @@
   .bg-sidebar *, [class*="bg-sidebar/95"] * { transition-duration: 0.01ms !important; }
 }
 
+/*
+ * Cảm ứng (HOP-DONG-V6 §2.8): vùng chạm 44 px. Nút trên thanh trên giữ dáng 32 px (thanh không
+ * phình), vùng chạm nới bằng ::after theo chiều dọc; mục trong menu, nút panel và ô nhập cao 44 px.
+ * Đặt ở đây vì pascal-chrome.css đang có commit mới của phiên khác.
+ */
+@media (pointer: coarse) {
+  :is([data-appfront-menu] > summary, nav[aria-label="Các bước của dự án"] > a) { position: relative; }
+  :is([data-appfront-menu] > summary, nav[aria-label="Các bước của dự án"] > a)::after {
+    content: "";
+    position: absolute;
+    inset: -6px 0;
+  }
+  [data-appfront-menu] li > :is(button, a),
+  [data-appfront-toast] button { min-height: 44px; }
+  [data-appfront-toast] button[aria-label] { min-width: 44px; }
+  [class*="bg-sidebar/95"] button.h-7.w-7 { width: 44px; height: 44px; }
+  [class*="bg-sidebar/95"] button.h-7.w-7::after { content: none; }
+  :is(.bg-sidebar, [class*="bg-sidebar/95"]) :is(button[class*="border-input"], button[class*="bg-secondary"]),
+  :is(.bg-sidebar, [class*="bg-sidebar/95"]) :is(input:not([type=checkbox]):not([type=range]), select, [role=combobox]) {
+    min-height: 44px;
+  }
+}
+
 /* Hai nút "Thêm tầng" / "Thêm tầng hầm" chung một hàng 2 cột: bớt đệm để chữ không bị cắt ở thanh bên hẹp. */
 .bg-sidebar .grid.grid-cols-2.gap-2 > button {
   padding-inline: 8px;

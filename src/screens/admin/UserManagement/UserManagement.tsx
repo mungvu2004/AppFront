@@ -1,29 +1,22 @@
 /**
- * T6 — vỏ màn quản lý người dùng (`/admin/users`). View thuần (R-60, mục D): mọi dữ liệu
+ * S-39 — vỏ màn quản lý người dùng (`/admin/users`). View thuần (R-60, mục D): mọi dữ liệu
  * qua `UserManagementProps`, không chạm store/mạng, không tự nuôi `isLoading`/`error`.
  *
- * Bảy trạng thái A11 rẽ nhánh ở đây. "không có quyền" khác hẳn "một phần" hay "thành công":
- * ở `forbidden` màn hiện CHỈ ma trận quyền — không thanh công cụ, không danh sách người —
- * kèm giải thích và một liên kết quay lại, để nó không phải một trang 403 trơ trọi (Đ-7).
- * Sáu trạng thái còn lại dùng chung một khung: breadcrumb + nút tham chiếu quyền ở đầu
- * trang, thanh công cụ, rồi vùng nội dung (khung xương lúc `loading`, `EmptyState` lúc
- * `empty`, `InlineAlert` lúc `error`, bảng người dùng cho `partial`/`success`/`collapsed`).
+ * Ba câu của màn (NGUYEN-TAC-BO-CUC §1, ngoài dự án nên không có FlowGate): `PageHead` nói
+ * làm gì (H1 động từ), trạng thái (Badge số lời mời đang chờ + câu có số người dùng và số
+ * quản trị — thay dải tóm tắt cũ), và MỘT nút chính "Mời người dùng" ở `next`; không mời
+ * được thì lý do đứng tại chỗ nút (đặc tả cấm nút xám không lý do). Danh sách người nằm
+ * trong MỘT `Section`: tìm/lọc và khối mời ở đầu khung.
  *
- * ## Hai component đến từ một nhánh khác: đã ghép
- *
- * `UserManagementDetail` và `UserManagementPermissionMatrix` thuộc phạm vi của T7, viết song
- * song trên nhánh riêng. File này nhập đúng tên và đúng chữ ký
- * (`UserManagementDetailProps`, `UserManagementPermissionMatrixProps` trong `./types`) từ
- * trước khi hai file kia tồn tại — nó không tự viết lại chúng và không dựng bản tạm nào —
- * nên ở lượt kiểm của nhánh T6 `pnpm typecheck` báo đúng hai lỗi phân giải module ở hai dòng
- * nhập dưới đây. Lớp gộp (T9) đã ghép các nhánh lại và hai lỗi ấy tan đúng như dự kiến.
+ * Bảy trạng thái A11 rẽ nhánh ở đây. Ở `forbidden` màn hiện CHỈ ma trận quyền — không
+ * thanh công cụ, không danh sách người — kèm giải thích và một liên kết quay lại, để nó
+ * không phải một trang 403 trơ trọi (Đ-7).
  *
  * ## Ma trận quyền có HAI chỗ mở được
  *
  * Đặc tả bắt ma trận "mở được từ đầu trang, ngoài chỗ của nó ở đáy panel" — panel chi tiết
- * (T7) có bản của riêng nó; bản ở đây là một `Modal` độc lập, bật/tắt bằng
- * `model.isPermissionReferenceOpen` + `actions.onOpen/ClosePermissionReference`, không phụ
- * thuộc việc có đang mở panel chi tiết hay không.
+ * có bản của riêng nó; bản ở đây là một `Modal` độc lập, bật/tắt bằng
+ * `model.isPermissionReferenceOpen` + `actions.onOpen/ClosePermissionReference`.
  */
 import { ShieldCheck, UserPlus } from 'lucide-react';
 import { useEffect, useRef } from 'react';
@@ -31,6 +24,9 @@ import { useEffect, useRef } from 'react';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Modal } from '@/components/overlay/Modal';
+import { PageHead } from '@/components/shell/PageHead';
+import { Section } from '@/components/shell/Section';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { useShortcut } from '@/hooks/useShortcut';
 
@@ -45,7 +41,10 @@ import type {
   UserManagementViewModel,
 } from './types';
 
-const SCREEN_CONTAINER_CLASS = 'mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[120rem]:max-w-[1440px]';
+const SCREEN_CONTAINER_CLASS =
+  'mx-auto flex w-full max-w-[1280px] flex-col gap-4 px-8 py-8 min-[120rem]:max-w-[1440px]';
+const PAGE_EYEBROW = 'Quản trị';
+const PAGE_TITLE = 'Phân vai người dùng';
 const BREADCRUMB_NAV_LABEL = 'Đường dẫn trang';
 const PERMISSION_REFERENCE_BUTTON_LABEL = 'Xem ma trận quyền';
 const PERMISSION_REFERENCE_MODAL_TITLE = 'Ma trận quyền theo vai trò';
@@ -53,8 +52,10 @@ const PERMISSION_MATRIX_CAPTION = 'Ma trận quyền theo vai trò';
 const EMPTY_TITLE = 'Chưa có người dùng nào khác';
 const INVITE_BUTTON_LABEL = 'Mời người dùng';
 const ERROR_TITLE = 'Không tải được danh sách người dùng';
+const ERROR_BADGE = 'Không tải được';
 const GENERIC_ERROR_MESSAGE = 'Đã có lỗi xảy ra.';
 const RETRY_BUTTON_LABEL = 'Thử lại';
+const PENDING_SUFFIX = 'lời mời đang chờ';
 const MODAL_WIDTH = 720;
 
 /** `isCurrent`: chỉ mục cuối của breadcrumb là trang hiện tại, mục tổ tiên không href vẫn là chữ thường (BUG-P08-014). */
@@ -91,44 +92,73 @@ function UserManagementBreadcrumb({ items }: { readonly items: readonly Breadcru
   );
 }
 
-/** Màn có đúng một `h1` (BUG-P08-020): đọc được cho trình đọc màn hình, tên màn = mục cuối breadcrumb. */
-function ScreenHeading({ items }: { readonly items: readonly BreadcrumbItemModel[] }) {
-  return <h1 className="text-title text-text-primary">{items[items.length - 1]?.label}</h1>;
+/** Dòng trạng thái: lời mời đang chờ ở Badge, số người dùng + số quản trị ở câu — mỗi số một chỗ. */
+function UsersStatus({ model }: { readonly model: UserManagementViewModel }) {
+  if (model.state === 'loading') return null;
+  if (model.state === 'error') return <Badge variant="violation">{ERROR_BADGE}</Badge>;
+
+  const { summary } = model;
+  return (
+    <>
+      <Badge variant="neutral">
+        <span className="tabular-nums" data-testid="user-summary-pending">
+          {summary.pendingInviteCountLabel}
+        </span>{' '}
+        {PENDING_SUFFIX}
+      </Badge>
+      <span>
+        <span className="tabular-nums" data-testid="user-summary-users">
+          {summary.userCountLabel}
+        </span>
+        {' người dùng, '}
+        <span className="tabular-nums" data-testid="user-summary-admins">
+          {summary.adminCountLabel}
+        </span>
+        {' quản trị.'}
+      </span>
+    </>
+  );
 }
 
 function renderContent(model: UserManagementViewModel, actions: UserManagementActions) {
   if (model.state === 'empty') {
     return (
-      <EmptyState
-        action={{ label: INVITE_BUTTON_LABEL, onClick: actions.onOpenInvite }}
-        description={model.emptyTeachingLabel}
-        icon={<UserPlus aria-hidden="true" />}
-        title={EMPTY_TITLE}
-      />
+      <div className="p-5">
+        <EmptyState
+          action={{ label: INVITE_BUTTON_LABEL, onClick: actions.onOpenInvite, variant: 'secondary' }}
+          description={model.emptyTeachingLabel}
+          icon={<UserPlus aria-hidden="true" />}
+          title={EMPTY_TITLE}
+        />
+      </div>
     );
   }
 
   if (model.state === 'error') {
     return (
-      <InlineAlert
-        action={{ label: RETRY_BUTTON_LABEL, onClick: actions.onRetry }}
-        level="violation"
-        message={model.errorLabel ?? GENERIC_ERROR_MESSAGE}
-        title={ERROR_TITLE}
-      />
+      <div className="p-5">
+        <InlineAlert
+          action={{ label: RETRY_BUTTON_LABEL, onClick: actions.onRetry }}
+          level="violation"
+          message={model.errorLabel ?? GENERIC_ERROR_MESSAGE}
+          title={ERROR_TITLE}
+        />
+      </div>
     );
   }
 
   return (
-    <UserManagementTable
-      actions={actions}
-      isCollapsed={model.isCollapsed}
-      roleOptions={model.toolbar.roleOptions}
-      rows={model.rows}
-      selectedUserId={model.selectedUserId}
-      skeletonRowCount={model.skeletonRowCount}
-      state={model.state}
-    />
+    <div className={model.isCollapsed ? 'p-5' : undefined}>
+      <UserManagementTable
+        actions={actions}
+        isCollapsed={model.isCollapsed}
+        roleOptions={model.toolbar.roleOptions}
+        rows={model.rows}
+        selectedUserId={model.selectedUserId}
+        skeletonRowCount={model.skeletonRowCount}
+        state={model.state}
+      />
+    </div>
   );
 }
 
@@ -183,46 +213,64 @@ export function UserManagement({ model, actions }: UserManagementProps) {
     return (
       <div className={SCREEN_CONTAINER_CLASS}>
         <UserManagementBreadcrumb items={model.breadcrumbItems} />
-        <ScreenHeading items={model.breadcrumbItems} />
+        <PageHead className="mb-2" eyebrow={PAGE_EYEBROW} title={PAGE_TITLE} />
         <InlineAlert level="attention" message={model.forbiddenLabel} />
-        <UserManagementPermissionMatrix captionLabel={PERMISSION_MATRIX_CAPTION} matrix={model.permissionMatrix} />
+        <Section>
+          <UserManagementPermissionMatrix captionLabel={PERMISSION_MATRIX_CAPTION} matrix={model.permissionMatrix} />
+        </Section>
         <BreadcrumbLink item={model.backLink} />
       </div>
     );
   }
 
+  const { toolbar, invite } = model;
+  // MỘT nút chính: khi khối mời đang mở, "Gửi lời mời" trong khối là nút chính, nút đầu trang lùi về phụ.
+  const inviteControl = toolbar.canInvite ? (
+    <Button
+      iconBefore={<UserPlus aria-hidden="true" size={16} />}
+      onClick={actions.onOpenInvite}
+      variant={invite.isOpen ? 'secondary' : 'primary'}
+    >
+      {INVITE_BUTTON_LABEL}
+    </Button>
+  ) : (
+    <p className="max-w-[280px] text-right text-[13px] text-text-secondary">{toolbar.inviteBlockedReason}</p>
+  );
+
   return (
     <div className={SCREEN_CONTAINER_CLASS}>
-      <div className="flex items-center justify-between gap-4">
-        <UserManagementBreadcrumb items={model.breadcrumbItems} />
-        <Button className="ml-auto"
-          iconBefore={<ShieldCheck aria-hidden="true" size={16} />}
-          onClick={actions.onOpenPermissionReference}
-          size="sm"
-          variant="secondary"
-        >
-          {PERMISSION_REFERENCE_BUTTON_LABEL}
-        </Button>
-      </div>
-      <ScreenHeading items={model.breadcrumbItems} />
-
-      <UserManagementToolbar
-        actions={actions}
-        invite={model.invite}
-        searchRef={searchRef}
-        summary={model.summary}
-        toolbar={model.toolbar}
+      <UserManagementBreadcrumb items={model.breadcrumbItems} />
+      <PageHead
+        className="mb-2"
+        eyebrow={PAGE_EYEBROW}
+        title={PAGE_TITLE}
+        status={<UsersStatus model={model} />}
+        next={
+          <>
+            <Button
+              iconBefore={<ShieldCheck aria-hidden="true" size={16} />}
+              onClick={actions.onOpenPermissionReference}
+              variant="ghost"
+            >
+              {PERMISSION_REFERENCE_BUTTON_LABEL}
+            </Button>
+            {inviteControl}
+          </>
+        }
       />
 
       <div className="flex items-start gap-4">
-        <div className="min-w-0 flex-1">{renderContent(model, contentActions)}</div>
+        <Section className="min-w-0 flex-1" flush>
+          <UserManagementToolbar actions={actions} invite={invite} searchRef={searchRef} toolbar={toolbar} />
+          {renderContent(model, contentActions)}
+        </Section>
         {model.detail !== null && (
           <UserManagementDetail
             actions={actions}
             detail={model.detail}
             isCollapsed={model.isCollapsed}
             permissionMatrix={model.permissionMatrix}
-            roleOptions={model.toolbar.roleOptions}
+            roleOptions={toolbar.roleOptions}
           />
         )}
       </div>

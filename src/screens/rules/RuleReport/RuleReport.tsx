@@ -1,65 +1,55 @@
 /**
- * The spatial-rule report: what the rule run found, and what is left to do.
+ * The spatial-rule report (S-31): what the rule run found, and what is left to do.
  *
  * The rendering half of invariant D's split. Every value below arrived in
- * {@link RuleReportViewProps} — this file runs no rule, counts nothing, formats
- * no number and knows no route. `useRuleReport` did all of it, which is why
- * `local/no-data-layer-in-view` has nothing to catch and why every one of the
- * seven states can be rendered from a literal object.
+ * {@link RuleReportViewProps} — this file runs no rule and knows no route.
+ * `useRuleReport` did all of it, which is why every one of the seven states can
+ * be rendered from a literal object.
+ *
+ * ## Three questions (HOP-DONG-V6 §1)
+ *
+ * 1. **What is this for** — `PageHead`: eyebrow "Bước 5 · Quy chuẩn", H1 "Kiểm tra
+ *    quy chuẩn".
+ * 2. **Where it stands** — the status line: one badge carrying the worst finding
+ *    with its real count, one sentence with the rest, and when the run happened.
+ * 3. **How to go on** — `FlowGate` in the step bar: "Không còn vi phạm nghiêm
+ *    trọng" + "Đã xem cảnh báo". Not met: a secondary "Xem vi phạm kế" (opens the
+ *    next critical finding) or "Xem cảnh báo". Met: the one primary "Sang Xuất".
  *
  * ## The three things this screen refuses to do
  *
- * **It does not shout.** A rule report is read by somebody who has just been
- * told their drawing is wrong, and the temptation is to dramatise that: a red
- * banner across the head, a red block per group, an alarm glyph in the summary.
- * None of it is here. Red appears in one place only — the severity badge on a
- * row, a dot and two words, roughly 88×20 px — and the four summary figures
- * carry no colour at all. The largest violation-coloured region on the screen is
- * one badge, which is the point.
+ * **It does not shout.** Red appears as a severity badge on a row and a dot on a
+ * group, never as a band or block. The summary figures are clickable filters,
+ * tinted only when above zero.
  *
  * **It does not offer what does not exist.** `capabilities.canAutoFix` and
  * `canDismiss` are `false` because the repository has neither an auto-fix nor a
- * dismissed state — `Violation` carries a sentence for a person to read and
- * nothing a machine can apply. So there is no "sửa tự động" button and no "bỏ
- * qua" button: not disabled, not a placeholder, not a comment promising one.
- * They are absent exactly as the forbidden state makes editing absent, and the
- * layout leaves their place free so switching a capability on later adds a
- * button and moves nothing.
+ * dismissed state. So there is no "sửa tự động" and no "bỏ qua" button: not
+ * disabled, not a placeholder.
  *
- * **It does not celebrate.** The clean state is one sentence, the number of
- * rules that ran, a muted badge and a link onwards. No emoji, no full-width
- * green, no animation. And the badge says the *run* found nothing — invariant A5
- * reserves the verified green for a reviewer's own mark, so a machine result
- * never wears it.
- *
- * ## The seven states (A11 / R-63)
- *
- * `empty` · `loading` · `partial` · `error` · `done` (success) · `forbidden`,
- * all read off `props.status`, plus `isCompact` for the collapsed shell. The
- * partial state is the interesting one: a rule group that could not run is a
- * *missing input*, not a failure, so it reads as one attention line per group
- * with a link to the screen that supplies what is missing — never as an error.
+ * **It does not celebrate.** The clean state is one sentence and a neutral badge.
+ * Invariant A5 reserves the verified green for a reviewer's own mark, so a
+ * machine result never wears it.
  *
  * ## Two things a reader may expect and not find
  *
  * - **No progress bar.** Nothing in the rule engine reports progress part-way
- *   through a run; `evaluated` exists only once the run is over. `progress` is
- *   therefore `null` in this release and the loading state is skeleton rows. A
- *   bar counting invented rules would be a lie drawn at 60 fps.
- * - **The breadcrumb does not link.** The props carry no project id and no
- *   navigation callback beyond `onViewRow`, and invariant R-65 forbids writing a
- *   path into a screen. A crumb wired to nothing would be a dead control, so the
- *   trail is rendered as text that says where you are.
+ *   through a run, so `progress` is `null` and the loading state is skeleton rows.
+ * - **The breadcrumb does not link** beyond what the container wires.
  */
 
-import { AlertCircle, ClipboardCheck } from 'lucide-react';
+import { AlertCircle, ArrowRight, ClipboardCheck } from 'lucide-react';
 import { useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Breadcrumb } from '@/components/shell/Breadcrumb';
+import { FlowGate } from '@/components/shell/FlowGate';
+import { PageHead } from '@/components/shell/PageHead';
+import { Section } from '@/components/shell/Section';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { Table } from '@/components/ui/Table';
 import { formatNumber } from '@/lib/format/number';
 import { cn } from '@/lib/utils';
@@ -72,10 +62,13 @@ import {
 } from './RuleReportGroups';
 import { FOCUS_RING } from './RuleReportLabels';
 import { RuleReportFilterBar, RuleReportSummaryStrip } from './RuleReportSummary';
-import type { RuleReportViewProps } from './types';
+import type { RuleReportFilters, RuleReportGroup, RuleReportLevelFilter, RuleReportViewProps } from './types';
 
 /** How wide the preview column is when there is a preview to put in it. */
 const PREVIEW_WIDTH = 'w-[344px]';
+
+/** A count, as a person reads it (A15). */
+const count = (value: number): string => formatNumber(value, { fractionDigits: 0 });
 
 interface SkippedNoticeProps {
   readonly skipped: RuleReportViewProps['skipped'];
@@ -85,9 +78,7 @@ interface SkippedNoticeProps {
  * The partial state, as one line per rule group that could not run.
  *
  * `attention`, never `violation`: nothing is wrong with the drawing here, the
- * report simply has less to say than usual, and the way out is a link to the
- * screen that supplies the missing input. The path is a value from the hook, so
- * no route string is written down.
+ * report simply has less to say than usual, and the way out is a link.
  */
 function SkippedNotice({ skipped }: SkippedNoticeProps) {
   return (
@@ -97,10 +88,7 @@ function SkippedNotice({ skipped }: SkippedNoticeProps) {
           <div className="min-w-0 flex-1">
             <InlineAlert level="attention" message={item.reason} />
           </div>
-          <a
-            href={item.remedyPath}
-            className={cn('rounded-sm text-sm text-accent underline', FOCUS_RING)}
-          >
+          <a href={item.remedyPath} className={cn('rounded-sm text-sm text-accent underline', FOCUS_RING)}>
             {item.remedyLabel}
           </a>
         </li>
@@ -109,33 +97,18 @@ function SkippedNotice({ skipped }: SkippedNoticeProps) {
   );
 }
 
-interface DonePanelProps {
-  readonly evaluated: number;
-  readonly onConfirmResolved: () => void;
-}
-
 /**
- * The clean run.
- *
- * The rule count is printed from `summary.evaluated`, never written down: the
- * registry enables 23 of its 25 rules today and both figures are the registry's
- * business, not this file's. The badge is neutral and speaks about the run.
+ * The clean run: one sentence and the rule count, printed from `summary.evaluated`.
+ * The way on is the gate in the step bar, so there is no second button here.
  */
-function DonePanel({ evaluated, onConfirmResolved }: DonePanelProps) {
+function DonePanel({ evaluated }: { readonly evaluated: number }) {
   return (
-    <section className="flex flex-col items-start gap-3 rounded-sm border border-border-default bg-bg-surface p-4">
-      <p className="text-sm text-text-primary">Không phát hiện vi phạm nào.</p>
-      <p className="text-sm text-text-secondary">
-        {formatNumber(evaluated, { fractionDigits: 0 })} luật đã chạy trên bản vẽ này và không luật
-        nào bắt được lỗi.
+    <div className="flex flex-col gap-1">
+      <p className="text-body text-text-primary">Không phát hiện vi phạm nào.</p>
+      <p className="text-body-sm text-text-secondary">
+        {count(evaluated)} luật đã chạy trên bản vẽ này và không luật nào bắt được lỗi.
       </p>
-      <Badge variant="neutral" noDot>
-        Lượt chạy này không có vi phạm
-      </Badge>
-      <Button variant="secondary" onClick={onConfirmResolved}>
-        Sang bước xuất bản
-      </Button>
-    </section>
+    </div>
   );
 }
 
@@ -145,36 +118,9 @@ interface RuleReportBodyProps {
   readonly onToggleResolved: () => void;
 }
 
-/** Whatever belongs between the filters and the footer, for the current state. */
+/** The list part of the results frame, for the current state. */
 function RuleReportBody({ props, isResolvedOpen, onToggleResolved }: RuleReportBodyProps) {
   const { status, filters, groups, passedRules, resolvedRows, summary } = props;
-
-  // `empty` chỉ xảy ra khi kho chưa có mô hình (có mô hình mà chưa có kết quả là
-  // `loading`), nên ở đây không có nút chạy: một lượt chạy không mô hình chỉ rơi
-  // vào `error` (B-V12-02).
-  if (status === 'empty') {
-    return (
-      <EmptyState
-        icon={<ClipboardCheck aria-hidden="true" />}
-        title="Chưa có mô hình để kiểm tra luật"
-        description="Bản vẽ này chưa được xử lý xong, nên chưa có mô hình không gian nào để đối chiếu với bộ luật. Chạy pipeline cho tầng rồi quay lại đây."
-      />
-    );
-  }
-
-  if (status === 'error') {
-    return (
-      <EmptyState
-        icon={<AlertCircle aria-hidden="true" />}
-        title="Không chạy được lượt kiểm tra"
-        description={
-          props.errorMessage ??
-          'Lượt kiểm tra dừng giữa chừng và chưa có kết quả nào để hiển thị. Thử chạy lại sau ít phút.'
-        }
-        action={{ label: 'Thử lại', onClick: props.onRerun, variant: 'secondary' }}
-      />
-    );
-  }
 
   if (status === 'loading') {
     return (
@@ -187,7 +133,7 @@ function RuleReportBody({ props, isResolvedOpen, onToggleResolved }: RuleReportB
   }
 
   if (status === 'done') {
-    return <DonePanel evaluated={summary.evaluated} onConfirmResolved={props.onConfirmResolved} />;
+    return <DonePanel evaluated={summary.evaluated} />;
   }
 
   if (filters.level === 'passed') {
@@ -233,6 +179,49 @@ function RuleReportBody({ props, isResolvedOpen, onToggleResolved }: RuleReportB
   );
 }
 
+/** Open critical rows in list order — the targets of "Xem vi phạm kế". */
+function openCriticalKeys(groups: readonly RuleReportGroup[]): readonly string[] {
+  return groups.flatMap((group) =>
+    group.rows.filter((row) => !row.resolved && row.severity === 'critical').map((row) => row.key),
+  );
+}
+
+/** Status line: the worst finding as a badge with its real count, then the rest in one sentence. */
+function RuleReportStatus({ props }: { readonly props: RuleReportViewProps }) {
+  const { status, summary, lastRunLabel } = props;
+  if (status === 'error') return null;
+
+  const badge =
+    status === 'empty' ? (
+      <Badge variant="neutral">Chưa có mô hình</Badge>
+    ) : status === 'loading' ? (
+      <Badge variant="neutral">Đang kiểm tra</Badge>
+    ) : summary.violations > 0 ? (
+      <Badge variant="violation">{`${count(summary.violations)} luật vi phạm nghiêm trọng`}</Badge>
+    ) : summary.warnings > 0 ? (
+      <Badge variant="attention">{`${count(summary.warnings)} luật cảnh báo`}</Badge>
+    ) : (
+      <Badge variant="neutral">Không có vi phạm</Badge>
+    );
+
+  const rest =
+    status === 'empty' || status === 'loading'
+      ? null
+      : summary.violations > 0
+        ? `${count(summary.warnings)} cảnh báo, ${count(summary.suggestions)} gợi ý.`
+        : `${count(summary.passed)}/${count(summary.evaluated)} luật đạt.`;
+
+  return (
+    <>
+      {badge}
+      {rest === null ? null : <span className="tabular-nums">{rest}</span>}
+      {lastRunLabel === null || status === 'empty' ? null : (
+        <span className="text-[13px] text-text-muted">{lastRunLabel}</span>
+      )}
+    </>
+  );
+}
+
 /**
  * The rule report, as a function of its props.
  *
@@ -240,127 +229,176 @@ function RuleReportBody({ props, isResolvedOpen, onToggleResolved }: RuleReportB
  * makes invariant A11 checkable without a store and without a network.
  */
 export function RuleReport(props: RuleReportViewProps) {
-  const { status, summary, capabilities, lastRunLabel, skipped } = props;
+  const { status, summary, capabilities, skipped, filters } = props;
 
-  // Local disclosure only. Which rule groups are open belongs to the hook, in
-  // `expandedRuleCodes`; the resolved group is not a rule and has no code, so
-  // its one boolean lives here. Nothing about loading or failure is kept in the
-  // view — invariant R-64 is about those, and both arrive in `status`.
-  //
-  // It starts open. "Mục đã xử lý phải còn nhìn thấy trong nhóm gộp" is one of
-  // the absolute bans, and a group that starts shut hides exactly the rows the
-  // ban is about. The reader can still collapse it.
+  // Starts open: "Mục đã xử lý phải còn nhìn thấy" — a group that starts shut hides
+  // exactly the rows the ban is about. The reader can still collapse it.
   const [isResolvedOpen, setResolvedOpen] = useState(true);
+  // "Đã xem cảnh báo" — the reader opened the warnings filter at least once in this view.
+  const [hasSeenWarnings, setSeenWarnings] = useState(false);
 
   const isRunning = status === 'loading';
   const hasResults = status !== 'empty' && status !== 'error';
-  const canFilter = hasResults && status !== 'loading' && status !== 'done';
+  const canFilter = hasResults && !isRunning && status !== 'done';
+  // Người xem (không `canEdit`) không chạy lại và không giữ cổng — gỡ, không tắt (9V-C-030).
+  const canAct = capabilities.canEdit && status !== 'forbidden';
 
-  // The footer offers the one edit this screen has. A reader without edit rights
-  // — the forbidden state — gets the report and no way to act on it, and the
-  // button is removed rather than disabled, the same way the two missing
-  // capabilities are removed. With no result yet (`empty`, `error`, `loading`)
-  // there is nothing to confirm either — `violations` is 0 then, so the button
-  // used to sit enabled under "Không chạy được lượt kiểm tra" (BUG-465).
-  const canConfirm = capabilities.canEdit && hasResults && !isRunning && status !== 'forbidden';
+  const onFilterChange = (next: RuleReportFilters): void => {
+    if (next.level === 'warning') setSeenWarnings(true);
+    props.onFilterChange(next);
+  };
+
+  const noCritical = summary.violations === 0;
+  const warningsSeen = summary.warnings === 0 || hasSeenWarnings || filters.level === 'warning';
+  const criticalKeys = openCriticalKeys(props.groups);
+
+  const showNextViolation = (): void => {
+    const at = props.selectedRowKey === null ? -1 : criticalKeys.indexOf(props.selectedRowKey);
+    const next = criticalKeys[(at + 1) % Math.max(criticalKeys.length, 1)];
+    if (next !== undefined) {
+      props.onSelectRow(next);
+      return;
+    }
+    // Bộ lọc đang giấu mọi hàng nghiêm trọng: mở lại bộ lọc về đúng mức ấy.
+    onFilterChange({ level: 'violation', group: 'all', levelId: 'all' });
+  };
+
+  // `empty` = chưa có mô hình: cổng dẫn về bước Xử lý thay vì hai điều kiện không ai làm được.
+  const processLink =
+    props.processPath === undefined ? null : (
+      <a href={props.processPath} className={getButtonStyles({ variant: 'secondary', size: 'sm' })}>
+        Mở bước Xử lý
+      </a>
+    );
+
+  const gateButton =
+    status === 'empty' ? processLink : !hasResults || isRunning ? null : !noCritical ? (
+      <Button size="sm" variant="secondary" onClick={showNextViolation}>
+        Xem vi phạm kế
+      </Button>
+    ) : !warningsSeen ? (
+      <Button size="sm" variant="secondary" onClick={() => onFilterChange({ ...filters, level: 'warning' })}>
+        Xem cảnh báo
+      </Button>
+    ) : (
+      <Button size="sm" variant="primary" iconAfter={<ArrowRight aria-hidden="true" size={16} />} onClick={props.onConfirmResolved}>
+        Sang Xuất
+      </Button>
+    );
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-bg-app">
-      <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-6 p-6">
+      {canAct ? (
+        <FlowGate
+          conditions={
+            status === 'empty'
+              ? [{ label: 'Có mô hình để kiểm tra', done: false }]
+              : [
+                  { label: 'Không còn vi phạm nghiêm trọng', done: hasResults && !isRunning && noCritical },
+                  { label: 'Đã xem cảnh báo', done: hasResults && !isRunning && warningsSeen },
+                ]
+          }
+          done={summary.passed}
+          total={hasResults && !isRunning ? summary.evaluated : 0}
+          progressLabel="Luật đạt"
+        >
+          {gateButton}
+        </FlowGate>
+      ) : null}
+
+      <div className="mx-auto flex w-full max-w-[1344px] flex-col gap-6 px-4 pb-6 pt-6 xl:px-8">
         {props.breadcrumb === undefined ? null : <Breadcrumb items={props.breadcrumb} />}
-        <header className="flex flex-wrap items-end justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-title text-text-primary">Quy chuẩn</h1>
-            <p className="text-body text-text-secondary">Kiểm tra luật không gian</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {lastRunLabel === null ? null : (
-              <p className="text-sm text-text-secondary">{lastRunLabel}</p>
-            )}
-            {props.settingsPath === undefined ? null : (
-              <a
-                href={props.settingsPath}
-                className={cn('rounded-sm py-1 text-sm text-accent underline', FOCUS_RING)}
-              >
-                Cài đặt bộ luật
-              </a>
-            )}
-            {/* `empty` = chưa có mô hình: một lượt chạy chỉ rơi vào `error` (B-V12-02).
-                `error` có sẵn "Thử lại" trong thân — hai nút chạy lại là thừa (BUG-465). */}
-            {/* Người xem (không `canEdit`) không chạy lại — gỡ nút như nút xác nhận (9V-C-030, Q2). */}
-            {status === 'empty' || status === 'error' || !capabilities.canEdit ? null : (
-              <Button variant="secondary" loading={isRunning} onClick={props.onRerun}>
-                Chạy kiểm tra lại
-              </Button>
-            )}
-          </div>
-        </header>
-
-        {hasResults ? <RuleReportSummaryStrip summary={summary} /> : null}
-        {/* G5-30: thẻ tổng đếm LUẬT, danh sách đếm ĐỐI TƯỢNG — nói ra để hai số không vênh nhau. */}
-        {hasResults && status !== 'done' ? (
-          <p className="-mt-3 text-sm text-text-secondary">
-            Các số trên đếm theo luật. Danh sách bên dưới liệt kê từng đối tượng vi phạm, nên một luật có thể có nhiều mục.
-          </p>
-        ) : null}
+        <PageHead
+          className="mb-0"
+          eyebrow="Bước 5 · Quy chuẩn"
+          title="Kiểm tra quy chuẩn"
+          status={<RuleReportStatus props={props} />}
+          next={
+            <>
+              {props.settingsPath === undefined ? null : (
+                <a href={props.settingsPath} className={getButtonStyles({ variant: 'ghost', size: 'md' })}>
+                  Cài đặt bộ luật
+                </a>
+              )}
+              {/* `empty` = chưa có mô hình: một lượt chạy chỉ rơi vào `error` (B-V12-02).
+                  `error` có sẵn "Thử lại" trong thân — hai nút chạy lại là thừa (BUG-465). */}
+              {status === 'empty' || status === 'error' || !canAct ? null : (
+                <Button variant="secondary" loading={isRunning} onClick={props.onRerun}>
+                  Chạy kiểm tra lại
+                </Button>
+              )}
+            </>
+          }
+        />
 
         {skipped.length > 0 ? <SkippedNotice skipped={skipped} /> : null}
 
-        {canFilter ? (
-          <RuleReportFilterBar
-            filters={props.filters}
-            groups={props.groups}
-            resolvedRows={props.resolvedRows}
-            onFilterChange={props.onFilterChange}
+        {status === 'empty' ? (
+          // `empty` chỉ xảy ra khi kho chưa có mô hình, nên không có nút chạy (B-V12-02).
+          <EmptyState
+            icon={<ClipboardCheck aria-hidden="true" />}
+            title="Chưa có mô hình để kiểm tra luật"
+            description="Bản vẽ này chưa được xử lý xong, nên chưa có mô hình không gian nào để đối chiếu với bộ luật. Chạy pipeline cho tầng rồi quay lại đây."
           />
-        ) : null}
+        ) : status === 'error' ? (
+          <EmptyState
+            icon={<AlertCircle aria-hidden="true" />}
+            title="Không chạy được lượt kiểm tra"
+            description={
+              props.errorMessage ??
+              'Lượt kiểm tra dừng giữa chừng và chưa có kết quả nào để hiển thị. Thử chạy lại sau ít phút.'
+            }
+            action={{ label: 'Thử lại', onClick: props.onRerun, variant: 'secondary' }}
+          />
+        ) : (
+          <div className="flex items-start gap-4">
+            <Section title="Kết quả kiểm tra" className="min-w-0 flex-1">
+              <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-2">
+                  <RuleReportSummaryStrip
+                    summary={summary}
+                    {...(canFilter
+                      ? { activeLevel: filters.level, onFilterLevel: (level: RuleReportLevelFilter) => onFilterChange({ ...filters, level }) }
+                      : {})}
+                  />
+                  {/* G5-30: ô số đếm LUẬT, danh sách đếm ĐỐI TƯỢNG — nói ra để hai số không vênh nhau. */}
+                  {status !== 'done' ? (
+                    <p className="text-[13px] text-text-secondary">
+                      Các số trên đếm theo luật, bấm một số để lọc. Danh sách liệt kê từng đối tượng, nên một luật có thể có nhiều mục.
+                    </p>
+                  ) : null}
+                </div>
 
-        {/*
-          One column normally, two when there is a preview to show. The list is
-          `flex-1` either way, so turning `canPreview3d` on adds the aside and
-          re-lays out nothing. `previewRef` is called only where the canvas is
-          actually mounted — an empty 344px column is worse than no column.
-        */}
-        <div className="flex items-start gap-4">
-          <div className="min-w-0 flex-1">
-            <RuleReportBody
-              props={props}
-              isResolvedOpen={isResolvedOpen}
-              onToggleResolved={() => {
-                setResolvedOpen((open) => !open);
-              }}
-            />
-          </div>
+                {canFilter ? (
+                  <RuleReportFilterBar
+                    filters={filters}
+                    groups={props.groups}
+                    resolvedRows={props.resolvedRows}
+                    onFilterChange={onFilterChange}
+                  />
+                ) : null}
 
-          {capabilities.canPreview3d && !props.isCompact ? (
-            <aside
-              aria-label="Xem trước mô hình"
-              className={cn('shrink-0 rounded-sm border border-border-default', PREVIEW_WIDTH)}
-            >
-              <canvas ref={props.previewRef} className="h-[240px] w-full rounded-sm bg-canvas-3d" />
-            </aside>
-          ) : null}
-        </div>
+                <RuleReportBody
+                  props={props}
+                  isResolvedOpen={isResolvedOpen}
+                  onToggleResolved={() => {
+                    setResolvedOpen((open) => !open);
+                  }}
+                />
+              </div>
+            </Section>
 
-        {canConfirm ? (
-          <footer className="flex items-center justify-end gap-3 border-t border-border-default pt-4">
-            {/* G5-31: nút khoá thì nói vì sao và cách mở khoá. */}
-            {summary.violations > 0 ? (
-              <p id="rule-report-confirm-hint" className="text-sm text-text-secondary">
-                Sửa hết lỗi nghiêm trọng trên bản vẽ rồi bấm "Chạy kiểm tra lại" để xác nhận.
-              </p>
+            {/* `previewRef` is called only where the canvas is actually mounted. */}
+            {capabilities.canPreview3d && !props.isCompact ? (
+              <aside
+                aria-label="Xem trước mô hình"
+                className={cn('shrink-0 overflow-hidden rounded-xl bg-bg-surface shadow-panel', PREVIEW_WIDTH)}
+              >
+                <canvas ref={props.previewRef} className="h-[240px] w-full bg-canvas-3d" />
+              </aside>
             ) : null}
-            <Button
-              variant="primary"
-              disabled={summary.violations > 0}
-              {...(summary.violations > 0 ? { 'aria-describedby': 'rule-report-confirm-hint' } : {})}
-              onClick={props.onConfirmResolved}
-            >
-              Xác nhận đã xử lý
-            </Button>
-          </footer>
-        ) : null}
+          </div>
+        )}
       </div>
     </div>
   );

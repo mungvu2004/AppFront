@@ -129,11 +129,11 @@ test('SCR-20 · FL-20-U1 · [mocked response] room states incl. viewer, 409 bann
       });
     });
 
-    await test.step('[20-F-015] "Chuẩn hoá tên" with nothing to change → button disabled + inline note, no dialog (RoomLabelLeftPanel.tsx:57,152)', async () => {
+    await test.step('[20-F-015] "Chuẩn hoá tên…" with nothing to change → still enabled, the preview says so (Z/S-20, B1-10)', async () => {
       await state('20-F-015', 'normalize-nothing', page, async (p) => {
         await openRooms(p, pid, fBep.id);
-        await expect(p.getByRole('button', { name: ROOM.normalize, exact: true })).toBeDisabled();
-        await expect(p.getByText('Mọi tên phòng đã đúng kiểu câu, chưa có gì để chuẩn hoá.', { exact: true })).toBeVisible();
+        await p.getByRole('button', { name: ROOM.normalize, exact: true }).click();
+        await expect(p.getByText('Không có tên nào cần chuẩn hoá — mọi tên phòng đã đúng kiểu câu.', { exact: true })).toBeVisible();
       });
     });
 
@@ -185,7 +185,7 @@ test('SCR-20 · FL-20-U1 · [mocked response] room states incl. viewer, 409 bann
     await test.step('[20-F-011] the gaps list with "Xem tại lớp tường"', async () => {
       await state('20-F-011', 'gaps-list', page, async (p) => {
         await openRooms(p, pid, fGaps.id);
-        await expect(p.getByRole('region', { name: ROOM.gapsTitle, exact: true }).getByRole('button', { name: ROOM.toWalls, exact: true })).toBeVisible();
+        await expect(p.getByRole('region', { name: ROOM.gapsTitle, exact: true }).getByRole('button', { name: ROOM.toWalls }).first()).toBeVisible();
       });
     });
 

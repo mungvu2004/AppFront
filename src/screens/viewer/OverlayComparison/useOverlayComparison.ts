@@ -109,7 +109,7 @@ const KEY_ZOOM_STEP = 1.25;
 const KEY_PAN_STEP_PX = 40;
 
 const COPY = {
-  confirmButton: 'Xác nhận mô hình khớp bản vẽ',
+  confirmButton: 'Xác nhận khớp bản vẽ',
   confirmedWithinTolerance:
     'Mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.',
   confirmedWithDeviations:
@@ -122,6 +122,7 @@ const COPY = {
   errorLayerNotice: 'Không đọc được mô hình của tầng này nên chưa có gì để đối chiếu.',
   confirmNeedsEdit: 'Chỉ người có quyền sửa mới xác nhận được.',
   shortcutFitView: 'Vừa khung',
+  shortcutNextRegion: 'Sang vùng vượt dung sai kế tiếp',
   shortcutZoomIn: 'Phóng to khung đối chiếu',
   shortcutZoomOut: 'Thu nhỏ khung đối chiếu',
   shortcutPan: 'Dời khung đối chiếu',
@@ -445,10 +446,17 @@ export function useOverlayComparison(
    * `/3d` sang đây là gặp "chưa có tầng nào". Chỉ ĐỌC: màn này không ghi đồ thị,
    * nên không nạp vào kho thay `/3d`.
    */
+  /*
+   * Kho đã nạp (cổng N15) mà không tầng nào mang đúng mã route: mã `Level` khác mã tầng API
+   * (bộ mẫu: `L1` → `L-00000000L1`). Đọc N16 của tầng route để biết mã `Level` của nó rồi đối
+   * chiếu qua `scanFloorIdOf` — không thì màn tưởng tầng đã xoá (race với cổng). Trên BE hai
+   * mã trùng nên nhánh này không phát thêm lượt đọc nào.
+   */
+  const needsRouteLevel = storeFloors.length > 0 && !storeFloors.some((floor) => floor.id === floorId);
   const layerQuery = useQuery({
     queryKey: queryKeys.space.byFloor(floorId),
     queryFn: ({ signal }) => gateway.readFloorLayer({ floorId, projectId, signal }),
-    enabled: storeSpatial === null,
+    enabled: storeSpatial === null || needsRouteLevel,
   });
   const spatial = storeSpatial ?? layerQuery.data ?? null;
   /*
@@ -457,7 +465,7 @@ export function useOverlayComparison(
    * tầng của route, nên nó mang mã route khi tra ảnh; tầng của kho giữ mã của
    * chính nó như trước.
    */
-  const loadedLevelId = storeSpatial === null ? layerQuery.data?.byKind.level[0] : undefined;
+  const loadedLevelId = storeSpatial === null || needsRouteLevel ? layerQuery.data?.byKind.level[0] : undefined;
   const scanFloorIdOf = useCallback(
     (levelId: string): string => (levelId === loadedLevelId ? floorId : levelId),
     [floorId, loadedLevelId],
@@ -517,8 +525,13 @@ export function useOverlayComparison(
       floors[0]
     )?.id ?? null;
 
+  // Chỉ kết luận "tầng không còn" khi lượt đọc mã `Level` của route đã xong (thành công hoặc 404).
+  const isRouteLevelSettled =
+    !needsRouteLevel || layerQuery.isSuccess || readWireError(layerQuery.error)?.status === 404;
   const isRouteFloorUnknown =
-    storeFloors.length > 0 && !floors.some((floor) => floor.id === floorId || scanFloorIdOf(floor.id) === floorId);
+    storeFloors.length > 0 &&
+    isRouteLevelSettled &&
+    !floors.some((floor) => floor.id === floorId || scanFloorIdOf(floor.id) === floorId);
 
   const canEdit = can('edit', 'layer', { roles });
   const role = ROLE_PRECEDENCE.find((candidate) => roles.includes(candidate)) ?? null;
@@ -556,7 +569,7 @@ export function useOverlayComparison(
     },
     // Tầng của route không có trong kho thì N16 không biết nó: không đọc ảnh (#30) của tầng khác thay nó (22-G-010).
     // Kho chưa có đồ thị thì N16 là nguồn tầng: chưa đọc xong / hỏng thì không gọi #30 (22-G-009, BUG-588).
-    enabled: activeFloorId !== null && !isRouteFloorUnknown && (storeSpatial !== null || layerQuery.isSuccess),
+    enabled: activeFloorId !== null && isRouteLevelSettled && !isRouteFloorUnknown && (storeSpatial !== null || layerQuery.isSuccess),
   });
 
   const scans = query.data?.scans ?? EMPTY_SCANS;
@@ -724,7 +737,7 @@ export function useOverlayComparison(
    * Đang đọc / đọc hỏng tầng N16 là loading / error, KHÔNG phải "chưa có tầng nào" (BUG-588):
    * trước đây `activeFloorId` còn `null` nên lượt đọc ảnh tắt và màn rơi thẳng vào `empty`.
    */
-  const isLayerLoading = storeSpatial === null && layerQuery.isLoading;
+  const isLayerLoading = (storeSpatial === null || needsRouteLevel) && layerQuery.isLoading;
   const isListLoading = floors.length === 0 && storeFloors.length === 0 && floorListQuery.isLoading;
   const hasLayerReadFailed = storeSpatial === null && layerQuery.isError;
   /* N16 404 (người ngoài dự án, tầng đã xoá): cả màn là một lối ra, không câu lỗi đọc chung (G45). */
@@ -1162,6 +1175,21 @@ export function useOverlayComparison(
   const selectRegion = useCallback((id: string | null): void => {
     setSelectedRegionId(id);
   }, []);
+
+  // S-28 v6: "Vùng kế" của cổng — vùng vượt dung sai sau vùng đang chọn, vòng lại đầu.
+  // Phím J (Tab bị sổ phím tắt cấm, A12); cùng phép chọn với `overlayStatusOf().nextOverRow`.
+  useShortcut({
+    id: 'overlayComparison.nextOverRegion',
+    combo: 'J',
+    scope: 'canvas',
+    description: COPY.shortcutNextRegion,
+    onTrigger: () => {
+      const over = sortedRegions.filter((region) => overToleranceIds.includes(region.id));
+      const index = over.findIndex((region) => region.id === selectedRegionId);
+      const next = over[(index + 1) % Math.max(over.length, 1)];
+      if (next !== undefined) setSelectedRegionId(next.id);
+    },
+  });
 
   /**
    * Đặt viewport về một giá trị tuyệt đối.

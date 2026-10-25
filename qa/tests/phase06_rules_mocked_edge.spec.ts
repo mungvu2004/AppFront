@@ -239,7 +239,7 @@ test('SCR-28 · FL-28-M2 · [mocked response] Model read and save failures', asy
       await openRules(page, projectId);
       // The gate re-mounts (staleTime 0) when the user leaves the screen and comes back: that refetch is the 500.
       await page.getByRole('link', { name: RR.settingsLink, exact: true }).click();
-      await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 1 })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Chọn luật áp dụng', level: 1 })).toBeVisible();
       await page.goBack();
       const inline = page.getByText(RR.refreshFailed, { exact: true });
       await expect(inline).toBeVisible({ timeout: ERROR_PAINT_TIMEOUT_MS });

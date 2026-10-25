@@ -14,6 +14,7 @@
  * cho CẢ HAI (twMerge ghi đè `h-10`) — xem `contract-ui.md` mục 0.
  */
 import { Box, RotateCw, SearchX } from 'lucide-react';
+import { useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Badge } from '@/components/ui/Badge';
@@ -57,7 +58,11 @@ function ModelPreviewThumb({
     sizeClassName,
   );
 
-  if (row.previewUrl !== null && !row.isPreviewBroken) {
+  // Ảnh tải hỏng ở trình duyệt (404, sai định dạng) cũng về biểu tượng trung tính, không vẽ ảnh vỡ.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+
+  if (row.previewUrl !== null && !row.isPreviewBroken && failedUrl !== row.previewUrl) {
+    const { previewUrl } = row;
     return (
       <img
         alt=""
@@ -65,7 +70,8 @@ function ModelPreviewThumb({
         decoding="async"
         height={96}
         loading="lazy"
-        src={row.previewUrl}
+        onError={() => setFailedUrl(previewUrl)}
+        src={previewUrl}
         width={96}
       />
     );

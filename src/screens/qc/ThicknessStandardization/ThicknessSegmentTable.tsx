@@ -117,7 +117,8 @@ const GROUP_OF_KEY: Readonly<Record<ThicknessGroupKey, ThicknessGroup>> = {
  */
 const OPTION_LABELS: Readonly<Record<ThicknessGroup, string>> = {
   ...THICKNESS_GROUP_LABELS,
-  CONCRETE_COLUMN: 'Cột BTCT',
+  /* S-21: nhóm này là "xem tay" (≥ 400 mm, có thể là cột BTCT), không phải nhãn kết luận. */
+  CONCRETE_COLUMN: 'Xem tay',
 };
 
 /* Chỉ nhóm có giá trị mm: "Cột BTCT" không có lệnh áp, chọn nó thì "Áp dụng" im lặng (BUG-593). */
@@ -199,7 +200,8 @@ export function ThicknessSegmentTable({
             <Table.Head>{HEADER_NORMALIZED}</Table.Head>
             <Table.Head sortKey="deviation">{HEADER_DEVIATION}</Table.Head>
             <Table.Head sortKey="confidence">{HEADER_CONFIDENCE}</Table.Head>
-            <Table.Head sortKey="floor">{HEADER_FLOOR}</Table.Head>
+            {/* Màn chỉ một tầng nên cột Tầng lặp một chữ: dưới 1024 bỏ nó để bảng trong ngăn kéo vừa khung (BUG-405). */}
+            <Table.Head className="max-lg:hidden" sortKey="floor">{HEADER_FLOOR}</Table.Head>
             <Table.Head>{HEADER_STATUS}</Table.Head>
           </Table.Row>
         </Table.Header>
@@ -263,7 +265,7 @@ export function ThicknessSegmentTable({
                 <Table.Cell>
                   <ConfidenceMeter value={row.confidence} />
                 </Table.Cell>
-                <Table.Cell>{row.floorName}</Table.Cell>
+                <Table.Cell className="max-lg:hidden">{row.floorName}</Table.Cell>
                 <Table.Cell>
                   <Badge variant={row.status}>{STATUS_LABELS[row.status]}</Badge>
                 </Table.Cell>

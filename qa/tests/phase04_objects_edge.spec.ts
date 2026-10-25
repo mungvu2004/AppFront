@@ -56,6 +56,9 @@ import {
   eyeButton,
   getCount,
   groupBox,
+  layerOptions,
+  openSubtypeMenu,
+  QUEUE,
   hostWallCode,
   inspector,
   layerRe,
@@ -178,7 +181,7 @@ test('SCR-17 · FL-17-01 open, select by list and canvas, hover halo, approve wi
       await openObjects(page, pid, fid);
       await expect(screen(page)).toBeVisible();
       await expect(page.getByLabel('0/3 đối tượng đã duyệt', { exact: true })).toBeVisible();
-      for (const label of [OBJ.doors, OBJ.windows, OBJ.furniture]) await expect(groupBox(page, label)).toBeVisible();
+      await expect(groupBox(page, QUEUE.pending)).toBeVisible(); // Z/S-16: hàng đợi "Cần duyệt" thay ba nhóm theo loại
       await expect.poll(() => getCount(log, mark, backgroundRe(pid, fid)), { message: 'GET …/spatial (background) answered' }).toBeGreaterThanOrEqual(1);
       expect(getCount(log, mark, layerRe(pid, fid)), 'GET …/spatial/layer (N16)').toBeGreaterThanOrEqual(1);
       await ev(page, '17-A-001', 'deep_link');
@@ -384,7 +387,7 @@ test('SCR-17 · FL-17-02 swing and kind changes, silent refusals', async ({ brow
       const put = await nextPut(s, mark, (record) => swingOf(record, doorEntity) === 'double');
       expect.soft(kindOf(put, doorEntity)).toBe('door');
       await expect.soft(typeBox(page)).toContainText('Cửa đôi');
-      await expect.soft(groupBox(page, OBJ.doors).getByRole('option')).toHaveCount(2);
+      await expect.soft(layerOptions(page, OBJ.doors)).toHaveCount(2);
       await ev(page, '17-A-012', 'swing_double');
     });
 
@@ -451,15 +454,15 @@ test('SCR-17 · FL-17-02 swing and kind changes, silent refusals', async ({ brow
       expect.soft(opening?.sillHeightMm, 'sill 900').toBe(900);
       expect.soft(opening?.swing, 'swing fixed').toBe('fixed');
       expect.soft(s.puts.length - mark, 'one PUT').toBe(1);
-      await expect.soft(groupBox(page, OBJ.windows).getByRole('option')).toHaveCount(2);
-      await expect.soft(groupBox(page, OBJ.doors).getByRole('option')).toHaveCount(1);
+      await expect.soft(layerOptions(page, OBJ.windows)).toHaveCount(2);
+      await expect.soft(layerOptions(page, OBJ.doors)).toHaveCount(1);
       await expect.soft(inspector(page).getByText('Cao độ bệ cửa', { exact: true })).toBeVisible();
       await expect.soft(inspector(page).getByText('900 mm', { exact: true }).first()).toBeVisible();
       await ev(page, '17-A-015', 'door_to_window');
     });
 
     await test.step('[17-A-017] "Loại đối tượng" "Cửa đơn" → "Cửa đôi" → swing double', async () => {
-      await groupBox(page, OBJ.doors).getByRole('option').first().click(); // the 1 800 mm door on the low wall: still a single door
+      await layerOptions(page, OBJ.doors).first().click(); // the 1 800 mm door on the low wall: still a single door
       await expect.soft(typeBox(page)).toContainText('Cửa đơn');
       const lowDoor = at(arrayOf(asRecord((await readLayer(s.api, pid, fid)).layer, 'layer').openings, 'openings').filter((o) => o.heightMm === 1_800), 0, 'low-wall door');
       const mark = s.puts.length;
@@ -563,7 +566,7 @@ test('SCR-17 · FL-17-03 inspector by kind, position slider, host-wall jump, fur
       const opening = putList(put, 'openings').find((o) => o.id === windowEntity);
       expect.soft(opening?.sillHeightMm, 'sill 0').toBe(0);
       expect.soft(opening?.swing, 'swing left').toBe('left');
-      await expect.soft(groupBox(page, OBJ.doors).getByRole('option')).toHaveCount(2);
+      await expect.soft(layerOptions(page, OBJ.doors)).toHaveCount(2);
       await expect.soft(inspector(page).getByText('Cao độ bệ cửa', { exact: true })).toHaveCount(0);
       await ev(page, '17-A-016', 'window_to_door');
     });
@@ -777,18 +780,18 @@ test('SCR-17 · FL-17-04 context menus on door, window, furniture; delete and re
       await symbolOf(page, '#D-001').click({ button: 'right', timeout: QUICK });
       await menuItem(page, 'Đổi thành cửa sổ').click({ timeout: QUICK });
       await nextPut(s, mark, (record) => openingIn(record, doorEntity)?.kind === 'window');
-      await expect.soft(groupBox(page, OBJ.windows).getByRole('option')).toHaveCount(2);
+      await expect.soft(layerOptions(page, OBJ.windows)).toHaveCount(2);
       await ev(page, '17-A-026', 'menu_to_window');
     });
 
     await test.step('[17-A-027] Menu "Đổi thành cửa đi" on a window → single door PUT', async () => {
-      const code = codeOfLabel((await groupBox(page, OBJ.windows).getByRole('option').first().getAttribute('aria-label')) ?? '');
+      const code = codeOfLabel((await layerOptions(page, OBJ.windows).first().getAttribute('aria-label')) ?? '');
       const mark = s.puts.length;
       await symbolOf(page, code).click({ button: 'right', timeout: QUICK });
       await menuItem(page, 'Đổi thành cửa đi').click({ timeout: QUICK });
       const put = await nextPut(s, mark, (record) => putList(record, 'openings').filter((o) => o.kind === 'door').length === 1);
       expect.soft(putList(put, 'openings').find((o) => o.kind === 'door')?.swing, 'single door swing').toMatch(/^(left|right)$/u);
-      await expect.soft(groupBox(page, OBJ.doors).getByRole('option')).toHaveCount(1);
+      await expect.soft(layerOptions(page, OBJ.doors)).toHaveCount(1);
       await ev(page, '17-A-027', 'menu_to_door');
     });
 
@@ -1124,6 +1127,7 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
 
     await test.step('[17-A-039] "Lọc theo loại" chip → aria-pressed="true", list narrows', async () => {
       await eyeButton(page, 'cửa sổ').click();
+      await openSubtypeMenu(page);
       await chip(page, 'Cửa sổ').click();
       await expect.soft(chip(page, 'Cửa sổ')).toHaveAttribute('aria-pressed', 'true');
       await expect.soft(allOptions(page)).toHaveCount(1);
@@ -1139,6 +1143,7 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     });
 
     await test.step('[17-A-040] Two chips on ("Cửa đơn" + "Cửa sổ") → union of both', async () => {
+      await openSubtypeMenu(page);
       await chip(page, 'Cửa đơn').click();
       await expect.soft(allOptions(page)).toHaveCount(2);
       await expect.soft(optionOf(page, '#D-001')).toHaveCount(1);
@@ -1147,7 +1152,9 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     });
 
     await test.step('[17-A-041] Chip off → full list back', async () => {
+      await openSubtypeMenu(page);
       await chip(page, 'Cửa đơn').click();
+      await openSubtypeMenu(page);
       await chip(page, 'Cửa sổ').click();
       await expect.soft(chip(page, 'Cửa sổ')).toHaveAttribute('aria-pressed', 'false');
       await expect.soft(allOptions(page)).toHaveCount(3);
@@ -1155,9 +1162,10 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     });
 
     await test.step('[17-C-001] ⚑ Counter and "Tổng N đối tượng" count every object (BUG-402): with a chip on, the screen says it is filtering', async () => {
+      await openSubtypeMenu(page);
       await chip(page, 'Cửa đơn').click();
       await expect.soft(page.getByLabel('0/3 đối tượng đã duyệt', { exact: true })).toBeVisible();
-      await expect.soft(page.getByText('Tổng 3 đối tượng', { exact: true })).toBeVisible();
+      // Z/S-16: "Tổng N đối tượng" removed; the total lives in the status line "x/N đối tượng đã duyệt" above.
       await expect.soft(allOptions(page)).toHaveCount(1);
       // BUG-402 "Mong đợi": the screen tells a filter is on, e.g. "1 / 3 đối tượng" — nothing says so today.
       await expect.soft(page.getByText(/(^|\s)1\s*\/\s*3(\s|$)/u).first(), 'a "1 / 3" filtered-state indicator').toBeVisible({ timeout: 2_000 });
@@ -1165,7 +1173,7 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     });
 
     await test.step('[17-C-002] Tree counts "(n)" per layer come from all objects (unfiltered)', async () => {
-      for (const label of [OBJ.doors, OBJ.windows, OBJ.furniture]) await expect.soft(treeItem(page, label)).toContainText('(1)');
+      for (const label of [OBJ.doors, OBJ.windows, OBJ.furniture]) await expect.soft(treeItem(page, label)).toContainText('1');
       await ev(page, '17-C-002', 'tree_counts_unfiltered');
     });
 
@@ -1190,8 +1198,10 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     // (objectLayerGateway.ts:372-387); chip "Bàn ăn" is disabled when the floor has no dining table (ObjectLayerLeftPanel.tsx:244-259).
     await test.step('[17-C-022] Real furniture kinds map to "Nội thất khác" except bed; the seeded table matches chip "Nội thất khác", chip "Bàn ăn" is disabled (QD-002)', async () => {
       await eyeButton(page, 'cửa đi').click();
+      await openSubtypeMenu(page);
       await chip(page, 'Cửa đơn').click();
       await expect.soft(chip(page, 'Bàn ăn'), 'no dining table on the floor: chip disabled').toBeDisabled();
+      await openSubtypeMenu(page);
       await chip(page, 'Nội thất khác').click();
       await expect.soft(optionOf(page, '#F-001'), 'the seeded table matches the "Nội thất khác" chip').toHaveCount(1, { timeout: 2_000 });
       await ev(page, '17-C-022', 'table_vs_dining_chip');
@@ -1332,20 +1342,20 @@ test('SCR-17 · FL-17-07 rail keys, groups, listbox semantics, panel collapse', 
       await ev(page, '17-E-017', 'undo_with_radio_focused_extra');
     });
 
-    await test.step('[17-A-042] "Gấp nhóm Cửa đi" → listbox hidden, button becomes "Mở nhóm Cửa đi" aria-expanded="false"; reopen', async () => {
-      await page.getByRole('button', { name: 'Gấp nhóm Cửa đi', exact: true }).click();
-      await expect.soft(groupBox(page, OBJ.doors)).toHaveCount(0);
-      const open = page.getByRole('button', { name: 'Mở nhóm Cửa đi', exact: true });
+    await test.step('[17-A-042] "Gấp nhóm cần duyệt" → listbox hidden, button becomes "Mở nhóm cần duyệt" aria-expanded="false"; reopen (Z/S-16 queue)', async () => {
+      await page.getByRole('button', { name: 'Gấp nhóm cần duyệt', exact: true }).click();
+      await expect.soft(groupBox(page, QUEUE.pending)).toHaveCount(0);
+      const open = page.getByRole('button', { name: 'Mở nhóm cần duyệt', exact: true });
       await expect.soft(open).toHaveAttribute('aria-expanded', 'false');
       await ev(page, '17-A-042', 'group_folded');
       await open.click();
-      await expect.soft(groupBox(page, OBJ.doors)).toBeVisible();
-      await expect.soft(page.getByRole('button', { name: 'Gấp nhóm Cửa đi', exact: true })).toHaveAttribute('aria-expanded', 'true');
+      await expect.soft(groupBox(page, QUEUE.pending)).toBeVisible();
+      await expect.soft(page.getByRole('button', { name: 'Gấp nhóm cần duyệt', exact: true })).toHaveAttribute('aria-expanded', 'true');
     });
 
-    await test.step('[17-E-005] Group buttons aria-expanded + aria-controls the listbox id', async () => {
-      for (const [label, id] of [['Cửa đi', 'object-layer-group-door'], ['Cửa sổ', 'object-layer-group-window'], ['Nội thất', 'object-layer-group-furniture']] as const) {
-        const button = page.getByRole('button', { name: new RegExp(`^(Gấp|Mở) nhóm ${label}$`, 'u') });
+    await test.step('[17-E-005] Queue group buttons aria-expanded + aria-controls the listbox id (Z/S-16)', async () => {
+      for (const [label, id] of [[QUEUE.pending, 'object-layer-group-pending'], [QUEUE.reviewed, 'object-layer-group-reviewed']] as const) {
+        const button = page.getByRole('button', { name: new RegExp(`^(Gấp|Mở) nhóm ${label.toLowerCase()}$`, 'u') });
         await expect.soft(button).toHaveAttribute('aria-controls', id);
         await expect.soft(button).toHaveAttribute('aria-expanded', 'true');
         await expect.soft(groupBox(page, label)).toHaveAttribute('id', id);
@@ -1353,17 +1363,17 @@ test('SCR-17 · FL-17-07 rail keys, groups, listbox semantics, panel collapse', 
       await ev(page, '17-E-005', 'group_aria');
     });
 
-    await test.step('[17-E-002] tree "Cây lớp": treeitems are buttons, aria-selected always false, no arrow-key navigation', async () => {
-      const items = page.getByRole('tree', { name: OBJ.tree, exact: true }).getByRole('treeitem');
-      expect.soft(await items.evaluateAll((nodes) => nodes.map((node) => [node.tagName, node.getAttribute('aria-selected')])), 'treeitems').toEqual([['BUTTON', 'false'], ['BUTTON', 'false'], ['BUTTON', 'false']]);
+    await test.step('[17-E-002] "Lọc theo loại" (Z/S-16): three toggle buttons with aria-pressed, no arrow-key navigation', async () => {
+      const items = page.getByRole('group', { name: OBJ.filters, exact: true }).getByRole('button');
+      expect.soft(await items.evaluateAll((nodes) => nodes.map((node) => [node.tagName, node.getAttribute('aria-pressed')])), 'filter toggles').toEqual([['BUTTON', 'true'], ['BUTTON', 'true'], ['BUTTON', 'true']]);
       await items.first().focus();
       await page.keyboard.press('ArrowDown');
-      expect.soft(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'ArrowDown does not move between tree items').toBe('Cửa đi');
+      expect.soft(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'ArrowDown does not move between filter toggles').toBe('Ẩn lớp cửa đi');
       await ev(page, '17-E-002', 'tree_semantics');
     });
 
-    await test.step('[17-E-006] One listbox per group named "Cửa đi"/"Cửa sổ"/"Nội thất"; every option has tabIndex 0; Enter/Space selects; no arrow keys', async () => {
-      for (const label of [OBJ.doors, OBJ.windows, OBJ.furniture]) await expect.soft(groupBox(page, label)).toHaveCount(1);
+    await test.step('[17-E-006] One listbox per queue group "Cần duyệt"/"Đã duyệt" (Z/S-16); every option has tabIndex 0; Enter/Space selects; no arrow keys', async () => {
+      for (const label of [QUEUE.pending, QUEUE.reviewed]) await expect.soft(groupBox(page, label)).toHaveCount(1);
       const tabs = await allOptions(page).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('tabindex')));
       expect.soft(tabs.every((value) => value === '0'), `tabindex of every option: ${tabs.join(',')}`).toBe(true);
       const option = optionOf(page, '#S-001');
@@ -1427,9 +1437,9 @@ test('SCR-17 · FL-17-08 codes, row text, status, fixed 0,75 cut, filter trap, s
         await expect(lowButton).toHaveAttribute('aria-pressed', 'true');
         await lowButton.click(); // the default filter hides every object but the 0,60 window: switch it off to read every code
         await expect(allOptions(page)).toHaveCount(5);
-        expect.soft((await groupBox(page, OBJ.doors).getByRole('option').evaluateAll((nodes) => nodes.map((node) => (node.getAttribute('aria-label') ?? '').split(' — ')[0]))), 'door codes').toEqual(['#D-001', '#D-002', '#D-003']);
-        expect.soft((await groupBox(page, OBJ.windows).getByRole('option').evaluateAll((nodes) => nodes.map((node) => (node.getAttribute('aria-label') ?? '').split(' — ')[0]))), 'window codes').toEqual(['#S-001']);
-        expect.soft((await groupBox(page, OBJ.furniture).getByRole('option').evaluateAll((nodes) => nodes.map((node) => (node.getAttribute('aria-label') ?? '').split(' — ')[0]))), 'furniture codes').toEqual(['#F-001']);
+        expect.soft((await layerOptions(page, OBJ.doors).evaluateAll((nodes) => nodes.map((node) => (node.getAttribute('aria-label') ?? '').split(' — ')[0]))).sort(), 'door codes (queue order, compared sorted)').toEqual(['#D-001', '#D-002', '#D-003']);
+        expect.soft((await layerOptions(page, OBJ.windows).evaluateAll((nodes) => nodes.map((node) => (node.getAttribute('aria-label') ?? '').split(' — ')[0]))).sort(), 'window codes (queue order, compared sorted)').toEqual(['#S-001']);
+        expect.soft((await layerOptions(page, OBJ.furniture).evaluateAll((nodes) => nodes.map((node) => (node.getAttribute('aria-label') ?? '').split(' — ')[0]))).sort(), 'furniture codes (queue order, compared sorted)').toEqual(['#F-001']);
         await ev(page, '17-C-005', 'codes_per_kind');
       });
 
@@ -1539,10 +1549,12 @@ test('SCR-17 · FL-17-08 codes, row text, status, fixed 0,75 cut, filter trap, s
         await optionOf(page, '#D-002').hover();
         await eyeButton(page, 'cửa sổ').click();
         await eyeButton(page, 'cửa sổ').click();
+        await openSubtypeMenu(page);
         await chip(page, 'Cửa đơn').click();
+        await openSubtypeMenu(page);
         await chip(page, 'Cửa đơn').click();
-        await page.getByRole('button', { name: 'Gấp nhóm Cửa đi', exact: true }).click();
-        await page.getByRole('button', { name: 'Mở nhóm Cửa đi', exact: true }).click();
+        await page.getByRole('button', { name: 'Gấp nhóm cần duyệt', exact: true }).click();
+        await page.getByRole('button', { name: 'Mở nhóm cần duyệt', exact: true }).click();
         await statusBar(page).getByRole('button', { name: OBJ.collapse, exact: true }).click();
         await statusBar(page).getByRole('button', { name: OBJ.expand, exact: true }).click();
         await quiet(page);
@@ -1648,7 +1660,7 @@ test('SCR-17 · FL-17-09 empty floors, manual add, entries, URL floor change, an
       const opening = at(putList(put, 'openings'), 0, 'opening');
       expect.soft(opening.kind).toBe('door');
       expect.soft(opening.wallId, 'hosted by the first wall').toBe(at(putList(put, 'walls'), 0, 'wall').id);
-      await expect.soft(groupBox(page, OBJ.doors).getByRole('option')).toHaveCount(1);
+      await expect.soft(layerOptions(page, OBJ.doors)).toHaveCount(1);
       await ev(page, '17-A-049', 'manual_door');
       await attachJson('E04_17-A-049_manual_door_put.json', { opening });
     });

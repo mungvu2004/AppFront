@@ -61,6 +61,8 @@ export interface DimensionOcrListViewProps extends DimensionOcrListProps {
   readonly outlierNotice: { readonly dimensionId: string; readonly message: string } | null;
   /** "N mục dưới ngưỡng tin cậy, đã lọc sẵn" khi bộ lọc "cần xem" là mặc định (18-B-011); `null` khi người dùng tự chọn. */
   readonly presetNotice?: string | null;
+  /** Hàng đang chọn lệch > 2 %: nút "Duyệt" của nó lùi về nút phụ (một nút chính mỗi màn). */
+  readonly isSelectedApproveDemoted?: boolean;
 }
 
 /** Nhãn ba lựa chọn lọc, lấy nguyên từ T4 — không gõ câu tiếng Việt mới ở đây. */
@@ -80,7 +82,6 @@ const FILTER_OPTIONS = DIMENSION_FILTER_IDS.map((id) => ({
 
 export function DimensionOcrList({
   rows,
-  reviewProgressLabel,
   activeFilter,
   onFilterChange,
   selectedDimensionId,
@@ -91,6 +92,7 @@ export function DimensionOcrList({
   onCancelEdit,
   outlierNotice,
   presetNotice = null,
+  isSelectedApproveDemoted = false,
 }: DimensionOcrListViewProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -143,15 +145,7 @@ export function DimensionOcrList({
             'border-b border-border-default bg-bg-surface px-3 py-2',
           )}
         >
-          {/*
-            A7: không có nút lưu. Bộ đếm là thứ DUY NHẤT đổi ngay sau một thao
-            tác đã tự lưu, nên bọc chính nó bằng `aria-live="polite"` là cách
-            nói ra trạng thái ấy cho trình đọc màn hình.
-          */}
-          <p aria-live="polite" className="text-[13px] text-text-secondary">
-            {reviewProgressLabel}
-          </p>
-
+          {/* Bộ đếm "18/34 kích thước đã duyệt" nằm ở dòng trạng thái đầu panel (một chỗ, không lặp). */}
           <SegmentedControl
             aria-label={DIMENSION_OCR_TEXT.filter.ariaLabel}
             onChange={onFilterChange}
@@ -174,10 +168,11 @@ export function DimensionOcrList({
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-2 p-3" role="listbox">
+        <div className="flex flex-col gap-2 p-2" role="listbox">
           {rows.map((row) => (
             <DimensionOcrRow
-              isSelected={row.id === selectedDimensionId}
+              isApproveDemoted={isSelectedApproveDemoted}
+            isSelected={row.id === selectedDimensionId}
               isViewerRole={isViewerRole}
               key={row.id}
               onApprove={onApprove}

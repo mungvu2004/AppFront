@@ -4,20 +4,19 @@
  * Cùng luật view thuần của canvas: không một phép hình học nào, toạ độ do trình duyệt đổi.
  */
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import { MiniMap } from '@/components/canvas/MiniMap';
-import { WallThicknessLegend } from '@/components/canvas/WallThicknessLegend';
 
 import { backgroundFrameRect } from '../shared/canvasFit';
 
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
-import { BACKGROUND_IMAGE_OPACITY, countWallBands, toSvgPoints, wallThicknessFillToken } from './wallLayerHatch';
+import { BACKGROUND_IMAGE_OPACITY, toSvgPoints, wallThicknessFillToken } from './wallLayerHatch';
+import { WallLayerLegendTray } from './WallLayerLegendTray';
 
 type Props = WallLayerCanvasViewProps;
 
 const MINIMAP_LABEL = 'Mặt bằng thu nhỏ';
-const UNBANDED_LEGEND_LABEL = 'Không chuẩn';
 /** `zoomPercent` lúc "vừa khung": 100% là cả mặt bằng nằm trong khung. */
 const FIT_ZOOM_PERCENT = 100;
 
@@ -104,28 +103,9 @@ export function WallDraftGuide({
   );
 }
 
-/** A3: chú giải liệt kê đúng các nhóm có trên tầng, kèm số đếm — nhóm theo `wallThicknessBandOf`. */
-export function WallLayerLegend({
-  isWallLayerVisible,
-  legendLevels,
-  shapes,
-  state,
-}: Pick<Props, 'isWallLayerVisible' | 'legendLevels' | 'shapes' | 'state'>) {
-  const bandCounts = useMemo(() => countWallBands(shapes.map((shape) => shape.thicknessMm)), [shapes]);
-
-  return (
-    <WallThicknessLegend
-      activeFilter={legendLevels.activeFilter}
-      availableLevels={[...bandCounts.bands.keys()]}
-      className="whitespace-nowrap"
-      counts={Object.fromEntries([...bandCounts.bands].map(([band, count]) => [String(band), count]))}
-      isVisible={isWallLayerVisible}
-      onFilterChange={legendLevels.onFilterChange}
-      otherCount={bandCounts.unbanded > 0 ? bandCounts.unbanded : undefined}
-      otherLabel={bandCounts.unbanded > 0 ? UNBANDED_LEGEND_LABEL : undefined}
-      state={state === 'loading' || state === 'error' || state === 'empty' ? state : 'partial'}
-    />
-  );
+/** Chú giải hình (Z/S-15): mẫu cùng hình với tường trên bản vẽ — xem `WallLayerLegendTray`. */
+export function WallLayerLegend(props: Pick<Props, 'isWallLayerVisible' | 'legendLevels' | 'shapes' | 'state'>) {
+  return <WallLayerLegendTray {...props} />;
 }
 
 /**

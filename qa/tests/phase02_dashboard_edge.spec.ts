@@ -133,7 +133,7 @@ const LIST_ERROR_TITLE = 'Không tải được danh sách dự án'; // PD:254
 const RETRY = 'Thử lại'; // PD:256, NC:60, WS:69
 const EMPTY_TITLE = 'Chưa có dự án nào'; // PD:261
 const EMPTY_DESCRIPTION = 'Tạo dự án đầu tiên để bắt đầu số hoá bản vẽ.'; // PD:264 (canCreate)
-const EMPTY_ACTION = 'Tạo dự án mới'; // PD:267
+const EMPTY_ACTION = /^Tạo dự án\s*N$/u; // S-02: PageHead next, no button in the empty body // PD:267
 const CLEAR_FILTERS = 'Xoá bộ lọc'; // PD:274
 const COMPACT_FILTER = 'Lọc theo trạng thái'; // PD:231
 const FILTERS = { all: 'Tất cả', processing: 'Đang xử lý', qc: 'Cần duyệt', done: 'Hoàn thành' } as const; // UPD:76-81
@@ -324,7 +324,7 @@ const rawItems = (json: unknown): unknown[] => {
 
 /* ---------------------------------------------------------------- locators (labels verified in src/) */
 
-const dashboardHeading = (page: Page): Locator => page.getByRole('heading', { name: 'Dự án của tôi', exact: true }); // PD:198
+const dashboardHeading = (page: Page): Locator => page.getByRole('heading', { name: 'Chọn dự án để làm tiếp', exact: true }); // PD:198
 const projectList = (page: Page): Locator => page.getByRole('list', { name: 'Danh sách dự án', exact: true }); // PD:151
 const projectCards = (page: Page): Locator => projectList(page).locator('article[role="listitem"]'); // PCT:68-72
 const projectCard = (page: Page, name: string): Locator => projectList(page).getByRole('listitem', { name, exact: true });
@@ -334,7 +334,7 @@ const wizard = (page: Page): Locator => page.getByRole('dialog', { name: 'Tạo 
 const toastWith = (page: Page, text: string): Locator => page.getByRole('status').filter({ hasText: text }); // TST:117
 /** DS:28-40: label + count spans inside one `aria-pressed` button; the only count per status since the stat tiles left (BUG-118, FIX-1153). */
 const statusFilterButton = (page: Page, label: string): Locator =>
-  page.getByRole('button', { name: new RegExp(`^${escapeRegExp(label)}\\s*\\d+$`, 'u') });
+  page.getByRole('radiogroup', { name: 'Lọc theo trạng thái', exact: true }).getByRole('radio', { name: label, exact: true }); // S-02: radiogroup in the "Dự án" section, no counts
 const stateAnnouncement = (scope: Page | Locator): Locator => scope.getByRole('status').filter({ hasText: STATE_RE });
 const countLine = (page: Page): Locator => page.getByText(/^\d+ dự án$/u); // PD:187
 const sortCombobox = (page: Page, current: string): Locator => page.getByRole('combobox').filter({ hasText: current }); // PD:204-209
@@ -364,7 +364,7 @@ const reviewValue = (dialog: Locator, label: string): Locator =>
 
 async function openWizard(page: Page): Promise<Locator> {
   // The button carries the `N` shortcut hint, hence the prefix match (PD:188-190, Button.tsx:102-106).
-  await page.getByRole('button', { name: /^Dự án mới/u }).click();
+  await page.getByRole('button', { name: /^Tạo dự án\s*N$/u }).click();
   const dialog = wizard(page);
   await expect(dialog).toBeVisible();
   return dialog;
@@ -659,7 +659,7 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
       // `clearFilters` resets BOTH (UPD:490-493).
       await page.getByRole('button', { name: CLEAR_FILTERS, exact: true }).click();
       await expect(searchBox(page)).toHaveValue('');
-      await expect(statusFilterButton(page, FILTERS.all)).toHaveAttribute('aria-pressed', 'true');
+      await expect(statusFilterButton(page, FILTERS.all)).toHaveAttribute('aria-checked', 'true');
       await expect(projectCards(page)).toHaveCount(list.length);
       await captureEvidence(page, 'E02_search_trim_clear_reset.png', {
         caption: `"${CLEAR_FILTERS}" after search + "${FILTERS.done}" → search "", filter "${FILTERS.all}", ${String(list.length)} cards back`,
@@ -797,9 +797,9 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
 
       await page.goBack();
       await dashboardLoaded(page);
-      await page.getByRole('button', { name: `Mở ${project.name}`, exact: true }).click(); // PCT:151-161
+      await page.getByRole('button', { name: new RegExp(`^(Duyệt tường|Xem tiến độ|Xem 3D|Mở dự án) ${escapeRegExp(project.name)}$`, 'u') }).click(); // S-02: "{động từ} {tên}"
       await expect.poll(() => pathname(page)).toBe(expected);
-      await captureEvidence(page, 'E02_card_keyboard_open.png', { caption: `Enter on card and "Mở ${project.name}" → ${expected}` });
+      await captureEvidence(page, 'E02_card_keyboard_open.png', { caption: `Enter on card and its action button (${project.name}) → ${expected}` });
       await attachJson('E02_card_keyboard_open.json', { expected, landed: pathname(page) });
     });
   });
@@ -1169,7 +1169,7 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
         await expect.poll(narrowAt, { message: `matchMedia ${narrowQuery} at a 1024 px viewport` }).toBe('false @ 1024');
         await expect(filter).toHaveCount(0);
         // Same `statusFilter` state behind both controls (PD:233, DS:157).
-        await expect(statusFilterButton(page, FILTERS.processing)).toHaveAttribute('aria-pressed', 'true');
+        await expect(statusFilterButton(page, FILTERS.processing)).toHaveAttribute('aria-checked', 'true');
         await captureEvidence(page, 'E02_dash_compact_1024.png');
       },
       COMPACT,
@@ -1582,7 +1582,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       expect(derivedStatus(summaryOf(list, project.id)), 'a fixture without floors').toBe('processing'); // BE:summaries.py:186
 
       await statusFilterButton(page, FILTERS.processing).click();
-      await expect(statusFilterButton(page, FILTERS.processing)).toHaveAttribute('aria-pressed', 'true');
+      await expect(statusFilterButton(page, FILTERS.processing)).toHaveAttribute('aria-checked', 'true');
       await searchBox(page).fill(project.name);
       await expect(projectCards(page)).toHaveCount(1); // UPD:273-281: search AND status
       await expect(projectCard(page, project.name)).toBeVisible();
@@ -1954,8 +1954,8 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
       await dashboardLoaded(page);
       // UPD:241-244: plain useState — nothing in the URL or storage, so the remount starts from the defaults.
-      await expect(statusFilterButton(page, FILTERS.all)).toHaveAttribute('aria-pressed', 'true');
-      await expect(statusFilterButton(page, FILTERS.processing)).toHaveAttribute('aria-pressed', 'false');
+      await expect(statusFilterButton(page, FILTERS.all)).toHaveAttribute('aria-checked', 'true');
+      await expect(statusFilterButton(page, FILTERS.processing)).toHaveAttribute('aria-checked', 'false');
       await expect(searchBox(page)).toHaveValue('');
       await captureEvidence(page, 'E02_back_forward_filter.png', { caption: `"${FILTERS.processing}" + search → ${expected} → Back: "${FILTERS.all}", empty search` });
 
@@ -1974,7 +1974,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       const list = summariesOf(json);
       // UPD:241-244: search, filter, view and sort are useState defaults; nothing reads the query string.
       await expect(searchBox(page)).toHaveValue('');
-      await expect(statusFilterButton(page, FILTERS.all)).toHaveAttribute('aria-pressed', 'true');
+      await expect(statusFilterButton(page, FILTERS.all)).toHaveAttribute('aria-checked', 'true');
       await expect(viewMode(page).getByRole('radio', { name: 'Lưới', exact: true })).toHaveAttribute('aria-checked', 'true');
       await expect(sortCombobox(page, SORT.updated)).toBeVisible();
       await expect(projectCards(page)).toHaveCount(list.length);
@@ -2874,7 +2874,7 @@ const LIST_LOAD_500_DESCRIPTION = 'Máy chủ gặp lỗi khi đọc danh sách.
 /** useProjectDashboard.ts:246 `listErrorMessageOf`: a 403 on page load has its own list sentence, still a rights cause (BUG-209, FIX-1150). */
 const LIST_LOAD_403_DESCRIPTION = 'Tài khoản của bạn chưa được phép xem danh sách dự án. Liên hệ quản trị dự án.';
 const OLD_UNKNOWN_TAIL = 'Bạn có thể tải lại rồi thử lại.'; // 5afd8b8a copy, must be gone
-const NO_MATCH_DESCRIPTION = 'Không có dự án nào khớp với bộ lọc hiện tại.'; // PD:264
+const NO_MATCH_DESCRIPTION = 'Không có dự án nào khớp với tìm kiếm và bộ lọc hiện tại.'; // PD:264
 const PIPELINE_NAV = 'Xử lý'; // ProcessingScreen.tsx:60 (BREADCRUMB_PIPELINE = the nav's aria-label, :223)
 const BREADCRUMB_NAV = 'Đường dẫn trang'; // BC:19
 const UNDO = 'Hoàn tác'; // TST:144

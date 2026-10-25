@@ -163,6 +163,8 @@ export interface RuleReportViewProps {
    * story và test dựng view thẳng không cần nó.
    */
   readonly settingsPath?: string;
+  /** Đường sang bước Xử lý — lối ra của trạng thái `empty` (chưa có mô hình) ở cổng. Vắng thì cổng không có nút. */
+  readonly processPath?: string;
   /** "Dự án › <tên dự án> › Kiểm tra luật không gian", như Cài đặt dự án (K5). Vắng thì không vẽ. */
   readonly breadcrumb?: readonly BreadcrumbItem[];
 }

@@ -40,6 +40,10 @@ const ROSTER_TOGGLE = 'Ai đang xem';
 test('nút "Ai đang xem" nhận cú bấm ở tâm của nó, và danh sách nói chỉ mình bạn đang xem', async ({
   page,
 }) => {
+  test.skip(
+    true,
+    'Viewer3D cũ không còn route từ 29eba219: /3d mở editor3d.html, nơi không gắn CollaborationLayer — lớp này còn ở tầng đơn vị (CollaborationLayer.test.tsx)',
+  );
   await openViewer(page);
 
   await page

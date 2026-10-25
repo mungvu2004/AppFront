@@ -49,7 +49,7 @@ export const TOTAL_RULES = 25; // registry: 25 rules
 export const DEFAULT_ON = 23; // 25 − ROOM-HAS-DOOR − ROOM-MIN-AREA (superseded, off by default)
 
 export const RS = {
-  heading: 'Cài đặt bộ luật không gian', // RSV:267
+  heading: 'Chọn luật áp dụng', // RSV:267
   enabledCount: /^(\d+)\/(\d+) luật đang bật$/u, // RSV:270
   nav: 'Mục cài đặt bộ luật', // RSV:136
   collapsedSelect: 'Mục cài đặt', // RSV:123
@@ -79,7 +79,7 @@ export const RS = {
   notFoundTitle: 'Không tìm thấy dự án này', // PSG:37
   notFoundBody: 'Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án.', // PSG:38-39
   backToProjects: 'Về danh sách dự án', // PSG:40
-  dashboardTitle: 'Dự án của tôi', // support/auth.ts DASHBOARD_TITLE
+  dashboardTitle: 'Chọn dự án để làm tiếp', // support/auth.ts DASHBOARD_TITLE
   // autosave indicator (i18n autosave.* / common.saved_at)
   idle: 'Chưa có thay đổi',
   dirty: 'Có thay đổi chờ đồng bộ',

@@ -25,7 +25,7 @@ const SCALE_SENTENCE =
   'Bản vẽ vẫn xem và phóng to được, nhưng không kéo được đường tham chiếu. Nhờ người có quyền sửa dự án đặt tỷ lệ giúp.'; // USC:210
 const OVERLAY_NOTICE = 'Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.'; // UOC:128
 const OVERLAY_REASON = 'Chỉ người có quyền sửa mới xác nhận được.'; // UOC:122
-const CONFIRM = 'Xác nhận mô hình khớp bản vẽ';
+const CONFIRM = 'Xác nhận khớp bản vẽ';
 const QUALITY_ACK = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này'; // checkbox removed in S-09 (the count-0 assertion below stays true)
 
 /** Waits a bounded window for any non-GET /api request, then asserts no recorded write (matching `only`) exists. */

@@ -78,7 +78,7 @@ test.describe('phase 11 · project edge B', () => {
       await test.step('[11P-A-013] removed member: card gone at "/", project URL -> not found (404, no 403)', async () => {
         expect(await removeProjectMember(api, id, user.id)).toBeNull(); // destructive, own project
         await page.goto(ROUTES.dashboard);
-        await expect(page.getByRole('heading', { name: 'Dự án của tôi', exact: true })).toBeVisible(); // DASHBOARD_TITLE
+        await expect(page.getByRole('heading', { name: 'Chọn dự án để làm tiếp', exact: true })).toBeVisible(); // DASHBOARD_TITLE
         await expect.soft(page.getByRole('button', { name: `Tuỳ chọn cho ${project.name}`, exact: true })).toHaveCount(0);
         const got = waitGet(page, id);
         await page.goto(ROUTES.project.settings(id));
@@ -136,7 +136,7 @@ test.describe('phase 11 · project edge B', () => {
         const mark = writes.length;
         await page.goto(ROUTES.project.ruleSettings(id));
         // GET rule-config is open to every member (BE rules/router.py:3,23), so the viewer sees the screen, not the denied alert
-        await expect(page.getByText('Cài đặt bộ luật không gian', { exact: true })).toBeVisible(); // RuleSettings.tsx:267
+        await expect(page.getByText('Chọn luật áp dụng', { exact: true })).toBeVisible(); // RuleSettings.tsx:267
         await expect.soft(page.getByRole('button', { name: P7_TEXT.restoreDefaults, exact: true })).toHaveCount(0); // RS:257 canEditRules
         expect.soft(writes.slice(mark).filter((w) => w.method === 'PUT')).toEqual([]);
         await captureEvidence(page, ev('11P-D-009', 'r_roles'));

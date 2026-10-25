@@ -69,8 +69,13 @@ export const head = (page: Page, name: string): Locator => page.getByRole('colum
 export const detailAside = (page: Page): Locator => page.locator(`aside[aria-label="${TEXT.detail}"]`);
 export const nameButtons = (page: Page): Locator => page.locator('tbody tr td:nth-child(2) button');
 export const bodyRows = (page: Page): Locator => page.locator('tbody tr');
-export const summaryValue = (page: Page, caption: string): Locator =>
-  page.locator('dt', { hasText: caption }).locator('xpath=following-sibling::dd[1]');
+/** Numbers on the PageHead status line (ModelLibrary.tsx LibraryStatus); keyed by the old summary captions. */
+const SUMMARY_TEST_ID: Readonly<Record<string, string>> = {
+  'Tổng số mẫu 3D': 'model-library-total-count',
+  'Tổng dung lượng': 'model-library-total-size',
+  'Mẫu 3D nặng': 'model-library-heavy-count',
+};
+export const summaryValue = (page: Page, caption: string): Locator => page.getByTestId(SUMMARY_TEST_ID[caption] ?? caption);
 export const nameBtn = (page: Page, name: string): Locator => page.getByRole('button', { name, exact: true }).first();
 
 export const viSort = (names: readonly string[]): string[] => [...names].sort((a, b) => a.localeCompare(b, 'vi'));

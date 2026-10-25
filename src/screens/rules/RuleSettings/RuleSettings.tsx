@@ -43,13 +43,16 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { SaveIndicator } from '@/components/feedback/SaveIndicator';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import { FlowGate } from '@/components/shell/FlowGate';
+import { PageHead } from '@/components/shell/PageHead';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { Select } from '@/components/ui/Select';
 import { useCountUp } from '@/hooks/useCountUp';
 import { cn } from '@/lib/utils';
 
 import { RuleSettingsGeneralThresholdsCard, RuleSettingsGroupCard } from './RuleSettingsGroups';
-import { RuleSettingsConfirmDialog } from './RuleSettingsConfirmDialog';
 import { RuleSettingsPresetsRow } from './RuleSettingsPresets';
 import { RuleSettingsReloadDialog } from './RuleSettingsReloadDialog';
 import { type RuleCode, FOCUS_RING } from './RuleSettingsRow';
@@ -253,9 +256,6 @@ export function RuleSettings(props: RuleSettingsProps) {
   const [activeSection, setActiveSection] = useState<string>(
     () => model.groups[0]?.group ?? GENERAL_SECTION_ID,
   );
-  const [pendingPreset, setPendingPreset] = useState<BuildingKind | null>(null);
-  const [isRestoreOpen, setRestoreOpen] = useState(false);
-  const pending = model.presets.find((preset) => preset.kind === pendingPreset);
   const sentenceByCode = useMemo(() => sentenceByCodeOf(model.groups), [model.groups]);
   const { text: enabledText } = useCountUp(model.enabledRuleCount, { format: { fractionDigits: 0 } });
   const { text: totalText } = useCountUp(model.totalRuleCount, { format: { fractionDigits: 0 } });
@@ -267,28 +267,35 @@ export function RuleSettings(props: RuleSettingsProps) {
   // trạng thái lưu nào để nói — số cũ ở đầu trang mâu thuẫn với câu lỗi (BUG-464).
   const hasConfig = hasContent || model.status === 'empty';
 
+  // Câu 2 (HOP-DONG-V6): chip + câu có số + "Đã lưu". Chip trung tính: cấu hình khác mặc định
+  // không phải lỗi; chỉ khi mọi luật đều tắt mới là việc cần chú ý.
+  const status = hasConfig ? (
+    <>
+      {model.disableAllWarning !== null ? (
+        <Badge variant="attention">Mọi luật đang tắt</Badge>
+      ) : (
+        <Badge variant="neutral">{model.isDefault ? 'Bộ mặc định' : 'Đã chỉnh khác mặc định'}</Badge>
+      )}
+      <span className="tabular-nums">
+        {enabledText}/{totalText} luật đang bật
+      </span>
+      <SaveIndicator saveState={model.saveState} label={model.saveCaption} />
+    </>
+  ) : undefined;
+
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-bg-app">
-      <div className="mx-auto flex w-full max-w-[960px] flex-1 flex-col gap-6 p-6">
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            {props.backPath === undefined ? null : (
-              <Link
-                to={props.backPath}
-                className={cn('w-fit rounded-sm text-sm text-accent underline', FOCUS_RING)}
-              >
-                Quay lại kết quả kiểm tra
-              </Link>
-            )}
-            <h1 className="text-title text-text-primary">Cài đặt bộ luật không gian</h1>
-            {hasConfig && (
-              <p className="text-sm text-text-secondary">
-                {enabledText}/{totalText} luật đang bật
-              </p>
-            )}
-          </div>
-          {hasConfig && <SaveIndicator saveState={model.saveState} label={model.saveCaption} />}
-        </header>
+      {/* Màn con của bước 5: cổng không mời sang Xuất (cổng thật nằm ở báo cáo), chỉ đưa về kết quả. */}
+      {props.backPath === undefined ? null : (
+        <FlowGate>
+          <Link to={props.backPath} className={cn(getButtonStyles({ variant: 'secondary', size: 'sm' }), 'whitespace-nowrap')}>
+            Xem kết quả kiểm tra
+          </Link>
+        </FlowGate>
+      )}
+
+      <div className="mx-auto flex w-full max-w-[1024px] flex-1 flex-col gap-6 px-4 pb-6 pt-6 xl:px-8">
+        <PageHead className="mb-0" eyebrow="Bước 5 · Quy chuẩn" title="Chọn luật áp dụng" status={status} />
 
         {model.status === 'loading' && <Skeleton preset="property-panel" />}
 
@@ -327,7 +334,7 @@ export function RuleSettings(props: RuleSettingsProps) {
             activeSection={activeSection}
             onSelectSection={setActiveSection}
             sentenceByCode={sentenceByCode}
-            onRequestPreset={setPendingPreset}
+            onRequestPreset={props.onApplyPreset}
           />
         )}
       </div>
@@ -338,42 +345,11 @@ export function RuleSettings(props: RuleSettingsProps) {
         onCancel={props.onCancelReload}
       />
 
-      <RuleSettingsConfirmDialog
-        isOpen={pending !== undefined}
-        title={`Áp bộ luật ${pending?.label.toLocaleLowerCase('vi') ?? ''}?`}
-        body={`${pending?.changedRuleCount ?? 0} luật sẽ đổi. Bạn hoàn tác được trong tám giây sau khi áp.`}
-        confirmLabel="Áp bộ luật"
-        onConfirm={() => {
-          if (pendingPreset !== null) props.onApplyPreset(pendingPreset);
-          setPendingPreset(null);
-        }}
-        onCancel={() => {
-          setPendingPreset(null);
-        }}
-      />
-      <RuleSettingsConfirmDialog
-        isOpen={isRestoreOpen}
-        title="Khôi phục bộ luật mặc định?"
-        body="Mọi thay đổi về bật, tắt, mức độ và ngưỡng của các luật sẽ trở về mặc định. Bạn hoàn tác được trong tám giây sau khi khôi phục."
-        confirmLabel="Khôi phục mặc định"
-        onConfirm={() => {
-          props.onRestoreDefaults();
-          setRestoreOpen(false);
-        }}
-        onCancel={() => {
-          setRestoreOpen(false);
-        }}
-      />
-
+      {/* Không hộp hỏi: khôi phục áp ngay, toast "Hoàn tác" 8 giây trả lại cấu hình trước đó (A8). */}
       {showRestoreDefaults && (
         <footer data-sticky-footer="" className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface px-6 py-3">
           <p className="text-sm text-text-secondary">Cấu hình đã khác mặc định.</p>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setRestoreOpen(true);
-            }}
-          >
+          <Button variant="secondary" onClick={props.onRestoreDefaults}>
             Khôi phục mặc định
           </Button>
         </footer>

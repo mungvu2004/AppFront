@@ -70,8 +70,8 @@ export const ROOM = {
   gapsTitle: 'Vòng tường hở', // RLP:47
   gapsEmpty: 'Chưa thấy vòng tường hở nào ở tầng này.', // RLP:48
   gapWalls: 'Tường liên quan', // RLP:52
-  toWalls: 'Xem tại lớp tường', // RLP:54
-  normalize: 'Chuẩn hoá tên', // RLP:50
+  toWalls: /^Nối /u, // RLP: link "Nối" của vòng hở (Z/S-20)
+  normalize: 'Chuẩn hoá tên…', // RLP
   normalizeDialog: 'Xem trước chuẩn hoá tên', // RNP:35
   normalizeCaption: 'Tên phòng trước và sau khi chuẩn hoá', // RNP:36
   normalizeColumns: ['Mã phòng', 'Tên hiện tại', 'Tên sẽ thành'], // RNP:37-39
@@ -86,7 +86,7 @@ export const ROOM = {
   nameEmpty: 'Tên phòng không được để trống.', // RNF:37
   suggestions: 'Gợi ý tên phòng', // RNF:38
   usage: 'Công năng', // RIN:83
-  approve: 'Duyệt phòng này', // RIN:85
+  approve: /^Duyệt #R-/u, // RIN: "Duyệt #R-002" (Z/S-20)
   merge: 'Gộp phòng', // RIN:87
   split: 'Tách phòng', // RIN:88
   splitHint: 'Muốn tách phòng, sang lớp tường vẽ một đoạn tường chia phòng rồi quay lại.', // RoomLabelInspector.tsx:98 SPLIT_MISSING_POINT

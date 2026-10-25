@@ -306,7 +306,7 @@ export function ModelLibraryDetail({ actions, model }: ModelLibraryDetailProps) 
     <aside
       aria-label="Chi tiết model"
       className={cn(
-        'flex h-full flex-col gap-4 overflow-y-auto border-l border-border-default bg-bg-surface p-4',
+        'flex h-full flex-col gap-4 overflow-y-auto rounded-xl bg-bg-surface p-4 shadow-panel',
         PANEL_WIDTH,
       )}
     >

@@ -56,6 +56,7 @@ import {
   SEVEN_STATE_LABELS,
   type SevenStateScenario,
 } from '@/lib/testing/sevenStateScenarios';
+import { setFlowGateSlot } from '@/components/shell/flowGateStore';
 import { ROUTES } from '@/routes/paths';
 import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
@@ -310,14 +311,18 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
   });
 
   /* Đợt Impeccable 1: độ dày gom về nhóm chuẩn gần nhất trong dung sai chung 30 mm (`wallThicknessBandOf`) — 235/90 vào nhóm, 175 còn lại ra "Không chuẩn". */
-  it('[BUG-416] tường ngoài ba băng (175/235/90 mm của bộ mẫu) có mục "Không chuẩn" ở cả partial lẫn success', async () => {
-    for (const state of ['partial', 'success'] as const) {
-      const { unmount } = renderState(state);
-      const legend = await screen.findByRole('group', { name: 'Lọc theo độ dày tường' });
+  it('[BUG-416] tường ngoài ba băng (175 mm của bộ mẫu) có mục "Không chuẩn"; xong hết thì chú giải còn "Đã duyệt"', async () => {
+    const partial = renderState('partial');
+    const legend = await screen.findByRole('group', { name: 'Lọc theo độ dày tường' });
 
-      expect(within(legend).getByText('Không chuẩn')).toBeInTheDocument();
-      unmount();
-    }
+    expect(within(legend).getByText('Không chuẩn')).toBeInTheDocument();
+    expect(within(legend).getByText('Đã duyệt')).toBeInTheDocument();
+    partial.unmount();
+
+    renderState('success');
+    const done = await screen.findByRole('group', { name: 'Lọc theo độ dày tường' });
+
+    expect(within(done).getByText('Đã duyệt')).toBeInTheDocument();
   });
 
   it('lớp Tường TẮT là điều kiện duy nhất chú giải được ẩn', async () => {
@@ -412,13 +417,15 @@ describe('[NGHIEM-7] R-73', () => {
   it('container nhận đủ props để màn khác mở nó mà không viết thêm logic', async () => {
     const onNavigate = vi.fn();
 
+    /* Cổng (FlowGate) bay vào khe của thanh bước trong header; ở đây tự dựng khe đó. */
     renderWithProviders(
       <MemoryRouter>
+        <div ref={setFlowGateSlot} />
         <WallLayerReviewContainer {...scenarioArgsFor('success')} onNavigate={onNavigate} />
       </MemoryRouter>,
     );
 
-    const goOn = await screen.findByRole('button', { name: 'Sang lớp cửa và nội thất' });
+    const goOn = await screen.findByRole('button', { name: 'Tiếp: Cửa' });
 
     goOn.click();
 
@@ -512,6 +519,7 @@ describe('nhãn mã tường', () => {
       onApprove: vi.fn(),
       onSkip: vi.fn(),
       onChangeThickness: vi.fn(),
+      reviewCounter: { reviewed: 12, total: 48 },
       rows: [],
     } as unknown as WallLayerViewProps;
 
@@ -562,36 +570,25 @@ describe('điều hướng tầng (BC-05)', () => {
     }),
   });
 
-  it('liệt kê mọi tầng, đánh dấu tầng đang mở, và mở được tầng khác', async () => {
-    const onNavigate = vi.fn();
-
+  it('đổi tầng ở breadcrumb "Tầng ▾" của đầu màn (không lặp khối tầng trong panel)', async () => {
     renderWithProviders(
       <MemoryRouter>
-        <WallLayerReviewContainer {...twoFloorArgs(onNavigate)} />
+        <WallLayerReviewContainer {...twoFloorArgs(vi.fn())} />
       </MemoryRouter>,
     );
 
-    const nav = await screen.findByRole('navigation', { name: 'Tầng của bản vẽ' });
-    const floors = Array.from(nav.querySelectorAll('button'));
+    expect(screen.queryByRole('navigation', { name: 'Tầng của bản vẽ' })).not.toBeInTheDocument();
 
-    expect(floors).toHaveLength(2);
-    expect(floors[0]?.getAttribute('aria-current')).toBe('page');
-    expect(floors[1]?.getAttribute('aria-current')).toBeNull();
-    expect(floors[1]?.textContent).toContain(SECOND_LEVEL.name);
+    const floorChip = await screen.findByRole('button', { name: /^Chọn nhanh — đang ở/u });
 
     await act(async () => {
-      floors[1]?.click();
+      floorChip.click();
       await Promise.resolve();
     });
 
-    await waitFor(() => {
-      expect(onNavigate).toHaveBeenCalledTimes(1);
-    });
+    const menu = await screen.findByRole('listbox', { name: 'Chọn tầng' });
 
-    /* Đường dẫn tra từ `ROUTES`, màn không ghép một chuỗi nào (R-65). */
-    expect(onNavigate.mock.calls[0]?.[0]).toBe(
-      ROUTES.project.walls(scenarioArgsFor('partial').projectId, SECOND_LEVEL.id),
-    );
+    expect(within(menu).getByRole('button', { name: SECOND_LEVEL.name })).toBeInTheDocument();
   });
 });
 
@@ -755,7 +752,8 @@ describe('bộ đếm ở trạng thái Xong (BT-08)', () => {
   it('thanh tiến độ và con số chuyển sang token "đã xác minh"', async () => {
     const { container } = renderState('success');
 
-    await screen.findByRole('button', { name: 'Sang lớp cửa và nội thất' });
+    /* Câu 2 ở đầu panel: huy hiệu "Xong" (nút sang lớp kế nằm ở cổng của thanh bước). */
+    await screen.findByText('Xong');
 
     /*
      * A5 vẫn nguyên: xanh "đã xác minh" ở đây tới từ `reviewed === total` —
@@ -820,6 +818,7 @@ describe('đợt sửa P04 — SCR-16', () => {
   const inspectorPanel = (overrides: Partial<WallLayerViewProps>): WallLayerViewProps =>
     ({
       inspector: null,
+      reviewCounter: { reviewed: 12, total: 48 },
       thicknessChoices: THICKNESS_BANDS,
       thicknessFocusRequest: 0,
       isViewerRole: false,
@@ -862,7 +861,7 @@ describe('đợt sửa P04 — SCR-16', () => {
     expect(panel?.className).not.toContain('h-[560px]');
   });
 
-  it('[BUG-621][BUG-639] dưới 1024 panel trái không cắt đáy; tên tầng dài có title', async () => {
+  it('[BUG-621] dưới 1024 panel trái không cắt đáy', async () => {
     renderState('partial');
 
     const tree = await screen.findByRole('tree', { name: 'Cây lớp' });
@@ -872,10 +871,6 @@ describe('đợt sửa P04 — SCR-16', () => {
     expect(panel?.className.split(' ')).not.toContain('overflow-hidden');
     expect(listRegion?.className.split(' ')).not.toContain('flex-1');
     expect(listRegion?.className.split(' ')).toContain('lg:flex-1');
-
-    for (const floorButton of within(screen.getByRole('navigation', { name: /tầng/iu })).getAllByRole('button')) {
-      expect(floorButton.querySelector('[title]')?.getAttribute('title')).toBe(floorButton.textContent);
-    }
   });
 
   it('[BUG-396] hàng danh sách không tràn mép phải: không huy hiệu chữ 70 px, hàng cắt tràn', async () => {
@@ -907,11 +902,10 @@ describe('đợt sửa P04 — SCR-16', () => {
     expect(status?.querySelector('svg')).not.toBeNull();
   });
 
-  it('[BUG-614] bộ lọc panel trái: nhãn 13 px ngang cây lớp, có tiêu đề nhóm "Bộ lọc"', async () => {
+  it('[BUG-614] bộ lọc panel trái: nhãn 13 px ngang cây lớp', async () => {
     renderState('partial');
 
-    expect(await screen.findByText('Bộ lọc')).toBeInTheDocument();
-    expect(screen.getByText('Chỉ hiện chưa duyệt')).toHaveClass('text-[13px]');
+    expect(await screen.findByText('Chỉ hiện chưa duyệt')).toHaveClass('text-[13px]');
     expect(screen.getByText('Hiện tim tường')).toHaveClass('text-[13px]');
   });
 
@@ -921,7 +915,8 @@ describe('đợt sửa P04 — SCR-16', () => {
     );
 
     expect(screen.getByText('Chưa rê chuột lên bản vẽ')).not.toHaveClass('font-mono');
-    expect(screen.getByText('Đã lưu')).toHaveClass('text-text-secondary');
+    // Lưu ổn: nhãn đã ở đầu panel (QcPanelHead), thanh trạng thái không lặp.
+    expect(screen.queryByText('Đã lưu')).toBeNull();
 
     rerender(
       <WallLayerStatusBar cursorLabel="Chưa rê chuột lên bản vẽ" saveFailed saveLabel="Lưu thất bại" scaleLabel="12 mm/px" />,
@@ -986,7 +981,7 @@ describe('đợt sửa P04 — SCR-16', () => {
     }
   });
 
-  it('[G4a-13] độ dày ngoài ba mức: panel ghi rõ độ dày hiện tại', () => {
+  it('[G4a-13] độ dày ngoài ba mức: thanh tra gắn nhãn "Không chuẩn" cạnh mã, số đo đứng riêng', () => {
     const wall = {
       id: WALL_LAYER_FIXTURE_WALLS[0]?.id,
       codeLabel: '#W-002',
@@ -1001,7 +996,9 @@ describe('đợt sửa P04 — SCR-16', () => {
       <WallLayerInspector panel={inspectorPanel({ inspector: wall } as Partial<WallLayerViewProps>)} />,
     );
 
-    expect(screen.getByText(/Độ dày hiện tại/u).textContent).toContain('100 mm');
+    expect(screen.getByText('Độ dày đo được')).toBeInTheDocument();
+    expect(screen.getByText('100')).toBeInTheDocument();
+    expect(screen.getByText('Không chuẩn')).toBeInTheDocument();
 
     rerender(
       <WallLayerInspector
@@ -1009,7 +1006,7 @@ describe('đợt sửa P04 — SCR-16', () => {
       />,
     );
 
-    expect(screen.queryByText(/Độ dày hiện tại/u)).toBeNull();
+    expect(screen.queryByText('Không chuẩn')).toBeNull();
   });
 
   it('[BUG-604] menu chuột phải của tường ĐÃ duyệt không đưa "Duyệt" chết', async () => {
@@ -1068,13 +1065,13 @@ describe('[G74 16-E-010] mở menu tường bằng bàn phím', () => {
   });
 });
 
-describe('G68 bộ đếm duyệt có vai trò để aria-label được đọc', () => {
-  it('bộ đếm "đã duyệt" lộ ra như một ảnh có tên', async () => {
+describe('G68 câu 2 ở đầu panel: trạng thái + số thật, đọc được như chữ thường', () => {
+  it('đầu panel có H1 "Duyệt tường", huy hiệu và câu "12/48 tường đã duyệt"', async () => {
     renderState('partial');
 
-    const counter = await screen.findByRole('img', { name: /đã duyệt/ });
-
-    expect(counter).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Duyệt tường' })).toBeInTheDocument();
+    expect(screen.getByText('Chưa xong')).toBeInTheDocument();
+    expect(screen.getByText(/^12\/48 tường đã duyệt$/u)).toBeInTheDocument();
   });
 });
 

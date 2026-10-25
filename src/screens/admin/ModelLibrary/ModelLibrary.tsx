@@ -1,23 +1,17 @@
 /**
- * S-25 — vỏ màn thư viện mẫu 3D dùng chung. View thuần (R-60, mục D): mọi dữ liệu qua
+ * S-38 — vỏ màn thư viện mẫu 3D dùng chung. View thuần (R-60, mục D): mọi dữ liệu qua
  * `ModelLibraryProps`, không chạm store/mạng, không nhập `three`.
  *
+ * Ba câu của màn (NGUYEN-TAC-BO-CUC §1): `PageHead` nói làm gì (H1 động từ), trạng thái
+ * (Badge số mẫu nặng + câu có số mẫu và tổng dung lượng — thay dải ba ô số cũ, vì ô số
+ * chỉ dùng khi bấm được để lọc), và KHÔNG có nút chính: bản này chưa có đường tải `.glb`
+ * lên (`capabilities.canUploadModel === false`, xem `types.ts`), nên `next` trống thay vì
+ * một nút chết. Danh sách nằm trong MỘT `Section`, tìm/lọc ở đầu khung.
+ *
  * Bảy trạng thái A11 rẽ nhánh ở đây. "không có quyền" ở màn này nghĩa là CHỈ XEM, không
- * phải chặn xem — khác `VersionHistory` (nơi "forbidden" khoá cả màn): bảng vẫn vẽ đủ,
- * chỉ thêm một `InlineAlert` nói lý do. Vì vậy nhánh mặc định (không phải đang tải, rỗng
- * thật, hay lỗi) render đủ thanh công cụ + dải tóm tắt + bảng cho cả "một phần", "thành
- * công" lẫn "không có quyền"; sự khác biệt giữa ba trạng thái đó nằm trong dữ liệu
- * (`model.rows`, `model.readOnlyReason`), không phải trong nhánh JSX.
- *
- * ## Panel chi tiết đến từ một nhánh khác
- *
- * `ModelLibraryDetail` thuộc phạm vi của một worker khác (L2-3), viết song song trên nhánh
- * riêng. File này nhập nó đúng tên và đúng chữ ký
- * `{ model: ModelLibraryDetailModel; actions: ModelLibraryActions }` từ trước khi file kia
- * tồn tại — không tự viết, không thay bằng stub — nên tới lượt kiểm của L2-2 thì
- * `pnpm typecheck` báo đúng một lỗi "Cannot find module" ở dòng nhập dưới đây. Lỗi ấy đã
- * tan khi lớp gộp ghép bốn nhánh lại; nó được ghi lại ở đây để không ai đi tìm lại nguyên
- * nhân trong lịch sử.
+ * phải chặn xem: bảng vẫn vẽ đủ, chỉ thêm một `InlineAlert` nói lý do. Sự khác biệt giữa
+ * "một phần", "thành công" và "không có quyền" nằm trong dữ liệu (`model.rows`,
+ * `model.readOnlyReason`), không phải trong nhánh JSX.
  */
 import type { ReactNode } from 'react';
 
@@ -25,29 +19,64 @@ import { Boxes } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { PageHead } from '@/components/shell/PageHead';
+import { Section } from '@/components/shell/Section';
+import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
 
 import { ModelLibraryDetail } from './ModelLibraryDetail';
-import { ModelLibrarySummary } from './ModelLibrarySummary';
 import { ModelLibraryTable } from './ModelLibraryTable';
 import { ModelLibraryToolbar } from './ModelLibraryToolbar';
-import type { ModelLibraryProps } from './types';
+import type { ModelLibraryModel, ModelLibraryProps } from './types';
 
-const BREADCRUMB_CURRENT = 'Thư viện mẫu 3D';
+const PAGE_EYEBROW = 'Quản trị';
+const PAGE_TITLE = 'Quản lý thư viện mẫu 3D';
 const EMPTY_TITLE = 'Chưa có mẫu 3D nào';
 const EMPTY_DESCRIPTION = 'Thư viện chưa có mẫu 3D nào.';
+const EMPTY_BADGE = 'Chưa có mẫu 3D';
 const ERROR_TITLE = 'Không tải được thư viện mẫu 3D';
+const ERROR_BADGE = 'Không tải được';
 const GENERIC_ERROR_MESSAGE = 'Đã có lỗi xảy ra.';
 const RETRY_LABEL = 'Thử lại';
+const HEAVY_SUFFIX = 'mẫu nặng';
 const LOADING_ROW_COUNT = 10;
 const COLUMN_COUNT = 6;
 const PREVIEW_HEADER = 'Ảnh xem trước';
 
-function ModelLibraryShell({ children }: { readonly children: ReactNode }) {
+/** Dòng trạng thái: số mẫu nặng ở Badge, số mẫu + tổng dung lượng ở câu — mỗi số một chỗ. */
+function LibraryStatus({ model }: { readonly model: ModelLibraryModel }) {
+  if (model.state === 'loading') return null;
+  if (model.isLibraryEmpty) return <Badge variant="neutral">{EMPTY_BADGE}</Badge>;
+  if (model.state === 'error') return <Badge variant="violation">{ERROR_BADGE}</Badge>;
+
+  const { summary } = model;
   return (
-    <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-8 py-8 min-[120rem]:max-w-[1440px]">
+    <>
+      <Badge variant={summary.isAllWithinBudget ? 'neutral' : 'attention'}>
+        <span className="tabular-nums" data-testid="model-library-heavy-count">
+          {summary.heavyCountLabel}
+        </span>{' '}
+        {HEAVY_SUFFIX}
+      </Badge>
+      <span>
+        <span className="tabular-nums" data-testid="model-library-total-count">
+          {summary.totalCountLabel}
+        </span>
+        {' mẫu 3D, tổng dung lượng '}
+        <span className="tabular-nums" data-testid="model-library-total-size">
+          {summary.totalSizeLabel}
+        </span>
+        .
+      </span>
+    </>
+  );
+}
+
+function ModelLibraryShell({ children, model }: { readonly children: ReactNode; readonly model: ModelLibraryModel }) {
+  return (
+    <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-4 px-8 py-8 min-[120rem]:max-w-[1440px]">
       {/* Không breadcrumb: thanh tab quản trị đã chỉ đúng mục này. */}
-      <h1 className="text-title text-text-primary">{BREADCRUMB_CURRENT}</h1>
+      <PageHead className="mb-2" eyebrow={PAGE_EYEBROW} status={<LibraryStatus model={model} />} title={PAGE_TITLE} />
       {children}
     </div>
   );
@@ -56,39 +85,43 @@ function ModelLibraryShell({ children }: { readonly children: ReactNode }) {
 export function ModelLibrary({ actions, model }: ModelLibraryProps) {
   if (model.state === 'loading') {
     return (
-      <ModelLibraryShell>
-        <Table.Root>
-          <Table.Header>
-            <Table.Row>
-              <Table.Head>
-                <span className="sr-only">{PREVIEW_HEADER}</span>
-              </Table.Head>
-              <Table.Head>Tên</Table.Head>
-              <Table.Head>Danh mục</Table.Head>
-              <Table.Head>Kích thước bao</Table.Head>
-              <Table.Head>Số tam giác</Table.Head>
-              <Table.Head>Dung lượng</Table.Head>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            <Table.Skeleton columns={COLUMN_COUNT} rows={LOADING_ROW_COUNT} />
-          </Table.Body>
-        </Table.Root>
+      <ModelLibraryShell model={model}>
+        <Section flush>
+          <Table.Root>
+            <Table.Header>
+              <Table.Row>
+                <Table.Head>
+                  <span className="sr-only">{PREVIEW_HEADER}</span>
+                </Table.Head>
+                <Table.Head>Tên</Table.Head>
+                <Table.Head>Danh mục</Table.Head>
+                <Table.Head>Kích thước bao</Table.Head>
+                <Table.Head>Số tam giác</Table.Head>
+                <Table.Head>Dung lượng</Table.Head>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              <Table.Skeleton columns={COLUMN_COUNT} rows={LOADING_ROW_COUNT} />
+            </Table.Body>
+          </Table.Root>
+        </Section>
       </ModelLibraryShell>
     );
   }
 
   if (model.isLibraryEmpty) {
     return (
-      <ModelLibraryShell>
-        <EmptyState description={EMPTY_DESCRIPTION} icon={<Boxes aria-hidden="true" />} title={EMPTY_TITLE} />
+      <ModelLibraryShell model={model}>
+        <Section>
+          <EmptyState description={EMPTY_DESCRIPTION} icon={<Boxes aria-hidden="true" />} title={EMPTY_TITLE} />
+        </Section>
       </ModelLibraryShell>
     );
   }
 
   if (model.state === 'error') {
     return (
-      <ModelLibraryShell>
+      <ModelLibraryShell model={model}>
         <InlineAlert
           action={{ label: RETRY_LABEL, onClick: actions.retryLoad }}
           level="violation"
@@ -100,15 +133,16 @@ export function ModelLibrary({ actions, model }: ModelLibraryProps) {
   }
 
   return (
-    <ModelLibraryShell>
+    <ModelLibraryShell model={model}>
       {model.readOnlyReason !== null && <InlineAlert level="attention" message={model.readOnlyReason} />}
-      <ModelLibraryToolbar actions={actions} model={model} />
-      <ModelLibrarySummary summary={model.summary} />
-      {/* G2-17: panel chi tiết đứng cạnh bảng (≥1024), không rơi xuống dưới cuối danh sách. */}
+      {/* G2-17: panel chi tiết đứng cạnh khung danh sách (≥1024), không rơi xuống dưới cuối danh sách. */}
       <div className="flex flex-col gap-4 min-[64rem]:flex-row min-[64rem]:items-start">
-        <div className="min-w-0 flex-1">
-          <ModelLibraryTable actions={actions} model={model} />
-        </div>
+        <Section className="min-w-0 flex-1" flush>
+          <ModelLibraryToolbar actions={actions} model={model} />
+          <div className={model.viewMode === 'grid' || model.isNarrow ? 'p-5' : undefined}>
+            <ModelLibraryTable actions={actions} model={model} />
+          </div>
+        </Section>
         {model.detail !== null && (
           <div className="min-[64rem]:sticky min-[64rem]:top-4 min-[64rem]:max-h-[calc(100vh-2rem)]">
             <ModelLibraryDetail actions={actions} model={model.detail} />

@@ -23,7 +23,7 @@
  *
  * ## R-73 — `onNavigate` là prop BẮT BUỘC, không phải tuỳ chọn
  *
- * Ở trạng thái `success`, panel trái hiện nút "Sang lớp Cửa và nội thất", và
+ * Ở trạng thái `success`, cổng ở thanh bước hiện nút "Tiếp: Cửa", và
  * cây lớp có bốn mục điều hướng khác. Một `onNavigate?` tuỳ chọn mà không nơi
  * gọi nào truyền sẽ biến cả năm thứ đó thành nút bấm không có tác dụng — đúng
  * thứ A2 tồn tại để chặn. Nên nó bắt buộc, và {@link WallLayerReviewRoute} cấp
@@ -102,8 +102,10 @@ export const WALL_LAYER_REVIEW_SCREEN_ID = 'wall-layer-review';
 const WALL_QUERY_KEY = 'wall';
 
 const MISSING_PARAMS_TITLE = 'Thiếu mã dự án hoặc mã tầng';
-/** Giữa cạnh dưới như mặc định, nhưng cao hơn thanh trạng thái của màn (BUG-397) — lớp CSS có sẵn. */
-const TOUR_CHIP_ANCHOR = 'bottom-16 right-4';
+/** Góc trên phải vùng làm việc (≥1280: đầu panel chi tiết; dưới đó: dưới nút "Hiện chi tiết"), không đè chú giải hay thu phóng. */
+const TOUR_CHIP_ANCHOR = 'right-6 top-[180px] xl:right-4 xl:top-[136px]';
+/** Có dải lưu lớp (409 "Tải lại") thì chip lùi xuống dưới dải, không đè nút "Tải lại" ở mép phải. */
+const TOUR_CHIP_ANCHOR_BELOW_BANNER = 'right-6 top-[236px] xl:right-4 xl:top-[192px]';
 const MISSING_PARAMS_MESSAGE =
   'Đường dẫn không mang đủ mã dự án và mã tầng, nên chưa mở được lớp tường. Quay lại danh sách tầng rồi chọn lại tầng cần duyệt.';
 
@@ -119,7 +121,7 @@ const MISSING_PARAMS_MESSAGE =
  * chỉ dựng được trạng thái "thiếu mã dự án".
  *
  * Màn này CÓ cả hai mã, nên nó đi thẳng tới màn thật — cùng khuôn
- * `onNavigateFloor` bên dưới. Vẫn tra `ROUTES` chứ không ghép chuỗi, nên R-65
+ * `QcFloorNav` (đổi tầng). Vẫn tra `ROUTES` chứ không ghép chuỗi, nên R-65
  * giữ nguyên.
  */
 const LAYER_ROUTE: Readonly<
@@ -180,7 +182,7 @@ function WallLayerReviewCrashFallback({ report, retry }: ScreenErrorFallback) {
  * `PipelineFailure.container.tsx`.
  */
 function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
-  const { panel, canvas, toolRail, statusBar, leftPanel, saveBlock, provisionalScaleNotice, readFailure } = useWallLayerReview({
+  const { panel, canvas, toolRail, statusBar, leftPanel, queue, saveBlock, provisionalScaleNotice, readFailure } = useWallLayerReview({
     floorId: props.floorId,
     onNavigate: props.onNavigate,
     projectId: props.projectId,
@@ -240,20 +242,6 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
     [onNavigate, projectId, floorId],
   );
 
-  /**
-   * Đổi tầng: mở lớp tường của tầng khác (BC-05).
-   *
-   * `ROUTES.project.walls` là đường dẫn CÓ SẴN của chính màn này
-   * (`src/routes/paths.ts`), nên panel trái không ghép một chuỗi nào và R-65
-   * giữ nguyên: mọi đường dẫn của màn tra từ `ROUTES`.
-   */
-  const onNavigateFloor = useCallback(
-    (floorId: string) => {
-      onNavigate(ROUTES.project.walls(projectId, floorId));
-    },
-    [onNavigate, projectId],
-  );
-
   return (
     <>
     <WallLayerReview
@@ -261,9 +249,9 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
       canvasSlot={<WallLayerCanvas {...canvas} />}
       floorNav={{ projectId, floorId }}
       leftPanel={leftPanel}
-      onNavigateFloor={onNavigateFloor}
       onNavigateLayer={onNavigateLayer}
       panel={panel}
+      queue={queue}
       provisionalScaleNotice={provisionalScaleNotice}
       readFailure={readFailure}
       saveBlock={props.forceSaveBlock ?? saveBlock}
@@ -273,8 +261,10 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
     {/* Màn lỗi đọc không có ray công cụ hay canvas để dạy: không mở hướng dẫn đè lên nó (BUG-622). */}
     {/* Hướng dẫn chờ dữ liệu tải xong: không bật lên che đúng chỗ đang tải (G4a-02). */}
     {readFailure === null && panel.state !== 'loading' && (
-      /* Chip "Xem hướng dẫn" đứng TRÊN thanh trạng thái (64 px), không vắt qua viền của nó (BUG-397). */
-      <EditorTourContainer chipAnchorClassName={TOUR_CHIP_ANCHOR} hostId="wall-layer-review" />
+      <EditorTourContainer
+        chipAnchorClassName={(props.forceSaveBlock ?? saveBlock) == null ? TOUR_CHIP_ANCHOR : TOUR_CHIP_ANCHOR_BELOW_BANNER}
+        hostId="wall-layer-review"
+      />
     )}
     </>
   );

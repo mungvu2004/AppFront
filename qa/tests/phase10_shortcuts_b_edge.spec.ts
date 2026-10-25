@@ -16,7 +16,7 @@ import { requireState } from './support/state';
 const FLOORS_TITLE = 'Theo dõi từng tầng và làm tiếp tầng cần nhất'; // FloorManager.tsx:70 (h2)
 const BREADCRUMB_NAV = 'Đường dẫn trang'; // Breadcrumb.tsx:21
 const BREADCRUMB_PROJECTS = 'Dự án'; // FloorManager.tsx:72
-const DASHBOARD_TITLE = 'Dự án của tôi'; // ProjectDashboard.tsx:166 (h1)
+const DASHBOARD_TITLE = 'Chọn dự án để làm tiếp'; // ProjectDashboard.tsx:166 (h1)
 const SEARCH_LABEL = 'Tìm dự án'; // ProjectDashboard.tsx:138
 const CREATE_DIALOG = 'Tạo dự án mới'; // CreateProjectModal.tsx:270
 const GLOBAL_GROUP = 'Toàn cục'; // GSH:61

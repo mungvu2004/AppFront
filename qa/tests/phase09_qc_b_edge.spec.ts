@@ -111,7 +111,7 @@ test('SCR-16..21 · FL-9Q-07 · engineer · sửa được trên dự án riêng
       const approve = page
         .getByRole('heading', { name: 'Đối tượng', exact: true, level: 3 })
         .locator('xpath=../..')
-        .getByRole('button', { name: 'Duyệt đối tượng này', exact: true });
+        .getByRole('button', { name: /^Duyệt #/u });
       await expect(approve).toBeEnabled();
       const put = waitLayerPut(page, qe);
       await approve.click();
@@ -176,7 +176,7 @@ test('SCR-16..21 · FL-9Q-07 · engineer · sửa được trên dự án riêng
 
     await test.step('[9Q-D-006] engineer thêm một trục: chỉ trong phiên, không PUT', async () => {
       await page.goto(ROUTES.project.grids(qe.projectId, qe.floorId));
-      const add = page.getByRole('button', { name: 'Thêm trục ngang', exact: true });
+      const add = page.getByRole('button', { name: /^(Thêm|Vẽ) trục ngang$/u }).first();
       await expect(add).toBeVisible({ timeout: 15_000 });
       const axes = page.getByRole('option', { name: /^Trục (.+?), cách trục kế là /u });
       const before = await axes.count();
@@ -199,7 +199,7 @@ test('SCR-16..21 · FL-9Q-07 · engineer · sửa được trên dự án riêng
       await name.fill('qa phòng p09');
       await name.press('Enter');
       expect((await renamed).status(), 'PUT rename').toBe(200);
-      const approve = page.getByRole('button', { name: 'Duyệt phòng này', exact: true });
+      const approve = page.getByRole('button', { name: /^Duyệt #R-/u });
       await expect(approve).toBeEnabled();
       const put = waitLayerPut(page, qe);
       await approve.click();
@@ -322,7 +322,7 @@ test('SCR-16..21 · FL-9Q-09 · admin · đối chứng dương', async ({ brows
     });
     await test.step('[9Q-D-007] admin đối chứng', async () => {
       await page.goto(ROUTES.project.grids(qa.projectId, qa.floorId));
-      await expect(page.getByRole('button', { name: 'Thêm trục ngang', exact: true })).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole('button', { name: /^(Thêm|Vẽ) trục ngang$/u }).first()).toBeVisible({ timeout: 15_000 });
       await expect.soft(page.getByText('Không có quyền sửa trục')).toHaveCount(0);
       await captureEvidence(page, ev('9Q-D-007', 'admin_grids'));
     });

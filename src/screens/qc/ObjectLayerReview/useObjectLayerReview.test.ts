@@ -1515,24 +1515,14 @@ describe('đợt sửa P04 — SCR-17', () => {
     mounted.unmount();
   });
 
-  it('[BUG-589] Delete và Backspace xin xoá qua hộp xác nhận như nút "Xoá đối tượng" (Impeccable A3)', async () => {
-    const mounted = await mountSettled();
+  it('[BUG-589] Delete xoá thẳng, kèm toast hoàn tác thay hộp hỏi (Z/S-16)', async () => {
+    const bus = createNotificationBus();
+    const mounted = await mountSettled({ notifications: bus });
 
     await run(() => mounted.result.current.onSelect('D-004'));
     await pressKey(mounted.registry, 'Delete');
-    await waitFor(() => expect(mounted.result.current.inspector?.deleteRequestSeq).toBe(1));
-    /* Phím không xoá thẳng: chưa xác nhận thì đối tượng còn nguyên. */
-    expect(entityInStore('D-004', 'door')).toBeDefined();
-
-    await pressKey(mounted.registry, 'Backspace');
-    await waitFor(() => expect(mounted.result.current.inspector?.deleteRequestSeq).toBe(2));
-
-    const onDelete = vi.fn();
-
-    renderView(mounted.result.current, { onDelete });
-    const dialog = await screen.findByRole('dialog');
-    within(dialog).getByRole('button', { name: 'Xoá đối tượng' }).click();
-    expect(onDelete).toHaveBeenCalledWith('D-004');
+    await waitFor(() => expect(bus.list()).toHaveLength(1));
+    expect(bus.list()[0]?.undoTicket).toBeDefined();
 
     mounted.unmount();
   });
@@ -1616,7 +1606,7 @@ describe('đợt sửa P04 — SCR-17', () => {
     const { unmount } = renderView(mounted.result.current, { isCollapsed: true });
 
     expect(screen.queryByRole('button', { name: 'Hoàn tác' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('tree', { name: 'Cây lớp' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Lọc theo loại' })).not.toBeInTheDocument();
     unmount();
 
     renderView(mounted.result.current, { emptyNotice: 'Chưa có gì.', onOpenWallLayer: null });

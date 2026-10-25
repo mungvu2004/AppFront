@@ -112,6 +112,7 @@ import type { ColorTokenName } from '@/lib/coloring/scales';
 
 import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
+import type { LayerGate } from '../ObjectLayerReview/layerGate';
 
 /* -------------------------------------------------------------------------- */
 /* Bảy trạng thái (A11/R-63).                                                  */
@@ -604,6 +605,16 @@ export interface RoomLabelReviewProps {
   readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
   /** Đọc lớp hỏng khi chưa có tài liệu → cả màn là một trạng thái lỗi (BUG-326). */
   readonly readFailure?: FloorLayerReadFailure | null | undefined;
+  /** Cổng sang bước sau (HOP-DONG-V6 câu 3): tường/cửa/phòng của tầng đã duyệt hết chưa. */
+  readonly layerGate?: LayerGate | undefined;
+  /** Phòng chiếm >80 % sàn (Z/S-20): câu cờ đã ghép sẵn ở hook; `null` khi không có. */
+  readonly oversizedRoom?: { readonly id: RoomId; readonly text: string } | null | undefined;
+  /** Tiến độ trên MỌI phòng của tầng (không theo bộ lọc). */
+  readonly roomProgress?: { readonly reviewed: number; readonly total: number } | undefined;
+  /** Phòng chưa duyệt kế tiếp cho nút "Duyệt tiếp" của cổng; `null` khi đã duyệt hết. */
+  readonly nextPendingRoom?: { readonly id: RoomId; readonly codeLabel: string } | null | undefined;
+  /** Mở lớp Cửa hoặc Mô hình 3D (cổng); `null` khi không có lối điều hướng (story, test). */
+  readonly onOpenLayer?: ((target: 'objects' | 'viewer') => void) | null | undefined;
 }
 
 /* -------------------------------------------------------------------------- */

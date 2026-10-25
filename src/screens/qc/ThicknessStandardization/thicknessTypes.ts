@@ -17,10 +17,10 @@
  * số đo mm rơi vào nhóm nào:
  *
  * ```
- * < 165        -> 110
- * 165 .. < 275 -> 220
- * 275 .. <= 350-> 330
- * > 350        -> 'CONCRETE_COLUMN'
+ * < 166        -> 110   (dưới 80 mm: xem tay, `roundWallThickness` của domain)
+ * 166 .. < 276 -> 220
+ * 276 .. < 400 -> 330
+ * >= 400       -> 'CONCRETE_COLUMN' (hiển thị "Xem tay (≥ 400 mm)")
  * ```
  *
  * Màn này (hook T5) GỌI hàm đó, không tự làm tròn, không khai lại bảng nhóm —
@@ -36,7 +36,7 @@
  * một trong hai chỗ đổi mà chỗ kia quên theo — nên {@link ThicknessGroup}
  * dùng lại nguyên kiểu đó (R-61: hook chỉ nối lại logic đã có, không tự chế
  * hình dạng song song). Đây cũng là câu trả lời cho X2: `'CONCRETE_COLUMN'`
- * là kết quả HỢP LỆ của chính `standardizeThickness` (> 350 mm), không phải
+ * là kết quả HỢP LỆ của chính `standardizeThickness` (≥ 400 mm), không phải
  * một nhóm bịa thêm — nó đếm được, hiển thị được, nhưng KHÔNG có lệnh áp
  * (không có thao tác "đổi tường này thành cột bê tông cốt thép").
  *
@@ -124,7 +124,7 @@
  */
 
 import type { Confidence, Point, WallId } from '@/domain/spatial/types';
-import { WALL_THICKNESS_TOLERANCE_MM } from '@/domain/walls/thicknessTolerance';
+import { WALL_THICKNESS_ROUNDING_BOUNDS_MM, WALL_THICKNESS_TOLERANCE_MM } from '@/domain/walls/thicknessTolerance';
 import type { WallThickness } from '@/types/spatial';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
@@ -156,7 +156,8 @@ export const THICKNESS_GROUP_LABELS: Readonly<Record<ThicknessGroup, string>> = 
   110: '110 mm',
   220: '220 mm',
   330: '330 mm',
-  CONCRETE_COLUMN: 'Cột bê tông cốt thép',
+  /* Kiểu gửi BE giữ 'CONCRETE_COLUMN'; nghĩa hiển thị là "dày bất thường, xem tay" (S-21). */
+  CONCRETE_COLUMN: 'Xem tay (≥ 400 mm)',
 };
 
 /* -------------------------------------------------------------------------- */
@@ -182,8 +183,21 @@ export const THICKNESS_PREVIEW_CANVAS_WIDTH_PX = 320;
  */
 export type ThicknessThresholds = readonly [lowMm: number, midMm: number, highMm: number];
 
-/** Mặc định ĐÚNG BA số của `standardizeThickness` (`src/lib/geometry/standardize.ts:12-15`). */
-export const DEFAULT_THICKNESS_THRESHOLDS: ThicknessThresholds = [165, 275, 350];
+/**
+ * Mặc định = ba biên trên của luật làm tròn domain (`WALL_THICKNESS_ROUNDING_BOUNDS_MM`):
+ * 166 → 220, 276 → 330, 400 → xem tay. Biên dưới 80 mm (nghi AI nhận nhầm) cố định, không kéo.
+ */
+export const DEFAULT_THICKNESS_THRESHOLDS: ThicknessThresholds = [
+  WALL_THICKNESS_ROUNDING_BOUNDS_MM[1],
+  WALL_THICKNESS_ROUNDING_BOUNDS_MM[2],
+  WALL_THICKNESS_ROUNDING_BOUNDS_MM[3],
+];
+
+/** Biên dưới cố định: dưới mức này là nghi AI nhận nhầm, xem tay. */
+export const THICKNESS_MIN_MM: number = WALL_THICKNESS_ROUNDING_BOUNDS_MM[0];
+
+/** Lý do một đoạn phải xem tay, không tự đổi: quá mỏng (< 80 mm) hoặc quá dày (≥ ngưỡng cao). */
+export type ThicknessManualReason = 'tooThin' | 'tooThick';
 
 /* -------------------------------------------------------------------------- */
 /* Bảy trạng thái (A11/R-63) — xem bảng ở đầu file.                            */
@@ -254,8 +268,10 @@ export interface ThicknessSegmentRow {
   readonly deviationMm: number;
   /** Ví dụ `"25,0 mm"`. */
   readonly deviationLabel: string;
-  /** `deviationMm > toleranceMm` đang đặt — hook tính sẵn, view không tự so (R-61). */
+  /** `deviationMm > toleranceMm` đang đặt = đoạn KHÔNG chuẩn — hook tính sẵn, view không tự so (R-61). */
   readonly exceedsTolerance: boolean;
+  /** Khác `null`: đoạn phải xem tay, lô chuẩn hoá không đổi nó (S-21). */
+  readonly manualReview?: ThicknessManualReason | null | undefined;
   readonly confidence: Confidence;
   /** Ví dụ `"AI đề xuất"` (`describeConfidence`, `src/lib/format/semantic.ts`). */
   readonly confidenceLabel: string;
@@ -362,6 +378,8 @@ export interface ThicknessPreviewCanvasProps {
   readonly onHoverWall: (wallId: WallId | null) => void;
   /** Tường của cột biểu đồ đang trỏ tới — được tô như tường đang trỏ (BUG-606). */
   readonly hoveredBinWallIds?: readonly WallId[] | undefined;
+  /** Đoạn KHÔNG chuẩn (trong lô hoặc xem tay) — viền chú ý, mã hoá bằng hình chứ không chỉ sắc độ (S-21). */
+  readonly attentionWallIds?: readonly WallId[] | undefined;
   /** `true` ở trạng thái `collapsed` — CẤM TUYỆT ĐỐI: ẩn canvas xem trước, không xoá dữ liệu. */
   readonly isCollapsed: boolean;
 }

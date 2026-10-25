@@ -1,21 +1,10 @@
 /**
- * Panel phải (344px) — thanh tra đối tượng đang chọn, `WallLayerReview`.
+ * Panel phải — thanh tra đoạn đang chọn (demo Z/S-15): mã + trạng thái → khối độ dày đo (số lớn
+ * + một câu so với chuẩn) → đổi độ dày ba lựa chọn → thông số → nút theo loại đoạn.
  *
- * View THUẦN (R-60): nhận nguyên `WallLayerViewProps` (đúng khuôn
- * `ScaleCalibrationPanel`) và chỉ hiển thị. Độ dày là `SegmentedControl` ba
- * lựa chọn — CẤM TUYỆT ĐỐI ô nhập số tự do, và vì thế **không** dùng
- * `ThicknessField` (`docs/contracts/ui.md` mục H3 cảnh báo nó cho phép BTCT/tự
- * do). Mọi chuỗi số (`lengthLabel`, `heightLabel`, `advanced.*`) đã định dạng
- * sẵn ở hook (A15) — file này không tự làm tròn, không tự đổi ngôn ngữ hiển thị số.
- *
- * Vai Người xem (`isViewerRole`): điều khiển độ dày **bỏ viền** (không nền,
- * không pill) thay vì làm xám — {@link ReadOnlyThickness}. Nút duyệt/bỏ qua
- * thay bằng đúng một câu giải thích (`viewerRoleNotice`), không khoá mờ.
- *
- * `isReviewed` của đối tượng đang chọn không có trong `WallInspectorViewModel`
- * — tra trong `panel.rows` theo `id` (một phép tìm kiếm đơn giản trên props đã
- * có, cùng loại logic view thuần với `isCollapsed = props.state === 'collapsed'`
- * của `PipelineFailure.tsx`), để khoá nút "Duyệt đoạn này" khi đã duyệt rồi.
+ * View THUẦN (R-60): mọi chuỗi số (`lengthLabel`, câu so chuẩn…) đã định dạng ở hook (A15).
+ * Độ dày là `SegmentedControl` ba lựa chọn — CẤM ô nhập số tự do; menu "Đổi độ dày" đưa focus
+ * vào đó (BUG-604). "Độ tin cậy" ẩn khi mọi đoạn cùng một giá trị (không giúp quyết định).
  */
 
 import { ChevronDown } from 'lucide-react';
@@ -23,18 +12,20 @@ import { useEffect, useId, useRef, useState } from 'react';
 
 import { wallStrokeToken } from '@/components/canvas/materialMap';
 import { AnimatePresence, motion } from '@/components/motion';
-import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
 import { FieldRow } from '@/components/ui/FieldRow';
-import { Kbd } from '@/components/ui/Kbd';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { durationSeconds } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 import type { WallLayerViewProps, WallThicknessChoice } from './types';
+import { WallLayerInspectorActions } from './WallLayerInspectorActions';
+import type { WallReviewQueue } from './wallReviewQueue';
 
 export interface WallLayerInspectorProps {
   readonly panel: WallLayerViewProps;
+  readonly queue?: WallReviewQueue | undefined;
 }
 
 const PANEL_TITLE = 'Đoạn tường';
@@ -47,34 +38,23 @@ const ELEVATION_OFFSET_LABEL = 'Lệch Z';
 const START_POINT_LABEL = 'Toạ độ đầu';
 const END_POINT_LABEL = 'Toạ độ cuối';
 const THICKNESS_ARIA_LABEL = 'Độ dày tường';
-const CURRENT_THICKNESS_PREFIX = 'Độ dày hiện tại: ';
-const NON_STANDARD_SUFFIX = ' (không chuẩn, chọn một mức để đổi)';
-const APPROVE_LABEL = 'Duyệt đoạn này';
-const UNAPPROVE_LABEL = 'Bỏ duyệt đoạn này';
-const SKIP_LABEL = 'Bỏ qua';
-const EMPTY_MESSAGE = 'Chọn một đoạn tường trên bản vẽ hoặc trong danh sách để xem chi tiết.';
+const MEASURED_LABEL = 'Độ dày đo được';
+const CHANGE_THICKNESS_LABEL = 'Đổi độ dày';
+const NON_STANDARD_LABEL = 'Không chuẩn';
+const REVIEWED_LABEL = 'Đã duyệt';
+const UNREVIEWED_LABEL = 'Chưa duyệt';
+const REMAINING_SUFFIX = 'tường còn chờ duyệt';
+const MULTI_SELECT_HINT = 'Giữ Ctrl hoặc Shift khi bấm để chọn nhiều đoạn, ví dụ để nối hai đoạn.';
+const EMPTY_MESSAGE =
+  'Chọn một đoạn tường trên bản vẽ hoặc trong danh sách, hoặc bấm J để mở đoạn đầu tiên cần duyệt.';
 
-interface ReadOnlyThicknessProps {
-  readonly choices: readonly WallThicknessChoice[];
-  readonly value: number;
-}
-
-function ReadOnlyThickness({ choices, value }: ReadOnlyThicknessProps) {
+function ReadOnlyThickness({ choices, value }: { readonly choices: readonly WallThicknessChoice[]; readonly value: number }) {
   return (
     <div aria-label={THICKNESS_ARIA_LABEL} className="flex items-center gap-3" role="group">
       {choices.map((choice) => (
         <span className="flex items-center gap-1.5" key={choice}>
-          <span
-            aria-hidden="true"
-            className="h-3 w-3 rounded-xs"
-            style={{ backgroundColor: wallStrokeToken(choice) }}
-          />
-          <span
-            className={cn(
-              'text-[13px]',
-              choice === value ? 'font-semibold text-text-primary' : 'text-text-muted',
-            )}
-          >
+          <span aria-hidden="true" className="h-3 w-3 rounded-xs" style={{ backgroundColor: wallStrokeToken(choice) }} />
+          <span className={cn('text-[13px]', choice === value ? 'font-semibold text-text-primary' : 'text-text-secondary')}>
             {choice} mm
           </span>
         </span>
@@ -83,26 +63,19 @@ function ReadOnlyThickness({ choices, value }: ReadOnlyThicknessProps) {
   );
 }
 
-export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
+function ValueRow({ label, value, isLast = false }: { readonly label: string; readonly value: string; readonly isLast?: boolean }) {
+  return (
+    <FieldRow isLast={isLast} label={label}>
+      <span className="flex h-9 items-center text-[14px] tabular-nums text-text-primary">{value}</span>
+    </FieldRow>
+  );
+}
+
+export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
   const [isAdvancedOpen, setAdvancedOpen] = useState(false);
   const advancedId = useId();
-
   const thicknessRef = useRef<HTMLDivElement | null>(null);
-
-  const {
-    inspector,
-    thicknessFocusRequest,
-    thicknessChoices,
-    isViewerRole,
-    viewerRoleNotice,
-    onApprove,
-    onUnapprove,
-    onSkip,
-    onChangeThickness,
-    rows,
-  } = panel;
-
-  const isSelectedReviewed = inspector !== null && (rows.find((row) => row.id === inspector.id)?.isReviewed ?? false);
+  const { inspector, thicknessFocusRequest, thicknessChoices, isViewerRole, onChangeThickness, rows } = panel;
 
   /* Menu "Đổi độ dày" (BUG-604): focus vào lựa chọn đang bật để phím mũi tên đổi được ngay. */
   useEffect(() => {
@@ -112,72 +85,98 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
 
     const group = thicknessRef.current;
     const target =
-      group?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]') ??
-      group?.querySelector<HTMLElement>('[role="radio"]');
+      group?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]') ?? group?.querySelector<HTMLElement>('[role="radio"]');
 
     target?.focus();
   }, [thicknessFocusRequest]);
 
+  const row = inspector === null ? undefined : rows.find((candidate) => candidate.id === inspector.id);
+  const extra = inspector === null ? undefined : queue?.extras.get(inspector.id);
+  const isReviewed = row?.isReviewed ?? false;
+  const isNonStandard =
+    inspector !== null && (row?.isNonStandardThickness ?? !(thicknessChoices as readonly number[]).includes(inspector.thicknessMm));
+  const selectedCount = panel.selectedWallIds?.length ?? 0;
+  const remaining = panel.reviewCounter.total - panel.reviewCounter.reviewed;
+  const nonStandardCount = queue?.nonStandardCount ?? 0;
+
   return (
-    <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-0 xl:h-full xl:w-[344px]">
-      <div className="flex h-14 shrink-0 items-center px-5">
-        <h2 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h2>
+    <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-0 xl:h-full xl:w-full">
+      <div className="flex h-11 shrink-0 items-end px-5">
+        <h2 className="text-caption font-medium uppercase tracking-[0.06em] text-text-secondary">{PANEL_TITLE}</h2>
       </div>
 
       {inspector === null ? (
         /* Đệm dưới bằng đệm ngang: câu không sát đáy thẻ (BUG-329). */
-        <p className="px-5 pb-5 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
+        <div className="flex flex-col">
+          <p className="px-5 pb-5 pt-2 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
+          {/* Hàng đợi gọn khi chưa chọn (demo Z/S-15 idle): một số để hành động, không ước tính giả. */}
+          {remaining > 0 ? (
+            <div className="mx-5 rounded-lg bg-bg-sunken px-4 py-3">
+              <p className="tabular-nums text-text-primary">
+                <span className="text-[32px] font-medium leading-10">{remaining}</span>
+                <span className="ml-1.5 text-body-sm text-text-secondary">{REMAINING_SUFFIX}</span>
+              </p>
+              {nonStandardCount > 0 ? (
+                <p className="mt-1 text-body-sm text-state-attention-text">{`${nonStandardCount} không chuẩn nằm đầu danh sách`}</p>
+              ) : null}
+            </div>
+          ) : null}
+          {isViewerRole ? null : <p className="px-5 pt-4 text-caption text-text-secondary">{MULTI_SELECT_HINT}</p>}
+        </div>
       ) : (
         <div className="flex flex-1 flex-col overflow-y-auto pb-5">
-          <p className="px-5 pb-4 text-[16px] tabular-nums text-text-primary">{inspector.codeLabel}</p>
-          {/* G4a-12: chọn nhiều thì nói rõ đang chọn mấy đoạn, thông số bên dưới là của đoạn nào. */}
-          {(panel.selectedWallIds?.length ?? 0) > 1 ? (
-            <p className="-mt-2 px-5 pb-4 text-[13px] text-text-secondary">
-              {`${panel.selectedWallIds?.length ?? 0} đoạn đã chọn. Thông số dưới đây của ${inspector.codeLabel}.`}
+          <div className="flex items-center gap-2 px-5 pb-3 pt-1">
+            <p className="text-title tabular-nums text-text-primary">{inspector.codeLabel}</p>
+            {isReviewed ? (
+              <Badge variant="verified">{REVIEWED_LABEL}</Badge>
+            ) : isNonStandard ? (
+              <Badge variant="attention">{NON_STANDARD_LABEL}</Badge>
+            ) : (
+              <Badge variant="neutral">{UNREVIEWED_LABEL}</Badge>
+            )}
+          </div>
+          {/* G4a-12: chọn nhiều thì nói rõ thông số bên dưới là của đoạn nào. */}
+          {selectedCount > 1 ? (
+            <p className="px-5 pb-3 text-[13px] text-text-secondary">
+              {`${selectedCount} đoạn đã chọn. Thông số dưới đây của ${inspector.codeLabel}.`}
             </p>
           ) : null}
 
-          <div className="px-5 pb-4" ref={thicknessRef}>
+          <div className="mx-5 rounded-lg bg-bg-sunken px-4 py-3">
+            <p className="text-caption text-text-secondary">{MEASURED_LABEL}</p>
+            <p className="tabular-nums text-text-primary">
+              <span className="text-[32px] font-medium leading-10">{inspector.thicknessMm}</span>
+              <span className="ml-1 text-body-sm text-text-secondary">mm</span>
+            </p>
+            {extra === undefined ? null : <p className="mt-1 text-body-sm text-text-secondary">{extra.note}</p>}
+          </div>
+
+          <div className="px-5 pb-2 pt-3" ref={thicknessRef}>
             {isViewerRole ? (
               <ReadOnlyThickness choices={thicknessChoices} value={inspector.thicknessMm} />
             ) : (
-              <SegmentedControl
-                aria-label={THICKNESS_ARIA_LABEL}
-                onChange={(value) => onChangeThickness(inspector.id, Number(value) as WallThicknessChoice)}
-                options={thicknessChoices.map((choice) => ({
-                  label: `${choice} mm`,
-                  swatch: wallStrokeToken(choice),
-                  value: String(choice),
-                }))}
-                value={String(inspector.thicknessMm)}
-              />
-            )}
-            {/* Độ dày ngoài ba mức thì không ô nào sáng: nói rõ đoạn này đang dày bao nhiêu (G4a-13). */}
-            {!(thicknessChoices as readonly number[]).includes(inspector.thicknessMm) && (
-              <p className="pt-2 text-[13px] text-text-secondary">
-                {CURRENT_THICKNESS_PREFIX}
-                <span className="tabular-nums text-text-primary">{inspector.thicknessMm} mm</span>
-                {NON_STANDARD_SUFFIX}
-              </p>
+              <>
+                <p className="pb-1.5 text-caption text-text-secondary">{CHANGE_THICKNESS_LABEL}</p>
+                <SegmentedControl
+                  aria-label={THICKNESS_ARIA_LABEL}
+                  onChange={(value) => onChangeThickness(inspector.id, Number(value) as WallThicknessChoice)}
+                  options={thicknessChoices.map((choice) => ({ label: `${choice} mm`, swatch: wallStrokeToken(choice), value: String(choice) }))}
+                  value={String(inspector.thicknessMm)}
+                />
+              </>
             )}
           </div>
 
           <div className="flex flex-col px-5">
-            <FieldRow label={LENGTH_LABEL}>
-              <span className="flex h-9 items-center tabular-nums text-[14px] text-text-primary">
-                {inspector.lengthLabel}
-              </span>
-            </FieldRow>
-            <FieldRow label={HEIGHT_LABEL}>
-              <span className="flex h-9 items-center tabular-nums text-[14px] text-text-primary">
-                {inspector.heightLabel}
-              </span>
-            </FieldRow>
-            <FieldRow label={CONFIDENCE_LABEL}>
-              <span className="flex h-9 items-center">
-                <ConfidenceMeter value={inspector.confidence} />
-              </span>
-            </FieldRow>
+            <ValueRow label={LENGTH_LABEL} value={inspector.lengthLabel} />
+            <ValueRow label={HEIGHT_LABEL} value={inspector.heightLabel} />
+            {queue?.showConfidence === false ? null : (
+              <FieldRow label={CONFIDENCE_LABEL}>
+                <span className="flex h-9 items-center">
+                  <ConfidenceMeter value={inspector.confidence} />
+                </span>
+              </FieldRow>
+            )}
             <FieldRow isLast label={MATERIAL_LABEL}>
               <span className="flex h-9 items-center text-[14px] text-text-primary">{inspector.kindLabel}</span>
             </FieldRow>
@@ -187,15 +186,12 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
             <button
               aria-controls={advancedId}
               aria-expanded={isAdvancedOpen}
-              className="flex w-full items-center justify-between py-2 text-[13px] font-medium text-text-secondary outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
+              className="flex w-full items-center justify-between rounded-md py-2 text-[13px] font-medium text-text-secondary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               onClick={() => setAdvancedOpen((open) => !open)}
               type="button"
             >
               {ADVANCED_TITLE}
-              <ChevronDown
-                aria-hidden="true"
-                className={cn('h-4 w-4 transition-transform duration-180', isAdvancedOpen && 'rotate-180')}
-              />
+              <ChevronDown aria-hidden="true" className={cn('h-4 w-4 transition-transform duration-180', isAdvancedOpen && 'rotate-180')} />
             </button>
 
             <AnimatePresence initial={false}>
@@ -208,54 +204,24 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
                   initial={{ height: 0, opacity: 0 }}
                   transition={{ duration: durationSeconds('standard') }}
                 >
-                  <FieldRow label={ELEVATION_OFFSET_LABEL}>
-                    <span className="flex h-9 items-center tabular-nums text-[14px] text-text-primary">
-                      {inspector.advanced.elevationOffsetLabel}
-                    </span>
-                  </FieldRow>
-                  <FieldRow label={START_POINT_LABEL}>
-                    <span className="flex h-9 items-center tabular-nums text-[14px] text-text-primary">
-                      {inspector.advanced.startPointLabel}
-                    </span>
-                  </FieldRow>
-                  <FieldRow isLast label={END_POINT_LABEL}>
-                    <span className="flex h-9 items-center tabular-nums text-[14px] text-text-primary">
-                      {inspector.advanced.endPointLabel}
-                    </span>
-                  </FieldRow>
+                  <ValueRow label={ELEVATION_OFFSET_LABEL} value={inspector.advanced.elevationOffsetLabel} />
+                  <ValueRow label={START_POINT_LABEL} value={inspector.advanced.startPointLabel} />
+                  <ValueRow isLast label={END_POINT_LABEL} value={inspector.advanced.endPointLabel} />
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          <div className="mt-auto flex flex-col gap-2 px-5 pt-4">
-            {isViewerRole ? (
-              <p className="text-[13px] text-text-secondary">{viewerRoleNotice}</p>
-            ) : (
-              <>
-                <Button
-                  disabled={isSelectedReviewed}
-                  fullWidth
-                  aria-keyshortcuts="A"
-                  onClick={() => onApprove(inspector.id)}
-                  variant="primary"
-                >
-                  {APPROVE_LABEL}
-                </Button>
-                {/* Duyệt xong hook tự chọn đoạn chưa duyệt kế tiếp — nói ra, kèm phím tắt (Impeccable A3). */}
-                <p className="text-[12px] text-text-muted">
-                  Duyệt xong tự sang đoạn chưa duyệt kế tiếp · phím <Kbd>A</Kbd>
-                </p>
-                {isSelectedReviewed && onUnapprove !== undefined ? (
-                  <Button fullWidth onClick={() => onUnapprove(inspector.id)} variant="secondary">
-                    {UNAPPROVE_LABEL}
-                  </Button>
-                ) : null}
-                <Button fullWidth onClick={() => onSkip(inspector.id)} variant="ghost">
-                  {SKIP_LABEL}
-                </Button>
-              </>
-            )}
+          <div className="mt-auto flex flex-col items-stretch gap-2 px-5 pt-4">
+            <WallLayerInspectorActions
+              extra={extra}
+              isNonStandard={isNonStandard}
+              isReviewed={isReviewed}
+              onStandardize={queue?.onStandardize}
+              panel={panel}
+              thicknessMm={inspector.thicknessMm}
+              wallId={inspector.id}
+            />
           </div>
         </div>
       )}

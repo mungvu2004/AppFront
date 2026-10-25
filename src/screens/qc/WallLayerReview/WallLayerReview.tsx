@@ -38,7 +38,7 @@
  * | `loading`   | canvas: dự phòng khung xương; panel trái: 12 dòng `Skeleton`      |
  * | `partial`   | mặc định — danh sách + thanh tra bình thường                      |
  * | `error`     | `InlineAlert` trong panel trái; đọc lớp hỏng khi chưa có tài liệu → cả màn là `FloorLayerReadFailureScreen` (BUG-326) |
- * | `success`   | panel trái hiện nút "Sang lớp Cửa và nội thất"                    |
+ * | `success`   | cổng ở thanh bước (`WallLayerGate`) đổi sang nút chính "Tiếp: Cửa" |
  * | `forbidden` | ray ẩn công cụ sửa; thanh tra bỏ viền + một câu giải thích         |
  * | `collapsed` | hai panel ẩn; ray công cụ vẫn đứng cạnh canvas (G4a-20)            |
  *
@@ -58,8 +58,8 @@ import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
-import { qcProgressLabel } from '../shared/qcLayers';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
+import { WallLayerGate } from './WallLayerGate';
 import { WallLayerInspector } from './WallLayerInspector';
 import {
   WallLayerLeftPanel,
@@ -69,6 +69,7 @@ import {
 import { WallLayerStatusBar, type WallLayerStatusBarProps } from './WallLayerStatusBar';
 import { WallLayerToolRail, type WallLayerToolRailProps } from './WallLayerToolRail';
 import type { WallLayerCanvasProps, WallLayerReviewProps } from './types';
+import type { WallReviewQueue } from './wallReviewQueue';
 
 export interface WallLayerReviewViewProps extends WallLayerReviewProps {
   readonly toolRail: WallLayerToolRailProps;
@@ -78,8 +79,8 @@ export interface WallLayerReviewViewProps extends WallLayerReviewProps {
   /** Vùng canvas thật. Vắng thì dùng dự phòng dựng từ `canvas` (xem đầu file). */
   readonly canvasSlot?: ReactNode | undefined;
   readonly onNavigateLayer?: ((layer: WallLayerOtherKind) => void) | undefined;
-  /** Mở lớp tường của một tầng khác — container tra `ROUTES.project.walls`. */
-  readonly onNavigateFloor?: ((floorId: string) => void) | undefined;
+  /** Hàng đợi duyệt (Z/S-15): nhóm danh sách, cổng "Duyệt tiếp", đổi về chuẩn. Vắng = bản tối giản. */
+  readonly queue?: WallReviewQueue | undefined;
   /** Đầu chung Dự án › Tầng › Lớp + thanh lớp (G4a-24). Tầng lấy từ `leftPanel.floors`. */
   readonly floorNav?: Omit<QcFloorNavProps, 'floors' | 'layer'> | undefined;
   /** Khối lưu lớp của tầng (F-04x-1) — dải trên màn, không trong canvas. */
@@ -118,7 +119,7 @@ export function WallLayerReview({
   leftPanel,
   canvasSlot,
   onNavigateLayer,
-  onNavigateFloor,
+  queue,
   floorNav,
   saveBlock,
   provisionalScaleNotice,
@@ -129,11 +130,14 @@ export function WallLayerReview({
    * thu gọn đổi nhãn mà hai panel không thu (BUG-601).
    */
   const isCollapsed = toolRail.isCollapsed;
+  const goToNextLayer = () => onNavigateLayer?.('openingsAndFurniture');
 
   if (readFailure != null) {
     return (
       <QcScreenFrame label={SCREEN_ARIA_LABEL}>
         <FloorLayerReadFailureScreen failure={readFailure} />
+        {/* Lớp không đọc được: cổng khoá, nói lý do — không mời đi tiếp. */}
+        <WallLayerGate locked panel={panel} />
       </QcScreenFrame>
     );
   }
@@ -144,14 +148,9 @@ export function WallLayerReview({
    */
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
-      {floorNav != null && (
-        <QcFloorNav
-          {...floorNav}
-          floors={leftPanel.floors}
-          layer="walls"
-          progress={qcProgressLabel(panel.reviewCounter.reviewed, panel.reviewCounter.total)}
-        />
-      )}
+      {/* H1 thấy được ở đầu panel trái (QcPanelHead); tiến độ ở dòng trạng thái + cổng, không lặp ở đây. */}
+      {floorNav != null && <QcFloorNav {...floorNav} floors={leftPanel.floors} layer="walls" titled={!isCollapsed} />}
+      <WallLayerGate onNextLayer={goToNextLayer} panel={panel} queue={queue} />
       {saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={saveBlock} />
@@ -166,14 +165,15 @@ export function WallLayerReview({
       <QcWorkspace
         canvas={canvasSlot ?? <CanvasFallback canvas={canvas} />}
         canvasLabel={canvas.backgroundImageAlt || CANVAS_REGION_FALLBACK_ALT}
-        inspector={isCollapsed ? null : <WallLayerInspector panel={panel} />}
+        inspector={isCollapsed ? null : <WallLayerInspector panel={panel} queue={queue} />}
         left={
           isCollapsed ? null : (
             <WallLayerLeftPanel
               extras={leftPanel}
-              onNavigateFloor={onNavigateFloor}
-              onNavigateLayer={onNavigateLayer}
               panel={panel}
+              queue={queue}
+              saveFailed={statusBar.saveFailed}
+              saveLabel={statusBar.saveLabel}
             />
           )
         }
@@ -181,7 +181,7 @@ export function WallLayerReview({
         selectionKey={panel.selectedWallId}
       />
 
-      <WallLayerStatusBar {...statusBar} onUndo={panel.isViewerRole ? undefined : panel.onUndo} />
+      <WallLayerStatusBar {...statusBar} onUndo={panel.isViewerRole ? undefined : panel.onUndo} readOnly={panel.isViewerRole} />
     </QcScreenFrame>
   );
 }

@@ -83,6 +83,7 @@ import { appNotificationBus } from '@/hooks/useNotifications';
 import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
+import { formatScaleDensity } from '@/lib/format/measure';
 import { readWireError } from '@/lib/errors/wireError';
 import { newestEntryId, undoIfNewest } from '@/lib/commands/history';
 import type { Command } from '@/lib/commands/types';
@@ -221,6 +222,8 @@ export interface DimensionOcrReviewModel extends DimensionOcrModel {
   readonly drawingSizePx: DimensionDrawingSizePx | null;
   /** Cụm thu phóng nối vào lớp bản vẽ (G07). */
   readonly canvasZoom: DimensionCanvasZoom;
+  /** Tỷ lệ đang dùng đã định dạng ("23,131 mm/px"); `null` khi tầng chưa có tỷ lệ. */
+  readonly scaleLabel?: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1023,6 +1026,10 @@ export function useDimensionOcrReview(
     backgroundImageUrl: background?.imageUrl ?? null,
     backgroundImageAlt: background?.imageAlt ?? '',
     millimetresPerPixel: millimetresPerPixelOf(level),
+    scaleLabel:
+      level?.scaleMillimetresPerPixel == null
+        ? null
+        : formatScaleDensity(level.scaleMillimetresPerPixel, { maxFractionDigits: 3 }),
     isCompact: isCollapsed,
     isCollapsed,
     isViewerRole,

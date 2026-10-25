@@ -63,14 +63,16 @@ test.describe('phase 09 viewer edge (real stack)', () => {
         await expect.soft(page.getByRole('button', { name: /^Xoá / })).toHaveCount(0);
         await shot(page, '9V-B-001', 'pin_delete');
       });
-      await test.step('[9V-C-034] "Xác nhận đã xử lý" xong không lỗi', async () => {
-        await gotoAs(page, ROUTES.project.rules(projectId), 'Quy chuẩn');
-        const confirm = page.getByRole('button', { name: 'Xác nhận đã xử lý' }); // RuleReport.tsx:358
+      await test.step('[9V-C-034] cổng quy chuẩn hiện đúng nút, không lỗi', async () => {
+        await gotoAs(page, ROUTES.project.rules(projectId), 'Kiểm tra quy chuẩn');
+        const gate = page.getByTestId('flow-gate');
+        const confirm = gate.getByRole('button', { name: 'Xem vi phạm kế' }); // RuleReport.tsx gate
         // RF red: the seeded own project has 4 criticals (png: "4 Nghiêm trọng"), so confirm is DISABLED by design
         // (RuleReport.tsx:353 disabled={summary.violations > 0}; useRuleReport.ts:680; phase06 28-A-025). Button PRESENT = engineer canEdit
         // (RuleReport.tsx:279; viewer gets none, RuleReport.qa06.test.tsx:77). Enabled-click path with 0 findings: phase06 28-A-024.
+        // Cụm 6: còn vi phạm nghiêm trọng thì cổng mời "Xem vi phạm kế" (nút phụ), không có "Sang Xuất" bị tắt.
         await expect(confirm).toBeVisible({ timeout: 30_000 });
-        await expect.soft(confirm).toBeDisabled();
+        await expect.soft(gate.getByRole('button', { name: 'Sang Xuất' })).toHaveCount(0);
         await expect.soft(page.getByRole('button', { name: 'Chạy kiểm tra lại' })).toBeVisible();
         await expect.soft(page.getByRole('alert')).toHaveCount(0);
         await shot(page, '9V-C-034', 'confirm');
@@ -112,7 +114,7 @@ test.describe('phase 09 viewer edge (real stack)', () => {
         await shot(page, '9V-G-002', 'restore');
       });
       await test.step('[9V-E-035] xuất .json: tải về bắt được', async () => {
-        await gotoAs(page, ROUTES.project.export(projectId), 'Xuất bản vẽ');
+        await gotoAs(page, ROUTES.project.export(projectId), 'Xuất mô hình');
         // RR4 red (copy 2, rr4 repeat1 png + results.json): EditorTour card "Lấy tệp mang đi" (1/1) opened on the export screen and its
         // backdrop (div.pointer-events-auto.fixed.bg-bg-overlay, z-40) intercepted every click of check() for 30 s. The tour shows on the
         // first visit of each fresh context (localStorage key system-editor-tour-seen:<user>:export-panel), mounting a beat after the
@@ -122,13 +124,13 @@ test.describe('phase 09 viewer edge (real stack)', () => {
         await json.click();
         await expect(json).toHaveAttribute('aria-checked', 'true');
         const dl = page.waitForEvent('download', { timeout: 30_000 });
-        await page.getByRole('button', { name: 'Xuất', exact: true }).click();
+        await page.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u }).click();
         expect.soft((await dl).suggestedFilename()).toMatch(/\.json$/u);
         await shot(page, '9V-E-035', 'export_json');
       });
       await test.step('[9V-H-001] hộp chia sẻ: nút Chia sẻ VẮNG (tính năng tắt)', async () => {
         // feature off: shareLink.ts:354 (SHARE_LINKS_SUPPORTED=false); anchor = export heading, then absence
-        await gotoAs(page, ROUTES.project.export(projectId), 'Xuất bản vẽ');
+        await gotoAs(page, ROUTES.project.export(projectId), 'Xuất mô hình');
         await expect(page.getByRole('button', { name: 'Chia sẻ', exact: true })).toHaveCount(0);
         await shot(page, '9V-H-001', 'share_absent');
       });
@@ -150,7 +152,7 @@ test.describe('phase 09 viewer edge (real stack)', () => {
         await shot(page, '9V-B-002', 'admin_pin');
       });
       await test.step('[9V-D-001] bật/tắt một luật rồi khôi phục', async () => {
-        await gotoAs(page, ROUTES.project.ruleSettings(projectId), 'Cài đặt bộ luật không gian');
+        await gotoAs(page, ROUTES.project.ruleSettings(projectId), 'Chọn luật áp dụng');
         const sw = page.getByRole('switch', { name: /^Bật hoặc tắt luật: lỗ mở nằm trọn/u });
         const was = await sw.isChecked();
         try {
@@ -173,8 +175,8 @@ test.describe('phase 09 viewer edge (real stack)', () => {
       });
       await test.step('[9V-E-002] như 9V-E-001: màn Xuất mở được với nút Xuất', async () => {
         // UNKNOWN — NEED VERIFICATION: catalog 9V-E-001 text is not in the pack's flow; control = export panel renders.
-        await gotoAs(page, ROUTES.project.export(projectId), 'Xuất bản vẽ');
-        await expect.soft(page.getByRole('button', { name: 'Xuất', exact: true })).toBeVisible();
+        await gotoAs(page, ROUTES.project.export(projectId), 'Xuất mô hình');
+        await expect.soft(page.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toBeVisible();
         await shot(page, '9V-E-002', 'admin_export');
       });
     });

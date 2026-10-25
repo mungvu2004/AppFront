@@ -31,7 +31,7 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
  * bằng vai `button` và khớp trọn.
  */
 const HOSTS = [
-  { host: 'dashboard', path: ROUTES.dashboard, opener: /^Dự án mới/u },
+  { host: 'dashboard', path: ROUTES.dashboard, opener: /^Tạo dự án\s*N$/u },
   { host: 'onboarding', path: ROUTES.onboarding, opener: /^Tạo dự án$/u },
 ] as const;
 
@@ -88,15 +88,16 @@ test('V3-CP-2: form đã gõ — Escape lần 1 hỏi "Đóng và bỏ các thay
 
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Dự án của tôi' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Chọn dự án để làm tiếp' })).toBeVisible();
 });
 
 for (const host of HOSTS) {
-  test(`V3-CP-3 (${host.host}): hiện trạng — tiêu điểm đầu ở nút "Đóng hộp thoại", chưa ở ô "Tên dự án" (F3)`, async ({
+  // F3 đã sửa ở 25f49600 (cụm 2): ô "Tên dự án" mang `data-autofocus` (`StepInfo.tsx`).
+  test(`V3-CP-3 (${host.host}): tiêu điểm đầu ở ô "Tên dự án", không ở nút "Đóng hộp thoại" (F3)`, async ({
     page,
   }) => {
     const dialog = await openCreateDialog(page, host);
-    await expect(dialog.getByRole('button', { name: 'Đóng hộp thoại' })).toBeFocused();
+    await expect(dialog.getByLabel('Tên dự án', { exact: true })).toBeFocused();
   });
 }
 

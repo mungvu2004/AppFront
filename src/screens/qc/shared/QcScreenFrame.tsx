@@ -71,7 +71,7 @@ const DRAWER_SHOW_LABEL = 'Hiện chi tiết';
 
 /**
  * Hàng làm việc: rail | panel trái | bản vẽ | chi tiết.
- * - ≥1280: bốn cột, panel trái 280, chi tiết 344.
+ * - ≥1280: bốn cột, panel trái 240, chi tiết 240 (bản vẽ ≥ 60 % ở 1440).
  * - 1024-1279: chi tiết thành ngăn kéo phủ mép phải bản vẽ (ẩn/hiện được), panel trái giữ cột.
  * - <1024: rail + bản vẽ ở hàng đầu (bản vẽ trước danh sách), hai panel xuống dòng, cả vùng cuộn dọc.
  */
@@ -86,7 +86,7 @@ export function QcWorkspace({ rail, left, canvasLabel, canvas, inspector, select
     <div className="relative flex min-h-0 flex-1 gap-2 p-2 max-lg:flex-wrap max-lg:content-start max-lg:overflow-y-auto">
       {rail}
       {hasLeft ? (
-        <div className="flex min-h-0 shrink-0 flex-col gap-2 max-lg:order-1 max-lg:w-full lg:w-[280px] lg:overflow-y-auto">
+        <div className="flex min-h-0 shrink-0 flex-col gap-2 max-lg:order-1 max-lg:w-full lg:w-[240px] lg:overflow-y-auto">
           {left}
         </div>
       ) : null}
@@ -109,7 +109,7 @@ export function QcWorkspace({ rail, left, canvasLabel, canvas, inspector, select
       {hasInspector ? (
         <div
           className={cn(
-            'flex min-h-0 flex-col max-lg:order-2 max-lg:w-full xl:w-[344px] xl:shrink-0 xl:overflow-y-auto',
+            'flex min-h-0 flex-col max-lg:order-2 max-lg:w-full xl:w-[240px] xl:shrink-0 xl:overflow-y-auto',
             'lg:max-xl:absolute lg:max-xl:bottom-4 lg:max-xl:right-4 lg:max-xl:top-14 lg:max-xl:z-20 lg:max-xl:w-[344px] lg:max-xl:overflow-y-auto lg:max-xl:rounded-xl lg:max-xl:shadow-overlay',
             !isDrawerOpen && 'lg:max-xl:hidden',
           )}
@@ -129,8 +129,8 @@ const QC_STATUS_BAR_LABEL = 'Thanh trạng thái';
 interface QcStatusBarProps {
   /** Vắng: nút "Hoàn tác" vẫn đứng cùng chỗ nhưng tắt (màn chưa có ngăn hoàn tác). */
   readonly onUndo?: (() => void) | undefined;
-  /** Trạng thái lưu đã định dạng; vắng thì "Chưa có thay đổi". */
-  readonly saveLabel?: string | null | undefined;
+  /** Trạng thái lưu đã định dạng; vắng thì "Chưa có thay đổi"; `false` = màn đã nói ở QcPanelHead, không lặp. */
+  readonly saveLabel?: string | false | null | undefined;
   readonly saveFailed?: boolean;
   /** Mục riêng của màn (toạ độ, tỷ lệ…), nằm giữa nút hoàn tác và trạng thái lưu. */
   readonly children?: ReactNode;
@@ -154,7 +154,7 @@ export function QcStatusBar({ onUndo, saveLabel, saveFailed = false, children }:
         {QC_UNDO_LABEL}
       </button>
       <div className="flex min-w-0 flex-1 items-center gap-3">{children}</div>
-      <span
+      {saveLabel === false ? null : <span
         aria-live="polite"
         className={cn(
           'min-w-0 truncate text-body-sm font-medium',
@@ -162,7 +162,7 @@ export function QcStatusBar({ onUndo, saveLabel, saveFailed = false, children }:
         )}
       >
         {saveLabel ?? QC_NO_CHANGES_LABEL}
-      </span>
+      </span>}
     </div>
   );
 }

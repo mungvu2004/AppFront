@@ -16,6 +16,8 @@ import { SCALE, btn, canvasOf, panelOf } from '../../qa/tests/support/p04/P6';
 const MOCK_FLOOR = 'L2'; // e2e/v4v5/scale.spec.ts:openScale
 /** Collapsed column is 48 px (lg:w-12); a leftover 344 px column is the bug. */
 const COLLAPSED_MAX_PX = 64;
+/** Open "Kiem tra con so" column: 288 px at xl since the cluster-3 redo (ScaleCalibrationPanel xl:w-[288px]), was 344. */
+const OPEN_MIN_PX = 240;
 const PX_TOLERANCE = 1.5;
 
 test.use({ baseURL: MOCK_BASE_URL, viewport: { width: 1440, height: 900 } });
@@ -31,7 +33,7 @@ test('SCR-14 · FL-14-V1 [mocked response] BUG-609 thu gon bang thi cot co lai, 
     await expect(btn(page, SCALE.expand)).toBeVisible();
     const collapsed = await panelOf(page).boundingBox();
     expect.soft(collapsed?.width ?? 999, 'collapsed column width').toBeLessThanOrEqual(COLLAPSED_MAX_PX);
-    expect.soft(openPanel?.width ?? 0, 'open column width').toBeGreaterThan(300);
+    expect.soft(openPanel?.width ?? 0, 'open column width').toBeGreaterThan(OPEN_MIN_PX);
     await captureEvidence(page, 'U04_scale_panel_collapsed_1440.png');
   });
 });

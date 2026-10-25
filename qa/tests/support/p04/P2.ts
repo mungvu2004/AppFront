@@ -67,7 +67,7 @@ export const OBJ = {
   doors: 'Cửa đi',
   windows: 'Cửa sổ',
   furniture: 'Nội thất',
-  approve: 'Duyệt đối tượng này', // OI
+  approve: /^Duyệt #/u, // OI: "Duyệt #D-002" (Z/S-16)
   inspectorEmpty: 'Chọn một đối tượng trên bản vẽ hoặc trong danh sách để xem chi tiết.', // OI
   type: 'Loại đối tượng', // OI
   position: 'Vị trí trên tường', // OI
@@ -104,6 +104,18 @@ export const SAVE = {
 export const screen = (page: Page): Locator => page.getByRole('region', { name: OBJ.screen, exact: true });
 export const listGroup = (page: Page): Locator => page.getByRole('group', { name: OBJ.list, exact: true });
 export const groupBox = (page: Page, label: string): Locator => page.getByRole('listbox', { name: label, exact: true });
+/* Z/S-16: danh sách là hàng đợi hai nhóm ("Cần duyệt" / "Đã duyệt"), không còn một nhóm cho mỗi loại.
+   Dòng của một loại = option có mã #D- / #S- / #F-. */
+const LAYER_CODE_PREFIX: Readonly<Record<string, string>> = { 'Cửa đi': 'D', 'Cửa sổ': 'S', 'Nội thất': 'F' };
+export const layerOptions = (page: Page, layerLabel: string): Locator =>
+  listGroup(page).getByRole('option', { name: new RegExp(`^#${LAYER_CODE_PREFIX[layerLabel] ?? '?'}-`, 'u') });
+export const QUEUE = { pending: 'Cần duyệt', reviewed: 'Đã duyệt' } as const;
+/** Mở menu "Loại con" (details) để thấy tám chip loại con — gọi lại nhiều lần vẫn an toàn. */
+export const openSubtypeMenu = async (page: Page): Promise<void> => {
+  const summary = page.locator('summary').filter({ hasText: 'Loại con' });
+  const isOpen = await summary.evaluate((node) => (node.parentElement as HTMLDetailsElement | null)?.open === true);
+  if (!isOpen) await summary.click();
+};
 export const allOptions = (page: Page): Locator => listGroup(page).getByRole('option');
 export const optionOf = (page: Page, code: string): Locator =>
   listGroup(page).getByRole('option', { name: new RegExp(`^${escapeRegExp(code)} — `, 'u') });
@@ -113,8 +125,12 @@ export const approveButton = (page: Page): Locator => inspector(page).getByRole(
 export const statusBar = (page: Page): Locator => page.getByRole('status', { name: OBJ.status, exact: true });
 export const symbolOf = (page: Page, code: string): Locator => page.locator(`g[aria-label="${code}"]`);
 export const toastRegion = (page: Page): Locator => page.getByRole('region', { name: OBJ.toasts, exact: true });
-export const chip = (page: Page, label: string): Locator => page.getByRole('group', { name: OBJ.filters, exact: true }).getByRole('button', { name: label, exact: true });
-export const treeItem = (page: Page, label: string): Locator => page.getByRole('tree', { name: OBJ.tree, exact: true }).getByRole('treeitem', { name: label, exact: true });
+/* Z/S-16: tám chip loại con nằm trong menu "Loại con" (details) — bước dùng chip phải mở "Loại con" trước. */
+export const chip = (page: Page, label: string): Locator =>
+  page.getByRole('group', { name: 'Lọc theo loại con', exact: true }).getByRole('button', { name: label, exact: true });
+/* Z/S-16: cây lớp thành ba nút lọc theo loại (tên truy cập "Ẩn lớp cửa đi"/"Hiện lớp cửa đi"). */
+export const treeItem = (page: Page, label: string): Locator =>
+  page.getByRole('group', { name: OBJ.filters, exact: true }).getByRole('button', { name: new RegExp(`^(Ẩn|Hiện) lớp ${label.toLowerCase()}$`, 'u') });
 export const eyeButton = (page: Page, layerLabel: string): Locator => page.getByRole('button', { name: new RegExp(`^(Ẩn|Hiện) lớp ${escapeRegExp(layerLabel)}$`, 'iu') });
 export const legend = (page: Page): Locator => page.getByLabel(OBJ.legend, { exact: true });
 export const typeBox = (page: Page): Locator => inspector(page).getByRole('combobox', { name: OBJ.type, exact: true });

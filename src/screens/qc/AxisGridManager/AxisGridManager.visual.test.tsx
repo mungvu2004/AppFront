@@ -19,8 +19,8 @@ describe('AxisGridManager — trạng thái nhìn', () => {
   it('[BUG-618] đang tải: cột phải là khung xương, không "Gốc toạ độ 0 px / 0 mm" hay danh sách tầng', () => {
     renderWithProviders(<AxisGridManager {...scenarioArgsFor('loading')} />);
 
-    expect(screen.queryByText('Gốc toạ độ')).toBeNull();
-    expect(screen.queryByText('Căn chỉnh giữa các tầng')).toBeNull();
+    expect(screen.queryByText('Gốc ±0.000')).toBeNull();
+    expect(screen.queryByText('Lệch giữa các tầng')).toBeNull();
   });
 
   it('[BUG-627] nét trục mặc định dùng --text-secondary, không --border-default', () => {

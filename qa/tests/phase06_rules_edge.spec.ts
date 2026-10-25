@@ -45,6 +45,8 @@ import {
   adminRequest,
   allHeaders,
   confirmButton,
+  nextViolationButton,
+  seeWarningsButton,
   createCleanProject,
   createRuleProject,
   expandAll,
@@ -274,7 +276,9 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await expect.soft(groupSelect(page)).toBeVisible();
         await expect.soft(floorSelect(page)).toBeVisible();
         await expect.soft(groupHeaders(page).first()).toHaveAttribute('aria-expanded', 'false');
-        await expect.soft(confirmButton(page)).toBeDisabled();
+        // Cụm 6: còn vi phạm nghiêm trọng thì cổng không có "Sang Xuất" (không nút chết) mà mời "Xem vi phạm kế".
+        await expect.soft(confirmButton(page)).toHaveCount(0);
+        await expect.soft(nextViolationButton(page)).toBeVisible();
         await shot(page, '28-B-003', 'ready');
       });
 
@@ -700,13 +704,14 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await shot(page, '28-A-016', 'switch_row');
       });
 
-      await test.step('[28-A-025] footer stays disabled while Nghiêm trọng > 0', async () => {
+      await test.step('[28-A-025] while Nghiêm trọng > 0 the gate leads to the next violation, never to export', async () => {
         const url = page.url();
         expect.soft(await settledInt(summaryValue(page, 'Nghiêm trọng')), 'Nghiêm trọng').toBeGreaterThan(0);
-        await expect.soft(confirmButton(page)).toBeDisabled();
-        await confirmButton(page).click({ force: true });
+        await expect.soft(confirmButton(page)).toHaveCount(0);
+        await nextViolationButton(page).click();
+        await expect.soft(sheet(page), 'the next critical violation opens in the sheet').toBeVisible();
         expect.soft(page.url(), 'URL unchanged').toBe(url);
-        await shot(page, '28-A-025', 'confirm_disabled');
+        await shot(page, '28-A-025', 'gate_next_violation');
       });
 
       await test.step('[28-A-044] the whole journey wrote nothing', async () => {
@@ -728,12 +733,14 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
       expect(await putRuleConfig(admin, project.id, { 'DOOR-SWING-BLOCKED': { enabled: false }, 'ESCAPE-DISTANCE': { enabled: false }, 'WINDOW-ON-INNER-WALL': { enabled: false } }), 'setup: PUT rule-config (R3)').toBeLessThan(300);
       await openRules(page, project.id);
 
-      await test.step('[28-B-004] zero critical: figure 0, filter bar, footer enabled', async () => {
+      await test.step('[28-B-004] zero critical: figure 0, filter bar, gate asks to look at the warnings', async () => {
         // F6 (useRuleReport.ts:596): `done` only when violations + warnings are both 0; R3 still raises warnings -> `ready`.
         expect(await settledInt(summaryValue(page, 'Nghiêm trọng')), 'Nghiêm trọng').toBe(0);
         await expect(rerunButton(page)).toBeVisible();
         await expect(levelFilter(page)).toBeVisible();
-        await expect(confirmButton(page)).toBeEnabled();
+        // Cụm 6: điều kiện thứ hai "Đã xem cảnh báo" — chưa xem thì nút phụ "Xem cảnh báo", không có "Sang Xuất".
+        await expect(seeWarningsButton(page)).toBeVisible();
+        await expect.soft(confirmButton(page)).toHaveCount(0);
         await shot(page, '28-B-004', 'ready_no_critical');
       });
 
@@ -756,7 +763,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
       expect(await putRuleConfig(admin, project.id, Object.fromEntries(cleanOff.map((code) => [code, { enabled: false }]))), 'setup: PUT rule-config (R0+)').toBeLessThan(300);
       await openRules(page, project.id);
       const donePanel = page.getByText('Không phát hiện vi phạm nào.', { exact: true });
-      const shortcut = page.getByRole('button', { name: 'Sang bước xuất bản', exact: true });
+      const shortcut = page.getByRole('button', { name: 'Sang Xuất', exact: true });
 
       await test.step('[28-B-018] zero findings -> the done panel replaces the groups', async () => {
         await expect(donePanel).toBeVisible();
@@ -768,11 +775,11 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
 
       await test.step('[28-A-022] done panel copy', async () => {
         await expect.soft(page.getByText(/^\d[\d.]* luật đã chạy trên bản vẽ này và không luật nào bắt được lỗi\.$/u)).toBeVisible();
-        await expect.soft(page.getByText('Lượt chạy này không có vi phạm', { exact: true })).toBeVisible();
+        await expect.soft(page.getByText('Không có vi phạm', { exact: true })).toBeVisible();
         await shot(page, '28-A-022', 'done_panel_copy');
       });
 
-      await test.step('[28-A-024] footer "Xác nhận đã xử lý" with 0 findings goes to export without writes', async () => {
+      await test.step('[28-A-024] footer "Sang Xuất" with 0 findings goes to export without writes', async () => {
         const mark = api.length;
         await expect(confirmButton(page)).toBeEnabled();
         await confirmButton(page).click();
@@ -781,7 +788,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await shot(page, '28-A-024', 'confirm_export');
       });
 
-      await test.step('[28-A-023] "Sang bước xuất bản" goes to export', async () => {
+      await test.step('[28-A-023] "Sang Xuất" goes to export', async () => {
         await openRules(page, project.id);
         await expect(shortcut).toBeVisible();
         await shortcut.click();
@@ -994,7 +1001,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
           await shot(v.page, '28-D-003', 'viewer_reads');
         });
 
-        await test.step('[28-D-004] ⚑ viewer: no "Xác nhận đã xử lý"', async () => {
+        await test.step('[28-D-004] ⚑ viewer: no "Sang Xuất"', async () => {
           await expect(summaryValue(v.page, 'Tổng số kiểm tra')).toBeVisible(); // report is up: the absence is meaningful
           await expect.soft(confirmButton(v.page)).toHaveCount(0);
           await shot(v.page, '28-D-004', 'viewer_footer');
@@ -1067,7 +1074,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
           window.scrollTo(0, 0);
         });
         const trail: { role: string; text: string; expanded: boolean }[] = [];
-        for (let i = 0; i < 40; i += 1) {
+        for (let i = 0; i < 60; i += 1) {
           await page.keyboard.press('Tab');
           const item = await page.evaluate(() => {
             const el = document.activeElement as HTMLElement | null;
@@ -1078,21 +1085,22 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
             };
           });
           trail.push(item);
-          if (item.text === 'Xác nhận đã xử lý') break;
+          if (item.text === 'Sang Xuất') break;
         }
         const at = (match: (item: (typeof trail)[number]) => boolean, from = 0): number => {
           const index = trail.findIndex((item, i) => i >= from && match(item));
           return index;
         };
-        const settings = at((x) => x.text === 'Cài đặt bộ luật');
+        // Cổng (FlowGate) nằm ở thanh bước của header, trước nội dung trang.
+        const gate = at((x) => x.text === 'Xem vi phạm kế');
+        const settings = at((x) => x.text === 'Cài đặt bộ luật', gate + 1);
         const rerun = at((x) => x.text.includes('Chạy kiểm tra lại'), settings + 1);
         const radio = at((x) => x.role === 'radio', rerun + 1);
         const groupBox = at((x) => x.role === 'combobox', radio + 1);
         const floorBox = at((x) => x.role === 'combobox', groupBox + 1);
         const header = at((x) => x.expanded, floorBox + 1);
-        // The seed has criticals, so the footer button is disabled and not a tab stop (28-A-025); only count it when enabled.
-        const confirm = (await confirmButton(page).isEnabled()) ? at((x) => x.text === 'Xác nhận đã xử lý', header + 1) : header;
-        const order = [settings, rerun, radio, groupBox, floorBox, header, confirm];
+        // The seed has criticals, so the gate offers "Xem vi phạm kế" (28-A-025), not "Sang Xuất".
+        const order = [gate, settings, rerun, radio, groupBox, floorBox, header];
         expect.soft(order.every((index) => index >= 0), `all stops reached: ${JSON.stringify(order)}`).toBe(true);
         expect.soft(order, 'ascending').toEqual([...order].sort((a, b) => a - b));
         await shot(page, '28-E-003', 'tab_order');
@@ -1707,7 +1715,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.ruleSettings(project.id));
         // The settings route is lazy: until its chunk renders, the router keeps the report mounted (transition), so a Back
         // right after the URL change never left the screen and the session state survived (p06-rr: "Đã xử lý" count 1).
-        await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 1 })).toBeVisible(); // RuleSettings.tsx:263
+        await expect(page.getByRole('heading', { name: 'Chọn luật áp dụng', level: 1 })).toBeVisible(); // RuleSettings.tsx:263
         await page.goBack();
         await expect(reportHeading(page)).toBeVisible();
         await expect.soft(resolvedHeader(page)).toHaveCount(0);

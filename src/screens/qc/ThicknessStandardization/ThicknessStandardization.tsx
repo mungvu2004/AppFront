@@ -1,83 +1,48 @@
 /**
- * Màn S-18 "Chuẩn hoá độ dày tường" (`ThicknessStandardization`) — VIEW THUẦN.
- *
- * Bố cục đúng đặc tả, một cột dọc rộng hết khung, lề 8 px như các màn QC anh em (BUG-413):
+ * Màn S-21 "Chuẩn hoá độ dày tường" (`ThicknessStandardization`) — VIEW THUẦN, bản Z (demo
+ * đã duyệt ở `ui-review/redesign/Z/S-21`): panel trái + bản vẽ, không rail, không inspector.
  *
  * ```
- * ┌ đầu màn: breadcrumb · tiêu đề · mô tả ─────────────────────────────┐
- * ├ biểu đồ phân bố (ba ngưỡng kéo được) ──────────────────────────────┤
- * ├ hàng tóm tắt bốn số ───────────────────────────────────────────────┤
- * ├ cột trái: bảng nhóm → bảng chi tiết 48 đoạn │ cột phải 320: canvas ┤
- * ├ thanh áp dụng: dung sai · xem trước · áp · hoàn tác ───────────────┘
+ * ┌ thanh bước ……………………………………… FlowGate: Tường · 2/81 · [Về duyệt tường] ┐
+ * ├ panel trái 400 (320 ở 1024) ──────┬ bản vẽ (≥ 65 % bề ngang) ────────────┤
+ * │ QcPanelHead: H1 + Badge + số + lưu │ mặt bằng tô theo nhóm, rê nhóm/cột    │
+ * │ biểu đồ phân bố + vạch ngưỡng      │ thì các đoạn cùng sáng; chú giải nổi  │
+ * │ ba nhóm (ô đồng ý KHÔNG tích sẵn)  │                                       │
+ * │ đoạn không đổi (mã = link)         │                                       │
+ * │ chân dính đáy: câu lô + MỘT nút    │                                       │
+ * └ thanh trạng thái: Hoàn tác · gợi ý · phím ─────────────────────────────────┘
  * ```
  *
- * Canvas bên phải CHỈ là xem trước phụ: nó không nhận thao tác sửa nào, và màn
- * vẫn dùng được đủ khi nó bị thu gọn.
- *
- * Nhận HẾT qua props ({@link ThicknessStandardizationViewProps}) và chỉ dựng
- * thẻ. Không `@/api`, không `@/store`, không `@/domain`, không `@/lib/http`
- * (R-60). Không nhóm, không so ngưỡng, không định dạng một con số nào: mọi
- * chuỗi tới đây đã xong ở `useThicknessStandardization` (A15).
- *
- * ## Bảy trạng thái (A11, R-63) — nơi từng trạng thái được vẽ
- *
- * | `state`     | vẽ ở đâu                                                        |
- * |-------------|-----------------------------------------------------------------|
- * | `empty`     | cột trái: câu rỗng; còn bảng thì VẪN vẽ nếu đồ thị có đoạn tường |
- * | `loading`   | biểu đồ tự vẽ khung xương; cột trái sáu dòng `Skeleton`          |
- * | `partial`   | mặc định — biểu đồ, tóm tắt, hai bảng, canvas, thanh áp dụng     |
- * | `error`     | `InlineAlert` trên đầu; biểu đồ và bảng VẪN xem được             |
- * | `success`   | mặc định, ô "vượt dung sai" của tóm tắt chuyển sang mức đã duyệt |
- * | `forbidden` | thêm câu giải thích, và thanh áp dụng KHÔNG được dựng            |
- * | `collapsed` | canvas ẩn, chỗ nó là nút bung lại; hai bảng chiếm cả bề ngang    |
- *
- * Không nhánh nào trả `null` cho cả màn: đầu màn, biểu đồ và hàng tóm tắt luôn
- * được vẽ, nên màn trắng — thất bại duy nhất A11 tồn tại để chặn — không có
- * chỗ xảy ra.
- *
- * ## Vì sao câu rỗng KHÔNG nuốt mất hai bảng
- *
- * `emptyNotice` của hook mang hai câu khác nhau: "chưa có số đo nào" (đồ thị
- * rỗng) và "mọi đoạn đã ở đúng nhóm chuẩn" (48 đoạn vẫn còn đó, chỉ là không
- * còn gì để áp). Câu thứ hai đi cùng dữ liệu ĐẦY ĐỦ, nên thay bảng bằng một
- * `EmptyState` ở đó sẽ giấu mất chính thứ người dùng vừa chuẩn hoá xong. View
- * vì thế phân nhánh theo `segmentRows.length`, không theo `state`.
- *
- * ## Vì sao câu ấy không dùng `InlineAlert`
- *
- * `InlineAlertLevel` chỉ có `verified` / `attention` / `violation` — ba mã
- * trạng thái của A4. "Không còn gì để áp" không phải việc người duyệt xác nhận
- * (A5 cấm mượn xanh đó), cũng không phải cảnh báo hay vi phạm. Nên câu ấy là
- * một đoạn chữ trung tính trên nền `--bg-sunken`, không mượn mã trạng thái nào.
- *
- * ## Thanh áp dụng vắng mặt ở vai Người xem, không phải bị vô hiệu
- *
- * CẤM TUYỆT ĐỐI của đặc tả: không áp thay đổi nào trước khi người dùng bấm. Ở
- * vai Người xem thì mọi hàm sửa đã tắt từ hook; dựng thanh áp dụng rồi khoá
- * từng nút chỉ mời người ta bấm vào một thứ không chạy. Câu
- * {@link ThicknessStandardizationViewProps.viewerRoleNotice} nói ra vì sao.
+ * Ba câu (HOP-DONG-V6): 1. H1 "Chuẩn hoá độ dày tường"; 2. Badge + "51/81 đoạn không chuẩn,
+ * 30 đúng chuẩn" + đã lưu; 3. `FlowGate` giống S-15 (nút phụ "Về duyệt tường"; khi không còn
+ * gì để đổi thì nó thành nút chính). Bảng từng đoạn (đổi nhóm tay, gán theo lô) mở trong ngăn
+ * kéo. Nhận HẾT qua props, không tính, không định dạng số (R-60, A15).
  */
 
-import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
-import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { Layers } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
-import { cn } from '@/lib/utils';
+import { Drawer } from '@/components/overlay/Drawer';
+import { FlowGate } from '@/components/shell/FlowGate';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Kbd } from '@/components/ui/Kbd';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
+import { QcPanelHead } from '../shared/QcPanelHead';
 import { QcScreenFrame, QcStatusBar } from '../shared/QcScreenFrame';
 
-import { ThicknessApplyBar } from './ThicknessApplyBar';
-import { ThicknessGroupTable } from './ThicknessGroupTable';
+import { ThicknessBatchFooter, ThicknessBatchPanel } from './ThicknessBatchPanel';
 import { ThicknessHistogram } from './ThicknessHistogram';
 import { ThicknessPreviewCanvas } from './ThicknessPreviewCanvas';
 import { ThicknessSegmentTable } from './ThicknessSegmentTable';
-import { ThicknessSummary } from './ThicknessSummary';
+import type { ThicknessBatchProps, ThicknessBatchStatus } from './thicknessBatch';
 import type {
   ThicknessApplyBarProps,
   ThicknessSegmentTableProps,
@@ -85,15 +50,13 @@ import type {
 } from './thicknessTypes';
 
 /**
- * Props của view: hợp đồng toàn màn cộng đúng bảy trường chọn hàng của bảng
- * chi tiết, cộng `onDismissReapplyWarning` của thanh áp dụng — cùng kiểu mà
- * `useThicknessStandardization` trả về, nên container chuyền thẳng kết quả hook
- * xuống đây bằng một phép trải.
+ * Props của view: hợp đồng toàn màn + phần lô của bản Z + bảy trường chọn hàng của bảng chi
+ * tiết — đúng kiểu `useThicknessStandardization` trả về, container trải thẳng xuống.
  */
-export type ThicknessStandardizationViewProps = ThicknessStandardizationProps & {
-  readonly floorNav?: Omit<QcFloorNavProps, 'layer'>;
-} &
-  Pick<ThicknessApplyBarProps, 'onDismissReapplyWarning'> &
+export type ThicknessStandardizationViewProps = ThicknessStandardizationProps &
+  ThicknessBatchProps & {
+    readonly floorNav?: Omit<QcFloorNavProps, 'layer'>;
+  } & Pick<ThicknessApplyBarProps, 'onDismissReapplyWarning'> &
   Pick<
     ThicknessSegmentTableProps,
     | 'selectedWallIds'
@@ -106,215 +69,48 @@ export type ThicknessStandardizationViewProps = ThicknessStandardizationProps & 
   >;
 
 /* -------------------------------------------------------------------------- */
-/* Chuỗi tĩnh của vỏ màn (A6 — chữ thường kiểu câu, trừ tên riêng và mã).      */
+/* Chuỗi tĩnh (A6 — chữ thường kiểu câu, trừ tên riêng và mã).                 */
 /* -------------------------------------------------------------------------- */
 
 const SCREEN_TITLE = 'Chuẩn hoá độ dày tường';
-const SCREEN_DESCRIPTION =
-  'Đối chiếu số đo độ dày của từng đoạn tường với bốn nhóm chuẩn, xem trước rồi áp một lượt duy nhất.';
+const EYEBROW = 'Bước 3 · Kiểm tra tầng · Tường';
+const PANEL_LABEL = 'Bảng chuẩn hoá độ dày';
+const CANVAS_REGION_LABEL = 'Bản vẽ theo nhóm độ dày';
 const HISTOGRAM_SECTION_LABEL = 'Phân bố độ dày đo được';
-const TABLES_SECTION_LABEL = 'Bảng nhóm và bảng chi tiết từng đoạn';
 const ERROR_TITLE = 'Không đọc được lớp số đo độ dày';
 const FORBIDDEN_TITLE = 'Không có quyền sửa độ dày tường';
-const NAVIGATE_WALLS_LABEL = 'Sang lớp tường';
+const NAVIGATE_WALLS_LABEL = 'Về duyệt tường';
 const EMPTY_TITLE = 'Chưa có đoạn tường nào để chuẩn hoá';
-const COLLAPSE_PREVIEW_LABEL = 'Thu gọn khung xem trước';
-/* Nhãn nói việc nút làm, không tả trạng thái (BUG-637). */
+const EMPTY_DESCRIPTION = 'Sang lớp tường để dò lại các đoạn tường, rồi quay lại đây.';
 const EXPAND_PREVIEW_LABEL = 'Mở khung xem trước';
+const DETAIL_TITLE = 'Bảng từng đoạn tường';
+const GATE_WALLS = 'Tường';
+const GATE_PROGRESS = 'Tường đã duyệt';
+const STATUS_HINT = 'Rê một nhóm hoặc một cột để sáng các đoạn trên bản vẽ';
+const KEY_HINTS = [
+  { key: 'Enter', label: 'đổi' },
+  { key: 'Ctrl+Z', label: 'hoàn tác' },
+] as const;
 
-/** Sáu dòng khung xương của cột trái lúc đang tải — đúng khuôn `RoomLabelReview`. */
-const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
+const STATUS_BADGE: Readonly<
+  Record<ThicknessBatchStatus, { readonly variant: 'verified' | 'attention' | 'neutral'; readonly label: string }>
+> = {
+  empty: { variant: 'neutral', label: 'Chưa có số đo' },
+  pending: { variant: 'attention', label: 'Chưa chuẩn hoá' },
+  manual: { variant: 'attention', label: 'Còn đoạn xem tay' },
+  done: { variant: 'verified', label: 'Đã chuẩn hoá' },
+};
 
-/** Nút chữ của màn: cùng khuôn nút bung bảng của `RoomLabelReview` (A1, A2). */
-const LINK_CLASS_NAME = cn(
-  'self-start rounded-md px-1.5 py-1 text-[13px] text-accent',
-  'transition-colors duration-120 hover:bg-accent-wash',
-  'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-);
-
-/* -------------------------------------------------------------------------- */
-/* Cột trái — hai bảng, hoặc khung xương, hoặc câu rỗng.                       */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Hai bảng và khung xem trước. Khung xem trước đứng cạnh bảng NHÓM, còn bảng từng đoạn (8 cột,
- * ~1.040 px) chiếm trọn bề rộng thẻ bên dưới — đứng cạnh khung 320 px nó bị cắt cột phải ở cả
- * 1440 (BUG-405).
- */
-function ThicknessTablesColumn(props: ThicknessStandardizationViewProps & { readonly previewColumn: ReactNode }) {
-  const {
-    emptyNotice,
-    onNavigateToWalls,
-    flashingWallIds,
-    groupRows,
-    hoveredGroup,
-    hoveredWallId,
-    onApplySelectedGroup,
-    onChangeNormalizedGroup,
-    onChangeSortKey,
-    onClearSelection,
-    onHoverGroup,
-    onHoverWall,
-    onToggleAccepted,
-    onToggleAllSelected,
-    onToggleRowSelected,
-    segmentRows,
-    selectedWallIds,
-    sortKey,
-    state,
-    previewColumn,
-    isViewerRole,
-  } = props;
-
-  if (state === 'loading') {
-    return (
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          {SKELETON_ROWS.map((row) => (
-            <Skeleton key={row} preset="table-row" />
-          ))}
-        </div>
-        {previewColumn}
-      </div>
-    );
-  }
-
-  /* Đồ thị chưa có đoạn nào: không có bảng để vẽ, nên câu rỗng đứng một mình. */
-  if (segmentRows.length === 0) {
-    return (
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <EmptyState
-            {...(onNavigateToWalls === undefined
-              ? {}
-              : { action: { label: NAVIGATE_WALLS_LABEL, onClick: onNavigateToWalls, variant: 'secondary' as const } })}
-            description={emptyNotice ?? SCREEN_DESCRIPTION}
-            icon={<Layers />}
-            title={EMPTY_TITLE}
-          />
-        </div>
-        {previewColumn}
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {emptyNotice === null ? null : (
-        <p className="rounded-lg bg-bg-sunken p-3 text-[13px] text-text-secondary">
-          {emptyNotice}
-        </p>
-      )}
-
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <div className="min-w-0 flex-1">
-          <ThicknessGroupTable
-            hoveredGroup={hoveredGroup}
-            isReadOnly={isViewerRole}
-            onHoverGroup={onHoverGroup}
-            onToggleAccepted={onToggleAccepted}
-            rows={groupRows}
-          />
-        </div>
-        {previewColumn}
-      </div>
-
-      <ThicknessSegmentTable
-        flashingWallIds={flashingWallIds}
-        hoveredWallId={hoveredWallId}
-        isReadOnly={isViewerRole}
-        onApplySelectedGroup={onApplySelectedGroup}
-        onChangeNormalizedGroup={onChangeNormalizedGroup}
-        onChangeSortKey={onChangeSortKey}
-        onClearSelection={onClearSelection}
-        onHoverRow={onHoverWall}
-        onToggleAllSelected={onToggleAllSelected}
-        onToggleRowSelected={onToggleRowSelected}
-        rows={segmentRows}
-        selectedWallIds={selectedWallIds}
-        sortKey={sortKey}
-      />
-    </>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Cột phải — canvas xem trước, hoặc nút bung lại.                             */
-/* -------------------------------------------------------------------------- */
-
-function ThicknessPreviewColumn(props: ThicknessStandardizationViewProps) {
-  const {
-    bins,
-    hoveredBinIndex,
-    hoveredGroup,
-    hoveredWallId,
-    isCollapsed,
-    legend,
-    onHoverWall,
-    onToggleCollapsed,
-    shapes,
-  } = props;
-
-  if (isCollapsed) {
-    return (
-      <div className="flex shrink-0 items-start">
-        <button className={LINK_CLASS_NAME} onClick={onToggleCollapsed} type="button">
-          {EXPAND_PREVIEW_LABEL}
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    // 320 = `THICKNESS_PREVIEW_CANVAS_WIDTH_PX`: cạnh bảng nhóm từ 1024 (BUG-405), dưới đó xếp dưới
-    // bảng; dưới 768 rộng hết thẻ, canvas tự co (BUG-332).
-    <div className="flex w-full shrink-0 flex-col gap-1.5 md:w-80">
-      <ThicknessPreviewCanvas
-        hoveredBinWallIds={hoveredBinIndex === null ? undefined : bins[hoveredBinIndex]?.wallIds}
-        hoveredGroup={hoveredGroup}
-        hoveredWallId={hoveredWallId}
-        isCollapsed={false}
-        legend={legend}
-        onHoverWall={onHoverWall}
-        shapes={shapes}
-      />
-      <button className={LINK_CLASS_NAME} onClick={onToggleCollapsed} type="button">
-        {COLLAPSE_PREVIEW_LABEL}
-      </button>
-    </div>
-  );
-}
+const SKELETON_ROWS = [0, 1, 2, 3];
 
 /* -------------------------------------------------------------------------- */
 /* Màn.                                                                        */
 /* -------------------------------------------------------------------------- */
 
 export function ThicknessStandardization(props: ThicknessStandardizationViewProps) {
-  const {
-    bins,
-    errorMessage,
-    hoveredBinIndex,
-    isLoading,
-    isViewerRole,
-    onApplyPreview,
-    onCancelPreview,
-    onChangeTolerance,
-    onDismissReapplyWarning,
-    onHoverBin,
-    onOpenPreview,
-    onReapplyFilter,
-    onThresholdDrag,
-    onUndo,
-    preview,
-    reapplyWarning,
-    saveBlock,
-    provisionalScaleNotice,
-    summary,
-    thresholdLabels,
-    thresholds,
-    toleranceMm,
-    viewerRoleNotice,
-  } = props;
+  const [isDetailOpen, setDetailOpen] = useState(false);
+  const { segmentRows, isViewerRole, saveLabel } = props;
+  const segmentCount = segmentRows.length;
 
   /* Đọc lớp hỏng khi chưa có tài liệu: một trạng thái lỗi, một lối ra (BUG-326). */
   if (props.readFailure != null) {
@@ -326,79 +122,175 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
     );
   }
 
+  const badge = STATUS_BADGE[props.batchStatus];
+  const hasWork = !isViewerRole && props.candidateCount > 0;
+
   return (
-    <QcScreenFrame label={SCREEN_TITLE} scroll>
-      {props.floorNav != null && <QcFloorNav {...props.floorNav} layer="thickness" />}
-      <div className="flex w-full flex-col gap-4 p-2">
-        {/* Có đầu chung (QcFloorNav) thì tiêu đề ở đó; chỉ giữ một câu mô tả, không lặp tiêu đề (A3). */}
-        <header className="shrink-0 px-2 pt-1">
-          {props.floorNav != null ? null : (
-            <h1 className="text-title-sm font-semibold text-text-primary">{SCREEN_TITLE}</h1>
-          )}
-          <p className="text-body-sm text-text-secondary">{SCREEN_DESCRIPTION}</p>
-        </header>
+    <QcScreenFrame label={SCREEN_TITLE}>
+      {props.floorNav != null && <QcFloorNav {...props.floorNav} layer="thickness" titled />}
 
-        {saveBlock == null ? null : <FloorLayerSaveBanner saveBlock={saveBlock} />}
-
-        {provisionalScaleNotice == null ? null : <ProvisionalScaleBanner notice={provisionalScaleNotice} />}
-
-        {errorMessage === null ? null : (
-          <InlineAlert level="violation" message={errorMessage} title={ERROR_TITLE} />
+      {/* Câu 3: cổng giống S-15. Còn việc đổi thì nút chính ở chân panel, cổng chỉ là nút phụ. */}
+      <FlowGate
+        conditions={[{ label: GATE_WALLS, done: segmentCount > 0 && props.reviewedCount === segmentCount }]}
+        done={props.reviewedCount}
+        progressLabel={GATE_PROGRESS}
+        total={segmentCount}
+      >
+        {props.onNavigateToWalls === undefined ? null : (
+          <Button onClick={props.onNavigateToWalls} size="sm" variant={hasWork ? 'secondary' : 'primary'}>
+            {NAVIGATE_WALLS_LABEL}
+          </Button>
         )}
+      </FlowGate>
 
-        {viewerRoleNotice === null ? null : (
-          <InlineAlert level="attention" message={viewerRoleNotice} title={FORBIDDEN_TITLE} />
-        )}
-
-        <section
-          aria-label={HISTOGRAM_SECTION_LABEL}
-          className="rounded-xl bg-bg-surface p-4 shadow-panel"
+      <div className="flex min-h-0 flex-1 gap-2 p-2">
+        <aside
+          aria-label={PANEL_LABEL}
+          className="flex w-[300px] shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel lg:w-[320px] xl:w-[400px]"
         >
-          <ThicknessHistogram
-            bins={bins}
-            hoveredBinIndex={hoveredBinIndex}
-            isLoading={isLoading}
-            onHoverBin={onHoverBin}
-            onThresholdDrag={onThresholdDrag}
-            thresholdLabels={thresholdLabels}
-            thresholds={thresholds}
+          <QcPanelHead
+            eyebrow={EYEBROW}
+            status={
+              <>
+                <Badge variant={badge.variant}>{badge.label}</Badge>
+                {segmentCount === 0 ? null : (
+                  <span className="font-medium tabular-nums text-text-primary">{props.statusSentence}</span>
+                )}
+                {saveLabel === null ? null : <span className="text-text-muted">{saveLabel}</span>}
+              </>
+            }
+            title={SCREEN_TITLE}
           />
-        </section>
 
-        <ThicknessSummary summary={summary} />
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
+            {props.saveBlock == null ? null : <FloorLayerSaveBanner saveBlock={props.saveBlock} />}
+            {props.provisionalScaleNotice == null ? null : (
+              <ProvisionalScaleBanner notice={props.provisionalScaleNotice} />
+            )}
+            {props.errorMessage === null ? null : (
+              <InlineAlert level="violation" message={props.errorMessage} title={ERROR_TITLE} />
+            )}
+            {props.viewerRoleNotice === null ? null : (
+              <InlineAlert level="attention" message={props.viewerRoleNotice} title={FORBIDDEN_TITLE} />
+            )}
 
-        <section
-          aria-label={TABLES_SECTION_LABEL}
-          className="flex min-h-0 flex-col gap-4 rounded-xl bg-bg-surface p-4 shadow-panel"
-        >
-          <ThicknessTablesColumn {...props} previewColumn={<ThicknessPreviewColumn {...props} />} />
-        </section>
+            <section aria-label={HISTOGRAM_SECTION_LABEL} className="flex flex-col gap-2">
+              <h2 className="text-body font-medium text-text-primary">{HISTOGRAM_SECTION_LABEL}</h2>
+              <ThicknessHistogram
+                bins={props.bins}
+                hoveredBinIndex={props.hoveredBinIndex}
+                isLoading={props.isLoading}
+                onHoverBin={props.onHoverBin}
+                onThresholdDrag={props.onThresholdDrag}
+                thresholdLabels={props.thresholdLabels}
+                thresholds={props.thresholds}
+              />
+            </section>
 
-        {/*
-         * Thanh áp dụng đứng NGOÀI hai cột và dưới cùng: nó nói về cả lượt áp,
-         * không riêng bảng nào. Vắng mặt hẳn ở vai Người xem — xem đầu file.
-         */}
-        {isViewerRole ? null : (
-          <div data-sticky-footer className="sticky bottom-11 z-10 overflow-hidden rounded-xl bg-bg-surface shadow-panel">
-            <ThicknessApplyBar
-              canPreview={props.segmentRows.length > 0}
-              onApplyPreview={onApplyPreview}
-              onCancelPreview={onCancelPreview}
-              onChangeTolerance={onChangeTolerance}
-              onDismissReapplyWarning={onDismissReapplyWarning}
-              onOpenPreview={onOpenPreview}
-              onReapplyFilter={onReapplyFilter}
-              preview={preview}
-              reapplyWarning={reapplyWarning}
-              toleranceMm={toleranceMm}
-            />
+            {props.state === 'loading' ? (
+              <div className="flex flex-col gap-2">
+                {SKELETON_ROWS.map((row) => (
+                  <Skeleton key={row} preset="table-row" />
+                ))}
+              </div>
+            ) : segmentCount === 0 ? (
+              <EmptyState
+                {...(props.onNavigateToWalls === undefined
+                  ? {}
+                  : {
+                      action: { label: NAVIGATE_WALLS_LABEL, onClick: props.onNavigateToWalls, variant: 'secondary' as const },
+                    })}
+                description={props.emptyNotice ?? EMPTY_DESCRIPTION}
+                icon={<Layers />}
+                title={EMPTY_TITLE}
+              />
+            ) : (
+              <ThicknessBatchPanel
+                hoveredGroup={props.hoveredGroup}
+                isReadOnly={isViewerRole}
+                manualRows={props.manualRows}
+                onHoverGroup={props.onHoverGroup}
+                onOpenDetail={() => setDetailOpen(true)}
+                onOpenWall={props.onOpenWall}
+                onToggleGroupAccepted={props.onToggleGroupAccepted}
+                segmentCount={segmentCount}
+                targetGroups={props.targetGroups}
+              />
+            )}
           </div>
-        )}
+
+          {segmentCount === 0 ? null : (
+            <ThicknessBatchFooter
+              batchCount={props.batchCount}
+              batchSentence={props.batchSentence}
+              candidateCount={props.candidateCount}
+              groupCount={props.targetGroups.length}
+              isReadOnly={isViewerRole}
+              onAcceptAllGroups={props.onAcceptAllGroups}
+              onApplyBatch={props.onApplyBatch}
+            />
+          )}
+        </aside>
+
+        <section aria-label={CANVAS_REGION_LABEL} className="relative min-h-0 min-w-0 flex-1">
+          {props.isCollapsed ? (
+            <div className="flex h-full items-center justify-center rounded-xl bg-bg-sunken">
+              <Button onClick={props.onToggleCollapsed} size="sm" variant="secondary">
+                {EXPAND_PREVIEW_LABEL}
+              </Button>
+            </div>
+          ) : (
+            <ThicknessPreviewCanvas
+              attentionWallIds={[
+                ...props.targetGroups.flatMap((group) => group.wallIds),
+                ...props.manualRows.map((row) => row.wallId),
+              ]}
+              hoveredBinWallIds={props.hoveredBinIndex === null ? undefined : props.bins[props.hoveredBinIndex]?.wallIds}
+              hoveredGroup={props.hoveredGroup}
+              hoveredWallId={props.hoveredWallId}
+              isCollapsed={false}
+              legend={props.legend}
+              onHoverWall={props.onHoverWall}
+              shapes={props.shapes}
+            />
+          )}
+        </section>
       </div>
 
-      <div className="sticky bottom-0 z-10 mt-auto">
-        <QcStatusBar onUndo={isViewerRole ? undefined : onUndo} />
-      </div>
+      <Drawer.Root isOpen={isDetailOpen} label={DETAIL_TITLE} onClose={() => setDetailOpen(false)} size={1080}>
+        <Drawer.Header>
+          <h2 className="text-heading text-text-primary">{DETAIL_TITLE}</h2>
+        </Drawer.Header>
+        <Drawer.Body>
+          <ThicknessSegmentTable
+            flashingWallIds={props.flashingWallIds}
+            hoveredWallId={props.hoveredWallId}
+            isReadOnly={isViewerRole}
+            onApplySelectedGroup={props.onApplySelectedGroup}
+            onChangeNormalizedGroup={props.onChangeNormalizedGroup}
+            onChangeSortKey={props.onChangeSortKey}
+            onClearSelection={props.onClearSelection}
+            onHoverRow={props.onHoverWall}
+            onToggleAllSelected={props.onToggleAllSelected}
+            onToggleRowSelected={props.onToggleRowSelected}
+            rows={segmentRows}
+            selectedWallIds={props.selectedWallIds}
+            sortKey={props.sortKey}
+          />
+        </Drawer.Body>
+      </Drawer.Root>
+
+      <QcStatusBar onUndo={isViewerRole ? undefined : props.onUndo} saveLabel={false}>
+        <span className="truncate text-body-sm text-text-secondary max-lg:hidden">{STATUS_HINT}</span>
+        <span className="ml-auto flex items-center gap-3 text-caption text-text-secondary">
+          {KEY_HINTS.map((hint) => (
+            <span key={hint.key} className="flex items-center gap-1">
+              <Kbd>{hint.key}</Kbd>
+              {hint.label}
+            </span>
+          ))}
+        </span>
+      </QcStatusBar>
     </QcScreenFrame>
   );
 }

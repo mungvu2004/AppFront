@@ -6,6 +6,8 @@ import { ROUTE_PATTERNS } from '../src/routes/paths';
 import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
 import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from './fixtures/tour';
 
+test.skip(true, 'Viewer3D cũ không còn route từ 29eba219: /3d chuyển cả trang sang editor3d.html — ViewCube, bản đồ nhỏ, thanh hiện diện, ô tìm phòng và các lớp phụ không có trên trang Pascal; dựng cảnh + vai chỉ xem kiểm ở pascal-viewer.spec.ts, cross/viewer-role.spec.ts.');
+
 /**
  * Màn `Viewer3D`, thao tác thật bằng chuột và bàn phím — KHÔNG phải nghiệm thu
  * khả dụng.

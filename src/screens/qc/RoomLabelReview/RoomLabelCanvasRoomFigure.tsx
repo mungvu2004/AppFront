@@ -54,10 +54,10 @@ export interface RoomLabelCanvasRoomFigureProps {
  * Độ phủ nền phòng theo công năng. `DIMMED_OPACITY` (0,12) của `applyEmphasis` làm
  * phòng gần như biến mất trên bản vẽ (đánh giá A3: "không vẽ vùng phòng cho tới khi
  * chọn"), nên canvas Phòng dùng nấc riêng: thấy vùng ngay khi mở, nhãn vẫn ≥ 4,5:1.
- * Phòng đang chọn đậm hơn rõ (0,35), cộng viền nhấn 2px và phóng 10%.
+ * Z/S-20: phòng tô rất nhạt (0,12) để bản vẽ gốc đọc được; phòng đang chọn 0,2, cộng viền nhấn 2px và phóng 10%.
  */
-const ROOM_FILL_OPACITY = 0.22;
-const ROOM_SELECTED_FILL_OPACITY = 0.35;
+const ROOM_FILL_OPACITY = 0.12;
+const ROOM_SELECTED_FILL_OPACITY = 0.2;
 
 /** Khoảng cách từ mép trên phòng tới tâm nhãn khi dời nhãn (G4a-29). */
 const TOP_LABEL_INSET_PX = ROOM_LABEL_NAME_FONT_PX + ROOM_LABEL_LINE_OFFSET_PX + 4;

@@ -312,7 +312,8 @@ export const approveButton = (page: Page, n: number): Locator => page.getByRole(
 export const compareBar = (page: Page): Locator => page.getByRole('group', { name: DIM.compareBar, exact: true });
 export const filterGroup = (page: Page): Locator => page.getByRole('radiogroup', { name: DIM.filter, exact: true });
 export const radio = (page: Page, name: string): Locator => filterGroup(page).getByRole('radio', { name, exact: true });
-export const progress = (page: Page): Locator => listGroup(page).locator('p[aria-live="polite"]');
+/** Vòng 6 (Z/S-17): the counter moved from the list header to the panel status line (DimensionOcrReview.tsx). */
+export const progress = (page: Page): Locator => page.getByTestId('dimension-ocr-progress');
 export const canvasFrame = (page: Page): Locator => page.getByRole('group', { name: DIM.canvas, exact: true });
 /** A chain on the canvas: `<g aria-label="<machine id>" role="presentation">` (DCV:95-110). */
 export const chain = (page: Page, n: number): Locator => page.locator(`svg g[aria-label="${dimId(n)}"]`);

@@ -26,7 +26,9 @@ const WALLS_ON_FLOOR = 12;
 const RELOAD_MESSAGE = 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.';
 
 const list = (page: Page) => page.getByRole('listbox', { name: 'Danh sách đoạn tường' });
-const statusBar = (page: Page) => page.getByRole('status', { name: 'Thanh trạng thái' });
+/** Trạng thái lưu nằm ở đầu panel (QcPanelHead, S-15); thanh trạng thái chỉ nhắc khi lưu hỏng. */
+const statusBar = (page: Page) =>
+  page.locator('header').filter({ has: page.getByRole('heading', { name: 'Duyệt tường', level: 1 }) });
 
 interface ServerLayer {
   readonly revision: number;

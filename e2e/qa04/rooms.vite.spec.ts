@@ -19,7 +19,7 @@ const VIEWPORTS = [
 ] as const;
 /** The message carries the 20 px of `pb-5` (RoomLabelInspector.tsx:116), never ~0. */
 const MIN_BOTTOM_GAP_PX = 16;
-/** vi text of the inspector (RoomLabelInspector.tsx:83,85). */
+/** vi text of the inspector (RoomLabelInspector.tsx:83,85); the title is an h2 since 13a0ba40 (one heading level per panel). */
 const PANEL_TITLE = 'Phòng';
 const EMPTY_MESSAGE = 'Chọn một phòng trên bản vẽ hoặc trong danh sách để xem chi tiết.';
 
@@ -32,7 +32,9 @@ for (const viewport of VIEWPORTS) {
     page.on('dialog', (dialog) => void dialog.dismiss());
     await page.setViewportSize(viewport);
     await page.goto(ROUTES.project.rooms(PROJECT_ID, 'L1'));
-    await expect(page.getByRole('heading', { name: PANEL_TITLE, level: 3, exact: true })).toBeVisible({ timeout: 15_000 });
+    // 1024-1279: the inspector is a drawer over the canvas edge, hidden while nothing is selected (QcWorkspace).
+    if (viewport.width < 1280) await page.getByRole('button', { name: 'Hiện chi tiết' }).click({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: PANEL_TITLE, level: 2, exact: true })).toBeVisible({ timeout: 15_000 });
     const message = page.getByText(EMPTY_MESSAGE, { exact: true });
     await expect(message).toBeVisible();
 

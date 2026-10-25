@@ -25,7 +25,7 @@ import {
 } from '../src/lib/pascal/__fixtures__';
 import { toPascalId } from '../src/lib/pascal/ids';
 import { floorMaterialOf, isGeneratedLightId, isGeneratedNodeId } from '../src/lib/pascal/sceneDressing';
-import { toPascalScene } from '../src/lib/pascal/toPascal';
+import { toPascalScene } from './fixtures/pascalPageScene';
 
 import { installFakeApi, type WireGraphDocument } from './fixtures/fakeApi';
 import {

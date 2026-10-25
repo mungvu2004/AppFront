@@ -40,7 +40,7 @@ import { Select } from '@/components/ui/Select';
 import { useCountUp } from '@/hooks/useCountUp';
 import { cn } from '@/lib/utils';
 
-import { ANY_OPTION, GROUP_LABELS, GROUP_ORDER, LEVEL_FILTER_OPTIONS } from './RuleReportLabels';
+import { ANY_OPTION, FOCUS_RING, GROUP_LABELS, GROUP_ORDER, LEVEL_FILTER_OPTIONS } from './RuleReportLabels';
 import type {
   RuleReportFilters,
   RuleReportGroup,
@@ -55,16 +55,37 @@ interface SummaryStatProps {
   readonly label: string;
   /** V-10: colour of the number when it is above zero — red for violations, amber for warnings. */
   readonly toneClassName?: string;
+  /** Có thì số là một nút lọc theo mức của ô (aria-pressed khi đang lọc đúng mức ấy). */
+  readonly filter?: { readonly isActive: boolean; readonly onClick: () => void } | undefined;
 }
 
-function SummaryStat({ value, label, toneClassName }: SummaryStatProps) {
+function SummaryStat({ value, label, toneClassName, filter }: SummaryStatProps) {
   const { text } = useCountUp(value, { format: { fractionDigits: 0 } });
+  const tone = value > 0 && toneClassName ? toneClassName : 'text-text-primary';
 
+  // KPI chỉ khi bấm được để lọc (NGUYEN-TAC-BO-CUC §2): số là một nút bật lọc mức tương ứng.
+  // Màu nằm ở `dd` (không ở nút) để mọi chỗ mang màu vi phạm vẫn chỉ là chữ số, chip hoặc chấm.
   return (
     <div className="flex flex-col-reverse gap-1">
       <dt className="text-sm text-text-secondary">{label}</dt>
-      <dd className={cn('text-3xl tabular-nums', value > 0 && toneClassName ? toneClassName : 'text-text-primary')}>
-        {text}
+      <dd className={cn('text-3xl tabular-nums', tone)}>
+        {filter === undefined ? (
+          text
+        ) : (
+          <button
+            type="button"
+            aria-pressed={filter.isActive}
+            aria-label={`${label}: ${text}`}
+            onClick={filter.onClick}
+            className={cn(
+              '-mx-2 rounded-md px-2 transition-colors duration-fast hover:bg-bg-hover',
+              filter.isActive && 'bg-bg-selected',
+              FOCUS_RING,
+            )}
+          >
+            {text}
+          </button>
+        )}
       </dd>
     </div>
   );
@@ -72,6 +93,9 @@ function SummaryStat({ value, label, toneClassName }: SummaryStatProps) {
 
 export interface RuleReportSummaryStripProps {
   readonly summary: RuleReportSummaryModel;
+  /** Mức đang lọc; cùng `onFilterLevel` thì mỗi ô số thành một nút lọc. Vắng thì ô chỉ là số. */
+  readonly activeLevel?: RuleReportLevelFilter;
+  readonly onFilterLevel?: (level: RuleReportLevelFilter) => void;
 }
 
 /**
@@ -82,14 +106,29 @@ export interface RuleReportSummaryStripProps {
  * counted as a warning or a violation, so the alarming number is the one that
  * has actually earned it (V-10: it alone is tinted red when above zero).
  */
-export function RuleReportSummaryStrip({ summary }: RuleReportSummaryStripProps) {
+export function RuleReportSummaryStrip({ summary, activeLevel, onFilterLevel }: RuleReportSummaryStripProps) {
+  const filterOf = (level: RuleReportLevelFilter): SummaryStatProps['filter'] =>
+    onFilterLevel === undefined
+      ? undefined
+      : { isActive: activeLevel === level, onClick: () => onFilterLevel(level) };
+
   return (
     <dl className="grid grid-cols-2 gap-6 sm:grid-cols-5">
-      <SummaryStat value={summary.evaluated} label="Tổng số kiểm tra" />
-      <SummaryStat value={summary.passed} label="Đạt" />
-      <SummaryStat value={summary.suggestions} label="Gợi ý" />
-      <SummaryStat value={summary.warnings} label="Cảnh báo" toneClassName="text-state-attention-text" />
-      <SummaryStat value={summary.violations} label="Nghiêm trọng" toneClassName="text-state-violation-text" />
+      <SummaryStat value={summary.evaluated} label="Tổng số kiểm tra" filter={filterOf('all')} />
+      <SummaryStat value={summary.passed} label="Đạt" filter={filterOf('passed')} />
+      <SummaryStat value={summary.suggestions} label="Gợi ý" filter={filterOf('suggestion')} />
+      <SummaryStat
+        value={summary.warnings}
+        label="Cảnh báo"
+        toneClassName="text-state-attention-text"
+        filter={filterOf('warning')}
+      />
+      <SummaryStat
+        value={summary.violations}
+        label="Nghiêm trọng"
+        toneClassName="text-state-violation-text"
+        filter={filterOf('violation')}
+      />
     </dl>
   );
 }
@@ -168,7 +207,9 @@ export function RuleReportFilterBar({
 
   return (
     <div className="flex flex-wrap items-end gap-4">
+      {/* Ô chia đều bề ngang làm "Nghiêm trọng" xuống hai dòng: mỗi ô rộng theo chữ của nó. */}
       <SegmentedControl
+        className="[&_button]:flex-none [&_button]:whitespace-nowrap"
         aria-label="Lọc theo mức độ"
         options={LEVEL_FILTER_OPTIONS.map((option) => ({ ...option }))}
         value={filters.level}
@@ -181,11 +222,11 @@ export function RuleReportFilterBar({
         variant="secondary"
         className="xl:hidden"
         aria-expanded={isMoreOpen}
+        iconBefore={<SlidersHorizontal aria-hidden="true" className="h-4 w-4" />}
         onClick={() => {
           setMoreOpen((open) => !open);
         }}
       >
-        <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
         {narrowed ? 'Lọc (đang thu hẹp)' : 'Lọc'}
       </Button>
 

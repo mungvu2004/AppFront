@@ -134,6 +134,7 @@ import {
 import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { arrowStepHandler } from '../WallLayerReview/listArrowKeys';
+import { layerGateOf } from '../ObjectLayerReview/layerGate';
 import type {
   RoomLabelMergeCandidate,
   RoomLabelNormalizePreview,
@@ -224,6 +225,9 @@ const NO_CANDIDATES: readonly RoomLabelMergeCandidate[] = [];
  * đúng toạ độ đồ thị, không phóng đại cũng không thu nhỏ theo một tỷ lệ bịa.
  */
 const UNCALIBRATED_SCALE = millimetresPerPixel(1);
+
+/** Phòng chiếm hơn tỷ lệ sàn này thì gắn cờ "có thể là khung tên bản vẽ" (Z/S-20, B1-9). */
+const OVERSIZED_ROOM_SHARE = 0.8;
 
 /**
  * Câu dưới "Diện tích" của thanh tra: nói diện tích đo Ở ĐÂU, bằng lời thường.
@@ -562,6 +566,23 @@ export function useRoomLabelReview(
     [rooms, scaleStatus, violations],
   );
 
+  /* Cờ Z/S-20: một phòng chiếm >80 % sàn thường là khung tên bản vẽ bị dò thành phòng (B1-9). */
+  const oversizedRoom = useMemo(() => {
+    const areas = rooms.map((room) => ({ id: room.id, areaM2: measures.get(room.id)?.areaM2 ?? room.areaM2 }));
+    const total = areas.reduce((sum, room) => sum + room.areaM2, 0);
+    const big = areas.length < 2 || total <= 0 ? undefined : areas.find((room) => room.areaM2 / total > OVERSIZED_ROOM_SHARE);
+
+    return big === undefined
+      ? null
+      : { id: big.id, text: `Chiếm ${Math.round((big.areaM2 / total) * 100)} % sàn. Có thể là khung tên bản vẽ` };
+  }, [measures, rooms]);
+  const layerGate = useMemo(() => layerGateOf(graph, levelId), [graph, levelId]);
+  /* Đếm trên MỌI phòng của tầng, không trên danh sách đang lọc "Chưa đặt tên". */
+  const roomProgress = useMemo(
+    () => ({ reviewed: allRows.filter((row) => row.status === 'confirmed').length, total: allRows.length }),
+    [allRows],
+  );
+
   const visibleRows = useMemo(
     () => applyUnnamedFilter(allRows, showOnlyUnnamed),
     [allRows, showOnlyUnnamed],
@@ -576,6 +597,14 @@ export function useRoomLabelReview(
 
     return last !== undefined && rooms.some((room) => room.id === last) ? (last as RoomId) : null;
   }, [rooms, selectedIds]);
+
+  /* Nút "Duyệt tiếp" của cổng: phòng chưa duyệt kế tiếp, khác phòng đang chọn nếu còn. */
+  const nextPendingRoom = useMemo(() => {
+    const pending = allRows.filter((row) => row.status !== 'confirmed');
+    const next = pending.find((row) => row.id !== selectedRoomId) ?? pending[0];
+
+    return next === undefined ? null : { id: next.id, codeLabel: next.codeLabel };
+  }, [allRows, selectedRoomId]);
 
   const selectedRoom = useMemo<Room | null>(
     () => rooms.find((room) => room.id === selectedRoomId) ?? null,
@@ -963,6 +992,22 @@ export function useRoomLabelReview(
     },
     { ...roomShortcutOptions, enabled: canEdit && selectedRoomId !== null },
   );
+  /* Phím J = "phòng chưa duyệt kế" như màn tường (Tab bị cấm, A12): cùng việc nút "Duyệt tiếp" của cổng. */
+  const nextPendingRoomId = nextPendingRoom?.id ?? null;
+  useShortcut(
+    {
+      id: 'roomLabelReview.nextPending',
+      combo: 'J',
+      scope: 'canvas',
+      description: 'Sang phòng chưa duyệt kế tiếp',
+      onTrigger: () => {
+        if (nextPendingRoomId !== null) {
+          onSelect(nextPendingRoomId);
+        }
+      },
+    },
+    { ...roomShortcutOptions, enabled: nextPendingRoomId !== null },
+  );
 
   /* ---------------------------------------------------------------------- */
   /* Bảy trạng thái và ba câu đi kèm.                                        */
@@ -1064,6 +1109,15 @@ export function useRoomLabelReview(
     saveStatus,
     provisionalScaleNotice,
     readFailure,
+    layerGate,
+    oversizedRoom,
+    roomProgress,
+    nextPendingRoom,
+    onOpenLayer:
+      navigate === undefined
+        ? null
+        : (target: 'objects' | 'viewer') =>
+            navigate(target === 'viewer' ? ROUTES.project.viewer(projectId) : ROUTES.project.objects(projectId, floorId)),
   };
 }
 

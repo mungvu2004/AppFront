@@ -67,7 +67,7 @@ test.describe('SCR-16..21 viewer read-only QC screens', () => {
       });
       await test.step('[9Q-A-002] không nút duyệt/bỏ qua, độ dày chỉ đọc', async () => {
         await expect.soft(page.getByRole('button', { name: 'Duyệt đoạn này' })).toHaveCount(0);
-        await expect.soft(page.getByRole('button', { name: 'Bỏ qua', exact: true })).toHaveCount(0);
+        await expect.soft(page.getByRole('button', { name: 'Để sau', exact: true })).toHaveCount(0);
         await expect.soft(page.getByRole('radiogroup', { name: 'Độ dày tường' })).toHaveCount(0); // WallLayerInspector.tsx:130-132
         await shot(page, '9Q-A-002', 'no_review_buttons');
       });
@@ -165,7 +165,7 @@ test.describe('SCR-16..21 viewer read-only QC screens', () => {
       });
       await test.step('[9Q-B-004] inspector chỉ đọc', async () => {
         await options.first().click();
-        await expect.soft(page.getByRole('button', { name: 'Xoá đối tượng' })).toHaveCount(0); // ObjectLayerInspector.tsx:314
+        await expect.soft(page.getByRole('button', { name: /, xoá/u })).toHaveCount(0); // ObjectLayerInspector: "Không phải cửa, xoá" (Z/S-16)
         await expect.soft(page.getByRole('button', { name: 'Gắn vào tường gần nhất' })).toHaveCount(0); // :391
         await expect.soft(page.getByRole('radiogroup', { name: 'Hướng mở' })).toHaveCount(0); // div chỉ đọc, :337
         await shot(page, '9Q-B-004', 'inspector_read_only');
@@ -258,7 +258,7 @@ test.describe('SCR-16..21 viewer read-only QC screens', () => {
         await shot(page, '9Q-D-002', 'no_add_delete');
       });
       await test.step('[9Q-D-003] Căn chỉnh tự động khoá kèm lý do', async () => {
-        await expect.soft(page.getByRole('button', { name: /Căn chỉnh tự động/u })).toBeDisabled();
+        await expect.soft(page.getByRole('button', { name: /Căn tự động/u })).toBeDisabled();
         await expect.soft(page.getByText(GRID_ALIGN_REASON).first()).toBeAttached(); // useAxisGridManager.ts:178,1197
         await shot(page, '9Q-D-003', 'align_locked');
       });
@@ -297,13 +297,13 @@ test.describe('SCR-16..21 viewer read-only QC screens', () => {
       await test.step('[9Q-E-002] inspector chỉ có nhãn Chỉ xem, trường chỉ đọc', async () => {
         await rooms.first().click();
         await expect.soft(page.getByText('Chỉ xem', { exact: true }).first()).toBeVisible(); // RoomLabelInspector.tsx:100,158-163
-        await expect.soft(page.getByRole('button', { name: 'Duyệt phòng này' })).toHaveCount(0);
+        await expect.soft(page.getByRole('button', { name: /^Duyệt #R-/u })).toHaveCount(0);
         await expect.soft(page.getByRole('button', { name: /^Gộp/u })).toHaveCount(0);
         await expect.soft(page.getByRole('button', { name: /^Tách/u })).toHaveCount(0);
         await shot(page, '9Q-E-002', 'inspector_read_only');
       });
       await test.step('[9Q-E-003] cột trái không nút hành động hàng loạt', async () => {
-        await expect.soft(page.getByRole('button', { name: 'Chuẩn hoá tên' })).toHaveCount(0); // RoomLabelLeftPanel.tsx:148
+        await expect.soft(page.getByRole('button', { name: 'Chuẩn hoá tên…' })).toHaveCount(0); // RoomLabelLeftPanel
         await expect.soft(page.getByRole('button', { name: 'Gộp phòng' })).toHaveCount(0);
         await shot(page, '9Q-E-003', 'no_bulk_actions');
       });

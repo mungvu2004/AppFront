@@ -681,7 +681,7 @@
     "cadPill": "Bản vẽ CAD · độ chính xác cao",
     "autoMatch": "Ghép tự động từ tên tệp — kiểm tra lại",
     "unassignedTray": "Tệp chưa gán tầng",
-    "emptyState": "Chưa có tầng nào có bản vẽ. Kéo thả tệp đầu tiên để bắt đầu.",
+    "emptyState": "Chưa có tầng nào có bản vẽ.",
     "noFloors": {
       "title": "Dự án chưa có tầng nào",
       "description": "Bản vẽ được gán theo tầng. Thêm tầng ở màn Quản lý tầng rồi quay lại đây để tải bản vẽ.",
@@ -2888,7 +2888,7 @@
     "scaleFixLinkLabel": "Sang màn hiệu chỉnh tỷ lệ",
     "uploadLinkLabel": "Tải bản vẽ lên",
     "confirm": {
-      "button": "Xác nhận mô hình khớp bản vẽ",
+      "button": "Xác nhận khớp bản vẽ",
       "withinTolerance": "Mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.",
       "withDeviations": "Bạn đã xác nhận tầng này khớp bản vẽ, dù vẫn còn vùng vượt dung sai."
     },

@@ -1,0 +1,203 @@
+/**
+ * Nối hàng đợi duyệt (`wallReviewQueue.ts`) vào màn: dựng `WallReviewQueue`, hai lệnh đổi về
+ * chuẩn (một đoạn và hàng loạt) và hai phím C (đổi chuẩn) / S (để sau) của thanh tra.
+ *
+ * Mọi ghi vẫn đi qua lệnh S-07 + `dispatch` của màn, mỗi lượt là MỘT `runTransaction` (một bước
+ * hoàn tác): đổi một đoạn = đổi độ dày + duyệt; đổi hàng loạt = đổi độ dày cả lô.
+ */
+
+import { useCallback, useMemo, useRef } from 'react';
+
+import type { NormalizedSpatial } from '@/domain/spatial/normalize';
+import type { Level, Wall, WallId } from '@/domain/spatial/types';
+import { useShortcut } from '@/hooks/useShortcut';
+import { runTransaction } from '@/lib/commands/transaction';
+import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
+import { useStore } from '@/store';
+
+import {
+  buildApproveWallCommand,
+  buildChangeThicknessCommand,
+  commandContextOf,
+  wallLabelOf,
+  type createWallLayerDispatchDeps,
+  type WallLayerReviewGateway,
+} from './wallLayerReviewGateway';
+import {
+  bulkLabelOf,
+  bulkPlanOf,
+  gateConditionsOf,
+  hasConfidenceSpread,
+  nextUnreviewedWallId,
+  queueGroupOf,
+  rowExtraOf,
+  sortByReviewQueue,
+  thicknessTargetOf,
+  toleranceTextOf,
+  type WallReviewQueue,
+  type WallRowExtra,
+} from './wallReviewQueue';
+
+type DispatchBundle = ReturnType<typeof createWallLayerDispatchDeps>;
+
+export interface UseWallReviewQueueInput {
+  readonly graph: NormalizedSpatial | null;
+  readonly level: Level | null;
+  /** Mọi tường của tầng (không lọc). */
+  readonly walls: readonly Wall[];
+  /** Tường đang hiện trong danh sách, đã xếp theo hàng đợi. */
+  readonly visibleWalls: readonly Wall[];
+  readonly wallCodes: ReadonlyMap<string, string>;
+  readonly selectedWallId: WallId | null;
+  readonly canEdit: boolean;
+  readonly gateway: WallLayerReviewGateway;
+  readonly dispatchBundle: DispatchBundle;
+  readonly invalidate: () => void;
+  readonly onSelect: (wallId: WallId | null) => void;
+  readonly onSkip: (wallId: WallId) => void;
+  readonly onFlash: (wallId: WallId) => void;
+  readonly registry?: ShortcutRegistry | undefined;
+}
+
+const S_DESCRIPTION = 'Để sau: sang đoạn kế trong hàng đợi.';
+const C_DESCRIPTION = 'Đổi đoạn không chuẩn về chuẩn gần nhất rồi duyệt.';
+
+export function useWallReviewQueue(input: UseWallReviewQueueInput): WallReviewQueue {
+  const { graph, level, walls, visibleWalls, wallCodes, selectedWallId, canEdit, gateway, dispatchBundle } = input;
+  const { invalidate, onSelect, onSkip, onFlash } = input;
+
+  const extras = useMemo(
+    () => new Map<string, WallRowExtra>(walls.map((wall) => [wall.id, rowExtraOf(wall, level)] as const)),
+    [level, walls],
+  );
+  const nonStandardCount = useMemo(() => walls.filter((wall) => queueGroupOf(wall) === 'nonStandard').length, [walls]);
+  const bulk = useMemo(() => bulkPlanOf(visibleWalls), [visibleWalls]);
+  const wallsDone = walls.length > 0 && walls.every((wall) => wall.reviewed);
+  const conditions = useMemo(() => gateConditionsOf(graph, level?.id ?? null, wallsDone), [graph, level, wallsDone]);
+  /* Bộ lọc giấu hết việc còn lại thì vẫn có lối: tìm trên cả tầng theo cùng thứ tự. */
+  const nextWallId = useMemo(
+    () => nextUnreviewedWallId(visibleWalls, selectedWallId) ?? nextUnreviewedWallId(sortByReviewQueue(walls), selectedWallId),
+    [selectedWallId, visibleWalls, walls],
+  );
+
+  const onStandardize = useCallback(
+    (wallId: WallId) => {
+      const wall = walls.find((candidate) => candidate.id === wallId);
+      const targetMm = wall === undefined ? null : thicknessTargetOf(wall.thicknessMm);
+
+      if (wall === undefined || targetMm === null || !canEdit) {
+        return;
+      }
+
+      const current = useStore.getState().spatial;
+
+      if (current === null) {
+        return;
+      }
+
+      const nextId = nextUnreviewedWallId(visibleWalls, wallId);
+      const change = buildChangeThicknessCommand({ wallId, thicknessMm: targetMm }, commandContextOf(current, gateway.actorId));
+
+      if (!change.ok) {
+        return;
+      }
+
+      /* Duyệt dựng trên ảnh SAU khi đổi độ dày: `dispatch` áp lệnh theo thứ tự, hoàn tác theo thứ tự ngược. */
+      const changedWall = change.data.changes.find(
+        (entry): entry is Extract<typeof entry, { kind: 'wall' }> => entry.kind === 'wall' && entry.id === wallId,
+      )?.after;
+      const approve = buildApproveWallCommand(changedWall ?? { ...wall, thicknessMm: targetMm }, gateway.actorId, wallCodes);
+      const label = `${change.data.description} ${approve.description}`;
+
+      dispatchBundle.setLabel(label);
+      /* MỘT bước hoàn tác cho "đổi về chuẩn + duyệt" (Ctrl+Z một lần trả cả hai). */
+      void runTransaction([change.data, approve], dispatchBundle.deps, { label }).then((result) => {
+        if (!result.ok) {
+          return;
+        }
+
+        invalidate();
+        onFlash(wallId);
+
+        if (nextId !== null && nextId !== wallId) {
+          onSelect(nextId);
+        }
+      });
+    },
+    [canEdit, dispatchBundle, gateway, invalidate, onFlash, onSelect, visibleWalls, wallCodes, walls],
+  );
+
+  const onBulkStandardize = useCallback(() => {
+    const current = useStore.getState().spatial;
+
+    if (!canEdit || current === null || bulk.changeCount === 0) {
+      return;
+    }
+
+    const context = commandContextOf(current, gateway.actorId);
+    const commands = bulk.targets.flatMap(({ wallId, targetMm }) => {
+      const result = buildChangeThicknessCommand({ wallId, thicknessMm: targetMm }, context);
+
+      return result.ok ? [result.data] : [];
+    });
+
+    if (commands.length === 0) {
+      return;
+    }
+
+    const label = bulkLabelOf(commands.length);
+
+    dispatchBundle.setLabel(label);
+    void runTransaction(commands, dispatchBundle.deps, { label }).then((result) => {
+      if (result.ok) {
+        invalidate();
+      }
+    });
+  }, [bulk, canEdit, dispatchBundle, gateway, invalidate]);
+
+  const selectedRef = useRef(selectedWallId);
+  selectedRef.current = selectedWallId;
+  const shortcutOptions = input.registry === undefined ? {} : { registry: input.registry };
+
+  useShortcut(
+    {
+      id: 'wallLayerReview.skip',
+      combo: 'S',
+      scope: 'canvas',
+      description: S_DESCRIPTION,
+      onTrigger: () => {
+        if (selectedRef.current !== null) {
+          onSkip(selectedRef.current);
+        }
+      },
+    },
+    shortcutOptions,
+  );
+  useShortcut(
+    {
+      id: 'wallLayerReview.standardize',
+      combo: 'C',
+      scope: 'canvas',
+      description: C_DESCRIPTION,
+      onTrigger: () => {
+        if (selectedRef.current !== null) {
+          onStandardize(selectedRef.current);
+        }
+      },
+    },
+    { ...shortcutOptions, enabled: canEdit },
+  );
+
+  return {
+    extras,
+    nonStandardCount,
+    bulk,
+    nextWallId,
+    nextWallLabel: nextWallId === null ? null : wallLabelOf(nextWallId, wallCodes),
+    conditions,
+    toleranceText: toleranceTextOf(),
+    showConfidence: hasConfidenceSpread(walls),
+    onStandardize,
+    onBulkStandardize,
+  };
+}

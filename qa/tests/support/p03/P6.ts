@@ -41,7 +41,7 @@ export const UP = {
   error: 'Lỗi',
   noDrawing: 'Chưa có bản vẽ', // UFU NO_DRAWING_LABEL
   autoMatch: 'Ghép tự động từ tên tệp — kiểm tra lại', // UFU COPY.autoMatch
-  empty: 'Chưa có tầng nào có bản vẽ. Kéo thả tệp đầu tiên để bắt đầu.', // UFU COPY.empty
+  empty: 'Chưa có tầng nào có bản vẽ.', // UFU COPY.empty
   offline: 'Đang làm việc ngoại tuyến', // UFU COPY.offline
   awaitNetwork: 'Đang ngoại tuyến: tệp sẽ tự tải lên khi có mạng trở lại; nếu tải lại trang thì cần chọn lại tệp', // UFU AWAIT_NETWORK_SENTENCE
   readOnly: 'Vai hiện tại chỉ được xem danh sách tệp, không tải lên và không sửa.', // UFU COPY.readOnly

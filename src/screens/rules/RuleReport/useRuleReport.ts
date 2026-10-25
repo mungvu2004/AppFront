@@ -765,5 +765,6 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
     onConfirmResolved,
     previewRef,
     settingsPath: ROUTES.project.ruleSettings(projectId),
+    processPath: ROUTES.project.pipeline(projectId),
   };
 }

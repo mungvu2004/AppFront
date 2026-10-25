@@ -3,12 +3,15 @@
  * `test.step('[<row id>] …')` per catalog row, each state shot at 1440 / 1024 / 768 / 375 by `verifyUi`
  * (`U04_<row id>_<slug>_<width>.png` + `.json`); extra measurements are attached as JSON.
  *
- * Source (FE, this branch): TV src/screens/qc/ThicknessStandardization/ThicknessStandardization.tsx · TAB …/ThicknessApplyBar.tsx ·
- * TGT …/ThicknessGroupTable.tsx · TST …/ThicknessSegmentTable.tsx · TH …/ThicknessHistogram.tsx · TPC …/ThicknessPreviewCanvas.tsx ·
+ * Source (FE, this branch): TV src/screens/qc/ThicknessStandardization/ThicknessStandardization.tsx · TBP …/ThicknessBatchPanel.tsx ·
+ * TST …/ThicknessSegmentTable.tsx (drawer "Bảng từng đoạn tường") · TH …/ThicknessHistogram.tsx · TPC …/ThicknessPreviewCanvas.tsx ·
  * FSB src/screens/qc/WallLayerReview/FloorLayerSaveBanner.tsx · FLS src/screens/qc/shared/FloorLayerReadFailureScreen.tsx.
  *
- * Data: ONE project of five floors made by the shared admin ("Tầng hỗn hợp" 200 x 3 + 150 + 220, "Tầng 150" 2 x 150 mm,
- * "Tầng đã duyệt" a reviewed + an unreviewed 200 mm wall, "Tầng chuẩn" 2 x 220 mm, "Tầng trống"); the pool viewer is made a
+ * Bản Z (S-21): the panel is the preview (groups never pre-ticked, "Đổi N đoạn" applies), no collapse toggle, no reapply
+ * warning (reviewed walls never enter the batch). Rows of removed controls shoot the equivalent state.
+ *
+ * Data: ONE project of five floors made by the shared admin ("Tầng hỗn hợp" 180 x 3 + 150 + 220, "Tầng 150" 2 x 150 mm,
+ * "Tầng đã duyệt" a reviewed + an unreviewed 180 mm wall, "Tầng chuẩn" 2 x 220 mm, "Tầng trống"); the pool viewer is made a
  * member. States that change the floor ([21-F-014] apply, [21-F-013] 409) re-write it through the API before each width
  * (`reseed`), so every width opens the same state. The 409 is a real one: a write elsewhere (the API re-write) between the
  * page's read and its apply. Mock: [21-F-010] only (the real N16 request is held, then released).
@@ -45,7 +48,14 @@ const region = (page: Page) => page.getByRole('region', { name: SCREEN, exact: t
 const button = (page: Page, name: string) => region(page).getByRole('button', { name, exact: true });
 const histogram = (page: Page) => page.getByRole('region', { name: 'Biểu đồ phân bố độ dày tường theo mi-li-mét', exact: true });
 const toasts = (page: Page) => page.getByRole('region', { name: 'Thông báo', exact: true });
-const acceptBox = (page: Page, measured: number) => region(page).getByRole('checkbox', { name: new RegExp(`^Đồng ý chuẩn hoá \\d+ tường ${measured} mm `, 'u') });
+/** Group checkbox "Đồng ý đổi các đoạn {range} về {target} mm" (TBP). */
+const acceptBox = (page: Page, target: number) => region(page).getByRole('checkbox', { name: new RegExp(`^Đồng ý đổi các đoạn .+ về ${target} mm$`, 'u') });
+const changeBtn = (page: Page) => region(page).getByRole('button', { name: /^Đổi \d+ đoạn/u });
+const drawer = (page: Page) => page.getByRole('dialog', { name: 'Bảng từng đoạn tường', exact: true });
+async function openDetail(page: Page): Promise<void> {
+  await region(page).getByRole('button', { name: /^Xem bảng từng đoạn \(\d+\)$/u }).click();
+  await expect(drawer(page)).toBeVisible();
+}
 
 async function tick(box: ReturnType<typeof acceptBox>): Promise<void> {
   await box.focus();
@@ -82,42 +92,39 @@ test.describe('E04 SCR-21 thickness — UI verify (QA-04c P4)', () => {
         for (const m of metrics) expect.soft(m.clipped, `${m.viewport}: clipped columns`).toEqual([]);
       });
 
-      await test.step('[21-F-002] group ticked + the preview open: "Áp dụng" visible', async () => {
-        await verifyUi(page, 'U04_21-F-002_preview-open', async (p) => {
+      await test.step('[21-F-002] group ticked: the panel shows the batch and "Đổi N đoạn"', async () => {
+        await verifyUi(page, 'U04_21-F-002_batch-ticked', async (p) => {
           await openFloor(p, built, 0);
-          await tick(acceptBox(p, 200));
-          await button(p, 'Xem trước').click();
-          await expect(button(p, 'Áp dụng')).toBeVisible();
+          await tick(acceptBox(p, 220));
+          await expect(changeBtn(p)).toBeVisible();
         });
       });
 
-      await test.step('[21-F-005] the preview with the unchanged list expanded', async () => {
+      await test.step('[21-F-005] the batch with what stays out (the reviewed wall)', async () => {
         await verifyUi(page, 'U04_21-F-005_unchanged-list', async (p) => {
-          await openFloor(p, built, 1);
-          await tick(acceptBox(p, 150));
-          await button(p, 'Xem trước').click();
-          await expect(region(p).getByText('2 tường không đổi được:', { exact: true })).toBeVisible();
-          await button(p, 'Xem').first().click();
-          await expect(region(p).getByText(/^Lệch 40,0 mm · Độ tin cậy: /u)).toBeVisible();
+          await openFloor(p, built, 2);
+          await tick(acceptBox(p, 220));
+          await expect(region(p).getByText('1 đoạn về 1 nhóm chuẩn. 1 tường đã duyệt không nằm trong lô.', { exact: true })).toBeVisible();
         });
       });
 
-      await test.step('[21-F-007] rows selected: the action bar + the group picker', async () => {
+      await test.step('[21-F-007] rows selected in the drawer: the action bar + the group picker', async () => {
         await verifyUi(page, 'U04_21-F-007_picker', async (p) => {
           await openFloor(p, built, 0);
-          const rows = region(p).getByRole('checkbox', { name: /^Chọn dòng W-/u });
+          await openDetail(p);
+          const rows = drawer(p).getByRole('checkbox', { name: /^Chọn dòng tường /u });
           await tick(rows.nth(0));
           await tick(rows.nth(1));
-          await button(p, 'Đổi độ dày').click();
-          await expect(region(p).getByText('Chọn nhóm áp cho 2 tường đã chọn:', { exact: true })).toBeVisible();
+          await drawer(p).getByRole('button', { name: 'Đổi độ dày', exact: true }).click();
+          await expect(drawer(p).getByText('Chọn nhóm áp cho 2 tường đã chọn:', { exact: true })).toBeVisible();
         });
       });
 
-      await test.step('[21-F-009] the preview collapsed', async () => {
-        await verifyUi(page, 'U04_21-F-009_preview-collapsed', async (p) => {
+      await test.step('[21-F-009] the drawing is the main view: no collapse toggle, the legend floats on it', async () => {
+        await verifyUi(page, 'U04_21-F-009_drawing', async (p) => {
           await openFloor(p, built, 0);
-          await button(p, 'Thu gọn khung xem trước').click();
-          await expect(button(p, 'Mở khung xem trước')).toBeVisible(); // ThicknessStandardization.tsx:120,259 EXPAND_PREVIEW_LABEL
+          await expect(button(p, 'Thu gọn khung xem trước')).toHaveCount(0);
+          await expect(p.getByRole('list', { name: 'Chú giải độ dày tường', exact: true })).toBeVisible();
         });
       });
 
@@ -129,14 +136,13 @@ test.describe('E04 SCR-21 thickness — UI verify (QA-04c P4)', () => {
             await openFloor(p, built, 0);
             await reseed(adminApi, built, 0); // same state at every width; the page's own read is replaced below
             await openFloor(p, built, 0);
-            await tick(acceptBox(p, 200));
-            await button(p, 'Xem trước').click();
+            await tick(acceptBox(p, 220));
             // The apply's autosave must land before the next width reseeds, or that reseed gets 409 (run p04-rr 18:32Z).
             const saved = p.waitForResponse(
               (r) => r.request().method() === 'PUT' && /\/spatial\/layer$/u.test(new URL(r.url()).pathname),
               { timeout: 15_000 },
             );
-            await button(p, 'Áp dụng').click();
+            await changeBtn(p).click();
             await expect(toasts(p).getByText('Chuẩn hoá độ dày 3 tường.', { exact: true })).toBeVisible();
             expect((await saved).status(), 'the apply is saved').toBe(200);
           },
@@ -146,18 +152,18 @@ test.describe('E04 SCR-21 thickness — UI verify (QA-04c P4)', () => {
         await reseed(adminApi, built, 0);
       });
 
-      await test.step('[21-F-004] the "all standard" notice', async () => {
+      await test.step('[21-F-004] the "all standard" state', async () => {
         await verifyUi(page, 'U04_21-F-004_all-standard', async (p) => {
           await openFloor(p, built, 3);
-          await expect(region(p).getByText(/^Mọi đoạn tường đã ở đúng nhóm chuẩn/u)).toBeVisible(); // UT:126-127
+          await expect(region(p).getByText('Đã chuẩn hoá', { exact: true })).toBeVisible();
+          await expect(region(p).getByText('Không còn đoạn nào cần đổi.', { exact: true })).toBeVisible(); // TB:nothingLeft
         });
       });
 
-      await test.step('[21-F-006] the reapply warning', async () => {
-        await verifyUi(page, 'U04_21-F-006_reapply-warning', async (p) => {
+      await test.step('[21-F-006] reviewed walls out of the batch (was the reapply warning)', async () => {
+        await verifyUi(page, 'U04_21-F-006_reviewed-out', async (p) => {
           await openFloor(p, built, 2);
-          await button(p, 'Áp lại cho mọi tường lệch nhóm').click(); // ThicknessApplyBar.tsx:55 REAPPLY_FILTER_LABEL
-          await expect(region(p).getByText('Áp lại cho mọi tường lệch nhóm sẽ đổi tường đã duyệt', { exact: true })).toBeVisible(); // ThicknessApplyBar.tsx:64
+          await expect(region(p).getByRole('button', { name: 'Chọn nhóm này (1 đoạn)', exact: true })).toBeVisible();
         });
       });
 
@@ -181,7 +187,8 @@ test.describe('E04 SCR-21 thickness — UI verify (QA-04c P4)', () => {
         await verifyUi(guest.page, 'U04_21-F-008_viewer', async (p) => {
           await openFloor(p, built, 0);
           await expect(region(p).getByText('Không có quyền sửa độ dày tường', { exact: true })).toBeVisible();
-          await expect(button(p, 'Xem trước')).toHaveCount(0);
+          await expect(changeBtn(p)).toHaveCount(0);
+          await expect(region(p).getByRole('button', { name: /^Chọn (cả \d+ nhóm|nhóm này)/u })).toHaveCount(0);
         });
       });
 
@@ -192,9 +199,8 @@ test.describe('E04 SCR-21 thickness — UI verify (QA-04c P4)', () => {
           async (p) => {
             await openFloor(p, built, 0);
             await reseed(adminApi, built, 0); // the write elsewhere: the floor's revision moves on
-            await tick(acceptBox(p, 200));
-            await button(p, 'Xem trước').click();
-            await button(p, 'Áp dụng').click();
+            await tick(acceptBox(p, 220));
+            await changeBtn(p).click();
             await expect(region(p).getByText('Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.', { exact: true })).toBeVisible({ timeout: 15_000 });
           },
           UI_VIEWPORTS,

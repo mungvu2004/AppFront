@@ -17,11 +17,11 @@ export const SCALE_NEXT_REASON = 'Tỷ lệ chưa hiệu chỉnh — nên hiệu
 
 export function ScaleBanner({ projectId, readScale }: { readonly projectId: string; readonly readScale?: ReadScale }) {
   const scale = useScaleStatus(projectId, readScale);
-  const show = scale.status === 'unresolved';
+  const floorId = scale.status === 'unresolved' ? scale.floorId : null;
   useEffect(() => {
-    setUnresolved(show);
-    return () => setUnresolved(false);
-  }, [show]);
+    setUnresolved(floorId);
+    return () => setUnresolved(null);
+  }, [floorId]);
   if (scale.status !== 'unresolved') return null;
   return (
     <div

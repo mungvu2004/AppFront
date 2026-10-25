@@ -323,7 +323,7 @@ export interface MatchMetricsViewModel {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Nút "Xác nhận mô hình khớp bản vẽ" và hệ quả của nó.
+ * Nút "Xác nhận khớp bản vẽ" và hệ quả của nó.
  *
  * Đặc tả: xác nhận là **hành động rõ ràng của con người**, không tự động đánh dấu.
  * Vì vậy `isConfirmed` **chỉ** được bật bởi `onConfirm`, không bao giờ bởi
@@ -566,6 +566,16 @@ export interface OverlayComparisonProps {
   readonly alignHref?: string;
   /** Thanh điều hướng QC (breadcrumb + thanh lớp), đặt trên cùng màn. */
   readonly nav?: ReactNode;
+  /** Lớp duyệt chứa một đối tượng theo mã ("W-12" → lớp Tường), cho nút "Sửa … ở lớp …". Vắng thì không có nút sửa. */
+  readonly fixTargetOf?: (objectCode: string) => OverlayFixTarget | null;
+  /** Bước sau khi tầng đã xác nhận khớp (nút của cổng). Vắng thì cổng không có nút đi tiếp. */
+  readonly nextStep?: Readonly<{ label: string; href: string }>;
+}
+
+/** Lớp duyệt để sửa một đối tượng lệch: tên lớp và đường dẫn tới lớp ấy của tầng. */
+export interface OverlayFixTarget {
+  readonly layerLabel: string;
+  readonly href: string;
 }
 
 /** Props của thanh công cụ nổi: cao 40, bo 12, nằm trên cùng giữa. */
@@ -588,17 +598,19 @@ export interface OverlayComparisonToolbarProps {
   readonly onToggleAlignmentLock: () => void;
 }
 
-/** Props của panel phải rộng 344. */
+/** Props của panel trái rộng 296: đầu màn, dung sai, sai số, danh sách vùng lệch. */
 export interface OverlayComparisonPanelProps {
+  /** Đầu panel (eyebrow + H1 + trạng thái) — `QcPanelHead` do màn dựng. */
+  readonly head?: ReactNode;
+  /** `false` khi tầng chưa có mô hình: câu "so hai lớp bằng mắt" lúc ấy nói ngược (ảnh vòng 6). Mặc định `true`. */
+  readonly showUnmeasuredNotice?: boolean;
   readonly metrics: MatchMetricsViewModel;
   readonly toleranceMm: number;
   readonly toleranceLabel: string;
   readonly rows: readonly DeviationRowViewModel[];
-  readonly confirmation: ConfirmationViewModel;
   readonly canEdit: boolean;
   readonly onSetToleranceMm: (millimetres: number) => void;
   readonly onSelectRegion: (id: string | null) => void;
-  readonly onConfirmMatch: () => void;
   /** Khối câu trạng thái đặt ở ĐẦU panel, không nổi giữa canvas (BUG-331, AES-13). */
   readonly notice?: ReactNode;
   /** G4b-25: lối sang màn căn ảnh (Hiệu chỉnh tỷ lệ), hiện dưới câu "chưa có số đo". */

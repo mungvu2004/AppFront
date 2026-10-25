@@ -3,6 +3,8 @@ import type { Page } from '@playwright/test';
 
 import { dismissTourIfPresent, openViewer, shellInspector } from './viewer';
 
+test.skip(true, 'Viewer3D cũ không còn route từ 29eba219: /3d chuyển cả trang sang editor3d.html — chế độ sửa hình học của vỏ cũ không có trên trang Pascal; sửa tường kiểm ở pascal-evidence.spec.ts.');
+
 /**
  * Nhóm V8 — chế độ sửa hình học tường (`WallGeometryEditor`) và thứ tự `Escape`
  * của nó với bảng phụ và vùng chọn (`plan.md` nhóm V8, mục 0.2 hàng S1, mục 7).

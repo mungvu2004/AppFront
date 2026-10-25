@@ -41,7 +41,7 @@ import {
 
 /* ---------------------------------------------------------------- copy (each cites its source) */
 
-const TITLE = 'Huấn luyện mô hình AI'; // TJ:30
+const TITLE = 'Theo dõi huấn luyện'; // TJ:30
 const DETAIL = 'Chi tiết lượt huấn luyện'; // TJ:39
 const TAB_JOBS = 'Lượt huấn luyện'; // TJ:32
 const CREATE = 'Tạo lượt huấn luyện'; // TJ:36

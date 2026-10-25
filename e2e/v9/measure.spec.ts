@@ -5,6 +5,8 @@ import { signInAs } from '../fixtures/session';
 
 import { FIRST_PAINT_TIMEOUT_MS, FIXTURE_STATUS, MEASURE_PATH, expectSceneDrawn, openWithFixture } from './v9';
 
+test.skip(true, 'Viewer3D cũ không còn route từ 29eba219: /3d chuyển cả trang sang editor3d.html — danh sách phép đo / ghim / hoàn tác của AppFront nằm trên vỏ cũ; công cụ đo của trang Pascal (nút Đo, phím M, vai người xem) kiểm ở pascal-tools.spec.ts.');
+
 /**
  * Màn đo (`MeasurementTool`) — `plan.md` V9 mục 2.
  *

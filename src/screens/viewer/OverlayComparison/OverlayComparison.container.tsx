@@ -44,13 +44,26 @@ import { useProjectSpatial } from '@/hooks/useProjectSpatial';
 import { useSession } from '@/hooks/useSession';
 import { useProjectFloors } from '@/hooks/useProjectFloors';
 import { ROUTES } from '@/routes/paths';
+import { FLOOR_LAYERS, PROJECT_STEPS, type FloorLayerKey } from '@/routes/projectSteps';
 import { QcFloorNav } from '@/screens/qc/shared/QcFloorNav';
 import type { ProjectRole } from '@/types/project';
 
 import { OverlayComparison } from './OverlayComparison';
 import type { OverlayComparisonGateway } from './overlayComparisonGateway';
-import type { OverlayComparisonState } from './types';
+import type { OverlayComparisonState, OverlayFixTarget } from './types';
 import { useOverlayComparison } from './useOverlayComparison';
+
+/** Chữ đầu của mã đối tượng → lớp duyệt chứa nó (W-12 tường, R-04 phòng, D-01 cửa). */
+const LAYER_BY_CODE_PREFIX: Readonly<Record<string, FloorLayerKey>> = { W: 'walls', R: 'rooms', D: 'objects' };
+
+/** Bước 3D — bước kế của "Kiểm tra tầng" trên thanh bước. */
+const VIEWER_STEP = PROJECT_STEPS.find((step) => step.id === 'viewer');
+
+function fixTargetFor(projectId: string, floorId: string, objectCode: string): OverlayFixTarget | null {
+  const key = LAYER_BY_CODE_PREFIX[objectCode.charAt(0).toUpperCase()];
+  const layer = FLOOR_LAYERS.find((item) => item.key === key);
+  return layer === undefined ? null : { layerLabel: layer.label, href: layer.path(projectId, floorId) };
+}
 
 /** Mã màn, cho ranh giới lỗi — một chỗ viết duy nhất. */
 export const OVERLAY_COMPARISON_SCREEN_ID = 'overlay-comparison';
@@ -123,8 +136,12 @@ function WiredOverlayComparison(props: OverlayComparisonContainerProps) {
       actions={actions}
       // Route tỷ lệ nhận mã tầng API như route này (G4b-25).
       alignHref={ROUTES.project.scale(props.projectId, props.floorId)}
+      fixTargetOf={(objectCode) => fixTargetFor(props.projectId, props.floorId, objectCode)}
       model={model}
-      nav={<QcFloorNav floorId={props.floorId} floors={floors} layer="overlay" projectId={props.projectId} />}
+      nav={<QcFloorNav floorId={props.floorId} floors={floors} layer="overlay" projectId={props.projectId} titled />}
+      {...(VIEWER_STEP === undefined
+        ? {}
+        : { nextStep: { label: `Sang ${VIEWER_STEP.label}`, href: VIEWER_STEP.path(props.projectId) } })}
     />
   );
 }

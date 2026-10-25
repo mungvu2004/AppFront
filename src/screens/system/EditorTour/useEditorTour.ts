@@ -260,14 +260,14 @@ export const TOUR_STEPS: readonly TourStepDefinition[] = [
 ];
 
 /**
- * Bước 6 dò neo bằng vai trò và NHÃN, không bằng chọn lọc thuộc tính.
- *
- * Nút xuất được nhận ra bằng câu khẳng định "xuất" trong nhãn của nó
- * (`ExportPanelFooter.tsx:65-67`), thứ `document.querySelector` không diễn đạt
- * được — nên riêng bước này dò bằng một vòng lọc trên `role="button"`.
+ * Bước 6 dò neo: trước hết `data-tour-anchor="exportResult"` của nút xuất
+ * (`ExportPanelFooter.tsx`); không có thì lọc `role="button"` có nhãn BẮT ĐẦU bằng
+ * "xuất" ("Xuất .glb"…). Không khớp "chứa": "Đăng xuất" ở header từng bị nhận làm
+ * nút xuất, nên màn nào cũng mọc thêm bước "Lấy tệp mang đi" trỏ vào nút đăng xuất.
  */
 const EXPORT_BUTTON_SELECTOR = 'button, [role="button"]';
 const EXPORT_BUTTON_LABEL = 'xuất';
+const EXPORT_ANCHOR_SELECTOR = '[data-tour-anchor="exportResult"]';
 
 /** Vai người xem chỉ được ba bước XEM; ba bước sửa không có phím nào cho vai này. */
 const VIEWER_STEP_IDS: readonly TourStepId[] = ['reviewWall', 'view3d', 'exportResult'];
@@ -382,13 +382,15 @@ function rectOf(element: Element): TourRect | null {
   return { top: box.top, left: box.left, width: box.width, height: box.height };
 }
 
-/** Nút xuất: `role="button"` mang câu khẳng định "xuất" trong nhãn của nó. */
-function findExportButton(): Element | null {
-  const candidates = Array.from(document.querySelectorAll(EXPORT_BUTTON_SELECTOR));
+/** Nút xuất: neo `data-tour-anchor`, hoặc `role="button"` có nhãn bắt đầu bằng "xuất". */
+export function findExportButton(root: ParentNode = document): Element | null {
+  const anchored = root.querySelector(EXPORT_ANCHOR_SELECTOR);
+  if (anchored !== null) return anchored;
+  const candidates = Array.from(root.querySelectorAll(EXPORT_BUTTON_SELECTOR));
   return (
     candidates.find((element) => {
       const label = element.getAttribute('aria-label') ?? element.textContent ?? '';
-      return label.toLocaleLowerCase('vi').includes(EXPORT_BUTTON_LABEL);
+      return label.trim().toLocaleLowerCase('vi').startsWith(EXPORT_BUTTON_LABEL);
     }) ?? null
   );
 }

@@ -417,7 +417,7 @@ export function UserManagementDetail({
     <aside
       aria-label="Chi tiết người dùng"
       className={cn(
-        'flex h-full flex-col gap-4 overflow-y-auto border-l border-border-default bg-bg-surface p-4',
+        'flex h-full flex-col gap-4 overflow-y-auto rounded-xl bg-bg-surface p-4 shadow-panel',
         PANEL_WIDTH,
       )}
     >

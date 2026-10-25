@@ -139,12 +139,17 @@ function WiredDimensionOcrReview(props: DimensionOcrReviewContainerProps) {
     () => ROUTES.project.scale(props.projectId, props.floorId),
     [props.floorId, props.projectId],
   );
+  const wallReviewHref = useMemo(
+    () => ROUTES.project.walls(props.projectId, props.floorId),
+    [props.floorId, props.projectId],
+  );
 
   return (
     <DimensionOcrReview
       {...model}
       floorNav={{ floorId: props.floorId, floors, projectId: props.projectId }}
       scaleCalibrationHref={scaleCalibrationHref}
+      wallReviewHref={wallReviewHref}
     />
   );
 }

@@ -76,36 +76,30 @@ export function SkeletonText({ className }: { readonly className: string }) {
 interface FormatCardProps {
   readonly format: ExportFormatCard;
   readonly isLoading: boolean;
-  readonly blockedCaption: string | null;
+  /** Thẻ duy nhất nằm trong thứ tự Tab (roving tabindex). */
+  readonly isTabStop: boolean;
   readonly onSelect: (id: ExportFormatId) => void;
 }
 
-function FormatCard({ format, isLoading, blockedCaption, onSelect }: FormatCardProps) {
+function FormatCard({ format, isLoading, isTabStop, onSelect }: FormatCardProps) {
   const Icon = FORMAT_ICONS[format.id];
-  const isBlocked = blockedCaption !== null;
 
   return (
     <button
       type="button"
       role="radio"
       aria-checked={format.isSelected}
-      aria-disabled={isBlocked || undefined}
       // Roving tabindex: chỉ thẻ đang chọn nằm trong thứ tự Tab, mũi tên đi giữa các thẻ.
-      tabIndex={format.isSelected ? 0 : -1}
+      tabIndex={isTabStop ? 0 : -1}
       onClick={() => {
-        // Định dạng chưa hỗ trợ không chọn được: chọn rồi mới biết không xuất được là bẫy.
-        if (!isBlocked) {
-          onSelect(format.id);
-        }
+        onSelect(format.id);
       }}
       className={cn(
         'flex items-start gap-3 rounded-lg border p-4 text-left transition-colors duration-standard',
         FOCUS_RING,
         format.isSelected
           ? 'border-accent bg-bg-selected'
-          : isBlocked
-            ? 'cursor-not-allowed border-border-default bg-bg-sunken'
-            : 'border-border-default bg-bg-surface hover:bg-bg-hover',
+          : 'border-border-default bg-bg-surface hover:bg-bg-hover',
       )}
     >
       {/* Dấu radio rõ: vòng tròn rỗng / chấm đặc, không chỉ dựa vào viền màu. */}
@@ -114,26 +108,15 @@ function FormatCard({ format, isLoading, blockedCaption, onSelect }: FormatCardP
         className={cn(
           'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2',
           format.isSelected ? 'border-accent' : 'border-border-control',
-          isBlocked && 'opacity-50',
         )}
       >
         {format.isSelected && <span className="h-2 w-2 rounded-full bg-accent" />}
       </span>
-      <Icon
-        aria-hidden="true"
-        size={20}
-        strokeWidth={1.75}
-        className={cn('mt-0.5 shrink-0', isBlocked ? 'text-text-muted' : 'text-text-secondary')}
-      />
+      <Icon aria-hidden="true" size={20} strokeWidth={1.75} className="mt-0.5 shrink-0 text-text-secondary" />
 
-      <div className={cn('flex min-w-0 flex-col gap-1', isBlocked && 'opacity-70')}>
+      <div className="flex min-w-0 flex-col gap-1">
         <div className="flex flex-wrap items-baseline gap-2">
           <span className="text-sm font-medium text-text-primary">{format.extensionLabel}</span>
-          {isBlocked && (
-            <span className="rounded-sm bg-bg-app px-1.5 text-caption font-medium text-text-secondary">
-              Chưa hỗ trợ
-            </span>
-          )}
           {format.pageCountLabel !== null &&
             (isLoading ? (
               <SkeletonText className="h-3 w-14" />
@@ -148,10 +131,8 @@ function FormatCard({ format, isLoading, blockedCaption, onSelect }: FormatCardP
           (isLoading ? (
             <SkeletonText className="h-3 w-16" />
           ) : (
-            <p className="font-mono text-xs tabular-nums text-text-muted">{format.sizeLabel}</p>
+            <p className="font-mono text-xs tabular-nums text-text-secondary">{format.sizeLabel}</p>
           ))}
-
-        {blockedCaption !== null && <p className="text-xs text-state-attention-text">{blockedCaption}</p>}
       </div>
     </button>
   );
@@ -164,54 +145,74 @@ export interface ExportPanelFormatsProps {
   readonly onSelectFormat: (id: ExportFormatId) => void;
 }
 
+/**
+ * Thẻ chọn cho định dạng xuất được thật; định dạng chưa có bộ xuất (PDF, ảnh hôm nay) KHÔNG
+ * thành thẻ chọn bị khoá — nút giả là ngõ cụt. Chúng hiện ở một dòng chữ bên dưới, kèm số
+ * trang thật của PDF, để người dùng biết chúng tồn tại và vì sao chưa dùng được.
+ */
 export function ExportPanelFormats({
   formats,
   capabilities,
   isLoading,
   onSelectFormat,
 }: ExportPanelFormatsProps) {
+  const offered = formats.filter((format) => blockedCaptionOf(format.id, capabilities) === null);
+  const blocked = formats.filter((format) => blockedCaptionOf(format.id, capabilities) !== null);
+  // Roving tabindex cần đúng một điểm dừng, kể cả khi định dạng đang chọn không nằm trong danh sách.
+  const tabStopId = offered.find((format) => format.isSelected)?.id ?? offered[0]?.id;
+
   return (
-    <div
-      role="radiogroup"
-      aria-label="Định dạng xuất"
-      className="flex flex-col gap-3"
-      onKeyDown={(event) => {
-        const step =
-          event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : 0;
+    <div className="flex flex-col gap-4">
+      <div
+        role="radiogroup"
+        aria-label="Định dạng xuất"
+        className="flex flex-col gap-3"
+        onKeyDown={(event) => {
+          const step =
+            event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : 0;
 
-        if (step === 0 || formats.length === 0) {
-          return;
-        }
-
-        event.preventDefault();
-        const radios = event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]');
-        const current = Array.from(radios).findIndex((radio) => radio === document.activeElement);
-        // Mũi tên bỏ qua thẻ chưa hỗ trợ, như radio bị khoá.
-        let next = Math.max(current, 0);
-        for (let hop = 0; hop < formats.length; hop += 1) {
-          next = (next + step + formats.length) % formats.length;
-          const candidate = formats[next];
-          if (candidate !== undefined && blockedCaptionOf(candidate.id, capabilities) === null) {
-            break;
+          if (step === 0 || offered.length === 0) {
+            return;
           }
-        }
-        const target = formats[next];
 
-        if (target !== undefined && blockedCaptionOf(target.id, capabilities) === null) {
-          onSelectFormat(target.id);
-          radios[next]?.focus();
-        }
-      }}
-    >
-      {formats.map((format) => (
-        <FormatCard
-          key={format.id}
-          format={format}
-          isLoading={isLoading}
-          blockedCaption={blockedCaptionOf(format.id, capabilities)}
-          onSelect={onSelectFormat}
-        />
-      ))}
+          event.preventDefault();
+          const radios = event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]');
+          const current = Array.from(radios).findIndex((radio) => radio === document.activeElement);
+          const next = (Math.max(current, 0) + step + offered.length) % offered.length;
+          const target = offered[next];
+
+          if (target !== undefined) {
+            onSelectFormat(target.id);
+            radios[next]?.focus();
+          }
+        }}
+      >
+        {offered.map((format) => (
+          <FormatCard
+            key={format.id}
+            format={format}
+            isLoading={isLoading}
+            isTabStop={format.id === tabStopId}
+            onSelect={onSelectFormat}
+          />
+        ))}
+      </div>
+
+      {blocked.length > 0 && (
+        <div className="flex flex-col gap-1 border-t border-border-default pt-3 text-[13px] text-text-secondary">
+          <p>Chưa xuất được ở bản này:</p>
+          <ul aria-label="Định dạng chưa xuất được" className="flex flex-col gap-1">
+            {blocked.map((format) => (
+              <li key={format.id} className="flex flex-wrap items-baseline gap-x-2">
+                <span className="font-medium text-text-primary">{format.extensionLabel}</span>
+                {format.pageCountLabel !== null &&
+                  (isLoading ? <SkeletonText className="h-3 w-14" /> : <span>{format.pageCountLabel}</span>)}
+                <span>{format.audienceSentence}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,6 +4,10 @@ import type { Page } from '@playwright/test';
 import { ROUTES } from '../fixtures/routes';
 import { signInAs } from '../fixtures/session';
 
+/** S-02: the tile's one action reads "{động từ của bước} {tên}" (WCAG 2.5.3), e.g. "Xem 3D Nhà máy Bắc Ninh". */
+const openButton = (page: Page, name: string) =>
+  page.getByRole('button', { name: new RegExp(`^(Duyệt tường|Xem tiến độ|Xem 3D|Mở dự án) ${name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`, 'u') });
+
 /**
  * Nhóm V3 — bảng điều khiển "Dự án của tôi" (`ROUTES.dashboard`, `/`).
  * Kế hoạch: `docs/notes/e2e/plan.md` mục V3.1 (V3-DASH-1…4, ca bàn phím A12,
@@ -68,13 +72,14 @@ test.describe('V3-DASH-1 — "Mở" đưa tới màn dự án', () => {
   const DESTINATIONS = [
     { name: SUNRISE, path: ROUTES.project.pipeline('prj_01HZX3K9M2Q4R6T8V0W1Y3A5C8') },
     { name: HQ, path: ROUTES.project.walls('prj_01HZX3K9M2Q4R6T8V0W1Y3A5C7', 'floor-01') },
-    { name: BAC_NINH, path: ROUTES.project.viewer('prj_01HZX3K9M2Q4R6T8V0W1Y3A5C9') },
+    // "Xem 3D" đi `/3d`, rồi `/3d` điều hướng cả trang sang trang Pascal riêng (`viewerRedirects.tsx`, 29eba219).
+    { name: BAC_NINH, path: '/editor3d.html' },
   ] as const;
 
   for (const { name, path } of DESTINATIONS) {
-    test(`bấm "Mở ${name}" điều hướng tới đúng màn của dự án ấy`, async ({ page }) => {
+    test(`bấm nút việc tiếp của "${name}" điều hướng tới đúng màn của dự án ấy`, async ({ page }) => {
       await openDashboard(page);
-      await page.getByRole('button', { name: `Mở ${name}`, exact: true }).click();
+      await openButton(page, name).click();
       await expect.poll(() => new URL(page.url()).pathname).toBe(path);
     });
   }
@@ -91,11 +96,15 @@ const HOVER_PREFETCH_ELAPSED_MS = 300;
 
 test.describe('V3-DASH-1 — rê chuột rồi mở /3d (B-V1-12)', () => {
   test(`rê lên "${BAC_NINH}" cho lượt nạp trước chạy, rồi "Mở": màn 3D dựng được`, async ({ page }) => {
+    test.skip(
+      true,
+      'Viewer3D cũ không còn route từ 29eba219: /3d mở editor3d.html, một tài liệu khác không dùng chung bộ nhớ đệm của lượt nạp trước — trang 3D: xem e2e/pascal-fixtures.spec.ts',
+    );
     await page.clock.install();
     await openDashboard(page);
     await card(page, BAC_NINH).hover();
     await page.clock.runFor(HOVER_PREFETCH_ELAPSED_MS);
-    await page.getByRole('button', { name: `Mở ${BAC_NINH}`, exact: true }).click();
+    await openButton(page, BAC_NINH).click();
 
     await expect(page.getByRole('navigation', { name: 'Đường dẫn màn hình' })).toContainText('Mô hình 3D', {
       timeout: FIRST_PAINT_TIMEOUT_MS,
@@ -120,7 +129,7 @@ test.describe('V3-DASH-2 — phím N chỉ mở hộp thoại tạo khi có quy�
         exact: true,
       }),
     ).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Dự án mới' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Tạo dự án\s*N$/u })).toHaveCount(0);
 
     await page.keyboard.press('n');
     // Trạng thái dương để chờ: phím đã đi qua bộ đăng ký mà màn vẫn nguyên.
@@ -130,8 +139,14 @@ test.describe('V3-DASH-2 — phím N chỉ mở hộp thoại tạo khi có quy�
 });
 
 test.describe('V3-DASH-3 — xoá hỏi trước (A9), đổi tên hoàn tác được (A8), không nhân bản (R4)', () => {
+  /** "Xoá" chỉ dành cho quản trị viên (`projectMenuGroups.ts`, BE projects/access.py:95); vai dự phòng là kỹ sư. */
+  async function openDashboardAsAdmin(page: Page): Promise<void> {
+    await signInAs(page, 'admin');
+    await expect(projectList(page).getByRole('listitem').first()).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  }
+
   test('"Xoá" mở hộp thoại "Xoá dự án?"; "Để nguyên" giữ thẻ', async ({ page }) => {
-    await openDashboard(page);
+    await openDashboardAsAdmin(page);
     const menu = await openCardMenu(page, SUNRISE);
     await menu.getByRole('menuitem', { name: 'Xoá' }).click();
 
@@ -144,7 +159,7 @@ test.describe('V3-DASH-3 — xoá hỏi trước (A9), đổi tên hoàn tác đ
   });
 
   test('Escape đóng đúng hộp thoại xoá, thẻ còn nguyên (A12)', async ({ page }) => {
-    await openDashboard(page);
+    await openDashboardAsAdmin(page);
     const menu = await openCardMenu(page, SUNRISE);
     await menu.getByRole('menuitem', { name: 'Xoá' }).click();
     const dialog = page.getByRole('dialog', { name: 'Xoá dự án?' });
@@ -154,11 +169,11 @@ test.describe('V3-DASH-3 — xoá hỏi trước (A9), đổi tên hoàn tác đ
 
     await expect(dialog).toHaveCount(0);
     await expect(card(page, SUNRISE)).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Dự án của tôi' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Chọn dự án để làm tiếp' })).toBeVisible();
   });
 
   test('"Xoá dự án" trong hộp thoại làm thẻ biến mất', async ({ page }) => {
-    await openDashboard(page);
+    await openDashboardAsAdmin(page);
     const menu = await openCardMenu(page, SUNRISE);
     await menu.getByRole('menuitem', { name: 'Xoá' }).click();
     await page
@@ -316,27 +331,28 @@ test.describe('bàn phím và định dạng', () => {
   });
 
   /*
-   * Hiện trạng thứ tự Tab (đo 2026-10-03), tới hết thẻ đầu tiên. Hai radio
-   * "Lưới"/"Bảng" mỗi cái là một điểm dừng Tab (không theo kiểu "một điểm dừng,
-   * mũi tên đổi") — ghi nhận, không khẳng định là đúng; sửa nhóm radio thì sửa
-   * bài này cùng.
+   * Thứ tự Tab (đo lại 2026-10-25, S-02), từ đầu trang tới hết thẻ đầu tiên: header
+   * chung, rồi PageHead ("Tạo dự án"), rồi khung "Dự án" (tìm, sắp, kiểu xem, lọc).
+   * Hai nhóm radio "Lưới/Bảng" và lọc trạng thái mỗi nhóm MỘT điểm dừng (chọn bằng
+   * mũi tên), nên chỉ radio đang chọn nhận Tab.
    */
   test('mọi điều khiển trên đầu màn tới được bằng Tab, theo thứ tự đọc (A12)', async ({ page }) => {
     await openDashboard(page);
     const stops = [
-      page.getByRole('searchbox', { name: 'Tìm dự án' }),
+      page.getByRole('link', { name: 'Bỏ qua tới nội dung', exact: true }),
+      page.getByRole('link', { name: 'AppFront', exact: true }),
+      page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: 'Dự án', exact: true }),
       page.getByRole('button', { name: 'Thông báo', exact: true }),
-      page.getByRole('button', { name: /^Dự án mới/u }),
+      page.getByRole('link', { name: 'Tài khoản của bạn', exact: true }),
+      page.getByRole('button', { name: 'Đăng xuất', exact: true }),
+      page.getByRole('button', { name: /^Tạo dự án\s*N$/u }),
+      page.getByRole('searchbox', { name: 'Tìm dự án' }),
       page.getByRole('combobox'),
       page.getByRole('radio', { name: 'Lưới' }),
-      page.getByRole('radio', { name: 'Bảng' }),
-      page.getByRole('button', { name: /^Tất cả/u }),
-      page.getByRole('button', { name: /^Đang xử lý/u }),
-      page.getByRole('button', { name: /^Cần duyệt/u }),
-      page.getByRole('button', { name: /^Hoàn thành/u }),
+      page.getByRole('radio', { name: 'Tất cả' }),
       card(page, SUNRISE),
       page.getByRole('button', { name: `Tuỳ chọn cho ${SUNRISE}`, exact: true }),
-      page.getByRole('button', { name: `Mở ${SUNRISE}`, exact: true }),
+      openButton(page, SUNRISE),
     ];
     for (const stop of stops) {
       await page.keyboard.press('Tab');
@@ -346,7 +362,8 @@ test.describe('bàn phím và định dạng', () => {
 
   test('diện tích trên thẻ dùng dấu phẩy thập phân (A15)', async ({ page }) => {
     await openDashboard(page);
-    for (const name of [HQ, SUNRISE, BAC_NINH]) {
+    // Thẻ chỉ ghi diện tích khi đã có mặt bằng (`hasPlan`); Sunrise chưa có bản vẽ nên không có số để đo.
+    for (const name of [HQ, BAC_NINH]) {
       await expect(card(page, name)).toContainText(/\d,\d{2} m²/u);
     }
   });

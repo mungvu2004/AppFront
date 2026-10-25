@@ -75,8 +75,8 @@ import { axisGridScenarioFor } from './axisGridManagerScenarios';
 const SCREEN_ARIA_LABEL = 'Quản lý trục và gốc toạ độ';
 const CANVAS_ARIA_LABEL = 'Khung xem bản vẽ quản lý trục và gốc toạ độ';
 const AXIS_PANEL_TITLE = 'Trục';
-const ORIGIN_PANEL_TITLE = 'Gốc toạ độ';
-const ALIGN_PANEL_TITLE = 'Căn chỉnh giữa các tầng';
+const ORIGIN_PANEL_TITLE = 'Gốc ±0.000';
+const ALIGN_PANEL_TITLE = 'Lệch giữa các tầng';
 const EXPAND_PANEL_LABEL = 'Bảng trục đang thu gọn';
 
 /* -------------------------------------------------------------------------- */
@@ -238,7 +238,7 @@ describe('[BUG-330][BUG-336] tầng chưa có trục: không số 0 giả, khôn
     expect(screen.queryByText('Lệch ngang trên ảnh')).not.toBeInTheDocument();
     expect(screen.queryByText('Đã duyệt')).not.toBeInTheDocument();
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
-    expect(screen.getByRole('button', { name: 'Căn chỉnh tự động' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Căn tự động' })).toBeDisabled();
     expect(screen.getByText('Chưa có trục nào nên chưa tính được gốc toạ độ.')).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -270,7 +270,7 @@ describe('[BUG-330][BUG-336] tầng chưa có trục: không số 0 giả, khôn
     renderState('success');
 
     expect(screen.getByText('Lệch ngang trên ảnh')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Căn chỉnh tự động' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Căn tự động' })).toBeEnabled();
   });
 
   it('[BUG-336][BUG-404] chỉ một tầng (chưa có gì để căn): không "Đã duyệt"; đủ tầng trong dung sai thì có', () => {
@@ -483,12 +483,12 @@ describe('QA-04c SCR-19 trên màn', () => {
     expect(onCalibrate).toHaveBeenCalledTimes(1);
   });
 
-  it('[BUG-594][BUG-601] "Căn chỉnh tự động" bị khoá thì nói lý do ngay dưới nút', () => {
+  it('[BUG-594][BUG-601] "Căn tự động" bị khoá thì nói lý do ngay dưới nút', () => {
     renderWithProviders(
       <AxisGridManager {...scenarioArgsFor('success')} autoAlignBlockedReason="Vai người xem không căn chỉnh được các tầng." />,
     );
 
-    expect(screen.getByRole('button', { name: 'Căn chỉnh tự động' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Căn tự động' })).toBeDisabled();
     expect(screen.getByText('Vai người xem không căn chỉnh được các tầng.')).toBeInTheDocument();
   });
 
@@ -498,7 +498,7 @@ describe('QA-04c SCR-19 trên màn', () => {
     renderWithProviders(<AxisGridManager {...scenarioArgsFor('empty')} onAxisAdd={onAxisAdd} />);
 
     expect(screen.queryByRole('button', { name: 'Suy ra từ tường bao' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm trục ngang' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Vẽ trục ngang' }));
     expect(onAxisAdd).toHaveBeenCalledWith('horizontal');
     expect(screen.getByText('Chưa có trục nào').parentElement?.querySelector('svg')).not.toBeNull();
   });

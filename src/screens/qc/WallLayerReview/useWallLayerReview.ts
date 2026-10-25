@@ -203,6 +203,8 @@ import type {
   WallThicknessChoice,
 } from './types';
 import { arrowStepHandler } from './listArrowKeys';
+import { useWallReviewQueue } from './useWallReviewQueue';
+import { nextUnreviewedWallId, sortByReviewQueue, type WallReviewQueue } from './wallReviewQueue';
 
 /* -------------------------------------------------------------------------- */
 /* Chuỗi của màn.                                                              */
@@ -331,6 +333,8 @@ export interface UseWallLayerReviewResult extends WallLayerReviewProps {
   readonly statusBar: WallLayerStatusBarProps;
   /** Những gì panel trái cần mà `WallLayerViewProps` (đã đóng băng) không mang. */
   readonly leftPanel: WallLayerLeftPanelExtras;
+  /** Hàng đợi duyệt (demo Z/S-15): nhóm danh sách, cổng, đổi về chuẩn — `useWallReviewQueue`. */
+  readonly queue: WallReviewQueue;
   /** Khối lưu lớp của tầng — dải "Tải lại" / "Không lưu được" (F-04x-1). */
   readonly saveBlock: FloorLayerSaveBlock | null;
   /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
@@ -517,26 +521,8 @@ export function applyWallFilters(
   });
 }
 
-/** Tường CHƯA DUYỆT kế tiếp sau `fromId`, quay vòng về đầu danh sách. */
-export function nextUnreviewedWallId(
-  walls: readonly Wall[],
-  fromId: WallId | null,
-): WallId | null {
-  if (walls.length === 0) {
-    return null;
-  }
-
-  const start = fromId === null ? -1 : walls.findIndex((wall) => wall.id === fromId);
-  const after = walls.slice(start + 1).find((wall) => !wall.reviewed);
-
-  if (after !== undefined) {
-    return after.id;
-  }
-
-  const wrapped = walls.slice(0, start + 1).find((wall) => !wall.reviewed);
-
-  return wrapped?.id ?? null;
-}
+/** Tường CHƯA DUYỆT kế tiếp — sống ở `wallReviewQueue.ts` (một hàng đợi), xuất lại cho nơi gọi cũ. */
+export { nextUnreviewedWallId };
 
 /** Hàng xóm của tường đang chọn theo một bước — `J` xuống, `K` lên. */
 export function neighbourWallId(
@@ -761,7 +747,8 @@ export function useWallLayerReview(
     [thicknessFilter, walls],
   );
   const visibleWalls = useMemo(
-    () => sortByDisplayCode(applyWallFilters(thicknessFilteredWalls, filters, confidenceThreshold), wallCodes),
+    /* MỘT hàng đợi (Z/S-15): không chuẩn trước, đã duyệt cuối — danh sách, J/K và tự chuyển cùng thứ tự. */
+    () => sortByReviewQueue(sortByDisplayCode(applyWallFilters(thicknessFilteredWalls, filters, confidenceThreshold), wallCodes)),
     [confidenceThreshold, filters, wallCodes, thicknessFilteredWalls],
   );
 
@@ -2073,6 +2060,23 @@ export function useWallLayerReview(
     setFilters((previous) => ({ ...previous, [filter]: !previous[filter] }));
   }, []);
 
+  const queue = useWallReviewQueue({
+    graph,
+    level,
+    walls,
+    visibleWalls,
+    wallCodes,
+    selectedWallId,
+    canEdit,
+    gateway,
+    dispatchBundle,
+    invalidate,
+    onSelect,
+    onSkip,
+    onFlash: setFlashingWallId,
+    registry: options.registry,
+  });
+
   const panel: WallLayerViewProps = {
     state,
     rows,
@@ -2202,7 +2206,7 @@ export function useWallLayerReview(
     onToggleSelect,
   };
 
-  return { panel, canvas, toolRail, statusBar, leftPanel, saveBlock, provisionalScaleNotice, readFailure };
+  return { panel, canvas, toolRail, statusBar, leftPanel, queue, saveBlock, provisionalScaleNotice, readFailure };
 }
 
 /** Cổng có dữ liệu, xuất lại để story và bài kiểm cắm vào cùng một chỗ (R-73). */

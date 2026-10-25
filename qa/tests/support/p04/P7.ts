@@ -78,7 +78,7 @@ export const OV = {
   divider: 'Đường chia đôi, dùng phím mũi tên trái và phải để dịch', // OCD:25
   tolerance: 'Dung sai', // UOC:122
   deviationList: 'Danh sách vùng lệch', // OCP:51
-  confirm: 'Xác nhận mô hình khớp bản vẽ', // UOC:104
+  confirm: 'Xác nhận khớp bản vẽ', // UOC:104
   toScale: 'Sang màn hiệu chỉnh tỷ lệ', // OC:78
   toUpload: 'Tải bản vẽ lên', // OC:80
   layerScan: 'Ảnh quét gốc', // UOC:115

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { fixtureF0 } from '../../src/lib/pascal/__fixtures__';
+import { installFakeApi, type WireGraphDocument } from '../fixtures/fakeApi';
 import { ROUTES, UNKNOWN_PATH, pathOf } from '../fixtures/routes';
 
 /**
@@ -43,7 +45,7 @@ test('chuyển sang màn chưa tải: vỏ chờ tiếng Việt, không có "Loa
 
   release();
 
-  await expect(page.getByRole('heading', { name: 'Dự án của tôi', exact: true })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Chọn dự án để làm tiếp', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   await expect(page.getByRole('status', { name: PENDING_LABEL, exact: true })).toHaveCount(0);
@@ -54,19 +56,51 @@ test('chuyển sang màn chưa tải: vỏ chờ tiếng Việt, không có "Loa
  * B-V1-43 — dự án không có (hoặc người dùng không phải thành viên) trên route bọc
  * `ProjectSpatialGate`: từng kẹt ở khung "không tìm thấy" không nút, không lối ra.
  * `project-missing` là id mà bộ mẫu API trả 404 `resource: 'project'`.
+ *
+ * `/3d` không còn bọc cổng này (điều hướng sang editor3d.html từ 29eba219), nên bài
+ * cổng dùng màn xuất — cũng bọc `ProjectSpatialGate` — còn `/3d` có bài riêng bên dưới.
  */
-test('B-V1-43: mở dự án không có ở /3d thì có câu và nút về danh sách dự án', async ({ page }) => {
-  await page.goto(ROUTES.project.viewer('project-missing'));
+test('B-V1-43: mở dự án không có ở màn xuất thì có câu và nút về danh sách dự án', async ({ page }) => {
+  await page.goto(ROUTES.project.export('project-missing'));
 
   await expect(page.getByRole('heading', { name: 'Không tìm thấy dự án này', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
-  await expect(page.getByRole('main', { name: 'Khung nhìn mô hình', exact: true })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Về danh sách dự án', exact: true }).click();
 
-  await expect(page.getByRole('heading', { name: 'Dự án của tôi', exact: true })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Chọn dự án để làm tiếp', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   expect(pathOf(page.url())).toBe(ROUTES.dashboard);
+});
+
+/*
+ * B-V1-43 ở trang 3D riêng: trang Pascal gọi HTTP thật, nên máy chủ giả `installFakeApi`
+ * chỉ biết một dự án khác và trả 404 `resource: 'project'` cho `project-missing`. Trang nói
+ * câu `BRIDGE_NOT_FOUND_ERROR` (`src/pascal-page/bridge/index.ts`) kèm lối ra "Về dự án"
+ * (`resolveBackHref`: không có `returnTo` hay đường đã ghi thì về Quản lý tầng), và lối ấy
+ * đưa người dùng trở lại ứng dụng, không kẹt ở trang 3D.
+ *
+ * Không đi tiếp tới "Về danh sách dự án": bộ mẫu dev trả tầng mặc định cho mọi mã dự án,
+ * nên Quản lý tầng của `project-missing` không rơi vào cổng 404 như máy chủ thật.
+ */
+test('B-V1-43: mở dự án không có ở /3d thì trang 3D có câu và lối "Về dự án" quay lại ứng dụng', async ({
+  page,
+}) => {
+  await installFakeApi(page, { projectId: 'P-FIXTURE0001', graphDoc: fixtureF0().doc as unknown as WireGraphDocument });
+  await page.goto(ROUTES.project.viewer('project-missing'));
+
+  await expect(page.getByText('Không tìm thấy dự án này, hoặc bạn chưa được thêm vào dự án.', { exact: true })).toBeVisible({
+    timeout: FIRST_PAINT_TIMEOUT_MS,
+  });
+  expect(new URL(page.url()).pathname).toBe('/editor3d.html');
+
+  await page.unrouteAll();
+  await page.getByRole('link', { name: 'Về dự án', exact: true }).click();
+
+  await expect(page.getByRole('heading', { name: 'Theo dõi từng tầng và làm tiếp tầng cần nhất', exact: true })).toBeVisible({
+    timeout: FIRST_PAINT_TIMEOUT_MS,
+  });
+  expect(pathOf(page.url())).toBe(ROUTES.project.floors('project-missing'));
 });

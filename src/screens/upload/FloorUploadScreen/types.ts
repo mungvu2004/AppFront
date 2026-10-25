@@ -350,6 +350,11 @@ export interface FloorUploadActions {
   readonly onBackToProjects?: (() => void) | undefined;
   /** Đóng lỗi trong thẻ của một tệp. Không đụng tới tệp khác. */
   readonly onDismissError: (fileId: string) => void;
+  /**
+   * Người dùng xác nhận tệp ghép tự động đúng là của tầng ấy: hết cảnh báo "kiểm tra lại",
+   * KHÔNG tải lại tệp (khác `onReassign`). Vắng thì thẻ không hiện ô tích.
+   */
+  readonly onConfirmMatch?: ((fileId: string) => void) | undefined;
 }
 
 /** Mọi prop view nhận — mô hình cộng hành động, đã gộp sẵn (mục D). */

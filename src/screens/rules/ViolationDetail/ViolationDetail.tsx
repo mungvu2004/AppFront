@@ -62,7 +62,7 @@
  *   khung 240 chiếm gần hết phần đọc được, nên nó nhường chỗ cho chữ.
  */
 
-import { ChevronLeft, ChevronRight, FileSearch, X } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, FileSearch, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -71,7 +71,9 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { motion } from '@/components/motion';
 import { Button } from '@/components/ui/Button';
+import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { IconButton } from '@/components/ui/IconButton';
+import { Kbd } from '@/components/ui/Kbd';
 import { useShortcut } from '@/hooks/useShortcut';
 import { durationSeconds, EASE } from '@/lib/motion';
 import { cn } from '@/lib/utils';
@@ -140,9 +142,13 @@ function ViolationDetailHead({ props }: HeadProps) {
     <header className="flex flex-col gap-2">
       <div className="flex items-start gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <p className="text-[12px] text-text-muted">{props.groupLabel}</p>
+          {/* Câu 1 của tấm (HOP-DONG-V6): việc ở đây là xử lý MỘT vi phạm; `h2` giữ nguyên văn câu
+              vi phạm vì báo cáo và bài kiểm đối chiếu đúng câu ấy. */}
+          <p className="text-caption font-medium uppercase tracking-[0.06em] text-text-muted">
+            {props.groupLabel === '' ? 'Xử lý vi phạm' : `Xử lý vi phạm · ${props.groupLabel}`}
+          </p>
 
-          <h2 className="text-base font-semibold text-text-primary">{props.title}</h2>
+          <h2 className="text-heading text-text-primary">{props.title}</h2>
 
           <div className="flex flex-wrap items-center gap-2">
             <ViolationSeverityBadge
@@ -155,7 +161,7 @@ function ViolationDetailHead({ props }: HeadProps) {
           </div>
 
           {props.saveLabel !== undefined && (
-            <p className="text-[12px] text-text-muted">{props.saveLabel}</p>
+            <p className="text-[13px] text-text-muted">{props.saveLabel}</p>
           )}
         </div>
 
@@ -273,10 +279,11 @@ function ViolationDetailBody({ props }: BodyProps) {
       {/* N3-08: lối đi thẳng tới lớp 2D sửa được đối tượng lỗi, trên đúng tầng. */}
       {props.fixTarget === null ? null : (
         <Link
-          className="self-start rounded-sm border border-border-default px-3 py-1.5 text-sm text-accent outline-hidden hover:bg-bg-sunken focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
+          className={cn(getButtonStyles({ variant: 'secondary', size: 'md' }), 'gap-2 self-start')}
           to={props.fixTarget.path}
         >
-          Sửa ở lớp {props.fixTarget.layerLabel} →
+          Sửa ở lớp {props.fixTarget.layerLabel}
+          <ArrowRight aria-hidden="true" size={16} />
         </Link>
       )}
 
@@ -388,6 +395,20 @@ export function ViolationDetail(props: ViolationDetailViewProps) {
           <>
             <ViolationDetailHead props={props} />
             <ViolationDetailBody props={props} />
+            {/* Ba phím của tấm, một dòng (luật dễ chịu §2.4); bảng đầy đủ ở "?". */}
+            {isCollapsed ? null : (
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-default pt-3 text-[13px] text-text-secondary">
+                <span className="flex items-center gap-1">
+                  <Kbd>J</Kbd> kế tiếp
+                </span>
+                <span className="flex items-center gap-1">
+                  <Kbd>K</Kbd> liền trước
+                </span>
+                <span className="flex items-center gap-1">
+                  <Kbd>Esc</Kbd> đóng
+                </span>
+              </p>
+            )}
           </>
         )}
       </div>

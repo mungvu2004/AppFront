@@ -9,7 +9,7 @@ import type { Page } from '@playwright/test';
 import { captureEvidence } from '../evidence';
 
 export const COPY = {
-  dashH1: 'Dự án của tôi', // PD:166
+  dashH1: 'Chọn dự án để làm tiếp', // PD:166
   newProject: 'Dự án mới', // PD:154
   viewerLine: 'Vai người xem: chỉ có thể mở dự án, không tạo hoặc xoá được.', // PD:198-201
   emptyViewer: 'Bạn chưa được thêm vào dự án nào. Khi được mời, dự án sẽ hiện ở đây.', // PD:245-249

@@ -27,7 +27,7 @@ const noop = (): void => undefined;
 const hqRenovation: ProjectCardModel = {
   id: 'p-hq-renovation',
   name: 'Toà nhà HQ Renovation',
-  statsLabel: '4 tầng · 1.860,00 m²',
+  statsLabel: '4 tầng, 1.860,00 m²',
   updatedLabel: '2 giờ trước',
   statusVariant: 'attention',
   statusLabel: 'Cần duyệt',
@@ -40,12 +40,13 @@ const hqRenovation: ProjectCardModel = {
   ],
   planVariant: 0,
   hasPlan: true,
+  actionLabel: 'Duyệt tường',
 };
 
 const sunriseBlockB: ProjectCardModel = {
   id: 'p-sunrise-block-b',
   name: 'Chung cư Sunrise Block B',
-  statsLabel: '12 tầng · 8.420,00 m²',
+  statsLabel: '12 tầng, 8.420,00 m²',
   updatedLabel: '25 phút trước',
   statusVariant: 'neutral',
   statusLabel: 'đang xử lý',
@@ -59,12 +60,13 @@ const sunriseBlockB: ProjectCardModel = {
   ],
   planVariant: 1,
   hasPlan: true,
+  actionLabel: 'Xem tiến độ',
 };
 
 const bacNinhFactory: ProjectCardModel = {
   id: 'p-bac-ninh-factory',
   name: 'Nhà máy Bắc Ninh',
-  statsLabel: '2 tầng · 5.200,00 m²',
+  statsLabel: '2 tầng, 5.200,00 m²',
   updatedLabel: '26/08/2026 07:00',
   statusVariant: 'verified',
   statusLabel: 'Hoàn thành',
@@ -74,6 +76,7 @@ const bacNinhFactory: ProjectCardModel = {
   members: [{ id: 'm-binh', initials: 'NB' }],
   planVariant: 2,
   hasPlan: true,
+  actionLabel: 'Xem 3D',
 };
 
 const base: ProjectDashboardViewProps = {

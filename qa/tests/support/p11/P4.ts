@@ -59,7 +59,7 @@ export interface ThickSeed {
   readonly reviewedId: string;
 }
 
-/** Floor layer for SCR-21: two 200 mm partitions + one 220 mm wall (one group) and one HUMAN-reviewed 200 mm wall. */
+/** Floor layer for SCR-21: two 180 mm partitions + one 220 mm wall (one group, S-21 rule: 180 is 40 mm off 220) and one HUMAN-reviewed 180 mm wall. */
 export async function seedThicknessLayer(layerApi: LayerApi, projectId: string, floorId: string): Promise<ThickSeed> {
   const ids = [wid(), wid(), wid()];
   const reviewedId = wid();
@@ -77,7 +77,7 @@ export async function seedThicknessLayer(layerApi: LayerApi, projectId: string, 
     furniture: [],
     openings: [],
     rooms: [],
-    walls: [wall(ids[0] as string, 0, 200, false), wall(ids[1] as string, 3000, 200, false), wall(ids[2] as string, 6000, 220, false), wall(reviewedId, 9000, 200, true)].map((w) => w(levelId)),
+    walls: [wall(ids[0] as string, 0, 180, false), wall(ids[1] as string, 3000, 180, false), wall(ids[2] as string, 6000, 220, false), wall(reviewedId, 9000, 180, true)].map((w) => w(levelId)),
   }));
   return { ids, reviewedId };
 }

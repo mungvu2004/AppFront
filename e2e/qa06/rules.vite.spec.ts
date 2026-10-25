@@ -26,7 +26,7 @@ import { seedSpatial } from '../fixtures/seedSpatial';
 const PROJECT_ID = 'project-1';
 const RULES_URL = ROUTES.project.rules(PROJECT_ID);
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
-const SCREEN_HEADING = 'Quy chuẩn'; // RuleReport.tsx
+const SCREEN_HEADING = 'Kiểm tra quy chuẩn'; // RuleReport.tsx
 const CLASH_RULE = 'Đồ đạc không chồng lên tường hay lên nhau'; // domain/rules/geometry FURNITURE-CLASH name
 const DELETE_ACTION = 'Xoá đối tượng này'; // useViolationDetail actions
 const ADVANCE_BANNER = 'Sắp chuyển sang vi phạm kế tiếp.'; // ViolationDetail notices
@@ -43,10 +43,12 @@ const UNDO_WINDOW_MS = 8_100; // undoTicket.ts UNDO_WINDOW_MS 8000
 
 const sheet = (page: Page): Locator => page.getByRole('complementary', { name: SHEET, exact: true });
 const sheetTitle = (page: Page): Locator => sheet(page).getByRole('heading', { level: 2 });
-const allHeaders = (page: Page): Locator => page.getByRole('heading', { level: 2 }).getByRole('button');
+/** Group headers are `h3 > button` since the S-31 redo (`h2` is now "Kết quả kiểm tra"). */
+const allHeaders = (page: Page): Locator => page.getByRole('heading', { level: 3 }).getByRole('button');
 const resolvedHeader = (page: Page): Locator => allHeaders(page).filter({ hasText: /^\s*Đã xử lý/u });
 const groupHeaders = (page: Page): Locator => allHeaders(page).filter({ hasNotText: /^\s*Đã xử lý/u });
-const resolvedSection = (page: Page): Locator => page.locator('section').filter({ has: resolvedHeader(page) });
+/** Innermost section of the "Đã xử lý" header: the report list itself is a `<section>` panel since the S-31 redo. */
+const resolvedSection = (page: Page): Locator => resolvedHeader(page).locator('xpath=ancestor::section[1]');
 const undoButtons = (page: Page): Locator => page.getByRole('button', { name: UNDO, exact: true });
 /** Rows of a group section: table rows (>= 1024) or cards; a resolved row is appended to its group AND listed under "Đã xử lý". */
 const rowsOf = (section: Locator): Locator => section.locator('tbody tr, ul > li').filter({ has: section.page().locator('button[data-row-key]') });
@@ -329,7 +331,16 @@ test.describe('SCR-28V [mocked response] violation sheet (phase 06 debt)', () =>
         await openClashRows(page);
         const last = page.locator('button[data-row-key]').last();
         await last.scrollIntoViewIfNeeded();
-        expect(await page.evaluate(() => window.scrollY), 'the document scrolled to reach the last row').toBeGreaterThan(0);
+        // The report may scroll in the document or (since the S-31 redo) in its own panel: any scrolled ancestor counts.
+        const scrolled = await last.evaluate((el) => {
+          let node: HTMLElement | null = el.parentElement;
+          while (node !== null) {
+            if (node.scrollTop > 0) return node.scrollTop;
+            node = node.parentElement;
+          }
+          return window.scrollY;
+        });
+        expect(scrolled, 'the report scrolled to reach the last row').toBeGreaterThan(0);
         await last.click();
         await expect(sheet(page)).toBeVisible();
         for (const part of [sheetTitle(page), sheet(page).getByRole('button', { name: /^Đóng/u }).first()]) {

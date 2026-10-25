@@ -44,9 +44,9 @@ import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScre
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
-import { qcProgressLabel } from '../shared/qcLayers';
 
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
+import { ObjectLayerGate, ObjectLayerPanelHead } from './ObjectLayerHead';
 import { ObjectLayerInspector } from './ObjectLayerInspector';
 import { ObjectLayerLeftPanel } from './ObjectLayerLeftPanel';
 import { ObjectLayerList } from './ObjectLayerList';
@@ -142,11 +142,9 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
         BUG-584: còn bộ lọc bật thì nút tắt nó còn — duyệt hết mục dưới ngưỡng làm câu báo biến
         mất, và bản cũ ẩn luôn nút, để lại danh sách rỗng không lối ra.
       */}
+      {/* Số mục dưới ngưỡng đã ở dòng trạng thái đầu panel: ở đây chỉ còn công tắc lọc (không lặp số). */}
       {model.partialNotice === null && !model.isLowConfidenceOnly ? null : (
         <div className="flex flex-col gap-1 px-2">
-          {model.partialNotice === null ? null : (
-            <p className="text-[12px] text-state-attention-text">{model.partialNotice}</p>
-          )}
           <button
             aria-pressed={model.isLowConfidenceOnly}
             className={cn(
@@ -242,18 +240,14 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
   );
 }
 
+/** MỘT khung cho panel trái (NGUYEN-TAC-BO-CUC §2): đầu panel, lọc theo loại, rồi hàng đợi cuộn riêng. */
 function ObjectLayerLeftColumn({ model }: { readonly model: ObjectLayerReviewModel }) {
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:flex-none">
+      <ObjectLayerPanelHead model={model} />
       <div className="shrink-0">
-        {/* Đang tải: khung xương thay bộ đếm "0/0" và "Tổng 0" như thể dữ liệu thật (BUG-618). */}
-        {model.state === 'loading' ? (
-          <div aria-hidden="true" className="flex flex-col gap-2 rounded-xl bg-bg-surface px-5 py-4 shadow-panel">
-            {SKELETON_ROWS.map((row) => (
-              <Skeleton key={row} preset="table-row" />
-            ))}
-          </div>
-        ) : (
+        {/* Đang tải: khung xương thay bộ lọc "0" như thể dữ liệu thật (BUG-618). */}
+        {model.state === 'loading' ? null : (
           <ObjectLayerLeftPanel
             availableSubtypes={model.availableSubtypes}
             counts={model.counts}
@@ -268,10 +262,10 @@ function ObjectLayerLeftColumn({ model }: { readonly model: ObjectLayerReviewMod
         )}
       </div>
 
-      <div className="shrink-0 rounded-xl bg-bg-surface px-3 py-3 shadow-panel">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         <ObjectLayerListRegion model={model} />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -291,12 +285,9 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
       {model.floorNav != null && (
-        <QcFloorNav
-          {...model.floorNav}
-          layer="objects"
-          progress={qcProgressLabel(model.reviewCounter.reviewed, model.reviewCounter.total)}
-        />
+        <QcFloorNav {...model.floorNav} layer="objects" titled={!isCollapsed} />
       )}
+      <ObjectLayerGate model={model} />
       {model.saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={model.saveBlock} />

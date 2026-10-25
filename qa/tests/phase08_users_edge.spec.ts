@@ -29,6 +29,7 @@ import {
   asRecord,
   cellSr,
   figure,
+  summaryNumbers,
   foldForSearch,
   inviteUser,
   listUsersApi,
@@ -141,7 +142,7 @@ test.describe('SCR-37 users (read) edge', () => {
         const pending = users.filter((u) => u.status === 'pending').length;
         expect(pending, 'INV is pending').toBeGreaterThanOrEqual(1);
         await expect.soft(figure(summary(page), USR.summaryPending)).toHaveText(String(pending));
-        summaryBefore = await summary(page).locator('dd').allInnerTexts();
+        summaryBefore = await summaryNumbers(summary(page)).allInnerTexts();
         await captureEvidence(page, 'E08_37U-C-003_users.png');
       });
       await test.step('[37U-B-011] INV row shows "Chờ chấp nhận"', async () => {
@@ -172,7 +173,7 @@ test.describe('SCR-37 users (read) edge', () => {
         await captureEvidence(page, 'E08_37U-A-013_users.png');
       });
       await test.step('[37U-C-004] summary unchanged by filtering', async () => {
-        expect.soft(await summary(page).locator('dd').allInnerTexts()).toEqual(summaryBefore);
+        expect.soft(await summaryNumbers(summary(page)).allInnerTexts()).toEqual(summaryBefore);
         await captureEvidence(page, 'E08_37U-C-004_users.png');
       });
       await test.step('[37U-A-014] no match → empty state; "Xoá tìm kiếm và bộ lọc" resets and focuses search', async () => {

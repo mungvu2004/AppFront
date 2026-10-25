@@ -172,8 +172,14 @@ export const waitGet = (page: Page, path: string): Promise<unknown> =>
 
 export const userRow = (page: Page, email: string): Locator => page.locator('tbody tr').filter({ hasText: email });
 export const nameButton = (row: Locator): Locator => row.getByRole('button').first(); // UMB:305-311
-export const summary = (page: Page): Locator => page.locator('dl').filter({ hasText: USR.summaryPending }); // UMT:97-110
-export const figure = (scope: Locator, caption: string): Locator =>
-  scope.locator('div').filter({ has: scope.page().locator('dt', { hasText: new RegExp(`^\\s*${caption}\\s*$`, 'u') }) }).locator('dd');
+/** PageHead status line of /admin/users (UserManagement.tsx UsersStatus): three numbers by data-testid. */
+const SUMMARY_TEST_ID: Readonly<Record<string, string>> = {
+  [USR.summaryUsers]: 'user-summary-users',
+  [USR.summaryAdmins]: 'user-summary-admins',
+  [USR.summaryPending]: 'user-summary-pending',
+};
+export const summary = (page: Page): Locator => page.locator('header').filter({ has: page.getByTestId('user-summary-pending') });
+export const figure = (scope: Locator, caption: string): Locator => scope.getByTestId(SUMMARY_TEST_ID[caption] ?? caption);
+export const summaryNumbers = (scope: Locator): Locator => scope.locator('[data-testid^="user-summary-"]');
 
 export { pickOption };

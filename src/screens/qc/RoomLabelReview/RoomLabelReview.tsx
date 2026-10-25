@@ -52,6 +52,7 @@
  */
 
 import { LayoutGrid } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -63,9 +64,9 @@ import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScre
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcStatusBar, QcWorkspace } from '../shared/QcScreenFrame';
-import { qcProgressLabel } from '../shared/qcLayers';
 
 import { RoomLabelCanvas } from './RoomLabelCanvas';
+import { RoomLabelGate, RoomLabelPanelHead } from './RoomLabelHead';
 import { RoomLabelInspector } from './RoomLabelInspector';
 import { RoomLabelGapsSection, RoomLabelLeftPanel } from './RoomLabelLeftPanel';
 import { RoomLabelNormalizePreview } from './RoomLabelNormalizePreview';
@@ -108,7 +109,17 @@ const LINK_CLASS_NAME = cn(
 
 /** Khung chung của cột trái, để bốn nhánh thay thế không mỗi chỗ một bề rộng. */
 const LEFT_COLUMN_CLASS_NAME =
-  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-xl bg-bg-surface p-4 shadow-panel max-lg:h-auto max-lg:w-full lg:max-xl:h-[60vh]';
+  'flex h-full w-[280px] shrink-0 flex-col overflow-y-auto rounded-xl bg-bg-surface shadow-panel max-lg:h-auto max-lg:w-full';
+
+/** MỘT khung cho cột trái (NGUYEN-TAC-BO-CUC §2): đầu panel (3 câu) rồi nội dung của nhánh. */
+function LeftCard({ head, children }: { readonly head: ReactNode; readonly children: ReactNode }) {
+  return (
+    <div className={LEFT_COLUMN_CLASS_NAME}>
+      {head}
+      <div className="flex flex-col gap-3 p-4">{children}</div>
+    </div>
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /* Cột trái — bốn nhánh loại trừ nhau, nhánh cuối là panel phòng thật.         */
@@ -134,17 +145,20 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
     isViewerRole,
     viewerRoleNotice,
   } = props;
+  const head = (
+    <RoomLabelPanelHead roomProgress={props.roomProgress} saveStatus={props.saveStatus} state={state} summary={summary} />
+  );
 
   if (errorMessage !== null) {
     return (
-      <div className={LEFT_COLUMN_CLASS_NAME}>
+      <LeftCard head={head}>
         <InlineAlert
           action={{ label: ERROR_ACTION_LABEL, onClick: onCheckWallGaps }}
           level="violation"
           message={errorMessage}
           title={ERROR_TITLE}
         />
-      </div>
+      </LeftCard>
     );
   }
 
@@ -154,7 +168,7 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
    */
   if (emptyNotice !== null && !showOnlyUnnamed) {
     return (
-      <div className={LEFT_COLUMN_CLASS_NAME}>
+      <LeftCard head={head}>
         {viewerRoleNotice === null ? null : (
           <InlineAlert level="attention" message={viewerRoleNotice} title={FORBIDDEN_TITLE} />
         )}
@@ -170,22 +184,22 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
           onNavigateToWalls={onNavigateToWalls}
           unclosedRoomCount={summary.unclosedRoomCount}
         />
-      </div>
+      </LeftCard>
     );
   }
 
   if (state === 'loading') {
     return (
-      <div className={LEFT_COLUMN_CLASS_NAME}>
+      <LeftCard head={head}>
         {SKELETON_ROWS.map((row) => (
           <Skeleton key={row} preset="table-row" />
         ))}
-      </div>
+      </LeftCard>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 max-lg:h-auto lg:max-xl:h-[60vh]">
+    <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 max-lg:h-auto">
       {viewerRoleNotice === null ? null : (
         <InlineAlert
           className="w-[280px] shrink-0 max-lg:w-full"
@@ -198,6 +212,8 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
       <div className="min-h-0 flex-1">
         <RoomLabelLeftPanel
           emptyListNotice={emptyNotice}
+          head={head}
+          oversizedRoom={props.oversizedRoom ?? null}
           list={{ rooms, selectedRoomId, onSelect, onHover, isViewerRole }}
           panel={{
             summary,
@@ -270,13 +286,16 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
 
   return (
     <QcScreenFrame label={SCREEN_TITLE}>
-      {props.floorNav != null && (
-        <QcFloorNav
-          {...props.floorNav}
-          layer="rooms"
-          progress={qcProgressLabel(rooms.filter((room) => room.status === 'confirmed').length, rooms.length)}
-        />
-      )}
+      {props.floorNav != null && <QcFloorNav {...props.floorNav} layer="rooms" titled={!isCollapsed} />}
+      <RoomLabelGate
+        layerGate={props.layerGate}
+        nextPendingRoom={props.nextPendingRoom}
+        onNavigateToWalls={onNavigateToWalls}
+        onOpenLayer={props.onOpenLayer}
+        onSelect={onSelect}
+        roomProgress={props.roomProgress}
+        state={props.state}
+      />
 
       {props.saveBlock != null && (
         <div className="px-2 pt-2">
@@ -342,7 +361,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         selectionKey={selectedRoomId}
       />
 
-      <QcStatusBar onUndo={isViewerRole ? undefined : props.onUndo} saveLabel={props.saveStatus ?? null} />
+      <QcStatusBar onUndo={isViewerRole ? undefined : props.onUndo} saveLabel={false} />
 
       {/*
        * Hộp thoại xem trước treo NGOÀI ba cột và luôn được gắn: nó tự đóng khi

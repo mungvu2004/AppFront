@@ -685,7 +685,7 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
       const mark = writes.length;
 
       // Exact: the tour's own skip is "Bỏ qua hướng dẫn" (G6).
-      await page.getByRole('button', { name: 'Bỏ qua', exact: true }).click();
+      await page.getByRole('button', { name: 'Để sau', exact: true }).click();
       if (moves) await expect(wallOption(before)).toHaveAttribute('aria-selected', 'false');
       await expectNoProjectWritesSince(mark, 'SCR-16 "Bỏ qua"');
     });
@@ -774,7 +774,7 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
 
     // `WallLayerLeftPanel.tsx`: the button only renders in state `success` (every wall approved).
     if (!current.every((wall) => wall.reviewed === true)) {
-      await expect(page.getByRole('button', { name: 'Sang lớp cửa và nội thất', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Tiếp: Cửa', exact: true })).toHaveCount(0);
     }
 
     const targets: readonly (readonly [string, string])[] = [
@@ -1018,7 +1018,7 @@ test.describe('SCR-20 Room Label Review', () => {
       // UNKNOWN — NEED VERIFICATION: the usage-change toast text (plan 20-A-017) did not match in run 1; not asserted.
     });
 
-    const approve = page.getByRole('button', { name: 'Duyệt phòng này', exact: true });
+    const approve = page.getByRole('button', { name: /^Duyệt #R-/u });
     let approved: Json | null = null;
 
     await test.step('[20-A-018] "Duyệt phòng này": PUT, the button is disabled afterwards', async () => {
@@ -1049,7 +1049,7 @@ test.describe('SCR-20 Room Label Review', () => {
     await test.step('[20-A-024] preview "Huỷ" (or "Đóng") closes the dialog, nothing changes, 0 PUT', async () => {
       const mark = writes.length;
 
-      await page.getByRole('button', { name: 'Chuẩn hoá tên', exact: true }).click();
+      await page.getByRole('button', { name: 'Chuẩn hoá tên…', exact: true }).click();
       const preview = page.getByRole('dialog', { name: 'Xem trước chuẩn hoá tên', exact: true });
 
       await expect(preview).toBeVisible();
@@ -1083,11 +1083,12 @@ test.describe('SCR-20 Room Label Review', () => {
 test.describe('SCR-21 Thickness Standardization', () => {
   test.beforeEach(useSeededFloor);
 
-  test('SCR-21 apply: slider "Ngưỡng giữa 110 mm và 220 mm"; tick "Đồng ý chuẩn hoá …"; "Xem trước" → "Áp dụng" → bulk PUT, "Hoàn tác"', async () => {
+  test('SCR-21 apply: slider "Ngưỡng giữa 110 mm và 220 mm"; tick "Đồng ý đổi các đoạn …"; "Đổi N đoạn" → bulk PUT, "Hoàn tác"', async () => {
     // Group rows are `motion.tr` with layoutId: no click on a sliding row (as e2e/v7).
     await page.emulateMedia({ reducedMotion: 'reduce' });
     try {
-      const accept = page.getByRole('checkbox', { name: /^Đồng ý chuẩn hoá \d+ tường /u }).first();
+      // bản Z (S-21): one checkbox per target group, "Đồng ý đổi các đoạn {range} về {target} mm"
+      const accept = page.getByRole('checkbox', { name: /^Đồng ý đổi các đoạn / }).first();
 
       await test.step('[21-A-001] deep link renders the region, heading and the tables or the empty state', async () => {
         await openLayerScreen(ROUTES.project.thickness(projectId, floorId));
@@ -1095,7 +1096,7 @@ test.describe('SCR-21 Thickness Standardization', () => {
         await expect.soft(page.getByRole('region', { name: 'Chuẩn hoá độ dày tường', exact: true })).toBeVisible();
         await dismissTour(page);
 
-        const noGroups = page.getByText('Chưa có nhóm nào để chuẩn hoá.', { exact: true });
+        const noGroups = page.getByText('Không còn đoạn nào cần đổi.', { exact: true }); // TB:nothingLeft
         const noWalls = page.getByRole('heading', { name: 'Chưa có đoạn tường nào để chuẩn hoá' });
 
         await expect(accept.or(noGroups).or(noWalls).first()).toBeVisible();
@@ -1122,20 +1123,23 @@ test.describe('SCR-21 Thickness Standardization', () => {
       });
 
       if ((await accept.count()) === 0) {
+        // S-21 rule: within 30 mm of 110/220/330 is standard. qcLayer seeds 200 mm partitions (20 mm off 220): nothing to change,
+        // which is the correct state; the apply path itself is covered by phase04_thickness_edge FL-21-01.
+        await expect(page.getByText('Không còn đoạn nào cần đổi.', { exact: true })).toBeVisible();
         await captureEvidence(page, '21_thickness_apply.png');
-        throw new Error('seeded floor: no non-standard wall group (qcLayer seeds two 200 mm partitions)');
+        test.info().annotations.push({ type: 'note', description: '[21-A-004]/[21-G-002] seeded floor is all standard under S-21; apply covered in FL-21-01' });
+        return;
       }
 
-      await test.step('[21-A-004] tick "Đồng ý chuẩn hoá {n} tường {m} mm về {group}" → checked', async () => {
+      await test.step('[21-A-004] tick "Đồng ý đổi các đoạn {range} về {target} mm" → checked', async () => {
         await pressSpaceOn(accept);
         await expect(accept).toBeChecked();
       });
 
-      await test.step('[21-G-002] "Xem trước" → "Áp dụng" → one PUT #35 carrying every changed wall; the toast offers "Hoàn tác"', async () => {
-        await page.getByRole('button', { name: 'Xem trước', exact: true }).click();
+      await test.step('[21-G-002] "Đổi N đoạn" → one PUT #35 carrying every changed wall; the toast offers "Hoàn tác"', async () => {
         const put = waitForLayerPut();
 
-        await page.getByRole('button', { name: 'Áp dụng', exact: true }).click();
+        await page.getByRole('button', { name: /^Đổi \d+ đoạn/u }).click();
         expectLayerWrite(await put);
         await expect(
           page.getByRole('region', { name: 'Thông báo', exact: true }).getByRole('button', { name: 'Hoàn tác', exact: true }).first(),

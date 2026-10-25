@@ -1,5 +1,5 @@
 /**
- * Thanh công cụ đầu bảng: ô tìm, bộ lọc danh mục, chuyển đổi bảng/lưới.
+ * Đầu khung danh sách (trong `Section` của màn): ô tìm, bộ lọc danh mục, chuyển đổi bảng/lưới.
  *
  * KHÔNG có nút "Tải lên model" — `model.capabilities.canUploadModel` bằng `false` trong
  * bản này (không có đường tải `.glb` lên ở bất kỳ tầng nào, xem docblock `types.ts`), và
@@ -33,7 +33,7 @@ export interface ModelLibraryToolbarProps {
 
 export function ModelLibraryToolbar({ model, actions }: ModelLibraryToolbarProps) {
   return (
-    <div className="flex flex-wrap items-end gap-4">
+    <div className="flex flex-wrap items-end gap-4 border-b border-border-default px-5 py-4">
       <Input
         className="w-60"
         label={SEARCH_LABEL}

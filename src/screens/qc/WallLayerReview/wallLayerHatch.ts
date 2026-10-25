@@ -131,6 +131,9 @@ export function wallThicknessBandOf(thicknessMm: number): WallThicknessChoice | 
   return best;
 }
 
+/** Dung sai "chuẩn" cho chữ chú giải — đọc từ hằng domain, không gõ số ở view. */
+export const THICKNESS_TOLERANCE_MM: number = WALL_THICKNESS_TOLERANCE_MM;
+
 /** Số tường theo nhóm, chỉ những nhóm có mặt — nguồn của chú giải có số đếm. */
 export function countWallBands(thicknesses: readonly number[]): {
   readonly bands: ReadonlyMap<WallThicknessChoice, number>;
@@ -153,6 +156,9 @@ export function countWallBands(thicknesses: readonly number[]): {
 
 /** `id` của `<pattern>` gạch chéo; `fill="url(#…)"` trỏ vào đây. */
 export const WALL_HATCH_PATTERN_ID = 'wall-layer-review-hatch';
+
+/** `id` của gạch chéo "không chuẩn" (thấy được, khác gạch 6% của tin cậy thấp). */
+export const NON_STANDARD_HATCH_PATTERN_ID = 'wall-layer-review-nonstandard';
 
 /** Cạnh một ô lát của mẫu, px MÀN (canvas nhân với `unitPx` — review-1 #3). */
 export const WALL_HATCH_TILE_PX = 12;
@@ -514,7 +520,7 @@ export interface WallLayerPointerReading {
  * gốc đến từ một truy vấn khác (`queryKeys.drawing.byFloor`) với lớp hình học
  * (N16, `queryKeys.layer.byFloor`), nên nó đứng nguyên khi lớp kia hỏng. Câu thông
  * báo lỗi thuộc về panel, không thuộc về canvas. Chú giải độ dày thì hiện ở CẢ
- * BẢY nhánh khi lớp Tường bật — xem `WallLayerLegend.tsx`.
+ * BẢY nhánh khi lớp Tường bật — xem `WallLayerLegendTray.tsx`.
  *
  * ## Hai hạn chế đã biết của component dùng chung, KHÔNG phải nợ của lớp canvas
  *

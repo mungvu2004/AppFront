@@ -21,7 +21,7 @@ describe('QcFloorNav', () => {
     renderNav('Nhà A');
     const crumbs = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
     const layers = screen.getByRole('navigation', { name: 'Các lớp kiểm tra' });
-    expect(crumbs.parentElement).toBe(layers.parentElement);
+    expect(crumbs.closest('div.h-8')).toBe(layers.parentElement);
   });
 
   it('nơi gọi không truyền tên: breadcrumb vẫn có tên dự án đã nhớ', () => {

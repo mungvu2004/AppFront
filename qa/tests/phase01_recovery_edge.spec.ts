@@ -88,7 +88,7 @@ const UNKNOWN_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. H
 const CHECKING = 'Đang kiểm tra kết nối.'; // connectionStates.checking :4197
 
 /** `ProjectDashboard.tsx:196` h1 — proof `/` painted (as in Phase 1). */
-const DASHBOARD_TITLE = 'Dự án của tôi';
+const DASHBOARD_TITLE = 'Chọn dự án để làm tiếp';
 
 /** ≥ 8 chars (`src/api/schemas/auth.ts:14`). Never a real password; only ever sent to a mock or with a bogus token. */
 const PROBE_PASSWORD = 'mat-khau-e2e-rec';

@@ -83,6 +83,7 @@ const SAMPLE_ROW: ProjectCardModel = {
   members: [{ id: 'm-an', initials: 'PA' }],
   planVariant: 0,
   hasPlan: true,
+  actionLabel: 'Duyệt tường',
 };
 
 /** Every prop the view takes, at rest — written out so a scenario describes exactly what it changes. */
@@ -182,22 +183,30 @@ describe('ProjectDashboardView, seven states', () => {
     expect(screen.queryByText('Chưa có dự án nào')).not.toBeInTheDocument();
   });
 
-  // BUG-228: the skeleton had no rail, no filter strip and no count line, so the page jumped when the list landed.
-  it('holds the rail (from 1024 px), the filter strip (below it) and the count line while loading', () => {
+  // BUG-228: the skeleton had no filter strip and no status line, so the page jumped when the list landed.
+  it('holds the filter strip, the toolbar and the status line while loading', () => {
     const { container } = render(<ProjectDashboardView {...PROPS_BY_STATE.loading()} />);
     const placeholders = [...container.querySelectorAll('[aria-hidden="true"]')].map((element) => element.className);
 
-    expect(placeholders.some((name) => name.includes('w-[260px]') && name.includes('hidden') && name.includes('lg:flex'))).toBe(true);
-    expect(placeholders.some((name) => name.includes('h-14') && name.includes('lg:hidden'))).toBe(true);
-    expect(placeholders.some((name) => name.includes('h-5'))).toBe(true);
-    expect(screen.queryAllByRole('button', { pressed: true })).toHaveLength(0);
+    expect(placeholders.some((name) => name.includes('h-[22px]'))).toBe(true);
+    expect(screen.getByRole('radiogroup', { name: 'Lọc theo trạng thái' })).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Tìm dự án' })).toBeInTheDocument();
   });
 
-  it('teaches, with a create button, when there has never been a project', () => {
+  // S-02: the page says what it is for with a verb, and holds one primary action.
+  it('titles the page with a verb and offers one primary "Tạo dự án"', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Chọn dự án để làm tiếp' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^Tạo dự án/u })).toHaveLength(1);
+  });
+
+  // The create button is the page head's one primary action; the empty body only teaches (no second button).
+  it('teaches, with the create button in the head, when there has never been a project', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.empty()} />);
 
     expect(screen.getByText('Tạo dự án đầu tiên để bắt đầu số hoá bản vẽ.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tạo dự án mới' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^Tạo dự án/u })).toHaveLength(1);
   });
 
   // QA-01 debt #10: a viewer cannot create, so the empty state must not tell them to.
@@ -206,7 +215,7 @@ describe('ProjectDashboardView, seven states', () => {
 
     expect(screen.queryByText('Tạo dự án đầu tiên để bắt đầu số hoá bản vẽ.')).not.toBeInTheDocument();
     expect(screen.getByText('Bạn chưa được thêm vào dự án nào. Khi được mời, dự án sẽ hiện ở đây.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Tạo dự án mới' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Tạo dự án/u })).not.toBeInTheDocument();
   });
 
   it('offers to clear filters when a search matches nothing', () => {
@@ -215,13 +224,13 @@ describe('ProjectDashboardView, seven states', () => {
     expect(screen.getByText('Không tìm thấy dự án phù hợp')).toBeInTheDocument();
   });
 
-  // BUG-117: dropping the count line on a no-match search made the stats column jump up.
-  it('keeps the "{n} dự án" line when a search matches nothing, and drops it only while loading', () => {
+  // BUG-117: dropping the count line on a no-match search made the head jump up.
+  it('says how many projects match when a search matches nothing, and drops the line only while loading', () => {
     const { rerender } = render(<ProjectDashboardView {...PROPS_BY_STATE.partial()} />);
-    expect(screen.getByText('0 dự án')).toBeInTheDocument();
+    expect(screen.getByText('0/1 dự án khớp tìm kiếm và bộ lọc')).toBeInTheDocument();
 
     rerender(<ProjectDashboardView {...PROPS_BY_STATE.loading()} />);
-    expect(screen.queryByText(/^\d+ dự án$/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(/dự án khớp|^\d+ dự án$/u)).not.toBeInTheDocument();
   });
 
   // BUG-111: below 1024 px the state is `collapsed`, never `partial`; the no-match state used to hang on `partial`.
@@ -249,10 +258,10 @@ describe('ProjectDashboardView, seven states', () => {
     expect(screen.queryByRole('button', { name: 'Thử lại' })).not.toBeInTheDocument();
   });
 
-  it('hides "Dự án mới" for a viewer, and keeps the grid', () => {
+  it('hides "Tạo dự án" for a viewer, and keeps the grid', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.forbidden()} />);
 
-    expect(screen.queryByRole('button', { name: /Dự án mới/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Tạo dự án/u })).not.toBeInTheDocument();
     expect(screen.getByText('Toà nhà HQ Renovation')).toBeInTheDocument();
   });
 
@@ -352,7 +361,7 @@ describe('ProjectDashboardView, seven states', () => {
 
     const cells = within(screen.getByRole('row', { name: new RegExp(SAMPLE_ROW.name, 'u') })).getAllByRole('cell');
     expect(cells[0]?.textContent).toBe(SAMPLE_ROW.name);
-    // Ô cuối là nút 3D và "…", không có chữ cột.
+    // Ô cuối là nút việc tiếp ("Duyệt tường") và "…", không có chữ cột.
     const shownBelowSm = cells.slice(0, -1).filter((cell) => !cell.className.split(' ').includes('hidden')).map((cell) => cell.textContent);
     // review-1 #19: the header row is hidden below `sm`, so each stacked cell names its column (sr-only, `sm:hidden`).
     expect(shownBelowSm).toEqual([
@@ -412,14 +421,17 @@ describe('ProjectDashboardView, seven states', () => {
     }
   });
 
-  // BUG-118: four counter tiles repeated the filter's four counts above it.
-  it('shows the status counts once, on the filter', () => {
-    const { container } = render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
-    const rail = container.querySelector('aside');
+  // BUG-118 / vòng 7: a count shown in two places reads as two sets of numbers. It lives in the head's status
+  // line only; the filter carries no counts.
+  it('shows the status counts once, in the head, not on the filter', () => {
+    const counts = { all: 5, noplan: 1, processing: 1, qc: 3, done: 0 };
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} totalProjects={5} statusCounts={counts} />);
 
-    expect(rail?.children).toHaveLength(1);
-    expect(within(rail as HTMLElement).getAllByRole('button')).toHaveLength(5);
-    expect(screen.queryByText('Tổng dự án')).not.toBeInTheDocument();
+    expect(screen.getByText('3 dự án cần duyệt')).toBeInTheDocument();
+    expect(screen.getByText('5 dự án')).toBeInTheDocument();
+    const filter = screen.getByRole('radiogroup', { name: 'Lọc theo trạng thái' });
+    expect(within(filter).getAllByRole('radio')).toHaveLength(5);
+    expect(filter.textContent).not.toMatch(/\d/u);
   });
 
   // BUG-169: a scrolled query is cut mid-glyph at the field's edge; the fade that hides the cut is on only while scrolled.
@@ -477,10 +489,10 @@ describe('ProjectDashboardRoute', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('button', { name: /Dự án mới/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Tạo dự án/u })).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Dự án mới/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Tạo dự án/u }));
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('Tạo dự án mới')).toBeInTheDocument();
@@ -493,7 +505,7 @@ describe('ProjectDashboardRoute', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: /Dự án mới/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Tạo dự án/u }));
     await screen.findByRole('dialog');
 
     // Two independent `Toast.Provider`s would each draw their own
@@ -631,14 +643,26 @@ describe('ProjectDashboardView — khe chuông', () => {
 });
 
 describe('ProjectDashboardView — xem 3D', () => {
-  it('nút "3D" trên thẻ mở thẳng khung nhìn 3D, không mở bước đang dở', () => {
+  it('mục "Xem 3D" trong menu mở thẳng khung nhìn 3D, không mở bước đang dở', () => {
     const openProject = vi.fn();
     const openProjectViewer = vi.fn();
     render(<ProjectDashboardView {...PROPS_BY_STATE.success()} openProject={openProject} openProjectViewer={openProjectViewer} />);
 
-    fireEvent.click(screen.getAllByRole('button', { name: /^Xem 3D / })[0]!);
+    fireEvent.click(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Xem 3D' }));
 
     expect(openProjectViewer).toHaveBeenCalledOnce();
     expect(openProject).not.toHaveBeenCalled();
+  });
+
+  // Vòng 8: one verb per step — the tile's one action says the step's verb and opens the project there.
+  it('mỗi thẻ có một nút việc tiếp, nói đúng động từ của bước', () => {
+    const openProject = vi.fn();
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} openProject={openProject} />);
+
+    const action = screen.getByRole('button', { name: `Duyệt tường ${SAMPLE_ROW.name}` });
+    expect(action).toHaveTextContent('Duyệt tường');
+    fireEvent.click(action);
+    expect(openProject).toHaveBeenCalledWith(SAMPLE_ROW.id, 'card');
   });
 });

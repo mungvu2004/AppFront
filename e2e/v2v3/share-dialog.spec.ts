@@ -44,7 +44,7 @@ const COLD_START_TIMEOUT_MS = 60_000;
 
 const PROJECT_ID = 'project-1';
 const EXPORT = ROUTES.project.export(PROJECT_ID);
-const SCREEN_HEADING = 'Xuất bản vẽ';
+const SCREEN_HEADING = 'Xuất mô hình';
 
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(COLD_START_TIMEOUT_MS);
@@ -77,7 +77,7 @@ test('không bơm kho: /export đi bằng đường sản phẩm thì cổng n�
   });
 
   await openExport(page);
-  await expect(page.getByRole('button', { name: 'Xuất', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toBeVisible();
   await expect(shareButton(page)).toHaveCount(0);
   expect(shareLinkRequests).toEqual([]);
 });

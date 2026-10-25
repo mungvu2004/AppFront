@@ -219,7 +219,7 @@ describe('Bảng và chi tiết', () => {
     renderView(TRAINING_JOBS_SCENARIO_SUCCESS);
 
     expect(screen.queryByRole('navigation', { name: 'Đường dẫn trang' })).toBeNull();
-    expect(screen.getByRole('heading', { level: 1, name: 'Huấn luyện mô hình AI' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Theo dõi huấn luyện' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sang tab Mô hình AI' })).toHaveAttribute('href', ROUTES.adminTrainingModels);
     expect(ROUTES.adminTrainingJobs).toBe('/admin/training/jobs');
   });
@@ -331,11 +331,11 @@ describe('Hộp thoại A9 và biểu mẫu', () => {
 });
 
 describe('Phase 08 — BUG-P08-009 · 35T-B-014: panel chi tiết khi chưa chọn lượt (>= 1024)', () => {
-  it('[35T-B-014] detail=null → aside hiện câu hướng dẫn', () => {
+  it('[35T-B-014] detail=null → không aside, bảng lấy đủ bề rộng (như V-05 của ModelRegistry)', () => {
     renderView({ ...TRAINING_JOBS_SCENARIO_SUCCESS, detail: null });
 
-    const panel = screen.getByRole('complementary', { name: 'Chi tiết lượt huấn luyện' });
-    expect(within(panel).getByText('Chọn một lượt để xem chi tiết.')).toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: 'Chi tiết lượt huấn luyện' })).toBeNull();
+    expect(screen.getByRole('table')).toBeInTheDocument();
   });
 
   it('[35T-B-014] màn hẹp, detail=null → không aside, không Drawer mở', () => {

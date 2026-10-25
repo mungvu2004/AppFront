@@ -313,7 +313,7 @@ const BASE: OverlayComparisonViewModel = {
   toleranceLabel: 'Dung sai',
   rows: buildRows(SAMPLE_DEVIATIONS_MM, DEFAULT_TOLERANCE_MM),
   confirmation: {
-    buttonLabel: 'Xác nhận mô hình khớp bản vẽ',
+    buttonLabel: 'Xác nhận khớp bản vẽ',
     isConfirmed: false,
     canConfirm: true,
     disabledReason: null,
@@ -383,7 +383,7 @@ export const OVERLAY_COMPARISON_SCENARIOS: Readonly<
     rows: buildRows(SAMPLE_DEVIATIONS_MM, RELAXED_TOLERANCE_MM),
     metrics: buildMetrics(SAMPLE_DEVIATIONS_MM, RELAXED_TOLERANCE_MM),
     confirmation: {
-      buttonLabel: 'Xác nhận mô hình khớp bản vẽ',
+      buttonLabel: 'Xác nhận khớp bản vẽ',
       isConfirmed: true,
       canConfirm: false,
       disabledReason: null,

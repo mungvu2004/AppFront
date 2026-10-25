@@ -3,7 +3,10 @@
  * command palette, icon-rail, thông báo Blender / xuất tệp. Cùng định dạng với `editor.mjs`.
  * Tệp `settings-panel/index.tsx` đã có ở `editor.mjs`; `pascal-vi.mjs` nối hai mảng lại.
  */
-const UI = 'editor/src/components/ui/';
+const C = 'editor/src/components/';
+const UI = `${C}ui/`;
+/** Cặp cho mảng chuỗi khai dạng `khoá: '…'` (bảng phím tắt). */
+const keyed = (key, rows) => rows.map(([en, vi]) => [`${key}: '${en}'`, `${key}: '${vi}'`]);
 
 export const EDITOR_EXTRA_VI = {
   [`${UI}sidebar/panels/settings-panel/index.tsx`]: [
@@ -152,5 +155,184 @@ export const EDITOR_EXTRA_VI = {
     ['text-sm">Floor area</span>', 'text-sm">Diện tích sàn</span>'],
     ['The file contains no recognised nodes.', 'Tệp không chứa nút nào nhận dạng được.'],
     ['Replace current scene', 'Thay thế cảnh hiện tại'],
+  ],
+
+  // Gói H (S-23..S-40): hộp xoá/nhân bản tầng, khu vực, cây cảnh, bảng phím tắt, lỗi dựng cảnh.
+  [`${C}editor/delete-confirmation-dialog.tsx`]: [
+    ['<DialogTitle>Delete {request?.count ?? 0} elements?</DialogTitle>', '<DialogTitle>Xoá {request?.count ?? 0} đối tượng?</DialogTitle>'],
+    [
+      'This removes every selected element. You can undo the deletion while it remains in the\n            editor history.',
+      'Mọi đối tượng đang chọn sẽ bị xoá. Bấm Ctrl+Z để hoàn tác khi thao tác còn trong\n            lịch sử.',
+    ],
+    ['\n            Cancel\n', '\n            Huỷ\n'],
+    ['\n            Delete\n', '\n            Xoá\n'],
+  ],
+
+  [`${UI}level-duplicate-dialog.tsx`]: [
+    ["label: 'Everything'", "label: 'Toàn bộ'"],
+    ["'Structure, materials, furniture, and references.'", "'Kết cấu, vật liệu, nội thất và ảnh tham chiếu.'"],
+    ["label: 'Structure only'", "label: 'Chỉ kết cấu'"],
+    ["'Walls, slabs, roofs, stairs, windows, and doors without finishes.'", "'Tường, sàn, mái, cầu thang, cửa sổ và cửa đi, không kèm hoàn thiện.'"],
+    ["label: 'Structure + materials'", "label: 'Kết cấu và vật liệu'"],
+    ["'Structure with the current material and finish assignments.'", "'Kết cấu kèm vật liệu và hoàn thiện đang gán.'"],
+    ["label: 'Structure + furniture'", "label: 'Kết cấu và nội thất'"],
+    ["'Structure, finishes, and placed items, without guide references.'", "'Kết cấu, hoàn thiện và đồ đã đặt, không kèm ảnh tham chiếu.'"],
+    ["return 'this level'", "return 'tầng này'"],
+    ['<DialogTitle>Duplicate Level</DialogTitle>', '<DialogTitle>Nhân bản tầng</DialogTitle>'],
+    ['Choose what to copy from {getLevelLabel(level)}.', 'Chọn phần cần sao chép từ {getLevelLabel(level)}.'],
+    ['\n            Cancel\n', '\n            Huỷ\n'],
+    ['\n            Duplicate\n', '\n            Nhân bản\n'],
+  ],
+
+  [`${UI}floating-level-selector.tsx`]: [
+    ["Are you sure you want to delete{' '}", "Xoá{' '}"],
+    [
+      '? All\n              walls, floors, and objects on this level will be permanently removed.',
+      '? Mọi tường, sàn và đồ vật\n              trên tầng này sẽ bị xoá.',
+    ],
+    ['\n              Cancel\n', '\n              Huỷ\n'],
+    ['\n              Delete\n', '\n              Xoá\n'],
+  ],
+
+  [`${UI}sidebar/panels/site-panel/tree-node-actions.tsx`]: [
+    ['title="Camera snapshot"', 'title="Góc nhìn đã lưu"'],
+    ['View snapshot', 'Xem góc nhìn'],
+    ['Update snapshot', 'Cập nhật góc nhìn'],
+    ['Take snapshot', 'Lưu góc nhìn'],
+    ['Clear snapshot', 'Xoá góc nhìn'],
+    ["title={isVisible ? 'Hide' : 'Show'}", "title={isVisible ? 'Ẩn' : 'Hiện'}"],
+  ],
+
+  [`${UI}sidebar/panels/site-panel/building-tree-node.tsx`]: [
+    ['<TooltipContent side="right">Add new level</TooltipContent>', '<TooltipContent side="right">Thêm tầng mới</TooltipContent>'],
+  ],
+
+  [`${UI}sidebar/panels/site-panel/unit-tree-node.tsx`]: [
+    ['title="Remove from unit"', 'title="Bỏ khỏi căn hộ"'],
+    ['title="Delete unit"', 'title="Xoá căn hộ"'],
+    ['\n              Focused\n', '\n              Đang xem\n'],
+  ],
+
+  // Bảng phím tắt (S-40). Tên phím (`keys`) giữ nguyên: `ShortcutToken` đổi chúng thành biểu tượng.
+  [`${UI}sidebar/panels/settings-panel/keyboard-shortcuts-dialog.tsx`]: [
+    ['\n          Keyboard shortcuts\n', '\n          Phím tắt\n'],
+    ['<DialogTitle>Keyboard shortcuts</DialogTitle>', '<DialogTitle>Phím tắt</DialogTitle>'],
+    [
+      'Shortcuts are context-aware. Guided constraints are enabled by default; hold Shift\n            during an active gesture to build freely.',
+      'Phím tắt đổi theo ngữ cảnh. Bắt dính có dẫn hướng luôn bật; giữ Shift\n            trong lúc thao tác để dựng tự do.',
+    ],
+    ...keyed('title', [
+      ['Editor Navigation', 'Điều hướng'],
+      ['Modes & History', 'Chế độ và lịch sử'],
+      ['Selection', 'Chọn'],
+      ['Direct Manipulation', 'Thao tác trực tiếp'],
+      ['Drawing Tools', 'Công cụ vẽ'],
+      ['Item Placement', 'Đặt đồ'],
+    ]),
+    ...keyed('action', [
+      ['Switch to Site phase', 'Sang bước Khu đất'],
+      ['Switch to Structure phase', 'Sang bước Kết cấu'],
+      ['Switch to Furnish phase', 'Sang bước Nội thất'],
+      ['Switch to Furnish layer', 'Sang lớp Nội thất'],
+      ['Switch to Zones layer', 'Sang lớp Khu vực'],
+      ['Select next level in the active building', 'Chọn tầng trên của toà nhà đang mở'],
+      ['Select previous level in the active building', 'Chọn tầng dưới của toà nhà đang mở'],
+      ['Toggle sidebar', 'Ẩn/hiện thanh bên'],
+      ['Switch to Select mode', 'Sang chế độ Chọn'],
+      ['Switch to Build mode', 'Sang chế độ Dựng'],
+      ['Activate the last measurement tool', 'Mở lại công cụ đo vừa dùng'],
+      ['Switch to Delete mode', 'Sang chế độ Xoá'],
+      ['Cancel the active tool and return to Select mode', 'Huỷ công cụ đang dùng, về chế độ Chọn'],
+      ['Delete selected objects', 'Xoá đối tượng đang chọn'],
+      ['Undo', 'Hoàn tác'],
+      ['Redo', 'Làm lại'],
+      ['Save', 'Lưu ngay'],
+      ['Copy the selected objects', 'Sao chép đối tượng đang chọn'],
+      ['Cut the selected objects', 'Cắt đối tượng đang chọn'],
+      ['Paste and place copied objects', 'Dán rồi đặt đối tượng đã sao chép'],
+      ['Add or remove an object from multi-selection', 'Thêm hoặc bỏ một đối tượng khỏi nhóm đang chọn'],
+      ['Add or remove an object from canvas multi-selection', 'Thêm hoặc bỏ một đối tượng khỏi nhóm chọn trên khung vẽ'],
+      ['Move the whole multi-selection', 'Dời cả nhóm đang chọn'],
+      ['Rotate a multi-selection ±45° around its center', 'Xoay nhóm đang chọn ±45° quanh tâm'],
+      ['Group the multi-selection (session only)', 'Gộp nhóm đang chọn (chỉ trong phiên này)'],
+      ['Ungroup the session selection', 'Rã nhóm của phiên'],
+      ['Clear the selection', 'Bỏ chọn'],
+      ['Move the selected movable object under the cursor', 'Dời đối tượng đang chọn theo con trỏ'],
+      ['Rotate the selected object under the cursor', 'Xoay đối tượng đang chọn theo con trỏ'],
+      ['Rotate freely', 'Xoay tự do'],
+      ['Cycle the snapping mode', 'Đổi kiểu bắt dính'],
+      ['Cycle the grid step: 0.5 m → 0.25 m → 0.1 m → 0.05 m', 'Đổi bước lưới: 0,5 m → 0,25 m → 0,1 m → 0,05 m'],
+      ['Bypass guided snapping and angle constraints', 'Tạm bỏ bắt dính và ràng buộc góc'],
+      ['Rotate freely, bypassing the default 15° rotation snap', 'Xoay tự do, bỏ bước xoay 15° mặc định'],
+      ['Rotate item; with a door selected, R toggles open/closed and T closes', 'Xoay đồ; khi chọn cửa, R mở/đóng và T đóng'],
+      ['Operate the selected node — doors, windows, and cabinet doors/drawers animate open/closed', 'Mở/đóng đối tượng đang chọn: cửa đi, cửa sổ, cánh tủ và ngăn kéo'],
+      ['Temporarily bypass placement validation constraints', 'Tạm bỏ kiểm tra vị trí đặt'],
+      ['Pan camera', 'Dời camera'],
+      ['Orbit camera', 'Xoay camera'],
+    ]),
+    ...keyed('note', [
+      ['Mid-draw it cancels only the chain in progress and keeps the tool armed; press it again to leave the tool.', 'Đang vẽ thì chỉ huỷ nét đang dở, công cụ vẫn bật; bấm lần nữa để thoát công cụ.'],
+      ['The copied selection can be pasted into another level, project, or browser tab.', 'Dán được sang tầng khác, dự án khác hoặc thẻ trình duyệt khác.'],
+      ['Copies the selection to the clipboard, then removes it from this scene.', 'Chép phần đang chọn vào bộ nhớ tạm rồi bỏ khỏi cảnh.'],
+      ['Works in Select mode on the 3D canvas, the 2D floor plan, and the scene graph.', 'Dùng ở chế độ Chọn trên khung 3D, mặt bằng 2D và cây cảnh.'],
+      ['In the scene graph, Shift-click selects the visible range like a file browser.', 'Trong cây cảnh, Shift + bấm chọn cả dải đang hiện, như trình quản lý tệp.'],
+      ['Also works mid-move while carrying the selection.', 'Dùng được cả khi đang dời nhóm.'],
+      ['Keeps the current selection; only dissolves the session group.', 'Giữ phần đang chọn, chỉ rã nhóm của phiên.'],
+      ['Clicking empty space does the same.', 'Bấm vào chỗ trống cũng vậy.'],
+      ['Drag in Select mode with a single object selected. Guided snapping and guides are enabled by default.', 'Kéo ở chế độ Chọn khi chọn một đối tượng. Bắt dính và đường dẫn luôn bật.'],
+      ['Drag left or right in Select mode with a single object selected. Rotation snaps to 15° increments by default.', 'Kéo sang trái hoặc phải ở chế độ Chọn khi chọn một đối tượng. Mặc định xoay theo bước 15°.'],
+      ['Hold Shift during the drag to bypass the 15° rotation increment.', 'Giữ Shift trong lúc kéo để bỏ bước xoay 15°.'],
+      ['Tap and release without pressing anything else, while a drawing or move gesture is available.', 'Bấm rồi nhả, không kèm phím khác, khi đang vẽ hoặc dời.'],
+      ['Tap and release on its own. Use it when the default half-metre grid is too coarse — placing a window, for instance.', 'Bấm rồi nhả riêng phím này. Dùng khi lưới 0,5 m quá thưa, ví dụ lúc đặt cửa sổ.'],
+      ['Hold during the active gesture. Passive guide or measurement feedback may stay visible.', 'Giữ trong lúc thao tác. Đường dẫn và số đo có thể vẫn hiện.'],
+      ['Hold while dragging a rotate handle or direct-rotation gesture.', 'Giữ trong lúc kéo tay nắm xoay hoặc xoay trực tiếp.'],
+      ['Hold while placing.', 'Giữ trong lúc đặt.'],
+      ['Moves in screen space, similar to dragging the camera view.', 'Dời theo mặt màn hình, như kéo khung nhìn.'],
+      ['Drag with the middle mouse button, or hold Space while dragging with the left mouse button.', 'Kéo bằng chuột giữa, hoặc giữ phím cách rồi kéo chuột trái.'],
+      ['Drag with the right mouse button.', 'Kéo bằng chuột phải.'],
+    ]),
+    ["'Carries a preview under the cursor. Click to place it, or press Escape to cancel.'", "'Bản xem trước đi theo con trỏ. Bấm để đặt, hoặc bấm Esc để huỷ.'"],
+    [
+      "'With 2+ objects selected, in 2D and 3D alike: drag the selection (or its dashed box) to slide it; click it to pick it up and place with the next click.'",
+      "'Khi chọn từ 2 đối tượng, ở cả 2D lẫn 3D: kéo nhóm (hoặc khung nét đứt) để trượt; bấm để nhấc lên rồi bấm lần nữa để đặt.'",
+    ],
+    ["'Editor-only. Plain click a member later to reselect the whole group. Not saved with the project.'", "'Chỉ trong trình soạn thảo. Bấm một thành viên để chọn lại cả nhóm. Không lưu vào dự án.'"],
+  ],
+
+  [`${C}editor/index.tsx`]: [
+    ['>The editor scene failed to render</h2>', '>Chưa dựng được cảnh 3D</h2>'],
+    [
+      'You can retry the scene or return home without reloading the whole app shell.',
+      'Tải lại trình soạn thảo để thử lần nữa, hoặc về trang chính. Phần đã lưu không mất.',
+    ],
+    ['\n            Reload editor\n', '\n            Tải lại trình soạn thảo\n'],
+    ['\n            Back to home\n', '\n            Về trang chính\n'],
+    ['title="Expand sidebar"', 'title="Mở rộng thanh bên"'],
+    ['aria-label="Camera controls hint"', 'aria-label="Gợi ý điều khiển camera"'],
+    ['aria-label="Dismiss camera controls hint"', 'aria-label="Ẩn gợi ý điều khiển camera"'],
+    ['\n            Dismiss\n', '\n            Ẩn gợi ý\n'],
+  ],
+
+  [`${UI}scene-loader.tsx`]: [
+    [">This project couldn't be loaded</p>", '>Chưa mở được dự án này</p>'],
+    ['Nothing was changed. Check your connection and try again.', 'Chưa có gì bị thay đổi. Kiểm tra kết nối mạng rồi thử lại.'],
+    ['\n        Try again\n', '\n        Thử lại\n'],
+  ],
+
+  [`${UI}primitives/error-boundary.tsx`]: [
+    ['>Something went wrong</h2>', '>Đã có lỗi khi hiển thị phần này</h2>'],
+    ['\n            Try again\n', '\n            Thử lại\n'],
+  ],
+
+  [`${UI}command-palette/index.tsx`]: [
+    ['<DialogTitle className="sr-only">Command Palette</DialogTitle>', '<DialogTitle className="sr-only">Bảng lệnh</DialogTitle>'],
+    ['No commands found.', 'Không tìm thấy lệnh nào.'],
+  ],
+
+  // S-30: ô chiều cao khối của công cụ đo diện tích trên mặt bằng 2D.
+  [`${C}editor-2d/floorplan-measurement-tool-layer.tsx`]: [
+    ['\n            Extrusion height\n', '\n            Chiều cao khối\n'],
+    ['aria-label="Extrusion height"', 'aria-label="Chiều cao khối"'],
+    ['\n            Create\n', '\n            Tạo khối\n'],
   ],
 };

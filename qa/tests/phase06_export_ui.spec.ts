@@ -29,6 +29,7 @@ import {
   exportButton,
   expandOptions,
   formatGroup,
+  blockedFormat,
   formatRadio,
   historyRegion,
   historyRows,
@@ -122,24 +123,23 @@ test.describe('SCR-30 Bảng xuất — UI verify', () => {
         seen.each((width, box) => expect.soft(inside(box, width), `${String(width)}: "Xuất" inside the frame`).toBe(true));
       });
 
-      await test.step('[30-F-003] .pdf: the notice wraps, no overflow', async () => {
+      // Cụm 6: PDF/ảnh không còn là thẻ chọn mà là dòng "chưa xuất được" — kiểm dòng đó xuống dòng gọn, không tràn.
+      await test.step('[30-F-003] .pdf line wraps, no overflow', async () => {
         const seen = new Seen<Box>();
         await verifyUi(page, NAME('30-F-003', 'pdf_notice'), async (p) => {
           await openExport(p, project.id);
-          await selectFormat(p, '.pdf');
-          seen.record(p, await boxOf(p.getByText(EP.pdfNotice, { exact: true })));
+          seen.record(p, await boxOf(blockedFormat(p, '.pdf')));
         });
-        seen.each((width, box) => expect.soft(inside(box, width), `${String(width)}: notice inside the frame`).toBe(true));
+        seen.each((width, box) => expect.soft(inside(box, width), `${String(width)}: .pdf line inside the frame`).toBe(true));
       });
 
-      await test.step('[30-F-004] .png: the long caption wraps', async () => {
+      await test.step('[30-F-004] .png line wraps', async () => {
         const seen = new Seen<Box>();
         await verifyUi(page, NAME('30-F-004', 'png_caption'), async (p) => {
           await openExport(p, project.id);
-          await selectFormat(p, '.png');
-          seen.record(p, await boxOf(formatRadio(p, '.png').getByText(EP.imageBlocked, { exact: true })));
+          seen.record(p, await boxOf(blockedFormat(p, '.png')));
         });
-        seen.each((width, box) => expect.soft(inside(box, width), `${String(width)}: caption inside the frame`).toBe(true));
+        seen.each((width, box) => expect.soft(inside(box, width), `${String(width)}: .png line inside the frame`).toBe(true));
       });
 
       await test.step('[30-F-012] preflight with attention rows: "Sửa" and "Tuỳ chọn" target sizes', async () => {
@@ -302,7 +302,7 @@ test.describe('SCR-30 Bảng xuất — UI verify', () => {
 
       await test.step('[30-F-009] loading skeleton keeps the card heights', async () => {
         const hold = await holdRoute(page, spatialRe(project.id), 'hold');
-        const cards = ['.glb', '.pdf', '.png', '.json'];
+        const cards = ['.glb', '.json'];
         const heights = async (p: Page): Promise<number[]> => Promise.all(cards.map(async (ext) => (await boxOf(formatRadio(p, ext))).height));
         try {
           await verifyUi(page, NAME('30-F-009', 'loading_skeleton'), async (p) => {
@@ -311,7 +311,7 @@ test.describe('SCR-30 Bảng xuất — UI verify', () => {
           });
           const loading = await heights(page);
           hold.release();
-          await expect(formatRadio(page, '.pdf')).toContainText(/\d[\d.]* trang/u);
+          await expect(blockedFormat(page, '.pdf')).toContainText(/\d[\d.]* trang/u);
           const loaded = await heights(page);
           loading.forEach((height, index) => expect.soft(Math.abs(height - (loaded[index] ?? 0)), `${cards[index] ?? ''} card height: loading ${String(height)} vs loaded ${String(loaded[index])}`).toBeLessThanOrEqual(1));
         } finally {

@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 import { seedSpatial } from '../fixtures/seedSpatial';
 import { VIEWER_PROJECT_ID, dismissTourIfPresent, openViewer, selectRoomBySearch } from './viewer';
 
+test.skip(true, 'Viewer3D cũ không còn route từ 29eba219: /3d chuyển cả trang sang editor3d.html — đổi tên phòng ở bảng diện tích không còn trên trang 3D; lưu từ trang Pascal kiểm ở pascal-evidence.spec.ts, pascal-fixtures.spec.ts C13.');
+
 /**
  * Nhóm V8 — tự lưu của màn `/3d`. Máy khách mock chạy ngay trong trang
  * (`src/api/appClient.ts`), nên `page.route` không thấy lượt PUT nào: bài đọc nhãn tự lưu

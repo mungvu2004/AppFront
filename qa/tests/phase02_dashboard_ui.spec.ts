@@ -72,7 +72,7 @@ import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
 
 /* Copy — every string checked in src/ (file noted). */
-const DASHBOARD_TITLE = 'Dự án của tôi'; // ProjectDashboard.tsx h1
+const DASHBOARD_TITLE = 'Chọn dự án để làm tiếp'; // ProjectDashboard.tsx h1
 const PROJECT_LIST = 'Danh sách dự án'; // ProjectDashboard.tsx renderProjectGrid
 const SEARCH_LABEL = 'Tìm dự án'; // ProjectDashboard.tsx header Input
 const NO_MATCH_TITLE = 'Không tìm thấy dự án phù hợp'; // ProjectDashboard.tsx EmptyState
@@ -90,7 +90,7 @@ const LIST_ERROR_SERVER = 'Máy chủ gặp lỗi khi đọc danh sách. Bấm "
 const RETRY = 'Thử lại'; // ProjectDashboard.tsx:256, NotificationCenter.tsx:60
 const EMPTY_TITLE = 'Chưa có dự án nào'; // ProjectDashboard.tsx:258-268
 const EMPTY_DESCRIPTION = 'Tạo dự án đầu tiên để bắt đầu số hoá bản vẽ.';
-const EMPTY_ACTION = 'Tạo dự án mới';
+const EMPTY_ACTION = /^Tạo dự án\s*N$/u; // S-02: PageHead next, no button in the empty body
 const unreadRowsNotice = (count: number): string => `Có ${String(count)} dự án chưa đọc được`; // useProjectDashboard.ts:482
 const renamedToast = (name: string): string => `Đã đổi tên thành "${name}"`; // useProjectDashboard.ts:424
 const RENAME_RANGE_MESSAGE = 'Tên dự án cần từ 3 đến 80 ký tự.'; // useProjectDashboard.ts:206 (PROJECT_NAME_MIN/MAX_LENGTH), toast state 'attention'
@@ -99,7 +99,7 @@ const UNDO = 'Hoàn tác'; // components/feedback/Toast.tsx:143
 const NARROW_MAX_WIDTH = 1023; // NARROW_VIEWPORT_QUERY `(width < 1024px)` (useProjectDashboard.ts:93, BUG-225): the same set for integer widths
 /* Wizard: CreateProjectModal.tsx, StepFloors.tsx, useCreateProjectModal.ts:684 (`Bước N / 3`). */
 const WIZARD_TITLE = 'Tạo dự án mới';
-const NEW_PROJECT = /^Dự án mới/u; // Button carries the `N` shortcut hint (phase02_dashboard.spec.ts openWizard)
+const NEW_PROJECT = /^Tạo dự án\s*N$/u; // Button carries the `N` shortcut hint (phase02_dashboard.spec.ts openWizard)
 const NAME_LABEL = 'Tên dự án';
 const CODE_LABEL = 'Mã dự án'; // CreateProjectModal.tsx:110
 const NAME_REQUIRED = 'Chưa nhập tên dự án.';
@@ -224,7 +224,7 @@ const drawer = (page: Page): Locator => page.getByRole('dialog', { name: BELL, e
 const toastWith = (page: Page, text: string): Locator => page.getByRole('status').filter({ hasText: text }); // Toast.tsx:117
 /** `DashboardSidebar.tsx`: label + count inside one `aria-pressed` button (as phase02_dashboard.spec.ts). */
 const sidebarFilter = (page: Page, label: string): Locator =>
-  page.getByRole('button', { name: new RegExp(`^${label}\\s*\\d+$`, 'u') });
+  page.getByRole('radiogroup', { name: 'Lọc theo trạng thái', exact: true }).getByRole('radio', { name: label, exact: true }); // S-02: radiogroup at every width, no counts
 const isNarrow = (page: Page): boolean => (page.viewportSize()?.width ?? 1440) <= NARROW_MAX_WIDTH;
 const pathnameOf = (response: Response): string => new URL(response.url()).pathname;
 
@@ -517,7 +517,7 @@ test.describe('U02 UI verify — SCR-05 dashboard (with an 80-character project 
       } else {
         const button = sidebarFilter(p, STATUS_QC);
         await button.click();
-        await expect(button).toHaveAttribute('aria-pressed', 'true');
+        await expect(button).toHaveAttribute('aria-checked', 'true');
       }
       // Either the matching cards or the no-match state, depending on the run's projects. Below 1024 px a filter with
       // no match shows the no-match state at every width (BUG-111 fixed: it used to read "Chưa có dự án nào" below 1024 px).

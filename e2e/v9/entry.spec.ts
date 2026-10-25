@@ -11,6 +11,8 @@ import {
   openViewerSettled,
 } from './v9';
 
+test.skip(true, 'Viewer3D cũ không còn route từ 29eba219: /3d chuyển cả trang sang editor3d.html — nút vào Tách tầng / Công cụ đo / Đối chiếu nằm trên vỏ cũ; trang Pascal không có ba nút này.');
+
 /**
  * Lối vào ba màn 3D từ sản phẩm — B-V9-01 (Q10g = A′).
  *

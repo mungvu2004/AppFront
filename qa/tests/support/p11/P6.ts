@@ -22,7 +22,7 @@ export const DANGER = {
 } as const;
 
 export const DASH = {
-  heading: 'Dự án của tôi',
+  heading: 'Chọn dự án để làm tiếp',
   menu: 'Tuỳ chọn', // CM:102
   deleteItem: 'Xoá', // PMG:25
   deleteDialog: 'Xoá dự án?', // PD:287
@@ -88,7 +88,7 @@ export async function openCardDelete(page: Page, name: string): Promise<Locator>
 
 /** "Dự án mới" wizard (copied from phase02_dashboard_edge `openWizard/toStep2/applyHeight`): creates `name`, returns its id. */
 export async function createViaWizard(page: Page, name: string): Promise<string> {
-  await page.getByRole('button', { name: /^Dự án mới/u }).click();
+  await page.getByRole('button', { name: /^Tạo dự án\s*N$/u }).click();
   const dialog = page.getByRole('dialog', { name: DASH.wizard, exact: true });
   await expect(dialog).toBeVisible();
   const next = dialog.getByRole('button', { name: /^Tiếp: /u });

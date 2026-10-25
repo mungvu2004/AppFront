@@ -84,7 +84,8 @@ function FloorSelect({ floors, activeFloorId, onSelectFloor }: FloorSelectProps)
 
   return (
     <Select.Root
-      className="w-[264px] max-w-full shrink-0"
+      // Gọn như demo S-28 ("Tầng 1 ▾"): canvas giữa hai panel còn ~880 px ở 1440.
+      className="w-[200px] max-w-full shrink-0"
       onChange={(value) => onSelectFloor(value as LevelId)}
       options={options}
       value={activeFloorId ?? undefined}
@@ -123,23 +124,26 @@ function CompareModeCluster({
     disabled: disabledCompareModes[mode] !== undefined,
   }));
 
-  const disabledModes = COMPARE_MODE_IDS.filter((mode) => disabledCompareModes[mode] !== undefined);
-
   return (
-    <div className="flex flex-col gap-1">
-      <SegmentedControl
-        aria-label={COMPARE_MODE_ARIA_LABEL}
-        onChange={onSetCompareMode}
-        options={options}
-        value={compareMode}
-      />
-      {disabledModes.map((mode) => (
-        <p className="max-w-[220px] text-[12px] leading-4 text-text-muted" key={mode}>
-          {COMPARE_MODE_LABELS[mode]} — {disabledCompareModes[mode]}
-        </p>
-      ))}
-    </div>
+    <SegmentedControl
+      aria-label={COMPARE_MODE_ARIA_LABEL}
+      // Nhãn hai chữ ("Chồng lớp", "Cạnh nhau") không xuống dòng khi thanh hẹp (ảnh 1024 vòng 6).
+      className="[&_button]:whitespace-nowrap"
+      onChange={onSetCompareMode}
+      options={options}
+      value={compareMode}
+    />
   );
+}
+
+/** Lý do kiểu bị tắt: một dòng riêng cuối thanh, không kéo cụm kiểu thành ba hàng chữ. */
+function DisabledModeCaptions({ disabledCompareModes }: Pick<CompareModeClusterProps, 'disabledCompareModes'>) {
+  const disabledModes = COMPARE_MODE_IDS.filter((mode) => disabledCompareModes[mode] !== undefined);
+  return disabledModes.map((mode) => (
+    <p className="w-full text-center text-[12px] leading-4 text-text-secondary" key={mode}>
+      {COMPARE_MODE_LABELS[mode]} — {disabledCompareModes[mode]}
+    </p>
+  ));
 }
 
 interface ScanOpacityClusterProps {
@@ -234,6 +238,8 @@ export function OverlayComparisonToolbar({
           </div>
         )}
       </div>
+
+      <DisabledModeCaptions disabledCompareModes={disabledCompareModes} />
 
       {/* Vai người xem: lý do đã ở băng cảnh báo của màn — thanh công cụ không lặp câu thứ hai (BUG-636). */}
     </div>

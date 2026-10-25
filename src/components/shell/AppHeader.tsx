@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { ROUTES } from '@/routes/paths';
 import { FLOOR_LAYERS, PROJECT_STEPS, type ProjectStepState } from '@/routes/projectSteps';
 import { BrandMark } from './BrandMark';
+import { setFlowGateSlot, useFlowGateOwned } from './flowGateStore';
 import { ProjectNav } from './ProjectNav';
 
 export interface AppHeaderProject {
@@ -91,6 +92,8 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
   const onCadConfirm = routerLocation.pathname.endsWith('/cad-confirm');
   // Màn Xử lý tự giữ cổng sang bước sau (thiếu tỷ lệ thì chặn, S-10 cụm 3): header không mời "Tiếp" song song.
   const onPipelineScreen = /\/pipeline\/?$/u.test(routerLocation.pathname);
+  // Màn đang giữ cổng riêng (FlowGate): nút "Tiếp" mặc định nhường chỗ cho cổng của màn.
+  const gateOwned = useFlowGateOwned();
   const next = PROJECT_STEPS[project.stepIndex + 1];
   const nextLayer = project.floorId !== undefined && project.layerIndex !== undefined && project.layerIndex >= 0
     ? FLOOR_LAYERS[project.layerIndex + 1]
@@ -132,7 +135,8 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
           );
         })}
       </ol>
-      {project.stepIndex >= 0 && project.blocker === 'no-drawings' ? (
+      <div ref={setFlowGateSlot} className="contents" />
+      {gateOwned ? null : project.stepIndex >= 0 && project.blocker === 'no-drawings' ? (
         project.stepIndex === 0 ? (
           <span className="shrink-0 text-[13px] text-text-secondary">Tải bản vẽ lên để đi tiếp</span>
         ) : (

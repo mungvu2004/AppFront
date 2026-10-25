@@ -89,15 +89,16 @@ export function RuleReportSection({
   const Chevron = isOpen ? ChevronDown : ChevronRight;
 
   return (
-    <section className="flex flex-col rounded-sm border border-border-default bg-bg-surface">
-      <h2 className="m-0">
+    // Một hàng chia của khung "Kết quả kiểm tra", không phải một thẻ lồng trong khung (NGUYEN-TAC §2).
+    <section className="flex flex-col border-t border-border-default first:border-t-0">
+      <h3 className="m-0">
         <button
           type="button"
           aria-expanded={isOpen}
           aria-controls={bodyId}
           onClick={onToggle}
           className={cn(
-            'flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-sm px-3 py-2 text-left',
+            'flex min-h-11 w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-sm px-2 py-2 text-left',
             'transition-colors duration-standard hover:bg-bg-hover',
             FOCUS_RING,
           )}
@@ -112,9 +113,9 @@ export function RuleReportSection({
           </span>
           <span className="shrink-0 text-xs text-text-secondary">{summary}</span>
         </button>
-      </h2>
+      </h3>
 
-      <div id={bodyId} className={cn('px-3', isOpen && 'pb-3')}>
+      <div id={bodyId} className={cn('px-2', isOpen && 'pb-3')}>
         {isOpen ? children : null}
       </div>
     </section>
@@ -129,7 +130,8 @@ interface RowActionsProps {
 /**
  * What a row offers.
  *
- * "Xem" is the only action, and that is the honest state of the repository:
+ * "Sửa" is the only action (it opens the 2D layer that can edit the object, or the
+ * 3D model when the floor is unknown), and that is the honest state of the repository:
  * there is no auto-fix and no dismiss behind `canAutoFix` / `canDismiss`, so
  * neither is drawn — not greyed out, not as a placeholder. The cell they would
  * occupy is this one, so switching a capability on later adds a button here and
@@ -144,7 +146,7 @@ function RowActions({ row, onViewRow }: RowActionsProps) {
         onViewRow(row.key);
       }}
     >
-      Xem
+      Sửa
     </Button>
   );
 }
@@ -313,7 +315,7 @@ export function RuleReportGroupList({
   onViewRow,
 }: RuleReportGroupListProps) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col">
       {groups.map((group) => {
         const isOpen = expandedRuleCodes.includes(group.ruleCode);
         const resolvedNote =
@@ -351,9 +353,9 @@ export interface RuleReportPassedListProps {
 /** The "Đạt" segment: rules that ran and found nothing, by name. */
 export function RuleReportPassedList({ passedRules }: RuleReportPassedListProps) {
   return (
-    <ul className="flex flex-col divide-y divide-border-default rounded-sm border border-border-default bg-bg-surface">
+    <ul className="flex flex-col divide-y divide-border-default">
       {passedRules.map((rule) => (
-        <li key={rule.ruleCode} className="flex items-center justify-between gap-3 px-3 py-2">
+        <li key={rule.ruleCode} className="flex items-center justify-between gap-3 px-2 py-2">
           <span className="text-sm text-text-primary">{rule.ruleName}</span>
           <span className="text-xs text-text-secondary">{GROUP_LABELS[rule.group]}</span>
         </li>

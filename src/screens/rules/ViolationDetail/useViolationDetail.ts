@@ -598,6 +598,21 @@ class ApplyFixError extends Error {
 const violationKeyOf = (item: Violation | undefined): string =>
   item === undefined ? '' : `${item.ruleCode}|${item.entityId}|${item.message}`;
 
+/**
+ * Vị trí của vi phạm đã ghi lúc bấm trong danh sách MỚI (28V-A-016).
+ *
+ * Báo cáo chạy lại sau lượt sửa đánh số lại mã hiển thị (`#F-002` → `#F-001`), nên câu của
+ * hàng kế tiếp đổi và khoá có câu không còn khớp. Khớp đúng khoá trước (một đối tượng có thể
+ * vướng cùng luật hai lần); không khớp thì theo luật + đối tượng — mã đối tượng không đổi.
+ */
+const indexOfRecorded = (list: readonly Violation[], recorded: Violation | undefined): number => {
+  if (recorded === undefined) return -1;
+  const exact = list.findIndex((item) => violationKeyOf(item) === violationKeyOf(recorded));
+  return exact !== -1
+    ? exact
+    : list.findIndex((item) => item.ruleCode === recorded.ruleCode && item.entityId === recorded.entityId);
+};
+
 const resolvedMessageOf = (ruleName: string | null): string =>
   ruleName === null
     ? 'Đã sửa xong; lượt chạy lại không còn báo lỗi trên đối tượng này.'
@@ -1016,7 +1031,7 @@ export function useViolationDetail(
 
   const { mutate } = mutation;
   resetMutationRef.current = mutation.reset;
-  const nextKeyRef = useRef('');
+  const nextRef = useRef<Violation | undefined>(undefined);
   const latestViolationsRef = useRef(violations);
   latestViolationsRef.current = violations;
 
@@ -1032,7 +1047,7 @@ export function useViolationDetail(
 
       // 28V-A-016: "kế tiếp" là hàng đứng sau hàng này LÚC BẤM. Sau lượt sửa báo cáo đẩy
       // hàng đã xử lý xuống cuối nhóm, nên `index + 1` lúc ấy không còn là hàng đó.
-      nextKeyRef.current = violationKeyOf(violations[index + 1]);
+      nextRef.current = violations[index + 1];
       mutate({
         kind,
         entityId: violation.entityId,
@@ -1098,7 +1113,7 @@ export function useViolationDetail(
   const submittedAt = mutation.submittedAt;
 
   useEffect(() => {
-    if (!resolved || nextKeyRef.current === '' || advancedForRef.current === submittedAt) {
+    if (!resolved || nextRef.current === undefined || advancedForRef.current === submittedAt) {
       return;
     }
 
@@ -1116,9 +1131,7 @@ export function useViolationDetail(
     const timer = window.setTimeout(() => {
       setIsAdvancing(false);
       // Sang hàng đã ghi lúc bấm (theo khoá, không theo vị trí đã bị sắp xếp lại).
-      const target = latestViolationsRef.current.findIndex(
-        (item) => violationKeyOf(item) === nextKeyRef.current,
-      );
+      const target = indexOfRecorded(latestViolationsRef.current, nextRef.current);
       setIndex((current) =>
         target === -1 ? Math.min(violations.length - 1, current + 1) : target,
       );

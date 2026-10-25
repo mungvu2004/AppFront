@@ -14,12 +14,12 @@ describe('QA-06b F3 — màn Xuất', () => {
     render(<ExportPanel {...buildExportPanelProps('success', {}, { onSelectFormat })} />);
     const radios = screen.getAllByRole('radio');
 
-    expect(radios.map((radio) => radio.tabIndex)).toEqual([0, -1, -1, -1]);
+    // PDF và ảnh chưa xuất được: không thành thẻ chọn (không nút giả), chỉ .glb và .json.
+    expect(radios.map((radio) => radio.tabIndex)).toEqual([0, -1]);
     radios[0]?.focus();
     fireEvent.keyDown(radios[0] as HTMLElement, { key: 'ArrowDown' });
-    // PDF và ảnh "Chưa hỗ trợ" (aria-disabled) — mũi tên bỏ qua, sang thẻ .json.
     expect(onSelectFormat).toHaveBeenCalledWith('spatial-json');
-    expect(document.activeElement).toBe(radios[3]);
+    expect(document.activeElement).toBe(radios[1]);
   });
 
   it('30-C-015: .json không có ô chọn tầng (nó xuất cả đồ thị), chỉ có câu giải thích', () => {
@@ -36,7 +36,7 @@ describe('QA-06b F3 — màn Xuất', () => {
 
   it('30-C-028: "Xuất" bị khoá khi đang tải', () => {
     render(<ExportPanel {...buildExportPanelProps('loading', { floors: buildExportPanelProps('success').floors })} />);
-    expect((screen.getByRole('button', { name: 'Xuất' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('30-E-012: có thêm tệp mới thì vùng aria-live đọc "Đã xuất <tên>"', () => {
@@ -49,7 +49,7 @@ describe('QA-06b F3 — màn Xuất', () => {
   it('30-E-013: footer đổi sang tiến độ thì focus ở trong màn, không rơi về body', () => {
     const props = buildExportPanelProps('success');
     const { rerender } = render(<ExportPanel {...props} />);
-    const button = screen.getByRole('button', { name: 'Xuất' });
+    const button = screen.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u });
     button.focus();
     act(() => {
       rerender(<ExportPanel {...props} progress={buildSampleProgress()} />);

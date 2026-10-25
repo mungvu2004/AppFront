@@ -11,7 +11,8 @@ const LABEL_MAP: Record<string, string> = {
   '110': '110 mm',
   '220': '220 mm',
   '330': '330 mm',
-  CONCRETE_COLUMN: 'Cột BTCT',
+  // S-21: nhóm ≥ 400 mm là "xem tay" (có thể là cột BTCT), cùng nhãn với màn Chuẩn hoá độ dày.
+  CONCRETE_COLUMN: 'Xem tay (≥ 400 mm)',
 };
 
 interface WallThicknessLegendProps {

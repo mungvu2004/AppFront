@@ -7,6 +7,8 @@ import {
   shellInspector,
 } from './viewer';
 
+test.skip(true, 'Viewer3D cũ không còn route từ 29eba219: /3d chuyển cả trang sang editor3d.html — vỏ 3D cũ (ô tìm, thanh tra đối tượng, nút tầng) không có trên trang Pascal.');
+
 /**
  * Nhóm V8 — vỏ 3D (`ViewerShell`), panel thuộc tính và thứ tự `Escape` giữa các
  * lớp (`plan.md` nhóm V8, mục 0.2, 1, 2, 3). Không lặp `e2e/viewer3d.spec.ts`:

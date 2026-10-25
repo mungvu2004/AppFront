@@ -105,7 +105,7 @@ test.describe('phase09 shell edge', () => {
         await shot(page, '9P-G-001', 'summaries');
       });
       await test.step('[9P-A-001] open MP card', async () => {
-        await page.getByRole('button', { name: `Mở ${projectName}`, exact: true }).click(); // PCT:166
+        await page.getByRole('button', { name: new RegExp(`^(Duyệt tường|Xem tiến độ|Xem 3D|Mở dự án) ${projectName.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`, 'u') }).click(); // S-02: "{động từ} {tên}"
         // The project GET may come from the react-query cache (no request): the visible result (URL) is the signal.
         await expect(page).toHaveURL(new RegExp(`/projects/${projectId}`, 'u'));
         await expect.soft(page.getByText(COPY.deniedTitle)).toHaveCount(0);

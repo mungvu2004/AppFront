@@ -1,3 +1,4 @@
+import { roundWallThickness } from '../../domain/walls/thicknessTolerance';
 import type { WallThickness } from '../../types/spatial';
 
 export interface StandardizeResult {
@@ -6,26 +7,17 @@ export interface StandardizeResult {
 }
 
 /**
- * Standardizes a raw thickness to the nearest domain-allowed thickness:
- * 110, 220, 330, or CONCRETE_COLUMN (if > 330).
- * Thresholds:
- * - < 165: 110
- * - 165 to < 275: 220
- * - 275 to <= 350: 330
- * - > 350: CONCRETE_COLUMN
+ * Standardizes a raw thickness to a domain-allowed thickness, following
+ * `roundWallThickness` (src/domain/walls/thicknessTolerance.ts):
+ * - < 166: 110 (below 80 mm the domain flags manual review; the type has no slot for that)
+ * - 166 to < 276: 220
+ * - 276 to < 400: 330
+ * - >= 400: CONCRETE_COLUMN (manual review)
  */
 export function standardizeThickness(rawThicknessMm: number): StandardizeResult {
-  let standardized: WallThickness;
-
-  if (rawThicknessMm < 165) {
-    standardized = 110;
-  } else if (rawThicknessMm < 275) {
-    standardized = 220;
-  } else if (rawThicknessMm <= 350) {
-    standardized = 330;
-  } else {
-    standardized = 'CONCRETE_COLUMN';
-  }
+  const rounded = roundWallThickness(rawThicknessMm);
+  const standardized: WallThickness =
+    rounded === 'tooThick' ? 'CONCRETE_COLUMN' : rounded === 'tooThin' ? 110 : rounded;
 
   return {
     original_mm: rawThicknessMm,

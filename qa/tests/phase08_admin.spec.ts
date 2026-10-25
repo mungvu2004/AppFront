@@ -103,7 +103,7 @@ test('SCR-34 · FL-M-34L-01 · open, search, category, sort, grid, detail + Esc'
 
   await test.step('[34L-A-001] open /admin/models: breadcrumb, toolbar, table', async () => {
     await navigateThenWaitForApi(page, () => page.goto(ROUTES.adminModels, { waitUntil: 'commit' }), 'GET', LIBRARY_LIST_PATH, [200]);
-    await expect(page.getByRole('heading', { level: 1, name: 'Thư viện mẫu 3D', exact: true })).toBeVisible(); // the breadcrumb was removed
+    await expect(page.getByRole('heading', { level: 1, name: 'Quản lý thư viện mẫu 3D', exact: true })).toBeVisible(); // the breadcrumb was removed
     await expect(search).toBeVisible();
     await expect(rows.first(), 'environment: library has at least one model').toBeVisible();
     name = (await rows.first().locator('td').nth(1).innerText()).trim();
@@ -177,7 +177,7 @@ test('SCR-35 · FL-M-35T-01 · navigate, tabs, filters, open/close the form', as
       new RegExp(`^${TRAINING_JOBS_PATH}$`, 'u'),
       [200],
     );
-    await expect(page.getByRole('heading', { level: 1, name: 'Huấn luyện mô hình AI', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Theo dõi huấn luyện', exact: true })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Đường dẫn trang' }), 'no breadcrumb: the admin tab bar already names the section').toHaveCount(0);
     await captureEvidence(page, 'E08_35T-A-001_main.png');
   });

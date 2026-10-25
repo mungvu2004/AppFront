@@ -24,7 +24,9 @@ const REGION = 'Màn đối chiếu bản vẽ';
 const NO_FLOOR = 'Dự án này chưa có tầng nào để đối chiếu.';
 const NO_FRAME = 'Không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.';
 const NO_SCAN = 'Tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.';
-const READ_ONLY = 'Bạn không có quyền sửa, các điều khiển đang tắt.';
+// Câu chỉ-đọc cũ của thanh công cụ đã bỏ (OverlayComparisonToolbar.test.tsx:156 khẳng định nó vắng);
+// vai chỉ xem gặp lỗi nội dung (thiếu khung) thì màn ở `forbidden` và nói câu này (Q4b, 9U-D-063).
+const READ_ONLY = 'Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.';
 
 test('vào thẳng một tầng: màn nói chưa căn được và mở lối sang hiệu chỉnh tỷ lệ; đổi sang "trượt" thì có thêm đường chia đôi', async ({
   page,
@@ -39,18 +41,20 @@ test('vào thẳng một tầng: màn nói chưa căn được và mở lối sa
     'href',
     ROUTES.project.scale(PROJECT_ID, 'L1'),
   );
-  await expect(page.getByRole('button', { name: 'Xác nhận mô hình khớp bản vẽ' })).toBeDisabled();
+  // S-28: tầng chưa có mô hình thì cổng (FlowGate) không có nút xác nhận — không còn nút tắt đứng chờ.
+  await expect(page.getByRole('button', { name: 'Xác nhận khớp bản vẽ' })).toHaveCount(0);
 
-  const sliders = page.getByRole('slider');
-  const before = await sliders.count();
+  const divider = page.getByRole('slider', { name: /^Đường chia đôi/u });
+  await expect(divider).toHaveCount(0);
   const swipe = page.getByRole('radio', { name: 'trượt' });
 
   await swipe.click();
 
   await expect(swipe).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByRole('radio', { name: 'chồng lớp' })).toHaveAttribute('aria-checked', 'false');
-  // "Tăng lên", không cứng một con số: số thanh trượt phụ thuộc bộ mẫu (plan.md V9 3.6 O-2).
-  await expect.poll(() => sliders.count()).toBeGreaterThan(before);
+  // Bám đúng đường chia đôi theo tên, không đếm thanh trượt: ở "trượt" thanh độ mờ ảnh nguồn ẩn đi
+  // (G4b-26), nên tổng số thanh trượt không tăng dù đường chia đôi đã có.
+  await expect(divider).toBeVisible();
 });
 
 test('bàn phím: mũi tên phải trên nhóm "Kiểu đối chiếu" chuyển sang kiểu kế tiếp (A12)', async ({ page }) => {
@@ -68,11 +72,18 @@ test('vai Người xem: các điều khiển tắt, và màn nói vì sao', asyn
   await signInAs(page, 'viewer', OVERLAY_PATH);
 
   await expect(page.getByText(READ_ONLY, { exact: true })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
-  await expect(page.getByRole('radio', { name: 'trượt' })).toBeDisabled();
-  await expect(page.getByRole('switch', { name: 'Khoá căn' })).toBeDisabled();
+  // Đổi kiểu đối chiếu chỉ là cách XEM nên vai xem vẫn dùng được (cả trên master). Điều khiển sửa
+  // là ô dung sai: tắt. "Khoá căn" ẩn hẳn vì cổng chưa đặt được ảnh vào mô hình (BUG-599).
+  await expect(page.getByRole('radio', { name: 'trượt' })).toBeEnabled();
+  await expect(page.getByRole('textbox', { name: 'Dung sai' })).toBeDisabled();
+  await expect(page.getByRole('switch', { name: 'Khoá căn' })).toHaveCount(0);
 });
 
-test(
+// `/3d` giờ là trang Pascal (`Pascal3dPage`, router.tsx), không còn Viewer3D với câu "Mô hình 3D đã dựng
+// xong." hay nav "Màn 3D khác" — lối vào này không còn tồn tại. Điều B-V9-06 chứng minh (kho chưa có
+// tầng của route thì màn tự đọc N16, không nói "chưa có tầng nào") đã có ở bài "vào thẳng một tầng" phía
+// trên và ở `useOverlayComparison.test.ts` ("[X4-A-036 / BUG-326]", "overlay race").
+test.skip(
   'mở từ /3d bằng nav "Màn 3D khác", màn đối chiếu đọc được tầng chứ không nói "chưa có tầng nào" (B-V9-06)',
   async ({ page }) => {
     test.setTimeout(TWO_SCENES_TEST_TIMEOUT_MS);

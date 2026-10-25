@@ -333,9 +333,10 @@ export function AxisGridLeftPanel({
   };
 
   return (
-    <div className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:w-full">
-      <div className="flex h-14 shrink-0 items-center px-5">
-        <h2 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h2>
+    /* Vòng 6: nằm TRONG panel trái cùng đầu panel (`QcPanelHead`) — một khung, không thẻ lồng thẻ. */
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex h-10 shrink-0 items-center px-4">
+        <h2 className="text-body-sm font-medium text-text-secondary">{PANEL_TITLE}</h2>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-2">
@@ -354,7 +355,7 @@ export function AxisGridLeftPanel({
         ))}
       </div>
 
-      <div className="shrink-0 border-t border-border-default px-5 py-4">
+      <div className="shrink-0 border-t border-border-default px-4 py-3">
         <Toggle
           checked={hasGhostFloors && ghostEnabled}
           description={

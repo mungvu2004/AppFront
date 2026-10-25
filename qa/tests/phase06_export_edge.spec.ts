@@ -52,6 +52,7 @@ import {
   floorOf,
   formatFileSize,
   formatGroup,
+  blockedFormat,
   formatRadio,
   glbNodes,
   historyRegion,
@@ -103,7 +104,6 @@ async function inFlow(browser: Browser, body: (flow: ExportFlow) => Promise<void
 }
 
 /** The `<p>` of an ".png" option line ("Góc nhìn hiện tại:" / "Chiều rộng xuất:") and its mono value (EPO:178-183). */
-const imageValue = (page: Page, label: string) => page.locator('p', { hasText: label }).locator('span.font-mono');
 /** Cell `index` of the first (newest) history row: 0 file, 1 moment, 2 size, 3 "Tải lại". */
 const historyCell = (page: Page, row: number, index: number) => historyRows(page).nth(row).locator('td').nth(index);
 const arrayOf = (value: unknown): Record<string, unknown>[] => (Array.isArray(value) ? value.map((item) => asRecord(item, 'item')) : []);
@@ -131,18 +131,24 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
         await shot(page, '30-G-003', 'rule_config_once');
       });
 
-      await test.step('[30-B-010] four cards with extension + audience sentence, no size line, no history', async () => {
-        for (const [ext, sentence] of [['.glb', EP.audience.glb], ['.pdf', EP.audience.pdf], ['.png', EP.audience.png], ['.json', EP.audience.json]] as const) {
+      await test.step('[30-B-010] four formats with extension + audience sentence: two cards, two "chưa xuất được" lines', async () => {
+        // Cụm 6: chỉ định dạng xuất được thật là thẻ chọn; PDF/ảnh là dòng chữ, không phải nút giả.
+        for (const [ext, sentence] of [['.glb', EP.audience.glb], ['.json', EP.audience.json]] as const) {
           await expect.soft(formatRadio(page, ext)).toContainText(sentence);
           await expect.soft(formatRadio(page, ext), `${ext} card has no size line`).not.toContainText(/\d\s?(KB|MB|B)\b/u);
         }
+        for (const [ext, sentence] of [['.pdf', EP.audience.pdf], ['.png', EP.audience.png]] as const) {
+          await expect.soft(blockedFormat(page, ext)).toContainText(sentence);
+          await expect.soft(formatRadio(page, ext), `${ext} is not a card`).toHaveCount(0);
+        }
+        await expect.soft(formatGroup(page).getByRole('radio')).toHaveCount(2);
         await expect.soft(historyRegion(page)).toHaveCount(0);
         await shot(page, '30-B-010', 'four_cards');
       });
 
-      await test.step('[30-B-011] ".pdf" card page count', async () => {
+      await test.step('[30-B-011] ".pdf" line page count', async () => {
         // UEP:515 / EPG:489-500: 1 cover + floor plans + room table + violations (render 3D adds 0: no image).
-        await expect.soft(formatRadio(page, '.pdf')).toContainText('4 trang');
+        await expect.soft(blockedFormat(page, '.pdf')).toContainText('4 trang');
         await shot(page, '30-B-011', 'pdf_page_count');
       });
 
@@ -164,8 +170,8 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
       });
 
       await test.step('[30-A-002] click each card in turn', async () => {
-        const all = ['.glb', '.pdf', '.png', '.json'];
-        for (const ext of ['.pdf', '.png', '.json', '.glb']) {
+        const all = ['.glb', '.json'];
+        for (const ext of ['.json', '.glb']) {
           await formatRadio(page, ext).click();
           for (const other of all) await expect.soft(formatRadio(page, other), `${other} after clicking ${ext}`).toHaveAttribute('aria-checked', other === ext ? 'true' : 'false');
         }
@@ -237,7 +243,7 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
         await expect.poll(() => page.evaluate(() => document.getAnimations().length), { timeout: 3000, message: 'hole transition ended' }).toBe(0);
         await attachJson('30-A-021_tour_hole_settled.json', { moment: 'after the hole transition ended', ...(await probe()) });
         // A click on the dark panel over a format card skips the tour (EditorTour.tsx:10-14) and does not reach the card.
-        await formatRadio(page, '.png').click({ force: true });
+        await formatRadio(page, '.json').click({ force: true });
         await dismissTour(page);
         expect.soft(flow.downloads.length, 'skipping the tour exports nothing').toBe(before);
         await shot(page, '30-A-021', 'tour_anchor');
@@ -247,89 +253,43 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
     });
   });
 
-  test('SCR-30 · FL-30-02 · .pdf and .png blocked, their options, nothing sent, selections survive a format switch', async ({ browser }) => {
+  test('SCR-30 · FL-30-02 · .pdf and .png are not selectable, nothing sent, selections survive a format switch', async ({ browser }) => {
     test.setTimeout(120_000);
     await inFlow(browser, async (flow) => {
       const { page } = flow;
       const project = await seedTwoFloors(flow, 'export-fl02');
-      const pdfCard = formatRadio(page, '.pdf');
 
-      await test.step('[30-G-005] .pdf / .png send nothing', async () => {
+      await test.step('[30-G-005] .pdf / .png lines send nothing when clicked', async () => {
         await openExport(page, project.id);
         const mark = flow.sent.length;
-        await formatRadio(page, '.pdf').click();
-        await selectFormat(page, '.png');
+        await blockedFormat(page, '.pdf').click();
+        await blockedFormat(page, '.png').click();
         await nextFrames(page);
-        expect(requestsSince(flow.sent, mark), 'requests after selecting .pdf then .png').toEqual([]);
+        expect(requestsSince(flow.sent, mark), 'requests after clicking the .pdf and .png lines').toEqual([]);
         await shot(page, '30-G-005', 'no_request');
       });
 
-      await test.step('[30-B-013] .pdf selected: notice + card caption, no "Xuất"', async () => {
-        await selectFormat(page, '.pdf');
-        await expect.soft(page.getByText(EP.pdfNotice, { exact: true })).toBeVisible(); // UEP:175-176,583-586
-        await expect.soft(pdfCard).toContainText(EP.pdfBlocked); // EPF:34-35
-        await expect.soft(exportButton(page)).toHaveCount(0); // EPT:64
+      await test.step('[30-B-013] .pdf: a "chưa xuất được" line with the real page count, not a card', async () => {
+        await expect.soft(formatRadio(page, '.pdf')).toHaveCount(0);
+        await expect.soft(blockedFormat(page, '.pdf')).toContainText(/\d[\d.]* trang/u);
+        // Thẻ đang chọn không đổi, nút chính vẫn là của .glb.
+        await expect.soft(formatRadio(page, '.glb')).toHaveAttribute('aria-checked', 'true');
+        await expect.soft(exportButton(page)).toHaveText('Xuất .glb');
         await shot(page, '30-B-013', 'pdf_blocked');
       });
 
-      await test.step('[30-C-025] PDF boxes', async () => {
-        await expandOptions(page);
-        for (const label of EP.pdfOptions.slice(0, 3)) await expect.soft(page.getByRole('checkbox', { name: label, exact: true }), label).toBeChecked();
-        await expect.soft(page.getByRole('checkbox', { name: EP.pdfOptions[3], exact: true })).not.toBeChecked();
-        await shot(page, '30-C-025', 'pdf_boxes');
-      });
-
-      await test.step('[30-C-024] page count follows the boxes', async () => {
-        const counts = ['3 trang', '2 trang', '1 trang'];
-        for (const [index, label] of EP.pdfOptions.slice(0, 3).entries()) {
-          await setBox(page.getByRole('checkbox', { name: label, exact: true }), false);
-          await expect.soft(pdfCard, `after unchecking "${label}"`).toContainText(counts[index] ?? '');
-        }
-        const render3d = page.getByRole('checkbox', { name: EP.pdfOptions[3], exact: true });
-        await setBox(render3d, true);
-        await expect.soft(pdfCard, '"Gồm ảnh dựng 3D" on changes nothing').toContainText('1 trang');
-        await setBox(render3d, false);
-        await expect.soft(pdfCard).toContainText('1 trang');
-        await shot(page, '30-C-024', 'pdf_page_count');
-      });
-
-      await test.step('[30-C-031] no option enables "Xuất"', async () => {
-        for (const label of EP.pdfOptions) {
-          const box = page.getByRole('checkbox', { name: label, exact: true });
-          await setBox(box, !(await box.isChecked()));
-          await expect.soft(exportButton(page), `after toggling "${label}"`).toHaveCount(0);
-        }
-        await shot(page, '30-C-031', 'no_export_button');
-      });
-
-      await test.step('[30-B-014] .png selected: notice + card caption, no "Xuất"', async () => {
-        const pngCard = await selectFormat(page, '.png');
-        await expect.soft(page.getByText(EP.imageNotice, { exact: true })).toBeVisible(); // UEP:179-180,588-590
-        await expect.soft(pngCard).toContainText(EP.imageBlocked); // EPF:38-39
-        await expect.soft(exportButton(page)).toHaveCount(0);
+      await test.step('[30-B-014] .png: a "chưa xuất được" line, not a card', async () => {
+        await expect.soft(formatRadio(page, '.png')).toHaveCount(0);
+        await expect.soft(blockedFormat(page, '.png')).toContainText(EP.audience.png);
         await shot(page, '30-B-014', 'png_blocked');
       });
 
-      await test.step('[30-C-026] ⚑ "Góc nhìn hiện tại:" shows a human view name', async () => {
-        const value = (await imageValue(page, EP.imageView).innerText()).trim();
-        // UEP:291-294 stores `activeFloorId ?? '—'` once: a raw floor id or the dash, never a view name.
-        expect.soft(value, 'not the missing-value dash').not.toBe('—');
-        expect.soft(value, 'not a raw id').not.toMatch(/^[A-Za-z]{1,4}[-_][0-9A-Za-z]{8,}$/u);
-        await shot(page, '30-C-026', 'png_view', `Góc nhìn hiện tại: ${value}`);
-      });
-
-      await test.step('[30-C-027] "Chiều rộng xuất:" value', async () => {
-        await expect.soft(imageValue(page, EP.imageWidth)).toHaveText('1.440 px'); // UEP:213-217 formatNumber(1440) + " px"
-        await shot(page, '30-C-027', 'png_width');
-      });
-
-      await test.step('[30-B-015] Space on ".json" brings "Xuất" back', async () => {
+      await test.step('[30-B-015] Space on ".json" selects it and renames the main button', async () => {
         const json = formatRadio(page, '.json');
         await json.focus();
-        await page.keyboard.press('Space'); // EPF:87-93 a <button role=radio>
+        await page.keyboard.press('Space'); // a <button role=radio>
         await expect.soft(json).toHaveAttribute('aria-checked', 'true');
-        await expect.soft(page.getByText(EP.imageNotice, { exact: true })).toHaveCount(0);
-        await expect.soft(exportButton(page)).toBeVisible();
+        await expect.soft(exportButton(page)).toHaveText('Xuất .json');
         await shot(page, '30-B-015', 'json_space');
       });
 
@@ -340,7 +300,6 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
         await setBox(scopeBox(page, 'Tầng 2'), false);
         await selectFormat(page, '.json');
         await setBox(page.getByRole('checkbox', { name: EP.confidence, exact: true }), false);
-        await selectFormat(page, '.pdf');
         await selectFormat(page, '.glb');
         await expect.soft(page.getByRole('radiogroup', { name: EP.detailGroup, exact: true }).getByRole('radio', { name: EP.detail.low, exact: true })).toHaveAttribute('aria-checked', 'true');
         await expect.soft(scopeBox(page, 'Tầng 2')).not.toBeChecked();
@@ -408,12 +367,13 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
       await test.step('[30-B-019] card sizes', async () => {
         const label = formatFileSize(statSync(first.path).size);
         expect.soft(normSpace(await formatRadio(page, '.json').innerText())).toContain(label);
-        for (const ext of ['.glb', '.pdf', '.png']) await expect.soft(formatRadio(page, ext), `${ext} card has no size`).not.toContainText(/\d\s?(KB|MB|B)\b/u);
+        await expect.soft(formatRadio(page, '.glb'), '.glb card has no size').not.toContainText(/\d\s?(KB|MB|B)\b/u);
+        for (const ext of ['.pdf', '.png']) await expect.soft(blockedFormat(page, ext), `${ext} line has no size`).not.toContainText(/\d\s?(KB|MB|B)\b/u);
         await shot(page, '30-B-019', 'card_sizes');
       });
 
       await test.step('[30-E-001] heading and regions', async () => {
-        await expect.soft(page.getByRole('heading', { name: EP.title, level: 2 })).toBeVisible();
+        await expect.soft(page.getByRole('heading', { name: EP.title, level: 1 })).toBeVisible();
         for (const name of [EP.preflight, EP.history]) await expect.soft(region(page, name), name).toBeVisible();
         await expect.soft(region(page, EP.scope), 'no scope block for .json (ExportPanelOptions.tsx:221)').toHaveCount(0);
         await shot(page, '30-E-001', 'regions');
@@ -1013,7 +973,7 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
       const { page } = flow;
       const project = await seedTwoFloors(flow, 'export-fl11');
       const detail = page.getByRole('radiogroup', { name: EP.detailGroup, exact: true });
-      const radios = ['.glb', '.pdf', '.png', '.json'];
+      const radios = ['.glb', '.json'];
 
       await test.step('[30-E-002] format group semantics', async () => {
         await openExport(page, project.id);
@@ -1021,7 +981,7 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
         await selectFormat(page, '.json');
         await downloadVia(page, () => exportButton(page).click());
         await expect(historyRows(page)).toHaveCount(1);
-        await expect(formatGroup(page).getByRole('radio')).toHaveCount(4);
+        await expect(formatGroup(page).getByRole('radio')).toHaveCount(2); // PDF/ảnh không phải thẻ chọn (cụm 6)
         await expect(formatGroup(page).locator('[role="radio"][aria-checked="true"]')).toHaveCount(1);
         await shot(page, '30-E-002', 'format_group');
       });
@@ -1029,17 +989,17 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
       await test.step('[30-E-003] ⚑ arrow keys move between the format radios', async () => {
         await selectFormat(page, '.glb');
         await formatRadio(page, '.glb').focus();
-        await page.keyboard.press('ArrowDown'); // EPF:87-101 are plain buttons: arrows do nothing today
-        await expect.soft(formatRadio(page, '.pdf'), '.pdf selected').toHaveAttribute('aria-checked', 'true');
-        await expect.soft(formatRadio(page, '.pdf'), '.pdf focused').toBeFocused();
-        for (const ext of radios) await expect.soft(formatRadio(page, ext), `${ext} tabindex (roving)`).toHaveAttribute('tabindex', ext === '.pdf' ? '0' : '-1');
+        await page.keyboard.press('ArrowDown');
+        await expect.soft(formatRadio(page, '.json'), '.json selected').toHaveAttribute('aria-checked', 'true');
+        await expect.soft(formatRadio(page, '.json'), '.json focused').toBeFocused();
+        for (const ext of radios) await expect.soft(formatRadio(page, ext), `${ext} tabindex (roving)`).toHaveAttribute('tabindex', ext === '.json' ? '0' : '-1');
         await shot(page, '30-E-003', 'arrow_keys');
       });
 
       await test.step('[30-E-004] Space and Enter select the focused card', async () => {
-        await formatRadio(page, '.png').focus();
+        await formatRadio(page, '.json').focus();
         await page.keyboard.press('Space');
-        await expect.soft(formatRadio(page, '.png')).toHaveAttribute('aria-checked', 'true');
+        await expect.soft(formatRadio(page, '.json')).toHaveAttribute('aria-checked', 'true');
         await formatRadio(page, '.glb').focus();
         await page.keyboard.press('Enter');
         await expect.soft(formatRadio(page, '.glb')).toHaveAttribute('aria-checked', 'true');

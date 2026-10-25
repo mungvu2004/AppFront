@@ -48,8 +48,9 @@ const getList = (page: Page, status?: number) =>
   page.waitForResponse((r) => r.request().method() === 'GET' && USERS_RE.test(r.url()) && (status === undefined || r.status() === status));
 const alertOf = (page: Page): Locator => page.getByRole('alert').filter({ hasText: T.errorTitle });
 const rows = (page: Page): Locator => page.locator('tbody tr');
+/** Error state: the PageHead status shows only the "Không tải được" badge, no counts (UserManagement.tsx UsersStatus). */
 const summaryDigits = async (page: Page): Promise<string> =>
-  (await page.locator('dl').filter({ hasText: 'Lời mời đang chờ' }).innerText()).replace(/\D+/gu, ' ').trim();
+  (await page.locator('[data-testid^="user-summary-"]').allInnerTexts()).join(' ');
 
 /** Own row (admin seed) and the shared read-only engineer row, from the real list. */
 async function setupRows(): Promise<{ self: Json; peer: Json; peerName: string }> {
@@ -110,11 +111,11 @@ test.describe('A08 SCR-37 users read, mocked responses', () => {
       await captureEvidence(page, 'E08_37U-G-003_users.png');
     });
 
-    await test.step('[37U-B-008] toolbar stays in the error: search + 2 filters, summary 0/0/0', async () => {
+    await test.step('[37U-B-008] toolbar stays in the error: search + 2 filters, no summary counts', async () => {
       await expect.soft(page.getByLabel(T.search, { exact: true })).toBeVisible();
       await expect.soft(page.getByRole('combobox', { name: 'Vai', exact: true })).toBeVisible();
       await expect.soft(page.getByRole('combobox', { name: 'Trạng thái', exact: true })).toBeVisible();
-      expect.soft(await summaryDigits(page)).toBe('0 0 0');
+      expect.soft(await summaryDigits(page)).toBe('');
       await captureEvidence(page, 'E08_37U-B-008_users.png');
     });
 

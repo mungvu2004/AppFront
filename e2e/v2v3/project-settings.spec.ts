@@ -76,8 +76,12 @@ function toasts(page: Page): Locator {
 
 const CONFIRM_NAME_LABEL = 'Gõ lại tên dự án để xác nhận';
 
-/** N4-04: thẻ đang mở nằm trên địa chỉ (`?tab=danger`), đóng hộp thoại không đổi địa chỉ. */
-const DANGER_URL = `${SETTINGS}?tab=danger`;
+/**
+ * N4-04: thẻ đang mở nằm trên địa chỉ (`?tab=danger`), đóng hộp thoại không đổi địa chỉ. Mục lục
+ * "Mục trong trang" là liên kết neo (`href="#project-settings-danger"`, `groupAnchor` ở
+ * `ProjectSettings.tsx`), nên bấm nó thêm hash của khối.
+ */
+const DANGER_URL = `${SETTINGS}?tab=danger#project-settings-danger`;
 
 /** Đăng nhập quản trị viên, mở thẻ "vùng nguy hiểm"; trả tên dự án đã lưu (đo, không chép). */
 async function openDangerZoneAsAdmin(page: Page): Promise<string> {

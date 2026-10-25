@@ -557,7 +557,7 @@ test.describe('SCR-08 Project Settings', () => {
 
     await expect.poll(() => pathnameOf(page)).toBe(ROUTES.dashboard);
     await expect(page.getByRole('status').filter({ hasText: /Đã xoá dự án( "[^"]+")?\./u })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Dự án của tôi', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Chọn dự án để làm tiếp', level: 1 })).toBeVisible();
     await expect(
       page.getByRole('list', { name: 'Danh sách dự án' }).or(page.getByText('Chưa có dự án nào', { exact: true })).first(),
     ).toBeVisible();
@@ -577,7 +577,7 @@ test.describe('SCR-38 Access Denied', () => {
     await page.goto(ROUTES.accessDenied);
     await page.getByRole('button', { name: 'Về danh sách dự án', exact: true }).click();
     await expect.poll(() => pathnameOf(page)).toBe(ROUTES.dashboard);
-    await expect(page.getByRole('heading', { name: 'Dự án của tôi', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Chọn dự án để làm tiếp', level: 1 })).toBeVisible();
     await captureEvidence(page, '38_denied_home.png');
   });
 

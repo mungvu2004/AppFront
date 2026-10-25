@@ -24,12 +24,10 @@
  * Safari drops the table roles once `display` changes). Each stacked cell says its column itself, below `sm` only.
  */
 
-import { Box, MoreHorizontal } from 'lucide-react';
-
-import { CONTEXT_MENU_WIDTH } from '@/components/canvas/ContextMenu';
 import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
 
+import { ProjectActionLink, ProjectMenuButton } from './ProjectCardTile';
 import type { ProjectCardModel } from './useProjectDashboard';
 
 export interface ProjectTableProps {
@@ -37,7 +35,6 @@ export interface ProjectTableProps {
   readonly renamingId: string | null;
   readonly renameDraft: string;
   readonly onOpen: (id: string) => void;
-  readonly onOpenViewer: (id: string) => void;
   readonly onMenu: (project: ProjectCardModel, x: number, y: number) => void;
   readonly onRenameChange: (value: string) => void;
   readonly onRenameCommit: () => void;
@@ -53,7 +50,7 @@ function StackedLabel({ children }: { readonly children: string }) {
   return <span className="sr-only sm:hidden">{`${children}: `}</span>;
 }
 
-export function ProjectTable({ rows, onOpenViewer, renamingId, renameDraft, onOpen, onMenu, onRenameChange, onRenameCommit, onRenameCancel }: ProjectTableProps) {
+export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, onRenameChange, onRenameCommit, onRenameCancel }: ProjectTableProps) {
   return (
     <Table.Root className="max-sm:[&_table]:block max-sm:[&_tbody]:block max-sm:[&_thead]:hidden">
       <Table.Header>
@@ -74,7 +71,8 @@ export function ProjectTable({ rows, onOpenViewer, renamingId, renameDraft, onOp
             className={`cursor-pointer ${ROW_STACKED}`}
             onClick={() => onOpen(project.id)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter') onOpen(project.id);
+              // Only the row's own Enter: one from its action or menu button is theirs (BUG-147, as the tile).
+              if (event.key === 'Enter' && event.target === event.currentTarget) onOpen(project.id);
             }}
             onContextMenu={(event) => {
               event.preventDefault();
@@ -123,34 +121,8 @@ export function ProjectTable({ rows, onOpenViewer, renamingId, renameDraft, onOp
             </Table.Cell>
             <Table.Cell className={`max-sm:ml-auto ${CELL_STACKED}`}>
               <div className="flex items-center justify-end gap-2">
-                {project.hasPlan && (
-                  <button
-                    type="button"
-                    aria-label={`Xem 3D ${project.name}`}
-                    title="Xem mô hình 3D"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onOpenViewer(project.id);
-                    }}
-                    className="flex min-h-11 items-center gap-1 whitespace-nowrap rounded-full bg-bg-sunken px-3 text-caption font-medium text-text-secondary hover:bg-accent hover:text-white fine:min-h-8"
-                  >
-                    <Box size={14} aria-hidden="true" />
-                    Xem 3D
-                  </button>
-                )}
-                <button
-                  type="button"
-                  aria-label={`Tuỳ chọn cho ${project.name}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    const anchor = event.currentTarget.getBoundingClientRect();
-                    onMenu(project, anchor.right - CONTEXT_MENU_WIDTH, anchor.bottom + 4);
-                  }}
-                  title="Tuỳ chọn"
-                  className="flex min-h-11 min-w-11 items-center justify-center rounded-full fine:min-h-8 fine:min-w-8 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                >
-                  <MoreHorizontal size={16} aria-hidden="true" />
-                </button>
+                <ProjectActionLink project={project} onOpen={onOpen} />
+                <ProjectMenuButton project={project} onMenu={onMenu} />
               </div>
             </Table.Cell>
           </Table.Row>

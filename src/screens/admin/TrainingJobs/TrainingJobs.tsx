@@ -2,8 +2,11 @@
  * View thuần của màn huấn luyện (`/admin/training/jobs`, F-12) — mục D: mọi dữ liệu qua
  * `TrainingJobsProps`, không chạm store hay mạng.
  *
- * Đầu trang, `Tabs`, bộ lọc và nút "Tạo lượt huấn luyện" giữ nguyên ở mọi trạng thái trừ
- * `forbidden`; chỉ vùng bảng đổi.
+ * Ba câu của màn (NGUYEN-TAC-BO-CUC §1, ngoài dự án nên không có FlowGate): `PageHead` nói
+ * làm gì, trạng thái (Badge lượt hỏng/đang chạy + câu có số lượt đã tải), và MỘT nút chính
+ * "Tạo lượt huấn luyện" ở `next` — bị khoá thì lý do đứng ngay cạnh nút, không nút chết.
+ * Đầu trang, `Tabs` và nút ấy giữ nguyên ở mọi trạng thái trừ `forbidden`; danh sách lượt
+ * nằm trong MỘT `Section` có bộ lọc ở đầu khung, chỉ thân khung đổi theo trạng thái.
  */
 
 import { Lock } from 'lucide-react';
@@ -12,11 +15,13 @@ import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Drawer } from '@/components/overlay/Drawer';
+import { PageHead } from '@/components/shell/PageHead';
+import { Section } from '@/components/shell/Section';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Select } from '@/components/ui/Select';
 import { Tabs } from '@/components/ui/Tabs';
-import { cn } from '@/lib/utils';
 
 import { TrainingDatasetsTab } from './TrainingDatasetsTab';
 import { TrainingJobCancelDialog, TrainingJobDetail } from './TrainingJobDetail';
@@ -25,7 +30,8 @@ import { TrainingJobsTable } from './TrainingJobsTable';
 import type { TrainingJobsProps, TrainingJobsViewModel, TrainingTabId } from './types';
 
 const TEXT = {
-  title: 'Huấn luyện mô hình AI',
+  eyebrow: 'Quản trị',
+  title: 'Theo dõi huấn luyện',
   tabsLabel: 'Phần của trang huấn luyện',
   tabJobs: 'Lượt huấn luyện',
   tabDatasets: 'Bộ dữ liệu',
@@ -35,29 +41,80 @@ const TEXT = {
   forbiddenTitle: 'Không có quyền truy cập',
   forbiddenBody: 'Chỉ quản trị viên hệ thống xem được trang huấn luyện.',
   detailPanel: 'Chi tiết lượt huấn luyện',
+  errorBadge: 'Không đọc được',
+  idleBadge: 'Không có lượt đang chạy',
 } as const;
 
-const PANEL = 'rounded-xl border border-border-default bg-bg-surface p-5';
+const PANEL = 'rounded-xl bg-bg-surface p-5 shadow-panel';
 
-function Header({ model }: { readonly model: TrainingJobsViewModel }) {
+/** Trạng thái: Badge nói việc cần để ý nhất (hỏng > đang chạy), câu nói số lượt đã tải — mỗi số một chỗ. */
+function JobsStatus({ model }: { readonly model: TrainingJobsViewModel }) {
+  if (model.state === 'loading') return null;
+  if (model.state === 'error') return <Badge variant="violation">{TEXT.errorBadge}</Badge>;
+
+  const failed = model.rows.filter((row) => row.statusVariant === 'violation').length;
+  const running = model.rows.filter((row) => row.statusVariant === 'attention').length;
+  const badge =
+    failed > 0 ? (
+      <Badge variant="violation">{`${String(failed)} lượt hỏng`}</Badge>
+    ) : running > 0 ? (
+      <Badge variant="attention">{`${String(running)} lượt đang chạy`}</Badge>
+    ) : (
+      <Badge variant="neutral">{TEXT.idleBadge}</Badge>
+    );
+  const runningTail = failed > 0 && running > 0 ? `, ${String(running)} lượt đang chạy` : '';
+  // Rỗng: EmptyState bên dưới đã nói "Chưa có lượt huấn luyện", dòng trạng thái chỉ giữ Badge.
+  if (model.rows.length === 0) return badge;
+  const sentence = `${String(model.rows.length)} lượt huấn luyện${model.hasMore ? ' đã tải' : ''}${runningTail}.`;
+
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex flex-col gap-1">
-        {/* Không breadcrumb: thanh tab quản trị đã chỉ đúng mục này. */}
-        <h1 className="text-title text-text-primary">{TEXT.title}</h1>
-      </div>
-      <Link className="text-[13px] font-medium text-accent underline-offset-2 hover:underline" to={model.relatedLink.href}>
-        {model.relatedLink.label}
-      </Link>
-    </div>
+    <>
+      {badge}
+      <span className="tabular-nums">{sentence}</span>
+    </>
   );
 }
 
-function Toolbar({ actions, model }: TrainingJobsProps) {
+function Head({ actions, model }: TrainingJobsProps) {
+  const forbidden = model.state === 'forbidden';
   return (
-    <div className="flex flex-wrap items-end gap-3">
+    <PageHead
+      className="mb-0"
+      eyebrow={TEXT.eyebrow}
+      title={TEXT.title}
+      status={forbidden ? undefined : <JobsStatus model={model} />}
+      next={
+        <>
+          <Link className="text-[13px] font-medium text-accent underline-offset-2 hover:underline" to={model.relatedLink.href}>
+            {model.relatedLink.label}
+          </Link>
+          {!forbidden && model.createDisabledReason !== null && (
+            <span className="max-w-[280px] text-[13px] text-text-secondary" id="training-create-reason">
+              {model.createDisabledReason}
+            </span>
+          )}
+          {!forbidden && (
+            <Button
+              aria-describedby={model.createDisabledReason !== null ? 'training-create-reason' : undefined}
+              disabled={model.createDisabledReason !== null}
+              onClick={actions.onOpenForm}
+              variant="primary"
+            >
+              {TEXT.create}
+            </Button>
+          )}
+        </>
+      }
+    />
+  );
+}
+
+function Filters({ actions, model }: TrainingJobsProps) {
+  return (
+    <div className="flex flex-wrap items-end gap-3 border-b border-border-default px-5 py-4">
       <SegmentedControl
         aria-label={TEXT.familyFilter}
+        className="shrink-0 whitespace-nowrap [&>button]:flex-auto"
         onChange={actions.onFilterFamily}
         options={[...model.familyFilters]}
         value={model.familyFilter}
@@ -78,28 +135,13 @@ function Toolbar({ actions, model }: TrainingJobsProps) {
           ))}
         </Select.Content>
       </Select.Root>
-      <div className="ml-auto flex items-center gap-3">
-        {model.createDisabledReason !== null && (
-          <span className="text-[13px] text-text-secondary" id="training-create-reason">
-            {model.createDisabledReason}
-          </span>
-        )}
-        <Button
-          aria-describedby={model.createDisabledReason !== null ? 'training-create-reason' : undefined}
-          disabled={model.createDisabledReason !== null}
-          onClick={actions.onOpenForm}
-          variant="primary"
-        >
-          {TEXT.create}
-        </Button>
-      </div>
     </div>
   );
 }
 
-function LoadingArea({ rowCount }: { readonly rowCount: number }) {
+function LoadingRows({ rowCount }: { readonly rowCount: number }) {
   return (
-    <div aria-busy="true" className={PANEL}>
+    <div aria-busy="true" className="p-5">
       {Array.from({ length: rowCount }, (_unused, index) => (
         <Skeleton key={index} preset="table-row" />
       ))}
@@ -108,25 +150,25 @@ function LoadingArea({ rowCount }: { readonly rowCount: number }) {
 }
 
 function JobsPanel({ actions, model }: TrainingJobsProps) {
-  const showsSidePanel = !model.isCollapsed && model.state !== 'loading' && model.rows.length > 0;
+  // Như V-05 của ModelRegistry: panel chỉ mở khi đã chọn lượt — chưa chọn thì bảng lấy đủ bề rộng, không cắt cột.
+  const showsSidePanel =
+    !model.isCollapsed && model.state !== 'loading' && model.rows.length > 0 && model.detail !== null;
 
   return (
-    <div className="flex flex-col gap-4">
-      <Toolbar actions={actions} model={model} />
-      <div className="flex items-start gap-6">
-        <div className="min-w-0 flex-1">
-          {model.state === 'loading' ? (
-            <LoadingArea rowCount={model.skeletonRowCount} />
-          ) : (
-            <TrainingJobsTable actions={actions} model={model} />
-          )}
-        </div>
-        {showsSidePanel && (
-          <aside aria-label={TEXT.detailPanel} className={cn(PANEL, 'w-[400px] shrink-0 min-[120rem]:w-[480px]')}>
-            <TrainingJobDetail actions={actions} detail={model.detail} />
-          </aside>
+    <div className="flex items-start gap-6">
+      <Section className="min-w-0 flex-1" flush>
+        <Filters actions={actions} model={model} />
+        {model.state === 'loading' ? (
+          <LoadingRows rowCount={model.skeletonRowCount} />
+        ) : (
+          <TrainingJobsTable actions={actions} model={model} />
         )}
-      </div>
+      </Section>
+      {showsSidePanel && (
+        <aside aria-label={TEXT.detailPanel} className={`${PANEL} w-[400px] shrink-0 min-[120rem]:w-[480px]`}>
+          <TrainingJobDetail actions={actions} detail={model.detail} />
+        </aside>
+      )}
     </div>
   );
 }
@@ -137,7 +179,7 @@ export function TrainingJobs({ actions, model }: TrainingJobsProps) {
   if (model.state === 'forbidden') {
     return (
       <div className={shell}>
-        <Header model={model} />
+        <Head actions={actions} model={model} />
         <EmptyState description={TEXT.forbiddenBody} icon={<Lock aria-hidden="true" />} title={TEXT.forbiddenTitle} />
       </div>
     );
@@ -145,7 +187,7 @@ export function TrainingJobs({ actions, model }: TrainingJobsProps) {
 
   return (
     <div className={shell}>
-      <Header model={model} />
+      <Head actions={actions} model={model} />
       <Tabs.Root activeId={model.activeTab} onChange={(id) => actions.onSelectTab(id as TrainingTabId)}>
         <Tabs.List aria-label={TEXT.tabsLabel}>
           <Tabs.Tab id="jobs">{TEXT.tabJobs}</Tabs.Tab>
@@ -157,7 +199,9 @@ export function TrainingJobs({ actions, model }: TrainingJobsProps) {
           </Tabs.Panel>
           <Tabs.Panel id="datasets">
             {model.state === 'loading' ? (
-              <LoadingArea rowCount={model.skeletonRowCount} />
+              <Section flush>
+                <LoadingRows rowCount={model.skeletonRowCount} />
+              </Section>
             ) : (
               <TrainingDatasetsTab actions={actions} model={model} />
             )}

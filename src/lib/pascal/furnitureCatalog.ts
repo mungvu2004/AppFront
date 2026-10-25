@@ -1,7 +1,7 @@
 // Bảng tay chép từ vendor/pascal catalog-items.tsx (không import: file đó mang 333 URL supabase,
 // còn toPascal được app chính import). furnitureCatalog.test.ts đối chiếu từng dòng với catalog.
 import { SCENE_PALETTE } from './scenePalette';
-import SURFACE_TOPS from './surfaceTops.json';
+import SURFACE_TOPS from './surfaceTops.json' with { type: 'json' };
 
 export interface CatalogModel {
   readonly folder: string;

@@ -379,15 +379,14 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await ev(page, 'X4-A-005', 'walls-treeitem-current');
       });
 
-      await test.step('[X4-A-006] SCR-17 "Cây lớp" items are visibility toggles, not navigation', async () => {
+      await test.step('[X4-A-006] SCR-17 "Lọc theo loại" chips are visibility toggles, not navigation (Z/S-16)', async () => {
         await hop('Cửa và nội thất');
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.objects(q2.projectId, one.id));
-        const objectsTree = page.getByRole('tree', { name: 'Cây lớp', exact: true });
-        const item = objectsTree.getByRole('treeitem', { name: 'Cửa đi', exact: true });
-        await expect(item).toBeVisible();
-        const eye = objectsTree.getByRole('button', { name: /^(Ẩn|Hiện) lớp cửa đi$/u });
+        const objectsFilter = page.getByRole('group', { name: 'Lọc theo loại', exact: true });
+        const eye = objectsFilter.getByRole('button', { name: /^(Ẩn|Hiện) lớp cửa đi$/u });
+        await expect(eye).toBeVisible();
         const before = await eye.getAttribute('aria-pressed');
-        await item.click();
+        await eye.click();
         expect.soft(pathOf(page), 'no route change').toBe(ROUTES.project.objects(q2.projectId, one.id));
         expect.soft(await eye.getAttribute('aria-pressed'), 'the click toggled the layer').not.toBe(before);
         await ev(page, 'X4-A-006', 'objects-tree-toggles');

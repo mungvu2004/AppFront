@@ -88,7 +88,7 @@ export const panelOrDrawer = (page: Page, label: string): Locator =>
 export const panelRows = (page: Page): Locator => page.getByRole('tabpanel').locator('button[aria-pressed]');
 export async function openTraining(page: Page): Promise<void> {
   await page.goto(ROUTES.adminTrainingJobs);
-  await expect(page.getByRole('heading', { level: 1, name: 'Huấn luyện mô hình AI', exact: true })).toBeVisible({ timeout: SETTLE_MS });
+  await expect(page.getByRole('heading', { level: 1, name: 'Theo dõi huấn luyện', exact: true })).toBeVisible({ timeout: SETTLE_MS });
   await expect(page.getByRole('tab', { name: 'Lượt huấn luyện', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: SETTLE_MS });
   await expect(page.getByText('Chưa có lượt huấn luyện', { exact: true }).or(panelRows(page).first())).toBeVisible();

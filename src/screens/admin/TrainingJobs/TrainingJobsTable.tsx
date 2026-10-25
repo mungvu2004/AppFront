@@ -1,5 +1,5 @@
 /**
- * Vùng bảng của tab "Lượt huấn luyện": lỗi, rỗng, dải "một phần", bảng dòng 40 (dưới 1024 là
+ * Thân khung `Section` của tab "Lượt huấn luyện": lỗi, rỗng, dải "một phần", bảng dòng 40 (dưới 1024 là
  * một cột thẻ), "Xem thêm". Hàng mở chi tiết bằng nút trên họ (Enter/Space là của nút).
  */
 
@@ -23,7 +23,6 @@ const TEXT = {
 } as const;
 
 const HEADERS = ['Họ', 'Model nền', 'Phiên bản bộ dữ liệu', 'Vòng', 'Trạng thái', 'Bắt đầu', 'Kết thúc'] as const;
-const PANEL = 'rounded-xl border border-border-default bg-bg-surface p-5';
 const FOCUS_RING =
   'rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
@@ -107,32 +106,47 @@ function Rows({ actions, rows }: { readonly actions: TrainingJobsActions; readon
 export function TrainingJobsTable({ actions, model }: TrainingJobsProps) {
   if (model.state === 'error') {
     return (
-      <InlineAlert
-        action={{ label: TEXT.retry, onClick: actions.onRetry }}
-        level="violation"
-        message={model.errorMessage ?? TEXT.errorTitle}
-        title={TEXT.errorTitle}
-      />
+      <div className="p-5">
+        <InlineAlert
+          action={{ label: TEXT.retry, onClick: actions.onRetry }}
+          level="violation"
+          message={model.errorMessage ?? TEXT.errorTitle}
+          title={TEXT.errorTitle}
+        />
+      </div>
     );
   }
 
+  // Thân khung `Section` của màn: bảng tràn mép, các khối khác có lề 20 như đầu khung.
   return (
-    <div className="flex flex-col gap-4">
-      {model.partialNotice !== null && <InlineAlert level="attention" message={model.partialNotice} />}
-      {model.rows.length === 0 ? (
-        <EmptyState
-          action={{ label: TEXT.toDatasets, onClick: () => actions.onSelectTab('datasets'), variant: 'secondary' }}
-          description={model.emptyMessage} icon={<History aria-hidden="true" />} title={TEXT.emptyTitle} />
-      ) : (
-        <div className={PANEL}>
-          {model.isCollapsed ? <Cards actions={actions} rows={model.rows} /> : <Rows actions={actions} rows={model.rows} />}
+    <div className="flex flex-col">
+      {model.partialNotice !== null && (
+        <div className="px-5 pt-4">
+          <InlineAlert level="attention" message={model.partialNotice} />
         </div>
       )}
-      {model.loadMoreError !== null && <InlineAlert level="violation" message={model.loadMoreError} />}
-      {model.hasMore && (
-        <Button className="self-start" loading={model.isLoadingMore} onClick={actions.onLoadMore} size="sm" variant="ghost">
-          {TEXT.loadMore}
-        </Button>
+      {model.rows.length === 0 ? (
+        <div className="p-5">
+          <EmptyState
+            action={{ label: TEXT.toDatasets, onClick: () => actions.onSelectTab('datasets'), variant: 'secondary' }}
+            description={model.emptyMessage} icon={<History aria-hidden="true" />} title={TEXT.emptyTitle} />
+        </div>
+      ) : model.isCollapsed ? (
+        <div className="p-5">
+          <Cards actions={actions} rows={model.rows} />
+        </div>
+      ) : (
+        <Rows actions={actions} rows={model.rows} />
+      )}
+      {(model.loadMoreError !== null || model.hasMore) && (
+        <div className="flex flex-col gap-3 border-t border-border-default px-5 py-3">
+          {model.loadMoreError !== null && <InlineAlert level="violation" message={model.loadMoreError} />}
+          {model.hasMore && (
+            <Button className="self-start" loading={model.isLoadingMore} onClick={actions.onLoadMore} size="sm" variant="ghost">
+              {TEXT.loadMore}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

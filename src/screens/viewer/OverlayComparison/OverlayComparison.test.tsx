@@ -45,6 +45,8 @@ import {
   type SevenStateScenario,
 } from '@/lib/testing/sevenStateScenarios';
 
+import { setFlowGateSlot } from '@/components/shell/flowGateStore';
+
 import { OverlayComparison } from './OverlayComparison';
 import { scenarioFor } from './OverlayComparison.stories';
 import { OVERLAY_COMPARISON_SCENARIOS } from './overlayComparisonScenarios';
@@ -243,9 +245,15 @@ describe('OverlayComparison — xác nhận là hành động của người (A5
     const confirmMatch = vi.fn();
     const actions: OverlayComparisonActions = { ...scenarioFor('success').actions, confirmMatch };
 
+    // Nút xác nhận nằm ở cổng (FlowGate) — cổng bay vào khe của thanh bước; ở đây dựng một khe giả.
+    const slot = document.createElement('div');
+    document.body.append(slot);
+    setFlowGateSlot(slot);
     renderInRouter(<OverlayComparison actions={actions} model={model} />);
 
     const button = screen.getByRole('button', { name: model.confirmation.buttonLabel });
+    setFlowGateSlot(null);
+    slot.remove();
 
     expect(button).toBeEnabled();
     expect(confirmMatch).not.toHaveBeenCalled();
@@ -254,6 +262,56 @@ describe('OverlayComparison — xác nhận là hành động của người (A5
 
     expect(confirmMatch).toHaveBeenCalledTimes(1);
     expect(confirmMatch).toHaveBeenCalledWith();
+  });
+});
+
+describe('OverlayComparison — ba câu của màn (bản Z S-28)', () => {
+  let slot: HTMLDivElement;
+  beforeEach(() => {
+    slot = document.createElement('div');
+    document.body.append(slot);
+    setFlowGateSlot(slot);
+  });
+  afterEach(() => {
+    setFlowGateSlot(null);
+    slot.remove();
+  });
+
+  it('H1 động từ + chip Lệch + câu có số; cổng có nút phụ "Vùng kế", không nút xác nhận chính', () => {
+    renderInRouter(<OverlayComparison {...scenarioFor('partial')} />);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Đối chiếu bản vẽ với mô hình' })).toBeInTheDocument();
+    expect(screen.getByText('Lệch')).toBeInTheDocument();
+    expect(screen.getByText('3/14 vùng vượt dung sai 20 mm.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Vùng kế W-12' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Xác nhận khớp bản vẽ' })).toBeNull();
+  });
+
+  it('không có quyền xác nhận: cổng nói lý do thay cho một nút tắt (BUG-599)', () => {
+    const base = scenarioFor('success');
+    const model: OverlayComparisonViewModel = {
+      ...base.model,
+      confirmation: {
+        ...base.model.confirmation,
+        isConfirmed: false,
+        canConfirm: false,
+        confirmedNotice: null,
+        disabledReason: 'Chỉ người có quyền sửa mới xác nhận được.',
+      },
+    };
+    renderInRouter(<OverlayComparison actions={base.actions} model={model} />);
+
+    expect(screen.queryByRole('button', { name: model.confirmation.buttonLabel })).toBeNull();
+    expect(screen.getByText('Chỉ người có quyền sửa mới xác nhận được.')).toBeInTheDocument();
+  });
+
+  it('đã xác nhận: chip xanh + câu điềm đạm, cổng dẫn sang bước sau', () => {
+    const base = scenarioFor('success');
+    renderInRouter(<OverlayComparison {...base} nextStep={{ label: 'Sang Mô hình 3D', href: '/projects/p/3d' }} />);
+
+    expect(screen.getByText('Đã xác nhận khớp')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Sang Mô hình 3D' })).toHaveAttribute('href', '/projects/p/3d');
+    expect(screen.queryByRole('button', { name: base.model.confirmation.buttonLabel })).toBeNull();
   });
 });
 

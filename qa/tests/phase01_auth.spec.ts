@@ -74,7 +74,7 @@ const RESET_LINK_INCOMPLETE =
 const RESET_LINK_EXPIRED = 'Liên kết đã hết hạn hoặc đã được dùng.'; // vi.json:191 (prefix)
 
 /** `ProjectDashboard.tsx:196` (h1) and `FloorManager.tsx:63,91` (h2): proof the destination painted. */
-const DASHBOARD_TITLE = 'Dự án của tôi';
+const DASHBOARD_TITLE = 'Chọn dự án để làm tiếp';
 const FLOOR_MANAGER_TITLE = 'Theo dõi từng tầng và làm tiếp tầng cần nhất';
 
 /** ≥ 8 chars so client validation lets it through to the server (`PasswordSchema`). Never the real one. */

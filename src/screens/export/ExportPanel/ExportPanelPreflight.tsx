@@ -6,6 +6,7 @@
  * tuyệt đối của đặc tả gốc.
  */
 
+import { Section } from '@/components/shell/Section';
 import { cn } from '@/lib/utils';
 
 import { FOCUS_RING } from './ExportPanelFormats';
@@ -22,11 +23,8 @@ export function ExportPanelPreflight({ rows, onFollowFix }: ExportPanelPreflight
   }
 
   return (
-    <section
-      aria-label="Kiểm tra trước khi xuất"
-      className="flex flex-col gap-2 rounded-lg border border-border-default bg-bg-surface p-4"
-    >
-      <h3 className="text-sm font-medium text-text-secondary">Kiểm tra trước khi xuất</h3>
+    // Chỉ để thông tin, không chặn: còn vi phạm vẫn xuất được, mỗi dòng có lối đi sửa.
+    <Section aria-label="Kiểm tra trước khi xuất" title="Kiểm tra trước khi xuất">
       <ul className="flex flex-col gap-2">
         {rows.map((row) => (
           <li key={row.id} className="flex items-start justify-between gap-3 text-sm">
@@ -65,6 +63,6 @@ export function ExportPanelPreflight({ rows, onFollowFix }: ExportPanelPreflight
           </li>
         ))}
       </ul>
-    </section>
+    </Section>
   );
 }

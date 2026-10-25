@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { fixtureF1 } from '../../src/lib/pascal/__fixtures__';
+import { installFakeApi, type WireGraphDocument } from '../fixtures/fakeApi';
 import { ROUTES } from '../fixtures/routes';
 import { signInAs } from '../fixtures/session';
 import { FIRST_PAINT_TIMEOUT_MS } from '../v12b/firstPaint';
@@ -40,11 +42,6 @@ const ROWS = [
   { screen: 'projectCadConfirm', path: ROUTES.project.cadConfirm(PROJECT_ID, FLOOR_ID), expected: 'Không có quyền xử lý CAD' },
   { screen: 'projectRooms', path: ROUTES.project.rooms(PROJECT_ID, FLOOR_ID), expected: 'Không có quyền sửa lớp phòng' },
   { screen: 'projectExport', path: ROUTES.project.export(PROJECT_ID), expected: 'Không có quyền xuất bản vẽ' },
-  {
-    screen: 'projectExploded',
-    path: ROUTES.project.exploded(PROJECT_ID),
-    expected: 'Bạn đang xem ở vai người xem nên không sửa được vị trí tầng.',
-  },
 ] as const;
 
 for (const row of ROWS) {
@@ -53,3 +50,24 @@ for (const row of ROWS) {
     await expect(page.getByText(row.expected, { exact: true })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
   });
 }
+
+/*
+ * Màn 3D (cả `/3d/exploded`) nay là trang Pascal riêng `editor3d.html` (29eba219): trang ấy
+ * không đi qua bộ giả lập của app nên dùng máy chủ giả `installFakeApi` với vai `viewer`.
+ * Cầu không trả `save` khi chỉ đọc, và thanh trên nói vì sao (`BackToProjectCard` › `ReadOnlyChip`).
+ */
+test('vai viewer ở trang 3D (Pascal): màn nói rõ vì sao chỉ được xem, không có chip lưu (A11 forbidden)', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await installFakeApi(page, {
+    projectId: 'P-FIXTURE0001',
+    graphDoc: fixtureF1({ ext: false }).doc as unknown as WireGraphDocument,
+    role: 'viewer',
+  });
+  await page.goto('/editor3d.html?project=P-FIXTURE0001');
+
+  const note = page.getByRole('note').filter({ hasText: 'Bạn đang xem ở vai người xem nên không sửa được mô hình 3D.' });
+  await expect(note).toBeVisible({ timeout: 90_000 });
+  await expect(note).toContainText('Chỉ xem');
+  await expect(page.getByRole('status').filter({ hasText: /^(Đã lưu|Đang lưu|Chưa lưu)/u })).toHaveCount(0);
+});

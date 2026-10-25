@@ -104,11 +104,11 @@ test('B-V4-02: ảnh kém không còn ô xác nhận; "Xử lý dù ảnh mờ" 
 });
 
 test('"Tải ảnh nét hơn" quay về màn tải lên của cùng dự án', async ({ page }) => {
-  await page.goto(QUALITY);
+  // Màn mở ở tầng đầu (Tầng hầm, chưa đo: nút phụ là "Tải bản vẽ khác"); "Tải ảnh nét hơn" là
+  // nhãn của tầng có ảnh mờ, nên chọn Tầng 1 trước.
+  await openFloorOne(page);
 
-  await page
-    .getByRole('button', { name: 'Tải ảnh nét hơn' })
-    .click({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  await page.getByRole('button', { name: 'Tải ảnh nét hơn' }).click();
 
   await expect.poll(() => pathOf(page.url())).toBe(ROUTES.project.upload(PROJECT_ID));
   // Breadcrumb dùng chung (BUG-079): `nav` tên "Đường dẫn trang", cấp cuối là tên màn.

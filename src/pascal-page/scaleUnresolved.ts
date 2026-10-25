@@ -1,10 +1,11 @@
 import { useSyncExternalStore } from 'react';
 
-let unresolved = false;
+/** Tầng đầu tiên chưa hiệu chỉnh tỷ lệ (dải cảnh báo đang hiện); null = không có. */
+let unresolvedFloor: string | null = null;
 const listeners = new Set<() => void>();
-export function setUnresolved(value: boolean) {
-  if (unresolved === value) return;
-  unresolved = value;
+export function setUnresolved(floorId: string | null) {
+  if (unresolvedFloor === floorId) return;
+  unresolvedFloor = floorId;
   listeners.forEach((listener) => listener());
 }
 function subscribe(listener: () => void) {
@@ -13,9 +14,14 @@ function subscribe(listener: () => void) {
     listeners.delete(listener);
   };
 }
-const snapshot = () => unresolved;
+const snapshot = () => unresolvedFloor;
+
+/** Mã tầng cần hiệu chỉnh tỷ lệ (cho nút "Hiệu chỉnh tỷ lệ" của cổng); null khi tỷ lệ ổn. */
+export function useScaleUnresolvedFloor(): string | null {
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
+}
 
 /** `true` khi dải cảnh báo tỷ lệ đang hiện. */
 export function useScaleUnresolved(): boolean {
-  return useSyncExternalStore(subscribe, snapshot, snapshot);
+  return useScaleUnresolvedFloor() !== null;
 }

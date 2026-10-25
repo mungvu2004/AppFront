@@ -21,8 +21,8 @@
  * (việc đó của `shortcutRegistry`, R-54/R-72).
  */
 
-import { Inbox } from 'lucide-react';
-import { useEffect, useRef, type KeyboardEvent } from 'react';
+import { Inbox, TriangleAlert } from 'lucide-react';
+import { useEffect, useMemo, useRef, type KeyboardEvent } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { cn } from '@/lib/utils';
@@ -30,9 +30,11 @@ import { cn } from '@/lib/utils';
 import type { RoomLabelListProps, RoomLabelStatus, RoomLabelViewModel } from './roomLabelTypes';
 
 /** Chiều cao một dòng danh sách, đúng chữ đặc tả ("mỗi dòng cao 40"). */
-const ROW_HEIGHT_CLASS = 'h-10';
+const ROW_HEIGHT_CLASS = 'min-h-10';
 
 const LIST_ARIA_LABEL = 'Danh sách phòng';
+const PENDING_GROUP_LABEL = 'Chưa duyệt';
+const CONFIRMED_GROUP_LABEL = 'Đã duyệt';
 const UNNAMED_PLACEHOLDER = 'Chưa đặt tên';
 const EMPTY_TITLE = 'Chưa có phòng nào';
 const EMPTY_DESCRIPTION =
@@ -60,17 +62,19 @@ interface RoomLabelListRowProps {
   readonly onSelect: (roomId: RoomLabelViewModel['id'] | null) => void;
   readonly onHover: (roomId: RoomLabelViewModel['id'] | null) => void;
   readonly onMoveFocus: (event: KeyboardEvent<HTMLDivElement>) => void;
+  /** Cờ "chiếm >80 % sàn" của riêng phòng này (Z/S-20); `null` khi không có. */
+  readonly flag: string | null;
 }
 
-function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus }: RoomLabelListRowProps) {
+function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus, flag }: RoomLabelListRowProps) {
   const nameText = room.hasName ? room.name : UNNAMED_PLACEHOLDER;
 
   return (
     <div
-      aria-label={`${room.codeLabel} · ${nameText} · ${room.areaText} · ${STATUS_LABEL[room.status]}`}
+      aria-label={`${room.codeLabel} · ${nameText} · ${room.areaText} · ${STATUS_LABEL[room.status]}${flag === null ? '' : ` · ${flag}`}`}
       aria-selected={isSelected}
       className={cn(
-        'flex cursor-pointer items-center gap-2 rounded-lg px-2 text-[13px] outline-hidden',
+        'flex cursor-pointer flex-col justify-center gap-0.5 rounded-lg px-2 py-1 text-[13px] outline-hidden',
         ROW_HEIGHT_CLASS,
         'transition-colors duration-120 hover:bg-bg-hover',
         'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent focus-visible:ring-offset-2',
@@ -92,21 +96,42 @@ function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus }: 
       role="option"
       tabIndex={0}
     >
-      <span className="w-16 shrink-0 truncate font-mono text-text-secondary">{room.codeLabel}</span>
-      <span className={cn('min-w-0 flex-1 wrap-break-word', room.hasName ? 'text-text-primary' : 'text-text-muted')}>
-        {nameText}
+      <span className="flex items-center gap-2">
+        <span className="w-16 shrink-0 truncate font-mono text-text-secondary">{room.codeLabel}</span>
+        <span className={cn('min-w-0 flex-1 wrap-break-word', room.hasName ? 'text-text-primary' : 'text-text-muted')}>
+          {nameText}
+        </span>
+        {/* Diện tích co được tới 45% hàng, chữ đầy đủ ở `title`: "Chưa có · tỷ lệ tạm" không còn nuốt tên phòng (BUG-624). */}
+        <span className="max-w-[45%] wrap-break-word text-right font-mono tabular-nums text-text-secondary" title={room.areaText}>
+          {room.areaText}
+        </span>
+        <span aria-hidden="true" className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_CLASS[room.status])} />
       </span>
-      {/* Diện tích co được tới 45% hàng, chữ đầy đủ ở `title`: "Chưa có · tỷ lệ tạm" không còn nuốt tên phòng (BUG-624). */}
-      <span className="max-w-[45%] wrap-break-word text-right font-mono tabular-nums text-text-secondary" title={room.areaText}>
-        {room.areaText}
-      </span>
-      <span aria-hidden="true" className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_CLASS[room.status])} />
+      {flag === null ? null : (
+        <span className="flex items-start gap-1 pl-[72px] text-[12px] text-state-attention-text">
+          <TriangleAlert aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          {flag}
+        </span>
+      )}
     </div>
   );
 }
 
-export function RoomLabelList({ rooms, selectedRoomId, onSelect, onHover }: RoomLabelListProps) {
+export function RoomLabelList({
+  rooms,
+  selectedRoomId,
+  onSelect,
+  onHover,
+  oversizedRoom = null,
+}: RoomLabelListProps & { readonly oversizedRoom?: { readonly id: RoomLabelViewModel['id']; readonly text: string } | null }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  /* Z/S-20: hai nhóm "Chưa duyệt" rồi "Đã duyệt"; thứ tự DOM = thứ tự mảng này (mũi tên đọc theo nó). */
+  const { pending, confirmed, ordered } = useMemo(() => {
+    const notYet = rooms.filter((room) => room.status !== 'confirmed');
+    const done = rooms.filter((room) => room.status === 'confirmed');
+
+    return { pending: notYet, confirmed: done, ordered: [...notYet, ...done] };
+  }, [rooms]);
 
   /**
    * ↑/↓ đi giữa các hàng. Đọc thẳng các hàng đang có trong DOM của chính danh
@@ -133,7 +158,7 @@ export function RoomLabelList({ rooms, selectedRoomId, onSelect, onHover }: Room
 
     const nextIndex = event.key === 'ArrowDown' ? current + 1 : current - 1;
     const next = items[nextIndex];
-    const nextRoom = rooms[nextIndex];
+    const nextRoom = ordered[nextIndex];
 
     if (next === undefined) {
       return;
@@ -156,7 +181,7 @@ export function RoomLabelList({ rooms, selectedRoomId, onSelect, onHover }: Room
       return;
     }
 
-    const index = rooms.findIndex((room) => room.id === selectedRoomId);
+    const index = ordered.findIndex((room) => room.id === selectedRoomId);
     const target = index === -1 ? undefined : container.querySelectorAll<HTMLElement>('[role="option"]')[index];
 
     if (target === undefined) {
@@ -170,23 +195,35 @@ export function RoomLabelList({ rooms, selectedRoomId, onSelect, onHover }: Room
     if (focused !== null && focused !== target && container.contains(focused) && focused.getAttribute('role') === 'option') {
       target.focus({ preventScroll: true });
     }
-  }, [rooms, selectedRoomId]);
+  }, [ordered, selectedRoomId]);
 
   if (rooms.length === 0) {
     return <EmptyState description={EMPTY_DESCRIPTION} icon={<Inbox />} title={EMPTY_TITLE} />;
   }
 
   return (
-    <div aria-label={LIST_ARIA_LABEL} className="flex flex-col" ref={containerRef} role="listbox">
-      {rooms.map((room) => (
-        <RoomLabelListRow
-          isSelected={room.id === selectedRoomId}
-          key={room.id}
-          onHover={onHover}
-          onMoveFocus={moveFocus}
-          onSelect={onSelect}
-          room={room}
-        />
+    <div aria-label={LIST_ARIA_LABEL} className="flex flex-col gap-3" ref={containerRef} role="listbox">
+      {[
+        { label: PENDING_GROUP_LABEL, items: pending },
+        { label: CONFIRMED_GROUP_LABEL, items: confirmed },
+      ].map((group) => (
+        <div aria-label={group.label} className="flex flex-col" key={group.label} role="group">
+          <p aria-hidden="true" className="flex items-center gap-2 px-2 pb-1 text-[12px] font-medium text-text-secondary">
+            {group.label}
+            <span className="tabular-nums text-text-muted">{group.items.length}</span>
+          </p>
+          {group.items.map((room) => (
+            <RoomLabelListRow
+              flag={oversizedRoom !== null && oversizedRoom.id === room.id ? oversizedRoom.text : null}
+              isSelected={room.id === selectedRoomId}
+              key={room.id}
+              onHover={onHover}
+              onMoveFocus={moveFocus}
+              onSelect={onSelect}
+              room={room}
+            />
+          ))}
+        </div>
       ))}
     </div>
   );

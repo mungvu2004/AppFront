@@ -363,6 +363,41 @@ describe('A5', () => {
 /* Nghiệm thu bàn phím — phép kiểm quan trọng nhất.                             */
 /* -------------------------------------------------------------------------- */
 
+describe('phím C: đổi về chuẩn + duyệt là MỘT bước hoàn tác (Z/S-15)', () => {
+  it('W-006 175 mm → 220 mm và đã duyệt; một Ctrl+Z trả cả hai', async () => {
+    const mounted = await mountSettled();
+    const target = wallAt(5);
+    const thicknessNow = (): number | undefined => {
+      const entity = useStore.getState().spatial?.byId[target.id];
+
+      return entity !== undefined && 'thicknessMm' in entity ? entity.thicknessMm : undefined;
+    };
+    const reviewedBefore = mounted.result.current.panel.reviewCounter.reviewed;
+
+    expect(target.thicknessMm).toBe(175);
+
+    await act(async () => {
+      mounted.result.current.panel.onSelect(target.id);
+      await Promise.resolve();
+    });
+    await pressKey(mounted.registry, 'C');
+
+    await waitFor(() => {
+      expect(mounted.result.current.panel.reviewCounter.reviewed).toBe(reviewedBefore + 1);
+    });
+    expect(thicknessNow()).toBe(220);
+
+    await pressKey(mounted.registry, 'z', { ctrlKey: true });
+
+    await waitFor(() => {
+      expect(mounted.result.current.panel.reviewCounter.reviewed).toBe(reviewedBefore);
+    });
+    expect(thicknessNow()).toBe(175);
+
+    mounted.unmount();
+  });
+});
+
 describe('nghiệm thu bàn phím', () => {
   it('duyệt 5 tường rồi hoàn tác 5 lần: 12 → 17 → 12', async () => {
     const mounted = await mountSettled();
@@ -450,8 +485,11 @@ describe('nghiệm thu bàn phím', () => {
 
     await pressKey(mounted.registry, 'K');
 
-    expect(first).toBe(wallAt(0).id);
-    expect(second).toBe(wallAt(1).id);
+    /* Một hàng đợi (Z/S-15): J đi theo thứ tự danh sách — không chuẩn trước, đã duyệt cuối. */
+    const rows = mounted.result.current.panel.rows;
+
+    expect(first).toBe(rows[0]?.id);
+    expect(second).toBe(rows[1]?.id);
     expect(mounted.result.current.panel.selectedWallId).toBe(first);
 
     mounted.unmount();
@@ -461,7 +499,7 @@ describe('nghiệm thu bàn phím', () => {
     const mounted = await mountSettled();
 
     await pressKey(mounted.registry, 'J');
-    expect(mounted.result.current.panel.selectedWallId).toBe(wallAt(0).id);
+    expect(mounted.result.current.panel.selectedWallId).toBe(mounted.result.current.panel.rows[0]?.id);
 
     await pressKey(mounted.registry, 'Escape');
 

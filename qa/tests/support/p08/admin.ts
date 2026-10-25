@@ -71,20 +71,18 @@ export const familyActiveRe = (family: string): RegExp => new RegExp(`^/api${fam
 
 /* ---------------------------------------------------------------- copy */
 
-/** Page heading per screen. Library and Users have no h1: their page title is the breadcrumb current item. */
+/** Page heading (h1 in PageHead) per screen. */
 export const TITLE = {
-  library: 'Thư viện mẫu 3D', // ML:38 BREADCRUMB_CURRENT (also the h1, BUG-P08-006)
-  jobs: 'Huấn luyện mô hình AI', // TJ:30 (h1, TJ:55)
-  registry: 'Model AI của chuỗi xử lý', // MR:29 (h1, MR:58)
-  users: 'Người dùng', // UMH:134 breadcrumbUsers (aria-current="page", UM:~64; no h1)
+  library: 'Quản lý thư viện mẫu 3D', // ML PAGE_TITLE (h1)
+  jobs: 'Theo dõi huấn luyện', // TJ TEXT.title (h1)
+  registry: 'Chọn mô hình AI đang dùng', // MR TEXT.title (h1)
+  users: 'Phân vai người dùng', // UM PAGE_TITLE (h1)
 } as const;
 export const BREADCRUMB_NAV = 'Đường dẫn trang'; // ML:36, TJ:48, MR:51, UM:49
 
-/** Heading locator of a screen: h1 for library/jobs/registry (their breadcrumb was removed), breadcrumb current item for users. */
+/** Heading locator of a screen: the PageHead h1 on all four admin screens. */
 export const heading = (page: Page, screen: AdminScreen): Locator =>
-  screen !== 'users'
-    ? page.getByRole('heading', { level: 1, name: TITLE[screen], exact: true })
-    : page.getByRole('navigation', { name: BREADCRUMB_NAV }).getByText(TITLE[screen], { exact: true });
+  page.getByRole('heading', { level: 1, name: TITLE[screen], exact: true });
 
 /** aria-label of each detail panel (aside on desktop; below the aside breakpoint it is a drawer - verify per spec). */
 export const DETAIL = {

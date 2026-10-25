@@ -59,18 +59,15 @@
  */
 
 import { ArrowLeft, ArrowLeftRight, ArrowRight, Columns2 } from 'lucide-react';
-import { useEffect, useState, type ComponentType } from 'react';
+import type { ComponentType } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
 import { FieldRow } from '@/components/ui/FieldRow';
-import { Kbd } from '@/components/ui/Kbd';
 import { Radio } from '@/components/ui/Radio';
 import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/utils';
-
-import { ConfirmDeleteDialog } from '../shared/ConfirmDeleteDialog';
 
 import { ObjectLayerPositionField } from './ObjectLayerPositionField';
 import { ObjectSubtypeIcon, type OutlineIconProps } from './objectLayerSubtypeIcons';
@@ -117,8 +114,12 @@ const UNATTACHED_BADGE = 'Chưa gắn vào tường nào';
 /** Nội thất không áp tường nào — chỗ đứng bình thường của nó, không phải việc phải làm (B-V6-13). */
 const FREE_STANDING_LABEL = 'Đứng tự do';
 const ATTACH_NEAREST_LABEL = 'Gắn vào tường gần nhất';
-const APPROVE_LABEL = 'Duyệt đối tượng này';
-const DELETE_LABEL = 'Xoá đối tượng';
+const APPROVE_PREFIX = 'Duyệt';
+const APPROVED_LABEL = 'Đã duyệt';
+const APPROVE_HINT = 'Duyệt xong tự sang đối tượng chưa duyệt kế tiếp. Xoá nhầm thì bấm Hoàn tác trên thông báo.';
+/* Hoàn tác thay hộp hỏi (Z/S-16): xoá tức thì, toast hoàn tác tám giây (A8). */
+const DELETE_OPENING_LABEL = 'Không phải cửa, xoá';
+const DELETE_FURNITURE_LABEL = 'Không phải nội thất, xoá';
 const EMPTY_MESSAGE = 'Chọn một đối tượng trên bản vẽ hoặc trong danh sách để xem chi tiết.';
 
 export function ObjectLayerInspector({
@@ -133,9 +134,16 @@ export function ObjectLayerInspector({
   onSelectHostWall,
 }: ObjectLayerInspectorProps) {
   return (
-    <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-0 xl:h-full xl:w-[344px]">
-      <div className="flex h-14 shrink-0 items-center px-5">
-        <h2 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h2>
+    /* `lg:h-full`: ở 1024 ngăn kéo cũng có chiều cao chặn, nên khối nút ghim đáy luôn thấy (Z/S-16). */
+    <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel lg:h-full xl:order-0">
+      <div className="flex h-14 shrink-0 items-center gap-2 px-5">
+        <h2 className="text-[13px] font-medium text-text-secondary">{PANEL_TITLE}</h2>
+        {inspector === null ? null : (
+          <>
+            <span className="text-heading tabular-nums text-text-primary">{inspector.codeLabel}</span>
+            {inspector.reviewed && <Badge variant="verified">{APPROVED_LABEL}</Badge>}
+          </>
+        )}
       </div>
 
       {inspector === null ? (
@@ -176,19 +184,11 @@ function ObjectInspectorBody({
   onSelectHostWall,
 }: ObjectInspectorBodyProps) {
   const { hostWallId, hostWallLabel } = inspector;
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  /* Phím Delete đi qua cùng hộp xác nhận với nút (Impeccable A3): hook đưa số yêu cầu mới. */
-  const deleteRequestSeq = inspector.deleteRequestSeq;
-  useEffect(() => {
-    if (deleteRequestSeq !== undefined) {
-      setIsDeleteOpen(true);
-    }
-  }, [deleteRequestSeq]);
   const isFurniture = OBJECT_SUBTYPE_LAYER[inspector.subtype] === 'furniture'; // loại, hướng mở chỉ đọc (BUG-590)
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto pb-5">
-      <p className="px-5 pb-4 text-[16px] tabular-nums text-text-primary">{inspector.codeLabel}</p>
+    <>
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-5">
 
       <div className="flex items-center gap-2 px-5 pb-4">
         <span
@@ -326,36 +326,27 @@ function ObjectInspectorBody({
           </span>
         </FieldRow>
       </div>
+      </div>
 
       {!isViewerRole && (
-        /* Dính đáy panel để nút duyệt luôn thấy ở 1440×900; nút xoá tách xa nút duyệt (G4a-27). Xoá ghi thẳng máy chủ nên hỏi lại (Impeccable A3 P0), sau đó vẫn có toast hoàn tác (A8). */
-        <div className="sticky bottom-0 mt-auto flex flex-col gap-4 bg-bg-surface px-5 pb-3 pt-4">
+        /* Khối nút NGOÀI vùng cuộn, ghim đáy panel: nút duyệt luôn thấy ở 1024×768; nút xoá tách xa nút duyệt (G4a-27). */
+        <div className="flex shrink-0 flex-col gap-2 border-t border-border-default bg-bg-surface px-5 py-3">
           <Button
+            aria-keyshortcuts="A"
             disabled={inspector.reviewed}
             fullWidth
-            aria-keyshortcuts="A"
             onClick={() => onApprove(inspector.id)}
-            variant="primary"
+            {...(inspector.reviewed ? {} : { shortcut: 'A' })}
+            variant={inspector.reviewed ? 'secondary' : 'primary'}
           >
-            {APPROVE_LABEL}
+            {inspector.reviewed ? APPROVED_LABEL : `${APPROVE_PREFIX} ${inspector.codeLabel}`}
           </Button>
-          <p className="-mt-2 text-[12px] text-text-muted">
-            Duyệt xong tự sang đối tượng chưa duyệt kế tiếp · phím <Kbd>A</Kbd>
-          </p>
-          <Button fullWidth onClick={() => setIsDeleteOpen(true)} variant="ghost">{DELETE_LABEL}</Button>
-          <ConfirmDeleteDialog
-            body={`${OBJECT_SUBTYPE_LABELS[inspector.subtype]} ${inspector.codeLabel} sẽ bị xoá khỏi bản vẽ và lưu ngay lên máy chủ. Bạn vẫn hoàn tác được trong vài giây sau khi xoá.`}
-            confirmLabel={DELETE_LABEL}
-            isOpen={isDeleteOpen}
-            onCancel={() => setIsDeleteOpen(false)}
-            onConfirm={() => {
-              setIsDeleteOpen(false);
-              onDelete(inspector.id);
-            }}
-            title={`Xoá ${OBJECT_SUBTYPE_LABELS[inspector.subtype].toLowerCase()} ${inspector.codeLabel}?`}
-          />
+          <Button aria-keyshortcuts="Delete" fullWidth onClick={() => onDelete(inspector.id)} shortcut="Del" variant="secondary">
+            {isFurniture ? DELETE_FURNITURE_LABEL : DELETE_OPENING_LABEL}
+          </Button>
+          <p className="text-[12px] text-text-secondary">{APPROVE_HINT}</p>
         </div>
       )}
-    </div>
+    </>
   );
 }

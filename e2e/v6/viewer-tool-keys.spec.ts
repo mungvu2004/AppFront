@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 import { ROUTES } from '../fixtures/routes';
 import { dismissTourIfPresent } from '../v8/viewer';
 
+test.skip(true, 'Viewer3D cũ không còn route từ 29eba219: /3d chuyển cả trang sang editor3d.html — ray "Công cụ khung nhìn" của vỏ cũ không có trên trang Pascal; phím của Pascal là của vendor.');
+
 /**
  * B-V6-08 (`questions.md` "Việc sản phẩm" #4, Q10e = A) — mọi phím mà ray công cụ
  * của vỏ 3D quảng cáo trong nhãn phải tồn tại lúc chạy.

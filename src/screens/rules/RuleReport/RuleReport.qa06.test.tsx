@@ -9,6 +9,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type * as AppClientModule from '@/api/appClient';
+import { setFlowGateSlot } from '@/components/shell/flowGateStore';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { CLEAN_BUILDING_SCENARIO, VIOLATED_BUILDING_SCENARIO } from '@/lib/testing/fixtures';
 import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
@@ -54,7 +55,7 @@ function renderRoute(roles: readonly ('admin' | 'engineer' | 'viewer')[]) {
 
 async function openFirstViolation(container: HTMLElement): Promise<void> {
   const toggle = await waitFor(() => {
-    const found = container.querySelector<HTMLButtonElement>('h2 button[aria-expanded="false"]');
+    const found = container.querySelector<HTMLButtonElement>('h3 button[aria-expanded="false"]');
     if (found === null) throw new Error('lượt chạy chưa xong');
     return found;
   });
@@ -68,21 +69,38 @@ async function openFirstViolation(container: HTMLElement): Promise<void> {
   await waitFor(() => screen.getByRole('complementary', { name: 'Chi tiết vi phạm' }));
 }
 
+/** Khe cổng của thanh bước (header thật không dựng ở đây): `FlowGate` bay vào khe này. */
+function mountGateSlot(): () => void {
+  const slot = document.createElement('div');
+  document.body.append(slot);
+  act(() => {
+    setFlowGateSlot(slot);
+  });
+  return () => {
+    act(() => {
+      setFlowGateSlot(null);
+    });
+    slot.remove();
+  };
+}
+
 describe('28-D-004 / 28V-D-003 — route lấy quyền thật của người xem', () => {
-  it('viewer: không có "Xác nhận đã xử lý" và tấm trượt không có "Lựa chọn xử lý"', async () => {
+  it('viewer: không có cổng sang Xuất và tấm trượt không có "Lựa chọn xử lý"', async () => {
+    const unmountSlot = mountGateSlot();
     const { container } = renderRoute(['viewer']);
 
     await openFirstViolation(container);
 
-    expect(screen.queryByRole('button', { name: 'Xác nhận đã xử lý' })).toBeNull();
+    expect(screen.queryByTestId('flow-gate')).toBeNull();
     expect(screen.queryByText('Lựa chọn xử lý')).toBeNull();
+    unmountSlot();
   });
 
   // 9V-C-030/031 (questions.md Q2: khoá cho viewer) — nút chạy lại cũng bị gỡ, như nút xác nhận.
   it('[9V-C-030] viewer: không có "Chạy kiểm tra lại"', async () => {
     renderRoute(['viewer']);
 
-    await screen.findByRole('heading', { name: 'Quy chuẩn' });
+    await screen.findByRole('heading', { name: 'Kiểm tra quy chuẩn' });
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: 'Đang kiểm tra' })).toBeNull();
     });
@@ -95,12 +113,16 @@ describe('28-D-004 / 28V-D-003 — route lấy quyền thật của người xem
     expect(await screen.findByRole('button', { name: 'Chạy kiểm tra lại' })).toBeInTheDocument();
   });
 
-  it('engineer: vẫn có "Xác nhận đã xử lý"', async () => {
+  it('engineer: cổng còn vi phạm nghiêm trọng mời "Xem vi phạm kế" (nút phụ), không mời sang Xuất', async () => {
+    const unmountSlot = mountGateSlot();
     const { container } = renderRoute(['engineer']);
 
     await openFirstViolation(container);
 
-    expect(screen.getByRole('button', { name: 'Xác nhận đã xử lý' })).toBeInTheDocument();
+    const gate = screen.getByTestId('flow-gate');
+    expect(within(gate).getByRole('button', { name: 'Xem vi phạm kế' })).toBeInTheDocument();
+    expect(within(gate).queryByRole('button', { name: 'Sang Xuất' })).toBeNull();
+    unmountSlot();
   });
 });
 

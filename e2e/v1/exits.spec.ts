@@ -16,7 +16,7 @@ import { EMAIL_BY_ROLE, submitSignInForm } from '../fixtures/session';
 /** Lần tải đầu của một route bắt Vite dịch nguội; cùng hạn `smoke-grid.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
-const DASHBOARD_HEADING = 'Dự án của tôi';
+const DASHBOARD_HEADING = 'Chọn dự án để làm tiếp';
 const TO_DASHBOARD = 'Về danh sách dự án';
 
 function collectPageErrors(page: Page): string[] {

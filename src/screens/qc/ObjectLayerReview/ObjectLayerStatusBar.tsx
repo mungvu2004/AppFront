@@ -62,8 +62,8 @@ export function ObjectLayerStatusBar({
       className="sticky bottom-0 z-10 flex h-8 shrink-0 select-none items-center justify-between gap-2 whitespace-nowrap border-t border-border-default bg-bg-surface px-4"
       role="status"
     >
-      {/* Câu, không mono (BUG-612); một dòng, không gãy ở 375 (BUG-324). */}
-      <span aria-live="polite" className="shrink-0 text-[12px] leading-none tabular-nums text-text-secondary">
+      {/* Tiến độ đã ở đầu panel và cổng (Z/S-16): thanh này giữ câu báo + hoàn tác, không lặp số lần ba. */}
+      <span aria-live="polite" className="sr-only">
         {reviewProgressLabel}
       </span>
 

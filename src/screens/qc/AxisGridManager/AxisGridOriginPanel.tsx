@@ -28,8 +28,8 @@
  */
 
 import { useCountUp } from '@/hooks/useCountUp';
-import { FieldRow } from '@/components/ui/FieldRow';
 import { Select } from '@/components/ui/Select';
+import { cn } from '@/lib/utils';
 
 import type { AxisGridManagerProps, OriginPanelViewModel } from './axisGridTypes';
 
@@ -39,7 +39,8 @@ export interface AxisGridOriginPanelProps extends Pick<AxisGridManagerProps, 'on
   readonly unavailableNotice: string | null;
 }
 
-const PANEL_TITLE = 'Gốc toạ độ';
+/** Vòng 6 (Z/S-18): khối cố định thứ nhất của cột chi tiết — cao độ ±0.000 đặt tại giao trục neo. */
+const PANEL_TITLE = 'Gốc ±0.000';
 const SELECT_LABEL = 'Chọn giao trục neo';
 const SELECT_DESCRIPTION =
   'Gốc toạ độ sẽ tính từ giao điểm trục này, khi di chuyển tầng để căn lên tầng gốc.';
@@ -61,13 +62,15 @@ interface OffsetFieldRowProps {
 
 function OffsetFieldRow({ label, text, suffix, isLast = false }: OffsetFieldRowProps) {
   return (
-    /* BUG-613: giá trị là chữ, không phải ô 36 px — `isText` cho nhãn và số chung một dòng 20 px. */
-    <FieldRow isLast={isLast} isText label={label}>
-      <span className="flex items-center gap-0.5 font-mono text-[14px] leading-5 tabular-nums text-text-primary">
+    /* BUG-613: nhãn và số chung một dòng chữ. Vòng 6: hàng tự dựng thay `FieldRow` — cột nhãn của nó
+       quá hẹp trong cột chi tiết 344 nên "Lệch ngang trên ảnh" xuống hai dòng. */
+    <div className={cn('flex items-baseline justify-between gap-3 py-2 text-body-sm', !isLast && 'border-b border-border-default')}>
+      <span className="text-text-secondary">{label}</span>
+      <span className="flex shrink-0 items-center gap-0.5 font-mono tabular-nums text-text-primary">
         <span>{text}</span>
         <span className="text-text-secondary">{suffix}</span>
       </span>
-    </FieldRow>
+    </div>
   );
 }
 
@@ -84,8 +87,8 @@ export function AxisGridOriginPanel({
   const isUnmeasured = origin.anchorOptions.length === 0;
 
   return (
-    <div className="flex w-[344px] shrink-0 flex-col gap-4 rounded-xl bg-bg-surface p-5 shadow-panel max-xl:w-full">
-      <h2 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h2>
+    <div className="flex flex-col gap-4 p-5">
+      <h2 className="text-heading text-text-primary">{PANEL_TITLE}</h2>
 
       {unavailableNotice !== null ? (
         <p className="text-[13px] text-text-secondary">{unavailableNotice}</p>

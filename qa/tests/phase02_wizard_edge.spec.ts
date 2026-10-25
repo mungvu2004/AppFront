@@ -186,8 +186,8 @@ async function routeCreate(page: Page, handler: (route: Route, attempt: number) 
 
 /* ---------------------------------------------------------------- locators (labels verified in src/) */
 
-const dashboardHeading = (page: Page): Locator => page.getByRole('heading', { name: 'Dự án của tôi', exact: true }); // PD:198
-const newProjectButton = (page: Page): Locator => page.getByRole('button', { name: /^Dự án mới/u }); // PD:188-190 (+ "N" hint)
+const dashboardHeading = (page: Page): Locator => page.getByRole('heading', { name: 'Chọn dự án để làm tiếp', exact: true }); // PD:198
+const newProjectButton = (page: Page): Locator => page.getByRole('button', { name: /^Tạo dự án\s*N$/u }); // PD:188-190 (+ "N" hint)
 const projectList = (page: Page): Locator => page.getByRole('list', { name: 'Danh sách dự án', exact: true }); // PD:151
 const projectCard = (page: Page, name: string): Locator => projectList(page).getByRole('listitem', { name, exact: true }); // PCT:68-72
 const wizard = (page: Page): Locator => page.getByRole('dialog', { name: WIZARD_TITLE, exact: true }); // CPM:243-245

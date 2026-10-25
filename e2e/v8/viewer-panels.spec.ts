@@ -10,6 +10,8 @@ import {
   waitForViewerReady,
 } from './viewer';
 
+test.skip(true, 'Viewer3D cũ không còn route từ 29eba219: /3d chuyển cả trang sang editor3d.html — bảng diện tích, lịch sử, thư viện đồ đạc của vỏ cũ không có trên trang Pascal; vai chỉ xem kiểm ở cross/viewer-role.spec.ts.');
+
 /**
  * Nhóm V8 — ba bảng phụ của màn 3D: Diện tích phòng, Lịch sử thao tác, Thư viện đồ
  * đạc (`plan.md` nhóm V8, mục 4–6). Mở/Esc đơn lẻ đã ở `e2e/viewer3d.spec.ts`.

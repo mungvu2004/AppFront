@@ -302,7 +302,7 @@ export function wallDisplayCode(id: string): string {
  * Nhãn `#W-014` của một tường, ưu tiên bảng mã của cả tầng (`displayCodesOf`,
  * mã BE / bộ mẫu A14 không có số đếm đứng đầu), rơi về `wallDisplayCode`.
  */
-const wallLabelOf = (id: string, codes?: ReadonlyMap<string, string>): string =>
+export const wallLabelOf = (id: string, codes?: ReadonlyMap<string, string>): string =>
   `#${codes?.get(id) ?? wallDisplayCode(id)}`;
 
 export interface CreateWallLayerReviewGatewayOptions {

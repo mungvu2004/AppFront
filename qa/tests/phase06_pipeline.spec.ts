@@ -128,7 +128,7 @@ test('SCR-28 · FL-M-28-01 · Report and sheet on the pipeline project (read-onl
   await test.step('[28-A-007] first group header opens its table', async () => {
     const section = await expandGroup(page);
     opened = section;
-    await expect.soft(section.getByRole('heading', { level: 2 }).getByRole('button')).toHaveAttribute('aria-expanded', 'true');
+    await expect.soft(section.getByRole('heading', { level: 3 }).getByRole('button')).toHaveAttribute('aria-expanded', 'true');
     for (const name of RR.columns) await expect.soft(section.getByRole('columnheader', { name, exact: true })).toBeVisible();
     await expect.soft(section.getByRole('button', { name: RR.view, exact: true }).first()).toBeVisible();
     await shot('E06r', '28-A-007', 'group_open');
@@ -193,7 +193,7 @@ test('SCR-29 · FL-M-29-01 · admin mở cài đặt trên dự án pipeline, t�
 
   await test.step('[29-A-001] open /rules/settings: heading and enabled count', async () => {
     await navigateThenWaitForApi(page, () => page.goto(ROUTES.project.ruleSettings(projectId), { waitUntil: 'commit' }), 'GET', ruleConfigRe(projectId), [200]);
-    await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Chọn luật áp dụng', level: 1 })).toBeVisible();
     // 25 rules in the registry, 2 stood down by the function group -> 23 on (domain/rules/defaults.ts)
     await expect.soft(page.getByText('23/25 luật đang bật', { exact: true })).toBeVisible();
     await shot('E06s', '29-A-001', 'settings_open');
@@ -270,7 +270,7 @@ test('SCR-29 · FL-M-29-01 · admin mở cài đặt trên dự án pipeline, t�
 
 /* ======================================================================= SCR-30 */
 
-const exportButton = (): Locator => page.getByRole('button', { name: 'Xuất', exact: true });
+const exportButton = (): Locator => page.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u });
 const formatRadio = (extension: string): Locator =>
   page
     .getByRole('radiogroup', { name: 'Định dạng xuất', exact: true })
@@ -286,7 +286,7 @@ test('SCR-30 · FL-M-30-01 · export the pipeline project: open, read, .json and
     await page.goto(ROUTES.project.export(projectId));
     await expect(page.getByRole('radiogroup', { name: 'Định dạng xuất', exact: true })).toBeVisible();
     await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
-    await expect(page.getByRole('heading', { name: 'Xuất bản vẽ' }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Xuất mô hình' }).first()).toBeVisible();
     await expect(formatRadio('.glb')).toHaveAttribute('aria-checked', 'true');
     await shot('E06x', '30-A-001', 'panel_open');
   });

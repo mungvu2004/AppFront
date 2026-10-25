@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-import { enableFlags } from './fixtures/flags';
-import { ROUTE_PATTERNS } from './fixtures/routes';
-import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
+import { fixtureF1 } from '../src/lib/pascal/__fixtures__';
+
+import { installFakeApi, type WireGraphDocument } from './fixtures/fakeApi';
 
 /**
  * CPU luồng chính của viewer Pascal — cảnh đứng yên và cảnh đang xoay camera.
@@ -22,8 +22,8 @@ import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
  *
  * `Performance.getMetrics` của CDP, chênh `TaskDuration`/`ScriptDuration` trên
  * một khoảng — cùng đại lượng `cpuGiay` của bộ đo cũ. Hai nhánh đo trên **một
- * bản dựng, một máy, một phiên**: `?frameloop=always` lái vòng khung theo lối
- * cũ (không cổng nhu cầu), không tham số thì theo lối mới. Nhờ vậy số "trước"
+ * bản dựng, một máy, một phiên** trên trang `editor3d.html`: `&disable=idle` tắt
+ * realism-idle (vẽ mỗi nhịp, không cổng nhu cầu), không tham số thì theo lối mới. Nhờ vậy số "trước"
  * và "sau" không lệch vì hai lượt dựng khác nhau hay máy đang rảnh/bận khác
  * nhau.
  *
@@ -31,11 +31,7 @@ import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
  * dùng, chưa có (cùng lý do với bảng §8d).
  */
 
-const PROJECT_ID = 'P-01';
-const PASCAL_VIEWER_PATH = ROUTE_PATTERNS.projectViewerPascal.replace(':projectId', PROJECT_ID);
-const PASCAL_FLAG_KEY = 'scene.pascal-viewer';
-const SCREEN_REGION_NAME = 'Mô hình 3D';
-const SUCCESS_CAPTION = 'Đã dựng xong toàn bộ bản vẽ.';
+const PROJECT_ID = 'P-FIXTURE0001';
 const VIEWPORT = { width: 1440, height: 900 } as const;
 /* Rộng hơn `pascal-viewer.spec.ts` (60 s): gói Pascal 14,7 MB và cảnh mẫu đầy
    đủ, trên một máy đang chạy nhiều lượt dựng khác thì "đã dựng xong" tới muộn. */
@@ -87,40 +83,35 @@ async function measureCpu(page: Page, during: () => Promise<void>): Promise<CpuS
 }
 
 /** Mở màn ở một nhánh vòng khung và chờ cảnh dựng xong thật. */
+/**
+ * Trang 3D Pascal riêng (`editor3d.html`, từ 29eba219) với bộ F1 qua máy chủ giả. Nhánh
+ * "vẽ mỗi nhịp" là `disable=idle` (tắt realism-idle, cùng cờ `pascal-realism-bench.spec.ts`).
+ */
 async function openViewer(page: Page, search: string): Promise<void> {
-  await enableFlags(page, [PASCAL_FLAG_KEY]);
   await page.setViewportSize(VIEWPORT);
-  /* Route nằm sau `SessionBootstrap`: `goto` thẳng rơi về `/login`, nên đi qua
-     biểu mẫu thật và để `?next=` đưa sang màn — cùng đường
-     `signInThenOpenPascalViewer` của `e2e/pascal-viewer.spec.ts`. */
-  if (!page.url().includes(PASCAL_VIEWER_PATH)) {
-    await page.goto(`${ROUTE_PATTERNS.login}?next=${encodeURIComponent(PASCAL_VIEWER_PATH)}`);
-    await submitSignInForm(page, EMAIL_BY_ROLE.engineer);
-    await expect(page.getByRole('region', { name: SCREEN_REGION_NAME })).toBeVisible({
-      timeout: PASCAL_RENDER_TIMEOUT_MS,
-    });
+  if (!fakeApiInstalled.has(page)) {
+    await installFakeApi(page, { projectId: PROJECT_ID, graphDoc: fixtureF1({ ext: false }).doc as unknown as WireGraphDocument });
+    fakeApiInstalled.add(page);
   }
-  /* Nhánh vòng khung đi bằng query, nên lượt điều hướng thật xảy ra SAU khi đã
-     có phiên: `?next=` mang theo query bị trả về đường không query. */
-  await page.goto(`${PASCAL_VIEWER_PATH}${search}`);
-  await expect(page.getByRole('region', { name: SCREEN_REGION_NAME })).toBeVisible({
-    timeout: PASCAL_RENDER_TIMEOUT_MS,
-  });
-  await expect(page.getByTestId('pascal-canvas').locator('canvas')).toHaveCount(1, {
-    timeout: PASCAL_RENDER_TIMEOUT_MS,
-  });
-  await expect(page.getByText(SUCCESS_CAPTION)).toBeVisible({
-    timeout: PASCAL_RENDER_TIMEOUT_MS,
-  });
+  await page.goto(`/editor3d.html?project=${PROJECT_ID}&probe=1${search}`);
+  await page.waitForFunction(
+    () => {
+      const probe = (window as unknown as { __pascalProbe?: { ready(): boolean; counts(): Record<string, number> } }).__pascalProbe;
+      return probe?.ready() === true && (probe.counts()['wall'] ?? 0) > 0;
+    },
+    null,
+    { timeout: PASCAL_RENDER_TIMEOUT_MS },
+  );
   /* Cảnh vừa báo xong vẫn còn đuôi việc (vật liệu KTX2, lượt dựng tường cuối).
      Đo ngay lúc ấy là đo lượt dựng, không phải đo cảnh đứng yên. */
   await page.waitForTimeout(3_000);
 }
 
-/** Kéo chuột qua canvas suốt khoảng đo — đường xoay camera của người dùng thật. */
+const fakeApiInstalled = new WeakSet<Page>();
+
 async function dragAcrossCanvas(page: Page, durationMs: number): Promise<void> {
-  const box = await page.getByTestId('pascal-canvas').boundingBox();
-  if (!box) throw new Error('không thấy hộp canvas');
+  const box = await page.locator('canvas').first().boundingBox();
+  if (!box) throw new Error('không thấy canvas');
   const midY = box.y + box.height / 2;
   const fromX = box.x + box.width * 0.35;
   const toX = box.x + box.width * 0.65;
@@ -151,7 +142,7 @@ test.describe('CPU luồng chính của viewer Pascal', () => {
   test.describe.configure({ timeout: TEST_TIMEOUT_MS });
 
   test('vẽ theo nhu cầu tốn ít CPU hơn vẽ mỗi nhịp, khi cảnh đứng yên', async ({ page }) => {
-    const always = await reportArm(page, 'mỗi nhịp (?frameloop=always)', '?frameloop=always');
+    const always = await reportArm(page, 'mỗi nhịp (disable=idle)      ', '&disable=idle');
     const demand = await reportArm(page, 'theo nhu cầu (mặc định)    ', '');
 
     console.log(

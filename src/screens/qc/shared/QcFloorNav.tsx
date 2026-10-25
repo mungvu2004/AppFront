@@ -28,6 +28,8 @@ export interface QcFloorNavProps {
   readonly projectName?: string | undefined;
   /** Dòng tiến độ cạnh tiêu đề, đã định dạng ("12/40 đã duyệt"). Vắng thì ẩn gọn. */
   readonly progress?: string | null | undefined;
+  /** Màn đã có H1 thấy được (QcPanelHead): bỏ H1 ẩn ở đây để trang chỉ có một H1. */
+  readonly titled?: boolean;
 }
 
 const PROJECT_FALLBACK = 'Dự án';
@@ -46,7 +48,7 @@ function rememberedProjectName(projectId: string): string | undefined {
   }
 }
 
-export function QcFloorNav({ projectId, floorId, layer, floors = [], projectName, progress }: QcFloorNavProps) {
+export function QcFloorNav({ projectId, floorId, layer, floors = [], projectName, progress, titled = false }: QcFloorNavProps) {
   const navigate = useNavigate();
   const current = QC_LAYERS.find((item) => item.key === layer) ?? QC_LAYERS[0]!;
   const floorLabel = floors.find((floor) => floor.id === floorId)?.label ?? FLOOR_FALLBACK;
@@ -54,27 +56,30 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], projectName
 
   return (
     <div className="flex h-8 shrink-0 items-center gap-3 px-4">
-      <h1 className="sr-only">{`${layerLabel} · ${floorLabel}`}</h1>
-      <Breadcrumb
-        items={[
-          {
-            id: 'project',
-            label: projectName ?? rememberedProjectName(projectId) ?? PROJECT_FALLBACK,
-            onClick: () => navigate(ROUTES.project.floors(projectId)),
-          },
-          {
-            id: 'floor',
-            label: floorLabel,
-            onClick: () => navigate(ROUTES.project.floors(projectId)),
-            options: floors.map((floor) => ({
-              id: floor.id,
-              label: floor.label,
-              onClick: () => navigate(current.route(projectId, floor.id)),
-            })),
-          },
-          { id: 'layer', label: layerLabel },
-        ]}
-      />
+      {titled ? null : <h1 className="sr-only">{`${layerLabel} · ${floorLabel}`}</h1>}
+      {/* Breadcrumb không co: "Tầng 1" phải đọc đủ, dải lớp bên phải cuộn ngang trước. */}
+      <div className="shrink-0">
+        <Breadcrumb
+          items={[
+            {
+              id: 'project',
+              label: projectName ?? rememberedProjectName(projectId) ?? PROJECT_FALLBACK,
+              onClick: () => navigate(ROUTES.project.floors(projectId)),
+            },
+            {
+              id: 'floor',
+              label: floorLabel,
+              onClick: () => navigate(ROUTES.project.floors(projectId)),
+              options: floors.map((floor) => ({
+                id: floor.id,
+                label: floor.label,
+                onClick: () => navigate(current.route(projectId, floor.id)),
+              })),
+            },
+            { id: 'layer', label: layerLabel },
+          ]}
+        />
+      </div>
       <nav aria-label={LAYER_BAR_LABEL} className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto border-l border-border-default pl-3">
         {QC_LAYERS.map((item, index) => {
           const isCurrent = item.key === layer;

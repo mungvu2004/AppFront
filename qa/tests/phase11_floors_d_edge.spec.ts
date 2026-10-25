@@ -1,5 +1,5 @@
 /**
- * QA-11 P4 - FL-11F-04 (SCR-21 thickness standardization: preview, apply, undo) and FL-11F-05 (SCR-25 measurement delete,
+ * QA-11 P4 - FL-11F-04 (SCR-21 thickness standardization, bản Z: tick a group, "Đổi N đoạn", undo; reviewed walls never in the batch) and FL-11F-05 (SCR-25 measurement delete,
  * undo, id conflict). Engineer on own project, 1440 px. Slot: `p11-floors-d` (engineer). Destructive steps last.
  */
 import { expect, test } from '@playwright/test';
@@ -13,19 +13,18 @@ import { seedMeasurement, seedThicknessLayer, withSlotMember, writeLog } from '.
 
 const SLOT = 'floors-d';
 const THICK = {
-  screen: 'Chuẩn hoá độ dày tường', // TV:105
-  preview: 'Xem trước', // TAB:56
-  cancel: 'Huỷ', // TAB:57
-  apply: 'Áp dụng', // TAB:58
-  undo: 'Hoàn tác', // TAB:55
-  tolerance: 'Dung sai', // ThicknessApplyBar.tsx:50
-  reapply: 'Áp lại cho mọi tường lệch nhóm', // ThicknessApplyBar.tsx:55
-  warnTitle: 'Áp lại cho mọi tường lệch nhóm sẽ đổi tường đã duyệt', // ThicknessApplyBar.tsx:64
-  exclude: 'Loại tường đã duyệt ra rồi xem trước', // ThicknessApplyBar.tsx:62
-  applyAll: 'Xem trước cho tất cả', // ThicknessApplyBar.tsx:63
-  accept: /^Đồng ý chuẩn hoá \d+ tường /u, // phase04 edge TGT:43
-  applied: /^Chuẩn hoá độ dày \d+ tường\.$/u, // thicknessStandardizationGateway.ts:836-837
-  measured200: /^200,0\s*mm$/u,
+  screen: 'Chuẩn hoá độ dày tường', // TV:SCREEN_TITLE
+  undo: 'Hoàn tác',
+  tolerance: 'Dung sai', // removed in bản Z (fixed 30 mm)
+  accept: /^Đồng ý đổi các đoạn .+ về 220 mm$/u, // TBP:TEXT.acceptGroup
+  selectGroup: /^Chọn (cả \d+ nhóm|nhóm này) \(\d+ đoạn\)$/u, // TBP:TEXT.selectAll
+  change: /^Đổi \d+ đoạn/u, // TBP:TEXT.apply (+ Enter key cap)
+  detail: /^Xem bảng từng đoạn \(\d+\)$/u, // TBP:TEXT.detail
+  drawer: 'Bảng từng đoạn tường', // TV:DETAIL_TITLE
+  reviewedOut: /1 tường đã duyệt không nằm trong lô\.$/u, // TB:batchSentenceOf
+  applied: /^Chuẩn hoá độ dày \d+ tường\.$/u, // thicknessStandardizationGateway.ts standardizeDescription
+  before: '3/4 đoạn không chuẩn, 1 đúng chuẩn', // 180, 180, reviewed 180 off; 220 standard (TB:statusSentenceOf)
+  afterBatch: '1/4 đoạn không chuẩn, 3 đúng chuẩn',
 } as const;
 const TOASTS = 'Thông báo'; // components/feedback/Toast.tsx:176
 const MT = {
@@ -63,129 +62,101 @@ test.describe('P4 floors D edge', () => {
       const seed = await seedThicknessLayer(layerApi, project.projectId, floor.id);
       const log = writeLog(page);
       const zone = region(page);
-      const previewBtn = zone.getByRole('button', { name: THICK.preview, exact: true });
-      const applyBtn = zone.getByRole('button', { name: THICK.apply, exact: true });
+      const changeBtn = zone.getByRole('button', { name: THICK.change });
+      const selectBtn = zone.getByRole('button', { name: THICK.selectGroup });
+      const statusLine = zone.getByText(/đoạn không chuẩn,/u);
+      const box = zone.getByRole('checkbox', { name: THICK.accept });
+      const drawer = page.getByRole('dialog', { name: THICK.drawer, exact: true });
       await page.goto(ROUTES.project.thickness(project.projectId, floor.id));
       await dismissTour(page);
       await expect(page.getByRole('heading', { name: THICK.screen })).toBeVisible();
-      await expect(zone.getByText(THICK.measured200)).toHaveCount(3);
-      await accept(page, zone.getByRole('checkbox', { name: THICK.accept }).first());
+      await expect(statusLine).toHaveText(THICK.before);
 
-      await test.step('[11F-A-302] "Xem trước" opens the table, writes nothing', async () => {
+      await test.step('[11F-A-302] ticking the group shows "Đổi N đoạn", writes nothing', async () => {
         const mark = log.length;
-        await previewBtn.click();
-        await expect(applyBtn).toBeVisible();
-        expect(layerWrites(log, mark), 'no PUT spatial/layer while the preview is open (UTS:765-768)').toBe(0);
+        await accept(page, box);
+        await expect(changeBtn).toBeVisible();
+        expect(layerWrites(log, mark), 'no PUT spatial/layer before "Đổi"').toBe(0);
         await captureEvidence(page, 'E11_11F-A-302_floors.png');
       });
-      await test.step('[11F-A-303] "Huỷ" closes the preview, no write', async () => {
+      await test.step('[11F-A-303] unticking drops the batch, no write', async () => {
         const mark = log.length;
-        await zone.getByRole('button', { name: THICK.cancel, exact: true }).click();
-        await expect.soft(applyBtn).toBeHidden();
+        await box.setChecked(false, { force: true });
+        await expect.soft(changeBtn).toBeHidden();
         expect.soft(layerWrites(log, mark)).toBe(0);
         await captureEvidence(page, 'E11_11F-A-303_floors.png');
       });
-      await test.step('[11F-A-304] every segment blocked by tolerance -> "Áp dụng" disabled', async () => {
-        // UNKNOWN - NEED VERIFICATION: "Dung sai" is a spinbutton; 0 mm blocks every deviating segment (TAB:205 totalWalls === unchangedWalls.length).
-        const tolerance = zone.getByLabel(THICK.tolerance);
-        await tolerance.fill('0');
-        // RR both copies: no preview after the click. The field commits on blur, which re-flows the summary above the button between
-        // mousedown and mouseup, so the click was lost (E11_11F-A-304 shot: tolerance applied, preview closed). Commit first, then click;
-        // the button exists only while no preview is open, so a retry is idempotent. Hook side: useThicknessStandardization.test.ts [11F-A-304].
-        await tolerance.blur();
-        await expect(async () => {
-          if (await previewBtn.isVisible()) await previewBtn.click();
-          await expect(applyBtn).toBeVisible({ timeout: 3_000 });
-        }).toPass({ timeout: 20_000 });
-        await expect.soft(applyBtn).toBeDisabled();
+      await test.step('[11F-A-304] nothing ticked: no dead button, the main button leads to the missing step', async () => {
+        await expect.soft(selectBtn).toHaveText('Chọn nhóm này (2 đoạn)');
+        await expect.soft(changeBtn).toBeHidden();
+        await expect.soft(zone.getByLabel(THICK.tolerance)).toHaveCount(0); // bản Z: tolerance fixed at 30 mm
         await captureEvidence(page, 'E11_11F-A-304_floors.png');
-        await zone.getByRole('button', { name: THICK.cancel, exact: true }).click();
-        await tolerance.fill('30');
-        await tolerance.blur(); // commit before the next click (same re-flow as above)
       });
-      await test.step('[11F-A-305] reapply with a reviewed wall -> warning, nothing written', async () => {
+      await test.step('[11F-A-305] a reviewed wall in the group: the sentence says it stays out, nothing written', async () => {
         const mark = log.length;
-        await zone.getByRole('button', { name: THICK.reapply, exact: true }).click();
-        await expect.soft(page.getByText(THICK.warnTitle, { exact: true })).toBeVisible();
-        await expect.soft(page.getByText(/^\d+ tường đã duyệt sẽ bị đổi\. Đề nghị loại các tường này khỏi lượt áp lại\.$/u)).toBeVisible();
+        await accept(page, box);
+        await expect.soft(zone.getByText(THICK.reviewedOut)).toBeVisible();
         expect.soft(layerWrites(log, mark)).toBe(0);
         await captureEvidence(page, 'E11_11F-A-305_floors.png');
       });
-      await test.step('[11F-A-306] "Huỷ" of the warning closes it, no write', async () => {
+      await test.step('[11F-A-306] Esc with a group ticked writes nothing (no warning layer any more)', async () => {
         const mark = log.length;
-        await zone.getByRole('button', { name: THICK.cancel, exact: true }).click();
-        await expect.soft(page.getByText(THICK.warnTitle, { exact: true })).toBeHidden();
+        await page.keyboard.press('Escape');
         expect.soft(layerWrites(log, mark)).toBe(0);
         await captureEvidence(page, 'E11_11F-A-306_floors.png');
       });
-      const previewCount = async (): Promise<number> => {
-        // preview.sentence "${n} tường → ${g} nhóm chuẩn." (thicknessStandardizationGateway.ts:786; ThicknessApplyBar.tsx:168)
-        const sentence = zone.getByText(/^\d+ tường → \d+ nhóm chuẩn\./u);
-        await expect(sentence).toBeVisible();
-        return Number(/^(\d+) /u.exec((await sentence.textContent()) ?? '')?.[1]);
-      };
-      let withoutReviewed = 0;
-      await test.step('[11F-A-307] "Loại tường đã duyệt ra rồi xem trước" -> preview without the reviewed wall', async () => {
-        await zone.getByRole('button', { name: THICK.reapply, exact: true }).click();
-        await zone.getByRole('button', { name: THICK.exclude, exact: true }).click(); // onReapplyFilter(true) TAB:142
-        withoutReviewed = await previewCount();
-        expect.soft(withoutReviewed, 'two unreviewed 200 mm walls (the reviewed one excluded)').toBe(2);
+      await test.step('[11F-A-307] the batch excludes the reviewed wall: "Đổi 2 đoạn"', async () => {
+        await expect.soft(changeBtn).toHaveText(/^Đổi 2 đoạn/u);
         await captureEvidence(page, 'E11_11F-A-307_floors.png');
-        await zone.getByRole('button', { name: THICK.cancel, exact: true }).click();
       });
-      await test.step('[11F-A-308] "Xem trước cho tất cả" -> preview includes the reviewed wall', async () => {
-        await zone.getByRole('button', { name: THICK.reapply, exact: true }).click();
-        await zone.getByRole('button', { name: THICK.applyAll, exact: true }).click(); // onReapplyFilter(false) TAB:151
-        expect.soft(await previewCount(), 'one more wall than 307: the reviewed one').toBe(withoutReviewed + 1);
+      await test.step('[11F-A-308] the reviewed wall is still listed (4 rows) in the per-wall table, the only place to change it', async () => {
+        await zone.getByRole('button', { name: THICK.detail }).click();
+        await expect(drawer).toBeVisible();
+        await expect.soft(drawer.locator('tbody tr')).toHaveCount(4);
         await captureEvidence(page, 'E11_11F-A-308_floors.png');
+        await page.keyboard.press('Escape');
+        await expect(drawer).toBeHidden();
       });
-      await test.step('[11F-A-309] "Áp dụng" -> one batch, toast with "Hoàn tác"', async () => {
+      await test.step('[11F-A-309] "Đổi" -> one batch, toast with "Hoàn tác"', async () => {
         const mark = log.length;
         const put = page.waitForResponse((res) => res.request().method() === 'PUT' && layerPutRe.test(new URL(res.url()).pathname));
-        await applyBtn.click();
+        await changeBtn.click();
         expect.soft((await put).status()).toBe(200);
         await expect.soft(toasts(page).getByText(THICK.applied)).toBeVisible();
         await expect.soft(toasts(page).getByRole('button', { name: THICK.undo, exact: true })).toBeVisible();
+        await expect.soft(statusLine).toHaveText(THICK.afterBatch);
         expect.soft(layerWrites(log, mark), 'one autosave batch').toBe(1);
         await captureEvidence(page, 'E11_11F-A-309_floors.png');
       });
       await test.step('[11F-A-310] "Hoàn tác" restores the old thickness and withdraws the toast', async () => {
         await toasts(page).getByRole('button', { name: THICK.undo, exact: true }).first().click();
-        await expect.soft(zone.getByText(THICK.measured200).first()).toBeVisible();
+        await expect.soft(statusLine).toHaveText(THICK.before);
         await expect.soft(toasts(page).getByText(THICK.applied)).toBeHidden();
         await captureEvidence(page, 'E11_11F-A-310_floors.png');
       });
       await test.step('[11F-A-311] Mod+Z in the screen = "Hoàn tác"', async () => {
-        await accept(page, zone.getByRole('checkbox', { name: THICK.accept }).first());
-        await previewBtn.click();
-        await applyBtn.click();
+        await accept(page, box);
+        await changeBtn.click();
         await expect.soft(toasts(page).getByText(THICK.applied)).toBeVisible();
-        await page.keyboard.press('ControlOrMeta+z'); // useShortcut Mod+Z (UTS:878-885)
-        await expect.soft(zone.getByText(THICK.measured200).first()).toBeVisible();
+        await page.keyboard.press('ControlOrMeta+z'); // useShortcut Mod+Z
+        await expect.soft(statusLine).toHaveText(THICK.before);
         await captureEvidence(page, 'E11_11F-A-311_floors.png');
       });
       await test.step('[11F-A-312] undo after a newer step is refused, nothing changes', async () => {
-        // RR3 evidence (screenshot at the red: all 4 walls "220 mm" incl. the reviewed one, preview empty "Mọi đoạn tường đã ở đúng nhóm chuẩn"):
-        // the plain "Xem trước" (UTS:733 onOpenPreview) applies EVERY accepted wall, reviewed ones too, so apply 1 had already standardized
-        // the reviewed wall and "Áp lại" had nothing to warn about. Apply 1 must leave the reviewed wall: use the "Loại tường đã duyệt"
-        // path (UTS:826-837), the one 307 proves.
-        await zone.getByRole('button', { name: THICK.reapply, exact: true }).click();
-        await zone.getByRole('button', { name: THICK.exclude, exact: true }).click();
-        await expect(applyBtn).toBeVisible();
-        await applyBtn.click(); // apply 1 (unreviewed walls only)
+        await accept(page, box);
+        await changeBtn.click(); // apply 1 (the unreviewed walls; reviewed walls never enter the batch)
         await expect(toasts(page).getByText(THICK.applied)).toHaveCount(1);
-        // RR4 evidence (screenshot at the red: ONE toast "Chuẩn hoá độ dày 1 tường." = the 2nd apply's title): same-type publishes inside 5 s
-        // fold into one toast with a combined ticket (notificationBus.ts:8,83-84,157-186), so apply 2 swallowed apply 1's toast and no
-        // "newer step" refusal can exist. Let the window pass so each apply keeps its own ticket (precedent phase04_rooms_edge.spec.ts:437).
+        // same-type publishes inside 5 s fold into one toast (notificationBus.ts): let the window pass so each apply keeps its ticket
         await page.waitForTimeout(5_300); // fixed-wait-ok: real clock on the stack; notificationBus DEFAULT_GROUP_WINDOW_MS 5000
-        await zone.getByRole('button', { name: THICK.reapply, exact: true }).click();
-        await zone.getByRole('button', { name: THICK.applyAll, exact: true }).click();
-        await zone.getByRole('button', { name: THICK.apply, exact: true }).click(); // apply 2 (the reviewed wall)
+        await zone.getByRole('button', { name: THICK.detail }).click();
+        await expect(drawer).toBeVisible();
+        await drawer.getByRole('combobox', { name: /^Độ dày chuẩn hoá của đoạn /u }).last().click(); // apply 2 on purpose: a row of the table
+        await page.getByRole('option', { name: '330 mm', exact: true }).click();
+        await page.keyboard.press('Escape');
         await expect(toasts(page).getByText(THICK.applied)).toHaveCount(2);
         const mark = log.length;
         // ticket of apply 1: the older toast is a peek under the newest one, so a pointer click would land on apply 2 (phase03 P3.ts:251-260)
         await toasts(page).getByRole('button', { name: THICK.undo, exact: true }).first().dispatchEvent('click');
-        // history.ts:451-454, emitted at useThicknessStandardization.ts:650-654
         await expect(toasts(page).getByText('Chưa hoàn tác: đã có 1 thay đổi sau thay đổi này. Dùng Ctrl+Z để hoàn tác lần lượt.')).toBeVisible();
         expect(layerWrites(log, mark), 'no layer write after the refusal').toBe(0);
         await captureEvidence(page, 'E11_11F-A-312_floors.png');

@@ -3,14 +3,15 @@
  * Nằm đầu khe `viewerToolbarLeft` nên không đè thanh bên; kiểu chép từ `TOOLBAR_CONTAINER`
  * của upstream `viewer-toolbar.tsx`.
  */
-import { ArrowLeft, ArrowRight, ChevronDown, TriangleAlert, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown, Eye, TriangleAlert, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
+import { ROUTES } from '@/routes/paths';
 import { PROJECT_STEPS } from '@/routes/projectSteps';
 
 import type { PascalSaveStatus } from './bridge/types';
 import { SCALE_NEXT_REASON } from './scaleBanner';
-import { useScaleUnresolved } from './scaleUnresolved';
+import { useScaleUnresolvedFloor } from './scaleUnresolved';
 
 export interface BackToProjectCardProps {
   readonly href: string;
@@ -23,8 +24,21 @@ export function BackToProjectCard({ href, projectName, save }: BackToProjectCard
   return (
     <>
       <BackLink href={href} projectName={projectName} />
-      {save !== undefined && <SaveStatusCard save={save} />}
+      {save !== undefined ? <SaveStatusCard save={save} /> : <ReadOnlyChip />}
     </>
+  );
+}
+
+/** A11: vai chỉ xem thì màn nói vì sao không sửa được (cầu không trả `save` khi chỉ đọc). */
+export const READ_ONLY_REASON = 'Bạn đang xem ở vai người xem nên không sửa được mô hình 3D.';
+
+function ReadOnlyChip() {
+  return (
+    <div className={`${CARD} inline-flex gap-1.5 px-2.5 text-[var(--pa-text-2)]`} role="note" title={READ_ONLY_REASON}>
+      <Eye aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+      <span aria-hidden="true">Chỉ xem</span>
+      <span className="sr-only">{READ_ONLY_REASON}</span>
+    </div>
   );
 }
 
@@ -120,25 +134,27 @@ export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
   );
 }
 
-/** Lối tiếp thường: nút nhấn chính. Khi tỷ lệ chưa hiệu chỉnh: viền cảnh báo, vẫn bấm được, lý do ở `title`/nhãn đọc. */
+/** Cổng đủ điều kiện: nút chính "Sang <bước sau>". Tỷ lệ chưa hiệu chỉnh: nút phụ dẫn tới việc còn thiếu. */
 const NEXT_OK = 'border-transparent bg-[var(--pa-accent)] text-[var(--pa-surface)] hover:bg-[var(--pa-accent-hover)] active:bg-[var(--pa-accent-active)]';
-const NEXT_WARN = 'border-[var(--pa-warn)] bg-[var(--pa-surface)] text-[var(--pa-text)] hover:bg-[var(--pa-sunken)]';
+const NEXT_TODO = 'border-[var(--pa-border)] bg-[var(--pa-surface)] text-[var(--pa-text)] hover:bg-[var(--pa-sunken)]';
+const NEXT_LINK = `${FOCUS_OUT} inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl border px-3 @max-[800px]/appbar:px-2 font-medium text-[13px] shadow-[var(--pa-shadow-float)] transition-colors duration-120 motion-reduce:transition-none`;
 
 const VIEWER_STEP = PROJECT_STEPS.findIndex((step) => step.id === 'viewer');
 
 /**
  * Cụm "bước của dự án" trên thanh 3D (G5-04, N0-07; UI-1023 V-01): trang 3D không có header chung
  * của app nên tự vẽ lại từ cùng bảng `PROJECT_STEPS`. Một cụm có nhãn, luôn cùng một chỗ (ngay sau
- * thẻ về dự án): chip "bước hiện tại + menu sáu bước" rồi nút "Tiếp". Dải sáu số cũ bỏ — nó chiếm
- * ~250px và làm thanh tràn ở 1440. Ngưỡng đo theo bề rộng thanh (container `appbar`, pascal.css):
- * < 1200px chip chỉ còn số bước; < 1500px nút chỉ còn "Tiếp →" (tên bước ở `title`/nhãn đọc) — đủ chỗ
- * cho nhóm nút phải của vendor ở 1440; nút không bao giờ ẩn. Tỷ lệ chưa hiệu chỉnh: nút đổi sang viền
- * cảnh báo, vẫn bấm được, lý do ở `title`/nhãn đọc.
+ * thẻ về dự án): chip "Bước 4 · Mô hình 3D + menu sáu bước" rồi MỘT nút cổng (HOP-DONG-V6 §1):
+ * đủ điều kiện = nút chính "Sang Quy chuẩn"; tỷ lệ chưa hiệu chỉnh = nút phụ "Hiệu chỉnh tỷ lệ" tới màn
+ * tỷ lệ của tầng sai (bước sau vẫn mở được từ menu bước — tỷ lệ là khuyến nghị, không khoá).
+ * Ngưỡng theo bề rộng thanh (container `appbar`, pascal.css): < 1500px chip chỉ còn số bước (tên ở
+ * `title`) để nhường chỗ cho tên đầy đủ của nút cổng từ 1200px; 800–1199px nút còn "Quy chuẩn →" /
+ * "Tỷ lệ"; < 800px chỉ còn biểu tượng (tên ở `aria-label`/`title`). Nút không bao giờ ẩn.
  */
 export function ProjectStepsCard({ projectId }: { readonly projectId: string }) {
   const next = PROJECT_STEPS[VIEWER_STEP + 1];
   const current = PROJECT_STEPS[VIEWER_STEP] ?? PROJECT_STEPS[0]!;
-  const scaleWarn = useScaleUnresolved();
+  const scaleFloor = useScaleUnresolvedFloor();
   return (
     <nav aria-label="Các bước của dự án" className="inline-flex shrink-0 items-center gap-1.5">
       <details className="relative" data-appfront-menu="">
@@ -147,10 +163,12 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
           title={`Bước ${VIEWER_STEP + 1}: ${current.label}`}
           className={`${CARD} flex cursor-pointer list-none gap-1.5 whitespace-nowrap px-2 font-medium transition-colors duration-120 hover:bg-[var(--pa-sunken)] motion-reduce:transition-none ${FOCUS_OUT} [&::-webkit-details-marker]:hidden`}
         >
-          <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--pa-accent)] text-[10px] tabular-nums text-[var(--pa-surface)]">
+          <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--pa-accent)] text-[10px] tabular-nums text-[var(--pa-surface)] @min-[1500px]/appbar:hidden">
             {VIEWER_STEP + 1}
           </span>
-          <span className="hidden @min-[1200px]/appbar:inline">{current.label}</span>
+          <span className="hidden @min-[1500px]/appbar:inline">
+            Bước {VIEWER_STEP + 1} · {current.label}
+          </span>
           <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[720px]/appbar:hidden" />
         </summary>
         <ol aria-label="Danh sách bước" className="absolute top-full left-0 z-50 mt-1 min-w-48 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-overlay)]">
@@ -168,20 +186,34 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
           ))}
         </ol>
       </details>
-      {next !== undefined && (
-        <a
-          aria-label={scaleWarn ? `Tiếp: ${next.label}. ${SCALE_NEXT_REASON}` : `Tiếp: ${next.label}`}
-          className={`${FOCUS_OUT} inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl border px-3 font-medium text-[13px] shadow-[var(--pa-shadow-float)] transition-colors duration-120 motion-reduce:transition-none ${scaleWarn ? NEXT_WARN : NEXT_OK}`}
-          href={next.path(projectId)}
-          title={scaleWarn ? SCALE_NEXT_REASON : `Tiếp: ${next.label}`}
-        >
-          {scaleWarn && <TriangleAlert aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-warn)]" />}
-          <span>
-            Tiếp<span className="hidden @min-[1500px]/appbar:inline">: {next.label}</span>
-          </span>
-          <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
-        </a>
-      )}
+      {next !== undefined &&
+        (scaleFloor !== null ? (
+          <a
+            aria-label={`Hiệu chỉnh tỷ lệ trước khi sang ${next.label}`}
+            className={`${NEXT_LINK} ${NEXT_TODO}`}
+            data-appfront-gate="todo"
+            href={ROUTES.project.scale(projectId, scaleFloor)}
+            title={SCALE_NEXT_REASON}
+          >
+            <TriangleAlert aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-warn)]" />
+            <span className="@max-[800px]/appbar:hidden @min-[1200px]/appbar:hidden">Tỷ lệ</span>
+            <span className="hidden @min-[1200px]/appbar:inline">Hiệu chỉnh tỷ lệ</span>
+          </a>
+        ) : (
+          <a
+            aria-label={`Sang ${next.label}`}
+            className={`${NEXT_LINK} ${NEXT_OK}`}
+            data-appfront-gate="ready"
+            href={next.path(projectId)}
+            title={`Sang bước ${VIEWER_STEP + 2}: ${next.label}`}
+          >
+            <span className="@max-[800px]/appbar:sr-only">
+              <span className="hidden @min-[1200px]/appbar:inline">Sang </span>
+              {next.label}
+            </span>
+            <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+          </a>
+        ))}
     </nav>
   );
 }

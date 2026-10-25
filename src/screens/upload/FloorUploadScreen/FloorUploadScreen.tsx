@@ -7,64 +7,71 @@
  * `local/no-data-layer-in-view`). Mọi câu tiếng Việt và mọi con số đã xong ở
  * `useFloorUploadScreen.ts`; xem `types.ts` để biết chính xác cái gì đến sẵn.
  *
- * ## Bảy trạng thái, và cái duy nhất không được xảy ra
+ * ## Ba câu của màn (HOP-DONG-V6 §1, demo Z/S-08)
  *
- * `state` quyết định phần thân:
+ * 1. Làm gì: `PageHead` — eyebrow "Bước 1 · Tải bản vẽ", H1 động từ.
+ * 2. Trạng thái: Badge + một câu, cả hai rút từ {@link deriveUploadGate}.
+ * 3. Bước tiếp: khung "Điều kiện để xử lý" cạnh danh sách bản vẽ (ngoại lệ §1: điều kiện gắn với
+ *    nội dung), MỘT nút "Bắt đầu xử lý". Thanh bước chỉ nhận thanh + số `n/3` qua `FlowGate`, không
+ *    nút, để không có hai chỗ mời bấm. Cả ba chỗ đọc cùng một `gate` nên không thể nói khác nhau.
+ *
+ * ## Bảy trạng thái, và cái duy nhất không được xảy ra
  *
  * | `state`     | thân màn                                             |
  * |-------------|------------------------------------------------------|
  * | `loading`   | khung xương, vùng thả vẫn còn                        |
  * | `error`     | một `InlineAlert` cho lượt đọc danh sách tầng hỏng    |
- * | `empty`     | câu mời thả tệp; dự án chưa có tầng thì `EmptyState`  |
- * | `partial`   | danh sách thẻ, chân trang nói còn thiếu bao nhiêu     |
- * | `success`   | danh sách thẻ đủ                                     |
+ * | `empty`     | vùng thả lớn là tiêu điểm; chưa có tầng thì `EmptyState` |
+ * | `partial`   | danh sách tầng, khung điều kiện nói còn thiếu gì     |
+ * | `success`   | danh sách tầng đủ, nút chính bật                     |
  * | `forbidden` | danh sách chỉ đọc, không vùng thả                    |
- * | `collapsed` | cùng dữ liệu, xếp dọc cho khung dưới 1024px          |
+ * | `collapsed` | cùng dữ liệu, một cột, khung điều kiện lên trước     |
  *
- * Không nhánh nào trả `null`: màn trắng là thất bại duy nhất A11 tồn tại để
- * chặn, nên mọi nhánh đều vẽ ra ít nhất mẩu vụn đường dẫn và một câu.
+ * Không nhánh nào trả `null`: màn trắng là thất bại duy nhất A11 tồn tại để chặn.
  *
- * ## Lỗi của một tệp không bao giờ là lỗi của cả trang
- *
- * `state === 'error'` chỉ dành cho lượt đọc danh sách tầng. Một tệp quá khổ hay
- * một tệp không đọc được ở lại trong `row.error` của chính thẻ nó, và
- * {@link FloorUploadCard} vẽ nó tại chỗ — không hộp thoại, không chặn thao tác
- * với ba tệp còn lại.
- *
- * ## Kéo tệp qua: đổi màu, không đổi kích thước
- *
- * Sự kiện kéo-thả bắt ở khung ngoài cùng nên tệp lơ lửng bất cứ đâu trên trang
- * cũng đánh thức vùng thả, đúng như đặc tả. Phần còn lại của trang mờ đi; vùng
- * thả chỉ đổi màu viền và nền — lý do và cách canh nằm ở
- * `FloorUploadDropZone.tsx`.
- *
- * ## Cuộn tới tầng bị chặn
- *
- * `blockNotice.scrollTo.requestId` tăng sau **mỗi** lượt bấm bị chặn. Hiệu ứng
- * dưới đây so nó với con số đã dùng lần trước, nên mỗi lượt bấm cuộn đúng một
- * lần, và cuộn trên chính thẻ tầng chứ không trên cửa sổ.
+ * Lỗi của một tệp ở lại trong `row.error` của chính hàng nó ({@link FloorUploadCard}), không bao
+ * giờ thành `state === 'error'`. Kéo tệp qua: vùng thả đổi màu, không đổi kích thước
+ * (`FloorUploadDropZone.tsx`). `blockNotice.scrollTo.requestId` tăng sau mỗi lượt bấm bị chặn; hiệu
+ * ứng dưới đây cuộn đúng một lần cho mỗi lượt, trên chính hàng tầng.
  */
 
-import { type FocusEvent, useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { clsx } from 'clsx';
+import { Plus } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { BACK_TO_PROJECTS_LABEL, PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
 import { Breadcrumb } from '@/components/shell/Breadcrumb';
+import { FlowGate } from '@/components/shell/FlowGate';
+import { PageHead } from '@/components/shell/PageHead';
+import { Section } from '@/components/shell/Section';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 
 import { FloorUploadCard } from './FloorUploadCard';
 import { FloorUploadDropZone } from './FloorUploadDropZone';
-import { FloorUploadFooter } from './FloorUploadFooter';
+import { FloorUploadGatePanel } from './FloorUploadGatePanel';
 import { SheetGlyph } from './FloorUploadGlyphs';
 import { FloorUploadTray } from './FloorUploadTray';
-import type { FloorUploadActions, FloorUploadScreenViewProps } from './types';
+import { deriveUploadGate, type UploadGate } from './floorUploadGate';
+import type { FloorUploadActions, FloorUploadRowModel, FloorUploadScreenViewProps } from './types';
 
 /** Mẩu vụn đường dẫn, đúng `floorUpload.breadcrumb.*` trong `vi.json`. */
 const BREADCRUMB_PROJECTS = 'Dự án';
 const BREADCRUMB_UPLOAD = 'Tải lên bản vẽ';
-const PAGE_TITLE = 'Tải bản vẽ';
+const EYEBROW = 'Bước 1 · Tải bản vẽ';
+const PAGE_TITLE = 'Tải bản vẽ mặt bằng cho từng tầng';
+const SECTION_TITLE = 'Bản vẽ theo tầng';
+const GATE_PROGRESS_LABEL = 'Điều kiện để xử lý';
+
+/** Chữ của dòng trạng thái. "Sẵn sàng xử lý" chỉ ở tiêu đề khung điều kiện, không lặp ở đây. */
+const STATUS_READY = 'Đủ điều kiện';
+const STATUS_PENDING = 'Chưa đủ điều kiện';
+const STATUS_NOT_STARTED = 'Chưa bắt đầu';
+const STATUS_READ_ONLY = 'Chỉ xem';
+const SENTENCE_READY = 'Mọi tầng đã có bản vẽ và cao độ hợp lệ.';
 
 /** Tiêu đề của lượt đọc danh sách tầng hỏng — `state === 'error'`, không phải lỗi tệp. */
 const LOAD_ERROR_TITLE = 'Không tải được danh sách tầng';
@@ -83,11 +90,8 @@ const ADD_FLOORS_LABEL = 'Thêm tầng';
 /** Bao nhiêu khung xương lúc chưa biết có mấy tầng. */
 const SKELETON_ROW_COUNT = 3;
 
-/** Khoảng hở giữa điều khiển vừa nhận tiêu điểm và mép trên chân trang dính, px. */
-const FOCUS_CLEARANCE_PX = 8;
-
 /**
- * Gom mười hàm hành động lại thành một đối tượng để chuyền xuống các phần con.
+ * Gom các hàm hành động lại thành một đối tượng để chuyền xuống các phần con.
  *
  * Chuyền cả `props` xuống thì phần con nhìn thấy cả mô hình và sẽ bắt đầu đọc
  * những trường không phải việc của nó.
@@ -101,6 +105,7 @@ function actionsOf(props: FloorUploadScreenViewProps): FloorUploadActions {
     onFilesChosen: props.onFilesChosen,
     onFilesDropped: props.onFilesDropped,
     ...(props.onFilesForFloor === undefined ? {} : { onFilesForFloor: props.onFilesForFloor }),
+    ...(props.onConfirmMatch === undefined ? {} : { onConfirmMatch: props.onConfirmMatch }),
     onPickPdfPage: props.onPickPdfPage,
     onReassign: props.onReassign,
     onRemoveFile: props.onRemoveFile,
@@ -110,39 +115,34 @@ function actionsOf(props: FloorUploadScreenViewProps): FloorUploadActions {
   };
 }
 
+/** Badge + câu của dòng trạng thái — cùng `gate` với khung điều kiện và thanh bước. */
+function statusOf(
+  props: FloorUploadScreenViewProps,
+  gate: UploadGate,
+): { readonly variant: FloorUploadRowModel['statusVariant']; readonly label: string; readonly sentence: string } {
+  const sentence =
+    props.state === 'empty'
+      ? props.emptyMessage
+      : gate.isReady
+        ? SENTENCE_READY
+        : (gate.firstReason?.sentence ?? props.footer.counterLabel);
+
+  if (props.isReadOnly) return { variant: 'neutral', label: STATUS_READ_ONLY, sentence };
+  if (gate.isReady) return { variant: 'verified', label: STATUS_READY, sentence };
+  if (props.state === 'empty') return { variant: 'neutral', label: STATUS_NOT_STARTED, sentence };
+
+  return { variant: 'attention', label: STATUS_PENDING, sentence };
+}
+
 /** Màn tải bản vẽ như một hàm của props — test và story dựng thẳng cái này. */
 export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
   const { blockNotice, footer, state, tray } = props;
   const actions = actionsOf(props);
+  const gate = deriveUploadGate(props);
+  const status = statusOf(props, gate);
+  const isSettled = state !== 'loading' && state !== 'error';
 
   const cardsRef = useRef(new Map<string, HTMLElement>());
-  const footerRef = useRef<HTMLDivElement | null>(null);
-
-  /**
-   * Chân trang dính không được che điều khiển đang có tiêu điểm (WCAG 2.4.11, BUG-526): trình
-   * duyệt chỉ cuộn điều khiển vào tới mép dưới khung nhìn, đúng chỗ chân trang đang đứng.
-   * Chỉ tiêu điểm bàn phím trong DOM của màn: lựa chọn của Select (portal) nhận focus lúc
-   * `mousedown`, cuộn giữa cú bấm làm listbox dời đi và lượt chọn bị mất (R1-02).
-   */
-  const keepFocusAboveFooter = useCallback((event: FocusEvent<HTMLElement>): void => {
-    const footer = footerRef.current;
-    const target = event.target;
-
-    if (
-      footer === null ||
-      footer.contains(target) ||
-      !event.currentTarget.contains(target) ||
-      !target.matches(':focus-visible')
-    ) {
-      return;
-    }
-
-    const covered = target.getBoundingClientRect().bottom - footer.getBoundingClientRect().top;
-
-    if (covered > 0) {
-      window.scrollBy(0, covered + FOCUS_CLEARANCE_PX);
-    }
-  }, []);
   const scrolledRequestRef = useRef<number | null>(null);
 
   const registerCard = useCallback((floorId: string, element: HTMLElement | null): void => {
@@ -153,6 +153,10 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
     }
 
     cardsRef.current.set(floorId, element);
+  }, []);
+
+  const showFloor = useCallback((floorId: string): void => {
+    cardsRef.current.get(floorId)?.scrollIntoView({ block: 'center' });
   }, []);
 
   useEffect(() => {
@@ -171,19 +175,7 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
   }, [blockNotice]);
 
   const body =
-    state === 'error' ? (
-      // Một dải lỗi, một lối ra; vùng thả và nút chính ẩn vì chưa có tầng nào để gán (BUG-311).
-      <InlineAlert
-        {...(props.isProjectMissing && props.onBackToProjects
-          ? { action: { label: BACK_TO_PROJECTS_LABEL, onClick: props.onBackToProjects } }
-          : props.canRetryLoad
-            ? { action: { label: RETRY_LABEL, onClick: props.onRetryLoad } }
-            : {})}
-        level="violation"
-        message={props.errorMessage ?? ''}
-        title={props.isProjectMissing ? PROJECT_NOT_FOUND_TITLE : LOAD_ERROR_TITLE}
-      />
-    ) : state === 'loading' ? (
+    state === 'loading' ? (
       <div className="flex flex-col gap-3">
         {Array.from({ length: SKELETON_ROW_COUNT }, (_unused, index) => (
           <Skeleton key={index} preset="table-row" />
@@ -197,32 +189,24 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
         title={NO_FLOORS_TITLE}
       />
     ) : (
-      <>
-        {/* Dự án có tầng nhưng chưa tầng nào có bản vẽ: câu mời đi TRƯỚC danh
-            sách chứ không thay chỗ nó — bốn thẻ tầng rỗng chính là thứ nói cho
-            Người dùng biết họ đang phải điền vào đâu. */}
-        {state === 'empty' && (
-          <p className="text-[14px] text-text-secondary">{props.emptyMessage}</p>
-        )}
-        <ul className={clsx('flex flex-col', props.isCollapsed ? 'gap-2' : 'gap-3')}>
-          {props.floors.map((row) => (
-            <FloorUploadCard
-              acceptAttribute={props.dropZone.acceptAttribute}
-              actions={actions}
-              isCollapsed={props.isCollapsed}
-              isReadOnly={props.isReadOnly}
-              key={row.floorId}
-              registerCard={registerCard}
-              row={row}
-            />
-          ))}
-        </ul>
-      </>
+      <ul className="flex flex-col divide-y divide-border-default">
+        {props.floors.map((row) => (
+          <FloorUploadCard
+            acceptAttribute={props.dropZone.acceptAttribute}
+            actions={actions}
+            isCollapsed={props.isCollapsed}
+            isReadOnly={props.isReadOnly}
+            key={row.floorId}
+            registerCard={registerCard}
+            row={row}
+          />
+        ))}
+      </ul>
     );
 
   return (
     <div
-      className="min-h-screen scroll-pb-48 bg-bg-app"
+      className="min-h-screen bg-bg-app"
       onDragEnter={(event) => {
         event.preventDefault();
         props.onDragEnter();
@@ -238,9 +222,8 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
         event.preventDefault();
         props.onFilesDropped([...event.dataTransfer.files]);
       }}
-      onFocus={keepFocusAboveFooter}
     >
-      <div className="mx-auto flex max-w-[1120px] flex-col gap-6 p-8 pb-24">
+      <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-6 py-6 lg:px-8">
         <Breadcrumb
           items={[
             {
@@ -253,44 +236,95 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
           ]}
         />
 
-        <h1 className="text-title font-semibold text-text-primary">{PAGE_TITLE}</h1>
+        <PageHead
+          className="mb-0"
+          eyebrow={EYEBROW}
+          status={
+            isSettled ? (
+              <>
+                <Badge variant={status.variant}>{status.label}</Badge>
+                <span>{status.sentence}</span>
+              </>
+            ) : undefined
+          }
+          title={PAGE_TITLE}
+        />
 
         {props.offlineNotice !== null && (
           <InlineAlert level="attention" message={props.offlineNotice} />
         )}
 
         {props.readOnlyNotice !== null && (
-          <p className="text-[13px] text-text-secondary">{props.readOnlyNotice}</p>
+          <p className="text-body-sm text-text-secondary">{props.readOnlyNotice}</p>
         )}
 
-        {props.dropZone.isEnabled && (
-          <FloorUploadDropZone
-            isDragActive={props.isDragActive}
-            model={props.dropZone}
-            onFilesChosen={props.onFilesChosen}
+        {state === 'error' ? (
+          // Một dải lỗi, một lối ra; vùng thả và nút chính ẩn vì chưa có tầng nào để gán (BUG-311).
+          <InlineAlert
+            {...(props.isProjectMissing && props.onBackToProjects
+              ? { action: { label: BACK_TO_PROJECTS_LABEL, onClick: props.onBackToProjects } }
+              : props.canRetryLoad
+                ? { action: { label: RETRY_LABEL, onClick: props.onRetryLoad } }
+                : {})}
+            level="violation"
+            message={props.errorMessage ?? ''}
+            title={props.isProjectMissing ? PROJECT_NOT_FOUND_TITLE : LOAD_ERROR_TITLE}
           />
+        ) : (
+          <div
+            className={clsx(
+              'grid items-start gap-6 transition-opacity duration-instant',
+              'lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]',
+              props.isDragActive && 'opacity-[0.96]',
+            )}
+          >
+            <Section
+              actions={
+                props.floors.length > 0 && props.onAddFloors !== undefined ? (
+                  <Button
+                    iconBefore={<Plus aria-hidden="true" />}
+                    onClick={props.onAddFloors}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    {ADD_FLOORS_LABEL}
+                  </Button>
+                ) : undefined
+              }
+              title={SECTION_TITLE}
+            >
+              <div className="flex flex-col gap-4">
+                {props.dropZone.isEnabled && (
+                  <FloorUploadDropZone
+                    isDragActive={props.isDragActive}
+                    isProminent={state === 'empty'}
+                    model={props.dropZone}
+                    onFilesChosen={props.onFilesChosen}
+                  />
+                )}
+                {body}
+                <FloorUploadTray actions={actions} tray={tray} />
+              </div>
+            </Section>
+
+            {/* Dưới 1024 một cột: khung điều kiện lên trước để câu 3 thấy được không cần cuộn. */}
+            <div className="max-lg:order-first lg:sticky lg:top-6">
+              <FloorUploadGatePanel
+                blockNotice={blockNotice}
+                footer={footer}
+                gate={gate}
+                onOpenFloors={props.onAddFloors}
+                onShowFloor={showFloor}
+                onSubmit={props.onSubmit}
+              />
+            </div>
+          </div>
         )}
-
-        <div
-          className={clsx(
-            'flex flex-col gap-6 transition-opacity duration-instant',
-            props.isDragActive && 'opacity-[0.96]',
-          )}
-        >
-          {body}
-
-          <FloorUploadTray actions={actions} tray={tray} />
-
-          {state !== 'error' && (
-            <FloorUploadFooter
-              blockNotice={blockNotice}
-              footer={footer}
-              onSubmit={props.onSubmit}
-              rootRef={footerRef}
-            />
-          )}
-        </div>
       </div>
+
+      {/* Thanh bước chỉ nhận thanh + số; nút nằm ở khung điều kiện, không lặp (HOP-DONG-V6 §1). */}
+      {isSettled && <FlowGate done={gate.doneCount} progressLabel={GATE_PROGRESS_LABEL} total={gate.total} />}
     </div>
   );
 }

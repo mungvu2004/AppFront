@@ -20,8 +20,8 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
 const EMPTY_TITLE = 'Chưa có dữ liệu không gian';
 
-/** Ô tìm của thanh công cụ — có ở mọi trạng thái; cùng mốc `smoke-grid.spec.ts`. */
-const SCREEN_ANCHOR = 'Tìm theo khoá hoặc giá trị';
+/** H1 của màn — có ở mọi trạng thái. Ô tìm (S-36) chỉ hiện khi đã có dữ liệu, nên không làm mốc được. */
+const SCREEN_ANCHOR = 'Xem dữ liệu không gian';
 
 test('B-V12-01: vào màn dữ liệu bằng đường sản phẩm (không bơm) thì cổng nạp kho — bản xem trước mang các tầng của dự án từ máy chủ, và vì tầng chưa có hình nên màn nói thật "chưa có dữ liệu", không tự khen hợp lệ (B-V12-07)', async ({
   page,
@@ -30,10 +30,10 @@ test('B-V12-01: vào màn dữ liệu bằng đường sản phẩm (không bơm
 
   /*
    * Mock trả bốn tầng chưa có hình cho `project-1` (`makeLayerDocument`), nên `empty` là câu
-   * ĐÚNG ở đây. Bằng chứng cổng đã nạp là tên tầng của máy chủ trong bản xem trước JSON —
-   * trước B-V12-01 kho `null` và bản xem trước không có tầng nào.
+   * ĐÚNG ở đây. Bằng chứng cổng đã nạp là dòng tóm tắt đếm đủ bốn tầng của máy chủ — trước
+   * B-V12-01 kho `null` và không có tầng nào. (Màn rỗng của S-36 không còn bản xem trước JSON.)
    */
-  await expect(page.getByText(/"name": "Tầng hầm"/u)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  await expect(page.getByText(/^4 tầng · 0 tường/u)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
   await expect(page.getByRole('heading', { name: EMPTY_TITLE })).toBeVisible();
   await expect(page.getByText(/Hợp lệ theo hợp đồng Spatial JSON/u)).toHaveCount(0);
 });
@@ -42,7 +42,7 @@ test('có bơm kho: cây dùng dấu phẩy thập phân, tab JSON giữ dấu c
   page,
 }) => {
   await page.goto(DATA_URL);
-  await expect(page.getByLabel(SCREEN_ANCHOR)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  await expect(page.getByRole('heading', { level: 1, name: SCREEN_ANCHOR })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
   await seedSpatial(page, { projectId: PROJECT_ID });
 
   const tree = page.getByRole('tree', { name: 'Cấu trúc dữ liệu không gian' });

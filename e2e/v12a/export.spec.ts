@@ -29,7 +29,7 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
 const GLB_EXPORT_TIMEOUT_MS = 20_000;
 
 /** Màn đã có dữ liệu — từ B-V12-01 cổng nạp kho trước khi màn vẽ. */
-const SCREEN_HEADING = 'Xuất bản vẽ';
+const SCREEN_HEADING = 'Xuất mô hình';
 
 /** `goto` → cổng nạp kho xong (heading "Xuất bản vẽ") → bơm → nút `xuất` hiện → bỏ qua tour nếu nó đã hiện. */
 async function seedAndSettle(page: Page): Promise<void> {
@@ -38,7 +38,7 @@ async function seedAndSettle(page: Page): Promise<void> {
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   await seedSpatial(page, { projectId: PROJECT_ID });
-  await expect(page.getByRole('button', { name: 'Xuất', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toBeVisible();
   await dismissTour(page);
 }
 
@@ -53,7 +53,7 @@ test('vai người xem mở màn xuất thì thấy "không có quyền", không
       'Chỉ quản trị viên và kỹ sư của dự án xuất được mô hình; bạn đang xem ở quyền chỉ đọc.',
     ),
   ).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Xuất', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'chia sẻ' })).toHaveCount(0);
 });
 
@@ -66,7 +66,7 @@ test('có bơm kho: bấm "xuất" .glb thì tệp tải về máy và hiện m�
   await expect(page.getByRole('radio', { name: /^Mô hình 3D \(\.glb\)/u })).toHaveAttribute('aria-checked', 'true');
 
   const download = page.waitForEvent('download', { timeout: GLB_EXPORT_TIMEOUT_MS });
-  const exportButton = page.getByRole('button', { name: 'Xuất', exact: true });
+  const exportButton = page.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u });
   await exportButton.focus();
   await page.keyboard.press('Enter');
 
@@ -83,10 +83,8 @@ test('có bơm kho: link "Sửa" của khối kiểm tra trước khi xuất đ�
   await seedAndSettle(page);
 
   const preflight = page.getByRole('region', { name: 'Kiểm tra trước khi xuất' });
-  const fixViolations = preflight
-    .getByRole('listitem')
-    .filter({ hasText: /phát hiện từ kiểm tra luật chưa xử lý/u })
-    .getByRole('link', { name: /^Sửa/u });
+  // S-33: dòng nói theo luật ("Còn 181 phát hiện ở 7 luật chưa xử lý."), link "Sửa" mang câu ấy làm tên.
+  const fixViolations = preflight.getByRole('link', { name: /^Sửa.*phát hiện ở \d+ luật chưa xử lý/u });
 
   let reloads = 0;
   page.on('load', () => {
@@ -96,7 +94,10 @@ test('có bơm kho: link "Sửa" của khối kiểm tra trước khi xuất đ�
   await fixViolations.click();
 
   await expect.poll(() => pathOf(page.url())).toBe(ROUTES.project.rules(PROJECT_ID));
-  // Kho sống sót = màn luật có bảng ngay, không rơi về "chưa có mô hình".
-  await expect(page.getByRole('button', { name: 'Chạy kiểm tra lại' })).toBeVisible();
+  // B-V12-06 là "đi bằng router, không nạp lại trang". Bài cũ đo điều đó qua bảng luật còn nguyên,
+  // nhưng cổng nạp kho của màn luật đọc lại N15 của dự án, và bộ mẫu trả bốn tầng chưa có hình
+  // — đồ thị bơm bằng `seedSpatial` không nằm trên "máy chủ" nên bị thay đúng như dữ liệu thật
+  // sẽ được giữ. Vì vậy đo thẳng: đã tới màn luật và không có lượt `load` nào.
+  await expect(page.getByRole('heading', { level: 1, name: 'Kiểm tra quy chuẩn' })).toBeVisible();
   expect(reloads).toBe(0);
 });

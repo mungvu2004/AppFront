@@ -104,7 +104,8 @@ test('đường dẫn đầu màn không gõ cứng "Tầng 01": "Dự án › T
   await open(page);
 
   const breadcrumb = page.getByRole('navigation', { name: 'Đường dẫn trang', exact: true });
-  await expect(breadcrumb).toContainText('Dự án');
+  /* Mục đầu là tên dự án thật (AppLayout nhớ), chỉ rơi về "Dự án" khi chưa biết tên: đo cấu trúc ba mục. */
+  await expect(breadcrumb).toHaveText(/^.+›.+›Phòng$/u);
   await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText('Phòng');
   await expect(breadcrumb).not.toContainText('Tầng 01');
 });
@@ -171,6 +172,16 @@ const VIEWER_READY_TIMEOUT_MS = 20_000; // cùng ngân sách `viewer3d.spec.ts`:
 test('bơm bộ mẫu chuẩn: đổi tên phòng từ bảng diện tích của màn 3D cũng có toast hoàn tác (V7-ROOMS-03, QA/B-2, A8)', async ({
   page,
 }) => {
+  /*
+   * Màn 3D giờ là trang Pascal editor3d.html và trang ấy không có bảng "Diện tích phòng"
+   * (`RoomAreaPanel` chỉ còn trong `Viewer3D`), nên không chuyển bài sang trang mới được.
+   */
+  test.skip(
+    true,
+    'Viewer3D cũ không còn route từ 29eba219 (/3d → editor3d.html), mà trang Pascal không có bảng "Diện tích phòng" — ' +
+      'đổi tên + toast hoàn tác đã phủ ở "bơm bộ mẫu: đổi tên phòng có toast hoàn tác, bấm hoàn tác thì tên về cũ (V7-ROOMS-03, A8)" ' +
+      'cùng tệp này và RoomAreaPanel.test.tsx',
+  );
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(ROUTES.project.viewer(QCB_PROJECT));
   await expect(page.getByText('Mô hình 3D đã dựng xong.')).toBeAttached({ timeout: VIEWER_READY_TIMEOUT_MS });
@@ -323,8 +334,8 @@ test('đường nạp thật: Ctrl+Z ngay sau lượt nạp không trả màn v�
   await openReal(page);
 
   /* Ngoài ô nhập, để phím đi tới `global.undo` của vỏ (`router.tsx`). */
-  /* P14 (G4a-38): dòng tiến độ thay tiêu đề cũ làm chỗ bấm ngoài ô nhập. */
-  await page.getByTestId('qc-progress').click();
+  /* Z/S-20: H1 đầu panel làm chỗ bấm ngoài ô nhập (dòng tiến độ của thanh lớp đã bỏ). */
+  await page.getByRole('heading', { level: 1, name: 'Duyệt tên phòng' }).click();
   await page.keyboard.press('Control+z');
 
   await expect(roomOptions(page)).toHaveCount(A14_ROOMS.length);

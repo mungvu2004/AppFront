@@ -50,7 +50,7 @@ const LIBRARY_DETAIL = 'Chi tiết model';
 const NARROW_PX = 1024;
 
 /* ---- SCR-35 copy: TrainingJobs.tsx, TrainingJobsTable.tsx, TrainingDatasetsTab.tsx, TrainingJobForm.tsx ---- */
-const TRAINING_TITLE = 'Huấn luyện mô hình AI';
+const TRAINING_TITLE = 'Theo dõi huấn luyện';
 const TAB_JOBS = 'Lượt huấn luyện';
 const TAB_DATASETS = 'Bộ dữ liệu';
 const JOBS_EMPTY_TITLE = 'Chưa có lượt huấn luyện';

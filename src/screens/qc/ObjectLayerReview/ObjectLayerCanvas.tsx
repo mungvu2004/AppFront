@@ -19,7 +19,7 @@
  * 260 ms).
  */
 
-import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useRef, type MouseEvent as ReactMouseEvent } from 'react';
 
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
@@ -29,8 +29,6 @@ import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import type { ContextMenuGroup } from '@/hooks/useContextMenu';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
-import { staggerDelayMs } from '@/lib/motion';
-import { cn } from '@/lib/utils';
 
 import { QC_BACKGROUND_OPACITY } from '../shared/qcBackground';
 
@@ -39,144 +37,16 @@ import {
   OBJECT_CANVAS_FRAME_CLASSES,
   OBJECT_CANVAS_READ_ONLY_ID,
   OBJECT_CANVAS_TEXT,
-  OBJECT_LAYER_STROKE_STYLES,
-  SYMBOL_WASH_OPACITY,
   WALL_IDLE_TOKEN,
   buildObjectContextMenuItems,
-  buildObjectSymbol,
-  objectLayerColorToken,
   selectionHandleRects,
   type ObjectLayerCanvasViewProps,
-  type ObjectPlacementViewModel,
 } from './objectLayerSymbols';
 import { ObjectLayerCanvasLegend } from './ObjectLayerCanvasLegend';
+import { ObjectSymbolFigure } from './ObjectLayerSymbolFigure';
 
 /** Hợp đồng props của lớp canvas, mang ra đây cho nơi gọi khỏi phải biết hai đường nhập. */
 export type * from './objectLayerSymbols';
-
-/* -------------------------------------------------------------------------- */
-/* Một ký hiệu.                                                                */
-/* -------------------------------------------------------------------------- */
-
-interface ObjectSymbolFigureProps {
-  readonly placement: ObjectPlacementViewModel;
-  readonly isSelected: boolean;
-  readonly isHovered: boolean;
-  readonly isLayerVisible: boolean;
-  readonly isInteractive: boolean;
-  /** Thứ tự trong LỚP của nó — độ so le 24 ms đếm theo lớp vừa bật/tắt. */
-  readonly layerIndex: number;
-  readonly onSelect: (objectId: string | null) => void;
-  readonly onHover: (objectId: string | null) => void;
-  readonly onOpenMenu: (event: ReactMouseEvent<SVGGElement>, objectId: string) => void;
-  readonly unitPx: number;
-}
-
-/**
- * Một đối tượng: nền 6%, các nét viền 1px, cộng hai nhịp chuyển động (bật/tắt
- * lớp và đổi loại). Cả hai nhịp giải thích ở mục "GHI CHÚ THIẾT KẾ CỦA LỚP
- * CANVAS" của `objectLayerSymbols.ts`.
- */
-function ObjectSymbolFigure({
-  placement,
-  isSelected,
-  isHovered,
-  isLayerVisible,
-  isInteractive,
-  layerIndex,
-  onSelect,
-  onHover,
-  onOpenMenu,
-  unitPx,
-}: ObjectSymbolFigureProps) {
-  const symbol = buildObjectSymbol({
-    subtype: placement.subtype,
-    swing: placement.swing,
-    width: placement.widthPx,
-    depth: placement.depthPx,
-  });
-  const token = objectLayerColorToken(placement.layer);
-  const strokeStyle = OBJECT_LAYER_STROKE_STYLES[placement.layer];
-  const previousShapeRef = useRef(`${placement.subtype}/${placement.swing}`);
-  const [isMorphing, setIsMorphing] = useState(false);
-
-  useEffect(() => {
-    const shape = `${placement.subtype}/${placement.swing}`;
-
-    if (previousShapeRef.current === shape) {
-      return undefined;
-    }
-
-    previousShapeRef.current = shape;
-    setIsMorphing(true);
-
-    const frame = requestAnimationFrame(() => setIsMorphing(false));
-
-    return () => cancelAnimationFrame(frame);
-  }, [placement.subtype, placement.swing]);
-
-  return (
-    <g
-      aria-hidden={isLayerVisible ? undefined : 'true'}
-      aria-label={placement.codeLabel}
-      className={cn(
-        'transition-[opacity,transform] duration-260 motion-reduce:transition-none',
-        isLayerVisible ? 'opacity-100' : 'pointer-events-none opacity-0',
-        isInteractive && isLayerVisible ? 'cursor-pointer' : 'pointer-events-none',
-      )}
-      onClick={isInteractive ? () => onSelect(placement.id) : undefined}
-      onContextMenu={isInteractive ? (event) => onOpenMenu(event, placement.id) : undefined}
-      onMouseEnter={isInteractive ? () => onHover(placement.id) : undefined}
-      onMouseLeave={isInteractive ? () => onHover(null) : undefined}
-      role="presentation"
-      style={{
-        transform: isLayerVisible ? 'translateY(0)' : 'translateY(4px)',
-        transitionDelay: `${staggerDelayMs(layerIndex)}ms`,
-      }}
-    >
-      {/* Đặt chỗ bằng THUỘC TÍNH `transform` của SVG: lớp `scale-…` bên trong ghi vào `transform` CSS, chung chỗ thì nuốt nhau. */}
-      <g transform={`translate(${placement.centrePx.x} ${placement.centrePx.y}) rotate(${placement.angleDeg})`}>
-        <g
-          className={cn(
-            'origin-center transition-[opacity,transform] duration-260 motion-reduce:transition-none',
-            isMorphing ? 'scale-90 opacity-0' : 'scale-100 opacity-100',
-          )}
-        >
-          <path
-            className="transition-colors duration-260 motion-reduce:transition-none"
-            d={symbol.footprint}
-            fill={token}
-            fillOpacity={SYMBOL_WASH_OPACITY}
-          />
-
-          {symbol.strokes.map((stroke) => (
-            <path
-              className="transition-colors duration-260 motion-reduce:transition-none"
-              d={stroke.d}
-              fill="none"
-              key={stroke.id}
-              stroke={token}
-              strokeDasharray={stroke.dashArray ?? strokeStyle.dashArray ?? undefined}
-              strokeWidth={isSelected || isHovered ? strokeStyle.widthPx * 2 : strokeStyle.widthPx}
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
-        </g>
-      </g>
-
-      {placement.isOrphan ? (
-        <circle
-          cx={placement.centrePx.x}
-          cy={placement.centrePx.y}
-          fill="var(--state-attention)"
-          r={5 * unitPx}
-        >
-          <title>{OBJECT_CANVAS_TEXT.orphanTitle}</title>
-        </circle>
-      ) : null}
-    </g>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /* Canvas.                                                                     */

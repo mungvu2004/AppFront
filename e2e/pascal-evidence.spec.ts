@@ -1,25 +1,25 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ROUTE_PATTERNS } from './fixtures/routes';
-import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
+import { fixtureF1 } from '../src/lib/pascal/__fixtures__';
+
+import { installFakeApi, type WireGraphDocument } from './fixtures/fakeApi';
 
 /**
- * Bằng chứng trình duyệt thật của việc gộp F-15 M1: đăng nhập → `/projects/:id/3d`
- * → trình soạn Pascal dựng ra cảnh → sửa một bức tường → "Đã lưu" → tải lại.
+ * Bằng chứng trình duyệt thật của đường lưu trên trang 3D: trang Pascal riêng
+ * `editor3d.html` (từ 29eba219 `/projects/:id/3d` chuyển cả trang sang đây) dựng ra cảnh
+ * → sửa độ dày một bức tường qua thanh tra → chip lưu nói "Đã lưu" → máy chủ giả nhận
+ * PUT → tải lại thì giá trị mới còn đó.
  *
- * Khác `pascal-viewer.spec.ts` (bài kiểm hành vi) ở chỗ tệp này CHỤP ẢNH và liệt
- * kê chữ tiếng Anh còn thấy trên màn, để người duyệt đọc được số đo thay vì tin
- * lời. Không khẳng định hộ bài kia; mọi khẳng định ở đây là tối thiểu.
+ * Tệp này CHỤP ẢNH (thư mục kết quả của bài) và liệt kê chữ tiếng Anh còn thấy trên màn,
+ * để người duyệt đọc được số đo thay vì tin lời.
  */
 
-const PROJECT_ID = 'P-01';
-const VIEWER_PATH = ROUTE_PATTERNS.projectViewer.replace(':projectId', PROJECT_ID);
-const SCREEN_REGION_NAME = 'Mô hình 3D';
-// `E2E_VIEWPORT=1280x720` chụp khổ khác (bố cục khung nhúng, F-15 R4).
+const PROJECT_ID = 'P-FIXTURE0001';
+// `E2E_VIEWPORT=1280x720` chụp khổ khác.
 const [VIEWPORT_W, VIEWPORT_H] = (process.env.E2E_VIEWPORT ?? '1440x900').split('x').map(Number);
 const VIEWPORT = { width: VIEWPORT_W ?? 1440, height: VIEWPORT_H ?? 900 } as const;
-const SHOT_DIR = 'F:/App/AppBack/backend/dieu-phoi/chay/F-15/' + (process.env.E2E_SHOT_RUN ?? 'M1');
-const RENDER_TIMEOUT_MS = 60_000;
+const RENDER_TIMEOUT_MS = 90_000;
+const WALL_NAME = 'Tường chịu lực 1';
 
 /** Từ tiếng Anh thường gặp trên giao diện — đủ để bắt một panel chưa dịch. */
 const ENGLISH_MARKERS = [
@@ -40,87 +40,73 @@ const ENGLISH_MARKERS = [
   'Expert',
 ];
 
-test('đăng nhập → /3d dựng Pascal → sửa tường → "Đã lưu" → tải lại', async ({ page }) => {
-  test.setTimeout(180_000);
+const waitForScene = (page: Page) =>
+  page.waitForFunction(
+    () => {
+      const probe = (window as unknown as { __pascalProbe?: { ready(): boolean; counts(): Record<string, number> } }).__pascalProbe;
+      return probe?.ready() === true && (probe.counts()['wall'] ?? 0) > 0;
+    },
+    null,
+    { timeout: RENDER_TIMEOUT_MS },
+  );
 
-  await page.setViewportSize(VIEWPORT);
-  await page.goto(`${ROUTE_PATTERNS.login}?next=${encodeURIComponent(VIEWER_PATH)}`);
-  await submitSignInForm(page, EMAIL_BY_ROLE.engineer);
+const saveStatus = (page: Page) => page.getByRole('status').filter({ hasText: /^(Đã lưu|Đang lưu|Chưa lưu)/u }).first();
 
-  await expect(page.getByRole('region', { name: SCREEN_REGION_NAME })).toBeVisible({
-    timeout: 30_000,
-  });
-  await expect(page.getByTestId('pascal-canvas')).toBeVisible({ timeout: RENDER_TIMEOUT_MS });
-  /* Hộp `pascal-canvas` có mặt từ trạng thái `loading`, lúc `<canvas>` còn 300×150
-     mặc định. Đo 2026-10-13: Chrome headless có WebGPU, cảnh dựng xong sau ~10 s;
-     đọc cỡ canvas ngay khi hộp hiện là đọc trước khi ResizeObserver kịp chạy. */
-  await expect(caption(page)).toHaveText(SUCCESS_CAPTION, { timeout: RENDER_TIMEOUT_MS });
-
-  const size = await page
-    .getByTestId('pascal-canvas')
-    .locator('canvas')
-    .first()
-    .evaluate((node) => {
-      const canvas = node as HTMLCanvasElement;
-
-      return { width: canvas.width, height: canvas.height };
-    });
-
-  expect(size.width).toBeGreaterThan(300);
-  expect(size.height).toBeGreaterThan(150);
-  console.log(`[M1] canvas ${size.width}×${size.height}`);
-
-  await page.screenshot({ path: `${SHOT_DIR}/shot-1-pascal.png`, fullPage: false });
-
-  const visibleText = await page.evaluate(() => document.body.innerText);
-  const english = ENGLISH_MARKERS.filter((word) => visibleText.includes(word));
-  console.log(`[M1] chữ tiếng Anh còn thấy: ${english.length === 0 ? 'không có' : english.join(', ')}`);
-
-  /* Chọn tường qua cây tầng (không bấm mù lên canvas), rồi mở thẻ inspector —
-     thẻ mở ra ở dạng thu gọn (`panel-wrapper.tsx`, `desktopInspectorCollapsed`). */
-  const thickness = await openWallThickness(page);
-  const before = await thickness.innerText();
-
-  await thickness.locator('.cursor-text').click();
-  await thickness.locator('input').fill('0,25');
-  await thickness.locator('input').press('Enter');
-  await expect(thickness).toContainText('0,250');
-  // Inspector đang mở: ảnh để soát nó nằm gọn trong khung nhúng (F-15 R4).
-  await page.screenshot({ path: `${SHOT_DIR}/shot-2a-inspector.png`, fullPage: false });
-  const after = await thickness.innerText();
-  await expect(saveStatus(page)).toHaveText(/^Đã lưu/u, { timeout: RENDER_TIMEOUT_MS });
-  console.log(`[M1] độ dày: ${before.replace(/\s+/gu, ' ')} → ${after.replace(/\s+/gu, ' ')}`);
-
-  await page.screenshot({ path: `${SHOT_DIR}/shot-2-saved.png`, fullPage: false });
-  const inspectorText = await page.evaluate(() => document.body.innerText);
-  const inspectorEnglish = ENGLISH_MARKERS.filter((word) => inspectorText.includes(word));
-  console.log(`[M1] chữ tiếng Anh khi mở inspector tường: ${inspectorEnglish.length === 0 ? 'không có' : inspectorEnglish.join(', ')}`);
-
-  await page.reload();
-  await expect(caption(page)).toHaveText(SUCCESS_CAPTION, { timeout: RENDER_TIMEOUT_MS });
-  /* Bộ mẫu `VITE_USE_MOCK_API` giữ lệnh trong bộ nhớ của trang, nên tải lại thì
-     về số gốc; với AppBack thật số này phải là 0,250. Chỉ ghi ra, không khẳng định. */
-  const reloaded = await openWallThickness(page);
-  console.log(`[M1] độ dày sau tải lại: ${(await reloaded.innerText()).replace(/\s+/gu, ' ')}`);
-
-  await page.screenshot({ path: `${SHOT_DIR}/shot-3-reloaded.png`, fullPage: false });
-});
-
-const SUCCESS_CAPTION = 'Đã dựng xong toàn bộ bản vẽ.';
-// `p`: chú thích hiện diện (`div role=status`) giờ ở khe đầu màn, đứng trước (23R-F-002).
-const caption = (page: Page) => page.locator('p[role="status"]').first();
-/** `Đang lưu` chứ không `Đang`: lớp cộng tác (S5) cũng là một `status`, đọc "Đang làm việc riêng…". */
-const saveStatus = (page: Page) =>
-  page.getByRole('status').filter({ hasText: /^(Đã lưu|Đang lưu|Chưa|Tạm)/u }).first();
-
+/** Chọn tường qua cây của thẻ "Cảnh" (không bấm mù lên canvas), trả về hàng độ dày của thanh tra. */
 async function openWallThickness(page: Page) {
-  await page.getByText(/^Tường bao /u).first().click();
-  await page.getByRole('button', { name: /Expand panel|Mở rộng/u }).first().click();
+  await page.getByRole('button', { name: 'Cảnh', exact: true }).click();
+  await page.getByText(WALL_NAME, { exact: true }).first().click();
   const row = page
     .locator('div.group')
     .filter({ has: page.locator('span', { hasText: /^(Thickness|Độ dày( tường)?)$/u }) })
     .first();
   await expect(row).toBeVisible();
-
   return row;
 }
+
+const englishOnScreen = async (page: Page) => {
+  const text = await page.evaluate(() => document.body.innerText);
+  return ENGLISH_MARKERS.filter((word) => text.includes(word));
+};
+
+test('trang 3D dựng Pascal → sửa tường → "Đã lưu" → tải lại vẫn giữ', async ({ page }, testInfo) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize(VIEWPORT);
+  const api = await installFakeApi(page, {
+    projectId: PROJECT_ID,
+    graphDoc: fixtureF1({ ext: false }).doc as unknown as WireGraphDocument,
+  });
+  await page.goto(`/editor3d.html?project=${PROJECT_ID}&probe=1`);
+  await waitForScene(page);
+
+  const size = await page.locator('canvas').first().evaluate((node) => {
+    const canvas = node as HTMLCanvasElement;
+    return { width: canvas.width, height: canvas.height };
+  });
+  expect(size.width).toBeGreaterThan(300);
+  expect(size.height).toBeGreaterThan(150);
+  console.log(`[bằng chứng] canvas ${size.width}×${size.height}`);
+  await page.screenshot({ path: testInfo.outputPath('shot-1-pascal.png') });
+  console.log(`[bằng chứng] chữ tiếng Anh còn thấy: ${(await englishOnScreen(page)).join(', ') || 'không có'}`);
+
+  const thickness = await openWallThickness(page);
+  const before = await thickness.innerText();
+  await thickness.locator('.cursor-text').click();
+  await thickness.locator('input').fill('0,25');
+  await thickness.locator('input').press('Enter');
+  await expect(thickness).toContainText('0,250');
+  await page.screenshot({ path: testInfo.outputPath('shot-2a-inspector.png') });
+  await expect(saveStatus(page)).toHaveText(/^Đã lưu/u, { timeout: RENDER_TIMEOUT_MS });
+  console.log(`[bằng chứng] độ dày: ${before.replace(/\s+/gu, ' ')} → ${(await thickness.innerText()).replace(/\s+/gu, ' ')}`);
+  console.log(`[bằng chứng] chữ tiếng Anh khi mở thanh tra tường: ${(await englishOnScreen(page)).join(', ') || 'không có'}`);
+  // Thanh tra tường đã dịch hết (scripts/pascal-vi/editor-extra4.mjs › nodes/src/wall/panel.tsx).
+  expect(await englishOnScreen(page)).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath('shot-2-saved.png') });
+  expect(api.puts.length).toBeGreaterThan(0);
+
+  await page.reload();
+  await waitForScene(page);
+  await expect(await openWallThickness(page)).toContainText('0,250');
+  await page.screenshot({ path: testInfo.outputPath('shot-3-reloaded.png') });
+  expect(api.unexpected).toEqual([]);
+});

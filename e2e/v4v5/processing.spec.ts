@@ -43,14 +43,12 @@ test('B-V4-01: mở thẳng /pipeline thì màn theo dõi lượt tải sẵn c�
   );
 });
 
-test('B-V4-01: tới từ "Vẫn dùng AI" của hộp thoại CAD cũng thấy cùng danh sách', async ({ page }) => {
+// Tầng chỉ có ảnh không còn bật hộp thoại (Z/S-13): "Vẫn dùng AI" là nút chính của trang.
+test('B-V4-01: tới từ "Vẫn dùng AI" của màn nhánh CAD cũng thấy cùng danh sách', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(ROUTES.project.cadConfirm(PROJECT_ID, 'L1'));
 
-  await page
-    .getByRole('dialog', { name: 'Chưa có tệp CAD' })
-    .getByRole('button', { name: 'Vẫn dùng AI' })
-    .click({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  await page.getByRole('button', { name: 'Vẫn dùng AI' }).click({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
   await expect.poll(() => pathOf(page.url())).toBe(PIPELINE);
   await expectSeededRun(page);

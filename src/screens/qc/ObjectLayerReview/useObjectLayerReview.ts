@@ -142,7 +142,6 @@ import {
   type ObjectLayerReviewGateway,
 } from './objectLayerReviewGateway';
 import {
-  OBJECT_LAYER_IDS,
   OBJECT_SUBTYPES,
   OBJECT_SUBTYPE_LAYER,
   isOrphanObject,
@@ -170,6 +169,14 @@ import {
 import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { arrowStepHandler } from '../WallLayerReview/listArrowKeys';
+
+import { layerGateOf } from './layerGate';
+
+/** Hàng đợi duyệt (Z/S-16): chưa duyệt trước, trong đó tin cậy thấp lên đầu. */
+const byReviewQueue = (
+  a: { readonly reviewed: boolean; readonly confidence: number },
+  b: { readonly reviewed: boolean; readonly confidence: number },
+): number => Number(a.reviewed) - Number(b.reviewed) || a.confidence - b.confidence;
 
 /* -------------------------------------------------------------------------- */
 /* Hợp đồng vào.                                                               */
@@ -539,7 +546,10 @@ export function useObjectLayerReview(
     ...(gateway.apiClient === undefined ? {} : { apiClient: gateway.apiClient }),
   });
 
-  useSaveIndicator(autosave);
+  const saveIndicator = useSaveIndicator(autosave);
+  /* Chưa lưu lượt nào thì không bịa "Đã lưu" (cùng luật màn Phòng). */
+  const saveLabel =
+    !canEdit || (saveIndicator.state === 'saved' && autosave.getLastSavedAt() === undefined) ? null : saveIndicator.label;
 
   const dispatchBundle = useMemo<ObjectLayerDispatchDeps>(
     () =>
@@ -1419,18 +1429,13 @@ export function useObjectLayerReview(
   );
   /*
    * BUG-589: xoá bằng phím như màn tường (Backspace), cộng Delete — không chỉ chuột phải.
-   * Impeccable A3: phím đi qua đúng hộp `ConfirmDeleteDialog` của nút trong thanh tra —
-   * hook chỉ phát một yêu cầu (số thứ tự tăng dần), thanh tra mở hộp khi thấy số mới.
+   * Z/S-16: hoàn tác thay hộp hỏi — phím xoá ngay như nút "Không phải cửa, xoá", toast hoàn tác (A8).
    */
-  const [deleteRequest, setDeleteRequest] = useState<{ readonly id: string; readonly seq: number } | null>(null);
-  useEffect(() => {
-    setDeleteRequest(null);
-  }, [selectedObjectId]);
   const deleteSelected = (): void => {
     const objectId = selectedObjectIdRef.current;
 
     if (objectId !== null) {
-      setDeleteRequest((previous) => ({ id: objectId, seq: (previous?.seq ?? 0) + 1 }));
+      onDelete(objectId);
     }
   };
   useShortcut(
@@ -1475,8 +1480,36 @@ export function useObjectLayerReview(
   );
 
   const rows = useMemo(
-    () => visibleObjects.map((object) => toObjectRow(object, wallCodes, confidenceThreshold)),
+    () =>
+      visibleObjects
+        .map((object) => toObjectRow(object, wallCodes, confidenceThreshold))
+        .sort((a, b) => byReviewQueue({ reviewed: a.isReviewed, confidence: a.confidence }, { reviewed: b.isReviewed, confidence: b.confidence })),
     [confidenceThreshold, visibleObjects, wallCodes],
+  );
+
+  /* Nút "Duyệt tiếp" của cổng: đọc MỌI đối tượng, không chỉ dòng đang lọc — bộ lọc không làm nút chết. */
+  const nextPending = useMemo(() => {
+    const queue = objects.filter((object) => !object.reviewed).sort(byReviewQueue);
+    const next = queue.find((object) => object.id !== selectedObjectId) ?? queue[0];
+
+    return next === undefined ? null : { id: next.id, codeLabel: toObjectRow(next, wallCodes, confidenceThreshold).codeLabel };
+  }, [confidenceThreshold, objects, selectedObjectId, wallCodes]);
+  const layerGate = useMemo(() => layerGateOf(graph, level?.id ?? null), [graph, level]);
+  /* Phím J = "đối tượng chưa duyệt kế" như màn tường (Tab bị cấm, A12): cùng việc nút "Duyệt tiếp" của cổng. */
+  const nextPendingId = nextPending?.id ?? null;
+  useShortcut(
+    {
+      id: 'objectLayerReview.nextPending',
+      combo: 'J',
+      scope: 'canvas',
+      description: 'Sang đối tượng chưa duyệt kế tiếp',
+      onTrigger: () => {
+        if (nextPendingId !== null) {
+          onSelect(nextPendingId);
+        }
+      },
+    },
+    { ...shortcutOptions, enabled: nextPendingId !== null },
   );
 
   const inspector = useMemo(() => {
@@ -1486,19 +1519,15 @@ export function useObjectLayerReview(
 
     const wall = isOrphanObject(selectedObject) ? null : wallOfObject(selectedObject.hostWallId);
 
-    const base = toObjectInspector(selectedObject, wall, wallCodes);
-
-    return deleteRequest !== null && deleteRequest.id === base.id ? { ...base, deleteRequestSeq: deleteRequest.seq } : base;
-  }, [deleteRequest, selectedObject, wallCodes, wallOfObject]);
+    return toObjectInspector(selectedObject, wall, wallCodes);
+  }, [selectedObject, wallCodes, wallOfObject]);
 
   /*
-   * Impeccable A3: thứ tự dòng như danh sách đang vẽ — theo nhóm loại, bỏ nhóm đang thu gọn.
-   * ponytail: bỏ qua ô tìm mã của danh sách (state cục bộ của view); cần thì đưa ô tìm lên hook.
+   * Impeccable A3: thứ tự dòng như danh sách đang vẽ — hàng đợi duyệt (chưa duyệt, tin cậy thấp trước).
+   * ponytail: bỏ qua ô tìm mã và nhóm gấp của danh sách (state cục bộ của view); cần thì đưa lên hook.
    */
   const listOrderRef = useRef<readonly string[]>([]);
-  listOrderRef.current = OBJECT_LAYER_IDS.flatMap((layer) =>
-    collapsedGroups[layer] ? [] : rows.filter((row) => row.layer === layer).map((row) => row.id),
-  );
+  listOrderRef.current = rows.map((row) => row.id);
   const stepObject = useCallback(
     (direction: 1 | -1) => {
       const order = listOrderRef.current;
@@ -1800,6 +1829,13 @@ export function useObjectLayerReview(
           ? () => onNavigate(ROUTES.project.floors(projectId))
           : () => onNavigate(ROUTES.project.walls(projectId, floorId))
         : null,
+    layerGate,
+    nextPending,
+    saveLabel,
+    onOpenLayer:
+      onNavigate === undefined
+        ? null
+        : (layer: 'walls' | 'rooms') => onNavigate(ROUTES.project[layer](projectId, floorId)),
     saveBlock,
     provisionalScaleNotice,
     readFailure,
