@@ -547,7 +547,7 @@ describe('đổi độ dày', () => {
     const mounted = await mountSettled();
 
     expect(mounted.result.current.panel.thicknessChoices).toEqual([...WALL_LAYER_THICKNESS_CHOICES]);
-    expect(mounted.result.current.panel.thicknessChoices).toHaveLength(3);
+    expect(mounted.result.current.panel.thicknessChoices).toHaveLength(6);
 
     mounted.unmount();
   });

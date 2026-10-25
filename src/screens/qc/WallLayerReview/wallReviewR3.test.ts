@@ -23,8 +23,8 @@ describe('R-7: độ dày so trong dung sai, không so bằng đúng', () => {
     expect(wallStatusCode(wall)).not.toBe('attention');
   });
 
-  it('185 mm lệch quá 30 mm khỏi mọi băng vẫn ⚠', () => {
-    expect(isStandardThickness(185)).toBe(false);
+  it('260 mm lệch quá 30 mm khỏi mọi băng vẫn ⚠', () => {
+    expect(isStandardThickness(260)).toBe(false);
   });
 });
 
