@@ -50,8 +50,9 @@ export const INTERIOR_SKIRTING = {
 /**
  * Mặc định cho tường mới: len trong nhà + phào ngoài (`skirting.exterior`, luật r9u), giống
  * `exteriorSkirtingOf` (toPascal.ts) dựng cho tường bao lúc nạp.
- * ponytail: Pascal để vách mới giữa hai phòng ở frontSide/backSide 'unknown' (không phân biệt
- * được với tường lẻ) nên vách mới cũng có phào ngoài ở mặt sau cho tới khi tải lại.
+ * Vách mới giữa hai phòng: Pascal để frontSide/backSide 'unknown' (cả hai mặt trong), nên luật
+ * r9v-partition-skirt.mjs (space detection, chạy sau mỗi lần tường/phòng đổi) bỏ `exterior` và để
+ * `sides: 'interior'` cho tường có hai mặt trong phòng, khớp `exteriorSkirtingOf` lúc nạp.
  */
 export function realismWallDefaults(): Record<string, unknown> {
   if (!enabled) return {}
