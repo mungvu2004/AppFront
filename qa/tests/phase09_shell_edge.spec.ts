@@ -193,21 +193,21 @@ test.describe('phase09 shell edge', () => {
         await shot(page, '9P-B-201', 'settings_viewer');
       });
       await test.step('[9P-D-201] tab Chung: no editable field, Ghi chú paragraph', async () => {
-        await page.getByRole('tab', { name: COPY.tabGeneral }).click();
+        await page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: COPY.tabGeneral }).click();
         await expect(page.getByText('Ghi chú', { exact: true })).toBeVisible(); // anchor first
         await expect.soft(page.getByRole('textbox')).toHaveCount(0); // GT:71-78
         await shot(page, '9P-D-201', 'tab_general');
       });
       await test.step('[9P-D-202] tab Đơn vị đo read-only', async () => {
-        await page.getByRole('tab', { name: COPY.tabUnits }).click();
-        await expect(page.getByRole('tab', { name: COPY.tabUnits })).toHaveAttribute('aria-selected', 'true');
+        await page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: COPY.tabUnits }).click();
+        await expect(page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: COPY.tabUnits })).toHaveAttribute('aria-selected', 'true');
         await expect(page.getByText('Ghi chú', { exact: true })).toHaveCount(0); // Chung panel gone
         await expect.soft(page.getByRole('textbox')).toHaveCount(0); // UnitsTab.tsx:50 isReadOnly
         await expect.soft(page.getByRole('spinbutton')).toHaveCount(0);
         await shot(page, '9P-D-202', 'tab_units');
       });
       await test.step('[9P-D-203] tab Thành viên: list, no add/remove', async () => {
-        await page.getByRole('tab', { name: COPY.tabMembers }).click();
+        await page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: COPY.tabMembers }).click();
         await expect.soft(page.getByRole('listitem').first()).toBeVisible(); // MT:48
         await expect.soft(page.getByRole('textbox')).toHaveCount(0);
         await expect.soft(page.getByRole('button', { name: COPY.addMember })).toHaveCount(0);
@@ -215,13 +215,13 @@ test.describe('phase09 shell edge', () => {
         await shot(page, '9P-D-203', 'tab_members');
       });
       await test.step('[9P-D-204] no "Vùng nguy hiểm" tab', async () => {
-        await expect.soft(page.getByRole('tab')).toHaveText([COPY.tabGeneral, COPY.tabUnits, COPY.tabMembers]); // UPS:1360
-        await expect.soft(page.getByRole('tab', { name: COPY.tabDanger })).toHaveCount(0);
+        await expect.soft(page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link')).toHaveText([new RegExp(`^${COPY.tabGeneral}`, 'u'), new RegExp(`^${COPY.tabUnits}`, 'u'), new RegExp(`^${COPY.tabMembers}`, 'u')]); // UPS:1360
+        await expect.soft(page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: COPY.tabDanger })).toHaveCount(0);
         await shot(page, '9P-D-204', 'no_danger_tab');
       });
       await test.step('[9P-E-201] Tab key never lands on a readonly textarea', async () => {
-        await page.getByRole('tab', { name: COPY.tabGeneral }).click();
-        await page.getByRole('tab', { name: COPY.tabGeneral }).focus();
+        await page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: COPY.tabGeneral }).click();
+        await page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: COPY.tabGeneral }).focus();
         for (let i = 0; i < 6; i++) {
           await page.keyboard.press('Tab');
           const tag = await page.evaluate(() => document.activeElement?.tagName ?? '');
@@ -291,15 +291,15 @@ test.describe('phase09 shell edge', () => {
       });
       await test.step('[9P-D-205] settings: no read-only line, add member, no danger tab', async () => {
         await gotoAs(page, `/projects/${projectId}/settings`, COPY.settingsH1);
-        await page.getByRole('tab', { name: COPY.tabMembers }).click();
+        await page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: COPY.tabMembers }).click();
         await expect(page.getByRole('button', { name: COPY.addMember })).toBeVisible(); // anchor: role loaded; not clicked
         await expect.soft(page.getByText(COPY.settingsReadOnly)).toHaveCount(0);
-        await expect.soft(page.getByRole('tab', { name: COPY.tabDanger })).toHaveCount(0);
+        await expect.soft(page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: COPY.tabDanger })).toHaveCount(0);
         await shot(page, '9P-D-205', 'eng_settings');
       });
       await test.step('[9P-C-202] member engineer still has no danger tab (global role)', async () => {
         await gotoAs(page, `/projects/${projectId}/settings`, COPY.settingsH1);
-        await expect.soft(page.getByRole('tab')).toHaveText([COPY.tabGeneral, COPY.tabUnits, COPY.tabMembers]); // UPS:757, PSC:167
+        await expect.soft(page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link')).toHaveText([new RegExp(`^${COPY.tabGeneral}`, 'u'), new RegExp(`^${COPY.tabUnits}`, 'u'), new RegExp(`^${COPY.tabMembers}`, 'u')]); // UPS:757, PSC:167
         await shot(page, '9P-C-202', 'eng_no_danger');
       });
       await test.step('[9P-D-402] ⚑ client-side nav to /admin/models: library readable, no manage', async () => {

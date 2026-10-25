@@ -180,21 +180,21 @@ test.describe('SCR-08 Project Settings', () => {
   const settingsPath = (): RegExp => new RegExp(`^/api/projects/${projectId}/settings$`, 'u');
   const projectPath = (): RegExp => new RegExp(`^/api/projects/${projectId}$`, 'u');
 
-  test('SCR-08 tablist "Nhóm cài đặt": Chung / Đơn vị đo / Thành viên / Vùng nguy hiểm', async () => {
+  test('SCR-08 mục lục "Mục trong trang": Chung / Đơn vị đo / Thành viên / Vùng nguy hiểm', async () => {
     await page.goto(ROUTES.project.settings(projectId));
-    const tablist = page.getByRole('tablist', { name: 'Nhóm cài đặt', exact: true });
+    const tablist = page.getByRole('navigation', { name: 'Mục trong trang', exact: true });
     await expect(tablist).toBeVisible();
 
     for (const label of ['Chung', 'Đơn vị đo', 'Thành viên', 'Vùng nguy hiểm']) {
-      const tab = tablist.getByRole('tab', { name: label, exact: true });
+      const tab = tablist.getByRole('link', { name: new RegExp(`^${label}`, 'u') });
       await tab.click();
-      await expect(tab).toHaveAttribute('aria-selected', 'true');
-      await expect(page.getByRole('tabpanel', { name: label, exact: true })).toBeVisible();
+      await expect(tab).toHaveAttribute('aria-current', 'true');
+      await expect(page.getByRole('region', { name: label, exact: true })).toBeVisible();
     }
-    await expect(page.getByRole('textbox', { name: 'Tên dự án', exact: true })).toHaveCount(0);
+    // Bốn nhóm cùng hiện: ô "Tên dự án" không còn biến mất khi sang nhóm khác (kiểm tra "vắng" cũ bỏ).
     await captureEvidence(page, '08_settings_tabs.png');
 
-    await tablist.getByRole('tab', { name: 'Chung', exact: true }).click();
+    await tablist.getByRole('link', { name: /^Chung/u }).click();
     await expect(page.getByRole('textbox', { name: 'Tên dự án', exact: true })).toBeVisible();
   });
 
@@ -229,7 +229,7 @@ test.describe('SCR-08 Project Settings', () => {
   });
 
   test('SCR-08 "Đơn vị chiều dài" → "Mét (m)" then back to "Milimét (mm)" → PUT settings ×2', async () => {
-    await page.getByRole('tablist', { name: 'Nhóm cài đặt', exact: true }).getByRole('tab', { name: 'Đơn vị đo', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Mục trong trang', exact: true }).getByRole('link', { name: /^Đơn vị đo/u }).click();
     const unit = page.getByRole('combobox', { name: 'Đơn vị chiều dài', exact: true });
     await expect(unit).toContainText('Milimét (mm)');
 
@@ -330,7 +330,7 @@ test.describe('SCR-09 Floor Manager', () => {
   test('SCR-09 "Chiều cao tầng {work}" (NumericField commits on change) → PATCH spatial', async () => {
     const floor = work();
     const height = page.getByRole('textbox', { name: `Chiều cao tầng ${floor.name}`, exact: true });
-    const beforeMm = metresTextToMm(await height.inputValue(), `Chiều cao tầng ${floor.name}`);
+    const beforeMm = Number.parseInt((await height.inputValue()).replace(/[^0-9]/gu, ''), 10); // S-19: ô nhập mm
     const patch = waitForApi(page, 'PATCH', spatialPath(floor.id), [200]);
 
     // ArrowUp = +1 (useNumericField), blur commits.
@@ -338,7 +338,7 @@ test.describe('SCR-09 Floor Manager', () => {
     await height.press('ArrowUp');
     await height.blur();
     const { json } = await patch;
-    expect(numberField(json, 'heightMm', 'PATCH spatial (height)')).toBe(beforeMm + 1000);
+    expect(numberField(json, 'heightMm', 'PATCH spatial (height)')).toBe(beforeMm + 1);
     await captureEvidence(page, '09_floor_height.png');
   });
 
@@ -397,7 +397,7 @@ test.describe('SCR-09 Floor Manager', () => {
   test('SCR-09 "Tự động tính cao độ" off → "Cao độ tầng {work}" appears; elevation edit → PATCH', async () => {
     const floor = work();
     const top = scratch();
-    const auto = page.getByRole('switch', { name: 'Tự động tính cao độ', exact: true });
+    const auto = page.getByRole('switch', { name: 'Tự tính cao độ', exact: true });
     const workElevation = page.getByRole('textbox', { name: `Cao độ tầng ${floor.name}`, exact: true });
     // The switch starts OFF (useFloorManager.ts:516). On → elevations are read-only text; off → the inputs
     // (FloorTableRow.tsx:278-291).
@@ -429,7 +429,7 @@ test.describe('SCR-09 Floor Manager', () => {
     await elevation.press('ArrowUp');
     await elevation.blur();
     const { json } = await patch;
-    expect(numberField(json, 'elevationMm', 'PATCH spatial (elevation)')).toBe(beforeMm + 1000);
+    expect(numberField(json, 'elevationMm', 'PATCH spatial (elevation)')).toBe(beforeMm + 1);
     await captureEvidence(page, '09_floor_elevation.png');
 
     // Plan row says the {work} row; the elevation that can move is the top floor {scratch} (see above), so "Ghi đè" is there.

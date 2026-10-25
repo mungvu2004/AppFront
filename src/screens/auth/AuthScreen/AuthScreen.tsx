@@ -69,8 +69,7 @@ const NO_ACCOUNT_NOTE =
 
 /** Câu 2 của màn: một chip + một câu, suy từ đúng trạng thái biểu mẫu đang theo. */
 function SignInStatus({ state, rejected, sessionOpen }: { readonly state: string; readonly rejected: boolean; readonly sessionOpen: boolean }) {
-  // Đã có phiên: chip không được nói "Chưa đăng nhập" trong khi dải bên dưới nói "Bạn đang đăng nhập".
-  if (sessionOpen && !rejected && state !== 'success') {
+  if (sessionOpen && !rejected && state !== 'success') { // chip không được nói "Chưa đăng nhập" khi dải dưới nói "Bạn đang đăng nhập"
     return (
       <Badge variant="attention" noDot>
         <CircleAlert aria-hidden="true" size={14} strokeWidth={2} />

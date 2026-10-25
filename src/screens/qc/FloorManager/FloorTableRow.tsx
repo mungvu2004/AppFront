@@ -23,21 +23,20 @@
  * A15 bảo vệ), nên `local/no-raw-number` không chặn.
  */
 
-import { GripVertical, MoreVertical } from 'lucide-react';
-import type { KeyboardEvent, MouseEvent } from 'react';
+import { GripVertical } from 'lucide-react';
+import { useState, type KeyboardEvent, type MouseEvent } from 'react';
 
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
-import { Input } from '@/components/ui/Input';
 import { NumericField } from '@/components/ui/NumericField';
 import { Table } from '@/components/ui/Table';
 import { Toggle } from '@/components/ui/Toggle';
 import { formatNumber, parseNumber } from '@/lib/format/number';
 import { cn } from '@/lib/utils';
 
-import { FloorRowLinks } from './FloorRowLinks';
-import { FLOOR_COLUMN_LABELS, type FloorEditableField, type FloorManagerViewProps, type FloorRowVm } from './floorManagerTypes';
+import { elevationSignedText, floorStepOf, heightDraftFromMm, heightDraftMm, heightMmText } from './floorProgress';
+import { FloorActionsCell, FloorNameCell, FloorProgressCell, InlineNumber } from './FloorTableRowCells';
+import { type FloorEditableField, type FloorManagerViewProps, type FloorRowVm } from './floorManagerTypes';
 
 /** Chỉ chín hàm xử lý dòng cần — tránh `import type` vòng ngược với `FloorTable.tsx`. */
 type FloorRowHandlers = Pick<
@@ -52,37 +51,23 @@ type FloorRowHandlers = Pick<
   | 'onOpenOverlay'
 >;
 
-const NEEDS_DRAWING_LABEL = 'Chưa có bản vẽ';
 /** Đuôi nhãn dòng khi chưa có bản vẽ: chưa có gì để kiểm nên không đọc "— đã kiểm" (BUG-263). */
 const NEEDS_DRAWING_ROW_SUFFIX = 'chưa có bản vẽ';
-const UPLOAD_LINK_LABEL = 'Tải lên';
 const COPY_FURNITURE_LABEL = 'Sao chép nội thất sang tầng mới';
 /** Ô nhập mét đọc như ô bảng bên cạnh, "4,0" chứ không "4" (BUG-306; `metreText` của hook). */
 const METRE_FRACTION_DIGITS = 1;
 
 
-/**
- * Dòng xếp chồng (BUG-250): mười cột không vừa cạnh lát cắt hay dưới 1.024px, nên dòng
- * xuống hàng như thẻ và mỗi ô tự mang tên cột (hàng tiêu đề ẩn hẳn, nên nhãn ô cũng là thứ trình đọc màn hình đọc).
- */
-const STACKED_ROW = 'flex h-auto flex-wrap items-center py-2';
-/** Đệm ô 8px thay vì 12px của `Table.Cell`: mười cột vừa 958px (1.024px, lát cắt thu gọn). */
-export const CELL = 'px-2';
-const STACKED_CELL = 'flex h-auto items-center gap-2';
+/** Đệm ô 8px thay vì 12px của `Table.Cell`. */
+export const CELL = 'px-3';
 
-function StackedLabel({ isStacked, column }: { readonly isStacked: boolean; readonly column: keyof typeof FLOOR_COLUMN_LABELS }) {
-  return isStacked ? (
-    <span className="text-[12px] text-text-muted">
-      {FLOOR_COLUMN_LABELS[column]}
-    </span>
-  ) : null;
-}
+/* `InlineNumber` và lớp chữ của ô sửa tại chỗ ở `FloorTableRowCells.tsx`. */
 const CONFIRM_DUPLICATE_LABEL = 'Nhân bản';
 const OVERRIDDEN_LABEL = 'Ghi đè';
 /** Dấu lỗi ngay ở ô; câu đầy đủ (gọi tên hai tầng) vẫn ở dải phía trên bảng (BUG-306). */
 const ELEVATION_REFUSED_LABEL = 'Chưa đặt được';
 /** Tường, phòng, diện tích, tiến độ QC, hành động. */
-const DUPLICATE_STRIP_COLUMNS = 5;
+const DUPLICATE_STRIP_COLUMNS = 2;
 
 function reorderedIds(rows: readonly FloorRowVm[], index: number, direction: -1 | 1): readonly string[] | null {
   const targetIndex = index + direction;
@@ -117,8 +102,9 @@ export interface FloorTableRowProps {
   /** Đường chèn ở viền DƯỚI — chỉ dòng cuối, khi thả vào nửa dưới của nó (BUG-518). */
   readonly showInsertionLineAfter: boolean;
   /** Dòng xuống hàng như thẻ thay vì trải mười cột (BUG-250). */
-  readonly isStacked: boolean;
-  readonly nameInputRef: (element: HTMLInputElement | null) => void;
+  readonly isRenaming: boolean;
+  readonly onRenameStart: (floorId: string) => void;
+  readonly onRenameEnd: () => void;
   readonly onSelectFloor: FloorRowHandlers['onSelectFloor'];
   readonly onHoverFloor: FloorRowHandlers['onHoverFloor'];
   readonly onFloorFieldChange: FloorRowHandlers['onFloorFieldChange'];
@@ -161,8 +147,9 @@ export function FloorTableRow({
   copyFurniture,
   showInsertionLineBefore,
   showInsertionLineAfter,
-  isStacked,
-  nameInputRef,
+  isRenaming,
+  onRenameStart,
+  onRenameEnd,
   onSelectFloor,
   onHoverFloor,
   onFloorFieldChange,
@@ -182,7 +169,10 @@ export function FloorTableRow({
   onDragEnd,
 }: FloorTableRowProps) {
   const isDuplicating = duplicatingFloorId === row.id;
-  const cell = cn(CELL, isStacked && STACKED_CELL);
+  const cell = CELL;
+  const step = floorStepOf(row);
+  const [openField, setOpenField] = useState<FloorEditableField | null>(null);
+  const closeField = () => setOpenField(null);
 
   const handleRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>) => {
     if (isDuplicating && event.key === 'Escape') {
@@ -220,13 +210,12 @@ export function FloorTableRow({
       aria-label={`${row.name}, cao độ ${row.elevationText}, cao ${row.heightText}, ${row.hasDrawing ? `điểm chất lượng ${row.qcProgressText}` : NEEDS_DRAWING_ROW_SUFFIX}`}
       aria-selected={row.isSelected}
       className={cn(
-        'h-10 border-b border-border-default-50 outline-hidden transition-colors duration-120',
+        'h-[72px] border-b border-border-default-50 outline-hidden transition-colors duration-120',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         row.isSelected ? 'bg-bg-selected' : row.isHovered ? 'bg-bg-hover' : undefined,
         row.isHiddenIn3d && 'opacity-50',
         showInsertionLineBefore && 'border-t-2 border-t-accent',
         showInsertionLineAfter && 'border-accent',
-        isStacked && STACKED_ROW,
       )}
       onClick={() => onSelectFloor(row.id)}
       onDragOver={(event) => {
@@ -252,7 +241,7 @@ export function FloorTableRow({
       tabIndex={0}
     >
       {canEdit && (
-        <Table.Cell className={cn(cell, !isStacked && 'w-10 sm:w-8')}>
+        <Table.Cell className={cn(cell, 'w-10 sm:w-8')}>
           <IconButton
             aria-keyshortcuts="ArrowUp ArrowDown"
             aria-label={`Đổi thứ tự tầng ${row.name}`}
@@ -272,37 +261,20 @@ export function FloorTableRow({
         </Table.Cell>
       )}
 
-      <Table.Cell className={cell}>
-        {canEdit ? (
-          <Input
-            aria-label={`Tên tầng ${row.name}`}
-            className="w-32 text-[13px]"
-            onBlur={() => onFloorFieldCommit(row.id, 'name')}
-            onChange={(event) => onFloorFieldChange(row.id, 'name', event.target.value)}
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.currentTarget.blur();
-              }
+      <FloorNameCell canEdit={canEdit} className={cell} isRenaming={isRenaming} onFloorFieldCancel={onFloorFieldCancel} onFloorFieldChange={onFloorFieldChange} onFloorFieldCommit={onFloorFieldCommit} onRenameEnd={onRenameEnd} onRenameStart={onRenameStart} row={row} summaryText={step.summaryText} />
 
-              if (event.key === 'Escape') {
-                onFloorFieldCancel(row.id, 'name');
-                event.currentTarget.blur();
-              }
-            }}
-            ref={nameInputRef}
-            value={row.draft.name}
-          />
-        ) : (
-          <span className="text-[13px] text-text-primary">{row.name}</span>
-        )}
-      </Table.Cell>
-
-      <Table.Cell className={cell}>
-        <StackedLabel column="elevation" isStacked={isStacked} />
+      <Table.Cell className={cn(cell, 'tabular-nums')}>
         {canEdit && !isAutoElevation ? (
+          <InlineNumber
+            isOpen={openField === 'elevation' || row.isElevationRefused}
+            label={`cao độ tầng ${row.name}`}
+            onClose={closeField}
+            onOpen={() => setOpenField('elevation')}
+            text={elevationSignedText(row.elevationMm)}
+          >
           <NumericField
             aria-label={`Cao độ tầng ${row.name}`}
+            autoFocus={!row.isElevationRefused}
             className="w-16 text-[13px]"
             error={row.isElevationRefused ? ELEVATION_REFUSED_LABEL : undefined}
             onChange={(value) =>
@@ -313,57 +285,45 @@ export function FloorTableRow({
             unit="m"
             value={parseNumber(row.draft.elevation)}
           />
+          </InlineNumber>
         ) : (
-          <span className="text-[13px] text-text-primary">{row.elevationText}</span>
+          <span className="text-[13px] text-text-primary">{elevationSignedText(row.elevationMm)}</span>
         )}
         {/* Ô ghi đè phải nhìn ra được, không trông như mọi ô tính tự động (BUG-289). */}
         {row.isElevationOverridden && <span className="ml-1 text-[12px] text-text-secondary">{OVERRIDDEN_LABEL}</span>}
       </Table.Cell>
 
-      <Table.Cell className={cell}>
-        <StackedLabel column="height" isStacked={isStacked} />
+      <Table.Cell className={cn(cell, 'tabular-nums')}>
         {canEdit ? (
+          <InlineNumber
+            isOpen={openField === 'height'}
+            label={`chiều cao tầng ${row.name}`}
+            onClose={closeField}
+            onOpen={() => setOpenField('height')}
+            text={heightMmText(row.heightMm)}
+          >
           <NumericField
             aria-label={`Chiều cao tầng ${row.name}`}
-            className="w-16 text-[13px]"
-            onChange={(value) => commitNumericField(row.id, 'height', value, onFloorFieldChange, onFloorFieldCommit)}
+            autoFocus
+            className="w-20 text-[13px]"
+            onChange={(value) => {
+              /* Ô nhập mm; nháp của hook tính bằng mét — đổi ở `floorProgress.ts`. */
+              onFloorFieldChange(row.id, 'height', heightDraftFromMm(value));
+              onFloorFieldCommit(row.id, 'height');
+            }}
             onClick={(event) => event.stopPropagation()}
-            fractionDigits={METRE_FRACTION_DIGITS}
-            unit="m"
-            value={parseNumber(row.draft.height)}
+            fractionDigits={0}
+            unit="mm"
+            value={heightDraftMm(row)}
           />
+          </InlineNumber>
         ) : (
-          <span className="text-[13px] text-text-primary">{row.heightText}</span>
+          <span className="text-[13px] text-text-primary">{heightMmText(row.heightMm)}</span>
         )}
       </Table.Cell>
 
-      <Table.Cell className={cell}>
-        {/* Bảng đủ cột thì chip và "Tải lên" chồng lên nhau để cột hẹp lại (BUG-250). */}
-        <div className={cn('flex items-center gap-2', !isStacked && 'flex-col items-start gap-1')}>
-          <StackedLabel column="drawings" isStacked={isStacked} />
-          {row.needsDrawing && canEdit ? (
-            <>
-              {/* Chip đã nói "Chưa có bản vẽ": không lặp chữ ấy lần nữa ngay cạnh nó (BUG-250). */}
-              <Badge variant="attention">{NEEDS_DRAWING_LABEL}</Badge>
-              <button
-                className="inline-flex min-h-11 items-center rounded-md px-1.5 text-[12px] text-accent underline-offset-2 fine:min-h-6 hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onUploadDrawing(row.id);
-                }}
-                type="button"
-              >
-                {UPLOAD_LINK_LABEL}
-              </button>
-            </>
-          ) : (
-            <span className="text-[13px] text-text-secondary">{row.drawingCountText}</span>
-          )}
-        </div>
-      </Table.Cell>
-
       {isDuplicating ? (
-        /* Dải hỏi nhân bản thay chỗ năm ô cuối của chính dòng này: ô "Hành động" một mình không
+        /* Dải hỏi nhân bản thay chỗ hai ô cuối của chính dòng này: ô "Hành động" một mình không
            đủ rộng, nhét vào đó thì bảng tràn ngang (BUG-250). */
         <Table.Cell className={cell} colSpan={DUPLICATE_STRIP_COLUMNS}>
           <div className="flex flex-wrap items-center gap-2" onClick={(event) => event.stopPropagation()}>
@@ -380,54 +340,9 @@ export function FloorTableRow({
         </Table.Cell>
       ) : (
         <>
-          {(
-            [
-              ['walls', row.wallCountText],
-              ['rooms', row.roomCountText],
-              ['area', row.areaText],
-            ] as const
-          ).map(([column, text]) => (
-            <Table.Cell className={cn(cell, 'text-[13px] text-text-secondary')} key={column}>
-              <StackedLabel column={column} isStacked={isStacked} />
-              {text}
-            </Table.Cell>
-          ))}
+          <FloorProgressCell className={cell} step={step} />
 
-          <Table.Cell className={cell}>
-            <div className="flex items-center gap-2">
-              <StackedLabel column="qc" isStacked={isStacked} />
-              <div className="relative h-1.5 w-16 overflow-hidden rounded-full bg-bg-sunken">
-                <div
-                  className="absolute inset-y-0 left-0 origin-left rounded-full bg-accent"
-                  style={{ scale: `${row.qcProgressRatio} 1` }}
-                />
-              </div>
-              {row.qcProgressRatio === 1 ? (
-                <Badge variant="verified">{row.qcProgressText}</Badge>
-              ) : (
-                <span className="text-[13px] text-text-secondary">{row.qcProgressText}</span>
-              )}
-            </div>
-          </Table.Cell>
-
-          {(canEdit || onOpenOverlay !== undefined || onOpenReviewMenu !== undefined) && (
-            <Table.Cell className={cell}>
-              {/* Nút ⋮ cùng dòng với "Duyệt lớp", không rơi xuống dòng riêng (G3-21). */}
-              <div className="flex items-center gap-1">
-              <FloorRowLinks onOpenOverlay={onOpenOverlay} onOpenReviewMenu={onOpenReviewMenu} row={row} />
-              {canEdit && <IconButton
-                aria-label={`Thao tác khác cho tầng ${row.name}`}
-                icon={<MoreVertical className="h-4 w-4" />}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onOpenMenu(event, row);
-                }}
-                size="sm"
-                tooltip={false}
-              />}
-              </div>
-            </Table.Cell>
-          )}
+          <FloorActionsCell canEdit={canEdit} className={cell} onOpenMenu={onOpenMenu} onOpenOverlay={onOpenOverlay} onOpenReviewMenu={onOpenReviewMenu} onUploadDrawing={onUploadDrawing} row={row} />
         </>
       )}
     </tr>

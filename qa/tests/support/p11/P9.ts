@@ -66,7 +66,7 @@ export const ruleConfigApiRe = (id: string): RegExp => new RegExp(`^/api/project
 /** Opens SCR-08 on `tab` (tab clicked by name; the tablist is `Nhóm cài đặt`). */
 export async function openSettingsTab(page: Page, projectId: string, tab: string): Promise<void> {
   await page.goto(ROUTES.project.settings(projectId));
-  const tabButton = page.getByRole('tablist', { name: DANGER.tablist }).getByRole('tab', { name: tab, exact: true });
+  const tabButton = page.getByRole('navigation', { name: 'Mục trong trang', exact: true }).getByRole('link', { name: new RegExp(`^${tab}`, 'u') });
   // <1024 px: the strip becomes a Select (ProjectSettings.tsx:112, role=combobox labelled by the same group name).
   const picker = page.getByRole('combobox', { name: DANGER.tablist });
   await expect(tabButton.or(picker)).toBeVisible();
@@ -77,7 +77,7 @@ export async function openSettingsTab(page: Page, projectId: string, tab: string
     return;
   }
   await tabButton.click();
-  await expect(tabButton).toHaveAttribute('aria-selected', 'true');
+  await expect(tabButton).toHaveAttribute('aria-current', 'true');
 }
 
 export const dialogOf = (page: Page, title: string): Locator => page.getByRole('dialog', { name: title, exact: true });

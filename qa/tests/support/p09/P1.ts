@@ -14,7 +14,7 @@ export const COPY = {
   viewerLine: 'Vai người xem: chỉ có thể mở dự án, không tạo hoặc xoá được.', // PD:198-201
   emptyViewer: 'Bạn chưa được thêm vào dự án nào. Khi được mời, dự án sẽ hiện ở đây.', // PD:245-249
   createEmpty: 'Tạo dự án mới',
-  settingsH1: 'Cài đặt dự án', // ProjectSettings.tsx:74
+  settingsH1: 'Đặt thông tin, đơn vị đo và thành viên của dự án', // ProjectSettings.tsx:74
   settingsReadOnly: 'Vai hiện tại chỉ xem được cài đặt, không sửa và không xoá.', // PS:84
   tabGeneral: 'Chung',
   tabUnits: 'Đơn vị đo',

@@ -114,6 +114,8 @@ export interface FloorManagerContainerProps {
   readonly announcer?: Announcer;
   /** Ép thu gọn lát cắt — cho story và bài kiểm muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /** Lát cắt thu gọn lúc mở màn; route truyền `true` dưới 1280 px (bản Z). */
+  readonly initialCollapsed?: boolean;
   /** Dưới 1.024px lát cắt xuống dưới bảng; màn cha đo bề rộng và truyền vào. */
   readonly isCompact?: boolean;
 }
@@ -150,6 +152,7 @@ function WiredFloorManager(props: FloorManagerContainerProps) {
     ...(props.notifications !== undefined ? { notifications: props.notifications } : {}),
     ...(props.announcer !== undefined ? { announcer: props.announcer } : {}),
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
+    ...(props.initialCollapsed !== undefined ? { initialCollapsed: props.initialCollapsed } : {}),
     ...(props.isCompact !== undefined ? { isCompact: props.isCompact } : {}),
     ...(props.onNavigateToDrawings !== undefined
       ? { onNavigateToDrawings: props.onNavigateToDrawings }
@@ -215,6 +218,8 @@ export function FloorManagerContainer(props: FloorManagerContainerProps) {
 
 /** Ngưỡng thu hẹp của bản thiết kế (`notes/floor-manager/blueprint.md` mục E). */
 const COMPACT_QUERY = '(width < 1024px)';
+/** Dưới 1280 px bảng cạnh lát cắt không đủ rộng: lát cắt mặc định thu gọn (bản Z). */
+const NARROW_FOR_SECTION_CUT_QUERY = '(width < 1280px)';
 
 /**
  * Lớp trên đo bề rộng cho `isCompact` (BUG-251: trước đây không ai đo nên màn không bao giờ
@@ -251,6 +256,7 @@ function FloorManagerRouteBody({
 }) {
   const navigate = useNavigate();
   const isCompact = useIsCompact();
+  const [initialCollapsed] = useState(() => window.matchMedia(NARROW_FOR_SECTION_CUT_QUERY).matches);
 
   /*
    * Lối ra thật của liên kết "tải lên". `ROUTES.project.upload` là đường DUY
@@ -285,6 +291,7 @@ function FloorManagerRouteBody({
   return (
     <div className="h-dvh">
       <FloorManagerContainer
+        initialCollapsed={initialCollapsed}
         isCompact={isCompact}
         onBackToProjects={handleBackToProjects}
         onNavigateToDrawings={handleNavigateToDrawings}

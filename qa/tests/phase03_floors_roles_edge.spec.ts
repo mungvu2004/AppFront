@@ -106,14 +106,14 @@ test.describe('SCR-09 floors — roles', () => {
       });
 
       await test.step('[09-D-007] no "Tự động tính cao độ" switch; the manual caption is still shown', async () => {
-        await expect.soft(page.getByRole('switch', { name: 'Tự động tính cao độ', exact: true })).toHaveCount(0);
+        await expect.soft(page.getByRole('switch', { name: 'Tự tính cao độ', exact: true })).toHaveCount(0);
         await expect.soft(page.getByText(CAPTION_MANUAL, { exact: true })).toBeVisible();
       });
 
       await test.step('[09-D-008] a row without drawing reads "Chưa có bản vẽ", no "Tải lên" button', async () => {
         const row = floorRows(page).first();
         await expect.soft(row.getByText('Chưa có bản vẽ', { exact: true })).toBeVisible();
-        await expect.soft(page.getByRole('button', { name: 'Tải lên', exact: true })).toHaveCount(0);
+        await expect.soft(page.getByRole('button', { name: 'Tải bản vẽ', exact: true })).toHaveCount(0);
         await captureEvidence(page, 'E03_09-D-008_viewer_readonly_rows.png');
       });
 
@@ -159,7 +159,7 @@ test.describe('SCR-09 floors — roles', () => {
       // QA-03e (BUG-522): error is checked first, so a viewer gets the not-found alert + "Về danh sách dự án" (FloorTable.tsx:202-213).
       await test.step('[09-D-013] viewer opens an unknown project → "Không tìm thấy dự án này" + "Về danh sách dự án"', async () => {
         await page.goto(ROUTES.project.floors(unknownProjectId()));
-        await expect(page.getByRole('heading', { name: 'Quản lý tầng', exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Theo dõi từng tầng và làm tiếp tầng cần nhất', exact: true })).toBeVisible();
         await page.waitForTimeout(1_500); // the 404 read settles
         await captureEvidence(page, 'E03_09-D-013_viewer_unknown_project.png');
         await expect.soft(page.getByText(NOT_FOUND_TITLE, { exact: true }), 'not-found for a viewer').toBeVisible();
@@ -198,8 +198,8 @@ test.describe('SCR-09 floors — roles', () => {
         await expect.soft(page.getByRole('textbox', { name: `Chiều cao tầng ${first}`, exact: true })).toBeEditable();
         await expect.soft(page.getByRole('button', { name: `Đổi thứ tự tầng ${first}`, exact: true })).toBeEnabled();
         await expect.soft(page.getByRole('button', { name: `Thao tác khác cho tầng ${first}`, exact: true })).toBeEnabled();
-        await expect.soft(page.getByRole('switch', { name: 'Tự động tính cao độ', exact: true })).toBeEnabled();
-        await expect.soft(page.getByRole('button', { name: 'Tải lên', exact: true }).first()).toBeEnabled();
+        await expect.soft(page.getByRole('switch', { name: 'Tự tính cao độ', exact: true })).toBeEnabled();
+        await expect.soft(page.getByRole('button', { name: 'Tải bản vẽ', exact: true }).first()).toBeEnabled();
         await expect.soft(page.getByRole('heading', { name: FORBIDDEN_TITLE, exact: true })).toHaveCount(0);
         const post = waitForApi(page, 'POST', new RegExp(`^/api/projects/${member.projectId}/floors$`, 'u'), [201]);
         await add.click();

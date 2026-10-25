@@ -1,42 +1,59 @@
 /**
- * Màn cài đặt dự án — nơi một dự án được đặt tên, đặt đơn vị đo, và, nếu thật
- * sự cần, bị xoá. Route của nó là `ROUTE_PATTERNS.projectSettings`.
+ * Màn cài đặt dự án (S-04, bản Z vòng 9 đã duyệt) — nơi một dự án được đặt tên,
+ * đặt đơn vị đo, mời thành viên và, nếu thật sự cần, bị xoá. Route của nó là
+ * `ROUTE_PATTERNS.projectSettings`.
+ *
+ * Hình dạng theo mẫu M5 Cài đặt, cùng khuôn S-05 (`AccountSettings`): **mục lục
+ * trái dính** + mỗi nhóm MỘT khung `Section`. Ba câu của màn nằm ở `PageHead`:
+ * làm gì (H1 động từ + đối tượng), trạng thái (chip + câu về vai + chỉ báo lưu).
+ * Bước tiếp ("Quay lại Kiểm tra tầng") nằm ở thanh quy trình của dự án, ngoài màn.
  *
  * Mục D chia đôi: {@link ProjectSettingsView} nhận props và chỉ vẽ — không store,
  * không mạng, không `Date`, không một phép định dạng số nào cho
  * `local/no-raw-number` bắt được. Mọi chuỗi đã dựng xong ở `useProjectSettings`.
  *
+ * ## Một nguồn cho nhóm
+ *
+ * Mục lục, dấu "Cần sửa" và việc có/không Vùng nguy hiểm đều sinh từ `props.tabs`
+ * (hook đã bỏ nhóm nguy hiểm với vai không xoá được). `activeTab` giờ là "nhóm
+ * đang xem": bấm mục lục gọi `setActiveTab` để `?tab=` vẫn đồng bộ (N4-04), và
+ * lần dựng đầu cuộn tới nhóm đó.
+ *
  * ## Không có nút lưu (A7)
  *
  * Sửa xong là thôi: 800 ms sau thao tác cuối, `createAutosave` tự gửi đi và
- * `SaveIndicator` nói ra trạng thái đó — một bản ở góc phải trên, một bản nhắc
- * lại ở thanh trạng thái dưới cùng, cả hai đều là `role="status"` nên trình đọc
- * màn hình nghe được mà không phải đi tìm.
+ * `SaveIndicator` ở dòng trạng thái nói ra điều đó (`role="status"`).
  *
  * ## Một chủ sở hữu lớp phủ
  *
- * Hộp thoại xác nhận của hai việc nguy hiểm nằm ở file này chứ không ở
- * `DangerZoneTab.tsx`. Esc đóng nó qua `onClose` của `Modal.Root` (A12, R-54) —
- * không có `addEventListener('keydown')` nào trong thư mục màn này.
+ * Hộp xác nhận của hai việc nguy hiểm nằm ở file này chứ không ở
+ * `DangerZoneTab.tsx`. Esc đóng nó qua `onClose` của `Modal.Root` (A12, R-54).
  *
  * ## Thu gọn
  *
- * `Tabs` không tự biết thu gọn, nên dưới 1024px view đổi dải thẻ thành một ô
- * `Select`. Đây là quyết định xếp chỗ của riêng màn này; không dựng thêm một
- * component chung mới cho nó (R-68).
+ * Dưới 1024px mục lục trái nhường chỗ cho một ô `Select` "Nhóm cài đặt" để nhảy
+ * tới nhóm; không dựng thêm component chung mới (R-68).
  */
+
+import { useEffect, type ReactNode } from 'react';
+import { AlertCircle, Building2, Ruler, Trash2, Users } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { BACK_TO_PROJECTS_LABEL } from '@/components/feedback/ProjectSpatialGate';
 import { SaveIndicator } from '@/components/feedback/SaveIndicator';
 import { Breadcrumb } from '@/components/shell/Breadcrumb';
+import { PageHead } from '@/components/shell/PageHead';
+import { Section } from '@/components/shell/Section';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Toast, useToast } from '@/components/feedback/Toast';
 import { Modal } from '@/components/overlay/Modal';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Tabs } from '@/components/ui/Tabs';
+import viMessages from '@/i18n/vi.json';
+import { cn } from '@/lib/utils';
 
 import { DangerZoneTab } from './DangerZoneTab';
 import { GeneralTab } from './GeneralTab';
@@ -52,13 +69,126 @@ import {
 
 const TAB_GROUP_LABEL = 'Nhóm cài đặt';
 
+/** Lớp vòng tiêu điểm chung cho liên kết trên nền khung. */
+const FOCUS_RING =
+  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
+
+const GROUP_ICONS: Record<ProjectSettingsTabId, LucideIcon> = {
+  general: Building2,
+  units: Ruler,
+  members: Users,
+  danger: Trash2,
+};
+
+/** Câu mô tả ở đầu khung mỗi nhóm (demo Z/S-04). */
+const GROUP_DESCRIPTIONS: Record<ProjectSettingsTabId, string> = {
+  general: 'Tên và mã hiện ở danh sách dự án, khung tên khi xuất',
+  units: 'Áp dụng cho mọi tầng, kể cả kích thước khi xuất',
+  members: 'Vai là vai toàn hệ thống, áp dụng cho mọi dự án của người đó',
+  danger: 'Không hoàn tác được nên mỗi việc hỏi lại một lần',
+};
+
+/** Neo khung của một nhóm; mục lục, ô chọn thu gọn và lần cuộn đầu dùng chung. */
+const groupAnchor = (id: ProjectSettingsTabId): string => `project-settings-${id}`;
+
+interface GroupBlockProps {
+  readonly id: ProjectSettingsTabId;
+  readonly title: string;
+  readonly children: ReactNode;
+}
+
+/** Một nhóm cài đặt trong khung `Section`; `<h2>` mang neo cho mục lục. */
+function GroupBlock({ id, title, children }: GroupBlockProps) {
+  const anchor = groupAnchor(id);
+
+  return (
+    <Section flush id={anchor} aria-labelledby={`${anchor}-title`} className="scroll-mt-6">
+      <div className="flex min-h-14 items-center gap-3 border-b border-border-default px-5 py-4">
+        <h2
+          id={`${anchor}-title`}
+          className={cn(
+            'whitespace-nowrap text-heading',
+            id === 'danger' ? 'text-state-violation-text' : 'text-text-primary',
+          )}
+        >
+          {title}
+        </h2>
+        <p className="ml-auto hidden truncate text-[13px] text-text-secondary xl:block">{GROUP_DESCRIPTIONS[id]}</p>
+      </div>
+      <div className="px-5 py-4">{children}</div>
+    </Section>
+  );
+}
+
+type GroupModel = ProjectSettingsViewProps['tabs'][number];
+
+/** Mục lục trái: một khung dính; Vùng nguy hiểm tách sau một vạch. */
+function SettingsToc(props: ProjectSettingsViewProps) {
+  const renderEntry = (tab: GroupModel) => {
+    const Icon = GROUP_ICONS[tab.id];
+    const isCurrent = tab.id === props.activeTab;
+
+    return (
+      <a
+        key={tab.id}
+        href={`#${groupAnchor(tab.id)}`}
+        aria-current={isCurrent ? 'true' : undefined}
+        onClick={() => props.setActiveTab(tab.id)}
+        className={cn(
+          'flex h-10 items-center gap-2 rounded-md px-3 text-[14px] hover:bg-bg-hover',
+          tab.id === 'danger' ? 'text-state-violation-text' : 'text-text-primary',
+          isCurrent && 'bg-bg-hover',
+          FOCUS_RING,
+        )}
+      >
+        <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
+        {tab.label}
+        {tab.problemCount > 0 ? (
+          <span className="ml-auto inline-flex items-center gap-1 text-[12px] text-state-violation-text">
+            <AlertCircle aria-hidden="true" className="h-3.5 w-3.5" />
+            Cần sửa
+          </span>
+        ) : tab.id === 'members' ? (
+          <span className="ml-auto hidden text-[12px] text-text-secondary xl:inline">{props.memberCountLabel}</span>
+        ) : null}
+      </a>
+    );
+  };
+  const groups = props.tabs.filter((tab) => tab.id !== 'danger');
+  const danger = props.tabs.find((tab) => tab.id === 'danger');
+
+  return (
+    <nav aria-label="Mục trong trang" className="sticky top-6 flex flex-col rounded-xl bg-bg-surface p-2 shadow-panel">
+      {groups.map(renderEntry)}
+      {danger === undefined ? null : (
+        <>
+          <hr className="mx-1 my-2 border-0 border-t border-border-default" />
+          {renderEntry(danger)}
+        </>
+      )}
+    </nav>
+  );
+}
+
+/** Câu thứ hai của dòng trạng thái: vai này làm được gì ở đây. */
+function roleSentence(props: ProjectSettingsViewProps): string {
+  if (props.isReadOnly) return viMessages.project.settings.readOnlyNotice;
+  return props.canDelete
+    ? 'Vai Quản trị: sửa được mọi mục, kể cả xoá dự án.'
+    : 'Sửa được thông tin, đơn vị đo và thành viên. Chỉ quản trị viên xoá được tầng hoặc dự án.';
+}
+
+/** Cuộn tới khung một nhóm (jsdom không có `scrollIntoView`). */
+function scrollToGroup(id: ProjectSettingsTabId): void {
+  const target = document.getElementById(groupAnchor(id));
+  if (target !== null && typeof target.scrollIntoView === 'function') target.scrollIntoView({ block: 'start' });
+}
+
 /** Màn cài đặt như một hàm của props — test và story dựng thẳng cái này. */
 export function ProjectSettingsView(props: ProjectSettingsViewProps) {
   const { state } = props;
   const isCollapsed = state === 'collapsed';
-  // Lỗi tải thì không có gì để lưu: viên "Chưa có thay đổi" tích xanh đọc như "ổn" (BUG-078).
-  // G2-16: thẻ Thành viên không qua tự lưu (thêm/gỡ có kết quả ngay), viên trạng thái lưu ở đây gây hiểu nhầm.
-  const showSaveIndicator = state !== 'error' && props.activeTab !== 'members';
+  const showForm = state !== 'error' && state !== 'loading';
   // 404 thì thử lại vô ích — lối ra là danh sách dự án; lỗi khác chỉ có "Thử lại" khi thử lại được.
   const loadErrorAction =
     props.isProjectMissing && props.backToProjects !== null
@@ -66,101 +196,120 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
       : props.canRetryLoad
         ? { label: 'Thử lại', onClick: props.retryLoad, variant: 'secondary' as const }
         : null;
-  const selectTab = (value: string): void => props.setActiveTab(value as ProjectSettingsTabId);
+  const selectTab = (value: string): void => {
+    props.setActiveTab(value as ProjectSettingsTabId);
+    scrollToGroup(value as ProjectSettingsTabId);
+  };
+  const titleOf = (id: ProjectSettingsTabId): string => props.tabs.find((tab) => tab.id === id)?.label ?? '';
+  const hasDanger = props.tabs.some((tab) => tab.id === 'danger');
+
+  // N4-04: `?tab=` mở đúng nhóm — mọi nhóm cùng hiện, nên "mở" là cuộn tới khung đó, một lần khi biểu mẫu hiện.
+  const initialTab = props.activeTab;
+  useEffect(() => {
+    if (showForm && initialTab !== 'general') scrollToGroup(initialTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ cuộn lần đầu biểu mẫu hiện, không đuổi theo mỗi cú bấm mục lục.
+  }, [showForm]);
 
   return (
     <div className="min-h-screen bg-bg-app">
-      <div className="mx-auto flex max-w-[720px] flex-col gap-6 p-8">
+      <div className="mx-auto w-full max-w-[1344px] px-8 pb-12 pt-6">
         {/* N0-05: Dự án › <tên dự án> › Cài đặt dự án. */}
-        <Breadcrumb
-          items={[
-            {
-              id: 'projects',
-              label: 'Dự án',
-              ...(props.backToProjects !== null ? { onClick: props.backToProjects } : {}),
-            },
-            ...(props.projectTitle.length > 0 ? [{ id: 'project', label: props.projectTitle }] : []),
-            { id: 'current', label: 'Cài đặt dự án' },
-          ]}
+        <div className="mb-4">
+          <Breadcrumb
+            items={[
+              {
+                id: 'projects',
+                label: 'Dự án',
+                ...(props.backToProjects !== null ? { onClick: props.backToProjects } : {}),
+              },
+              ...(props.projectTitle.length > 0 ? [{ id: 'project', label: props.projectTitle }] : []),
+              { id: 'current', label: viMessages.project.settings.title },
+            ]}
+          />
+        </div>
+        <PageHead
+          eyebrow={props.projectTitle.length > 0 ? `Dự án ${props.projectTitle} · Cài đặt` : 'Cài đặt dự án'}
+          title="Đặt thông tin, đơn vị đo và thành viên của dự án"
+          status={
+            // Lỗi tải thì chưa có gì để lưu: không chip, không chỉ báo (BUG-078).
+            showForm ? (
+              <>
+                {props.isReadOnly ? (
+                  <Badge variant="neutral">Chỉ xem</Badge>
+                ) : (
+                  <Badge variant="verified">Tự lưu khi bạn sửa</Badge>
+                )}
+                <span>{roleSentence(props)}</span>
+                {/* Một nguồn: chỉ báo lưu tự nói "chưa lưu vì còn ô cần sửa" khi hook từ chối lượt lưu. */}
+                {props.isReadOnly ? null : <SaveIndicator saveState={props.saveState} label={props.saveLabel} />}
+              </>
+            ) : null
+          }
         />
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 flex-1 basis-[320px] flex-col gap-1">
-            <h1 className="text-[20px] font-semibold text-text-primary">Cài đặt dự án</h1>
-            <p className="text-[13px] text-text-secondary">
-              {/* G2-27: không hứa phần "Vùng nguy hiểm" với vai không thấy nó, và nói ai làm được. */}
-              {props.canDelete
-                ? 'Thông tin chung, đơn vị đo, thành viên và hai việc không hoàn tác được.'
-                : 'Thông tin chung, đơn vị đo và thành viên. Chỉ quản trị viên xoá được tầng hoặc dự án.'}
-            </p>
-          </div>
-          {showSaveIndicator && <SaveIndicator saveState={props.saveState} label={props.saveLabel} />}
-        </header>
 
-        {props.isReadOnly && (
-          <p className="text-[13px] text-text-secondary">
-            Vai hiện tại chỉ xem được cài đặt, không sửa và không xoá.
-          </p>
-        )}
+        <div className="flex flex-col gap-4">
+          {props.conflictMessage !== null && (
+            <InlineAlert
+              level="attention"
+              title="Cài đặt đã đổi ở nơi khác"
+              message={props.conflictMessage}
+              action={{ label: 'Tải lại', onClick: props.reloadSettings, variant: 'secondary' }}
+            />
+          )}
 
-        {props.conflictMessage !== null && (
-          <InlineAlert
-            level="attention"
-            title="Cài đặt đã đổi ở nơi khác"
-            message={props.conflictMessage}
-            action={{ label: 'Tải lại', onClick: props.reloadSettings, variant: 'secondary' }}
-          />
-        )}
+          {props.saveFailureMessage !== null && (
+            <InlineAlert level="attention" title="Chưa lưu hết" message={props.saveFailureMessage} />
+          )}
 
-        {props.saveFailureMessage !== null && (
-          <InlineAlert level="attention" title="Chưa lưu hết" message={props.saveFailureMessage} />
-        )}
-
-        {state === 'error' ? (
-          <InlineAlert
-            level="violation"
-            title="Không tải được cài đặt dự án"
-            message={props.errorMessage ?? ''}
-            {...(loadErrorAction !== null ? { action: loadErrorAction } : {})}
-          />
-        ) : state === 'loading' ? (
-          <Skeleton preset="property-panel" />
-        ) : (
-          <>
-            {isCollapsed && (
-              <Select
-                label={TAB_GROUP_LABEL}
-                options={props.tabs.map((tab) => ({ value: tab.id, label: tab.label }))}
-                value={props.activeTab}
-                onChange={selectTab}
-              />
-            )}
-            <Tabs.Root activeId={props.activeTab} onChange={selectTab}>
-              {!isCollapsed && (
-                <Tabs.List aria-label={TAB_GROUP_LABEL}>
-                  {props.tabs.map((tab) => (
-                    <Tabs.Tab key={tab.id} id={tab.id} badge={tab.problemCount}>
-                      {tab.label}
-                    </Tabs.Tab>
-                  ))}
-                </Tabs.List>
+          {state === 'error' ? (
+            <InlineAlert
+              level="violation"
+              title="Không tải được cài đặt dự án"
+              message={props.errorMessage ?? ''}
+              {...(loadErrorAction !== null ? { action: loadErrorAction } : {})}
+            />
+          ) : state === 'loading' ? (
+            <Skeleton preset="property-panel" />
+          ) : (
+            <div
+              className={cn(
+                'grid items-start gap-5',
+                isCollapsed
+                  ? 'grid-cols-1'
+                  : 'grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)] xl:gap-6',
               )}
-              <div className="pt-4">
-                <Tabs.Panel id="general">
+            >
+              {isCollapsed ? (
+                <Select
+                  label={TAB_GROUP_LABEL}
+                  options={props.tabs.map((tab) => ({ value: tab.id, label: tab.label }))}
+                  value={props.activeTab}
+                  onChange={selectTab}
+                />
+              ) : (
+                <SettingsToc {...props} />
+              )}
+
+              <div className="flex min-w-0 flex-col gap-4">
+                <GroupBlock id="general" title={titleOf('general')}>
                   <GeneralTab {...props} />
-                </Tabs.Panel>
-                <Tabs.Panel id="units">
+                </GroupBlock>
+                <GroupBlock id="units" title={titleOf('units')}>
                   <UnitsTab {...props} />
-                </Tabs.Panel>
-                <Tabs.Panel id="members">
+                </GroupBlock>
+                <GroupBlock id="members" title={titleOf('members')}>
                   <MembersTab {...props} />
-                </Tabs.Panel>
-                <Tabs.Panel id="danger">
-                  <DangerZoneTab {...props} />
-                </Tabs.Panel>
+                </GroupBlock>
+                {/* Vai không xoá được gì: khung và mục lục ẩn hẳn (hook đã bỏ nhóm này khỏi `tabs`). */}
+                {hasDanger ? (
+                  <GroupBlock id="danger" title={titleOf('danger')}>
+                    <DangerZoneTab {...props} />
+                  </GroupBlock>
+                ) : null}
               </div>
-            </Tabs.Root>
-          </>
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
       <ProjectSettingsReloadDialog
@@ -212,10 +361,8 @@ export interface ProjectSettingsProps extends Omit<UseProjectSettingsOptions, 'o
 /**
  * Màn cài đặt đã nối với hook và với `Toast.Provider` gần nhất.
  *
- * Xuất riêng (chứ không chỉ dùng ở dưới) để `ProjectSettings.container.tsx` gắn
- * nó dưới `Toast.Provider` của chính nó. Cố ý KHÔNG gọi `useNavigate` ở đây:
- * router nằm ở `ProjectSettingsRoute`, nhờ vậy story và test dựng được view mà
- * không cần `MemoryRouter`.
+ * Xuất riêng để `ProjectSettings.container.tsx` gắn nó dưới `Toast.Provider` của
+ * chính nó. Cố ý KHÔNG gọi `useNavigate` ở đây: router nằm ở `ProjectSettingsRoute`.
  */
 export function ProjectSettingsConnected(options: ProjectSettingsProps) {
   const { addToast } = useToast();
@@ -227,8 +374,7 @@ export function ProjectSettingsConnected(options: ProjectSettingsProps) {
 /**
  * `ProjectSettings` đứng một mình — tự mang `Toast.Provider`.
  *
- * Dành cho story, test và bảng chọn demo; route thật là `ProjectSettingsRoute`
- * (`./ProjectSettings.container`).
+ * Dành cho story, test và bảng chọn demo; route thật là `ProjectSettingsRoute`.
  */
 export function ProjectSettings(options: ProjectSettingsProps) {
   return (

@@ -20,7 +20,7 @@ type Json = Record<string, unknown>;
 /* ---------------------------------------------------------------- copy (each cites its source) */
 
 export const VH = {
-  heading: 'Lịch sử phiên bản', // VH:44
+  heading: /^So sánh và phục hồi phiên bản/u, // VH: "So sánh và phục hồi phiên bản của <Tầng>"
   floorSelect: 'Tầng', // UVH:604
   narrowSelect: 'Phiên bản', // VH:119
   list: 'Danh sách phiên bản', // VL:364
@@ -56,7 +56,7 @@ export const VH = {
   undoneToast: 'Đã hoàn tác lượt phục hồi', // UVH:390
   undo: 'Hoàn tác', // Toast.tsx:149
   undoRetryToast: 'Chưa hoàn tác được lượt phục hồi; bấm "Hoàn tác" để thử lại', // VHM UNDO_RETRY_TOAST
-  tag: 'Gắn nhãn phiên bản này', // VH:173
+  tag: /^Gắn nhãn v[0-9]+$/u, // VH: "Gắn nhãn vN"
   labelField: 'Nhãn', // VD:41
   labelSubmit: 'Gắn nhãn', // VD:51
   conflictTitle: 'Tầng vừa đổi ở nơi khác', // VHG:86
@@ -82,7 +82,7 @@ export const versionList = (page: Page): Locator => page.getByRole('navigation',
 export const versionRow = (page: Page, label: string): Locator =>
   versionList(page).getByRole('listitem').filter({ has: page.getByRole('checkbox', { name: VH.checkbox(label), exact: true }) });
 export const diffTab = (page: Page, label: string): Locator =>
-  page.getByRole('tablist', { name: VH.tabs, exact: true }).getByRole('tab', { name: label, exact: true });
+  page.getByRole('tablist', { name: VH.tabs, exact: true }).getByRole('tab', { name: new RegExp(`^${label}`, 'u') }); // tab Thay đổi có thêm số đếm
 /** The `InlineAlert` banner (role alert) carrying `title`. */
 export const banner = (page: Page, title: string): Locator => page.getByRole('alert').filter({ hasText: title });
 /** The toast (role=status, Toast.tsx:120) carrying `message`. */

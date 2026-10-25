@@ -483,7 +483,7 @@ test.describe('SCR-08 Project Settings', () => {
     assertRegistrySafe();
     const { projectId, floorIds } = await verifyCp2OnServer(page);
 
-    await page.getByRole('tablist', { name: 'Nhóm cài đặt' }).getByRole('tab', { name: 'Vùng nguy hiểm' }).click();
+    await page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: 'Vùng nguy hiểm' }).click();
     // DangerZoneTab renders "Xoá mọi tầng" only while the project has floors.
     test.skip(floorIds.size === 0, 'CP-2 has no floors left to delete');
 
@@ -527,7 +527,7 @@ test.describe('SCR-08 Project Settings', () => {
     assertRegistrySafe();
     const { projectId, projectName } = await verifyCp2OnServer(page);
 
-    await page.getByRole('tablist', { name: 'Nhóm cài đặt' }).getByRole('tab', { name: 'Vùng nguy hiểm' }).click();
+    await page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: 'Vùng nguy hiểm' }).click();
     await page.getByRole('button', { name: 'Xoá dự án', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Xoá dự án này?', exact: true });
     const typed = dialog.getByLabel('Gõ lại tên dự án để xác nhận');

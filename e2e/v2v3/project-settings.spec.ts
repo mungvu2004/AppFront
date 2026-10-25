@@ -47,7 +47,7 @@ test.beforeAll(async ({ browser }) => {
   test.setTimeout(COLD_START_TIMEOUT_MS);
   const page = await browser.newPage();
   await page.goto(SETTINGS);
-  await expect(page.getByRole('heading', { level: 1, name: 'Cài đặt dự án' })).toBeVisible({ timeout: COLD_START_TIMEOUT_MS });
+  await expect(page.getByRole('heading', { level: 1, name: 'Đặt thông tin, đơn vị đo và thành viên của dự án' })).toBeVisible({ timeout: COLD_START_TIMEOUT_MS });
   await page.close();
 });
 
@@ -60,7 +60,7 @@ const KNOWN_ADDRESS = '12 Nguyễn Huệ, Quận 1';
 
 async function openSettings(page: Page): Promise<void> {
   await page.goto(SETTINGS);
-  await expect(page.getByRole('heading', { level: 1, name: 'Cài đặt dự án' })).toBeVisible({
+  await expect(page.getByRole('heading', { level: 1, name: 'Đặt thông tin, đơn vị đo và thành viên của dự án' })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 }
@@ -85,7 +85,7 @@ async function openDangerZoneAsAdmin(page: Page): Promise<string> {
   // `exact`: nhãn ô xác nhận trong hộp thoại cũng chứa chữ "Tên dự án".
   const projectName = await page.getByLabel('Tên dự án', { exact: true }).inputValue();
   expect(projectName.length).toBeGreaterThan(0);
-  await page.getByRole('tab', { name: 'Vùng nguy hiểm' }).click();
+  await page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: 'Vùng nguy hiểm' }).click();
   return projectName;
 }
 
@@ -138,7 +138,8 @@ test.describe('cài đặt dự án — tự lưu và hoàn tác (A7, A8)', () =
 });
 
 test.describe('cài đặt dự án — bàn phím (A12)', () => {
-  test('mũi tên phải/trái và Home/End đổi nhóm cài đặt trên dải thẻ (V3-SET-3)', async ({ page }) => {
+  // Mục lục trái là liên kết neo, không còn dải thẻ mũi tên/Home/End: bài này không còn nghĩa (S-04), giữ lại chờ quyết định.
+  test.fixme('mũi tên phải/trái và Home/End đổi nhóm cài đặt trên dải thẻ (V3-SET-3)', async ({ page }) => {
     await openSettings(page);
     const tab = (name: string): Locator => page.getByRole('tab', { name, exact: true });
 
@@ -160,12 +161,12 @@ test.describe('cài đặt dự án — bàn phím (A12)', () => {
 test.describe('cài đặt dự án — vai (V3-SET-4)', () => {
   test('kỹ sư (vai mặc định của bộ mẫu) thấy đúng ba thẻ, không có "vùng nguy hiểm"', async ({ page }) => {
     await openSettings(page);
-    await expect(page.getByRole('tab')).toHaveText(['Chung', 'Đơn vị đo', 'Thành viên']);
+    await expect(page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link')).toHaveText([/^Chung/u, /^Đơn vị đo/u, /^Thành viên/u]);
   });
 
   test('quản trị viên đăng nhập thấy thêm thẻ thứ tư "vùng nguy hiểm"', async ({ page }) => {
     await signInAs(page, 'admin', SETTINGS);
-    await expect(page.getByRole('tab')).toHaveText(['Chung', 'Đơn vị đo', 'Thành viên', 'Vùng nguy hiểm'], {
+    await expect(page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link')).toHaveText([/^Chung/u, /^Đơn vị đo/u, /^Thành viên/u, /^Vùng nguy hiểm/u], {
       timeout: FIRST_PAINT_TIMEOUT_MS,
     });
   });
@@ -175,11 +176,11 @@ test.describe('cài đặt dự án — vai (V3-SET-4)', () => {
     await expect(
       page.getByText('Vai hiện tại chỉ xem được cài đặt, không sửa và không xoá.', { exact: true }),
     ).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
-    await expect(page.getByRole('tab')).toHaveCount(3);
+    await expect(page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link')).toHaveCount(3);
 
     // Ở vai chỉ đọc, `Input` vẽ giá trị thành chữ thay vì ô nhập (`Input.tsx:54`), nên
     // "0 ô nhập bật" đo được là "0 ô nhập" — kèm mốc dương: giá trị vẫn hiện ra.
-    const general = page.getByRole('tabpanel', { name: 'Chung' });
+    const general = page.getByRole('region', { name: 'Chung' });
     await expect(general.getByText(KNOWN_ADDRESS, { exact: true })).toBeVisible();
     await expect(page.getByRole('textbox')).toHaveCount(0);
   });
@@ -196,7 +197,7 @@ test.describe('cài đặt dự án — việc nguy hiểm (A9, A12)', () => {
       page,
     }) => {
       await signInAs(page, 'admin', SETTINGS);
-      await page.getByRole('tab', { name: 'Vùng nguy hiểm' }).click();
+      await page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: 'Vùng nguy hiểm' }).click();
       await page.getByRole('button', { name: trigger, exact: true }).click();
 
       const dialog = page.getByRole('dialog', { name: title });
@@ -205,7 +206,7 @@ test.describe('cài đặt dự án — việc nguy hiểm (A9, A12)', () => {
 
       await expect(page.getByRole('dialog')).toHaveCount(0);
       expect(pathOf(page.url())).toBe(DANGER_URL);
-      await expect(page.getByRole('tab', { name: 'Vùng nguy hiểm' })).toHaveAttribute('aria-selected', 'true');
+      await expect(page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: 'Vùng nguy hiểm' })).toHaveAttribute('aria-current', 'true');
     });
   }
 
@@ -252,8 +253,8 @@ test.describe('cài đặt dự án — việc nguy hiểm (A9, A12)', () => {
 test.describe('cài đặt dự án — định dạng số (A15)', () => {
   test('thẻ "đơn vị đo" viết số thập phân bằng dấu phẩy, và nhận "1,25" gõ bằng dấu phẩy', async ({ page }) => {
     await openSettings(page);
-    await page.getByRole('tab', { name: 'Đơn vị đo', exact: true }).click();
-    const units = page.getByRole('tabpanel', { name: 'Đơn vị đo' });
+    await page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: 'Đơn vị đo' }).click();
+    const units = page.getByRole('region', { name: 'Đơn vị đo' });
 
     await expect(units.getByLabel('Ngưỡng tin cậy')).toHaveValue('0,75');
     // G3-11: dòng dưới ô ghi cách nhập kèm nghĩa phần trăm.

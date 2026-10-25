@@ -48,8 +48,8 @@ import {
 const GENERAL_LABELS = [LABEL.name, LABEL.code, LABEL.address, LABEL.buildingType, LABEL.notes] as const;
 const UNITS_LABELS = [LABEL.lengthUnit, LABEL.snap, LABEL.confidence, LABEL.scale] as const;
 
-const tablist = (page: Page) => page.getByRole('tablist', { name: TABS_LABEL, exact: true });
-const tabNames = (page: Page): Promise<string[]> => tablist(page).getByRole('tab').allTextContents();
+const tablist = (page: Page) => page.getByRole('navigation', { name: 'Mục trong trang', exact: true }); // S-04 mục lục trái
+const tabNames = (page: Page): Promise<string[]> => tablist(page).getByRole('link').allTextContents().then((names) => names.map((t) => [TAB.general, TAB.units, TAB.members, TAB.danger].find((l) => t.startsWith(l)) ?? t));
 
 /** Editable controls (textbox / combobox) named by any of `labels`. */
 async function editableCount(page: Page, labels: readonly string[]): Promise<number> {

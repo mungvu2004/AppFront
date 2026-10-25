@@ -75,7 +75,7 @@ const RESET_LINK_EXPIRED = 'Liên kết đã hết hạn hoặc đã được d�
 
 /** `ProjectDashboard.tsx:196` (h1) and `FloorManager.tsx:63,91` (h2): proof the destination painted. */
 const DASHBOARD_TITLE = 'Dự án của tôi';
-const FLOOR_MANAGER_TITLE = 'Quản lý tầng';
+const FLOOR_MANAGER_TITLE = 'Theo dõi từng tầng và làm tiếp tầng cần nhất';
 
 /** ≥ 8 chars so client validation lets it through to the server (`PasswordSchema`). Never the real one. */
 const WRONG_PASSWORD = 'sai-mat-khau-e2e-01';

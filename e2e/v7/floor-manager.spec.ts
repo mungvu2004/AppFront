@@ -42,7 +42,7 @@ function toast(page: Page) {
 
 async function open(page: Page): Promise<void> {
   await page.goto(ROUTES.project.floors(QCB_PROJECT));
-  await expect(page.getByRole('heading', { name: 'Quản lý tầng' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Theo dõi từng tầng và làm tiếp tầng cần nhất' })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 }

@@ -116,7 +116,7 @@ test('FL-U08-01 · SCR-08 · UI verify: admin states (heights, toast, refusals, 
           const h = await height(p.getByRole('combobox', { name: TABS_LABEL, exact: true }));
           if (h !== expected) sizes.push(`${String(w)}: select ${String(h)} (want ${String(expected)})`); // Select.tsx:144
         } else {
-          const h = await height(p.getByRole('tablist', { name: TABS_LABEL, exact: true }).getByRole('tab').first());
+          const h = await height(p.getByRole('navigation', { name: 'Mục trong trang', exact: true }).getByRole('link').first());
           if (h !== 36) sizes.push(`${String(w)}: tab ${String(h)} (want 36)`); // Tabs.tsx:134 h-11 sm:h-9
         }
       });
@@ -268,8 +268,8 @@ test('FL-U08-03 · SCR-08 · UI verify: viewer read-only settings', async ({ bro
         await openSettings(p, project.projectId, project.name);
         await expect(p.getByText(COPY.readOnly, { exact: true })).toBeVisible(); // PS:82-86
         await expect(textbox(p, LABEL.name)).toHaveCount(0);
-        const tablist = p.getByRole('tablist', { name: TABS_LABEL, exact: true });
-        if (await tablist.isVisible()) await expect.soft(tablist.getByRole('tab')).toHaveCount(3);
+        const tablist = p.getByRole('navigation', { name: 'Mục trong trang', exact: true });
+        if (await tablist.isVisible()) await expect.soft(tablist.getByRole('link')).toHaveCount(3);
       });
     });
   } finally {

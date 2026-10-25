@@ -286,7 +286,7 @@ describe('ProjectSettingsView, bảy trạng thái', () => {
   it('vẽ khung xương thay cho biểu mẫu khi đang tải', () => {
     render(<ProjectSettingsView {...PROPS_BY_STATE.loading()} />);
 
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Mục trong trang' })).not.toBeInTheDocument();
     expect(screen.queryByText(/^Trạng thái:/)).toBeNull();
   });
 
@@ -297,10 +297,10 @@ describe('ProjectSettingsView, bảy trạng thái', () => {
     expect(screen.queryByLabelText('Tên dự án')).not.toBeInTheDocument();
   });
 
-  it('đổi dải thẻ thành một ô chọn khi thu gọn', () => {
+  it('đổi mục lục trái thành một ô chọn khi thu gọn', () => {
     render(<ProjectSettingsView {...PROPS_BY_STATE.collapsed()} />);
 
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Mục trong trang' })).not.toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Nhóm cài đặt' })).toBeInTheDocument();
   });
 
@@ -644,8 +644,8 @@ describe('ProjectSettings đã nối dây', () => {
     await mountSettings({ gateway: spyGateway(), projectId: 'project-tab', roles: ['admin'], initialTab: 'members', onTabChange });
     await tick(MOTION_SETTLE_MS);
 
-    expect(screen.getByRole('tab', { name: 'Thành viên' })).toHaveAttribute('aria-selected', 'true');
-    fireEvent.click(screen.getByRole('tab', { name: 'Đơn vị đo' }));
+    expect(screen.getByRole('link', { name: /^Thành viên/u })).toHaveAttribute('aria-current', 'true');
+    fireEvent.click(screen.getByRole('link', { name: /^Đơn vị đo/u }));
     expect(onTabChange).toHaveBeenCalledWith('units');
   });
 
@@ -653,7 +653,7 @@ describe('ProjectSettings đã nối dây', () => {
     await mountSettings({ gateway: spyGateway(), projectId: 'project-tab-eng', roles: ['engineer'], initialTab: 'danger' });
     await tick(MOTION_SETTLE_MS);
 
-    expect(screen.getByRole('tab', { name: 'Chung' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('link', { name: /^Chung/u })).toHaveAttribute('aria-current', 'true');
   });
 
   it('đọc hỏng ở khổ hẹp: lỗi tải thắng thu gọn, không vẽ biểu mẫu trống (BUG-072)', async () => {
@@ -795,7 +795,7 @@ describe('ProjectSettings đã nối dây', () => {
 
     expect(screen.getByText(viMessages.project.settings.readOnlyNotice)).toBeInTheDocument();
     expect(screen.queryAllByRole('textbox')).toHaveLength(0);
-    expect(screen.queryByRole('tab', { name: 'Vùng nguy hiểm' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Vùng nguy hiểm/u })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Xoá dự án' })).not.toBeInTheDocument();
   });
 
@@ -811,7 +811,7 @@ describe('ProjectSettings đã nối dây', () => {
 
     const expectedName = nameField().value;
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Vùng nguy hiểm' }));
+    fireEvent.click(screen.getByRole('link', { name: /^Vùng nguy hiểm/u }));
     await tick(MOTION_SETTLE_MS);
     fireEvent.click(screen.getByRole('button', { name: 'Xoá dự án' }));
     await tick(MOTION_SETTLE_MS);
@@ -842,7 +842,7 @@ describe('ProjectSettings đã nối dây', () => {
   async function openDeleteProjectDialog(): Promise<HTMLElement> {
     const expectedName = nameField().value;
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Vùng nguy hiểm' }));
+    fireEvent.click(screen.getByRole('link', { name: /^Vùng nguy hiểm/u }));
     await tick(MOTION_SETTLE_MS);
     fireEvent.click(screen.getByRole('button', { name: 'Xoá dự án' }));
     await tick(MOTION_SETTLE_MS);
@@ -895,7 +895,7 @@ describe('ProjectSettings đã nối dây', () => {
     await mountSettings({ gateway, projectId: 'project-double-floors', roles: ['admin'] });
 
     const floorsExpectedName = nameField().value;
-    fireEvent.click(screen.getByRole('tab', { name: 'Vùng nguy hiểm' }));
+    fireEvent.click(screen.getByRole('link', { name: /^Vùng nguy hiểm/u }));
     await tick(MOTION_SETTLE_MS);
     fireEvent.click(screen.getByRole('button', { name: 'Xoá mọi tầng' }));
     await tick(MOTION_SETTLE_MS);
@@ -938,7 +938,7 @@ describe('ProjectSettings đã nối dây', () => {
     await mountSettings({ gateway: partial, projectId: 'project-partial', roles: ['admin'], onToast: (toast) => toasts.push(toast) });
 
     const floorsExpectedName = nameField().value;
-    fireEvent.click(screen.getByRole('tab', { name: 'Vùng nguy hiểm' }));
+    fireEvent.click(screen.getByRole('link', { name: /^Vùng nguy hiểm/u }));
     await tick(MOTION_SETTLE_MS);
     fireEvent.click(screen.getByRole('button', { name: 'Xoá mọi tầng' }));
     await tick(MOTION_SETTLE_MS);

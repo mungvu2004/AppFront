@@ -90,7 +90,7 @@ const ROWS = {
   // trước kia lỗi 500 của luồng ấy rơi vào mọi màn có chuông tuỳ nhịp tải, nay không màn nào được có.
   notifications: { anchor: { role: 'heading', name: 'Xem việc mới từ thông báo' } },
   dashboard: { anchor: { role: 'heading', name: 'Dự án của tôi' } },
-  projectSettings: { anchor: { role: 'heading', name: 'Cài đặt dự án' } },
+  projectSettings: { anchor: { role: 'heading', name: 'Đặt thông tin, đơn vị đo và thành viên của dự án' } },
   account: { anchor: { role: 'heading', name: 'Đổi thông tin và tuỳ chọn tài khoản' } },
   adminUsers: { anchor: { text: 'Ma trận quyền theo vai trò' } },
   adminModels: { anchor: { label: 'Tìm mẫu 3D' } },
@@ -110,7 +110,7 @@ const ROWS = {
   projectDimensions: { anchor: { role: 'region', name: 'Đọc kích thước OCR' } },
   projectGrids: { anchor: { role: 'heading', name: 'Quản lý trục và gốc toạ độ' } },
   projectRooms: { anchor: { role: 'heading', name: 'Duyệt tên phòng' } },
-  projectFloors: { anchor: { role: 'heading', name: 'Quản lý tầng' } },
+  projectFloors: { anchor: { role: 'heading', name: 'Theo dõi từng tầng và làm tiếp tầng cần nhất' } },
   projectThickness: { anchor: { role: 'heading', name: 'Chuẩn hoá độ dày tường' } },
   projectOverlay: { anchor: { role: 'region', name: 'Màn đối chiếu bản vẽ' } },
   projectViewer: { anchor: { role: 'main', name: 'Khung nhìn mô hình' } },

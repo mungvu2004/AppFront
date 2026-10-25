@@ -116,7 +116,7 @@ test.describe('phase09 shell B edge', () => {
       });
 
       await test.step('[9P-A-202] tab "Thành viên": thêm email PV rồi "Gỡ"', async () => {
-        await page.getByRole('tablist', { name: 'Nhóm cài đặt', exact: true }).getByRole('tab', { name: /^Thành viên/u }).click();
+        await page.getByRole('navigation', { name: 'Mục trong trang', exact: true }).getByRole('link', { name: /^Thành viên/u }).click();
         await page.getByRole('textbox', { name: 'Email người cần thêm', exact: true }).fill(pv.email);
         await page.getByRole('button', { name: 'Thêm thành viên', exact: true }).click(); // AMF
         const remove = page.getByRole('button', { name: `Gỡ ${pv.name}`, exact: true });
@@ -279,8 +279,8 @@ test.describe('phase09 shell B edge', () => {
       });
 
       await test.step('[9P-D-206] settings MP: tab "Vùng nguy hiểm", không dòng chỉ-xem', async () => {
-        await gotoAs(page, settingsPath(mp.projectId), 'Cài đặt dự án');
-        await expect.soft(page.getByRole('tab', { name: /^Vùng nguy hiểm/u })).toBeVisible();
+        await gotoAs(page, settingsPath(mp.projectId), 'Đặt thông tin, đơn vị đo và thành viên của dự án');
+        await expect.soft(page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: /^Vùng nguy hiểm/u })).toBeVisible();
         await expect.soft(page.getByText(SETTINGS_READ_ONLY, { exact: true })).toHaveCount(0);
         await captureEvidence(page, 'E09_9P-D-206_admin_danger_tab.png');
       });

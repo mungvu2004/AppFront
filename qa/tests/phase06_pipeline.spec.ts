@@ -433,7 +433,7 @@ const isFloorList = (entry: ApiEntry): boolean =>
 async function openVersions(): Promise<number> {
   const mark = api.length;
   await page.goto(ROUTES.project.versions(projectId));
-  await expect(page.getByRole('heading', { name: 'Lịch sử phiên bản', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^So sánh và phục hồi phiên bản/u, level: 1 })).toBeVisible();
   await expect.poll(() => api.slice(mark).some(isFloorList), { message: `no N17 200 for floor ${floorId}` }).toBe(true);
   await expect(versionList().getByRole('listitem').first()).toBeVisible();
   return mark;
@@ -515,7 +515,7 @@ test('SCR-32 · FL-M-32-01 · open the AI floor: requests, rows, default pair, c
   });
 
   await test.step('[32-C-014] diff sentences are plain Vietnamese', async () => {
-    const panel = page.getByRole('tabpanel', { name: 'Thay đổi', exact: true });
+    const panel = page.getByRole('tabpanel', { name: /^Thay đổi/u });
     await expect(panel.locator('li').first()).toBeVisible();
     const sentences = await panel.locator('li').allInnerTexts();
     expect.soft(sentences.length, 'diff rows').toBeGreaterThan(0);
@@ -529,7 +529,7 @@ test('SCR-32 · FL-M-32-01 · open the AI floor: requests, rows, default pair, c
   });
 
   await test.step('[32-C-016] groups by kind with a heading and a count', async () => {
-    const panel = page.getByRole('tabpanel', { name: 'Thay đổi', exact: true });
+    const panel = page.getByRole('tabpanel', { name: /^Thay đổi/u });
     const groups = panel.locator('section[aria-label$="thay đổi"]');
     await expect(groups.first()).toBeVisible();
     expect.soft(await groups.count(), 'at least one group').toBeGreaterThan(0);
@@ -554,7 +554,7 @@ test('SCR-32 · FL-M-32-01 · open the AI floor: requests, rows, default pair, c
     await expect.soft(compare.getByText(`−${String(removed)}`, { exact: true })).toBeVisible(); // U+2212
     await expect.soft(compare.getByText(`~${String(changed)}`, { exact: true })).toBeVisible();
     const total = [added, removed, changed].reduce((sum, value) => sum + Number(String(value).replace(/\./gu, '')), 0);
-    await expect.soft(compare.getByRole('tabpanel', { name: 'Thay đổi', exact: true }).locator('li')).toHaveCount(total);
+    await expect.soft(compare.getByRole('tabpanel', { name: /^Thay đổi/u }).locator('li')).toHaveCount(total);
     await shot('E06v', '32-C-017', 'totals');
   });
 });
@@ -588,7 +588,7 @@ test('SCR-32 · FL-M-32-02 · tabs JSON / Trực quan, visual unavailable copy, 
   });
 
   await test.step('[32-A-008] unticking one version drops to the "no pair" sentence', async () => {
-    await diffTabs().getByRole('tab', { name: 'Thay đổi', exact: true }).click();
+    await diffTabs().getByRole('tab', { name: /^Thay đổi/u }).click();
     // The input is sr-only under the drawn box; click its label like a user would (Checkbox.tsx wraps it in <label for>).
     const v1Box = page.getByRole('checkbox', { name: VH.checkbox('v1'), exact: true });
     await versionList().locator('label').filter({ has: v1Box }).click();
@@ -608,9 +608,9 @@ test('SCR-32 · FL-M-32-03 · label the newest version, toast, undo', async () =
   const labelToast = (): Locator => page.getByRole('status').filter({ hasText: 'Đã gắn nhãn' });
   let lastPatch: Awaited<ReturnType<typeof labelPatch>> | undefined;
 
-  await test.step('[32-A-019] "Gắn nhãn phiên bản này" opens the label dialog', async () => {
+  await test.step('[32-A-019] "Gắn nhãn vN" opens the label dialog', async () => {
     await openVersions();
-    await page.getByRole('button', { name: 'Gắn nhãn phiên bản này', exact: true }).click();
+    await page.getByRole('button', { name: /^Gắn nhãn v[0-9]+$/u }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText('Gắn nhãn phiên bản v2');
@@ -644,7 +644,7 @@ test('SCR-32 · FL-M-32-03 · label the newest version, toast, undo', async () =
   });
 
   await test.step('[32-C-010] a label shows as a neutral badge', async () => {
-    await page.getByRole('button', { name: 'Gắn nhãn phiên bản này', exact: true }).click();
+    await page.getByRole('button', { name: /^Gắn nhãn v[0-9]+$/u }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('textbox', { name: 'Nhãn', exact: true }).fill('e2e');
     const patch = labelPatch();
@@ -657,7 +657,7 @@ test('SCR-32 · FL-M-32-03 · label the newest version, toast, undo', async () =
   });
 
   await test.step('[32-D-001] admin sees the label and restore actions', async () => {
-    await expect.soft(page.getByRole('button', { name: 'Gắn nhãn phiên bản này', exact: true })).toBeVisible();
+    await expect.soft(page.getByRole('button', { name: /^Gắn nhãn v[0-9]+$/u })).toBeVisible();
     await expect.soft(page.getByRole('button', { name: 'Phục hồi phiên bản này', exact: true })).toBeVisible();
     await shot('E06v', '32-D-001', 'admin_actions');
   });

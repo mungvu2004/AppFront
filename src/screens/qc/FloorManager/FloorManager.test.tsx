@@ -90,14 +90,15 @@ const TABLE_CAPTION_MANUAL = 'Cao độ đang nhập tay.';
 const TABLE_CAPTION_OVERRIDE = 'Cao độ đang nhập tay. Ô ghi "Ghi đè" khác cao độ tính từ các tầng dưới.';
 const ADD_FLOOR_LABEL = 'Thêm tầng';
 const REMOVE_FLOOR_MENU_ITEM = 'Xoá tầng';
-const EXPAND_SECTION_LABEL = 'Hiện lát cắt';
+const EXPAND_SECTION_LABEL = 'Mở lát cắt';
 
 /** Tầng của bộ mẫu mà bản nghiệm thu chỉ đích danh — đọc ra, không gõ lại tên. */
 const GROUND_FLOOR = FLOOR_MANAGER_SAMPLE_LEVELS[1];
 const SECOND_FLOOR = FLOOR_MANAGER_SAMPLE_LEVELS[2];
 
 /** Chiều cao mới của Tầng trệt, ở đúng dạng người dùng gõ (A15: dấu phẩy). */
-const NEW_GROUND_HEIGHT_DRAFT = '4,2';
+/* Ô chiều cao nhập mm (bản Z): 4200 mm = 4,2 m. */
+const NEW_GROUND_HEIGHT_DRAFT = '4200';
 
 /**
  * Nhịp chốt của `NumericField`, milimét giây.
@@ -301,6 +302,8 @@ describe('[NGHIEM-3] đổi chiều cao một tầng kéo cao độ tầng trên
       console.log(`  ${line}`);
     }
 
+    /* Bản Z: số lúc nghỉ là chữ, bấm vào mới thành ô nhập. */
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^Sửa chiều cao tầng ${GROUND_FLOOR?.name ?? ''}:`) }));
     const heightField = screen.getByLabelText(`Chiều cao tầng ${GROUND_FLOOR?.name ?? ''}`);
     const clock = installFakeClock();
 
@@ -667,7 +670,7 @@ describe('bố cục gọn đo ở route (BUG-251)', () => {
 
     expect(collapse).toBeGreaterThan(-1);
     expect(indexOf(screen.getByRole('button', { name: 'Thêm tầng' }))).toBeLessThan(collapse);
-    expect(indexOf(screen.getAllByRole('button', { name: 'Tải lên' })[0]!)).toBeLessThan(collapse);
+    expect(indexOf(screen.getAllByRole('button', { name: 'Tải bản vẽ' })[0]!)).toBeLessThan(collapse);
   });
 });
 
@@ -675,7 +678,7 @@ describe('vùng chạm của nút chữ (BUG-257, BUG-270)', () => {
   it('"Tải lên", "Thu gọn lát cắt" và "Hiện lát cắt" cao 24 px, 44 px dưới sm', () => {
     const { unmount } = renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} />);
     const targets = [
-      ...screen.getAllByRole('button', { name: 'Tải lên' }),
+      ...screen.getAllByRole('button', { name: 'Tải bản vẽ' }),
       screen.getByRole('button', { name: 'Thu gọn lát cắt' }),
     ];
     unmount();
@@ -720,14 +723,14 @@ describe('cao độ bị chặn (BUG-306)', () => {
 });
 
 describe('bảng tầng vừa khung (BUG-250)', () => {
-  it('lát cắt mở: dòng xếp chồng, mỗi ô mang tên cột, không lặp "Chưa có bản vẽ"', () => {
+  it('lát cắt mở: vẫn MỘT hàng theo cột (bản Z, 6 cột), không lặp "Chưa có bản vẽ"', () => {
     renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} />);
     const table = screen.getByRole('table');
     const roof = within(table).getByRole('row', { name: /^Tầng mái, / });
 
-    expect(table.querySelector('thead')).toHaveClass('hidden');
-    expect(roof).toHaveClass('flex', 'flex-wrap');
-    expect(within(roof).getByText('Tường')).toBeInTheDocument();
+    expect(table.querySelector('thead')).not.toHaveClass('hidden');
+    expect(roof).not.toHaveClass('flex');
+    expect(within(roof).queryByText('Tiến độ')).not.toBeInTheDocument();
     expect(within(roof).getAllByText('Chưa có bản vẽ')).toHaveLength(1);
   });
 
@@ -736,7 +739,7 @@ describe('bảng tầng vừa khung (BUG-250)', () => {
     const table = screen.getByRole('table');
 
     expect(table.querySelector('thead')).not.toHaveClass('hidden');
-    expect(within(table).getAllByRole('columnheader')).toHaveLength(10);
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(6);
     for (const row of within(table).getAllByRole('row', { name: /, cao độ / })) {
       expect(row).not.toHaveClass('flex');
     }
@@ -793,8 +796,8 @@ describe('rê lên dòng bảng làm sáng dải lát cắt (BUG-519)', () => {
 describe('khung bảng có chiều cao xác định (BUG-520)', () => {
   it('vùng nội dung là cột flex lấp phần còn lại, nên khung bảng tự cuộn thay vì kéo dài trang', () => {
     renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} />);
-    const frame = screen.getByRole('table').closest('[class~="rounded-lg"]');
-    const content = frame?.closest('[class~="max-w-[1120px]"][class~="flex-1"]');
+    const frame = screen.getByRole('table').parentElement?.closest('[class~="min-h-0"][class~="overflow-auto"]');
+    const content = frame?.closest('[class~="max-w-[1280px]"][class~="flex-1"]');
 
     // `min-h-0` + `overflow-auto`: co lại và tự cuộn khi nhiều tầng; không `flex-1`, nên một
     // tầng không để lại ~400 px khung trống bên dưới (K5).
@@ -815,15 +818,16 @@ describe('người xem ở dự án rỗng (BUG-522)', () => {
 });
 
 describe('[SCR-22] lối vào Đối chiếu lớp phủ', () => {
-  it('dòng tầng có bản vẽ hiện nút "Đối chiếu lớp phủ" và bắn mã tầng', () => {
+  it('dòng tầng có bản vẽ có "Đối chiếu lớp phủ" trong menu … và bắn mã tầng', async () => {
     const onOpenOverlay = vi.fn();
 
     renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onOpenOverlay={onOpenOverlay} />);
 
-    const [first] = screen.getAllByRole('button', { name: /^Đối chiếu lớp phủ/ });
+    /* Bản Z: "Đối chiếu lớp phủ" là hành động phụ, nằm trong menu "…" của dòng. */
+    const [more] = screen.getAllByRole('button', { name: /^Thao tác khác cho tầng/ });
 
-    expect(first).toBeDefined();
-    fireEvent.click(first!);
+    fireEvent.click(more!);
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Đối chiếu lớp phủ/ }));
     expect(onOpenOverlay).toHaveBeenCalledTimes(1);
   });
 });

@@ -69,6 +69,7 @@ import {
   useFloorManager,
   type UseFloorManagerOptions,
 } from './useFloorManager';
+import { heightMmText } from './floorFormat';
 
 /* -------------------------------------------------------------------------- */
 /* Bộ mẫu — đọc ra, không viết tay lại.                                        */
@@ -650,7 +651,7 @@ describe('lát cắt', () => {
 
       expect(band.bandHeightRatio).toBeCloseTo(heightMm / TOTAL_STACK_HEIGHT_MM, 12);
       expect(band.label).toContain(
-        formatLength(heightMm, { unit: 'm', fractionDigits: 1 }),
+        `${heightMmText(heightMm)} mm`,
       );
     });
 
@@ -667,7 +668,7 @@ describe('lát cắt', () => {
     const mounted = await mountSettled();
 
     expect(mounted.result.current.footer.totalHeightText).toBe(
-      formatLength(TOTAL_STACK_HEIGHT_MM, { unit: 'm', fractionDigits: 1 }),
+      `${heightMmText(TOTAL_STACK_HEIGHT_MM)} mm`,
     );
     expect(mounted.result.current.totalHeightText).toBe(
       mounted.result.current.footer.totalHeightText,

@@ -366,7 +366,7 @@ test.describe('SCR-32 versions — AI project (PV)', () => {
       });
 
       await test.step('[32-A-042] "Xuất phiên bản này" is not offered on the route', async () => {
-        await expect(button(page, 'Xuất phiên bản này')).toHaveCount(0); // VHC:225: no onExportVersion
+        await expect(button(page, /^Xuất (phiên bản này|v[0-9]+)$/u)).toHaveCount(0); // VHC:225: no onExportVersion
         await ev(page, '32-A-042', 'no_export');
       });
 

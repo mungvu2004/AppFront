@@ -70,7 +70,7 @@ export const isDeleteProject = (id: string) => (response: { request(): { method(
 export const settle = (page: Page): Promise<void> =>
   page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
 
-export const dangerTab = (page: Page): Locator => page.getByRole('tablist', { name: DANGER.tablist }).getByRole('tab', { name: DANGER.tab });
+export const dangerTab = (page: Page): Locator => page.getByRole('navigation', { name: 'Mục trong trang', exact: true }).getByRole('link', { name: DANGER.tab });
 
 /** Swaps the case of every letter (a name that differs from `name` only by case). */
 export const swapCase = (text: string): string => [...text].map((c) => (c === c.toLowerCase() ? c.toUpperCase() : c.toLowerCase())).join('');
@@ -91,16 +91,16 @@ export async function createViaWizard(page: Page, name: string): Promise<string>
   await page.getByRole('button', { name: /^Dự án mới/u }).click();
   const dialog = page.getByRole('dialog', { name: DASH.wizard, exact: true });
   await expect(dialog).toBeVisible();
-  const next = dialog.getByRole('button', { name: 'Tiếp tục', exact: true });
+  const next = dialog.getByRole('button', { name: /^Tiếp: /u });
   await dialog.getByLabel('Tên dự án').fill(name);
   await next.click();
-  await expect(dialog.getByText('Bước 2 / 3', { exact: true }).first()).toBeVisible();
+  await expect(dialog.locator('[aria-current="step"]').filter({ hasText: 'Tầng' })).toBeVisible();
   await typeHeight(dialog.getByLabel('Chiều cao áp cho mọi tầng'), '3');
   const apply = dialog.getByRole('button', { name: 'Áp cho mọi tầng', exact: true });
   await expect(apply).toBeEnabled();
   await apply.click();
   await next.click();
-  await expect(dialog.getByText('Bước 3 / 3', { exact: true }).first()).toBeVisible();
+  await expect(dialog.locator('[aria-current="step"]').filter({ hasText: 'Xem lại' })).toBeVisible();
   const created = page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/projects');
   await dialog.getByRole('button', { name: 'Tạo dự án', exact: true }).click();
   const response = await created;

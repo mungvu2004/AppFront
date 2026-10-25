@@ -30,6 +30,7 @@ import { useRef, useState, type MouseEvent } from 'react';
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { Section } from '@/components/shell/Section';
 import { BACK_TO_PROJECTS_LABEL, PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
 import { Button } from '@/components/ui/Button';
 import { Table } from '@/components/ui/Table';
@@ -39,7 +40,6 @@ import { useContextMenu } from '@/hooks/useContextMenu';
 import { CELL, FloorTableRow } from './FloorTableRow';
 import {
   FLOOR_COLUMN_LABELS,
-  FLOOR_QC_SCORE_HINT,
   FLOOR_REVIEW_SCREENS,
   FLOOR_TOOL_SCREENS,
   type FloorManagerScreenState,
@@ -75,8 +75,6 @@ export interface FloorTableProps
     | 'onBackToProjects'
   > {
   readonly state: FloorManagerScreenState;
-  /** Dòng xếp chồng khi bảng không có cả bề ngang (BUG-250, `FloorTableRow.tsx`). */
-  readonly isStacked: boolean;
 }
 
 const EMPTY_TITLE = 'Chưa có tầng nào';
@@ -88,11 +86,22 @@ const RETRY_LABEL = 'Thử lại';
 const CAPTION_AUTO = 'Cao độ tính tự động từ chiều cao các tầng dưới.';
 const CAPTION_MANUAL = 'Cao độ đang nhập tay.';
 const CAPTION_OVERRIDE = 'Ô ghi "Ghi đè" khác cao độ tính từ các tầng dưới.';
-const AUTO_ELEVATION_LABEL = 'Tự động tính cao độ';
+const COLUMN_WIDTH: Record<string, string> = {
+  handle: 'w-10',
+  name: 'w-[34%]',
+  elevation: 'w-24',
+  height: 'w-28',
+  progress: '',
+  actions: 'w-[140px]',
+};
+const OVERLAY_ACTION_LABEL = 'Đối chiếu lớp phủ';
+const AUTO_ELEVATION_LABEL = 'Tự tính cao độ';
+const SECTION_TITLE = 'Các tầng';
+const CAPTION_REORDER = 'Kéo tay nắm hoặc dùng Alt + ↑ ↓ để đổi thứ tự.';
 
-const EDITABLE_HEADERS = (Object.keys(FLOOR_COLUMN_LABELS) as (keyof typeof FLOOR_COLUMN_LABELS)[]).map(
-  (key) => ({ key, label: FLOOR_COLUMN_LABELS[key] }),
-);
+const EDITABLE_HEADERS = (Object.keys(FLOOR_COLUMN_LABELS) as (keyof typeof FLOOR_COLUMN_LABELS)[])
+  .filter((key) => key !== 'qc')
+  .map((key) => ({ key, label: FLOOR_COLUMN_LABELS[key] }));
 
 export function FloorTable({
   state,
@@ -119,12 +128,12 @@ export function FloorTable({
   onRetry,
   isProjectMissing,
   onBackToProjects,
-  isStacked,
 }: FloorTableProps) {
   const menu = useContextMenu();
   const [duplicatingFloorId, setDuplicatingFloorId] = useState<string | null>(null);
   const [copyFurniture, setCopyFurniture] = useState(false);
-  const nameInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  /* Tên lúc nghỉ là chữ (bản Z): "Đổi tên" mở ô nhập của đúng dòng. */
+  const [renamingFloorId, setRenamingFloorId] = useState<string | null>(null);
   const draggedFloorId = useRef<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
@@ -155,20 +164,34 @@ export function FloorTable({
     setDragOverIndex(null);
   };
 
-  const headers = canEdit
-    ? EDITABLE_HEADERS
-    : EDITABLE_HEADERS.filter((header) => header.key !== 'handle' && header.key !== 'actions');
+  /* Cột hành động có mặt đúng khi dòng có ô hành động — số cột tiêu đề = số ô của dòng. */
+  const hasActions = canEdit || onOpenOverlay !== undefined || onOpenFloorScreen !== undefined;
+  const headers = EDITABLE_HEADERS.filter(
+    (header) => (canEdit || header.key !== 'handle') && (hasActions || header.key !== 'actions'),
+  );
   const columnCount = headers.length;
 
   const openRowMenu = (event: MouseEvent, row: FloorRowVm) => {
+    /* Bản Z: hành động phụ (Đối chiếu lớp phủ) vào menu "…", hàng chỉ giữ một link chính. */
+    const overlayGroup =
+      onOpenOverlay !== undefined && row.hasDrawing
+        ? [{ id: 'row-open', items: [{ id: 'overlay', label: OVERLAY_ACTION_LABEL, action: () => onOpenOverlay(row.id) }] }]
+        : [];
+
+    if (!canEdit) {
+      menu.openMenu(event.clientX, event.clientY, overlayGroup);
+      return;
+    }
+
     menu.openMenu(event.clientX, event.clientY, [
+      ...overlayGroup,
       {
         id: 'row-actions',
         items: [
           {
             id: 'rename',
             label: 'Đổi tên',
-            action: () => nameInputRefs.current[row.id]?.focus(),
+            action: () => setRenamingFloorId(row.id),
           },
           {
             id: 'duplicate',
@@ -263,35 +286,50 @@ export function FloorTable({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
-      {canEdit && state !== 'loading' && (
-        <div className="flex shrink-0 items-center gap-2">
-          <Button onClick={onAddFloor} size="sm" variant="secondary">
-            {ADD_FLOOR_LABEL}
-          </Button>
-          {selectedRow !== null && (
-            <Button
-              onClick={() => {
-                setCopyFurniture(false);
-                setDuplicatingFloorId(selectedRow.id);
-              }}
-              size="sm"
-              variant="ghost"
-            >
-              {DUPLICATE_SELECTED_LABEL}
+    <Section
+      actions={
+        canEdit && state !== 'loading' ? (
+          <>
+            <Toggle checked={isAutoElevation} label={AUTO_ELEVATION_LABEL} onChange={onToggleAutoElevation} />
+            {selectedRow !== null && (
+              <Button
+                onClick={() => {
+                  setCopyFurniture(false);
+                  setDuplicatingFloorId(selectedRow.id);
+                }}
+                size="sm"
+                variant="ghost"
+              >
+                {DUPLICATE_SELECTED_LABEL}
+              </Button>
+            )}
+            <Button onClick={onAddFloor} size="sm" variant="secondary">
+              {ADD_FLOOR_LABEL}
             </Button>
-          )}
-        </div>
-      )}
-
-      {/* Không `flex-1`: khung cao theo số tầng, chỉ co lại và tự cuộn khi nhiều tầng (BUG-520);
-          kéo giãn thì một tầng để lại ~400 px khung trống (K5). */}
-      <div className="min-h-0 overflow-auto rounded-lg border border-border-default">
-        <Table.Root>
-          <Table.Header className={isStacked ? 'hidden' : undefined}>
+          </>
+        ) : undefined
+      }
+      className="flex max-h-full min-h-0 flex-col"
+      flush
+      title={
+        <>
+          {SECTION_TITLE} <span className="ml-1 text-[13px] font-normal text-text-secondary">{rows.length}</span>
+        </>
+      }
+    >
+      {/* Không `flex-1`: khung cao theo số tầng, chỉ co lại và tự cuộn khi nhiều tầng (BUG-520). */}
+      <div className="min-h-0 overflow-auto">
+        {/* Bố cục cố định + độ rộng cột: không tràn ngang ở 1440/1024 khi lát cắt mở (bản Z). */}
+        <Table.Root className="[&>table]:table-fixed">
+          <colgroup>
+            {headers.map((header) => (
+              <col className={COLUMN_WIDTH[header.key]} key={header.key} />
+            ))}
+          </colgroup>
+          <Table.Header>
             <tr>
               {headers.map((header) => (
-                <Table.Head className={CELL} key={header.key} title={header.key === 'qc' ? FLOOR_QC_SCORE_HINT : undefined}>
+                <Table.Head className={CELL} key={header.key}>
                   {header.key === 'handle' || header.key === 'actions' ? (
                     <span className="sr-only">{header.label}</span>
                   ) : (
@@ -312,11 +350,10 @@ export function FloorTable({
                   duplicatingFloorId={duplicatingFloorId}
                   index={index}
                   isAutoElevation={isAutoElevation}
-                  isStacked={isStacked}
                   key={row.id}
-                  nameInputRef={(element) => {
-                    nameInputRefs.current[row.id] = element;
-                  }}
+                  isRenaming={renamingFloorId === row.id}
+                  onRenameEnd={() => setRenamingFloorId(null)}
+                  onRenameStart={setRenamingFloorId}
                   onCancelDuplicate={() => setDuplicatingFloorId(null)}
                   onConfirmDuplicate={(floorId) => {
                     onDuplicateFloor(floorId, { copyFurniture });
@@ -351,25 +388,17 @@ export function FloorTable({
       </div>
 
       {state !== 'loading' && (
-        <>
-          <p className="shrink-0 text-[12px] text-text-muted">{isAutoElevation ? CAPTION_AUTO : CAPTION_MANUAL}
+        <p className="border-t border-border-default px-5 py-3 text-[12px] text-text-secondary">
+          <span>
+            {isAutoElevation ? CAPTION_AUTO : CAPTION_MANUAL}
             {!isAutoElevation && rows.some((row) => row.isElevationOverridden) && ` ${CAPTION_OVERRIDE}`}
-          </p>
-          {canEdit && (
-            <Toggle
-              checked={isAutoElevation}
-              className="shrink-0"
-              label={AUTO_ELEVATION_LABEL}
-              onChange={onToggleAutoElevation}
-            />
-          )}
-          <p className="shrink-0 text-[13px] text-text-secondary">
-            {footer.floorCountText} · tổng cao {footer.totalHeightText} · {footer.totalAreaText}
-          </p>
-        </>
+          </span>{' '}
+          {canEdit && `${CAPTION_REORDER} `}
+          {footer.floorCountText} · tổng cao {footer.totalHeightText} · {footer.totalAreaText}
+        </p>
       )}
 
       <ContextMenu groups={menu.groups} isVisible={menu.isVisible} onClose={menu.closeMenu} position={menu.position} />
-    </div>
+    </Section>
   );
 }

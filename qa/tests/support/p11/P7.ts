@@ -20,7 +20,7 @@ export const P7_TEXT = {
   readOnlyLine: 'Vai hiện tại chỉ xem được cài đặt, không sửa và không xoá.', // PS:84
   backToProjects: 'Về danh sách dự án', // PS BACK_TO_PROJECTS_LABEL; NFT dashboardLabel
   retry: 'Thử lại', // PS:61-64
-  settingsTitle: 'Cài đặt dự án', // PS h1
+  settingsTitle: 'Đặt thông tin, đơn vị đo và thành viên của dự án', // PS h1
   notFoundTitle: 'Không tìm thấy trang này', // NFS TITLE_BY_REASON.missing (NF:98)
   notFoundDescription: 'Trang có thể đã bị xoá, đã chuyển chỗ, hoặc đường dẫn bị cắt mất một đoạn khi chép vào thư.', // NF:103
   gateTitle: 'Không tìm thấy dự án này', // PSGATE PROJECT_NOT_FOUND_TITLE (P10 GATE)

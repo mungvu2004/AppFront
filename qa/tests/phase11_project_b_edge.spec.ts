@@ -31,8 +31,8 @@ test.describe('phase 11 · project edge B', () => {
       await test.step('[11P-D-002] engineer: no "Vùng nguy hiểm" tab, has "Gỡ {name}"', async () => {
         await page.goto(ROUTES.project.settings(id)); // UPS:1360 tabs
         await expect(page.getByRole('heading', { name: P7_TEXT.settingsTitle, exact: true })).toBeVisible();
-        await expect(page.getByRole('tab', { name: P7_TEXT.dangerTab, exact: true })).toHaveCount(0);
-        await page.getByRole('tab', { name: P7_TEXT.membersTab, exact: true }).click(); // "Gỡ" lives in the members tab (MembersTab.tsx:69)
+        await expect(page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: P7_TEXT.dangerTab })).toHaveCount(0);
+        await page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: P7_TEXT.membersTab }).click(); // "Gỡ" lives in the members tab (MembersTab.tsx:69)
         await expect(page.getByRole('button', { name: /^Gỡ / }).first()).toBeVisible(); // MT:68-74 props.canEdit
         await captureEvidence(page, ev('11P-D-002', 'eng_nodanger'));
       });
@@ -100,8 +100,8 @@ test.describe('phase 11 · project edge B', () => {
         await page.goto(ROUTES.project.settings(id));
         await expect(page.getByRole('heading', { name: P7_TEXT.settingsTitle, exact: true })).toBeVisible();
         await expect(page.getByText(P7_TEXT.readOnlyLine, { exact: true })).toBeVisible(); // PS:84 (!canEdit)
-        await expect(page.getByRole('tab', { name: P7_TEXT.dangerTab, exact: true })).toHaveCount(0);
-        await page.getByRole('tab', { name: P7_TEXT.membersTab, exact: true }).click(); // members listed here, so "no Gỡ" is meaningful
+        await expect(page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: P7_TEXT.dangerTab })).toHaveCount(0);
+        await page.getByRole('navigation', { name: 'Mục trong trang' }).getByRole('link', { name: P7_TEXT.membersTab }).click(); // members listed here, so "no Gỡ" is meaningful
         await expect(page.getByRole('button', { name: /^Gỡ / })).toHaveCount(0); // MT:68
         await captureEvidence(page, ev('11P-B-009', 'viewer_forb'));
       });

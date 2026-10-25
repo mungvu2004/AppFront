@@ -31,7 +31,7 @@ const PROJECTS = '/api/projects';
 /* ---------------------------------------------------------------- copy (each cites its source) */
 
 export const VH = {
-  h1: 'Lịch sử phiên bản', // VH:46
+  h1: /^So sánh và phục hồi phiên bản/u, // VH: "So sánh và phục hồi phiên bản của <Tầng>"
   list: 'Danh sách phiên bản', // VL:364
   checkbox: (label: string): string => `Chọn phiên bản ${label} để so sánh`, // VL:307
   current: 'Hiện tại', // VL:94
@@ -44,7 +44,7 @@ export const VH = {
   noFloorTitle: 'Dự án chưa có tầng', // VHC:216-222
   noFloorMessage: 'Lịch sử phiên bản đi theo từng tầng. Thêm tầng và xử lý bản vẽ của nó, rồi quay lại đây.',
   restore: 'Phục hồi phiên bản này', // VH:186
-  tag: 'Gắn nhãn phiên bản này', // VH:173
+  tag: /^Gắn nhãn v[0-9]+$/u, // VH: "Gắn nhãn vN"
   loadMore: 'Xem thêm phiên bản', // VH:134-138
   pickOne: 'Chọn một phiên bản để phục hồi.', // VH:152-154
   restoreCaption:
@@ -148,7 +148,7 @@ export const versionRow = (page: Page, label: string): Locator =>
   versionList(page).getByRole('listitem').filter({ has: page.getByRole('checkbox', { name: VH.checkbox(label), exact: true }) });
 export const rowBox = (page: Page, label: string): Locator => page.getByRole('checkbox', { name: VH.checkbox(label), exact: true });
 export const diffTab = (page: Page, label: string): Locator =>
-  page.getByRole('tablist', { name: DIFF_TABS.list, exact: true }).getByRole('tab', { name: label, exact: true });
+  page.getByRole('tablist', { name: DIFF_TABS.list, exact: true }).getByRole('tab', { name: new RegExp(`^${label}`, 'u') }); // tab Thay đổi có thêm số đếm
 /** CSS, not getByRole: the inactive panels carry `hidden` (VC:226-241), which getByRole skips. */
 export const tabPanel = (page: Page, label: string): Locator => page.locator(`[role="tabpanel"][aria-label="${label}"]`);
 export const diffTabHeights = (page: Page): Promise<number[]> =>
@@ -156,7 +156,7 @@ export const diffTabHeights = (page: Page): Promise<number[]> =>
     .getByRole('tablist', { name: DIFF_TABS.list, exact: true })
     .getByRole('tab')
     .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
-export const button = (page: Page, name: string): Locator => page.getByRole('button', { name, exact: true });
+export const button = (page: Page, name: string | RegExp): Locator => page.getByRole('button', { name, exact: true });
 
 /** `/versions` with a fresh document; waits for the N17 200 of `floorId` (VHC:206). */
 export async function openVersions(page: Page, projectId: string, floorId: string, query = ''): Promise<void> {

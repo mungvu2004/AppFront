@@ -25,11 +25,15 @@ import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Modal } from '@/components/overlay/Modal';
 import { Breadcrumb } from '@/components/shell/Breadcrumb';
+import { PageHead } from '@/components/shell/PageHead';
+import { Section } from '@/components/shell/Section';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/utils';
 
-import { VersionCompare } from './VersionCompare';
+import { InlineSelect } from './InlineSelect';
+import { VersionCompare, VersionPairSelects } from './VersionCompare';
 import { VersionLabelDialog } from './VersionLabelDialog';
 import { VersionList } from './VersionList';
 import type { VersionHistoryProps } from './types';
@@ -82,36 +86,61 @@ export function VersionHistory({ model, actions, breadcrumb }: VersionHistoryPro
     </Button>
   );
 
+  // Ba câu của màn (bản Z S-37): làm gì (H1), trạng thái (chip + câu có số + đã lưu), tầng ở bên phải.
+  // Mọi số trong câu trạng thái đọc từ `model.rows`/`versionCount` — cùng nguồn với danh sách.
+  const floorName =
+    model.floorSelect?.options.find((option) => option.id === model.floorSelect?.selectedId)?.label ?? null;
+  const currentRow = model.rows.find((row) => row.isCurrent) ?? null;
+  const newestRow = model.rows[0] ?? null;
+  const status =
+    model.state === 'empty' ? (
+      <Badge variant="neutral">Chưa có phiên bản</Badge>
+    ) : model.state === 'loading' || model.state === 'error' || model.state === 'forbidden' ? null : (
+      <>
+        {currentRow !== null && <Badge variant="verified">{`Đang dùng ${currentRow.label}`}</Badge>}
+        {newestRow !== null && (
+          <span className="tabular-nums">
+            {`${String(model.versionCount)} phiên bản, mới nhất lúc ${newestRow.absoluteTimeLabel} do ${newestRow.authorName} tạo.`}
+          </span>
+        )}
+        {model.savedAtLabel !== null && <span className="text-[13px] text-text-muted">{model.savedAtLabel}</span>}
+      </>
+    );
+
   const withHeader = (content: ReactNode) => (
-    // Khổ hẹp: trang tự cao theo nội dung và khung cuộn của app cuộn nó, để khung so sánh không bị ép
-    // còn ~220 px dưới tiêu đề + hai ô chọn (V1b vòng 1). Khổ rộng giữ khung cố định, vùng so sánh tự cuộn.
-    <div className={model.isNarrow ? 'flex min-h-full flex-col gap-3' : 'flex h-full flex-col gap-3'}>
+    // Khổ hẹp: trang tự cao theo nội dung và khung cuộn của app cuộn nó (V1b vòng 1). Khổ rộng giữ
+    // khung cố định, hai khung `Section` tự cuộn bên trong để nút phục hồi luôn trên màn.
+    <div className={model.isNarrow ? 'flex min-h-full flex-col' : 'flex h-full flex-col'}>
       {breadcrumb === undefined ? null : (
         <div className="px-4 pt-4">
           <Breadcrumb items={breadcrumb} />
         </div>
       )}
-      {/* Floor picker sized to its value and set beside the title, not a 640 px row of its own (aesthetic 2.6 #2). */}
-      <div className={cn('flex flex-wrap items-end gap-x-6 gap-y-2 px-4', breadcrumb === undefined && 'pt-4')}>
-        <h1 className="text-title text-text-primary">Lịch sử phiên bản</h1>
-        {model.floorSelect !== null && model.state !== 'forbidden' && (
-          <div className="w-48">
-            <Select
-              label={model.floorSelect.label}
-              options={model.floorSelect.options.map((option) => ({ label: option.label, value: option.id }))}
-              value={model.floorSelect.selectedId}
-              onChange={actions.selectFloor}
-            />
-          </div>
-        )}
+      <div className={cn('mx-auto flex min-h-0 w-full max-w-[1344px] flex-1 flex-col px-4 pb-6 pt-6 xl:px-8', model.isNarrow && 'flex-none')}>
+        <PageHead
+          eyebrow={`${floorName === null ? '' : `${floorName} · `}Lịch sử phiên bản`}
+          title={`So sánh và phục hồi phiên bản${floorName === null ? '' : ` của ${floorName}`}`}
+          status={status}
+          next={
+            model.floorSelect !== null && model.state !== 'forbidden' ? (
+              <InlineSelect
+                label={model.floorSelect.label}
+                prefix={model.floorSelect.label}
+                options={model.floorSelect.options.map((option) => ({ label: option.label, value: option.id }))}
+                value={model.floorSelect.selectedId}
+                onChange={actions.selectFloor}
+              />
+            ) : undefined
+          }
+        />
+        {content}
       </div>
-      {content}
     </div>
   );
 
   if (model.state === 'loading') {
     return withHeader(
-      <div className="flex h-full gap-4 p-4">
+      <div className="flex h-full gap-6">
         <Skeleton preset="table-row" className="w-[360px]" />
         <Skeleton preset="property-panel" className="flex-1" />
       </div>,
@@ -141,7 +170,7 @@ export function VersionHistory({ model, actions, breadcrumb }: VersionHistoryPro
   if (model.state === 'error') {
     // Có lối ra ngay trên cảnh báo (BUG-468) và lề 16 px như ô "Tầng" phía trên.
     return withHeader(
-      <div className="px-4">
+      <div>
         <InlineAlert
           level="violation"
           title="Không tải được lịch sử phiên bản"
@@ -154,10 +183,18 @@ export function VersionHistory({ model, actions, breadcrumb }: VersionHistoryPro
     );
   }
 
-  return withHeader(
-    <div className={model.isNarrow ? 'flex flex-1 flex-col gap-3 p-4' : 'flex min-h-0 flex-1 flex-col gap-3 p-4'}>
-      {model.savedAtLabel !== null && <p className="text-[13px] text-text-secondary">{model.savedAtLabel}</p>}
+  // Tiêu đề khung so sánh nói đúng cặp đang so ("So sánh v4 với v5"); thiếu một bản thì chỉ "So sánh".
+  const leftRow = rowOf(leftVersionId);
+  const rightRow = rowOf(rightVersionId);
+  const compareTitle =
+    leftRow !== null && rightRow !== null ? `So sánh ${leftRow.label} với ${rightRow.label}` : 'So sánh';
+  // Khung `Section` bọc thân trong một <div> trơn; lớp này cho thân ấy giãn hết khung và cuộn bên trong.
+  // Chỉ thân khung (con cuối) giãn; đầu khung giữ 56 px (lỗi P1: `[&>div]` từng kéo giãn cả đầu khung).
+  const fillBody =
+    'flex min-h-0 flex-col [&>div:last-child]:flex [&>div:last-child]:min-h-0 [&>div:last-child]:flex-1 [&>div:last-child]:flex-col';
 
+  return withHeader(
+    <div className={model.isNarrow ? 'flex flex-1 flex-col gap-4' : 'flex min-h-0 flex-1 flex-col gap-4'}>
       {model.conflict !== null && (
         <InlineAlert
           level="violation"
@@ -167,7 +204,7 @@ export function VersionHistory({ model, actions, breadcrumb }: VersionHistoryPro
         />
       )}
 
-      <div className={model.isNarrow ? 'flex flex-1 flex-col gap-4' : 'flex flex-1 gap-4 overflow-hidden'}>
+      <div className={model.isNarrow ? 'flex flex-1 flex-col gap-4' : 'flex min-h-0 flex-1 gap-6'}>
         {model.isNarrow ? (
           <Select
             label="Phiên bản"
@@ -178,80 +215,84 @@ export function VersionHistory({ model, actions, breadcrumb }: VersionHistoryPro
             onChange={actions.selectRightVersion}
           />
         ) : (
-          <div className="flex w-[360px] shrink-0 flex-col border-r border-border-default">
+          <Section
+            flush
+            title="Phiên bản"
+            actions={<span className="text-[13px] text-text-secondary">Tích hai bản để so</span>}
+            className={cn('w-[360px] shrink-0', fillBody)}
+          >
             {/* N3-03: luật "tối đa hai bản" phải nói ra, không để ô xám tự giải thích. */}
-            <p className="px-3 pb-2 text-[13px] text-text-secondary">
-              Tích hai phiên bản để so sánh. Đã đủ hai thì bỏ tích một bản để chọn bản khác.
-            </p>
+            <p className="sr-only">Tích hai phiên bản để so sánh. Đã đủ hai thì bỏ tích một bản để chọn bản khác.</p>
             <VersionList
               groups={model.groups}
               onToggleCompareSelection={actions.toggleCompareSelection}
               onRetrySnapshot={actions.retrySnapshot}
             />
             {loadMore}
-          </div>
+          </Section>
         )}
         {model.isNarrow && loadMore}
 
         {/* Khổ hẹp: khung so sánh cao 70% màn (≥ 60%, V1b vòng 1); bên trong vẫn tự cuộn như khổ rộng. */}
-        <div className={cn('flex min-w-0 flex-col overflow-hidden', model.isNarrow ? 'h-[70vh] min-h-[420px] flex-none' : 'flex-1')}>
-          <VersionCompare model={model.compare} actions={actions} />
-        </div>
-      </div>
+        <Section
+          flush
+          title={<span className="sr-only xl:not-sr-only">{compareTitle}</span>}
+          actions={<VersionPairSelects model={model.compare} actions={actions} />}
+          className={cn('min-w-0 overflow-hidden', fillBody, model.isNarrow ? 'h-[70vh] min-h-[420px] flex-none' : 'flex-1')}
+        >
+          <div className="flex min-h-0 flex-1 flex-col px-5 pt-4">
+            <VersionCompare model={model.compare} actions={actions} />
+          </div>
 
-      {/* Chân màn cố định dưới khung chiều cao (vùng so sánh tự cuộn, F1); thanh phục hồi luôn trong khung.
-          Dưới `lg` ghi chú nằm trên nút (xếp chồng), nhóm nút xuống dòng thay vì đẩy trang cuộn ngang (BUG-437). */}
-      <div ref={footerRef} tabIndex={-1} data-sticky-footer="" className="sticky bottom-0 flex flex-col gap-3 border-t border-border-default bg-bg-app pt-3 lg:flex-row lg:items-center">
-        <div className="flex flex-1 flex-col gap-1">
-          <p className="text-[13px] text-text-secondary">{model.restoreCaption}</p>
-          {reviewedRow !== null && (
-            <p className="text-[13px] tabular-nums text-text-primary">
-              {restoreRow !== null && restoreRow.id !== reviewedRow.id
-                ? `Gắn nhãn và xuất áp dụng cho ${reviewedRow.label}, phục hồi về ${restoreRow.label}.`
-                : `Các nút bên phải áp dụng cho ${reviewedRow.label}.`}
-            </p>
-          )}
-          {model.canRestore && reviewedVersionId === null && (
-            <p className="text-[13px] text-text-tertiary">Chọn một phiên bản để phục hồi.</p>
-          )}
-          {!model.canRestore && model.restoreHiddenReason !== null && (
-            <p className="flex items-center gap-1.5 text-[13px] text-text-tertiary">
-              <AlertTriangle size={14} aria-hidden="true" />
-              {model.restoreHiddenReason}
-            </p>
-          )}
-        </div>
+          {/* Chân khung so sánh: câu "không xoá gì" sát nút phục hồi, luôn trong khung (vùng so sánh tự cuộn).
+              Dưới `lg` ghi chú nằm trên nút, nhóm nút xuống dòng thay vì đẩy trang cuộn ngang (BUG-437). */}
+          <div ref={footerRef} tabIndex={-1} data-sticky-footer="" className="flex flex-col gap-3 border-t border-border-default px-5 py-4 lg:flex-row lg:items-center">
+            <div className="flex flex-1 flex-col gap-1">
+              <p className="text-[13px] text-text-secondary">{model.restoreCaption}</p>
+              {reviewedRow !== null && restoreRow !== null && restoreRow.id !== reviewedRow.id && (
+                <p className="text-[13px] tabular-nums text-text-primary">
+                  {`Gắn nhãn và xuất áp dụng cho ${reviewedRow.label}, phục hồi về ${restoreRow.label}.`}
+                </p>
+              )}
+              {model.canRestore && reviewedVersionId === null && (
+                <p className="text-[13px] text-text-tertiary">Chọn một phiên bản để phục hồi.</p>
+              )}
+              {!model.canRestore && model.restoreHiddenReason !== null && (
+                <p className="flex items-center gap-1.5 text-[13px] text-text-tertiary">
+                  <AlertTriangle size={14} aria-hidden="true" />
+                  {model.restoreHiddenReason}
+                </p>
+              )}
+            </div>
 
-        <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
-          {/*
-            R-69: `canExportVersion` sai ⇒ nút RỜI KHỎI DOM, không phải bị tắt. Xuất một
-            phiên bản là điều hướng sang S-34 và khả năng ấy đúng bằng "nơi gọi có cấp
-            `onExportVersion` Không" — không có thì nút này gọi vào chỗ trống.
-          */}
-          {model.canExportVersion && reviewedVersionId !== null && (
-            <Button variant="ghost" onClick={() => actions.exportVersion(reviewedVersionId)}>
-              Xuất phiên bản này
-            </Button>
-          )}
-          {model.canTagVersion && reviewedRow !== null && (
-            <Button variant="ghost" onClick={() => setIsLabelOpen(true)}>
-              Gắn nhãn phiên bản này
-            </Button>
-          )}
-          {model.canRestore && restoreRow?.isCurrent !== true && restoreRow?.isMetadataOnly !== true && (
-            <Button
-              variant="secondary"
-              disabled={restoreVersionId === null}
-              onClick={() => {
-                if (restoreVersionId !== null) {
-                  actions.requestRestore(restoreVersionId);
-                }
-              }}
-            >
-              {restoreRow === null ? 'Phục hồi phiên bản này' : `Phục hồi về ${restoreRow.label}`}
-            </Button>
-          )}
-        </div>
+            <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
+              {/* R-69: không có `onExportVersion` ⇒ nút RỜI KHỎI DOM, không bị tắt. */}
+              {model.canTagVersion && reviewedRow !== null && (
+                <Button variant="ghost" onClick={() => setIsLabelOpen(true)}>
+                  {`Gắn nhãn ${reviewedRow.label}`}
+                </Button>
+              )}
+              {model.canExportVersion && reviewedVersionId !== null && (
+                <Button variant="ghost" onClick={() => actions.exportVersion(reviewedVersionId)}>
+                  {reviewedRow === null ? 'Xuất phiên bản này' : `Xuất ${reviewedRow.label}`}
+                </Button>
+              )}
+              {model.canRestore && restoreRow?.isCurrent !== true && restoreRow?.isMetadataOnly !== true && (
+                <Button
+                  variant="secondary"
+                  disabled={restoreVersionId === null}
+                  onClick={() => {
+                    if (restoreVersionId !== null) {
+                      actions.requestRestore(restoreVersionId);
+                    }
+                  }}
+                >
+                  {restoreRow === null ? 'Phục hồi phiên bản này' : `Phục hồi về ${restoreRow.label}`}
+                </Button>
+              )}
+            </div>
+          </div>
+        </Section>
       </div>
 
       <Modal.Root isOpen={model.restoreConfirm.isOpen} onClose={actions.cancelRestore} width={480}>

@@ -31,6 +31,7 @@ import type { DiffGroupModel, DiffRowModel, DiffTone } from './types';
 const NO_CHANGE_TITLE = 'Không có khác biệt';
 const NO_CHANGE_BODY = 'Hai phiên bản đang chọn giống nhau ở mọi đối tượng.';
 const GROUPS_LABEL = 'Danh sách thay đổi theo loại đối tượng';
+const TONE_WORD: Readonly<Record<DiffTone, string>> = { added: 'Thêm', removed: 'Xoá', changed: 'Đổi' };
 
 /**
  * Nền 8% của một hàng diff.
@@ -110,7 +111,11 @@ function DiffRowItem({ row, onHover, onPick, pinnedEntityId = null }: DiffRowIte
           })}
     >
       <DiffTint tone={row.tone} />
-      <p className="relative text-[14px] leading-relaxed text-text-primary">{row.sentence}</p>
+      {/* Loại thay đổi nói bằng chữ, không chỉ dựa vào màu nền (NGUYEN-TAC §4). */}
+      <div className="relative flex items-baseline gap-3">
+        <span className="w-12 shrink-0 text-[13px] font-medium text-text-secondary">{TONE_WORD[row.tone]}</span>
+        <p className="text-[14px] leading-relaxed text-text-primary">{row.sentence}</p>
+      </div>
     </li>
   );
 }
@@ -122,10 +127,10 @@ interface DiffGroupSectionProps extends RowWiring {
 function DiffGroupSection({ group, ...wiring }: DiffGroupSectionProps) {
   return (
     <section aria-label={`${group.heading} — ${group.countLabel}`}>
-      <h2 className="mb-2 flex items-baseline gap-2">
+      <h3 className="mb-2 flex items-baseline gap-2">
         <span className="text-[14px] font-medium text-text-primary">{group.heading}</span>
         <span className="text-[13px] tabular-nums text-text-secondary">{group.countLabel}</span>
-      </h2>
+      </h3>
       <ul className="flex flex-col gap-1">
         {group.rows.map((row) => (
           <DiffRowItem key={row.id} row={row} {...wiring} />
@@ -156,7 +161,7 @@ export function VersionDiffGroups({ groups, onHoverRow, onPickRow, pinnedEntityI
   }
 
   return (
-    <div className="flex flex-col gap-6" aria-label={GROUPS_LABEL} role="group">
+    <div className="flex flex-col gap-5" aria-label={GROUPS_LABEL} role="group">
       {groups.map((group) => (
         <DiffGroupSection
           key={group.entityType}

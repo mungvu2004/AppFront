@@ -98,7 +98,7 @@ describe('QA-06b F8 — màn Phiên bản', () => {
     view.rerender(<VersionHistory {...closed} />);
 
     expect(document.activeElement).not.toBe(document.body);
-    expect(document.activeElement?.closest('.sticky')).not.toBeNull();
+    expect(document.activeElement?.closest('[data-sticky-footer]')).not.toBeNull();
   });
 
   it('32-A-012: chọn "Phiên bản đối chiếu" đổi bản bên phải HIỂN THỊ, dù cặp được tích theo thứ tự ngược', async () => {

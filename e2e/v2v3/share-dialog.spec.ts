@@ -4,7 +4,7 @@ import type { Locator, Page } from '@playwright/test';
 import { ROUTES } from '../fixtures/routes';
 
 /**
- * Hộp thoại "Chia sẻ bản vẽ" (`ShareDialog`, không có route) — mở từ nút "chia sẻ"
+ * Hộp thoại "Chia sẻ dự án" (`ShareDialog`, không có route) — mở từ nút "chia sẻ"
  * của `ExportPanel` (`ROUTES.project.export`). Nhóm V3, kế hoạch mục 4
  * (`docs/notes/e2e/plan.md`, ca V3-SHARE-1) + phát hiện F2.
  *

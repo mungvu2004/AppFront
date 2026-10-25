@@ -143,7 +143,7 @@ const renamedToast = (name: string): string => `Đã đổi tên thành "${name}
 const createdToast = (name: string): string => `Đã tạo dự án "${name}".`; // UCPM:669
 
 /* Wizard copy. */
-const stepLabel = (step: number): string => `Bước ${String(step)} / 3`; // UCPM:684
+const stepLabel = (step: number): string => ['Thông tin công trình', 'Tầng', 'Xem lại'][step - 1] ?? ''; // WizardStatus: thanh 3 bước có tên
 const NAME_REQUIRED = 'Chưa nhập tên dự án.'; // UCPM:145
 const NAME_TOO_SHORT = 'Tên dự án cần ít nhất 3 ký tự.'; // UCPM:148, LIM:22
 const CODE_HINT = 'Tự tạo từ tên, sửa được'; // CPM:114
@@ -151,7 +151,7 @@ const DISCARD_TITLE = 'Đóng và bỏ các thay đổi chưa lưu?'; // CPM:252
 const DISCARD_HINT = 'Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đổi" để đóng.'; // CPM:253
 const DISCARD_ACTION = 'Đóng, bỏ thay đổi'; // CPM:254
 const CLOSE_DIALOG = 'Đóng hộp thoại'; // MOD:167
-const HEIGHT_MISSING = 'Chưa nhập chiều cao thông thuỷ.'; // UCPM:113
+const HEIGHT_MISSING = 'Chưa nhập chiều cao tầng (sàn–sàn).'; // UCPM:113
 /** UCPM:325, :369-373: the rows above a floor over the elevation limit name that limit, not a height (BUG-213). */
 const CHAIN_BROKEN_BY_ELEVATION = 'Chưa tính được cao độ vì một tầng bên dưới đã vượt giới hạn cao độ.';
 const ELEVATION_LIMIT = /^Cao độ vượt giới hạn cho phép \([-−]30 đến 300 mét\)\.$/u; // UCPM:131-132, LIM:30-31
@@ -350,16 +350,17 @@ const bell = (page: Page): Locator => page.getByRole('button', { name: 'Thông b
 const notificationDrawer = (page: Page): Locator => page.getByRole('dialog', { name: 'Thông báo', exact: true }); // NC:288, DRW:146-148
 const nameField = (dialog: Locator): Locator => dialog.getByLabel('Tên dự án'); // CPM:100-108
 const codeField = (dialog: Locator): Locator => dialog.getByLabel('Mã dự án'); // CPM:109-115
-const nextButton = (dialog: Locator): Locator => dialog.getByRole('button', { name: 'Tiếp tục', exact: true }); // CPM:288-290
+const nextButton = (dialog: Locator): Locator => dialog.getByRole('button', { name: /^Tiếp: /u }); // CPM:288-290
+const lockedNext = (dialog: Locator): Locator => dialog.getByRole('button', { name: /^(Nhập tên dự án|Sửa tên dự án|Sửa mã dự án|Sửa địa chỉ|Nhập chiều cao các tầng|Sửa tầng đang báo lỗi)$/u }); // createProjectGate: nút nói việc còn thiếu
 const createButton = (dialog: Locator): Locator => dialog.getByRole('button', { name: 'Tạo dự án', exact: true }); // CPM:292-294
-const stepText = (dialog: Locator, step: number): Locator => dialog.getByText(stepLabel(step), { exact: true }).first(); // CPM:259-262
+const stepText = (dialog: Locator, step: number): Locator => dialog.locator('[aria-current="step"]').filter({ hasText: stepLabel(step) }); // CPM:259-262
 /** One floor row of step 2, found by its name box (SF:87-92). */
 const floorRow = (dialog: Locator, page: Page, floorName: string): Locator =>
   dialog.getByRole('row').filter({ has: page.getByRole('textbox', { name: `Tên tầng ${floorName}`, exact: true }) });
 const elevationCell = (row: Locator): Locator => row.getByRole('cell').nth(2); // SF:106
 /** Step 3 value cell: FieldRow label span → its column div → the sibling value column (FieldRow.tsx:66-76). */
 const reviewValue = (dialog: Locator, label: string): Locator =>
-  dialog.getByText(label, { exact: true }).locator('xpath=../following-sibling::div[1]');
+  dialog.locator('dt', { hasText: new RegExp(`^${label}$`, 'u') }).locator('xpath=following-sibling::dd[1]'); // StepReview: dt/dd
 
 async function openWizard(page: Page): Promise<Locator> {
   // The button carries the `N` shortcut hint, hence the prefix match (PD:188-190, Button.tsx:102-106).
@@ -2035,10 +2036,10 @@ test.describe('E02 SCR-05 create-project wizard', () => {
 
       await nameField(dialog).fill('   ');
       await expect(alert(NAME_REQUIRED)).toBeVisible(); // UCPM:143-146
-      await expect(nextButton(dialog)).toBeDisabled();
+      await expect(nextButton(dialog)).toHaveCount(0);
       await nameField(dialog).fill('ab');
       await expect(alert(NAME_TOO_SHORT)).toBeVisible(); // UCPM:147-149
-      await expect(nextButton(dialog)).toBeDisabled();
+      await expect(nextButton(dialog)).toHaveCount(0);
       await captureEvidence(page, 'E02_wizard_step1_validation.png');
 
       await nameField(dialog).fill(' abc ');
@@ -2129,7 +2130,7 @@ test.describe('E02 SCR-05 create-project wizard', () => {
       const { page } = admin;
       const dialog = await openWizard(page);
       await toStep2(dialog, 'Dự án chiều cao');
-      await expect(nextButton(dialog)).toBeDisabled();
+      await expect(nextButton(dialog)).toHaveCount(0);
       // BUG-120: step 2 opens neutral — a row complains once the stack has been edited, and the shared field is not such an edit.
       await expect(dialog.getByRole('table').getByRole('alert')).toHaveCount(0);
       for (const name of ['Tầng 1', 'Tầng 2', 'Tầng 3']) {
@@ -2180,7 +2181,7 @@ test.describe('E02 SCR-05 create-project wizard', () => {
 
       await dialog.getByRole('button', { name: ADD_FLOOR, exact: true }).click(); // UCPM:559-566 → nextFloorName(4)
       await expect(floorRow(dialog, page, 'Tầng 4').getByRole('alert')).toHaveText(HEIGHT_MISSING);
-      await expect(nextButton(dialog)).toBeDisabled();
+      await expect(nextButton(dialog)).toHaveCount(0);
       await captureEvidence(page, 'E02_wizard_floor_rows.png');
       await dialog.getByRole('button', { name: 'Xoá Tầng 4', exact: true }).click(); // SF:108-113
       await expect(floorRow(dialog, page, 'Tầng 4')).toHaveCount(0);
@@ -2194,7 +2195,7 @@ test.describe('E02 SCR-05 create-project wizard', () => {
       }
       await expect(dialog.getByText(NO_FLOORS, { exact: true })).toBeVisible(); // SF:58-64
       await expect(dialog.getByText(NO_FLOORS_HINT, { exact: true })).toBeVisible();
-      await expect(nextButton(dialog)).toBeDisabled(); // UCPM:487
+      await expect(nextButton(dialog)).toHaveCount(0); // UCPM:487
       await expect(stateAnnouncement(dialog)).toHaveText(STATE.empty); // UCPM:498
       await captureEvidence(page, 'E02_wizard_no_floors.png');
       await dialog.getByRole('button', { name: ADD_FLOOR, exact: true }).click();
@@ -2226,7 +2227,7 @@ test.describe('E02 SCR-05 create-project wizard', () => {
       await row31.scrollIntoViewIfNeeded();
       await expect(row31.getByRole('alert')).toHaveText(ELEVATION_LIMIT); // UCPM:127-136, :260-265
       await expect(floorRow(dialog, page, 'Tầng 32').getByRole('alert')).toHaveText(CHAIN_BROKEN_BY_ELEVATION);
-      await expect(nextButton(dialog)).toBeDisabled();
+      await expect(nextButton(dialog)).toHaveCount(0);
       await captureEvidence(page, 'E02_wizard_floor_cap.png', { caption: '10 m per floor: "Tầng 31" over the 300 m elevation limit (LIM:31)' });
       await discardWizard(dialog);
     });
@@ -2238,9 +2239,11 @@ test.describe('E02 SCR-05 create-project wizard', () => {
       const dialog = await openWizard(page);
       const name = `Dự án xem lại ${Date.now().toString(36)}`;
       await nameField(dialog).fill(name);
+      await openMore(dialog);
       await dialog.getByLabel('Địa chỉ').fill('Số 1 Phố Huế');
       await dialog.getByRole('combobox').click();
       await page.getByRole('option', { name: 'Thương mại', exact: true }).click(); // UCPM:73
+      await openMore(dialog);
       await dialog.getByLabel('Ghi chú').fill('Ghi chú thử');
       const code = await codeField(dialog).inputValue();
       await nextButton(dialog).click();
@@ -2264,16 +2267,20 @@ test.describe('E02 SCR-05 create-project wizard', () => {
       await dialog.getByRole('button', { name: 'Quay lại', exact: true }).click();
       await expect(stepText(dialog, 1)).toBeVisible();
       await expect(nameField(dialog)).toHaveValue(name);
+      await openMore(dialog);
       await expect(dialog.getByLabel('Địa chỉ')).toHaveValue('Số 1 Phố Huế');
       await expect(dialog.getByRole('combobox')).toContainText('Thương mại');
+      await openMore(dialog);
       await expect(dialog.getByLabel('Ghi chú')).toHaveValue('Ghi chú thử');
 
+      await openMore(dialog);
       await dialog.getByLabel('Địa chỉ').fill('');
       await dialog.getByLabel('Ghi chú').fill('');
       await codeField(dialog).fill('');
       await nextButton(dialog).click();
       await nextButton(dialog).click();
-      for (const label of ['Mã dự án', 'Địa chỉ', 'Ghi chú']) await expect(reviewValue(dialog, label)).toHaveText('—'); // CPM:175-178
+      await expect(reviewValue(dialog, 'Mã dự án')).toHaveText('—');
+      await expect(reviewValue(dialog, 'Địa chỉ, ghi chú')).toContainText('Chưa nhập'); // StepReview: cả hai trống thì gộp một dòng
       await discardWizard(dialog);
       expect(countApi(admin.api, 'POST', PROJECTS_API)).toBe(0);
     });
@@ -2350,7 +2357,7 @@ test.describe('E02 SCR-05 create-project wizard', () => {
       await expect(dialog.getByText(CODE_TOO_LONG, { exact: true })).toBeVisible();
       await expect(codeField(dialog)).toHaveAttribute('aria-invalid', 'true');
       await expect(nameField(dialog)).not.toHaveAttribute('aria-invalid', 'true');
-      await expect(nextButton(dialog)).toBeDisabled();
+      await expect(nextButton(dialog)).toHaveCount(0);
       await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E02_wizard_code_33.png', { caption: 'code 33×"C" → "Mã dự án không quá 32 ký tự.", "Tiếp tục" locked' });
       expect(countApi(admin.api, 'POST', PROJECTS_API), 'nothing was sent').toBe(0);
@@ -3282,7 +3289,7 @@ const shortName = (letter: string): string => `${TEST_DATA_PREFIX}${letter}${Dat
 const wizardBody = (dialog: Locator): Locator => dialog.locator('[data-scroll-fade]').locator('xpath=..');
 const KEEP_EDITING = 'Tiếp tục sửa'; // CPM:216-218
 const floorNameBoxes = (dialog: Locator): Locator => dialog.getByRole('textbox', { name: /^Tên tầng/u }); // SF:112-119
-const FLOORS_HINT = 'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.'; // UCPM:474
+const FLOORS_HINT = 'Nhập chiều cao tầng (sàn–sàn) cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.'; // UCPM:474
 /** NCC:175 `--panel-clearance` = DRAWER_WIDTH_PX + 2 × DRAWER_GAP_PX (DRW:85-86). */
 const PANEL_CLEARANCE_PX = 400 + 2 * 8;
 /** WS:183 an enabled quiet link is underlined; a locked one is not (BUG-127). */
@@ -3563,12 +3570,12 @@ test.describe('E02 QA-02 FE changes (d18eb884) — SCR-05 / SCR-06 / SCR-07', ()
       await expect(dialog.getByRole('textbox', { name: `Tên tầng ${BASEMENT_NAME}`, exact: true })).toBeVisible();
       const quiet = { alerts: await table.getByRole('alert').allInnerTexts(), invalid: await table.locator('[aria-invalid="true"]').count() };
       await expect(dialog.getByText(FLOORS_HINT, { exact: true })).toBeVisible(); // UCPM:702-707
-      await expect(nextButton(dialog)).toBeDisabled();
-      await expect(nextButton(dialog)).toHaveAccessibleDescription(FLOORS_HINT); // CPM:352
+      await expect(nextButton(dialog)).toHaveCount(0);
+      await expect(lockedNext(dialog)).toHaveAccessibleDescription(FLOORS_HINT); // CPM:352
       await captureEvidence(page, 'E02_wiz_step2_quiet_edits.png', { caption: `add + delete + basement, no height yet: ${String(quiet.alerts.length)} row errors, height hint shown` });
       expect(quiet, 'no row error, no red field before a height (UCPM:717-725)').toEqual({ alerts: [], invalid: 0 });
 
-      const height = dialog.getByLabel('Chiều cao thông thuỷ tầng Tầng trệt', { exact: true }); // SF:131
+      const height = dialog.getByLabel('Chiều cao tầng (sàn–sàn) Tầng trệt', { exact: true }); // SF:131
       await height.fill('3');
       await height.press('Tab'); // UCPM:780-785 setFloorHeight → touchFloors
       await expect(floorRow(dialog, page, 'Tầng 1').getByRole('alert')).toHaveText(HEIGHT_MISSING);
@@ -3723,6 +3730,7 @@ test.describe('E02 QA-02 FE changes (d18eb884) — SCR-05 / SCR-06 / SCR-07', ()
           const { page } = admin;
           const dialog = await openWizard(page);
           await nameField(dialog).fill('Dự án hỏi trước khi đóng');
+          await openMore(dialog);
           await dialog.getByLabel('Địa chỉ').fill('12 Lê Lợi');
           const notes = dialog.getByLabel('Ghi chú'); // CPM:152-158
           await notes.fill('Ghi chú để thử');
@@ -3765,6 +3773,7 @@ test.describe('E02 QA-02 FE changes (d18eb884) — SCR-05 / SCR-06 / SCR-07', ()
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const dialog = await openWizard(page);
+      await openMore(dialog);
       const notes = dialog.getByLabel('Ghi chú');
       await notes.fill('Đang sửa ghi chú');
       await expect(notes).toBeFocused();
@@ -3921,3 +3930,9 @@ test.describe('E02 QA-02 FE changes (d18eb884) — SCR-05 / SCR-06 / SCR-07', ()
     // (mocked, as above). Write it once a touch context is set up for this file.
   });
 });
+
+/** Địa chỉ và Ghi chú nằm sau nút "Thông tin bổ sung" (StepInfo); mở nếu còn đóng. */
+async function openMore(dialog: import('@playwright/test').Locator): Promise<void> {
+  const toggle = dialog.getByRole('button', { name: /Thông tin bổ sung/u });
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
+}

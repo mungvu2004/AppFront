@@ -47,12 +47,12 @@ export async function createViaWizard(page: Page, name: string): Promise<string>
   const dialog = page.getByRole('dialog', { name: 'Tạo dự án mới', exact: true }); // CPM:243
   await expect(dialog).toBeVisible();
   await dialog.getByLabel('Tên dự án').fill(name);
-  await dialog.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
-  await expect(dialog.getByText('Bước 2 / 3', { exact: true }).first()).toBeVisible();
+  await dialog.getByRole('button', { name: /^Tiếp: /u }).click();
+  await expect(dialog.locator('[aria-current="step"]').filter({ hasText: 'Tầng' })).toBeVisible();
   await typeHeight(dialog.getByLabel('Chiều cao áp cho mọi tầng'), '3');
   await dialog.getByRole('button', { name: 'Áp cho mọi tầng', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
-  await expect(dialog.getByText('Bước 3 / 3', { exact: true }).first()).toBeVisible();
+  await dialog.getByRole('button', { name: /^Tiếp: /u }).click();
+  await expect(dialog.locator('[aria-current="step"]').filter({ hasText: 'Xem lại' })).toBeVisible();
   const created = page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/projects');
   await dialog.getByRole('button', { name: 'Tạo dự án', exact: true }).click();
   const res = await created;

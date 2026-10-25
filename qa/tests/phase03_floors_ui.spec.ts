@@ -39,7 +39,7 @@ const SECTION_REGION = 'Lát cắt các tầng theo đúng tỷ lệ chiều cao
 const ELEVATION_SCALE = 'Thang cao độ'; // FSC
 const COLLAPSE = 'Thu gọn lát cắt';
 const EXPAND = 'Hiện lát cắt';
-const AUTO_ELEVATION = 'Tự động tính cao độ';
+const AUTO_ELEVATION = 'Tự tính cao độ';
 const CAPTION_AUTO = 'Cao độ tính tự động từ chiều cao các tầng dưới.'; // FT:82
 const REFUSED_MARK = 'Chưa đặt được'; // FTR ELEVATION_REFUSED_LABEL
 const ADD_FLOOR = 'Thêm tầng';
@@ -116,7 +116,7 @@ test.describe('SCR-09 floors — UI verify', () => {
           const controls = [
             { control: 'grip', locator: page.getByRole('button', { name: `Đổi thứ tự tầng ${first}`, exact: true }), threshold: TARGET.min },
             { control: 'kebab', locator: page.getByRole('button', { name: `Thao tác khác cho tầng ${first}`, exact: true }), threshold: TARGET.min },
-            { control: 'Tải lên', locator: page.getByRole('button', { name: 'Tải lên', exact: true }).first(), threshold: textMin },
+            { control: 'Tải bản vẽ', locator: page.getByRole('button', { name: 'Tải bản vẽ', exact: true }).first(), threshold: textMin },
             { control: COLLAPSE, locator: page.getByRole('button', { name: COLLAPSE, exact: true }), threshold: textMin },
           ];
           for (const c of controls) {

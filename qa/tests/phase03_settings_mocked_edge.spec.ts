@@ -75,7 +75,7 @@ test('FL-08-13 · SCR-08 · [mocked response] settings screen load: skeleton, 50
         await page.goto(ROUTES.project.settings(project.projectId));
         await held.seen;
         await expect(page.locator('.animate-pulse').first()).toBeVisible(); // PS:108-109 Skeleton preset
-        await expect(page.getByRole('tablist')).toHaveCount(0);
+        await expect(page.getByRole('navigation', { name: 'Mục trong trang' })).toHaveCount(0);
         await expect(textbox(page, LABEL.name)).toHaveCount(0);
         await expect(saveIndicator(page)).toBeVisible(); // PS:59 shown unless state === 'error'
         await captureEvidence(page, 'E03_08-B-001_skeleton.png');
@@ -117,7 +117,7 @@ test('FL-08-13 · SCR-08 · [mocked response] settings screen load: skeleton, 50
       await expect.soft(retry, 'a 500 settings read offers "Thử lại"').toBeVisible({ timeout: 2_000 });
       await expect.soft(alert.getByRole('button', { name: COPY.backToProjects })).toHaveCount(0);
       await expect.soft(textbox(page, LABEL.name)).toHaveCount(0); // PSG:410-427 no partial form
-      await expect.soft(page.getByRole('tablist')).toHaveCount(0);
+      await expect.soft(page.getByRole('navigation', { name: 'Mục trong trang' })).toHaveCount(0);
       await expect.soft(saveIndicator(page)).toHaveCount(0); // PS:59 (BUG-078)
       await captureEvidence(page, 'E03_08-B-005_settings-500.png');
       await page.unroute(matcher, handler);

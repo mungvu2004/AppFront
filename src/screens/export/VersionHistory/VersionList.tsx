@@ -169,9 +169,9 @@ export function VersionList({
       </p>
       {groups.map((group) => (
         <div key={group.id}>
-          <h2 className="sticky top-0 bg-bg-surface px-3 py-1.5 text-[12px] font-medium text-text-tertiary">
+          <h3 className="sticky top-0 z-10 bg-bg-surface px-5 pb-1 pt-3 text-[13px] font-medium text-text-secondary">
             {group.heading}
-          </h2>
+          </h3>
           <ul>
             <AnimatePresence initial={false}>
               {group.rows.map((row) => (

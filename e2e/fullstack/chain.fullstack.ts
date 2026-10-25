@@ -247,11 +247,11 @@ async function runChain(
     const dialog = page.getByRole('dialog');
 
     await dialog.getByLabel('Tên dự án').fill(`e2e-${String(Date.now())}`);
-    await dialog.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+    await dialog.getByRole('button', { name: /^Tiếp: /u }).click();
     // Bốn tầng mặc định chưa có chiều cao: "Tiếp tục" khoá tới khi áp một chiều cao chung.
     await dialog.getByLabel('Chiều cao áp cho mọi tầng').fill(FLOOR_HEIGHT_M);
     await dialog.getByRole('button', { name: 'Áp cho mọi tầng', exact: true }).click();
-    await dialog.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+    await dialog.getByRole('button', { name: /^Tiếp: /u }).click();
 
     const created = waitForApi(page, 'POST', /^\/api\/projects$/u, [200, 201]);
 

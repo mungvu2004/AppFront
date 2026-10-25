@@ -462,13 +462,11 @@ export interface UseFloorManagerResult extends FloorManagerViewProps {
  */
 export const FLOOR_COLUMN_LABELS = {
   handle: 'Đổi thứ tự',
-  name: 'Tên tầng',
+  name: 'Tầng',
   elevation: 'Cao độ (m)',
-  height: 'Chiều cao (m)',
-  drawings: 'Bản vẽ',
-  walls: 'Tường',
-  rooms: 'Phòng',
-  area: 'Diện tích',
+  height: 'Chiều cao (mm)',
+  progress: 'Tiến độ',
+  /* Bản Z: không còn cột riêng — điểm luật đi trong dòng phụ dưới tên tầng. */
   qc: 'Điểm luật',
   actions: 'Hành động',
 } as const;

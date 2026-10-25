@@ -164,9 +164,9 @@ const field = (page: Page, label: string): Locator => page.getByRole('textbox', 
 const toastWith = (page: Page, text: string | RegExp): Locator => page.getByRole('status').filter({ hasText: text }); // TST role=status
 /** Header save chip (PS `SaveIndicator`, SI role=status). */
 const saveChip = (page: Page): Locator => page.locator('header').getByRole('status');
-const tablist = (page: Page): Locator => page.getByRole('tablist', { name: SETTINGS_TABS, exact: true });
+const tablist = (page: Page): Locator => page.getByRole('navigation', { name: 'Mục trong trang', exact: true }); // S-04: mục lục trái (link), không còn tablist
 /** A tab by its label; the accessible name may carry a problem badge after it (TABS:141-152). */
-const tab = (page: Page, label: string): Locator => tablist(page).getByRole('tab', { name: new RegExp(`^${escapeRegExp(label)}`, 'u') });
+const tab = (page: Page, label: string): Locator => tablist(page).getByRole('link', { name: new RegExp(`^${escapeRegExp(label)}`, 'u') });
 const failureBox = (page: Page): Locator => page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE });
 /** Alerts of the screen itself: the app announcer keeps a hidden `role="alert"` region on every page (announcer.ts). */
 const screenAlerts = (page: Page): Locator => page.getByRole('alert').and(page.locator(':not([data-announcer])'));
@@ -372,7 +372,7 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
 
       await test.step('[08-C-001] deep link opens "Chung"; emptied / 3 spaces → "Chưa nhập tên dự án."; no PATCH', async () => {
         await openSettings(page, project);
-        await expect(tab(page, TAB.general)).toHaveAttribute('aria-selected', 'true');
+        await expect(tab(page, TAB.general)).toHaveAttribute('aria-current', 'true');
         await expect(name).toHaveAttribute('maxlength', '80'); // GT, PSG nameMaxLength (fold: maxlength 80)
         const mark = log.length;
         await name.fill('');
@@ -397,8 +397,8 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
         expect.soft(hintId === null ? '' : await page.locator(`[id="${hintId}"]`).innerText(), 'describedby → the hint').toBe(CODE_HINT);
       });
 
-      await test.step('[08-E-002] with 1 problem the tab accessible name is "Chung1" / "Chung 1"', async () => {
-        await expect.soft(tablist(page).getByRole('tab', { name: /^Chung\s?1$/u })).toHaveCount(1);
+      await test.step('[08-E-002] with 1 problem the contents link name is "Chung Cần sửa"', async () => {
+        await expect.soft(tablist(page).getByRole('link', { name: /^Chung.?Cần sửa$/u })).toHaveCount(1);
         await captureEvidence(page, 'E03_08-E-002_tab-badge-name.png');
       });
 
@@ -476,7 +476,7 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
         const { json } = await patch;
         expect.soft(asRecord(json, '422').field, 'BE names the field').toBe('name');
         await expect.soft(page.getByRole('alert').filter({ hasText: FIELD_REJECTED })).toHaveCount(1);
-        await expect.soft(tablist(page).getByRole('tab', { name: /^Chung\s?1$/u })).toHaveCount(1);
+        await expect.soft(tablist(page).getByRole('link', { name: /^Chung.?Cần sửa$/u })).toHaveCount(1);
         await captureEvidence(page, 'E03_08-B-017_name-422-emoji.png');
         await attachJson('E03_08-B-017_name-422-emoji.json', { response: json as Json });
       });
@@ -798,7 +798,7 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
         await units();
         await page.reload();
         await expect(field(page, NAME_LABEL)).toHaveValue(project.name);
-        await expect(tab(page, TAB.general)).toHaveAttribute('aria-selected', 'true');
+        await expect(tab(page, TAB.general)).toHaveAttribute('aria-current', 'true');
         await captureEvidence(page, 'E03_08-A-003_reload-back-to-general.png');
         await units();
       });
@@ -1041,7 +1041,7 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
       await test.step('[08-E-014] both strips are role=alert; Tab reaches the strip\'s "Tải lại"', async () => {
         await expect.soft(page.getByRole('alert').filter({ hasText: CONFLICT_TITLE })).toHaveCount(1);
         await expect.soft(page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE })).toHaveCount(1);
-        await page.getByRole('heading', { name: 'Cài đặt dự án', exact: true }).click();
+        await page.getByRole('heading', { name: 'Đặt thông tin, đơn vị đo và thành viên của dự án', exact: true }).click();
         expect.soft(await tabTo(page, stripReload, 10), 'Tab reaches "Tải lại"').toBe(true);
       });
 
@@ -1349,7 +1349,7 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
       const { page, log } = s;
       const project = await seed(s, '08-a-025', 2);
       const pid = project.projectId;
-      const panel = page.getByRole('tabpanel', { name: TAB.danger });
+      const panel = page.getByRole('region', { name: TAB.danger });
       const floorsDialog = page.getByRole('dialog', { name: DANGER.deleteFloorsTitle, exact: true });
       const projectDialog = page.getByRole('dialog', { name: DANGER.deleteProjectTitle, exact: true });
       const openProjectDialog = panel.getByRole('button', { name: DANGER.deleteProject, exact: true });
@@ -1469,7 +1469,7 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
       const { page, log, api } = s;
       const project = await seed(s, '08-b-044', 1);
       const pid = project.projectId;
-      const panel = page.getByRole('tabpanel', { name: TAB.danger });
+      const panel = page.getByRole('region', { name: TAB.danger });
       const projectDialog = page.getByRole('dialog', { name: DANGER.deleteProjectTitle, exact: true });
 
       await openSettings(page, project);
@@ -1614,7 +1614,7 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
 
         await test.step('[08-F-022] 1280 without reload → tablist, "Đơn vị đo" still active; back to 800 → the select, same panel', async () => {
           await page.setViewportSize({ width: 1280, height: 900 });
-          await expect.soft(tab(page, TAB.units)).toHaveAttribute('aria-selected', 'true');
+          await expect.soft(tab(page, TAB.units)).toHaveAttribute('aria-current', 'true');
           await expect.soft(field(page, SNAP_LABEL)).toBeVisible();
           await captureEvidence(page, 'E03_08-F-022_resized-1280.png');
           await page.setViewportSize({ width: 800, height: 900 });
@@ -1629,7 +1629,7 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
           const order = [TAB.general, TAB.units, TAB.members, TAB.danger];
           await tab(page, TAB.units).focus();
           const expectActive = async (label: string, why: string): Promise<void> => {
-            await expect.soft(tab(page, label), why).toHaveAttribute('aria-selected', 'true');
+            await expect.soft(tab(page, label), why).toHaveAttribute('aria-current', 'true');
             await expect.soft(tab(page, label), `${why}: focus follows`).toBeFocused();
           };
           await page.keyboard.press('ArrowRight');
@@ -1644,7 +1644,7 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
           await expectActive(TAB.general, 'Home');
           const tabindex = await Promise.all(order.map((label) => tab(page, label).getAttribute('tabindex')));
           expect.soft(tabindex, 'only the active tab is in the Tab order').toEqual(['0', '-1', '-1', '-1']);
-          const panel = page.getByRole('tabpanel', { name: TAB.general });
+          const panel = page.getByRole('region', { name: TAB.general });
           await expect.soft(panel).toHaveAttribute('tabindex', '0');
           await captureEvidence(page, 'E03_08-E-001_tablist-keyboard.png');
         });

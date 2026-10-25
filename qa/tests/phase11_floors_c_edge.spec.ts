@@ -289,7 +289,7 @@ test.describe('SCR-09 floor manager — delete / undo (QA-11 P3)', () => {
           const undo = toast.getByRole('button', { name: 'Hoàn tác', exact: true });
           await expect(undo).toBeVisible();
           await expect.soft(toast).toHaveAttribute('aria-live', 'polite'); // TST:120-121
-          await page.getByRole('switch', { name: 'Tự động tính cao độ', exact: true }).focus(); // FT:84 — toolbar before the toast
+          await page.getByRole('switch', { name: 'Tự tính cao độ', exact: true }).focus(); // FT:84 — toolbar before the toast
           let reached = false;
           for (let i = 0; i < 60 && !reached; i += 1) {
             await page.keyboard.press('Tab');

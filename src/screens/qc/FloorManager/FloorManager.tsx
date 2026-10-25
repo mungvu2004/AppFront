@@ -61,8 +61,12 @@
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Breadcrumb } from '@/components/shell/Breadcrumb';
+import { PageHead } from '@/components/shell/PageHead';
+import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 
+import { FloorNextTask } from './FloorNextTask';
+import { nextTaskOf, stackSummaryText } from './floorProgress';
 import { FloorSectionCut } from './FloorSectionCut';
 import { FloorTable } from './FloorTable';
 import type { FloorManagerViewProps } from './floorManagerTypes';
@@ -70,9 +74,13 @@ import type { FloorManagerViewProps } from './floorManagerTypes';
 const SCREEN_TITLE = 'Quản lý tầng';
 /** Cùng component, cùng dấu "›" với màn tải bản vẽ và cổng chất lượng (BUG-079). */
 const BREADCRUMB_PROJECTS = 'Dự án';
-const SCREEN_DESCRIPTION =
-  'Xem cao độ, chiều cao và tiến độ của từng tầng, rồi sắp xếp lại ngăn xếp nếu cần.';
-const EXPAND_SECTION_LABEL = 'Hiện lát cắt';
+/* H1 bắt đầu bằng động từ (NGUYEN-TAC-BO-CUC §1, bản Z). */
+const PAGE_TITLE = 'Theo dõi từng tầng và làm tiếp tầng cần nhất';
+const PAGE_TITLE_EMPTY = 'Tạo các tầng cho dự án';
+const SECTION_CUT_BASE_PX = 120;
+const SECTION_CUT_PER_FLOOR_PX = 120;
+const SECTION_CUT_MAX_PX = 560;
+const EXPAND_SECTION_LABEL = 'Mở lát cắt';
 const FORBIDDEN_NOTICE_TITLE = 'Không có quyền sửa tầng';
 const UNSUPPORTED_NOTICES_TITLE = 'Một số thay đổi chưa được lưu';
 
@@ -95,9 +103,15 @@ export function FloorManager(props: FloorManagerViewProps) {
   /* Đọc hỏng (404, mạng, 5xx): chỉ còn câu lỗi và lối đi — câu "chỉ sống trong phiên" và
      lát cắt trống cạnh nó là nói về những tầng chưa đọc được (BUG-060). */
   const isLoadError = state === 'error';
+  const nextTask = nextTaskOf(props.rows);
+  const summaryText = stackSummaryText(props.rows);
   const sectionCut =
     isLoadError || isCollapsed ? null : (
-      <div className={cn('shrink-0 self-stretch', isCompact ? 'h-[400px] w-full' : 'w-[360px]')}>
+      <div
+        className={cn('shrink-0 self-start', isCompact ? 'w-full' : 'w-[360px]')}
+        // Khung cao theo số tầng, không kéo dài 400 px trống khi chỉ có một tầng (bản Z).
+        style={{ height: Math.min(SECTION_CUT_MAX_PX, SECTION_CUT_BASE_PX + SECTION_CUT_PER_FLOOR_PX * Math.max(1, props.bands.length)) }}
+      >
         <FloorSectionCut
           bands={props.bands}
           elevationTicks={props.elevationTicks}
@@ -112,7 +126,7 @@ export function FloorManager(props: FloorManagerViewProps) {
 
   return (
     <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col overflow-y-auto bg-bg-app" role="region">
-      <header className="mx-auto flex w-full max-w-[1120px] shrink-0 flex-col gap-1 px-8 pb-1 pt-8">
+      <div className="mx-auto flex w-full max-w-[1280px] shrink-0 flex-col gap-4 px-8 pb-4 pt-8">
         <Breadcrumb
           items={[
             // Cấp "Dự án" về được danh sách dự án khi nơi gọi cho lối về.
@@ -125,16 +139,40 @@ export function FloorManager(props: FloorManagerViewProps) {
             { id: 'floors', label: SCREEN_TITLE },
           ]}
         />
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
-          {/* Lối sang 3D là nút "Bước tiếp theo: Mô hình 3D" của thanh bước; màn không vẽ nút
-              chính thứ hai cùng đích (K5). Các màn phụ của dự án ở menu dự án trên header. */}
-        </div>
-        <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
-      </header>
+        {/* Lối sang 3D là nút của thanh bước; nút chính ở đây đi tới việc của MỘT tầng (K5). */}
+        <PageHead
+          className="mb-0"
+          eyebrow={props.projectName ? `Dự án ${props.projectName} · ${SCREEN_TITLE}` : SCREEN_TITLE}
+          status={
+            nextTask === null || summaryText === null || isLoadError ? undefined : (
+              <>
+                <Badge variant={nextTask.doneCount === nextTask.totalCount ? 'verified' : 'attention'}>
+                  {nextTask.meterText}
+                </Badge>
+                <span>{summaryText}</span>
+              </>
+            )
+          }
+          title={state === 'empty' ? PAGE_TITLE_EMPTY : PAGE_TITLE}
+        />
+        {nextTask === null || isLoadError || state === 'loading' ? null : (
+          <FloorNextTask
+            onAction={
+              nextTask.kind === 'upload'
+                ? props.canEdit
+                  ? () => props.onUploadDrawing(nextTask.floorId)
+                  : undefined
+                : props.onOpenFloorScreen === undefined
+                  ? undefined
+                  : () => props.onOpenFloorScreen?.(nextTask.floorId, 'walls')
+            }
+            task={nextTask}
+          />
+        )}
+      </div>
 
       {forbiddenNotice === null ? null : (
-        <div className="mx-auto w-full max-w-[1120px] shrink-0 px-8 pb-2">
+        <div className="mx-auto w-full max-w-[1280px] shrink-0 px-8 pb-2">
           <InlineAlert
             level="attention"
             message={forbiddenNotice}
@@ -146,7 +184,7 @@ export function FloorManager(props: FloorManagerViewProps) {
 
       {/* Một dải cho mọi khoản chưa lưu được, không một tiêu đề cộng một dải mỗi câu (BUG-287). */}
       {isLoadError || state === 'loading' || props.rows.length === 0 || unsupportedNotices.length === 0 ? null : (
-        <div className="mx-auto w-full max-w-[1120px] shrink-0 px-8 pb-2">
+        <div className="mx-auto w-full max-w-[1280px] shrink-0 px-8 pb-2">
           <InlineAlert
             level="attention"
             message={unsupportedNotices.join(' ')}
@@ -157,7 +195,7 @@ export function FloorManager(props: FloorManagerViewProps) {
       )}
 
       {duplicateElevationMessage === null ? null : (
-        <div className="mx-auto w-full max-w-[1120px] shrink-0 px-8 pb-2">
+        <div className="mx-auto w-full max-w-[1280px] shrink-0 px-8 pb-2">
           <InlineAlert level="violation" message={duplicateElevationMessage} role="status" />
         </div>
       )}
@@ -165,7 +203,7 @@ export function FloorManager(props: FloorManagerViewProps) {
       {/* Vùng nội dung lấp phần còn lại của khung và có chiều cao xác định, nên khung bảng tự
           cuộn còn "Thêm tầng" và lát cắt đứng yên — 50 tầng không kéo cả trang dài 5850 px (BUG-520).
           Khổ gọn: bảng giữ ít nhất 480 px, lát cắt nằm dưới, trang cuộn phần dư. */}
-      <div className="mx-auto flex min-h-0 w-full max-w-[1120px] flex-1 flex-col px-8 pb-8">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1280px] flex-1 flex-col px-8 pb-8">
         <div
           className={cn(
             'flex flex-1 items-stretch gap-6',
@@ -181,7 +219,8 @@ export function FloorManager(props: FloorManagerViewProps) {
           {isCompact ? null : sectionCut}
 
           {/* Khổ gọn: cột cao theo nội dung (trang cuộn phần dư), không giữ 480 px trống (K5). */}
-          <div className={cn('min-h-0 min-w-0 self-stretch', isCompact ? 'flex-none' : 'flex-1')}>
+          {/* Khung "Các tầng" cao theo bảng, không giãn bằng lát cắt (bản Z). */}
+          <div className={cn('max-h-full min-h-0 min-w-0 self-start', isCompact ? 'w-full flex-none' : 'flex-1')}>
             <FloorTable
               canEdit={props.canEdit}
               emptyNotice={props.emptyNotice}
@@ -190,8 +229,6 @@ export function FloorManager(props: FloorManagerViewProps) {
               isProjectMissing={props.isProjectMissing}
               onBackToProjects={props.onBackToProjects}
               isAutoElevation={props.isAutoElevation}
-              // Mười cột chỉ vừa khi bảng có cả bề ngang: lát cắt thu gọn, khổ rộng (BUG-250).
-              isStacked={isCompact || !isCollapsed}
               onAddFloor={props.onAddFloor}
               onDuplicateFloor={props.onDuplicateFloor}
               onFloorFieldCancel={props.onFloorFieldCancel}

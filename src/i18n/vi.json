@@ -3266,7 +3266,7 @@
     }
   },
   "shareDialog": {
-    "title": "Chia sẻ bản vẽ",
+    "title": "Chia sẻ dự án",
     "done": "Xong",
     "savedAt": "Đã lưu lúc {{time}}",
     "people": {

@@ -15,7 +15,10 @@
  * và chân trang nên container không khi nào trống — đúng điều `expectSevenStates` đòi.
  */
 
+import { Check, Lock } from 'lucide-react';
+
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Modal } from '@/components/overlay/Modal';
@@ -25,7 +28,34 @@ import { ShareDialogFooter } from './ShareDialogFooter';
 import { ShareDialogLink } from './ShareDialogLink';
 import { ShareDialogPeople } from './ShareDialogPeople';
 import { EMBED_COPY_TARGET_ID } from './types';
-import type { ShareDialogProps } from './types';
+import type { ShareDialogModel, ShareDialogProps } from './types';
+
+interface ShareStatus {
+  readonly chip: { readonly variant: 'neutral' | 'attention' | 'violation'; readonly label: string } | null;
+  readonly sentence: string;
+}
+
+/**
+ * Một nguồn trạng thái (NGUYEN-TAC-BO-CUC §1): chip và câu dưới tiêu đề đọc cùng
+ * `members`/`rows` mà ba mục bên dưới vẽ. Lời mời đang chờ chưa có dữ liệu (T-01, CẦN BE).
+ */
+function deriveShareStatus(model: ShareDialogModel): ShareStatus {
+  if (model.state === 'loading') return { chip: null, sentence: 'Đang tải người có quyền…' };
+  const people = `${String(model.members.length)} người có quyền`;
+  const liveLinks = model.rows.filter((row) => row.canRevoke).length;
+  const linkPart = !model.linksSupported
+    ? ''
+    : liveLinks === 0
+      ? '; liên kết xem đang tắt'
+      : `; ${String(liveLinks)} liên kết xem đang bật`;
+  const chip =
+    model.state === 'error'
+      ? ({ variant: 'violation', label: 'Chưa lưu được' } as const)
+      : liveLinks > 0
+        ? ({ variant: 'attention', label: 'Có liên kết xem' } as const)
+        : ({ variant: 'neutral', label: 'Chỉ người được mời' } as const);
+  return { chip, sentence: `${people}${linkPart}.` };
+}
 
 export function ShareDialog(props: ShareDialogProps) {
   return (
@@ -37,6 +67,7 @@ export function ShareDialog(props: ShareDialogProps) {
 }
 
 function ShareDialogMain({ isOpen, model, actions, titleId }: ShareDialogProps) {
+  const status = deriveShareStatus(model);
   return (
     <Modal.Root
       isOpen={isOpen}
@@ -44,10 +75,32 @@ function ShareDialogMain({ isOpen, model, actions, titleId }: ShareDialogProps) 
       width={720}
       {...(titleId !== undefined ? { titleId } : {})}
     >
-      <Modal.Header>Chia sẻ bản vẽ</Modal.Header>
+      <Modal.Header className="pb-2">
+        <span aria-hidden="true" className="mb-1 block text-[12px] font-medium uppercase leading-4 tracking-wide text-text-secondary">
+          Dự án
+        </span>
+        Chia sẻ dự án
+      </Modal.Header>
       <Modal.Body>
         <div className="flex flex-col gap-6 pb-8">
-          {model.savedAtLabel !== null && <p className="text-xs text-text-secondary">{model.savedAtLabel}</p>}
+          {/* Trạng thái: chip + một câu có số; "Đã lưu" thay nút Lưu (A7). */}
+          <div className="flex flex-col gap-2 border-b border-border-default pb-4">
+            <div className="flex flex-wrap items-center gap-3">
+              {status.chip !== null && (
+                <Badge variant={status.chip.variant} noDot>
+                  {status.chip.variant === 'neutral' && <Lock size={12} aria-hidden="true" className="mr-1" />}
+                  {status.chip.label}
+                </Badge>
+              )}
+              {model.savedAtLabel !== null && (
+                <span className="ml-auto flex items-center gap-1 text-[13px] text-text-muted">
+                  <Check size={14} aria-hidden="true" />
+                  {model.savedAtLabel}
+                </span>
+              )}
+            </div>
+            <p className="text-[14px] leading-5 text-text-secondary">{status.sentence}</p>
+          </div>
 
           {model.state === 'error' && model.errorMessage !== null && (
             <InlineAlert level="violation" message={model.errorMessage} />

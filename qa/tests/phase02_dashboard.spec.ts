@@ -234,12 +234,12 @@ test.describe('SCR-05 Dashboard (/)', () => {
     // BUG-133: a form nobody typed into is not wrong yet — a neutral hint, no error, "Tiếp tục" disabled.
     await expect(dialog.getByText('Bắt buộc, từ 3 đến 80 ký tự.', { exact: true })).toBeVisible();
     await expect(dialog.getByRole('alert')).toHaveCount(0);
-    await expect(dialog.getByRole('button', { name: 'Tiếp tục', exact: true })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: /^Tiếp: /u })).toHaveCount(0);
     // The complaint arrives with the first keystroke: with an empty name the step stays blocked.
     await dialog.getByLabel('Tên dự án').fill('a');
     await dialog.getByLabel('Tên dự án').fill('');
     await expect(dialog.getByRole('alert').filter({ hasText: 'Chưa nhập tên dự án.' })).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Tiếp tục', exact: true })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: /^Tiếp: /u })).toHaveCount(0);
     await settled(dialog);
     await captureEvidence(page, '05_wizard_validation.png');
 
@@ -255,11 +255,11 @@ test.describe('SCR-05 Dashboard (/)', () => {
     const dialog = await openWizard(page);
 
     await dialog.getByLabel('Tên dự án').fill(name);
-    await dialog.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+    await dialog.getByRole('button', { name: /^Tiếp: /u }).click();
     // The four default floors have no height yet: "Tiếp tục" stays locked until a shared height is applied.
     await dialog.getByLabel('Chiều cao áp cho mọi tầng').fill(FLOOR_HEIGHT_M);
     await dialog.getByRole('button', { name: 'Áp cho mọi tầng', exact: true }).click();
-    await dialog.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+    await dialog.getByRole('button', { name: /^Tiếp: /u }).click();
 
     const created = waitForApi(page, 'POST', /^\/api\/projects$/u, [200, 201]);
     await dialog.getByRole('button', { name: 'Tạo dự án', exact: true }).click();
@@ -458,12 +458,14 @@ test.describe('SCR-05 Dashboard (/)', () => {
 
     // Step 1 (CreateProjectModal.tsx:100-149): name, the auto code, address, "Loại công trình" Select, notes.
     await dialog.getByLabel('Tên dự án').fill(name);
+    await openMore(dialog);
     await dialog.getByLabel('Địa chỉ').fill(FULL_ADDRESS);
     await dialog.getByRole('combobox').click();
     await page.getByRole('option', { name: FULL_TYPE, exact: true }).click();
+    await openMore(dialog);
     await dialog.getByLabel('Ghi chú').fill('Ghi chú QA');
     const code = await dialog.getByLabel('Mã dự án').inputValue(); // auto from the name (useCreateProjectModal.ts:533-535)
-    await dialog.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+    await dialog.getByRole('button', { name: /^Tiếp: /u }).click();
 
     // Step 2: "Có tầng hầm" puts "Tầng hầm" first (StepFloors.tsx:34-40, useCreateProjectModal.ts:596-606).
     const basement = dialog.getByRole('switch', { name: 'Có tầng hầm' });
@@ -473,8 +475,8 @@ test.describe('SCR-05 Dashboard (/)', () => {
     await height.fill(FLOOR_HEIGHT_M);
     await height.press('Tab'); // useNumericField commits on blur (useNumericField.ts:105-111)
     await dialog.getByRole('button', { name: 'Áp cho mọi tầng', exact: true }).click();
-    await dialog.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
-    await expect(dialog.getByText('Bước 3 / 3', { exact: true }).first()).toBeVisible(); // useCreateProjectModal.ts:684
+    await dialog.getByRole('button', { name: /^Tiếp: /u }).click();
+    await expect(dialog.locator('[aria-current="step"]').filter({ hasText: 'Xem lại' })).toBeVisible(); // useCreateProjectModal.ts:684
 
     const created = waitForApi(page, 'POST', /^\/api\/projects$/u, [200, 201]);
     await dialog.getByRole('button', { name: 'Tạo dự án', exact: true }).click();
@@ -732,3 +734,9 @@ test.describe('SCR-07 Onboarding (/onboarding)', () => {
     await captureEvidence(page, '07_onboard_skip.png');
   });
 });
+
+/** Địa chỉ và Ghi chú nằm sau nút "Thông tin bổ sung" (StepInfo); mở nếu còn đóng. */
+async function openMore(dialog: import('@playwright/test').Locator): Promise<void> {
+  const toggle = dialog.getByRole('button', { name: /Thông tin bổ sung/u });
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
+}

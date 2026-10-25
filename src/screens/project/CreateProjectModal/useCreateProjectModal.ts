@@ -117,14 +117,14 @@ export interface CreateProjectFloorRowModel {
 
 function heightProblemFor(clearHeightM: number | null): string | null {
   if (clearHeightM === null) {
-    return 'Chưa nhập chiều cao thông thuỷ.';
+    return 'Chưa nhập chiều cao tầng (sàn–sàn).';
   }
   if (
     clearHeightM < PROJECT_LIMITS.storeyHeightMinM ||
     clearHeightM > PROJECT_LIMITS.storeyHeightMaxM
   ) {
     return (
-      `Chiều cao thông thuỷ áp dụng từ ${formatNumber(PROJECT_LIMITS.storeyHeightMinM)} ` +
+      `Chiều cao tầng (sàn–sàn) áp dụng từ ${formatNumber(PROJECT_LIMITS.storeyHeightMinM)} ` +
       `đến ${formatNumber(PROJECT_LIMITS.storeyHeightMaxM)} mét.`
     );
   }
@@ -346,13 +346,13 @@ function computeFloorStack(rows: readonly DraftFloorRow[]): FloorStack {
     if (chainBroken !== null) {
       // A row with no height of its own says so; only a row that HAS one is
       // waiting on the floor below (BUG-120).
-      problemById.set(row.id, row.clearHeightM === null ? 'Chưa nhập chiều cao thông thuỷ.' : chainBroken);
+      problemById.set(row.id, row.clearHeightM === null ? 'Chưa nhập chiều cao tầng (sàn–sàn).' : chainBroken);
       return;
     }
 
     const heightProblem = heightProblemFor(row.clearHeightM);
     if (heightProblem !== null || row.clearHeightM === null) {
-      problemById.set(row.id, heightProblem ?? 'Chưa nhập chiều cao thông thuỷ.');
+      problemById.set(row.id, heightProblem ?? 'Chưa nhập chiều cao tầng (sàn–sàn).');
       chainBroken = CHAIN_BROKEN_BY_HEIGHT;
       return;
     }
@@ -393,7 +393,7 @@ function computeFloorStack(rows: readonly DraftFloorRow[]): FloorStack {
   if (basement !== null) {
     const heightProblem = heightProblemFor(basement.clearHeightM);
     if (heightProblem !== null || basement.clearHeightM === null) {
-      problemById.set(basement.id, heightProblem ?? 'Chưa nhập chiều cao thông thuỷ.');
+      problemById.set(basement.id, heightProblem ?? 'Chưa nhập chiều cao tầng (sàn–sàn).');
     } else {
       const clearHeightMm = roundMeasurement(metresToMillimetres(metres(basement.clearHeightM)));
       // The ONE downward negation for the basement datum: its ceiling has to
@@ -476,7 +476,7 @@ const FLOOR_CAP_NOTE = `Đã đủ ${formatNumber(PROJECT_LIMITS.floorCountMax)}
 /** The id of step 2's "why can I not continue yet" line — `Tiếp tục` points at it. */
 export const FLOORS_HINT_ID = 'create-project-floors-hint';
 
-const FLOORS_HINT = 'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.';
+const FLOORS_HINT = 'Nhập chiều cao tầng (sàn–sàn) cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.';
 
 /** The same line once every height is in and something else still blocks step 2 (BUG-120). */
 const FLOORS_FIX_HINT = 'Sửa các tầng đang báo lỗi để sang bước xem lại.';

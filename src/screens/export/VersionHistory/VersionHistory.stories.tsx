@@ -97,7 +97,7 @@ export const ReloadBanner: Story = {
   }),
 };
 
-/** Có nhãn và nút "Gắn nhãn phiên bản này". */
+/** Có nhãn và nút "Gắn nhãn vN". */
 export const Labelled: Story = {
   args: buildVersionHistoryProps('success', { canTagVersion: true }),
 };

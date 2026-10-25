@@ -77,7 +77,7 @@ test.describe('phase 09 viewer edge (real stack)', () => {
       });
       await test.step('[9V-G-001] gắn nhãn phiên bản rồi gỡ', async () => {
         await page.goto(ROUTES.project.versions(projectId));
-        const tag = page.getByRole('button', { name: 'Gắn nhãn phiên bản này' }); // VHV:173
+        const tag = page.getByRole('button', { name: /^Gắn nhãn v[0-9]+$/u }); // VHV:173
         // a version must be reviewed first (VersionHistory.tsx:37-38: reviewed = compare right ?? left). The two newest come
         // preselected as the compare pair (versionHistoryCompare.ts:85) and a third tick is refused (p09-rr: oldest stayed
         // unchecked), so clear the pair first, then tick the oldest row (not current) so it alone is reviewed.

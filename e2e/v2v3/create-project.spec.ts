@@ -54,15 +54,15 @@ for (const host of HOSTS) {
     const dialog = await openCreateDialog(page, host);
 
     await dialog.getByLabel('Tên dự án').fill(name);
-    await dialog.getByRole('button', { name: 'tiếp tục' }).click();
+    await dialog.getByRole('button', { name: /^tiếp: /iu }).click();
 
     await dialog.getByLabel('Chiều cao áp cho mọi tầng').fill('3,2');
     await dialog.getByRole('button', { name: 'áp cho mọi tầng' }).click();
-    await dialog.getByRole('button', { name: 'tiếp tục' }).click();
+    await dialog.getByRole('button', { name: /^tiếp: /iu }).click();
 
     // A15: cao độ ở bước xem lại dùng dấu phẩy thập phân.
     await expect(dialog.getByText(/^\d,\d m$/u).first()).toBeVisible();
-    // G3-05: bước xem lại thêm cột chiều cao thông thuỷ (mọi tầng "3,2 m"), nên neo vào
+    // G3-05: bước xem lại thêm cột chiều cao tầng (sàn–sàn) (mọi tầng "3,2 m"), nên neo vào
     // cao độ tầng thứ ba — 2 × 3,2 = 6,4 — chỉ có khi chiều cao đã áp cho mọi tầng.
     await expect(dialog.getByText('6,4 m', { exact: true })).toBeVisible();
     await dialog.getByRole('button', { name: 'tạo dự án' }).click();
@@ -100,22 +100,22 @@ for (const host of HOSTS) {
   });
 }
 
-test('V3-CP-4: bước 1 khoá "tiếp tục" khi tên trống; bước 2 khoá tới khi mọi tầng có chiều cao', async ({
+test('V3-CP-4: bước 1 không có nút "Tiếp: ..." khi tên trống; bước 2 cũng không có tới khi mọi tầng có chiều cao', async ({
   page,
 }) => {
   const dialog = await openCreateDialog(page, DASHBOARD);
-  const next = dialog.getByRole('button', { name: 'tiếp tục' });
+  const next = dialog.getByRole('button', { name: /^tiếp: /iu });
 
-  await expect(next).toBeDisabled();
+  await expect(next).toHaveCount(0);
   await dialog.getByLabel('Tên dự án').fill('Dự án khoá bước');
   await expect(next).toBeEnabled();
   await next.click();
 
   // Bước 2 mở với bốn tầng chưa có chiều cao (đo 2026-10-03).
-  await expect(dialog.getByRole('status').filter({ hasText: /^Bước 2 \/ 3$/u })).toHaveCount(1);
-  await expect(next).toBeDisabled();
-  await dialog.getByLabel('chiều cao thông thuỷ tầng Tầng trệt').fill('3,2');
-  await expect(next).toBeDisabled();
+  await expect(dialog.locator('[aria-current="step"]').filter({ hasText: 'Tầng' })).toHaveCount(1);
+  await expect(next).toHaveCount(0);
+  await dialog.getByLabel('chiều cao tầng (sàn–sàn) Tầng trệt').fill('3,2');
+  await expect(next).toHaveCount(0);
 
   await dialog.getByLabel('Chiều cao áp cho mọi tầng').fill('3,2');
   await dialog.getByRole('button', { name: 'áp cho mọi tầng' }).click();
@@ -136,16 +136,16 @@ for (const host of HOSTS) {
     async ({ page }) => {
       const dialog = await openCreateDialog(page, host);
       await dialog.getByLabel('Tên dự án').fill('Dự án tạo trước');
-      await dialog.getByRole('button', { name: 'tiếp tục' }).click();
+      await dialog.getByRole('button', { name: /^tiếp: /iu }).click();
       await dialog.getByLabel('Chiều cao áp cho mọi tầng').fill('3,2');
       await dialog.getByRole('button', { name: 'áp cho mọi tầng' }).click();
-      await dialog.getByRole('button', { name: 'tiếp tục' }).click();
+      await dialog.getByRole('button', { name: /^tiếp: /iu }).click();
       await dialog.getByRole('button', { name: 'tạo dự án' }).click();
       await expect(dialog).toHaveCount(0);
 
       await page.getByRole('button', { name: host.opener }).click();
 
-      await expect(dialog.getByRole('status').filter({ hasText: /^Bước 1 \/ 3$/u })).toHaveCount(1);
+      await expect(dialog.locator('[aria-current="step"]').filter({ hasText: 'Thông tin công trình' })).toHaveCount(1);
       await expect(dialog.getByLabel('Tên dự án')).toHaveValue('');
     },
   );

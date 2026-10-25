@@ -175,6 +175,7 @@ import type {
   UseFloorManagerResult,
 } from './floorManagerTypes';
 import { QC_NOT_GRADED } from './floorManagerTypes';
+import { elevationSignedText, heightMmText } from './floorFormat';
 
 /* -------------------------------------------------------------------------- */
 /* Chuỗi cố định của màn — một chỗ duy nhất (A6: thường, kiểu câu).            */
@@ -289,7 +290,7 @@ export const floorCountText = (count: number): string =>
 
 /** Nhãn của một dải lát cắt, ví dụ `"Tầng trệt · 3,9 m"` — hook nối, view không nối. */
 export const bandLabel = (name: string, heightMm: number): string =>
-  `${name} · ${metreText(heightMm)}`;
+  `${name} · ${heightMmText(heightMm)} mm`;
 
 /**
  * `offsetRatio` ở dạng chuỗi CSS.
@@ -479,6 +480,8 @@ export interface UseFloorManagerOptions {
   readonly announcer?: Announcer;
   /** Story ép trạng thái `collapsed` mà không phải bấm nút. */
   readonly forceCollapsed?: boolean;
+  /** Lát cắt thu gọn lúc mở màn (dưới 1280 px, bản Z); người dùng vẫn mở lại được. */
+  readonly initialCollapsed?: boolean;
   /** Dưới 1.024px lát cắt xuống dưới bảng; lớp 3 đo bề rộng và truyền vào. */
   readonly isCompact?: boolean;
   /**
@@ -561,7 +564,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   const [hiddenFloorIds, setHiddenFloorIds] = useState<readonly string[]>(NO_FLOOR_IDS);
   /* Cờ dirty thật (G3-16): câu "tường, phòng, nội thất chưa lưu" chỉ đúng sau khi đã nhân bản hay xoá tầng. */
   const [hasUnsavedContents, setHasUnsavedContents] = useState(false);
-  const [ownCollapsed, setOwnCollapsed] = useState(false);
+  const [ownCollapsed, setOwnCollapsed] = useState(options.initialCollapsed ?? false);
   const [isAutoElevation, setIsAutoElevation] = useState(false);
   const [drafts, setDrafts] = useState<Readonly<Record<string, FloorRowDraft>>>({});
 
@@ -747,7 +750,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
    * trần, còn cột này cần chuỗi CÓ đơn vị mét. `formatLength` là chính hàm
    * `text` gọi bên dưới, nên mọi khung hình vẫn là một con số đúng định dạng.
    */
-  const totalHeightText = metreText(totalHeightRun.value);
+  const totalHeightText = `${heightMmText(totalHeightRun.value)} mm`;
 
   /* ---------------------------------------------------------------------- */
   /* Tiến độ QC — điểm sức khoẻ theo tầng (thay cho "P-03" không tồn tại).    */
@@ -1754,7 +1757,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
 
       return {
         id: mark.id,
-        labelText: metreText(mark.valueMm),
+        labelText: elevationSignedText(mark.valueMm),
         offsetRatio,
         offsetCssPercent: cssPercentOf(offsetRatio),
       };

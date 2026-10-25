@@ -55,7 +55,7 @@ import {
 
 /* ---------------------------------------------------------------- copy (each cites its source) */
 
-const SCREEN = 'Quản lý tầng'; // FM:70
+const SCREEN = 'Theo dõi từng tầng và làm tiếp tầng cần nhất'; // FM:70
 const SECTION = 'Lát cắt các tầng theo đúng tỷ lệ chiều cao'; // FSC:43
 const SCALE = 'Thang cao độ'; // FSC:47
 const COLLAPSE = 'Thu gọn lát cắt'; // FSC:45
@@ -63,12 +63,12 @@ const EXPAND = 'Hiện lát cắt'; // FM:75
 const BREADCRUMB_NAV = 'Đường dẫn trang'; // Breadcrumb NAV_LABEL (existing edge spec)
 const ADD = 'Thêm tầng'; // FT:78
 const DUPLICATE_SELECTED = 'Nhân bản tầng'; // FT:79
-const AUTO = 'Tự động tính cao độ'; // FT:84
+const AUTO = 'Tự tính cao độ'; // FT:84
 const COPY_FURNITURE = 'Sao chép nội thất sang tầng mới'; // FTR:57
 const CONFIRM_DUPLICATE = 'Nhân bản'; // FTR:78
 const OVERRIDDEN = 'Ghi đè'; // FTR:79
 const REFUSED_MARK = 'Chưa đặt được'; // FTR:81
-const UPLOAD_LINK = 'Tải lên'; // FTR:56
+const UPLOAD_LINK = 'Tải bản vẽ'; // FTR:56
 const NO_DRAWING = 'Chưa có bản vẽ'; // FTR:53
 const EMPTY_TITLE = 'Chưa có tầng nào'; // FT:76
 const EMPTY_NOTICE = 'Thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.'; // UFM:178
@@ -108,7 +108,7 @@ const RENAME = {
 const CONTENTS_NOTICE = 'Tường, phòng và nội thất đi theo khi nhân bản hay xoá tầng chưa được lưu; tải lại trang sẽ mất phần thay đổi đó.'; // FMG:210
 const HIDDEN_NOTICE = 'Tầng đang ẩn khỏi mô hình 3D sẽ hiện lại sau khi tải lại trang.'; // FMG:211
 /** Stacked-row cell labels (FTR:71-77 StackedLabel, floorManagerTypes.ts FLOOR_COLUMN_LABELS). */
-const CELL_LABELS = ['Cao độ (m)', 'Chiều cao (m)', 'Bản vẽ', 'Tường', 'Phòng', 'Diện tích', 'Tiến độ QC'] as const;
+const CELL_LABELS = ['Cao độ (m)', 'Chiều cao (mm)', 'Tiến độ'] as const; // S-19: Bản vẽ/Tường/Phòng/Diện tích/Điểm luật gộp vào dòng phụ
 /** UFM:205 FLOOR_RESTORE_WINDOW_MS. */
 const RESTORE_WINDOW_MS = 570_000;
 /** "Nothing was sent" waits past the 800 ms NumericField commit debounce (UNF:14). */
@@ -754,7 +754,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
 
       await test.step('[09-A-010] top floor height "3,5" → exactly one PATCH (heightMm 3500), no reorder/restack', async () => {
         const mark = log.length;
-        await commitNumber(heightInput(page, 'Tầng 3'), '3,5');
+        await commitNumber(heightInput(page, 'Tầng 3'), '3500');
         const patch = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f3.id));
         expect(bodyOf(patch).heightMm).toBe(3_500);
         await quiet(page);
@@ -763,48 +763,48 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
 
       await test.step('[09-C-022] top floor height "4.5" → PATCH heightMm 4500; field shows "4,5"', async () => {
         const mark = log.length;
-        await commitNumber(heightInput(page, 'Tầng 3'), '4.5'); // NF:267-279 a lone dot is a decimal point
+        await commitNumber(heightInput(page, 'Tầng 3'), '4500'); // ô mm: số nguyên
         const patch = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f3.id));
         expect.soft(bodyOf(patch).heightMm).toBe(4_500);
-        await expect.soft(heightInput(page, 'Tầng 3')).toHaveValue('4,5');
+        await expect.soft(heightInput(page, 'Tầng 3')).toHaveValue(mmShown(4500));
       });
 
       await test.step('[09-C-024] "3,55" → rounded to 0,1 m: PATCH heightMm 3600, field "3,6"', async () => {
         const mark = log.length;
-        await commitNumber(heightInput(page, 'Tầng 3'), '3,55'); // FTR:142 formatNumber 1 digit
+        await commitNumber(heightInput(page, 'Tầng 3'), '3550'); // ô mm: không còn làm tròn 0,1 m
         const patch = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f3.id));
-        expect.soft(bodyOf(patch).heightMm).toBe(3_600);
-        await expect.soft(heightInput(page, 'Tầng 3')).toHaveValue('3,6');
+        expect.soft(bodyOf(patch).heightMm).toBe(3_550);
+        await expect.soft(heightInput(page, 'Tầng 3')).toHaveValue(mmShown(3550));
       });
 
       await test.step('[09-C-025] "abc" and a cleared field → no request; field shows the stored value again', async () => {
         const mark = log.length;
         await commitNumber(heightInput(page, 'Tầng 3'), 'abc'); // UFM:1215-1221 null → draft cleared
-        await expect.soft(heightInput(page, 'Tầng 3')).toHaveValue('3,6');
+        await expect.soft(heightInput(page, 'Tầng 3')).toHaveValue(mmShown(3550));
         await commitNumber(heightInput(page, 'Tầng 3'), '');
         await quiet(page);
         expect.soft(floorWritesSince(log, mark)).toEqual([]);
-        await expect.soft(heightInput(page, 'Tầng 3')).toHaveValue('3,6');
+        await expect.soft(heightInput(page, 'Tầng 3')).toHaveValue(mmShown(3550));
       });
 
       await test.step('[09-C-023] "3.500" → 3500 m → PATCH heightMm 3500000 → 422 → height back to 3,6', async () => {
         const mark = log.length;
-        await commitNumber(heightInput(page, 'Tầng 3'), '3.500'); // NF:245 thousands group
+        await commitNumber(heightInput(page, 'Tầng 3'), '3500000'); // 3500 m = 3.500.000 mm
         const patch = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f3.id));
         expect(bodyOf(patch).heightMm).toBe(3_500_000);
         expect(patch.status).toBe(422);
         await readable(page, '09-C-023');
-        await expect.soft(heightInput(page, 'Tầng 3')).toHaveValue('3,6');
+        await expect.soft(heightInput(page, 'Tầng 3')).toHaveValue(mmShown(3550));
         await captureEvidence(page, 'E03_09-C-023_thousands_422.png');
       });
 
       await test.step('[09-C-020] heights 1,9 / 10,1 m → 422 + rollback; 2,0 / 10,0 m → 200; bottom elevation −30,1 m → 422', async () => {
         const results: string[] = [];
         for (const [typed, mm, status, shown] of [
-          ['1,9', 1_900, 422, '3,6'],
-          ['10,1', 10_100, 422, '3,6'],
-          ['2', 2_000, 200, '2,0'],
-          ['10', 10_000, 200, '10,0'],
+          ['1900', 1_900, 422, mmShown(3550)],
+          ['10100', 10_100, 422, mmShown(3550)],
+          ['2000', 2_000, 200, mmShown(2000)],
+          ['10000', 10_000, 200, mmShown(10000)],
         ] as const) {
           const mark = log.length;
           await commitNumber(heightInput(page, 'Tầng 3'), typed);
@@ -840,7 +840,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await readable(page, '09-C-021');
         await quiet(page);
         expect.soft(callsSince(log, mark, 'PATCH', spatialRe(projectId))).toHaveLength(1);
-        await expect.soft(heightInput(page, 'Tầng 1')).toHaveValue('3,0');
+        await expect.soft(heightInput(page, 'Tầng 1')).toHaveValue(mmShown(3000));
         await expect.soft(page.getByText('phải lớn hơn 0 m')).toHaveCount(0);
       });
 
@@ -853,7 +853,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         expect((await nthCall(log, markTop, 'PATCH', spatialOf(projectId, f3.id))).status).toBe(200);
         await expect(floorRow(page, 'Tầng 3').getByText(OVERRIDDEN, { exact: true })).toBeVisible();
         const mark = log.length;
-        await commitNumber(heightInput(page, 'Tầng 1'), '4'); // FMG:913-949 height + restack, one transaction
+        await commitNumber(heightInput(page, 'Tầng 1'), '4000'); // FMG:913-949 height + restack, one transaction
         const bottom = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f1.id));
         const middle = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f2.id));
         expect.soft(bodyOf(bottom).heightMm).toBe(4_000);
@@ -881,7 +881,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await quiet(page);
         // BUG-517: the forward change never touched Tầng 3, so its undo sends nothing for it.
         expect.soft(callsSince(log, mark, 'PATCH', spatialOf(projectId, f3.id))).toEqual([]);
-        await expect.soft(heightInput(page, 'Tầng 1')).toHaveValue('3,0');
+        await expect.soft(heightInput(page, 'Tầng 1')).toHaveValue(mmShown(3000));
         await expect.soft(elevInput(page, 'Tầng 3')).toHaveValue('8,0');
         await expect.soft(floorRow(page, 'Tầng 3').getByText(OVERRIDDEN, { exact: true })).toBeVisible();
         await captureEvidence(page, 'E03_09-A-009_height_undo.png');
@@ -889,14 +889,14 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
 
       await test.step('[09-B-020] middle height 1,5 m → first PATCH 422 → height and restacked elevations revert together', async () => {
         const mark = log.length;
-        await commitNumber(heightInput(page, 'Tầng 2'), '1,5');
+        await commitNumber(heightInput(page, 'Tầng 2'), '1500');
         const first = await nthCall(log, mark, 'PATCH', spatialRe(projectId));
         expect.soft(first.path).toMatch(spatialOf(projectId, f2.id));
         expect.soft(first.status).toBe(422);
         await readable(page, '09-B-020');
         await quiet(page);
         expect.soft(callsSince(log, mark, 'PATCH', spatialRe(projectId)), 'nothing sent after the first failure').toHaveLength(1);
-        await expect.soft(heightInput(page, 'Tầng 2')).toHaveValue('3,0');
+        await expect.soft(heightInput(page, 'Tầng 2')).toHaveValue(mmShown(3000));
         await expect.soft(elevInput(page, 'Tầng 3')).toHaveValue('8,0');
         await captureEvidence(page, 'E03_09-B-020_restack_rollback.png');
       });
@@ -1168,7 +1168,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         expect.soft(callsSince(log, mark, 'POST', floorsRe(projectId))).toEqual([]);
       });
 
-      await test.step('[09-E-007] role=switch "Tự động tính cao độ" and "Sao chép nội thất…": aria-checked false, flips on click', async () => {
+      await test.step('[09-E-007] role=switch "Tự tính cao độ" and "Sao chép nội thất…": aria-checked false, flips on click', async () => {
         const auto = autoSwitch(page);
         await expect.soft(auto).toHaveAttribute('aria-checked', 'false');
         await auto.click();
@@ -1349,7 +1349,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         expect(post.status).toBe(201);
         expect.soft(bodyOf(post)).toMatchObject({ name: 'Tầng 1', elevationMm: 0, heightMm: 2_400 }); // FMG:633-637
         await expect(floorRow(page, 'Tầng 1')).toBeVisible();
-        await expect.soft(heightInput(page, 'Tầng 1')).toHaveValue('2,4');
+        await expect.soft(heightInput(page, 'Tầng 1')).toHaveValue(mmShown(2400));
         await captureEvidence(page, 'E03_09-A-044_first_floor.png');
       });
 
@@ -1383,7 +1383,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
 
       await test.step('[09-C-028] change a floor height → the basement should stay at −3,0 m', async () => {
         const mark = log.length;
-        await commitNumber(heightInput(page, 'Tầng 1'), '3,5');
+        await commitNumber(heightInput(page, 'Tầng 1'), '3500');
         await nthCall(log, mark, 'PATCH', spatialRe(projectId));
         await quiet(page);
         const server = await readFloors(api, projectId);
@@ -1440,7 +1440,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await seed([[basement.id, -3_000, 3_000], [f1.id, 0, 3_000], [f2.id, 2_000, 3_000], [f3Id, 6_000, 3_000]]);
         const before = (await announced()).length;
         const mark = log.length;
-        await commitNumber(heightInput(page, 'Tầng 3'), '2');
+        await commitNumber(heightInput(page, 'Tầng 3'), '2000');
         expect((await nthCall(log, mark, 'PATCH', spatialOf(projectId, f3Id))).status).toBe(200);
         await expect
           .poll(async () => (await announced()).slice(before).map((x) => x.text).join(' | '), { timeout: 10_000 })
@@ -1662,4 +1662,9 @@ async function withFloors(
     },
     viewport,
   );
+}
+
+/** Ô chiều cao nhập mm (S-19): giá trị hiện ra có thể có dấu chấm ngăn nghìn tuỳ locale. */
+function mmShown(mm: number): RegExp {
+  return new RegExp(`^${String(mm).replace(/\B(?=(\d{3})+(?!\d))/gu, '[.,]?')}$`, 'u');
 }

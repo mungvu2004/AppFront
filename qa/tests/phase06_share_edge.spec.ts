@@ -30,7 +30,7 @@ import { adminRequest, openPoolFlow, qcProject, spatialRe, withAdmin } from './s
 /* ShareDialog / Export copy (each cites its source). */
 const SHARE = {
   button: 'Chia sẻ', // EPV:251 (only when SHARE_LINKS_SUPPORTED)
-  dialog: 'Chia sẻ bản vẽ', // SD:47
+  dialog: 'Chia sẻ dự án', // SD:47
   revoke: 'Thu hồi liên kết này?', // SD:100
   exportButton: 'Xuất', // EPT:69
   formats: 'Định dạng xuất', // EPF:144
@@ -87,7 +87,7 @@ test.describe('E06d SCR-30S ShareDialog (flag off)', () => {
           await captureEvidence(page, 'E06d_30S-A-001_export_no_share_button.png');
         });
 
-        await test.step('[30S-A-003] /export: no dialog "Chia sẻ bản vẽ" and no "Thu hồi liên kết này?" in the DOM', async () => {
+        await test.step('[30S-A-003] /export: no dialog "Chia sẻ dự án" and no "Thu hồi liên kết này?" in the DOM', async () => {
           // EPC:160 `{SHARE_LINKS_SUPPORTED && <ShareDialogContainer/>}`
           await expect.soft(page.getByRole('dialog', { name: SHARE.dialog })).toHaveCount(0);
           await expect.soft(page.getByText(SHARE.revoke, { exact: true })).toHaveCount(0);

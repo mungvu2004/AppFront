@@ -485,7 +485,7 @@ test.describe('X cross-screen journeys', () => {
         await page.getByRole('button', { name: ADD_FLOOR, exact: true }).click();
         const row = (await post).json as Record<string, unknown>;
         floor = { id: String(row.id), name: String(row.name) };
-        await floorRow(page, floor.name).getByRole('button', { name: 'Tải lên', exact: true }).click(); // FTR:318-327
+        await floorRow(page, floor.name).getByRole('button', { name: 'Tải bản vẽ', exact: true }).click(); // FTR:318-327
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(pid));
         await expect(card(page, floor.id)).toBeVisible();
 

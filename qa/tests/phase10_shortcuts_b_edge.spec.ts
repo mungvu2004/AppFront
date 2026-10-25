@@ -13,7 +13,7 @@ import { captureEvidence } from './support/evidence';
 import { HELP_TITLE, focusAnchor, helpDialog, nextFrame, recordApi, recordPageErrors, rowCaps, stayedOpen, trackKeys, writesOf } from './support/p10/P3';
 import { requireState } from './support/state';
 
-const FLOORS_TITLE = 'Quản lý tầng'; // FloorManager.tsx:70 (h2)
+const FLOORS_TITLE = 'Theo dõi từng tầng và làm tiếp tầng cần nhất'; // FloorManager.tsx:70 (h2)
 const BREADCRUMB_NAV = 'Đường dẫn trang'; // Breadcrumb.tsx:21
 const BREADCRUMB_PROJECTS = 'Dự án'; // FloorManager.tsx:72
 const DASHBOARD_TITLE = 'Dự án của tôi'; // ProjectDashboard.tsx:166 (h1)

@@ -138,7 +138,7 @@ describe('ExportPanelContainer — nút "chia sẻ" mở ShareDialogContainer (R
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toBeInTheDocument();
     // Tựa đề thật của `ShareDialog.tsx:37` — không phải một khung rỗng đứng thay chỗ.
-    expect(screen.getByText('Chia sẻ bản vẽ')).toBeInTheDocument();
+    expect(screen.getByText('Chia sẻ dự án')).toBeInTheDocument();
   });
 
   it('đóng hộp thoại trả `ExportPanel` về không còn hộp thoại nào (A12: có đường đóng)', async () => {

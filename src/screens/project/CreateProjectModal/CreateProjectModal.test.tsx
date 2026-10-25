@@ -144,7 +144,7 @@ const PROPS_BY_STATE: Readonly<Record<SevenState, () => CreateProjectModalViewPr
     floorRows: [
       STACKED_FLOOR_ROWS[0] as CreateProjectFloorRowModel,
       STACKED_FLOOR_ROWS[1] as CreateProjectFloorRowModel,
-      { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: null, clearHeightLabel: null, elevationLabel: null, problem: 'Chưa nhập chiều cao thông thuỷ.', nameProblem: null },
+      { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: null, clearHeightLabel: null, elevationLabel: null, problem: 'Chưa nhập chiều cao tầng (sàn–sàn).', nameProblem: null },
     ],
   }),
   error: () => ({
@@ -226,7 +226,7 @@ describe('CreateProjectModalView, seven states', () => {
     render(<CreateProjectModalView {...PROPS_BY_STATE.forbidden()} />);
 
     expect(screen.getByText('Không có quyền tạo dự án')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Tiếp tục' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Tiếp: / })).not.toBeInTheDocument();
   });
 });
 
@@ -253,7 +253,7 @@ describe('CreateProjectModalView', () => {
     expect(
       screen.getByText(/Tầng Tầng 1 bắt đầu ở cao độ 3,000 m.*chồng lấn 900 mm/),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /^Tiếp: / })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Xem tầng' }));
 
@@ -343,7 +343,7 @@ function buildGateway() {
 
 function goToStep2(name = 'Chung cư Bốn Tầng'): void {
   fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: name } });
-  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Tiếp: / }));
 }
 
 /** A gateway whose create always fails with this HTTP status and wire body — the shape `client.projects.create` returns. */
@@ -362,7 +362,7 @@ function goToReview(name = 'Chung cư Bốn Tầng'): void {
   goToStep2(name);
   setHeight('Chiều cao áp cho mọi tầng', '3');
   fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Tiếp: / }));
 }
 
 function setHeight(label: string, text: string): void {
@@ -407,10 +407,10 @@ describe('CreateProjectModal, wired to its hook', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Có tầng hầm' }));
     fireEvent.click(screen.getByRole('button', { name: 'Xoá Tầng 3' }));
 
-    setHeight('Chiều cao thông thuỷ tầng Tầng hầm', '3');
-    setHeight('Chiều cao thông thuỷ tầng Tầng trệt', '3,9');
-    setHeight('Chiều cao thông thuỷ tầng Tầng 1', '3,6');
-    setHeight('Chiều cao thông thuỷ tầng Tầng 2', '3');
+    setHeight('Chiều cao tầng (sàn–sàn) Tầng hầm', '3');
+    setHeight('Chiều cao tầng (sàn–sàn) Tầng trệt', '3,9');
+    setHeight('Chiều cao tầng (sàn–sàn) Tầng 1', '3,6');
+    setHeight('Chiều cao tầng (sàn–sàn) Tầng 2', '3');
 
     const table = {
       'Tầng hầm': await screen.findByText('-3,0 m'),
@@ -432,7 +432,7 @@ describe('CreateProjectModal, wired to its hook', () => {
     }
     // No collision warning once the stack is fully specified and non-overlapping.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /^Tiếp: / })).toBeEnabled();
   });
 
   it('opens step 2 neutral, says why it cannot continue, then names each row’s own cause (BUG-120)', () => {
@@ -441,10 +441,11 @@ describe('CreateProjectModal, wired to its hook', () => {
     goToStep2();
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    const next = screen.getByRole('button', { name: 'Tiếp tục' });
-    expect(next).toBeDisabled();
+    // No dead "Tiếp tục": the one button names what is missing, and says why.
+    expect(screen.queryByRole('button', { name: /^Tiếp: / })).not.toBeInTheDocument();
+    const next = screen.getByRole('button', { name: 'Nhập chiều cao các tầng' });
     expect(next).toHaveAccessibleDescription(
-      'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.',
+      'Nhập chiều cao tầng (sàn–sàn) cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.',
     );
 
     // Renaming, adding, the basement switch are not heights: still neutral (run-15 reopened it).
@@ -456,17 +457,17 @@ describe('CreateProjectModal, wired to its hook', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xoá Tầng 4' }));
     fireEvent.change(screen.getByLabelText('Tên tầng Tầng trệt A'), { target: { value: 'Tầng trệt' } });
 
-    setHeight('Chiều cao thông thuỷ tầng Tầng 1', '3');
+    setHeight('Chiều cao tầng (sàn–sàn) Tầng 1', '3');
 
     // The locked button keeps saying why once the rows speak, too.
     expect(next).toHaveAccessibleDescription(
-      'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.',
+      'Nhập chiều cao tầng (sàn–sàn) cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.',
     );
-    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng trệt')).toHaveAccessibleDescription('Chưa nhập chiều cao thông thuỷ.');
-    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 1')).toHaveAccessibleDescription(
+    expect(screen.getByLabelText('Chiều cao tầng (sàn–sàn) Tầng trệt')).toHaveAccessibleDescription('Chưa nhập chiều cao tầng (sàn–sàn).');
+    expect(screen.getByLabelText('Chiều cao tầng (sàn–sàn) Tầng 1')).toHaveAccessibleDescription(
       'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.',
     );
-    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 2')).toHaveAccessibleDescription('Chưa nhập chiều cao thông thuỷ.');
+    expect(screen.getByLabelText('Chiều cao tầng (sàn–sàn) Tầng 2')).toHaveAccessibleDescription('Chưa nhập chiều cao tầng (sàn–sàn).');
   });
 
   it('blames the elevation limit, not a missing height, for the rows above a floor over 300 m (BUG-213)', () => {
@@ -478,11 +479,11 @@ describe('CreateProjectModal, wired to its hook', () => {
     setHeight('Chiều cao áp cho mọi tầng', '10');
     fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
 
-    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 31')).toHaveAccessibleDescription(
+    expect(screen.getByLabelText('Chiều cao tầng (sàn–sàn) Tầng 31')).toHaveAccessibleDescription(
       'Cao độ vượt giới hạn cho phép (-30 đến 300 mét).',
     );
     for (const name of ['Tầng 32', 'Tầng 33']) {
-      expect(screen.getByLabelText(`Chiều cao thông thuỷ tầng ${name}`)).toHaveAccessibleDescription(
+      expect(screen.getByLabelText(`Chiều cao tầng (sàn–sàn) ${name}`)).toHaveAccessibleDescription(
         'Chưa tính được cao độ vì một tầng bên dưới đã vượt giới hạn cao độ.',
       );
     }
@@ -556,13 +557,13 @@ describe('CreateProjectModal, wired to its hook', () => {
     goToStep2();
     setHeight('Chiều cao áp cho mọi tầng', '3');
     fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
-    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /^Tiếp: / })).toBeEnabled();
 
     fireEvent.change(screen.getByLabelText('Tên tầng Tầng 3'), { target: { value: '   ' } });
 
     expect(screen.getByRole('alert')).toHaveTextContent('Chưa nhập tên tầng.');
-    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toHaveAccessibleDescription(
+    expect(screen.queryByRole('button', { name: /^Tiếp: / })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sửa tầng đang báo lỗi' })).toHaveAccessibleDescription(
       'Sửa các tầng đang báo lỗi để sang bước xem lại.',
     );
   });
@@ -576,7 +577,7 @@ describe('CreateProjectModal, wired to its hook', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
 
     for (const name of ['Tầng trệt', 'Tầng 1', 'Tầng 2', 'Tầng 3']) {
-      expect(screen.getByLabelText(`Chiều cao thông thuỷ tầng ${name}`)).toHaveValue('3,5');
+      expect(screen.getByLabelText(`Chiều cao tầng (sàn–sàn) ${name}`)).toHaveValue('3,5');
     }
   });
 
@@ -586,14 +587,14 @@ describe('CreateProjectModal, wired to its hook', () => {
     goToStep2();
     setHeight('Chiều cao áp cho mọi tầng', '3');
     fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
-    setHeight('Chiều cao thông thuỷ tầng Tầng trệt', '12');
-    expect((await screen.findAllByRole('alert')).map((a) => a.textContent).join(' ')).toContain('Chiều cao thông thuỷ áp dụng từ 2 đến 10 mét.');
+    setHeight('Chiều cao tầng (sàn–sàn) Tầng trệt', '12');
+    expect((await screen.findAllByRole('alert')).map((a) => a.textContent).join(' ')).toContain('Chiều cao tầng (sàn–sàn) áp dụng từ 2 đến 10 mét.');
 
     fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
 
     // G1-31 keeps the refused 12 in the row, so the apply is a write from outside and the box
     // counts 12 down to 3 (useNumericField); wait for the run to land instead of reading a frame.
-    await waitFor(() => expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng trệt')).toHaveValue('3'));
+    await waitFor(() => expect(screen.getByLabelText('Chiều cao tầng (sàn–sàn) Tầng trệt')).toHaveValue('3'));
     expect(screen.queryAllByRole('alert')).toHaveLength(0);
   });
 
@@ -641,12 +642,11 @@ describe('CreateProjectModal, wired to its hook', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xoá Tầng 3' }));
     fireEvent.click(screen.getByRole('button', { name: 'Xoá Tầng 2' }));
     fireEvent.click(screen.getByRole('button', { name: 'Xoá Tầng 1' }));
-    setHeight('Chiều cao thông thuỷ tầng Tầng trệt', '3,9');
+    setHeight('Chiều cao tầng (sàn–sàn) Tầng trệt', '3,9');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
-    // "bước 3 / 3" appears twice — the visible caption and the sr-only
-    // announcement — so the visible one is picked out by tag.
-    expect(await screen.findByText('Bước 3 / 3', { selector: 'p' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Tiếp: / }));
+    // The step bar marks "Xem lại" as the current step.
+    expect(await screen.findByText('Xem lại', { selector: '[aria-current="step"] span' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo dự án' }));
 
@@ -692,7 +692,9 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(name).not.toHaveAttribute('aria-invalid');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByText('Bắt buộc, từ 3 đến 80 ký tự.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /^Tiếp: / })).not.toBeInTheDocument();
+    // The footer's one button leads to the missing name instead of sitting dead.
+    expect(screen.getByRole('button', { name: 'Nhập tên dự án' })).toBeEnabled();
 
     fireEvent.change(name, { target: { value: 'ab' } });
     expect(screen.getByRole('alert')).toHaveTextContent('Tên dự án cần ít nhất 3 ký tự.');
@@ -704,19 +706,25 @@ describe('CreateProjectModal, wired to its hook', () => {
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
 
     fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: 'Chung cư Dài' } });
-    const next = screen.getByRole('button', { name: 'Tiếp tục' });
+    const next = (): HTMLElement | null => screen.queryByRole('button', { name: /^Tiếp: / });
+    expect(next()).toBeEnabled();
 
     fireEvent.change(screen.getByLabelText('Mã dự án'), { target: { value: 'C'.repeat(33) } });
     expect(screen.getByLabelText('Mã dự án')).toHaveAccessibleDescription('Mã dự án không quá 32 ký tự.');
-    expect(next).toBeDisabled();
+    expect(next()).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa mã dự án' }));
+    expect(screen.getByLabelText('Mã dự án')).toHaveFocus();
     fireEvent.change(screen.getByLabelText('Mã dự án'), { target: { value: ` ${'C'.repeat(32)} ` } });
-    expect(next).toBeEnabled();
+    expect(next()).toBeEnabled();
 
+    // Address sits under "Thông tin bổ sung", folded until asked for.
+    fireEvent.click(screen.getByRole('button', { name: /Thông tin bổ sung/u }));
     fireEvent.change(screen.getByLabelText('Địa chỉ'), { target: { value: 'A'.repeat(201) } });
     expect(screen.getByLabelText('Địa chỉ')).toHaveAccessibleDescription('Địa chỉ không quá 200 ký tự.');
-    expect(next).toBeDisabled();
+    expect(next()).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sửa địa chỉ' })).toBeEnabled();
     fireEvent.change(screen.getByLabelText('Địa chỉ'), { target: { value: 'A'.repeat(200) } });
-    expect(next).toBeEnabled();
+    expect(next()).toBeEnabled();
   });
 
   it('never ends a generated code on a dangling "-"', () => {
@@ -814,7 +822,7 @@ describe('CreateProjectModal, wired to its hook', () => {
     goToStep2('Chung cư Đang Tạo');
     setHeight('Chiều cao áp cho mọi tầng', '3');
     fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Tiếp: / }));
     fireEvent.click(screen.getByRole('button', { name: 'Tạo dự án' }));
 
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
@@ -842,11 +850,11 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(code).toHaveAttribute('aria-invalid', 'true');
     expect(code).toHaveAccessibleDescription('Máy chủ không nhận mã dự án này. Sửa rồi thử lại.');
     expect(screen.getByLabelText('Tên dự án')).not.toHaveAttribute('aria-invalid');
-    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /^Tiếp: / })).not.toBeInTheDocument();
 
     fireEvent.change(code, { target: { value: 'DA-MOI' } });
     expect(code).not.toHaveAttribute('aria-invalid');
-    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /^Tiếp: / })).toBeEnabled();
   });
 
   it('marks the floor row a 422 names at step 2, and editing that row unlocks it (nợ B #7)', async () => {
@@ -857,15 +865,15 @@ describe('CreateProjectModal, wired to its hook', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tạo dự án' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Sửa ở bước 2' }));
 
-    const refused = screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 1');
+    const refused = screen.getByLabelText('Chiều cao tầng (sàn–sàn) Tầng 1');
     expect(refused).toHaveAttribute('aria-invalid', 'true');
     expect(refused).toHaveAccessibleDescription('Máy chủ không nhận giá trị này. Sửa rồi thử lại.');
-    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng trệt')).not.toHaveAttribute('aria-invalid');
-    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
+    expect(screen.getByLabelText('Chiều cao tầng (sàn–sàn) Tầng trệt')).not.toHaveAttribute('aria-invalid');
+    expect(screen.queryByRole('button', { name: /^Tiếp: / })).not.toBeInTheDocument();
 
-    setHeight('Chiều cao thông thuỷ tầng Tầng 1', '3,2');
+    setHeight('Chiều cao tầng (sàn–sàn) Tầng 1', '3,2');
     expect(refused).not.toHaveAttribute('aria-invalid');
-    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /^Tiếp: / })).toBeEnabled();
   });
 
   it('keeps "Tạo dự án" usable to retry after a 500, marking no field, and never advises a reload (BUG-129, BUG-188)', async () => {

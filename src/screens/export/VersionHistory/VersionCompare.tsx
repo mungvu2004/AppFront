@@ -22,15 +22,16 @@
 
 import { useCallback, useId, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
+import { ArrowRight } from 'lucide-react';
 
 import { motion } from '@/components/motion';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
-import { Select } from '@/components/ui/Select';
 import { Tabs } from '@/components/ui/Tabs';
 import { useCountUp } from '@/hooks/useCountUp';
 import { durationSeconds } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
+import { InlineSelect } from './InlineSelect';
 import { VersionDiffGroups } from './VersionDiffGroups';
 import { VersionJsonDiff } from './VersionJsonDiff';
 import { VersionPlanDiff } from './VersionPlanDiff';
@@ -140,6 +141,42 @@ function CompareCounts({ counts }: { readonly counts: DiffCountsModel }) {
 /* Vùng so sánh.                                                               */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Hai ô chọn cặp phiên bản, đặt ở đầu khung so sánh (bản Z S-37) thay vì trong thân khung.
+ * Trạng thái "chỉ có một phiên bản" không có gì để chọn: rời khỏi DOM.
+ */
+export function VersionPairSelects({
+  model,
+  actions,
+}: {
+  readonly model: CompareModel;
+  readonly actions: Pick<VersionHistoryActions, 'selectLeftVersion' | 'selectRightVersion'>;
+}) {
+  if (model.teachingSentence !== null) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <InlineSelect
+        label={LEFT_SELECT_LABEL}
+        prefix="Gốc"
+        placeholder={SELECT_PLACEHOLDER}
+        options={toSelectOptions(model.leftOptions)}
+        value={model.leftVersionId}
+        onChange={actions.selectLeftVersion}
+      />
+      <ArrowRight aria-hidden="true" className="h-4 w-4 text-text-secondary" />
+      <InlineSelect
+        label={RIGHT_SELECT_LABEL}
+        prefix="Đối chiếu"
+        placeholder={SELECT_PLACEHOLDER}
+        options={toSelectOptions(model.rightOptions)}
+        value={model.rightVersionId}
+        onChange={actions.selectRightVersion}
+      />
+    </div>
+  );
+}
+
 export interface VersionCompareProps {
   readonly model: CompareModel;
   readonly actions: Pick<
@@ -165,6 +202,8 @@ export function VersionCompare({ model, actions }: VersionCompareProps) {
     },
     [setTab],
   );
+
+  const changeCount = model.groups.reduce((sum, group) => sum + group.count, 0);
 
   const panelDomId = (tabId: string): string => 'vh-compare-panel-' + panelPrefix + '-' + tabId;
 
@@ -268,25 +307,6 @@ export function VersionCompare({ model, actions }: VersionCompareProps) {
 
   return (
     <section aria-label={COMPARE_LABEL} className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex flex-wrap items-end gap-4">
-        <Select
-          label={LEFT_SELECT_LABEL}
-          placeholder={SELECT_PLACEHOLDER}
-          options={toSelectOptions(model.leftOptions)}
-          {...(model.leftVersionId === null ? {} : { value: model.leftVersionId })}
-          onChange={actions.selectLeftVersion}
-          className="min-w-[180px]"
-        />
-        <Select
-          label={RIGHT_SELECT_LABEL}
-          placeholder={SELECT_PLACEHOLDER}
-          options={toSelectOptions(model.rightOptions)}
-          {...(model.rightVersionId === null ? {} : { value: model.rightVersionId })}
-          onChange={actions.selectRightVersion}
-          className="min-w-[180px]"
-        />
-      </div>
-
       {/* Legend +−~ sits right above the tabs and lists it describes, not floating at the far right (aesthetic 2.6 #4). */}
       <CompareCounts counts={model.totals} />
 
@@ -295,6 +315,12 @@ export function VersionCompare({ model, actions }: VersionCompareProps) {
           {model.tabs.map((tab) => (
             <Tabs.Tab key={tab.id} id={tab.id} aria-controls={panelDomId(tab.id)}>
               {tab.label}
+              {/* Số trên tab cộng từ chính các nhóm của tab — một nguồn với danh sách bên dưới. */}
+              {tab.id === 'changes' && changeCount > 0 && (
+                <span className="ml-2 rounded-sm bg-bg-sunken px-1.5 text-[12px] tabular-nums text-text-secondary">
+                  {changeCount}
+                </span>
+              )}
             </Tabs.Tab>
           ))}
         </Tabs.List>

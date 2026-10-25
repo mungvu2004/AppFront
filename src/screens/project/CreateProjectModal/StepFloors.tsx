@@ -110,7 +110,7 @@ export function StepFloors(props: StepFloorsProps) {
             <Table.Header>
               <tr>
                 <Table.Head className={CELL_PAD}>Tầng</Table.Head>
-                <Table.Head className={cn(CELL_PAD, 'w-1/3 whitespace-normal')}>Chiều cao thông thuỷ</Table.Head>
+                <Table.Head className={cn(CELL_PAD, 'w-1/3 whitespace-normal')}>Chiều cao tầng (sàn–sàn)</Table.Head>
                 <Table.Head className={CELL_PAD}>Cao độ</Table.Head>
                 <Table.Head className={CELL_PAD} aria-label="Xoá tầng" />
               </tr>
@@ -143,7 +143,7 @@ export function StepFloors(props: StepFloorsProps) {
                       onChange={(value) => props.setFloorHeight(row.id, value)}
                       unit="m"
                       disabled={isSubmitting}
-                      aria-label={`Chiều cao thông thuỷ tầng ${row.name}`}
+                      aria-label={`Chiều cao tầng (sàn–sàn) ${row.name}`}
                       {...(row.problem !== null ? { error: row.problem } : {})}
                     />
                   </Table.Cell>

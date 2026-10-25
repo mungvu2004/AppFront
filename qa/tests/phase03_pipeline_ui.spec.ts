@@ -70,14 +70,14 @@ const DELETE_DIALOG_TITLE = 'Xoá dự án này?'; // useProjectSettings.ts:522
 const DELETE_CONFIRM_FIELD = 'Gõ lại tên dự án để xác nhận'; // ProjectSettings.tsx Modal
 const KEEP = 'Để nguyên'; // ProjectSettings.tsx Modal
 /* SCR-09: FloorManager.tsx, FloorTable.tsx, FloorTableRow.tsx, FloorSectionCut.tsx. */
-const FLOORS_TITLE = 'Quản lý tầng';
+const FLOORS_TITLE = 'Theo dõi từng tầng và làm tiếp tầng cần nhất';
 const SECTION_LABEL = 'Lát cắt các tầng theo đúng tỷ lệ chiều cao';
 const COLLAPSE_SECTION = 'Thu gọn lát cắt';
 const EXPAND_SECTION = 'Hiện lát cắt';
 const DUPLICATE_SELECTED = 'Nhân bản tầng'; // FloorTable.tsx:79
 const CONFIRM_DUPLICATE = 'Nhân bản'; // FloorTableRow.tsx:76 — never clicked
 const COPY_FURNITURE = 'Sao chép nội thất sang tầng mới'; // FloorTableRow.tsx:57
-const AUTO_ELEVATION = 'Tự động tính cao độ';
+const AUTO_ELEVATION = 'Tự tính cao độ';
 const HIDE_IN_3D = 'Ẩn khỏi mô hình 3D';
 // floorManagerGateway.ts:212 (FIX-1424, BUG-287); shares one `<p>` with the floor-contents sentence → substring match.
 const HIDE_3D_NOTICE = 'Tầng đang ẩn khỏi mô hình 3D sẽ hiện lại sau khi tải lại trang.';
@@ -191,11 +191,11 @@ async function settled(target: Locator): Promise<void> {
 /** Settings loaded, then `tab` chosen: tablist ≥1024, the "Nhóm cài đặt" Select below (`isCollapsed`, ProjectSettings.tsx). */
 async function openSettingsTab(page: Page, projectId: string, tab: string): Promise<void> {
   await page.goto(ROUTES.project.settings(projectId));
-  const tablist = page.getByRole('tablist', { name: SETTINGS_TABS, exact: true });
+  const tablist = page.getByRole('navigation', { name: 'Mục trong trang', exact: true });
   const select = page.getByRole('combobox', { name: SETTINGS_TABS, exact: true });
   await expect(tablist.or(select)).toBeVisible({ timeout: 15_000 });
   if (await tablist.isVisible()) {
-    await tablist.getByRole('tab', { name: tab, exact: true }).click();
+    await tablist.getByRole('link', { name: new RegExp(`^${tab}`, 'u') }).click();
   } else {
     await select.click();
     await page.getByRole('option', { name: tab, exact: true }).click();

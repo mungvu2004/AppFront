@@ -18,15 +18,15 @@ import type { VersionHistoryOption } from './types';
 /* -------------------------------------------------------------------------- */
 
 /**
- * Ba tab, đúng thứ tự đặc tả đòi: câu tiếng thường đứng TRƯỚC JSON thô.
+ * Ba tab, đúng thứ tự đặc tả đòi: câu tiếng thường đứng TRƯỚC JSON thô; JSON thô đứng cuối (bản Z S-37).
  *
  * "JSON" giữ chữ hoa vì nó là một tên riêng viết tắt — đúng ngoại lệ của A6, cùng loại
  * với mã trục và tên phím.
  */
 export const COMPARE_TABS: readonly VersionHistoryOption[] = Object.freeze([
   { id: 'changes', label: 'Thay đổi' },
-  { id: 'json', label: 'JSON' },
   { id: 'visual', label: 'Trực quan' },
+  { id: 'json', label: 'JSON' },
 ]);
 
 /** Trạng thái 1: chỉ có một phiên bản. Một câu dạy việc, không phải một lỗi. */

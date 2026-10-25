@@ -160,15 +160,16 @@ describe('A11 — bảy trạng thái của VersionHistory', () => {
 });
 
 describe('[BUG-454] tiêu đề trang', () => {
-  it('cả bảy trạng thái có đúng một h1 "Lịch sử phiên bản"', async () => {
+  it('cả bảy trạng thái có đúng một h1 "So sánh và phục hồi phiên bản…" (bản Z S-37)', async () => {
     const VersionHistoryView = await loadVersionHistoryView();
 
     for (const state of SEVEN_STATES) {
       const { unmount } = renderWithProviders(<VersionHistoryView {...buildVersionHistoryProps(state)} />);
 
-      expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent), `trạng thái: ${state}`).toEqual([
-        'Lịch sử phiên bản',
-      ]);
+      const h1s = screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent);
+
+      expect(h1s, `trạng thái: ${state}`).toHaveLength(1);
+      expect(h1s[0], `trạng thái: ${state}`).toMatch(/^So sánh và phục hồi phiên bản/);
       unmount();
     }
   });

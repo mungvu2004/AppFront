@@ -206,13 +206,13 @@ export async function openSettings(page: Page, projectId: string, projectName: s
   await expect(textbox(page, LABEL.name).or(page.getByText(projectName, { exact: true })).first()).toBeVisible({ timeout: 20_000 });
 }
 
-/** Picks `tab`: the tablist ≥ 1024 px, the "Nhóm cài đặt" Select below (PS:112-128). */
+/** Picks `tab`: the "Mục trong trang" contents list ≥ 1024 px (links), the "Nhóm cài đặt" Select below. */
 export async function chooseTab(page: Page, tab: string): Promise<void> {
-  const tablist = page.getByRole('tablist', { name: TABS_LABEL, exact: true });
+  const tablist = page.getByRole('navigation', { name: 'Mục trong trang', exact: true });
   const select = page.getByRole('combobox', { name: TABS_LABEL, exact: true });
   await expect(tablist.or(select)).toBeVisible();
   if (await tablist.isVisible()) {
-    await tablist.getByRole('tab', { name: tab, exact: true }).click();
+    await tablist.getByRole('link', { name: new RegExp(`^${tab}`, 'u') }).click();
   } else {
     await select.click();
     await page.getByRole('option', { name: tab, exact: true }).click();

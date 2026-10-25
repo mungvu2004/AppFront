@@ -22,8 +22,8 @@ const JSON_FORBIDDEN = 'Không có quyền xem dữ liệu';
 const VERSIONS_READ_ONLY = 'Vai trò của bạn trên dự án này chỉ đọc được lịch sử, nên nút phục hồi không hiện'; // versionHistoryModel.ts:494
 const VERSION_LIST = 'Danh sách phiên bản';
 const VERSION_RESTORE = 'Phục hồi phiên bản này';
-const VERSION_LABEL = 'Gắn nhãn phiên bản này';
-const VERSION_EXPORT = 'Xuất phiên bản này'; // VersionHistory.tsx:171
+const VERSION_LABEL = /^Gắn nhãn v[0-9]+$/u;
+const VERSION_EXPORT = /^Xuất (phiên bản này|v[0-9]+)$/u; // VersionHistory.tsx:171
 const RULES_HEADING = 'Quy chuẩn';
 
 const unknown = (id: string, why: string): void => {

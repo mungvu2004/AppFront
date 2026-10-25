@@ -107,13 +107,14 @@ const NAME_HINT = 'Bắt buộc, từ 3 đến 80 ký tự.'; // vi.json project
 const CODE_TOO_LONG = 'Mã dự án không quá 32 ký tự.'; // vi.json project.createModal.problems.codeTooLong
 const FIX_AT_STEP_1 = 'Sửa ở bước 1'; // problems.fixAtStep
 const SERVER_REFUSED_CODE_NOTICE = 'Máy chủ không nhận mã dự án này. Sửa ô được đánh dấu ở bước 1 rồi thử lại.'; // problems.serverRefusedFieldNotice
-const NEXT = 'Tiếp tục';
+const NEXT = /^Tiếp: /u;
+const LOCKED_NEXT = /^(Nhập tên dự án|Sửa tên dự án|Sửa mã dự án|Sửa địa chỉ|Nhập chiều cao các tầng|Sửa tầng đang báo lỗi)$/u; // nút nói việc còn thiếu
 const CANCEL = 'Huỷ';
 const SHARED_HEIGHT_LABEL = 'Chiều cao áp cho mọi tầng'; // StepFloors.tsx:131
 const APPLY_HEIGHT = 'Áp cho mọi tầng'; // StepFloors.tsx:145
 const ADD_FLOOR = 'Thêm tầng'; // StepFloors.tsx:127
 const DEFAULT_FLOORS = ['Tầng trệt', 'Tầng 1', 'Tầng 2', 'Tầng 3'] as const; // useCreateProjectModal.ts:82, :185-197
-const HEIGHT_MISSING = 'Chưa nhập chiều cao thông thuỷ.'; // useCreateProjectModal.ts:113
+const HEIGHT_MISSING = 'Chưa nhập chiều cao tầng (sàn–sàn).'; // useCreateProjectModal.ts:113
 const NUMERIC_MAX = 'Giá trị không quá 10 m.'; // useNumericField.ts:44, limits.ts:35
 const NO_FLOORS = 'Chưa có tầng nào'; // StepFloors.tsx:61
 const NO_FLOORS_HINT = 'Thêm ít nhất một tầng để sang bước xem lại.'; // StepFloors.tsx:62
@@ -124,7 +125,7 @@ const DISCARD_TITLE = 'Đóng và bỏ các thay đổi chưa lưu?'; // CreateP
 const DISCARD_HINT = 'Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đổi" để đóng.'; // CreateProjectModal.tsx:253
 const DISCARD_CONFIRM = 'Đóng, bỏ thay đổi';
 const KEEP_EDITING = 'Tiếp tục sửa'; // CreateProjectModal.tsx DiscardPrompt (vi.json discard.keepEditing)
-const FLOORS_HINT = 'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.'; // useCreateProjectModal.ts:474
+const FLOORS_HINT = 'Nhập chiều cao tầng (sàn–sàn) cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.'; // useCreateProjectModal.ts:474
 const FLOORS_FIX_HINT = 'Sửa các tầng đang báo lỗi để sang bước xem lại.'; // useCreateProjectModal.ts FLOORS_FIX_HINT (every height in, still blocked)
 /** useCreateProjectModal.ts elevationProblemFor (PROJECT_ELEVATION_MIN_M -30 / MAX_M 300, src/domain/project/limits.ts:37-38). */
 const ELEVATION_OUT_OF_RANGE = /^Cao độ vượt giới hạn cho phép \(.+ đến 300 mét\)\.$/u;
@@ -322,13 +323,13 @@ async function openWizard(page: Page): Promise<Locator> {
   return dialog;
 }
 
-/** `Bước N / 3` is printed twice (visible `<p>` + sr-only status); the first is the visible one. */
-const stepLabel = (dialog: Locator, step: number): Locator => dialog.getByText(`Bước ${String(step)} / 3`, { exact: true }).first();
+/** The step bar (WizardStatus) marks the current step with aria-current="step". */
+const stepLabel = (dialog: Locator, step: number): Locator => dialog.locator('[aria-current="step"]').filter({ hasText: ['Thông tin công trình', 'Tầng', 'Xem lại'][step - 1] ?? '' });
 
 /** Step 1 → step 2 with `name`. */
 async function toStep2(dialog: Locator, name: string): Promise<void> {
   await dialog.getByLabel(NAME_LABEL).fill(name);
-  await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
+  await activate(dialog.getByRole('button', { name: NEXT }));
   await expect(stepLabel(dialog, 2)).toBeVisible();
 }
 
@@ -732,7 +733,7 @@ test.describe('U02 UI verify — SCR-05 dashboard (with an 80-character project 
         const dialog = await openWizard(p);
         await toStep2(dialog, name);
         await applySharedHeight(dialog);
-        await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
+        await activate(dialog.getByRole('button', { name: NEXT }));
         await expect(stepLabel(dialog, 3)).toBeVisible();
         const posted = p.waitForResponse((r) => r.request().method() === 'POST' && pathnameOf(r) === PROJECTS_PATH);
         await activate(dialog.getByRole('button', { name: CREATE_PROJECT, exact: true }));
@@ -758,13 +759,13 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       // BUG-133: a form nobody typed into is not wrong yet — a neutral hint, no error, "Tiếp tục" locked.
       await expect(dialog.getByText(NAME_HINT, { exact: true })).toBeVisible();
       await expect(dialog.getByRole('alert')).toHaveCount(0);
-      await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toBeDisabled();
+      await expect(dialog.getByRole('button', { name: NEXT })).toHaveCount(0);
       // The complaint arrives with the first keystroke (phase02_dashboard.spec.ts validation case).
       const name = dialog.getByLabel(NAME_LABEL);
       await name.fill('a');
       await name.fill('');
       await expect(dialog.getByRole('alert').filter({ hasText: NAME_REQUIRED })).toBeVisible();
-      await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toBeDisabled();
+      await expect(dialog.getByRole('button', { name: NEXT })).toHaveCount(0);
       await settled(dialog);
     });
   });
@@ -776,14 +777,14 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       await expect(dialog.getByLabel(SHARED_HEIGHT_LABEL)).toBeVisible();
       // Untouched stack without heights: one neutral hint, tied to the locked "Tiếp tục" (StepFloors.tsx FLOORS_HINT_ID).
       await expect(dialog.getByText(FLOORS_HINT, { exact: true })).toBeVisible();
-      await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toBeDisabled();
+      await expect(dialog.getByRole('button', { name: NEXT })).toHaveCount(0);
       // BUG-201: the body's bottom fade (CreateProjectModal.tsx ScrollFade) hints at rows below the fold.
       await expect(dialog.locator('[data-scroll-fade]')).toHaveCount(1);
       await settled(dialog);
     });
   });
 
-  test('U02 · SCR-05 wizard step 2 validation: shared height "10,01" → "Giá trị không quá 10 m."; rows stay neutral until a height is entered, then "Chưa nhập chiều cao thông thuỷ."', async ({ browser }) => {
+  test('U02 · SCR-05 wizard step 2 validation: shared height "10,01" → "Giá trị không quá 10 m."; rows stay neutral until a height is entered, then "Chưa nhập chiều cao tầng (sàn–sàn)."', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U02_wizard_height_refused', async (p) => {
       const dialog = await openWizard(p);
       await toStep2(dialog, `${TEST_DATA_PREFIX}u02-cao`);
@@ -799,7 +800,7 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       await nameBox.fill('Tầng trệt A');
       await expect(dialog.getByRole('table').getByRole('alert')).toHaveCount(0);
       await nameBox.fill(DEFAULT_FLOORS[0]);
-      const groundHeight = dialog.getByRole('textbox', { name: `Chiều cao thông thuỷ tầng ${DEFAULT_FLOORS[0]}`, exact: true }); // StepFloors.tsx:131
+      const groundHeight = dialog.getByRole('textbox', { name: `Chiều cao tầng (sàn–sàn) ${DEFAULT_FLOORS[0]}`, exact: true }); // StepFloors.tsx:131
       await typeHeight(groundHeight, '3'); // BUG-224 typing
       await expect(dialog.getByRole('alert').filter({ hasText: HEIGHT_MISSING }).first()).toBeVisible(); // "Tầng 1" upward
       await expect(dialog.getByRole('button', { name: APPLY_HEIGHT, exact: true })).toBeDisabled(); // useCreateProjectModal.ts:491
@@ -816,7 +817,7 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       }
       await expect(dialog.getByText(NO_FLOORS, { exact: true })).toBeVisible(); // StepFloors.tsx:58-64
       await expect(dialog.getByText(NO_FLOORS_HINT, { exact: true })).toBeVisible();
-      await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toBeDisabled(); // useCreateProjectModal.ts:487
+      await expect(dialog.getByRole('button', { name: NEXT })).toHaveCount(0); // useCreateProjectModal.ts:487
       await settled(dialog);
     });
   });
@@ -854,8 +855,8 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       await expect(waiting).toHaveCount(OVER_LIMIT_ROWS - 32);
       // Every height is in, so the locked "Tiếp tục" asks to fix the flagged rows (FLOORS_FIX_HINT, BUG-120).
       await expect(dialog.getByText(FLOORS_FIX_HINT, { exact: true })).toBeVisible();
-      await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toBeDisabled();
-      await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toHaveAccessibleDescription(FLOORS_FIX_HINT);
+      await expect(dialog.getByRole('button', { name: NEXT })).toHaveCount(0);
+      await expect(dialog.getByRole('button', { name: LOCKED_NEXT })).toHaveAccessibleDescription(FLOORS_FIX_HINT);
       // Shoot the flagged rows, not the top of the list: the body scrolls under the sticky column headers (BUG-202).
       await waiting.last().scrollIntoViewIfNeeded();
       await settled(dialog);
@@ -867,7 +868,7 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       const dialog = await openWizard(p);
       await toStep2(dialog, WIZARD_LONG_NAME);
       await applySharedHeight(dialog);
-      await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
+      await activate(dialog.getByRole('button', { name: NEXT }));
       await expect(stepLabel(dialog, 3)).toBeVisible();
       await expect(dialog.getByText(WIZARD_LONG_NAME, { exact: true })).toBeVisible();
       await expect(dialog.getByRole('button', { name: CREATE_PROJECT, exact: true })).toBeVisible();
@@ -891,9 +892,9 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       await toStep2(dialog, `${TEST_DATA_PREFIX}u02-ten-tang`);
       await dialog.getByRole('textbox', { name: /^Tên tầng /u }).first().fill(''); // StepFloors.tsx row name Input
       await expect(dialog.getByRole('alert').filter({ hasText: FLOOR_NAME_MISSING })).toBeVisible();
-      await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toBeDisabled(); // hasAnyRowProblem
+      await expect(dialog.getByRole('button', { name: NEXT })).toHaveCount(0); // hasAnyRowProblem
       // No height yet, so the locked "Tiếp tục" still names the heights (useCreateProjectModal.ts floorsHint, BUG-120).
-      await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toHaveAccessibleDescription(FLOORS_HINT);
+      await expect(dialog.getByRole('button', { name: LOCKED_NEXT })).toHaveAccessibleDescription(FLOORS_HINT);
       await settled(dialog);
     });
   });
@@ -903,12 +904,13 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       const dialog = await openWizard(p);
       await dialog.getByLabel(NAME_LABEL).fill(shortName('u02-dai'));
       await dialog.getByLabel(CODE_LABEL).fill(LONG_CODE);
+await openMore(dialog);
       await dialog.getByLabel(ADDRESS_LABEL, { exact: true }).fill(LONG_ADDRESS);
       await expect(dialog.getByLabel(CODE_LABEL)).not.toHaveAttribute('aria-invalid', 'true'); // 32 is the limit, not over it
-      await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
+      await activate(dialog.getByRole('button', { name: NEXT }));
       await expect(stepLabel(dialog, 2)).toBeVisible();
       await applySharedHeight(dialog);
-      await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
+      await activate(dialog.getByRole('button', { name: NEXT }));
       await expect(stepLabel(dialog, 3)).toBeVisible();
       await expect(dialog.getByText(LONG_CODE, { exact: true })).toBeVisible(); // StepReview.tsx FieldRow isText (BUG-121)
       await expect(dialog.getByText(LONG_ADDRESS, { exact: true })).toBeVisible();
@@ -924,7 +926,7 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       await dialog.getByLabel(CODE_LABEL).fill('C'.repeat(33));
       await expect(dialog.getByText(CODE_TOO_LONG, { exact: true })).toBeVisible();
       await expect(dialog.getByLabel(CODE_LABEL)).toHaveAttribute('aria-invalid', 'true');
-      await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toBeDisabled();
+      await expect(dialog.getByRole('button', { name: NEXT })).toHaveCount(0);
       await settled(dialog);
     });
   });
@@ -938,10 +940,10 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       async (p) => {
         const dialog = await openWizard(p);
         await dialog.getByLabel(NAME_LABEL).fill(shortName('u02-422'));
-        await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
+        await activate(dialog.getByRole('button', { name: NEXT }));
         await expect(stepLabel(dialog, 2)).toBeVisible();
         await applySharedHeight(dialog);
-        await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
+        await activate(dialog.getByRole('button', { name: NEXT }));
         await expect(stepLabel(dialog, 3)).toBeVisible();
         const refused = p.waitForResponse((r) => r.request().method() === 'POST' && pathnameOf(r) === PROJECTS_PATH);
         await activate(dialog.getByRole('button', { name: CREATE_PROJECT, exact: true }));
@@ -1263,3 +1265,9 @@ test.describe('U02 UI verify — SCR-07 onboarding', () => {
     );
   });
 });
+
+/** Địa chỉ và Ghi chú nằm sau nút "Thông tin bổ sung" (StepInfo); mở nếu còn đóng. */
+async function openMore(dialog: import('@playwright/test').Locator): Promise<void> {
+  const toggle = dialog.getByRole('button', { name: /Thông tin bổ sung/u });
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
+}

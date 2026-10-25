@@ -598,13 +598,13 @@ describe('F-06 — liên kết chia sẻ tắt (cổng `supported: false`)', () 
     expect(revoke).not.toHaveBeenCalled();
   });
 
-  it('view: không vùng liên kết, không mã nhúng; "thành viên" vẫn hiện', async () => {
+  it('view: không vùng liên kết, không mã nhúng; "người có quyền" vẫn hiện', async () => {
     const ShareDialogView = await loadShareDialogView();
     renderWithProviders(
       <ShareDialogView {...buildShareDialogProps('success', buildLinksUnsupportedModel())} />,
     );
 
-    expect(screen.getByRole('region', { name: /thành viên/iu })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: /người có quyền/iu })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: /liên kết chia sẻ/iu })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: /nhúng vào trang khác/iu })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /sao chép mã nhúng/iu })).not.toBeInTheDocument();

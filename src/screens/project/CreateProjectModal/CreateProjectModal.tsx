@@ -38,25 +38,24 @@
  * computation — legal in a view (mục D).
  */
 
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ArrowRight } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { motion } from '@/components/motion';
 import { Modal } from '@/components/overlay/Modal';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { Textarea } from '@/components/ui/Textarea';
 import { durationSeconds } from '@/lib/motion';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
-import { cn } from '@/lib/utils';
 
+import { deriveCreateProjectGate, FIELD_IDS } from './createProjectGate';
 import { StepFloors } from './StepFloors';
+import { StepInfo } from './StepInfo';
 import { StepReview } from './StepReview';
+import { WizardStatus } from './WizardStatus';
 import {
   FLOORS_HINT_ID,
-  PROJECT_LIMITS,
   useCreateProjectModal,
   type CreateProjectModalViewProps,
   type UseCreateProjectModalOptions,
@@ -86,80 +85,8 @@ const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
 
 const TITLE_ID = 'create-project-modal-title';
 
-/** What each step is about, beside "Bước n / 3" — the indicator is more than a grey number (BUG-122). */
-const STEP_TITLES = ['Thông tin công trình', 'Tầng', 'Xem lại'] as const;
-
 /** Re-exported so every existing caller of `CreateProjectModal.tsx` keeps its import path. */
 export type { CreateProjectModalViewProps } from './useCreateProjectModal';
-
-/* -------------------------------------------------------------------------- */
-/* Step 1 — thông tin công trình.                                             */
-/* -------------------------------------------------------------------------- */
-
-function StepInfo(props: CreateProjectModalViewProps) {
-  const gridClassName = cn('grid gap-4', props.isCompact ? 'grid-cols-1' : 'grid-cols-2');
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className={gridClassName}>
-        <Input
-          label="Tên dự án"
-          value={props.name}
-          onChange={(event) => props.setName(event.target.value)}
-          onBlur={props.touchName}
-          maxLength={PROJECT_LIMITS.nameMaxLength}
-          error={props.problems.name}
-          hint={props.nameHint}
-          disabled={props.isSubmitting}
-          placeholder="Ví dụ: Chung cư Bình Minh"
-          data-autofocus
-        />
-        <Input
-          label="Mã dự án"
-          value={props.code}
-          onChange={(event) => props.setCode(event.target.value)}
-          error={props.problems.code}
-          disabled={props.isSubmitting}
-          hint="Tự tạo từ tên, sửa được"
-        />
-      </div>
-      <div className={gridClassName}>
-        <Input
-          label="Địa chỉ"
-          value={props.address}
-          onChange={(event) => props.setAddress(event.target.value)}
-          error={props.problems.address}
-          disabled={props.isSubmitting}
-        />
-        <Select.Root
-          value={props.buildingType}
-          onChange={props.setBuildingType}
-          options={props.buildingTypeOptions}
-          isOpen={props.isSelectOpen}
-          onOpenChange={props.setSelectOpen}
-          disabled={props.isSubmitting}
-        >
-          <Select.Label>Loại công trình</Select.Label>
-          <Select.Trigger options={props.buildingTypeOptions} />
-          <Select.Content>
-            {props.buildingTypeOptions.map((option, index) => (
-              <Select.Item key={option.value} value={option.value} index={index}>
-                {option.label}
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select.Root>
-      </div>
-      <Textarea
-        label="Ghi chú"
-        value={props.notes}
-        onChange={(event) => props.setNotes(event.target.value)}
-        disabled={props.isSubmitting}
-        placeholder="Không bắt buộc"
-      />
-    </div>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /* Step 2 — tầng. Split into `StepFloors.tsx` once this file crossed R-22's    */
@@ -244,6 +171,15 @@ function ScrollFade() {
   );
 }
 
+/** Where the dialog was opened from, above the title. Hidden from the dialog's name, which stays "Tạo dự án mới". */
+function Eyebrow() {
+  return (
+    <span aria-hidden="true" className="mb-1 block text-[12px] font-medium uppercase leading-4 tracking-wide text-text-secondary">
+      Dự án của tôi
+    </span>
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* The dialog itself.                                                          */
 /* -------------------------------------------------------------------------- */
@@ -253,6 +189,39 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
   const { isOpen, state, step, isSubmitting, focusFloorId, acknowledgeFocus } = props;
   const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const [isMoreOpen, setMoreOpen] = useState(false);
+  const gate = deriveCreateProjectGate(props);
+
+  /** The not-ready button: focus the field or row that is missing, or open the step that holds it. */
+  const leadToFix = (): void => {
+    const focusField = (id: string): void => document.getElementById(id)?.focus();
+    switch (gate.fix) {
+      case 'name':
+        props.touchName();
+        focusField(FIELD_IDS.name);
+        break;
+      case 'code':
+        focusField(FIELD_IDS.code);
+        break;
+      case 'address':
+        flushSync(() => setMoreOpen(true));
+        focusField(FIELD_IDS.address);
+        break;
+      case 'floors': {
+        const first = props.floorRows.find((row) => row.clearHeightM === null || row.problem !== null || row.nameProblem !== null);
+        props.focusFloor(props.collisionRowId ?? first?.id ?? '');
+        break;
+      }
+      case 'addFloor':
+        props.addFloor();
+        break;
+      case 'notice':
+        props.goToFixStep();
+        break;
+      default:
+        props.goBack();
+    }
+  };
 
   useEffect(() => {
     if (focusFloorId === null) {
@@ -268,6 +237,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
     return (
       <Modal.Root isOpen={isOpen} onClose={props.requestClose} width={MODAL_WIDTH} titleId={TITLE_ID}>
         <Modal.Header>
+          <Eyebrow />
           <span id={TITLE_ID}>Tạo dự án mới</span>
         </Modal.Header>
         <Modal.Body className="px-6 py-6 min-h-80">
@@ -294,28 +264,15 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
 
   return (
     <Modal.Root isOpen={isOpen} onClose={props.requestClose} width={MODAL_WIDTH} titleId={TITLE_ID}>
-      {/* `pb-3` + a body with no top padding: the step indicator sits one 24 px grid step under the title, and `px-6` lines the title up with the fields (BUG-122). */}
       {/* X is locked with the footer while "Tạo dự án" runs: requestClose ignores it then (BUG-184, BUG-218). */}
       <Modal.Header className="px-4 sm:px-6 pb-3" closeDisabled={isSubmitting}>
+        <Eyebrow />
         <span id={TITLE_ID}>Tạo dự án mới</span>
       </Modal.Header>
       {/* scroll-pt-10: the floor table's sticky 40 px header covered the field Shift+Tab or a 422 scrolled to
           (WCAG 2.4.11); scroll-pb-6 keeps it off the bottom fade too. */}
       <Modal.Body className="px-4 sm:px-6 pt-0 min-h-80 scroll-pt-10 scroll-pb-6">
-        <div className="mb-4 flex flex-col gap-2">
-          <div className="flex items-baseline gap-2">
-            <p className="text-[13px] font-semibold leading-[18px] text-text-primary">{props.stepLabel}</p>
-            <span className="text-[13px] leading-[18px] text-text-secondary">{STEP_TITLES[step - 1]}</span>
-          </div>
-          <div className="flex gap-1" aria-hidden="true">
-            {STEP_TITLES.map((title, index) => (
-              <span
-                key={title}
-                className={cn('h-1 flex-1 rounded-full', index < step ? 'bg-text-primary' : 'bg-border-default')}
-              />
-            ))}
-          </div>
-        </div>
+        <WizardStatus gate={gate} step={step} />
         <span className="sr-only" role="status">
           {props.stepLabel}
         </span>
@@ -326,9 +283,9 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           animate={{ opacity: 1 }}
           transition={{ duration: durationSeconds('fast') }}
         >
-          {step === 1 && <StepInfo {...props} />}
+          {step === 1 && <StepInfo {...props} isMoreOpen={isMoreOpen} toggleMore={() => setMoreOpen((open) => !open)} />}
           {step === 2 && <StepFloors {...props} rowRefs={rowRefs} />}
-          {step === 3 && <StepReview {...props} />}
+          {step === 3 && <StepReview {...props} gate={gate} />}
         </motion.div>
         <ScrollFade />
       </Modal.Body>
@@ -342,27 +299,28 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           )}
         </div>
         <div className="flex items-center gap-3">
-          {/* G3-03: lý do nút khoá đứng ngay cạnh nút, không ở trên bảng tầng. */}
-          {step === 2 && props.floorsHint !== null && (
-            <p id={FLOORS_HINT_ID} className="max-w-[280px] text-right text-[13px] leading-[18px] text-text-secondary">
-              {props.floorsHint}
-            </p>
-          )}
           <Button ref={cancelRef} variant="ghost" onClick={props.requestClose} disabled={isSubmitting}>
             Huỷ
           </Button>
-          {step < 3 ? (
+          {/* One button: the next step when ready, else the first missing task, which it leads to (no dead "Tiếp tục"). */}
+          {gate.ready ? (
             <Button
               variant="primary"
-              onClick={props.goNext}
-              disabled={!props.canGoNext || isSubmitting}
-              aria-describedby={step === 2 && props.floorsHint !== null ? FLOORS_HINT_ID : undefined}
+              loading={step === 3 && isSubmitting}
+              disabled={isSubmitting}
+              onClick={step === 3 ? props.submit : props.goNext}
+              iconAfter={step < 3 ? <ArrowRight size={16} aria-hidden="true" /> : undefined}
             >
-              Tiếp tục
+              {gate.buttonLabel}
             </Button>
           ) : (
-            <Button variant="primary" loading={isSubmitting} disabled={!props.canSubmit} onClick={props.submit}>
-              Tạo dự án
+            <Button
+              variant="secondary"
+              onClick={leadToFix}
+              disabled={isSubmitting}
+              aria-describedby={step === 2 && props.floorsHint !== null ? FLOORS_HINT_ID : undefined}
+            >
+              {gate.buttonLabel}
             </Button>
           )}
         </div>

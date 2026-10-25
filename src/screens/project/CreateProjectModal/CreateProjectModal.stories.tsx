@@ -146,7 +146,7 @@ export const Empty: Story = {
 /** đang tải — đang gửi yêu cầu tạo dự án, mọi trường bị khoá. */
 export const Loading: Story = { args: { ...base, state: 'loading', isSubmitting: true } };
 
-/** một phần — một tầng còn thiếu chiều cao thông thuỷ. */
+/** một phần — một tầng còn thiếu chiều cao tầng (sàn–sàn). */
 export const Partial: Story = {
   args: {
     ...base,
@@ -158,7 +158,7 @@ export const Partial: Story = {
     floorRows: [
       STACKED_FLOOR_ROWS[0] as CreateProjectFloorRowModel,
       STACKED_FLOOR_ROWS[1] as CreateProjectFloorRowModel,
-      { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: null, clearHeightLabel: null, elevationLabel: null, problem: 'Chưa nhập chiều cao thông thuỷ.', nameProblem: null },
+      { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: null, clearHeightLabel: null, elevationLabel: null, problem: 'Chưa nhập chiều cao tầng (sàn–sàn).', nameProblem: null },
     ],
   },
 };

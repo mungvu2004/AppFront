@@ -16,8 +16,11 @@ export interface ShareDialogFooterProps {
 
 export function ShareDialogFooter({ onDismiss }: ShareDialogFooterProps) {
   return (
-    <Button variant="primary" onClick={onDismiss}>
-      xong
-    </Button>
+    <div className="flex w-full items-center justify-between gap-4">
+      <p className="text-[13px] text-text-secondary">Mọi thay đổi áp dụng ngay, không cần lưu.</p>
+      <Button variant="primary" onClick={onDismiss}>
+        Xong
+      </Button>
+    </div>
   );
 }

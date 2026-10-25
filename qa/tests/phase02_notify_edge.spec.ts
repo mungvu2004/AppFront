@@ -120,7 +120,7 @@ const LIVE = {
 const MARKED_READ = 'Đã đánh dấu là đã đọc'; // UNC:161
 const MARKED_ALL_READ = 'Đã đánh dấu tất cả là đã đọc'; // UNC:160
 const UNDO = 'Hoàn tác'; // TST:143
-const SETTINGS_HEADING = 'Cài đặt dự án'; // PS:93
+const SETTINGS_HEADING = 'Đặt thông tin, đơn vị đo và thành viên của dự án'; // PS:93
 
 /* SCR-07 copy, UWS:122-146. */
 const WELCOME_SEEN_PREFIX = 'appfront:onboarding-welcome-seen:'; // UWS:164
