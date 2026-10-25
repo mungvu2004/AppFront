@@ -16,10 +16,11 @@ const okApi = (items: ReturnType<typeof item>[]) => ({ list: async () => ({ ok: 
 
 describe('loadServerLibrary', () => {
   it('gộp mục máy chủ: mục mới khả dụng, mục trùng id đóng gói thì máy chủ thắng', async () => {
-    const bundledId = 'dining-table';
-    expect(CATALOG_MODELS[bundledId]).toBeDefined();
-    const n = await loadServerLibrary(okApi([item('srv-desk-01'), item(bundledId)]));
+    // Mục đóng gói thường (ghi được); mục swap realism (getter, vd `sofa`) thì giữ nguyên.
+    const bundledId = Object.keys(CATALOG_MODELS).find((k) => Object.getOwnPropertyDescriptor(CATALOG_MODELS, k)?.writable === true) as string;
+    const n = await loadServerLibrary(okApi([item('srv-desk-01'), item(bundledId), item('sofa')]));
     expect(n).toBe(2);
+    expect(isServerModel('sofa')).toBe(false);
     expect(CATALOG_MODELS['srv-desk-01']?.dimensions).toEqual([1.2, 0.75, 0.6]);
     expect(modelSrcOf('srv-desk-01')).toBe('https://cdn.example.test/library/srv-desk-01.glb');
     expect(thumbnailOf('srv-desk-01')).toBe('https://cdn.example.test/library/srv-desk-01.webp');
