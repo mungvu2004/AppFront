@@ -151,7 +151,15 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
 const root = createRoot(document.getElementById('root') as HTMLElement);
 const projectId = new URLSearchParams(window.location.search).get('project');
 
-void builtinsLoaded.then(() =>
+// Thư viện máy chủ gộp vào danh mục trước lượt dựng đầu; lỗi/offline → danh mục đóng gói (serverLibrary.ts).
+const serverLibraryLoaded = import('@/api/appClient')
+  .then(async ({ createAppApiClient }) => {
+    const { loadServerLibrary } = await import('@/lib/pascal/serverLibrary');
+    return loadServerLibrary(createAppApiClient().library);
+  })
+  .catch(() => 0);
+
+void Promise.all([builtinsLoaded, serverLibraryLoaded]).then(() =>
   root.render(
     <StrictMode>
       {projectId ? (

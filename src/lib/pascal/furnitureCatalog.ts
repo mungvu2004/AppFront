@@ -602,8 +602,50 @@ export const VARIANT_MODEL: Readonly<
   shrub: { folder: 'bush' },
 };
 
-export const modelSrcOf = (folder: string): string => `/items/${fileFolderOf(folder)}/model.glb`;
-export const thumbnailOf = (folder: string): string => `/items/${fileFolderOf(folder)}/thumbnail.webp`;
+/** Thư viện máy chủ (`GET /api/library`) đã nạp: thư mục → URL tệp. Rỗng = chỉ danh mục đóng gói. */
+const SERVER_FILES = new Map<string, { readonly model: string; readonly preview?: string }>();
+
+/** Mục thư viện máy chủ tối thiểu mà danh mục cần (khớp `LibraryItem` của `@/api/client`). */
+export interface ServerLibraryModel {
+  readonly id: string;
+  readonly widthMm: number;
+  readonly heightMm: number;
+  readonly depthMm: number;
+  readonly modelUrl: string;
+  readonly previewUrl?: string;
+}
+
+/**
+ * Gộp thư viện máy chủ vào `CATALOG_MODELS` (thư mục = `id` mục): mục máy chủ thắng mục đóng gói
+ * cùng id, trừ mục đang bị swap realism (getter không ghi đè được). Trả số mục đã gộp.
+ */
+export const registerServerLibrary = (items: readonly ServerLibraryModel[]): number => {
+  const target = CATALOG_MODELS as Record<string, CatalogModel>;
+  let count = 0;
+  for (const item of items) {
+    const own = Object.getOwnPropertyDescriptor(target, item.id);
+    if (own !== undefined && own.writable !== true) continue;
+    const base = target[item.id];
+    target[item.id] = {
+      offset: base?.offset ?? [0, 0, 0],
+      rotation: base?.rotation ?? [0, 0, 0],
+      ...(base?.interactive === undefined ? {} : { interactive: base.interactive }),
+      folder: item.id,
+      dimensions: [item.widthMm / 1000, item.heightMm / 1000, item.depthMm / 1000],
+    };
+    SERVER_FILES.set(item.id, { model: item.modelUrl, ...(item.previewUrl === undefined ? {} : { preview: item.previewUrl }) });
+    count += 1;
+  }
+  return count;
+};
+
+/** true khi thư mục đến từ thư viện máy chủ. */
+export const isServerModel = (folder: string): boolean => SERVER_FILES.has(folder);
+
+export const modelSrcOf = (folder: string): string =>
+  SERVER_FILES.get(folder)?.model ?? `/items/${fileFolderOf(folder)}/model.glb`;
+export const thumbnailOf = (folder: string): string =>
+  SERVER_FILES.get(folder)?.preview ?? `/items/${fileFolderOf(folder)}/thumbnail.webp`;
 
 /**
  * Mặt đặt đồ của mẫu, tỉ lệ chiều cao (0 = đáy, 1 = đỉnh): `topY` tay thắng, không thì số đo GLB của
