@@ -115,7 +115,7 @@ const REVIEWED_AND_CHANGEABLE: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter(
 });
 
 /** Ba số đo dùng cho bài "áp ba nhóm" — mỗi số một nhóm chuẩn khác nhau. */
-const THREE_MEASUREMENTS = [100, 195, 315] as const;
+const THREE_MEASUREMENTS = [110, 195, 315] as const; // 100 nay đúng bậc, không còn hàng đề xuất
 
 const wallsOfMeasurement = (measuredMm: number): readonly Wall[] =>
   THICKNESS_FIXTURE_WALLS.filter((wall) => wall.thicknessMm === measuredMm);
@@ -260,7 +260,7 @@ describe('phép ghép thuần của màn Chuẩn hoá độ dày tường', () =
       );
     }
 
-    expect(groupOfMeasurement(195, DEFAULT_THICKNESS_THRESHOLDS)).toBe(220);
+    expect(groupOfMeasurement(195, DEFAULT_THICKNESS_THRESHOLDS)).toBe(200);
   });
 
   it('kéo một ngưỡng thì ba ngưỡng vẫn tăng dần', () => {
@@ -271,17 +271,20 @@ describe('phép ghép thuần của màn Chuẩn hoá độ dày tường', () =
   });
 
   it('[BUG-606] kéo qua ngưỡng kề thì bị kẹp, không đẩy ngưỡng kia đi', () => {
-    const [low, mid, high] = DEFAULT_THICKNESS_THRESHOLDS;
+    const t = DEFAULT_THICKNESS_THRESHOLDS;
+    const [, mid = 0, high = 0] = t;
 
-    expect(withThresholdAt(DEFAULT_THICKNESS_THRESHOLDS, 0, 400)).toEqual([mid - HISTOGRAM_BIN_MM, mid, high]);
-    expect(withThresholdAt(DEFAULT_THICKNESS_THRESHOLDS, 2, 0)).toEqual([low, mid, mid + HISTOGRAM_BIN_MM]);
+    /* Ngưỡng 0 kéo qua ngưỡng 1 thì kẹp ngay dưới nó; ngưỡng 2 kéo về 0 thì kẹp ngay trên ngưỡng 1. */
+    expect(withThresholdAt(t, 0, 400)).toEqual([mid - HISTOGRAM_BIN_MM, ...t.slice(1)]);
+    expect(withThresholdAt(t, 2, 0)).toEqual([...t.slice(0, 2), mid + HISTOGRAM_BIN_MM, ...t.slice(3)]);
+    expect(high).toBeGreaterThan(mid);
   });
 
   it('kéo ngưỡng đổi nhóm của số đo nằm giữa hai ngưỡng', () => {
-    const dragged: ThicknessThresholds = withThresholdAt(DEFAULT_THICKNESS_THRESHOLDS, 0, 200);
+    const dragged: ThicknessThresholds = withThresholdAt(DEFAULT_THICKNESS_THRESHOLDS, 1, 200); // ngưỡng 150|200
 
-    expect(groupOfMeasurement(195, DEFAULT_THICKNESS_THRESHOLDS)).toBe(220);
-    expect(groupOfMeasurement(195, dragged)).toBe(110);
+    expect(groupOfMeasurement(195, DEFAULT_THICKNESS_THRESHOLDS)).toBe(200);
+    expect(groupOfMeasurement(195, dragged)).toBe(150);
   });
 
   it('sai lệch của cột bê tông cốt thép luôn bằng không', () => {
@@ -371,7 +374,7 @@ describe('bảng nhóm', () => {
     );
 
     expect(row?.suggestedGroup).toBe(standardizeThickness(195).standardized);
-    expect(row?.suggestedGroup).toBe(220);
+    expect(row?.suggestedGroup).toBe(200);
     expect(row?.wallCount).toBe(FIXTURE_MEASURED_195_COUNT);
   });
 
@@ -416,15 +419,15 @@ describe('kéo ngưỡng', () => {
     );
 
     act(() => {
-      rendered.result.current.onThresholdDrag(0, 180);
+      rendered.result.current.onThresholdDrag(0, 140);
     });
-    expect(rendered.result.current.thresholds[0]).toBe(180);
+    expect(rendered.result.current.thresholds[0]).toBe(140);
 
     rendered.rerender({ projectId: 'project-2' });
     expect(rendered.result.current.thresholds).toEqual(DEFAULT_THICKNESS_THRESHOLDS);
 
     rendered.rerender({ projectId: PROJECT_ID });
-    expect(rendered.result.current.thresholds[0]).toBe(180);
+    expect(rendered.result.current.thresholds[0]).toBe(140);
     rendered.unmount();
   });
 
@@ -439,16 +442,16 @@ describe('kéo ngưỡng', () => {
       mounted.result.current.onThresholdDrag(0, 150);
     });
     act(() => {
-      mounted.result.current.onThresholdDrag(0, 180);
+      mounted.result.current.onThresholdDrag(0, 140);
     });
     act(() => {
-      mounted.result.current.onThresholdDrag(1, 260);
+      mounted.result.current.onThresholdDrag(1, 190);
     });
     act(() => {
-      mounted.result.current.onThresholdDrag(1, 275);
+      mounted.result.current.onThresholdDrag(1, 180);
     });
     act(() => {
-      mounted.result.current.onThresholdDrag(2, 360);
+      mounted.result.current.onThresholdDrag(2, 230);
     });
 
     console.log(
@@ -465,7 +468,7 @@ describe('kéo ngưỡng', () => {
     expect(notifications.list()).toHaveLength(0);
 
     /* Nhưng bảng và nhãn thì ĐÃ tính lại theo ngưỡng mới. */
-    expect(mounted.result.current.thresholds).toEqual([180, 275, 360]);
+    expect(mounted.result.current.thresholds).toEqual([140, 180, 230, ...DEFAULT_THICKNESS_THRESHOLDS.slice(3)]);
     expect(mounted.result.current.thresholdLabels).toHaveLength(
       DEFAULT_THICKNESS_THRESHOLDS.length,
     );
@@ -489,11 +492,11 @@ describe('áp chuẩn hoá', () => {
     console.log(`[S-18] câu xem trước = ${String(preview?.sentence)}`);
 
     expect(preview).not.toBeNull();
-    /* Ba đoạn đo đúng giá trị nhóm chuẩn không còn là dòng đề xuất (BUG-421), nên không nằm trong lượt áp. */
-    expect(preview?.totalWalls).toBe(FIXTURE_SEGMENT_COUNT - 3);
+    /* Bốn đoạn đo đúng bậc (100/200/220/400) không còn là dòng đề xuất (BUG-421), nên không nằm trong lượt áp. */
+    expect(preview?.totalWalls).toBe(FIXTURE_SEGMENT_COUNT - 4);
     expect(preview?.unchangedWalls).toHaveLength(FIXTURE_EXCEEDING_COUNT);
     expect(preview?.sentence).toBe(
-      '45 tường → 3 nhóm chuẩn. 6 tường lệch quá 30 mm sẽ không đổi.',
+      '44 tường → 5 nhóm chuẩn. 6 tường lệch quá 30 mm sẽ không đổi.',
     );
 
     /* Xem trước là XEM: ngăn xếp vẫn trống, kho chưa đổi một số nào. */
@@ -654,7 +657,7 @@ describe('áp chuẩn hoá', () => {
     });
 
     await waitFor(() => {
-      expect(thicknessInStore(target.id)).toBe(220);
+      expect(thicknessInStore(target.id)).toBe(200);
     });
 
     const shapesAfter = mounted.result.current.shapes;
@@ -666,7 +669,7 @@ describe('áp chuẩn hoá', () => {
     /* Đa giác được dựng LẠI: cùng số hình, nhưng không phải cùng object cũ. */
     expect(shapesAfter).toHaveLength(shapesBefore.length);
     expect(shapesAfter).not.toBe(shapesBefore);
-    expect(shapesAfter.find((shape) => shape.wallId === target.id)?.group).toBe(220);
+    expect(shapesAfter.find((shape) => shape.wallId === target.id)?.group).toBe(200);
   });
 
   it('gán một nhóm cho các hàng đang chọn cũng chỉ một bước lịch sử', async () => {
@@ -1032,7 +1035,7 @@ describe('Bảy trạng thái', () => {
     const [first, ...rest] = THICKNESS_SCENARIO_EMPTY.walls;
     const mounted = await mountScenario({
       ...THICKNESS_SCENARIO_EMPTY,
-      walls: [{ ...(first as Wall), thicknessMm: 160 }, ...rest],
+      walls: [{ ...(first as Wall), thicknessMm: 260 }, ...rest], // lệch 40 khỏi 220/300
     });
 
     expect(mounted.result.current.state).toBe('empty');

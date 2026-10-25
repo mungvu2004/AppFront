@@ -148,26 +148,18 @@ export type WallLayerScreenState =
 /* -------------------------------------------------------------------------- */
 
 /**
- * Ba độ dày mà điều khiển ba lựa chọn cho phép.
+ * Danh mục bề dày chuẩn — MỘT nguồn sự thật với máy chủ.
  *
- * Đây là ba BĂNG ĐỘ DÀY mà hệ thiết kế sơn được, không phải danh sách độ dày
- * xây được. Ba giá trị này khớp đúng ba token đã có:
- * `--wall-110` / `--wall-220` / `--wall-330` (`src/styles/globals.css:180-183`),
- * khoá tailwind `110/220/330` (`tailwind.config.ts:66-69`), và nhánh switch của
- * `wallStrokeToken` (`src/components/canvas/materialMap.ts:21-34`). Đổi đi giá
- * trị khác là mất cả ba chỗ đó cùng lúc.
- *
- * Lưu ý có thật: `STANDARD_THICKNESSES_MM` của `src/domain/walls/cleanup.ts:70`
- * là `[100, 150, 200, 220, 300, 400]` — một danh sách KHÁC, nói về độ dày xây
- * được, chỉ trùng nhau ở 220. Vì thế bộ lọc "chỉ hiện độ dày không chuẩn" của
- * màn này nghĩa là "không thuộc ba băng hệ thiết kế sơn", tức là không nằm
- * trong {@link WALL_THICKNESS_CHOICES} — KHÔNG dùng `STANDARD_THICKNESSES_MM`.
- *
- * Đặt ở ĐÚNG MỘT CHỖ để đổi chỉ tốn một dòng.
+ * Máy chủ bắt tường về `STANDARD_THICKNESSES_MM` (AppBack
+ * `apps/worker/pipeline_build/constants.py:5`), chính là bản sao của
+ * `src/domain/walls/cleanup.ts:70`. Nút chọn nhanh, bộ lọc "không chuẩn" và chú
+ * giải màu đều đọc danh sách này; `wallThicknessScale.test.ts` khoá nó bằng đúng
+ * `STANDARD_THICKNESSES_MM`. Màu: sáu bậc gộp vào ba token `--wall-110/220/330`
+ * (mỏng / vừa / dày) qua `wallThicknessColorBand`.
  */
-export const WALL_THICKNESS_CHOICES = [110, 220, 330] as const;
+export const WALL_THICKNESS_CHOICES = [100, 150, 200, 220, 300, 400] as const;
 
-/** Một trong ba giá trị của {@link WALL_THICKNESS_CHOICES}. */
+/** Một bậc của {@link WALL_THICKNESS_CHOICES}. */
 export type WallThicknessChoice = (typeof WALL_THICKNESS_CHOICES)[number];
 
 /* -------------------------------------------------------------------------- */

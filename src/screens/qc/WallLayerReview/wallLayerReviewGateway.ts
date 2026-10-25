@@ -121,7 +121,7 @@ import {
   WALL_LAYER_FIXTURE_LEVEL,
   WALL_LAYER_FIXTURE_WALLS,
 } from './wallLayerReviewFixture';
-import { wallThicknessBandOf } from './wallLayerHatch';
+import { wallThicknessBandOf, wallThicknessColorGroupOf } from './wallLayerHatch';
 import type {
   WallLayerCanvasShape,
   WallLayerLegendLevels,
@@ -1150,7 +1150,7 @@ export function drawingSizeOf(
  */
 export const legendLevelsOf = (walls: readonly Wall[]): WallLayerLegendLevels => ({
   /* So theo băng (dung sai của `wallThicknessBandOf`), không so khít: 218 mm vẫn thuộc băng 220. */
-  levels: WALL_THICKNESS_CHOICES.filter((choice) => walls.some((wall) => wallThicknessBandOf(wall.thicknessMm) === choice)),
+  levels: ([110, 220, 330] as const).filter((group) => walls.some((wall) => wallThicknessColorGroupOf(wall.thicknessMm) === group)),
   hasUnbanded: walls.some((wall) => wallThicknessBandOf(wall.thicknessMm) === null),
 });
 

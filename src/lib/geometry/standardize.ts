@@ -1,3 +1,4 @@
+import { STANDARD_THICKNESSES_MM } from '../../domain/walls/cleanup';
 import type { WallThickness } from '../../types/spatial';
 
 export interface StandardizeResult {
@@ -6,29 +7,23 @@ export interface StandardizeResult {
 }
 
 /**
- * Standardizes a raw thickness to the nearest domain-allowed thickness:
- * 110, 220, 330, or CONCRETE_COLUMN (if > 330).
- * Thresholds:
- * - < 165: 110
- * - 165 to < 275: 220
- * - 275 to <= 350: 330
- * - > 350: CONCRETE_COLUMN
+ * Trên ngưỡng này là cột BTCT. Ngưỡng cũ 350 nằm dưới bậc 400 của danh mục, nên dời lên
+ * 400 + 50 (nửa bước 300→400) để bậc 400 vẫn bắt được.
+ */
+export const CONCRETE_COLUMN_THRESHOLD_MM = 450;
+
+/**
+ * Bắt độ dày đo về bậc gần nhất của `STANDARD_THICKNESSES_MM`; hoà lấy số nhỏ hơn — đúng
+ * như máy chủ (AppBack `apps/worker/pipeline_build/geometry.py:199-200`). Trên
+ * {@link CONCRETE_COLUMN_THRESHOLD_MM} là `CONCRETE_COLUMN`.
  */
 export function standardizeThickness(rawThicknessMm: number): StandardizeResult {
-  let standardized: WallThickness;
+  const standardized: WallThickness =
+    rawThicknessMm > CONCRETE_COLUMN_THRESHOLD_MM
+      ? 'CONCRETE_COLUMN'
+      : STANDARD_THICKNESSES_MM.reduce((best, value) =>
+          Math.abs(value - rawThicknessMm) < Math.abs(best - rawThicknessMm) ? value : best,
+        );
 
-  if (rawThicknessMm < 165) {
-    standardized = 110;
-  } else if (rawThicknessMm < 275) {
-    standardized = 220;
-  } else if (rawThicknessMm <= 350) {
-    standardized = 330;
-  } else {
-    standardized = 'CONCRETE_COLUMN';
-  }
-
-  return {
-    original_mm: rawThicknessMm,
-    standardized,
-  };
+  return { original_mm: rawThicknessMm, standardized };
 }

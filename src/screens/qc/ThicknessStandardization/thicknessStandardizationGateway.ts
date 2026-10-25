@@ -95,7 +95,7 @@ import {
   DEFAULT_THICKNESS_THRESHOLDS,
   HISTOGRAM_BIN_MM,
   THICKNESS_GROUP_DISPLAY_ORDER,
-  THICKNESS_GROUP_LABELS,
+  thicknessGroupLabel,
   type ApplyPreview,
   type HistogramBin,
   type ThicknessGroup,
@@ -380,13 +380,9 @@ export function isDefaultThresholds(thresholds: ThicknessThresholds): boolean {
 
 /** Ba ngưỡng sắp lại tăng dần sau một lượt kéo — thuần, không ghi gì. */
 export function sortThresholds(thresholds: readonly number[]): ThicknessThresholds {
-  const [low, mid, high] = [...thresholds].sort((first, second) => first - second);
+  const sorted = [...thresholds].sort((first, second) => first - second);
 
-  return [
-    low ?? DEFAULT_THICKNESS_THRESHOLDS[0],
-    mid ?? DEFAULT_THICKNESS_THRESHOLDS[1],
-    high ?? DEFAULT_THICKNESS_THRESHOLDS[2],
-  ];
+  return DEFAULT_THICKNESS_THRESHOLDS.map((fallback, index) => sorted[index] ?? fallback);
 }
 
 /**
@@ -712,7 +708,7 @@ export function thicknessLegend(
 
   return THICKNESS_GROUP_DISPLAY_ORDER.filter((group) => present.has(group)).map((group) => ({
     group,
-    label: THICKNESS_GROUP_LABELS[group],
+    label: thicknessGroupLabel(group),
     colorToken: wallStrokeToken(group),
   }));
 }

@@ -39,6 +39,7 @@ import { WallThicknessLegend } from '@/components/canvas/WallThicknessLegend';
 
 import type { WallLayerScreenState } from './types';
 import type { WallLayerLegendLevels } from './wallLayerHatch';
+import { WALL_THICKNESS_GROUP_LABELS } from './wallLayerHatch';
 
 /** Mục cho tường ngoài ba băng chuẩn (BUG-416). */
 const OTHER_THICKNESS_LABEL = 'Khác';
@@ -94,6 +95,7 @@ export function WallLayerLegend({ state, isWallLayerVisible, levels }: WallLayer
     <WallThicknessLegend
       activeFilter={levels.activeFilter}
       availableLevels={[...levels.levels]}
+      labels={WALL_THICKNESS_GROUP_LABELS}
       onFilterChange={levels.onFilterChange}
       className="whitespace-nowrap"
       isVisible={isWallLayerVisible}

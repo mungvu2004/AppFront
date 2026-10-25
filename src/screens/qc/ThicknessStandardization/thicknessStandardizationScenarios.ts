@@ -69,7 +69,7 @@ const STANDARDIZED_WALLS = alreadyStandardized(THICKNESS_FIXTURE_WALLS);
  */
 const PARTIAL_TWO_GROUPS_WALLS: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter((source) => {
   const { standardized } = standardizeThickness(source.thicknessMm);
-  return standardized === 110 || standardized === 220;
+  return standardized === 100 || standardized === 200; // hai bậc của thang sáu bậc
 });
 
 /** "Mới có số đo của một số tầng" — chỉ hai trong ba tầng của bộ mẫu đã có dữ liệu. */
