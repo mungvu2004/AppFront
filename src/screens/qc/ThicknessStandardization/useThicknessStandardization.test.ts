@@ -260,7 +260,7 @@ describe('phép ghép thuần của màn Chuẩn hoá độ dày tường', () =
       );
     }
 
-    expect(groupOfMeasurement(195, DEFAULT_THICKNESS_THRESHOLDS)).toBe(220);
+    expect(groupOfMeasurement(195, DEFAULT_THICKNESS_THRESHOLDS)).toBe(200);
   });
 
   it('kéo một ngưỡng thì ba ngưỡng vẫn tăng dần', () => {
@@ -271,17 +271,20 @@ describe('phép ghép thuần của màn Chuẩn hoá độ dày tường', () =
   });
 
   it('[BUG-606] kéo qua ngưỡng kề thì bị kẹp, không đẩy ngưỡng kia đi', () => {
-    const [low, mid, high] = DEFAULT_THICKNESS_THRESHOLDS as readonly [number, number, number];
+    const t = DEFAULT_THICKNESS_THRESHOLDS;
+    const [, mid = 0, high = 0] = t;
 
-    expect(withThresholdAt(DEFAULT_THICKNESS_THRESHOLDS, 0, 400)).toEqual([mid - HISTOGRAM_BIN_MM, mid, high]);
-    expect(withThresholdAt(DEFAULT_THICKNESS_THRESHOLDS, 2, 0)).toEqual([low, mid, mid + HISTOGRAM_BIN_MM]);
+    /* Ngưỡng 0 kéo qua ngưỡng 1 thì kẹp ngay dưới nó; ngưỡng 2 kéo về 0 thì kẹp ngay trên ngưỡng 1. */
+    expect(withThresholdAt(t, 0, 400)).toEqual([mid - HISTOGRAM_BIN_MM, ...t.slice(1)]);
+    expect(withThresholdAt(t, 2, 0)).toEqual([...t.slice(0, 2), mid + HISTOGRAM_BIN_MM, ...t.slice(3)]);
+    expect(high).toBeGreaterThan(mid);
   });
 
   it('kéo ngưỡng đổi nhóm của số đo nằm giữa hai ngưỡng', () => {
-    const dragged: ThicknessThresholds = withThresholdAt(DEFAULT_THICKNESS_THRESHOLDS, 0, 200);
+    const dragged: ThicknessThresholds = withThresholdAt(DEFAULT_THICKNESS_THRESHOLDS, 1, 200); // ngưỡng 150|200
 
-    expect(groupOfMeasurement(195, DEFAULT_THICKNESS_THRESHOLDS)).toBe(220);
-    expect(groupOfMeasurement(195, dragged)).toBe(110);
+    expect(groupOfMeasurement(195, DEFAULT_THICKNESS_THRESHOLDS)).toBe(200);
+    expect(groupOfMeasurement(195, dragged)).toBe(150);
   });
 
   it('sai lệch của cột bê tông cốt thép luôn bằng không', () => {
@@ -371,7 +374,7 @@ describe('bảng nhóm', () => {
     );
 
     expect(row?.suggestedGroup).toBe(standardizeThickness(195).standardized);
-    expect(row?.suggestedGroup).toBe(220);
+    expect(row?.suggestedGroup).toBe(200);
     expect(row?.wallCount).toBe(FIXTURE_MEASURED_195_COUNT);
   });
 
@@ -416,15 +419,15 @@ describe('kéo ngưỡng', () => {
     );
 
     act(() => {
-      rendered.result.current.onThresholdDrag(0, 180);
+      rendered.result.current.onThresholdDrag(0, 140);
     });
-    expect(rendered.result.current.thresholds[0]).toBe(180);
+    expect(rendered.result.current.thresholds[0]).toBe(140);
 
     rendered.rerender({ projectId: 'project-2' });
     expect(rendered.result.current.thresholds).toEqual(DEFAULT_THICKNESS_THRESHOLDS);
 
     rendered.rerender({ projectId: PROJECT_ID });
-    expect(rendered.result.current.thresholds[0]).toBe(180);
+    expect(rendered.result.current.thresholds[0]).toBe(140);
     rendered.unmount();
   });
 
@@ -439,16 +442,16 @@ describe('kéo ngưỡng', () => {
       mounted.result.current.onThresholdDrag(0, 150);
     });
     act(() => {
-      mounted.result.current.onThresholdDrag(0, 180);
+      mounted.result.current.onThresholdDrag(0, 140);
     });
     act(() => {
-      mounted.result.current.onThresholdDrag(1, 260);
+      mounted.result.current.onThresholdDrag(1, 190);
     });
     act(() => {
-      mounted.result.current.onThresholdDrag(1, 275);
+      mounted.result.current.onThresholdDrag(1, 180);
     });
     act(() => {
-      mounted.result.current.onThresholdDrag(2, 360);
+      mounted.result.current.onThresholdDrag(2, 230);
     });
 
     console.log(
@@ -465,7 +468,7 @@ describe('kéo ngưỡng', () => {
     expect(notifications.list()).toHaveLength(0);
 
     /* Nhưng bảng và nhãn thì ĐÃ tính lại theo ngưỡng mới. */
-    expect(mounted.result.current.thresholds).toEqual([180, 275, 360]);
+    expect(mounted.result.current.thresholds).toEqual([140, 180, 230, ...DEFAULT_THICKNESS_THRESHOLDS.slice(3)]);
     expect(mounted.result.current.thresholdLabels).toHaveLength(
       DEFAULT_THICKNESS_THRESHOLDS.length,
     );
@@ -654,7 +657,7 @@ describe('áp chuẩn hoá', () => {
     });
 
     await waitFor(() => {
-      expect(thicknessInStore(target.id)).toBe(220);
+      expect(thicknessInStore(target.id)).toBe(200);
     });
 
     const shapesAfter = mounted.result.current.shapes;

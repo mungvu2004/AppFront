@@ -105,8 +105,8 @@ const APPLY_LABEL = 'Áp dụng';
 const UNDO_LABEL = 'Hoàn tác';
 const REAPPLY_FILTER_LABEL = 'Áp lại cho mọi tường lệch nhóm';
 const REAPPLY_WARNING_TITLE = 'Áp lại cho mọi tường lệch nhóm sẽ đổi tường đã duyệt';
-const LOW_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(thicknessGroupLabel(110))} và ${lowerFirst(thicknessGroupLabel(220))}`;
-const HIGH_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(thicknessGroupLabel(330))} và ${lowerFirst(thicknessGroupLabel('CONCRETE_COLUMN'))}`;
+const LOW_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(thicknessGroupLabel(100))} và ${lowerFirst(thicknessGroupLabel(150))}`;
+const HIGH_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(thicknessGroupLabel(400))} và ${lowerFirst(thicknessGroupLabel('CONCRETE_COLUMN'))}`;
 
 const PROJECT_ID = 'project-1';
 const FLOOR_ID = THICKNESS_FIXTURE_LEVELS[0]?.id ?? '';
@@ -126,7 +126,7 @@ const EDITOR_ROLES: readonly ProjectRole[] = ['engineer'];
 const HEAVY_TEST_TIMEOUT_MS = 120000;
 
 /** Ba số đo dùng cho bài "áp ba nhóm" — mỗi số một nhóm chuẩn khác nhau. */
-const THREE_MEASUREMENTS = [100, 195, 315] as const;
+const THREE_MEASUREMENTS = [110, 195, 315] as const;
 
 /**
  * Hai từ tiếng Việt KHÔNG có dấu trong tiếng Việt chuẩn.
@@ -557,7 +557,7 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
     const { container } = await renderMain();
     const valueOf = (name: string): number =>
       Number(within(container).getByRole('slider', { name }).getAttribute('aria-valuenow'));
-    const midName = `Ngưỡng giữa ${lowerFirst(thicknessGroupLabel(220))} và ${lowerFirst(thicknessGroupLabel(330))}`;
+    const midName = `Ngưỡng giữa ${lowerFirst(thicknessGroupLabel(300))} và ${lowerFirst(thicknessGroupLabel(400))}`;
     const minBefore = within(container).getByRole('slider', { name: LOW_THRESHOLD_LABEL }).getAttribute('aria-valuemin');
 
     fireEvent.keyDown(within(container).getByRole('slider', { name: HIGH_THRESHOLD_LABEL }), { key: 'Home' });
@@ -695,12 +695,12 @@ describe('P04 cụm C — điều khiển chỉ hiện khi dùng được', () =
     fireEvent.click(within(row as HTMLElement).getByRole('combobox', { name: /^Độ dày chuẩn hoá của đoạn /u }));
 
     expect(screen.queryByRole('option', { name: 'Cột BTCT' })).toBeNull();
-    fireEvent.click(screen.getByRole('option', { name: '330 mm' }));
+    fireEvent.click(screen.getByRole('option', { name: '300 mm' }));
 
     await waitFor(() => {
       expect(history.undoSteps()).toHaveLength(1);
     });
-    expect(thicknessInStore(target.id)).toBe(330);
+    expect(thicknessInStore(target.id)).toBe(300);
   }, HEAVY_TEST_TIMEOUT_MS);
 
   it('[BUG-611/340] mỗi ô tóm tắt chỉ có một con số', async () => {

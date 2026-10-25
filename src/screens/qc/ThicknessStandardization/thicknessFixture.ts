@@ -110,7 +110,7 @@ const point = (x: number, y: number): Point => ({ x, y });
  * Xem ghi chú đầu file cho lý do của từng nhóm giá trị `thicknessMm`.
  */
 export const THICKNESS_FIXTURE_WALLS: readonly Wall[] = [
-  // -- 30 đoạn 195 mm → nhóm 220, lệch 25 mm, TRONG dung sai --------------------
+  // -- 30 đoạn 195 mm → bậc 200, lệch 5 mm, TRONG dung sai (thang sáu bậc) --------------------
   wall(1, LEVEL_1_ID, point(0, 0), point(3000, 0), 195, 'partition', 0.95, true),
   wall(2, LEVEL_2_ID, point(0, 0), point(3000, 0), 195, 'partition', 0.72, false),
   wall(3, LEVEL_3_ID, point(0, 0), point(3000, 0), 195, 'partition', 0.58, false),
@@ -142,13 +142,13 @@ export const THICKNESS_FIXTURE_WALLS: readonly Wall[] = [
   wall(29, LEVEL_2_ID, point(27000, 0), point(30000, 0), 195, 'partition', 0.81, true),
   wall(30, LEVEL_3_ID, point(27000, 0), point(30000, 0), 195, 'partition', 0.65, false),
 
-  // -- 6 đoạn lệch quá 30 mm — sát ranh giới 165/275/350 -----------------------
-  wall(31, LEVEL_1_ID, point(30000, 0), point(33000, 0), 70, 'partition', 0.91, false),
-  wall(32, LEVEL_2_ID, point(30000, 0), point(33000, 0), 164, 'partition', 0.77, false),
-  wall(33, LEVEL_3_ID, point(30000, 0), point(33000, 0), 166, 'partition', 0.6, true),
-  wall(34, LEVEL_1_ID, point(33000, 0), point(36000, 0), 274, 'loadBearing', 0.88, false),
-  wall(35, LEVEL_2_ID, point(33000, 0), point(36000, 0), 276, 'loadBearing', 0.93, false),
-  wall(36, LEVEL_3_ID, point(33000, 0), point(36000, 0), 280, 'loadBearing', 0.69, false),
+  // -- 6 đoạn lệch quá 30 mm khỏi mọi bậc 100/150/200/220/300/400 -----------------------
+  wall(31, LEVEL_1_ID, point(30000, 0), point(33000, 0), 40, 'partition', 0.91, false),
+  wall(32, LEVEL_2_ID, point(30000, 0), point(33000, 0), 60, 'partition', 0.77, false),
+  wall(33, LEVEL_3_ID, point(30000, 0), point(33000, 0), 255, 'partition', 0.6, true),
+  wall(34, LEVEL_1_ID, point(33000, 0), point(36000, 0), 265, 'loadBearing', 0.88, false),
+  wall(35, LEVEL_2_ID, point(33000, 0), point(36000, 0), 335, 'loadBearing', 0.93, false),
+  wall(36, LEVEL_3_ID, point(33000, 0), point(36000, 0), 365, 'loadBearing', 0.69, false),
 
   // -- 12 đoạn còn lại — trải bốn nhóm, TRONG dung sai --------------------------
   wall(37, LEVEL_1_ID, point(36000, 0), point(39000, 0), 110, 'partition', 0.95, true),
@@ -156,10 +156,10 @@ export const THICKNESS_FIXTURE_WALLS: readonly Wall[] = [
   wall(39, LEVEL_3_ID, point(36000, 0), point(39000, 0), 130, 'partition', 0.58, false),
   wall(40, LEVEL_1_ID, point(39000, 0), point(42000, 0), 330, 'loadBearing', 0.99, false),
   wall(41, LEVEL_2_ID, point(39000, 0), point(42000, 0), 315, 'loadBearing', 0.81, true),
-  wall(42, LEVEL_3_ID, point(39000, 0), point(42000, 0), 345, 'loadBearing', 0.65, false),
-  wall(43, LEVEL_1_ID, point(42000, 0), point(45000, 0), 360, 'loadBearing', 0.91, false),
+  wall(42, LEVEL_3_ID, point(39000, 0), point(42000, 0), 310, 'loadBearing', 0.65, false),
+  wall(43, LEVEL_1_ID, point(42000, 0), point(45000, 0), 390, 'loadBearing', 0.91, false),
   wall(44, LEVEL_2_ID, point(42000, 0), point(45000, 0), 400, 'loadBearing', 0.77, false),
-  wall(45, LEVEL_3_ID, point(42000, 0), point(45000, 0), 450, 'loadBearing', 0.6, true),
+  wall(45, LEVEL_3_ID, point(42000, 0), point(45000, 0), 500, 'loadBearing', 0.6, true),
   wall(46, LEVEL_1_ID, point(45000, 0), point(48000, 0), 220, 'loadBearing', 0.88, false),
   wall(47, LEVEL_2_ID, point(45000, 0), point(48000, 0), 200, 'partition', 0.93, false),
   wall(48, LEVEL_3_ID, point(45000, 0), point(48000, 0), 210, 'loadBearing', 0.69, false),
