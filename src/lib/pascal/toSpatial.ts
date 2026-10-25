@@ -23,6 +23,7 @@
  * vòng đổi qua đổi lại sẽ trôi dần.
  */
 
+import { undoFloorTransforms } from './floorAlignment';
 import { computeArea } from '@/domain/rooms/area';
 import { millimetresPerPixel } from '@/domain/units/scale';
 import { createId, isIdOfKind, type EntityKind, type IdByKind } from '@/domain/spatial/ids';
@@ -915,10 +916,12 @@ const collectLevelChildren = (
  * dựng lại — người gọi giữ bản cũ của ba danh sách ấy nếu cần.
  */
 export const toSpatialGraph = (
-  scene: PascalScene,
+  shownScene: PascalScene,
   idBook?: PascalIdBook,
   adoptRoomIds: ReadonlySet<string> = new Set(),
 ): SpatialGraphResult => {
+  /* Tầng căn chỉ là phép biến đổi hiển thị: gỡ ra trước khi đọc, dữ liệu giữ toạ độ đã lưu. */
+  const scene = undoFloorTransforms(shownScene);
   const mint = minterFor(idBook);
   const skipped: SkippedEntity[] = [];
   const skip = (id: string, kind: string, reason: string): void => {
