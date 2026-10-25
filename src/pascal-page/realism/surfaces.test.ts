@@ -2,7 +2,7 @@ import { MeshStandardMaterial } from 'three';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { DAY_THEME_ID, NIGHT_THEME_ID } from '../renderLook';
-import { haloLevel } from './halo';
+import { HALO_RADIUS, haloFalloff, haloLevel, haloRadius } from './halo';
 import { DEFAULT_REALISM_FLAGS, useRealism } from './store';
 import { tuneWallPaint, WALL_NORMAL_SCALE } from './wallFinish';
 
@@ -31,5 +31,15 @@ describe('bề mặt dùng chung', () => {
     expect(haloLevel(2, NIGHT_THEME_ID)).toBeCloseTo(1);
     expect(haloLevel(1, NIGHT_THEME_ID)).toBeCloseTo(0.5);
     expect(haloLevel(2, DAY_THEME_ID)).toBe(0);
+  });
+
+  it('quầng: lõi nhỏ đậm, đuôi ~1/d², về 0 ở mép; bán kính co theo √mức', () => {
+    expect(haloFalloff(0)).toBe(1);
+    expect(haloFalloff(0.25)).toBeLessThan(0.25); // ra khỏi lõi đã tắt nhanh
+    expect(haloFalloff(0.5) / haloFalloff(0.25)).toBeLessThan(0.3); // gấp đôi khoảng cách ≈ 1/4 trở xuống
+    expect(haloFalloff(1)).toBe(0);
+    expect(haloRadius(1)).toBeCloseTo(HALO_RADIUS);
+    expect(haloRadius(0.25)).toBeCloseTo(HALO_RADIUS / 2);
+    expect(haloRadius(0)).toBe(0);
   });
 });

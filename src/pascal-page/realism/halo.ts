@@ -11,9 +11,11 @@ import { MeshBasicNodeMaterial } from 'three/webgpu';
 import { ITEM_LIGHT_SCALE, itemLightIntensity } from './itemLights';
 import { useRealism } from './store';
 
-/** Bán kính quầng (m) và độ sáng cộng thêm ở tâm khi đèn 100 %. */
-export const HALO_RADIUS = 0.9;
+/** Bán kính quầng tối đa (m, đèn 100 %) và độ sáng cộng thêm ở tâm khi đèn 100 %. */
+export const HALO_RADIUS = 0.55;
 export const HALO_STRENGTH = 0.35;
+/** Bán kính lõi tương đối (0..1 của bán kính quầng): lõi sáng nhỏ, ngoài lõi rơi ~1/d². */
+export const HALO_CORE = 0.12;
 /** Cường độ tối đa của đèn âm trần trong catalog (`intensityRange[1]`). */
 const LIGHT_MAX = 2;
 
@@ -30,9 +32,28 @@ export function haloLevel(intensity: number, sceneTheme?: string): number {
   return MathUtils.clamp(itemLightIntensity(intensity, sceneTheme) / (LIGHT_MAX * ITEM_LIGHT_SCALE), 0, 1);
 }
 
-const geometry = new CircleGeometry(HALO_RADIUS, 48);
-// Tâm 1 → mép 0, rơi bậc hai cho mềm.
-const falloff = float(1).sub(uv().sub(0.5).length().mul(2)).clamp(0, 1).pow(2);
+/**
+ * Bán kính quầng (m) theo mức đèn: vùng sáng vượt một ngưỡng của nguồn ~1/d² co theo √cường độ,
+ * nên đèn yếu cho quầng nhỏ thay vì cùng một đĩa to mờ.
+ */
+export function haloRadius(level: number): number {
+  return HALO_RADIUS * Math.sqrt(MathUtils.clamp(level, 0, 1));
+}
+
+/**
+ * Độ sáng tương đối tại khoảng cách chuẩn hoá `d` (0 tâm .. 1 mép): lõi mềm kiểu 1/(1+(d/c)²)
+ * (≈1/d² ngoài lõi) nhân cửa sổ (1−d²)² để về 0 đúng mép, không có viền đĩa.
+ */
+export function haloFalloff(d: number): number {
+  const x = MathUtils.clamp(d, 0, 1);
+  const w = (1 - x * x) ** 2;
+  return w / (1 + (x / HALO_CORE) ** 2);
+}
+
+const geometry = new CircleGeometry(1, 48); // bán kính đơn vị, co theo `haloRadius` qua scale
+const _d = uv().sub(0.5).length().mul(2).clamp(0, 1);
+const _w = float(1).sub(_d.mul(_d)).pow(2);
+const falloff = _w.div(float(1).add(_d.div(HALO_CORE).pow(2)));
 const groups = new WeakMap<Object3D, Group>();
 const _pos = new Vector3();
 
@@ -86,7 +107,9 @@ export function syncRecessedHalos(
     }
     object.getWorldPosition(_pos);
     halo.position.set(_pos.x, _pos.y - 0.004, _pos.z);
-    const target = shown(object) && src.isEligible() ? haloLevel(src.getIntensity(), sceneTheme) * HALO_STRENGTH : 0;
+    const level = shown(object) && src.isEligible() ? haloLevel(src.getIntensity(), sceneTheme) : 0;
+    const target = level * HALO_STRENGTH;
+    if (level > 0) halo.scale.setScalar(haloRadius(level));
     const mat = halo.material as MeshBasicNodeMaterial;
     mat.opacity = MathUtils.lerp(mat.opacity, target, Math.min(1, dt * 12));
     halo.visible = mat.opacity > 0.002;
