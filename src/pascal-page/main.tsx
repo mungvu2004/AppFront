@@ -7,7 +7,7 @@ import './selfHost';
 import './probe';
 import './icons';
 import './firstOpen';
-import { acquireSceneReadOnlyLease, type SceneGraph, useScene } from '@pascal-app/core';
+import { acquireSceneReadOnlyLease, pauseSceneHistory, resumeSceneHistory, type SceneGraph, useScene } from '@pascal-app/core';
 import { CATALOG_ITEMS } from '@pascal-app/editor';
 import { loadPlugin } from '@pascal-app/core/registry';
 import { builtinPlugin } from '@pascal-app/nodes';
@@ -90,8 +90,20 @@ function LoadingNotice() {
   );
 }
 
+/* Lượt sửa bị từ chối → đặt lại cảnh từ kho mà KHÔNG ghi bước hoàn tác và không xoá lịch sử
+   (khác `applySceneGraphToEditor`): Ctrl+Z ngay sau đó về đúng cảnh trước lượt bị từ chối (no-op). */
+const applyRejectedRevert = (scene: unknown) => {
+  const { nodes, rootNodeIds, collections, materials } = scene as SceneGraph;
+  pauseSceneHistory(useScene);
+  try {
+    useScene.getState().setScene(nodes as never, rootNodeIds as never, { collections, materials } as never);
+  } finally {
+    resumeSceneHistory(useScene);
+  }
+};
+
 function PascalPage({ projectId }: { readonly projectId: string }) {
-  const bridge = usePascalProjectBridge(projectId);
+  const bridge = usePascalProjectBridge(projectId, applyRejectedRevert);
   const readOnly = bridge.status === 'ready' && bridge.readOnly;
 
   useEffect(() => (readOnly ? acquireSceneReadOnlyLease() : undefined), [readOnly]);
