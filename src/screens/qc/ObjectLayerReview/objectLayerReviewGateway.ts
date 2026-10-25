@@ -2133,15 +2133,6 @@ export function attachOrphanToNearestWall(
 /* Thêm tay — hành động của nút "thêm thủ công" ở trạng thái rỗng.              */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Giữa tim tường.
- *
- * Không gõ `0,5`: hai đầu tim tường đã có tên ở domain
- * (`AT_WALL_START`/`AT_WALL_END`, `src/domain/openings/types.ts`), nên trung
- * điểm suy ra từ chính hai hằng đó và đi theo domain nếu quy ước fraction đổi
- * (R-71). `clampRelativePosition` là hàm domain giữ giá trị trong dải hợp lệ.
- */
-const AT_WALL_MIDDLE: RelativePosition = clampRelativePosition((AT_WALL_START + AT_WALL_END) / 2);
 
 /**
  * Khuôn kích thước của một cửa đơn thêm tay — ĐỌC RA từ bộ mẫu, không gõ tay.
@@ -2153,6 +2144,10 @@ const AT_WALL_MIDDLE: RelativePosition = clampRelativePosition((AT_WALL_START + 
  */
 const MANUAL_DOOR_TEMPLATE: ReviewObject | null =
   OBJECT_LAYER_FIXTURE_OBJECTS.find((object) => object.subtype === 'singleDoor') ?? null;
+
+/** Mẫu cửa sổ thêm tay — cửa sổ đầu tiên của bộ mẫu (kích thước + cao độ bệ thật). */
+const MANUAL_WINDOW_TEMPLATE: ReviewObject | null =
+  OBJECT_LAYER_FIXTURE_OBJECTS.find((object) => object.layer === 'window') ?? null;
 
 /**
  * Đề nghị MỘT cửa đơn thêm tay, hoặc `null` khi tầng chưa có tường nào để đặt.
@@ -2176,24 +2171,58 @@ export function manualDoorProposalOf(
   level: Level,
   id: OpeningId = createId('opening'),
 ): AddOpeningInput | null {
-  const wall = solidWallsOf(graph, level)[0];
+  return manualDoorProposalsOf(graph, level, id)[0] ?? null;
+}
 
-  if (wall === undefined || MANUAL_DOOR_TEMPLATE === null) {
-    return null;
+/*
+ * Chỗ thử dọc tim tường cho lượt thêm tay: giữa trước, rồi các phần tư, phần tám. Cửa thứ hai
+ * trở đi không được đè cửa đầu (giữa tường), nên màn thử lần lượt các chỗ này; `validateOpening`
+ * vẫn là bên phán quyết từng chỗ.
+ */
+const MANUAL_SLOTS: readonly RelativePosition[] = [0.5, 0.25, 0.75, 0.125, 0.375, 0.625, 0.875].map(
+  (fraction) => clampRelativePosition(AT_WALL_START + (AT_WALL_END - AT_WALL_START) * fraction),
+);
+
+/**
+ * Mọi chỗ đề nghị cho một cửa thêm tay, theo thứ tự ưu tiên: tường `preferredWallId` (tường
+ * đang chọn/được tô) trước, rồi các tường còn lại theo thứ tự của tầng; trên mỗi tường thử
+ * `MANUAL_SLOTS`. Toạ độ luôn là `placeOnWall` trên tim tường (M-08). Hook lấy chỗ ĐẦU TIÊN mà
+ * `buildAddOpeningCommand` nhận — nhờ vậy thêm được cửa thứ hai trở đi trên 2D.
+ */
+export function manualDoorProposalsOf(
+  graph: NormalizedSpatial,
+  level: Level,
+  id: OpeningId = createId('opening'),
+  preferredWallId: WallId | null = null,
+  kind: 'door' | 'window' = 'door',
+): readonly AddOpeningInput[] {
+  const template = kind === 'window' ? MANUAL_WINDOW_TEMPLATE : MANUAL_DOOR_TEMPLATE;
+
+  if (template === null) {
+    return [];
   }
 
-  const template = MANUAL_DOOR_TEMPLATE;
+  const walls = solidWallsOf(graph, level);
+  const ordered = [
+    ...walls.filter((wall) => wall.id === preferredWallId),
+    ...walls.filter((wall) => wall.id !== preferredWallId),
+  ];
 
-  return {
-    id,
-    levelId: level.id,
-    kind: 'door',
-    centre: positionOnWall(wall, AT_WALL_MIDDLE),
-    widthMm: template.widthMm,
-    heightMm: template.heightMm,
-    sillHeightMm: OPENING_RULES.doorSillHeightMm,
-    swing: template.swing,
-  };
+  return ordered.flatMap((wall) =>
+    MANUAL_SLOTS.map((slot) => ({
+      id,
+      levelId: level.id,
+      kind,
+      centre: positionOnWall(wall, slot),
+      widthMm: template.widthMm,
+      heightMm: template.heightMm,
+      sillHeightMm:
+        kind === 'window'
+          ? (template.sillHeightMm ?? OPENING_RULES.windowSillMinMm)
+          : OPENING_RULES.doorSillHeightMm,
+      swing: template.swing,
+    })),
+  );
 }
 
 /* -------------------------------------------------------------------------- */

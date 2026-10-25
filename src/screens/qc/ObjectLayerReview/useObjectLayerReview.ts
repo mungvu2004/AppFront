@@ -90,7 +90,7 @@ import type { ProjectRole } from '@/types/project';
 import {
   attachOrphanToNearestWall,
   buildAddOpeningCommand,
-  manualDoorProposalOf,
+  manualDoorProposalsOf,
   buildApproveObjectCommand,
   buildChangeObjectKindCommand,
   buildChangeObjectSwingCommand,
@@ -1067,6 +1067,9 @@ export function useObjectLayerReview(
     [canEdit, gateway, level, notifications, runSingle],
   );
 
+  /* Tường ưu tiên cho lượt thêm tay (tường đang được tô); ghi ở dưới, sau khi `flownWallId` có. */
+  const preferredWallRef = useRef<WallId | null>(null);
+
   /*
    * "thêm thủ công" của trạng thái rỗng — một lệnh `opening.add` thật.
    *
@@ -1078,16 +1081,20 @@ export function useObjectLayerReview(
    * Tầng của URL không có trong đồ thị (`level === null`) thì báo `addNoWall`,
    * không im lặng (A11). Ở ca tầng chưa nạp, câu này có thể sai: xem B-V6-71.
    */
-  const onAddManually = useCallback(() => {
+  const onAddManually = useCallback((kind: 'door' | 'window' = 'door') => {
     const current = useStore.getState().spatial;
 
     if (!canEdit || current === null) {
       return;
     }
 
-    const proposal = level === null ? null : manualDoorProposalOf(current, level);
+    /* Thử lần lượt các chỗ trên tim tường; chỗ đầu tiên domain nhận là chỗ đặt (cửa thứ hai trở đi). */
+    const proposals =
+      level === null
+        ? []
+        : manualDoorProposalsOf(current, level, undefined, preferredWallRef.current, kind);
 
-    if (proposal === null) {
+    if (proposals.length === 0) {
       notifications.publish({
         type: ADD_NOTIFICATION_TYPE,
         title: OBJECT_LAYER_TEXT.addNoWall,
@@ -1097,22 +1104,26 @@ export function useObjectLayerReview(
       return;
     }
 
-    const built = buildAddOpeningCommand(
-      proposal,
-      commandContextOf(current, gateway.actorId),
-    );
+    const context = commandContextOf(current, gateway.actorId);
+    let firstRefusal: readonly string[] | null = null;
 
-    if (!built.ok) {
-      notifications.publish({
-        type: ADD_NOTIFICATION_TYPE,
-        title: OBJECT_LAYER_TEXT.addRefused,
-        description: built.error.reasons.join(' '),
-      });
+    for (const proposal of proposals) {
+      const built = buildAddOpeningCommand(proposal, context);
 
-      return;
+      if (built.ok) {
+        void runSingle(proposal.id, kind, () => built.data);
+
+        return;
+      }
+
+      firstRefusal ??= built.error.reasons;
     }
 
-    void runSingle(proposal.id, 'door', () => built.data);
+    notifications.publish({
+      type: ADD_NOTIFICATION_TYPE,
+      title: OBJECT_LAYER_TEXT.addRefused,
+      description: (firstRefusal ?? []).join(' '),
+    });
   }, [canEdit, gateway, level, notifications, runSingle]);
 
   /* ---------------------------------------------------------------------- */
@@ -1125,6 +1136,7 @@ export function useObjectLayerReview(
    */
   const [frameSizePx, setFrameSizePx] = useState<CanvasFitSize | null>(null);
   const [flownWallId, setFlownWallId] = useState<WallId | null>(null);
+  preferredWallRef.current = flownWallId;
   const onFrameResize = useCallback((size: CanvasFitSize) => {
     setFrameSizePx((previous) =>
       previous !== null && previous.width === size.width && previous.height === size.height
