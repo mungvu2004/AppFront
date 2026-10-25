@@ -283,9 +283,16 @@ describe('durable gutter — mái nạp lại có máng ngay (luật r9g-load-gu
         guttersOf(nodes, id).length === 0,
     );
 
-    useScene
-      .getState()
-      .updateNodes(gutterless.map(([id, node]) => ({ id: id as never, data: { metadata: node.metadata } as never })));
+    const wasReadOnly = useScene.getState().readOnly;
+
+    if (wasReadOnly) useScene.setState({ readOnly: false });
+    try {
+      useScene
+        .getState()
+        .updateNodes(gutterless.map(([id, node]) => ({ id: id as never, data: { metadata: node.metadata } as never })));
+    } finally {
+      if (wasReadOnly) useScene.setState({ readOnly: true });
+    }
 
     const refreshed: Live = { ...(useScene.getState().nodes as unknown as Live) };
 
@@ -325,5 +332,27 @@ describe('durable gutter — mái nạp lại có máng ngay (luật r9g-load-gu
 
     expect(after).toHaveLength(gutters.length);
     expect(Object.values(live()).filter((node) => node.type === 'gutter')).toHaveLength(gutters.length);
+  });
+
+  it('cảnh chỉ đọc (readOnly) cũng có máng, cờ readOnly giữ nguyên, đọc ngược 0 lệnh', () => {
+    setDetailsEnabled(true);
+    vi.stubGlobal('requestAnimationFrame', () => 0);
+    vi.stubGlobal('cancelAnimationFrame', () => undefined);
+    const built = toPascalScene(savedRoofGraph()).scene;
+
+    useScene.getState().setReadOnly(true);
+    try {
+      useScene.getState().setScene(built.nodes as never, built.rootNodeIds as never);
+      const loadedRoofs = toSpatialGraph({ ...built, nodes: useScene.getState().nodes } as unknown as PascalScene).graph.roofs;
+
+      refreshLoadedGutters();
+      const live = useScene.getState().nodes as unknown as Live;
+
+      expect(guttersOf(live, 'rseg_a1b2c3d4e5f6').length).toBeGreaterThan(0);
+      expect(useScene.getState().readOnly).toBe(true);
+      expect(toSpatialGraph({ ...built, nodes: live } as unknown as PascalScene).graph.roofs).toEqual(loadedRoofs);
+    } finally {
+      useScene.getState().setReadOnly(false);
+    }
   });
 });

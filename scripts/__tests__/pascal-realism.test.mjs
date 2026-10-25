@@ -9,6 +9,7 @@ import path from 'node:path';
 
 import { pascalRealism, REALISM_RULES, transformRealism } from '../pascal-realism.mjs';
 import { RENDER_RULES, transformRender } from '../pascal-render.mjs';
+import { partitionSkirtingData, RULES as R9V_RULES } from '../realism/r9v-partition-skirt.mjs';
 
 const { describe, it } = globalThis.describe ? globalThis : await import('node:test');
 const PACKAGES = path.resolve('vendor/pascal/packages');
@@ -43,5 +44,25 @@ describe('pascal-realism', () => {
     assert.throws(() => plugin.buildEnd(), /không được dựng tới: viewer\/src\/a\.ts/);
     assert.deepEqual(plugin.transform('a', ID), { code: 'c', map: null });
     plugin.buildEnd();
+  });
+});
+
+describe('r9v-partition-skirt: vach giua hai phong bo phao ngoai, gop vao lo cap nhat mat tuong', () => {
+  const skirting = { enabled: true, sides: 'both', height: 0.1, exterior: { height: 0.25, proud: 0.02, profile: 'flat' } };
+
+  it('hai mat trong phong -> bo exterior, sides interior; con lai giu nguyen', () => {
+    assert.deepEqual(partitionSkirtingData(skirting, true, true), { skirting: { enabled: true, sides: 'interior', height: 0.1 } });
+    assert.equal(partitionSkirtingData(skirting, true, false), null);
+    assert.equal(partitionSkirtingData(skirting, false, false), null);
+    assert.equal(partitionSkirtingData({ ...skirting, exterior: undefined }, true, true), null);
+    assert.equal(partitionSkirtingData(undefined, true, true), null);
+  });
+
+  it('khop space-detection.ts cua vendor, khong them updateNodes rieng', () => {
+    const id = 'core/src/lib/space-detection.ts';
+    const code = readFileSync(path.join(PACKAGES, id), 'utf8');
+    const out = transformRealism(code, path.join(PACKAGES, id), [{ source: 'r9v-partition-skirt.mjs', file: id, pairs: R9V_RULES[id] }]);
+    assert.equal((out.match(/withPartitionSkirting\(/g) ?? []).length, 3);
+    assert.equal((out.match(/updateNodes\(wallBatch\)/g) ?? []).length, 2);
   });
 });

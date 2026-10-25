@@ -7,7 +7,8 @@
  * ống xả theo đường của nó (khớp theo cạnh nên lần sửa sau không nhân đôi), rồi trả mặt mái về
  * nguyên dạng đã nạp (updateNodes parse zod thêm mặc định), chỉ giữ `children` mới → toSpatial
  * đọc ngược vẫn 0 lệnh. Không thêm hoàn tác. Máng không lưu: toSpatial chỉ đọc con roof-segment.
- * ponytail: cảnh readOnly bỏ qua (updateNodes no-op); cần thì sinh máng trong toPascal.
+ * Cảnh chỉ đọc: updateNodes no-op khi `readOnly`, nên tạm nhấc cờ quanh đúng lần gửi này rồi trả lại
+ * (đồng bộ, không lưu gì: cảnh readOnly không tự lưu) → trình xem cũng có máng.
  */
 const BLOCK = [
   '',
@@ -19,9 +20,15 @@ const BLOCK = [
   "      !(node.children ?? []).some((childId: string) => loadedNodes[childId]?.type === 'gutter'),",
   '  )',
   '  if (gutterlessSegments.length > 0) {',
-  '    useScene',
-  '      .getState()',
-  '      .updateNodes(gutterlessSegments.map((node) => ({ id: node.id, data: { metadata: node.metadata } })))',
+  '    const wasReadOnly = useScene.getState().readOnly',
+  '    if (wasReadOnly) useScene.setState({ readOnly: false })',
+  '    try {',
+  '      useScene',
+  '        .getState()',
+  '        .updateNodes(gutterlessSegments.map((node) => ({ id: node.id, data: { metadata: node.metadata } })))',
+  '    } finally {',
+  '      if (wasReadOnly) useScene.setState({ readOnly: true })',
+  '    }',
   '    const refreshedNodes = { ...(useScene.getState().nodes as Record<string, any>) }',
   '    for (const node of gutterlessSegments) {',
   '      refreshedNodes[node.id] = { ...node, children: refreshedNodes[node.id]?.children ?? node.children }',
