@@ -3,6 +3,7 @@
  * kính — sáng gần cửa, tối dần vào sâu, mặt hướng cửa sáng hơn. Mỗi cửa sổ gần camera nhất (tối đa
  * `WINDOW_LIGHT_MAX`) có một PointLight không đổ bóng ở tâm ô cửa, cường độ theo diện tích ô, màu
  * trời (màu bầu trời của hemisphereLight); ambient/hemi phẳng giảm theo `WINDOW_AMBIENT_SCALE`.
+ * Đèn lùi vào trong phòng `WINDOW_LIGHT_INSET_M` theo pháp tuyến ô cửa.
  * Pool đèn cố định (đèn thừa cường độ 0) → số đèn không đổi theo khung, không biên dịch lại shader.
  * Vendor gọi qua luật `scripts/realism/r9w-window-light.mjs`. Mức Thấp, chủ đề khác: không gì cả.
  */
@@ -16,6 +17,8 @@ export const WINDOW_LIGHT_MAX = 8;
 export const WINDOW_LIGHT_PER_M2 = 4;
 export const WINDOW_LIGHT_RANGE_M = 7;
 export const WINDOW_AMBIENT_SCALE = 0.6;
+/** Lùi đèn vào trong phòng theo pháp tuyến ô cửa → rèm/khung sát cửa không bị đốm cháy. */
+export const WINDOW_LIGHT_INSET_M = 0.7;
 
 export function windowLightsOn(themeId: string, appearance: string, tier: string): boolean {
   // Núm đo trước/sau trong cùng một lượt chụp (`window.__realismWindowLight = false`).
@@ -33,6 +36,9 @@ export interface WindowPane {
   y: number;
   z: number;
   area: number;
+  /** Pháp tuyến ngang của ô cửa (dấu chưa định; `insetPoint` chọn phía trong). */
+  nx: number;
+  nz: number;
 }
 
 /** Chỉ số các ô gần camera nhất (≤ max), gần trước. */
@@ -49,8 +55,20 @@ export const windowIntensity = (area: number): number => Math.min(Math.max(area,
 
 /** Ô cửa từ hộp bao: cửa nằm trong mặt tường → rộng = cạnh ngang lớn hơn, cao = dy. */
 export function paneFromBox(min: { x: number; y: number; z: number }, max: { x: number; y: number; z: number }): WindowPane {
-  const w = Math.max(max.x - min.x, max.z - min.z);
-  return { x: (min.x + max.x) / 2, y: (min.y + max.y) / 2, z: (min.z + max.z) / 2, area: w * (max.y - min.y) };
+  const dx = max.x - min.x;
+  const dz = max.z - min.z;
+  const alongX = dx >= dz; // ô cửa trải theo x → pháp tuyến theo z
+  return { x: (min.x + max.x) / 2, y: (min.y + max.y) / 2, z: (min.z + max.z) / 2, area: Math.max(dx, dz) * (max.y - min.y), nx: alongX ? 0 : 1, nz: alongX ? 1 : 0 };
+}
+
+/**
+ * Điểm đặt đèn: lùi `inset` m theo pháp tuyến về phía `inside` (tâm các cửa sổ — cửa bao quanh nhà
+ * nên tâm của chúng nằm trong nhà; chỉ một cửa thì dùng camera). Cùng phía với pháp tuyến → +.
+ */
+export function insetPoint(p: WindowPane, inside: { x: number; z: number }, inset = WINDOW_LIGHT_INSET_M): { x: number; y: number; z: number } {
+  const dot = (inside.x - p.x) * p.nx + (inside.z - p.z) * p.nz;
+  const s = dot >= 0 ? inset : -inset;
+  return { x: p.x + p.nx * s, y: p.y, z: p.z + p.nz * s };
 }
 
 interface RegistryLike {
@@ -66,7 +84,7 @@ function paneOf(o: Object3D): WindowPane {
   const hit = cache.get(o);
   if (hit && hit.key === key) return hit.pane;
   box.setFromObject(o);
-  const pane = box.isEmpty() ? { x: e[12]!, y: e[13]!, z: e[14]!, area: 0 } : paneFromBox(box.min, box.max);
+  const pane = box.isEmpty() ? { x: e[12]!, y: e[13]!, z: e[14]!, area: 0, nx: 0, nz: 0 } : paneFromBox(box.min, box.max);
   cache.set(o, { key, pane });
   return pane;
 }
@@ -104,13 +122,18 @@ export function syncWindowLights(
   const panes = objs.map(paneOf);
   camera.getWorldPosition(camPos);
   const picked = pickWindows(panes, camPos);
+  // ponytail: "trong nhà" = tâm các cửa sổ; nhà chữ L/U lệch nhiều có thể sai phía — khi đó dùng zone.
+  const inside = panes.length > 1
+    ? { x: panes.reduce((a, p) => a + p.x, 0) / panes.length, z: panes.reduce((a, p) => a + p.z, 0) / panes.length }
+    : { x: camPos.x, z: camPos.z };
   pool.forEach((l, i) => {
     const p = picked[i] === undefined ? undefined : panes[picked[i]!];
     if (!p) {
       l.intensity = 0;
       return;
     }
-    l.position.set(p.x, p.y, p.z);
+    const q = insetPoint(p, inside);
+    l.position.set(q.x, q.y, q.z);
     l.intensity = windowIntensity(p.area);
     if (hemi) l.color.copy(hemi.color);
   });
