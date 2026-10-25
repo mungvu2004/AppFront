@@ -53,7 +53,7 @@ describe('tuneItemMaterial', () => {
   it('clone có cache, giữ màu, không sửa bản gốc', () => {
     clearItemMaterialCache();
     useRealism.setState({ flags: { ...useRealism.getState().flags, materials: true } });
-    const base = new MeshStandardMaterial({ color: '#8f7a64', roughness: 0.9 });
+    const base = new MeshStandardMaterial({ color: 0x8f7a64, roughness: 0.9 });
     const a = tuneItemMaterial(base, ctx) as MeshStandardMaterial;
     expect(a).not.toBe(base);
     expect(a.roughness).toBe(0.95);
@@ -86,7 +86,7 @@ describe('tuneItemMaterial', () => {
   });
   it('gương: kim loại bóng, đè màu trắng; khe có ref giữ màu', () => {
     clearItemMaterialCache();
-    const base = new MeshStandardMaterial({ color: '#e3e3e3', roughness: 0.5 });
+    const base = new MeshStandardMaterial({ color: 0xe3e3e3, roughness: 0.5 });
     const a = tuneItemMaterial(base, { src: '/items/round-mirror/model.glb', slotId: 'glass', textures: true }) as MeshStandardMaterial;
     expect(a.metalness).toBe(0.5);
     expect(a.roughness).toBeLessThan(0.1);
@@ -155,7 +155,7 @@ describe('luật chung (mẫu lạ, không có trong ITEM_KIND)', () => {
     clearItemMaterialCache();
     useRealism.setState({ flags: { ...useRealism.getState().flags, materials: true } });
     const ctx = { src: '/items/user-upload-123/model.glb', slotId: null, textures: true };
-    const chrome = new MeshStandardMaterial({ name: 'Chrome', color: '#8a8a8a', metalness: 1, roughness: 0 });
+    const chrome = new MeshStandardMaterial({ name: 'Chrome', color: 0x8a8a8a, metalness: 1, roughness: 0 });
     const a = tuneItemMaterial(chrome, ctx) as MeshStandardMaterial;
     expect(a).not.toBe(chrome);
     expect([a.metalness, a.roughness]).toEqual([0.6, 0.25]);

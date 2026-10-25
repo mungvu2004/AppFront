@@ -15,6 +15,7 @@
 import { type Material, type Mesh, type Object3D, RepeatWrapping, SRGBColorSpace, type Texture, TextureLoader } from 'three';
 import { color, mix, positionWorld, texture, vec3 } from 'three/tsl';
 
+import { REALISM_PALETTE } from '@/lib/pascal/scenePalette';
 import { ceilingCastsShadow } from './lighting';
 import { type GroundMode, useRealism } from './store';
 
@@ -59,7 +60,7 @@ export function isGlassLike(material: Material): boolean {
 const groundUrl = (id: 'ground-grass' | 'ground-gravel') => `/pascal/material/extra/${id}/${id}_basecolor_512.webp`;
 export const GROUND_TILE_M = 2.5;
 /** Nền trơn: xám sáng hơi lạnh thay màu đất be của chủ đề (be dưới nắng ấm đọc ra "mặt phẳng nâu vô tận"). */
-export const PLAIN_GROUND = '#d6d9db';
+export const PLAIN_GROUND = REALISM_PALETTE.plainGround;
 export const PLAIN_GROUND_MIX = 1;
 
 const textures = new Map<string, Texture>();
@@ -77,7 +78,7 @@ function groundTexture(url: string): Texture {
 }
 
 /** Ảnh `leafy_grass` lẫn nhiều lá khô (trung bình nâu ~(151,131,89)) → kéo về xanh bãi cỏ theo độ sáng. */
-export const GRASS_GREEN = '#7da35a';
+export const GRASS_GREEN = REALISM_PALETTE.grassGreen;
 export const GRASS_GAIN = 3.5;
 export const GRASS_GREEN_MIX = 0.65;
 

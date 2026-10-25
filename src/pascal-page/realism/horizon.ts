@@ -14,6 +14,7 @@ import { Color } from 'three';
 import type { Node } from 'three/webgpu';
 import { cameraPosition, color, float, max, mix, positionWorld, smoothstep, vec3 } from 'three/tsl';
 
+import { REALISM_PALETTE } from '@/lib/pascal/scenePalette';
 import { GRASS_GAIN, GRASS_GREEN, GRASS_GREEN_MIX } from './daylight';
 import { type GroundMode, useRealism } from './store';
 
@@ -47,7 +48,7 @@ export function horizonFade(fade: Node<'float'>, dist: Node<'float'>, radius: nu
 }
 
 /** Màu trung bình (sRGB, hộp 1×1) của ảnh nền R5 — đo một lần từ `*_basecolor_512.webp`. */
-export const GROUND_AVERAGE = { gravel: '#aaa79b', grass: '#978359' } as const;
+export const GROUND_AVERAGE = { gravel: REALISM_PALETTE.gravelAverage, grass: REALISM_PALETTE.grassAverage } as const;
 
 /**
  * Sỏi/cỏ ở xa pha về màu trung bình của ảnh (cỏ qua cùng phép kéo xanh của `groundAlbedo`) →

@@ -89,3 +89,15 @@ export const STYLE_PALETTE = {
   lampNeutral: '#fff1de',
   lampAmber: '#ffc98a',
 } as const;
+
+// Realism (`src/pascal-page/realism`): nền trơn, cỏ, màu trung bình đất xa, vật liệu theo khe.
+export const REALISM_PALETTE = {
+  plainGround: '#d6d9db',
+  grassGreen: '#7da35a',
+  gravelAverage: '#aaa79b',
+  grassAverage: '#978359',
+  mirror: '#dfe4e6',
+  screen: '#0b0c0e',
+  steel: '#cfd2d4',
+  porcelain: '#f3f3f0',
+} as const;

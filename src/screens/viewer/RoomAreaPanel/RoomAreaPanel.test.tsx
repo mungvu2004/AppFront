@@ -57,6 +57,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { AREA_DECIMALS } from '@/domain/rooms/area';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { squareMetres } from '@/domain/units/types';
 import type { RoomId, SpatialGraph } from '@/domain/spatial/types';
 import { formatNumber } from '@/lib/format/number';
 import { spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
@@ -608,6 +609,6 @@ describe('phòng chưa đặt tên sau tự lưu', () => {
 
     expect(sent.name).not.toBe('');
     expect(sent.reviewed).toBe(false);
-    expect(buildRow({ areaM2: room.areaM2, room: sent }, graphOf(null), sent.areaM2).isUnnamed).toBe(true);
+    expect(buildRow({ areaM2: squareMetres(room.areaM2), room: sent }, graphOf(null), sent.areaM2).isUnnamed).toBe(true);
   });
 });

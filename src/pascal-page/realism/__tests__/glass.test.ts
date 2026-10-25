@@ -15,9 +15,9 @@ describe('kính Lambert nhận phản chiếu', () => {
   });
 
   it('bản thay giữ màu/opacity/mặt và đủ bóng để gắn probe', () => {
-    const src = new MeshLambertMaterial({ color: '#e0f2fe', transparent: true, opacity: 0.35, side: FrontSide, depthWrite: false });
+    const src = new MeshLambertMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.35, side: FrontSide, depthWrite: false });
     const twin = new MeshStandardMaterial(glassTwinParams(src));
-    expect(twin.color.equals(new Color('#e0f2fe'))).toBe(true);
+    expect(twin.color.equals(new Color(0xe0f2fe))).toBe(true);
     expect([twin.opacity, twin.transparent, twin.side, twin.depthWrite]).toEqual([0.35, true, FrontSide, false]);
     expect([twin.roughness, twin.metalness]).toEqual([GLASS_ROUGHNESS, 0]);
     expect(isGlossy(twin)).toBe(true);
