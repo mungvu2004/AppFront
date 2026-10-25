@@ -1,27 +1,11 @@
 /**
- * Panel phải 344px của màn Hiệu chỉnh tỷ lệ — dưới 1024px xếp dưới bản vẽ.
+ * Panel phải "Kiểm tra con số" của màn Đặt tỷ lệ (S-11, demo Z/S-11).
  *
- * View thuần (R-60, mục D): mọi chuỗi đã định dạng xong ở `useScaleCalibration`
- * (A15); file này chỉ đặt chúng xuống theo đúng thứ tự đặc tả — tỷ lệ hiện tại,
- * cách xác định, khối phương pháp, khối đối chiếu (luôn hiện đủ ba phần của
- * phép tính, không rút gọn), ba dòng kiểm chứng, cảnh báo, rồi chân panel.
- * Không hộp thoại nào được dựng ở đây.
- *
- * ## Dưới 1024px: xếp dưới bản vẽ, không phải tấm trượt
- *
- * Dưới 1024px panel nằm trong dòng chảy trang, ngay dưới bản vẽ, bề rộng đầy đủ;
- * bộ `lg:` đưa nó về panel tĩnh 344px cắm cạnh canvas. Tấm cố định đáy cao 70vh
- * trước đây che gần hết bản vẽ và để thanh thu phóng, bản đồ nhỏ của canvas đè
- * lên ô nhập (BUG-333) — cùng cách sửa `InputQualityGate` (BUG-291). CSS thuần,
- * không media query tay và không hằng số breakpoint (R-71).
- *
- * ## `forbidden` làm khối phương pháp "hiện nhưng không tương tác được"
- *
- * `ScaleCalibrationMethodDimensionProps` và `ScaleCalibrationMethodReferenceProps`
- * không có cờ `disabled` — hợp đồng đã đóng băng. Panel bọc phần con bằng một lớp
- * `pointer-events-none` khi `state === 'forbidden'` thay vì đổi kiểu con, cùng
- * lý lẽ `areActionsHidden` ẩn hẳn chân trang: quyền hạn đứng ở lớp bọc, không
- * đứng ở từng ô bấm riêng lẻ.
+ * View thuần (R-60): số tỷ lệ to (mm/px, ≈ 1:N theo DPI, phép tính), kiểm chéo
+ * bằng kích thước đã biết, bảng đối chiếu mm/px theo DPI
+ * (`ScaleCalibrationCheckNumbers`), ba dòng kiểm chứng, cảnh báo, rồi chân panel
+ * với nút Áp dụng. Phương pháp đo nằm ở panel trái (`ScaleCalibrationSidebar`).
+ * Cảnh báo không chặn, không hộp thoại nào được dựng ở đây.
  */
 
 import { clsx } from 'clsx';
@@ -32,30 +16,19 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { Button } from '@/components/ui/Button';
 import { FieldRow } from '@/components/ui/FieldRow';
 import { IconButton } from '@/components/ui/IconButton';
-import { Kbd } from '@/components/ui/Kbd';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { MISSING_VALUE } from '@/lib/format/number';
 
-import { ScaleCalibrationMethodDimension } from './ScaleCalibrationMethodDimension';
-import { ScaleCalibrationMethodReference } from './ScaleCalibrationMethodReference';
+import { ScaleCalibrationCheckNumbers } from './ScaleCalibrationCheckNumbers';
 import type { ScaleCalibrationPanelProps } from './types';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
 const PANEL_ARIA_LABEL = 'Bảng hiệu chỉnh tỷ lệ';
-const TITLE = 'Hiệu chỉnh tỷ lệ';
+const TITLE = 'Kiểm tra con số';
 const COLLAPSE_LABEL = 'Thu gọn bảng';
 const EXPAND_LABEL = 'Bung bảng';
 const SUCCESS_BADGE = 'Đã duyệt';
 
-const CURRENT_SCALE_TITLE = 'Tỷ lệ hiện tại';
-const METHOD_TITLE = 'Cách xác định';
-const METHOD_ARIA_LABEL = 'Chọn cách xác định tỷ lệ';
-const SHORTCUTS_ARIA_LABEL = 'Phím tắt';
-const COMPUTATION_TITLE = 'Kết quả';
-const COMPUTATION_ARIA_LABEL = 'Phép tính ra tỷ lệ';
-const COMPUTATION_DIVIDER = '÷';
-const COMPUTATION_EQUALS = '=';
-const COMPUTATION_INCOMPLETE = 'Còn thiếu một vế, nên chưa ra được tỷ lệ.';
 const CROSS_CHECKS_TITLE = 'Kiểm chứng';
 const CROSS_CHECKS_UNAVAILABLE =
   'Chưa đủ dữ liệu để kiểm chứng tỷ lệ: cần tỷ lệ đã đo và độ dày tường, bề rộng cửa hoặc phòng lớn nhất đọc được từ bản vẽ.';
@@ -67,15 +40,17 @@ const OPEN_VIEWER_LABEL = 'Xem mô hình 3D →';
 const SCOPE_ARIA_LABEL = 'Phạm vi áp tỷ lệ';
 
 const PANEL_CONTAINER_CLASSES = clsx(
-  'flex w-full flex-col border-t border-border-default bg-bg-surface',
-  // G4b-10/G4b-12: from 768 the panel sits beside the drawing and scrolls on its own; the page does not scroll.
-  'md:w-[344px] md:shrink-0 md:overflow-y-auto md:border-t-0 md:border-l lg:w-[344px]',
+  'flex w-full flex-col bg-bg-surface md:min-h-0 md:flex-1',
+  // S-11: from 1280 the panel is its own 288 px column right of the canvas; below that it shares one
+  // 312 px column with the left sidebar (ScaleCalibration.tsx). Either way the body scrolls and the
+  // footer (scope + "Áp dụng tỷ lệ") stays pinned to the column bottom.
+  'xl:order-3 xl:w-[288px] xl:flex-none xl:shrink-0 xl:border-l xl:border-border-default',
 );
 
 /** Thu gọn thì cột co về 48 px chỉ còn nút "Bung bảng" — canvas `flex-1` rộng ra (BUG-609, như SCR-16). */
 const COLLAPSED_CONTAINER_CLASSES = clsx(
   'flex w-full justify-end border-t border-border-default bg-bg-surface p-2',
-  'md:w-12 md:shrink-0 md:flex-col md:items-center md:justify-start md:border-t-0 md:border-l lg:w-12',
+  'md:w-12 md:shrink-0 md:flex-col md:items-center md:justify-start md:border-t-0 xl:order-3 xl:border-l',
 );
 
 /** Cùng bảng ánh xạ mà `ScaleCalibrationMethodReference` dùng — cảnh báo ở màn này luôn `'attention'`. */
@@ -90,8 +65,6 @@ export function ScaleCalibrationPanel({
   panel,
   state,
 }: ScaleCalibrationPanelProps) {
-  // Vai không sửa được tắt khối phương pháp ở MỌI trạng thái, không riêng `forbidden` (BUG-601).
-  const isForbidden = state === 'forbidden' || panel.areActionsHidden;
   const isLoading = state === 'loading';
 
   if (isCollapsed) {
@@ -122,105 +95,20 @@ export function ScaleCalibrationPanel({
         </Button>
       </header>
 
-      <div className="flex flex-col gap-6 px-4 pt-4 pb-24">
-        <section aria-label={CURRENT_SCALE_TITLE} className="flex flex-col gap-1">
-          <h3 className="text-[13px] font-medium text-text-secondary">{CURRENT_SCALE_TITLE}</h3>
-          {isLoading ? (
-            <Skeleton preset="property-panel" />
-          ) : (
-            <>
-              <p
-                className={clsx(
-                  'text-[20px] font-semibold text-text-primary',
-                  /* "Chưa có" ở phông mono 20 px có khoảng trắng rộng như hai dấu cách (BUG-411). */
-                  panel.isCurrentScaleKnown && 'font-mono tabular-nums',
-                )}
-              >
-                {panel.currentScaleLabel}
-              </p>
-              <p className="text-[13px] text-text-secondary">{panel.derivedLine}</p>
-            </>
-          )}
-        </section>
-
-        <section aria-label={METHOD_TITLE} className="flex flex-col gap-2">
-          <h3 className="text-[13px] font-medium text-text-secondary">{METHOD_TITLE}</h3>
-          <SegmentedControl
-            aria-label={METHOD_ARIA_LABEL}
-            disabled={isForbidden}
-            isLoading={isLoading}
-            onChange={actions.onChangeMethod}
-            options={panel.methodOptions.map((option) => ({
-              disabled: option.isDisabled,
-              label: option.label,
-              value: option.value,
-            }))}
-            value={panel.method}
+      <div className="flex flex-col gap-4 px-4 py-4 md:min-h-0 md:flex-1 md:overflow-y-auto">
+        {isLoading ? (
+          <Skeleton preset="property-panel" />
+        ) : (
+          <ScaleCalibrationCheckNumbers
+            check={panel.scaleCheck}
+            computation={panel.computation}
+            currentScaleLabel={panel.currentScaleLabel}
+            derivedLine={panel.derivedLine}
           />
-          {!isLoading && panel.methodNotice && (
-            <p className="text-[13px] text-text-secondary">{panel.methodNotice}</p>
-          )}
-        </section>
+        )}
 
         {!isLoading && (
           <>
-            <section
-              aria-disabled={isForbidden || panel.isMethodLocked}
-              className={clsx(
-                (isForbidden || panel.isMethodLocked) && 'pointer-events-none opacity-60',
-              )}
-            >
-              {panel.method === 'dimensionString' ? (
-                <ScaleCalibrationMethodDimension
-                  actions={{
-                    onHoverDimensionRow: actions.onHoverDimensionRow,
-                    onSelectDimensionRow: actions.onSelectDimensionRow,
-                  }}
-                  dimension={panel.dimension}
-                />
-              ) : (
-                <>
-                  <ScaleCalibrationMethodReference
-                    actions={{
-                      onChangeRealLength: actions.onChangeRealLength,
-                      onConfirmRealLength: actions.onConfirmRealLength,
-                      onNudgeEndpoint: actions.onNudgeEndpoint,
-                      onRemeasure: actions.onRemeasure,
-                    }}
-                    reference={panel.reference}
-                  />
-                  {panel.shortcutHints.length > 0 && (
-                    /* Dưới 640 px (màn chạm) không có bàn phím để bấm: ẩn danh sách phím (BUG-633). */
-                    <ul aria-label={SHORTCUTS_ARIA_LABEL} className="mt-3 flex flex-col gap-1.5 max-sm:hidden">
-                      {panel.shortcutHints.map((hint) => (
-                        <li
-                          className="flex items-center gap-2 text-[13px] text-text-secondary"
-                          key={hint.id}
-                        >
-                          <Kbd>{hint.comboLabel}</Kbd>
-                          <span>{hint.description}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </>
-              )}
-            </section>
-
-            <section aria-label={COMPUTATION_ARIA_LABEL} className="flex flex-col gap-1">
-              <h3 className="text-[13px] font-medium text-text-secondary">{COMPUTATION_TITLE}</h3>
-              <div className="flex flex-wrap items-baseline gap-2 font-mono text-[16px] text-text-primary">
-                <span>{panel.computation.numeratorLabel}</span>
-                <span aria-hidden="true">{COMPUTATION_DIVIDER}</span>
-                <span>{panel.computation.denominatorLabel}</span>
-                <span aria-hidden="true">{COMPUTATION_EQUALS}</span>
-                <span className="font-semibold">{panel.computation.resultLabel}</span>
-              </div>
-              {!panel.computation.isComplete && (
-                <p className="text-[12px] text-text-muted">{COMPUTATION_INCOMPLETE}</p>
-              )}
-            </section>
-
             <section aria-label={CROSS_CHECKS_ARIA_LABEL} className="flex flex-col">
               <h3 className="mb-1 text-[13px] font-medium text-text-secondary">
                 {CROSS_CHECKS_TITLE}
@@ -265,43 +153,41 @@ export function ScaleCalibrationPanel({
             )}
           </>
         )}
-
-        {!panel.areActionsHidden && (
-          <div className="flex flex-col gap-3 border-t border-border-default pt-4">
-            {/* BUG-410: the 344 px column (from 768, G4b-10) is narrower than both labels on one line — let them wrap so the thumb stays inside the group. */}
-            <SegmentedControl
-              aria-label={SCOPE_ARIA_LABEL}
-              className="h-auto min-h-9 items-stretch [&>button]:h-auto [&>button]:min-w-0 [&>button]:whitespace-normal [&>button]:py-1 [&>button]:leading-tight"
-              onChange={actions.onChangeApplyScope}
-              options={panel.applyScopeOptions.map((option) => ({
-                label: option.label,
-                value: option.value,
-              }))}
-              value={panel.applyScope}
-            />
-            <Button
-              disabled={!panel.canApply}
-              fullWidth
-              loading={panel.isApplying}
-              onClick={actions.onApply}
-              ref={applyButtonRef}
-              variant="primary"
-            >
-              {panel.isApplying ? APPLY_APPLYING : APPLY_PRIMARY}
-            </Button>
-            {panel.applyBlockedNotice !== undefined && (
-              <InlineAlert level="attention" message={panel.applyBlockedNotice} />
-            )}
-            {/* Áp xong thì bước kế là xem mô hình 3D của cả dự án. */}
-            {panel.canOpenViewer3d && (
-              <Button onClick={actions.onGoToViewer3d} size="sm" variant="primary">
-                {OPEN_VIEWER_LABEL}
-              </Button>
-            )}
-            <p className="text-[12px] text-text-muted">{panel.recalculationCaption}</p>
-          </div>
-        )}
       </div>
+      {!panel.areActionsHidden && (
+        <div className="flex shrink-0 flex-col gap-2 border-t border-border-default bg-bg-surface px-4 py-3">
+          {/* BUG-410: short labels ("Mọi tầng" / "Tầng này") keep both options on one line in the 288 px column. */}
+          <SegmentedControl
+            aria-label={SCOPE_ARIA_LABEL}
+            onChange={actions.onChangeApplyScope}
+            options={panel.applyScopeOptions.map((option) => ({
+              label: option.label,
+              value: option.value,
+            }))}
+            value={panel.applyScope}
+          />
+          <Button
+            disabled={!panel.canApply}
+            fullWidth
+            loading={panel.isApplying}
+            onClick={actions.onApply}
+            ref={applyButtonRef}
+            variant="primary"
+          >
+            {panel.isApplying ? APPLY_APPLYING : APPLY_PRIMARY}
+          </Button>
+          {panel.applyBlockedNotice !== undefined && (
+            <InlineAlert level="attention" message={panel.applyBlockedNotice} />
+          )}
+          {/* Áp xong thì bước kế là xem mô hình 3D của cả dự án. */}
+          {panel.canOpenViewer3d && (
+            <Button onClick={actions.onGoToViewer3d} size="sm" variant="primary">
+              {OPEN_VIEWER_LABEL}
+            </Button>
+          )}
+          <p className="text-[12px] text-text-muted">{panel.recalculationCaption}</p>
+        </div>
+      )}
     </section>
   );
 }

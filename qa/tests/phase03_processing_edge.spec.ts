@@ -164,8 +164,14 @@ const lowSentence = (count: number, threshold: string): string =>
     ? `Không có đối tượng nào có độ tin cậy dưới ${threshold}.` // UPR noLowConfidenceSentence
     : `Có ${formatNumber(count, { fractionDigits: 0 })} đối tượng có độ tin cậy dưới ${threshold} cần bạn xem lại.`; // UPR lowConfidenceSentence
 
-/** Metric labels shown in the summary (PSU:28-37). */
-const shownMetrics = (page: Page): Promise<string[]> => summary(page).locator('ul > li').allInnerTexts();
+/**
+ * S-10: the five metric tiles are gone. The same labels still render inside the gate Section: on the step rows (one floor) or as one
+ * comma-joined line (several floors) — so assert each expected label is present in the gate's text.
+ */
+const expectMetricsShown = async (page: Page, labels: readonly string[]): Promise<void> => {
+  const text = await summary(page).innerText();
+  for (const label of labels) expect.soft(text, `gate shows "${label}"`).toContain(label);
+};
 
 /* ================================================================= flows without a shared run */
 
@@ -301,12 +307,10 @@ test.describe('SCR-12 processing — real flows', () => {
         await captureEvidence(page, 'E03_12-A-007_log-copied.png', { caption: ['clipboard:', ...copied.split('\n').slice(0, 4)] });
       });
 
-      await test.step('[12-E-007] "Báo cáo tổng kết": Tab reaches "Duyệt lớp tường" then "Hiệu chỉnh tỷ lệ" with visible focus', async () => {
+      await test.step('[12-E-007] gate panel: Tab reaches its one primary button ("Hiệu chỉnh tỷ lệ") with visible focus', async () => {
         await expect(summary(page)).toBeVisible();
         await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-        expect.soft(await tabTo(page, PR.reviewWalls), 'Tab reaches "Duyệt lớp tường"').toBeGreaterThan(0);
-        expect.soft(await focusRingShown(page), 'focus ring on "Duyệt lớp tường"').toBe(true);
-        await page.keyboard.press('Tab');
+        expect.soft(await tabTo(page, PR.calibrate), 'Tab reaches "Hiệu chỉnh tỷ lệ"').toBeGreaterThan(0);
         await expect.soft(button(summary(page), PR.calibrate)).toBeFocused();
         expect.soft(await focusRingShown(page), 'focus ring on "Hiệu chỉnh tỷ lệ"').toBe(true);
         await captureEvidence(page, 'E03_12-E-007_summary-focus.png');
@@ -340,7 +344,7 @@ test.describe('SCR-12 processing — real flows', () => {
         await captureEvidence(page, 'E03_12-C-017_threshold-080.png', { caption: `N16: ${String(n)} item(s) below 0,80` });
       });
 
-      await test.step('[12-C-019] "Duyệt lớp tường" → SCR-16 approve one low-confidence wall → back: count is n-1', async () => {
+      await test.step('[12-C-019] "Sang Kiểm tra tầng" (was "Duyệt lớp tường") → SCR-16 approve one low-confidence wall → back: count is n-1', async () => {
         const target = counts.walls.find((w) => !w.reviewed && w.confidence < 0.8);
         expect.soft(target, 'precondition: N16 has an unreviewed wall below 0,80').toBeDefined();
         if (target === undefined) return;
@@ -399,10 +403,10 @@ test.describe('SCR-12 processing — real flows', () => {
       });
 
       await test.step('[12-C-016] summary metric labels equal the sums of the six floors\' N16 counts', async () => {
-        expect.soft(await shownMetrics(page)).toEqual(metricLabelsOf(counts));
+        await expectMetricsShown(page, metricLabelsOf(counts));
       });
 
-      await test.step('[12-A-015] "Duyệt lớp tường" → first floor (Floor.order) …/layers/walls; back; "Hiệu chỉnh tỷ lệ" → same floor /scale', async () => {
+      await test.step('[12-A-015] "Sang Kiểm tra tầng" (was "Duyệt lớp tường") → first floor (Floor.order) …/layers/walls; back; "Hiệu chỉnh tỷ lệ" → same floor /scale', async () => {
         const first = project.floors[0]!; // createProject sorts by `order`
         await button(summary(page), PR.reviewWalls).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.walls(project.projectId, first.id));
@@ -527,7 +531,7 @@ test.describe('SCR-12 processing — shared finished run', () => {
 
       const metrics = metricLabelsOf([s3Counts]);
       await test.step('[12-C-014] summary "{n} tường", "{n} đối tượng" (walls+openings+rooms), "{n} chuỗi kích thước", "{n} phòng", "{x,xx} m²" = N16', async () => {
-        expect.soft(await shownMetrics(page)).toEqual(metrics);
+        await expectMetricsShown(page, metrics);
         await captureEvidence(page, 'E03_12-C-014_summary-metrics.png', { caption: `N16: ${metrics.join(' · ')}` });
       });
 

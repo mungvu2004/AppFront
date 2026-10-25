@@ -139,6 +139,12 @@ export const PIPELINE_OVERVIEW_BLOCKS: readonly PipelineOverviewBlockViewModel[]
 /** Mọi câu còn lại của màn. */
 export const PIPELINE_GRAPH_TEXT = {
   title: 'Sơ đồ xử lý',
+  eyebrow: 'Bước 2 · Xử lý',
+  heading: 'Theo dõi bản vẽ đi qua nhánh xử lý nào',
+  diagramSectionTitle: 'Đường đi của bản vẽ',
+  chipNotRun: 'Chưa xử lý',
+  chipRunning: 'Đang chạy',
+  chipFailed: 'Có bước lỗi',
   leadLine:
     'Hồ sơ này đi qua nhánh nào, và vì sao hệ thống chọn nhánh đó cho từng tầng.',
 

@@ -1076,13 +1076,29 @@ describe('ScaleCalibration — QA-04c SCR-14', () => {
     mounted.unmount();
   });
 
+  it('S-11: panel trái nói làm gì + trạng thái, panel phải tự kiểm mm/px, 1:N theo DPI và bảng đối chiếu', () => {
+    const scenario = scenarioFor('success');
+    renderWithProviders(<ScaleCalibration {...scenario} />);
+
+    expect(screen.getByRole('heading', { name: 'Đặt tỷ lệ bản vẽ' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Kiểm tra con số' })).toBeInTheDocument();
+    const check = scenario.model.panel.scaleCheck;
+    expect(check).toBeDefined();
+    // Một nguồn: chip trái và khối số phải cùng đọc `scaleCheck`.
+    expect(screen.getByText(check?.status.label ?? '')).toBeInTheDocument();
+    expect(screen.getByText(check?.ratioLine ?? '')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Đối chiếu nhanh: 1 px bằng bao nhiêu mm' })).toBeInTheDocument();
+  });
+
   it('thu gọn bảng thì cột co lại, chỉ còn nút "Bung bảng" (BUG-609)', () => {
     const scenario = scenarioFor('collapsed');
     renderWithProviders(<ScaleCalibration {...scenario} />);
 
     const panel = screen.getByLabelText('Bảng hiệu chỉnh tỷ lệ');
-    expect(panel.className).toContain('lg:w-12');
-    expect(panel.className).not.toContain('lg:w-[344px]');
+    expect(panel.className).toContain('md:w-12');
+    expect(panel.className).not.toContain('xl:w-[288px]');
+    // Dưới 1280 panel chung cột với panel trái: cả cột co về 48 px (S-11).
+    expect(panel.parentElement?.className).toContain('md:w-12');
     expect(screen.getByRole('button', { name: 'Bung bảng' })).toBeInTheDocument();
   });
 

@@ -70,6 +70,7 @@ import type { FloorLayerReadFailure } from '../../qc/shared/floorLayerReadFailur
 import type { ViewportState } from '@/hooks/useCanvasViewport';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import type { ProjectRole } from '@/types/project';
+import type { ScaleCheckViewModel } from './scaleCheck';
 
 /* -------------------------------------------------------------------------- */
 /* Bảy trạng thái (A11).                                                       */
@@ -508,6 +509,8 @@ export interface ScalePanelViewModel {
   readonly isMethodLocked: boolean;
   /** `false` khi chưa có tỷ lệ: nhãn "Chưa có" là chữ, không phải số — không dùng phông mono. */
   readonly isCurrentScaleKnown: boolean;
+  /** Khối "Kiểm tra con số" + chip trạng thái (S-11) — một nguồn, sinh từ `buildScaleCheck`. */
+  readonly scaleCheck?: ScaleCheckViewModel;
 }
 
 /* -------------------------------------------------------------------------- */

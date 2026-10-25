@@ -392,5 +392,7 @@ export interface InputQualityReportPanelProps {
 /** Props của `InputQualityGateFooter` — chân trang, xác nhận + hai nút hành động. */
 export interface InputQualityFooterProps {
   readonly footer: InputQualityFooterModel;
-  readonly actions: Pick<InputQualityGateActions, 'onContinue' | 'onToggleAcknowledgement' | 'onUploadAnother'>;
+  readonly actions: Pick<InputQualityGateActions, 'onContinue' | 'onUploadAnother'>;
+  /** Nhãn nút + câu đồng ý — cùng nguồn với chip đầu màn (`summarizeQualityGate`). */
+  readonly summary: { readonly primaryLabel: string; readonly secondaryLabel: string; readonly consent: string | null };
 }

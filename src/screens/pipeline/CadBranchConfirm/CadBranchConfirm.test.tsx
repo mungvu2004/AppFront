@@ -281,7 +281,7 @@ describe('CadBranchConfirm — bảy trạng thái (A11, R-63)', () => {
     expect(screen.getByRole('button', { name: SECONDARY_BUTTON_LABEL })).toBeEnabled();
   });
 
-  it('tầng không có CAD: không hộp thoại, một trang giải thích có lối "Về duyệt lớp", không lặp cảnh báo', () => {
+  it('tầng không có CAD: không hộp thoại, PageHead + một khung hai lối ra, còn lối "Về duyệt lớp", không lặp cảnh báo', () => {
     const base = branchHandoffScenario();
     const onBackToLayerReview = vi.fn();
     renderWithProviders(
@@ -298,7 +298,11 @@ describe('CadBranchConfirm — bảy trạng thái (A11, R-63)', () => {
     );
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'Chưa có tệp CAD' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Nhập tầng từ tệp CAD' })).toBeInTheDocument();
+    // Trạng thái nằm ở chip của PageHead; hai lối ra trong MỘT khung, nút AI là nút chính.
+    expect(screen.getByText('Chưa có tệp CAD')).toBeInTheDocument();
+    const exits = screen.getByRole('region', { name: 'Hai lối đi tiếp khi tầng chưa có tệp CAD' });
+    expect(exits).toContainElement(screen.getByRole('button', { name: SECONDARY_BUTTON_LABEL }));
     expect(screen.queryByText(AI_HANDOFF_TITLE)).not.toBeInTheDocument();
     expect(screen.queryByText('Chưa có lớp')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Về duyệt lớp' }));

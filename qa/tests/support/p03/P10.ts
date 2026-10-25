@@ -33,7 +33,8 @@ import { closeSession, openPool, type Session } from './P6';
 
 /* ---- copy (each cites its source) ---- */
 export const GRAPH = {
-  title: 'Sơ đồ xử lý', // PGT title, PG:66/71, PGO:303/312
+  title: 'Theo dõi bản vẽ đi qua nhánh xử lý nào', // S-12 PageHead h1 (breadcrumb + diagram group keep "Sơ đồ xử lý")
+  crumb: 'Sơ đồ xử lý', // breadcrumb + diagram group name (unchanged)
   lead: 'Hồ sơ này đi qua nhánh nào, và vì sao hệ thống chọn nhánh đó cho từng tầng.', // PGT leadLine
   emptyTitle: 'Chưa có lượt xử lý nào để kể lại', // PGT emptyTitle
   reasonNoReport: 'Chưa có lượt xử lý nào, nên chưa biết hồ sơ đi nhánh nào.', // PGT reasonNoReport

@@ -1344,8 +1344,12 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     const parts = extractions.filter(
       (extraction): extraction is ProcessingExtractionSummary => extraction !== undefined,
     );
-    const goTo = (route: (projectId: string, floorId: string) => string) => () => {
-      const upload = uploadsRef.current[doneIndex];
+    // Hiệu chỉnh tỷ lệ dẫn tới đúng tầng thiếu tỷ lệ (0 chuỗi kích thước), không phải tầng xong đầu tiên.
+    const noScaleIndex = floorStatuses.findIndex(
+      (status, index) => status === 'done' && extractions[index]?.dimensionCount === 0,
+    );
+    const goTo = (route: (projectId: string, floorId: string) => string, index = doneIndex) => () => {
+      const upload = uploadsRef.current[index];
 
       if (upload !== undefined) {
         navigate(route(projectId, upload.floorId));
@@ -1353,7 +1357,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     };
     const actions = {
       onReviewWalls: goTo(ROUTES.project.walls),
-      onCalibrateScale: goTo(ROUTES.project.scale),
+      onCalibrateScale: goTo(ROUTES.project.scale, noScaleIndex < 0 ? doneIndex : noScaleIndex),
     };
 
     if (parts.length === 0) {

@@ -141,6 +141,7 @@ import {
   type ScaleRawSnapTarget,
   type ScaleRoomBoxPx,
 } from './scaleCalibrationGateway';
+import { buildScaleCheck } from './scaleCheck';
 import type {
   DimensionStringRow,
   ImageRatioPoint,
@@ -196,8 +197,8 @@ const COPY = {
   crossCheckDoorWidth: 'Bề rộng cửa đi điển hình',
   crossCheckLargestRoomArea: 'Diện tích phòng lớn nhất',
   recalculationCaption: 'Đổi tỷ lệ sẽ tính lại mọi kích thước dẫn xuất của bản vẽ này.',
-  scopeAllFloors: 'Áp cho mọi tầng có bản vẽ',
-  scopeThisFloor: 'Chỉ áp cho tầng này',
+  scopeAllFloors: 'Mọi tầng',
+  scopeThisFloor: 'Tầng này',
   shortcutCancelDrag: 'Huỷ đoạn đang kéo',
   shortcutUndoApplying: 'Hoàn tác lần áp đang gửi',
   shortcutRemeasure: 'Đo lại',
@@ -2049,6 +2050,14 @@ export function useScaleCalibration(
         /* Tầng chưa có bản vẽ: không có gì để kéo hay đo — quy trình mờ đi, bảng phím ẩn (BUG-411). */
         isMethodLocked: isNoDrawing,
         isCurrentScaleKnown: displayRatio !== null,
+        scaleCheck: buildScaleCheck({
+          mmPerPx: proposedRatio ?? storedRatio ?? provisionalRatio,
+          source:
+            proposedRatio !== null ? 'proposed' : storedRatio !== null ? 'stored' : provisionalRatio !== null ? 'provisional' : null,
+          shortEdgePx,
+          // Kích thước đã biết để kiểm chéo: một chuỗi OCR KHÁC chuỗi đang dùng để đo, không tự kiểm chính nó.
+          knownDimension: rows.find((row) => row.id !== selectedRowId) ?? null,
+        }),
         shortcutHints: isNoDrawing ? [] : shortcutHints,
       },
       statusBar: {
@@ -2128,6 +2137,8 @@ export function useScaleCalibration(
     scaleDensityLabel,
     scaleRatioLabel,
     selectedRowId,
+    shortEdgePx,
+    storedRatio,
     shortcutHints,
     state,
     viewport,

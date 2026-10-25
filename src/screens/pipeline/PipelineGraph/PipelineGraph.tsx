@@ -8,8 +8,8 @@
  *
  * ## Bố cục
  *
- * Nội dung 1080 căn giữa trên nền `--bg-app`. Trên cùng là tiêu đề và câu dẫn.
- * Dưới đó là chế độ **Tổng quan** — sơ đồ khối, bảng so sánh hai nhánh, dẫn
+ * Nội dung 1280 căn giữa trên nền `--bg-app` (lề 80 ở 1440). Trên cùng là PageHead: eyebrow,
+ * H1, chip + câu trạng thái (`overview.reasonLine`). Mỗi phần một khung `Section`. Dưới đó là chế độ **Tổng quan** — sơ đồ khối, bảng so sánh hai nhánh, dẫn
  * chứng theo tầng — rồi một khối gấp mở chế độ **Chi tiết kỹ thuật**.
  *
  * Khối gấp là `button` + vùng nội dung có `aria-controls`, không phải
@@ -22,7 +22,7 @@
  * | `state`     | thân màn                                                        |
  * |-------------|-----------------------------------------------------------------|
  * | `loading`   | ba khung xương, chưa vẽ sơ đồ                                    |
- * | `empty`     | sơ đồ vẽ mờ, cộng `EmptyState` nói chưa có lượt xử lý nào        |
+ * | `empty`     | `EmptyState` trong khung trước sơ đồ; nhánh nào cũng nét đứt     |
  * | `partial`   | đầy đủ; `partialNoticeLine` nói xử lý vẫn tiếp tục               |
  * | `error`     | đầy đủ, cộng `InlineAlert` kèm mã kỹ thuật ở đầu màn             |
  * | `success`   | đầy đủ                                                           |
@@ -45,28 +45,46 @@ import {
 } from '@/components/feedback/ProjectSpatialGate';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Breadcrumb } from '@/components/shell/Breadcrumb';
+import { PageHead } from '@/components/shell/PageHead';
+import { Section } from '@/components/shell/Section';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 
 import { PipelineGraphDetail } from './PipelineGraphDetail';
 import { PipelineGraphOverview } from './PipelineGraphOverview';
 import { PIPELINE_GRAPH_TEXT } from './pipelineGraphText';
-import type { PipelineGraphProps } from './types';
+import type { PipelineGraphProps, PipelineOverviewViewModel } from './types';
 
 const BREADCRUMB_PROJECTS = 'Dự án';
 
 /** Bao nhiêu khung xương lúc chưa biết nhánh nào đã chạy. */
 const SKELETON_ROW_COUNT = 3;
 
-/** Sơ đồ ở trạng thái rỗng vẽ mờ, không biến mất. */
-const EMPTY_DIAGRAM_OPACITY = 0.4;
+/**
+ * Chip trạng thái của PageHead — sinh từ CÙNG `overview.branches` mà sơ đồ dùng để tô
+ * viền nhánh (một nguồn trạng thái, NGUYEN-TAC-BO-CUC §1). Câu đi kèm là `reasonLine`.
+ */
+function StatusChip({ overview, isRunning }: { overview: PipelineOverviewViewModel; isRunning: boolean }) {
+  const failed = overview.branches.find((branch) => branch.hasFailed);
+  const active = overview.branches.find((branch) => branch.isActive);
+
+  if (failed !== undefined) {
+    return <Badge variant="violation">{PIPELINE_GRAPH_TEXT.chipFailed}</Badge>;
+  }
+  if (isRunning) {
+    return <Badge variant="attention">{PIPELINE_GRAPH_TEXT.chipRunning}</Badge>;
+  }
+  return <Badge variant="neutral">{active === undefined ? PIPELINE_GRAPH_TEXT.chipNotRun : active.label}</Badge>;
+}
 
 /**
- * Đầu màn: đường dẫn, tiêu đề, câu dẫn. Breadcrumb chung: cấp "Dự án" bấm được về danh sách
- * (BUG-546), nav mang tên "Đường dẫn trang" chứ không trùng tên nhóm sơ đồ (BUG-558).
+ * Đầu màn: đường dẫn + PageHead ba câu (làm gì / trạng thái / bước tiếp nằm ở khối dưới).
+ * Breadcrumb chung: cấp "Dự án" bấm được về danh sách (BUG-546), nav mang tên "Đường dẫn
+ * trang" chứ không trùng tên nhóm sơ đồ (BUG-558).
  */
 function PipelineGraphHeader({ actions, model }: PipelineGraphProps) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-4">
       <Breadcrumb
         items={[
           { id: 'projects', label: BREADCRUMB_PROJECTS, onClick: actions.onBackToProjects },
@@ -74,8 +92,19 @@ function PipelineGraphHeader({ actions, model }: PipelineGraphProps) {
           { id: 'pipeline-graph', label: model.title },
         ]}
       />
-      <h1 className="text-[20px] font-medium text-text-primary">{model.title}</h1>
-      <p className="max-w-[680px] text-[14px] text-text-secondary">{model.leadLine}</p>
+      <PageHead
+        className="mb-0"
+        eyebrow={PIPELINE_GRAPH_TEXT.eyebrow}
+        status={
+          model.state === 'loading' ? undefined : (
+            <>
+              <StatusChip isRunning={model.state === 'partial'} overview={model.overview} />
+              <span>{model.overview.reasonLine}</span>
+            </>
+          )
+        }
+        title={PIPELINE_GRAPH_TEXT.heading}
+      />
     </div>
   );
 }
@@ -91,7 +120,8 @@ function PipelineGraphDisclosure({ actions, model }: PipelineGraphProps) {
   const isOpen = model.mode === 'detail';
 
   return (
-    <section className="flex flex-col gap-4 border-t border-border-default pt-6">
+    <Section>
+      <div className="flex flex-col gap-4">
       <div className="self-start">
         <Button
           aria-controls="pipeline-graph-detail"
@@ -131,7 +161,8 @@ function PipelineGraphDisclosure({ actions, model }: PipelineGraphProps) {
           />
         ) : null}
       </div>
-    </section>
+      </div>
+    </Section>
   );
 }
 
@@ -165,33 +196,35 @@ export function PipelineGraph({ actions, model }: PipelineGraphProps) {
         ))}
       </div>
     ) : (
-      <div className="flex flex-col gap-8">
-        <div style={model.state === 'empty' ? { opacity: EMPTY_DIAGRAM_OPACITY } : undefined}>
-          <PipelineGraphOverview
-            isCompact={isCompact}
-            onConfirmSwitchBranch={actions.onConfirmSwitchBranch}
-            onDismissSwitchBranch={actions.onDismissSwitchBranch}
-            onRequestSwitchBranch={actions.onRequestSwitchBranch}
-            overview={model.overview}
-            prefersReducedMotion={model.prefersReducedMotion}
-          />
-        </div>
-
+      <div className="flex flex-col gap-6">
+        {/* Rỗng: khối "việc tiếp" đứng trước sơ đồ; sơ đồ vẫn vẽ đủ, nhánh nào cũng nét đứt. */}
         {model.state === 'empty' ? (
-          <EmptyState
-            description={PIPELINE_GRAPH_TEXT.emptyDescription}
-            icon={<Workflow aria-hidden="true" />}
-            title={PIPELINE_GRAPH_TEXT.emptyTitle}
-          />
-        ) : (
-          <PipelineGraphDisclosure actions={actions} model={model} />
-        )}
+          <Section>
+            <EmptyState
+              description={PIPELINE_GRAPH_TEXT.emptyDescription}
+              headingLevel="h2"
+              icon={<Workflow aria-hidden="true" />}
+              title={PIPELINE_GRAPH_TEXT.emptyTitle}
+            />
+          </Section>
+        ) : null}
+
+        <PipelineGraphOverview
+          isCompact={isCompact}
+          onConfirmSwitchBranch={actions.onConfirmSwitchBranch}
+          onDismissSwitchBranch={actions.onDismissSwitchBranch}
+          onRequestSwitchBranch={actions.onRequestSwitchBranch}
+          overview={model.overview}
+          prefersReducedMotion={model.prefersReducedMotion}
+        />
+
+        {model.state === 'empty' ? null : <PipelineGraphDisclosure actions={actions} model={model} />}
       </div>
     );
 
   return (
     <div className="min-h-screen bg-bg-app">
-      <div className="mx-auto flex max-w-[1080px] flex-col gap-6 p-8">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-8 py-8 xl:px-20">
         <PipelineGraphHeader actions={actions} model={model} />
 
         {alert !== undefined ? (

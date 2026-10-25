@@ -63,9 +63,8 @@ const CAPTION_MANUAL = 'Cao độ đang nhập tay; ô ghi "Ghi đè" khác cao 
 const ELEVATION_TOAST = 'Đã đổi cao độ tầng.';
 const OVERRIDDEN_LABEL = 'Ghi đè';
 /** useInputQualityGate.ts COPY. */
-const QUALITY_ACK_LABEL = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này';
-/** `InputQualityGateFooter.tsx` CONTINUE_BLOCKED_ACKNOWLEDGEMENT. */
-const QUALITY_ACK_BLOCKED = 'Đánh dấu ô xác nhận bên trên rồi thử lại.';
+/** S-09: footer primary label (inputQualitySummary.ts); there is no acknowledgement checkbox any more. */
+const QUALITY_CONTINUE = /^(?:Xử lý dù ảnh mờ|Bắt đầu xử lý)$/u;
 
 type Json = Record<string, unknown>;
 
@@ -603,11 +602,11 @@ test.describe('SCR-12 Processing', () => {
     });
   });
 
-  test('SCR-12 tabs "Xem trước" / "Nhật ký"; "Khoá cuộn tự động"; "Mở chi tiết bước …"', async () => {
-    const tabs = page.getByRole('tablist', { name: 'Xem trước hoặc nhật ký', exact: true });
-    await tabs.getByRole('tab', { name: 'Xem trước', exact: true }).click();
-    await expect(tabs.getByRole('tab', { name: 'Xem trước', exact: true })).toHaveAttribute('aria-selected', 'true');
-    await test.step('[12-B-020] "Xem trước" → img alt "Bản vẽ đang được xử lý — {floor}" (N7 sourceImageUrl)', async () => {
+  test('SCR-12 tabs "Bản vẽ" / "Nhật ký"; "Khoá cuộn tự động"; "Mở chi tiết bước …"', async () => {
+    const tabs = page.getByRole('tablist', { name: 'Bản vẽ hoặc nhật ký', exact: true });
+    await tabs.getByRole('tab', { name: 'Bản vẽ', exact: true }).click();
+    await expect(tabs.getByRole('tab', { name: 'Bản vẽ', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await test.step('[12-B-020] "Bản vẽ" → img alt "Bản vẽ đang được xử lý — {floor}" (N7 sourceImageUrl)', async () => {
       const workName = requireState((s) => s.floors.workFloorName, 'floors.workFloorName', 'Phase 3 SCR-09');
       // useProcessingScreen.ts:149 previewAltPrefix.
       await expect.soft(page.getByRole('img', { name: `Bản vẽ đang được xử lý — ${workName}`, exact: true })).toBeVisible();
@@ -812,25 +811,17 @@ test.describe('SCR-11 Input Quality Gate', () => {
     await captureEvidence(page, '11_quality_straighten_cancel.png');
   });
 
-  test('SCR-11 "Tiếp tục xử lý" (acknowledgement checkbox only when present) → /pipeline', async () => {
-    const proceed = page.getByRole('button', { name: 'Tiếp tục xử lý', exact: true });
+  test('SCR-11 primary "Xử lý dù ảnh mờ" / "Bắt đầu xử lý" (no acknowledgement checkbox) → /pipeline', async () => {
+    const proceed = page.getByRole('button', { name: QUALITY_CONTINUE });
     await expect(proceed).toBeVisible();
     await expect(proceed).not.toHaveAttribute('aria-disabled', 'true');
-    const ack = page.getByRole('checkbox', { name: QUALITY_ACK_LABEL, exact: true });
     const sent = recordRequests(page, (method) => method === 'POST' || method === 'PUT');
 
-    if ((await ack.count()) > 0) {
-      await proceed.click();
-      await expect(page.getByText(QUALITY_ACK_BLOCKED, { exact: true })).toBeVisible();
-      expect(pathOf(page)).toBe(ROUTES.project.quality(projectId));
-      await ack.check();
-    } else {
-      test.info().annotations.push({ type: 'data', description: 'no "poor" metric: acknowledgement checkbox absent' });
-    }
+    await expect(page.getByRole('checkbox')).toHaveCount(0);
     await proceed.click();
     await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(projectId));
     await captureEvidence(page, '11_quality_continue.png');
-    await test.step('[11-A-030] "Tiếp tục xử lý" → /projects/:id/pipeline with 0 POST/PUT (navigation only)', async () => {
+    await test.step('[11-A-030] primary button → /projects/:id/pipeline with 0 POST/PUT (navigation only)', async () => {
       expect.soft(sent.stop(), 'continuing only navigates').toEqual([]);
     });
   });
@@ -914,8 +905,8 @@ test.describe('SCR-12 Processing summary', () => {
     // Shot BEFORE the bug check, so a failing run still documents the finished screen.
     await captureEvidence(page, '12_pipeline_done_for_walls.png');
 
-    const browseWalls = page.getByRole('button', { name: 'Duyệt lớp tường', exact: true });
-    await expect(browseWalls, 'BUG-285: a finished run offers "Duyệt lớp tường" (ProcessingSummary)').toBeVisible();
+    const browseWalls = page.getByRole('button', { name: 'Sang Kiểm tra tầng', exact: true });
+    await expect(browseWalls, 'BUG-285: a finished run offers "Sang Kiểm tra tầng" (processingGate, was "Duyệt lớp tường")').toBeVisible();
     await browseWalls.click();
     await expect.poll(() => pathOf(page)).toBe(ROUTES.project.walls(projectId, workId));
     await captureEvidence(page, '12_pipeline_to_walls.png');

@@ -30,7 +30,9 @@
  *
  * ## Bố cục hai cột
  *
- * Cột trái (ảnh) chiếm 62%, cột phải (báo cáo) rộng cố định 344px, nội dung
+ * Demo Z/S-09: đầu màn `PageHead` (eyebrow bước, H1, chip + câu đếm chỉ số từ
+ * `summarizeQualityGate` — một nguồn trạng thái), khung ảnh lớn bên trái và
+ * khung kết quả 360px bên phải có chân nút cố định. Nội dung
  * giới hạn 1280px. Dưới 1024px cột phải xếp xuống DƯỚI bản vẽ, trong dòng chảy
  * trang — không phải tấm cố định đè lên: tấm cố định cao 70vh che gần hết bản vẽ
  * (còn ~144 px ở 375) và không còn chỗ kéo bốn góc (BUG-291).
@@ -44,16 +46,22 @@ import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { BACK_TO_PROJECTS_LABEL, PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import { PageHead } from '@/components/shell/PageHead';
+import { Section } from '@/components/shell/Section';
+import { Badge } from '@/components/ui/Badge';
 
 import { InputQualityGateConfirmDialog } from './InputQualityGateConfirmDialog';
 import { InputQualityGateFooter } from './InputQualityGateFooter';
 import { InputQualityGateImagePanel } from './InputQualityGateImagePanel';
 import { InputQualityGateReportPanel } from './InputQualityGateReportPanel';
+import { summarizeQualityGate } from './inputQualitySummary';
 import type { InputQualityGateViewProps } from './types';
 
 const BREADCRUMB_PROJECTS = 'Dự án';
 const BREADCRUMB_QUALITY = 'Kiểm tra chất lượng đầu vào';
-const PAGE_TITLE = 'Chất lượng ảnh đầu vào';
+const PAGE_EYEBROW = 'Bước 1 · Tải bản vẽ';
+const PAGE_TITLE = 'Kiểm tra ảnh trước khi xử lý';
+const IMAGE_TITLE = 'Ảnh bản vẽ';
 
 /** Tiêu đề của lượt đo chất lượng hỏng — `status === 'error'`, không phải lỗi tệp. */
 const LOAD_ERROR_TITLE = 'Không đọc được kết quả kiểm tra chất lượng';
@@ -73,6 +81,9 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
   const rootRef = useRef<HTMLDivElement>(null);
   const writeErrorRef = useRef<HTMLDivElement>(null);
   const retryFocus = model.retryFocus ?? null;
+  const summary = summarizeQualityGate(model);
+  const activeFloor = model.floors.find((floor) => floor.isActive);
+  const resolution = model.metrics.find((metric) => metric.id === 'resolution');
 
   // Lỗi ghi: hộp thoại đóng lúc nút gốc đã bị thay (đánh dấu xong, rồi đọc lại),
   // nên tiêu điểm tự rơi vào phần tử đầu tiên của trang. Trả về đúng nút vừa
@@ -109,6 +120,15 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
 
     (button ?? writeErrorRef.current)?.focus();
   }, [retryFocus, model.writeError]);
+
+  const footer = (
+    <InputQualityGateFooter
+      actions={{ onContinue: actions.onContinue, onUploadAnother: actions.onUploadAnother }}
+      footer={model.footer}
+      summary={summary}
+    />
+  );
+  const hasPanels = model.status !== 'loading' && model.status !== 'error' && model.noDrawingNotice === null;
 
   const body =
     model.status === 'loading' ? (
@@ -155,7 +175,15 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
           </div>
         )}
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <div className="lg:w-[62%]">
+          <Section
+            actions={
+              resolution === undefined ? undefined : (
+                <span className="text-[13px] tabular-nums text-text-secondary">{resolution.valueText}</span>
+              )
+            }
+            className="min-w-0 flex-1"
+            title={activeFloor === undefined ? IMAGE_TITLE : `${IMAGE_TITLE} ${activeFloor.label}`}
+          >
             <InputQualityGateImagePanel
               actions={{
                 onCancelCorners: actions.onCancelCorners,
@@ -165,26 +193,29 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
               }}
               image={model.image}
             />
-          </div>
-          {/* Dưới 1024px báo cáo xếp dưới bản vẽ, trong dòng chảy trang (BUG-291). */}
-          <div className="lg:w-[344px]">
-            <InputQualityGateReportPanel
-              actions={{
-                onHoverFinding: actions.onHoverFinding,
-                onHoverRegion: actions.onHoverRegion,
-                onPickCorners: actions.onPickCorners,
-                onSelectFloor: actions.onSelectFloor,
-                onStraighten: actions.onStraighten,
-              }}
-              findings={model.findings}
-              floors={model.floors}
-              forecast={model.forecast}
-              metrics={model.metrics}
-              partialNotice={model.partialNotice}
-              passNotice={model.passNotice}
-              remainingFindingCount={model.remainingFindingCount}
-            />
-          </div>
+          </Section>
+          {/* Dưới 1024px khung kết quả xếp dưới bản vẽ, trong dòng chảy trang (BUG-291). */}
+          <Section className="lg:sticky lg:top-6 lg:w-[360px] lg:shrink-0" flush title={summary.sideTitle}>
+            <div className="max-h-[560px] overflow-y-auto p-5">
+              <InputQualityGateReportPanel
+                actions={{
+                  onHoverFinding: actions.onHoverFinding,
+                  onHoverRegion: actions.onHoverRegion,
+                  onPickCorners: actions.onPickCorners,
+                  onSelectFloor: actions.onSelectFloor,
+                  onStraighten: actions.onStraighten,
+                }}
+                findings={model.findings}
+                floors={model.floors}
+                forecast={model.forecast}
+                metrics={model.metrics}
+                partialNotice={model.partialNotice}
+                passNotice={model.passNotice}
+                remainingFindingCount={model.remainingFindingCount}
+              />
+            </div>
+            {footer}
+          </Section>
         </div>
       </div>
     );
@@ -199,18 +230,22 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
             { id: 'current', label: BREADCRUMB_QUALITY },
           ]}
         />
-        <h1 className="text-title font-semibold text-text-primary">{PAGE_TITLE}</h1>
+        <PageHead
+          className="mb-0"
+          eyebrow={PAGE_EYEBROW}
+          status={
+            <>
+              <Badge variant={summary.chipVariant}>{summary.chipText}</Badge>
+              {summary.sentence !== null && <span>{summary.sentence}</span>}
+            </>
+          }
+          title={PAGE_TITLE}
+        />
 
         {body}
 
-        <InputQualityGateFooter
-          actions={{
-            onContinue: actions.onContinue,
-            onToggleAcknowledgement: actions.onToggleAcknowledgement,
-            onUploadAnother: actions.onUploadAnother,
-          }}
-          footer={model.footer}
-        />
+        {/* Đang đọc / lỗi / chưa có bản vẽ: không có khung kết quả, chân nút đứng dưới thân. */}
+        {!hasPanels && footer}
 
         <InputQualityGateConfirmDialog
           actions={{ onCancelWrite: actions.onCancelWrite, onConfirmWrite: actions.onConfirmWrite }}

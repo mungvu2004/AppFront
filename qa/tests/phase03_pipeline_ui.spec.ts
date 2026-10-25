@@ -31,7 +31,7 @@
  *   - upload: a .txt is refused in the browser; the env PNG lands in "Tệp chưa gán tầng" (its name names no floor, so
  *     `guessFloor` matches nothing and `startUpload` is not called, useFloorUploadScreen.ts:723-745) and is never assigned;
  *     "Bắt đầu xử lý" with a file-less floor only shows the block notice (`submit`, no request);
- *   - quality: "Tự động nắn" dialog never confirmed, corner pick never applied, "Tiếp tục xử lý" only clicked while the
+ *   - quality: "Tự động nắn" dialog never confirmed, corner pick never applied, the quality primary button only clicked while the
  *     acknowledgement is unticked (stays on the page);
  *   - CAD: "Huỷ" only.
  * Sessions: every test opens its OWN context from Phase 1's admin storage state and writes the rotated refresh cookie back
@@ -102,16 +102,15 @@ const PICK_CORNERS = 'Chọn góc thủ công';
 const CORNER_GROUP = 'Bốn góc bản vẽ, kéo để chỉnh khung';
 const STRAIGHTEN = 'Tự động nắn';
 const STRAIGHTEN_DIALOG = /^Nắn thẳng bản vẽ tầng /u;
-const CONTINUE = 'Tiếp tục xử lý';
-const ACK_LABEL = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này';
-const ACK_BLOCKED = 'Đánh dấu ô xác nhận bên trên rồi thử lại.';
+const CONTINUE = /^(?:Xử lý dù ảnh mờ|Bắt đầu xử lý)$/u; // S-09
+const CONSENT = 'Bấm là chấp nhận: có thể phải vẽ tay tường bị sót.'; // replaces the acknowledgement checkbox + blocked hint
 /* SCR-12: ProcessingScreen.tsx, ProcessingStepList.tsx, useProcessingScreen.ts:174. */
 const PIPELINE_NAV = 'Xử lý';
 // useProcessingScreen.ts:186 renders "Đã xử lý xong N/N tầng" (older builds: "Đã xong …"); accept both.
 const DONE = /^Đã (?:xử lý )?xong ([1-9]\d*)\/\1 tầng/u;
 const FAILURE_COPY = 'Sao chép mã lỗi';
 const PIPELINE_EMPTY = 'Chưa có bước nào để theo dõi';
-const PIPELINE_TABS = 'Xem trước hoặc nhật ký';
+const PIPELINE_TABS = 'Bản vẽ hoặc nhật ký';
 const LOG_TAB = 'Nhật ký';
 const OPEN_DETAIL = 'Mở chi tiết bước';
 const ALL_STEPS = 'Xem tất cả các bước'; // ProcessingScreen.tsx:87 ALL_STEPS_LABEL (FIX-1383, BUG-294)
@@ -510,16 +509,16 @@ test.describe('U03 UI verify — SCR-11 quality gate, skewed drawing (this file 
     );
   });
 
-  test('U03 · SCR-11 quality, "Tiếp tục xử lý" without the acknowledgement → hint', async ({ browser }) => {
+  test('U03 · SCR-11 quality, poor image: no checkbox, consent note under the primary button', async ({ browser }) => {
     await verifyAsAdmin(
       browser,
       'U03_quality_ack_blocked',
       async (p) => {
         await openQualityReport(p, skewed());
-        // A "poor" metric renders the checkbox; without it "Tiếp tục xử lý" would leave for /pipeline.
-        await expect(p.getByRole('checkbox', { name: ACK_LABEL, exact: true })).toBeVisible();
-        await p.getByRole('button', { name: CONTINUE, exact: true }).click();
-        await expect(p.getByText(ACK_BLOCKED, { exact: true })).toBeVisible();
+        // S-09: a "poor" metric no longer renders the checkbox; the primary button says "Xử lý dù ảnh mờ" and the consent sits under it.
+        await expect(p.getByRole('checkbox')).toHaveCount(0);
+        await expect(p.getByRole('button', { name: CONTINUE })).toBeVisible();
+        await expect(p.getByText(CONSENT, { exact: true })).toBeVisible();
       },
     );
   });

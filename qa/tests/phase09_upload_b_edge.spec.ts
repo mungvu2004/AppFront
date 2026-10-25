@@ -35,14 +35,14 @@ const USE_CAD = 'Dùng đường từ CAD';
 const USE_AI = 'Vẫn dùng AI';
 const IMPORT_GEO = 'Nhập hình học';
 const TECH = 'Chi tiết kỹ thuật';
-const CONTINUE = 'Tiếp tục xử lý';
-const OTHER_DRAWING = 'Tải bản vẽ khác';
+const CONTINUE = /^(?:Xử lý dù ảnh mờ|Bắt đầu xử lý)$/u; // S-09
+const OTHER_DRAWING = /^(?:Tải ảnh nét hơn|Tải ảnh khác)$/u; // S-09
 const FAILED_ALERT = /không hoàn tất được/u; // failed-run alert of the pipeline screen
 const OVERLAY_REGION = 'Màn đối chiếu bản vẽ';
 const CONFIRM_MODEL = 'Xác nhận mô hình khớp bản vẽ';
 
 const ev = (page: Page, id: string, slug: string): Promise<unknown> => captureEvidence(page, `E09_${id}_${slug}.png`);
-const btn = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
+const btn = (page: Page, name: string | RegExp) => page.getByRole('button', { name, exact: true });
 const unknown = (what: string): void => {
   test.info().annotations.push({ type: 'unknown', description: `UNKNOWN — NEED VERIFICATION: ${what}` });
 };
@@ -213,7 +213,7 @@ test('SCR-12 · SCR-13 · SCR-14 · SCR-15 · SCR-16 · FL-9U-06 · engineer · 
     await test.step('[9U-D-054] engineer: 3 next-step actions on the failed run', async () => {
       await page.goto(ROUTES.project.pipeline(pf.projectId));
       await expect(page.getByRole('alert').filter({ hasText: FAILED_ALERT })).toBeVisible({ timeout: 45_000 });
-      for (const name of [PF.lower, PF.upload, PF.skip]) await expect.soft(btn(page, name)).toBeVisible(); // PFT:58-60
+      for (const name of [PF.lower, PF.upload]) await expect.soft(btn(page, name)).toBeVisible(); // PFT:58-60
       await ev(page, '9U-D-054', 'engineer_next_steps');
     });
 
@@ -302,7 +302,7 @@ test('SCR-09..16 · FL-9U-07 · admin · admin doi chung duong 1 dong/man', asyn
     });
 
     await test.step('[9U-D-055] admin: next-step actions on the failed run', async () => {
-      for (const name of [PF.lower, PF.upload, PF.skip]) await expect.soft(btn(page, name)).toBeVisible(); // PFT:58-60
+      for (const name of [PF.lower, PF.upload]) await expect.soft(btn(page, name)).toBeVisible(); // PFT:58-60
       await ev(page, '9U-D-055', 'admin_next_steps');
     });
 

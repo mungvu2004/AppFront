@@ -69,7 +69,7 @@ test('SCR-13 · FL-13-01 · admin opens the graph of an own project by URL, read
     const { page, log } = flow;
     const pid = project.projectId;
     const h1 = page.getByRole('heading', { level: 1, name: GRAPH.title, exact: true });
-    const group = page.getByRole('group', { name: GRAPH.title, exact: true });
+    const group = page.getByRole('group', { name: GRAPH.crumb, exact: true }); // S-12: GRAPH.title is now the h1 only
     const content = h1.locator('xpath=ancestor::div[contains(@class,"max-w-[1080px]")][1]');
 
     await test.step('[13-A-001] goto /pipeline/graph → h1 + lead; only request naming the project is #24', async () => {
@@ -127,7 +127,7 @@ test('SCR-13 · FL-13-01 · admin opens the graph of an own project by URL, read
     await test.step('[13-E-001] one h1; breadcrumb nav "Đường dẫn trang", only the diagram group is named "Sơ đồ xử lý"', async () => {
       await expect.soft(page.getByRole('heading', { level: 1 })).toHaveCount(1);
       await expect.soft(page.getByRole('navigation', { name: BREADCRUMB_NAV, exact: true })).toHaveCount(1);
-      await expect.soft(page.locator(`nav[aria-label="${GRAPH.title}"]`)).toHaveCount(0);
+      await expect.soft(page.locator(`nav[aria-label="${GRAPH.crumb}"]`)).toHaveCount(0);
       await expect.soft(group).toHaveCount(1);
     });
 
@@ -146,8 +146,8 @@ test('SCR-13 · FL-13-01 · admin opens the graph of an own project by URL, read
     // PipelineGraph.container.tsx:137-138 ROUTES.dashboard); the last crumb is aria-current="page" (Breadcrumb.tsx:50-56).
     await test.step('[13-A-002] breadcrumb "Dự án › Sơ đồ xử lý": "Dự án" is a button back to "/", the last crumb is the current page', async () => {
       const nav = page.getByRole('navigation', { name: BREADCRUMB_NAV, exact: true });
-      await expect.soft(nav).toHaveText(new RegExp(`^${GRAPH.breadcrumbProjects}\\s*›\\s*${GRAPH.title}$`, 'u'));
-      await expect.soft(nav.locator('[aria-current="page"]')).toHaveText(GRAPH.title);
+      await expect.soft(nav).toHaveText(new RegExp(`^${GRAPH.breadcrumbProjects}\\s*›\\s*${GRAPH.crumb}$`, 'u'));
+      await expect.soft(nav.locator('[aria-current="page"]')).toHaveText(GRAPH.crumb);
       await expect.soft(content.locator('a, [role="link"]')).toHaveCount(0);
       await captureEvidence(page, 'E03_13-A-002_breadcrumb_no_link.png');
       await nav.getByRole('button', { name: GRAPH.breadcrumbProjects, exact: true }).click();

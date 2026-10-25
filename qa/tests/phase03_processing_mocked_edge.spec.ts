@@ -64,20 +64,20 @@ import {
 
 const CHIPS = 'Tiến độ theo tầng'; // ProcessingFloorChips.tsx:20
 const STEPS = 'Các bước xử lý'; // PSL:39
-const BACKGROUND = 'Để chạy nền và thông báo cho tôi'; // PR:63
+const BACKGROUND = 'Chạy nền, báo tôi khi xong'; // PR RUN_IN_BACKGROUND_LABEL
 const CANCEL = 'Huỷ xử lý'; // PR:64
 const RETRY = 'Thử lại'; // PR:72
 const SUPPORT = 'Liên hệ hỗ trợ'; // PR:71
-const TABS = 'Xem trước hoặc nhật ký'; // PR:74
-const TAB_PREVIEW = 'Xem trước'; // PR:75
+const TABS = 'Bản vẽ hoặc nhật ký'; // PR TABS_ARIA_LABEL
+const TAB_PREVIEW = 'Bản vẽ'; // PR TAB_PREVIEW_LABEL
 const TAB_LOG = 'Nhật ký'; // PR:76
 const LOCK_SCROLL = 'Khoá cuộn tự động'; // PLP:28
 const COPY_LOG = 'Sao chép nhật ký'; // PLP:29
 const PREVIEW = 'Xem trước bản vẽ đang xử lý'; // PPP:47
 const WAITING_IMAGE = 'Đang chờ ảnh xem trước…'; // PPP:50
 const EMPTY_TITLE = 'Chưa có bước nào để theo dõi'; // PR:80
-const SUMMARY = 'Báo cáo tổng kết'; // ProcessingSummary.tsx:18
-const REVIEW_WALLS = 'Duyệt lớp tường'; // ProcessingSummary.tsx:19
+const SUMMARY = /^(?:Sẵn sàng kiểm tra tầng|Còn 1 việc: hiệu chỉnh tỷ lệ)$/u; // S-10: gate Section name (processingGate.ts title); the old "Báo cáo tổng kết" region is gone
+const REVIEW_WALLS = 'Sang Kiểm tra tầng'; // processingGate.ts GO_REVIEW_LABEL (was "Duyệt lớp tường")
 const CALIBRATE = 'Hiệu chỉnh tỷ lệ'; // ProcessingSummary.tsx:20
 const BG_STARTED = 'Sẽ báo cho bạn khi xử lý xong'; // UPR:152
 const BG_STARTED_DESC = 'Xử lý vẫn chạy khi bạn rời màn này. Đóng thẻ trình duyệt thì không báo được nữa.'; // UPR:156-157
@@ -241,7 +241,7 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await captureEvidence(page, 'E03_12-B-031_stage-preprocess.png');
       });
 
-      await test.step('[12-B-004] chip "Đang xử lý" aria-current, running step sweep, "Đã xử lý xong 0/1 tầng", "Để chạy nền…" (remaining → [12-C-004])', async () => {
+      await test.step('[12-B-004] chip "Đang xử lý" aria-current, running step sweep, "Đã xử lý xong 0/1 tầng", "Chạy nền, báo tôi khi xong" (remaining → [12-C-004])', async () => {
         await expect.soft(chip(page, floor.name)).toContainText('Đang xử lý'); // UPR:146
         await expect.soft(chip(page, floor.name)).toHaveAttribute('aria-current', 'true');
         await expect.soft(stepRow(page, stageLabel('preprocess')).locator('.animate-pipeline-sweep')).toHaveCount(1); // PSL:147
@@ -408,7 +408,7 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         note('[12-C-003] 0 s only happens once every stage is done (completed); that line is checked in FL-12-13 [12-A-026]');
       });
 
-      await test.step('[12-B-023] tab "Xem trước": sweep over the preview while running; reduced motion → static 1 px line', async () => {
+      await test.step('[12-B-023] tab "Bản vẽ" (was "Xem trước"): sweep over the preview while running; reduced motion → static 1 px line', async () => {
         await tab(page, TAB_PREVIEW).click();
         const frame = page.locator(`[aria-label="${PREVIEW}"]`);
         await expect(frame).toBeVisible();
@@ -471,7 +471,7 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
       await sse.send(u1, [progress(u1, 'running', 'wallSegmentation', 20)]);
       await expect.poll(() => stepLine(page)).toBe(runningAt(1));
 
-      await test.step('[12-A-016] "Để chạy nền và thông báo cho tôi" → toast "Sẽ báo cho bạn khi xử lý xong" + its sentence; no /api write', async () => {
+      await test.step('[12-A-016] "Chạy nền, báo tôi khi xong" → toast "Sẽ báo cho bạn khi xử lý xong" + its sentence; no /api write', async () => {
         const button = page.getByRole('button', { name: BACKGROUND, exact: true });
         await expect(button).toBeVisible(); // UPR:844 canRunInBackground (fold: E03 · SCR-12 [P8])
         await expect(page.getByRole('button', { name: CANCEL, exact: true })).toHaveCount(0); // PG supports.cancelProcessing false
@@ -563,7 +563,7 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await captureEvidence(page, 'E03_12-A-018_background-failed-toast.png');
       });
 
-      await test.step('[12-D-008] viewer member, same live-run mocks → "Để chạy nền và thông báo cho tôi" offered (no role gate)', async () => {
+      await test.step('[12-D-008] viewer member, same live-run mocks → "Chạy nền, báo tôi khi xong" offered (no role gate)', async () => {
         const viewer = await poolUser(adminApi, 'viewer');
         await addProjectMember(adminApi, project.projectId, viewer.email);
         viewerSide = await openMocked(browser, project.projectId, viewer);
@@ -1100,7 +1100,7 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
       const isLayer = (url: URL): boolean => url.pathname === layerPath;
       const settings500 = fail500(settingsPath);
 
-      await test.step('[12-C-021] #8 completed + N16 500 → summary with "Duyệt lớp tường" and "Hiệu chỉnh tỷ lệ", no metrics (BUG-285)', async () => {
+      await test.step('[12-C-021] #8 completed + N16 500 → gate with "Hiệu chỉnh tỷ lệ" as the primary (no "Sang Kiểm tra tầng"), no metrics (BUG-285)', async () => {
         const u3 = fakeUploadId();
         runs.uploads = [uploadOf(project, 0, u3)];
         runs.progressOf.set(u3, ok(progress(u3, 'completed', 'qualityCheck', 100)));
@@ -1109,9 +1109,9 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         const summary = page.getByRole('region', { name: SUMMARY, exact: true });
         await expect(summary).toBeVisible();
         await settle(page, 3_000); // N16 read retried once
-        await expect.soft(summary.getByRole('button', { name: REVIEW_WALLS, exact: true })).toBeVisible();
+        await expect.soft(summary.getByRole('button', { name: REVIEW_WALLS, exact: true })).toHaveCount(0); // no metrics → scale missing → calibrate only
         await expect.soft(summary.getByRole('button', { name: CALIBRATE, exact: true })).toBeVisible();
-        await expect.soft(summary.locator('li')).toHaveCount(0); // PG:1023-1025, UPR:1249-1251
+        await expect.soft(summary).not.toContainText(/d+ tường/u); // PG:1023-1025, UPR:1249-1251
         await captureEvidence(page, 'E03_12-C-021_summary-without-metrics.png');
         await page.unroute(isLayer, layer500);
       });
@@ -1123,7 +1123,7 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await page.route((url) => url.pathname === settingsPath, settings500);
         await page.reload();
         const summary = page.getByRole('region', { name: SUMMARY, exact: true });
-        await expect(summary.locator('li')).toHaveCount(5); // tường, đối tượng, chuỗi kích thước, phòng, diện tích
+        await expect(summary).toContainText(/d+ tường/u); // metrics now sit on the step rows / one joined line inside the gate (S-10)
         await settle(page);
         await expect.soft(summary.getByText(NO_LOW_CONFIDENCE)).toHaveCount(0); // PG:1027-1028, UPR:1260-1262
         note('[12-C-020] the real N16 of a floor without a run (an empty floor document, spatial_read/router.py:71-87) stands in for the planned N16 fixture');

@@ -102,9 +102,9 @@ const ROWS = {
   // F-05b: màn chỉ mở SSE cho tầng đang xem chưa xong sau lượt #8 mồi; bộ mẫu dev không có
   // lượt nào đang chạy nên không còn lượt mở luồng 404 (B-V4-10) để chờ.
   projectPipeline: { anchor: { role: 'navigation', name: 'Xử lý' } },
-  projectPipelineGraph: { anchor: { role: 'heading', name: 'Sơ đồ xử lý' } },
-  projectScale: { anchor: { role: 'heading', name: 'Hiệu chỉnh tỷ lệ' } },
-  projectCadConfirm: { anchor: { role: 'heading', name: 'Chưa có tệp CAD' } },
+  projectPipelineGraph: { anchor: { role: 'heading', name: 'Theo dõi bản vẽ đi qua nhánh xử lý nào' } },
+  projectScale: { anchor: { role: 'heading', name: 'Đặt tỷ lệ bản vẽ' } },
+  projectCadConfirm: { anchor: { role: 'heading', name: 'Nhập tầng từ tệp CAD' } },
   projectWalls: { anchor: { role: 'region', name: 'Duyệt lớp tường' } },
   projectObjects: { anchor: { role: 'region', name: 'Lớp đối tượng' } },
   projectDimensions: { anchor: { role: 'region', name: 'Đọc kích thước OCR' } },

@@ -26,7 +26,7 @@ const SCALE_SENTENCE =
 const OVERLAY_NOTICE = 'Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.'; // UOC:128
 const OVERLAY_REASON = 'Chỉ người có quyền sửa mới xác nhận được.'; // UOC:122
 const CONFIRM = 'Xác nhận mô hình khớp bản vẽ';
-const QUALITY_ACK = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này'; // UIQ:145-147
+const QUALITY_ACK = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này'; // checkbox removed in S-09 (the count-0 assertion below stays true)
 
 /** Waits a bounded window for any non-GET /api request, then asserts no recorded write (matching `only`) exists. */
 async function noWrites(page: Page, rec: { writes: string[] }, only?: string): Promise<void> {
@@ -189,8 +189,8 @@ test('SCR-10 · SCR-11 · FL-9U-02 · viewer · viewer doc: tai len + kiem tra c
       const qualityRead = page.waitForResponse((r) => r.request().method() === 'GET' && /\/quality$/u.test(new URL(r.url()).pathname));
       await page.goto(ROUTES.project.quality(projectId!));
       expect((await qualityRead).status()).toBe(200);
-      await expect.soft(page.getByRole('button', { name: 'Tiếp tục xử lý', exact: true })).toHaveCount(0); // UIQ:145-147
-      await expect.soft(page.getByRole('button', { name: 'Tải bản vẽ khác', exact: true })).toHaveCount(0);
+      await expect.soft(page.getByRole('button', { name: /^(?:Xử lý dù ảnh mờ|Bắt đầu xử lý)$/u })).toHaveCount(0); // UIQ:145-147
+      await expect.soft(page.getByRole('button', { name: /^(?:Tải ảnh nét hơn|Tải ảnh khác)$/u })).toHaveCount(0);
       await expect.soft(page.getByRole('checkbox', { name: QUALITY_ACK })).toHaveCount(0);
       await captureEvidence(page, 'E09_9U-D-030_quality_no_actions.png');
     });

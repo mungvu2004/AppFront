@@ -28,7 +28,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { clsx } from 'clsx';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, TriangleAlert } from 'lucide-react';
 
 import { IconButton } from '@/components/ui/IconButton';
 import { durationMs } from '@/lib/motion';
@@ -167,10 +167,14 @@ function StepProgressBar({
 function StepRow({
   isChild,
   prefersReducedMotion,
+  result,
+  isWarn = false,
   step,
 }: {
   readonly isChild: boolean;
   readonly prefersReducedMotion: boolean;
+  readonly result?: string | undefined;
+  readonly isWarn?: boolean;
   readonly step: ProcessingStepViewModel;
 }) {
   const isFlashing = useDoneFlash(step.status, prefersReducedMotion);
@@ -196,6 +200,17 @@ function StepRow({
           >
             {step.name}
           </span>
+          {result !== undefined ? (
+            <span
+              className={clsx(
+                'inline-flex items-center gap-1 whitespace-nowrap text-[13px] tabular-nums',
+                isWarn ? 'text-state-attention-text' : 'text-text-secondary',
+              )}
+            >
+              {isWarn ? <TriangleAlert aria-hidden="true" size={14} /> : null}
+              {result}
+            </span>
+          ) : null}
           {step.remainingLabel !== undefined ? (
             <span className="whitespace-nowrap text-[13px] text-text-secondary">{step.remainingLabel}</span>
           ) : null}
@@ -246,7 +261,12 @@ function StepRow({
   );
 }
 
-export function ProcessingStepList({ prefersReducedMotion, steps }: ProcessingStepListProps) {
+export function ProcessingStepList({
+  prefersReducedMotion,
+  resultByStepId,
+  steps,
+  warnStepIds = [],
+}: ProcessingStepListProps) {
   return (
     // One list in one frame with hairline rows, not six identical cards (aesthetic 2.5 #1).
     <ol
@@ -254,7 +274,14 @@ export function ProcessingStepList({ prefersReducedMotion, steps }: ProcessingSt
       className="flex flex-col divide-y divide-border-default overflow-hidden rounded-lg border border-border-default bg-bg-surface"
     >
       {steps.map((step) => (
-        <StepRow isChild={false} key={step.id} prefersReducedMotion={prefersReducedMotion} step={step} />
+        <StepRow
+          isChild={false}
+          isWarn={warnStepIds.includes(step.id)}
+          key={step.id}
+          prefersReducedMotion={prefersReducedMotion}
+          result={resultByStepId?.get(step.id)}
+          step={step}
+        />
       ))}
     </ol>
   );

@@ -406,63 +406,36 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
     clock.restore();
   });
 
-  it('chặn cho tới khi tích ô, và tích ô xong thì qua — chứng minh qua giao diện', async () => {
+  it('ảnh kém là cảnh báo không chặn: không ô tích, câu đồng ý dưới nút, bấm là đi — chứng minh qua giao diện', async () => {
     const onNavigate = vi.fn();
     await mountScreen(clock, { onNavigate });
     await selectMeasuredFloor(clock);
 
-    // Tầng 1 có độ phân giải cạnh ngắn 900 px — mức Kém theo `@/domain/quality`,
-    // nên ô xác nhận phải hiện ra và lời chặn phải nói đúng lý do.
-    const checkbox = screen.getByRole('checkbox', {
-      name: /tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này/iu,
-    });
+    // Tầng 1 có độ phân giải cạnh ngắn 900 px — mức Kém theo `@/domain/quality`:
+    // chip cảnh báo, không ô tích (ô chưa tích = nút chết), câu đồng ý nối vào nút.
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.getByText('Ảnh mờ, vẫn xử lý được')).toBeInTheDocument();
 
-    expect(checkbox).not.toBeChecked();
-    expect(screen.getByText(/đánh dấu ô xác nhận bên trên để tiếp tục xử lý/iu)).toBeInTheDocument();
-
-    // Không chặn cứng: nút chính vẫn bấm được, chỉ có lời cảnh báo đi kèm.
-    const primary = screen.getByRole('button', { name: /tiếp tục xử lý/iu });
+    const primary = screen.getByRole('button', { name: /xử lý dù ảnh mờ/iu });
+    const consent = screen.getByText(/bấm là chấp nhận: có thể phải vẽ tay tường bị sót/iu);
 
     expect(primary).toBeEnabled();
-    expect(primary).toHaveAttribute('aria-describedby');
+    expect(primary).toHaveAttribute('aria-describedby', consent.closest('p')?.id);
+    expect(screen.getByRole('button', { name: /tải ảnh nét hơn/iu })).toBeInTheDocument();
 
-    const blockedBefore = screen.queryAllByText(/đánh dấu ô xác nhận bên trên để tiếp tục xử lý/iu).length;
-
-    // B-V4-02: bấm được nhưng không đi — lời chặn nói "rồi thử lại".
+    // B-V4-02 (mới): một lần bấm là đồng ý và sang màn xử lý.
     fireEvent.click(primary);
-    expect(onNavigate).not.toHaveBeenCalled();
-
-    fireEvent.click(checkbox);
-    await settle(clock);
-
-    expect(checkbox).toBeChecked();
-
-    const blockedAfter = screen.queryAllByText(/đánh dấu ô xác nhận bên trên để tiếp tục xử lý/iu).length;
-
-    console.log(
-      `[NGHIEM-E] loi-chan-truoc=${String(blockedBefore)} loi-chan-sau=${String(blockedAfter)}`,
-    );
-
-    expect(blockedBefore).toBe(1);
-    expect(blockedAfter).toBe(0);
-
-    fireEvent.click(screen.getByRole('button', { name: /tiếp tục xử lý/iu }));
     expect(onNavigate).toHaveBeenCalledWith('/projects/project-1/pipeline');
-    expect(screen.getByRole('button', { name: /tiếp tục xử lý/iu })).not.toHaveAttribute(
-      'aria-describedby',
-    );
   });
 
   it('bản vẽ không có chỉ số mức Kém thì không hỏi xác nhận', () => {
     renderWithProviders(<InputQualityGateView {...scenarioFor('empty')} />);
 
-    expect(
-      screen.queryByRole('checkbox', { name: /tôi đã đọc cảnh báo/iu }),
-    ).toBeNull();
-    expect(screen.queryByText(/đánh dấu ô xác nhận bên trên để tiếp tục xử lý/iu)).toBeNull();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByText(/bấm là chấp nhận/iu)).toBeNull();
   });
 
-  it('mô hình đã tích ô mở đường đi tiếp mà vẫn giữ ô xác nhận trên màn', () => {
+  it('mô hình có chỉ số Kém vẫn mở đường đi tiếp, không ô tích', () => {
     const acknowledged = acknowledgedScenario();
 
     expect(acknowledged.model.footer.requiresAcknowledgement).toBe(true);
@@ -470,9 +443,8 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
 
     renderWithProviders(<InputQualityGateView {...acknowledged} />);
 
-    expect(
-      screen.getByRole('checkbox', { name: /tôi đã đọc cảnh báo/iu }),
-    ).toBeChecked();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Xử lý dù ảnh mờ' })).toBeEnabled();
   });
 });
 
@@ -769,7 +741,7 @@ describe('InputQualityGate — hỏi trước khi nắn thẳng, không toast ho
 
     await advance();
 
-    const other = screen.getByRole('button', { name: 'Tải bản vẽ khác' });
+    const other = screen.getByRole('button', { name: 'Tải ảnh nét hơn' });
 
     fireEvent.pointerDown(other);
     other.focus();
@@ -957,7 +929,7 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
     await mountScreen(clock, {});
     await selectMeasuredFloor(clock);
 
-    expect(screen.getByRole('button', { name: 'Tiếp tục xử lý' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Xử lý dù ảnh mờ' })).toBeEnabled();
   });
 });
 

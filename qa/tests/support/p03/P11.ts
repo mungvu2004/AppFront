@@ -203,7 +203,7 @@ export async function screenState(page: Page, kind: ScreenKind): Promise<string>
       return settled(page, async () => `pipeline ${await done.first().innerText()} chips=${flat(await chipTexts(page))}`);
     }
     case 'graph': {
-      const h1 = page.getByRole('heading', { level: 1, name: 'Sơ đồ xử lý', exact: true }); // PGT:141
+      const h1 = page.getByRole('heading', { level: 1, name: 'Theo dõi bản vẽ đi qua nhánh xử lý nào', exact: true }); // S-12
       await expect(h1).toBeVisible();
       const empty = page.getByText('Chưa có lượt xử lý nào để kể lại', { exact: true }); // PGT:208
       return settled(page, async () => `graph h1 empty=${String(await empty.isVisible())}`);

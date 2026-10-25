@@ -108,14 +108,13 @@ test.describe('SCR-12 processing — roles', () => {
         await captureEvidence(page, 'E03_12-D-004_viewer-collapse.png', { caption: 'viewer pressed "Thu gọn": collapsed summary only' });
       });
 
-      await test.step('[12-D-002] owner uploads drawing.png on the floor; viewer reloads → done screen with "Duyệt lớp tường" / "Hiệu chỉnh tỷ lệ", no read-only banner', async () => {
+      await test.step('[12-D-002] owner uploads drawing.png on the floor; viewer reloads → done screen with the gate primary button ("Sang Kiểm tra tầng" or "Hiệu chỉnh tỷ lệ"), no read-only banner', async () => {
         const { outcomes } = await uploadAndSettle(f.ownerApi, project.projectId, [[floor, envDrawingPng()]]);
         expect(outcomes[0]?.status, 'setup: drawing.png run completed').toBe('completed');
         await page.reload();
         await expect(page.getByText(doneLine(1, 1))).toBeVisible({ timeout: 45_000 });
         const summary = page.getByRole('region', { name: PR.summary, exact: true });
-        await expect(button(summary, PR.reviewWalls)).toBeVisible();
-        await expect(button(summary, PR.calibrate)).toBeVisible();
+        await expect(button(summary, PR.reviewWalls).or(button(summary, PR.calibrate))).toHaveCount(1); // S-10: one primary, depends on scale
         await expect(page.getByText(/chỉ được xem/u)).toHaveCount(0); // no read-only notice on SCR-12 (PR has none)
         await captureEvidence(page, 'E03_12-D-002_viewer-done.png');
       });
@@ -161,8 +160,8 @@ test.describe('SCR-12 processing — roles', () => {
       await test.step('[12-D-005] engineer member: directions, "Thử lại bước này", "Chi tiết kỹ thuật" enabled; after the owner\'s fix run the summary actions are there', async () => {
         const { page } = eng;
         const group = nextSteps(page);
-        await expect(group.getByRole('button')).toHaveCount(3);
-        for (const name of [PF.lower, PF.skip, `${PF.retry} — Thử lại bước ${PREPROCESS}`]) await expect(button(group, name)).toBeEnabled();
+        await expect(group.getByRole('button')).toHaveCount(2); // S-14: no "Bỏ qua tầng đó" while skipFloor is unsupported
+        for (const name of [PF.lower, `${PF.retry} — Thử lại bước ${PREPROCESS}`]) await expect(button(group, name)).toBeEnabled();
         await expect(button(page, PF.technical)).toBeEnabled();
         await captureEvidence(page, 'E03_12-D-005_engineer-member-failure.png');
         const { outcomes: fixed } = await uploadAndSettle(f.ownerApi, project.projectId, [[floor, envDrawingPng()]]);

@@ -823,7 +823,8 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
       onSelect: onSkipFloor,
     };
 
-    return [retryLower, uploadClearer, skipFloor];
+    // Bản Z (S-14): BE chưa có `skipFloor` thì không vẽ nút "Bỏ qua tầng đó" — không nút chết.
+    return isSkipSupported ? [retryLower, uploadClearer, skipFloor] : [retryLower, uploadClearer];
   }, [isSkipSupported, onRetryLowerThreshold, onSkipFloor, onUploadClearer, serverError, state]);
 
   /* ---------------------------------------------------------------------- */

@@ -134,7 +134,7 @@ async function tourLength(page: Page): Promise<number> {
 }
 
 /** Draws the SCR-14 reference line (20 % → 80 %), types `mm`, picks the scope; the apply button is NOT pressed. */
-async function drawReference(page: Page, mm = 5_000, scope: 'Chỉ áp cho tầng này' | 'Áp cho mọi tầng' = 'Chỉ áp cho tầng này'): Promise<void> {
+async function drawReference(page: Page, mm = 5_000, scope: 'Tầng này' | 'Mọi tầng' = 'Tầng này'): Promise<void> {
   const canvas = page.getByRole('group', { name: 'Bản vẽ đã nắn, kéo để vẽ đường tham chiếu', exact: true });
   await expect(canvas).toBeVisible({ timeout: PIPELINE_TIMEOUT_MS });
   const method = page.getByRole('radiogroup', { name: 'Chọn cách xác định tỷ lệ', exact: true }).getByRole('radio', { name: 'Vẽ đường tham chiếu', exact: true });

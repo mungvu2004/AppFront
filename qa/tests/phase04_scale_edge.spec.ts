@@ -571,7 +571,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
       await step('14-A-012', '`R` (focus off the text field) = "Đo lại": line and "Chiều dài thật" cleared', async () => {
         await clearLine(page);
         await drawStandard(page);
-        await page.getByRole('heading', { name: 'Hiệu chỉnh tỷ lệ', exact: true }).click(); // focus leaves the text field
+        await page.getByRole('heading', { name: 'Đặt tỷ lệ bản vẽ', exact: true }).click(); // focus leaves the text field
         await page.keyboard.press('r');
         await expect.soft(handleEnd(page)).toHaveCount(0);
         await expect.soft(lengthField(page)).toHaveValue('');

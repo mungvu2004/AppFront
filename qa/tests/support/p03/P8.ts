@@ -176,12 +176,12 @@ export const PR = {
   emptyDescription: 'Khi bản vẽ được đưa vào hàng đợi, các bước xử lý sẽ hiện ở đây.', // EMPTY_DESCRIPTION
   emptyAction: 'Tải bản vẽ', // EMPTY_ACTION_LABEL
   noRun: 'Chưa có lượt xử lý nào đang chạy.', // useProcessingScreen.ts NO_RUN_SENTENCE
-  background: 'Để chạy nền và thông báo cho tôi', // RUN_IN_BACKGROUND_LABEL
+  background: 'Chạy nền, báo tôi khi xong', // RUN_IN_BACKGROUND_LABEL
   cancel: 'Huỷ xử lý', // CANCEL_LABEL
   retry: 'Thử lại', // RETRY_LABEL
   support: 'Liên hệ hỗ trợ', // SUPPORT_LABEL
-  tabs: 'Xem trước hoặc nhật ký', // TABS_ARIA_LABEL
-  tabPreview: 'Xem trước',
+  tabs: 'Bản vẽ hoặc nhật ký', // TABS_ARIA_LABEL
+  tabPreview: 'Bản vẽ', // TAB_PREVIEW_LABEL (was 'Xem trước')
   tabLog: 'Nhật ký',
   chips: 'Tiến độ theo tầng', // ProcessingFloorChips.tsx FLOORS_ARIA_LABEL
   objects: 'Số đối tượng đã nhận theo tầng', // ProcessingScreen.tsx FLOOR_OBJECTS_ARIA_LABEL
@@ -196,9 +196,11 @@ export const PR = {
   previewPanel: 'Xem trước bản vẽ đang xử lý', // ProcessingPreviewPanel.tsx PANEL_LABEL
   previewEmpty: 'Chưa có tầng nào để xem trước', // NO_FLOOR_TITLE
   previewEmptyDescription: 'Panel sẽ hiện bản vẽ ngay khi có tầng bắt đầu xử lý.', // NO_FLOOR_DESCRIPTION
-  summary: 'Báo cáo tổng kết', // ProcessingSummary.tsx SUMMARY_ARIA_LABEL
-  reviewWalls: 'Duyệt lớp tường', // REVIEW_WALLS_LABEL
-  calibrate: 'Hiệu chỉnh tỷ lệ', // CALIBRATE_SCALE_LABEL
+  // S-10: the summary region and the "Duyệt lớp tường" button are gone; the gate Section is named by processingGate.ts `title`,
+  // its one primary button is "Hiệu chỉnh tỷ lệ" (scale missing) or "Sang Kiểm tra tầng" (ready).
+  summary: /^(?:Sẵn sàng kiểm tra tầng|Còn 1 việc: hiệu chỉnh tỷ lệ)$/u,
+  reviewWalls: 'Sang Kiểm tra tầng', // processingGate.ts GO_REVIEW_LABEL (was "Duyệt lớp tường")
+  calibrate: 'Hiệu chỉnh tỷ lệ', // processingGate.ts CALIBRATE_LABEL
 } as const;
 
 /**

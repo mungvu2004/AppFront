@@ -720,7 +720,7 @@ describe('usePipelineFailure — khối gấp và ba hướng đi tiếp', () =>
     ]);
   });
 
-  it('skipFloor chưa có endpoint: câu cảnh báo nói thêm điều đó TRƯỚC khi bấm', async () => {
+  it('skipFloor chưa có endpoint: không có nút "Bỏ qua tầng đó" (bản Z, không nút chết), vẫn ≥ 2 lối ra', async () => {
     const gateway = createMockPipelineFailureGateway({ supports: { skipFloor: false } });
     const mounted = await mountSettled(gateway);
     const band = mounted.result.current.band;
@@ -729,8 +729,8 @@ describe('usePipelineFailure — khối gấp và ba hướng đi tiếp', () =>
       throw new Error('Ba hướng đi tiếp phải có mặt.');
     }
 
-    const skip = band.nextSteps.find((step) => step.id === 'skip-floor');
-    expect(skip?.warningSentence).toContain(PIPELINE_FAILURE_TEXT.skipFloorUnsupportedWarning);
+    expect(band.nextSteps.find((step) => step.id === 'skip-floor')).toBeUndefined();
+    expect(band.nextSteps.length).toBeGreaterThanOrEqual(2);
   });
 
   it('"Tải lên bản vẽ rõ hơn" đẩy đường dẫn dựng từ bảng đường dẫn, không phải chuỗi viết tay', async () => {

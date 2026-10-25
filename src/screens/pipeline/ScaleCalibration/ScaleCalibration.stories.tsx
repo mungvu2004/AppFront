@@ -48,6 +48,7 @@ import { formatNumber } from '@/lib/format/number';
 import { SEVEN_STATES, type SevenState } from '@/lib/testing/sevenStateScenarios';
 
 import { ScaleCalibration } from './ScaleCalibration';
+import { buildScaleCheck } from './scaleCheck';
 import type {
   DimensionStringRow,
   ImageRatioBox,
@@ -195,8 +196,8 @@ const METHOD_OPTIONS_WITHOUT_DIMENSIONS: readonly ScaleMethodOption[] = [
 ];
 
 const APPLY_SCOPE_OPTIONS: readonly ScaleApplyScopeOption[] = [
-  { value: 'allFloors', label: 'Áp cho mọi tầng' },
-  { value: 'thisFloor', label: 'Chỉ áp cho tầng này' },
+  { value: 'allFloors', label: 'Mọi tầng' },
+  { value: 'thisFloor', label: 'Tầng này' },
 ];
 
 const SHORTCUT_HINTS: readonly ScaleShortcutHint[] = [
@@ -357,6 +358,12 @@ function panelFor(state: ScaleCalibrationState): ScalePanelViewModel {
     shortcutHints: SHORTCUT_HINTS,
     isMethodLocked: false,
     isCurrentScaleKnown: hasScale,
+    scaleCheck: buildScaleCheck({
+      mmPerPx: hasScale ? REFERENCE_SCALE.millimetresPerPixel : null,
+      source: hasScale ? 'stored' : null,
+      shortEdgePx: SAMPLE_SHORT_EDGE_PX,
+      knownDimension: rows[1] ?? null,
+    }),
   };
 }
 

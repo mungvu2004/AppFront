@@ -44,8 +44,8 @@ const CONFIRM_STRAIGHTEN = 'Nắn thẳng';
 const ZOOMED_FRAME = 'Bản vẽ đang phóng, cuộn để xem phần còn lại'; // InputQualityGateImagePanel.tsx:71
 const COMPARISON = 'Tỉ lệ lộ ảnh sau khi nắn';
 const PASS = 'Bản vẽ đạt yêu cầu.';
-const CONTINUE = 'Tiếp tục xử lý';
-const SECONDARY = 'Tải bản vẽ khác';
+const CONTINUE = /^(?:Xử lý dù ảnh mờ|Bắt đầu xử lý)$/u; // S-09 inputQualitySummary primaryLabel
+const SECONDARY = /^(?:Tải ảnh nét hơn|Tải ảnh khác)$/u; // S-09 inputQualitySummary secondaryLabel
 const LOAD_ERROR = 'Không đọc được kết quả kiểm tra chất lượng'; // InputQualityGate.tsx:58
 const WRITE_ERROR = 'Chưa xử lý được bản vẽ'; // InputQualityGate.tsx:64
 const SKEW = 8;
@@ -90,7 +90,7 @@ async function session(f: Flow, browser: Browser, user: PoolUser = f.owner): Pro
 }
 
 const report = (page: Page): Locator => page.getByRole('region', { name: REPORT, exact: true });
-const button = (scope: Page | Locator, name: string): Locator => scope.getByRole('button', { name, exact: true });
+const button = (scope: Page | Locator, name: string | RegExp): Locator => scope.getByRole('button', { name, exact: true });
 const pickBtn = (page: Page): Locator => page.locator('[data-quality-action="corners"]');
 
 async function openQuality(page: Page, projectId: string): Promise<void> {
@@ -185,7 +185,7 @@ test.describe('U03 SCR-11 input quality gate — UI flows (QA-03d P7)', () => {
         }
       });
 
-      await test.step('[11-F-017] < 640 px: footer stacks full width, "Tiếp tục xử lý" on top; report under the drawing; no h-scroll (fold Q20)', async () => {
+      await test.step('[11-F-017] < 640 px: footer stacks full width, primary on top; report under the drawing; no h-scroll (fold Q20)', async () => {
         await page.setViewportSize({ width: 375, height: 812 });
         await tableReady(page);
         const primary = await button(page, CONTINUE).boundingBox();
@@ -195,7 +195,7 @@ test.describe('U03 SCR-11 input quality gate — UI flows (QA-03d P7)', () => {
         const rep = await report(page).boundingBox();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         await captureEvidence(page, 'U03_11-F-017_compact_footer_375.png', { fullPage: true, caption: `continue ${JSON.stringify(primary)} · secondary ${JSON.stringify(secondary)}` });
-        expect.soft(primary !== null && secondary !== null && primary.y < secondary.y, '"Tiếp tục xử lý" above "Tải bản vẽ khác"').toBe(true);
+        expect.soft(primary !== null && secondary !== null && primary.y < secondary.y, 'primary above secondary').toBe(true);
         expect.soft(Math.round(primary?.width ?? 0), 'continue full width').toBe(Math.round(footer?.width ?? -1));
         expect.soft(Math.round(secondary?.width ?? 0), 'secondary full width').toBe(Math.round(footer?.width ?? -1));
         expect.soft(rep !== null && drawing !== null && rep.y >= drawing.y + drawing.height - 1, 'report under the drawing').toBe(true);

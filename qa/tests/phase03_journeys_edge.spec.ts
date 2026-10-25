@@ -96,14 +96,14 @@ const COPY_CODE = 'Sao chép mã lỗi'; // pipelineFailureText.ts copyCodeAriaL
 const FILE_CORRUPT_SENTENCE = 'Tệp bản vẽ bị hỏng nên không mở được.'; // pipelineErrorText.ts:62
 const UPLOAD_CLEARER = 'Tải lên bản vẽ rõ hơn'; // pipelineFailureText.ts uploadClearerLabel
 const PROCESSING = {
-  tabs: 'Xem trước hoặc nhật ký', // PR:74
+  tabs: 'Bản vẽ hoặc nhật ký', // PR TABS_ARIA_LABEL
   copyLog: 'Sao chép nhật ký', // PLP:29
   logCopied: 'Đã chép nhật ký', // UPR:153
-  summary: 'Báo cáo tổng kết', // PSU:18
+  summary: /^(?:Sẵn sàng kiểm tra tầng|Còn 1 việc: hiệu chỉnh tỷ lệ)$/u, // S-10 gate Section name
   calibrate: 'Hiệu chỉnh tỷ lệ', // PSU:20
-  reviewWalls: 'Duyệt lớp tường', // PSU:19
+  reviewWalls: 'Sang Kiểm tra tầng', // processingGate.ts GO_REVIEW_LABEL
   cancel: 'Huỷ xử lý', // PR:65
-  background: 'Để chạy nền và thông báo cho tôi', // PR:64
+  background: 'Chạy nền, báo tôi khi xong', // PR RUN_IN_BACKGROUND_LABEL
 } as const;
 const SCALE = {
   canvas: 'Bản vẽ đã nắn, kéo để vẽ đường tham chiếu',
@@ -111,12 +111,11 @@ const SCALE = {
   refline: 'Vẽ đường tham chiếu',
   realLength: 'Chiều dài thật',
   scope: 'Phạm vi áp tỷ lệ',
-  thisFloor: 'Chỉ áp cho tầng này',
+  thisFloor: 'Tầng này',
   apply: 'Áp dụng tỷ lệ',
   applied: 'Đã áp tỷ lệ cho bản vẽ', // ScaleCalibration.tsx:73; QA-03e BUG-567: also after FRAME_NOT_FOUND (useScaleCalibration.ts:1485)
 } as const; // phase04_pipeline.spec.ts SCR-14 (ScaleCalibration SP:61)
-const QUALITY_CONTINUE = 'Tiếp tục xử lý'; // UIQ:145
-const QUALITY_ACK = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này'; // phase03_pipeline.spec.ts QUALITY_ACK_LABEL
+const QUALITY_CONTINUE = /^(?:Xử lý dù ảnh mờ|Bắt đầu xử lý)$/u; // S-09 inputQualitySummary primaryLabel
 const GRAPH = {
   emptyTitle: 'Chưa có lượt xử lý nào để kể lại', // PGT:208
   forbiddenLine: 'Chế độ chi tiết kỹ thuật chỉ mở cho vai quản trị, nên phần đó và nút đổi nhánh không hiện ở đây.', // PGT:211-212
@@ -257,7 +256,7 @@ test.describe('X cross-screen journeys', () => {
       });
 
       await test.step('[X-A-009] both floors processed: "Đã xử lý xong 2/2 tầng", both chips "đã xong", progress read for both upload ids', async () => {
-        await page.getByRole('tablist', { name: PROCESSING.tabs }).getByRole('tab', { name: 'Xem trước', exact: true }).click();
+        await page.getByRole('tablist', { name: PROCESSING.tabs }).getByRole('tab', { name: 'Bản vẽ', exact: true }).click();
         await waitDone(page, 2);
         const texts = await chipTexts(page);
         expect(texts, 'one chip per floor').toHaveLength(2);
@@ -275,7 +274,7 @@ test.describe('X cross-screen journeys', () => {
       await test.step('[X-A-004] summary "Hiệu chỉnh tỷ lệ" → that floor\'s scale → "Áp dụng tỷ lệ" → Back → summary still finished, no new upload/run', async () => {
         const summary = page.getByRole('region', { name: PROCESSING.summary, exact: true });
         await expect(summary).toBeVisible();
-        await expect.soft(summary.getByRole('button', { name: PROCESSING.reviewWalls, exact: true })).toBeVisible(); // fold BUG-285
+        await expect.soft(summary.getByRole('button', { name: PROCESSING.calibrate, exact: true })).toBeVisible(); // fold BUG-285 (S-10: calibrate is the primary when scale is missing)
         const mark = api.length;
         await summary.getByRole('button', { name: PROCESSING.calibrate, exact: true }).click();
         await expect.poll(() => pathOf(page)).toMatch(new RegExp(`^/projects/${escapeRegExp(pid)}/floors/[^/]+/scale$`, 'u'));
@@ -507,13 +506,11 @@ test.describe('X cross-screen journeys', () => {
         await expect(card(page, floor.id)).toBeVisible();
       });
 
-      await test.step('[X-D-001] engineer uploads → SCR-11 "Tiếp tục xử lý" → "Đã xử lý xong 1/1 tầng"; every write 2xx; no "Vùng nguy hiểm" on SCR-08', async () => {
+      await test.step('[X-D-001] engineer uploads → SCR-11 primary ("Xử lý dù ảnh mờ" / "Bắt đầu xử lý") → "Đã xử lý xong 1/1 tầng"; every write 2xx; no "Vùng nguy hiểm" on SCR-08', async () => {
         await uploadViaTray(page, pid, floor, { name: 'drawing.png', mimeType: 'image/png', buffer: envDrawingPng() });
         await page.goto(ROUTES.project.quality(pid));
         const proceed = page.getByRole('button', { name: QUALITY_CONTINUE, exact: true });
         await expect(proceed).toBeVisible({ timeout: PIPELINE_TIMEOUT_MS });
-        const ack = page.getByRole('checkbox', { name: QUALITY_ACK, exact: true });
-        if ((await ack.count()) > 0) await ack.check();
         await proceed.click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(pid));
         await waitDone(page, 1);
@@ -564,7 +561,7 @@ test.describe('X cross-screen journeys', () => {
 
       await test.step('[13-D-002] engineer graph: forbidden line, overview at full opacity, no empty story, no "Chi tiết kỹ thuật"', async () => {
         await page.goto(ROUTES.project.pipelineGraph(pid));
-        await expect(page.getByRole('heading', { level: 1, name: 'Sơ đồ xử lý', exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { level: 1, name: 'Theo dõi bản vẽ đi qua nhánh xử lý nào', exact: true })).toBeVisible();
         await expect.soft(page.getByText(GRAPH.forbiddenLine, { exact: true })).toBeVisible();
         await expect.soft(page.getByText(GRAPH.emptyTitle, { exact: true })).toHaveCount(0);
         await expect.soft(page.getByRole('button', { name: GRAPH.detail })).toHaveCount(0);
@@ -714,7 +711,7 @@ test.describe('X cross-screen journeys', () => {
           await page.goto(ROUTES.project.quality(pid));
           await expect(page.getByRole('region', { name: 'Báo cáo chất lượng', exact: true })).toBeVisible();
           await expect.soft(page.getByRole('button', { name: QUALITY_CONTINUE, exact: true })).toHaveCount(0);
-          await expect.soft(page.getByRole('button', { name: 'Tải bản vẽ khác', exact: true })).toHaveCount(0);
+          await expect.soft(page.getByRole('button', { name: /^(?:Tải ảnh nét hơn|Tải ảnh khác)$/u })).toHaveCount(0);
           await page.goto(ROUTES.project.pipeline(pid));
           await expect(page.getByRole('navigation', { name: 'Xử lý' })).toBeVisible();
           await page.waitForTimeout(1_500);

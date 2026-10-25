@@ -435,7 +435,7 @@ function modelOf(
       findings,
       floors: options.floors ?? floorRowsOf(floor.id),
       footer: {
-        canContinue: !(requiresAcknowledgement && !isAcknowledged),
+        canContinue: true, // ảnh kém là cảnh báo, không chặn (khớp hook)
         requiresAcknowledgement,
         isAcknowledged,
         acknowledgementLabel: 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này',
@@ -525,10 +525,8 @@ export function scenarioFor(state: SevenState): InputQualityGateViewProps {
 export const SEVEN_SCENARIOS: readonly InputQualityGateViewProps[] = SEVEN_STATES.map(scenarioFor);
 
 /**
- * Cổng xác nhận đã tích ô — phía "sau" của tiêu chí nghiệm thu (e).
- *
- * Cùng dữ liệu story `Xong`: vẫn có một chỉ số mức Kém nên ô xác nhận vẫn hiện,
- * nhưng lời chặn đã biến mất và `canContinue` là `true`.
+ * Ảnh có chỉ số Kém sau khi người dùng đã bấm "Xử lý dù ảnh mờ" — không còn ô
+ * tích (nút chết); bấm là đồng ý, `canContinue` là `true`.
  */
 export function acknowledgedScenario(): InputQualityGateViewProps {
   return modelOf('ready', { findings: findingsOf(true), isAcknowledged: true });

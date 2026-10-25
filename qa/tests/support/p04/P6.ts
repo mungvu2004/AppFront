@@ -52,8 +52,8 @@ export const SCALE = {
   apply: 'Áp dụng tỷ lệ', // SCP:59
   applying: 'Đang áp tỷ lệ…', // SCP:60
   scope: 'Phạm vi áp tỷ lệ', // SCP:61
-  thisFloor: 'Chỉ áp cho tầng này', // USC COPY.scopeThisFloor
-  allFloors: 'Áp cho mọi tầng', // USC COPY.scopeAllFloors
+  thisFloor: 'Tầng này', // USC COPY.scopeThisFloor
+  allFloors: 'Mọi tầng', // USC COPY.scopeAllFloors
   collapse: 'Thu gọn bảng', // SCP:43
   expand: 'Bung bảng', // SCP:44
   badge: 'Đã duyệt', // SCP:45

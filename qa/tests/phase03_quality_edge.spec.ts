@@ -70,10 +70,12 @@ const CURRENT_CRUMB = 'Kiểm tra chất lượng đầu vào'; // IQ:55
 const IMAGE_PANEL = 'Khung xem bản vẽ'; // IQP:65
 const REPORT = 'Báo cáo chất lượng'; // IQR:281
 const FOOTER = 'Hành động tiếp theo'; // IQF:48
-const CONTINUE = 'Tiếp tục xử lý'; // UIQ COPY.primary
-const SECONDARY = 'Tải bản vẽ khác'; // UIQ COPY.secondary
-const ACK = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này'; // UIQ COPY.acknowledgement
-const ACK_NOTE = 'Đánh dấu ô xác nhận bên trên rồi thử lại.'; // IQF:33
+// S-09: footer labels come from inputQualitySummary.ts (warning: 'Xử lý dù ảnh mờ' / 'Tải ảnh nét hơn'; pass: 'Bắt đầu xử lý' / 'Tải ảnh khác').
+const CONTINUE = /^(?:Xử lý dù ảnh mờ|Bắt đầu xử lý)$/u;
+const SECONDARY = /^(?:Tải ảnh nét hơn|Tải ảnh khác)$/u;
+const SECONDARY_ALERT = 'Tải bản vẽ khác'; // COPY.secondary, still used by the error / not-found alert (InputQualityGate.tsx:151)
+const ACK = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này'; // REMOVED in S-09: the checkbox no longer exists
+const ACK_NOTE = 'Bấm là chấp nhận: có thể phải vẽ tay tường bị sót.'; // inputQualitySummary.ts consent (was the blocked note)
 const STRAIGHTEN = 'Tự động nắn'; // UIQ COPY.straightenAction
 const PICK = 'Chọn góc thủ công'; // UIQ COPY.pickCornersAction
 const SEND = 'Gửi bốn góc đã chọn'; // UIQ COPY.sendCornersAction
@@ -190,16 +192,16 @@ const row = (page: Page, name: string): Locator =>
 const metric = (page: Page, label: string): Locator => report(page).locator('li').filter({ has: page.getByText(label, { exact: true }) });
 /** A finding (IQR FindingListItem `<li>`), found by its exact title. */
 const finding = (page: Page, title: string): Locator => report(page).locator('li').filter({ has: page.getByText(title, { exact: true }) });
-const button = (scope: Page | Locator, name: string): Locator => scope.getByRole('button', { name, exact: true });
+const button = (scope: Page | Locator, name: string | RegExp): Locator => scope.getByRole('button', { name, exact: true });
 const regions = (page: Page): Locator => page.getByRole('group', { name: REGION_GROUP, exact: true }).getByRole('button');
 const region = (page: Page, title: string): Locator => page.getByRole('button', { name: `Vùng ảnh có vấn đề: ${title}`, exact: true });
 const highlighted = (page: Page): Locator => page.locator('[aria-label^="Vùng ảnh có vấn đề:"].border-2');
 const handle = (page: Page, name: string): Locator => page.getByRole('group', { name: CORNER_GROUP, exact: true }).getByRole('button', { name, exact: true });
 const ackBox = (page: Page): Locator => page.getByRole('checkbox', { name: ACK, exact: true });
 /** Ticks / unticks the acknowledgement through its label (the input is `sr-only` under a drawn box, Checkbox.tsx). */
-async function setAck(page: Page, on: boolean): Promise<void> {
-  if ((await ackBox(page).isChecked()) !== on) await page.locator('label').filter({ hasText: ACK }).click();
-  await expect(ackBox(page)).toBeChecked({ checked: on });
+async function setAck(page: Page, _on: boolean): Promise<void> {
+  // S-09: no acknowledgement checkbox any more; clicking the primary button is the consent. Kept so call sites read the same.
+  await expect(ackBox(page)).toHaveCount(0);
 }
 const alertWith = (page: Page, text: string): Locator => page.getByRole('alert').filter({ hasText: text });
 const writeBand = (page: Page): Locator => alertWith(page, WRITE_ERROR);
@@ -417,13 +419,14 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
             return { kind, label, ring };
           });
         visited.push(await describe());
-        for (let i = 0; i < 40 && visited[visited.length - 1]?.label !== CONTINUE; i += 1) {
+        for (let i = 0; i < 40 && !CONTINUE.test(visited[visited.length - 1]?.label ?? ''); i += 1) {
           await page.keyboard.press('Tab');
           visited.push(await describe());
         }
         const firsts: string[] = [];
         for (const v of visited) if (v.kind !== 'zoom' && !firsts.includes(v.kind)) firsts.push(v.kind);
-        expect.soft(firsts, `Tab order ${JSON.stringify(visited.map((v) => v.kind))}`).toEqual(['Dự án', 'region', 'metric', 'card', 'quickfix', 'row', 'checkbox', SECONDARY, CONTINUE]);
+        expect.soft(firsts, `Tab order ${JSON.stringify(visited.map((v) => v.kind))}`).toEqual(['Dự án', 'region', 'metric', 'card', 'quickfix', 'row', ...firsts.slice(6).sort()]); // S-09: no checkbox stop; footer = primary + secondary labels (order not asserted)
+        expect.soft(firsts.slice(6).filter((l) => CONTINUE.test(l) || SECONDARY.test(l)), 'footer stops').toHaveLength(2);
         // QA-03e (BUG-539, FIX-2242): regions render largest → smallest so the small one sits on top
         // (InputQualityGateImageOverlays.tsx:140-148); DOM order is Tab order, so Tab meets them large → small.
         const tabRegions = visited.filter((v) => v.kind === 'region').map((v) => v.label);
@@ -493,34 +496,26 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await button(page, 'Mức thu phóng 200%, bấm để về 100%').click();
       });
 
-      await test.step('[11-C-036] blocked note visible on load, before any click', async () => {
+      await test.step('[11-C-036] consent note visible under the primary button on load, before any click', async () => {
         await expect.soft(page.getByText(ACK_NOTE, { exact: true })).toBeVisible();
         await captureEvidence(page, 'E03_11-C-036_ack_note.png');
       });
 
-      await test.step('[11-E-014] "Tiếp tục xử lý" stays focusable, described by the note', async () => {
+      await test.step('[11-E-014] primary button stays focusable, described by the note', async () => {
         await expect.soft(continueBtn(page)).not.toHaveAttribute('aria-disabled', 'true');
         await expect.soft(continueBtn(page)).toHaveAccessibleDescription(ACK_NOTE);
         await continueBtn(page).focus();
         await expect.soft(continueBtn(page)).toBeFocused();
       });
 
-      await test.step('[11-A-032] continue without the box stays; check then uncheck → note back, still blocked', async () => {
-        await continueBtn(page).click();
-        await quiet(page);
-        expect.soft(pathOf(page)).toBe(ROUTES.project.quality(project.projectId));
-        await setAck(page, true);
+      await test.step('[11-A-032] no checkbox: the consent note stays visible (S-09, was: continue blocked until checked)', async () => {
         await setAck(page, false);
         await expect.soft(page.getByText(ACK_NOTE, { exact: true })).toBeVisible();
-        await continueBtn(page).click();
-        await quiet(page);
         expect.soft(pathOf(page)).toBe(ROUTES.project.quality(project.projectId));
         await captureEvidence(page, 'E03_11-A-032_unchecked_blocked.png');
       });
 
-      await test.step('[11-A-031] check the acknowledgement → "Tiếp tục xử lý" → /pipeline; Back → quality', async () => {
-        await setAck(page, true);
-        await expect(page.getByText(ACK_NOTE, { exact: true })).toHaveCount(0);
+      await test.step('[11-A-031] one click on the primary button (is the consent) → /pipeline; Back → quality', async () => {
         await continueBtn(page).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(project.projectId));
         await captureEvidence(page, 'E03_11-A-031_continue_pipeline.png');
@@ -1015,7 +1010,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await go('Tầng 3');
         await expect(badge('Độ phân giải')).toContainText('Kém');
         await expect(badge('Độ phân giải')).toContainText(RES_RECOMMENDATION);
-        await expect(ackBox(page)).toBeVisible();
+        await expect(ackBox(page)).toHaveCount(0); // S-09: no checkbox
         await captureEvidence(page, 'E03_11-C-003_resolution_poor.png');
       });
 
@@ -1080,7 +1075,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await go('Tầng 11');
         await expect.soft(badge('Độ tương phản')).toContainText('Kém');
         await expect.soft(badge('Độ tương phản')).toContainText(CONTRAST_RECOMMENDATION);
-        await expect.soft(ackBox(page)).toBeVisible();
+        await expect.soft(ackBox(page)).toHaveCount(0); // S-09: no checkbox
         await captureEvidence(page, 'E03_11-C-011_contrast_poor.png');
       });
 
@@ -1103,7 +1098,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
       await test.step('[11-C-014] Tầng 13: noise "Kém"; checkbox', async () => {
         await go('Tầng 13');
         await expect.soft(badge('Nhiễu')).toContainText('Kém');
-        await expect.soft(ackBox(page)).toBeVisible();
+        await expect.soft(ackBox(page)).toHaveCount(0); // S-09: no checkbox
         await captureEvidence(page, 'E03_11-C-014_noise_poor.png');
       });
 
@@ -1124,13 +1119,13 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await captureEvidence(page, 'E03_11-B-017_thirteen_floors.png', { fullPage: true });
       });
 
-      await test.step('[11-C-028] acknowledgement on Tầng 3 still holds on Tầng 9; continue → /pipeline; Back', async () => {
+      await test.step('[11-C-028] no checkbox on Tầng 3 / Tầng 9 (S-09); continue → /pipeline; Back', async () => {
         await row(page, 'Tầng 3').click();
         await isActive(page, 'Tầng 3');
         await setAck(page, true);
         await row(page, 'Tầng 9').click();
         await isActive(page, 'Tầng 9');
-        await expect(ackBox(page)).toBeChecked();
+        await expect(ackBox(page)).toHaveCount(0);
         await captureEvidence(page, 'E03_11-C-028_ack_screen_wide.png');
         await continueBtn(page).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(project.projectId));
@@ -1245,7 +1240,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
       });
 
       await test.step('[11-D-005] acknowledgement checkbox still shown with no button to use it', async () => {
-        await expect.soft(ackBox(page)).toBeVisible();
+        await expect.soft(ackBox(page)).toHaveCount(0); // S-09: no checkbox
         await captureEvidence(page, 'E03_11-D-005_viewer_checkbox.png', { fullPage: true });
       });
 
@@ -1553,7 +1548,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await expect(alert).toContainText(SENTENCE.notFound, { timeout: 45_000 });
         await expect(button(alert, RETRY)).toHaveCount(0);
         await captureEvidence(page, 'E03_11-B-006_quality_404_floor.png');
-        await button(alert, SECONDARY).click();
+        await button(alert, SECONDARY_ALERT).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(project.projectId));
         await page.unrouteAll({ behavior: 'ignoreErrors' });
       });

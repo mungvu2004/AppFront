@@ -9,9 +9,9 @@
  *
  * ## Bố cục
  *
- * Ba mảnh, đúng thứ tự đặc tả: canvas giữa bo 16 px thụt 12 px, panel phải
- * 344 px, thanh trạng thái 32 px dính đáy. Dưới 1024 px panel xếp dưới bản vẽ
- * — CSS đó nằm trong `ScaleCalibrationPanel.tsx`, không nhân bản ở đây (BUG-333).
+ * Theo demo Z/S-11: panel trái 280 (H1 + trạng thái + cách đặt), canvas giữa,
+ * panel phải 288 "Kiểm tra con số", thanh trạng thái 32 px dính đáy. Dưới 1280
+ * hai panel gộp một cột 312 bên phải; dưới 768 xếp dưới bản vẽ (BUG-333).
  *
  * Bo góc 16 px là của chính canvas (`ScaleCalibrationCanvas.tsx`), nên phần
  * việc còn lại của khung là khoảng thụt 12 px quanh nó.
@@ -67,6 +67,7 @@ import { FloorLayerSaveBanner } from '../../qc/WallLayerReview/FloorLayerSaveBan
 
 import { ScaleCalibrationCanvas } from './ScaleCalibrationCanvas';
 import { ScaleCalibrationPanel } from './ScaleCalibrationPanel';
+import { ScaleCalibrationSidebar } from './ScaleCalibrationSidebar';
 import type { ScaleCalibrationProps, ScaleCalibrationState, ScaleCalibrationViewModel } from './types';
 
 const SCREEN_ARIA_LABEL = 'Màn hiệu chỉnh tỷ lệ';
@@ -203,7 +204,7 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
       {floorNav !== undefined && <QcFloorNav {...floorNav} layer="scale" />}
       <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch md:overflow-hidden">
-        <div className={cn('flex min-w-0 flex-1 flex-col', QC_BODY_CLASS)}>
+        <div className={cn('flex min-w-0 flex-1 flex-col xl:order-2', QC_BODY_CLASS)}>
           {/* Xung đột 409 / tầng khoá lưu: có "Tải lại", không thì mọi lượt áp sau hỏng im lặng (BUG-598). */}
           <FloorLayerSaveBanner saveBlock={model.saveBlock ?? null} />
           {/* G4b-11: no "Tỷ lệ tạm — hãy hiệu chỉnh" strip here — the user is already on the calibration screen. */}
@@ -253,14 +254,32 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
           </section>
         </div>
 
-        <ScaleCalibrationPanel
-          actions={actions}
-          applyButtonRef={applyButtonRef}
-          isCollapsed={model.isPanelCollapsed}
-          panel={model.panel}
-          prefersReducedMotion={model.prefersReducedMotion}
-          state={model.state}
-        />
+        {/* S-11: dưới 1280 hai panel chung một cột 312 bên phải; từ 1280 cột này "tan" (`contents`)
+            để panel trái 280 đứng trước canvas và panel phải 288 đứng sau (Z/S-11). */}
+        <div
+          className={cn(
+            'flex flex-col md:min-h-0 md:shrink-0 md:overflow-hidden md:border-l md:border-border-default xl:contents',
+            model.isPanelCollapsed ? 'md:w-12' : 'md:w-[312px]',
+          )}
+        >
+          {/* Dưới 1280 panel trái cuộn riêng (tối đa nửa cột) để chân panel phải với nút Áp dụng luôn thấy. */}
+          <div
+            className={cn(
+              'md:max-h-[50%] md:shrink-0 md:overflow-y-auto xl:order-1 xl:flex xl:max-h-none xl:overflow-visible',
+              model.isPanelCollapsed && 'max-xl:hidden',
+            )}
+          >
+            <ScaleCalibrationSidebar actions={actions} panel={model.panel} state={model.state} />
+          </div>
+          <ScaleCalibrationPanel
+            actions={actions}
+            applyButtonRef={applyButtonRef}
+            isCollapsed={model.isPanelCollapsed}
+            panel={model.panel}
+            prefersReducedMotion={model.prefersReducedMotion}
+            state={model.state}
+          />
+        </div>
       </div>
 
       <StatusBar {...model.statusBar} />

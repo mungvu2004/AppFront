@@ -203,7 +203,7 @@ const SCALE = {
   realLength: 'Chiều dài thật', // SMR label
   apply: 'Áp dụng tỷ lệ', // SCP:APPLY_PRIMARY
   scope: 'Phạm vi áp tỷ lệ', // SCP:SCOPE_ARIA_LABEL
-  thisFloor: 'Chỉ áp cho tầng này', // USC scope option
+  thisFloor: 'Tầng này', // USC scope option
   collapse: 'Thu gọn bảng', // SCP:COLLAPSE_LABEL
   expand: 'Bung bảng', // SCP:EXPAND_LABEL
   applyFailed:

@@ -256,6 +256,18 @@ describe('PipelineGraph — nghiệm thu', () => {
     expect(screen.queryByText(PIPELINE_GRAPH_TEXT.reasonUnknown)).toBeNull();
   });
 
+  it('trạng thái rỗng (cổng thật): PageHead nói việc + chip "Chưa xử lý" + câu lý do, khối việc tiếp trong khung', async () => {
+    renderWithProviders(
+      <PipelineGraphContainer gateway={noRunGateway()} projectId="project-1" roles={['admin']} />,
+    );
+
+    expect(await screen.findByRole('heading', { level: 1, name: PIPELINE_GRAPH_TEXT.heading })).toBeTruthy();
+    expect(screen.getByText(PIPELINE_GRAPH_TEXT.chipNotRun)).toBeTruthy();
+    expect(screen.getAllByText(PIPELINE_GRAPH_TEXT.reasonNoReport)).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 2, name: PIPELINE_GRAPH_TEXT.emptyTitle })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: PIPELINE_GRAPH_TEXT.diagramSectionTitle })).toBeTruthy();
+  });
+
   // BUG-313: an unknown project drew the normal empty diagram, with no error and no way back.
   it('an unknown project says "Không tìm thấy dự án này" with a way back to the list, not an empty diagram (BUG-313)', async () => {
     const onBackToProjects = vi.fn();

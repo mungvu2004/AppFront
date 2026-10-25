@@ -13,7 +13,7 @@ import { FIRST_PAINT_TIMEOUT_MS, PROJECT_ID } from './files';
  * giải thích. Mọi nhánh có dữ liệu (`branchReport`, so sánh, đổi nhánh, chạy lại)
  * đều `supported: false` ở cổng thật — tầng đơn vị (21 bài) giữ chúng.
  *
- * `Sơ đồ xử lý` là tên của cả h1, nav và nhóm sơ đồ ⇒ luôn bám kèm `level`.
+ * H1 giờ là "Theo dõi bản vẽ đi qua nhánh xử lý nào"; "Sơ đồ xử lý" còn ở breadcrumb và nhóm sơ đồ.
  */
 
 const GRAPH = ROUTES.project.pipelineGraph(PROJECT_ID);
@@ -30,7 +30,7 @@ test('B-V5-03: chưa có báo cáo nhánh thì sơ đồ nói "chưa biết", kh
 }) => {
   await page.goto(GRAPH);
 
-  await expect(page.getByRole('heading', { level: 1, name: 'Sơ đồ xử lý' })).toBeVisible({
+  await expect(page.getByRole('heading', { level: 1, name: 'Theo dõi bản vẽ đi qua nhánh xử lý nào' })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   await expect(page.getByText(NO_REPORT_REASON)).toBeVisible();

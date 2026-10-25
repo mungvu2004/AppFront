@@ -55,6 +55,8 @@ import {
   PROJECT_NOT_FOUND_DESCRIPTION,
   PROJECT_NOT_FOUND_TITLE,
 } from '@/components/feedback/ProjectSpatialGate';
+import { PageHead } from '@/components/shell/PageHead';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 
 import { CadBranchConfirmDialog } from './CadBranchConfirmDialog';
@@ -76,6 +78,10 @@ const SCREEN_ARIA_LABEL = 'Màn phát hiện tệp CAD';
 const NOTICE_REGION_ARIA_LABEL = 'Trạng thái của màn phát hiện tệp CAD';
 const STAGE_TWO_ARIA_LABEL = 'Ánh xạ lớp và xem trước hình học';
 const LOADING_ARIA_LABEL = 'Đang đọc tệp CAD';
+
+const EYEBROW = 'Bước 2 · Xử lý · Nhánh tệp CAD';
+/** H1 của trang "tầng chưa có CAD": động từ + đối tượng; "Chưa có tệp CAD" xuống chip trạng thái. */
+const NO_CAD_PAGE_TITLE = 'Nhập tầng từ tệp CAD';
 
 const EMPTY_TITLE = 'Chưa có lớp nào để ánh xạ';
 const PARTIAL_TITLE = 'Một phần dữ liệu sẽ không được nhập';
@@ -186,14 +192,37 @@ function CadBranchConfirmBody({ actions, model }: CadBranchConfirmProps) {
       className="flex h-full min-h-0 w-full flex-col bg-bg-app"
       role="region"
     >
-      <header className="flex flex-col gap-1 px-4 pb-3 pt-4">
-        <h1 className="text-[16px] font-semibold text-text-primary">
-          {headerCopy.title}
-        </h1>
-        <p className="text-[13px] text-text-secondary">
-          {headerCopy.description}
-        </p>
-      </header>
+      <div
+        className={
+          isNoCadPage
+            ? 'mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-8 pb-8 pt-8 xl:px-20'
+            : 'flex flex-col px-4 pb-3 pt-4'
+        }
+      >
+        <PageHead
+          className="mb-0"
+          eyebrow={EYEBROW}
+          status={
+            isNoCadPage ? (
+              <>
+                <Badge variant="attention">{PHASE_1_TEXT.dialogStates.noCadFile.title}</Badge>
+                <span>{PHASE_1_TEXT.dialogStates.noCadFile.reason}</span>
+              </>
+            ) : (
+              <span>{headerCopy.description}</span>
+            )
+          }
+          title={isNoCadPage ? NO_CAD_PAGE_TITLE : headerCopy.title}
+        />
+
+        {isNoCadPage && (
+          <NoCadFileActions
+            floors={model.dialog.floorAvailability}
+            onBackToLayerReview={actions.onBackToLayerReview}
+            onChooseBranch={actions.onChooseBranch}
+          />
+        )}
+      </div>
 
       {isNoticeShown && noticeLevel !== null && noticeMessage !== null && (
         <section aria-label={NOTICE_REGION_ARIA_LABEL} className="flex flex-col gap-2 px-4 pb-3">
@@ -250,13 +279,6 @@ function CadBranchConfirmBody({ actions, model }: CadBranchConfirmProps) {
         <div aria-label={LOADING_ARIA_LABEL} className="px-4 pb-3" role="status">
           <Skeleton className="h-40 w-full" preset="canvas" />
         </div>
-      )}
-
-      {isNoCadPage && (
-        <NoCadFileActions
-          onBackToLayerReview={actions.onBackToLayerReview}
-          onChooseBranch={actions.onChooseBranch}
-        />
       )}
 
       {isHandoffOpen && !isNoCadPage && (

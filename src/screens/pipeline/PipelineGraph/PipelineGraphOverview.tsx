@@ -25,6 +25,7 @@ import { clsx } from 'clsx';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Table } from '@/components/ui/Table';
+import { Section } from '@/components/shell/Section';
 
 import { PIPELINE_GRAPH_TEXT } from './pipelineGraphText';
 import type {
@@ -62,9 +63,6 @@ const DIAGRAM_HEIGHT = ROW_STEP * 2 + BLOCK_HEIGHT + BLOCK_OVERFLOW;
  * dữ liệu, sai ở đây: câu dài bị cắt mất đuôi thay vì xuống dòng.
  */
 const COMPARISON_CELL = 'h-auto whitespace-normal py-2 align-top';
-
-/** Nhánh không được chọn mờ đi, không đổi màu. */
-const INACTIVE_BRANCH_OPACITY = 0.55;
 
 const blockX = (block: PipelineOverviewBlockViewModel): number => block.column * COLUMN_STEP;
 const blockY = (block: PipelineOverviewBlockViewModel): number => block.row * ROW_STEP;
@@ -136,13 +134,15 @@ function OverviewBlock({
   return (
     <div
       className={clsx(
-        'flex flex-col justify-center gap-1 rounded-xl bg-bg-surface p-4',
+        'flex flex-col justify-center gap-1 rounded-xl p-4',
         isAbsolute ? 'absolute' : 'relative w-full',
+        // Nhánh không dùng: viền nét đứt + nền app thay cho opacity, để chữ vẫn đạt AA.
+        isDimmed ? 'border border-dashed border-border-default bg-bg-app' : 'bg-bg-surface',
         hasFailed
           ? 'border-2 border-state-violation'
           : isActiveBranch
             ? 'border-2 border-text-primary'
-            : 'border border-border-default',
+            : !isDimmed && 'border border-border-default',
       )}
       style={{
         ...(isAbsolute
@@ -153,7 +153,6 @@ function OverviewBlock({
               minHeight: BLOCK_HEIGHT,
             }
           : {}),
-        ...(isDimmed ? { opacity: INACTIVE_BRANCH_OPACITY } : {}),
       }}
     >
       <span className="text-[14px] text-text-primary">{block.label}</span>
@@ -237,10 +236,8 @@ function ComparisonTable({ overview }: Pick<PipelineGraphOverviewProps, 'overvie
   }
 
   return (
+    <Section flush title={PIPELINE_GRAPH_TEXT.comparisonCaption}>
     <Table.Root>
-      <caption className="pb-2 text-left text-[14px] text-text-primary">
-        {PIPELINE_GRAPH_TEXT.comparisonCaption}
-      </caption>
       <Table.Header>
         <tr>
           <Table.Head scope="col">{PIPELINE_GRAPH_TEXT.comparisonAspectHeader}</Table.Head>
@@ -258,6 +255,7 @@ function ComparisonTable({ overview }: Pick<PipelineGraphOverviewProps, 'overvie
         ))}
       </Table.Body>
     </Table.Root>
+    </Section>
   );
 }
 
@@ -268,8 +266,7 @@ function EvidenceList({ overview }: Pick<PipelineGraphOverviewProps, 'overview'>
   }
 
   return (
-    <section className="flex flex-col gap-2">
-      <h2 className="text-[14px] text-text-primary">{PIPELINE_GRAPH_TEXT.evidenceCaption}</h2>
+    <Section title={PIPELINE_GRAPH_TEXT.evidenceCaption}>
       <ul className="flex flex-col">
         {overview.evidenceRows.map((row) => (
           <li
@@ -281,7 +278,7 @@ function EvidenceList({ overview }: Pick<PipelineGraphOverviewProps, 'overview'>
           </li>
         ))}
       </ul>
-    </section>
+    </Section>
   );
 }
 
@@ -301,45 +298,47 @@ export function PipelineGraphOverview(props: PipelineGraphOverviewProps) {
     hasFailed: block.branch !== undefined && failedBranchIds.has(block.branch),
   });
 
+  // Câu "vì sao nhánh này" là câu trạng thái của PageHead (`PipelineGraph.tsx`), không lặp ở đây.
   return (
     <div className="flex flex-col gap-6">
-      {isCompact ? (
-        <ol aria-label={PIPELINE_GRAPH_TEXT.title} className="flex flex-col gap-3">
-          {overview.blocks.map((block) => (
-            <li key={block.id}>
-              <OverviewBlock block={block} isAbsolute={false} {...describeBlock(block)} />
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <div
-          aria-label={PIPELINE_GRAPH_TEXT.title}
-          className="relative overflow-x-auto"
-          role="group"
-          style={{ height: DIAGRAM_HEIGHT }}
-        >
-          <OverviewEdges blocks={overview.blocks} />
-          {overview.blocks.map((block) => (
-            <OverviewBlock block={block} isAbsolute key={block.id} {...describeBlock(block)} />
-          ))}
-        </div>
-      )}
+      <Section title={PIPELINE_GRAPH_TEXT.diagramSectionTitle}>
+        <div className="flex flex-col gap-4">
+          {isCompact ? (
+            <ol aria-label={PIPELINE_GRAPH_TEXT.title} className="flex flex-col gap-3">
+              {overview.blocks.map((block) => (
+                <li key={block.id}>
+                  <OverviewBlock block={block} isAbsolute={false} {...describeBlock(block)} />
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div
+              aria-label={PIPELINE_GRAPH_TEXT.title}
+              className="relative overflow-x-auto"
+              role="group"
+              style={{ height: DIAGRAM_HEIGHT }}
+            >
+              <OverviewEdges blocks={overview.blocks} />
+              {overview.blocks.map((block) => (
+                <OverviewBlock block={block} isAbsolute key={block.id} {...describeBlock(block)} />
+              ))}
+            </div>
+          )}
 
-      <p className="max-w-[680px] text-[14px] text-text-primary">{overview.reasonLine}</p>
+          {/* `self-start`: nút không kéo rộng hết khung. */}
+          <div className="self-start">
+            <SwitchBranchAction
+              onConfirmSwitchBranch={props.onConfirmSwitchBranch}
+              onDismissSwitchBranch={props.onDismissSwitchBranch}
+              onRequestSwitchBranch={props.onRequestSwitchBranch}
+              overview={overview}
+            />
+          </div>
+        </div>
+      </Section>
 
       <ComparisonTable overview={overview} />
       <EvidenceList overview={overview} />
-
-      {/* `self-start`: cột dọc kéo con của nó rộng hết khung, mà nút thì không
-          nên rộng 1080. */}
-      <div className="self-start">
-        <SwitchBranchAction
-          onConfirmSwitchBranch={props.onConfirmSwitchBranch}
-          onDismissSwitchBranch={props.onDismissSwitchBranch}
-          onRequestSwitchBranch={props.onRequestSwitchBranch}
-          overview={overview}
-        />
-      </div>
     </div>
   );
 }

@@ -68,6 +68,7 @@ import {
   PIPELINE_STEP_NAMES,
   reducedMotionScenario,
   RUNNING_FLOORS,
+  SAMPLE_SUMMARY,
   scenarioFor,
 } from './ProcessingScreen.stories';
 import { createProcessingGateway, type ProcessingGateway } from './processingGateway';
@@ -78,7 +79,7 @@ const PROJECT_ID = 'project-1';
 
 /** Nhãn của hàng hành động — hằng chuỗi thật của `ProcessingScreen.tsx`. */
 const CANCEL_LABEL = 'Huỷ xử lý';
-const RUN_IN_BACKGROUND_LABEL = 'Để chạy nền và thông báo cho tôi';
+const RUN_IN_BACKGROUND_LABEL = 'Chạy nền, báo tôi khi xong';
 const CANCEL_CONFIRM_LABEL = 'Xác nhận huỷ';
 const CANCEL_DISMISS_LABEL = 'Giữ nguyên';
 
@@ -259,7 +260,7 @@ describe('ProcessingScreen — tab "Xem trước"/"Nhật ký" cao 44 khi chạm
   it('hai tab theo khuôn nút chạm của Button: 44 khi chạm (máy tính bảng), 36 khi dùng chuột', () => {
     renderWithProviders(<ProcessingScreen {...scenarioFor('success')} />);
 
-    for (const name of ['Xem trước', 'Nhật ký']) {
+    for (const name of ['Bản vẽ', 'Nhật ký']) {
       expect(screen.getByRole('tab', { name })).toHaveClass('h-11', 'fine:h-9');
     }
   });
@@ -462,7 +463,7 @@ describe('ProcessingScreenContainer — R-73', () => {
     );
 
     expect(container.textContent?.trim()).not.toBe('');
-    expect(screen.getByRole('heading', { level: 1, name: 'Xử lý' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /Theo dõi AI đọc bản vẽ/u })).toBeInTheDocument();
   });
 
   it('không ai truyền floorUploads thì màn tự đọc N7 và theo dõi lượt có sẵn (B-V4-01)', async () => {
@@ -553,7 +554,7 @@ describe('ProcessingScreenContainer — gắn S-11 PipelineFailure khi một bư
     // Và ProcessingScreen thật sự đã bị THAY: cột phải "Xem trước/Nhật ký" cùng
     // nút huỷ của S-10 không còn trong cây, không phải hai màn chồng lên nhau.
     expect(screen.queryByRole('button', { name: CANCEL_LABEL })).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Xem trước' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Bản vẽ' })).not.toBeInTheDocument();
 
     // Không màn trắng (A11): còn nội dung thật để đọc.
     expect(container.textContent?.trim()).not.toBe('');
@@ -833,7 +834,7 @@ describe('ProcessingScreen — khổ hẹp (BUG-294)', () => {
     }
     // No fixed overlay left to cover "Duyệt lớp tường" (BUG-285 at 768/375).
     expect(container.querySelector('.fixed')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Duyệt lớp tường' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Hiệu chỉnh tỷ lệ|Sang Kiểm tra tầng/u })).toBeInTheDocument();
   });
 });
 
@@ -865,5 +866,46 @@ describe('ProcessingScreen — tầng chưa có bản vẽ, lối chất lượn
 
     const runs = screen.getByRole('region', { name: 'Các lượt xử lý gần đây' });
     expect(within(runs).getByText('Hoàn tất')).toBeInTheDocument();
+  });
+});
+
+describe('ProcessingScreen — tỷ lệ là điều kiện chặn (quyết định chủ dự án, Z/S-10)', () => {
+  it('xong mà 0 chuỗi kích thước: nút chính là "Hiệu chỉnh tỷ lệ", không mời sang Kiểm tra tầng', () => {
+    const onCalibrateScale = vi.fn();
+    const onReviewWalls = vi.fn();
+    renderWithProviders(
+      <ProcessingScreen
+        {...scenarioFor('success')}
+        summary={{
+          ...SAMPLE_SUMMARY,
+          metricLabels: ['81 tường', '95 đối tượng', '0 chuỗi kích thước', '2 phòng', '73,90 m²'],
+          noDimensionSentence: 'Không đọc được chuỗi kích thước nào.',
+          onCalibrateScale,
+          onReviewWalls,
+        }}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /Sang Kiểm tra tầng/u })).not.toBeInTheDocument();
+    expect(screen.getByText('Xong, thiếu tỷ lệ')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ' }));
+    expect(onCalibrateScale).toHaveBeenCalledTimes(1);
+    expect(onReviewWalls).not.toHaveBeenCalled();
+  });
+
+  it('xong và có chuỗi kích thước: nút chính là "Sang Kiểm tra tầng"', () => {
+    const onReviewWalls = vi.fn();
+    renderWithProviders(<ProcessingScreen {...scenarioFor('success')} summary={{ ...SAMPLE_SUMMARY, onReviewWalls }} />);
+
+    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỷ lệ' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Sang Kiểm tra tầng/u }));
+    expect(onReviewWalls).toHaveBeenCalledTimes(1);
+  });
+
+  it('đang chạy: không có nút chính, chỉ câu chờ', () => {
+    renderWithProviders(<ProcessingScreen {...scenarioFor('partial')} />);
+
+    expect(screen.queryByRole('button', { name: /Sang Kiểm tra tầng|Hiệu chỉnh tỷ lệ/u })).not.toBeInTheDocument();
+    expect(screen.getByText('Khi AI xong, nút sang Kiểm tra tầng hiện ở đây.')).toBeInTheDocument();
   });
 });

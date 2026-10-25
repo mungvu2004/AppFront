@@ -11,7 +11,7 @@ import { FIRST_PAINT_TIMEOUT_MS, PROJECT_ID } from './files';
  *
  * Màn mỏng nhất nhóm (19 bài đơn vị, không bài nào cho riêng hook), nên ở đây đi
  * sâu hơn: Esc thật trong chế độ bốn góc, hộp thoại hỏi trước "Tự động nắn" trong cây thật,
- * cổng ô xác nhận trước "Tiếp tục xử lý", điều hướng router thật.
+ * nút "Xử lý dù ảnh mờ" (không còn ô xác nhận), điều hướng router thật.
  *
  * Bộ mẫu: tầng mồi là Tầng hầm (chưa đo) ⇒ mặc định `partial`. Tầng 1 đo xong ở
  * mức Kém với ba phát hiện (độ phân giải thấp · nghiêng · không thấy khung).
@@ -89,34 +89,25 @@ test('Esc thoát chế độ chọn bốn góc, ở lại đúng tầng và đú
   await expect(page.getByRole('button', { name: 'Chọn góc thủ công' })).toBeVisible();
 });
 
-test('B-V4-02: chưa tích ô xác nhận thì "Tiếp tục xử lý" không đi; tích rồi thì sang màn xử lý', async ({
+test('B-V4-02: ảnh kém không còn ô xác nhận; "Xử lý dù ảnh mờ" là một lần bấm đồng ý và sang màn xử lý', async ({
   page,
 }) => {
   await openFloorOne(page);
 
-  const acknowledgement = page.getByRole('checkbox', {
-    name: 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này',
-  });
-  await expect(acknowledgement).not.toBeChecked();
-  await expect(page.getByText('Đánh dấu ô xác nhận bên trên để tiếp tục xử lý.')).toBeVisible();
+  await expect(page.getByRole('checkbox')).toHaveCount(0);
+  await expect(page.getByText('Bấm là chấp nhận: có thể phải vẽ tay tường bị sót.')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Tiếp tục xử lý' }).click();
-  expect(pathOf(page.url())).toBe(QUALITY);
-
-  // Ô thật là `sr-only`, khung vẽ phủ lên nó — người dùng bấm vào nhãn.
-  await page.getByText('Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này', { exact: true }).click();
-  await expect(acknowledgement).toBeChecked();
-  await page.getByRole('button', { name: 'Tiếp tục xử lý' }).click();
+  await page.getByRole('button', { name: 'Xử lý dù ảnh mờ' }).click();
 
   await expect.poll(() => pathOf(page.url())).toBe(ROUTES.project.pipeline(PROJECT_ID));
   await expect(page.getByRole('navigation', { name: 'Xử lý' })).toBeVisible();
 });
 
-test('"Tải bản vẽ khác" quay về màn tải lên của cùng dự án', async ({ page }) => {
+test('"Tải ảnh nét hơn" quay về màn tải lên của cùng dự án', async ({ page }) => {
   await page.goto(QUALITY);
 
   await page
-    .getByRole('button', { name: 'Tải bản vẽ khác' })
+    .getByRole('button', { name: 'Tải ảnh nét hơn' })
     .click({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
   await expect.poll(() => pathOf(page.url())).toBe(ROUTES.project.upload(PROJECT_ID));
@@ -133,6 +124,6 @@ test('vai Người xem đọc được báo cáo nhưng hai nút hành động b
   const zoom = page.getByRole('group', { name: 'Cụm thu phóng', exact: true });
   await expect(zoom).toBeVisible();
   await expect(zoom.getByRole('button', { name: /^Mức thu phóng \d+%, bấm để về 100%$/u })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Tiếp tục xử lý' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Tải bản vẽ khác' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^(?:Xử lý dù ảnh mờ|Bắt đầu xử lý)$/u })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^(?:Tải ảnh nét hơn|Tải ảnh khác)$/u })).toHaveCount(0);
 });

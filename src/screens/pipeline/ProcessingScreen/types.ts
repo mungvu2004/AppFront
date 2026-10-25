@@ -298,9 +298,8 @@ export interface ProcessingFloorChipsProps {
 export interface ProcessingStepListProps {
   readonly steps: readonly ProcessingStepViewModel[];
   readonly prefersReducedMotion: boolean;
-}
-
-/** Props của `ProcessingSummary` — báo cáo tổng kết cuối màn. */
-export interface ProcessingSummaryProps {
-  readonly summary: ProcessingSummaryViewModel;
+  /** Kết quả đã định dạng hiện cuối hàng bước, theo `step.id` (ví dụ "81 tường"). */
+  readonly resultByStepId?: ReadonlyMap<string, string>;
+  /** Bước có kết quả đáng chú ý (ví dụ 0 chuỗi kích thước): tam giác cảnh báo cạnh kết quả. */
+  readonly warnStepIds?: readonly string[];
 }

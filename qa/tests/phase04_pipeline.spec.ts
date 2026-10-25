@@ -1238,8 +1238,8 @@ test.describe('SCR-14 Scale Calibration', () => {
     let sent: Json = {};
 
     await test.step('[14-D-001] admin: the controls are enabled, apply answers 200', async () => {
-      await scaleScope('Chỉ áp cho tầng này').click();
-      await expect(scaleScope('Chỉ áp cho tầng này')).toHaveAttribute('aria-checked', 'true');
+      await scaleScope('Tầng này').click();
+      await expect(scaleScope('Tầng này')).toHaveAttribute('aria-checked', 'true');
       await expect.soft(applyScale()).toBeEnabled();
       const put = waitForLayerPut((body) => typeof body.scaleMillimetresPerPixel === 'number');
 
@@ -1264,8 +1264,8 @@ test.describe('SCR-14 Scale Calibration', () => {
 
   test('SCR-14 all floors: "Áp cho mọi tầng", then "Huỷ" in "Áp tỷ lệ này cho N tầng có bản vẽ?" → GET floors + spatial, NO PUT', async () => {
     await openScaleAndDraw();
-    await scaleScope('Áp cho mọi tầng').click();
-    await expect(scaleScope('Áp cho mọi tầng')).toHaveAttribute('aria-checked', 'true');
+    await scaleScope('Mọi tầng').click();
+    await expect(scaleScope('Mọi tầng')).toHaveAttribute('aria-checked', 'true');
 
     const mark = writes.length;
     const floorsRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/floors$`, 'u'), ANY_STATUS);

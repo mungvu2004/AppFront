@@ -132,20 +132,20 @@ test.describe('SCR-12 processing — failed runs', () => {
         for (const text of codeSpans) expect.soft(text).toBe('FILE_CORRUPT');
       });
 
-      await test.step('[12-C-025] alert action "Tải lên bản vẽ rõ hơn"; row "Thử lại với ngưỡng thấp hơn", "Bỏ qua tầng đó", "Thử lại bước này"', async () => {
+      await test.step('[12-C-025] alert action "Tải lên bản vẽ rõ hơn"; row "Thử lại với ngưỡng thấp hơn", "Thử lại bước này" (S-14: no "Bỏ qua tầng đó" while the server lacks skipFloor)', async () => {
         await expect.soft(button(alert, PF.upload)).toBeVisible();
-        expect.soft(await group.getByRole('button').allInnerTexts()).toEqual([PF.lower, PF.skip, PF.retry]);
+        expect.soft(await group.getByRole('button').allInnerTexts()).toEqual([PF.lower, PF.retry]); // S-14: skip button not drawn when skipFloor unsupported
       });
 
       await test.step('[12-C-028] warnings under the row: lower threshold / skip floor sentences', async () => {
         await expect.soft(page.getByText(PF.lowerWarning, { exact: true })).toBeVisible();
-        await expect.soft(page.getByText(PF.skipWarning, { exact: true })).toBeVisible();
+        await expect.soft(page.getByText(PF.skipWarning, { exact: true })).toHaveCount(0); // S-14: no skip row, so no skip warning
         await captureEvidence(page, 'E03_12-C-028_warnings.png');
       });
 
       await test.step('[12-E-016] "Thử lại với ngưỡng thấp hơn" / "Bỏ qua tầng đó" are described by their warning sentences', async () => {
         await expect.soft(button(group, PF.lower)).toHaveAccessibleDescription(PF.lowerWarning);
-        await expect.soft(button(group, PF.skip)).toHaveAccessibleDescription(PF.skipWarning);
+        await expect.soft(button(group, PF.skip)).toHaveCount(0); // S-14
       });
 
       await test.step('[12-E-017] retry button accessible name "Thử lại bước này — Thử lại bước Tiền xử lý"', async () => {
@@ -169,7 +169,6 @@ test.describe('SCR-12 processing — failed runs', () => {
       for (const [row, name] of [
         ['12-A-037', `${PF.retry} — Thử lại bước ${PREPROCESS}`],
         ['12-A-038', PF.lower],
-        ['12-A-039', PF.skip],
       ] as const) {
         await test.step(`[${row}] "${name}" → no /api write except /api/telemetry; alert stays`, async () => {
           const mark = s.log.length;

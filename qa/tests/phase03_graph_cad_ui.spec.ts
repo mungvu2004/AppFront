@@ -72,8 +72,8 @@ test('SCR-13/15 · FL-U13-01 · admin: graph compact list, then dead links on gr
           await p.goto(ROUTES.project.pipelineGraph(project.projectId));
           await expect(p.getByText(GRAPH.emptyTitle, { exact: true })).toBeVisible();
           layout[width(p)] = {
-            list: await p.locator(`ol[aria-label="${GRAPH.title}"] > li`).count(),
-            group: await p.getByRole('group', { name: GRAPH.title, exact: true }).count(),
+            list: await p.locator(`ol[aria-label="${GRAPH.crumb}"] > li`).count(),
+            group: await p.getByRole('group', { name: GRAPH.crumb, exact: true }).count(),
             svg: await p.locator('svg polyline').count(),
             empty: await p.getByText(GRAPH.emptyTitle, { exact: true }).isVisible(),
           };

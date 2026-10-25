@@ -1072,7 +1072,8 @@ export function useInputQualityGate(
           : null;
 
   const footer: InputQualityFooterModel = {
-    canContinue: !(requiresAcknowledgement && !isAcknowledged),
+    // Ảnh kém là cảnh báo, không chặn (demo Z/S-09): bấm "Xử lý dù ảnh mờ" chính là đồng ý.
+    canContinue: continueDisabledReason === null,
     continueDisabledReason,
     requiresAcknowledgement,
     isAcknowledged,
@@ -1303,13 +1304,14 @@ export function useInputQualityGate(
     },
     onChangeReveal: (ratio) => setRevealRatio(clampRatio(ratio)),
     onToggleAcknowledgement: (next) => setAcknowledged(next),
-    // Nút bấm được ở mọi trạng thái (không chặn cứng), nhưng chưa tích ô thì lượt
-    // bấm dừng ở đây: lời "Đánh dấu ô xác nhận bên trên rồi thử lại." đã hiện cạnh
-    // nút — đi tiếp là làm trái chính câu đó. Cùng khuôn `submit` của màn tải lên.
+    // Không còn ô tích: câu đồng ý nằm dưới nút, lượt bấm là sự đồng ý (ghi lại
+    // vào `isAcknowledged`). Chỉ chặn khi chưa có gì để xử lý tiếp.
     onContinue: () => {
-      if (!footer.canContinue || continueDisabledReason !== null) {
+      if (continueDisabledReason !== null) {
         return;
       }
+
+      setAcknowledged(true);
 
       options.onNavigate?.(ROUTES.project.pipeline(projectId));
     },
