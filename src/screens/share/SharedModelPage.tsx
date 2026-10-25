@@ -40,7 +40,7 @@ function WallPlan({ model, levelId }: { model: SharedModel; levelId: string }) {
       role="img"
       aria-label="Mặt bằng chỉ đọc"
       viewBox={`${String(minX)} ${String(minY)} ${String(width)} ${String(height)}`}
-      style={{ width: '100%', maxHeight: '70vh', background: 'var(--color-surface, #fff)' }}
+      style={{ width: '100%', maxHeight: '70vh' }}
     >
       {walls.map((wall) => (
         <line

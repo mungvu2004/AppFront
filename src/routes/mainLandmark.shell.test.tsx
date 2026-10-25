@@ -152,6 +152,8 @@ const MAIN_OWNERS = [
   'landing/StaticLanding.tsx',
   // `/welcome` từ 24-10 (bản kết hợp v6); hai tệp `landing/` ở trên chỉ còn test riêng của chúng.
   'landing-lab/combo/index.tsx',
+  // `/share/:token` công khai, ngoài vỏ ứng dụng.
+  'share/SharedModelPage.tsx',
   'system/MobileViewer/MobileViewer.tsx',
   'viewer/ViewerShell/ViewerViewport.tsx',
 ];
