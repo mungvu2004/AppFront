@@ -1397,6 +1397,43 @@ describe('"Thêm thủ công" trên cổng thật, tầng rỗng (B-V6-41)', () 
     second.unmount();
   });
 
+  it('lớp ĐÃ có cửa: thêm cửa thứ hai trên 2D → đúng 1 lệnh, gắn vào một tường của tầng, hoàn tác được', async () => {
+    const gateway = emptyGateway();
+    const notifications = createNotificationBus();
+    const publish = vi.spyOn(notifications, 'publish');
+    const openings = (): readonly { readonly wallId?: unknown }[] =>
+      Object.entries(useStore.getState().spatial?.byId ?? {})
+        .filter(([id]) => isIdOfKind('opening', id))
+        .map(([, entity]) => entity as { readonly wallId?: unknown });
+    const mounted = await mountSettled({ gateway, floorId: sampleLevelId(1), notifications });
+
+    await run(() => mounted.result.current.onAddManually());
+    await waitFor(() => {
+      expect(openings()).toHaveLength(1);
+    });
+
+    const stepsBefore = mounted.result.current.undoStepCount;
+
+    await run(() => mounted.result.current.onAddManually());
+    await waitFor(() => {
+      expect(openings()).toHaveLength(2);
+    });
+
+    const graph = useStore.getState().spatial as NormalizedSpatial;
+    const wallIds = new Set(solidWallsOf(graph, graph.byId[sampleLevelId(1)] as Level).map((wall) => wall.id));
+
+    expect(publish.mock.calls.filter(([n]) => n.title === OBJECT_LAYER_TEXT.addRefused)).toEqual([]);
+    expect(mounted.result.current.undoStepCount).toBe(stepsBefore + 1);
+    expect(openings().every((opening) => wallIds.has(opening.wallId as never))).toBe(true);
+
+    await pressKey(mounted.registry, 'z', { ctrlKey: true });
+    await waitFor(() => {
+      expect(openings()).toHaveLength(1);
+    });
+
+    mounted.unmount();
+  });
+
   it('[BUG-422] tầng KHÔNG có tường: câu rỗng nói lý do và lối ra là màn Duyệt tường', async () => {
     const graph = normalizeSpatial({ ...denormalizeSpatial(emptyGraph()), walls: [] });
     const onNavigate = vi.fn();

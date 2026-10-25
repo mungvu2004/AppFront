@@ -90,7 +90,7 @@ import type { ProjectRole } from '@/types/project';
 import {
   attachOrphanToNearestWall,
   buildAddOpeningCommand,
-  manualDoorProposalOf,
+  manualDoorProposalsOf,
   buildApproveObjectCommand,
   buildChangeObjectKindCommand,
   buildChangeObjectSwingCommand,
@@ -1085,9 +1085,10 @@ export function useObjectLayerReview(
       return;
     }
 
-    const proposal = level === null ? null : manualDoorProposalOf(current, level);
+    /* Thử lần lượt các chỗ trên tim tường; chỗ đầu tiên domain nhận là chỗ đặt (cửa thứ hai trở đi). */
+    const proposals = level === null ? [] : manualDoorProposalsOf(current, level);
 
-    if (proposal === null) {
+    if (proposals.length === 0) {
       notifications.publish({
         type: ADD_NOTIFICATION_TYPE,
         title: OBJECT_LAYER_TEXT.addNoWall,
@@ -1097,22 +1098,26 @@ export function useObjectLayerReview(
       return;
     }
 
-    const built = buildAddOpeningCommand(
-      proposal,
-      commandContextOf(current, gateway.actorId),
-    );
+    const context = commandContextOf(current, gateway.actorId);
+    let firstRefusal: readonly string[] | null = null;
 
-    if (!built.ok) {
-      notifications.publish({
-        type: ADD_NOTIFICATION_TYPE,
-        title: OBJECT_LAYER_TEXT.addRefused,
-        description: built.error.reasons.join(' '),
-      });
+    for (const proposal of proposals) {
+      const built = buildAddOpeningCommand(proposal, context);
 
-      return;
+      if (built.ok) {
+        void runSingle(proposal.id, 'door', () => built.data);
+
+        return;
+      }
+
+      firstRefusal ??= built.error.reasons;
     }
 
-    void runSingle(proposal.id, 'door', () => built.data);
+    notifications.publish({
+      type: ADD_NOTIFICATION_TYPE,
+      title: OBJECT_LAYER_TEXT.addRefused,
+      description: (firstRefusal ?? []).join(' '),
+    });
   }, [canEdit, gateway, level, notifications, runSingle]);
 
   /* ---------------------------------------------------------------------- */

@@ -74,6 +74,7 @@ const SCREEN_ARIA_LABEL = 'Lớp đối tượng';
 const CANVAS_REGION_LABEL = 'Mặt bằng lớp đối tượng';
 const EMPTY_TITLE = 'Chưa nhận ra đối tượng nào';
 const EMPTY_ACTION = 'Thêm thủ công';
+const ADD_DOOR_ACTION = '+ Thêm cửa';
 const OPEN_WALL_LAYER_ACTION = 'Sang duyệt tường';
 const LOW_CONFIDENCE_FILTER = 'Chỉ hiện mục dưới ngưỡng';
 const LOW_CONFIDENCE_DONE = 'Đã duyệt hết mục dưới ngưỡng.';
@@ -194,6 +195,21 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
         rows={model.rows}
         selectedObjectId={model.selectedObjectId}
       />
+
+      {/* Thêm cửa trên 2D bất cứ lúc nào, không chỉ khi lớp trống (cửa thứ hai trở đi). */}
+      {model.isViewerRole ? null : (
+        <button
+          className={cn(
+            'mx-2 self-start rounded-full border border-border-default px-2.5 py-1 text-[12px] text-text-secondary',
+            'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
+            'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+          )}
+          onClick={model.onAddManually}
+          type="button"
+        >
+          {ADD_DOOR_ACTION}
+        </button>
+      )}
     </div>
   );
 }
