@@ -44,6 +44,7 @@ function clientWith(list: ReturnType<typeof vi.fn>, projects: Partial<Record<'up
       read: vi.fn(),
       update: projects.update ?? vi.fn(),
       delete: projects.delete ?? vi.fn(),
+      cancelCreate: vi.fn(),
     },
   };
 }

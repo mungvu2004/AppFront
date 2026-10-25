@@ -620,7 +620,7 @@ describe('CreateProjectModal, wired to its hook', () => {
     const listState = () => queryClient.getQueryState(queryKeys.project.summaries());
     queryClient.setQueryData(queryKeys.project.summaries(), { projects: [], droppedCount: 0 });
     const createSpy = vi.spyOn(client.projects, 'create');
-    const deleteSpy = vi.spyOn(client.projects, 'delete');
+    const deleteSpy = vi.spyOn(client.projects, 'cancelCreate');
     const refetchSpy = vi.spyOn(queryClient, 'refetchQueries');
     const onDismiss = vi.fn();
     const onCreated = vi.fn();
@@ -889,6 +889,27 @@ describe('CreateProjectModal, wired to its hook', () => {
       'Hệ thống đã ghi nhận và sẽ kiểm tra. Bấm "Tạo dự án" để thử lại — những gì đã nhập vẫn còn.',
     );
     expect(gateway.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('undo after the cancel window closed says so instead of failing silently (CREATE_UNDO_CLOSED)', async () => {
+    const onToast = vi.fn();
+    const gateway = {
+      create: vi.fn(async () => ({ ok: true as const, data: { id: 'prj-1' } })),
+      remove: vi.fn(async () => ({
+        ok: false as const,
+        error: { kind: 'http' as const, status: 409, code: 'CREATE_UNDO_CLOSED', requestId: 'req-1', retryable: false, raw: { code: 'CREATE_UNDO_CLOSED' } },
+      })),
+    };
+    render(<CreateProjectModal isOpen gateway={gateway} forceCompact={false} onDismiss={noop} onToast={onToast} />);
+
+    goToReview('Nhà Hết Hạn');
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo dự án' }));
+    await waitFor(() => expect(onToast).toHaveBeenCalledTimes(1));
+    (onToast.mock.calls[0]?.[0] as { onUndo?: () => void }).onUndo?.();
+
+    expect(gateway.remove).toHaveBeenCalledWith('prj-1');
+    await waitFor(() => expect(onToast).toHaveBeenCalledTimes(2));
+    expect((onToast.mock.calls[1]?.[0] as { message: string }).message).toContain('đã quá thời gian huỷ');
   });
 
   it('warns before discarding, and only closes on the second "huỷ"', () => {

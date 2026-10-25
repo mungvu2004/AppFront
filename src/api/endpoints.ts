@@ -198,6 +198,8 @@ export const ENDPOINTS = {
   projects: {
     create: PROJECTS_ROOT,
     delete: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}`,
+    /** Huỷ tạo — Hoàn tác của toast "Đã tạo": chỉ người tạo, trong cửa sổ ngắn (BE 409 `CREATE_UNDO_CLOSED` khi hết). */
+    cancelCreate: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/creation`,
     list: PROJECTS_ROOT,
     read: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}`,
     update: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}`,
