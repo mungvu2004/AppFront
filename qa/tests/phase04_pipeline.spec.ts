@@ -1083,7 +1083,7 @@ test.describe('SCR-20 Room Label Review', () => {
 test.describe('SCR-21 Thickness Standardization', () => {
   test.beforeEach(useSeededFloor);
 
-  test('SCR-21 apply: slider "Ngưỡng giữa 110 mm và 220 mm"; tick "Đồng ý đổi các đoạn …"; "Đổi N đoạn" → bulk PUT, "Hoàn tác"', async () => {
+  test('SCR-21 apply: slider "Ngưỡng giữa 100 mm và 150 mm"; tick "Đồng ý đổi các đoạn …"; "Đổi N đoạn" → bulk PUT, "Hoàn tác"', async () => {
     // Group rows are `motion.tr` with layoutId: no click on a sliding row (as e2e/v7).
     await page.emulateMedia({ reducedMotion: 'reduce' });
     try {
@@ -1103,7 +1103,7 @@ test.describe('SCR-21 Thickness Standardization', () => {
       });
 
       await test.step('[21-A-017] slider keys: ArrowRight / ArrowUp move the threshold +5 mm, ArrowLeft / ArrowDown −5 mm (moving it writes nothing)', async () => {
-        const slider = page.getByRole('slider', { name: 'Ngưỡng giữa 110 mm và 220 mm', exact: true });
+        const slider = page.getByRole('slider', { name: 'Ngưỡng giữa 100 mm và 150 mm', exact: true });
 
         if ((await slider.count()) > 0) {
           const start = (await slider.getAttribute('aria-valuenow')) ?? '';
@@ -1123,7 +1123,8 @@ test.describe('SCR-21 Thickness Standardization', () => {
       });
 
       if ((await accept.count()) === 0) {
-        // S-21 rule: within 30 mm of 110/220/330 is standard. qcLayer seeds 200 mm partitions (20 mm off 220): nothing to change,
+        // S-21 rule: within 30 mm of the nearest of 100/150/200/220/300/400 is standard. qcLayer seeds 220 mm walls and 200 mm
+        // partitions (both exact tiers): nothing to change,
         // which is the correct state; the apply path itself is covered by phase04_thickness_edge FL-21-01.
         await expect(page.getByText('Không còn đoạn nào cần đổi.', { exact: true })).toBeVisible();
         await captureEvidence(page, '21_thickness_apply.png');

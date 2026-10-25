@@ -51,7 +51,7 @@ import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
 import {
   THICKNESS_GROUP_DISPLAY_ORDER,
-  THICKNESS_GROUP_LABELS,
+  thicknessGroupLabel,
   type ThicknessGroup,
   type ThicknessSegmentTableProps,
   type ThicknessSortKey,
@@ -95,42 +95,28 @@ const SORT_DIRECTION: Readonly<Record<ThicknessSortKey, 'asc' | 'desc'>> = {
  * ở đây vì cả hai phía đều được index bằng ĐÚNG union khoá của chính nó
  * (không phải `string` chung chung).
  */
-type ThicknessGroupKey = '110' | '220' | '330' | 'CONCRETE_COLUMN';
+type ThicknessGroupKey = string; // String(bậc mm) hoặc 'CONCRETE_COLUMN'
 
-const GROUP_KEY_OF: Readonly<Record<ThicknessGroup, ThicknessGroupKey>> = {
-  110: '110',
-  220: '220',
-  330: '330',
-  CONCRETE_COLUMN: 'CONCRETE_COLUMN',
-};
+const GROUP_KEY_OF = (group: ThicknessGroup): ThicknessGroupKey => String(group);
 
-const GROUP_OF_KEY: Readonly<Record<ThicknessGroupKey, ThicknessGroup>> = {
-  '110': 110,
-  '220': 220,
-  '330': 330,
-  CONCRETE_COLUMN: 'CONCRETE_COLUMN',
-};
+const GROUP_OF_KEY = (key: ThicknessGroupKey): ThicknessGroup => (key === 'CONCRETE_COLUMN' ? key : Number(key));
 
 /**
  * Nhãn lựa chọn: "Cột BTCT" thay cho chữ đầy đủ — cùng cách `ThicknessField`/chú giải độ dày gọi
- * nó. Bốn ô chữ đầy đủ rộng ~390 px, đẩy bảng tới ~1.040 px và cắt cột phải ở 1024 (BUG-405).
+ * nó. Chữ đầy đủ đẩy bảng tới ~1.040 px và cắt cột phải ở 1024 (BUG-405).
  */
-const OPTION_LABELS: Readonly<Record<ThicknessGroup, string>> = {
-  ...THICKNESS_GROUP_LABELS,
-  /* S-21: nhóm này là "xem tay" (≥ 400 mm, có thể là cột BTCT), không phải nhãn kết luận. */
-  CONCRETE_COLUMN: 'Xem tay',
-};
+const OPTION_LABEL = (group: ThicknessGroup): string => (group === 'CONCRETE_COLUMN' ? 'Cột BTCT' : thicknessGroupLabel(group));
 
 /* Chỉ nhóm có giá trị mm: "Cột BTCT" không có lệnh áp, chọn nó thì "Áp dụng" im lặng (BUG-593). */
 const GROUP_OPTIONS = THICKNESS_GROUP_DISPLAY_ORDER.filter((group) => group !== 'CONCRETE_COLUMN').map(
   (group) => ({
-    label: OPTION_LABELS[group],
-    value: GROUP_KEY_OF[group],
+    label: OPTION_LABEL(group),
+    value: GROUP_KEY_OF(group),
   }),
 );
 
 /** Nhóm mặc định của bảng chọn nhóm theo lô trước khi người dùng tự chọn. */
-const DEFAULT_GROUP_KEY: ThicknessGroupKey = '110';
+const DEFAULT_GROUP_KEY: ThicknessGroupKey = GROUP_OPTIONS[0]?.value ?? '100';
 
 const groupSelectLabel = (code: string): string => `Độ dày chuẩn hoá của đoạn ${code}`;
 
@@ -177,7 +163,7 @@ export function ThicknessSegmentTable({
   };
 
   const handleApplyGroup = (): void => {
-    onApplySelectedGroup(GROUP_OF_KEY[pendingGroupKey]);
+    onApplySelectedGroup(GROUP_OF_KEY(pendingGroupKey));
     closeGroupPicker();
   };
 
@@ -231,16 +217,16 @@ export function ThicknessSegmentTable({
                 <Table.Cell className="font-mono tabular-nums">{row.measuredLabel}</Table.Cell>
                 <Table.Cell>
                   {isReadOnly ? (
-                    OPTION_LABELS[row.normalizedGroup]
+                    OPTION_LABEL(row.normalizedGroup)
                   ) : (
                     <Select.Root
                       className="w-[124px]"
-                      onChange={(key) => onChangeNormalizedGroup(row.wallId, GROUP_OF_KEY[key as ThicknessGroupKey])}
+                      onChange={(key) => onChangeNormalizedGroup(row.wallId, GROUP_OF_KEY(key as ThicknessGroupKey))}
                       options={GROUP_OPTIONS}
-                      value={row.normalizedGroup === 'CONCRETE_COLUMN' ? undefined : GROUP_KEY_OF[row.normalizedGroup]}
+                      value={row.normalizedGroup === 'CONCRETE_COLUMN' ? undefined : GROUP_KEY_OF(row.normalizedGroup)}
                     >
                       <Select.Label className="sr-only">{groupSelectLabel(row.code)}</Select.Label>
-                      <Select.Trigger options={GROUP_OPTIONS} placeholder={OPTION_LABELS[row.normalizedGroup]} />
+                      <Select.Trigger options={GROUP_OPTIONS} placeholder={OPTION_LABEL(row.normalizedGroup)} />
                       <Select.Content>
                         {GROUP_OPTIONS.map((option, index) => (
                           <Select.Item index={index} key={option.value} value={option.value}>

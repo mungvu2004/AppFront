@@ -477,6 +477,11 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       const wallA = wallAt(q1.walls, 0, 0, 4_000, 0);
       const partition = q1.walls.find((wall) => wall.thicknessMm === 200 && (wall.confidence as number) > 0.8);
       if (partition === undefined) throw new Error('setup: Q1 has no 200 mm partition');
+      // 200 mm is now one of the six tiers (100/150/200/220/300/400): make this partition 260 mm, a thickness no radio
+      // matches (and 40 mm off 220: non-standard), so [16-B-034] / [16-C-015] still start from "no radio checked".
+      await secondWriter(api, q1.projectId, floor.id, (walls) =>
+        walls.map((wall) => (idOf(wall) === idOf(partition) ? { ...wall, thicknessMm: 260 } : wall)),
+      );
       run = await openWallsRun(browser);
       const { page } = run;
       const labels = await recordTexts(page, SAVE_LABEL);
@@ -499,35 +504,36 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await expect.soft(statusBar(page)).toBeVisible();
         await expect.soft(page.locator(SAVE_LABEL)).toHaveAttribute('aria-live', 'polite');
         await selectRow(page, codeOf(wallA));
-        await editAndSave('1'); // 110 mm
+        await editAndSave('1'); // 100 mm
         await expect.poll(async () => (await announced()).filter((text) => /^Đã lưu lúc \d{1,2}:\d{2}$/u.test(text)).length, { timeout: 5_000 }).toBeGreaterThan(0);
         await ev(page, '16-E-007', 'save-announced');
       });
 
       await test.step('[16-A-024] Click the radio that is already checked: no PUT', async () => {
-        await expect(radio(page, 110)).toHaveAttribute('aria-checked', 'true');
+        await expect(radio(page, 100)).toHaveAttribute('aria-checked', 'true');
         const mark = run!.puts.length;
-        await radio(page, 110).click();
+        await radio(page, 100).click();
         await quiet(page);
         expect.soft(putsSince(run!, mark), 'same-value command').toHaveLength(0);
         await ev(page, '16-A-024', 'same-radio-no-put');
       });
 
-      await test.step('[16-A-025] ArrowRight / ArrowLeft inside the radiogroup cycles 110 → 220 → 330 → 110: one PUT per key, focus moves', async () => {
-        await radio(page, 110).focus();
-        for (const next of [220, 330, 110]) {
+      await test.step('[16-A-025] ArrowRight / ArrowLeft inside the radiogroup cycles 100 → 150 → 200 → 220 → 300 → 400 → 100: one PUT per key, focus moves', async () => {
+        await radio(page, 100).focus();
+        for (const next of [150, 200, 220, 300, 400, 100]) {
           await editAndSave('ArrowRight');
           await expect.soft(radio(page, next)).toHaveAttribute('aria-checked', 'true');
           expect.soft(await page.evaluate(() => document.activeElement?.getAttribute('data-value')), `focus on ${String(next)}`).toBe(String(next));
         }
         await editAndSave('ArrowLeft');
-        await expect.soft(radio(page, 330)).toHaveAttribute('aria-checked', 'true');
+        await expect.soft(radio(page, 400)).toHaveAttribute('aria-checked', 'true');
         await ev(page, '16-A-025', 'arrow-cycle');
       });
 
-      await test.step('[16-A-026] Digits 1 / 2 / 3 set 110 / 220 / 330 mm on the selected wall', async () => {
+      await test.step('[16-A-026] Digits 1 … 6 set 100 / 150 / 200 / 220 / 300 / 400 mm on the selected wall', async () => {
         await wallOption(page, codeOf(wallA)).focus();
-        for (const [key, mm] of [['1', 110], ['2', 220], ['3', 330]] as const) {
+        // wallA is 400 mm after [16-A-025]: start at '1' so every digit is a real change
+        for (const [key, mm] of [['1', 100], ['2', 150], ['3', 200], ['4', 220], ['5', 300], ['6', 400]] as const) {
           await editAndSave(key);
           await expect.soft(radio(page, mm), `digit ${key}`).toHaveAttribute('aria-checked', 'true');
         }
@@ -547,7 +553,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
 
       await test.step('[16-B-034] Non-standard thickness: the radiogroup has no checked radio', async () => {
         await selectRow(page, codeOf(partition));
-        expect.soft(await checkedThickness(page), '200 mm wall').toBeNull();
+        expect.soft(await checkedThickness(page), '260 mm wall').toBeNull();
         await ev(page, '16-B-034', 'no-radio-checked');
       });
 
@@ -618,7 +624,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await page.clock.runFor(200);
         const sent = await forced;
         expect(sent.response.status()).toBe(200);
-        expect.soft(sentWalls(sent).find((wall) => wall.id === idOf(wallA))?.thicknessMm, 'the PUT carries the last edit').toBe(110);
+        expect.soft(sentWalls(sent).find((wall) => wall.id === idOf(wallA))?.thicknessMm, 'the PUT carries the last edit').toBe(100);
         await page.clock.runFor(900);
         await tick(page);
         await page.clock.resume(); // evidence waits for a real rAF; the paused clock would hang it
@@ -631,27 +637,28 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await selectRow(page, rows[0] as string);
         await freezeClock(page);
         const mark = run!.puts.length;
-        await page.keyboard.press('3');
+        // '6' = 400 mm: no Q1 wall is 400 mm, so each press is a real change
+        await page.keyboard.press('6');
         await page.keyboard.press('j');
-        await page.keyboard.press('3');
+        await page.keyboard.press('6');
         await page.keyboard.press('j');
-        await page.keyboard.press('3');
+        await page.keyboard.press('6');
         const one = waitForLayerPut(page, onFloor.projectId, onFloor.floorId);
         await page.clock.runFor(900);
         const sent = await one;
         await tick(page);
         const byCode = (code: string): Json | undefined => sentWalls(sent).find((wall) => q1.codes.get(idOf(wall)) === code);
         expect.soft(putsSince(run!, mark), 'one PUT for three edits').toHaveLength(1);
-        for (const code of rows.slice(0, 3)) expect.soft(byCode(code)?.thicknessMm, `${code} in the same PUT`).toBe(330);
+        for (const code of rows.slice(0, 3)) expect.soft(byCode(code)?.thicknessMm, `${code} in the same PUT`).toBe(400);
         await page.clock.resume(); // evidence waits for a real rAF; the paused clock would hang it (see 16-C-010)
         await ev(page, '16-C-011', 'coalesced-put');
       });
 
       await test.step('[16-C-015] Undo history is capped at 100 steps: 101 edits, 100 Mod+Z reach the first edit, not before', async () => {
         await page.clock.resume();
-        await selectRow(page, codeOf(partition)); // 200 mm: no radio checked before the first edit
+        await selectRow(page, codeOf(partition)); // 260 mm (setup): no radio checked before the first edit
         await freezeClock(page);
-        const digits = ['1', '2', '3'] as const; // edit k sets digits[(k - 1) % 3]; the first edit is 110 mm
+        const digits = ['1', '2', '3'] as const; // edit k sets digits[(k - 1) % 3] (100 / 150 / 200 mm); the first edit is 100 mm
         // mergeCommands.ts:48-66 folds same type/entity/actor edits < 400 ms apart into one undo step: space them 450 ms.
         // The 5 s autosave max-wait may PUT mid-way; that does not touch the undo stack, so it is accepted.
         for (let k = 1; k <= 101; k += 1) {
@@ -659,9 +666,9 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
           await page.clock.runFor(450);
         }
         for (let n = 1; n <= 100; n += 1) await page.keyboard.press('Control+z');
-        expect.soft(await checkedThickness(page), 'after 100 undos the state is the first edit').toBe('110 mm');
+        expect.soft(await checkedThickness(page), 'after 100 undos the state is the first edit').toBe('100 mm');
         await page.keyboard.press('Control+z');
-        expect.soft(await checkedThickness(page), 'a 101st undo reaches nothing (the original 200 mm is out of the history)').toBe('110 mm');
+        expect.soft(await checkedThickness(page), 'a 101st undo reaches nothing (the original 260 mm is out of the history)').toBe('100 mm');
         await page.clock.resume(); // evidence waits for a real rAF; the paused clock would hang it (see 16-C-010)
         await ev(page, '16-C-015', 'undo-cap-100');
       });
@@ -802,15 +809,15 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await page.keyboard.press('j'); // B = the first remaining row
         await expect(selectedRows(page)).toHaveCount(1);
         expect.soft(await selectedCode(page), 'B is the second seeded wall').toBe(codeAt(1));
-        await page.keyboard.press('3'); // B → 330 mm (a later edit)
-        await expect.soft(radio(page, 330)).toHaveAttribute('aria-checked', 'true');
+        await page.keyboard.press('6'); // B → 400 mm (a later edit)
+        await expect.soft(radio(page, 400)).toHaveAttribute('aria-checked', 'true');
         await toasts(page).getByRole('button', { name: 'Hoàn tác', exact: true }).click();
         await quiet(page);
         const server = await readWalls(api, onFloor.projectId, onFloor.floorId);
         await attachJson('E04_16-C-014_after-toast-undo.json', { walls: server.map((wall) => ({ id: wall.id, thicknessMm: wall.thicknessMm })) });
         // C1 Notes: the toast ticket pops the TOP of the screen stack (B's edit), so A stays deleted and B is back to 220.
         expect.soft(server.some((wall) => wall.id === idAt(0)), 'the deleted wall A is back').toBe(true);
-        expect.soft(server.find((wall) => wall.id === idAt(1))?.thicknessMm, "B keeps its 330 mm edit").toBe(330);
+        expect.soft(server.find((wall) => wall.id === idAt(1))?.thicknessMm, "B keeps its 400 mm edit").toBe(400);
         await ev(page, '16-C-014', 'toast-undo-after-edit');
       });
 
@@ -1279,14 +1286,15 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
     let run: WallsRun | undefined;
     let projectId: string | undefined;
     try {
-      // QC:walls-filters. 0: .50 · 1: .69 · 2: .70 · 3: .95 + 150 mm · 4: reviewed + 200 mm · 5: .60 + 150 mm · 6: .80 · 7: .95
+      // QC:walls-filters. 0: .50 · 1: .69 · 2: .70 · 3: .95 + 260 mm · 4: reviewed + 340 mm · 5: .60 + 65 mm · 6: .80 · 7: .95
+      // (others 220 mm). Six tiers 100/150/200/220/300/400, ±30 mm: 260 / 340 / 65 are non-standard, 150 / 200 would be standard.
       const seeded = await seedWalls(api, 'e04-16-08', [
         { ...stackOfWalls(8)[0]!, confidence: 0.5 },
         { ...stackOfWalls(8)[1]!, confidence: 0.69 },
         { ...stackOfWalls(8)[2]!, confidence: 0.7 },
-        { ...stackOfWalls(8)[3]!, confidence: 0.95, thicknessMm: 150 },
-        { ...stackOfWalls(8)[4]!, reviewed: true, thicknessMm: 200 },
-        { ...stackOfWalls(8)[5]!, confidence: 0.6, thicknessMm: 150 },
+        { ...stackOfWalls(8)[3]!, confidence: 0.95, thicknessMm: 260 },
+        { ...stackOfWalls(8)[4]!, reviewed: true, thicknessMm: 340 },
+        { ...stackOfWalls(8)[5]!, confidence: 0.6, thicknessMm: 65 },
         { ...stackOfWalls(8)[6]!, confidence: 0.8 },
         { ...stackOfWalls(8)[7]!, confidence: 0.95 },
       ]);
@@ -1331,13 +1339,16 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await ev(page, '16-B-031', 'row-statuses');
       });
 
-      await test.step('[16-B-032] ⚑ The legend lists only the bands present plus "Khác" for other thicknesses (BUG-416)', async () => {
+      await test.step('[16-B-032] ⚑ The legend lists only the bands present plus "Không chuẩn" for other thicknesses (BUG-416)', async () => {
         const legend = canvasFrame(page).getByRole('group', { name: 'Lọc theo độ dày tường', exact: true });
         await expect.soft(legend).toBeVisible();
-        await expect.soft(legend.getByText('220 mm', { exact: true })).toBeVisible();
-        await expect.soft(legend.getByText('Khác', { exact: true })).toBeVisible(); // 150 and 200 mm walls
-        await expect.soft(legend.getByText('110 mm', { exact: true })).toHaveCount(0);
-        await expect.soft(legend.getByText('330 mm', { exact: true })).toHaveCount(0);
+        // WallLayerLegendTray: three colour bands '100/150 mm', '200/220 mm', '300/400 mm', counted on unreviewed walls only
+        await expect.soft(legend.getByText('200/220 mm', { exact: true })).toBeVisible();
+        await expect.soft(legend.getByRole('button', { name: 'Lọc theo 200/220 mm', exact: true })).toBeVisible();
+        await expect.soft(legend.getByText('Không chuẩn', { exact: true })).toBeVisible(); // the 260 and 65 mm walls
+        await expect.soft(legend.getByText('Đã duyệt', { exact: true })).toBeVisible(); // the reviewed 340 mm wall
+        await expect.soft(legend.getByText('100/150 mm', { exact: true })).toHaveCount(0);
+        await expect.soft(legend.getByText('300/400 mm', { exact: true })).toHaveCount(0); // 340 mm is reviewed: not in a band
         await ev(page, '16-B-032', 'legend-bands');
       });
 
@@ -1354,7 +1365,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await ev(page, '16-C-001', 'strict-threshold');
       });
 
-      await test.step('[16-A-059] "Chỉ hiện độ dày không chuẩn" keeps the rows that are not 110 / 220 / 330 mm', async () => {
+      await test.step('[16-A-059] "Chỉ hiện độ dày không chuẩn" keeps the rows more than 30 mm off every tier (100 / 150 / 200 / 220 / 300 / 400 mm)', async () => {
         await toggleCheckbox(page, WALL.onlyLow);
         await toggleCheckbox(page, WALL.onlyNonStandard);
         await expectRows(page, [3, 4, 5], 'non-standard thickness');

@@ -77,7 +77,8 @@ export async function seedThicknessLayer(layerApi: LayerApi, projectId: string, 
     furniture: [],
     openings: [],
     rooms: [],
-    walls: [wall(ids[0] as string, 0, 180, false), wall(ids[1] as string, 3000, 180, false), wall(ids[2] as string, 6000, 220, false), wall(reviewedId, 9000, 180, true)].map((w) => w(levelId)),
+    // S-21 six tiers: 260 mm is 40 off 220 (non-standard, -> 220); 220 is standard.
+    walls: [wall(ids[0] as string, 0, 260, false), wall(ids[1] as string, 3000, 260, false), wall(ids[2] as string, 6000, 220, false), wall(reviewedId, 9000, 260, true)].map((w) => w(levelId)),
   }));
   return { ids, reviewedId };
 }

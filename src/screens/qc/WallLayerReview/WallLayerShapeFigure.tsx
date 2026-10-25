@@ -29,7 +29,7 @@ import {
   WALL_HATCH_PATTERN_ID,
   WALL_HATCH_PATTERN_TRANSFORM,
   WALL_HATCH_TILE_PX,
-  wallThicknessBandOf,
+  wallThicknessColorGroupOf,
   toSvgPoints,
 } from './wallLayerHatch';
 
@@ -99,12 +99,13 @@ const PAPER = 'var(--bg-surface)';
 
 /**
  * Ruột + viền theo MÃ HÌNH (demo Z/S-15 vòng 7, che chữ và đen trắng vẫn đọc được):
- * 110 rỗng (ruột giấy, viền mảnh) · 220 đặc · 330 đặc + viền đôi · không chuẩn gạch chéo + viền
+ * theo ba dải màu của `wallThicknessColorBand`: 100/150 rỗng (ruột giấy, viền mảnh) · 200/220 đặc ·
+ * 300/400 đặc + viền đôi · không chuẩn gạch chéo + viền
  * đậm `--state-attention-stroke` (≥3:1 trên giấy) · đã duyệt nền xanh nhạt + viền xanh (A5: chỉ
  * việc của người duyệt). Cùng hình với `WallThicknessSwatch` của chú giải và danh sách.
  */
 function WallBody({ points, thicknessMm, isReviewed }: { readonly points: string; readonly thicknessMm: number; readonly isReviewed: boolean }) {
-  const band = wallThicknessBandOf(thicknessMm);
+  const band = wallThicknessColorGroupOf(thicknessMm);
   const colour = 'transition-colors duration-260 motion-reduce:transition-none';
   const line = { vectorEffect: 'non-scaling-stroke' as const, strokeLinejoin: 'round' as const };
 

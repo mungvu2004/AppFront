@@ -635,7 +635,7 @@ export interface ObjectLayerReviewModel {
    * của M-08 phán quyết, nên màn không tự tính vị trí gắn (CẤM TUYỆT ĐỐI). Lệnh
    * hoàn tác được như mọi lệnh khác, và KHÔNG đặt cờ duyệt (A5).
    */
-  readonly onAddManually: () => void;
+  readonly onAddManually: (kind?: 'door' | 'window') => void;
   /**
    * Tầng chưa có đoạn tường nào: "Thêm thủ công" chỉ dẫn tới toast lỗi, nên trạng thái rỗng mở
    * màn Duyệt tường thay vào đó (BUG-422). `null` khi tầng có tường hoặc không có lối điều hướng.

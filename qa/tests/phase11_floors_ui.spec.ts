@@ -222,11 +222,11 @@ test.describe('SCR-09/10/11/21/25 floors — UI verify (QA-11 P5)', () => {
             await expect(p.getByRole('checkbox', { name: THICK_ACCEPT }).first()).toBeVisible();
             await region.getByRole('button', { name: THICK_SELECT_ALL }).click(); // every group ticked: the panel is the preview
             await expect(region.getByText(/nhóm chuẩn\./u)).toBeVisible();
-            // the 60 mm wall is under 80 mm: left for a manual review, listed with its reason (TB:toManualRows)
+            // the 500 mm wall is above 450 mm (a column): left for a manual review, listed with its reason (TB:toManualRows)
             await expect(region.getByText(/^Không đổi, giữ ở lớp Tường để xem tay \(\d+\)$/u)).toBeVisible();
             await attachJson('U11_11F-F-301_state.json', { width: p.viewportSize()?.width, url: p.url(), regionTail: (await region.innerText()).slice(-700) });
-            await expect(region.getByText('60 mm', { exact: true }), 'row of the 60 mm wall in the list').toBeVisible();
-            await expect(region.getByText('Nghi AI nhận nhầm', { exact: true })).toBeVisible();
+            await expect(region.getByText('500 mm', { exact: true }), 'row of the 500 mm wall in the list').toBeVisible();
+            await expect(region.getByText('Dày bất thường, có thể là cột BTCT', { exact: true })).toBeVisible(); // TB:THICKNESS_BATCH_TEXT.column
           },
           DESKTOP_VIEWPORTS,
         );

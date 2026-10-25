@@ -1,5 +1,5 @@
 /**
- * Lô chuẩn hoá của màn S-21 (bản Z): ba nhóm đổi về chuẩn, danh sách đoạn xem tay, câu trạng
+ * Lô chuẩn hoá của màn S-21 (bản Z): các nhóm đổi về chuẩn (thang sáu bậc), danh sách đoạn xem tay, câu trạng
  * thái và câu tóm tắt lô. THUẦN — chỉ ghép từ các dòng `ThicknessSegmentRow` mà cổng đã tính
  * (nhóm, dung sai, xem tay), không so ngưỡng lần thứ hai.
  *
@@ -13,7 +13,7 @@ import { formatCount } from '@/lib/commands/business/shared';
 import { isApplicable } from './thicknessStandardizationGateway';
 import {
   THICKNESS_GROUPS_MM,
-  THICKNESS_GROUP_LABELS,
+  thicknessGroupLabel,
   type ThicknessGroup,
   type ThicknessSegmentRow,
   type ThicknessSummary,
@@ -64,8 +64,7 @@ export interface ThicknessBatchProps {
 }
 
 export const THICKNESS_BATCH_TEXT = {
-  tooThin: 'Nghi AI nhận nhầm',
-  tooThick: 'Dày bất thường, có thể là cột BTCT',
+  column: 'Dày bất thường, có thể là cột BTCT',
   statusPending: 'Chưa chuẩn hoá',
   statusManual: 'Còn đoạn xem tay',
   statusDone: 'Đã chuẩn hoá',
@@ -84,7 +83,7 @@ const rangeLabelOf = (values: readonly number[]): string => {
   return low === high ? `${String(low)} mm` : `${String(low)}–${String(high)} mm`;
 };
 
-/** Ba nhóm (chỉ nhóm có đoạn), theo thứ tự 110 → 220 → 330. */
+/** Các bậc của thang sáu bậc (chỉ bậc có đoạn), theo thứ tự 100 → 400. */
 export function toTargetGroups(
   rows: readonly ThicknessSegmentRow[],
   acceptedMeasurements: ReadonlySet<number>,
@@ -104,7 +103,7 @@ export function toTargetGroups(
       {
         group,
         rangeLabel: rangeLabelOf(measurements),
-        targetLabel: THICKNESS_GROUP_LABELS[group],
+        targetLabel: thicknessGroupLabel(group),
         wallCount: inGroup.length,
         wallIds: inGroup.map((row) => row.wallId),
         accepted: measurements.every((value) => acceptedMeasurements.has(value)),

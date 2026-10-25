@@ -10,7 +10,7 @@ import { Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Kbd } from '@/components/ui/Kbd';
-import { wallStrokeToken } from '@/components/canvas/materialMap';
+import { wallStrokeToken, wallThicknessColorBand } from '@/components/canvas/materialMap';
 import { cn } from '@/lib/utils';
 
 import type { ThicknessBatchProps } from './thicknessBatch';
@@ -32,19 +32,23 @@ const TEXT = {
   detail: (count: number) => `Xem bảng từng đoạn (${String(count)})`,
 } as const;
 
-/** Mẫu hình độ dày (110 rỗng, 220 đặc, 330 viền đôi) — mã hoá bằng hình, không chỉ sắc độ. */
+/**
+ * Mẫu hình độ dày theo ba dải màu `wallThicknessColorBand` của thang sáu bậc (100/150 rỗng,
+ * 200/220 đặc, 300/400 viền đôi) — mã hoá bằng hình, không chỉ sắc độ.
+ */
 function ThicknessSwatch({ group }: { readonly group: ThicknessGroup }) {
   const color = wallStrokeToken(group);
+  const band = typeof group === 'number' ? wallThicknessColorBand(group) : null;
 
   return (
     <span
       aria-hidden="true"
       className={cn(
         'inline-block h-2.5 w-6 shrink-0 rounded-[3px]',
-        group === 110 && 'border',
-        group === 330 && 'border-[3px] border-double',
+        band === 110 && 'border',
+        band === 330 && 'border-[3px] border-double',
       )}
-      style={{ borderColor: color, backgroundColor: group === 110 ? 'transparent' : color }}
+      style={{ borderColor: color, backgroundColor: band === 110 ? 'transparent' : color }}
     />
   );
 }

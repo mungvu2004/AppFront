@@ -23,7 +23,7 @@ const THICK = {
   drawer: 'Bảng từng đoạn tường', // TV:DETAIL_TITLE
   reviewedOut: /1 tường đã duyệt không nằm trong lô\.$/u, // TB:batchSentenceOf
   applied: /^Chuẩn hoá độ dày \d+ tường\.$/u, // thicknessStandardizationGateway.ts standardizeDescription
-  before: '3/4 đoạn không chuẩn, 1 đúng chuẩn', // 180, 180, reviewed 180 off; 220 standard (TB:statusSentenceOf)
+  before: '3/4 đoạn không chuẩn, 1 đúng chuẩn', // 260, 260, reviewed 260 off (40 off 220); 220 standard (TB:statusSentenceOf)
   afterBatch: '1/4 đoạn không chuẩn, 3 đúng chuẩn',
 } as const;
 const TOASTS = 'Thông báo'; // components/feedback/Toast.tsx:176
@@ -151,7 +151,7 @@ test.describe('P4 floors D edge', () => {
         await zone.getByRole('button', { name: THICK.detail }).click();
         await expect(drawer).toBeVisible();
         await drawer.getByRole('combobox', { name: /^Độ dày chuẩn hoá của đoạn /u }).last().click(); // apply 2 on purpose: a row of the table
-        await page.getByRole('option', { name: '330 mm', exact: true }).click();
+        await page.getByRole('option', { name: '400 mm', exact: true }).click();
         await page.keyboard.press('Escape');
         await expect(toasts(page).getByText(THICK.applied)).toHaveCount(2);
         const mark = log.length;

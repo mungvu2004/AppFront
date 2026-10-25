@@ -17,33 +17,30 @@
  * số đo mm rơi vào nhóm nào:
  *
  * ```
- * < 166        -> 110   (dưới 80 mm: xem tay, `roundWallThickness` của domain)
- * 166 .. < 276 -> 220
- * 276 .. < 400 -> 330
- * >= 400       -> 'CONCRETE_COLUMN' (hiển thị "Xem tay (≥ 400 mm)")
+ * bậc gần nhất của STANDARD_THICKNESSES_MM (100/150/200/220/300/400), hoà về bậc nhỏ
+ * > 450 (CONCRETE_COLUMN_THRESHOLD_MM) -> 'CONCRETE_COLUMN' (xem tay, không tự đổi)
  * ```
  *
  * Màn này (hook T5) GỌI hàm đó, không tự làm tròn, không khai lại bảng nhóm —
  * file này chỉ khai HÌNH DẠNG dữ liệu hook cần, không khai lại logic.
- * `standardizeThickness(195).standardized === 220` đúng câu chuyện gốc của
- * đặc tả (30 tường 195 mm bị quy về 220 mm).
+ * `standardizeThickness(195).standardized === 200` (thang sáu bậc của máy chủ).
  *
  * ## X1 — vì sao `ThicknessGroup` là BÍ DANH của `WallThickness`, không phải một union mới
  *
- * `WallThickness = 110 | 220 | 330 | 'CONCRETE_COLUMN'` đã khai ở
+ * `WallThickness = number | 'CONCRETE_COLUMN'` đã khai ở
  * `src/types/spatial.ts:14`, đúng bốn nhóm hàm `standardizeThickness` sinh ra.
  * Khai một union thứ hai trùng lặp ở đây là thứ có thể trôi khỏi kiểu gốc khi
  * một trong hai chỗ đổi mà chỗ kia quên theo — nên {@link ThicknessGroup}
  * dùng lại nguyên kiểu đó (R-61: hook chỉ nối lại logic đã có, không tự chế
  * hình dạng song song). Đây cũng là câu trả lời cho X2: `'CONCRETE_COLUMN'`
- * là kết quả HỢP LỆ của chính `standardizeThickness` (≥ 400 mm), không phải
+ * là kết quả HỢP LỆ của chính `standardizeThickness` (> 450 mm), không phải
  * một nhóm bịa thêm — nó đếm được, hiển thị được, nhưng KHÔNG có lệnh áp
  * (không có thao tác "đổi tường này thành cột bê tông cốt thép").
  *
  * Phần bổ sung thật của màn này — thứ `WallThickness` không mang — là NHÃN
  * TIẾNG VIỆT và THỨ TỰ HIỂN THỊ cho từng nhóm: {@link THICKNESS_GROUPS_MM},
  * {@link CONCRETE_COLUMN_GROUP}, {@link THICKNESS_GROUP_DISPLAY_ORDER},
- * {@link THICKNESS_GROUP_LABELS}.
+ * {@link thicknessGroupLabel}.
  *
  * ## X3 — dung sai mặc định là 30 mm, không phải 20 mm
  *
@@ -124,8 +121,10 @@
  */
 
 import type { Confidence, Point, WallId } from '@/domain/spatial/types';
-import { WALL_THICKNESS_ROUNDING_BOUNDS_MM, WALL_THICKNESS_TOLERANCE_MM } from '@/domain/walls/thicknessTolerance';
+import { WALL_THICKNESS_TOLERANCE_MM } from '@/domain/walls/thicknessTolerance';
 import type { WallThickness } from '@/types/spatial';
+import { STANDARD_THICKNESSES_MM } from '@/domain/walls/cleanup';
+import { CONCRETE_COLUMN_THRESHOLD_MM } from '@/lib/geometry/standardize';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
@@ -140,7 +139,7 @@ import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 export type ThicknessGroup = WallThickness;
 
 /** Ba nhóm SỐ, theo thứ tự hiển thị tăng dần. Không gồm cột bê tông cốt thép. */
-export const THICKNESS_GROUPS_MM = [110, 220, 330] as const;
+export const THICKNESS_GROUPS_MM: readonly number[] = STANDARD_THICKNESSES_MM; // sáu bậc của máy chủ
 
 /** Nhóm thứ tư — cột bê tông cốt thép. Đếm được, hiển thị được, không có lệnh áp (X2). */
 export const CONCRETE_COLUMN_GROUP: ThicknessGroup = 'CONCRETE_COLUMN';
@@ -152,13 +151,8 @@ export const THICKNESS_GROUP_DISPLAY_ORDER: readonly ThicknessGroup[] = [
 ];
 
 /** Nhãn tiếng Việt của từng nhóm, viết thường kiểu câu trừ mã trục/số (A6). */
-export const THICKNESS_GROUP_LABELS: Readonly<Record<ThicknessGroup, string>> = {
-  110: '110 mm',
-  220: '220 mm',
-  330: '330 mm',
-  /* Kiểu gửi BE giữ 'CONCRETE_COLUMN'; nghĩa hiển thị là "dày bất thường, xem tay" (S-21). */
-  CONCRETE_COLUMN: 'Xem tay (≥ 400 mm)',
-};
+export const thicknessGroupLabel = (group: ThicknessGroup): string =>
+  group === 'CONCRETE_COLUMN' ? 'Cột bê tông cốt thép' : `${group} mm`;
 
 /* -------------------------------------------------------------------------- */
 /* Dung sai, ngưỡng, kích thước khung xương — xem "X3" ở đầu file.             */
@@ -178,26 +172,19 @@ export const THICKNESS_PREVIEW_CANVAS_WIDTH_PX = 320;
 
 /**
  * Ba ngưỡng kéo được của biểu đồ, theo thứ tự tăng dần — ranh giới
- * 110↔220, 220↔330, 330↔cột bê tông cốt thép. Chỉ số (0/1/2) khớp tham số
+ * giữa sáu bậc kề nhau và bậc 400↔cột bê tông cốt thép. Chỉ số (0..5) khớp tham số
  * `index` của {@link ThicknessHistogramProps.onThresholdDrag}.
  */
-export type ThicknessThresholds = readonly [lowMm: number, midMm: number, highMm: number];
+export type ThicknessThresholds = readonly number[];
 
-/**
- * Mặc định = ba biên trên của luật làm tròn domain (`WALL_THICKNESS_ROUNDING_BOUNDS_MM`):
- * 166 → 220, 276 → 330, 400 → xem tay. Biên dưới 80 mm (nghi AI nhận nhầm) cố định, không kéo.
- */
+/** Mặc định ĐÚNG BA số của `standardizeThickness` (`src/lib/geometry/standardize.ts:12-15`). */
 export const DEFAULT_THICKNESS_THRESHOLDS: ThicknessThresholds = [
-  WALL_THICKNESS_ROUNDING_BOUNDS_MM[1],
-  WALL_THICKNESS_ROUNDING_BOUNDS_MM[2],
-  WALL_THICKNESS_ROUNDING_BOUNDS_MM[3],
-];
+  ...STANDARD_THICKNESSES_MM.slice(1).map((value, index) => ((STANDARD_THICKNESSES_MM[index] ?? value) + value) / 2),
+  CONCRETE_COLUMN_THRESHOLD_MM,
+]; // điểm giữa các bậc (125, 175, 210, 260, 350) + ngưỡng cột BTCT 450
 
-/** Biên dưới cố định: dưới mức này là nghi AI nhận nhầm, xem tay. */
-export const THICKNESS_MIN_MM: number = WALL_THICKNESS_ROUNDING_BOUNDS_MM[0];
-
-/** Lý do một đoạn phải xem tay, không tự đổi: quá mỏng (< 80 mm) hoặc quá dày (≥ ngưỡng cao). */
-export type ThicknessManualReason = 'tooThin' | 'tooThick';
+/** Lý do một đoạn phải xem tay, không tự đổi: rơi vào nhóm cột BTCT (trên ngưỡng cuối). */
+export type ThicknessManualReason = 'column';
 
 /* -------------------------------------------------------------------------- */
 /* Bảy trạng thái (A11/R-63) — xem bảng ở đầu file.                            */

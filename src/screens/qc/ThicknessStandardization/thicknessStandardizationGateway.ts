@@ -94,9 +94,8 @@ import {
 import {
   DEFAULT_THICKNESS_THRESHOLDS,
   HISTOGRAM_BIN_MM,
-  THICKNESS_MIN_MM,
   THICKNESS_GROUP_DISPLAY_ORDER,
-  THICKNESS_GROUP_LABELS,
+  thicknessGroupLabel,
   type ApplyPreview,
   type HistogramBin,
   type ThicknessGroup,
@@ -382,13 +381,9 @@ export function isDefaultThresholds(thresholds: ThicknessThresholds): boolean {
 
 /** Ba ngưỡng sắp lại tăng dần sau một lượt kéo — thuần, không ghi gì. */
 export function sortThresholds(thresholds: readonly number[]): ThicknessThresholds {
-  const [low, mid, high] = [...thresholds].sort((first, second) => first - second);
+  const sorted = [...thresholds].sort((first, second) => first - second);
 
-  return [
-    low ?? DEFAULT_THICKNESS_THRESHOLDS[0],
-    mid ?? DEFAULT_THICKNESS_THRESHOLDS[1],
-    high ?? DEFAULT_THICKNESS_THRESHOLDS[2],
-  ];
+  return DEFAULT_THICKNESS_THRESHOLDS.map((fallback, index) => sorted[index] ?? fallback);
 }
 
 /**
@@ -499,7 +494,7 @@ export function statusOfSegment(
     return 'verified';
   }
 
-  /* S-21: đoạn phải xem tay (< 80 mm, ≥ ngưỡng cao) là thứ lô không đổi được. */
+  /* S-21: đoạn phải xem tay (nhóm cột BTCT, trên ngưỡng cuối) là thứ lô không đổi được. */
   if (manualReview !== null) {
     return 'violation';
   }
@@ -507,13 +502,9 @@ export function statusOfSegment(
   return willChange ? 'attention' : 'neutral';
 }
 
-/** Đoạn phải xem tay: dưới 80 mm (nghi AI nhận nhầm) hoặc rơi vào nhóm xem tay (≥ ngưỡng cao). */
-export function manualReviewOf(measuredMm: number, group: ThicknessGroup): ThicknessManualReason | null {
-  if (measuredMm < THICKNESS_MIN_MM) {
-    return 'tooThin';
-  }
-
-  return standardValueOf(group) === null ? 'tooThick' : null;
+/** Đoạn phải xem tay: rơi vào nhóm cột BTCT (trên ngưỡng cuối của thang sáu bậc). */
+export function manualReviewOf(group: ThicknessGroup): ThicknessManualReason | null {
+  return standardValueOf(group) === null ? 'column' : null;
 }
 
 export interface ToSegmentRowOptions {
@@ -536,7 +527,7 @@ export function toSegmentRow(wall: Wall, options: ToSegmentRowOptions): Thicknes
   const deviationMm = deviationOf(wall.thicknessMm, group);
   const standardMm = standardValueOf(group);
   const exceedsTolerance = deviationMm > options.toleranceMm;
-  const manualReview = manualReviewOf(wall.thicknessMm, group);
+  const manualReview = manualReviewOf(group);
   /* S-21: trong dung sai là đúng chuẩn, không đổi; ngoài dung sai và không phải xem tay thì đổi. */
   const willChange = standardMm !== null && exceedsTolerance && manualReview === null;
 
@@ -569,7 +560,7 @@ export function toSegmentRows(
 /**
  * Dòng nào ÁP ĐƯỢC (luật S-21, chủ dự án duyệt): nhóm có giá trị số, đoạn KHÔNG chuẩn
  * (lệch quá dung sai — trong dung sai đã coi là chuẩn), và không phải đoạn xem tay
- * (< 80 mm hoặc ≥ ngưỡng cao).
+ * (nhóm cột BTCT).
  *
  * Đây là định nghĩa dùng chung của bốn con số tóm tắt, bảng xem trước và bước
  * dựng lệnh — một chỗ duy nhất, nên ba nơi không thể lệch nhau.
@@ -728,7 +719,7 @@ export function thicknessLegend(
 
   return THICKNESS_GROUP_DISPLAY_ORDER.filter((group) => present.has(group)).map((group) => ({
     group,
-    label: THICKNESS_GROUP_LABELS[group],
+    label: thicknessGroupLabel(group),
     colorToken: wallStrokeToken(group),
   }));
 }

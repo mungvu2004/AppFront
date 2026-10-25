@@ -28,7 +28,7 @@
  * giờ `'violation'` ở màn này".
  */
 
-import { wallStrokeToken } from '@/components/canvas/materialMap';
+import { wallStrokeToken, wallThicknessColorBand } from '@/components/canvas/materialMap';
 import type { Point, WallId } from '@/domain/spatial/types';
 import { WALL_THICKNESS_TOLERANCE_MM } from '@/domain/walls/thicknessTolerance';
 import type { MeasurementState, Point as PointPx } from '@/hooks/useMeasurementLabel';
@@ -112,8 +112,31 @@ export function isThicknessBand(thicknessMm: number): thicknessMm is WallThickne
 export function wallThicknessFillToken(thicknessMm: number): string {
   const band = wallThicknessBandOf(thicknessMm);
 
-  return band === null ? UNBANDED_WALL_TOKEN : wallStrokeToken(band);
+  return band === null ? UNBANDED_WALL_TOKEN : wallStrokeToken(wallThicknessColorBand(band));
 }
+
+/** Nhóm màu của chú giải/bộ lọc: ba token, mỗi nhóm gồm hai bậc danh mục. */
+export type WallThicknessColorGroup = 110 | 220 | 330;
+
+/** Ba nhóm màu theo thứ tự mỏng → dày. */
+export const WALL_THICKNESS_COLOR_GROUPS: readonly WallThicknessColorGroup[] = [110, 220, 330];
+
+/** Các bậc danh mục thuộc một nhóm màu: 110 → [100, 150]. */
+export const tiersOfColorGroup = (group: WallThicknessColorGroup): readonly WallThicknessChoice[] =>
+  WALL_THICKNESS_CHOICES.filter((choice) => wallThicknessColorBand(choice) === group);
+
+/** Nhãn chú giải của ba nhóm màu — ghi đúng các bậc của nhóm ("100/150 mm"), sinh từ thang. */
+export const WALL_THICKNESS_GROUP_LABELS: Readonly<Record<string, string>> = Object.fromEntries(
+  WALL_THICKNESS_COLOR_GROUPS.map((group) => [String(group), `${tiersOfColorGroup(group).join('/')} mm`]),
+);
+
+/** Nhóm màu của một độ dày đo; `null` = không chuẩn. */
+export function wallThicknessColorGroupOf(thicknessMm: number): WallThicknessColorGroup | null {
+  const band = wallThicknessBandOf(thicknessMm);
+  return band === null ? null : wallThicknessColorBand(band);
+}
+
+export { wallThicknessColorBand };
 
 /**
  * Nhóm chuẩn (110/220/330) gần nhất trong dung sai CHUNG `WALL_THICKNESS_TOLERANCE_MM` (R-7, cùng
@@ -136,13 +159,13 @@ export const THICKNESS_TOLERANCE_MM: number = WALL_THICKNESS_TOLERANCE_MM;
 
 /** Số tường theo nhóm, chỉ những nhóm có mặt — nguồn của chú giải có số đếm. */
 export function countWallBands(thicknesses: readonly number[]): {
-  readonly bands: ReadonlyMap<WallThicknessChoice, number>;
+  readonly bands: ReadonlyMap<WallThicknessColorGroup, number>;
   readonly unbanded: number;
 } {
-  const bands = new Map<WallThicknessChoice, number>();
+  const bands = new Map<WallThicknessColorGroup, number>();
   let unbanded = 0;
   for (const mm of thicknesses) {
-    const band = wallThicknessBandOf(mm);
+    const band = wallThicknessColorGroupOf(mm);
     if (band === null) unbanded += 1;
     else bands.set(band, (bands.get(band) ?? 0) + 1);
   }
@@ -287,7 +310,7 @@ export interface WallLayerViewportPx {
  * vẽ bằng màu riêng mà chú giải từng không có mục nào cho nó (BUG-416).
  */
 export interface WallLayerLegendLevels {
-  readonly levels: readonly WallThicknessChoice[];
+  readonly levels: readonly WallThicknessColorGroup[];
   readonly hasUnbanded: boolean;
   /** Lọc theo độ dày từ chú giải (G4a-21) — hook giữ, danh sách + bản vẽ lọc theo. */
   readonly activeFilter?: SpatialWallThickness | null;

@@ -164,7 +164,7 @@ const THICK = {
   mainAction: /^(Chọn (cả \d+ nhóm|nhóm này) \(\d+ đoạn\)|Đổi \d+ đoạn)/u, // bản Z TBP: the panel's one main button
   apply: 'Áp dụng', // TST picker
   changeThickness: 'Đổi độ dày', // TableActionBar
-  slider: 'Ngưỡng giữa 110 mm và 220 mm', // ThicknessHistogram threshold label
+  slider: 'Ngưỡng giữa 100 mm và 150 mm', // ThicknessHistogram threshold label (first of six)
 } as const;
 
 /* SCR-19 */
@@ -373,10 +373,11 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         const group = inspector.getByRole('group', { name: WALL.thickness, exact: true });
         await expect.soft(group).toBeVisible();
         // The choice shown as current is the selected wall's own thickness (WallLayerInspector.tsx:58-79 `choice === value`),
-        // read from the selected row's badge (WallLayerList.tsx:176-183); a thickness off the 110/220/330 bands bolds none.
+        // read from the selected row's badge (WallLayerList.tsx:176-183); a thickness that is not one of the six tiers
+        // (100/150/200/220/300/400, types.ts WALL_THICKNESS_CHOICES) bolds none.
         const listed = /(\d+)\s*mm/u.exec(await wallOptions(page).first().innerText())?.[1];
         const current = group.locator('span.font-semibold');
-        if (listed === '110' || listed === '220' || listed === '330') await expect.soft(current).toHaveText(`${listed} mm`);
+        if (['100', '150', '200', '220', '300', '400'].includes(listed ?? '')) await expect.soft(current).toHaveText(`${String(listed)} mm`);
         else await expect.soft(current, `selected wall is ${String(listed)} mm: no band is current`).toHaveCount(0);
         await expect.soft(inspector.getByRole('radiogroup')).toHaveCount(0);
         await expect.soft(inspector.getByRole('button', { name: WALL.approve, exact: true })).toHaveCount(0);

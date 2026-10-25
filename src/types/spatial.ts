@@ -57,7 +57,8 @@ export interface Point2D extends BaseEntity {
   y: number;
 }
 
-export type WallThickness = 110 | 220 | 330 | 'CONCRETE_COLUMN';
+/** Một bậc mm của `STANDARD_THICKNESSES_MM` (dữ liệu cũ 110/220/330 vẫn là số hợp lệ) hoặc cột BTCT. */
+export type WallThickness = number | 'CONCRETE_COLUMN';
 
 export interface Wall extends BaseEntity {
   from: string; // Point2D id

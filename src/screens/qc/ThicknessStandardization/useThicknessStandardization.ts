@@ -108,6 +108,7 @@ import {
   DEFAULT_THICKNESS_SORT_KEY,
   DEFAULT_THICKNESS_THRESHOLDS,
   DEFAULT_TOLERANCE_MM,
+  THICKNESS_GROUPS_MM,
   type ApplyPreview,
   type ReapplyFilterWarning,
   type ThicknessApplyBarProps,
@@ -123,12 +124,12 @@ import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /** Ngưỡng nhớ theo dự án trong phiên (G4a-33); tải lại trang vẫn giữ. */
-const MIN_THRESHOLD_MM = 110;
+const MIN_THRESHOLD_MM = THICKNESS_GROUPS_MM[0] ?? 100; // bậc nhỏ nhất của thang sáu bậc
 const thresholdsKey = (projectId: string): string => `thickness-thresholds:${projectId}`;
 function readSavedThresholds(projectId: string): ThicknessThresholds {
   try {
     const raw: unknown = JSON.parse(window.sessionStorage.getItem(thresholdsKey(projectId)) ?? 'null');
-    if (Array.isArray(raw) && raw.length === 3 && raw.every((v) => typeof v === 'number')) {
+    if (Array.isArray(raw) && raw.length === DEFAULT_THICKNESS_THRESHOLDS.length && raw.every((v) => typeof v === 'number')) {
       return raw as unknown as ThicknessThresholds;
     }
   } catch {
@@ -159,7 +160,7 @@ export const THICKNESS_SCREEN_TEXT = {
     'Mọi đoạn tường đã ở đúng nhóm chuẩn, không còn gì để đổi. Kéo một ngưỡng trên biểu đồ nếu bạn muốn gom thêm đoạn vào một nhóm khác.',
   /* BUG-619 (luật S-21): còn đoạn xem tay thì "mọi đoạn đã đúng nhóm" là câu sai về dữ liệu. */
   outOfToleranceNotice: (count: number): string =>
-    `${count} đoạn tường cần xem tay (dưới 80 mm hoặc dày bất thường), lô chuẩn hoá không đổi chúng. Mở từng đoạn ở màn duyệt tường để sửa tay.`,
+    `${count} đoạn tường cần xem tay (dày bất thường, có thể là cột BTCT), lô chuẩn hoá không đổi chúng. Mở từng đoạn ở màn duyệt tường để sửa tay.`,
   emptyNoMeasurementNotice:
     'Chưa có số đo độ dày nào cho công trình này. Sang lớp tường để dò lại các đoạn tường, rồi quay lại đây để chuẩn hoá độ dày.',
   viewerRoleNotice:
@@ -722,7 +723,7 @@ export function useThicknessStandardization(
 
   const onThresholdDrag = useCallback((index: number, mm: number) => {
     setThresholds((previous) => {
-      /* Không kéo xuống dưới nhóm chuẩn nhỏ nhất (110 mm): tường mỏng không nhảy nhóm (G4a-33). */
+      /* Không kéo xuống dưới nhóm chuẩn nhỏ nhất (100 mm): tường mỏng không nhảy nhóm (G4a-33). */
       const next = withThresholdAt(previous, index, Math.max(mm, MIN_THRESHOLD_MM));
       saveThresholds(projectId, next);
       return next;

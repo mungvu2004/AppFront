@@ -10,8 +10,8 @@
  * Bản Z (S-21): the panel is the preview (groups never pre-ticked, "Đổi N đoạn" applies), no collapse toggle, no reapply
  * warning (reviewed walls never enter the batch). Rows of removed controls shoot the equivalent state.
  *
- * Data: ONE project of five floors made by the shared admin ("Tầng hỗn hợp" 180 x 3 + 150 + 220, "Tầng 150" 2 x 150 mm,
- * "Tầng đã duyệt" a reviewed + an unreviewed 180 mm wall, "Tầng chuẩn" 2 x 220 mm, "Tầng trống"); the pool viewer is made a
+ * Data: ONE project of five floors made by the shared admin ("Tầng hỗn hợp" 260 x 3 + 340 + 220, "Tầng 340" 2 x 340 mm,
+ * "Tầng đã duyệt" a reviewed + an unreviewed 260 mm wall, "Tầng chuẩn" 2 x 220 mm, "Tầng trống"); the pool viewer is made a
  * member. States that change the floor ([21-F-014] apply, [21-F-013] 409) re-write it through the API before each width
  * (`reseed`), so every width opens the same state. The 409 is a real one: a write elsewhere (the API re-write) between the
  * page's read and its apply. Mock: [21-F-010] only (the real N16 request is held, then released).

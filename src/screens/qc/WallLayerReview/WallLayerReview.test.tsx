@@ -81,7 +81,6 @@ import {
   toCanvasShapes,
   wallDisplayCode,
   wallStatusCode,
-  WALL_LAYER_THICKNESS_CHOICES,
 } from './wallLayerReviewGateway';
 
 const SCREEN_DIRECTORY = 'src/screens/qc/WallLayerReview';
@@ -92,7 +91,7 @@ const SCREEN_DIRECTORY = 'src/screens/qc/WallLayerReview';
  * Khẳng định đúng BA băng ngay tại chỗ đọc: nếu hệ thiết kế đổi số băng, phép
  * kiểm này hỏng ở đây với một câu đọc được, chứ không hỏng ở một chỗ xa hơn.
  */
-const THICKNESS_BANDS = WALL_LAYER_THICKNESS_CHOICES;
+const THICKNESS_BANDS = [110, 220, 330] as const; // ba nhóm màu (wallThicknessColorBand)
 
 if (THICKNESS_BANDS.length !== 3) {
   throw new Error(`Cần đúng ba băng độ dày, đang có ${String(THICKNESS_BANDS.length)}.`);
@@ -310,18 +309,20 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
     expect(await screen.findByText(expectation?.name ?? '')).toBeInTheDocument();
   });
 
-  /* Đợt Impeccable 1: độ dày gom về nhóm chuẩn gần nhất trong dung sai chung 30 mm (`wallThicknessBandOf`) — 235/90 vào nhóm, 175 còn lại ra "Không chuẩn". */
-  it('[BUG-416] tường ngoài ba băng (175 mm của bộ mẫu) có mục "Không chuẩn"; xong hết thì chú giải còn "Đã duyệt"', async () => {
+  /* Thang sáu bậc: 175/235/90 mm của bộ mẫu nay trong dung sai, nên không có mục "Không chuẩn";
+   * ca có tường ngoài danh mục (260 mm) khoá ở wallThicknessScale.test.ts. Xong hết thì còn "Đã duyệt". */
+  it('[BUG-416] bộ mẫu toàn độ dày trong danh mục: không có "Không chuẩn"; xong hết thì chú giải còn "Đã duyệt"', async () => {
     const partial = renderState('partial');
     const legend = await screen.findByRole('group', { name: 'Lọc theo độ dày tường' });
 
-    expect(within(legend).getByText('Không chuẩn')).toBeInTheDocument();
+    expect(within(legend).queryByText('Không chuẩn')).toBeNull();
     expect(within(legend).getByText('Đã duyệt')).toBeInTheDocument();
     partial.unmount();
 
     renderState('success');
     const done = await screen.findByRole('group', { name: 'Lọc theo độ dày tường' });
 
+    expect(within(done).queryByText('Không chuẩn')).toBeNull();
     expect(within(done).getByText('Đã duyệt')).toBeInTheDocument();
   });
 

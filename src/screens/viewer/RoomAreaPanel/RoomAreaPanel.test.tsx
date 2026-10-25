@@ -57,8 +57,10 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { AREA_DECIMALS } from '@/domain/rooms/area';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { squareMetres } from '@/domain/units/types';
 import type { RoomId, SpatialGraph } from '@/domain/spatial/types';
 import { formatNumber } from '@/lib/format/number';
+import { spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
@@ -82,6 +84,7 @@ import {
   createUnnamedRoomGraph,
 } from './RoomAreaPanel.stories';
 import { RoomAreaTable } from './RoomAreaTable';
+import { buildRow, graphOf } from './useRoomAreaPanel.model';
 import type { RoomAreaPanelProps, RoomAreaScreenState } from './roomAreaTypes';
 import { useRoomAreaPanel, type RoomAreaPanelModel, type UseRoomAreaPanelOptions } from './useRoomAreaPanel';
 
@@ -586,5 +589,26 @@ describe('[BUG-479] nhãn điều khiển', () => {
     expect(getByText('Theo công năng')).toBeInTheDocument();
     expect(getByRole('button', { name: /^Xuất bảng$/ })).toBeInTheDocument();
     expect(getByText('Toàn nhà')).toBeInTheDocument();
+  });
+});
+
+describe('phòng chưa đặt tên sau tự lưu', () => {
+  it('tên tạm do lượt lưu đặt vẫn hiện là chưa đặt tên (cảnh báo không mất)', () => {
+    const graph = createUnnamedRoomGraph();
+    const room = graph.rooms[0];
+
+    if (room === undefined) {
+      throw new Error('bộ mẫu thiếu phòng');
+    }
+
+    const sent = spatialLayerOf(normalizeSpatial(graph), room.levelId).rooms.find((candidate) => candidate.id === room.id);
+
+    if (sent === undefined) {
+      throw new Error('phòng không vào thân PUT');
+    }
+
+    expect(sent.name).not.toBe('');
+    expect(sent.reviewed).toBe(false);
+    expect(buildRow({ areaM2: squareMetres(room.areaM2), room: sent }, graphOf(null), sent.areaM2).isUnnamed).toBe(true);
   });
 });

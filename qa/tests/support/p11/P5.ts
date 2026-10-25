@@ -79,8 +79,9 @@ export function recordWrites(page: Page): () => string[] {
 const wid = (): string => `W-${randomUUID().replace(/-/gu, '').toUpperCase().slice(0, 20)}`;
 
 /**
- * Thickness fixture layer (copy of phase04 `wireWall`), S-21 rule: two AI 180 mm walls (-> 220), one AI 150 mm wall (-> 110), one
- * human-reviewed 180 mm wall (never in the batch) and one AI 60 mm wall (under 80 mm: left for a manual review). #35 write of the floor.
+ * Thickness fixture layer (copy of phase04 `wireWall`), S-21 six-tier rule: two AI 260 mm walls (-> 220), one AI 340 mm wall
+ * (-> 300), one human-reviewed 260 mm wall (never in the batch) and one AI 500 mm wall (above 450 mm: a column, left for a
+ * manual review). #35 write of the floor.
  */
 export async function seedThicknessLayer(api: APIRequestContext, projectId: string, floorId: string): Promise<void> {
   const wall = (y: number, thicknessMm: number, reviewed: boolean): Json => ({
@@ -97,7 +98,7 @@ export async function seedThicknessLayer(api: APIRequestContext, projectId: stri
     furniture: [],
     openings: [],
     rooms: [],
-    walls: [wall(0, 180, false), wall(1500, 180, false), wall(3000, 150, false), wall(4500, 180, true), wall(6000, 60, false)].map((w) => ({ ...w, levelId })),
+    walls: [wall(0, 260, false), wall(1500, 260, false), wall(3000, 340, false), wall(4500, 260, true), wall(6000, 500, false)].map((w) => ({ ...w, levelId })),
   }));
 }
 

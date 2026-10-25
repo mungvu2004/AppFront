@@ -3,6 +3,8 @@
  * Chỉ dữ liệu + hàm thuần (không three) để vitest kiểm được.
  */
 
+import { REALISM_PALETTE } from '@/lib/pascal/scenePalette';
+
 export type MaterialKind =
   | 'fabric'
   | 'bedding'
@@ -193,10 +195,10 @@ export const KIND_LOOK: Record<MaterialKind, KindLook> = {
   matte: { roughness: 0.8 },
   // Gói 4A. Gương: bạc phản chiếu; màn tắt: đen bóng; inox chải; men sứ bóng.
   // metalness 1 ra đen trong phòng (môi trường phản chiếu trong nhà tối, review2 gói 4) → pha nửa khuếch tán.
-  mirror: { roughness: 0.08, metalness: 0.5, color: '#dfe4e6' },
-  screen: { roughness: 0.15, metalness: 0, color: '#0b0c0e' },
-  steel: { roughness: 0.35, metalness: 0.6, color: '#cfd2d4' },
-  porcelain: { roughness: 0.12, metalness: 0, color: '#f3f3f0' },
+  mirror: { roughness: 0.08, metalness: 0.5, color: REALISM_PALETTE.mirror },
+  screen: { roughness: 0.15, metalness: 0, color: REALISM_PALETTE.screen },
+  steel: { roughness: 0.35, metalness: 0.6, color: REALISM_PALETTE.steel },
+  porcelain: { roughness: 0.12, metalness: 0, color: REALISM_PALETTE.porcelain },
 };
 
 export function tunedRoughness(kind: MaterialKind, current: number): number {

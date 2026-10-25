@@ -1,4 +1,4 @@
-import { roundWallThickness } from '../../domain/walls/thicknessTolerance';
+import { STANDARD_THICKNESSES_MM } from '../../domain/walls/cleanup';
 import type { WallThickness } from '../../types/spatial';
 
 export interface StandardizeResult {
@@ -7,20 +7,39 @@ export interface StandardizeResult {
 }
 
 /**
- * Standardizes a raw thickness to a domain-allowed thickness, following
- * `roundWallThickness` (src/domain/walls/thicknessTolerance.ts):
- * - < 166: 110 (below 80 mm the domain flags manual review; the type has no slot for that)
- * - 166 to < 276: 220
- * - 276 to < 400: 330
- * - >= 400: CONCRETE_COLUMN (manual review)
+ * Trên ngưỡng này là cột BTCT. Ngưỡng cũ 350 nằm dưới bậc 400 của danh mục, nên dời lên
+ * 400 + 50 (nửa bước 300→400) để bậc 400 vẫn bắt được.
+ */
+export const CONCRETE_COLUMN_THRESHOLD_MM = 450;
+
+/**
+ * Bắt độ dày đo về bậc gần nhất của `STANDARD_THICKNESSES_MM`; hoà lấy số nhỏ hơn — đúng
+ * như máy chủ (AppBack `apps/worker/pipeline_build/geometry.py:199-200`). Trên
+ * {@link CONCRETE_COLUMN_THRESHOLD_MM} là `CONCRETE_COLUMN`.
  */
 export function standardizeThickness(rawThicknessMm: number): StandardizeResult {
-  const rounded = roundWallThickness(rawThicknessMm);
   const standardized: WallThickness =
-    rounded === 'tooThick' ? 'CONCRETE_COLUMN' : rounded === 'tooThin' ? 110 : rounded;
+    rawThicknessMm > CONCRETE_COLUMN_THRESHOLD_MM
+      ? 'CONCRETE_COLUMN'
+      : STANDARD_THICKNESSES_MM.reduce((best, value) =>
+          Math.abs(value - rawThicknessMm) < Math.abs(best - rawThicknessMm) ? value : best,
+        );
+
+  return { original_mm: rawThicknessMm, standardized };
+}
+
+/**
+ * Khoảng số đo nguyên (mm) mà {@link standardizeThickness} đưa về bậc `tierMm` — sinh từ chính
+ * thang sáu bậc (biên = trung điểm hai bậc kề, hoà về bậc nhỏ) và ngưỡng cột:
+ * 150 → `{ fromMm: 126, toMm: 175 }`. Bậc nhỏ nhất không có biên dưới (`fromMm: null`).
+ */
+export function standardTierRangeOf(tierMm: number): { readonly fromMm: number | null; readonly toMm: number } {
+  const index = (STANDARD_THICKNESSES_MM as readonly number[]).indexOf(tierMm);
+  const previous = STANDARD_THICKNESSES_MM[index - 1];
+  const next = STANDARD_THICKNESSES_MM[index + 1];
 
   return {
-    original_mm: rawThicknessMm,
-    standardized,
+    fromMm: previous === undefined ? null : Math.floor((previous + tierMm) / 2) + 1,
+    toMm: next === undefined ? CONCRETE_COLUMN_THRESHOLD_MM : Math.floor((tierMm + next) / 2),
   };
 }

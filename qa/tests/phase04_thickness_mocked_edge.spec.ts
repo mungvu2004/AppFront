@@ -2,7 +2,7 @@
  * Phase 4 — SCR-21 thickness, EDGE layer, MOCKED RESPONSES: one sequential flow (QA-04c P4, FL-21-M1, `[mocked response]`).
  * The N16 read (`GET …/floors/:f/spatial/layer`) is held, answered 500 after the first success, or the apply's PUT #35 is
  * answered 500 / aborted — none of which the shared stack can produce on demand. What is real: the project, its layer
- * (`thkMix`: 5 x 180 mm, 150 mm, 220 mm), the session and the page. Bản Z (S-21): tick a group, then "Đổi N đoạn". One `test.step('[<row id>] …')` per catalog row, in the
+ * (`thkMix`: 5 x 260 mm, 340 mm, 220 mm), the session and the page. Bản Z (S-21): tick a group, then "Đổi N đoạn". One `test.step('[<row id>] …')` per catalog row, in the
  * planned order. Pairs: BE4-G-218 (pytest), FL-A4-03 (A4 write happy path).
  *
  * Source (FE, this branch): TV src/screens/qc/ThicknessStandardization/ThicknessStandardization.tsx · UT …/useThicknessStandardization.ts ·
@@ -41,7 +41,7 @@ test.afterAll(async () => {
 const region = (page: Page): Locator => page.getByRole('region', { name: SCREEN, exact: true });
 const button = (page: Page, name: string): Locator => region(page).getByRole('button', { name, exact: true });
 const skeletonRows = (page: Page): Locator => page.locator('div.flex.items-center.gap-4.p-3.w-full:has(> .animate-pulse)');
-const acceptBox = (page: Page): Locator => region(page).getByRole('checkbox', { name: /^Đồng ý đổi các đoạn 180 mm về 220 mm$/u }); // TBP:TEXT.acceptGroup
+const acceptBox = (page: Page): Locator => region(page).getByRole('checkbox', { name: /^Đồng ý đổi các đoạn 260 mm về 220 mm$/u }); // TBP:TEXT.acceptGroup
 const toasts = (page: Page): Locator => page.getByRole('region', { name: 'Thông báo', exact: true });
 
 test.describe('E04 SCR-21 thickness — mocked-response flow (QA-04c P4)', () => {

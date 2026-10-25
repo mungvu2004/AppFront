@@ -136,15 +136,16 @@ test.describe('[bơm] bộ mẫu riêng của màn tường', () => {
   test('[bơm] J/K đi giữa các hàng và phím 1 đổi độ dày của tường đang chọn', async ({ page }) => {
     await openSeeded(page);
 
-    /* Hàng đợi S-15: không chuẩn (W-006) → đúng chuẩn → đã duyệt (W-002 thu gọn), nên sau W-001 là W-003. */
+    /* Hàng đợi S-15: không chuẩn → đúng chuẩn → đã duyệt (W-002 thu gọn); bộ mẫu thang sáu bậc không còn đoạn không chuẩn, nên sau W-001 là W-003. */
     await list(page).getByRole('option', { name: /^#W-001 / }).click();
     await page.keyboard.press('j');
     await expect(list(page).getByRole('option', { name: /^#W-003 / })).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('k');
     await expect(list(page).getByRole('option', { name: /^#W-001 / })).toHaveAttribute('aria-selected', 'true');
 
+    /* Phím 1 = bậc nhỏ nhất của thang sáu bậc (100 mm). */
     await page.keyboard.press('1');
-    await expect(page.getByRole('radio', { name: '110 mm' })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('radio', { name: '100 mm' })).toHaveAttribute('aria-checked', 'true');
   });
 
   /*
@@ -158,15 +159,17 @@ test.describe('[bơm] bộ mẫu riêng của màn tường', () => {
     await page.keyboard.press('j');
     const second = list(page).getByRole('option', { name: /^#W-003 / });
     await expect(second).toHaveAttribute('aria-selected', 'true');
-    /* #W-003 của bộ mẫu là tường bao 330 mm (`wallLayerReviewFixture.ts`). */
-    await expect(page.getByRole('radio', { name: '330 mm' })).toHaveAttribute('aria-checked', 'true');
+    /* #W-003 của bộ mẫu là tường bao 330 mm (`wallLayerReviewFixture.ts`): trong dung sai của bậc 300 nhưng
+       không phải một bậc của thang sáu bậc, nên không ô nào sáng. */
+    await expect(page.getByRole('radio', { name: '100 mm' })).toHaveAttribute('aria-checked', 'false');
+    await expect(page.getByRole('radio', { name: '300 mm' })).toHaveAttribute('aria-checked', 'false');
 
     await page.keyboard.press('1');
-    await expect(page.getByRole('radio', { name: '110 mm' })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('radio', { name: '100 mm' })).toHaveAttribute('aria-checked', 'true');
 
     await page.keyboard.press('Control+z');
 
-    await expect(page.getByRole('radio', { name: '330 mm' })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('radio', { name: '100 mm' })).toHaveAttribute('aria-checked', 'false');
     await expect(second).toHaveAttribute('aria-selected', 'true');
     await expect(list(page).getByRole('option', { selected: true })).toHaveCount(1);
   });

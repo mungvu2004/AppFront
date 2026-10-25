@@ -6,9 +6,10 @@
  *
  * Bản Z (S-21, UI-redesign): the screen is a left panel (head, histogram, the three target groups, the walls left for a
  * manual review, ONE sticky main button) + the drawing; the per-wall table lives in the drawer "Bảng từng đoạn tường".
- * Rule (owner-approved): within 30 mm of 110/220/330 is standard and never changed; otherwise 80–165 → 110,
- * 166–275 → 220, 276–399 → 330; under 80 mm ("nghi AI nhận nhầm") and from 400 mm ("dày bất thường") are left for a
- * manual review. Reviewed walls never enter the batch. Rows of removed controls (the separate preview, "Áp lại cho mọi
+ * Rule (app-wide, matches the server): six tiers 100/150/200/220/300/400 (STD:standardizeThickness, nearest tier, a tie
+ * goes to the smaller one: ≤125 → 100, 126–175 → 150, 176–210 → 200, 211–260 → 220, 261–350 → 300, 351–450 → 400);
+ * within 30 mm of the nearest tier is standard and never changed; above 450 mm is a column ("Dày bất thường, có thể là
+ * cột BTCT"), left for a manual review. There is no "too thin" case any more. Reviewed walls never enter the batch. Rows of removed controls (the separate preview, "Áp lại cho mọi
  * tường lệch nhóm", the four summary tiles, the "Dung sai" field, the collapse toggle) keep their id and check the same
  * idea on the new UI, or note why it is gone.
  *
@@ -21,7 +22,7 @@
  * ## Users and data
  * The shared admin; every flow signs in once in its own context WITH reduced motion and owns its project(s):
  * `POST /api/projects`, walls written through the real #35, deleted in `finally`. Wall thickness values: `support/p04/P4.ts`
- * (180 mm = 40 mm off 220, so it is changed; 200 mm would now be standard). No upload, no mock.
+ * (260 mm = 40 mm off 220 and 340 mm = 40 mm off 300, so they are changed; 150 / 180 / 200 mm are standard). No upload, no mock.
  *
  * ## Request budget per full run
  * - `POST /api/auth/login`: 1 (beforeAll) + 8 flow sessions + 1 anonymous probe (no login) = 9 (limit 120 / 60 s per IP).
@@ -67,16 +68,24 @@ const NO_MEASUREMENT =
   'Chưa có số đo độ dày nào cho công trình này. Sang lớp tường để dò lại các đoạn tường, rồi quay lại đây để chuẩn hoá độ dày.'; // UT:THICKNESS_SCREEN_TEXT
 const NOTHING_LEFT = 'Không còn đoạn nào cần đổi.'; // TB:THICKNESS_BATCH_TEXT.nothingLeft
 const IDLE = 'Chưa đổi gì. Tích nhóm muốn đổi, bản vẽ sáng các đoạn của nhóm khi rê chuột.'; // TB:THICKNESS_BATCH_TEXT.idle
-const TOO_THIN = 'Nghi AI nhận nhầm'; // TB
-const TOO_THICK = 'Dày bất thường, có thể là cột BTCT'; // TB
-const MANUAL_LABEL = 'Xem tay'; // TST:OPTION_LABELS.CONCRETE_COLUMN
+const TOO_THICK = 'Dày bất thường, có thể là cột BTCT'; // TB:THICKNESS_BATCH_TEXT.column
+const MANUAL_LABEL = 'Cột BTCT'; // TST:OPTION_LABEL(CONCRETE_COLUMN) — shown on a column row, never offered as an option
 const COLLAPSE = 'Thu gọn khung xem trước'; // removed (bản Z): the drawing is the main view
 const TOASTS = 'Thông báo';
 const CHANGE_THICKNESS = 'Đổi độ dày'; // TableActionBar
 const PICKER = 'Chọn nhóm áp cho các đoạn đã chọn'; // TST:CHOOSE_GROUP_LABEL
 const CONFLICT = 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.'; // SLS:83
 const RELOAD = 'Tải lại'; // FSB:37
-const SLIDERS = ['Ngưỡng giữa 110 mm và 220 mm', 'Ngưỡng giữa 220 mm và 330 mm', 'Ngưỡng giữa 330 mm và xem tay (≥ 400 mm)'] as const; // TH
+const SLIDERS = [
+  'Ngưỡng giữa 100 mm và 150 mm',
+  'Ngưỡng giữa 150 mm và 200 mm',
+  'Ngưỡng giữa 200 mm và 220 mm',
+  'Ngưỡng giữa 220 mm và 300 mm',
+  'Ngưỡng giữa 300 mm và 400 mm',
+  'Ngưỡng giữa 400 mm và cột bê tông cốt thép',
+] as const; // TH:THRESHOLD_LABELS (lowerFirst of thicknessGroupLabel)
+/** Default thresholds (TT:DEFAULT_THICKNESS_THRESHOLDS): tier midpoints + the 450 mm column threshold. */
+const DEFAULT_THRESHOLDS = [125, 175, 210, 260, 350, 450] as const;
 const HISTOGRAM = 'Biểu đồ phân bố độ dày tường theo mi-li-mét'; // TH:HISTOGRAM_LABEL
 const PROJECT_NOT_FOUND = 'Không tìm thấy dự án này';
 const FLOOR_MISSING = 'Không mở được tầng này';
@@ -233,7 +242,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
   test('SCR-21 · FL-21-01 · tick a group, "Đổi N đoạn" in one PUT, bar / toast undo, Ctrl+S', async ({ browser }) => {
     test.setTimeout(300_000);
     const built = await thkMix(adminApi, '21-01');
-    const ids = built.walls[0] as string[]; // 5 x 180, 150, 220
+    const ids = built.walls[0] as string[]; // 5 x 260, 340, 220
     const floorId = built.floorIds[0] as string;
     await withFlow(browser, [built], async (flow) => {
       const { page } = flow;
@@ -258,7 +267,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         const totals = text.split(/\s+/u).filter((token) => token.startsWith('6/7')).length;
         await attachJson('E04_21-B-004_summary.json', { text, totals });
         expect.soft(totals, 'the count "6/7" is shown once').toBe(1);
-        expect.soft(await groupRows(page).count(), 'group rows: → 110 and → 220; the 220 mm wall is standard, no row (BUG-421)').toBe(2);
+        expect.soft(await groupRows(page).count(), 'group rows: → 220 and → 300; the 220 mm wall is standard, no row (BUG-421)').toBe(2);
         await ev(page, '21-B-004', 'state-line');
       });
 
@@ -281,10 +290,10 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await ev(page, '21-A-006', 'batch-preview');
       });
 
-      await test.step('[21-C-011] labels have one decimal and a comma: "180,0 mm", "40,0 mm"', async () => {
+      await test.step('[21-C-011] labels have one decimal and a comma: "260,0 mm", "40,0 mm"', async () => {
         const measured = await column(page, 2);
         const deviation = await column(page, 4);
-        expect.soft(measured.filter((text) => /^180,0\s*mm$/u.test(text))).toHaveLength(5); // TG:lengthLabel
+        expect.soft(measured.filter((text) => /^260,0\s*mm$/u.test(text))).toHaveLength(5); // TG:lengthLabel
         expect.soft(deviation).toContain('40,0 mm');
         await attachJson('E04_21-C-011_labels.json', { measured, deviation });
         await closeDetail(page);
@@ -325,7 +334,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         const walls = applied === undefined ? [] : wallsOfPut(applied);
         expect(walls.length, 'the apply PUT of [21-A-009]').toBeGreaterThan(0);
         for (const id of ids.slice(0, 5)) expect.soft(thicknessOf(walls, id), `wall ${id}`).toBe(220);
-        expect.soft(thicknessOf(walls, ids[5] as string), 'the 150 mm wall is not in a ticked group').toBe(150);
+        expect.soft(thicknessOf(walls, ids[5] as string), 'the 340 mm wall (→ 300 group, not ticked) is unchanged').toBe(340);
         expect.soft(thicknessOf(walls, ids[6] as string)).toBe(220);
       });
 
@@ -335,7 +344,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       });
 
       await test.step('[21-A-012] "Hoàn tác" reverts the whole batch in one PUT', async () => {
-        const put = waitForPut(page, built.project.projectId, floorId, (walls) => ids.slice(0, 5).every((id) => thicknessOf(walls, id) === 180));
+        const put = waitForPut(page, built.project.projectId, floorId, (walls) => ids.slice(0, 5).every((id) => thicknessOf(walls, id) === 260));
         await toasts(page).getByRole('button', { name: UNDO, exact: true }).click();
         sent.push((await put).response.status());
         await expect.soft(statusLine(page)).toHaveText('6/7 đoạn không chuẩn, 1 đúng chuẩn');
@@ -351,7 +360,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       await test.step('[21-A-013] the toast "Hoàn tác" reverts the apply', async () => {
         const result = await applyGroup(page, built, 0, 220);
         expect(result.response.status()).toBe(200);
-        const put = waitForPut(page, built.project.projectId, floorId, (walls) => ids.slice(0, 5).every((id) => thicknessOf(walls, id) === 180));
+        const put = waitForPut(page, built.project.projectId, floorId, (walls) => ids.slice(0, 5).every((id) => thicknessOf(walls, id) === 260));
         const toast = toasts(page).getByRole('status').filter({ hasText: 'Chuẩn hoá độ dày 5 tường.' }).first();
         await toast.getByRole('button', { name: UNDO, exact: true }).click();
         expect.soft((await put).response.status()).toBe(200);
@@ -391,30 +400,30 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
   test('SCR-21 · FL-21-02 · tolerance 30 mm: standard vs changed, walls left for a manual review, success, reload', async ({ browser }) => {
     test.setTimeout(300_000);
     const built = await thkTol(adminApi, '21-02');
-    const ids = built.walls[0] as string[]; // 150, 189, 190, 200, 220, 60, 180 (reviewed)
+    const ids = built.walls[0] as string[]; // 340, 251, 250, 200, 220, 500, 260 (reviewed)
     const floorId = built.floorIds[0] as string;
     await withFlow(browser, [built], async (flow) => {
       const { page } = flow;
       await openThickness(page, built);
       const code = (index: number): string => wallCode(ids[index] as string, ids);
 
-      await test.step('[21-A-007] the batch line names what stays out: the 60 mm wall (manual) and the reviewed wall', async () => {
-        await tick(acceptBox(page, 110));
+      await test.step('[21-A-007] the batch line names what stays out: the 500 mm wall (column, manual) and the reviewed wall', async () => {
+        await tick(acceptBox(page, 300));
         await tick(acceptBox(page, 220));
         await expect.soft(batchLine(page)).toHaveText('2 đoạn về 2 nhóm chuẩn. 1 đoạn không đổi. 1 tường đã duyệt không nằm trong lô.'); // TB:batchSentenceOf
         await expect.soft(region(page).getByText('Không đổi, giữ ở lớp Tường để xem tay (1)', { exact: true })).toBeVisible();
-        await expect.soft(region(page).getByText(TOO_THIN, { exact: true })).toBeVisible();
+        await expect.soft(region(page).getByText(TOO_THICK, { exact: true })).toBeVisible();
         await expect.soft(manualLink(page, code(5))).toBeVisible();
         await ev(page, '21-A-007', 'unchanged-listed');
       });
 
-      await test.step('[21-C-002] tolerance is 30 mm, inclusive: 190 vs 220 is standard ("Trung tính"), 189 is changed ("Cần chú ý")', async () => {
+      await test.step('[21-C-002] tolerance is 30 mm, inclusive: 250 vs 220 is standard ("Trung tính"), 251 is changed ("Cần chú ý")', async () => {
         const statuses = await column(page, 7);
         const codes = await column(page, 1);
         const statusOf = (index: number): string | undefined => statuses[codes.indexOf(code(index))];
-        expect.soft(statusOf(1)).toBe('Cần chú ý'); // 189 -> deviation 31 > 30, will change (TG:toSegmentRow)
-        expect.soft(statusOf(2)).toBe('Trung tính'); // 190 -> deviation 30, standard
-        expect.soft(statusOf(5)).toBe('Vi phạm'); // 60 mm -> manual review
+        expect.soft(statusOf(1)).toBe('Cần chú ý'); // 251 -> deviation 31 > 30, will change (TG:toSegmentRow)
+        expect.soft(statusOf(2)).toBe('Trung tính'); // 250 -> deviation 30, standard
+        expect.soft(statusOf(5)).toBe('Vi phạm'); // 500 mm -> column (> 450), manual review
         await attachJson('E04_21-C-002_statuses.json', { codes, statuses });
         await closeDetail(page);
       });
@@ -436,9 +445,9 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       });
 
       await test.step('[21-C-008] a negative tolerance: n/a; the reviewed wall is never in the batch, whatever is ticked', async () => {
-        await tick(acceptBox(page, 110)); // untick
+        await tick(acceptBox(page, 300)); // untick
         await tick(acceptBox(page, 220)); // untick
-        await expect.soft(selectAllBtn(page)).toHaveText('Chọn cả 2 nhóm (2 đoạn)'); // the reviewed 180 mm wall is not counted
+        await expect.soft(selectAllBtn(page)).toHaveText('Chọn cả 2 nhóm (2 đoạn)'); // the reviewed 260 mm wall is not counted
       });
 
       await test.step('[21-B-015] row status badges and the off-standard dot', async () => {
@@ -446,7 +455,8 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         expect.soft(new Set(statuses)).toEqual(new Set(['Đã duyệt', 'Vi phạm', 'Cần chú ý', 'Trung tính'])); // TST
         const withDot = await segRows(page).evaluateAll((rows) => rows.filter((row) => row.querySelectorAll('td')[4]?.querySelector('span[aria-hidden="true"]') !== null).length);
         await attachJson('E04_21-B-015_badges.json', { statuses, rowsWithDot: withDot });
-        expect.soft(withDot, 'dot beside "Sai lệch" only over the tolerance (150, 189, 60, reviewed 180)').toBe(4);
+        // the 500 mm column row has no tier to deviate from (deviation 0, TG:deviationOf), so no dot
+        expect.soft(withDot, 'dot beside "Sai lệch" only over the tolerance (340, 251, reviewed 260)').toBe(3);
         await ev(page, '21-B-015', 'row-badges');
         await closeDetail(page);
       });
@@ -468,7 +478,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await expect(region(page)).toBeVisible();
         await openDetail(page);
         await expect(segRows(page)).toHaveCount(7);
-        expect.soft((await column(page, 2)).sort()).toEqual(['110,0 mm', '180,0 mm', '190,0 mm', '200,0 mm', '220,0 mm', '220,0 mm', '60,0 mm']); // UFL
+        expect.soft((await column(page, 2)).sort()).toEqual(['200,0 mm', '220,0 mm', '220,0 mm', '250,0 mm', '260,0 mm', '300,0 mm', '500,0 mm']); // UFL
         await closeDetail(page);
         await expect.soft(acceptBox(page)).toHaveCount(0);
         await expect.soft(region(page).getByRole('region', { name: GROUPS_SECTION, exact: true })).toHaveCount(0);
@@ -486,10 +496,17 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
   test('SCR-21 · FL-21-03 · thresholds: rounding edges, drag, keys, Home/End, crossing, histogram, live state', async ({ browser }) => {
     test.setTimeout(300_000);
     const built = await thkSpread(adminApi, '21-03');
-    const ids = built.walls[0] as string[]; // 79 80 165 166 275 276 399 400
+    const ids = built.walls[0] as string[]; // 125 126 175 176 210 211 260 261 350 351 450 451
     const floorId = built.floorIds[0] as string;
     await withFlow(browser, [built], async (flow) => {
       const { page } = flow;
+      /** Reload with the default thresholds: dragged thresholds are kept per project in sessionStorage (UT:saveThresholds). */
+      const reloadDefaults = async (): Promise<void> => {
+        await page.evaluate(() => {
+          for (const key of Object.keys(sessionStorage)) if (key.startsWith('thickness-thresholds:')) sessionStorage.removeItem(key);
+        });
+        await page.reload();
+      };
       const groupLabelOf = async (index: number): Promise<string> => {
         await openDetail(page);
         return rowOfCode(page, wallCode(ids[index] as string, ids)).getByRole('combobox').innerText();
@@ -516,28 +533,27 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       };
       await openThickness(page, built);
 
-      await test.step('[21-C-001] default rounding at 80 / 166 / 276 / 400 follows roundWallThickness', async () => {
-        expect.soft(await groupLabelOf(2)).toBe('110 mm'); // 165 -> 110
-        expect.soft(await groupLabelOf(3)).toBe('220 mm'); // 166 -> 220
-        expect.soft(await groupLabelOf(4)).toBe('220 mm'); // 275 -> 220
-        expect.soft(await groupLabelOf(5)).toBe('330 mm'); // 276 -> 330
-        expect.soft(await groupLabelOf(6)).toBe('330 mm'); // 399 -> 330
-        expect.soft(await groupLabelOf(7)).toBe(MANUAL_LABEL); // 400 -> manual review
+      await test.step('[21-C-001] default rounding at the six-tier edges follows standardizeThickness (ties go to the smaller tier)', async () => {
+        const expected = ['100 mm', '150 mm', '150 mm', '200 mm', '200 mm', '220 mm', '220 mm', '300 mm', '300 mm', '400 mm', '400 mm', MANUAL_LABEL];
+        // 125 -> 100 · 126 / 175 -> 150 · 176 / 210 -> 200 · 211 / 260 -> 220 · 261 / 350 -> 300 · 351 / 450 -> 400 · 451 -> column
+        for (const [index, label] of expected.entries()) expect.soft(await groupLabelOf(index), `${String(index)}: wall of the edge set`).toBe(label);
         await closeDetail(page);
-        await expect.soft(region(page).getByText(TOO_THIN, { exact: true })).toBeVisible(); // 79 mm
-        await expect.soft(region(page).getByText(TOO_THICK, { exact: true })).toBeVisible(); // 400 mm
-        await expect.soft(statusLine(page)).toHaveText('7/8 đoạn không chuẩn, 1 đúng chuẩn'); // 80 mm is 30 off 110: standard
+        await expect.soft(region(page).getByText(TOO_THICK, { exact: true })).toBeVisible(); // 451 mm
+        // over 30 mm off the tier: 260 (40), 261 (39), 350 (50), 351 (49), 450 (50) and the 451 column; the other six are standard
+        await expect.soft(statusLine(page)).toHaveText('6/12 đoạn không chuẩn, 6 đúng chuẩn');
         await ev(page, '21-C-001', 'default-rounding');
       });
 
       await test.step('[21-A-016] drag a threshold line with the mouse: 5 mm steps, groups regroup, no PUT', async () => {
         const from = flow.sent.length;
-        await dragSlider(0, 200);
-        const now = await value(0);
+        await dragSlider(3, 235); // the 220 | 300 line (260 by default)
+        const now = await value(3);
         expect.soft(now % 5, 'moves in 5 mm steps').toBe(0); // TH
-        expect.soft(now).toBeGreaterThan(180);
-        await expect.soft(slider(page, 0)).toHaveAttribute('aria-valuetext', `${now} mm`);
-        await expect.soft(groupRow(page, 110)).toContainText('165–166 mm'); // 166 mm is now below the first threshold
+        expect.soft(now).toBeGreaterThan(215);
+        expect.soft(now).toBeLessThan(260);
+        await expect.soft(slider(page, 3)).toHaveAttribute('aria-valuetext', `${now} mm`);
+        await expect.soft(groupRow(page, 300)).toContainText('260–350 mm'); // 260 mm is now above the moved line
+        await expect.soft(groupRow(page, 220)).toHaveCount(0); // 211 mm (9 off 220) was the only other wall of 220
         expect.soft(putsTo(flow, floorId, from)).toBe(0);
         await ev(page, '21-A-016', 'threshold-dragged');
       });
@@ -547,26 +563,29 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await slider(page, 0).focus();
         await page.keyboard.press('Home');
         expect.soft(await value(0), 'Home on the first line = the axis minimum').toBe(min);
-        const max = await limit(2, 'max');
-        await slider(page, 2).focus();
+        const last = SLIDERS.length - 1;
+        const max = await limit(last, 'max');
+        await slider(page, last).focus();
         await page.keyboard.press('End');
-        expect.soft(await value(2), 'End on the last line = the axis maximum').toBe(max);
+        expect.soft(await value(last), 'End on the last line = the axis maximum').toBe(max);
       });
 
       await test.step('[21-A-019] ⚑ push a threshold past its neighbour: it stops, focus stays on the dragged one', async () => {
-        await page.reload();
+        await reloadDefaults();
         await expect(slider(page, 0)).toBeVisible();
         await slider(page, 0).focus();
         await page.keyboard.press('End');
         const max = await limit(0, 'max');
         const focused = await page.evaluate(() => Number(document.activeElement?.getAttribute('aria-valuenow')));
-        await attachJson('E04_21-A-019_focus.json', { focused, max, values: [await value(0), await value(1), await value(2)] });
+        const values: number[] = [];
+        for (const index of SLIDERS.keys()) values.push(await value(index));
+        await attachJson('E04_21-A-019_focus.json', { focused, max, values });
         expect.soft(focused, 'focus stays on the line that was moved').toBe(await value(0)); // TG:withThresholdAt
         expect.soft(await value(0), 'the dragged line never crosses its neighbour').toBeLessThan(await value(1));
       });
 
       await test.step('[21-A-020] ⚑ Home pressed repeatedly stops at a fixed axis minimum', async () => {
-        await page.reload();
+        await reloadDefaults();
         await slider(page, 0).focus();
         const seen: number[] = [];
         for (let press = 0; press < 3; press += 1) {
@@ -575,40 +594,40 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         }
         await attachJson('E04_21-A-020_home.json', { seen });
         expect.soft(new Set(seen).size, 'Home gives the same value every time').toBe(1);
-        expect.soft(Math.min(...seen), 'never below zero').toBeGreaterThanOrEqual(0);
+        expect.soft(Math.min(...seen), 'never below the smallest tier (100 mm, UT:MIN_THRESHOLD_MM)').toBeGreaterThanOrEqual(100);
       });
 
       await test.step('[21-C-013] dragging thresholds never writes and never adds undo steps', async () => {
-        await page.reload();
-        await expect(slider(page, 0)).toBeVisible();
+        await reloadDefaults();
+        await expect(slider(page, 3)).toBeVisible();
         const from = flow.sent.length;
-        for (const target of [180, 190, 175, 185, 170]) await dragSlider(0, target);
-        const after = await value(0);
+        for (const target of [240, 250, 235, 245, 230]) await dragSlider(3, target);
+        const after = await value(3);
         await button(page, UNDO).click();
-        expect.soft(await value(0), '"Hoàn tác" does not move a threshold').toBe(after);
+        expect.soft(await value(3), '"Hoàn tác" does not move a threshold').toBe(after);
         expect.soft(putsTo(flow, floorId, from)).toBe(0);
       });
 
-      await test.step('[21-C-003] the manual-review walls (< 80 mm, ≥ 400 mm) are listed apart and never in the batch', async () => {
-        await page.reload();
+      await test.step('[21-C-003] the manual-review walls (columns, > 450 mm) are listed apart and never in the batch', async () => {
+        await reloadDefaults();
         await expect(slider(page, 0)).toBeVisible();
-        await expect.soft(region(page).getByText('Không đổi, giữ ở lớp Tường để xem tay (2)', { exact: true })).toBeVisible();
-        await expect.soft(selectAllBtn(page)).toHaveText('Chọn cả 3 nhóm (5 đoạn)'); // 79 and 400 are not counted
+        await expect.soft(region(page).getByText('Không đổi, giữ ở lớp Tường để xem tay (1)', { exact: true })).toBeVisible();
+        await expect.soft(selectAllBtn(page)).toHaveText('Chọn cả 3 nhóm (5 đoạn)'); // the 451 mm column is not counted
         await expect.soft(acceptBox(page)).toHaveCount(3);
       });
 
       await test.step('[21-C-004] group table: one row per target group, ascending, with the real measured range', async () => {
         const rows = await groupRows(page).evaluateAll((nodes) => nodes.map((node) => node.querySelector('td')?.textContent?.trim() ?? ''));
-        expect.soft(rows).toEqual(['165 mm', '166–275 mm', '276–399 mm']); // TB:toTargetGroups
-        expect.soft(rows.map((text) => viNumber(text.split(/[–\s]/u)[0] ?? ''))).toEqual([165, 166, 276]);
+        expect.soft(rows).toEqual(['260 mm', '261–350 mm', '351–450 mm']); // TB:toTargetGroups (→ 220, → 300, → 400)
+        expect.soft(rows.map((text) => viNumber(text.split(/[–\s]/u)[0] ?? ''))).toEqual([260, 261, 351]);
       });
 
-      await test.step('[21-B-013] ⚑ histogram: 5 mm bins, labels "80 mm" / "166 mm" / "276 mm" / "400 mm", x ticks at least 32 px apart (BUG-394 / 406)', async () => {
-        await page.reload();
+      await test.step('[21-B-013] ⚑ histogram: 5 mm bins, the six threshold labels "125 mm" … "450 mm", x ticks at least 32 px apart (BUG-394 / 406)', async () => {
+        await reloadDefaults();
         await expect(slider(page, 0)).toBeVisible();
         const hist = page.getByRole('region', { name: HISTOGRAM, exact: true });
-        for (const label of ['80 mm', '166 mm', '276 mm', '400 mm']) await expect.soft(hist.getByText(label, { exact: true }).first()).toBeVisible();
-        expect.soft(await hist.locator('[aria-hidden="true"].bg-text-muted').count(), 'bins 75 … 400 in 5 mm steps').toBe(66);
+        for (const mm of DEFAULT_THRESHOLDS) await expect.soft(hist.getByText(`${String(mm)} mm`, { exact: true }).first()).toBeVisible();
+        expect.soft(await hist.locator('[aria-hidden="true"].bg-text-muted').count(), 'bins 125 … 450 in 5 mm steps').toBe(66);
         const ticks = hist.locator('div.relative.h-4.w-full').last().locator('span.absolute:not(.right-0)');
         const xs: number[] = [];
         for (const tick of await ticks.all()) {
@@ -621,13 +640,11 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await ev(page, '21-B-013', 'histogram');
       });
 
-      await test.step('[21-E-002] three sliders with their names and aria-valuetext', async () => {
+      await test.step('[21-E-002] six sliders with their names and aria-valuetext', async () => {
         for (const [index, name] of SLIDERS.entries()) {
           await expect.soft(slider(page, index)).toHaveAccessibleName(name);
+          await expect.soft(slider(page, index)).toHaveAttribute('aria-valuetext', `${String(DEFAULT_THRESHOLDS[index])} mm`);
         }
-        await expect.soft(slider(page, 0)).toHaveAttribute('aria-valuetext', '166 mm');
-        await expect.soft(slider(page, 1)).toHaveAttribute('aria-valuetext', '276 mm');
-        await expect.soft(slider(page, 2)).toHaveAttribute('aria-valuetext', '400 mm');
       });
 
       await test.step('[21-E-003] histogram bars are aria-hidden: per-bin counts are not exposed', async () => {
@@ -639,15 +656,15 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
 
       await test.step('[21-E-004] the batch sentence is live (aria-live polite)', async () => {
         await expect.soft(batchLine(page)).toHaveCount(1); // TBP:ThicknessBatchFooter
-        await tick(acceptBox(page, 110));
+        await tick(acceptBox(page, 220)); // the 260 mm wall only
         await expect.soft(batchLine(page)).toHaveText(/^1 đoạn về 1 nhóm chuẩn\./u);
-        await tick(acceptBox(page, 110));
+        await tick(acceptBox(page, 220));
       });
 
       await test.step('[21-A-039] ⚑ hover a histogram bin: the other bars dim to 0,45 and the drawing highlights that bin\'s walls', async () => {
         const bars = page.getByRole('region', { name: HISTOGRAM, exact: true }).locator('[aria-hidden="true"].bg-text-muted');
         const before = await polygons(page).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('fill-opacity')));
-        const target = bars.nth(18); // the bin of 165 mm (index (165 - 75) / 5)
+        const target = bars.nth(27); // the bin of 260 mm (index (260 - 125) / 5)
         await target.locator('xpath=..').hover();
         await expect
           .poll(
@@ -662,12 +679,12 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       });
 
       await test.step('[21-A-037] hover a group row: its walls are highlighted on the drawing, the others dimmed', async () => {
-        await groupRow(page, 220).hover();
+        await groupRow(page, 300).hover();
         const matched = await polygons(page).evaluateAll((nodes) => nodes.filter((node) => Math.abs(Number(node.getAttribute('fill-opacity')) - 0.9) < 0.01).length);
         const dimmed = await polygons(page).evaluateAll((nodes) => nodes.filter((node) => Math.abs(Number(node.getAttribute('fill-opacity')) - 0.18) < 0.01).length);
         await attachJson('E04_21-A-037_hover.json', { matched, dimmed });
-        expect.soft(matched, 'walls of the → 220 mm group (166, 275)').toBe(2); // TPC
-        expect.soft(dimmed).toBe(6);
+        expect.soft(matched, 'walls of the → 300 mm group (261, 350)').toBe(2); // TPC
+        expect.soft(dimmed).toBe(10);
       });
     });
   });
@@ -726,14 +743,14 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await changeBtn(page, 1).click();
         excluded = await put;
         const walls = wallsOfPut(excluded);
-        expect.soft(thicknessOf(walls, reviewedWalls[0] as string), 'the reviewed wall keeps 180 mm').toBe(180);
+        expect.soft(thicknessOf(walls, reviewedWalls[0] as string), 'the reviewed wall keeps 260 mm').toBe(260);
         expect.soft(thicknessOf(walls, reviewedWalls[1] as string), 'the unreviewed wall is 220 mm').toBe(220);
         await ev(page, '21-A-025', 'reviewed-kept');
       });
 
       await test.step('[21-C-006] a batch never changes a reviewed wall and needs no warning', async () => {
         await expect.soft(region(page).getByText(/sẽ đổi tường đã duyệt/u)).toHaveCount(0);
-        expect.soft(excluded === undefined ? null : thicknessOf(wallsOfPut(excluded), reviewedWalls[0] as string)).toBe(180);
+        expect.soft(excluded === undefined ? null : thicknessOf(wallsOfPut(excluded), reviewedWalls[0] as string)).toBe(260);
         await expect.soft(acceptBox(page)).toHaveCount(0); // nothing left in the batch: the reviewed wall is not offered
       });
 
@@ -773,7 +790,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
           await tick(drawer(page).getByRole('checkbox', { name: `Chọn dòng tường ${wallCode(wallId, ids)}`, exact: true }));
           await drawer(page).getByRole('button', { name: CHANGE_THICKNESS, exact: true }).click();
           const group = drawer(page).getByRole('group', { name: PICKER, exact: true });
-          await group.getByRole('radio', { name: '110 mm', exact: true }).click();
+          await group.getByRole('radio', { name: '100 mm', exact: true }).click();
           const put = waitForPut(page, project, reviewedFloor);
           await group.getByRole('button', { name: APPLY, exact: true }).click();
           await put;
@@ -798,7 +815,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
   test('SCR-21 · FL-21-05 · row overrides, row selection, "Đổi độ dày" picker (drawer "Bảng từng đoạn tường")', async ({ browser }) => {
     test.setTimeout(300_000);
     const built = await thkMix(adminApi, '21-05');
-    const ids = built.walls[0] as string[]; // 5 x 180, 150, 220
+    const ids = built.walls[0] as string[]; // 5 x 260, 340, 220
     const floorId = built.floorIds[0] as string;
     await withFlow(browser, [built], async (flow) => {
       const { page } = flow;
@@ -818,30 +835,30 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       await test.step('[21-A-029] a row set to another group is a real write (BUG-585): measured becomes the group value, deviation 0, status neutral', async () => {
         const from = flow.sent.length;
         const put = waitForPut(page, built.project.projectId, floorId);
-        await pick(0, '330 mm');
+        await pick(0, '400 mm');
         await put;
-        await expect.soft(groupSelect(0)).toHaveText('330 mm');
+        await expect.soft(groupSelect(0)).toHaveText('400 mm');
         const row = rowOfCode(page, code(0));
-        await expect.soft(row).toContainText('330,0 mm');
+        await expect.soft(row).toContainText('400,0 mm');
         await expect.soft(row).toContainText('0,0 mm');
         await expect.soft(row).toContainText('Trung tính');
         expect.soft(putsTo(flow, floorId, from), 'one group change = one write').toBe(1);
         await ev(page, '21-A-029', 'row-override');
       });
 
-      await test.step('[21-E-005] row group combobox "Độ dày chuẩn hoá của đoạn #…" opens a listbox with 110 / 220 / 330 only', async () => {
+      await test.step('[21-E-005] row group combobox "Độ dày chuẩn hoá của đoạn #…" opens a listbox with the six tiers only', async () => {
         await groupSelect(1).click();
-        // BUG-593: the manual-review group ("Xem tay") has no apply command, so the row picker does not offer it.
-        await expect.soft(page.getByRole('listbox').getByRole('option')).toHaveText(['110 mm', '220 mm', '330 mm']);
+        // BUG-593: the column group ("Cột BTCT", manual review) has no apply command, so the row picker does not offer it.
+        await expect.soft(page.getByRole('listbox').getByRole('option')).toHaveText(['100 mm', '150 mm', '200 mm', '220 mm', '300 mm', '400 mm']);
         await page.keyboard.press('Escape');
         await expect.soft(page.getByRole('listbox')).toHaveCount(0);
       });
 
       await test.step('[21-C-012] row overrides survive a batch (never reset)', async () => {
-        const result = await applyGroup(page, built, 0, 220); // closes the drawer first: the remaining 4 x 180 mm
+        const result = await applyGroup(page, built, 0, 220); // closes the drawer first: the remaining 4 x 260 mm
         expect(result.response.status()).toBe(200);
         await openDetail(page);
-        await expect.soft(groupSelect(0)).toHaveText('330 mm');
+        await expect.soft(groupSelect(0)).toHaveText('400 mm');
         await ev(page, '21-C-012', 'override-survives');
       });
 
@@ -876,7 +893,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await tick(rowBox(2));
         await drawer(page).getByRole('button', { name: CHANGE_THICKNESS, exact: true }).click();
         await expect.soft(drawer(page).getByText('Chọn nhóm áp cho 2 tường đã chọn:', { exact: true })).toBeVisible();
-        await expect.soft(picker().getByRole('radio', { name: '110 mm', exact: true })).toHaveAttribute('aria-checked', 'true');
+        await expect.soft(picker().getByRole('radio', { name: '100 mm', exact: true })).toHaveAttribute('aria-checked', 'true'); // TST:DEFAULT_GROUP_KEY
         const put = waitForPut(page, built.project.projectId, floorId);
         await picker().getByRole('button', { name: APPLY, exact: true }).click();
         await put;
@@ -894,11 +911,11 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         expect.soft(putsTo(flow, floorId, from)).toBe(0);
       });
 
-      await test.step('[21-A-034] ⚑ picker "Xem tay" -> "Áp dụng": expected a change or a refusal, not a silent no-op', async () => {
+      await test.step('[21-A-034] ⚑ picker "Cột BTCT" -> "Áp dụng": expected a change or a refusal, not a silent no-op', async () => {
         await drawer(page).getByRole('button', { name: CHANGE_THICKNESS, exact: true }).click();
         const manual = picker().getByRole('radio', { name: MANUAL_LABEL, exact: true });
         if ((await manual.count()) === 0) {
-          note('[21-A-034] the picker offers no "Xem tay" option: nothing to apply');
+          note('[21-A-034] the picker offers no "Cột BTCT" option (BUG-593): nothing to apply');
           await picker().getByRole('button', { name: CANCEL, exact: true }).click();
           return;
         }
@@ -909,7 +926,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await softly
           .poll(
             async () => putsTo(flow, floorId, from) > 0 || (await toasts(page).getByRole('button', { name: UNDO, exact: true }).count()) > toastsBefore || (await page.getByRole('alert').count()) > 0,
-            { timeout: 4_000, message: 'a PUT, a toast or an alert follows "Áp dụng" on "Xem tay"' },
+            { timeout: 4_000, message: 'a PUT, a toast or an alert follows "Áp dụng" on "Cột BTCT"' },
           )
           .toBe(true);
         await ev(page, '21-A-034', 'picker-manual');
@@ -945,7 +962,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       await test.step('[21-A-036] sort by "Độ dày đo được" / "Sai lệch" / "Độ tin cậy" / "Tầng": default deviation desc, direction fixed per column', async () => {
         expect.soft(await numbers(4), 'default: deviation descending').toEqual([40, 40, 40, 40, 40, 40, 0]);
         await head('Độ dày đo được').click();
-        expect.soft(await numbers(2), 'measured ascending').toEqual([150, 180, 180, 180, 180, 180, 220]);
+        expect.soft(await numbers(2), 'measured ascending').toEqual([220, 260, 260, 260, 260, 260, 340]);
         await head('Sai lệch').click();
         expect.soft(await numbers(4), 'deviation descending again').toEqual([40, 40, 40, 40, 40, 40, 0]);
         await head('Độ tin cậy').click();
@@ -1005,7 +1022,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
 
       await test.step('[21-E-011] no "Dung sai" field (fixed 30 mm); the units on the panel are mm', async () => {
         await expect.soft(page.getByLabel(TOLERANCE, { exact: true })).toHaveCount(0);
-        await expect.soft(groupRow(page, 220)).toContainText('180 mm');
+        await expect.soft(groupRow(page, 220)).toContainText('260 mm');
       });
 
       await test.step('[21-E-012] with reduced motion a click on a group checkbox lands at once', async () => {
@@ -1020,14 +1037,14 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         expect(applied.response.status()).toBe(200);
         await expect.soft(statusLine(page)).toHaveText('1/7 đoạn không chuẩn, 6 đúng chuẩn');
         await page.locator('body').click({ position: { x: 2, y: 2 } });
-        const put = waitForPut(page, built.project.projectId, floorId, (walls) => ids.slice(0, 5).every((id) => thicknessOf(walls, id) === 180)).catch(() => null);
+        const put = waitForPut(page, built.project.projectId, floorId, (walls) => ids.slice(0, 5).every((id) => thicknessOf(walls, id) === 260)).catch(() => null);
         await page.keyboard.press('Control+Z');
         await put;
         await expect.poll(async () => statusLine(page).innerText(), { message: 'Ctrl+Z reverts the batch' }).toBe('6/7 đoạn không chuẩn, 1 đúng chuẩn');
         await button(page, UNDO).click();
         const after = await numbers(2);
         await attachJson('E04_21-A-015_after.json', { after });
-        expect.soft(after.filter((value) => value === 180), '"Hoàn tác" after Ctrl+Z does not re-apply the inverse').toHaveLength(5);
+        expect.soft(after.filter((value) => value === 260), '"Hoàn tác" after Ctrl+Z does not re-apply the inverse').toHaveLength(5);
         await closeDetail(page);
         await ev(page, '21-A-015', 'ctrl-z');
       });
@@ -1036,9 +1053,9 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await page.reload();
         await expect(region(page)).toBeVisible();
         const legend = page.getByRole('list', { name: 'Chú giải độ dày tường', exact: true });
-        await expect.soft(legend.getByRole('listitem')).toHaveText(['110 mm', '220 mm', 'Không chuẩn']); // TG:thicknessLegend, TPC
-        await expect.soft(legend).not.toContainText('330 mm');
-        await expect.soft(legend).not.toContainText('Xem tay');
+        await expect.soft(legend.getByRole('listitem')).toHaveText(['220 mm', '300 mm', 'Không chuẩn']); // TG:thicknessLegend, TPC
+        await expect.soft(legend).not.toContainText('400 mm');
+        await expect.soft(legend).not.toContainText('Cột bê tông cốt thép');
       });
     });
   });
@@ -1153,7 +1170,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       });
 
       await test.step('[21-B-011] 409: a write elsewhere, then an undo here shows the reload banner (shared FSB copy)', async () => {
-        await seedWalls(adminApi, project, floorA, [{ from: [0, 0], to: [4_000, 0], thicknessMm: 180 }, { from: [0, 1_500], to: [4_000, 1_500], thicknessMm: 180 }]);
+        await seedWalls(adminApi, project, floorA, [{ from: [0, 0], to: [4_000, 0], thicknessMm: 260 }, { from: [0, 1_500], to: [4_000, 1_500], thicknessMm: 260 }]);
         await toasts(page).getByRole('button', { name: UNDO, exact: true }).first().click();
         await expect(region(page).getByText(CONFLICT, { exact: true })).toBeVisible({ timeout: 15_000 });
         await expect.soft(region(page).getByRole('button', { name: RELOAD, exact: true })).toBeVisible();

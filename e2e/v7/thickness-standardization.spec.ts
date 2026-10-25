@@ -53,7 +53,8 @@ async function openSeeded(page: Page): Promise<void> {
   await open(page);
   await seedQcb(page, 'thickness');
   /* 16 đoạn/tầng: lớp theo tầng từ F-04x (5acd859f, de24e523); trước đó màn đếm cả 48 của ba tầng.
-     Luật S-21 (dung sai 30 mm): 195/110/220/330/360 là chuẩn; 274 đổi về 220; 70 mm xem tay. */
+     Thang sáu bậc (dung sai 30 mm): 195/110/220/330/390 là chuẩn; 65 → 100 và 265 → 300 là không chuẩn;
+     tầng này không có cột BTCT (> 450 mm) nên không có đoạn xem tay. */
   await expect(status(page)).toHaveText('2/16 đoạn không chuẩn, 14 đúng chuẩn');
 }
 
@@ -89,12 +90,13 @@ test('đường nạp thật: tầng chưa có lớp thì màn nói thật "chư
   await expect(status(page)).toHaveCount(0);
 });
 
-test('bơm bộ mẫu: nhóm không tích sẵn, đoạn xem tay đứng ngoài lô, không số thập phân dấu chấm (V7-THICK-02, A15)', async ({ page }) => {
+test('bơm bộ mẫu: nhóm không tích sẵn, không đoạn xem tay khi tầng không có cột BTCT, không số thập phân dấu chấm (V7-THICK-02, A15)', async ({ page }) => {
   await openSeeded(page);
 
-  await expect(page.getByRole('checkbox', { name: 'Đồng ý đổi các đoạn 274 mm về 220 mm' })).not.toBeChecked();
-  await expect(page.getByRole('button', { name: 'Chọn nhóm này (1 đoạn)' })).toBeVisible();
-  await expect(page.getByText('Nghi AI nhận nhầm', { exact: true })).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Đồng ý đổi các đoạn 65 mm về 100 mm' })).not.toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Đồng ý đổi các đoạn 265 mm về 300 mm' })).not.toBeChecked();
+  await expect(page.getByRole('button', { name: 'Chọn cả 2 nhóm (2 đoạn)' })).toBeVisible();
+  await expect(page.getByText('Dày bất thường, có thể là cột BTCT', { exact: true })).toHaveCount(0);
 
   /* A15: không một số thập phân nào dùng dấu chấm trên cả màn. */
   const body = await page.locator('body').innerText();
@@ -116,12 +118,12 @@ test('bơm bộ mẫu: Esc đóng ngăn kéo bảng từng đoạn và không r�
 });
 
 /* Đường phím (A12): Space tích nhóm, rồi nút chính "Đổi 1 đoạn". */
-test('bơm bộ mẫu: tích nhóm bằng phím, đổi — 1 tường về 220 mm, toast hoàn tác trả nguyên trạng (V7-THICK-05, A8)', async ({
+test('bơm bộ mẫu: tích nhóm bằng phím, đổi — 1 tường về 300 mm, toast hoàn tác trả nguyên trạng (V7-THICK-05, A8)', async ({
   page,
 }) => {
   await openSeeded(page);
 
-  const accept = page.getByRole('checkbox', { name: 'Đồng ý đổi các đoạn 274 mm về 220 mm' });
+  const accept = page.getByRole('checkbox', { name: 'Đồng ý đổi các đoạn 265 mm về 300 mm' });
   await accept.focus();
   await page.keyboard.press('Space');
   await expect(accept).toBeChecked();
@@ -134,5 +136,5 @@ test('bơm bộ mẫu: tích nhóm bằng phím, đổi — 1 tường về 220 
   await toast(page).getByRole('button', { name: 'Hoàn tác' }).click();
 
   await expect(status(page)).toHaveText('2/16 đoạn không chuẩn, 14 đúng chuẩn');
-  await expect(page.getByRole('checkbox', { name: 'Đồng ý đổi các đoạn 274 mm về 220 mm' })).not.toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Đồng ý đổi các đoạn 265 mm về 300 mm' })).not.toBeChecked();
 });

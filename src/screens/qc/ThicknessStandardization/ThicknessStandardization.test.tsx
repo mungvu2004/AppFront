@@ -89,7 +89,7 @@ import {
   createMockThicknessStandardizationGateway,
   deviationOf,
 } from './thicknessStandardizationGateway';
-import { DEFAULT_TOLERANCE_MM, THICKNESS_GROUP_LABELS } from './thicknessTypes';
+import { DEFAULT_TOLERANCE_MM, thicknessGroupLabel } from './thicknessTypes';
 
 /* -------------------------------------------------------------------------- */
 /* Nhãn đọc trên màn — cùng chữ mà view và các mảnh con dựng.                   */
@@ -99,8 +99,8 @@ const SCREEN_ARIA_LABEL = 'Chuẩn hoá độ dày tường';
 const HISTOGRAM_SECTION_LABEL = 'Phân bố độ dày đo được';
 const UNDO_LABEL = 'Hoàn tác';
 const DETAIL_LABEL = /^Xem bảng từng đoạn \(\d+\)$/u;
-const LOW_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[110])} và ${lowerFirst(THICKNESS_GROUP_LABELS[220])}`;
-const HIGH_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[330])} và ${lowerFirst(THICKNESS_GROUP_LABELS.CONCRETE_COLUMN)}`;
+const LOW_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(thicknessGroupLabel(100))} và ${lowerFirst(thicknessGroupLabel(150))}`;
+const HIGH_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(thicknessGroupLabel(400))} và ${lowerFirst(thicknessGroupLabel('CONCRETE_COLUMN'))}`;
 
 const PROJECT_ID = 'project-1';
 const FLOOR_ID = THICKNESS_FIXTURE_LEVELS[0]?.id ?? '';
@@ -129,7 +129,7 @@ const HEAVY_TEST_TIMEOUT_MS = 120000;
  * `PipelineFailure.test.tsx`, `CadBranchConfirm.test.tsx`), không phải một
  * lượt nới khẳng định: từng từ vẫn bị soát, chỉ hai từ được kê tên là bỏ qua.
  */
-/* "Xem tay" (nhãn nhóm ≥ 400 mm, S-21) cũng viết đúng mà không mang dấu nào. */
+/* "Xem tay" (danh sách đoạn cột BTCT > 450 mm, S-21) cũng viết đúng mà không mang dấu nào. */
 const ALLOWED_WORDS: readonly string[] = ['dung', 'sai', 'xem', 'tay'];
 
 /* -------------------------------------------------------------------------- */
@@ -144,19 +144,23 @@ function fixtureDeviationOf(wall: Wall): number | null {
 }
 
 /**
- * Lô của bản Z (S-21): đoạn KHÔNG chuẩn (lệch quá dung sai), không phải xem tay, chưa duyệt.
- * Đếm lại từ bộ mẫu: 164 → 110, 274 → 220, 276/280 → 330 (166 đã duyệt nên đứng ngoài lô).
+ * Lô của bản Z (S-21): đoạn KHÔNG chuẩn (lệch quá dung sai), không phải cột BTCT, chưa duyệt.
+ * Đếm lại từ bộ mẫu thang sáu bậc: 65/60 → 100, 265/335 → 300, 365 → 400 (255 đã duyệt nên đứng
+ * ngoài lô).
  */
 const BATCH_WALLS: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter((wall) => {
   const deviation = fixtureDeviationOf(wall);
 
-  return !wall.reviewed && wall.thicknessMm >= 80 && deviation !== null && deviation > DEFAULT_TOLERANCE_MM;
+  return !wall.reviewed && deviation !== null && deviation > DEFAULT_TOLERANCE_MM;
 });
 
-/** Đoạn xem tay: dưới 80 mm hoặc từ 400 mm (nhóm không có giá trị chuẩn). */
-const MANUAL_WALLS: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter(
-  (wall) => wall.thicknessMm < 80 || fixtureDeviationOf(wall) === null,
-);
+/** Các bậc đích của lô, tăng dần — đọc từ bộ mẫu, không gõ tay. */
+const BATCH_GROUPS: readonly number[] = [
+  ...new Set(BATCH_WALLS.map((wall) => standardizeThickness(wall.thicknessMm).standardized as number)),
+].sort((first, second) => first - second);
+
+/** Đoạn xem tay: nhóm cột BTCT (trên ngưỡng 450 mm, không có giá trị chuẩn). */
+const MANUAL_WALLS: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter((wall) => fixtureDeviationOf(wall) === null);
 
 const wallsOfMeasurement = (measuredMm: number): readonly Wall[] =>
   THICKNESS_FIXTURE_WALLS.filter((wall) => wall.thicknessMm === measuredMm);
@@ -370,7 +374,7 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('[NGHIEM-2] đổi ba nhóm là ĐÚNG MỘT bước hoàn tác', () => {
-  it('chưa tích thì nút chính là "Chọn cả 3 nhóm"; "Đổi N đoạn" cho một bước; "Hoàn tác" trả nguyên trạng', async () => {
+  it('chưa tích thì nút chính là "Chọn cả N nhóm"; "Đổi N đoạn" cho một bước; "Hoàn tác" trả nguyên trạng', async () => {
     const notifications: NotificationBus = createNotificationBus();
     const { history } = await renderMain({ notifications });
     const targets = BATCH_WALLS;
@@ -379,12 +383,14 @@ describe('[NGHIEM-2] đổi ba nhóm là ĐÚNG MỘT bước hoàn tác', () =>
     expect(history.undoSteps()).toHaveLength(0);
 
     /* CẤM TUYỆT ĐỐI: không tích sẵn — mọi ô đồng ý bắt đầu ở trạng thái tắt. */
-    for (const group of [110, 220, 330]) {
+    for (const group of BATCH_GROUPS) {
       expect(screen.getByRole('checkbox', { name: new RegExp(`về ${String(group)} mm$`, 'u') })).not.toBeChecked();
     }
 
     expect(screen.queryByRole('button', { name: /^Đổi \d+ đoạn/u })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: `Chọn cả 3 nhóm (${String(targets.length)} đoạn)` }));
+    fireEvent.click(
+      screen.getByRole('button', { name: `Chọn cả ${String(BATCH_GROUPS.length)} nhóm (${String(targets.length)} đoạn)` }),
+    );
 
     /* Tích là CHỌN: chưa một độ dày nào đổi. */
     const applyButton = await screen.findByRole('button', { name: new RegExp(`^Đổi ${String(targets.length)} đoạn`, 'u') });
@@ -442,32 +448,33 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
 
     const graphBefore = useStore.getState().spatial;
     const thicknessBefore = THICKNESS_FIXTURE_WALLS.map((wall) => thicknessInStore(wall.id));
-    const groupText = (): string => screen.getByTestId('thickness-group-330').textContent ?? '';
+    const groupText = (): string => screen.getByTestId('thickness-group-100').textContent ?? '';
     const statusBefore = statusText();
     const summaryBefore = groupText();
     const rowsBefore = within(container).getAllByRole('row').length;
 
     /*
-     * Ngưỡng 330 ↔ cột bê tông cốt thép, kéo bằng BÀN PHÍM (A12): jsdom trả bề
+     * Ngưỡng thấp 100 ↔ 150 (125 mm; quanh ngưỡng cao 450 không có tường nào nên
+     * kéo nó không đổi số), kéo bằng BÀN PHÍM (A12): jsdom trả bề
      * rộng 0 cho mọi phần tử nên đường chuột của biểu đồ không đo được, còn
      * đường bàn phím thì đi qua đúng `onThresholdDrag` ấy. Năm lượt, có qua có
-     * lại: +5 +5 +5 −5 +5 = +15 mm.
+     * lại: +5 +5 +5 −5 +5 = +15 mm → 140 mm, tường 135 mm sang nhóm 100 và lệch quá dung sai.
      */
-    const slider = within(container).getByRole('slider', { name: HIGH_THRESHOLD_LABEL });
+    const slider = within(container).getByRole('slider', { name: LOW_THRESHOLD_LABEL });
     const before = slider.getAttribute('aria-valuenow');
 
     for (const key of ['ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowLeft', 'ArrowRight']) {
       fireEvent.keyDown(
-        within(container).getByRole('slider', { name: HIGH_THRESHOLD_LABEL }),
+        within(container).getByRole('slider', { name: LOW_THRESHOLD_LABEL }),
         { key },
       );
     }
 
     const after = within(container)
-      .getByRole('slider', { name: HIGH_THRESHOLD_LABEL })
+      .getByRole('slider', { name: LOW_THRESHOLD_LABEL })
       .getAttribute('aria-valuenow');
     /* Số trong ô chạy đếm lên (BUG-340: một con số trong câu trạng thái) — đợi nó dừng, không đọc giữa chừng. */
-    /* Đoạn 400 mm rời nhóm xem tay, vào nhóm 330: dòng nhóm đổi số đoạn. */
+    /* Đoạn 135 mm rời bậc 150 (trong dung sai), sang bậc 100 và lệch 35 mm: dòng nhóm 100 thêm một đoạn. */
     await waitFor(() => {
       expect(groupText()).not.toEqual(summaryBefore);
     });
@@ -475,10 +482,10 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
     const summaryAfter = groupText();
 
     console.log(
-      `[S-18][NGHIEM-3] ngưỡng cao: ${String(before)} mm → ${String(after)} mm sau 5 lượt kéo · ` +
+      `[S-18][NGHIEM-3] ngưỡng thấp: ${String(before)} mm → ${String(after)} mm sau 5 lượt kéo · ` +
         `${String(history.undoSteps().length)} bước lịch sử`,
     );
-    console.log(`[S-21][NGHIEM-3] nhóm 330 TRƯỚC = ${summaryBefore} · SAU = ${summaryAfter} · ${statusBefore}`);
+    console.log(`[S-21][NGHIEM-3] nhóm 100 TRƯỚC = ${summaryBefore} · SAU = ${summaryAfter} · ${statusBefore}`);
 
     /* KHÔNG một lượt ghi nào: ngăn xếp trống, kho giữ nguyên THAM CHIẾU cũ. */
     expect(history.undoSteps()).toHaveLength(0);
@@ -508,7 +515,7 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
     const { container } = await renderMain();
     const valueOf = (name: string): number =>
       Number(within(container).getByRole('slider', { name }).getAttribute('aria-valuenow'));
-    const midName = `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[220])} và ${lowerFirst(THICKNESS_GROUP_LABELS[330])}`;
+    const midName = `Ngưỡng giữa ${lowerFirst(thicknessGroupLabel(300))} và ${lowerFirst(thicknessGroupLabel(400))}`;
     const minBefore = within(container).getByRole('slider', { name: LOW_THRESHOLD_LABEL }).getAttribute('aria-valuemin');
 
     fireEvent.keyDown(within(container).getByRole('slider', { name: HIGH_THRESHOLD_LABEL }), { key: 'Home' });
@@ -595,12 +602,12 @@ describe('P04 cụm C — điều khiển chỉ hiện khi dùng được', () =
     fireEvent.click(within(row as HTMLElement).getByRole('combobox', { name: /^Độ dày chuẩn hoá của đoạn /u }));
 
     expect(screen.queryByRole('option', { name: 'Cột BTCT' })).toBeNull();
-    fireEvent.click(screen.getByRole('option', { name: '330 mm' }));
+    fireEvent.click(screen.getByRole('option', { name: '300 mm' }));
 
     await waitFor(() => {
       expect(history.undoSteps()).toHaveLength(1);
     });
-    expect(thicknessInStore(target.id)).toBe(330);
+    expect(thicknessInStore(target.id)).toBe(300);
   }, HEAVY_TEST_TIMEOUT_MS);
 
 });
@@ -718,7 +725,7 @@ describe('[11F-A-302] phím Space tích ô "Đồng ý" đúng một lần', () 
   it('focus + Space: ô chuyển sang tích và vẫn tích', async () => {
     await renderMain();
     const user = userEvent.setup({ delay: null });
-    const box = screen.getByRole('checkbox', { name: /về 110 mm$/u });
+    const box = screen.getByRole('checkbox', { name: /về 100 mm$/u });
 
     expect(box).not.toBeChecked();
     box.focus();

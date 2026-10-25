@@ -11,11 +11,12 @@ const LABEL_MAP: Record<string, string> = {
   '110': '110 mm',
   '220': '220 mm',
   '330': '330 mm',
-  // S-21: nhóm ≥ 400 mm là "xem tay" (có thể là cột BTCT), cùng nhãn với màn Chuẩn hoá độ dày.
-  CONCRETE_COLUMN: 'Xem tay (≥ 400 mm)',
+  CONCRETE_COLUMN: 'Cột BTCT',
 };
 
 interface WallThicknessLegendProps {
+  /** Nhãn theo mức (mặc định 110/220/330 mm/Cột BTCT). */
+  labels?: Readonly<Record<string, string>> | undefined;
   isVisible?: boolean;
   /** Trạng thái 7 chiều */
   state?: 'empty' | 'loading' | 'partial' | 'error' | 'success' | 'no-permission' | 'collapsed';
@@ -49,6 +50,7 @@ export function WallThicknessLegend({
   state = 'success',
   availableLevels = WALL_THICKNESS_LEVELS,
   otherLabel,
+  labels = LABEL_MAP,
   className,
   activeFilter,
   onFilterChange,
@@ -166,7 +168,7 @@ export function WallThicknessLegend({
 
       {visibleLevels.map((thickness) => {
         const key = String(thickness);
-        const label = LABEL_MAP[key] ?? key;
+        const label = labels[key] ?? key;
         const tokenColor = wallStrokeToken(thickness);
         const isDimmed =
           activeThickness !== null && activeThickness !== thickness;

@@ -1,8 +1,8 @@
 /**
  * Chú giải của canvas (demo Z/S-15 vòng 7–9) — LUÔN hiện khi lớp Tường bật, góc dưới trái.
  *
- * Mẫu là HÌNH, cùng hình với tường trên bản vẽ (`WallThicknessSwatch`): 110 rỗng, 220 đặc, 330
- * viền đôi, Không chuẩn gạch chéo, Đã duyệt nền xanh nhạt có dấu tích. Ba mức chuẩn là nút lọc
+ * Mẫu là HÌNH, cùng hình với tường trên bản vẽ (`WallThicknessSwatch`), một hình cho mỗi dải màu
+ * của thang sáu bậc (nhãn ghi các bậc của dải: 100/150 rỗng, 200/220 đặc, 300/400 viền đôi), Không chuẩn gạch chéo, Đã duyệt nền xanh nhạt có dấu tích. Ba mức chuẩn là nút lọc
  * (bấm lại để bỏ lọc) như `WallThicknessLegend` dùng chung trước đây — cùng tên nhóm
  * "Lọc theo độ dày tường". Chữ "lệch không quá … mm" đọc từ hằng domain (không gõ số).
  */
@@ -12,7 +12,7 @@ import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 
 import type { WallLayerCanvasViewProps } from './wallLayerHatch';
-import { countWallBands, THICKNESS_TOLERANCE_MM } from './wallLayerHatch';
+import { countWallBands, THICKNESS_TOLERANCE_MM, WALL_THICKNESS_GROUP_LABELS } from './wallLayerHatch';
 import { WallThicknessSwatch } from './WallThicknessSwatch';
 
 type Props = Pick<WallLayerCanvasViewProps, 'isWallLayerVisible' | 'legendLevels' | 'shapes' | 'state'>;
@@ -65,10 +65,11 @@ export function WallLayerLegendTray({ isWallLayerVisible, legendLevels, shapes, 
       <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
         {[...counts.bands].map(([band, count]) => {
           const isActive = activeFilter === band;
+          const label = WALL_THICKNESS_GROUP_LABELS[String(band)] ?? `${band} mm`;
 
           return (
             <button
-              aria-label={`${isActive ? 'Đang lọc' : 'Lọc theo'} ${band} mm`}
+              aria-label={`${isActive ? 'Đang lọc' : 'Lọc theo'} ${label}`}
               aria-pressed={isActive}
               className={cn(
                 ITEM,
@@ -81,7 +82,7 @@ export function WallLayerLegendTray({ isWallLayerVisible, legendLevels, shapes, 
               type="button"
             >
               <WallThicknessSwatch kind={band} />
-              <span className="tabular-nums">{band}</span>
+              <span className="tabular-nums">{label}</span>
               <span className="tabular-nums text-text-secondary">{count}</span>
             </button>
           );

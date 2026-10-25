@@ -4,22 +4,18 @@
  * MỘT thứ tự duy nhất cho danh sách trái, nút "Duyệt tiếp" ở cổng, phím J và tự chuyển sau
  * "Duyệt": không chuẩn lên đầu, rồi đúng chuẩn chưa duyệt, rồi đã duyệt (trong mỗi nhóm giữ thứ
  * tự mã hiển thị). "Không chuẩn" = lệch quá `WALL_THICKNESS_TOLERANCE_MM` so với chuẩn gần nhất
- * (qua `isStandardThickness`); chuẩn đích khi đổi là `roundWallThickness` của domain ('tooThin' /
- * 'tooThick' = xem tay, không tự đổi). Màn không viết ngưỡng nào, chữ đọc từ hằng domain.
+ * (qua `isStandardThickness`, thang sáu bậc `STANDARD_THICKNESSES_MM`); chuẩn đích khi đổi là
+ * `standardizeThickness` (bậc gần nhất, hoà về bậc nhỏ; cột BTCT = xem tay, không tự đổi). Màn
+ * không viết ngưỡng nào, chữ đọc từ thang và ngưỡng của domain.
  */
 
 import type { FlowGateCondition } from '@/components/shell/FlowGate';
 import { isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, LevelId, Wall, WallId } from '@/domain/spatial/types';
-import {
-  roundWallThickness,
-  WALL_THICKNESS_MANUAL_MM,
-  WALL_THICKNESS_MIN_MM,
-  WALL_THICKNESS_ROUNDING_BOUNDS_MM,
-  WALL_THICKNESS_TOLERANCE_MM,
-} from '@/domain/walls/thicknessTolerance';
+import { WALL_THICKNESS_TOLERANCE_MM } from '@/domain/walls/thicknessTolerance';
 import { centrelineLength } from '@/domain/walls/types';
 import { formatNumber } from '@/lib/format/number';
+import { CONCRETE_COLUMN_THRESHOLD_MM, standardizeThickness, standardTierRangeOf } from '@/lib/geometry/standardize';
 
 import { WALL_THICKNESS_CHOICES, type WallThicknessChoice } from './types';
 import { wallThicknessBandOf } from './wallLayerHatch';
@@ -46,7 +42,7 @@ export interface WallRowExtra {
 export interface WallBulkGroup {
   readonly targetMm: WallThicknessChoice;
   readonly count: number;
-  /** Khoảng số đo về chuẩn này, từ biên domain ("276–399"). */
+  /** Khoảng số đo về chuẩn này, từ thang domain ("261–350"). */
   readonly rangeText: string;
 }
 
@@ -57,9 +53,9 @@ export interface WallBulkPlan {
   readonly changeCount: number;
   /** Số tường không chuẩn chưa duyệt (mẫu số trên nút). */
   readonly totalCount: number;
-  /** Mỏng/dày bất thường: giữ ở nhóm Không chuẩn để xem tay. */
+  /** Dày quá ngưỡng cột BTCT: giữ ở nhóm Không chuẩn để xem tay. */
   readonly manualCount: number;
-  /** "dưới 80 hoặc từ 400 mm" — biên xem tay, đọc từ hằng domain. */
+  /** "trên 450 mm" — biên xem tay, đọc từ ngưỡng cột của domain. */
   readonly manualRangeText: string;
   readonly targets: readonly { readonly wallId: WallId; readonly targetMm: WallThicknessChoice }[];
 }
@@ -113,20 +109,18 @@ export const sortByReviewQueue = (walls: readonly Wall[]): readonly Wall[] =>
 const isChoice = (value: unknown): value is WallThicknessChoice =>
   typeof value === 'number' && (WALL_THICKNESS_CHOICES as readonly number[]).includes(value);
 
-/** Chuẩn đích theo `roundWallThickness`; 'tooThin' / 'tooThick' (xem tay) → `null`. */
+/** Chuẩn đích theo `standardizeThickness`; cột BTCT (xem tay) → `null`. */
 export const thicknessTargetOf = (thicknessMm: number): WallThicknessChoice | null => {
-  const rounded = roundWallThickness(thicknessMm);
+  const { standardized } = standardizeThickness(thicknessMm);
 
-  return isChoice(rounded) ? rounded : null;
+  return isChoice(standardized) ? standardized : null;
 };
 
-/** Khoảng số đo về một chuẩn, đọc từ biên domain: 330 → "276–399". */
+/** Khoảng số đo về một chuẩn, sinh từ thang sáu bậc: 300 → "261–350", 100 → "≤125". */
 function roundingRangeOf(targetMm: WallThicknessChoice): string {
-  const index = WALL_THICKNESS_CHOICES.indexOf(targetMm);
-  const low = WALL_THICKNESS_ROUNDING_BOUNDS_MM[index] ?? 0;
-  const next = WALL_THICKNESS_ROUNDING_BOUNDS_MM[index + 1] ?? low;
+  const { fromMm, toMm } = standardTierRangeOf(targetMm);
 
-  return `${mm(low)}–${mm(next - 1)}`;
+  return fromMm === null ? `≤${mm(toMm)}` : `${mm(fromMm)}–${mm(toMm)}`;
 }
 
 const mm = (value: number): string => formatNumber(value, { fractionDigits: 0 });
@@ -146,9 +140,7 @@ function noteOf(wall: Wall, targetMm: WallThicknessChoice | null): string {
     return `Thuộc khoảng ${roundingRangeOf(targetMm)} mm nên về ${mm(targetMm)} mm, ${diff > 0 ? 'thiếu' : 'dư'} ${mm(Math.abs(diff))} mm.`;
   }
 
-  return roundWallThickness(wall.thicknessMm) === 'tooThin'
-    ? `Mỏng dưới ${mm(WALL_THICKNESS_MIN_MM)} mm: nghi AI nhận nhầm nét kích thước hay nét gạch. Cần xem tay.`
-    : `Dày từ ${mm(WALL_THICKNESS_MANUAL_MM)} mm trở lên: dày bất thường, có thể là cột BTCT. Cần xem tay.`;
+  return `Dày trên ${mm(CONCRETE_COLUMN_THRESHOLD_MM)} mm: dày bất thường, có thể là cột BTCT. Cần xem tay.`;
 }
 
 export function rowExtraOf(wall: Wall, level: Level | null): WallRowExtra {
@@ -184,7 +176,7 @@ export function bulkPlanOf(walls: readonly Wall[]): WallBulkPlan {
     changeCount: targets.length,
     totalCount: pending.length,
     manualCount: pending.length - targets.length,
-    manualRangeText: `dưới ${mm(WALL_THICKNESS_MIN_MM)} hoặc từ ${mm(WALL_THICKNESS_MANUAL_MM)} mm`,
+    manualRangeText: `trên ${mm(CONCRETE_COLUMN_THRESHOLD_MM)} mm`,
     targets,
   };
 }

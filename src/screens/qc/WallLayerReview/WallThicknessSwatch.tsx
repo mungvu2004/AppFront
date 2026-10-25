@@ -1,7 +1,8 @@
 /**
  * Mẫu hình của một mã độ dày — CÙNG hình với tường trên bản vẽ (`WallShapeFigure`), để che hết
- * chữ và chuyển đen trắng vẫn phân biệt được (demo Z/S-15 vòng 7): 110 rỗng, 220 đặc, 330 đặc
- * viền đôi, không chuẩn gạch chéo + viền đậm, đã duyệt nền xanh nhạt + viền + dấu tích.
+ * chữ và chuyển đen trắng vẫn phân biệt được (demo Z/S-15 vòng 7). Ba hình theo ba dải màu
+ * `wallThicknessColorBand` (khoá 110/220/330 = token màu): 100/150 rỗng, 200/220 đặc, 300/400 đặc
+ * viền đôi; không chuẩn gạch chéo + viền đậm, đã duyệt nền xanh nhạt + viền + dấu tích.
  */
 
 export type WallSwatchKind = 110 | 220 | 330 | 'nonStandard' | 'reviewed';

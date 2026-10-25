@@ -11,6 +11,7 @@ import { ChevronDown } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { wallStrokeToken } from '@/components/canvas/materialMap';
+import { wallThicknessColorBand } from './wallLayerHatch';
 import { AnimatePresence, motion } from '@/components/motion';
 import { Badge } from '@/components/ui/Badge';
 import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
@@ -53,7 +54,7 @@ function ReadOnlyThickness({ choices, value }: { readonly choices: readonly Wall
     <div aria-label={THICKNESS_ARIA_LABEL} className="flex items-center gap-3" role="group">
       {choices.map((choice) => (
         <span className="flex items-center gap-1.5" key={choice}>
-          <span aria-hidden="true" className="h-3 w-3 rounded-xs" style={{ backgroundColor: wallStrokeToken(choice) }} />
+          <span aria-hidden="true" className="h-3 w-3 rounded-xs" style={{ backgroundColor: wallStrokeToken(wallThicknessColorBand(choice)) }} />
           <span className={cn('text-[13px]', choice === value ? 'font-semibold text-text-primary' : 'text-text-secondary')}>
             {choice} mm
           </span>
@@ -160,7 +161,7 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
                 <SegmentedControl
                   aria-label={THICKNESS_ARIA_LABEL}
                   onChange={(value) => onChangeThickness(inspector.id, Number(value) as WallThicknessChoice)}
-                  options={thicknessChoices.map((choice) => ({ label: `${choice} mm`, swatch: wallStrokeToken(choice), value: String(choice) }))}
+                  options={thicknessChoices.map((choice) => ({ label: `${choice} mm`, swatch: wallStrokeToken(wallThicknessColorBand(choice)), value: String(choice) }))}
                   value={String(inspector.thicknessMm)}
                 />
               </>

@@ -39,6 +39,7 @@ import { degrees, degreesToRadians, millimetres, millimetresToMetres } from '@/d
 import { FURNITURE_KIND_LABELS, WALL_KIND_LABELS } from '@/lib/commands/business/shared';
 import { EXTERIOR_SKIRTING, isDetailsEnabled } from '@/pascal-page/realism/details';
 
+import { applyFloorTransforms, floorDisplayTransformsOf } from './floorAlignment';
 import { CATALOG_MODELS, VARIANT_MODEL, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
 import { roofNodesOf } from './roofs';
@@ -1332,5 +1333,8 @@ export const toPascalScene = (
 
 
   const materials = Object.fromEntries([...SCENE_MATERIALS, ...SCENE_STYLE_MATERIALS].map((material) => [material.id, material]));
+  /* Báo cáo 2.8.2: tầng căn được theo lưới trục chung thì xoay + dời khi HIỂN THỊ; lượt về gỡ ra. */
+  applyFloorTransforms(nodes, floorDisplayTransformsOf(graph), (levelId) => toPascalId('level', levelId));
+
   return { scene: { nodes, rootNodeIds: [SITE_NODE_ID], materials }, skipped };
 };

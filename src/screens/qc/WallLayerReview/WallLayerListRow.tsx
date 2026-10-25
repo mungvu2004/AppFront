@@ -11,7 +11,7 @@ import type { CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 
 import type { WallRowViewModel } from './types';
-import { wallThicknessBandOf } from './wallLayerHatch';
+import { wallThicknessColorGroupOf } from './wallLayerHatch';
 import type { WallRowExtra } from './wallReviewQueue';
 import { WallThicknessSwatch, type WallSwatchKind } from './WallThicknessSwatch';
 
@@ -49,7 +49,7 @@ export interface WallLayerListRowProps {
 }
 
 function swatchOf(row: WallRowViewModel): WallSwatchKind {
-  const band = wallThicknessBandOf(row.thicknessMm);
+  const band = wallThicknessColorGroupOf(row.thicknessMm);
 
   return band ?? 'nonStandard';
 }

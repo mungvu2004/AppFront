@@ -18,8 +18,15 @@ import type { WallThickness } from '../../types/spatial';
  * Trả về CSS custom property token cho stroke của tường theo độ dày.
  * Mức "cần kiểm tra" → caller phải thêm gạch chéo 45° 6%; xem `isLowConfidence`.
  */
+/** Bậc độ dày → ba token màu: ≤150 mỏng, ≤220 vừa, còn lại dày. */
+export function wallThicknessColorBand(thicknessMm: number): 110 | 220 | 330 {
+  if (thicknessMm <= 150) return 110;
+  return thicknessMm <= 220 ? 220 : 330;
+}
+
 export function wallStrokeToken(thickness: WallThickness): string {
-  switch (thickness) {
+  if (typeof thickness === 'number' && !Number.isFinite(thickness)) return 'var(--wall-idle)';
+  switch (typeof thickness === 'number' ? wallThicknessColorBand(thickness) : thickness) {
     case 110:
       return 'var(--wall-110-stroke)'; // ≥ 3:1 trên canvas ở cả hai chủ đề (globals.css)
     case 220:
