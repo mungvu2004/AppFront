@@ -54,6 +54,7 @@ import { hasElements } from '@/domain/spatial/elementCount';
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level } from '@/domain/spatial/types';
 import { ENDPOINTS } from '@/api/endpoints';
+import { createAppApiClient } from '@/api/appClient';
 import { describeError, toAppError } from '@/lib/errors';
 import { DEFAULT_EXPORT_OPTIONS, EXPORT_CANCELLED_MESSAGE } from '@/lib/export/exportGlb';
 import { SHARE_LINKS_SUPPORTED } from '@/lib/export/shareLink';
@@ -71,6 +72,7 @@ import type { ProjectRole } from '@/types/project';
 import {
   buildPreflightRows,
   countPdfPages,
+  ExportAccessError,
   createExportPanelGateway,
   EXPORT_FORBIDDEN_CAPTION,
   toExportFloors,
@@ -265,6 +267,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
           transport: createBeaconTransport({ url: ENDPOINTS.telemetry }),
           sessionId: createUuid(),
         }),
+        exportGraph: (id) => createAppApiClient().spatial.exportGraph({ projectId: id }),
       }),
     [injectedGateway],
   );
@@ -277,6 +280,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   const session = useSession();
 
   const graph = useStore((state) => state.spatial);
+  const storeGraph = graph;
   const spatialLoading = useStore((state) => state.spatialLoading);
   const versionId = useStore((state) => state.versionId);
   const project = useStore((state) => state.project);
@@ -412,6 +416,13 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     mutationFn: async (formatId) => {
       startedAtRef.current = gateway.now();
 
+      // Máy chủ quyết định ai được xuất (viewer 403): lấy đồ thị qua tuyến xuất
+      // có kiểm quyền; cổng không có tuyến (bài kiểm) thì dùng đồ thị trong store.
+      const graph =
+        storeGraph === null || gateway.loadExportGraph === undefined
+          ? storeGraph
+          : await gateway.loadExportGraph(projectId);
+
       if (formatId === 'glb') {
         if (graph === null) {
           throw new Error('Chưa có mô hình để xuất.');
@@ -436,7 +447,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
 
       if (formatId === 'spatial-json') {
         if (graph === null) {
-          return Promise.reject(new Error('Chưa có mô hình để xuất.'));
+          throw new Error('Chưa có mô hình để xuất.');
         }
 
         return gateway.startSpatialJsonExport({
@@ -513,6 +524,10 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   const errorView = useMemo<ExportErrorView | null>(() => {
     if (exportError === null || exportError.message === EXPORT_CANCELLED_MESSAGE) {
       return null;
+    }
+
+    if (exportError instanceof ExportAccessError) {
+      return { message: exportError.message, code: 'export_access', hint: ERROR_HINT };
     }
 
     const appError = toAppError(exportError);

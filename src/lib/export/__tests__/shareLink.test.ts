@@ -1027,9 +1027,9 @@ function recordingHttpClient(calls: HttpCall[]): HttpClient {
 }
 
 describe('createHttpShareLinkGateway', () => {
-  it('says the v1 server does not serve share links (BE-BIND #47–#49 are v2)', () => {
-    expect(SHARE_LINKS_SUPPORTED).toBe(false);
-    expect(createHttpShareLinkGateway(recordingHttpClient([])).supported).toBe(false);
+  it('says the server serves share links (fix/share-authz, BE-BIND #47–#49)', () => {
+    expect(SHARE_LINKS_SUPPORTED).toBe(true);
+    expect(createHttpShareLinkGateway(recordingHttpClient([])).supported).toBe(true);
   });
 
   it('posts a new link to the project’s collection, password in the body', async () => {

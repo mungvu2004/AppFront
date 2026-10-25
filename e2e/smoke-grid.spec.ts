@@ -136,6 +136,7 @@ const ROWS = {
   // Ô tìm chỉ có khi đã có dữ liệu (không vẽ ô chết trên ca rỗng); bộ mẫu dev chưa có tường nào, nên mốc là H1.
   projectData: { anchor: { role: 'heading', name: 'Xem dữ liệu không gian' } },
   projectVersions: { anchor: { role: 'navigation', name: 'Danh sách phiên bản' } },
+  sharedModel: { anchor: { role: 'heading', name: 'Liên kết không còn hiệu lực' } },
 } as const satisfies Record<ProductRouteKey, Row>;
 
 function pathFor(key: ProductRouteKey, row: Row): string {

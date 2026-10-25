@@ -92,6 +92,8 @@ export const ROUTE_PATTERNS = {
   projectDimensions: `${PROJECTS_ROOT}/:projectId/floors/:floorId${LAYERS_ROOT}/dimensions`,
   projectExploded: `${PROJECTS_ROOT}/:projectId/3d/exploded`,
   projectExport: `${PROJECTS_ROOT}/:projectId/export`,
+  /** Trang xem công khai của liên kết chia sẻ (không cần phiên). */
+  sharedModel: '/share/:token',
   projectFloors: `${PROJECTS_ROOT}/:projectId/floors`,
   projectGrids: `${PROJECTS_ROOT}/:projectId/floors/:floorId${LAYERS_ROOT}/grids`,
   projectMeasure: `${PROJECTS_ROOT}/:projectId/3d/measure`,
@@ -212,6 +214,8 @@ export const PUBLIC_ROUTE_PATTERNS = [
   '/login/reset-password/*',
   /** Trang giới thiệu cuộn (landing): ai cũng xem được, không cần phiên. */
   '/welcome',
+  /** Liên kết chia sẻ: người nhận không có tài khoản. */
+  '/share/*',
 ] as const;
 
 /**

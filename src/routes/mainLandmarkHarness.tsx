@@ -93,6 +93,7 @@ export const SHELL_PATHS: readonly string[] = [
   '/onboarding',
   '/tai-khoan',
   '/thong-bao',
+  '/share/:token',
   '*',
 ];
 

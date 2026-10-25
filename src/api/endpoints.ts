@@ -56,6 +56,8 @@ export function toApiUrl(baseUrl: string, path: string): string {
 }
 
 export const ENDPOINTS = {
+  /** Trang xem công khai của liên kết chia sẻ (không cần phiên). */
+  share: (token: string): string => `/share/${encodeURIComponent(token)}`,
   /**
    * N23–N27 — registry model của chuỗi xử lý (F-11). Mọi đường `require_admin`.
    *
@@ -198,6 +200,8 @@ export const ENDPOINTS = {
   projects: {
     create: PROJECTS_ROOT,
     delete: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}`,
+    /** Huỷ tạo — Hoàn tác của toast "Đã tạo": chỉ người tạo, trong cửa sổ ngắn (BE 409 `CREATE_UNDO_CLOSED` khi hết). */
+    cancelCreate: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/creation`,
     list: PROJECTS_ROOT,
     read: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}`,
     update: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}`,
@@ -257,6 +261,8 @@ export const ENDPOINTS = {
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/spatial`,
     /** N15 — đồ thị cả dự án cộng `floorRevisions` (B3-02). */
     graph: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/spatial`,
+    /** Xuất mô hình có kiểm quyền `model.export` (viewer 403) — trả cùng dạng N15. */
+    exports: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/exports`,
     /**
      * Lớp không gian của một tầng: tường, ô mở, phòng, nội thất — lỗ hổng #4,
      * U4. `spatial.floor` ở trên chỉ mang siêu dữ liệu tầng (`Floor`, không có

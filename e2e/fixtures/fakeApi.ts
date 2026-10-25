@@ -204,6 +204,13 @@ export function createFakeBackend({ projectId, graphDoc, layers: overrides = {},
       };
     }
     if (method === 'GET' && pathname === `${project}/spatial`) return { status: 200, body: graphNow() };
+    // Xuất có kiểm quyền: người dùng giả là engineer/admin nên được, trả y N15.
+    if (method === 'POST' && pathname === `${project}/exports`) return { status: 200, body: graphNow() };
+    if (method === 'GET' && pathname === `${project}/share-links`) return { status: 200, body: [] };
+    // Trang chia sẻ công khai: máy chủ giả không giữ token nào, mọi token đều 404 như token lạ.
+    if (method === 'GET' && pathname.startsWith('/api/share/')) {
+      return { status: 404, body: errorBody('NOT_FOUND', { resource: 'share_link' }) };
+    }
     if (method === 'GET' && pathname === `${project}/floors`) return { status: 200, body: levels.map(floorOf) };
     if (floorId !== undefined && levelIds.has(floorId)) {
       if (method === 'GET') return { status: 200, body: layerDocument(floorId) };

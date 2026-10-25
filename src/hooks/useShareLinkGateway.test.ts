@@ -30,17 +30,17 @@ vi.mock('@/lib/auth', async (importOriginal) => {
   };
 });
 
-describe('useShareLinkGateway — liên kết chia sẻ tắt ở v1', () => {
-  it('trả null trước khi dựng client: không màn nào nhận được cổng để gọi share-links', () => {
+describe('useShareLinkGateway — liên kết chia sẻ bật (fix/share-authz)', () => {
+  it('dựng cổng trên client có phiên', () => {
     const { result } = renderHook(() => useShareLinkGateway());
 
-    expect(result.current).toBeNull();
-    expect(authClientFactory.calls).toBe(0);
+    expect(result.current?.supported).toBe(true);
+    expect(authClientFactory.calls).toBe(1);
   });
 
-  it('cổng dựng trên client có phiên vẫn khai `supported: false`', () => {
+  it('cổng dựng trên client có phiên khai `supported: true`', () => {
     const gateway = createAuthShareLinkGateway(createHttpClient({ baseUrl: 'http://localhost' }));
 
-    expect(gateway.supported).toBe(false);
+    expect(gateway.supported).toBe(true);
   });
 });
