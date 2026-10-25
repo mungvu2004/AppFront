@@ -1067,6 +1067,9 @@ export function useObjectLayerReview(
     [canEdit, gateway, level, notifications, runSingle],
   );
 
+  /* Tường ưu tiên cho lượt thêm tay (tường đang được tô); ghi ở dưới, sau khi `flownWallId` có. */
+  const preferredWallRef = useRef<WallId | null>(null);
+
   /*
    * "thêm thủ công" của trạng thái rỗng — một lệnh `opening.add` thật.
    *
@@ -1078,7 +1081,7 @@ export function useObjectLayerReview(
    * Tầng của URL không có trong đồ thị (`level === null`) thì báo `addNoWall`,
    * không im lặng (A11). Ở ca tầng chưa nạp, câu này có thể sai: xem B-V6-71.
    */
-  const onAddManually = useCallback(() => {
+  const onAddManually = useCallback((kind: 'door' | 'window' = 'door') => {
     const current = useStore.getState().spatial;
 
     if (!canEdit || current === null) {
@@ -1086,7 +1089,10 @@ export function useObjectLayerReview(
     }
 
     /* Thử lần lượt các chỗ trên tim tường; chỗ đầu tiên domain nhận là chỗ đặt (cửa thứ hai trở đi). */
-    const proposals = level === null ? [] : manualDoorProposalsOf(current, level);
+    const proposals =
+      level === null
+        ? []
+        : manualDoorProposalsOf(current, level, undefined, preferredWallRef.current, kind);
 
     if (proposals.length === 0) {
       notifications.publish({
@@ -1105,7 +1111,7 @@ export function useObjectLayerReview(
       const built = buildAddOpeningCommand(proposal, context);
 
       if (built.ok) {
-        void runSingle(proposal.id, 'door', () => built.data);
+        void runSingle(proposal.id, kind, () => built.data);
 
         return;
       }
@@ -1130,6 +1136,7 @@ export function useObjectLayerReview(
    */
   const [frameSizePx, setFrameSizePx] = useState<CanvasFitSize | null>(null);
   const [flownWallId, setFlownWallId] = useState<WallId | null>(null);
+  preferredWallRef.current = flownWallId;
   const onFrameResize = useCallback((size: CanvasFitSize) => {
     setFrameSizePx((previous) =>
       previous !== null && previous.width === size.width && previous.height === size.height

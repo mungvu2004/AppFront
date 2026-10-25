@@ -2145,6 +2145,10 @@ export function attachOrphanToNearestWall(
 const MANUAL_DOOR_TEMPLATE: ReviewObject | null =
   OBJECT_LAYER_FIXTURE_OBJECTS.find((object) => object.subtype === 'singleDoor') ?? null;
 
+/** Mẫu cửa sổ thêm tay — cửa sổ đầu tiên của bộ mẫu (kích thước + cao độ bệ thật). */
+const MANUAL_WINDOW_TEMPLATE: ReviewObject | null =
+  OBJECT_LAYER_FIXTURE_OBJECTS.find((object) => object.layer === 'window') ?? null;
+
 /**
  * Đề nghị MỘT cửa đơn thêm tay, hoặc `null` khi tầng chưa có tường nào để đặt.
  *
@@ -2190,8 +2194,9 @@ export function manualDoorProposalsOf(
   level: Level,
   id: OpeningId = createId('opening'),
   preferredWallId: WallId | null = null,
+  kind: 'door' | 'window' = 'door',
 ): readonly AddOpeningInput[] {
-  const template = MANUAL_DOOR_TEMPLATE;
+  const template = kind === 'window' ? MANUAL_WINDOW_TEMPLATE : MANUAL_DOOR_TEMPLATE;
 
   if (template === null) {
     return [];
@@ -2207,11 +2212,14 @@ export function manualDoorProposalsOf(
     MANUAL_SLOTS.map((slot) => ({
       id,
       levelId: level.id,
-      kind: 'door' as const,
+      kind,
       centre: positionOnWall(wall, slot),
       widthMm: template.widthMm,
       heightMm: template.heightMm,
-      sillHeightMm: OPENING_RULES.doorSillHeightMm,
+      sillHeightMm:
+        kind === 'window'
+          ? (template.sillHeightMm ?? OPENING_RULES.windowSillMinMm)
+          : OPENING_RULES.doorSillHeightMm,
       swing: template.swing,
     })),
   );

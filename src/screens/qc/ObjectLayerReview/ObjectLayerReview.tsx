@@ -74,7 +74,10 @@ const SCREEN_ARIA_LABEL = 'Lớp đối tượng';
 const CANVAS_REGION_LABEL = 'Mặt bằng lớp đối tượng';
 const EMPTY_TITLE = 'Chưa nhận ra đối tượng nào';
 const EMPTY_ACTION = 'Thêm thủ công';
-const ADD_DOOR_ACTION = '+ Thêm cửa';
+const ADD_ACTIONS = [
+  { kind: 'door', label: '+ Thêm cửa' },
+  { kind: 'window', label: '+ Thêm cửa sổ' },
+] as const;
 const OPEN_WALL_LAYER_ACTION = 'Sang duyệt tường';
 const LOW_CONFIDENCE_FILTER = 'Chỉ hiện mục dưới ngưỡng';
 const LOW_CONFIDENCE_DONE = 'Đã duyệt hết mục dưới ngưỡng.';
@@ -116,7 +119,7 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
           }
         : model.isViewerRole
           ? null
-          : { label: EMPTY_ACTION, onClick: model.onAddManually };
+          : { label: EMPTY_ACTION, onClick: () => model.onAddManually('door') };
 
     return (
       <EmptyState
@@ -198,17 +201,22 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
 
       {/* Thêm cửa trên 2D bất cứ lúc nào, không chỉ khi lớp trống (cửa thứ hai trở đi). */}
       {model.isViewerRole ? null : (
-        <button
-          className={cn(
-            'mx-2 self-start rounded-full border border-border-default px-2.5 py-1 text-[12px] text-text-secondary',
-            'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
-            'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-          )}
-          onClick={model.onAddManually}
-          type="button"
-        >
-          {ADD_DOOR_ACTION}
-        </button>
+        <div className="flex gap-2 px-2">
+          {ADD_ACTIONS.map(({ kind, label }) => (
+            <button
+              className={cn(
+                'rounded-full border border-border-default px-2.5 py-1 text-[12px] text-text-secondary',
+                'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
+                'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+              )}
+              key={kind}
+              onClick={() => model.onAddManually(kind)}
+              type="button"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );

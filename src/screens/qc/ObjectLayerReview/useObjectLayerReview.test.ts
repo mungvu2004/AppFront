@@ -25,6 +25,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
 import { createSampleBuilding, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { isIdOfKind } from '@/domain/spatial/ids';
+import { centrelineLength } from '@/domain/walls/types';
 import { denormalizeSpatial, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Furniture,
@@ -69,6 +70,7 @@ import {
   entityIdOf,
   formatObjectSize,
   manualDoorProposalOf,
+  manualDoorProposalsOf,
   OBJECT_LAYER_TEXT,
   type ObjectLayerReviewGateway,
   graphOpeningsOf,
@@ -1430,6 +1432,51 @@ describe('"Thêm thủ công" trên cổng thật, tầng rỗng (B-V6-41)', () 
     await waitFor(() => {
       expect(openings()).toHaveLength(1);
     });
+
+    mounted.unmount();
+  });
+
+  it('cửa sổ thêm tay mang mẫu cửa sổ; tường ưu tiên đứng đầu danh sách chỗ', () => {
+    const graph = emptyGraph();
+    const level = graph.byId[sampleLevelId(1)] as Level;
+    const walls = solidWallsOf(graph, level);
+    /* Tường dài nhất, khác tường đầu: cửa sổ 1200 mm chắc chắn vừa giữa tường. */
+    const preferred = walls.slice(1).reduce((a, b) => (centrelineLength(b) > centrelineLength(a) ? b : a));
+    const proposals = manualDoorProposalsOf(graph, level, undefined, preferred.id, 'window');
+    const first = proposals[0] as NonNullable<(typeof proposals)[number]>;
+
+    expect(first.kind).toBe('window');
+    expect(first.sillHeightMm).toBeGreaterThan(0);
+    expect(manualDoorProposalsOf(graph, level, first.id, preferred.id)[0]?.centre).toEqual(first.centre);
+    expect(manualDoorProposalsOf(graph, level, first.id)[0]?.centre).not.toEqual(first.centre);
+    /* Lệnh thật (nhận/từ chối) của cửa sổ được kiểm ở bài hook ngay dưới. */
+    expect(first.widthMm).toBeGreaterThan(0);
+  });
+
+  it('nút "+ Thêm cửa sổ" đi qua cùng lệnh opening.add: tường quá ngắn thì báo từ chối, không thêm', async () => {
+    const notifications = createNotificationBus();
+    const publish = vi.spyOn(notifications, 'publish');
+    const mounted = await mountSettled({ gateway: emptyGateway(), floorId: sampleLevelId(1), notifications });
+    const kinds = (): readonly unknown[] =>
+      Object.entries(useStore.getState().spatial?.byId ?? {})
+        .filter(([id]) => isIdOfKind('opening', id))
+        .map(([, entity]) => (entity as { readonly kind?: unknown }).kind);
+
+    await run(() => mounted.result.current.onAddManually());
+    await waitFor(() => {
+      expect(kinds()).toHaveLength(1);
+    });
+
+    const stepsBefore = mounted.result.current.undoStepCount;
+
+    await run(() => mounted.result.current.onAddManually('window'));
+    /*
+     * Bộ mẫu A14 chia tường thành đoạn 1000 mm, nên cửa sổ mẫu 1200 mm không vừa đoạn nào:
+     * domain từ chối, màn báo `addRefused` kèm lý do, không thêm gì và không thêm bước lịch sử.
+     */
+    expect(publish.mock.calls.map(([n]) => n.title)).toContain(OBJECT_LAYER_TEXT.addRefused);
+    expect(kinds()).toEqual(['door']);
+    expect(mounted.result.current.undoStepCount).toBe(stepsBefore);
 
     mounted.unmount();
   });
