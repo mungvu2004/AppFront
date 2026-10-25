@@ -321,6 +321,24 @@ describe('usePascalProjectBridge', () => {
     expect(back.ok ? null : back.error.code).toBe('PASCAL_NO_CHANGE');
   });
 
+  it('máy chủ khối tầng: "Tải lại tầng" nạp lại tầng rồi dựng lại cảnh từ kho, không nạp lại trang', async () => {
+    const applied: unknown[] = [];
+    saver.blocked = 'Tầng đã đổi trên máy chủ.';
+    const { result } = renderHook(() => usePascalProjectBridge('p1', (scene) => applied.push(scene)));
+
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    /* eslint-disable-next-line local/no-direct-set -- tầng L-1 đang chờ lưu và bị khối */
+    useStore.setState({ unsavedFloorIds: ['L-1'] });
+
+    act(() => result.current.save?.onReloadFloor());
+
+    await waitFor(() => expect(applied).toHaveLength(1));
+    expect(saver.reloaded).toEqual(['L-1']);
+    expect(result.current.save?.notice).toBe('Tầng đã đổi trên máy chủ.');
+    /* eslint-disable-next-line local/no-direct-set -- dọn lại */
+    useStore.setState({ unsavedFloorIds: [] });
+  });
+
   it('lưu: "không có gì để ghi" là thành công, chỉ ném khi có lời từ chối', async () => {
     const { result } = renderHook(() => usePascalProjectBridge('p1'));
 

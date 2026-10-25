@@ -206,14 +206,6 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
   }, []);
   const dismissNotice = useCallback(() => setNotice(null), []);
 
-  /* Tải lại tầng bị khối: bỏ bản chưa lưu được của tầng ấy rồi nạp lại trang — cảnh Pascal chỉ đọc
-     kho lúc `onLoad`, nên nạp lại cả trang là cách duy nhất để cảnh khớp bản máy chủ. */
-  const reloadBlockedFloor = useCallback(async () => {
-    const target = useStore.getState().unsavedFloorIds.find(isFloorBlocked);
-
-    if (target !== undefined) await reloadFloor(target);
-    window.location.reload();
-  }, [isFloorBlocked, reloadFloor]);
 
   const save: PascalSaveStatus = {
     state: saveBlock !== null ? 'blocked' : engineState === 'failed' ? 'failed' : engineState === 'saved' ? 'saved' : 'saving',
@@ -253,6 +245,22 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
 
     return toPascalScene(denormalizeSpatial(current), { style: style ?? readSceneStyle(() => localStorage) }).scene;
   }, [style]);
+
+  /* Tải lại tầng bị khối (409/422/403): bỏ bản chưa lưu được, nạp lại tầng từ máy chủ vào kho rồi
+     dựng lại cảnh từ kho. Không có `applyScene` thì nạp lại cả trang như trước. */
+  const reloadBlockedFloor = useCallback(async () => {
+    const target = useStore.getState().unsavedFloorIds.find(isFloorBlocked);
+    const reason = saveBlock?.message ?? null;
+
+    if (target !== undefined) await reloadFloor(target);
+    const restored = applyScene === undefined ? null : sceneFromStore();
+    if (restored === null) {
+      window.location.reload();
+      return;
+    }
+    applyScene?.(restored);
+    if (reason !== null) setNotice({ text: reason, tone: 'alert' });
+  }, [applyScene, isFloorBlocked, reloadFloor, saveBlock, sceneFromStore]);
 
   const onLoad = useCallback(async (): Promise<PascalSceneGraph> => {
     const scene = sceneFromStore();
