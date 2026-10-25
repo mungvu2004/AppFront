@@ -1800,13 +1800,6 @@ export const createMockApiClient = (): ApiClient => {
         floors = clone(project.floors);
         return ok({ ...removed, id: projectId });
       },
-      cancelCreate: async ({ projectId }) => {
-        summaries = summaries.filter((row) => row.id !== projectId);
-        const removed = clone(project);
-        project = buildProject();
-        floors = clone(project.floors);
-        return ok({ ...removed, id: projectId });
-      },
       list: async () => ok([clone(project)]),
       read: async ({ projectId }) =>
         projectId === MOCK_MISSING_PROJECT_ID

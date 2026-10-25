@@ -109,8 +109,7 @@ export function createProjectGateway(client: ApiClient, queryClient: QueryClient
       return { ok: true, data: { id: result.data.id } };
     },
     remove: async (projectId) => {
-      // Huỷ tạo, không phải #27: Kỹ sư không có quyền xoá dự án nhưng được huỷ dự án mình vừa tạo.
-      const result = await client.projects.cancelCreate({ projectId });
+      const result = await client.projects.delete({ projectId });
 
       // `projects.delete` answers with the deleted `Project`, not `void`; the
       // undo ticket this backs (A8) only ever needs to know it worked.

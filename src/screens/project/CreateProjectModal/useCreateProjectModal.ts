@@ -907,16 +907,7 @@ export function useCreateProjectModal(
       options.onToast?.({
         message: `Đã tạo dự án "${request.name}".`,
         onUndo: () => {
-          void gateway.remove(created.id).then((undone) => {
-            if (undone.ok) return;
-            // Hết cửa sổ huỷ tạo (hoặc dự án đã có người/thay đổi khác): nói rõ, không im lặng.
-            const closed = readWireError(undone.error)?.code === 'CREATE_UNDO_CLOSED';
-            options.onToast?.({
-              message: closed
-                ? `Không hoàn tác được: dự án "${request.name}" đã quá thời gian huỷ hoặc đã có thay đổi. Xoá trong Cài đặt dự án nếu cần.`
-                : `Không hoàn tác được việc tạo dự án "${request.name}". Hãy thử lại.`,
-            });
-          });
+          void gateway.remove(created.id);
         },
       });
       options.onCreated?.(created.id);
