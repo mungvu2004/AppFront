@@ -1,6 +1,6 @@
 import type { AppError } from '@/lib/errors';
 import type { HttpClient, HttpError, HttpRequestOptions, Result } from '@/lib/http';
-import type { z, ZodTypeAny } from 'zod';
+import { z, type ZodTypeAny } from 'zod';
 import type { Furniture, Opening, Roof, Room, Wall } from '@/domain/spatial/types';
 import {
   FloorSchema,
@@ -80,6 +80,7 @@ import {
   type FloorVersionSummary,
 } from './schemas/versions';
 import { SpatialGraphDocumentSchema, type SpatialGraphDocument } from './schemas/spatialGraph';
+import { ShareLinkWireSchema } from '@/lib/export/shareLink';
 
 export type {
   Drawing,
@@ -587,6 +588,8 @@ export interface SpatialApi {
   readVersion(input: ReadSpatialVersionInput): Promise<ApiResult<Version>>;
   /** N15 — the whole project graph plus one `revision` per floor. */
   readGraph(input: ReadSpatialGraphInput): Promise<ApiResult<SpatialGraphDocument>>;
+  /** `POST /projects/{id}/exports` — cùng dạng N15 nhưng máy chủ kiểm `model.export` (viewer 403). */
+  exportGraph(input: ReadSpatialGraphInput): Promise<ApiResult<SpatialGraphDocument>>;
   /** N16 — the floor's layer document: `revision`, `level`, four lists, axes, dimensions. */
   readLayer(input: ReadSpatialLayerInput): Promise<ApiResult<FloorLayerDocument>>;
   /**
@@ -849,9 +852,22 @@ export interface ApiClient {
   propertyTemplates: PropertyTemplatesApi;
   quality: QualityApi;
   ruleConfig: RuleConfigApi;
+  share: ShareApi;
   spatial: SpatialApi;
   users: UsersApi;
   versions: VersionsApi;
+}
+
+export const SharedModelSchema = z.object({
+  link: ShareLinkWireSchema,
+  projectName: z.string(),
+  graph: SpatialGraphDocumentSchema,
+});
+export type SharedModel = z.infer<typeof SharedModelSchema>;
+
+export interface ShareApi {
+  /** `GET /share/{token}` công khai, chỉ đọc; token lạ/hết hạn/thu hồi → 404 `resource:"share_link"`. */
+  open(input: { token: string } & RequestOptions): Promise<ApiResult<SharedModel>>;
 }
 
 export interface ListFloorVersionPageInput extends RequestOptions {
@@ -1415,6 +1431,15 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       );
     },
   },
+  share: {
+    // Client trần (không token, không refresh): trang công khai không có phiên.
+    open: async ({ signal, token }) =>
+      decodeSingle(
+        await callGet<unknown>(options.authHttp ?? http, ENDPOINTS.share(token), signal),
+        SharedModelSchema,
+        'share.open',
+      ),
+  },
   spatial: {
     patchFloor: async (input) => {
       const { body, floorId, projectId } = input;
@@ -1442,6 +1467,12 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         await callGet<unknown>(http, ENDPOINTS.spatial.graph(projectId), signal),
         SpatialGraphDocumentSchema,
         'spatial.readGraph',
+      ),
+    exportGraph: async (input) =>
+      decodeSingle(
+        await callPost<unknown, Record<string, never>>(http, ENDPOINTS.spatial.exports(input.projectId), {}, input),
+        SpatialGraphDocumentSchema,
+        'spatial.exportGraph',
       ),
     readLayer: async ({ floorId, projectId, signal }) =>
       decodeSingle(

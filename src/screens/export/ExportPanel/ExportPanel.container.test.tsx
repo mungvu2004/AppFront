@@ -102,8 +102,9 @@ afterEach(() => {
   shareDialogRenders.count = 0;
 });
 
-describe('F-06 — bản thật v1: không nút "chia sẻ", không request tới share-links', () => {
+describe('F-06 — cờ tắt: không nút "chia sẻ", không request tới share-links', () => {
   it('không nút "chia sẻ", không hộp thoại, không URL nào chứa /share-links', async () => {
+    shareLinkFlag.value = false;
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     renderExportPanel();
 

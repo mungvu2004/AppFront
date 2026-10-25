@@ -122,6 +122,7 @@ const ROWS = {
   projectExport: { anchor: { role: 'heading', name: 'Xuất bản vẽ' } },
   projectData: { anchor: { label: 'Tìm theo khoá hoặc giá trị' } },
   projectVersions: { anchor: { role: 'navigation', name: 'Danh sách phiên bản' } },
+  sharedModel: { anchor: { role: 'heading', name: 'Liên kết không còn hiệu lực' } },
 } as const satisfies Record<ProductRouteKey, Row>;
 
 function pathFor(key: ProductRouteKey, row: Row): string {

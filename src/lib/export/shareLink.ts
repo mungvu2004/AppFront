@@ -164,7 +164,7 @@ export interface ShareLink {
  * path it just requested — and asking the server to repeat it only adds a way
  * for a correct reply to be rejected.
  */
-const ShareLinkWireSchema = z.object({
+export const ShareLinkWireSchema = z.object({
   id: z.string().min(1),
   url: z.string().min(1),
   permission: z.enum(['view', 'comment']),
@@ -179,8 +179,21 @@ const ShareLinkWireSchema = z.object({
 
 type ShareLinkWire = z.output<typeof ShareLinkWireSchema>;
 
+/** Token = đoạn cuối của `url` máy chủ (`<origin API>/share/<token>`). */
+export function shareTokenOf(url: string): string {
+  return url.replace(/[?#].*$/, '').replace(/\/+$/, '').split('/').pop() ?? '';
+}
+
+/**
+ * Trang xem dựng từ origin FE + token: `url` của API mang origin của máy chủ API
+ * (`request.base_url`), có thể khác origin FE.
+ */
+export function shareViewerUrl(token: string, origin: string = globalThis.location?.origin ?? ''): string {
+  return `${origin}/share/${encodeURIComponent(token)}`;
+}
+
 function toShareLink(wire: ShareLinkWire, projectId: string): ShareLink {
-  return { ...wire, projectId };
+  return { ...wire, url: shareViewerUrl(shareTokenOf(wire.url)), projectId };
 }
 
 /** What is sent when a link is made. The password lives here and nowhere else. */
@@ -351,7 +364,7 @@ export interface ShareLinkGateway {
  * the v1 server does not mount them and answers 404. This is the one switch:
  * every screen that offers a link reads it, so v2 flips this and nothing else.
  */
-export const SHARE_LINKS_SUPPORTED: boolean = false;
+export const SHARE_LINKS_SUPPORTED: boolean = true;
 
 /** Where share links live. Ids are escaped: a project id is not a path. */
 export const SHARE_LINK_ENDPOINTS = {

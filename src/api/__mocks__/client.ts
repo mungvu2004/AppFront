@@ -1437,6 +1437,8 @@ const createMockVersionsApi = (readFloors: () => readonly Floor[]): VersionsApi 
   };
 };
 
+export const MOCK_SHARE_TOKEN = 'mock-share-ok';
+
 export const createMockApiClient = (): ApiClient => {
   let project = buildProject();
   let floors = clone(project.floors);
@@ -1521,6 +1523,29 @@ export const createMockApiClient = (): ApiClient => {
     floors: clone(qualityFloors),
     projectId,
   });
+
+  const readMockGraph = () => {
+    const documents = floors.map((floor) =>
+      makeLayerDocument(floor, layerRevisions.get(floor.id) ?? 0, writtenLayers.get(floor.id)),
+    );
+    const ofLayer = <K extends Exclude<keyof SpatialLayer, 'roofs'>>(key: K): SpatialLayer[K][number][] =>
+      documents.flatMap((doc) => [...doc.layer[key]]);
+
+    return ok({
+      floorRevisions: documents.map((doc) => ({ floorId: doc.level.id, revision: doc.revision })),
+      graph: {
+        axes: documents.flatMap((doc) => doc.axes),
+        building: clone(SAMPLE_BUILDING.building),
+        dimensions: documents.flatMap((doc) => doc.dimensions),
+        furniture: ofLayer('furniture'),
+        levels: documents.map((doc) => doc.level),
+        notes: [],
+        openings: ofLayer('openings'),
+        rooms: ofLayer('rooms'),
+        walls: ofLayer('walls'),
+      },
+    });
+  };
 
   return {
     /**
@@ -1920,6 +1945,34 @@ export const createMockApiClient = (): ApiClient => {
         return ok(clone(next));
       },
     },
+    share: {
+      /** Token `mock-share-ok` mở được; mọi token khác 404 `resource:"share_link"` như máy chủ. */
+      open: async ({ token }) => {
+        if (token !== MOCK_SHARE_TOKEN) {
+          return failed(mockWireError(404, 'NOT_FOUND', 'req-share-open', { code: 'NOT_FOUND', resource: 'share_link' }));
+        }
+        const graph = readMockGraph();
+
+        return graph.ok
+          ? ok({
+              graph: graph.data,
+              link: {
+                createdAt: '2026-10-25T00:00:00Z',
+                expiresAt: null,
+                id: 'shl_mock',
+                label: null,
+                passwordProtected: false,
+                permission: 'view' as const,
+                revokedAt: null,
+                status: 'active' as const,
+                url: `/share/${MOCK_SHARE_TOKEN}`,
+                viewpointCode: null,
+              },
+              projectName: project.name,
+            })
+          : failed(mockWireError(500, "INTERNAL", "req-share-open"));
+      },
+    },
     spatial: {
       patchFloor: async ({ body, floorId }) => {
         const current = floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId);
@@ -1930,29 +1983,10 @@ export const createMockApiClient = (): ApiClient => {
       },
       readFloor: async ({ floorId }) => ok(clone(floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId))),
       readVersion: async ({ projectId, versionId }) => ok({ ...makeVersion(), projectId, id: versionId }),
+      /** Xuất có kiểm quyền: mock coi người gọi có `model.export`, trả y như N15. */
+      exportGraph: async () => readMockGraph(),
       /** N15: lớp chung của mọi tầng `floors`, một dòng `revision` mỗi `Level` (không `scaleStatus`). */
-      readGraph: async () => {
-        const documents = floors.map((floor) =>
-          makeLayerDocument(floor, layerRevisions.get(floor.id) ?? 0, writtenLayers.get(floor.id)),
-        );
-        const ofLayer = <K extends Exclude<keyof SpatialLayer, 'roofs'>>(key: K): SpatialLayer[K][number][] =>
-          documents.flatMap((doc) => [...doc.layer[key]]);
-
-        return ok({
-          floorRevisions: documents.map((doc) => ({ floorId: doc.level.id, revision: doc.revision })),
-          graph: {
-            axes: documents.flatMap((doc) => doc.axes),
-            building: clone(SAMPLE_BUILDING.building),
-            dimensions: documents.flatMap((doc) => doc.dimensions),
-            furniture: ofLayer('furniture'),
-            levels: documents.map((doc) => doc.level),
-            notes: [],
-            openings: ofLayer('openings'),
-            rooms: ofLayer('rooms'),
-            walls: ofLayer('walls'),
-          },
-        });
-      },
+      readGraph: async () => readMockGraph(),
       readLayer: async ({ floorId }) => {
         const floor = floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId);
 

@@ -61,8 +61,11 @@
  */
 
 import type { Violation } from '@/domain/rules/registry';
+import type { ApiError, ApiResult } from '@/api/client';
+import type { SpatialGraphDocument } from '@/api/schemas/spatialGraph';
 import {
   denormalizeSpatial,
+  normalizeSpatial,
   idsOnLevel,
   isEntityOfKind,
   type NormalizedSpatial,
@@ -728,6 +731,24 @@ export interface ExportPanelGatewaySeed {
   readonly now?: () => number;
   /** Mã của một tệp trong danh sách; tiêm được để bài kiểm không phụ thuộc ngẫu nhiên. */
   readonly createFileId?: () => string;
+  /** `POST /projects/{id}/exports` — máy chủ kiểm `model.export`. Thiếu = dùng đồ thị trong store. */
+  readonly exportGraph?: (projectId: string) => Promise<ApiResult<SpatialGraphDocument>>;
+}
+
+/** Lỗi xuất có câu cho người đọc (403/404 từ tuyến xuất), hiện nguyên văn. */
+export class ExportAccessError extends Error {}
+
+function exportGraphFailure(error: ApiError): ExportAccessError {
+  const status = 'status' in error ? error.status : undefined;
+
+  if (status === 403) {
+    return new ExportAccessError('Tài khoản này không có quyền xuất mô hình. Chỉ quản trị viên và kỹ sư của dự án được xuất.');
+  }
+  if (status === 404) {
+    return new ExportAccessError('Không tìm thấy dự án, hoặc bạn không còn là thành viên của dự án này.');
+  }
+
+  return new ExportAccessError('Không tải được mô hình từ máy chủ để xuất. Thử lại sau ít phút.');
 }
 
 export interface ExportPanelGateway {
@@ -747,6 +768,8 @@ export interface ExportPanelGateway {
   readonly deliver: (file: ExportedFile) => void;
   readonly track: (input: TrackExportInput) => void;
   readonly now: () => number;
+  /** Đồ thị máy chủ cho phép xuất; ném {@link ExportAccessError} khi bị từ chối. */
+  readonly loadExportGraph?: (projectId: string) => Promise<NormalizedSpatial>;
 }
 
 /**
@@ -937,6 +960,20 @@ export function createExportPanelGateway(seed: ExportPanelGatewaySeed = {}): Exp
     },
 
     now,
+
+    ...(seed.exportGraph === undefined
+      ? {}
+      : {
+          loadExportGraph: async (projectId: string) => {
+            const result = await seed.exportGraph!(projectId);
+
+            if (!result.ok) {
+              throw exportGraphFailure(result.error);
+            }
+
+            return normalizeSpatial(result.data.graph);
+          },
+        }),
   };
 }
 
