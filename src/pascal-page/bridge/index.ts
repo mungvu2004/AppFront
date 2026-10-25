@@ -142,7 +142,11 @@ interface LoadState {
   readonly style?: SceneStyle;
 }
 
-export function usePascalProjectBridge(projectId: string): PascalBridge {
+/**
+ * `applyScene` — đặt cảnh vào editor đúng lối nạp (`applySceneGraphToEditor`: không bước hoàn tác,
+ * không đụng camera). Cầu gọi nó khi một lượt sửa bị từ chối để cảnh 3D quay về khớp kho.
+ */
+export function usePascalProjectBridge(projectId: string, applyScene?: (scene: PascalSceneGraph) => void): PascalBridge {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
   const { style } = load;
   // Đọc một lần lúc mở trang: màn vừa rời (N1-01, N5-13, N3-09), không có thì Quản lý tầng.
@@ -241,17 +245,22 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
 
   /* Đọc kho lúc gọi chứ không theo render: sau mỗi lượt sửa kho đổi, và một `onLoad`
      đổi danh tính sẽ khiến trang nạp lại cảnh đè lên việc đang làm. */
-  const onLoad = useCallback(async (): Promise<PascalSceneGraph> => {
+  /* Phong cách cảnh chốt MỘT lần mỗi lượt mở trang (J9, W4a: dự án → máy → mặc định): mọi
+     `toPascalScene` dùng chung nó, không thì giá trị sinh ra lệch nhau → "sửa ma". */
+  const sceneFromStore = useCallback((): PascalScene | null => {
     const current = selectViewerSpatial(useStore.getState());
-    if (current === null) throw new BridgeLoadError(BRIDGE_EMPTY_ERROR);
+    if (current === null) return null;
 
-    /* Phong cách cảnh chốt MỘT lần mỗi lượt mở trang (J9, W4a: dự án → máy → mặc định): mọi
-       `toPascalScene` dùng chung nó, không thì giá trị sinh ra lệch nhau → "sửa ma". */
-    const { scene } = toPascalScene(denormalizeSpatial(current), { style: style ?? readSceneStyle(() => localStorage) });
+    return toPascalScene(denormalizeSpatial(current), { style: style ?? readSceneStyle(() => localStorage) }).scene;
+  }, [style]);
+
+  const onLoad = useCallback(async (): Promise<PascalSceneGraph> => {
+    const scene = sceneFromStore();
+    if (scene === null) throw new BridgeLoadError(BRIDGE_EMPTY_ERROR);
     setLoadedScene(scene);
 
     return scene;
-  }, [style]);
+  }, [sceneFromStore]);
 
   const onSave = useCallback(
     async (scene: unknown): Promise<void> => {
@@ -260,7 +269,13 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
       rejection.current = null;
       const pending = onSceneCommit(scene as PascalScene).then(async (ok) => {
         // `false` mà không có lời từ chối là "không có gì để ghi" (sửa node sinh ra) — vẫn là thành công.
-        if (!ok && rejection.current !== null) throw new Error(rejection.current);
+        if (!ok && rejection.current !== null) {
+          /* Lượt bị từ chối (luật toàn vẹn, node lạ, lệnh hỏng): kho không đổi, nên dựng lại cảnh
+             từ kho để 3D khớp dữ liệu thật thay vì giữ phần sửa ma. */
+          const restored = sceneFromStore();
+          if (restored !== null) applyScene?.(restored);
+          throw new Error(rejection.current);
+        }
         if (!ok) return;
         /* Đợi đúng lượt PUT N16 rồi mới báo Pascal "đã lưu": lượt gửi hỏng hay tầng bị khối thì
            ném, để chỉ báo của editor không nói "đã lưu" khi máy chủ chưa nhận. */
@@ -271,7 +286,7 @@ export function usePascalProjectBridge(projectId: string): PascalBridge {
       lastSave = pending;
       await pending;
     },
-    [autosave, isFloorBlocked, onSceneCommit, readOnly],
+    [applyScene, autosave, isFloorBlocked, onSceneCommit, readOnly, sceneFromStore],
   );
 
   return {

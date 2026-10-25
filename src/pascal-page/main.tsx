@@ -8,7 +8,7 @@ import './probe';
 import './icons';
 import './firstOpen';
 import { acquireSceneReadOnlyLease, type SceneGraph, useScene } from '@pascal-app/core';
-import { CATALOG_ITEMS } from '@pascal-app/editor';
+import { applySceneGraphToEditor, CATALOG_ITEMS } from '@pascal-app/editor';
 import { loadPlugin } from '@pascal-app/core/registry';
 import { builtinPlugin } from '@pascal-app/nodes';
 import { getSceneTheme, SSGI_PARAMS, useViewer } from '@pascal-app/viewer';
@@ -90,8 +90,11 @@ function LoadingNotice() {
   );
 }
 
+// Lượt sửa bị từ chối → đặt lại cảnh từ kho, cùng lối nạp (xoá lịch sử hoàn tác, giữ camera).
+const applyRejectedRevert = (scene: unknown) => applySceneGraphToEditor(scene as SceneGraph);
+
 function PascalPage({ projectId }: { readonly projectId: string }) {
-  const bridge = usePascalProjectBridge(projectId);
+  const bridge = usePascalProjectBridge(projectId, applyRejectedRevert);
   const readOnly = bridge.status === 'ready' && bridge.readOnly;
 
   useEffect(() => (readOnly ? acquireSceneReadOnlyLease() : undefined), [readOnly]);

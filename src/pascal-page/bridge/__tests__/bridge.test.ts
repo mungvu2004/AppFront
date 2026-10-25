@@ -5,7 +5,9 @@ import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuildi
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { UpdateProjectSettingsSchema } from '@/api/schemas/projectSettings';
 import { SCENE_STYLE_STORAGE_KEY, SCENE_STYLES, sceneStylePreviewKey } from '@/lib/pascal/sceneStyles';
+import { createPascalEditCommand } from '@/lib/pascal/fromPascal';
 import { toPascalScene } from '@/lib/pascal/toPascal';
+import type { PascalScene } from '@/lib/pascal/types';
 import type * as ToPascal from '@/lib/pascal/toPascal';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
@@ -289,6 +291,34 @@ describe('usePascalProjectBridge', () => {
     const { result } = renderHook(() => usePascalProjectBridge('p1'));
 
     await waitFor(() => expect(result.current.status).toBe('ready'));
+  });
+
+  it('lượt bị từ chối: dựng lại cảnh từ kho (0 lệnh so với đồ thị); lượt hợp lệ không đặt lại', async () => {
+    const applied: PascalScene[] = [];
+    const { result } = renderHook(() => usePascalProjectBridge('p1', (scene) => applied.push(scene as PascalScene)));
+
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    await expect(result.current.onSave({ nodes: {}, rootNodeIds: [] })).resolves.toBeUndefined();
+    commit.ok = false;
+    await expect(result.current.onSave({ nodes: {}, rootNodeIds: [] })).resolves.toBeUndefined();
+    expect(applied).toHaveLength(0);
+
+    commit.reason = 'Tường phải nằm trong tầng.';
+    await expect(result.current.onSave({ nodes: {}, rootNodeIds: [] })).rejects.toThrow('Tường phải nằm trong tầng.');
+    expect(applied).toHaveLength(1);
+
+    const graph = useStore.getState().spatial;
+    const restored = applied[0];
+    if (graph === null || restored === undefined) throw new Error('thiếu kho hoặc cảnh dựng lại');
+    const back = createPascalEditCommand({
+      graph,
+      scene: restored,
+      commit: { origin: 'load', changedNodeIds: Object.keys(restored.nodes) },
+      actorId: 'u1',
+    });
+
+    expect(back.ok ? null : back.error.code).toBe('PASCAL_NO_CHANGE');
   });
 
   it('lưu: "không có gì để ghi" là thành công, chỉ ném khi có lời từ chối', async () => {
