@@ -271,7 +271,7 @@ describe('trạng thái 7 — thu gọn', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('useAccountTables — nửa thông báo', () => {
-  it('dựng ba sự việc BE nhận, chỉ cột "Trong ứng dụng", và ghép nhãn cho trình đọc màn hình', () => {
+  it('dựng bốn sự việc BE nhận (thêm aiFailed, FIX-P0-03), chỉ cột "Trong ứng dụng", và ghép nhãn cho trình đọc màn hình', () => {
     const { port } = createPort();
 
     const { result } = renderHook(() => useAccountTables(port));
@@ -279,7 +279,7 @@ describe('useAccountTables — nửa thông báo', () => {
 
     // Chưa có kênh thư điện tử nào gửi thật: cột ấy ẩn (FE3D-FIX-003 W4c).
     expect(model.channels.map((channel) => channel.id)).toEqual(['inApp']);
-    expect(model.events.map((event) => event.id)).toEqual(['aiCompleted', 'violationFound', 'projectInvite']);
+    expect(model.events.map((event) => event.id)).toEqual(['aiCompleted', 'aiFailed', 'violationFound', 'projectInvite']);
 
     for (const event of model.events) {
       expect(event.cells.map((cell) => cell.channelId)).toEqual(['inApp']);

@@ -312,3 +312,34 @@ describe('spatial.writeLayer', () => {
     expect(!result.ok && result.error.kind).toBe('http');
   });
 });
+
+describe('FIX-P0-01 — cờ edited tuỳ chọn trên mọi thực thể', () => {
+  it.each([
+    ['tường', WallSchema, wall],
+    ['ô mở', OpeningSchema, opening],
+    ['phòng', RoomSchema, room],
+    ['đồ đạc', FurnitureSchema, furniture],
+  ])('%s: có edited giữ nguyên giá trị, không có edited vẫn giải được', (_label, schema, entity) => {
+    const withTrue = schema.safeParse({ ...entity, edited: true });
+    const withFalse = schema.safeParse({ ...entity, edited: false });
+
+    expect(withTrue.success && (withTrue.data as { edited?: boolean }).edited).toBe(true);
+    expect(withFalse.success && (withFalse.data as { edited?: boolean }).edited).toBe(false);
+    expect(schema.safeParse(entity).success).toBe(true);
+  });
+
+  it('tài liệu lớp có edited trên các thực thể vẫn giải được', () => {
+    const edited = {
+      furniture: [{ ...furniture, edited: true }],
+      openings: [{ ...opening, edited: true }],
+      rooms: [{ ...room, edited: true }],
+      walls: [{ ...wall, edited: true }],
+    };
+
+    expect(SpatialLayerSchema.safeParse(edited).success).toBe(true);
+  });
+
+  it('edited không phải boolean thì bị từ chối', () => {
+    expect(WallSchema.safeParse({ ...wall, edited: 'yes' }).success).toBe(false);
+  });
+});

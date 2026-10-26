@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
+import { DimensionSchema } from '../../schemas/spatial';
 import {
   FloorLayerDocumentSchema,
   FloorLayerWriteBodySchema,
@@ -86,6 +87,36 @@ const minimalDocument = {
 } as const;
 
 describe('FloorLayerDocumentSchema', () => {
+  it('FIX-P0-01: Dimension mang edited giữ nguyên giá trị', () => {
+    const parsed = DimensionSchema.parse({ ...dimension, edited: true });
+
+    expect(parsed.edited).toBe(true);
+    expect(DimensionSchema.safeParse(dimension).success).toBe(true);
+  });
+
+  it('FIX-P0-02: readiness có thì giữ nguyên qua transform, vắng thì không có khoá', () => {
+    const readiness = { reasons: ['scaleUnresolved', 'fallbackWallModel'], state: 'needsReview' } as const;
+
+    expect(FloorLayerDocumentSchema.parse({ ...minimalDocument, readiness })).toStrictEqual({
+      ...minimalDocument,
+      readiness,
+    });
+    expect('readiness' in FloorLayerDocumentSchema.parse(minimalDocument)).toBe(false);
+    expect(
+      FloorLayerDocumentSchema.parse({ ...minimalDocument, readiness: { reasons: [], state: 'ready' } }).readiness,
+    ).toStrictEqual({ reasons: [], state: 'ready' });
+  });
+
+  it('FIX-P0-02: state lạ, lý do lạ hoặc khoá lạ trong readiness bị từ chối', () => {
+    const parse = (readiness: unknown) =>
+      FloorLayerDocumentSchema.safeParse({ ...minimalDocument, readiness }).success;
+
+    expect(parse({ reasons: [], state: 'broken' })).toBe(false);
+    expect(parse({ reasons: ['unknownReason'], state: 'needsReview' })).toBe(false);
+    expect(parse({ extra: 1, reasons: [], state: 'ready' })).toBe(false);
+    expect(parse({ state: 'ready' })).toBe(false);
+  });
+
   it('nhận tài liệu đầy đủ', () => {
     expect(FloorLayerDocumentSchema.parse(fullDocument)).toStrictEqual({ ...fullDocument });
   });

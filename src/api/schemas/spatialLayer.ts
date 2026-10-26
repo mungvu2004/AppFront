@@ -71,10 +71,31 @@ const scaleMillimetresPerPixelSchema = z.number().positive().finite();
 /** Gốc toạ độ của tầng (mm nguyên); máy chủ trả `null` hoặc bỏ khoá khi chưa đặt (#35/N16, G4b-17). */
 export const FloorOriginSchema = z.object({ x: z.number().int(), y: z.number().int() }).strict();
 
+/** Lý do tầng chưa sẵn sàng (N16 `readiness.reasons`). */
+export const ReadinessReasonSchema = z.enum([
+  'scaleUnresolved',
+  'criticalIssues',
+  'fallbackWallModel',
+  'fallbackObjectModel',
+  'fallbackTextModel',
+]);
+
+/** Độ sẵn sàng của tầng do máy chủ đánh giá (FIX-P0-10); vắng = chưa có BE mới. */
+export const ReadinessSchema = z
+  .object({
+    state: z.enum(['ready', 'needsReview', 'notEvaluated']),
+    reasons: z.array(ReadinessReasonSchema),
+  })
+  .strict();
+
+export type FloorReadiness = z.infer<typeof ReadinessSchema>;
+export type ReadinessReason = z.infer<typeof ReadinessReasonSchema>;
+
 export const FloorLayerDocumentSchema = z
   .object({
     axes: z.array(AxisSchema),
     origin: FloorOriginSchema.nullish(),
+    readiness: ReadinessSchema.optional(),
     dimensions: z.array(DimensionSchema),
     layer: SpatialLayerSchema,
     level: LevelSchema,
@@ -94,6 +115,7 @@ export const FloorLayerDocumentSchema = z
     level: wireDocument.level,
     revision: wireDocument.revision,
     ...(wireDocument.origin != null ? { origin: wireDocument.origin } : {}),
+    ...(wireDocument.readiness !== undefined ? { readiness: wireDocument.readiness } : {}),
     ...(wireDocument.scaleStatus !== undefined ? { scaleStatus: wireDocument.scaleStatus } : {}),
   }));
 

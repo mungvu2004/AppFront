@@ -54,10 +54,10 @@ const idSchema = z.string().min(1);
 const isoDateTimeSchema = z.string().datetime({ offset: true });
 
 /**
- * Bốn loại thông báo — xem docblock đầu file cho lý do bảng này không nhập từ
+ * Năm loại thông báo — xem docblock đầu file cho lý do bảng này không nhập từ
  * `notificationModel.ts`.
  */
-export const NOTIFICATION_KINDS = ['aiCompleted', 'violationFound', 'projectInvite', 'commentMention'] as const;
+export const NOTIFICATION_KINDS = ['aiCompleted', 'aiFailed', 'violationFound', 'projectInvite', 'commentMention'] as const;
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 

@@ -92,10 +92,10 @@ const APPEARANCE_KEYS = {
 type NotificationEvent = keyof NonNullable<PreferencesPatch['notifications']>;
 
 /**
- * Ba loại thông báo BE nhận. Viết thẳng thay vì nhập `NOTIFICATION_PREFERENCE_EVENTS` (cùng lý do
+ * Bốn loại thông báo BE nhận. Viết thẳng thay vì nhập `NOTIFICATION_PREFERENCE_EVENTS` (cùng lý do
  * `isLanguage`); lệch do `accountSettingsGateway.test.ts` bắt.
  */
-export const PREFERENCE_EVENTS: readonly NotificationEvent[] = ['aiCompleted', 'violationFound', 'projectInvite'];
+export const PREFERENCE_EVENTS: readonly NotificationEvent[] = ['aiCompleted', 'aiFailed', 'violationFound', 'projectInvite'];
 
 /** `me.preferences` thành hai khối giao diện và thông báo của bản nháp. */
 export function preferenceDraftsOf(me: Me): Pick<AccountDraft, 'appearance' | 'notifications'> {

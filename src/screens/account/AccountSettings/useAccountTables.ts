@@ -118,7 +118,7 @@ interface NotificationEventSpec {
 }
 
 /**
- * Ba sự việc BE nhận (`preferences.notifications`), và mặc định của từng kênh.
+ * Bốn sự việc BE nhận (`preferences.notifications`), và mặc định của từng kênh.
  *
  * Mặc định không phải "bật hết": một hộp thư nhận năm loại thư mỗi ngày là
  * một hộp thư người ta lọc bỏ, và khi ấy cái thứ sáu — thứ thật sự khẩn —
@@ -128,6 +128,11 @@ const NOTIFICATION_EVENTS: readonly NotificationEventSpec[] = Object.freeze([
   Object.freeze({
     id: 'aiCompleted',
     label: 'AI xử lý xong',
+    fallback: Object.freeze({ inApp: true, email: false }),
+  }),
+  Object.freeze({
+    id: 'aiFailed',
+    label: 'AI không xử lý được bản vẽ',
     fallback: Object.freeze({ inApp: true, email: false }),
   }),
   Object.freeze({

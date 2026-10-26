@@ -3,7 +3,7 @@
  * file ấy dưới ngưỡng độ dài. VIEW THUẦN: mọi thứ tới qua props.
  */
 
-import { AlertTriangle, Check, ChevronRight, MessageSquare, Sparkles, UserPlus } from 'lucide-react';
+import { AlertTriangle, Check, ChevronRight, MessageSquare, Sparkles, UserPlus, XCircle } from 'lucide-react';
 
 import { motion } from '@/components/motion';
 import { Button } from '@/components/ui/Button';
@@ -38,6 +38,7 @@ function takeOrphanedFocus(note: HTMLSpanElement | null): void {
 /** Bốn loại, bốn hình — bảng đóng: loại thứ năm sẽ hỏng ở bước typecheck. */
 const KIND_ICON: Readonly<Record<NotificationKind, typeof Sparkles>> = {
   aiCompleted: Sparkles,
+  aiFailed: XCircle,
   violationFound: AlertTriangle,
   projectInvite: UserPlus,
   commentMention: MessageSquare,

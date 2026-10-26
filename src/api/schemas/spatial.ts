@@ -198,6 +198,8 @@ const reviewMetadataShape = {
   confidence: confidenceSchema,
   reviewed: z.boolean(),
   source: z.enum(['ai', 'human']),
+  /** BE đặt khi người sửa mục AI (FIX-P0-04); FE không bao giờ gửi. */
+  edited: z.boolean().optional(),
 } as const;
 
 /** J-v3: vật liệu từ thư viện hoặc từ cảnh, ví dụ `library:oak`. */
@@ -338,6 +340,7 @@ export const FurnitureSchema: z.ZodType<Furniture, z.ZodTypeDef, unknown> = z
     boundingBox: wireFurniture.boundingBox,
     centre: wireFurniture.centre,
     confidence: wireFurniture.confidence,
+    ...(wireFurniture.edited !== undefined ? { edited: wireFurniture.edited } : {}),
     id: wireFurniture.id,
     kind: wireFurniture.kind,
     levelId: wireFurniture.levelId,
@@ -536,6 +539,7 @@ export const DimensionSchema: z.ZodType<Dimension, z.ZodTypeDef, unknown> = z
   })
   .transform((wireDimension) => ({
     confidence: wireDimension.confidence,
+    ...(wireDimension.edited !== undefined ? { edited: wireDimension.edited } : {}),
     id: wireDimension.id,
     kind: wireDimension.kind,
     levelId: wireDimension.levelId,

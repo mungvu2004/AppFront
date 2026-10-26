@@ -62,6 +62,8 @@ export interface ReviewMetadata {
   confidence: Confidence;
   source: DataSource;
   reviewed: boolean;
+  /** Set by the backend once a person has changed this AI entity; protects it from pipeline reruns. */
+  edited?: boolean | undefined;
 }
 
 /** Level id, prefixed with `L-`. */
