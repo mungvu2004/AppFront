@@ -152,8 +152,11 @@ const root = createRoot(document.getElementById('root') as HTMLElement);
 const projectId = new URLSearchParams(window.location.search).get('project');
 
 // Thư viện máy chủ gộp vào danh mục trước lượt dựng đầu; lỗi/offline → danh mục đóng gói (serverLibrary.ts).
-const serverLibraryLoaded = import('@/api/appClient')
-  .then(async ({ createAppApiClient }) => {
+// Mở phiên TRƯỚC: token chỉ ở bộ nhớ, gọi ngay lúc tải trang là 401 và mất thư viện máy chủ (e2e fullstack
+// bước 11). `startAppSession` nhớ lượt đang chạy nên cầu (`bridge/loadProject`) dùng lại đúng lượt này.
+const serverLibraryLoaded = Promise.all([import('@/api/appClient'), import('@/routes/sessionSetup')])
+  .then(async ([{ createAppApiClient }, { startAppSession }]) => {
+    if (!(await startAppSession())) return 0;
     const { loadServerLibrary } = await import('@/lib/pascal/serverLibrary');
     return loadServerLibrary(createAppApiClient().library);
   })

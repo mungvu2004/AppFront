@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import { defineConfig, loadEnv } from 'vite';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
@@ -15,6 +15,38 @@ import path from 'path';
  * Cấu hình test — môi trường, setup, ngưỡng độ phủ theo tầng — nằm ở
  * `vitest.config.ts`, và chỉ ở đó.
  */
+/** Băm 8 ký tự theo nội dung tệp — đuôi `?v=` của tài sản mang tên cố định. */
+const contentVersion = (file: string): string =>
+  createHash('sha256').update(readFileSync(file)).digest('hex').slice(0, 8);
+
+/**
+ * B-V10-41 cho trang 3D: `editor3d.html` chép nguyên từ `public/` nạp `pascal-page.js` và
+ * `style.css` mang tên cố định, mà `/assets/` được gửi `immutable` một năm — không có `?v=`
+ * thì sau mỗi lần triển khai trình duyệt cứ chạy bó cũ. Chỉ sửa bản trong thư mục ra:
+ * `public/editor3d.html` giữ nguyên vì `vite.pascal.config.ts` (dev) so đúng chuỗi ấy.
+ * Các chunk khác của Pascal đã mang băm trong tên.
+ */
+function versionPascalPage(): Plugin {
+  return {
+    name: 'version-pascal-page',
+    apply: 'build',
+    writeBundle(options) {
+      const outDir = options.dir ?? path.resolve(__dirname, 'dist');
+      const page = path.join(outDir, 'editor3d.html');
+
+      if (!existsSync(page)) return;
+      let html = readFileSync(page, 'utf8');
+
+      for (const asset of ['/assets/pascal/pascal-page.js', '/assets/pascal/style.css']) {
+        const file = path.join(outDir, asset);
+
+        if (existsSync(file)) html = html.replace(`"${asset}"`, `"${asset}?v=${contentVersion(file)}"`);
+      }
+      writeFileSync(page, html);
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   // B-V10-41: `pascal-mount.js` mang tên cố định (`vite.pascal.config.ts`) mà `/assets/`
@@ -22,12 +54,10 @@ export default defineConfig(({ mode }) => {
   // sau mỗi lần triển khai. `pnpm build`/`pnpm dev` dựng gói đó TRƯỚC khi nạp file này.
   // Thiếu tệp (Storybook cũng nạp file này, `E2E_SKIP_PASCAL`) thì `''` — không ném.
   const pascalMountFile = path.resolve(__dirname, 'public/assets/pascal/pascal-mount.js');
-  const pascalMountVersion = existsSync(pascalMountFile)
-    ? createHash('sha256').update(readFileSync(pascalMountFile)).digest('hex').slice(0, 8)
-    : '';
+  const pascalMountVersion = existsSync(pascalMountFile) ? contentVersion(pascalMountFile) : '';
 
   return {
-    plugins: [react()],
+    plugins: [react(), versionPascalPage()],
     server: {
       proxy: {
         // AppBack đọc `Origin` để so với `PUBLIC_BASE_URL`; dev server phải đặt
