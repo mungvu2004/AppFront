@@ -99,6 +99,7 @@ const roomTemplateSchema = z
             'corridor',
             'stairwell',
             'utility',
+            'loggia',
             'other',
           ])
           .optional(),

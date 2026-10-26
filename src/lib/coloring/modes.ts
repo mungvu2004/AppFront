@@ -180,11 +180,11 @@ export const COLORING_MODE_LABELS: Readonly<Record<ColoringModeId, string>> = {
 /* -------------------------------------------------------------------------- */
 
 /**
- * The eight uses of the graph, grouped into five.
+ * The nine uses of the graph, grouped into five.
  *
  * The palette has one accent and three state colours, and none of them may be
  * spent on "this is a kitchen"; that leaves the five neutrals of
- * {@link SEQUENTIAL_RAMP}, so eight uses have to become five groups. The grouping
+ * {@link SEQUENTIAL_RAMP}, so nine uses have to become five groups. The grouping
  * is the one a person reads a plan by — where you live, where you sleep, what
  * serves those, what you pass through — rather than an arbitrary partition, and
  * the neutrals run from dark for the rooms a plan is about to light for the
@@ -203,6 +203,7 @@ const USAGE_GROUPS: Readonly<Record<RoomUsage, UsageGroup>> = {
   utility: 'service',
   corridor: 'circulation',
   stairwell: 'circulation',
+  loggia: 'circulation',
   other: 'other',
 };
 

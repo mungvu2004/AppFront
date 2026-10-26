@@ -86,7 +86,9 @@ const buildGroupedTicket = (entries: readonly NotificationInput[], now: () => nu
  * at once, oldest evicted first.
  */
 export function createNotificationBus(options: CreateNotificationBusOptions = {}): NotificationBus {
-  const now = options.now ?? Date.now;
+  // Late-bound, not `Date.now` itself: `appNotificationBus` is a module singleton, so a captured `Date.now` kept
+  // whichever clock existed at import — under reinstalled fake timers its grouped tickets expired early (14-A-026).
+  const now = options.now ?? ((): number => Date.now());
   const groupWindowMs = options.groupWindowMs ?? DEFAULT_GROUP_WINDOW_MS;
   const maxVisible = options.maxVisible ?? DEFAULT_MAX_VISIBLE;
 

@@ -10,7 +10,7 @@
  *
  * `roomLabelTypes.ts` ĐÓNG BĂNG sau lớp L1, và cách mở rộng hợp lệ duy nhất
  * mà file đó cho phép là "mở rộng kiểu ở file riêng". Bốn thứ thanh tra cần
- * mà lát props L1 không mang — vựng chuẩn để gợi ý tên, tám nhãn công năng,
+ * mà lát props L1 không mang — vựng chuẩn để gợi ý tên, chín nhãn công năng,
  * chú giải cách tính diện tích (M-07), và phần hình học của gộp/tách — nằm
  * trong {@link RoomLabelInspectorExtras}, đúng khuôn
  * `WallLayerLeftPanelExtras`. Đề nghị đưa chúng vào hợp đồng L1 ghi ở

@@ -307,6 +307,21 @@ describe('checkRoomFurnitureMismatch', () => {
     ).toEqual([]);
   });
 
+  it('refuses a bed in a loggia', () => {
+    const loggia = rectangleRoom('LG1', 'loggia', { x: 0, y: 0 }, { x: 1500, y: 3000 });
+
+    expect(MISPLACED_FURNITURE.loggia).toEqual(['bed', 'wardrobe', 'kitchenCabinet', 'sanitaryFixture']);
+    expect(
+      runCheck(
+        checkRoomFurnitureMismatch,
+        planOf({
+          rooms: [loggia],
+          furniture: [furniture('BD8', { x: 750, y: 1500 }, { kind: 'bed' })],
+        }),
+      ),
+    ).toHaveLength(1);
+  });
+
   it('has a row for every use, so a new use cannot slip through unchecked', () => {
     const uses: readonly RoomUsage[] = [
       'livingRoom',
@@ -316,6 +331,7 @@ describe('checkRoomFurnitureMismatch', () => {
       'corridor',
       'stairwell',
       'utility',
+      'loggia',
       'other',
     ];
 

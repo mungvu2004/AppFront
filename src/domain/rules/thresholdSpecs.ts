@@ -59,14 +59,14 @@ function shipped(key: string): number {
 }
 
 /**
- * The eight minimum floor areas, one per room use.
+ * The nine minimum floor areas, one per room use.
  *
- * Built rather than typed out because the eight differ in exactly two things —
- * the use and its shipped minimum — and eight hand-written copies of the same
- * band is eight chances to mistype one of them.
+ * Built rather than typed out because the nine differ in exactly two things —
+ * the use and its shipped minimum — and nine hand-written copies of the same
+ * band is nine chances to mistype one of them.
  *
- * The band is the same for all eight. `0` switches the check off for that use,
- * which is what the four shipped zeros already mean: the rule skips a use whose
+ * The band is the same for all nine. `0` switches the check off for that use,
+ * which is what the five shipped zeros already mean: the rule skips a use whose
  * minimum is not positive, so a corridor is never measured against `0`. 60 m² is
  * larger than any standard writes a *minimum* at, so the ceiling never gets in
  * the way of a real project while still refusing a `600` typed for `60`. Steps
@@ -78,7 +78,7 @@ function roomAreaSpecs(): readonly RuleThresholdSpec[] {
   return uses.map((usage) => ({
     key: `room.minArea.${usage}`,
     // Filed under the rule that is actually switched on. `ROOM-MIN-AREA` reads
-    // the same eight numbers but is superseded and off by default, so hanging
+    // the same nine numbers but is superseded and off by default, so hanging
     // the fields off it would put them on a row nobody can reach.
     ruleCode: 'ROOM-AREA-BELOW-MINIMUM',
     label: `Diện tích tối thiểu của ${ROOM_USAGE_LABELS[usage]}`,

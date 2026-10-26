@@ -42,7 +42,7 @@ import type { RoomAreaScreenState } from './roomAreaTypes';
 /** Khung nền của story — bề rộng 344 của panel, cao cố định để thấy hết cột. */
 export const FRAME_CLASS = 'h-[760px] w-[344px] bg-bg-app';
 
-/** Tám công năng của `RoomUsage`, đúng thứ tự khai trong `spatial/types.ts`. */
+/** Chín công năng của `RoomUsage`, đúng thứ tự khai trong `spatial/types.ts`. */
 export const ALL_ROOM_USAGES: readonly RoomUsage[] = [
   'livingRoom',
   'bedroom',
@@ -51,6 +51,7 @@ export const ALL_ROOM_USAGES: readonly RoomUsage[] = [
   'utility',
   'corridor',
   'stairwell',
+  'loggia',
   'other',
 ];
 

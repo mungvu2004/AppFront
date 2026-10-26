@@ -173,6 +173,7 @@ describe('defaultValue', () => {
     'room.minArea.corridor': MIN_ROOM_AREA_M2.corridor,
     'room.minArea.stairwell': MIN_ROOM_AREA_M2.stairwell,
     'room.minArea.utility': MIN_ROOM_AREA_M2.utility,
+    'room.minArea.loggia': MIN_ROOM_AREA_M2.loggia,
     'room.minArea.other': MIN_ROOM_AREA_M2.other,
     'wallOverlap.minOverlapMm': MIN_WALL_OVERLAP_MM,
     'roomClosure.lateralToleranceMm': COVERAGE_LATERAL_TOLERANCE_MM,

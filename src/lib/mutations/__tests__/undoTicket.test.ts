@@ -112,6 +112,21 @@ describe('createNotificationBus', () => {
     undoTicket: createUndoTicket({ description, undo }),
   });
 
+  it('reads the clock current at each call, not the one it was created under (14-A-026)', () => {
+    // `appNotificationBus` is created once at import; tests then reinstall fake timers, sometimes at an
+    // earlier time. A bus that kept the old `Date.now` saw its fresh grouped tickets as already expired.
+    vi.useFakeTimers({ now: 100_000 });
+    const bus = createNotificationBus();
+    vi.advanceTimersByTime(20_000);
+    vi.useRealTimers();
+    vi.useFakeTimers({ now: 100_000 });
+
+    bus.publish(buildInput('Sửa tường 1', () => undefined));
+    bus.publish(buildInput('Sửa tường 2', () => undefined));
+
+    expect(bus.list().at(-1)?.undoTicket?.getStatus()).toBe('active');
+  });
+
   it('withdraw(type) removes every notification of that type and closes its group (BUG-463)', () => {
     const bus = createNotificationBus();
     const seen: number[] = [];

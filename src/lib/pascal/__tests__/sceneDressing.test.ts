@@ -56,6 +56,7 @@ describe('sceneDressing (I3) — sàn, tường, vật liệu cảnh', () => {
       utility: DEFAULT.floor.tile,
       bathroom: DEFAULT.floor.mosaic,
       stairwell: DEFAULT.floor.concrete,
+      loggia: DEFAULT.floor.decking,
     };
     expect(graph.rooms.length).toBeGreaterThan(0);
     for (const room of graph.rooms) expect(slabOf(room.id).slots['surface']).toBe(byUsage[room.usage]);

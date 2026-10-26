@@ -102,9 +102,9 @@ const TONE_LABELS: Readonly<Record<RoomAreaTone, string>> = {
 const TONE_ORDER: readonly RoomAreaTone[] = ['wall-strong', 'wall-mid', 'neutral'];
 
 /**
- * Tám công năng gom về ĐÚNG ba tông (PQ-9).
+ * Chín công năng gom về ĐÚNG ba tông (PQ-9).
  *
- * `src/lib/coloring/modes.ts` gom tám công năng thành NĂM nhóm
+ * `src/lib/coloring/modes.ts` gom chín công năng thành NĂM nhóm
  * (`living` · `sleeping` · `service` · `circulation` · `other`) và bảng màu của nó có
  * năm token. Kiểu `RoomAreaTone` chỉ cho ba, nên hai lượt gộp nữa xảy ra ở đây:
  * `living` + `sleeping` thành "phòng ở", `circulation` + `other` thành lát
@@ -119,6 +119,7 @@ const TONE_BY_USAGE: Readonly<Record<RoomUsage, RoomAreaTone>> = {
   utility: 'wall-mid',
   corridor: 'neutral',
   stairwell: 'neutral',
+  loggia: 'neutral',
   other: 'neutral',
 };
 
@@ -131,6 +132,7 @@ const USAGE_ORDER: readonly RoomUsage[] = [
   'utility',
   'corridor',
   'stairwell',
+  'loggia',
   'other',
 ];
 
