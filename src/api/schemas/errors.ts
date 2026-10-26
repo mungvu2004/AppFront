@@ -87,6 +87,7 @@ const ERROR_RESOURCES = [
   'trainingJob',
   'notification',
   'user',
+  'shareLink',
 ] as const;
 
 /* -------------------------------------------------------------------------- */
