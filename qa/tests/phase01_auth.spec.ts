@@ -30,6 +30,7 @@ import type { ApiEntry } from '../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { dashboardLoaded, readAdminCredentials } from './support/auth';
 import { attachJson, captureEvidence } from './support/evidence';
+import { mockInvitationPreview } from './support/p01/recovery';
 import { ADMIN_STORAGE_STATE_FILE, resetState, updateState } from './support/state';
 
 /** Refresh cookie: `chain.fullstack.ts:44`, attributes asserted there at :187-193 (green on 2026-10-06). */
@@ -73,7 +74,7 @@ const RESET_LINK_INCOMPLETE =
   'Trang này không còn mã của liên kết đặt lại mật khẩu (trang đã được tải lại hoặc liên kết bị cắt). Hãy mở lại đúng liên kết trong thư, hoặc yêu cầu liên kết mới ở trang đăng nhập.'; // vi.json:192
 const RESET_LINK_EXPIRED = 'Liên kết đã hết hạn hoặc đã được dùng.'; // vi.json:191 (prefix)
 
-/** `ProjectDashboard.tsx:196` (h1) and `FloorManager.tsx:63,91` (h2): proof the destination painted. */
+/** `ProjectDashboard.tsx:196` (h1) and `FloorManager.tsx:78,156` (PageHead h1, PageHead.tsx:23): proof the destination painted. */
 const DASHBOARD_TITLE = 'Chọn dự án để làm tiếp';
 const FLOOR_MANAGER_TITLE = 'Duyệt từng tầng';
 
@@ -406,7 +407,7 @@ test.describe('SCR-02 Login', () => {
 
     await expect.poll(() => pathOf(page.url())).toBe(GATED_PATH);
     await expect(
-      page.getByRole('heading', { level: 2, name: FLOOR_MANAGER_TITLE, exact: true }),
+      page.getByRole('heading', { level: 1, name: FLOOR_MANAGER_TITLE, exact: true }),
     ).toBeVisible();
     await attachJson('02_login_next.json', { next: GATED_PATH, landed: pathOf(page.url()) }); // BUG-034
     await captureEvidence(page, '02_login_next.png');
@@ -495,6 +496,8 @@ test.describe('Anonymous window (SCR-03, SCR-04)', () => {
       // Leave the page first: a hash-only `goto` on the same path is a same-document navigation, and the
       // token is read once, in the `useState` initializer (`fragmentToken.ts`).
       await anon.goto('about:blank');
+      // [mocked preview] the form opens only after the token preview (support/p01/recovery.ts).
+      await mockInvitationPreview(anon);
       await openWithBootstrap(anon, `${ROUTES.invitationAccept}#token=bogus`, 401);
 
       await expect(anon.getByLabel(FULL_NAME_LABEL, { exact: true })).toBeVisible();

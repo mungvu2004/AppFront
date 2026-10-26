@@ -116,13 +116,12 @@ const ADD_FLOOR = 'Thêm tầng'; // StepFloors.tsx:127
 const DEFAULT_FLOORS = ['Tầng trệt', 'Tầng 1', 'Tầng 2', 'Tầng 3'] as const; // useCreateProjectModal.ts:82, :185-197
 const HEIGHT_MISSING = 'Chưa nhập chiều cao tầng (sàn–sàn).'; // useCreateProjectModal.ts:113
 const NUMERIC_MAX = 'Giá trị không quá 10 m.'; // useNumericField.ts:44, limits.ts:35
-const NO_FLOORS = 'Chưa có tầng nào'; // StepFloors.tsx:61
-const NO_FLOORS_HINT = 'Thêm ít nhất một tầng để sang bước xem lại.'; // StepFloors.tsx:62
+const NO_FLOORS = 'Chưa có tầng nào'; // StepFloors.tsx empty state (unreachable from the UI since f4760ff5)
 const FLOOR_COUNT_MAX = 50; // limits.ts:27, useCreateProjectModal.ts:490
 const VALIDATION_DESCRIPTION = 'Kiểm tra lại các trường được đánh dấu rồi thử lại.'; // src/i18n/vi.json:39 (errors.validation)
 const CREATE_PROJECT = 'Tạo dự án';
 const DISCARD_TITLE = 'Đóng và bỏ các thay đổi chưa lưu?'; // CreateProjectModal.tsx:252
-const DISCARD_HINT = 'Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đổi" để đóng.'; // CreateProjectModal.tsx:253
+const DISCARD_HINT = 'Bấm "Đóng, bỏ thay đổi" để đóng, hoặc "Tiếp tục sửa" để quay lại.'; // CreateProjectModal.tsx DiscardPrompt (f4760ff5)
 const DISCARD_CONFIRM = 'Đóng, bỏ thay đổi';
 const KEEP_EDITING = 'Tiếp tục sửa'; // CreateProjectModal.tsx DiscardPrompt (vi.json discard.keepEditing)
 const FLOORS_HINT = 'Nhập chiều cao tầng (sàn–sàn) cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.'; // useCreateProjectModal.ts:474
@@ -391,7 +390,7 @@ const fulfillNoProject = (route: Route): Promise<void> =>
 async function expectWelcomeCards(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(WELCOME_GREETING, { timeout: 15_000 });
   for (const title of WELCOME_STEPS) {
-    await expect(page.getByRole('heading', { level: 2, name: title, exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 3, name: title, exact: true })).toBeVisible(); // cards sit under the h2 "Từ bản vẽ tới mô hình 3D" (864c8c69)
   }
   await settled(page.getByRole('listitem').last());
 }
@@ -808,16 +807,19 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
     });
   });
 
-  test('U02 · SCR-05 wizard step 2 with every floor removed → "Chưa có tầng nào"', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U02_wizard_no_floors', async (p) => {
+  test('U02 · SCR-05 wizard step 2 down to one floor → its "Xoá" is locked ("Cần ít nhất một tầng"), never "Chưa có tầng nào"', async ({ browser }) => {
+    // f4760ff5 (on master since 18-10): the last row cannot be deleted, so the empty stack is no longer reachable.
+    await verifyAsAdmin(browser, 'U02_wizard_one_floor_left', async (p) => {
       const dialog = await openWizard(p);
       await toStep2(dialog, `${TEST_DATA_PREFIX}u02-rong`);
-      for (const floor of DEFAULT_FLOORS) {
-        await activate(dialog.getByRole('button', { name: `Xoá ${floor}`, exact: true })); // StepFloors.tsx:107-114
+      const deletes = dialog.getByRole('button', { name: /^Xoá /u }); // StepFloors.tsx row IconButton `Xoá ${row.name}`
+      for (let left = DEFAULT_FLOORS.length; left > 1; left -= 1) {
+        await activate(deletes.first());
+        await expect(deletes).toHaveCount(left - 1);
       }
-      await expect(dialog.getByText(NO_FLOORS, { exact: true })).toBeVisible(); // StepFloors.tsx:58-64
-      await expect(dialog.getByText(NO_FLOORS_HINT, { exact: true })).toBeVisible();
-      await expect(dialog.getByRole('button', { name: NEXT })).toHaveCount(0); // useCreateProjectModal.ts:487
+      await expect(dialog.getByRole('textbox', { name: /^Tên tầng /u })).toHaveCount(1);
+      await expect(deletes.first()).toBeDisabled(); // StepFloors.tsx: disabled at floorRows.length <= 1
+      await expect(dialog.getByText(NO_FLOORS, { exact: true })).toHaveCount(0);
       await settled(dialog);
     });
   });
@@ -952,8 +954,9 @@ await openMore(dialog);
         await expect(dialog.getByText(SERVER_REFUSED_CODE_NOTICE, { exact: true })).toBeVisible();
         await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true })).toHaveCount(0);
         await expect(dialog.getByRole('button', { name: FIX_AT_STEP_1, exact: true })).toBeVisible();
-        // useCreateProjectModal pins the refusal to the code it named: "Tạo dự án" stays locked until it is edited.
-        await expect(dialog.getByRole('button', { name: CREATE_PROJECT, exact: true })).toBeDisabled();
+        // useCreateProjectModal pins the refusal to the code it named. createProjectGate (S-02 redesign): no dead button —
+        // the footer's one button names the fix ("Sửa ở bước 1", checked above) instead of a disabled "Tạo dự án".
+        await expect(dialog.getByRole('button', { name: CREATE_PROJECT, exact: true })).toHaveCount(0);
         await settled(dialog);
       },
       (context) =>
@@ -983,7 +986,7 @@ await openMore(dialog);
     });
   });
 
-  test('U02 · SCR-05 wizard dirty → Esc → discard prompt with the "Nhấn Esc lần nữa…" hint (not confirmed)', async ({ browser }) => {
+  test('U02 · SCR-05 wizard dirty → Esc → discard prompt with the "Bấm Đóng, bỏ thay đổi…" hint (not confirmed)', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U02_wizard_discard_esc', async (p) => {
       const dialog = await openWizard(p);
       await dialog.getByLabel(NAME_LABEL).fill(`${TEST_DATA_PREFIX}u02-esc`);
@@ -1212,14 +1215,11 @@ test.describe('U02 UI verify — SCR-07 onboarding', () => {
         await p.goto(ROUTES.onboarding);
         await expectWelcomeCards(p);
         await expect(p.getByRole('button', { name: WELCOME_SKIP, exact: true })).toBeVisible();
-        // BUG-127: the underline marks a link that works; the locked tutorial link has none (WelcomeScreen.tsx QuietLink).
-        const decoration = (name: string): Promise<string> =>
-          p.getByRole('button', { name, exact: true }).evaluate((el) => getComputedStyle(el).textDecorationLine);
-        const tutorial = p.getByRole('button', { name: WELCOME_TUTORIAL, exact: true });
-        await expect(tutorial).toHaveAttribute('aria-disabled', 'true');
-        await expect(tutorial).toHaveAccessibleDescription(WELCOME_TUTORIAL_LOCKED);
-        expect(await decoration(WELCOME_TUTORIAL), 'locked link').toBe('none');
-        expect(await decoration(WELCOME_SAMPLE), 'working link').toBe('underline');
+        // G1-23 (3c8e7ee6, useWelcomeScreen.ts sampleProjectLink / tutorialLink = null): no sample project and no
+        // tutorial yet, so neither link is drawn — no promise of a page that does not exist.
+        await expect(p.getByRole('button', { name: WELCOME_TUTORIAL, exact: true })).toHaveCount(0);
+        await expect(p.getByRole('button', { name: WELCOME_SAMPLE, exact: true })).toHaveCount(0);
+        await expect(p.getByText(WELCOME_TUTORIAL_LOCKED, { exact: true })).toHaveCount(0);
       },
       clearSeenFlagsOnLoad,
     );

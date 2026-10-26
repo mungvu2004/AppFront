@@ -16,7 +16,7 @@ import { deleteMails, linkFrom, waitForMail } from '../mailpit';
 import type { PoolRole, PoolUser } from '../phase03Seed';
 
 /** BE:auth_recovery/messages.py invitation subject (phase03Seed.ts INVITE_SUBJECT). */
-const INVITE_SUBJECT = 'Lời mời tham gia AppBack';
+const INVITE_SUBJECT = 'Lời mời tham gia AppFront';
 
 /** Admin API client with its own (new) session — the shared `admin.storage.json` session is never touched. */
 export const adminApi = async (): Promise<APIRequestContext> => {

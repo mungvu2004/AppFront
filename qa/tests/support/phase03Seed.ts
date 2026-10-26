@@ -60,7 +60,7 @@ type Json = Record<string, unknown>;
 
 const PROJECTS = '/api/projects';
 /** BE:auth_recovery/messages.py invitation subject (phase02_dashboard_api INVITE_SUBJECT). */
-const INVITE_SUBJECT = 'Lời mời tham gia AppBack';
+const INVITE_SUBJECT = 'Lời mời tham gia AppFront';
 
 const asJson = (value: unknown, what: string): Json => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error(`${what}: not a JSON object`);

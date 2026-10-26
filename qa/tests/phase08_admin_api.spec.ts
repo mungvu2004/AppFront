@@ -70,7 +70,7 @@ import { deleteMails, linkFrom, waitForMail } from './support/mailpit';
 
 const PREFIX = TEST_DATA_PREFIX;
 const REFRESH = 'appback_refresh'; // BE auth/cookies.py:13
-const INVITE_SUBJECT = 'Lời mời tham gia AppBack'; // BE auth_recovery/messages.py:31
+const INVITE_SUBJECT = 'Lời mời tham gia AppFront'; // BE auth_recovery/messages.py:31
 const ULID0 = '0'.repeat(26); // Crockford ULID body (packages/core/ids.py:35) that no row carries
 const NO_USER = `usr_${ULID0}`;
 const NO_JOB = `job_${ULID0}`;

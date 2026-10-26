@@ -78,7 +78,7 @@ const NARROW = { width: 800, height: 900 } as const;
 type Viewport = { readonly width: number; readonly height: number };
 
 const REFRESH_API = '/api/auth/refresh';
-const INVITE_SUBJECT = 'Lời mời tham gia AppBack'; // BE:auth_recovery/messages.py (phase07_account_edge INVITE_SUBJECT)
+const INVITE_SUBJECT = 'Lời mời tham gia AppFront'; // BE:auth_recovery/messages.py (phase07_account_edge INVITE_SUBJECT)
 const MAILPIT_URL = (process.env.E2E_MAILPIT_URL ?? 'http://localhost:8025').replace(/\/+$/u, '');
 /** Admin access token lives 600 s (BE:auth/settings.py:31) — refreshed well before. */
 const ADMIN_TOKEN_MAX_AGE_MS = 480_000;

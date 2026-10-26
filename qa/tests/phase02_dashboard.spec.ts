@@ -34,7 +34,8 @@ const FLOOR_HEIGHT_M = '3';
 const WELCOME_SEEN_PREFIX = 'appfront:onboarding-welcome-seen:';
 /** Sidebar status filters (`PROJECT_STATUS_FILTER_OPTIONS`, `useProjectDashboard.ts:76`). */
 const STATUS_FILTERS = ['Đang xử lý', 'Cần duyệt', 'Hoàn thành'] as const;
-const TABLE_HEADERS = ['Tên dự án', 'Trạng thái', 'Chi tiết', 'Tiến độ duyệt', 'Cập nhật'] as const;
+/** `ProjectTable.tsx`: the last header is the sr-only "Thao tác" over the action + menu buttons (S-02). */
+const TABLE_HEADERS = ['Tên dự án', 'Trạng thái', 'Chi tiết', 'Tiến độ duyệt', 'Cập nhật', 'Thao tác'] as const;
 /** `ContextMenu.tsx:102` aria-label (NOT "Tùy chọn": tone-mark placement changed in c6e6b126, coverage F1). */
 const CARD_MENU = 'Tuỳ chọn';
 /* SCR-06 copy: NotificationCenter.tsx:55-56, useNotificationCenter.ts:160-161. */
@@ -74,10 +75,13 @@ const pathOf = (page: Page): string => new URL(page.url()).pathname;
 const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 const pad = (value: number): string => String(value).padStart(2, '0');
 
-/** CP-2 name `E2E-QA-<yyyymmdd-hhmm>` (local time). */
-function cp2Name(now = new Date()): string {
+/**
+ * CP-2 name `E2E-QA-<yyyymmdd-hhmm>` (local time). A serial retry re-runs this test inside the same minute and found
+ * two cards with one name (strict-mode violation, run-ui-all 2026-10-26), so a retry adds `-r<n>`.
+ */
+function cp2Name(now = new Date(), retry = 0): string {
   const date = `${String(now.getFullYear())}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
-  return `E2E-QA-${date}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+  return `E2E-QA-${date}-${pad(now.getHours())}${pad(now.getMinutes())}${retry > 0 ? `-r${String(retry)}` : ''}`;
 }
 
 /* Locators — every label verified in src/ (file noted). */
@@ -251,7 +255,7 @@ test.describe('SCR-05 Dashboard (/)', () => {
   });
 
   test('SCR-05 create CP-2 (proven sequence): POST /api/projects 200/201, 4 default floors, card shown', async () => {
-    const name = cp2Name();
+    const name = cp2Name(new Date(), test.info().retry);
     const dialog = await openWizard(page);
 
     await dialog.getByLabel('Tên dự án').fill(name);
@@ -351,8 +355,11 @@ test.describe('SCR-05 Dashboard (/)', () => {
       const filter = statusFilterButton(page, label);
       await filter.click();
       await expect(filter).toHaveAttribute('aria-checked', 'true');
-      const count = Number(/(\d+)$/u.exec((await filter.innerText()).trim())?.[1] ?? Number.NaN);
-      expect(Number.isInteger(count), `count shown on "${label}"`).toBe(true);
+      // S-02: the filter carries no count; the page-head status line says "{visible}/{total} dự án khớp tìm kiếm và bộ lọc".
+      const line = page.getByRole('main').getByText(/^\d+\/\d+ dự án khớp tìm kiếm và bộ lọc$/u);
+      await expect(line).toBeVisible();
+      const count = Number(/^(\d+)\//u.exec((await line.innerText()).trim())?.[1] ?? Number.NaN);
+      expect(Number.isInteger(count), `visible count in the status line for "${label}"`).toBe(true);
       if (count === 0) {
         await expect(noMatch(page)).toBeVisible();
       } else {

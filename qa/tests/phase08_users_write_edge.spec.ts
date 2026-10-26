@@ -255,7 +255,7 @@ test.describe('E08 SCR-37 users write (edge)', () => {
         await ev(page, '37W-G-001');
       });
       await test.step('[37W-A-005] thu moi toi e1', async () => {
-        const mail = await waitForMail(e1, since, 30_000, 'Lời mời tham gia AppBack');
+        const mail = await waitForMail(e1, since, 30_000, 'Lời mời tham gia AppFront');
         expect.soft(mail.subject).toContain('Lời mời');
         await ev(page, '37W-A-005');
       });

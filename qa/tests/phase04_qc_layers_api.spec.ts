@@ -57,7 +57,7 @@ import { deleteMails, linkFrom, waitForMail, type Mail } from './support/mailpit
 
 const PREFIX = TEST_DATA_PREFIX;
 const REFRESH = 'appback_refresh'; // BE:auth/cookies.py:13
-const INVITE_SUBJECT = 'Lời mời tham gia AppBack'; // BE:auth_recovery/messages.py (phase01-03 api specs)
+const INVITE_SUBJECT = 'Lời mời tham gia AppFront'; // BE:auth_recovery/messages.py (phase01-03 api specs)
 const MISSING_PROJECT = `prj_${'0'.repeat(26)}`; // well-formed, no row (packages/core/ids.py:73-77)
 const MIB = 1024 * 1024;
 const LAYER_BODY_LIMIT = 8 * MIB; // BE:spatial_write/router.py:29; nginx app_locations.conf:3

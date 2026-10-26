@@ -18,7 +18,7 @@ import type { PoolRole, PoolUser } from '../phase03Seed';
 export { DESKTOP } from './common';
 
 /** Mail subject of the invitation (phase03Seed.ts:61). */
-const INVITE_SUBJECT = 'Lời mời tham gia AppBack';
+const INVITE_SUBJECT = 'Lời mời tham gia AppFront';
 
 /** One write (non-GET) request the page sent to `/api/*`. */
 export interface WriteRecord {

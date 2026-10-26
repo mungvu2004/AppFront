@@ -72,7 +72,7 @@ export async function inviteAcceptedUser(admin: APIRequestContext, role: PoolRol
   const rows = (await sent.json()) as unknown[];
   const id = rows.map(asObj).find((row) => row.email === email)?.id;
   if (typeof id !== 'string') throw new Error(`setup: invitation answer has no row for ${email}`);
-  const mail = await waitForMail(email, since, 30_000, 'Lời mời tham gia AppBack');
+  const mail = await waitForMail(email, since, 30_000, 'Lời mời tham gia AppFront');
   try {
     const token = new URLSearchParams(new URL(linkFrom(mail, '/login/invitation')).hash.slice(1)).get('token');
     if (!token) throw new Error(`setup: mail "${mail.subject}" link has no #token`);

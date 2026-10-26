@@ -195,7 +195,7 @@ async function invite(admin: APIRequestContext, email: string, evidence: string)
   const user = out.find((u) => u.email === email);
   expect(user?.status).toBe('pending');
   const mail = await waitForMail(email, since);
-  expect(mail.subject).toBe('Lời mời tham gia AppBack'); // messages.py:31
+  expect(mail.subject).toBe('Lời mời tham gia AppFront'); // messages.py:20,39 PRODUCT_NAME (BE fb005b27)
   return { id: String(user!.id), email, token: tokenFrom(mail, '/login/invitation'), mailId: mail.id };
 }
 
@@ -219,7 +219,7 @@ async function adminApi(): Promise<APIRequestContext> {
   return signedInApi(email, password);
 }
 
-const RESET_SUBJECT = 'Yêu cầu đặt lại mật khẩu AppBack'; // F:/App/AppBack apps/api/auth_recovery/messages.py:36
+const RESET_SUBJECT = 'Yêu cầu đặt lại mật khẩu AppFront'; // AppBack apps/api/auth_recovery/messages.py:20,48 (fb005b27)
 
 /** Setup (1 recovery request): the invitee accepts with the mailed token → active user + live session cookie. */
 async function acceptInvite(api: APIRequestContext, invited: Invited, evidence: string): Promise<{ password: string; session: string }> {
@@ -739,7 +739,7 @@ test.describe('A01 POST /api/auth/password-reset + /confirm — real Mailpit tok
       ]);
       expect(requested.status()).toBe(204);
       expect(await requested.text()).toBe('');
-      const mail = await waitForMail(invited.email, since, 30_000, 'Yêu cầu đặt lại mật khẩu AppBack'); // messages.py:36
+      const mail = await waitForMail(invited.email, since, 30_000, RESET_SUBJECT); // messages.py:48
       mails.push(mail.id);
       const token = tokenFrom(mail, '/login/reset-password');
 

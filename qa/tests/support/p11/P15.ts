@@ -19,7 +19,7 @@ export interface Sent {
 }
 
 /** BE:auth_recovery/messages.py invitation subject (phase02_dashboard_api INVITE_SUBJECT). */
-const INVITE_SUBJECT = 'Lời mời tham gia AppBack';
+const INVITE_SUBJECT = 'Lời mời tham gia AppFront';
 /** BE:auth/cookies.py refresh cookie name (phase01_auth_api REFRESH). */
 export const REFRESH_COOKIE = 'appback_refresh';
 

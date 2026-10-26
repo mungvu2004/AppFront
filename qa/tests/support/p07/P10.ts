@@ -19,7 +19,7 @@ export { Cleanup, note, png };
 
 export const PREFIX = TEST_DATA_PREFIX;
 export const REFRESH = 'appback_refresh'; // BE auth/cookies.py:13
-const INVITE_SUBJECT = 'Lời mời tham gia AppBack'; // BE auth_recovery/messages.py:31
+const INVITE_SUBJECT = 'Lời mời tham gia AppFront'; // BE auth_recovery/messages.py:31
 export const MAX_BASE64_LEN = 699_052; // BE me/avatar.py:53
 export const MAX_DECODED_BYTES = 512 * 1024; // BE me/avatar.py:56
 export const BODY_LIMIT = 1_048_576; // BE core/routing.py:46 DEFAULT_BODY_LIMIT (1 MiB)

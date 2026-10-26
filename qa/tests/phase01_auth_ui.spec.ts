@@ -30,6 +30,7 @@ import { signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
 import { EVIDENCE_DIR, TEST_DATA_PREFIX, TEST_EMAIL_DOMAIN, attachJson, testEmail } from './support/evidence';
 import { deleteMails, waitForMail } from './support/mailpit';
+import { mockInvitationPreview, skipUnlessProdBuild } from './support/p01/recovery';
 import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 import { verifyUi } from './support/ui-verify';
 
@@ -420,7 +421,9 @@ test.describe('U01 UI verify — signed-in screens (SCR-08..11, SCR-37..41)', ()
     });
   });
 
-  test('U01 · SCR-40 dev URL on the prod build → not found', async ({ browser }) => {
+  test('U01 · SCR-40 dev URL on the prod build → not found', async ({ browser, request }) => {
+    // On a Vite dev stack the design-system page IS served (dev-only route), so this row needs the prod build.
+    await skipUnlessProdBuild(request);
     await verifyAsAdmin(browser, 'U01_dev_route_prod', async (p) => {
       // Track A is the compose prod build: DEV_ONLY_ROUTES is [] (router.tsx:126), so `*` answers.
       await p.goto(ROUTES.designSystem);
@@ -463,6 +466,8 @@ test.describe('U01 UI verify — SCR-03 / SCR-04', () => {
   });
 
   test('U01 · SCR-03 invitation form (#token=bogus, nothing submitted)', async ({ page }) => {
+    // [mocked preview] the form opens only after the token preview (support/p01/recovery.ts).
+    await mockInvitationPreview(page);
     await verifyUi(page, 'U01_invite_form', async (p) => {
       await p.goto(`${ROUTES.invitationAccept}#token=bogus`);
       await expect(p.getByLabel(FULL_NAME_LABEL, { exact: true })).toBeVisible();
@@ -470,6 +475,7 @@ test.describe('U01 UI verify — SCR-03 / SCR-04', () => {
   });
 
   test('U01 · SCR-03 invitation form, empty submit → field errors (no request)', async ({ page }) => {
+    await mockInvitationPreview(page); // [mocked preview], as above
     await verifyUi(page, 'U01_invite_required', async (p) => {
       await p.goto(`${ROUTES.invitationAccept}#token=bogus`);
       // Enabled once the bootstrap refresh settles (`canSubmit` waits for `isSessionPending`).

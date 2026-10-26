@@ -63,7 +63,7 @@ import { deleteMails, linkFrom, waitForMail } from './support/mailpit';
 
 const PREFIX = TEST_DATA_PREFIX;
 const REFRESH = 'appback_refresh'; // BE auth/cookies.py:13
-const INVITE_SUBJECT = 'Lời mời tham gia AppBack'; // BE auth_recovery/messages.py:31
+const INVITE_SUBJECT = 'Lời mời tham gia AppFront'; // BE auth_recovery/messages.py:31
 const FULL_NAME_MAX = 120; // BE me/schemas.py:16 (jobTitle shares it, :62-64)
 const PHONE_MAX = 32; // BE me/schemas.py:17
 const MAX_BASE64_LEN = 699_052; // BE me/avatar.py:53

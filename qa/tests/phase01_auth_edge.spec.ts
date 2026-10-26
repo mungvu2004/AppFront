@@ -34,7 +34,10 @@
  * request (sending / 429 / 5xx / network / origin / VALIDATION), the accept / confirm requests
  * (5xx / network / 429), the invitation page's bootstrap refresh (network loss) and, for the budget below,
  * the reset-confirm 422. "[held response]" = the real response, only delayed. The "session layer never
- * loads" case aborts the app's own lazy JS chunks, not an API.
+ * loads" case aborts the app's own lazy JS chunks, not an API. Every SCR-03 form opened with a fake token also
+ * answers `POST /api/auth/invitations/preview` with a valid preview ([mocked preview], support/p01/recovery.ts):
+ * since 147c9620 the form only opens after that check; the bogus-token test spends ONE real preview (422).
+ * Rows on 375×812 are skipped (desktop + tablet only); prod-only rows skip on a Vite dev stack.
  * KEYBOARD: the panel is still opened with Space on the focused "Quên mật khẩu" (helper below); the click
  * (BUG-009, fixed at useAuthScreen.ts:562-569) and Enter (BUG-011, fixed at AuthScreen.tsx:88-98) paths
  * keep their own regression tests.
@@ -71,9 +74,10 @@ import { ROUTES, UNKNOWN_PATH, loginUrl, pathOf } from '../../e2e/fixtures/route
 import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/session';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl, newApiContext, signedInApi } from './support/api';
-import { BE_SHORT_PASSWORD, DASHBOARD_TITLE, dashboardLoaded, readAdminCredentials, signInAdmin } from './support/auth';
+import { DASHBOARD_TITLE, dashboardLoaded, readAdminCredentials, signInAdmin } from './support/auth';
 import { TEST_DATA_PREFIX, TEST_EMAIL_DOMAIN, attachJson, captureEvidence, testEmail } from './support/evidence';
 import { deleteMails, linkFrom, waitForMail, type Mail } from './support/mailpit';
+import { PHONE_OUT_OF_SCOPE, isProdBuild, mockInvitationPreview, skipUnlessProdBuild } from './support/p01/recovery';
 
 /** BE:apps/api/auth/cookies.py:13 */
 const REFRESH_COOKIE = 'appback_refresh';
@@ -140,6 +144,10 @@ const INVITATION_EXPIRED =
   'Lời mời đã hết hạn hoặc đã được dùng. Nhờ quản trị viên gửi lại lời mời. Nếu bạn vừa đặt mật khẩu ở lượt trước, hãy đăng nhập.'; // :180
 const INVITATION_INCOMPLETE =
   'Trang này không còn mã của liên kết lời mời (trang đã được tải lại hoặc liên kết bị cắt). Hãy mở lại đúng liên kết trong thư mời, hoặc nhờ quản trị viên gửi lại lời mời.'; // :181
+/** InvitationAccept.tsx:49-51 DEAD_REASON_MESSAGES.invalid — preview 422 INVITATION_TOKEN_INVALID, or a malformed token (G1-10). */
+const INVITATION_INVALID =
+  'Liên kết lời mời không đúng (có thể bị chép thiếu hoặc sai). Hãy mở lại đúng liên kết trong thư mời, hoặc nhờ quản trị viên gửi lại lời mời.';
+const INVITATION_PREVIEW_PATH = '/api/auth/invitations/preview'; // endpoints.ts:91
 const INVITATION_RETRY_FAILED = 'Đã thử lại nhưng vẫn chưa kết nối được máy chủ.'; // :184
 const INVITATION_SIGNED_IN_WARNING = 'Nhận lời mời sẽ đăng xuất tài khoản đang đăng nhập.'; // auth.invitation.signedInWarning
 const RESET_DEAD_END_SUBTITLE = 'Liên kết này không đặt lại được mật khẩu.'; // :190
@@ -464,6 +472,7 @@ test.describe('E01 SCR-01 Session gate', () => {
     // (getOptionalAuthConfig() null, :360) → GateScreen h1 "Chưa mở được ứng dụng" + "Tải lại trang để thử mở lại."
     // + "Tải lại trang" → location.reload() (:212-221, 122-147). Faked by aborting every `/assets/*.js` NOT
     // referenced by index.html (the entry + its modulepreloads keep loading, every dynamic chunk fails).
+    await skipUnlessProdBuild(page.request); // a Vite dev stack has no /assets chunks to abort
     const html = await (await page.request.get(ROUTES.dashboard)).text();
     const initial = new Set([...html.matchAll(/["'](\/assets\/[^"']+\.js)["']/gu)].map((match) => match[1]));
 
@@ -633,7 +642,7 @@ test.describe('E01 SCR-02 Login form', () => {
     }
   });
 
-  test('[BUG-012] E01 · keyboard: email autofocused; Tab order email → Mật khẩu → eye → checkbox → Đăng nhập → Quên mật khẩu (no SSO, no "Hoặc"); the form title is the only h1; value panel shown at 1440 and not focusable', async ({ page }) => {
+  test('[BUG-012] E01 · keyboard: email autofocused; Tab order email → Mật khẩu → eye → Quên mật khẩu → checkbox → Đăng nhập (no SSO, no "Hoặc"); the form title is the only h1; value panel shown at 1440 and not focusable', async ({ page }) => {
     // registerFirstField focuses the email box on mount (AuthScreen.tsx:251-258, 138-139); DOM order
     // AuthScreen.tsx:134-219 (eye = PasswordField suffix PasswordField.tsx:55-73; checkbox :166-171, a single Tab
     // stop since BUG-012: plain `div` box, Checkbox.tsx:62-72). No host passes onSsoSignIn
@@ -647,12 +656,14 @@ test.describe('E01 SCR-02 Login form', () => {
     await expect(button(page, SSO_SIGN_IN), 'no SSO flow wired → no button').toHaveCount(0);
     await expect(page.getByText(OR_DIVIDER, { exact: true }), 'no divider without SSO').toHaveCount(0);
 
+    // Z/S-01 #5: "Quên mật khẩu" sits on the password label row, after the box (and its eye) in the DOM
+    // (AuthScreen.tsx:194-218), so it is the next Tab stop after the eye, before the checkbox.
     const order = [
       ['Mật khẩu', passwordBox(page)],
       ['eye toggle', button(page, SHOW_PASSWORD)],
+      ['Quên mật khẩu', button(page, FORGOT_PASSWORD)],
       ['remember me', rememberBox(page)],
       ['Đăng nhập', button(page, SIGN_IN_LABEL)],
-      ['Quên mật khẩu', button(page, FORGOT_PASSWORD)],
     ] as const;
 
     for (const [name, target] of order) {
@@ -821,7 +832,7 @@ test.describe('E01 SCR-02 Login form', () => {
     }); // BUG-034
   });
 
-  test('E01 · unknown address → the SAME 401 and copy as a known address with a wrong password (no enumeration); the strip sits UNDER "Đăng nhập" with no button of its own, fields do not move; "Quên mật khẩu" stays the way out (BUG-090)', async ({ page }) => {
+  test('E01 · unknown address → the SAME 401 and copy as a known address with a wrong password (no enumeration); the strip sits UNDER the password box, above "Đăng nhập", with no button of its own, fields do not move; "Quên mật khẩu" stays the way out (BUG-090)', async ({ page }) => {
     // BUG-090 (80a0ea95): a wrong password no longer gets a "Đặt lại mật khẩu" button under the strip;
     // the form's "Quên mật khẩu" text button is the one way to recover (AuthScreen.tsx stripAction comment).
     // BE:router.py:6-8,173-177: unknown email, `pending` user and wrong password share one path and
@@ -850,13 +861,17 @@ test.describe('E01 SCR-02 Login form', () => {
     await expect(emailBox(page)).toHaveValue(address);
     await expect(passwordBox(page)).toHaveValue(PROBE_PASSWORD);
 
+    // Z/S-01 #6: a wrong-credentials strip reads right under the password box, next to what it is about
+    // (AuthScreen.tsx:219-228); "Quên mật khẩu" is on the password label row (Z/S-01 #5), above both.
     const submitBox = await button(page, SIGN_IN_LABEL).boundingBox();
     const stripBox = await strip.boundingBox();
     const forgotBox = await button(page, FORGOT_PASSWORD).boundingBox();
+    const passwordBoxBox = await passwordBox(page).boundingBox();
     const emailTopAfter = (await emailBox(page).boundingBox())?.y;
-    expect(submitBox && stripBox && forgotBox, 'boxes').toBeTruthy();
-    expect(stripBox!.y, 'strip below the submit button').toBeGreaterThanOrEqual(submitBox!.y + submitBox!.height);
-    expect(forgotBox!.y, '"Quên mật khẩu" below the strip').toBeGreaterThanOrEqual(stripBox!.y + stripBox!.height);
+    expect(submitBox && stripBox && forgotBox && passwordBoxBox, 'boxes').toBeTruthy();
+    expect(stripBox!.y, 'strip below the password box').toBeGreaterThanOrEqual(passwordBoxBox!.y + passwordBoxBox!.height);
+    expect(stripBox!.y + stripBox!.height, 'strip above the submit button').toBeLessThanOrEqual(submitBox!.y);
+    expect(forgotBox!.y + forgotBox!.height, '"Quên mật khẩu" above the strip').toBeLessThanOrEqual(stripBox!.y);
     expect(
       Math.abs((emailTopAfter ?? Number.NaN) - (emailTopBefore ?? Number.NaN)),
       'email box did not move (BUG-008), px',
@@ -1145,8 +1160,9 @@ test.describe('E01 SCR-02 Login failures', () => {
 
     await openAnonymousLogin(page);
     await emailBox(page).fill(nobody('m422'));
-    // BUG-094: a password the real BE answers 422 for (4 code points) and the FE still sends (8 UTF-16 units).
-    await passwordBox(page).fill(BE_SHORT_PASSWORD);
+    // BUG-094 is fixed: the FE now counts code points (schemas/index.ts:78-82), so BE_SHORT_PASSWORD never leaves
+    // the page. Any FE-valid password reaches this mocked 422; the mapping under the box is what is checked.
+    await passwordBox(page).fill(PROBE_PASSWORD);
     await button(page, SIGN_IN_LABEL).click();
 
     await expect(passwordBox(page)).toHaveAccessibleDescription(PASSWORD_TOO_SHORT);
@@ -1154,7 +1170,7 @@ test.describe('E01 SCR-02 Login failures', () => {
     await expect(page.getByText(INVALID_CREDENTIALS_TITLE, { exact: true })).toHaveCount(0);
     await expect(authMain(page, 'error')).toBeVisible();
     await captureEvidence(page, 'E01_login_validation_password.png', {
-      caption: `[mocked response] 422 VALIDATION field "password"; box: 4 astral chars (FE 8 UTF-16 units ≥ 8, BE 4 code points < 8) — real pair A01_login_422_password`,
+      caption: `[mocked response] 422 VALIDATION field "password" (FE-valid box value) — real pair A01_login_422_password`,
     });
 
     await button(page, SIGN_IN_LABEL).click();
@@ -1526,6 +1542,7 @@ test.describe('E01 SCR-02 compact 375×812', () => {
   // change at `sm` (640): 46 px fields (Input.tsx:61-64), 44 px lg buttons (buttonVariants.ts:16-17), 44 px eye
   // button (PasswordField.tsx:65-66) — the touch-target case is in "E01 FE refresh 7735bcda". 768 ≥ sm renders
   // the 375 column with desktop control sizes; no case of its own. `isCollapsed` is unreachable (inventory).
+  test.skip(true, PHONE_OUT_OF_SCOPE);
   test.use({ viewport: COMPACT });
 
   test('E01 · 375×812: value panel gone, form alone, no horizontal scroll, submit in view; Enter on the empty form → both problems fit', async ({ page }) => {
@@ -1598,14 +1615,33 @@ test.describe('E01 SCR-02 compact 375×812', () => {
 /* ---------------------------------------- SCR-03 / SCR-04 recovery tokens */
 
 test.describe('E01 anonymous — SCR-03 / SCR-04 recovery tokens', () => {
-  test('E01 · invitation #token=bogus + valid matching passwords → 422 INVITATION_TOKEN_INVALID → dead-end', async ({ page }) => {
-    // REAL recovery request #2. BE:auth_recovery/router.py:348-349 unknown token → 422
-    // INVITATION_TOKEN_INVALID (:56). FE: classifyRecoveryFailure → tokenInvalid (recoveryShared.ts:51-56,
-    // useInvitationAccept.ts:244) → isDead → `forbidden` dead-end (useInvitationAccept.ts:182, 302-303). The token
-    // itself was well-formed, so isLinkIncomplete is false → "expired" copy + the dead-end subtitle
-    // (useInvitationAccept.ts:340; InvitationAccept.tsx:70-72, 84-90, BUG-005). Bootstrap must answer first: the
-    // button is disabled while pending (useInvitationAccept.ts:188, 334).
-    await openWithBootstrap(page, `${ROUTES.invitationAccept}#token=e01-bogus-${RUN_TAG}`);
+  test('E01 · invitation #token=bogus → real preview 422 INVITATION_TOKEN_INVALID → "không đúng" dead-end, no form, no accept; [mocked preview] + valid matching passwords → real accept 422 → dead-end', async ({ page }) => {
+    // Since 147c9620 (G2-9/G2-10) the token is checked BEFORE the form: POST /invitations/preview
+    // (useInvitationAccept.ts:172-212); BE 422 INVITATION_TOKEN_INVALID → deadReason 'invalid' → `forbidden` with
+    // DEAD_REASON_MESSAGES.invalid (InvitationAccept.tsx:49-51, 139-149). REAL recovery requests: preview 1 + accept 1.
+    const requests = recordApiRequests(page);
+    try {
+      const previewed = nextPost(page, INVITATION_PREVIEW_PATH);
+      await openWithBootstrap(page, `${ROUTES.invitationAccept}#token=e01-bogus-${RUN_TAG}`);
+      expect((await previewed).status(), `POST ${INVITATION_PREVIEW_PATH}`).toBe(422);
+      await expect(authMain(page, 'forbidden')).toBeVisible();
+      await expect(page.getByText(INVITATION_INVALID, { exact: true })).toBeVisible();
+      await expect(page.getByText(INVITATION_DEAD_END_SUBTITLE, { exact: true })).toBeVisible();
+      await expect(page.getByText(INVITATION_INCOMPLETE, { exact: true })).toHaveCount(0);
+      await expect(page.getByLabel(FULL_NAME_LABEL, { exact: true }), 'no form for a rejected token').toHaveCount(0);
+      await expect.poll(() => new URL(page.url()).hash).toBe('');
+      await nextFrame(page);
+      expect(posts(requests.sent, INVITATION_ACCEPT_API), 'nothing accepted').toEqual([]);
+      await captureEvidence(page, 'E01_invite_bogus_token_preview.png');
+    } finally {
+      requests.stop();
+    }
+
+    // Submit path (a token that turns bad between preview and submit): classifyRecoveryFailure → tokenInvalid
+    // (recoveryShared.ts, useInvitationAccept.ts:247) → isDead, no deadReason → the "expired" copy.
+    await mockInvitationPreview(page);
+    await page.goto('about:blank');
+    await openWithBootstrap(page, `${ROUTES.invitationAccept}#token=e01-bogus-submit-${RUN_TAG}`);
     await expect(page.getByLabel(FULL_NAME_LABEL, { exact: true })).toBeVisible();
     await expect.poll(() => new URL(page.url()).hash).toBe('');
 
@@ -1621,7 +1657,7 @@ test.describe('E01 anonymous — SCR-03 / SCR-04 recovery tokens', () => {
     await expect(page.getByText(INVITATION_DEAD_END_SUBTITLE, { exact: true })).toBeVisible();
     await expect(page.getByText(INVITATION_INCOMPLETE, { exact: true })).toHaveCount(0);
     await expect(page.getByRole('link', { name: GO_TO_SIGN_IN, exact: true })).toBeVisible();
-    await attachJson('E01_invite_bogus_token.json', { hashAfterLoad: new URL(page.url()).hash, acceptStatus: 422 }); // BUG-034
+    await attachJson('E01_invite_bogus_token.json', { previewStatus: 422, hashAfterLoad: new URL(page.url()).hash, acceptStatus: 422 }); // BUG-034
     await captureEvidence(page, 'E01_invite_bogus_token.png');
   });
 
@@ -1805,6 +1841,7 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
 
     const requests = recordApiRequests(page);
     try {
+      await mockInvitationPreview(page); // [mocked preview] (support/p01/recovery.ts)
       await openWithBootstrap(page, `${ROUTES.invitationAccept}#token=e01-signed-in-${RUN_TAG}`, [200]);
       const warning = alertWith(page, INVITATION_SIGNED_IN_WARNING);
       await expect(warning).toBeVisible();
@@ -1972,8 +2009,8 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
  * accept (BE:apps/api/auth_recovery/router.py:337-365), delete (BE:apps/api/users/router.py:111-123).
  */
 const TEST_PREFIX = TEST_DATA_PREFIX;
-const INVITE_SUBJECT = 'Lời mời tham gia AppBack'; // BE:apps/api/auth_recovery/messages.py:31
-const RESET_SUBJECT = 'Yêu cầu đặt lại mật khẩu AppBack'; // BE:apps/api/auth_recovery/messages.py:36
+const INVITE_SUBJECT = 'Lời mời tham gia AppFront'; // BE:apps/api/auth_recovery/messages.py:20,39 (fb005b27)
+const RESET_SUBJECT = 'Yêu cầu đặt lại mật khẩu AppFront'; // BE:apps/api/auth_recovery/messages.py:20,48
 const INVITATION_SUCCESS = 'Đã nhận lời mời. Đang mở tài khoản của bạn.'; // vi.json:185
 const RESET_SUCCESS = 'Đã đổi mật khẩu. Đang chuyển tới trang đăng nhập.'; // vi.json:193
 const PASSWORD_RESET_NOTICE = 'Đã đổi mật khẩu. Hãy đăng nhập lại bằng mật khẩu mới.'; // vi.json:197
@@ -2266,6 +2303,8 @@ const recoveryForm = (slug: RecoveryForm['slug']): RecoveryForm => {
  * The token reaches the backend only if a test lets a submit through.
  */
 async function openRecoveryForm(page: Page, form: RecoveryForm, tag: string): Promise<void> {
+  // [mocked preview] for the invitation: the form opens only after the token preview (support/p01/recovery.ts).
+  if (form.slug === 'invite') await mockInvitationPreview(page);
   await openWithBootstrap(page, `${form.path}#token=e01-${tag}-${RUN_TAG}`);
   await expect(button(page, form.submit)).toBeEnabled();
   await expect.poll(() => new URL(page.url()).hash, { message: '#token stripped' }).toBe(''); // fragmentToken.ts:41-45
@@ -2588,6 +2627,7 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
     await page.route(matcher, handler);
 
     try {
+      await mockInvitationPreview(page); // [mocked preview] (support/p01/recovery.ts)
       await page.goto(`${ROUTES.invitationAccept}#token=e01-offline-${RUN_TAG}`, { waitUntil: 'commit' });
       const strip = alertWith(page, NETWORK_DESCRIPTION);
       await expect(strip).toBeVisible();
@@ -2652,6 +2692,7 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
   });
 
   test.describe('375×812', () => {
+    test.skip(true, PHONE_OUT_OF_SCOPE);
     test.use({ viewport: COMPACT });
 
     test('E01 · 375×812 · touch targets below 640 px: 46 px field boxes (44 px inside the border), "Đăng nhập" 44 px, eye button 44×44, "Quên mật khẩu" and "Về trang đăng nhập" on the reset form 44 px tall (BUG-041), "Ghi nhớ máy này" ≥ 24 px; recovery screens use 24 px side margins (BUG-048/040/052/098)', async ({ page }) => {
@@ -2785,8 +2826,14 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
       { slug: 'scr40_demo', path: ROUTES.demoGallery },
     ] as const;
     const landed: Record<string, string> = {};
+    // On a Vite dev stack /demo is a public dev route by design (paths.ts dev patterns): that row is prod-only.
+    const prod = await isProdBuild(page.request);
 
     for (const { slug, path } of cases) {
+      if (slug === 'scr40_demo' && !prod) {
+        test.info().annotations.push({ type: 'skipped-row', description: 'scr40_demo: Vite dev stack, prod-only row' });
+        continue;
+      }
       await openWithBootstrap(page, path);
       await expect.poll(() => pathOf(page.url()), { message: slug }).toBe(loginUrl(path));
       await expect(h1(page, SIGN_IN_TITLE), slug).toBeVisible();
@@ -3093,6 +3140,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
   });
 
   test.describe('375×812', () => {
+    test.skip(true, PHONE_OUT_OF_SCOPE);
     test.use({ viewport: COMPACT });
 
     test('E01 · 375×812 · /login uses 24 px side margins (BUG-052); the longest two-line complaint (bad address) + "Chưa nhập mật khẩu." move neither the password box nor "Đăng nhập"; no request', async ({ page }) => {

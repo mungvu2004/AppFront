@@ -54,7 +54,7 @@ import { deleteMails, linkFrom, waitForMail, type Mail } from './support/mailpit
 
 const PREFIX = TEST_DATA_PREFIX;
 const REFRESH = 'appback_refresh'; // BE:auth/cookies.py
-const INVITE_SUBJECT = 'Lời mời tham gia AppBack'; // BE:auth_recovery/messages.py (phase01_auth_api "invite")
+const INVITE_SUBJECT = 'Lời mời tham gia AppFront'; // BE:apps/api/auth_recovery/messages.py (renamed from "AppBack" in fb005b27, as phase01_auth_edge)
 /** Well-formed `prj_<ULID>` that no row has (BE:packages/core/ids.py:35,74-78). */
 const MISSING_PROJECT = `prj_${'0'.repeat(26)}`;
 const PROJECT_ID = /^prj_[0-9A-HJKMNP-TV-Z]{26}$/u;
@@ -73,7 +73,7 @@ const PROJECT_KEYS = ['createdAt', 'floors', 'id', 'members', 'name', 'status', 
 const PROJECT_OPTIONAL = ['address', 'code'] as const;
 const MEMBER_KEYS = ['email', 'id', 'name', 'role'] as const; // wire.py:38-49
 const MEMBER_OPTIONAL = ['avatarUrl'] as const;
-const FLOOR_KEYS = ['drawings', 'elevationMm', 'heightMm', 'id', 'name', 'order'] as const; // wire.py:65-74
+const FLOOR_KEYS = ['drawings', 'elevationMm', 'heightMm', 'hiddenIn3d', 'id', 'name', 'order'] as const; // wire.py FloorOut (hiddenIn3d always on the wire since AppBack a682f17a, FE3D-B3)
 const FLOOR_OPTIONAL = ['areaM2'] as const;
 const SUMMARY_KEYS = [
   'areaM2', 'floorCount', 'id', 'members', 'name', 'status', 'updatedAt', 'wallsReviewedCount', 'wallsTotalCount',
@@ -180,6 +180,7 @@ function expectProjectOut(value: unknown): Json {
   for (const floor of asArray(project.floors, 'floors')) {
     const out = expectKeys(floor, FLOOR_KEYS, FLOOR_OPTIONAL);
     expect(String(out.id)).toMatch(FLOOR_ID);
+    expect(typeof out.hiddenIn3d, 'floor.hiddenIn3d').toBe('boolean');
   }
   return project;
 }

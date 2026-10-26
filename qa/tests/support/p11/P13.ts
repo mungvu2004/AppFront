@@ -14,7 +14,7 @@ import { deleteMails, linkFrom, waitForMail } from '../mailpit';
 import type { PoolRole, PoolUser } from '../phase03Seed';
 
 /** Same subject as `phase03Seed.ts` INVITE_SUBJECT (BE auth_recovery/messages.py). */
-const INVITE_SUBJECT = 'Lời mời tham gia AppBack';
+const INVITE_SUBJECT = 'Lời mời tham gia AppFront';
 
 /** Invites `testEmail('p11-session-<slug>')` with `role`, reads the mail, accepts. // dup-of: phase03Seed.inviteAndAccept (not exported) */
 export async function inviteFreshUser(admin: APIRequestContext, role: PoolRole, slug: string): Promise<PoolUser> {

@@ -13,7 +13,7 @@ import { deleteMails, linkFrom, waitForMail } from '../mailpit';
 import { poolUser, type PoolRole, type PoolUser } from './pool';
 
 export type Json = Record<string, unknown>;
-export const INVITE_SUBJECT = 'Lời mời tham gia AppBack';
+export const INVITE_SUBJECT = 'Lời mời tham gia AppFront';
 
 export class Cleanup {
   private readonly fns: (() => Promise<unknown>)[] = [];

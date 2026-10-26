@@ -16,6 +16,8 @@
  * single endpoint involved with `page.route` (title says "[mocked response]"): `POST
  * /api/auth/invitations/accept`, `POST /api/auth/password-reset/confirm`, and the follow-up `POST
  * /api/auth/logout` (reset success) or `POST /api/auth/refresh` (held/aborted, never faked into a session).
+ * Every SCR-03 form with a fake token also answers `POST /api/auth/invitations/preview` with a valid preview
+ * ([mocked preview], support/p01/recovery.ts): since 147c9620 the form only opens after that check.
  * A mocked request never reaches the backend, so no real token is consumed and the admin password is
  * NEVER changed (the only reset "success" is mocked).
  *
@@ -33,6 +35,7 @@ import { ROUTES, pathOf } from '../../e2e/fixtures/routes';
 import { PASSWORD_LABEL } from '../../e2e/fixtures/session';
 import { BE_SHORT_PASSWORD, signInAdmin } from './support/auth';
 import { attachJson, captureEvidence } from './support/evidence';
+import { PHONE_OUT_OF_SCOPE, mockInvitationPreview } from './support/p01/recovery';
 
 /** `src/api/endpoints.ts:86-91` under the `/api` base; logout = `src/lib/auth/session.ts:42,200`. */
 const INVITATION_ACCEPT_API = '/api/auth/invitations/accept';
@@ -67,6 +70,9 @@ const INVITATION_EXPIRED =
   'Lời mời đã hết hạn hoặc đã được dùng. Nhờ quản trị viên gửi lại lời mời. Nếu bạn vừa đặt mật khẩu ở lượt trước, hãy đăng nhập.'; // :180
 const INVITATION_INCOMPLETE =
   'Trang này không còn mã của liên kết lời mời (trang đã được tải lại hoặc liên kết bị cắt). Hãy mở lại đúng liên kết trong thư mời, hoặc nhờ quản trị viên gửi lại lời mời.'; // :181 (BUG-005)
+/** InvitationAccept.tsx:49-51 DEAD_REASON_MESSAGES.invalid: a token on the URL but malformed (G1-10, useInvitationAccept.ts:407-408). */
+const INVITATION_INVALID =
+  'Liên kết lời mời không đúng (có thể bị chép thiếu hoặc sai). Hãy mở lại đúng liên kết trong thư mời, hoặc nhờ quản trị viên gửi lại lời mời.';
 const SIGNED_IN_WARNING = 'Nhận lời mời sẽ đăng xuất tài khoản đang đăng nhập.'; // :182
 const SESSION_NOT_OPENED =
   'Đã nhận lời mời nhưng chưa mở được phiên. Hãy đăng nhập bằng mật khẩu vừa đặt.'; // :183
@@ -196,6 +202,8 @@ interface RecoveryScreen {
   readonly expired: string;
   /** Dead-end copy when the page has no usable token at all (isLinkIncomplete, BUG-005). */
   readonly incomplete: string;
+  /** Dead-end copy for a token present on the URL but malformed (over 512 chars). */
+  readonly malformed: string;
   /** Required-field copy per label on an empty submit, in form order. */
   readonly required: readonly { readonly label: string; readonly copy: string }[];
   readonly fillValid: (page: Page) => Promise<void>;
@@ -211,6 +219,7 @@ const INVITE: RecoveryScreen = {
   subtitle: 'Đặt họ tên và mật khẩu để bắt đầu làm việc.', // :178 (no "AppFront" since BUG-004)
   expired: INVITATION_EXPIRED,
   incomplete: INVITATION_INCOMPLETE,
+  malformed: INVITATION_INVALID, // G1-10: present but malformed = a broken link, not a "cut" one
   // useInvitationAccept.ts:193-205 (fullNameProblem :109-121, recoveryShared.ts:119-137).
   required: [
     { label: FULL_NAME_LABEL, copy: FULL_NAME_REQUIRED },
@@ -235,6 +244,7 @@ const RESET: RecoveryScreen = {
   subtitle: 'Nhập mật khẩu mới cho tài khoản của bạn.', // :189
   expired: RESET_LINK_EXPIRED,
   incomplete: RESET_LINK_INCOMPLETE,
+  malformed: RESET_LINK_INCOMPLETE,
   // usePasswordReset.ts:147-157.
   required: [
     { label: NEW_PASSWORD_LABEL, copy: PASSWORD_REQUIRED },
@@ -252,6 +262,8 @@ const RESET: RecoveryScreen = {
  * The token never reaches the backend unless the test lets the submit through.
  */
 async function openForm(page: Page, screen: RecoveryScreen, token: string, bootstrap: 401 | 200 = 401): Promise<void> {
+  // [mocked preview] for SCR-03: the form opens only after the token preview (support/p01/recovery.ts).
+  if (screen.slug === 'invite') await mockInvitationPreview(page);
   await openWithBootstrap(page, `${screen.path}#token=${token}`, bootstrap);
   await expect(field(page, screen.required[0]!.label)).toBeVisible();
   await expect(button(page, screen.submit)).toBeEnabled();
@@ -277,7 +289,9 @@ for (const screen of [INVITE, RESET]) {
         await page.goto('about:blank');
         await openWithBootstrap(page, `${screen.path}${hash}`, 401);
         await expect(authMain(page, 'forbidden'), hash.slice(0, 20)).toBeVisible();
-        await expect(page.getByText(screen.incomplete, { exact: true })).toBeVisible();
+        // SCR-03 since G1-10: a token that is there but malformed (513 chars) reads "không đúng", not "bị cắt".
+        const copy = hash.length > TOKEN_MAX ? screen.malformed : screen.incomplete;
+        await expect(page.getByText(copy, { exact: true }), hash.slice(0, 20)).toBeVisible();
         await expect(page.getByText(screen.expired, { exact: true }), 'no "expired" copy without a server 422').toHaveCount(0);
         await expect.poll(() => new URL(page.url()).hash, { message: hash.slice(0, 20) }).toBe('');
       }
@@ -352,6 +366,7 @@ for (const screen of [INVITE, RESET]) {
     test(`${id} · 375×812: form fits, no horizontal scroll, submit in view`, async ({ page }) => {
       // RecoveryShell.tsx:22,25: no breakpoint variants (`p-12`, `w-[360px] max-w-full`) — same layout,
       // narrower column. Asserted: nothing overflows the phone width.
+      test.skip(true, PHONE_OUT_OF_SCOPE);
       await page.setViewportSize({ width: 375, height: 812 });
       await openForm(page, screen, fakeToken(`${slug}-375`));
 
@@ -625,6 +640,7 @@ test.describe('SCR-03 InvitationAccept edges', () => {
       },
     );
 
+    await mockInvitationPreview(page); // [mocked preview] (support/p01/recovery.ts)
     await page.goto(`${ROUTES.invitationAccept}#token=${fakeToken('invite-offline')}`, { waitUntil: 'commit' });
     const alert = alertWith(page, NETWORK_DESCRIPTION);
     await expect(alert).toBeVisible();
