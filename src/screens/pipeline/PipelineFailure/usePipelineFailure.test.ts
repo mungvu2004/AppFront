@@ -733,6 +733,30 @@ describe('usePipelineFailure — khối gấp và ba hướng đi tiếp', () =>
     expect(band.nextSteps.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('retryStep chưa có endpoint: không có "Thử lại với ngưỡng thấp hơn", tải lại bản vẽ là nút chính (FIX-P0-13)', async () => {
+    const gateway = createMockPipelineFailureGateway({ supports: { retryStep: false } });
+    const mounted = await mountSettled(gateway);
+    const band = mounted.result.current.band;
+
+    if (band.kind !== 'alert' || band.nextSteps === null) {
+      throw new Error('Các hướng đi tiếp phải có mặt.');
+    }
+
+    expect(band.nextSteps.map((step) => step.id)).toEqual(['upload-clearer', 'skip-floor']);
+    expect(band.nextSteps.filter((step) => step.isPrimary).map((step) => step.id)).toEqual(['upload-clearer']);
+  });
+
+  it('retryStep có endpoint: "Thử lại với ngưỡng thấp hơn" có mặt (FIX-P0-13)', async () => {
+    const mounted = await mountSettled(createMockPipelineFailureGateway({ supports: { retryStep: true } }));
+    const band = mounted.result.current.band;
+
+    if (band.kind !== 'alert' || band.nextSteps === null) {
+      throw new Error('Các hướng đi tiếp phải có mặt.');
+    }
+
+    expect(band.nextSteps.map((step) => step.id)).toContain('retry-lower-threshold');
+  });
+
   it('"Tải lên bản vẽ rõ hơn" đẩy đường dẫn dựng từ bảng đường dẫn, không phải chuỗi viết tay', async () => {
     const onNavigate = vi.fn();
     const mounted = await mountSettled(createMockPipelineFailureGateway(), { onNavigate });

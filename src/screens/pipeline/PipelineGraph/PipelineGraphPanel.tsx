@@ -165,7 +165,7 @@ export function PipelineGraphPanel(props: PipelineGraphPanelProps) {
       )}
 
       <div className="flex flex-col gap-2">
-        {panel.rerunWarning === undefined ? (
+        {panel.rerunLabel === undefined ? null : panel.rerunWarning === undefined ? (
           <Button onClick={onRequestRerun} size="sm" variant="secondary">
             {panel.rerunLabel}
           </Button>
@@ -177,10 +177,6 @@ export function PipelineGraphPanel(props: PipelineGraphPanelProps) {
             panel={panel}
           />
         )}
-
-        {panel.rerunUnavailableLine !== undefined ? (
-          <p className="text-[12px] text-text-secondary">{panel.rerunUnavailableLine}</p>
-        ) : null}
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border-default pt-3">

@@ -58,6 +58,7 @@ export const PIPELINE_FAILURE_TEXT = {
   retryLowerThresholdLabel: 'Thử lại với ngưỡng thấp hơn',
   uploadClearerLabel: 'Tải lên bản vẽ rõ hơn',
   skipFloorLabel: 'Bỏ qua tầng đó',
+  backToProjectsLabel: 'Về danh sách dự án',
 
   /**
    * Ngưỡng thấp hơn được gì và mất gì. Không phải cảnh báo mất mát của A9 — nó chỉ

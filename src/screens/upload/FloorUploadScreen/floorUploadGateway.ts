@@ -83,7 +83,7 @@ import type {
 /* -------------------------------------------------------------------------- */
 
 const CAD_NOT_SUPPORTED_CODE = 'CAD_NOT_SUPPORTED';
-const CAD_NOT_SUPPORTED_SENTENCE = 'Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.';
+export const CAD_NOT_SUPPORTED_SENTENCE = 'Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.';
 
 export interface ReadProjectFloorsInput {
   readonly projectId: string;

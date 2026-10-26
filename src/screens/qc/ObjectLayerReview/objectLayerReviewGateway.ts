@@ -405,6 +405,8 @@ export interface ObjectSeedEntry {
   readonly swing: SwingDirection;
   readonly confidence: number;
   readonly reviewed: boolean;
+  /** Nguồn của thực thể; vắng thì suy từ `reviewed` (bộ mẫu cũ). */
+  readonly source?: ReviewMetadata['source'];
   /** Tường chủ lúc dò ra (mã máy). `null` ở đối tượng chưa gắn được vào tường nào. */
   readonly hostWallId: WallId | null;
   readonly relativePosition: RelativePosition | null;
@@ -464,10 +466,19 @@ function attachedOpeningOf(entry: ObjectSeedEntry, wall: SolidWall): AttachedOpe
   };
 }
 
-/** Nguồn dữ liệu của một thực thể: đầu ra AI cho tới khi người duyệt chạm vào (A5). */
+/**
+ * Nguồn dữ liệu của một thực thể: giữ `source` của thực thể gốc (FIX-P0-14); chỉ khi không có
+ * (bộ mẫu cũ) mới suy từ `reviewed`. Đồ người vẽ chưa duyệt không được hạ về `'ai'`.
+ */
+const sourceOf = (entry: {
+  readonly reviewed: boolean;
+  readonly source?: ReviewMetadata['source'];
+}): ReviewMetadata['source'] => entry.source ?? (entry.reviewed ? 'human' : 'ai');
+
+/** Siêu dữ liệu duyệt của một thực thể (A5). */
 const reviewMetadataOf = (entry: ObjectSeedEntry): ReviewMetadata => ({
   confidence: entry.confidence,
-  source: entry.reviewed ? 'human' : 'ai',
+  source: sourceOf(entry),
   reviewed: entry.reviewed,
 });
 
@@ -1335,7 +1346,7 @@ export function dataLayerTokens(visibility: ObjectLayerVisibility): readonly Col
 export const toPaintSubject = (object: ReviewObject, levelId: LevelId): PaintSubject => ({
   id: object.id,
   levelId,
-  review: { confidence: object.confidence, source: object.reviewed ? 'human' : 'ai', reviewed: object.reviewed },
+  review: { confidence: object.confidence, source: sourceOf(object), reviewed: object.reviewed },
   usage: null,
   areaM2: null,
   worstSeverity: null,
@@ -1504,6 +1515,7 @@ export function objectsOf(
       swing: entity.swing,
       confidence: entity.confidence,
       reviewed: entity.reviewed,
+      source: entity.source,
       hostWallId: entity.wallId,
       relativePosition: relativePositionOf(entity, solid),
     });
@@ -1528,6 +1540,7 @@ export function objectsOf(
         swing: entry.swing,
         confidence: entity.confidence,
         reviewed: entity.reviewed,
+        source: entity.source,
         hostWallId: solid.id,
         relativePosition: position,
       });
@@ -1548,6 +1561,7 @@ export function objectsOf(
       swing: FURNITURE_SWING,
       confidence: entity.confidence,
       reviewed: entity.reviewed,
+      source: entity.source,
       hostWallId: null,
       tracedCentre: entity.centre,
       rotationDeg: entity.rotationDeg,
@@ -1585,6 +1599,7 @@ export function orphanObjectOf(entry: ObjectSeedEntry): OrphanReviewObject {
     swing: entry.swing,
     confidence: entry.confidence,
     reviewed: entry.reviewed,
+    ...(entry.source === undefined ? {} : { source: entry.source }),
     hostWallId: null,
     tracedCentre: entry.tracedCentre ?? { x: 0, y: 0 },
   };
@@ -1633,7 +1648,7 @@ export function toObjectRow(
     hostWallLabel: attached === null ? null : `#${wallCodes?.get(attached.hostWallId) ?? hostWallDisplayCode(attached.hostWallId)}`,
     confidence: object.confidence,
     statusCode: objectStatusCode(
-      { confidence: object.confidence, source: object.reviewed ? 'human' : 'ai', reviewed: object.reviewed },
+      { confidence: object.confidence, source: sourceOf(object), reviewed: object.reviewed },
       isOrphan,
     ),
     isReviewed: object.reviewed,
@@ -2296,7 +2311,7 @@ export function toObjectPlacement(
     isOrphan: isUnattachedOpening(object),
     /* Cùng nguồn với hàng danh sách: canvas viền chú ý / làm mờ đã duyệt thống nhất với panel. */
     statusCode: objectStatusCode(
-      { confidence: object.confidence, source: object.reviewed ? 'human' : 'ai', reviewed: object.reviewed },
+      { confidence: object.confidence, source: sourceOf(object), reviewed: object.reviewed },
       isUnattachedOpening(object),
     ),
   };

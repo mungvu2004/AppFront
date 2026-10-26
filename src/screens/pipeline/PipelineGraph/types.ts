@@ -299,11 +299,10 @@ export interface PipelineNodePanelViewModel {
   readonly thumbnail?: PipelineThumbnailViewModel;
   readonly logLines: readonly string[];
   readonly isLogOpen: boolean;
-  readonly rerunLabel: string;
+  /** `undefined` khi tầng dữ liệu chưa có lệnh chạy lại: không vẽ nút. */
+  readonly rerunLabel?: string;
   /** Có cảnh báo nghĩa là người dùng vừa bấm "Chạy lại từ bước này". */
   readonly rerunWarning?: PipelineRerunWarningViewModel;
-  /** Câu nói ra vì sao chưa chạy lại được, khi tầng dữ liệu chưa có lệnh đó. */
-  readonly rerunUnavailableLine?: string;
 }
 
 export interface PipelineDetailViewModel {

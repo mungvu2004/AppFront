@@ -73,7 +73,7 @@ const BLOCK_NOTICE = 'floor-upload-block-notice'; // FUF:22
 const COUNTER = 'floor-upload-counter-number'; // FUF:25
 const DROPZONE_TITLE = 'Kéo thả bản vẽ vào đây, hoặc chọn tệp'; // UFU:99
 const SELECT_FILE = 'Chọn tệp'; // UFU:101
-const FORMATS_LINE = 'Định dạng hỗ trợ: .png, .jpg, .pdf. Kích thước tối đa: 100,0 MB.'; // UFU:1265-1267
+const FORMATS_LINE = 'Định dạng hỗ trợ: .png, .jpg, .jpeg, .pdf. Kích thước tối đa: 100,0 MB.'; // UFU:1265-1267
 const TRAY = 'Tệp chưa gán tầng'; // UFU:104
 const ASSIGN = 'Gán cho tầng khác'; // FUT:20, FUC:39
 const PICK_PAGE = 'Chọn trang'; // FUC:40
@@ -102,7 +102,7 @@ const BREADCRUMB_PROJECTS = 'Dự án'; // FU:59
 const CAD_SENTENCE = 'Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.'; // FUG:85
 const VALIDATION_SENTENCE = 'Kiểm tra lại các trường được đánh dấu rồi thử lại.'; // src/i18n/vi.json errors.validation
 const UNDO = 'Hoàn tác'; // TST:149
-const unsupported = (ext: string): string => `Định dạng ${ext} chưa nhận được. Định dạng hỗ trợ: .png, .jpg, .pdf.`; // UFU:212-216
+const unsupported = (ext: string): string => `Định dạng ${ext} chưa nhận được. Định dạng hỗ trợ: .png, .jpg, .jpeg, .pdf.`; // UFU:212-216
 const UNREADABLE_PDF = 'Không đọc được nội dung tệp .pdf.'; // UFU:222-223
 const tooManyPages = (n: number): string => `Tệp có ${String(n)} trang, vượt trần 20 trang.`; // UFU:217-221
 const displaced = (name: string): string => `${name} đã về khay tệp chưa gán tầng vì tầng ấy đã có tệp khác`; // UFU:1334-1336
@@ -336,7 +336,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
       });
 
       await test.step('[10-A-002] "Chọn tệp" → multi-file chooser, accept .png,.jpg,.pdf; ghi-chu.txt refused, no init', async () => {
-        await expect(page.getByTestId(FILE_INPUT)).toHaveAttribute('accept', '.png,.jpg,.pdf'); // UFU:1268
+        await expect(page.getByTestId(FILE_INPUT)).toHaveAttribute('accept', '.png,.jpg,.jpeg,.pdf'); // UFU:1268
         const mark = flow.sent.length;
         expect(await choose(page, txt), 'input[multiple] (FUD:80)').toBe(true);
         await expect(trayItem(page, 'ghi-chu.txt').getByRole('alert')).toContainText(unsupported('.txt'));

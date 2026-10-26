@@ -77,7 +77,7 @@ import { ROUTES } from '@/routes/paths';
 import { PICKER_UPLOAD_EXTENSIONS } from '@/lib/upload/validate';
 import type { ProjectRole } from '@/types/project';
 
-import type { FloorUploadGateway } from './floorUploadGateway';
+import { CAD_NOT_SUPPORTED_SENTENCE, type FloorUploadGateway } from './floorUploadGateway';
 import type {
   FloorUploadActions,
   FloorUploadBlockNotice,
@@ -212,6 +212,8 @@ function rejectionSentence(reason: UploadRejection): string {
         `${formatFileSize(reason.maxSizeBytes)} của một tệp.`
       );
     case 'unsupportedFormat':
+      // `.dwg` bị từ chối ngay ở bước kiểm tệp (FIX-P0-13): cùng câu BE trả cho `CAD_NOT_SUPPORTED`.
+      if (reason.extension === '.dwg') return CAD_NOT_SUPPORTED_SENTENCE;
       return (
         `Định dạng ${reason.extension === '' ? 'chưa rõ' : reason.extension} chưa nhận được. ` +
         `Định dạng hỗ trợ: ${reason.acceptedExtensions.join(', ')}.`

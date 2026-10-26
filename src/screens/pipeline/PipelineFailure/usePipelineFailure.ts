@@ -440,6 +440,8 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
     >(queryClient, {
       affectedKeys: () => [failureKey],
       applyOptimistic: () => {
+        // Backend chưa có endpoint thì bước không chạy lại: đừng vẽ nó "đang chạy" (FIX-P0-13).
+        if (!gateway.supports.retryStep) return;
         queryClient.setQueryData<StepFailureSnapshot>(failureKey, (existing) =>
           existing === undefined
             ? existing
@@ -776,6 +778,7 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
   }, [projectId]);
 
   const isSkipSupported = gateway.supports.skipFloor;
+  const isRetryStepSupported = gateway.supports.retryStep;
 
   const onSkipFloor = useCallback(() => {
     void gateway.skipFloor({ floorId, projectId }).then((result) => {
@@ -808,7 +811,8 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
       id: 'upload-clearer',
       label: action === 'retry' ? RERUN_BY_UPLOAD_LABEL : PIPELINE_FAILURE_TEXT.uploadClearerLabel,
       warningSentence: null,
-      isPrimary: serverError === null ? state === 'error' : action === 'reupload' || action === 'retry',
+      isPrimary:
+        serverError === null ? state === 'error' || !isRetryStepSupported : action === 'reupload' || action === 'retry',
       onSelect: onUploadClearer,
     };
 
@@ -824,8 +828,33 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
     };
 
     // Bản Z (S-14): BE chưa có `skipFloor` thì không vẽ nút "Bỏ qua tầng đó" — không nút chết.
-    return isSkipSupported ? [retryLower, uploadClearer, skipFloor] : [retryLower, uploadClearer];
-  }, [isSkipSupported, onRetryLowerThreshold, onSkipFloor, onUploadClearer, serverError, state]);
+    // FIX-P0-13: BE chưa có `retryStep` thì không vẽ "Thử lại với ngưỡng thấp hơn"; tải lại ảnh thành nút chính.
+    // Cả hai đều chưa có thì "Về danh sách dự án" là hướng thứ hai — luật "luôn ít nhất hai đường" giữ bằng
+    // một đường thật, không bằng một nút chết.
+    const backToProjects: PipelineFailureNextStep = {
+      id: 'back-to-projects',
+      label: PIPELINE_FAILURE_TEXT.backToProjectsLabel,
+      warningSentence: null,
+      isPrimary: false,
+      onSelect: onBackToProjects,
+    };
+    const first = isRetryStepSupported ? retryLower : uploadClearer;
+    const rest = [
+      ...(isRetryStepSupported ? [uploadClearer] : []),
+      ...(isSkipSupported ? [skipFloor] : []),
+    ];
+    const [second = backToProjects, ...more] = rest;
+    return [first, second, ...more];
+  }, [
+    isRetryStepSupported,
+    isSkipSupported,
+    onBackToProjects,
+    onRetryLowerThreshold,
+    onSkipFloor,
+    onUploadClearer,
+    serverError,
+    state,
+  ]);
 
   /* ---------------------------------------------------------------------- */
   /* Bộ đếm lần thử — hook chọn chế độ, view chỉ đọc `kind` (R-71).           */

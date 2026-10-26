@@ -411,6 +411,23 @@ describe('PipelineGraph — nghiệm thu', () => {
     expect(disclosure.getAttribute('aria-expanded')).toBe('true');
   });
 
+  it('rerunFromNode tắt thì không có nút "Chạy lại từ bước này" (FIX-P0-13)', async () => {
+    renderWithProviders(
+      <PipelineGraphContainer
+        gateway={createMockPipelineGraphGateway({ supports: { rerunFromNode: false } })}
+        projectId="project-1"
+        roles={['admin']}
+      />,
+    );
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: PIPELINE_GRAPH_TEXT.detailDisclosureLabel }),
+    );
+
+    expect(await screen.findByText(PIPELINE_GRAPH_TEXT.panelOutputHeader)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: PIPELINE_GRAPH_TEXT.rerunLabel })).toBeNull();
+  });
+
   it(`cảnh báo chạy lại nêu đúng ${String(APPROVED_WALL_COUNT)} tường đã duyệt`, async () => {
     const scenario = createCleanBuildingScenario();
     const walls = scenario.graph.walls.map((wall, index) => ({
