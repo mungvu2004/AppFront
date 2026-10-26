@@ -289,6 +289,21 @@ describe('hai khối giao diện và thông báo (preferences của N11/N12)', (
     for (const body of bodies) expect(UpdateMeSchema.safeParse(body).success).toBe(true);
   });
 
+  it('FIX-P0-03: aiFailed là khoá thông báo hợp lệ và lên dây', async () => {
+    const { client, bodies } = statefulClient();
+    const gateway = createAccountSettingsGateway({ apiClient: client });
+    const read = await gateway.read();
+
+    await gateway.save(draftWith(read.profile, { notifications: { aiFailed: { inApp: false, email: false } } }), read);
+
+    expect(PREFERENCE_EVENTS).toContain('aiFailed');
+    expect(NOTIFICATION_PREFERENCE_EVENTS).toContain('aiFailed');
+    expect((await createAccountSettingsGateway({ apiClient: client }).read()).notifications).toEqual({
+      aiFailed: { inApp: false, email: false },
+    });
+    for (const body of bodies) expect(UpdateMeSchema.safeParse(body).success).toBe(true);
+  });
+
   it('hoàn tác về bản chưa có khoá: gửi null để BE xoá', async () => {
     const { client, bodies } = statefulClient();
     const gateway = createAccountSettingsGateway({ apiClient: client });

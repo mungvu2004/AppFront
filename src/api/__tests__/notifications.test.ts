@@ -146,16 +146,23 @@ describe('NotificationSchema', () => {
     expect('excerpt' in parsed).toBe(false);
   });
 
-  it('lists exactly the four kinds already chốt for the screen', () => {
+  it('lists exactly the five kinds already chốt for the screen', () => {
     expect([...NOTIFICATION_KINDS]).toEqual([
       'aiCompleted',
+      'aiFailed',
       'violationFound',
       'projectInvite',
       'commentMention',
     ]);
   });
 
-  it('rejects a fifth kind', () => {
+  it('FIX-P0-03: accepts an aiFailed notification', () => {
+    const parsed = NotificationSchema.parse({ ...aiCompletedWire, kind: 'aiFailed', place: 'floors' });
+
+    expect(parsed.kind).toBe('aiFailed');
+  });
+
+  it('rejects a sixth kind', () => {
     expect(NotificationSchema.safeParse({ ...aiCompletedWire, kind: 'morningDigest' }).success).toBe(false);
   });
 

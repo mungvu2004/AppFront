@@ -181,6 +181,7 @@ export function createNotificationTarget(input: NotificationTargetInput): Notifi
 const INLINE_ACTION_BY_KIND: Readonly<Record<NotificationKind, NotificationInlineAction>> =
   Object.freeze({
     aiCompleted: { label: 'Xem kết quả', kind: 'navigate' },
+    aiFailed: { label: 'Xem xử lý', kind: 'navigate' },
     commentMention: { label: 'Xem bình luận', kind: 'navigate' },
     projectInvite: { label: 'Chấp nhận', kind: 'accept' },
     violationFound: { label: 'Xem lỗi', kind: 'navigate' },
@@ -234,13 +235,17 @@ export function toNotificationItemVm(notification: Notification, nowMs: number):
     id: notification.id,
     kind: notification.kind,
     sentence: sentenceWithoutLabel(notification.message, notification.objectLabel),
-    target: createNotificationTarget({
-      place: notification.place,
-      projectId: notification.projectId,
-      projectName: notification.projectName,
-      floorId: notification.floorId,
-      label: notification.objectLabel,
-    }),
+    target: {
+      ...createNotificationTarget({
+        place: notification.place,
+        projectId: notification.projectId,
+        projectName: notification.projectName,
+        floorId: notification.floorId,
+        label: notification.objectLabel,
+      }),
+      // aiFailed: BE gửi place="floors" (tập place không có màn Xử lý); đích theo kind là màn Xử lý.
+      ...(notification.kind === 'aiFailed' ? { to: ROUTES.project.pipeline(notification.projectId) } : {}),
+    },
     createdAt,
     relativeTime: formatTimestamp(createdAt, nowMs),
     isRead: notification.isRead,

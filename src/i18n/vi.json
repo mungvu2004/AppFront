@@ -48,7 +48,7 @@
     },
     "processing": {
       "title": "Xử lý đang gián đoạn",
-      "description": "Xử lý AI thất bại ở bước {{step}}. Bạn có thể chạy lại riêng bước này."
+      "description": "Xử lý AI thất bại ở bước {{step}}. Bạn có thể tải lại bản vẽ để xử lý lại."
     },
     "geometry": {
       "title": "Không dựng được hình",

@@ -896,6 +896,18 @@ describe('createNotificationCenterGateway — dây thật', () => {
     expect(byKind.get('commentMention')?.inlineAction?.kind).toBe('navigate');
   });
 
+  it('FIX-P0-03: aiFailed có hành động điều hướng tới màn Xử lý, bỏ qua place', () => {
+    const base = MOCK_NOTIFICATIONS.find((wire) => wire.kind === 'aiCompleted');
+
+    expect(base).toBeDefined();
+    if (base === undefined) return;
+
+    const item = toNotificationItemVm({ ...base, kind: 'aiFailed', place: 'floors' }, GATEWAY_NOW_MS);
+
+    expect(item.inlineAction).toEqual({ label: 'Xem xử lý', kind: 'navigate' });
+    expect(item.target.to).toBe(ROUTES.project.pipeline(base.projectId));
+  });
+
   it('lời mời đã đọc không còn nút "Chấp nhận" — #22 chỉ lật isRead, nên tải lại vẫn đúng (nợ C ND-C1)', () => {
     const invite = MOCK_NOTIFICATIONS.find((wire) => wire.kind === 'projectInvite');
 

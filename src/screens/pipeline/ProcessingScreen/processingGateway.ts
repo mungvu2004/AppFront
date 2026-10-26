@@ -74,7 +74,7 @@ import { createAppApiClient, resolveApiBaseUrl, resolveUseMockApi } from '@/api/
 import type { ApiClient, ApiResult, Floor, LatestFloorUpload, PipelineRunList, Project } from '@/api/client';
 import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import type { Progress } from '@/api/schemas';
-import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
+import type { FloorLayerDocument, FloorReadiness } from '@/api/schemas/spatialLayer';
 import type { PointMm } from '@/domain/units/compare';
 import { toPointMm } from '@/lib/commands/business/shared';
 import { refreshSingleFlight } from '@/lib/auth';
@@ -240,6 +240,11 @@ export interface ProcessingExtractionSummary {
   readonly dimensionCount: number;
   /** Tầng đã có tỷ lệ do người đặt tay (không còn `scaleStatus: unresolved`). */
   readonly hasScale?: boolean;
+  /**
+   * Độ sẵn sàng của tầng (N16 `readiness`, FIX-P0-15). BE cũ chưa trả thì suy `scaleUnresolved` từ
+   * `scaleStatus: unresolved` — có kích thước mà tỷ lệ tạm không được báo "Sẵn sàng".
+   */
+  readonly readiness?: FloorReadiness;
   readonly roomCount: number;
   /**
    * Đường bao các phòng của tầng (mm). Hook cộng mọi tầng bằng `totalArea` — cộng mm² rồi
@@ -821,6 +826,9 @@ export function toExtractionSummary(
       : [...walls, ...openings, ...furniture, ...rooms].filter(
           (item) => !item.reviewed && item.confidence < confidenceThreshold,
         ).length;
+  const readiness: FloorReadiness | undefined =
+    document.readiness ??
+    (document.scaleStatus === 'unresolved' ? { state: 'needsReview', reasons: ['scaleUnresolved'] } : undefined);
 
   return {
     wallCount: walls.length,
@@ -829,6 +837,7 @@ export function toExtractionSummary(
     dimensionCount: document.dimensions.length,
     hasScale:
       document.level.scaleMillimetresPerPixel !== undefined && document.scaleStatus === undefined,
+    ...(readiness !== undefined ? { readiness } : {}),
     roomCount: rooms.length,
     roomOutlinesMm: rooms.map((room) => room.outline.map(toPointMm)),
     confidenceThreshold,

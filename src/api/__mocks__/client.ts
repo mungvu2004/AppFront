@@ -1089,6 +1089,18 @@ export const MOCK_NOTIFICATIONS: readonly Notification[] = [
     projectId: 'project-1',
     projectName: 'Chung cư Sông Hàn',
   },
+  {
+    createdAt: '2026-09-08T05:00:00.000Z',
+    floorId: 'L2',
+    id: 'notif-6',
+    isRead: true,
+    kind: 'aiFailed',
+    message: 'Dự án Chung cư Sông Hàn: AI chưa xử lý được bản vẽ',
+    objectLabel: 'tầng hai',
+    place: 'floors',
+    projectId: 'project-1',
+    projectName: 'Chung cư Sông Hàn',
+  },
 ];
 
 /** 404 của bộ mẫu — cùng hình dạng `HttpError` mà `createHttpClient` trả về thật. */

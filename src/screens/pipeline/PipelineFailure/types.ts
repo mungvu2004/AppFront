@@ -201,7 +201,7 @@ export interface PipelineFailureReasonViewModel {
  * bám vào một chuỗi ổn định thay vì bám vào câu tiếng Việt — câu tiếng Việt được
  * phép sửa lại cho hay hơn mà không làm hỏng gì.
  */
-export type PipelineFailureNextStepId = 'retry-lower-threshold' | 'upload-clearer' | 'skip-floor';
+export type PipelineFailureNextStepId = 'retry-lower-threshold' | 'upload-clearer' | 'skip-floor' | 'back-to-projects';
 
 /** Một hướng đi tiếp — đúng một câu, một hàm xử lý, và có thể một câu cảnh báo. */
 export interface PipelineFailureNextStep {

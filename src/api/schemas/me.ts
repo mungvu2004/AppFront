@@ -64,7 +64,7 @@ export const UserPreferencesSchema = z.object({
 export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 
 /** Loại thông báo BE nhận trong `preferences.notifications` (`NotificationKind`); khoá khác → 422. */
-export const NOTIFICATION_PREFERENCE_EVENTS = ['aiCompleted', 'violationFound', 'projectInvite'] as const;
+export const NOTIFICATION_PREFERENCE_EVENTS = ['aiCompleted', 'aiFailed', 'violationFound', 'projectInvite'] as const;
 
 /*
  * Bản vá `preferences` của N12 (FE3D-B4): gộp sâu ở BE — khoá vắng = giữ, `null`
@@ -89,6 +89,7 @@ export const PreferencesPatchSchema = z
     notifications: z
       .object({
         aiCompleted: NotificationPatchSchema.optional(),
+        aiFailed: NotificationPatchSchema.optional(),
         projectInvite: NotificationPatchSchema.optional(),
         violationFound: NotificationPatchSchema.optional(),
       })

@@ -44,8 +44,8 @@ describe('the limits', () => {
   it('are written down here and nowhere else', () => {
     expect(MAX_UPLOAD_FILE_SIZE_BYTES).toBe(100 * 1024 * 1024);
     expect(MAX_PDF_PAGE_COUNT).toBe(20);
-    expect(ACCEPTED_UPLOAD_EXTENSIONS).toStrictEqual(['.png', '.jpg', '.pdf', '.dwg']);
-    expect(PICKER_UPLOAD_EXTENSIONS).toStrictEqual(['.png', '.jpg', '.pdf']);
+    expect(ACCEPTED_UPLOAD_EXTENSIONS).toStrictEqual(['.png', '.jpg', '.jpeg', '.pdf', '.dwg']);
+    expect(PICKER_UPLOAD_EXTENSIONS).toStrictEqual(['.png', '.jpg', '.jpeg', '.pdf']);
     expect(PICKER_UPLOAD_EXTENSIONS).not.toContain('.dwg');
   });
 });
@@ -107,15 +107,23 @@ describe('validateUploadFile', () => {
     });
   });
 
-  it('reports the CAD branch for .dwg without the screen sniffing extensions', async () => {
+  it('refuses .dwg before upload, as an unsupported format', async () => {
     const check = await validateUploadFile(candidate('mat-bang.dwg', 'AutoCAD binary'));
 
     expect(check).toStrictEqual({
-      branch: 'cad',
-      extension: '.dwg',
-      ok: true,
-      sizeBytes: 14,
+      ok: false,
+      reason: {
+        acceptedExtensions: PICKER_UPLOAD_EXTENSIONS,
+        extension: '.dwg',
+        kind: 'unsupportedFormat',
+      },
     });
+  });
+
+  it('accepts .jpeg on the raster branch', async () => {
+    const check = await validateUploadFile(candidate('anh.JPEG', 'JPEG bytes'));
+
+    expect(check.ok && check.branch).toBe('raster');
   });
 
   it.each([

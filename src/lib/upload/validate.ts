@@ -50,18 +50,20 @@ export const MAX_UPLOAD_FILE_SIZE_BYTES = 100 * 1024 * 1024;
 export const MAX_PDF_PAGE_COUNT = 20;
 
 /** The formats the upload accepts. The one and only home of this list. */
-export const ACCEPTED_UPLOAD_EXTENSIONS = ['.png', '.jpg', '.pdf', '.dwg'] as const;
+export const ACCEPTED_UPLOAD_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.pdf', '.dwg'] as const;
 
 /** One of {@link ACCEPTED_UPLOAD_EXTENSIONS}. */
 export type AcceptedUploadExtension = (typeof ACCEPTED_UPLOAD_EXTENSIONS)[number];
 
 /**
  * The formats the file picker offers: the accepted list minus `.dwg`, which the
- * server refuses (422 `CAD_NOT_SUPPORTED`). A dropped `.dwg` still validates.
+ * server refuses (422 `CAD_NOT_SUPPORTED`). A dropped `.dwg` is refused by
+ * {@link validateUploadFile} before any byte is sent.
  */
 export const PICKER_UPLOAD_EXTENSIONS = [
   '.png',
   '.jpg',
+  '.jpeg',
   '.pdf',
 ] as const satisfies readonly AcceptedUploadExtension[];
 
@@ -151,6 +153,7 @@ export type FloorGuess = FloorGuessHit | FloorGuessMiss;
 const BRANCH_BY_EXTENSION = {
   '.dwg': 'cad',
   '.jpg': 'raster',
+  '.jpeg': 'raster',
   '.pdf': 'pdf',
   '.png': 'raster',
 } as const satisfies Record<AcceptedUploadExtension, UploadBranch>;
@@ -254,7 +257,8 @@ export async function validateUploadFile(file: UploadCandidate): Promise<UploadV
     };
   }
 
-  if (!isAcceptedExtension(extension)) {
+  // `.dwg` stays in the accepted type (CadBranchConfirm names it) but the server answers 422.
+  if (!isAcceptedExtension(extension) || extension === '.dwg') {
     return {
       ok: false,
       reason: {

@@ -206,8 +206,6 @@ export const PIPELINE_GRAPH_TEXT = {
     `Chạy lại từ bước ${nodeName} sẽ dựng lại ${approvedCount} tường đã duyệt. Giữ lại phần đã duyệt thì các tường đó không bị ghi đè.`,
   keepApprovedLabel: 'Giữ lại phần đã duyệt',
   rerunConfirmLabel: 'Xác nhận chạy lại',
-  rerunUnavailableLine:
-    'Chưa phát được lệnh chạy lại: tầng dữ liệu chưa có đường gọi cho việc này.',
 
   zoomInLabel: 'Phóng to sơ đồ',
   zoomOutLabel: 'Thu nhỏ sơ đồ',

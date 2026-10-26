@@ -1737,7 +1737,7 @@ describe('useFloorUploadScreen — quyền và chuyển động', () => {
 
     expect(result.current.dropZone.formatsLine).not.toContain('.dwg');
     expect(result.current.dropZone.formatsLine).toContain('MB');
-    expect(result.current.dropZone.acceptAttribute).toBe('.png,.jpg,.pdf');
+    expect(result.current.dropZone.acceptAttribute).toBe('.png,.jpg,.jpeg,.pdf');
   });
 });
 

@@ -283,6 +283,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   const storeGraph = graph;
   const spatialLoading = useStore((state) => state.spatialLoading);
   const versionId = useStore((state) => state.versionId);
+  const floorMeta = useStore((state) => state.floorMeta);
   const project = useStore((state) => state.project);
   const storeFloors = useStore((state) => state.floors);
   const activeFloorId = useStore((state) => state.activeFloorId);
@@ -589,8 +590,8 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   );
 
   const preflight = useMemo<readonly PreflightRow[]>(
-    () => buildPreflightRows({ projectId, graph, levels: selectedLevels, violations }),
-    [projectId, graph, selectedLevels, violations],
+    () => buildPreflightRows({ projectId, graph, levels: selectedLevels, violations, floorMeta }),
+    [projectId, graph, selectedLevels, violations, floorMeta],
   );
 
   const exportedFiles = useMemo<readonly ExportedFileRow[]>(() => {

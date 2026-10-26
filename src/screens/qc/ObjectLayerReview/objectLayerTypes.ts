@@ -26,7 +26,7 @@
  * đó, không gõ tay số 21 ở hai chỗ.
  */
 
-import type { Confidence, Point, SwingDirection, WallId } from '@/domain/spatial/types';
+import type { Confidence, Point, ReviewMetadata, SwingDirection, WallId } from '@/domain/spatial/types';
 import type { Millimetres, MillimetresPerPixel } from '@/domain/units/types';
 import type { RelativePosition } from '@/domain/openings/types';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
@@ -193,6 +193,11 @@ export interface ReviewObjectCore {
    * minh" chỉ đánh dấu việc người duyệt, đầu ra AI không bao giờ đặt cờ này.
    */
   readonly reviewed: boolean;
+  /**
+   * Nguồn gốc của thực thể trên đồ thị (FIX-P0-14). Vắng ở bộ mẫu cũ: khi đó suy từ `reviewed`.
+   * Chưa duyệt không có nghĩa là của AI — đồ người vẽ vẫn là `'human'`.
+   */
+  readonly source?: ReviewMetadata['source'];
 }
 
 /** Một đối tượng đã biết tường nào chứa nó và vị trí dọc tường đó. */

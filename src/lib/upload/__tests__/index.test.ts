@@ -49,6 +49,6 @@ describe('the upload barrel', () => {
     expect(upload.MAX_CHUNK_ATTEMPTS).toBe(3);
     expect(upload.PROGRESS_EMITS_PER_SECOND).toBe(4);
     expect(upload.PROGRESS_MIN_GAP_MS).toBe(250);
-    expect(upload.ACCEPTED_UPLOAD_EXTENSIONS).toStrictEqual(['.png', '.jpg', '.pdf', '.dwg']);
+    expect(upload.ACCEPTED_UPLOAD_EXTENSIONS).toStrictEqual(['.png', '.jpg', '.jpeg', '.pdf', '.dwg']);
   });
 });

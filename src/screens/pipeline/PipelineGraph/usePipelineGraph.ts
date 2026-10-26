@@ -506,7 +506,7 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
         : {}),
       logLines: nodeDetail?.logLines ?? [],
       isLogOpen,
-      rerunLabel: PIPELINE_GRAPH_TEXT.rerunLabel,
+      ...(isRerunSupported ? { rerunLabel: PIPELINE_GRAPH_TEXT.rerunLabel } : {}),
       ...(isRerunConfirming
         ? {
             rerunWarning: {
@@ -522,9 +522,6 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
             },
           }
         : {}),
-      ...(isRerunSupported
-        ? {}
-        : { rerunUnavailableLine: PIPELINE_GRAPH_TEXT.rerunUnavailableLine }),
     }),
     [
       approvedWallCount,

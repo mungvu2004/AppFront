@@ -63,6 +63,7 @@
 import type { Violation } from '@/domain/rules/registry';
 import type { ApiError, ApiResult } from '@/api/client';
 import type { SpatialGraphDocument } from '@/api/schemas/spatialGraph';
+import type { FloorReadiness, ReadinessReason } from '@/api/schemas/spatialLayer';
 import {
   denormalizeSpatial,
   normalizeSpatial,
@@ -281,6 +282,29 @@ export interface PreflightInput {
   readonly levels: readonly Level[];
   /** Kết quả lượt chạy luật gần nhất, đọc từ store. */
   readonly violations: readonly Violation[];
+  /**
+   * Siêu dữ liệu N16 theo tầng (hình dạng `floorMeta` của store): `readiness` khi BE trả, không thì
+   * `scaleStatus: unresolved` suy ra `scaleUnresolved` (FIX-P0-15). Vắng thì không có dòng readiness.
+   */
+  readonly floorMeta?: Readonly<
+    Record<string, { readonly readiness?: FloorReadiness; readonly scaleStatus?: 'unresolved' } | undefined>
+  >;
+}
+
+/** Cụm ngắn cho từng lý do readiness trong dòng preflight. */
+const READINESS_REASON_SHORT: Readonly<Record<ReadinessReason, string>> = {
+  scaleUnresolved: 'tỷ lệ tạm',
+  criticalIssues: 'lỗi nghiêm trọng',
+  fallbackWallModel: 'tường dò bằng mô hình dự phòng',
+  fallbackObjectModel: 'đồ vật dò bằng mô hình dự phòng',
+  fallbackTextModel: 'chữ đọc bằng mô hình dự phòng',
+};
+
+function reviewReasonsOf(meta: NonNullable<PreflightInput['floorMeta']>[string]): readonly ReadinessReason[] {
+  if (meta?.readiness !== undefined) {
+    return meta.readiness.state === 'needsReview' ? meta.readiness.reasons : [];
+  }
+  return meta?.scaleStatus === 'unresolved' ? ['scaleUnresolved'] : [];
 }
 
 /**
@@ -303,7 +327,7 @@ export interface PreflightInput {
  * luôn đến từ `ROUTES` (R-65) — `null` khi không có nơi nào để đi.
  */
 export function buildPreflightRows(input: PreflightInput): readonly PreflightRow[] {
-  const { projectId, graph, levels, violations } = input;
+  const { projectId, graph, levels, violations, floorMeta } = input;
 
   const unapprovedLevels = levels.filter((level) => !level.reviewed);
   const unreviewed = collectUnreviewed(graph, levels);
@@ -352,6 +376,24 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
           : ROUTES.project.objects(projectId, unreviewed.levelId),
     },
   ];
+
+  // Tầng cần xem lại (N16 `readiness`, FIX-P0-15): một dòng tông attention, KHÔNG chặn Xuất (30-C-023).
+  const flagged = levels
+    .map((level) => ({ level, reasons: reviewReasonsOf(floorMeta?.[level.id]) }))
+    .filter((entry) => entry.reasons.length > 0);
+  const firstFlagged = flagged[0];
+  if (firstFlagged !== undefined) {
+    rows.push({
+      id: 'readiness',
+      label: `Cần xem lại ${formatNumber(flagged.length)} tầng: ${flagged
+        .map(({ level, reasons }) => `${level.name} (${reasons.map((reason) => READINESS_REASON_SHORT[reason]).join(', ')})`)
+        .join('; ')}.`,
+      tone: 'attention',
+      fixHref: firstFlagged.reasons.includes('scaleUnresolved')
+        ? ROUTES.project.scale(projectId, firstFlagged.level.id)
+        : ROUTES.project.walls(projectId, firstFlagged.level.id),
+    });
+  }
 
   // Chưa chọn tầng nào thì "mọi đối tượng … đều đã duyệt" là đúng một cách rỗng — một chấm
   // xanh nằm ngay dưới "Chưa chọn tầng nào để xuất." (BUG-466). Bỏ hẳn dòng ấy.

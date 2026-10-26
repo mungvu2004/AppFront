@@ -92,6 +92,8 @@ export interface ProcessingFloorChipViewModel {
   readonly isActive: boolean;
   /** Đã định dạng sẵn — ví dụ `"48 đối tượng"`. `undefined` khi chưa có gì để đếm. */
   readonly objectCountLabel?: string;
+  /** `"Cần xem lại"` khi N16 `readiness.state` là `needsReview` (FIX-P0-15); vắng khi không. */
+  readonly reviewLabel?: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -144,6 +146,17 @@ export interface ProcessingLogLineViewModel {
 /* Báo cáo tổng kết.                                                           */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Lý do "cần xem lại" của tầng — chép đúng `ReadinessReason` (N16, `src/api/schemas/spatialLayer.ts`)
+ * vì view không được nhập `src/api` (R-60).
+ */
+export type ProcessingReviewReason =
+  | 'scaleUnresolved'
+  | 'criticalIssues'
+  | 'fallbackWallModel'
+  | 'fallbackObjectModel'
+  | 'fallbackTextModel';
+
 export interface ProcessingSummaryViewModel {
   /**
    * Tường, đối tượng, kích thước, phòng, diện tích — đã định dạng sẵn (A15), ví dụ `"48 tường"`,
@@ -156,6 +169,8 @@ export interface ProcessingSummaryViewModel {
   readonly noDimensionSentence?: string;
   /** Mọi tầng xong đều đã có tỷ lệ (đặt tay): không đòi "Đặt tỷ lệ" dù không đọc được kích thước. */
   readonly scaleKnown?: boolean;
+  /** Lý do "cần xem lại" gộp từ mọi tầng xong (N16 `readiness`, FIX-P0-15); rỗng/vắng khi không có. */
+  readonly reviewReasons?: readonly ProcessingReviewReason[];
   readonly onReviewWalls: () => void;
   readonly onCalibrateScale: () => void;
 }
