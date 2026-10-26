@@ -73,6 +73,19 @@ import { ProjectRuleConfigSchema, type ProjectRuleConfig, type UpdateRuleConfig 
 import { MeSchema, type ChangePassword, type Me, type UpdateMe, type UploadAvatar } from './schemas/me';
 import { LatestFloorUploadSchema, type LatestFloorUpload } from './schemas/uploads';
 import {
+  ConfirmRegionsResponseSchema,
+  DocumentListSchema,
+  DocumentSchema,
+  InitDocumentUploadResponseSchema,
+  PutRegionsResponseSchema,
+  type ConfirmRegionsResponse,
+  type DocumentDetail,
+  type DocumentSummary,
+  type InitDocumentUploadResponse,
+  type PutRegionInput,
+  type PutRegionsResponse,
+} from './schemas/documents';
+import {
   type FloorVersionPageSchema,
   FloorVersionSnapshotSchema,
   FloorVersionSummarySchema,
@@ -227,6 +240,35 @@ export interface InitDrawingUploadInput extends WriteRequestOptions {
     projectId: string;
     sizeBytes: number;
   };
+}
+
+/** N39 — như #5 nhưng không có tầng; `projectId` đi trên đường, không trong thân. */
+export interface InitDocumentUploadInput extends WriteRequestOptions {
+  body: { fileName: string; mimeType: string; sizeBytes: number };
+  projectId: string;
+}
+
+export interface ListDocumentsInput extends RequestOptions {
+  projectId: string;
+}
+
+export interface ReadDocumentInput extends RequestOptions {
+  documentId: string;
+  projectId: string;
+}
+
+/** N42 — thay CẢ danh sách vùng của trang. */
+export interface PutDocumentRegionsInput extends WriteRequestOptions {
+  body: { regions: PutRegionInput[] };
+  documentId: string;
+  pageIndex: number;
+  projectId: string;
+}
+
+export interface ConfirmDocumentRegionsInput extends WriteRequestOptions {
+  body: { regionIds: string[] };
+  documentId: string;
+  projectId: string;
 }
 
 export interface SendDrawingChunkInput extends WriteRequestOptions {
@@ -562,6 +604,15 @@ export interface DrawingsApi {
   sendChunk(input: SendDrawingChunkInput): Promise<ApiResult<Progress>>;
 }
 
+/** N39–N43 — tài liệu nhiều bản vẽ và vùng trên trang. */
+export interface DocumentsApi {
+  confirm(input: ConfirmDocumentRegionsInput): Promise<ApiResult<ConfirmRegionsResponse>>;
+  initUpload(input: InitDocumentUploadInput): Promise<ApiResult<InitDocumentUploadResponse>>;
+  list(input: ListDocumentsInput): Promise<ApiResult<DocumentSummary[]>>;
+  putRegions(input: PutDocumentRegionsInput): Promise<ApiResult<PutRegionsResponse>>;
+  read(input: ReadDocumentInput): Promise<ApiResult<DocumentDetail>>;
+}
+
 /**
  * How good the drawing behind one floor is, and the two ways to improve it.
  *
@@ -841,6 +892,7 @@ export interface MeApi {
 
 export interface ApiClient {
   auth: AuthApi;
+  documents: DocumentsApi;
   drawings: DrawingsApi;
   featureFlags: FeatureFlagsApi;
   floors: FloorsApi;
@@ -1046,6 +1098,46 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
     requestPasswordReset: async (input) =>
       postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.passwordReset, input.body, input),
     signIn: async (input) => postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.login, input.body, input),
+  },
+  documents: {
+    confirm: async (input) =>
+      decodeSingle(
+        await callPost(http, ENDPOINTS.documents.confirm(input.projectId, input.documentId), input.body, input),
+        ConfirmRegionsResponseSchema,
+        'documents.confirm',
+      ),
+    initUpload: async (input) =>
+      decodeSingle(
+        await callPost(http, ENDPOINTS.documents.initUpload(input.projectId), input.body, input),
+        InitDocumentUploadResponseSchema,
+        'documents.initUpload',
+      ),
+    list: async ({ projectId, signal }) => {
+      const result = decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.documents.list(projectId), signal),
+        DocumentListSchema,
+        'documents.list',
+      );
+
+      return result.ok ? { ok: true, data: result.data.items } : result;
+    },
+    putRegions: async (input) =>
+      decodeSingle(
+        await callPut(
+          http,
+          ENDPOINTS.documents.putRegions(input.projectId, input.documentId, input.pageIndex),
+          input.body,
+          input,
+        ),
+        PutRegionsResponseSchema,
+        'documents.putRegions',
+      ),
+    read: async ({ documentId, projectId, signal }) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.documents.read(projectId, documentId), signal),
+        DocumentSchema,
+        'documents.read',
+      ),
   },
   drawings: {
     complete: async (input) => {

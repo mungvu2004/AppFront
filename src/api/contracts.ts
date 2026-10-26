@@ -58,6 +58,9 @@ export type LibraryFilterId = sourceSchemas.LibraryFilterId;
 export type LibraryGroup = sourceSchemas.LibraryGroup;
 export type LibraryItem = sourceSchemas.LibraryItem;
 export type LibraryItemWire = sourceSchemas.LibraryItemWire;
+
+/* Tài liệu và vùng bản vẽ — N39–N43 (Strategy B Phase 1). */
+export * from './schemas/documents';
 export type LibrarySource = sourceSchemas.LibrarySource;
 
 export type ProjectStatus = Project['status'];

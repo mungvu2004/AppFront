@@ -37,6 +37,7 @@ import type {
   Version,
   VersionsApi,
 } from '../client';
+import type { DocumentDetail, DocumentSummary, DrawingRegion } from '../schemas/documents';
 
 const ok = <T>(data: T): Result<T, never> => ({ ok: true, data });
 const clone = <T>(value: T): T => structuredClone(value);
@@ -368,6 +369,76 @@ const uploadKey = (projectId: string, uploadId: string): string => `${projectId}
  * mẫu có một mục hợp lệ ngay từ đầu (B-V4-01).
  */
 const SEEDED_UPLOAD_ID = 'upl_01J8Z3K4Q5R6S7T8V9W0XYZABC';
+
+/**
+ * Tài liệu mẫu 03 — một trang, ba vùng AI đề xuất: hai mặt bằng cạnh nhau và một
+ * khung tên (`other`). Đủ để dựng màn phân vùng trước khi BE có N39–N43.
+ */
+export const MOCK_DOCUMENT_03: DocumentDetail = {
+  id: 'doc_01J8Z3K4Q5R6S7T8V9W0DOC003',
+  fileName: 'ban-ve-03.pdf',
+  status: 'ready',
+  pageCount: 1,
+  errorCode: null,
+  createdAt: '2026-10-26T03:00:00Z',
+  pages: [
+    {
+      pageIndex: 0,
+      previewUrl: null,
+      widthPx: 2000,
+      heightPx: 1414,
+      regions: [
+        {
+          id: 'reg_mock_03_a',
+          box: { x0: 0.03, y0: 0.05, x1: 0.48, y1: 0.82 },
+          drawingType: 'floorPlan',
+          typeSource: 'ai',
+          typeSignals: ["Chữ 'MẶT BẰNG TẦNG 1' dưới vùng"],
+          source: 'ai',
+          status: 'proposed',
+          floorId: null,
+          version: 1,
+          runUploadId: null,
+        },
+        {
+          id: 'reg_mock_03_b',
+          box: { x0: 0.52, y0: 0.05, x1: 0.97, y1: 0.82 },
+          drawingType: 'floorPlan',
+          typeSource: 'ai',
+          typeSignals: ["Chữ 'MẶT BẰNG TẦNG 2' dưới vùng"],
+          source: 'ai',
+          status: 'proposed',
+          floorId: null,
+          version: 1,
+          runUploadId: null,
+        },
+        {
+          id: 'reg_mock_03_c',
+          box: { x0: 0.7, y0: 0.86, x1: 0.97, y1: 0.97 },
+          drawingType: 'other',
+          typeSource: 'ai',
+          typeSignals: ['Khung tên'],
+          source: 'ai',
+          status: 'proposed',
+          floorId: null,
+          version: 1,
+          runUploadId: null,
+        },
+      ],
+    },
+  ],
+};
+
+const summarizeDocument = ({ pages, ...rest }: DocumentDetail): DocumentSummary => {
+  const regions = pages.flatMap((page) => page.regions);
+
+  return {
+    ...rest,
+    regionCount: regions.length,
+    floorPlanCount: regions.filter((region) => region.drawingType === 'floorPlan').length,
+    unknownCount: regions.filter((region) => region.drawingType === 'unknown').length,
+  };
+};
 
 const applyProjectBody = (project: Project, body: Partial<ProjectWriteBody>): Project => ({
   ...project,
@@ -1470,6 +1541,16 @@ export const createMockApiClient = (): ApiClient => {
     floors.filter((floor) => floor.drawings.length > 0).map((floor) => [floor.id, SEEDED_UPLOAD_ID]),
   );
   let uploadSequence = 0;
+  const documents = new Map<string, DocumentDetail>([[MOCK_DOCUMENT_03.id, clone(MOCK_DOCUMENT_03)]]);
+  let regionSequence = 0;
+  const missingDocument = <T>(documentId: string): Result<T, HttpError> =>
+    failed({
+      kind: 'http',
+      raw: { resource: 'document' },
+      requestId: `req-document-missing-${documentId}`,
+      retryable: false,
+      status: 404,
+    });
   let qualityFloors = makeMeasuredFloors();
   const propertyTemplates: PropertyTemplate[] = [];
   let adminUsers: AdminUser[] = MOCK_ADMIN_USERS.map(clone);
@@ -1605,6 +1686,82 @@ export const createMockApiClient = (): ApiClient => {
       signIn: async ({ body }) => {
         lastSignedInEmail = body.email;
         return ok(undefined);
+      },
+    },
+    documents: {
+      confirm: async ({ body, documentId }) => {
+        const document = documents.get(documentId);
+
+        if (document === undefined) {
+          return missingDocument(documentId);
+        }
+
+        const runs: { floorId: string; regionId: string; uploadId: string }[] = [];
+
+        for (const region of document.pages.flatMap((page) => page.regions)) {
+          if (!body.regionIds.includes(region.id)) continue;
+          region.status = 'confirmed';
+          if (region.drawingType === 'floorPlan' && region.floorId !== null) {
+            uploadSequence += 1;
+            region.runUploadId = `upl_01J8Z3K4Q5R6S7T8V9W${String(uploadSequence).padStart(7, '0')}`;
+            runs.push({ floorId: region.floorId, regionId: region.id, uploadId: region.runUploadId });
+          }
+        }
+
+        return ok({ runs });
+      },
+      initUpload: async ({ body }) => {
+        uploadSequence += 1;
+        const suffix = String(uploadSequence).padStart(7, '0');
+        const document: DocumentDetail = {
+          id: `doc_01J8Z3K4Q5R6S7T8V9W${suffix}`,
+          fileName: body.fileName,
+          status: 'uploading',
+          pageCount: null,
+          errorCode: null,
+          createdAt: new Date().toISOString(),
+          pages: [],
+        };
+        documents.set(document.id, document);
+        return ok({
+          documentId: document.id,
+          uploadId: `upl_01J8Z3K4Q5R6S7T8V9W${suffix}`,
+          chunkSizeBytes: 1_048_576,
+          chunkCount: Math.max(1, Math.ceil(body.sizeBytes / 1_048_576)),
+        });
+      },
+      list: async () =>
+        ok([...documents.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(summarizeDocument)),
+      putRegions: async ({ body, documentId, pageIndex }) => {
+        const page = documents.get(documentId)?.pages.find((item) => item.pageIndex === pageIndex);
+
+        if (page === undefined) {
+          return missingDocument(documentId);
+        }
+
+        page.regions = body.regions.map((input): DrawingRegion => {
+          const previous = page.regions.find((region) => region.id === input.id);
+          regionSequence += 1;
+
+          return {
+            id: previous?.id ?? `reg_mock_new_${regionSequence}`,
+            box: input.box,
+            drawingType: input.drawingType,
+            typeSource: previous !== undefined && previous.drawingType === input.drawingType ? previous.typeSource : 'user',
+            typeSignals: previous?.typeSignals ?? [],
+            source: previous?.source ?? 'user',
+            status: 'proposed',
+            floorId: input.floorId ?? null,
+            version: (previous?.version ?? 0) + 1,
+            runUploadId: previous?.runUploadId ?? null,
+          };
+        });
+        return ok({ ...clone(page), warnings: [] });
+      },
+      read: async ({ documentId }) => {
+        const document = documents.get(documentId);
+
+        return document === undefined ? missingDocument(documentId) : ok(clone(document));
       },
     },
     drawings: {

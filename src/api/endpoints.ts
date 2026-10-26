@@ -93,6 +93,16 @@ export const ENDPOINTS = {
     passwordReset: `${AUTH_ROOT}/password-reset`,
     passwordResetConfirm: `${AUTH_ROOT}/password-reset/confirm`,
   },
+  /** N39–N43 — tài liệu nhiều bản vẽ; khúc/hoàn tất đi lại `drawings.chunk`/`complete` với `uploadId` của N39. */
+  documents: {
+    confirm: (projectId: string, documentId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/documents/${documentId}/confirm`,
+    initUpload: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/documents/uploads`,
+    list: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/documents`,
+    putRegions: (projectId: string, documentId: string, pageIndex: number): string =>
+      `${PROJECTS_ROOT}/${projectId}/documents/${documentId}/pages/${pageIndex}/regions`,
+    read: (projectId: string, documentId: string): string => `${PROJECTS_ROOT}/${projectId}/documents/${documentId}`,
+  },
   drawings: {
     chunk: (projectId: string, uploadId: string): string =>
       `${PROJECTS_ROOT}/${projectId}${DRAWINGS_ROOT}/uploads/${uploadId}/chunks`,
