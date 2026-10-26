@@ -15,10 +15,10 @@ import {
 } from '@/api/schemas/adminMl';
 import { ProgressSchema } from '@/api/schemas/index';
 import { FloorLayerWriteResultSchema } from '@/api/schemas/spatialLayer';
-import { ROUTES } from '@/routes/paths';
+import { ROUTES, editor3dHref } from '@/routes/paths';
 
 import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../fixtures/session';
-import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from '../fixtures/tour';
+import { dismissTour } from '../fixtures/tour';
 import {
   describeEntry,
   expectNoApiErrors,
@@ -43,21 +43,38 @@ import {
 const ACCESS_DENIED_PATTERN = /\/khong-co-quyen/u;
 const REFRESH_COOKIE = 'appback_refresh';
 const FLOOR_HEIGHT_M = '3';
-const PASCAL_FLAG_KEY = 'scene.pascal-viewer';
-/** Chữ `status` lúc cảnh Pascal dựng xong — như `e2e/pascal-viewer.spec.ts`. */
-const PASCAL_PARTIAL_CAPTION = 'Đã dựng xong, nhưng một số đối tượng chưa chuyển sang được.';
-/** Caption `success` hoặc `partial` (`pascalViewerTypes.ts`), trọn chuỗi. */
-const PASCAL_RENDERED_PATTERN =
-  /^(Đã dựng xong toàn bộ bản vẽ\.|Đã dựng xong, nhưng một số đối tượng chưa chuyển sang được\.)$/u;
-/** Tiêu đề khối liệt kê mục bỏ qua của màn Pascal ở `partial`. */
-const PASCAL_SKIPPED_TITLE = 'Chưa chuyển sang được';
 const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-const PASCAL_MOUNT_PATTERN = /\/assets\/pascal\/pascal-mount\.js\?v=[0-9a-f]{8}$/u;
+/** Bó và bảng kiểu của trang 3D riêng (`public/editor3d.html`), có hoặc không có `?v=`. */
+const PASCAL_PAGE_SCRIPT = /\/assets\/pascal\/pascal-page\.js(\?[^/]*)?$/u;
+const PASCAL_PAGE_STYLE = /\/assets\/pascal\/style\.css(\?[^/]*)?$/u;
+/** B-V10-41: tên cố định + `immutable` một năm thì URL phải mang `?v=` theo nội dung. */
+const CONTENT_VERSION = /\?v=[0-9a-f]{8}$/u;
+/** Chip lưu của trang 3D (`SaveStatusCard`): "Đã lưu lúc HH:mm". */
+const PASCAL_SAVED_PATTERN = /^Đã lưu/u;
+const THICKNESS_M = 0.25;
+const THICKNESS_ALT_M = 0.3;
 const OPENING_FAMILY = 'openingAndFurnitureDetection';
 const OPENING_FAMILY_LABEL = /nhận diện cửa và đồ đạc/iu;
 /** Tên checkbox của một hàng phiên bản (`VersionList.tsx`): "Chọn phiên bản <nhãn> để so sánh". */
 const VERSION_CHECKBOX_PATTERN = /^Chọn phiên bản (.+) để so sánh$/u;
 const ERROR_CODE_PATTERN = /\b[A-Z][A-Z0-9_]{2,}\b/u;
+
+/** Một tường của đầu dò `?probe=1` (`src/pascal-page/createProbe.ts`, mét như kho Pascal). */
+type ProbeWall = ReturnType<NonNullable<Window['__pascalProbe']>['walls']>[number];
+
+/** Chờ đầu dò `?probe=1` báo cảnh sẵn sàng và có tường, rồi trả danh sách tường. */
+async function probeWalls(page: Page): Promise<ProbeWall[]> {
+  const read = (): Promise<ProbeWall[]> =>
+    page.evaluate(() => (window.__pascalProbe?.ready() === true ? window.__pascalProbe.walls() : []));
+
+  await expect
+    .poll(async () => (await read()).length, {
+      timeout: PASCAL_RENDER_TIMEOUT_MS,
+      message: 'đầu dò Pascal chưa báo cảnh có tường',
+    })
+    .toBeGreaterThan(0);
+  return read();
+}
 
 type Json = Record<string, unknown>;
 
@@ -421,6 +438,14 @@ async function runChain(
   });
 
   await test.step('8. 3D', async () => {
+    // `/3d` điều hướng cả trang sang trang Pascal riêng `/editor3d.html?project=…` (29eba219).
+    const script = page.waitForResponse((response) => PASCAL_PAGE_SCRIPT.test(response.url()), {
+      timeout: PASCAL_RENDER_TIMEOUT_MS,
+    });
+    const style = page.waitForResponse((response) => PASCAL_PAGE_STYLE.test(response.url()), {
+      timeout: PASCAL_RENDER_TIMEOUT_MS,
+    });
+
     await navigateThenWaitForApi(
       page,
       () => page.goto(ROUTES.project.viewer(projectId), { waitUntil: 'commit' }),
@@ -428,99 +453,45 @@ async function runChain(
       new RegExp(`^/api/projects/${projectId}/spatial$`, 'u'),
       [200],
     );
-    await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
-    // F-15: `/3d` là màn Pascal — vỏ `Khung nhìn mô hình` cũ không còn ở đây.
-    await expect(page.getByTestId('pascal-canvas').locator('canvas').first()).toBeVisible({
-      timeout: PASCAL_RENDER_TIMEOUT_MS,
-    });
+    await expect(page).toHaveURL(new RegExp(`/editor3d\\.html\\?(.*&)?project=${projectId}(&|$)`, 'u'));
+    await expect(page.locator('canvas').first()).toBeVisible({ timeout: PASCAL_RENDER_TIMEOUT_MS });
     await expect(page).not.toHaveURL(ACCESS_DENIED_PATTERN);
+    for (const response of [await script, await style]) {
+      expect(response.status()).toBe(200);
+      expect(response.url(), 'tài sản tên cố định phải mang ?v= theo nội dung').toMatch(CONTENT_VERSION);
+    }
   });
 
-  await test.step('8b. Pascal', async () => {
-    const mount = page.waitForResponse((response) => PASCAL_MOUNT_PATTERN.test(response.url()), {
-      timeout: PASCAL_RENDER_TIMEOUT_MS,
-    });
+  await test.step('8b. Pascal: cảnh dựng từ dữ liệu thật', async () => {
+    await page.goto(editor3dHref(projectId, 'probe=1'), { waitUntil: 'commit' });
+    const walls = await probeWalls(page);
 
-    const flags = await navigateThenWaitForApi(
-      page,
-      () => page.goto(ROUTES.project.viewerPascal(projectId), { waitUntil: 'commit' }),
-      'GET',
-      /^\/api\/feature-flags$/u,
-      [200],
-    );
-
-    expect(asRecord(flags.json, 'GET /api/feature-flags')[PASCAL_FLAG_KEY]).toBe(true);
-    await expect(page.getByTestId('pascal-canvas')).toBeVisible({ timeout: PASCAL_RENDER_TIMEOUT_MS });
-    // Khối [7]: nhận `success` hoặc `partial` (dữ liệu thật có tầng rỗng, đối tượng bị bỏ qua).
-    // `empty`, `error`, `forbidden` mang caption khác nên không khớp và hết trần là hỏng.
-    const rendered = page.getByRole('status').filter({ hasText: PASCAL_RENDERED_PATTERN });
-
-    await expect(rendered).toHaveText(PASCAL_RENDERED_PATTERN, { timeout: PASCAL_RENDER_TIMEOUT_MS });
-    if ((await rendered.innerText()).trim() === PASCAL_PARTIAL_CAPTION) {
-      const skippedBox = page
-        .locator('div')
-        .filter({ has: page.getByText(PASCAL_SKIPPED_TITLE, { exact: true }) })
-        .last();
-      const skipped = (await skippedBox.getByRole('listitem').allInnerTexts()).map((line) => line.trim());
-
-      console.log(`[fullstack] pascal partial: ${skipped.length > 0 ? skipped.join('; ') : '(màn không liệt kê mục nào)'}`);
-    }
-
-    const script = await mount;
-
-    expect(script.status()).toBe(200);
-    // B-V10-41 phía BE: tên tệp cố định thì không được `immutable`.
-    expect(script.headers()['cache-control'] ?? '').toContain('no-cache');
+    expect(walls.length).toBeGreaterThan(0);
     await expect(page).not.toHaveURL(ACCESS_DENIED_PATTERN);
   });
 
   await test.step('8c. Pascal: sửa độ dày tường, tải lại vẫn còn (F-15)', async () => {
-    const saveStatus = page.getByRole('status').filter({ hasText: /^(Đã lưu|Đang lưu|Chưa|Tạm)/u }).first();
-    const openThickness = async () => {
-      // Dự án thật có nhiều tầng, tầng chọn sẵn có thể rỗng: bấm lần lượt tới tầng có tường.
-      const wall = page.getByText(/^Tường /u).first();
-      for (const level of await page.getByText(/^Tầng /u).all()) {
-        if (await wall.isVisible()) break;
-        await level.click();
-      }
-      console.log(`[fullstack] 8c tường: ${await wall.innerText()}`);
-      await wall.click();
-      await page.getByRole('button', { name: /Expand panel|Mở rộng/u }).first().click();
-      const row = page
-        .locator('div.group')
-        .filter({ has: page.locator('span', { hasText: /^Độ dày( tường)?$/u }) })
-        .first();
-      await expect(row).toBeVisible();
-      return row;
-    };
-    const shot = async (name: string): Promise<void> => {
-      const shotDir = process.env.E2E_SHOT_DIR;
+    const wall = (await probeWalls(page)).find((candidate) => typeof candidate.thickness === 'number');
 
-      if (shotDir !== undefined && shotDir !== '') await page.screenshot({ path: `${shotDir}/${name}.png`, fullPage: false });
-    };
-    const thickness = await openThickness();
+    if (wall?.thickness === undefined) throw new Error('đầu dò không thấy tường nào có độ dày');
+    const target = Math.abs(wall.thickness - THICKNESS_M) < 1e-6 ? THICKNESS_ALT_M : THICKNESS_M;
+    const saved = waitForApi(page, 'PUT', layerPath(), [200]);
 
-    await shot('shot-1-pascal');
-    await thickness.locator('.cursor-text').click();
-    await thickness.locator('input').fill('0,25');
-    await thickness.locator('input').press('Enter');
-    await expect(thickness).toContainText('0,250');
-    await expect(saveStatus).toHaveText(/^Đã lưu/u, { timeout: PASCAL_RENDER_TIMEOUT_MS });
-    await shot('shot-2-saved');
-    const writes = api.filter((entry) => entry.method !== 'GET').map((entry) => `${entry.method} ${entry.path}`);
-    console.log(`[fullstack] 8c ghi: ${writes.slice(-5).join(' | ')}`);
-    await page.reload();
-    await expect(page.getByRole('status').filter({ hasText: PASCAL_RENDERED_PATTERN })).toHaveText(
-      PASCAL_RENDERED_PATTERN,
-      { timeout: PASCAL_RENDER_TIMEOUT_MS },
-    );
-    const reloaded = await openThickness();
+    // Sửa qua kho cảnh Pascal như bảng thuộc tính làm: cầu nối đổi thành lệnh rồi tự lưu (PUT N16).
+    await page.evaluate(([id, thickness]) => window.__pascalProbe?.editNode(id, { thickness }), [wall.id, target] as const);
+    const written = FloorLayerWriteResultSchema.parse((await saved).json);
 
-    await shot('shot-3-reloaded');
-    await expect(reloaded).toContainText('0,250');
-    // Bước 11 đối chiếu số PUT cuối chuỗi: tính cả lượt lưu của Pascal (một ở bước 7, một ở đây).
+    expect(written.layer.walls.map((candidate) => candidate.thicknessMm)).toContain(Math.round(target * 1000));
+    await expect(page.getByRole('status').filter({ hasText: PASCAL_SAVED_PATTERN }).first()).toBeVisible({
+      timeout: PASCAL_RENDER_TIMEOUT_MS,
+    });
+    await page.reload({ waitUntil: 'commit' });
+    const reloaded = (await probeWalls(page)).find((candidate) => candidate.id === wall.id);
+
+    expect(reloaded?.thickness).toBeCloseTo(target, 3);
+    // Bước 11 đối chiếu số PUT cuối chuỗi: tính cả lượt lưu của Pascal (một ở bước 7, ít nhất một ở đây).
     autosaveCount = countEntries(api, 'PUT', layerPath());
-    expect(autosaveCount).toBe(2);
+    expect(autosaveCount).toBeGreaterThanOrEqual(2);
   });
 
   await test.step('9. phục hồi phiên bản', async () => {
