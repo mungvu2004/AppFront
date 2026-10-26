@@ -134,6 +134,7 @@ import type {
   ProcessingLogLineViewModel,
   ProcessingPanelTab,
   ProcessingPreviewViewModel,
+  ProcessingReviewReason,
   ProcessingRunRowViewModel,
   ProcessingScreenProps,
   ProcessingScreenState,
@@ -503,6 +504,9 @@ const STATUS_LABELS: Readonly<Record<ProcessingStageStatus, string>> = {
   done: COPY.statusDone,
   failed: COPY.statusFailed,
 };
+
+/** Nhãn chip tầng khi N16 `readiness.state` là `needsReview` (FIX-P0-15). */
+const NEEDS_REVIEW_LABEL = 'Cần xem lại';
 
 /** Phần trăm của MỘT bước. Không tự tăng: chưa biết thì `0`, xong thì `100`. */
 function stepPercentOf(stage: PipelineStageState): number {
@@ -1062,6 +1066,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
           status,
           statusLabel: STATUS_LABELS[status],
           isActive: index === focusIndex,
+          ...(objectCount?.readiness?.state === 'needsReview' ? { reviewLabel: NEEDS_REVIEW_LABEL } : {}),
           ...(objectCount !== undefined
             ? {
                 objectCountLabel: countLabel(objectTotalOf(objectCount), UNIT.object),
@@ -1345,12 +1350,26 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       (extraction): extraction is ProcessingExtractionSummary => extraction !== undefined,
     );
     // Hiệu chỉnh tỷ lệ dẫn tới đúng tầng thiếu tỷ lệ (0 chuỗi kích thước), không phải tầng xong đầu tiên.
-    const noScaleIndex = floorStatuses.findIndex(
-      (status, index) =>
-        status === 'done' &&
-        extractions[index]?.dimensionCount === 0 &&
-        extractions[index]?.hasScale !== true,
+    // Không có tầng thiếu hẳn tỷ lệ thì tới tầng tỷ lệ còn tạm (readiness `scaleUnresolved`, FIX-P0-15).
+    const reasonsAt = (index: number): readonly ProcessingReviewReason[] => {
+      const readiness = extractions[index]?.readiness;
+      return readiness?.state === 'needsReview' ? readiness.reasons : [];
+    };
+    const firstDone = (match: (index: number) => boolean) =>
+      floorStatuses.findIndex((status, index) => status === 'done' && match(index));
+    const missingScaleIndex = firstDone(
+      (index) => extractions[index]?.dimensionCount === 0 && extractions[index]?.hasScale !== true,
     );
+    const noScaleIndex =
+      missingScaleIndex >= 0
+        ? missingScaleIndex
+        : firstDone((index) => reasonsAt(index).includes('scaleUnresolved'));
+    const reviewIndex = firstDone((index) =>
+      reasonsAt(index).some((reason) => reason !== 'scaleUnresolved'),
+    );
+    const reviewReasons = [
+      ...new Set(floorStatuses.flatMap((status, index) => (status === 'done' ? reasonsAt(index) : []))),
+    ];
     const goTo = (route: (projectId: string, floorId: string) => string, index = doneIndex) => () => {
       const upload = uploadsRef.current[index];
 
@@ -1359,8 +1378,9 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       }
     };
     const actions = {
-      onReviewWalls: goTo(ROUTES.project.walls),
+      onReviewWalls: goTo(ROUTES.project.walls, reviewIndex < 0 ? doneIndex : reviewIndex),
       onCalibrateScale: goTo(ROUTES.project.scale, noScaleIndex < 0 ? doneIndex : noScaleIndex),
+      ...(reviewReasons.length > 0 ? { reviewReasons } : {}),
     };
 
     if (parts.length === 0) {

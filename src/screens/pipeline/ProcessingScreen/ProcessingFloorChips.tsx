@@ -47,6 +47,9 @@ export function ProcessingFloorChips({ floors }: ProcessingFloorChipsProps) {
               <span className="text-text-secondary">{floor.objectCountLabel}</span>
             </>
           ) : null}
+          {floor.reviewLabel !== undefined ? (
+            <span className="font-medium text-state-attention-text">{floor.reviewLabel}</span>
+          ) : null}
         </li>
       ))}
     </ul>

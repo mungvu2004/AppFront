@@ -8,15 +8,23 @@
  * lệ", không mời sang Duyệt tầng.
  */
 
-import type { ProcessingScreenProps } from './types';
+import type { ProcessingReviewReason, ProcessingScreenProps } from './types';
 
-export type ProcessingGateKind = 'running' | 'needs-scale' | 'ready' | 'error';
+export type ProcessingGateKind = 'running' | 'needs-scale' | 'needs-review' | 'ready' | 'error';
 
 export interface ProcessingGateAction {
   readonly label: string;
   readonly note?: string;
   readonly isForward: boolean;
   readonly onClick: () => void;
+}
+
+/** Một lý do "cần xem lại" (N16 `readiness`): câu cho người đọc và màn sửa được nó. */
+export interface ProcessingGateReviewRow {
+  readonly reason: ProcessingReviewReason;
+  readonly sentence: string;
+  /** `scale` → nút Đặt tỷ lệ; `review` → nút Sang Duyệt tầng. */
+  readonly target: 'scale' | 'review';
 }
 
 export interface ProcessingGateModel {
@@ -35,6 +43,8 @@ export interface ProcessingGateModel {
   /** Kết quả hiện trên hàng bước, theo `step.id`. */
   readonly resultByStepId: ReadonlyMap<string, string>;
   readonly warnStepIds: readonly string[];
+  /** Có khi `kind` là `needs-review`: mỗi lý do một dòng. */
+  readonly reviewRows?: readonly ProcessingGateReviewRow[];
 }
 
 export const GATE_LABEL = 'Để sang Duyệt tầng';
@@ -45,6 +55,15 @@ export const WAITING_NOTE = 'Khi AI xong, nút sang Duyệt tầng hiện ở đ
 const NO_DIMENSION_NOTE = 'Không đọc được số kích thước nào';
 const NO_METRIC_NOTE = 'Chưa đọc được số liệu của lượt xử lý';
 const CALIBRATE_NOTE = 'Đo một đoạn đã biết chiều dài, khoảng 1 phút.';
+
+/** Câu cho từng lý do của N16 `readiness` (FIX-P0-15, thiết kế H5 §2.2). */
+export const REVIEW_REASON_SENTENCE: Readonly<Record<ProcessingReviewReason, string>> = {
+  scaleUnresolved: 'Tỷ lệ bản vẽ mới là tạm, chưa ai kiểm: kích thước và diện tích có thể sai.',
+  criticalIssues: 'Mô hình còn lỗi nghiêm trọng cần sửa ở Duyệt tầng.',
+  fallbackWallModel: 'Tường được dò bằng mô hình dự phòng, độ chính xác thấp hơn: nên kiểm lại tường.',
+  fallbackObjectModel: 'Cửa và đồ vật được dò bằng mô hình dự phòng, có thể thiếu hoặc sai chỗ.',
+  fallbackTextModel: 'Chữ và số kích thước được đọc bằng mô hình dự phòng, có thể đọc sai.',
+};
 
 /** Thứ tự `metricLabels` của hook: tường, đối tượng, chuỗi kích thước, phòng, diện tích. */
 function resultsOf(props: ProcessingScreenProps): ReadonlyMap<string, string> {
@@ -127,6 +146,36 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
             secondaryAction: { label: GO_REVIEW_LABEL, isForward: true, onClick: summary.onReviewWalls },
           }
         : {}),
+    };
+  }
+
+  // `needsReview` không bao giờ ra 'ready' (FIX-P0-15): tỷ lệ tạm mà có kích thước từng báo "Sẵn sàng".
+  const reasons: readonly ProcessingReviewReason[] = summary.reviewReasons ?? [];
+  if (reasons.length > 0) {
+    const isScaleUnresolved = reasons.includes('scaleUnresolved');
+    const calibrate = {
+      label: CALIBRATE_LABEL,
+      note: CALIBRATE_NOTE,
+      isForward: false,
+      onClick: summary.onCalibrateScale,
+    };
+    const review = { label: GO_REVIEW_LABEL, isForward: true, onClick: summary.onReviewWalls };
+    return {
+      ...base,
+      kind: 'needs-review',
+      chipLabel: 'Xong · cần xem lại',
+      chipVariant: 'attention',
+      title: reasons.length === 1 ? 'Còn 1 việc cần xem lại' : `Còn ${String(reasons.length)} việc cần xem lại`,
+      scaleValue: isScaleUnresolved ? 'Tạm, chưa kiểm' : 'Suy từ chuỗi kích thước',
+      isScaleOk: !isScaleUnresolved,
+      reviewRows: reasons.map((reason): ProcessingGateReviewRow => ({
+        reason,
+        sentence: REVIEW_REASON_SENTENCE[reason],
+        target: reason === 'scaleUnresolved' ? 'scale' : 'review',
+      })),
+      // Đặt tỷ lệ đi trước; Duyệt tầng vẫn mở (lối mềm như tỷ lệ chưa kiểm, không chặn cứng).
+      action: isScaleUnresolved ? calibrate : review,
+      ...(isScaleUnresolved ? { secondaryAction: review } : {}),
     };
   }
 

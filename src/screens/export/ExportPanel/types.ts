@@ -192,7 +192,7 @@ export interface ExportOptionsView {
 export type PreflightTone = 'ok' | 'attention';
 
 export interface PreflightRow {
-  readonly id: 'approval' | 'violations' | 'unreviewed';
+  readonly id: 'approval' | 'violations' | 'unreviewed' | 'readiness';
   /** Câu tiếng thường, ví dụ "Còn 3 phát hiện ở 2 luật chưa xử lý." */
   readonly label: string;
   readonly tone: PreflightTone;
