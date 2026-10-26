@@ -55,8 +55,10 @@ const THICKNESS_M = 0.25;
 const THICKNESS_ALT_M = 0.3;
 const OPENING_FAMILY = 'openingAndFurnitureDetection';
 const OPENING_FAMILY_LABEL = /nhận diện cửa và đồ đạc/iu;
-/** Tên checkbox của một hàng phiên bản (`VersionList.tsx`): "Chọn phiên bản <nhãn> để so sánh". */
-const VERSION_CHECKBOX_PATTERN = /^Chọn phiên bản (.+) để so sánh$/u;
+/** Nút phục hồi của màn phiên bản (`VersionHistory.tsx`): "Phục hồi về <nhãn>". */
+const RESTORE_BUTTON_PATTERN = /^Phục hồi về (.+)$/u;
+/** Ghi chú của ảnh chụp "trước" mà pipeline tạo (`versions/messages.py` `before_pipeline_note`). */
+const PRE_AI_NOTE = 'Trạng thái trước khi ghi kết quả AI';
 const ERROR_CODE_PATTERN = /\b[A-Z][A-Z0-9_]{2,}\b/u;
 
 /** Một tường của đầu dò `?probe=1` (`src/pascal-page/createProbe.ts`, mét như kho Pascal). */
@@ -513,20 +515,25 @@ async function runChain(
       .poll(() => api.slice(mark).some(ofFloor), { message: `không có N17 200 cho tầng ${floorId}` })
       .toBe(true);
 
-    const list = page.getByRole('navigation', { name: 'Danh sách phiên bản' });
-    const target = list.getByRole('listitem').filter({ hasNotText: 'Hiện tại' }).first();
+    // Màn so sánh (25f49600): cặp mặc định là bản gần nhất với "Hiện tại", nút phục hồi nhắm bản
+    // không phải hiện tại và ghi thẳng nhãn của nó — không còn ô tích trên từng hàng.
+    const restoreButton = page.getByRole('button', { name: RESTORE_BUTTON_PATTERN });
 
-    const targetBox = target.getByRole('checkbox');
-    const targetLabel = VERSION_CHECKBOX_PATTERN.exec((await targetBox.getAttribute('aria-label')) ?? '')?.[1];
+    await expect(restoreButton).toBeVisible();
+    const targetLabel = RESTORE_BUTTON_PATTERN.exec(await restoreButton.innerText())?.[1];
 
-    if (targetLabel === undefined) throw new Error('không đọc được nhãn hàng phiên bản đích');
-    // Hàng mới nhất có thể đã tích sẵn trong cặp so sánh mặc định; `check()` khi ấy không làm gì.
-    await targetBox.check();
-    await page.getByRole('button', { name: 'Phục hồi phiên bản này' }).click();
+    if (targetLabel === undefined) throw new Error('không đọc được nhãn phiên bản đích trên nút phục hồi');
+    const targetDescription = await page
+      .getByRole('navigation', { name: 'Danh sách phiên bản' })
+      .getByRole('listitem')
+      .filter({ has: page.getByText(targetLabel, { exact: true }) })
+      .first()
+      .innerText();
+    await restoreButton.click();
     const restore = waitForApi(page, 'POST', /\/api\/projects\/[^/]+\/versions\/[^/]+\/restore$/u, [200, 201]);
     const confirm = page.getByRole('dialog');
 
-    // Bản sắp phục hồi đúng là hàng đích: so trên tiêu đề có biên, "v1" không khớp "v12".
+    // Bản sắp phục hồi đúng là bản trên nút: so trên tiêu đề có biên, "v1" không khớp "v12".
     await expect(confirm).toContainText(
       new RegExp(`Phục hồi phiên bản ${escapeRegExp(targetLabel)} của ${escapeRegExp(floorName)}\\?`, 'u'),
     );
@@ -542,9 +549,11 @@ async function runChain(
       layerPath(),
       [200],
     );
-    const restored = wallById(wallsOf(reread.json, 'N16 sau phục hồi'), changedWallId, 'N16');
-
-    expect(pick(restored, changedWallKeys)).toBe(pick(wallBefore, changedWallKeys));
+    // Sửa tay không tạo phiên bản, và màn coi bản mới nhất (sau AI) là "Hiện tại" khi không bản nào
+    // khớp revision (`versionHistoryModel.ts`). Dự án của chuỗi mới tinh nên bản phục hồi được là v1
+    // "trước khi ghi kết quả AI": tầng sau phục hồi phải rỗng, mất cả tường đã sửa ở bước 7.
+    expect(targetDescription, 'bản đích phải là ảnh chụp trước lượt AI').toContain(PRE_AI_NOTE);
+    expect(wallsOf(reread.json, 'N16 sau phục hồi').map((wall) => wall.id)).toEqual([]);
     await dismissTour(page);
   });
 
