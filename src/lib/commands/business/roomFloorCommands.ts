@@ -103,6 +103,7 @@ const ROOM_USAGES: Readonly<Record<RoomUsage, true>> = {
   corridor: true,
   stairwell: true,
   utility: true,
+  loggia: true,
   other: true,
 };
 

@@ -165,10 +165,10 @@ export const GENERAL_THRESHOLD_CODE: RuleCode = 'GENERAL';
 /* -------------------------------------------------------------------------- */
 
 /**
- * The eight minimum floor areas, one per room use.
+ * The nine minimum floor areas, one per room use.
  *
- * Built rather than typed out because the eight differ in exactly one thing —
- * the use — and eight hand-written lines is eight chances to pair a use with
+ * Built rather than typed out because the nine differ in exactly one thing —
+ * the use — and nine hand-written lines is nine chances to pair a use with
  * the wrong constant, plus one more use added next door that nobody adds here.
  *
  * A zero switches the check off for that use, which is what the four shipped

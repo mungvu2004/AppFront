@@ -29,6 +29,7 @@ const EVERY_USAGE: readonly RoomUsage[] = [
   'corridor',
   'stairwell',
   'utility',
+  'loggia',
   'other',
 ];
 
@@ -233,6 +234,10 @@ describe('the Vietnamese names', () => {
     for (const usage of EVERY_USAGE) {
       expect(describeUsage(usage).length).toBeGreaterThan(0);
     }
+  });
+
+  it('calls a loggia a lô gia', () => {
+    expect(describeUsage('loggia')).toBe('Lô gia');
   });
 
   it('has one for not knowing', () => {

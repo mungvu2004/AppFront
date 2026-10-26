@@ -286,6 +286,7 @@ export const RoomSchema: z.ZodType<Room, z.ZodTypeDef, unknown> = z
       'corridor',
       'stairwell',
       'utility',
+      'loggia',
       'other',
     ]),
     wallIds: z.array(wallIdSchema),

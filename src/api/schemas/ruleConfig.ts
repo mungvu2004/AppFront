@@ -6,7 +6,7 @@ import { VersionedWriteSchema } from './common';
  * N21, N22 — cấu hình luật của một dự án (HOP-DONG-MOI §6).
  *
  * Zod chỉ kiểm **mẫu** của mã luật và khoá ngưỡng. Tập đúng 25 mã (cộng
- * `GENERAL`) và 26 khoá ngưỡng **không** kiểm ở đây — H4 kiểm, và BE trả
+ * `GENERAL`) và 27 khoá ngưỡng **không** kiểm ở đây — H4 kiểm, và BE trả
  * `RULE_CODE_UNKNOWN` / `RULE_THRESHOLD_UNKNOWN`.
  *
  * `revision` ở đây là version của **máy chủ**. `RuleConfig.version` của

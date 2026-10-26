@@ -82,7 +82,8 @@ export interface UsageRequirement {
  *
  * A corridor needs no door of its own — it is what other rooms open onto — and
  * a stairwell is where people are trying to get to, so it is an escape rather
- * than a room needing one.
+ * than a room needing one. A loggia (lô gia, ban công) opens off another room,
+ * often through a bare opening, and nobody lives in it, so it needs neither.
  */
 export const USAGE_REQUIREMENTS: Readonly<Record<RoomUsage, UsageRequirement>> = {
   livingRoom: {
@@ -131,6 +132,13 @@ export const USAGE_REQUIREMENTS: Readonly<Record<RoomUsage, UsageRequirement>> =
     minAreaM2: MIN_ROOM_AREA_M2.utility,
     minClearWidthMm: 0,
     needsDoor: true,
+    needsWindow: false,
+    isEscape: false,
+  },
+  loggia: {
+    minAreaM2: MIN_ROOM_AREA_M2.loggia,
+    minClearWidthMm: 0,
+    needsDoor: false,
     needsWindow: false,
     isEscape: false,
   },

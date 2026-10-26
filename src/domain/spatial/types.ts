@@ -253,6 +253,7 @@ export type RoomUsage =
   | 'corridor'
   | 'stairwell'
   | 'utility'
+  | 'loggia'
   | 'other';
 
 /** A closed room on the plan. */

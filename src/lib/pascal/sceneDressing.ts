@@ -84,6 +84,7 @@ const USAGE_FINISH: Readonly<Record<RoomUsage, RoomFinish>> = {
   utility: 'tile',
   bathroom: 'mosaic',
   stairwell: 'concrete',
+  loggia: 'decking',
 };
 
 /** Tham chiếu vật liệu mặt sàn của một phòng: `floorMaterial` (W3a) trước, rồi `finish`, rồi công năng. */

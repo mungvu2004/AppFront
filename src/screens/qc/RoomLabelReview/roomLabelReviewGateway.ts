@@ -55,7 +55,7 @@
  * đúng tiền lệ `wall.approve` (dùng nguyên thuỷ công khai + được duyệt trước).
  * Ràng buộc, và mã dưới đây tuân đủ:
  *
- * 1. Đích đến CHỈ được là tám nhãn của `ROOM_USAGE_LABELS`
+ * 1. Đích đến CHỈ được là chín nhãn của `ROOM_USAGE_LABELS`
  *    (`src/domain/rules/registry.ts`) — {@link ROOM_NAME_TARGETS} đọc thẳng
  *    bảng đó, không chép lại một danh sách thứ hai và không thêm nhãn mới.
  * 2. Phép so sánh CHỈ làm việc với VĂN BẢN: thường hoá, bỏ dấu, gom khoảng
@@ -1066,7 +1066,7 @@ export function roomNameKey(raw: string): string {
     .trim();
 }
 
-/** Bảng tra khoá → nhãn chuẩn, dựng một lần từ tám nhãn. */
+/** Bảng tra khoá → nhãn chuẩn, dựng một lần từ chín nhãn. */
 const TARGET_BY_KEY: ReadonlyMap<string, string> = new Map(
   ROOM_NAME_TARGETS.map((target) => [roomNameKey(target), target]),
 );

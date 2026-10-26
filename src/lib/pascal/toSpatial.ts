@@ -344,6 +344,7 @@ const ROOM_USAGES: readonly RoomUsage[] = [
   'corridor',
   'stairwell',
   'utility',
+  'loggia',
   'other',
 ];
 const FURNITURE_KINDS: readonly FurnitureKind[] = [

@@ -48,6 +48,7 @@ const ROOM_USAGES: readonly RoomUsage[] = [
   'corridor',
   'stairwell',
   'utility',
+  'loggia',
   'other',
 ];
 

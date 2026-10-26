@@ -414,6 +414,7 @@ export const MIN_ROOM_AREA_M2: Readonly<Record<RoomUsage, number>> = {
   corridor: 0,
   stairwell: 0,
   utility: 0,
+  loggia: 0,
   other: 0,
 };
 
@@ -426,6 +427,7 @@ export const ROOM_USAGE_LABELS: Readonly<Record<RoomUsage, string>> = {
   corridor: 'hành lang',
   stairwell: 'buồng thang',
   utility: 'phòng kỹ thuật',
+  loggia: 'lô gia',
   other: 'phòng khác',
 };
 

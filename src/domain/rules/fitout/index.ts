@@ -76,6 +76,7 @@ export const MISPLACED_FURNITURE: Readonly<Record<RoomUsage, readonly FurnitureK
   corridor: ['bed', 'wardrobe', 'kitchenCabinet', 'sanitaryFixture'],
   stairwell: ['bed', 'wardrobe', 'kitchenCabinet', 'sanitaryFixture', 'table'],
   utility: ['bed'],
+  loggia: ['bed', 'wardrobe', 'kitchenCabinet', 'sanitaryFixture'],
   other: [],
 };
 

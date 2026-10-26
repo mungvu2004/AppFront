@@ -122,6 +122,7 @@ const USAGE_LABELS: Readonly<Record<RoomUsage, string>> = {
   corridor: 'Hành lang',
   stairwell: 'Thang bộ',
   utility: 'Kỹ thuật',
+  loggia: 'Lô gia',
   other: 'Khác',
 };
 

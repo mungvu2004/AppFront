@@ -13,7 +13,7 @@
  * | `[G3]` | `expectVietnamese` — không sót tiếng Anh, không mất dấu | 14/14 |
  * | `[G4]` | `expectNoRawColor` — cả thư mục màn | 0 mã màu thô |
  * | `[N1]` | tổng của 14 dòng | đúng `"248,60"`, in cả phép cộng |
- * | `[N2]` | thanh xếp chồng khi cả tám công năng cùng có mặt | ≤ 3 dải |
+ * | `[N2]` | thanh xếp chồng khi cả chín công năng cùng có mặt | ≤ 3 dải |
  * | `[N3]` | bấm một dòng | `onRoomActivate` đúng 1 lần, đúng `roomId` |
  *
  * ## Bảy trạng thái là ĐẦU RA THẬT, không phải bảy đối tượng gõ tay
@@ -414,7 +414,7 @@ describe('[N1] tổng của mười bốn dòng', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('[N2] thanh xếp chồng', () => {
-  it('không quá ba dải, kể cả khi cả tám công năng cùng có mặt (PQ-9)', () => {
+  it('không quá ba dải, kể cả khi cả chín công năng cùng có mặt (PQ-9)', () => {
     seedStore(createEveryUsageGraph());
 
     const probe: Probe = { model: null };
