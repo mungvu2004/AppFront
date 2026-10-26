@@ -63,10 +63,8 @@ export function projectLocationOf(pathname: string): ProjectLocation | null {
   if (match?.[1] === undefined) return null;
   const projectId = decodeURIComponent(match[1]);
   const segment = match[2] ?? '';
-  // Màn phụ sáng ô bước của nó: chất lượng ảnh → bước 1; xác nhận CAD → bước 2 (đi trước việc duyệt lớp).
-  // Không gắn floorId cho xác nhận CAD để ô bước 3 không nhớ màn này làm "màn duyệt tầng gần nhất".
+  // Màn phụ sáng ô bước của nó: chất lượng ảnh → bước 1.
   if (segment === 'quality') return { projectId, stepIndex: 0 };
-  if (segment === 'floors' && match[4] === 'cad-confirm') return { projectId, stepIndex: 1 };
   const stepIndex = PROJECT_STEPS.findIndex((step) => step.segments.includes(segment));
   if (stepIndex === -1) return OFF_STEP_SEGMENTS.includes(segment) ? { projectId, stepIndex } : null;
   if (segment !== 'floors' || match[3] === undefined) return { projectId, stepIndex };
@@ -115,7 +113,6 @@ export function projectScreenTitleOf(pathname: string): string | null {
   const location = projectLocationOf(pathname);
   if (location === null) return null;
   if (/\/pipeline\/graph\/?$/.test(pathname)) return 'Sơ đồ xử lý';
-  if (pathname.endsWith('/cad-confirm')) return 'Xác nhận tệp CAD';
   const segment = /^\/projects\/[^/]+\/([^/]+)/.exec(pathname)?.[1] ?? '';
   const offStepTitle = OFF_STEP_TITLES[segment];
   if (offStepTitle !== undefined) return offStepTitle;

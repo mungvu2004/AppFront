@@ -378,7 +378,6 @@ export const routes: RouteObject[] = [
               { path: ROUTE_PATTERNS.projectPipelineGraph, element: suspended(<Screens.RoutePipelineGraph />) },
               { path: ROUTE_PATTERNS.projectScale, element: suspended(<Screens.RouteScaleCalibration />) },
               { path: ROUTE_PATTERNS.projectOverlay, element: suspended(<Screens.RouteOverlayComparison />) },
-              { path: ROUTE_PATTERNS.projectCadConfirm, element: suspended(<Screens.RouteCadBranchConfirm />) },
               { path: ROUTE_PATTERNS.projectWalls, element: suspended(<Screens.RouteWallLayerReview />) },
               { path: ROUTE_PATTERNS.projectObjects, element: suspended(<Screens.RouteObjectLayerReview />) },
               { path: ROUTE_PATTERNS.projectDimensions, element: suspended(<Screens.RouteDimensionOcrReview />) },

@@ -1,3 +1,4 @@
+// @vitest-environment node -- như `src/lib/pascal/**` nơi test này ở trước (fixture đọc tệp qua `import.meta.url`).
 /** Mái lưu về bản vẽ và dựng lại (roof-contract.md). */
 
 import { useScene } from '@pascal-app/core';
@@ -6,13 +7,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Roof, SpatialGraph } from '@/domain/spatial/types';
+import { fixtureF1 } from '@/lib/pascal/__fixtures__';
+import { createPascalEditCommand } from '@/lib/pascal/fromPascal';
+import { toPascalScene } from '@/lib/pascal/toPascal';
+import { toSpatialGraph } from '@/lib/pascal/toSpatial';
+import type { PascalNode, PascalScene } from '@/lib/pascal/types';
 import { setDetailsEnabled } from '@/pascal-page/realism/details';
-
-import { fixtureF1 } from '../__fixtures__';
-import { createPascalEditCommand } from '../fromPascal';
-import { toPascalScene } from '../toPascal';
-import { toSpatialGraph } from '../toSpatial';
-import type { PascalNode, PascalScene } from '../types';
 
 const ACTOR = 'U-1';
 const extGraph: SpatialGraph = SpatialGraphDocumentSchema.parse(fixtureF1({ ext: true }).doc).graph;
@@ -198,7 +198,9 @@ describe.each([true, false])('mái, cờ details = %s', (details) => {
 
     if (roofNode?.type !== 'roof') throw new Error('cảnh phải có mái');
 
-    const { rseg_f6e5d4c3b2a1: _gone, ...rest } = scene.nodes;
+    const rest = { ...scene.nodes };
+
+    delete rest.rseg_f6e5d4c3b2a1;
     const result = createPascalEditCommand({
       graph: normalizeSpatial(graph),
       scene: { ...scene, nodes: { ...rest, [roofNodeId]: { ...roofNode, children: ['rseg_a1b2c3d4e5f6'] } } },
@@ -285,18 +287,21 @@ describe('durable gutter — mái nạp lại có máng ngay (luật r9g-load-gu
 
     const wasReadOnly = useScene.getState().readOnly;
 
+    /* eslint-disable-next-line local/no-direct-set -- kho `useScene` của Pascal (không phải kho AppFront), nên không có commit(patch, label) để đi qua. */
     if (wasReadOnly) useScene.setState({ readOnly: false });
     try {
       useScene
         .getState()
         .updateNodes(gutterless.map(([id, node]) => ({ id: id as never, data: { metadata: node.metadata } as never })));
     } finally {
+      // eslint-disable-next-line local/no-direct-set -- như trên
       if (wasReadOnly) useScene.setState({ readOnly: true });
     }
 
     const refreshed: Live = { ...(useScene.getState().nodes as unknown as Live) };
 
     for (const [id, node] of gutterless) refreshed[id] = { ...node, children: refreshed[id]?.children ?? node.children };
+    // eslint-disable-next-line local/no-direct-set -- như trên
     useScene.setState({ nodes: refreshed as never });
   };
 

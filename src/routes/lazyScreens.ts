@@ -24,7 +24,6 @@ export const RouteRules = lazy(() => import('../screens/rules/RuleReport').then(
 export const RouteRuleSettings = lazy(() => import('../screens/rules/RuleSettings').then(m => ({ default: m.RuleSettingsRoute })));
 export const RouteExportPanel = lazy(() => import('../screens/export/ExportPanel').then(m => ({ default: m.ExportPanelRoute })));
 export const RoutePipelineGraph = lazy(() => import('../screens/pipeline/PipelineGraph').then(m => ({ default: m.PipelineGraphRoute })));
-export const RouteCadBranchConfirm = lazy(() => import('../screens/pipeline/CadBranchConfirm').then(m => ({ default: m.CadBranchConfirmRoute })));
 export const RouteWallLayerReview = lazy(() => import('../screens/qc/WallLayerReview').then(m => ({ default: m.WallLayerReviewRoute })));
 export const RouteObjectLayerReview = lazy(() => import('../screens/qc/ObjectLayerReview').then(m => ({ default: m.ObjectLayerReviewRoute })));
 export const RouteDimensionOcrReview = lazy(() => import('../screens/qc/DimensionOcrReview').then(m => ({ default: m.DimensionOcrReviewRoute })));

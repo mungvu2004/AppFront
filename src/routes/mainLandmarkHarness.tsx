@@ -113,7 +113,6 @@ export const PROJECT_PATHS: readonly string[] = [
 export const FLOORS_ADMIN_PATHS: readonly string[] = [
   '/projects/:projectId/floors/:floorId/scale',
   '/projects/:projectId/floors/:floorId/overlay',
-  '/projects/:projectId/floors/:floorId/cad-confirm',
   '/projects/:projectId/floors/:floorId/layers/walls',
   '/projects/:projectId/floors/:floorId/layers/objects',
   '/projects/:projectId/floors/:floorId/layers/dimensions',

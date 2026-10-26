@@ -67,7 +67,7 @@ export function averageFrames(frames: Uint8Array[]): Uint8Array {
   return out
 }
 
-type ViewCamera = {
+interface ViewCamera {
   view: {
     enabled: boolean
     fullWidth: number
@@ -113,8 +113,14 @@ export function withJitter(
   }
 }
 
-type Target = { clone(): Target; dispose(): void }
-type Uniform = { value: number }
+interface Target { clone(): Target; dispose(): void }
+interface Uniform { value: number }
+/** Phần WebGPURenderer của vendor mà `captureHq` dùng (`_nodes` là trường nội bộ). */
+interface HqRenderer {
+  _nodes?: { nodeFrame?: { update?: () => void } }
+  setRenderTarget(target: Target | null | undefined): void
+  readRenderTargetPixelsAsync(target: Target, x: number, y: number, width: number, height: number): Promise<unknown>
+}
 
 /**
  * Vẽ HQ_FRAMES khung rung vào các render target riêng (đồng bộ), trả Promise các
@@ -130,8 +136,7 @@ export function captureHq({
   render,
   frames = HQ_FRAMES,
 }: {
-  // biome-ignore lint/suspicious/noExplicitAny: WebGPURenderer của vendor
-  renderer: any
+  renderer: HqRenderer
   camera: ViewCamera
   giPass: { sliceCount: Uniform; stepCount: Uniform }
   renderTarget: Target
@@ -197,9 +202,14 @@ export let lastHqCaptureMs = 0
 export function snapshotFileName(projectName: string | null | undefined, type: string, now = new Date()): string {
   const p = (n: number) => String(n).padStart(2, '0')
   const stamp = `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}`
-  const base = (projectName ?? '').replace(/[\/:*?"<>|\u0000-\u001f]+/g, '-').trim() || 'anh-chup'
+  // ký tự điều khiển (mã < 32) đổi thành '/' trước, rồi cùng các ký tự cấm gộp thành '-'
+  const visible = Array.from(projectName ?? '', (c) => (c.charCodeAt(0) < 32 ? '/' : c)).join('')
+  const base = visible.replace(/[/:*?"<>|]+/g, '-').trim() || 'anh-chup'
   return `${base}-${stamp}.${type === 'image/png' ? 'png' : 'webp'}`
 }
+
+/** Thời gian chờ trước khi thu hồi URL tải về (không phải chuyển động). */
+const REVOKE_DOWNLOAD_URL_MS = 10_000
 
 /** Trang 3D không có API lưu snapshot: ảnh chụp (thường lẫn HQ) tải file về máy. */
 export function downloadSnapshot(blob: Blob, projectName?: string | null): void {
@@ -208,5 +218,5 @@ export function downloadSnapshot(blob: Blob, projectName?: string | null): void 
   a.href = url
   a.download = snapshotFileName(projectName, blob.type)
   a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  setTimeout(() => URL.revokeObjectURL(url), REVOKE_DOWNLOAD_URL_MS)
 }

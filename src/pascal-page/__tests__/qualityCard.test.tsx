@@ -6,12 +6,12 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { QualityCard, qualityLabel } from '../QualityCard';
-import { useRealism } from '../realism/store';
+import { setRealism, useRealism } from '../realism/store';
 
 describe('QualityCard', () => {
   beforeEach(() => {
     localStorage.clear();
-    act(() => useRealism.setState({ tierMode: 'auto', tier: 'low' }));
+    act(() => setRealism({ tierMode: 'auto', tier: 'low' }));
   });
 
   it('nhãn: Tự động kèm mức đang dùng, mức tay chỉ tên mức', () => {

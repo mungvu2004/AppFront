@@ -46,13 +46,6 @@ test('giao diện · FL-9U-U1 · viewer · viewer bo cuc chi-doc o 4 kho', async
         // content error (isFrameMissing), so the read-only sentence shows. Anchor: UOC COPY.forbiddenNotice (:128), as phase09_upload_edge 9U-D-063.
         await uiState(page, '9U-F-008', 'overlay_readonly_notice', openAt(P.overlay(projectId, floorId), (p) => p.getByText('Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.', { exact: true })));
       });
-      await test.step('[9U-F-009] viewer cad-confirm forbidden (PC)', async () => {
-        // UNKNOWN — NEED VERIFICATION: no CAD (.dxf) seed. The main floor is a PNG: useCadBranchConfirm.ts:601-606 yields 'error'
-        // before the !canEdit check, so the forbidden sentence cannot show. N/A until createCadProject exists; no shot taken.
-        test.info().annotations.push({ type: 'n/a', description: '9U-F-009: needs a real .dxf seed (PC)' });
-        await page.goto(P.cadConfirm(projectId, floorId));
-        await expect(page).toHaveURL(/cad-confirm/u);
-      });
     } finally {
       await deleteSeededProject(admin, pf.projectId);
     }

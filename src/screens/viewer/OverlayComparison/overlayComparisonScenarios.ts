@@ -388,7 +388,7 @@ export const OVERLAY_COMPARISON_SCENARIOS: Readonly<
       canConfirm: false,
       disabledReason: null,
       confirmedNotice: {
-        text: 'Mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.',
+        text: 'Mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ. Máy chủ chưa lưu lượt xác nhận này: tải lại trang là mất.',
         statusCode: 'verified',
       },
     },

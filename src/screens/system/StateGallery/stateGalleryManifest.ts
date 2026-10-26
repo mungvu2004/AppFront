@@ -235,22 +235,6 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     },
   },
   {
-    id: 'pipeline/CadBranchConfirm',
-    name: 'CadBranchConfirm',
-    area: 'pipeline',
-    group: 'E',
-    label: 'Phát hiện tệp CAD',
-    storyExportNames: {
-      empty: 'Rong',
-      loading: 'DangTai',
-      partial: 'MotPhan',
-      error: 'Loi',
-      success: 'Xong',
-      forbidden: 'KhongCoQuyen',
-      collapsed: 'ThuGon',
-    },
-  },
-  {
     id: 'pipeline/PipelineFailure',
     name: 'PipelineFailure',
     area: 'pipeline',

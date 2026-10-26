@@ -3,6 +3,7 @@
  * theo mức. `F3_TIERS=auto,high,low` (mặc định auto), `F3_GPU=igpu` bỏ cờ dGPU.
  * Chạy: E2E_PORT=5399 npx playwright test e2e/realism/f3-traa-tier.spec.ts --workers=1
  */
+import type { HookWindow } from './window-hooks';
 import fs from 'node:fs';
 import path from 'node:path';
 import { test } from '@playwright/test';
@@ -37,22 +38,22 @@ for (const mode of TIERS) {
     await page.addInitScript((m) => { try { localStorage.setItem('pascal.realism.tierMode', m); } catch { /* */ } }, mode);
     await installFakeApi(page, { projectId: PID, graphDoc: fixtureF1({ ext: true }).doc as unknown as WireGraphDocument });
     await page.goto(`/editor3d.html?project=${PID}&probe=1`);
-    await page.waitForFunction(() => { const p = (window as any).__pascalProbe; return p?.ready() && (p.counts().wall ?? 0) > 0; }, null, { timeout: 150_000 });
+    await page.waitForFunction(() => { const p = (window as unknown as HookWindow).__pascalProbe; return p?.ready() && (p.counts().wall ?? 0) > 0; }, null, { timeout: 150_000 });
     await page.waitForTimeout(4_000);
-    const walls = await page.evaluate(() => (window as any).__pascalProbe.walls());
-    const xs = walls.flatMap((w: any) => [w.start[0], w.end[0]]);
-    const zs = walls.flatMap((w: any) => [w.start[1], w.end[1]]);
+    const walls = await page.evaluate(() => (window as unknown as HookWindow).__pascalProbe.walls());
+    const xs = walls.flatMap((w) => [w.start[0], w.end[0]]);
+    const zs = walls.flatMap((w) => [w.start[1], w.end[1]]);
     const poses = posesFor({ minX: Math.min(...xs), maxX: Math.max(...xs), minZ: Math.min(...zs), maxZ: Math.max(...zs) });
     const shotPoses = mode === 'auto' && GPU === 'dgpu' ? POSE_NAMES : (['interior'] as const);
     for (const pose of shotPoses) {
-      await page.evaluate((x) => (window as any).__pascalProbe.setCamera(x.position, x.target, x.fov), poses[pose]);
+      await page.evaluate((x) => (window as unknown as HookWindow).__pascalProbe.setCamera(x.position, x.target, x.fov), poses[pose]);
       await page.waitForTimeout(2_500);
       await page.screenshot({ path: path.join(OUT, `${GPU}-${mode}-F1-${pose}.png`) });
     }
-    await page.evaluate((x) => (window as any).__pascalProbe.setCamera(x.position, x.target, x.fov), poses['high-diag']);
+    await page.evaluate((x) => (window as unknown as HookWindow).__pascalProbe.setCamera(x.position, x.target, x.fov), poses['high-diag']);
     await page.waitForTimeout(1_500);
     await page.evaluate(() => {
-      const w = window as any;
+      const w = window as unknown as HookWindow;
       w.__d = [];
       let last = performance.now();
       const end = last + 10_000;
@@ -60,10 +61,10 @@ for (const mode of TIERS) {
       requestAnimationFrame(tick);
     });
     await rotate(page, 10_000);
-    await page.waitForFunction(() => (window as any).__done, null, { timeout: 30_000 });
+    await page.waitForFunction(() => (window as unknown as HookWindow).__done, null, { timeout: 30_000 });
     const stats = await page.evaluate(() => {
-      const d = [...(window as any).__d].sort((a: number, b: number) => a - b);
-      const q = (p: number) => Math.round(d[Math.min(d.length - 1, Math.floor(d.length * p))] * 10) / 10;
+      const d = [...(window as unknown as HookWindow).__d].sort((a, b) => a - b);
+      const q = (p: number) => Math.round(d[Math.min(d.length - 1, Math.floor(d.length * p))]! * 10) / 10;
       return { n: d.length, p50: q(0.5), p95: q(0.95), max: q(1) };
     });
     const tier = await page.evaluate(() => document.querySelector('summary[aria-label^="Chất lượng"]')?.getAttribute('aria-label') ?? null);

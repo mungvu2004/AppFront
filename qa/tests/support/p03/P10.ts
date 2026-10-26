@@ -1,11 +1,8 @@
 /**
- * QA-03d P10 helpers — SCR-13 pipeline graph and SCR-15 CAD branch confirm (`phase03_graph_cad_{edge,ui}.spec.ts`).
+ * QA-03d P10 helpers — SCR-13 pipeline graph (`phase03_graph_cad_{edge,ui}.spec.ts`).
  * Real stack only; the route holds / fakes live in the specs. Copy is read from the FE source at c16f2428:
  *   PG  src/screens/pipeline/PipelineGraph/PipelineGraph.tsx   PGO …/PipelineGraphOverview.tsx   PGT …/pipelineGraphText.ts
  *   UPG …/usePipelineGraph.ts   PGG …/pipelineGraphGateway.ts
- *   CB  src/screens/pipeline/CadBranchConfirm/CadBranchConfirm.tsx   CBD …/CadBranchConfirmDialog.tsx
- *   UCB …/useCadBranchConfirm.ts   CBT …/cadBranchConfirmText.ts   CIO …/CadImportOptions.tsx   CLM …/CadLayerMappingPanel.tsx
- *   CLP …/CadLayerPreviewCanvas.tsx   CFA …/CadFloorAvailability.tsx   CCT …/CadBranchCompareTable.tsx
  *   PSGATE src/components/feedback/ProjectSpatialGate.tsx   MODAL src/components/overlay/Modal.tsx   I18N src/i18n/vi.json errors.*
  *
  * Sessions (parallel-safe under `--workers 4`): the phase admin signs in per flow (1 API login for the seed + 1 browser
@@ -62,59 +59,6 @@ export const GATE = {
   notFoundTitle: 'Không tìm thấy dự án này', // PSGATE PROJECT_NOT_FOUND_TITLE
   notFoundSentence: 'Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án.',
   backToProjects: 'Về danh sách dự án',
-} as const;
-
-export const CAD = {
-  dialog: 'Phát hiện tệp CAD', // CBT PHASE_1_DIALOG_STATES.normal.title
-  description: 'Hồ sơ này có tệp bản vẽ gốc từ AutoCAD hoặc các phần mềm thiết kế khác.', // CBT (first sentence)
-  useCad: 'Dùng đường từ CAD', // CBT PRIMARY_BUTTON_LABEL
-  useAi: 'Tiếp tục duyệt tường', // CBT SECONDARY_BUTTON_LABEL
-  dismiss: 'Huỷ', // CBT DISMISS_BUTTON_LABEL
-  closeIcon: 'Đóng hộp thoại', // MODAL header IconButton
-  remember: 'Ghi nhớ lựa chọn cho dự án này', // CBT REMEMBER_CHOICE_LABEL
-  compareHeaderName: 'Tiêu chí so sánh', // CCT:31
-  /** UCB COMPARISON_ROWS (the rendered rows; CBT COMPARISON_TABLE is dead copy). */
-  compareRows: [
-    ['Độ chính xác', 'Đúng theo đường nét của bản vẽ gốc', 'Suy ra từ ảnh, cần người duyệt lại'],
-    ['Công việc kiểm tra', 'Gán vai trò cho từng lớp một lần', 'Soát lại tường, phòng và ô mở sau khi máy dựng'],
-    ['Thời gian', 'Nhập hình học xong ngay sau khi gán lớp', 'Chờ máy chạy hết các bước xử lý'],
-  ] as const,
-  floorCaption: 'Các tầng có sẵn tệp CAD sẽ dùng nhánh CAD; các tầng chỉ có ảnh sẽ chạy qua nhận dạng AI.', // CBT
-  floorHeaders: ['Tầng', 'Trạng thái CAD'] as const, // CBT
-  hasCad: 'Có tệp CAD', // CBT CAD_STATUS_AVAILABLE
-  imageOnly: 'Chỉ có ảnh', // CBT CAD_STATUS_IMAGE_ONLY
-  screenRegion: 'Màn phát hiện tệp CAD', // CB SCREEN_ARIA_LABEL
-  noticeRegion: 'Trạng thái của màn phát hiện tệp CAD', // CB NOTICE_REGION_ARIA_LABEL
-  stageTwo: 'Ánh xạ lớp và xem trước hình học', // CB STAGE_TWO_ARIA_LABEL
-  summaryStatus: 'Tóm tắt số lớp đã ánh xạ', // CB SUMMARY_ARIA_LABEL
-  loading: 'Đang đọc tệp CAD', // CB LOADING_ARIA_LABEL
-  emptyTitle: 'Chưa có lớp nào để ánh xạ', // CB EMPTY_TITLE
-  errorTitle: 'Không thể đọc tệp CAD', // CB ERROR_TITLE
-  forbiddenTitle: 'Không có quyền xử lý CAD', // CB FORBIDDEN_TITLE
-  handoffTitle: 'Chuyển sang nhánh nhận dạng ảnh', // CB AI_HANDOFF_TITLE
-  aiNotice: 'Nếu bạn chọn nhánh AI, sẽ cần hiệu chỉnh tỷ lệ sau khi nhập hình học.', // CBT AI_BRANCH_NOTICE
-  retry: 'Đọc lại tệp', // CB RETRY_LABEL
-  collapse: 'Thu gọn bảng lớp', // CB
-  expand: 'Mở bảng lớp', // CB
-  inspectionMissing:
-    'Bản này chưa đọc được lớp của tệp CAD, nên chưa ánh xạ và nhập được hình học. Hãy chọn "Tiếp tục duyệt tường".', // UCB:112-113
-  forbiddenNotice:
-    'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. Liên hệ quản trị viên để được cấp quyền.', // UCB:118-119
-  importUnsupported: 'Bản này chưa nhập được hình học từ tệp CAD. Hãy chọn "Tiếp tục duyệt tường".', // UCB:116
-  importButton: 'Nhập hình học', // CBT IMPORT_BUTTON_LABEL
-  importReasonId: 'cad-import-disabled-reason', // CB IMPORT_REASON_ID
-  summaryZero: 'Đã ánh xạ 0/0 lớp · 0 đối tượng sẽ được nhập', // UCB:490-491 + CB SUMMARY_SEPARATOR
-  panelTitle: 'Ánh xạ lớp từ tệp CAD', // CBT PHASE_2_PANEL_TITLE
-  panelHeaders: ['Tên lớp', 'Số thực thể', 'Màu gốc', 'Vai trò'] as const, // CBT
-  noData: 'Không có dữ liệu', // Table.tsx TableEmpty
-  previewEmpty: 'Chưa có hình để xem trước', // cadBranchConfirmText.ts:237 PREVIEW_EMPTY_TEXT (QA-03e BUG-564)
-  options: 'Tuỳ chọn nhập', // CBT ADVANCED_OPTIONS_LABEL
-  unitLabel: 'Đơn vị bản vẽ', // CBT
-  originLabel: 'Gốc toạ độ', // CBT
-  units: ['Mi-li-mét (mm)', 'Xen-ti-mét (cm)', 'Mét (m)', 'Inch (in)'] as const, // UCB UNIT_LABELS
-  origins: ['Giữ gốc toạ độ của tệp CAD', 'Đặt gốc ở giao trục A1'] as const, // UCB ORIGIN_LABELS
-  detectedHint: 'Gợi ý đọc được từ tệp', // CBT DETECTED_UNIT_HINT_LABEL
-  errorCodePrefix: 'Mã lỗi: ', // CB ERROR_CODE_PREFIX
 } as const;
 
 /** I18N `errors.notFound.description` (P6 `ERR` has the other kinds). */
@@ -209,23 +153,6 @@ export async function withMemberProject(
     await api.dispose();
   }
 }
-
-/* ---- SCR-15 locators ---- */
-export const cadDialog = (page: Page): Locator => page.getByRole('dialog', { name: CAD.dialog, exact: true });
-/** CB CadBranchHandoff: `section.animate-panel-rise` with the attention alert and the two choices. */
-export const handoff = (page: Page): Locator => page.locator('section.animate-panel-rise');
-export const handoffAlert = (page: Page): Locator => page.getByRole('alert').filter({ hasText: CAD.handoffTitle });
-export const notice = (page: Page): Locator => page.locator(`section[aria-label="${CAD.noticeRegion}"]`);
-export const stageTwo = (page: Page): Locator => page.getByRole('region', { name: CAD.stageTwo, exact: true });
-/** CLP root: the canvas box (`bg-canvas-2d`). */
-export const previewBox = (page: Page): Locator => stageTwo(page).locator('div.bg-canvas-2d');
-/** CLM section (aria-labelledby its h2). */
-export const mappingPanel = (page: Page): Locator => page.getByRole('region', { name: CAD.panelTitle, exact: true });
-export const optionsDetails = (page: Page): Locator => page.locator('details').filter({ hasText: CAD.options });
-export const optionsSummary = (page: Page): Locator => page.locator('summary', { hasText: CAD.options });
-/** CB CadMappingSummaryBar: the `footer` holding "Nhập hình học". */
-export const summaryBar = (page: Page): Locator =>
-  page.locator('footer').filter({ has: page.getByRole('button', { name: CAD.importButton, exact: true }) });
 
 /** Texts of every cell of `table`'s rows (`thead` or `tbody`), trimmed, whitespace collapsed. */
 export const cellTexts = (rows: Locator): Promise<string[][]> =>

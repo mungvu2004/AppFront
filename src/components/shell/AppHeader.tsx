@@ -87,8 +87,6 @@ function StepMarker({ index, isCurrent, state }: { readonly index: number; reado
 
 function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
   const routerLocation = useLocation();
-  // RV5 #10: xác nhận CAD đi TRƯỚC việc duyệt lớp; màn đó tự có nút đi tiếp, header không mời gì.
-  const onCadConfirm = routerLocation.pathname.endsWith('/cad-confirm');
   // Màn Xử lý tự giữ cổng sang bước sau (thiếu tỷ lệ thì chặn, S-10 cụm 3): header không mời "Tiếp" song song.
   const onPipelineScreen = /\/pipeline\/?$/u.test(routerLocation.pathname);
   // Màn đang giữ cổng riêng (FlowGate): nút "Tiếp" mặc định nhường chỗ cho cổng của màn.
@@ -155,7 +153,7 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
           Tiếp tục: {PROJECT_STEPS[resumeIndex]?.label}
           <ArrowRight size={16} aria-hidden="true" />
         </Link>
-      ) : onCadConfirm || onPipelineScreen ? null : (
+      ) : onPipelineScreen ? null : (
         next !== undefined && (
           <Link to={next.path(project.id)} className={nextClass}>
             Tiếp: {next.label}

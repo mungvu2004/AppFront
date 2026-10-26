@@ -1,5 +1,5 @@
 /** Phần thuần của `./reflect` (vitest chạy được): chọn vật liệu bóng + camera có ở trong nhà không. */
-import { Box3, type Object3D, type Vector3 } from 'three';
+import { Box3, type Color, type Object3D, type Side, type Texture, type Vector3 } from 'three';
 
 /** Gương/inox/kính/sàn đá bóng: roughness thấp, hoặc kim loại hơi nhám. Lambert/Basic không có roughness → bỏ. */
 export const GLOSSY_ROUGHNESS = 0.35;
@@ -24,14 +24,33 @@ export function reflectProbeWanted(p: Vector3, ceilings: readonly Object3D[]): b
  * như `isGlassLike`, hoặc trong suốt opacity < 0,6 như ngưỡng fresnel của vendor).
  */
 export const GLASS_OPACITY_MAX = 0.6;
-export function isLambertGlass(m: any): boolean {
+/** Trường đọc để nhận diện kính (vật liệu three hoặc vật liệu node của vendor). */
+interface GlassLike {
+  isMeshLambertNodeMaterial?: boolean;
+  isMeshLambertMaterial?: boolean;
+  transmission?: number;
+  name?: string;
+  transparent?: boolean;
+  opacity?: number;
+}
+export function isLambertGlass(m: GlassLike | null | undefined): boolean {
   if (!m || !(m.isMeshLambertNodeMaterial || m.isMeshLambertMaterial)) return false;
-  return (m.transmission ?? 0) > 0 || /glass|vetro/i.test(m.name ?? '') || (m.transparent === true && m.opacity < GLASS_OPACITY_MAX);
+  // opacity thiếu → so sánh sai (như `undefined < x`)
+  return (m.transmission ?? 0) > 0 || /glass|vetro/i.test(m.name ?? '') || (m.transparent === true && (m.opacity ?? Infinity) < GLASS_OPACITY_MAX);
 }
 
 /** Tham số bản Standard thay kính Lambert: giữ màu/ảnh/opacity/mặt/depthWrite, thêm bóng (roughness thấp, metalness 0). */
 export const GLASS_ROUGHNESS = 0.05;
-export function glassTwinParams(m: any) {
+interface GlassSource {
+  name?: string;
+  color?: Color;
+  map?: Texture | null;
+  opacity: number;
+  transparent: boolean;
+  side: Side;
+  depthWrite: boolean;
+}
+export function glassTwinParams(m: GlassSource) {
   return {
     name: m.name ?? '',
     color: m.color,

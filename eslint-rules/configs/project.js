@@ -142,6 +142,15 @@ module.exports = {
       },
     },
     {
+      // Kho realism của trang 3D (`useRealism`, `useDeviceEpoch`, `useSnapshotHq`)
+      // giữ mức chất lượng, hướng nắng, cờ hiển thị — tuỳ chọn xem, không phải dữ
+      // liệu dự án, không vào lịch sử hoàn tác. Thư mục này là tầng kho của chúng,
+      // như `src/store` với kho dự án. Ngoài thư mục, ghi vào chúng vẫn phải tắt
+      // luật từng dòng kèm lý do.
+      files: ['src/pascal-page/realism/**/*'],
+      rules: { 'local/no-direct-set': 'off' },
+    },
+    {
       files: ['src/lib/**/*'],
       rules: {
         'no-restricted-imports': [

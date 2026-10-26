@@ -44,6 +44,11 @@ export const useRealism = create<RealismState>()(() => ({
   sunAzimuth: 0,
 }));
 
+/** Ghi vào store realism từ ngoài thư mục này (thẻ Ánh sáng, test): tuỳ chọn xem, không qua hoàn tác. */
+export function setRealism(patch: Partial<RealismState>): void {
+  useRealism.setState(patch);
+}
+
 /** Giá trị cờ `viewer.realism-*` → `flags` của store (cờ thiếu = mặc định của bảng cờ). */
 export function realismFlagsFrom(values: Readonly<Record<string, boolean>>): RealismFlags {
   const on = (key: keyof RealismFlags) => values[`viewer.realism-${key}`] ?? DEFAULT_REALISM_FLAGS[key];

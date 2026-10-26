@@ -11,6 +11,7 @@
  * không sửa mã app. Thời gian khung = delta rAF (perf-tracks `gpu-render` của `?perf` không lộ ra
  * ngoài mô-đun). Khung thật đã vẽ = chênh `renderer.info.render.frame`.
  */
+import type { AdapterInfo, Bench, HookWindow, ThreeRenderer, ThreeScene } from './realism/window-hooks';
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -51,12 +52,12 @@ const PROJECTS: readonly (readonly [string, () => Fixture])[] = [
 
 /** Cài trước lượt goto: bắt renderer/scene, đo khung đầu. */
 const INIT = () => {
-  const w = window as unknown as Record<string, any>;
-  const bench = { renderers: [] as any[], scenes: [] as any[], firstFrameMs: null as number | null };
+  const w = window as unknown as HookWindow;
+  const bench = { renderers: [] as ThreeRenderer[], scenes: [] as ThreeScene[], firstFrameMs: null as number | null } as Bench;
   w.__bench = bench;
   const hook = new EventTarget();
   hook.addEventListener('observe', (e) => {
-    const d = (e as CustomEvent).detail;
+    const d = (e as CustomEvent).detail as ThreeScene & ThreeRenderer | undefined;
     if (d?.isScene) bench.scenes.push(d);
     else if (d?.info && d?.render) bench.renderers.push(d);
   });
@@ -72,17 +73,17 @@ const INIT = () => {
 
 const rendererInfo = (page: Page) =>
   page.evaluate(async () => {
-    const b = (window as any).__bench;
+    const b = (window as unknown as HookWindow).__bench;
     const r = b.renderers.at(-1);
     const isWebGPU = !!r?.backend?.isWebGPUBackend;
     let adapter: string | null = null;
     if (isWebGPU) {
-      const info = r.backend?.adapter?.info ?? (await (navigator as any).gpu?.requestAdapter())?.info;
+      const info = r.backend?.adapter?.info ?? (await (navigator as unknown as { gpu?: { requestAdapter(): Promise<{ info?: AdapterInfo } | null> } }).gpu?.requestAdapter())?.info;
       adapter = info ? `${info.vendor} ${info.architecture} ${info.description ?? ''}`.trim() : null;
     } else {
       const gl = r?.getContext?.();
       const ext = gl?.getExtension?.('WEBGL_debug_renderer_info');
-      adapter = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : null;
+      adapter = ext && gl ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : null;
     }
     return {
       navigatorGpu: 'gpu' in navigator,
@@ -91,7 +92,7 @@ const rendererInfo = (page: Page) =>
       backend: isWebGPU ? 'webgpu' : r?.backend ? 'webgl(fallback)' : r ? 'webgl' : 'none',
       adapter,
       memory: r ? { ...r.info.memory } : null,
-      jsHeapMB: (performance as any).memory ? Math.round((performance as any).memory.usedJSHeapSize / 1e6) : null,
+      jsHeapMB: (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory ? Math.round((performance as unknown as { memory?: { usedJSHeapSize: number } }).memory!.usedJSHeapSize / 1e6) : null,
       firstFrameMs: b.firstFrameMs ? Math.round(b.firstFrameMs) : null,
     };
   });
@@ -99,7 +100,7 @@ const rendererInfo = (page: Page) =>
 /** rAF delta + khung vẽ thật trong `ms`, chạy song song với `during`. */
 async function sampleFrames(page: Page, ms: number, during: () => Promise<void>) {
   await page.evaluate((dur) => {
-    const b = (window as any).__bench;
+    const b = (window as unknown as HookWindow).__bench;
     const r = b.renderers.at(-1);
     const frame = () => r?.info?.render?.frame ?? r?.info?.frame ?? 0;
     b.sample = { deltas: [] as number[], f0: frame(), f1: 0, done: false };
@@ -117,11 +118,11 @@ async function sampleFrames(page: Page, ms: number, during: () => Promise<void>)
     requestAnimationFrame(tick);
   }, ms);
   await during();
-  await page.waitForFunction(() => (window as any).__bench.sample.done, null, { timeout: ms + 30_000 });
+  await page.waitForFunction(() => (window as unknown as HookWindow).__bench.sample.done, null, { timeout: ms + 30_000 });
   return page.evaluate(() => {
-    const s = (window as any).__bench.sample;
-    const d = [...s.deltas].sort((a: number, b: number) => a - b);
-    const q = (p: number) => Math.round(d[Math.min(d.length - 1, Math.floor(d.length * p))] * 10) / 10;
+    const s = (window as unknown as HookWindow).__bench.sample;
+    const d = [...s.deltas].sort((a, b) => a - b);
+    const q = (p: number) => Math.round(d[Math.min(d.length - 1, Math.floor(d.length * p))]! * 10) / 10;
     return { rafCount: d.length, p50: q(0.5), p95: q(0.95), max: q(1), renderedFrames: s.f1 - s.f0 };
   });
 }
@@ -191,7 +192,7 @@ async function openProject(page: Page, fixture: Fixture, search = '') {
   await page.goto(`/editor3d.html?project=${PROJECT_ID}&probe=1${perfIdle}${search}`);
   await page.waitForFunction(
     () => {
-      const p = (window as any).__pascalProbe;
+      const p = (window as unknown as HookWindow).__pascalProbe;
       return p?.ready() && (p.counts().wall ?? 0) > 0;
     },
     null,
@@ -212,19 +213,19 @@ function bounds(walls: { start: [number, number]; end: [number, number] }[]): Bo
 /** Vật liệu "kính" trong cảnh chính + môi trường cảnh. */
 const glassFacts = (page: Page) =>
   page.evaluate(() => {
-    const b = (window as any).__bench;
-    const count = (s: any) => {
+    const b = (window as unknown as HookWindow).__bench;
+    const count = (s: ThreeScene) => {
       let n = 0;
       s.traverse(() => n++);
       return n;
     };
     const scene = [...b.scenes].sort((a, c) => count(c) - count(a))[0];
     const seen = new Map<string, unknown>();
-    scene?.traverse((o: any) => {
+    scene?.traverse((o) => {
       if (!o.isMesh) return;
       for (const m of [o.material].flat()) {
         if (!m) continue;
-        const glassy = /glass|kinh/i.test(`${m.name} ${o.name}`) || (m.transparent && m.opacity < 1) || m.transmission > 0;
+        const glassy = /glass|kinh/i.test(`${m.name} ${o.name}`) || (m.transparent && m.opacity < 1) || (m.transmission ?? 0) > 0;
         if (!glassy) continue;
         const key = `${m.type}|${m.name}|${m.opacity}`;
         if (!seen.has(key))
@@ -263,19 +264,19 @@ for (const [name, make] of PROJECTS) {
     test.setTimeout(600_000);
     const { net, readyMs, list } = await openProject(page, make());
     const info = await rendererInfo(page);
-    const walls = await page.evaluate(() => (window as any).__pascalProbe.walls());
+    const walls = await page.evaluate(() => (window as unknown as HookWindow).__pascalProbe.walls());
     const poses = posesFor(bounds(walls));
 
     const shots: string[] = [];
     for (const pose of POSE_NAMES) {
       const p = poses[pose];
-      await page.evaluate((x) => (window as any).__pascalProbe.setCamera(x.position, x.target, x.fov), p);
+      await page.evaluate((x) => (window as unknown as HookWindow).__pascalProbe.setCamera(x.position, x.target, x.fov), p);
       await page.waitForTimeout(2_500);
       const file = path.join(OUT, `${GPU === 'dgpu' ? '' : 'igpu-'}${name}-${pose}.png`);
       await page.screenshot({ path: file });
       shots.push(file);
     }
-    await page.evaluate((x) => (window as any).__pascalProbe.setCamera(x.position, x.target, x.fov), poses['high-diag']);
+    await page.evaluate((x) => (window as unknown as HookWindow).__pascalProbe.setCamera(x.position, x.target, x.fov), poses['high-diag']);
     await page.waitForTimeout(2_000);
 
     let rotateFrames: Awaited<ReturnType<typeof sampleFrames>> | null = null;
@@ -316,7 +317,7 @@ for (const [name, make] of PROJECTS) {
       rotate20s: { ...rotateFrames!, cpuTaskMsPerS: rotateCpu, gpu3dPct: rotateGpu, source: 'rAF delta' },
       idle10s: { ...idleFrames!, cpuTaskMsPerS: idleCpu, gpu3dPct: idleGpu },
       // R2: bộ đếm vẽ/bỏ của realism-idle + mẫu GPU timestamp (`?perf`), nếu trang có.
-      realism: await page.evaluate(() => ({ idle: (window as any).__pascalIdle?.() ?? null, gpuRenderMs: ((window as any).__pascalPerf ?? []).slice(-120) })),
+      realism: await page.evaluate(() => ({ idle: (window as unknown as HookWindow).__pascalIdle?.() ?? null, gpuRenderMs: ((window as unknown as HookWindow).__pascalPerf ?? []).slice(-120) })),
       poses,
       shots,
       facts,
@@ -352,18 +353,18 @@ test(`r2 idle ${GPU} F1`, async ({ page }) => {
   test.skip(process.env.BENCH_IDLE === 'off', 'cờ idle đang tắt');
   test.setTimeout(180_000);
   await openProject(page, fixtureF1({ ext: true }));
-  const drawn = () => page.evaluate(() => (window as any).__pascalIdle().drawn as number);
+  const drawn = () => page.evaluate(() => (window as unknown as HookWindow).__pascalIdle().drawn as number);
   await page.waitForTimeout(3_000); // HOLD + SETTLE_FRAMES đã qua
   const a = await drawn();
   await page.waitForTimeout(2_000);
-  const stats = await page.evaluate(() => (window as any).__pascalIdle());
+  const stats = await page.evaluate(() => (window as unknown as HookWindow).__pascalIdle());
   console.log('r2 idle stats', JSON.stringify(stats));
   expect(stats.drawn - a, `đứng yên 2 s vẫn vẽ (${stats.lastReason})`).toBe(0);
 
-  const walls = await page.evaluate(() => (window as any).__pascalProbe.walls());
+  const walls = await page.evaluate(() => (window as unknown as HookWindow).__pascalProbe.walls());
   const p = posesFor(bounds(walls))['high-diag'];
   const b = await drawn();
-  await page.evaluate((x) => (window as any).__pascalProbe.setCamera(x.position, x.target, x.fov), p);
+  await page.evaluate((x) => (window as unknown as HookWindow).__pascalProbe.setCamera(x.position, x.target, x.fov), p);
   await page.waitForTimeout(300);
   expect(await drawn() - b, 'camera đổi mà không vẽ lại').toBeGreaterThan(0);
 
@@ -377,12 +378,12 @@ test(`r2 idle ${GPU} F1`, async ({ page }) => {
   await page.mouse.move(5, 5);
   await page.waitForTimeout(3_000);
   const d = await drawn();
-  await page.evaluate((id) => (window as any).__pascalProbe.editNode(id, { height: 3.1 }), walls[0].id);
+  await page.evaluate((id) => (window as unknown as HookWindow).__pascalProbe.editNode(id, { height: 3.1 }), walls[0]!.id);
   await page.waitForTimeout(300);
   expect(await drawn() - d, 'sửa nút mà không vẽ lại').toBeGreaterThan(0);
   await page.waitForTimeout(3_000);
   const e = await drawn();
   await page.waitForTimeout(2_000);
-  console.log('f1 idle stats end', JSON.stringify(await page.evaluate(() => (window as any).__pascalIdle())));
+  console.log('f1 idle stats end', JSON.stringify(await page.evaluate(() => (window as unknown as HookWindow).__pascalIdle())));
   expect(await drawn() - e, 'sau khi sửa, đứng yên 2 s vẫn vẽ').toBe(0);
 });
