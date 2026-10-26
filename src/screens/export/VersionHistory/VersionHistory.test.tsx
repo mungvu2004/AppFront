@@ -396,6 +396,29 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(list?.querySelector('[class*="state-verified"]')).toBeNull();
   });
 
+  it('tầng sửa sau bản mới nhất (revision không khớp bản nào) → không hàng "Hiện tại", có dòng báo, phục hồi được bản mới nhất', async () => {
+    const setup = await renderVersionHistoryHook();
+
+    // Sửa tay không sinh phiên bản: revision của tầng vượt mọi `floorRevision` của N17.
+    act(() => {
+      useStore.getState().updateFloorMeta(WIRE_FLOOR_ID, { revision: 99 });
+    });
+    await waitFor(() => {
+      expect(setup.result.current[0].rows.some((row) => row.isCurrent)).toBe(false);
+    });
+    const [model, actions] = setup.result.current;
+
+    expect(model.unsavedNotice).toBe(
+      'Tầng đã sửa sau v3, phần sửa này chưa lưu thành phiên bản. Phục hồi về v3 sẽ bỏ phần sửa ấy.',
+    );
+    const { container } = renderWithProviders(<VersionHistory model={model} actions={actions} />);
+
+    expect(container.querySelector('nav[aria-label="Danh sách phiên bản"]')?.textContent).toContain(
+      'Phục hồi về v3 sẽ bỏ phần sửa ấy',
+    );
+    expect(screen.getByRole('button', { name: 'Phục hồi về v3' })).toBeInTheDocument();
+  });
+
   it('ống có tầng bẩn → PUT của tầng đó đi trước N19; sau phục hồi: N16, replaceFloorLayer external, Ctrl+Z trống, serverReplaceSeq tăng, restoreVersion bị vô hiệu', async () => {
     const replaceSpy = vi.spyOn(CommitModule, 'applyFloorLayerRead');
     const setup = await renderVersionHistoryHook();

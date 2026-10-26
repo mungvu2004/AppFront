@@ -223,6 +223,7 @@ export function VersionHistory({ model, actions, breadcrumb }: VersionHistoryPro
             <VersionList
               groups={model.groups}
               onRetrySnapshot={actions.retrySnapshot}
+              unsavedNotice={model.unsavedNotice}
             />
             {loadMore}
           </Section>

@@ -178,6 +178,30 @@ export interface BuildRowsContext {
   readonly loadingIds?: ReadonlySet<string>;
 }
 
+/** Đã đủ dữ kiện để so revision: biết revision của tầng và ít nhất một bản có `floorRevision`. */
+function hasKnownRevisions(
+  history: readonly VersionHistoryEntry[],
+  summaries: ReadonlyMap<string, FloorVersionSummary>,
+  currentRevision: number | null,
+): boolean {
+  return (
+    currentRevision !== null && history.some((entry) => summaries.get(entry.version.id)?.floorRevision !== undefined)
+  );
+}
+
+/**
+ * Câu đầu danh sách khi tầng đã sửa sau bản mới nhất (không hàng nào là "Hiện tại"); `null` khi có
+ * hàng hiện tại hay chưa có hàng nào. Sửa tay không sinh phiên bản (HOP-DONG-MOI §5), nên đây là
+ * chỗ duy nhất người dùng biết phục hồi bản mới nhất sẽ bỏ phần sửa ấy.
+ */
+export function unsavedEditsNotice(rows: readonly Pick<VersionRowModel, 'label' | 'isCurrent'>[]): string | null {
+  const latest = rows[0];
+
+  if (latest === undefined || rows.some((row) => row.isCurrent)) return null;
+
+  return `Tầng đã sửa sau ${latest.label}, phần sửa này chưa lưu thành phiên bản. Phục hồi về ${latest.label} sẽ bỏ phần sửa ấy.`;
+}
+
 /**
  * Lịch sử thành hàng.
  *
@@ -197,9 +221,11 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
     summaries,
   } = context;
   const pickedCount = (leftVersionId === null ? 0 : 1) + (rightVersionId === null ? 0 : 1);
-  // Không bản nào khớp revision của tầng: bản mới nhất vẫn là bản hiện tại (không để người dùng tự đoán).
-  const hasRevisionMatch =
-    currentRevision !== null && history.some((entry) => summaries.get(entry.version.id)?.floorRevision === currentRevision);
+  // HOP-DONG-MOI §5: hiện tại ⇔ `floorRevision` bằng revision của tầng. Chỉ khi chưa biết revision
+  // (tầng chưa nạp, N17 chưa có `floorRevision`) mới tạm coi bản mới nhất là hiện tại. Biết rồi mà không
+  // bản nào khớp = tầng đã sửa sau bản mới nhất: không hàng nào "Hiện tại", bản mới nhất phục hồi được
+  // (bỏ phần sửa tay), và `unsavedEditsNotice` nói điều đó ở đầu danh sách.
+  const revisionsKnown = hasKnownRevisions(history, summaries, currentRevision);
 
   return history.map((entry, index): VersionRowBuild => {
     const metadata = entry.version;
@@ -249,7 +275,7 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
         isCountsLoading,
         ...(isCountsUnknown ? { countsUnavailableLabel: COUNTS_UNAVAILABLE_LABEL } : {}),
         // HOP-DONG-MOI §5: hiện tại ⇔ `floorRevision` bằng `revision` của tầng, không phải "hàng đầu".
-        isCurrent: hasRevisionMatch ? summary?.floorRevision === currentRevision : index === 0,
+        isCurrent: revisionsKnown ? summary?.floorRevision === currentRevision : index === 0,
         tagLabel: summary?.label ?? null,
         isMetadataOnly,
         retentionNotice: isMetadataOnly ? RETENTION_NOTICE : null,
