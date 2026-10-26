@@ -851,29 +851,6 @@ test.describe('SCR-13 Pipeline Graph', () => {
   });
 });
 
-test.describe('SCR-15 CAD Branch Confirm', () => {
-  test('SCR-15 load; "Huỷ" in "Phát hiện tệp CAD" → "Chưa có lớp nào để ánh xạ" (F-07)', async () => {
-    const workId = requireState((s) => s.floors.workFloorId, 'floors.workFloorId', 'Phase 3 SCR-09');
-
-    await page.goto(ROUTES.project.cadConfirm(projectId, workId));
-    const dialog = page.getByRole('dialog', { name: 'Phát hiện tệp CAD', exact: true });
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: 'Huỷ', exact: true }).click();
-    await expect(dialog).toHaveCount(0);
-    await expect(page.getByText('Chưa có lớp nào để ánh xạ', { exact: true }).first()).toBeVisible();
-    await captureEvidence(page, '15_cad_empty.png');
-    await test.step('[15-A-002] after "Huỷ": hand-off alert "Chuyển sang nhánh nhận dạng ảnh" + AI note, "Dùng đường từ CAD" / "Tiếp tục duyệt tường"', async () => {
-      // CadBranchConfirm.tsx:92 AI_HANDOFF_TITLE, cadBranchConfirmText.ts:84,87,164.
-      const handoff = page.getByRole('alert').filter({ hasText: 'Chuyển sang nhánh nhận dạng ảnh' });
-      await expect.soft(handoff).toBeVisible();
-      await expect.soft(handoff).toContainText('Nếu bạn chọn nhánh AI, sẽ cần hiệu chỉnh tỷ lệ sau khi nhập hình học.');
-      await expect.soft(page.getByRole('button', { name: 'Dùng đường từ CAD', exact: true })).toBeVisible();
-      await expect.soft(page.getByRole('button', { name: 'Tiếp tục duyệt tường', exact: true })).toBeVisible();
-      await captureEvidence(page, 'M03_15-A-002_cad_handoff.png');
-    });
-  });
-});
-
 /* ========================================================================== */
 /* SCR-12 "Duyệt lớp tường" — last on purpose (BUG-315)                       */
 /* ========================================================================== */

@@ -3,6 +3,7 @@
  *   E2E_PORT=5401 npx playwright test e2e/realism/f2-shots.spec.ts --workers=1 --reporter=line
  * Ảnh + timings.jsonl -> F:/App-review/editor-realism/f2/
  */
+import type { HookWindow } from './window-hooks';
 import fs from 'node:fs';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
@@ -19,7 +20,7 @@ test.use({
 });
 
 const INIT = () => {
-  const w = window as any;
+  const w = window as unknown as HookWindow;
   w.__f2Blobs = [];
   const orig = OffscreenCanvas.prototype.convertToBlob;
   OffscreenCanvas.prototype.convertToBlob = async function (this: OffscreenCanvas, opts?: ImageEncodeOptions) {
@@ -49,10 +50,10 @@ async function shoot(page: Page, name: string, label: string, hq: boolean) {
   await page.locator('button[aria-label="Take snapshot"]').click();
   const d = await dl;
   const res = await page.evaluate((t0) => {
-    const b = (window as any).__f2Blobs;
+    const b = (window as unknown as HookWindow).__f2Blobs;
     const blobAt = b[b.length - 1]?.t ?? performance.now();
-    const tm = (window as any).__r3sTimings ?? null;
-    return { ms: Math.round(blobAt - t0), hqMs: (window as any).__r3sLastMs ?? null, tm: tm && { ...tm, encodeMs: Math.round(blobAt - tm.doneAt), doneAt: undefined } };
+    const tm = (window as unknown as HookWindow).__r3sTimings ?? null;
+    return { ms: Math.round(blobAt - t0), hqMs: (window as unknown as HookWindow).__r3sLastMs ?? null, tm: tm && { ...tm, encodeMs: Math.round(blobAt - tm.doneAt), doneAt: undefined } };
   }, t0);
   const file = d.suggestedFilename();
   const ext = file.split('.').pop();
@@ -88,7 +89,7 @@ for (const [name, fx] of [['F1', () => fixtureF1({ ext: true })], ['F5', fixture
     await page.addInitScript(INIT);
     await installFakeApi(page, { projectId: PROJECT_ID, graphDoc: fx().doc as unknown as WireGraphDocument });
     await page.goto(`/editor3d.html?project=${PROJECT_ID}&probe=1`);
-    await page.waitForFunction(() => { const p = (window as any).__pascalProbe; return p?.ready() && (p.counts().wall ?? 0) > 0; }, null, { timeout: 150_000 });
+    await page.waitForFunction(() => { const p = (window as unknown as HookWindow).__pascalProbe; return p?.ready() && (p.counts().wall ?? 0) > 0; }, null, { timeout: 150_000 });
     await page.waitForTimeout(5_000);
     capturing = true;
     if (process.env.F2_HQ_FIRST) {

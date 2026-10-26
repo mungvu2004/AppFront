@@ -235,7 +235,6 @@ export const denormalizeSpatial = (normalized: NormalizedSpatial): SpatialGraph 
   notes: normalized.notes,
   // Vắng khi rỗng: đồ thị cũ (không mái) đi một vòng vẫn y nguyên.
   // `?.`: chỉ mục dựng tay trước khi có mái (bản cũ trong kho) không có khoá `roof`.
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   ...((normalized.byKind.roof?.length ?? 0) === 0 ? {} : { roofs: collectByKind(normalized, 'roof') }),
 });
 

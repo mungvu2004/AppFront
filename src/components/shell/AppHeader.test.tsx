@@ -56,17 +56,6 @@ describe('AppHeader', () => {
     expect(screen.getByRole('link', { name: /Tiếp: Xử lý/ }).className).not.toContain('bg-accent ');
   });
 
-  it('màn xác nhận CAD (bước 2): header không mời gì, màn tự có nút đi tiếp (RV5 #10)', () => {
-    const props: AppHeaderProps = { accountLabel: 'Hà', showAdmin: false, onSignOut: vi.fn(), project: { id: 'p1', name: null, stepIndex: 1, stepStates: ['done', 'done', 'todo', 'todo', 'todo', 'todo'] } };
-    render(
-      <MemoryRouter initialEntries={[ROUTES.project.cadConfirm('p1', 'f1')]}>
-        <AppHeader {...props} />
-      </MemoryRouter>,
-    );
-    expect(screen.queryByRole('link', { name: /Về duyệt lớp/ })).toBeNull();
-    expect(screen.queryByRole('link', { name: /^Tiếp:/ })).toBeNull();
-  });
-
   it('trong tầng: ô bước 3 về lớp Tường; header không mời lớp kế hay "Về duyệt lớp" (cổng tầng lo)', () => {
     const { unmount } = renderHeader({ project: { id: 'p1', name: null, stepIndex: 2, floorId: 'f1', layerIndex: 0 } });
     expect(screen.getByRole('link', { name: /Bước 3: Duyệt tầng/ })).toHaveAttribute('href', ROUTES.project.walls('p1', 'f1'));

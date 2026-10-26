@@ -45,17 +45,6 @@ test('B-V4-01: mở thẳng /pipeline thì màn theo dõi lượt tải sẵn c�
   );
 });
 
-// Tầng chỉ có ảnh không còn bật hộp thoại (Z/S-13): "Tiếp tục duyệt tường" là nút chính của trang.
-test('B-V4-01: tới từ "Tiếp tục duyệt tường" của màn nhánh CAD cũng thấy cùng danh sách', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(ROUTES.project.cadConfirm(PROJECT_ID, 'L1'));
-
-  await page.getByRole('button', { name: 'Tiếp tục duyệt tường' }).click({ timeout: FIRST_PAINT_TIMEOUT_MS });
-
-  await expect.poll(() => pathOf(page.url())).toBe(PIPELINE);
-  await expectSeededRun(page);
-});
-
 test.fixme(
   'B-V4-08: ba bản vẽ vừa tải lên hiện ở màn xử lý ngay sau "Bắt đầu xử lý"',
   // Lý do: mỗi màn tự dựng một bộ mẫu riêng (`createAppApiClient` gọi

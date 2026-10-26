@@ -117,7 +117,6 @@ const ROWS = {
   projectPipeline: { anchor: { role: 'navigation', name: 'Xử lý' } },
   projectPipelineGraph: { anchor: { role: 'heading', name: 'Bản vẽ được xử lý theo đường nào' } },
   projectScale: { anchor: { role: 'heading', name: 'Tỷ lệ bản vẽ' } },
-  projectCadConfirm: { anchor: { role: 'heading', name: 'Nhập tầng từ tệp CAD' } },
   projectWalls: { anchor: { role: 'region', name: 'Duyệt lớp tường' } },
   projectObjects: { anchor: { role: 'region', name: 'Lớp đối tượng' } },
   projectDimensions: { anchor: { role: 'region', name: 'Kích thước' } },

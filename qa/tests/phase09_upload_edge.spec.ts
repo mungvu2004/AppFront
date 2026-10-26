@@ -1,6 +1,6 @@
 /**
  * Phase 9 — role matrix, viewer on SCR-09 floors, SCR-10/11 upload + quality, SCR-12/13 progress + graph + failure,
- * SCR-14/15/16 scale + overlay + CAD (FL-9U-01..04 of QA-09 flows-C2). Real stack, pool viewer `p09-up-viewer`.
+ * SCR-14/16 scale + overlay (FL-9U-01..04 of QA-09 flows-C2). Real stack, pool viewer `p09-up-viewer`.
  * Seeds are admin-owned own projects (the viewer is added to them; deleting the project drops the membership) so the main
  * chain project is never touched. The BE has no per-project role: the viewer is a viewer by account role.
  */
@@ -11,9 +11,9 @@ import { captureEvidence } from './support/evidence';
 import { createPipelineDrawingProject, deleteSeededProject } from './support/drawingSeed';
 import { floorRows } from './support/p03/P4';
 import { card, fireDrag, pngFile, tray, UP } from './support/p03/P6';
-import { CAD, GRAPH } from './support/p03/P10';
+import { GRAPH } from './support/p03/P10';
 import { PF, PR } from './support/p03/P8';
-import { closeViewer, createCadProject, openViewer, type ViewerSession } from './support/p09/P3';
+import { closeViewer, openViewer, type ViewerSession } from './support/p09/P3';
 import { adminApi, gotoAs, recordWrites } from './support/p09/roles';
 import { createDrawingProject, createFailedRunProject, createProject, envDrawingPng } from './support/phase03Seed';
 
@@ -295,7 +295,7 @@ test('SCR-12 · SCR-13 · FL-9U-03 · viewer · viewer doc: tien trinh + do thi 
   }
 });
 
-test('SCR-14 · SCR-15 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + doi chieu + CAD', async ({ browser }) => {
+test('SCR-14 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + doi chieu', async ({ browser }) => {
   test.setTimeout(300_000);
   const admin = await adminApi();
   const owned: string[] = [];
@@ -303,9 +303,6 @@ test('SCR-14 · SCR-15 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + do
   try {
     const seeded = await createPipelineDrawingProject(admin, '9u-04', envDrawingPng());
     owned.push(seeded.projectId);
-    // UNKNOWN — NEED VERIFICATION: no real .dxf seed exists; the CAD project is a plain project with floors.
-    const cad = await createCadProject(admin, '9u-04c', 2);
-    owned.push(cad.projectId);
     s = await openViewer(browser, admin, owned);
     const { page } = s;
     const rec = recordWrites(page);
@@ -380,39 +377,9 @@ test('SCR-14 · SCR-15 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + do
       await captureEvidence(page, 'E09_9U-D-067_single_sentence.png');
     });
 
-    await test.step('[9U-D-072] viewer, SCR-16: forbidden title + sentence', async () => {
-      await page.goto(ROUTES.project.cadConfirm(cad.projectId, cad.floors[0]!.id));
-      await expect(page.getByRole('heading', { name: CAD.forbiddenTitle })).toBeVisible(); // CB:97
-      // BUG-P09-014: exactly ONE visible copy (the sr-only twin is not counted)
-      const visibleNotice = page.getByText(CAD.forbiddenNotice, { exact: true }).and(page.locator(':not(.sr-only)'));
-      await expect(visibleNotice).toHaveCount(1); // UCB:119
-      await expect(visibleNotice).toBeVisible();
-      await captureEvidence(page, 'E09_9U-D-072_cad_forbidden.png');
-    });
 
-    await test.step('[9U-D-073] viewer, SCR-16: CAD choice disabled, AI fallback stays open', async () => {
-      await expect.soft(button(CAD.useCad)).toBeDisabled(); // UCB:680 isCadChoiceDisabled = error || forbidden
-      // By design the AI branch is never blocked (useCadBranchConfirm.ts:699-700, "người dùng luôn phải quay về nhánh AI được")
-      // and it writes nothing (setProcessingBranch has no endpoint, :717-720) - p09-rr showed it enabled for the viewer.
-      await expect.soft(button(CAD.useAi)).toBeEnabled();
-      await captureEvidence(page, 'E09_9U-D-073_choices_disabled.png');
-    });
 
-    await test.step('[9U-D-074] viewer, SCR-16: step two stays closed', async () => {
-      await expect.soft(button(CAD.importButton)).toHaveCount(0); // CBT:156, UCB:932
-      await expect.soft(page.getByRole('region', { name: CAD.stageTwo, exact: true })).toHaveCount(0); // CB:425
-      await captureEvidence(page, 'E09_9U-D-074_no_stage_two.png');
-    });
 
-    await test.step('[9U-D-075] viewer, SCR-16: neither choice sends a write', async () => {
-      await button(CAD.useCad).click({ force: true });
-      await expect.soft(button(CAD.useCad)).toBeDisabled();
-      await noWrites(page, rec);
-      // AI last: it navigates to the pipeline (UCB:721) and has no endpoint to write to (UCB:717-720).
-      await button(CAD.useAi).click();
-      await noWrites(page, rec);
-      await captureEvidence(page, 'E09_9U-D-075_no_writes_on_click.png');
-    });
   } finally {
     await closeViewer(s);
     for (const id of owned) await deleteSeededProject(admin, id);

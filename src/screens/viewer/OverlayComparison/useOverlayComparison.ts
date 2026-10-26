@@ -108,13 +108,16 @@ const KEY_ZOOM_STEP = 1.25;
 /** Một lần bấm mũi tên dời khung bao nhiêu pixel màn. */
 const KEY_PAN_STEP_PX = 40;
 
+/** Máy chủ chưa nhận lượt xác nhận (`supports.confirmFloorMatch: false`): nói thẳng là chỉ giữ trong phiên. */
+const SESSION_ONLY = 'Máy chủ chưa lưu lượt xác nhận này: tải lại trang là mất.';
+
 const COPY = {
   confirmButton: 'Khớp rồi, xác nhận',
   confirmedWithinTolerance:
-    'Mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.',
+    `Mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ. ${SESSION_ONLY}`,
   confirmedWithDeviations:
-    'Bạn đã xác nhận tầng này khớp bản vẽ, dù vẫn còn vùng vượt dung sai.',
-  confirmedByEye: 'Bạn đã xác nhận bằng mắt tầng này khớp bản vẽ; máy chưa đo được vùng lệch.',
+    `Bạn đã xác nhận tầng này khớp bản vẽ, dù vẫn còn vùng vượt dung sai. ${SESSION_ONLY}`,
+  confirmedByEye: `Bạn đã xác nhận bằng mắt tầng này khớp bản vẽ; máy chưa đo được vùng lệch. ${SESSION_ONLY}`,
   emptyNotice: 'Tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.',
   errorFrameNotice: 'Không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.',
   errorReadNotice: 'Không đọc được ảnh bản vẽ gốc của tầng này.',

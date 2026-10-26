@@ -12,7 +12,7 @@
  */
 import { Color } from 'three';
 import type { Node } from 'three/webgpu';
-import { cameraPosition, color, float, max, mix, positionWorld, smoothstep, vec3 } from 'three/tsl';
+import { cameraPosition, color, float, max, mix, positionWorld, smoothstep } from 'three/tsl';
 
 import { REALISM_PALETTE } from '@/lib/pascal/scenePalette';
 import { GRASS_GAIN, GRASS_GREEN, GRASS_GREEN_MIX } from './daylight';

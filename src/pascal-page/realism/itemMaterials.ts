@@ -78,13 +78,16 @@ function sharpen(m: TunableMaterial): void {
   }
 }
 
+/** Nhịp thử lại: 40 lần × 250 ms ≈ 10 s (thời gian chờ, không phải chuyển động). */
+const RETRY_EVERY_MS = 250;
+
 /** Map của vật liệu thư viện gán bất đồng bộ → thử lại vài giây (tối đa 10 s). */
 function retry(step: () => boolean): void {
   if (step()) return;
   let tries = 0;
   const id = setInterval(() => {
     if (step() || ++tries > 40) clearInterval(id);
-  }, 250);
+  }, RETRY_EVERY_MS);
 }
 
 export function tuneItemMaterial(mat: Material, ctx: TuneContext): Material {

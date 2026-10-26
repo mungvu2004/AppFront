@@ -51,7 +51,7 @@ import { PIPELINE_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
 import { ensureAdminSession, readAdminCredentials } from './support/auth';
 import { TEST_DATA_PREFIX } from './support/evidence';
-import { ADMIN_STORAGE_STATE_FILE, readState, requireState } from './support/state';
+import { ADMIN_STORAGE_STATE_FILE, requireState } from './support/state';
 import { createSkewedDrawingProject, deleteSeededProject, rotatedPng, SKEW_DEG, type SeededDrawing } from './support/drawingSeed';
 import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
 
@@ -117,9 +117,6 @@ const ALL_STEPS = 'Xem tất cả các bước'; // ProcessingScreen.tsx:87 ALL_
 const CLOSE_DETAIL = 'Đóng chi tiết bước';
 /* SCR-13 / SCR-15. */
 const GRAPH_EMPTY = 'Chưa có lượt xử lý nào để kể lại'; // pipelineGraphText.ts:208
-const CAD_DIALOG = 'Phát hiện tệp CAD'; // cadBranchConfirmText.ts:30
-const CAD_EMPTY = 'Chưa có lớp nào để ánh xạ'; // CadBranchConfirm.tsx:86
-const CANCEL = 'Huỷ';
 
 const PROJECTS_PATH = '/api/projects';
 const NAME_MAX_LENGTH = 80;
@@ -558,48 +555,6 @@ test.describe('U03 UI verify — SCR-13 / SCR-15 (CP-2)', () => {
     await verifyAsAdmin(browser, 'U03_graph_empty', async (p) => {
       await p.goto(ROUTES.project.pipelineGraph(cp2()));
       await expect(p.getByText(GRAPH_EMPTY, { exact: true })).toBeVisible({ timeout: 15_000 });
-    });
-  });
-
-  test.describe('SCR-15 on a CP-2 floor', () => {
-    let floorId = '';
-
-    test.beforeAll(async () => {
-      const work = readState().floors.workFloorId;
-      if (work !== null) {
-        floorId = work;
-        return;
-      }
-      const { email, password } = readAdminCredentials();
-      const admin = await signedInApi(email, password);
-      try {
-        const res = await admin.get(`${PROJECTS_PATH}/${cp2()}/floors`);
-        expect(res.status(), 'setup: GET /api/projects/:id/floors').toBe(200);
-        const rows = (await res.json()) as readonly { readonly id?: unknown }[];
-        const first = rows.find((row) => typeof row.id === 'string');
-        if (first === undefined) throw new Error('setup: CP-2 has no floor');
-        floorId = String(first.id);
-      } finally {
-        await admin.dispose();
-      }
-    });
-
-    test('U03 · SCR-15 CAD confirm, "Phát hiện tệp CAD" dialog', async ({ browser }) => {
-      await verifyAsAdmin(browser, 'U03_cad_dialog', async (p) => {
-        await p.goto(ROUTES.project.cadConfirm(cp2(), floorId));
-        await settled(p.getByRole('dialog', { name: CAD_DIALOG, exact: true }));
-      });
-    });
-
-    test('U03 · SCR-15 CAD confirm, "Huỷ" → no named layers (F-07)', async ({ browser }) => {
-      await verifyAsAdmin(browser, 'U03_cad_empty', async (p) => {
-        await p.goto(ROUTES.project.cadConfirm(cp2(), floorId));
-        const dialog = p.getByRole('dialog', { name: CAD_DIALOG, exact: true });
-        await expect(dialog).toBeVisible({ timeout: 15_000 });
-        await dialog.getByRole('button', { name: CANCEL, exact: true }).click();
-        await expect(dialog).toHaveCount(0);
-        await expect(p.getByText(CAD_EMPTY, { exact: true }).first()).toBeVisible();
-      });
     });
   });
 });

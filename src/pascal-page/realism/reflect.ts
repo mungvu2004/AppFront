@@ -29,7 +29,7 @@ import {
   Vector3,
 } from 'three';
 import { equirectUV, float, mix, positionViewDirection, smoothstep, texture, transformedNormalView, uniform } from 'three/tsl';
-import { MeshStandardNodeMaterial, PMREMGenerator, type WebGPURenderer } from 'three/webgpu';
+import { MeshStandardNodeMaterial, type Node, PMREMGenerator, type WebGPURenderer } from 'three/webgpu';
 
 import { glassTwinParams, isGlossy, isLambertGlass, probeStep, reflectProbeWanted } from './reflectRules';
 import { useRealism } from './store';
@@ -75,7 +75,7 @@ export function setHdriSky(tex: Texture | null): void {
 }
 
 /** Phông trời: HDRI ngay trên chân trời (đủ 3,4°: tầm mắt qua cửa sổ thấy mây), dưới giữ gradient. Mức Thấp giữ gradient (không thêm lượt đọc ảnh). */
-export function hdriBackdrop(worldDir: any, gradient: any): any {
+export function hdriBackdrop(worldDir: Node<'vec3'>, gradient: Node<'vec3'>): Node<'vec3'> {
   if (currentTier() === 'low') return gradient;
   const sky = skyTex.sample(equirectUV(worldDir)).rgb;
   return mix(gradient, sky, skyWeight.mul(smoothstep(0, 0.06, worldDir.y)));
@@ -94,10 +94,13 @@ const last = new Vector3(Number.NaN, 0, 0);
 const prev = new Vector3();
 let lastCount = -1;
 
-function eachGlossy(scene: Scene, fn: (m: Material & { envMap: Texture | null }) => void) {
+/** Vật liệu có `envMap` (Standard/Physical/Basic…); `Material` gốc của three không khai báo trường này. */
+type EnvMaterial = Material & { envMap: Texture | null };
+
+function eachGlossy(scene: Scene, fn: (m: EnvMaterial) => void) {
   scene.traverse((o) => {
-    if (!(o as any).isMesh || !o.layers.isEnabled(0)) return;
-    for (const m of [(o as any).material ?? []].flat() as any[]) if (isGlossy(m)) fn(m);
+    if (!(o as Mesh).isMesh || !o.layers.isEnabled(0)) return;
+    for (const m of [(o as Mesh).material ?? []].flat() as EnvMaterial[]) if (isGlossy(m)) fn(m);
   });
 }
 
@@ -125,13 +128,13 @@ function glassTwin(src: Material): MeshStandardNodeMaterial {
  */
 function swapGlass(scene: Scene) {
   scene.traverse((o) => {
-    const mesh = o as any;
+    const mesh = o as Mesh;
     if (!mesh.isMesh) return;
     const mats = [mesh.material ?? []].flat() as Material[];
     if (!mats.some(isLambertGlass)) return;
     if (!(GLASS_KEY in mesh.userData)) mesh.userData[GLASS_KEY] = mesh.material;
     const next = mats.map((m) => (isLambertGlass(m) ? glassTwin(m) : m));
-    mesh.material = Array.isArray(mesh.material) ? next : next[0];
+    mesh.material = Array.isArray(mesh.material) ? next : next[0]!;
   });
   glassSwapped = true;
 }
@@ -139,7 +142,7 @@ function swapGlass(scene: Scene) {
 function restoreGlass(scene: Scene) {
   scene.traverse((o) => {
     if (!(GLASS_KEY in o.userData)) return;
-    (o as any).material = o.userData[GLASS_KEY];
+    (o as Mesh).material = o.userData[GLASS_KEY] as Mesh['material'];
     delete o.userData[GLASS_KEY];
   });
   glassSwapped = false;
@@ -168,7 +171,7 @@ function makeProbeTarget(): RenderTarget {
   });
   rt.texture.mapping = CubeUVReflectionMapping;
   rt.texture.name = 'PMREM.cubeUv';
-  (rt.texture as any).isPMREMTexture = true;
+  (rt.texture as Texture & { isPMREMTexture?: boolean }).isPMREMTexture = true;
   rt.scissorTest = true;
   return rt;
 }
@@ -181,7 +184,7 @@ function withEnv(m: Material, env: Texture): Material {
     c = m.clone();
     envClones.set(m, c);
   }
-  (c as any).envMap = env;
+  (c as EnvMaterial).envMap = env;
   return c;
 }
 
@@ -202,10 +205,10 @@ async function warm(r: WebGPURenderer, scene: Scene, camera: PerspectiveCamera, 
   const env = probeRT.texture;
   const g = new Group();
   scene.traverse((o) => {
-    const mesh = o as any;
+    const mesh = o as Mesh;
     if (!mesh.isMesh || !o.layers.isEnabled(0)) return;
     for (const m of [mesh.material ?? []].flat() as Material[]) {
-      const twin: any = isLambertGlass(m) ? glassTwin(m) : m;
+      const twin = (isLambertGlass(m) ? glassTwin(m) : m) as EnvMaterial;
       const want = inside && isGlossy(twin) && twin.envMap !== env ? withEnv(twin, env) : twin !== m ? twin : null;
       if (!want) continue;
       const proxy = new Mesh(mesh.geometry, want);

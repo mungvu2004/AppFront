@@ -31,9 +31,6 @@ const CANCEL_RUN = 'Huỷ xử lý';
 const NO_RUN = 'Chưa có lượt xử lý nào để kể lại';
 const APPLY_SCALE = 'Áp dụng tỷ lệ';
 const NEED_EDIT = 'Chỉ người có quyền sửa mới xác nhận được.';
-const USE_CAD = 'Dùng đường từ CAD';
-const USE_AI = 'Tiếp tục duyệt tường';
-const IMPORT_GEO = 'Nhập hình học';
 const TECH = 'Chi tiết kỹ thuật';
 const CONTINUE = /^(?:Xử lý dù ảnh mờ|Bắt đầu xử lý)$/u; // S-09
 const OTHER_DRAWING = /^(?:Tải ảnh nét hơn|Tải ảnh khác)$/u; // S-09
@@ -237,13 +234,6 @@ test('SCR-12 · SCR-13 · SCR-14 · SCR-15 · SCR-16 · FL-9U-06 · engineer · 
       await ev(page, '9U-D-069', 'engineer_overlay');
     });
 
-    await test.step('[9U-D-076] engineer: CAD choices clickable', async () => {
-      await page.goto(ROUTES.project.cadConfirm(pc.projectId, pc.floorId));
-      await expect.soft(btn(page, USE_CAD)).toBeEnabled({ timeout: 20_000 });
-      await expect.soft(btn(page, USE_AI)).toBeEnabled();
-      unknown(`9U-D-076 no .dxf seed helper (createCadProject); "${IMPORT_GEO}" after layer mapping not driven`);
-      await ev(page, '9U-D-076', 'engineer_cad_choices');
-    });
   } finally {
     await session?.context.close();
     await api?.dispose();
@@ -320,13 +310,6 @@ test('SCR-09..16 · FL-9U-07 · admin · admin doi chung duong 1 dong/man', asyn
       await ev(page, '9U-D-070', 'admin_overlay');
     });
 
-    await test.step('[9U-D-077] admin: CAD choices enabled', async () => {
-      await page.goto(ROUTES.project.cadConfirm(pc.projectId, pc.floorId));
-      await expect.soft(btn(page, USE_CAD)).toBeEnabled({ timeout: 20_000 });
-      await expect.soft(btn(page, USE_AI)).toBeEnabled();
-      unknown('9U-D-077 image-only project stands in for the CAD project (no createCadProject helper)');
-      await ev(page, '9U-D-077', 'admin_cad_choices');
-    });
   } finally {
     await context.close();
     await deleteSeededProject(admin, pf.projectId);

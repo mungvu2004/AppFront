@@ -10,6 +10,10 @@ import { HDRI_SCALE, HDRI_TIMEOUT_MS, HDRI_VARIANT, type HdriVariant, hdriAutoSc
 import { makeSkyTexture, setHdriSky } from './reflect';
 import { useRealism } from './store';
 
+/** Chờ trình duyệt rảnh tối đa 3 s; không có requestIdleCallback thì đợi 1 s (thời gian chờ, không phải chuyển động). */
+const IDLE_TIMEOUT_MS = 3000;
+const IDLE_FALLBACK_MS = 1000;
+
 /** Trả hàm dọn (gỡ HDRI, trả môi trường cũ). `themeId` chọn HDRI (Ban ngày khác Nắng chiều, gói 2B). */
 export function installHdri(scene: Scene, appearance: string, themeId = ''): () => void {
   const { backend, flags } = useRealism.getState();
@@ -26,7 +30,7 @@ export function installHdri(scene: Scene, appearance: string, themeId = ''): () 
   }, HDRI_TIMEOUT_MS);
   // "Sau khi cảnh sẵn sàng": đợi trình duyệt rảnh (vật liệu/mô hình đã đòi xong) rồi mới tải.
   const idle = (cb: () => void) =>
-    typeof requestIdleCallback === 'function' ? requestIdleCallback(cb, { timeout: 3000 }) : setTimeout(cb, 1000);
+    typeof requestIdleCallback === 'function' ? requestIdleCallback(cb, { timeout: IDLE_TIMEOUT_MS }) : setTimeout(cb, IDLE_FALLBACK_MS);
   idle(() => {
     if (done) return;
     new HDRLoader().setDataType(FloatType).load(

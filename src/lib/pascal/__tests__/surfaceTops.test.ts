@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { CATALOG_MODELS, setRealismModels, topFractionOf } from '../furnitureCatalog';
-import SURFACE_TOPS from '../surfaceTops.json';
 
 /** Mặt đặt đồ (mét trên đáy mẫu) = tỉ lệ đo × chiều cao catalog. */
 const topM = (folder: string): number => (topFractionOf(folder) ?? NaN) * (CATALOG_MODELS[folder]?.dimensions[1] ?? NaN);

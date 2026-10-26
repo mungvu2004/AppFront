@@ -92,7 +92,10 @@ export const roofNodesOf = (roof: Roof, levelNodeId: PascalNodeId): readonly Pas
 
 /** Node Pascal → phần tử của `Roof.nodes`: bỏ cây, bỏ túi AppFront, gỡ mặc định GĐ6 còn nguyên. */
 const storedNodeOf = (node: PascalNode): Blob => {
-  const { parentId: _parent, children: _children, ...rest } = node as unknown as Record<string, unknown>;
+  const rest = { ...(node as unknown as Record<string, unknown>) };
+
+  delete rest.parentId;
+  delete rest.children;
   const metadata = recordOf(rest.metadata);
   const defaulted = metadata[DEFAULTED_KEY];
 

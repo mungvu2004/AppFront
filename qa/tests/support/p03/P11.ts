@@ -149,7 +149,7 @@ export const chipTexts = async (page: Page): Promise<string[]> => (await chips(p
 
 /* ---- per-screen state ------------------------------------------------------------------------- */
 
-export type ScreenKind = 'settings' | 'floors' | 'upload' | 'quality' | 'pipeline' | 'graph' | 'cad';
+export type ScreenKind = 'settings' | 'floors' | 'upload' | 'quality' | 'pipeline' | 'graph';
 
 /** Upload ids whose progress the page read, through the SSE stream or the #8 progress GET. */
 export function progressSeen(open: OpenPage, uploadId: string): { readonly sse: number; readonly read: number } {
@@ -207,11 +207,6 @@ export async function screenState(page: Page, kind: ScreenKind): Promise<string>
       await expect(h1).toBeVisible();
       const empty = page.getByText('Chưa có lượt xử lý nào để kể lại', { exact: true }); // PGT:208
       return settled(page, async () => `graph h1 empty=${String(await empty.isVisible())}`);
-    }
-    case 'cad': {
-      const dialog = page.getByRole('dialog', { name: 'Phát hiện tệp CAD', exact: true }); // CBT:30
-      await expect(dialog).toBeVisible();
-      return settled(page, async () => `cad dialog rows=${flat(await dialog.getByRole('row').allInnerTexts())}`);
     }
   }
 }

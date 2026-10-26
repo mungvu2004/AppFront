@@ -32,7 +32,6 @@ export const uploadRoutes = (projectId: string, floorId: string): readonly strin
   ROUTES.project.pipelineGraph(projectId),
   ROUTES.project.scale(projectId, floorId),
   ROUTES.project.overlay(projectId, floorId),
-  ROUTES.project.cadConfirm(projectId, floorId),
 ];
 
 /** Status + `code` of a response (body may be empty). */

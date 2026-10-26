@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { create } from 'zustand';
 
 import { LightingCard, groundKey, lightingKey, sunKey } from '../LightingCard';
-import { useRealism } from '../realism/store';
+import { setRealism, useRealism } from '../realism/store';
 
 /** Nút ánh sáng (con trực tiếp của danh sách; nút mặt đất nằm trong danh sách con). */
 const lightButtons = () =>
@@ -87,7 +87,7 @@ describe('LightingCard', () => {
     expect(localStorage.getItem(groundKey('p1'))).toBe('grass');
     unmount();
 
-    useRealism.setState({ ground: 'plain' });
+    setRealism({ ground: 'plain' });
     render(<LightingCard projectId="p1" useViewer={useViewer} />);
     expect(useRealism.getState().ground).toBe('grass');
     expect(screen.getByRole('button', { name: 'Bãi cỏ' }).getAttribute('aria-pressed')).toBe('true');
@@ -105,7 +105,7 @@ describe('LightingCard', () => {
     expect(localStorage.getItem(sunKey('p1'))).toBe('120');
     unmount();
 
-    useRealism.setState({ sunAzimuth: 0 });
+    setRealism({ sunAzimuth: 0 });
     render(<LightingCard projectId="p1" useViewer={useViewer} />);
     expect(useRealism.getState().sunAzimuth).toBe(120);
     fireEvent.click(screen.getByRole('button', { name: 'Mặc định' }));

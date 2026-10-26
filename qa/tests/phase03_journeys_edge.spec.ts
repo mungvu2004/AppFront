@@ -121,20 +121,6 @@ const GRAPH = {
   forbiddenLine: 'Chế độ chi tiết kỹ thuật chỉ mở cho vai quản trị, nên phần đó và nút đổi nhánh không hiện ở đây.', // PGT:211-212
   detail: 'Chi tiết kỹ thuật', // PGT:181
 } as const;
-const CAD = {
-  dialog: 'Phát hiện tệp CAD', // CBT:30
-  useCad: 'Dùng đường từ CAD', // CBT:84
-  useAi: 'Tiếp tục duyệt tường', // CBT:87
-  cancel: 'Huỷ',
-  handoffTitle: 'Chuyển sang nhánh nhận dạng ảnh', // CB:92
-  noLayers: 'Chưa có lớp nào để ánh xạ',
-  stageTwo: 'Ánh xạ lớp và xem trước hình học', // CB:82
-  forbiddenTitle: 'Không có quyền xử lý CAD', // CB:90
-  /** UCB:119 — lowercase "liên hệ" after a full stop is the source copy (flow-plan s1315x note); asserted as is. */
-  forbiddenSentence:
-    'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. Liên hệ quản trị viên để được cấp quyền.',
-  errorTitle: 'Không thể đọc tệp CAD', // CB:88
-} as const;
 const READ_ONLY = {
   settings: 'Vai hiện tại chỉ xem được cài đặt, không sửa và không xoá.', // PS:84
   floors: 'Không có quyền sửa tầng', // FM:76
@@ -571,19 +557,6 @@ test.describe('X cross-screen journeys', () => {
         expect.soft(opacity, 'overview drawn at full opacity').toBe('1');
       });
 
-      await test.step('[15-D-002] engineer CAD: "Dùng đường từ CAD" enabled, "Chưa có lớp nào để ánh xạ", stage 2 reachable', async () => {
-        await page.goto(ROUTES.project.cadConfirm(pid, floor.id));
-        const dialog = page.getByRole('dialog', { name: CAD.dialog, exact: true });
-        await expect(dialog).toBeVisible();
-        await expect.soft(dialog.getByRole('button', { name: CAD.useCad, exact: true })).toBeEnabled();
-        await page.keyboard.press('Escape');
-        await expect(dialog).toHaveCount(0);
-        await expect.soft(page.getByText(CAD.handoffTitle, { exact: true })).toBeVisible();
-        await expect.soft(page.getByText(CAD.noLayers, { exact: true }).first()).toBeVisible();
-        await page.getByRole('button', { name: CAD.useCad, exact: true }).click();
-        await expect(page.getByRole('region', { name: CAD.stageTwo, exact: true })).toBeVisible();
-        await captureEvidence(page, 'E03_15-D-002_engineer_cad_stage2.png');
-      });
     } finally {
       await closePage(open);
       await cleanupAll(owner, cleanup);
@@ -730,29 +703,7 @@ test.describe('X cross-screen journeys', () => {
           await captureEvidence(page, 'E03_13-D-003_viewer_graph.png');
         });
 
-        await test.step('[15-D-003] viewer CAD: notice "Không có quyền xử lý CAD" + sentence; same alert in the dialog; CAD disabled', async () => {
-          await page.goto(ROUTES.project.cadConfirm(pid, s3.floorId));
-          const dialog = page.getByRole('dialog', { name: CAD.dialog, exact: true });
-          await expect(dialog).toBeVisible();
-          await expect.soft(dialog.getByText(CAD.forbiddenSentence, { exact: true })).toBeVisible();
-          await expect.soft(dialog.getByRole('button', { name: CAD.useCad, exact: true })).toBeDisabled();
-          await expect.soft(page.getByText(CAD.forbiddenTitle, { exact: true })).toHaveCount(1);
-          expect.soft(await page.getByText(CAD.forbiddenSentence, { exact: true }).count(), 'sentence in the notice and in the dialog').toBeGreaterThanOrEqual(2);
-          await captureEvidence(page, 'E03_15-D-003_viewer_cad_dialog.png');
-        });
 
-        await test.step('[15-D-004] "Huỷ" → hand-off "Dùng đường từ CAD" disabled, "Tiếp tục duyệt tường" enabled → /pipeline', async () => {
-          const dialog = page.getByRole('dialog', { name: CAD.dialog, exact: true });
-          await dialog.getByRole('button', { name: CAD.cancel, exact: true }).click();
-          await expect(dialog).toHaveCount(0);
-          await expect(page.getByText(CAD.handoffTitle, { exact: true })).toBeVisible();
-          await expect(page.getByRole('button', { name: CAD.useCad, exact: true })).toBeDisabled();
-          const ai = page.getByRole('button', { name: CAD.useAi, exact: true });
-          await expect(ai).toBeEnabled();
-          await captureEvidence(page, 'E03_15-D-004_viewer_handoff.png');
-          await ai.click();
-          await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(pid));
-        });
       } finally {
         await closePage(open);
       }
@@ -766,7 +717,7 @@ test.describe('X cross-screen journeys', () => {
         const { page } = open;
         const pid = s3.projectId;
 
-        await test.step('[X-B-003] /settings, /floors, /upload, /quality, /pipeline, /pipeline/graph, cad-confirm: same state before and after reload', async () => {
+        await test.step('[X-B-003] /settings, /floors, /upload, /quality, /pipeline, /pipeline/graph: same state before and after reload', async () => {
           const routes: [ScreenKind, string][] = [
             ['settings', ROUTES.project.settings(pid)],
             ['floors', ROUTES.project.floors(pid)],
@@ -774,7 +725,6 @@ test.describe('X cross-screen journeys', () => {
             ['quality', ROUTES.project.quality(pid)],
             ['pipeline', ROUTES.project.pipeline(pid)],
             ['graph', ROUTES.project.pipelineGraph(pid)],
-            ['cad', ROUTES.project.cadConfirm(pid, s3.floorId)],
           ];
           const rows: { route: string; before: string; after: string }[] = [];
           for (const [kind, path] of routes) {
@@ -785,7 +735,6 @@ test.describe('X cross-screen journeys', () => {
             rows.push({ route: path, before, after });
             expect.soft(after, `${kind}: state after reload`).toBe(before);
           }
-          await expect.soft(page.getByRole('dialog', { name: CAD.dialog, exact: true })).toBeVisible();
           await captureEvidence(page, 'E03_X-B-003_reload_last_route.png', { caption: rows.map((r) => `${r.after === r.before ? 'same' : 'DIFF'} ${r.after}`) });
           await attachJson('E03_X-B-003_reload_states.json', { rows });
           expect.soft(rows.find((r) => r.route === ROUTES.project.pipeline(pid))?.after ?? '', 'pipeline after reload').toMatch(/Đã xử lý xong 1\/1 tầng/u);
@@ -839,16 +788,6 @@ test.describe('X cross-screen journeys', () => {
 
         // QA-03f (T2): a 404 `project` on #12 is "project missing" (useCadBranchConfirm.ts:771-772), so cad-confirm shows the same
         // shared strip as the other routes, no dialog and no CAD notice (CadBranchConfirm.tsx:296-307; BUG-563).
-        await test.step('[15-D-005] cad-confirm: floor list 404 → shared "Không tìm thấy dự án này" strip, no "Không thể đọc tệp CAD", no "Mã lỗi: NOT_FOUND"', async () => {
-          const read = waitForApi(page, 'GET', projectWriteRe(pid, '/floors'), [404]);
-          await page.goto(ROUTES.project.cadConfirm(pid, s3.floorId));
-          await read;
-          await expect.soft(page.getByRole('alert').filter({ hasText: NOT_FOUND_TITLE })).toBeVisible();
-          await expect.soft(page.getByText(CAD.errorTitle, { exact: true })).toHaveCount(0);
-          await expect.soft(page.getByText(/Mã lỗi: NOT_FOUND/u)).toHaveCount(0);
-          await expect.soft(page.getByText(CAD.forbiddenTitle, { exact: true })).toHaveCount(0);
-          await captureEvidence(page, 'E03_15-D-005_non_member_cad.png');
-        });
       } finally {
         await closePage(open);
       }

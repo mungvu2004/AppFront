@@ -6,12 +6,12 @@
  * Trình xem là mặt bằng 2D chỉ đọc (tường theo tầng) vẽ thẳng từ đồ thị trả về,
  * vì các màn 2D/3D sẵn có đều đọc store của dự án đang mở chứ không nhận đồ thị.
  */
-import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 
-import { createAppApiClient } from '@/api/appClient';
 import type { ApiClient, SharedModel } from '@/api/client';
+
+import { useSharedModel } from './useSharedModel';
 
 export const SHARE_LINK_GONE_MESSAGE = 'Liên kết không còn hiệu lực';
 
@@ -86,19 +86,7 @@ export function SharedModelView({ model }: { model: SharedModel }) {
 
 export function SharedModelPage({ client }: { client?: Pick<ApiClient, 'share'> }) {
   const { token = '' } = useParams();
-  const query = useQuery({
-    queryKey: ['share', token],
-    retry: false,
-    queryFn: async () => {
-      const result = await (client ?? createAppApiClient()).share.open({ token });
-
-      if (!result.ok) {
-        throw result.error;
-      }
-
-      return result.data;
-    },
-  });
+  const query = useSharedModel(token, client);
 
   return (
     <main style={{ padding: 24 }}>

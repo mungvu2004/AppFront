@@ -9,7 +9,6 @@ describe('projectLocationOf', () => {
     [ROUTES.project.upload('p1'), 0],
     [ROUTES.project.quality('p1'), 0],
     [ROUTES.project.pipelineGraph('p1'), 1],
-    [ROUTES.project.cadConfirm('p1', 'f1'), 1],
     [ROUTES.project.floors('p1'), 2],
     [ROUTES.project.measure('p1'), 3],
     [ROUTES.project.ruleSettings('p1'), 4],

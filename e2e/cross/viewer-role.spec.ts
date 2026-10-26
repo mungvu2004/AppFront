@@ -39,7 +39,6 @@ const ROWS = [
     path: ROUTES.project.upload(PROJECT_ID),
     expected: 'Vai hiện tại chỉ được xem danh sách tệp, không tải lên và không sửa.',
   },
-  { screen: 'projectCadConfirm', path: ROUTES.project.cadConfirm(PROJECT_ID, FLOOR_ID), expected: 'Không có quyền xử lý CAD' },
   { screen: 'projectRooms', path: ROUTES.project.rooms(PROJECT_ID, FLOOR_ID), expected: 'Không có quyền sửa lớp phòng' },
   { screen: 'projectExport', path: ROUTES.project.export(PROJECT_ID), expected: 'Không có quyền xuất bản vẽ' },
 ] as const;

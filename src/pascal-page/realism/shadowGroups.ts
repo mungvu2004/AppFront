@@ -7,7 +7,7 @@
  * ("used in submit while destroyed"). Cho mỗi group một passId riêng trong lượt bóng → RenderObject
  * riêng, key ổn định. Không đổi hình ảnh. Vendor gọi qua luật `scripts/realism/r1-backend.mjs`.
  */
-type Scene = { overrideMaterial?: { isShadowPassMaterial?: boolean } | null };
+interface Scene { overrideMaterial?: { isShadowPassMaterial?: boolean } | null }
 type Group = { materialIndex?: number } | null | undefined;
 
 /** passId cho một lần vẽ: lượt bóng + mesh mảng vật liệu → tách theo materialIndex; còn lại giữ nguyên. */

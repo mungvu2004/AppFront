@@ -14,7 +14,7 @@ import { ChevronDown, Sun } from 'lucide-react';
 import { type MouseEvent, useEffect } from 'react';
 
 import { QualityCard } from './QualityCard';
-import { type GroundMode, useRealism } from './realism/store';
+import { type GroundMode, setRealism, useRealism } from './realism/store';
 import { DAY_THEME_ID, NIGHT_THEME_ID, SUNSET_THEME_ID } from './renderLook';
 
 export type LightingMode = 'night' | 'day' | 'sunset';
@@ -91,11 +91,11 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
   const sunAzimuth = useRealism((s) => s.sunAzimuth);
 
   useEffect(() => {
-    useRealism.setState({ ground: readGround(projectId), sunAzimuth: readSun(projectId) });
+    setRealism({ ground: readGround(projectId), sunAzimuth: readSun(projectId) });
   }, [projectId]);
 
   const chooseSun = (deg: number) => {
-    useRealism.setState({ sunAzimuth: deg });
+    setRealism({ sunAzimuth: deg });
     try {
       if (deg === 0) localStorage.removeItem(sunKey(projectId));
       else localStorage.setItem(sunKey(projectId), String(deg));
@@ -105,7 +105,7 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
   };
 
   const chooseGround = (mode: GroundMode) => {
-    useRealism.setState({ ground: mode });
+    setRealism({ ground: mode });
     try {
       localStorage.setItem(groundKey(projectId), mode);
     } catch {
@@ -138,7 +138,7 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
     <details className="relative" data-appfront-menu="">
       <summary
         aria-label={`Ánh sáng: ${current?.label ?? 'tuỳ chỉnh'} — mở danh sách ánh sáng`}
-        className="flex h-8 shrink-0 cursor-pointer list-none items-center gap-1.5 whitespace-nowrap rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-2.5 font-medium text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] motion-reduce:transition-none outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pa-accent)] [&::-webkit-details-marker]:hidden"
+        className="flex h-8 shrink-0 cursor-pointer list-none items-center gap-1.5 whitespace-nowrap rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-2.5 font-medium text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] transition-colors duration-120 hover:bg-[var(--pa-sunken)] motion-reduce:transition-none outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pa-accent)] [&::-webkit-details-marker]:hidden"
         title="Ánh sáng"
       >
         <Sun aria-hidden="true" className="h-4 w-4 shrink-0 @min-[1300px]/appbar:hidden" />
@@ -153,7 +153,7 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
           <li key={mode.id}>
             <button
               aria-pressed={mode === current}
-              className="flex h-8 w-full items-center whitespace-nowrap rounded-lg px-2 text-left text-[var(--pa-text-2)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)] aria-pressed:bg-[var(--pa-selected)] aria-pressed:font-medium aria-pressed:text-[var(--pa-accent)] disabled:opacity-50 motion-reduce:transition-none outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--pa-accent)]"
+              className="flex h-8 w-full items-center whitespace-nowrap rounded-lg px-2 text-left text-[var(--pa-text-2)] transition-colors duration-120 hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)] aria-pressed:bg-[var(--pa-selected)] aria-pressed:font-medium aria-pressed:text-[var(--pa-accent)] disabled:opacity-50 motion-reduce:transition-none outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--pa-accent)]"
               onClick={(event) => choose(mode.id, event)}
               type="button"
             >
@@ -169,7 +169,7 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
               <li key={mode.id}>
                 <button
                   aria-pressed={mode.id === ground}
-                  className="flex h-8 w-full items-center whitespace-nowrap rounded-lg px-2 text-left text-[var(--pa-text-2)] transition-colors duration-[120ms] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)] aria-pressed:bg-[var(--pa-selected)] aria-pressed:font-medium aria-pressed:text-[var(--pa-accent)] motion-reduce:transition-none outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--pa-accent)]"
+                  className="flex h-8 w-full items-center whitespace-nowrap rounded-lg px-2 text-left text-[var(--pa-text-2)] transition-colors duration-120 hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)] aria-pressed:bg-[var(--pa-selected)] aria-pressed:font-medium aria-pressed:text-[var(--pa-accent)] motion-reduce:transition-none outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--pa-accent)]"
                   onClick={() => chooseGround(mode.id)}
                   type="button"
                 >

@@ -49,7 +49,7 @@ Cách đọc bốn nhãn:
 | 1 | Bảy trạng thái màn (empty/loading/collapsed/partial/forbidden/error/success) | `WallGeometryEditor.tsx:142-217`; test G1 `:429-448` | MỘT PHẦN | `use-auto-save.ts` chỉ 6 `SaveStatus`; `readOnly` rải rác ở `panel-manager.tsx`, không có nhánh "forbidden" mang câu giải thích | A11 |
 | 2 | Kéo một đỉnh tường → **đúng một** bước hoàn tác | test N1 `:490-538` | **CÓ** | `nodes/src/wall/move-endpoint-tool.tsx:410-470` gọi `runAsSingleSceneHistoryStep` sau `pauseSceneHistory`/`resumeSceneHistory`; `handle-drag-history.ts` | A8, D-06 |
 | 3 | Esc giữa lúc kéo trả đỉnh về toạ độ ban đầu, **không ghi** | test N4 `:657-732` | **CÓ** | `move-endpoint-tool.tsx` — `onCancel` gọi `restoreOriginal()` + `resumeSceneHistory` không commit, nghe `emitter.on('tool:cancel')` | A12 |
-| 4 | Kéo góc tường → tường nối đi theo (**quyết định 3A**) | chính sách ở `00-quyet-dinh.md:24`; **mã thì chỉ kéo một tường** — `wallGeometryEditorGateway.ts` gọi `createDragWallEndCommand` cho một tường, không tra tường liền kề | **CÓ — và Pascal hơn** | `move-endpoint-tool.tsx:150-200` — `getLinkedWallSnapshots`, `getLinkedWallUpdates` cascade mọi tường chung góc trong **cùng một bước lịch sử**; Alt để tách | 3A |
+| 4 | Kéo góc tường → tường nối đi theo (**quyết định 3A**) | chính sách ở `00-quyet-dinh.md:24`; *(cập nhật 26/10/2026)* đã thi công ở `019c81dc` (28/09/2026): `createDragWallEndCommand` (`src/lib/commands/business/wallCommands.ts:374-430`) kéo theo mọi tường hàn chung góc và đặt `reviewed: false` cho chúng | **CÓ** | `move-endpoint-tool.tsx:150-200` — `getLinkedWallSnapshots`, `getLinkedWallUpdates` cascade mọi tường chung góc trong **cùng một bước lịch sử**; Alt để tách | 3A |
 | 5 | "Mất dấu xác minh" khi tường bị sửa | **không tìm thấy** — `lib/commands/business/shared.ts:19-24` nói rõ *"Review metadata is preserved on an update"*; chỉ lúc **tạo mới** mới đặt `reviewed:false` | KHÔNG | grep `confidence`/`reviewed`/`source.*ai` trên Pascal → rỗng (vài hit ở `nodes/src/duct-segment/*` không liên quan) | A5 |
 | 6 | Cửa/ô mở **dịch theo tỉ lệ** khi kéo đỉnh tường | test N2 `:539-579`; `reflowOpenings` tại `wallCommands.ts:394` | KHÔNG | `core/src/schema/nodes/door.ts:58,155` — `position` là toạ độ cục bộ **cố định**, không phải phân số theo chiều dài. grep `reflow` chỉ ra `nodes/src/cabinet/**`. `move-endpoint-tool.tsx` lúc commit chỉ `updateNodes` cho tường, **không đụng** door/window con | — |
 | 7 | Ba loại bắt điểm có tên trên màn: Đỉnh khác / Vuông góc / Trục lưới | test N3 `:586-656`; `wallGeometryEditorGateway.ts:22-28` | MỘT PHẦN | `tools/wall/wall-snap-geometry.ts:16` có `endpoint\|midpoint\|intersection\|wall`, cộng khoá góc 15° và đường gióng kiểu Figma. **Nhiều hơn**, nhưng không có nhãn "Vuông góc" riêng | A6 |
@@ -224,6 +224,8 @@ Không khớp — dòng cuối bảng trên là lý do.
 
 Phép đo này không chỉ đi tìm chỗ Pascal thiếu.
 
+> *Cập nhật 26/10/2026:* C1 và C2 dưới đây đã lỗi thời — 3A đã thi công ở `019c81dc` (28/09/2026): `createDragWallEndCommand` (`src/lib/commands/business/wallCommands.ts:374-430`) kéo theo mọi tường hàn chung góc và đặt `reviewed: false` cho chúng (cả hai nửa). Giữ nguyên đoạn cũ làm lịch sử đo.
+
 **C1. Quyết định 3A — Pascal có, AppFront thì không.**
 `nodes/src/wall/move-endpoint-tool.tsx:150-200` (`getLinkedWallSnapshots`, `getLinkedWallUpdates`)
 kéo theo **mọi tường chung góc** trong **cùng một bước lịch sử**, và có **Alt để tách**. Còn
@@ -323,7 +325,6 @@ Câu *"Pascal đã làm rồi thì xoá cái cũ đi"* đúng cho **15/109 tính
 **Việc đúng tiếp theo, theo thứ tự:**
 
 1. **Dựng màn xem Pascal cho chạy thật** — để có thứ thay thế trước khi bàn xoá.
-2. **Thi công 3A** — Pascal đã có sẵn (C1), AppFront thì chưa. Đây là việc *thêm* giá trị bằng mã
-   đã có, không phải việc xoá.
+2. ~~**Thi công 3A**~~ — xong ở `019c81dc` (xem cập nhật ở C1).
 3. **Quyết định riêng về mã chưa làm xong** (D1) — xoá hay làm nốt.
 4. **Rồi mới bàn từng màn**, mỗi lần một commit kèm `pnpm verify`.
