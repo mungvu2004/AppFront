@@ -25,6 +25,8 @@ export interface VersionListProps {
   readonly groups: readonly VersionGroupModel[];
   /** Nạp lại N18 của một hàng hỏng tạm thời; vắng thì không có nút. */
   readonly onRetrySnapshot?: ((versionId: string) => void) | undefined;
+  /** Tầng đã sửa sau bản mới nhất — một dòng "Hiện tại" ở đầu danh sách thay cho hàng hiện tại. */
+  readonly unsavedNotice?: string | undefined;
 }
 
 /** Tên vùng `aria-live` của danh sách — một vùng cho cả danh sách, luôn gắn sẵn. */
@@ -143,6 +145,7 @@ function VersionListRow({
 export function VersionList({
   groups,
   onRetrySnapshot,
+  unsavedNotice,
 }: VersionListProps) {
   const failures = groups
     .flatMap((group) => group.rows)
@@ -156,6 +159,12 @@ export function VersionList({
       <p role="status" aria-live="polite" aria-label={SNAPSHOT_STATUS_LABEL} className="sr-only">
         {failures}
       </p>
+      {unsavedNotice !== undefined && (
+        <p className="flex items-start gap-2 border-b border-border-default px-3 py-2 text-[13px] text-text-secondary">
+          <Badge variant="neutral">Hiện tại</Badge>
+          <span>{unsavedNotice}</span>
+        </p>
+      )}
       {groups.map((group) => (
         <div key={group.id}>
           <h3 className="sticky top-0 z-10 bg-bg-surface px-5 pb-1 pt-3 text-[13px] font-medium text-text-secondary">

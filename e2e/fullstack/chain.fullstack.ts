@@ -57,8 +57,6 @@ const OPENING_FAMILY = 'openingAndFurnitureDetection';
 const OPENING_FAMILY_LABEL = /nhận diện cửa và đồ đạc/iu;
 /** Nút phục hồi của màn phiên bản (`VersionHistory.tsx`): "Phục hồi về <nhãn>". */
 const RESTORE_BUTTON_PATTERN = /^Phục hồi về (.+)$/u;
-/** Ghi chú của ảnh chụp "trước" mà pipeline tạo (`versions/messages.py` `before_pipeline_note`). */
-const PRE_AI_NOTE = 'Trạng thái trước khi ghi kết quả AI';
 const ERROR_CODE_PATTERN = /\b[A-Z][A-Z0-9_]{2,}\b/u;
 
 /** Một tường của đầu dò `?probe=1` (`src/pascal-page/createProbe.ts`, mét như kho Pascal). */
@@ -515,20 +513,24 @@ async function runChain(
       .poll(() => api.slice(mark).some(ofFloor), { message: `không có N17 200 cho tầng ${floorId}` })
       .toBe(true);
 
-    // Màn so sánh (25f49600): cặp mặc định là bản gần nhất với "Hiện tại", nút phục hồi nhắm bản
-    // không phải hiện tại và ghi thẳng nhãn của nó — không còn ô tích trên từng hàng.
+    // Sửa tay (bước 7, 8c) không sinh phiên bản, nên revision của tầng vượt mọi bản: không hàng nào
+    // "Hiện tại" (`versionHistoryModel.ts`), và cặp mặc định đặt bản mới nhất (sau AI) bên phải — nút
+    // phục hồi nhắm đúng bản ấy và ghi thẳng nhãn của nó.
     const restoreButton = page.getByRole('button', { name: RESTORE_BUTTON_PATTERN });
 
     await expect(restoreButton).toBeVisible();
     const targetLabel = RESTORE_BUTTON_PATTERN.exec(await restoreButton.innerText())?.[1];
 
     if (targetLabel === undefined) throw new Error('không đọc được nhãn phiên bản đích trên nút phục hồi');
-    const targetDescription = await page
-      .getByRole('navigation', { name: 'Danh sách phiên bản' })
-      .getByRole('listitem')
-      .filter({ has: page.getByText(targetLabel, { exact: true }) })
-      .first()
-      .innerText();
+    // Hàng đầu danh sách là bản mới nhất: bản đích phải là nó, không phải ảnh chụp trước lượt AI.
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Danh sách phiên bản' })
+        .getByRole('listitem')
+        .first()
+        .getByText(targetLabel, { exact: true }),
+      'nút phục hồi phải nhắm bản mới nhất',
+    ).toBeVisible();
     await restoreButton.click();
     const restore = waitForApi(page, 'POST', /\/api\/projects\/[^/]+\/versions\/[^/]+\/restore$/u, [200, 201]);
     const confirm = page.getByRole('dialog');
@@ -549,11 +551,10 @@ async function runChain(
       layerPath(),
       [200],
     );
-    // Sửa tay không tạo phiên bản, và màn coi bản mới nhất (sau AI) là "Hiện tại" khi không bản nào
-    // khớp revision (`versionHistoryModel.ts`). Dự án của chuỗi mới tinh nên bản phục hồi được là v1
-    // "trước khi ghi kết quả AI": tầng sau phục hồi phải rỗng, mất cả tường đã sửa ở bước 7.
-    expect(targetDescription, 'bản đích phải là ảnh chụp trước lượt AI').toContain(PRE_AI_NOTE);
-    expect(wallsOf(reread.json, 'N16 sau phục hồi').map((wall) => wall.id)).toEqual([]);
+    // Phục hồi bản mới nhất bỏ phần sửa tay: tường của bước 7 về lại trạng thái AI (`wallBefore`).
+    const restored = wallById(wallsOf(reread.json, 'N16 sau phục hồi'), changedWallId, 'N16 sau phục hồi');
+
+    expect(pick(restored, changedWallKeys)).toBe(pick(wallBefore, changedWallKeys));
     await dismissTour(page);
   });
 

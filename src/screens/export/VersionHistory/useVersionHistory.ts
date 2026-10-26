@@ -82,6 +82,7 @@ import {
   type RestoreDialog,
   UNDO_RETRY_TOAST,
   writeErrorNotice,
+  unsavedEditsNotice,
 } from './versionHistoryModel';
 import { buildPlanDiffModel, entityCountsOf, togglePinned } from './versionHistoryPlan';
 import { buildVisualModel, convertScene, graphOfVersion, isEmptySource } from './versionHistoryScene';
@@ -332,6 +333,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
     ],
   );
   const rows = useMemo(() => builds.map((build) => build.row), [builds]);
+  const unsavedNotice = useMemo(() => unsavedEditsNotice(rows), [rows]);
   const groups = useMemo(() => groupRowsByDay(builds, now), [builds, now]);
   const versionOptions = useMemo(
     (): readonly VersionHistoryOption[] =>
@@ -791,6 +793,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
     // HOP-DONG-MOI §5: tự lưu không sinh phiên bản, nên không có "đã lưu lúc" nào để đọc từ đây.
     savedAtLabel: null,
     canLoadMoreVersions: hasNextPage,
+    ...(unsavedNotice === null ? {} : { unsavedNotice }),
     floorSelect:
       floorOptions !== undefined && floorOptions.length > 0
         ? { label: 'Tầng', options: floorOptions, selectedId: floorId }

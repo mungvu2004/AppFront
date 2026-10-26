@@ -358,6 +358,8 @@ export interface VersionHistoryModel {
   readonly savedAtLabel: string | null;
   /** N17 còn trang sau — nút "Xem thêm phiên bản". */
   readonly canLoadMoreVersions: boolean;
+  /** Tầng đã sửa sau bản mới nhất (`unsavedEditsNotice`); vắng khi có bản "Hiện tại". */
+  readonly unsavedNotice?: string;
   /** Ô "Tầng" ở đầu màn; `null` khi nơi gọi không cấp danh sách tầng. */
   readonly floorSelect: FloorSelectModel | null;
   /** Trạng thái `empty`: "Tầng {tên} chưa có phiên bản nào". */
