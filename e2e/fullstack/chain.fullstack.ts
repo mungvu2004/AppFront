@@ -286,7 +286,8 @@ async function runChain(
 
     await page.getByTestId('floor-upload-file-input').setInputFiles(drawingPng);
     // Tên tệp không đoán được tầng → khay "Tệp chưa gán tầng"; gán cho tầng của bước 4.
-    await page.getByRole('combobox', { name: 'Gán cho tầng khác' }).click();
+    // Ô chọn của khay tên "Gán cho tầng" từ 3c310f99; "Gán cho tầng khác" là ô trên thẻ một tầng.
+    await page.getByRole('combobox', { name: 'Gán cho tầng', exact: true }).click();
     await page.getByRole('option', { name: floorName, exact: true }).click();
     await init;
     await chunk;
