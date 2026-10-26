@@ -93,7 +93,11 @@ describe('ApiErrorBodySchema', () => {
     expect(ApiErrorBodySchema.safeParse({ ...minimalError, field }).success).toBe(false);
   });
 
-  it('từ chối resource ngoài mười lăm giá trị', () => {
+  it('nhận resource shareLink — link chia sẻ hết hạn hay đã thu hồi trả NOT_FOUND', () => {
+    expect(ApiErrorBodySchema.safeParse({ ...minimalError, resource: 'shareLink' }).success).toBe(true);
+  });
+
+  it('từ chối resource ngoài mười sáu giá trị', () => {
     expect(ApiErrorBodySchema.safeParse({ ...minimalError, resource: 'wall' }).success).toBe(false);
   });
 
