@@ -47,6 +47,26 @@ function toUnits(data: CachedSettings | undefined): ProjectUnits {
 
 export type ProjectUnitsApi = Pick<ApiClient, 'projectSettings'>;
 
+const settingsInFlight = new Map<string, ReturnType<ProjectUnitsApi['projectSettings']['read']>>();
+
+/**
+ * Một lượt `GET /projects/:id/settings` cho mọi người đọc cùng lúc (PERF-03 P11a): màn tường
+ * gắn cả `useProjectUnits` lẫn `useProjectConfidenceThreshold`, hai khoá khác hình dạng nên
+ * react-query không gộp được — trước đây ra dây hai lần cách nhau ~16 ms. Không nhận `signal`:
+ * một người đọc huỷ không được làm hỏng lượt của người kia. Xong là bỏ khỏi bảng, nên lượt
+ * làm mới sau vẫn đi ra dây.
+ */
+export function readProjectSettingsShared(
+  api: ProjectUnitsApi,
+  projectId: string,
+): ReturnType<ProjectUnitsApi['projectSettings']['read']> {
+  const pending = settingsInFlight.get(projectId);
+  if (pending !== undefined) return pending;
+  const request = api.projectSettings.read({ projectId }).finally(() => settingsInFlight.delete(projectId));
+  settingsInFlight.set(projectId, request);
+  return request;
+}
+
 // Nạp lười như `useProjectSpatial`: nhập tĩnh `appClient` làm nặng gói của màn.
 const loadClient = async (api: ProjectUnitsApi | undefined): Promise<ProjectUnitsApi> =>
   api ?? (await import('@/api/appClient')).createAppApiClient();
@@ -61,7 +81,7 @@ export function useProjectUnits(projectId: string | undefined, api?: ProjectUnit
     queryKey: [...key, 'units'],
     enabled: Boolean(projectId) && settingsSnapshot === undefined,
     queryFn: async () => {
-      const result = await (await loadClient(api)).projectSettings.read({ projectId: projectId ?? '' });
+      const result = await readProjectSettingsShared(await loadClient(api), projectId ?? '');
       if (!result.ok) throw new Error('project settings unavailable');
       return result.data;
     },
