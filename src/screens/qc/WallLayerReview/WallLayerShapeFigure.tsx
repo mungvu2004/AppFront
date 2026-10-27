@@ -13,6 +13,7 @@
  * do `centreOfBounds` của hook dựng.
  */
 
+import { memo } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 
 import { selectionBorderToken } from '@/components/canvas/materialMap';
@@ -147,8 +148,10 @@ function WallBody({ points, thicknessMm, isReviewed }: { readonly points: string
  * tô sáng chọn/trỏ ở nhịp 180 ms, tách khỏi lớp một để hai nhịp không phải chia
  * nhau một thuộc tính. Viền LUÔN nằm trong cây và chỉ đổi độ mờ, nên nó mờ dần
  * chứ không nhấp nháy vì bị gắn rồi tháo.
+ *
+ * P5 (PERF-03): `memo` — rê chuột làm màn render lại, hình tường nào props không đổi thì bỏ qua.
  */
-export function WallShapeFigure({
+export const WallShapeFigure = memo(function WallShapeFigure({
   shape,
   isSelected,
   isHovered,
@@ -223,5 +226,4 @@ export function WallShapeFigure({
       />
     </g>
   );
-}
-
+});

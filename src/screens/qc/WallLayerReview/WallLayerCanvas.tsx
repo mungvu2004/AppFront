@@ -265,6 +265,9 @@ export function WallLayerCanvas({
     openWallMenu(left + width / 2, top + height / 2, menuRequest.wallId);
   }, [menuRequest, openWallMenu]);
 
+  /* P5: tra vùng chọn O(1) mỗi hình thay vì `includes` O(M). */
+  const selectedWallIdSet = useMemo(() => new Set<WallId>(selectedWallIds), [selectedWallIds]);
+
   /** Khung của lớp vẽ: ảnh bản vẽ nếu đã có, không thì vừa đủ ôm hết tường. */
   const surface = useMemo<WallLayerRectPx | null>(() => {
     if (drawingSizePx !== null) {
@@ -346,7 +349,7 @@ export function WallLayerCanvas({
                   <WallShapeFigure
                     isHovered={shape.id === hoveredWallId}
                     isInteractive={isInteractive}
-                    isSelected={shape.id === selectedWallId || selectedWallIds.includes(shape.id)}
+                    isSelected={shape.id === selectedWallId || selectedWallIdSet.has(shape.id)}
                     key={shape.id}
                     onHover={onHover}
                     onOpenMenu={handleOpenMenu}

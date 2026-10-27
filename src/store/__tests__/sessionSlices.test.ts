@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { create } from 'zustand';
 import { createSelectionSlice, type SelectionSlice } from '../selectionSlice';
 import { createToolSlice, type ToolSlice } from '../toolSlice';
@@ -11,7 +11,7 @@ import {
   type ViewSlice,
 } from '../viewSlice';
 import { createUiSlice, type UiSlice } from '../uiSlice';
-import { PERSIST_STORAGE_KEY, PERSIST_VERSION, useStore } from '../index';
+import { flushPersistedState, PERSIST_STORAGE_KEY, PERSIST_VERSION, useStore } from '../index';
 import { COLORING_MODE_IDS } from '../../lib/coloring/modes';
 import type { WallId } from '../../domain/spatial/types';
 
@@ -191,6 +191,8 @@ describe('persistence between sessions', () => {
     useStore.getState().setPanelWidth('left', 420);
     useStore.getState().setZoom(2);
 
+    // Writes are gathered (P7); the page going away is what flushes them.
+    window.dispatchEvent(new Event('pagehide'));
     const persistedAtUnload = window.localStorage.getItem(PERSIST_STORAGE_KEY);
 
     expect(persistedAtUnload).not.toBeNull();
@@ -210,6 +212,7 @@ describe('persistence between sessions', () => {
     useStore.getState().setActiveTool('drawWall');
     useStore.getState().setPanelWidth('right', 480);
 
+    flushPersistedState();
     const raw = window.localStorage.getItem(PERSIST_STORAGE_KEY);
 
     expect(raw).not.toBeNull();
@@ -231,9 +234,22 @@ describe('persistence between sessions', () => {
     ]);
   });
 
+  it('gathers a burst of sets into one localStorage write (P7)', () => {
+    flushPersistedState();
+    const write = vi.spyOn(Storage.prototype, 'setItem');
+
+    for (let step = 1; step <= 20; step += 1) useStore.getState().setZoom(1 + step / 100);
+    expect(write).not.toHaveBeenCalled();
+
+    flushPersistedState();
+    expect(write).toHaveBeenCalledTimes(1);
+    write.mockRestore();
+  });
+
   it('stamps what it writes with the shape version, so it can be migrated later', () => {
     useStore.getState().setPanelWidth('left', 360);
 
+    flushPersistedState();
     const raw = window.localStorage.getItem(PERSIST_STORAGE_KEY);
     const persisted = JSON.parse(raw ?? '{}') as { version?: number };
 
