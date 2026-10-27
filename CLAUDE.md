@@ -19,6 +19,7 @@ tiếng Anh — xem mục B và E.11.
 | Lệnh | Việc |
 |---|---|
 | `pnpm verify` | **Cổng tổng.** Bảy bước tuần tự: typecheck → lint → **import vòng** → test+độ phủ → build → kích thước gói → **độ dài file**. Dừng ở bước hỏng đầu tiên. Chạy cái này trước khi mở PR |
+| `pnpm verify:fast` | **Cổng nhanh** (~20 s ấm), chạy mỗi lần sửa: `tsc --incremental`, ESLint trên tệp đổi, vitest **chỉ thư mục có tệp đổi** (không theo chuỗi phụ thuộc, không độ phủ), độ dài file. Không build/kích thước gói/import vòng — `pnpm verify` đầy đủ **chỉ trước merge**. `VERIFY_FAST_BASE=HEAD` = chỉ phần chưa commit |
 | `pnpm lint` | cảnh báo cũng là lỗi (`--max-warnings 0`) |
 | `pnpm test` | **không** đối chiếu ngưỡng độ phủ |
 | `pnpm coverage` | có đối chiếu ngưỡng. CI chạy cái này, không chạy `test` |

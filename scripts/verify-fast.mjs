@@ -8,8 +8,9 @@
  * - typecheck: `tsc --incremental` (cả app lẫn Pascal) — tsbuildinfo trong
  *   `node_modules/.cache/verify-fast`, nên lượt sau chỉ kiểm lại phần đổi;
  * - lint: ESLint trên đúng các tệp `.ts/.tsx` bị đổi, KHÔNG `import/no-cycle`;
- * - test: `vitest run --changed <gốc>` — test nhập (trực tiếp hay gián tiếp) tệp bị
- *   đổi, KHÔNG độ phủ;
+ * - test: vitest trên thư mục của các tệp bị đổi (test cùng thư mục và `__tests__` con),
+ *   KHÔNG độ phủ, KHÔNG theo chuỗi phụ thuộc — sửa `lib/format` thì không kéo 370 tệp
+ *   test của mọi màn dùng nó (đo: 404 s). Đổi cấu hình test/gói thì chạy cả bộ;
  * - độ dài file: như cổng đầy đủ (rẻ).
  *
  * Không build, không kích thước gói, không ngưỡng độ phủ, không import vòng:
@@ -27,6 +28,12 @@ const FAILED = 'HỎNG';
 const NOT_APPLICABLE = 'không áp dụng';
 const CACHE_DIR = 'node_modules/.cache/verify-fast';
 const LINTED = /\.(ts|tsx)$/;
+/** Thư mục có test: tệp đổi ngoài các gốc này (docs, ảnh…) không kéo test nào. */
+const TEST_ROOTS = ['src/', 'eslint-rules/', 'scripts/'];
+/** Đổi một trong các tệp này là đổi môi trường của MỌI test → chạy cả bộ. */
+const FULL_SUITE = /^(vitest\.config\.ts|package\.json|pnpm-lock\.yaml|tsconfig[^/]*\.json|src\/test\/)/;
+/** Trần độ dài dòng lệnh (cmd.exe 8.191 ký tự) — vượt thì chạy cả bộ thay vì cắt bớt thư mục. */
+const MAX_FILTER_CHARS = 6000;
 
 function git(args) {
   const run = spawnSync('git', args, { encoding: 'utf8' });
@@ -48,6 +55,24 @@ function changedFiles(base) {
     ...git(['ls-files', '--others', '--exclude-standard']).split('\n'),
   ];
   return [...new Set(lines.filter((f) => f && existsSync(f)))];
+}
+
+/**
+ * Bộ lọc vitest: thư mục (kèm `/` cuối để `lib/format/` không khớp `lib/formatting/`) của mọi tệp đổi
+ * dưới `TEST_ROOTS`; tệp trong `__tests__` tính cho thư mục cha. `null` = cả bộ, `[]` = không test nào.
+ */
+export function testFilters(changed) {
+  if (changed.some((f) => FULL_SUITE.test(f))) return null;
+  const dirs = new Set();
+  for (const file of changed) {
+    if (!TEST_ROOTS.some((root) => file.startsWith(root))) continue;
+    const dir = file.slice(0, file.lastIndexOf('/') + 1).replace(/__tests__\/$/, '');
+    dirs.add(dir);
+  }
+  // Thư mục cha đã phủ thư mục con (bộ lọc khớp chuỗi con của đường tệp).
+  const sorted = [...dirs].sort();
+  const kept = sorted.filter((dir) => !sorted.some((other) => other !== dir && dir.startsWith(other)));
+  return kept.join(' ').length > MAX_FILTER_CHARS ? null : kept;
 }
 
 function runBuffered(command, env) {
@@ -80,8 +105,10 @@ async function main() {
   const base = baseRef();
   const changed = changedFiles(base);
   const lintable = changed.filter((f) => LINTED.test(f));
+  const filters = testFilters(changed);
   mkdirSync(CACHE_DIR, { recursive: true });
   console.log(`Cổng NHANH — gốc ${base.slice(0, 10)}, ${changed.length} tệp đổi (${lintable.length} tệp ts/tsx).`);
+  console.log(`Test: ${filters === null ? 'cả bộ (đổi cấu hình test/gói)' : filters.join(' ') || 'không có'}`);
 
   const tsc = (bin, project, info) =>
     `${bin} --noEmit --incremental --tsBuildInfoFile ${CACHE_DIR}/${info}${project ? ` -p ${project}` : ''}`;
@@ -94,7 +121,15 @@ async function main() {
     },
     // Danh sách tệp đi qua biến môi trường: dòng lệnh cmd.exe giới hạn 8.191 ký tự, nhánh dài vượt.
     { name: 'lint (tệp đổi)', command: lintable.length ? 'node scripts/verify-fast.mjs --lint' : null },
-    { name: 'test liên quan', command: `pnpm exec vitest run --changed ${base} --passWithNoTests` },
+    {
+      name: 'test thư mục đổi',
+      command:
+        filters === null
+          ? 'pnpm exec vitest run'
+          : filters.length
+            ? `pnpm exec vitest run ${filters.join(' ')} --passWithNoTests`
+            : null,
+    },
     { name: 'độ dài file', command: 'pnpm length' },
   ];
 
@@ -111,7 +146,7 @@ async function main() {
     console.log(`\n${'='.repeat(72)}\n▶ ${step.name}\n${'='.repeat(72)}`);
     if (result === null) {
       rows.push([step.name, NOT_APPLICABLE, '']);
-      console.log('không có tệp ts/tsx bị đổi');
+      console.log('không có tệp nào bị đổi thuộc bước này');
       return;
     }
     if (result.output) process.stdout.write(result.output.endsWith('\n') ? result.output : `${result.output}\n`);
@@ -125,7 +160,7 @@ async function main() {
   process.exit(exitCode);
 }
 
-if (process.argv[2] === '--lint') {
+if (process.argv[1]?.endsWith('verify-fast.mjs') && process.argv[2] === '--lint') {
   lintChild((process.env.VERIFY_FAST_FILES ?? '').split('\n').filter(Boolean)).then(
     (code) => process.exit(code),
     (error) => {
@@ -133,7 +168,7 @@ if (process.argv[2] === '--lint') {
       process.exit(1);
     },
   );
-} else {
+} else if (process.argv[1]?.endsWith('verify-fast.mjs')) {
   main().catch((error) => {
     console.error(error);
     process.exit(1);
