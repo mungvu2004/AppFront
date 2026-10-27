@@ -203,7 +203,7 @@ import type {
   WallThicknessChoice,
 } from './types';
 import { arrowStepHandler } from './listArrowKeys';
-import { useFramePointerReading } from './useFramePointerReading';
+import { useFrameState } from '@/hooks/useFrameState';
 import { useWallReviewQueue } from './useWallReviewQueue';
 import { nextUnreviewedWallId, sortByReviewQueue, type WallReviewQueue } from './wallReviewQueue';
 
@@ -1957,7 +1957,7 @@ export function useWallLayerReview(
   /* ---------------------------------------------------------------------- */
 
   /* P5: gom theo khung hình — tối đa một lượt render mỗi khung khi rê chuột. */
-  const [pointerReading, onPointerMove] = useFramePointerReading();
+  const [pointerReading, onPointerMove] = useFrameState<WallLayerPointerReading | null>(null);
 
   /**
    * Canvas báo lên toạ độ ĐÃ là pixel bản vẽ (trình duyệt đổi giúp qua ma trận

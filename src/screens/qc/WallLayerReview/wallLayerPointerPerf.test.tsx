@@ -1,9 +1,9 @@
 import { act, render, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { useFramePointerReading } from './useFramePointerReading';
+import { useFrameState } from '@/hooks/useFrameState';
 import * as hatch from './wallLayerHatch';
-import type { WallLayerCanvasShape } from './wallLayerHatch';
+import type { WallLayerCanvasShape, WallLayerPointerReading } from './wallLayerHatch';
 import { WallShapeFigure, type WallShapeFigureProps } from './WallLayerShapeFigure';
 
 /* Bọc `toSvgPoints` để đếm số lần WallShapeFigure thực sự render — không đổi hành vi. */
@@ -78,7 +78,7 @@ describe('[PERF-03 P5] rê chuột không vẽ lại mọi tường', () => {
     const { result } = renderHook(() => {
       renderCount += 1;
 
-      return useFramePointerReading();
+      return useFrameState<WallLayerPointerReading | null>(null);
     });
     const before = renderCount;
 
