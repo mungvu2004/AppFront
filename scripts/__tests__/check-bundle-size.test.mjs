@@ -434,6 +434,7 @@ describe('findEvalSites — CSP không có unsafe-eval', () => {
       '  }',
       '  compile() {',
       '    const F = Function;',
+      '    const content = this?.content ?? [``];',
       '    return 1 }',
       'const G = Function;',
     ].join('\n');
@@ -441,5 +442,50 @@ describe('findEvalSites — CSP không có unsafe-eval', () => {
 
     expect(allowed).toHaveLength(2);
     expect(blocked).toHaveLength(1);
+  });
+
+  it('zod sau minify (tên biến đổi) vẫn được miễn', () => {
+    const text = [
+      '  try {',
+      '    const t9 = Function;',
+      '    return new t9(""), true;',
+      '  } catch {}',
+      '  compile() {',
+      '    const e = Function, n = this.content;',
+    ].join('\n');
+    const { blocked, allowed } = findEvalSites([{ name: 'ids-DkudU5EX.js', text }]);
+
+    expect(blocked).toHaveLength(0);
+    expect(allowed).toHaveLength(2);
+  });
+
+  it('compile() của gói khác (không có .content của zod) vẫn chặn', () => {
+    const text = ['  compile() {', '    const $e = Function;', '    return new $e(this.source);'].join('\n');
+    const { blocked, allowed } = findEvalSites([{ name: 'ids-DkudU5EX.js', text }]);
+
+    expect(allowed).toHaveLength(0);
+    expect(blocked).toHaveLength(1);
+  });
+
+  it('miễn của pdfkit chỉ có tác dụng trong pdfkit.standalone-*.js; tệp khác mang cùng mã vẫn chặn', () => {
+    const text = [
+      'var R = "[object Function]";',
+      'Q = Function("binder", "return function (" + B(H, ",") + "){ return binder.apply(this,arguments); }")(Y);',
+      'try {',
+      '  return Function("return function*() {}")();',
+      '} catch {',
+      '}',
+      'var X = Function;',
+    ].join('\n');
+    // Cả hai kiểu dấu tách: CI chạy trên Linux, máy này Windows.
+    const inPdfkit = findEvalSites([{ name: 'dist\\assets\\pascal\\pdfkit.standalone-D9mcHyuB.js', text }]);
+    const inPdfkitPosix = findEvalSites([{ name: 'dist/assets/pascal/pdfkit.standalone-D9mcHyuB.js', text }]);
+    const elsewhere = findEvalSites([{ name: 'dist\\assets\\pascal\\ids-DkudU5EX.js', text }]);
+
+    expect(inPdfkit.allowed).toHaveLength(3);
+    expect(inPdfkitPosix.allowed).toHaveLength(3);
+    expect(inPdfkit.blocked.map((site) => site.snippet)).toEqual(['Function;']);
+    expect(elsewhere.allowed).toHaveLength(0);
+    expect(elsewhere.blocked).toHaveLength(4);
   });
 });

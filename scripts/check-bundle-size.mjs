@@ -209,11 +209,56 @@ function isHarmlessEvalToken(text, index, token) {
  * Hai chỗ zod 4 trong gói vách ngăn, miễn THEO NỘI DUNG chứ không theo tệp:
  * cả hai không bao giờ chạy vì `scripts/pascal-no-eval.mjs` bật `jitless` cho cả hai điểm vào
  * (trang chính lẫn editor3d) trước khi nạp gói. Chỗ thứ ba — kể cả trong cùng tệp — vẫn đỏ.
+ * Tên biến để `[\w$]+`: từ lượt minify bó Pascal (`39dc7d96`, 2026-10-24) esbuild đổi `F` thành
+ * `t9`/`e` (`const t9 = Function; return new t9(""), true;`), và mẫu cũ ghi cứng `F` thôi khớp.
+ * `Doc.compile` còn đòi `.content` ngay sau (thân hàm của zod) để không miễn `compile()` của gói khác.
+ *
+ * Mục có `file` chỉ miễn trong tệp có tên khớp; mọi tệp khác quét đủ.
  */
 const EVAL_ALLOWED = [
-  { reason: 'zod 4 `allowsEval` — tắt bởi jitless', pattern: /const F = Function;\s*new F\(""\);/ },
-  { reason: 'zod 4 `Doc.compile` — tắt bởi jitless', pattern: /compile\(\) \{\s*const F = Function;/ },
+  { reason: 'zod 4 `allowsEval` — tắt bởi jitless', pattern: /const ([\w$]+) = Function;\s*(?:return )?new \1\(""\)/ },
+  {
+    reason: 'zod 4 `Doc.compile` — tắt bởi jitless',
+    pattern: /compile\(\) \{\s*const [\w$]+ = Function[;,][^{}]{0,80}?\.content\b/,
+  },
+  ...PDFKIT_EVAL_ALLOWED(),
 ];
+
+/**
+ * pdfkit bản standalone (xuất mặt bằng PDF của editor Pascal, nạp động khi bấm nút), CHỈ trong
+ * `pdfkit.standalone-*.js`. BUNDLE-GATE (2026-10-27, chủ dự án chọn "sửa + miễn trừ hẹp",
+ * CHỜ người duyệt ở `/merge-review`).
+ *
+ * Đo: dựng PDF 2 trang có phông TTF nhúng bằng chính tệp dựng này trong Chromium dưới CSP của nginx
+ * (`AppBack/deploy/nginx/snippets/security_headers.conf`) — tệp PDF hợp lệ, 0 vi phạm CSP. 31 chỗ
+ * quét được chia như dưới: phần lớn là chữ trong chuỗi hay tham chiếu, ba chỗ dựng mã thật thì
+ * không bao giờ chạy hoặc nằm trong `try/catch`. Mẫu khớp được cả bản minify (tên biến `[\w$]+`).
+ */
+function PDFKIT_EVAL_ALLOWED() {
+  const file = /^pdfkit\.standalone-[\w-]+\.js$/;
+  return [
+    { reason: 'pdfkit — khoá `Function` của từ điển shading PDF', pattern: /Function: [\w$]+, Extend:/ },
+    { reason: 'pdfkit — chuỗi "[Function …]" của util.inspect', pattern: /" ?\[Function" \+ [\w$]+ \+ "\]"/ },
+    { reason: 'pdfkit — câu báo lỗi "must be of type Function"', pattern: /argument must be of type Function/ },
+    { reason: 'pdfkit — chuỗi "[object Function]"', pattern: /"\[object Function\]"/ },
+    { reason: 'pdfkit — tên module "es-errors/eval"', pattern: /"es-errors\/eval"/ },
+    { reason: 'pdfkit — bảng get-intrinsic: tham chiếu, không gọi', pattern: /"%eval%": eval,|"%Function%": [\w$]+,|\["Function", "prototype"\]/ },
+    {
+      reason: 'pdfkit — function-bind dự phòng, chỉ dùng khi thiếu Function.prototype.bind',
+      pattern: /Function\("binder", "return function \("/,
+    },
+    {
+      reason: 'pdfkit — get-intrinsic dò AsyncFunction… trong try/catch, chỉ khi được hỏi',
+      pattern: /[\w$]+ = Function, [\w$]+ = function\([\w$]+\) \{\s*try \{\s*return [\w$]+\('"use strict"; return \('/,
+    },
+    {
+      reason: 'pdfkit — is-generator-function dò cú pháp trong try/catch',
+      pattern: /try \{\s*return Function\("return function\*\(\) \{\}"\)\(\);\s*\} catch/,
+    },
+    { reason: 'pdfkit — đọc Function.prototype[Symbol.hasInstance]', pattern: /Function\.prototype\[Symbol\.hasInstance\]/ },
+    { reason: 'pdfkit — getPrototypeOf(function(){}) = Function.prototype', pattern: /getPrototypeOf\(function\(\) \{\s*\}\)/ },
+  ].map((entry) => ({ ...entry, file }));
+}
 
 /** Thư mục chứa mã sẽ chạy trên trình duyệt; `findEvalSites` đọc `.js`/`.mjs` dưới chúng. */
 const EVAL_SCAN_DIRS = [join('dist', 'assets'), join('dist', 'basis'), join('dist', 'draco')];
@@ -224,7 +269,8 @@ function findEvalSites(files, allowedList = EVAL_ALLOWED) {
   const allowed = [];
 
   for (const { name, text } of files) {
-    const spans = allowedList.flatMap(({ reason, pattern }) =>
+    const forFile = allowedList.filter(({ file }) => file === undefined || file.test(name.split(/[\\/]/).pop()));
+    const spans = forFile.flatMap(({ reason, pattern }) =>
       [...text.matchAll(new RegExp(pattern.source, 'g'))].map((m) => ({
         reason,
         start: m.index,
@@ -305,8 +351,16 @@ const BUDGETS_KIB = {
    * (`screens/viewer/Viewer3D` — `three` + GLTFLoader + DRACO).
    */
   routeChunk: 280,
-  /** Toàn bộ CSS. Tailwind đã purge. Số đo 2026-09-05: 9,8 KiB. */
-  css: 12,
+  /**
+   * Toàn bộ CSS. Tailwind đã purge. Số đo 2026-09-05: 9,8 KiB.
+   *
+   * BUNDLE-GATE (2026-10-27, chủ dự án chọn đặt lại theo số đo, CHỜ người duyệt ở `/merge-review`):
+   * 11,8 (17/10) → 24,3 KiB do Tailwind 3 → 4 (`6dbfd866`), lớp của đợt làm lại giao diện 23–26/10,
+   * CSS riêng của `/welcome` (`5be42f2a`, 3,0) và `/login`. Đã cắt phần thừa: `/login` thôi nạp cả
+   * `landing.css` cũ (`screens/auth/auth.css`, 4,6 → 1,2), Tailwind của app thôi quét `src/pascal-page`
+   * (−1,3) → 19,8 KiB. Riêng CSS chunk vào đã 16,0 > 12, nên 12 → 22 (dư ~11 %).
+   */
+  css: 22,
 };
 
 /**
@@ -352,11 +406,18 @@ const BUDGETS_KIB = {
  * upstream nay có vân thật bằng `.webp` 512 sinh từ ảnh nguồn (`scripts/pascal-material-webp.mjs`),
  * thêm ≈ 570 KiB. Tài sản ở base đã vượt sẵn (11 310,5 KiB, vì `icons` 732 → 2 215 KiB), nên
  * `assets` 11 000 → 12 500 và `total` 33 000 → 34 500.
+ *
+ * BUNDLE-GATE (2026-10-27, chủ dự án chọn đặt lại theo số đo, CHỜ người duyệt ở `/merge-review`):
+ * các gói editor-realism 20–25/10 thêm vật liệu CC0 R5 (`.webp` 512, ≈ +4,3 MB), hai HDRI 1k
+ * (≈ 2,8 MB) và mẫu Sketchfab/Poly Haven (`pascal/items` 2,0 → 5,3 MB): tài sản 22 275,6 KiB. Biểu tượng
+ * đã thu về 256 px (`copy-pascal-assets.mjs`, 2 215 → 549 KiB) → 20 608,9 KiB; tổng 36 095,1 KiB. Phần
+ * còn lại là vân 3D, cắt nữa là giảm chất lượng thấy được — chủ dự án không chọn. `assets` 12 500 →
+ * 23 000 và `total` 34 500 → 40 500, dư ~11 % như trên.
  */
 const PASCAL_BUDGETS_KIB = {
   code: 22_000,
-  assets: 12_500,
-  total: 34_500,
+  assets: 23_000,
+  total: 40_500,
 };
 
 /** Ba thư mục hợp thành vách ngăn, sau khi `vite build` chép `public/` vào `dist/`. */

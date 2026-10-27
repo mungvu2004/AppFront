@@ -97,6 +97,12 @@ const MATERIAL_WANTED = /\.ktx2$/;
  */
 const ICON_SOURCE = join('vendor', 'pascal', 'assets', 'icons');
 const ICON_TARGET = join('public', 'icons');
+/**
+ * Cạnh dài tối đa của biểu tượng `.webp` khi chép. Nguồn upstream là 500–1 024 px (2 215 KiB), mà
+ * editor vẽ chúng ở 14–28 px (`width={14|28}`). 256 px vẫn dư gấp 9 lần ở 28 px trên màn 1x
+ * và hơn 4 lần trên màn 2x; đo 2026-10-27: 2 215 → 549 KiB, tài sản Pascal là cổng đang vượt.
+ */
+const ICON_MAX_PX = 256;
 
 /** Âm thanh thao tác của editor gốc: `/audios/sfx/*.mp3` (từ `apps/editor/public/audios`). */
 const AUDIO_SOURCE = join('vendor', 'pascal', 'assets', 'audios');
@@ -262,9 +268,25 @@ cpSync(ITEMS_SOURCE, ITEMS_TARGET, { recursive: true });
 cpSync(APPFRONT_ITEMS_SOURCE, ITEMS_TARGET, { recursive: true, filter: (src) => !src.endsWith('.md') });
 
 rmSync(ICON_TARGET, { force: true, recursive: true });
-cpSync(ICON_SOURCE, ICON_TARGET, { recursive: true });
+cpSync(ICON_SOURCE, ICON_TARGET, { recursive: true, filter: (src) => !src.endsWith('.webp') });
+let iconsResized = 0;
+for (const rel of walk(ICON_SOURCE).filter((name) => name.endsWith('.webp'))) {
+  const target = join(ICON_TARGET, rel);
+  mkdirSync(dirname(target), { recursive: true });
+  const { width = 0, height = 0 } = await sharp(join(ICON_SOURCE, rel)).metadata();
+  if (Math.max(width, height) <= ICON_MAX_PX) {
+    copyFileSync(join(ICON_SOURCE, rel), target);
+    continue;
+  }
+  await sharp(join(ICON_SOURCE, rel)).resize(ICON_MAX_PX, ICON_MAX_PX, { fit: 'inside' }).webp({ quality: 85 }).toFile(target);
+  iconsResized += 1;
+}
 rmSync(AUDIO_TARGET, { force: true, recursive: true });
 cpSync(AUDIO_SOURCE, AUDIO_TARGET, { recursive: true });
+// Phông nhúng của xuất PDF (luật `pdf-fonts` trong `pascal-self-host.mjs`), kèm giấy phép OFL.
+cpSync(join('vendor', 'pascal', 'packages', 'editor', 'src', 'lib', 'floorplan', 'pdf-fonts'), join('public', 'pascal', 'pdf-fonts'), {
+  recursive: true,
+});
 // Con trỏ của khung vẽ mặt bằng: `url('/cursor.svg')` trong `floorplan-panel.tsx`.
 copyFileSync(join('vendor', 'pascal', 'assets', 'cursor.svg'), join('public', 'cursor.svg'));
 // R4 (editor-realism): HDRI tự host cho chủ đề sáng (`src/pascal-page/realism/lighting.ts` HDRI_URL).
@@ -302,6 +324,6 @@ if (missing.length > 0) {
       (materials.length > 6 ? ` … và ${String(materials.length - 6)} nữa.` : '.'),
   );
 }
-console.log(`Đã chép ${String(countFiles(ICON_TARGET))} biểu tượng vào ${ICON_TARGET}/`);
+console.log(`Đã chép ${String(countFiles(ICON_TARGET))} biểu tượng vào ${ICON_TARGET}/ (thu về ${String(ICON_MAX_PX)} px: ${String(iconsResized)})`);
 console.log(`Đã chép ${String(countFiles(AUDIO_TARGET))} tệp âm thanh vào ${AUDIO_TARGET}/`);
 console.log(`Đã chép ${String(basisCopied.length)} tệp bộ giải Basis vào ${BASIS_TARGET}/: ${basisCopied.join(', ')}`);

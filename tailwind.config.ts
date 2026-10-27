@@ -31,6 +31,9 @@ const config: Config = {
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}',
     '!./src/**/*.test.{ts,tsx}',
+    // Trang 3D có bản dựng và Tailwind riêng (`src/pascal-page/pascal.css`, `@source "."`); quét nó ở đây
+    // chỉ đổ lớp của editor Pascal vào CSS của app (đo 2026-10-27: +1,3 KiB gzip).
+    '!./src/pascal-page/**',
     ...(PRODUCT_BUNDLE
       ? [
           '!./src/App.tsx',
