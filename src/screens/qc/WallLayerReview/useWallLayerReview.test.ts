@@ -85,6 +85,16 @@ import {
 import { WALL_LAYER_REVIEW_SCENARIOS } from './wallLayerReviewScenarios';
 import type { WallThicknessChoice } from './types';
 
+/** P5: toạ độ con trỏ cập nhật theo `requestAnimationFrame` — chờ một khung rồi mới đọc. */
+const nextFrame = () =>
+  new Promise<void>((resolve) => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => resolve());
+    } else {
+      resolve();
+    }
+  });
+
 /* `resolveConflict` phải 0 lần (R6): bọc bản thật để đếm, không đổi hành vi. */
 vi.mock('@/lib/versioning/conflict', async (importOriginal) => {
   const actual = await importOriginal<typeof conflictModule>();
@@ -839,7 +849,7 @@ describe('ray công cụ và thanh trạng thái', () => {
 
     await act(async () => {
       mounted.result.current.canvas.onPointerMove({ xPx: 100, yPx: 80 });
-      await Promise.resolve();
+      await nextFrame();
     });
 
     expect(mounted.result.current.statusBar.cursorLabel).not.toBe(CURSOR_IDLE_LABEL);
@@ -847,7 +857,7 @@ describe('ray công cụ và thanh trạng thái', () => {
 
     await act(async () => {
       mounted.result.current.canvas.onPointerMove(null);
-      await Promise.resolve();
+      await nextFrame();
     });
 
     expect(mounted.result.current.statusBar.cursorLabel).toBe(CURSOR_IDLE_LABEL);
@@ -1203,7 +1213,7 @@ describe('công cụ đã nối dây', () => {
     });
     await act(async () => {
       mounted.result.current.canvas.onPointerMove(asCanvasPoint({ x: 1200, y: 0 }));
-      await Promise.resolve();
+      await nextFrame();
     });
 
     expect(mounted.result.current.canvas.draftGuidePx?.fromPx).not.toBeNull();
@@ -1212,7 +1222,7 @@ describe('công cụ đã nối dây', () => {
     await pressKey(mounted.registry, shortcutForTool('splitWall'));
     await act(async () => {
       mounted.result.current.canvas.onPointerMove(asCanvasPoint({ x: 600, y: 0 }));
-      await Promise.resolve();
+      await nextFrame();
     });
 
     expect(mounted.result.current.canvas.draftGuidePx).not.toBeNull();
@@ -1235,7 +1245,7 @@ describe('công cụ đã nối dây', () => {
     });
     await act(async () => {
       mounted.result.current.canvas.onPointerMove(asCanvasPoint({ x: 1200, y: 0 }));
-      await Promise.resolve();
+      await nextFrame();
     });
 
     expect(mounted.result.current.canvas.measurement?.state).toBe('measuring');
