@@ -54,3 +54,23 @@ describe('useProjectUnits', () => {
     expect(missing.projectSettings.read).not.toHaveBeenCalled();
   });
 });
+
+describe('readProjectSettingsShared (PERF-03 P11a)', () => {
+  it('đơn vị + ngưỡng tin cậy đọc cùng lúc chỉ ra dây một lần', async () => {
+    const { readProjectConfidenceThreshold } = await import('./useProjectConfidenceThreshold');
+    const { readProjectSettingsShared } = await import('./useProjectUnits');
+    const api = fakeApi(async () => ({ ok: true, data: { lengthUnit: 'm', confidenceThreshold: 0.8 } }));
+
+    const [units, threshold] = await Promise.all([
+      readProjectSettingsShared(api, 'project-dup'),
+      readProjectConfidenceThreshold(api.projectSettings, { projectId: 'project-dup' }),
+    ]);
+
+    expect(api.projectSettings.read).toHaveBeenCalledTimes(1);
+    expect(units).toEqual({ ok: true, data: { lengthUnit: 'm', confidenceThreshold: 0.8 } });
+    expect(threshold).toBe(0.8);
+
+    await readProjectSettingsShared(api, 'project-dup');
+    expect(api.projectSettings.read).toHaveBeenCalledTimes(2);
+  });
+});
