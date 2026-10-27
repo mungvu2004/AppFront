@@ -108,7 +108,6 @@ import { useFloorLayerReadFailure } from '../../qc/shared/floorLayerReadFailure'
 import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
-import { useFrameState } from '@/hooks/useFrameState';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
@@ -730,7 +729,7 @@ export function useScaleCalibration(
     width: 0,
     height: 0,
   });
-  const [cursorPoint, setCursorPoint] = useFrameState<ImageRatioPoint | null>(null);
+  const [cursorPoint, setCursorPoint] = useState<ImageRatioPoint | null>(null);
   /** Kết quả lượt áp gần nhất: `success` chỉ khi MỌI `saveScale` của lượt ấy thành công (A5). */
   const [applyOutcome, setApplyOutcome] = useState<'success' | 'failed' | null>(null);
   const [isApplying, setApplying] = useState(false);
@@ -1247,11 +1246,8 @@ export function useScaleCalibration(
   const onMoveCursor = useCallback((point: ImageRatioPoint | null) => {
     // `null` giữ nguyên điểm cuối cùng biết được: thanh trạng thái nói toạ độ
     // con trỏ vừa rời khỏi, không nháy về gốc toạ độ.
-    // Gom theo khung (PERF-03 P5): mỗi lần rê chuột không còn render lại cả màn.
-    if (point !== null) {
-      setCursorPoint(point);
-    }
-  }, [setCursorPoint]);
+    setCursorPoint((previous) => point ?? previous);
+  }, []);
 
   const onChangeApplyScope = useCallback((scope: ScaleApplyScope) => {
     setApplyScope(scope);
