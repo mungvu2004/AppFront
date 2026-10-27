@@ -186,29 +186,12 @@ export const rolesOf = (project: ApiProject, reader: SpatialReader): readonly Pr
   return member === undefined ? reader.roles : [member.role];
 };
 
-type ProjectRead = ReturnType<ApiClient['projects']['read']>;
-const projectReadsInFlight = new Map<string, ProjectRead>();
-
-/**
- * Một lượt `GET /projects/:id` cho mọi người đọc cùng lúc (PERF-03 P11a): header `AppLayout`
- * và breadcrumb của màn Tầng đọc cùng dự án dưới hai khoá khác hình dạng, nên react-query không
- * gộp được — trước đây ra dây hai lần (650 và 739 ms). Không nhận `signal`: một người đọc huỷ
- * không được làm hỏng lượt của người kia. Xong là bỏ khỏi bảng, lượt làm mới sau vẫn ra dây.
- */
-export function readProjectShared(projects: Pick<ApiClient['projects'], 'read'>, projectId: string): ProjectRead {
-  const pending = projectReadsInFlight.get(projectId);
-  if (pending !== undefined) return pending;
-  const request = projects.read({ projectId }).finally(() => projectReadsInFlight.delete(projectId));
-  projectReadsInFlight.set(projectId, request);
-  return request;
-}
-
 /** #24 thô (cùng hình bộ đệm `queryKeys.project.detail` của `mobileViewerQueries.ts`); lỗi thì NÉM. */
 export async function readProjectDetail(
   projects: Pick<ApiClient['projects'], 'read'>,
-  { projectId }: ReadProjectSpatialInput,
+  { projectId, signal }: ReadProjectSpatialInput,
 ): Promise<ApiProject> {
-  const result = await readProjectShared(projects, projectId);
+  const result = await projects.read(signal === undefined ? { projectId } : { projectId, signal });
 
   if (!result.ok) {
     throw result.error;
