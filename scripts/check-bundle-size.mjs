@@ -209,14 +209,18 @@ function isHarmlessEvalToken(text, index, token) {
  * Hai chỗ zod 4 trong gói vách ngăn, miễn THEO NỘI DUNG chứ không theo tệp:
  * cả hai không bao giờ chạy vì `scripts/pascal-no-eval.mjs` bật `jitless` cho cả hai điểm vào
  * (trang chính lẫn editor3d) trước khi nạp gói. Chỗ thứ ba — kể cả trong cùng tệp — vẫn đỏ.
- * Tên biến để `\w+`: từ lượt minify bó Pascal (`39dc7d96`, 2026-10-24) esbuild đổi `F` thành
+ * Tên biến để `[\w$]+`: từ lượt minify bó Pascal (`39dc7d96`, 2026-10-24) esbuild đổi `F` thành
  * `t9`/`e` (`const t9 = Function; return new t9(""), true;`), và mẫu cũ ghi cứng `F` thôi khớp.
+ * `Doc.compile` còn đòi `.content` ngay sau (thân hàm của zod) để không miễn `compile()` của gói khác.
  *
  * Mục có `file` chỉ miễn trong tệp có tên khớp; mọi tệp khác quét đủ.
  */
 const EVAL_ALLOWED = [
-  { reason: 'zod 4 `allowsEval` — tắt bởi jitless', pattern: /const (\w+) = Function;\s*(?:return )?new \1\(""\)/ },
-  { reason: 'zod 4 `Doc.compile` — tắt bởi jitless', pattern: /compile\(\) \{\s*const \w+ = Function[;,]/ },
+  { reason: 'zod 4 `allowsEval` — tắt bởi jitless', pattern: /const ([\w$]+) = Function;\s*(?:return )?new \1\(""\)/ },
+  {
+    reason: 'zod 4 `Doc.compile` — tắt bởi jitless',
+    pattern: /compile\(\) \{\s*const [\w$]+ = Function[;,][^{}]{0,80}?\.content\b/,
+  },
   ...PDFKIT_EVAL_ALLOWED(),
 ];
 
@@ -228,24 +232,24 @@ const EVAL_ALLOWED = [
  * Đo: dựng PDF 2 trang có phông TTF nhúng bằng chính tệp dựng này trong Chromium dưới CSP của nginx
  * (`AppBack/deploy/nginx/snippets/security_headers.conf`) — tệp PDF hợp lệ, 0 vi phạm CSP. 31 chỗ
  * quét được chia như dưới: phần lớn là chữ trong chuỗi hay tham chiếu, ba chỗ dựng mã thật thì
- * không bao giờ chạy hoặc nằm trong `try/catch`. Mẫu khớp được cả bản minify (tên biến `\w+`).
+ * không bao giờ chạy hoặc nằm trong `try/catch`. Mẫu khớp được cả bản minify (tên biến `[\w$]+`).
  */
 function PDFKIT_EVAL_ALLOWED() {
   const file = /^pdfkit\.standalone-[\w-]+\.js$/;
   return [
-    { reason: 'pdfkit — khoá `Function` của từ điển shading PDF', pattern: /Function: \w+, Extend:/ },
-    { reason: 'pdfkit — chuỗi "[Function …]" của util.inspect', pattern: /" ?\[Function" \+ \w+ \+ "\]"/ },
+    { reason: 'pdfkit — khoá `Function` của từ điển shading PDF', pattern: /Function: [\w$]+, Extend:/ },
+    { reason: 'pdfkit — chuỗi "[Function …]" của util.inspect', pattern: /" ?\[Function" \+ [\w$]+ \+ "\]"/ },
     { reason: 'pdfkit — câu báo lỗi "must be of type Function"', pattern: /argument must be of type Function/ },
     { reason: 'pdfkit — chuỗi "[object Function]"', pattern: /"\[object Function\]"/ },
     { reason: 'pdfkit — tên module "es-errors/eval"', pattern: /"es-errors\/eval"/ },
-    { reason: 'pdfkit — bảng get-intrinsic: tham chiếu, không gọi', pattern: /"%eval%": eval,|"%Function%": \w+,|\["Function", "prototype"\]/ },
+    { reason: 'pdfkit — bảng get-intrinsic: tham chiếu, không gọi', pattern: /"%eval%": eval,|"%Function%": [\w$]+,|\["Function", "prototype"\]/ },
     {
       reason: 'pdfkit — function-bind dự phòng, chỉ dùng khi thiếu Function.prototype.bind',
       pattern: /Function\("binder", "return function \("/,
     },
     {
       reason: 'pdfkit — get-intrinsic dò AsyncFunction… trong try/catch, chỉ khi được hỏi',
-      pattern: /\w+ = Function, \w+ = function\(\w+\) \{\s*try \{\s*return \w+\('"use strict"; return \('/,
+      pattern: /[\w$]+ = Function, [\w$]+ = function\([\w$]+\) \{\s*try \{\s*return [\w$]+\('"use strict"; return \('/,
     },
     {
       reason: 'pdfkit — is-generator-function dò cú pháp trong try/catch',
@@ -265,7 +269,7 @@ function findEvalSites(files, allowedList = EVAL_ALLOWED) {
   const allowed = [];
 
   for (const { name, text } of files) {
-    const forFile = allowedList.filter(({ file }) => file === undefined || file.test(basename(name)));
+    const forFile = allowedList.filter(({ file }) => file === undefined || file.test(name.split(/[\\/]/).pop()));
     const spans = forFile.flatMap(({ reason, pattern }) =>
       [...text.matchAll(new RegExp(pattern.source, 'g'))].map((m) => ({
         reason,

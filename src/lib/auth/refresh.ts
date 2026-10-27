@@ -369,11 +369,25 @@ const readRefreshPayload = async (response: Response): Promise<RefreshSessionPay
   return config.parseRefreshResponse(response, config.now() + serverOffsetMs);
 };
 
+/**
+ * Một lượt nạp `refreshSchema` dùng chung, bắt đầu cùng lúc với POST refresh (`refreshSingleFlight`)
+ * để chunk zod không thành vòng mạng thứ hai nối tiếp sau phản hồi. Nạp hỏng thì quên lời hứa,
+ * lượt sau nạp lại.
+ */
+let refreshSchemaModule: Promise<typeof import('./refreshSchema')> | null = null;
+const loadRefreshSchema = (): Promise<typeof import('./refreshSchema')> => {
+  refreshSchemaModule ??= import('./refreshSchema').catch((error: unknown) => {
+    refreshSchemaModule = null;
+    throw error;
+  });
+  return refreshSchemaModule;
+};
+
 export const defaultParseRefreshResponse = async (
   response: Response,
   now: number,
 ): Promise<RefreshSessionPayload> => {
-  const [payload, { refreshResponseSchema }] = await Promise.all([response.json(), import('./refreshSchema')]);
+  const [payload, { refreshResponseSchema }] = await Promise.all([response.json(), loadRefreshSchema()]);
   const parsed = refreshResponseSchema.parse(payload);
   const root = ('data' in parsed ? parsed.data : parsed) as RefreshPayload;
   const accessToken = root.accessToken ?? root.access_token;
@@ -431,6 +445,7 @@ export const refreshSingleFlight = async (
     }, REFRESH_TIMEOUT_MS);
 
     try {
+      loadRefreshSchema().catch(() => undefined);
       const response = await config.fetchImpl(resolveAuthUrl(config.baseUrl, config.refreshPath), {
         credentials: 'include',
         headers: {

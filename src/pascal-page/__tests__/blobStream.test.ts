@@ -2,10 +2,9 @@
 /**
  * Tệp thay `blob-stream` (`../blobStream`): pdfkit THẬT `pipe` vào nó phải ra một tệp PDF.
  *
- * pdfkit lấy đúng bản editor Pascal dùng (`vendor/pascal/packages/editor`), bản Node: `pipe` của
- * `stream` Node đòi cùng bộ phương thức với readable-stream trong bản standalone mà trang 3D nạp
- * (`on`/`once`/`prependListener`/`emit`/`write`/`end`). Đường trình duyệt thật dưới CSP do
- * `e2e/pascal-viewer.spec.ts` kiểm.
+ * pdfkit lấy đúng bản editor Pascal dùng (`vendor/pascal/packages/editor`), bản standalone mà trang
+ * 3D nạp: `pipe` đi qua readable-stream gói kèm trong nó, như trên trình duyệt. Đường trình duyệt
+ * thật dưới CSP do `e2e/pascal-viewer.spec.ts` kiểm.
  */
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -22,7 +21,7 @@ interface PdfDoc {
 }
 
 const requireFromEditor = createRequire(path.resolve(__dirname, '../../../vendor/pascal/packages/editor/package.json'));
-const PDFDocument = requireFromEditor('pdfkit') as new (options?: Record<string, unknown>) => PdfDoc;
+const PDFDocument = requireFromEditor('pdfkit/js/pdfkit.standalone') as new (options?: Record<string, unknown>) => PdfDoc;
 
 describe('blobStream', () => {
   it('nhận pdfkit qua pipe, phát finish, và toBlob ra tệp PDF', async () => {

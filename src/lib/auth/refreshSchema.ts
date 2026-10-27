@@ -7,7 +7,7 @@ import { z } from 'zod';
  * `refresh.ts` nằm trên đường khởi động (`SessionBootstrap`), mà zod 3 là một tệp
  * gộp (`zod/lib/index.mjs`, ~56 KiB thô) — rung cây không bỏ được gì, nhập tĩnh là
  * mang cả thư viện vào màn hình đầu tiên. Schema chỉ cần khi phản hồi đã về, nên
- * `defaultParseRefreshResponse` nạp module này bằng `import()` ngay lúc đó
+ * `refresh.ts` nạp module này bằng `import()` song song với POST refresh
  * (cổng kích thước gói, đo 2026-10-27: màn hình đầu tiên 185,6 KiB gzip).
  */
 const roleSchema = z.union([
