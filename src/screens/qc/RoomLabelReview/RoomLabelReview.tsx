@@ -143,9 +143,10 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
     showOnlyUnnamed,
     state,
     summary,
-    isViewerRole,
     viewerRoleNotice,
   } = props;
+  /* Tầng thiếu tỷ lệ: danh sách vẫn xem được, chỉ mất nút sửa — như vai người xem (UX-R1 r3). */
+  const isViewerRole = props.isViewerRole || props.scaleLock != null;
   const head = (
     <RoomLabelPanelHead roomProgress={props.roomProgress} saveStatus={props.saveStatus} state={state} summary={summary} />
   );
@@ -245,7 +246,6 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
     backgroundImageUrl,
     hoveredRoomId,
     isCollapsed,
-    isViewerRole,
     mergeCandidates,
     millimetresPerPixel,
     nameSuggestions,
@@ -276,6 +276,9 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
    * chọn để đặt vòng sáng.
    */
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
+  /* Tầng thiếu tỷ lệ: bản vẽ và chi tiết vẫn xem được, nút chính thành lối sang bước Tỷ lệ (UX-R1 r3). */
+  const scaleLock = props.scaleLock ?? null;
+  const isViewerRole = props.isViewerRole || scaleLock !== null;
 
   if (props.readFailure != null) {
     return (
@@ -344,6 +347,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
                 onNavigateToWalls,
                 splitPointMm,
                 viewerRoleNotice,
+                scaleLock,
               }}
               inspector={{
                 room: selectedRoom,

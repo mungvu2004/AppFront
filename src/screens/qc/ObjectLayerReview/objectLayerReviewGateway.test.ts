@@ -9,6 +9,7 @@ import {
   objectsOf,
   scaleOfLevel,
   solidWallsOf,
+  toObjectRow,
   toPaintSubject,
 } from './objectLayerReviewGateway';
 
@@ -70,5 +71,35 @@ describe('objectLayerReviewGateway: source of an unreviewed entity (FIX-P0-14)',
 
   it('reports human on a reviewed entity', () => {
     expect(paintSourceOf('human', true)).toBe('human');
+  });
+});
+
+describe('objectLayerReviewGateway: list row names and attention (K07)', () => {
+  const rowOf = (patch: { kind?: 'wardrobe' | 'other'; confidence?: number; reviewed?: boolean }) => {
+    const building = createSampleBuilding();
+    const levelId = sampleLevelId(0);
+    const id = sampleFurnitureId(0);
+
+    building.furniture = building.furniture.map((item) =>
+      item.id === id ? ({ ...item, levelId, ...patch } as typeof item) : item,
+    );
+
+    const graph = normalizeSpatial(building);
+    const object = objectsOf(graph, levelOfGraph(graph, levelId), []).find(
+      (candidate) => candidate.entityId === id,
+    )!;
+
+    return toObjectRow(object);
+  };
+
+  it('names free furniture by its graph kind, not "Nội thất khác"', () => {
+    expect(rowOf({ kind: 'wardrobe' }).typeLabel).toBe('Tủ áo');
+    expect(rowOf({ kind: 'other' }).typeLabel).toBe('Nội thất khác');
+  });
+
+  it('marks attention only below the confidence threshold, same rule as the header count', () => {
+    expect(rowOf({ confidence: 0.8, reviewed: false }).statusCode).toBe('neutral');
+    expect(rowOf({ confidence: 0.3, reviewed: false }).statusCode).toBe('attention');
+    expect(rowOf({ confidence: 0.3, reviewed: true }).statusCode).toBe('verified');
   });
 });

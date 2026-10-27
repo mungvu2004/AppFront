@@ -469,6 +469,8 @@ export interface FloorLayerRead {
   /** `Level` của tầng (tỉ lệ đi cùng lớp đã quy đổi) và cờ tỉ lệ tạm — như `reloadFloor` của autosave. */
   readonly level: Level;
   readonly scaleStatus?: 'unresolved';
+  /** Chỉ đi cùng `scaleStatus`: `project_default` = máy không đo được tỷ lệ (UX-R1 K12). */
+  readonly scaleSource?: 'pipeline' | 'project_default';
   readonly revision: number;
 }
 

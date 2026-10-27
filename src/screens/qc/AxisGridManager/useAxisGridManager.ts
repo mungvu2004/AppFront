@@ -191,6 +191,8 @@ export const AXIS_GRID_TEXT = {
   autoAlignViewer: 'Vai người xem không căn chỉnh được các tầng.',
   autoAlignSingleFloor: 'Cần ít nhất hai tầng có trục để căn chỉnh.',
   autoAlignNothing: 'Các tầng đã khớp nhau, không còn gì để căn.',
+  /** K14: còn tầng "Không căn được" thì không được nói "đã khớp nhau". */
+  autoAlignUnalignable: 'Máy không tự căn được tầng không khớp trục nào với tầng gốc. Sửa trục của tầng đó bằng tay.',
 } as const;
 
 /** Câu lỗi dùng chung của thêm trục / đổi tên / sửa khoảng cách. */
@@ -1419,7 +1421,9 @@ export function useAxisGridManager(
         : report.floors.map((alignment) => ({
             levelId: alignment.levelId,
             name: alignment.name,
-            offsetText: millimetreText(alignment.maxResidualMm),
+            /* K14: tầng không khớp trục nào thì chưa có số lệch — không in "0 mm" như thể đã khớp. */
+            offsetText:
+              floorStatusOf(report, alignment.levelId) === 'unalignable' ? '—' : millimetreText(alignment.maxResidualMm),
             offsetMm: alignment.maxResidualMm,
             status: floorStatusOf(report, alignment.levelId),
             isBase: alignment.isBase,
@@ -1517,7 +1521,9 @@ export function useAxisGridManager(
     : report.floors.length < 2
       ? AXIS_GRID_TEXT.autoAlignSingleFloor
       : autoAlignCommand === null
-        ? AXIS_GRID_TEXT.autoAlignNothing
+        ? floors.some((floor) => floor.status === 'unalignable')
+          ? AXIS_GRID_TEXT.autoAlignUnalignable
+          : AXIS_GRID_TEXT.autoAlignNothing
         : null;
 
   /* BUG-578: ngăn xếp còn bước là còn sửa đổi chỉ sống trong trang này — hỏi trước khi rời. */

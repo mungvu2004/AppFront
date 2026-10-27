@@ -124,6 +124,16 @@ export interface FloorUploadFailure {
   readonly isRetryable: boolean;
 }
 
+/** Dự án mới cho một căn hộ riêng (K19): một tầng, chờ đúng một bản vẽ. */
+export interface CreatedApartmentProject {
+  readonly projectId: string;
+  readonly floorId: string;
+}
+
+/** Tên tầng và chiều cao thông thủy mặc định của dự án một căn (chung cư một tầng). */
+export const APARTMENT_FLOOR_NAME = 'Tầng 1';
+export const APARTMENT_FLOOR_HEIGHT_MM = 3000;
+
 export interface CreateRemovalTicketInput {
   readonly description: string;
   readonly undo: () => void;
@@ -174,6 +184,11 @@ export interface FloorUploadGateway {
   readonly createRemovalTicket: (input: CreateRemovalTicketInput) => UndoTicket;
   /** Mã mới cho một tệp vừa nhận. */
   readonly createFileId: () => string;
+  /**
+   * Tạo một dự án nháp có một tầng, để tải riêng một bản vẽ căn hộ vào đó (K19). Cùng
+   * `projects.create` mà hộp thoại tạo dự án dùng; hook làm mới danh sách dự án.
+   */
+  readonly createApartmentProject: (input: { readonly name: string }) => Promise<ApiResult<CreatedApartmentProject>>;
 }
 
 export interface CreateFloorUploadGatewayOptions {
@@ -341,6 +356,31 @@ export function createFloorUploadGateway(
       }),
 
     createFileId: () => createUuid(),
+
+    createApartmentProject: async ({ name }) => {
+      const floorId = createUuid();
+      const floor: Floor = {
+        id: floorId,
+        name: APARTMENT_FLOOR_NAME,
+        elevationMm: 0,
+        heightMm: APARTMENT_FLOOR_HEIGHT_MM,
+        order: 0,
+        drawings: [],
+      };
+      const result = await client.projects.create({
+        body: { name, status: 'draft', floors: [floor] },
+        idempotencyKey: createUuid(),
+      });
+
+      if (!result.ok) {
+        return result;
+      }
+
+      // Máy chủ giữ mã tầng do máy khách đặt; phòng khi nó cấp mã khác thì lấy tầng duy nhất nó trả.
+      const stored = result.data.floors.find((candidate) => candidate.id === floorId) ?? result.data.floors[0];
+
+      return { ok: true, data: { projectId: result.data.id, floorId: stored?.id ?? floorId } };
+    },
   };
 }
 

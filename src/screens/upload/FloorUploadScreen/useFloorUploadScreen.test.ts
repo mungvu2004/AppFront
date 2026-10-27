@@ -48,6 +48,7 @@ import {
   type CreateFloorUploadGatewayOptions,
   type FloorUploadGateway,
 } from './floorUploadGateway';
+import { firstPageNote, SPLIT_COPY } from './useApartmentSplit';
 import {
   useFloorUploadScreen,
   type FloorUploadToast,
@@ -259,7 +260,8 @@ async function expectQueuedFiles(names: readonly string[]): Promise<void> {
 function renderScreen(options: UseFloorUploadScreenOptions) {
   const client = createTestQueryClient();
 
-  return renderHook(() => useFloorUploadScreen(options), {
+  // Câu hỏi K19 tắt mặc định: các bài dưới đây kiểm đường gán tầng; bài K19 tự bật lại.
+  return renderHook(() => useFloorUploadScreen({ askHowToSplit: false, ...options }), {
     wrapper: ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client }, children),
   });
@@ -2217,6 +2219,10 @@ describe('useFloorUploadScreen — QA-03e', () => {
       expect(result.current.floors.some((row) => row.floorId === goneId)).toBe(false);
     });
     expect(result.current.state).not.toBe('error');
+    // Tầng biến mất trước, câu báo của tệp vào khay ở nhịp sau: đợi nó, đừng đọc ngay (chập chờn 1/4).
+    await waitFor(() => {
+      expect(result.current.tray.items.find((entry) => entry.name === 'mat-bang-tang-3.png')?.error).toBeDefined();
+    });
 
     const item = result.current.tray.items.find((entry) => entry.name === 'mat-bang-tang-3.png');
 
@@ -2235,6 +2241,189 @@ describe('useFloorUploadScreen — QA-03e', () => {
     expect(result.current.tray.items.some((entry) => entry.name === 'mat-bang-tang-3.png')).toBe(false);
     expect(result.current.floors[0]?.file?.name).toBe('mat-bang-tang-3.png');
     expect(result.current.floors[0]?.status).toBe('uploading');
+  });
+});
+
+describe('K19 — tầng của một nhà hay căn hộ riêng', () => {
+  function splitHarness() {
+    const harness = createHarness();
+    const created: string[] = [];
+    const uploadedTo: { readonly fileName: string; readonly projectId: string; readonly floorId: string }[] = [];
+    const gateway: FloorUploadGateway = {
+      ...harness.gateway,
+      createApartmentProject: async ({ name }) => {
+        created.push(name);
+        return { ok: true, data: { projectId: `p-${name}`, floorId: `f-${name}` } };
+      },
+      createUpload: (input) => {
+        uploadedTo.push({ fileName: input.file.name, projectId: input.projectId, floorId: input.floorId });
+        return harness.gateway.createUpload(input);
+      },
+    };
+
+    return { harness, created, uploadedTo, options: { ...harness.options, gateway, askHowToSplit: true } };
+  }
+
+  async function ready(options: UseFloorUploadScreenOptions) {
+    const view = renderScreen(options);
+
+    await waitFor(() => {
+      expect(view.result.current.floors).toHaveLength(4);
+    });
+
+    return view;
+  }
+
+  it('hai tệp không đọc ra tầng: hỏi trước, chưa gán gì', async () => {
+    const { options } = splitHarness();
+    const { result } = await ready(options);
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('can-ho-a.png'), makeFile('can-ho-b.png')]);
+    });
+
+    expect(result.current.splitPrompt?.question).toBe(
+      'Các bản vẽ này là các tầng của cùng một nhà, hay là các căn hộ riêng?',
+    );
+    expect(result.current.splitPrompt?.detail).toContain('2 bản vẽ');
+    expect(result.current.tray.items).toHaveLength(0);
+  });
+
+  it('"Các tầng của một nhà" giữ đường cũ: tệp vào khay của dự án này', async () => {
+    const { created, options } = splitHarness();
+    const { result } = await ready(options);
+
+    act(() => {
+      result.current.onFilesChosen([makeFile('can-ho-a.png'), makeFile('can-ho-b.png')]);
+    });
+    act(() => {
+      result.current.onSplitAsFloors?.();
+    });
+
+    expect(result.current.splitPrompt).toBeNull();
+    await waitFor(() => {
+      expect(result.current.tray.items).toHaveLength(2);
+    });
+    expect(created).toEqual([]);
+  });
+
+  it('một tệp: không hỏi', async () => {
+    const { options } = splitHarness();
+    const { result } = await ready(options);
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('can-ho-a.png')]);
+    });
+    expect(result.current.splitPrompt).toBeNull();
+  });
+
+  it('tên tệp đều là tầng: vẫn hỏi, câu chi tiết nói tên chỉ gợi ý; chưa gán gì', async () => {
+    const { options } = splitHarness();
+    const { result } = await ready(options);
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('mat-bang-tang-2.png'), makeFile('mat-bang-tang-3.png')]);
+    });
+
+    expect(result.current.splitPrompt?.detail).toContain(SPLIT_COPY.namesLookLikeFloors);
+    expect(result.current.tray.items).toHaveLength(0);
+  });
+
+  it('PDF nhiều trang, căn hộ riêng: báo trước ở câu hỏi, tải trang 1, hàng nói rõ', async () => {
+    const { harness, options, uploadedTo } = splitHarness();
+    const pageIndexes: (number | undefined)[] = [];
+    const gateway: FloorUploadGateway = {
+      ...options.gateway,
+      validateFile: pdfValidation(3),
+      createUpload: (input) => {
+        pageIndexes.push(input.pageIndex);
+        return options.gateway.createUpload(input);
+      },
+    };
+    const { result } = await ready({ ...options, gateway });
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('can-ho-a.pdf'), makeFile('can-ho-b.pdf')]);
+    });
+    expect(result.current.splitPrompt?.detail).toContain(SPLIT_COPY.pdfFirstPage);
+
+    act(() => {
+      result.current.onSplitAsApartments?.();
+    });
+
+    await waitFor(() => {
+      expect(uploadedTo).toHaveLength(2);
+    });
+    expect(pageIndexes).toEqual([0, 0]);
+    expect(result.current.apartments?.rows.map((row) => row.note)).toEqual([firstPageNote(3), firstPageNote(3)]);
+    expect(harness.navigations).toEqual([]);
+  });
+
+  it('"Các căn hộ riêng": mỗi tệp một dự án, tải vào đúng dự án đó, rồi mở được', async () => {
+    const { created, harness, options, uploadedTo } = splitHarness();
+    const { result } = await ready(options);
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('can-ho-a.png'), makeFile('can-ho-b.png')]);
+    });
+    act(() => {
+      result.current.onSplitAsApartments?.();
+    });
+
+    expect(result.current.splitPrompt).toBeNull();
+    await waitFor(() => {
+      expect(uploadedTo).toHaveLength(2);
+    });
+    expect([...created].sort()).toEqual(['can-ho-a', 'can-ho-b']);
+    expect([...uploadedTo].sort((first, second) => first.fileName.localeCompare(second.fileName))).toEqual([
+      { fileName: 'can-ho-a.png', projectId: 'p-can-ho-a', floorId: 'f-can-ho-a' },
+      { fileName: 'can-ho-b.png', projectId: 'p-can-ho-b', floorId: 'f-can-ho-b' },
+    ]);
+    // Không tệp nào rơi vào tầng hay khay của dự án đang mở.
+    expect(result.current.tray.items).toHaveLength(0);
+
+    act(() => {
+      harness.uploads.get('can-ho-a.png')?.finish({ status: 'done', percent: 100 });
+    });
+
+    const rowOf = (name: string) => result.current.apartments?.rows.find((row) => row.fileName === name);
+
+    await waitFor(() => {
+      expect(rowOf('can-ho-a.png')?.statusLabel).toBe('Đã tải bản vẽ');
+    });
+    expect(rowOf('can-ho-a.png')?.canOpen).toBe(true);
+    expect(rowOf('can-ho-b.png')?.canOpen).toBe(false);
+    expect(result.current.apartments?.summary).toContain('1 / 2');
+
+    act(() => {
+      result.current.onOpenApartment?.(rowOf('can-ho-a.png')?.id ?? '');
+    });
+    expect(harness.navigations).toEqual([ROUTES.project.pipeline('p-can-ho-a')]);
+  });
+
+  it('tạo dự án hỏng: hàng nêu lỗi, không tải tệp', async () => {
+    const { options, uploadedTo } = splitHarness();
+    const failing: FloorUploadGateway = {
+      ...options.gateway,
+      createApartmentProject: async () => ({
+        ok: false,
+        error: { kind: 'http', raw: {}, requestId: 'req-k19', retryable: true, status: 500 } satisfies HttpError,
+      }),
+    };
+    const { result } = await ready({ ...options, gateway: failing });
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('can-ho-a.png'), makeFile('can-ho-b.png')]);
+    });
+    act(() => {
+      result.current.onSplitAsApartments?.();
+    });
+
+    await waitFor(() => {
+      expect(result.current.apartments?.rows.every((row) => row.statusVariant === 'violation')).toBe(true);
+    });
+    expect(result.current.apartments?.rows[0]?.problem).not.toBeNull();
+    expect(uploadedTo).toEqual([]);
   });
 });
 

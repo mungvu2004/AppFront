@@ -200,6 +200,20 @@ describe('store/commit.ts', () => {
       expect(useStore.getState().floorMeta['L-UNKNOWN000']).toEqual({ revision: 1, scaleStatus: 'unresolved' });
     });
 
+    it('carries scaleSource with scaleStatus and drops both once a scale was sent (UX-R1 K12)', () => {
+      useStore.setState({ floorMeta: { [floorId]: { revision: 1, scaleSource: 'project_default', scaleStatus: 'unresolved' } } });
+
+      replaceFloorLayer(floorId, { layer: layerWithoutFirstWall(), revision: 2 });
+      expect(useStore.getState().floorMeta[floorId]).toEqual({
+        revision: 2,
+        scaleSource: 'project_default',
+        scaleStatus: 'unresolved',
+      });
+
+      replaceFloorLayer(floorId, { layer: layerWithoutFirstWall(), revision: 3 }, { scaleSent: true });
+      expect(useStore.getState().floorMeta[floorId]).toEqual({ revision: 3 });
+    });
+
     it('adds a missing floor with its level in one set, keeping history and other floors', () => {
       const wall = firstSampleWall();
 

@@ -50,7 +50,7 @@ const firstWallOf = (graph: NormalizedSpatial, levelId: LevelId): Wall =>
 const documentOf = (
   levelId: LevelId,
   revision: number,
-  extra: { scaleStatus?: 'unresolved'; thicker?: boolean } = {},
+  extra: { scaleStatus?: 'unresolved'; scaleSource?: 'pipeline' | 'project_default'; thicker?: boolean } = {},
 ): FloorLayerDocument => {
   const layer = spatialLayerOf(SAMPLE, levelId);
   const walls =
@@ -65,6 +65,7 @@ const documentOf = (
     level: { ...(SAMPLE.byId[levelId] as Level), scaleMillimetresPerPixel: millimetresPerPixel(2) },
     revision,
     ...(extra.scaleStatus === undefined ? {} : { scaleStatus: extra.scaleStatus }),
+    ...(extra.scaleSource === undefined ? {} : { scaleSource: extra.scaleSource }),
   };
 };
 
@@ -158,6 +159,19 @@ describe('useFloorLayer — N16 một tầng vào kho theo revision', () => {
 
     await waitFor(() => expect(result.current.scaleStatus).toBe('unresolved'));
     expect(useStore.getState().floorMeta[FLOOR]).toEqual({ revision: 1, scaleStatus: 'unresolved' });
+  });
+
+  it('kho rỗng + N16 project_default → scaleSource vào meta và ra kết quả (UX-R1 K12)', async () => {
+    const { result } = renderFloorLayer(FLOOR, () =>
+      Promise.resolve(documentOf(FLOOR, 1, { scaleSource: 'project_default', scaleStatus: 'unresolved' })),
+    );
+
+    await waitFor(() => expect(result.current.scaleSource).toBe('project_default'));
+    expect(useStore.getState().floorMeta[FLOOR]).toEqual({
+      revision: 1,
+      scaleSource: 'project_default',
+      scaleStatus: 'unresolved',
+    });
   });
 
   it('kho của dự án khác → nạp đè', async () => {

@@ -60,6 +60,7 @@ import {
   RuleReportResolvedGroup,
 } from './RuleReportGroups';
 import { FOCUS_RING } from './RuleReportLabels';
+import { RuleReportExportConfirm } from './RuleReportExportConfirm';
 import { RuleReportFilterBar, RuleReportSummaryStrip } from './RuleReportSummary';
 import type { RuleReportFilters, RuleReportGroup, RuleReportLevelFilter, RuleReportViewProps } from './types';
 
@@ -233,6 +234,7 @@ export function RuleReport(props: RuleReportViewProps) {
   // Starts open: "Mục đã xử lý phải còn nhìn thấy" — a group that starts shut hides
   // exactly the rows the ban is about. The reader can still collapse it.
   const [isResolvedOpen, setResolvedOpen] = useState(true);
+  const [isExportConfirmOpen, setExportConfirmOpen] = useState(false);
 
   const isRunning = status === 'loading';
   const hasResults = status !== 'empty' && status !== 'error';
@@ -275,7 +277,7 @@ export function RuleReport(props: RuleReportViewProps) {
         size="sm"
         variant={noCritical ? 'primary' : 'secondary'}
         iconAfter={<ArrowRight aria-hidden="true" size={16} />}
-        onClick={props.onConfirmResolved}
+        onClick={noCritical ? props.onConfirmResolved : () => setExportConfirmOpen(true)}
       >
         Sang Xuất
       </Button>
@@ -328,6 +330,10 @@ export function RuleReport(props: RuleReportViewProps) {
           }
         />
 
+        {/* K50: kết quả dựa trên số đo mà tỷ lệ còn tạm — nói thẳng là tạm. */}
+        {props.provisionalScaleNotice == null || !hasResults ? null : (
+          <InlineAlert level="attention" message={props.provisionalScaleNotice} />
+        )}
         {skipped.length > 0 ? <SkippedNotice skipped={skipped} /> : null}
 
         {status === 'empty' ? (
@@ -399,6 +405,15 @@ export function RuleReport(props: RuleReportViewProps) {
           </div>
         )}
       </div>
+      <RuleReportExportConfirm
+        isOpen={isExportConfirmOpen}
+        onCancel={() => setExportConfirmOpen(false)}
+        onConfirm={() => {
+          setExportConfirmOpen(false);
+          props.onConfirmResolved();
+        }}
+        violationsText={count(summary.violations)}
+      />
     </div>
   );
 }

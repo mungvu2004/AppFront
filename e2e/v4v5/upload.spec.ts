@@ -40,6 +40,8 @@ function counter(page: Page) {
 
 async function attach(page: Page, files: readonly SampleFile[]): Promise<void> {
   await page.getByTestId('floor-upload-file-input').setInputFiles([...files]);
+  // K19: từ hai tệp màn hỏi "các tầng hay các căn hộ".
+  if (files.length >= 2) await page.getByRole('button', { name: 'Các tầng của một nhà', exact: true }).click();
 }
 
 test('ba tệp ghép đúng tầng theo tên, bộ đếm lên 4 / 4 và "Bắt đầu xử lý" sang màn xử lý', async ({

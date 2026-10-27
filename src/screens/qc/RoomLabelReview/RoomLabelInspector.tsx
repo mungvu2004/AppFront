@@ -73,6 +73,7 @@ export type RoomLabelInspectorExtras = Pick<
   | 'splitPointMm'
   | 'usageOptions'
   | 'viewerRoleNotice'
+  | 'scaleLock'
 >;
 
 export interface RoomLabelInspectorViewProps {
@@ -98,12 +99,21 @@ const NAVIGATE_WALLS_LABEL = 'Sang lớp tường';
 const APPROVE_NEEDS_NAME = 'Đặt tên phòng trước khi duyệt.';
 const APPROVE_HINT_ID = 'room-label-approve-hint';
 const VIEWER_BADGE_LABEL = 'Chỉ xem';
+/* K10: đường bao tràn ra ngoài nhà thì duyệt là sai — việc chính là sửa tường cho phòng khép đúng. */
+const OUTLINE_SPILL_NOTICE = 'Đường bao tràn ra ngoài tường bao. Sửa tường ở lớp tường để máy dò lại phòng, rồi mới duyệt.';
+const FIX_OUTLINE_LABEL = 'Sửa đường bao';
+const OUTLINE_SPILL_HINT_ID = 'room-label-outline-spill-hint';
+const OPEN_SCALE_LABEL = 'Đặt tỷ lệ';
 
 export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorViewProps) {
   const { room, isViewerRole, onRename, onChangeUsage, onMerge, onSplit, onApprove } = inspector;
   const [isMergeOpen, setMergeOpen] = useState(false);
   const [isSplitOpen, setSplitOpen] = useState(false);
   const [mergeCandidateId, setMergeCandidateId] = useState<RoomLabelViewModel['id'] | null>(null);
+  const spills = room?.outlineSpills === true;
+  /* Chặn duyệt khi chưa tên hoặc đường bao tràn (K10) — cùng điều kiện với `onApprove` của hook. */
+  const approveHintId =
+    room?.status === 'unnamed' ? APPROVE_HINT_ID : room?.status === 'suggested' && spills ? OUTLINE_SPILL_HINT_ID : undefined;
 
   return (
     /* `h-full` cả ở 1024 (ngăn kéo có chiều cao chặn): khối nút ghim đáy luôn thấy (Z/S-20). */
@@ -177,7 +187,17 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
 
           {/* Khối nút NGOÀI vùng cuộn, ghim đáy panel: nút duyệt luôn thấy ở 1024×768. */}
           <div className="flex shrink-0 flex-col gap-2 border-t border-border-default px-5 py-3">
-            {isViewerRole ? (
+            {extras.scaleLock != null ? (
+              /* Tầng thiếu tỷ lệ: nút chính là lối sang bước Tỷ lệ, kèm lý do (UX-R1 r3). */
+              <>
+                <p className="text-[13px] text-state-violation-text">{extras.scaleLock.reason}</p>
+                {extras.scaleLock.onOpenScale === null ? null : (
+                  <Button fullWidth onClick={extras.scaleLock.onOpenScale} variant="primary">
+                    {OPEN_SCALE_LABEL}
+                  </Button>
+                )}
+              </>
+            ) : isViewerRole ? (
               /* Câu đầy đủ đã ở băng cảnh báo đầu cột trái — ở đây chỉ một nhãn, không lặp đoạn văn (BUG-636). */
               extras.viewerRoleNotice !== null && (
                 <Badge className="self-start" variant="neutral">
@@ -186,20 +206,30 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
               )
             ) : (
               <>
+                {spills && (
+                  <Button fullWidth onClick={() => extras.onNavigateToWalls()} variant="primary">
+                    {FIX_OUTLINE_LABEL}
+                  </Button>
+                )}
                 <Button
-                  aria-describedby={room.status === 'unnamed' ? APPROVE_HINT_ID : undefined}
+                  aria-describedby={approveHintId}
                   aria-keyshortcuts="A"
-                  disabled={room.status === 'confirmed' || room.status === 'unnamed'}
+                  disabled={room.status !== 'suggested' || spills}
                   fullWidth
                   onClick={() => onApprove(room.id)}
-                  {...(room.status === 'suggested' ? { shortcut: 'A' } : {})}
-                  variant={room.status === 'confirmed' ? 'secondary' : 'primary'}
+                  {...(room.status === 'suggested' && !spills ? { shortcut: 'A' } : {})}
+                  variant={room.status === 'confirmed' || spills ? 'secondary' : 'primary'}
                 >
                   {room.status === 'confirmed' ? APPROVED_BADGE : `${APPROVE_PREFIX} ${room.codeLabel}`}
                 </Button>
                 {room.status === 'unnamed' && (
                   <p className="text-[13px] text-text-secondary" id={APPROVE_HINT_ID}>
                     {APPROVE_NEEDS_NAME}
+                  </p>
+                )}
+                {room.status === 'suggested' && spills && (
+                  <p className="text-[13px] text-state-attention-text" id={OUTLINE_SPILL_HINT_ID}>
+                    {OUTLINE_SPILL_NOTICE}
                   </p>
                 )}
                 <Button

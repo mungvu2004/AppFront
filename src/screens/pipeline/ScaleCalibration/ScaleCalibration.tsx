@@ -75,7 +75,7 @@ const SCREEN_ARIA_LABEL = 'Tỷ lệ bản vẽ';
 const CANVAS_REGION_ARIA_LABEL = 'Khung bản vẽ để hiệu chỉnh tỷ lệ';
 const NOTICE_REGION_ARIA_LABEL = 'Trạng thái của màn hiệu chỉnh tỷ lệ';
 
-const EMPTY_TITLE = 'Máy chưa đọc được số kích thước nào';
+const EMPTY_TITLE = 'Chưa có số kích thước để làm mốc';
 const PARTIAL_TITLE = 'Chưa đủ dữ liệu để chốt tỷ lệ';
 // G3-31: tiền xử lý không thất bại (BE chỉ báo FRAME_NOT_FOUND mức cần chú ý, màn Xử lý đánh ✓),
 // nên tiêu đề không nói "thất bại" và khối dùng màu cần chú ý, không màu vi phạm.
@@ -213,6 +213,8 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
           {/* Xung đột 409 / tầng khoá lưu: có "Tải lại", không thì mọi lượt áp sau hỏng im lặng (BUG-598). */}
           <FloorLayerSaveBanner saveBlock={model.saveBlock ?? null} />
           {/* G4b-11: no "Tỷ lệ tạm — hãy hiệu chỉnh" strip here — the user is already on the calibration screen. */}
+          {/* K12: but a floor the server could not measure at all gets the red strip: every size and the 3D model are wrong. */}
+          {model.missingScaleNotice !== undefined && <InlineAlert level="violation" message={model.missingScaleNotice} />}
           {noticeLevel !== null && noticeMessage !== null && (
             <section aria-label={NOTICE_REGION_ARIA_LABEL} className="flex flex-col gap-2">
               <InlineAlert

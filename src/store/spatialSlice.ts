@@ -3,6 +3,7 @@ import type { TemporalState } from 'zundo';
 import { applyPatch, type SpatialPatch } from '../domain/spatial/applyPatch';
 import type { NormalizedSpatial } from '../domain/spatial/normalize';
 import { graphVersionOf } from '../lib/versioning/graphVersion';
+import type { ScaleSource } from '../lib/viewmodel/provisionalScale';
 
 /**
  * Saved spatial data of the floor being viewed, in the normalized form built
@@ -17,6 +18,25 @@ export interface FloorMetaEntry {
   revision: number;
   /** `'unresolved'`: the floor's scale is a server guess (N16); measures are not trustworthy yet. */
   scaleStatus?: 'unresolved';
+  /** Only with `scaleStatus`: `'project_default'` = the server could not measure the floor at all (UX-R1 K12). */
+  scaleSource?: ScaleSource;
+}
+
+/** Scale keys as N16 or a held entry carries them; either may be absent. */
+export interface FloorScaleKeys {
+  readonly scaleStatus?: 'unresolved' | undefined;
+  readonly scaleSource?: ScaleSource | undefined;
+}
+
+/** A `floorMeta` entry: `scaleSource` is kept only together with `scaleStatus` (both absent once the scale is real). */
+export function floorMetaEntryOf(revision: number, scale?: FloorScaleKeys): FloorMetaEntry {
+  const { scaleSource, scaleStatus } = scale ?? {};
+
+  if (scaleStatus === undefined) {
+    return { revision };
+  }
+
+  return scaleSource === undefined ? { revision, scaleStatus } : { revision, scaleStatus, scaleSource };
 }
 
 /** Where a loaded graph came from: the project and the revision each floor was read at. */
@@ -25,6 +45,8 @@ export interface SpatialSource {
   floorRevisions: Readonly<Record<string, number>>;
   /** Floors whose scale is provisional; N15 carries no `scaleStatus`, so only an N16 caller fills it. */
   floorScaleStatus?: Readonly<Record<string, 'unresolved'>>;
+  /** `scaleSource` of the floors in `floorScaleStatus` (N16 only). */
+  floorScaleSource?: Readonly<Record<string, ScaleSource>>;
 }
 
 /**
@@ -96,9 +118,9 @@ export const createSpatialSlice: StateCreator<SpatialSlice> = (set, _get, api) =
   setSpatial: (spatial, versionId, source) => {
     const floorMeta: Record<string, FloorMetaEntry> = Object.fromEntries(
       Object.entries(source?.floorRevisions ?? {}).map(([floorId, revision]) => {
-        const scaleStatus = source?.floorScaleStatus?.[floorId];
+        const scale = { scaleSource: source?.floorScaleSource?.[floorId], scaleStatus: source?.floorScaleStatus?.[floorId] };
 
-        return [floorId, scaleStatus === undefined ? { revision } : { revision, scaleStatus }];
+        return [floorId, floorMetaEntryOf(revision, scale)];
       }),
     );
 

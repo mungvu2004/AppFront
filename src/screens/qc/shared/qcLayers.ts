@@ -7,8 +7,8 @@ import { FLOOR_LAYERS, type FloorLayerKey } from '@/routes/projectSteps';
  */
 export type QcLayerKey = FloorLayerKey | 'scale' | 'overlay';
 
-/** `layer`: ba lớp bắt buộc, đánh số 1–3; `tool`: công cụ của tầng — nhóm "Công cụ:" sau vạch ngăn. */
-export type QcLayerGroup = 'layer' | 'tool';
+/** `step`: bốn bước theo thứ tự, đánh số 0–3 (Tỷ lệ là bước 0); `advanced`: công cụ trong menu "Nâng cao". */
+export type QcLayerGroup = 'step' | 'advanced';
 
 export interface QcLayer {
   readonly key: QcLayerKey;
@@ -25,16 +25,16 @@ const floorLayer = (key: FloorLayerKey, group: QcLayerGroup): QcLayer => {
   return { key, group, label: layer.label, title: layer.title, route: layer.path };
 };
 
-/* Thứ tự hiển thị (CONTRACT ux-2610 mục 3); thứ tự route FLOOR_LAYERS giữ nguyên. */
+/* Thứ tự hiển thị (UX-R1 K25): bốn bước rồi menu Nâng cao; thứ tự route FLOOR_LAYERS giữ nguyên. */
 export const QC_LAYERS: readonly QcLayer[] = [
-  floorLayer('walls', 'layer'),
-  floorLayer('objects', 'layer'),
-  floorLayer('rooms', 'layer'),
-  { key: 'scale', group: 'tool', label: 'Tỷ lệ', title: 'Tỷ lệ bản vẽ', route: ROUTES.project.scale },
-  floorLayer('grids', 'tool'),
-  floorLayer('thickness', 'tool'),
-  floorLayer('dimensions', 'tool'),
-  { key: 'overlay', group: 'tool', label: 'So với bản vẽ', title: 'So với bản vẽ', route: ROUTES.project.overlay },
+  { key: 'scale', group: 'step', label: 'Tỷ lệ', title: 'Tỷ lệ bản vẽ', route: ROUTES.project.scale },
+  floorLayer('walls', 'step'),
+  floorLayer('objects', 'step'),
+  floorLayer('rooms', 'step'),
+  floorLayer('grids', 'advanced'),
+  floorLayer('thickness', 'advanced'),
+  floorLayer('dimensions', 'advanced'),
+  { key: 'overlay', group: 'advanced', label: 'So với bản vẽ', title: 'So với bản vẽ', route: ROUTES.project.overlay },
 ];
 
 export function qcLayerTitle(key: QcLayerKey): string {

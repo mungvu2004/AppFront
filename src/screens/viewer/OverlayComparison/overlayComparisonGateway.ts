@@ -86,6 +86,7 @@ import { createAppApiClient } from '@/api/appClient';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { FloorImageQuality } from '@/api/schemas/quality';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
+import type { ScaleSource } from '@/lib/viewmodel/provisionalScale';
 import { pixels, type Pixels } from '@/domain/units/scale';
 
 import type {
@@ -238,6 +239,11 @@ export interface OverlayComparisonGateway {
    * (B-V9-06). Cùng đường nạp các màn QC dùng; lỗi thì ném.
    */
   readonly readFloorLayer: (input: ReadFloorScanInput) => Promise<NormalizedSpatial>;
+  /**
+   * N16 `scaleSource` của tầng (UX-R1 K12): `project_default` = máy không đo được tỷ lệ, mô hình sai cỡ.
+   * `null` khi tỷ lệ đã chốt hoặc máy đo được. Lỗi thì ném.
+   */
+  readonly readFloorScaleSource: (input: ReadFloorScanInput) => Promise<ScaleSource | null>;
   /** Danh sách tầng của dự án (#12) — mở thẳng link thì ô chọn tầng vẫn đủ tầng (BUG-600). */
   readonly readFloorList: (input: { readonly projectId: string }) => Promise<ApiResult<Floor[]>>;
   /**
@@ -359,6 +365,17 @@ export function createOverlayComparisonGateway(
     },
 
     readFloorLayer: (input) => readFloorLayerGraph(client.spatial, input),
+    readFloorScaleSource: async ({ floorId, projectId, signal }) => {
+      const result = await client.spatial.readLayer(
+        signal === undefined ? { floorId, projectId } : { floorId, projectId, signal },
+      );
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      return result.data.scaleSource ?? null;
+    },
     readFloorList: ({ projectId }) => client.floors.list({ projectId }),
 
     readScanPlacement: async () => unsupported('imageToModelTransform'),

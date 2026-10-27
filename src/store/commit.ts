@@ -9,7 +9,8 @@ import { isIdOfKind } from '../domain/spatial/ids';
 import { replaceLevelEntities } from '../domain/spatial/replaceLevelEntities';
 import type { SpatialEntity } from '../domain/spatial/normalize';
 import type { Dimension, EntityId, Level } from '../domain/spatial/types';
-import { versionIdFor, type FloorMetaEntry } from './spatialSlice';
+import { floorMetaEntryOf, versionIdFor, type FloorMetaEntry } from './spatialSlice';
+import type { ScaleSource } from '../lib/viewmodel/provisionalScale';
 
 /**
  * The selection as it stands right now, for a command recorder to stamp on its history step.
@@ -227,6 +228,8 @@ export interface FloorLayerReplacement {
   level?: Level;
   /** From N16: the floor's scale is provisional. */
   scaleStatus?: 'unresolved';
+  /** From N16, only with `scaleStatus`: where the provisional scale came from. */
+  scaleSource?: ScaleSource;
 }
 
 export interface ReplaceFloorLayerOptions {
@@ -244,8 +247,8 @@ export interface ReplaceFloorLayerOptions {
  * `external: true` on a floor the store held means somebody else changed it: history is
  * emptied and `serverReplaceSeq` bumped so screens that own a second history can clear
  * theirs. A floor the store lacks is added when `result.level` comes along (history kept);
- * without it only the revision is recorded. `scaleStatus` stays as it was unless
- * `scaleSent` (dropped) or `result.scaleStatus` (set).
+ * without it only the revision is recorded. `scaleStatus` (with `scaleSource`) stays as it
+ * was unless `scaleSent` (dropped) or `result.scaleStatus` (set).
  */
 export function replaceFloorLayer(
   floorId: string,
@@ -255,9 +258,11 @@ export function replaceFloorLayer(
   const state = useStore.getState();
   const current = state.spatial;
   const entryOf = (previous: FloorMetaEntry | undefined): FloorMetaEntry => {
-    const scaleStatus = options?.scaleSent === true ? undefined : (result.scaleStatus ?? previous?.scaleStatus);
+    if (options?.scaleSent === true) {
+      return floorMetaEntryOf(result.revision);
+    }
 
-    return scaleStatus === undefined ? { revision: result.revision } : { revision: result.revision, scaleStatus };
+    return floorMetaEntryOf(result.revision, result.scaleStatus === undefined ? previous : result);
   };
   const held = current !== null && current.byId[floorId] !== undefined;
 
@@ -316,7 +321,7 @@ export function replaceFloorLayer(
  * dropped (`replaceFloorLayer` alone would keep it). Error handling stays with the caller.
  */
 export function applyFloorLayerRead(floorId: string, read: FloorLayerReplacement): void {
-  const { dimensions, layer, level, revision, scaleStatus } = read;
+  const { dimensions, layer, level, revision, scaleSource, scaleStatus } = read;
 
   replaceFloorLayer(
     floorId,
@@ -326,6 +331,7 @@ export function applyFloorLayerRead(floorId: string, read: FloorLayerReplacement
       ...(dimensions === undefined ? {} : { dimensions }),
       ...(level === undefined ? {} : { level }),
       ...(scaleStatus === undefined ? {} : { scaleStatus }),
+      ...(scaleSource === undefined ? {} : { scaleSource }),
     },
     { external: true },
   );

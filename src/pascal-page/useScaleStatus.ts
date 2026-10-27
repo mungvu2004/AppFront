@@ -1,52 +1,112 @@
 /**
  * `useScaleStatus` — trang 3D có nên cảnh báo "bản vẽ chưa hiệu chỉnh tỷ lệ" không (WP8).
  *
- * Hai nguồn: N16 của từng tầng mang `scaleStatus: 'unresolved'` (đọc bằng `readLayer` sẵn có,
- * không thêm endpoint), hoặc nhìn hình mà đoán — cả nhà gói trong < 3 m mà tầng cao ≥ 2,4 m thì
- * gần như chắc tỷ lệ sai. Tầng đọc lỗi thì bỏ qua (chỉ ghi log một lần) — các tầng còn lại và phép
- * đoán vẫn chạy, để một tầng hỏng không giấu cảnh báo của cả nhà.
+ * Cùng một luật với QC (Codex P1, `floorScaleMissingOf` ở Quản lý tầng): chỉ tầng N16 báo
+ * `scaleStatus: 'unresolved'` mới bị xét; tầng người đã đặt tỷ lệ thì để yên, kể cả nhà nhỏ.
+ * Trong số đó, `floorScaleStateOf` + `scaleImplausibleOf` chia hai nhóm: `missing` — máy không đo
+ * được tỷ lệ (`project_default`) hoặc đo ra hình vô lý (trung vị tường < 50 mm, khối tường < 3 m),
+ * kích thước 3D sai hẳn; `provisional` — tỷ lệ máy đo, chưa ai xác nhận. `floorId` là tầng cần sửa
+ * trước (tầng sai hẳn đầu tiên).
+ *
+ * Tầng đọc N16 lỗi thì không biết tỷ lệ của nó (chỉ ghi log một lần): không giấu tầng ấy khỏi cảnh,
+ * nhưng hình vô lý thì vẫn nhắc "có thể sai" — để một tầng hỏng không giấu cảnh báo của cả nhà.
+ *
+ * Một nguồn cho cả trang (Codex P1): dải cảnh báo và cầu dựng cảnh (`bridge`, bỏ tầng `missingIds`
+ * khỏi cảnh 3D) cùng đợi `scaleStatusOf`, nên N16 chỉ đọc một lượt và hai bên không lệch nhau.
  */
 import { useEffect, useState } from 'react';
 
 import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
-import type { Level, Wall } from '@/domain/spatial/types';
-import { useStore } from '@/store';
-
-/** Ngưỡng của phép đoán: nhà gọn hơn 3 m mà tầng cao từ 2,4 m. */
-const TINY_FOOTPRINT_MM = 3000;
-const NORMAL_STOREY_MM = 2400;
+import type { Level } from '@/domain/spatial/types';
+import { floorScaleStateOf, scaleImplausibleOf } from '@/screens/qc/shared/floorReviewGateModel';
+import { type RootState, useStore } from '@/store';
 
 export type ScaleStatus =
   | { readonly status: 'unknown' }
   | { readonly status: 'resolved' }
-  | { readonly status: 'unresolved'; readonly floorId: string };
+  | {
+      readonly status: 'unresolved';
+      readonly floorId: string;
+      /** Tên tầng sai hẳn (không đo được tỷ lệ, hoặc đo ra hình vô lý). */
+      readonly missing: readonly string[];
+      /** Mã các tầng `missing` — cầu bỏ chúng khỏi cảnh 3D. */
+      readonly missingIds: readonly string[];
+      /** Mọi tầng đều sai hẳn: cảnh 3D trống. */
+      readonly allMissing: boolean;
+      /** Tên tầng tỷ lệ máy đo, chưa xác nhận. */
+      readonly provisional: readonly string[];
+    };
 
-export type ReadScale = (floorId: string) => Promise<Pick<FloorLayerDocument, 'scaleStatus'>>;
-
-/** Tầng có tường mà cả khối tường gói trong < 3 m dù tầng cao ≥ 2,4 m. */
-export function tinyFootprintLevel(levels: readonly Level[], walls: readonly Wall[]): string | undefined {
-  return levels.find((level) => {
-    const xs: number[] = [];
-    const ys: number[] = [];
-    for (const wall of walls) {
-      if (wall.levelId !== level.id) continue;
-      xs.push(wall.centreline.start.x, wall.centreline.end.x);
-      ys.push(wall.centreline.start.y, wall.centreline.end.y);
-    }
-    if (xs.length === 0) return false;
-    const extent = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
-    return extent < TINY_FOOTPRINT_MM && level.heightMm >= NORMAL_STOREY_MM;
-  })?.id;
-}
+/** Phần N16 cần đọc: trạng thái, nguồn tỷ lệ và mm/px của tầng (dự phòng khi kho thiếu). */
+export type ReadScale = (
+  floorId: string,
+) => Promise<
+  Pick<FloorLayerDocument, 'scaleStatus' | 'scaleSource'> & { readonly level?: { readonly scaleMillimetresPerPixel?: number } }
+>;
 
 let failureLogged = false;
 
-async function defaultReadScale(projectId: string, floorId: string) {
-  const { createAppApiClient } = await import('@/api/appClient');
-  const result = await createAppApiClient().spatial.readLayer({ projectId, floorId });
-  if (!result.ok) throw result.error;
-  return result.data;
+/** Một client cho mọi tầng (nạp mô-đun một lần, không mỗi tầng một lượt). */
+function defaultReadScale(projectId: string): ReadScale {
+  const client = import('@/api/appClient').then(({ createAppApiClient }) => createAppApiClient());
+  return async (floorId) => {
+    const result = await (await client).spatial.readLayer({ projectId, floorId });
+    if (!result.ok) throw result.error;
+    return result.data;
+  };
+}
+
+type Spatial = NonNullable<RootState['spatial']>;
+
+async function readScaleStatus(spatial: Spatial, read: ReadScale): Promise<ScaleStatus> {
+  const { levels } = denormalizeSpatial(spatial);
+  const results = await Promise.allSettled(levels.map((level) => read(level.id)));
+  const failure = results.find((result) => result.status === 'rejected');
+  if (failure !== undefined && !failureLogged) {
+    failureLogged = true;
+    console.warn('[pascal] không đọc được trạng thái tỷ lệ tầng', failure.reason);
+  }
+  const missing: Level[] = [];
+  const provisional: Level[] = [];
+  levels.forEach((level, index) => {
+    const result = results[index];
+    const implausible = scaleImplausibleOf(spatial, level.id);
+    if (result?.status !== 'fulfilled') {
+      if (implausible) provisional.push(level);
+      return;
+    }
+    const { scaleStatus, scaleSource, level: document } = result.value;
+    if (scaleStatus !== 'unresolved') return;
+    const millimetresPerPixel = level.scaleMillimetresPerPixel ?? document?.scaleMillimetresPerPixel;
+    const state = floorScaleStateOf(scaleStatus, scaleSource, millimetresPerPixel, implausible);
+    (state === 'missing' ? missing : provisional).push(level);
+  });
+  const first = missing[0] ?? provisional[0];
+  const names = (list: readonly Level[]) => list.map((level) => level.name);
+  return first === undefined
+    ? { status: 'resolved' }
+    : {
+        status: 'unresolved',
+        floorId: first.id,
+        missing: names(missing),
+        missingIds: missing.map((level) => level.id),
+        allMissing: missing.length === levels.length,
+        provisional: names(provisional),
+      };
+}
+
+/** Lượt đọc gần nhất — cùng dự án, cùng cảnh vừa nạp, cùng hàm đọc thì dùng lại (một lượt N16 cho cả trang). */
+let memo: { projectId: string; spatial: Spatial; read: ReadScale | undefined; status: Promise<ScaleStatus> } | null = null;
+
+/** Trạng thái tỷ lệ của cảnh đang nằm trong kho; `resolved` khi kho chưa có cảnh. */
+export function scaleStatusOf(projectId: string, readScale?: ReadScale): Promise<ScaleStatus> {
+  const spatial = useStore.getState().spatial;
+  if (spatial === null) return Promise.resolve({ status: 'resolved' });
+  if (memo?.projectId === projectId && memo.spatial === spatial && memo.read === readScale) return memo.status;
+  const read = readScale ?? defaultReadScale(projectId);
+  memo = { projectId, spatial, read: readScale, status: readScaleStatus(spatial, read) };
+  return memo.status;
 }
 
 /** Chạy một lần mỗi dự án, khi kho đã có cảnh (cầu nạp xong). */
@@ -55,24 +115,10 @@ export function useScaleStatus(projectId: string, readScale?: ReadScale): ScaleS
   const [status, setStatus] = useState<ScaleStatus>({ status: 'unknown' });
 
   useEffect(() => {
-    const spatial = useStore.getState().spatial;
-    if (spatial === null) return;
+    if (!loaded) return;
     let cancelled = false;
-    const { levels, walls } = denormalizeSpatial(spatial);
-    const read = readScale ?? ((floorId: string) => defaultReadScale(projectId, floorId));
-
-    void Promise.allSettled(levels.map((level) => read(level.id))).then((results) => {
-      const failure = results.find((result) => result.status === 'rejected');
-      if (failure !== undefined && !failureLogged) {
-        failureLogged = true;
-        console.warn('[pascal] không đọc được trạng thái tỷ lệ tầng', failure.reason);
-      }
-      if (cancelled) return;
-      const index = results.findIndex(
-        (result) => result.status === 'fulfilled' && result.value.scaleStatus === 'unresolved',
-      );
-      const floorId = levels[index]?.id ?? tinyFootprintLevel(levels, walls);
-      setStatus(floorId === undefined ? { status: 'resolved' } : { status: 'unresolved', floorId });
+    void scaleStatusOf(projectId, readScale).then((next) => {
+      if (!cancelled) setStatus(next);
     });
     return () => {
       cancelled = true;

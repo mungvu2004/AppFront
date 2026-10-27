@@ -61,7 +61,7 @@ import {
   type RuleRegistry,
   type Violation,
 } from '@/domain/rules/registry';
-import { evaluatedRuleCodes, runRules } from '@/domain/rules/runner';
+import { evaluatedRuleCodes, ruleAppliesTo, runRules } from '@/domain/rules/runner';
 import { hasElements } from '@/domain/spatial/elementCount';
 import { displayCodeIn, isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { LevelId } from '@/domain/spatial/types';
@@ -79,6 +79,7 @@ import {
 import { useStore } from '@/store';
 import { ruleRegistryFor } from '@/store/selectors';
 
+import { useProvisionalFloorCount } from '../../qc/shared/useProvisionalFloorCount';
 import { fixTargetOf } from '../ViolationDetail/fixPath';
 
 import { createRuleReportGateway, type RuleReportGateway } from './ruleReportGateway';
@@ -131,7 +132,17 @@ const EMPTY_ROWS: readonly RuleReportRow[] = Object.freeze([]);
 const EMPTY_GROUPS: readonly RuleReportGroup[] = Object.freeze([]);
 const EMPTY_PASSED: readonly PassedRule[] = Object.freeze([]);
 const EMPTY_SKIPPED: readonly SkippedRuleGroup[] = Object.freeze([]);
+
+/** K50: nhóm luật dựa trên số đo (độ dài, diện tích, lưu thông) — tỷ lệ tạm thì kết quả là tạm. */
+const MEASURED_RULE_GROUPS: ReadonlySet<RuleGroup> = new Set<RuleGroup>(['geometry', 'circulation', 'area']);
+
+/** K50: câu của dải tỷ lệ tạm; `null` khi không tầng nào còn tỷ lệ tạm. */
+export const provisionalScaleNoticeText = (floorCount: number): string | null =>
+  floorCount === 0
+    ? null
+    : `Có ${String(floorCount)} tầng chưa có tỷ lệ: kết quả về diện tích, độ dài, lưu thông là tạm.`;
 const EMPTY_RULE_CODES: readonly RuleCode[] = Object.freeze([]);
+const EMPTY_FLOOR_IDS: readonly string[] = Object.freeze([]);
 
 /** Bốn số 0 — dải tóm tắt trước khi có lượt chạy nào. */
 const EMPTY_SUMMARY: RuleReportSummary = Object.freeze({
@@ -321,7 +332,9 @@ const groupRowsByRule = (
  * Không đoán bằng `dependsOn`: một luật phạm vi `level` chỉ sinh ra công việc
  * khi mô hình CÓ tầng (`runner.ts`, `tasksOfRule`), nên "đã bật mà không có mặt
  * trong danh sách đã chạy" là bằng chứng thẳng thắn rằng nó không chạy được, và
- * lý do duy nhất khiến điều đó xảy ra là mô hình chưa có tầng nào.
+ * lý do duy nhất khiến điều đó xảy ra là mô hình chưa có tầng nào. Luật liên
+ * tầng (phạm vi `building`) không chạy khi chỉ có một tầng: đó là "không áp
+ * dụng" (`ruleAppliesTo`), không phải "chưa chạy được", nên không liệt kê ở đây.
  */
 const skippedGroupsOf = (
   registry: RuleRegistry,
@@ -334,7 +347,7 @@ const skippedGroupsOf = (
   const order: RuleGroup[] = [];
 
   for (const rule of registry.listEnabled()) {
-    if (ran.has(rule.code)) {
+    if (ran.has(rule.code) || (levelIds.length > 0 && !ruleAppliesTo(rule, levelIds.length))) {
       continue;
     }
 
@@ -406,6 +419,9 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   const graph = useStore((state) => state.spatial);
   const spatialLoading = useStore((state) => state.spatialLoading);
   const versionId = useStore((state) => state.versionId);
+  /* N15 không mang tỷ lệ: đếm theo N16 từng tầng (kho từ N15 thiếu `scaleStatus` ≠ đã xác nhận). */
+  const floorIds = useStore((state) => state.spatial?.byKind.level ?? EMPTY_FLOOR_IDS);
+  const provisionalFloorCount = useProvisionalFloorCount(projectId, floorIds);
 
   const [filters, setFilters] = useState<RuleReportFilters>(DEFAULT_FILTERS);
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
@@ -566,8 +582,12 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
       return EMPTY_GROUPS;
     }
 
-    return groupRowsByRule([...visibleRows, ...resolvedRows], registry);
-  }, [registry, resolvedRows, run, visibleRows]);
+    const built = groupRowsByRule([...visibleRows, ...resolvedRows], registry);
+
+    return provisionalFloorCount === 0
+      ? built
+      : built.map((group) => (MEASURED_RULE_GROUPS.has(group.group) ? { ...group, isProvisional: true } : group));
+  }, [provisionalFloorCount, registry, resolvedRows, run, visibleRows]);
 
   const passedRules = useMemo<readonly PassedRule[]>(() => {
     if (run === null) {
@@ -718,13 +738,10 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
    * màu xanh "đã xác minh" cho riêng việc của NGƯỜI duyệt, đầu ra của máy không
    * bao giờ được đặt nó.
    */
+  /* K51: còn luật nghiêm trọng thì view đã hỏi xác nhận — ở đây chỉ đi tiếp, không nuốt cú bấm. */
   const onConfirmResolved = useCallback((): void => {
-    if (summary.violations > 0) {
-      return;
-    }
-
     navigate(ROUTES.project.export(projectId));
-  }, [navigate, projectId, summary.violations]);
+  }, [navigate, projectId]);
 
   /**
    * Chỗ gắn canvas của panel xem trước.
@@ -763,6 +780,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
     onViewRow,
     onRerun,
     onConfirmResolved,
+    provisionalScaleNotice: provisionalScaleNoticeText(provisionalFloorCount),
     previewRef,
     settingsPath: ROUTES.project.ruleSettings(projectId),
     processPath: ROUTES.project.pipeline(projectId),

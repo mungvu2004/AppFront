@@ -142,6 +142,7 @@ test.describe('phase 11 floors edge', () => {
 
       await test.step('[11F-A-004] removing a tray file moves focus to a neighbouring trash button, not <body>', async () => {
         await pick(page, [note('nhat-ky-a.txt'), note('nhat-ky-b.txt')]);
+        await page.getByRole('button', { name: 'Các tầng của một nhà', exact: true }).click(); // K19: 2+ files ask floors vs apartments
         await expect(tray(page)).toBeVisible();
         await trashInTray(page, 'nhat-ky-a.txt').click();
         await expect(trayItem(page, 'nhat-ky-a.txt')).toHaveCount(0);

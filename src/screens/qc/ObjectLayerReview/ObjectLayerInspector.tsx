@@ -112,7 +112,7 @@ const SWING_LABEL = 'Hướng mở';
 const CONFIDENCE_LABEL = 'Độ tin cậy';
 const UNATTACHED_BADGE = 'Chưa gắn vào tường nào';
 /** Nội thất không áp tường nào — chỗ đứng bình thường của nó, không phải việc phải làm (B-V6-13). */
-const FREE_STANDING_LABEL = 'Đứng tự do';
+const FREE_STANDING_LABEL = 'Không gắn tường';
 const ATTACH_NEAREST_LABEL = 'Gắn vào tường gần nhất';
 const APPROVE_PREFIX = 'Duyệt';
 const APPROVED_LABEL = 'Đã duyệt';
@@ -121,6 +121,21 @@ const APPROVE_HINT = 'Duyệt xong tự sang đối tượng chưa duyệt kế 
 const DELETE_OPENING_LABEL = 'Không phải cửa, xoá';
 const DELETE_FURNITURE_LABEL = 'Không phải nội thất, xoá';
 const EMPTY_MESSAGE = 'Chọn một mục để xem chi tiết.';
+const OPEN_SCALE_LABEL = 'Đặt tỷ lệ';
+
+/** Tầng thiếu tỷ lệ: nút chính là lối sang bước Tỷ lệ, kèm lý do (UX-R1 r3). */
+function ScaleLockFooter({ scaleLock }: { readonly scaleLock: NonNullable<ObjectLayerInspectorProps['scaleLock']> }) {
+  return (
+    <div className="mt-auto flex shrink-0 flex-col gap-2 border-t border-border-default bg-bg-surface px-5 py-3">
+      <p className="text-[13px] text-state-violation-text">{scaleLock.reason}</p>
+      {scaleLock.onOpenScale === null ? null : (
+        <Button fullWidth onClick={scaleLock.onOpenScale} variant="primary">
+          {OPEN_SCALE_LABEL}
+        </Button>
+      )}
+    </div>
+  );
+}
 
 export function ObjectLayerInspector({
   inspector,
@@ -132,6 +147,7 @@ export function ObjectLayerInspector({
   onApprove,
   onAttachToNearestWall,
   onSelectHostWall,
+  scaleLock = null,
 }: ObjectLayerInspectorProps) {
   return (
     /* `lg:h-full`: ở 1024 ngăn kéo cũng có chiều cao chặn, nên khối nút ghim đáy luôn thấy (Z/S-16). */
@@ -161,6 +177,7 @@ export function ObjectLayerInspector({
           onSelectHostWall={onSelectHostWall}
         />
       )}
+      {scaleLock === null ? null : <ScaleLockFooter scaleLock={scaleLock} />}
     </div>
   );
 }

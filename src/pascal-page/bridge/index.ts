@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
+import type { SpatialGraph } from '@/domain/spatial/types';
 import { useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { useSession } from '@/hooks/useSession';
 import { can } from '@/lib/auth/permissions';
@@ -25,6 +26,7 @@ import { selectViewerSpatial } from '@/screens/viewer/ViewerShell/viewerShellGat
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
+import { scaleStatusOf } from '../useScaleStatus';
 import { resolveBackHref } from './backHref';
 import type { PascalBridge, PascalSaveStatus, PascalSceneGraph } from './types';
 
@@ -47,6 +49,43 @@ export const unsavedNoticeOf = (labels: readonly string[]): string =>
 export const BRIDGE_SAVE_BLOCKED = 'Tầng này chưa lưu được lên máy chủ. Xem thẻ ở góc trên để tải lại tầng.';
 
 class BridgeLoadError extends Error {}
+
+/**
+ * Cảnh 3D không dựng nội dung của tầng chưa có tỷ lệ (Codex P1): tỷ lệ mặc định 1 mm/px hay nhà
+ * co dưới 3 m cho ra sàn cao mảnh, sai hẳn. Tầng vẫn còn trong danh sách tầng (trống); dải cảnh
+ * báo nêu tên và dẫn tới "Đặt tỷ lệ". Hai cảnh trước/sau lượt sửa cùng bỏ tầng ấy, nên không có
+ * lệnh xoá nào sinh ra cho nó.
+ */
+export function withoutFloorContents(graph: SpatialGraph, floorIds: ReadonlySet<string>): SpatialGraph {
+  if (floorIds.size === 0) return graph;
+  const removed = new Set<string>();
+  const kept = <T extends { readonly id: string }>(items: readonly T[], drop: (item: T) => boolean) =>
+    items.filter((item) => {
+      if (!drop(item)) return true;
+      removed.add(item.id);
+      return false;
+    });
+  const onFloor = (item: { readonly levelId: string }) => floorIds.has(item.levelId);
+  const walls = kept(graph.walls, onFloor);
+  const openings = kept(graph.openings, (opening) => removed.has(opening.wallId));
+  const furniture = kept(graph.furniture, onFloor);
+  const rooms = kept(graph.rooms, onFloor);
+  const axes = kept(graph.axes, onFloor);
+  const dimensions = kept(graph.dimensions, onFloor);
+  const roofs = graph.roofs === undefined ? undefined : kept(graph.roofs, onFloor);
+
+  return {
+    ...graph,
+    walls,
+    openings,
+    furniture,
+    rooms,
+    axes,
+    dimensions,
+    notes: graph.notes.filter((note) => !removed.has(note.entityId)),
+    ...(roofs === undefined ? {} : { roofs }),
+  };
+}
 
 /** Phong cách cảnh của lượt mở trang (W4a) — thẻ "Phong cách" đọc nó. */
 export interface ProjectSceneStyle {
@@ -239,11 +278,15 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
      đổi danh tính sẽ khiến trang nạp lại cảnh đè lên việc đang làm. */
   /* Phong cách cảnh chốt MỘT lần mỗi lượt mở trang (J9, W4a: dự án → máy → mặc định): mọi
      `toPascalScene` dùng chung nó, không thì giá trị sinh ra lệch nhau → "sửa ma". */
+  /* Tầng chưa có tỷ lệ (cùng danh sách của dải cảnh báo): chốt ở `onLoad`, mọi lượt dựng lại dùng chung. */
+  const missingFloors = useRef<ReadonlySet<string>>(new Set());
   const sceneFromStore = useCallback((): PascalScene | null => {
     const current = selectViewerSpatial(useStore.getState());
     if (current === null) return null;
 
-    return toPascalScene(denormalizeSpatial(current), { style: style ?? readSceneStyle(() => localStorage) }).scene;
+    const graph = withoutFloorContents(denormalizeSpatial(current), missingFloors.current);
+
+    return toPascalScene(graph, { style: style ?? readSceneStyle(() => localStorage) }).scene;
   }, [style]);
 
   /* Tải lại tầng bị khối (409/422/403): bỏ bản chưa lưu được, nạp lại tầng từ máy chủ vào kho rồi
@@ -263,12 +306,14 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
   }, [applyScene, isFloorBlocked, reloadFloor, saveBlock, sceneFromStore]);
 
   const onLoad = useCallback(async (): Promise<PascalSceneGraph> => {
+    const scale = await scaleStatusOf(projectId);
+    missingFloors.current = new Set(scale.status === 'unresolved' ? scale.missingIds : []);
     const scene = sceneFromStore();
     if (scene === null) throw new BridgeLoadError(BRIDGE_EMPTY_ERROR);
     setLoadedScene(scene);
 
     return scene;
-  }, [sceneFromStore]);
+  }, [projectId, sceneFromStore]);
 
   const onSave = useCallback(
     async (scene: unknown): Promise<void> => {

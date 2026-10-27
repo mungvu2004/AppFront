@@ -1,7 +1,7 @@
 /**
  * Danh sách đối tượng của panel trái — hàng đợi hai nhóm gấp được (Cần duyệt, tin cậy
  * thấp lên đầu · Đã duyệt; Z/S-16), mỗi dòng là
- * mã · kích thước · tường chủ · độ tin cậy.
+ * loại đồ · mã / kích thước · tường chủ / "Máy chưa chắc" khi dưới ngưỡng (K07).
  *
  * View THUẦN của mục D (R-60): mọi thứ vào bằng {@link ObjectLayerListViewProps},
  * không `@/api`, không `@/store`, không `@/domain`, không `@/lib/http`.
@@ -20,7 +20,7 @@
  * hoặc bị gắn cờ nếu không có". `hostWallLabel === null` là cách hợp đồng nói
  * "chưa gắn", và dòng đó KHÔNG hiện một ô trống: nó hiện chip cần chú ý "Chưa
  * gắn vào tường nào" cùng hành động "Gắn vào tường gần nhất" (`row.isOrphan` —
- * chỉ lỗ mở; nội thất đứng tự do ghi "đứng tự do", B-V6-13). Hành động ấy chỉ
+ * chỉ lỗ mở; nội thất đứng tự do ghi "Không gắn tường", B-V6-13). Hành động ấy chỉ
  * GỌI ra props — việc tìm tường nào gần nhất là của M-08 ở tầng hook, màn không
  * tự tìm.
  *
@@ -36,10 +36,10 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
-import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
 import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 
+import { ObjectSubtypeIcon } from './objectLayerSubtypeIcons';
 import type { ObjectLayerListViewProps } from './objectLayerSymbols';
 import type { ObjectListRowViewModel } from './objectLayerTypes';
 
@@ -49,7 +49,9 @@ const LIST_LABEL = 'Danh sách đối tượng';
 const ORPHAN_BADGE = 'Chưa gắn vào tường nào';
 const ATTACH_ACTION = 'Gắn vào tường gần nhất';
 /** Nội thất không áp tường nào — chỗ đứng bình thường của nó, không phải việc phải làm. */
-const FREE_STANDING = 'Đứng tự do';
+const FREE_STANDING = 'Không gắn tường';
+/** Lý do chú ý bằng chữ thay cho con số tin cậy "0,26" (K07). */
+const LOW_CONFIDENCE_BADGE = 'Máy chưa chắc';
 const SEARCH_LABEL = 'Tìm mã';
 const SEARCH_PLACEHOLDER = 'Tìm mã, ví dụ D-007';
 const EMPTY_GROUP = 'Chưa có đối tượng nào trong nhóm này';
@@ -93,9 +95,17 @@ function ObjectLayerListRow({
   onHover,
   onAttachToNearestWall,
 }: ObjectLayerListRowProps) {
+  /* Lý do chú ý nói bằng chữ, cùng luật với câu "N mục máy chưa chắc" đầu panel (K07). */
+  const isUncertain = row.isLowConfidence && !row.isReviewed;
+  const reason = isUncertain
+    ? LOW_CONFIDENCE_BADGE
+    : row.isOrphan && !row.isReviewed
+      ? ORPHAN_BADGE
+      : STATUS_LABEL[row.statusCode];
+
   return (
     <div
-      aria-label={`${row.codeLabel} — ${STATUS_LABEL[row.statusCode]}`}
+      aria-label={`${row.codeLabel} ${row.typeLabel} — ${reason}`}
       aria-selected={isSelected}
       data-object-id={row.id}
       className={cn(
@@ -116,56 +126,62 @@ function ObjectLayerListRow({
       role="option"
       tabIndex={0}
     >
-      {/*
-        Dòng một: mã + kích thước ĐỦ chữ. Thanh độ tin cậy xuống dòng hai cạnh tường chủ: chung
-        một dòng với nó, kích thước 1440 bị cắt còn "900 x 2…" (BUG-400). `title` cho khổ hẹp hơn nữa.
-      */}
+      {/* Dòng một: biểu tượng + tên loại đồ ("Giường", "Cửa sổ") + mã — biết là gì mà không phải bấm (K07). */}
       <div className="flex items-center gap-2">
-        <span className="w-14 shrink-0 truncate tabular-nums text-text-primary">{row.codeLabel}</span>
-        <span
-          className="min-w-0 flex-1 truncate font-mono tabular-nums text-text-secondary"
-          title={row.sizeLabel}
-        >
-          {row.sizeLabel}
+        <ObjectSubtypeIcon className="h-4 w-4 shrink-0 text-text-secondary" subtype={row.subtype} />
+        <span className="min-w-0 flex-1 truncate text-text-primary" title={row.typeLabel}>
+          {row.typeLabel}
         </span>
+        <span className="shrink-0 tabular-nums text-[12px] text-text-muted">{row.codeLabel}</span>
       </div>
 
+      {/* Dòng hai: kích thước ĐỦ chữ (BUG-400) + tường chủ; `title` cho khổ hẹp hơn nữa. */}
       <div className="flex items-center gap-2">
-        {/*
-          Tường chủ. `null` không bao giờ vẽ ra một ô trống: một đối tượng không
-          gắn vào tường nào là một việc phải làm, không phải một trường thiếu.
-        */}
-        {row.isOrphan ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="attention">{ORPHAN_BADGE}</Badge>
-            <button
-              className={cn(
-                'rounded-md px-1.5 py-0.5 text-[12px] text-accent',
-                'transition-colors duration-120 hover:bg-accent-wash',
-                'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-              )}
-              onClick={(event) => {
-                /* Bấm hành động KHÔNG kéo theo một lượt chọn dòng ngoài ý muốn. */
-                event.stopPropagation();
-                onAttachToNearestWall(row.id);
-              }}
-              type="button"
-            >
-              {ATTACH_ACTION}
-            </button>
-          </div>
-        ) : row.hostWallLabel === null ? (
-          <span className="text-[12px] text-text-muted">{FREE_STANDING}</span>
+        <span className="shrink-0 font-mono text-[12px] tabular-nums text-text-secondary" title={row.sizeLabel}>
+          {row.sizeLabel}
+        </span>
+        {row.isOrphan ? null : row.hostWallLabel === null ? (
+          <span className="min-w-0 truncate text-[12px] text-text-muted">{FREE_STANDING}</span>
         ) : (
-          <span className="font-mono text-[12px] text-text-muted">{row.hostWallLabel}</span>
+          <span className="min-w-0 truncate font-mono text-[12px] text-text-muted">{row.hostWallLabel}</span>
         )}
-        <ConfidenceMeter className="ml-auto" noTooltip value={row.confidence} />
         <span
           aria-hidden="true"
-          className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_TOKEN[row.statusCode])}
-          title={STATUS_LABEL[row.statusCode]}
+          className={cn('ml-auto h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_TOKEN[row.statusCode])}
+          title={reason}
         />
       </div>
+
+      {/*
+        Tường chủ. `null` không bao giờ vẽ ra một ô trống: một đối tượng không
+        gắn vào tường nào là một việc phải làm, không phải một trường thiếu.
+      */}
+      {row.isOrphan ? (
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Badge variant="attention">{ORPHAN_BADGE}</Badge>
+          <button
+            className={cn(
+              'rounded-md px-1.5 py-0.5 text-[12px] text-accent',
+              'transition-colors duration-120 hover:bg-accent-wash',
+              'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+            )}
+            onClick={(event) => {
+              /* Bấm hành động KHÔNG kéo theo một lượt chọn dòng ngoài ý muốn. */
+              event.stopPropagation();
+              onAttachToNearestWall(row.id);
+            }}
+            type="button"
+          >
+            {ATTACH_ACTION}
+          </button>
+        </div>
+      ) : null}
+
+      {isUncertain ? (
+        <Badge className="self-start" variant="attention">
+          {LOW_CONFIDENCE_BADGE}
+        </Badge>
+      ) : null}
     </div>
   );
 }

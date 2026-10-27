@@ -113,6 +113,7 @@ import { dimensionsOf, spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
 import type { ApiClient, ApiResult, FloorWriteBody } from '@/api/client';
 import type { Floor } from '@/api/contracts';
 import { readProjectLayerRead } from '@/api/floorLayerGraph';
+import type { ScaleSource } from '@/lib/viewmodel/provisionalScale';
 
 import {
   accept,
@@ -1187,6 +1188,9 @@ export interface FloorManagerSnapshot {
   readonly graph: NormalizedSpatial | null;
   /** `true` khi `graph` là chính đồ thị đang nằm trong kho — không có gì để nạp lại (BUG-515). */
   readonly fromStore: boolean;
+  /** N16 `scaleStatus`/`scaleSource` từng tầng — đi tiếp vào `setSpatial` để kho giữ (UX-R1 K12). */
+  readonly floorScaleStatus?: Readonly<Record<string, 'unresolved'>>;
+  readonly floorScaleSource?: Readonly<Record<string, ScaleSource>>;
 }
 
 /**
@@ -1362,7 +1366,14 @@ export function createFloorManagerGateway(
         signal: input.signal,
       });
 
-      return { floorRevisions: read.floorRevisions, floors: result.data, fromStore: false, graph: read.graph };
+      return {
+        floorRevisions: read.floorRevisions,
+        floors: result.data,
+        fromStore: false,
+        graph: read.graph,
+        ...(read.floorScaleStatus === undefined ? {} : { floorScaleStatus: read.floorScaleStatus }),
+        ...(read.floorScaleSource === undefined ? {} : { floorScaleSource: read.floorScaleSource }),
+      };
     },
 
     graph,

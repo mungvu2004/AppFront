@@ -52,6 +52,7 @@ import { Button } from '@/components/ui/Button';
 import { FloorUploadCard } from './FloorUploadCard';
 import { FloorUploadDropZone } from './FloorUploadDropZone';
 import { FloorUploadGatePanel } from './FloorUploadGatePanel';
+import { FloorUploadSplitPanel } from './FloorUploadSplitPanel';
 import { SheetGlyph } from './FloorUploadGlyphs';
 import { FloorUploadTray } from './FloorUploadTray';
 import { deriveUploadGate, type UploadGate } from './floorUploadGate';
@@ -302,6 +303,16 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
                     onFilesChosen={props.onFilesChosen}
                   />
                 )}
+                <FloorUploadSplitPanel
+                  actions={{
+                    onSplitAsFloors: props.onSplitAsFloors,
+                    onSplitAsApartments: props.onSplitAsApartments,
+                    onOpenApartment: props.onOpenApartment,
+                    onDismissApartments: props.onDismissApartments,
+                  }}
+                  apartments={props.apartments}
+                  splitPrompt={props.splitPrompt}
+                />
                 {body}
                 <FloorUploadTray actions={actions} tray={tray} />
               </div>

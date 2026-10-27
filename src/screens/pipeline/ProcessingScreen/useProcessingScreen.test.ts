@@ -779,10 +779,12 @@ describe('useProcessingScreen', () => {
     });
     await settle(clock);
 
-    // R-1: đồ đạc cũng là đối tượng, như ở màn Xuất.
-    const objectLabel = `${String(sample.walls.length + sample.openings.length + sample.furniture.length + sample.rooms.length)} đối tượng`;
+    // R-1: chip đếm cả đồ đạc, như ở màn Xuất; K52: gọi là "mục nhận diện", tổng kết ghi cửa và nội thất riêng.
+    const objectLabel = `${String(sample.walls.length + sample.openings.length + sample.furniture.length + sample.rooms.length)} mục nhận diện`;
     expect(mounted.result.current.floors[0]?.objectCountLabel).toBe(objectLabel);
-    expect(mounted.result.current.summary?.metricLabels[1]).toBe(objectLabel);
+    expect(mounted.result.current.summary?.metricLabels[1]).toBe(
+      `${String(sample.openings.length)} cửa, ${String(sample.furniture.length)} nội thất`,
+    );
     expect(mounted.result.current.summary?.metricLabels[2]).toBe(`${String(dimensions.length)} chuỗi kích thước`);
     // K5: total area = outlines added in mm², rounded once (as on the rooms screen), not the
     // sum of each room's already-rounded `areaM2`.

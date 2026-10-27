@@ -87,7 +87,7 @@ import {
 import { changeForUpdate, createCommand } from '@/lib/commands/createCommand';
 import type { Command } from '@/lib/commands/types';
 import type { ToolOutcome } from '@/lib/tools/toolMachine';
-import { measureTextOf } from '@/lib/viewmodel/provisionalScale';
+import { isScaleMissing, type ScaleSource, type ScaleStatus } from '@/lib/viewmodel/provisionalScale';
 import {
   createIncrementalRuleRunner,
   dispatch,
@@ -103,7 +103,7 @@ import {
 } from '@/lib/commands/history';
 import { formatLength, formatScaleDensity } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
-import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
+import { CONFIDENCE_SUGGESTED_THRESHOLD, confidenceLevel, type ConfidenceLevel } from '@/lib/format/semantic';
 import { createUndoTicket, UNDO_WINDOW_MS, type UndoTicket } from '@/lib/mutations/undoTicket';
 import { toWallViewModel } from '@/lib/viewmodel/toViewModel';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
@@ -1176,6 +1176,55 @@ export const formatCentrelineLength = (wall: Wall, level: Level, unit: ProjectLe
     fractionDigits: LENGTH_FRACTION_DIGITS,
   });
 
+const NO_SCALE_LENGTH_TEXT = 'Chưa có — cần đặt tỷ lệ';
+const PROVISIONAL_LENGTH_SUFFIX = ' (tạm)';
+
+/**
+ * MỘT quy tắc chiều dài cho danh sách và thanh tra (K16): milimét nguyên ("5.757"). Tỷ lệ máy đo
+ * chưa xác nhận thì số vẫn hiện để soi (dải "tỷ lệ tạm" và "(tạm)" ở thanh tra đã nói, không lặp "≈" từng hàng);
+ * tầng không đo được tỷ lệ (1 mm/px mặc định,
+ * `project_default`) thì số vô nghĩa — `null`.
+ */
+export function wallLengthNumberOf(lengthMm: number, scaleStatus?: ScaleStatus, scaleSource?: ScaleSource): string | null {
+  if (scaleStatus === 'unresolved' && isScaleMissing(scaleSource)) {
+    return null;
+  }
+
+  const text = formatNumber(lengthMm, { fractionDigits: 0 });
+
+  return text;
+}
+
+/** Ô "Chiều dài" của thanh tra: cùng số với cột "Dài, mm" của danh sách, thêm đơn vị và "(tạm)". */
+export function wallLengthLabelOf(
+  wall: Wall,
+  level: Level,
+  scaleStatus?: ScaleStatus,
+  scaleSource?: ScaleSource,
+  unit: ProjectLengthUnit = 'mm',
+): string {
+  const number = wallLengthNumberOf(centrelineLength(toGeometryWall(wall, level)), scaleStatus, scaleSource);
+
+  if (number === null) {
+    return NO_SCALE_LENGTH_TEXT;
+  }
+
+  const isProvisional = scaleStatus === 'unresolved';
+  const text = unit === 'mm' ? `${number} mm` : `${isProvisional ? '≈' : ''}${formatCentrelineLength(wall, level, unit)}`;
+
+  return isProvisional ? `${text}${PROVISIONAL_LENGTH_SUFFIX}` : text;
+}
+
+const CONFIDENCE_TEXT: Readonly<Record<ConfidenceLevel, string>> = {
+  certain: 'Máy chắc chắn',
+  suggested: 'Máy khá chắc',
+  needsReview: 'Máy chưa chắc',
+  unknown: '–',
+};
+
+/** Độ tin cậy bằng chữ cho thanh tra; số "0,50" để ở phần nâng cao (K16). */
+export const confidenceTextOf = (confidence: number): string => CONFIDENCE_TEXT[confidenceLevel(confidence)];
+
 /** Tỷ lệ của tầng — "12 mm/px". Tầng chưa hiệu chỉnh thì trả dấu thiếu, không phải "undefined". */
 export const formatScaleLabel = (level: Level | null): string =>
   formatScaleDensity(level?.scaleMillimetresPerPixel);
@@ -1323,15 +1372,16 @@ export function toWallInspector(
   wall: Wall,
   level: Level,
   wallCodes?: ReadonlyMap<string, string>,
-  scaleStatus?: 'unresolved',
+  scaleStatus?: ScaleStatus,
   unit: ProjectLengthUnit = 'mm',
+  scaleSource?: ScaleSource,
 ): WallInspectorViewModel {
   return {
     id: wall.id,
     codeLabel: wallLabelOf(wall.id, wallCodes),
     thicknessMm: wall.thicknessMm,
-    /* Tầng ở tỉ lệ tạm thì chiều dài chưa tin được (F-04x-2). */
-    lengthLabel: measureTextOf(formatCentrelineLength(wall, level, unit), scaleStatus),
+    /* Cùng quy tắc với cột "Dài, mm" của danh sách: tỷ lệ tạm "≈… (tạm)", thiếu tỷ lệ thì nói rõ (K16). */
+    lengthLabel: wallLengthLabelOf(wall, level, scaleStatus, scaleSource, unit),
     /*
      * Chiều cao ở CÙNG cột milimét với chiều dài.
      *
@@ -1346,8 +1396,10 @@ export function toWallInspector(
       fractionDigits: unit === 'mm' ? 0 : 2,
     }),
     confidence: wall.confidence,
+    confidenceText: confidenceTextOf(wall.confidence),
     kindLabel: WALL_KIND_LABELS[wall.kind],
     advanced: {
+      confidenceLabel: formatNumber(wall.confidence, { fractionDigits: 2 }),
       elevationOffsetLabel: formatElevationM(level.elevationMm),
       startPointLabel: formatPoint(wall.centreline.start),
       endPointLabel: formatPoint(wall.centreline.end),

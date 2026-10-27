@@ -15,18 +15,19 @@ import type { Level, LevelId, Wall, WallId } from '@/domain/spatial/types';
 import { WALL_THICKNESS_TOLERANCE_MM } from '@/domain/walls/thicknessTolerance';
 import { centrelineLength } from '@/domain/walls/types';
 import { formatNumber } from '@/lib/format/number';
+import type { ScaleSource, ScaleStatus } from '@/lib/viewmodel/provisionalScale';
 import { CONCRETE_COLUMN_THRESHOLD_MM, standardizeThickness, standardTierRangeOf } from '@/lib/geometry/standardize';
 
 import { WALL_THICKNESS_CHOICES, type WallThicknessChoice } from './types';
 import { wallThicknessBandOf } from './wallLayerHatch';
-import { isStandardThickness, toGeometryWall } from './wallLayerReviewGateway';
+import { isLowConfidence, isStandardThickness, toGeometryWall, wallLengthNumberOf } from './wallLayerReviewGateway';
 
 /** Ba nhóm của danh sách, đúng thứ tự hàng đợi. */
 export type WallQueueGroup = 'nonStandard' | 'standard' | 'reviewed';
 
 /** Phần thêm của một hàng mà `WallRowViewModel` (đóng băng) không mang — đã định dạng sẵn (A15). */
 export interface WallRowExtra {
-  /** Chiều dài tim tường, số mm nguyên không đơn vị ("1.369") — đầu cột ghi "Dài, mm". */
+  /** Chiều dài tim tường, số mm nguyên không đơn vị ("1.369"; tỷ lệ tạm "≈1.369"; thiếu tỷ lệ "–") — đầu cột ghi "Dài, mm". */
   readonly lengthText: string;
   /** Độ dày đo, số mm nguyên không đơn vị ("278"). */
   readonly thicknessText: string;
@@ -75,6 +76,8 @@ export interface WallReviewQueue {
   readonly toleranceText: string;
   /** Mọi đoạn cùng một độ tin cậy thì độ tin cậy không giúp quyết định: ẩn. */
   readonly showConfidence: boolean;
+  /** Câu khoá đổi độ dày (chưa có tỷ lệ hoặc trung vị < 50 mm); `null` = được đổi. Cùng quy tắc `useThicknessStandardization`. */
+  readonly lockText?: string | null | undefined;
   readonly onStandardize: (wallId: WallId) => void;
   readonly onBulkStandardize: () => void;
 }
@@ -102,9 +105,15 @@ export function nextUnreviewedWallId(walls: readonly Wall[], fromId: WallId | nu
   return wrapped?.id ?? null;
 }
 
-/** Xếp theo hàng đợi; giữ thứ tự vào trong mỗi nhóm (sort ổn định). */
-export const sortByReviewQueue = (walls: readonly Wall[]): readonly Wall[] =>
-  [...walls].sort((a, b) => RANK[queueGroupOf(a)] - RANK[queueGroupOf(b)]);
+/** Tường chưa duyệt mà máy chưa chắc (dưới ngưỡng tin cậy) đứng đầu nhóm của nó (K15). */
+const uncertainRankOf = (wall: Wall, threshold: number | undefined): number =>
+  !wall.reviewed && isLowConfidence(wall, threshold) ? 0 : 1;
+
+/** Xếp theo hàng đợi, trong mỗi nhóm "máy chưa chắc" lên trước; còn lại giữ thứ tự vào (sort ổn định). */
+export const sortByReviewQueue = (walls: readonly Wall[], threshold?: number): readonly Wall[] =>
+  [...walls].sort(
+    (a, b) => RANK[queueGroupOf(a)] - RANK[queueGroupOf(b)] || uncertainRankOf(a, threshold) - uncertainRankOf(b, threshold),
+  );
 
 const isChoice = (value: unknown): value is WallThicknessChoice =>
   typeof value === 'number' && (WALL_THICKNESS_CHOICES as readonly number[]).includes(value);
@@ -143,13 +152,13 @@ function noteOf(wall: Wall, targetMm: WallThicknessChoice | null): string {
   return `Dày trên ${mm(CONCRETE_COLUMN_THRESHOLD_MM)} mm: dày bất thường, có thể là cột BTCT. Cần xem tay.`;
 }
 
-export function rowExtraOf(wall: Wall, level: Level | null): WallRowExtra {
+export function rowExtraOf(wall: Wall, level: Level | null, scaleStatus?: ScaleStatus, scaleSource?: ScaleSource): WallRowExtra {
   const group = queueGroupOf(wall);
   const band = wallThicknessBandOf(wall.thicknessMm);
   const targetMm = band === null ? thicknessTargetOf(wall.thicknessMm) : null;
 
   return {
-    lengthText: level === null ? '–' : mm(centrelineLength(toGeometryWall(wall, level))),
+    lengthText: level === null ? '–' : (wallLengthNumberOf(centrelineLength(toGeometryWall(wall, level)), scaleStatus, scaleSource) ?? '–'),
     thicknessText: mm(wall.thicknessMm),
     nearText: band !== null && band !== wall.thicknessMm ? `≈${mm(band)}` : null,
     group,

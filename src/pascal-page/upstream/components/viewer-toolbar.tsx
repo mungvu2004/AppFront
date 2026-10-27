@@ -3,6 +3,7 @@
  * VERBATIM copy of upstream Pascal apps/editor/components/viewer-toolbar.tsx (F:\pascal-editor, commit cd14090, MIT).
  * Edits: import paths only (`@/components/*`, `@/lib/*` -> relative).
  * pascal-polish T3: className/presentation only (AppFront surface/selected/accent tokens, label collapse thresholds).
+ * UX-R1: camera buttons always in the "Góc nhìn" menu; the level toggle is lit when not "một tầng".
  */
 
 import { Icon as IconifyIcon } from '@iconify/react'
@@ -67,8 +68,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './toolbar-tooltip'
 // AppFront edit (P40, G5-11; QA-2 L1; impeccable D1): text labels of the level/wall/display buttons
 // collapse to screen-reader text when the top bar itself is narrower than 1500px (container `appbar`,
 // declared in pascal.css; the sidebar width counts, not just the viewport). The 3D/2D/Chia đôi and
-// "Xem trước" labels go below 1200px, where the camera group also folds into the "…" menu, so the bar
-// never overlaps or clips between 1024 and 1920. Tooltips/aria-labels keep every name.
+// "Xem trước" labels go below 1200px. The camera group (rotate / top view / walk) always sits in the
+// "Góc nhìn" menu (UX-R1 K38/K49: the bar clipped "Xem trước" at 1920), so the bar never overlaps or
+// clips between 1024 and 1920. Tooltips/aria-labels keep every name.
 
 // pascal-polish T3: AppFront float surface (solid, 1px border, 12px radius, float shadow); ghost buttons hover
 // to --pa-sunken, the "on" state is --pa-selected + accent text; focus ring is inset (the group clips overflow).
@@ -287,7 +289,8 @@ const LEVEL_MODE_ICONS: Record<(typeof levelModeOrder)[number], string> = {
 function LevelModeToggle() {
   const levelMode = useViewer((state) => state.levelMode)
   const setLevelMode = useViewer((state) => state.setLevelMode)
-  const isDefault = levelMode === 'stacked' || levelMode === 'manual'
+  // AppFront edit (UX-R1 K19): one floor is the default now (page.tsx `applyStartParams`).
+  const isDefault = levelMode === 'solo'
   const current = levelMode === 'manual' ? 'Tầng: tuỳ chỉnh' : (levelModeLabels[levelMode] ?? 'Tầng: chồng')
   const icon = levelMode === 'solo' || levelMode === 'exploded' ? LEVEL_MODE_ICONS[levelMode] : LEVEL_MODE_ICONS.stacked
   const label = `Cách xếp tầng, đang chọn: ${current.replace('Tầng: ', '')} (cần từ 2 tầng)`
@@ -675,36 +678,6 @@ function DisplayMenu() {
   )
 }
 
-function WalkthroughButton() {
-  const isFirstPersonMode = useEditor((state) => state.isFirstPersonMode)
-  const setFirstPersonMode = useEditor((state) => state.setFirstPersonMode)
-  const handleClick = useCallback(() => {
-    if (isFirstPersonMode) {
-      setFirstPersonMode(false)
-      return
-    }
-
-    flushSync(() => setFirstPersonMode(true))
-    requestWalkthroughPointerLock()
-  }, [isFirstPersonMode, setFirstPersonMode])
-
-  return (
-    <ToolbarTooltip label="Đi bộ trong nhà">
-      <button
-        aria-label="Đi bộ trong nhà"
-        className={cn(
-          TOOLBAR_BTN,
-          isFirstPersonMode && BTN_ON,
-        )}
-        onClick={handleClick}
-        type="button"
-      >
-        <Footprints className="h-4 w-4" />
-      </button>
-    </ToolbarTooltip>
-  )
-}
-
 /** Biên theo tường + vùng phòng (như khung mở đầu), đổi về dạng min/max của Pascal; không có thì biên của Pascal. */
 function sceneBoundsOfPlan(nodes: ReturnType<typeof useScene.getState>['nodes']) {
   const plan = planBoundsXZ(nodes)
@@ -767,30 +740,10 @@ const CAMERA_BUTTONS = [
   { label: 'Xoay phải 90°', icon: RotateCw, onClick: () => emitter.emit('camera-controls:orbit-cw') },
 ] as const
 
-function CameraButtons() {
-  // Upstream hides top view in 2D-only (it only tilts the hidden 3D camera); orbit still spins the plan.
-  const is2dOnly = useEditor((state) => state.viewMode === '2d')
-  return (
-    <>
-      {CAMERA_BUTTONS.map(({ label, icon: ButtonIcon, onClick }) => (
-        <ToolbarTooltip key={label} label={label}>
-          <button aria-label={label} className={TOOLBAR_BTN} onClick={onClick} type="button">
-            <ButtonIcon className="h-4 w-4" />
-          </button>
-        </ToolbarTooltip>
-      ))}
-      {is2dOnly ? null : (
-        <ToolbarTooltip label="Nhìn từ trên (bấm lần nữa để về góc 45°)">
-          <button aria-label="Nhìn từ trên" className={TOOLBAR_BTN} onClick={topViewToggle} type="button">
-            <ArrowDownToDot className="h-4 w-4" />
-          </button>
-        </ToolbarTooltip>
-      )}
-    </>
-  )
-}
-
-/** Below 1200px the rotate / top-view / walk buttons live here, so the bar never clips. */
+/**
+ * AppFront edit (UX-R1 K38/K49): the rotate / top-view / walk buttons always live in this "Góc nhìn"
+ * menu (before: only below 1200px), so the bar fits 1920px with the scene cards and step strip.
+ */
 function MoreCameraMenu() {
   const is2dOnly = useEditor((state) => state.viewMode === '2d')
   const walkthrough = () => {
@@ -803,11 +756,11 @@ function MoreCameraMenu() {
     requestWalkthroughPointerLock()
   }
   return (
-    <div className="contents @min-[1200px]/appbar:hidden">
+    <div className="contents">
       <DropdownMenu>
-        <ToolbarTooltip label="Thêm thao tác camera">
+        <ToolbarTooltip label="Góc nhìn: xoay, nhìn từ trên, đi bộ">
           <DropdownMenuTrigger asChild>
-            <button aria-label="Thêm thao tác camera" className={TOOLBAR_BTN} type="button">
+            <button aria-label="Góc nhìn" className={TOOLBAR_BTN} type="button">
               <Ellipsis className="h-4 w-4" />
             </button>
           </DropdownMenuTrigger>
@@ -911,10 +864,6 @@ export function CommunityViewerToolbarRight({
       <DisplayMenu />
       <div className="my-1.5 w-px bg-[var(--pa-border)]" />
       <FitViewButton />
-      <div className="hidden @min-[1200px]/appbar:contents">
-        <CameraButtons />
-        <WalkthroughButton />
-      </div>
       <MoreCameraMenu />
       {onVRToggle || vrButton
         ? (vrButton ??

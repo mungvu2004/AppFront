@@ -61,3 +61,13 @@ pascal-polish F2/T4 (look + a11y only): `components/canvas-help.tsx` restyled wi
 `dl/dt/dd`, plus a "Hướng dẫn" button that reopens `../tour/PascalTour.tsx`; `components/build-tab.tsx`
 `transition-all` -> `transition-colors`, modular-cabinet button gets `aria-label`; focus rings keep a transparent
 outline for forced-colors.
+
+UX-R1 (desktop 1920 review):
+
+12. `page.tsx` `applyStartParams`: the viewer opens in level mode `solo` ("Tầng: một tầng") after each load, `?view=exploded`
+    still wins (K19), and selects the first floor that has walls (missing-scale floors are left empty). `viewer-toolbar.tsx`: the level toggle is lit when not `solo`; rotate / top view / walk always sit in
+    the "Góc nhìn" menu so the bar fits 1920 px (K38/K49).
+13. `build-tab.tsx`: the grid shows the apartment tools (`lib/apartment-tools.ts`, AppFront file); the rest sit behind a
+    "Thêm" tile (K38/K43).
+14. `page.tsx`: `ScaleEmptyNotice` (`../scaleBanner.tsx`) sits beside `CanvasHelp`; when no floor has a scale the bridge
+    builds an empty scene and this card says why mid-screen, with the "Đặt tỷ lệ" link (Codex P1).

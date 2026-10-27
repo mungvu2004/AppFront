@@ -326,7 +326,7 @@ export function RuleReportGroupList({
             key={group.ruleCode}
             title={`${group.ruleName} · ${GROUP_LABELS[group.group]}`}
             dotClassName={SEVERITY_DOT[group.severity]}
-            summary={`${SEVERITY_LABELS[group.severity]} · ${count(group.openCount)} mục chưa xử lý${resolvedNote}`}
+            summary={`${SEVERITY_LABELS[group.severity]} · ${count(group.openCount)} mục chưa xử lý${resolvedNote}${group.isProvisional === true ? ' · Tạm, chờ tỷ lệ' : ''}`}
             isOpen={isOpen}
             onToggle={() => {
               onToggleGroup(group.ruleCode);

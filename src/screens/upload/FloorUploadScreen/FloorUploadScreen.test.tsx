@@ -342,6 +342,68 @@ describe('FloorUploadScreen — không tự viết giới hạn dung lượng', 
 /* (d) Nút chặn nêu tên tầng thiếu và cuộn tới đó.                             */
 /* -------------------------------------------------------------------------- */
 
+describe('FloorUploadScreenView — tầng hay căn hộ riêng (K19)', () => {
+  it('hỏi một câu, hai nút gọi đúng hành động', () => {
+    const onSplitAsFloors = vi.fn();
+    const onSplitAsApartments = vi.fn();
+    renderWithProviders(
+      <FloorUploadScreenView
+        {...scenarioFor('success')}
+        onSplitAsApartments={onSplitAsApartments}
+        onSplitAsFloors={onSplitAsFloors}
+        splitPrompt={{
+          question: 'Các bản vẽ này là các tầng của cùng một nhà, hay là các căn hộ riêng?',
+          detail: 'Bạn vừa chọn 2 bản vẽ.',
+          floorsLabel: 'Các tầng của một nhà',
+          apartmentsLabel: 'Các căn hộ riêng',
+        }}
+      />,
+    );
+
+    const prompt = screen.getByRole('region', { name: /các tầng của cùng một nhà/u });
+    fireEvent.click(within(prompt).getByRole('button', { name: 'Các tầng của một nhà' }));
+    fireEvent.click(within(prompt).getByRole('button', { name: 'Các căn hộ riêng' }));
+
+    expect(onSplitAsFloors).toHaveBeenCalledTimes(1);
+    expect(onSplitAsApartments).toHaveBeenCalledTimes(1);
+  });
+
+  it('liệt kê dự án vừa tạo; chỉ hàng mở được mới có nút mở', () => {
+    const onOpenApartment = vi.fn();
+    const row = { fileName: 'can-ho-a.png', problem: null, statusVariant: 'neutral' as const };
+    renderWithProviders(
+      <FloorUploadScreenView
+        {...scenarioFor('success')}
+        apartments={{
+          title: 'Dự án vừa tạo',
+          summary: 'Đã tải xong 1 / 2 bản vẽ, mỗi bản vẽ một dự án.',
+          openLabel: 'Mở dự án',
+          dismissLabel: 'Ẩn danh sách',
+          rows: [
+            {
+              ...row,
+              id: 'a',
+              projectName: 'can-ho-a',
+              statusLabel: 'Đã tải bản vẽ',
+              canOpen: true,
+              note: 'Đã lấy trang 1 trong 3 trang. Cần trang khác thì mở dự án và tải lại.',
+            },
+            { ...row, id: 'b', projectName: 'can-ho-b', statusLabel: 'Đang tải bản vẽ', canOpen: false },
+          ],
+        }}
+        onOpenApartment={onOpenApartment}
+      />,
+    );
+
+    const list = screen.getByRole('region', { name: 'Dự án vừa tạo' });
+    expect(within(list).getAllByRole('button', { name: /^Mở dự án/u })).toHaveLength(1);
+    expect(within(list).getByText(/Đã lấy trang 1 trong 3 trang/u)).toBeInTheDocument();
+    fireEvent.click(within(list).getByRole('button', { name: 'Mở dự án can-ho-a' }));
+
+    expect(onOpenApartment).toHaveBeenCalledWith('a');
+  });
+});
+
 describe('FloorUploadScreenView — nút chính bị chặn (tiêu chí d)', () => {
   it('nêu tên tầng còn thiếu và cuộn tới đúng thẻ ấy, đúng một lần', () => {
     const scrollSpy = vi.fn();

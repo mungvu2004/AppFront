@@ -193,11 +193,11 @@ test.describe('U04 UI verify — SCR-22 overlay flows (QA-04c P7)', () => {
         });
       });
 
-      await test.step('[22-F-009] scale-conflict error + link at four widths (direct URL)', async () => {
+      await test.step('[22-F-009] floors at two scales: no cross-floor scale alert at four widths (direct URL, UX-R1 K11)', async () => {
         await shown(page, '22-F-009', 'scale-conflict', async (p) => {
           await openOverlay(p, scales.projectId, scaleFloor.id);
-          await expect(alertWith(p, OV.scaleConflict)).toBeVisible();
-          await expect(p.getByRole('link', { name: OV.toScale, exact: true })).toBeVisible();
+          await expect(toolbar(p), 'milestone: the overlay is drawn').toBeVisible();
+          await expect(alertWith(p, OV.scaleConflict)).toHaveCount(0);
         });
       });
     } finally {

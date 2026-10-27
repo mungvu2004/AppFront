@@ -16,6 +16,7 @@ const DREI_GLTF = path.join(path.dirname(requireFromNodes.resolve('@react-three/
 const FILES = [
   path.join(PACKAGES, 'nodes/src/item/renderer.tsx'),
   path.join(PACKAGES, 'viewer/src/lib/ktx2-loader.ts'),
+  path.join(PACKAGES, 'editor/src/lib/floorplan/floorplan-pdfkit-document.ts'),
   DREI_GLTF,
 ];
 
@@ -26,6 +27,7 @@ describe('pascal-self-host', () => {
     expect(out).not.toMatch(/gstatic\.com|jsdelivr\.net/);
     expect(out).toContain("'/draco/'");
     expect(out).toContain("'/basis/'");
+    expect(out).toContain("new URL('/pascal/pdf-fonts/LiberationSans-Regular.ttf', self.location.href)");
     expect(() => plugin.buildEnd()).not.toThrow();
   });
 

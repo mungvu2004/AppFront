@@ -97,6 +97,7 @@ import { createProgressStream } from '@/lib/realtime/progressStream';
 import type { ProgressStreamSource, ProgressStreamState } from '@/lib/realtime/progressStream';
 import { createBeaconTransport, createTelemetrySender } from '@/lib/telemetry/sender';
 import type { TelemetrySender } from '@/lib/telemetry/sender';
+import { isScaleMissing } from '@/lib/viewmodel/provisionalScale';
 
 /** Số lượt gần nhất tab "Nhật ký" liệt kê (N5-08). */
 const PIPELINE_RUNS_PAGE_SIZE = 20;
@@ -240,6 +241,8 @@ export interface ProcessingExtractionSummary {
   readonly dimensionCount: number;
   /** Tầng đã có tỷ lệ do người đặt tay (không còn `scaleStatus: unresolved`). */
   readonly hasScale?: boolean;
+  /** Máy không đo được tỷ lệ (N16 `scaleSource: 'project_default'`, `isScaleMissing`) — chip đỏ "Sai tỷ lệ" (K12). */
+  readonly scaleMissing?: boolean;
   /**
    * Độ sẵn sàng của tầng (N16 `readiness`, FIX-P0-15). BE cũ chưa trả thì suy `scaleUnresolved` từ
    * `scaleStatus: unresolved` — có kích thước mà tỷ lệ tạm không được báo "Sẵn sàng".
@@ -838,6 +841,7 @@ export function toExtractionSummary(
     hasScale:
       document.level.scaleMillimetresPerPixel !== undefined && document.scaleStatus === undefined,
     ...(readiness !== undefined ? { readiness } : {}),
+    ...(isScaleMissing(document.scaleSource) ? { scaleMissing: true } : {}),
     roomCount: rooms.length,
     roomOutlinesMm: rooms.map((room) => room.outline.map(toPointMm)),
     confidenceThreshold,

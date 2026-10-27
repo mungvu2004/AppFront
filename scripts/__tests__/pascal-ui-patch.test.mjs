@@ -17,6 +17,15 @@ describe('pascal-ui-patch', () => {
     }
   });
 
+  it('nút chèn tầng ra cột riêng bên trái, không còn neo giữa ô (Codex P2)', () => {
+    const file = 'editor/src/components/ui/floating-level-selector.tsx';
+    const out = applyUiPatches(readFileSync(path.join(PACKAGES, file), 'utf8'), file, UI_PATCHES[file]);
+    expect(out).toContain("data-level-gutter={reversedLevels.length > 1 ? '' : undefined}");
+    expect(out).toMatch(/data-level-insert="" onClick=\{\(\) => handleInsertBetween\(/);
+    // Nút thêm trên/dưới (ở mép ô) không bị dời vào cột.
+    expect(out.match(/data-level-insert=""/g)).toHaveLength(1);
+  });
+
   it('ném lỗi khi thiếu neo hoặc sai số lần', () => {
     expect(() => applyUiPatches('<b/>', 'x.tsx', [['bg-neutral-100', 'bg-background', 1]])).toThrow(/0 lần/);
     expect(() => applyUiPatches('bg-neutral-100 bg-neutral-100', 'x.tsx', [['bg-neutral-100', 'bg-background', 1]])).toThrow(/2 lần/);

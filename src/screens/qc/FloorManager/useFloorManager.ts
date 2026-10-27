@@ -74,10 +74,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { alignFloors, type FloorAlignmentReport, type FloorIssue } from '@/domain/axes/alignFloors';
+import {
+  alignFloors,
+  MIN_MATCHED_AXES,
+  type FloorAlignmentReport,
+  type FloorIssue,
+} from '@/domain/axes/alignFloors';
 import { explainHealthScore, groupViolationsByLevel, HEALTH_SCORE_MAX } from '@/domain/rules/healthScore';
 import type { Violation } from '@/domain/rules/registry';
 import { totalArea } from '@/domain/rooms/area';
+import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, LevelId } from '@/domain/spatial/types';
 import { HUMAN_TEXT_MAX_LENGTH, normalizeHumanText } from '@/domain/text/humanText';
 import type { PointMm } from '@/domain/units/compare';
@@ -117,7 +123,10 @@ import { useCountUp } from '@/hooks/useCountUp';
 import { useShortcut } from '@/hooks/useShortcut';
 import { selectViolations } from '@/store/selectors';
 import { useStore } from '@/store';
+import type { FloorMetaEntry } from '@/store/spatialSlice';
 import type { ProjectRole } from '@/types/project';
+
+import { floorScaleStateOf, scaleImplausibleOf } from '../shared/floorReviewGateModel';
 
 import {
   areaOfLevel,
@@ -362,6 +371,42 @@ export function worstStackIssue(report: FloorAlignmentReport): FloorIssue | null
   }
 
   return worst;
+}
+
+/** Câu cảnh báo khi các tầng không có trục chung — có thể là các căn riêng, không phải một nhà (UX-R1 K19). */
+export const NO_SHARED_AXES_NOTICE = {
+  title: 'Các tầng không có trục chung',
+  message:
+    'Các bản vẽ này không khớp nhau theo trục, nên có thể là các căn riêng chứ không phải các tầng của một nhà. Nếu đúng là các căn riêng, hãy tạo mỗi căn một dự án.',
+} as const;
+
+/**
+ * Có từ hai tầng có trục mà KHÔNG tầng nào khớp đủ {@link MIN_MATCHED_AXES} trục với tầng chuẩn —
+ * đúng con số "0 trục chung" màn Trục hiện. Tầng chưa có trục (chưa có bản vẽ) không tính.
+ */
+export function hasNoSharedAxes(report: FloorAlignmentReport): boolean {
+  const base = report.floors.find((floor) => floor.isBase);
+  const others = report.floors.filter((floor) => !floor.isBase && floor.axisCount > 0);
+
+  return (
+    base !== undefined &&
+    base.axisCount > 0 &&
+    others.length > 0 &&
+    others.every((floor) => floor.matchedAxisCount < MIN_MATCHED_AXES)
+  );
+}
+
+/**
+ * Tầng cần đặt tỷ lệ trước (nhãn "Sai tỷ lệ", "Việc tiếp" sang bước Tỷ lệ): cùng luật với thanh bước
+ * (`floorScaleStateOf` + `scaleImplausibleOf`) — máy không đo được, hoặc đo ra hình vô lý. Chỉ xét
+ * tầng kho biết là tỷ lệ tạm; kho chưa biết thì không đoán (như `useFloorReview`).
+ */
+export function floorScaleMissingOf(graph: NormalizedSpatial, level: Level, meta: FloorMetaEntry | undefined): boolean {
+  return (
+    meta?.scaleStatus === 'unresolved' &&
+    floorScaleStateOf(meta.scaleStatus, meta.scaleSource, level.scaleMillimetresPerPixel, scaleImplausibleOf(graph, level.id)) ===
+      'missing'
+  );
 }
 
 /** Bỏ bộ đệm văn bản của một dòng, trả lại bản ghi mới — không đụng bản cũ. */
@@ -652,6 +697,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   const storeProjectId = useStore((state) => state.spatialProjectId);
   const setSpatial = useStore((state) => state.setSpatial);
   const violations = useStore(selectViolations);
+  /* Nguồn tỷ lệ tạm từng tầng (N16, kho giữ ở `floorMeta`): `project_default` = máy không đo được (K12). */
+  const floorMeta = useStore((state) => state.floorMeta);
 
   const snapshot = floorListQuery.data;
   const loadedGraph = snapshot?.graph ?? null;
@@ -689,7 +736,12 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
       return;
     }
 
-    setSpatial(loadedGraph, null, { floorRevisions: snapshot.floorRevisions, projectId });
+    setSpatial(loadedGraph, null, {
+      floorRevisions: snapshot.floorRevisions,
+      projectId,
+      ...(snapshot.floorScaleStatus === undefined ? {} : { floorScaleStatus: snapshot.floorScaleStatus }),
+      ...(snapshot.floorScaleSource === undefined ? {} : { floorScaleSource: snapshot.floorScaleSource }),
+    });
   }, [isFetchedAfterMount, loadedGraph, projectId, setSpatial, snapshot, storeGraph, storeProjectId]);
 
   /*
@@ -1693,6 +1745,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         isSelected: selectedFloorId === id,
         isHovered: hoveredFloorId === id,
         needsDrawing: !hasDrawing,
+        isScaleMissing: hasDrawing && graph !== null && floorScaleMissingOf(graph, level, floorMeta[id]),
         isHiddenIn3d: hiddenFloorIds.includes(id),
         isElevationRefused: duplicateElevation?.floorId === id,
         draft: draftOf(level),
@@ -1704,7 +1757,9 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     draftOf,
     duplicateElevation,
     editing,
+    floorMeta,
     floorsById,
+    graph,
     hasError,
     hiddenFloorIds,
     hoveredFloorId,
@@ -1712,6 +1767,12 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     selectedFloorId,
     violationsByLevel,
   ]);
+
+  /* K19: các tầng không chung trục nào — dữ liệu trục có sẵn trong đồ thị, cùng phép căn của màn Trục. */
+  const axisMismatchNotice = useMemo(
+    () => (graph !== null && hasNoSharedAxes(alignFloors(floorPlansOf(graph))) ? NO_SHARED_AXES_NOTICE : null),
+    [graph],
+  );
 
   const bands = useMemo<readonly SectionBandVm[]>(() => {
     if (rows.length === 0 || !Number.isFinite(totalStackHeightMm) || totalStackHeightMm <= 0) {
@@ -1878,6 +1939,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     historyStepCount: () => dispatchBundle.history.undoSteps().length,
     canUndo: dispatchBundle.history.canUndo(),
     unsupportedNotices,
+    axisMismatchNotice,
     projectName,
   };
 }

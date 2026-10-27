@@ -491,8 +491,9 @@ describe('nhãn mã tường', () => {
         lengthLabel: '4.250,00 mm',
         heightLabel: '3,00 m',
         confidence: 0.71,
+        confidenceText: 'Máy khá chắc',
         kindLabel: 'Tường gạch',
-        advanced: { elevationOffsetLabel: '0', startPointLabel: '0', endPointLabel: '0' },
+        advanced: { confidenceLabel: '0,71', elevationOffsetLabel: '0', startPointLabel: '0', endPointLabel: '0' },
       },
       thicknessChoices: THICKNESS_BANDS,
       thicknessFocusRequest: 0,
@@ -561,16 +562,11 @@ describe('điều hướng tầng (BC-05)', () => {
 
     expect(screen.queryByRole('navigation', { name: 'Tầng của bản vẽ' })).not.toBeInTheDocument();
 
-    const floorChip = await screen.findByRole('button', { name: /^Chọn nhanh — đang ở/u });
+    /* Thanh bước của tầng (UX-R1 K25): menu "Đổi tầng" đầu hàng, mỗi tầng là một link. */
+    const floorMenu = (await screen.findByLabelText(/^Đổi tầng: đang ở/u)).closest('details');
 
-    await act(async () => {
-      floorChip.click();
-      await Promise.resolve();
-    });
-
-    const menu = await screen.findByRole('listbox', { name: 'Chọn tầng' });
-
-    expect(within(menu).getByRole('button', { name: SECOND_LEVEL.name })).toBeInTheDocument();
+    expect(floorMenu).not.toBeNull();
+    expect(await within(floorMenu as HTMLElement).findByRole('link', { name: SECOND_LEVEL.name })).toBeInTheDocument();
   });
 });
 
@@ -597,8 +593,8 @@ describe('tim tường bật tắt được (BC-17)', () => {
   });
 });
 
-describe('lớp Tường bật tắt được từ cây lớp (BC-19)', () => {
-  it('nút con mắt bàn phím tới được, và chú giải đi theo nó', async () => {
+describe('lớp Tường bật tắt được từ ô "Hiện lớp tường" (BC-19, K29)', () => {
+  it('ô đánh dấu bật tắt thật, và chú giải đi theo nó', async () => {
     renderWithProviders(
       <MemoryRouter>
         <WallLayerReviewContainer {...scenarioArgsFor('partial')} />
@@ -607,26 +603,24 @@ describe('lớp Tường bật tắt được từ cây lớp (BC-19)', () => {
 
     expect(await screen.findByRole('group', { name: 'Lọc theo độ dày tường' })).toBeInTheDocument();
 
-    /* A6 · B-V6-04: tên lớp trong cây và trong nút con mắt cùng viết thường. */
-    expect(screen.getByRole('treeitem', { name: 'Tường' })).toBeInTheDocument();
-    const hide = screen.getByRole('button', { name: 'Ẩn lớp tường' });
+    /* K29: một ô đánh dấu thật, không còn hàng cây lớp chết bên cạnh nút con mắt. */
+    expect(screen.queryByRole('treeitem', { name: 'Tường' })).toBeNull();
+    const toggle = screen.getByRole('checkbox', { name: 'Hiện lớp tường' });
 
-    /* Hai lỗi của `TreeItem` dùng chung mà hàng riêng của màn này không mắc. */
-    expect(hide.getAttribute('tabindex')).toBeNull();
+    expect(toggle).toBeChecked();
 
     await act(async () => {
-      hide.click();
+      toggle.click();
       await Promise.resolve();
     });
 
     await waitFor(() => {
       expect(screen.queryByRole('group', { name: 'Lọc theo độ dày tường' })).not.toBeInTheDocument();
     });
-
-    const show = screen.getByRole('button', { name: 'Hiện lớp tường' });
+    expect(screen.getByRole('checkbox', { name: 'Hiện lớp tường' })).not.toBeChecked();
 
     await act(async () => {
-      show.click();
+      screen.getByRole('checkbox', { name: 'Hiện lớp tường' }).click();
       await Promise.resolve();
     });
 
@@ -644,7 +638,7 @@ describe('thu gọn hai panel (BT-16)', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('tree', { name: 'Cây lớp' })).toBeInTheDocument();
+    expect(await screen.findByRole('checkbox', { name: 'Hiện lớp tường' })).toBeInTheDocument();
 
     const collapse = screen.getByRole('button', { name: 'Thu gọn hai panel' });
 
@@ -654,7 +648,7 @@ describe('thu gọn hai panel (BT-16)', () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole('tree', { name: 'Cây lớp' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('checkbox', { name: 'Hiện lớp tường' })).not.toBeInTheDocument();
     });
 
     /* Canvas và thanh trạng thái vẫn còn — thu gọn không phải màn trắng (A11). */
@@ -668,7 +662,7 @@ describe('thu gọn hai panel (BT-16)', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('tree', { name: 'Cây lớp' })).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: 'Hiện lớp tường' })).toBeInTheDocument();
     });
   });
 });
@@ -749,7 +743,7 @@ describe('bộ đếm ở trạng thái Xong (BT-08)', () => {
   it('trạng thái Một phần thì KHÔNG có token đó ở bộ đếm', async () => {
     const { container } = renderState('partial');
 
-    await screen.findByRole('tree', { name: 'Cây lớp' });
+    await screen.findByRole('checkbox', { name: 'Hiện lớp tường' });
 
     expect(container.querySelectorAll('.text-state-verified')).toHaveLength(0);
   });
@@ -785,7 +779,7 @@ describe('dải tỷ lệ tạm (F-04x-2)', () => {
   it('tầng có tỉ lệ thật: không dải', async () => {
     renderState('partial');
 
-    await screen.findByRole('tree', { name: 'Cây lớp' });
+    await screen.findByRole('checkbox', { name: 'Hiện lớp tường' });
 
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Đặt tỷ lệ' })).not.toBeInTheDocument();
@@ -815,7 +809,7 @@ describe('đợt sửa P04 — SCR-16', () => {
   it('[BUG-601] vai Người xem: "Thu gọn hai panel" thu gọn thật, không chỉ đổi nhãn', async () => {
     renderState('forbidden');
 
-    expect(await screen.findByRole('tree', { name: 'Cây lớp' })).toBeInTheDocument();
+    expect(await screen.findByRole('checkbox', { name: 'Hiện lớp tường' })).toBeInTheDocument();
 
     await act(async () => {
       screen.getByRole('button', { name: 'Thu gọn hai panel' }).click();
@@ -823,7 +817,7 @@ describe('đợt sửa P04 — SCR-16', () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole('tree', { name: 'Cây lớp' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('checkbox', { name: 'Hiện lớp tường' })).not.toBeInTheDocument();
     });
   });
 
@@ -836,7 +830,7 @@ describe('đợt sửa P04 — SCR-16', () => {
   it('[BUG-395] dưới 1280 panel trái không bị khoá 560 px (danh sách còn ~3 hàng)', async () => {
     renderState('partial');
 
-    const tree = await screen.findByRole('tree', { name: 'Cây lớp' });
+    const tree = await screen.findByRole('checkbox', { name: 'Hiện lớp tường' });
     const panel = tree.closest('.shadow-panel');
 
     expect(panel).not.toBeNull();
@@ -846,7 +840,7 @@ describe('đợt sửa P04 — SCR-16', () => {
   it('[BUG-621] dưới 1024 panel trái không cắt đáy', async () => {
     renderState('partial');
 
-    const tree = await screen.findByRole('tree', { name: 'Cây lớp' });
+    const tree = await screen.findByRole('checkbox', { name: 'Hiện lớp tường' });
     const panel = tree.closest('.shadow-panel');
     const listRegion = panel?.lastElementChild;
 
@@ -884,6 +878,17 @@ describe('đợt sửa P04 — SCR-16', () => {
     expect(status?.querySelector('svg')).not.toBeNull();
   });
 
+  it('[UX-R1 K-03] tiêu đề nhóm viết thường có dấu hai chấm, không in hoa', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      { x: 0, y: 0, top: 0, left: 0, right: 280, bottom: 800, width: 280, height: 800, toJSON: () => ({}) } as DOMRect,
+    );
+    renderState('partial');
+
+    const header = await screen.findByText(/^Độ dày đúng chuẩn: \d+$/);
+
+    expect(header).not.toHaveClass('uppercase');
+  });
+
   it('[BUG-614] bộ lọc panel trái: nhãn 13 px ngang cây lớp', async () => {
     renderState('partial');
 
@@ -918,7 +923,7 @@ describe('đợt sửa P04 — SCR-16', () => {
     expect(screen.getByText(/Chọn một đoạn tường/u)).toHaveClass('pb-5');
   });
 
-  it('[BUG-604] "Đổi độ dày" đưa focus vào ba lựa chọn độ dày', () => {
+  it('[BUG-604] "Đổi độ dày" đưa focus vào ô chọn độ dày', () => {
     const wall = {
       id: WALL_LAYER_FIXTURE_WALLS[0]?.id,
       codeLabel: '#W-001',
@@ -926,14 +931,15 @@ describe('đợt sửa P04 — SCR-16', () => {
       lengthLabel: '4.250,00 mm',
       heightLabel: '3,00 m',
       confidence: 0.71,
+      confidenceText: 'Máy khá chắc',
       kindLabel: 'Tường gạch',
-      advanced: { elevationOffsetLabel: '0', startPointLabel: '0', endPointLabel: '0' },
+      advanced: { confidenceLabel: '0,71', elevationOffsetLabel: '0', startPointLabel: '0', endPointLabel: '0' },
     };
     const { rerender } = renderWithProviders(
       <WallLayerInspector panel={inspectorPanel({ inspector: wall } as Partial<WallLayerViewProps>)} />,
     );
 
-    expect(document.activeElement?.getAttribute('role')).not.toBe('radio');
+    expect(document.activeElement?.tagName).not.toBe('SELECT');
 
     rerender(
       <WallLayerInspector
@@ -941,8 +947,9 @@ describe('đợt sửa P04 — SCR-16', () => {
       />,
     );
 
-    expect(document.activeElement?.getAttribute('role')).toBe('radio');
-    expect(document.activeElement?.getAttribute('aria-checked')).toBe('true');
+    /* K16: ô chọn độ dày thay sáu chip chồng chữ; focus vào đúng ô đó, đang giữ độ dày hiện tại. */
+    expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Độ dày tường' }));
+    expect((document.activeElement as HTMLSelectElement).value).toBe('220');
   });
 
   it('[G4a-16] ?wall= trong URL mở sẵn đúng đoạn, bỏ chọn thì xoá tham số', async () => {
@@ -971,8 +978,9 @@ describe('đợt sửa P04 — SCR-16', () => {
       lengthLabel: '4.250,00 mm',
       heightLabel: '3,00 m',
       confidence: 0.71,
+      confidenceText: 'Máy khá chắc',
       kindLabel: 'Tường gạch',
-      advanced: { elevationOffsetLabel: '0', startPointLabel: '0', endPointLabel: '0' },
+      advanced: { confidenceLabel: '0,71', elevationOffsetLabel: '0', startPointLabel: '0', endPointLabel: '0' },
     };
     const { rerender } = renderWithProviders(
       <WallLayerInspector panel={inspectorPanel({ inspector: wall } as Partial<WallLayerViewProps>)} />,
@@ -994,7 +1002,7 @@ describe('đợt sửa P04 — SCR-16', () => {
   it('[BUG-604] menu chuột phải của tường ĐÃ duyệt không đưa "Duyệt" chết', async () => {
     const { container } = renderState('partial');
 
-    await screen.findByRole('tree', { name: 'Cây lớp' });
+    await screen.findByRole('checkbox', { name: 'Hiện lớp tường' });
 
     const reviewed = WALL_LAYER_FIXTURE_WALLS.find((wall) => wall.reviewed);
     const unreviewed = WALL_LAYER_FIXTURE_WALLS.find((wall) => !wall.reviewed);

@@ -559,6 +559,9 @@ describe('useOverlayComparison — bảy trạng thái', () => {
     expect(model.state).toBe('error');
     expect(model.scaleFixHref).toBe(ROUTES.project.scale(PROJECT_ID, FLOOR_WARPED));
     expect(model.metrics.maxText).toBe(MISSING_VALUE);
+    // K11: đang lỗi thì không mời "Khớp rồi, xác nhận"; nói vì sao thay cho nút.
+    expect(model.confirmation.canConfirm).toBe(false);
+    expect(model.confirmation.disabledReason).toBe('Sửa lỗi ở trên rồi mới xác nhận được.');
   });
 
   it('[BUG-420] tầng chưa có bản vẽ (404 `upload`) là empty "chưa có bản vẽ" kèm lối tải lên, không phải lỗi đọc ảnh', async () => {
@@ -585,7 +588,7 @@ describe('useOverlayComparison — bảy trạng thái', () => {
     expect(model.scaleFixHref).toBeNull();
   });
 
-  it('hai tầng dùng tỷ lệ khác nhau cũng là error', async () => {
+  it('[K11] tầng khác dùng tỷ lệ khác không làm tầng đang so báo lỗi', async () => {
     const graph = createSampleBuilding();
     const floors = graph.levels.map((level, index) => ({
       ...level,
@@ -597,8 +600,68 @@ describe('useOverlayComparison — bảy trạng thái', () => {
     const mounted = await mountMeasured();
     const model = mounted.result.current.model;
 
+    expect(model.state).not.toBe('error');
+    expect(model.stateNotice ?? '').not.toContain('tỷ lệ khác nhau');
+    expect(model.scaleFixHref).toBeNull();
+  });
+
+  it('[K11/K12] tầng đang so chưa có tỷ lệ (N16 project_default) là error đỏ, có lối sang bước tỷ lệ, khoá xác nhận', async () => {
+    const base = await makeGateway({ regions: sampleRegions() });
+    const readFloorScaleSource = vi.fn(async ({ floorId }: { readonly floorId: string }) =>
+      floorId === FLOOR_WITH_SCAN ? ('project_default' as const) : null,
+    );
+    const mounted = mountHook(withOverlayCapabilities(base, { readFloorScaleSource }));
+
+    await settle(mounted);
+
+    const model = mounted.result.current.model;
+
     expect(model.state).toBe('error');
+    expect(model.stateNotice).toContain('Máy không đo được tỷ lệ tầng này');
     expect(model.scaleFixHref).toBe(ROUTES.project.scale(PROJECT_ID, FLOOR_WITH_SCAN));
+    expect(model.confirmation.canConfirm).toBe(false);
+    expect(model.confirmation.disabledReason).toBe('Sửa lỗi ở trên rồi mới xác nhận được.');
+  });
+
+  it('[K12] tỷ lệ máy đo được (pipeline) không chặn màn đối chiếu', async () => {
+    const base = await makeGateway({ regions: sampleRegions() });
+    const mounted = mountHook(withOverlayCapabilities(base, { readFloorScaleSource: async () => 'pipeline' as const }));
+
+    await settle(mounted);
+
+    expect(mounted.result.current.model.state).not.toBe('error');
+    expect(mounted.result.current.model.scaleFixHref).toBeNull();
+  });
+
+  it('[Codex P2] tỷ lệ tầng còn đang đọc thì chưa cho "Khớp rồi"', async () => {
+    const base = await makeGateway({ regions: sampleRegions() });
+    const mounted = mountHook(
+      withOverlayCapabilities(base, { readFloorScaleSource: () => new Promise<null>(() => undefined) }),
+    );
+
+    await settle(mounted);
+
+    expect(mounted.result.current.model.state).not.toBe('error');
+    expect(mounted.result.current.model.confirmation.canConfirm).toBe(false);
+    expect(mounted.result.current.model.confirmation.disabledReason).toBeNull();
+  });
+
+  it('[Codex P2] đọc tỷ lệ tầng hỏng thì khoá "Khớp rồi" và nói cách gỡ', async () => {
+    const base = await makeGateway({ regions: sampleRegions() });
+    const mounted = mountHook(
+      withOverlayCapabilities(base, { readFloorScaleSource: () => Promise.reject(new Error('mạng')) }),
+    );
+
+    await settle(mounted);
+    await act(async () => {
+      await clock.advance(1);
+    });
+
+    expect(mounted.result.current.model.state).not.toBe('error');
+    expect(mounted.result.current.model.confirmation.canConfirm).toBe(false);
+    expect(mounted.result.current.model.confirmation.disabledReason).toBe(
+      'Tải lại trang để đọc tỷ lệ tầng rồi mới xác nhận được.',
+    );
   });
 
   it('[G20] tỷ lệ khác nhau chỉ ở tầng chưa có bản vẽ thì không phải xung đột tỷ lệ', async () => {

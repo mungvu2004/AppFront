@@ -85,7 +85,7 @@ export const OBJ = {
   nothingToDraw: 'Chưa có đối tượng nào để vẽ trên mặt bằng.', // OCV
   emptyGroup: 'Chưa có đối tượng nào trong nhóm này', // OL
   addRefused: 'Không thêm được đối tượng vào tường.', // OG:1264
-  furnitureFree: 'Đứng tự do',
+  furnitureFree: 'Không gắn tường',
   forbidden: 'Bạn đang xem — không sửa được lớp này.', // OG:1266 (BUG-601)
 } as const;
 

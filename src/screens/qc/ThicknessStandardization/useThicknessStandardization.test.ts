@@ -730,6 +730,39 @@ describe('áp chuẩn hoá', () => {
     expect(notifications.list().some((entry) => entry.undoTicket !== undefined)).toBe(true);
   });
 
+  it('[K09] máy đo được tỷ lệ nhưng khung tường 2,5 m: khoá như thanh bước, không ghi lượt đổi nào', async () => {
+    /* Tường 70 mm (trung vị không vô lý) trong khung 2,5 m (< 3 m): chỉ luật khung của `useScaleLock` bắt được. */
+    const walls = THICKNESS_FIXTURE_WALLS.filter((wall) => wall.levelId === FLOOR_ID)
+      .slice(0, 4)
+      .map((wall, index): Wall => ({
+        ...wall,
+        thicknessMm: 70,
+        centreline: { start: { x: 0, y: index * 800 }, end: { x: 2500, y: index * 800 } },
+      }));
+    const base = createMockThicknessStandardizationGateway({
+      graph: thicknessGraphOf(walls, THICKNESS_FIXTURE_LEVELS),
+      scaleStatus: 'unresolved',
+    });
+    const gateway = {
+      ...base,
+      readLayer: async (input: Parameters<typeof base.readLayer>[0]) => ({ ...(await base.readLayer(input)), scaleSource: 'pipeline' as const }),
+    };
+    const mounted = await mountSettled({ gateway });
+
+    await waitFor(() => {
+      expect(mounted.result.current.batchSentence).toBe('Tường đo ra 70 mm vì chưa có tỷ lệ. Đặt tỷ lệ trước.');
+    });
+    expect(mounted.result.current.candidateCount).toBe(0);
+
+    await act(async () => {
+      mounted.result.current.onChangeNormalizedGroup(walls[0]?.id as WallId, 100);
+      await Promise.resolve();
+    });
+
+    expect(mounted.history.undoSteps()).toHaveLength(0);
+    expect(thicknessInStore(walls[0]?.id as WallId)).toBe(70);
+  });
+
   it('[21-C-010] BUG-579: hai lượt áp cách nhau quá cửa sổ gộp → toast CŨ bị từ chối, không ghi; trong cửa sổ gộp chỉ còn MỘT toast', async () => {
     let nowMs = 1_000_000;
     const notifications = createNotificationBus({ now: () => nowMs });

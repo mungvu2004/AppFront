@@ -276,9 +276,10 @@ export const textFile = (name: string): FilePayload => ({ name, mimeType: 'text/
 /** `.dwg` (ACCEPTED, not offered by the picker): the BE refuses it at init with 422 CAD_NOT_SUPPORTED. */
 export const dwgFile = (name: string): FilePayload => ({ name, mimeType: 'application/acad', buffer: Buffer.from('AC1032 qa dwg stub\n', 'utf8') });
 
-/** Picks `files` through the hidden input (FUD `floor-upload-file-input`). */
+/** Picks `files` through the hidden input (FUD `floor-upload-file-input`); 2+ files answer K19 "Các tầng của một nhà". */
 export async function pickFiles(page: Page, files: readonly FilePayload[]): Promise<void> {
   await page.getByTestId(UP.fileInput).setInputFiles(files.map((f) => ({ name: f.name, mimeType: f.mimeType, buffer: f.buffer })));
+  if (files.length >= 2) await page.getByRole('button', { name: 'Các tầng của một nhà', exact: true }).click();
 }
 
 /**

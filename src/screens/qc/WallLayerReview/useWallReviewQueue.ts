@@ -13,6 +13,7 @@ import type { Level, Wall, WallId } from '@/domain/spatial/types';
 import { useShortcut } from '@/hooks/useShortcut';
 import { runTransaction } from '@/lib/commands/transaction';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
+import type { ScaleSource, ScaleStatus } from '@/lib/viewmodel/provisionalScale';
 import { useStore } from '@/store';
 
 import {
@@ -43,6 +44,11 @@ type DispatchBundle = ReturnType<typeof createWallLayerDispatchDeps>;
 export interface UseWallReviewQueueInput {
   readonly graph: NormalizedSpatial | null;
   readonly level: Level | null;
+  /** Tỷ lệ của tầng (N16) — cột "Dài, mm" theo cùng quy tắc với thanh tra (K16). */
+  readonly scaleStatus?: ScaleStatus;
+  readonly scaleSource?: ScaleSource | undefined;
+  /** Câu khoá đổi độ dày (`thicknessLockTextOf`, tính ở hook màn); `null` = được đổi. */
+  readonly lockText: string | null;
   /** Mọi tường của tầng (không lọc). */
   readonly walls: readonly Wall[];
   /** Tường đang hiện trong danh sách, đã xếp theo hàng đợi. */
@@ -66,9 +72,10 @@ export function useWallReviewQueue(input: UseWallReviewQueueInput): WallReviewQu
   const { graph, level, walls, visibleWalls, wallCodes, selectedWallId, canEdit, gateway, dispatchBundle } = input;
   const { invalidate, onSelect, onSkip, onFlash } = input;
 
+  const { scaleStatus, scaleSource, lockText } = input;
   const extras = useMemo(
-    () => new Map<string, WallRowExtra>(walls.map((wall) => [wall.id, rowExtraOf(wall, level)] as const)),
-    [level, walls],
+    () => new Map<string, WallRowExtra>(walls.map((wall) => [wall.id, rowExtraOf(wall, level, scaleStatus, scaleSource)] as const)),
+    [level, scaleSource, scaleStatus, walls],
   );
   const nonStandardCount = useMemo(() => walls.filter((wall) => queueGroupOf(wall) === 'nonStandard').length, [walls]);
   const bulk = useMemo(() => bulkPlanOf(visibleWalls), [visibleWalls]);
@@ -85,7 +92,7 @@ export function useWallReviewQueue(input: UseWallReviewQueueInput): WallReviewQu
       const wall = walls.find((candidate) => candidate.id === wallId);
       const targetMm = wall === undefined ? null : thicknessTargetOf(wall.thicknessMm);
 
-      if (wall === undefined || targetMm === null || !canEdit) {
+      if (wall === undefined || targetMm === null || !canEdit || lockText !== null) {
         return;
       }
 
@@ -124,13 +131,13 @@ export function useWallReviewQueue(input: UseWallReviewQueueInput): WallReviewQu
         }
       });
     },
-    [canEdit, dispatchBundle, gateway, invalidate, onFlash, onSelect, visibleWalls, wallCodes, walls],
+    [canEdit, dispatchBundle, gateway, invalidate, lockText, onFlash, onSelect, visibleWalls, wallCodes, walls],
   );
 
   const onBulkStandardize = useCallback(() => {
     const current = useStore.getState().spatial;
 
-    if (!canEdit || current === null || bulk.changeCount === 0) {
+    if (!canEdit || lockText !== null || current === null || bulk.changeCount === 0) {
       return;
     }
 
@@ -153,7 +160,7 @@ export function useWallReviewQueue(input: UseWallReviewQueueInput): WallReviewQu
         invalidate();
       }
     });
-  }, [bulk, canEdit, dispatchBundle, gateway, invalidate]);
+  }, [bulk, canEdit, dispatchBundle, gateway, invalidate, lockText]);
 
   const selectedRef = useRef(selectedWallId);
   selectedRef.current = selectedWallId;
@@ -185,7 +192,7 @@ export function useWallReviewQueue(input: UseWallReviewQueueInput): WallReviewQu
         }
       },
     },
-    { ...shortcutOptions, enabled: canEdit },
+    { ...shortcutOptions, enabled: canEdit && lockText === null },
   );
 
   return {
@@ -197,6 +204,7 @@ export function useWallReviewQueue(input: UseWallReviewQueueInput): WallReviewQu
     conditions,
     toleranceText: toleranceTextOf(),
     showConfidence: hasConfidenceSpread(walls),
+    lockText,
     onStandardize,
     onBulkStandardize,
   };

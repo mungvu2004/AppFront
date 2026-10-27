@@ -19,8 +19,8 @@
  * kéo. Nhận HẾT qua props, không tính, không định dạng số (R-60, A15).
  */
 
-import { useState } from 'react';
-import { Layers } from 'lucide-react';
+import { useId, useState } from 'react';
+import { ChevronDown, Layers } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -29,6 +29,7 @@ import { Drawer } from '@/components/overlay/Drawer';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Kbd } from '@/components/ui/Kbd';
+import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
@@ -76,6 +77,10 @@ const SCREEN_TITLE = 'Độ dày tường';
 const PANEL_LABEL = 'Bảng chuẩn hoá độ dày';
 const CANVAS_REGION_LABEL = 'Bản vẽ theo nhóm độ dày';
 const HISTOGRAM_SECTION_LABEL = 'Phân bố độ dày đo được';
+/* K30/K08: ngưỡng là việc hiếm — gập vào "nâng cao", mở ra có một câu nói ngưỡng là gì. */
+const THRESHOLD_TOGGLE_LABEL = 'Ngưỡng chia nhóm (nâng cao)';
+const THRESHOLD_HINT =
+  'Máy xếp mỗi đoạn tường vào nhóm độ dày chuẩn gần nhất. Mỗi ngưỡng là ranh giới giữa hai nhóm. Chỉ kéo khi máy xếp sai nhóm.';
 const ERROR_TITLE = 'Không đọc được lớp số đo độ dày';
 const FORBIDDEN_TITLE = 'Không có quyền sửa độ dày tường';
 const NAVIGATE_WALLS_LABEL = 'Về duyệt tường';
@@ -97,6 +102,8 @@ const STATUS_BADGE: Readonly<
   manual: { variant: 'attention', label: 'Còn đoạn xem tay' },
   done: { variant: 'verified', label: 'Đã chuẩn hoá' },
 };
+/* K08: tỷ lệ còn tạm thì số đo chưa tin được — không gắn xanh "Đã chuẩn hoá" lên đó. */
+const DONE_PROVISIONAL_BADGE = { variant: 'attention', label: 'Chuẩn hoá theo tỷ lệ tạm' } as const;
 
 const SKELETON_ROWS = [0, 1, 2, 3];
 
@@ -106,6 +113,8 @@ const SKELETON_ROWS = [0, 1, 2, 3];
 
 export function ThicknessStandardization(props: ThicknessStandardizationViewProps) {
   const [isDetailOpen, setDetailOpen] = useState(false);
+  const [isThresholdOpen, setThresholdOpen] = useState(false);
+  const thresholdId = useId();
   const { segmentRows, isViewerRole, saveLabel } = props;
   const segmentCount = segmentRows.length;
 
@@ -119,7 +128,10 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
     );
   }
 
-  const badge = STATUS_BADGE[props.batchStatus];
+  const badge =
+    props.batchStatus === 'done' && props.provisionalScaleNotice != null
+      ? DONE_PROVISIONAL_BADGE
+      : STATUS_BADGE[props.batchStatus];
 
   return (
     <QcScreenFrame label={SCREEN_TITLE}>
@@ -159,16 +171,31 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
             )}
 
             <section aria-label={HISTOGRAM_SECTION_LABEL} className="flex flex-col gap-2">
-              <h2 className="text-body font-medium text-text-primary">{HISTOGRAM_SECTION_LABEL}</h2>
-              <ThicknessHistogram
-                bins={props.bins}
-                hoveredBinIndex={props.hoveredBinIndex}
-                isLoading={props.isLoading}
-                onHoverBin={props.onHoverBin}
-                onThresholdDrag={props.onThresholdDrag}
-                thresholdLabels={props.thresholdLabels}
-                thresholds={props.thresholds}
-              />
+              <button
+                aria-controls={thresholdId}
+                aria-expanded={isThresholdOpen}
+                className="flex w-full items-center justify-between rounded-md py-1 text-[13px] font-medium text-text-secondary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                onClick={() => setThresholdOpen((open) => !open)}
+                type="button"
+              >
+                {THRESHOLD_TOGGLE_LABEL}
+                <ChevronDown aria-hidden="true" className={cn('h-4 w-4 transition-transform duration-180', isThresholdOpen && 'rotate-180')} />
+              </button>
+              {isThresholdOpen && (
+                <div className="flex flex-col gap-2" id={thresholdId}>
+                  <h2 className="text-body font-medium text-text-primary">{HISTOGRAM_SECTION_LABEL}</h2>
+                  <p className="text-body-sm text-text-secondary">{THRESHOLD_HINT}</p>
+                  <ThicknessHistogram
+                    bins={props.bins}
+                    hoveredBinIndex={props.hoveredBinIndex}
+                    isLoading={props.isLoading}
+                    onHoverBin={props.onHoverBin}
+                    onThresholdDrag={props.onThresholdDrag}
+                    thresholdLabels={props.thresholdLabels}
+                    thresholds={props.thresholds}
+                  />
+                </div>
+              )}
             </section>
 
             {props.state === 'loading' ? (

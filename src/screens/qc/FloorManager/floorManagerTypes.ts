@@ -118,6 +118,11 @@ export interface FloorRowVm {
   readonly isHovered: boolean;
   /** `true` ⟺ `hasDrawing === false`. Chấm cần chú ý + liên kết "tải lên" trong dòng. */
   readonly needsDrawing: boolean;
+  /**
+   * Tầng chưa có tỷ lệ đúng — máy không đo được hoặc đo ra hình vô lý (`floorScaleMissingOf`): nhãn đỏ
+   * "Sai tỷ lệ", và "Việc tiếp" đòi đặt tỷ lệ trước khi duyệt tường (UX-R1 K06/K12).
+   */
+  readonly isScaleMissing: boolean;
   /** Tầng bị ẩn khỏi mô hình 3D. Dòng mờ đi; tầng vẫn còn trong bảng và trong lát cắt. */
   readonly isHiddenIn3d: boolean;
   /** Lượt đặt cao độ gần nhất của tầng này bị chặn: ô cao độ mang dấu lỗi (BUG-306). */
@@ -330,6 +335,11 @@ export interface FloorManagerViewProps {
    * TRƯỚC lúc người dùng bấm, không giấu dưới đáy trang.
    */
   readonly unsupportedNotices: readonly string[];
+  /**
+   * Các tầng không có trục chung (UX-R1 K19): có thể là các căn riêng bị dựng thành một nhà.
+   * `null`/vắng khi trục khớp hoặc chưa đủ dữ liệu trục.
+   */
+  readonly axisMismatchNotice?: { readonly title: string; readonly message: string } | null | undefined;
   /** Tên dự án cho breadcrumb "Dự án › <tên> › Quản lý tầng" (N0-05); `null`/vắng thì bỏ cấp ấy. */
   readonly projectName?: string | null | undefined;
   /**

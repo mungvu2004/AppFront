@@ -57,6 +57,7 @@
  */
 
 import type { Building, Confidence, Level, LevelId, Point, Wall, WallId, WallKind } from '@/domain/spatial/types';
+import { millimetresPerPixel } from '@/domain/units/scale';
 
 /* -------------------------------------------------------------------------- */
 /* Mã hợp lệ — đúng khuôn `wallLayerReviewFixture.ts` (thân mã ≥ 10 ký tự).    */
@@ -74,6 +75,9 @@ const LEVEL_3_ID = 'L-000003TFL3' as LevelId;
 
 /** Chiều cao tường đồng nhất trong bộ mẫu — 3 m thông thuỷ. */
 const WALL_HEIGHT_MM = 3000;
+
+/** Tỷ lệ người đã đặt cho cả ba tầng: không có thì `useScaleLock` khoá màn (UX-R1 K09). */
+const FIXTURE_SCALE = millimetresPerPixel(10);
 
 /** Dựng một `Wall` hợp lệ của `src/domain/spatial/types.ts`. */
 function wall(
@@ -185,6 +189,7 @@ export const THICKNESS_FIXTURE_LEVELS: readonly Level[] = [
     order: 0,
     elevationMm: 0,
     heightMm: WALL_HEIGHT_MM,
+    scaleMillimetresPerPixel: FIXTURE_SCALE,
     confidence: 1,
     source: 'human',
     reviewed: true,
@@ -195,6 +200,7 @@ export const THICKNESS_FIXTURE_LEVELS: readonly Level[] = [
     order: 1,
     elevationMm: WALL_HEIGHT_MM,
     heightMm: WALL_HEIGHT_MM,
+    scaleMillimetresPerPixel: FIXTURE_SCALE,
     confidence: 1,
     source: 'human',
     reviewed: true,
@@ -205,6 +211,7 @@ export const THICKNESS_FIXTURE_LEVELS: readonly Level[] = [
     order: 2,
     elevationMm: 6000,
     heightMm: WALL_HEIGHT_MM,
+    scaleMillimetresPerPixel: FIXTURE_SCALE,
     confidence: 1,
     source: 'human',
     reviewed: true,

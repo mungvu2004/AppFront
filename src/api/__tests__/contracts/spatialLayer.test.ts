@@ -188,6 +188,21 @@ describe('FloorLayerDocumentSchema', () => {
       FloorLayerDocumentSchema.safeParse({ ...minimalDocument, level: calibratedLevel }).success,
     ).toBe(true);
   });
+
+  it('giữ scaleSource đi cùng scaleStatus, từ chối scaleSource đứng một mình (UX-R1 K12)', () => {
+    const missing = FloorLayerDocumentSchema.parse({
+      ...minimalDocument,
+      level: calibratedLevel,
+      scaleStatus: 'unresolved',
+      scaleSource: 'project_default',
+    });
+
+    expect(missing.scaleSource).toBe('project_default');
+    expect(
+      FloorLayerDocumentSchema.safeParse({ ...minimalDocument, level: calibratedLevel, scaleSource: 'pipeline' })
+        .success,
+    ).toBe(false);
+  });
 });
 
 describe('FloorLayerWriteBodySchema', () => {

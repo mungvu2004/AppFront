@@ -65,7 +65,7 @@ export const REVIEW_REASON_SENTENCE: Readonly<Record<ProcessingReviewReason, str
   fallbackTextModel: 'Chữ và số kích thước được đọc bằng mô hình dự phòng, có thể đọc sai.',
 };
 
-/** Thứ tự `metricLabels` của hook: tường, đối tượng, chuỗi kích thước, phòng, diện tích. */
+/** Thứ tự `metricLabels` của hook: tường, "cửa, nội thất", chuỗi kích thước, phòng, diện tích. */
 function resultsOf(props: ProcessingScreenProps): ReadonlyMap<string, string> {
   const metrics = props.summary?.metricLabels ?? [];
   // ponytail: số liệu là TỔNG mọi tầng, chỉ gắn lên hàng bước khi dự án có một tầng;

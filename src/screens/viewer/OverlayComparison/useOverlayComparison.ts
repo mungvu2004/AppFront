@@ -66,6 +66,7 @@ import { formatLength } from '@/lib/format/measure';
 import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { queryKeys } from '@/lib/query/queryKeys';
+import { isScaleMissing } from '@/lib/viewmodel/provisionalScale';
 import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
@@ -121,9 +122,11 @@ const COPY = {
   emptyNotice: 'Tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.',
   errorFrameNotice: 'Không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.',
   errorReadNotice: 'Không đọc được ảnh bản vẽ gốc của tầng này.',
-  errorScaleNotice: 'Không căn được vì hai tầng đang dùng tỷ lệ khác nhau.',
   errorLayerNotice: 'Không đọc được mô hình của tầng này nên chưa có gì để đối chiếu.',
+  errorScaleNotice: 'Máy không đo được tỷ lệ tầng này nên mô hình đang sai cỡ, so với bản vẽ chưa có nghĩa. Đặt tỷ lệ trước.',
   confirmNeedsEdit: 'Chỉ người có quyền sửa mới xác nhận được.',
+  confirmNeedsFix: 'Sửa lỗi ở trên rồi mới xác nhận được.',
+  confirmNeedsScaleRead: 'Tải lại trang để đọc tỷ lệ tầng rồi mới xác nhận được.',
   shortcutFitView: 'Vừa khung',
   shortcutNextRegion: 'Sang vùng vượt dung sai kế tiếp',
   shortcutZoomIn: 'Phóng to khung đối chiếu',
@@ -696,25 +699,23 @@ export function useOverlayComparison(
   const activeFloor = floorOptions.find((floor) => floor.levelId === activeFloorId) ?? null;
   const activeHasScan = activeFloor?.hasScan ?? false;
 
-  /**
-   * Tỷ lệ mm/px của M-02 đặt theo TỪNG TẦNG, nên hai tầng có thể không đồng ý
-   * với nhau — và hai bản vẽ ở hai tỷ lệ khác nhau thì không căn chồng được.
+  /*
+   * K11: màn này chồng mô hình MỘT tầng lên bản vẽ của CHÍNH tầng đó, nên tỷ lệ của tầng khác
+   * không chặn được gì ở đây. Trước đây hai tầng khác tỷ lệ làm mọi tầng báo đỏ "hai tầng khác tỷ lệ".
+   * Chỉ tỷ lệ của chính tầng đang so mới chặn: máy không đo được tỷ lệ (N16 `scaleSource`
+   * `project_default`, K12) thì mô hình sai cỡ, so bằng mắt rồi "Khớp rồi" là xác nhận một thứ sai.
    */
-  const hasScaleConflict = useMemo(() => {
-    const ratios = new Set<number>();
-
-    // Chỉ tầng đã có bản vẽ mới có tỷ lệ để căn: tầng trống không tạo xung đột (R27).
-    for (const floor of floors) {
-      if (
-        floor.scaleMillimetresPerPixel !== undefined &&
-        floorOptions.some((option) => option.levelId === floor.id && option.hasScan)
-      ) {
-        ratios.add(floor.scaleMillimetresPerPixel);
-      }
-    }
-
-    return ratios.size > 1;
-  }, [floorOptions, floors]);
+  const scaleFloorId = activeFloorId === null ? null : scanFloorIdOf(activeFloorId);
+  const scaleSourceQuery = useQuery({
+    queryKey: [...queryKeys.layer.byFloor(projectId, scaleFloorId ?? ''), 'scaleSource'] as const,
+    queryFn: ({ signal }) => gateway.readFloorScaleSource({ floorId: scaleFloorId ?? '', projectId, signal }),
+    enabled: scaleFloorId !== null && activeHasScan,
+  });
+  // Lượt đọc hỏng thì không báo đỏ: lỗi đọc tầng đã có trạng thái riêng, đừng đổ cho tỷ lệ.
+  const isActiveScaleMissing = activeHasScan && isScaleMissing(scaleSourceQuery.data ?? undefined);
+  // Codex P2: nhưng chưa đọc được tỷ lệ (đang tải / hỏng) thì chưa biết mô hình đúng cỡ — chưa cho "Khớp rồi".
+  const isScaleSourceKnown = !(scaleFloorId !== null && activeHasScan) || scaleSourceQuery.isSuccess;
+  const isScaleSourceFailed = !isScaleSourceKnown && scaleSourceQuery.isError;
 
   /* ---------------------------------------------------------------------- */
   /* Đo: một lời gọi cổng, không một phép tính nào ở đây (R-61).             */
@@ -776,8 +777,8 @@ export function useOverlayComparison(
       return 'error';
     }
 
-    // Q4b (9U-D-063): lỗi NỘI DUNG (thiếu khung, lệch tỷ lệ) chỉ người có quyền sửa chữa được; vai chỉ xem thấy câu chỉ-đọc.
-    if (isFrameMissing || hasScaleConflict) {
+    // Q4b (9U-D-063): lỗi NỘI DUNG (thiếu khung, chưa có tỷ lệ) chỉ người có quyền sửa chữa được; vai chỉ xem thấy câu chỉ-đọc.
+    if (isFrameMissing || isActiveScaleMissing) {
       return canEdit ? 'error' : 'forbidden';
     }
 
@@ -805,7 +806,7 @@ export function useOverlayComparison(
     evaluation,
     hasLayerReadFailed,
     hasReadFailed,
-    hasScaleConflict,
+    isActiveScaleMissing,
     isCollapsed,
     isFrameMissing,
     isLayerLoading,
@@ -954,12 +955,12 @@ export function useOverlayComparison(
     }
 
     if (state === 'error') {
-      if (hasScaleConflict) {
-        return COPY.errorScaleNotice;
-      }
-
       if (hasLayerReadFailed) {
         return COPY.errorLayerNotice;
+      }
+
+      if (isActiveScaleMissing && !isFrameMissing) {
+        return COPY.errorScaleNotice;
       }
 
       return isFrameMissing ? COPY.errorFrameNotice : COPY.errorReadNotice;
@@ -1004,7 +1005,7 @@ export function useOverlayComparison(
     floorsWithScan,
     floorsWithoutGeometry,
     hasLayerReadFailed,
-    hasScaleConflict,
+    isActiveScaleMissing,
     isFrameMissing,
     measured,
     state,
@@ -1013,22 +1014,21 @@ export function useOverlayComparison(
   /**
    * Lối sang màn Hiệu chỉnh tỷ lệ (S-11).
    *
-   * Chỉ hai nguyên nhân sửa được ở đó — tỷ lệ hai tầng lệch nhau, và khung bản
-   * vẽ không tìm ra — mới có lối đi. Một lượt đọc hỏng vì mạng thì không, vì
-   * màn kia không chữa được nó.
+   * Chỉ khung bản vẽ không tìm ra và tầng chưa có tỷ lệ mới sửa được ở đó nên mới có lối đi. Một lượt
+   * đọc hỏng vì mạng thì không, vì màn kia không chữa được nó.
    */
   const scaleFixHref = useMemo<string | null>(() => {
     if (state !== 'error' || activeFloorId === null) {
       return null;
     }
 
-    if (!hasScaleConflict && !isFrameMissing) {
+    if (!isFrameMissing && !isActiveScaleMissing) {
       return null;
     }
 
     // Route tỷ lệ nhận mã tầng API, như route này — không phải mã `Level`.
     return ROUTES.project.scale(projectId, scanFloorIdOf(activeFloorId));
-  }, [activeFloorId, hasScaleConflict, isFrameMissing, projectId, scanFloorIdOf, state]);
+  }, [activeFloorId, isActiveScaleMissing, isFrameMissing, projectId, scanFloorIdOf, state]);
 
   /** BUG-420: tầng chưa có bản vẽ → lối sang màn Tải bản vẽ, như màn Hiệu chỉnh tỷ lệ. */
   const uploadHref =
@@ -1094,11 +1094,15 @@ export function useOverlayComparison(
     activeFloorId !== null && gateway.hasConfirmedMatch({ floorId: activeFloorId, projectId });
 
   const confirmation = useMemo<ConfirmationViewModel>(() => {
+    // K11: đang báo lỗi thì không mời "Khớp rồi" — nút thay bằng câu nói vì sao.
+    const hasError = state === 'error';
     const canConfirm =
       canEdit &&
+      !hasError &&
       !isConfirmed &&
       !confirmMutation.isPending &&
-      !query.isLoading;
+      !query.isLoading &&
+      isScaleSourceKnown;
 
     // Nút tắt thì nói vì sao (BUG-599). Đang tải/đang gửi/đã xác nhận: không có gì để giải thích.
     const disabledReason =
@@ -1106,7 +1110,11 @@ export function useOverlayComparison(
         ? null
         : !canEdit
           ? COPY.confirmNeedsEdit
-          : null;
+          : hasError
+            ? COPY.confirmNeedsFix
+            : isScaleSourceFailed
+              ? COPY.confirmNeedsScaleRead
+              : null;
 
     return {
       buttonLabel: COPY.confirmButton,
@@ -1126,7 +1134,16 @@ export function useOverlayComparison(
           }
         : null,
     };
-  }, [canEdit, confirmMutation.isPending, isConfirmed, measured, query.isLoading]);
+  }, [
+    canEdit,
+    confirmMutation.isPending,
+    isConfirmed,
+    isScaleSourceFailed,
+    isScaleSourceKnown,
+    measured,
+    query.isLoading,
+    state,
+  ]);
 
   /* ---------------------------------------------------------------------- */
   /* Việc cổng chưa làm được.                                                */

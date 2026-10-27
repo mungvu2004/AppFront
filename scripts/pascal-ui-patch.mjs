@@ -34,12 +34,27 @@ export const UI_PATCHES = {
     ['onClick={onReset}', 'aria-label="Đặt lại" title="Đặt lại" onClick={onReset}', 1],
     ['onClick={onClose}', 'aria-label="Đóng bảng" title="Đóng bảng" onClick={onClose}', 1],
   ],
+  // UX-R1 K48: nút thanh dưới chỉ có hình + chữ phím, tên đọc ra là "V"/"Z"/"X". Đặt tên = nhãn (phím),
+  // như tooltip; nút tự truyền aria-label (Đo) vẫn thắng vì `{...props}` đứng sau.
+  'editor/src/components/ui/action-menu/action-button.tsx': [
+    ['ref={ref}\n            {...props}', 'aria-label={shortcut ? `${label} (${shortcut})` : label}\n            ref={ref}\n            {...props}', 1],
+  ],
   'editor/src/components/ui/floating-level-selector.tsx': [
     [
       'className="flex h-5 w-4 shrink-0 items-center justify-center text-muted-foreground/40 opacity-0 transition-all hover:text-foreground group-hover/level:opacity-100"',
       'aria-label="Tùy chọn tầng" className="flex h-5 w-4 shrink-0 items-center justify-center text-muted-foreground/40 opacity-0 transition-all hover:text-foreground group-hover/level:opacity-100"',
       1,
     ],
+    // UX-R1 K39/K46 (Codex P2): nút "+" chèn tầng nằm giữa ô (left-1/2), đè lên tên tầng. Có từ hai tầng
+    // thì danh sách mở cột riêng bên trái (`data-level-gutter`); nút chèn (`data-level-insert`) đứng
+    // trong cột đó — pascal-chrome.css xếp chỗ, chỉ hiện khi rê chuột/focus. Một tầng: không cột, vendor
+    // cũng không vẽ nút chèn. Chỉ thêm thuộc tính: lớp Tailwind mới không có trong style.css.
+    [
+      'className="flex flex-col gap-0.5 rounded-xl border border-border bg-background/90 p-1 shadow-2xl backdrop-blur-md"',
+      "data-level-gutter={reversedLevels.length > 1 ? '' : undefined} className=\"flex flex-col gap-0.5 rounded-xl border border-border bg-background/90 p-1 shadow-2xl backdrop-blur-md\"",
+      1,
+    ],
+    ['onClick={() => handleInsertBetween(sortedIndex - 1)}', 'data-level-insert="" onClick={() => handleInsertBetween(sortedIndex - 1)}', 1],
   ],
 };
 

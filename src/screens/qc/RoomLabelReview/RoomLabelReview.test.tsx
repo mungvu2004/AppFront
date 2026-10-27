@@ -60,6 +60,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Room, RoomId } from '@/domain/spatial/types';
+import { millimetres } from '@/domain/units/types';
 import {
   CONTRAST_MINIMUM_BODY,
   contrastRatio,
@@ -99,6 +100,7 @@ import {
   ROOM_LABEL_FIXTURE_TOTAL_AREA_M2,
 } from './roomLabelFixture';
 import { createMockRoomLabelReviewGateway, roomCodeLabel } from './roomLabelReviewGateway';
+import { ROOM_LABEL_SCENARIO_GAP_WALLS } from './roomLabelReviewScenarios';
 
 /** Nền của khung canvas — thứ đa giác phòng ở `DIMMED_OPACITY` chồng lên. */
 const CANVAS_GROUND_TOKEN: ColorTokenName = '--bg-sunken';
@@ -787,8 +789,24 @@ describe('P04 cụm C — thanh tra phòng chỉ mời việc làm được (SCR
     expect(screen.getAllByText(/Nhờ người quản trị dự án đổi vai/u)).toHaveLength(1);
   });
 
+  it('[K23] danh sách phòng lên đầu panel; các khe thu về một dòng, bấm mới mở', async () => {
+    await renderSettled('partial');
+    const toggle = screen.getByRole('button', { name: /chỗ tường chưa khép kín$/u });
+    const [firstRow] = screen.getAllByRole('option');
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryAllByRole('button', { name: /^Khe /u })).toHaveLength(0);
+    /* Dòng phòng đứng TRƯỚC dòng khe trong thứ tự đọc. */
+    expect(firstRow?.compareDocumentPosition(toggle) ?? 0).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getAllByRole('button', { name: /^Khe /u }).length).toBeGreaterThan(0);
+  });
+
   it('[BUG-626] vòng tường hở: dòng khe ghi "Khe N mm", mã tường chỉ nằm ở aria-label', async () => {
     await renderSettled('partial');
+    fireEvent.click(screen.getByRole('button', { name: /chỗ tường chưa khép kín$/u }));
     const rows = screen.getAllByRole('button', { name: /^Khe .*#W-[0-9]{3}.*nối ở lớp tường$/u });
 
     expect(rows.length).toBeGreaterThan(0);
@@ -888,5 +906,50 @@ describe('[N3-08] ?select=<mã phòng> trên URL chọn sẵn phòng đó', () =
     await waitFor(() => {
       expect(useStore.getState().selectedIds).toEqual([targetId]);
     });
+  });
+});
+
+describe('[K10] đường bao tràn ra ngoài: thanh tra chặn duyệt', () => {
+  it('nút duyệt bị tắt kèm lý do; nút chính là "Sửa đường bao" và đưa sang lớp tường', async () => {
+    const onNavigate = vi.fn();
+    /* Tường bao 0..5000 × 0..3400 mm; phòng chạy tới 5600 mm — vượt nửa tường + dung sai 150 mm. */
+    const corner = (x: number, y: number): Room['outline'][number] => ({ x: millimetres(x), y: millimetres(y) });
+    const spillRoom: Room = {
+      ...(ROOM_LABEL_FIXTURE_ROOM_R005 as Room),
+      outline: [corner(0, 0), corner(5600, 0), corner(5600, 3400), corner(0, 3400)],
+    };
+    const graph = normalizeSpatial({
+      building: ROOM_LABEL_FIXTURE_BUILDING,
+      levels: [ROOM_LABEL_FIXTURE_LEVEL],
+      walls: [...ROOM_LABEL_SCENARIO_GAP_WALLS],
+      openings: [],
+      furniture: [],
+      rooms: [spillRoom],
+      axes: [],
+      dimensions: [],
+      notes: [],
+    });
+
+    renderWithProviders(
+      <RoomLabelReviewContainer
+        {...scenarioArgsFor('partial')}
+        gateway={createMockRoomLabelReviewGateway({ graph })}
+        onNavigate={onNavigate}
+      />,
+    );
+    const [row] = await screen.findAllByRole('option');
+
+    if (row !== undefined) {
+      fireEvent.click(row);
+    }
+
+    const reason = await screen.findByText(/^Đường bao tràn ra ngoài tường bao\. Sửa tường/u);
+    const approve = document.querySelector(`[aria-describedby="${reason.id}"]`);
+
+    expect(reason.id).not.toBe('');
+    expect(approve).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa đường bao' }));
+    expect(onNavigate).toHaveBeenCalled();
   });
 });

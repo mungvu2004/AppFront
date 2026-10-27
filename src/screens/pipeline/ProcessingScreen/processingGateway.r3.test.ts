@@ -25,4 +25,16 @@ describe('toExtractionSummary (R-1)', () => {
     expect(summary.furnitureCount).toBe(2);
     expect(summary.lowConfidenceCount).toBe(2);
   });
+
+  it('máy không đo được tỷ lệ (scaleSource project_default) thì cờ scaleMissing — chip "Sai tỷ lệ" (K12)', () => {
+    const base = {
+      dimensions: [],
+      level: { scaleMillimetresPerPixel: 1 },
+      layer: { walls: [], openings: [], furniture: [], rooms: [] },
+      scaleStatus: 'unresolved',
+    };
+
+    expect(toExtractionSummary({ ...base, scaleSource: 'project_default' } as unknown as FloorLayerDocument, null).scaleMissing).toBe(true);
+    expect(toExtractionSummary({ ...base, scaleSource: 'pipeline' } as unknown as FloorLayerDocument, null).scaleMissing).toBeUndefined();
+  });
 });

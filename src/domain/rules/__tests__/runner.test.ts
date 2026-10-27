@@ -34,6 +34,7 @@ import {
   countEntities,
   evaluatedRuleCodes,
   handleRuleWorkerRequest,
+  ruleAppliesTo,
   runRules,
   runRulesAsync,
   WORKER_ENTITY_THRESHOLD,
@@ -430,6 +431,64 @@ describe('running the book', () => {
     });
 
     expect(incremental.violations).toEqual(full.violations);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* A one-floor apartment has no floors to compare.                             */
+/* -------------------------------------------------------------------------- */
+
+/** The sample cut down to its ground floor and what stands on it. */
+function oneFloorSample(): NormalizedSpatial {
+  const sample = createSampleBuilding();
+  const ground = sampleLevelId(0);
+  const onGround = <T extends { levelId: LevelId }>(items: readonly T[]): T[] =>
+    items.filter((item) => item.levelId === ground);
+  const walls = onGround(sample.walls);
+  const wallIds = new Set<WallId>(walls.map((wall) => wall.id));
+
+  return normalizeSpatial({
+    ...sample,
+    levels: sample.levels.filter((level) => level.id === ground),
+    walls,
+    openings: sample.openings.filter((opening) => wallIds.has(opening.wallId)),
+    furniture: onGround(sample.furniture),
+    rooms: onGround(sample.rooms),
+    axes: onGround(sample.axes),
+    dimensions: onGround(sample.dimensions),
+    notes: [],
+    roofs: [],
+  });
+}
+
+describe('a building of one floor', () => {
+  const registry = createDefaultRuleRegistry();
+
+  it('does not run, count or pass the rules that compare floors', () => {
+    const result = runRules(oneFloorSample(), { registry });
+    const ran = evaluatedRuleCodes(result);
+
+    for (const code of LEVEL_DEPENDENT_CODES) {
+      expect(ran).not.toContain(code);
+    }
+
+    expect(result.evaluated).toHaveLength(20);
+  });
+
+  it('runs them again once a second floor is there', () => {
+    const ran = evaluatedRuleCodes(runRules(normalizedSample(), { registry }));
+
+    for (const code of LEVEL_DEPENDENT_CODES) {
+      expect(ran).toContain(code);
+    }
+  });
+
+  it('applies a building rule from two floors up and a floor rule from one', () => {
+    const building = registry.listEnabled().find((rule) => rule.scope === 'building');
+    const floor = registry.listEnabled().find((rule) => rule.scope === 'level');
+
+    expect(building && [0, 1, 2].map((count) => ruleAppliesTo(building, count))).toEqual([false, false, true]);
+    expect(floor && [0, 1].map((count) => ruleAppliesTo(floor, count))).toEqual([false, true]);
   });
 });
 

@@ -9,7 +9,6 @@ import {
 } from './bootstrap';
 import { broadcastAuthIntent, emitAuthSignedIn, emitAuthSignedOut } from './events';
 import { clearNavigationMemory } from './navigationMemory';
-import type { RefreshPayload } from './refreshSchema';
 import { endAnonymousSession } from './transitions';
 import {
   getAuthConfig,
@@ -20,6 +19,7 @@ import {
   setSessionRevoked,
 } from './state';
 import type { AuthUser, RefreshSessionPayload } from './types';
+import type * as RefreshSchemaModule from './refreshSchema';
 
 export const REFRESH_LEAD_TIME_MS = 60_000;
 
@@ -374,8 +374,8 @@ const readRefreshPayload = async (response: Response): Promise<RefreshSessionPay
  * để chunk zod không thành vòng mạng thứ hai nối tiếp sau phản hồi. Nạp hỏng thì quên lời hứa,
  * lượt sau nạp lại.
  */
-let refreshSchemaModule: Promise<typeof import('./refreshSchema')> | null = null;
-const loadRefreshSchema = (): Promise<typeof import('./refreshSchema')> => {
+let refreshSchemaModule: Promise<typeof RefreshSchemaModule> | null = null;
+const loadRefreshSchema = (): Promise<typeof RefreshSchemaModule> => {
   refreshSchemaModule ??= import('./refreshSchema').catch((error: unknown) => {
     refreshSchemaModule = null;
     throw error;
@@ -389,7 +389,7 @@ export const defaultParseRefreshResponse = async (
 ): Promise<RefreshSessionPayload> => {
   const [payload, { refreshResponseSchema }] = await Promise.all([response.json(), loadRefreshSchema()]);
   const parsed = refreshResponseSchema.parse(payload);
-  const root = ('data' in parsed ? parsed.data : parsed) as RefreshPayload;
+  const root = ('data' in parsed ? parsed.data : parsed) as RefreshSchemaModule.RefreshPayload;
   const accessToken = root.accessToken ?? root.access_token;
 
   if (!accessToken) {

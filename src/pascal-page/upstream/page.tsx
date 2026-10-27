@@ -35,7 +35,7 @@ import { Hammer, Layers, Package, Settings, X } from 'lucide-react'
 import Image from 'next/image'
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { downloadSnapshot } from '../realism/snapshot'
-import { ScaleBanner } from '../scaleBanner'
+import { ScaleBanner, ScaleEmptyNotice } from '../scaleBanner'
 import { BuildTab } from './components/build-tab'
 import { CanvasHelp, MeasureClearButton } from './components/canvas-help'
 import {
@@ -148,7 +148,18 @@ function applyStartParams() {
   } else {
     ed.armToolMode({ mode: 'select' })
   }
-  if (params.get('view') === 'exploded') useViewer.getState().setLevelMode('exploded')
+  // AppFront edit (UX-R1 K19): open one floor at a time (product scope: one-floor apartments);
+  // the stacked default built unrelated plans into a 46 m tower. `?view=exploded` still wins.
+  useViewer.getState().setLevelMode(params.get('view') === 'exploded' ? 'exploded' : 'solo')
+  // AppFront edit (UX-R1): start solo on the first floor that has walls; missing-scale floors are
+  // left empty by the bridge, and opening on one of them showed a blank scene.
+  const { nodes } = useScene.getState()
+  for (const node of Object.values(nodes)) {
+    if (node.type === 'level' && node.children.some((id) => nodes[id]?.type === 'wall')) {
+      useViewer.getState().setSelection({ levelId: node.id })
+      break
+    }
+  }
   // G5-06 / QA-2 L2: frame the model once the camera controls have mounted (a cold first open
   // mounts them after the editor's own auto-frame and after any fixed delay).
   fitWhenControlsReady(subscribeCameraPose, fitModel)
@@ -415,6 +426,8 @@ export default function Home({ projectId, onLoad, onSave, readOnly, backCard, pr
       <PreviewHeader projectName={projectName} />
       <OrbitHint />
       <CanvasHelp banner={<ScaleBanner projectId={projectId} />} />
+      {/* AppFront edit (Codex P1): every floor lacks a scale -> empty scene, say why mid-screen. */}
+      <ScaleEmptyNotice projectId={projectId} />
       <MeasureClearButton />
     </div>
   )

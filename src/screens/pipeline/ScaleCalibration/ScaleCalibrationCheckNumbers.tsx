@@ -32,8 +32,9 @@ export function ScaleCalibrationCheckNumbers({ check, computation, currentScaleL
           className="text-[28px] font-semibold tabular-nums text-text-primary"
           title={check?.densityValue == null ? undefined : `${check.densityValue} mm/px`}
         >
-          {check?.ratioLine ?? currentScaleLabel}
+          {check?.headline ?? currentScaleLabel}
         </p>
+        {check?.detailLine != null && <p className="text-[13px] text-text-secondary">{check.detailLine}</p>}
         {check == null && <p className="text-[13px] text-text-secondary">{derivedLine}</p>}
         {computation.isComplete && (
         <div

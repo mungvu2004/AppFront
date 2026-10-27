@@ -71,6 +71,42 @@ export function markDone(store: Store | null = defaultStore()): void {
   }
 }
 
+/** Màn chờ của editor Pascal (`scene-loader.tsx`, lớp `pascal-loader-N` trong `pascal.css`). */
+const SCENE_LOADER = '[class*="pascal-loader-"]';
+/** Canvas còn cỡ mặc định 300×150 nghĩa là khung chưa đo xong. */
+const MIN_CANVAS = { width: 400, height: 300 } as const;
+
+/** Editor còn đang dựng cảnh (màn chờ của Pascal còn hiện). */
+export function isSceneLoading(root: ParentNode = document): boolean {
+  return root.querySelector(SCENE_LOADER) !== null;
+}
+
+/** Cảnh đã sẵn sàng: hết màn chờ và có canvas đã có kích thước thật. */
+export function isSceneReady(root: ParentNode = document): boolean {
+  if (isSceneLoading(root)) return false;
+  return Array.from(root.querySelectorAll('canvas')).some((c) => {
+    const r = c.getBoundingClientRect();
+    return r.width >= MIN_CANVAS.width && r.height >= MIN_CANVAS.height;
+  });
+}
+
+/** Nút '?' ("Hướng dẫn") của `canvas-help.tsx`: gợi ý lần đầu đứng ngay dưới nó. */
+export const HELP_BUTTON = 'button[aria-label="Xem lại hướng dẫn thao tác"]';
+export const HINT_TEXT = 'Giữ chuột phải và kéo để xoay, lăn chuột để phóng to.';
+const HINT_GAP = 8;
+/** Không thấy nút '?' thì gợi ý đứng giữa, dưới thanh trên. */
+const HINT_FALLBACK_TOP = 112;
+
+/**
+ * Chỗ gợi ý lần đầu: tâm ngang theo nút '?', đỉnh dưới cả cột trợ giúp (`column`, có thể kèm
+ * băng tỷ lệ/bảng phím) để không che chúng. `left` là tâm, thẻ tự dịch -50%.
+ */
+export function placeHint(btn: Box | null, column: Box | null, vw: number): { left: number; top: number } {
+  if (!btn || btn.width <= 0) return { left: vw / 2, top: HINT_FALLBACK_TOP };
+  const below = column && column.height > 0 ? column : btn;
+  return { left: btn.left + btn.width / 2, top: below.top + below.height + HINT_GAP };
+}
+
 export function requestTour(): void {
   window.dispatchEvent(new Event(TOUR_OPEN_EVENT));
 }

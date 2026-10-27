@@ -1,21 +1,26 @@
-import { Fragment } from 'react';
-import { Check } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useMemo, type KeyboardEvent, type ReactNode } from 'react';
+import { Check, ChevronDown, Lock } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/routes/paths';
 
-import { useDoneLayers } from './useDoneLayers';
+import {
+  floorReviewCountsOf,
+  floorReviewGateOf,
+  SCALE_LOCK_REASON,
+  type FloorReviewLayerState,
+  type FloorScaleState,
+} from './floorReviewGateModel';
 import { QC_LAYERS, qcLayerTitle, type QcLayerKey } from './qcLayers';
+import { useFloorReview } from './useFloorReview';
 
 /**
- * Đầu chung của các màn "Kiểm tra tầng" (G4a-24, N0-04, N1-03, N2-08, G4b-06):
- * breadcrumb Tầng (chọn tầng) › Màn — tên dự án đã có ở header — và dải thẻ cùng tầng
- * trên MỘT hàng phụ 32 px: "1 Tường · 2 Cửa và nội thất · 3 Phòng" (✓ khi xong), vạch ngăn,
- * rồi nhóm "Công cụ (không bắt buộc):". Thẻ bắt buộc hiện tiến độ "12/48" (✓ khi xong).
- * Gắn: `<QcFloorNav floorId={floorId} layer="rooms" projectId={projectId} />`
- * (cần nằm trong Router). `floors` có thì cấp Tầng mở được danh sách đổi tầng.
+ * Thanh bước của tầng (UX-R1 K25), MỘT hàng 32 px dưới header:
+ * "ch-03 ▾ | 0 Tỷ lệ · 1 Tường 0/30 · 2 Cửa và nội thất 0/39 · 3 Phòng 0/7 | Nâng cao ▾".
+ * Nút đi tiếp của tầng nằm ở khe cổng của header (`FloorReviewGate`), không lặp ở đây.
+ * Tầng máy không đo được tỷ lệ: các bước sau Tỷ lệ (và Độ dày tường) bị khoá, kèm lý do.
+ * Gắn: `<QcFloorNav floorId={floorId} layer="rooms" projectId={projectId} />` (cần nằm trong Router).
  */
 export interface QcFloorNavFloor {
   readonly id: string;
@@ -36,89 +41,195 @@ export interface QcFloorNavProps {
 }
 
 const FLOOR_FALLBACK = 'Tầng';
-const LAYER_BAR_LABEL = 'Các lớp kiểm tra';
-const TOOL_GROUP_LABEL = 'Công cụ (không bắt buộc):';
-const REQUIRED_GROUP_LABEL = 'Cần duyệt:';
+const STEP_BAR_LABEL = 'Các bước duyệt tầng';
+const ADVANCED_LABEL = 'Nâng cao';
+const ALL_FLOORS_LABEL = 'Tất cả tầng';
+/** Mục phụ thuộc số đo: khoá khi máy không đo được tỷ lệ. */
+const SCALE_LOCKED: ReadonlySet<QcLayerKey> = new Set<QcLayerKey>(['walls', 'objects', 'rooms', 'thickness']);
+const SCALE_BADGE: Readonly<Record<Exclude<FloorScaleState, 'confirmed'>, { readonly text: string; readonly className: string }>> = {
+  check: { text: 'cần kiểm', className: 'text-state-attention-text' },
+  missing: { text: 'chưa có', className: 'text-state-violation-text' },
+};
 
 const TAB_CLASS = cn(
   'flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-[13px] transition-colors duration-120',
   'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
 );
+const CURRENT_CLASS = 'bg-accent-wash font-medium text-accent';
+const IDLE_CLASS = 'text-text-secondary hover:bg-bg-hover hover:text-text-primary';
+const MENU_ITEM_CLASS = 'flex w-full items-center gap-1 rounded-md px-3 py-1.5 text-left';
+
+/** A12: Esc đóng menu đang mở và trả tiêu điểm về nút mở. */
+function closeOnEscape(event: KeyboardEvent<HTMLDetailsElement>) {
+  if (event.key !== 'Escape' || !event.currentTarget.open) return;
+  event.currentTarget.open = false;
+  event.currentTarget.querySelector('summary')?.focus();
+}
+
+interface NavMenuProps {
+  readonly label: string;
+  readonly summary: ReactNode;
+  readonly active?: boolean;
+  readonly children: ReactNode;
+}
+
+/* ponytail: <details> gốc như menu dự án ở AppHeader — không đóng khi bấm ra ngoài; cần thì đổi sang Popover. */
+function NavMenu({ label, summary, active = false, children }: NavMenuProps) {
+  return (
+    <details className="relative shrink-0" onKeyDown={closeOnEscape}>
+      <summary
+        aria-label={label}
+        className={cn(TAB_CLASS, 'cursor-pointer list-none [&::-webkit-details-marker]:hidden', active ? CURRENT_CLASS : IDLE_CLASS)}
+      >
+        {summary}
+        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 text-text-muted" />
+      </summary>
+      <ul className="absolute left-0 top-full z-30 mt-1 min-w-[200px] rounded-md border border-border-default bg-bg-surface p-1 text-[13px] shadow-float">
+        {children}
+      </ul>
+    </details>
+  );
+}
+
+interface StepProps {
+  readonly isCurrent: boolean;
+  readonly locked: boolean;
+  readonly to: string;
+  readonly className: string;
+  readonly children: ReactNode;
+}
+
+/** Một bước/mục: link, hoặc chữ khoá kèm lý do khi thiếu tỷ lệ. */
+function Step({ isCurrent, locked, to, className, children }: StepProps) {
+  if (locked) {
+    return (
+      <span
+        aria-current={isCurrent ? 'page' : undefined}
+        aria-disabled="true"
+        className={cn(className, 'cursor-not-allowed text-text-muted', isCurrent && 'bg-bg-sunken')}
+        title={SCALE_LOCK_REASON}
+      >
+        <Lock aria-hidden="true" className="h-3 w-3" />
+        {children}
+        <span className="sr-only">{`: ${SCALE_LOCK_REASON}`}</span>
+      </span>
+    );
+  }
+  return (
+    <Link aria-current={isCurrent ? 'page' : undefined} className={cn(className, isCurrent ? CURRENT_CLASS : IDLE_CLASS)} to={to}>
+      {children}
+    </Link>
+  );
+}
+
+interface FloorMenuItemProps {
+  readonly projectId: string;
+  readonly floor: QcFloorNavFloor;
+  readonly layer: QcLayerKey;
+  readonly isCurrent: boolean;
+}
+
+/** Một tầng trong menu đổi tầng: tầng thiếu tỷ lệ mà bước đang mở bị khoá thì sang bước Tỷ lệ của nó. */
+function FloorMenuItem({ projectId, floor, layer, isCurrent }: FloorMenuItemProps) {
+  const { scale } = useFloorReview(projectId, floor.id);
+  const target = scale === 'missing' && SCALE_LOCKED.has(layer) ? 'scale' : layer;
+  const route = (QC_LAYERS.find((item) => item.key === target) ?? QC_LAYERS[0]!).route;
+  return (
+    <li>
+      <Link
+        aria-current={isCurrent ? 'page' : undefined}
+        className={cn(MENU_ITEM_CLASS, 'justify-between', isCurrent ? 'text-accent' : 'text-text-primary hover:bg-bg-hover')}
+        to={route(projectId, floor.id)}
+      >
+        {floor.label}
+        {isCurrent && <Check aria-hidden="true" className="h-3.5 w-3.5" />}
+      </Link>
+    </li>
+  );
+}
 
 export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, titled = false }: QcFloorNavProps) {
-  const navigate = useNavigate();
   const current = QC_LAYERS.find((item) => item.key === layer) ?? QC_LAYERS[0]!;
   const floorLabel = floors.find((floor) => floor.id === floorId)?.label ?? FLOOR_FALLBACK;
   const screenTitle = qcLayerTitle(layer);
-  /* ✓ khi lớp xong; kho chưa giữ tầng này thì chỉ đánh số. */
-  const layerStates = useDoneLayers(projectId, floorId);
+  const { graph, scale } = useFloorReview(projectId, floorId);
+  /* Tiến độ từng lớp bắt buộc; chưa đọc được tầng thì chỉ đánh số. */
+  const layerStates = useMemo(
+    () =>
+      new Map<QcLayerKey, FloorReviewLayerState>(
+        graph === null ? [] : floorReviewGateOf(floorReviewCountsOf(graph, floorId)).layers.map((item) => [item.key, item]),
+      ),
+    [floorId, graph],
+  );
+  const isLocked = (key: QcLayerKey) => scale === 'missing' && SCALE_LOCKED.has(key);
+  const steps = QC_LAYERS.filter((item) => item.group === 'step');
+  const advanced = QC_LAYERS.filter((item) => item.group === 'advanced');
+  const currentAdvanced = current.group === 'advanced' ? current : null;
 
   return (
     <div className="flex h-8 shrink-0 items-center gap-3 px-4">
       {titled ? null : <h1 className="sr-only">{`${screenTitle} · ${floorLabel}`}</h1>}
-      {/* Breadcrumb không co: "Tầng 1" phải đọc đủ, dải lớp bên phải cuộn ngang trước. */}
-      <div className="shrink-0">
-        <Breadcrumb
-          items={[
-            {
-              id: 'floor',
-              label: floorLabel,
-              onClick: () => navigate(ROUTES.project.floors(projectId)),
-              options: floors.map((floor) => ({
-                id: floor.id,
-                label: floor.label,
-                onClick: () => navigate(current.route(projectId, floor.id)),
-              })),
-            },
-            { id: 'layer', label: screenTitle },
-          ]}
-        />
-      </div>
-      <nav aria-label={LAYER_BAR_LABEL} className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto border-l border-border-default pl-3">
-        {QC_LAYERS.map((item, index) => {
-          const isCurrent = item.key === layer;
-          const isLayer = item.group === 'layer';
-          const state = isLayer ? layerStates.get(item.key) : undefined;
-          const isDone = state?.done === true;
-          const startsRequiredGroup = index === 0 && isLayer;
-          const startsToolGroup = item.group === 'tool' && QC_LAYERS[index - 1]?.group !== 'tool';
+      {/* key: đổi tầng/màn thì menu đóng lại. */}
+      <NavMenu
+        key={`floor:${floorId}:${layer}`}
+        label={`Đổi tầng: đang ở ${floorLabel}`}
+        summary={<span className="font-medium text-text-primary">{floorLabel}</span>}
+      >
+        {floors.map((floor) => (
+          <FloorMenuItem key={floor.id} floor={floor} isCurrent={floor.id === floorId} layer={current.key} projectId={projectId} />
+        ))}
+        <li className={cn(floors.length > 0 && 'mt-1 border-t border-border-default pt-1')}>
+          <Link className={cn(MENU_ITEM_CLASS, IDLE_CLASS)} to={ROUTES.project.floors(projectId)}>
+            {ALL_FLOORS_LABEL}
+          </Link>
+        </li>
+      </NavMenu>
+      <nav aria-label={STEP_BAR_LABEL} className="flex min-w-0 flex-1 items-center gap-1 border-l border-border-default pl-3">
+        {steps.map((item, index) => {
+          const state = layerStates.get(item.key);
+          const isDone = item.key === 'scale' ? scale === 'confirmed' : state?.done === true;
+          const badge = item.key === 'scale' && scale !== null && scale !== 'confirmed' ? SCALE_BADGE[scale] : null;
           return (
-            <Fragment key={item.key}>
-              {startsRequiredGroup && <span className="shrink-0 text-[12px] text-text-muted">{REQUIRED_GROUP_LABEL}</span>}
-              {startsToolGroup && (
+            <Step
+              key={item.key}
+              className={TAB_CLASS}
+              isCurrent={item.key === layer}
+              locked={isLocked(item.key)}
+              to={item.route(projectId, floorId)}
+            >
+              <span aria-hidden="true" className="tabular-nums text-text-muted">{index}</span>
+              {item.label}
+              {isDone && (
                 <>
-                  <span aria-hidden="true" className="mx-2 h-5 w-px shrink-0 bg-border-control" />
-                  <span className="shrink-0 text-[12px] text-text-muted">{TOOL_GROUP_LABEL}</span>
+                  <Check aria-hidden="true" className="h-3.5 w-3.5 text-state-verified-text" />
+                  <span className="sr-only">: đã xong</span>
                 </>
               )}
-              <Link
-                aria-current={isCurrent ? 'page' : undefined}
-                className={cn(
-                  TAB_CLASS,
-                  isCurrent
-                    ? 'bg-accent-wash font-medium text-accent'
-                    : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
-                )}
-                to={item.route(projectId, floorId)}
-              >
-                {isLayer && <span aria-hidden="true" className="tabular-nums text-text-muted">{index + 1}</span>}
-                {item.label}
-                {isDone && (
-                  <>
-                    <Check aria-hidden="true" className="h-3.5 w-3.5 text-state-verified-text" />
-                    <span className="sr-only">: đã xong</span>
-                  </>
-                )}
-                {state !== undefined && !isDone && (
-                  <>
-                    <span aria-hidden="true" className="tabular-nums text-text-muted">{`${state.reviewed}/${state.total}`}</span>
-                    <span className="sr-only">{`: đã duyệt ${state.reviewed} trên ${state.total}`}</span>
-                  </>
-                )}
-              </Link>
-            </Fragment>
+              {badge !== null && <span className={cn('text-[12px]', badge.className)}>{badge.text}</span>}
+              {state !== undefined && !isDone && (
+                <>
+                  <span aria-hidden="true" className="tabular-nums text-text-muted">{`${state.reviewed}/${state.total}`}</span>
+                  <span className="sr-only">{`: đã duyệt ${state.reviewed} trên ${state.total}`}</span>
+                </>
+              )}
+            </Step>
           );
         })}
+        <span aria-hidden="true" className="mx-2 h-5 w-px shrink-0 bg-border-control" />
+        <NavMenu
+          key={`advanced:${floorId}:${layer}`}
+          active={currentAdvanced !== null}
+          label={currentAdvanced === null ? ADVANCED_LABEL : `${ADVANCED_LABEL}: đang ở ${currentAdvanced.label}`}
+          summary={currentAdvanced === null ? ADVANCED_LABEL : `${ADVANCED_LABEL}: ${currentAdvanced.label}`}
+        >
+          {advanced.map((item) => (
+            <li key={item.key}>
+              <Step className={MENU_ITEM_CLASS} isCurrent={item.key === layer} locked={isLocked(item.key)} to={item.route(projectId, floorId)}>
+                {item.label}
+              </Step>
+            </li>
+          ))}
+        </NavMenu>
       </nav>
       {/* Tiến độ của lớp (Impeccable A3), cuối cùng hàng 32 px — không thêm hàng (V-16). */}
       {progress == null ? null : (

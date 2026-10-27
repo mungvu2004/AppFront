@@ -78,6 +78,7 @@ import { PICKER_UPLOAD_EXTENSIONS } from '@/lib/upload/validate';
 import type { ProjectRole } from '@/types/project';
 
 import { CAD_NOT_SUPPORTED_SENTENCE, type FloorUploadGateway } from './floorUploadGateway';
+import { useApartmentSplit } from './useApartmentSplit';
 import type {
   FloorUploadActions,
   FloorUploadBlockNotice,
@@ -368,6 +369,11 @@ export interface UseFloorUploadScreenOptions {
    * bao giờ là chuỗi viết thẳng (R-65).
    */
   readonly onNavigate?: (path: string) => void;
+  /**
+   * Hỏi "tầng hay căn riêng" khi thả từ hai tệp trở lên (K19). Mặc định `true`; test của
+   * đường gán tầng tắt nó để khỏi trả lời câu hỏi trước mỗi lượt thả.
+   */
+  readonly askHowToSplit?: boolean;
 }
 
 /** Vai mặc định khi nơi gọi không nói gì. Mảng rỗng vẫn là "không có quyền". */
@@ -840,6 +846,14 @@ export function useFloorUploadScreen(
       acceptFile(file, claimed);
     }
   };
+
+  const split = useApartmentSplit({
+    gateway,
+    enabled: (options.askHowToSplit ?? true) && canDrop,
+    acceptAsFloors: acceptFiles,
+    describeRejection: rejectionSentence,
+    onNavigate: options.onNavigate,
+  });
 
   /* ---------------------------------------------------------------------- */
   /* Hành động trên một tệp.                                                 */
@@ -1395,14 +1409,16 @@ export function useFloorUploadScreen(
     footer,
     // Lý do hiện theo bản mới nhất, không theo bản chụp lúc bấm (G3-22).
     blockNotice: blockNotice === null ? null : { ...blockNotice, reasons: blockReasons },
+    splitPrompt: split.splitPrompt,
+    apartments: split.apartments,
   };
 
   const actions: FloorUploadActions = {
     onFilesDropped: (files) => {
       setDragDepth(0);
-      acceptFiles(files);
+      split.offer(files);
     },
-    onFilesChosen: acceptFiles,
+    onFilesChosen: split.offer,
     onFilesForFloor: acceptFilesForFloor,
     onDragEnter: () => {
       if (canDrop) setDragDepth((depth) => depth + 1);
@@ -1442,6 +1458,7 @@ export function useFloorUploadScreen(
       if (canEdit) patchAttachment(fileId, { isAutoMatched: false });
     },
     // Lỗi của một tệp đóng lại một mình; không hàng nào khác đổi.
+    ...split.actions,
     onDismissError: (fileId) =>
       // Đọc lỗi ngay trong lượt cập nhật, không từ bản vẽ cũ của closure: lượt kiểm tệp có thể vừa
       // đặt lỗi mà màn chưa vẽ lại.

@@ -1106,7 +1106,7 @@ describe('ScaleCalibration — QA-04c SCR-14', () => {
     expect(check).toBeDefined();
     // Một nguồn: chip trái và khối số phải cùng đọc `scaleCheck`.
     expect(screen.getByText(check?.status.label ?? '')).toBeInTheDocument();
-    expect(screen.getByText(check?.ratioLine ?? '')).toBeInTheDocument();
+    expect(screen.getByText(check?.headline ?? '')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Đối chiếu nhanh: 1 px bằng bao nhiêu mm' })).toBeNull();
   });
 

@@ -1347,12 +1347,21 @@ describe('danh sách dựng từ đồ thị (B-V6-13)', () => {
 });
 
 describe('"Thêm thủ công" trên cổng thật, tầng rỗng (B-V6-41)', () => {
-  /** Bộ A14 bỏ hết ô mở và nội thất — mọi tầng đều rỗng, nhưng còn tường. */
+  /**
+   * Bộ A14 bỏ hết ô mở và nội thất — mọi tầng đều rỗng, nhưng còn tường. Tầng A14 không mang tỷ lệ,
+   * mà tầng thiếu tỷ lệ thì khoá mọi lệnh sửa (UX-R1 r3), nên mượn tỷ lệ đã đặt của tầng mẫu.
+   */
   const emptyGraph = (): NormalizedSpatial => {
     const raw = denormalizeSpatial(normalizeSpatial(createSampleBuilding()));
 
     return normalizeSpatial({
       ...raw,
+      levels: raw.levels.map((level) => ({
+        ...level,
+        ...(OBJECT_LAYER_SAMPLE_LEVEL.scaleMillimetresPerPixel === undefined
+          ? {}
+          : { scaleMillimetresPerPixel: OBJECT_LAYER_SAMPLE_LEVEL.scaleMillimetresPerPixel }),
+      })),
       openings: [],
       furniture: [],
       walls: raw.walls.map((wall) => ({ ...wall, openingIds: [] })),

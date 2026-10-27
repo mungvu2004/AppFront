@@ -97,6 +97,7 @@ test.describe('SCR-09/10/11/21/25 floors — UI verify (QA-11 P5)', () => {
             await p.goto(ROUTES.project.upload(project.projectId));
             await expect(p.getByTestId(DROPZONE)).toBeVisible();
             await p.getByTestId(FILE_INPUT).setInputFiles([note('ghi-chu-1.txt'), note('ghi-chu-2.txt')]);
+            await btn(p, 'Các tầng của một nhà').click(); // K19: two files always ask floors vs apartments
             await expect(trayItem(p, 'ghi-chu-1.txt')).toBeVisible();
             await trayItem(p, 'ghi-chu-1.txt').getByRole('button', { name: 'Xoá bản vẽ ghi-chu-1.txt', exact: true }).first().click(); // FUT:76-83
             const toast = toastWith(p, removedToast('ghi-chu-1.txt')).first();

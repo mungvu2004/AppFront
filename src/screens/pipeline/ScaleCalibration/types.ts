@@ -592,6 +592,8 @@ export interface ScaleCalibrationViewModel {
   readonly successNotice: string | null;
   /** Dải "tỷ lệ tạm" khi tầng `scaleStatus: 'unresolved'` (F-04x-2). Vắng khi tỷ lệ đã chốt. */
   readonly provisionalScaleNotice?: string;
+  /** Dải đỏ khi máy không đo được tỷ lệ tầng (N16 `scaleSource: 'project_default'`, UX-R1 K12). Vắng khi khác. */
+  readonly missingScaleNotice?: string;
   /** Hộp thoại A9 trước "Áp cho mọi tầng". Vắng khi không mở. */
   readonly allFloorsConfirm?: ScaleAllFloorsConfirm;
   /** Dải xung đột/khoá lưu của bộ lưu lớp chung, có "Tải lại" (BUG-598). Vắng khi tầng lưu được. */

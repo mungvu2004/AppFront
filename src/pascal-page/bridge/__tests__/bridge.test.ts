@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { createSampleBuilding, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { UpdateProjectSettingsSchema } from '@/api/schemas/projectSettings';
 import { SCENE_STYLE_STORAGE_KEY, SCENE_STYLES, sceneStylePreviewKey } from '@/lib/pascal/sceneStyles';
@@ -22,9 +22,12 @@ import {
   savePascalNow,
   unsavedNoticeOf,
   usePascalProjectBridge,
+  withoutFloorContents,
 } from '..';
 
 const session = vi.hoisted(() => ({ ok: true }));
+/** N16 giả của từng tầng (Codex P1): mã tầng → `scaleSource`; vắng = tỷ lệ đã xác nhận. */
+const scaleApi = vi.hoisted(() => ({ sources: {} as Record<string, 'pipeline' | 'project_default'> }));
 /** N5/N6 giả (W4a): `read` = kết quả đọc cài đặt, `puts` = các lượt PUT đã gửi. */
 const settingsApi = vi.hoisted(() => ({
   read: { ok: true, data: {} } as { ok: boolean; data?: unknown; error?: unknown },
@@ -46,7 +49,18 @@ vi.mock('@/api/appClient', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   createAppApiClient: () => ({
     projects: {},
-    spatial: {},
+    spatial: {
+      readLayer: ({ floorId }: { floorId: string }) => {
+        const scaleSource = scaleApi.sources[floorId];
+        return Promise.resolve({
+          ok: true,
+          data:
+            scaleSource === undefined
+              ? {}
+              : { scaleStatus: 'unresolved', scaleSource, level: { scaleMillimetresPerPixel: 10 } },
+        });
+      },
+    },
     projectSettings: {
       read: () => Promise.resolve(settingsApi.read),
       replace: (input: unknown) => (settingsApi.puts.push(input), Promise.resolve({ ok: true, data: {} })),
@@ -126,6 +140,7 @@ vi.mock('@/screens/viewer/PascalViewer/usePascalEdits', () => ({
 describe('usePascalProjectBridge', () => {
   beforeEach(() => {
     session.ok = true;
+    scaleApi.sources = {};
     settingsApi.read = { ok: true, data: {} };
     settingsApi.puts = [];
     detail.fail = false;
@@ -469,5 +484,53 @@ describe('usePascalProjectBridge', () => {
     expect(result.current.save?.notice).toBe('Món đồ này đã có trong bản vẽ.');
     expect(result.current.save?.noticeTone).toBe('alert');
   });
+
+  it('Codex P1 — tầng chưa có tỷ lệ: không dựng nội dung trong 3D, tầng vẫn còn; tỷ lệ máy đo vẫn dựng', async () => {
+    scaleApi.sources = { [sampleLevelId(1)]: 'project_default', [sampleLevelId(2)]: 'pipeline' };
+    const { result } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    let scene: Awaited<ReturnType<typeof result.current.onLoad>> | undefined;
+    await act(async () => {
+      scene = await result.current.onLoad();
+    });
+    const sample = createSampleBuilding();
+    expect(scene).toEqual(toPascalScene(withoutFloorContents(sample, new Set([sampleLevelId(1)]))).scene);
+    expect(scene).not.toEqual(toPascalScene(sample).scene);
+  });
+
+  it('Codex P1 — mọi tầng chưa có tỷ lệ: cảnh trống nhưng vẫn mở (không báo lỗi nạp)', async () => {
+    const sample = createSampleBuilding();
+    scaleApi.sources = Object.fromEntries(sample.levels.map((level) => [level.id, 'project_default' as const]));
+    const { result } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    let scene: Awaited<ReturnType<typeof result.current.onLoad>> | undefined;
+    await act(async () => {
+      scene = await result.current.onLoad();
+    });
+    const empty = withoutFloorContents(sample, new Set(sample.levels.map((level) => level.id)));
+    expect(empty.levels).toHaveLength(sample.levels.length);
+    expect([empty.walls, empty.openings, empty.rooms, empty.furniture].every((list) => list.length === 0)).toBe(true);
+    expect(scene).toEqual(toPascalScene(empty).scene);
+  });
 });
 
+describe('withoutFloorContents', () => {
+  it('bỏ tường, ô mở trên tường ấy, phòng, đồ, trục, kích thước, ghi chú của tầng; giữ tầng và tầng khác', () => {
+    const sample = createSampleBuilding();
+    const hidden = sampleLevelId(0);
+    const graph = withoutFloorContents(sample, new Set([hidden]));
+    const hiddenWalls = new Set(sample.walls.filter((wall) => wall.levelId === hidden).map((wall) => wall.id));
+
+    expect(graph.levels).toEqual(sample.levels);
+    expect(graph.walls).toEqual(sample.walls.filter((wall) => wall.levelId !== hidden));
+    expect(graph.openings).toEqual(sample.openings.filter((opening) => !hiddenWalls.has(opening.wallId)));
+    expect(graph.rooms.some((room) => room.levelId === hidden)).toBe(false);
+    expect(graph.furniture.some((item) => item.levelId === hidden)).toBe(false);
+    expect(graph.dimensions.some((item) => item.levelId === hidden)).toBe(false);
+    expect(graph.axes.some((item) => item.levelId === hidden)).toBe(false);
+    expect(graph.notes.some((note) => hiddenWalls.has(note.entityId as never))).toBe(false);
+    expect(withoutFloorContents(sample, new Set())).toBe(sample);
+  });
+});

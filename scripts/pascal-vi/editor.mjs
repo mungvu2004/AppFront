@@ -99,6 +99,8 @@ export const EDITOR_VI = {
   ],
   'editor/src/components/ui/floating-level-selector.tsx': [
     ['title="Drag to reorder"', 'title="Kéo để đổi thứ tự"'],
+    // UX-R1 K46: tên đọc màn hình của tay kéo.
+    ['aria-label={`Reorder ${getLevelDisplayName(level)}`}', 'aria-label={`Kéo để đổi thứ tự ${getLevelDisplayName(level)}`}'],
     ['title="Focused unit has zones here"', 'title="Căn hộ đang chọn có vùng ở tầng này"'],
     ['title="Level height"', 'title="Chiều cao tầng"'],
     ['label="Level height"', 'label="Chiều cao tầng"'],

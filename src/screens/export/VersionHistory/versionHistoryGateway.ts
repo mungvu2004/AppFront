@@ -305,9 +305,18 @@ export function createVersionHistoryGateway(options: CreateVersionHistoryGateway
     listVersionPage,
     readSnapshot,
     readFloorLayer: async () => {
-      const { dimensions, layer, level, revision, scaleStatus } = unwrap(await apiClient.spatial.readLayer({ floorId, projectId }));
+      const { dimensions, layer, level, revision, scaleSource, scaleStatus } = unwrap(
+        await apiClient.spatial.readLayer({ floorId, projectId }),
+      );
 
-      return { dimensions, layer, level, revision, ...(scaleStatus === undefined ? {} : { scaleStatus }) };
+      return {
+        dimensions,
+        layer,
+        level,
+        revision,
+        ...(scaleStatus === undefined ? {} : { scaleStatus }),
+        ...(scaleSource === undefined ? {} : { scaleSource }),
+      };
     },
     tagVersion: async (versionId, label) =>
       toVersionMetadata(unwrap(await apiClient.versions.label({ label, projectId, versionId }))),

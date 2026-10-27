@@ -369,6 +369,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
 
       await test.step('[10-A-003] one pick of 2 PNG + .txt → 3 tray items, "3 tệp"; only the .txt refused; PNGs offer "Gán cho tầng khác"', async () => {
         await choose(page, [fileA, fileB, txt]);
+        await page.getByRole('button', { name: 'Các tầng của một nhà', exact: true }).click(); // K19: 2+ files ask floors vs apartments
         await expect(tray(page).getByRole('listitem')).toHaveCount(3);
         await expect(tray(page).getByText('3 tệp', { exact: true })).toBeVisible(); // UFU:1180
         await expect(trayItem(page, 'ghi-chu.txt').getByRole('alert')).toContainText(unsupported('.txt'));
@@ -500,6 +501,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
           { name: 'dau-1019.pdf', mimeType: 'application/pdf', buffer: pdfText(body, 1019) },
           { name: 'dau-1020.pdf', mimeType: 'application/pdf', buffer: pdfText(body, 1020) },
         ]); // VAL:171-174 header within the first 1024 bytes
+        await page.getByRole('button', { name: 'Các tầng của một nhà', exact: true }).click(); // K19: 2+ files ask floors vs apartments
         await expect.soft(trayItem(page, 'dau-1019.pdf').getByText(/ · 1 trang$/u)).toBeVisible();
         await expect.soft(trayItem(page, 'dau-1019.pdf').getByRole('alert')).toHaveCount(0);
         await expect.soft(trayItem(page, 'dau-1020.pdf').getByRole('alert')).toContainText(UNREADABLE_PDF);
@@ -898,6 +900,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
       await test.step('[10-A-031] trash 4 files quickly → 2 toasts + "Đã thực hiện 2 thay đổi"; its "Hoàn tác" restores one grouped file, 3 toasts left → no summary', async () => {
         const names = ['g1.txt', 'g2.txt', 'g3.txt', 'g4.txt'];
         await pick(page, names.map(note));
+        await page.getByRole('button', { name: 'Các tầng của một nhà', exact: true }).click(); // K19: 2+ files ask floors vs apartments
         await expect(tray(page).getByRole('listitem')).toHaveCount(4);
         for (const name of names) await trashInTray(page, name);
         const summary = page.getByRole('status').filter({ hasText: 'Đã thực hiện 2 thay đổi' }); // TST:228-254
@@ -1044,6 +1047,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
           { name: 'tang-2.png', mimeType: 'image/png', buffer: junk },
           { name: 'tang-2-b.png', mimeType: 'image/png', buffer: junk },
         ]);
+        await page.getByRole('button', { name: 'Các tầng của một nhà', exact: true }).click(); // K19: 2+ files ask floors vs apartments
         const [init] = await inits(flow, mark, 1);
         expect(init?.floorId).toBe(f('Tầng 2').id);
         expect(init?.fileName).toBe('tang-2.png'); // UFU:796 one `claimed` set per pick

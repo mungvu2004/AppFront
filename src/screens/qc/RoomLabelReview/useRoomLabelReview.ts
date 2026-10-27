@@ -113,11 +113,13 @@ import {
   createRoomLabelUndoTicket,
   detectRoomsOfLevel,
   gapsOf,
+  hasRoomName,
   levelOf,
   measureRoom,
   noticesOfRoom,
   roomCodeLabel,
   roomsOfLevel,
+  roomsSpillingOutside,
   runRoomCommand,
   runRoomRules,
   scaleOfLevel,
@@ -132,7 +134,9 @@ import {
   type RoomLabelReviewGateway,
 } from './roomLabelReviewGateway';
 import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+import { SCALE_LOCK_REASON } from '../shared/floorReviewGateModel';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
+import { useScaleLock } from '../shared/useScaleLock';
 import { arrowStepHandler } from '../WallLayerReview/listArrowKeys';
 import { layerGateOf } from '../ObjectLayerReview/layerGate';
 import type {
@@ -399,8 +403,8 @@ export function useRoomLabelReview(
   /* ---------------------------------------------------------------------- */
 
   const roles = options.roles ?? [];
-  const canEdit = can('edit', 'layer', { roles });
-  const isViewerRole = !canEdit;
+  const canEditRole = can('edit', 'layer', { roles });
+  const isViewerRole = !canEditRole;
 
   /* ---------------------------------------------------------------------- */
   /* Trạng thái của riêng giao diện — KHÔNG có isLoading/error ở đây (R-64). */
@@ -430,8 +434,16 @@ export function useRoomLabelReview(
   /* N16 của tầng — `useFloorLayer` quyết định nó vào kho thế nào (F-04x-2). */
   const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
   const { scaleStatus } = floorLayer;
-  const provisionalScaleNotice = useProvisionalScaleNotice(scaleStatus, projectId, floorId, options.onNavigate, canEdit);
+  const provisionalScaleNotice = useProvisionalScaleNotice(scaleStatus, projectId, floorId, options.onNavigate, canEditRole);
   const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
+  /*
+   * Tầng thiếu tỷ lệ: bản vẽ và danh sách vẫn xem được, nhưng mọi hàm sửa và phím sửa tắt (UX-R1 r3).
+   * PHẢI gọi SAU `useFloorLayer`: `useScaleLock` mượn hàm đọc N16 đã đăng ký trên khoá cache; gọi
+   * trước thì hàm đọc mặc định thắng và đè cổng tiêm vào (story, bài kiểm) — xem `useFloorReview`.
+   */
+  const scaleLock = useScaleLock(projectId, floorId);
+  const isScaleLocked = canEditRole && scaleLock.locked;
+  const canEdit = canEditRole && !isScaleLocked;
 
   /*
    * Lần đọc ảnh nền THÀNH CÔNG gần nhất, giữ lại qua mọi lượt hỏng sau đó.
@@ -543,6 +555,7 @@ export function useRoomLabelReview(
   /* ---------------------------------------------------------------------- */
 
   const backgroundImageUrl = background?.imageUrl ?? null;
+  const spillingRoomIds = useMemo(() => roomsSpillingOutside(rooms, walls), [rooms, walls]);
 
   const allRows = useMemo<readonly RoomLabelViewModel[]>(
     () =>
@@ -556,9 +569,10 @@ export function useRoomLabelReview(
           backgroundImageUrl,
           scale,
           codes: roomCodes,
+          outlineSpills: spillingRoomIds.has(room.id),
         }),
       ),
-    [backgroundImageUrl, measures, roomCodes, rooms, ruleRouteHref, scale, scaleStatus, violations],
+    [backgroundImageUrl, measures, roomCodes, rooms, ruleRouteHref, scale, scaleStatus, spillingRoomIds, violations],
   );
 
   const summary = useMemo<RoomLabelSummaryViewModel>(
@@ -841,14 +855,15 @@ export function useRoomLabelReview(
     (roomId: RoomId) => {
       const room = roomById(roomId);
 
-      /* Phòng chưa tên thì duyệt không đổi được trạng thái (vẫn "chưa đặt tên") — view tắt nút và nói vì sao (BUG-602). */
-      if (room === null || room.reviewed || room.name.trim() === '') {
+      /* Phòng chưa tên thì duyệt không đổi được trạng thái (vẫn "chưa đặt tên") — view tắt nút và nói vì sao (BUG-602).
+         Đường bao tràn ra ngoài tường bao thì duyệt là sai (K10): chặn ở đây cho cả nút lẫn phím A. */
+      if (room === null || room.reviewed || !hasRoomName(room) || spillingRoomIds.has(roomId)) {
         return;
       }
 
       void run(() => ok(buildApproveRoomCommand(room, gateway.actorId, roomCodes)));
     },
-    [gateway, roomById, roomCodes, run],
+    [gateway, roomById, roomCodes, run, spillingRoomIds],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -942,7 +957,8 @@ export function useRoomLabelReview(
   const approveAndNext = (): void => {
     const current = selectedRoomIdRef.current;
 
-    if (current === null) {
+    /* Phòng tràn đường bao: A không duyệt và không nhảy đi — người dùng ở lại đọc lý do (K10). */
+    if (current === null || spillingRoomIds.has(current)) {
       return;
     }
 
@@ -1109,6 +1125,12 @@ export function useRoomLabelReview(
     saveStatus,
     provisionalScaleNotice,
     readFailure,
+    scaleLock: isScaleLocked
+      ? {
+          reason: scaleLock.reason ?? SCALE_LOCK_REASON,
+          onOpenScale: navigate === undefined ? null : () => navigate(ROUTES.project.scale(projectId, floorId)),
+        }
+      : null,
     layerGate,
     oversizedRoom,
     roomProgress,

@@ -157,4 +157,25 @@ describe('mock layer state', () => {
     expect(after.ok && 'scaleStatus' in after.data).toBe(false);
     expect(after.ok && after.data.revision).toBe(1);
   });
+
+  it('a floor the server could not measure carries scaleSource project_default until a scale is set', async () => {
+    const client = createMockApiClient();
+
+    simulateProvisionalScale(FLOOR_ID, 1, 'project_default');
+
+    const missing = await client.spatial.readLayer({ floorId: FLOOR_ID, projectId: PROJECT_ID });
+
+    expect(missing.ok && missing.data.scaleStatus).toBe('unresolved');
+    expect(missing.ok && missing.data.scaleSource).toBe('project_default');
+
+    await client.spatial.writeLayer({
+      baseVersion: 0,
+      body: { scaleMillimetresPerPixel: 25 },
+      floorId: FLOOR_ID,
+      projectId: PROJECT_ID,
+    });
+    const after = await client.spatial.readLayer({ floorId: FLOOR_ID, projectId: PROJECT_ID });
+
+    expect(after.ok && 'scaleSource' in after.data).toBe(false);
+  });
 });

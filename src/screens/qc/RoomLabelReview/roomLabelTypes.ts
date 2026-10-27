@@ -295,6 +295,8 @@ export interface RoomLabelViewModel {
   readonly status: RoomLabelStatus;
   /** Nhắc từ luật công năng — không bao giờ chặn thao tác, xem {@link RoomLabelNoticeViewModel}. */
   readonly notices: readonly RoomLabelNoticeViewModel[];
+  /** Đường bao tràn ra ngoài tường bao: gắn cờ, nút chính đổi thành "Sửa đường bao", duyệt bị chặn (K10). */
+  readonly outlineSpills?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -601,6 +603,8 @@ export interface RoomLabelReviewProps {
   readonly saveStatus?: string | null | undefined;
   /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
   readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
+  /** Tầng thiếu tỷ lệ: mọi lệnh sửa bị chặn, nút chính thành lối sang bước Tỷ lệ. */
+  readonly scaleLock?: ScaleLockAction | null | undefined;
   /** Đọc lớp hỏng khi chưa có tài liệu → cả màn là một trạng thái lỗi (BUG-326). */
   readonly readFailure?: FloorLayerReadFailure | null | undefined;
   /** Cổng sang bước sau (HOP-DONG-V6 câu 3): tường/cửa/phòng của tầng đã duyệt hết chưa. */
@@ -627,3 +631,10 @@ export interface RoomLabelReviewProps {
  * rộng là MỞ RỘNG kiểu ở file riêng, đúng khuôn
  * `UseScaleCalibrationHookOptions extends UseScaleCalibrationOptions`.
  */
+
+/** Khoá tỷ lệ của tầng (UX-R1 r3): lý do + lối sang bước Tỷ lệ; `null` khi tầng không bị khoá. */
+export interface ScaleLockAction {
+  readonly reason: string;
+  /** `null` khi màn không có lối điều hướng (story, test). */
+  readonly onOpenScale: (() => void) | null;
+}

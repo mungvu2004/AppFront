@@ -104,7 +104,8 @@ const STATUS_TEXT = {
   empty: 'Chưa có trục',
   missingHorizontal: 'Thiếu trục ngang',
   missingVertical: 'Thiếu trục dọc',
-  lagging: (floor: string): string => `${floor} lệch quá ngưỡng`,
+  /* K14: lệch là việc của cả dự án, có thể là tầng khác tầng đang xem — ghi rõ phạm vi. */
+  lagging: (floor: string): string => `Dự án: ${floor} lệch quá ngưỡng`,
   axisCount: (count: number): string => `${count} trục`,
   originAt: (anchor: string): string => `gốc tại ${anchor}`,
   noOrigin: 'chưa đặt được gốc',
