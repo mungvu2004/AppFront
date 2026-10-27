@@ -203,6 +203,7 @@ import type {
   WallThicknessChoice,
 } from './types';
 import { arrowStepHandler } from './listArrowKeys';
+import { useFramePointerReading } from './useFramePointerReading';
 import { useWallReviewQueue } from './useWallReviewQueue';
 import { nextUnreviewedWallId, sortByReviewQueue, type WallReviewQueue } from './wallReviewQueue';
 
@@ -1955,7 +1956,8 @@ export function useWallLayerReview(
   /* Thanh trạng thái — ba chuỗi ĐÃ định dạng, view không tính gì (A15).      */
   /* ---------------------------------------------------------------------- */
 
-  const [pointerReading, setPointerReading] = useState<WallLayerPointerReading | null>(null);
+  /* P5: gom theo khung hình — tối đa một lượt render mỗi khung khi rê chuột. */
+  const [pointerReading, onPointerMove] = useFramePointerReading();
 
   /**
    * Canvas báo lên toạ độ ĐÃ là pixel bản vẽ (trình duyệt đổi giúp qua ma trận
@@ -1963,10 +1965,6 @@ export function useWallLayerReview(
    * thanh trạng thái có toạ độ THẬT mà thư mục màn vẫn không có một phép chia
    * quy đổi đơn vị nào (`local/no-raw-number`).
    */
-  const onPointerMove = useCallback((reading: WallLayerPointerReading | null) => {
-    setPointerReading(reading);
-  }, []);
-
   /**
    * Nhãn đo của canvas: đang đo thì đi theo con trỏ, đo xong thì đứng yên.
    *
