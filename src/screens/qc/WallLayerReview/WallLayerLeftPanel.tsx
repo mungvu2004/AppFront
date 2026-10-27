@@ -72,7 +72,7 @@ const FILTER_LABELS: Readonly<Record<WallLayerFilterKey, string>> = {
 };
 const COLUMN_CODE = 'Đoạn';
 const COLUMN_LENGTH = 'Dài, mm';
-const COLUMN_THICKNESS = 'Dày, mm';
+const COLUMN_THICKNESS = 'Dày';
 
 /** Câu 2: Badge + câu có số + đã lưu. */
 function PanelStatus({ panel, queue, saveLabel, saveFailed }: Omit<WallLayerLeftPanelProps, 'extras'>) {
@@ -171,10 +171,10 @@ export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed
       {/* Tiêu đề cột: số căn phải, đơn vị ở tiêu đề (demo Z/S-15 vòng 9). */}
       {panel.rows.length > 0 && panel.state !== 'loading' && (
         <div aria-hidden="true" className="flex shrink-0 items-center gap-2 px-5 pb-1 pt-3 text-caption text-text-secondary">
-          {/* Khớp cột của hàng: mẫu 20 + khoảng 8 + mã 56; cột dài co giãn (K28). */}
-          <span className="w-[5.25rem] shrink-0 pl-7">{COLUMN_CODE}</span>
+          {/* Khớp cột của hàng: mẫu 20 + khoảng 8 + mã 48; cột dài co giãn, cột dày 36 (K28). */}
+          <span className="w-[4.75rem] shrink-0 pl-7">{COLUMN_CODE}</span>
           <span className="min-w-0 flex-1 text-right">{COLUMN_LENGTH}</span>
-          <span className="w-14 shrink-0 text-right">{COLUMN_THICKNESS}</span>
+          <span className="w-9 shrink-0 text-right" title="Độ dày, mm">{COLUMN_THICKNESS}</span>
         </div>
       )}
 

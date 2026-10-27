@@ -1181,7 +1181,8 @@ const PROVISIONAL_LENGTH_SUFFIX = ' (tạm)';
 
 /**
  * MỘT quy tắc chiều dài cho danh sách và thanh tra (K16): milimét nguyên ("5.757"). Tỷ lệ máy đo
- * chưa xác nhận thì số vẫn hiện để soi nhưng có "≈"; tầng không đo được tỷ lệ (1 mm/px mặc định,
+ * chưa xác nhận thì số vẫn hiện để soi (dải "tỷ lệ tạm" và "(tạm)" ở thanh tra đã nói, không lặp "≈" từng hàng);
+ * tầng không đo được tỷ lệ (1 mm/px mặc định,
  * `project_default`) thì số vô nghĩa — `null`.
  */
 export function wallLengthNumberOf(lengthMm: number, scaleStatus?: ScaleStatus, scaleSource?: ScaleSource): string | null {
@@ -1191,7 +1192,7 @@ export function wallLengthNumberOf(lengthMm: number, scaleStatus?: ScaleStatus, 
 
   const text = formatNumber(lengthMm, { fractionDigits: 0 });
 
-  return scaleStatus === 'unresolved' ? `≈${text}` : text;
+  return text;
 }
 
 /** Ô "Chiều dài" của thanh tra: cùng số với cột "Dài, mm" của danh sách, thêm đơn vị và "(tạm)". */

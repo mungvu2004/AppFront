@@ -151,6 +151,15 @@ function applyStartParams() {
   // AppFront edit (UX-R1 K19): open one floor at a time (product scope: one-floor apartments);
   // the stacked default built unrelated plans into a 46 m tower. `?view=exploded` still wins.
   useViewer.getState().setLevelMode(params.get('view') === 'exploded' ? 'exploded' : 'solo')
+  // AppFront edit (UX-R1): start solo on the first floor that has walls; missing-scale floors are
+  // left empty by the bridge, and opening on one of them showed a blank scene.
+  const { nodes } = useScene.getState()
+  for (const node of Object.values(nodes)) {
+    if (node.type === 'level' && node.children.some((id) => nodes[id]?.type === 'wall')) {
+      useViewer.getState().setSelection({ levelId: node.id })
+      break
+    }
+  }
   // G5-06 / QA-2 L2: frame the model once the camera controls have mounted (a cold first open
   // mounts them after the editor's own auto-frame and after any fixed delay).
   fitWhenControlsReady(subscribeCameraPose, fitModel)

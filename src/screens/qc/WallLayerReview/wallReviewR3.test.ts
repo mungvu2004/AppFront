@@ -45,10 +45,10 @@ describe('S2-5: bỏ duyệt', () => {
 });
 
 describe('K16: một quy tắc chiều dài cho danh sách và thanh tra', () => {
-  it('tỷ lệ thật: số mm nguyên; tỷ lệ máy đo chưa xác nhận: "≈"; không đo được tỷ lệ: không có số', () => {
+  it('tỷ lệ thật: số mm nguyên; tỷ lệ máy đo chưa xác nhận: số như thường (dải tạm đã nói); không đo được tỷ lệ: không có số', () => {
     expect(wallLengthNumberOf(5757.4)).toBe('5.757');
-    expect(wallLengthNumberOf(5757.4, 'unresolved', 'pipeline')).toBe('≈5.757');
-    expect(wallLengthNumberOf(5757.4, 'unresolved')).toBe('≈5.757');
+    expect(wallLengthNumberOf(5757.4, 'unresolved', 'pipeline')).toBe('5.757');
+    expect(wallLengthNumberOf(5757.4, 'unresolved')).toBe('5.757');
     expect(wallLengthNumberOf(5757.4, 'unresolved', 'project_default')).toBeNull();
   });
 

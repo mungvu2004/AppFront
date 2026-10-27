@@ -65,7 +65,7 @@ outline for forced-colors.
 UX-R1 (desktop 1920 review):
 
 12. `page.tsx` `applyStartParams`: the viewer opens in level mode `solo` ("Tầng: một tầng") after each load, `?view=exploded`
-    still wins (K19). `viewer-toolbar.tsx`: the level toggle is lit when not `solo`; rotate / top view / walk always sit in
+    still wins (K19), and selects the first floor that has walls (missing-scale floors are left empty). `viewer-toolbar.tsx`: the level toggle is lit when not `solo`; rotate / top view / walk always sit in
     the "Góc nhìn" menu so the bar fits 1920 px (K38/K49).
 13. `build-tab.tsx`: the grid shows the apartment tools (`lib/apartment-tools.ts`, AppFront file); the rest sit behind a
     "Thêm" tile (K38/K43).

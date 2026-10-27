@@ -118,7 +118,7 @@ export function WallLayerListRow({
           </span>
         )}
         {/* K28: mã có bề rộng riêng, không co — không dính vào cột dài ("#W-0015.757"). */}
-        <span className="relative w-14 shrink-0 whitespace-nowrap tabular-nums text-text-primary">{row.codeLabel}</span>
+        <span className="relative w-12 shrink-0 whitespace-nowrap tabular-nums text-text-primary">{row.codeLabel}</span>
         {/* K15: dấu thấy được (hình + màu), thay lớp gạch chéo mờ 6% trước đây. */}
         {isUncertain ? (
           <span aria-hidden="true" className="relative flex shrink-0 items-center text-state-attention-text" title={UNCERTAIN_LABEL}>
@@ -127,7 +127,7 @@ export function WallLayerListRow({
         ) : null}
         <span className="relative min-w-0 flex-1 truncate text-right tabular-nums text-text-secondary">{extra?.lengthText ?? ''}</span>
         {showUnapprove ? null : (
-          <span className="relative w-14 shrink-0 whitespace-nowrap text-right tabular-nums text-text-primary">
+          <span className="relative w-9 shrink-0 whitespace-nowrap text-right tabular-nums text-text-primary">
             {extra?.thicknessText ?? row.thicknessLabel}
             {extra?.nearText == null ? null : <span className="ml-1 text-caption text-text-secondary">{extra.nearText}</span>}
           </span>
