@@ -233,6 +233,8 @@ export default defineConfig(({ command }) => ({
       { find: '@', replacement: path.resolve(__dirname, './src') },
       { find: 'next/image', replacement: path.resolve(__dirname, './vendor/pascal/shims/next-image.tsx') },
       { find: 'next/link', replacement: path.resolve(__dirname, './vendor/pascal/shims/next-link.tsx') },
+      // `blob-stream` gốc cần `stream` của Node (Vite dựng thành rỗng) → xuất PDF hỏng; xem tệp thay.
+      { find: /^blob-stream$/, replacement: path.resolve(__dirname, './src/pascal-page/blobStream.ts') },
     ],
   },
   define: command === 'build' ? PASCAL_ENV_DEFINES : devDefines(),

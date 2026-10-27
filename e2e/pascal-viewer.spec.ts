@@ -174,6 +174,47 @@ test('dưới CSP của nginx: 0 vi phạm, dựng xong, và bộ giải Basis t
 });
 
 /*
+ * Xuất mặt bằng PDF (Cài đặt › Mặt bằng đầy đủ) dưới CSP của nginx. Trước BUNDLE-GATE (2026-10-27)
+ * nút này ném "Cannot read properties of undefined (reading 'call')": `blob-stream` cần `stream`
+ * của Node mà Vite dựng thành rỗng — nay alias sang `src/pascal-page/blobStream.ts`. pdfkit được
+ * cổng quét eval miễn hẹp (`scripts/check-bundle-size.mjs`); bài này là bằng chứng nó chạy được
+ * dưới CSP thật: tệp tải về là PDF, không báo lỗi, 0 vi phạm.
+ */
+test('dưới CSP của nginx: Cài đặt › Mặt bằng đầy đủ tải về một tệp PDF, không lỗi, 0 vi phạm', async ({ page }) => {
+  test.setTimeout(HEAVY_TEST_TIMEOUT_MS);
+  await serveDocumentsWithCsp(page);
+  const violations: string[] = [];
+  page.on('pageerror', (error) => violations.push(`pageerror: ${error.message}`));
+  page.on('console', (message) => {
+    if (message.text().includes('Refused to')) violations.push(`console: ${message.text()}`);
+  });
+  await page.addInitScript(() => {
+    document.addEventListener('securitypolicyviolation', (event) => {
+      console.error(`Refused to (securitypolicyviolation) ${event.violatedDirective} ${event.blockedURI}`);
+    });
+  });
+
+  await openEditor3d(page);
+  await page.getByRole('button', { name: 'Cài đặt', exact: true }).click();
+
+  const download = page.waitForEvent('download', { timeout: RENDER_TIMEOUT_MS });
+  await page.getByRole('button', { name: 'Mặt bằng đầy đủ' }).click();
+  const file = await download;
+  const stream = await file.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  const pdf = Buffer.concat(chunks);
+
+  expect(file.suggestedFilename()).toMatch(/\.pdf$/);
+  expect(pdf.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+  expect(pdf.length).toBeGreaterThan(1_000);
+  // Phông nhúng tự host (`/pascal/pdf-fonts/`), không rơi về Helvetica WinAnsi làm hỏng chữ có dấu.
+  expect(pdf.toString('latin1')).toContain('/FontFile2');
+  await expect(page.getByRole('alert').filter({ hasText: /floor plan|mặt bằng/i })).toHaveCount(0);
+  expect(violations).toEqual([]);
+});
+
+/*
  * Bài của khung Pascal NHÚNG cũ: trang riêng không có nút thu khung, phím E/R mở lại hay
  * gói vách ngăn `pascal-mount.js` để chặn. Lưu tường nay kiểm ở `pascal-evidence.spec.ts`
  * và `pascal-fixtures.spec.ts` C13.

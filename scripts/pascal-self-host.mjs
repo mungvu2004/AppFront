@@ -14,6 +14,17 @@ export const SELF_HOST_RULES = [
   ['https://www.gstatic.com/draco/versioned/decoders/1.5.5/', '/draco/'],
   // vendor `viewer/src/lib/ktx2-loader.ts`.
   ['https://cdn.jsdelivr.net/gh/pmndrs/drei-assets@master/basis/', '/basis/'],
+  /*
+   * Phông nhúng của xuất PDF, vendor `editor/src/lib/floorplan/floorplan-pdfkit-document.ts`. Chế độ `lib`
+   * của Vite nhúng `new URL('./x.ttf', import.meta.url)` thành `data:font/ttf;base64,…` (~770 KB trong
+   * `ids-*.js`), rồi `fetch(data:)` bị `connect-src 'self'` chặn → PDF rơi về phông chuẩn WinAnsi, hỏng
+   * chữ có dấu (BUNDLE-GATE, e2e `pascal-viewer.spec.ts`). Trỏ về tệp tự host `/pascal/pdf-fonts/`
+   * (`copy-pascal-assets.mjs`); gốc `self.location.href` để Vite không nhận ra mẫu tài sản mà nhúng lại.
+   */
+  ...['LiberationSans-Regular', 'LiberationSans-Bold', 'GeistMono-Regular', 'GeistMono-Bold'].map((name) => [
+    `new URL('./pdf-fonts/${name}.ttf', import.meta.url)`,
+    `new URL('/pascal/pdf-fonts/${name}.ttf', self.location.href)`,
+  ]),
 ];
 
 /**

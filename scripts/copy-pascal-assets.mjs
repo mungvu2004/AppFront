@@ -283,6 +283,10 @@ for (const rel of walk(ICON_SOURCE).filter((name) => name.endsWith('.webp'))) {
 }
 rmSync(AUDIO_TARGET, { force: true, recursive: true });
 cpSync(AUDIO_SOURCE, AUDIO_TARGET, { recursive: true });
+// Phông nhúng của xuất PDF (luật `pdf-fonts` trong `pascal-self-host.mjs`), kèm giấy phép OFL.
+cpSync(join('vendor', 'pascal', 'packages', 'editor', 'src', 'lib', 'floorplan', 'pdf-fonts'), join('public', 'pascal', 'pdf-fonts'), {
+  recursive: true,
+});
 // Con trỏ của khung vẽ mặt bằng: `url('/cursor.svg')` trong `floorplan-panel.tsx`.
 copyFileSync(join('vendor', 'pascal', 'assets', 'cursor.svg'), join('public', 'cursor.svg'));
 // R4 (editor-realism): HDRI tự host cho chủ đề sáng (`src/pascal-page/realism/lighting.ts` HDRI_URL).
