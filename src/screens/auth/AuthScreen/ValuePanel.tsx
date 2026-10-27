@@ -58,7 +58,7 @@ export function ValuePanel() {
         {/*
           Khung giữ chỗ cùng tỉ lệ, để chữ bên cạnh không nhảy khi SVG tải xong. Một khoảnh khắc chuyển động
           duy nhất, kể đúng việc sản phẩm làm: nét mực tự vẽ ra, rồi một vệt quét lướt ngang và nét được "đọc"
-          sáng lên màu mực xanh rồi lắng xuống (`landing.css`, `.auth-plan-*`). Giảm chuyển động: hình tĩnh.
+          sáng lên màu mực xanh rồi lắng xuống (`auth.css`, `.auth-plan-*`). Giảm chuyển động: hình tĩnh.
         */}
         <div aria-hidden="true" className="auth-plan-art">
           {plan !== null && (

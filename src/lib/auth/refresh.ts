@@ -1,5 +1,4 @@
 import { createSingleFlight } from '@/lib/http';
-import { z } from 'zod';
 import {
   RETRY_MIN_DELAY_MS,
   getLastKnownUserId,
@@ -10,6 +9,7 @@ import {
 } from './bootstrap';
 import { broadcastAuthIntent, emitAuthSignedIn, emitAuthSignedOut } from './events';
 import { clearNavigationMemory } from './navigationMemory';
+import type { RefreshPayload } from './refreshSchema';
 import { endAnonymousSession } from './transitions';
 import {
   getAuthConfig,
@@ -77,39 +77,6 @@ let removeVisibilityHandler: (() => void) | null = null;
 let serverOffsetMs = 0;
 let lastRefreshAttemptAt: number | null = null;
 let transientAttempt = 0;
-
-const roleSchema = z.union([
-  z.literal('admin'),
-  z.literal('engineer'),
-  z.literal('viewer'),
-]);
-
-const refreshUserSchema = z
-  .object({
-    email: z.string().optional(),
-    id: z.string().min(1),
-    name: z.string().optional(),
-    roles: z.array(roleSchema).optional(),
-  })
-  .passthrough();
-
-const refreshPayloadSchema = z
-  .object({
-    accessToken: z.string().min(1).optional(),
-    access_token: z.string().min(1).optional(),
-    expiresAt: z.union([z.number(), z.string()]).optional(),
-    expiresIn: z.number().optional(),
-    expires_at: z.union([z.number(), z.string()]).optional(),
-    expires_in: z.number().optional(),
-    roles: z.array(roleSchema).optional(),
-    user: refreshUserSchema.nullable().optional(),
-  })
-  .passthrough();
-
-const refreshResponseSchema = z.union([
-  z.object({ data: refreshPayloadSchema }).passthrough(),
-  refreshPayloadSchema,
-]);
 
 const readString = (value: unknown): string | null =>
   typeof value === 'string' && value.length > 0 ? value : null;
@@ -406,9 +373,9 @@ export const defaultParseRefreshResponse = async (
   response: Response,
   now: number,
 ): Promise<RefreshSessionPayload> => {
-  const payload = await response.json();
+  const [payload, { refreshResponseSchema }] = await Promise.all([response.json(), import('./refreshSchema')]);
   const parsed = refreshResponseSchema.parse(payload);
-  const root = ('data' in parsed ? parsed.data : parsed) as z.infer<typeof refreshPayloadSchema>;
+  const root = ('data' in parsed ? parsed.data : parsed) as RefreshPayload;
   const accessToken = root.accessToken ?? root.access_token;
 
   if (!accessToken) {

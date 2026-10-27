@@ -1,0 +1,106 @@
+/*
+ * Khung tài khoản (AuthFrame: /login, quên/đặt lại mật khẩu, lời mời): cùng giấy và mực với trang chào.
+ *
+ * Tách khỏi `screens/landing/landing.css` (2026-10-27): trang cuộn cũ ấy đã thôi dùng (`/welcome` là
+ * `landing-lab/combo`), nhưng AuthFrame vẫn nhập NGUYÊN tệp — 289 dòng, 4,6 KiB gzip CSS cho màn đăng nhập
+ * mà màn chỉ dùng khối biến `.landing` và các lớp `auth-*` dưới đây. Phông Be Vietnam Pro đã khai trong
+ * `src/styles/globals.css`, không khai lại.
+ */
+.landing {
+  --l-paper: #f3efe6;
+  --l-ink: #252b35;
+  --l-blue: #4785f5;
+  --l-jade: #20b89a;
+  --l-amber: #f2ad53;
+  --l-coral: #e66c68;
+  --l-mineral: #b9c9c5;
+  /* Sắc làm chữ: trộn với mực tới tương phản ≥ 4.5:1 trên giấy. */
+  --l-blue-ink: color-mix(in srgb, var(--l-blue) 70%, var(--l-ink));
+  --l-jade-ink: color-mix(in srgb, var(--l-jade) 50%, var(--l-ink));
+  --l-amber-ink: color-mix(in srgb, var(--l-amber) 40%, var(--l-ink));
+  --l-coral-ink: color-mix(in srgb, var(--l-coral) 60%, var(--l-ink));
+  --l-mineral-ink: color-mix(in srgb, var(--l-mineral) 40%, var(--l-ink));
+  /* Chữ phụ (dòng mắt, ghi chú): 72% mực trộn sẵn với giấy (màu đặc) ≈ #5f6266 / #f3efe6 → 5,3:1 (≥ 4.5). */
+  --l-ink-soft: color-mix(in srgb, var(--l-ink) 72%, var(--l-paper));
+  --l-hair: color-mix(in srgb, var(--l-ink) 16%, transparent);
+  --l-gutter: clamp(20px, 5vw, 72px);
+  --l-col: min(48rem, 52vw);
+  --l-head: 64px;
+  background: var(--l-paper);
+  color: var(--l-ink);
+  min-height: 100svh;
+  font-family: 'Be Vietnam Pro', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  overflow-x: clip;
+}
+@media (max-width: 1100px) { .landing { --l-head: 56px; } }
+.landing a:focus-visible, .landing button:focus-visible { outline: 2px solid var(--l-blue); outline-offset: 3px; }
+
+/* Khung tài khoản (AuthFrame: /login, quên/đặt lại mật khẩu, lời mời): cùng giấy và mực với trang chào. */
+.auth-art-panel { border-color: var(--l-hair); color: var(--l-ink); }
+.auth-art-soft { color: var(--l-ink-soft); }
+.auth-wordmark { margin: 0; font-size: 1rem; font-weight: 500; letter-spacing: -0.01em; }
+/* Mặt bằng của trang chào: khung giữ tỉ lệ ~4:3 khi SVG chưa tải; dải dưới `lg` cao 96 px. */
+.auth-plan-art { position: relative; container-type: inline-size; aspect-ratio: 4 / 3; height: 96px; }
+.auth-plan-draw, .auth-plan-scan { width: 100%; height: 100%; }
+/* Bản tĩnh của `planSvg` tô cây/cỏ màu ngọc; đầu trang chào là nét mực gần đơn sắc, nên rút bớt sắc cho khớp. */
+.auth-plan-art svg { width: 100%; height: 100%; display: block; filter: saturate(0.2); }
+@media (min-width: 64rem) {
+  .auth-plan-art { height: auto; width: 100%; max-height: 58vh; max-width: 640px; align-self: center; }
+}
+
+/*
+ * Khoảnh khắc chuyển động của khung tài khoản (một lần, khi mở trang):
+ * 1. Nét mực tự vẽ ra (0-1,9 s): mỗi hình có `pathLength="1"` + trễ `--d` (ValuePanel `drawablePlan`); mảng tô
+ *    và chữ trong bản vẽ hiện sau nét của chính nó.
+ * 2. Vệt quét (1,6-3,0 s): một vạch mực xanh lướt trái sang phải; lớp bản sao tô xanh lộ theo nó — nét được
+ *    "đọc" — rồi lắng xuống trả lại nét mực.
+ * Ease-out mũ cho nét (tới nhanh, dừng mềm), ease-in-out cho vệt quét (một cú lướt có chủ đích).
+ */
+/* Nét đã đứt sẵn (ranh đất) giữ đúng mẫu đứt: không vẽ dần, chỉ hiện cùng mảng tô. */
+.auth-plan-draw :is(polygon, circle, line, path, rect)[stroke-dasharray] { animation: auth-fade 700ms ease-out 200ms both; }
+.auth-plan-draw :is(polygon, circle, line, path, rect):not([stroke-dasharray]) {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation:
+    auth-draw 1000ms cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms) forwards,
+    auth-fill 700ms ease-out calc(var(--d, 0ms) + 400ms) both;
+}
+.auth-plan-draw text { animation: auth-fade 600ms ease-out 1400ms both; }
+.auth-plan-scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  clip-path: inset(0 100% 0 0);
+  animation:
+    auth-scan 1400ms cubic-bezier(0.65, 0, 0.35, 1) 1600ms forwards,
+    auth-settle 900ms ease-out 3000ms forwards;
+}
+.auth-plan-scan svg { filter: none; }
+.auth-plan-scan :is(polygon, circle, line, path, rect) { stroke: var(--l-blue-ink); fill: none; }
+.auth-plan-scan text { display: none; }
+.auth-plan-beam {
+  position: absolute;
+  top: -4%;
+  bottom: -4%;
+  left: 0;
+  width: 2px;
+  background: var(--l-blue-ink);
+  box-shadow: 0 0 14px 3px color-mix(in srgb, var(--l-blue-ink) 35%, transparent);
+  opacity: 0;
+  animation: auth-beam 1400ms cubic-bezier(0.65, 0, 0.35, 1) 1600ms forwards;
+}
+@keyframes auth-draw { to { stroke-dashoffset: 0; } }
+@keyframes auth-fill { from { fill-opacity: 0; } }
+@keyframes auth-fade { from { opacity: 0; } }
+@keyframes auth-scan { to { clip-path: inset(0 0 0 0); } }
+@keyframes auth-settle { to { opacity: 0; } }
+@keyframes auth-beam {
+  0% { transform: translateX(0); opacity: 0; }
+  10%, 90% { opacity: 1; }
+  100% { transform: translateX(100cqw); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-plan-draw :is(polygon, circle, line, path, rect), .auth-plan-draw text { animation: none; stroke-dashoffset: 0; }
+  .auth-plan-draw :is(polygon, circle, line, path, rect):not([stroke-dasharray]) { stroke-dasharray: none; }
+  .auth-plan-scan, .auth-plan-beam { display: none; }
+}

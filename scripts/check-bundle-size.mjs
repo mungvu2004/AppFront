@@ -305,8 +305,16 @@ const BUDGETS_KIB = {
    * (`screens/viewer/Viewer3D` — `three` + GLTFLoader + DRACO).
    */
   routeChunk: 280,
-  /** Toàn bộ CSS. Tailwind đã purge. Số đo 2026-09-05: 9,8 KiB. */
-  css: 12,
+  /**
+   * Toàn bộ CSS. Tailwind đã purge. Số đo 2026-09-05: 9,8 KiB.
+   *
+   * BUNDLE-GATE (2026-10-27, chủ dự án chọn đặt lại theo số đo, CHỜ người duyệt ở `/merge-review`):
+   * 11,8 (17/10) → 24,3 KiB do Tailwind 3 → 4 (`6dbfd866`), lớp của đợt làm lại giao diện 23–26/10,
+   * CSS riêng của `/welcome` (`5be42f2a`, 3,0) và `/login`. Đã cắt phần thừa: `/login` thôi nạp cả
+   * `landing.css` cũ (`screens/auth/auth.css`, 4,6 → 1,2), Tailwind của app thôi quét `src/pascal-page`
+   * (−1,3) → 19,8 KiB. Riêng CSS chunk vào đã 16,0 > 12, nên 12 → 22 (dư ~11 %).
+   */
+  css: 22,
 };
 
 /**
@@ -352,11 +360,18 @@ const BUDGETS_KIB = {
  * upstream nay có vân thật bằng `.webp` 512 sinh từ ảnh nguồn (`scripts/pascal-material-webp.mjs`),
  * thêm ≈ 570 KiB. Tài sản ở base đã vượt sẵn (11 310,5 KiB, vì `icons` 732 → 2 215 KiB), nên
  * `assets` 11 000 → 12 500 và `total` 33 000 → 34 500.
+ *
+ * BUNDLE-GATE (2026-10-27, chủ dự án chọn đặt lại theo số đo, CHỜ người duyệt ở `/merge-review`):
+ * các gói editor-realism 20–25/10 thêm vật liệu CC0 R5 (`.webp` 512, ≈ +4,3 MB), hai HDRI 1k
+ * (≈ 2,8 MB) và mẫu Sketchfab/Poly Haven (`pascal/items` 2,0 → 5,3 MB): tài sản 22 275,6 KiB. Biểu tượng
+ * đã thu về 256 px (`copy-pascal-assets.mjs`, 2 215 → 549 KiB) → 20 608,9 KiB; tổng 36 095,1 KiB. Phần
+ * còn lại là vân 3D, cắt nữa là giảm chất lượng thấy được — chủ dự án không chọn. `assets` 12 500 →
+ * 23 000 và `total` 34 500 → 40 500, dư ~11 % như trên.
  */
 const PASCAL_BUDGETS_KIB = {
   code: 22_000,
-  assets: 12_500,
-  total: 34_500,
+  assets: 23_000,
+  total: 40_500,
 };
 
 /** Ba thư mục hợp thành vách ngăn, sau khi `vite build` chép `public/` vào `dist/`. */

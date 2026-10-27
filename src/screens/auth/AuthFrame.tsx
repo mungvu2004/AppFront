@@ -7,7 +7,7 @@
  * Biểu mẫu neo từ trên, không căn giữa dọc: dải lỗi chèn vào không đẩy ô nhập khỏi con trỏ (BUG-008).
  */
 
-import '../landing/landing.css';
+import './auth.css';
 
 import { BrandMark } from '@/components/shell/BrandMark';
 import { Section } from '@/components/shell/Section';

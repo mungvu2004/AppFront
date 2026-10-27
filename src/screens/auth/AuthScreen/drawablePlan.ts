@@ -3,7 +3,7 @@ const DRAW_STAGGER_MS = 900;
 const SHAPE = /<(polygon|circle|line|path|rect)\b/gu;
 
 /**
- * Chuẩn bị SVG cho màn vẽ nét (`landing.css`, `.auth-plan-draw`): mỗi hình được `pathLength="1"` để một
+ * Chuẩn bị SVG cho màn vẽ nét (`auth.css`, `.auth-plan-draw`): mỗi hình được `pathLength="1"` để một
  * `stroke-dasharray: 1` vẽ trọn nét bất kể độ dài thật, và độ trễ `--d` theo thứ tự xuất hiện (nền đất → nhà
  * → cây) — nét mực lan dần như đang vẽ tay.
  */
