@@ -2,44 +2,60 @@
  * Lệnh kiểm tổng — `pnpm verify`.
  *
  * Một lệnh chạy hết những gì quyết định "xong": kiểu, luật, test, độ phủ, kích
- * thước gói, độ dài file, import vòng. Dừng ở bước hỏng đầu tiên, vì bước sau
- * đọc kết quả bước trước (đo kích thước gói cần bản dựng) và vì một trang log
- * toàn lỗi từ bảy bước cùng lúc thì không ai đọc.
+ * thước gói, độ dài file, import vòng.
  *
  * Vì sao "test" và "độ phủ" là MỘT bước: `vitest run --coverage` chạy đúng bộ
  * test đó một lần rồi đối chiếu ngưỡng trong `vitest.config.ts`. Tách làm hai
  * lệnh thì bộ test chạy hai lượt, tốn gấp đôi thời gian CI mà không biết thêm
  * điều gì. Bước này hỏng khi có test đỏ HOẶC độ phủ dưới ngưỡng.
  *
- * `typecheck` và `lint`+`import vòng` chạy SONG SONG (PERF-01 FE-8 / C1): cả ba
- * chỉ cần mã nguồn, không phụ thuộc nhau, nên không có lý do bắt cái sau chờ
- * cái trước. `lint` và `import vòng` còn dùng CHUNG một lượt gọi ESLint (C3):
- * `import/no-cycle` tự nó đã phải dựng đồ thị phụ thuộc của toàn bộ `src`, phần
- * tốn thời gian nhất, bất kể có chạy kèm luật nào khác — tách thành lệnh eslint
- * thứ hai chỉ để lọc riêng một luật là trả giá đó hai lần. Một lượt API, lọc
- * message theo `ruleId` thành hai "bước" để báo cáo, tốn đúng một lần.
+ * Lịch chạy (PERF-01 gate5): bước nào không đọc kết quả của bước khác thì không
+ * phải chờ nó. Test + độ phủ là bước dài nhất (vài phút) và chỉ cần mã nguồn,
+ * nên khởi động NGAY từ đầu, song song với:
  *
- * `build` của verify KHÔNG gọi `tsc` lần hai (PERF-01 FE-8 / C2): bước
- * `typecheck` ở trên đã xác nhận kiểu rồi, nên ở đây chỉ cần dựng Pascal rồi
- * `vite build` để đo kích thước gói. `pnpm build` (lệnh cho người dùng chạy
- * ngoài verify) vẫn giữ nguyên `tsc && vite build`.
+ *     t=0 ── test + độ phủ ─────────────────────────────────────────┐
+ *     t=0 ── typecheck ─┐                                            │
+ *     t=0 ── lint + import vòng ─┴─ build ── kích thước gói          ├─ bảng
+ *     t=0 ── độ dài file                                             │
  *
- * Cấm báo "đạt" cho bước chưa chạy (CLAUDE.md mục E.10). Bảng tổng kết cuối chỉ
- * in trạng thái lấy từ mã thoát thật, và bước chưa tới thì ghi "chưa chạy".
- * Output từng bước được đệm rồi in theo đúng thứ tự bước — kể cả hai bước chạy
- * song song — để không trộn log.
+ * `build` chờ typecheck + lint chứ không chạy từ đầu: nó không cần kết quả của
+ * hai bước đó, nhưng cả ba cùng ăn RAM (tsc, ESLint dựng đồ thị import, Rollup)
+ * và máy này thường chỉ còn vài GB trống — dồn cả ba lên đầu là đẩy vitest ra
+ * đĩa. Chờ thì đỉnh RAM bằng lịch cũ, mà build vẫn xong trước test nên không
+ * nằm trên đường găng. Kiểu/luật hỏng thì `build` và `kích thước gói` ghi
+ * "chưa chạy" (bản dựng của mã sai kiểu không nói được gì). `kích thước gói`
+ * đọc `dist/` nên luôn chờ `build`.
+ *
+ * `lint` và `import vòng` dùng CHUNG một lượt ESLint (C3): `import/no-cycle` tự
+ * nó đã phải dựng đồ thị phụ thuộc của toàn bộ `src`, phần tốn thời gian nhất.
+ * Một lượt, lọc message theo `ruleId` thành hai "bước" để báo cáo. Lượt ESLint
+ * chạy trong TIẾN TRÌNH CON (`--lint`): chạy trong tiến trình này thì vòng sự
+ * kiện bị ESLint chiếm từng quãng dài, ống stdout của vitest đầy mà không ai
+ * đọc, và vitest đứng chờ.
+ *
+ * `build` của verify KHÔNG gọi `tsc` lần hai (C2): bước `typecheck` đã xác nhận
+ * kiểu, nên chỉ dựng Pascal (có đệm, `scripts/pascal-cached.mjs`) rồi
+ * `vite build`. `pnpm build` (lệnh ngoài verify) vẫn giữ `tsc && vite build`.
+ *
+ * Cấm báo "đạt" cho bước chưa chạy (CLAUDE.md mục E.10). Bảng tổng kết chỉ in
+ * trạng thái lấy từ mã thoát thật; bước chưa tới ghi "chưa chạy". Output từng
+ * bước được đệm rồi in theo đúng thứ tự bước — các bước chạy song song nên
+ * không bao giờ in thẳng ra màn — chỉ có một dòng tiến độ ngắn khi mỗi bước xong.
  */
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { ESLint } from 'eslint';
 
 const PENDING = 'chưa chạy';
 const PASSED = 'đạt';
 const FAILED = 'HỎNG';
 
+const T0 = Date.now();
+const seconds = (from) => ((Date.now() - from) / 1000).toFixed(1);
+
 /** Luật chặn import vòng — cùng tham số với `check-import-cycles.mjs`. */
 const CYCLE_RULE = { 'import/no-cycle': ['error', { maxDepth: '∞', ignoreExternal: true }] };
 
-/** Bảy bước, đúng thứ tự phụ thuộc — chỉ dùng để in nhãn/mô tả và bảng tổng kết. */
+/** Bảy bước — thứ tự này là thứ tự in log và bảng tổng kết. */
 const STEPS = [
   { name: 'typecheck', description: 'tsc --noEmit' },
   { name: 'lint', description: 'bộ luật dự án, --max-warnings 0' },
@@ -51,9 +67,10 @@ const STEPS = [
 ];
 
 /** Chạy một lệnh con, đệm stdout/stderr để in sau mà không trộn với lệnh khác. */
-function runBuffered(command, args) {
+function runBuffered(command, args = []) {
   return new Promise((resolve) => {
     const chunks = [];
+    // `shell: true` vì trên Windows `pnpm` là file .cmd, không phải file thực thi.
     const child = spawn(command, args, { shell: true });
     child.stdout.on('data', (chunk) => chunks.push(chunk));
     child.stderr.on('data', (chunk) => chunks.push(chunk));
@@ -62,11 +79,10 @@ function runBuffered(command, args) {
 }
 
 /**
- * Một lượt ESLint phục vụ cả "lint" và "import vòng". Lọc message theo
- * `ruleId` để tách thành hai bộ đếm/báo cáo, nhưng đồ thị phụ thuộc (phần
- * chậm) chỉ dựng một lần.
+ * Một lượt ESLint phục vụ cả "lint" và "import vòng" — chạy ở tiến trình con
+ * (`node verify.mjs --lint`), in kết quả hai nhóm dạng JSON ra stdout.
  */
-async function runLintAndCycles() {
+async function lintChild() {
   const eslint = new ESLint({
     extensions: ['ts', 'tsx'],
     reportUnusedDisableDirectives: 'error',
@@ -90,7 +106,19 @@ async function runLintAndCycles() {
     return { code: problems > 0 ? 1 : 0, output: formatter.format(filtered) };
   };
 
-  return { lint: bucket(false), cycles: bucket(true) };
+  process.stdout.write(JSON.stringify({ lint: bucket(false), cycles: bucket(true) }));
+}
+
+async function runLintAndCycles() {
+  const run = await runBuffered('node', ['scripts/verify.mjs', '--lint']);
+  try {
+    // stderr của tiến trình con (cảnh báo deprecated…) có thể đứng trước JSON.
+    return JSON.parse(run.output.slice(run.output.lastIndexOf('{"lint"')));
+  } catch {
+    // ESLint tự sập (cấu hình hỏng, hết bộ nhớ…): cả hai bước hỏng, kèm nguyên log.
+    const failed = { code: run.code || 1, output: run.output };
+    return { lint: failed, cycles: failed };
+  }
 }
 
 function printStep(label, output) {
@@ -101,81 +129,74 @@ function printStep(label, output) {
 }
 
 async function main() {
-  const results = STEPS.map((step) => ({ step, status: PENDING }));
+  const results = STEPS.map((step) => ({ step, status: PENDING, output: '', time: '' }));
   const byName = Object.fromEntries(results.map((r) => [r.step.name, r]));
-  let failedAt = null;
 
-  // Nhóm song song: typecheck ∥ (lint + import vòng), không phụ thuộc nhau.
-  const [typecheckResult, lintAndCycles] = await Promise.all([
-    runBuffered('pnpm', ['typecheck']),
-    runLintAndCycles(),
+  /** Ghi kết quả thật của một bước (từ mã thoát) và in một dòng tiến độ. */
+  const record = (name, started, { code, output }) => {
+    const entry = byName[name];
+    entry.status = code === 0 ? PASSED : FAILED;
+    entry.code = code;
+    entry.output = output;
+    entry.time = `${seconds(started)} s`;
+    console.log(`[${seconds(T0)} s] ${name}: ${entry.status} (${entry.time})`);
+    return code === 0;
+  };
+
+  const step = (name, command, args) => {
+    const started = Date.now();
+    return runBuffered(command, args).then((run) => record(name, started, run));
+  };
+
+  const testDone = step('test + độ phủ', 'pnpm', [
+    'coverage',
+    '--coverage.reporter=text',
+    '--coverage.reporter=json-summary',
   ]);
+  const lengthDone = step('độ dài file', 'pnpm', ['length']);
+  const typecheckDone = step('typecheck', 'pnpm', ['typecheck']);
+  const lintStarted = Date.now();
+  const lintDone = runLintAndCycles().then(({ lint, cycles }) => {
+    const lintOk = record('lint', lintStarted, lint);
+    const cyclesOk = record('import vòng', lintStarted, cycles);
+    return lintOk && cyclesOk;
+  });
 
-  const parallelOutcomes = [
-    { name: 'typecheck', label: `${STEPS[0].name} — ${STEPS[0].description}`, ...typecheckResult },
-    { name: 'lint', label: `${STEPS[1].name} — ${STEPS[1].description}`, ...lintAndCycles.lint },
-    { name: 'import vòng', label: `${STEPS[2].name} — ${STEPS[2].description}`, ...lintAndCycles.cycles },
-  ];
+  const buildDone = Promise.all([typecheckDone, lintDone]).then(async ([typesOk, lintOk]) => {
+    if (!typesOk || !lintOk) return false;
+    if (!(await step('build', 'pnpm pascal && pnpm exec vite build'))) return false;
+    return step('kích thước gói', 'pnpm', ['size']);
+  });
 
-  for (const outcome of parallelOutcomes) {
-    printStep(outcome.label, outcome.output);
-    byName[outcome.name].status = outcome.code === 0 ? PASSED : FAILED;
-    if (failedAt === null && outcome.code !== 0) {
-      failedAt = { step: byName[outcome.name].step, code: outcome.code };
-    }
-  }
+  await Promise.all([testDone, lengthDone, buildDone]);
 
-  // Phần tuần tự: chỉ chạy nếu cả nhóm song song ở trên đều đạt. `build` ở đây
-  // không gọi lại `tsc` — xem chú thích đầu file (C2).
-  const SEQUENTIAL_STEPS = [
-    { name: 'test + độ phủ', command: 'pnpm', args: ['coverage', '--coverage.reporter=text', '--coverage.reporter=json-summary'] },
-    { name: 'build', command: 'pnpm pascal && pnpm exec vite build', args: [] },
-    { name: 'kích thước gói', command: 'pnpm', args: ['size'] },
-    { name: 'độ dài file', command: 'pnpm', args: ['length'] },
-  ];
-
-  if (failedAt === null) {
-    for (const { name, command, args } of SEQUENTIAL_STEPS) {
-      const step = byName[name].step;
-      printStep(`${step.name} — ${step.description}`, '');
-
-      // `shell: true` vì trên Windows `pnpm` là file .cmd, không phải file thực thi.
-      const run = spawnSync(command, args, { stdio: 'inherit', shell: true });
-      const code = run.status ?? 1;
-
-      if (code === 0) {
-        byName[name].status = PASSED;
-        continue;
-      }
-
-      byName[name].status = FAILED;
-      failedAt = { step, code };
-      break;
-    }
+  for (const { step: s, output } of results) {
+    printStep(`${s.name} — ${s.description}`, output);
   }
 
   console.log(`\n${'='.repeat(72)}`);
-  console.log('KIỂM TỔNG');
+  console.log(`KIỂM TỔNG — ${seconds(T0)} s`);
   console.log('='.repeat(72));
 
-  for (const { step, status } of results) {
-    console.log(`  ${status.padEnd(9)} ${step.name}`);
+  for (const { step: s, status, time } of results) {
+    console.log(`  ${status.padEnd(9)} ${s.name.padEnd(16)} ${time}`);
   }
 
   console.log('');
 
-  if (failedAt !== null) {
+  const failed = results.find((r) => r.status === FAILED);
+  if (failed !== undefined) {
     console.error(
-      `Dừng ở bước "${failedAt.step.name}" (mã thoát ${failedAt.code}). ` +
+      `Hỏng ở bước "${failed.step.name}" (mã thoát ${failed.code}). ` +
         'Sửa mã cho đạt, không hạ ngưỡng và không tắt luật.\n',
     );
-    process.exit(failedAt.code);
+    process.exit(failed.code || 1);
   }
 
   console.log('Tất cả các bước đều đạt.\n');
 }
 
-main().catch((error) => {
+(process.argv[2] === '--lint' ? lintChild() : main()).catch((error) => {
   console.error(error);
   process.exit(1);
 });
