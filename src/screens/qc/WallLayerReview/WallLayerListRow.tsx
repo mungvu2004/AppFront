@@ -1,11 +1,12 @@
 /**
- * Một hàng của hàng đợi tường (cao 36): mẫu hình · mã · dài · dày; hàng đã duyệt có "Bỏ duyệt".
+ * Một hàng của hàng đợi tường (cao 36): mẫu hình · mã · dấu "Máy chưa chắc" · dài · dày; hàng đã
+ * duyệt có "Bỏ duyệt". Trạng thái cho trình đọc màn hình nằm ở tên truy cập của hàng.
  *
  * Nút "Bỏ duyệt" đứng CẠNH `role="option"` (không lồng điều khiển trong option). Màu trạng thái
  * luôn đi kèm hình (mẫu độ dày / dấu tích), không chỉ một chấm màu (BUG-638, A4).
  */
 
-import { Check } from 'lucide-react';
+import { Check, CircleHelp } from 'lucide-react';
 import type { CSSProperties } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -29,8 +30,7 @@ const STATUS_LABEL: Readonly<Record<WallRowViewModel['statusCode'], string>> = {
   neutral: 'Bình thường',
 };
 const UNAPPROVE_LABEL = 'Bỏ duyệt';
-const LOW_CONFIDENCE_HATCH =
-  'repeating-linear-gradient(45deg, var(--state-attention) 0, var(--state-attention) 2px, transparent 2px, transparent 8px)';
+const UNCERTAIN_LABEL = 'Máy chưa chắc';
 
 export interface WallLayerListRowProps {
   readonly row: WallRowViewModel;
@@ -38,7 +38,7 @@ export interface WallLayerListRowProps {
   readonly isSelected: boolean;
   readonly isHovered: boolean;
   readonly isFlashing: boolean;
-  /** Gạch chéo mờ cho tường dưới ngưỡng tin cậy — chỉ khi độ tin cậy có khác nhau. */
+  /** Dấu "Máy chưa chắc" cho tường dưới ngưỡng tin cậy — chỉ khi độ tin cậy có khác nhau. */
   readonly showConfidence: boolean;
   readonly onSelect: (wallId: WallId) => void;
   readonly onToggleSelect: (wallId: WallId) => void;
@@ -72,6 +72,7 @@ export function WallLayerListRow({
   const showUnapprove = row.isReviewed && onUnapprove !== undefined;
   const swatch = swatchOf(row);
   const swatchTitle = swatch === 'nonStandard' ? NON_STANDARD_TITLE : `Chuẩn ${swatch} mm`;
+  const isUncertain = showConfidence && row.isLowConfidence && !row.isReviewed;
 
   return (
     <div className="absolute inset-x-0 top-0 flex h-9 items-center gap-1" role="presentation" style={style}>
@@ -107,9 +108,6 @@ export function WallLayerListRow({
         role="option"
         tabIndex={0}
       >
-        {showConfidence && row.isLowConfidence && !row.isReviewed ? (
-          <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ backgroundImage: LOW_CONFIDENCE_HATCH, opacity: 0.06 }} />
-        ) : null}
         {row.isReviewed ? (
           <span className="relative flex w-5 shrink-0 items-center justify-center text-state-verified-text" title={REVIEWED_TITLE}>
             <Check aria-hidden="true" className="h-3.5 w-3.5" />
@@ -119,8 +117,15 @@ export function WallLayerListRow({
             <WallThicknessSwatch kind={swatch} />
           </span>
         )}
-        <span className="relative min-w-0 flex-1 whitespace-nowrap tabular-nums text-text-primary">{row.codeLabel}</span>
-        <span className="relative w-12 shrink-0 text-right tabular-nums text-text-secondary">{extra?.lengthText ?? ''}</span>
+        {/* K28: mã có bề rộng riêng, không co — không dính vào cột dài ("#W-0015.757"). */}
+        <span className="relative w-14 shrink-0 whitespace-nowrap tabular-nums text-text-primary">{row.codeLabel}</span>
+        {/* K15: dấu thấy được (hình + màu), thay lớp gạch chéo mờ 6% trước đây. */}
+        {isUncertain ? (
+          <span aria-hidden="true" className="relative flex shrink-0 items-center text-state-attention-text" title={UNCERTAIN_LABEL}>
+            <CircleHelp aria-hidden="true" className="h-3.5 w-3.5" />
+          </span>
+        ) : null}
+        <span className="relative min-w-0 flex-1 truncate text-right tabular-nums text-text-secondary">{extra?.lengthText ?? ''}</span>
         {showUnapprove ? null : (
           <span className="relative w-14 shrink-0 whitespace-nowrap text-right tabular-nums text-text-primary">
             {extra?.thicknessText ?? row.thicknessLabel}

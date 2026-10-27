@@ -49,6 +49,26 @@ describe('scaleCheck', () => {
     expect(off.status.label).toBe('Đã đặt, lệch kích thước');
   });
 
+  it('[K17] biết cỡ căn: số to là cỡ căn thật, mm/px và 1:N lùi xuống dòng chi tiết', () => {
+    const check = buildScaleCheck({
+      mmPerPx: 24.878,
+      source: 'provisional',
+      shortEdgePx: 837,
+      knownDimension: null,
+      planSizeMm: { widthMm: 9100, heightMm: 7410 },
+    });
+    expect(check.headline).toBe('≈ 9,1 × 7,4 m');
+    expect(check.detailLine).toBe('24,878 mm/px · ≈ 1:70 nếu ảnh là khổ A3');
+    expect(check.title).toBe('Cỡ căn theo tỷ lệ tạm');
+    expect(check.status.sentence).toBe('Đang tạm dùng tỷ lệ cho căn ≈ 9,1 × 7,4 m. Đo 2 điểm để xác nhận.');
+  });
+
+  it('chưa biết cỡ căn: số to vẫn là 1:N, không dòng chi tiết', () => {
+    const check = buildScaleCheck({ mmPerPx: 24.878, source: 'stored', shortEdgePx: 837, knownDimension: null });
+    expect(check.headline).toBe('≈ 1:70');
+    expect(check.detailLine).toBeNull();
+  });
+
   it('không có cạnh ảnh: không DPI, không bảng', () => {
     const check = buildScaleCheck({ mmPerPx: 12, source: 'stored', shortEdgePx: null, knownDimension: null });
     expect(check.ratioLine).toBeNull();

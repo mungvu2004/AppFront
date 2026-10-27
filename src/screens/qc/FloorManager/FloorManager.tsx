@@ -152,12 +152,24 @@ export function FloorManager(props: FloorManagerViewProps) {
                   : undefined
                 : props.onOpenFloorScreen === undefined
                   ? undefined
-                  : () => props.onOpenFloorScreen?.(nextTask.floorId, 'walls')
+                  : () => props.onOpenFloorScreen?.(nextTask.floorId, nextTask.kind === 'scale' ? 'scale' : 'walls')
             }
             task={nextTask}
           />
         )}
       </div>
+
+      {/* K19: tầng không chung trục nào — có thể là các căn riêng bị dựng thành một nhà. */}
+      {isLoadError || state === 'loading' || !props.axisMismatchNotice ? null : (
+        <div className="mx-auto w-full max-w-[1280px] shrink-0 px-8 pb-2">
+          <InlineAlert
+            level="attention"
+            message={props.axisMismatchNotice.message}
+            role="status"
+            title={props.axisMismatchNotice.title}
+          />
+        </div>
+      )}
 
       {forbiddenNotice === null ? null : (
         <div className="mx-auto w-full max-w-[1280px] shrink-0 px-8 pb-2">

@@ -158,6 +158,25 @@ describe('lượt đọc mang revision (F-04x-1 bước 2)', () => {
     expect(read.graph.byKind.level).toEqual(graph.byKind.level);
   });
 
+  it('readProjectLayerRead mang scaleStatus/scaleSource N16 của từng tầng (UX-R1 K12)', async () => {
+    const floorIds = SAMPLE_BUILDING.levels.map((level) => level.id);
+    const api = createMockApiClient().spatial;
+    const original = api.readLayer.bind(api);
+    const [missing] = floorIds;
+
+    vi.spyOn(api, 'readLayer').mockImplementation(async (input) => {
+      const result = await original(input);
+
+      return result.ok && input.floorId === missing
+        ? { ...result, data: { ...result.data, scaleStatus: 'unresolved', scaleSource: 'project_default' } }
+        : result;
+    });
+    const read = await readProjectLayerRead(api, { floorIds, projectId: PROJECT_ID });
+
+    expect(read.floorScaleStatus).toEqual({ [String(missing)]: 'unresolved' });
+    expect(read.floorScaleSource).toEqual({ [String(missing)]: 'project_default' });
+  });
+
   it('readProjectSpatial mang floorRevisions của mọi tầng (N15)', async () => {
     const result = await readProjectSpatial(createMockApiClient(), { projectId: PROJECT_ID }, READER);
 

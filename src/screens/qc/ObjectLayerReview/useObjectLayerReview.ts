@@ -167,7 +167,9 @@ import {
   type CanvasFitView,
 } from '../shared/canvasFit';
 import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+import { SCALE_LOCK_REASON } from '../shared/floorReviewGateModel';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
+import { useScaleLock } from '../shared/useScaleLock';
 import { arrowStepHandler } from '../WallLayerReview/listArrowKeys';
 
 import { layerGateOf } from './layerGate';
@@ -354,8 +356,8 @@ export function useObjectLayerReview(
   /* ---------------------------------------------------------------------- */
 
   const roles = options.roles ?? [];
-  const canEdit = can('edit', 'layer', { roles });
-  const isViewerRole = !canEdit;
+  const canEditRole = can('edit', 'layer', { roles });
+  const isViewerRole = !canEditRole;
 
   /* ---------------------------------------------------------------------- */
   /* Trạng thái của riêng giao diện.                                         */
@@ -412,12 +414,19 @@ export function useObjectLayerReview(
 
   /* N16 của tầng — `useFloorLayer` quyết định nó vào kho thế nào (F-04x-2). */
   const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
+  /*
+   * Tầng thiếu tỷ lệ: bản vẽ và danh sách vẫn xem được, nhưng mọi hàm sửa và phím sửa tắt (UX-R1 r3).
+   * Gọi SAU `useFloorLayer`: không vậy lượt đọc N16 mặc định đè cổng tiêm vào (xem `useFloorReview`).
+   */
+  const scaleLock = useScaleLock(projectId, floorId);
+  const isScaleLocked = canEditRole && scaleLock.locked;
+  const canEdit = canEditRole && !isScaleLocked;
   const provisionalScaleNotice = useProvisionalScaleNotice(
     floorLayer.scaleStatus,
     projectId,
     floorId,
     options.onNavigate,
-    canEdit,
+    canEditRole,
   );
   const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
 
@@ -1851,5 +1860,11 @@ export function useObjectLayerReview(
     saveBlock,
     provisionalScaleNotice,
     readFailure,
+    scaleLock: isScaleLocked
+      ? {
+          reason: scaleLock.reason ?? SCALE_LOCK_REASON,
+          onOpenScale: onNavigate === undefined ? null : () => onNavigate(ROUTES.project.scale(projectId, floorId)),
+        }
+      : null,
   };
 }

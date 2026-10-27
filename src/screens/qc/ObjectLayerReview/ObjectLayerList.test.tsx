@@ -5,11 +5,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ObjectLayerList } from './ObjectLayerList';
 import type { ObjectListRowViewModel } from './objectLayerTypes';
 
-const row = (id: string, codeLabel: string): ObjectListRowViewModel =>
+const row = (id: string, codeLabel: string, patch: Partial<ObjectListRowViewModel> = {}): ObjectListRowViewModel =>
   ({
     id,
     layer: 'door',
-    subtype: 'door-single',
+    subtype: 'singleDoor',
+    typeLabel: 'Cửa đơn',
     codeLabel,
     sizeLabel: '900 × 2.200 mm',
     hostWallLabel: '#W-001',
@@ -18,6 +19,7 @@ const row = (id: string, codeLabel: string): ObjectListRowViewModel =>
     isReviewed: false,
     isLowConfidence: false,
     isOrphan: false,
+    ...patch,
   }) as unknown as ObjectListRowViewModel;
 
 afterEach(cleanup);
@@ -42,5 +44,40 @@ describe('ObjectLayerList ô "Tìm mã" (BUG-592)', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm mã' }), { target: { value: '#d-007' } });
     expect(screen.getAllByRole('option')).toHaveLength(1);
     expect(screen.getByRole('option', { name: /D-007/ })).toBeTruthy();
+  });
+});
+
+describe('ObjectLayerList dòng đối tượng (K07)', () => {
+  it('ghi tên loại đồ, "Không gắn tường" và "Máy chưa chắc" bằng chữ, không in số tin cậy', () => {
+    const noop = () => undefined;
+
+    render(
+      <ObjectLayerList
+        collapsedGroups={{ door: false, window: false, furniture: false }}
+        onAttachToNearestWall={noop}
+        onHover={noop}
+        onSelect={noop}
+        onToggleGroupCollapsed={noop}
+        rows={[
+          row('f', '#F-008', {
+            layer: 'furniture',
+            subtype: 'otherFurniture',
+            typeLabel: 'Tủ bếp',
+            hostWallLabel: null,
+            confidence: 0.26 as never,
+            statusCode: 'attention',
+            isLowConfidence: true,
+          }),
+        ]}
+        selectedObjectId={null}
+      />,
+    );
+
+    const option = screen.getByRole('option', { name: '#F-008 Tủ bếp — Máy chưa chắc' });
+
+    expect(option.textContent).toContain('Tủ bếp');
+    expect(option.textContent).toContain('Không gắn tường');
+    expect(option.textContent).toContain('Máy chưa chắc');
+    expect(option.textContent).not.toContain('0,26');
   });
 });

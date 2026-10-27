@@ -97,6 +97,7 @@ import { DEFAULT_TOLERANCE_MM, thicknessGroupLabel } from './thicknessTypes';
 
 const SCREEN_ARIA_LABEL = 'Độ dày tường';
 const HISTOGRAM_SECTION_LABEL = 'Phân bố độ dày đo được';
+const THRESHOLD_TOGGLE_LABEL = 'Ngưỡng chia nhóm (nâng cao)';
 const UNDO_LABEL = 'Hoàn tác';
 const DETAIL_LABEL = /^Xem bảng từng đoạn \(\d+\)$/u;
 const LOW_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(thicknessGroupLabel(100))} và ${lowerFirst(thicknessGroupLabel(150))}`;
@@ -215,6 +216,8 @@ async function renderMain(options: { readonly notifications?: NotificationBus } 
   );
 
   await screen.findAllByRole('table');
+  /* K30: thanh ngưỡng gập trong "nâng cao" — các phép đo kéo ngưỡng mở nó trước. */
+  fireEvent.click(screen.getByRole('button', { name: THRESHOLD_TOGGLE_LABEL }));
 
   /*
    * Hai đường nạp đồ thị đua nhau vào kho (effect gieo bộ mẫu và N16 của
@@ -341,6 +344,14 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
 
       unmount();
     }
+  }, HEAVY_TEST_TIMEOUT_MS);
+
+  it('[K30] thanh ngưỡng gập mặc định, mở ra có câu giải thích ngưỡng là gì', () => {
+    renderState('success');
+
+    expect(screen.queryByRole('slider')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: THRESHOLD_TOGGLE_LABEL }));
+    expect(screen.getByText(/Mỗi ngưỡng là ranh giới giữa hai nhóm/u)).toBeVisible();
   }, HEAVY_TEST_TIMEOUT_MS);
 
   it('[BUG-637] thu gọn: nút bung khung xem trước nói việc làm', () => {

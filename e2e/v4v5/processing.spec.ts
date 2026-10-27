@@ -58,6 +58,7 @@ test.fixme(
     await page
       .getByTestId('floor-upload-file-input')
       .setInputFiles([pngFile('tang-ham.png'), pngFile('tang-2.png'), pngFile('tang-3.png')]);
+    await page.getByRole('button', { name: 'Các tầng của một nhà', exact: true }).click(); // K19
     await expect(page.getByRole('status').filter({ hasText: 'tầng đã có bản vẽ' })).toHaveText(
       /4 \/ 4/,
     );

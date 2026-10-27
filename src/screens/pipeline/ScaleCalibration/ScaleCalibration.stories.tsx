@@ -322,7 +322,7 @@ function panelFor(state: ScaleCalibrationState): ScalePanelViewModel {
       rows,
       selectedRowId: state === 'success' ? (rows[0]?.id ?? null) : null,
       emptyNotice: isEmpty
-        ? 'OCR không tìm thấy chuỗi kích thước nào trên bản vẽ này. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.'
+        ? 'Chưa có số kích thước nào để làm mốc. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.'
         : null,
       lowConfidenceNotice: isPartial
         ? 'Có 2 chuỗi đọc được với độ tin cậy thấp, đã đánh dấu mức cần chú ý.'

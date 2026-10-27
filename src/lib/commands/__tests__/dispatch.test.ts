@@ -396,7 +396,8 @@ describe('dispatch', () => {
       name: 'tầng luôn đạt',
       group: 'levels',
       severity: 'warning',
-      scope: 'building',
+      // Phạm vi tầng: graph mẫu chỉ có một tầng, luật liên tầng không chạy ở đó.
+      scope: 'level',
       dependsOn: ['level'],
       check: () => [],
     };

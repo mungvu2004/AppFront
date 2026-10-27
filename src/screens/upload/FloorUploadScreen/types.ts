@@ -312,6 +312,42 @@ export interface FloorUploadModel {
   readonly tray: FloorUploadTrayModel;
   readonly footer: FloorUploadFooterModel;
   readonly blockNotice: FloorUploadBlockNotice | null;
+  /** Câu hỏi "tầng hay căn riêng" khi thả từ hai tệp trở lên (K19). Vắng/`null` khi không hỏi. */
+  readonly splitPrompt?: FloorUploadSplitPromptModel | null;
+  /** Các dự án vừa tạo, mỗi căn một dự án (K19). Vắng/`null` khi chưa tạo. */
+  readonly apartments?: FloorUploadApartmentsModel | null;
+}
+
+/** Một câu hỏi, hai lựa chọn. Mọi chữ đã viết xong. */
+export interface FloorUploadSplitPromptModel {
+  readonly question: string;
+  /** Ví dụ "Bạn vừa chọn 14 bản vẽ." */
+  readonly detail: string;
+  readonly floorsLabel: string;
+  readonly apartmentsLabel: string;
+}
+
+/** Một căn hộ: tệp → dự án mới → lượt tải. */
+export interface FloorUploadApartmentRowModel {
+  readonly id: string;
+  readonly projectName: string;
+  readonly fileName: string;
+  readonly statusLabel: string;
+  readonly statusVariant: ViewStatusCode;
+  /** Câu lỗi, đã viết xong. `null` khi không lỗi. */
+  readonly problem: string | null;
+  /** Câu báo không phải lỗi, đã viết xong (PDF nhiều trang lấy trang 1). Vắng/`null` khi không có. */
+  readonly note?: string | null;
+  /** Có dự án để mở chưa. */
+  readonly canOpen: boolean;
+}
+
+export interface FloorUploadApartmentsModel {
+  readonly title: string;
+  readonly summary: string;
+  readonly openLabel: string;
+  readonly dismissLabel: string;
+  readonly rows: readonly FloorUploadApartmentRowModel[];
 }
 
 /* -------------------------------------------------------------------------- */
@@ -355,6 +391,14 @@ export interface FloorUploadActions {
    * KHÔNG tải lại tệp (khác `onReassign`). Vắng thì thẻ không hiện ô tích.
    */
   readonly onConfirmMatch?: ((fileId: string) => void) | undefined;
+  /** Trả lời câu hỏi K19: các tầng của một nhà — gán tệp vào tầng như cũ. */
+  readonly onSplitAsFloors?: (() => void) | undefined;
+  /** Trả lời câu hỏi K19: các căn hộ riêng — mỗi tệp một dự án mới. */
+  readonly onSplitAsApartments?: (() => void) | undefined;
+  /** Mở màn xử lý của dự án căn hộ vừa tạo. */
+  readonly onOpenApartment?: ((rowId: string) => void) | undefined;
+  /** Ẩn danh sách dự án vừa tạo. */
+  readonly onDismissApartments?: (() => void) | undefined;
 }
 
 /** Mọi prop view nhận — mô hình cộng hành động, đã gộp sẵn (mục D). */

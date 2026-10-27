@@ -48,6 +48,7 @@ import { queryKeys } from '@/lib/query/queryKeys';
 import '@/api/appClient';
 import { formatLength } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
+import { MISSING_SCALE_MESSAGE } from '@/lib/viewmodel/provisionalScale';
 import { createCleanBuildingScenario } from '@/lib/testing/fixtures';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
@@ -700,6 +701,43 @@ describe('useScaleCalibration — áp dụng: PUT trước, commit sau (F-04x-2 
     expect(mounted.result.current.appliedScale).not.toBeNull();
   });
 
+  it('[K18] cổng chưa đọc chuỗi kích thước: kích thước N16 thành mốc tỷ lệ, không báo "không đọc được số"', async () => {
+    useStore.getState().setSpatial(null, null);
+    const harness = await makeHarness();
+    const real = await harness.gateway.readLayer({ floorId: FLOOR_ID, projectId: PROJECT_ID });
+    const builtRatio = 10;
+    // Đường 1.300 mm trên đồ thị dựng ở 10 mm/px = 130 px ảnh; số ghi 1.300 mm.
+    const dimension = {
+      id: 'M-001',
+      levelId: real.level.id,
+      kind: 'linear',
+      referenceIds: [],
+      line: { start: { x: 1000, y: 500 }, end: { x: 2300, y: 500 } },
+      valueMm: 1300,
+      confidence: 0.98,
+      source: 'ai',
+      reviewed: false,
+    } as unknown as (typeof real.dimensions)[number];
+    const gateway = withScaleCapabilities(harness.gateway, {
+      readLayer: async () => ({
+        ...real,
+        level: { ...real.level, scaleMillimetresPerPixel: builtRatio },
+        dimensions: [dimension],
+      }) as typeof real,
+    });
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    const model = mounted.result.current.model;
+    expect(model.state).not.toBe('empty');
+    expect(model.emptyNotice).toBeNull();
+    expect(model.panel.dimension.emptyNotice).toBeNull();
+    expect(model.panel.dimension.rows).toHaveLength(1);
+    expect(model.panel.dimension.rows[0]?.realLength).toBe(1300);
+    expect(model.panel.dimension.rows[0]?.pixelLength).toBeCloseTo(130, 6);
+  });
+
   it('kho rỗng và N16 hỏng thì bấm áp nói lý do tại chỗ, không im lặng, không PUT (B-V5-01)', async () => {
     useStore.getState().setSpatial(null, null);
     const harness = await makeHarness();
@@ -724,9 +762,11 @@ describe('useScaleCalibration — áp dụng: PUT trước, commit sau (F-04x-2 
 
 describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved)', () => {
   /** N16 của tầng mang tỷ lệ tạm; kho rỗng nên `useFloorLayer` nạp đúng tài liệu ấy. */
-  async function mountProvisional(): Promise<{ harness: Harness; mounted: Mounted }> {
+  async function mountProvisional(
+    source: 'pipeline' | 'project_default' = 'pipeline',
+  ): Promise<{ harness: Harness; mounted: Mounted }> {
     useStore.getState().setSpatial(null, null);
-    simulateProvisionalScale(FLOOR_ID, PROVISIONAL_RATIO);
+    simulateProvisionalScale(FLOOR_ID, PROVISIONAL_RATIO, source);
     const harness = await makeHarness();
     const mounted = mountHook(harness.gateway);
 
@@ -735,6 +775,17 @@ describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved
 
     return { harness, mounted };
   }
+
+  it('[K12] máy không đo được tỷ lệ (project_default): dải đỏ nói mô hình đang sai; tỷ lệ máy đo thì không', async () => {
+    const missing = await mountProvisional('project_default');
+
+    expect(missing.mounted.result.current.model.missingScaleNotice).toBe(MISSING_SCALE_MESSAGE);
+    missing.mounted.unmount();
+
+    const measured = await mountProvisional();
+
+    expect(measured.mounted.result.current.model.missingScaleNotice).toBeUndefined();
+  });
 
   it('storedRatio null: nhãn "Chưa có", dải tỷ lệ tạm; áp đúng tỷ lệ tạm → một PUT, dải mất', async () => {
     const { harness, mounted } = await mountProvisional();

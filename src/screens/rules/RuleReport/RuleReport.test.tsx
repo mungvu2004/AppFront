@@ -41,6 +41,7 @@ import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient } from '@/api/client';
 import type { ProjectRuleConfig } from '@/api/schemas/ruleConfig';
 
+import { setFlowGateSlot } from '@/components/shell/flowGateStore';
 import { ALL_RULES, createDefaultRuleRegistry } from '@/domain/rules/defaults';
 import { sortBySeverity } from '@/domain/rules/healthScore';
 import { RULE_SEVERITY_LABELS } from '@/domain/rules/registry';
@@ -1243,5 +1244,42 @@ describe('QA-06b F10 #1 — viewer đi qua đủ trạng thái, chỉ khoá hàn
     const { result } = setupReport({ read: () => new Promise<RuleConfigReadResult>(() => undefined) });
 
     expect(result.current.capabilities.canEdit).toBe(false);
+  });
+});
+
+describe('UX-R1 K50/K51 — tỷ lệ tạm và "Sang Xuất" khi còn lỗi nghiêm trọng', () => {
+  it('K51: còn luật nghiêm trọng thì "Sang Xuất" hỏi trước, đồng ý mới đi', async () => {
+    const RuleReportView = await loadRuleReportView();
+    const onConfirmResolved = vi.fn();
+    const base = propsFor(scenarioOf('success'));
+    // Nút cổng bay vào khe của thanh bước (portal) — dựng khe như header thật.
+    const slot = document.createElement('div');
+    document.body.append(slot);
+    act(() => setFlowGateSlot(slot));
+    try {
+      renderRuleReport(RuleReportView, {
+        ...base,
+        status: 'ready',
+        summary: { ...base.summary, violations: 2 },
+        onConfirmResolved,
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Sang Xuất' }));
+      expect(onConfirmResolved).not.toHaveBeenCalled();
+      fireEvent.click(await screen.findByRole('button', { name: 'Vẫn sang Xuất' }));
+      expect(onConfirmResolved).toHaveBeenCalledTimes(1);
+    } finally {
+      cleanup();
+      act(() => setFlowGateSlot(null));
+      slot.remove();
+    }
+  });
+
+  it('K50: dự án còn tầng tỷ lệ tạm thì có dải nói kết quả là tạm', async () => {
+    const RuleReportView = await loadRuleReportView();
+    const notice = 'Có 6 tầng chưa có tỷ lệ: kết quả về diện tích, độ dài, lưu thông là tạm.';
+    renderRuleReport(RuleReportView, { ...propsFor(scenarioOf('success')), provisionalScaleNotice: notice });
+
+    expect(screen.getByText(notice)).toBeTruthy();
   });
 });

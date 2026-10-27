@@ -52,6 +52,8 @@ export interface RuleReportGroup {
   readonly rows: readonly RuleReportRow[];
   readonly openCount: number;
   readonly resolvedCount: number;
+  /** K50: luật dựa trên số đo, trong khi dự án còn tầng tỷ lệ tạm — kết quả là tạm. */
+  readonly isProvisional?: boolean;
 }
 
 /** Bốn con số trần của dải tóm tắt. */
@@ -151,8 +153,10 @@ export interface RuleReportViewProps {
   /** "Xem" — mở S-32 và khuôn camera qua R-07. */
   readonly onViewRow: (rowKey: string) => void;
   readonly onRerun: () => void;
-  /** Chỉ bật khi `summary.violations === 0`. */
+  /** Sang Xuất. Còn luật nghiêm trọng thì view hỏi xác nhận trước khi gọi (K51). */
   readonly onConfirmResolved: () => void;
+  /** K50: "Có N tầng chưa có tỷ lệ…" khi dự án còn tầng tỷ lệ tạm; vắng/null thì không có dải. */
+  readonly provisionalScaleNotice?: string | null;
   /**
    * Cho panel xem trước 344px. Hook truyền xuống một hàm gắn canvas.
    * View CHỈ gọi ref này, KHÔNG tự nhập three.js.

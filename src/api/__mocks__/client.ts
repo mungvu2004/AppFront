@@ -211,7 +211,7 @@ const makeLayerDocument = (floor: Floor, revision: number, layer?: SpatialLayer)
       ...base.level,
       ...(scale === undefined ? {} : { scaleMillimetresPerPixel: scale.value }),
     },
-    ...(scale?.provisional === true ? { scaleStatus: 'unresolved' as const } : {}),
+    ...(scale?.provisional === true ? { scaleStatus: 'unresolved' as const, scaleSource: scale.source } : {}),
   };
 };
 
@@ -1254,7 +1254,10 @@ const writtenLayers = new Map<string, SpatialLayer>();
 /** Lượt ghi cuối của mỗi tầng — nguồn của luật C09b (gửi lại trùng thì 200). */
 const lastLayerWrites = new Map<string, { base: number; body: string; revision: number }>();
 /** Tỉ lệ của tầng theo mã tầng: `provisional` → N16 trả `scaleStatus: 'unresolved'`; PUT có tỉ lệ gỡ nó. */
-const writtenScales = new Map<string, { provisional: boolean; value: MillimetresPerPixel }>();
+const writtenScales = new Map<
+  string,
+  { provisional: boolean; value: MillimetresPerPixel; source: 'pipeline' | 'project_default' }
+>();
 /** Trục và gốc đã lưu qua #35 (G4b-17): gửi `axes` thay nguyên danh sách, gửi `origin` thay gốc. */
 const writtenAxes = new Map<string, FloorLayerDocument['axes']>();
 const writtenOrigins = new Map<string, { x: number; y: number }>();
@@ -1268,9 +1271,16 @@ export const __resetMockLayerState = (): void => {
   writtenOrigins.clear();
 };
 
-/** Tầng mang tỉ lệ tạm (`scaleStatus: 'unresolved'`) — như máy chủ đoán tỉ lệ mà chưa ai chốt. */
-export const simulateProvisionalScale = (floorId: string, value: number): void => {
-  writtenScales.set(floorId, { provisional: true, value: value as MillimetresPerPixel });
+/**
+ * Tầng mang tỉ lệ tạm (`scaleStatus: 'unresolved'`) — như máy chủ đoán tỉ lệ mà chưa ai chốt.
+ * `source: 'project_default'` = máy không đo được, đang dùng mặc định dự án (UX-R1 K12).
+ */
+export const simulateProvisionalScale = (
+  floorId: string,
+  value: number,
+  source: 'pipeline' | 'project_default' = 'pipeline',
+): void => {
+  writtenScales.set(floorId, { provisional: true, source, value: value as MillimetresPerPixel });
 };
 
 const MOCK_REMOTE_ACTOR_ID = 'usr_01J9ZQK7X4N2M8P6R3T5V7W9Y1';
@@ -2077,7 +2087,11 @@ export const createMockApiClient = (): ApiClient => {
 
         // Thân chỉ tỉ lệ giữ lớp; có tỉ lệ → tỉ lệ nguồn `human`, gỡ `scaleStatus` (#35).
         if (body.scaleMillimetresPerPixel !== undefined) {
-          writtenScales.set(floorId, { provisional: false, value: body.scaleMillimetresPerPixel as MillimetresPerPixel });
+          writtenScales.set(floorId, {
+            provisional: false,
+            source: 'pipeline',
+            value: body.scaleMillimetresPerPixel as MillimetresPerPixel,
+          });
         }
 
         return ok({ layer: currentLayer(floorId), revision });

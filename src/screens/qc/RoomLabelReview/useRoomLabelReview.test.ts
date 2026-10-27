@@ -55,7 +55,9 @@ import {
 import {
   canonicalRoomName,
   createMockRoomLabelReviewGateway,
+  hasRoomName,
   roomCodeLabel,
+  roomsSpillingOutside,
   ROOM_LABEL_TEXT,
   ROOM_NAME_TARGETS,
   ROOM_NORMALIZE_COMMAND_TYPE,
@@ -67,6 +69,7 @@ import {
   ROOM_LABEL_SCENARIO_ERROR,
   ROOM_LABEL_SCENARIO_FORBIDDEN,
   ROOM_LABEL_SCENARIO_GAP_MM,
+  ROOM_LABEL_SCENARIO_GAP_WALLS,
   ROOM_LABEL_SCENARIO_PARTIAL,
   ROOM_LABEL_SCENARIO_SUCCESS,
   type RoomLabelReviewScenario,
@@ -899,5 +902,92 @@ describe('[G4a-39] lối sang lớp tường mang mã tường', () => {
     });
 
     expect(onNavigate).toHaveBeenCalledWith(`${ROUTES.project.walls(PROJECT_ID, FLOOR_ID)}?wall=wall-x`);
+  });
+});
+
+describe('[K10] tên giả của máy và đường bao tràn ra ngoài', () => {
+  it('"phòng 5" máy tự đặt là chưa có tên; người gõ "phòng 5" thì vẫn là tên', () => {
+    expect(hasRoomName({ name: 'phòng 5', source: 'ai' })).toBe(false);
+    expect(hasRoomName({ name: 'phòng 5', source: 'human' })).toBe(true);
+    expect(hasRoomName({ name: 'phòng ngủ 1', source: 'ai' })).toBe(true);
+    expect(hasRoomName({ name: '  ', source: 'human' })).toBe(false);
+  });
+
+  it('phòng trong nhà có đỉnh vượt tường bao quá 150 mm thì bị gắn cờ; phòng nằm gọn hoặc nằm hẳn ngoài thì không', () => {
+    const wall = (id: string, x1: number, y1: number, x2: number, y2: number) =>
+      ({
+        id: id as WallId,
+        centreline: { start: { x: x1, y: y1 }, end: { x: x2, y: y2 } },
+        thicknessMm: millimetres(200),
+      }) as unknown as Wall;
+    const walls = [wall('w1', 0, 0, 6000, 0), wall('w2', 6000, 0, 6000, 4000), wall('w3', 6000, 4000, 0, 4000), wall('w4', 0, 4000, 0, 0)];
+    const room = (id: string, x1: number, y1: number, x2: number, y2: number) =>
+      ({ id: id as RoomId, outline: [{ x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 }, { x: x1, y: y2 }] }) as unknown as Room;
+
+    const spilling = roomsSpillingOutside(
+      [room('inside', 100, 100, 3000, 3900), room('spill', -500, 100, 3000, 3900), room('away', 9000, 0, 12000, 4000)],
+      walls,
+    );
+
+    expect([...spilling]).toEqual(['spill']);
+    expect(roomsSpillingOutside([room('spill', -500, 100, 3000, 3900)], []).size).toBe(0);
+  });
+});
+
+describe('[K10] đường bao tràn ra ngoài: chặn duyệt ở hook', () => {
+  /* Tường bao 0..5000 × 0..3400 mm; phòng chạy tới 5600 mm — vượt quá 110 mm nửa tường + 150 mm dung sai. */
+  const corner = (x: number, y: number): Room['outline'][number] => ({ x: millimetres(x), y: millimetres(y) });
+  const spillRoom: Room = {
+    ...ROOM_R005,
+    outline: [corner(0, 0), corner(5600, 0), corner(5600, 3400), corner(0, 3400)],
+  };
+  const reviewedInStore = (): boolean | undefined =>
+    (useStore.getState().spatial?.byId[spillRoom.id] as Room | undefined)?.reviewed;
+
+  it('onApprove không ghi gì khi đường bao tràn', async () => {
+    const mounted = await mountSettled({
+      gateway: createMockRoomLabelReviewGateway({ graph: graphOf([spillRoom], ROOM_LABEL_SCENARIO_GAP_WALLS) }),
+    });
+
+    expect(rowOf(mounted, spillRoom.id).outlineSpills).toBe(true);
+
+    await act(async () => {
+      mounted.result.current.onApprove(spillRoom.id);
+      await Promise.resolve();
+    });
+
+    expect(reviewedInStore()).toBe(false);
+  });
+
+  it('phím A duyệt phòng nằm gọn rồi sang phòng tràn; ở phòng tràn A không duyệt, vùng chọn ở lại', async () => {
+    const shortcutRegistry = createShortcutRegistry();
+    /* Phòng đối chứng nằm gọn trong tường bao, chưa duyệt: chứng minh phím A thật sự đang sống. */
+    const inside: Room = { ...(ROOM_LABEL_FIXTURE_ROOMS[0] as Room), reviewed: false, source: 'human' };
+    const mounted = await mountSettled({
+      shortcutRegistry,
+      gateway: createMockRoomLabelReviewGateway({ graph: graphOf([inside, spillRoom], ROOM_LABEL_SCENARIO_GAP_WALLS) }),
+    });
+
+    expect(rowOf(mounted, inside.id).outlineSpills).toBe(false);
+
+    act(() => {
+      mounted.result.current.onSelect(inside.id);
+    });
+    await act(async () => {
+      shortcutRegistry.handleKeyDown({ key: 'a' }, null);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect((useStore.getState().spatial?.byId[inside.id] as Room | undefined)?.reviewed).toBe(true);
+    });
+    expect(useStore.getState().selectedIds).toEqual([spillRoom.id]);
+
+    await act(async () => {
+      shortcutRegistry.handleKeyDown({ key: 'a' }, null);
+      await Promise.resolve();
+    });
+
+    expect(reviewedInStore()).toBe(false);
+    expect(useStore.getState().selectedIds).toEqual([spillRoom.id]);
   });
 });

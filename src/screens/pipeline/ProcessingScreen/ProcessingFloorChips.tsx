@@ -48,7 +48,14 @@ export function ProcessingFloorChips({ floors }: ProcessingFloorChipsProps) {
             </>
           ) : null}
           {floor.reviewLabel !== undefined ? (
-            <span className="font-medium text-state-attention-text">{floor.reviewLabel}</span>
+            <span
+              className={clsx(
+                'font-medium',
+                floor.isScaleMissing === true ? 'text-state-violation-text' : 'text-state-attention-text',
+              )}
+            >
+              {floor.reviewLabel}
+            </span>
           ) : null}
         </li>
       ))}

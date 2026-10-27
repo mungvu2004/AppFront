@@ -87,7 +87,8 @@ export const OV = {
   loading: 'Đang tải ảnh bản vẽ gốc.', // UOC:118
   frameMissing: 'Không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.', // UOC:111
   readFailed: 'Không đọc được ảnh bản vẽ gốc của tầng này.', // UOC:112
-  scaleConflict: 'Không căn được vì hai tầng đang dùng tỷ lệ khác nhau.', // UOC:113
+  /** Removed in UX-R1 K11 (another floor's scale no longer blocks this screen): specs expect count 0. */
+  scaleConflict: 'Không căn được vì hai tầng đang dùng tỷ lệ khác nhau.',
   forbidden: 'Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.', // UOC:114
   noDrawing: 'Tầng này chưa có bản vẽ nào nên chưa có gì để đối chiếu. Tải bản vẽ lên rồi quay lại đây.', // UOC:119
   cadOnly: 'Tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.', // UOC:110

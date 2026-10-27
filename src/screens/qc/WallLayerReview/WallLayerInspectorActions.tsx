@@ -22,6 +22,8 @@ export interface WallLayerInspectorActionsProps {
   readonly isNonStandard: boolean;
   readonly extra: WallRowExtra | undefined;
   readonly onStandardize?: ((wallId: WallId) => void) | undefined;
+  /** Câu khoá đổi độ dày (chưa có tỷ lệ): thay nút "Đổi về … mm" bằng câu này (K09). */
+  readonly lockText?: string | null | undefined;
 }
 
 const APPROVE_LABEL = 'Duyệt đoạn này';
@@ -36,6 +38,7 @@ export function WallLayerInspectorActions({
   isNonStandard,
   extra,
   onStandardize,
+  lockText,
 }: WallLayerInspectorActionsProps) {
   const { isViewerRole, viewerRoleNotice, onApprove, onUnapprove, onSkip } = panel;
 
@@ -52,12 +55,15 @@ export function WallLayerInspectorActions({
   }
 
   const targetMm = isNonStandard ? (extra?.targetMm ?? null) : null;
+  const isLocked = targetMm !== null && lockText !== null && lockText !== undefined;
+  const canStandardize = targetMm !== null && onStandardize !== undefined && !isLocked;
   const keepLabel = `Giữ ${thicknessMm} mm`;
   const approveLabel = isNonStandard ? keepLabel : APPROVE_LABEL;
 
   return (
     <>
-      {targetMm !== null && onStandardize !== undefined ? (
+      {isLocked ? <p className="text-caption leading-snug text-state-violation">{lockText}</p> : null}
+      {targetMm !== null && onStandardize !== undefined && !isLocked ? (
         <Button
           aria-keyshortcuts="C"
           aria-label={`Đổi về ${targetMm} mm`}
@@ -75,7 +81,7 @@ export function WallLayerInspectorActions({
         fullWidth
         onClick={() => onApprove(wallId)}
         shortcut="A"
-        variant={targetMm !== null && onStandardize !== undefined ? 'secondary' : 'primary'}
+        variant={canStandardize ? 'secondary' : 'primary'}
       >
         {approveLabel}
       </Button>

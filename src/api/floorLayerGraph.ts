@@ -5,6 +5,7 @@ import type { ProjectRole, Project as StoreProject } from '@/types/project';
 import type { ApiClient, Project as ApiProject, SpatialApi } from './client';
 import type { SpatialGraphDocument } from './schemas/spatialGraph';
 import type { FloorLayerDocument } from './schemas/spatialLayer';
+import type { ScaleSource } from '@/lib/viewmodel/provisionalScale';
 
 /**
  * Đường nạp thật của màn QC: N16 (`GET …/floors/{floorId}/spatial/layer`) →
@@ -48,6 +49,10 @@ export const floorLayerToGraph = (document: FloorLayerDocument): SpatialGraph =>
 export interface FloorLayerGraphRead {
   readonly floorRevisions: Readonly<Record<string, number>>;
   readonly graph: NormalizedSpatial;
+  /** Tầng có tỷ lệ tạm (N16 `scaleStatus`) — cùng hình `SpatialSource.floorScaleStatus` của kho. */
+  readonly floorScaleStatus?: Readonly<Record<string, 'unresolved'>>;
+  /** Nguồn tỷ lệ tạm của các tầng ấy (N16 `scaleSource`, UX-R1 K12). */
+  readonly floorScaleSource?: Readonly<Record<string, ScaleSource>>;
 }
 
 export interface ReadFloorLayerGraphInput {
@@ -133,8 +138,20 @@ export async function readProjectLayerRead(
     roofs: graphs.flatMap((one) => one.roofs ?? []),
   });
 
+  const floorScaleStatus: Record<string, 'unresolved'> = {};
+  const floorScaleSource: Record<string, ScaleSource> = {};
+
+  floorIds.forEach((floorId, index) => {
+    const document = documents[index];
+
+    if (document?.scaleStatus !== undefined) floorScaleStatus[floorId] = document.scaleStatus;
+    if (document?.scaleSource !== undefined) floorScaleSource[floorId] = document.scaleSource;
+  });
+
   return {
     floorRevisions: Object.fromEntries(floorIds.map((floorId, index) => [floorId, documents[index]?.revision ?? 0])),
+    floorScaleSource,
+    floorScaleStatus,
     graph,
   };
 }

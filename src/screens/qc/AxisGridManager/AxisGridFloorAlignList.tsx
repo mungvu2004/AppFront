@@ -89,7 +89,8 @@ function FloorAlignRow({ floor, onHover }: FloorAlignRowProps) {
     <div
       aria-label={floorRowAriaLabel(floor)}
       className={cn(
-        'flex h-10 items-center gap-2 rounded-lg px-2 text-[13px] transition-colors duration-120',
+        /* K26: tên tầng một dòng riêng, số lệch + huy hiệu xuống dòng dưới — huy hiệu không che tên. */
+        'flex flex-col gap-1 rounded-lg px-2 py-1.5 text-[13px] transition-colors duration-120',
         /* Vượt ngưỡng (cờ của hook, M-11): nền cần chú ý + chữ, không chỉ chấm màu. */
         floor.status === 'warning' ? 'bg-state-attention-tint' : floor.isHovered && 'bg-bg-hover',
       )}
@@ -97,18 +98,22 @@ function FloorAlignRow({ floor, onHover }: FloorAlignRowProps) {
       onMouseLeave={() => onHover(null)}
       role="listitem"
     >
-      <span className="min-w-0 flex-1 truncate text-text-primary">{floor.name}</span>
-      <span className="shrink-0 font-mono tabular-nums text-text-secondary">{floor.offsetText}</span>
-      {floor.isBase ? (
-        <Badge className="shrink-0" noDot variant="neutral">
-          {ROOT_FLOOR_LABEL}
-        </Badge>
-      ) : (
-        /* Trạng thái bằng chữ, không chỉ một chấm màu (BUG-638, khuôn BUG-610). */
-        <Badge className="shrink-0" dotTitle={STATUS_LABEL[floor.status]} variant={STATUS_BADGE_VARIANT[floor.status]}>
-          {STATUS_LABEL[floor.status]}
-        </Badge>
-      )}
+      <span className="min-w-0 truncate font-medium text-text-primary" title={floor.name}>
+        {floor.name}
+      </span>
+      <div className="flex items-center gap-2">
+        <span className="shrink-0 font-mono tabular-nums text-text-secondary">{floor.offsetText}</span>
+        {floor.isBase ? (
+          <Badge className="shrink-0" noDot variant="neutral">
+            {ROOT_FLOOR_LABEL}
+          </Badge>
+        ) : (
+          /* Trạng thái bằng chữ, không chỉ một chấm màu (BUG-638, khuôn BUG-610). */
+          <Badge className="shrink-0" dotTitle={STATUS_LABEL[floor.status]} variant={STATUS_BADGE_VARIANT[floor.status]}>
+            {STATUS_LABEL[floor.status]}
+          </Badge>
+        )}
+      </div>
     </div>
   );
 }

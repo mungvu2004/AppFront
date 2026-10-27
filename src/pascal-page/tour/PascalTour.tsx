@@ -1,15 +1,25 @@
 /**
  * Hướng dẫn thao tác trang 3D: 5 bước, hình thức theo EditorTour của AppFront (4 tấm nền mờ quanh
  * lỗ + viền accent, thẻ 320px). Không chặn thao tác 3D; Esc đóng mà không chặn sự kiện của editor.
+ *
+ * UX-R1 K47/K40: trong lúc chờ hiện một dòng chữ tiến độ dưới biểu tượng tải của Pascal. Lần đầu
+ * (sau khung hình đầu) KHÔNG tự mở tour phủ tối: chỉ hiện một gợi ý nhỏ dưới nút '?' (xoay/phóng
+ * + "Xem hướng dẫn"), đóng được và nhớ. Tour đầy đủ chỉ mở từ nút '?' hoặc nút của gợi ý.
  */
+import { X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import {
   type Box,
   CARD_W,
+  HELP_BUTTON,
+  HINT_TEXT,
   isHuge,
+  isSceneLoading,
+  isSceneReady,
   markDone,
   placeCard,
+  placeHint,
   resolveAnchor,
   shouldAutoOpen,
   TOUR_OPEN_EVENT,
@@ -33,8 +43,101 @@ const CSS = `
 
 const toBox = (r: DOMRect): Box => ({ left: r.left, top: r.top, width: r.width, height: r.height });
 
+/** Theo dõi màn chờ của editor: `loading` khi còn biểu tượng tải, `ready` sau khung hình đầu không còn nó. */
+function useSceneState() {
+  const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (ready) return;
+    let raf = 0;
+    const check = () => {
+      setLoading(isSceneLoading());
+      if (!isSceneReady() || raf !== 0) return;
+      window.clearInterval(id);
+      // Hai khung: khung đầu không còn màn chờ đã thực sự vẽ ra.
+      raf = window.requestAnimationFrame(() => {
+        raf = window.requestAnimationFrame(() => setReady(true));
+      });
+    };
+    // eslint-disable-next-line local/no-raw-duration -- chu kỳ dò màn chờ, không phải chuyển động
+    const id = window.setInterval(check, 250);
+    check();
+    return () => {
+      window.clearInterval(id);
+      window.cancelAnimationFrame(raf);
+    };
+  }, [ready]);
+  return { loading: loading && !ready, ready };
+}
+
+/** Gợi ý lần đầu: một dòng, không phủ tối, đứng dưới nút '?' của `canvas-help`. */
+function FirstHint({ onOpen, onClose }: { readonly onOpen: () => void; readonly onClose: () => void }) {
+  const [pos, setPos] = useState(() => placeHint(null, null, window.innerWidth));
+  useEffect(() => {
+    const measure = () => {
+      const btn = document.querySelector<HTMLElement>(HELP_BUTTON);
+      const column = btn?.closest<HTMLElement>('.appfront-canvas-help') ?? null;
+      const next = placeHint(
+        btn ? toBox(btn.getBoundingClientRect()) : null,
+        column ? toBox(column.getBoundingClientRect()) : null,
+        window.innerWidth,
+      );
+      setPos((prev) => (prev.left === next.left && prev.top === next.top ? prev : next));
+    };
+    measure();
+    // eslint-disable-next-line local/no-raw-duration -- chu kỳ đo lại vị trí nút '?', không phải chuyển động
+    const id = window.setInterval(measure, 400);
+    window.addEventListener('resize', measure);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+  return (
+    <aside
+      aria-label="Gợi ý thao tác 3D"
+      data-pascal-tour-hint=""
+      style={{
+        position: 'fixed',
+        left: Math.round(pos.left),
+        top: Math.round(pos.top),
+        transform: 'translateX(-50%)',
+        zIndex: Z,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '6px 6px 6px 14px',
+        whiteSpace: 'nowrap',
+        fontSize: 13,
+        background: 'var(--pa-surface)',
+        color: 'var(--pa-text)',
+        border: '1px solid var(--pa-border)',
+        borderRadius: 12,
+        boxShadow: 'var(--pa-shadow-float)',
+      }}
+    >
+      <style>{CSS}</style>
+      <span>{HINT_TEXT}</span>
+      <button className="pascal-tour-btn pascal-tour-primary" onClick={onOpen} type="button">
+        Xem hướng dẫn
+      </button>
+      <button
+        aria-label="Đóng gợi ý"
+        className="pascal-tour-btn pascal-tour-ghost"
+        onClick={onClose}
+        style={{ width: 32, padding: 0, display: 'grid', placeItems: 'center' }}
+        title="Đóng gợi ý"
+        type="button"
+      >
+        <X aria-hidden="true" size={16} />
+      </button>
+    </aside>
+  );
+}
+
 export function PascalTour() {
   const [open, setOpen] = useState(false);
+  const [hint, setHint] = useState(false);
   const [index, setIndex] = useState(0);
   const [anchor, setAnchor] = useState<Box | null>(null);
   const [cardH, setCardH] = useState(220);
@@ -42,11 +145,17 @@ export function PascalTour() {
   const cardRef = useRef<HTMLDivElement>(null);
   const primaryRef = useRef<HTMLButtonElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
+  const scene = useSceneState();
 
   const openTour = useCallback(() => {
     returnTo.current = document.activeElement as HTMLElement | null;
+    setHint(false);
     setIndex(0);
     setOpen(true);
+  }, []);
+  const dismissHint = useCallback(() => {
+    markDone();
+    setHint(false);
   }, []);
   const close = useCallback(() => {
     markDone();
@@ -63,7 +172,10 @@ export function PascalTour() {
   }, [open]);
 
   useEffect(() => {
-    if (shouldAutoOpen()) setOpen(true);
+    if (scene.ready && shouldAutoOpen()) setHint(true);
+  }, [scene.ready]);
+
+  useEffect(() => {
     window.addEventListener(TOUR_OPEN_EVENT, openTour);
     return () => window.removeEventListener(TOUR_OPEN_EVENT, openTour);
   }, [openTour]);
@@ -102,7 +214,28 @@ export function PascalTour() {
     if (open) primaryRef.current?.focus({ preventScroll: true });
   }, [open, index]);
 
-  if (!open) return null;
+  if (!open) {
+    if (hint) return <FirstHint onClose={dismissHint} onOpen={openTour} />;
+    return scene.loading ? (
+      <p
+        aria-live="polite"
+        role="status"
+        style={{
+          position: 'fixed',
+          left: '50%',
+          top: 'calc(50% + 48px)',
+          transform: 'translateX(-50%)',
+          zIndex: Z,
+          margin: 0,
+          fontSize: 14,
+          color: 'var(--pa-text-2)',
+          pointerEvents: 'none',
+        }}
+      >
+        Đang dựng mô hình 3D…
+      </p>
+    ) : null;
+  }
   const step = TOUR_STEPS[index];
   if (!step) return null;
   const last = index === TOUR_STEPS.length - 1;

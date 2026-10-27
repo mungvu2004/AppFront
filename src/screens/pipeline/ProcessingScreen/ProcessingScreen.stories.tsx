@@ -169,9 +169,9 @@ function floorOf(
 
 /** Bốn tầng lúc chạy trơn: hai xong, một đang chạy, một còn chờ. */
 export const RUNNING_FLOORS: readonly ProcessingFloorChipViewModel[] = [
-  floorOf('L-1', 'Tầng hầm', 'done', '31 đối tượng'),
-  floorOf('L1', 'Tầng 1', 'done', '48 đối tượng'),
-  floorOf('L2', 'Tầng 2', 'running', '22 đối tượng'),
+  floorOf('L-1', 'Tầng hầm', 'done', '31 mục nhận diện'),
+  floorOf('L1', 'Tầng 1', 'done', '48 mục nhận diện'),
+  floorOf('L2', 'Tầng 2', 'running', '22 mục nhận diện'),
   floorOf('L3', 'Tầng 3', 'queued'),
 ];
 
@@ -183,10 +183,10 @@ export const RUNNING_FLOORS: readonly ProcessingFloorChipViewModel[] = [
  * không chỉ dòng chữ dưới chân màn.
  */
 export const PARTIAL_FLOORS: readonly ProcessingFloorChipViewModel[] = [
-  floorOf('L-1', 'Tầng hầm', 'done', '31 đối tượng'),
-  floorOf('L1', 'Tầng 1', 'done', '48 đối tượng'),
+  floorOf('L-1', 'Tầng hầm', 'done', '31 mục nhận diện'),
+  floorOf('L1', 'Tầng 1', 'done', '48 mục nhận diện'),
   floorOf('L2', 'Tầng 2', 'failed'),
-  floorOf('L3', 'Tầng 3', 'running', '7 đối tượng'),
+  floorOf('L3', 'Tầng 3', 'running', '7 mục nhận diện'),
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -226,7 +226,7 @@ function previewOf(
  * làm tròn, không ghép câu.
  */
 export const SAMPLE_SUMMARY: ProcessingSummaryViewModel = {
-  metricLabels: ['48 tường', '108 đối tượng', '26 chuỗi kích thước', '34 phòng', '248,60 m²'],
+  metricLabels: ['48 tường', '30 cửa, 78 nội thất', '26 chuỗi kích thước', '34 phòng', '248,60 m²'],
   lowConfidenceSentence: 'Có 9 đối tượng có độ tin cậy dưới 0,75 cần bạn xem lại.',
   onReviewWalls: NO_OP,
   onCalibrateScale: NO_OP,
@@ -337,7 +337,7 @@ export function scenarioFor(state: SevenState): ProcessingScreenProps {
         ...base,
         state: 'success',
         floors: RUNNING_FLOORS.map((floor) =>
-          floorOf(floor.id, floor.label, 'done', '48 đối tượng'),
+          floorOf(floor.id, floor.label, 'done', '48 mục nhận diện'),
         ),
         steps: stepsAt(getPipelineStages().length),
         previewPanel: previewOf('L3', { withGeometry: true }),

@@ -21,7 +21,6 @@ import { fitText } from '@/lib/export/fitText';
 import { MOTION_EASINGS, cssDurationMs } from '@/lib/motion';
 
 import {
-  ROOM_LABEL_AREA_FONT_PX,
   ROOM_LABEL_CANVAS_COPY,
   ROOM_LABEL_CODE_FONT_PX,
   ROOM_LABEL_LINE_OFFSET_PX,
@@ -177,32 +176,23 @@ function RoomLabelText({
     );
   }
 
+  /* K23: nhãn trên bản vẽ chỉ ghi tên — diện tích nằm ở danh sách và thanh tra, hai dòng chữ từng đè phòng bên. */
   return (
-    <g className="motion-reduce:transition-none" style={fadeStyle}>
-      <text
-        fill={textToken}
-        fontSize={ROOM_LABEL_NAME_FONT_PX}
-        fontStyle={room.hasName ? 'normal' : 'italic'}
-        fontWeight={600}
-        {...LABEL_HALO}
-        textAnchor="middle"
-        x={anchor.x}
-        y={anchor.y - ROOM_LABEL_LINE_OFFSET_PX}
-      >
-        {fittedName === nameText ? null : <title>{nameText}</title>}
-        {fittedName}
-      </text>
-      <text
-        fill={textToken}
-        fontSize={ROOM_LABEL_AREA_FONT_PX}
-        {...LABEL_HALO}
-        textAnchor="middle"
-        x={anchor.x}
-        y={anchor.y + ROOM_LABEL_LINE_OFFSET_PX}
-      >
-        {room.areaText}
-      </text>
-    </g>
+    <text
+      className="motion-reduce:transition-none"
+      fill={textToken}
+      fontSize={ROOM_LABEL_NAME_FONT_PX}
+      fontStyle={room.hasName ? 'normal' : 'italic'}
+      fontWeight={600}
+      {...LABEL_HALO}
+      style={fadeStyle}
+      textAnchor="middle"
+      x={anchor.x}
+      y={anchor.y}
+    >
+      {fittedName === nameText ? null : <title>{nameText}</title>}
+      {fittedName}
+    </text>
   );
 }
 

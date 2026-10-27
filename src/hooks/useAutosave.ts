@@ -11,6 +11,7 @@ import { formatClockTime } from '../lib/format/datetime';
 import { appNotificationBus } from './useNotifications';
 import type { RootState } from '../store';
 import { useStore } from '../store';
+import { floorMetaEntryOf } from '../store/spatialSlice';
 
 /* -------------------------------------------------------------------------- */
 /* Mọi bộ tự lưu đang gắn — để Ctrl+S có ĐÚNG MỘT hệ để xả.                    */
@@ -317,9 +318,9 @@ const attachSaver = (target: SaverBook, loaded: Pipes): void => {
 
       if (redirtied) {
         // Sửa đang chờ giữ nguyên; `scaleStatus` chỉ mất khi chính lượt này mang tỉ lệ.
-        const scaleStatus = scaleSent ? undefined : useStore.getState().floorMeta[floorId]?.scaleStatus;
+        const held = scaleSent ? undefined : useStore.getState().floorMeta[floorId];
 
-        useStore.getState().updateFloorMeta(floorId, { revision: result.revision, ...(scaleStatus ? { scaleStatus } : {}) });
+        useStore.getState().updateFloorMeta(floorId, floorMetaEntryOf(result.revision, held));
       } else {
         loaded.replaceFloorLayer(floorId, result, scaleSent ? { scaleSent } : undefined);
       }

@@ -28,7 +28,7 @@ export const heightDraftMm = (row: FloorRowVm): number | undefined =>
 export const heightDraftFromMm = (valueMm: number | undefined): string =>
   valueMm === undefined ? '' : formatNumber(millimetresToMetres(millimetres(valueMm)), { fractionDigits: 3, grouping: false });
 
-export type FloorStepTone = 'attention' | 'neutral';
+export type FloorStepTone = 'attention' | 'neutral' | 'violation';
 
 export interface FloorStepVm {
   readonly label: string;
@@ -43,6 +43,16 @@ export function floorStepOf(row: FloorRowVm): FloorStepVm {
     return { label: 'Chưa có bản vẽ', tone: 'attention', nextText: 'tải bản vẽ mặt bằng', summaryText: '' };
   }
 
+  /* Máy không đo được tỷ lệ: diện tích theo tỷ lệ mặc định là số sai, nên không in (K12). */
+  if (row.isScaleMissing) {
+    return {
+      label: 'Sai tỷ lệ',
+      tone: 'violation',
+      nextText: 'đặt tỷ lệ',
+      summaryText: `${row.wallCountText} tường, ${row.roomCountText} phòng`,
+    };
+  }
+
   return {
     label: 'Đã có bản vẽ',
     tone: 'neutral',
@@ -53,7 +63,7 @@ export function floorStepOf(row: FloorRowVm): FloorStepVm {
 
 export interface NextTaskVm {
   readonly floorId: string;
-  readonly kind: 'upload' | 'review';
+  readonly kind: 'upload' | 'scale' | 'review';
   readonly title: string;
   readonly reason: string;
   readonly conditions: readonly string[];
@@ -63,7 +73,10 @@ export interface NextTaskVm {
   readonly meterText: string;
 }
 
-/** Tầng cần làm nhất: tầng đầu tiên chưa có bản vẽ; đủ bản vẽ thì tầng đầu tiên để duyệt. */
+/**
+ * Tầng cần làm nhất: tầng đầu tiên chưa có bản vẽ; rồi tầng đầu tiên máy không đo được tỷ lệ
+ * (duyệt tường trên tỷ lệ sai là làm lại từ đầu, K06); đủ cả thì tầng đầu tiên để duyệt.
+ */
 export function nextTaskOf(rows: readonly FloorRowVm[]): NextTaskVm | null {
   const first = rows[0];
 
@@ -87,6 +100,25 @@ export function nextTaskOf(rows: readonly FloorRowVm[]): NextTaskVm | null {
       doneCount,
       totalCount: rows.length,
       meterText,
+    };
+  }
+
+  const scaleMissing = rows.filter((row) => row.isScaleMissing);
+  const scaleTarget = scaleMissing[0];
+
+  if (scaleTarget !== undefined) {
+    const scaledCount = rows.length - scaleMissing.length;
+
+    return {
+      floorId: scaleTarget.id,
+      kind: 'scale',
+      title: `Đặt tỷ lệ ${scaleTarget.name}`,
+      reason: `Máy không đo được tỷ lệ của ${formatNumber(scaleMissing.length, { fractionDigits: 0 })} tầng, nên kích thước đang sai. Đặt tỷ lệ trước, rồi mới duyệt tường.`,
+      conditions: scaleMissing.slice(0, MAX_CONDITIONS).map((row) => `${row.name}: đặt tỷ lệ`),
+      actionLabel: `Đặt tỷ lệ ${scaleTarget.name} (còn ${formatNumber(scaleMissing.length, { fractionDigits: 0 })} tầng)`,
+      doneCount: scaledCount,
+      totalCount: rows.length,
+      meterText: `${formatNumber(scaledCount, { fractionDigits: 0 })}/${formatNumber(rows.length, { fractionDigits: 0 })} tầng có tỷ lệ`,
     };
   }
 

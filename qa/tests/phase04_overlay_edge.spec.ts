@@ -718,21 +718,19 @@ test.describe('SCR-22 overlay — geometry and scale conflict', () => {
         await ev(page, '22-A-028', 'geometry_one_wall');
       });
 
-      await test.step('[22-B-005] scale conflict (store floors at 5 and 8 mm/px, direct URL): error + link to the active floor\'s scale', async () => {
-        // R27 (useOverlayComparison.ts:621-631): only floors WITH a drawing count, so the conflict needs two drawn floors.
+      await test.step('[22-B-005] floors at 5 and 8 mm/px (direct URL): no "two floors differ" error, the screen compares one floor with its own drawing (UX-R1 K11)', async () => {
+        // K11: the overlay lays ONE floor over that floor's own drawing, so another floor's scale blocks nothing here.
         conflict = await seedScaleConflict(owner.api, '22-conflict');
         const conflictFloor = conflict.floors[0];
         if (conflictFloor === undefined) throw new Error('setup: the scale-conflict project has no floor');
         await openOverlay(page, conflict.projectId, conflictFloor.id);
-        await expect.soft(alertWith(page, OV.scaleConflict)).toBeVisible();
-        const link = page.getByRole('link', { name: OV.toScale, exact: true });
-        await expect.soft(link).toBeVisible();
-        const href = (await link.getAttribute('href')) ?? '';
-        expect.soft(href, 'the link goes to the active floor\'s scale route').toMatch(new RegExp(`^/projects/${conflict.projectId}/floors/[^/]+/scale$`, 'u'));
+        await expect(toolbar(page), 'milestone: the overlay is drawn').toBeVisible();
+        await quiet(page);
+        await expect.soft(alertWith(page, OV.scaleConflict), 'the cross-floor scale alert is gone (K11)').toHaveCount(0);
         await ev(page, '22-B-005', 'scale_conflict');
       });
 
-      await test.step('[22-B-006] ⚑ the conflict counts only the floors being compared (no drawing → nothing to compare → no conflict)', async () => {
+      await test.step('[22-B-006] ⚑ no drawing → nothing to compare → no scale alert', async () => {
         await openOverlay(page, projectId, layered.id);
         await expect(alertWith(page, OV.noDrawing), 'milestone: the no-drawing state is drawn').toBeVisible();
         await expect.soft(alertWith(page, OV.scaleConflict), 'neither floor has a drawing, so there is nothing to align').toHaveCount(0);

@@ -141,7 +141,7 @@ import {
   type ScaleRawSnapTarget,
   type ScaleRoomBoxPx,
 } from './scaleCalibrationGateway';
-import { buildScaleCheck } from './scaleCheck';
+import { buildScaleCheck, type PlanSizeMm } from './scaleCheck';
 import type {
   DimensionStringRow,
   ImageRatioPoint,
@@ -182,7 +182,7 @@ const COPY = {
   methodDimensionString: 'Từ chuỗi kích thước',
   methodReferenceLine: 'Vẽ đường tham chiếu',
   dimensionEmpty:
-    'Máy không tìm thấy số kích thước nào trên bản vẽ này. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.',
+    'Chưa có số kích thước nào để làm mốc. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.',
   tooFewSamples: 'Chưa đủ chuỗi kích thước để suy ra tỷ lệ, nên phải đặt bằng tay.',
   lowConfidenceInference: 'Độ tin cậy chung còn thấp, nên tỷ lệ phải được xác nhận bằng tay.',
   realLengthPlaceholder: 'Ví dụ 4800',
@@ -212,12 +212,15 @@ const COPY = {
   warpingNotice:
     'Bước tiền xử lý đã xong nhưng máy không tìm thấy khung bản vẽ, nên ảnh có thể chưa được nắn thẳng. Nếu thấy ảnh méo, quay lại bước tiền xử lý để nắn lại, vì tỷ lệ đo trên ảnh méo sẽ sai theo.',
   emptyNotice:
-    'Máy không đọc được số kích thước nào trên bản vẽ này. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.',
+    'Chưa có số kích thước nào để làm mốc. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.',
   partialNotice:
     'Đã có đoạn tham chiếu nhưng chưa có chiều dài thật, hoặc một số chuỗi kích thước đọc được với độ tin cậy thấp.',
   forbiddenNotice:
     'Bản vẽ vẫn xem và phóng to được, nhưng không kéo được đường tham chiếu. Nhờ người có quyền sửa dự án đặt tỷ lệ giúp.',
   successNotice: 'Mọi kích thước dẫn xuất đã được tính lại theo tỷ lệ mới.',
+  // K18: tầng có số kích thước máy đã đọc — mời chọn một số làm mốc thay vì nói "chưa đủ dữ liệu".
+  pickDimensionNotice: (count: string): string =>
+    `Máy đã đọc ${count} số kích thước trên bản vẽ. Chọn một số làm mốc, soi đoạn được tô rồi bấm Áp dụng.`,
   applyCommitLabel: 'Áp dụng tỷ lệ',
   applyNoSpatial: 'Chưa nạp dữ liệu không gian của tầng này, nên chưa áp được tỷ lệ.',
   applyFailed: 'Chưa lưu được tỷ lệ lên máy chủ, tầng giữ tỷ lệ cũ.',
@@ -399,6 +402,73 @@ function toRatioPoint(frame: ImageFrame, point: PixelPoint): ImageRatioPoint {
   return {
     x: frame.edgeScale.pixelsToMillimetres(pixels(point.x + frame.insetX)),
     y: frame.edgeScale.pixelsToMillimetres(pixels(point.y + frame.insetY)),
+  };
+}
+
+/** Tài liệu N16 của tầng, đúng hình cổng trả (không import lớp API vào hook). */
+type FloorLayerDocument = Awaited<ReturnType<ScaleCalibrationGateway['readLayer']>>;
+
+/**
+ * Kích thước N16 của tầng thành hàng mốc tỷ lệ (K18): mm trên đồ thị ÷ tỷ lệ tầng đã dựng = pixel ảnh,
+ * cùng cách màn Kích thước đặt chúng lên ảnh. Kích thước người đã sửa số dùng số người sửa.
+ */
+function rowsFromLayerDimensions(document: FloorLayerDocument, frame: ImageFrame): readonly ScaleRawDimensionString[] {
+  const ratio = document.level.scaleMillimetresPerPixel;
+
+  if (ratio === undefined || ratio <= 0) {
+    return EMPTY_ROWS;
+  }
+
+  const toPx = (point: { readonly x: number; readonly y: number }): PixelPoint => ({
+    x: pixels(point.x / ratio),
+    y: pixels(point.y / ratio),
+  });
+
+  return document.dimensions.flatMap((dimension) => {
+    const start = toPx(dimension.line.start);
+    const end = toPx(dimension.line.end);
+    const pixelLength = segmentPixelLength(start, end);
+    const realLength = millimetres(dimension.overrideValueMm ?? dimension.valueMm);
+
+    if (!(pixelLength > 0) || !(realLength > 0)) {
+      return [];
+    }
+
+    const min = toRatioPoint(frame, { x: pixels(Math.min(start.x, end.x)), y: pixels(Math.min(start.y, end.y)) });
+    const max = toRatioPoint(frame, { x: pixels(Math.max(start.x, end.x)), y: pixels(Math.max(start.y, end.y)) });
+
+    return [{ id: dimension.id, pixelLength, realLength, confidence: dimension.confidence, boundingBox: { min, max } }];
+  });
+}
+
+/**
+ * Cỡ căn (hộp bao tường) theo tỷ lệ `ratio`, để người dùng soi bằng mắt (K17): tường N16 tính
+ * bằng mm theo tỷ lệ tầng đã dựng, đổi về pixel rồi nhân tỷ lệ đang xét.
+ */
+function planSizeAt(document: FloorLayerDocument | undefined, ratio: number | null): PlanSizeMm | null {
+  const built = document?.level.scaleMillimetresPerPixel;
+
+  if (document === undefined || built === undefined || built <= 0 || ratio === null || ratio <= 0) {
+    return null;
+  }
+
+  const xs: number[] = [];
+  const ys: number[] = [];
+
+  for (const wall of document.layer.walls) {
+    xs.push(wall.centreline.start.x, wall.centreline.end.x);
+    ys.push(wall.centreline.start.y, wall.centreline.end.y);
+  }
+
+  if (xs.length === 0) {
+    return null;
+  }
+
+  const factor = ratio / built;
+
+  return {
+    widthMm: (Math.max(...xs) - Math.min(...xs)) * factor,
+    heightMm: (Math.max(...ys) - Math.min(...ys)) * factor,
   };
 }
 
@@ -761,7 +831,19 @@ export function useScaleCalibration(
   /* Ước tính của AI.                                                        */
   /* ---------------------------------------------------------------------- */
 
-  const rawRows = record?.dimensionStrings ?? EMPTY_ROWS;
+  /*
+   * K18/K34: máy chủ chưa có lượt đọc chuỗi kích thước riêng (`readDimensionStrings` chưa hỗ trợ),
+   * nhưng N16 đã mang các kích thước máy đọc — cùng nguồn màn Kích thước (#M-…). Đổi đường kích
+   * thước (mm, theo tỷ lệ tầng đã dựng) về pixel ảnh để dùng làm mốc, thay vì báo "không đọc được số".
+   * Đường và tỷ lệ lấy cùng một tài liệu N16 nên luôn khớp nhau, kể cả sau khi áp tỷ lệ mới.
+   */
+  const layerDocument = floorLayer.data;
+  const layerRows = useMemo<readonly ScaleRawDimensionString[]>(
+    () => (layerDocument === undefined || frame === null ? EMPTY_ROWS : rowsFromLayerDimensions(layerDocument, frame)),
+    [frame, layerDocument],
+  );
+  const recordRows = record?.dimensionStrings ?? EMPTY_ROWS;
+  const rawRows = recordRows.length > 0 ? recordRows : layerRows;
 
   const aiInference = useMemo<ScaleInference | null>(() => {
     if (rawRows.length === 0) {
@@ -1946,7 +2028,8 @@ export function useScaleCalibration(
   const nearestOcrValue = rawRows[0]?.realLength ?? null;
 
   const isEmptyState = state === 'empty';
-  const provisionalNotice = provisionalScaleNoticeOf(floorLayer.scaleStatus);
+  // K12: máy không đo được tỷ lệ (`project_default`) thì câu đỏ — đúng màn người dùng phải đặt tỷ lệ.
+  const provisionalNotice = provisionalScaleNoticeOf(floorLayer.scaleStatus, floorLayer.scaleSource);
   const effectiveMethod: ScaleCalibrationMethod = rows.length === 0 ? 'referenceLine' : method;
 
   const cursorPixels = useMemo<PixelPoint>(() => {
@@ -2053,6 +2136,7 @@ export function useScaleCalibration(
           shortEdgePx,
           // Kích thước đã biết để kiểm chéo: một chuỗi OCR KHÁC chuỗi đang dùng để đo, không tự kiểm chính nó.
           knownDimension: rows.find((row) => row.id !== selectedRowId) ?? null,
+          planSizeMm: planSizeAt(layerDocument, proposedRatio ?? storedRatio ?? provisionalRatio),
         }),
         shortcutHints: isNoDrawing ? [] : shortcutHints,
       },
@@ -2074,10 +2158,16 @@ export function useScaleCalibration(
       ...(errorDescription?.title !== undefined ? { errorTitle: errorDescription.title } : {}),
       ...(isNoDrawing ? { isNoDrawing: true } : {}),
       emptyNotice: isEmptyState ? COPY.emptyNotice : null,
-      partialNotice: state === 'partial' ? COPY.partialNotice : null,
+      partialNotice:
+        state !== 'partial'
+          ? null
+          : !hasStartedWork && lowConfidenceCount === 0 && applyOutcome === null && rows.length > 0
+            ? COPY.pickDimensionNotice(formatNumber(rows.length))
+            : COPY.partialNotice,
       forbiddenNotice: state === 'forbidden' ? COPY.forbiddenNotice : null,
       successNotice: state === 'success' ? COPY.successNotice : null,
       ...(provisionalNotice !== null ? { provisionalScaleNotice: provisionalNotice.message } : {}),
+      ...(provisionalNotice?.level === 'violation' ? { missingScaleNotice: provisionalNotice.message } : {}),
       saveBlock,
       readFailure,
       ...(allFloors !== null
@@ -2121,6 +2211,8 @@ export function useScaleCalibration(
     isNoDrawing,
     isPanelCollapsed,
     isEmptyState,
+    hasStartedWork,
+    layerDocument,
     lowConfidenceCount,
     methodOptions,
     nearestOcrValue,

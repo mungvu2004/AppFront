@@ -848,13 +848,14 @@ describe('QA-04c SCR-18 trên màn đã ráp', () => {
     }
   });
 
-  it('[BUG-413] màn có breadcrumb và tiêu đề như các màn QC anh em', async () => {
+  it('[BUG-413] màn có thanh bước tầng và tiêu đề như các màn QC anh em', async () => {
     renderState('partial');
 
     /* Vòng 6 (Z/S-17): h1 động từ ở đầu panel trái (`QcPanelHead`), `QcFloorNav titled` bỏ h1 ẩn — đúng một h1. */
     expect(await screen.findByRole('heading', { level: 1, name: 'Kích thước' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    expect(screen.getByRole('navigation', { name: 'Đường dẫn trang' })).toBeInTheDocument();
+    /* UX-R1 K25: breadcrumb thay bằng thanh bước của tầng. */
+    expect(screen.getByRole('navigation', { name: 'Các bước duyệt tầng' })).toBeInTheDocument();
   });
 
   it('[BUG-335/338/325] màn rỗng: khung bản vẽ có câu giải thích, biểu tượng thật, nút đủ lớn', async () => {

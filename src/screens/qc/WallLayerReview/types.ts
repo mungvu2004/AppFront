@@ -235,6 +235,8 @@ export interface WallRowViewModel {
 
 /** Khối nâng cao của thanh tra — ba dòng, đều đã định dạng thành chuỗi. */
 export interface WallInspectorAdvanced {
+  /** Độ tin cậy dạng số — ví dụ `"0,50"`; chữ nằm ở {@link WallInspectorViewModel.confidenceText} (K16). */
+  readonly confidenceLabel: string;
   /** "lệch Z" — ví dụ `"+150 mm"`. */
   readonly elevationOffsetLabel: string;
   /** "toạ độ đầu" — ví dụ `"(0, 0)"`. */
@@ -259,6 +261,8 @@ export interface WallInspectorViewModel {
   /** Chiều cao đã định dạng — ví dụ `"3,00 m"`. */
   readonly heightLabel: string;
   readonly confidence: Confidence;
+  /** Độ tin cậy bằng chữ — "Máy chưa chắc" (K16). */
+  readonly confidenceText: string;
   /** "vật liệu" của đặc tả gốc — xem ghi chú đầu file. Lấy từ `WALL_KIND_LABELS`. */
   readonly kindLabel: string;
   readonly advanced: WallInspectorAdvanced;
@@ -352,6 +356,8 @@ export interface WallLayerViewProps {
   readonly isViewerRole: boolean;
   /** Câu giải thích thay nút duyệt ở vai Người xem. `null` ngoài `forbidden`. */
   readonly viewerRoleNotice: string | null;
+  /** Tầng chưa có tỷ lệ đúng (`useScaleLock`): lý do + lối sang bước Tỷ lệ; sửa/duyệt bị từ chối. `null`/vắng = không khoá. */
+  readonly scaleLock?: { readonly reason: string; readonly onOpenScale: () => void } | null;
   /** Câu của trạng thái `empty` — "Chưa phát hiện được đoạn tường nào...". `null` ở trạng thái khác. */
   readonly emptyNotice: string | null;
   /** Lỗi của trạng thái `error`. `null` ở trạng thái khác. */

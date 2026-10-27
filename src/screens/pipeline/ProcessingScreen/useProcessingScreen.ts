@@ -174,7 +174,10 @@ const backgroundFailedTitle = (floor: string): string => `${floor} gặp lỗi k
 const UNIT = {
   floor: 'tầng',
   wall: 'tường',
-  object: 'đối tượng',
+  /* Chip tầng: tổng tường + cửa + nội thất + phòng — gọi đúng là "mục nhận diện", không "đối tượng" (K52). */
+  object: 'mục nhận diện',
+  opening: 'cửa',
+  furniture: 'nội thất',
   dimensionChain: 'chuỗi kích thước',
   room: 'phòng',
 } as const;
@@ -190,8 +193,8 @@ const doneFloorsSentence = (done: string, total: string): string =>
 const overallRemainingSentence = (duration: string): string => `Còn lại khoảng ${duration}`;
 
 /**
- * Một cách đếm "đối tượng" cho cả chip tầng lẫn báo cáo tổng kết (BUG-353), cùng định nghĩa với
- * `countElements` của màn Xuất: tường + ô mở + đồ đạc + phòng (R-1: trước đây bỏ đồ đạc, 91 cạnh 95).
+ * Tổng mục nhận diện của chip tầng, cùng định nghĩa với `countElements` của màn Xuất: tường + ô mở +
+ * đồ đạc + phòng (R-1). Tổng kết không dùng nó: ghi cửa, nội thất riêng (K52).
  */
 const objectTotalOf = (
   counts: Pick<ProcessingExtractionSummary, 'furnitureCount' | 'openingCount' | 'roomCount' | 'wallCount'>,
@@ -507,6 +510,8 @@ const STATUS_LABELS: Readonly<Record<ProcessingStageStatus, string>> = {
 
 /** Nhãn chip tầng khi N16 `readiness.state` là `needsReview` (FIX-P0-15). */
 const NEEDS_REVIEW_LABEL = 'Cần xem lại';
+/** Nhãn đỏ khi máy không đo được tỷ lệ tầng (N16 `scaleSource: 'project_default'`, UX-R1 K12). */
+const SCALE_MISSING_LABEL = 'Sai tỷ lệ';
 
 /** Phần trăm của MỘT bước. Không tự tăng: chưa biết thì `0`, xong thì `100`. */
 function stepPercentOf(stage: PipelineStageState): number {
@@ -1066,7 +1071,11 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
           status,
           statusLabel: STATUS_LABELS[status],
           isActive: index === focusIndex,
-          ...(objectCount?.readiness?.state === 'needsReview' ? { reviewLabel: NEEDS_REVIEW_LABEL } : {}),
+          ...(objectCount?.scaleMissing === true
+            ? { reviewLabel: SCALE_MISSING_LABEL, isScaleMissing: true }
+            : objectCount?.readiness?.state === 'needsReview'
+              ? { reviewLabel: NEEDS_REVIEW_LABEL }
+              : {}),
           ...(objectCount !== undefined
             ? {
                 objectCountLabel: countLabel(objectTotalOf(objectCount), UNIT.object),
@@ -1420,7 +1429,8 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     return {
       metricLabels: [
         countLabel(total.wallCount, UNIT.wall),
-        countLabel(objectTotalOf(total), UNIT.object),
+        // K52: cửa và nội thất ghi riêng — tổng gộp đã có cả tường, phòng nên đọc như nhóm thứ ba là sai.
+        `${countLabel(total.openingCount, UNIT.opening)}, ${countLabel(total.furnitureCount, UNIT.furniture)}`,
         countLabel(total.dimensionCount, UNIT.dimensionChain),
         countLabel(total.roomCount, UNIT.room),
         formatArea(totalArea(total.roomOutlinesMm)),

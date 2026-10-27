@@ -181,6 +181,22 @@ describe('spatialSlice', () => {
     expect(store.getState().versionId).toBe(graphVersionOf({ L1: { revision: 4 }, L2: { revision: 1 } }));
   });
 
+  it('keeps scaleSource only next to scaleStatus (UX-R1 K12)', () => {
+    const store = create<SpatialSlice>()(createSpatialSlice);
+
+    store.getState().setSpatial(normalizeSpatial(createSampleBuilding()), 'ver_1', {
+      floorRevisions: { L1: 4, L2: 1 },
+      floorScaleSource: { L1: 'project_default', L2: 'project_default' },
+      floorScaleStatus: { L2: 'unresolved' },
+      projectId: 'p1',
+    });
+
+    expect(store.getState().floorMeta).toEqual({
+      L1: { revision: 4 },
+      L2: { revision: 1, scaleSource: 'project_default', scaleStatus: 'unresolved' },
+    });
+  });
+
   it('rewrites versionId in the same set as updateFloorMeta', () => {
     const store = create<SpatialSlice>()(createSpatialSlice);
     let writes = 0;

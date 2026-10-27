@@ -11,6 +11,7 @@
 
 import { A3_SHORT_EDGE_MM, formatDrawingScaleRatio } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
+import { millimetres, millimetresToMetres } from '@/domain/units/types';
 
 const MM_PER_INCH = 25.4;
 /** Hai tỷ lệ in thường gặp và hai DPI quét thường gặp của bảng đối chiếu. */
@@ -30,11 +31,19 @@ export interface KnownDimension {
   readonly pixelLength: number;
 }
 
+/** Cỡ căn (hộp bao tường) theo tỷ lệ đang xét, bằng mm. */
+export interface PlanSizeMm {
+  readonly widthMm: number;
+  readonly heightMm: number;
+}
+
 export interface ScaleCheckInput {
   readonly mmPerPx: number | null;
   readonly source: ScaleSource | null;
   readonly shortEdgePx: number | null;
   readonly knownDimension: KnownDimension | null;
+  /** K17: có thì số to là cỡ căn thật để soi bằng mắt; mm/px và 1:N lùi xuống dòng chi tiết. */
+  readonly planSizeMm?: PlanSizeMm | null;
 }
 
 export interface ScaleCheckViewModel {
@@ -44,6 +53,10 @@ export interface ScaleCheckViewModel {
   readonly densityValue: string | null;
   /** "≈ 1:70 ở 72 DPI". */
   readonly ratioLine: string | null;
+  /** Số to của khối tỷ lệ: cỡ căn "≈ 9,1 × 7,4 m" khi biết, không thì `ratioLine`. */
+  readonly headline: string | null;
+  /** Dòng chi tiết dưới số to khi số to là cỡ căn: "13,915 mm/px · ≈ 1:36 nếu ảnh là khổ A3". */
+  readonly detailLine: string | null;
   /** "Cạnh ngắn ảnh 837 px trên khổ A3 (297 mm) ≈ 72 DPI." */
   readonly dpiNote: string | null;
   readonly knownCheck: { readonly tone: 'verified' | 'attention'; readonly title: string; readonly detail: string } | null;
@@ -74,26 +87,30 @@ const TITLES: Readonly<Record<ScaleSource, string>> = {
   provisional: 'Tỷ lệ tạm',
 };
 
-const MISSING_KNOWN =
-  'Chưa có kích thước đã biết để kiểm chéo: máy chưa đọc được chuỗi kích thước nào trên bản vẽ này.';
+const MISSING_KNOWN = 'Chưa có kích thước thứ hai để kiểm chéo tỷ lệ.';
+
+const metres = (valueMm: number): string => formatNumber(millimetresToMetres(millimetres(valueMm)), { fractionDigits: 1 });
+const planSizeText = (size: PlanSizeMm): string => `≈ ${metres(size.widthMm)} × ${metres(size.heightMm)} m`;
 
 function statusOf(
   input: ScaleCheckInput,
   densityLabel: string,
   ratio: string | null,
   knownTone: 'verified' | 'attention' | null,
+  sizeText: string | null,
 ): ScaleCheckViewModel['status'] {
-  const withRatio = ratio ?? `${densityLabel} mm/px`;
+  // K17: người dùng soi được cỡ căn thật, không soi được 1:N suy từ khổ A3.
+  const withRatio = sizeText === null ? `tỷ lệ ${ratio ?? `${densityLabel} mm/px`}` : `tỷ lệ cho căn ${sizeText}`;
 
   switch (input.source) {
     case 'proposed':
-      return { tone: 'neutral', label: 'Đang đo, chưa áp dụng', sentence: `Đo được tỷ lệ ${withRatio}, bấm Áp dụng để dùng.` };
+      return { tone: 'neutral', label: 'Đang đo, chưa áp dụng', sentence: `Đo được ${withRatio}, bấm Áp dụng để dùng.` };
     case 'stored':
       return knownTone === 'attention'
-        ? { tone: 'attention', label: 'Đã đặt, lệch kích thước', sentence: `Đang dùng tỷ lệ ${withRatio}. Kiểm lại kích thước đã biết bên phải.` }
-        : { tone: 'verified', label: 'Đã đặt', sentence: `Đang dùng tỷ lệ ${withRatio}.` };
+        ? { tone: 'attention', label: 'Đã đặt, lệch kích thước', sentence: `Đang dùng ${withRatio}. Kiểm lại kích thước đã biết bên phải.` }
+        : { tone: 'verified', label: 'Đã đặt', sentence: `Đang dùng ${withRatio}.` };
     case 'provisional':
-      return { tone: 'attention', label: 'Tỷ lệ tạm, chưa xác nhận', sentence: `Đang tạm dùng tỷ lệ ${withRatio}. Đo 2 điểm để xác nhận.` };
+      return { tone: 'attention', label: 'Tỷ lệ tạm, chưa xác nhận', sentence: `Đang tạm dùng ${withRatio}. Đo 2 điểm để xác nhận.` };
     default:
       return { tone: 'neutral', label: 'Chưa đặt tỷ lệ', sentence: 'Đo 2 điểm trên một kích thước đã biết rồi bấm Áp dụng.' };
   }
@@ -137,11 +154,19 @@ export function buildScaleCheck(input: ScaleCheckInput): ScaleCheckViewModel {
           })),
         };
 
+  const sizeText = hasScale && input.planSizeMm != null ? planSizeText(input.planSizeMm) : null;
+  const detailLine =
+    sizeText === null || densityValue === null
+      ? null
+      : [`${densityValue} mm/px`, ...(ratioLine === null ? [] : [`${ratioLine} nếu ảnh là khổ A3`])].join(' · ');
+
   return {
-    status: statusOf(input, densityValue ?? '', hasScale ? ratioLine : null, knownCheck?.tone ?? null),
-    title: input.source === null ? 'Tỷ lệ' : TITLES[input.source],
+    status: statusOf(input, densityValue ?? '', hasScale ? ratioLine : null, knownCheck?.tone ?? null, sizeText),
+    title: input.source === null ? 'Tỷ lệ' : sizeText === null ? TITLES[input.source] : `Cỡ căn theo ${TITLES[input.source].toLowerCase()}`,
     densityValue,
     ratioLine,
+    headline: sizeText ?? ratioLine,
+    detailLine,
     dpiNote:
       hasEdge && dpiLabel !== null
         ? `Cạnh ngắn ảnh ${formatNumber(shortEdgePx, { fractionDigits: 0 })} px trên khổ A3 (${String(A3_SHORT_EDGE_MM)} mm) ≈ ${dpiLabel}.`

@@ -101,6 +101,8 @@ export const FloorLayerDocumentSchema = z
     level: LevelSchema,
     revision: revisionSchema,
     scaleStatus: z.literal('unresolved').optional(),
+    /** Nguồn tỉ lệ tạm, chỉ đi cùng `scaleStatus`: `project_default` = máy không đo được (UX-R1 K12). */
+    scaleSource: z.enum(['pipeline', 'project_default']).optional(),
   })
   .strict()
   .refine(
@@ -108,6 +110,9 @@ export const FloorLayerDocumentSchema = z
       document.scaleStatus === undefined || document.level.scaleMillimetresPerPixel !== undefined,
     { path: ['level', 'scaleMillimetresPerPixel'] },
   )
+  .refine((document) => document.scaleSource === undefined || document.scaleStatus !== undefined, {
+    path: ['scaleSource'],
+  })
   .transform((wireDocument) => ({
     axes: wireDocument.axes,
     dimensions: wireDocument.dimensions,
@@ -117,6 +122,7 @@ export const FloorLayerDocumentSchema = z
     ...(wireDocument.origin != null ? { origin: wireDocument.origin } : {}),
     ...(wireDocument.readiness !== undefined ? { readiness: wireDocument.readiness } : {}),
     ...(wireDocument.scaleStatus !== undefined ? { scaleStatus: wireDocument.scaleStatus } : {}),
+    ...(wireDocument.scaleSource !== undefined ? { scaleSource: wireDocument.scaleSource } : {}),
   }));
 
 export type FloorLayerDocument = z.infer<typeof FloorLayerDocumentSchema>;

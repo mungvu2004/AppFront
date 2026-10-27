@@ -74,6 +74,29 @@
   color: var(--pa-accent);
   border-color: var(--pa-accent);
 }
+/* UX-R1 K39/K46: các nút "+" (thêm/chèn tầng) chỉ hiện khi rê chuột hoặc focus bàn phím. Nút chèn giữa
+ * hai tầng đứng trong cột riêng bên trái danh sách (`data-level-gutter`/`data-level-insert`, vá ở
+ * scripts/pascal-ui-patch.mjs), không đè tên, tay kéo hay chiều cao tầng. Dự án một tầng: không cột, không nút. */
+.absolute.top-14.left-3.z-20 button.rounded-full.h-4.w-4 {
+  opacity: 0;
+  transition: opacity 120ms var(--pa-ease);
+}
+.absolute.top-14.left-3.z-20 > .relative:hover > button.rounded-full.h-4.w-4,
+.absolute.top-14.left-3.z-20 [data-level-gutter]:hover [data-level-insert],
+.absolute.top-14.left-3.z-20 button.rounded-full.h-4.w-4:focus-visible {
+  opacity: 1;
+}
+.absolute.top-14.left-3.z-20 [data-level-gutter] {
+  padding-left: 30px;
+}
+/* Mép trái hàng nằm sau 30px đệm: -27px đặt nút 24px giữa cột; dọc vẫn ở ranh giữa hai hàng. */
+.absolute.top-14.left-3.z-20 [data-level-gutter] [data-level-insert] {
+  left: -27px;
+  translate: 0 50%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .absolute.top-14.left-3.z-20 button.rounded-full.h-4.w-4 { transition: none; }
+}
 .absolute.top-14.left-3.z-20 .rounded-lg.bg-white\/10 {
   background: var(--pa-selected);
   color: var(--pa-accent);

@@ -6,7 +6,7 @@ import type { EntityId, Level, LevelId, SpatialGraph } from '../domain/spatial/t
 import type { Project, ProjectRole } from '../types/project';
 import { resetCommitRun } from './commit';
 import { useStore } from './index';
-import { versionIdFor, type FloorMetaEntry } from './spatialSlice';
+import { floorMetaEntryOf, versionIdFor, type FloorMetaEntry } from './spatialSlice';
 
 /**
  * Loading a project's whole graph (N15) into the store — F-04x-2 step 2.
@@ -142,7 +142,7 @@ export function refreshProjectGraph(document: SpatialGraphDocument): void {
 
     if (held === undefined || meta === undefined || revision > meta.revision) {
       spatial = replaceLevelEntities(spatial, level.id, partsOf(document.graph, level));
-      floorMeta[level.id] = meta?.scaleStatus === undefined ? { revision } : { revision, scaleStatus: meta.scaleStatus };
+      floorMeta[level.id] = floorMetaEntryOf(revision, meta);
       external ||= held !== undefined && meta !== undefined;
     } else if (revision === meta.revision && !sameLevel(held as Level, level)) {
       spatial = { ...spatial, byId: { ...spatial.byId, [level.id]: level } };

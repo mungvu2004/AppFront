@@ -2,6 +2,7 @@
 /**
  * VERBATIM copy of upstream Pascal apps/editor/components/build-tab.tsx (F:\pascal-editor, commit cd14090, MIT).
  * Edits: import paths only (`@/components/*`, `@/lib/*` -> relative).
+ * AppFront edit (UX-R1 K38/K43): grid shows the apartment tools; the rest sit behind a "Thêm" tile.
  */
 
 import { RoofType as RoofTypeSchema, useRegistryVersion } from '@pascal-app/core'
@@ -14,6 +15,7 @@ import {
   useFloorplanMode,
 } from '@pascal-app/editor'
 import { useLiquidLineToolOptions } from '@pascal-app/nodes'
+import { ChevronDown } from 'lucide-react'
 import Image from 'next/image'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
@@ -38,6 +40,7 @@ import {
   type MepItem,
   MODULAR_CABINET_ICON,
 } from '../lib/build-palette'
+import { splitApartmentTools } from '../lib/apartment-tools'
 import { getActiveRoofFeatureId, ROOF_TYPE_OPTIONS } from '../lib/build-tab-state'
 import { cn } from '../lib/utils'
 
@@ -53,6 +56,7 @@ let isPageLoadMount = true
 
 export function BuildTab() {
   const [mepOpen, setMepOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   const activeTool = useEditor((s) => s.tool)
   const mode = useEditor((s) => s.mode)
   const roofDefaults = useEditor((s) => s.toolDefaults.roof)
@@ -145,6 +149,51 @@ export function BuildTab() {
     if (firstType) handleTypeClick(firstType)
   }, [buildTypes, handleTypeClick])
 
+  const apartmentTools = splitApartmentTools(buildTypes)
+  // Open while the user asked for it, or while one of the hidden tools is the active one.
+  const moreActive = apartmentTools.more.some(isTypeActive)
+  const showMore = moreOpen || moreActive
+
+  const renderTile = (type: BuildType) => {
+    const active = isTypeActive(type)
+    return (
+      <Tooltip key={type.id}>
+        <TooltipTrigger asChild>
+          <button
+            className={cn(
+              'group relative flex aspect-square items-center justify-center rounded-xl p-1 transition-colors duration-200',
+              active
+                ? 'bg-primary/10 ring-1 ring-primary/50'
+                : 'bg-muted/40 opacity-70 grayscale hover:bg-muted hover:opacity-100 hover:grayscale-0',
+            )}
+            onClick={() => {
+              triggerSFX('sfx:menu-click')
+              handleTypeClick(type)
+            }}
+            onMouseEnter={() => triggerSFX('sfx:menu-hover')}
+            aria-label={type.label}
+            type="button"
+          >
+            {/* AppFront edit (P40, G5-12): visible label under the icon. */}
+            <span className="flex size-full flex-col items-center justify-center gap-0.5">
+              <Image
+                alt=""
+                className="min-h-0 w-full flex-1 object-contain transition-transform duration-200 group-hover:scale-110"
+                height={48}
+                src={type.iconSrc}
+                width={48}
+              />
+              <span className="w-full truncate text-center text-[10px] leading-tight">{type.shortLabel ?? type.label}</span>
+            </span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="pointer-events-none" side="top">
+          {type.label}
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+
   return (
     <div className="flex h-full flex-col gap-3 p-3">
       <TooltipProvider delayDuration={0} disableHoverableContent>
@@ -152,46 +201,31 @@ export function BuildTab() {
           className="grid gap-1.5"
           style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))' }}
         >
-          {buildTypes.map((type) => {
-            const active = isTypeActive(type)
-            return (
-              <Tooltip key={type.id}>
-                <TooltipTrigger asChild>
-                  <button
-                    className={cn(
-                      'group relative flex aspect-square items-center justify-center rounded-xl p-1 transition-colors duration-200',
-                      active
-                        ? 'bg-primary/10 ring-1 ring-primary/50'
-                        : 'bg-muted/40 opacity-70 grayscale hover:bg-muted hover:opacity-100 hover:grayscale-0',
-                    )}
-                    onClick={() => {
-                      triggerSFX('sfx:menu-click')
-                      handleTypeClick(type)
-                    }}
-                    onMouseEnter={() => triggerSFX('sfx:menu-hover')}
-                    aria-label={type.label}
-                    type="button"
-                  >
-                    {/* AppFront edit (P40, G5-12): visible label under the icon. */}
-                    <span className="flex size-full flex-col items-center justify-center gap-0.5">
-                      <Image
-                        alt=""
-                        className="min-h-0 w-full flex-1 object-contain transition-transform duration-200 group-hover:scale-110"
-                        height={48}
-                        src={type.iconSrc}
-                        width={48}
-                      />
-                      <span className="w-full truncate text-center text-[10px] leading-tight">{type.shortLabel ?? type.label}</span>
-                    </span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="pointer-events-none" side="top">
-                  {type.label}
-                </TooltipContent>
-              </Tooltip>
-            )
-          })}
+          {apartmentTools.main.map(renderTile)}
+          {/* AppFront edit (UX-R1 K38/K43): tools a one-floor apartment rarely needs sit behind "Thêm". */}
+          {apartmentTools.more.length > 0 ? (
+            <button
+              aria-controls="build-more-tools"
+              aria-expanded={showMore}
+              className="flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl bg-muted/40 p-1 text-[10px] leading-tight transition-colors duration-200 hover:bg-muted disabled:opacity-40"
+              disabled={moreActive}
+              onClick={() => setMoreOpen(!showMore)}
+              type="button"
+            >
+              <ChevronDown aria-hidden="true" className={cn('h-5 w-5', showMore && 'rotate-180')} />
+              {showMore ? 'Thu gọn' : 'Thêm'}
+            </button>
+          ) : null}
         </div>
+        {showMore ? (
+          <div
+            className="grid gap-1.5"
+            id="build-more-tools"
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))' }}
+          >
+            {apartmentTools.more.map(renderTile)}
+          </div>
+        ) : null}
       </TooltipProvider>
 
       {mode === 'material-paint' ? (

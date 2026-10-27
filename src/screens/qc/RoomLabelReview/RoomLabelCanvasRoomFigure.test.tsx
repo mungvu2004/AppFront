@@ -50,6 +50,17 @@ describe('RoomLabelCanvasRoomFigure — nhãn tên', () => {
     expect(nameText?.querySelector('title')?.textContent).toBe(LONG_NAME);
   });
 
+  it('[K23] nhãn trên bản vẽ chỉ ghi tên, không ghi diện tích (từng đè nhãn phòng bên)', () => {
+    const { container } = render(
+      <svg>
+        <RoomLabelCanvasRoomFigure isSelected={false} millimetresPerPixel={1} reducedMotion room={{ ...ROOM, name: 'Bếp' }} />
+      </svg>,
+    );
+
+    expect(container.querySelectorAll('text')).toHaveLength(1);
+    expect(container.textContent).not.toContain('16,00 m²');
+  });
+
   it('phòng vẽ quá nhỏ: không cắt tên thành "p…", hiện mã phòng, tên ở <title>', () => {
     /* 100 mm/px ⇒ phòng rộng 40 px — chỉ đủ ~4 ký tự cỡ 15 px. */
     const { container } = render(

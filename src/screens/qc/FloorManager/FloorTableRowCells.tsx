@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 
 import type { FloorStepVm } from './floorProgress';
 import { FloorRowLinks } from './FloorRowLinks';
-import { FLOOR_COLUMN_LABELS, FLOOR_QC_SCORE_HINT, QC_NOT_GRADED, type FloorManagerViewProps, type FloorRowVm } from './floorManagerTypes';
+import type { FloorManagerViewProps, FloorRowVm } from './floorManagerTypes';
 
 const UPLOAD_LINK_LABEL = 'Tải bản vẽ';
 const NEXT_STEP_PREFIX = 'Việc tiếp:';
@@ -120,13 +120,8 @@ export function FloorNameCell({
         ) : (
           <span className="text-[13px] font-medium text-text-primary">{row.name}</span>
         )}
-        {/* Dòng phụ: số tường, phòng, diện tích và điểm luật (bản Z gộp bốn cột cũ vào đây). */}
-        {row.hasDrawing && (
-          <span className="text-[12px] text-text-secondary" title={FLOOR_QC_SCORE_HINT}>
-            {summaryText}
-            {row.qcProgressText === QC_NOT_GRADED ? '' : ` · ${FLOOR_COLUMN_LABELS.qc} ${row.qcProgressText}`}
-          </span>
-        )}
+        {/* Dòng phụ: số tường, phòng, diện tích. Điểm luật chỉ ở màn Quy chuẩn (UX-R1 K05). */}
+        {row.hasDrawing && <span className="text-[12px] text-text-secondary">{summaryText}</span>}
       </div>
     </Table.Cell>
   );

@@ -1,5 +1,6 @@
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import { entitiesOfKind } from '@/lib/commands/business/shared';
+import { isMeasuredScaleImplausible, isScaleMissing, type ScaleSource } from '@/lib/viewmodel/provisionalScale';
 
 /**
  * Trạng thái cổng chung của tầng: ba lớp bắt buộc Tường · Cửa và nội thất · Phòng,
@@ -85,6 +86,36 @@ export const floorReviewConditionLabel = (layer: FloorReviewLayerState): string 
 export function scaleIsConfirmed(scaleStatus: 'unresolved' | undefined, millimetresPerPixel: number | undefined): boolean {
   return scaleStatus !== 'unresolved' && millimetresPerPixel !== undefined;
 }
+
+/**
+ * Bước 0 Tỷ lệ của tầng (UX-R1 K12/K25): `confirmed` người đã đặt; `check` máy đo được, cần kiểm;
+ * `missing` máy không đo được (nguồn mặc định dự án, hoặc chưa có tỷ lệ), hoặc máy đo ra hình vô lý
+ * (`implausible`, Codex P1) — khoá các bước sau.
+ */
+export type FloorScaleState = 'confirmed' | 'check' | 'missing';
+
+export function floorScaleStateOf(
+  scaleStatus: 'unresolved' | undefined,
+  scaleSource: ScaleSource | undefined,
+  millimetresPerPixel: number | undefined,
+  implausible = false,
+): FloorScaleState {
+  if (scaleIsConfirmed(scaleStatus, millimetresPerPixel)) return 'confirmed';
+  return millimetresPerPixel === undefined || isScaleMissing(scaleSource) || implausible ? 'missing' : 'check';
+}
+
+/** Tường của tầng cho ra tỷ lệ vô lý: trung vị độ dày < 50 mm hoặc khung khối tường < 3 m (`isMeasuredScaleImplausible`). */
+export function scaleImplausibleOf(graph: NormalizedSpatial, levelId: string): boolean {
+  const walls = entitiesOfKind(graph, 'wall').filter((wall) => wall.levelId === levelId);
+  if (walls.length === 0) return false;
+  const points = walls.flatMap((wall) => [wall.centreline.start, wall.centreline.end]);
+  const span = (values: number[]) => Math.max(...values) - Math.min(...values);
+  const frameMm = Math.max(span(points.map((point) => point.x)), span(points.map((point) => point.y)));
+  return isMeasuredScaleImplausible(walls.map((wall) => wall.thicknessMm), frameMm);
+}
+
+/** Lý do khoá các bước sau Tỷ lệ — cùng một câu ở thanh bước, ở cổng và ở `useScaleLock`. */
+export const SCALE_LOCK_REASON = 'Đặt tỷ lệ trước: tầng này chưa có tỷ lệ đúng';
 
 /**
  * Tầng kế để sang khi tầng này xong: tầng đầu tiên (theo thứ tự, bắt đầu sau tầng này rồi vòng lại)

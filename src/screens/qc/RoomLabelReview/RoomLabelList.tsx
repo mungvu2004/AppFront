@@ -37,6 +37,7 @@ const PENDING_GROUP_LABEL = 'Chưa duyệt';
 const CONFIRMED_GROUP_LABEL = 'Đã duyệt';
 const UNNAMED_PLACEHOLDER = 'Chưa đặt tên';
 const EMPTY_TITLE = 'Chưa có phòng nào';
+const OUTLINE_SPILL_FLAG = 'Đường bao tràn ra ngoài tường bao';
 const EMPTY_DESCRIPTION =
   'Không có phòng nào khớp bộ lọc đang bật. Tắt bộ lọc "Chưa đặt tên" để thấy lại cả danh sách.';
 
@@ -101,8 +102,8 @@ function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus, fl
         <span className={cn('min-w-0 flex-1 wrap-break-word', room.hasName ? 'text-text-primary' : 'text-text-muted')}>
           {nameText}
         </span>
-        {/* Diện tích co được tới 45% hàng, chữ đầy đủ ở `title`: "Chưa có · tỷ lệ tạm" không còn nuốt tên phòng (BUG-624). */}
-        <span className="max-w-[45%] wrap-break-word text-right font-mono tabular-nums text-text-secondary" title={room.areaText}>
+        {/* Diện tích co được tới 45% hàng, một dòng, chữ đầy đủ ở `title` (BUG-624, K23: không bẻ "tỷ lệ / tạm"). */}
+        <span className="max-w-[45%] truncate whitespace-nowrap text-right font-mono tabular-nums text-text-secondary" title={room.areaText}>
           {room.areaText}
         </span>
         <span aria-hidden="true" className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_CLASS[room.status])} />
@@ -214,7 +215,13 @@ export function RoomLabelList({
           </p>
           {group.items.map((room) => (
             <RoomLabelListRow
-              flag={oversizedRoom !== null && oversizedRoom.id === room.id ? oversizedRoom.text : null}
+              flag={
+                oversizedRoom !== null && oversizedRoom.id === room.id
+                  ? oversizedRoom.text
+                  : room.outlineSpills === true
+                    ? OUTLINE_SPILL_FLAG
+                    : null
+              }
               isSelected={room.id === selectedRoomId}
               key={room.id}
               onHover={onHover}

@@ -4,11 +4,11 @@
  *
  * View THUẦN (R-60): chỉ đọc props. Câu số ("12/48 tường đã duyệt") đã ghép ở hook (A15).
  * Đổi tầng nằm ở breadcrumb "Tầng ▾" của `QcFloorNav`, không lặp trong panel. Lớp khác ở thanh
- * lớp của `QcFloorNav`; cây lớp ở đây chỉ còn bật/tắt lớp Tường (BC-19).
+ * lớp của `QcFloorNav`; ở đây chỉ còn ô "Hiện lớp tường" (BC-19, K29).
  */
 
 import { useState } from 'react';
-import { Check, Eye, EyeOff, Square } from 'lucide-react';
+import { Check } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -63,11 +63,8 @@ const DONE_LABEL = 'Xong';
 const TODO_LABEL = 'Chưa xong';
 const ERROR_LABEL = 'Không tải được';
 const SAVED_PREFIX = 'Đã lưu';
-const LAYER_TREE_ARIA_LABEL = 'Cây lớp';
-const WALL_LAYER_LABEL = 'Tường';
 const CENTRELINES_LABEL = 'Hiện tim tường';
 const SHOW_WALL_LAYER_LABEL = 'Hiện lớp tường';
-const HIDE_WALL_LAYER_LABEL = 'Ẩn lớp tường';
 const FILTER_LABELS: Readonly<Record<WallLayerFilterKey, string>> = {
   onlyUnreviewed: 'Chỉ hiện chưa duyệt',
   onlyLowConfidence: 'Chỉ hiện chỗ máy chưa chắc',
@@ -76,8 +73,6 @@ const FILTER_LABELS: Readonly<Record<WallLayerFilterKey, string>> = {
 const COLUMN_CODE = 'Đoạn';
 const COLUMN_LENGTH = 'Dài, mm';
 const COLUMN_THICKNESS = 'Dày, mm';
-
-const FOCUS_RING = 'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
 /** Câu 2: Badge + câu có số + đã lưu. */
 function PanelStatus({ panel, queue, saveLabel, saveFailed }: Omit<WallLayerLeftPanelProps, 'extras'>) {
@@ -111,36 +106,6 @@ function PanelStatus({ panel, queue, saveLabel, saveFailed }: Omit<WallLayerLeft
   );
 }
 
-/** Cây lớp còn một hàng "Tường" + nút con mắt đứng CẠNH hàng (không lồng nút trong nút). */
-function WallLayerTreeRow({ isVisible, onToggle }: { readonly isVisible: boolean; readonly onToggle: () => void }) {
-  return (
-    <div aria-label={LAYER_TREE_ARIA_LABEL} role="tree">
-      <div className="flex items-center gap-1" role="none">
-        <button
-          aria-current="page"
-          aria-label={WALL_LAYER_LABEL}
-          aria-selected
-          className={cn('flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-accent-wash px-2 py-1.5 text-left text-[13px] text-accent', FOCUS_RING)}
-          role="treeitem"
-          type="button"
-        >
-          <Square aria-hidden="true" className="h-4 w-4 shrink-0" />
-          <span className="truncate">{SHOW_WALL_LAYER_LABEL}</span>
-        </button>
-        <button
-          aria-label={isVisible ? HIDE_WALL_LAYER_LABEL : SHOW_WALL_LAYER_LABEL}
-          aria-pressed={isVisible}
-          className={cn('shrink-0 rounded-lg p-1.5 text-text-secondary transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary', FOCUS_RING)}
-          onClick={onToggle}
-          type="button"
-        >
-          {isVisible ? <Eye aria-hidden="true" className="h-4 w-4" /> : <EyeOff aria-hidden="true" className="h-4 w-4" />}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed }: WallLayerLeftPanelProps) {
   const { filters, onToggleFilter } = panel;
   const [isBulkOpen, setBulkOpen] = useState(false);
@@ -165,8 +130,14 @@ export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed
       />
 
       <div className="flex shrink-0 flex-col gap-1 border-b border-border-default px-4 py-3">
-        {/* Hàng lớp riêng một dòng (tên lớp không bị cắt); tim tường đứng cùng nhịp với các ô lọc. */}
-        <WallLayerTreeRow isVisible={extras.isWallLayerVisible} onToggle={extras.onToggleWallLayer} />
+        {/* K29: một ô đánh dấu thật thay hàng cây lớp chết (ô vuông rỗng không bấm được + con mắt riêng). */}
+        <Checkbox
+          aria-label={SHOW_WALL_LAYER_LABEL}
+          checked={extras.isWallLayerVisible}
+          label={SHOW_WALL_LAYER_LABEL}
+          onChange={extras.onToggleWallLayer}
+          size="sm"
+        />
         <Checkbox
           aria-label={CENTRELINES_LABEL}
           checked={extras.showCentrelines}
@@ -200,8 +171,9 @@ export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed
       {/* Tiêu đề cột: số căn phải, đơn vị ở tiêu đề (demo Z/S-15 vòng 9). */}
       {panel.rows.length > 0 && panel.state !== 'loading' && (
         <div aria-hidden="true" className="flex shrink-0 items-center gap-2 px-5 pb-1 pt-3 text-caption text-text-secondary">
-          <span className="min-w-0 flex-1 pl-5">{COLUMN_CODE}</span>
-          <span className="w-12 shrink-0 text-right">{COLUMN_LENGTH}</span>
+          {/* Khớp cột của hàng: mẫu 20 + khoảng 8 + mã 56; cột dài co giãn (K28). */}
+          <span className="w-[5.25rem] shrink-0 pl-7">{COLUMN_CODE}</span>
+          <span className="min-w-0 flex-1 text-right">{COLUMN_LENGTH}</span>
           <span className="w-14 shrink-0 text-right">{COLUMN_THICKNESS}</span>
         </div>
       )}

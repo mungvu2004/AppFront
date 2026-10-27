@@ -1089,8 +1089,8 @@
       "rowAriaLabelPrefix": "Chuỗi kích thước ",
       "pixelLength": "{{pixels}} đo được",
       "confidenceLabel": "Độ tin cậy",
-      "emptyTitle": "Máy chưa đọc được số kích thước nào",
-      "emptyDescription": "OCR không tìm thấy chuỗi kích thước nào trên bản vẽ này. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.",
+      "emptyTitle": "Chưa có số kích thước để làm mốc",
+      "emptyDescription": "Chưa có số kích thước nào để làm mốc. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.",
       "lowConfidence": "Có {{count}} chuỗi đọc được với độ tin cậy thấp, đã đánh dấu mức cần chú ý.",
       "tooFewSamples": "Chưa đủ chuỗi kích thước để suy ra tỷ lệ, nên phải đặt bằng tay.",
       "lowConfidenceInference": "Độ tin cậy chung còn thấp, nên tỷ lệ phải được xác nhận bằng tay."
@@ -1179,8 +1179,8 @@
       "nudgeCoarse": "Nhích đầu đoạn mười pixel"
     },
     "state": {
-      "emptyTitle": "Máy chưa đọc được số kích thước nào",
-      "emptyDescription": "Máy không đọc được số kích thước nào trên bản vẽ này. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.",
+      "emptyTitle": "Chưa có số kích thước để làm mốc",
+      "emptyDescription": "Chưa có số kích thước nào để làm mốc. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.",
       "loadingTitle": "Đang tải bản vẽ đã nắn",
       "loadingDescription": "Ảnh 3000×3000 pixel đang được tải. Bảng hiệu chỉnh sẽ mở ngay khi ảnh sẵn sàng.",
       "partialTitle": "Chưa đủ dữ liệu để chốt tỷ lệ",
@@ -2806,7 +2806,7 @@
       "empty": "Tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.",
       "errorFrame": "Không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.",
       "errorRead": "Không đọc được ảnh bản vẽ gốc của tầng này.",
-      "errorScale": "Không căn được vì hai tầng đang dùng tỷ lệ khác nhau.",
+      "errorScale": "Máy không đo được tỷ lệ tầng này nên mô hình đang sai cỡ, so với bản vẽ chưa có nghĩa. Đặt tỷ lệ trước.",
       "forbidden": "Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.",
       "loading": "Đang tải ảnh bản vẽ gốc.",
       "noDrawing": "Tầng này chưa có bản vẽ nào nên chưa có gì để đối chiếu. Tải bản vẽ lên rồi quay lại đây.",

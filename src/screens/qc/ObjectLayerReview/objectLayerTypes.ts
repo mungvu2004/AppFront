@@ -345,6 +345,8 @@ export interface ObjectListRowViewModel {
   readonly id: string;
   readonly layer: ObjectLayerId;
   readonly subtype: ObjectSubtype;
+  /** Tên loại người đọc: "Cửa đơn", "Giường", "Tủ bếp"… (K07). */
+  readonly typeLabel: string;
   /** Ví dụ `"#D-007"`. */
   readonly codeLabel: string;
   /** Ví dụ `"900 × 2.200 mm"` (P-01). */
@@ -352,7 +354,7 @@ export interface ObjectListRowViewModel {
   /** Ví dụ `"#W-014"`. `null` khi {@link isOrphanObject}. */
   readonly hostWallLabel: string | null;
   readonly confidence: Confidence;
-  /** `'verified'` chỉ khi `reviewed`; `'attention'` khi tin cậy thấp hoặc chưa gắn tường mà chưa duyệt; `'neutral'` còn lại. */
+  /** `'verified'` chỉ khi `reviewed`; `'attention'` khi dưới ngưỡng tin cậy hoặc lỗ mở chưa gắn tường mà chưa duyệt; `'neutral'` còn lại. */
   readonly statusCode: ViewStatusCode;
   readonly isReviewed: boolean;
   readonly isLowConfidence: boolean;
@@ -469,6 +471,8 @@ export interface ObjectLayerInspectorProps {
   readonly onAttachToNearestWall: (objectId: string) => void;
   /** Bấm liên kết tường chủ: chọn tường đó và bay khung nhìn tới (R-07). */
   readonly onSelectHostWall: (wallId: WallId) => void;
+  /** Tầng thiếu tỷ lệ: chân panel thay nút duyệt bằng lý do + lối sang bước Tỷ lệ. */
+  readonly scaleLock?: ScaleLockAction | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -658,6 +662,8 @@ export interface ObjectLayerReviewModel {
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
   /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
   readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
+  /** Tầng thiếu tỷ lệ: mọi lệnh sửa bị chặn, nút chính thành lối sang bước Tỷ lệ. */
+  readonly scaleLock?: ScaleLockAction | null | undefined;
   /** Đọc lớp của tầng hỏng khi chưa có tài liệu: thay cả màn, một lối ra (BUG-326). */
   readonly readFailure?: FloorLayerReadFailure | null | undefined;
 }
@@ -743,4 +749,11 @@ export interface ObjectLayerViewport {
   readonly x: number;
   readonly y: number;
   readonly zoom: number;
+}
+
+/** Khoá tỷ lệ của tầng (UX-R1 r3): lý do + lối sang bước Tỷ lệ; `null` khi tầng không bị khoá. */
+export interface ScaleLockAction {
+  readonly reason: string;
+  /** `null` khi màn không có lối điều hướng (story, test). */
+  readonly onOpenScale: (() => void) | null;
 }

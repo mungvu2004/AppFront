@@ -26,9 +26,9 @@ const ROW_ARIA_LABEL_PREFIX = 'Chuỗi kích thước ';
 const UNIT_MM = 'mm';
 const MEASURED_SUFFIX = 'đo được';
 
-const EMPTY_TITLE = 'Máy chưa đọc được số kích thước nào';
+const EMPTY_TITLE = 'Chưa có số kích thước để làm mốc';
 const EMPTY_DESCRIPTION_FALLBACK =
-  'OCR không tìm thấy chuỗi kích thước nào trên bản vẽ này. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.';
+  'Chưa có số kích thước nào để làm mốc. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.';
 
 type ManualCalibrationReason = NonNullable<ScaleDimensionMethodViewModel['manualCalibrationReason']>;
 

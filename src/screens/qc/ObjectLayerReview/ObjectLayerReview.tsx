@@ -75,8 +75,8 @@ const CANVAS_REGION_LABEL = 'Mặt bằng lớp đối tượng';
 const EMPTY_TITLE = 'Chưa nhận ra đối tượng nào';
 const EMPTY_ACTION = 'Thêm thủ công';
 const ADD_ACTIONS = [
-  { kind: 'door', label: '+ Thêm cửa' },
-  { kind: 'window', label: '+ Thêm cửa sổ' },
+  { kind: 'door', label: 'Thêm cửa đi' },
+  { kind: 'window', label: 'Thêm cửa sổ' },
 ] as const;
 const OPEN_WALL_LAYER_ACTION = 'Sang duyệt tường';
 const LOW_CONFIDENCE_FILTER = 'Chỉ hiện chỗ máy chưa chắc';
@@ -84,6 +84,11 @@ const LOW_CONFIDENCE_DONE = 'Đã duyệt hết chỗ máy chưa chắc.';
 const SHOW_ALL = 'Hiện tất cả';
 /* Chưa có số đếm thật thì không in "0/0 đối tượng đã duyệt" (BUG-618). */
 const LOADING_PROGRESS_LABEL = 'Đang đọc lớp đối tượng…';
+
+/** Người xem, hoặc tầng bị khoá vì thiếu tỷ lệ: xem được hết, không nút sửa nào (UX-R1 r3). */
+function isReadOnly(model: ObjectLayerReviewModel): boolean {
+  return model.isViewerRole || model.scaleLock != null;
+}
 
 /** Số dòng khung xương của panel trái lúc đang tải — một dòng cho mỗi nhóm, cộng một. */
 const SKELETON_ROWS = [0, 1, 2, 3];
@@ -117,7 +122,7 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
                 : OPEN_WALL_LAYER_ACTION,
             onClick: model.onOpenWallLayer,
           }
-        : model.isViewerRole
+        : isReadOnly(model)
           ? null
           : { label: EMPTY_ACTION, onClick: () => model.onAddManually('door') };
 
@@ -196,26 +201,36 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
         rows={model.rows}
         selectedObjectId={model.selectedObjectId}
       />
+    </div>
+  );
+}
 
-      {/* Thêm cửa trên 2D bất cứ lúc nào, không chỉ khi lớp trống (cửa thứ hai trở đi). */}
-      {model.isViewerRole ? null : (
-        <div className="flex gap-2 px-2">
-          {ADD_ACTIONS.map(({ kind, label }) => (
-            <button
-              className={cn(
-                'rounded-full border border-border-default px-2.5 py-1 text-[12px] text-text-secondary',
-                'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
-                'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-              )}
-              key={kind}
-              onClick={() => model.onAddManually(kind)}
-              type="button"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
+/**
+ * Thêm cửa trên 2D bất cứ lúc nào (cửa thứ hai trở đi). Ray trái chỉ CHỌN NHÓM, không thêm,
+ * nên hai nút này ở lại — nhưng ở chân panel, ngoài vùng cuộn: cuối danh sách 39 dòng chúng
+ * nằm ở y≈2766, không ai thấy (K02/K20).
+ */
+function ObjectLayerAddActions({ model }: { readonly model: ObjectLayerReviewModel }) {
+  if (isReadOnly(model) || model.state === 'loading' || model.emptyNotice !== null || model.errorMessage !== null) {
+    return null;
+  }
+
+  return (
+    <div className="flex shrink-0 gap-2 border-t border-border-default px-3 py-2">
+      {ADD_ACTIONS.map(({ kind, label }) => (
+        <button
+          className={cn(
+            'rounded-full border border-border-default px-2.5 py-1 text-[12px] text-text-secondary',
+            'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
+            'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+          )}
+          key={kind}
+          onClick={() => model.onAddManually(kind)}
+          type="button"
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -228,7 +243,8 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
  * `exactOptionalPropertyTypes` đòi vắng là vắng thật.
  */
 function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewModel }) {
-  const editing = model.isViewerRole
+  const readOnly = isReadOnly(model);
+  const editing = readOnly
     ? {}
     : {
         onApprove: model.onApprove,
@@ -245,7 +261,7 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
       haloRectPx={model.haloRectPx}
       highlightedWallId={model.highlightedWallId}
       hoveredObjectId={model.hoveredObjectId}
-      isInteractive={!model.isViewerRole}
+      isInteractive={!readOnly}
       isLoading={model.state === 'loading'}
       layerVisibility={model.layerVisibility}
       millimetresPerPixel={model.millimetresPerPixel}
@@ -289,6 +305,7 @@ function ObjectLayerLeftColumn({ model }: { readonly model: ObjectLayerReviewMod
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         <ObjectLayerListRegion model={model} />
       </div>
+      <ObjectLayerAddActions model={model} />
     </div>
   );
 }
@@ -330,7 +347,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           isCollapsed ? null : (
             <ObjectLayerInspector
               inspector={model.inspector}
-              isViewerRole={model.isViewerRole}
+              isViewerRole={isReadOnly(model)}
               onApprove={model.onApprove}
               onAttachToNearestWall={model.onAttachToNearestWall}
               onChangeSubtype={model.onChangeSubtype}
@@ -338,6 +355,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
               onDelete={model.onDelete}
               onDragPosition={model.onDragPosition}
               onSelectHostWall={model.onSelectHostWall}
+              scaleLock={model.scaleLock ?? null}
             />
           )
         }
@@ -347,7 +365,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           <ObjectLayerToolRail
             activeLayer={model.activeLayer}
             activeSubtype={model.activeSubtype}
-            isViewerRole={model.isViewerRole}
+            isViewerRole={isReadOnly(model)}
             onSelectLayer={model.onSelectLayer}
             onSelectSubtypeSlot={model.onSelectSubtypeSlot}
           />

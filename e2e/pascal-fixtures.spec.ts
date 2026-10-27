@@ -41,7 +41,7 @@ const READY_TIMEOUT_MS = 60_000;
 /** Trùng `BRIDGE_EMPTY_ERROR` (`src/pascal-page/bridge/index.ts`) — không nhập mô-đun React vào Node. */
 const EMPTY_TEXT = 'Dự án chưa có mô hình để mở trong 3D.';
 /** Câu của T17 (`scaleBanner.tsx`). */
-const SCALE_BANNER_TEXT = 'Bản vẽ chưa hiệu chỉnh tỷ lệ';
+const SCALE_BANNER_TEXT = 'tầng chưa hiệu chỉnh tỷ lệ';
 /** console.error được phép (C1). Thêm từng dòng kèm lý do. */
 const CONSOLE_ERROR_ALLOW: readonly RegExp[] = [];
 /** Loại node mà bài so số với `toPascalScene` (bỏ site/building/level của editor). */

@@ -64,6 +64,7 @@ import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { durationMs } from '@/lib/motion';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
+import { thicknessLockTextOf } from '@/lib/viewmodel/provisionalScale';
 import { useStore } from '@/store';
 import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
@@ -121,6 +122,7 @@ import {
   type ThicknessThresholds,
 } from './thicknessTypes';
 import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+import { useScaleLock } from '../shared/useScaleLock';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /** Ngưỡng nhớ theo dự án trong phiên (G4a-33); tải lại trang vẫn giữ. */
@@ -410,6 +412,8 @@ export function useThicknessStandardization(
     canEdit,
   );
   const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
+  /* Cùng luật khoá với thanh bước và cổng; gọi SAU `useFloorLayer` (thứ tự đọc, xem `useFloorReview`). */
+  const scaleLock = useScaleLock(projectId, floorId);
 
   /* ---------------------------------------------------------------------- */
   /* Đồ thị đang sửa — nơi `commit` ghi vào.                                  */
@@ -474,6 +478,14 @@ export function useThicknessStandardization(
     [levelIndex, thresholds, toleranceMm, wallCodes, walls],
   );
 
+  /*
+   * Tầng chưa có tỷ lệ đúng (`useScaleLock`, cùng luật với thanh bước): khoá mọi lượt đổi độ dày, chỉ
+   * cho xem (UX-R1 K09). Câu nêu dải độ dày đo được; `'project_default'` chỉ để ép câu ấy ra.
+   */
+  const scaleLockText = useMemo(
+    () => (scaleLock.locked ? thicknessLockTextOf(allRows.map((row) => row.measuredMm), 'project_default') : null),
+    [allRows, scaleLock.locked],
+  );
   const segmentRows = useMemo(() => sortSegmentRows(allRows, sortKey), [allRows, sortKey]);
   const groupRows = useMemo(
     () => toGroupRows(allRows, acceptedMeasurements),
@@ -678,7 +690,7 @@ export function useThicknessStandardization(
    */
   const runBatch = useCallback(
     async (commands: readonly Command[]): Promise<void> => {
-      if (!canEdit || commands.length === 0) {
+      if (!canEdit || scaleLockText !== null || commands.length === 0) {
         return;
       }
 
@@ -714,7 +726,7 @@ export function useThicknessStandardization(
         undoTicket: ticket,
       });
     },
-    [applyUndo, canEdit, dispatchBundle, flashWalls, gateway, invalidate, notifications],
+    [applyUndo, canEdit, dispatchBundle, flashWalls, gateway, invalidate, notifications, scaleLockText],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1068,14 +1080,17 @@ export function useThicknessStandardization(
     targetGroups,
     manualRows,
     batchCount: batchRows.length,
-    candidateCount,
-    batchSentence: batchSentenceOf({
-      batchCount: batchRows.length,
-      groupCount: targetGroups.filter((group) => group.accepted).length,
-      candidateCount,
-      manualCount: manualRows.length,
-      reviewedCount,
-    }),
+    /* Khoá vì thiếu tỷ lệ: không đoạn nào đổi được, chân panel chỉ còn câu dẫn đi đặt tỷ lệ. */
+    candidateCount: scaleLockText === null ? candidateCount : 0,
+    batchSentence:
+      scaleLockText ??
+      batchSentenceOf({
+        batchCount: batchRows.length,
+        groupCount: targetGroups.filter((group) => group.accepted).length,
+        candidateCount,
+        manualCount: manualRows.length,
+        reviewedCount,
+      }),
     statusSentence: statusSentenceOf(summary),
     batchStatus,
     saveLabel: saveIndicator.label,

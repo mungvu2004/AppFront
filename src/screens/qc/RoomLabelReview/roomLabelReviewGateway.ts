@@ -818,7 +818,7 @@ export function summaryOf(
       scaleStatus,
     ),
     roomCount: rooms.length,
-    unnamedCount: rooms.filter((room) => room.name.trim() === '').length,
+    unnamedCount: rooms.filter((room) => !hasRoomName(room)).length,
     unclosedRoomCount: new Set(
       violations.filter((violation) => violation.ruleCode === 'ROOM-NOT-CLOSED').map((violation) => violation.entityId),
     ).size,
@@ -951,13 +951,72 @@ export function fillTokenOf(room: Room): ColorTokenName {
 /* Một dòng phòng — mọi con số đã thành chuỗi trước khi rời khỏi đây (A15).    */
 /* -------------------------------------------------------------------------- */
 
+/** Tên máy tự đặt khi bản vẽ không ghi chữ nào trong phòng (AppBack `name_rooms`: `phòng 5`). */
+const MACHINE_PLACEHOLDER_NAME = /^phòng \d+$/u;
+
+/**
+ * Phòng đã có tên thật chưa. Tên `phòng N` do máy đặt khi không đọc được chữ trên bản vẽ là tên giả:
+ * coi như chưa đặt tên, để người duyệt chọn tên gợi ý thay vì duyệt nhầm "phòng 5" (K10).
+ */
+export function hasRoomName(room: Pick<Room, 'name' | 'source'>): boolean {
+  const name = room.name.trim();
+
+  return name !== '' && !(room.source === 'ai' && MACHINE_PLACEHOLDER_NAME.test(name));
+}
+
+/** Đường bao vượt mặt ngoài tường bao quá ngưỡng này thì gắn cờ (sai số nét vẽ nằm dưới nó). */
+const OUTLINE_SPILL_TOLERANCE_MM = 150;
+
+/**
+ * Phòng có tâm trong nhà nhưng có đỉnh nằm ngoài hộp bao mặt ngoài tường của tầng — đường bao tràn ra ngoài (K10).
+ * Không có tường thì không có gì để so, trả tập rỗng.
+ * ponytail: hộp bao chữ nhật, nhà hình chữ L lõm vào thì không bắt được; đổi sang đa giác tường bao khi cần.
+ */
+export function roomsSpillingOutside(rooms: readonly Room[], walls: readonly Wall[]): ReadonlySet<RoomId> {
+  if (walls.length === 0) {
+    return new Set();
+  }
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const wall of walls) {
+    const half = wall.thicknessMm / 2;
+
+    for (const point of [wall.centreline.start, wall.centreline.end]) {
+      minX = Math.min(minX, point.x - half);
+      minY = Math.min(minY, point.y - half);
+      maxX = Math.max(maxX, point.x + half);
+      maxY = Math.max(maxY, point.y + half);
+    }
+  }
+
+  const t = OUTLINE_SPILL_TOLERANCE_MM;
+  const outside = (p: Point): boolean => p.x < minX - t || p.x > maxX + t || p.y < minY - t || p.y > maxY + t;
+  const centreOf = (outline: readonly Point[]): Point => {
+    const xs = outline.map((p) => p.x);
+    const ys = outline.map((p) => p.y);
+
+    return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
+  };
+
+  /* Chỉ phòng THUỘC nhà (tâm nằm trong tường bao) mà có đỉnh chạy ra ngoài; phòng nằm hẳn ngoài là chuyện khác. */
+  return new Set(
+    rooms
+      .filter((room) => room.outline.length > 0 && !outside(centreOf(room.outline)) && room.outline.some(outside))
+      .map((room) => room.id),
+  );
+}
+
 /**
  * Ba chấm trạng thái.
  *
  * `'confirmed'` CHỈ khi `reviewed === true` (A5): đổi tên không tự bật cờ này.
  */
 export function statusOfRoom(room: Room): RoomLabelStatus {
-  if (room.name.trim() === '') {
+  if (!hasRoomName(room)) {
     return 'unnamed';
   }
 
@@ -972,13 +1031,15 @@ export interface ToRoomLabelRowOptions {
   readonly scale: Scale;
   /** Bảng mã người đọc của cả tầng (`displayCodesOf`); vắng thì cắt số đếm từ mã. */
   readonly codes?: ReadonlyMap<string, string>;
+  /** Đường bao tràn ra ngoài tường bao ({@link roomsSpillingOutside}). */
+  readonly outlineSpills?: boolean;
 }
 
 /** Một dòng phòng đã sẵn sàng để VẼ, không còn phép tính nào. */
 export function toRoomLabelRow(room: Room, options: ToRoomLabelRowOptions): RoomLabelViewModel {
   const codeLabel = roomCodeLabel(room.id, options.codes);
   const nameFromOcr = room.source === 'ai';
-  const hasName = room.name.trim() !== '';
+  const hasName = hasRoomName(room);
 
   return {
     id: room.id,
@@ -1008,6 +1069,7 @@ export function toRoomLabelRow(room: Room, options: ToRoomLabelRowOptions): Room
         : null,
     status: statusOfRoom(room),
     notices: options.notices,
+    outlineSpills: options.outlineSpills === true,
   };
 }
 

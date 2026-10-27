@@ -121,6 +121,7 @@ import {
 import {
   accept,
   entitiesOfKind,
+  FURNITURE_KIND_LABELS,
   offsetOnWall,
   openingsOfWall,
   refuse,
@@ -1565,6 +1566,7 @@ export function objectsOf(
       hostWallId: null,
       tracedCentre: entity.centre,
       rotationDeg: entity.rotationDeg,
+      furnitureKind: entity.kind,
     };
 
     objects.push(free);
@@ -1579,8 +1581,45 @@ export function objectsOf(
   return objects;
 }
 
-/** Nội thất đứng tự do: mang thêm góc xoay của chính nó để canvas vẽ đúng hướng. */
-type FreeFurnitureObject = OrphanReviewObject & { readonly rotationDeg: number };
+/**
+ * Nội thất đứng tự do: mang thêm góc xoay của chính nó để canvas vẽ đúng hướng, và
+ * `FurnitureKind` của đồ thị để dòng danh sách gọi đúng tên ("Tủ bếp") khi loại con
+ * chỉ là "nội thất khác" (K07).
+ */
+type FreeFurnitureObject = OrphanReviewObject & {
+  readonly rotationDeg: number;
+  readonly furnitureKind: FurnitureKind;
+};
+
+/** Tên loại người đọc: tên loại con, hoặc tên `FurnitureKind` khi loại con chỉ là "nội thất khác". */
+export function objectTypeLabelOf(object: ReviewObject): string {
+  const kind = (object as Partial<FreeFurnitureObject>).furnitureKind;
+
+  if (object.subtype !== 'otherFurniture' || kind === undefined || kind === 'other') {
+    return OBJECT_SUBTYPE_LABELS[object.subtype];
+  }
+
+  const label = FURNITURE_KIND_LABELS[kind];
+
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/**
+ * Màu trạng thái của danh sách và canvas: chú ý khi DƯỚI NGƯỠNG tin cậy (cùng luật với
+ * câu "N mục máy chưa chắc" đầu panel) hoặc lỗ mở chưa gắn tường. Luật "dưới mức chắc
+ * chắn" của {@link objectStatusCode} tô 33/39 dòng nên nhãn chú ý mất giá trị (K07).
+ */
+const listStatusCodeOf = (
+  object: ReviewObject,
+  isOrphan: boolean,
+  threshold: number = OBJECT_LAYER_CONFIDENCE_THRESHOLD,
+): ViewStatusCode => {
+  if (object.reviewed) {
+    return 'verified';
+  }
+
+  return isOrphan || isLowConfidenceObject(object.confidence, threshold) ? 'attention' : 'neutral';
+};
 
 /** Góc xoay riêng của nội thất đứng tự do; mọi đối tượng khác là 0. */
 const ownRotationDegOf = (object: ReviewObject): number =>
@@ -1643,14 +1682,12 @@ export function toObjectRow(
     id: object.id,
     layer: object.layer,
     subtype: object.subtype,
+    typeLabel: objectTypeLabelOf(object),
     codeLabel: `#${object.id}`,
     sizeLabel: formatObjectSize(object.widthMm, object.heightMm),
     hostWallLabel: attached === null ? null : `#${wallCodes?.get(attached.hostWallId) ?? hostWallDisplayCode(attached.hostWallId)}`,
     confidence: object.confidence,
-    statusCode: objectStatusCode(
-      { confidence: object.confidence, source: sourceOf(object), reviewed: object.reviewed },
-      isOrphan,
-    ),
+    statusCode: listStatusCodeOf(object, isOrphan, threshold),
     isReviewed: object.reviewed,
     isLowConfidence: isLowConfidenceObject(object.confidence, threshold),
     isOrphan,
@@ -2310,10 +2347,7 @@ export function toObjectPlacement(
     codeLabel: `#${object.id}`,
     isOrphan: isUnattachedOpening(object),
     /* Cùng nguồn với hàng danh sách: canvas viền chú ý / làm mờ đã duyệt thống nhất với panel. */
-    statusCode: objectStatusCode(
-      { confidence: object.confidence, source: sourceOf(object), reviewed: object.reviewed },
-      isUnattachedOpening(object),
-    ),
+    statusCode: listStatusCodeOf(object, isUnattachedOpening(object)),
   };
 }
 

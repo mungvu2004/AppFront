@@ -366,13 +366,13 @@ export const OVERLAY_COMPARISON_SCENARIOS: Readonly<
   error: {
     ...BASE,
     state: 'error',
-    stateNotice: 'Không căn được vì hai tầng đang dùng tỷ lệ khác nhau.',
+    stateNotice: 'Không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.',
     scaleFixHref: ROUTES.project.scale(SAMPLE_PROJECT_ID, levelId('02')),
     layers: buildLayers(25, false),
     marks: [],
     rows: [],
     metrics: UNMEASURED_METRICS,
-    confirmation: { ...BASE.confirmation, canConfirm: false },
+    confirmation: { ...BASE.confirmation, canConfirm: false, disabledReason: 'Sửa lỗi ở trên rồi mới xác nhận được.' },
   },
 
   success: {

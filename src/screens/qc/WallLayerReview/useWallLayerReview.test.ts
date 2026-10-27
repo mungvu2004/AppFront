@@ -37,7 +37,6 @@ import type * as conflictModule from '@/lib/versioning/conflict';
 import { resolveConflict } from '@/lib/versioning/conflict';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
-import { PROVISIONAL_MEASURE_TEXT } from '@/lib/viewmodel/provisionalScale';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import { shortcutForTool } from '@/lib/tools/shortcuts';
@@ -94,6 +93,16 @@ const nextFrame = () =>
       resolve();
     }
   });
+
+/* Khoá tỷ lệ của tầng (`useScaleLock`): mặc định mở; bài "khoá tỷ lệ" bật nó. */
+const scaleLockState = vi.hoisted(() => ({ locked: false }));
+
+vi.mock('../shared/useScaleLock', () => ({
+  useScaleLock: () =>
+    scaleLockState.locked
+      ? { locked: true, reason: 'Đặt tỷ lệ trước: tầng này chưa có tỷ lệ đúng' }
+      : { locked: false, reason: null },
+}));
 
 /* `resolveConflict` phải 0 lần (R6): bọc bản thật để đếm, không đổi hành vi. */
 vi.mock('@/lib/versioning/conflict', async (importOriginal) => {
@@ -211,6 +220,7 @@ function mountHook(options: MountOptions = {}): Mounted {
         ...(options.notifications === undefined ? {} : { notifications: options.notifications }),
         ...(options.levelId === undefined ? {} : { levelId: options.levelId }),
         ...(options.forceCollapsed === undefined ? {} : { forceCollapsed: options.forceCollapsed }),
+        ...(options.onNavigate === undefined ? {} : { onNavigate: options.onNavigate }),
       }),
     { wrapper },
   );
@@ -685,6 +695,43 @@ describe('vai Người xem', () => {
     mounted.unmount();
   });
 
+  it('khoá tỷ lệ: sửa/duyệt bị từ chối ở hook, danh sách vẫn xem được, có lý do và lối sang bước Tỷ lệ', async () => {
+    scaleLockState.locked = true;
+    const onNavigate = vi.fn();
+    const mounted = await mountSettled({ onNavigate });
+    const wall = wallsOfLevel(useStore.getState().spatial, FIXTURE_LEVEL.id).find((item) => !item.reviewed);
+
+    if (wall === undefined) {
+      throw new Error('bộ mẫu thiếu tường chưa duyệt');
+    }
+
+    const before = mounted.result.current.panel.reviewCounter.reviewed;
+
+    try {
+      expect(mounted.result.current.panel.rows.length).toBeGreaterThan(0);
+      expect(mounted.result.current.panel.scaleLock?.reason).toBe('Đặt tỷ lệ trước: tầng này chưa có tỷ lệ đúng');
+
+      await act(async () => {
+        mounted.result.current.panel.onApprove(wall.id);
+        mounted.result.current.panel.onChangeThickness(wall.id, thicknessChoice(0));
+        mounted.result.current.panel.onMerge(wall.id, wallAt(1).id);
+        await Promise.resolve();
+      });
+
+      const walls = wallsOfLevel(useStore.getState().spatial, FIXTURE_LEVEL.id);
+
+      expect(walls).toHaveLength(WALL_LAYER_FIXTURE_TOTAL);
+      expect(walls.find((item) => item.id === wall.id)).toMatchObject({ reviewed: false, thicknessMm: wall.thicknessMm });
+      expect(mounted.result.current.panel.reviewCounter.reviewed).toBe(before);
+
+      mounted.result.current.panel.scaleLock?.onOpenScale();
+      expect(onNavigate).toHaveBeenCalledWith(expect.stringContaining('scale'));
+    } finally {
+      scaleLockState.locked = false;
+      mounted.unmount();
+    }
+  });
+
   it('G4a-09: phím Delete xoá đoạn đang chọn như Backspace', async () => {
     const mounted = await mountSettled();
 
@@ -870,8 +917,8 @@ describe('ray công cụ và thanh trạng thái', () => {
 
     /* Mã máy dài ra để tầng lệnh nhận; nhãn thanh tra vẫn đúng "#W-014" đặc tả đòi. */
     expect(inspector.codeLabel).toBe('#W-014');
-    /* W-014 dài 2.500 mm: "2.500,00 mm" — chấm ngăn nghìn, phẩy thập phân. */
-    expect(inspector.lengthLabel).toBe('2.500,00 mm');
+    /* W-014 dài 2.500 mm: "2.500 mm" — chấm ngăn nghìn, milimét nguyên, cùng số với cột "Dài, mm" (K16). */
+    expect(inspector.lengthLabel).toBe('2.500 mm');
     /*
      * Chiều cao ở CÙNG cột milimét với chiều dài (BC-26).
      *
@@ -1730,7 +1777,7 @@ describe('tự lưu — bộ lưu lớp chung (F-04x-1)', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('tỷ lệ tạm (F-04x-2)', () => {
-  it('tầng unresolved: có dải, chiều dài thanh tra là PROVISIONAL_MEASURE_TEXT', async () => {
+  it('tầng unresolved: có dải, chiều dài thanh tra là "≈… mm (tạm)" như danh sách (K16)', async () => {
     const mounted = await mountSettled({
       gateway: createMockWallLayerReviewGateway({ graph: FIXTURE_GRAPH, scaleStatus: 'unresolved' }),
     });
@@ -1743,8 +1790,14 @@ describe('tỷ lệ tạm (F-04x-2)', () => {
       mounted.result.current.panel.onSelect(wallAt(0).id);
     });
 
-    expect(mounted.result.current.panel.inspector?.lengthLabel).toBe(PROVISIONAL_MEASURE_TEXT);
+    expect(mounted.result.current.panel.inspector?.lengthLabel).toMatch(/^≈[\d.]+ mm \(tạm\)$/);
     mounted.unmount();
+  });
+
+  it('tầng không đo được tỷ lệ (project_default): chiều dài nói rõ cần đặt tỷ lệ, không hiện số', () => {
+    const inspector = toWallInspector(wallAt(0), FIXTURE_LEVEL, undefined, 'unresolved', 'mm', 'project_default');
+
+    expect(inspector.lengthLabel).toBe('Chưa có — cần đặt tỷ lệ');
   });
 
   it('tầng có tỉ lệ thật: không dải, chiều dài là số đo', async () => {
@@ -1755,7 +1808,7 @@ describe('tỷ lệ tạm (F-04x-2)', () => {
     });
 
     expect(mounted.result.current.provisionalScaleNotice).toBeNull();
-    expect(mounted.result.current.panel.inspector?.lengthLabel).not.toBe(PROVISIONAL_MEASURE_TEXT);
+    expect(mounted.result.current.panel.inspector?.lengthLabel).not.toContain('tạm');
     expect(mounted.result.current.panel.inspector?.lengthLabel).toMatch(/mm$/u);
     mounted.unmount();
   });

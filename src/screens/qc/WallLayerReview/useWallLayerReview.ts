@@ -124,6 +124,8 @@ import type {
   ToolTransition,
 } from '@/lib/tools/toolMachine';
 import { TOOLS } from '@/lib/tools/tools';
+import { ROUTES } from '@/routes/paths';
+import { thicknessLockTextOf } from '@/lib/viewmodel/provisionalScale';
 import { useStore } from '@/store';
 import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
@@ -188,6 +190,7 @@ import {
 } from '../shared/canvasFit';
 import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
+import { useScaleLock } from '../shared/useScaleLock';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
 import { wallThicknessColorGroupOf } from './wallLayerHatch';
 import type { WallLayerCanvasViewProps, WallLayerMeasurementPx } from './wallLayerHatch';
@@ -669,6 +672,17 @@ export function useWallLayerReview(
     canEdit,
   );
   const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
+  /* Tầng chưa có tỷ lệ đúng: bản vẽ và danh sách vẫn xem được, mọi lệnh sửa/duyệt bị từ chối ở `run`. */
+  const scaleLock = useScaleLock(projectId, floorId);
+  const isScaleLocked = scaleLock.locked;
+  const { onNavigate } = options;
+  const scaleLockView = useMemo(
+    () =>
+      scaleLock.reason === null || !canEdit
+        ? null
+        : { reason: scaleLock.reason, onOpenScale: () => onNavigate?.(ROUTES.project.scale(projectId, floorId)) },
+    [canEdit, floorId, onNavigate, projectId, scaleLock.reason],
+  );
 
   /*
    * Lần đọc ảnh nền THÀNH CÔNG gần nhất, giữ lại qua mọi lượt hỏng sau đó.
@@ -749,7 +763,7 @@ export function useWallLayerReview(
   );
   const visibleWalls = useMemo(
     /* MỘT hàng đợi (Z/S-15): không chuẩn trước, đã duyệt cuối — danh sách, J/K và tự chuyển cùng thứ tự. */
-    () => sortByReviewQueue(sortByDisplayCode(applyWallFilters(thicknessFilteredWalls, filters, confidenceThreshold), wallCodes)),
+    () => sortByReviewQueue(sortByDisplayCode(applyWallFilters(thicknessFilteredWalls, filters, confidenceThreshold), wallCodes), confidenceThreshold),
     [confidenceThreshold, filters, wallCodes, thicknessFilteredWalls],
   );
 
@@ -914,7 +928,7 @@ export function useWallLayerReview(
     async (build: (context: ReturnType<typeof commandContextOf>) => ReturnType<typeof buildApproveWallCommand> | null) => {
       const current = useStore.getState().spatial;
 
-      if (!canEdit || current === null) {
+      if (!canEdit || isScaleLocked || current === null) {
         return false;
       }
 
@@ -932,14 +946,15 @@ export function useWallLayerReview(
 
       return result.ok;
     },
-    [canEdit, dispatchBundle, gateway, invalidate],
+    [canEdit, dispatchBundle, gateway, invalidate, isScaleLocked],
   );
 
   const onApprove = useCallback(
     (wallId: WallId) => {
       const wall = wallById(wallId);
 
-      if (wall === null || wall.reviewed) {
+      /* Khoá tỷ lệ: không duyệt, và cũng không tự nhảy sang tường kế như thể đã duyệt. */
+      if (wall === null || wall.reviewed || isScaleLocked) {
         return;
       }
 
@@ -952,7 +967,7 @@ export function useWallLayerReview(
         }
       });
     },
-    [gateway, onSelect, run, visibleWalls, wallById, wallCodes],
+    [gateway, isScaleLocked, onSelect, run, visibleWalls, wallById, wallCodes],
   );
 
   const onUnapprove = useCallback(
@@ -993,8 +1008,18 @@ export function useWallLayerReview(
     [onSelect, visibleWalls],
   );
 
+  /* Thiếu tỷ lệ (hoặc trung vị < 50 mm): đổi độ dày lúc này chỉ che lỗi — khoá ô chọn, phím C, nút một đoạn và hàng loạt (K09). */
+  const thicknessLockText = useMemo(
+    () => thicknessLockTextOf(walls.map((wall) => wall.thicknessMm), floorLayer.scaleSource),
+    [floorLayer.scaleSource, walls],
+  );
+
   const onChangeThickness = useCallback(
     (wallId: WallId, thicknessMm: WallThicknessChoice) => {
+      if (thicknessLockText !== null || isScaleLocked) {
+        return;
+      }
+
       void run((context) => {
         const result = buildChangeThicknessCommand({ wallId, thicknessMm }, context);
 
@@ -1004,7 +1029,7 @@ export function useWallLayerReview(
         setFlashingWallId(wallId);
       });
     },
-    [run],
+    [isScaleLocked, run, thicknessLockText],
   );
 
   const onSplit = useCallback(
@@ -1333,8 +1358,10 @@ export function useWallLayerReview(
 
     const wall = wallById(selectedWallId);
 
-    return wall === null ? null : toWallInspector(wall, level, wallCodes, floorLayer.scaleStatus, lengthUnit);
-  }, [floorLayer.scaleStatus, lengthUnit, level, selectedWallId, wallById, wallCodes]);
+    return wall === null
+      ? null
+      : toWallInspector(wall, level, wallCodes, floorLayer.scaleStatus, lengthUnit, floorLayer.scaleSource);
+  }, [floorLayer.scaleSource, floorLayer.scaleStatus, lengthUnit, level, selectedWallId, wallById, wallCodes]);
 
   /* Bộ đếm chạy 12 → 13 ở nấc `standard` (260 ms) — xem ghi chú đầu file. */
   /* Nhãn đọc-màn-hình lấy số THẬT, không phải số đang đếm lên (G69) — đếm lên chỉ là hiệu ứng. */
@@ -2061,11 +2088,14 @@ export function useWallLayerReview(
   const queue = useWallReviewQueue({
     graph,
     level,
+    scaleStatus: floorLayer.scaleStatus,
+    scaleSource: floorLayer.scaleSource,
+    lockText: thicknessLockText,
     walls,
     visibleWalls,
     wallCodes,
     selectedWallId,
-    canEdit,
+    canEdit: canEdit && !isScaleLocked,
     gateway,
     dispatchBundle,
     invalidate,
@@ -2091,6 +2121,7 @@ export function useWallLayerReview(
     isCollapsed,
     isViewerRole,
     viewerRoleNotice: isViewerRole ? WALL_LAYER_TEXT.viewerRoleNotice : null,
+    scaleLock: scaleLockView,
     /* Vai Người xem giữ `forbidden` nhưng danh sách vẫn phải biết "rỗng thật" (16-D-008). */
     emptyNotice:
       state === 'empty' || (isViewerRole && !isLoading && !hasError && counter.total === 0)

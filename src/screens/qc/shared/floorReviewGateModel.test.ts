@@ -1,7 +1,18 @@
 /** @vitest-environment node */
 import { describe, expect, it } from 'vitest';
 
-import { floorReviewConditionLabel, floorReviewGateOf, nextFloorOf, scaleIsConfirmed } from './floorReviewGateModel';
+import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { millimetres } from '@/domain/units/types';
+
+import {
+  floorReviewConditionLabel,
+  floorReviewGateOf,
+  floorScaleStateOf,
+  nextFloorOf,
+  scaleImplausibleOf,
+  scaleIsConfirmed,
+} from './floorReviewGateModel';
 
 const count = (reviewed: number, total: number) => ({ reviewed, total });
 
@@ -30,6 +41,40 @@ describe('scaleIsConfirmed', () => {
     expect(scaleIsConfirmed('unresolved', 23.1)).toBe(false);
     expect(scaleIsConfirmed(undefined, undefined)).toBe(false);
     expect(scaleIsConfirmed(undefined, 23.1)).toBe(true);
+  });
+});
+
+describe('floorScaleStateOf', () => {
+  it('máy đo được thì cần kiểm; mặc định dự án hoặc không có tỷ lệ thì thiếu; người đặt thì xong', () => {
+    expect(floorScaleStateOf('unresolved', 'pipeline', 13.9)).toBe('check');
+    expect(floorScaleStateOf('unresolved', undefined, 13.9)).toBe('check');
+    expect(floorScaleStateOf('unresolved', 'project_default', 1)).toBe('missing');
+    expect(floorScaleStateOf(undefined, undefined, undefined)).toBe('missing');
+    expect(floorScaleStateOf(undefined, undefined, 13.9)).toBe('confirmed');
+  });
+
+  it('Codex P1: máy đo mà hình vô lý thì cũng là thiếu; người đã đặt thì vẫn xong', () => {
+    expect(floorScaleStateOf('unresolved', 'pipeline', 13.9, true)).toBe('missing');
+    expect(floorScaleStateOf(undefined, undefined, 13.9, true)).toBe('confirmed');
+  });
+});
+
+describe('scaleImplausibleOf', () => {
+  it('tường thật thì không; co cả tầng 100 lần (tường < 50 mm, khung < 3 m) thì vô lý', () => {
+    const sample = createSampleBuilding();
+    const levelId = sample.levels[0]!.id;
+    const shrink = (point: { x: number; y: number }) => ({ x: point.x / 100, y: point.y / 100 });
+    const tiny = {
+      ...sample,
+      walls: sample.walls.map((wall) => ({
+        ...wall,
+        thicknessMm: millimetres(wall.thicknessMm * 0.01),
+        centreline: { start: shrink(wall.centreline.start), end: shrink(wall.centreline.end) },
+      })),
+    };
+
+    expect(scaleImplausibleOf(normalizeSpatial(sample), levelId)).toBe(false);
+    expect(scaleImplausibleOf(normalizeSpatial(tiny), levelId)).toBe(true);
   });
 });
 

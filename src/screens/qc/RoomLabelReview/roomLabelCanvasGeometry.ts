@@ -224,9 +224,8 @@ export const ROOM_SELECTED_STROKE_WIDTH_PX = 2;
 /** Phòng đang chọn "nâng lên 10%": phóng to quanh tâm hộp bao của chính nó. */
 export const ROOM_SELECTED_SCALE = 1.1;
 
-/** Cỡ chữ hai dòng nhãn giữa phòng (px, SVG `font-size`, không phải class Tailwind). */
+/** Cỡ chữ nhãn tên giữa phòng (px, SVG `font-size`, không phải class Tailwind). */
 export const ROOM_LABEL_NAME_FONT_PX = 15;
-export const ROOM_LABEL_AREA_FONT_PX = 13;
 /** Cỡ chữ nhãn rút gọn khi phòng quá nhỏ để vừa nhãn hai dòng (xem `labelFits`). */
 export const ROOM_LABEL_CODE_FONT_PX = 12;
 
