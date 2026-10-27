@@ -22,6 +22,7 @@ import type { PipelineSlice } from './pipelineSlice';
 import { createPipelineSlice } from './pipelineSlice';
 import type { RuleConfigSlice } from './ruleConfigSlice';
 import { createRuleConfigSlice } from './ruleConfigSlice';
+import { createDebouncedJSONStorage } from './debouncedStorage';
 
 export type RootState = ProjectSlice &
   SpatialSlice &
@@ -45,6 +46,33 @@ export const PERSIST_STORAGE_KEY = 'appfront-view-ui';
  * `src/lib/coloring` owns.
  */
 export const PERSIST_VERSION = 2;
+
+// Only the view and ui slices survive a reload. `openDialog` stays out:
+// a blocking dialog must never reopen uninvited after a reload.
+function persistedFields(state: RootState) {
+  return {
+    zoom: state.zoom,
+    viewCenter: state.viewCenter,
+    viewMode: state.viewMode,
+    hiddenLayers: state.hiddenLayers,
+    colorMode: state.colorMode,
+    theme: state.theme,
+    leftPanelOpen: state.leftPanelOpen,
+    rightPanelOpen: state.rightPanelOpen,
+    leftPanelWidthPx: state.leftPanelWidthPx,
+    rightPanelWidthPx: state.rightPanelWidthPx,
+  };
+}
+
+type PersistedFields = ReturnType<typeof persistedFields>;
+
+/** Gathers writes so a hover or zoom step is not a synchronous `localStorage.setItem` (P7). */
+const persistStorage = createDebouncedJSONStorage<PersistedFields>(() => localStorage);
+
+/** Write the pending persisted state now (tests read `localStorage` right after a `set`). */
+export function flushPersistedState(): void {
+  persistStorage?.flush();
+}
 
 export const useStore = create<RootState>()(
   devtools(
@@ -89,20 +117,8 @@ export const useStore = create<RootState>()(
               colorMode: migrateColorMode(stored.colorMode),
             } as unknown as RootState;
           },
-          // Only the view and ui slices survive a reload. `openDialog` stays out:
-          // a blocking dialog must never reopen uninvited after a reload.
-          partialize: (state) => ({
-            zoom: state.zoom,
-            viewCenter: state.viewCenter,
-            viewMode: state.viewMode,
-            hiddenLayers: state.hiddenLayers,
-            colorMode: state.colorMode,
-            theme: state.theme,
-            leftPanelOpen: state.leftPanelOpen,
-            rightPanelOpen: state.rightPanelOpen,
-            leftPanelWidthPx: state.leftPanelWidthPx,
-            rightPanelWidthPx: state.rightPanelWidthPx,
-          }),
+          partialize: persistedFields,
+          storage: persistStorage,
         }
       )
     ),
