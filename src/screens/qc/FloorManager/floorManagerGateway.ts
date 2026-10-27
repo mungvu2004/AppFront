@@ -112,7 +112,7 @@ import { createAppApiClient } from '@/api/appClient';
 import { dimensionsOf, spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
 import type { ApiClient, ApiResult, FloorWriteBody } from '@/api/client';
 import type { Floor } from '@/api/contracts';
-import { readProjectLayerRead } from '@/api/floorLayerGraph';
+import { readProjectLayerRead, readProjectShared } from '@/api/floorLayerGraph';
 
 import {
   accept,
@@ -1332,8 +1332,8 @@ export function createFloorManagerGateway(
       hideFloorFrom3d: true,
     },
 
-    readProjectName: async ({ projectId, signal }) => {
-      const result = await api.projects.read({ projectId, ...(signal !== undefined ? { signal } : {}) });
+    readProjectName: async ({ projectId }) => {
+      const result = await readProjectShared(api.projects, projectId); // chung lượt với header (P11a)
 
       return result.ok ? result.data.name : null;
     },
