@@ -310,16 +310,11 @@ export function createNotificationCenterGateway(
       );
     },
 
-    // Mọi trang, cả trang đầu, chỉ `OLDER_PAGE_SIZE` mục; trang kế theo `X-Next-Cursor` (G1-15).
-    // PERF-03 P11b: trang đầu không `limit` trả cả hộp thư (~55 KB) mỗi lượt tải chỉ để vẽ số
-    // trên chuông. ponytail: API không có trường đếm chưa đọc, nên số trên chuông là số chưa
-    // đọc trong các trang đã nạp; cần số đúng tuyệt đối thì BE thêm `unreadCount`.
+    // Trang đầu không tham số: cùng lượt gọi với `list`, thêm cursor từ `X-Next-Cursor` (G1-15).
     listPage: async (cursor) => {
       const nowMs = now();
       const page = unwrap(
-        await client.notifications.listPage(
-          cursor === undefined ? { limit: OLDER_PAGE_SIZE } : { cursor, limit: OLDER_PAGE_SIZE },
-        ),
+        await client.notifications.listPage(cursor === undefined ? {} : { cursor, limit: OLDER_PAGE_SIZE }),
       );
 
       return {
