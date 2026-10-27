@@ -63,6 +63,9 @@ export interface UseWallReviewQueueInput {
   readonly onSkip: (wallId: WallId) => void;
   readonly onFlash: (wallId: WallId) => void;
   readonly registry?: ShortcutRegistry | undefined;
+  /** Tường máy chưa chắc theo hình (`geometrySuspectIdsOf`): có thì dấu "?" luôn hiện. */
+  readonly suspectIds?: ReadonlySet<string> | undefined;
+  readonly onOpenThickness?: (() => void) | undefined;
 }
 
 const S_DESCRIPTION = 'Để sau: sang đoạn kế trong hàng đợi.';
@@ -78,7 +81,8 @@ export function useWallReviewQueue(input: UseWallReviewQueueInput): WallReviewQu
     [level, scaleSource, scaleStatus, walls],
   );
   const nonStandardCount = useMemo(() => walls.filter((wall) => queueGroupOf(wall) === 'nonStandard').length, [walls]);
-  const bulk = useMemo(() => bulkPlanOf(visibleWalls), [visibleWalls]);
+  /* Cả tầng, không theo bộ lọc: số trên nút "Đưa N tường về chuẩn" khớp màn Độ dày. */
+  const bulk = useMemo(() => bulkPlanOf(walls), [walls]);
   const wallsDone = walls.length > 0 && walls.every((wall) => wall.reviewed);
   const conditions = useMemo(() => gateConditionsOf(graph, level?.id ?? null, wallsDone), [graph, level, wallsDone]);
   /* Bộ lọc giấu hết việc còn lại thì vẫn có lối: tìm trên cả tầng theo cùng thứ tự. */
@@ -203,9 +207,10 @@ export function useWallReviewQueue(input: UseWallReviewQueueInput): WallReviewQu
     nextWallLabel: nextWallId === null ? null : wallLabelOf(nextWallId, wallCodes),
     conditions,
     toleranceText: toleranceTextOf(),
-    showConfidence: hasConfidenceSpread(walls),
+    showConfidence: hasConfidenceSpread(walls) || (input.suspectIds?.size ?? 0) > 0,
     lockText,
     onStandardize,
     onBulkStandardize,
+    onOpenThickness: input.onOpenThickness,
   };
 }

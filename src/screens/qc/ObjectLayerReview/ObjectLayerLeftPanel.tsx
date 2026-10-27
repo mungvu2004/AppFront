@@ -7,8 +7,9 @@
  * callback. Ba số đếm đọc từ `counts` — hàm DUY NHẤT cộng ba lớp con là
  * `createObjectLayerCounts`, nên tổng ở dòng trạng thái luôn bằng tổng ba nút.
  *
- * Nút loại giữ tên truy cập "Ẩn lớp …"/"Hiện lớp …" + `aria-pressed` của cây lớp cũ: bàn
- * phím và trình đọc màn hình đi đúng đường cũ, chỉ hình thức đổi sang chip.
+ * Chip đếm CHỈ là bộ lọc (K07): bấm "Cửa đi 6" là chỉ hiện cửa đi, bấm lại là hiện cả ba.
+ * `aria-pressed` bật khi chip đang lọc. Ẩn/hiện lớp trên bản vẽ không ở đây.
+ * Menu "Loại con" chỉ liệt kê loại có mặt trên tầng (hoặc đang bật).
  */
 
 import { lowerFirst } from '@/lib/format/sentence';
@@ -24,9 +25,7 @@ import { OBJECT_LAYER_IDS, OBJECT_LAYER_LABELS, OBJECT_SUBTYPES, OBJECT_SUBTYPE_
 const FILTER_ROW_LABEL = 'Lọc theo loại';
 const SUBTYPE_MENU_LABEL = 'Loại con';
 const SUBTYPE_GROUP_LABEL = 'Lọc theo loại con';
-const EMPTY_SUBTYPE_TITLE = 'Không có đối tượng loại này';
-const SHOW_LAYER_PREFIX = 'Hiện lớp ';
-const HIDE_LAYER_PREFIX = 'Ẩn lớp ';
+const FILTER_LAYER_PREFIX = 'Chỉ hiện ';
 
 /** Số đếm của một lớp con, đọc từ `counts` — không cộng lại ở view. */
 const LAYER_COUNT_READERS: Readonly<Record<ObjectLayerId, (counts: ObjectLayerCounts) => number>> = {
@@ -52,31 +51,33 @@ export function ObjectLayerLeftPanel({
   availableSubtypes,
   counts,
   furnitureAttentionNotice,
-  layerVisibility,
-  onToggleLayer,
+  listLayerFilter,
+  onFilterLayer,
   onToggleSubtypeFilter,
   subtypeFilters,
 }: ObjectLayerLeftPanelViewProps) {
+  const subtypes = OBJECT_SUBTYPES.filter((subtype) => subtypeFilters.has(subtype) || availableSubtypes.has(subtype));
+
   return (
     <div className="flex flex-col gap-3 border-b border-border-default px-4 py-3">
       <div aria-label={FILTER_ROW_LABEL} className="flex flex-wrap gap-2" role="group">
         {OBJECT_LAYER_IDS.map((layer) => {
           const Icon = LAYER_ICONS[layer];
           const label = OBJECT_LAYER_LABELS[layer];
-          const isVisible = layerVisibility[layer];
+          const isFiltering = listLayerFilter === layer;
 
           return (
             <button
-              aria-label={`${isVisible ? HIDE_LAYER_PREFIX : SHOW_LAYER_PREFIX}${lowerFirst(label)}`}
-              aria-pressed={isVisible}
+              aria-label={`${FILTER_LAYER_PREFIX}${lowerFirst(label)}`}
+              aria-pressed={isFiltering}
               className={cn(
                 CHIP_CLASS,
-                isVisible
+                isFiltering
                   ? 'border-accent bg-accent-wash text-text-primary'
                   : 'border-border-default text-text-secondary hover:bg-bg-hover hover:text-text-primary',
               )}
               key={layer}
-              onClick={() => onToggleLayer(layer)}
+              onClick={() => onFilterLayer(layer)}
               type="button"
             >
               <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
@@ -98,14 +99,12 @@ export function ObjectLayerLeftPanel({
         </summary>
         {/* Chip đang bật mang `aria-pressed`: trạng thái lọc không chỉ nằm ở màu. */}
         <div aria-label={SUBTYPE_GROUP_LABEL} className="mt-2 flex flex-wrap gap-1.5" role="group">
-          {OBJECT_SUBTYPES.map((subtype: ObjectSubtype) => {
+          {/* Chỉ loại có mặt trên tầng (K07): chip xám "không có đối tượng" chỉ làm dài menu. */}
+          {subtypes.map((subtype: ObjectSubtype) => {
             const isOn = subtypeFilters.has(subtype);
-            /* Loại không có mặt trên tầng: tắt kèm lý do (BUG-590). Chip đang bật vẫn tắt được. */
-            const isEmpty = !isOn && !availableSubtypes.has(subtype);
 
             return (
               <button
-                aria-disabled={isEmpty || undefined}
                 aria-pressed={isOn}
                 className={cn(
                   'rounded-full border px-2.5 py-1 text-[12px]',
@@ -114,19 +113,12 @@ export function ObjectLayerLeftPanel({
                   isOn
                     ? 'border-accent bg-accent-wash text-accent'
                     : 'border-border-default text-text-secondary hover:bg-bg-hover hover:text-text-primary',
-                  isEmpty && 'cursor-not-allowed border-dashed opacity-50 hover:bg-transparent hover:text-text-secondary',
                 )}
                 key={subtype}
-                onClick={() => {
-                  if (!isEmpty) {
-                    onToggleSubtypeFilter(subtype);
-                  }
-                }}
-                title={isEmpty ? EMPTY_SUBTYPE_TITLE : undefined}
+                onClick={() => onToggleSubtypeFilter(subtype)}
                 type="button"
               >
                 {OBJECT_SUBTYPE_LABELS[subtype]}
-                {isEmpty && <span className="font-mono tabular-nums"> (0)</span>}
               </button>
             );
           })}

@@ -141,7 +141,14 @@ function ObjectLayerListRow({
           {row.sizeLabel}
         </span>
         {row.isOrphan ? null : row.hostWallLabel === null ? (
-          <span className="min-w-0 truncate text-[12px] text-text-muted">{FREE_STANDING}</span>
+          /* Chấm rỗng + tooltip thay chữ dài để dòng không bị cắt (K07); chữ vẫn có cho trình đọc màn hình. */
+          <span
+            className="h-1.5 w-1.5 shrink-0 rounded-full border border-text-muted"
+            data-testid="object-free-standing"
+            title={FREE_STANDING}
+          >
+            <span className="sr-only">{FREE_STANDING}</span>
+          </span>
         ) : (
           <span className="min-w-0 truncate font-mono text-[12px] text-text-muted">{row.hostWallLabel}</span>
         )}

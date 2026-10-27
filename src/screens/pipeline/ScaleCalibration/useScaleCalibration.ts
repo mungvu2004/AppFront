@@ -80,6 +80,7 @@ import {
   createScale,
   inferScale,
   inferWallThicknessFromScale,
+  millimetresPerPixel,
   pixels,
   scaleFromRatio,
   type MillimetresPerPixel,
@@ -106,6 +107,7 @@ import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { useFloorLayerReadFailure } from '../../qc/shared/floorLayerReadFailure';
 import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
+import { useSeparateUnitsFlag } from '@/hooks/useSeparateUnitsFlag';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -123,7 +125,7 @@ import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number'
 import { formatCombo, keyCapLabels, parseCombo } from '@/lib/input/shortcutRegistry';
 import { MODIFIER_SHORTCUTS } from '@/lib/tools/shortcuts';
 import { queryKeys } from '@/lib/query/queryKeys';
-import { provisionalScaleNoticeOf } from '@/lib/viewmodel/provisionalScale';
+import { isScaleMissing, provisionalScaleNoticeOf } from '@/lib/viewmodel/provisionalScale';
 import { ROUTES } from '@/routes/paths';
 import { commit } from '@/store/commit';
 import { useStore } from '@/store';
@@ -181,11 +183,12 @@ const COPY = {
   derivedLineProvisional: (density: string): string => `đang dùng tạm ${density} do máy ước, chưa được duyệt`,
   methodDimensionString: 'Từ chuỗi kích thước',
   methodReferenceLine: 'Vẽ đường tham chiếu',
+  // UX-R2 K27/K29: nói máy chưa đọc được, không nói bản vẽ thiếu số; chỉ cho người dùng làm gì.
   dimensionEmpty:
-    'Chưa có số kích thước nào để làm mốc. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.',
+    'Máy chưa đọc được số kích thước nào để làm mốc. Kéo dọc một đoạn có ghi số trên bản vẽ (ví dụ một số ở cạnh dưới) rồi nhập số đó.',
   tooFewSamples: 'Chưa đủ chuỗi kích thước để suy ra tỷ lệ, nên phải đặt bằng tay.',
   lowConfidenceInference: 'Độ tin cậy chung còn thấp, nên tỷ lệ phải được xác nhận bằng tay.',
-  realLengthPlaceholder: 'Ví dụ 4800',
+  realLengthPlaceholder: 'Số ghi trên đoạn',
   realLengthInvalid: 'Chiều dài thật phải là một số lớn hơn 0, ví dụ 4800.',
   referenceTooShort:
     'Đoạn quá ngắn — kéo giữa hai đầu một kích thước đã biết, hoặc dời đầu cuối bằng phím mũi tên.',
@@ -212,7 +215,7 @@ const COPY = {
   warpingNotice:
     'Bước tiền xử lý đã xong nhưng máy không tìm thấy khung bản vẽ, nên ảnh có thể chưa được nắn thẳng. Nếu thấy ảnh méo, quay lại bước tiền xử lý để nắn lại, vì tỷ lệ đo trên ảnh méo sẽ sai theo.',
   emptyNotice:
-    'Chưa có số kích thước nào để làm mốc. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.',
+    'Máy chưa đọc được số kích thước nào để làm mốc. Kéo dọc một đoạn có ghi số trên bản vẽ (ví dụ một số ở cạnh dưới) rồi nhập số đó.',
   partialNotice:
     'Đã có đoạn tham chiếu nhưng chưa có chiều dài thật, hoặc một số chuỗi kích thước đọc được với độ tin cậy thấp.',
   forbiddenNotice:
@@ -220,8 +223,14 @@ const COPY = {
   successNotice: 'Mọi kích thước dẫn xuất đã được tính lại theo tỷ lệ mới.',
   // K18: tầng có số kích thước máy đã đọc — mời chọn một số làm mốc thay vì nói "chưa đủ dữ liệu".
   pickDimensionNotice: (count: string): string =>
-    `Máy đã đọc ${count} số kích thước trên bản vẽ. Chọn một số làm mốc, soi đoạn được tô rồi bấm Áp dụng.`,
-  applyCommitLabel: 'Áp dụng tỷ lệ',
+    `Máy đã đọc ${count} số kích thước trên bản vẽ. Chọn một số làm mốc, soi đoạn được tô rồi bấm Xác nhận tỷ lệ.`,
+  // UX-R2 K05: máy đã chọn sẵn mốc tốt nhất — một câu dẫn duy nhất, một nút.
+  preselectedNotice: (value: string): string =>
+    `Máy chọn sẵn mốc ${value} mm (đoạn được tô). Thấy đúng thì bấm Xác nhận tỷ lệ.`,
+  suggestionNotice: 'Đang dùng tỷ lệ máy ước lượng từ độ dày tường. Soi cỡ căn bên phải rồi bấm Xác nhận tỷ lệ.',
+  suggestionOffer: (density: string): string => `Máy ước lượng từ độ dày tường: 1 px ≈ ${density} mm.`,
+  suggestionUse: 'Dùng tỷ lệ này',
+  applyCommitLabel: 'Xác nhận tỷ lệ',
   applyNoSpatial: 'Chưa nạp dữ liệu không gian của tầng này, nên chưa áp được tỷ lệ.',
   applyFailed: 'Chưa lưu được tỷ lệ lên máy chủ, tầng giữ tỷ lệ cũ.',
   scaleConflict: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất rồi áp lại tỷ lệ.',
@@ -275,6 +284,22 @@ const failureText = (error: unknown): string => `${COPY.applyFailed} ${describeE
 const formatScaleDensity = (value: number): string =>
   formatScaleDensityBase(value, value > 0 && value < 1 ? { maxFractionDigits: 6 } : {});
 
+/**
+ * UX-R2 K32: tỷ lệ cũ → mới của từng tầng có bản vẽ. Tỷ lệ cũ lấy từ N15 mà
+ * `readAllFloors` vừa đọc (`currentScale`), không từ kho — kho có thể chỉ giữ tầng đang mở.
+ * Ví dụ `"ch-01: 1 mm/px → 13,9 mm/px"`; tầng chưa có tỷ lệ ghi "chưa có".
+ */
+function allFloorsChanges(targets: readonly ScaleFloorTarget[], ratio: MillimetresPerPixel): readonly string[] {
+  const next = formatScaleDensity(ratio);
+
+  return targets
+    .filter((target) => target.hasDrawing)
+    .map(
+      ({ name, currentScale }) =>
+        `${name}: ${currentScale === undefined ? 'chưa có' : formatScaleDensity(currentScale)} → ${next}`,
+    );
+}
+
 /** "1:0" là vô nghĩa: tỷ lệ nguyên đồ làm tròn về 0 thì coi như chưa có (14-C-019). */
 const formatDrawingScaleRatio = (value: number, shortEdgePx: number): string => {
   const label = formatDrawingScaleRatioBase(value, shortEdgePx);
@@ -323,6 +348,9 @@ const NUDGE_PX: Readonly<Record<NudgeStep, number>> = { fine: 1, coarse: 10 };
 const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 const DEFAULT_ROLES: readonly ProjectRole[] = ['engineer'];
+
+/** Hai đầu đoạn kéo cách hai đầu một số máy đọc không quá 2% khung thì coi là trùng (UX-R2 K29). */
+const OCR_END_TOLERANCE = 0.02;
 
 /** Một khung ảnh, đơn vị lớn của {@link frameScaleOf}. */
 const ONE_IMAGE_FRAME = 1;
@@ -754,6 +782,8 @@ export function useScaleCalibration(
   const floorLayer = useFloorLayer({ projectId, floorId, read: gateway.readLayer });
   /* Gạch "độ tin cậy thấp" theo ngưỡng của dự án, không hằng 0,70 (BUG-354, như FIX-1603). */
   const confidenceThreshold = useProjectConfidenceThreshold(projectId, gateway.readConfidenceThreshold);
+  /* Dự án "các tầng là căn hộ riêng" (K34): mỗi tầng một bản vẽ riêng, không áp một tỷ lệ cho mọi tầng. */
+  const separateUnits = useSeparateUnitsFlag(projectId);
   const levelId: string = floorLayer.data?.level.id ?? floorId;
   /** `'unresolved'`: tỷ lệ trong `Level` là tỷ lệ tạm của pipeline, chưa ai chốt. */
   const isProvisional = floorLayer.scaleStatus === 'unresolved';
@@ -788,7 +818,11 @@ export function useScaleCalibration(
   /* ---------------------------------------------------------------------- */
 
   const [method, setMethod] = useState<ScaleCalibrationMethod>('dimensionString');
-  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  /** Mốc người dùng tự chọn; `null` = chưa chọn, màn dùng mốc máy chọn sẵn (UX-R2 K05). */
+  const [pickedRowId, setSelectedRowId] = useState<string | null>(null);
+  /** Tầng mà người dùng đã bấm "Dùng tỷ lệ này" (UX-R2); gắn theo tầng để đổi tầng không mang lựa chọn sang. */
+  const [suggestionFloorId, setSuggestionFloorId] = useState<string | null>(null);
+  const isSuggestionChosen = suggestionFloorId === floorId;
   const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null);
   const [drag, setDrag] = useState<DragSession | null>(null);
   const [nudgeTarget, setNudgeTarget] = useState<NudgeTarget>('end');
@@ -809,6 +843,7 @@ export function useScaleCalibration(
   const [allFloors, setAllFloors] = useState<{
     readonly ratio: MillimetresPerPixel;
     readonly targets: readonly ScaleFloorTarget[];
+    readonly changes: readonly string[];
   } | null>(null);
 
   const { viewport, pan, zoomTo, flyToBounds } = useCanvasViewport();
@@ -865,6 +900,30 @@ export function useScaleCalibration(
   /* Hai vế của phép tính.                                                   */
   /* ---------------------------------------------------------------------- */
 
+  /*
+   * UX-R2 K05: tầng chưa xác nhận tỷ lệ thì chọn sẵn mốc tốt nhất (đọc chắc nhất, rồi dài nhất), để
+   * người dùng chốt bằng một cú bấm. Tầng đã xác nhận thì không đề nghị gì khi người dùng chưa chạm.
+   */
+  const bestRowId = useMemo(() => {
+    if (storedRatio !== null) {
+      return null;
+    }
+
+    const best = rawRows
+      .filter((row) => row.confidence >= confidenceThreshold)
+      .reduce<ScaleRawDimensionString | null>(
+        (top, row) =>
+          top === null ||
+          row.confidence > top.confidence ||
+          (row.confidence === top.confidence && row.pixelLength > top.pixelLength)
+            ? row
+            : top,
+        null,
+      );
+
+    return best?.id ?? null;
+  }, [confidenceThreshold, rawRows, storedRatio]);
+  const selectedRowId = pickedRowId ?? bestRowId;
   const selectedRow = rawRows.find((row) => row.id === selectedRowId) ?? null;
 
   const draftPixelLength = useMemo<Pixels | null>(
@@ -897,7 +956,14 @@ export function useScaleCalibration(
     return createScale({ pixelLength: denominator, realLength: numerator });
   }, [denominator, numerator]);
 
-  const proposedRatio = proposedScale?.millimetresPerPixel ?? null;
+  /* UX-R2: tỷ lệ máy ước từ độ dày tường (N16 `suggestedScaleMmPerPx`), chỉ đề nghị khi chưa xác nhận. */
+  const suggestedRatio = useMemo<MillimetresPerPixel | null>(() => {
+    const value = floorLayer.data?.suggestedScaleMmPerPx;
+
+    return value === undefined || storedRatio !== null ? null : millimetresPerPixel(value);
+  }, [floorLayer.data?.suggestedScaleMmPerPx, storedRatio]);
+  const isSuggestionActive = isSuggestionChosen && suggestedRatio !== null;
+  const proposedRatio = isSuggestionActive ? suggestedRatio : (proposedScale?.millimetresPerPixel ?? null);
 
   /** Tỷ lệ dùng để bắt điểm và để suy ra ba dòng kiểm chứng, theo thứ tự tin cậy. */
   const workingRatio: MillimetresPerPixel | null = proposedRatio ?? storedRatio ?? provisionalRatio ?? aiSuggestion;
@@ -1045,6 +1111,7 @@ export function useScaleCalibration(
   const onSelectDimensionRow = useCallback(
     (rowId: string) => {
       setSelectedRowId(rowId);
+      setSuggestionFloorId(null);
       setMethod('dimensionString');
 
       const row = rowsRef.current.find((entry) => entry.id === rowId);
@@ -1075,6 +1142,7 @@ export function useScaleCalibration(
     }
 
     setMethod('referenceLine');
+    setSuggestionFloorId(null);
 
     // Nhấn lên tay cầm: kéo đúng đầu đó, đầu kia đứng yên — không vẽ lại cả đoạn (BUG-587).
     if (endpoint !== undefined) {
@@ -1331,6 +1399,12 @@ export function useScaleCalibration(
     setCursorPoint((previous) => point ?? previous);
   }, []);
 
+  /** UX-R2: dùng tỷ lệ máy ước từ độ dày tường làm đề nghị; người dùng vẫn phải bấm Xác nhận tỷ lệ. */
+  const onUseSuggestedScale = useCallback(() => {
+    setSuggestionFloorId(floorId);
+    setDrag(null);
+  }, [floorId]);
+
   const onChangeApplyScope = useCallback((scope: ScaleApplyScope) => {
     setApplyScope(scope);
   }, []);
@@ -1431,8 +1505,9 @@ export function useScaleCalibration(
     }
   }, []);
 
-  const applyScopeRef = useRef(applyScope);
-  applyScopeRef.current = applyScope;
+  const effectiveApplyScope: ScaleApplyScope = separateUnits ? 'thisFloor' : applyScope;
+  const applyScopeRef = useRef(effectiveApplyScope);
+  applyScopeRef.current = effectiveApplyScope;
 
   /** "Áp": PUT trước, `commit` sau — kho chỉ đổi tỷ lệ khi máy chủ đã nhận (A5). */
   const onApply = useCallback(() => {
@@ -1456,7 +1531,7 @@ export function useScaleCalibration(
     if (applyScopeRef.current === 'allFloors') {
       void gateway.readAllFloors({ projectId }).then(
         (targets) => {
-          setAllFloors({ ratio, targets });
+          setAllFloors({ ratio, targets, changes: allFloorsChanges(targets, ratio) });
           setApplying(false);
         },
         () => {
@@ -1829,8 +1904,10 @@ export function useScaleCalibration(
   const canEdit = can('edit', 'layer', { roles });
   const isCompact = detectedNarrow;
   const isPanelCollapsed = options.forceCollapsed ?? isCollapsedByUser;
-  const isComputationComplete = numerator !== null && denominator !== null;
-  const hasStartedWork = drag !== null || selectedRowId !== null;
+  // Tỷ lệ ước từ độ dày tường không có phép chia nào để bày ra.
+  const isComputationComplete = numerator !== null && denominator !== null && !isSuggestionActive;
+  // Mốc máy chọn sẵn chưa phải việc người dùng làm (UX-R2 K05).
+  const hasStartedWork = drag !== null || pickedRowId !== null || isSuggestionActive;
 
   const state = useMemo<ScaleCalibrationState>(() => {
     if (query.isPending) {
@@ -1982,10 +2059,10 @@ export function useScaleCalibration(
 
   const applyScopeOptions = useMemo<readonly ScaleApplyScopeOption[]>(
     () => [
-      { value: 'allFloors', label: COPY.scopeAllFloors },
+      ...(separateUnits ? [] : [{ value: 'allFloors', label: COPY.scopeAllFloors } as const]),
       { value: 'thisFloor', label: COPY.scopeThisFloor },
     ],
-    [],
+    [separateUnits],
   );
 
   const shortcutHints = useMemo<readonly ScaleShortcutHint[]>(() => {
@@ -2025,7 +2102,25 @@ export function useScaleCalibration(
   const activeStep: ScaleReferenceStep =
     draftForView === null ? 'draw' : isComputationComplete ? 'result' : 'enterLength';
 
-  const nearestOcrValue = rawRows[0]?.realLength ?? null;
+  /*
+   * UX-R2 K29: chỉ gợi ý một số cụ thể khi đoạn vừa kéo trùng hai đầu một số máy đã đọc.
+   * ponytail: so hai đầu với hai góc hộp bao (kích thước luôn ngang/dọc), sai số 2% khung.
+   */
+  const nearestOcrValue = useMemo(() => {
+    if (draftForView === null) {
+      return null;
+    }
+
+    const near = (a: ImageRatioPoint, b: ImageRatioPoint): boolean =>
+      Math.abs(a.x - b.x) <= OCR_END_TOLERANCE && Math.abs(a.y - b.y) <= OCR_END_TOLERANCE;
+    const { start, end } = draftForView;
+    const match = rawRows.find(
+      ({ boundingBox: { min, max } }) =>
+        (near(start, min) && near(end, max)) || (near(start, max) && near(end, min)),
+    );
+
+    return match?.realLength ?? null;
+  }, [draftForView, rawRows]);
 
   const isEmptyState = state === 'empty';
   // K12: máy không đo được tỷ lệ (`project_default`) thì câu đỏ — đúng màn người dùng phải đặt tỷ lệ.
@@ -2086,8 +2181,9 @@ export function useScaleCalibration(
           emptyNotice: rows.length === 0 ? COPY.dimensionEmpty : null,
           lowConfidenceNotice:
             lowConfidenceCount === 0 ? null : lowConfidenceNotice(formatNumber(lowConfidenceCount)),
+          // UX-R2 K05: đã có mốc đang dùng thì "phải đặt bằng tay" là câu sai.
           manualCalibrationReason:
-            aiInference !== null && aiInference.status === 'needsManualCalibration'
+            selectedRow === null && aiInference !== null && aiInference.status === 'needsManualCalibration'
               ? aiInference.reason
               : null,
         },
@@ -2117,7 +2213,7 @@ export function useScaleCalibration(
         computation,
         crossChecks,
         warnings,
-        applyScope,
+        applyScope: effectiveApplyScope,
         applyScopeOptions,
         canApply,
         ...(applyNotice !== null ? { applyBlockedNotice: applyNotice } : {}),
@@ -2132,13 +2228,30 @@ export function useScaleCalibration(
         scaleCheck: buildScaleCheck({
           mmPerPx: proposedRatio ?? storedRatio ?? provisionalRatio,
           source:
-            proposedRatio !== null ? 'proposed' : storedRatio !== null ? 'stored' : provisionalRatio !== null ? 'provisional' : null,
+            proposedRatio !== null
+              ? 'proposed'
+              : storedRatio !== null
+                ? 'stored'
+                : provisionalRatio === null
+                  ? null
+                  : isScaleMissing(floorLayer.scaleSource)
+                    ? 'missing'
+                    : 'provisional',
           shortEdgePx,
           // Kích thước đã biết để kiểm chéo: một chuỗi OCR KHÁC chuỗi đang dùng để đo, không tự kiểm chính nó.
           knownDimension: rows.find((row) => row.id !== selectedRowId) ?? null,
           planSizeMm: planSizeAt(layerDocument, proposedRatio ?? storedRatio ?? provisionalRatio),
         }),
         shortcutHints: isNoDrawing ? [] : shortcutHints,
+        ...(suggestedRatio !== null && canEdit
+          ? {
+              suggestion: {
+                text: COPY.suggestionOffer(formatNumber(suggestedRatio, { maxFractionDigits: 1 })),
+                actionLabel: COPY.suggestionUse,
+                isActive: isSuggestionActive,
+              },
+            }
+          : {}),
       },
       statusBar: {
         x: cursorPixels.x,
@@ -2161,9 +2274,13 @@ export function useScaleCalibration(
       partialNotice:
         state !== 'partial'
           ? null
-          : !hasStartedWork && lowConfidenceCount === 0 && applyOutcome === null && rows.length > 0
-            ? COPY.pickDimensionNotice(formatNumber(rows.length))
-            : COPY.partialNotice,
+          : isSuggestionActive
+            ? COPY.suggestionNotice
+            : !hasStartedWork && applyOutcome === null && selectedRow !== null
+              ? COPY.preselectedNotice(formatNumber(selectedRow.realLength))
+              : !hasStartedWork && lowConfidenceCount === 0 && applyOutcome === null && rows.length > 0
+                ? COPY.pickDimensionNotice(formatNumber(rows.length))
+                : COPY.partialNotice,
       forbiddenNotice: state === 'forbidden' ? COPY.forbiddenNotice : null,
       successNotice: state === 'success' ? COPY.successNotice : null,
       ...(provisionalNotice !== null ? { provisionalScaleNotice: provisionalNotice.message } : {}),
@@ -2177,6 +2294,7 @@ export function useScaleCalibration(
               message: COPY.allFloorsMessage,
               confirmLabel: COPY.allFloorsConfirm,
               cancelLabel: COPY.allFloorsCancel,
+              changes: allFloors.changes,
             },
           }
         : {}),
@@ -2193,8 +2311,12 @@ export function useScaleCalibration(
     isApplying,
     provisionalNotice,
     provisionalRatio,
+    floorLayer.scaleSource,
+    isSuggestionActive,
+    selectedRow,
+    suggestedRatio,
     aiInference,
-    applyScope,
+    effectiveApplyScope,
     applyScopeOptions,
     computation,
     crossChecks,
@@ -2255,6 +2377,7 @@ export function useScaleCalibration(
       onMoveCursor,
       onCanvasSizeChange,
       onApply,
+      onUseSuggestedScale,
       onChangeApplyScope,
       onConfirmAllFloors,
       onCancelAllFloors,
@@ -2290,6 +2413,7 @@ export function useScaleCalibration(
       onSelectDimensionRow,
       onStartDrag,
       onToggleCollapsed,
+      onUseSuggestedScale,
       onZoom,
       onZoomIn,
       onZoomOut,

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
+import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Wall } from '@/domain/spatial/types';
 
-import { WALL_LAYER_FIXTURE_WALLS } from './wallLayerReviewFixture';
+import { WALL_LAYER_FIXTURE_BUILDING, WALL_LAYER_FIXTURE_LEVEL, WALL_LAYER_FIXTURE_WALLS } from './wallLayerReviewFixture';
 import {
   buildUnapproveWallCommand,
   confidenceTextOf,
+  geometrySuspectIdsOf,
+  isLowConfidence,
   isStandardThickness,
   wallLengthNumberOf,
   wallStatusCode,
@@ -66,5 +69,45 @@ describe('K15: máy chưa chắc lên đầu nhóm', () => {
     const done: Wall = { ...first(), id: 'W-done', thicknessMm: 220, reviewed: true, confidence: 0.4 };
 
     expect(sortByReviewQueue([done, sure, unsure, odd]).map((wall) => wall.id)).toEqual(['W-odd', 'W-unsure', 'W-sure', 'W-done']);
+  });
+});
+
+describe('UX-R2 K21/K26: "máy chưa chắc" theo hình', () => {
+  const at = (id: string, start: Wall['centreline']['start'], end: Wall['centreline']['end'], thicknessMm = 110): Wall => ({
+    ...first(),
+    /* Mã đúng khuôn của bộ mẫu (`W-000901…`): luật hình học chỉ đọc thực thể có tiền tố hợp lệ. */
+    id: first().id.replace(/^W-\d+/u, `W-000${id.slice(2)}`) as Wall['id'],
+    centreline: { start, end },
+    thicknessMm,
+    confidence: 0.99,
+    reviewed: false,
+  });
+
+  it('gắn cờ hai tường cắt chéo (chữ X) và tường vụn ngắn hơn bề dày; tường lưới sạch không bị gắn', () => {
+    const extra = [
+      at('W-901', { x: 0, y: 2200 }, { x: 2500, y: 4400 }),
+      at('W-902', { x: 0, y: 4400 }, { x: 2500, y: 2200 }),
+      at('W-903', { x: 2500, y: 3000 }, { x: 2550, y: 3000 }),
+    ];
+    const graph = normalizeSpatial({
+      building: WALL_LAYER_FIXTURE_BUILDING,
+      levels: [WALL_LAYER_FIXTURE_LEVEL],
+      walls: [...WALL_LAYER_FIXTURE_WALLS, ...extra],
+      openings: [],
+      furniture: [],
+      rooms: [],
+      axes: [],
+      dimensions: [],
+      notes: [],
+    });
+    const suspects = geometrySuspectIdsOf(graph, WALL_LAYER_FIXTURE_LEVEL.id);
+
+    expect([...suspects].sort()).toEqual(extra.map((wall) => wall.id).sort());
+    expect(isLowConfidence(at('W-901', { x: 0, y: 0 }, { x: 1, y: 0 }), undefined, suspects)).toBe(true);
+    expect(isLowConfidence(first(), 0.5, suspects)).toBe(false);
+  });
+
+  it('không có đồ thị hay tầng thì không gắn cờ gì', () => {
+    expect(geometrySuspectIdsOf(null, null).size).toBe(0);
   });
 });

@@ -16,7 +16,7 @@ function subscribe(listener: () => void) {
 }
 const snapshot = () => unresolvedFloor;
 
-/** Mã tầng cần hiệu chỉnh tỷ lệ (cho nút "Hiệu chỉnh tỷ lệ" của cổng); null khi tỷ lệ ổn. */
+/** Mã tầng cần hiệu chỉnh tỷ lệ (cho nút "Đặt tỷ lệ" của cổng); null khi tỷ lệ ổn. */
 export function useScaleUnresolvedFloor(): string | null {
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }

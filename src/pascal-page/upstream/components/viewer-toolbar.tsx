@@ -56,14 +56,14 @@ import {
   SwatchBook,
   Tag,
 } from 'lucide-react'
-import { emitter, useScene } from '@pascal-app/core'
+import { emitter } from '@pascal-app/core'
 import Image from 'next/image'
-import { computeSceneBoundsXZ, type SceneBoundsXZ } from '../../../../vendor/pascal/packages/editor/src/lib/scene-bounds'
 import { type ReactNode, useCallback, useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import { isTopDown, topViewPose } from '../lib/top-view-pose'
-import { planBoundsXZ } from '../lib/fit-on-ready'
 import { cn } from '../lib/utils'
+import { fitModel, viewedFrame } from '../lib/view-frame'
+import { isSeparateUnits } from '../../bridge'
 import { Tooltip, TooltipContent, TooltipTrigger } from './toolbar-tooltip'
 // AppFront edit (P40, G5-11; QA-2 L1; impeccable D1): text labels of the level/wall/display buttons
 // collapse to screen-reader text when the top bar itself is narrower than 1500px (container `appbar`,
@@ -294,6 +294,8 @@ function LevelModeToggle() {
   const current = levelMode === 'manual' ? 'Tầng: tuỳ chỉnh' : (levelModeLabels[levelMode] ?? 'Tầng: chồng')
   const icon = levelMode === 'solo' || levelMode === 'exploded' ? LEVEL_MODE_ICONS[levelMode] : LEVEL_MODE_ICONS.stacked
   const label = `Cách xếp tầng, đang chọn: ${current.replace('Tầng: ', '')} (cần từ 2 tầng)`
+  // UX-R2: "Đây là các căn hộ riêng" — floors never stack (page.tsx pins solo), so no menu to offer.
+  if (isSeparateUnits()) return null
 
   return (
     <DropdownMenu>
@@ -678,28 +680,12 @@ function DisplayMenu() {
   )
 }
 
-/** Biên theo tường + vùng phòng (như khung mở đầu), đổi về dạng min/max của Pascal; không có thì biên của Pascal. */
-function sceneBoundsOfPlan(nodes: ReturnType<typeof useScene.getState>['nodes']) {
-  const plan = planBoundsXZ(nodes)
-  if (plan === null) return computeSceneBoundsXZ(nodes)
-  const [cx, cz] = plan.center
-  const [w, d] = plan.size
-  const bounds: SceneBoundsXZ = {
-    min: [cx - w / 2, cz - d / 2],
-    max: [cx + w / 2, cz + d / 2],
-    center: [cx, cz],
-    size: [w, d],
-  }
-  return bounds
-}
-
 /**
- * AppFront edit (P40, G5-06 / G5-07 / G5-48): frame the whole model, using the editor's own
- * `camera-controls:fit-scene` event (the one `useAutoFrame` emits after a load).
+ * AppFront edit (P40, G5-06 / G5-07 / G5-48): frame the model. UX-R2 K38: the same frame as the
+ * first open (`../lib/view-frame.ts`) — in solo mode that is the floor being viewed, at its height.
  */
 export function fitWholeModel() {
-  const bounds = sceneBoundsOfPlan(useScene.getState().nodes)
-  emitter.emit('camera-controls:fit-scene', bounds ? { bounds } : {})
+  fitModel()
 }
 
 function FitViewButton() {
@@ -715,7 +701,8 @@ function FitViewButton() {
 /**
  * AppFront edit (G5-12 / G5-48): Vietnamese-labelled replacements for the vendor `CameraActions`
  * group (hidden by scoped CSS in `canvas-help.tsx`). They emit the same public camera events;
- * "Nhìn từ trên" frames the whole model straight from above via `apply-pose`, and a second press
+ * "Nhìn từ trên" frames what is viewed (solo: the floor, at its height; UX-R2 K38, `../lib/view-frame.ts`)
+ * straight from above via `apply-pose`, and a second press
  * hands back to upstream `top-view`, which returns to 45° when already looking down.
  */
 export function topViewToggle() {
@@ -727,11 +714,11 @@ export function topViewToggle() {
     emitter.emit('camera-controls:top-view')
     return
   }
-  const bounds = sceneBoundsOfPlan(useScene.getState().nodes)
+  const { bounds, baseY } = viewedFrame()
   const aspect = window.innerWidth / Math.max(1, window.innerHeight)
   emitter.emit(
     'camera-controls:apply-pose',
-    topViewPose(bounds, useViewer.getState().cameraMode, aspect),
+    topViewPose(bounds, useViewer.getState().cameraMode, aspect, baseY),
   )
 }
 

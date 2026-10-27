@@ -97,6 +97,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { can } from '@/lib/auth/permissions';
 import { formatCalendarDate, formatClockTime, formatDuration } from '@/lib/format/datetime';
 import { formatArea } from '@/lib/format/measure';
+import { SCALE_STATE_VIEWS } from '@/lib/viewmodel/provisionalScale';
 import { formatNumber, formatPercent } from '@/lib/format/number';
 import type { HttpError } from '@/lib/http/types';
 import { MILLISECONDS_PER_SECOND } from '@/lib/motion/tokens';
@@ -510,8 +511,8 @@ const STATUS_LABELS: Readonly<Record<ProcessingStageStatus, string>> = {
 
 /** Nhãn chip tầng khi N16 `readiness.state` là `needsReview` (FIX-P0-15). */
 const NEEDS_REVIEW_LABEL = 'Cần xem lại';
-/** Nhãn đỏ khi máy không đo được tỷ lệ tầng (N16 `scaleSource: 'project_default'`, UX-R1 K12). */
-const SCALE_MISSING_LABEL = 'Sai tỷ lệ';
+/** Nhãn đỏ khi máy không đo được tỷ lệ tầng (N16 `scaleSource: 'project_default'`): tên chung của mọi màn. */
+const SCALE_MISSING_LABEL = SCALE_STATE_VIEWS.missing.name;
 
 /** Phần trăm của MỘT bước. Không tự tăng: chưa biết thì `0`, xong thì `100`. */
 function stepPercentOf(stage: PipelineStageState): number {

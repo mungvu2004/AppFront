@@ -97,6 +97,21 @@
 @media (prefers-reduced-motion: reduce) {
   .absolute.top-14.left-3.z-20 button.rounded-full.h-4.w-4 { transition: none; }
 }
+/* UX-R2 K36: tầng chưa có tỷ lệ (cầu không dựng nội dung) — dòng mờ + nhãn "Chưa dựng" (vá ở
+ * scripts/pascal-ui-patch.mjs), để bấm vào thấy cảnh trống thì đã biết trước vì sao. */
+[data-level-not-built] {
+  opacity: 0.6;
+}
+[data-level-not-built-tag] {
+  margin-left: 6px;
+  flex-shrink: 0;
+  border: 1px solid var(--pa-border);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--pa-text-2);
+}
 .absolute.top-14.left-3.z-20 .rounded-lg.bg-white\/10 {
   background: var(--pa-selected);
   color: var(--pa-accent);

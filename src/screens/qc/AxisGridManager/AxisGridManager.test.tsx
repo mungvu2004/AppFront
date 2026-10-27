@@ -646,7 +646,7 @@ describe('QA-04c SCR-19 trên màn', () => {
   it('[G20] màn cao bằng khung nhìn — danh sách 20 trục cuộn trong panel, không đẩy cả trang', () => {
     renderState('success');
 
-    expect(screen.getByRole('region', { name: 'Trục và gốc toạ độ' })).toHaveClass('h-screen');
+    expect(screen.getByRole('region', { name: 'Trục và gốc toạ độ' })).toHaveClass('flex-1');
   });
 
   it('[G16] bấm một trục trên canvas giữ trục được chọn — click bị pointer capture đẩy về svg không bỏ chọn', () => {
@@ -765,5 +765,41 @@ describe('[RV1] panel trục', () => {
     const confirmButtons = screen.getAllByRole('button', { name: `Xoá trục ${label}` });
     fireEvent.click(confirmButtons[confirmButtons.length - 1] as HTMLElement);
     expect(onAxisRemove).toHaveBeenCalledWith(row?.id);
+  });
+});
+
+describe('[K13][K14] chip trạng thái chỉ nói tầng đang mở; căn hộ riêng bỏ phần lệch tầng', () => {
+  /* Bản mẫu "forbidden" có Tầng 2 lệch 200 mm — đủ để thử chip theo tầng đang mở. */
+  const args = scenarioArgsFor('forbidden');
+  const lagging = args.viewModel.floors.find((floor) => floor.status !== 'ok');
+
+  it('tầng khác lệch thì chip không nói tên tầng đó', () => {
+    const base = args.viewModel.floors.find((floor) => floor.isBase);
+    renderWithProviders(<AxisGridManager {...args} currentLevelId={base?.levelId} />);
+    expect(screen.queryByText(/lệch quá ngưỡng/u)).toBeNull();
+  });
+
+  it('chính tầng đang mở lệch thì chip nói "Tầng này lệch quá ngưỡng"', () => {
+    expect(lagging).toBeDefined();
+    renderWithProviders(<AxisGridManager {...args} currentLevelId={lagging?.levelId} />);
+    expect(screen.getByText('Tầng này lệch quá ngưỡng')).toBeInTheDocument();
+  });
+
+  it('[Codex P2] hai tầng lệch: chip đọc dòng của tầng đang mở, không chỉ tầng lệch đầu tiên của cổng', () => {
+    if (lagging === undefined) throw new Error('bản mẫu thiếu tầng lệch');
+    /* Tầng lệch thứ hai đứng SAU tầng lệch cũ: cổng vẫn chọn tầng cũ làm `laggingFloor`. */
+    const second = { ...lagging, levelId: `${lagging.levelId}-b`, name: 'Tầng 3', isBase: false };
+    const viewModel = { ...args.viewModel, floors: [...args.viewModel.floors, second] };
+
+    renderWithProviders(<AxisGridManager {...args} currentLevelId={second.levelId} viewModel={viewModel} />);
+    expect(screen.getByText('Tầng này lệch quá ngưỡng')).toBeInTheDocument();
+  });
+
+  it('dự án là các căn hộ riêng: không có bảng "Lệch giữa các tầng"', () => {
+    renderWithProviders(
+      <AxisGridManager {...args} currentLevelId={lagging?.levelId} projectFloorCount={1} separateUnits />,
+    );
+    expect(screen.queryByText('Lệch giữa các tầng')).toBeNull();
+    expect(screen.queryByText(/lệch quá ngưỡng/u)).toBeNull();
   });
 });

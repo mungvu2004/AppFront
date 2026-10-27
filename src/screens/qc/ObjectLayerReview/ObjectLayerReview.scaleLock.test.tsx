@@ -67,15 +67,12 @@ describe('khoá tỷ lệ — màn Cửa và nội thất', () => {
     expect(await screen.findByText(LOCK_REASON)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Duyệt #/u })).toBeNull();
     expect(screen.queryByRole('button', { name: /xoá$/u })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Thêm cửa đi' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Vẽ cửa đi' })).toBeNull();
 
-    /* Hai lối cùng đích: dải đỏ khoá tỷ lệ đầu màn và nút chính ở chân panel chi tiết. */
-    const openScaleButtons = screen.getAllByRole('button', { name: 'Đặt tỷ lệ' });
-    expect(openScaleButtons).toHaveLength(2);
-    for (const button of openScaleButtons) fireEvent.click(button);
+    /* Một việc một nút (UX-R2): dải đỏ đầu màn không còn nút riêng, chỉ nút chính ở panel chi tiết. */
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt tỷ lệ' }));
 
-    expect(onNavigate).toHaveBeenCalledTimes(2);
-    expect(onNavigate).toHaveBeenNthCalledWith(1, ROUTES.project.scale(args.projectId, args.floorId));
-    expect(onNavigate).toHaveBeenNthCalledWith(2, ROUTES.project.scale(args.projectId, args.floorId));
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(args.projectId, args.floorId));
   });
 });

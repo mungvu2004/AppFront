@@ -68,6 +68,8 @@ import type {
   ObjectLayerReviewModel,
   ObjectLayerVisibility,
   ObjectSubtype,
+  PixelPoint,
+  PixelRect,
 } from './objectLayerTypes';
 import { OBJECT_LAYER_IDS } from './objectLayerTypes';
 
@@ -282,6 +284,11 @@ export interface ObjectLayerCanvasViewProps extends ObjectLayerCanvasProps {
   readonly onDelete?: ((objectId: string) => void) | undefined;
   readonly onChangeSubtype?: ((objectId: string, subtype: ObjectSubtype) => void) | undefined;
   readonly onAttachToNearestWall?: ((objectId: string) => void) | undefined;
+  /** Chế độ vẽ (K07): bấm lên bản vẽ gọi `onPlaceAt` với điểm pixel bản vẽ. Vắng/`null` = không vẽ. */
+  readonly drawLayer?: ObjectLayerReviewModel['drawLayer'] | undefined;
+  readonly onPlaceAt?: ObjectLayerReviewModel['onPlaceAt'] | undefined;
+  /** Ẩn/hiện lớp trên bản vẽ (cụm "Hiển thị" cạnh cụm thu phóng). Vắng = không có cụm. */
+  readonly onToggleLayer?: ObjectLayerReviewModel['onToggleLayer'] | undefined;
 }
 
 /**
@@ -295,6 +302,10 @@ export interface ObjectLayerLeftPanelViewProps extends ObjectLayerLeftPanelProps
   readonly furnitureAttentionNotice: string | null;
   /** Loại con có ít nhất một đối tượng trên tầng — chip của loại vắng bị tắt kèm lý do (BUG-590). */
   readonly availableSubtypes: ReadonlySet<ObjectSubtype>;
+  /** Chip đếm chỉ lọc (K07): bấm là chỉ hiện nhóm ấy, bấm lại là hiện cả ba. */
+  readonly onFilterLayer: (layer: ObjectLayerId) => void;
+  /** Nhóm đang lọc danh sách; `null` = không lọc. */
+  readonly listLayerFilter: ObjectLayerId | null;
 }
 
 /**
@@ -365,7 +376,35 @@ export const OBJECT_CANVAS_TEXT = {
   readOnlyNotice:
     'Mặt bằng vẫn xem được, nhưng chỉ chọn xem được trong danh sách, không sửa được đối tượng nào. Nhờ người có quyền sửa dự án duyệt giúp.',
   orphanTitle: 'Chưa gắn vào tường nào',
+  drawHint: 'Bấm lên bản vẽ để đặt. Bấm lại nút trên rail để thôi vẽ.',
 } as const;
+
+/**
+ * Điểm bấm (pixel màn hình) thành pixel bản vẽ của `<svg viewBox>` (K07, chế độ vẽ).
+ *
+ * `rect` là hộp của `<svg>` trên màn (đã gồm phóng/kéo CSS); `viewBox` ăn khớp theo
+ * `xMidYMid meet` mặc định — thu cùng một tỉ lệ cho hai trục, phần dư chia đều hai bên.
+ */
+export function clientToViewBoxPoint(
+  rect: { readonly left: number; readonly top: number; readonly width: number; readonly height: number },
+  viewBox: PixelRect,
+  clientX: number,
+  clientY: number,
+): PixelPoint | null {
+  const factor = Math.min(rect.width / viewBox.width, rect.height / viewBox.height);
+
+  if (!Number.isFinite(factor) || factor <= 0) {
+    return null;
+  }
+
+  const offsetX = (rect.width - viewBox.width * factor) / 2;
+  const offsetY = (rect.height - viewBox.height * factor) / 2;
+
+  return {
+    x: viewBox.x + (clientX - rect.left - offsetX) / factor,
+    y: viewBox.y + (clientY - rect.top - offsetY) / factor,
+  };
+}
 
 /** Năm mục của menu chuột phải. */
 export const OBJECT_CANVAS_MENU_LABELS = {

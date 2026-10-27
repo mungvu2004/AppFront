@@ -1,6 +1,6 @@
 /**
  * Hàng đợi tường của panel trái — ảo hoá (`@tanstack/react-virtual`), chia nhóm theo đúng thứ tự
- * hook đã xếp (demo Z/S-15): Không chuẩn (kèm nút "Đổi n/N tường về chuẩn…") → Đúng chuẩn →
+ * hook đã xếp (demo Z/S-15): Không chuẩn (kèm nút "Đưa N tường về chuẩn" mở màn Độ dày) → Đúng chuẩn →
  * Đã duyệt (thu gọn, tự mở khi đang chọn một hàng trong đó hoặc không còn hàng nào khác).
  *
  * View THUẦN (R-60). `rows` đã xếp theo hàng đợi ở hook, nên danh sách, J/K, "Duyệt tiếp" và tự
@@ -19,7 +19,6 @@ import { cn } from '@/lib/utils';
 
 import type { WallLayerViewProps, WallRowViewModel } from './types';
 import { LIST_ROW_HEIGHT_PX, WallLayerListRow } from './WallLayerListRow';
-import { WallScaleLockNotice } from './WallScaleLockNotice';
 import type { WallQueueGroup, WallReviewQueue } from './wallReviewQueue';
 
 export interface WallLayerListProps {
@@ -29,7 +28,7 @@ export interface WallLayerListProps {
   /** Ctrl/Cmd-bấm một hàng: thêm/bớt khỏi vùng chọn (NL-07). */
   readonly onToggleSelect: (wallId: WallRowViewModel['id']) => void;
   readonly queue?: WallReviewQueue | undefined;
-  /** Mở xem trước đổi hàng loạt; vắng = không có nút (người xem, hoặc không đoạn nào đổi được). */
+  /** Mở màn Độ dày tường; vắng = không có nút (người xem, hoặc không đoạn nào đổi được). */
   readonly onOpenBulk?: (() => void) | undefined;
 }
 
@@ -50,11 +49,17 @@ const GROUP_TITLE: Readonly<Record<WallQueueGroup, string>> = {
   standard: 'Độ dày đúng chuẩn',
   reviewed: 'Đã duyệt',
 };
+/* Tầng chưa có tỷ lệ: độ dày đo ra vô nghĩa, nên không chia theo độ dày (UX-R2 K23). */
+const UNSCALED_TITLE = 'Chưa duyệt';
 
 /** Nhóm của một hàng: theo hàng đợi ở hook; không có hàng đợi (story cũ) thì suy từ cờ của hàng. */
-const groupOf = (row: WallRowViewModel, queue: WallReviewQueue | undefined): WallQueueGroup =>
-  queue?.extras.get(row.id)?.group ??
-  (row.isReviewed ? 'reviewed' : row.isNonStandardThickness ? 'nonStandard' : 'standard');
+function groupOf(row: WallRowViewModel, queue: WallReviewQueue | undefined, isScaleLocked = false): WallQueueGroup {
+  const group =
+    queue?.extras.get(row.id)?.group ??
+    (row.isReviewed ? 'reviewed' : row.isNonStandardThickness ? 'nonStandard' : 'standard');
+
+  return isScaleLocked && group === 'nonStandard' ? 'standard' : group;
+}
 
 /** Đi lên DOM tìm tổ tiên cuộn gần nhất — đúng kỹ thuật `Table.tsx#TableVirtual`. */
 function findScrollParent(node: HTMLElement | null): HTMLElement | null {
@@ -78,11 +83,12 @@ function buildItems(
   queue: WallReviewQueue | undefined,
   showReviewedRows: boolean,
   hasBulk: boolean,
+  isScaleLocked: boolean,
 ): readonly ListItem[] {
   const groups: Record<WallQueueGroup, WallRowViewModel[]> = { nonStandard: [], standard: [], reviewed: [] };
 
   for (const row of rows) {
-    groups[groupOf(row, queue)].push(row);
+    groups[groupOf(row, queue, isScaleLocked)].push(row);
   }
 
   const items: ListItem[] = [];
@@ -121,7 +127,8 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
   const selectedIsReviewed = rows.some((row) => row.id === selectedWallId && row.isReviewed);
   const hasOthers = rows.some((row) => groupOf(row, queue) !== 'reviewed');
   const showReviewedRows = reviewedOpen || selectedIsReviewed || !hasOthers;
-  const items = buildItems(rows, queue, showReviewedRows, onOpenBulk !== undefined && queue !== undefined);
+  const isScaleLocked = panel.scaleLock != null;
+  const items = buildItems(rows, queue, showReviewedRows, onOpenBulk !== undefined && queue !== undefined, isScaleLocked);
   // Thiếu tỷ lệ (hoặc tường mỏng < 50 mm): ép về chuẩn chỉ che lỗi, nên thay nút bằng câu dẫn đi đặt tỷ lệ (K09).
   const bulkLockText = queue?.lockText ?? null;
   // Vai Người xem luôn ở `forbidden`; "đang tải" của họ đọc từ dữ liệu (bất biến 7), không từ vai (16-D-008).
@@ -202,15 +209,12 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
     );
   }
 
-  const scaleLock = panel.scaleLock ?? null;
+  /* Tầng khoá vì thiếu tỷ lệ: dải đỏ và nút góc phải đã dẫn đi đặt tỷ lệ — danh sách không lặp nút thứ ba (K23). */
+  const groupTitleOf = (group: WallQueueGroup): string =>
+    isScaleLocked && group === 'standard' ? UNSCALED_TITLE : GROUP_TITLE[group];
 
   return (
     <>
-      {scaleLock === null ? null : (
-        <div className="px-1 pb-2">
-          <WallScaleLockNotice lock={scaleLock} />
-        </div>
-      )}
       <div aria-label={LIST_ARIA_LABEL} className="relative" ref={containerRef} role="listbox" style={{ height: rowVirtualizer.getTotalSize() }}>
         {rowVirtualizer.getVirtualItems().map((virtualItem) => {
           const item = items[virtualItem.index];
@@ -234,11 +238,11 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
                     type="button"
                   >
                     <ChevronDown aria-hidden="true" className={cn('h-3.5 w-3.5 transition-transform duration-180', !isOpen && '-rotate-90')} />
-                    {`${GROUP_TITLE[item.group]}: ${item.count}`}
+                    {`${groupTitleOf(item.group)}: ${item.count}`}
                   </button>
                 ) : (
                   <span className="text-caption font-medium text-text-secondary">
-                    {`${GROUP_TITLE[item.group]}: ${item.count}`}
+                    {`${groupTitleOf(item.group)}: ${item.count}`}
                   </span>
                 )}
               </div>
@@ -250,7 +254,7 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
               <div className="absolute inset-x-0 top-0 flex h-11 items-center px-1" key="bulk" role="presentation" style={style}>
                 {bulkLockText === null ? (
                   <Button fullWidth onClick={onOpenBulk} size="sm" variant="secondary">
-                    {`Đổi ${queue?.bulk.changeCount ?? 0}/${queue?.bulk.totalCount ?? 0} tường về chuẩn…`}
+                    {`Đưa ${queue?.bulk.changeCount ?? 0} tường về chuẩn`}
                   </Button>
                 ) : (
                   <p className="px-1 text-caption leading-snug text-state-violation">{bulkLockText}</p>
@@ -272,8 +276,9 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
               onOpenMenu={onOpenRowMenu}
               onSelect={onSelect}
               onToggleSelect={onToggleSelect}
-              onUnapprove={panel.isViewerRole || scaleLock !== null ? undefined : panel.onUnapprove}
+              onUnapprove={panel.isViewerRole || isScaleLocked ? undefined : panel.onUnapprove}
               row={row}
+              showThickness={!isScaleLocked}
               showConfidence={queue?.showConfidence ?? true}
               style={style}
             />

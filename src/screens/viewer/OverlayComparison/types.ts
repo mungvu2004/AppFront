@@ -448,10 +448,10 @@ export interface OverlayComparisonViewModel {
   /** Kiểu bị tắt kèm lý do — `sideBySide` dưới 1280 và ở trạng thái `collapsed`. */
   readonly disabledCompareModes: Readonly<Partial<Record<CompareModeId, string>>>;
 
-  /** Độ mờ ảnh nguồn, `0..100`. Số nguyên; `Slider` và nhãn phần trăm cùng đọc nó. */
-  readonly scanOpacityPercent: number;
+  /** Độ đậm lớp mô hình khi chồng lớp, `0..100` (bản gốc luôn đậm, UX-R2 K18). Số nguyên; `Slider` và nhãn phần trăm cùng đọc nó. */
+  readonly modelOpacityPercent: number;
   /** Phần trăm đã định dạng để vẽ cạnh thanh trượt — ví dụ `'25%'`. */
-  readonly scanOpacityText: string;
+  readonly modelOpacityText: string;
 
   /** Đường chia đôi của kiểu `swipe`, tỉ lệ `0..1` chiều rộng khung. */
   readonly swipePosition: number;
@@ -534,7 +534,7 @@ export interface OverlayComparisonActions {
   readonly selectFloor: (levelId: LevelId) => void;
   readonly setCompareMode: (mode: CompareModeId) => void;
   /** `0..100`. */
-  readonly setScanOpacity: (percent: number) => void;
+  readonly setModelOpacity: (percent: number) => void;
   /** `0..1` theo chiều rộng khung. Kéo trực tiếp, KHÔNG hoạt cảnh trong lúc kéo. */
   readonly setSwipePosition: (ratio: number) => void;
   readonly toggleAlignmentLock: () => void;
@@ -586,8 +586,8 @@ export interface OverlayComparisonToolbarProps {
   readonly activeFloorId: LevelId | null;
   readonly compareMode: CompareModeId;
   readonly disabledCompareModes: Readonly<Partial<Record<CompareModeId, string>>>;
-  readonly scanOpacityPercent: number;
-  readonly scanOpacityText: string;
+  readonly modelOpacityPercent: number;
+  readonly modelOpacityText: string;
   readonly isAlignmentLocked: boolean;
   /** Vắng/`false` thì không vẽ công tắc "Khoá căn" (BUG-599). */
   readonly canLockAlignment?: boolean;
@@ -596,7 +596,7 @@ export interface OverlayComparisonToolbarProps {
   readonly canEdit: boolean;
   readonly onSelectFloor: (levelId: LevelId) => void;
   readonly onSetCompareMode: (mode: CompareModeId) => void;
-  readonly onSetScanOpacity: (percent: number) => void;
+  readonly onSetModelOpacity: (percent: number) => void;
   readonly onToggleAlignmentLock: () => void;
 }
 

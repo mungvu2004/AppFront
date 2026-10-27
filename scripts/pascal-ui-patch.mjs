@@ -55,6 +55,23 @@ export const UI_PATCHES = {
       1,
     ],
     ['onClick={() => handleInsertBetween(sortedIndex - 1)}', 'data-level-insert="" onClick={() => handleInsertBetween(sortedIndex - 1)}', 1],
+    // UX-R2 K36: tầng chưa có tỷ lệ bị cầu bỏ nội dung và gắn `metadata.appfrontNotBuilt` (bridge `markNotBuilt`).
+    // Dòng của nó mờ đi và có nhãn "Chưa dựng" thay vì trông như mọi tầng khác. Kiểu ở pascal-chrome.css.
+    [
+      'const canDeleteLevel = level.level !== 0',
+      'const canDeleteLevel = level.level !== 0\n  const notBuilt = (level.metadata as Record<string, unknown> | undefined)?.appfrontNotBuilt === true',
+      1,
+    ],
+    [
+      "<div\n          className={cn(\n            'flex items-center rounded-lg transition-colors',",
+      "<div\n          data-level-not-built={notBuilt ? '' : undefined}\n          className={cn(\n            'flex items-center rounded-lg transition-colors',",
+      1,
+    ],
+    [
+      '<span className="truncate">{getLevelDisplayName(level)}</span>',
+      '<span className="truncate">{getLevelDisplayName(level)}</span>\n            {notBuilt && <span data-level-not-built-tag="" title="Tầng chưa có tỷ lệ nên chưa dựng trong 3D">Chưa dựng</span>}',
+      1,
+    ],
   ],
 };
 

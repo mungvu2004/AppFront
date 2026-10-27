@@ -24,7 +24,8 @@ const DEVIATION_LIST_LABEL = 'Danh sách vùng lệch';
 const METRICS_LABEL = 'Sai số đo được';
 const NO_DEVIATIONS_NOTICE = 'Không có vùng lệch nào được ghi nhận.';
 /** Chưa đo thì một dòng nói thẳng, không ô gạch ngang (BUG-331, AES-13). */
-const UNMEASURED_NOTICE = 'Máy chưa đo được độ lệch. So hai lớp bằng mắt; thấy khớp thì xác nhận.';
+// UX-R2 K19: không còn nút xác nhận ở đây — tỷ lệ được chốt ở bước Tỷ lệ, vốn đã lưu.
+const UNMEASURED_NOTICE = 'Máy chưa đo được độ lệch. So hai lớp bằng mắt; lệch nhiều thì đặt lại tỷ lệ.';
 /** G4b-25: lối đi căn ảnh, không để người dùng kẹt ở câu "cần căn trước". */
 const ALIGN_LINK_LABEL = 'Lệch nhiều? Đặt tỷ lệ';
 /** G4b-28: ô mm chỉ nhận chữ số, dấu phẩy/chấm thập phân và dấu trừ (dấu trừ có câu báo riêng). */

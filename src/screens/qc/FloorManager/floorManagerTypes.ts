@@ -19,6 +19,7 @@
  */
 
 import type { Millimetres, SquareMetres } from '@/domain/units/types';
+import type { ScaleState } from '@/lib/viewmodel/provisionalScale';
 import { FLOOR_LAYERS, type FloorLayerKey } from '@/routes/projectSteps';
 
 /* -------------------------------------------------------------------------- */
@@ -120,9 +121,11 @@ export interface FloorRowVm {
   readonly needsDrawing: boolean;
   /**
    * Tầng chưa có tỷ lệ đúng — máy không đo được hoặc đo ra hình vô lý (`floorScaleMissingOf`): nhãn đỏ
-   * "Sai tỷ lệ", và "Việc tiếp" đòi đặt tỷ lệ trước khi duyệt tường (UX-R1 K06/K12).
+   * "Chưa có tỷ lệ", và "Việc tiếp" đòi đặt tỷ lệ trước khi duyệt tường (UX-R1 K06/K12).
    */
   readonly isScaleMissing: boolean;
+  /** Trạng thái tỷ lệ chung (`SCALE_STATE_VIEWS`): `missing` đỏ, `check` vàng, `confirmed` (UX-R2 K46). */
+  readonly scaleState: ScaleState;
   /** Tầng bị ẩn khỏi mô hình 3D. Dòng mờ đi; tầng vẫn còn trong bảng và trong lát cắt. */
   readonly isHiddenIn3d: boolean;
   /** Lượt đặt cao độ gần nhất của tầng này bị chặn: ô cao độ mang dấu lỗi (BUG-306). */
@@ -340,6 +343,16 @@ export interface FloorManagerViewProps {
    * `null`/vắng khi trục khớp hoặc chưa đủ dữ liệu trục.
    */
   readonly axisMismatchNotice?: { readonly title: string; readonly message: string } | null | undefined;
+  /**
+   * K34: thiết lập dự án "Các tầng là các căn hộ riêng". Bật thì màn bỏ lát cắt, cao độ, thêm và
+   * đổi thứ tự tầng. Vắng `onToggleSeparateUnits` (story, test cũ) thì không vẽ công tắc.
+   */
+  readonly separateUnits?: boolean | undefined;
+  readonly isSeparateUnitsSaving?: boolean | undefined;
+  readonly separateUnitsError?: string | null | undefined;
+  readonly onToggleSeparateUnits?: ((next: boolean) => void) | undefined;
+  /** K33: mở Mô hình 3D. Còn tầng sai tỷ lệ thì màn đặt nút phụ "Xem 3D (N tầng chưa dựng)" vào thanh bước. */
+  readonly onOpenViewer?: (() => void) | undefined;
   /** Tên dự án cho breadcrumb "Dự án › <tên> › Quản lý tầng" (N0-05); `null`/vắng thì bỏ cấp ấy. */
   readonly projectName?: string | null | undefined;
   /**
@@ -492,11 +505,14 @@ export const FLOOR_QC_SCORE_HINT =
  * Menu "Duyệt lớp" ở mỗi dòng: đọc thẳng `FLOOR_LAYERS` (cùng tên, cùng thứ tự với dải lớp trên
  * màn duyệt), rồi nhóm công cụ của tầng tách riêng. Khoá trùng tên builder `ROUTES.project.*`.
  */
-export type FloorReviewScreen = FloorLayerKey | 'scale';
+export type FloorReviewScreen = FloorLayerKey | 'scale' | 'grids';
 
-export const FLOOR_REVIEW_SCREENS: readonly { readonly id: FloorReviewScreen; readonly label: string }[] = FLOOR_LAYERS.map(
-  (layer) => ({ id: layer.key, label: layer.label }),
-);
+/** Trục là công cụ của nhà nhiều tầng, không phải lớp duyệt (UX-R2 K14): đi ở nhóm công cụ. */
+const TOOL_LAYER_KEYS: ReadonlySet<string> = new Set(['grids']);
+
+export const FLOOR_REVIEW_SCREENS: readonly { readonly id: FloorReviewScreen; readonly label: string }[] = FLOOR_LAYERS.filter(
+  (layer) => !TOOL_LAYER_KEYS.has(layer.key),
+).map((layer) => ({ id: layer.key, label: layer.label }));
 
 /** Ô "Điểm luật" khi tầng chưa duyệt mục nào: không hiện "0%" gây hoảng. */
 export const QC_NOT_GRADED = 'Chưa chấm';
@@ -504,4 +520,6 @@ export const QC_NOT_GRADED = 'Chưa chấm';
 /** Công cụ của tầng (không phải lớp duyệt): nhóm riêng, sau một vạch ngăn. */
 export const FLOOR_TOOL_SCREENS: readonly { readonly id: FloorReviewScreen; readonly label: string }[] = [
   { id: 'scale', label: 'Hiệu chỉnh tỷ lệ' },
+  /* UX-R2 K14: Trục rời dải lớp; vào từ đây, và chỉ khi các tầng là một nhà (căn riêng thì ẩn). */
+  { id: 'grids', label: 'Trục' },
 ];

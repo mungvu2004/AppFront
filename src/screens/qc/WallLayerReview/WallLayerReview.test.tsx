@@ -57,7 +57,6 @@ import {
   type SevenStateScenario,
 } from '@/lib/testing/sevenStateScenarios';
 import { setFlowGateSlot } from '@/components/shell/flowGateStore';
-import { ROUTES } from '@/routes/paths';
 import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
 
@@ -760,9 +759,9 @@ describe('dải tỷ lệ tạm (F-04x-2)', () => {
     useStore.getState().setSpatial(null, null);
   });
 
-  it('tầng unresolved: dải chú ý + "Đặt tỷ lệ" mở màn tỉ lệ; chiều dài là PROVISIONAL_MEASURE_TEXT', async () => {
-    const onNavigate = vi.fn();
-    const args = { ...scenarioArgsFor('partial'), ...ProvisionalScale.args, onNavigate };
+  /* UX-R2 K22: tỷ lệ "cần kiểm" (vàng) không còn dải lặp lại — chấm vàng trên thanh bước nói việc đó. */
+  it('tầng unresolved (tỷ lệ cần kiểm): không còn dải vàng', async () => {
+    const args = { ...scenarioArgsFor('partial'), ...ProvisionalScale.args, onNavigate: vi.fn() };
 
     renderWithProviders(
       <MemoryRouter>
@@ -770,10 +769,8 @@ describe('dải tỷ lệ tạm (F-04x-2)', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText(NOTICE)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Đặt tỷ lệ' }));
-    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(args.projectId, args.floorId));
+    await screen.findByRole('checkbox', { name: 'Hiện lớp tường' });
+    expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
   });
 
   it('tầng có tỉ lệ thật: không dải', async () => {
@@ -824,7 +821,7 @@ describe('đợt sửa P04 — SCR-16', () => {
   it('[BUG-324] gốc màn cao bằng khung nhìn, nên thanh trạng thái dính đáy', async () => {
     renderState('partial');
 
-    expect(await screen.findByRole('region', { name: 'Duyệt lớp tường' })).toHaveClass('h-screen');
+    expect(await screen.findByRole('region', { name: 'Duyệt lớp tường' })).toHaveClass('flex-1');
   });
 
   it('[BUG-395] dưới 1280 panel trái không bị khoá 560 px (danh sách còn ~3 hàng)', async () => {

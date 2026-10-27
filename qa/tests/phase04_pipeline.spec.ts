@@ -43,7 +43,7 @@
  *   subtype not for orphans. Canvas `<g aria-label={codeLabel}>` has the context menu ("Xoá"); no delete key or
  *   inspector button exists for objects (`ObjectLayerInspector.tsx` header).
  * - Dimensions (F-08) and axes: no persistence path; the hooks still say "saved".
- * - Scale: "Áp cho mọi tầng" is a scope option; "Áp dụng tỷ lệ" then reads #12 floors + N15 graph and
+ * - Scale: "Áp cho mọi tầng" is a scope option; "Xác nhận tỷ lệ" then reads #12 floors + N15 graph and
  *   opens the A9 dialog "Áp tỷ lệ này cho N tầng có bản vẽ?" (`useScaleCalibration.ts` onApply).
  * - Checkbox/Radio.Item are `sr-only` inputs under a drawn box: driven by focus + Space, the proven
  *   path of `e2e/v7/thickness-standardization.spec.ts`.
@@ -1161,7 +1161,7 @@ const scaleCanvas = (): Locator =>
   page.getByRole('group', { name: 'Bản vẽ đã nắn, kéo để vẽ đường tham chiếu', exact: true });
 const scaleScope = (name: string): Locator =>
   page.getByRole('radiogroup', { name: 'Phạm vi áp tỷ lệ', exact: true }).getByRole('radio', { name, exact: true });
-const applyScale = (): Locator => page.getByRole('button', { name: 'Áp dụng tỷ lệ', exact: true });
+const applyScale = (): Locator => page.getByRole('button', { name: 'Xác nhận tỷ lệ', exact: true });
 
 /** Fresh load of the scale screen; returns the revision of the N16 read it made. */
 async function openScale(): Promise<number> {
@@ -1230,14 +1230,14 @@ test.describe('SCR-14 Scale Calibration', () => {
     await test.step('[14-A-006] left-drag on the canvas draws a line with two handles', async () => {
       await drawReferenceLine();
     });
-    await test.step('[14-A-008] "Chiều dài thật" 5000 + Enter shows the computation and enables "Áp dụng tỷ lệ"', async () => {
+    await test.step('[14-A-008] "Chiều dài thật" 5000 + Enter shows the computation and enables "Xác nhận tỷ lệ"', async () => {
       await enterRealLength();
       await expect(applyScale()).toBeEnabled();
     });
     await captureEvidence(page, '14_scale_refline.png');
   });
 
-  test('SCR-14 apply: "Chỉ áp cho tầng này", then "Áp dụng tỷ lệ" → PUT …/spatial/layer, "Đã áp tỷ lệ cho bản vẽ"', async () => {
+  test('SCR-14 apply: "Chỉ áp cho tầng này", then "Xác nhận tỷ lệ" → PUT …/spatial/layer, "Đã áp tỷ lệ cho bản vẽ"', async () => {
     const revision = await openScaleAndDraw();
     let result: ApiResult | null = null;
     let sent: Json = {};
@@ -1253,7 +1253,7 @@ test.describe('SCR-14 Scale Calibration', () => {
       // Scale-only body (`FloorLayerWriteBodySchema`); the result schema is only proven for layer writes.
       sent = expectLayerWrite(result, { parseResult: false });
     });
-    await test.step('[14-A-021] "Chỉ áp cho tầng này" + "Áp dụng tỷ lệ" → one PUT with only scaleMillimetresPerPixel; heading "Đã áp tỷ lệ cho bản vẽ"', async () => {
+    await test.step('[14-A-021] "Chỉ áp cho tầng này" + "Xác nhận tỷ lệ" → one PUT with only scaleMillimetresPerPixel; heading "Đã áp tỷ lệ cho bản vẽ"', async () => {
       expect(sent.scaleMillimetresPerPixel as number).toBeGreaterThan(0);
       expect.soft(Object.keys(sent), 'scale-only body').toEqual(['scaleMillimetresPerPixel']);
       await expect(page.getByRole('heading', { name: 'Đã áp tỷ lệ cho bản vẽ' })).toBeVisible();
@@ -1301,7 +1301,7 @@ test.describe('SCR-14 Scale Calibration', () => {
 test.describe('SCR-22 Overlay Comparison', () => {
   useOwnDrawingFloor('m04-overlay');
 
-  test('SCR-22 swipe: "Kiểu đối chiếu" → "Trượt"; divider slider + arrows; "Độ mờ ảnh nguồn" → divider moves, "Chưa có số đo — cần căn ảnh quét vào mô hình trước."', async () => {
+  test('SCR-22 swipe: "Kiểu đối chiếu" → "Trượt"; divider slider + arrows; "Độ đậm lớp mô hình" → divider moves, "Chưa có số đo — cần căn ảnh quét vào mô hình trước."', async () => {
     const qualityRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/floors/${floorId}/quality$`, 'u'), ANY_STATUS);
 
     qualityRead.catch(() => undefined);
@@ -1309,7 +1309,7 @@ test.describe('SCR-22 Overlay Comparison', () => {
       .getByRole('radiogroup', { name: 'Kiểu đối chiếu', exact: true })
       .getByRole('radio', { name: 'Trượt', exact: true });
     const divider = page.getByRole('slider', { name: OVERLAY_DIVIDER, exact: true });
-    const opacity = page.getByRole('slider', { name: 'Độ mờ ảnh nguồn', exact: true });
+    const opacity = page.getByRole('slider', { name: 'Độ đậm lớp mô hình', exact: true });
 
     await test.step('[22-A-001] deep link: region "Màn đối chiếu bản vẽ" with its toolbar', async () => {
       await page.goto(ROUTES.project.overlay(projectId, floorId));
@@ -1353,10 +1353,16 @@ test.describe('SCR-22 Overlay Comparison', () => {
       await page.keyboard.press('ArrowLeft');
       await expect(divider).toHaveAttribute('aria-valuenow', dividerStart);
     });
-    await test.step('[22-A-013] "Độ mờ ảnh nguồn" defaults to 25 and moves by ±1 with the arrows', async () => {
+    await test.step('[22-A-013] back on "Chồng lớp": "Độ đậm lớp mô hình" defaults to 65 and moves by ±1 with the arrows', async () => {
+      // The slider only shows in "Chồng lớp" (G4b-26); UX-R2 K18 made it the model layer, default 65%.
+      await page
+        .getByRole('radiogroup', { name: 'Kiểu đối chiếu', exact: true })
+        .getByRole('radio', { name: 'Chồng lớp', exact: true })
+        .click();
+      await expect(opacity).toBeVisible();
       const opacityStart = (await opacity.getAttribute('aria-valuenow')) ?? '';
 
-      expect.soft(Number(opacityStart), 'default opacity 25').toBe(25);
+      expect.soft(Number(opacityStart), 'default model opacity 65').toBe(65);
       await opacity.focus();
       const step = Number(opacityStart) > 0 ? -1 : 1;
 

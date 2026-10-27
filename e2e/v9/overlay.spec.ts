@@ -41,7 +41,7 @@ test('vào thẳng một tầng: màn nói chưa căn được và mở lối sa
     'href',
     ROUTES.project.scale(PROJECT_ID, 'L1'),
   );
-  // S-28: tầng chưa có mô hình thì cổng (FlowGate) không có nút xác nhận — không còn nút tắt đứng chờ.
+  // UX-R2 K19: màn không còn nút "Khớp rồi, xác nhận" — chốt là xác nhận tỷ lệ ở bước Tỷ lệ.
   await expect(page.getByRole('button', { name: 'Khớp rồi, xác nhận' })).toHaveCount(0);
 
   const divider = page.getByRole('slider', { name: /^Đường chia đôi/u });
@@ -52,7 +52,7 @@ test('vào thẳng một tầng: màn nói chưa căn được và mở lối sa
 
   await expect(swipe).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByRole('radio', { name: 'chồng lớp' })).toHaveAttribute('aria-checked', 'false');
-  // Bám đúng đường chia đôi theo tên, không đếm thanh trượt: ở "trượt" thanh độ mờ ảnh nguồn ẩn đi
+  // Bám đúng đường chia đôi theo tên, không đếm thanh trượt: ở "trượt" thanh độ đậm lớp mô hình ẩn đi
   // (G4b-26), nên tổng số thanh trượt không tăng dù đường chia đôi đã có.
   await expect(divider).toBeVisible();
 });

@@ -15,7 +15,6 @@ import { useRef } from 'react';
 import { clsx } from 'clsx';
 import { Ruler } from 'lucide-react';
 
-import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 
@@ -24,11 +23,13 @@ import type { ScaleCalibrationMethodDimensionProps, ScaleDimensionMethodViewMode
 const LIST_ARIA_LABEL = 'Các chuỗi kích thước đã đọc được';
 const ROW_ARIA_LABEL_PREFIX = 'Chuỗi kích thước ';
 const UNIT_MM = 'mm';
-const MEASURED_SUFFIX = 'đo được';
+/* UX-R2 K05/K28: độ tin cậy OCR nói bằng chữ, không bằng số 0,98 (số đó không phải độ khớp). */
+const READ_SURE = 'đọc chắc';
+const READ_UNSURE = 'đọc chưa chắc';
 
-const EMPTY_TITLE = 'Chưa có số kích thước để làm mốc';
+const EMPTY_TITLE = 'Máy chưa đọc được số kích thước';
 const EMPTY_DESCRIPTION_FALLBACK =
-  'Chưa có số kích thước nào để làm mốc. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.';
+  'Máy chưa đọc được số kích thước nào để làm mốc. Kéo dọc một đoạn có ghi số trên bản vẽ rồi nhập số đó.';
 
 type ManualCalibrationReason = NonNullable<ScaleDimensionMethodViewModel['manualCalibrationReason']>;
 
@@ -106,15 +107,19 @@ export function ScaleCalibrationMethodDimension({ actions, dimension }: ScaleCal
               >
                 <span
                   className={clsx(
-                    'flex-1 truncate font-mono text-[14px]',
+                    'min-w-0 flex-1 whitespace-nowrap font-mono text-[14px]',
                     row.isLowConfidence ? 'text-state-attention-text line-through' : 'text-text-primary',
                   )}
                 >
                   {row.valueLabel} {UNIT_MM}
                 </span>
-                <ConfidenceMeter noTooltip value={row.confidence} />
-                <span className="shrink-0 whitespace-nowrap text-[12px] text-text-muted">
-                  {row.pixelLengthLabel} {MEASURED_SUFFIX}
+                <span
+                  className={clsx(
+                    'shrink-0 whitespace-nowrap text-[12px]',
+                    row.isLowConfidence ? 'text-state-attention-text' : 'text-text-muted',
+                  )}
+                >
+                  {row.isLowConfidence ? READ_UNSURE : READ_SURE}
                 </span>
               </button>
             </li>

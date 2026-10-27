@@ -52,7 +52,7 @@ import { createMockApiClient } from '@/api/__mocks__/client';
 import { ENDPOINTS } from '@/api/endpoints';
 import type { FloorImageQuality } from '@/api/schemas/quality';
 import { pixels, type Pixels } from '@/domain/units/scale';
-import { millimetres, type Millimetres } from '@/domain/units/types';
+import { millimetres, type Millimetres, type MillimetresPerPixel } from '@/domain/units/types';
 import { readProjectConfidenceThreshold, type ReadConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 
 import type { ImageRatioBox } from './types';
@@ -168,6 +168,8 @@ export interface ScaleFloorTarget {
   readonly hasDrawing: boolean;
   /** `revision` N15 của tầng — `hint` của `saveScale`; vắng khi N15 không có tầng này. */
   readonly revision?: number;
+  /** Tỷ lệ hiện tại của tầng theo N15 — vắng khi tầng chưa có tỷ lệ (UX-R2 K32). */
+  readonly currentScale?: MillimetresPerPixel;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -357,12 +359,14 @@ export function createScaleCalibrationGateway(
       return floors.data.map((floor) => {
         const levelId = levelIds.has(floor.id) ? floor.id : (byOrder.get(floor.order) ?? floor.id);
         const revision = revisions.get(levelId);
+        const currentScale = levels.find((level) => level.id === levelId)?.scaleMillimetresPerPixel;
 
         return {
           floorId: levelId,
           name: floor.name,
           hasDrawing: floor.drawings.length > 0,
           ...(revision !== undefined ? { revision } : {}),
+          ...(currentScale !== undefined ? { currentScale } : {}),
         };
       });
     },

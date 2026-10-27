@@ -7,7 +7,6 @@
  * lớp của `QcFloorNav`; ở đây chỉ còn ô "Hiện lớp tường" (BC-19, K29).
  */
 
-import { useState } from 'react';
 import { Check } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -17,7 +16,6 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { cn } from '@/lib/utils';
 
 import { QcPanelHead } from '../shared/QcPanelHead';
-import { WallLayerBulkPreview } from './WallLayerBulkPreview';
 import { WallLayerList } from './WallLayerList';
 import type { WallLayerFilterKey, WallLayerViewProps, WallRowViewModel } from './types';
 import type { WallReviewQueue } from './wallReviewQueue';
@@ -108,14 +106,15 @@ function PanelStatus({ panel, queue, saveLabel, saveFailed }: Omit<WallLayerLeft
 
 export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed }: WallLayerLeftPanelProps) {
   const { filters, onToggleFilter } = panel;
-  const [isBulkOpen, setBulkOpen] = useState(false);
   /* Mọi đoạn cùng độ tin cậy thì lọc theo nó không giúp gì: ẩn (vẫn hiện khi đang bật để tắt được). */
   const filterKeys: readonly WallLayerFilterKey[] = [
     'onlyUnreviewed',
     ...(queue?.showConfidence !== false || filters.onlyLowConfidence ? (['onlyLowConfidence'] as const) : []),
     'onlyNonStandardThickness',
   ];
-  const canBulk = !panel.isViewerRole && (queue?.bulk.changeCount ?? 0) > 0;
+  /* "Đưa N tường về chuẩn" mở màn Độ dày (UX-R2): chỉ khi có N > 0 đoạn đổi được. */
+  const onOpenThickness = queue?.onOpenThickness;
+  const canBulk = !panel.isViewerRole && (queue?.bulk.changeCount ?? 0) > 0 && onOpenThickness !== undefined;
 
   return (
     /*
@@ -157,24 +156,15 @@ export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed
         ))}
       </div>
 
-      {isBulkOpen && queue !== undefined && canBulk ? (
-        <WallLayerBulkPreview
-          bulk={queue.bulk}
-          onApply={() => {
-            queue.onBulkStandardize();
-            setBulkOpen(false);
-          }}
-          onClose={() => setBulkOpen(false)}
-        />
-      ) : null}
-
       {/* Tiêu đề cột: số căn phải, đơn vị ở tiêu đề (demo Z/S-15 vòng 9). */}
       {panel.rows.length > 0 && panel.state !== 'loading' && (
         <div aria-hidden="true" className="flex shrink-0 items-center gap-2 px-5 pb-1 pt-3 text-caption text-text-secondary">
           {/* Khớp cột của hàng: mẫu 20 + khoảng 8 + mã 48; cột dài co giãn, cột dày 36 (K28). */}
           <span className="w-[4.75rem] shrink-0 pl-7">{COLUMN_CODE}</span>
           <span className="min-w-0 flex-1 text-right">{COLUMN_LENGTH}</span>
-          <span className="w-9 shrink-0 text-right" title="Độ dày, mm">{COLUMN_THICKNESS}</span>
+          {panel.scaleLock != null ? null : (
+            <span className="w-9 shrink-0 text-right" title="Độ dày, mm">{COLUMN_THICKNESS}</span>
+          )}
         </div>
       )}
 
@@ -187,7 +177,7 @@ export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed
         )}
         <WallLayerList
           flashingWallId={extras.flashingWallId}
-          onOpenBulk={canBulk ? () => setBulkOpen(true) : undefined}
+          onOpenBulk={canBulk ? onOpenThickness : undefined}
           onToggleSelect={extras.onToggleSelect}
           panel={panel}
           queue={queue}

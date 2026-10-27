@@ -39,7 +39,6 @@ import { boxAround } from '@/lib/input/dragDrop';
 import { toAttachedOpening } from '@/lib/commands/business/shared';
 import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { FLOOR_NOT_FOUND_MESSAGE } from '@/hooks/useFloorLayer';
-import { ROUTES } from '@/routes/paths';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
@@ -437,6 +436,28 @@ describe('[NGHIEM-2] màu dữ liệu (P-06)', () => {
 
     console.log(`sau khi tắt lớp nội thất: ${mounted.result.current.dataLayerTokens.length} màu`);
     expect(mounted.result.current.dataLayerTokens).toHaveLength(2);
+
+    mounted.unmount();
+  });
+
+  it('[K07 · Codex P2] chip đếm chỉ lọc danh sách: bản vẽ giữ đủ ba lớp', async () => {
+    const mounted = await mountSettled();
+    const placementCount = mounted.result.current.placements.length;
+
+    await run(() => mounted.result.current.onFilterLayer('door'));
+
+    const filtered = mounted.result.current;
+    expect(filtered.listLayerFilter).toBe('door');
+    expect(filtered.rows.length).toBeGreaterThan(0);
+    expect(filtered.rows.every((row) => row.layer === 'door')).toBe(true);
+    expect(filtered.layerVisibility).toEqual({ door: true, window: true, furniture: true });
+    expect(filtered.placements).toHaveLength(placementCount);
+    expect(new Set(filtered.placements.map((placement) => placement.layer)).size).toBeGreaterThan(1);
+
+    /* Bấm lại chip đang lọc: danh sách về đủ. */
+    await run(() => mounted.result.current.onFilterLayer('door'));
+    expect(mounted.result.current.listLayerFilter).toBeNull();
+    expect(mounted.result.current.rows.some((row) => row.layer !== 'door')).toBe(true);
 
     mounted.unmount();
   });
@@ -1552,20 +1573,14 @@ describe('tầng của URL không có trong đồ thị (B-V6-40)', () => {
 });
 
 describe('tỷ lệ tạm (F-04x-2)', () => {
-  it('tầng unresolved: hook trả dải, "Hiệu chỉnh tỷ lệ" mở màn tỉ lệ của tầng', async () => {
-    const onNavigate = vi.fn();
+  /* UX-R2 K22/K04: tỷ lệ "cần kiểm" (vàng) không còn dải ở màn — chỉ tầng khoá (đỏ) mới có. */
+  it('tầng unresolved do máy đo (cần kiểm): không dải vàng', async () => {
     const mounted = await mountSettled({
       gateway: createMockObjectLayerReviewGateway({ scaleStatus: 'unresolved' }),
-      onNavigate,
     });
 
-    await waitFor(() => {
-      expect(mounted.result.current.provisionalScaleNotice).not.toBeNull();
-    });
-    act(() => {
-      mounted.result.current.provisionalScaleNotice?.onCalibrate?.();
-    });
-    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(PROJECT_ID, FLOOR_ID));
+    expect(mounted.result.current.objects.length).toBeGreaterThan(0);
+    expect(mounted.result.current.provisionalScaleNotice).toBeNull();
     mounted.unmount();
   });
 
@@ -1629,20 +1644,14 @@ describe('đợt sửa P04 — SCR-17', () => {
       expect(bus.list().map((item) => item.title)).toContain('Chỉ đổi được loại giữa cửa đơn, cửa đôi và cửa sổ.');
     });
 
-    /*
-     * Chip của loại không có trên tầng bị khoá, chip có dữ liệu thì bấm được.
-     * Impeccable A3: khoá bằng `aria-disabled` (vẫn focus được để đọc lý do) kèm số "(0)".
-     */
+    /* K07: menu "Loại con" chỉ liệt kê loại có mặt trên tầng; chip có dữ liệu thì bấm được. */
     expect(mounted.result.current.availableSubtypes.has('otherFurniture')).toBe(false);
     const onToggleSubtypeFilter = vi.fn();
 
     renderView(mounted.result.current, { onToggleSubtypeFilter });
-    const emptyChip = screen.getByRole('button', { name: 'Nội thất khác (0)' });
-
-    expect(emptyChip).toHaveAttribute('aria-disabled', 'true');
-    emptyChip.click();
-    expect(onToggleSubtypeFilter).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Sofa' })).not.toHaveAttribute('aria-disabled');
+    expect(screen.queryByRole('button', { name: 'Nội thất khác' })).toBeNull();
+    screen.getByRole('button', { name: 'Sofa' }).click();
+    expect(onToggleSubtypeFilter).toHaveBeenCalledWith('sofa');
 
     mounted.unmount();
   });
@@ -1726,7 +1735,7 @@ describe('đợt sửa P04 — SCR-17', () => {
 
     renderView(mounted.result.current, { inspector: null });
 
-    expect(screen.getByRole('region', { name: 'Lớp đối tượng' })).toHaveClass('h-screen');
+    expect(screen.getByRole('region', { name: 'Lớp đối tượng' })).toHaveClass('flex-1');
     expect(document.body.innerHTML).not.toContain('h-[560px]');
     expect(screen.getByText(/Chọn một mục/u)).toHaveClass('pb-5');
 

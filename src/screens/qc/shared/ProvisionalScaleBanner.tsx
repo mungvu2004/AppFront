@@ -4,12 +4,15 @@
  *
  * Gọn một dòng (G4a-01) và ẩn được: bấm X thì tầng đó không hiện lại trong phiên
  * (sessionStorage, khoá theo tầng). Không có `onCalibrate` (người xem) thì không có nút (G2-22).
- * Tầng không đo được tỷ lệ (`level: 'violation'`) thì dải đỏ và không ẩn được (UX-R1 K12).
+ * Tầng không đo được tỷ lệ (`level: 'violation'`) thì dải đỏ và không ẩn được (UX-R1 K12), và
+ * KHÔNG có nút: cổng tầng (`FloorReviewGate`, có ở mọi màn dùng dải này) đã là nút "Đặt tỷ lệ" —
+ * một màn chỉ một nút cho một việc (UX-R2).
  */
 
 import { useState } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { SCALE_STATE_VIEWS } from '@/lib/viewmodel/provisionalScale';
 
 import type { ProvisionalScaleNotice } from './provisionalScaleNotice';
 
@@ -51,7 +54,7 @@ export function ProvisionalScaleBanner({ notice }: ProvisionalScaleBannerProps) 
 
   return (
     <InlineAlert
-      {...(onCalibrate === undefined ? {} : { action: { label: 'Đặt tỷ lệ', onClick: onCalibrate } })}
+      {...(onCalibrate === undefined || missing ? {} : { action: { label: SCALE_STATE_VIEWS.missing.action, onClick: onCalibrate } })}
       className="items-center gap-y-1 px-3 py-1.5 [&_p]:leading-snug"
       level={missing ? 'violation' : 'attention'}
       message={notice.message}

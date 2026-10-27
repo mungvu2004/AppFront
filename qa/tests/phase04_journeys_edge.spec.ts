@@ -151,7 +151,7 @@ async function drawReference(page: Page, mm = 5_000, scope: 'Tầng này' | 'M�
   await expect(page.getByLabel('Phép tính ra tỷ lệ', { exact: true })).toContainText('mm/px');
   await page.getByRole('radiogroup', { name: 'Phạm vi áp tỷ lệ', exact: true }).getByRole('radio', { name: scope, exact: true }).click();
 }
-const applyScale = (page: Page): Locator => page.getByRole('button', { name: 'Áp dụng tỷ lệ', exact: true });
+const applyScale = (page: Page): Locator => page.getByRole('button', { name: 'Xác nhận tỷ lệ', exact: true });
 const bannerOf = (page: Page): Locator => page.getByText(PROVISIONAL, { exact: true });
 const calibrateButton = (page: Page): Locator => page.getByRole('button', { name: CALIBRATE, exact: true });
 

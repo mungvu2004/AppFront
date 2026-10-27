@@ -80,6 +80,8 @@ export interface WallReviewQueue {
   readonly lockText?: string | null | undefined;
   readonly onStandardize: (wallId: WallId) => void;
   readonly onBulkStandardize: () => void;
+  /** Mở màn Độ dày tường của tầng (nút "Đưa N tường về chuẩn"); vắng = không có nút. */
+  readonly onOpenThickness?: (() => void) | undefined;
 }
 
 const RANK: Readonly<Record<WallQueueGroup, number>> = { nonStandard: 0, standard: 1, reviewed: 2 };
@@ -106,13 +108,15 @@ export function nextUnreviewedWallId(walls: readonly Wall[], fromId: WallId | nu
 }
 
 /** Tường chưa duyệt mà máy chưa chắc (dưới ngưỡng tin cậy) đứng đầu nhóm của nó (K15). */
-const uncertainRankOf = (wall: Wall, threshold: number | undefined): number =>
-  !wall.reviewed && isLowConfidence(wall, threshold) ? 0 : 1;
+const uncertainRankOf = (wall: Wall, threshold: number | undefined, suspectIds?: ReadonlySet<string>): number =>
+  !wall.reviewed && isLowConfidence(wall, threshold, suspectIds) ? 0 : 1;
 
 /** Xếp theo hàng đợi, trong mỗi nhóm "máy chưa chắc" lên trước; còn lại giữ thứ tự vào (sort ổn định). */
-export const sortByReviewQueue = (walls: readonly Wall[], threshold?: number): readonly Wall[] =>
+export const sortByReviewQueue = (walls: readonly Wall[], threshold?: number, suspectIds?: ReadonlySet<string>): readonly Wall[] =>
   [...walls].sort(
-    (a, b) => RANK[queueGroupOf(a)] - RANK[queueGroupOf(b)] || uncertainRankOf(a, threshold) - uncertainRankOf(b, threshold),
+    (a, b) =>
+      RANK[queueGroupOf(a)] - RANK[queueGroupOf(b)] ||
+      uncertainRankOf(a, threshold, suspectIds) - uncertainRankOf(b, threshold, suspectIds),
   );
 
 const isChoice = (value: unknown): value is WallThicknessChoice =>

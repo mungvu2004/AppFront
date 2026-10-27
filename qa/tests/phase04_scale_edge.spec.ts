@@ -870,7 +870,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         return route.continue();
       });
 
-      await step('14-B-016', 'applying: the button reads "Đang áp tỷ lệ…" with a spinner (a double click sent while it is held)', async () => {
+      await step('14-B-016', 'applying: the button reads "Đang lưu tỷ lệ…" with a spinner (a double click sent while it is held)', async () => {
         await drawStandard(page);
         await applyDisabled(page).dblclick();
         await expect.poll(() => seen).toBeGreaterThanOrEqual(1);
@@ -879,7 +879,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-B-016', 'applying');
       });
 
-      await step('14-A-025', 'a double click on "Áp dụng tỷ lệ" sends one PUT', async () => {
+      await step('14-A-025', 'a double click on "Xác nhận tỷ lệ" sends one PUT', async () => {
         release();
         await expect(page.getByText(SCALE.successTitle, { exact: true })).toBeVisible();
         await btn(page, SCALE.undo).hover(); // a hovered toast is held: the undo steps below still have their button
@@ -939,7 +939,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-E-010', 'notice-alert');
       });
 
-      await step('14-A-026', 'the undo toast ("Áp dụng tỷ lệ" + "Hoàn tác") reverts the Level and PUTs the previous ratio', async () => {
+      await step('14-A-026', 'the undo toast ("Xác nhận tỷ lệ" + "Hoàn tác") reverts the Level and PUTs the previous ratio', async () => {
         await btn(page, SCALE.undo).click();
         await expect.poll(() => putOf().length).toBe(2);
         expect.soft(putRatio(putOf()[1]), 'second PUT carries the old ratio').toBeCloseTo(r0, 5);
@@ -1121,7 +1121,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-B-010', 'collapsed');
       });
 
-      await step('14-B-024', 'the collapsed panel also hides the scope and "Áp dụng tỷ lệ" (everything below the header)', async () => {
+      await step('14-B-024', 'the collapsed panel also hides the scope and "Xác nhận tỷ lệ" (everything below the header)', async () => {
         await expect.soft(scopeRadio(page, SCALE.thisFloor)).toHaveCount(0); // SCP:98-249
         await expect.soft(applyDisabled(page)).toHaveCount(0);
         if (await btn(page, SCALE.expand).isVisible()) await btn(page, SCALE.expand).click();
@@ -1192,7 +1192,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-G-014', 'version-conflict');
       });
 
-      await step('14-B-023', 'after one scale-only 409 the floor is not blocked: the next "Áp dụng tỷ lệ" sends 1 PUT; a "Tải lại" way out exists ⚑', async () => {
+      await step('14-B-023', 'after one scale-only 409 the floor is not blocked: the next "Xác nhận tỷ lệ" sends 1 PUT; a "Tải lại" way out exists ⚑', async () => {
         const mark = sent.length;
         await applyDisabled(page).click();
         await flush(page);
@@ -1289,7 +1289,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-A-023', 'dialog-cancel');
       });
 
-      await step('14-E-008', 'A9 dialog: named by its title, focus inside, Tab trapped, focus back to "Áp dụng tỷ lệ"', async () => {
+      await step('14-E-008', 'A9 dialog: named by its title, focus inside, Tab trapped, focus back to "Xác nhận tỷ lệ"', async () => {
         await applyDisabled(page).click();
         const dialog = dialogFor(2);
         await expect(dialog).toBeVisible(); // SC:247-256

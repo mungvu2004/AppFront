@@ -9,9 +9,10 @@ describe('scaleCheck', () => {
     expect(mmPerPxAt(100, 150)).toBeCloseTo(16.933, 3);
   });
 
-  it('chưa có tỷ lệ: chip trung tính, không bịa số', () => {
+  it('chưa có tỷ lệ: chip đỏ tên chung "Chưa có tỷ lệ", không bịa số', () => {
     const check = buildScaleCheck({ mmPerPx: null, source: null, shortEdgePx: 837, knownDimension: null });
-    expect(check.status.label).toBe('Chưa đặt tỷ lệ');
+    expect(check.status.label).toBe('Chưa có tỷ lệ');
+    expect(check.status.tone).toBe('violation');
     expect(check.densityValue).toBeNull();
     expect(check.knownCheck).toBeNull();
     expect(check.knownCheckMissing).toBeNull();
@@ -19,11 +20,11 @@ describe('scaleCheck', () => {
     expect(check.table?.rows[0]?.cells).toEqual(['4,2', '8,5', '17,7']);
   });
 
-  it('tỷ lệ vừa đo: số mm/px, ≈ 1:N ở DPI ảnh, câu bảo bấm Áp dụng', () => {
+  it('tỷ lệ vừa đo: số mm/px, ≈ 1:N ở DPI ảnh, câu chỉ nói tình hình', () => {
     const check = buildScaleCheck({ mmPerPx: 24.878, source: 'proposed', shortEdgePx: 837, knownDimension: null });
     expect(check.densityValue).toBe('24,878');
     expect(check.ratioLine).toBe('≈ 1:70');
-    expect(check.status.sentence).toBe('Đo được tỷ lệ ≈ 1:70, bấm Áp dụng để dùng.');
+    expect(check.status.sentence).toBe('Đo được tỷ lệ ≈ 1:70.');
     expect(check.knownCheckMissing).not.toBeNull();
   });
 
@@ -36,7 +37,7 @@ describe('scaleCheck', () => {
     });
     expect(ok.knownCheck?.tone).toBe('verified');
     expect(ok.knownCheck?.title).toBe('Đo ra 4.030 mm, bản vẽ ghi 4.000');
-    expect(ok.status.label).toBe('Đã đặt');
+    expect(ok.status.label).toBe('Đã xác nhận');
 
     const off = buildScaleCheck({
       mmPerPx: 17.887,
@@ -46,7 +47,7 @@ describe('scaleCheck', () => {
     });
     expect(off.knownCheck?.tone).toBe('attention');
     expect(off.knownCheck?.title).toBe('Đo ra 2.898 mm, bản vẽ ghi 4.000');
-    expect(off.status.label).toBe('Đã đặt, lệch kích thước');
+    expect(off.status.label).toBe('Đã xác nhận, lệch kích thước');
   });
 
   it('[K17] biết cỡ căn: số to là cỡ căn thật, mm/px và 1:N lùi xuống dòng chi tiết', () => {
@@ -58,9 +59,24 @@ describe('scaleCheck', () => {
       planSizeMm: { widthMm: 9100, heightMm: 7410 },
     });
     expect(check.headline).toBe('≈ 9,1 × 7,4 m');
-    expect(check.detailLine).toBe('24,878 mm/px · ≈ 1:70 nếu ảnh là khổ A3');
-    expect(check.title).toBe('Cỡ căn theo tỷ lệ tạm');
-    expect(check.status.sentence).toBe('Đang tạm dùng tỷ lệ cho căn ≈ 9,1 × 7,4 m. Đo 2 điểm để xác nhận.');
+    expect(check.detailLine).toBe('24,878 mm/px');
+    expect(check.title).toBe('Cỡ căn theo tỷ lệ máy đo');
+    expect(check.status.label).toBe('Tỷ lệ cần kiểm');
+    expect(check.status.sentence).toBe('Đang tạm dùng tỷ lệ cho căn ≈ 9,1 × 7,4 m.');
+  });
+
+  it('[UX-R2 K27/K50] tầng máy không đo được: nhãn đỏ "Chưa có tỷ lệ", cỡ căn ghi "chắc chắn sai"', () => {
+    const check = buildScaleCheck({
+      mmPerPx: 1,
+      source: 'missing',
+      shortEdgePx: 837,
+      knownDimension: null,
+      planSizeMm: { widthMm: 600, heightMm: 500 },
+    });
+    expect(check.status.tone).toBe('violation');
+    expect(check.status.label).toBe('Chưa có tỷ lệ');
+    expect(check.headline).toBe('≈ 0,6 × 0,5 m (chắc chắn sai)');
+    expect(check.detailLine).toBe('1 mm/px');
   });
 
   it('chưa biết cỡ căn: số to vẫn là 1:N, không dòng chi tiết', () => {

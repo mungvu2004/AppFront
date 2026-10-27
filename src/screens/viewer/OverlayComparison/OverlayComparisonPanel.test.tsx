@@ -76,7 +76,7 @@ describe('OverlayComparisonPanel', () => {
     renderWithProviders(<OverlayComparisonPanel {...panelPropsOf('empty')} />);
 
     expect(screen.queryByText('0 mm')).not.toBeInTheDocument();
-    expect(screen.getByText('Máy chưa đo được độ lệch. So hai lớp bằng mắt; thấy khớp thì xác nhận.')).toBeInTheDocument();
+    expect(screen.getByText('Máy chưa đo được độ lệch. So hai lớp bằng mắt; lệch nhiều thì đặt lại tỷ lệ.')).toBeInTheDocument();
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.queryByText('—')).toBeNull();
   });

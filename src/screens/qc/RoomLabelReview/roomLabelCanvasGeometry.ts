@@ -221,8 +221,25 @@ export const ROOM_STROKE_WIDTH_PX = 1;
 export const ROOM_SELECTED_STROKE_TOKEN = '--accent';
 export const ROOM_SELECTED_STROKE_WIDTH_PX = 2;
 
-/** Phòng đang chọn "nâng lên 10%": phóng to quanh tâm hộp bao của chính nó. */
-export const ROOM_SELECTED_SCALE = 1.1;
+/**
+ * Tên ngắn cho nhãn trên bản vẽ khi tên đủ không vừa phòng (K16): "phòng tắm 1" → "WC 1",
+ * "phòng ngủ 2" → "Ngủ 2", "phòng khách" → "Khách". Tên đủ và mã phòng nằm ở danh sách và panel.
+ */
+const SHORT_NAME_RULES: readonly (readonly [RegExp, string])[] = [
+  [/^\s*(phòng tắm|phòng vệ sinh|nhà vệ sinh|vệ sinh|wc)\s*/iu, 'WC '],
+  [/^\s*phòng ngủ\s*/iu, 'Ngủ '],
+  [/^\s*phòng khách\s*/iu, 'Khách '],
+  [/^\s*phòng\s+/iu, ''],
+];
+
+export function shortRoomName(name: string): string {
+  const rule = SHORT_NAME_RULES.find(([pattern]) => pattern.test(name));
+  if (rule === undefined) {
+    return name.trim();
+  }
+  const short = name.replace(rule[0], rule[1]).trim();
+  return short === '' ? name.trim() : short.charAt(0).toUpperCase() + short.slice(1);
+}
 
 /** Cỡ chữ nhãn tên giữa phòng (px, SVG `font-size`, không phải class Tailwind). */
 export const ROOM_LABEL_NAME_FONT_PX = 15;

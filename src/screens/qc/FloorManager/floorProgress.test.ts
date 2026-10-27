@@ -34,12 +34,25 @@ describe('tầng máy không đo được tỷ lệ (UX-R1 K06/K12)', () => {
   const [first, second, third] = drawn;
   const rows = drawn.map((row) => ({ ...row, isScaleMissing: row !== first }));
 
-  it('nhãn đỏ "Sai tỷ lệ", không in diện tích', () => {
-    const step = floorStepOf({ ...third!, isScaleMissing: true });
+  it('nhãn đỏ "Chưa có tỷ lệ", diện tích "Chưa có"', () => {
+    const step = floorStepOf({ ...third!, isScaleMissing: true, scaleState: 'missing' });
 
-    expect(step.label).toBe('Sai tỷ lệ');
+    expect(step.label).toBe('Chưa có tỷ lệ');
     expect(step.tone).toBe('violation');
     expect(step.summaryText).not.toContain('m²');
+    expect(step.summaryText).toContain('Chưa có');
+  });
+
+  it('UX-R2: tỷ lệ cần kiểm là chip vàng, diện tích ghi "≈ … (tạm)"', () => {
+    const step = floorStepOf({ ...third!, scaleState: 'check', areaText: '67,73 m²' });
+
+    expect(step.label).toBe('Tỷ lệ cần kiểm');
+    expect(step.tone).toBe('attention');
+    expect(step.summaryText).toContain('≈ 67,73 m² (tạm)');
+  });
+
+  it('tỷ lệ đã xác nhận: in diện tích thật', () => {
+    expect(floorStepOf({ ...third!, areaText: '67,73 m²' }).summaryText).toContain(', 67,73 m²');
   });
 
   it('Việc tiếp đòi đặt tỷ lệ tầng sai đầu tiên trước khi duyệt tường', () => {
@@ -64,7 +77,13 @@ describe('cảnh báo các tầng không có trục chung (UX-R1 K19)', () => {
     expect(hasNoSharedAxes(report([floor('a', true, 6, 6), floor('b', false, 5, 0), floor('c', false, 4, 1)]))).toBe(true);
   });
 
-  it('một tầng khớp đủ trục, hoặc chưa tầng nào có trục, thì không', () => {
+  it('K09: đa số tầng không khớp thì vẫn cảnh báo dù một tầng khớp tình cờ', () => {
+    expect(
+      hasNoSharedAxes(report([floor('a', true, 6, 6), floor('b', false, 5, 0), floor('c', false, 4, 3), floor('d', false, 4, 0)])),
+    ).toBe(true);
+  });
+
+  it('nửa số tầng khớp đủ trục, hoặc chưa tầng nào có trục, thì không', () => {
     expect(hasNoSharedAxes(report([floor('a', true, 6, 6), floor('b', false, 5, 0), floor('c', false, 4, 3)]))).toBe(false);
     expect(hasNoSharedAxes(report([floor('a', true, 6, 6), floor('b', false, 0, 0)]))).toBe(false);
   });
@@ -80,7 +99,7 @@ describe('[K12] tầng cần đặt tỷ lệ trước — cùng luật với th
     [level],
   );
 
-  it('máy đo ra hình vô lý cũng là "Sai tỷ lệ", không chỉ khi không đo được', () => {
+  it('máy đo ra hình vô lý cũng là "Chưa có tỷ lệ", không chỉ khi không đo được', () => {
     expect(floorScaleMissingOf(tiny, level, { revision: 0, scaleStatus: 'unresolved', scaleSource: 'pipeline' })).toBe(true);
     expect(floorScaleMissingOf(plausible, level, { revision: 0, scaleStatus: 'unresolved', scaleSource: 'project_default' })).toBe(true);
   });

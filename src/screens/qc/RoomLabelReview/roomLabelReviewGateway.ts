@@ -193,7 +193,7 @@ import { lowerFirst } from '@/lib/format/sentence';
 import { describeConfidence } from '@/lib/format/semantic';
 import { boxAround } from '@/lib/input/dragDrop';
 import { createUndoTicket, UNDO_WINDOW_MS, type UndoTicket } from '@/lib/mutations/undoTicket';
-import { measureTextOf } from '@/lib/viewmodel/provisionalScale';
+import { isScaleMissing, type ScaleSource } from '@/lib/viewmodel/provisionalScale';
 import { applyRollbackPatches, commit } from '@/store/commit';
 import { useStore } from '@/store';
 
@@ -750,15 +750,39 @@ export interface RoomLabelMeasures {
  *   ấy — màn không viết `(min + max) / 2`). Phòng không có hộp nào lọt thì rơi
  *   về trọng tâm của chính đa giác.
  */
-export function measureRoom(room: Room, scale: Scale, scaleStatus?: 'unresolved'): RoomLabelMeasures {
+/** Câu thay số đo khi tầng đỏ (máy không đo được tỷ lệ): số theo tỷ lệ mặc định sai hẳn (K16). */
+export const MISSING_SCALE_MEASURE_TEXT = 'Chưa có';
+
+/**
+ * K16: một quy tắc cho số đo ở tỷ lệ tạm — tầng vàng (máy đo, cần kiểm) vẫn hiện số kèm
+ * "≈ … (tạm)" như màn Các tầng; tầng đỏ (`project_default`) ghi "Chưa có".
+ */
+export function provisionalMeasureText(
+  formatted: string,
+  scaleStatus?: 'unresolved',
+  scaleSource?: ScaleSource,
+): string {
+  if (scaleStatus !== 'unresolved') {
+    return formatted;
+  }
+
+  return isScaleMissing(scaleSource) ? MISSING_SCALE_MEASURE_TEXT : `≈ ${formatted} (tạm)`;
+}
+
+export function measureRoom(
+  room: Room,
+  scale: Scale,
+  scaleStatus?: 'unresolved',
+  scaleSource?: ScaleSource,
+): RoomLabelMeasures {
   const outlineMm = room.outline.map(toPointMm);
   const rect = computeLargestInnerRectangle(outlineMm);
 
   return {
     areaM2: computeArea(outlineMm),
     /* Tầng ở tỉ lệ tạm thì số đo chưa tin được (F-04x-2). */
-    areaText: measureTextOf(formatArea(computeArea(outlineMm)), scaleStatus),
-    perimeterText: measureTextOf(formatLength(computePerimeter(outlineMm)), scaleStatus),
+    areaText: provisionalMeasureText(formatArea(computeArea(outlineMm)), scaleStatus, scaleSource),
+    perimeterText: provisionalMeasureText(formatLength(computePerimeter(outlineMm)), scaleStatus, scaleSource),
     labelAnchorMm:
       rect === null ? computeCentroid(outlineMm) : computeCentroid(cornersOfRectangle(rect)),
     labelBoxPx:
@@ -811,11 +835,13 @@ export function summaryOf(
   rooms: readonly Room[],
   violations: readonly Violation[],
   scaleStatus?: 'unresolved',
+  scaleSource?: ScaleSource,
 ): RoomLabelSummaryViewModel {
   return {
-    totalAreaText: measureTextOf(
+    totalAreaText: provisionalMeasureText(
       formatArea(totalArea(rooms.map((room) => room.outline.map(toPointMm)))),
       scaleStatus,
+      scaleSource,
     ),
     roomCount: rooms.length,
     unnamedCount: rooms.filter((room) => !hasRoomName(room)).length,

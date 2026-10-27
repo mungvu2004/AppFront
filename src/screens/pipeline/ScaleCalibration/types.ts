@@ -511,6 +511,16 @@ export interface ScalePanelViewModel {
   readonly isCurrentScaleKnown: boolean;
   /** Khối "Kiểm tra con số" + chip trạng thái (S-11) — một nguồn, sinh từ `buildScaleCheck`. */
   readonly scaleCheck?: ScaleCheckViewModel;
+  /** UX-R2: tỷ lệ máy ước từ độ dày tường (N16 `suggestedScaleMmPerPx`). Vắng khi máy không ước hoặc tầng đã xác nhận. */
+  readonly suggestion?: ScaleSuggestionViewModel;
+}
+
+/** Lời đề nghị "Máy ước lượng từ độ dày tường: 1 px ≈ X mm. [Dùng tỷ lệ này]". */
+export interface ScaleSuggestionViewModel {
+  readonly text: string;
+  readonly actionLabel: string;
+  /** Đã bấm "Dùng tỷ lệ này": tỷ lệ ấy đang là đề nghị chờ xác nhận. */
+  readonly isActive: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -609,6 +619,8 @@ export interface ScaleAllFloorsConfirm {
   readonly message: string;
   readonly confirmLabel: string;
   readonly cancelLabel: string;
+  /** UX-R2 K32: mỗi tầng một dòng "ch-01: 1 → 13,9 mm/px", để thấy tầng nào sẽ đổi. */
+  readonly changes?: readonly string[];
 }
 
 /* -------------------------------------------------------------------------- */
@@ -693,6 +705,8 @@ export interface ScaleCalibrationActions {
   /** Áp tỷ lệ. Sinh toast có Hoàn tác (A8) và cho nhãn kích thước chạy số 260 ms. */
   readonly onApply: () => void;
   readonly onChangeApplyScope: (scope: ScaleApplyScope) => void;
+  /** UX-R2: lấy tỷ lệ máy ước từ độ dày tường làm đề nghị (chưa lưu, vẫn phải bấm Xác nhận tỷ lệ). */
+  readonly onUseSuggestedScale: () => void;
   /** Đồng ý ở hộp thoại A9: gửi tỷ lệ cho từng tầng có bản vẽ, nối tiếp. */
   readonly onConfirmAllFloors: () => void;
   /** Huỷ hộp thoại A9: không gửi gì, màn giữ trạng thái trước. */
@@ -766,6 +780,7 @@ export interface ScaleCalibrationPanelProps {
     | 'onRemeasure'
     | 'onSelectDimensionRow'
     | 'onToggleCollapsed'
+    | 'onUseSuggestedScale'
   >;
 }
 

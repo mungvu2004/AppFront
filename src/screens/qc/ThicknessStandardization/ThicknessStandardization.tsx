@@ -115,7 +115,9 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
   const [isDetailOpen, setDetailOpen] = useState(false);
   const [isThresholdOpen, setThresholdOpen] = useState(false);
   const thresholdId = useId();
-  const { segmentRows, isViewerRole, saveLabel } = props;
+  const { segmentRows, saveLabel } = props;
+  /* Vai người xem, hoặc tầng khoá vì thiếu tỷ lệ (K49): không ô đồng ý, không nút đổi, không gợi ý phím. */
+  const isReadOnly = props.isViewerRole || props.isScaleLocked === true;
   const segmentCount = segmentRows.length;
 
   /* Đọc lớp hỏng khi chưa có tài liệu: một trạng thái lỗi, một lối ra (BUG-326). */
@@ -218,7 +220,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
             ) : (
               <ThicknessBatchPanel
                 hoveredGroup={props.hoveredGroup}
-                isReadOnly={isViewerRole}
+                isReadOnly={isReadOnly}
                 manualRows={props.manualRows}
                 onHoverGroup={props.onHoverGroup}
                 onOpenDetail={() => setDetailOpen(true)}
@@ -236,7 +238,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
               batchSentence={props.batchSentence}
               candidateCount={props.candidateCount}
               groupCount={props.targetGroups.length}
-              isReadOnly={isViewerRole}
+              isReadOnly={isReadOnly}
               onAcceptAllGroups={props.onAcceptAllGroups}
               onApplyBatch={props.onApplyBatch}
             />
@@ -276,7 +278,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
           <ThicknessSegmentTable
             flashingWallIds={props.flashingWallIds}
             hoveredWallId={props.hoveredWallId}
-            isReadOnly={isViewerRole}
+            isReadOnly={isReadOnly}
             onApplySelectedGroup={props.onApplySelectedGroup}
             onChangeNormalizedGroup={props.onChangeNormalizedGroup}
             onChangeSortKey={props.onChangeSortKey}
@@ -291,15 +293,17 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
         </Drawer.Body>
       </Drawer.Root>
 
-      <QcStatusBar onUndo={isViewerRole ? undefined : props.onUndo} saveLabel={false}>
+      <QcStatusBar onUndo={isReadOnly ? undefined : props.onUndo} saveLabel={false}>
         <span className="truncate text-body-sm text-text-secondary max-lg:hidden">{STATUS_HINT}</span>
         <span className="ml-auto flex items-center gap-3 text-caption text-text-secondary">
-          {KEY_HINTS.map((hint) => (
-            <span key={hint.key} className="flex items-center gap-1">
-              <Kbd>{hint.key}</Kbd>
-              {hint.label}
-            </span>
-          ))}
+          {isReadOnly
+            ? null
+            : KEY_HINTS.map((hint) => (
+                <span key={hint.key} className="flex items-center gap-1">
+                  <Kbd>{hint.key}</Kbd>
+                  {hint.label}
+                </span>
+              ))}
         </span>
       </QcStatusBar>
     </QcScreenFrame>

@@ -9,6 +9,7 @@ import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { useProjectFloors } from '@/hooks/useProjectFloors';
 import { cn } from '@/lib/utils';
 import { queryKeys } from '@/lib/query/queryKeys';
+import { SCALE_STATE_VIEWS } from '@/lib/viewmodel/provisionalScale';
 import { ROUTES } from '@/routes/paths';
 
 import {
@@ -18,6 +19,7 @@ import {
   SCALE_LOCK_REASON,
   type RequiredLayerKey,
 } from './floorReviewGateModel';
+import { QC_LAYERS, qcStepOf } from './qcLayers';
 import { graphOfDocument, useFloorReview } from './useFloorReview';
 
 /**
@@ -25,11 +27,13 @@ import { graphOfDocument, useFloorReview } from './useFloorReview';
  * (Tỷ lệ · Tường a/b · Cửa c/d · Phòng e/f) đã nằm trên thanh bước của tầng (`QcFloorNav`),
  * nên cổng không vẽ lại hàng điều kiện (UX-R1 K25).
  *
- * Thứ tự nút: tỷ lệ chưa xác nhận → "Đặt tỷ lệ" (máy không đo được) / "Kiểm tỷ lệ" (máy đo,
- * cần kiểm) đi trước mọi nút khác; đang ở màn Tỷ lệ mà tỷ lệ còn thiếu → "Duyệt tiếp: Tường"
- * bị khoá kèm lý do. Sau đó lớp bắt buộc đầu tiên chưa xong → "Duyệt tiếp: <lớp>" (đang đứng ở
- * lớp đó mà màn truyền `onNext` thì nút mở mục kế tiếp); cả ba xong → "Sang <tầng kế>" nếu còn
- * tầng chưa biết là xong, không thì "Sang Mô hình 3D".
+ * Nút luôn đi TỚI (UX-R2 K22/K04). Chỉ tầng "Chưa có tỷ lệ" (đỏ) bị khoá: ngoài màn Tỷ lệ nút là
+ * "Đặt tỷ lệ", ở màn Tỷ lệ là "Tiếp: Tường" bị khoá kèm lý do. Tỷ lệ "cần kiểm" (vàng) không kéo
+ * người dùng về màn Tỷ lệ — chấm vàng trên thanh bước đã nói việc đó. Đang ở lớp bắt buộc chưa
+ * xong mà màn truyền `onNext` → nút mở mục kế tiếp của lớp này. Còn lại nút trỏ bước NGAY SAU
+ * màn đang mở (Tỷ lệ → Tường → Cửa và nội thất → Phòng), không bao giờ lùi về lớp trước còn dở;
+ * sau Phòng → "Sang <tầng kế>" nếu còn tầng chưa biết là xong, không thì "Sang Mô hình 3D".
+ * Màn phụ đi theo bước cha (Kích thước → bước Tỷ lệ, Độ dày → bước Tường); Trục coi như trước Tường.
  */
 export interface FloorReviewGateProps {
   readonly projectId: string;
@@ -46,8 +50,16 @@ const LAYER_ROUTES: Readonly<Record<RequiredLayerKey, (projectId: string, floorI
 
 const DEFAULT_NEXT_LABEL = 'Duyệt mục kế tiếp';
 const VIEWER_LABEL = 'Sang Mô hình 3D';
-const SCALE_SET_ACTION = 'Đặt tỷ lệ';
-const SCALE_CHECK_ACTION = 'Kiểm tỷ lệ';
+const SCALE_SET_ACTION = SCALE_STATE_VIEWS.missing.action;
+const nextStepLabel = (label: string): string => `Tiếp: ${label}`;
+const STEP_KEYS = QC_LAYERS.filter((layer) => layer.group === 'step').map((layer) => layer.key);
+
+/** Bước bắt buộc ngay sau màn đang mở; `undefined` khi màn là Phòng (hết bước của tầng). */
+function stepAfter(pathname: string, projectId: string, floorId: string): RequiredLayerKey | undefined {
+  const here = QC_LAYERS.find((layer) => layer.route(projectId, floorId) === pathname);
+  const step = here === undefined ? null : qcStepOf(here.key);
+  return STEP_KEYS[(step === null ? 0 : STEP_KEYS.indexOf(step)) + 1] as RequiredLayerKey | undefined;
+}
 
 export function FloorReviewGate({ projectId, floorId, onNext, nextLabel }: FloorReviewGateProps) {
   const { pathname } = useLocation();
@@ -69,29 +81,30 @@ export function FloorReviewGate({ projectId, floorId, onNext, nextLabel }: Floor
     </Link>
   );
 
+  /* Đang đứng ở một lớp bắt buộc chưa xong: làm tiếp lớp này trước (khi màn có mục kế tiếp). */
+  const hereUnfinished = gate.layers.some((layer) => !layer.done && LAYER_ROUTES[layer.key](projectId, floorId) === pathname);
+  const afterKey = stepAfter(pathname, projectId, floorId);
+  const after = afterKey === undefined ? null : (gate.layers.find((layer) => layer.key === afterKey) ?? null);
+
   let action: ReactNode;
-  if (scale !== null && scale !== 'confirmed' && pathname !== scaleRoute) {
-    action = linkTo(scaleRoute, scale === 'missing' ? SCALE_SET_ACTION : SCALE_CHECK_ACTION);
-  } else if (scale === 'missing' && gate.next !== null) {
+  if (scale === 'missing' && pathname !== scaleRoute) {
+    action = linkTo(scaleRoute, SCALE_SET_ACTION);
+  } else if (scale === 'missing' && after !== null) {
     /* Đang ở màn Tỷ lệ, tỷ lệ còn thiếu: các bước sau khoá; nút nói rõ vì sao. */
     action = (
       <button aria-disabled="true" className={cn(buttonClass, 'cursor-not-allowed opacity-60')} title={SCALE_LOCK_REASON} type="button">
-        {`Duyệt tiếp: ${gate.next.label}`}
+        {nextStepLabel(after.label)}
         <span className="sr-only">{`: ${SCALE_LOCK_REASON}`}</span>
       </button>
     );
-  } else if (gate.next !== null) {
-    /* Đang đứng ở một lớp bắt buộc chưa xong và màn có mục kế tiếp: làm tiếp lớp này trước, không đẩy về lớp khác. */
-    const here = gate.layers.find((layer) => !layer.done && LAYER_ROUTES[layer.key](projectId, floorId) === pathname);
-    const route = LAYER_ROUTES[gate.next.key](projectId, floorId);
-    action =
-      onNext !== undefined && here !== undefined ? (
-        <button className={buttonClass} onClick={onNext} type="button">
-          {nextLabel ?? DEFAULT_NEXT_LABEL}
-        </button>
-      ) : (
-        linkTo(route, `Duyệt tiếp: ${gate.next.label}`)
-      );
+  } else if (onNext !== undefined && hereUnfinished) {
+    action = (
+      <button className={buttonClass} onClick={onNext} type="button">
+        {nextLabel ?? DEFAULT_NEXT_LABEL}
+      </button>
+    );
+  } else if (after !== null) {
+    action = linkTo(LAYER_ROUTES[after.key](projectId, floorId), nextStepLabel(after.label));
   } else {
     /* ponytail: tầng khác chỉ biết "xong" khi kho hoặc cache N16 đã có nó; chưa đọc thì coi là chưa xong. */
     const isDone = (id: string) => {

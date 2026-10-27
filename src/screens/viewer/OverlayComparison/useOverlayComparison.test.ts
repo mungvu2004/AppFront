@@ -813,26 +813,28 @@ describe('useOverlayComparison — cổng và định dạng', () => {
     expect(model.marks).toHaveLength(0);
   });
 
-  it('độ mờ ảnh nguồn đi ra dưới dạng chuỗi đã định dạng', async () => {
+  it('[UX-R2 K18] bản gốc luôn đậm; thanh trượt chỉnh lớp mô hình, mặc định 65%', async () => {
     const mounted = await mountMeasured();
 
-    expect(mounted.result.current.model.scanOpacityPercent).toBe(45);
-    expect(mounted.result.current.model.scanOpacityText).toBe('45%');
-    expect(mounted.result.current.model.layers.scan.opacity).toBeCloseTo(0.45);
+    expect(mounted.result.current.model.modelOpacityPercent).toBe(65);
+    expect(mounted.result.current.model.modelOpacityText).toBe('65%');
+    expect(mounted.result.current.model.layers.scan.opacity).toBe(1);
+    expect(mounted.result.current.model.layers.geometry.opacity).toBeCloseTo(0.65);
 
     await act(async () => {
-      mounted.result.current.actions.setScanOpacity(60);
+      mounted.result.current.actions.setModelOpacity(60);
     });
 
-    expect(mounted.result.current.model.scanOpacityText).toBe('60%');
-    expect(mounted.result.current.model.layers.scan.opacity).toBeCloseTo(0.6);
+    expect(mounted.result.current.model.modelOpacityText).toBe('60%');
+    expect(mounted.result.current.model.layers.scan.opacity).toBe(1);
+    expect(mounted.result.current.model.layers.geometry.opacity).toBeCloseTo(0.6);
 
-    // G4b-26: "trượt" đặt ảnh riêng một bên nên hiện đủ, không theo thanh độ mờ.
+    // G4b-26: "trượt" đặt mô hình riêng một bên nên hiện đủ, không theo thanh trượt.
     await act(async () => {
       mounted.result.current.actions.setCompareMode('swipe');
     });
 
-    expect(mounted.result.current.model.layers.scan.opacity).toBe(1);
+    expect(mounted.result.current.model.layers.geometry.opacity).toBe(1);
   });
 
   it('chọn một vùng lệch thì vẽ đường đo kèm giá trị đã định dạng', async () => {
@@ -938,7 +940,7 @@ describe('useOverlayComparison — cổng và định dạng', () => {
     const { layers } = mounted.result.current.model;
 
     expect(Object.keys(layers).sort()).toEqual(['deviation', 'geometry', 'scan']);
-    expect(layers.geometry.opacity).toBeCloseTo(1);
+    expect(layers.scan.opacity).toBe(1);
     expect(layers.deviation.isVisible).toBe(true);
   });
 });
@@ -1021,7 +1023,7 @@ describe('useOverlayComparison — QA-04c SCR-22 (BUG-588, 599, 600, 608)', () =
     await settle(mounted);
 
     act(() => {
-      mounted.result.current.actions.setScanOpacity(70);
+      mounted.result.current.actions.setModelOpacity(70);
       mounted.result.current.actions.setViewport({ x: 120, y: -40, zoom: 2 });
     });
     act(() => {
@@ -1030,7 +1032,7 @@ describe('useOverlayComparison — QA-04c SCR-22 (BUG-588, 599, 600, 608)', () =
 
     const model = mounted.result.current.model;
     expect(model.viewport).toEqual({ x: 0, y: 0, zoom: 1 });
-    expect(model.scanOpacityPercent).toBe(70);
+    expect(model.modelOpacityPercent).toBe(70);
     // J-7/B2-14: chưa đo được vùng lệch vẫn xác nhận được bằng mắt — không còn ngõ cụt.
     expect(model.confirmation.canConfirm).toBe(true);
     expect(model.confirmation.disabledReason).toBeNull();

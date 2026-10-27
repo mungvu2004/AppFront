@@ -59,9 +59,23 @@ function defaultReadScale(projectId: string): ReadScale {
 
 type Spatial = NonNullable<RootState['spatial']>;
 
-async function readScaleStatus(spatial: Spatial, read: ReadScale): Promise<ScaleStatus> {
+type FloorMeta = RootState['floorMeta'];
+
+/**
+ * UX-R2 K39: tầng mà kho đã biết là tỷ lệ tạm (`floorMeta` có `scaleStatus`, đọc từ N16 trước đó)
+ * thì dùng luôn, không đọc lại N16. Tầng kho không ghi gì vẫn phải đọc: N15 không mang
+ * `scaleStatus`, nên "vắng" có thể là "đã đặt" hoặc "chưa biết".
+ */
+const readOrKnown = (read: ReadScale, floorMeta: FloorMeta) => (floorId: string) => {
+  const { scaleSource, scaleStatus } = floorMeta[floorId] ?? {};
+  if (scaleStatus === undefined) return read(floorId);
+  return Promise.resolve(scaleSource === undefined ? { scaleStatus } : { scaleStatus, scaleSource });
+};
+
+async function readScaleStatus(spatial: Spatial, read: ReadScale, floorMeta: FloorMeta): Promise<ScaleStatus> {
   const { levels } = denormalizeSpatial(spatial);
-  const results = await Promise.allSettled(levels.map((level) => read(level.id)));
+  const readFloor = readOrKnown(read, floorMeta);
+  const results = await Promise.allSettled(levels.map((level) => readFloor(level.id)));
   const failure = results.find((result) => result.status === 'rejected');
   if (failure !== undefined && !failureLogged) {
     failureLogged = true;
@@ -76,7 +90,8 @@ async function readScaleStatus(spatial: Spatial, read: ReadScale): Promise<Scale
       if (implausible) provisional.push(level);
       return;
     }
-    const { scaleStatus, scaleSource, level: document } = result.value;
+    const { scaleStatus, scaleSource } = result.value;
+    const document = 'level' in result.value ? result.value.level : undefined;
     if (scaleStatus !== 'unresolved') return;
     const millimetresPerPixel = level.scaleMillimetresPerPixel ?? document?.scaleMillimetresPerPixel;
     const state = floorScaleStateOf(scaleStatus, scaleSource, millimetresPerPixel, implausible);
@@ -101,11 +116,11 @@ let memo: { projectId: string; spatial: Spatial; read: ReadScale | undefined; st
 
 /** Trạng thái tỷ lệ của cảnh đang nằm trong kho; `resolved` khi kho chưa có cảnh. */
 export function scaleStatusOf(projectId: string, readScale?: ReadScale): Promise<ScaleStatus> {
-  const spatial = useStore.getState().spatial;
+  const { floorMeta, spatial } = useStore.getState();
   if (spatial === null) return Promise.resolve({ status: 'resolved' });
   if (memo?.projectId === projectId && memo.spatial === spatial && memo.read === readScale) return memo.status;
   const read = readScale ?? defaultReadScale(projectId);
-  memo = { projectId, spatial, read: readScale, status: readScaleStatus(spatial, read) };
+  memo = { projectId, spatial, read: readScale, status: readScaleStatus(spatial, read, floorMeta) };
   return memo.status;
 }
 

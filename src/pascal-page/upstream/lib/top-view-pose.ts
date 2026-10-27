@@ -17,13 +17,15 @@ export function topViewPose(
   bounds: Bounds | null,
   projection: CameraPose['projection'],
   aspect: number,
+  baseY = 0,
 ): CameraPose {
   const [cx, cz] = bounds?.center ?? [0, 0]
   const [w, d] = bounds?.size ?? [0, 0]
   const safeAspect = Number.isFinite(aspect) && aspect > 0 ? aspect : 16 / 9
   const viewWidth = Math.max(Math.max(w, d * safeAspect) * MARGIN, MIN_VIEW_WIDTH)
   // The tiny +z offset keeps camera-controls' azimuth defined (north stays up).
-  return { position: [cx, 30, cz + 0.01], target: [cx, 0, cz], projection, viewWidth }
+  // UX-R2 K38: solo mode looks down at the viewed floor's own height (`baseY`), not y = 0.
+  return { position: [cx, baseY + 30, cz + 0.01], target: [cx, baseY, cz], projection, viewWidth }
 }
 
 export function isTopDown(pose: Pick<CameraPose, 'position' | 'target'> | null): boolean {

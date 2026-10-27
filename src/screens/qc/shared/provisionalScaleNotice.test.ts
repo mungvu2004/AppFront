@@ -50,14 +50,13 @@ describe('useProvisionalScaleNotice — dải đỏ theo useScaleLock', () => {
     expect(result.current?.level).toBe('violation');
   });
 
-  it('tỷ lệ máy đo hợp lý (không khoá): dải vàng; tỷ lệ đã xác nhận: không dải', () => {
+  it('tỷ lệ máy đo hợp lý (không khoá) hay đã xác nhận: không dải — chấm vàng trên thanh bước đã nói (UX-R2 K22)', () => {
     const { result, rerender } = renderHook(
       ({ status }: { status: 'unresolved' | undefined }) => useProvisionalScaleNotice(status, 'p', 'f1', undefined),
       { initialProps: { status: 'unresolved' as 'unresolved' | undefined } },
     );
 
-    expect(result.current).not.toBeNull();
-    expect(result.current?.level).toBeUndefined();
+    expect(result.current).toBeNull();
 
     rerender({ status: undefined });
     expect(result.current).toBeNull();

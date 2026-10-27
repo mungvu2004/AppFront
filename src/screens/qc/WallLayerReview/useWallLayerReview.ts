@@ -147,6 +147,7 @@ import {
   cursorLabelOf,
   DEFAULT_ZOOM,
   formatScaleLabel,
+  geometrySuspectIdsOf,
   isLowConfidence,
   measurementOutcomeToPx,
   miniMapCentreMm,
@@ -511,13 +512,14 @@ export function applyWallFilters(
   walls: readonly Wall[],
   filters: WallLayerFilters,
   threshold?: number,
+  suspectIds?: ReadonlySet<string>,
 ): readonly Wall[] {
   return walls.filter((wall) => {
     if (filters.onlyUnreviewed && wall.reviewed) {
       return false;
     }
 
-    if (filters.onlyLowConfidence && !isLowConfidence(wall, threshold)) {
+    if (filters.onlyLowConfidence && !isLowConfidence(wall, threshold, suspectIds)) {
       return false;
     }
 
@@ -761,10 +763,17 @@ export function useWallLayerReview(
     () => (thicknessFilter === null ? walls : walls.filter((wall) => wallThicknessColorGroupOf(wall.thicknessMm) === thicknessFilter)),
     [thicknessFilter, walls],
   );
+  /* "Máy chưa chắc" gồm cả tường sai hình (cắt chéo, không nối, vụn) — cùng luật màn Quy chuẩn (K21). */
+  const suspectIds = useMemo(() => geometrySuspectIdsOf(graph, levelId), [graph, levelId]);
   const visibleWalls = useMemo(
     /* MỘT hàng đợi (Z/S-15): không chuẩn trước, đã duyệt cuối — danh sách, J/K và tự chuyển cùng thứ tự. */
-    () => sortByReviewQueue(sortByDisplayCode(applyWallFilters(thicknessFilteredWalls, filters, confidenceThreshold), wallCodes), confidenceThreshold),
-    [confidenceThreshold, filters, wallCodes, thicknessFilteredWalls],
+    () =>
+      sortByReviewQueue(
+        sortByDisplayCode(applyWallFilters(thicknessFilteredWalls, filters, confidenceThreshold, suspectIds), wallCodes),
+        confidenceThreshold,
+        suspectIds,
+      ),
+    [confidenceThreshold, filters, suspectIds, wallCodes, thicknessFilteredWalls],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1341,14 +1350,16 @@ export function useWallLayerReview(
 
   const rows = useMemo<readonly WallRowViewModel[]>(
     () =>
-      hasError ? NO_ROWS : visibleWalls.map((wall) => toWallRow(wall, wallCodes, confidenceThreshold)),
-    [confidenceThreshold, hasError, visibleWalls, wallCodes],
+      hasError ? NO_ROWS : visibleWalls.map((wall) => toWallRow(wall, wallCodes, confidenceThreshold, suspectIds)),
+    [confidenceThreshold, hasError, suspectIds, visibleWalls, wallCodes],
   );
 
   const shapes = useMemo<readonly WallLayerCanvasShape[]>(
     () =>
-      level === null ? [] : toCanvasShapes(thicknessFilteredWalls, level, wallStatusCode, wallCodes, confidenceThreshold),
-    [confidenceThreshold, level, thicknessFilteredWalls, wallCodes],
+      level === null
+        ? []
+        : toCanvasShapes(thicknessFilteredWalls, level, wallStatusCode, wallCodes, confidenceThreshold, suspectIds),
+    [confidenceThreshold, level, suspectIds, thicknessFilteredWalls, wallCodes],
   );
 
   const inspector = useMemo(() => {
@@ -2103,6 +2114,8 @@ export function useWallLayerReview(
     onSkip,
     onFlash: setFlashingWallId,
     registry: options.registry,
+    suspectIds,
+    onOpenThickness: onNavigate === undefined ? undefined : () => onNavigate(ROUTES.project.thickness(projectId, floorId)),
   });
 
   const panel: WallLayerViewProps = {

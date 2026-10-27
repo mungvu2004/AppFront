@@ -3,7 +3,7 @@
  * Nằm đầu khe `viewerToolbarLeft` nên không đè thanh bên; kiểu chép từ `TOOLBAR_CONTAINER`
  * của upstream `viewer-toolbar.tsx`.
  */
-import { ArrowLeft, ArrowRight, ChevronDown, Eye, TriangleAlert, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown, Eye, PencilRuler, TriangleAlert, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 import { ROUTES } from '@/routes/paths';
@@ -26,6 +26,24 @@ export function BackToProjectCard({ href, projectName, save }: BackToProjectCard
       <BackLink href={href} projectName={projectName} />
       {save !== undefined ? <SaveStatusCard save={save} /> : <ReadOnlyChip />}
     </>
+  );
+}
+
+/**
+ * UX-R2 K35: trang mở để XEM mô hình — bảng công cụ dựng thu gọn (upstream page.tsx). Nút này mở
+ * nó ở thẻ "Dựng"; bảng đang mở thì nút ẩn đi (thanh dọc vẫn đóng/mở được như cũ).
+ */
+export function EditModelButton({ collapsed, onOpen }: { readonly collapsed: boolean; readonly onOpen: () => void }) {
+  if (!collapsed) return null;
+  return (
+    <button
+      className={`${CARD} ${FOCUS_OUT} inline-flex cursor-pointer gap-1.5 whitespace-nowrap px-2.5 font-medium transition-colors duration-120 hover:bg-[var(--pa-sunken)] motion-reduce:transition-none`}
+      onClick={onOpen}
+      type="button"
+    >
+      <PencilRuler aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+      Sửa mô hình
+    </button>
   );
 }
 
@@ -145,7 +163,7 @@ const VIEWER_STEP = PROJECT_STEPS.findIndex((step) => step.id === 'viewer');
  * Cụm "bước của dự án" trên thanh 3D (G5-04, N0-07; UI-1023 V-01): trang 3D không có header chung
  * của app nên tự vẽ lại từ cùng bảng `PROJECT_STEPS`. Một cụm có nhãn, luôn cùng một chỗ (ngay sau
  * thẻ về dự án): chip "Bước 4 · Mô hình 3D + menu sáu bước" rồi MỘT nút cổng (HOP-DONG-V6 §1):
- * đủ điều kiện = nút chính "Sang Quy chuẩn"; tỷ lệ chưa hiệu chỉnh = nút phụ "Hiệu chỉnh tỷ lệ" tới màn
+ * đủ điều kiện = nút chính "Sang Quy chuẩn"; tỷ lệ chưa hiệu chỉnh = nút phụ "Đặt tỷ lệ" (cùng tên với dải cảnh báo, UX-R2 K35) tới màn
  * tỷ lệ của tầng sai (bước sau vẫn mở được từ menu bước — tỷ lệ là khuyến nghị, không khoá).
  * Ngưỡng theo bề rộng thanh (container `appbar`, pascal.css): < 1500px chip chỉ còn số bước (tên ở
  * `title`) để nhường chỗ cho tên đầy đủ của nút cổng từ 1200px; 800–1199px nút còn "Quy chuẩn →" /
@@ -172,7 +190,9 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
           {PROJECT_STEPS.map((step, index) => (
             <li key={step.id}>
               <a
-                {...(index === VIEWER_STEP ? { 'aria-current': 'step' as const } : { 'aria-label': `Bước ${index + 1}: ${step.label}` })}
+                // UX-R2 K40: bước đang mở cũng có tên (trước chỉ có `aria-current`, tên đọc ra rỗng).
+                {...(index === VIEWER_STEP ? { 'aria-current': 'step' as const } : {})}
+                aria-label={`Bước ${index + 1}: ${step.label}`}
                 className={`${FOCUS_OUT} flex h-8 items-center gap-2 whitespace-nowrap rounded-lg px-2 text-[var(--pa-text-2)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)] aria-[current=step]:bg-[var(--pa-selected)] aria-[current=step]:font-medium aria-[current=step]:text-[var(--pa-accent)]`}
                 href={step.path(projectId)}
               >
@@ -186,7 +206,7 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
       {next !== undefined &&
         (scaleFloor !== null ? (
           <a
-            aria-label={`Hiệu chỉnh tỷ lệ trước khi sang ${next.label}`}
+            aria-label={`Đặt tỷ lệ trước khi sang ${next.label}`}
             className={`${NEXT_LINK} ${NEXT_TODO}`}
             data-appfront-gate="todo"
             href={ROUTES.project.scale(projectId, scaleFloor)}
@@ -194,7 +214,7 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
           >
             <TriangleAlert aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-warn)]" />
             <span className="@max-[800px]/appbar:hidden @min-[1200px]/appbar:hidden">Tỷ lệ</span>
-            <span className="hidden @min-[1200px]/appbar:inline">Hiệu chỉnh tỷ lệ</span>
+            <span className="hidden @min-[1200px]/appbar:inline">Đặt tỷ lệ</span>
           </a>
         ) : (
           <a

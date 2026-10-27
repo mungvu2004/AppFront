@@ -61,6 +61,7 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import { useSeparateUnits, type SeparateUnitsState } from '@/hooks/useSeparateUnits';
 import { useSession } from '@/hooks/useSession';
 import type { Announcer } from '@/lib/input/announcer';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -118,6 +119,10 @@ export interface FloorManagerContainerProps {
   readonly initialCollapsed?: boolean;
   /** Dưới 1.024px lát cắt xuống dưới bảng; màn cha đo bề rộng và truyền vào. */
   readonly isCompact?: boolean;
+  /** K34: thiết lập "các căn hộ riêng" của dự án; route đọc N5 rồi truyền vào. Vắng thì không có công tắc. */
+  readonly separateUnits?: SeparateUnitsState;
+  /** K33: mở Mô hình 3D; route nối vào `useNavigate`. */
+  readonly onOpenViewer?: () => void;
 }
 
 /** Cùng khuôn `ScreenCrashFallback` của `src/App.tsx` — R-62. */
@@ -198,6 +203,15 @@ function WiredFloorManager(props: FloorManagerContainerProps) {
       unsupportedNotices={result.unsupportedNotices}
       axisMismatchNotice={result.axisMismatchNotice}
       projectName={result.projectName}
+      onOpenViewer={props.onOpenViewer}
+      {...(props.separateUnits === undefined
+        ? {}
+        : {
+            separateUnits: props.separateUnits.separateUnits,
+            isSeparateUnitsSaving: props.separateUnits.isSaving,
+            separateUnitsError: props.separateUnits.saveError,
+            onToggleSeparateUnits: props.separateUnits.setSeparateUnits,
+          })}
     />
   );
 }
@@ -257,6 +271,7 @@ function FloorManagerRouteBody({
 }) {
   const navigate = useNavigate();
   const isCompact = useIsCompact();
+  const separateUnits = useSeparateUnits(projectId);
   const [initialCollapsed] = useState(() => window.matchMedia(NARROW_FOR_SECTION_CUT_QUERY).matches);
 
   /*
@@ -287,6 +302,10 @@ function FloorManagerRouteBody({
     navigate(ROUTES.dashboard);
   }, [navigate]);
 
+  const handleOpenViewer = useCallback(() => {
+    navigate(ROUTES.project.viewer(projectId));
+  }, [navigate, projectId]);
+
   // Không vỏ nào cấp chiều cao cho route này: thiếu khung `h-dvh` thì `h-full` của màn
   // không bám vào đâu, khung bảng cao bằng 50 tầng và cả trang cuộn (BUG-520).
   return (
@@ -298,8 +317,10 @@ function FloorManagerRouteBody({
         onNavigateToDrawings={handleNavigateToDrawings}
         onNavigateToFloorScreen={handleNavigateToFloorScreen}
         onNavigateToOverlay={handleNavigateToOverlay}
+        onOpenViewer={handleOpenViewer}
         projectId={projectId}
         roles={roles}
+        separateUnits={separateUnits}
       />
     </div>
   );

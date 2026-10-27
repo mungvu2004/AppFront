@@ -116,6 +116,7 @@ import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { cachedProjectName } from '@/lib/query/cachedProjectName';
 import { queryKeys } from '@/lib/query/queryKeys';
+import type { ScaleState } from '@/lib/viewmodel/provisionalScale';
 import type { ApiResult } from '@/api/client';
 
 import { appNotificationBus } from '@/hooks/useNotifications';
@@ -377,12 +378,13 @@ export function worstStackIssue(report: FloorAlignmentReport): FloorIssue | null
 export const NO_SHARED_AXES_NOTICE = {
   title: 'Các tầng không có trục chung',
   message:
-    'Các bản vẽ này không khớp nhau theo trục, nên có thể là các căn riêng chứ không phải các tầng của một nhà. Nếu đúng là các căn riêng, hãy tạo mỗi căn một dự án.',
+    'Phần lớn bản vẽ không khớp trục với nhau, nên có thể là các căn hộ riêng chứ không phải các tầng của một nhà. Nếu đúng vậy, bật "Các tầng là các căn hộ riêng" để bỏ cảnh chồng tầng.',
 } as const;
 
 /**
- * Có từ hai tầng có trục mà KHÔNG tầng nào khớp đủ {@link MIN_MATCHED_AXES} trục với tầng chuẩn —
- * đúng con số "0 trục chung" màn Trục hiện. Tầng chưa có trục (chưa có bản vẽ) không tính.
+ * Có từ hai tầng có trục mà QUÁ NỬA tầng còn lại khớp dưới {@link MIN_MATCHED_AXES} trục với tầng
+ * chuẩn — đúng con số "0 trục chung" màn Trục hiện. Không đòi MỌI tầng: một bản vẽ khớp tình cờ
+ * 2 trục từng làm dải này không bao giờ hiện (UX-R2 K09). Tầng chưa có trục không tính.
  */
 export function hasNoSharedAxes(report: FloorAlignmentReport): boolean {
   const base = report.floors.find((floor) => floor.isBase);
@@ -392,21 +394,24 @@ export function hasNoSharedAxes(report: FloorAlignmentReport): boolean {
     base !== undefined &&
     base.axisCount > 0 &&
     others.length > 0 &&
-    others.every((floor) => floor.matchedAxisCount < MIN_MATCHED_AXES)
+    others.filter((floor) => floor.matchedAxisCount < MIN_MATCHED_AXES).length * 2 > others.length
   );
 }
 
 /**
- * Tầng cần đặt tỷ lệ trước (nhãn "Sai tỷ lệ", "Việc tiếp" sang bước Tỷ lệ): cùng luật với thanh bước
+ * Tầng cần đặt tỷ lệ trước (nhãn "Chưa có tỷ lệ", "Việc tiếp" sang bước Tỷ lệ): cùng luật với thanh bước
  * (`floorScaleStateOf` + `scaleImplausibleOf`) — máy không đo được, hoặc đo ra hình vô lý. Chỉ xét
  * tầng kho biết là tỷ lệ tạm; kho chưa biết thì không đoán (như `useFloorReview`).
  */
 export function floorScaleMissingOf(graph: NormalizedSpatial, level: Level, meta: FloorMetaEntry | undefined): boolean {
-  return (
-    meta?.scaleStatus === 'unresolved' &&
-    floorScaleStateOf(meta.scaleStatus, meta.scaleSource, level.scaleMillimetresPerPixel, scaleImplausibleOf(graph, level.id)) ===
-      'missing'
-  );
+  return floorRowScaleStateOf(graph, level, meta) === 'missing';
+}
+
+/** Trạng thái tỷ lệ của dòng tầng (chip chung `SCALE_STATE_VIEWS`); kho chưa biết là tạm thì coi như đã xác nhận. */
+export function floorRowScaleStateOf(graph: NormalizedSpatial, level: Level, meta: FloorMetaEntry | undefined): ScaleState {
+  return meta?.scaleStatus === 'unresolved'
+    ? floorScaleStateOf(meta.scaleStatus, meta.scaleSource, level.scaleMillimetresPerPixel, scaleImplausibleOf(graph, level.id))
+    : 'confirmed';
 }
 
 /** Bỏ bộ đệm văn bản của một dòng, trả lại bản ghi mới — không đụng bản cũ. */
@@ -1724,6 +1729,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
       const health = explainHealthScore(violationsByLevel.get(id) ?? NO_VIOLATIONS);
       /* Chưa có bản vẽ thì chưa có gì để kiểm: không có vi phạm KHÔNG có nghĩa là 100% (BUG-263). */
       const qcProgressRatio = hasDrawing ? health.score / HEALTH_SCORE_MAX : 0;
+      const scaleState: ScaleState =
+        hasDrawing && graph !== null ? floorRowScaleStateOf(graph, level, floorMeta[id]) : 'confirmed';
 
       return {
         id,
@@ -1745,7 +1752,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         isSelected: selectedFloorId === id,
         isHovered: hoveredFloorId === id,
         needsDrawing: !hasDrawing,
-        isScaleMissing: hasDrawing && graph !== null && floorScaleMissingOf(graph, level, floorMeta[id]),
+        isScaleMissing: scaleState === 'missing',
+        scaleState,
         isHiddenIn3d: hiddenFloorIds.includes(id),
         isElevationRefused: duplicateElevation?.floorId === id,
         draft: draftOf(level),

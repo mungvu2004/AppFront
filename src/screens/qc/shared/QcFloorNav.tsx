@@ -3,6 +3,7 @@ import { Check, ChevronDown, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { cn } from '@/lib/utils';
+import { SCALE_STATE_VIEWS, type ScaleStateView } from '@/lib/viewmodel/provisionalScale';
 import { ROUTES } from '@/routes/paths';
 
 import {
@@ -12,14 +13,17 @@ import {
   type FloorReviewLayerState,
   type FloorScaleState,
 } from './floorReviewGateModel';
-import { QC_LAYERS, qcLayerTitle, type QcLayerKey } from './qcLayers';
+import { QC_LAYERS, qcLayerTitle, qcStepOf, type QcLayerKey } from './qcLayers';
 import { useFloorReview } from './useFloorReview';
 
 /**
- * Thanh bước của tầng (UX-R1 K25), MỘT hàng 32 px dưới header:
- * "ch-03 ▾ | 0 Tỷ lệ · 1 Tường 0/30 · 2 Cửa và nội thất 0/39 · 3 Phòng 0/7 | Nâng cao ▾".
+ * Thanh bước của tầng (UX-R1 K25, UX-R2 K04), MỘT hàng 32 px dưới header:
+ * "ch-03 ▾ | 1 ● Tỷ lệ cần kiểm · 2 ● Tường 0/30 · 3 ● Cửa và nội thất 0/39 · 4 ● Phòng 0/7".
+ * Chấm bước Tỷ lệ theo `SCALE_STATE_VIEWS` (đỏ/vàng/xanh, cùng chữ với cổng và dải); bước khác
+ * xanh khi xong. Không còn menu "Nâng cao": đứng ở bước Tỷ lệ thì cạnh thanh bước có link Kích thước
+ * và So với bản vẽ (mục con của bước); Độ dày mở từ nút trong bước Tường; Trục mở từ màn Các tầng.
  * Nút đi tiếp của tầng nằm ở khe cổng của header (`FloorReviewGate`), không lặp ở đây.
- * Tầng máy không đo được tỷ lệ: các bước sau Tỷ lệ (và Độ dày tường) bị khoá, kèm lý do.
+ * Tầng chưa có tỷ lệ: các bước sau Tỷ lệ (và Độ dày tường) bị khoá, kèm lý do.
  * Gắn: `<QcFloorNav floorId={floorId} layer="rooms" projectId={projectId} />` (cần nằm trong Router).
  */
 export interface QcFloorNavFloor {
@@ -42,14 +46,24 @@ export interface QcFloorNavProps {
 
 const FLOOR_FALLBACK = 'Tầng';
 const STEP_BAR_LABEL = 'Các bước duyệt tầng';
-const ADVANCED_LABEL = 'Nâng cao';
 const ALL_FLOORS_LABEL = 'Tất cả tầng';
 /** Mục phụ thuộc số đo: khoá khi máy không đo được tỷ lệ. */
 const SCALE_LOCKED: ReadonlySet<QcLayerKey> = new Set<QcLayerKey>(['walls', 'objects', 'rooms', 'thickness']);
-const SCALE_BADGE: Readonly<Record<Exclude<FloorScaleState, 'confirmed'>, { readonly text: string; readonly className: string }>> = {
-  check: { text: 'cần kiểm', className: 'text-state-attention-text' },
-  missing: { text: 'chưa có', className: 'text-state-violation-text' },
+const DOT_CLASS: Readonly<Record<ScaleStateView['statusCode'] | 'neutral', string>> = {
+  violation: 'bg-state-violation',
+  attention: 'bg-state-attention',
+  verified: 'bg-state-verified',
+  neutral: 'bg-border-control',
 };
+const SCALE_TEXT_CLASS: Readonly<Record<FloorScaleState, string>> = {
+  missing: 'text-state-violation-text',
+  check: 'text-state-attention-text',
+  confirmed: '',
+};
+
+function StatusDot({ tone }: { readonly tone: keyof typeof DOT_CLASS }) {
+  return <span aria-hidden="true" className={cn('h-2 w-2 shrink-0 rounded-full', DOT_CLASS[tone])} />;
+}
 
 const TAB_CLASS = cn(
   'flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-[13px] transition-colors duration-120',
@@ -69,17 +83,16 @@ function closeOnEscape(event: KeyboardEvent<HTMLDetailsElement>) {
 interface NavMenuProps {
   readonly label: string;
   readonly summary: ReactNode;
-  readonly active?: boolean;
   readonly children: ReactNode;
 }
 
 /* ponytail: <details> gốc như menu dự án ở AppHeader — không đóng khi bấm ra ngoài; cần thì đổi sang Popover. */
-function NavMenu({ label, summary, active = false, children }: NavMenuProps) {
+function NavMenu({ label, summary, children }: NavMenuProps) {
   return (
     <details className="relative shrink-0" onKeyDown={closeOnEscape}>
       <summary
         aria-label={label}
-        className={cn(TAB_CLASS, 'cursor-pointer list-none [&::-webkit-details-marker]:hidden', active ? CURRENT_CLASS : IDLE_CLASS)}
+        className={cn(TAB_CLASS, 'cursor-pointer list-none [&::-webkit-details-marker]:hidden', IDLE_CLASS)}
       >
         {summary}
         <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 text-text-muted" />
@@ -92,7 +105,8 @@ function NavMenu({ label, summary, active = false, children }: NavMenuProps) {
 }
 
 interface StepProps {
-  readonly isCurrent: boolean;
+  /** `page` = màn đang mở; `step` = bước cha của màn phụ đang mở (Kích thước thuộc Tỷ lệ). */
+  readonly current?: 'page' | 'step' | undefined;
   readonly locked: boolean;
   readonly to: string;
   readonly className: string;
@@ -100,13 +114,13 @@ interface StepProps {
 }
 
 /** Một bước/mục: link, hoặc chữ khoá kèm lý do khi thiếu tỷ lệ. */
-function Step({ isCurrent, locked, to, className, children }: StepProps) {
+function Step({ current, locked, to, className, children }: StepProps) {
   if (locked) {
     return (
       <span
-        aria-current={isCurrent ? 'page' : undefined}
+        aria-current={current}
         aria-disabled="true"
-        className={cn(className, 'cursor-not-allowed text-text-muted', isCurrent && 'bg-bg-sunken')}
+        className={cn(className, 'cursor-not-allowed text-text-muted', current !== undefined && 'bg-bg-sunken')}
         title={SCALE_LOCK_REASON}
       >
         <Lock aria-hidden="true" className="h-3 w-3" />
@@ -116,7 +130,7 @@ function Step({ isCurrent, locked, to, className, children }: StepProps) {
     );
   }
   return (
-    <Link aria-current={isCurrent ? 'page' : undefined} className={cn(className, isCurrent ? CURRENT_CLASS : IDLE_CLASS)} to={to}>
+    <Link aria-current={current} className={cn(className, current === undefined ? IDLE_CLASS : CURRENT_CLASS)} to={to}>
       {children}
     </Link>
   );
@@ -163,8 +177,13 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
   );
   const isLocked = (key: QcLayerKey) => scale === 'missing' && SCALE_LOCKED.has(key);
   const steps = QC_LAYERS.filter((item) => item.group === 'step');
-  const advanced = QC_LAYERS.filter((item) => item.group === 'advanced');
-  const currentAdvanced = current.group === 'advanced' ? current : null;
+  const activeStep = qcStepOf(layer);
+  /* Mục con của bước đang sáng: Kích thước, So với bản vẽ ở bước Tỷ lệ; màn phụ khác chỉ hiện khi đang đứng ở đó. */
+  const subLinks = QC_LAYERS.filter((item) => item.parent !== undefined && item.parent === activeStep && (item.listed === true || item.key === layer));
+  const currentOf = (key: QcLayerKey): StepProps['current'] => {
+    if (key === layer) return 'page';
+    return key === activeStep ? 'step' : undefined;
+  };
 
   return (
     <div className="flex h-8 shrink-0 items-center gap-3 px-4">
@@ -187,25 +206,23 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
       <nav aria-label={STEP_BAR_LABEL} className="flex min-w-0 flex-1 items-center gap-1 border-l border-border-default pl-3">
         {steps.map((item, index) => {
           const state = layerStates.get(item.key);
-          const isDone = item.key === 'scale' ? scale === 'confirmed' : state?.done === true;
-          const badge = item.key === 'scale' && scale !== null && scale !== 'confirmed' ? SCALE_BADGE[scale] : null;
+          const isScale = item.key === 'scale';
+          const isDone = isScale ? scale === 'confirmed' : state?.done === true;
+          const scaleView = isScale && scale !== null ? SCALE_STATE_VIEWS[scale] : null;
+          /* Tỷ lệ chưa xác nhận: bước mang đúng tên trạng thái ("Chưa có tỷ lệ", "Tỷ lệ cần kiểm"). */
+          const label = scaleView !== null && scale !== 'confirmed' ? scaleView.name : item.label;
           return (
             <Step
               key={item.key}
               className={TAB_CLASS}
-              isCurrent={item.key === layer}
+              current={currentOf(item.key)}
               locked={isLocked(item.key)}
               to={item.route(projectId, floorId)}
             >
-              <span aria-hidden="true" className="tabular-nums text-text-muted">{index}</span>
-              {item.label}
-              {isDone && (
-                <>
-                  <Check aria-hidden="true" className="h-3.5 w-3.5 text-state-verified-text" />
-                  <span className="sr-only">: đã xong</span>
-                </>
-              )}
-              {badge !== null && <span className={cn('text-[12px]', badge.className)}>{badge.text}</span>}
+              <span aria-hidden="true" className="tabular-nums text-text-muted">{index + 1}</span>
+              {isLocked(item.key) ? null : <StatusDot tone={scaleView?.statusCode ?? (isDone ? 'verified' : 'neutral')} />}
+              <span className={isScale && scale !== null ? SCALE_TEXT_CLASS[scale] : undefined}>{label}</span>
+              {isDone && <span className="sr-only">: đã xong</span>}
               {state !== undefined && !isDone && (
                 <>
                   <span aria-hidden="true" className="tabular-nums text-text-muted">{`${state.reviewed}/${state.total}`}</span>
@@ -215,21 +232,16 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
             </Step>
           );
         })}
-        <span aria-hidden="true" className="mx-2 h-5 w-px shrink-0 bg-border-control" />
-        <NavMenu
-          key={`advanced:${floorId}:${layer}`}
-          active={currentAdvanced !== null}
-          label={currentAdvanced === null ? ADVANCED_LABEL : `${ADVANCED_LABEL}: đang ở ${currentAdvanced.label}`}
-          summary={currentAdvanced === null ? ADVANCED_LABEL : `${ADVANCED_LABEL}: ${currentAdvanced.label}`}
-        >
-          {advanced.map((item) => (
-            <li key={item.key}>
-              <Step className={MENU_ITEM_CLASS} isCurrent={item.key === layer} locked={isLocked(item.key)} to={item.route(projectId, floorId)}>
+        {subLinks.length === 0 ? null : (
+          <>
+            <span aria-hidden="true" className="mx-2 h-5 w-px shrink-0 bg-border-control" />
+            {subLinks.map((item) => (
+              <Step key={item.key} className={TAB_CLASS} current={currentOf(item.key)} locked={isLocked(item.key)} to={item.route(projectId, floorId)}>
                 {item.label}
               </Step>
-            </li>
-          ))}
-        </NavMenu>
+            ))}
+          </>
+        )}
       </nav>
       {/* Tiến độ của lớp (Impeccable A3), cuối cùng hàng 32 px — không thêm hàng (V-16). */}
       {progress == null ? null : (

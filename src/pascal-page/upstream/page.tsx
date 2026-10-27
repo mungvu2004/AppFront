@@ -19,6 +19,8 @@
  *      preferences (BUG-648, ./lib/editor-preferences.ts), sidebar auto-collapses under 1100 px
  *      (G5-11), Preview header shows the project name (G5-15), one-time orbit hint (G5-08).
  *   10. FE3D WP8: ../scaleBanner.tsx (drawing-scale warning) heads the CanvasHelp column - see ./README.md.
+ *   11. UX-R2: frame the viewed floor (./lib/view-frame.ts) on open and on every floor switch; the
+ *       project setting "separate units" pins solo mode; the build panel opens collapsed (K35).
  */
 
 import { emitter, nodeRegistry, onRegistryChange, useScene } from '@pascal-app/core'
@@ -34,6 +36,7 @@ import {
 import { Hammer, Layers, Package, Settings, X } from 'lucide-react'
 import Image from 'next/image'
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { isSeparateUnits } from '../bridge'
 import { downloadSnapshot } from '../realism/snapshot'
 import { ScaleBanner, ScaleEmptyNotice } from '../scaleBanner'
 import { BuildTab } from './components/build-tab'
@@ -42,12 +45,12 @@ import {
   CommunityViewerToolbarLeft,
   CommunityViewerToolbarRight,
 } from './components/viewer-toolbar'
-import { computeSceneBoundsXZ } from '../../../vendor/pascal/packages/editor/src/lib/scene-bounds'
 import { useEditorPreferencesPersistence } from './lib/editor-preferences'
-import { fitPose, fitWhenControlsReady, planBoundsXZ } from './lib/fit-on-ready'
+import { fitWhenControlsReady } from './lib/fit-on-ready'
 import { translateDefinition } from './lib/pascal-vi'
 import { isMeasureActive } from './lib/select-exits-measure'
 import { useSelectExitsMeasure } from './lib/use-select-exits-measure'
+import { fitModel } from './lib/view-frame'
 
 // The open-source editor only ships the built-in catalog (no uploaded items),
 // so the Library/Community/Mine source chips and tag filters add nothing —
@@ -149,8 +152,10 @@ function applyStartParams() {
     ed.armToolMode({ mode: 'select' })
   }
   // AppFront edit (UX-R1 K19): open one floor at a time (product scope: one-floor apartments);
-  // the stacked default built unrelated plans into a 46 m tower. `?view=exploded` still wins.
-  useViewer.getState().setLevelMode(params.get('view') === 'exploded' ? 'exploded' : 'solo')
+  // the stacked default built unrelated plans into a 46 m tower. `?view=exploded` still wins,
+  // unless the project says its floors are separate units (UX-R2): then solo only.
+  const exploded = params.get('view') === 'exploded' && !isSeparateUnits()
+  useViewer.getState().setLevelMode(exploded ? 'exploded' : 'solo')
   // AppFront edit (UX-R1): start solo on the first floor that has walls; missing-scale floors are
   // left empty by the bridge, and opening on one of them showed a blank scene.
   const { nodes } = useScene.getState()
@@ -163,14 +168,6 @@ function applyStartParams() {
   // G5-06 / QA-2 L2: frame the model once the camera controls have mounted (a cold first open
   // mounts them after the editor's own auto-frame and after any fixed delay).
   fitWhenControlsReady(subscribeCameraPose, fitModel)
-}
-
-/** Frame the whole model; `apply-pose`, because upstream's `fit-scene` is ignored in Preview. */
-function fitModel() {
-  // FE3D-FIX-004 V14: frame walls + zones; vendor bounds only for a scene without either.
-  const { nodes } = useScene.getState()
-  const bounds = planBoundsXZ(nodes) ?? computeSceneBoundsXZ(nodes)
-  emitter.emit('camera-controls:apply-pose', fitPose(bounds, useViewer.getState().cameraMode))
 }
 
 /** Only poses published after subscribing (the current one belongs to the canvas being replaced). */
@@ -195,6 +192,42 @@ function useFitOnPreviewToggle() {
     seen.current = isPreview
     return fitWhenControlsReady(subscribeNextCameraPose, fitModel)
   }, [isPreview])
+}
+
+/**
+ * UX-R2 K38: a floor switch in solo mode re-frames that floor (upstream only pans the target to the
+ * floor's height). Two frames later, so upstream's own level effect has run first.
+ */
+function useFitOnLevelChange() {
+  useEffect(() => {
+    let raf = 0
+    const unsubscribe = useViewer.subscribe((state, previous) => {
+      if (state.selection.levelId === previous.selection.levelId || state.levelMode !== 'solo') return
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        raf = requestAnimationFrame(fitModel)
+      })
+    })
+    return () => {
+      unsubscribe()
+      cancelAnimationFrame(raf)
+    }
+  }, [])
+}
+
+/**
+ * UX-R2: project setting "Đây là các căn hộ riêng" — floors are unrelated plans, so they never
+ * stack: whichever control asks for stacked/exploded (toolbar, command palette, Preview bar), the
+ * scene goes back to one floor. ponytail: the thumbnail generator's own stacked round-trip is
+ * pinned too, so its shot shows one floor — what a separate unit should show anyway.
+ */
+function useSoloForSeparateUnits() {
+  useEffect(() => {
+    if (!isSeparateUnits()) return
+    return useViewer.subscribe((state) => {
+      if (state.levelMode !== 'solo') state.setLevelMode('solo')
+    })
+  }, [])
 }
 
 /** Select tool, the same public calls `use-select-exits-measure.ts` makes for V. */
@@ -261,14 +294,14 @@ const NARROW_PX = 1100
  * AppFront edit (R3d, G5-11): under 1100 px the 344 px sidebar pushes the toolbars off screen.
  * Collapse it once the saved state is loaded and whenever the window narrows past 1100 px.
  * Never re-opens it: a user who opens it again on a tablet keeps it open.
+ * UX-R2 K35: the page opens to LOOK at the model, so the build panel starts collapsed at every
+ * width; the rail's "Dựng" or the "Sửa mô hình" button (../EditModelButton.tsx) opens it.
  */
 function useAutoCollapseSidebar() {
   useEffect(() => {
     const collapse = () => useSidebarStore.getState().setIsCollapsed(true)
     let wasNarrow = window.innerWidth < NARROW_PX
-    const onHydrated = () => {
-      if (window.innerWidth < NARROW_PX) collapse()
-    }
+    const onHydrated = collapse
     const onResize = () => {
       const narrow = window.innerWidth < NARROW_PX
       if (narrow && !wasNarrow) collapse()
@@ -394,6 +427,8 @@ export default function Home({ projectId, onLoad, onSave, readOnly, backCard, pr
   useSelectExitsMeasure()
   useAutoCollapseSidebar()
   useFitOnPreviewToggle()
+  useFitOnLevelChange()
+  useSoloForSeparateUnits()
   useSelectAfterPreview()
   const handleLoad = useCallback(async () => {
     const graph = await onLoad()

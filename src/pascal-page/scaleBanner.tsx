@@ -4,27 +4,47 @@
  * hiệu chỉnh tỷ lệ của tầng sai. Trạng thái "chưa hiệu chỉnh" phát qua `useScaleUnresolved` để nút
  * "Tiếp" và cụm trợ giúp đổi theo mà không đọc tầng lần hai.
  *
- * Câu nêu tên từng tầng sai (UX-R1 K44); có tầng không đo được tỷ lệ thì dải đỏ, không thì vàng.
- * Tầng ấy không được dựng trong cảnh (`bridge`, Codex P1); mọi tầng đều thế thì giữa cảnh có thẻ
- * nói rõ cảnh trống vì sao, kèm lối "Đặt tỷ lệ".
+ * UX-R2 K36: hai dòng tách bạch. Dòng đỏ chỉ nêu tầng KHÔNG dựng (không đo được tỷ lệ — `bridge`
+ * bỏ nội dung của chúng khỏi cảnh), kèm "Đặt tỷ lệ". Dòng vàng nêu tầng vẫn dựng nhưng kích thước
+ * có thể lệch. Mọi tầng đều không dựng thì giữa cảnh có thẻ nói rõ cảnh trống vì sao.
  */
 import { TriangleAlert } from 'lucide-react';
 import { useEffect } from 'react';
 
-import { scaleFloorsMessageOf } from '@/lib/viewmodel/provisionalScale';
 import { ROUTES } from '@/routes/paths';
 
+import { floorNamesOf } from './floorNames';
 import { setUnresolved } from './scaleUnresolved';
 import { type ReadScale, useScaleStatus } from './useScaleStatus';
 
-export const SCALE_HIDDEN_NOTE = 'Chưa dựng các tầng này trong 3D.';
+export const SCALE_HIDDEN_PREFIX = 'Không dựng (chưa có tỷ lệ): ';
+export const SCALE_PROVISIONAL_PREFIX = 'Kích thước có thể lệch: ';
 export const SCALE_ALL_MISSING_TITLE = 'Chưa dựng được mô hình 3D';
 export const SCALE_ALL_MISSING_BODY = 'Máy không đo được tỷ lệ của bản vẽ. Đặt tỷ lệ để dựng mô hình.';
 
 const LINK_CLASS =
   'shrink-0 rounded font-medium text-[var(--pa-accent)] underline outline-none hover:text-[var(--pa-accent-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pa-accent)]';
 
-export const SCALE_NEXT_REASON = 'Tỷ lệ chưa hiệu chỉnh — nên hiệu chỉnh trước khi kiểm tra quy chuẩn.';
+export const SCALE_NEXT_REASON = 'Tỷ lệ chưa hiệu chỉnh — nên đặt tỷ lệ trước khi kiểm tra quy chuẩn.';
+
+const TONE_TEXT = { danger: 'text-[var(--pa-danger)]', warn: 'text-[var(--pa-warn)]' } as const;
+
+
+function ScaleLine({ tone, text, href }: { readonly tone: 'danger' | 'warn'; readonly text: string; readonly href?: string }) {
+  return (
+    <p className="m-0 flex min-w-0 items-center gap-2 whitespace-nowrap">
+      <TriangleAlert aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 ${TONE_TEXT[tone]}`} />
+      <span className="min-w-0 truncate" title={text}>
+        {text}
+      </span>
+      {href === undefined ? null : (
+        <a className={LINK_CLASS} href={href}>
+          Đặt tỷ lệ
+        </a>
+      )}
+    </p>
+  );
+}
 
 export function ScaleBanner({ projectId, readScale }: { readonly projectId: string; readonly readScale?: ReadScale }) {
   const scale = useScaleStatus(projectId, readScale);
@@ -35,23 +55,21 @@ export function ScaleBanner({ projectId, readScale }: { readonly projectId: stri
   }, [floorId]);
   if (scale.status !== 'unresolved') return null;
   const missing = scale.missing.length > 0;
+  // `floorId` là tầng đỏ đầu tiên khi có, không thì tầng vàng đầu tiên: lối sửa nằm ở dòng của nó.
   const href = ROUTES.project.scale(projectId, scale.floorId);
   return (
     <div
-      className={`pointer-events-auto inline-flex max-w-[calc(100vw-32px)] items-center gap-2 rounded-xl border bg-[var(--pa-surface)] px-3 py-1.5 text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] ${missing ? 'border-[var(--pa-danger)]' : 'border-[var(--pa-warn)]'}`}
+      className={`pointer-events-auto flex max-w-[calc(100vw-32px)] flex-col gap-0.5 rounded-xl border bg-[var(--pa-surface)] px-3 py-1.5 text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] ${missing ? 'border-[var(--pa-danger)]' : 'border-[var(--pa-warn)]'}`}
       role="status"
     >
-      <TriangleAlert
-        aria-hidden="true"
-        className={`h-3.5 w-3.5 shrink-0 ${missing ? 'text-[var(--pa-danger)]' : 'text-[var(--pa-warn)]'}`}
-      />
-      <span>
-        {scaleFloorsMessageOf(scale.missing, scale.provisional)}
-        {missing && !scale.allMissing ? ` ${SCALE_HIDDEN_NOTE}` : null}
-      </span>
-      <a className={LINK_CLASS} href={href}>
-        Đặt tỷ lệ
-      </a>
+      {missing ? <ScaleLine href={href} text={`${SCALE_HIDDEN_PREFIX}${floorNamesOf(scale.missing)}`} tone="danger" /> : null}
+      {scale.provisional.length > 0 ? (
+        <ScaleLine
+          {...(missing ? {} : { href })}
+          text={`${SCALE_PROVISIONAL_PREFIX}${floorNamesOf(scale.provisional)}`}
+          tone="warn"
+        />
+      ) : null}
     </div>
   );
 }

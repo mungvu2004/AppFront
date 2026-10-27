@@ -28,6 +28,7 @@ import {
   EMPTY_RULE_CONFIG,
   resetConfig,
   setRuleThreshold,
+  withSeparateUnits,
   type RuleConfig,
 } from '../config';
 import {
@@ -489,6 +490,44 @@ describe('a building of one floor', () => {
 
     expect(building && [0, 1, 2].map((count) => ruleAppliesTo(building, count))).toEqual([false, false, true]);
     expect(floor && [0, 1].map((count) => ruleAppliesTo(floor, count))).toEqual([false, true]);
+  });
+});
+
+describe('floors that are separate apartments (K34)', () => {
+  const registry = createDefaultRuleRegistry();
+  const graph = normalizedSample();
+  const separate = withSeparateUnits(EMPTY_RULE_CONFIG, true);
+
+  it('skips the cross-floor rules on a full pass', () => {
+    const ran = evaluatedRuleCodes(runRules(graph, { registry, config: separate }));
+
+    for (const code of LEVEL_DEPENDENT_CODES) {
+      expect(ran).not.toContain(code);
+    }
+  });
+
+  it('skips them on an incremental pass too, and brings them back when switched off', () => {
+    const full = runRules(graph, { registry, config: separate });
+    const edited = runRules(graph, {
+      registry,
+      config: separate,
+      previous: full.state,
+      changes: [{ entityId: GROUND_LEVEL_ID }],
+    });
+
+    expect(edited.violations.some((v) => LEVEL_DEPENDENT_CODES.includes(v.ruleCode))).toBe(false);
+    expect(evaluatedRuleCodes(edited)).not.toContain('LEVEL-ELEVATION');
+
+    const stacked = withSeparateUnits(separate, false);
+    const back = runRules(graph, { registry, config: stacked, previous: edited.state, changes: [] });
+
+    expect(evaluatedRuleCodes(back)).toEqual(expect.arrayContaining(LEVEL_DEPENDENT_CODES));
+  });
+
+  it('keeps the same config object when the setting does not move', () => {
+    expect(withSeparateUnits(EMPTY_RULE_CONFIG, false)).toBe(EMPTY_RULE_CONFIG);
+    expect(withSeparateUnits(separate, true)).toBe(separate);
+    expect(separate.version).toBe(EMPTY_RULE_CONFIG.version + 1);
   });
 });
 

@@ -50,6 +50,8 @@ import type { ApiClient } from '@/api/client';
 import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import { mockFloorLayerDocument } from '../shared/mockFloorLayerDocument';
 import { createAppApiClient } from '@/api/appClient';
+import { checkDanglingWallEnds, checkWallOverlap } from '@/domain/rules/geometry';
+import { entitiesInScope } from '@/domain/rules/registry';
 import { counterLabelOf, createId } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
@@ -1075,6 +1077,7 @@ export function toCanvasShapes(
   statusOf: (wall: Wall) => ViewStatusCode,
   wallCodes?: ReadonlyMap<string, string>,
   threshold: number = CONFIDENCE_SUGGESTED_THRESHOLD,
+  suspectIds?: ReadonlySet<string>,
 ): readonly WallLayerCanvasShape[] {
   const scale = scaleOfLevel(level);
   const outlines = new Map(toWallShapes(walls, level, statusOf).map((shape) => [shape.id, shape]));
@@ -1115,7 +1118,7 @@ export function toCanvasShapes(
        * chấm và khung nhìn nay đọc chung một phép.
        */
       attentionDotPx: centreOfBounds(bounds),
-      isLowConfidence: isLowConfidence(wall, threshold),
+      isLowConfidence: isLowConfidence(wall, threshold, suspectIds),
       isReviewed: wall.reviewed,
     });
   }
@@ -1327,8 +1330,45 @@ export const isStandardThickness = (thicknessMm: number): boolean =>
  * Một nguồn phân loại duy nhất: `WallRowViewModel.isLowConfidence`, bộ lọc
  * "Chỉ hiện độ tin cậy thấp" và gạch chéo của canvas đọc chung hàm này với cùng ngưỡng.
  */
-export const isLowConfidence = (wall: Wall, threshold: number = CONFIDENCE_SUGGESTED_THRESHOLD): boolean =>
-  wall.confidence < threshold;
+export const isLowConfidence = (
+  wall: Wall,
+  threshold: number = CONFIDENCE_SUGGESTED_THRESHOLD,
+  suspectIds?: ReadonlySet<string>,
+): boolean => wall.confidence < threshold || suspectIds?.has(wall.id) === true;
+
+const NO_SUSPECTS: ReadonlySet<string> = new Set();
+
+/**
+ * Tường máy "chưa chắc" theo hình (UX-R2 K21/K26), cùng luật Hình học màn Quy chuẩn chạy: cắt
+ * chéo hoặc chồng lên tường khác (cả hai tường), có đầu không nối vào đâu, hoặc dài hơn 0 mà ngắn
+ * hơn bề dày của nó (tường vụn). Tường xiên một mình KHÔNG bị gắn cờ.
+ */
+export function geometrySuspectIdsOf(graph: NormalizedSpatial | null, levelId: Level['id'] | null): ReadonlySet<string> {
+  if (graph === null || levelId === null) {
+    return NO_SUSPECTS;
+  }
+
+  const context = { graph, levelId };
+  const ids = new Set<string>();
+
+  for (const finding of checkWallOverlap(context)) {
+    finding.relatedIds.forEach((id) => ids.add(id));
+  }
+
+  for (const finding of checkDanglingWallEnds(context)) {
+    ids.add(finding.entityId);
+  }
+
+  for (const wall of entitiesInScope(context, 'wall')) {
+    const lengthMm = Math.hypot(wall.centreline.end.x - wall.centreline.start.x, wall.centreline.end.y - wall.centreline.start.y);
+
+    if (lengthMm > 0 && lengthMm < wall.thicknessMm) {
+      ids.add(wall.id);
+    }
+  }
+
+  return ids;
+}
 
 /**
  * Trạng thái màu của một tường.
@@ -1353,6 +1393,7 @@ export function toWallRow(
   wall: Wall,
   wallCodes?: ReadonlyMap<string, string>,
   threshold: number = CONFIDENCE_SUGGESTED_THRESHOLD,
+  suspectIds?: ReadonlySet<string>,
 ): WallRowViewModel {
   return {
     id: wall.id,
@@ -1362,7 +1403,7 @@ export function toWallRow(
     confidence: wall.confidence,
     statusCode: wallStatusCode(wall),
     isReviewed: wall.reviewed,
-    isLowConfidence: isLowConfidence(wall, threshold),
+    isLowConfidence: isLowConfidence(wall, threshold, suspectIds),
     isNonStandardThickness: !isStandardThickness(wall.thicknessMm),
   };
 }

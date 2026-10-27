@@ -833,7 +833,7 @@ describe('[SCR-22] lối vào Đối chiếu lớp phủ', () => {
 });
 
 describe('lối vào các màn duyệt lớp của tầng', () => {
-  it('nút "Duyệt" mở menu sáu lớp + một công cụ; chọn một mục bắn mã tầng và mã màn', async () => {
+  it('nút "Duyệt" mở menu năm lớp + hai công cụ; chọn một mục bắn mã tầng và mã màn', async () => {
     const onOpenFloorScreen = vi.fn();
 
     renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onOpenFloorScreen={onOpenFloorScreen} />);
@@ -851,12 +851,28 @@ describe('lối vào các màn duyệt lớp của tầng', () => {
       'Cửa và nội thất',
       'Phòng',
       'Kích thước',
-      'Trục',
       'Độ dày tường',
       'Hiệu chỉnh tỷ lệ',
+      'Trục',
     ]);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Phòng' }));
     expect(onOpenFloorScreen).toHaveBeenCalledWith(expect.any(String), 'rooms');
+  });
+
+  it('UX-R2 K14: "Trục" mở màn Trục của tầng; căn hộ riêng thì không có "Trục"', async () => {
+    const onOpenFloorScreen = vi.fn();
+    const { rerender } = renderWithProviders(
+      <FloorManager {...scenarioArgsFor('success')} onOpenFloorScreen={onOpenFloorScreen} />,
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: /^Duyệt tầng/ })[0]!);
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Trục' }));
+    expect(onOpenFloorScreen).toHaveBeenCalledWith(expect.any(String), 'grids');
+
+    rerender(<FloorManager {...scenarioArgsFor('success')} onOpenFloorScreen={onOpenFloorScreen} separateUnits />);
+    fireEvent.click(screen.getAllByRole('button', { name: /^Duyệt tầng/ })[0]!);
+    await screen.findAllByRole('menuitem');
+    expect(screen.queryByRole('menuitem', { name: 'Trục' })).toBeNull();
   });
 });
 
@@ -871,5 +887,43 @@ describe('lối sang 3D', () => {
   it('màn không vẽ nút chính thứ hai cùng đích với "Bước tiếp theo: Mô hình 3D" của thanh bước (K5)', () => {
     renderWithProviders(<FloorManager {...scenarioArgsFor('success')} />);
     expect(screen.queryByRole('button', { name: /mô hình 3D/u })).toBeNull();
+  });
+});
+
+describe('[K34] công tắc "Các tầng là các căn hộ riêng"', () => {
+  it('bật thì bỏ lát cắt, cột cao độ, thêm tầng và tự tính cao độ; bấm công tắc gửi giá trị mới', async () => {
+    const onToggleSeparateUnits = vi.fn();
+
+    renderWithProviders(
+      <FloorManager {...scenarioArgsFor('success')} onToggleSeparateUnits={onToggleSeparateUnits} separateUnits />,
+    );
+
+    const toggle = screen.getByRole('switch', { name: 'Các tầng là các căn hộ riêng' });
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryByLabelText(SECTION_ARIA_LABEL)).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'Cao độ (m)' })).toBeNull();
+    expect(screen.queryByRole('button', { name: ADD_FLOOR_LABEL })).toBeNull();
+    expect(screen.queryByRole('switch', { name: 'Tự tính cao độ' })).toBeNull();
+
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
+    expect(onToggleSeparateUnits).toHaveBeenCalledWith(false);
+  });
+
+  it('[K09] dải "không có trục chung" mời bật công tắc và ẩn khi đã bật', () => {
+    const onToggleSeparateUnits = vi.fn();
+    const notice = { title: 'Các tầng không có trục chung', message: 'Phần lớn bản vẽ không khớp trục với nhau.' };
+    const { rerender } = renderWithProviders(
+      <FloorManager {...scenarioArgsFor('success')} axisMismatchNotice={notice} onToggleSeparateUnits={onToggleSeparateUnits} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đánh dấu là căn hộ riêng' }));
+    expect(onToggleSeparateUnits).toHaveBeenCalledWith(true);
+
+    rerender(
+      <FloorManager {...scenarioArgsFor('success')} axisMismatchNotice={notice} onToggleSeparateUnits={onToggleSeparateUnits} separateUnits />,
+    );
+    expect(screen.queryByText(notice.title)).toBeNull();
   });
 });

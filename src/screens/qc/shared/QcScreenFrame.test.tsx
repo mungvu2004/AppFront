@@ -4,11 +4,12 @@ import { describe, expect, it } from 'vitest';
 import { QC_BODY_CLASS, QC_NO_CHANGES_LABEL, QC_UNDO_LABEL, QcCanvasFrame, QcScreenFrame, QcStatusBar, QcWorkspace } from './QcScreenFrame';
 
 describe('QcScreenFrame (BUG-324, BUG-329, BUG-413)', () => {
-  it('[BUG-324] gốc màn cao bằng khung nhìn (h-screen), không phụ thuộc cha không có chiều cao', () => {
+  it('[BUG-324, UX-R2] gốc màn lấp phần còn lại của vỏ nội dung (flex-1), không h-screen làm trang cuộn dưới header', () => {
     render(<QcScreenFrame label="Màn thử">nội dung</QcScreenFrame>);
     const root = screen.getByRole('region', { name: 'Màn thử' });
 
-    expect(root.className).toContain('h-screen');
+    expect(root).toHaveClass('flex-1', 'min-h-0');
+    expect(root.className).not.toContain('h-screen');
     expect(root.className).not.toContain('h-full');
     expect(root.className).not.toContain('overflow-y-auto');
   });

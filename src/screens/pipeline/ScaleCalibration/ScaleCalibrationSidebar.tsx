@@ -12,6 +12,7 @@ import { clsx } from 'clsx';
 
 import { PageHead } from '@/components/shell/PageHead';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Kbd } from '@/components/ui/Kbd';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 
@@ -24,6 +25,7 @@ const TITLE = 'Tỷ lệ bản vẽ';
 const METHOD_TITLE = 'Cách đặt';
 const METHOD_ARIA_LABEL = 'Chọn cách xác định tỷ lệ';
 const SHORTCUTS_ARIA_LABEL = 'Phím tắt';
+const SUGGESTION_ARIA_LABEL = 'Tỷ lệ máy ước lượng';
 
 type SidebarProps = Pick<ScaleCalibrationPanelProps, 'actions' | 'panel' | 'state'>;
 
@@ -50,6 +52,21 @@ export function ScaleCalibrationSidebar({ actions, panel, state }: SidebarProps)
         }
         title={TITLE}
       />
+
+      {/* UX-R2: tầng chưa có tỷ lệ — đề nghị tỷ lệ máy ước từ độ dày tường; bấm chỉ đặt đề nghị, chưa lưu. */}
+      {panel.suggestion !== undefined && !isLoading && (
+        <section
+          aria-label={SUGGESTION_ARIA_LABEL}
+          className="flex flex-col items-start gap-2 border-b border-border-default px-4 py-3"
+        >
+          <p className="text-[13px] text-text-primary">{panel.suggestion.text}</p>
+          {!panel.suggestion.isActive && (
+            <Button disabled={isForbidden} onClick={actions.onUseSuggestedScale} size="sm" variant="secondary">
+              {panel.suggestion.actionLabel}
+            </Button>
+          )}
+        </section>
+      )}
 
       <div className="flex flex-col gap-3 px-4 py-4">
         <h3 className="text-[13px] font-medium text-text-secondary">{METHOD_TITLE}</h3>

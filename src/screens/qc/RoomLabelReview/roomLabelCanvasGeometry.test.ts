@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeContentBoundsPx, fitMillimetresPerPixel } from './roomLabelCanvasGeometry';
+import { computeContentBoundsPx, fitMillimetresPerPixel, shortRoomName } from './roomLabelCanvasGeometry';
 import type { RoomLabelViewModel } from './roomLabelTypes';
 
 /* Chỉ `outlineMm` được hai hàm này đọc. */
@@ -26,5 +26,16 @@ describe('room canvas fit (QA-1)', () => {
 
   it('without a known background size it still fits the rooms only', () => {
     expect(computeContentBoundsPx([room], 1, 0)).toEqual({ x: 6000, y: 1000, width: 2000, height: 2000 });
+  });
+});
+
+describe('shortRoomName (K16)', () => {
+  it('rút tên dài về tên ngắn để ghi trên bản vẽ', () => {
+    expect(shortRoomName('phòng tắm 1')).toBe('WC 1');
+    expect(shortRoomName('Nhà vệ sinh')).toBe('WC');
+    expect(shortRoomName('phòng ngủ 2')).toBe('Ngủ 2');
+    expect(shortRoomName('Phòng khách')).toBe('Khách');
+    expect(shortRoomName('phòng kỹ thuật')).toBe('Kỹ thuật');
+    expect(shortRoomName('bếp')).toBe('bếp');
   });
 });

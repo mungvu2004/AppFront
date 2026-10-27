@@ -79,7 +79,8 @@ describe('khoá tỷ lệ — màn Phòng', () => {
     expect(screen.queryByRole('button', { name: /^Duyệt #R-/u })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Gộp phòng' })).toBeNull();
 
-    /* Dải đỏ đầu màn cũng có "Đặt tỷ lệ"; nút chính là nút đi cùng lý do ở đáy panel chi tiết. */
+    /* Một việc một nút (UX-R2): dải đỏ đầu màn không có nút riêng; nút chính đi cùng lý do ở đáy panel chi tiết. */
+    expect(screen.getAllByRole('button', { name: 'Đặt tỷ lệ' })).toHaveLength(1);
     fireEvent.click(within(reason.parentElement as HTMLElement).getByRole('button', { name: 'Đặt tỷ lệ' }));
 
     expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(args.projectId, args.floorId));

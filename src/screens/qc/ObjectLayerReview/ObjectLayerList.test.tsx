@@ -77,6 +77,8 @@ describe('ObjectLayerList dòng đối tượng (K07)', () => {
 
     expect(option.textContent).toContain('Tủ bếp');
     expect(option.textContent).toContain('Không gắn tường');
+    /* "Không gắn tường" là chấm nhỏ có tooltip, không còn chữ chiếm chỗ trên dòng. */
+    expect(screen.getByTestId('object-free-standing')).toHaveAttribute('title', 'Không gắn tường');
     expect(option.textContent).toContain('Máy chưa chắc');
     expect(option.textContent).not.toContain('0,26');
   });

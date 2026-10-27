@@ -37,7 +37,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
   },
   {
     title: 'Đổi diện mạo cảnh rồi sang bước sau',
-    body: 'Hai nút Phong cách và Ánh sáng ở thanh trên đổi diện mạo cảnh. Mọi thay đổi tự lưu, chip cạnh nút về dự án cho biết đã lưu chưa. Xong thì bấm "Sang Quy chuẩn"; nếu nút ghi "Hiệu chỉnh tỷ lệ" thì hiệu chỉnh trước. Bấm nút Hướng dẫn bất cứ lúc nào để xem lại.',
+    body: 'Hai nút Phong cách và Ánh sáng ở thanh trên đổi diện mạo cảnh. Mọi thay đổi tự lưu, chip cạnh nút về dự án cho biết đã lưu chưa. Xong thì bấm "Sang Quy chuẩn"; nếu nút ghi "Đặt tỷ lệ" thì đặt tỷ lệ trước. Bấm nút Hướng dẫn bất cứ lúc nào để xem lại.',
     // Nhóm Phong cách (thẻ `<details>`); Ánh sáng nằm ngay cạnh.
     anchor: { selector: 'summary[aria-label^="Phong cách"]', up: 1 },
   },
@@ -90,22 +90,12 @@ export function isSceneReady(root: ParentNode = document): boolean {
   });
 }
 
-/** Nút '?' ("Hướng dẫn") của `canvas-help.tsx`: gợi ý lần đầu đứng ngay dưới nó. */
-export const HELP_BUTTON = 'button[aria-label="Xem lại hướng dẫn thao tác"]';
 export const HINT_TEXT = 'Giữ chuột phải và kéo để xoay, lăn chuột để phóng to.';
-const HINT_GAP = 8;
-/** Không thấy nút '?' thì gợi ý đứng giữa, dưới thanh trên. */
-const HINT_FALLBACK_TOP = 112;
-
 /**
- * Chỗ gợi ý lần đầu: tâm ngang theo nút '?', đỉnh dưới cả cột trợ giúp (`column`, có thể kèm
- * băng tỷ lệ/bảng phím) để không che chúng. `left` là tâm, thẻ tự dịch -50%.
+ * UX-R2 K38: gợi ý lần đầu đứng giữa cạnh dưới, ngay trên thanh công cụ dưới (`fixed bottom-6`, cao
+ * ~52px) — không còn dưới cụm trợ giúp đầu cảnh, nơi nó đè lên mô hình.
  */
-export function placeHint(btn: Box | null, column: Box | null, vw: number): { left: number; top: number } {
-  if (!btn || btn.width <= 0) return { left: vw / 2, top: HINT_FALLBACK_TOP };
-  const below = column && column.height > 0 ? column : btn;
-  return { left: btn.left + btn.width / 2, top: below.top + below.height + HINT_GAP };
-}
+export const HINT_BOTTOM_PX = 88;
 
 export function requestTour(): void {
   window.dispatchEvent(new Event(TOUR_OPEN_EVENT));

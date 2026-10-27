@@ -86,6 +86,8 @@ export interface RuleConfigSlice {
   }) => void;
   /** Ghi `revision` vừa lưu (N22). Bỏ qua khi `projectId` không còn là dự án đang nạp. */
   setRuleConfigRevision: (projectId: string, revision: number) => void;
+  /** K34 `separateUnits` của dự án: bỏ luật liên tầng. Không vào lịch sử hoàn tác (là thiết lập dự án, không phải sửa luật). */
+  setRuleSeparateUnits: (separateUnits: boolean) => void;
 }
 
 /** Cấu hình y hệt, chỉ khác số version. */
@@ -105,7 +107,12 @@ export const createRuleConfigSlice: StateCreator<
   ruleConfigRevision: 0,
   hydrateRuleConfig: ({ projectId, revision, overrides }) => {
     set({
-      ruleConfig: { overrides, version: get().ruleConfig.version + 1 },
+      // Cờ căn riêng là của dự án: giữ khi nạp lại cùng dự án, bỏ khi sang dự án khác.
+      ruleConfig: {
+        ...(get().ruleConfigProjectId === projectId && get().ruleConfig.separateUnits === true ? { separateUnits: true } : {}),
+        overrides,
+        version: get().ruleConfig.version + 1,
+      },
       ruleConfigProjectId: projectId,
       ruleConfigRevision: revision,
     });
@@ -116,6 +123,15 @@ export const createRuleConfigSlice: StateCreator<
     }
 
     set({ ruleConfigRevision: revision });
+  },
+  setRuleSeparateUnits: (separateUnits) => {
+    // Cùng luật với `withSeparateUnits` (domain/rules/config), viết tại chỗ: nhập giá trị từ đó kéo
+    // cả bộ luật vào gói màn hình đầu (kho nằm trong chunk vào).
+    const config = get().ruleConfig;
+
+    if ((config.separateUnits === true) !== separateUnits) {
+      set({ ruleConfig: { ...config, separateUnits, version: config.version + 1 } });
+    }
   },
   commitRuleConfig: (next, label) => {
     const previous = get().ruleConfig;

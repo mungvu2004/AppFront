@@ -72,6 +72,8 @@ const GHOST_TOGGLE_LABEL = 'Hiện mờ tầng dưới';
 const GHOST_TOGGLE_NO_FLOORS = 'Dự án chỉ có một tầng nên chưa có tầng nào để hiện mờ.';
 /** RV1-7: dự án nhiều tầng nhưng chưa tầng nào khác được tải (hoặc chưa có tường). */
 const GHOST_TOGGLE_NOT_LOADED = 'Chưa tải tầng khác hoặc tầng khác chưa có tường, nên chưa có mờ để hiện.';
+const SPACING_COLUMN_TITLE = 'Cách trục kế';
+
 /** Dấu gạch ngang chờ cho trục cuối nhóm (`spacingText === null`) — cùng khuôn `ScaleCalibrationMethodReference.tsx`. */
 const MISSING_DISTANCE = '—';
 
@@ -234,7 +236,11 @@ function AxisGridGroup({
 
   return (
     <div className="flex flex-col gap-1 px-3 py-2">
-      <h3 className="px-1 text-[13px] font-semibold text-text-secondary">{group.title}</h3>
+      {/* K13: cột số bên phải là khoảng cách tới trục kế — nói ra, không để đoán. */}
+      <div className="flex items-baseline justify-between px-1">
+        <h3 className="text-[13px] font-semibold text-text-secondary">{group.title}</h3>
+        <span className="text-[12px] text-text-muted">{SPACING_COLUMN_TITLE}</span>
+      </div>
       <div aria-label={group.title} className="flex flex-col gap-0.5" role="listbox">
         {group.rows.map((row) => (
           <AxisGridRow

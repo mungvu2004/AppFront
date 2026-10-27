@@ -69,6 +69,12 @@ import {
   type ScaleRawDimensionString,
 } from './scaleCalibrationGateway';
 import { __resetScaleRatioMarks, useScaleCalibration } from './useScaleCalibration';
+
+/* K34: thiết lập "căn hộ riêng" của dự án; mặc định tắt như dự án chưa lưu lần nào. */
+const separateUnitsFlag = vi.hoisted(() => ({ value: false }));
+vi.mock('@/hooks/useSeparateUnitsFlag', () => ({
+  useSeparateUnitsFlag: () => separateUnitsFlag.value,
+}));
 import type {
   ImageRatioPoint,
   ScaleCalibrationState,
@@ -150,6 +156,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  separateUnitsFlag.value = false;
   cleanup();
   __resetFloorLayerSavers();
   clock.restore();
@@ -787,6 +794,61 @@ describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved
     expect(measured.mounted.result.current.model.missingScaleNotice).toBeUndefined();
   });
 
+  it('[UX-R2 K05] tầng tỷ lệ máy đo có mốc: chọn sẵn mốc tốt nhất, một cú bấm Xác nhận là lưu', async () => {
+    useStore.getState().setSpatial(null, null);
+    simulateProvisionalScale(FLOOR_ID, PROVISIONAL_RATIO);
+    const harness = await makeHarness({ rows: sampleDimensionRows() });
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    const { model } = mounted.result.current;
+    expect(model.panel.dimension.selectedRowId).not.toBeNull();
+    expect(model.panel.dimension.manualCalibrationReason).toBeNull();
+    expect(model.panel.canApply).toBe(true);
+    expect(model.partialNotice).toMatch(/^Máy chọn sẵn mốc .+ mm \(đoạn được tô\)\./u);
+
+    await applyNow(mounted);
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+    expect(harness.writeLayer.mock.calls[0]?.[0].body.scaleMillimetresPerPixel).toBeCloseTo(
+      REFERENCE_SCALE.millimetresPerPixel,
+      6,
+    );
+  });
+
+  it('[UX-R2] tầng chưa có tỷ lệ, N16 có tỷ lệ ước từ độ dày tường: "Dùng tỷ lệ này" đặt đề nghị, Xác nhận mới lưu', async () => {
+    useStore.getState().setSpatial(null, null);
+    simulateProvisionalScale(FLOOR_ID, PROVISIONAL_RATIO, 'project_default');
+    const harness = await makeHarness();
+    const gateway = withScaleCapabilities(harness.gateway, {
+      readLayer: async (input) => ({ ...(await harness.gateway.readLayer(input)), suggestedScaleMmPerPx: 13.9 }),
+    });
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    expect(mounted.result.current.model.missingScaleNotice).toBe(MISSING_SCALE_MESSAGE);
+    expect(mounted.result.current.model.panel.suggestion).toEqual({
+      text: 'Máy ước lượng từ độ dày tường: 1 px ≈ 13,9 mm.',
+      actionLabel: 'Dùng tỷ lệ này',
+      isActive: false,
+    });
+
+    await act(async () => {
+      mounted.result.current.actions.onUseSuggestedScale();
+    });
+
+    expect(harness.writeLayer).not.toHaveBeenCalled();
+    expect(mounted.result.current.model.panel.suggestion?.isActive).toBe(true);
+    expect(mounted.result.current.model.panel.canApply).toBe(true);
+
+    await applyNow(mounted);
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+    expect(harness.writeLayer.mock.calls[0]?.[0].body.scaleMillimetresPerPixel).toBeCloseTo(13.9, 6);
+  });
+
   it('storedRatio null: nhãn "Chưa có", dải tỷ lệ tạm; áp đúng tỷ lệ tạm → một PUT, dải mất', async () => {
     const { harness, mounted } = await mountProvisional();
 
@@ -855,6 +917,58 @@ describe('useScaleCalibration — áp mọi tầng (A9)', () => {
     return { harness, mounted };
   }
 
+  it('dự án căn hộ riêng: không có "Mọi tầng", áp chỉ PUT tầng này, không đọc mọi tầng', async () => {
+    separateUnitsFlag.value = true;
+    const harness = await makeHarness();
+    const readAllFloors = vi.fn(async () => FLOORS);
+    const gateway = withScaleCapabilities(harness.gateway, { readAllFloors });
+    const mounted = mountHook(gateway);
+
+    await settle(mounted);
+    await settleAsync();
+    await typeReference(mounted);
+
+    expect(mounted.result.current.model.panel.applyScopeOptions.map((option) => option.value)).toEqual([
+      'thisFloor',
+    ]);
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeApplyScope('allFloors');
+    });
+    expect(mounted.result.current.model.panel.applyScope).toBe('thisFloor');
+    await applyNow(mounted);
+
+    expect(readAllFloors).not.toHaveBeenCalled();
+    expect(mounted.result.current.model.allFloorsConfirm).toBeUndefined();
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('UX-R2 K32: tỷ lệ cũ của từng tầng lấy từ N15 của readAllFloors, không từ kho', async () => {
+    const harness = await makeHarness();
+    const withScale = [
+      FLOORS[0],
+      { ...FLOORS[1], currentScale: millimetresPerPixel(8) },
+      FLOORS[2],
+      FLOORS[3],
+    ];
+    const gateway = withScaleCapabilities(harness.gateway, { readAllFloors: async () => withScale });
+    const mounted = mountHook(gateway);
+
+    await settle(mounted);
+    await settleAsync();
+    await typeReference(mounted);
+    await act(async () => {
+      mounted.result.current.actions.onChangeApplyScope('allFloors');
+    });
+    await applyNow(mounted);
+
+    expect(mounted.result.current.model.allFloorsConfirm?.changes).toEqual([
+      'Tầng 1: chưa có → 12 mm/px',
+      'Tầng 2: 8 mm/px → 12 mm/px',
+      'Tầng 3: chưa có → 12 mm/px',
+    ]);
+  });
+
   it('bấm áp mở hộp thoại A9 với số tầng có bản vẽ; huỷ → không PUT, giữ trạng thái trước', async () => {
     const { harness, mounted } = await mountAllFloors();
     const before = mounted.result.current.model.state;
@@ -865,6 +979,8 @@ describe('useScaleCalibration — áp mọi tầng (A9)', () => {
         'Tầng chưa có bản vẽ sẽ không được áp. Sau khi áp, bước nắn và cắt bản vẽ của các tầng này sẽ khoá lại; muốn nắn lại thì tải bản vẽ mới.',
       confirmLabel: 'Áp cho mọi tầng',
       cancelLabel: 'Huỷ',
+      // UX-R2 K32: mỗi tầng một dòng cũ → mới.
+      changes: ['Tầng 1: chưa có → 12 mm/px', 'Tầng 2: chưa có → 12 mm/px', 'Tầng 3: chưa có → 12 mm/px'],
     });
 
     await act(async () => {
@@ -1553,6 +1669,7 @@ describe('useScaleCalibration — review-1 F3 (P2-4, P2-5, Nit-3)', () => {
         graph.data.floorRevisions.find((entry) => entry.floorId === target.floorId)?.revision,
       );
       expect(target.revision).toBeDefined();
+      expect(target.currentScale).toBe(level?.scaleMillimetresPerPixel);
     });
   });
 });

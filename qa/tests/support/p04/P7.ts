@@ -72,13 +72,13 @@ export const OV = {
   swipe: 'Trượt',
   sideBySide: 'Cạnh nhau',
   sideBySideDisabled: 'Khung quá hẹp để đặt hai khung nhìn cạnh nhau; hãy dùng trượt.', // UOC:122
-  opacity: 'Độ mờ ảnh nguồn', // OCT:60
+  opacity: 'Độ đậm lớp mô hình', // OCT:60
   lock: 'Khoá căn', // OCT:61
   readOnly: 'Bạn không có quyền sửa, các điều khiển đang tắt.', // OCT:62
   divider: 'Đường chia đôi, dùng phím mũi tên trái và phải để dịch', // OCD:25
   tolerance: 'Dung sai', // UOC:122
   deviationList: 'Danh sách vùng lệch', // OCP:51
-  confirm: 'Khớp rồi, xác nhận', // UOC:104
+  confirm: 'Khớp rồi, xác nhận', // UX-R2 K19: removed from the screen; specs assert it is absent
   toScale: 'Sang màn hiệu chỉnh tỷ lệ', // OC:78
   toUpload: 'Tải bản vẽ lên', // OC:80
   layerScan: 'Ảnh quét gốc', // UOC:115

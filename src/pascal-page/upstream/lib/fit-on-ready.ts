@@ -19,8 +19,8 @@ const FIT_FOV = 40
 const ELEVATION = (40 * Math.PI) / 180
 /** Share of the free viewport the plan fills (FE3D-FIX-002 V5 D13: plans sat small in dead space). */
 const FILL = 0.8
-/** Top toolbar overlaying the canvas (px). */
-const TOOLBAR_PX = 70
+/** Top toolbar plus the one-line scale banner under it, overlaying the canvas (px; UX-R2 K38). */
+export const TOP_RESERVED_PX = 120
 /** Walls stand above the XZ bounds; frame their tops too. ponytail: fixed 3 m, not per level. */
 const WALL_TOP = 3
 const MIN_DISTANCE = 6
@@ -33,8 +33,9 @@ const OFF_SHORT_AXIS = (25 * Math.PI) / 180
  * Vendor `computeSceneBoundsXZ` also adds raw node positions (doors/windows are wall-local,
  * building/stair sit at the origin) and the site polygon, so the origin was always inside the box
  * and long houses came out tiny. ponytail: ignores building/level offsets (AppFront keeps them 0).
+ * With `levelId` (UX-R2 K38): only that floor's walls and zones (their `parentId` is the level).
  */
-export function planBoundsXZ(nodes: Record<string, unknown> | unknown[]): Bounds | null {
+export function planBoundsXZ(nodes: Record<string, unknown> | unknown[], levelId?: string): Bounds | null {
   let minX = Infinity
   let minZ = Infinity
   let maxX = -Infinity
@@ -47,7 +48,8 @@ export function planBoundsXZ(nodes: Record<string, unknown> | unknown[]): Bounds
     minZ = Math.min(minZ, p[1])
     maxZ = Math.max(maxZ, p[1])
   }
-  for (const node of Object.values(nodes) as { type?: unknown; start?: unknown; end?: unknown; polygon?: unknown }[]) {
+  for (const node of Object.values(nodes) as { type?: unknown; parentId?: unknown; start?: unknown; end?: unknown; polygon?: unknown }[]) {
+    if (levelId !== undefined && node?.parentId !== levelId) continue
     if (node?.type === 'wall') {
       add(node.start)
       add(node.end)
@@ -80,12 +82,14 @@ export function fitAzimuth([sx, sz]: [number, number]): number {
 /**
  * Azimuth from `fitAzimuth`, 40° elevation, 40° lens. The distance is the smallest one at which every
  * corner of the plan box (floor to wall tops) projects inside FILL of the canvas below the toolbar —
- * exact per-corner perspective test, so long or square plans fill the frame alike.
+ * exact per-corner perspective test, so long or square plans fill the frame alike. `baseY` lifts the
+ * frame to a floor that stands above ground (solo mode keeps its stacked height, UX-R2 K38).
  */
 export function fitPose(
   bounds: Bounds | null,
   projection: CameraPose['projection'],
   viewport: Viewport = viewportOf(),
+  baseY = 0,
 ): CameraPose {
   if (!bounds) return { position: [20, 20, 20], target: [0, 0, 0], projection }
   const [cx, cz] = bounds.center
@@ -101,8 +105,8 @@ export function fitPose(
   const up = [-sin * sa, cos, -sin * ca] as const
   const tanV = Math.tan((FIT_FOV * Math.PI) / 360)
   const tanH = tanV * (viewport.width / viewport.height)
-  // The toolbar covers the top TOOLBAR_PX of the upper half-frame; the target stays at the canvas centre.
-  const tanUp = tanV * Math.max(0.5, 1 - (2 * TOOLBAR_PX) / viewport.height)
+  // The toolbar + banner cover the top TOP_RESERVED_PX of the upper half-frame; the target stays at the canvas centre.
+  const tanUp = tanV * Math.max(0.5, 1 - (2 * TOP_RESERVED_PX) / viewport.height)
   const dot = (a: readonly number[], b: readonly number[]) => a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!
   let distance = MIN_DISTANCE
   for (const x of [-sx / 2, sx / 2])
@@ -119,8 +123,8 @@ export function fitPose(
         )
       }
   return {
-    position: [cx + distance * back[0], distance * back[1], cz + distance * back[2]],
-    target: [cx, 0, cz],
+    position: [cx + distance * back[0], baseY + distance * back[1], cz + distance * back[2]],
+    target: [cx, baseY, cz],
     projection,
     fov: FIT_FOV,
   }

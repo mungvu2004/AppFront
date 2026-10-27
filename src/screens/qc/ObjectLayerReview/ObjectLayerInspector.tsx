@@ -39,14 +39,6 @@
  * `inspector.swing === 'fixed'`, không radio nào trong nhóm khớp giá trị,
  * nhóm hiện không chọn radio nào — đúng ngữ nghĩa, không phải lỗi.
  *
- * ## Hai biểu tượng tự vẽ: bồn cầu và chậu rửa
- *
- * `lucide-react` không có icon cho hai loại nội thất này (đã kiểm bằng
- * duyệt toàn bộ danh sách export). {@link ToiletIcon}/{@link BasinIcon} là
- * SVG viền nét tối giản, không tô đầy màu (CẤM TUYỆT ĐỐI), theo đúng khuôn
- * `stroke="currentColor" fill="none"` của mọi icon `lucide-react` khác dùng
- * trong file — không phải một component chung mới trong `src/components/**`.
- *
  * ## Vì sao Select có icon ở dropdown nhưng không ở ô đóng
  *
  * `Select.Trigger` (`src/components/ui/Select.tsx`) khoá kiểu
@@ -63,7 +55,6 @@ import type { ComponentType } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
 import { FieldRow } from '@/components/ui/FieldRow';
 import { Radio } from '@/components/ui/Radio';
 import { Select } from '@/components/ui/Select';
@@ -72,6 +63,7 @@ import { cn } from '@/lib/utils';
 import { ObjectLayerPositionField } from './ObjectLayerPositionField';
 import { ObjectSubtypeIcon, type OutlineIconProps } from './objectLayerSubtypeIcons';
 import {
+  FURNITURE_KIND_OPTIONS,
   OBJECT_SUBTYPES,
   OBJECT_SUBTYPE_LABELS,
   OBJECT_SUBTYPE_LAYER,
@@ -104,8 +96,11 @@ const TYPE_OPTIONS = OPENING_SUBTYPES.map((subtype) => ({
 
 const PANEL_TITLE = 'Đối tượng';
 const TYPE_SELECT_LABEL = 'Loại đối tượng';
+const FURNITURE_KIND_SELECT_LABEL = 'Đổi loại nội thất';
 const WIDTH_LABEL = 'Chiều rộng';
 const HEIGHT_LABEL = 'Chiều cao';
+/* Nội thất nằm trên mặt bằng: cạnh thứ hai là chiều sâu, không phải chiều cao (K10). */
+const FOOTPRINT_LABEL = 'Rộng × Sâu';
 const SILL_HEIGHT_LABEL = 'Cao độ bệ cửa';
 const HOST_WALL_LABEL = 'Tường chứa nó';
 const SWING_LABEL = 'Hướng mở';
@@ -118,8 +113,8 @@ const APPROVE_PREFIX = 'Duyệt';
 const APPROVED_LABEL = 'Đã duyệt';
 const APPROVE_HINT = 'Duyệt xong tự sang đối tượng chưa duyệt kế tiếp. Xoá nhầm thì bấm Hoàn tác trên thông báo.';
 /* Hoàn tác thay hộp hỏi (Z/S-16): xoá tức thì, toast hoàn tác tám giây (A8). */
-const DELETE_OPENING_LABEL = 'Không phải cửa, xoá';
-const DELETE_FURNITURE_LABEL = 'Không phải nội thất, xoá';
+const DELETE_OPENING_LABEL = 'Xoá (không phải cửa)';
+const DELETE_FURNITURE_LABEL = 'Xoá (không phải đồ vật)';
 const EMPTY_MESSAGE = 'Chọn một mục để xem chi tiết.';
 const OPEN_SCALE_LABEL = 'Đặt tỷ lệ';
 
@@ -142,6 +137,7 @@ export function ObjectLayerInspector({
   isViewerRole,
   onChangeSubtype,
   onChangeSwing,
+  onChangeFurnitureKind,
   onDragPosition,
   onDelete,
   onApprove,
@@ -170,6 +166,7 @@ export function ObjectLayerInspector({
           isViewerRole={isViewerRole}
           onApprove={onApprove}
           onAttachToNearestWall={onAttachToNearestWall}
+          onChangeFurnitureKind={onChangeFurnitureKind}
           onChangeSubtype={onChangeSubtype}
           onChangeSwing={onChangeSwing}
           onDelete={onDelete}
@@ -194,6 +191,7 @@ function ObjectInspectorBody({
   isViewerRole,
   onChangeSubtype,
   onChangeSwing,
+  onChangeFurnitureKind,
   onDragPosition,
   onApprove,
   onAttachToNearestWall,
@@ -215,9 +213,25 @@ function ObjectInspectorBody({
           <ObjectSubtypeIcon className="h-[18px] w-[18px]" subtype={inspector.subtype} />
         </span>
 
-        {isViewerRole || isFurniture ? (
+        {isFurniture && !isViewerRole && inspector.furnitureKind !== null ? (
+          <Select.Root
+            className="flex-1"
+            onChange={(value) => onChangeFurnitureKind(inspector.id, value as (typeof FURNITURE_KIND_OPTIONS)[number]['value'])}
+            options={FURNITURE_KIND_OPTIONS}
+            value={inspector.furnitureKind}
+          >
+            <Select.Trigger aria-label={FURNITURE_KIND_SELECT_LABEL} options={FURNITURE_KIND_OPTIONS} />
+            <Select.Content>
+              {FURNITURE_KIND_OPTIONS.map((option, index) => (
+                <Select.Item index={index} key={option.value} value={option.value}>
+                  {option.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        ) : isViewerRole || isFurniture ? (
           <div className="flex h-[46px] sm:h-[38px] flex-1 items-center px-3 text-[14px] text-text-primary">
-            {OBJECT_SUBTYPE_LABELS[inspector.subtype]}
+            {inspector.typeLabel}
           </div>
         ) : (
           <Select.Root
@@ -244,16 +258,26 @@ function ObjectInspectorBody({
       </div>
 
       <div className="flex flex-col px-5">
-        <FieldRow label={WIDTH_LABEL}>
-          <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">
-            {inspector.widthLabel}
-          </span>
-        </FieldRow>
-        <FieldRow label={HEIGHT_LABEL}>
-          <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">
-            {inspector.heightLabel}
-          </span>
-        </FieldRow>
+        {isFurniture ? (
+          <FieldRow label={FOOTPRINT_LABEL}>
+            <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">
+              {inspector.sizeLabel}
+            </span>
+          </FieldRow>
+        ) : (
+          <>
+            <FieldRow label={WIDTH_LABEL}>
+              <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">
+                {inspector.widthLabel}
+              </span>
+            </FieldRow>
+            <FieldRow label={HEIGHT_LABEL}>
+              <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">
+                {inspector.heightLabel}
+              </span>
+            </FieldRow>
+          </>
+        )}
 
         {inspector.sillHeightLabel !== null && (
           <FieldRow label={SILL_HEIGHT_LABEL}>
@@ -338,9 +362,8 @@ function ObjectInspectorBody({
         )}
 
         <FieldRow isLast label={CONFIDENCE_LABEL}>
-          <span className="flex h-9 items-center">
-            <ConfidenceMeter value={inspector.confidence} />
-          </span>
+          {/* Bằng chữ như dòng danh sách, không phải số trần "0,26" (K10). */}
+          <span className="flex h-9 items-center text-[14px] text-text-primary">{inspector.confidenceLabel}</span>
         </FieldRow>
       </div>
       </div>

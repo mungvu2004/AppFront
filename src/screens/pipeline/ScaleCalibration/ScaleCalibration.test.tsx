@@ -29,7 +29,7 @@
  * `getBoundingClientRect()`. jsdom trả về một hình chữ nhật rỗng cho mọi phần
  * tử, nên một `pointermove` giả lập ở đây đo được đúng con số không — nó sẽ kiểm
  * jsdom chứ không kiểm màn. Chiều còn lại của cùng kịch bản — gõ chiều dài thật,
- * bấm "Áp dụng tỷ lệ" — đi qua DOM THẬT, vì hai thao tác đó không phụ thuộc vào
+ * bấm "Xác nhận tỷ lệ" — đi qua DOM THẬT, vì hai thao tác đó không phụ thuộc vào
  * hình học nào.
  */
 
@@ -117,7 +117,7 @@ const REFERENCE_WALL_WIDTH: Pixels = pixels(12);
 
 /** Nhãn thật của các ô bấm — hằng chuỗi của `ScaleCalibrationPanel.tsx`. */
 const REAL_LENGTH_LABEL = 'Chiều dài thật';
-const APPLY_LABEL = 'Áp dụng tỷ lệ';
+const APPLY_LABEL = 'Xác nhận tỷ lệ';
 
 const NOTICE_REGION_LABEL = 'Trạng thái của màn hiệu chỉnh tỷ lệ';
 /** Nhãn thật của khung canvas — hằng chuỗi của `ScaleCalibrationCanvas.tsx`. */
@@ -986,7 +986,7 @@ describe('ScaleCalibration — QA-04c SCR-14', () => {
     fireEvent.keyDown(radio, { key: 'ArrowRight' });
     expect(handle('Cuối').style.left).toBe(endLeft);
 
-    const notPrevented = fireEvent.keyDown(screen.getByRole('button', { name: 'Áp dụng tỷ lệ' }), { key: 'Enter' });
+    const notPrevented = fireEvent.keyDown(screen.getByRole('button', { name: 'Xác nhận tỷ lệ' }), { key: 'Enter' });
     expect(notPrevented).toBe(true);
 
     mounted.unmount();
@@ -1189,7 +1189,7 @@ describe('[G51a] nhãn đo trực tiếp cần cỡ khung ảnh', () => {
   });
 });
 
-describe('[G57] hộp thoại "áp mọi tầng" đóng thì tiêu điểm về "Áp dụng tỷ lệ"', () => {
+describe('[G57] hộp thoại "áp mọi tầng" đóng thì tiêu điểm về "Xác nhận tỷ lệ"', () => {
   it('nút áp bị khoá lúc đọc mọi tầng (tiêu điểm rơi về body) vẫn được trả tiêu điểm khi Esc', async () => {
     const scenario = scenarioFor('success');
     const confirm = { title: 'Áp tỷ lệ cho 2 tầng?', message: 'Câu hỏi.', confirmLabel: 'Áp dụng', cancelLabel: 'Huỷ' };
@@ -1203,6 +1203,6 @@ describe('[G57] hộp thoại "áp mọi tầng" đóng thì tiêu điểm về 
 
     rerender(<ScaleCalibration actions={scenario.actions} model={scenario.model} />);
 
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Áp dụng tỷ lệ' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Xác nhận tỷ lệ' }));
   });
 });

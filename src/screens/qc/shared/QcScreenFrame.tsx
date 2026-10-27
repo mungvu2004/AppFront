@@ -3,7 +3,9 @@ import { useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * Khung chung của các màn QC (BUG-413, AES-01/AES-04): một gốc cao bằng khung nhìn,
+ * Khung chung của các màn QC (BUG-413, AES-01/AES-04): một gốc lấp phần còn lại dưới header và
+ * thanh bước của `AppLayout` (vỏ nội dung là cột flex có chiều cao; `ScreenMain` là `contents`) —
+ * không dùng `h-screen`, vốn cộng thêm chiều cao header nên trang cuộn ở 1920×1080 (UX-R2),
  * một lề trang (`QC_BODY_CLASS`: p-2, gap-2), một khung bản vẽ (`bg-bg-sunken`, bo 16).
  * Chỉ là lớp bọc: vùng (role/aria-label) do màn truyền vào, không đổi tên truy cập.
  */
@@ -20,7 +22,7 @@ export function QcScreenFrame({ label, children, scroll = false }: QcScreenFrame
   return (
     <div
       aria-label={label}
-      className={cn('flex h-screen min-h-0 w-full flex-col bg-bg-app', scroll && 'overflow-y-auto')}
+      className={cn('flex min-h-0 w-full flex-1 flex-col bg-bg-app', scroll && 'overflow-y-auto')}
       role="region"
     >
       {children}
