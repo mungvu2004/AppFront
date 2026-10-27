@@ -8,7 +8,7 @@ import { WallShapeFigure, type WallShapeFigureProps } from './WallLayerShapeFigu
 
 /* Bọc `toSvgPoints` để đếm số lần WallShapeFigure thực sự render — không đổi hành vi. */
 vi.mock('./wallLayerHatch', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./wallLayerHatch')>();
+  const actual = await importOriginal<typeof hatch>();
 
   return { ...actual, toSvgPoints: vi.fn(actual.toSvgPoints) };
 });

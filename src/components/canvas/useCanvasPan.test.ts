@@ -43,7 +43,9 @@ describe('P6 — kéo gom theo khung hình', () => {
     });
     vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   const surface = document.createElement('div');
   const ev = (clientX: number, clientY: number) =>
