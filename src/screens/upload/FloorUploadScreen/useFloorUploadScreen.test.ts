@@ -2219,6 +2219,10 @@ describe('useFloorUploadScreen — QA-03e', () => {
       expect(result.current.floors.some((row) => row.floorId === goneId)).toBe(false);
     });
     expect(result.current.state).not.toBe('error');
+    // Tầng biến mất trước, câu báo của tệp vào khay ở nhịp sau: đợi nó, đừng đọc ngay (chập chờn 1/4).
+    await waitFor(() => {
+      expect(result.current.tray.items.find((entry) => entry.name === 'mat-bang-tang-3.png')?.error).toBeDefined();
+    });
 
     const item = result.current.tray.items.find((entry) => entry.name === 'mat-bang-tang-3.png');
 
