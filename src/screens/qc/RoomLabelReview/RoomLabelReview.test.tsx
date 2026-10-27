@@ -76,7 +76,7 @@ import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
-import { PROVISIONAL_MEASURE_TEXT, provisionalScaleNoticeOf } from '@/lib/viewmodel/provisionalScale';
+import { provisionalScaleNoticeOf } from '@/lib/viewmodel/provisionalScale';
 import {
   SEVEN_STATES,
   SEVEN_STATE_LABELS,
@@ -543,12 +543,16 @@ describe('dải lưu lớp (F-04x-1)', () => {
 describe('dải tỷ lệ tạm (F-04x-2)', () => {
   const NOTICE = provisionalScaleNoticeOf('unresolved')?.message ?? '';
 
-  it('tầng unresolved: dải chú ý + "Đặt tỷ lệ", tổng diện tích là PROVISIONAL_MEASURE_TEXT', async () => {
+  /* K16: tầng vàng vẫn hiện số, kèm "≈ … (tạm)". */
+  const PROVISIONAL_AREA = /^≈ [\d.,]+ m² \(tạm\)$/u;
+
+  /* UX-R2 K22/K04: tỷ lệ "cần kiểm" (vàng) không còn dải ở màn; diện tích vẫn "≈ … (tạm)". */
+  it('tầng unresolved do máy đo: không dải vàng, diện tích hiện "≈ … (tạm)"', async () => {
     renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('partial')} {...ProvisionalScale.args} />);
 
-    expect(await screen.findByText(NOTICE)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Đặt tỷ lệ' })).toBeInTheDocument();
-    expect(screen.getAllByText(PROVISIONAL_MEASURE_TEXT).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(PROVISIONAL_AREA)).length).toBeGreaterThan(0);
+    expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Đặt tỷ lệ' })).not.toBeInTheDocument();
   });
 
   it('tầng có tỉ lệ thật: không dải, không chữ tỷ lệ tạm', async () => {
@@ -556,7 +560,7 @@ describe('dải tỷ lệ tạm (F-04x-2)', () => {
 
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Đặt tỷ lệ' })).not.toBeInTheDocument();
-    expect(screen.queryByText(PROVISIONAL_MEASURE_TEXT)).not.toBeInTheDocument();
+    expect(screen.queryByText(PROVISIONAL_AREA)).not.toBeInTheDocument();
   });
 });
 
@@ -770,8 +774,8 @@ describe('P04 cụm C — thanh tra phòng chỉ mời việc làm được (SCR
   it('[BUG-624] diện tích trong hàng co lại được, chữ đầy đủ ở title — tên phòng không còn một ký tự', async () => {
     await renderSettled('partial');
     const [firstRow] = screen.getAllByRole('option');
-    /* Hàng = dòng chính (mã · tên · diện tích · chấm) + dòng cờ tuỳ chọn. */
-    const area = firstRow?.firstElementChild?.lastElementChild?.previousElementSibling;
+    /* Hàng = dòng mã · tên, dòng diện tích · trạng thái (K08), + dòng cờ tuỳ chọn. */
+    const area = firstRow?.children[1]?.firstElementChild;
 
     expect(area).toHaveAttribute('title', area?.textContent ?? '');
     expect(area).not.toHaveClass('shrink-0');

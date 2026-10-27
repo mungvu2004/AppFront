@@ -261,25 +261,26 @@ test.describe('SCR-22 overlay — drawing floor D1 (read-only walks)', () => {
 
       let initialOpacityText = '';
       let initialOpacityNow = '';
-      await test.step('[22-A-014] opacity slider: Home → "0%" (scan layer invisible), End → "100%"', async () => {
+      await test.step('[22-A-014] model opacity slider: Home → "0%" (model layer invisible, scan stays full), End → "100%"', async () => {
         const slider = opacitySlider(page);
         initialOpacityNow = (await slider.getAttribute('aria-valuenow')) ?? '';
         initialOpacityText = (await toolbar(page).getByText(/^\d+%$/u).innerText()).trim();
         await slider.focus();
         await page.keyboard.press('Home');
         await expect.soft(toolbar(page).getByText('0%', { exact: true })).toBeVisible();
-        await expect.soft(page.locator('[data-overlay-layer="scan"]')).toHaveCSS('opacity', '0');
+        await expect.soft(page.locator('[data-overlay-layer="geometry"]')).toHaveCSS('opacity', '0');
+        await expect.soft(page.locator('[data-overlay-layer="scan"]')).toHaveCSS('opacity', '1'); // UX-R2 K18: the scan is always full
         await page.keyboard.press('End');
         await expect.soft(toolbar(page).getByText('100%', { exact: true })).toBeVisible();
-        await expect.soft(page.locator('[data-overlay-layer="scan"]')).toHaveCSS('opacity', '1');
+        await expect.soft(page.locator('[data-overlay-layer="geometry"]')).toHaveCSS('opacity', '1');
       });
 
-      await test.step('[22-E-008] opacity slider aria-valuemin 0 / max 100 / now; visible "25%" at the start', async () => {
+      await test.step('[22-E-008] opacity slider aria-valuemin 0 / max 100 / now; visible "65%" at the start', async () => {
         const slider = opacitySlider(page);
         expect.soft(await slider.getAttribute('aria-valuemin')).toBe('0');
         expect.soft(await slider.getAttribute('aria-valuemax')).toBe('100');
-        expect.soft(initialOpacityNow, 'default value').toBe('25');
-        expect.soft(initialOpacityText, 'default visible text').toBe('25%');
+        expect.soft(initialOpacityNow, 'default value').toBe('65'); // UX-R2 K18
+        expect.soft(initialOpacityText, 'default visible text').toBe('65%');
         expect.soft(await slider.getAttribute('aria-valuenow'), 'now = 100 after End').toBe('100');
       });
 
@@ -465,19 +466,19 @@ test.describe('SCR-22 overlay — drawing floor D1 (read-only walks)', () => {
         await expect.soft(panel(page).getByText(/^0(,0+)? mm$/u)).toHaveCount(0);
       });
 
-      await test.step('[22-A-025] "Khớp rồi, xác nhận" is disabled (nothing measured)', async () => {
-        await expect.soft(page.getByRole('button', { name: OV.confirm, exact: true })).toBeDisabled(); // S-28 v6: confirm lives in the step-bar gate
+      await test.step('[22-A-025] no "Khớp rồi, xác nhận" button (UX-R2 K19: the match is not confirmed here)', async () => {
+        await expect.soft(page.getByRole('button', { name: OV.confirm, exact: true })).toHaveCount(0);
       });
 
-      await test.step('[22-A-024] reload resets mode / opacity / divider / lock / tolerance to "So với bản vẽ" / 25% / 0.5 / off / 20', async () => {
+      await test.step('[22-A-024] reload resets mode / opacity / divider / lock / tolerance to "So với bản vẽ" / 65% / 0.5 / off / 20', async () => {
         await opacitySlider(page).focus();
         await page.keyboard.press('Home');
         await page.reload();
         await expect(screenRegion(page)).toBeVisible();
         await expect(alertWith(page, OV.frameMissing)).toBeVisible();
         await expect.soft(modeRadio(page, OV.overlay)).toHaveAttribute('aria-checked', 'true');
-        await expect.soft(opacitySlider(page)).toHaveAttribute('aria-valuenow', '25');
-        await expect.soft(toolbar(page).getByText('25%', { exact: true })).toBeVisible();
+        await expect.soft(opacitySlider(page)).toHaveAttribute('aria-valuenow', '65');
+        await expect.soft(toolbar(page).getByText('65%', { exact: true })).toBeVisible();
         await expect.soft(lockSwitch(page)).toHaveCount(0); // BUG-599: hidden
         await expect.soft(toleranceField(page)).toHaveValue('20');
         await swipeOn(page);
@@ -790,10 +791,10 @@ test.describe('SCR-22 overlay — no drawing, unmeasured run, unknown floor, ano
         await expect(page.getByRole('link', { name: OV.toUpload, exact: true })).toHaveAttribute('href', ROUTES.project.upload(q2.projectId));
       });
 
-      await test.step('[22-B-007] empty, no drawing: attention alert + upload link; no scale link; confirm disabled', async () => {
+      await test.step('[22-B-007] empty, no drawing: attention alert + upload link; no scale link; no confirm button', async () => {
         await expect.soft(alertWith(page, OV.noDrawing)).toBeVisible();
         await expect.soft(page.getByRole('link', { name: OV.toScale })).toHaveCount(0);
-        await expect.soft(page.getByRole('button', { name: OV.confirm, exact: true })).toBeDisabled();
+        await expect.soft(page.getByRole('button', { name: OV.confirm, exact: true })).toHaveCount(0); // UX-R2 K19
         await ev(page, '22-B-007', 'no_drawing');
       });
 

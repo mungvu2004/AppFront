@@ -57,6 +57,13 @@ const STATUS_LABEL: Readonly<Record<RoomLabelStatus, string>> = {
   confirmed: 'Đã duyệt',
 };
 
+/** Chữ ngắn đi cạnh chấm màu trong dòng (K16) — câu đầy đủ ở `aria-label`. */
+const STATUS_SHORT_LABEL: Readonly<Record<RoomLabelStatus, string>> = {
+  unnamed: 'Cần đặt tên',
+  suggested: 'Máy đề xuất',
+  confirmed: 'Đã duyệt',
+};
+
 interface RoomLabelListRowProps {
   readonly room: RoomLabelViewModel;
   readonly isSelected: boolean;
@@ -99,14 +106,22 @@ function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus, fl
     >
       <span className="flex items-center gap-2">
         <span className="w-16 shrink-0 truncate font-mono text-text-secondary">{room.codeLabel}</span>
-        <span className={cn('min-w-0 flex-1 wrap-break-word', room.hasName ? 'text-text-primary' : 'text-text-muted')}>
+        <span
+          className={cn('min-w-0 flex-1 truncate', room.hasName ? 'text-text-primary' : 'text-text-muted')}
+          title={nameText}
+        >
           {nameText}
         </span>
-        {/* Diện tích co được tới 45% hàng, một dòng, chữ đầy đủ ở `title` (BUG-624, K23: không bẻ "tỷ lệ / tạm"). */}
-        <span className="max-w-[45%] truncate whitespace-nowrap text-right font-mono tabular-nums text-text-secondary" title={room.areaText}>
+      </span>
+      {/* K08/K16: diện tích và trạng thái xuống dòng hai — tên không bị ép xuống hai dòng, chấm màu có chữ đi kèm. */}
+      <span className="flex items-center gap-2 pl-[72px] text-[12px] text-text-secondary">
+        <span className="min-w-0 truncate whitespace-nowrap font-mono tabular-nums" title={room.areaText}>
           {room.areaText}
         </span>
-        <span aria-hidden="true" className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_CLASS[room.status])} />
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          <span aria-hidden="true" className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_CLASS[room.status])} />
+          {STATUS_SHORT_LABEL[room.status]}
+        </span>
       </span>
       {flag === null ? null : (
         <span className="flex items-start gap-1 pl-[72px] text-[12px] text-state-attention-text">

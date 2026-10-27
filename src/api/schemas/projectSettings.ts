@@ -48,6 +48,9 @@ export const ProjectSettingsBodySchema = z
        gửi đủ thân mà không mang trường này vẫn không xoá nó. BE nhận cả `null` = xoá, nhưng FE
        chưa có lối xoá nên thân gửi không nhận `null`. */
     sceneStyle: z.enum(PROJECT_SCENE_STYLES).optional(),
+    /* UX-R2 K34 — "Các tầng là các căn hộ riêng": bật thì các tầng không chồng thành một nhà.
+       BE mặc định `false`; vắng ở thân gửi = giữ nguyên (như `sceneStyle`). */
+    separateUnits: z.boolean().optional(),
     snapToleranceMm: z.number().int().min(1).max(120),
   })
   .strict();
@@ -74,6 +77,7 @@ export const ProjectSettingsSchema = ProjectSettingsBodySchema.extend({
     ...(wireSettings.notes !== undefined ? { notes: wireSettings.notes } : {}),
     revision: wireSettings.revision,
     ...(wireSettings.sceneStyle != null ? { sceneStyle: wireSettings.sceneStyle } : {}),
+    ...(wireSettings.separateUnits !== undefined ? { separateUnits: wireSettings.separateUnits } : {}),
     snapToleranceMm: wireSettings.snapToleranceMm,
   }));
 

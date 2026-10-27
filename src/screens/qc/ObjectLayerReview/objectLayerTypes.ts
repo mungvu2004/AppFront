@@ -26,7 +26,7 @@
  * đó, không gõ tay số 21 ở hai chỗ.
  */
 
-import type { Confidence, Point, ReviewMetadata, SwingDirection, WallId } from '@/domain/spatial/types';
+import type { Confidence, FurnitureKind, Point, ReviewMetadata, SwingDirection, WallId } from '@/domain/spatial/types';
 import type { Millimetres, MillimetresPerPixel } from '@/domain/units/types';
 import type { RelativePosition } from '@/domain/openings/types';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
@@ -434,6 +434,14 @@ export interface ObjectInspectorViewModel {
   /** Ví dụ `"#D-007"`, mono-lg. */
   readonly codeLabel: string;
   readonly subtype: ObjectSubtype;
+  /** Tên loại, cùng chữ với dòng danh sách (`objectTypeLabelOf`, K10). */
+  readonly typeLabel: string;
+  /** Loại đồ đạc của đồ thị — ô đổi loại của nội thất. `null` ở lỗ mở hoặc nội thất không đọc được loại. */
+  readonly furnitureKind: FurnitureKind | null;
+  /** "406 × 277 mm" — Rộng × Sâu của nội thất trên mặt bằng. */
+  readonly sizeLabel: string;
+  /** "Máy chưa chắc" / "Máy khá chắc" — cùng luật ngưỡng với danh sách (K10). */
+  readonly confidenceLabel: string;
   /** Ví dụ `"900 mm"`. */
   readonly widthLabel: string;
   /** Ví dụ `"2.200 mm"`. */
@@ -455,6 +463,23 @@ export interface ObjectInspectorViewModel {
   readonly reviewed: boolean;
 }
 
+/**
+ * Tám loại đồ đạc của đồ thị — ô đổi loại của nội thất (K10). Tên viết hoa chữ đầu, cùng chữ
+ * `objectTypeLabelOf` in ở dòng danh sách (`other` là "Nội thất khác"). Chép ở đây vì
+ * `FURNITURE_KIND_LABELS` nằm ở `@/lib/commands` mà view không được nhập (R-60). Mảng thường
+ * (không `readonly`) vì `Select.options` nhận `SelectOption[]`.
+ */
+export const FURNITURE_KIND_OPTIONS: { label: string; value: FurnitureKind }[] = [
+  { label: 'Bàn', value: 'table' },
+  { label: 'Ghế', value: 'chair' },
+  { label: 'Giường', value: 'bed' },
+  { label: 'Tủ áo', value: 'wardrobe' },
+  { label: 'Tủ bếp', value: 'kitchenCabinet' },
+  { label: 'Thiết bị vệ sinh', value: 'sanitaryFixture' },
+  { label: 'Thang', value: 'stair' },
+  { label: 'Nội thất khác', value: 'other' },
+];
+
 /** Mọi thứ view panel phải (inspector) nhận. */
 export interface ObjectLayerInspectorProps {
   readonly inspector: ObjectInspectorViewModel | null;
@@ -462,6 +487,8 @@ export interface ObjectLayerInspectorProps {
   readonly isViewerRole: boolean;
   readonly onChangeSubtype: (objectId: string, subtype: ObjectSubtype) => void;
   readonly onChangeSwing: (objectId: string, swing: SwingDirection) => void;
+  /** Đổi loại một món nội thất (K10) — lệnh `furniture.changeKind`. */
+  readonly onChangeFurnitureKind: (objectId: string, kind: FurnitureKind) => void;
   /** Kéo Slider vị trí — hook gộp thao tác kéo liên tục thành một lệnh (D-06, 400ms). */
   readonly onDragPosition: (objectId: string, relativePosition: RelativePosition) => void;
   /** Xoá dùng vé hoàn tác (A8); toast Hoàn tác do hook dựng. */
@@ -506,7 +533,10 @@ export interface ObjectLayerToolRailProps {
   /** Nhóm loại đang chọn để đặt cho đối tượng đang chọn (`D`/`W`/`F`). `null` khi chưa chọn đối tượng. */
   readonly activeLayer: ObjectLayerId | null;
   readonly activeSubtype: ObjectSubtype | null;
-  readonly onSelectLayer: (layer: ObjectLayerId) => void;
+  /** Nhóm đang vẽ: bấm lên bản vẽ là đặt một món mới của nhóm này (K07). `null` khi không vẽ. */
+  readonly drawLayer: ObjectLayerId | null;
+  /** Bật/tắt chế độ vẽ của một nhóm — nút rail "Vẽ cửa đi/cửa sổ/nội thất". */
+  readonly onStartDraw: (layer: ObjectLayerId) => void;
   /** Vị trí 1/2/3 trong nhóm hiện tại (đúng thứ tự {@link OBJECT_SUBTYPES} lọc theo lớp). */
   readonly onSelectSubtypeSlot: (slot: 1 | 2 | 3) => void;
   readonly isViewerRole: boolean;
@@ -543,6 +573,8 @@ export interface ObjectLayerReviewModel {
   readonly selectedObjectId: string | null;
   readonly hoveredObjectId: string | null;
   readonly layerVisibility: ObjectLayerVisibility;
+  /** Nhóm chip đếm đang lọc danh sách; `null` = cả ba. Không đổi bản vẽ (K07). */
+  readonly listLayerFilter: ObjectLayerId | null;
   readonly subtypeFilters: ReadonlySet<ObjectSubtype>;
   readonly collapsedGroups: ObjectLayerVisibility;
   readonly isCompact: boolean;
@@ -556,6 +588,7 @@ export interface ObjectLayerReviewModel {
   /* -- Hành động trên một đối tượng ------------------------------------------ */
   readonly onChangeSubtype: (objectId: string, subtype: ObjectSubtype) => void;
   readonly onChangeSwing: (objectId: string, swing: SwingDirection) => void;
+  readonly onChangeFurnitureKind: (objectId: string, kind: FurnitureKind) => void;
   readonly onDragPosition: (objectId: string, relativePosition: RelativePosition) => void;
   readonly onDelete: (objectId: string) => void;
   readonly onApprove: (objectId: string) => void;
@@ -568,6 +601,8 @@ export interface ObjectLayerReviewModel {
 
   /* -- Lớp con, bộ lọc, nhóm gấp, hoàn tác, vỏ màn --------------------------- */
   readonly onToggleLayer: (layer: ObjectLayerId) => void;
+  /** Chip đếm: chỉ hiện một nhóm; bấm lại nhóm đang lọc thì hiện cả ba (K07). */
+  readonly onFilterLayer: (layer: ObjectLayerId) => void;
   readonly onToggleSubtypeFilter: (subtype: ObjectSubtype) => void;
   readonly onToggleGroupCollapsed: (layer: ObjectLayerId) => void;
   readonly onUndo: () => void;
@@ -631,6 +666,11 @@ export interface ObjectLayerReviewModel {
   readonly highlightedWallId: WallId | null;
   readonly onSelectLayer: (layer: ObjectLayerId) => void;
   readonly onSelectSubtypeSlot: (slot: 1 | 2 | 3) => void;
+  /** Nhóm đang vẽ (rail "Vẽ …"); `null` khi không vẽ. */
+  readonly drawLayer: ObjectLayerId | null;
+  readonly onStartDraw: (layer: ObjectLayerId) => void;
+  /** Bấm lên bản vẽ ở chế độ vẽ: đặt một món mới tại điểm ấy (pixel bản vẽ, cùng hệ với `viewBoxPx`). */
+  readonly onPlaceAt: (point: PixelPoint) => void;
   /** Thêm/bớt một đối tượng khỏi vùng chọn (S-10). */
   readonly onToggleSelect: (objectId: string) => void;
   /** Chọn cả một lớp con (S-10). */

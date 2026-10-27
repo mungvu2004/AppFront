@@ -177,7 +177,8 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
     /* 1. Lọc theo loại (Z/S-16) — ba nút loại, mỗi nút một số đếm. */
     const tree = screen.getByRole('group', { name: LAYER_FILTER_LABEL });
     /* A6 · B-V6-04: nút con mắt ghép tiền tố viết thường với tên lớp viết thường. */
-    expect(screen.getByRole('button', { name: 'Ẩn lớp cửa đi' })).toBeInTheDocument();
+    /* K07: chip đếm chỉ là bộ lọc — "Chỉ hiện cửa đi", không bật/ẩn lớp. */
+    expect(screen.getByRole('button', { name: 'Chỉ hiện cửa đi' })).toHaveAttribute('aria-pressed', 'false');
     const layerCounts = within(tree)
       .getAllByRole('button')
       .map((item) => firstNumberIn(item.textContent ?? ''));
@@ -267,23 +268,48 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
 /* [NGHIEM-3] Hai trạng thái dễ thành màn trắng nhất.                          */
 /* -------------------------------------------------------------------------- */
 
-describe('B-V6-10 — chọn nhóm bằng chuột ngay từ đầu', () => {
-  it('ba nút "chọn nhóm" bấm được khi chưa nhóm nào được chọn, và bấm thì chọn đúng nhóm', async () => {
+describe('K07 — nút rail "Vẽ …" bật chế độ vẽ thật', () => {
+  it('ba nút vẽ bấm được; bấm "Vẽ nội thất" bật chế độ vẽ, bấm lại thì tắt; không còn nút "Thêm" ở chân panel', async () => {
     renderState('success');
+    await screen.findByRole('group', { name: LIST_LABEL });
 
     const rail = screen.getByRole('toolbar', { name: TOOL_RAIL_LABEL });
-    const door = within(rail).getByRole('button', { name: 'Chọn nhóm cửa đi (phím C)' });
 
-    for (const name of ['Chọn nhóm cửa đi (phím C)', 'Chọn nhóm cửa sổ (phím S)', 'Chọn nhóm nội thất (phím N)']) {
+    for (const name of ['Vẽ cửa đi', 'Vẽ cửa sổ', 'Vẽ nội thất']) {
       expect(within(rail).getByRole('button', { name })).toBeEnabled();
     }
 
-    fireEvent.click(door);
+    const furniture = within(rail).getByRole('button', { name: 'Vẽ nội thất' });
 
-    /* Nhóm đã chọn thì ray mở các ô loại con của nó — "đổi thành … (phím 1)". */
+    fireEvent.click(furniture);
     await waitFor(() => {
-      expect(within(rail).getByRole('button', { name: /^Đổi thành .* \(phím 1\)$/u })).toBeInTheDocument();
+      expect(furniture).toHaveAttribute('aria-pressed', 'true');
     });
+
+    fireEvent.click(furniture);
+    await waitFor(() => {
+      expect(furniture).toHaveAttribute('aria-pressed', 'false');
+    });
+    expect(screen.queryByRole('button', { name: /^Thêm cửa/u })).toBeNull();
+  });
+});
+
+describe('Codex P2 — cụm "Hiển thị" ẩn/hiện lớp trên bản vẽ', () => {
+  it('bấm "Ẩn lớp cửa đi" thì nút thành "Hiện lớp cửa đi", aria-pressed tắt; chip lọc danh sách không đổi', async () => {
+    renderState('success');
+    await screen.findByRole('group', { name: LIST_LABEL });
+
+    const toggles = screen.getByRole('group', { name: 'Hiển thị' });
+
+    fireEvent.click(within(toggles).getByRole('button', { name: 'Ẩn lớp cửa đi' }));
+
+    await waitFor(() => {
+      expect(within(toggles).getByRole('button', { name: 'Hiện lớp cửa đi' })).toHaveAttribute('aria-pressed', 'false');
+    });
+    expect(within(toggles).getByRole('button', { name: 'Ẩn lớp cửa sổ' })).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      within(screen.getByRole('group', { name: LAYER_FILTER_LABEL })).getByRole('button', { name: 'Chỉ hiện cửa đi' }),
+    ).toHaveAttribute('aria-pressed', 'false');
   });
 });
 

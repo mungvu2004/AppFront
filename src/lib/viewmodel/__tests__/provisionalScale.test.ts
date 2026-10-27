@@ -7,18 +7,26 @@ import {
   isScaleMissing,
   measureTextOf,
   provisionalScaleNoticeOf,
+  SCALE_STATE_VIEWS,
   scaleFloorsMessageOf,
+  scaleStateOf,
   thicknessLockTextOf,
 } from '../provisionalScale';
 
 describe('provisionalScale', () => {
-  it('swaps the measure for the fixed text while the scale is provisional', () => {
-    expect(measureTextOf('12,5 m', 'unresolved')).toBe(PROVISIONAL_MEASURE_TEXT);
+  it('marks a measure from a scale that needs checking as approximate', () => {
+    expect(measureTextOf('12,5 m', 'unresolved')).toBe('≈ 12,5 m (tạm)');
+    expect(measureTextOf('12,5 m', 'unresolved', 'pipeline')).toBe('≈ 12,5 m (tạm)');
     expect(PROVISIONAL_MEASURE_TEXT).toBe('Chưa có — tỷ lệ tạm');
+  });
+
+  it('hides the measure when the floor has no scale', () => {
+    expect(measureTextOf('12,5 m', 'unresolved', 'project_default')).toBe('Chưa có');
   });
 
   it('keeps the measure when the scale is settled', () => {
     expect(measureTextOf('12,5 m', undefined)).toBe('12,5 m');
+    expect(measureTextOf('12,5 m', undefined, 'project_default')).toBe('12,5 m');
   });
 
   it('raises an attention notice only for a provisional scale', () => {
@@ -64,5 +72,16 @@ describe('provisionalScale', () => {
       '6 tầng không đo được tỷ lệ, kích thước 3D sai: ch-01, ch-02, ch-04, ch-05, ch-06, ch-08. ' +
         '1 tầng chưa hiệu chỉnh tỷ lệ, kích thước 3D có thể sai: ch-03.',
     );
+  });
+
+  it('one source for the three scale states: name, colour, action (UX-R2 K50)', () => {
+    expect(scaleStateOf(undefined, undefined)).toBe('confirmed');
+    expect(scaleStateOf('unresolved', 'project_default')).toBe('missing');
+    expect(scaleStateOf('unresolved', 'pipeline')).toBe('check');
+    expect(scaleStateOf('unresolved', undefined)).toBe('check');
+    expect(SCALE_STATE_VIEWS.missing).toEqual({ name: 'Chưa có tỷ lệ', statusCode: 'violation', action: 'Đặt tỷ lệ' });
+    expect(SCALE_STATE_VIEWS.check).toEqual({ name: 'Tỷ lệ cần kiểm', statusCode: 'attention', action: 'Xác nhận tỷ lệ' });
+    expect(SCALE_STATE_VIEWS.confirmed.statusCode).toBe('verified');
+    expect(MISSING_SCALE_MESSAGE.startsWith(SCALE_STATE_VIEWS.missing.name)).toBe(true);
   });
 });

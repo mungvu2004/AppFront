@@ -561,6 +561,8 @@ export interface ThicknessStandardizationProps {
   /* -- Vai trò, bảy trạng thái ---------------------------------------------------- */
   /** `true` ở vai Người xem — CẤM TUYỆT ĐỐI không hộp thoại, nên chỉ ẩn nút áp/gộp/sửa dung sai. */
   readonly isViewerRole: boolean;
+  /** Tầng khoá vì thiếu tỷ lệ: ô đồng ý, bảng sửa và gợi ý phím tắt đều tắt như vai người xem (UX-R2 K49). */
+  readonly isScaleLocked?: boolean | undefined;
   /** Câu giải thích thay nút áp ở vai Người xem. `null` ngoài `forbidden`. */
   readonly viewerRoleNotice: string | null;
   /** Câu của trạng thái `empty`. `null` ở trạng thái khác. */

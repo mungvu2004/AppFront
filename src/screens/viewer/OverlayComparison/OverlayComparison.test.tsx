@@ -240,28 +240,19 @@ describe('OverlayComparison — xác nhận là hành động của người (A5
     expect(model.confirmation.confirmedNotice).toBeNull();
   });
 
-  it('bấm nút xác nhận gọi đúng MỘT lần `actions.confirmMatch`, không có đường nào khác đặt được isConfirmed', () => {
+  it('[UX-R2 K19] không còn nút "Khớp rồi, xác nhận" (lượt ấy chỉ sống trong phiên)', () => {
     const model = unconfirmedButAllClearModel();
     const confirmMatch = vi.fn();
     const actions: OverlayComparisonActions = { ...scenarioFor('success').actions, confirmMatch };
 
-    // Nút xác nhận nằm ở cổng (FlowGate) — cổng bay vào khe của thanh bước; ở đây dựng một khe giả.
     const slot = document.createElement('div');
     document.body.append(slot);
     setFlowGateSlot(slot);
     renderInRouter(<OverlayComparison actions={actions} model={model} />);
 
-    const button = screen.getByRole('button', { name: model.confirmation.buttonLabel });
+    expect(screen.queryByRole('button', { name: model.confirmation.buttonLabel })).toBeNull();
     setFlowGateSlot(null);
     slot.remove();
-
-    expect(button).toBeEnabled();
-    expect(confirmMatch).not.toHaveBeenCalled();
-
-    fireEvent.click(button);
-
-    expect(confirmMatch).toHaveBeenCalledTimes(1);
-    expect(confirmMatch).toHaveBeenCalledWith();
   });
 });
 
@@ -285,24 +276,6 @@ describe('OverlayComparison — ba câu của màn (bản Z S-28)', () => {
     expect(screen.getByText('3/14 vùng vượt dung sai 20 mm.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Vùng kế W-12' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Khớp rồi, xác nhận' })).toBeNull();
-  });
-
-  it('không có quyền xác nhận: cổng nói lý do thay cho một nút tắt (BUG-599)', () => {
-    const base = scenarioFor('success');
-    const model: OverlayComparisonViewModel = {
-      ...base.model,
-      confirmation: {
-        ...base.model.confirmation,
-        isConfirmed: false,
-        canConfirm: false,
-        confirmedNotice: null,
-        disabledReason: 'Chỉ người có quyền sửa mới xác nhận được.',
-      },
-    };
-    renderInRouter(<OverlayComparison actions={base.actions} model={model} />);
-
-    expect(screen.queryByRole('button', { name: model.confirmation.buttonLabel })).toBeNull();
-    expect(screen.getByText('Chỉ người có quyền sửa mới xác nhận được.')).toBeInTheDocument();
   });
 
   it('đã xác nhận: chip xanh + câu điềm đạm, không còn nút xác nhận', () => {

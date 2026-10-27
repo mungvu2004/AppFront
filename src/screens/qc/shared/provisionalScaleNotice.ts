@@ -4,7 +4,7 @@
  */
 import { useMemo } from 'react';
 
-import { isScaleMissing, MISSING_SCALE_MESSAGE, provisionalScaleNoticeOf } from '@/lib/viewmodel/provisionalScale';
+import { isScaleMissing, MISSING_SCALE_MESSAGE } from '@/lib/viewmodel/provisionalScale';
 import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
 
@@ -12,7 +12,7 @@ import { useScaleLock } from './useScaleLock';
 
 /** Máy có đo tỷ lệ nhưng hình ra vô lý (tường < 50 mm, khung < 3 m): thanh bước và cổng đã khoá. */
 export const IMPLAUSIBLE_SCALE_MESSAGE =
-  'Tỷ lệ máy đo cho ra kích thước vô lý nên kích thước và mô hình 3D đang sai. Đặt tỷ lệ trước khi duyệt tiếp.';
+  'Chưa có tỷ lệ: tỷ lệ máy đo cho ra kích thước vô lý nên kích thước và mô hình 3D đang sai. Đặt tỷ lệ trước khi duyệt tiếp.';
 
 export interface ProvisionalScaleNotice {
   readonly message: string;
@@ -25,13 +25,14 @@ export interface ProvisionalScaleNotice {
 }
 
 /**
- * `null` khi tầng không ở tỷ lệ tạm; `onCalibrate` mở màn Tỷ lệ bản vẽ của tầng.
- * `canCalibrate` = false (người xem) thì bỏ nút. Dải đỏ đi theo `useScaleLock` (cùng nguồn với
- * thanh bước và cổng): máy không đo được tỷ lệ (UX-R1 K12), hoặc đo ra hình vô lý — không còn
- * dải vàng trong khi thanh bước báo thiếu tỷ lệ.
+ * Dải chỉ còn cho tầng "Chưa có tỷ lệ" (đỏ), đi theo `useScaleLock` (cùng nguồn với thanh bước và
+ * cổng): máy không đo được tỷ lệ (UX-R1 K12), hoặc đo ra hình vô lý. Tỷ lệ "cần kiểm" (vàng) không
+ * còn dải lặp lại ở mọi màn (UX-R2 K22/K04) — chấm vàng của bước Tỷ lệ trên thanh bước nói việc đó.
+ * `onCalibrate` mở màn Tỷ lệ bản vẽ của tầng; `canCalibrate` = false (người xem) thì bỏ nút.
+ * `_scaleStatus` giữ để nơi gọi cũ không vỡ kiểu.
  */
 export function useProvisionalScaleNotice(
-  scaleStatus: 'unresolved' | undefined,
+  _scaleStatus: 'unresolved' | undefined,
   projectId: string,
   floorId: string,
   onNavigate: ((path: string) => void) | undefined,
@@ -41,19 +42,14 @@ export function useProvisionalScaleNotice(
   const { locked } = useScaleLock(projectId, floorId);
 
   return useMemo(() => {
-    const missingMessage = isScaleMissing(scaleSource) ? MISSING_SCALE_MESSAGE : IMPLAUSIBLE_SCALE_MESSAGE;
-    const notice = locked
-      ? { level: 'violation' as const, message: missingMessage }
-      : provisionalScaleNoticeOf(scaleStatus, scaleSource);
-
-    if (notice === null) {
+    if (!locked) {
       return null;
     }
 
     return {
       dismissKey: `${projectId}/${floorId}`,
-      message: notice.message,
-      ...(notice.level === 'violation' ? { level: notice.level } : {}),
+      message: isScaleMissing(scaleSource) ? MISSING_SCALE_MESSAGE : IMPLAUSIBLE_SCALE_MESSAGE,
+      level: 'violation' as const,
       ...(canCalibrate
         ? {
             onCalibrate: () => {
@@ -62,5 +58,5 @@ export function useProvisionalScaleNotice(
           }
         : {}),
     };
-  }, [canCalibrate, floorId, locked, onNavigate, projectId, scaleSource, scaleStatus]);
+  }, [canCalibrate, floorId, locked, onNavigate, projectId, scaleSource]);
 }

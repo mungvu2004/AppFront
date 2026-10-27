@@ -47,12 +47,13 @@
  */
 
 import { appNotificationBus } from '@/hooks/useNotifications';
+import { useSeparateUnitsFlag } from '@/hooks/useSeparateUnitsFlag';
 import { lowerFirst } from '@/lib/format/sentence';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { EMPTY_RULE_CONFIG, type RuleConfig } from '@/domain/rules/config';
+import { EMPTY_RULE_CONFIG, type RuleConfig, withSeparateUnits } from '@/domain/rules/config';
 import { groupViolationsByLevel, sortBySeverity } from '@/domain/rules/healthScore';
 import {
   RULE_GROUP_LABELS,
@@ -61,7 +62,7 @@ import {
   type RuleRegistry,
   type Violation,
 } from '@/domain/rules/registry';
-import { evaluatedRuleCodes, ruleAppliesTo, runRules } from '@/domain/rules/runner';
+import { comparedLevelCount, evaluatedRuleCodes, ruleAppliesTo, runRules } from '@/domain/rules/runner';
 import { hasElements } from '@/domain/spatial/elementCount';
 import { displayCodeIn, isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { LevelId } from '@/domain/spatial/types';
@@ -341,13 +342,15 @@ const skippedGroupsOf = (
   ranRuleCodes: readonly RuleCode[],
   levelIds: readonly LevelId[],
   projectId: string,
+  config: RuleConfig,
 ): readonly SkippedRuleGroup[] => {
   const ran = new Set(ranRuleCodes);
+  const levelCount = comparedLevelCount(levelIds.length, config);
   const countByGroup = new Map<RuleGroup, number>();
   const order: RuleGroup[] = [];
 
   for (const rule of registry.listEnabled()) {
-    if (ran.has(rule.code) || (levelIds.length > 0 && !ruleAppliesTo(rule, levelIds.length))) {
+    if (ran.has(rule.code) || (levelIds.length > 0 && !ruleAppliesTo(rule, levelCount))) {
       continue;
     }
 
@@ -409,7 +412,10 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
     queryKey: ruleSettingsQueryKey(projectId),
     queryFn: ({ signal }) => configGateway.read({ projectId, signal }),
   });
-  const ruleConfig = configQuery.data?.config ?? EMPTY_RULE_CONFIG;
+  // K34: căn hộ riêng thì không chạy luật liên tầng; đổi thiết lập là chạy lại (khoá có cờ).
+  const separateUnits = useSeparateUnitsFlag(projectId);
+  const savedConfig = configQuery.data?.config ?? EMPTY_RULE_CONFIG;
+  const ruleConfig = useMemo(() => withSeparateUnits(savedConfig, separateUnits), [savedConfig, separateUnits]);
   const revision = configQuery.data?.revision ?? null;
 
   // Sổ luật như cấu hình mô tả; bộ mặc định đã tự tắt hai luật built-in bị nhóm
@@ -428,7 +434,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   const [expandedRuleCodes, setExpandedRuleCodes] = useState<readonly RuleCode[]>(EMPTY_RULE_CODES);
 
   const query = useQuery({
-    queryKey: [...queryKeys.violation.byProject(projectId), versionId, revision],
+    queryKey: [...queryKeys.violation.byProject(projectId), versionId, revision, separateUnits],
     // Không chờ quyền sửa: N21 cho mọi thành viên đọc, và báo cáo chỉ đọc.
     enabled: graph !== null && configQuery.data !== undefined,
     // `runRules` chạy đồng bộ, nhưng `queryFn` phải trả `Promise` để lượt "đang
@@ -619,8 +625,8 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
 
     // `graph.byKind.level` là `EntityId[]`; `levelNames` đã lọc sẵn ra đúng
     // những mã tầng đọc được từ đồ thị, nên khoá của nó là danh sách tầng thật.
-    return skippedGroupsOf(registry, run.ranRuleCodes, [...levelNames.keys()], projectId);
-  }, [graph, levelNames, projectId, registry, run]);
+    return skippedGroupsOf(registry, run.ranRuleCodes, [...levelNames.keys()], projectId, ruleConfig);
+  }, [graph, levelNames, projectId, registry, ruleConfig, run]);
 
   const status = useMemo<RuleReportStatus>(() => {
     // Người xem đi qua đủ các bậc như người sửa; quyền chỉ khoá hành động (`capabilities.canEdit`).

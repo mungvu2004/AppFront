@@ -97,6 +97,8 @@ export interface FloorTableRowProps {
   readonly canEdit: boolean;
   /** Từ 2 tầng mới có tay nắm đổi thứ tự. */
   readonly canReorder: boolean;
+  /** K34: dự án là các căn hộ riêng thì không có cột cao độ. Vắng = có. */
+  readonly showElevation?: boolean;
   readonly isAutoElevation: boolean;
   readonly duplicatingFloorId: string | null;
   readonly copyFurniture: boolean;
@@ -145,6 +147,7 @@ export function FloorTableRow({
   rows,
   canEdit,
   canReorder,
+  showElevation = true,
   isAutoElevation,
   duplicatingFloorId,
   copyFurniture,
@@ -184,7 +187,7 @@ export function FloorTableRow({
       return;
     }
 
-    if (!canEdit || !event.altKey) {
+    if (!canReorder || !event.altKey) {
       return;
     }
 
@@ -266,6 +269,7 @@ export function FloorTableRow({
 
       <FloorNameCell canEdit={canEdit} className={cell} isRenaming={isRenaming} onFloorFieldCancel={onFloorFieldCancel} onFloorFieldChange={onFloorFieldChange} onFloorFieldCommit={onFloorFieldCommit} onRenameEnd={onRenameEnd} onRenameStart={onRenameStart} row={row} summaryText={step.summaryText} />
 
+      {showElevation && (
       <Table.Cell className={cn(cell, 'tabular-nums')}>
         {canEdit && !isAutoElevation ? (
           <InlineNumber
@@ -295,6 +299,7 @@ export function FloorTableRow({
         {/* Ô ghi đè phải nhìn ra được, không trông như mọi ô tính tự động (BUG-289). */}
         {row.isElevationOverridden && <span className="ml-1 text-[12px] text-text-secondary">{OVERRIDDEN_LABEL}</span>}
       </Table.Cell>
+      )}
 
       <Table.Cell className={cn(cell, 'tabular-nums')}>
         {canEdit ? (

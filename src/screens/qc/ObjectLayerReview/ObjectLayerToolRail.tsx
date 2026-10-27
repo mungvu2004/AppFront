@@ -4,7 +4,8 @@
  * loại/loại con đang chọn — đó là trạng thái nghiệp vụ do hook (T5) sở
  * hữu, đi vào qua `activeLayer`/`activeSubtype`. View KHÔNG tự đăng ký phím
  * tắt (`addEventListener` hay `useShortcut`) — T5 làm việc đó qua
- * `shortcutRegistry`; ở đây nhóm có tên đầy đủ cỡ nhỏ dưới nút, phím ở tooltip + `aria-label` (G4a-25, QA-1).
+ * `shortcutRegistry`; ở đây nhóm có tên đầy đủ cỡ nhỏ dưới nút (G4a-25, QA-1). Ba nút nhóm là
+ * công cụ VẼ thật (K07): bấm là bật chế độ vẽ của hook (`drawLayer`), bấm lên bản vẽ là đặt.
  *
  * ## Vì sao mỗi nhóm chỉ có tối đa BA nút loại con
  *
@@ -59,14 +60,12 @@ const MAX_SUBTYPE_SLOTS = 3;
 interface LayerToolDef {
   readonly id: ObjectLayerId;
   readonly icon: LucideIcon;
-  /** Tên phím — chữ hoa vì đây là tên phím, ngoại lệ hợp lệ của A6. */
-  readonly kbd: string;
 }
 
 const LAYER_TOOLS: readonly LayerToolDef[] = [
-  { icon: DoorOpen, id: 'door', kbd: 'C' },
-  { icon: Blinds, id: 'window', kbd: 'S' },
-  { icon: Armchair, id: 'furniture', kbd: 'N' },
+  { icon: DoorOpen, id: 'door' },
+  { icon: Blinds, id: 'window' },
+  { icon: Armchair, id: 'furniture' },
 ];
 
 /**
@@ -101,7 +100,8 @@ function subtypesOfLayer(layer: ObjectLayerId): readonly ObjectSubtype[] {
 export function ObjectLayerToolRail({
   activeLayer,
   activeSubtype,
-  onSelectLayer,
+  drawLayer,
+  onStartDraw,
   onSelectSubtypeSlot,
   isViewerRole,
 }: ObjectLayerToolRailProps) {
@@ -120,7 +120,9 @@ export function ObjectLayerToolRail({
         <>
           {LAYER_TOOLS.map((tool) => {
             const Icon = tool.icon;
-            const isActive = tool.id === activeLayer;
+            /* Nút làm đúng việc ghi trên nhãn (K07): bật chế độ vẽ, bấm lên bản vẽ là đặt một món. */
+            const isActive = tool.id === drawLayer;
+            const label = `Vẽ ${lowerFirst(OBJECT_LAYER_LABELS[tool.id])}`;
 
             return (
               <div className="relative flex w-full flex-col items-center gap-0.5" key={tool.id}>
@@ -131,15 +133,15 @@ export function ObjectLayerToolRail({
                   />
                 )}
                 <IconButton
-                  aria-label={`Chọn nhóm ${lowerFirst(OBJECT_LAYER_LABELS[tool.id])} (phím ${tool.kbd})`}
+                  aria-label={label}
                   icon={<Icon aria-hidden="true" className="h-[18px] w-[18px]" />}
                   isActive={isActive}
-                  onClick={() => onSelectLayer(tool.id)}
+                  onClick={() => onStartDraw(tool.id)}
                   size="lg"
                 />
                 {/* Group name, not the bare key letter ("C"/"S"/"N" meant nothing, QA-1); the key sits in tooltip + aria-label. */}
                 <span aria-hidden="true" className="whitespace-nowrap text-caption leading-none text-text-muted">
-                  {`Vẽ ${lowerFirst(OBJECT_LAYER_LABELS[tool.id])}`}
+                  {label}
                 </span>
               </div>
             );

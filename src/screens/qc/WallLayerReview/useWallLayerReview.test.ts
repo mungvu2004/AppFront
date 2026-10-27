@@ -1777,14 +1777,12 @@ describe('tự lưu — bộ lưu lớp chung (F-04x-1)', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('tỷ lệ tạm (F-04x-2)', () => {
-  it('tầng unresolved: có dải, chiều dài thanh tra là "… mm (tạm)", cùng số với danh sách (K16)', async () => {
+  it('tầng unresolved: không dải vàng (UX-R2 K22), chiều dài thanh tra là "… mm (tạm)", cùng số với danh sách (K16)', async () => {
     const mounted = await mountSettled({
       gateway: createMockWallLayerReviewGateway({ graph: FIXTURE_GRAPH, scaleStatus: 'unresolved' }),
     });
 
-    await waitFor(() => {
-      expect(mounted.result.current.provisionalScaleNotice).not.toBeNull();
-    });
+    expect(mounted.result.current.provisionalScaleNotice).toBeNull();
 
     act(() => {
       mounted.result.current.panel.onSelect(wallAt(0).id);

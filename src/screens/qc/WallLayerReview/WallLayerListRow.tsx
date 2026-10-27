@@ -1,5 +1,5 @@
 /**
- * Một hàng của hàng đợi tường (cao 36): mẫu hình · mã · dấu "Máy chưa chắc" · dài · dày; hàng đã
+ * Một hàng của hàng đợi tường (cao 36): mẫu hình (hoặc dấu "Máy chưa chắc") · mã · dài · dày; hàng đã
  * duyệt có "Bỏ duyệt". Trạng thái cho trình đọc màn hình nằm ở tên truy cập của hàng.
  *
  * Nút "Bỏ duyệt" đứng CẠNH `role="option"` (không lồng điều khiển trong option). Màu trạng thái
@@ -40,6 +40,8 @@ export interface WallLayerListRowProps {
   readonly isFlashing: boolean;
   /** Dấu "Máy chưa chắc" cho tường dưới ngưỡng tin cậy — chỉ khi độ tin cậy có khác nhau. */
   readonly showConfidence: boolean;
+  /** Tầng thiếu tỷ lệ: độ dày đo ra vô nghĩa, không in cột Dày (UX-R2 K23). Mặc định có. */
+  readonly showThickness?: boolean | undefined;
   readonly onSelect: (wallId: WallId) => void;
   readonly onToggleSelect: (wallId: WallId) => void;
   readonly onHover: (wallId: WallId | null) => void;
@@ -61,6 +63,7 @@ export function WallLayerListRow({
   isHovered,
   isFlashing,
   showConfidence,
+  showThickness = true,
   onSelect,
   onToggleSelect,
   onHover,
@@ -112,6 +115,11 @@ export function WallLayerListRow({
           <span className="relative flex w-5 shrink-0 items-center justify-center text-state-verified-text" title={REVIEWED_TITLE}>
             <Check aria-hidden="true" className="h-3.5 w-3.5" />
           </span>
+        ) : isUncertain ? (
+          /* K15/K25: dấu "Máy chưa chắc" đứng ở ô hình đầu hàng (như dấu đã duyệt), không lấy chỗ cột dài. */
+          <span className="relative flex w-5 shrink-0 items-center justify-center text-state-attention-text" title={UNCERTAIN_LABEL}>
+            <CircleHelp aria-hidden="true" className="h-3.5 w-3.5" />
+          </span>
         ) : (
           <span className="relative flex w-5 shrink-0 items-center" title={swatchTitle}>
             <WallThicknessSwatch kind={swatch} />
@@ -119,14 +127,9 @@ export function WallLayerListRow({
         )}
         {/* K28: mã có bề rộng riêng, không co — không dính vào cột dài ("#W-0015.757"). */}
         <span className="relative w-12 shrink-0 whitespace-nowrap tabular-nums text-text-primary">{row.codeLabel}</span>
-        {/* K15: dấu thấy được (hình + màu), thay lớp gạch chéo mờ 6% trước đây. */}
-        {isUncertain ? (
-          <span aria-hidden="true" className="relative flex shrink-0 items-center text-state-attention-text" title={UNCERTAIN_LABEL}>
-            <CircleHelp aria-hidden="true" className="h-3.5 w-3.5" />
-          </span>
-        ) : null}
-        <span className="relative min-w-0 flex-1 truncate text-right tabular-nums text-text-secondary">{extra?.lengthText ?? ''}</span>
-        {showUnapprove ? null : (
+        {/* K25: cột dài không cắt chữ ("5.7…" đúng ở dòng chưa chắc là lỗi vòng 2). */}
+        <span className="relative flex-1 whitespace-nowrap text-right tabular-nums text-text-secondary">{extra?.lengthText ?? ''}</span>
+        {showUnapprove || !showThickness ? null : (
           <span className="relative w-9 shrink-0 whitespace-nowrap text-right tabular-nums text-text-primary">
             {extra?.thicknessText ?? row.thicknessLabel}
             {extra?.nearText == null ? null : <span className="ml-1 text-caption text-text-secondary">{extra.nearText}</span>}

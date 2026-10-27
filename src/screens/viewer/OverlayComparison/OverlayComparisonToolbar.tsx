@@ -6,7 +6,7 @@
  * VIEW THUẦN (R-60): mọi thứ vào bằng `OverlayComparisonToolbarProps`
  * (`types.ts`, đóng băng), không `@/api`, không `@/store`, không `@/domain`
  * (trừ `import type`), không `@/lib/http`. Không con số nào bị định dạng lại
- * ở đây — `scanOpacityText` đã ghép sẵn (A15); phần CSS duy nhất của view là
+ * ở đây — `modelOpacityText` đã ghép sẵn (A15); phần CSS duy nhất của view là
  * `tabular-nums` cho chữ đều, đúng yêu cầu của đặc tả.
  *
  * ## Vì sao thanh không tự đặt `position: absolute`
@@ -57,7 +57,7 @@ const TOOLBAR_LABEL = 'Thanh công cụ đối chiếu bản vẽ';
 const FLOOR_SELECT_LABEL = 'Chọn tầng';
 const FLOOR_NO_SCAN_SUFFIX = 'Không có ảnh bản vẽ gốc';
 const COMPARE_MODE_ARIA_LABEL = 'Kiểu đối chiếu';
-const SCAN_OPACITY_ARIA_LABEL = 'Độ mờ ảnh nguồn';
+const MODEL_OPACITY_ARIA_LABEL = 'Độ đậm lớp mô hình';
 const ALIGNMENT_LOCK_LABEL = 'Khoá căn';
 
 /**
@@ -146,28 +146,28 @@ function DisabledModeCaptions({ disabledCompareModes }: Pick<CompareModeClusterP
   ));
 }
 
-interface ScanOpacityClusterProps {
-  readonly scanOpacityPercent: number;
-  readonly scanOpacityText: string;
-  readonly onSetScanOpacity: OverlayComparisonToolbarProps['onSetScanOpacity'];
+interface ModelOpacityClusterProps {
+  readonly modelOpacityPercent: number;
+  readonly modelOpacityText: string;
+  readonly onSetModelOpacity: OverlayComparisonToolbarProps['onSetModelOpacity'];
 }
 
-function ScanOpacityCluster({
-  scanOpacityPercent,
-  scanOpacityText,
-  onSetScanOpacity,
-}: ScanOpacityClusterProps) {
+function ModelOpacityCluster({
+  modelOpacityPercent,
+  modelOpacityText,
+  onSetModelOpacity,
+}: ModelOpacityClusterProps) {
   return (
     <div className="flex w-44 shrink-0 items-center gap-2">
       <Slider
-        aria-label={SCAN_OPACITY_ARIA_LABEL}
+        aria-label={MODEL_OPACITY_ARIA_LABEL}
         max={100}
         min={0}
-        onChange={onSetScanOpacity}
-        value={scanOpacityPercent}
+        onChange={onSetModelOpacity}
+        value={modelOpacityPercent}
       />
       <span className="w-10 shrink-0 text-right text-[13px] tabular-nums text-text-secondary">
-        {scanOpacityText}
+        {modelOpacityText}
       </span>
     </div>
   );
@@ -178,15 +178,15 @@ export function OverlayComparisonToolbar({
   activeFloorId,
   compareMode,
   disabledCompareModes,
-  scanOpacityPercent,
-  scanOpacityText,
+  modelOpacityPercent,
+  modelOpacityText,
   isAlignmentLocked,
   canLockAlignment = false,
   isStacked,
   canEdit,
   onSelectFloor,
   onSetCompareMode,
-  onSetScanOpacity,
+  onSetModelOpacity,
   onToggleAlignmentLock,
 }: OverlayComparisonToolbarProps) {
   return (
@@ -218,10 +218,10 @@ export function OverlayComparisonToolbar({
       <div className={CLUSTER_ROW_CLASS}>
         {/* G4b-26: độ mờ chỉ có nghĩa khi xem chồng; "trượt"/"cạnh nhau" luôn hiện đủ ảnh. */}
         {compareMode === 'overlay' && (
-          <ScanOpacityCluster
-            onSetScanOpacity={onSetScanOpacity}
-            scanOpacityPercent={scanOpacityPercent}
-            scanOpacityText={scanOpacityText}
+          <ModelOpacityCluster
+            onSetModelOpacity={onSetModelOpacity}
+            modelOpacityPercent={modelOpacityPercent}
+            modelOpacityText={modelOpacityText}
           />
         )}
         {/* Ẩn tới khi đặt được ảnh vào mô hình: bật/tắt mà không đổi gì là điều khiển chết (BUG-599). */}

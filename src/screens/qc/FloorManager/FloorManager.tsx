@@ -61,7 +61,10 @@
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Breadcrumb } from '@/components/shell/Breadcrumb';
+import { FlowGate } from '@/components/shell/FlowGate';
 import { PageHead } from '@/components/shell/PageHead';
+import { Button } from '@/components/ui/Button';
+import { Toggle } from '@/components/ui/Toggle';
 import { cn } from '@/lib/utils';
 
 import { FloorNextTask } from './FloorNextTask';
@@ -82,6 +85,13 @@ const SECTION_CUT_MAX_PX = 560;
 const EXPAND_SECTION_LABEL = 'Mở lát cắt';
 const FORBIDDEN_NOTICE_TITLE = 'Không có quyền sửa tầng';
 const UNSUPPORTED_NOTICES_TITLE = 'Một số thay đổi chưa được lưu';
+/* K34: thiết lập dự án — bật thì các tầng là các căn riêng, không chồng thành một nhà. */
+const SEPARATE_UNITS_LABEL = 'Các tầng là các căn hộ riêng';
+const SEPARATE_UNITS_DESCRIPTION =
+  'Bật khi mỗi bản vẽ là một căn hộ khác nhau. 3D dựng từng căn, không chồng tầng, không cần cao độ.';
+const SEPARATE_UNITS_ACTION = 'Đánh dấu là căn hộ riêng';
+/* K33: còn tầng chưa dựng được thì lối sang 3D chỉ là nút phụ, nói rõ số tầng thiếu. */
+const viewerLabel = (unbuilt: number): string => `Xem 3D (${unbuilt} tầng chưa dựng)`;
 
 const EXPAND_BUTTON_CLASS_NAME = cn(
   'inline-flex min-h-11 items-center self-start rounded-md px-1.5 text-[13px] text-accent fine:min-h-6',
@@ -103,8 +113,12 @@ export function FloorManager(props: FloorManagerViewProps) {
      lát cắt trống cạnh nó là nói về những tầng chưa đọc được (BUG-060). */
   const isLoadError = state === 'error';
   const nextTask = nextTaskOf(props.rows);
+  const separateUnits = props.separateUnits === true;
+  const unbuiltCount = props.rows.filter((row) => row.needsDrawing || row.isScaleMissing).length;
+  const showSeparateUnitsSwitch =
+    props.onToggleSeparateUnits !== undefined && !isLoadError && state !== 'loading' && (props.rows.length > 1 || separateUnits);
   const sectionCut =
-    isLoadError || isCollapsed || props.rows.length === 1 ? null : (
+    isLoadError || isCollapsed || separateUnits || props.rows.length === 1 ? null : (
       <div
         className={cn('shrink-0 self-start', isCompact ? 'w-full' : 'w-[360px]')}
         // Khung cao theo số tầng, không kéo dài 400 px trống khi chỉ có một tầng (bản Z).
@@ -157,12 +171,31 @@ export function FloorManager(props: FloorManagerViewProps) {
             task={nextTask}
           />
         )}
+        {props.onOpenViewer === undefined || unbuiltCount === 0 || isLoadError || state === 'loading' ? null : (
+          <FlowGate>
+            <Button onClick={props.onOpenViewer} size="sm" variant="secondary">
+              {viewerLabel(unbuiltCount)}
+            </Button>
+          </FlowGate>
+        )}
+        {showSeparateUnitsSwitch ? (
+          <Toggle
+            checked={separateUnits}
+            description={props.separateUnitsError ?? SEPARATE_UNITS_DESCRIPTION}
+            disabled={!props.canEdit || props.isSeparateUnitsSaving === true}
+            label={SEPARATE_UNITS_LABEL}
+            onChange={(next) => props.onToggleSeparateUnits?.(next)}
+          />
+        ) : null}
       </div>
 
       {/* K19: tầng không chung trục nào — có thể là các căn riêng bị dựng thành một nhà. */}
-      {isLoadError || state === 'loading' || !props.axisMismatchNotice ? null : (
+      {isLoadError || state === 'loading' || separateUnits || !props.axisMismatchNotice ? null : (
         <div className="mx-auto w-full max-w-[1280px] shrink-0 px-8 pb-2">
           <InlineAlert
+            {...(props.canEdit && props.onToggleSeparateUnits !== undefined
+              ? { action: { label: SEPARATE_UNITS_ACTION, onClick: () => props.onToggleSeparateUnits?.(true) } }
+              : {})}
             level="attention"
             message={props.axisMismatchNotice.message}
             role="status"
@@ -211,7 +244,7 @@ export function FloorManager(props: FloorManagerViewProps) {
             isCompact || isCollapsed ? 'flex-col' : 'flex-row',
           )}
         >
-          {isLoadError || !isCollapsed || props.rows.length === 1 ? null : (
+          {isLoadError || !isCollapsed || separateUnits || props.rows.length === 1 ? null : (
             <button className={EXPAND_BUTTON_CLASS_NAME} onClick={onToggleCollapsed} type="button">
               {EXPAND_SECTION_LABEL}
             </button>
@@ -245,6 +278,7 @@ export function FloorManager(props: FloorManagerViewProps) {
               onOpenOverlay={props.onOpenOverlay}
               onOpenFloorScreen={props.onOpenFloorScreen}
               rows={props.rows}
+              separateUnits={separateUnits}
               state={state}
             />
           </div>

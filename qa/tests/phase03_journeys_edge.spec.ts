@@ -112,7 +112,7 @@ const SCALE = {
   realLength: 'Chiều dài thật',
   scope: 'Phạm vi áp tỷ lệ',
   thisFloor: 'Tầng này',
-  apply: 'Áp dụng tỷ lệ',
+  apply: 'Xác nhận tỷ lệ',
   applied: 'Đã áp tỷ lệ cho bản vẽ', // ScaleCalibration.tsx:73; QA-03e BUG-567: also after FRAME_NOT_FOUND (useScaleCalibration.ts:1485)
 } as const; // phase04_pipeline.spec.ts SCR-14 (ScaleCalibration SP:61)
 const QUALITY_CONTINUE = /^(?:Xử lý dù ảnh mờ|Bắt đầu xử lý)$/u; // S-09 inputQualitySummary primaryLabel
@@ -257,7 +257,7 @@ test.describe('X cross-screen journeys', () => {
         for (const s of seen) expect.soft(s.sse + s.read, `progress of upload ${s.id} read (SSE or #8)`).toBeGreaterThan(0);
       });
 
-      await test.step('[X-A-004] summary "Đặt tỷ lệ" → that floor\'s scale → "Áp dụng tỷ lệ" → Back → summary still finished, no new upload/run', async () => {
+      await test.step('[X-A-004] summary "Đặt tỷ lệ" → that floor\'s scale → "Xác nhận tỷ lệ" → Back → summary still finished, no new upload/run', async () => {
         const summary = page.getByRole('region', { name: PROCESSING.summary, exact: true });
         await expect(summary).toBeVisible();
         await expect.soft(summary.getByRole('button', { name: PROCESSING.calibrate, exact: true })).toBeVisible(); // fold BUG-285 (S-10: calibrate is the primary when scale is missing)
@@ -288,7 +288,7 @@ test.describe('X cross-screen journeys', () => {
         await page.waitForTimeout(1_000);
         const noticeText = (await notice.allInnerTexts()).join(' / ').replace(/\s+/gu, ' ');
         await captureEvidence(page, 'E03_X-A-004_scale_applied.png', { caption: `PUT …/spatial/layer 200; notice: ${noticeText || '(none)'}` });
-        await expect.soft(page.getByText(SCALE.applied, { exact: true }).first(), 'success notice after "Áp dụng tỷ lệ"').toBeVisible();
+        await expect.soft(page.getByText(SCALE.applied, { exact: true }).first(), 'success notice after "Xác nhận tỷ lệ"').toBeVisible();
 
         await page.evaluate(() => window.history.back());
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(pid));

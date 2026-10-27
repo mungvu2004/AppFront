@@ -74,9 +74,10 @@ import type { ScaleCalibrationProps, ScaleCalibrationState, ScaleCalibrationView
 const SCREEN_ARIA_LABEL = 'Tỷ lệ bản vẽ';
 const CANVAS_REGION_ARIA_LABEL = 'Khung bản vẽ để hiệu chỉnh tỷ lệ';
 const NOTICE_REGION_ARIA_LABEL = 'Trạng thái của màn hiệu chỉnh tỷ lệ';
+const ALL_FLOORS_CHANGES_ARIA_LABEL = 'Tỷ lệ cũ và mới của từng tầng';
 
-const EMPTY_TITLE = 'Chưa có số kích thước để làm mốc';
-const PARTIAL_TITLE = 'Chưa đủ dữ liệu để chốt tỷ lệ';
+const EMPTY_TITLE = 'Máy chưa đọc được số kích thước';
+const PARTIAL_TITLE = 'Tỷ lệ chưa xác nhận';
 // G3-31: tiền xử lý không thất bại (BE chỉ báo FRAME_NOT_FOUND mức cần chú ý, màn Xử lý đánh ✓),
 // nên tiêu đề không nói "thất bại" và khối dùng màu cần chú ý, không màu vi phạm.
 const ERROR_TITLE = 'Không tìm thấy khung bản vẽ, ảnh có thể chưa thẳng';
@@ -186,8 +187,8 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
     };
   }, [onCanvasSizeChange]);
 
-  // Tầng ĐÃ có tỷ lệ (chip "Đã đặt"): "máy chưa đọc được số" không còn là lỗi, đừng dựng khung vàng.
-  const hasStoredScale = model.panel.scaleCheck?.status.label.startsWith('Đã đặt') === true;
+  // Tầng ĐÃ có tỷ lệ (chip "Đã xác nhận"): "máy chưa đọc được số" không còn là lỗi, đừng dựng khung vàng.
+  const hasStoredScale = model.panel.scaleCheck?.status.label.startsWith('Đã xác nhận') === true;
   const noticeMessage = model.state === 'empty' && hasStoredScale ? null : messageFor(model);
   const noticeLevel = NOTICE_LEVELS[model.state];
   const isError = model.state === 'error';
@@ -301,6 +302,13 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
           title={model.allFloorsConfirm.title}
         >
           {model.allFloorsConfirm.message}
+          {model.allFloorsConfirm.changes !== undefined && model.allFloorsConfirm.changes.length > 0 && (
+            <ul aria-label={ALL_FLOORS_CHANGES_ARIA_LABEL} className="mt-3 flex max-h-60 flex-col gap-1 overflow-y-auto font-mono text-[13px]">
+              {model.allFloorsConfirm.changes.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          )}
         </Modal>
       )}
     </QcScreenFrame>

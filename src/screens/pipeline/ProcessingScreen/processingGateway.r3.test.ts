@@ -26,7 +26,7 @@ describe('toExtractionSummary (R-1)', () => {
     expect(summary.lowConfidenceCount).toBe(2);
   });
 
-  it('máy không đo được tỷ lệ (scaleSource project_default) thì cờ scaleMissing — chip "Sai tỷ lệ" (K12)', () => {
+  it('máy không đo được tỷ lệ (scaleSource project_default) thì cờ scaleMissing — chip "Chưa có tỷ lệ"', () => {
     const base = {
       dimensions: [],
       level: { scaleMillimetresPerPixel: 1 },

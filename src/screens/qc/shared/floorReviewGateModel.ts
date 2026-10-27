@@ -1,6 +1,6 @@
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import { entitiesOfKind } from '@/lib/commands/business/shared';
-import { isMeasuredScaleImplausible, isScaleMissing, type ScaleSource } from '@/lib/viewmodel/provisionalScale';
+import { isMeasuredScaleImplausible, isScaleMissing, type ScaleSource, type ScaleState } from '@/lib/viewmodel/provisionalScale';
 
 /**
  * Trạng thái cổng chung của tầng: ba lớp bắt buộc Tường · Cửa và nội thất · Phòng,
@@ -88,11 +88,11 @@ export function scaleIsConfirmed(scaleStatus: 'unresolved' | undefined, millimet
 }
 
 /**
- * Bước 0 Tỷ lệ của tầng (UX-R1 K12/K25): `confirmed` người đã đặt; `check` máy đo được, cần kiểm;
- * `missing` máy không đo được (nguồn mặc định dự án, hoặc chưa có tỷ lệ), hoặc máy đo ra hình vô lý
- * (`implausible`, Codex P1) — khoá các bước sau.
+ * Bước 1 Tỷ lệ của tầng (UX-R1 K12/K25, UX-R2 K50): `confirmed` người đã đặt; `check` máy đo được,
+ * cần kiểm; `missing` máy không đo được (nguồn mặc định dự án, hoặc chưa có tỷ lệ), hoặc máy đo ra
+ * hình vô lý (`implausible`, Codex P1) — khoá các bước sau. Chữ và màu: `SCALE_STATE_VIEWS`.
  */
-export type FloorScaleState = 'confirmed' | 'check' | 'missing';
+export type FloorScaleState = ScaleState;
 
 export function floorScaleStateOf(
   scaleStatus: 'unresolved' | undefined,

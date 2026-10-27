@@ -1307,7 +1307,7 @@ test.describe('A04 phase-4 backend (spatial layer read/write, floor meta, graph,
         '200 revision 1, empty layer (scale-only write creates the document, writer.py:311-327)',
       ]);
       const r1 = await readLayer(admin, 'scale_read_s1_1', pid, s1, '200 N16: scale 2.000001 (HALF_UP), source human → no scaleStatus (assemble.py:247-249)');
-      await test.step('[BE4-G-083] scale-only write ("Áp dụng tỷ lệ") → 200 revision + 1, empty document created, N16 has the scale and no scaleStatus', async () => {
+      await test.step('[BE4-G-083] scale-only write ("Xác nhận tỷ lệ") → 200 revision + 1, empty document created, N16 has the scale and no scaleStatus', async () => {
         const out = expectWritten(firstScale, 1, 'first scale');
         expect.soft(out.layer).toEqual(layerOf());
         expect.soft(asJson(r1.level).scaleMillimetresPerPixel).toBeGreaterThan(0);

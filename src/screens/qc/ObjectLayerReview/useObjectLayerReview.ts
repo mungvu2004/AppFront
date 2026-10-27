@@ -55,7 +55,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { displayCodesOf, keepDisplayCodes, sortByDisplayCode } from '@/domain/spatial/ids';
-import type { EntityId, Level, SwingDirection, WallId } from '@/domain/spatial/types';
+import type { EntityId, FurnitureKind, Level, SwingDirection, WallId } from '@/domain/spatial/types';
 import type { RelativePosition } from '@/domain/openings/types';
 import type { Wall as SolidWall } from '@/domain/walls/types';
 import { useFloorLayerAutosave } from '@/hooks/useAutosave';
@@ -89,9 +89,11 @@ import type { ProjectRole } from '@/types/project';
 
 import {
   attachOrphanToNearestWall,
+  buildAddFurnitureCommand,
   buildAddOpeningCommand,
   manualDoorProposalsOf,
   buildApproveObjectCommand,
+  buildChangeFurnitureKindCommand,
   buildChangeObjectKindCommand,
   buildChangeObjectSwingCommand,
   buildDeleteFurnitureCommand,
@@ -106,6 +108,8 @@ import {
   createObjectLayerReviewGateway,
   createObjectUndoTicket,
   dataLayerTokens,
+  drawnFurnitureInputOf,
+  drawnOpeningProposalOf,
   graphWallsOf,
   isLowConfidenceObject,
   OBJECT_LAYER_CONFIDENCE_THRESHOLD,
@@ -135,6 +139,7 @@ import {
   boundsOfPoints,
   drawingSizeOf,
   scaleOfLevel,
+  toDrawingPoint,
   toPixelPoint,
   type ObjectLayerBackground,
   type ObjectLayerDispatchDeps,
@@ -365,6 +370,8 @@ export function useObjectLayerReview(
 
   const [layerVisibility, setLayerVisibility] = useState<ObjectLayerVisibility>(ALL_LAYERS_VISIBLE);
   const [subtypeFilters, setSubtypeFilters] = useState<ReadonlySet<ObjectSubtype>>(NO_SUBTYPE_FILTERS);
+  /* Chip đếm lọc DANH SÁCH (K07, Codex P2): tách khỏi `layerVisibility` của bản vẽ. */
+  const [listLayerFilter, setListLayerFilter] = useState<ObjectLayerId | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<ObjectLayerVisibility>(NO_GROUPS_COLLAPSED);
   const [ownCollapsed, setOwnCollapsed] = useState(false);
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
@@ -861,6 +868,34 @@ export function useObjectLayerReview(
     [objectById, refuse, runBlock, wallOfObject],
   );
 
+  /* Nội thất đổi loại bằng `furniture.changeKind` (K10): trước đó chỉ có giữ tên sai hoặc xoá hẳn. */
+  const onChangeFurnitureKind = useCallback(
+    (objectId: string, kind: FurnitureKind) => {
+      const object = objectById(objectId);
+
+      if (object === null || object.layer !== 'furniture') {
+        return;
+      }
+
+      void runBlock(object.id, object.layer, (context) => {
+        const before = context.graph.byId[object.entityId];
+
+        if (before === undefined || !('boundingBox' in before)) {
+          return null;
+        }
+
+        const built = buildChangeFurnitureKindCommand(before, kind, context.actorId, object.id);
+
+        if (!built.ok) {
+          refuse(built.error.reasons.join(' '));
+        }
+
+        return built.ok ? built.data : null;
+      });
+    },
+    [objectById, refuse, runBlock],
+  );
+
   const onChangeSwing = useCallback(
     (objectId: string, swing: SwingDirection) => {
       const object = objectById(objectId);
@@ -1146,6 +1181,70 @@ export function useObjectLayerReview(
   }, [canEdit, gateway, level, notifications, runSingle]);
 
   /* ---------------------------------------------------------------------- */
+  /* Chế độ vẽ (K07): rail "Vẽ …" bật, một cú bấm lên bản vẽ đặt một món.     */
+  /* ---------------------------------------------------------------------- */
+
+  const [drawLayer, setDrawLayer] = useState<ObjectLayerId | null>(null);
+
+  const onStartDraw = useCallback((layer: ObjectLayerId) => {
+    setDrawLayer((previous) => (previous === layer ? null : layer));
+  }, []);
+
+  const onPlaceAt = useCallback(
+    (point: PixelPoint) => {
+      const current = useStore.getState().spatial;
+      const layer = drawLayer;
+
+      if (!canEdit || current === null || level === null || layer === null) {
+        return;
+      }
+
+      const at = toDrawingPoint(point, scaleOfLevel(level));
+      const context = commandContextOf(current, gateway.actorId);
+
+      if (layer === 'furniture') {
+        const input = drawnFurnitureInputOf(level, at);
+        const built = buildAddFurnitureCommand(input, context);
+
+        if (!built.ok) {
+          refuse(built.error.reasons.join(' '));
+          return;
+        }
+
+        setDrawLayer(null);
+        void runSingle(input.id, layer, () => built.data);
+
+        return;
+      }
+
+      const proposal = drawnOpeningProposalOf(current, level, at, layer);
+
+      if (proposal === null) {
+        refuse(OBJECT_LAYER_TEXT.drawNoWall);
+        return;
+      }
+
+      const built = buildAddOpeningCommand(proposal, context);
+
+      if (!built.ok) {
+        refuse(built.error.reasons.join(' '));
+        return;
+      }
+
+      setDrawLayer(null);
+      void runSingle(proposal.id, layer, () => built.data);
+    },
+    [canEdit, drawLayer, gateway, level, refuse, runSingle],
+  );
+
+  /* Lớp chỉ đọc (người xem, khoá tỷ lệ) thì không còn chế độ vẽ nào treo lại. */
+  useEffect(() => {
+    if (!canEdit) {
+      setDrawLayer(null);
+    }
+  }, [canEdit]);
+
+  /* ---------------------------------------------------------------------- */
   /* Bấm liên kết tường chủ — chọn tường đó và bay khung nhìn tới (R-07).     */
   /* ---------------------------------------------------------------------- */
 
@@ -1258,6 +1357,11 @@ export function useObjectLayerReview(
 
   const onToggleLayer = useCallback((layer: ObjectLayerId) => {
     setLayerVisibility((previous) => ({ ...previous, [layer]: !previous[layer] }));
+  }, []);
+
+  /* Chip đếm là bộ lọc (K07): chỉ hiện nhóm ấy; bấm lại nhóm đang lọc thì hiện cả ba. */
+  const onFilterLayer = useCallback((layer: ObjectLayerId) => {
+    setListLayerFilter((previous) => (previous === layer ? null : layer));
   }, []);
 
   const onToggleSubtypeFilter = useCallback((subtype: ObjectSubtype) => {
@@ -1487,11 +1591,14 @@ export function useObjectLayerReview(
   const visibleObjects = useMemo(
     () =>
       applyObjectFilters(objects, {
-        layerVisibility,
+        layerVisibility:
+          listLayerFilter === null
+            ? ALL_LAYERS_VISIBLE
+            : { door: false, window: false, furniture: false, [listLayerFilter]: true },
         subtypes: subtypeFilters,
         lowConfidenceOnly,
       }, confidenceThreshold),
-    [confidenceThreshold, layerVisibility, lowConfidenceOnly, objects, subtypeFilters],
+    [confidenceThreshold, listLayerFilter, lowConfidenceOnly, objects, subtypeFilters],
   );
 
   /* Nhãn tường chủ tính trên mã tường của cả tầng, cùng nguồn với màn tường. */
@@ -1540,8 +1647,8 @@ export function useObjectLayerReview(
 
     const wall = isOrphanObject(selectedObject) ? null : wallOfObject(selectedObject.hostWallId);
 
-    return toObjectInspector(selectedObject, wall, wallCodes);
-  }, [selectedObject, wallCodes, wallOfObject]);
+    return toObjectInspector(selectedObject, wall, wallCodes, confidenceThreshold);
+  }, [confidenceThreshold, selectedObject, wallCodes, wallOfObject]);
 
   /*
    * Impeccable A3: thứ tự dòng như danh sách đang vẽ — hàng đợi duyệt (chưa duyệt, tin cậy thấp trước).
@@ -1647,9 +1754,10 @@ export function useObjectLayerReview(
     [confidenceLegend, confidenceMode, paintSubjects],
   );
 
+  /* Bản vẽ vẽ mọi đối tượng; ẩn/hiện lớp do `layerVisibility` của canvas, bộ lọc danh sách không chạm tới (Codex P2). */
   const placements = useMemo(
-    () => objectPlacementsOf(visibleObjects, solidWalls, level),
-    [level, solidWalls, visibleObjects],
+    () => objectPlacementsOf(objects, solidWalls, level),
+    [level, objects, solidWalls],
   );
 
   /* N3-08: `?select=<mã>` từ Quy chuẩn — chọn đối tượng đó và phóng tới nó, đúng một lần. */
@@ -1761,6 +1869,7 @@ export function useObjectLayerReview(
     selectedObjectId,
     hoveredObjectId,
     layerVisibility,
+    listLayerFilter,
     subtypeFilters,
     collapsedGroups,
     isCompact: isCollapsed,
@@ -1786,6 +1895,7 @@ export function useObjectLayerReview(
 
     onChangeSubtype,
     onChangeSwing,
+    onChangeFurnitureKind,
     onDragPosition,
     onDelete,
     onApprove: onApproveAndNext,
@@ -1796,6 +1906,7 @@ export function useObjectLayerReview(
     onHover,
 
     onToggleLayer,
+    onFilterLayer,
     onToggleSubtypeFilter,
     onToggleGroupCollapsed,
     onUndo,
@@ -1840,6 +1951,9 @@ export function useObjectLayerReview(
     highlightedWallId: flownWallId,
     onSelectLayer,
     onSelectSubtypeSlot,
+    drawLayer: canEdit ? drawLayer : null,
+    onStartDraw,
+    onPlaceAt,
     onToggleSelect,
     onSelectLayerObjects,
     onToggleLowConfidenceOnly,

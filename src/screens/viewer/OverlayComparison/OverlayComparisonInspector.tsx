@@ -8,7 +8,6 @@ import { X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { IconButton } from '@/components/ui/IconButton';
 import { cn } from '@/lib/utils';
@@ -21,15 +20,14 @@ export interface OverlayComparisonInspectorProps {
   readonly confirmation: ConfirmationViewModel;
   readonly fixTargetOf?: ((objectCode: string) => OverlayFixTarget | null) | undefined;
   readonly onSelectRegion: (id: string | null) => void;
-  readonly onConfirmMatch: () => void;
 }
 
 const EMPTY_TEXT: Readonly<Record<OverlayStatus['kind'], string>> = {
   noModel: 'Tầng này chưa có mô hình để đối chiếu.',
   noDrawing: 'Tầng này chưa có ảnh bản vẽ gốc để đặt dưới mô hình.',
-  unmeasured: 'Máy chưa đo được vùng lệch. So hai lớp bằng mắt; khớp thì bấm xác nhận ở góc trên phải.',
+  unmeasured: 'Máy chưa đo được vùng lệch. So hai lớp bằng mắt; lệch nhiều thì đặt lại tỷ lệ.',
   deviating: 'Chọn một vùng trong danh sách hoặc trên bản vẽ để xem độ lệch và lớp cần sửa.',
-  matched: 'Mọi vùng nằm trong dung sai. Soát lại bằng mắt rồi bấm xác nhận ở góc trên phải; hệ thống không tự đánh dấu khớp.',
+  matched: 'Mọi vùng nằm trong dung sai. Soát lại bằng mắt; lệch nhiều thì đặt lại tỷ lệ.',
 };
 
 export function OverlayComparisonInspector({
@@ -37,7 +35,6 @@ export function OverlayComparisonInspector({
   confirmation,
   fixTargetOf,
   onSelectRegion,
-  onConfirmMatch,
 }: OverlayComparisonInspectorProps) {
   const row = status.selectedRow;
   const isOver = row?.statusCode === 'attention';
@@ -108,12 +105,6 @@ export function OverlayComparisonInspector({
               </Link>
             )}
             {isOver && <p className="text-body-sm text-text-secondary">Sửa xong quay lại đây, số đo và danh sách tự cập nhật.</p>}
-            {/* Vẫn còn lệch mà người duyệt thấy chấp nhận được: xác nhận là việc của người (A5), nút nhẹ. */}
-            {status.kind === 'deviating' && !confirmation.isConfirmed && confirmation.canConfirm && (
-              <Button onClick={() => onConfirmMatch()} variant="ghost">
-                {confirmation.buttonLabel}
-              </Button>
-            )}
           </div>
         </>
       )}

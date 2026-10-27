@@ -75,6 +75,8 @@ export interface FloorTableProps
     | 'onBackToProjects'
   > {
   readonly state: FloorManagerScreenState;
+  /** K34: dự án là các căn hộ riêng — không cao độ, không thêm hay đổi thứ tự tầng. */
+  readonly separateUnits?: boolean;
 }
 
 const EMPTY_TITLE = 'Chưa có tầng nào';
@@ -128,6 +130,7 @@ export function FloorTable({
   onRetry,
   isProjectMissing,
   onBackToProjects,
+  separateUnits = false,
 }: FloorTableProps) {
   const menu = useContextMenu();
   const [duplicatingFloorId, setDuplicatingFloorId] = useState<string | null>(null);
@@ -166,10 +169,13 @@ export function FloorTable({
 
   /* Cột hành động có mặt đúng khi dòng có ô hành động — số cột tiêu đề = số ô của dòng. */
   // Một tầng: không có gì để đổi thứ tự hay tự tính cao độ.
-  const canReorder = canEdit && rows.length > 1;
+  const canReorder = canEdit && rows.length > 1 && !separateUnits;
   const hasActions = canEdit || onOpenOverlay !== undefined || onOpenFloorScreen !== undefined;
   const headers = EDITABLE_HEADERS.filter(
-    (header) => (canReorder || header.key !== 'handle') && (hasActions || header.key !== 'actions'),
+    (header) =>
+      (canReorder || header.key !== 'handle') &&
+      (hasActions || header.key !== 'actions') &&
+      (!separateUnits || header.key !== 'elevation'),
   );
   const columnCount = headers.length;
 
@@ -240,7 +246,8 @@ export function FloorTable({
       },
       {
         id: 'floor-tools',
-        items: FLOOR_TOOL_SCREENS.map((screen) => ({
+        // Căn hộ riêng không chung trục: bỏ Trục (Codex P2, UX-R2 K14).
+        items: FLOOR_TOOL_SCREENS.filter((screen) => !separateUnits || screen.id !== 'grids').map((screen) => ({
           id: screen.id,
           label: screen.label,
           action: () => onOpenFloorScreen(row.id, screen.id),
@@ -292,7 +299,7 @@ export function FloorTable({
       actions={
         canEdit && state !== 'loading' ? (
           <>
-            {rows.length > 1 && (
+            {rows.length > 1 && !separateUnits && (
               <Toggle checked={isAutoElevation} label={AUTO_ELEVATION_LABEL} onChange={onToggleAutoElevation} />
             )}
             {selectedRow !== null && (
@@ -307,9 +314,11 @@ export function FloorTable({
                 {DUPLICATE_SELECTED_LABEL}
               </Button>
             )}
-            <Button onClick={onAddFloor} size="sm" variant="secondary">
-              {ADD_FLOOR_LABEL}
-            </Button>
+            {!separateUnits && (
+              <Button onClick={onAddFloor} size="sm" variant="secondary">
+                {ADD_FLOOR_LABEL}
+              </Button>
+            )}
           </>
         ) : undefined
       }
@@ -351,6 +360,7 @@ export function FloorTable({
                 <FloorTableRow
                   canEdit={canEdit}
                   canReorder={canReorder}
+                  showElevation={!separateUnits}
                   copyFurniture={copyFurniture}
                   duplicatingFloorId={duplicatingFloorId}
                   index={index}
@@ -392,7 +402,12 @@ export function FloorTable({
         </Table.Root>
       </div>
 
-      {state !== 'loading' && (
+      {state !== 'loading' && separateUnits && (
+        <p className="border-t border-border-default px-5 py-3 text-[12px] text-text-secondary">
+          {footer.floorCountText} · {footer.totalAreaText}
+        </p>
+      )}
+      {state !== 'loading' && !separateUnits && (
         <p className="border-t border-border-default px-5 py-3 text-[12px] text-text-secondary">
           <span>
             {isAutoElevation ? CAPTION_AUTO : CAPTION_MANUAL}

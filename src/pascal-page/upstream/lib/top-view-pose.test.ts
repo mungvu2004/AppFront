@@ -17,6 +17,12 @@ describe('topViewPose (G5-48)', () => {
     expect(pose.target).toEqual([0, 0, 0])
     expect(pose.viewWidth).toBe(10)
   })
+  it('looks down at the floor height when given one (UX-R2 K38)', () => {
+    const pose = topViewPose({ center: [1, 2], size: [10, 10] }, 'perspective', 2, 6.6)
+    expect(pose.target).toEqual([1, 6.6, 2])
+    expect(pose.position[1]).toBeCloseTo(36.6)
+    expect(isTopDown(pose)).toBe(true)
+  })
   it('treats a 45 degree view as not top-down', () => {
     expect(isTopDown({ position: [10, 10, 0], target: [0, 0, 0] })).toBe(false)
     expect(isTopDown(null)).toBe(false)

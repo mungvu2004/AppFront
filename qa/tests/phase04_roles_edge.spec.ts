@@ -200,7 +200,7 @@ const SCALE = {
   methods: 'Chọn cách xác định tỷ lệ', // SCP:METHOD_ARIA_LABEL
   reference: 'Vẽ đường tham chiếu', // USC method option
   realLength: 'Chiều dài thật', // SMR label
-  apply: 'Áp dụng tỷ lệ', // SCP:APPLY_PRIMARY
+  apply: 'Xác nhận tỷ lệ', // SCP:APPLY_PRIMARY
   scope: 'Phạm vi áp tỷ lệ', // SCP:SCOPE_ARIA_LABEL
   thisFloor: 'Tầng này', // USC scope option
   collapse: 'Thu gọn bảng', // SCP:COLLAPSE_LABEL
@@ -221,10 +221,10 @@ const OVERLAY = {
   floor: 'Chọn tầng', // OCT:FLOOR_SELECT_LABEL
   modes: 'Kiểu đối chiếu', // OCT:COMPARE_MODE_ARIA_LABEL
   swipe: 'Trượt', // types COMPARE_MODE_LABELS
-  opacity: 'Độ mờ ảnh nguồn', // OCT:SCAN_OPACITY_ARIA_LABEL
+  opacity: 'Độ đậm lớp mô hình', // OCT:MODEL_OPACITY_ARIA_LABEL
   lock: 'Khoá căn', // OCT:ALIGNMENT_LOCK_LABEL
   tolerance: 'Dung sai', // UOC COPY.toleranceLabel
-  confirm: 'Khớp rồi, xác nhận', // UOC COPY.confirmButton
+  confirm: 'Khớp rồi, xác nhận', // UX-R2 K19: removed from the screen; asserted absent
   divider: 'Đường chia đôi, dùng phím mũi tên trái và phải để dịch', // OCD:DIVIDER_ARIA_LABEL
 } as const;
 
@@ -908,7 +908,7 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
       const { page } = flow;
       const notice = page.getByRole('region', { name: SCALE.notice, exact: true });
 
-      await test.step('[X4-D-002] H: viewer on SCR-14 (framed floor): "Bạn không có quyền hiệu chỉnh tỷ lệ", no "Áp dụng tỷ lệ"', async () => {
+      await test.step('[X4-D-002] H: viewer on SCR-14 (framed floor): "Bạn không có quyền hiệu chỉnh tỷ lệ", no "Xác nhận tỷ lệ"', async () => {
         await openOn(flow, ROUTES.project.scale(df.projectId, df.floorId), df.projectId, df.floorId, SCALE.screen);
         await expect(scaleCanvas(page)).toBeVisible();
         await expect.soft(notice.getByText(SCALE.forbiddenTitle, { exact: true })).toBeVisible();
@@ -982,7 +982,7 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await captureEvidence(page, ev('22-D-003', 'viewer_overlay_forbidden'));
       });
 
-      await test.step('[22-D-004] ⚑ viewer: "Chọn tầng", "Kiểu đối chiếu", "Độ mờ ảnh nguồn" stay usable (view-only actions); "Khoá căn" is checked + disabled', async () => {
+      await test.step('[22-D-004] ⚑ viewer: "Chọn tầng", "Kiểu đối chiếu", "Độ đậm lớp mô hình" stay usable (view-only actions); "Khoá căn" is checked + disabled', async () => {
         await expect.soft(page.getByRole('combobox', { name: OVERLAY.floor }), 'floor select').toBeEnabled();
         const modes = page.getByRole('radiogroup', { name: OVERLAY.modes, exact: true });
         await expect.soft(modes.getByRole('radio', { name: OVERLAY.swipe, exact: true }), 'compare mode').toBeEnabled();
@@ -998,7 +998,7 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         // which a viewer cannot select (its radio group is disabled), so those three facts cannot be driven from the UI.
         await expect.soft(page.getByRole('slider', { name: OVERLAY.divider, exact: true })).toHaveCount(0);
         await expect.soft(page.getByLabel(OVERLAY.tolerance, { exact: true })).toBeDisabled();
-        await expect.soft(page.getByRole('button', { name: OVERLAY.confirm, exact: true })).toBeDisabled();
+        await expect.soft(page.getByRole('button', { name: OVERLAY.confirm, exact: true })).toHaveCount(0); // UX-R2 K19
         await captureEvidence(page, ev('22-D-005', 'viewer_overlay_tolerance_confirm'));
       });
 
@@ -1040,7 +1040,7 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await captureEvidence(page, ev('X4-D-003', 'viewer_scale_warped_notice'));
       });
 
-      await test.step('[14-D-008] ⚑ viewer on the warped real default: read-only controls (canvas not draggable, no "Áp dụng tỷ lệ"); `error` must not outrank `forbidden`', async () => {
+      await test.step('[14-D-008] ⚑ viewer on the warped real default: read-only controls (canvas not draggable, no "Xác nhận tỷ lệ"); `error` must not outrank `forbidden`', async () => {
         await expect.soft(scaleCanvas(page)).toHaveClass(/cursor-not-allowed/u);
         await expect.soft(apply, 'apply control shown to a viewer').toHaveCount(0);
         const radios = page.getByRole('radiogroup', { name: SCALE.methods, exact: true }).getByRole('radio');

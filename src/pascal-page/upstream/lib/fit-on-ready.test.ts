@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fitAzimuth, fitPose, fitWhenControlsReady, planBoundsXZ } from './fit-on-ready'
+import { fitAzimuth, fitPose, fitWhenControlsReady, planBoundsXZ, TOP_RESERVED_PX } from './fit-on-ready'
 
 describe('fitPose (QA-2 L2, FE3D-FIX-002 V5 D13)', () => {
   const VIEW = { width: 1920, height: 1080 }
@@ -76,13 +76,22 @@ describe('fitPose (QA-2 L2, FE3D-FIX-002 V5 D13)', () => {
   ] as [[number, number]][])('plan %j fills ~80%% of the free frame on its tightest side', (size) => {
     const pose = fitPose({ center: [3, 2], size }, 'perspective', VIEW)
     const { maxX, maxUp, maxDown } = screenFill(pose, size, [3, 2])
-    const upLimit = 1 - 140 / VIEW.height
+    const upLimit = 1 - (2 * TOP_RESERVED_PX) / VIEW.height
     // Nothing leaves 80% of the frame (top: below the toolbar)...
     expect(maxX).toBeLessThanOrEqual(0.8 + 1e-6)
     expect(maxDown).toBeLessThanOrEqual(0.8 + 1e-6)
     expect(maxUp).toBeLessThanOrEqual(0.8 * upLimit + 1e-6)
     // ...and one side touches it (no dead space).
     expect(Math.max(maxX / 0.8, maxDown / 0.8, maxUp / (0.8 * upLimit))).toBeGreaterThan(0.999)
+  })
+
+  it('UX-R2 K38: baseY lifts target and camera together (a solo floor keeps its stacked height)', () => {
+    const bounds = { center: [3, 2], size: [12, 9] } as { center: [number, number]; size: [number, number] }
+    const ground = fitPose(bounds, 'perspective', VIEW)
+    const lifted = fitPose(bounds, 'perspective', VIEW, 6.6)
+    expect(lifted.target).toEqual([3, 6.6, 2])
+    expect(lifted.position[1]).toBeCloseTo(ground.position[1] + 6.6)
+    expect(lifted.position[0]).toBeCloseTo(ground.position[0])
   })
 
   it('falls back to the default pose without bounds', () => {
@@ -106,6 +115,16 @@ describe('planBoundsXZ (FE3D-FIX-004 V14)', () => {
       zone: { type: 'zone', polygon: [[10, 5], [30, 5], [30, 13], [10, 13]] },
     }
     expect(planBoundsXZ(nodes)).toEqual({ center: [20, 9], size: [20, 8] })
+  })
+
+  it('UX-R2 K38: with a level id, frames only that floor (walls and zones whose parent is the level)', () => {
+    const nodes = {
+      a: { type: 'wall', parentId: 'level_1', start: [0, 0], end: [10, 0] },
+      b: { type: 'zone', parentId: 'level_1', polygon: [[0, 0], [10, 0], [10, 6], [0, 6]] },
+      c: { type: 'wall', parentId: 'level_2', start: [100, 50], end: [140, 50] },
+    }
+    expect(planBoundsXZ(nodes, 'level_1')).toEqual({ center: [5, 3], size: [10, 6] })
+    expect(planBoundsXZ(nodes, 'level_9')).toBeNull()
   })
 
   it('returns null without walls or zones', () => {

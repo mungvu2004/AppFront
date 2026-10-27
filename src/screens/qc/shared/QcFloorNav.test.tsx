@@ -43,27 +43,39 @@ beforeEach(() => {
   review.byFloor = {};
 });
 
-describe('QcFloorNav (UX-R1 K25)', () => {
-  it('một hàng: tầng ▾, bốn bước bắt đầu bằng 0 Tỷ lệ, rồi menu Nâng cao', () => {
+describe('QcFloorNav (UX-R1 K25, UX-R2 K04)', () => {
+  it('một hàng: tầng ▾, bốn bước đánh số từ 1, không còn menu Nâng cao', () => {
     const steps = renderNav();
 
     expect(screen.queryByText('Nhà A')).toBeNull();
     expect(screen.getByLabelText('Đổi tầng: đang ở Tầng 1').closest('div.h-8')).toBe(steps.parentElement);
-    expect(steps.textContent).toContain('0Tỷ lệ1Tường2Cửa và nội thất3Phòng');
-    expect(steps.textContent).not.toContain('không bắt buộc');
+    expect(steps.textContent).toContain('1Tỷ lệ2Tường3Cửa và nội thất4Phòng');
+    expect(within(steps).queryByText(/Nâng cao/u)).toBeNull();
     expect(within(steps).getByRole('link', { name: /Tường/u })).toHaveAttribute('aria-current', 'page');
+    expect(within(steps).queryByRole('link', { name: 'Trục' })).toBeNull();
   });
 
-  it('Trục, Độ dày tường, Kích thước, So với bản vẽ nằm trong menu Nâng cao', () => {
-    const steps = renderNav('grids');
-    const menu = within(steps).getByLabelText('Nâng cao: đang ở Trục').closest('details')!;
+  it('bước Tỷ lệ có link Kích thước và So với bản vẽ; đứng ở mục con thì bước Tỷ lệ sáng', () => {
+    const steps = renderNav('dimensions');
 
-    expect(within(menu).getAllByRole('link').map((link) => link.textContent)).toEqual([
-      'Trục',
-      'Độ dày tường',
-      'Kích thước',
-      'So với bản vẽ',
-    ]);
+    expect(within(steps).getByRole('link', { name: 'Kích thước' })).toHaveAttribute('aria-current', 'page');
+    expect(within(steps).getByRole('link', { name: 'So với bản vẽ' })).toBeInTheDocument();
+    expect(within(steps).getByRole('link', { name: /Tỷ lệ/u })).toHaveAttribute('aria-current', 'step');
+    expect(within(steps).queryByRole('link', { name: 'Độ dày tường' })).toBeNull();
+  });
+
+  it('Độ dày tường thuộc bước Tường: chỉ hiện khi đang đứng ở đó', () => {
+    const steps = renderNav('thickness');
+
+    expect(within(steps).getByRole('link', { name: /Tường/u, current: 'step' })).toBeInTheDocument();
+    expect(within(steps).getByRole('link', { name: 'Độ dày tường' })).toHaveAttribute('aria-current', 'page');
+    expect(within(steps).queryByRole('link', { name: 'Kích thước' })).toBeNull();
+  });
+
+  it('Trục không thuộc bước nào: không bước nào sáng', () => {
+    const steps = renderNav('grids');
+
+    expect(within(steps).queryAllByRole('link', { current: true })).toHaveLength(0);
   });
 
   it('menu tầng có các tầng và "Tất cả tầng"', () => {
@@ -74,24 +86,32 @@ describe('QcFloorNav (UX-R1 K25)', () => {
     expect(within(menu).getByRole('link', { name: 'Tất cả tầng' })).toBeInTheDocument();
   });
 
-  it('máy không đo được tỷ lệ: bước Tỷ lệ báo "chưa có", các bước sau và Độ dày khoá kèm lý do', () => {
+  it('chưa có tỷ lệ: bước 1 mang tên "Chưa có tỷ lệ" (đỏ), các bước sau khoá kèm lý do', () => {
     review.scale = 'missing';
     const steps = renderNav('scale');
+    const scaleStep = within(steps).getByRole('link', { name: /Chưa có tỷ lệ/u });
 
-    expect(within(steps).getByRole('link', { name: /Tỷ lệ/u }).textContent).toContain('chưa có');
+    expect(within(scaleStep).getByText('Chưa có tỷ lệ')).toHaveClass('text-state-violation-text');
     expect(within(steps).queryByRole('link', { name: /Tường/u })).toBeNull();
-    expect(within(steps).queryByRole('link', { name: 'Độ dày tường' })).toBeNull();
-    expect(within(steps).getAllByTitle(SCALE_LOCK_REASON)).toHaveLength(4);
-    expect(within(steps).getByRole('link', { name: 'Trục' })).toBeInTheDocument();
+    expect(within(steps).getAllByTitle(SCALE_LOCK_REASON)).toHaveLength(3);
+    expect(within(steps).getByRole('link', { name: 'Kích thước' })).toBeInTheDocument();
   });
 
-  it('máy đo được tỷ lệ: không khoá, bước Tỷ lệ báo "cần kiểm"', () => {
+  it('tỷ lệ cần kiểm: không khoá, bước 1 mang tên "Tỷ lệ cần kiểm" (vàng)', () => {
     review.scale = 'check';
     const steps = renderNav();
+    const scaleStep = within(steps).getByRole('link', { name: /Tỷ lệ cần kiểm/u });
 
-    expect(within(steps).getByRole('link', { name: /Tỷ lệ/u }).textContent).toContain('cần kiểm');
+    expect(within(scaleStep).getByText('Tỷ lệ cần kiểm')).toHaveClass('text-state-attention-text');
     expect(within(steps).getByRole('link', { name: /Tường/u })).toBeInTheDocument();
     expect(within(steps).queryAllByTitle(SCALE_LOCK_REASON)).toHaveLength(0);
+  });
+
+  it('tỷ lệ đã xác nhận: bước 1 là "Tỷ lệ", báo đã xong', () => {
+    review.scale = 'confirmed';
+    const steps = renderNav();
+
+    expect(within(steps).getByRole('link', { name: /^Tỷ lệ.*đã xong$/u })).toBeInTheDocument();
   });
 
   it('đổi sang tầng thiếu tỷ lệ: đi tới bước Tỷ lệ của tầng đó, không tới bước đang mở (P1 #5)', () => {

@@ -18,6 +18,39 @@ export function isScaleMissing(source: ScaleSource | undefined): boolean {
   return source === 'project_default';
 }
 
+/**
+ * Ba trạng thái tỷ lệ của một tầng (UX-R2 K50/K20/K46) — MỘT nguồn chữ và màu cho thanh bước,
+ * cổng, dải, chip Các tầng, Xử lý, Quy chuẩn và 3D: `missing` đỏ (máy không đo được, đang dùng
+ * mặc định dự án — khoá các bước sau), `check` vàng (máy đo được, cần người kiểm — không khoá),
+ * `confirmed` xanh (người đã đặt/xác nhận; A5: xanh chỉ cho việc người duyệt).
+ */
+export type ScaleState = 'missing' | 'check' | 'confirmed';
+
+export interface ScaleStateView {
+  /** Tên trạng thái, dùng y nguyên ở mọi màn. */
+  readonly name: string;
+  /** Mã màu A4 (view tự map sang token). */
+  readonly statusCode: 'violation' | 'attention' | 'verified';
+  /** Động từ của nút dẫn tới màn Tỷ lệ; `null` khi không còn việc. */
+  readonly action: string | null;
+}
+
+export const SCALE_STATE_VIEWS = {
+  missing: { name: 'Chưa có tỷ lệ', statusCode: 'violation', action: 'Đặt tỷ lệ' },
+  check: { name: 'Tỷ lệ cần kiểm', statusCode: 'attention', action: 'Xác nhận tỷ lệ' },
+  confirmed: { name: 'Tỷ lệ đã xác nhận', statusCode: 'verified', action: null },
+} as const satisfies Readonly<Record<ScaleState, ScaleStateView>>;
+
+/**
+ * Trạng thái tỷ lệ từ hai khoá N16 khi không có đồ thị tầng: không `unresolved` → đã xác nhận;
+ * `project_default` → chưa có; còn lại → cần kiểm. Có đồ thị thì `floorScaleStateOf` (qc/shared)
+ * xét thêm tỷ lệ vô lý.
+ */
+export function scaleStateOf(scaleStatus: ScaleStatus, scaleSource: ScaleSource | undefined): ScaleState {
+  if (scaleStatus !== 'unresolved') return 'confirmed';
+  return isScaleMissing(scaleSource) ? 'missing' : 'check';
+}
+
 export interface ProvisionalScaleNoticeView {
   /** `violation` (đỏ) khi tầng không đo được tỷ lệ; `attention` khi tỷ lệ máy đo cần kiểm. */
   readonly level: 'attention' | 'violation';
@@ -29,7 +62,7 @@ export const PROVISIONAL_MEASURE_TEXT = 'Chưa có — tỷ lệ tạm';
 const PROVISIONAL_SCALE_MESSAGE = 'Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.';
 
 export const MISSING_SCALE_MESSAGE =
-  'Máy không đo được tỷ lệ tầng này nên kích thước và mô hình 3D đang sai. Đặt tỷ lệ trước khi duyệt tiếp.';
+  'Chưa có tỷ lệ: máy không đo được tỷ lệ tầng này nên kích thước và mô hình 3D đang sai. Đặt tỷ lệ trước khi duyệt tiếp.';
 
 /** Trung vị độ dày tường dưới mức này thì gần như chắc tỷ lệ sai (tường thật mỏng nhất ~100 mm). */
 export const IMPLAUSIBLE_MEDIAN_THICKNESS_MM = 50;
@@ -73,8 +106,17 @@ export function thicknessLockTextOf(thicknessesMm: readonly number[], scaleSourc
   return `Tường đo ra ${range} vì chưa có tỷ lệ. Đặt tỷ lệ trước.`;
 }
 
-export function measureTextOf(formatted: string, scaleStatus: ScaleStatus): string {
-  return scaleStatus === 'unresolved' ? PROVISIONAL_MEASURE_TEXT : formatted;
+/** Số đo khi tầng chưa có tỷ lệ: không có số nào tin được. */
+export const MISSING_MEASURE_TEXT = 'Chưa có';
+
+/**
+ * Chữ số đo theo trạng thái tỷ lệ (UX-R2): đã xác nhận → số; chưa có → "Chưa có";
+ * cần kiểm → "≈ <số> (tạm)" để người dùng vẫn thấy số máy đo nhưng biết nó chưa chắc.
+ */
+export function measureTextOf(formatted: string, scaleStatus: ScaleStatus, scaleSource?: ScaleSource): string {
+  const state = scaleStateOf(scaleStatus, scaleSource);
+  if (state === 'missing') return MISSING_MEASURE_TEXT;
+  return state === 'check' ? `≈ ${formatted} (tạm)` : formatted;
 }
 
 export function provisionalScaleNoticeOf(

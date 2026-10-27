@@ -173,7 +173,8 @@ export function WallLayerReview({
             />
           )
         }
-        rail={<WallLayerToolRail {...toolRail} readOnly={panel.isViewerRole} />}
+        /* Tầng khoá vì thiếu tỷ lệ: không bày Vẽ/Tách/Nối/Đo — sửa đều bị từ chối (UX-R2 K23). */
+        rail={<WallLayerToolRail {...toolRail} readOnly={panel.isViewerRole || panel.scaleLock != null} />}
         selectionKey={panel.selectedWallId}
       />
 

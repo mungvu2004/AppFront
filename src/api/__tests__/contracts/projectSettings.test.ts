@@ -190,6 +190,12 @@ describe('ProjectSettingsSchema', () => {
   it('sceneStyle null ra như vắng', () => {
     expect(ProjectSettingsSchema.parse({ ...fullSettings, sceneStyle: null })).toStrictEqual(fullSettings);
   });
+
+  it('K34 — giữ separateUnits, vắng thì vẫn vắng, khác boolean thì từ chối', () => {
+    expect(ProjectSettingsSchema.parse({ ...fullSettings, separateUnits: true })).toStrictEqual({ ...fullSettings, separateUnits: true });
+    expect(ProjectSettingsSchema.parse(fullSettings)).not.toHaveProperty('separateUnits');
+    expect(issuePaths(ProjectSettingsBodySchema, { ...fullBody, separateUnits: 'yes' })).toStrictEqual([['separateUnits']]);
+  });
 });
 
 describe('UpdateProjectSettingsSchema', () => {

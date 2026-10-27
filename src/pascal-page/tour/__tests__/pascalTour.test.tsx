@@ -3,11 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PascalTour } from '../PascalTour';
 import {
+  HINT_BOTTOM_PX,
   HINT_TEXT,
   isSceneReady,
   markDone,
   placeCard,
-  placeHint,
   requestTour,
   shouldAutoOpen,
   TOUR_KEY,
@@ -89,14 +89,7 @@ describe('isSceneReady', () => {
   });
 });
 
-describe('placeHint', () => {
-  it('đứng dưới cột trợ giúp, tâm theo nút; không thấy nút thì giữa trên', () => {
-    const btn = { left: 1000, top: 60, width: 100, height: 32 };
-    expect(placeHint(btn, { left: 700, top: 56, width: 500, height: 80 }, 1920)).toEqual({ left: 1050, top: 144 });
-    expect(placeHint(btn, null, 1920)).toEqual({ left: 1050, top: 100 });
-    expect(placeHint(null, null, 1920).left).toBe(960);
-  });
-});
+
 
 describe('PascalTour', () => {
   it('K47: chưa có cảnh thì chỉ hiện chữ tiến độ; có cảnh thì hiện gợi ý nhỏ, không tự mở tour', async () => {
@@ -108,6 +101,9 @@ describe('PascalTour', () => {
     addCanvas();
     const hint = await findHint();
     expect(hint.textContent).toContain(HINT_TEXT);
+    // UX-R2 K38: đứng ở cạnh dưới (trên thanh công cụ dưới), không đè mô hình ở đầu cảnh.
+    expect(hint.style.bottom).toBe(`${HINT_BOTTOM_PX}px`);
+    expect(hint.style.top).toBe('');
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.body.querySelector('[data-pascal-tour]')).toBeNull(); // không phủ tối (<html> chỉ mang cờ 'closed')
     expect(screen.queryByRole('status')).toBeNull();

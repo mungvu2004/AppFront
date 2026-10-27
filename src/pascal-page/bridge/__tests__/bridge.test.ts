@@ -19,6 +19,9 @@ import {
   BRIDGE_SAVE_FAILED,
   BRIDGE_SESSION_ERROR,
   currentProjectSceneStyle,
+  isSeparateUnits,
+  markNotBuilt,
+  NOT_BUILT_KEY,
   savePascalNow,
   unsavedNoticeOf,
   usePascalProjectBridge,
@@ -202,6 +205,18 @@ describe('usePascalProjectBridge', () => {
     expect(toPascalScene).toHaveBeenCalledWith(expect.anything(), { style: SCENE_STYLES['go-am'] });
     expect(currentProjectSceneStyle()?.saveToProject).toBeUndefined();
     localStorage.removeItem(SCENE_STYLE_STORAGE_KEY);
+  });
+
+  it('UX-R2: separateUnits của N5 đọc lúc nạp; vắng hay N5 hỏng thì tắt', async () => {
+    settingsApi.read = { ok: true, data: { ...wireSettings, separateUnits: true } };
+    const first = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(first.result.current.status).toBe('ready'));
+    expect(isSeparateUnits()).toBe(true);
+
+    settingsApi.read = { ok: false, error: new Error('403') };
+    const second = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(second.result.current.status).toBe('ready'));
+    expect(isSeparateUnits()).toBe(false);
   });
 
   it('W4a — bản xem thử của người xem trên máy này thắng phong cách dự án', async () => {
@@ -495,7 +510,13 @@ describe('usePascalProjectBridge', () => {
       scene = await result.current.onLoad();
     });
     const sample = createSampleBuilding();
-    expect(scene).toEqual(toPascalScene(withoutFloorContents(sample, new Set([sampleLevelId(1)]))).scene);
+    const hidden = new Set([sampleLevelId(1)]);
+    expect(scene).toEqual(markNotBuilt(toPascalScene(withoutFloorContents(sample, hidden)).scene, hidden));
+    // UX-R2 K36: danh sách tầng của editor đọc dấu này để ghi "Chưa dựng".
+    const notBuilt = (levelId: string) =>
+      (scene?.nodes[`level_${levelId}`] as { metadata?: Record<string, unknown> } | undefined)?.metadata?.[NOT_BUILT_KEY];
+    expect(notBuilt(sampleLevelId(1))).toBe(true);
+    expect(notBuilt(sampleLevelId(0))).toBeUndefined();
     expect(scene).not.toEqual(toPascalScene(sample).scene);
   });
 
@@ -512,7 +533,7 @@ describe('usePascalProjectBridge', () => {
     const empty = withoutFloorContents(sample, new Set(sample.levels.map((level) => level.id)));
     expect(empty.levels).toHaveLength(sample.levels.length);
     expect([empty.walls, empty.openings, empty.rooms, empty.furniture].every((list) => list.length === 0)).toBe(true);
-    expect(scene).toEqual(toPascalScene(empty).scene);
+    expect(scene).toEqual(markNotBuilt(toPascalScene(empty).scene, new Set(sample.levels.map((level) => level.id))));
   });
 });
 

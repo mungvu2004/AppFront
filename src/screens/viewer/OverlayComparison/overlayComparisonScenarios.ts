@@ -194,7 +194,7 @@ export function buildMarks(
 
 /** Ba lớp thị giác ở độ mờ mặc định của đặc tả: nguồn 25%, hình học 60%. */
 export function buildLayers(
-  scanOpacityPercent: number,
+  modelOpacityPercent: number,
   hasDeviations: boolean,
 ): Readonly<Record<OverlayLayerId, OverlayLayerViewModel>> {
   const layer = (
@@ -205,7 +205,7 @@ export function buildLayers(
   ): OverlayLayerViewModel => ({ id, isVisible, opacity, label });
 
   return Object.freeze({
-    scan: layer('scan', 'Ảnh quét gốc', scanOpacityPercent / 100, true),
+    scan: layer('scan', 'Ảnh quét gốc', modelOpacityPercent / 100, true),
     geometry: layer('geometry', 'Hình học sinh ra', 0.6, true),
     deviation: layer('deviation', 'vùng lệch', 1, hasDeviations),
   });
@@ -296,8 +296,8 @@ const BASE: OverlayComparisonViewModel = {
   scanUrl: SAMPLE_SCAN_URL,
   compareMode: 'overlay',
   disabledCompareModes: {},
-  scanOpacityPercent: 25,
-  scanOpacityText: '25%',
+  modelOpacityPercent: 25,
+  modelOpacityText: '25%',
   swipePosition: 0.5,
   isAlignmentLocked: false,
   canLockAlignment: false,

@@ -62,6 +62,7 @@ export interface RoomLabelMeasureRowsProps {
   readonly areaCaption: string;
 }
 
+/** K08: panel phải hẹp — nhãn nằm trên, giá trị nằm dưới, không bẻ "Diện tích" thành năm dòng. */
 export function RoomLabelMeasureRows({
   areaText,
   perimeterText,
@@ -70,16 +71,16 @@ export function RoomLabelMeasureRows({
 }: RoomLabelMeasureRowsProps) {
   return (
     <div className="flex flex-col">
-      <FieldRow isText label={AREA_LABEL}>
+      <FieldRow isStacked isText label={AREA_LABEL}>
         <span className="flex flex-col justify-center">
           <span className="font-mono text-[14px] text-text-primary">{areaText}</span>
           <small className="text-[12px] text-text-secondary">{areaCaption}</small>
         </span>
       </FieldRow>
-      <FieldRow label={PERIMETER_LABEL}>
+      <FieldRow isStacked label={PERIMETER_LABEL}>
         <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">{perimeterText}</span>
       </FieldRow>
-      <FieldRow isLast isText={clearHeightText === null} label={CLEAR_HEIGHT_LABEL}>
+      <FieldRow isLast isStacked isText={clearHeightText === null} label={CLEAR_HEIGHT_LABEL}>
         {clearHeightText === null ? (
           <span className="text-[13px] text-text-secondary">{CLEAR_HEIGHT_MISSING}</span>
         ) : (

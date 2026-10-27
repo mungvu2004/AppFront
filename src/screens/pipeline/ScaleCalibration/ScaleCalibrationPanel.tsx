@@ -32,8 +32,9 @@ const SUCCESS_BADGE = 'Đã duyệt';
 const CROSS_CHECKS_TITLE = 'Kiểm chứng';
 const CROSS_CHECKS_ARIA_LABEL = 'Ba đại lượng dẫn xuất để kiểm chứng tỷ lệ';
 const WARNING_ARIA_LABEL = 'Cảnh báo về tỷ lệ';
-const APPLY_PRIMARY = 'Áp dụng tỷ lệ';
-const APPLY_APPLYING = 'Đang áp tỷ lệ…';
+// UX-R2 K05: một nút chính, nói đúng việc người dùng làm — xác nhận tỷ lệ.
+const APPLY_PRIMARY = 'Xác nhận tỷ lệ';
+const APPLY_APPLYING = 'Đang lưu tỷ lệ…';
 const OPEN_VIEWER_LABEL = 'Xem mô hình 3D →';
 const SCOPE_ARIA_LABEL = 'Phạm vi áp tỷ lệ';
 const SCOPE_LABEL = 'Áp dụng cho:';
@@ -156,16 +157,21 @@ export function ScaleCalibrationPanel({
       {!panel.areActionsHidden && (
         <div className="flex shrink-0 flex-col gap-2 border-t border-border-default bg-bg-surface px-4 py-3">
           {/* BUG-410: short labels ("Mọi tầng" / "Tầng này") keep both options on one line in the 288 px column. */}
-          <p className="text-[13px] text-text-secondary">{SCOPE_LABEL}</p>
-          <SegmentedControl
-            aria-label={SCOPE_ARIA_LABEL}
-            onChange={actions.onChangeApplyScope}
-            options={panel.applyScopeOptions.map((option) => ({
-              label: option.label,
-              value: option.value,
-            }))}
-            value={panel.applyScope}
-          />
+          {/* Dự án căn hộ riêng chỉ còn "Tầng này": một lựa chọn thì không cần nút chọn. */}
+          {panel.applyScopeOptions.length > 1 && (
+            <>
+              <p className="text-[13px] text-text-secondary">{SCOPE_LABEL}</p>
+              <SegmentedControl
+                aria-label={SCOPE_ARIA_LABEL}
+                onChange={actions.onChangeApplyScope}
+                options={panel.applyScopeOptions.map((option) => ({
+                  label: option.label,
+                  value: option.value,
+                }))}
+                value={panel.applyScope}
+              />
+            </>
+          )}
           <Button
             disabled={!panel.canApply}
             fullWidth

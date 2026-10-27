@@ -49,8 +49,8 @@ export const SCALE = {
   realInvalid: 'Chiều dài thật phải là một số lớn hơn 0, ví dụ 4800.', // USC COPY.realLengthInvalid
   remeasure: 'Đo lại', // SMR:42
   incomplete: 'Còn thiếu một vế, nên chưa ra được tỷ lệ.', // SCP:55
-  apply: 'Áp dụng tỷ lệ', // SCP:59
-  applying: 'Đang áp tỷ lệ…', // SCP:60
+  apply: 'Xác nhận tỷ lệ', // SCP:59
+  applying: 'Đang lưu tỷ lệ…', // SCP:60
   scope: 'Phạm vi áp tỷ lệ', // SCP:61
   thisFloor: 'Tầng này', // USC COPY.scopeThisFloor
   allFloors: 'Mọi tầng', // USC COPY.scopeAllFloors
@@ -239,7 +239,7 @@ export const panelOf = (page: Page): Locator => page.getByRole('region', { name:
 export const noticeOf = (page: Page): Locator => page.getByRole('region', { name: SCALE.notice, exact: true });
 export const lengthField = (page: Page): Locator => page.getByLabel(SCALE.realLength, { exact: true });
 export const btn = (scope: Page | Locator, name: string): Locator => scope.getByRole('button', { name, exact: true });
-export const applyBtn = (page: Page): Locator => page.getByRole('button', { name: /^(Áp dụng tỷ lệ|Đang áp tỷ lệ…)$/u });
+export const applyBtn = (page: Page): Locator => page.getByRole('button', { name: /^(Xác nhận tỷ lệ|Đang lưu tỷ lệ…)$/u });
 export const computationOf = (page: Page): Locator => page.getByRole('region', { name: SCALE.computation, exact: true });
 export const handleStart = (page: Page): Locator => btn(page, SCALE.handleStart);
 export const handleEnd = (page: Page): Locator => btn(page, SCALE.handleEnd);

@@ -39,10 +39,12 @@ import {
   OBJECT_CANVAS_TEXT,
   WALL_IDLE_TOKEN,
   buildObjectContextMenuItems,
+  clientToViewBoxPoint,
   selectionHandleRects,
   type ObjectLayerCanvasViewProps,
 } from './objectLayerSymbols';
 import { ObjectSymbolFigure } from './ObjectLayerSymbolFigure';
+import { ObjectLayerVisibilityToggles } from './ObjectLayerVisibilityToggles';
 
 /** Hợp đồng props của lớp canvas, mang ra đây cho nơi gọi khỏi phải biết hai đường nhập. */
 export type * from './objectLayerSymbols';
@@ -55,6 +57,7 @@ export function ObjectLayerCanvas({
   backgroundImageAlt,
   backgroundImageUrl,
   dragMeasurement,
+  drawLayer = null,
   haloRectPx,
   highlightedWallId,
   hoveredObjectId,
@@ -67,7 +70,9 @@ export function ObjectLayerCanvas({
   onDelete,
   onFrameResize,
   onHover,
+  onPlaceAt,
   onSelect,
+  onToggleLayer,
   placements,
   selectedObjectId,
   surfaceRectPx,
@@ -149,6 +154,22 @@ export function ObjectLayerCanvas({
     },
     [onApprove, onAttachToNearestWall, onChangeSubtype, onDelete, onSelect, openMenu, placements],
   );
+
+  /* Chế độ vẽ (K07): một cú bấm trái lên bản vẽ đặt một món tại điểm ấy; giữ Space là kéo, không đặt. */
+  const isDrawing = isInteractive && drawLayer !== null && onPlaceAt !== undefined && viewBoxPx !== null;
+  const handlePlace = (event: ReactMouseEvent<SVGRectElement>) => {
+    const svg = event.currentTarget.ownerSVGElement;
+
+    if (!isDrawing || pan.spaceHeld || svg === null || viewBoxPx === null) {
+      return;
+    }
+
+    const point = clientToViewBoxPoint(svg.getBoundingClientRect(), viewBoxPx, event.clientX, event.clientY);
+
+    if (point !== null) {
+      onPlaceAt(point);
+    }
+  };
 
   /* Thứ tự trong LỚP cho độ so le 24 ms (0/24/48… trong lớp vừa bật) — một phép đếm, không phải hình học. */
   const layerCursor: Record<string, number> = { door: 0, window: 0, furniture: 0 };
@@ -232,6 +253,20 @@ export function ObjectLayerCanvas({
               unitPx={unitPx}
             />
           ))}
+
+          {/* Lớp bắt bấm của chế độ vẽ, trên mọi ký hiệu: bấm trúng một món cũ vẫn là đặt món mới. */}
+          {isDrawing && viewBoxPx !== null ? (
+            <rect
+              className="cursor-crosshair"
+              data-testid="object-draw-surface"
+              fill="transparent"
+              height={viewBoxPx.height}
+              onClick={handlePlace}
+              width={viewBoxPx.width}
+              x={viewBoxPx.x}
+              y={viewBoxPx.y}
+            />
+          ) : null}
         </svg>
 
         {haloRectPx === null ? null : (
@@ -283,6 +318,16 @@ export function ObjectLayerCanvas({
           {OBJECT_CANVAS_TEXT.nothingToDraw}
         </p>
       ) : null}
+
+      {isDrawing ? (
+        <p className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-lg bg-bg-surface px-3 py-1.5 text-[13px] text-text-primary shadow-float">
+          {OBJECT_CANVAS_TEXT.drawHint}
+        </p>
+      ) : null}
+
+      {onToggleLayer === undefined ? null : (
+        <ObjectLayerVisibilityToggles layerVisibility={layerVisibility} onToggleLayer={onToggleLayer} />
+      )}
 
       <ZoomCluster {...zoomCluster} />
 

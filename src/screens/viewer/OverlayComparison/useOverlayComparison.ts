@@ -168,9 +168,9 @@ const partialDeviationNotice = (overTolerance: string): string =>
  * Chúng được viết lại ở đây thay vì nhập từ `overlayComparisonScenarios.ts`:
  * file kia là **dữ liệu mẫu cho test và story**, và bản sản phẩm không đọc nó.
  */
-// G4b-27: 45% để nét bản vẽ còn đọc được mà nét mô hình (đậm, trên cùng) vẫn nổi.
-const DEFAULT_SCAN_OPACITY_PERCENT = 45;
-const GEOMETRY_LAYER_OPACITY = 1;
+// UX-R2 K18: bản gốc luôn đậm (người dùng đối chiếu với nó); thanh trượt chỉnh lớp mô hình, mặc định 65%.
+const DEFAULT_MODEL_OPACITY_PERCENT = 65;
+const SCAN_LAYER_OPACITY = 1;
 const DEVIATION_LAYER_OPACITY = 1;
 
 /** Dung sai mặc định khi mở màn, theo milimét — con số đặc tả nêu. */
@@ -590,7 +590,7 @@ export function useOverlayComparison(
   /* ---------------------------------------------------------------------- */
 
   const [requestedCompareMode, setRequestedCompareMode] = useState<CompareModeId>('overlay');
-  const [scanOpacityPercent, setScanOpacityPercent] = useState(DEFAULT_SCAN_OPACITY_PERCENT);
+  const [modelOpacityPercent, setModelOpacityPercent] = useState(DEFAULT_MODEL_OPACITY_PERCENT);
   const [swipePosition, setSwipePosition] = useState(DEFAULT_SWIPE_POSITION);
   const [isLockedByUser, setIsLockedByUser] = useState(false);
   const [toleranceMm, setToleranceMmState] = useState(DEFAULT_TOLERANCE_MM);
@@ -1056,17 +1056,17 @@ export function useOverlayComparison(
     ): OverlayLayerViewModel => ({ id, isVisible, opacity, label });
 
     return {
-      scan: layer(
-        'scan',
-        COPY.layerScan,
-        // G4b-26: độ mờ chỉ để xem chồng; "trượt"/"cạnh nhau" đặt hai bên riêng nên ảnh hiện đủ.
-        compareMode === 'overlay' ? scanOpacityPercent / FULL_PERCENT : 1,
-        hasScanLayer,
+      scan: layer('scan', COPY.layerScan, SCAN_LAYER_OPACITY, hasScanLayer),
+      geometry: layer(
+        'geometry',
+        COPY.layerGeometry,
+        // G4b-26: độ mờ chỉ để xem chồng; "trượt"/"cạnh nhau" đặt hai bên riêng nên mô hình hiện đủ.
+        compareMode === 'overlay' ? modelOpacityPercent / FULL_PERCENT : 1,
+        true,
       ),
-      geometry: layer('geometry', COPY.layerGeometry, GEOMETRY_LAYER_OPACITY, true),
       deviation: layer('deviation', COPY.layerDeviation, DEVIATION_LAYER_OPACITY, marks.length > 0),
     };
-  }, [activeScan, compareMode, marks.length, scanOpacityPercent]);
+  }, [activeScan, compareMode, marks.length, modelOpacityPercent]);
 
   /* ---------------------------------------------------------------------- */
   /* Xác nhận — chữ ký của người, ghi qua tầng mutation (R-64).              */
@@ -1176,8 +1176,8 @@ export function useOverlayComparison(
     setRequestedCompareMode(mode);
   }, []);
 
-  const setScanOpacity = useCallback((percent: number): void => {
-    setScanOpacityPercent(Math.min(FULL_PERCENT, Math.max(0, Math.round(percent))));
+  const setModelOpacity = useCallback((percent: number): void => {
+    setModelOpacityPercent(Math.min(FULL_PERCENT, Math.max(0, Math.round(percent))));
   }, []);
 
   const setSwipe = useCallback((ratio: number): void => {
@@ -1322,7 +1322,7 @@ export function useOverlayComparison(
     () => ({
       selectFloor,
       setCompareMode,
-      setScanOpacity,
+      setModelOpacity,
       setSwipePosition: setSwipe,
       toggleAlignmentLock,
       setToleranceMm,
@@ -1341,7 +1341,7 @@ export function useOverlayComparison(
       selectFloor,
       selectRegion,
       setCompareMode,
-      setScanOpacity,
+      setModelOpacity,
       setSwipe,
       setToleranceMm,
       setViewport,
@@ -1364,8 +1364,8 @@ export function useOverlayComparison(
       compareMode,
       disabledCompareModes,
       scanUrl: activeScan?.imageUrl ?? null,
-      scanOpacityPercent,
-      scanOpacityText: formatPercent(scanOpacityPercent, {
+      modelOpacityPercent,
+      modelOpacityText: formatPercent(modelOpacityPercent, {
         source: 'percent',
         fractionDigits: 0,
       }),
@@ -1411,7 +1411,7 @@ export function useOverlayComparison(
       role,
       rows,
       scaleFixHref,
-      scanOpacityPercent,
+      modelOpacityPercent,
       state,
       stateNotice,
       swipePosition,

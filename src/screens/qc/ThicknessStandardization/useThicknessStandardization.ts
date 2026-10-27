@@ -1139,6 +1139,7 @@ export function useThicknessStandardization(
     onDismissReapplyWarning,
 
     isViewerRole,
+    isScaleLocked: scaleLockText !== null,
     viewerRoleNotice: isViewerRole ? THICKNESS_SCREEN_TEXT.viewerRoleNotice : null,
     emptyNotice,
     onNavigateToWalls,

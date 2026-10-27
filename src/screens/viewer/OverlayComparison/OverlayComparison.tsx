@@ -12,9 +12,9 @@
  * sau (`FlowGate`) bay vào thanh bước của header. Chip, câu có số, ba điều kiện và nút của cổng
  * cùng đọc MỘT đối tượng `overlayStatusOf(model)`.
  *
- * Một nút chính: lệch → "Sửa … ở lớp …" trong panel phải, cổng có nút phụ "Vùng kế" (phím J);
- * khớp hoặc chưa đo → cổng có "Xác nhận khớp bản vẽ" (xác nhận luôn là việc người bấm, A5);
- * đã xác nhận → cổng dẫn sang bước sau.
+ * Một nút chính: lệch → "Sửa … ở lớp …" trong panel phải, cổng có nút phụ "Vùng kế" (phím J).
+ * UX-R2 K19: không còn nút "Khớp rồi, xác nhận" — lượt ấy chỉ sống trong phiên; việc chốt là xác
+ * nhận tỷ lệ ở bước Tỷ lệ, vốn đã được lưu.
  *
  * ## Bảy trạng thái (A11)
  *
@@ -42,7 +42,7 @@ import { OverlayComparisonInspector } from './OverlayComparisonInspector';
 import { OverlayComparisonPanel } from './OverlayComparisonPanel';
 import { OverlayComparisonToolbar } from './OverlayComparisonToolbar';
 import { overlayStatusOf, type OverlayStatus } from './overlayStatus';
-import type { OverlayComparisonActions, OverlayComparisonProps, OverlayComparisonState, OverlayComparisonViewModel } from './types';
+import type { OverlayComparisonActions, OverlayComparisonProps, OverlayComparisonState } from './types';
 
 const SCREEN_ARIA_LABEL = 'So với bản vẽ';
 const CANVAS_REGION_ARIA_LABEL = 'Khung đối chiếu bản vẽ gốc và mô hình';
@@ -74,42 +74,27 @@ const NOTICE_LEVELS: Readonly<Partial<Record<OverlayComparisonState, InlineAlert
   forbidden: 'attention',
 };
 
-/** Nút việc chính của màn, đặt ở bảng trái: xác nhận khớp, hoặc nhảy tới vùng lệch kế. */
+/** Nút việc chính của màn, đặt ở bảng trái: nhảy tới vùng lệch kế (UX-R2 K19: không còn nút xác nhận). */
 function BodyAction({
   status,
-  model,
   actions,
 }: {
   readonly status: OverlayStatus;
-  readonly model: OverlayComparisonViewModel;
   readonly actions: OverlayComparisonActions;
 }) {
-  const { confirmation } = model;
+  const next = status.kind === 'deviating' ? status.nextOverRow : null;
 
-  if (confirmation.isConfirmed || status.kind === 'noModel' || status.kind === 'noDrawing') return null;
-  if (status.kind === 'deviating') {
-    const next = status.nextOverRow;
-    return next === null ? null : (
-      <Button
-        aria-keyshortcuts="J"
-        aria-label={`Vùng kế ${next.affectedObjectCode}`}
-        onClick={() => actions.selectRegion(next.id)}
-        size="sm"
-        title={`Vùng kế ${next.affectedObjectCode} (J)`}
-        variant="secondary"
-      >
-        {`Vùng kế ${next.affectedObjectCode}`}
-        <Kbd className="ml-2">J</Kbd>
-      </Button>
-    );
-  }
-  // Không có quyền thì nói vì sao thay cho một nút tắt (BUG-599).
-  if (!confirmation.canConfirm && confirmation.disabledReason !== null) {
-    return <span className="text-[13px] text-text-secondary">{confirmation.disabledReason}</span>;
-  }
-  return (
-    <Button disabled={!confirmation.canConfirm} onClick={() => actions.confirmMatch()} variant="primary">
-      {confirmation.buttonLabel}
+  return next === null ? null : (
+    <Button
+      aria-keyshortcuts="J"
+      aria-label={`Vùng kế ${next.affectedObjectCode}`}
+      onClick={() => actions.selectRegion(next.id)}
+      size="sm"
+      title={`Vùng kế ${next.affectedObjectCode} (J)`}
+      variant="secondary"
+    >
+      {`Vùng kế ${next.affectedObjectCode}`}
+      <Kbd className="ml-2">J</Kbd>
     </Button>
   );
 }
@@ -198,7 +183,7 @@ export function OverlayComparison({ actions, alignHref, model, nav, fixTargetOf,
       <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-x-clip lg:flex-row">
         <OverlayComparisonPanel
           canEdit={canEdit}
-          action={<BodyAction actions={actions} model={model} status={status} />}
+          action={<BodyAction actions={actions} status={status} />}
           head={<>{head}{subtitle}</>}
           showUnmeasuredNotice={status.kind === 'unmeasured'}
           metrics={model.metrics}
@@ -249,10 +234,10 @@ export function OverlayComparison({ actions, alignHref, model, nav, fixTargetOf,
                 isStacked={isStacked}
                 onSelectFloor={actions.selectFloor}
                 onSetCompareMode={actions.setCompareMode}
-                onSetScanOpacity={actions.setScanOpacity}
+                onSetModelOpacity={actions.setModelOpacity}
                 onToggleAlignmentLock={actions.toggleAlignmentLock}
-                scanOpacityPercent={model.scanOpacityPercent}
-                scanOpacityText={model.scanOpacityText}
+                modelOpacityPercent={model.modelOpacityPercent}
+                modelOpacityText={model.modelOpacityText}
               />
             </div>
           </div>
@@ -291,7 +276,6 @@ export function OverlayComparison({ actions, alignHref, model, nav, fixTargetOf,
         <OverlayComparisonInspector
           confirmation={model.confirmation}
           fixTargetOf={fixTargetOf}
-          onConfirmMatch={actions.confirmMatch}
           onSelectRegion={actions.selectRegion}
           status={status}
         />

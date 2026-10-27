@@ -3,8 +3,10 @@
  * lỗ + viền accent, thẻ 320px). Không chặn thao tác 3D; Esc đóng mà không chặn sự kiện của editor.
  *
  * UX-R1 K47/K40: trong lúc chờ hiện một dòng chữ tiến độ dưới biểu tượng tải của Pascal. Lần đầu
- * (sau khung hình đầu) KHÔNG tự mở tour phủ tối: chỉ hiện một gợi ý nhỏ dưới nút '?' (xoay/phóng
- * + "Xem hướng dẫn"), đóng được và nhớ. Tour đầy đủ chỉ mở từ nút '?' hoặc nút của gợi ý.
+ * (sau khung hình đầu) KHÔNG tự mở tour phủ tối: chỉ hiện một gợi ý nhỏ (xoay/phóng + "Xem hướng
+ * dẫn"), đóng được và nhớ. Tour đầy đủ chỉ mở từ nút '?' hoặc nút của gợi ý.
+ * UX-R2 K38: gợi ý đứng ngay trên thanh công cụ dưới, không còn dưới cụm trợ giúp đầu cảnh — ở đó
+ * nó đè lên mô hình.
  */
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -12,14 +14,13 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import {
   type Box,
   CARD_W,
-  HELP_BUTTON,
+  HINT_BOTTOM_PX,
   HINT_TEXT,
   isHuge,
   isSceneLoading,
   isSceneReady,
   markDone,
   placeCard,
-  placeHint,
   resolveAnchor,
   shouldAutoOpen,
   TOUR_OPEN_EVENT,
@@ -70,37 +71,16 @@ function useSceneState() {
   return { loading: loading && !ready, ready };
 }
 
-/** Gợi ý lần đầu: một dòng, không phủ tối, đứng dưới nút '?' của `canvas-help`. */
+/** Gợi ý lần đầu: một dòng, không phủ tối, giữa cạnh dưới ngay trên thanh công cụ dưới. */
 function FirstHint({ onOpen, onClose }: { readonly onOpen: () => void; readonly onClose: () => void }) {
-  const [pos, setPos] = useState(() => placeHint(null, null, window.innerWidth));
-  useEffect(() => {
-    const measure = () => {
-      const btn = document.querySelector<HTMLElement>(HELP_BUTTON);
-      const column = btn?.closest<HTMLElement>('.appfront-canvas-help') ?? null;
-      const next = placeHint(
-        btn ? toBox(btn.getBoundingClientRect()) : null,
-        column ? toBox(column.getBoundingClientRect()) : null,
-        window.innerWidth,
-      );
-      setPos((prev) => (prev.left === next.left && prev.top === next.top ? prev : next));
-    };
-    measure();
-    // eslint-disable-next-line local/no-raw-duration -- chu kỳ đo lại vị trí nút '?', không phải chuyển động
-    const id = window.setInterval(measure, 400);
-    window.addEventListener('resize', measure);
-    return () => {
-      window.clearInterval(id);
-      window.removeEventListener('resize', measure);
-    };
-  }, []);
   return (
     <aside
       aria-label="Gợi ý thao tác 3D"
       data-pascal-tour-hint=""
       style={{
         position: 'fixed',
-        left: Math.round(pos.left),
-        top: Math.round(pos.top),
+        left: '50%',
+        bottom: HINT_BOTTOM_PX,
         transform: 'translateX(-50%)',
         zIndex: Z,
         display: 'flex',

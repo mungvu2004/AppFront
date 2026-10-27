@@ -253,6 +253,25 @@ export interface RuleConfig {
    * twice and the screen quietly lies about what it just did.
    */
   readonly version: number;
+  /**
+   * K34 — the project's floors are separate apartments (`separateUnits` of N5).
+   *
+   * Floors that do not stack have nothing to compare, so the cross-floor rules
+   * (scope `building`: walls held up from below, stairs on one axis, elevations
+   * rising) do not run. Absent means stacked, as before the setting existed.
+   */
+  readonly separateUnits?: boolean;
+}
+
+/**
+ * The same config with the K34 setting applied; the same object when nothing moves.
+ *
+ * A change bumps `version`, so the violation cache (keyed on version) recomputes.
+ */
+export function withSeparateUnits(config: RuleConfig, separateUnits: boolean): RuleConfig {
+  return (config.separateUnits === true) === separateUnits
+    ? config
+    : { ...config, separateUnits, version: config.version + 1 };
 }
 
 /** The rule book exactly as it ships. Version 0 always means this. */
@@ -402,7 +421,7 @@ function withOverride(config: RuleConfig, code: RuleCode, next: RuleOverride): R
     overrides[code] = next;
   }
 
-  return { overrides: Object.freeze(overrides), version: config.version + 1 };
+  return { ...config, overrides: Object.freeze(overrides), version: config.version + 1 };
 }
 
 /** Switch one rule on or off. */
@@ -497,7 +516,7 @@ export function setGroupEnabled(
     }
   }
 
-  return { overrides: Object.freeze(overrides), version: config.version + 1 };
+  return { ...config, overrides: Object.freeze(overrides), version: config.version + 1 };
 }
 
 /**

@@ -18,8 +18,9 @@ import { can } from '@/lib/auth/permissions';
 import { getSessionSnapshot } from '@/lib/auth/state';
 import { readWireError } from '@/lib/errors/wireError';
 import { readSceneStyle, type SceneStyle, type SceneStyleId } from '@/lib/pascal/sceneStyles';
+import { toPascalId } from '@/lib/pascal/ids';
 import { toPascalScene } from '@/lib/pascal/toPascal';
-import type { PascalScene } from '@/lib/pascal/types';
+import type { PascalNode, PascalNodeId, PascalScene } from '@/lib/pascal/types';
 import { startAppSession } from '@/routes/sessionSetup';
 import { usePascalEdits } from '@/screens/viewer/PascalViewer/usePascalEdits';
 import { selectViewerSpatial } from '@/screens/viewer/ViewerShell/viewerShellGateway';
@@ -87,6 +88,24 @@ export function withoutFloorContents(graph: SpatialGraph, floorIds: ReadonlySet<
   };
 }
 
+/** Khoá siêu dữ liệu đánh dấu tầng bị bỏ nội dung — danh sách tầng của editor làm mờ nó và ghi "Chưa dựng". */
+export const NOT_BUILT_KEY = 'appfrontNotBuilt';
+
+/**
+ * UX-R2 K36: gắn `metadata.appfrontNotBuilt` lên node tầng bị `withoutFloorContents` bỏ nội dung.
+ * Chỉ để hiển thị: `toSpatial` không đọc khoá này, và cảnh trước/sau lượt sửa cùng mang nó.
+ */
+export function markNotBuilt(scene: PascalScene, floorIds: ReadonlySet<string>): PascalScene {
+  if (floorIds.size === 0) return scene;
+  const nodes: Record<PascalNodeId, PascalNode> = { ...scene.nodes };
+  floorIds.forEach((floorId) => {
+    const id = toPascalId('level', floorId);
+    const node = nodes[id];
+    if (node !== undefined) nodes[id] = { ...node, metadata: { ...node.metadata, [NOT_BUILT_KEY]: true } } as PascalNode;
+  });
+  return { ...scene, nodes };
+}
+
 /** Phong cách cảnh của lượt mở trang (W4a) — thẻ "Phong cách" đọc nó. */
 export interface ProjectSceneStyle {
   readonly projectId: string;
@@ -99,6 +118,15 @@ let projectSceneStyle: ProjectSceneStyle | null = null;
 
 /** Phong cách của dự án đang mở; `null` trước khi cầu nạp xong. */
 export const currentProjectSceneStyle = (): ProjectSceneStyle | null => projectSceneStyle;
+
+let separateUnits = false;
+
+/**
+ * Thiết lập dự án "Đây là các căn hộ riêng" (`separateUnits` của N5), đọc lúc cầu nạp: bật thì
+ * editor chỉ xem một tầng, không chồng tầng. Trang chỉ vẽ editor sau khi cầu nạp xong, nên đọc lúc
+ * render là đủ. ponytail: đọc một lần mỗi lượt mở, đổi ở màn khác thì tải lại trang mới thấy.
+ */
+export const isSeparateUnits = (): boolean => separateUnits;
 
 /** Lượt `onSave` gần nhất của cầu — `savePascalNow` đợi nó. */
 let lastSave: Promise<unknown> = Promise.resolve();
@@ -145,8 +173,12 @@ async function loadProject(projectId: string): Promise<{ readonly projectName: s
   const session = getSessionSnapshot();
 
   loadProjectGraph(toProjectSpatial(project, document, { roles: session.roles, userId: session.user?.id ?? null }));
+  /* UX-R2 K39: bắt đầu xét tỷ lệ ngay khi kho có cảnh, song song với lượt tải gói editor — `onLoad`
+     và dải cảnh báo dùng lại đúng lượt này (memo của `scaleStatusOf`), không đợi thêm một vòng. */
+  void scaleStatusOf(projectId);
 
   const settings = await settingsRead;
+  separateUnits = settings?.separateUnits === true;
   const style = readSceneStyle(() => localStorage, { id: projectId, style: settings?.sceneStyle });
   // Cùng cổng vai như hook: vai theo dự án vừa nạp trước, phiên dự phòng.
   const storeRoles = useStore.getState().userRoles;
@@ -285,8 +317,9 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
     if (current === null) return null;
 
     const graph = withoutFloorContents(denormalizeSpatial(current), missingFloors.current);
+    const scene = toPascalScene(graph, { style: style ?? readSceneStyle(() => localStorage) }).scene;
 
-    return toPascalScene(graph, { style: style ?? readSceneStyle(() => localStorage) }).scene;
+    return markNotBuilt(scene, missingFloors.current);
   }, [style]);
 
   /* Tải lại tầng bị khối (409/422/403): bỏ bản chưa lưu được, nạp lại tầng từ máy chủ vào kho rồi

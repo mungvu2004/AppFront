@@ -241,7 +241,7 @@ export interface ProcessingExtractionSummary {
   readonly dimensionCount: number;
   /** Tầng đã có tỷ lệ do người đặt tay (không còn `scaleStatus: unresolved`). */
   readonly hasScale?: boolean;
-  /** Máy không đo được tỷ lệ (N16 `scaleSource: 'project_default'`, `isScaleMissing`) — chip đỏ "Sai tỷ lệ" (K12). */
+  /** Máy không đo được tỷ lệ (N16 `scaleSource: 'project_default'`, `isScaleMissing`) — chip đỏ "Chưa có tỷ lệ". */
   readonly scaleMissing?: boolean;
   /**
    * Độ sẵn sàng của tầng (N16 `readiness`, FIX-P0-15). BE cũ chưa trả thì suy `scaleUnresolved` từ

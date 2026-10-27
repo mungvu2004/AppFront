@@ -39,7 +39,7 @@ const NO_OP = (): void => undefined;
 const ACTIONS: OverlayComparisonActions = {
   selectFloor: NO_OP,
   setCompareMode: NO_OP,
-  setScanOpacity: NO_OP,
+  setModelOpacity: NO_OP,
   setSwipePosition: NO_OP,
   toggleAlignmentLock: NO_OP,
   setToleranceMm: NO_OP,

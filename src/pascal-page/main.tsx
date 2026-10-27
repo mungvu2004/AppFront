@@ -8,7 +8,7 @@ import './probe';
 import './icons';
 import './firstOpen';
 import { acquireSceneReadOnlyLease, pauseSceneHistory, resumeSceneHistory, type SceneGraph, useScene } from '@pascal-app/core';
-import { CATALOG_ITEMS } from '@pascal-app/editor';
+import { CATALOG_ITEMS, useEditor, useSidebarStore } from '@pascal-app/editor';
 import { loadPlugin } from '@pascal-app/core/registry';
 import { builtinPlugin } from '@pascal-app/nodes';
 import { getSceneTheme, SSGI_PARAMS, useViewer } from '@pascal-app/viewer';
@@ -20,7 +20,7 @@ import { setRealismModels } from '@/lib/pascal/furnitureCatalog';
 import { getFeatureFlagsSnapshot } from '@/lib/telemetry/flags';
 
 import { savePascalNow, usePascalProjectBridge } from './bridge';
-import { BackToProjectCard, ProjectStepsCard } from './BackToProjectCard';
+import { BackToProjectCard, EditModelButton, ProjectStepsCard } from './BackToProjectCard';
 import { syncChromeTheme } from './chromeTheme';
 import { LightingCard } from './LightingCard';
 import { realismFlagsFrom, useRealism } from './realism/store';
@@ -90,6 +90,16 @@ function LoadingNotice() {
   );
 }
 
+/** UX-R2 K35: "Sửa mô hình" mở bảng dựng (thu gọn lúc mở trang) đúng ở thẻ "Dựng". */
+function EditModel() {
+  const collapsed = useSidebarStore((state) => state.isCollapsed);
+  const open = () => {
+    useEditor.getState().setActiveSidebarPanel('build');
+    useSidebarStore.getState().setIsCollapsed(false);
+  };
+  return <EditModelButton collapsed={collapsed} onOpen={open} />;
+}
+
 /* Lượt sửa bị từ chối → đặt lại cảnh từ kho mà KHÔNG ghi bước hoàn tác và không xoá lịch sử
    (khác `applySceneGraphToEditor`): Ctrl+Z ngay sau đó về đúng cảnh trước lượt bị từ chối (no-op). */
 const applyRejectedRevert = (scene: unknown) => {
@@ -129,6 +139,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
         <>
           <BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} save={bridge.save} />
           <ProjectStepsCard projectId={projectId} />
+          {readOnly ? null : <EditModel />}
           {/* UI-1023 V-01: các chỉnh cảnh là một cụm liền khối (pascal-chrome.css `[data-appfront-cluster]`). */}
           <div aria-label="Cảnh" className="inline-flex shrink-0 items-center" data-appfront-cluster="" role="group">
             <SceneStyleCard flushAutosaves={flushAutosaves} reload={() => window.location.reload()} saveNow={savePascalNow} />

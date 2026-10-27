@@ -12,6 +12,7 @@
 import { A3_SHORT_EDGE_MM, formatDrawingScaleRatio } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
+import { SCALE_STATE_VIEWS } from '@/lib/viewmodel/provisionalScale';
 
 const MM_PER_INCH = 25.4;
 /** Hai tỷ lệ in thường gặp và hai DPI quét thường gặp của bảng đối chiếu. */
@@ -23,8 +24,9 @@ const REFERENCE_DPIS = [300, 150] as const;
  */
 const TOLERANCE_PX = 2;
 
-export type ScaleSource = 'proposed' | 'stored' | 'provisional';
-export type ScaleCheckTone = 'verified' | 'attention' | 'neutral';
+/** `missing` = tầng máy không đo được tỷ lệ (N16 `project_default`), số đang dùng là mặc định dự án. */
+export type ScaleSource = 'proposed' | 'stored' | 'provisional' | 'missing';
+export type ScaleCheckTone = 'verified' | 'attention' | 'violation' | 'neutral';
 
 export interface KnownDimension {
   readonly realLength: number;
@@ -84,8 +86,14 @@ export function mmPerPxAt(ratio: number, dpi: number): number {
 const TITLES: Readonly<Record<ScaleSource, string>> = {
   proposed: 'Tỷ lệ vừa đo',
   stored: 'Tỷ lệ đã đặt',
-  provisional: 'Tỷ lệ tạm',
+  provisional: 'Tỷ lệ máy đo',
+  missing: 'Tỷ lệ mặc định',
 };
+
+/** UX-R2 K27: cỡ căn theo tỷ lệ mặc định là số sai, nói thẳng ra. */
+const MISSING_SIZE_SUFFIX = ' (chắc chắn sai)';
+
+const { check: CHECK, missing: MISSING } = SCALE_STATE_VIEWS;
 
 const MISSING_KNOWN = 'Chưa có kích thước thứ hai để kiểm chéo tỷ lệ.';
 
@@ -103,16 +111,20 @@ function statusOf(
   const withRatio = sizeText === null ? `tỷ lệ ${ratio ?? `${densityLabel} mm/px`}` : `tỷ lệ cho căn ${sizeText}`;
 
   switch (input.source) {
+    // UX-R2 K05/K50: câu trạng thái chỉ nói tình hình; lời dẫn duy nhất nằm ở dải trên bản vẽ.
     case 'proposed':
-      return { tone: 'neutral', label: 'Đang đo, chưa áp dụng', sentence: `Đo được ${withRatio}, bấm Áp dụng để dùng.` };
+      return { tone: 'neutral', label: 'Chưa xác nhận', sentence: `Đo được ${withRatio}.` };
     case 'stored':
       return knownTone === 'attention'
-        ? { tone: 'attention', label: 'Đã đặt, lệch kích thước', sentence: `Đang dùng ${withRatio}. Kiểm lại kích thước đã biết bên phải.` }
-        : { tone: 'verified', label: 'Đã đặt', sentence: `Đang dùng ${withRatio}.` };
+        ? { tone: 'attention', label: 'Đã xác nhận, lệch kích thước', sentence: `Đang dùng ${withRatio}. Kiểm lại kích thước đã biết bên phải.` }
+        : { tone: 'verified', label: 'Đã xác nhận', sentence: `Đang dùng ${withRatio}.` };
     case 'provisional':
-      return { tone: 'attention', label: 'Tỷ lệ tạm, chưa xác nhận', sentence: `Đang tạm dùng ${withRatio}. Đo 2 điểm để xác nhận.` };
+      // Tên + màu trạng thái dùng chung mọi màn (`SCALE_STATE_VIEWS`).
+      return { tone: CHECK.statusCode, label: CHECK.name, sentence: `Đang tạm dùng ${withRatio}.` };
+    case 'missing':
+      return { tone: MISSING.statusCode, label: MISSING.name, sentence: 'Máy không đo được tỷ lệ, cỡ căn hiện tại chắc chắn sai.' };
     default:
-      return { tone: 'neutral', label: 'Chưa đặt tỷ lệ', sentence: 'Đo 2 điểm trên một kích thước đã biết rồi bấm Áp dụng.' };
+      return { tone: MISSING.statusCode, label: MISSING.name, sentence: 'Tầng này chưa có tỷ lệ.' };
   }
 }
 
@@ -155,17 +167,17 @@ export function buildScaleCheck(input: ScaleCheckInput): ScaleCheckViewModel {
         };
 
   const sizeText = hasScale && input.planSizeMm != null ? planSizeText(input.planSizeMm) : null;
-  const detailLine =
-    sizeText === null || densityValue === null
-      ? null
-      : [`${densityValue} mm/px`, ...(ratioLine === null ? [] : [`${ratioLine} nếu ảnh là khổ A3`])].join(' · ');
+  // UX-R2 K27: bỏ "≈ 1:N nếu ảnh là khổ A3" — con số đoán khổ giấy không giúp người dùng quyết gì.
+  const detailLine = sizeText === null || densityValue === null ? null : `${densityValue} mm/px`;
+  const headline =
+    sizeText !== null && input.source === 'missing' ? `${sizeText}${MISSING_SIZE_SUFFIX}` : (sizeText ?? ratioLine);
 
   return {
     status: statusOf(input, densityValue ?? '', hasScale ? ratioLine : null, knownCheck?.tone ?? null, sizeText),
     title: input.source === null ? 'Tỷ lệ' : sizeText === null ? TITLES[input.source] : `Cỡ căn theo ${TITLES[input.source].toLowerCase()}`,
     densityValue,
     ratioLine,
-    headline: sizeText ?? ratioLine,
+    headline,
     detailLine,
     dpiNote:
       hasEdge && dpiLabel !== null

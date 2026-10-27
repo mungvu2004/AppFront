@@ -65,6 +65,7 @@ import type { LevelId } from '@/domain/spatial/types';
 import { pixels } from '@/domain/units/scale';
 import { useSession } from '@/hooks/useSession';
 import { useProjectFloors } from '@/hooks/useProjectFloors';
+import { useSeparateUnits } from '@/hooks/useSeparateUnits';
 import type { Announcer } from '@/lib/input/announcer';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
@@ -118,6 +119,8 @@ export interface AxisGridManagerContainerProps {
   readonly floorGate?: ReactNode;
   /** RV1-7: số tầng của dự án (`useProjectFloors` ở route) cho câu của công tắc bóng ma. */
   readonly projectFloorCount?: number;
+  /** K34/K14: dự án là các căn hộ riêng — bỏ phần căn giữa các tầng và bóng tầng dưới. */
+  readonly separateUnits?: boolean;
 }
 
 /** Cùng khuôn `ScreenCrashFallback` của `src/App.tsx` — R-62. */
@@ -198,7 +201,10 @@ function WiredAxisGridManager(props: AxisGridManagerContainerProps) {
       floorNav={props.floorNav}
       floorGate={props.floorGate}
       modelStepHref={ROUTES.project.viewer(props.projectId)}
-      projectFloorCount={props.projectFloorCount}
+      /* Căn hộ riêng: mỗi căn đứng một mình, như dự án một tầng (ẩn lệch tầng và bóng tầng dưới). */
+      projectFloorCount={props.separateUnits === true ? 1 : props.projectFloorCount}
+      separateUnits={props.separateUnits === true}
+      currentLevelId={props.levelId ?? props.floorId}
       autoAlignBlockedReason={result.autoAlignBlockedReason}
       viewModel={result.viewModel}
     />
@@ -237,6 +243,7 @@ function AxisGridManagerRouteBody({
    */
   const levelId = useMemo(() => floorId as LevelId, [floorId]);
   const floors = useProjectFloors(projectId); // N2-11: đổi tầng theo mã API như mọi màn kiểm tra.
+  const { separateUnits } = useSeparateUnits(projectId);
   const navigate = useNavigate();
   const onNavigate = useCallback((path: string) => {
     navigate(path);
@@ -252,6 +259,7 @@ function AxisGridManagerRouteBody({
       projectFloorCount={floors.length}
       projectId={projectId}
       roles={roles}
+      separateUnits={separateUnits}
     />
   );
 }

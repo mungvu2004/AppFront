@@ -267,6 +267,7 @@ const ACTIONS: ScaleCalibrationActions = {
   onCanvasSizeChange: NO_OP,
   onApply: NO_OP,
   onChangeApplyScope: NO_OP,
+  onUseSuggestedScale: NO_OP,
   onConfirmAllFloors: NO_OP,
   onCancelAllFloors: NO_OP,
   onToggleCollapsed: NO_OP,

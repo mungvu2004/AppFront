@@ -14,6 +14,9 @@ describe('deriveProcessingGate — tỷ lệ', () => {
     const gate = deriveProcessingGate({ ...scenarioFor('success'), summary: noDimension });
     expect(gate.kind).toBe('needs-scale');
     expect(gate.action?.label).toBe('Đặt tỷ lệ');
+    // Tên + màu chung của `SCALE_STATE_VIEWS.missing`, không phải "Sai tỷ lệ" / "chưa kiểm".
+    expect(gate.chipLabel).toBe('Xong · chưa có tỷ lệ');
+    expect(gate.chipVariant).toBe('violation');
   });
 
   it('không đọc được kích thước nhưng tầng đã có tỷ lệ đặt tay: sẵn sàng', () => {

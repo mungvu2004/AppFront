@@ -71,7 +71,7 @@ import type {
   Wall as GraphWall,
   WallId,
 } from '@/domain/spatial/types';
-import { millimetresPerPixel, scaleFromRatio, type Scale } from '@/domain/units/scale';
+import { millimetresPerPixel, pixels, scaleFromRatio, type Scale } from '@/domain/units/scale';
 import { millimetres, type MillimetresPerPixel } from '@/domain/units/types';
 import {
   attachToWall,
@@ -103,6 +103,7 @@ import { AT_WALL_END, AT_WALL_START, clampRelativePosition } from '@/domain/open
 import { resolveWallShapes } from '@/domain/walls/joints';
 import { centrelineLength, type Wall as SolidWall } from '@/domain/walls/types';
 import {
+  createAddFurnitureCommand,
   createAddOpeningCommand,
   createDeleteFurnitureCommand,
   createDeleteOpeningCommand,
@@ -110,6 +111,7 @@ import {
   createMoveOpeningCommand,
   createResizeOpeningCommand,
   createRotateFurnitureCommand,
+  type AddFurnitureInput,
   type AddOpeningInput,
   type DeleteFurnitureInput,
   type DeleteOpeningInput,
@@ -793,6 +795,12 @@ export const buildDeleteOpeningCommand = (
   context: CommandContext,
 ): CommandResult => createDeleteOpeningCommand(input, context);
 
+/** Thêm đồ đạc — gọi lại S-07; nút rail "Vẽ nội thất" (K07). */
+export const buildAddFurnitureCommand = (
+  input: AddFurnitureInput,
+  context: CommandContext,
+): CommandResult => createAddFurnitureCommand(input, context);
+
 /** 5. Di chuyển đồ đạc — gọi lại S-07. */
 export const buildMoveFurnitureCommand = (
   input: MoveFurnitureInput,
@@ -918,6 +926,30 @@ export const NOT_AN_OPENING_SUBTYPE_REASON =
 
 /** Câu từ chối khi loại đích trùng loại đang có. */
 export const SAME_SUBTYPE_REASON = 'Đối tượng đã ở đúng loại đó nên không có gì thay đổi.';
+
+/** Loại của lệnh đổi loại một món nội thất (K10) — `OPENING_COMMAND_TYPES` không có lệnh này. */
+export const OBJECT_CHANGE_FURNITURE_KIND_COMMAND_TYPE = 'furniture.changeKind';
+
+/** Đổi loại đồ đạc của đồ thị (tủ bếp → thiết bị vệ sinh…): chỉ đổi `kind`, hình giữ nguyên. */
+export function buildChangeFurnitureKindCommand(
+  before: Furniture,
+  kind: FurnitureKind,
+  actorId: string,
+  displayId: string,
+): CommandResult {
+  if (before.kind === kind) {
+    return refuse(OBJECT_CHANGE_FURNITURE_KIND_COMMAND_TYPE, [SAME_SUBTYPE_REASON]);
+  }
+
+  return accept(
+    createCommand({
+      type: OBJECT_CHANGE_FURNITURE_KIND_COMMAND_TYPE,
+      actorId,
+      description: `Đổi loại ${displayId} thành ${FURNITURE_KIND_LABELS[kind]}.`,
+      changes: [changeForUpdate('furniture', before, { ...before, kind })],
+    }),
+  );
+}
 
 /** Câu từ chối khi chiều mở đích trùng chiều mở đang có. */
 export const SAME_SWING_REASON = 'Đối tượng đã mở đúng chiều đó nên không có gì thay đổi.';
@@ -1292,6 +1324,7 @@ export const OBJECT_LAYER_TEXT = {
   attachNoWall: 'Không có tường nào đủ gần để gắn đối tượng này.',
   attachRefused: 'Không gắn được vào tường gần nhất.',
   addNoWall: 'Tầng này chưa có đoạn tường nào để đặt đối tượng mới lên.',
+  drawNoWall: 'Bấm sát một bức tường để đặt cửa lên đó.',
   emptyNoWall:
     'Tầng này chưa có đoạn tường nào, nên chưa có chỗ đặt cửa hay cửa sổ. Duyệt lớp tường trước rồi quay lại đây.',
   emptyNoDrawing:
@@ -1694,6 +1727,10 @@ export function toObjectRow(
   };
 }
 
+/** Độ tin cậy bằng chữ, cùng chữ với nhãn của dòng danh sách (K10). */
+const LOW_CONFIDENCE_LABEL = 'Máy chưa chắc';
+const CONFIDENT_LABEL = 'Máy khá chắc';
+
 /**
  * Thanh tra đối tượng đang chọn.
  *
@@ -1706,6 +1743,7 @@ export function toObjectInspector(
   object: ReviewObject,
   wall: SolidWall | null,
   wallCodes?: ReadonlyMap<string, string>,
+  threshold: number = OBJECT_LAYER_CONFIDENCE_THRESHOLD,
 ): ObjectInspectorViewModel {
   const attached = isOrphanObject(object) ? null : object;
   const isOrphan = isUnattachedOpening(object);
@@ -1716,6 +1754,10 @@ export function toObjectInspector(
     id: object.id,
     codeLabel: `#${object.id}`,
     subtype: object.subtype,
+    typeLabel: objectTypeLabelOf(object),
+    furnitureKind: (object as Partial<FreeFurnitureObject>).furnitureKind ?? null,
+    sizeLabel: formatObjectSize(object.widthMm, object.heightMm),
+    confidenceLabel: isLowConfidenceObject(object.confidence, threshold) ? LOW_CONFIDENCE_LABEL : CONFIDENT_LABEL,
     widthLabel: formatMillimetres(object.widthMm),
     heightLabel: formatMillimetres(object.heightMm),
     sillHeightLabel: object.sillHeightMm === null ? null : formatMillimetres(object.sillHeightMm),
@@ -2277,6 +2319,80 @@ export function manualDoorProposalsOf(
   );
 }
 
+/** Bấm "Vẽ cửa" cách tim tường tới chừng này vẫn bắt vào tường đó: người bấm chuột, không phải máy dò. */
+const DRAW_SNAP_RADIUS_MM = 600;
+
+/** Nửa cạnh của món nội thất mới vẽ (600 × 600 mm) — người duyệt đổi loại ngay sau đó. */
+const DRAWN_FURNITURE_HALF_MM = 300;
+
+/**
+ * Cửa đi/cửa sổ vẽ tại điểm bấm (K07): `attachToWall` của M-08 tìm tường gần nhất và chiếu điểm
+ * lên tim tường; `null` khi không tường nào trong {@link DRAW_SNAP_RADIUS_MM}. `validateOpening`
+ * vẫn phán quyết trong lệnh thêm.
+ */
+export function drawnOpeningProposalOf(
+  graph: NormalizedSpatial,
+  level: Level,
+  at: Point,
+  kind: 'door' | 'window',
+  id: OpeningId = createId('opening'),
+): AddOpeningInput | null {
+  const template = kind === 'window' ? MANUAL_WINDOW_TEMPLATE : MANUAL_DOOR_TEMPLATE;
+
+  if (template === null) {
+    return null;
+  }
+
+  const walls = solidWallsOf(graph, level);
+  const sillHeightMm =
+    kind === 'window' ? (template.sillHeightMm ?? OPENING_RULES.windowSillMinMm) : OPENING_RULES.doorSillHeightMm;
+  const attachment = attachObjectToWall(
+    {
+      id,
+      kind,
+      widthMm: template.widthMm,
+      heightMm: template.heightMm,
+      sillHeightMm: millimetres(sillHeightMm),
+      swing: template.swing,
+      centre: toPointMm(at),
+    },
+    walls,
+    DRAW_SNAP_RADIUS_MM,
+  );
+  const placed = attachment.opening;
+  const wall = walls.find((candidate) => candidate.id === attachment.wallId);
+
+  if (wall === undefined || placed.wallId === null) {
+    return null;
+  }
+
+  return {
+    id,
+    levelId: level.id,
+    kind,
+    centre: positionOnWall(wall, placed.relativePosition),
+    widthMm: template.widthMm,
+    heightMm: template.heightMm,
+    sillHeightMm,
+    swing: template.swing,
+  };
+}
+
+/** Món nội thất vẽ tại điểm bấm (K07): loại "đồ đạc khác", khung 600 × 600 mm quanh điểm. */
+export function drawnFurnitureInputOf(level: Level, at: Point): AddFurnitureInput {
+  return {
+    id: createId('furniture'),
+    levelId: level.id,
+    kind: 'other',
+    centre: at,
+    boundingBox: {
+      min: { x: at.x - DRAWN_FURNITURE_HALF_MM, y: at.y - DRAWN_FURNITURE_HALF_MM },
+      max: { x: at.x + DRAWN_FURNITURE_HALF_MM, y: at.y + DRAWN_FURNITURE_HALF_MM },
+    },
+    rotationDeg: 0,
+  };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Toạ độ vẽ — phía sản xuất cho canvas (T6/T7).                               */
 /* -------------------------------------------------------------------------- */
@@ -2291,6 +2407,12 @@ export function manualDoorProposalsOf(
  * M-08, hướng là `wallBearing` của `src/domain/walls/edit.ts`, hộp bao là
  * `boxAround` của `src/lib/input/dragDrop.ts`, quy đổi là `scale.millimetresToPixels`.
  */
+
+/** Ngược của {@link toPixelPoint}: điểm bấm (pixel bản vẽ) thành milimét — chế độ vẽ (K07). */
+export const toDrawingPoint = (point: PixelPoint, scale: Scale): Point => ({
+  x: scale.pixelsToMillimetres(pixels(point.x)),
+  y: scale.pixelsToMillimetres(pixels(point.y)),
+});
 
 /** Một điểm milimét của bản vẽ, đọc bằng pixel đúng cách `<svg viewBox>` đọc nó. */
 export const toPixelPoint = (point: Point, scale: Scale): PixelPoint => ({

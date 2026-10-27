@@ -94,7 +94,7 @@ export interface ProcessingFloorChipViewModel {
   readonly objectCountLabel?: string;
   /** `"Cần xem lại"` khi N16 `readiness.state` là `needsReview` (FIX-P0-15); vắng khi không. */
   readonly reviewLabel?: string;
-  /** Máy không đo được tỷ lệ tầng: `reviewLabel` là "Sai tỷ lệ", vẽ màu lỗi (UX-R1 K12). */
+  /** Máy không đo được tỷ lệ tầng: `reviewLabel` là "Chưa có tỷ lệ" (`SCALE_STATE_VIEWS.missing`), vẽ màu lỗi. */
   readonly isScaleMissing?: boolean;
 }
 

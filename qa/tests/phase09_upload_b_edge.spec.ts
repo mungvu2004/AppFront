@@ -29,7 +29,7 @@ const READ_ONLY = 'Vai hiện tại chỉ được xem danh sách tệp, không 
 const DROPZONE = 'floor-upload-dropzone';
 const CANCEL_RUN = 'Huỷ xử lý';
 const NO_RUN = 'Chưa có lượt xử lý nào để kể lại';
-const APPLY_SCALE = 'Áp dụng tỷ lệ';
+const APPLY_SCALE = 'Xác nhận tỷ lệ';
 const NEED_EDIT = 'Chỉ người có quyền sửa mới xác nhận được.';
 const TECH = 'Chi tiết kỹ thuật';
 const CONTINUE = /^(?:Xử lý dù ảnh mờ|Bắt đầu xử lý)$/u; // S-09
@@ -214,7 +214,7 @@ test('SCR-12 · SCR-13 · SCR-14 · SCR-15 · SCR-16 · FL-9U-06 · engineer · 
       await ev(page, '9U-D-054', 'engineer_next_steps');
     });
 
-    await test.step('[9U-D-060] engineer: "Áp dụng tỷ lệ" shown; PUT spatial/layer 200 on own project', async () => {
+    await test.step('[9U-D-060] engineer: "Xác nhận tỷ lệ" shown; PUT spatial/layer 200 on own project', async () => {
       await page.goto(ROUTES.project.scale(pe.projectId, peFloor));
       await expect.soft(btn(page, APPLY_SCALE)).toBeVisible({ timeout: 20_000 });
       unknown('9U-D-060 baseVersion 0 for a fresh floor assumed');
@@ -226,10 +226,10 @@ test('SCR-12 · SCR-13 · SCR-14 · SCR-15 · SCR-16 · FL-9U-06 · engineer · 
       await ev(page, '9U-D-060', 'engineer_scale');
     });
 
-    await test.step('[9U-D-069] engineer: confirm not locked by role', async () => {
+    await test.step('[9U-D-069] engineer: no confirm button, no role lock line', async () => {
       await page.goto(ROUTES.project.overlay(pe.projectId, peFloor));
       await expect(page.getByRole('region', { name: OVERLAY_REGION })).toBeVisible({ timeout: 30_000 });
-      await expect.soft(btn(page, CONFIRM_MODEL)).toBeVisible();
+      await expect.soft(btn(page, CONFIRM_MODEL)).toHaveCount(0); // UX-R2 K19: no overlay confirm for any role
       await expect.soft(page.getByText(NEED_EDIT, { exact: true })).toHaveCount(0);
       await ev(page, '9U-D-069', 'engineer_overlay');
     });
@@ -296,16 +296,16 @@ test('SCR-09..16 · FL-9U-07 · admin · admin doi chung duong 1 dong/man', asyn
       await ev(page, '9U-D-055', 'admin_next_steps');
     });
 
-    await test.step('[9U-D-061] admin: "Áp dụng tỷ lệ" shown', async () => {
+    await test.step('[9U-D-061] admin: "Xác nhận tỷ lệ" shown', async () => {
       await page.goto(ROUTES.project.scale(main.projectId, main.workFloorId));
       await expect.soft(btn(page, APPLY_SCALE)).toBeVisible({ timeout: 20_000 });
       await ev(page, '9U-D-061', 'admin_scale');
     });
 
-    await test.step('[9U-D-070] admin: confirm not locked by role', async () => {
+    await test.step('[9U-D-070] admin: no confirm button, no role lock line', async () => {
       await page.goto(ROUTES.project.overlay(main.projectId, main.workFloorId));
       await expect(page.getByRole('region', { name: OVERLAY_REGION })).toBeVisible({ timeout: 30_000 });
-      await expect.soft(btn(page, CONFIRM_MODEL)).toBeVisible();
+      await expect.soft(btn(page, CONFIRM_MODEL)).toHaveCount(0); // UX-R2 K19: no overlay confirm for any role
       await expect.soft(page.getByText(NEED_EDIT, { exact: true })).toHaveCount(0);
       await ev(page, '9U-D-070', 'admin_overlay');
     });

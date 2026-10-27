@@ -6,11 +6,17 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Millimetres, SpatialGraph } from '@/domain/spatial/types';
 import { useStore } from '@/store';
 
-import { SCALE_ALL_MISSING_TITLE, SCALE_HIDDEN_NOTE, ScaleBanner, ScaleEmptyNotice } from '../scaleBanner';
+import {
+
+  SCALE_ALL_MISSING_TITLE,
+  SCALE_HIDDEN_PREFIX,
+  SCALE_PROVISIONAL_PREFIX,
+  ScaleBanner,
+  ScaleEmptyNotice,
+} from '../scaleBanner';
+import { floorNamesOf } from '../floorNames';
 import { scaleStatusOf } from '../useScaleStatus';
 
-const PROVISIONAL_TEXT = 'chưa hiệu chỉnh tỷ lệ';
-const MISSING_TEXT = 'không đo được tỷ lệ, kích thước 3D sai';
 
 /** Thu mọi tường về 1/1000 — nhà còn chưa tới 3 m, dấu hiệu tỷ lệ sai. */
 const shrunk = (graph: SpatialGraph): SpatialGraph => ({
@@ -52,7 +58,7 @@ const mount = (graph: SpatialGraph, readScale: (floorId: string) => Promise<Read
 
 afterEach(() => {
   /* eslint-disable-next-line local/no-direct-set -- đưa kho về rỗng giữa các bài */
-  useStore.setState({ spatial: null });
+  useStore.setState({ spatial: null, floorMeta: {} });
 });
 
 describe('scaleStatusOf — cùng luật với QC (Codex P1)', () => {
@@ -73,6 +79,16 @@ describe('scaleStatusOf — cùng luật với QC (Codex P1)', () => {
     expect(status).toMatchObject({ status: 'unresolved', floorId: sampleLevelId(1), missingIds: [sampleLevelId(1)], provisional: [] });
   });
 
+  it('UX-R2 K39: tầng kho đã biết là tỷ lệ tạm thì không đọc lại N16', async () => {
+    const read = vi.fn(async (): Promise<ReadResult> => ({}));
+    /* eslint-disable-next-line local/no-direct-set -- giả lập kho đã có tỷ lệ từ N16 */
+    useStore.setState({ floorMeta: { [sampleLevelId(1)]: { revision: 1, scaleStatus: 'unresolved', scaleSource: 'project_default' } } });
+    const status = await statusOf(createSampleBuilding(), read);
+    expect(status).toMatchObject({ status: 'unresolved', missingIds: [sampleLevelId(1)] });
+    expect(read).toHaveBeenCalledTimes(3);
+    expect(read).not.toHaveBeenCalledWith(sampleLevelId(1));
+  });
+
   it('tỷ lệ máy đo, hình hợp lý: chỉ nhắc, không giấu', async () => {
     const status = await statusOf(createSampleBuilding(), async (floorId) => (floorId === sampleLevelId(1) ? MEASURED : {}));
     expect(status).toMatchObject({ status: 'unresolved', missingIds: [], provisional: ['Level 1'] });
@@ -84,24 +100,24 @@ describe('ScaleBanner', () => {
     const readScale = vi.fn(async () => MEASURED);
     mount(createSampleBuilding(), readScale);
     const banner = await screen.findByRole('status');
-    expect(banner.textContent).toContain(`4 tầng ${PROVISIONAL_TEXT}`);
-    expect(banner.textContent).toContain('Level 0, Level 1, Level 2, Level 3');
+    expect(banner.textContent).toContain(`${SCALE_PROVISIONAL_PREFIX}Level 0, Level 1, Level 2, Level 3`);
+    expect(banner.textContent).not.toContain(SCALE_HIDDEN_PREFIX);
     expect(screen.getByRole('link', { name: 'Đặt tỷ lệ' }).getAttribute('href')).toBe(
       `/projects/p1/floors/${sampleLevelId(0)}/scale`,
     );
     expect(readScale).toHaveBeenCalledWith(sampleLevelId(0));
   });
 
-  it('nêu tên tầng không đo được tỷ lệ trước, lối sửa dẫn tới tầng đó (UX-R1 K44)', async () => {
+  it('UX-R2 K36: dòng đỏ chỉ nêu tầng không dựng + Đặt tỷ lệ, dòng vàng nêu tầng có thể lệch', async () => {
     mount(createSampleBuilding(), async (floorId) => {
       if (floorId === sampleLevelId(2)) return { scaleStatus: 'unresolved', scaleSource: 'project_default' };
       return floorId === sampleLevelId(1) ? MEASURED : {};
     });
     const banner = await screen.findByRole('status');
-    // textContent còn chữ của liên kết "Đặt tỷ lệ" phía sau câu.
-    expect(banner.textContent).toContain(
-      `1 tầng ${MISSING_TEXT}: Level 2. 1 tầng ${PROVISIONAL_TEXT}, kích thước 3D có thể sai: Level 1.`,
-    );
+    const [red, yellow] = Array.from(banner.querySelectorAll('p'));
+    expect(red?.textContent).toBe(`${SCALE_HIDDEN_PREFIX}Level 2Đặt tỷ lệ`);
+    expect(yellow?.textContent).toBe(`${SCALE_PROVISIONAL_PREFIX}Level 1`);
+    expect(screen.getAllByRole('link', { name: 'Đặt tỷ lệ' })).toHaveLength(1);
     expect(screen.getByRole('link', { name: 'Đặt tỷ lệ' }).getAttribute('href')).toBe(
       `/projects/p1/floors/${sampleLevelId(2)}/scale`,
     );
@@ -117,7 +133,7 @@ describe('ScaleBanner', () => {
 
   it('tỷ lệ máy đo ra nhà < 3 m → báo sai hẳn', async () => {
     mount(shrunk(createSampleBuilding()), async () => MEASURED);
-    expect((await screen.findByRole('status')).textContent).toContain(MISSING_TEXT);
+    expect((await screen.findByRole('status')).textContent).toContain(SCALE_HIDDEN_PREFIX);
   });
 
   it('đọc lỗi → không hiện, chỉ log', async () => {
@@ -150,8 +166,8 @@ describe('ScaleBanner', () => {
       return {};
     });
     const text = (await screen.findByRole('status')).textContent;
-    expect(text).toContain(`1 tầng ${PROVISIONAL_TEXT}`);
-    expect(text).not.toContain(MISSING_TEXT);
+    expect(text).toContain(`${SCALE_PROVISIONAL_PREFIX}Level 1`);
+    expect(text).not.toContain(SCALE_HIDDEN_PREFIX);
     warn.mockRestore();
   });
 
@@ -160,7 +176,7 @@ describe('ScaleBanner', () => {
       floorId === sampleLevelId(2) ? { scaleStatus: 'unresolved', scaleSource: 'project_default' } : {},
     );
     mount(createSampleBuilding(), readScale);
-    expect((await screen.findByRole('status')).textContent).toContain(SCALE_HIDDEN_NOTE);
+    expect((await screen.findByRole('status')).textContent).toContain(`${SCALE_HIDDEN_PREFIX}Level 2`);
     expect(screen.queryByRole('heading', { name: SCALE_ALL_MISSING_TITLE })).toBeNull();
     expect(readScale).toHaveBeenCalledTimes(4);
   });
@@ -168,9 +184,16 @@ describe('ScaleBanner', () => {
   it('Codex P1 — mọi tầng không đo được tỷ lệ: thẻ giữa màn nói cảnh trống vì sao + lối Đặt tỷ lệ', async () => {
     mount(createSampleBuilding(), async () => ({ scaleStatus: 'unresolved', scaleSource: 'project_default' }));
     expect(await screen.findByRole('heading', { name: SCALE_ALL_MISSING_TITLE })).toBeTruthy();
-    expect(screen.getByRole('status').textContent).not.toContain(SCALE_HIDDEN_NOTE);
+    expect(screen.getByRole('status').textContent).toContain(`${SCALE_HIDDEN_PREFIX}Level 0, Level 1, Level 2, Level 3`);
     const links = screen.getAllByRole('link', { name: 'Đặt tỷ lệ' });
     expect(links).toHaveLength(2);
     expect(links.every((link) => link.getAttribute('href') === `/projects/p1/floors/${sampleLevelId(0)}/scale`)).toBe(true);
+  });
+});
+
+describe('floorNamesOf', () => {
+  it('giữ một hàng: quá 6 tên thì đếm phần còn lại', () => {
+    expect(floorNamesOf(['ch-01', 'ch-02'])).toBe('ch-01, ch-02');
+    expect(floorNamesOf(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'])).toBe('a, b, c, d, e, f và 2 tầng khác');
   });
 });

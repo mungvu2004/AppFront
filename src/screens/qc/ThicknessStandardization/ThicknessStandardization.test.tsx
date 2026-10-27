@@ -676,15 +676,16 @@ describe('dải lưu lớp (F-04x-1)', () => {
 describe('dải tỷ lệ tạm (F-04x-2)', () => {
   const NOTICE = provisionalScaleNoticeOf('unresolved')?.message ?? '';
 
-  it('tầng unresolved: dải chú ý + "Đặt tỷ lệ" gọi onNavigate', async () => {
-    const onNavigate = vi.fn();
+  /* UX-R2 K22: tỷ lệ "cần kiểm" (vàng) không còn dải lặp lại — chấm vàng trên thanh bước nói việc đó. */
+  it('tầng unresolved (tỷ lệ cần kiểm): không còn dải vàng', async () => {
     renderWithProviders(
-      <ThicknessStandardizationContainer {...scenarioArgsFor('partial')} {...ProvisionalScale.args} onNavigate={onNavigate} />,
+      <ThicknessStandardizationContainer {...scenarioArgsFor('partial')} {...ProvisionalScale.args} onNavigate={vi.fn()} />,
     );
 
-    expect(await screen.findByText(NOTICE)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Đặt tỷ lệ' }));
-    expect(onNavigate).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(screen.getAllByRole('row').length).toBeGreaterThan(1);
+    });
+    expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
   });
 
   it('tầng có tỉ lệ thật: không dải', async () => {

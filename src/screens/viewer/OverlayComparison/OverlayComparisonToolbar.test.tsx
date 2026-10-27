@@ -49,14 +49,14 @@ function toolbarPropsOf(
     activeFloorId: scenario.activeFloorId,
     compareMode: scenario.compareMode,
     disabledCompareModes: scenario.disabledCompareModes,
-    scanOpacityPercent: scenario.scanOpacityPercent,
-    scanOpacityText: scenario.scanOpacityText,
+    modelOpacityPercent: scenario.modelOpacityPercent,
+    modelOpacityText: scenario.modelOpacityText,
     isAlignmentLocked: scenario.isAlignmentLocked,
     isStacked: state === 'collapsed',
     canEdit: state !== 'forbidden',
     onSelectFloor: vi.fn(),
     onSetCompareMode: vi.fn(),
-    onSetScanOpacity: vi.fn(),
+    onSetModelOpacity: vi.fn(),
     onToggleAlignmentLock: vi.fn(),
     ...overrides,
   };
@@ -79,7 +79,7 @@ function compareModeButton(label: string): HTMLElement {
  * thuộc tính nó không hứa — sửa `src/components/ui` là việc R-68 cấm ở đây.
  */
 function scanOpacitySlider(): HTMLElement {
-  return screen.getByRole('slider', { name: 'Độ mờ ảnh nguồn' });
+  return screen.getByRole('slider', { name: 'Độ đậm lớp mô hình' });
 }
 
 describe('OverlayComparisonToolbar', () => {
@@ -158,7 +158,7 @@ describe('OverlayComparisonToolbar', () => {
     expectVietnamese(container);
   });
 
-  it('hiện đúng scanOpacityText của bộ mẫu, và Slider mang aria-label tiếng Việt', () => {
+  it('hiện đúng modelOpacityText của bộ mẫu, và Slider mang aria-label tiếng Việt', () => {
     const scenario = OVERLAY_COMPARISON_SCENARIOS.success;
     const { container } = renderWithProviders(
       <OverlayComparisonToolbar {...toolbarPropsOf('success')} />,
@@ -166,10 +166,10 @@ describe('OverlayComparisonToolbar', () => {
 
     /* Chuỗi phần trăm ĐÃ được hook ghép sẵn (A15) — view chỉ in lại. Đọc thẳng
        từ kịch bản để test không thể tự chốt một cách định dạng khác. */
-    expect(screen.getByText(scenario.scanOpacityText)).toBeInTheDocument();
+    expect(screen.getByText(scenario.modelOpacityText)).toBeInTheDocument();
 
     const slider = scanOpacitySlider();
-    expect(slider).toHaveAttribute('aria-valuenow', String(scenario.scanOpacityPercent));
+    expect(slider).toHaveAttribute('aria-valuenow', String(scenario.modelOpacityPercent));
     /* Còn với `canEdit === true` thì nút kéo phải NẰM TRÊN đường đi bàn phím —
        vế đối của phép kiểm ở bài trên, để "tắt" và "bật" không cùng xanh. */
     expect(slider).toHaveAttribute('tabindex', '0');

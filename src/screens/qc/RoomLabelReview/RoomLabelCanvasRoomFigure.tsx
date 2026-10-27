@@ -26,16 +26,15 @@ import {
   ROOM_LABEL_LINE_OFFSET_PX,
   ROOM_LABEL_NAME_FONT_PX,
   ROOM_LABEL_TEXT_TOKEN,
-  ROOM_SELECTED_SCALE,
   ROOM_SELECTED_STROKE_TOKEN,
   ROOM_SELECTED_STROKE_WIDTH_PX,
   ROOM_STROKE_TOKEN,
   ROOM_STROKE_WIDTH_PX,
-  centreOfBounds,
   computeRoomBoundsPx,
   cssVar,
   pointToPx,
   roomOutlinePx,
+  shortRoomName,
   svgPointsAttr,
 } from './roomLabelCanvasGeometry';
 import type { RoomLabelViewModel } from './roomLabelTypes';
@@ -53,7 +52,8 @@ export interface RoomLabelCanvasRoomFigureProps {
  * Độ phủ nền phòng theo công năng. `DIMMED_OPACITY` (0,12) của `applyEmphasis` làm
  * phòng gần như biến mất trên bản vẽ (đánh giá A3: "không vẽ vùng phòng cho tới khi
  * chọn"), nên canvas Phòng dùng nấc riêng: thấy vùng ngay khi mở, nhãn vẫn ≥ 4,5:1.
- * Z/S-20: phòng tô rất nhạt (0,12) để bản vẽ gốc đọc được; phòng đang chọn 0,2, cộng viền nhấn 2px và phóng 10%.
+ * Z/S-20: phòng tô rất nhạt (0,12) để bản vẽ gốc đọc được; phòng đang chọn 0,2 cộng viền nhấn 2px.
+ * K15: không phóng hình khi chọn — đường bao phải nằm đúng chỗ người dùng đang kiểm.
  */
 const ROOM_FILL_OPACITY = 0.12;
 const ROOM_SELECTED_FILL_OPACITY = 0.2;
@@ -74,7 +74,7 @@ function isInsidePolygon(point: { readonly x: number; readonly y: number }, poly
   return inside;
 }
 
-/** Tên cắt còn chừng này ký tự (kể cả "…") thì không đọc được — hiện mã phòng thay vào. */
+/** Tên cắt còn chừng này ký tự (kể cả "…") thì không đọc được — hiện tên ngắn hoặc mã phòng thay vào. */
 const MIN_NAME_GLYPHS = 4;
 
 /**
@@ -152,13 +152,22 @@ function RoomLabelText({
     transitionTimingFunction: MOTION_EASINGS.enter.css,
   };
 
-  /* BUG-623: tên dài cắt bằng dấu "…" theo bề rộng phòng đang vẽ, tên đầy đủ ở `<title>`. */
+  /*
+   * BUG-623 + K16: thử tên đủ rồi tên ngắn ("phòng tắm 1" → "WC 1"); tên dài cắt bằng "…" theo bề
+   * rộng phòng đang vẽ. Cắt còn vài chữ ("p…") là vô nghĩa: xuống cỡ nhỏ, rồi mới tới mã phòng.
+   * Chữ hiện khác tên đủ thì tên đủ nằm ở `<title>`.
+   */
   const nameText = room.hasName ? room.name : ROOM_LABEL_CANVAS_COPY.unnamedPlaceholder;
-  const fittedName = fitText(nameText, ROOM_LABEL_NAME_FONT_PX, maxWidthPx);
-  /* Cắt còn vài chữ ("p…", "ph…") là vô nghĩa: phòng vẽ quá nhỏ thì hiện mã phòng, tên ở `<title>`. */
-  const isNameStub = fittedName !== nameText && fittedName.length <= MIN_NAME_GLYPHS;
+  const candidates = room.hasName ? [nameText, shortRoomName(nameText)] : [nameText];
+  const fitsAt = (fontPx: number) => candidates.find((text) => fitText(text, fontPx, maxWidthPx) === text);
+  const lastCandidate = candidates[candidates.length - 1] ?? nameText;
+  const truncated = fitText(lastCandidate, ROOM_LABEL_NAME_FONT_PX, maxWidthPx);
+  const isStub = truncated === '' || truncated.length <= MIN_NAME_GLYPHS;
+  const largeText = room.labelFits ? (fitsAt(ROOM_LABEL_NAME_FONT_PX) ?? (isStub ? undefined : truncated)) : undefined;
+  const titleOf = (shown: string) => (shown === nameText ? null : <title>{nameText}</title>);
 
-  if (!room.labelFits || fittedName === '' || isNameStub) {
+  if (largeText === undefined) {
+    const smallText = fitsAt(ROOM_LABEL_CODE_FONT_PX) ?? room.codeLabel;
     return (
       <text
         className="motion-reduce:transition-none"
@@ -170,8 +179,8 @@ function RoomLabelText({
         x={anchor.x}
         y={anchor.y}
       >
-        {isNameStub ? <title>{nameText}</title> : null}
-        {room.codeLabel}
+        {titleOf(smallText)}
+        {smallText}
       </text>
     );
   }
@@ -190,8 +199,8 @@ function RoomLabelText({
       x={anchor.x}
       y={anchor.y}
     >
-      {fittedName === nameText ? null : <title>{nameText}</title>}
-      {fittedName}
+      {titleOf(largeText)}
+      {largeText}
     </text>
   );
 }
@@ -206,37 +215,26 @@ export function RoomLabelCanvasRoomFigure({
   const outline = roomOutlinePx(room, millimetresPerPixel);
   const points = svgPointsAttr(outline);
   const bounds = computeRoomBoundsPx(room, millimetresPerPixel);
-  const centre = centreOfBounds(bounds);
   const anchor = labelAnchorFor(pointToPx(room.labelAnchorMm, millimetresPerPixel), bounds, outline, hasBackground);
 
-  /*
-   * "Nâng lên 10%": phòng đang chọn phóng to quanh tâm hộp bao của CHÍNH NÓ,
-   * chạy trong 180 ms (R-71) — cùng nhịp với "đa giác to dần" của đặc tả.
-   * Gốc phóng to đặt bằng toạ độ px tường minh (`transformOrigin`) thay vì
-   * `transform-box: fill-box`, để không phụ thuộc một tính năng CSS mới của
-   * trình duyệt cho một phép biến hình vốn chỉ cần cộng/trừ đơn giản.
-   */
-  const groupStyle = {
-    transform: isSelected ? `scale(${ROOM_SELECTED_SCALE})` : 'scale(1)',
-    transformOrigin: `${centre.x}px ${centre.y}px`,
+  /* K15: chọn chỉ đổi nền và viền, không phóng hình; đổi màu trong 180 ms (R-71). */
+  const polygonStyle = {
     transitionDuration: cssDurationMs('fast', { reducedMotion }),
-    transitionProperty: 'transform',
+    transitionProperty: 'fill-opacity, stroke, stroke-width',
     transitionTimingFunction: MOTION_EASINGS.enter.css,
   };
 
-
   return (
     <g aria-hidden="true" className="pointer-events-none motion-reduce:transition-none" role="presentation">
-      <g style={groupStyle}>
-        <polygon
-          fill={cssVar(room.fillToken)}
-          fillOpacity={isSelected ? ROOM_SELECTED_FILL_OPACITY : ROOM_FILL_OPACITY}
-          points={points}
-          stroke={isSelected ? cssVar(ROOM_SELECTED_STROKE_TOKEN) : cssVar(ROOM_STROKE_TOKEN)}
-          strokeWidth={isSelected ? ROOM_SELECTED_STROKE_WIDTH_PX : ROOM_STROKE_WIDTH_PX}
-          vectorEffect="non-scaling-stroke"
-        />
-      </g>
+      <polygon
+        fill={cssVar(room.fillToken)}
+        fillOpacity={isSelected ? ROOM_SELECTED_FILL_OPACITY : ROOM_FILL_OPACITY}
+        points={points}
+        stroke={isSelected ? cssVar(ROOM_SELECTED_STROKE_TOKEN) : cssVar(ROOM_STROKE_TOKEN)}
+        strokeWidth={isSelected ? ROOM_SELECTED_STROKE_WIDTH_PX : ROOM_STROKE_WIDTH_PX}
+        style={polygonStyle}
+        vectorEffect="non-scaling-stroke"
+      />
 
       <RoomLabelText anchor={anchor} maxWidthPx={bounds.width} room={room} />
     </g>

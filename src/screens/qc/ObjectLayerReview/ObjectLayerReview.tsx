@@ -74,10 +74,6 @@ const SCREEN_ARIA_LABEL = 'Lớp đối tượng';
 const CANVAS_REGION_LABEL = 'Mặt bằng lớp đối tượng';
 const EMPTY_TITLE = 'Chưa nhận ra đối tượng nào';
 const EMPTY_ACTION = 'Thêm thủ công';
-const ADD_ACTIONS = [
-  { kind: 'door', label: 'Thêm cửa đi' },
-  { kind: 'window', label: 'Thêm cửa sổ' },
-] as const;
 const OPEN_WALL_LAYER_ACTION = 'Sang duyệt tường';
 const LOW_CONFIDENCE_FILTER = 'Chỉ hiện chỗ máy chưa chắc';
 const LOW_CONFIDENCE_DONE = 'Đã duyệt hết chỗ máy chưa chắc.';
@@ -206,36 +202,6 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
 }
 
 /**
- * Thêm cửa trên 2D bất cứ lúc nào (cửa thứ hai trở đi). Ray trái chỉ CHỌN NHÓM, không thêm,
- * nên hai nút này ở lại — nhưng ở chân panel, ngoài vùng cuộn: cuối danh sách 39 dòng chúng
- * nằm ở y≈2766, không ai thấy (K02/K20).
- */
-function ObjectLayerAddActions({ model }: { readonly model: ObjectLayerReviewModel }) {
-  if (isReadOnly(model) || model.state === 'loading' || model.emptyNotice !== null || model.errorMessage !== null) {
-    return null;
-  }
-
-  return (
-    <div className="flex shrink-0 gap-2 border-t border-border-default px-3 py-2">
-      {ADD_ACTIONS.map(({ kind, label }) => (
-        <button
-          className={cn(
-            'rounded-full border border-border-default px-2.5 py-1 text-[12px] text-text-secondary',
-            'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
-            'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-          )}
-          key={kind}
-          onClick={() => model.onAddManually(kind)}
-          type="button"
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/**
  * Canvas đã cắm props.
  *
  * Bốn callback sửa VẮNG MẶT ở vai Người xem thay vì mang `undefined`: hợp đồng
@@ -251,6 +217,8 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
         onAttachToNearestWall: model.onAttachToNearestWall,
         onChangeSubtype: model.onChangeSubtype,
         onDelete: model.onDelete,
+        drawLayer: model.drawLayer,
+        onPlaceAt: model.onPlaceAt,
       };
 
   return (
@@ -269,6 +237,7 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
       onFrameResize={model.onFrameResize}
       onHover={model.onHover}
       onSelect={model.onSelect}
+      onToggleLayer={model.onToggleLayer}
       placements={model.placements}
       selectedObjectId={model.selectedObjectId}
       surfaceRectPx={model.surfaceRectPx}
@@ -293,6 +262,8 @@ function ObjectLayerLeftColumn({ model }: { readonly model: ObjectLayerReviewMod
             counts={model.counts}
             furnitureAttentionNotice={model.furnitureAttentionNotice}
             layerVisibility={model.layerVisibility}
+            listLayerFilter={model.listLayerFilter}
+            onFilterLayer={model.onFilterLayer}
             onToggleLayer={model.onToggleLayer}
             onToggleSubtypeFilter={model.onToggleSubtypeFilter}
             reviewCounter={model.reviewCounter}
@@ -305,7 +276,6 @@ function ObjectLayerLeftColumn({ model }: { readonly model: ObjectLayerReviewMod
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         <ObjectLayerListRegion model={model} />
       </div>
-      <ObjectLayerAddActions model={model} />
     </div>
   );
 }
@@ -350,6 +320,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
               isViewerRole={isReadOnly(model)}
               onApprove={model.onApprove}
               onAttachToNearestWall={model.onAttachToNearestWall}
+              onChangeFurnitureKind={model.onChangeFurnitureKind}
               onChangeSubtype={model.onChangeSubtype}
               onChangeSwing={model.onChangeSwing}
               onDelete={model.onDelete}
@@ -365,8 +336,9 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           <ObjectLayerToolRail
             activeLayer={model.activeLayer}
             activeSubtype={model.activeSubtype}
+            drawLayer={model.drawLayer}
             isViewerRole={isReadOnly(model)}
-            onSelectLayer={model.onSelectLayer}
+            onStartDraw={model.onStartDraw}
             onSelectSubtypeSlot={model.onSelectSubtypeSlot}
           />
         }

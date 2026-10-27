@@ -331,8 +331,8 @@ test('SCR-14 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + doi chieu', 
       await captureEvidence(page, 'E09_9U-D-057_canvas_readonly.png');
     });
 
-    await test.step('[9U-D-058] viewer, SCR-14: no "Áp dụng tỷ lệ", method block not clickable', async () => {
-      await expect.soft(button('Áp dụng tỷ lệ')).toHaveCount(0); // USC:212,1919
+    await test.step('[9U-D-058] viewer, SCR-14: no "Xác nhận tỷ lệ", method block not clickable', async () => {
+      await expect.soft(button('Xác nhận tỷ lệ')).toHaveCount(0); // USC:212,1919
       // ScaleCalibrationPanel.tsx:147 radiogroup; SCP:165-168 section[aria-disabled] carries pointer-events-none (BUG-601)
       const radios = page.getByRole('radiogroup', { name: 'Chọn cách xác định tỷ lệ' }).getByRole('radio');
       await expect(radios.first()).toBeVisible();
@@ -348,9 +348,9 @@ test('SCR-14 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + doi chieu', 
       await captureEvidence(page, 'E09_9U-D-063_overlay_notice.png');
     });
 
-    await test.step('[9U-D-064] viewer, SCR-15: confirm button disabled with reason', async () => {
-      await expect.soft(button(CONFIRM)).toBeDisabled(); // UOC:112,122,1008
-      await expect.soft(page.getByText(OVERLAY_REASON, { exact: true })).toBeVisible();
+    await test.step('[9U-D-064] viewer, SCR-15: no confirm button and no reason line (UX-R2 K19)', async () => {
+      await expect.soft(button(CONFIRM)).toHaveCount(0); // UX-R2 K19: no overlay confirm button
+      await expect.soft(page.getByText(OVERLAY_REASON, { exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E09_9U-D-064_confirm_disabled.png');
     });
 

@@ -36,7 +36,6 @@ import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { createShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
-import { PROVISIONAL_MEASURE_TEXT } from '@/lib/viewmodel/provisionalScale';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import { ROUTES } from '@/routes/paths';
 import { resetSelectorCaches } from '@/store/selectors';
@@ -56,6 +55,7 @@ import {
   canonicalRoomName,
   createMockRoomLabelReviewGateway,
   hasRoomName,
+  provisionalMeasureText,
   roomCodeLabel,
   roomsSpillingOutside,
   ROOM_LABEL_TEXT,
@@ -857,27 +857,30 @@ describe('chip lọc "Chưa đặt tên"', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('tỷ lệ tạm (F-04x-2)', () => {
-  it('tầng unresolved: dải mở màn tỉ lệ; diện tích, chu vi, tổng là PROVISIONAL_MEASURE_TEXT', async () => {
-    const onNavigate = vi.fn();
+  const PROVISIONAL_TEXT = /^≈ [\d.,]+ m²? \(tạm\)$/u;
+
+  it('[K16] một quy tắc: vàng "≈ … (tạm)", đỏ "Chưa có", tỷ lệ thật giữ nguyên số', () => {
+    expect(provisionalMeasureText('12,40 m²', 'unresolved', 'pipeline')).toBe('≈ 12,40 m² (tạm)');
+    expect(provisionalMeasureText('12,40 m²', 'unresolved')).toBe('≈ 12,40 m² (tạm)');
+    expect(provisionalMeasureText('12,40 m²', 'unresolved', 'project_default')).toBe('Chưa có');
+    expect(provisionalMeasureText('12,40 m²', undefined)).toBe('12,40 m²');
+  });
+
+  /* UX-R2 K22/K04: tỷ lệ "cần kiểm" (vàng) không còn dải ở màn; số đo vẫn "≈ … (tạm)". */
+  it('tầng unresolved do máy đo: không dải vàng; diện tích, chu vi, tổng hiện "≈ … (tạm)" (K16)', async () => {
     const mounted = await mountSettled({
       gateway: createMockRoomLabelReviewGateway({ graph: graphOf(ROOM_LABEL_FIXTURE_ROOMS, []), scaleStatus: 'unresolved' }),
-      onNavigate,
     });
 
     await waitFor(() => {
-      expect(mounted.result.current.provisionalScaleNotice).not.toBeNull();
+      expect(mounted.result.current.summary.totalAreaText).toMatch(PROVISIONAL_TEXT);
     });
 
-    const { rooms, summary, provisionalScaleNotice } = mounted.result.current;
+    const { rooms, provisionalScaleNotice } = mounted.result.current;
     expect(rooms.length).toBeGreaterThan(0);
-    expect(rooms.every((row) => row.areaText === PROVISIONAL_MEASURE_TEXT)).toBe(true);
-    expect(rooms.every((row) => row.perimeterText === PROVISIONAL_MEASURE_TEXT)).toBe(true);
-    expect(summary.totalAreaText).toBe(PROVISIONAL_MEASURE_TEXT);
-
-    act(() => {
-      provisionalScaleNotice?.onCalibrate?.();
-    });
-    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(PROJECT_ID, FLOOR_ID));
+    expect(rooms.every((row) => PROVISIONAL_TEXT.test(row.areaText))).toBe(true);
+    expect(rooms.every((row) => PROVISIONAL_TEXT.test(row.perimeterText))).toBe(true);
+    expect(provisionalScaleNotice).toBeNull();
     mounted.unmount();
   });
 
@@ -886,8 +889,8 @@ describe('tỷ lệ tạm (F-04x-2)', () => {
     const { rooms, summary, provisionalScaleNotice } = mounted.result.current;
 
     expect(provisionalScaleNotice).toBeNull();
-    expect(rooms.some((row) => row.areaText === PROVISIONAL_MEASURE_TEXT)).toBe(false);
-    expect(summary.totalAreaText).not.toBe(PROVISIONAL_MEASURE_TEXT);
+    expect(rooms.some((row) => PROVISIONAL_TEXT.test(row.areaText))).toBe(false);
+    expect(summary.totalAreaText).not.toMatch(PROVISIONAL_TEXT);
     mounted.unmount();
   });
 });

@@ -82,6 +82,10 @@ export interface AxisGridManagerViewProps
   readonly projectFloorCount?: number | undefined;
   /** Bước Mô hình 3D — nút chính của cổng khi đủ ba điều kiện. Vắng (story) thì cổng không có nút này. */
   readonly modelStepHref?: string | undefined;
+  /** K14: dự án là các căn hộ riêng — không có lệch giữa các tầng để kiểm. */
+  readonly separateUnits?: boolean | undefined;
+  /** K13: tầng đang mở; chip trạng thái chỉ nói về tầng này, không về tầng khác của dự án. */
+  readonly currentLevelId?: string | undefined;
 }
 
 /** Tên vùng giữ nguyên (e2e/qa neo theo nó); H1 thấy được là động từ (vòng 6). */
@@ -104,8 +108,8 @@ const STATUS_TEXT = {
   empty: 'Chưa có trục',
   missingHorizontal: 'Thiếu trục ngang',
   missingVertical: 'Thiếu trục dọc',
-  /* K14: lệch là việc của cả dự án, có thể là tầng khác tầng đang xem — ghi rõ phạm vi. */
-  lagging: (floor: string): string => `Dự án: ${floor} lệch quá ngưỡng`,
+  /* K13: chip chỉ nói về tầng đang mở; tầng khác lệch thì xem ở "Lệch giữa các tầng". */
+  lagging: 'Tầng này lệch quá ngưỡng',
   axisCount: (count: number): string => `${count} trục`,
   originAt: (anchor: string): string => `gốc tại ${anchor}`,
   noOrigin: 'chưa đặt được gốc',
@@ -128,7 +132,18 @@ function cardKindOf(props: AxisGridManagerViewProps, gate: AxisGridGate): AxisGr
 }
 
 /** Chip + câu có số: đọc từ view-model và cổng, cùng một nguồn với FlowGate. */
-function AxisGridStatus({ viewModel, gate }: { readonly viewModel: AxisGridManagerViewProps['viewModel']; readonly gate: AxisGridGate }) {
+function AxisGridStatus({
+  viewModel,
+  gate,
+  currentLevelId,
+}: {
+  readonly viewModel: AxisGridManagerViewProps['viewModel'];
+  readonly gate: AxisGridGate;
+  readonly currentLevelId: string | undefined;
+}) {
+  /* Codex P2: đọc đúng dòng của tầng đang mở — `gate.laggingFloor` chỉ là MỘT tầng lệch, có thể là tầng khác. */
+  const currentStatus = viewModel.floors.find((floor) => floor.levelId === currentLevelId)?.status;
+  const isCurrentLagging = currentStatus !== undefined && currentStatus !== 'ok';
   const axisCount = viewModel.groups.reduce((sum, group) => sum + group.rows.length, 0);
   const anchor = viewModel.origin.anchorOptions.find((option) => option.value === viewModel.origin.selectedAnchor)?.label;
   const summary = `${STATUS_TEXT.axisCount(axisCount)}, ${anchor === undefined ? STATUS_TEXT.noOrigin : STATUS_TEXT.originAt(anchor)}`;
@@ -141,8 +156,8 @@ function AxisGridStatus({ viewModel, gate }: { readonly viewModel: AxisGridManag
           ? (['attention', STATUS_TEXT.empty] as const)
           : gate.missingDirection !== null
             ? (['attention', gate.missingDirection === 'horizontal' ? STATUS_TEXT.missingHorizontal : STATUS_TEXT.missingVertical] as const)
-            : gate.laggingFloor !== null
-              ? (['attention', STATUS_TEXT.lagging(gate.laggingFloor.name)] as const)
+            : isCurrentLagging
+              ? (['attention', STATUS_TEXT.lagging] as const)
               : (['neutral', summary] as const);
   const line =
     viewModel.state === 'loading' || viewModel.hasNoAxes || viewModel.errorMessage !== null
@@ -229,7 +244,9 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
     );
   }
 
-  const gate = axisGridGateOf(viewModel);
+  /* K14: căn hộ riêng thì không có tầng nào để căn theo — cổng bỏ điều kiện lệch tầng. */
+  const gateViewModel = props.separateUnits === true ? { ...viewModel, floors: [], warningBanner: null } : viewModel;
+  const gate = axisGridGateOf(gateViewModel);
   const cardKind = cardKindOf(props, gate);
   /* Một nút chính mỗi màn: thẻ trên bản vẽ (việc thiếu) > cổng đủ (sang 3D) > "Căn tự động". */
   const isAutoAlignPrimary =
@@ -237,7 +254,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
 
   const left = (
     <section aria-label={PANEL_ARIA_LABEL} className={PANEL_CLASS}>
-      <QcPanelHead status={<AxisGridStatus gate={gate} viewModel={viewModel} />} title={PANEL_TITLE} />
+      <QcPanelHead status={<AxisGridStatus currentLevelId={props.currentLevelId} gate={gate} viewModel={gateViewModel} />} title={PANEL_TITLE} />
       {isCollapsed ? (
         <div className="p-4">
           <Button onClick={props.onToggleCollapsed} size="sm" type="button" variant="secondary">

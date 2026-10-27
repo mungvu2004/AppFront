@@ -61,6 +61,45 @@ describe('RoomLabelCanvasRoomFigure — nhãn tên', () => {
     expect(container.textContent).not.toContain('16,00 m²');
   });
 
+  it('[K16] tên đủ không vừa thì ghi tên ngắn ("WC 1"), không ghi mã phòng', () => {
+    /* 80 mm/px ⇒ phòng rộng 50 px: "phòng tắm 1" không vừa cả cỡ nhỏ, "WC 1" vừa. */
+    const { container } = render(
+      <svg>
+        <RoomLabelCanvasRoomFigure
+          isSelected={false}
+          millimetresPerPixel={80}
+          reducedMotion
+          room={{ ...ROOM, name: 'phòng tắm 1', labelFits: false }}
+        />
+      </svg>,
+    );
+
+    const text = container.querySelector('text');
+
+    expect(text?.textContent).toContain('WC 1');
+    expect(text?.textContent).not.toContain('#R-001');
+    expect(text?.querySelector('title')?.textContent).toBe('phòng tắm 1');
+  });
+
+  it('[K15] chọn phòng không phóng hình: đường bao giữ đúng toạ độ', () => {
+    const pointsOf = (isSelected: boolean) => {
+      const { container, unmount } = render(
+        <svg>
+          <RoomLabelCanvasRoomFigure isSelected={isSelected} millimetresPerPixel={20} reducedMotion room={ROOM} />
+        </svg>,
+      );
+      const polygon = container.querySelector('polygon');
+      const result = { points: polygon?.getAttribute('points'), transform: polygon?.closest('g')?.getAttribute('style') ?? '' };
+      unmount();
+      return result;
+    };
+
+    const selected = pointsOf(true);
+
+    expect(selected.points).toBe(pointsOf(false).points);
+    expect(selected.transform).not.toContain('scale');
+  });
+
   it('phòng vẽ quá nhỏ: không cắt tên thành "p…", hiện mã phòng, tên ở <title>', () => {
     /* 100 mm/px ⇒ phòng rộng 40 px — chỉ đủ ~4 ký tự cỡ 15 px. */
     const { container } = render(

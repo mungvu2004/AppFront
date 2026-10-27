@@ -164,7 +164,8 @@ export function ScanInkFilter({ id }: { readonly id: string }) {
           values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -0.33 -0.33 -0.33 0 1"
         />
         <feComponentTransfer in="darkness" result="ink">
-          <feFuncA tableValues="0 0 1 1" type="discrete" />
+          {/* UX-R2 K18: giữ nét tối hơn 25% — ngưỡng 50% cắt nét mảnh khử răng cưa thành vạch đứt. */}
+          <feFuncA tableValues="0 1 1 1" type="discrete" />
         </feComponentTransfer>
         <feFlood floodColor="currentColor" result="tint" />
         <feComposite in="tint" in2="ink" operator="in" />

@@ -114,7 +114,7 @@ test('vai Người xem theo phiên thật thấy bản vẽ nhưng không áp đ
 
   await expect(page.getByText('Bạn không có quyền hiệu chỉnh tỷ lệ', { exact: true })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Bản vẽ đã nắn của Tầng 2' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Áp dụng tỷ lệ' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Xác nhận tỷ lệ' })).toHaveCount(0);
 });
 
 // B-V5-01: route nạp tầng qua N16 khi kho rỗng (`useScaleCalibration.ts`, `layerQuery`).
@@ -126,7 +126,7 @@ test('B-V5-01: vào thẳng route, áp tỷ lệ xong thì màn nói "Đã áp t
   await drag(page, canvas);
   await page.getByLabel('Chiều dài thật').fill('4800');
 
-  await page.getByRole('button', { name: 'Áp dụng tỷ lệ' }).click();
+  await page.getByRole('button', { name: 'Xác nhận tỷ lệ' }).click();
 
   await expect(page.getByText('Đã áp tỷ lệ cho bản vẽ', { exact: true })).toBeVisible();
   await expect(page.getByText('Chưa nạp dữ liệu không gian của tầng này', { exact: false })).toHaveCount(0);

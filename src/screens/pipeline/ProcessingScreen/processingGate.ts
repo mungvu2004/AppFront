@@ -8,6 +8,8 @@
  * lệ", không mời sang Duyệt tầng.
  */
 
+import { SCALE_STATE_VIEWS } from '@/lib/viewmodel/provisionalScale';
+
 import type { ProcessingReviewReason, ProcessingScreenProps } from './types';
 
 export type ProcessingGateKind = 'running' | 'needs-scale' | 'needs-review' | 'ready' | 'error';
@@ -129,8 +131,9 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
     return {
       ...base,
       kind: 'needs-scale',
-      chipLabel: 'Xong · tỷ lệ chưa kiểm',
-      chipVariant: 'attention',
+      // Tên + màu trạng thái tỷ lệ dùng chung mọi màn (`SCALE_STATE_VIEWS`).
+      chipLabel: `Xong · ${SCALE_STATE_VIEWS.missing.name.toLowerCase()}`,
+      chipVariant: SCALE_STATE_VIEWS.missing.statusCode,
       title: 'Còn 1 việc: đặt tỷ lệ',
       scaleValue: 'Chưa có',
       scaleNote: noDimension ? NO_DIMENSION_NOTE : NO_METRIC_NOTE,
@@ -166,7 +169,7 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
       chipLabel: 'Xong · cần xem lại',
       chipVariant: 'attention',
       title: reasons.length === 1 ? 'Còn 1 việc cần xem lại' : `Còn ${String(reasons.length)} việc cần xem lại`,
-      scaleValue: isScaleUnresolved ? 'Tạm, chưa kiểm' : 'Suy từ chuỗi kích thước',
+      scaleValue: isScaleUnresolved ? 'Cần kiểm' : 'Suy từ chuỗi kích thước',
       isScaleOk: !isScaleUnresolved,
       reviewRows: reasons.map((reason): ProcessingGateReviewRow => ({
         reason,
