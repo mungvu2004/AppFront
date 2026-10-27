@@ -12,6 +12,10 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
  * Cách gắn: `<div ref={pan.ref} {...pan.handlers}>` bao vùng vẽ; lớp nội dung nhận
  * `style={{ transform: pan.transform }}` (đặt TRƯỚC `scale()` của màn). `pan.reset()`
  * khi bấm "Vừa khung nhìn".
+ *
+ * Độ dời gom theo `requestAnimationFrame` (P6): mỗi `pointermove` chỉ cộng vào ref, tối đa một
+ * `setOffset` mỗi khung — trước đây mỗi sự kiện dựng lại cả canvas (~8 ms/lần). Thả chuột thì
+ * ghi nốt phần còn treo. Không ghi thẳng DOM: `WallLayerCanvas` đọc `offset` ngay trong lúc kéo.
  */
 export interface CanvasPanState {
   ref: (el: HTMLElement | null) => void;
@@ -55,6 +59,27 @@ export function useCanvasPan(onWheelZoom?: (direction: 1 | -1) => void): CanvasP
   const [el, setEl] = useState<HTMLElement | null>(null);
   const wheelRef = useRef(onWheelZoom);
   wheelRef.current = onWheelZoom;
+  const pendingDelta = useRef({ x: 0, y: 0 });
+  const frame = useRef<number | null>(null);
+
+  /** Đẩy phần dời đang gom vào state (một lượt dựng lại) và huỷ khung đang chờ. */
+  const commitDelta = useCallback(() => {
+    if (frame.current !== null) {
+      cancelAnimationFrame(frame.current);
+      frame.current = null;
+    }
+    const { x: dx, y: dy } = pendingDelta.current;
+    if (dx === 0 && dy === 0) return;
+    pendingDelta.current = { x: 0, y: 0 };
+    setOffset((o) => ({ x: o.x + dx, y: o.y + dy }));
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (frame.current !== null) cancelAnimationFrame(frame.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     const isTyping = (t: EventTarget | null) =>
@@ -95,9 +120,10 @@ export function useCanvasPan(onWheelZoom?: (direction: 1 | -1) => void): CanvasP
   const end = useCallback((e: ReactPointerEvent<HTMLElement>) => {
     if (!last.current) return;
     last.current = null;
+    commitDelta();
     setIsPanning(false);
     if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-  }, []);
+  }, [commitDelta]);
 
   return {
     ref: setEl,
@@ -105,7 +131,12 @@ export function useCanvasPan(onWheelZoom?: (direction: 1 | -1) => void): CanvasP
     transform: `translate(${offset.x}px, ${offset.y}px)`,
     isPanning,
     spaceHeld,
-    reset: useCallback(() => setOffset({ x: 0, y: 0 }), []),
+    reset: useCallback(() => {
+      if (frame.current !== null) cancelAnimationFrame(frame.current);
+      frame.current = null;
+      pendingDelta.current = { x: 0, y: 0 };
+      setOffset({ x: 0, y: 0 });
+    }, []),
     handlers: {
       onPointerDown: (e) => {
         if (!shouldStartPan(e.button, spaceHeld, e.target, e.currentTarget)) return;
@@ -120,7 +151,12 @@ export function useCanvasPan(onWheelZoom?: (direction: 1 | -1) => void): CanvasP
         const dx = e.clientX - p.x;
         const dy = e.clientY - p.y;
         last.current = { x: e.clientX, y: e.clientY };
-        setOffset((o) => ({ x: o.x + dx, y: o.y + dy }));
+        const acc = pendingDelta.current;
+        pendingDelta.current = { x: acc.x + dx, y: acc.y + dy };
+        frame.current ??= requestAnimationFrame(() => {
+          frame.current = null;
+          commitDelta();
+        });
       },
       onPointerUp: end,
       onPointerCancel: end,

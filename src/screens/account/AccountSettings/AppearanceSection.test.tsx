@@ -29,7 +29,7 @@ import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { renderWithProviders } from '@/lib/testing/render';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { FEATURE_FLAG_KEYS } from '@/lib/telemetry/flags';
-import { useStore } from '@/store';
+import { flushPersistedState, useStore } from '@/store';
 
 import { AppearanceSection, type AppearanceSectionProps } from './AppearanceSection';
 import {
@@ -506,6 +506,7 @@ describe('D-07 — mỗi lượt sửa đi qua port.stage, và chỉ qua đó', 
     // `app-theme-mode` là của `useTheme`, `appfront-view-ui` là của lớp persist
     // quanh `uiSlice`. Cả hai có mặt trước khi màn này tồn tại. Cái màn này KHÔNG
     // được làm là mở một khoá thứ ba mà `SaveIndicator` không nhìn thấy.
+    flushPersistedState(); // lớp persist gom lượt ghi (P7)
     expect(Object.keys(window.localStorage).sort()).toEqual([
       'app-theme-mode',
       'appfront-view-ui',
@@ -576,6 +577,7 @@ describe('R5 — chủ đề ba nhánh trên một store hai nhánh', () => {
     }
 
     // Năm lượt đổi, đúng hai khoá lưu trữ — không lượt nào mở thêm khoá nào.
+    flushPersistedState(); // lớp persist gom lượt ghi (P7)
     expect(Object.keys(window.localStorage).sort()).toEqual([
       'app-theme-mode',
       'appfront-view-ui',
