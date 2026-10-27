@@ -157,6 +157,23 @@ export default defineConfig({
       // này — 36/36 xanh, 0,9 s so với 36 s dưới jsdom.
       ['src/lib/pascal/**', 'node'],
 
+      // PERF-01 gate5 (2026-10-27): 21 tệp thêm sau A12 vẫn rơi về jsdom. Đã
+      // chạy `pnpm exec vitest run <21 tệp> --environment node --maxWorkers=1`
+      // trước khi thêm — 21/21 tệp, 88/88 bài xanh. Sáu tệp cùng lượt thử mà đỏ
+      // (adminMlClient, adminMlJobsClient, appClient, createAutosave,
+      // present/catalogue, upload/chunk) ở lại jsdom.
+      ['src/i18n/vi.titles.test.ts', 'node'],
+      ['src/lib/landing/house/__tests__/{levelPlanSvg,site}.test.ts', 'node'],
+      ['src/lib/landing/stage/__tests__/roof.test.ts', 'node'],
+      ['src/pascal-page/__tests__/urlIntent.test.ts', 'node'],
+      ['src/pascal-page/realism/__tests__/{daylight,glass,lighting,readOnlyMeasure,sun}.test.ts', 'node'],
+      [
+        'src/pascal-page/realism/{details,idle,itemLook,reflectRules,snapshot,traa}.test.ts',
+        'node',
+      ],
+      ['src/pascal-page/upstream/lib/{pascal-vi,select-exits-measure,top-view-pose}.test.ts', 'node'],
+      ['src/styles/__tests__/{tokenOpacity,typeScale}.test.ts', 'node'],
+
       /**
        * PERF-01/FE-1 — 116 tệp đo ở TEST-SPEED-ISSUES A12 (`do-cu/node-ok-files.txt`,
        * đo 2026-10-09 trên `origin/master` cũ). Kiểm lại trên nhánh này 2026-10-10
