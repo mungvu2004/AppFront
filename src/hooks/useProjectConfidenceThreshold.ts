@@ -4,8 +4,6 @@ import type { ProjectSettingsApi } from '@/api/client';
 import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 import { queryKeys } from '@/lib/query/queryKeys';
 
-import { readProjectSettingsShared } from './useProjectUnits';
-
 /**
  * Ngưỡng tin cậy của dự án (N5, Cài đặt › Đơn vị đo) cho các màn đánh dấu "độ tin cậy thấp" —
  * cùng nguồn với câu đếm của màn Xử lý (FIX-1603), thay hằng toàn cục 0,70 (BUG-354).
@@ -20,10 +18,9 @@ export type ReadConfidenceThreshold = (input: ReadConfidenceThresholdInput) => P
 /** Bản thật cho cổng của màn: cài đặt đọc hỏng → `null` (màn rơi về ngưỡng mặc định). */
 export async function readProjectConfidenceThreshold(
   settings: ProjectSettingsApi,
-  { projectId }: ReadConfidenceThresholdInput,
+  { projectId, signal }: ReadConfidenceThresholdInput,
 ): Promise<number | null> {
-  // Chung lượt với `useProjectUnits` (P11a); bỏ `signal` vì lượt ấy có thể đang phục vụ người khác.
-  const result = await readProjectSettingsShared({ projectSettings: settings }, projectId);
+  const result = await settings.read({ projectId, ...(signal === undefined ? {} : { signal }) });
 
   return result.ok ? result.data.confidenceThreshold : null;
 }
