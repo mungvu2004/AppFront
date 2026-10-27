@@ -20,6 +20,7 @@
     "draco": "node scripts/copy-draco.mjs",
     "cycles": "node scripts/check-import-cycles.mjs",
     "verify": "node scripts/verify.mjs",
+    "verify:fast": "node scripts/verify-fast.mjs",
     "e2e": "node scripts/run-playwright.mjs --reporter=line",
     "e2e:visual": "node scripts/run-playwright.mjs --update-snapshots --reporter=line",
     "e2e:fullstack": "playwright test -c e2e/fullstack/playwright.config.ts",
