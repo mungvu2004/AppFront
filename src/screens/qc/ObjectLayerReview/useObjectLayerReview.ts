@@ -184,6 +184,8 @@ import { useScaleLock } from '../shared/useScaleLock';
 import { arrowStepHandler } from '../WallLayerReview/listArrowKeys';
 
 import { layerGateOf } from './layerGate';
+import { isL23Layout } from '../shared/qcLayout';
+import { objectReasonRank } from './objectReviewReasons';
 
 /** Hàng đợi duyệt (Z/S-16): chưa duyệt trước, trong đó tin cậy thấp lên đầu. */
 const byReviewQueue = (
@@ -1751,6 +1753,8 @@ export function useObjectLayerReview(
     [confidenceThreshold, listLayerFilter, lowConfidenceOnly, objects, subtypeFilters],
   );
 
+  /* Bố cục L23: hàng đợi xếp theo lý do máy nghi (chưa chắc loại → chưa gắn tường → còn lại). */
+  const byReason = isL23Layout();
   /* Nhãn tường chủ tính trên mã tường của cả tầng, cùng nguồn với màn tường. */
   const wallCodes = useMemo(
     () => displayCodesOf(solidWalls.map((wall) => wall.id)),
@@ -1761,17 +1765,22 @@ export function useObjectLayerReview(
     () =>
       visibleObjects
         .map((object) => toObjectRow(object, wallCodes, confidenceThreshold))
-        .sort((a, b) => byReviewQueue({ reviewed: a.isReviewed, confidence: a.confidence }, { reviewed: b.isReviewed, confidence: b.confidence })),
-    [confidenceThreshold, visibleObjects, wallCodes],
+        .sort(
+          (a, b) =>
+            (byReason ? objectReasonRank(a) - objectReasonRank(b) : 0) ||
+            byReviewQueue({ reviewed: a.isReviewed, confidence: a.confidence }, { reviewed: b.isReviewed, confidence: b.confidence }),
+        ),
+    [byReason, confidenceThreshold, visibleObjects, wallCodes],
   );
 
   /* Nút "Duyệt tiếp" của cổng: đọc MỌI đối tượng, không chỉ dòng đang lọc — bộ lọc không làm nút chết. */
   const nextPending = useMemo(() => {
-    const queue = objects.filter((object) => !object.reviewed).sort(byReviewQueue);
+    const rankOf = (object: (typeof objects)[number]) => (byReason ? objectReasonRank(toObjectRow(object, wallCodes, confidenceThreshold)) : 0);
+    const queue = objects.filter((object) => !object.reviewed).sort((a, b) => rankOf(a) - rankOf(b) || byReviewQueue(a, b));
     const next = queue.find((object) => object.id !== selectedObjectId) ?? queue[0];
 
     return next === undefined ? null : { id: next.id, codeLabel: toObjectRow(next, wallCodes, confidenceThreshold).codeLabel };
-  }, [confidenceThreshold, objects, selectedObjectId, wallCodes]);
+  }, [byReason, confidenceThreshold, objects, selectedObjectId, wallCodes]);
   const layerGate = useMemo(() => layerGateOf(graph, level?.id ?? null), [graph, level]);
   /* Phím J = "đối tượng chưa duyệt kế" như màn tường (Tab bị cấm, A12): cùng việc nút "Duyệt tiếp" của cổng. */
   const nextPendingId = nextPending?.id ?? null;
