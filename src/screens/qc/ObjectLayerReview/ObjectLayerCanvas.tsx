@@ -30,6 +30,8 @@ import type { ContextMenuGroup } from '@/hooks/useContextMenu';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 
+import { QcAskAnchor } from '../shared/QcAskCard';
+import { useQcAskSlot } from '../shared/qcAsk';
 import { QC_BACKGROUND_OPACITY } from '../shared/qcBackground';
 
 import {
@@ -123,6 +125,7 @@ export function ObjectLayerCanvas({
   }, [onFrameResize]);
 
   const halo = useSelectionHalo();
+  const ask = useQcAskSlot();
   const menu = useContextMenu();
   const { select: haloSelect, hover: haloHover, deselect: haloDeselect } = halo;
   const { openMenu } = menu;
@@ -330,6 +333,8 @@ export function ObjectLayerCanvas({
             />
           )}
         </svg>
+
+        <QcAskAnchor rect={selectedObjectId === null ? null : haloRectPx}>{ask}</QcAskAnchor>
 
         {haloRectPx === null ? null : (
           <>

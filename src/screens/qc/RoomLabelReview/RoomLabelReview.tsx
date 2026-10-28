@@ -65,6 +65,8 @@ import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScre
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcStatusBar, QcWorkspace } from '../shared/QcScreenFrame';
+import { QcAskCard } from '../shared/QcAskCard';
+import { QcAskSlot, askNavOf } from '../shared/qcAsk';
 import { QcStepColumn } from '../shared/QcStepColumn';
 import { isL23Layout } from '../shared/qcLayout';
 
@@ -93,6 +95,8 @@ export type RoomLabelReviewViewProps = RoomLabelReviewProps & {
 
 const SCREEN_TITLE = 'Duyệt phòng';
 const L23_TASK = 'Đặt tên cho từng phòng máy tìm thấy. Tên đúng thì giữ, sai thì sửa.';
+const askEyebrow = (position: number | null, total: number): string =>
+  position !== null ? `Phòng ${position} trong ${total} cần xem` : total > 0 ? `Đã duyệt · còn ${total} cần xem` : 'Đã duyệt hết';
 const CANVAS_SECTION_LABEL = 'Khung xem bản vẽ duyệt phòng';
 const EMPTY_TITLE = 'Chưa dò ra phòng nào';
 const EMPTY_ACTION_LABEL = 'Kiểm tra lại vòng hở';
@@ -295,6 +299,41 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
 
   const nav = props.floorNav;
   const l23 = isL23Layout() && nav != null;
+  const inspectorView = (
+    <RoomLabelInspector
+      extras={{
+        nameSuggestions,
+        usageOptions,
+        areaCaption,
+        mergeCandidates,
+        onNavigateToWalls,
+        splitPointMm,
+        viewerRoleNotice,
+        scaleLock,
+      }}
+      inspector={{
+        room: selectedRoom,
+        isViewerRole,
+        onRename,
+        onChangeUsage,
+        onMerge,
+        onSplit,
+        onApprove,
+      }}
+    />
+  );
+  const askNav = askNavOf(rooms.map((room) => ({ id: room.id, pending: room.status !== 'confirmed' })), selectedRoomId);
+  const selectedRoomRow = rooms.find((room) => room.id === selectedRoomId);
+  const ask =
+    l23 && !isCollapsed && selectedRoomRow !== undefined ? (
+      <QcAskCard
+        eyebrow={askEyebrow(askNav.position, askNav.total)}
+        onNext={askNav.nextId === null ? undefined : () => onSelect(askNav.nextId!)}
+        onPrev={askNav.prevId === null ? undefined : () => onSelect(askNav.prevId!)}
+      >
+        {inspectorView}
+      </QcAskCard>
+    ) : null;
   const gate = (inline: boolean) =>
     nav == null || props.state === 'loading' ? null : (
         <FloorReviewGate
@@ -324,6 +363,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
       )}
 
       {/* Khe chung (A3): panel trái | bản vẽ | chi tiết; 1024-1279 chi tiết phủ mép phải bản vẽ. */}
+      <QcAskSlot value={ask}>
       <QcWorkspace
         canvas={
           <RoomLabelCanvas
@@ -349,27 +389,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
               </button>
             </div>
           ) : (
-            <RoomLabelInspector
-              extras={{
-                nameSuggestions,
-                usageOptions,
-                areaCaption,
-                mergeCandidates,
-                onNavigateToWalls,
-                splitPointMm,
-                viewerRoleNotice,
-                scaleLock,
-              }}
-              inspector={{
-                room: selectedRoom,
-                isViewerRole,
-                onRename,
-                onChangeUsage,
-                onMerge,
-                onSplit,
-                onApprove,
-              }}
-            />
+            l23 ? null : inspectorView
           )
         }
         column={l23}
@@ -384,6 +404,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         }
         selectionKey={selectedRoomId}
       />
+      </QcAskSlot>
 
       <QcStatusBar onUndo={isViewerRole ? undefined : props.onUndo} saveLabel={false} />
 

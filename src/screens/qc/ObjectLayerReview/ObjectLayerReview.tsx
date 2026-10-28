@@ -44,6 +44,8 @@ import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScre
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
+import { QcAskCard } from '../shared/QcAskCard';
+import { QcAskSlot, askNavOf } from '../shared/qcAsk';
 import { QcDisplayPopover } from '../shared/QcDisplayPopover';
 import { QcStepColumn } from '../shared/QcStepColumn';
 import { isL23Layout } from '../shared/qcLayout';
@@ -78,6 +80,8 @@ export type ObjectLayerReviewViewProps = ObjectLayerReviewModel & {
 const SCREEN_ARIA_LABEL = 'Lớp đối tượng';
 const L23_TASK = 'Duyệt cửa và nội thất máy tìm thấy. Đúng thì duyệt, sai thì sửa.';
 const L23_LAYER_GROUP = 'Lớp của bước';
+const askEyebrow = (position: number | null, total: number): string =>
+  position !== null ? `Mục ${position} trong ${total} cần xem` : total > 0 ? `Đã duyệt · còn ${total} cần xem` : 'Đã duyệt hết';
 const CANVAS_REGION_LABEL = 'Mặt bằng lớp đối tượng';
 const EMPTY_TITLE = 'Chưa nhận ra đối tượng nào';
 const EMPTY_ACTION = 'Thêm thủ công';
@@ -303,6 +307,37 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
   const isCollapsed = model.isCollapsed;
   const nav = model.floorNav;
   const l23 = isL23Layout() && nav != null;
+  const inspectorView = (
+    <ObjectLayerInspector
+        inspector={model.inspector}
+        isViewerRole={isReadOnly(model)}
+        onApprove={model.onApprove}
+        onAttachToNearestWall={model.onAttachToNearestWall}
+        onChangeFurnitureKind={model.onChangeFurnitureKind}
+        onChangeSubtype={model.onChangeSubtype}
+        onChangeSwing={model.onChangeSwing}
+        onDelete={model.onDelete}
+        onDragPosition={model.onDragPosition}
+        onSelectHostWall={model.onSelectHostWall}
+        scaleLock={model.scaleLock ?? null}
+        focusKindToken={model.focusKindToken}
+        onResize={model.onResize}
+        onRotate={model.onRotate}
+      />
+  );
+  const selectedId = model.inspector?.id ?? null;
+  const askNav = askNavOf(model.rows.map((row) => ({ id: row.id, pending: !row.isReviewed })), selectedId);
+  const selectedRow = model.rows.find((row) => row.id === selectedId);
+  const ask =
+    l23 && !isCollapsed && selectedRow !== undefined ? (
+      <QcAskCard
+        eyebrow={askEyebrow(askNav.position, askNav.total)}
+        onNext={askNav.nextId === null ? undefined : () => model.onSelect(askNav.nextId!)}
+        onPrev={askNav.prevId === null ? undefined : () => model.onSelect(askNav.prevId!)}
+      >
+        {inspectorView}
+      </QcAskCard>
+    ) : null;
 
   if (model.readFailure != null) {
     return (
@@ -330,6 +365,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
         </div>
       )}
       {/* Khe chung (A3): rail | panel trái | bản vẽ | chi tiết; 1024-1279 chi tiết phủ mép phải bản vẽ. */}
+      <QcAskSlot value={ask}>
       <QcWorkspace
         column={l23}
         chromeTopRight={
@@ -351,26 +387,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
         }
         canvas={<ObjectLayerCanvasRegion l23={l23} model={model} />}
         canvasLabel={CANVAS_REGION_LABEL}
-        inspector={
-          isCollapsed ? null : (
-            <ObjectLayerInspector
-              inspector={model.inspector}
-              isViewerRole={isReadOnly(model)}
-              onApprove={model.onApprove}
-              onAttachToNearestWall={model.onAttachToNearestWall}
-              onChangeFurnitureKind={model.onChangeFurnitureKind}
-              onChangeSubtype={model.onChangeSubtype}
-              onChangeSwing={model.onChangeSwing}
-              onDelete={model.onDelete}
-              onDragPosition={model.onDragPosition}
-              onSelectHostWall={model.onSelectHostWall}
-              scaleLock={model.scaleLock ?? null}
-              focusKindToken={model.focusKindToken}
-              onResize={model.onResize}
-              onRotate={model.onRotate}
-            />
-          )
-        }
+        inspector={isCollapsed || l23 ? null : inspectorView}
         left={
           isCollapsed ? null : l23 && nav != null ? (
             <QcStepColumn
@@ -398,6 +415,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           />
         }
       />
+      </QcAskSlot>
 
       <ObjectLayerStatusBar
         emptyNotice={model.emptyNotice}
