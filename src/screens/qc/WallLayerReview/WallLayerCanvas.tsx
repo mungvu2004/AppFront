@@ -34,6 +34,8 @@ import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { cn } from '@/lib/utils';
 
+import { QcAskAnchor } from '../shared/QcAskCard';
+import { useQcAskSlot } from '../shared/qcAsk';
 import { WallDraftGuide, WallDrawingBackground, WallLayerLegend, WallLayerMiniMap } from './WallLayerCanvasParts';
 import { drawingPointOf, wallMenuGroups } from './wallLayerCanvasActions';
 import { WallHatchDefs, WallShapeFigure } from './WallLayerShapeFigure';
@@ -109,6 +111,7 @@ export function WallLayerCanvas({
   viewport,
   zoomPercent,
 }: WallLayerCanvasViewProps) {
+  const ask = useQcAskSlot();
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   const halo = useSelectionHalo();
@@ -375,6 +378,8 @@ export function WallLayerCanvas({
                   y={haloRectPx.y}
                 />
               )}
+
+              <QcAskAnchor rect={selectedWallId === null ? null : haloRectPx}>{ask}</QcAskAnchor>
 
               {measurement === null ? null : (
                 <MeasurementLabel

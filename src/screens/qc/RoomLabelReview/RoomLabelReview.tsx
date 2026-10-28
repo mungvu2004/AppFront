@@ -65,6 +65,8 @@ import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScre
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcStatusBar, QcWorkspace } from '../shared/QcScreenFrame';
+import { QcQueueAskCard } from '../shared/QcAskCard';
+import { QcAskSlot } from '../shared/qcAsk';
 import { QcStepColumn } from '../shared/QcStepColumn';
 import { isL23Layout } from '../shared/qcLayout';
 
@@ -295,6 +297,40 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
 
   const nav = props.floorNav;
   const l23 = isL23Layout() && nav != null;
+  const inspectorView = (
+    <RoomLabelInspector
+      extras={{
+        nameSuggestions,
+        usageOptions,
+        areaCaption,
+        mergeCandidates,
+        onNavigateToWalls,
+        splitPointMm,
+        viewerRoleNotice,
+        scaleLock,
+      }}
+      inspector={{
+        room: selectedRoom,
+        isViewerRole,
+        onRename,
+        onChangeUsage,
+        onMerge,
+        onSplit,
+        onApprove,
+      }}
+    />
+  );
+  const ask =
+    l23 && !isCollapsed && selectedRoomId !== null ? (
+      <QcQueueAskCard
+        items={rooms.map((room) => ({ id: room.id, pending: room.status !== 'confirmed' }))}
+        onSelect={onSelect}
+        selectedId={selectedRoomId}
+        unit="Phòng"
+      >
+        {inspectorView}
+      </QcQueueAskCard>
+    ) : null;
   const gate = (inline: boolean) =>
     nav == null || props.state === 'loading' ? null : (
         <FloorReviewGate
@@ -324,6 +360,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
       )}
 
       {/* Khe chung (A3): panel trái | bản vẽ | chi tiết; 1024-1279 chi tiết phủ mép phải bản vẽ. */}
+      <QcAskSlot value={ask}>
       <QcWorkspace
         canvas={
           <RoomLabelCanvas
@@ -349,27 +386,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
               </button>
             </div>
           ) : (
-            <RoomLabelInspector
-              extras={{
-                nameSuggestions,
-                usageOptions,
-                areaCaption,
-                mergeCandidates,
-                onNavigateToWalls,
-                splitPointMm,
-                viewerRoleNotice,
-                scaleLock,
-              }}
-              inspector={{
-                room: selectedRoom,
-                isViewerRole,
-                onRename,
-                onChangeUsage,
-                onMerge,
-                onSplit,
-                onApprove,
-              }}
-            />
+            l23 ? null : inspectorView
           )
         }
         column={l23}
@@ -384,6 +401,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         }
         selectionKey={selectedRoomId}
       />
+      </QcAskSlot>
 
       <QcStatusBar onUndo={isViewerRole ? undefined : props.onUndo} saveLabel={false} />
 

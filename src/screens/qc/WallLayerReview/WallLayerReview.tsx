@@ -58,6 +58,8 @@ import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
+import { QcQueueAskCard } from '../shared/QcAskCard';
+import { QcAskSlot } from '../shared/qcAsk';
 import { QcDisplayPopover } from '../shared/QcDisplayPopover';
 import { QcStepColumn } from '../shared/QcStepColumn';
 import { isL23Layout } from '../shared/qcLayout';
@@ -138,6 +140,17 @@ export function WallLayerReview({
   const isCollapsed = toolRail.isCollapsed;
   /* Bố cục L23 cần biết dự án và tầng (cây bước, cổng); story không có thanh tầng thì giữ bố cục cũ. */
   const l23 = isL23Layout() && floorNav != null;
+  const ask =
+    l23 && !isCollapsed && panel.selectedWallId !== null ? (
+      <QcQueueAskCard
+        items={panel.rows.map((row) => ({ id: row.id, pending: !row.isReviewed }))}
+        onSelect={panel.onSelect}
+        selectedId={panel.selectedWallId}
+        unit="Đoạn"
+      >
+        <WallLayerInspector panel={panel} queue={queue} />
+      </QcQueueAskCard>
+    ) : null;
   const left = isCollapsed ? null : (
     <WallLayerLeftPanel
       embedded={l23}
@@ -179,6 +192,7 @@ export function WallLayerReview({
         </div>
       )}
       {/* Khe chung (A3): rail | panel trái | bản vẽ | chi tiết; 1024-1279 chi tiết phủ mép phải bản vẽ. */}
+      <QcAskSlot value={ask}>
       <QcWorkspace
         column={l23}
         chromeTopRight={
@@ -198,7 +212,7 @@ export function WallLayerReview({
         }
         canvas={canvasSlot ?? <CanvasFallback canvas={canvas} />}
         canvasLabel={canvas.backgroundImageAlt || CANVAS_REGION_FALLBACK_ALT}
-        inspector={isCollapsed ? null : <WallLayerInspector panel={panel} queue={queue} />}
+        inspector={isCollapsed || l23 ? null : <WallLayerInspector panel={panel} queue={queue} />}
         left={
           l23 && left !== null && floorNav != null ? (
             <QcStepColumn
@@ -218,6 +232,7 @@ export function WallLayerReview({
         rail={<WallLayerToolRail {...toolRail} readOnly={panel.isViewerRole || panel.scaleLock != null} />}
         selectionKey={panel.selectedWallId}
       />
+      </QcAskSlot>
 
       <WallLayerStatusBar {...statusBar} onUndo={panel.isViewerRole ? undefined : panel.onUndo} readOnly={panel.isViewerRole} />
     </QcScreenFrame>

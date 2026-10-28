@@ -52,6 +52,8 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { MOTION_EASINGS, cssDurationMs } from '@/lib/motion';
 
+import { QcAskAnchor } from '../shared/QcAskCard';
+import { useQcAskSlot } from '../shared/qcAsk';
 import { RoomLabelCanvasRoomFigure } from './RoomLabelCanvasRoomFigure';
 import {
   BACKGROUND_IMAGE_OPACITY,
@@ -99,6 +101,7 @@ export function RoomLabelCanvas({
     [setPanEl],
   );
   const halo = useSelectionHalo();
+  const ask = useQcAskSlot();
   const reducedMotion = useReducedMotion();
   const { select: haloSelect, hover: haloHover, deselect: haloDeselect } = halo;
 
@@ -247,6 +250,8 @@ export function RoomLabelCanvas({
               />
             ))}
           </svg>
+
+          <QcAskAnchor rect={selectedRoomId === null ? null : activeBounds}>{ask}</QcAskAnchor>
 
           {activeBounds === null ? null : (
             <SelectionHalo
