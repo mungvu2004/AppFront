@@ -42,6 +42,8 @@ export interface QcFloorNavProps {
   readonly progress?: string | null | undefined;
   /** Màn đã có H1 thấy được (QcPanelHead): bỏ H1 ẩn ở đây để trang chỉ có một H1. */
   readonly titled?: boolean;
+  /** Bố cục L23: bước chỉ mang trạng thái (✓ / ổ khoá / chấm), số nằm ở cột việc. */
+  readonly minimal?: boolean;
 }
 
 const FLOOR_FALLBACK = 'Tầng';
@@ -162,7 +164,7 @@ function FloorMenuItem({ projectId, floor, layer, isCurrent }: FloorMenuItemProp
   );
 }
 
-export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, titled = false }: QcFloorNavProps) {
+export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, titled = false, minimal = false }: QcFloorNavProps) {
   const current = QC_LAYERS.find((item) => item.key === layer) ?? QC_LAYERS[0]!;
   const floorLabel = floors.find((floor) => floor.id === floorId)?.label ?? FLOOR_FALLBACK;
   const screenTitle = qcLayerTitle(layer);
@@ -223,7 +225,7 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
               {isLocked(item.key) ? null : <StatusDot tone={scaleView?.statusCode ?? (isDone ? 'verified' : 'neutral')} />}
               <span className={isScale && scale !== null ? SCALE_TEXT_CLASS[scale] : undefined}>{label}</span>
               {isDone && <span className="sr-only">: đã xong</span>}
-              {state !== undefined && !isDone && (
+              {state !== undefined && !isDone && !minimal && (
                 <>
                   <span aria-hidden="true" className="tabular-nums text-text-muted">{`${state.reviewed}/${state.total}`}</span>
                   <span className="sr-only">{`: đã duyệt ${state.reviewed} trên ${state.total}`}</span>
@@ -244,7 +246,7 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
         )}
       </nav>
       {/* Tiến độ của lớp (Impeccable A3), cuối cùng hàng 32 px — không thêm hàng (V-16). */}
-      {progress == null ? null : (
+      {progress == null || minimal ? null : (
         <p className="shrink-0 whitespace-nowrap text-[12px] tabular-nums text-text-secondary" data-testid="qc-progress">
           {progress}
         </p>

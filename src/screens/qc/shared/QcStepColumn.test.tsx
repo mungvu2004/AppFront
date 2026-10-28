@@ -1,0 +1,88 @@
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type * as GateModel from './floorReviewGateModel';
+import { QcDisplayPopover } from './QcDisplayPopover';
+import { QcStepColumn } from './QcStepColumn';
+
+const review = vi.hoisted(() => ({
+  scale: 'check' as GateModel.FloorScaleState | null,
+  counts: null as GateModel.FloorReviewCounts | null,
+}));
+vi.mock('./useFloorReview', () => ({
+  useFloorReview: () => ({ graph: review.counts === null ? null : {}, storeSpatial: null, scale: review.scale }),
+}));
+vi.mock('./floorReviewGateModel', async (importOriginal) => {
+  const actual = await importOriginal<typeof GateModel>();
+  return { ...actual, floorReviewCountsOf: () => review.counts! };
+});
+
+function renderColumn() {
+  render(
+    <MemoryRouter>
+      <QcStepColumn activeStep="walls" floorId="f1" gate={<button type="button">Tiếp: Cửa và nội thất</button>} projectId="p1" task="Duyệt từng đoạn tường.">
+        <p>Hàng đợi tường</p>
+      </QcStepColumn>
+    </MemoryRouter>,
+  );
+  return screen.getByRole('navigation', { name: 'Việc của từng bước' });
+}
+
+beforeEach(() => {
+  review.scale = 'check';
+  review.counts = {
+    walls: { reviewed: 23, total: 30 },
+    objects: { reviewed: 0, total: 39 },
+    rooms: { reviewed: 7, total: 7 },
+  };
+});
+
+describe('QcStepColumn (bố cục L23, đợt 1)', () => {
+  it('đầu cột: bước đang làm + câu việc là H1; thân bước và cổng nằm trong cột', () => {
+    const tree = renderColumn();
+
+    expect(screen.getByText('Bước 2 · Tường')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Duyệt từng đoạn tường.' })).toBeInTheDocument();
+    const active = within(tree).getByRole('region', { name: 'Tường' });
+    expect(active).toHaveAttribute('aria-current', 'step');
+    expect(within(active).getByText('Hàng đợi tường')).toBeInTheDocument();
+    expect(within(active).getByText('7 cần xem')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tiếp: Cửa và nội thất' })).toBeInTheDocument();
+  });
+
+  it('bước khác thu một dòng có tóm tắt và là link sang bước đó', () => {
+    const tree = renderColumn();
+
+    expect(within(tree).getByRole('link', { name: /Cửa và nội thất.*39 cần xem/u })).toHaveAttribute('href', expect.stringContaining('/layers/objects'));
+    expect(within(tree).getByRole('link', { name: /Phòng.*7 phòng · đã duyệt/u })).toBeInTheDocument();
+    expect(within(tree).getByRole('link', { name: /Tỷ lệ.*Tỷ lệ cần kiểm/u })).toBeInTheDocument();
+  });
+
+  it('tầng chưa có tỷ lệ: các bước sau Tỷ lệ khoá kèm lý do, không là link', () => {
+    review.scale = 'missing';
+    const tree = renderColumn();
+
+    const objects = within(tree).getByText('Cửa và nội thất').closest('[aria-disabled="true"]');
+    expect(objects).not.toBeNull();
+    expect(objects).toHaveTextContent('chờ tỷ lệ');
+    expect(within(tree).queryByRole('link', { name: /Cửa và nội thất/u })).toBeNull();
+  });
+});
+
+describe('QcDisplayPopover', () => {
+  it('một nút "Hiển thị" mở popover gom công tắc lớp; bấm công tắc gọi đúng hàm', () => {
+    const onToggle = vi.fn();
+    render(<QcDisplayPopover groups={[{ title: 'Lớp của bước', items: [{ key: 'w', label: 'Tim tường', checked: false, onToggle }] }]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hiển thị' }));
+    const dialog = screen.getByRole('dialog', { name: 'Hiển thị trên bản vẽ' });
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Tim tường' }));
+    expect(onToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it('không có công tắc nào thì không vẽ nút', () => {
+    const { container } = render(<QcDisplayPopover groups={[{ title: 'Lớp của bước', items: [] }]} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+});

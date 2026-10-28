@@ -30,6 +30,8 @@ export interface RoomLabelLeftPanelViewProps {
   readonly head?: ReactNode;
   /** Cờ phòng chiếm >80 % sàn, đã ghép câu ở hook. */
   readonly oversizedRoom?: { readonly id: RoomId; readonly text: string } | null;
+  /** Bố cục L23: nằm trong cột việc, bỏ khung thẻ. */
+  readonly embedded?: boolean;
 }
 
 const UNNAMED_FILTER_LABEL = 'Chưa đặt tên';
@@ -124,13 +126,13 @@ export function RoomLabelGapsSection({ gaps: allGaps, unclosedRoomCount, roomCou
   );
 }
 
-export function RoomLabelLeftPanel({ panel, list, emptyListNotice, head, oversizedRoom = null }: RoomLabelLeftPanelViewProps) {
+export function RoomLabelLeftPanel({ panel, list, emptyListNotice, head, oversizedRoom = null, embedded = false }: RoomLabelLeftPanelViewProps) {
   const { summary, gaps, showOnlyUnnamed, onToggleUnnamedFilter, onOpenNormalizePreview } = panel;
   const [gapsOpen, setGapsOpen] = useState(false);
   const gapCount = uniqueGaps(gaps).length;
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:w-full">
+    <div className={embedded ? 'flex h-full w-full flex-col overflow-hidden' : 'flex h-full w-full flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:w-full'}>
       {head}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border-default px-4 py-3">
         <button

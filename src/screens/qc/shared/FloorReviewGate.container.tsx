@@ -40,6 +40,8 @@ export interface FloorReviewGateProps {
   readonly floorId: string;
   readonly onNext?: (() => void) | undefined;
   readonly nextLabel?: string | undefined;
+  /** Bố cục L23: vẽ nút tại chỗ (đáy cột việc) thay vì đẩy vào khe cổng của header. */
+  readonly inline?: boolean | undefined;
 }
 
 const LAYER_ROUTES: Readonly<Record<RequiredLayerKey, (projectId: string, floorId: string) => string>> = {
@@ -61,7 +63,7 @@ function stepAfter(pathname: string, projectId: string, floorId: string): Requir
   return STEP_KEYS[(step === null ? 0 : STEP_KEYS.indexOf(step)) + 1] as RequiredLayerKey | undefined;
 }
 
-export function FloorReviewGate({ projectId, floorId, onNext, nextLabel }: FloorReviewGateProps) {
+export function FloorReviewGate({ projectId, floorId, onNext, nextLabel, inline = false }: FloorReviewGateProps) {
   const { pathname } = useLocation();
   const queryClient = useQueryClient();
   const floors = useProjectFloors(projectId);
@@ -120,5 +122,5 @@ export function FloorReviewGate({ projectId, floorId, onNext, nextLabel }: Floor
         : linkTo(ROUTES.project.walls(projectId, nextFloor.id), `Sang ${nextFloor.label}`);
   }
 
-  return <FlowGate>{action}</FlowGate>;
+  return inline ? action : <FlowGate>{action}</FlowGate>;
 }
