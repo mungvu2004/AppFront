@@ -148,6 +148,8 @@ import type {
   RoomLabelUsageOption,
   RoomLabelViewModel,
 } from './roomLabelTypes';
+import { isL23Layout } from '../shared/qcLayout';
+import { byRoomReason } from './roomReviewReasons';
 
 /* -------------------------------------------------------------------------- */
 /* Chuỗi của hook — mọi câu người dùng đọc mà cổng không sinh ra.              */
@@ -614,7 +616,9 @@ export function useRoomLabelReview(
 
   /* Nút "Duyệt tiếp" của cổng: phòng chưa duyệt kế tiếp, khác phòng đang chọn nếu còn. */
   const nextPendingRoom = useMemo(() => {
-    const pending = allRows.filter((row) => row.status !== 'confirmed');
+    const notYet = allRows.filter((row) => row.status !== 'confirmed');
+    /* Bố cục L23: cùng thứ tự với danh sách — chưa có tên trước. */
+    const pending = isL23Layout() ? byRoomReason(notYet) : notYet;
     const next = pending.find((row) => row.id !== selectedRoomId) ?? pending[0];
 
     return next === undefined ? null : { id: next.id, codeLabel: next.codeLabel };

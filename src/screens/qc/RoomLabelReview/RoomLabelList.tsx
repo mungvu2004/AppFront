@@ -28,6 +28,8 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { cn } from '@/lib/utils';
 
 import type { RoomLabelListProps, RoomLabelStatus, RoomLabelViewModel } from './roomLabelTypes';
+import { isL23Layout } from '../shared/qcLayout';
+import { ROOM_REASON_TITLE } from './roomReviewReasons';
 
 /** Chiều cao một dòng danh sách, đúng chữ đặc tả ("mỗi dòng cao 40"). */
 const ROW_HEIGHT_CLASS = 'min-h-10';
@@ -142,12 +144,32 @@ export function RoomLabelList({
 }: RoomLabelListProps & { readonly oversizedRoom?: { readonly id: RoomLabelViewModel['id']; readonly text: string } | null }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   /* Z/S-20: hai nhóm "Chưa duyệt" rồi "Đã duyệt"; thứ tự DOM = thứ tự mảng này (mũi tên đọc theo nó). */
-  const { pending, confirmed, ordered } = useMemo(() => {
-    const notYet = rooms.filter((room) => room.status !== 'confirmed');
+  const byReason = isL23Layout();
+  const { groups, ordered } = useMemo(() => {
     const done = rooms.filter((room) => room.status === 'confirmed');
+    if (byReason) {
+      /* Bố cục L23: "Chưa duyệt" tách theo lý do — chưa có tên trước, tên máy đề xuất sau. */
+      const unnamed = rooms.filter((room) => room.status === 'unnamed');
+      const suggested = rooms.filter((room) => room.status === 'suggested');
+      return {
+        groups: [
+          { label: ROOM_REASON_TITLE.unnamed, items: unnamed },
+          { label: ROOM_REASON_TITLE.suggested, items: suggested },
+          { label: CONFIRMED_GROUP_LABEL, items: done },
+        ].filter((group) => group.items.length > 0 || group.label === CONFIRMED_GROUP_LABEL),
+        ordered: [...unnamed, ...suggested, ...done],
+      };
+    }
+    const notYet = rooms.filter((room) => room.status !== 'confirmed');
 
-    return { pending: notYet, confirmed: done, ordered: [...notYet, ...done] };
-  }, [rooms]);
+    return {
+      groups: [
+        { label: PENDING_GROUP_LABEL, items: notYet },
+        { label: CONFIRMED_GROUP_LABEL, items: done },
+      ],
+      ordered: [...notYet, ...done],
+    };
+  }, [byReason, rooms]);
 
   /**
    * ↑/↓ đi giữa các hàng. Đọc thẳng các hàng đang có trong DOM của chính danh
@@ -219,10 +241,7 @@ export function RoomLabelList({
 
   return (
     <div aria-label={LIST_ARIA_LABEL} className="flex flex-col gap-3" ref={containerRef} role="listbox">
-      {[
-        { label: PENDING_GROUP_LABEL, items: pending },
-        { label: CONFIRMED_GROUP_LABEL, items: confirmed },
-      ].map((group) => (
+      {groups.map((group) => (
         <div aria-label={group.label} className="flex flex-col" key={group.label} role="group">
           <p aria-hidden="true" className="flex items-center gap-2 px-2 pb-1 text-[12px] font-medium text-text-secondary">
             {group.label}
