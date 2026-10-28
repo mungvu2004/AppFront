@@ -100,6 +100,8 @@ import {
   buildDeleteOpeningCommand,
   buildMoveFurnitureCommand,
   buildMoveOpeningCommand,
+  buildResizeFurnitureCommand,
+  buildRotateFurnitureCommand,
   commandContextOf,
   confidenceLegendOf,
   confidenceModeOf,
@@ -108,8 +110,12 @@ import {
   createObjectLayerReviewGateway,
   createObjectUndoTicket,
   dataLayerTokens,
+  QUARTER_TURN_DEG,
+  pendingSuggestionsLabel,
+  rejectedSuggestionsToast,
   drawnFurnitureInputOf,
   drawnOpeningProposalOf,
+  evenMillimetres,
   graphWallsOf,
   isLowConfidenceObject,
   OBJECT_LAYER_CONFIDENCE_THRESHOLD,
@@ -1190,8 +1196,12 @@ export function useObjectLayerReview(
     setDrawLayer((previous) => (previous === layer ? null : layer));
   }, []);
 
+  /* Món vừa vẽ (B3): chọn nó và đưa focus vào ô loại khi nó đã hiện trong danh sách. */
+  const [drawnEntityId, setDrawnEntityId] = useState<string | null>(null);
+  const [focusKindToken, setFocusKindToken] = useState(0);
+
   const onPlaceAt = useCallback(
-    (point: PixelPoint) => {
+    (point: PixelPoint, corner?: PixelPoint) => {
       const current = useStore.getState().spatial;
       const layer = drawLayer;
 
@@ -1199,11 +1209,12 @@ export function useObjectLayerReview(
         return;
       }
 
-      const at = toDrawingPoint(point, scaleOfLevel(level));
+      const scale = scaleOfLevel(level);
+      const at = toDrawingPoint(point, scale);
       const context = commandContextOf(current, gateway.actorId);
 
       if (layer === 'furniture') {
-        const input = drawnFurnitureInputOf(level, at);
+        const input = drawnFurnitureInputOf(level, at, corner === undefined ? undefined : toDrawingPoint(corner, scale));
         const built = buildAddFurnitureCommand(input, context);
 
         if (!built.ok) {
@@ -1212,7 +1223,11 @@ export function useObjectLayerReview(
         }
 
         setDrawLayer(null);
-        void runSingle(input.id, layer, () => built.data);
+        void runSingle(input.id, layer, () => built.data).then((added) => {
+          if (added) {
+            setDrawnEntityId(input.id);
+          }
+        });
 
         return;
       }
@@ -1236,6 +1251,141 @@ export function useObjectLayerReview(
     },
     [canEdit, drawLayer, gateway, level, refuse, runSingle],
   );
+
+  useEffect(() => {
+    const drawn = drawnEntityId === null ? undefined : objects.find((object) => object.entityId === drawnEntityId);
+
+    if (drawn === undefined) {
+      return;
+    }
+
+    setDrawnEntityId(null);
+    onSelect(drawn.id);
+    setFocusKindToken((token) => token + 1);
+  }, [drawnEntityId, objects, onSelect]);
+
+  /* Đổi cỡ / xoay nội thất (B3) — `furniture.resize` / `furniture.rotate`, mỗi lượt một bước hoàn tác. */
+  const onResize = useCallback(
+    (objectId: string, size: { readonly widthMm: number; readonly depthMm: number }) => {
+      const object = objectById(objectId);
+
+      if (object === null || object.layer !== 'furniture') {
+        return;
+      }
+
+      void runBlock(object.id, object.layer, (context) => {
+        const built = buildResizeFurnitureCommand(
+          { furnitureId: object.entityId as never, widthMm: evenMillimetres(size.widthMm), depthMm: evenMillimetres(size.depthMm) },
+          context,
+        );
+
+        if (!built.ok) {
+          refuse(built.error.reasons.join(' '));
+        }
+
+        return built.ok ? built.data : null;
+      });
+    },
+    [objectById, refuse, runBlock],
+  );
+
+  const onRotate = useCallback(
+    (objectId: string) => {
+      const object = objectById(objectId);
+
+      if (object === null || object.layer !== 'furniture') {
+        return;
+      }
+
+      void runBlock(object.id, object.layer, (context) => {
+        const before = context.graph.byId[object.entityId];
+
+        if (before === undefined || !('boundingBox' in before)) {
+          return null;
+        }
+
+        const built = buildRotateFurnitureCommand(
+          { furnitureId: before.id, rotationDeg: before.rotationDeg + QUARTER_TURN_DEG },
+          context,
+        );
+
+        return built.ok ? built.data : null;
+      });
+    },
+    [objectById, runBlock],
+  );
+
+  /* Gợi ý của máy (B3): nhận = duyệt (bỏ cờ gợi ý), bỏ = xoá; cả loạt là MỘT bước hoàn tác. */
+  const suggestions = useMemo(() => objects.filter((object) => object.suggested === true), [objects]);
+
+  const onAcceptAllSuggestions = useCallback(() => {
+    const current = useStore.getState().spatial;
+
+    if (!canEdit || current === null || suggestions.length === 0) {
+      return;
+    }
+
+    const context = commandContextOf(current, gateway.actorId);
+    const commands = suggestions.flatMap((object) => {
+      const before = context.graph.byId[object.entityId];
+
+      return before !== undefined && 'boundingBox' in before
+        ? [buildApproveObjectCommand(before, context.actorId, object.id)]
+        : [];
+    });
+
+    void runObjectTransaction(commands, dispatchBundle, OBJECT_LAYER_TEXT.acceptAllSuggestionsDone).then((result) => {
+      if (result.ok) {
+        invalidate('furniture');
+      }
+    });
+  }, [canEdit, dispatchBundle, gateway, invalidate, suggestions]);
+
+  const onRejectAllSuggestions = useCallback(() => {
+    const current = useStore.getState().spatial;
+
+    if (!canEdit || current === null || suggestions.length === 0) {
+      return;
+    }
+
+    const context = commandContextOf(current, gateway.actorId);
+    const commands = suggestions.flatMap((object) => {
+      const built = buildDeleteFurnitureCommand({ furnitureId: object.entityId as never }, context);
+
+      return built.ok ? [built.data] : [];
+    });
+    const description = rejectedSuggestionsToast(commands.length);
+
+    void runObjectTransaction(commands, dispatchBundle, description).then((result) => {
+      if (!result.ok) {
+        return;
+      }
+
+      invalidate('furniture');
+
+      const entryId = newestEntryId(dispatchBundle.history);
+      const ticket = createObjectUndoTicket({
+        displayId: '',
+        description,
+        now: gateway.now,
+        undo: () => {
+          const transition = entryId === null ? null : dispatchBundle.history.undoEntry(entryId);
+
+          if (transition === null) {
+            notifications.publish({ type: UNDO_REFUSED_NOTIFICATION_TYPE, title: UNDO_REFUSED_TEXT, description: '' });
+
+            return;
+          }
+
+          dispatchBundle.deps.spatial.applyPatches(transition.patches);
+          autosave.notifyChange();
+          invalidate('furniture');
+        },
+      });
+
+      notifications.publish({ type: DELETE_NOTIFICATION_TYPE, title: description, description: '', undoTicket: ticket });
+    });
+  }, [autosave, canEdit, dispatchBundle, gateway, invalidate, notifications, suggestions]);
 
   /* Lớp chỉ đọc (người xem, khoá tỷ lệ) thì không còn chế độ vẽ nào treo lại. */
   useEffect(() => {
@@ -1730,6 +1880,25 @@ export function useObjectLayerReview(
     { ...shortcutOptions, enabled: canEdit && selectedObjectId !== null },
   );
 
+  /* Enter nhận gợi ý đang chọn (B3); món thường vẫn duyệt bằng A. */
+  useShortcut(
+    {
+      id: 'objectLayerReview.acceptSuggestion',
+      combo: 'Enter',
+      scope: 'canvas',
+      description: OBJECT_LAYER_TEXT.shortcutAcceptSuggestion,
+      onTrigger: () => {
+        if (selectedObjectIdRef.current !== null) {
+          onApproveAndNext(selectedObjectIdRef.current);
+        }
+      },
+    },
+    {
+      ...shortcutOptions,
+      enabled: canEdit && selectedObjectId !== null && objectById(selectedObjectId)?.suggested === true,
+    },
+  );
+
   const paintSubjects = useMemo(
     () => (level === null ? [] : objects.map((object) => toPaintSubject(object, level.id))),
     [level, objects],
@@ -1954,6 +2123,13 @@ export function useObjectLayerReview(
     drawLayer: canEdit ? drawLayer : null,
     onStartDraw,
     onPlaceAt,
+    onResize,
+    onRotate,
+    focusKindToken,
+    suggestionCount: canEdit ? suggestions.length : 0,
+    suggestionLabel: pendingSuggestionsLabel(suggestions.length),
+    onAcceptAllSuggestions,
+    onRejectAllSuggestions,
     onToggleSelect,
     onSelectLayerObjects,
     onToggleLowConfidenceOnly,

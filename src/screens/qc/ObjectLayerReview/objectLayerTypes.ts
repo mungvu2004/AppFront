@@ -198,6 +198,8 @@ export interface ReviewObjectCore {
    * Chưa duyệt không có nghĩa là của AI — đồ người vẽ vẫn là `'human'`.
    */
   readonly source?: ReviewMetadata['source'];
+  /** Gợi ý của máy chưa được nhận (B3): vẽ nét đứt, Enter nhận, Del bỏ. Vắng = món thường. */
+  readonly suggested?: boolean;
 }
 
 /** Một đối tượng đã biết tường nào chứa nó và vị trí dọc tường đó. */
@@ -359,6 +361,8 @@ export interface ObjectListRowViewModel {
   readonly isReviewed: boolean;
   readonly isLowConfidence: boolean;
   readonly isOrphan: boolean;
+  /** Gợi ý của máy chưa nhận (B3) — dòng mang nhãn "Gợi ý". */
+  readonly isSuggested?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -461,6 +465,10 @@ export interface ObjectInspectorViewModel {
   /** `true` khi {@link isOrphanObject} — điều khiển hiện badge + hành động "Gắn vào tường gần nhất". */
   readonly isOrphan: boolean;
   readonly reviewed: boolean;
+  /** Rộng × sâu (mm, đã làm tròn) cho hai ô số của nội thất đứng tự do; vắng ở lỗ mở. */
+  readonly footprintMm?: { readonly widthMm: number; readonly depthMm: number };
+  /** Gợi ý của máy chưa được nhận (B3). */
+  readonly isSuggested?: boolean;
 }
 
 /**
@@ -500,6 +508,12 @@ export interface ObjectLayerInspectorProps {
   readonly onSelectHostWall: (wallId: WallId) => void;
   /** Tầng thiếu tỷ lệ: chân panel thay nút duyệt bằng lý do + lối sang bước Tỷ lệ. */
   readonly scaleLock?: ScaleLockAction | null;
+  /** Đổi rộng × sâu của nội thất — lệnh `furniture.resize` (B3). */
+  readonly onResize?: ((objectId: string, size: { readonly widthMm: number; readonly depthMm: number }) => void) | undefined;
+  /** Xoay nội thất thêm 90° — lệnh `furniture.rotate` (B3). */
+  readonly onRotate?: ((objectId: string) => void) | undefined;
+  /** Tăng mỗi lần vừa vẽ xong một món: ô loại nội thất nhận focus (B3). */
+  readonly focusKindToken?: number | undefined;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -669,8 +683,21 @@ export interface ObjectLayerReviewModel {
   /** Nhóm đang vẽ (rail "Vẽ …"); `null` khi không vẽ. */
   readonly drawLayer: ObjectLayerId | null;
   readonly onStartDraw: (layer: ObjectLayerId) => void;
-  /** Bấm lên bản vẽ ở chế độ vẽ: đặt một món mới tại điểm ấy (pixel bản vẽ, cùng hệ với `viewBoxPx`). */
-  readonly onPlaceAt: (point: PixelPoint) => void;
+  /**
+   * Bấm lên bản vẽ ở chế độ vẽ: đặt một món mới tại điểm ấy (pixel bản vẽ, cùng hệ với `viewBoxPx`).
+   * Kéo khi vẽ nội thất: `corner` là góc đối diện, món mới phủ đúng hộp kéo (B3).
+   */
+  readonly onPlaceAt: (point: PixelPoint, corner?: PixelPoint) => void;
+  /** Đổi rộng × sâu / xoay 90° nội thất (B3). Vắng ở story/bộ mẫu cũ. */
+  readonly onResize?: ObjectLayerInspectorProps['onResize'];
+  readonly onRotate?: ObjectLayerInspectorProps['onRotate'];
+  readonly focusKindToken?: number | undefined;
+  /** Số gợi ý của máy chưa nhận trên tầng (B3); `0` ở vai chỉ xem. */
+  readonly suggestionCount?: number | undefined;
+  /** "3 gợi ý của máy đang chờ" — đã ghép sẵn (A15). */
+  readonly suggestionLabel?: string | undefined;
+  readonly onAcceptAllSuggestions?: (() => void) | undefined;
+  readonly onRejectAllSuggestions?: (() => void) | undefined;
   /** Thêm/bớt một đối tượng khỏi vùng chọn (S-10). */
   readonly onToggleSelect: (objectId: string) => void;
   /** Chọn cả một lớp con (S-10). */
@@ -761,6 +788,8 @@ export interface ObjectPlacementViewModel {
   readonly isOrphan: boolean;
   /** Cùng ý nghĩa với {@link ObjectListRowViewModel.statusCode} — canvas viền chú ý, làm mờ đã duyệt. */
   readonly statusCode: ViewStatusCode;
+  /** Gợi ý của máy chưa nhận: nét đứt + nhãn "Gợi ý" (B3). */
+  readonly isSuggested?: boolean;
 }
 
 /**

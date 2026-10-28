@@ -43,6 +43,8 @@ interface ObjectSymbolFigureProps {
 const SELECTED_TOKEN = 'var(--accent)';
 const REVIEWED_TOKEN = 'var(--state-verified)';
 const ATTENTION_TOKEN = 'var(--state-attention)';
+/** Gợi ý của máy chưa nhận (B3): nét đứt đè lên kiểu nét của lớp. */
+const SUGGESTED_DASH = '6 4';
 
 export function ObjectSymbolFigure({
   placement,
@@ -134,7 +136,9 @@ export function ObjectSymbolFigure({
               fill="none"
               key={stroke.id}
               stroke={token}
-              strokeDasharray={stroke.dashArray ?? strokeStyle.dashArray ?? undefined}
+              strokeDasharray={
+                placement.isSuggested === true ? SUGGESTED_DASH : (stroke.dashArray ?? strokeStyle.dashArray ?? undefined)
+              }
               strokeWidth={isSelected || isHovered ? strokeStyle.widthPx * 2 : strokeStyle.widthPx}
               vectorEffect="non-scaling-stroke"
             />
@@ -148,6 +152,18 @@ export function ObjectSymbolFigure({
           <circle fill={REVIEWED_TOKEN} r={7} />
           <path d="M -3.5 0 L -1 2.5 L 3.5 -2.5" fill="none" stroke="var(--bg-surface)" strokeLinecap="round" strokeWidth={1.6} />
         </g>
+      ) : null}
+
+      {/* Nhãn "Gợi ý" trên mép ký hiệu (cỡ cố định trên màn): trạng thái không chỉ nằm ở nét đứt. */}
+      {placement.isSuggested === true ? (
+        <text
+          fill={token}
+          fontSize={11}
+          textAnchor="middle"
+          transform={`translate(${placement.centrePx.x} ${placement.centrePx.y - placement.depthPx / 2}) scale(${unitPx}) translate(0 -4)`}
+        >
+          {OBJECT_CANVAS_TEXT.suggestionLabel}
+        </text>
       ) : null}
 
       {placement.isOrphan ? (

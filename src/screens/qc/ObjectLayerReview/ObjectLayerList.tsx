@@ -47,6 +47,8 @@ import type { ObjectListRowViewModel } from './objectLayerTypes';
 
 const LIST_LABEL = 'Danh sách đối tượng';
 const ORPHAN_BADGE = 'Chưa gắn vào tường nào';
+/** Gợi ý của máy chưa nhận (B3). */
+const SUGGESTION_BADGE = 'Gợi ý';
 const ATTACH_ACTION = 'Gắn vào tường gần nhất';
 /** Nội thất không áp tường nào — chỗ đứng bình thường của nó, không phải việc phải làm. */
 const FREE_STANDING = 'Không gắn tường';
@@ -97,7 +99,9 @@ function ObjectLayerListRow({
 }: ObjectLayerListRowProps) {
   /* Lý do chú ý nói bằng chữ, cùng luật với câu "N mục máy chưa chắc" đầu panel (K07). */
   const isUncertain = row.isLowConfidence && !row.isReviewed;
-  const reason = isUncertain
+  const reason = row.isSuggested === true
+    ? SUGGESTION_BADGE
+    : isUncertain
     ? LOW_CONFIDENCE_BADGE
     : row.isOrphan && !row.isReviewed
       ? ORPHAN_BADGE
@@ -132,6 +136,11 @@ function ObjectLayerListRow({
         <span className="min-w-0 flex-1 truncate text-text-primary" title={row.typeLabel}>
           {row.typeLabel}
         </span>
+        {row.isSuggested === true ? (
+          <span className="shrink-0 rounded-sm border border-dashed border-border-default px-1 text-[11px] text-text-secondary">
+            {SUGGESTION_BADGE}
+          </span>
+        ) : null}
         <span className="shrink-0 tabular-nums text-[12px] text-text-muted">{row.codeLabel}</span>
       </div>
 

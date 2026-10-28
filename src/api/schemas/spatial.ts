@@ -333,6 +333,7 @@ export const FurnitureSchema: z.ZodType<Furniture, z.ZodTypeDef, unknown> = z
     liftMm: nonNegativeMillimetresSchema.optional(),
     model: furnitureModelSchema.optional(),
     slots: furnitureSlotsSchema.optional(),
+    suggested: z.boolean().optional(),
   })
   .strict()
   .refine(humanOnlyReview)
@@ -354,6 +355,7 @@ export const FurnitureSchema: z.ZodType<Furniture, z.ZodTypeDef, unknown> = z
     ...(wireFurniture.liftMm !== undefined ? { liftMm: wireFurniture.liftMm } : {}),
     ...(wireFurniture.model !== undefined ? { model: wireFurniture.model } : {}),
     ...(wireFurniture.slots !== undefined ? { slots: wireFurniture.slots } : {}),
+    ...(wireFurniture.suggested === true ? { suggested: true } : {}),
   }));
 
 /* -------------------------------------------------------------------------- */

@@ -19,7 +19,7 @@
  * 260 ms).
  */
 
-import { useCallback, useEffect, useRef, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
@@ -43,11 +43,23 @@ import {
   selectionHandleRects,
   type ObjectLayerCanvasViewProps,
 } from './objectLayerSymbols';
+import type { PixelPoint } from './objectLayerTypes';
 import { ObjectSymbolFigure } from './ObjectLayerSymbolFigure';
 import { ObjectLayerVisibilityToggles } from './ObjectLayerVisibilityToggles';
 
 /** Hợp đồng props của lớp canvas, mang ra đây cho nơi gọi khỏi phải biết hai đường nhập. */
 export type * from './objectLayerSymbols';
+
+/** Kéo dưới chừng này pixel màn vẫn là một cú bấm: món 600 × 600 mm như trước (B3). */
+const DRAG_CLICK_TOLERANCE_PX = 5;
+
+/** Một lượt nhấn-kéo của chế độ vẽ: điểm nhấn trên màn (đo ngưỡng bấm) và hai góc pixel bản vẽ. */
+interface DrawDrag {
+  readonly clientX: number;
+  readonly clientY: number;
+  readonly start: PixelPoint;
+  readonly end: PixelPoint;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Canvas.                                                                     */
@@ -155,19 +167,50 @@ export function ObjectLayerCanvas({
     [onApprove, onAttachToNearestWall, onChangeSubtype, onDelete, onSelect, openMenu, placements],
   );
 
-  /* Chế độ vẽ (K07): một cú bấm trái lên bản vẽ đặt một món tại điểm ấy; giữ Space là kéo, không đặt. */
+  /*
+   * Chế độ vẽ (K07): bấm trái lên bản vẽ đặt một món tại điểm ấy; giữ Space là kéo bản vẽ, không đặt.
+   * Nội thất (B3): nhấn rồi kéo vẽ đúng hộp kéo; kéo dưới {@link DRAG_CLICK_TOLERANCE_PX} vẫn là một cú bấm.
+   */
   const isDrawing = isInteractive && drawLayer !== null && onPlaceAt !== undefined && viewBoxPx !== null;
-  const handlePlace = (event: ReactMouseEvent<SVGRectElement>) => {
+  const [drag, setDrag] = useState<DrawDrag | null>(null);
+  const pointAt = (event: ReactMouseEvent<SVGRectElement>): PixelPoint | null => {
     const svg = event.currentTarget.ownerSVGElement;
 
-    if (!isDrawing || pan.spaceHeld || svg === null || viewBoxPx === null) {
+    return svg === null || viewBoxPx === null
+      ? null
+      : clientToViewBoxPoint(svg.getBoundingClientRect(), viewBoxPx, event.clientX, event.clientY);
+  };
+  const handleDrawStart = (event: ReactMouseEvent<SVGRectElement>) => {
+    const point = event.button === 0 && isDrawing && !pan.spaceHeld ? pointAt(event) : null;
+
+    if (point !== null) {
+      setDrag({ clientX: event.clientX, clientY: event.clientY, start: point, end: point });
+    }
+  };
+  const handleDrawMove = (event: ReactMouseEvent<SVGRectElement>) => {
+    const point = drag === null || drawLayer !== 'furniture' ? null : pointAt(event);
+
+    if (drag !== null && point !== null) {
+      setDrag({ ...drag, end: point });
+    }
+  };
+  const handleDrawEnd = (event: ReactMouseEvent<SVGRectElement>) => {
+    const end = drag === null ? null : pointAt(event);
+
+    setDrag(null);
+
+    if (drag === null || end === null || onPlaceAt === undefined) {
       return;
     }
 
-    const point = clientToViewBoxPoint(svg.getBoundingClientRect(), viewBoxPx, event.clientX, event.clientY);
+    const isClick =
+      drawLayer !== 'furniture' ||
+      Math.hypot(event.clientX - drag.clientX, event.clientY - drag.clientY) < DRAG_CLICK_TOLERANCE_PX;
 
-    if (point !== null) {
-      onPlaceAt(point);
+    if (isClick) {
+      onPlaceAt(drag.start);
+    } else {
+      onPlaceAt(drag.start, end);
     }
   };
 
@@ -261,12 +304,31 @@ export function ObjectLayerCanvas({
               data-testid="object-draw-surface"
               fill="transparent"
               height={viewBoxPx.height}
-              onClick={handlePlace}
+              onMouseDown={handleDrawStart}
+              onMouseLeave={() => setDrag(null)}
+              onMouseMove={handleDrawMove}
+              onMouseUp={handleDrawEnd}
               width={viewBoxPx.width}
               x={viewBoxPx.x}
               y={viewBoxPx.y}
             />
           ) : null}
+
+          {/* Hộp đang kéo của nội thất mới (B3). */}
+          {drag === null || drawLayer !== 'furniture' ? null : (
+            <rect
+              className="pointer-events-none"
+              data-testid="object-draw-preview"
+              fill="none"
+              height={Math.abs(drag.end.y - drag.start.y)}
+              stroke="var(--accent)"
+              strokeDasharray="6 4"
+              vectorEffect="non-scaling-stroke"
+              width={Math.abs(drag.end.x - drag.start.x)}
+              x={Math.min(drag.start.x, drag.end.x)}
+              y={Math.min(drag.start.y, drag.end.y)}
+            />
+          )}
         </svg>
 
         {haloRectPx === null ? null : (

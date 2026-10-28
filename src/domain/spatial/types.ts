@@ -198,6 +198,8 @@ export interface Furniture extends ReviewMetadata {
   heightMm?: Millimetres;
   /** Height of the piece's base above the floor (mirror, wall cabinet); absent = on the floor. */
   liftMm?: Millimetres;
+  /** A machine suggestion the reviewer has not accepted yet: kept out of the 3D build; absent = a normal piece. */
+  suggested?: boolean;
 }
 
 /** The 35 furniture variants of the login-page house model. */

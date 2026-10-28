@@ -51,6 +51,7 @@ import { ObjectLayerInspector } from './ObjectLayerInspector';
 import { ObjectLayerLeftPanel } from './ObjectLayerLeftPanel';
 import { ObjectLayerList } from './ObjectLayerList';
 import { ObjectLayerStatusBar } from './ObjectLayerStatusBar';
+import { ObjectLayerSuggestionBar } from './ObjectLayerSuggestionBar';
 import { ObjectLayerToolRail } from './ObjectLayerToolRail';
 import { OBJECT_LAYER_TEXT } from './objectLayerReviewGateway';
 import type { ObjectLayerReviewModel } from './objectLayerTypes';
@@ -180,6 +181,16 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
           </button>
         </div>
       ) : null}
+
+      {(model.suggestionCount ?? 0) === 0 ||
+      model.onAcceptAllSuggestions === undefined ||
+      model.onRejectAllSuggestions === undefined ? null : (
+        <ObjectLayerSuggestionBar
+          label={model.suggestionLabel ?? ''}
+          onAcceptAll={model.onAcceptAllSuggestions}
+          onRejectAll={model.onRejectAllSuggestions}
+        />
+      )}
 
       {model.filteredLabel === null ? null : (
         <p aria-live="polite" className="px-2 text-[12px] tabular-nums text-text-secondary">
@@ -327,6 +338,9 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
               onDragPosition={model.onDragPosition}
               onSelectHostWall={model.onSelectHostWall}
               scaleLock={model.scaleLock ?? null}
+              focusKindToken={model.focusKindToken}
+              onResize={model.onResize}
+              onRotate={model.onRotate}
             />
           )
         }

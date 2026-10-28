@@ -51,7 +51,7 @@
  */
 
 import { ArrowLeft, ArrowLeftRight, ArrowRight, Columns2 } from 'lucide-react';
-import type { ComponentType } from 'react';
+import { useEffect, useRef, type ComponentType, type RefObject } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -60,6 +60,7 @@ import { Radio } from '@/components/ui/Radio';
 import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/utils';
 
+import { ObjectLayerFootprintField } from './ObjectLayerFootprintField';
 import { ObjectLayerPositionField } from './ObjectLayerPositionField';
 import { ObjectSubtypeIcon, type OutlineIconProps } from './objectLayerSubtypeIcons';
 import {
@@ -117,6 +118,9 @@ const DELETE_OPENING_LABEL = 'Xoá (không phải cửa)';
 const DELETE_FURNITURE_LABEL = 'Xoá (không phải đồ vật)';
 const EMPTY_MESSAGE = 'Chọn một mục để xem chi tiết.';
 const OPEN_SCALE_LABEL = 'Đặt tỷ lệ';
+const SUGGESTION_BADGE = 'Gợi ý';
+const ACCEPT_SUGGESTION_LABEL = 'Nhận gợi ý';
+const REJECT_SUGGESTION_LABEL = 'Bỏ gợi ý';
 
 /** Tầng thiếu tỷ lệ: nút chính là lối sang bước Tỷ lệ, kèm lý do (UX-R1 r3). */
 function ScaleLockFooter({ scaleLock }: { readonly scaleLock: NonNullable<ObjectLayerInspectorProps['scaleLock']> }) {
@@ -144,7 +148,19 @@ export function ObjectLayerInspector({
   onAttachToNearestWall,
   onSelectHostWall,
   scaleLock = null,
+  onResize,
+  onRotate,
+  focusKindToken = 0,
 }: ObjectLayerInspectorProps) {
+  /* Vừa vẽ xong một món (B3): ô loại nội thất nhận focus để chọn loại ngay. */
+  const kindTriggerRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (focusKindToken > 0) {
+      kindTriggerRef.current?.focus();
+    }
+  }, [focusKindToken]);
+
   return (
     /* `lg:h-full`: ở 1024 ngăn kéo cũng có chiều cao chặn, nên khối nút ghim đáy luôn thấy (Z/S-16). */
     <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel lg:h-full xl:order-0">
@@ -154,6 +170,7 @@ export function ObjectLayerInspector({
           <>
             <span className="text-heading tabular-nums text-text-primary">{inspector.codeLabel}</span>
             {inspector.reviewed && <Badge variant="verified">{APPROVED_LABEL}</Badge>}
+            {inspector.isSuggested === true && <Badge variant="neutral">{SUGGESTION_BADGE}</Badge>}
           </>
         )}
       </div>
@@ -172,6 +189,9 @@ export function ObjectLayerInspector({
           onDelete={onDelete}
           onDragPosition={onDragPosition}
           onSelectHostWall={onSelectHostWall}
+          kindTriggerRef={kindTriggerRef}
+          onResize={onResize}
+          onRotate={onRotate}
         />
       )}
       {scaleLock === null ? null : <ScaleLockFooter scaleLock={scaleLock} />}
@@ -184,6 +204,7 @@ type NonNullInspector = NonNullable<ObjectLayerInspectorProps['inspector']>;
 interface ObjectInspectorBodyProps
   extends Omit<ObjectLayerInspectorProps, 'inspector'> {
   readonly inspector: NonNullInspector;
+  readonly kindTriggerRef: RefObject<HTMLButtonElement | null>;
 }
 
 function ObjectInspectorBody({
@@ -197,8 +218,12 @@ function ObjectInspectorBody({
   onAttachToNearestWall,
   onDelete,
   onSelectHostWall,
+  kindTriggerRef,
+  onResize,
+  onRotate,
 }: ObjectInspectorBodyProps) {
-  const { hostWallId, hostWallLabel } = inspector;
+  const { footprintMm, hostWallId, hostWallLabel } = inspector;
+  const isSuggested = inspector.isSuggested === true;
   const isFurniture = OBJECT_SUBTYPE_LAYER[inspector.subtype] === 'furniture'; // loại, hướng mở chỉ đọc (BUG-590)
 
   return (
@@ -220,7 +245,7 @@ function ObjectInspectorBody({
             options={FURNITURE_KIND_OPTIONS}
             value={inspector.furnitureKind}
           >
-            <Select.Trigger aria-label={FURNITURE_KIND_SELECT_LABEL} options={FURNITURE_KIND_OPTIONS} />
+            <Select.Trigger aria-label={FURNITURE_KIND_SELECT_LABEL} options={FURNITURE_KIND_OPTIONS} ref={kindTriggerRef} />
             <Select.Content>
               {FURNITURE_KIND_OPTIONS.map((option, index) => (
                 <Select.Item index={index} key={option.value} value={option.value}>
@@ -258,7 +283,15 @@ function ObjectInspectorBody({
       </div>
 
       <div className="flex flex-col px-5">
-        {isFurniture ? (
+        {isFurniture && !isViewerRole && footprintMm !== undefined && onResize !== undefined && onRotate !== undefined ? (
+          <ObjectLayerFootprintField
+            depthMm={footprintMm.depthMm}
+            objectId={inspector.id}
+            onResize={onResize}
+            onRotate={onRotate}
+            widthMm={footprintMm.widthMm}
+          />
+        ) : isFurniture ? (
           <FieldRow label={FOOTPRINT_LABEL}>
             <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">
               {inspector.sizeLabel}
@@ -372,17 +405,17 @@ function ObjectInspectorBody({
         /* Khối nút NGOÀI vùng cuộn, ghim đáy panel: nút duyệt luôn thấy ở 1024×768; nút xoá tách xa nút duyệt (G4a-27). */
         <div className="flex shrink-0 flex-col gap-2 border-t border-border-default bg-bg-surface px-5 py-3">
           <Button
-            aria-keyshortcuts="A"
+            aria-keyshortcuts={isSuggested ? 'Enter' : 'A'}
             disabled={inspector.reviewed}
             fullWidth
             onClick={() => onApprove(inspector.id)}
-            {...(inspector.reviewed ? {} : { shortcut: 'A' })}
+            {...(inspector.reviewed ? {} : { shortcut: isSuggested ? 'Enter' : 'A' })}
             variant={inspector.reviewed ? 'secondary' : 'primary'}
           >
-            {inspector.reviewed ? APPROVED_LABEL : `${APPROVE_PREFIX} ${inspector.codeLabel}`}
+            {inspector.reviewed ? APPROVED_LABEL : isSuggested ? ACCEPT_SUGGESTION_LABEL : `${APPROVE_PREFIX} ${inspector.codeLabel}`}
           </Button>
           <Button aria-keyshortcuts="Delete" fullWidth onClick={() => onDelete(inspector.id)} shortcut="Del" variant="secondary">
-            {isFurniture ? DELETE_FURNITURE_LABEL : DELETE_OPENING_LABEL}
+            {isSuggested ? REJECT_SUGGESTION_LABEL : isFurniture ? DELETE_FURNITURE_LABEL : DELETE_OPENING_LABEL}
           </Button>
           <p className="text-[12px] text-text-secondary">{APPROVE_HINT}</p>
         </div>

@@ -224,6 +224,8 @@ export interface ObjectPlacementViewModel {
   readonly isOrphan: boolean;
   /** Z/S-16: màu nét theo trạng thái (đã duyệt / cần chú ý). Vắng = màu lớp trung tính. */
   readonly statusCode?: ViewStatusCode;
+  /** Gợi ý của máy chưa nhận: nét đứt + nhãn "Gợi ý" (B3). */
+  readonly isSuggested?: boolean;
 }
 
 /**
@@ -376,7 +378,8 @@ export const OBJECT_CANVAS_TEXT = {
   readOnlyNotice:
     'Mặt bằng vẫn xem được, nhưng chỉ chọn xem được trong danh sách, không sửa được đối tượng nào. Nhờ người có quyền sửa dự án duyệt giúp.',
   orphanTitle: 'Chưa gắn vào tường nào',
-  drawHint: 'Bấm lên bản vẽ để đặt. Bấm lại nút trên rail để thôi vẽ.',
+  drawHint: 'Bấm lên bản vẽ để đặt; nội thất thì kéo để vẽ đúng cỡ. Bấm lại nút trên rail để thôi vẽ.',
+  suggestionLabel: 'Gợi ý',
 } as const;
 
 /**

@@ -109,6 +109,7 @@ import {
   createDeleteOpeningCommand,
   createMoveFurnitureCommand,
   createMoveOpeningCommand,
+  createResizeFurnitureCommand,
   createResizeOpeningCommand,
   createRotateFurnitureCommand,
   type AddFurnitureInput,
@@ -117,6 +118,7 @@ import {
   type DeleteOpeningInput,
   type MoveFurnitureInput,
   type MoveOpeningInput,
+  type ResizeFurnitureInput,
   type ResizeOpeningInput,
   type RotateFurnitureInput,
 } from '@/lib/commands/business/openingCommands';
@@ -813,6 +815,12 @@ export const buildRotateFurnitureCommand = (
   context: CommandContext,
 ): CommandResult => createRotateFurnitureCommand(input, context);
 
+/** Đổi rộng × sâu đồ đạc — gọi lại S-07; tâm giữ nguyên (B3). */
+export const buildResizeFurnitureCommand = (
+  input: ResizeFurnitureInput,
+  context: CommandContext,
+): CommandResult => createResizeFurnitureCommand(input, context);
+
 /** 7. Xoá đồ đạc — gọi lại S-07. */
 export const buildDeleteFurnitureCommand = (
   input: DeleteFurnitureInput,
@@ -1061,6 +1069,15 @@ export function buildChangeObjectSwingCommand(input: ChangeObjectSwingInput): Co
  * ghi, không phải diff từng trường), nên `invertCommand` hoàn tác được lệnh này
  * mà không cần biết nó nghĩa là gì.
  */
+/** Món đồ đã bỏ cờ gợi ý — nhận một gợi ý là duyệt nó (B3). */
+const withoutSuggestion = (item: Furniture): Furniture => {
+  const rest = { ...item };
+
+  delete rest.suggested;
+
+  return rest;
+};
+
 export function buildApproveObjectCommand(
   before: GraphOpening | Furniture,
   actorId: string,
@@ -1069,7 +1086,7 @@ export function buildApproveObjectCommand(
   const isOpening = 'wallId' in before;
   const changes = isOpening
     ? [changeForUpdate('opening', before, { ...before, reviewed: true, source: 'human' })]
-    : [changeForUpdate('furniture', before, { ...before, reviewed: true, source: 'human' })];
+    : [changeForUpdate('furniture', before, { ...withoutSuggestion(before), reviewed: true, source: 'human' })];
 
   return createCommand({
     type: OBJECT_APPROVE_COMMAND_TYPE,
@@ -1229,11 +1246,22 @@ export const mergeObjectCommandRun = (
 /* -------------------------------------------------------------------------- */
 
 /** Câu trên toast hoàn tác sau khi xoá. */
+/** Toast của lượt "Bỏ tất cả gợi ý" (B3). */
+export const rejectedSuggestionsToast = (count: number): string => `Đã bỏ ${formatObjectCount(count)} gợi ý.`;
+
+/** Đầu dải gợi ý (B3): "3 gợi ý của máy đang chờ". */
+export const pendingSuggestionsLabel = (count: number): string => `${formatObjectCount(count)} gợi ý của máy đang chờ`;
+
+/** Một lần bấm "Xoay 90°" (B3). */
+export const QUARTER_TURN_DEG = 90;
+
 export const deleteToastDescription = (displayId: string): string =>
   `Đã xoá đối tượng ${displayId}.`;
 
 export interface CreateObjectUndoTicketOptions {
   readonly displayId: string;
+  /** Câu toast thay câu xoá một đối tượng — lượt bỏ nhiều gợi ý một lúc (B3). */
+  readonly description?: string;
   readonly undo: () => void;
   readonly now: () => number;
 }
@@ -1247,7 +1275,7 @@ export interface CreateObjectUndoTicketOptions {
  */
 export function createObjectUndoTicket(options: CreateObjectUndoTicketOptions): UndoTicket {
   return createUndoTicket({
-    description: deleteToastDescription(options.displayId),
+    description: options.description ?? deleteToastDescription(options.displayId),
     now: options.now,
     undo: options.undo,
   });
@@ -1318,6 +1346,8 @@ export const OBJECT_LAYER_TEXT = {
   shortcutArrowNext: 'Chọn dòng kế tiếp trong danh sách',
   shortcutArrowPrevious: 'Chọn dòng phía trên trong danh sách',
   shortcutApproveNext: 'Duyệt đối tượng đang chọn rồi sang đối tượng chưa duyệt kế tiếp',
+  shortcutAcceptSuggestion: 'Nhận gợi ý đang chọn rồi sang đối tượng chưa duyệt kế tiếp',
+  acceptAllSuggestionsDone: 'Đã nhận tất cả gợi ý.',
   unattachedBadge: 'Chưa gắn vào tường nào',
   attachNearestAction: 'Gắn vào tường gần nhất',
   errorMessage: 'Không tải được lớp đối tượng của tầng.',
@@ -1575,6 +1605,7 @@ export function objectsOf(
         confidence: entity.confidence,
         reviewed: entity.reviewed,
         source: entity.source,
+        ...(entity.suggested === true ? { suggested: true } : {}),
         hostWallId: solid.id,
         relativePosition: position,
       });
@@ -1596,6 +1627,7 @@ export function objectsOf(
       confidence: entity.confidence,
       reviewed: entity.reviewed,
       source: entity.source,
+      ...(entity.suggested === true ? { suggested: true } : {}),
       hostWallId: null,
       tracedCentre: entity.centre,
       rotationDeg: entity.rotationDeg,
@@ -1724,6 +1756,7 @@ export function toObjectRow(
     isReviewed: object.reviewed,
     isLowConfidence: isLowConfidenceObject(object.confidence, threshold),
     isOrphan,
+    ...(object.suggested === true ? { isSuggested: true } : {}),
   };
 }
 
@@ -1771,6 +1804,11 @@ export function toObjectInspector(
     confidence: object.confidence,
     isOrphan,
     reviewed: object.reviewed,
+    /* Ô số chỉ cho nội thất đứng tự do: hộp của nó là `boundingBox` thật, lệnh resize đổi đúng hộp ấy. */
+    ...('furnitureKind' in object
+      ? { footprintMm: { widthMm: Math.round(object.widthMm), depthMm: Math.round(object.heightMm) } }
+      : {}),
+    ...(object.suggested === true ? { isSuggested: true } : {}),
   };
 }
 
@@ -2378,20 +2416,35 @@ export function drawnOpeningProposalOf(
   };
 }
 
-/** Món nội thất vẽ tại điểm bấm (K07): loại "đồ đạc khác", khung 600 × 600 mm quanh điểm. */
-export function drawnFurnitureInputOf(level: Level, at: Point): AddFurnitureInput {
+/**
+ * Món nội thất vẽ trên bản vẽ (K07), loại "đồ đạc khác": bấm cho khung 600 × 600 mm quanh điểm,
+ * kéo (B3) cho đúng hộp từ `at` tới góc đối diện `corner`.
+ *
+ * Tâm là mm nguyên và hộp đối xứng quanh tâm với nửa cạnh nguyên: máy chủ chỉ nhận mm nguyên
+ * (`Mm` = `StrictInt`), còn điểm bấm đổi từ pixel ra mm lẻ.
+ */
+export function drawnFurnitureInputOf(level: Level, at: Point, corner?: Point): AddFurnitureInput {
+  const far = corner ?? at;
+  const centre = { x: Math.round((at.x + far.x) / 2), y: Math.round((at.y + far.y) / 2) };
+  const halfOf = (span: number): number =>
+    corner === undefined ? DRAWN_FURNITURE_HALF_MM : Math.max(1, Math.round(Math.abs(span) / 2));
+  const half = { x: halfOf(far.x - at.x), y: halfOf(far.y - at.y) };
+
   return {
     id: createId('furniture'),
     levelId: level.id,
     kind: 'other',
-    centre: at,
+    centre,
     boundingBox: {
-      min: { x: at.x - DRAWN_FURNITURE_HALF_MM, y: at.y - DRAWN_FURNITURE_HALF_MM },
-      max: { x: at.x + DRAWN_FURNITURE_HALF_MM, y: at.y + DRAWN_FURNITURE_HALF_MM },
+      min: { x: centre.x - half.x, y: centre.y - half.y },
+      max: { x: centre.x + half.x, y: centre.y + half.y },
     },
     rotationDeg: 0,
   };
 }
+
+/** Cỡ gửi lệnh đổi cỡ: số chẵn mm, để hộp co giãn quanh tâm nguyên vẫn ra mm nguyên (B3). */
+export const evenMillimetres = (valueMm: number): number => Math.max(2, Math.round(valueMm / 2) * 2);
 
 /* -------------------------------------------------------------------------- */
 /* Toạ độ vẽ — phía sản xuất cho canvas (T6/T7).                               */
@@ -2470,6 +2523,7 @@ export function toObjectPlacement(
     isOrphan: isUnattachedOpening(object),
     /* Cùng nguồn với hàng danh sách: canvas viền chú ý / làm mờ đã duyệt thống nhất với panel. */
     statusCode: listStatusCodeOf(object, isUnattachedOpening(object)),
+    ...(object.suggested === true ? { isSuggested: true } : {}),
   };
 }
 
