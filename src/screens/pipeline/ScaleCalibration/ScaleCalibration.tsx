@@ -63,6 +63,8 @@ import { cn } from '@/lib/utils';
 import { FloorLayerReadFailureScreen } from '../../qc/shared/FloorLayerReadFailureScreen';
 import { FloorReviewGate } from '../../qc/shared/FloorReviewGate.container';
 import { QcFloorNav } from '../../qc/shared/QcFloorNav';
+import { QcStepColumn } from '../../qc/shared/QcStepColumn';
+import { isL23Layout } from '../../qc/shared/qcLayout';
 import { QC_BODY_CLASS, QcScreenFrame } from '../../qc/shared/QcScreenFrame';
 import { FloorLayerSaveBanner } from '../../qc/WallLayerReview/FloorLayerSaveBanner';
 
@@ -71,6 +73,7 @@ import { ScaleCalibrationPanel } from './ScaleCalibrationPanel';
 import { ScaleCalibrationSidebar } from './ScaleCalibrationSidebar';
 import type { ScaleCalibrationProps, ScaleCalibrationState, ScaleCalibrationViewModel } from './types';
 
+const L23_TASK = 'Xác nhận tỷ lệ của tầng để mọi số đo ra đúng kích thước thật.';
 const SCREEN_ARIA_LABEL = 'Tỷ lệ bản vẽ';
 const CANVAS_REGION_ARIA_LABEL = 'Khung bản vẽ để hiệu chỉnh tỷ lệ';
 const NOTICE_REGION_ARIA_LABEL = 'Trạng thái của màn hiệu chỉnh tỷ lệ';
@@ -204,91 +207,132 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
     );
   }
 
+  /* Bố cục L23 (đợt 4): cột việc 360 (câu việc, cây 4 bước, hai panel của màn, cổng ở đáy) + bản vẽ. */
+  const l23 = isL23Layout() && floorNav !== undefined;
+  const notices = (
+    <>
+      {/* Xung đột 409 / tầng khoá lưu: có "Tải lại", không thì mọi lượt áp sau hỏng im lặng (BUG-598). */}
+      <FloorLayerSaveBanner saveBlock={model.saveBlock ?? null} />
+      {/* G4b-11: no "Tỷ lệ tạm — hãy hiệu chỉnh" strip here — the user is already on the calibration screen. */}
+      {/* K12: but a floor the server could not measure at all gets the red strip: every size and the 3D model are wrong. */}
+      {model.missingScaleNotice !== undefined && <InlineAlert level="violation" message={model.missingScaleNotice} />}
+      {noticeLevel !== null && noticeMessage !== null && (
+        <section aria-label={NOTICE_REGION_ARIA_LABEL} className="flex flex-col gap-2">
+          <InlineAlert
+            level={isWarped ? 'attention' : noticeLevel}
+            message={
+              isError && model.errorCode !== null
+                ? `${noticeMessage} ${ERROR_CODE_PREFIX}${model.errorCode}`
+                : noticeMessage
+            }
+            title={(isError ? model.errorTitle : undefined) ?? NOTICE_TITLES[model.state]}
+          />
+          {isError && model.isNoDrawing === true && (
+            /* Lối ra DUY NHẤT của tầng chưa có bản vẽ nên là nút chính (BUG-411). */
+            <Button onClick={actions.onGoToUpload} size="sm" variant="primary">
+              {GO_TO_UPLOAD_LABEL}
+            </Button>
+          )}
+          {isError && model.isNoDrawing !== true && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={actions.onGoToPreprocessing} size="sm" variant="ghost">
+                {BACK_TO_PREPROCESSING_LABEL}
+              </Button>
+              {/* Tải lại không làm máy tìm ra khung — chỉ lỗi đọc mới cần nút này. */}
+              {!isWarped && (
+                <Button onClick={actions.onRetry} size="sm" variant="secondary">
+                  {RETRY_LABEL}
+                </Button>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+    </>
+  );
+  const canvas = (
+    <section
+      aria-label={CANVAS_REGION_ARIA_LABEL}
+      className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-2xl bg-bg-sunken @container-size"
+      ref={canvasHostRef}
+    >
+      <ScaleCalibrationCanvas
+        actions={actions}
+        canvas={model.canvas}
+        prefersReducedMotion={model.prefersReducedMotion}
+      />
+    </section>
+  );
+
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
       {/* Panel trái đã có H1 thấy được ("Tỷ lệ bản vẽ"): bỏ H1 ẩn của nav để trang chỉ một H1. */}
-      {floorNav !== undefined && <QcFloorNav {...floorNav} layer="scale" titled />}
-      {floorNav !== undefined && <FloorReviewGate floorId={floorNav.floorId} projectId={floorNav.projectId} />}
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch md:overflow-hidden">
-        <div className={cn('flex min-w-0 flex-1 flex-col xl:order-2', QC_BODY_CLASS)}>
-          {/* Xung đột 409 / tầng khoá lưu: có "Tải lại", không thì mọi lượt áp sau hỏng im lặng (BUG-598). */}
-          <FloorLayerSaveBanner saveBlock={model.saveBlock ?? null} />
-          {/* G4b-11: no "Tỷ lệ tạm — hãy hiệu chỉnh" strip here — the user is already on the calibration screen. */}
-          {/* K12: but a floor the server could not measure at all gets the red strip: every size and the 3D model are wrong. */}
-          {model.missingScaleNotice !== undefined && <InlineAlert level="violation" message={model.missingScaleNotice} />}
-          {noticeLevel !== null && noticeMessage !== null && (
-            <section aria-label={NOTICE_REGION_ARIA_LABEL} className="flex flex-col gap-2">
-              <InlineAlert
-                level={isWarped ? 'attention' : noticeLevel}
-                message={
-                  isError && model.errorCode !== null
-                    ? `${noticeMessage} ${ERROR_CODE_PREFIX}${model.errorCode}`
-                    : noticeMessage
-                }
-                title={(isError ? model.errorTitle : undefined) ?? NOTICE_TITLES[model.state]}
-              />
-              {isError && model.isNoDrawing === true && (
-                /* Lối ra DUY NHẤT của tầng chưa có bản vẽ nên là nút chính (BUG-411). */
-                <Button onClick={actions.onGoToUpload} size="sm" variant="primary">
-                  {GO_TO_UPLOAD_LABEL}
-                </Button>
-              )}
-              {isError && model.isNoDrawing !== true && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button onClick={actions.onGoToPreprocessing} size="sm" variant="ghost">
-                    {BACK_TO_PREPROCESSING_LABEL}
-                  </Button>
-                  {/* Tải lại không làm máy tìm ra khung — chỉ lỗi đọc mới cần nút này. */}
-                  {!isWarped && (
-                    <Button onClick={actions.onRetry} size="sm" variant="secondary">
-                      {RETRY_LABEL}
-                    </Button>
-                  )}
-                </div>
-              )}
-            </section>
-          )}
-
-          <section
-            aria-label={CANVAS_REGION_ARIA_LABEL}
-            className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-2xl bg-bg-sunken @container-size"
-            ref={canvasHostRef}
-          >
-            <ScaleCalibrationCanvas
-              actions={actions}
-              canvas={model.canvas}
-              prefersReducedMotion={model.prefersReducedMotion}
-            />
-          </section>
+      {floorNav !== undefined && <QcFloorNav {...floorNav} layer="scale" minimal={l23} titled />}
+      {floorNav !== undefined && !l23 && <FloorReviewGate floorId={floorNav.floorId} projectId={floorNav.projectId} />}
+      {l23 && floorNav !== undefined ? (
+        <div className="flex min-h-0 flex-1 gap-2 p-2 max-lg:flex-col max-lg:overflow-y-auto">
+          <div className="flex min-h-0 shrink-0 lg:w-[300px] xl:w-[360px]">
+            <QcStepColumn
+              activeStep="scale"
+              floorId={floorNav.floorId}
+              gate={<FloorReviewGate floorId={floorNav.floorId} inline projectId={floorNav.projectId} />}
+              projectId={floorNav.projectId}
+              task={L23_TASK}
+            >
+              {/* Hai panel cuộn chung trong cột; khối nút Xác nhận dính đáy cột (panel phải `contents` để nút dính theo cả vùng cuộn). */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:xl:!w-full [&>*]:xl:!border-x-0 [&>section:first-child]:!flex-none [&>section:first-child]:xl:!overflow-visible [&>section:last-child]:!contents [&>section:last-child>*]:!flex-none [&>section:last-child>*]:!overflow-visible [&>section:last-child>div:last-child]:sticky [&>section:last-child>div:last-child]:bottom-0 [&>section:last-child>div:last-child]:z-10">
+                <ScaleCalibrationSidebar actions={actions} panel={model.panel} state={model.state} />
+                <ScaleCalibrationPanel
+                  actions={actions}
+                  applyButtonRef={applyButtonRef}
+                  isCollapsed={false}
+                  panel={model.panel}
+                  prefersReducedMotion={model.prefersReducedMotion}
+                  state={model.state}
+                />
+              </div>
+            </QcStepColumn>
+          </div>
+          <div className="flex min-h-[60vh] min-w-0 flex-1 flex-col gap-2 lg:min-h-0">
+            {notices}
+            {canvas}
+          </div>
         </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-stretch md:overflow-hidden">
+          <div className={cn('flex min-w-0 flex-1 flex-col xl:order-2', QC_BODY_CLASS)}>
+            {notices}
+            {canvas}
+          </div>
 
-        {/* S-11: dưới 1280 hai panel chung một cột 312 bên phải; từ 1280 cột này "tan" (`contents`)
-            để panel trái 280 đứng trước canvas và panel phải 288 đứng sau (Z/S-11). */}
-        <div
-          className={cn(
-            'flex flex-col md:min-h-0 md:shrink-0 md:overflow-hidden md:border-l md:border-border-default xl:contents',
-            model.isPanelCollapsed ? 'md:w-12' : 'md:w-[312px]',
-          )}
-        >
-          {/* Dưới 1280 panel trái cuộn riêng (tối đa nửa cột) để chân panel phải với nút Áp dụng luôn thấy. */}
+          {/* S-11: dưới 1280 hai panel chung một cột 312 bên phải; từ 1280 cột này "tan" (`contents`)
+              để panel trái 280 đứng trước canvas và panel phải 288 đứng sau (Z/S-11). */}
           <div
             className={cn(
-              'md:max-h-[50%] md:shrink-0 md:overflow-y-auto xl:order-1 xl:flex xl:max-h-none xl:overflow-visible',
-              model.isPanelCollapsed && 'max-xl:hidden',
+              'flex flex-col md:min-h-0 md:shrink-0 md:overflow-hidden md:border-l md:border-border-default xl:contents',
+              model.isPanelCollapsed ? 'md:w-12' : 'md:w-[312px]',
             )}
           >
-            <ScaleCalibrationSidebar actions={actions} panel={model.panel} state={model.state} />
+            {/* Dưới 1280 panel trái cuộn riêng (tối đa nửa cột) để chân panel phải với nút Áp dụng luôn thấy. */}
+            <div
+              className={cn(
+                'md:max-h-[50%] md:shrink-0 md:overflow-y-auto xl:order-1 xl:flex xl:max-h-none xl:overflow-visible',
+                model.isPanelCollapsed && 'max-xl:hidden',
+              )}
+            >
+              <ScaleCalibrationSidebar actions={actions} panel={model.panel} state={model.state} />
+            </div>
+            <ScaleCalibrationPanel
+              actions={actions}
+              applyButtonRef={applyButtonRef}
+              isCollapsed={model.isPanelCollapsed}
+              panel={model.panel}
+              prefersReducedMotion={model.prefersReducedMotion}
+              state={model.state}
+            />
           </div>
-          <ScaleCalibrationPanel
-            actions={actions}
-            applyButtonRef={applyButtonRef}
-            isCollapsed={model.isPanelCollapsed}
-            panel={model.panel}
-            prefersReducedMotion={model.prefersReducedMotion}
-            state={model.state}
-          />
         </div>
-      </div>
+      )}
 
       <StatusBar {...model.statusBar} />
 
