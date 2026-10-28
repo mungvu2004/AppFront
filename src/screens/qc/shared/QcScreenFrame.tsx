@@ -59,6 +59,10 @@ interface QcWorkspaceProps {
   readonly left?: ReactNode;
   /** Cột trái rộng 320 thay 240 ở >=1024 (thẻ có ảnh cắt + ô nhập). */
   readonly wideLeft?: boolean;
+  /** Bố cục L23 (`qcLayout.ts`): cột việc 300 ở 1024-1279, 360 từ 1280. Thắng `wideLeft`. */
+  readonly column?: boolean;
+  /** Chrome nổi góc trên phải bản vẽ (nút "Hiển thị"), đứng trước nút ẩn/hiện chi tiết. */
+  readonly chromeTopRight?: ReactNode;
   readonly canvasLabel: string;
   readonly canvas: ReactNode;
   /** Panel chi tiết phải. 1024-1279: lớp phủ trên mép phải bản vẽ, không rơi xuống dưới. */
@@ -79,7 +83,17 @@ const DRAWER_SHOW_LABEL = 'Hiện chi tiết';
  * - 1024-1279: chi tiết thành ngăn kéo phủ mép phải bản vẽ (ẩn/hiện được), panel trái giữ cột.
  * - <1024: rail + bản vẽ ở hàng đầu (bản vẽ trước danh sách), hai panel xuống dòng, cả vùng cuộn dọc.
  */
-export function QcWorkspace({ rail, left, wideLeft = false, canvasLabel, canvas, inspector, selectionKey = null }: QcWorkspaceProps) {
+export function QcWorkspace({
+  rail,
+  left,
+  wideLeft = false,
+  column = false,
+  chromeTopRight,
+  canvasLabel,
+  canvas,
+  inspector,
+  selectionKey = null,
+}: QcWorkspaceProps) {
   // Ẩn/hiện tay chỉ áp cho lần chọn đang có; đổi lựa chọn thì về mặc định (mở khi có chọn).
   const [manual, setManual] = useState<{ readonly key: string | null; readonly open: boolean } | null>(null);
   const isDrawerOpen = manual?.key === selectionKey ? manual.open : selectionKey != null;
@@ -90,7 +104,7 @@ export function QcWorkspace({ rail, left, wideLeft = false, canvasLabel, canvas,
     <div className="relative flex min-h-0 flex-1 gap-2 p-2 max-lg:flex-wrap max-lg:content-start max-lg:overflow-y-auto">
       {rail}
       {hasLeft ? (
-        <div className={cn('flex min-h-0 shrink-0 flex-col gap-2 max-lg:order-1 max-lg:w-full lg:overflow-y-auto', wideLeft ? 'lg:w-[320px]' : 'lg:w-[240px]')}>
+        <div className={cn('flex min-h-0 shrink-0 flex-col gap-2 max-lg:order-1 max-lg:w-full lg:overflow-y-auto', column ? 'lg:w-[300px] xl:w-[360px]' : wideLeft ? 'lg:w-[320px]' : 'lg:w-[240px]')}>
           {left}
         </div>
       ) : null}
@@ -99,15 +113,20 @@ export function QcWorkspace({ rail, left, wideLeft = false, canvasLabel, canvas,
         className="relative h-[60vh] min-h-80 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken lg:h-auto lg:min-h-0"
       >
         {canvas}
-        {hasInspector ? (
-          <button
-            aria-expanded={isDrawerOpen}
-            className="absolute right-3 top-3 z-30 hidden rounded-lg bg-bg-surface px-2.5 py-1 text-body-sm text-text-secondary shadow-float hover:text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent lg:max-xl:block"
-            onClick={() => setManual({ key: selectionKey, open: !isDrawerOpen })}
-            type="button"
-          >
-            {isDrawerOpen ? DRAWER_HIDE_LABEL : DRAWER_SHOW_LABEL}
-          </button>
+        {chromeTopRight != null || hasInspector ? (
+          <div className="absolute right-3 top-3 z-30 flex items-center gap-2">
+            {chromeTopRight}
+            {hasInspector ? (
+              <button
+                aria-expanded={isDrawerOpen}
+                className="hidden rounded-lg bg-bg-surface px-2.5 py-1 text-body-sm text-text-secondary shadow-float hover:text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent lg:max-xl:block"
+                onClick={() => setManual({ key: selectionKey, open: !isDrawerOpen })}
+                type="button"
+              >
+                {isDrawerOpen ? DRAWER_HIDE_LABEL : DRAWER_SHOW_LABEL}
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </section>
       {hasInspector ? (

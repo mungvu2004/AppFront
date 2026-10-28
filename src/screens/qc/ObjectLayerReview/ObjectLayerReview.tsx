@@ -44,6 +44,9 @@ import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScre
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
+import { QcDisplayPopover } from '../shared/QcDisplayPopover';
+import { QcStepColumn } from '../shared/QcStepColumn';
+import { isL23Layout } from '../shared/qcLayout';
 
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
 import { ObjectLayerGate, ObjectLayerPanelHead } from './ObjectLayerHead';
@@ -55,6 +58,7 @@ import { ObjectLayerSuggestionBar } from './ObjectLayerSuggestionBar';
 import { ObjectLayerToolRail } from './ObjectLayerToolRail';
 import { OBJECT_LAYER_TEXT } from './objectLayerReviewGateway';
 import type { ObjectLayerReviewModel } from './objectLayerTypes';
+import { OBJECT_LAYER_IDS, OBJECT_LAYER_LABELS } from './objectLayerTypes';
 
 /**
  * Props của view.
@@ -72,6 +76,8 @@ export type ObjectLayerReviewViewProps = ObjectLayerReviewModel & {
 /* Chuỗi tiếng Việt tĩnh — chép từ `.orca-notes/S13-SPEC-GOC.md` phần IV (A6). */
 
 const SCREEN_ARIA_LABEL = 'Lớp đối tượng';
+const L23_TASK = 'Duyệt cửa và nội thất máy tìm thấy. Đúng thì duyệt, sai thì sửa.';
+const L23_LAYER_GROUP = 'Lớp của bước';
 const CANVAS_REGION_LABEL = 'Mặt bằng lớp đối tượng';
 const EMPTY_TITLE = 'Chưa nhận ra đối tượng nào';
 const EMPTY_ACTION = 'Thêm thủ công';
@@ -219,7 +225,7 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
  * của canvas nói vắng cả bốn thì bấm chuột phải không mở gì, và
  * `exactOptionalPropertyTypes` đòi vắng là vắng thật.
  */
-function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewModel }) {
+function ObjectLayerCanvasRegion({ model, l23 = false }: { readonly model: ObjectLayerReviewModel; readonly l23?: boolean }) {
   const readOnly = isReadOnly(model);
   const editing = readOnly
     ? {}
@@ -248,7 +254,8 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
       onFrameResize={model.onFrameResize}
       onHover={model.onHover}
       onSelect={model.onSelect}
-      onToggleLayer={model.onToggleLayer}
+      /* Bố cục L23: công tắc lớp nằm trong popover Hiển thị, không lặp ở đáy bản vẽ. */
+      onToggleLayer={l23 ? undefined : model.onToggleLayer}
       placements={model.placements}
       selectedObjectId={model.selectedObjectId}
       surfaceRectPx={model.surfaceRectPx}
@@ -261,10 +268,10 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
 }
 
 /** MỘT khung cho panel trái (NGUYEN-TAC-BO-CUC §2): đầu panel, lọc theo loại, rồi hàng đợi cuộn riêng. */
-function ObjectLayerLeftColumn({ model }: { readonly model: ObjectLayerReviewModel }) {
+function ObjectLayerLeftColumn({ model, embedded = false }: { readonly model: ObjectLayerReviewModel; readonly embedded?: boolean }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:flex-none">
-      <ObjectLayerPanelHead model={model} />
+    <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', !embedded && 'rounded-xl bg-bg-surface shadow-panel max-lg:flex-none')}>
+      {embedded ? null : <ObjectLayerPanelHead model={model} />}
       <div className="shrink-0">
         {/* Đang tải: khung xương thay bộ lọc "0" như thể dữ liệu thật (BUG-618). */}
         {model.state === 'loading' ? null : (
@@ -294,6 +301,8 @@ function ObjectLayerLeftColumn({ model }: { readonly model: ObjectLayerReviewMod
 export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
   /* Đọc cờ của vỏ màn, không `state`: ở vai người xem `forbidden` đứng trước `collapsed`, và nút thu gọn đổi nhãn mà panel không thu (BUG-601). */
   const isCollapsed = model.isCollapsed;
+  const nav = model.floorNav;
+  const l23 = isL23Layout() && nav != null;
 
   if (model.readFailure != null) {
     return (
@@ -307,9 +316,9 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
       {model.floorNav != null && (
-        <QcFloorNav {...model.floorNav} layer="objects" titled={!isCollapsed} />
+        <QcFloorNav {...model.floorNav} layer="objects" minimal={l23} titled={l23 || !isCollapsed} />
       )}
-      <ObjectLayerGate model={model} />
+      {l23 ? null : <ObjectLayerGate model={model} />}
       {model.saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={model.saveBlock} />
@@ -322,7 +331,25 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
       )}
       {/* Khe chung (A3): rail | panel trái | bản vẽ | chi tiết; 1024-1279 chi tiết phủ mép phải bản vẽ. */}
       <QcWorkspace
-        canvas={<ObjectLayerCanvasRegion model={model} />}
+        column={l23}
+        chromeTopRight={
+          l23 ? (
+            <QcDisplayPopover
+              groups={[
+                {
+                  title: L23_LAYER_GROUP,
+                  items: OBJECT_LAYER_IDS.map((layer) => ({
+                    key: layer,
+                    label: OBJECT_LAYER_LABELS[layer],
+                    checked: model.layerVisibility[layer],
+                    onToggle: () => model.onToggleLayer(layer),
+                  })),
+                },
+              ]}
+            />
+          ) : undefined
+        }
+        canvas={<ObjectLayerCanvasRegion l23={l23} model={model} />}
         canvasLabel={CANVAS_REGION_LABEL}
         inspector={
           isCollapsed ? null : (
@@ -344,7 +371,21 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
             />
           )
         }
-        left={isCollapsed ? null : <ObjectLayerLeftColumn model={model} />}
+        left={
+          isCollapsed ? null : l23 && nav != null ? (
+            <QcStepColumn
+              activeStep="objects"
+              floorId={nav.floorId}
+              gate={<ObjectLayerGate inline model={model} />}
+              projectId={nav.projectId}
+              task={L23_TASK}
+            >
+              <ObjectLayerLeftColumn embedded model={model} />
+            </QcStepColumn>
+          ) : (
+            <ObjectLayerLeftColumn model={model} />
+          )
+        }
         selectionKey={model.inspector?.id ?? null}
         rail={
           <ObjectLayerToolRail

@@ -58,6 +58,9 @@ import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
+import { QcDisplayPopover } from '../shared/QcDisplayPopover';
+import { QcStepColumn } from '../shared/QcStepColumn';
+import { isL23Layout } from '../shared/qcLayout';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { WallLayerGate } from './WallLayerGate';
 import { WallLayerInspector } from './WallLayerInspector';
@@ -92,6 +95,10 @@ export interface WallLayerReviewViewProps extends WallLayerReviewProps {
 }
 
 const SCREEN_ARIA_LABEL = 'Duyệt lớp tường';
+const L23_TASK = 'Duyệt từng đoạn tường máy tìm thấy. Đúng thì giữ, nét thừa thì xoá.';
+const L23_LAYER_GROUP = 'Lớp của bước';
+const L23_WALL_LAYER = 'Lớp tường';
+const L23_CENTRELINES = 'Tim tường';
 const CANVAS_REGION_FALLBACK_ALT = 'Chưa có ảnh nền để xem';
 
 /**
@@ -129,6 +136,18 @@ export function WallLayerReview({
    * thu gọn đổi nhãn mà hai panel không thu (BUG-601).
    */
   const isCollapsed = toolRail.isCollapsed;
+  /* Bố cục L23 cần biết dự án và tầng (cây bước, cổng); story không có thanh tầng thì giữ bố cục cũ. */
+  const l23 = isL23Layout() && floorNav != null;
+  const left = isCollapsed ? null : (
+    <WallLayerLeftPanel
+      embedded={l23}
+      extras={leftPanel}
+      panel={panel}
+      queue={queue}
+      saveFailed={statusBar.saveFailed}
+      saveLabel={statusBar.saveLabel}
+    />
+  );
 
   if (readFailure != null) {
     return (
@@ -145,8 +164,10 @@ export function WallLayerReview({
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
       {/* H1 thấy được ở đầu panel trái (QcPanelHead); tiến độ ở dòng trạng thái + cổng, không lặp ở đây. */}
-      {floorNav != null && <QcFloorNav {...floorNav} floors={leftPanel.floors} layer="walls" titled={!isCollapsed} />}
-      <WallLayerGate floorNav={floorNav} panel={panel} queue={queue} />
+      {floorNav != null && (
+        <QcFloorNav {...floorNav} floors={leftPanel.floors} layer="walls" minimal={l23} titled={l23 || !isCollapsed} />
+      )}
+      {l23 ? null : <WallLayerGate floorNav={floorNav} panel={panel} queue={queue} />}
       {saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={saveBlock} />
@@ -159,18 +180,38 @@ export function WallLayerReview({
       )}
       {/* Khe chung (A3): rail | panel trái | bản vẽ | chi tiết; 1024-1279 chi tiết phủ mép phải bản vẽ. */}
       <QcWorkspace
+        column={l23}
+        chromeTopRight={
+          l23 ? (
+            <QcDisplayPopover
+              groups={[
+                {
+                  title: L23_LAYER_GROUP,
+                  items: [
+                    { key: 'walls', label: L23_WALL_LAYER, checked: leftPanel.isWallLayerVisible, onToggle: leftPanel.onToggleWallLayer },
+                    { key: 'centrelines', label: L23_CENTRELINES, checked: leftPanel.showCentrelines, onToggle: leftPanel.onToggleCentrelines },
+                  ],
+                },
+              ]}
+            />
+          ) : undefined
+        }
         canvas={canvasSlot ?? <CanvasFallback canvas={canvas} />}
         canvasLabel={canvas.backgroundImageAlt || CANVAS_REGION_FALLBACK_ALT}
         inspector={isCollapsed ? null : <WallLayerInspector panel={panel} queue={queue} />}
         left={
-          isCollapsed ? null : (
-            <WallLayerLeftPanel
-              extras={leftPanel}
-              panel={panel}
-              queue={queue}
-              saveFailed={statusBar.saveFailed}
-              saveLabel={statusBar.saveLabel}
-            />
+          l23 && left !== null && floorNav != null ? (
+            <QcStepColumn
+              activeStep="walls"
+              floorId={floorNav.floorId}
+              gate={<WallLayerGate floorNav={floorNav} inline panel={panel} queue={queue} />}
+              projectId={floorNav.projectId}
+              task={L23_TASK}
+            >
+              {left}
+            </QcStepColumn>
+          ) : (
+            left
           )
         }
         /* Tầng khoá vì thiếu tỷ lệ: không bày Vẽ/Tách/Nối/Đo — sửa đều bị từ chối (UX-R2 K23). */

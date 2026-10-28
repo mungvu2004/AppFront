@@ -18,9 +18,11 @@ export interface WallLayerGateProps {
   readonly panel: Pick<WallLayerViewProps, 'state' | 'onSelect'>;
   readonly queue?: WallReviewQueue | undefined;
   readonly floorNav?: Omit<QcFloorNavProps, 'layer'> | undefined;
+  /** Bố cục L23: nút đứng ở đáy cột việc. */
+  readonly inline?: boolean | undefined;
 }
 
-export function WallLayerGate({ panel, queue, floorNav }: WallLayerGateProps) {
+export function WallLayerGate({ panel, queue, floorNav, inline = false }: WallLayerGateProps) {
   if (floorNav == null || panel.state === 'error' || panel.state === 'loading') {
     return null;
   }
@@ -31,6 +33,7 @@ export function WallLayerGate({ panel, queue, floorNav }: WallLayerGateProps) {
   return (
     <FloorReviewGate
       floorId={floorNav.floorId}
+      inline={inline}
       projectId={floorNav.projectId}
       {...(nextId === null || nextLabel === null
         ? {}

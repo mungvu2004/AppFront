@@ -53,6 +53,11 @@ export interface WallLayerLeftPanelProps {
   /** Trạng thái lưu đã định dạng ("Đã lưu lúc 14:02") — câu 2 nói luôn đã lưu chưa. */
   readonly saveLabel?: string | undefined;
   readonly saveFailed?: boolean | undefined;
+  /**
+   * Bố cục L23: panel nằm trong cột việc (`QcStepColumn`) nên bỏ đầu panel (H1 ở đầu cột), bỏ khung
+   * thẻ, và hai ô "Hiện lớp tường" / "Hiện tim tường" chuyển vào popover Hiển thị.
+   */
+  readonly embedded?: boolean | undefined;
 }
 
 const TITLE = 'Duyệt tường';
@@ -104,7 +109,7 @@ function PanelStatus({ panel, queue, saveLabel, saveFailed }: Omit<WallLayerLeft
   );
 }
 
-export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed }: WallLayerLeftPanelProps) {
+export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed, embedded = false }: WallLayerLeftPanelProps) {
   const { filters, onToggleFilter } = panel;
   /* Mọi đoạn cùng độ tin cậy thì lọc theo nó không giúp gì: ẩn (vẫn hiện khi đang bật để tắt được). */
   const filterKeys: readonly WallLayerFilterKey[] = [
@@ -121,15 +126,21 @@ export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed
      * Dưới 1024 panel cao theo nội dung, vùng ngoài cuộn (BUG-395). Từ 1024 panel cao bằng bản
      * vẽ, chỉ danh sách cuộn bên trong (G4a-07). Con CUỐI luôn là vùng danh sách (BUG-621).
      */
-    <div className="order-1 flex w-full shrink-0 flex-col rounded-xl bg-bg-surface shadow-panel lg:order-0 lg:h-full lg:min-h-0 lg:w-full lg:overflow-hidden">
-      <QcPanelHead
+    <div
+      className={cn(
+        "order-1 flex w-full shrink-0 flex-col lg:order-0 lg:h-full lg:min-h-0 lg:w-full lg:overflow-hidden",
+        embedded ? "min-h-0 flex-1" : "rounded-xl bg-bg-surface shadow-panel",
+      )}
+    >
+      {embedded ? null : <QcPanelHead
         eyebrow={null}
         status={<PanelStatus panel={panel} queue={queue} saveFailed={saveFailed} saveLabel={saveLabel} />}
         title={<span title={TITLE_HINT}>{TITLE}</span>}
-      />
+      />}
 
       <div className="flex shrink-0 flex-col gap-1 border-b border-border-default px-4 py-3">
         {/* K29: một ô đánh dấu thật thay hàng cây lớp chết (ô vuông rỗng không bấm được + con mắt riêng). */}
+        {embedded ? null : <>
         <Checkbox
           aria-label={SHOW_WALL_LAYER_LABEL}
           checked={extras.isWallLayerVisible}
@@ -144,6 +155,7 @@ export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed
           onChange={extras.onToggleCentrelines}
           size="sm"
         />
+        </>}
         {filterKeys.map((key) => (
           <Checkbox
             aria-label={FILTER_LABELS[key]}

@@ -48,7 +48,7 @@ export function ObjectLayerPanelHead({ model }: { readonly model: ObjectLayerRev
 }
 
 /** Cổng chung của tầng; nút "Duyệt tiếp" mở mục kế tiếp của lớp này. */
-export function ObjectLayerGate({ model }: { readonly model: ObjectLayerReviewViewProps }) {
+export function ObjectLayerGate({ model, inline = false }: { readonly model: ObjectLayerReviewViewProps; readonly inline?: boolean }) {
   const next = model.nextPending ?? null;
   const nav = model.floorNav;
 
@@ -59,6 +59,7 @@ export function ObjectLayerGate({ model }: { readonly model: ObjectLayerReviewVi
   return (
     <FloorReviewGate
       floorId={nav.floorId}
+      inline={inline}
       projectId={nav.projectId}
       {...(next === null ? {} : { nextLabel: `${NEXT_LABEL} ${next.codeLabel}`, onNext: () => model.onSelect(next.id) })}
     />

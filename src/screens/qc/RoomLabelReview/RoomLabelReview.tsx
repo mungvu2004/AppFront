@@ -65,6 +65,8 @@ import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScre
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcStatusBar, QcWorkspace } from '../shared/QcScreenFrame';
+import { QcStepColumn } from '../shared/QcStepColumn';
+import { isL23Layout } from '../shared/qcLayout';
 
 import { RoomLabelCanvas } from './RoomLabelCanvas';
 import { RoomLabelPanelHead } from './RoomLabelHead';
@@ -90,6 +92,7 @@ export type RoomLabelReviewViewProps = RoomLabelReviewProps & {
 /* -------------------------------------------------------------------------- */
 
 const SCREEN_TITLE = 'Duyệt phòng';
+const L23_TASK = 'Đặt tên cho từng phòng máy tìm thấy. Tên đúng thì giữ, sai thì sửa.';
 const CANVAS_SECTION_LABEL = 'Khung xem bản vẽ duyệt phòng';
 const EMPTY_TITLE = 'Chưa dò ra phòng nào';
 const EMPTY_ACTION_LABEL = 'Kiểm tra lại vòng hở';
@@ -113,9 +116,9 @@ const LEFT_COLUMN_CLASS_NAME =
   'flex h-full w-full flex-col overflow-y-auto rounded-xl bg-bg-surface shadow-panel max-lg:h-auto max-lg:w-full';
 
 /** MỘT khung cho cột trái (NGUYEN-TAC-BO-CUC §2): đầu panel (3 câu) rồi nội dung của nhánh. */
-function LeftCard({ head, children }: { readonly head: ReactNode; readonly children: ReactNode }) {
+function LeftCard({ head, children, embedded = false }: { readonly head: ReactNode; readonly children: ReactNode; readonly embedded?: boolean }) {
   return (
-    <div className={LEFT_COLUMN_CLASS_NAME}>
+    <div className={embedded ? 'flex min-h-0 flex-1 flex-col overflow-y-auto' : LEFT_COLUMN_CLASS_NAME}>
       {head}
       <div className="flex flex-col gap-3 p-4">{children}</div>
     </div>
@@ -126,7 +129,8 @@ function LeftCard({ head, children }: { readonly head: ReactNode; readonly child
 /* Cột trái — bốn nhánh loại trừ nhau, nhánh cuối là panel phòng thật.         */
 /* -------------------------------------------------------------------------- */
 
-function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
+/** `embedded`: bố cục L23, cột nằm trong `QcStepColumn` (H1 ở đầu cột, không khung thẻ riêng). */
+function RoomLabelLeftColumn({ embedded = false, ...props }: RoomLabelReviewViewProps & { readonly embedded?: boolean }) {
   const {
     emptyNotice,
     errorMessage,
@@ -147,13 +151,13 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
   } = props;
   /* Tầng thiếu tỷ lệ: danh sách vẫn xem được, chỉ mất nút sửa — như vai người xem (UX-R1 r3). */
   const isViewerRole = props.isViewerRole || props.scaleLock != null;
-  const head = (
+  const head = embedded ? null : (
     <RoomLabelPanelHead roomProgress={props.roomProgress} saveStatus={props.saveStatus} state={state} summary={summary} />
   );
 
   if (errorMessage !== null) {
     return (
-      <LeftCard head={head}>
+      <LeftCard embedded={embedded} head={head}>
         <InlineAlert
           action={{ label: ERROR_ACTION_LABEL, onClick: onCheckWallGaps }}
           level="violation"
@@ -170,7 +174,7 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
    */
   if (emptyNotice !== null && !showOnlyUnnamed) {
     return (
-      <LeftCard head={head}>
+      <LeftCard embedded={embedded} head={head}>
         {viewerRoleNotice === null ? null : (
           <InlineAlert level="attention" message={viewerRoleNotice} title={FORBIDDEN_TITLE} />
         )}
@@ -192,7 +196,7 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
 
   if (state === 'loading') {
     return (
-      <LeftCard head={head}>
+      <LeftCard embedded={embedded} head={head}>
         {SKELETON_ROWS.map((row) => (
           <Skeleton key={row} preset="table-row" />
         ))}
@@ -213,6 +217,7 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
 
       <div className="min-h-0 flex-1">
         <RoomLabelLeftPanel
+          embedded={embedded}
           emptyListNotice={emptyNotice}
           head={head}
           oversizedRoom={props.oversizedRoom ?? null}
@@ -288,17 +293,23 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
     );
   }
 
-  return (
-    <QcScreenFrame label={SCREEN_TITLE}>
-      {props.floorNav != null && <QcFloorNav {...props.floorNav} layer="rooms" titled={!isCollapsed} />}
-      {props.floorNav != null && props.state !== 'loading' && (
+  const nav = props.floorNav;
+  const l23 = isL23Layout() && nav != null;
+  const gate = (inline: boolean) =>
+    nav == null || props.state === 'loading' ? null : (
         <FloorReviewGate
-          floorId={props.floorNav.floorId}
+          inline={inline}
+          floorId={nav.floorId}
           nextLabel={props.nextPendingRoom == null ? undefined : `Duyệt tiếp ${props.nextPendingRoom.codeLabel}`}
           onNext={props.nextPendingRoom == null ? undefined : () => onSelect(props.nextPendingRoom!.id)}
-          projectId={props.floorNav.projectId}
+          projectId={nav.projectId}
         />
-      )}
+    );
+
+  return (
+    <QcScreenFrame label={SCREEN_TITLE}>
+      {props.floorNav != null && <QcFloorNav {...props.floorNav} layer="rooms" minimal={l23} titled={l23 || !isCollapsed} />}
+      {l23 ? null : gate(false)}
 
       {props.saveBlock != null && (
         <div className="px-2 pt-2">
@@ -361,7 +372,16 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
             />
           )
         }
-        left={isCollapsed ? null : <RoomLabelLeftColumn {...props} />}
+        column={l23}
+        left={
+          isCollapsed ? null : l23 && nav != null ? (
+            <QcStepColumn activeStep="rooms" floorId={nav.floorId} gate={gate(true)} projectId={nav.projectId} task={L23_TASK}>
+              <RoomLabelLeftColumn {...props} embedded />
+            </QcStepColumn>
+          ) : (
+            <RoomLabelLeftColumn {...props} />
+          )
+        }
         selectionKey={selectedRoomId}
       />
 
