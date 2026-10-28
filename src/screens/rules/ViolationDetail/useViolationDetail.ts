@@ -92,7 +92,7 @@ import { getAppAnnouncer } from '@/lib/input/announcer';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { createUndoTicket } from '@/lib/mutations/undoTicket';
-import { DEFAULT_CAMERA_RIG, restingHeading } from '@/lib/three/present';
+import { DEFAULT_CAMERA_RIG, restingHeading } from '@/lib/three/present/rig';
 import type { BuildFloorInput } from '@/lib/three/build/floor';
 import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 import type { ViewerSceneHandle } from '@/screens/viewer/Viewer3D';
