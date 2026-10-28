@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 
 import type { WallLayerViewProps, WallRowViewModel } from './types';
 import { LIST_ROW_HEIGHT_PX, WallLayerListRow } from './WallLayerListRow';
-import type { WallQueueGroup, WallReviewQueue } from './wallReviewQueue';
+import { WALL_REASON_ORDER, WALL_REASON_TITLE, type WallQueueGroup, type WallReviewQueue, type WallReviewReason } from './wallReviewQueue';
 
 export interface WallLayerListProps {
   readonly panel: WallLayerViewProps;
@@ -33,7 +33,7 @@ export interface WallLayerListProps {
 }
 
 type ListItem =
-  | { readonly kind: 'header'; readonly group: WallQueueGroup; readonly count: number }
+  | { readonly kind: 'header'; readonly group: WallDisplayGroup; readonly count: number }
   | { readonly kind: 'bulk' }
   | { readonly kind: 'row'; readonly row: WallRowViewModel };
 
@@ -49,6 +49,12 @@ const GROUP_TITLE: Readonly<Record<WallQueueGroup, string>> = {
   standard: 'Độ dày đúng chuẩn',
   reviewed: 'Đã duyệt',
 };
+/** Nhóm hiển thị: ba nhóm hàng đợi, cộng nhóm lý do máy nghi khi hàng đợi chia theo lý do (L23). */
+type WallDisplayGroup = WallQueueGroup | WallReviewReason;
+const DISPLAY_ORDER: readonly WallDisplayGroup[] = [...WALL_REASON_ORDER, 'nonStandard', 'standard', 'reviewed'];
+/* L23: đoạn chưa duyệt mà máy không nghi gì. */
+const CLEAR_TITLE = 'Không thấy điểm nghi';
+
 /* Tầng chưa có tỷ lệ: độ dày đo ra vô nghĩa, nên không chia theo độ dày (UX-R2 K23). */
 const UNSCALED_TITLE = 'Chưa duyệt';
 
@@ -78,6 +84,13 @@ function findScrollParent(node: HTMLElement | null): HTMLElement | null {
   return (document.scrollingElement as HTMLElement | null) ?? null;
 }
 
+/** Nhóm hiển thị của một hàng: chưa duyệt mà có lý do máy nghi (L23) thì vào nhóm lý do. */
+function displayGroupOf(row: WallRowViewModel, queue: WallReviewQueue | undefined, isScaleLocked: boolean): WallDisplayGroup {
+  const group = groupOf(row, queue, isScaleLocked);
+  const reason = queue?.extras.get(row.id)?.reason ?? null;
+  return group !== 'reviewed' && reason !== null ? reason : group;
+}
+
 function buildItems(
   rows: readonly WallRowViewModel[],
   queue: WallReviewQueue | undefined,
@@ -85,16 +98,16 @@ function buildItems(
   hasBulk: boolean,
   isScaleLocked: boolean,
 ): readonly ListItem[] {
-  const groups: Record<WallQueueGroup, WallRowViewModel[]> = { nonStandard: [], standard: [], reviewed: [] };
+  const groups = new Map<WallDisplayGroup, WallRowViewModel[]>(DISPLAY_ORDER.map((group) => [group, []]));
 
   for (const row of rows) {
-    groups[groupOf(row, queue, isScaleLocked)].push(row);
+    groups.get(displayGroupOf(row, queue, isScaleLocked))!.push(row);
   }
 
   const items: ListItem[] = [];
 
-  for (const group of ['nonStandard', 'standard', 'reviewed'] as const) {
-    const members = groups[group];
+  for (const group of DISPLAY_ORDER) {
+    const members = groups.get(group) ?? [];
 
     if (members.length === 0) {
       continue;
@@ -210,8 +223,14 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
   }
 
   /* Tầng khoá vì thiếu tỷ lệ: dải đỏ và nút góc phải đã dẫn đi đặt tỷ lệ — danh sách không lặp nút thứ ba (K23). */
-  const groupTitleOf = (group: WallQueueGroup): string =>
-    isScaleLocked && group === 'standard' ? UNSCALED_TITLE : GROUP_TITLE[group];
+  const byReason = rows.some((row) => queue?.extras.get(row.id)?.reason !== undefined);
+  const groupTitleOf = (group: WallDisplayGroup): string => {
+    if (group === 'nonStandard' || group === 'standard' || group === 'reviewed') {
+      if (isScaleLocked && group === 'standard') return UNSCALED_TITLE;
+      return byReason && group === 'standard' ? CLEAR_TITLE : GROUP_TITLE[group];
+    }
+    return WALL_REASON_TITLE[group];
+  };
 
   return (
     <>

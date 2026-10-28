@@ -147,6 +147,7 @@ import {
   cursorLabelOf,
   DEFAULT_ZOOM,
   formatScaleLabel,
+  geometryReasonsOf,
   geometrySuspectIdsOf,
   isLowConfidence,
   measurementOutcomeToPx,
@@ -191,6 +192,7 @@ import {
 } from '../shared/canvasFit';
 import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
+import { isL23Layout } from '../shared/qcLayout';
 import { useScaleLock } from '../shared/useScaleLock';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
 import { wallThicknessColorGroupOf } from './wallLayerHatch';
@@ -209,7 +211,7 @@ import type {
 import { arrowStepHandler } from './listArrowKeys';
 import { useFrameState } from '@/hooks/useFrameState';
 import { useWallReviewQueue } from './useWallReviewQueue';
-import { nextUnreviewedWallId, sortByReviewQueue, type WallReviewQueue } from './wallReviewQueue';
+import { nextUnreviewedWallId, sortByReviewQueue, type WallReviewQueue, type WallReviewReason } from './wallReviewQueue';
 
 /* -------------------------------------------------------------------------- */
 /* Chuỗi của màn.                                                              */
@@ -765,6 +767,16 @@ export function useWallLayerReview(
   );
   /* "Máy chưa chắc" gồm cả tường sai hình (cắt chéo, không nối, vụn) — cùng luật màn Quy chuẩn (K21). */
   const suspectIds = useMemo(() => geometrySuspectIdsOf(graph, levelId), [graph, levelId]);
+  /* Bố cục L23: hàng đợi chia theo lý do máy nghi (hình trước, rồi dưới ngưỡng tin cậy). */
+  const geometryReasons = useMemo(() => geometryReasonsOf(graph, levelId), [graph, levelId]);
+  const reasonOf = useMemo(
+    () =>
+      isL23Layout()
+        ? (wall: Wall): WallReviewReason | null =>
+            geometryReasons.get(wall.id) ?? (wall.confidence < confidenceThreshold ? 'uncertain' : null)
+        : undefined,
+    [confidenceThreshold, geometryReasons],
+  );
   const visibleWalls = useMemo(
     /* MỘT hàng đợi (Z/S-15): không chuẩn trước, đã duyệt cuối — danh sách, J/K và tự chuyển cùng thứ tự. */
     () =>
@@ -772,8 +784,9 @@ export function useWallLayerReview(
         sortByDisplayCode(applyWallFilters(thicknessFilteredWalls, filters, confidenceThreshold, suspectIds), wallCodes),
         confidenceThreshold,
         suspectIds,
+        reasonOf,
       ),
-    [confidenceThreshold, filters, suspectIds, wallCodes, thicknessFilteredWalls],
+    [confidenceThreshold, filters, reasonOf, suspectIds, wallCodes, thicknessFilteredWalls],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -2115,6 +2128,7 @@ export function useWallLayerReview(
     onFlash: setFlashingWallId,
     registry: options.registry,
     suspectIds,
+    reasonOf,
     onOpenThickness: onNavigate === undefined ? undefined : () => onNavigate(ROUTES.project.thickness(projectId, floorId)),
   });
 
