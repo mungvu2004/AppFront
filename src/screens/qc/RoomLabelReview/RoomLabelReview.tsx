@@ -75,6 +75,7 @@ import { RoomLabelPanelHead } from './RoomLabelHead';
 import { RoomLabelInspector } from './RoomLabelInspector';
 import { RoomLabelGapsSection, RoomLabelLeftPanel } from './RoomLabelLeftPanel';
 import { RoomLabelNormalizePreview } from './RoomLabelNormalizePreview';
+import { ROOM_REASON_TITLE, byRoomReason } from './roomReviewReasons';
 import type { RoomLabelReviewProps } from './roomLabelTypes';
 
 /**
@@ -297,6 +298,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
 
   const nav = props.floorNav;
   const l23 = isL23Layout() && nav != null;
+  const selectedStatus = rooms.find((room) => room.id === selectedRoomId)?.status;
   const inspectorView = (
     <RoomLabelInspector
       extras={{
@@ -323,8 +325,9 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
   const ask =
     l23 && !isCollapsed && selectedRoomId !== null ? (
       <QcQueueAskCard
-        items={rooms.map((room) => ({ id: room.id, pending: room.status !== 'confirmed' }))}
+        items={byRoomReason(rooms).map((room) => ({ id: room.id, pending: room.status !== 'confirmed' }))}
         onSelect={onSelect}
+        reason={selectedStatus === undefined || selectedStatus === 'confirmed' ? null : ROOM_REASON_TITLE[selectedStatus]}
         selectedId={selectedRoomId}
         unit="Phòng"
       >
