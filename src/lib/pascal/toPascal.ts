@@ -1155,7 +1155,7 @@ export const toPascalScene = (
   for (const furniture of graph.furniture) {
     /* Gợi ý của máy chưa được nhận thì chưa vào cảnh 3D (B3). */
     if (furniture.suggested === true) {
-      skipped.push(skip(furniture.id, 'đồ đạc', 'Gợi ý của máy chưa được nhận ở bước duyệt đối tượng.'));
+      skipped.push(skip(furniture.id, 'đồ đạc', 'Gợi ý của máy chưa được nhận.'));
       continue;
     }
 

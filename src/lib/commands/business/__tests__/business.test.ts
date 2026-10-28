@@ -46,14 +46,13 @@ import {
   createDeleteOpeningCommand,
   createMoveFurnitureCommand,
   createMoveOpeningCommand,
-  createResizeFurnitureCommand,
   createResizeOpeningCommand,
   createRotateFurnitureCommand,
   validateAddOpening,
   validateMoveFurniture,
-  validateResizeFurniture,
   validateResizeOpening,
 } from '../openingCommands';
+import { createResizeFurnitureCommand, validateResizeFurniture } from '../furnitureResize';
 import {
   createChangeLevelElevationCommand,
   createChangeRoomUsageCommand,

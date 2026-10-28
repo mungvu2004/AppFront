@@ -109,7 +109,6 @@ import {
   createDeleteOpeningCommand,
   createMoveFurnitureCommand,
   createMoveOpeningCommand,
-  createResizeFurnitureCommand,
   createResizeOpeningCommand,
   createRotateFurnitureCommand,
   type AddFurnitureInput,
@@ -118,10 +117,10 @@ import {
   type DeleteOpeningInput,
   type MoveFurnitureInput,
   type MoveOpeningInput,
-  type ResizeFurnitureInput,
   type ResizeOpeningInput,
   type RotateFurnitureInput,
 } from '@/lib/commands/business/openingCommands';
+import { createResizeFurnitureCommand, type ResizeFurnitureInput } from '@/lib/commands/business/furnitureResize';
 import {
   accept,
   entitiesOfKind,

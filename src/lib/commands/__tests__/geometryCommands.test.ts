@@ -18,11 +18,8 @@ import { describe, expect, it } from 'vitest';
 import { applyPatch } from '@/domain/spatial/applyPatch';
 import { displayCodeIn, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Furniture, Level, Opening, SpatialGraph, Wall } from '@/domain/spatial/types';
-import {
-  createResizeFurnitureCommand,
-  OPENING_COMMAND_TYPES,
-  validateResizeFurniture,
-} from '@/lib/commands/business/openingCommands';
+import { createResizeFurnitureCommand, validateResizeFurniture } from '@/lib/commands/business/furnitureResize';
+import { OPENING_COMMAND_TYPES } from '@/lib/commands/business/openingCommands';
 import type { CommandContext, CommandResult } from '@/lib/commands/business/shared';
 import {
   createChangeWallHeightCommand,
