@@ -42,6 +42,8 @@ import { cn } from '@/lib/utils';
 import { ObjectSubtypeIcon } from './objectLayerSubtypeIcons';
 import type { ObjectLayerListViewProps } from './objectLayerSymbols';
 import type { ObjectListRowViewModel } from './objectLayerTypes';
+import { OBJECT_REASON_TITLE, objectReasonOf, type ObjectReviewReason } from './objectReviewReasons';
+import { isL23Layout } from '../shared/qcLayout';
 
 /* Chuỗi tiếng Việt tĩnh — chép từ `.orca-notes/S13-SPEC-GOC.md` phần IV (A6). */
 
@@ -206,7 +208,22 @@ function ObjectLayerListRow({
 /* Một nhóm gấp được.                                                          */
 /* -------------------------------------------------------------------------- */
 
-type QueueGroupId = 'pending' | 'reviewed';
+type QueueGroupId = 'pending' | 'reviewed' | ObjectReviewReason | 'clear';
+
+/** Bố cục L23: "Cần duyệt" tách theo lý do máy nghi, cùng thứ tự hàng đợi của hook. */
+const REASON_GROUPS: readonly { readonly id: QueueGroupId; readonly label: string }[] = [
+  { id: 'uncertain', label: OBJECT_REASON_TITLE.uncertain },
+  { id: 'orphan', label: OBJECT_REASON_TITLE.orphan },
+  { id: 'clear', label: 'Không thấy điểm nghi' },
+  { id: 'reviewed', label: 'Đã duyệt' },
+];
+
+const rowsOfGroup = (rows: readonly ObjectListRowViewModel[], id: QueueGroupId): readonly ObjectListRowViewModel[] => {
+  if (id === 'reviewed') return rows.filter((row) => row.isReviewed);
+  if (id === 'pending') return rows.filter((row) => !row.isReviewed);
+  if (id === 'clear') return rows.filter((row) => !row.isReviewed && objectReasonOf(row) === null);
+  return rows.filter((row) => objectReasonOf(row) === id);
+};
 
 const QUEUE_GROUPS: readonly { readonly id: QueueGroupId; readonly label: string }[] = [
   { id: 'pending', label: 'Cần duyệt' },
@@ -298,6 +315,7 @@ export function ObjectLayerList({
   rows,
   selectedObjectId,
 }: ObjectLayerListViewProps) {
+  const byReason = isL23Layout();
   /* Gấp nhóm là việc trình bày thuần của danh sách — state cục bộ, không lên hook. */
   const [collapsed, setCollapsed] = useState<ReadonlySet<QueueGroupId>>(new Set());
   const toggleCollapsed = (group: QueueGroupId) =>
@@ -355,7 +373,10 @@ export function ObjectLayerList({
           {CLEAR_SEARCH}
         </button>
       )}
-      {QUEUE_GROUPS.filter(({ id }) => id === 'pending' || shownRows.some((row) => row.isReviewed)).map(({ id, label }) => (
+      {(byReason
+        ? REASON_GROUPS.filter(({ id }) => rowsOfGroup(shownRows, id).length > 0 || (id === 'clear' && shownRows.length === 0))
+        : QUEUE_GROUPS.filter(({ id }) => id === 'pending' || shownRows.some((row) => row.isReviewed))
+      ).map(({ id, label }) => (
         <ObjectLayerListGroup
           group={id}
           isCollapsed={collapsed.has(id)}
@@ -366,7 +387,7 @@ export function ObjectLayerList({
           onHover={onHover}
           onSelect={onSelect}
           onToggleCollapsed={toggleCollapsed}
-          rows={shownRows.filter((row) => row.isReviewed === (id === 'reviewed'))}
+          rows={rowsOfGroup(shownRows, id)}
           selectedObjectId={selectedObjectId}
         />
       ))}

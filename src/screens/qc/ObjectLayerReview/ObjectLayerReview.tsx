@@ -51,6 +51,7 @@ import { isL23Layout } from '../shared/qcLayout';
 
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
 import { ObjectLayerDisplayPopover } from './ObjectLayerDisplayPopover';
+import { OBJECT_REASON_TITLE, objectReasonOf } from './objectReviewReasons';
 import { ObjectLayerGate, ObjectLayerPanelHead } from './ObjectLayerHead';
 import { ObjectLayerInspector } from './ObjectLayerInspector';
 import { ObjectLayerLeftPanel } from './ObjectLayerLeftPanel';
@@ -322,11 +323,14 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
       />
   );
   const selectedId = model.inspector?.id ?? null;
+  const selectedReason = objectReasonOf(model.rows.find((row) => row.id === selectedId) ?? { isReviewed: true, isLowConfidence: false, isOrphan: false });
+  const reasonTitle = selectedReason === null ? null : OBJECT_REASON_TITLE[selectedReason];
   const ask =
     l23 && !isCollapsed && selectedId !== null ? (
       <QcQueueAskCard
         items={model.rows.map((row) => ({ id: row.id, pending: !row.isReviewed }))}
         onSelect={model.onSelect}
+        reason={reasonTitle}
         selectedId={selectedId}
         unit="Mục"
       >
