@@ -8,14 +8,18 @@
  */
 
 import { Check } from 'lucide-react';
+import { useMemo } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Badge } from '@/components/ui/Badge';
 import { Checkbox } from '@/components/ui/Checkbox';
+import type { CommandItem } from '@/hooks/useCommandPalette';
+import { useScreenCommands } from '@/hooks/useScreenCommands';
 import { cn } from '@/lib/utils';
 
 import { QcPanelHead } from '../shared/QcPanelHead';
+import { QC_COMMAND_GROUP } from '../shared/qcLayout';
 import { WallLayerList } from './WallLayerList';
 import type { WallLayerFilterKey, WallLayerViewProps, WallRowViewModel } from './types';
 import type { WallReviewQueue } from './wallReviewQueue';
@@ -120,6 +124,15 @@ export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed
   /* "Đưa N tường về chuẩn" mở màn Độ dày (UX-R2): chỉ khi có N > 0 đoạn đổi được. */
   const onOpenThickness = queue?.onOpenThickness;
   const canBulk = !panel.isViewerRole && (queue?.bulk.changeCount ?? 0) > 0 && onOpenThickness !== undefined;
+  const bulkCount = queue?.bulk.changeCount ?? 0;
+  const commands = useMemo<CommandItem[]>(
+    () =>
+      embedded && canBulk && onOpenThickness !== undefined
+        ? [{ id: 'qc-walls-bulk-thickness', group: QC_COMMAND_GROUP, label: `Đưa ${bulkCount} đoạn về độ dày chuẩn…`, keywords: ['độ dày', 'chuẩn'], onSelect: onOpenThickness }]
+        : [],
+    [bulkCount, canBulk, embedded, onOpenThickness],
+  );
+  useScreenCommands(commands);
 
   return (
     /*

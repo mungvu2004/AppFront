@@ -1,9 +1,12 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 
 import { Kbd } from '@/components/ui/Kbd';
+import type { CommandItem } from '@/hooks/useCommandPalette';
+import { useScreenCommands } from '@/hooks/useScreenCommands';
 import { cn } from '@/lib/utils';
 
+import { QC_COMMAND_GROUP } from './qcLayout';
 import { ASK_CARD_WIDTH, askCardPlacement, askNavOf, type QcAskRect } from './qcAsk';
 
 /**
@@ -126,6 +129,15 @@ export interface QcQueueAskCardProps<Id extends string> {
 /** Thẻ hỏi của một hàng đợi: tự tính "k trong N" và ‹ K / › J từ thứ tự danh sách. */
 export function QcQueueAskCard<Id extends string>({ items, selectedId, unit, onSelect, reason, children }: QcQueueAskCardProps<Id>) {
   const { position, total, prevId, nextId } = askNavOf(items, selectedId);
+  const lower = unit.toLowerCase();
+  const commands = useMemo<CommandItem[]>(
+    () => [
+      ...(nextId === null ? [] : [{ id: 'qc-ask-next', group: QC_COMMAND_GROUP, label: `${unit} cần xem tiếp theo`, shortcut: 'J', keywords: ['tiếp', lower], onSelect: () => onSelect(nextId) }]),
+      ...(prevId === null ? [] : [{ id: 'qc-ask-prev', group: QC_COMMAND_GROUP, label: `${unit} cần xem trước đó`, shortcut: 'K', keywords: ['trước', lower], onSelect: () => onSelect(prevId) }]),
+    ],
+    [lower, nextId, onSelect, prevId, unit],
+  );
+  useScreenCommands(commands);
   const eyebrow = position !== null ? `${unit} ${position} trong ${total} cần xem` : total > 0 ? `Đã duyệt · còn ${total} cần xem` : 'Đã duyệt hết';
   return (
     <QcAskCard
