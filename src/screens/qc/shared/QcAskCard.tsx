@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from
 import { Kbd } from '@/components/ui/Kbd';
 import { cn } from '@/lib/utils';
 
-import { ASK_CARD_WIDTH, askCardPlacement, type QcAskRect } from './qcAsk';
+import { ASK_CARD_WIDTH, askCardPlacement, askNavOf, type QcAskRect } from './qcAsk';
 
 /**
  * Thẻ hỏi neo cạnh đối tượng (bố cục L23, đợt 2): thay panel chi tiết phải. Màn đặt nội dung thẻ
@@ -104,5 +104,30 @@ export function QcAskCard({ eyebrow, code, onPrev, onNext, children }: QcAskCard
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
     </section>
+  );
+}
+
+export interface QcQueueAskCardProps<Id extends string> {
+  /** Hàng đợi theo thứ tự danh sách; `pending` = còn cần xem. */
+  readonly items: readonly { readonly id: Id; readonly pending: boolean }[];
+  readonly selectedId: Id | null;
+  /** Đơn vị trong đầu thẻ: "Đoạn", "Mục", "Phòng". */
+  readonly unit: string;
+  readonly onSelect: (id: Id) => void;
+  readonly children: ReactNode;
+}
+
+/** Thẻ hỏi của một hàng đợi: tự tính "k trong N" và ‹ K / › J từ thứ tự danh sách. */
+export function QcQueueAskCard<Id extends string>({ items, selectedId, unit, onSelect, children }: QcQueueAskCardProps<Id>) {
+  const { position, total, prevId, nextId } = askNavOf(items, selectedId);
+  const eyebrow = position !== null ? `${unit} ${position} trong ${total} cần xem` : total > 0 ? `Đã duyệt · còn ${total} cần xem` : 'Đã duyệt hết';
+  return (
+    <QcAskCard
+      eyebrow={eyebrow}
+      onNext={nextId === null ? undefined : () => onSelect(nextId)}
+      onPrev={prevId === null ? undefined : () => onSelect(prevId)}
+    >
+      {children}
+    </QcAskCard>
   );
 }

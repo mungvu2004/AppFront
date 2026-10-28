@@ -65,8 +65,8 @@ import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScre
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcStatusBar, QcWorkspace } from '../shared/QcScreenFrame';
-import { QcAskCard } from '../shared/QcAskCard';
-import { QcAskSlot, askNavOf } from '../shared/qcAsk';
+import { QcQueueAskCard } from '../shared/QcAskCard';
+import { QcAskSlot } from '../shared/qcAsk';
 import { QcStepColumn } from '../shared/QcStepColumn';
 import { isL23Layout } from '../shared/qcLayout';
 
@@ -95,8 +95,6 @@ export type RoomLabelReviewViewProps = RoomLabelReviewProps & {
 
 const SCREEN_TITLE = 'Duyệt phòng';
 const L23_TASK = 'Đặt tên cho từng phòng máy tìm thấy. Tên đúng thì giữ, sai thì sửa.';
-const askEyebrow = (position: number | null, total: number): string =>
-  position !== null ? `Phòng ${position} trong ${total} cần xem` : total > 0 ? `Đã duyệt · còn ${total} cần xem` : 'Đã duyệt hết';
 const CANVAS_SECTION_LABEL = 'Khung xem bản vẽ duyệt phòng';
 const EMPTY_TITLE = 'Chưa dò ra phòng nào';
 const EMPTY_ACTION_LABEL = 'Kiểm tra lại vòng hở';
@@ -322,17 +320,16 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
       }}
     />
   );
-  const askNav = askNavOf(rooms.map((room) => ({ id: room.id, pending: room.status !== 'confirmed' })), selectedRoomId);
-  const selectedRoomRow = rooms.find((room) => room.id === selectedRoomId);
   const ask =
-    l23 && !isCollapsed && selectedRoomRow !== undefined ? (
-      <QcAskCard
-        eyebrow={askEyebrow(askNav.position, askNav.total)}
-        onNext={askNav.nextId === null ? undefined : () => onSelect(askNav.nextId!)}
-        onPrev={askNav.prevId === null ? undefined : () => onSelect(askNav.prevId!)}
+    l23 && !isCollapsed && selectedRoomId !== null ? (
+      <QcQueueAskCard
+        items={rooms.map((room) => ({ id: room.id, pending: room.status !== 'confirmed' }))}
+        onSelect={onSelect}
+        selectedId={selectedRoomId}
+        unit="Phòng"
       >
         {inspectorView}
-      </QcAskCard>
+      </QcQueueAskCard>
     ) : null;
   const gate = (inline: boolean) =>
     nav == null || props.state === 'loading' ? null : (

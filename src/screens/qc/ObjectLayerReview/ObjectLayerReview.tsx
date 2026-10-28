@@ -44,13 +44,13 @@ import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScre
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
-import { QcAskCard } from '../shared/QcAskCard';
-import { QcAskSlot, askNavOf } from '../shared/qcAsk';
-import { QcDisplayPopover } from '../shared/QcDisplayPopover';
+import { QcQueueAskCard } from '../shared/QcAskCard';
+import { QcAskSlot } from '../shared/qcAsk';
 import { QcStepColumn } from '../shared/QcStepColumn';
 import { isL23Layout } from '../shared/qcLayout';
 
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
+import { ObjectLayerDisplayPopover } from './ObjectLayerDisplayPopover';
 import { ObjectLayerGate, ObjectLayerPanelHead } from './ObjectLayerHead';
 import { ObjectLayerInspector } from './ObjectLayerInspector';
 import { ObjectLayerLeftPanel } from './ObjectLayerLeftPanel';
@@ -60,7 +60,6 @@ import { ObjectLayerSuggestionBar } from './ObjectLayerSuggestionBar';
 import { ObjectLayerToolRail } from './ObjectLayerToolRail';
 import { OBJECT_LAYER_TEXT } from './objectLayerReviewGateway';
 import type { ObjectLayerReviewModel } from './objectLayerTypes';
-import { OBJECT_LAYER_IDS, OBJECT_LAYER_LABELS } from './objectLayerTypes';
 
 /**
  * Props của view.
@@ -79,9 +78,6 @@ export type ObjectLayerReviewViewProps = ObjectLayerReviewModel & {
 
 const SCREEN_ARIA_LABEL = 'Lớp đối tượng';
 const L23_TASK = 'Duyệt cửa và nội thất máy tìm thấy. Đúng thì duyệt, sai thì sửa.';
-const L23_LAYER_GROUP = 'Lớp của bước';
-const askEyebrow = (position: number | null, total: number): string =>
-  position !== null ? `Mục ${position} trong ${total} cần xem` : total > 0 ? `Đã duyệt · còn ${total} cần xem` : 'Đã duyệt hết';
 const CANVAS_REGION_LABEL = 'Mặt bằng lớp đối tượng';
 const EMPTY_TITLE = 'Chưa nhận ra đối tượng nào';
 const EMPTY_ACTION = 'Thêm thủ công';
@@ -326,17 +322,16 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
       />
   );
   const selectedId = model.inspector?.id ?? null;
-  const askNav = askNavOf(model.rows.map((row) => ({ id: row.id, pending: !row.isReviewed })), selectedId);
-  const selectedRow = model.rows.find((row) => row.id === selectedId);
   const ask =
-    l23 && !isCollapsed && selectedRow !== undefined ? (
-      <QcAskCard
-        eyebrow={askEyebrow(askNav.position, askNav.total)}
-        onNext={askNav.nextId === null ? undefined : () => model.onSelect(askNav.nextId!)}
-        onPrev={askNav.prevId === null ? undefined : () => model.onSelect(askNav.prevId!)}
+    l23 && !isCollapsed && selectedId !== null ? (
+      <QcQueueAskCard
+        items={model.rows.map((row) => ({ id: row.id, pending: !row.isReviewed }))}
+        onSelect={model.onSelect}
+        selectedId={selectedId}
+        unit="Mục"
       >
         {inspectorView}
-      </QcAskCard>
+      </QcQueueAskCard>
     ) : null;
 
   if (model.readFailure != null) {
@@ -368,23 +363,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
       <QcAskSlot value={ask}>
       <QcWorkspace
         column={l23}
-        chromeTopRight={
-          l23 ? (
-            <QcDisplayPopover
-              groups={[
-                {
-                  title: L23_LAYER_GROUP,
-                  items: OBJECT_LAYER_IDS.map((layer) => ({
-                    key: layer,
-                    label: OBJECT_LAYER_LABELS[layer],
-                    checked: model.layerVisibility[layer],
-                    onToggle: () => model.onToggleLayer(layer),
-                  })),
-                },
-              ]}
-            />
-          ) : undefined
-        }
+        chromeTopRight={l23 ? <ObjectLayerDisplayPopover layerVisibility={model.layerVisibility} onToggleLayer={model.onToggleLayer} /> : undefined}
         canvas={<ObjectLayerCanvasRegion l23={l23} model={model} />}
         canvasLabel={CANVAS_REGION_LABEL}
         inspector={isCollapsed || l23 ? null : inspectorView}

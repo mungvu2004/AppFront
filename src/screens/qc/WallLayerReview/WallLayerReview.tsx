@@ -58,8 +58,8 @@ import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
-import { QcAskCard } from '../shared/QcAskCard';
-import { QcAskSlot, askNavOf } from '../shared/qcAsk';
+import { QcQueueAskCard } from '../shared/QcAskCard';
+import { QcAskSlot } from '../shared/qcAsk';
 import { QcDisplayPopover } from '../shared/QcDisplayPopover';
 import { QcStepColumn } from '../shared/QcStepColumn';
 import { isL23Layout } from '../shared/qcLayout';
@@ -101,8 +101,6 @@ const L23_TASK = 'Duyệt từng đoạn tường máy tìm thấy. Đúng thì 
 const L23_LAYER_GROUP = 'Lớp của bước';
 const L23_WALL_LAYER = 'Lớp tường';
 const L23_CENTRELINES = 'Tim tường';
-const askEyebrow = (position: number | null, total: number): string =>
-  position !== null ? `Đoạn ${position} trong ${total} cần xem` : total > 0 ? `Đã duyệt · còn ${total} cần xem` : 'Đã duyệt hết';
 const CANVAS_REGION_FALLBACK_ALT = 'Chưa có ảnh nền để xem';
 
 /**
@@ -142,20 +140,16 @@ export function WallLayerReview({
   const isCollapsed = toolRail.isCollapsed;
   /* Bố cục L23 cần biết dự án và tầng (cây bước, cổng); story không có thanh tầng thì giữ bố cục cũ. */
   const l23 = isL23Layout() && floorNav != null;
-  const nav = askNavOf(
-    panel.rows.map((row) => ({ id: row.id, pending: !row.isReviewed })),
-    panel.selectedWallId,
-  );
-  const selectedRow = panel.rows.find((row) => row.id === panel.selectedWallId);
   const ask =
-    l23 && !isCollapsed && selectedRow !== undefined ? (
-      <QcAskCard
-        eyebrow={askEyebrow(nav.position, nav.total)}
-        onNext={nav.nextId === null ? undefined : () => panel.onSelect(nav.nextId!)}
-        onPrev={nav.prevId === null ? undefined : () => panel.onSelect(nav.prevId!)}
+    l23 && !isCollapsed && panel.selectedWallId !== null ? (
+      <QcQueueAskCard
+        items={panel.rows.map((row) => ({ id: row.id, pending: !row.isReviewed }))}
+        onSelect={panel.onSelect}
+        selectedId={panel.selectedWallId}
+        unit="Đoạn"
       >
         <WallLayerInspector panel={panel} queue={queue} />
-      </QcAskCard>
+      </QcQueueAskCard>
     ) : null;
   const left = isCollapsed ? null : (
     <WallLayerLeftPanel
