@@ -354,6 +354,8 @@ const FURNITURE_KINDS: readonly FurnitureKind[] = [
   'wardrobe',
   'kitchenCabinet',
   'sanitaryFixture',
+  'washingMachine',
+  'shower',
   'stair',
   'other',
 ];

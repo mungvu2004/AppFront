@@ -79,7 +79,7 @@ describe('objectLayerReviewGateway: source of an unreviewed entity (FIX-P0-14)',
 });
 
 describe('objectLayerReviewGateway: list row names and attention (K07)', () => {
-  const objectOf = (patch: { kind?: 'wardrobe' | 'kitchenCabinet' | 'other'; confidence?: number; reviewed?: boolean }) => {
+  const objectOf = (patch: { kind?: 'wardrobe' | 'kitchenCabinet' | 'washingMachine' | 'shower' | 'other'; confidence?: number; reviewed?: boolean }) => {
     const building = createSampleBuilding();
     const levelId = sampleLevelId(0);
     const id = sampleFurnitureId(0);
@@ -100,6 +100,8 @@ describe('objectLayerReviewGateway: list row names and attention (K07)', () => {
   it('names free furniture by its graph kind, not "Nội thất khác"', () => {
     expect(rowOf({ kind: 'wardrobe' }).typeLabel).toBe('Tủ áo');
     expect(rowOf({ kind: 'other' }).typeLabel).toBe('Nội thất khác');
+    expect(rowOf({ kind: 'washingMachine' }).typeLabel).toBe('Máy giặt');
+    expect(rowOf({ kind: 'shower' }).typeLabel).toBe('Buồng tắm đứng');
   });
 
   it('marks attention only below the confidence threshold, same rule as the header count', () => {

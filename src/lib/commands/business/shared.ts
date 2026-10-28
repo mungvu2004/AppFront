@@ -207,6 +207,8 @@ export const FURNITURE_KIND_LABELS: Readonly<Record<FurnitureKind, string>> = {
   wardrobe: 'tủ áo',
   kitchenCabinet: 'tủ bếp',
   sanitaryFixture: 'thiết bị vệ sinh',
+  washingMachine: 'máy giặt',
+  shower: 'buồng tắm đứng',
   stair: 'thang',
   other: 'đồ đạc khác',
 };
@@ -219,6 +221,8 @@ export const FURNITURE_KINDS: readonly FurnitureKind[] = [
   'wardrobe',
   'kitchenCabinet',
   'sanitaryFixture',
+  'washingMachine',
+  'shower',
   'stair',
   'other',
 ];

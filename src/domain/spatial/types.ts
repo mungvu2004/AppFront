@@ -175,6 +175,8 @@ export type FurnitureKind =
   | 'wardrobe'
   | 'kitchenCabinet'
   | 'sanitaryFixture'
+  | 'washingMachine'
+  | 'shower'
   | 'stair'
   | 'other';
 

@@ -115,6 +115,8 @@ const FURNITURE_HEIGHT_MM: Readonly<Record<Exclude<FurnitureKind, 'stair'>, numb
   wardrobe: 2000,
   kitchenCabinet: 850,
   sanitaryFixture: 800,
+  washingMachine: 850,
+  shower: 2000,
   other: 800,
 };
 
@@ -551,6 +553,10 @@ export const furnitureModelOf = (
       if (long > 1.5) return pick('bathtub');
       if (short >= 0.75 && long - short < 0.1) return pick('shower-square');
       return pick('bathroom-sink');
+    case 'washingMachine':
+      return pick('washing-machine');
+    case 'shower':
+      return pick('shower-square');
     case 'other':
       if (usage === 'livingRoom' && long > 1.5) return pick('sofa');
       if (h !== undefined && h < 0.05) return pick('rectangular-carpet');

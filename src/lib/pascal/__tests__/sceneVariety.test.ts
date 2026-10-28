@@ -57,6 +57,15 @@ describe('sceneVariety (J7)', () => {
     for (const style of Object.values(SCENE_STYLES)) expect(modelFolderOf(chair, style)).not.toBe('sofa');
   });
 
+  it('máy giặt và buồng tắm đứng của YOLO dựng bằng mô hình máy giặt / buồng tắm sẵn có', () => {
+    const washer = item('WM', 'washingMachine', 600, 600);
+    const shower = item('SH', 'shower', 900, 900);
+    expect(roleOf(washer)).toBe('washer');
+    expect(roleOf(shower)).toBe('shower');
+    expect(modelFolderOf(washer, withPrefer({}), 'bathroom')).toBe('washing-machine');
+    expect(modelFolderOf(shower, withPrefer({}), 'bathroom')).toBe('shower-square');
+  });
+
   it('variant table thấp hơn 0,5 m là bàn trà, cao thì vẫn bàn ăn', () => {
     const coffee = item('CT', 'table', 900, 900, { variant: 'table', heightMm: 420 });
     expect(roleOf(coffee, 'livingRoom')).toBe('coffeeTable');
@@ -114,6 +123,8 @@ describe('sceneVariety (J7)', () => {
       table: [[450, 450], [1200, 600, 400], [800, 1400], [1000, 2000]],
       kitchenCabinet: [[650, 700], [600, 2400]],
       sanitaryFixture: [[400, 700], [750, 1700], [900, 900], [500, 600]],
+      washingMachine: [[600, 600]],
+      shower: [[900, 900], [800, 1200]],
       other: [[2000, 1500, 20], [2000, 2000, 20], [900, 2100], [400, 400], [800, 900]],
       stair: [[1000, 3000]],
     };

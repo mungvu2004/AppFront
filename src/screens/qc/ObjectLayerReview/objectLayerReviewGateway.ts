@@ -352,7 +352,7 @@ const WALL_BY_DISPLAY_CODE: ReadonlyMap<string, GraphWall> = new Map(
 /**
  * Loại đồ đạc của đồ thị cho từng loại con của màn.
  *
- * Ánh xạ KHÔNG một-một: `FurnitureKind` chỉ có tám giá trị và cả bồn cầu lẫn
+ * Ánh xạ KHÔNG một-một: `FurnitureKind` chỉ có mười giá trị và cả bồn cầu lẫn
  * chậu rửa đều là `sanitaryFixture`. Vì vậy `subtype` của một món nội thất
  * sống trong {@link OBJECT_LAYER_SEED} chứ không đọc ngược từ đồ thị — nó là
  * kết quả phân loại của AI, và màn này không có lệnh nào sửa nó (ba lệnh QĐ-3
@@ -384,6 +384,8 @@ const SUBTYPE_BY_FURNITURE_KIND: Readonly<Record<FurnitureKind, ObjectSubtype>> 
   table: 'otherFurniture',
   chair: 'otherFurniture',
   sanitaryFixture: 'otherFurniture',
+  washingMachine: 'otherFurniture',
+  shower: 'otherFurniture',
   wardrobe: 'otherFurniture',
   kitchenCabinet: 'otherFurniture',
   stair: 'otherFurniture',

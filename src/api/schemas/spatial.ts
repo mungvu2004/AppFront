@@ -322,6 +322,8 @@ export const FurnitureSchema: z.ZodType<Furniture, z.ZodTypeDef, unknown> = z
       'wardrobe',
       'kitchenCabinet',
       'sanitaryFixture',
+      'washingMachine',
+      'shower',
       'stair',
       'other',
     ]),

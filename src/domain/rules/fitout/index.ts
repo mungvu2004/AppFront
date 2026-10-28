@@ -122,6 +122,8 @@ const FURNITURE_KIND_LABELS: Readonly<Record<FurnitureKind, string>> = {
   wardrobe: 'Tủ quần áo',
   kitchenCabinet: 'Tủ bếp',
   sanitaryFixture: 'Thiết bị vệ sinh',
+  washingMachine: 'Máy giặt',
+  shower: 'Buồng tắm đứng',
   stair: 'Cầu thang',
   other: 'Đồ đạc',
 };

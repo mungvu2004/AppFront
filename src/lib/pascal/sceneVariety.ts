@@ -33,6 +33,7 @@ export type FurnitureRole =
   | 'bathtub'
   | 'shower'
   | 'basin'
+  | 'washer'
   | 'plant'
   | 'smallPlant'
   | 'rug'
@@ -62,6 +63,7 @@ const ROLE_MODELS: Readonly<Record<FurnitureRole, readonly string[]>> = {
   bathtub: ['bathtub'],
   shower: ['shower-square'],
   basin: ['bathroom-sink'],
+  washer: ['washing-machine'],
   plant: ['indoor-plant', 'small-indoor-plant'],
   smallPlant: ['small-indoor-plant', 'indoor-plant'],
   rug: ['rectangular-carpet', 'round-carpet'],
@@ -147,6 +149,10 @@ export const roleOf = (f: Shaped, usage?: RoomUsage): FurnitureRole => {
       if (long > 1.5) return 'bathtub';
       if (short >= 0.75 && long - short < 0.1) return 'shower';
       return 'basin';
+    case 'washingMachine':
+      return 'washer';
+    case 'shower':
+      return 'shower';
     case 'other':
       if (h !== undefined && h < 0.05) return long - short < 0.15 * long ? 'roundRug' : 'rug';
       if (living && long > 1.5) return 'sofa';

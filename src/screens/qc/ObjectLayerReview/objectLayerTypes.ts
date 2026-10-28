@@ -472,7 +472,7 @@ export interface ObjectInspectorViewModel {
 }
 
 /**
- * Tám loại đồ đạc của đồ thị — ô đổi loại của nội thất (K10). Tên viết hoa chữ đầu, cùng chữ
+ * Mười loại đồ đạc của đồ thị — ô đổi loại của nội thất (K10). Tên viết hoa chữ đầu, cùng chữ
  * `objectTypeLabelOf` in ở dòng danh sách (`other` là "Nội thất khác"). Chép ở đây vì
  * `FURNITURE_KIND_LABELS` nằm ở `@/lib/commands` mà view không được nhập (R-60). Mảng thường
  * (không `readonly`) vì `Select.options` nhận `SelectOption[]`.
@@ -484,6 +484,8 @@ export const FURNITURE_KIND_OPTIONS: { label: string; value: FurnitureKind }[] =
   { label: 'Tủ áo', value: 'wardrobe' },
   { label: 'Tủ bếp', value: 'kitchenCabinet' },
   { label: 'Thiết bị vệ sinh', value: 'sanitaryFixture' },
+  { label: 'Máy giặt', value: 'washingMachine' },
+  { label: 'Buồng tắm đứng', value: 'shower' },
   { label: 'Thang', value: 'stair' },
   { label: 'Nội thất khác', value: 'other' },
 ];

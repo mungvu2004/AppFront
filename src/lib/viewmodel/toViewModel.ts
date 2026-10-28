@@ -284,7 +284,7 @@ const OPENING_ICON_CODES: Readonly<Record<OpeningKind, ViewIconCode>> = {
  * against the command layer's, so the two cannot drift apart in wording, only
  * in case.
  *
- * A complete `Record`, so a ninth `FurnitureKind` fails the build here instead
+ * A complete `Record`, so a new `FurnitureKind` fails the build here instead
  * of showing an English fallback or a blank card.
  */
 const FURNITURE_KIND_LABELS: Readonly<Record<FurnitureKind, string>> = {
@@ -294,6 +294,8 @@ const FURNITURE_KIND_LABELS: Readonly<Record<FurnitureKind, string>> = {
   wardrobe: 'Tủ áo',
   kitchenCabinet: 'Tủ bếp',
   sanitaryFixture: 'Thiết bị vệ sinh',
+  washingMachine: 'Máy giặt',
+  shower: 'Buồng tắm đứng',
   stair: 'Thang',
   other: 'Đồ đạc khác',
 };
@@ -314,6 +316,8 @@ const FURNITURE_ICON_CODES: Readonly<Record<FurnitureKind, ViewIconCode>> = {
   wardrobe: 'furnitureWardrobe',
   kitchenCabinet: 'furnitureKitchenCabinet',
   sanitaryFixture: 'furnitureSanitaryFixture',
+  washingMachine: 'furnitureKitchenCabinet',
+  shower: 'furnitureSanitaryFixture',
   stair: 'furnitureStair',
   other: 'furnitureOther',
 };

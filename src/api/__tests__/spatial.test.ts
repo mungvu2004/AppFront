@@ -223,6 +223,23 @@ describe('Trường tuỳ chọn', () => {
   });
 });
 
+describe('Loại đồ đạc mới của YOLO: máy giặt, buồng tắm đứng', () => {
+  it('enum kind nhận washingMachine và shower, vẫn từ chối loại lạ', () => {
+    expect(FurnitureSchema.safeParse({ ...furniture, kind: 'washingMachine' }).success).toBe(true);
+    expect(FurnitureSchema.safeParse({ ...furniture, kind: 'shower' }).success).toBe(true);
+    expect(FurnitureSchema.safeParse({ ...furniture, kind: 'washer' }).success).toBe(false);
+  });
+
+  it('lớp không gian chứa cả hai loại đi nguyên vẹn qua schema', () => {
+    const washer = { ...furniture, id: 'F-FURN0013', kind: 'washingMachine' } as const;
+    const shower = { ...furniture, id: 'F-FURN0014', kind: 'shower' } as const;
+    const parsed = SpatialLayerSchema.parse({ ...layer, furniture: [washer, shower] });
+
+    expect(parsed.furniture).toStrictEqual([washer, shower]);
+    expect(SpatialLayerSchema.parse(parsed)).toStrictEqual(parsed);
+  });
+});
+
 describe('decode dịch lỗi hợp đồng sang tiếng Việt', () => {
   it('nêu tên trường thiếu bằng câu người đọc được', () => {
     const withoutThickness: Record<string, unknown> = { ...wall };

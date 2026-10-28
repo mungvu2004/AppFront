@@ -123,6 +123,8 @@ const furnitureTemplateSchema = z
             'wardrobe',
             'kitchenCabinet',
             'sanitaryFixture',
+            'washingMachine',
+            'shower',
             'stair',
             'other',
           ])
