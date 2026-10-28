@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Search } from 'lucide-react';
 import { AnimatePresence, motion } from '../motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -11,6 +11,7 @@ import {
   groupCommands,
 } from '../../hooks/useCommandPalette';
 import type { CommandItem } from '../../hooks/useCommandPalette';
+import { useRegisteredScreenCommands } from '../../hooks/useScreenCommands';
 import { useShortcut } from '../../hooks/useShortcut';
 import { DURATION, EASE } from '../../lib/motion';
 
@@ -79,8 +80,12 @@ export function CommandPalette({ commands = DEFAULT_COMMANDS }: CommandPalettePr
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
 
+  // Lệnh của màn đang mở (useScreenCommands) đứng trước lệnh chung
+  const screenCommands = useRegisteredScreenCommands();
+  const allCommands = useMemo(() => [...screenCommands, ...commands], [screenCommands, commands]);
+
   // Lọc và nhóm kết quả
-  const filtered = filterCommands(commands, query);
+  const filtered = filterCommands(allCommands, query);
   const groups   = groupCommands(filtered);
   const flatItems = filtered; // dùng để tính selectedIndex tuyến tính
 

@@ -1,6 +1,8 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, renderHook, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { useRegisteredScreenCommands } from '@/hooks/useScreenCommands';
 
 import type * as GateModel from './floorReviewGateModel';
 import { QcDisplayPopover } from './QcDisplayPopover';
@@ -67,6 +69,21 @@ describe('QcStepColumn (bố cục L23, đợt 1)', () => {
     expect(objects).not.toBeNull();
     expect(objects).toHaveTextContent('chờ tỷ lệ');
     expect(within(tree).queryByRole('link', { name: /Cửa và nội thất/u })).toBeNull();
+  });
+});
+
+describe('QcStepColumn: lệnh Duyệt tầng trong Ctrl K (đợt 7)', () => {
+  it('đăng ký "Đi tới bước …" cho bước khác bước đang làm; bỏ bước bị khoá', () => {
+    const palette = renderHook(() => useRegisteredScreenCommands());
+    renderColumn();
+    expect(palette.result.current.map((item) => item.label)).toEqual(['Đi tới bước Tỷ lệ', 'Đi tới bước Cửa và nội thất', 'Đi tới bước Phòng']);
+  });
+
+  it('tầng chưa có tỷ lệ: chỉ còn lệnh tới bước Tỷ lệ', () => {
+    review.scale = 'missing';
+    const palette = renderHook(() => useRegisteredScreenCommands());
+    renderColumn();
+    expect(palette.result.current.map((item) => item.label)).toEqual(['Đi tới bước Tỷ lệ']);
   });
 });
 

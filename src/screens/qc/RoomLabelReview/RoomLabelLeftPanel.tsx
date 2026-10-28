@@ -13,10 +13,14 @@
  */
 
 import { ChevronDown, ChevronRight, Unlink } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 
 import type { RoomId, WallId } from '@/domain/spatial/types';
+import type { CommandItem } from '@/hooks/useCommandPalette';
+import { useScreenCommands } from '@/hooks/useScreenCommands';
 import { cn } from '@/lib/utils';
+
+import { QC_COMMAND_GROUP } from '../shared/qcLayout';
 
 import { RoomLabelList } from './RoomLabelList';
 import type { RoomLabelGapViewModel, RoomLabelLeftPanelProps, RoomLabelListProps } from './roomLabelTypes';
@@ -128,6 +132,11 @@ export function RoomLabelGapsSection({ gaps: allGaps, unclosedRoomCount, roomCou
 
 export function RoomLabelLeftPanel({ panel, list, emptyListNotice, head, oversizedRoom = null, embedded = false }: RoomLabelLeftPanelViewProps) {
   const { summary, gaps, showOnlyUnnamed, onToggleUnnamedFilter, onOpenNormalizePreview } = panel;
+  const commands = useMemo<CommandItem[]>(
+    () => (embedded ? [{ id: 'qc-rooms-normalize', group: QC_COMMAND_GROUP, label: 'Chuẩn hoá tên phòng…', keywords: ['tên', 'chuẩn hoá'], onSelect: onOpenNormalizePreview }] : []),
+    [embedded, onOpenNormalizePreview],
+  );
+  useScreenCommands(commands);
   const [gapsOpen, setGapsOpen] = useState(false);
   const gapCount = uniqueGaps(gaps).length;
 

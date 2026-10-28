@@ -7,6 +7,9 @@
 export const QC_LAYOUT_STORAGE_KEY = 'qc-layout';
 const L23 = 'l23';
 
+/** Nhóm lệnh của Duyệt tầng trong bảng lệnh Ctrl K (`useScreenCommands`). */
+export const QC_COMMAND_GROUP = 'Duyệt tầng';
+
 export function isL23Layout(): boolean {
   if (import.meta.env.VITE_QC_LAYOUT === L23) return true;
   try {

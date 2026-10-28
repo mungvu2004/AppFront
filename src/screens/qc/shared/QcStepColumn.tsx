@@ -1,6 +1,10 @@
 import { Check, Lock } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+
+import { CommandPalette } from '@/components/overlay/CommandPalette';
+import type { CommandItem } from '@/hooks/useCommandPalette';
+import { useScreenCommands } from '@/hooks/useScreenCommands';
 
 import { cn } from '@/lib/utils';
 import { SCALE_STATE_VIEWS } from '@/lib/viewmodel/provisionalScale';
@@ -13,6 +17,7 @@ import {
   type FloorScaleState,
   type RequiredLayerKey,
 } from './floorReviewGateModel';
+import { QC_COMMAND_GROUP } from './qcLayout';
 import { QC_LAYERS } from './qcLayers';
 import { useFloorReview } from './useFloorReview';
 
@@ -45,6 +50,8 @@ const STEP_KEYS: readonly QcStepKey[] = ['scale', 'walls', 'objects', 'rooms'];
 const UNIT: Readonly<Record<RequiredLayerKey, string>> = { walls: 'đoạn', objects: 'mục', rooms: 'phòng' };
 const STEPS_LABEL = 'Việc của từng bước';
 const SCALE_WAIT = 'chờ tỷ lệ';
+/** Bảng lệnh của khung L23 chỉ mang lệnh màn đăng ký (`useScreenCommands`), không mang lệnh mẫu của `CommandPalette`. */
+const NO_SHARED_COMMANDS: CommandItem[] = [];
 
 const stepTitle = (key: QcStepKey): string => QC_LAYERS.find((item) => item.key === key)?.label ?? key;
 const stepRoute = (key: QcStepKey) => (QC_LAYERS.find((item) => item.key === key) ?? QC_LAYERS[0]!).route;
@@ -98,6 +105,19 @@ export function QcStepColumn({ projectId, floorId, activeStep, task, hint, activ
     [floorId, graph],
   );
   const index = STEP_KEYS.indexOf(activeStep);
+  const navigate = useNavigate();
+  const commands = useMemo<CommandItem[]>(
+    () =>
+      STEP_KEYS.filter((key) => key !== activeStep && (key === 'scale' || scale !== 'missing')).map((key) => ({
+        id: `qc-step-${key}`,
+        group: QC_COMMAND_GROUP,
+        label: `Đi tới bước ${stepTitle(key)}`,
+        keywords: ['bước', 'duyệt tầng'],
+        onSelect: () => navigate(stepRoute(key)(projectId, floorId)),
+      })),
+    [activeStep, floorId, navigate, projectId, scale],
+  );
+  useScreenCommands(commands);
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel">
@@ -146,6 +166,7 @@ export function QcStepColumn({ projectId, floorId, activeStep, task, hint, activ
           );
         })}
       </nav>
+      <CommandPalette commands={NO_SHARED_COMMANDS} />
       {gate == null ? null : <footer className="shrink-0 border-t border-border-default px-5 py-3 [&_a]:w-full [&_a]:justify-between [&_button]:w-full [&_button]:justify-between">{gate}</footer>}
     </div>
   );
