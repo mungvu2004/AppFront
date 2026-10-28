@@ -20,10 +20,24 @@ import { CONCRETE_COLUMN_THRESHOLD_MM, standardizeThickness, standardTierRangeOf
 
 import { WALL_THICKNESS_CHOICES, type WallThicknessChoice } from './types';
 import { wallThicknessBandOf } from './wallLayerHatch';
-import { isLowConfidence, isStandardThickness, toGeometryWall, wallLengthNumberOf } from './wallLayerReviewGateway';
+import { isLowConfidence, isStandardThickness, toGeometryWall, wallLengthNumberOf, type WallGeometryReason } from './wallLayerReviewGateway';
 
 /** Ba nhóm của danh sách, đúng thứ tự hàng đợi. */
 export type WallQueueGroup = 'nonStandard' | 'standard' | 'reviewed';
+
+/** Bố cục L23: lý do máy nghi một đoạn — theo hình (`geometryReasonsOf`) hoặc dưới ngưỡng tin cậy. */
+export type WallReviewReason = WallGeometryReason | 'uncertain';
+
+/** Thứ tự nhóm lý do trên danh sách và trong hàng đợi J/K. */
+export const WALL_REASON_ORDER: readonly WallReviewReason[] = ['uncertain', 'short', 'dangling', 'overlap'];
+
+/** Tên nhóm, cũng là câu lý do trên thẻ hỏi. */
+export const WALL_REASON_TITLE: Readonly<Record<WallReviewReason, string>> = {
+  uncertain: 'Máy chưa chắc là tường',
+  short: 'Ngắn hơn bề dày tường',
+  dangling: 'Đứng riêng, một đầu không nối',
+  overlap: 'Chồng lên đoạn khác',
+};
 
 /** Phần thêm của một hàng mà `WallRowViewModel` (đóng băng) không mang — đã định dạng sẵn (A15). */
 export interface WallRowExtra {
@@ -38,6 +52,8 @@ export interface WallRowExtra {
   readonly targetMm: WallThicknessChoice | null;
   /** Một câu cho khối độ dày của thanh tra. */
   readonly note: string;
+  /** Bố cục L23: lý do máy nghi (vắng = không chia theo lý do). */
+  readonly reason?: WallReviewReason | null;
 }
 
 export interface WallBulkGroup {
@@ -111,10 +127,27 @@ export function nextUnreviewedWallId(walls: readonly Wall[], fromId: WallId | nu
 const uncertainRankOf = (wall: Wall, threshold: number | undefined, suspectIds?: ReadonlySet<string>): number =>
   !wall.reviewed && isLowConfidence(wall, threshold, suspectIds) ? 0 : 1;
 
-/** Xếp theo hàng đợi, trong mỗi nhóm "máy chưa chắc" lên trước; còn lại giữ thứ tự vào (sort ổn định). */
-export const sortByReviewQueue = (walls: readonly Wall[], threshold?: number, suspectIds?: ReadonlySet<string>): readonly Wall[] =>
+/** Hạng theo lý do (L23): nhóm lý do theo `WALL_REASON_ORDER`, đoạn không lý do đứng sau. */
+const reasonRankOf = (wall: Wall, reasonOf: (wall: Wall) => WallReviewReason | null): number => {
+  const reason = reasonOf(wall);
+  return reason === null ? WALL_REASON_ORDER.length : WALL_REASON_ORDER.indexOf(reason);
+};
+
+/**
+ * Xếp theo hàng đợi, trong mỗi nhóm "máy chưa chắc" lên trước; còn lại giữ thứ tự vào (sort ổn định).
+ * Có `reasonOf` (bố cục L23): đoạn chưa duyệt xếp theo lý do trước, rồi mới theo độ dày.
+ */
+export const sortByReviewQueue = (
+  walls: readonly Wall[],
+  threshold?: number,
+  suspectIds?: ReadonlySet<string>,
+  reasonOf?: (wall: Wall) => WallReviewReason | null,
+): readonly Wall[] =>
   [...walls].sort(
     (a, b) =>
+      (reasonOf === undefined
+        ? 0
+        : Number(a.reviewed) - Number(b.reviewed) || (a.reviewed ? 0 : reasonRankOf(a, reasonOf) - reasonRankOf(b, reasonOf))) ||
       RANK[queueGroupOf(a)] - RANK[queueGroupOf(b)] ||
       uncertainRankOf(a, threshold, suspectIds) - uncertainRankOf(b, threshold, suspectIds),
   );
@@ -156,7 +189,13 @@ function noteOf(wall: Wall, targetMm: WallThicknessChoice | null): string {
   return `Dày trên ${mm(CONCRETE_COLUMN_THRESHOLD_MM)} mm: dày bất thường, có thể là cột BTCT. Cần xem tay.`;
 }
 
-export function rowExtraOf(wall: Wall, level: Level | null, scaleStatus?: ScaleStatus, scaleSource?: ScaleSource): WallRowExtra {
+export function rowExtraOf(
+  wall: Wall,
+  level: Level | null,
+  scaleStatus?: ScaleStatus,
+  scaleSource?: ScaleSource,
+  reason?: WallReviewReason | null,
+): WallRowExtra {
   const group = queueGroupOf(wall);
   const band = wallThicknessBandOf(wall.thicknessMm);
   const targetMm = band === null ? thicknessTargetOf(wall.thicknessMm) : null;
@@ -168,6 +207,7 @@ export function rowExtraOf(wall: Wall, level: Level | null, scaleStatus?: ScaleS
     group,
     targetMm,
     note: noteOf(wall, targetMm),
+    ...(reason === undefined ? {} : { reason }),
   };
 }
 

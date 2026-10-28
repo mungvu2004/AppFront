@@ -36,6 +36,7 @@ import {
   thicknessTargetOf,
   toleranceTextOf,
   type WallReviewQueue,
+  type WallReviewReason,
   type WallRowExtra,
 } from './wallReviewQueue';
 
@@ -66,6 +67,8 @@ export interface UseWallReviewQueueInput {
   /** Tường máy chưa chắc theo hình (`geometrySuspectIdsOf`): có thì dấu "?" luôn hiện. */
   readonly suspectIds?: ReadonlySet<string> | undefined;
   readonly onOpenThickness?: (() => void) | undefined;
+  /** Bố cục L23: lý do máy nghi của một đoạn; vắng = không chia theo lý do. */
+  readonly reasonOf?: ((wall: Wall) => WallReviewReason | null) | undefined;
 }
 
 const S_DESCRIPTION = 'Để sau: sang đoạn kế trong hàng đợi.';
@@ -75,10 +78,13 @@ export function useWallReviewQueue(input: UseWallReviewQueueInput): WallReviewQu
   const { graph, level, walls, visibleWalls, wallCodes, selectedWallId, canEdit, gateway, dispatchBundle } = input;
   const { invalidate, onSelect, onSkip, onFlash } = input;
 
-  const { scaleStatus, scaleSource, lockText } = input;
+  const { scaleStatus, scaleSource, lockText, reasonOf } = input;
   const extras = useMemo(
-    () => new Map<string, WallRowExtra>(walls.map((wall) => [wall.id, rowExtraOf(wall, level, scaleStatus, scaleSource)] as const)),
-    [level, scaleSource, scaleStatus, walls],
+    () =>
+      new Map<string, WallRowExtra>(
+        walls.map((wall) => [wall.id, rowExtraOf(wall, level, scaleStatus, scaleSource, reasonOf?.(wall))] as const),
+      ),
+    [reasonOf, level, scaleSource, scaleStatus, walls],
   );
   const nonStandardCount = useMemo(() => walls.filter((wall) => queueGroupOf(wall) === 'nonStandard').length, [walls]);
   /* Cả tầng, không theo bộ lọc: số trên nút "Đưa N tường về chuẩn" khớp màn Độ dày. */
@@ -87,8 +93,8 @@ export function useWallReviewQueue(input: UseWallReviewQueueInput): WallReviewQu
   const conditions = useMemo(() => gateConditionsOf(graph, level?.id ?? null, wallsDone), [graph, level, wallsDone]);
   /* Bộ lọc giấu hết việc còn lại thì vẫn có lối: tìm trên cả tầng theo cùng thứ tự. */
   const nextWallId = useMemo(
-    () => nextUnreviewedWallId(visibleWalls, selectedWallId) ?? nextUnreviewedWallId(sortByReviewQueue(walls), selectedWallId),
-    [selectedWallId, visibleWalls, walls],
+    () => nextUnreviewedWallId(visibleWalls, selectedWallId) ?? nextUnreviewedWallId(sortByReviewQueue(walls, undefined, undefined, reasonOf), selectedWallId),
+    [reasonOf, selectedWallId, visibleWalls, walls],
   );
 
   const onStandardize = useCallback(

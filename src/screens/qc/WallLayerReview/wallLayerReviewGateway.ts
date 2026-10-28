@@ -1348,26 +1348,43 @@ export function geometrySuspectIdsOf(graph: NormalizedSpatial | null, levelId: L
     return NO_SUSPECTS;
   }
 
+  return new Set(geometryReasonsOf(graph, levelId).keys());
+}
+
+/** Lý do máy nghi một đoạn theo hình. Một đoạn mang một lý do, theo thứ tự ưu tiên ngắn → không nối → chồng. */
+export type WallGeometryReason = 'short' | 'dangling' | 'overlap';
+
+const NO_REASONS: ReadonlyMap<string, WallGeometryReason> = new Map();
+
+/** Cùng ba kiểm của `geometrySuspectIdsOf`, giữ thêm lý do để hàng đợi L23 chia nhóm theo lý do. */
+export function geometryReasonsOf(graph: NormalizedSpatial | null, levelId: Level['id'] | null): ReadonlyMap<string, WallGeometryReason> {
+  if (graph === null || levelId === null) {
+    return NO_REASONS;
+  }
+
   const context = { graph, levelId };
-  const ids = new Set<string>();
-
-  for (const finding of checkWallOverlap(context)) {
-    finding.relatedIds.forEach((id) => ids.add(id));
-  }
-
-  for (const finding of checkDanglingWallEnds(context)) {
-    ids.add(finding.entityId);
-  }
+  const reasons = new Map<string, WallGeometryReason>();
+  const add = (id: string, reason: WallGeometryReason) => {
+    if (!reasons.has(id)) reasons.set(id, reason);
+  };
 
   for (const wall of entitiesInScope(context, 'wall')) {
     const lengthMm = Math.hypot(wall.centreline.end.x - wall.centreline.start.x, wall.centreline.end.y - wall.centreline.start.y);
 
     if (lengthMm > 0 && lengthMm < wall.thicknessMm) {
-      ids.add(wall.id);
+      add(wall.id, 'short');
     }
   }
 
-  return ids;
+  for (const finding of checkDanglingWallEnds(context)) {
+    add(finding.entityId, 'dangling');
+  }
+
+  for (const finding of checkWallOverlap(context)) {
+    finding.relatedIds.forEach((id) => add(id, 'overlap'));
+  }
+
+  return reasons;
 }
 
 /**

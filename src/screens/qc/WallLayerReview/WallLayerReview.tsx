@@ -74,7 +74,7 @@ import {
 import { WallLayerStatusBar, type WallLayerStatusBarProps } from './WallLayerStatusBar';
 import { WallLayerToolRail, type WallLayerToolRailProps } from './WallLayerToolRail';
 import type { WallLayerCanvasProps, WallLayerReviewProps } from './types';
-import type { WallReviewQueue } from './wallReviewQueue';
+import { WALL_REASON_TITLE, type WallReviewQueue, type WallReviewReason } from './wallReviewQueue';
 
 export interface WallLayerReviewViewProps extends WallLayerReviewProps {
   readonly toolRail: WallLayerToolRailProps;
@@ -101,6 +101,8 @@ const L23_TASK = 'Duyệt từng đoạn tường máy tìm thấy. Đúng thì 
 const L23_LAYER_GROUP = 'Lớp của bước';
 const L23_WALL_LAYER = 'Lớp tường';
 const L23_CENTRELINES = 'Tim tường';
+const reasonTitleOf = (reason: WallReviewReason | null | undefined): string | null =>
+  reason == null ? null : WALL_REASON_TITLE[reason];
 const CANVAS_REGION_FALLBACK_ALT = 'Chưa có ảnh nền để xem';
 
 /**
@@ -145,6 +147,7 @@ export function WallLayerReview({
       <QcQueueAskCard
         items={panel.rows.map((row) => ({ id: row.id, pending: !row.isReviewed }))}
         onSelect={panel.onSelect}
+        reason={reasonTitleOf(queue?.extras.get(panel.selectedWallId)?.reason)}
         selectedId={panel.selectedWallId}
         unit="Đoạn"
       >

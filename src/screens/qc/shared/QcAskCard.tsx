@@ -53,6 +53,8 @@ export function QcAskAnchor({ rect, children }: { readonly rect: QcAskRect | nul
 export interface QcAskCardProps {
   /** "Đoạn 1 trong 7 cần xem"; vắng khi mục đang chọn đã duyệt. */
   readonly eyebrow: string;
+  /** Lý do máy nghi, bằng lời thường ("Ngắn hơn bề dày tường"). */
+  readonly reason?: string | null | undefined;
   readonly code?: string | undefined;
   readonly onPrev?: (() => void) | undefined;
   readonly onNext?: (() => void) | undefined;
@@ -80,7 +82,7 @@ function NavButton({ label, kbd, onClick, children }: { readonly label: string; 
   );
 }
 
-export function QcAskCard({ eyebrow, code, onPrev, onNext, children }: QcAskCardProps) {
+export function QcAskCard({ eyebrow, reason, code, onPrev, onNext, children }: QcAskCardProps) {
   return (
     <section
       aria-label={CARD_LABEL}
@@ -102,6 +104,9 @@ export function QcAskCard({ eyebrow, code, onPrev, onNext, children }: QcAskCard
           <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
         </NavButton>
       </div>
+      {reason == null ? null : (
+        <p className="shrink-0 border-b border-border-default bg-state-attention-tint px-4 py-2 text-body-sm font-medium text-state-attention-text">{reason}</p>
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
     </section>
   );
@@ -114,16 +119,18 @@ export interface QcQueueAskCardProps<Id extends string> {
   /** Đơn vị trong đầu thẻ: "Đoạn", "Mục", "Phòng". */
   readonly unit: string;
   readonly onSelect: (id: Id) => void;
+  readonly reason?: string | null | undefined;
   readonly children: ReactNode;
 }
 
 /** Thẻ hỏi của một hàng đợi: tự tính "k trong N" và ‹ K / › J từ thứ tự danh sách. */
-export function QcQueueAskCard<Id extends string>({ items, selectedId, unit, onSelect, children }: QcQueueAskCardProps<Id>) {
+export function QcQueueAskCard<Id extends string>({ items, selectedId, unit, onSelect, reason, children }: QcQueueAskCardProps<Id>) {
   const { position, total, prevId, nextId } = askNavOf(items, selectedId);
   const eyebrow = position !== null ? `${unit} ${position} trong ${total} cần xem` : total > 0 ? `Đã duyệt · còn ${total} cần xem` : 'Đã duyệt hết';
   return (
     <QcAskCard
       eyebrow={eyebrow}
+      reason={reason}
       onNext={nextId === null ? undefined : () => onSelect(nextId)}
       onPrev={prevId === null ? undefined : () => onSelect(prevId)}
     >
