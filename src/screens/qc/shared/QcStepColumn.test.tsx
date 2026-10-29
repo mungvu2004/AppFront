@@ -14,6 +14,12 @@ const review = vi.hoisted(() => ({
 }));
 vi.mock('./useFloorReview', () => ({
   useFloorReview: () => ({ graph: review.counts === null ? null : {}, storeSpatial: null, scale: review.scale }),
+  useNextFloor: () => null,
+}));
+vi.mock('@/hooks/useProjectFloors', () => ({ useProjectFloors: () => [{ id: 'f1', label: 'ch-03' }] }));
+vi.mock('./floorDoneModel', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  floorDoneSummaryOf: () => ({ walls: '30 đoạn, tổng dài 58,4 m.', objects: '9 cửa đi.', rooms: '2 phòng: Bếp, Kho.', area: '67,73 m²' }),
 }));
 vi.mock('./floorReviewGateModel', async (importOriginal) => {
   const actual = await importOriginal<typeof GateModel>();
@@ -101,5 +107,28 @@ describe('QcDisplayPopover', () => {
   it('không có công tắc nào thì không vẽ nút', () => {
     const { container } = render(<QcDisplayPopover groups={[{ title: 'Lớp của bước', items: [] }]} />);
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('QcStepColumn: màn Xong tầng', () => {
+  it('bước Phòng của tầng đã xong: tổng kết + Dựng mô hình 3D; bấm dòng Phòng thì mở lại hàng đợi', () => {
+    review.scale = 'confirmed';
+    review.counts = { walls: { reviewed: 3, total: 3 }, objects: { reviewed: 0, total: 0 }, rooms: { reviewed: 2, total: 2 } };
+    render(
+      <MemoryRouter>
+        <QcStepColumn activeStep="rooms" floorId="f1" projectId="p1" task="Đặt tên cho từng phòng.">
+          <p>Hàng đợi phòng</p>
+        </QcStepColumn>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Tầng ch-03 đã duyệt xong cả 4 bước.');
+    expect(screen.getByText('Bạn đã duyệt những gì')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Dựng mô hình 3D/u }).getAttribute('href')).toBe('/projects/p1/3d');
+    expect(screen.queryByText('Hàng đợi phòng')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Phòng/u }));
+    expect(screen.getByText('Hàng đợi phòng')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Đặt tên cho từng phòng.');
   });
 });

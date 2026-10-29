@@ -41,6 +41,7 @@ import type {
   WallThicknessChoice,
 } from './types';
 import { WALL_THICKNESS_CHOICES } from './types';
+import type { QcViewLayerProps } from '../shared/QcViewLayer';
 
 /* -------------------------------------------------------------------------- */
 /* Màu tô theo ĐỘ DÀY.                                                         */
@@ -382,6 +383,8 @@ export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
   readonly surfaceRectPx: WallLayerRectPx | null;
   /** Hộp của tường đang chọn (hoặc đang rê), pixel KHUNG — `SelectionHalo` bám vào nó. */
   readonly haloRectPx: WallLayerRectPx | null;
+  /** Lớp chế độ nhìn L23 (Từng việc / Tổng thể); không có ở bố cục cũ. */
+  readonly viewLayer?: QcViewLayerProps | null;
   readonly onApprove: (wallId: WallId) => void;
   /** Xin đổi độ dày: đưa tiêu điểm về điều khiển ba lựa chọn của thanh tra. */
   readonly onRequestThicknessChange: (wallId: WallId) => void;

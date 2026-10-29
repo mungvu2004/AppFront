@@ -263,6 +263,7 @@ function ObjectLayerCanvasRegion({ model, l23 = false }: { readonly model: Objec
       unitPx={model.unitPx}
       viewBoxPx={model.viewBoxPx}
       wallOutlines={model.wallOutlines}
+      {...(l23 ? { viewPins: model.viewPins } : {})}
       {...editing}
     />
   );

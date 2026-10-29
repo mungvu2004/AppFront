@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeContentBoundsPx, fitMillimetresPerPixel, shortRoomName } from './roomLabelCanvasGeometry';
+import {
+  computeContentBoundsPx,
+  fitMillimetresPerPixel,
+  focusViewOf,
+  frameRectOf,
+  shortRoomName,
+} from './roomLabelCanvasGeometry';
 import type { RoomLabelViewModel } from './roomLabelTypes';
 
 /* Chỉ `outlineMm` được hai hàm này đọc. */
@@ -39,3 +45,36 @@ describe('shortRoomName (K16)', () => {
     expect(shortRoomName('bếp')).toBe('bếp');
   });
 });
+
+describe('L23 Từng việc — phóng tới phòng', () => {
+  it('hộp nhìn vừa khung, tâm đúng giữa khung', () => {
+    const content = { x: -40, y: -30, width: 800, height: 500 };
+    const frame = { width: 1000, height: 600 };
+    const basePan = { x: 100, y: 50 };
+    const focus = { x: 300, y: 100, width: 320, height: 200 };
+    const view = focusViewOf(focus, content, frame, basePan);
+    expect(view.zoomPct).toBe(300);
+
+    const shown = frameRectOf(
+      focus,
+      content,
+      { x: basePan.x + view.offset.x, y: basePan.y + view.offset.y },
+      view.zoomPct / 100,
+    );
+    expect(shown.x + shown.width / 2).toBeCloseTo(frame.width / 2);
+    expect(shown.y + shown.height / 2).toBeCloseTo(frame.height / 2);
+    expect(shown.height).toBeCloseTo(frame.height);
+    expect(shown.width).toBeLessThanOrEqual(frame.width);
+  });
+
+  it('scale 1, không dời: hộp chỉ trừ gốc nội dung', () => {
+    const content = { x: -40, y: -30, width: 800, height: 500 };
+    expect(frameRectOf({ x: 10, y: 20, width: 5, height: 6 }, content, { x: 0, y: 0 }, 1)).toEqual({
+      x: 50,
+      y: 50,
+      width: 5,
+      height: 6,
+    });
+  });
+});
+

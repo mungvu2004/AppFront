@@ -48,6 +48,9 @@ import {
 import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
 
+import { QC_LAYOUT_STORAGE_KEY } from '../shared/qcLayout';
+import { setQcViewMode } from '../shared/qcViewMode';
+
 import { ObjectLayerReviewContainer } from './ObjectLayerReview.container';
 import { scenarioArgsFor } from './ObjectLayerReview.stories';
 import { OBJECT_LAYER_FIXTURE_COUNTS } from './objectLayerFixture';
@@ -413,5 +416,38 @@ describe('dải lưu lớp (F-04x-1)', () => {
     expect(screen.getAllByRole('alert').some((node) => node.textContent?.includes(message))).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
     expect(onReload).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('chế độ nhìn L23 (Từng việc / Tổng thể)', () => {
+  afterEach(() => {
+    setQcViewMode('task');
+    localStorage.removeItem(QC_LAYOUT_STORAGE_KEY);
+  });
+
+  /* L23 chỉ bật khi màn có thanh tầng (`floorNav`). */
+  const renderScreen = () =>
+    renderWithProviders(
+      <MemoryRouter>
+        <ObjectLayerReviewContainer {...scenarioArgsFor('partial')} floorNav={{ floorId: 'f-1', projectId: 'p-1' }} />
+      </MemoryRouter>,
+    );
+
+  it('L23 + Tổng thể: ghim số 1..N trên mục chưa duyệt', async () => {
+    localStorage.setItem(QC_LAYOUT_STORAGE_KEY, 'l23');
+    setQcViewMode('overview');
+    renderScreen();
+
+    const pins = await screen.findAllByRole('button', { name: /^Mục cần xem số / });
+
+    expect(pins.length).toBeGreaterThan(0);
+    expect(pins.map((pin) => pin.textContent)).toEqual(pins.map((_, index) => String(index + 1)));
+  });
+
+  it('bố cục cũ: không có nút đổi chế độ nhìn', async () => {
+    renderScreen();
+
+    expect(await screen.findByRole('group', { name: LIST_LABEL })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Chế độ nhìn' })).toBeNull();
   });
 });

@@ -193,6 +193,7 @@ import {
 import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { isL23Layout } from '../shared/qcLayout';
+import { focusBoundsOf, focusFrameOf, useQcViewMode } from '../shared/qcViewMode';
 import { useScaleLock } from '../shared/useScaleLock';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
 import { wallThicknessColorGroupOf } from './wallLayerHatch';
@@ -1936,6 +1937,49 @@ export function useWallLayerReview(
   }, [fitAllBoundsPx, level, levelId, lockedFit, setViewCenter, setZoom]);
 
   /*
+   * L23 — chế độ nhìn: Từng việc phóng tới tường vừa chọn (nới ≥ 40 % cả tầng), Tổng thể vừa cả tầng.
+   * Chỉ chạy khi đổi tường chọn hoặc đổi chế độ (khoá `viewKeyRef`), không theo từng lượt sửa.
+   */
+  const viewMode = useQcViewMode();
+  const viewKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isL23Layout() || fitReferencePx === null || frameSizePx === null) {
+      return;
+    }
+
+    const key = viewMode === 'task' ? `task:${selectedWallId ?? ''}` : 'overview';
+
+    if (viewKeyRef.current === key) {
+      return;
+    }
+
+    viewKeyRef.current = key;
+    const scale = scaleOfLevel(level);
+
+    if (viewMode === 'overview') {
+      setZoom(DEFAULT_ZOOM);
+      setViewCenter(toMillimetrePoint(centreOfBounds(fitReferencePx), scale));
+      return;
+    }
+
+    const selected = shapes.find((shape) => shape.id === selectedWallId);
+
+    if (selected === undefined) {
+      return;
+    }
+
+    const focus = focusBoundsOf(selected.boundsPx, fitReferencePx);
+    /* Canh giữa phần khung trừ dải thẻ hỏi: tâm nhìn dời sang phải nửa dải ấy (đổi ra px bản vẽ). */
+    const frame = focusFrameOf(frameSizePx);
+    const fitted = fitCanvasView(frame, focus);
+    const nextZoom = fitted === null ? DEFAULT_ZOOM : clampZoom(fitted.zoom / baseScale);
+    const centre = centreOfBounds(focus);
+
+    setZoom(nextZoom);
+    setViewCenter(toMillimetrePoint({ x: centre.x + (frameSizePx.width - frame.width) / 2 / (nextZoom * baseScale), y: centre.y }, scale));
+  }, [baseScale, fitFramePx, fitReferencePx, frameSizePx, level, selectedWallId, setViewCenter, setZoom, shapes, viewMode]);
+
+  /*
    * Surface the mini map draws: the drawing image, else the box hugging the walls
    * (same fallback as the canvas `surface`), so a floor without a drawing still has
    * a working mini map instead of a dead one (R46).
@@ -2000,7 +2044,8 @@ export function useWallLayerReview(
       scope: 'canvas',
       onTrigger: onFitToScreen,
     },
-    shortcutOptions,
+    /* L23: phím F là của chế độ nhìn (`QcViewLayer`); nút vừa khung vẫn giữ. */
+    { ...shortcutOptions, enabled: !isL23Layout() },
   );
 
   /* ---------------------------------------------------------------------- */
@@ -2185,6 +2230,18 @@ export function useWallLayerReview(
     surfaceRectPx: surfacePx === null ? null : toFrameRect(viewport, surfacePx),
     haloRectPx: activeWall === null ? null : toFrameRect(viewport, activeWall.boundsPx),
   };
+  /* L23: ghim số cho tường còn chờ, cùng thứ tự hàng đợi của thẻ hỏi (`rows` chưa duyệt). */
+  const viewLayer = isL23Layout()
+    ? {
+        focus: selectedWallId === null ? null : frameLayer.haloRectPx,
+        pins: rows.flatMap((row) => {
+          const shape = row.isReviewed ? undefined : shapes.find((item) => item.id === row.id);
+          return shape === undefined ? [] : [{ id: row.id, ...toFramePoint(viewport, centreOfBounds(shape.boundsPx)) }];
+        }),
+        selectedId: selectedWallId,
+        onPick: (id: string) => onSelect(id as WallId),
+      }
+    : null;
   const onFrame = (point: WallLayerMeasurementPx['startPx']) =>
     point === null ? null : toFramePoint(viewport, point);
   const frameMeasurement: WallLayerMeasurementPx | null =
@@ -2231,6 +2288,7 @@ export function useWallLayerReview(
     legendLevels,
     measurement: frameMeasurement,
     ...frameLayer,
+    viewLayer,
     onApprove,
     onRequestThicknessChange,
     onRequestSplit,

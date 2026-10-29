@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils';
 
 import { QcAskAnchor } from '../shared/QcAskCard';
 import { useQcAskSlot } from '../shared/qcAsk';
+import { QcViewLayer } from '../shared/QcViewLayer';
 import { WallDraftGuide, WallDrawingBackground, WallLayerLegend, WallLayerMiniMap } from './WallLayerCanvasParts';
 import { drawingPointOf, wallMenuGroups } from './wallLayerCanvasActions';
 import { WallHatchDefs, WallShapeFigure } from './WallLayerShapeFigure';
@@ -109,6 +110,7 @@ export function WallLayerCanvas({
   unitPx,
   viewBoxPx,
   viewport,
+  viewLayer = null,
   zoomPercent,
 }: WallLayerCanvasViewProps) {
   const ask = useQcAskSlot();
@@ -380,6 +382,7 @@ export function WallLayerCanvas({
               )}
 
               <QcAskAnchor rect={selectedWallId === null ? null : haloRectPx}>{ask}</QcAskAnchor>
+              {viewLayer === null ? null : <QcViewLayer {...viewLayer} />}
 
               {measurement === null ? null : (
                 <MeasurementLabel

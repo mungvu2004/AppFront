@@ -32,6 +32,7 @@ import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 
 import { QcAskAnchor } from '../shared/QcAskCard';
 import { useQcAskSlot } from '../shared/qcAsk';
+import { QcViewLayer } from '../shared/QcViewLayer';
 import { QC_BACKGROUND_OPACITY } from '../shared/qcBackground';
 
 import {
@@ -92,6 +93,7 @@ export function ObjectLayerCanvas({
   surfaceRectPx,
   unitPx,
   viewBoxPx,
+  viewPins,
   wallOutlines,
 }: ObjectLayerCanvasViewProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
@@ -335,6 +337,9 @@ export function ObjectLayerCanvas({
         </svg>
 
         <QcAskAnchor rect={selectedObjectId === null ? null : haloRectPx}>{ask}</QcAskAnchor>
+        {viewPins === undefined ? null : (
+          <QcViewLayer focus={selectedObjectId === null ? null : haloRectPx} onPick={onSelect} pins={viewPins} selectedId={selectedObjectId} />
+        )}
 
         {haloRectPx === null ? null : (
           <>

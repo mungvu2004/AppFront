@@ -65,6 +65,8 @@ interface QcWorkspaceProps {
   readonly chromeTopRight?: ReactNode;
   readonly canvasLabel: string;
   readonly canvas: ReactNode;
+  /** Thẻ nổi trên bản vẽ không gắn với mục nào (bố cục L23: thẻ Xong tầng). */
+  readonly canvasOverlay?: ReactNode;
   /** Panel chi tiết phải. 1024-1279: lớp phủ trên mép phải bản vẽ, không rơi xuống dưới. */
   readonly inspector?: ReactNode;
   /**
@@ -91,6 +93,7 @@ export function QcWorkspace({
   chromeTopRight,
   canvasLabel,
   canvas,
+  canvasOverlay,
   inspector,
   selectionKey = null,
 }: QcWorkspaceProps) {
@@ -113,6 +116,7 @@ export function QcWorkspace({
         className="relative h-[60vh] min-h-80 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken lg:h-auto lg:min-h-0"
       >
         {canvas}
+        {canvasOverlay}
         {chromeTopRight != null || hasInspector ? (
           <div className="absolute right-3 top-3 z-30 flex items-center gap-2">
             {chromeTopRight}

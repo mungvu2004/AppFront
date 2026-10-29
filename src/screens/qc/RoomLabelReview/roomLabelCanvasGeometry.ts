@@ -193,6 +193,50 @@ export function centreOfBounds(bounds: RoomLabelBoundsPx): RoomLabelPointPx {
   return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
 }
 
+/**
+ * Hộp px mặt bằng → px khung, sau lớp nội dung `translate(t) scale(s)` gốc giữa (`origin-center`):
+ * điểm cục bộ `l` hiện ở `t + W/2 + s·(l − W/2)`.
+ */
+export function frameRectOf(
+  rect: RoomLabelBoundsPx,
+  content: RoomLabelBoundsPx,
+  translate: RoomLabelPointPx,
+  scale: number,
+): RoomLabelBoundsPx {
+  const axis = (value: number, origin: number, size: number, shift: number) =>
+    shift + size / 2 + scale * (value - origin - size / 2);
+  return {
+    x: axis(rect.x, content.x, content.width, translate.x),
+    y: axis(rect.y, content.y, content.height, translate.y),
+    width: rect.width * scale,
+    height: rect.height * scale,
+  };
+}
+
+/**
+ * L23 Từng việc: mức phóng (%) và độ kéo để hộp `focus` (px mặt bằng) vừa khung, tâm ở giữa khung.
+ * `basePan` là độ dời vừa khung sẵn có (`panPx`); độ kéo trả về cộng thêm vào nó.
+ */
+export function focusViewOf(
+  focus: RoomLabelBoundsPx,
+  content: RoomLabelBoundsPx,
+  frame: { readonly width: number; readonly height: number },
+  basePan: RoomLabelPointPx,
+): { readonly zoomPct: number; readonly offset: RoomLabelPointPx } {
+  const zoomPct = Math.round(Math.min(frame.width / focus.width, frame.height / focus.height) * 100);
+  const scale = zoomPct / 100;
+  const centre = centreOfBounds(focus);
+  const shift = (frameSize: number, value: number, origin: number, size: number, base: number) =>
+    frameSize / 2 - size / 2 - scale * (value - origin - size / 2) - base;
+  return {
+    zoomPct,
+    offset: {
+      x: shift(frame.width, centre.x, content.x, content.width, basePan.x),
+      y: shift(frame.height, centre.y, content.y, content.height, basePan.y),
+    },
+  };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Token màu — chuyển tên token thành chuỗi CSS `var(--…)`.                    */
 /* -------------------------------------------------------------------------- */

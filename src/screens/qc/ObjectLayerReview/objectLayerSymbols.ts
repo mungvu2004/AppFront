@@ -291,6 +291,8 @@ export interface ObjectLayerCanvasViewProps extends ObjectLayerCanvasProps {
   readonly onPlaceAt?: ObjectLayerReviewModel['onPlaceAt'] | undefined;
   /** Ẩn/hiện lớp trên bản vẽ (cụm "Hiển thị" cạnh cụm thu phóng). Vắng = không có cụm. */
   readonly onToggleLayer?: ObjectLayerReviewModel['onToggleLayer'] | undefined;
+  /** Bố cục L23: ghim của lớp chế độ nhìn. Vắng = không vẽ lớp ấy (bố cục cũ). */
+  readonly viewPins?: ObjectLayerReviewModel['viewPins'] | undefined;
 }
 
 /**

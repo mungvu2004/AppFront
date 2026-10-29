@@ -62,6 +62,8 @@ import { useStore } from '@/store';
 
 // Nạp tĩnh, ở pha collect, hộp thoại mà `FloorLayerSaveBanner` `lazy()`: không thì bài xung đột
 // biên dịch nó BÊN TRONG `findByRole` của mình, và dưới tải lượt ấy dài hơn trần chờ (QA-01c nợ #12).
+import { QC_LAYOUT_STORAGE_KEY } from '../shared/qcLayout';
+import { setQcViewMode } from '../shared/qcViewMode';
 import './FloorLayerSaveConfirm';
 import type { WallLayerViewProps } from './types';
 import { WallLayerInspector } from './WallLayerInspector';
@@ -1103,5 +1105,37 @@ describe('[16-D-008] danh sách của vai Người xem', () => {
 
     expect(screen.getByText('Chưa có đoạn tường nào')).toBeInTheDocument();
     expect(screen.queryByText(NO_MATCH)).not.toBeInTheDocument();
+  });
+});
+
+describe('chế độ nhìn L23 (Từng việc / Tổng thể)', () => {
+  afterEach(() => {
+    setQcViewMode('task');
+    localStorage.removeItem(QC_LAYOUT_STORAGE_KEY);
+  });
+
+  const renderScreen = () =>
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer {...scenarioArgsFor('partial')} />
+      </MemoryRouter>,
+    );
+
+  it('L23 + Tổng thể: ghim số 1..N trên tường còn chờ', async () => {
+    localStorage.setItem(QC_LAYOUT_STORAGE_KEY, 'l23');
+    setQcViewMode('overview');
+    renderScreen();
+
+    const pins = await screen.findAllByRole('button', { name: /^Mục cần xem số / });
+
+    expect(pins.length).toBeGreaterThan(0);
+    expect(pins.map((pin) => pin.textContent)).toEqual(pins.map((_, index) => String(index + 1)));
+  });
+
+  it('bố cục cũ: không có nút đổi chế độ nhìn', async () => {
+    renderScreen();
+
+    expect(await screen.findByRole('checkbox', { name: 'Hiện tim tường' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Chế độ nhìn' })).toBeNull();
   });
 });

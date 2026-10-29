@@ -25,6 +25,8 @@ export interface CanvasPanState {
   /** Đang giữ Space: màn nên đổi con trỏ thành `grab`. */
   spaceHeld: boolean;
   reset: () => void;
+  /** Đặt thẳng độ dời (px) — màn tự đưa một mục về giữa khung. */
+  panTo: (offset: { x: number; y: number }) => void;
   handlers: {
     onPointerDown: (e: ReactPointerEvent<HTMLElement>) => void;
     onPointerMove: (e: ReactPointerEvent<HTMLElement>) => void;
@@ -72,6 +74,13 @@ export function useCanvasPan(onWheelZoom?: (direction: 1 | -1) => void): CanvasP
     if (dx === 0 && dy === 0) return;
     pendingDelta.current = { x: 0, y: 0 };
     setOffset((o) => ({ x: o.x + dx, y: o.y + dy }));
+  }, []);
+
+  const panTo = useCallback((next: { x: number; y: number }) => {
+    if (frame.current !== null) cancelAnimationFrame(frame.current);
+    frame.current = null;
+    pendingDelta.current = { x: 0, y: 0 };
+    setOffset(next);
   }, []);
 
   useEffect(
@@ -131,12 +140,8 @@ export function useCanvasPan(onWheelZoom?: (direction: 1 | -1) => void): CanvasP
     transform: `translate(${offset.x}px, ${offset.y}px)`,
     isPanning,
     spaceHeld,
-    reset: useCallback(() => {
-      if (frame.current !== null) cancelAnimationFrame(frame.current);
-      frame.current = null;
-      pendingDelta.current = { x: 0, y: 0 };
-      setOffset({ x: 0, y: 0 });
-    }, []),
+    reset: useCallback(() => panTo({ x: 0, y: 0 }), [panTo]),
+    panTo,
     handlers: {
       onPointerDown: (e) => {
         if (!shouldStartPan(e.button, spaceHeld, e.target, e.currentTarget)) return;

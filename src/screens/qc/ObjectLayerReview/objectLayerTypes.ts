@@ -36,6 +36,7 @@ import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
 import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
+import type { QcPin } from '../shared/qcViewMode';
 
 import type { LayerGate } from './layerGate';
 
@@ -669,6 +670,8 @@ export interface ObjectLayerReviewModel {
   readonly surfaceRectPx: PixelRect | null;
   /** Hộp của đối tượng đang chọn (hoặc đang rê), pixel KHUNG. */
   readonly haloRectPx: PixelRect | null;
+  /** L23 Tổng thể: mục chưa duyệt theo thứ tự hàng đợi, tâm ở pixel KHUNG. */
+  readonly viewPins: readonly QcPin[];
   /** Canvas báo khổ khung đo được — "vừa khung" cần nó. */
   readonly onFrameResize: (size: { readonly width: number; readonly height: number }) => void;
   /** Nhóm loại đang chọn (`D`/`W`/`F`). */

@@ -4,10 +4,19 @@ import { useMemo } from 'react';
 import { floorLayerToGraph } from '@/api/floorLayerGraph';
 import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { useProjectFloors, type ProjectFloorItem } from '@/hooks/useProjectFloors';
 import { entitiesOfKind } from '@/lib/commands/business/shared';
+import { queryKeys } from '@/lib/query/queryKeys';
 import { useStore } from '@/store';
 
-import { floorScaleStateOf, scaleImplausibleOf, type FloorScaleState } from './floorReviewGateModel';
+import {
+  floorReviewCountsOf,
+  floorReviewGateOf,
+  floorScaleStateOf,
+  nextFloorOf,
+  scaleImplausibleOf,
+  type FloorScaleState,
+} from './floorReviewGateModel';
 import { floorLayerQuery, floorScaleKeysOf } from './floorScaleKeys';
 
 /** Tài liệu thiếu `layer` (chỉ có ở bộ mẫu rút gọn) thì coi như chưa đọc, không sập. */
@@ -59,3 +68,23 @@ export function useFloorReview(projectId: string, floorId: string): FloorReview 
   return { graph, storeSpatial, scale };
 }
 
+
+/**
+ * Tầng kế còn việc sau tầng này (`nextFloorOf`); `null` khi mọi tầng khác đã xong hoặc chưa biết tầng nào.
+ * ponytail: tầng khác chỉ biết "xong" khi kho hoặc cache N16 đã có nó; chưa đọc thì coi là chưa xong.
+ */
+export function useNextFloor(projectId: string, floorId: string): ProjectFloorItem | null {
+  const queryClient = useQueryClient();
+  const floors = useProjectFloors(projectId);
+  const storeSpatial = useStore((state) => (state.spatialProjectId === projectId ? state.spatial : null));
+  return useMemo(() => {
+    const isDone = (id: string) => {
+      const other =
+        storeSpatial !== null && storeSpatial.byId[id] !== undefined
+          ? storeSpatial
+          : graphOfDocument(queryClient.getQueryData<FloorLayerDocument>(queryKeys.layer.byFloor(projectId, id)));
+      return other !== null && floorReviewGateOf(floorReviewCountsOf(other, id)).next === null;
+    };
+    return nextFloorOf(floors, floorId, isDone);
+  }, [floorId, floors, projectId, queryClient, storeSpatial]);
+}
