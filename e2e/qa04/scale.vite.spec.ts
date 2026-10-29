@@ -11,32 +11,14 @@ import { ROUTES } from '../fixtures/routes';
 import { PROJECT_ID } from '../v4v5/files';
 import { MOCK_BASE_URL } from '../../qa/tests/support/auth';
 import { captureEvidence } from '../../qa/tests/support/evidence';
-import { SCALE, btn, canvasOf, panelOf } from '../../qa/tests/support/p04/P6';
+import { SCALE, canvasOf } from '../../qa/tests/support/p04/P6';
 
 const MOCK_FLOOR = 'L2'; // e2e/v4v5/scale.spec.ts:openScale
-/** Collapsed column is 48 px (lg:w-12); a leftover 344 px column is the bug. */
-const COLLAPSED_MAX_PX = 64;
-/** Open "Kiem tra con so" column: 288 px at xl since the cluster-3 redo (ScaleCalibrationPanel xl:w-[288px]), was 344. */
-const OPEN_MIN_PX = 240;
 const PX_TOLERANCE = 1.5;
 
 test.use({ baseURL: MOCK_BASE_URL, viewport: { width: 1440, height: 900 } });
 
-test('SCR-14 · FL-14-V1 [mocked response] BUG-609 thu gon bang thi cot co lai, canvas rong them', async ({ page }) => {
-  page.on('dialog', (dialog) => void dialog.dismiss());
-  await page.goto(ROUTES.project.scale(PROJECT_ID, MOCK_FLOOR));
-  await expect(canvasOf(page)).toBeVisible({ timeout: 15_000 });
-  const openPanel = await panelOf(page).boundingBox();
-
-  await test.step('[BUG-609] collapse leaves only the expand button in a narrow column', async () => {
-    await btn(page, SCALE.collapse).click();
-    await expect(btn(page, SCALE.expand)).toBeVisible();
-    const collapsed = await panelOf(page).boundingBox();
-    expect.soft(collapsed?.width ?? 999, 'collapsed column width').toBeLessThanOrEqual(COLLAPSED_MAX_PX);
-    expect.soft(openPanel?.width ?? 0, 'open column width').toBeGreaterThan(OPEN_MIN_PX);
-    await captureEvidence(page, 'U04_scale_panel_collapsed_1440.png');
-  });
-});
+/* BUG-609 (thu gọn bảng) không còn đối tượng: bố cục L23 bỏ nút thu gọn; dưới 1024 cột việc là ngăn kéo. */
 
 for (const width of [1024, 768]) {
   test(`SCR-14 · FL-14-V2 [mocked response] BUG-410 con truot nam trong lua chon dang chon @${String(width)}`, async ({ page }) => {

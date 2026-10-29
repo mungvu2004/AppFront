@@ -31,14 +31,13 @@ const FIXTURE_REVIEWED = 12;
 
 const list = (page: Page) => page.getByRole('listbox', { name: 'Danh sách đoạn tường' });
 /**
- * Câu tiến độ ở đầu panel. Danh sách ảo hoá và nhóm "Đã duyệt" thu gọn (S-15), nên đếm
- * `option` không còn ra đủ 48 — đếm bằng câu "12/48 tường đã duyệt" của hook.
+ * Tiến độ ở dòng bước Tường của cột việc ("36 cần xem"). Danh sách ảo hoá và nhóm "Đã duyệt" thu gọn
+ * (S-15), nên đếm `option` không ra đủ 48 — đếm bằng số còn cần xem của hook.
  */
 const progress = (page: Page, reviewed: number, total: number) =>
-  page.getByText(`${String(reviewed)}/${String(total)} tường đã duyệt`, { exact: true });
-/** Đầu panel (QcPanelHead): trạng thái lưu nằm ở đây, thanh trạng thái chỉ nhắc khi lưu hỏng. */
-const panelHead = (page: Page) =>
-  page.locator('header').filter({ has: page.getByRole('heading', { name: 'Duyệt tường', level: 1 }) });
+  page.getByRole('region', { name: 'Tường' }).getByText(`${String(total - reviewed)} cần xem`, { exact: true });
+/** Thanh trạng thái đáy màn: trạng thái tự lưu (A7) nằm ở đây từ bố cục L23. */
+const panelHead = (page: Page) => page.getByRole('status', { name: 'Thanh trạng thái' });
 
 async function openSeeded(page: Page): Promise<void> {
   await page.goto(ROUTES.project.walls(QC_PROJECT, QC_FLOOR.walls));
@@ -125,11 +124,15 @@ test.describe('[bơm] bộ mẫu riêng của màn tường', () => {
   test('[bơm] toast xoá gọi tường bằng nhãn của danh sách, không lộ mã máy (B-V6-02)', async ({ page }) => {
     await openSeeded(page);
 
-    await list(page).getByRole('option', { name: /^#W-001 / }).click();
+    /* Hàng đợi L23 xếp theo lý do máy nghi: lấy dòng đầu danh sách, đọc mã của nó từ tên dòng. */
+    const first = list(page).getByRole('option').first();
+    const code = /#W-\d+/u.exec(await first.innerText())?.[0];
+    expect(code).toBeDefined();
+    await first.click();
     await page.keyboard.press('Backspace');
 
     const toasts = page.getByRole('region', { name: 'Thông báo' });
-    await expect(toasts.getByText('Đã xoá tường #W-001.', { exact: true })).toBeVisible();
+    await expect(toasts.getByText(`Đã xoá tường ${String(code)}.`, { exact: true })).toBeVisible();
     await expect(toasts).not.toContainText(/W-\d{6}WALL/u);
   });
 
@@ -177,7 +180,8 @@ test.describe('[bơm] bộ mẫu riêng của màn tường', () => {
   test('[bơm] Escape bỏ chọn tường (B-V6-11)', async ({ page }) => {
     await openSeeded(page);
 
-    const first = list(page).getByRole('option', { name: /^#W-001 / });
+    /* Dòng đầu của hàng đợi L23 (xếp theo lý do), không gõ cứng một mã. */
+    const first = list(page).getByRole('option').first();
     await first.click();
     await expect(first).toHaveAttribute('aria-selected', 'true');
 

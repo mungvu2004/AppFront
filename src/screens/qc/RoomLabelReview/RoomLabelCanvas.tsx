@@ -54,7 +54,6 @@ import { MOTION_EASINGS, cssDurationMs } from '@/lib/motion';
 
 import { QcAskAnchor } from '../shared/QcAskCard';
 import { useQcAskSlot } from '../shared/qcAsk';
-import { isL23Layout } from '../shared/qcLayout';
 import { focusBoundsOf, focusFrameOf, useQcViewMode } from '../shared/qcViewMode';
 import { QcViewLayer } from '../shared/QcViewLayer';
 import { RoomLabelCanvasRoomFigure } from './RoomLabelCanvasRoomFigure';
@@ -98,7 +97,6 @@ export function RoomLabelCanvas({
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   /* Cụm zoom + kéo bản vẽ như màn Tường (Impeccable A3): 100% là "vừa khung", lăn chuột cũng phóng. */
   const { pan, scale, setZoom, zoomCluster } = useCanvasZoomPan();
-  const l23 = isL23Layout();
   const viewMode = useQcViewMode();
   const setPanEl = pan.ref;
   const setFrameRef = useCallback(
@@ -185,12 +183,12 @@ export function RoomLabelCanvas({
     };
   }, [contentBounds, frameSize]);
 
-  /* L23: Từng việc phóng tới phòng chọn, Tổng thể về vừa khung — chỉ khi đổi chế độ/phòng, không mỗi lần vẽ. */
+  /* Từng việc phóng tới phòng chọn, Tổng thể về vừa khung — chỉ khi đổi chế độ/phòng, không mỗi lần vẽ. */
   const lastViewKey = useRef<string | null>(null);
   const { onFitToScreen } = zoomCluster;
   const { panTo } = pan;
   useEffect(() => {
-    if (!l23 || contentBounds === null || frameSize.width === 0) return;
+    if (contentBounds === null || frameSize.width === 0) return;
     const key = viewMode === 'overview' ? viewMode : `task:${selectedRoomId ?? ''}`;
     if (key === lastViewKey.current) return;
     lastViewKey.current = key;
@@ -200,18 +198,16 @@ export function RoomLabelCanvas({
       setZoom(view.zoomPct);
       panTo(view.offset);
     }
-  }, [contentBounds, frameSize, l23, onFitToScreen, panPx, panTo, selectedBounds, selectedRoomId, setZoom, viewMode]);
+  }, [contentBounds, frameSize, onFitToScreen, panPx, panTo, selectedBounds, selectedRoomId, setZoom, viewMode]);
 
   /* Thẻ hỏi, phủ mờ, ghim nằm ở khung (không phóng theo bản vẽ): đổi hộp phòng sang px khung. */
   const translate = { x: panPx.x + pan.offset.x, y: panPx.y + pan.offset.y };
   const toFrame = (bounds: RoomLabelBoundsPx) =>
     contentBounds === null ? bounds : frameRectOf(bounds, contentBounds, translate, scale);
   const askRect = selectedBounds === null ? null : toFrame(selectedBounds);
-  const pins = l23
-    ? byRoomReason(rooms)
-        .filter((room) => room.status !== 'confirmed')
-        .map((room, index) => ({ id: room.id, n: index + 1, ...centreOfBounds(toFrame(computeRoomBoundsPx(room, millimetresPerPixel))) }))
-    : [];
+  const pins = byRoomReason(rooms)
+    .filter((room) => room.status !== 'confirmed')
+    .map((room, index) => ({ id: room.id, n: index + 1, ...centreOfBounds(toFrame(computeRoomBoundsPx(room, millimetresPerPixel))) }));
 
   const handleFrameMouseLeave = useCallback(() => onHover(null), [onHover]);
 
@@ -323,7 +319,7 @@ export function RoomLabelCanvas({
         </div>
       )}
       <QcAskAnchor rect={askRect}>{ask}</QcAskAnchor>
-      {l23 ? <QcViewLayer focus={askRect} onPick={(id) => onSelect(id as RoomLabelRoomId)} pins={pins} selectedId={selectedRoomId} /> : null}
+      <QcViewLayer focus={askRect} onPick={(id) => onSelect(id as RoomLabelRoomId)} pins={pins} selectedId={selectedRoomId} />
 
       <ZoomCluster {...zoomCluster} />
 

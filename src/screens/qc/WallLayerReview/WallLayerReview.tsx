@@ -1,7 +1,7 @@
 /**
- * Màn S-12 "Duyệt lớp tường" (`WallLayerReview`) — view THUẦN, ghép ba vùng:
- * ray công cụ trái (56), panel trái (280), panel phải/thanh tra (344), cộng
- * canvas giữa và thanh trạng thái (32) dính đáy.
+ * Màn S-12 "Duyệt lớp tường" (`WallLayerReview`) — view THUẦN, bố cục L23: ray công cụ (56),
+ * cột việc 360 (`QcStepColumn`: câu việc · cây bước · danh sách · cổng ở đáy), bản vẽ chiếm phần
+ * còn lại với thẻ hỏi neo trên bản vẽ (thanh tra của đoạn đang chọn), thanh trạng thái (32) dính đáy.
  *
  * Chỉ nhận {@link WallLayerReviewViewProps} và vẽ. Không `@/api`, không
  * `@/store`, không `@/domain`, không `@/lib/http` (R-60,
@@ -36,11 +36,11 @@
  * |-------------|------------------------------------------------------------------|
  * | `empty`     | `WallLayerList` (panel trái) — `EmptyState` với `emptyNotice`     |
  * | `loading`   | canvas: dự phòng khung xương; panel trái: 12 dòng `Skeleton`      |
- * | `partial`   | mặc định — danh sách + thanh tra bình thường                      |
+ * | `partial`   | mặc định — danh sách + thẻ hỏi bình thường                        |
  * | `error`     | `InlineAlert` trong panel trái; đọc lớp hỏng khi chưa có tài liệu → cả màn là `FloorLayerReadFailureScreen` (BUG-326) |
- * | `success`   | cổng ở thanh bước (`WallLayerGate`) là cổng chung của tầng (`FloorReviewGate`) |
- * | `forbidden` | ray ẩn công cụ sửa; thanh tra bỏ viền + một câu giải thích         |
- * | `collapsed` | hai panel ẩn; ray công cụ vẫn đứng cạnh canvas (G4a-20)            |
+ * | `success`   | cổng ở đáy cột việc (`WallLayerGate`) là cổng chung của tầng (`FloorReviewGate`) |
+ * | `forbidden` | ray ẩn công cụ sửa; thẻ hỏi bỏ viền + một câu giải thích           |
+ * | `collapsed` | cột việc và thẻ hỏi ẩn; ray công cụ vẫn đứng cạnh canvas (G4a-20)  |
  *
  * Không nhánh nào khiến view trả `null` — canvas, ray công cụ và thanh trạng
  * thái luôn được vẽ, nên màn trắng (thất bại duy nhất A11 tồn tại để chặn)
@@ -62,7 +62,6 @@ import { QcQueueAskCard } from '../shared/QcAskCard';
 import { QcAskSlot, queueNumbersOf } from '../shared/qcAsk';
 import { QcDisplayPopover } from '../shared/QcDisplayPopover';
 import { QcStepColumn } from '../shared/QcStepColumn';
-import { isL23Layout } from '../shared/qcLayout';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { WallLayerGate } from './WallLayerGate';
 import { WallLayerInspector } from './WallLayerInspector';
@@ -97,10 +96,10 @@ export interface WallLayerReviewViewProps extends WallLayerReviewProps {
 }
 
 const SCREEN_ARIA_LABEL = 'Duyệt lớp tường';
-const L23_TASK = 'Duyệt từng đoạn tường máy tìm thấy. Đúng thì giữ, nét thừa thì xoá.';
-const L23_LAYER_GROUP = 'Lớp của bước';
-const L23_WALL_LAYER = 'Lớp tường';
-const L23_CENTRELINES = 'Tim tường';
+const TASK = 'Duyệt từng đoạn tường máy tìm thấy. Đúng thì giữ, nét thừa thì xoá.';
+const LAYER_GROUP = 'Lớp của bước';
+const WALL_LAYER = 'Lớp tường';
+const CENTRELINES = 'Tim tường';
 const reasonTitleOf = (reason: WallReviewReason | null | undefined): string | null =>
   reason == null ? null : WALL_REASON_TITLE[reason];
 const CANVAS_REGION_FALLBACK_ALT = 'Chưa có ảnh nền để xem';
@@ -140,12 +139,10 @@ export function WallLayerReview({
    * thu gọn đổi nhãn mà hai panel không thu (BUG-601).
    */
   const isCollapsed = toolRail.isCollapsed;
-  /* Bố cục L23 cần biết dự án và tầng (cây bước, cổng); story không có thanh tầng thì giữ bố cục cũ. */
-  const l23 = isL23Layout() && floorNav != null;
   /* Một bộ mục cho thẻ hỏi và số ở cột trái — dòng "3" là ghim "3" (ghim đi theo `rows` chưa duyệt). */
   const queueItems = panel.rows.map((row) => ({ id: row.id, pending: !row.isReviewed }));
   const ask =
-    l23 && !isCollapsed && panel.selectedWallId !== null ? (
+    !isCollapsed && panel.selectedWallId !== null ? (
       <QcQueueAskCard
         items={queueItems}
         onSelect={panel.onSelect}
@@ -158,13 +155,10 @@ export function WallLayerReview({
     ) : null;
   const left = isCollapsed ? null : (
     <WallLayerLeftPanel
-      embedded={l23}
       extras={leftPanel}
       panel={panel}
       queue={queue}
-      queueNumbers={l23 ? queueNumbersOf(queueItems) : undefined}
-      saveFailed={statusBar.saveFailed}
-      saveLabel={statusBar.saveLabel}
+      queueNumbers={queueNumbersOf(queueItems)}
     />
   );
 
@@ -182,11 +176,8 @@ export function WallLayerReview({
    */
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
-      {/* H1 thấy được ở đầu panel trái (QcPanelHead); tiến độ ở dòng trạng thái + cổng, không lặp ở đây. */}
-      {floorNav != null && (
-        <QcFloorNav {...floorNav} floors={leftPanel.floors} layer="walls" minimal={l23} titled={l23 || !isCollapsed} />
-      )}
-      {l23 ? null : <WallLayerGate floorNav={floorNav} panel={panel} queue={queue} />}
+      {/* H1 thấy được ở đầu cột việc (`QcStepColumn`); tiến độ ở dòng trạng thái + cổng, không lặp ở đây. */}
+      {floorNav != null && <QcFloorNav {...floorNav} floors={leftPanel.floors} layer="walls" minimal titled />}
       {saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={saveBlock} />
@@ -197,36 +188,34 @@ export function WallLayerReview({
           <ProvisionalScaleBanner notice={provisionalScaleNotice} />
         </div>
       )}
-      {/* Khe chung (A3): rail | panel trái | bản vẽ | chi tiết; 1024-1279 chi tiết phủ mép phải bản vẽ. */}
+      {/* Khe chung (A3): rail | cột việc | bản vẽ; chi tiết là thẻ hỏi neo trên bản vẽ. */}
       <QcAskSlot value={ask}>
       <QcWorkspace
-        column={l23}
+        column
         chromeTopRight={
-          l23 ? (
-            <QcDisplayPopover
-              groups={[
-                {
-                  title: L23_LAYER_GROUP,
-                  items: [
-                    { key: 'walls', label: L23_WALL_LAYER, checked: leftPanel.isWallLayerVisible, onToggle: leftPanel.onToggleWallLayer },
-                    { key: 'centrelines', label: L23_CENTRELINES, checked: leftPanel.showCentrelines, onToggle: leftPanel.onToggleCentrelines },
-                  ],
-                },
-              ]}
-            />
-          ) : undefined
+          <QcDisplayPopover
+            groups={[
+              {
+                title: LAYER_GROUP,
+                items: [
+                  { key: 'walls', label: WALL_LAYER, checked: leftPanel.isWallLayerVisible, onToggle: leftPanel.onToggleWallLayer },
+                  { key: 'centrelines', label: CENTRELINES, checked: leftPanel.showCentrelines, onToggle: leftPanel.onToggleCentrelines },
+                ],
+              },
+            ]}
+          />
         }
         canvas={canvasSlot ?? <CanvasFallback canvas={canvas} />}
         canvasLabel={canvas.backgroundImageAlt || CANVAS_REGION_FALLBACK_ALT}
-        inspector={isCollapsed || l23 ? null : <WallLayerInspector panel={panel} queue={queue} />}
         left={
-          l23 && left !== null && floorNav != null ? (
+          /* Cây bước và cổng cần dự án + tầng; story không có thanh tầng thì chỉ có danh sách. */
+          left !== null && floorNav != null ? (
             <QcStepColumn
               activeStep="walls"
               floorId={floorNav.floorId}
-              gate={<WallLayerGate floorNav={floorNav} inline panel={panel} queue={queue} />}
+              gate={<WallLayerGate floorNav={floorNav} panel={panel} queue={queue} />}
               projectId={floorNav.projectId}
-              task={L23_TASK}
+              task={TASK}
             >
               {left}
             </QcStepColumn>

@@ -289,10 +289,8 @@ export interface ObjectLayerCanvasViewProps extends ObjectLayerCanvasProps {
   /** Chế độ vẽ (K07): bấm lên bản vẽ gọi `onPlaceAt` với điểm pixel bản vẽ. Vắng/`null` = không vẽ. */
   readonly drawLayer?: ObjectLayerReviewModel['drawLayer'] | undefined;
   readonly onPlaceAt?: ObjectLayerReviewModel['onPlaceAt'] | undefined;
-  /** Ẩn/hiện lớp trên bản vẽ (cụm "Hiển thị" cạnh cụm thu phóng). Vắng = không có cụm. */
-  readonly onToggleLayer?: ObjectLayerReviewModel['onToggleLayer'] | undefined;
-  /** Bố cục L23: ghim của lớp chế độ nhìn. Vắng = không vẽ lớp ấy (bố cục cũ). */
-  readonly viewPins?: ObjectLayerReviewModel['viewPins'] | undefined;
+  /** Ghim của lớp chế độ nhìn (Tổng thể); công tắc lớp nằm trong popover "Hiển thị" của màn. */
+  readonly viewPins: ObjectLayerReviewModel['viewPins'];
 }
 
 /**

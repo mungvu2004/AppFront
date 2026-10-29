@@ -48,7 +48,6 @@ import {
 import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
 
-import { QC_LAYOUT_STORAGE_KEY } from '../shared/qcLayout';
 import { setQcViewMode } from '../shared/qcViewMode';
 
 import { ObjectLayerReviewContainer } from './ObjectLayerReview.container';
@@ -107,6 +106,7 @@ function firstNumberIn(text: string): number {
 /* -------------------------------------------------------------------------- */
 
 beforeEach(() => {
+  stubCanvasFrame();
   resetSelectorCaches();
   /* jsdom không có `matchMedia`; `matches: false` là "không giảm chuyển động". */
   Object.defineProperty(window, 'matchMedia', {
@@ -124,6 +124,22 @@ beforeEach(() => {
   });
 });
 
+/* Thẻ hỏi (chi tiết mục chọn) neo trên bản vẽ chỉ hiện khi đo được khung: jsdom không bố trí, nên giả khổ khung. */
+class StubResizeObserver {
+  observe(): void {
+    /* Khung không đổi kích thước trong bài kiểm. */
+  }
+  disconnect(): void {
+    /* Không có gì để ngắt. */
+  }
+}
+
+function stubCanvasFrame() {
+  vi.stubGlobal('ResizeObserver', StubResizeObserver);
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1200);
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800);
+}
+
 afterEach(() => {
   cleanup();
   /* Kho dùng chung giữa các bài kiểm: trả nó về rỗng qua ĐÚNG hành động công khai. */
@@ -134,6 +150,7 @@ afterEach(() => {
   store.setHovered(null);
   resetSelectorCaches();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 /* -------------------------------------------------------------------------- */
@@ -188,9 +205,9 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
     const treeTotal = layerCounts.reduce((sum, count) => sum + count, 0);
 
     /* 2. Bộ đếm — "21/21 đối tượng đã duyệt", đọc từ nhãn của chính bộ đếm. */
-    const counter = screen.getAllByLabelText(/đối tượng đã duyệt$/u)[0] as HTMLElement;
+    const counter = screen.getAllByText(/đối tượng đã duyệt$/u)[0] as HTMLElement;
     const counterTotal = Number.parseInt(
-      (/\d+\/(\d+)/u.exec(counter.getAttribute('aria-label') ?? '') ?? ['', ''])[1] ?? '',
+      (/\d+\/(\d+)/u.exec(counter.textContent ?? '') ?? ['', ''])[1] ?? '',
       10,
     );
 
@@ -225,7 +242,11 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
 
     const list = await screen.findByRole('group', { name: LIST_LABEL });
 
-    expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual(['Duyệt cửa và nội thất']);
+    /* H1 là câu việc của cột việc, mở bằng động từ. */
+    const headings = screen.getAllByRole('heading', { level: 1 });
+
+    expect(headings).toHaveLength(1);
+    expect(headings[0]?.textContent).toMatch(/^Duyệt cửa và nội thất/u);
 
     fireEvent.click(within(list).getAllByRole('option')[0] as HTMLElement);
 
@@ -297,19 +318,18 @@ describe('K07 — nút rail "Vẽ …" bật chế độ vẽ thật', () => {
   });
 });
 
-describe('Codex P2 — cụm "Hiển thị" ẩn/hiện lớp trên bản vẽ', () => {
-  it('bấm "Ẩn lớp cửa đi" thì nút thành "Hiện lớp cửa đi", aria-pressed tắt; chip lọc danh sách không đổi', async () => {
+describe('Codex P2 — popover "Hiển thị" ẩn/hiện lớp trên bản vẽ', () => {
+  it('bỏ chọn "Cửa đi" thì lớp ấy tắt, "Cửa sổ" còn bật; chip lọc danh sách không đổi', async () => {
     renderState('success');
     await screen.findByRole('group', { name: LIST_LABEL });
 
-    const toggles = screen.getByRole('group', { name: 'Hiển thị' });
-
-    fireEvent.click(within(toggles).getByRole('button', { name: 'Ẩn lớp cửa đi' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hiển thị' }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Cửa đi' }));
 
     await waitFor(() => {
-      expect(within(toggles).getByRole('button', { name: 'Hiện lớp cửa đi' })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByRole('checkbox', { name: 'Cửa đi' })).not.toBeChecked();
     });
-    expect(within(toggles).getByRole('button', { name: 'Ẩn lớp cửa sổ' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('checkbox', { name: 'Cửa sổ' })).toBeChecked();
     expect(
       within(screen.getByRole('group', { name: LAYER_FILTER_LABEL })).getByRole('button', { name: 'Chỉ hiện cửa đi' }),
     ).toHaveAttribute('aria-pressed', 'false');
@@ -372,9 +392,9 @@ describe('trạng thái rỗng', () => {
      * A5: lượt thêm KHÔNG đặt cờ duyệt — bộ đếm nhảy lên 0/1, không phải 1/1.
      * Chỉ lệnh duyệt của người mới bật cờ xanh.
      */
-    const counter = screen.getAllByLabelText(/đối tượng đã duyệt$/u)[0] as HTMLElement;
+    const counter = screen.getAllByText(/đối tượng đã duyệt$/u)[0] as HTMLElement;
 
-    expect(counter.getAttribute('aria-label')).toBe('0/1 đối tượng đã duyệt');
+    expect(counter.textContent).toBe('0/1 đối tượng đã duyệt');
   });
 });
 
@@ -419,13 +439,11 @@ describe('dải lưu lớp (F-04x-1)', () => {
   });
 });
 
-describe('chế độ nhìn L23 (Từng việc / Tổng thể)', () => {
+describe('chế độ nhìn (Từng việc / Tổng thể)', () => {
   afterEach(() => {
     setQcViewMode('task');
-    localStorage.removeItem(QC_LAYOUT_STORAGE_KEY);
   });
 
-  /* L23 chỉ bật khi màn có thanh tầng (`floorNav`). */
   const renderScreen = () =>
     renderWithProviders(
       <MemoryRouter>
@@ -433,8 +451,7 @@ describe('chế độ nhìn L23 (Từng việc / Tổng thể)', () => {
       </MemoryRouter>,
     );
 
-  it('L23 + Tổng thể: ghim số 1..N trên mục chưa duyệt', async () => {
-    localStorage.setItem(QC_LAYOUT_STORAGE_KEY, 'l23');
+  it('Tổng thể: ghim số 1..N trên mục chưa duyệt', async () => {
     setQcViewMode('overview');
     renderScreen();
 
@@ -444,26 +461,12 @@ describe('chế độ nhìn L23 (Từng việc / Tổng thể)', () => {
     expect(pins.map((pin) => pin.textContent)).toEqual(pins.map((_, index) => String(index + 1)));
   });
 
-  it('L23: dòng chưa duyệt mang số hàng đợi 1..N theo thứ tự danh sách, bố cục cũ thì không', async () => {
-    localStorage.setItem(QC_LAYOUT_STORAGE_KEY, 'l23');
-    const { unmount } = renderScreen();
+  it('dòng chưa duyệt mang số hàng đợi 1..N theo thứ tự danh sách', async () => {
+    renderScreen();
     const list = await screen.findByRole('group', { name: LIST_LABEL });
-    const numbers = within(list).getAllByLabelText(/^Số \d+ trong hàng đợi$/);
+    const numbers = Array.from(list.querySelectorAll('[data-queue-number]'));
 
     expect(numbers.length).toBeGreaterThan(0);
     expect(numbers.map((item) => item.textContent)).toEqual(numbers.map((_, index) => String(index + 1)));
-
-    unmount();
-    localStorage.removeItem(QC_LAYOUT_STORAGE_KEY);
-    renderScreen();
-
-    expect(within(await screen.findByRole('group', { name: LIST_LABEL })).queryAllByLabelText(/trong hàng đợi$/)).toHaveLength(0);
-  });
-
-  it('bố cục cũ: không có nút đổi chế độ nhìn', async () => {
-    renderScreen();
-
-    expect(await screen.findByRole('group', { name: LIST_LABEL })).toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: 'Chế độ nhìn' })).toBeNull();
   });
 });

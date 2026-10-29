@@ -1,7 +1,7 @@
 /**
- * Panel trái (lấp cột 240px của khung) của màn Duyệt tên phòng (demo Z/S-20) — MỘT khung: đầu panel (3 câu),
- * hàng lọc + "Chuẩn hoá tên…", rồi vùng cuộn gồm danh sách phòng (lên đầu, K23) và một dòng "N chỗ tường
- * chưa khép kín" bấm để mở nhóm "Vòng tường hở".
+ * Panel trái của màn Duyệt tên phòng, nằm trong cột việc `QcStepColumn` (demo Z/S-20): hàng lọc +
+ * "Chuẩn hoá tên…", rồi vùng cuộn gồm danh sách phòng (lên đầu, K23) và một dòng "N chỗ tường chưa
+ * khép kín" bấm để mở nhóm "Vòng tường hở".
  *
  * View THUẦN (R-60): nhận đúng {@link RoomLabelLeftPanelProps} và {@link RoomLabelListProps}
  * rồi chỉ hiển thị. Tổng diện tích sàn đã nằm ở dòng trạng thái đầu panel, không lặp ở đây.
@@ -13,7 +13,7 @@
  */
 
 import { ChevronDown, ChevronRight, Unlink } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 
 import type { RoomId, WallId } from '@/domain/spatial/types';
 import type { CommandItem } from '@/hooks/useCommandPalette';
@@ -30,12 +30,8 @@ export interface RoomLabelLeftPanelViewProps {
   readonly list: RoomLabelListProps;
   /** Câu rỗng khi bộ lọc "Chưa đặt tên" lọc sạch danh sách (BUG-321); `null` thì vẽ danh sách. */
   readonly emptyListNotice: string | null;
-  /** Đầu panel (QcPanelHead) — nằm trong cùng khung, không thành thẻ riêng. */
-  readonly head?: ReactNode;
   /** Cờ phòng chiếm >80 % sàn, đã ghép câu ở hook. */
   readonly oversizedRoom?: { readonly id: RoomId; readonly text: string } | null;
-  /** Bố cục L23: nằm trong cột việc, bỏ khung thẻ. */
-  readonly embedded?: boolean;
 }
 
 const UNNAMED_FILTER_LABEL = 'Chưa đặt tên';
@@ -130,19 +126,18 @@ export function RoomLabelGapsSection({ gaps: allGaps, unclosedRoomCount, roomCou
   );
 }
 
-export function RoomLabelLeftPanel({ panel, list, emptyListNotice, head, oversizedRoom = null, embedded = false }: RoomLabelLeftPanelViewProps) {
+export function RoomLabelLeftPanel({ panel, list, emptyListNotice, oversizedRoom = null }: RoomLabelLeftPanelViewProps) {
   const { summary, gaps, showOnlyUnnamed, onToggleUnnamedFilter, onOpenNormalizePreview } = panel;
   const commands = useMemo<CommandItem[]>(
-    () => (embedded ? [{ id: 'qc-rooms-normalize', group: QC_COMMAND_GROUP, label: 'Chuẩn hoá tên phòng…', keywords: ['tên', 'chuẩn hoá'], onSelect: onOpenNormalizePreview }] : []),
-    [embedded, onOpenNormalizePreview],
+    () => [{ id: 'qc-rooms-normalize', group: QC_COMMAND_GROUP, label: 'Chuẩn hoá tên phòng…', keywords: ['tên', 'chuẩn hoá'], onSelect: onOpenNormalizePreview }],
+    [onOpenNormalizePreview],
   );
   useScreenCommands(commands);
   const [gapsOpen, setGapsOpen] = useState(false);
   const gapCount = uniqueGaps(gaps).length;
 
   return (
-    <div className={embedded ? 'flex h-full w-full flex-col overflow-hidden' : 'flex h-full w-full flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:w-full'}>
-      {head}
+    <div className="flex h-full w-full flex-col overflow-hidden">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border-default px-4 py-3">
         <button
           aria-pressed={showOnlyUnnamed}

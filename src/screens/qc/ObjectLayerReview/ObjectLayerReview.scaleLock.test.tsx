@@ -23,6 +23,7 @@ vi.mock('../shared/useScaleLock', () => ({
 }));
 
 beforeEach(() => {
+  stubCanvasFrame();
   resetSelectorCaches();
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
@@ -39,6 +40,22 @@ beforeEach(() => {
   });
 });
 
+/* Thẻ hỏi (chi tiết mục chọn) neo trên bản vẽ chỉ hiện khi đo được khung: jsdom không bố trí, nên giả khổ khung. */
+class StubResizeObserver {
+  observe(): void {
+    /* Khung không đổi kích thước trong bài kiểm. */
+  }
+  disconnect(): void {
+    /* Không có gì để ngắt. */
+  }
+}
+
+function stubCanvasFrame() {
+  vi.stubGlobal('ResizeObserver', StubResizeObserver);
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1200);
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800);
+}
+
 afterEach(() => {
   cleanup();
   const store = useStore.getState();
@@ -48,6 +65,7 @@ afterEach(() => {
   store.setHovered(null);
   resetSelectorCaches();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('khoá tỷ lệ — màn Cửa và nội thất', () => {

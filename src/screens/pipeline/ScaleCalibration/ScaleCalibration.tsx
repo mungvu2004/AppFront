@@ -64,7 +64,7 @@ import { FloorLayerReadFailureScreen } from '../../qc/shared/FloorLayerReadFailu
 import { FloorReviewGate } from '../../qc/shared/FloorReviewGate.container';
 import { QcFloorNav } from '../../qc/shared/QcFloorNav';
 import { QcStepColumn } from '../../qc/shared/QcStepColumn';
-import { isL23Layout, QC_COLUMN_DRAWER_CLASS, QC_COLUMN_ID } from '../../qc/shared/qcLayout';
+import { QC_COLUMN_DRAWER_CLASS, QC_COLUMN_ID } from '../../qc/shared/qcLayout';
 import { QC_BODY_CLASS, QcColumnHandle, QcColumnScrim, QcScreenFrame } from '../../qc/shared/QcScreenFrame';
 import { FloorLayerSaveBanner } from '../../qc/WallLayerReview/FloorLayerSaveBanner';
 
@@ -211,7 +211,8 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
   }
 
   /* Bố cục L23 (đợt 4): cột việc 360 (câu việc, cây 4 bước, hai panel của màn, cổng ở đáy) + bản vẽ. */
-  const l23 = isL23Layout() && floorNav !== undefined;
+  /* Có tầng (route thật): bố cục L23. Không có thanh tầng (story, bài kiểm rời) thì giữ khung hai panel. */
+  const l23 = floorNav !== undefined;
   const notices = (
     <>
       {/* Xung đột 409 / tầng khoá lưu: có "Tải lại", không thì mọi lượt áp sau hỏng im lặng (BUG-598). */}
@@ -270,8 +271,7 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
       {/* Panel trái đã có H1 thấy được ("Tỷ lệ bản vẽ"): bỏ H1 ẩn của nav để trang chỉ một H1. */}
-      {floorNav !== undefined && <QcFloorNav {...floorNav} layer="scale" minimal={l23} titled />}
-      {floorNav !== undefined && !l23 && <FloorReviewGate floorId={floorNav.floorId} projectId={floorNav.projectId} />}
+      {floorNav !== undefined && <QcFloorNav {...floorNav} layer="scale" minimal titled />}
       {l23 && floorNav !== undefined ? (
         <div className="relative flex min-h-0 flex-1 gap-2 p-2">
           {/* Dưới 1024 cột việc là ngăn kéo (như QcWorkspace); Tỷ lệ không có mục chọn nên mở tới khi người dùng đóng. */}

@@ -20,6 +20,8 @@ test.use({ baseURL: MOCK_BASE_URL });
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 /** The seeded screen set has 48 walls (e2e/v6/wall-layer-review.spec.ts FIXTURE_WALLS). */
 const SEEDED_WALLS = 48;
+/** Of which 12 are already reviewed (FIXTURE_REVIEWED). */
+const SEEDED_REVIEWED = 12;
 /** One list row is `h-10` = 40 px (WallLayerList.tsx); BUG-395 saw ~3 rows, the report asks for "many rows". */
 const ROW_PX = 40;
 const MIN_VISIBLE_ROWS = 6;
@@ -78,8 +80,12 @@ test('SCR-16 · FL-16-V2 [mocked response] BUG-395 danh sach khong bi nen con ~3
       return Math.max(0, bottom - top);
     });
     expect.soft(height, 'list box height (px)').toBeGreaterThanOrEqual(MIN_VISIBLE_ROWS * ROW_PX);
-    const total = await page.getByText(new RegExp(`/${String(SEEDED_WALLS)}`, 'u')).count();
-    expect.soft(total, 'review counter shows the 48 seeded walls').toBeGreaterThan(0);
+    /* Bố cục L23: tiến độ ở dòng bước Tường của cột việc ("N cần xem"), không còn bộ đếm a/48 ở đầu panel. */
+    const pending = await page
+      .getByRole('region', { name: 'Tường' })
+      .getByText(`${String(SEEDED_WALLS - SEEDED_REVIEWED)} cần xem`, { exact: true })
+      .count();
+    expect.soft(pending, 'step row shows the 36 of 48 seeded walls still to review').toBeGreaterThan(0);
     await captureEvidence(page, 'U04_walls_list_height_768.png');
   });
 });

@@ -184,7 +184,6 @@ import { useScaleLock } from '../shared/useScaleLock';
 import { arrowStepHandler } from '../WallLayerReview/listArrowKeys';
 
 import { layerGateOf } from './layerGate';
-import { isL23Layout } from '../shared/qcLayout';
 import { focusBoundsOf, focusFrameOf, useQcViewMode } from '../shared/qcViewMode';
 import { objectReasonRank } from './objectReviewReasons';
 
@@ -1754,8 +1753,6 @@ export function useObjectLayerReview(
     [confidenceThreshold, listLayerFilter, lowConfidenceOnly, objects, subtypeFilters],
   );
 
-  /* Bố cục L23: hàng đợi xếp theo lý do máy nghi (chưa chắc loại → chưa gắn tường → còn lại). */
-  const byReason = isL23Layout();
   /* Nhãn tường chủ tính trên mã tường của cả tầng, cùng nguồn với màn tường. */
   const wallCodes = useMemo(
     () => displayCodesOf(solidWalls.map((wall) => wall.id)),
@@ -1768,20 +1765,21 @@ export function useObjectLayerReview(
         .map((object) => toObjectRow(object, wallCodes, confidenceThreshold))
         .sort(
           (a, b) =>
-            (byReason ? objectReasonRank(a) - objectReasonRank(b) : 0) ||
+            /* Hàng đợi xếp theo lý do máy nghi (chưa chắc loại → chưa gắn tường → còn lại). */
+            objectReasonRank(a) - objectReasonRank(b) ||
             byReviewQueue({ reviewed: a.isReviewed, confidence: a.confidence }, { reviewed: b.isReviewed, confidence: b.confidence }),
         ),
-    [byReason, confidenceThreshold, visibleObjects, wallCodes],
+    [confidenceThreshold, visibleObjects, wallCodes],
   );
 
   /* Nút "Duyệt tiếp" của cổng: đọc MỌI đối tượng, không chỉ dòng đang lọc — bộ lọc không làm nút chết. */
   const nextPending = useMemo(() => {
-    const rankOf = (object: (typeof objects)[number]) => (byReason ? objectReasonRank(toObjectRow(object, wallCodes, confidenceThreshold)) : 0);
+    const rankOf = (object: (typeof objects)[number]) => objectReasonRank(toObjectRow(object, wallCodes, confidenceThreshold));
     const queue = objects.filter((object) => !object.reviewed).sort((a, b) => rankOf(a) - rankOf(b) || byReviewQueue(a, b));
     const next = queue.find((object) => object.id !== selectedObjectId) ?? queue[0];
 
     return next === undefined ? null : { id: next.id, codeLabel: toObjectRow(next, wallCodes, confidenceThreshold).codeLabel };
-  }, [byReason, confidenceThreshold, objects, selectedObjectId, wallCodes]);
+  }, [confidenceThreshold, objects, selectedObjectId, wallCodes]);
   const layerGate = useMemo(() => layerGateOf(graph, level?.id ?? null), [graph, level]);
   /* Phím J = "đối tượng chưa duyệt kế" như màn tường (Tab bị cấm, A12): cùng việc nút "Duyệt tiếp" của cổng. */
   const nextPendingId = nextPending?.id ?? null;
@@ -1981,14 +1979,14 @@ export function useObjectLayerReview(
   }, [fitView, flyToBounds, frameSizePx, placements, objects]);
 
   /*
-   * L23: Từng việc phóng tới mục vừa chọn (nới ≥ 40 % tầng), Tổng thể trả vừa khung. Chỉ chạy khi
+   * Từng việc phóng tới mục vừa chọn (nới ≥ 40 % tầng), Tổng thể trả vừa khung. Chỉ chạy khi
    * đổi mục hoặc đổi chế độ — kéo đối tượng không làm khung nhìn nhảy; Từng việc chưa chọn thì đứng yên.
    */
   const viewMode = useQcViewMode();
   const viewFlightRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!isL23Layout() || frameSizePx === null) {
+    if (frameSizePx === null) {
       return;
     }
 

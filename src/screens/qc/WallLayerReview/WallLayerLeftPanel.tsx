@@ -1,24 +1,18 @@
 /**
- * Panel trái (280) — đầu panel trả lời câu 1 + 2 (QcPanelHead), rồi lớp/lọc, rồi MỘT hàng đợi
- * tường theo nhóm (demo Z/S-15): Không chuẩn → Đúng chuẩn → Đã duyệt.
+ * Panel trái — nằm trong cột việc (`QcStepColumn`, H1 ở đầu cột): bộ lọc, rồi MỘT hàng đợi tường
+ * theo nhóm (demo Z/S-15): Không chuẩn → Đúng chuẩn → Đã duyệt.
  *
- * View THUẦN (R-60): chỉ đọc props. Câu số ("12/48 tường đã duyệt") đã ghép ở hook (A15).
- * Đổi tầng nằm ở breadcrumb "Tầng ▾" của `QcFloorNav`, không lặp trong panel. Lớp khác ở thanh
- * lớp của `QcFloorNav`; ở đây chỉ còn ô "Hiện lớp tường" (BC-19, K29).
+ * View THUẦN (R-60): chỉ đọc props. Đổi tầng nằm ở breadcrumb "Tầng ▾" của `QcFloorNav`; hai công
+ * tắc lớp Tường / Tim tường ở popover Hiển thị trên bản vẽ (BC-19, K29).
  */
 
-import { Check } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
-import { Skeleton } from '@/components/feedback/Skeleton';
-import { Badge } from '@/components/ui/Badge';
 import { Checkbox } from '@/components/ui/Checkbox';
 import type { CommandItem } from '@/hooks/useCommandPalette';
 import { useScreenCommands } from '@/hooks/useScreenCommands';
-import { cn } from '@/lib/utils';
 
-import { QcPanelHead } from '../shared/QcPanelHead';
 import { QC_COMMAND_GROUP } from '../shared/qcLayout';
 import { WallLayerList } from './WallLayerList';
 import type { WallLayerFilterKey, WallLayerViewProps, WallRowViewModel } from './types';
@@ -54,26 +48,10 @@ export interface WallLayerLeftPanelProps {
   readonly panel: WallLayerViewProps;
   readonly extras: WallLayerLeftPanelExtras;
   readonly queue?: WallReviewQueue | undefined;
-  /** Trạng thái lưu đã định dạng ("Đã lưu lúc 14:02") — câu 2 nói luôn đã lưu chưa. */
-  readonly saveLabel?: string | undefined;
-  readonly saveFailed?: boolean | undefined;
-  /**
-   * Bố cục L23: panel nằm trong cột việc (`QcStepColumn`) nên bỏ đầu panel (H1 ở đầu cột), bỏ khung
-   * thẻ, và hai ô "Hiện lớp tường" / "Hiện tim tường" chuyển vào popover Hiển thị.
-   */
-  readonly embedded?: boolean | undefined;
-  /** L23: số hàng đợi của tường còn chờ, cùng thứ tự với thẻ hỏi và ghim số. */
+  /** Số hàng đợi của tường còn chờ, cùng thứ tự với thẻ hỏi và ghim số. */
   readonly queueNumbers?: ReadonlyMap<WallRowViewModel['id'], number> | undefined;
 }
 
-const TITLE = 'Duyệt tường';
-const TITLE_HINT = 'Duyệt tường AI tìm thấy ở tầng này';
-const DONE_LABEL = 'Xong';
-const TODO_LABEL = 'Chưa xong';
-const ERROR_LABEL = 'Không tải được';
-const SAVED_PREFIX = 'Đã lưu';
-const CENTRELINES_LABEL = 'Hiện tim tường';
-const SHOW_WALL_LAYER_LABEL = 'Hiện lớp tường';
 const FILTER_LABELS: Readonly<Record<WallLayerFilterKey, string>> = {
   onlyUnreviewed: 'Chỉ hiện chưa duyệt',
   onlyLowConfidence: 'Chỉ hiện chỗ máy chưa chắc',
@@ -83,39 +61,7 @@ const COLUMN_CODE = 'Đoạn';
 const COLUMN_LENGTH = 'Dài, mm';
 const COLUMN_THICKNESS = 'Dày';
 
-/** Câu 2: Badge + câu có số + đã lưu. */
-function PanelStatus({ panel, queue, saveLabel, saveFailed }: Omit<WallLayerLeftPanelProps, 'extras'>) {
-  if (panel.state === 'loading') {
-    return <Skeleton className="h-[18px] w-40" preset="block" />;
-  }
-
-  if (panel.state === 'error') {
-    return <Badge variant="violation">{ERROR_LABEL}</Badge>;
-  }
-
-  const { reviewed, total } = panel.reviewCounter;
-  const isDone = total > 0 && reviewed === total;
-  const nonStandard = queue?.nonStandardCount ?? 0;
-
-  return (
-    <>
-      {/* Huy hiệu + số không chuẩn chung một dòng, câu tiến độ một dòng riêng: không gãy giữa câu ở panel 264. */}
-      <Badge variant={isDone ? 'verified' : 'attention'}>{isDone ? DONE_LABEL : TODO_LABEL}</Badge>
-      {nonStandard > 0 ? (
-        <span className="whitespace-nowrap text-body-sm tabular-nums text-state-attention-text">{`${nonStandard} không chuẩn`}</span>
-      ) : null}
-      <p className="w-full whitespace-nowrap text-body-sm tabular-nums text-text-primary">{panel.reviewProgressLabel}</p>
-      {saveLabel === undefined ? null : (
-        <p className={cn('flex items-center gap-1 text-caption', saveFailed === true ? 'text-state-violation-text' : 'text-text-secondary')}>
-          {saveFailed !== true && saveLabel.startsWith(SAVED_PREFIX) ? <Check aria-hidden="true" className="h-3.5 w-3.5" /> : null}
-          {saveLabel}
-        </p>
-      )}
-    </>
-  );
-}
-
-export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed, embedded = false, queueNumbers }: WallLayerLeftPanelProps) {
+export function WallLayerLeftPanel({ panel, extras, queue, queueNumbers }: WallLayerLeftPanelProps) {
   const { filters, onToggleFilter } = panel;
   /* Mọi đoạn cùng độ tin cậy thì lọc theo nó không giúp gì: ẩn (vẫn hiện khi đang bật để tắt được). */
   const filterKeys: readonly WallLayerFilterKey[] = [
@@ -129,10 +75,10 @@ export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed
   const bulkCount = queue?.bulk.changeCount ?? 0;
   const commands = useMemo<CommandItem[]>(
     () =>
-      embedded && canBulk && onOpenThickness !== undefined
+      canBulk && onOpenThickness !== undefined
         ? [{ id: 'qc-walls-bulk-thickness', group: QC_COMMAND_GROUP, label: `Đưa ${bulkCount} đoạn về độ dày chuẩn…`, keywords: ['độ dày', 'chuẩn'], onSelect: onOpenThickness }]
         : [],
-    [bulkCount, canBulk, embedded, onOpenThickness],
+    [bulkCount, canBulk, onOpenThickness],
   );
   useScreenCommands(commands);
 
@@ -141,36 +87,9 @@ export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed
      * Dưới 1024 panel cao theo nội dung, vùng ngoài cuộn (BUG-395). Từ 1024 panel cao bằng bản
      * vẽ, chỉ danh sách cuộn bên trong (G4a-07). Con CUỐI luôn là vùng danh sách (BUG-621).
      */
-    <div
-      className={cn(
-        "order-1 flex w-full shrink-0 flex-col lg:order-0 lg:h-full lg:min-h-0 lg:w-full lg:overflow-hidden",
-        embedded ? "min-h-0 flex-1" : "rounded-xl bg-bg-surface shadow-panel",
-      )}
-    >
-      {embedded ? null : <QcPanelHead
-        eyebrow={null}
-        status={<PanelStatus panel={panel} queue={queue} saveFailed={saveFailed} saveLabel={saveLabel} />}
-        title={<span title={TITLE_HINT}>{TITLE}</span>}
-      />}
+    <div className="order-1 flex min-h-0 w-full flex-1 shrink-0 flex-col lg:order-0 lg:h-full lg:min-h-0 lg:w-full lg:overflow-hidden">
 
       <div className="flex shrink-0 flex-col gap-1 border-b border-border-default px-4 py-3">
-        {/* K29: một ô đánh dấu thật thay hàng cây lớp chết (ô vuông rỗng không bấm được + con mắt riêng). */}
-        {embedded ? null : <>
-        <Checkbox
-          aria-label={SHOW_WALL_LAYER_LABEL}
-          checked={extras.isWallLayerVisible}
-          label={SHOW_WALL_LAYER_LABEL}
-          onChange={extras.onToggleWallLayer}
-          size="sm"
-        />
-        <Checkbox
-          aria-label={CENTRELINES_LABEL}
-          checked={extras.showCentrelines}
-          label={CENTRELINES_LABEL}
-          onChange={extras.onToggleCentrelines}
-          size="sm"
-        />
-        </>}
         {filterKeys.map((key) => (
           <Checkbox
             aria-label={FILTER_LABELS[key]}

@@ -50,8 +50,8 @@ const SAVED_PREFIX = 'Đã lưu';
 
 export function WallLayerStatusBar({ saveLabel, saveFailed, onUndo, readOnly = false }: WallLayerStatusBarProps) {
   return (
-    /* Trạng thái lưu đã nằm ở đầu panel (QcPanelHead); thanh này chỉ nhắc lại khi lưu hỏng. */
-    <QcStatusBar onUndo={onUndo} saveFailed={saveFailed} saveLabel={saveFailed ? saveLabel : false}>
+    /* Trạng thái tự lưu (A7) nằm ở thanh này: bố cục L23 không còn đầu panel. */
+    <QcStatusBar onUndo={onUndo} saveFailed={saveFailed} saveLabel={saveLabel}>
       {/*
         Sans + tabular-nums, không mono: nhãn này cũng là câu ("Chưa rê chuột lên bản vẽ") — BUG-612.
         Dưới 640 chỉ giữ trạng thái lưu, hai mục kia không gãy thành nhiều dòng (BUG-324).

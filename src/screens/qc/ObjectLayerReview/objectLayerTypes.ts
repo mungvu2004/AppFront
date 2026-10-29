@@ -525,6 +525,8 @@ export interface ObjectLayerInspectorProps {
 
 /** Mọi thứ thanh trạng thái nhận. */
 export interface ObjectLayerStatusBarProps {
+  /** "Đã lưu lúc 14:02" (A7): trình đọc màn hình nghe qua `aria-live`; `null`/vắng thì không hiện. */
+  readonly saveLabel?: string | null | undefined;
   readonly state: ObjectLayerScreenState;
   readonly reviewCounter: ObjectReviewCounter;
   readonly reviewProgressLabel: string;
@@ -726,7 +728,7 @@ export interface ObjectLayerReviewModel {
   readonly layerGate?: LayerGate | undefined;
   /** Đối tượng chưa duyệt kế tiếp (tin cậy thấp trước); `null` khi đã duyệt hết. */
   readonly nextPending?: { readonly id: string; readonly codeLabel: string } | null | undefined;
-  /** "Đã lưu 14:02" đã định dạng; `null` khi chưa lưu lượt nào hoặc vai chỉ xem. */
+  /** "Đã lưu 14:02" đã định dạng; `null` khi chưa lưu lượt nào hoặc vai chỉ xem. Hiện ở thanh trạng thái. */
   readonly saveLabel?: string | null | undefined;
   /** Mở lớp khác của tầng (cổng): `null` khi không có lối điều hướng (story, test). */
   readonly onOpenLayer?: ((layer: 'walls' | 'rooms') => void) | null | undefined;

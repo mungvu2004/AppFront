@@ -192,7 +192,6 @@ import {
 } from '../shared/canvasFit';
 import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
-import { isL23Layout } from '../shared/qcLayout';
 import { focusBoundsOf, focusFrameOf, useQcViewMode } from '../shared/qcViewMode';
 import { useScaleLock } from '../shared/useScaleLock';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
@@ -239,7 +238,6 @@ export const WALL_LAYER_TEXT = {
   mergeLabel: 'Nối đoạn',
   mergeDescription: 'Nối hai đoạn tường đang chọn thành một.',
   /** Nhãn ô đánh dấu bật/tắt tim tường (BC-17). */
-  centrelinesLabel: 'Hiện tim tường',
   /** Nhãn khối điều hướng tầng của panel trái (BC-05). */
   floorNavLabel: 'Tầng của bản vẽ',
   /** Nhãn nút thu gọn / mở lại hai panel (BT-16). */
@@ -268,7 +266,6 @@ export const WALL_LAYER_TEXT = {
   shortcutArrowNext: 'Chọn dòng kế tiếp trong danh sách.',
   shortcutArrowPrevious: 'Chọn dòng phía trên trong danh sách.',
   shortcutApproveNext: 'Duyệt đoạn đang chọn rồi sang đoạn chưa duyệt kế tiếp.',
-  shortcutFit: 'Phủ khắp đoạn tường đang chọn.',
 } as const;
 
 /* -------------------------------------------------------------------------- */
@@ -772,10 +769,8 @@ export function useWallLayerReview(
   const geometryReasons = useMemo(() => geometryReasonsOf(graph, levelId), [graph, levelId]);
   const reasonOf = useMemo(
     () =>
-      isL23Layout()
-        ? (wall: Wall): WallReviewReason | null =>
-            geometryReasons.get(wall.id) ?? (wall.confidence < confidenceThreshold ? 'uncertain' : null)
-        : undefined,
+      (wall: Wall): WallReviewReason | null =>
+        geometryReasons.get(wall.id) ?? (wall.confidence < confidenceThreshold ? 'uncertain' : null),
     [confidenceThreshold, geometryReasons],
   );
   const visibleWalls = useMemo(
@@ -1943,7 +1938,7 @@ export function useWallLayerReview(
   const viewMode = useQcViewMode();
   const viewKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!isL23Layout() || fitReferencePx === null || frameSizePx === null) {
+    if (fitReferencePx === null || frameSizePx === null) {
       return;
     }
 
@@ -2026,27 +2021,10 @@ export function useWallLayerReview(
         );
 
   /*
-   * Phím `F` — phủ khắp vùng đang chọn.
-   *
-   * Bản đầu của file này cố ý KHÔNG đăng ký `F`: hợp đồng canvas lúc đó không có
-   * đường ra nào cho nó, và một phím tắt không làm gì là đúng thứ A2/R-73 chặn.
-   * Nay `onFitToScreen` là một đường ra thật, nên phím được đăng ký.
-   *
-   * `Space` (giữ để tạm kéo khung nhìn) VẪN chưa được đăng ký, và vì đúng lý do
-   * cũ: kéo khung nhìn cần lớp canvas theo dõi cả một cử chỉ kéo, thứ hợp đồng
-   * canvas không có chỗ nhận. Ghi vào mục việc còn nợ, không dựng một phím câm.
+   * Phím `F` thuộc chế độ nhìn (`QcViewLayer`), nên màn không đăng ký nó; nút vừa khung vẫn giữ.
+   * `Space` (giữ để tạm kéo khung nhìn) chưa đăng ký: kéo khung nhìn cần lớp canvas theo dõi cả
+   * một cử chỉ kéo, thứ hợp đồng canvas không có chỗ nhận.
    */
-  useShortcut(
-    {
-      id: 'wallLayerReview.fitToScreen',
-      combo: 'F',
-      description: WALL_LAYER_TEXT.shortcutFit,
-      scope: 'canvas',
-      onTrigger: onFitToScreen,
-    },
-    /* L23: phím F là của chế độ nhìn (`QcViewLayer`); nút vừa khung vẫn giữ. */
-    { ...shortcutOptions, enabled: !isL23Layout() },
-  );
 
   /* ---------------------------------------------------------------------- */
   /* Thanh trạng thái — ba chuỗi ĐÃ định dạng, view không tính gì (A15).      */
@@ -2231,18 +2209,16 @@ export function useWallLayerReview(
     haloRectPx: activeWall === null ? null : toFrameRect(viewport, activeWall.boundsPx),
   };
   /* L23: ghim số cho tường còn chờ, cùng thứ tự hàng đợi của thẻ hỏi (`rows` chưa duyệt). */
-  const viewLayer = isL23Layout()
-    ? {
-        focus: selectedWallId === null ? null : frameLayer.haloRectPx,
-        /* Số ghim = thứ tự trong hàng đợi (như dòng danh sách), kể cả khi đoạn bị lọc độ dày không vẽ ghim. */
-        pins: rows.filter((row) => !row.isReviewed).flatMap((row, index) => {
-          const shape = shapes.find((item) => item.id === row.id);
-          return shape === undefined ? [] : [{ id: row.id, n: index + 1, ...toFramePoint(viewport, centreOfBounds(shape.boundsPx)) }];
-        }),
-        selectedId: selectedWallId,
-        onPick: (id: string) => onSelect(id as WallId),
-      }
-    : null;
+  const viewLayer = {
+    focus: selectedWallId === null ? null : frameLayer.haloRectPx,
+    /* Số ghim = thứ tự trong hàng đợi (như dòng danh sách), kể cả khi đoạn bị lọc độ dày không vẽ ghim. */
+    pins: rows.filter((row) => !row.isReviewed).flatMap((row, index) => {
+      const shape = shapes.find((item) => item.id === row.id);
+      return shape === undefined ? [] : [{ id: row.id, n: index + 1, ...toFramePoint(viewport, centreOfBounds(shape.boundsPx)) }];
+    }),
+    selectedId: selectedWallId,
+    onPick: (id: string) => onSelect(id as WallId),
+  };
   const onFrame = (point: WallLayerMeasurementPx['startPx']) =>
     point === null ? null : toFramePoint(viewport, point);
   const frameMeasurement: WallLayerMeasurementPx | null =

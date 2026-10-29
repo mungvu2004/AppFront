@@ -19,7 +19,8 @@
 
 import { createElement, type ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
@@ -42,7 +43,7 @@ import { FLOOR_NOT_FOUND_MESSAGE } from '@/hooks/useFloorLayer';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
-import { createTestQueryClient } from '@/lib/testing/render';
+import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import { toOpeningViewModel } from '@/lib/viewmodel/toViewModel';
 import { resetSelectorCaches } from '@/store/selectors';
@@ -1597,9 +1598,12 @@ describe('tỷ lệ tạm (F-04x-2)', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('đợt sửa P04 — SCR-17', () => {
-  /** View thuần dựng từ mô hình của hook, đổi vài trường — mục D: view test được chỉ từ props. */
+  /** View thuần dựng từ mô hình của hook, đổi vài trường — mục D: view test được chỉ từ props. Cột việc cần Router + kho truy vấn. */
   const renderView = (model: ObjectLayerReviewModel, overrides: Partial<ObjectLayerReviewModel> = {}) =>
-    render(createElement(ObjectLayerReview, { ...model, ...overrides }));
+    renderWithProviders(
+      createElement(MemoryRouter, null, createElement(ObjectLayerReview, { floorNav: { floorId: 'f-1', projectId: 'p-1' }, ...model, ...overrides })),
+      { keepStore: true },
+    );
 
   it('[BUG-579] "Hoàn tác" trên toast xoá hoàn tác ĐÚNG bước xoá, giữ nguyên bước mới hơn (duyệt đối tượng khác)', async () => {
     const bus: NotificationBus = createNotificationBus();
@@ -1671,14 +1675,28 @@ describe('đợt sửa P04 — SCR-17', () => {
   it('[BUG-590] nội thất: không đưa ô loại, radio hướng mở hay ô thanh công cụ chết', async () => {
     const mounted = await mountSettled();
 
+    /* Chi tiết nằm trong thẻ hỏi neo trên bản vẽ, chỉ hiện khi đo được khung: jsdom không bố trí, nên giả khổ khung. */
+    vi.stubGlobal('ResizeObserver', class {
+      observe(): void {
+        /* Khung không đổi kích thước trong bài kiểm. */
+      }
+      disconnect(): void {
+        /* Không có gì để ngắt. */
+      }
+    });
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1200);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800);
     await run(() => mounted.result.current.onSelect('F-002'));
-    renderView(mounted.result.current, { activeLayer: 'furniture' });
+    renderView(mounted.result.current, { activeLayer: 'furniture', haloRectPx: { x: 100, y: 100, width: 40, height: 40 } });
+
+    expect(await screen.findByText('Rộng × Sâu')).toBeInTheDocument();
 
     expect(screen.queryByRole('combobox', { name: 'Loại đối tượng' })).not.toBeInTheDocument();
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Đổi thành/u })).not.toBeInTheDocument();
 
     mounted.unmount();
+    vi.unstubAllGlobals();
   });
 
   it('[BUG-584] bộ lọc dưới ngưỡng còn bật mà danh sách rỗng: còn nút tắt và "Hiện tất cả"', async () => {
@@ -1730,14 +1748,13 @@ describe('đợt sửa P04 — SCR-17', () => {
     mounted.unmount();
   });
 
-  it('[BUG-324][BUG-395][BUG-329] màn cao bằng khung nhìn, panel trái không khoá 560 px, thẻ trống có đệm dưới', async () => {
+  it('[BUG-324][BUG-395] màn cao bằng khung nhìn, panel trái không khoá 560 px', async () => {
     const mounted = await mountSettled();
 
     renderView(mounted.result.current, { inspector: null });
 
     expect(screen.getByRole('region', { name: 'Lớp đối tượng' })).toHaveClass('flex-1');
     expect(document.body.innerHTML).not.toContain('h-[560px]');
-    expect(screen.getByText(/Chọn một mục/u)).toHaveClass('pb-5');
 
     mounted.unmount();
   });

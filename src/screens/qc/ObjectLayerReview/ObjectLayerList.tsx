@@ -44,7 +44,6 @@ import type { ObjectLayerListViewProps } from './objectLayerSymbols';
 import type { ObjectListRowViewModel } from './objectLayerTypes';
 import { OBJECT_REASON_TITLE, objectReasonOf, type ObjectReviewReason } from './objectReviewReasons';
 import { queueNumbersOf } from '../shared/qcAsk';
-import { isL23Layout } from '../shared/qcLayout';
 import { QcQueueNumber } from '../shared/QcQueueNumber';
 
 /* Chuỗi tiếng Việt tĩnh — chép từ `.orca-notes/S13-SPEC-GOC.md` phần IV (A6). */
@@ -89,7 +88,7 @@ const STATUS_LABEL = {
 interface ObjectLayerListRowProps {
   readonly row: ObjectListRowViewModel;
   readonly isSelected: boolean;
-  /** Số hàng đợi L23 — trùng ghim số trên bản vẽ; `undefined` = dòng đã duyệt hoặc bố cục cũ. */
+  /** Số hàng đợi — trùng ghim số trên bản vẽ; `undefined` = dòng đã duyệt. */
   readonly queueNumber?: number | undefined;
   readonly onSelect: (objectId: string | null) => void;
   readonly onHover: (objectId: string | null) => void;
@@ -217,9 +216,9 @@ function ObjectLayerListRow({
 /* Một nhóm gấp được.                                                          */
 /* -------------------------------------------------------------------------- */
 
-type QueueGroupId = 'pending' | 'reviewed' | ObjectReviewReason | 'clear';
+type QueueGroupId = 'reviewed' | ObjectReviewReason | 'clear';
 
-/** Bố cục L23: "Cần duyệt" tách theo lý do máy nghi, cùng thứ tự hàng đợi của hook. */
+/** "Cần duyệt" tách theo lý do máy nghi, cùng thứ tự hàng đợi của hook. */
 const REASON_GROUPS: readonly { readonly id: QueueGroupId; readonly label: string }[] = [
   { id: 'uncertain', label: OBJECT_REASON_TITLE.uncertain },
   { id: 'orphan', label: OBJECT_REASON_TITLE.orphan },
@@ -229,15 +228,9 @@ const REASON_GROUPS: readonly { readonly id: QueueGroupId; readonly label: strin
 
 const rowsOfGroup = (rows: readonly ObjectListRowViewModel[], id: QueueGroupId): readonly ObjectListRowViewModel[] => {
   if (id === 'reviewed') return rows.filter((row) => row.isReviewed);
-  if (id === 'pending') return rows.filter((row) => !row.isReviewed);
   if (id === 'clear') return rows.filter((row) => !row.isReviewed && objectReasonOf(row) === null);
   return rows.filter((row) => objectReasonOf(row) === id);
 };
-
-const QUEUE_GROUPS: readonly { readonly id: QueueGroupId; readonly label: string }[] = [
-  { id: 'pending', label: 'Cần duyệt' },
-  { id: 'reviewed', label: 'Đã duyệt' },
-];
 
 interface ObjectLayerListGroupProps {
   readonly isFiltered: boolean;
@@ -246,14 +239,14 @@ interface ObjectLayerListGroupProps {
   readonly rows: readonly ObjectListRowViewModel[];
   readonly isCollapsed: boolean;
   readonly selectedObjectId: string | null;
-  readonly queueNumbers: ReadonlyMap<string, number> | null;
+  readonly queueNumbers: ReadonlyMap<string, number>;
   readonly onToggleCollapsed: (group: QueueGroupId) => void;
   readonly onSelect: (objectId: string | null) => void;
   readonly onHover: (objectId: string | null) => void;
   readonly onAttachToNearestWall: (objectId: string) => void;
 }
 
-/** Một nhóm của hàng đợi (Z/S-16): "Cần duyệt" (tin cậy thấp lên đầu — hook đã xếp) hoặc "Đã duyệt". */
+/** Một nhóm của hàng đợi: một lý do máy nghi, "Không thấy điểm nghi" hoặc "Đã duyệt". */
 function ObjectLayerListGroup({
   isFiltered,
   group,
@@ -304,7 +297,7 @@ function ObjectLayerListGroup({
                 onAttachToNearestWall={onAttachToNearestWall}
                 onHover={onHover}
                 onSelect={onSelect}
-                queueNumber={queueNumbers?.get(row.id)}
+                queueNumber={queueNumbers.get(row.id)}
                 row={row}
               />
             ))
@@ -327,9 +320,8 @@ export function ObjectLayerList({
   rows,
   selectedObjectId,
 }: ObjectLayerListViewProps) {
-  const byReason = isL23Layout();
   /* Cùng `items` với thẻ hỏi và ghim số, đếm trên mọi dòng (không phải dòng sau ô tìm) để dòng "3" = ghim "3". */
-  const queueNumbers = byReason ? queueNumbersOf(rows.map((row) => ({ id: row.id, pending: !row.isReviewed }))) : null;
+  const queueNumbers = queueNumbersOf(rows.map((row) => ({ id: row.id, pending: !row.isReviewed })));
   /* Gấp nhóm là việc trình bày thuần của danh sách — state cục bộ, không lên hook. */
   const [collapsed, setCollapsed] = useState<ReadonlySet<QueueGroupId>>(new Set());
   const toggleCollapsed = (group: QueueGroupId) =>
@@ -387,10 +379,7 @@ export function ObjectLayerList({
           {CLEAR_SEARCH}
         </button>
       )}
-      {(byReason
-        ? REASON_GROUPS.filter(({ id }) => rowsOfGroup(shownRows, id).length > 0 || (id === 'clear' && shownRows.length === 0))
-        : QUEUE_GROUPS.filter(({ id }) => id === 'pending' || shownRows.some((row) => row.isReviewed))
-      ).map(({ id, label }) => (
+      {REASON_GROUPS.filter(({ id }) => rowsOfGroup(shownRows, id).length > 0 || (id === 'clear' && shownRows.length === 0)).map(({ id, label }) => (
         <ObjectLayerListGroup
           group={id}
           isCollapsed={collapsed.has(id)}

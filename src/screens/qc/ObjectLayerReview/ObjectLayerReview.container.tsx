@@ -90,7 +90,7 @@ export interface ObjectLayerReviewContainerProps {
   readonly forceSaveBlock?: FloorLayerSaveBlock;
   /** Bus thông báo riêng — hai lượt kiểm không thấy toast của nhau. */
   readonly notifications?: NotificationBus;
-  /** Breadcrumb dự án › tầng › lớp + thanh lớp (N0-01, N2-06); chỉ route thật truyền (cần Router). */
+  /** Breadcrumb dự án › tầng › lớp + thanh lớp (N0-01, N2-06). Vắng = dựng từ hai mã, không danh sách tầng (cần Router). */
   readonly floorNav?: Omit<QcFloorNavProps, 'layer'>;
 }
 
@@ -133,7 +133,7 @@ function WiredObjectLayerReview(props: ObjectLayerReviewContainerProps) {
   return (
     <ObjectLayerReview
       {...model}
-      {...(props.floorNav !== undefined ? { floorNav: props.floorNav } : {})}
+      floorNav={props.floorNav ?? { floorId: props.floorId, projectId: props.projectId }}
       saveBlock={props.forceSaveBlock ?? model.saveBlock}
     />
   );

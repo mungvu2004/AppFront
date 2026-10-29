@@ -8,7 +8,7 @@
  * | mã | đo cái gì | ngưỡng |
  * |---|---|---|
  * | `[NGHIEM-1]` | bảy trạng thái của A11, không trạng thái nào ra màn trắng | 7/7 |
- * | `[NGHIEM-2]` | tổng diện tích ĐỌC TỪ MÀN | `248,60 m²` |
+ * | `[NGHIEM-2]` | tổng diện tích ĐỌC TỪ MÀN (câu phụ của cột việc) | `248,60 m²` |
  * | `[NGHIEM-3]` | phòng `#R-005` ĐỌC TỪ MÀN | `18,40 m²` |
  * | `[NGHIEM-4]` | tương phản chữ nhãn trên nền phòng ĐẬM NHẤT | ≥ 4,5:1 |
  * | `[NGHIEM-5]` | "Chuẩn hoá tên" hiện xem trước TRƯỚC khi đổi bất cứ gì | 0 tên đổi |
@@ -85,9 +85,12 @@ import {
 } from '@/lib/testing/sevenStateScenarios';
 import { resetSelectorCaches } from '@/store/selectors';
 import { ROUTES } from '@/routes/paths';
+import { MemoryRouter } from 'react-router-dom';
+
 import { useStore } from '@/store';
 
 import { BACK_TO_FLOORS_LABEL, FLOOR_MISSING_TITLE, RETRY_READ_LABEL } from '../shared/floorLayerReadFailure';
+import { setQcViewMode } from '../shared/qcViewMode';
 
 import { RoomLabelReviewContainer } from './RoomLabelReview.container';
 import { ProvisionalScale, scenarioArgsFor } from './RoomLabelReview.stories';
@@ -97,7 +100,6 @@ import {
   ROOM_LABEL_FIXTURE_ROOMS,
   ROOM_LABEL_FIXTURE_ROOM_R005,
   ROOM_LABEL_FIXTURE_TOTAL,
-  ROOM_LABEL_FIXTURE_TOTAL_AREA_M2,
 } from './roomLabelFixture';
 import { createMockRoomLabelReviewGateway, roomCodeLabel } from './roomLabelReviewGateway';
 import { ROOM_LABEL_SCENARIO_GAP_WALLS } from './roomLabelReviewScenarios';
@@ -109,8 +111,6 @@ const SCREEN_ARIA_LABEL = 'Duyệt phòng';
 const CANVAS_ARIA_LABEL = 'Khung xem bản vẽ duyệt phòng';
 const NORMALIZE_BUTTON_LABEL = 'Chuẩn hoá tên…';
 const NORMALIZE_DIALOG_TITLE = 'Xem trước chuẩn hoá tên';
-/* Dòng trạng thái đầu panel (Z/S-20): "x/y phòng đã duyệt, sàn 248,60 m²". */
-const SUMMARY_PREFIX = 'phòng đã duyệt, sàn';
 
 /* -------------------------------------------------------------------------- */
 /* Bộ dựng.                                                                    */
@@ -199,6 +199,10 @@ beforeEach(() => {
       }
     },
   });
+
+  /* Thẻ hỏi chỉ neo khi khung bản vẽ có khổ; jsdom báo 0 nên cho mọi khung 1280×800. */
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1280);
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800);
 });
 
 afterEach(() => {
@@ -253,25 +257,16 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('[NGHIEM-2/3] diện tích hiện đúng trên màn', () => {
-  it('tổng diện tích sàn hiện đúng "248,60 m²"', async () => {
-    const { container } = await renderSettled('partial');
+  it('tổng diện tích sàn hiện đúng "248,60 m²" ở câu phụ của cột việc', async () => {
+    /* Câu phụ dưới H1 của cột việc: "N phòng · sàn …" — cột việc chỉ dựng khi có thanh tầng (route thật). */
+    renderWithProviders(
+      <MemoryRouter>
+        <RoomLabelReviewContainer {...scenarioArgsFor('partial')} floorNav={{ floorId: 'L-01', floors: [], projectId: 'p-01' }} />
+      </MemoryRouter>,
+    );
+    const hint = await screen.findByText(/phòng · sàn/u);
 
-    /*
-     * Dòng tóm tắt là một `<p>` gồm nhiều `<span>` (nhãn, con số, dấu phân
-     * cách), nên `findByText` khớp đúng cái `<span>` mang chữ chứ không phải cả
-     * dòng. Con số nằm ở `<span>` kế bên, nên phép đọc phải leo lên `<p>`.
-     */
-    const summaryLabel = await screen.findByText(SUMMARY_PREFIX, { exact: false });
-    const summaryText = summaryLabel.textContent ?? '';
-
-    /* Con số kỳ vọng dựng từ BỘ MẪU qua `formatArea`, không gõ tay (R-71). */
-    const expectedTotal = `${formatNumber(ROOM_LABEL_FIXTURE_TOTAL_AREA_M2, { fractionDigits: 2 })} m²`;
-
-    console.log(`[S-17][NGHIEM-2] tổng diện tích trên màn = ${expectedTotal}`);
-
-    expect(expectedTotal).toBe('248,60 m²');
-    expect(summaryText).toContain('248,60 m²');
-    expect(container).toBeTruthy();
+    expect(hint.textContent).toContain('248,60 m²');
   });
 
   it('phòng #R-005 hiện đúng "18,40 m²"', async () => {
@@ -654,7 +649,10 @@ describe('[BUG-326] đọc lớp hỏng thay cả màn bằng một trạng thá
 /* [BUG-393] Mặt bằng vừa khung.                                               */
 /* -------------------------------------------------------------------------- */
 
-describe('[BUG-393] mặt bằng phòng vừa khung canvas, kể cả khi chọn một phòng', () => {
+/* Chế độ Từng việc cố ý phóng tới phòng chọn; "vừa khung khi chọn" là việc của Tổng thể. */
+describe('[BUG-393] mặt bằng phòng vừa khung canvas ở chế độ Tổng thể, kể cả khi chọn một phòng', () => {
+  afterEach(() => setQcViewMode('task'));
+
   const FRAME = { width: 800, height: 600 };
 
   /** Khung báo 800×600 ngay khi được theo dõi — thay bản rỗng của `beforeEach`. */
@@ -690,6 +688,7 @@ describe('[BUG-393] mặt bằng phòng vừa khung canvas, kể cả khi chọn
 
   it('mọi phòng nằm trọn trong khung, trước và sau khi chọn phòng', async () => {
     Object.defineProperty(window, 'ResizeObserver', { writable: true, value: measuredFrame });
+    setQcViewMode('overview');
 
     const { container } = await renderSettled('success');
     const inFrame = () => {

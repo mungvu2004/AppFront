@@ -48,7 +48,6 @@ import {
 } from './objectLayerSymbols';
 import type { PixelPoint } from './objectLayerTypes';
 import { ObjectSymbolFigure } from './ObjectLayerSymbolFigure';
-import { ObjectLayerVisibilityToggles } from './ObjectLayerVisibilityToggles';
 
 /** Hợp đồng props của lớp canvas, mang ra đây cho nơi gọi khỏi phải biết hai đường nhập. */
 export type * from './objectLayerSymbols';
@@ -87,7 +86,6 @@ export function ObjectLayerCanvas({
   onHover,
   onPlaceAt,
   onSelect,
-  onToggleLayer,
   placements,
   selectedObjectId,
   surfaceRectPx,
@@ -337,9 +335,7 @@ export function ObjectLayerCanvas({
         </svg>
 
         <QcAskAnchor rect={selectedObjectId === null ? null : haloRectPx}>{ask}</QcAskAnchor>
-        {viewPins === undefined ? null : (
-          <QcViewLayer focus={selectedObjectId === null ? null : haloRectPx} onPick={onSelect} pins={viewPins} selectedId={selectedObjectId} />
-        )}
+        <QcViewLayer focus={selectedObjectId === null ? null : haloRectPx} onPick={onSelect} pins={viewPins} selectedId={selectedObjectId} />
 
         {haloRectPx === null ? null : (
           <>
@@ -396,10 +392,6 @@ export function ObjectLayerCanvas({
           {OBJECT_CANVAS_TEXT.drawHint}
         </p>
       ) : null}
-
-      {onToggleLayer === undefined ? null : (
-        <ObjectLayerVisibilityToggles layerVisibility={layerVisibility} onToggleLayer={onToggleLayer} />
-      )}
 
       <ZoomCluster {...zoomCluster} />
 

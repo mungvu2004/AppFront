@@ -62,7 +62,6 @@ import { useStore } from '@/store';
 
 // Nạp tĩnh, ở pha collect, hộp thoại mà `FloorLayerSaveBanner` `lazy()`: không thì bài xung đột
 // biên dịch nó BÊN TRONG `findByRole` của mình, và dưới tải lượt ấy dài hơn trần chờ (QA-01c nợ #12).
-import { QC_LAYOUT_STORAGE_KEY } from '../shared/qcLayout';
 import { setQcViewMode } from '../shared/qcViewMode';
 import './FloorLayerSaveConfirm';
 import type { WallLayerViewProps } from './types';
@@ -107,6 +106,30 @@ const [THIN, MEDIUM, THICK] = THICKNESS_BANDS as readonly [
 /* -------------------------------------------------------------------------- */
 /* Bộ dựng.                                                                    */
 /* -------------------------------------------------------------------------- */
+
+const TASK_HEADING = 'Duyệt từng đoạn tường máy tìm thấy. Đúng thì giữ, nét thừa thì xoá.';
+const LIST_READY = 'Chỉ hiện chưa duyệt';
+
+/** Ô lọc đầu tiên của danh sách: có nó là cột việc đã dựng xong (và mất khi thu gọn). */
+const findListReady = () => screen.findByRole('checkbox', { name: LIST_READY });
+
+/** Công tắc lớp ở popover "Hiển thị" trên bản vẽ; popover đóng thì mở nó trước. */
+async function findDisplayToggle(name: 'Lớp tường' | 'Tim tường'): Promise<HTMLElement> {
+  const open = screen.queryByRole('checkbox', { name });
+
+  if (open !== null) {
+    return open;
+  }
+
+  const button = await screen.findByRole('button', { name: 'Hiển thị' });
+
+  await act(async () => {
+    button.click();
+    await Promise.resolve();
+  });
+
+  return screen.findByRole('checkbox', { name });
+}
 
 function renderState(state: SevenStateScenario['state']) {
   return renderWithProviders(
@@ -428,7 +451,7 @@ describe('[NGHIEM-7] R-73', () => {
     );
 
     /* Cổng sang lớp kế là việc của FloorReviewGate (có test riêng); ở đây chỉ cần mở được màn. */
-    expect((await screen.findAllByText('Duyệt tường')).length).toBeGreaterThan(0);
+    expect(await screen.findByRole('heading', { level: 1, name: TASK_HEADING })).toBeInTheDocument();
     expect(onNavigate).not.toHaveBeenCalled();
   });
 });
@@ -579,7 +602,7 @@ describe('tim tường bật tắt được (BC-17)', () => {
       </MemoryRouter>,
     );
 
-    const checkbox = await screen.findByRole('checkbox', { name: 'Hiện tim tường' });
+    const checkbox = await findDisplayToggle('Tim tường');
 
     expect(checkbox).not.toBeChecked();
 
@@ -594,7 +617,7 @@ describe('tim tường bật tắt được (BC-17)', () => {
   });
 });
 
-describe('lớp Tường bật tắt được từ ô "Hiện lớp tường" (BC-19, K29)', () => {
+describe('lớp Tường bật tắt được từ ô "Lớp tường" của popover Hiển thị (BC-19, K29)', () => {
   it('ô đánh dấu bật tắt thật, và chú giải đi theo nó', async () => {
     renderWithProviders(
       <MemoryRouter>
@@ -606,7 +629,7 @@ describe('lớp Tường bật tắt được từ ô "Hiện lớp tường" (B
 
     /* K29: một ô đánh dấu thật, không còn hàng cây lớp chết bên cạnh nút con mắt. */
     expect(screen.queryByRole('treeitem', { name: 'Tường' })).toBeNull();
-    const toggle = screen.getByRole('checkbox', { name: 'Hiện lớp tường' });
+    const toggle = await findDisplayToggle('Lớp tường');
 
     expect(toggle).toBeChecked();
 
@@ -618,10 +641,12 @@ describe('lớp Tường bật tắt được từ ô "Hiện lớp tường" (B
     await waitFor(() => {
       expect(screen.queryByRole('group', { name: 'Lọc theo độ dày tường' })).not.toBeInTheDocument();
     });
-    expect(screen.getByRole('checkbox', { name: 'Hiện lớp tường' })).not.toBeChecked();
+    const toggleBack = await findDisplayToggle('Lớp tường');
+
+    expect(toggleBack).not.toBeChecked();
 
     await act(async () => {
-      screen.getByRole('checkbox', { name: 'Hiện lớp tường' }).click();
+      toggleBack.click();
       await Promise.resolve();
     });
 
@@ -639,7 +664,7 @@ describe('thu gọn hai panel (BT-16)', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('checkbox', { name: 'Hiện lớp tường' })).toBeInTheDocument();
+    expect(await findListReady()).toBeInTheDocument();
 
     const collapse = screen.getByRole('button', { name: 'Thu gọn hai panel' });
 
@@ -649,7 +674,7 @@ describe('thu gọn hai panel (BT-16)', () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole('checkbox', { name: 'Hiện lớp tường' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('checkbox', { name: LIST_READY })).not.toBeInTheDocument();
     });
 
     /* Canvas và thanh trạng thái vẫn còn — thu gọn không phải màn trắng (A11). */
@@ -663,7 +688,7 @@ describe('thu gọn hai panel (BT-16)', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('checkbox', { name: 'Hiện lớp tường' })).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: LIST_READY })).toBeInTheDocument();
     });
   });
 });
@@ -729,8 +754,7 @@ describe('bộ đếm ở trạng thái Xong (BT-08)', () => {
   it('thanh tiến độ và con số chuyển sang token "đã xác minh"', async () => {
     const { container } = renderState('success');
 
-    /* Câu 2 ở đầu panel: huy hiệu "Xong" (nút sang lớp kế nằm ở cổng của thanh bước). */
-    await screen.findByText('Xong');
+    await findListReady();
 
     /*
      * A5 vẫn nguyên: xanh "đã xác minh" ở đây tới từ `reviewed === total` —
@@ -744,7 +768,7 @@ describe('bộ đếm ở trạng thái Xong (BT-08)', () => {
   it('trạng thái Một phần thì KHÔNG có token đó ở bộ đếm', async () => {
     const { container } = renderState('partial');
 
-    await screen.findByRole('checkbox', { name: 'Hiện lớp tường' });
+    await findListReady();
 
     expect(container.querySelectorAll('.text-state-verified')).toHaveLength(0);
   });
@@ -771,14 +795,14 @@ describe('dải tỷ lệ tạm (F-04x-2)', () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole('checkbox', { name: 'Hiện lớp tường' });
+    await findListReady();
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
   });
 
   it('tầng có tỉ lệ thật: không dải', async () => {
     renderState('partial');
 
-    await screen.findByRole('checkbox', { name: 'Hiện lớp tường' });
+    await findListReady();
 
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Đặt tỷ lệ' })).not.toBeInTheDocument();
@@ -808,7 +832,7 @@ describe('đợt sửa P04 — SCR-16', () => {
   it('[BUG-601] vai Người xem: "Thu gọn hai panel" thu gọn thật, không chỉ đổi nhãn', async () => {
     renderState('forbidden');
 
-    expect(await screen.findByRole('checkbox', { name: 'Hiện lớp tường' })).toBeInTheDocument();
+    expect(await findListReady()).toBeInTheDocument();
 
     await act(async () => {
       screen.getByRole('button', { name: 'Thu gọn hai panel' }).click();
@@ -816,7 +840,7 @@ describe('đợt sửa P04 — SCR-16', () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole('checkbox', { name: 'Hiện lớp tường' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('checkbox', { name: LIST_READY })).not.toBeInTheDocument();
     });
   });
 
@@ -829,8 +853,9 @@ describe('đợt sửa P04 — SCR-16', () => {
   it('[BUG-395] dưới 1280 panel trái không bị khoá 560 px (danh sách còn ~3 hàng)', async () => {
     renderState('partial');
 
-    const tree = await screen.findByRole('checkbox', { name: 'Hiện lớp tường' });
-    const panel = tree.closest('.shadow-panel');
+    const tree = await findListReady();
+    /* Gốc panel danh sách, con của cột việc (`QcStepColumn`). */
+    const panel = tree.closest('.lg\\:order-0');
 
     expect(panel).not.toBeNull();
     expect(panel?.className).not.toContain('h-[560px]');
@@ -839,8 +864,9 @@ describe('đợt sửa P04 — SCR-16', () => {
   it('[BUG-621] dưới 1024 panel trái không cắt đáy', async () => {
     renderState('partial');
 
-    const tree = await screen.findByRole('checkbox', { name: 'Hiện lớp tường' });
-    const panel = tree.closest('.shadow-panel');
+    const tree = await findListReady();
+    /* Gốc panel danh sách, con của cột việc (`QcStepColumn`). */
+    const panel = tree.closest('.lg\\:order-0');
     const listRegion = panel?.lastElementChild;
 
     expect(panel?.className.split(' ')).not.toContain('overflow-hidden');
@@ -883,16 +909,20 @@ describe('đợt sửa P04 — SCR-16', () => {
     );
     renderState('partial');
 
-    const header = await screen.findByText(/^Độ dày đúng chuẩn: \d+$/);
+    /* Hàng đợi chia theo lý do máy nghi trước, rồi độ dày, rồi đã duyệt. */
+    const headers = await screen.findAllByText(
+      /^(Máy chưa chắc là tường|Ngắn hơn bề dày tường|Đứng riêng, một đầu không nối|Chồng lên đoạn khác|Không thấy điểm nghi|Độ dày không chuẩn|Độ dày đúng chuẩn|Đã duyệt): \d+$/u,
+    );
 
-    expect(header).not.toHaveClass('uppercase');
+    for (const header of headers) {
+      expect(header).not.toHaveClass('uppercase');
+    }
   });
 
-  it('[BUG-614] bộ lọc panel trái: nhãn 13 px ngang cây lớp', async () => {
+  it('[BUG-614] bộ lọc panel trái: nhãn 13 px', async () => {
     renderState('partial');
 
-    expect(await screen.findByText('Chỉ hiện chưa duyệt')).toHaveClass('text-[13px]');
-    expect(screen.getByText('Hiện tim tường')).toHaveClass('text-[13px]');
+    expect(await screen.findByText(LIST_READY)).toHaveClass('text-[13px]');
   });
 
   it('[BUG-612][BUG-616] thanh trạng thái: câu không mono; lưu thất bại dùng màu vi phạm kèm biểu tượng', () => {
@@ -901,8 +931,8 @@ describe('đợt sửa P04 — SCR-16', () => {
     );
 
     expect(screen.queryByText('Chưa rê chuột lên bản vẽ')).toBeNull();
-    // Lưu ổn: nhãn đã ở đầu panel (QcPanelHead), thanh trạng thái không lặp.
-    expect(screen.queryByText('Đã lưu')).toBeNull();
+    // Lưu ổn: bố cục L23 không còn đầu panel, nên thanh trạng thái là nơi duy nhất báo tự lưu (A7).
+    expect(screen.getByText('Đã lưu')).toHaveAttribute('aria-live', 'polite');
 
     rerender(
       <WallLayerStatusBar cursorLabel="Chưa rê chuột lên bản vẽ" saveFailed saveLabel="Lưu thất bại" scaleLabel="12 mm/px" />,
@@ -1001,7 +1031,7 @@ describe('đợt sửa P04 — SCR-16', () => {
   it('[BUG-604] menu chuột phải của tường ĐÃ duyệt không đưa "Duyệt" chết', async () => {
     const { container } = renderState('partial');
 
-    await screen.findByRole('checkbox', { name: 'Hiện lớp tường' });
+    await findListReady();
 
     const reviewed = WALL_LAYER_FIXTURE_WALLS.find((wall) => wall.reviewed);
     const unreviewed = WALL_LAYER_FIXTURE_WALLS.find((wall) => !wall.reviewed);
@@ -1054,13 +1084,12 @@ describe('[G74 16-E-010] mở menu tường bằng bàn phím', () => {
   });
 });
 
-describe('G68 câu 2 ở đầu panel: trạng thái + số thật, đọc được như chữ thường', () => {
-  it('đầu panel có H1 "Duyệt tường", huy hiệu và câu "12/48 tường đã duyệt"', async () => {
+describe('câu 1 ở đầu cột việc (QcStepColumn)', () => {
+  it('đúng một H1, là câu việc của bước Tường', async () => {
     renderState('partial');
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Duyệt tường' })).toBeInTheDocument();
-    expect(screen.getByText('Chưa xong')).toBeInTheDocument();
-    expect(screen.getByText(/^12\/48 tường đã duyệt$/u)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: TASK_HEADING })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 });
 
@@ -1111,7 +1140,6 @@ describe('[16-D-008] danh sách của vai Người xem', () => {
 describe('chế độ nhìn L23 (Từng việc / Tổng thể)', () => {
   afterEach(() => {
     setQcViewMode('task');
-    localStorage.removeItem(QC_LAYOUT_STORAGE_KEY);
   });
 
   const renderScreen = () =>
@@ -1121,8 +1149,7 @@ describe('chế độ nhìn L23 (Từng việc / Tổng thể)', () => {
       </MemoryRouter>,
     );
 
-  it('L23 + Tổng thể: ghim số 1..N trên tường còn chờ', async () => {
-    localStorage.setItem(QC_LAYOUT_STORAGE_KEY, 'l23');
+  it('Tổng thể: ghim số 1..N trên tường còn chờ', async () => {
     setQcViewMode('overview');
     renderScreen();
 
@@ -1132,31 +1159,24 @@ describe('chế độ nhìn L23 (Từng việc / Tổng thể)', () => {
     expect(pins.map((pin) => pin.textContent)).toEqual(pins.map((_, index) => String(index + 1)));
   });
 
-  it('L23: dòng còn chờ mang số 1..N theo thứ tự cột, khớp số ghim; bố cục cũ không có số', async () => {
-    localStorage.setItem(QC_LAYOUT_STORAGE_KEY, 'l23');
+  it('dòng còn chờ mang số 1..N theo thứ tự cột, khớp số ghim', async () => {
     setQcViewMode('overview');
     /* jsdom đo khung 0 px nên danh sách ảo không dựng hàng; cho khung cuộn một chiều cao. */
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
       { x: 0, y: 0, top: 0, left: 0, right: 280, bottom: 800, width: 280, height: 800, toJSON: () => ({}) } as DOMRect,
     );
-    const { unmount } = renderScreen();
+    renderScreen();
     const pins = await screen.findAllByRole('button', { name: /^Mục cần xem số / });
-    const numbers = screen.getAllByLabelText(/^Số \d+ trong hàng đợi$/).map((node) => node.textContent);
+    const numbers = Array.from(document.querySelectorAll('[data-queue-number]')).map((node) => node.textContent);
 
     /* Danh sách ảo chỉ dựng các dòng trong khung: số đi liền 1, 2, 3… như ghim, không vượt số ghim. */
     expect(numbers.length).toBeGreaterThan(0);
     expect(numbers).toEqual(pins.slice(0, numbers.length).map((_, index) => String(index + 1)));
-    unmount();
-    localStorage.removeItem(QC_LAYOUT_STORAGE_KEY);
-    renderScreen();
-    expect(await screen.findByRole('checkbox', { name: 'Hiện tim tường' })).toBeInTheDocument();
-    expect(screen.queryAllByLabelText(/^Số \d+ trong hàng đợi$/)).toHaveLength(0);
   });
 
-  it('bố cục cũ: không có nút đổi chế độ nhìn', async () => {
+  it('có nút đổi chế độ nhìn trên bản vẽ', async () => {
     renderScreen();
 
-    expect(await screen.findByRole('checkbox', { name: 'Hiện tim tường' })).toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: 'Chế độ nhìn' })).toBeNull();
+    expect(await screen.findByRole('group', { name: 'Chế độ nhìn' })).toBeInTheDocument();
   });
 });

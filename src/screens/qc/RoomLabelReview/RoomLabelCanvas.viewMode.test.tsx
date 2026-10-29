@@ -1,12 +1,11 @@
 /**
- * L23 chế độ nhìn trên canvas Phòng: Tổng thể ghim số 1..N cho phòng chưa duyệt theo thứ tự hàng đợi
- * (chưa có tên trước, máy đề xuất sau); tắt cờ L23 thì không có nút đổi chế độ.
+ * Chế độ nhìn trên canvas Phòng: Tổng thể ghim số 1..N cho phòng chưa duyệt theo thứ tự hàng đợi
+ * (chưa có tên trước, máy đề xuất sau); nút đổi chế độ luôn có trên bản vẽ.
  */
 
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { QC_LAYOUT_STORAGE_KEY } from '../shared/qcLayout';
 import { setQcViewMode } from '../shared/qcViewMode';
 import { RoomLabelCanvas } from './RoomLabelCanvas';
 import type { RoomLabelStatus, RoomLabelViewModel } from './roomLabelTypes';
@@ -64,12 +63,10 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   setQcViewMode('task');
-  localStorage.removeItem(QC_LAYOUT_STORAGE_KEY);
 });
 
-describe('RoomLabelCanvas — chế độ nhìn L23', () => {
+describe('RoomLabelCanvas — chế độ nhìn', () => {
   it('Tổng thể: ghim số 1..N cho phòng chưa duyệt, theo thứ tự hàng đợi', () => {
-    localStorage.setItem(QC_LAYOUT_STORAGE_KEY, 'l23');
     setQcViewMode('overview');
     renderCanvas();
 
@@ -79,10 +76,10 @@ describe('RoomLabelCanvas — chế độ nhìn L23', () => {
     expect(parseFloat(pins[0]!.style.left)).toBeGreaterThan(parseFloat(pins[1]!.style.left));
   });
 
-  it('tắt L23: không có nút đổi chế độ nhìn', () => {
+  it('có nút đổi chế độ nhìn trên bản vẽ', () => {
     renderCanvas();
 
-    expect(screen.queryByRole('group', { name: 'Chế độ nhìn' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Tổng thể' })).toBeNull();
+    expect(screen.getByRole('group', { name: 'Chế độ nhìn' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tổng thể' })).toBeTruthy();
   });
 });
