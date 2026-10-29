@@ -54,12 +54,16 @@ const geometry = new CircleGeometry(1, 48); // bán kính đơn vị, co theo `h
 const _d = uv().sub(0.5).length().mul(2).clamp(0, 1);
 const _w = float(1).sub(_d.mul(_d)).pow(2);
 const falloff = _w.div(float(1).add(_d.div(HALO_CORE).pow(2)));
+/** Nút màu dùng chung theo màu đèn: nút mới mỗi quầng là khoá shader mới dù ra cùng mã (dựng TSL lại). */
+const colorNodes = new Map<string, MeshBasicNodeMaterial['colorNode']>();
 const groups = new WeakMap<Object3D, Group>();
 const _pos = new Vector3();
 
 function makeHalo(hex: string): Mesh {
   const mat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, opacity: 0 });
-  mat.colorNode = color(hex).mul(falloff);
+  let node = colorNodes.get(hex);
+  if (!node) colorNodes.set(hex, (node = color(hex).mul(falloff)));
+  mat.colorNode = node;
   const mesh = new Mesh(geometry, mat);
   mesh.rotation.x = Math.PI / 2; // mặt nhìn xuống
   mesh.raycast = () => {};
