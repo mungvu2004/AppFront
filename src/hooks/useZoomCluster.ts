@@ -12,6 +12,8 @@ export interface ZoomClusterState {
   zoomOut: () => void;
   resetZoom: () => void;
   fitToScreen: () => void;
+  /** Đặt thẳng một mức (%), kẹp trong 10–400 — màn tự phóng tới mục (L23 Từng việc). */
+  setZoom: (zoomPct: number) => void;
   zoomLabel: string;
 }
 
@@ -57,6 +59,7 @@ export function useZoomCluster(initialZoom = 100, persistKey?: string): ZoomClus
   const zoomOut = useCallback(() => setZoomLevel((z) => clamp(Math.ceil(z / STEP) * STEP - STEP)), []);
   const resetZoom = useCallback(() => setZoomLevel(100), []);
   const fitToScreen = useCallback(() => setZoomLevel(85), []);
+  const setZoom = useCallback((zoomPct: number) => setZoomLevel(clamp(zoomPct)), []);
 
   return {
     zoomLevel,
@@ -64,6 +67,7 @@ export function useZoomCluster(initialZoom = 100, persistKey?: string): ZoomClus
     zoomOut,
     resetZoom,
     fitToScreen,
+    setZoom,
     zoomLabel: `${zoomLevel}%`,
   };
 }

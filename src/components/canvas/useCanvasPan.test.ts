@@ -108,3 +108,14 @@ describe('P6 — kéo gom theo khung hình', () => {
     expect(frames.size).toBe(0);
   });
 });
+
+describe('panTo', () => {
+  it('đặt thẳng độ dời; reset về 0', () => {
+    const { result } = renderHook(() => useCanvasPan());
+    act(() => result.current.panTo({ x: 40, y: -12 }));
+    expect(result.current.offset).toEqual({ x: 40, y: -12 });
+    expect(result.current.transform).toBe('translate(40px, -12px)');
+    act(() => result.current.reset());
+    expect(result.current.offset).toEqual({ x: 0, y: 0 });
+  });
+});

@@ -13,6 +13,7 @@ const review = vi.hoisted(() => ({ scale: null as FloorScaleState | null }));
 vi.mock('./useFloorReview', () => ({
   graphOfDocument: () => null,
   useFloorReview: () => ({ graph: null, storeSpatial: null, scale: review.scale }),
+  useNextFloor: () => null,
 }));
 vi.mock('@/hooks/useProjectFloors', () => ({ useProjectFloors: () => [] }));
 vi.mock('@/components/shell/FlowGate', () => ({ FlowGate: ({ children }: { children: ReactNode }) => <div>{children}</div> }));

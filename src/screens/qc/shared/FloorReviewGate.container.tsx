@@ -1,26 +1,21 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
-import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import { FlowGate } from '@/components/shell/FlowGate';
 import { getButtonStyles } from '@/components/ui/buttonVariants';
-import { useProjectFloors } from '@/hooks/useProjectFloors';
 import { cn } from '@/lib/utils';
-import { queryKeys } from '@/lib/query/queryKeys';
 import { SCALE_STATE_VIEWS } from '@/lib/viewmodel/provisionalScale';
 import { ROUTES } from '@/routes/paths';
 
 import {
   floorReviewCountsOf,
   floorReviewGateOf,
-  nextFloorOf,
   SCALE_LOCK_REASON,
   type RequiredLayerKey,
 } from './floorReviewGateModel';
 import { QC_LAYERS, qcStepOf } from './qcLayers';
-import { graphOfDocument, useFloorReview } from './useFloorReview';
+import { useFloorReview, useNextFloor } from './useFloorReview';
 
 /**
  * Cổng CHUNG của mọi màn trong tầng: MỘT nút ở khe cổng của header. Tiến độ từng bước
@@ -65,10 +60,8 @@ function stepAfter(pathname: string, projectId: string, floorId: string): Requir
 
 export function FloorReviewGate({ projectId, floorId, onNext, nextLabel, inline = false }: FloorReviewGateProps) {
   const { pathname } = useLocation();
-  const queryClient = useQueryClient();
-  const floors = useProjectFloors(projectId);
-  const { graph, storeSpatial, scale } = useFloorReview(projectId, floorId);
-  const storeHolds = (id: string) => storeSpatial !== null && storeSpatial.byId[id] !== undefined;
+  const { graph, scale } = useFloorReview(projectId, floorId);
+  const nextFloor = useNextFloor(projectId, floorId);
   const gate = useMemo(() => floorReviewGateOf(floorReviewCountsOf(graph, floorId)), [floorId, graph]);
   const scaleRoute = ROUTES.project.scale(projectId, floorId);
 
@@ -108,14 +101,6 @@ export function FloorReviewGate({ projectId, floorId, onNext, nextLabel, inline 
   } else if (after !== null) {
     action = linkTo(LAYER_ROUTES[after.key](projectId, floorId), nextStepLabel(after.label));
   } else {
-    /* ponytail: tầng khác chỉ biết "xong" khi kho hoặc cache N16 đã có nó; chưa đọc thì coi là chưa xong. */
-    const isDone = (id: string) => {
-      const other = storeHolds(id)
-        ? storeSpatial
-        : graphOfDocument(queryClient.getQueryData<FloorLayerDocument>(queryKeys.layer.byFloor(projectId, id)));
-      return other !== null && floorReviewGateOf(floorReviewCountsOf(other, id)).next === null;
-    };
-    const nextFloor = nextFloorOf(floors, floorId, isDone);
     action =
       nextFloor === null
         ? linkTo(ROUTES.project.viewer(projectId), VIEWER_LABEL)

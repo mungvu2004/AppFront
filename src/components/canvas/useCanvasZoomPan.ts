@@ -8,6 +8,8 @@ export interface CanvasZoomPanState {
   readonly pan: CanvasPanState;
   /** Hệ số phóng của lớp nội dung (`scale(...)`): 1 là "vừa khung". */
   readonly scale: number;
+  /** Đặt thẳng mức phóng (%), kẹp như nút +/−. */
+  readonly setZoom: (zoomPct: number) => void;
   /** Trải thẳng vào `<ZoomCluster {...zoomCluster} />`. */
   readonly zoomCluster: {
     readonly zoomLevel: number;
@@ -35,6 +37,7 @@ export function useCanvasZoomPan(): CanvasZoomPanState {
   return {
     pan,
     scale: zoom.zoomLevel / 100,
+    setZoom: zoom.setZoom,
     zoomCluster: {
       zoomLevel: zoom.zoomLevel,
       onZoomIn: zoomIn,

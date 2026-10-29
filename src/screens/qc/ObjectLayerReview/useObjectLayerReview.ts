@@ -185,6 +185,7 @@ import { arrowStepHandler } from '../WallLayerReview/listArrowKeys';
 
 import { layerGateOf } from './layerGate';
 import { isL23Layout } from '../shared/qcLayout';
+import { focusBoundsOf, focusFrameOf, useQcViewMode } from '../shared/qcViewMode';
 import { objectReasonRank } from './objectReviewReasons';
 
 /** Hàng đợi duyệt (Z/S-16): chưa duyệt trước, trong đó tin cậy thấp lên đầu. */
@@ -1980,6 +1981,51 @@ export function useObjectLayerReview(
   }, [fitView, flyToBounds, frameSizePx, placements, objects]);
 
   /*
+   * L23: Từng việc phóng tới mục vừa chọn (nới ≥ 40 % tầng), Tổng thể trả vừa khung. Chỉ chạy khi
+   * đổi mục hoặc đổi chế độ — kéo đối tượng không làm khung nhìn nhảy; Từng việc chưa chọn thì đứng yên.
+   */
+  const viewMode = useQcViewMode();
+  const viewFlightRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isL23Layout() || frameSizePx === null) {
+      return;
+    }
+
+    /* Khổ khung nằm trong khoá: khung đổi cỡ (cột việc dựng xong, 1024) thì lớp vừa khung đổi, bay lại. */
+    const key = `${viewMode === 'task' ? `task:${selectedObjectId ?? ''}` : 'overview'}@${frameSizePx.width}x${frameSizePx.height}`;
+
+    if (key === viewFlightRef.current) {
+      return;
+    }
+
+    if (viewMode === 'overview') {
+      viewFlightRef.current = key;
+      endFlight();
+      return;
+    }
+
+    const placement = placements.find((item) => item.id === selectedObjectId);
+
+    if (selectedObjectId === null) {
+      viewFlightRef.current = key;
+      return;
+    }
+
+    /* Chưa có hình của mục (đang đọc): chưa ghi khoá, lần vẽ sau bay. */
+    if (placement === undefined || surfacePx === null) {
+      return;
+    }
+
+    viewFlightRef.current = key;
+    const box = focusBoundsOf(rotatedBounds(placement.boundsPx, placement.angleDeg), surfacePx);
+    const min = toFramePoint(fitView, { x: box.x, y: box.y });
+    const max = toFramePoint(fitView, { x: box.x + box.width, y: box.y + box.height });
+
+    flyToBounds({ minX: min.x, minY: min.y, maxX: max.x, maxY: max.y }, focusFrameOf(frameSizePx).width, frameSizePx.height);
+  }, [endFlight, fitView, flyToBounds, frameSizePx, placements, selectedObjectId, surfacePx, viewMode]);
+
+  /*
    * Số đo hai đầu tường của đối tượng đang chọn.
    *
    * Trạng thái là `'measuring'` trong lúc kéo và `'idle'` khi chỉ đang chọn —
@@ -2112,6 +2158,11 @@ export function useObjectLayerReview(
       activePlacement === null
         ? null
         : toFrameRect(view, rotatedBounds(activePlacement.boundsPx, activePlacement.angleDeg)),
+    viewPins: rows.flatMap((row) => {
+      const placement = row.isReviewed ? undefined : placements.find((item) => item.id === row.id);
+
+      return placement === undefined ? [] : [{ id: row.id, ...onFrame(placement.centrePx) }];
+    }),
     onFrameResize,
     backgroundImageUrl: background?.imageUrl ?? null,
     backgroundImageAlt: background?.imageAlt ?? '',

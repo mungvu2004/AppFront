@@ -17,6 +17,8 @@ import {
   type FloorScaleState,
   type RequiredLayerKey,
 } from './floorReviewGateModel';
+import { QcFloorDoneGate, QcFloorDoneSummary } from './QcFloorDone';
+import { floorDoneTexts, reopenFloor, useFloorDone, useFloorLabel } from './floorDoneModel';
 import { QC_COMMAND_GROUP } from './qcLayout';
 import { QC_LAYERS } from './qcLayers';
 import { useFloorReview } from './useFloorReview';
@@ -27,6 +29,8 @@ import { useFloorReview } from './useFloorReview';
  *   2. cây 4 bước: bước đang làm mở rộng (thân = hàng đợi của màn, truyền qua `children`),
  *      bước khác thu một dòng kèm tóm tắt ("Cửa và nội thất · 11 cần xem");
  *   3. cổng ở đáy cột (`gate`), thay cho nút ở header.
+ * Bước Phòng của tầng đã xong (`useFloorDone`) đổi thành màn Xong tầng: cây thu hết, tổng kết
+ * "Bạn đã duyệt những gì" thay hàng đợi, cổng là "Dựng mô hình 3D". Bấm dòng Phòng thì mở lại hàng đợi.
  * Số "còn N" của bước đang làm do màn truyền (`activeSummary`) để chỉ có một nguồn số trên màn.
  */
 export type QcStepKey = 'scale' | RequiredLayerKey;
@@ -105,6 +109,10 @@ export function QcStepColumn({ projectId, floorId, activeStep, task, hint, activ
     [floorId, graph],
   );
   const index = STEP_KEYS.indexOf(activeStep);
+  const { done: floorDone, graph: doneGraph } = useFloorDone(projectId, floorId);
+  const isDoneScreen = activeStep === 'rooms' && floorDone && doneGraph !== null;
+  const floorLabel = useFloorLabel(projectId, floorId);
+  const head = isDoneScreen ? floorDoneTexts(floorLabel) : { eyebrow: `Bước ${index + 1} · ${stepTitle(activeStep)}`, task, hint };
   const navigate = useNavigate();
   const commands = useMemo<CommandItem[]>(
     () =>
@@ -122,13 +130,13 @@ export function QcStepColumn({ projectId, floorId, activeStep, task, hint, activ
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel">
       <header className="shrink-0 border-b border-border-default px-5 pb-4 pt-4">
-        <p className="text-caption font-medium uppercase tracking-[0.06em] text-text-muted">{`Bước ${index + 1} · ${stepTitle(activeStep)}`}</p>
-        <h1 className="mt-1 text-[18px] font-medium leading-snug text-text-primary [text-wrap:balance]">{task}</h1>
-        {hint === undefined ? null : <p className="mt-1.5 text-body-sm text-text-secondary [text-wrap:pretty]">{hint}</p>}
+        <p className="text-caption font-medium uppercase tracking-[0.06em] text-text-muted">{head.eyebrow}</p>
+        <h1 className="mt-1 text-[18px] font-medium leading-snug text-text-primary [text-wrap:balance]">{head.task}</h1>
+        {head.hint === undefined ? null : <p className="mt-1.5 text-body-sm text-text-secondary [text-wrap:pretty]">{head.hint}</p>}
       </header>
-      <nav aria-label={STEPS_LABEL} className="flex min-h-0 flex-1 flex-col">
+      <nav aria-label={STEPS_LABEL} className={cn('flex min-h-0 flex-col', !isDoneScreen && 'flex-1')}>
         {STEP_KEYS.map((key) => {
-          const isActive = key === activeStep;
+          const isActive = key === activeStep && !isDoneScreen;
           const locked = key !== 'scale' && scale === 'missing';
           const layer = key === 'scale' ? undefined : layers.get(key);
           const done = key === 'scale' ? scale === 'confirmed' : layer?.done === true;
@@ -143,6 +151,14 @@ export function QcStepColumn({ projectId, floorId, activeStep, task, hint, activ
             </>
           );
           const rowClass = cn('flex shrink-0 items-center gap-3 px-5 text-body-sm', isActive ? 'min-h-12 bg-bg-sunken' : 'min-h-10 border-b border-border-default');
+          /* Màn Xong tầng: dòng của bước đang mở là nút mở lại hàng đợi (cùng route). */
+          if (isDoneScreen && key === activeStep) {
+            return (
+              <button key={key} className={cn(rowClass, 'w-full text-left hover:bg-bg-hover focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent')} onClick={() => reopenFloor(floorId)} type="button">
+                {row}
+              </button>
+            );
+          }
           if (isActive) {
             return (
               <section key={key} aria-current="step" aria-label={stepTitle(key)} className="flex min-h-0 flex-1 flex-col border-b border-border-default">
@@ -166,8 +182,13 @@ export function QcStepColumn({ projectId, floorId, activeStep, task, hint, activ
           );
         })}
       </nav>
+      {isDoneScreen ? <QcFloorDoneSummary floorId={floorId} graph={doneGraph} /> : null}
       <CommandPalette commands={NO_SHARED_COMMANDS} />
-      {gate == null ? null : <footer className="shrink-0 border-t border-border-default px-5 py-3 [&_a]:w-full [&_a]:justify-between [&_button]:w-full [&_button]:justify-between">{gate}</footer>}
+      {isDoneScreen ? (
+        <footer className="shrink-0 border-t border-border-default px-5 py-3">
+          <QcFloorDoneGate projectId={projectId} />
+        </footer>
+      ) : gate == null ? null : <footer className="shrink-0 border-t border-border-default px-5 py-3 [&_a]:w-full [&_a]:justify-between [&_button]:w-full [&_button]:justify-between">{gate}</footer>}
     </div>
   );
 }

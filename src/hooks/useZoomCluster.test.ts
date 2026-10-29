@@ -88,4 +88,12 @@ describe('useZoomCluster', () => {
     const { result } = renderHook(() => useZoomCluster(75));
     expect(result.current.zoomLabel).toBe('75%');
   });
+
+  it('setZoom đặt thẳng một mức, kẹp trong 10–400', () => {
+    const { result } = renderHook(() => useZoomCluster());
+    act(() => result.current.setZoom(237));
+    expect(result.current.zoomLevel).toBe(237);
+    act(() => result.current.setZoom(900));
+    expect(result.current.zoomLevel).toBe(400);
+  });
 });

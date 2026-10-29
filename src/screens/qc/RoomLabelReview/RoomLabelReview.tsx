@@ -61,6 +61,7 @@ import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorReviewGate } from '../shared/FloorReviewGate.container';
+import { QcFloorDoneCard } from '../shared/QcFloorDone';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
@@ -381,6 +382,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         }
         wideLeft
         canvasLabel={CANVAS_SECTION_LABEL}
+        canvasOverlay={l23 ? <QcFloorDoneCard floorId={nav.floorId} projectId={nav.projectId} /> : null}
         inspector={
           isCollapsed ? (
             <div className="flex shrink-0 items-start justify-end p-1">
