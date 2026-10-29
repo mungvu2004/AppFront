@@ -61,15 +61,25 @@ test('đường nạp thật: màn liệt kê đúng ô mở và nội thất c�
   await expect(page.getByRole('option', { name: /^#D-009/u })).toHaveCount(0);
 });
 
-test('[bơm] ba nút "chọn nhóm" bấm được bằng chuột ngay từ đầu (B-V6-10)', async ({ page }) => {
+/*
+ * B-V6-10 (ba nút nhóm khoá cứng lúc đầu) giữ nguyên ý: ba nút nhóm trên ray bấm được bằng chuột
+ * ngay từ đầu. UX-R2 (98752ba3, K07) đổi ba nút "Chọn nhóm … (phím C/S/N)" thành ba công cụ vẽ
+ * "Vẽ cửa đi / Vẽ cửa sổ / Vẽ nội thất": nút làm đúng việc ghi trên nhãn (bật chế độ vẽ). Chọn nhóm
+ * nay chỉ còn ở phím C/S/N — ca ngay dưới.
+ */
+test('[bơm] ba nút nhóm trên ray ("Vẽ …") bấm được bằng chuột ngay từ đầu (B-V6-10, K07)', async ({ page }) => {
   await openSeeded(page);
 
-  const door = rail(page).getByRole('button', { name: 'Chọn nhóm cửa đi (phím C)' });
-  await expect(door).toBeEnabled();
-  await door.click();
+  for (const name of ['Vẽ cửa đi', 'Vẽ cửa sổ', 'Vẽ nội thất']) {
+    await expect(rail(page).getByRole('button', { name, exact: true })).toBeEnabled();
+  }
 
-  /* Nhóm đã chọn thì ray mở các ô loại con của nó. */
-  await expect(rail(page).getByRole('button', { name: /^Đổi thành .* \(phím 1\)$/u })).toBeVisible();
+  /* Bấm là bật chế độ vẽ (nút sáng, aria-pressed); bấm lại là tắt. */
+  const door = rail(page).getByRole('button', { name: 'Vẽ cửa đi', exact: true });
+  await door.click();
+  await expect(door).toHaveAttribute('aria-pressed', 'true');
+  await door.click();
+  await expect(door).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('[bơm] phím C chọn nhóm qua sổ phím thật, Escape bỏ chọn đối tượng (O-1, G4a-25)', async ({ page }) => {

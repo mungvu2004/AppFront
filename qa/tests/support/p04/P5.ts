@@ -27,6 +27,7 @@ import { AUTOSAVE_TIMEOUT_MS, readBaseUrl } from '../../../../e2e/fullstack/env'
 import { captureEvidence } from '../evidence';
 import { writeLayer, type LayerApi } from '../layerSeed';
 import type { Credentials } from '../p03/P5';
+import { ASK_CARD } from './P1';
 
 export type Json = Record<string, unknown>;
 export type Pt = readonly [number, number];
@@ -80,7 +81,7 @@ export const ROOM = {
   close: 'Đóng', // RNP:42
   apply: 'Áp dụng', // RNP:43
   inspector: 'Phòng', // RIN:82
-  inspectorEmpty: 'Chọn một phòng trên bản vẽ hoặc trong danh sách để xem chi tiết.', // RIN:84
+  inspectorEmpty: 'Chọn một phòng để xem chi tiết.', // RIN — L23: chưa chọn gì thì thẻ hỏi không hiện, câu này không còn trên màn
   name: 'Tên phòng', // RNF:34
   nameHint: 'Gợi ý bên dưới chỉ để chọn nhanh — tên tự gõ luôn được giữ nguyên.', // RNF:36
   nameEmpty: 'Tên phòng không được để trống.', // RNF:37
@@ -581,7 +582,10 @@ export const roomOptions = (page: Page): Locator => roomList(page).getByRole('op
 export const optionOf = (page: Page, code: string): Locator =>
   roomList(page).getByRole('option', { name: new RegExp(`^${escapeRegExp(code)} · `, 'u') });
 export const nameField = (page: Page): Locator => page.getByRole('textbox', { name: ROOM.name, exact: true });
-export const inspector = (page: Page): Locator => page.getByRole('heading', { name: ROOM.inspector, exact: true, level: 3 }).locator('xpath=../..');
+/** L23: chi tiết phòng đang chọn nằm trong thẻ hỏi neo trên bản vẽ (QcAskCard); chưa chọn gì thì không có thẻ. */
+export const inspector = (page: Page): Locator => page.getByRole('region', { name: ASK_CARD, exact: true });
+/** Tiêu đề "Phòng" (h2) trong thẻ hỏi: chỗ bấm để rời ô nhập mà không chọn mục khác. */
+export const inspectorTitle = (page: Page): Locator => inspector(page).getByRole('heading', { name: ROOM.inspector, exact: true });
 export const canvasGroup = (page: Page): Locator => page.getByRole('group', { name: ROOM.canvas, exact: true });
 export const canvasButton = (page: Page, name: string | RegExp): Locator =>
   canvasGroup(page).getByRole('button', typeof name === 'string' ? { name, exact: true } : { name });

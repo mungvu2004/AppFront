@@ -93,6 +93,13 @@ test.afterAll(async () => {
 
 /** `test.step('[<row id>] <title>')`. */
 const step = (id: string, title: string, body: () => Promise<void>): Promise<void> => test.step(`[${id}] ${title}`, body);
+/** A catalog row whose UI is gone: kept as a skip annotation (Playwright 1.45 has no test.step.skip). */
+const skipStep = (id: string, reason: string): void => {
+  test.info().annotations.push({ type: 'skip', description: `[${id}] ${reason}` });
+};
+/** L23: the only H1 of SCR-14 is the task sentence of the step column (ScaleCalibration.tsx L23_TASK). */
+const SCALE_TASK = 'Xác nhận tỷ lệ của tầng để mọi số đo ra đúng kích thước thật.';
+const COLLAPSE_REMOVED = 'L23 đã bỏ nút "Thu gọn bảng"/"Bung bảng" (dưới 1024 cột việc là ngăn kéo) — không còn đối tượng';
 
 const evidence = (page: Page, id: string, slug: string, caption?: string): Promise<string> =>
   captureEvidence(page, `E04_${id}_${slug}.png`, caption === undefined ? {} : { caption });
@@ -571,7 +578,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
       await step('14-A-012', '`R` (focus off the text field) = "Đo lại": line and "Chiều dài thật" cleared', async () => {
         await clearLine(page);
         await drawStandard(page);
-        await page.getByRole('heading', { name: 'Tỷ lệ bản vẽ', exact: true }).click(); // focus leaves the text field
+        await page.getByRole('heading', { name: SCALE_TASK, exact: true, level: 1 }).click(); // focus leaves the text field
         await page.keyboard.press('r');
         await expect.soft(handleEnd(page)).toHaveCount(0);
         await expect.soft(lengthField(page)).toHaveValue('');
@@ -751,16 +758,12 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-E-009', 'field-a11y');
       });
 
-      await step('14-E-015', 'Enter on a focused button activates it ("Đo lại", "Thu gọn bảng", "Tải lại ảnh", "Quay lại bước tiền xử lý") ⚑', async () => {
+      await step('14-E-015', 'Enter on a focused button activates it ("Đo lại", "Tải lại ảnh", "Quay lại bước tiền xử lý"; L23 bỏ "Thu gọn bảng") ⚑', async () => {
         await drawStandard(page);
         await btn(page, SCALE.remeasure).focus();
         await page.keyboard.press('Enter');
         await expect.soft(handleEnd(page), '"Đo lại" activated by Enter').toHaveCount(0);
 
-        await btn(page, SCALE.collapse).focus();
-        await page.keyboard.press('Enter');
-        await expect.soft(btn(page, SCALE.expand), '"Thu gọn bảng" activated by Enter').toBeVisible();
-        if (await btn(page, SCALE.expand).isVisible()) await btn(page, SCALE.expand).click();
 
         const reads = (): number => sent.filter((r) => r.method === 'GET' && /\/quality$/u.test(r.path)).length;
         const before = reads();
@@ -1101,32 +1104,9 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-A-033', 'reload-image');
       });
 
-      await step('14-A-032', '"Thu gọn bảng" / "Bung bảng" toggles the panel body, also in the error state (BUG-322)', async () => {
-        await btn(page, SCALE.collapse).click();
-        await expect.soft(btn(page, SCALE.expand)).toBeVisible(); // SCP:93-95, USC:1033-1035,1763
-        await expect.soft(btn(page, SCALE.remeasure)).toHaveCount(0);
-        if (await btn(page, SCALE.expand).isVisible()) await btn(page, SCALE.expand).click();
-        await expect.soft(btn(page, SCALE.collapse)).toBeVisible();
-        await expect.soft(btn(page, SCALE.remeasure)).toBeVisible();
-        await evidence(page, '14-A-032', 'toggle-panel');
-      });
-
-      await step('14-B-010', 'collapsed: panel body hidden, the canvas gets wider, works in `error` too (BUG-322)', async () => {
-        const wide = (await frameBox(page)).width;
-        await btn(page, SCALE.collapse).click();
-        await expect.soft(btn(page, SCALE.expand)).toBeVisible();
-        await expect.soft(page.getByText(SCALE.warpedTitle, { exact: true }), 'the error notice stays').toBeVisible();
-        const narrow = await expect.poll(async () => (await frameBox(page)).width).toBeGreaterThan(wide).then(() => 'wider', () => 'not wider');
-        expect.soft(narrow, `canvas ${String(wide)} px before, ${String((await frameBox(page)).width)} px collapsed`).toBe('wider');
-        await evidence(page, '14-B-010', 'collapsed');
-      });
-
-      await step('14-B-024', 'the collapsed panel also hides the scope and "Xác nhận tỷ lệ" (everything below the header)', async () => {
-        await expect.soft(scopeRadio(page, SCALE.thisFloor)).toHaveCount(0); // SCP:98-249
-        await expect.soft(applyDisabled(page)).toHaveCount(0);
-        if (await btn(page, SCALE.expand).isVisible()) await btn(page, SCALE.expand).click();
-        await evidence(page, '14-B-024', 'collapsed-footer');
-      });
+      skipStep('14-A-032', COLLAPSE_REMOVED);
+      skipStep('14-B-010', COLLAPSE_REMOVED);
+      skipStep('14-B-024', COLLAPSE_REMOVED);
 
       await step('14-A-035', 'reload with a drawn line and a typed length: both gone, nothing written', async () => {
         await drawStandard(page);
@@ -1149,12 +1129,9 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-A-036', 'warped-then-applied');
       });
 
-      await step('14-A-037', 'after a successful apply the toggle shows `collapsed` and back; a failed later apply brings the failure back', async () => {
-        await btn(page, SCALE.collapse).click();
-        await expect.soft(btn(page, SCALE.expand)).toBeVisible();
-        await expect.soft(page.getByText(SCALE.successTitle, { exact: true })).toHaveCount(0);
-        if (await btn(page, SCALE.expand).isVisible()) await btn(page, SCALE.expand).click();
-        await expect.soft(page.getByText(SCALE.successTitle, { exact: true }), 'success again after expanding').toBeVisible();
+      // L23 bỏ nút thu gọn: phần "collapsed và trở lại" của 14-A-037 không còn; giữ phần áp lỗi sau khi đã áp thành công.
+      await step('14-A-037', 'after a successful apply, a failed later apply brings the failure back', async () => {
+        await expect.soft(page.getByText(SCALE.successTitle, { exact: true }), 'success after the apply').toBeVisible();
         await staleWrite(owner.api, d1);
         await lengthField(page).fill('4800');
         await applyDisabled(page).click();

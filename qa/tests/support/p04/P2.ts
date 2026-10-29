@@ -27,6 +27,7 @@ import { adminApi, poolApi } from '../p03/P11';
 import { captureEvidence } from '../evidence';
 import { createQcProject, deleteProject, layerApiOf, layerPathOf, qcLayer as qcLayerOf, writeLayer, type LayerApi, type SeededFloor } from '../layerSeed';
 import { poolUser, type PoolUser } from '../phase03Seed';
+import { ASK_CARD } from './P1';
 
 export { escapeRegExp };
 export type Json = Record<string, unknown>;
@@ -68,7 +69,7 @@ export const OBJ = {
   windows: 'Cửa sổ',
   furniture: 'Nội thất',
   approve: /^Duyệt #/u, // OI: "Duyệt #D-002" (Z/S-16)
-  inspectorEmpty: 'Chọn một đối tượng trên bản vẽ hoặc trong danh sách để xem chi tiết.', // OI
+  inspectorEmpty: 'Chọn một mục để xem chi tiết.', // OI — L23: chưa chọn gì thì thẻ hỏi không hiện, câu này không còn trên màn
   type: 'Loại đối tượng', // OI
   position: 'Vị trí trên tường', // OI
   undo: 'Hoàn tác', // OS / Toast
@@ -119,8 +120,8 @@ export const openSubtypeMenu = async (page: Page): Promise<void> => {
 export const allOptions = (page: Page): Locator => listGroup(page).getByRole('option');
 export const optionOf = (page: Page, code: string): Locator =>
   listGroup(page).getByRole('option', { name: new RegExp(`^${escapeRegExp(code)} — `, 'u') });
-/** OI: root > div.h-14 > h3 "Đối tượng". */
-export const inspector = (page: Page): Locator => page.getByRole('heading', { name: 'Đối tượng', exact: true, level: 3 }).locator('xpath=../..');
+/** L23: chi tiết đối tượng đang chọn nằm trong thẻ hỏi neo trên bản vẽ (QcAskCard); chưa chọn gì thì không có thẻ. */
+export const inspector = (page: Page): Locator => page.getByRole('region', { name: ASK_CARD, exact: true });
 export const approveButton = (page: Page): Locator => inspector(page).getByRole('button', { name: OBJ.approve, exact: true });
 export const statusBar = (page: Page): Locator => page.getByRole('status', { name: OBJ.status, exact: true });
 export const symbolOf = (page: Page, code: string): Locator => page.locator(`g[aria-label="${code}"]`);
@@ -128,10 +129,21 @@ export const toastRegion = (page: Page): Locator => page.getByRole('region', { n
 /* Z/S-16: tám chip loại con nằm trong menu "Loại con" (details) — bước dùng chip phải mở "Loại con" trước. */
 export const chip = (page: Page, label: string): Locator =>
   page.getByRole('group', { name: 'Lọc theo loại con', exact: true }).getByRole('button', { name: label, exact: true });
-/* Z/S-16: cây lớp thành ba nút lọc theo loại (tên truy cập "Ẩn lớp cửa đi"/"Hiện lớp cửa đi"). */
+/* Nút lọc theo loại ở cột việc: "Chỉ hiện cửa đi" (aria-pressed = đang lọc). Nút "Ẩn/Hiện lớp …" đã bỏ ở bố cục L23. */
 export const treeItem = (page: Page, label: string): Locator =>
-  page.getByRole('group', { name: OBJ.filters, exact: true }).getByRole('button', { name: new RegExp(`^(Ẩn|Hiện) lớp ${label.toLowerCase()}$`, 'u') });
-export const eyeButton = (page: Page, layerLabel: string): Locator => page.getByRole('button', { name: new RegExp(`^(Ẩn|Hiện) lớp ${escapeRegExp(layerLabel)}$`, 'iu') });
+  page.getByRole('group', { name: OBJ.filters, exact: true }).getByRole('button', { name: `Chỉ hiện ${label.toLowerCase()}`, exact: true });
+/** L23: công tắc lớp là checkbox "Cửa đi"/"Cửa sổ"/"Nội thất" trong popover "Hiển thị" (mở popover trước khi đọc). */
+export const eyeButton = (page: Page, layerLabel: string): Locator => page.getByRole('checkbox', { name: new RegExp(`^${escapeRegExp(layerLabel)}$`, 'iu') });
+/** Mở popover "Hiển thị" nếu đang đóng. */
+export async function openDisplay(page: Page): Promise<void> {
+  const button = page.getByRole('button', { name: 'Hiển thị', exact: true });
+  if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+}
+/** Bật/tắt một lớp qua popover "Hiển thị" (thay nút mắt "Ẩn lớp …" cũ). */
+export async function toggleLayer(page: Page, layerLabel: string): Promise<void> {
+  await openDisplay(page);
+  await pressSpaceOn(eyeButton(page, layerLabel));
+}
 export const legend = (page: Page): Locator => page.getByLabel(OBJ.legend, { exact: true });
 export const typeBox = (page: Page): Locator => inspector(page).getByRole('combobox', { name: OBJ.type, exact: true });
 export const swingRadio = (page: Page, label: string): Locator => inspector(page).getByRole('radio', { name: label, exact: true });

@@ -20,6 +20,7 @@ const SCREEN = 'Độ dày tường'; // ThicknessStandardization.tsx title
 /** QcPanelHead status sentence (thicknessBatch.ts statusSentenceOf): "51/81 đoạn không chuẩn, 30 đúng chuẩn". */
 const STATUS_SENTENCE = /^\d+\/[1-9]\d* đoạn không chuẩn, \d+ đúng chuẩn$/u;
 const HISTOGRAM_SECTION = 'Phân bố độ dày đo được'; // ThicknessStandardization.tsx HISTOGRAM_SECTION_LABEL
+const THRESHOLD_TOGGLE = 'Ngưỡng chia nhóm (nâng cao)'; // ThicknessStandardization.tsx THRESHOLD_TOGGLE_LABEL
 const DETAIL_BUTTON = /^Xem bảng từng đoạn \(\d+\)$/u; // ThicknessBatchPanel.tsx TEXT.detail
 const DETAIL_DRAWER = 'Bảng từng đoạn tường'; // ThicknessStandardization.tsx DETAIL_TITLE
 const VIEWPORTS = [
@@ -44,11 +45,22 @@ test.describe('E04 SCR-21 thickness — layout on Vite [mocked response]', () =>
       await openSeeded(page, width, height);
 
       await test.step(`[BUG-406] threshold labels do not touch at ${String(width)}`, async () => {
-        // UX 26/10: trục dưới biểu đồ đã bỏ; nhãn ngưỡng nằm trên biểu đồ, xếp so le hai hàng (top-0 / top-4).
-        const ticks = page.getByRole('region', { name: HISTOGRAM_SECTION }).locator('span.tabular-nums.text-text-secondary');
-        expect(await ticks.count()).toBeGreaterThan(1);
-        const boxes = await ticks.evaluateAll((els) =>
-          els.map((el) => el.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right, t: r.top, b: r.bottom })),
+        // UX-R1 (d44757b2): biểu đồ ngưỡng gập sau nút "Ngưỡng chia nhóm (nâng cao)", đóng mặc định — mở ra trước.
+        // UX 26/10: trục dưới biểu đồ đã bỏ; nhãn ngưỡng nằm trên biểu đồ, xếp so le hai hàng. Mỗi nhãn mang đúng chữ
+        // `aria-valuetext` của con trượt ngưỡng cùng chỉ số, nên tìm nhãn theo chữ đó thay vì theo lớp tiện ích.
+        const section = page.getByRole('region', { name: HISTOGRAM_SECTION });
+        await section.getByRole('button', { name: THRESHOLD_TOGGLE }).click();
+        const sliders = section.getByRole('slider');
+        await expect(sliders.first()).toBeVisible();
+        const texts = await sliders.evaluateAll((els) => els.map((el) => el.getAttribute('aria-valuetext') ?? ''));
+        expect(texts.length).toBeGreaterThan(1);
+        const boxes = await Promise.all(
+          texts.map(async (text) => {
+            const label = section.getByText(text, { exact: true });
+            await expect(label).toBeVisible();
+            const r = (await label.boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
+            return { l: r.x, r: r.x + r.width, t: r.y, b: r.y + r.height };
+          }),
         );
         const glued = boxes.flatMap((x, i) =>
           boxes.slice(0, i).some((y) => x.l < y.r + 4 && y.l < x.r + 4 && x.t < y.b && y.t < x.b) ? [i] : [],

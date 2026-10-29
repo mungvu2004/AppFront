@@ -19,7 +19,6 @@ import { ROUTES } from '../../e2e/fixtures/routes';
 import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from '../../e2e/fixtures/tour';
 import { PIPELINE_TIMEOUT_MS } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
-import { attachJson } from './support/evidence';
 import { spaGo } from './support/p03/P11';
 import { createPipelineDrawingProject, deleteSeededProject, envDrawingPng, poolUser } from './support/phase03Seed';
 import {
@@ -96,19 +95,8 @@ test.describe('E04 journeys — UI verification flow (QA-04c P1)', () => {
         });
       });
 
-      await test.step('[20-F-016] A drawing floor with a crop and notices in the room inspector (BUG-329 bottom padding)', async () => {
-        const reached: string[] = [];
-        await verifyUi(page, uiName('20-F-016', 'room-inspector-crop'), async (p) => {
-          await p.goto(ROUTES.project.rooms(onFloor.projectId, onFloor.floorId));
-          await expect(p.getByLabel('Duyệt phòng', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
-          const rooms = p.getByRole('listbox', { name: 'Danh sách phòng', exact: true }).getByRole('option');
-          // UNKNOWN — NEED VERIFICATION: whether the fake-ML layer of D1 has a room; without one there is no inspector to show.
-          await expect(rooms.first(), 'D1 holds at least one room to inspect').toBeVisible({ timeout: 10_000 });
-          await rooms.first().click();
-          reached.push('room selected');
-        });
-        await attachJson('U04_20-F-016_reached.json', { reached });
-      });
+      // [20-F-016] BUG-329 (đệm đáy thẻ chi tiết phòng): L23 bỏ cột thanh tra phải, chi tiết nằm trong thẻ hỏi neo trên bản vẽ — không còn đối tượng.
+      test.info().annotations.push({ type: 'skip', description: '[20-F-016] BUG-329: L23 đã bỏ thẻ chi tiết phòng ở cột phải' });
 
       await test.step('[21-F-012] Provisional banner on SCR-21', async () => {
         await verifyUi(page, uiName('21-F-012', 'provisional-thickness'), async (p) => {

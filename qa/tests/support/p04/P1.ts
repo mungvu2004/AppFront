@@ -335,7 +335,8 @@ export const WALL = {
   emptyNotice:
     'Chưa phát hiện được đoạn tường nào ở tầng này. Bạn có thể vẽ tường thủ công bằng phím W, hoặc chạy lại với ngưỡng thấp hơn.',
   noMatch: 'Không có đoạn tường nào khớp bộ lọc đang bật. Bỏ bớt một bộ lọc để thấy lại danh sách.',
-  inspectorEmpty: 'Chọn một đoạn tường trên bản vẽ hoặc trong danh sách để xem chi tiết.',
+  /** L23: không còn thẻ trống — chưa chọn gì thì thẻ hỏi ({@link inspector}) không hiện. */
+  inspectorEmpty: 'Chọn một đoạn tường trên bản vẽ hoặc trong danh sách để duyệt.',
   approve: 'Duyệt đoạn này',
   skip: 'Để sau',
   thickness: 'Độ dày tường',
@@ -343,7 +344,9 @@ export const WALL = {
   onlyUnreviewed: 'Chỉ hiện chưa duyệt',
   onlyLow: 'Chỉ hiện độ tin cậy thấp',
   onlyNonStandard: 'Chỉ hiện độ dày không chuẩn',
-  centrelines: 'Hiện tim tường',
+  centrelines: 'Tim tường', // L23: checkbox trong popover "Hiển thị" ({@link displayCheckbox})
+  wallLayer: 'Lớp tường', // như trên
+  step: 'Tường', // QcStepColumn: <section aria-label="Tường"> của bước đang làm
   continue: 'Tiếp: Cửa',
   rail: 'Công cụ lớp tường',
   merge: 'nối đoạn',
@@ -367,8 +370,9 @@ export const wallRows = (page: Page): Locator => wallList(page).getByRole('optio
 export const wallOption = (page: Page, code: string): Locator =>
   wallList(page).getByRole('option', { name: new RegExp(`^${esc(code)} — `, 'u') });
 export const selectedRows = (page: Page): Locator => wallList(page).getByRole('option', { selected: true });
-/** WI: root > div.h-14 > h3 "Đoạn tường". */
-export const inspector = (page: Page): Locator => page.getByRole('heading', { name: 'Đoạn tường', exact: true, level: 3 }).locator('xpath=../..');
+/** L23 (QcAskCard): chi tiết mục đang chọn nằm trong thẻ hỏi neo trên bản vẽ; chưa chọn gì thì thẻ không hiện. */
+export const ASK_CARD = 'Thẻ hỏi của mục đang chọn';
+export const inspector = (page: Page): Locator => page.getByRole('region', { name: ASK_CARD, exact: true });
 export const rail = (page: Page): Locator => page.getByRole('toolbar', { name: WALL.rail, exact: true });
 export const railButton = (page: Page, name: string | RegExp): Locator => rail(page).getByRole('button', { name });
 export const thicknessGroup = (page: Page): Locator => page.getByRole('radiogroup', { name: WALL.thickness, exact: true });
@@ -380,9 +384,20 @@ export const wallShape = (page: Page, code: string): Locator => page.locator(`sv
 /** The wall's filled polygon: the first child of its `<g>`. */
 export const wallPolygon = (page: Page, code: string): Locator => wallShape(page, code).locator('polygon').first();
 export const canvasFrame = (page: Page): Locator => page.locator('div[role="group"][aria-label^="Mặt bằng "]');
-export const counter = (page: Page): Locator => page.locator('[aria-label$=" tường đã duyệt"]').first();
+/** L23: tiến độ là chip ở dòng bước Tường của cột việc ("N cần xem", xong thì "N đoạn · đã duyệt"); bộ đếm a/b đã bỏ. */
+export const counter = (page: Page): Locator =>
+  page.getByRole('region', { name: WALL.step, exact: true }).getByText(/^(\d+ cần xem|\d+ đoạn · đã duyệt)$/u).first();
+/** Chip của bước khi còn `pending` mục, hoặc "`total` đoạn · đã duyệt" khi `pending` = 0. */
+export const counterText = (pending: number, total: number): string => (pending === 0 ? `${String(total)} đoạn · đã duyệt` : `${String(pending)} cần xem`);
 export const checkbox = (page: Page, name: string): Locator => page.getByRole('checkbox', { name, exact: true });
 export const reviewRegion = (page: Page): Locator => page.getByRole('region', { name: WALL.screen, exact: true });
+
+/** L23: công tắc lớp (vd. "Lớp tường", "Tim tường", "Cửa đi") là checkbox trong popover "Hiển thị" ở góc trên phải bản vẽ. */
+export async function displayCheckbox(page: Page, name: string): Promise<Locator> {
+  const button = page.getByRole('button', { name: 'Hiển thị', exact: true });
+  if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+  return checkbox(page, name);
+}
 
 /** Checkbox: focus + Space (sr-only input under a drawn box). */
 export async function toggleCheckbox(page: Page, name: string): Promise<void> {

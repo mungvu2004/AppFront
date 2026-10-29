@@ -26,7 +26,7 @@ import {
   chip,
   closeSession,
   deferred,
-  eyeButton,
+  treeItem,
   ev,
   inspector,
   layerRe,
@@ -281,7 +281,7 @@ test('SCR-17 · FL-17-U2 [mocked response] viewer, loading, narrow layout, canva
       const targets = {
         row: optionOf(page, '#D-001'),
         chip: chip(page, 'Cửa đơn'),
-        eye: eyeButton(page, 'cửa đi'),
+        eye: treeItem(page, OBJ.doors), // L23: nút mắt "Ẩn lớp cửa đi" đã bỏ; nút lọc "Chỉ hiện cửa đi" là nút cùng hàng còn lại
         rail: railButton(page, 'Chọn nhóm cửa đi (phím D)'),
       };
       const rings: Record<string, string> = {};

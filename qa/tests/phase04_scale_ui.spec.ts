@@ -92,12 +92,8 @@ test.describe('U04 UI verify — SCR-14 scale calibration (QA-04c P6)', () => {
         }));
       });
 
-      await step('14-F-002', 'panel collapsed', async () => {
-        await verifyUi(page, 'U04_14-F-002_collapsed', open(async (p) => {
-          await btn(p, SCALE.collapse).click();
-          await expect(btn(p, SCALE.expand)).toBeVisible();
-        }));
-      });
+      // 14-F-002 "panel collapsed": L23 đã bỏ nút "Thu gọn bảng"/"Bung bảng" (dưới 1024 cột việc là ngăn kéo) — không còn đối tượng.
+      test.info().annotations.push({ type: 'skip', description: '[14-F-002] L23 đã bỏ nút "Thu gọn bảng"/"Bung bảng"' });
 
       await step('14-F-003', 'reference line drawn + "Chiều dài thật" typed', async () => {
         await verifyUi(page, 'U04_14-F-003_line-and-length', open(async (p) => {
