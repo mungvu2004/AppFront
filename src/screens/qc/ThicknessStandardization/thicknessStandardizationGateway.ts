@@ -49,7 +49,7 @@ import { createAppApiClient } from '@/api/appClient';
 import { readFloorLayerRead, type FloorLayerGraphRead } from '@/api/floorLayerGraph';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, LevelId, Point, Wall, WallId } from '@/domain/spatial/types';
-import { resolveWallShapes } from '@/domain/walls/joints';
+import { resolveDrawableWallShapes } from '@/domain/walls/joints';
 import { wallStrokeToken } from '@/components/canvas/materialMap';
 import {
   createChangeWallThicknessCommand,
@@ -755,7 +755,7 @@ export function toThicknessWallShapes(
     let outlineById: ReadonlyMap<WallId, readonly Point[]>;
 
     try {
-      const resolved = resolveWallShapes(onLevel.map((wall) => toSolidWall(wall, level)));
+      const resolved = resolveDrawableWallShapes(onLevel.map((wall) => toSolidWall(wall, level)));
 
       outlineById = new Map(
         resolved.shapes.map((shape) => [shape.wallId, shape.outline.map(toPoint)]),

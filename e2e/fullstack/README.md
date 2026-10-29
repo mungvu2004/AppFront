@@ -20,7 +20,7 @@ Chuỗi gồm các bước: đăng nhập, CSP/Draco, tạo dự án, thêm tầ
 | `E2E_DRAWING_PNG` | Đường tới PNG `render_plan(7)` (điều kiện 5). Đặt tên `drawing.png`: tên không đoán ra tầng, nên tệp vào khay "Tệp chưa gán tầng" và chuỗi tự gán nó cho tầng vừa thêm |
 | `E2E_DEV_SERVER=1` | Chạy trên Vite `dev:be` (mã FE đang sửa) thay vì ảnh `web`: bỏ kiểm CSP và `?v=` của trang 3D, hai thứ chỉ nginx/bản build mới có |
 | `E2E_SKIP_REGISTRY=1` | Bỏ bước 10. Bắt buộc khi stack đang chạy model đã huấn luyện: bước 10 kích hoạt lại "Bản gốc" và đè mất lựa chọn ấy |
-| `E2E_REAL_PLANS` | Cho `realplan.fullstack.ts`: các ảnh bản vẽ căn hộ thật, ngăn bằng `;`, mỗi ảnh một test (ML thật, đặt tỷ lệ tay nếu máy không đọc được). Trống thì bỏ qua |
+| `E2E_REAL_PLANS` | Cho `realplan.fullstack.ts`: các ảnh bản vẽ căn hộ thật, ngăn bằng `;`, mỗi ảnh một test (ML thật, đặt tỷ lệ tay nếu máy không đọc được). Nhận `.png/.jpg/.pdf`; PDF nhiều trang thì chọn trang cuối. Trống thì bỏ qua |
 
 Thiếu biến nào thì `globalSetup` dừng ngay và liệt kê đủ các biến thiếu. Nếu BE không trả lời, hoặc CSP ở `GET /` thiếu `'wasm-unsafe-eval'` hay `worker-src blob:`, nó dừng với câu "chưa có AppBack ở …".
 

@@ -5,6 +5,7 @@ import type { PointMm } from '../../units/compare';
 import { millimetres, type Millimetres } from '../../units/types';
 import {
   DEFAULT_JOINT_THRESHOLD_MM,
+  resolveDrawableWallShapes,
   resolveJoints,
   resolveWallShapes,
   type WallShape,
@@ -507,6 +508,38 @@ describe('resolveWallShapes, a wall on its own', () => {
       [0, -100],
     ]);
     expect(at(shapes, 0).endJointId).toBeNull();
+  });
+});
+
+describe('resolveDrawableWallShapes, one bad wall does not blank the floor', () => {
+  // Brochure màu ch-08: AI đo ra hai đoạn dày 56 mm, và cả 41 đoạn biến khỏi màn duyệt tường.
+  const walls = [
+    makeWall('W-1', point(0, 0), point(5000, 0)),
+    makeWall('W-2', point(0, 2000), point(3000, 2000), { thicknessMm: millimetres(56) }),
+    makeWall('W-3', point(0, 4000), point(3000, 4000), { thicknessMm: millimetres(900) }),
+    makeWall('W-4', point(7000, 0), point(7000, 0)),
+  ];
+
+  it('the strict resolver throws on the same walls', () => {
+    expect(() => resolveWallShapes(walls)).toThrow(RangeError);
+  });
+
+  it('draws a wall out of 60–600 mm at the nearest limit and leaves out a wall with no length', () => {
+    const { shapes } = resolveDrawableWallShapes(walls);
+
+    expect(shapes.map((shape) => shape.wallId)).toEqual(['W-1', 'W-2', 'W-3']);
+    expectOutline(outlineOf(shapes, 'W-2'), [
+      [3000, 1970],
+      [3000, 2030],
+      [0, 2030],
+      [0, 1970],
+    ]);
+    expectOutline(outlineOf(shapes, 'W-3'), [
+      [3000, 3700],
+      [3000, 4300],
+      [0, 4300],
+      [0, 3700],
+    ]);
   });
 });
 

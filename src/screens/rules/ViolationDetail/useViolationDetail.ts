@@ -72,7 +72,7 @@ import {
 import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import type { EntityId, Level, LevelId, Point, Wall } from '@/domain/spatial/types';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
-import { resolveWallShapes } from '@/domain/walls/joints';
+import { resolveDrawableWallShapes } from '@/domain/walls/joints';
 import { toSolidWall } from '@/lib/commands/business/shared';
 import { createColoringMode, type PaintSubject } from '@/lib/coloring/modes';
 import { UNPAINTED_TOKEN, type ColorTokenName } from '@/lib/coloring/scales';
@@ -452,11 +452,11 @@ const buildFigure2d = (
   try {
     // `toSolidWall` là bộ đổi của tầng lệnh từ tường trong đồ thị sang tường mà
     // `@/domain/walls` đọc — cùng bộ đổi mà `ThicknessStandardization` dùng để vẽ.
-    shapes = resolveWallShapes(walls.map((wall) => toSolidWall(wall, level))).shapes;
+    shapes = resolveDrawableWallShapes(walls.map((wall) => toSolidWall(wall, level))).shapes;
   } catch {
-    // `resolveWallShapes` ném khi một bức tường không dùng được (dài 0, dày 0,
-    // toạ độ không hữu hạn). Đó là một tầng không vẽ được, không phải một sự cố:
-    // `figureUnavailable` bật lên và phần chữ đứng một mình.
+    // Tường không dùng được bị bỏ hoặc kẹp độ dày; chỉ hai tường trùng mã còn ném. Đó là
+    // một tầng không vẽ được, không phải một sự cố: `figureUnavailable` bật lên và phần
+    // chữ đứng một mình.
     return null;
   }
 

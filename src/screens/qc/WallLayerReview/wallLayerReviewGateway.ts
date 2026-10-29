@@ -58,7 +58,7 @@ import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
 import { measureDistance, type Measurement } from '@/domain/measure/measure';
 import { mergeWalls, splitWall } from '@/domain/walls/edit';
 import { isWithinThicknessTolerance } from '@/domain/walls/thicknessTolerance';
-import { resolveWallShapes } from '@/domain/walls/joints';
+import { resolveDrawableWallShapes } from '@/domain/walls/joints';
 import { centrelineLength, type Wall as SolidWall } from '@/domain/walls/types';
 import { millimetresPerPixel, pixels, scaleFromRatio, type Scale } from '@/domain/units/scale';
 import { millimetres } from '@/domain/units/types';
@@ -805,13 +805,12 @@ export const toGeometryWall = (wall: Wall, level: Level): SolidWall =>
   toSolidWall(wall, level);
 
 /**
- * Đa giác của mọi tường trên tầng, qua `resolveWallShapes` — nguồn DUY NHẤT của
+ * Đa giác của mọi tường trên tầng, qua `resolveDrawableWallShapes` — nguồn DUY NHẤT của
  * hình tường để vẽ.
  *
- * `resolveWallShapes` ném `RangeError` khi một tường không dùng được (dày ngoài
- * 60–600 mm, dài 0, đỉnh trên không cao hơn đỉnh dưới) và `Error` khi hai tường
- * trùng mã. Một bản vẽ hỏng không được làm trắng màn (A11), nên lỗi đó thành
- * "không có hình nào để vẽ" và danh sách bên phải vẫn đọc được.
+ * Một tường dày ngoài 60–600 mm (AI đo trên brochure màu ra 56 mm) vẫn vẽ, kẹp ở biên; tường
+ * dài 0 bị bỏ. Trước đây MỘT tường như thế làm mất hình cả tầng. Chỉ hai tường trùng mã còn
+ * ném: bản vẽ hỏng không được làm trắng màn (A11), nên lỗi đó thành "không có hình nào".
  */
 export function toWallShapes(
   walls: readonly Wall[],
@@ -825,7 +824,7 @@ export function toWallShapes(
   let outlineById: ReadonlyMap<WallId, readonly Point[]>;
 
   try {
-    const resolved = resolveWallShapes(walls.map((wall) => toGeometryWall(wall, level)));
+    const resolved = resolveDrawableWallShapes(walls.map((wall) => toGeometryWall(wall, level)));
 
     outlineById = new Map(resolved.shapes.map((shape) => [shape.wallId, shape.outline]));
   } catch {
