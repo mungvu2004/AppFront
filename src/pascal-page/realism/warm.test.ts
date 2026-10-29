@@ -23,11 +23,12 @@ describe('installAsyncPipelines', () => {
     liveFrame(scene, () => renderer._pipelines.updateForRender({ scene }));
     expect(getForRender).toHaveBeenLastCalledWith({ scene }, expect.any(Array));
     expect(warmStats().pending).toBe(1);
-    expect(compileActiveSince(123_456)).toBe(123_456); // còn pipeline chờ: đang biên dịch
+    const later = performance.now() + 60_000;
+    expect(compileActiveSince(later)).toBe(later); // còn pipeline chờ: đang biên dịch
     resolve();
     await Promise.resolve();
     expect(warmStats().pending).toBe(0);
-    expect(compileActiveSince(123_456)).toBeLessThan(123_456); // xong: mốc hoạt động cuối
+    expect(compileActiveSince(later)).toBeLessThan(later); // xong: mốc hoạt động cuối
   });
 
   it('?disable=warm thì không đụng renderer', () => {
