@@ -509,13 +509,20 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
 
   // `localStorage` là bộ đệm nhanh; bản thật là `preferences.seen.tours` trên máy chủ. Bộ đệm
   // trống (trình duyệt mới) mà máy chủ nói host này đã xong → tắt tour và ghi bộ đệm.
+  // Chưa nghe máy chủ thì chưa hiện: hiện trước rồi tắt là tour chớp lên với người đã xem.
+  const [serverCheckedFor, setServerCheckedFor] = useState<string | null>(null);
+  const isAwaitingServer = userId !== null && !progress.isFinished && !hasStopped && serverCheckedFor !== userId;
+
   useEffect(() => {
     if (userId === null || progress.isFinished) return undefined;
     let alive = true;
     void readServerSeen(userId).then((seen) => {
-      if (!alive || seen.tours?.includes(serverTourId(hostId)) !== true) return;
-      writeTourProgress(userId, hostId, TOUR_SEEN_VALUE);
-      setPhase((current) => (current === 'running' ? 'dismissed' : current));
+      if (!alive) return;
+      if (seen.tours?.includes(serverTourId(hostId)) === true) {
+        writeTourProgress(userId, hostId, TOUR_SEEN_VALUE);
+        setPhase((current) => (current === 'running' ? 'dismissed' : current));
+      }
+      setServerCheckedFor(userId);
     });
     return () => {
       alive = false;
@@ -596,6 +603,7 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
     if (options.hasModel === false) return 'loading';
     if (phase === 'dismissed') return 'empty';
     if (phase === 'finished') return 'success';
+    if (isAwaitingServer) return 'empty';
     if (steps.length === 0) return 'empty';
     if (isViewer) return 'forbidden';
     if (droppedCount > 0) return 'error';

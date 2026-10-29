@@ -77,6 +77,9 @@ export default defineConfig(({ mode }) => {
           '/assets/pascal/': { target: env.PASCAL_DEV_URL, ws: true },
         }),
       },
+      // Đầu ra Playwright nằm trong repo: theo dõi nó thì mỗi lần ghi báo cáo Vite tải lại trang
+      // giữa bài e2e, và khoá tệp của Windows (EBUSY) làm sập cả dev server.
+      watch: { ignored: ['**/playwright-report/**', '**/test-results/**'] },
     },
     build: {
       // terser thay vì esbuild: chậm hơn vài giây mỗi lần dựng, đổi lấy ~1,5%

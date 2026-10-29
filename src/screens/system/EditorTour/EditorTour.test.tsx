@@ -543,9 +543,9 @@ describe('QA-1 — tự bật chỉ lần đầu', () => {
     return mountTour({ registry, resolveAnchor: () => null, hostId: 'wall-layer-review', userId: 'u-1', hasModel: true });
   }
 
-  it('mở lại màn khi chưa bỏ qua: không tự bật nữa, chỉ còn chip; chip mở tiếp đúng bước', () => {
+  it('mở lại màn khi chưa bỏ qua: không tự bật nữa, chỉ còn chip; chip mở tiếp đúng bước', async () => {
     mountOnWalls();
-    expect(screen.getByRole('button', { name: 'Bỏ qua hướng dẫn' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Bỏ qua hướng dẫn' })).toBeInTheDocument();
     cleanup();
 
     mountOnWalls();
@@ -834,7 +834,7 @@ describe('Vai người xem — forbidden chỉ còn ba bước xem', () => {
 
 describe('Cờ đã xem tách theo host — học xong ở màn này không tắt hướng dẫn ở màn kia', () => {
   /** Bỏ qua ngay khi vừa dựng, trên đúng một host. */
-  function skipOnHost(hostId: string): void {
+  async function skipOnHost(hostId: string): Promise<void> {
     const registry = createShortcutRegistry();
 
     registry.register({
@@ -846,6 +846,10 @@ describe('Cờ đã xem tách theo host — học xong ở màn này không tắ
     });
 
     mountTour({ registry, resolveAnchor: () => null, hostId, userId: 'u-1', hasModel: true });
+    // Tour chờ máy chủ trả `preferences.seen` rồi mới hiện.
+    await waitFor(() => {
+      expect(tourProps().screenState).not.toBe('empty');
+    });
 
     act(() => {
       registry.handleKeyDown({ key: 'Escape', preventDefault: vi.fn() }, null);
@@ -854,8 +858,8 @@ describe('Cờ đã xem tách theo host — học xong ở màn này không tắ
     cleanup();
   }
 
-  it('khoá localStorage mang cả userId lẫn hostId, nên hai host là hai cờ khác nhau', () => {
-    skipOnHost('wall-layer-review');
+  it('khoá localStorage mang cả userId lẫn hostId, nên hai host là hai cờ khác nhau', async () => {
+    await skipOnHost('wall-layer-review');
 
     const keys = Object.keys(window.localStorage).filter((key) => key.includes('editor-tour-seen'));
 
@@ -870,8 +874,8 @@ describe('Cờ đã xem tách theo host — học xong ở màn này không tắ
     ).toBeNull();
   });
 
-  it('bỏ qua ở màn QC rồi mở vỏ 3D: hướng dẫn của vỏ 3D VẪN chạy', () => {
-    skipOnHost('wall-layer-review');
+  it('bỏ qua ở màn QC rồi mở vỏ 3D: hướng dẫn của vỏ 3D VẪN chạy', async () => {
+    await skipOnHost('wall-layer-review');
 
     const registry = createShortcutRegistry();
 
@@ -885,11 +889,13 @@ describe('Cờ đã xem tách theo host — học xong ở màn này không tắ
 
     // Còn bước để dạy, và chưa bị coi là đã xem xong.
     expect(tourProps().steps.map((step) => step.id)).toEqual(['view3d']);
-    expect(tourProps().screenState).not.toBe('empty');
+    await waitFor(() => {
+      expect(tourProps().screenState).not.toBe('empty');
+    });
   });
 
-  it('mở lại ĐÚNG host đã bỏ qua thì không hiện nữa', () => {
-    skipOnHost('wall-layer-review');
+  it('mở lại ĐÚNG host đã bỏ qua thì không hiện nữa', async () => {
+    await skipOnHost('wall-layer-review');
 
     const registry = createShortcutRegistry();
 
@@ -925,6 +931,8 @@ describe('Cờ đã xem tách theo host — học xong ở màn này không tắ
     });
 
     mountTour({ registry, resolveAnchor: () => FIXED_RECT, hostId: 'wall-layer-review', userId: 'u-1', hasModel: true });
+    // Chưa nghe máy chủ thì không chớp tour lên rồi tắt (bài e2e bấm trúng nút đang biến mất).
+    expect(tourProps().screenState).toBe('empty');
 
     await waitFor(() => {
       expect(tourProps().screenState).toBe('empty');
@@ -932,8 +940,8 @@ describe('Cờ đã xem tách theo host — học xong ở màn này không tắ
     expect(window.localStorage.getItem('appfront:system-editor-tour-seen:u-1:wall-layer-review')).toBe('true');
   });
 
-  it('bỏ qua ghi cờ lên máy chủ (preferences.seen.tours) theo host', () => {
-    skipOnHost('export-panel');
+  it('bỏ qua ghi cờ lên máy chủ (preferences.seen.tours) theo host', async () => {
+    await skipOnHost('export-panel');
 
     expect(serverSeen.marks).toContainEqual(['u-1', { tour: 'editor-tour:export-panel' }]);
   });
