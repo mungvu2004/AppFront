@@ -458,7 +458,10 @@ async function runChain(
     await expect(page).not.toHaveURL(ACCESS_DENIED_PATTERN);
     for (const response of [await script, await style]) {
       expect(response.status()).toBe(200);
-      expect(response.url(), 'tài sản tên cố định phải mang ?v= theo nội dung').toMatch(CONTENT_VERSION);
+      // `?v=` gắn lúc build (`versionPascalPage`, `apply: 'build'`): Vite dev không có.
+      if (process.env.E2E_DEV_SERVER !== '1') {
+        expect(response.url(), 'tài sản tên cố định phải mang ?v= theo nội dung').toMatch(CONTENT_VERSION);
+      }
     }
   });
 
@@ -559,6 +562,8 @@ async function runChain(
   });
 
   await test.step('10. registry', async () => {
+    // Stack đang chạy model đã huấn luyện: bước này kích hoạt lại "Bản gốc" và đè mất lựa chọn ấy.
+    if (process.env.E2E_SKIP_REGISTRY === '1') return;
     const familiesRead = await navigateThenWaitForApi(
       page,
       () => page.goto(ROUTES.adminTrainingModels, { waitUntil: 'commit' }),

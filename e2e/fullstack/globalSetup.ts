@@ -30,7 +30,8 @@ export default async function globalSetup(): Promise<void> {
     const csp = root.headers()['content-security-policy'] ?? '';
     const workerSrc = csp.split(';').find((directive) => directive.trim().startsWith('worker-src')) ?? '';
 
-    if (!csp.includes("'wasm-unsafe-eval'") || !workerSrc.includes('blob:')) {
+    // Vite `dev:be` không gửi CSP (chỉ nginx gửi): `E2E_DEV_SERVER=1` chạy chuỗi trên mã FE đang sửa.
+    if (process.env.E2E_DEV_SERVER !== '1' && (!csp.includes("'wasm-unsafe-eval'") || !workerSrc.includes('blob:'))) {
       throw missing(`CSP ở GET / thiếu 'wasm-unsafe-eval' hoặc worker-src blob: — nhận "${csp}"`);
     }
   } finally {
