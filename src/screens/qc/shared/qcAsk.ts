@@ -45,3 +45,8 @@ export function askNavOf<Id extends string>(items: readonly { readonly id: Id; r
   };
 }
 
+
+/** Số thứ tự của mục còn cần xem trong hàng đợi (1..N) — cùng số với ghim Tổng thể (`QcViewLayer`). */
+export function queueNumbersOf<Id extends string>(items: readonly { readonly id: Id; readonly pending: boolean }[]): ReadonlyMap<Id, number> {
+  return new Map(items.filter((item) => item.pending).map((item, index) => [item.id, index + 1]));
+}

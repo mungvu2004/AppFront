@@ -444,6 +444,22 @@ describe('chế độ nhìn L23 (Từng việc / Tổng thể)', () => {
     expect(pins.map((pin) => pin.textContent)).toEqual(pins.map((_, index) => String(index + 1)));
   });
 
+  it('L23: dòng chưa duyệt mang số hàng đợi 1..N theo thứ tự danh sách, bố cục cũ thì không', async () => {
+    localStorage.setItem(QC_LAYOUT_STORAGE_KEY, 'l23');
+    const { unmount } = renderScreen();
+    const list = await screen.findByRole('group', { name: LIST_LABEL });
+    const numbers = within(list).getAllByLabelText(/^Số \d+ trong hàng đợi$/);
+
+    expect(numbers.length).toBeGreaterThan(0);
+    expect(numbers.map((item) => item.textContent)).toEqual(numbers.map((_, index) => String(index + 1)));
+
+    unmount();
+    localStorage.removeItem(QC_LAYOUT_STORAGE_KEY);
+    renderScreen();
+
+    expect(within(await screen.findByRole('group', { name: LIST_LABEL })).queryAllByLabelText(/trong hàng đợi$/)).toHaveLength(0);
+  });
+
   it('bố cục cũ: không có nút đổi chế độ nhìn', async () => {
     renderScreen();
 

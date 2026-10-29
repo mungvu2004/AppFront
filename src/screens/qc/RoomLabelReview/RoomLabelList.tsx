@@ -28,8 +28,10 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { cn } from '@/lib/utils';
 
 import type { RoomLabelListProps, RoomLabelStatus, RoomLabelViewModel } from './roomLabelTypes';
+import { queueNumbersOf } from '../shared/qcAsk';
 import { isL23Layout } from '../shared/qcLayout';
-import { ROOM_REASON_TITLE } from './roomReviewReasons';
+import { QcQueueNumber } from '../shared/QcQueueNumber';
+import { ROOM_REASON_TITLE, byRoomReason } from './roomReviewReasons';
 
 /** Chiều cao một dòng danh sách, đúng chữ đặc tả ("mỗi dòng cao 40"). */
 const ROW_HEIGHT_CLASS = 'min-h-10';
@@ -74,10 +76,14 @@ interface RoomLabelListRowProps {
   readonly onMoveFocus: (event: KeyboardEvent<HTMLDivElement>) => void;
   /** Cờ "chiếm >80 % sàn" của riêng phòng này (Z/S-20); `null` khi không có. */
   readonly flag: string | null;
+  /** L23: số hàng đợi của dòng chưa duyệt — trùng ghim số trên bản vẽ; `undefined` khi không có. */
+  readonly queueNumber: number | undefined;
 }
 
-function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus, flag }: RoomLabelListRowProps) {
+function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus, flag, queueNumber }: RoomLabelListRowProps) {
   const nameText = room.hasName ? room.name : UNNAMED_PLACEHOLDER;
+  /* Dòng phụ thụt theo mã (64 + 8), cộng vòng số (20 + 8) khi có. */
+  const subIndent = queueNumber === undefined ? 'pl-[72px]' : 'pl-[100px]';
 
   return (
     <div
@@ -107,6 +113,7 @@ function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus, fl
       tabIndex={0}
     >
       <span className="flex items-center gap-2">
+        {queueNumber === undefined ? null : <QcQueueNumber current={isSelected} n={queueNumber} />}
         <span className="w-16 shrink-0 truncate font-mono text-text-secondary">{room.codeLabel}</span>
         <span
           className={cn('min-w-0 flex-1 truncate', room.hasName ? 'text-text-primary' : 'text-text-muted')}
@@ -116,7 +123,7 @@ function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus, fl
         </span>
       </span>
       {/* K08/K16: diện tích và trạng thái xuống dòng hai — tên không bị ép xuống hai dòng, chấm màu có chữ đi kèm. */}
-      <span className="flex items-center gap-2 pl-[72px] text-[12px] text-text-secondary">
+      <span className={cn('flex items-center gap-2 text-[12px] text-text-secondary', subIndent)}>
         <span className="min-w-0 truncate whitespace-nowrap font-mono tabular-nums" title={room.areaText}>
           {room.areaText}
         </span>
@@ -126,7 +133,7 @@ function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus, fl
         </span>
       </span>
       {flag === null ? null : (
-        <span className="flex items-start gap-1 pl-[72px] text-[12px] text-state-attention-text">
+        <span className={cn('flex items-start gap-1 text-[12px] text-state-attention-text', subIndent)}>
           <TriangleAlert aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           {flag}
         </span>
@@ -170,6 +177,11 @@ export function RoomLabelList({
       ordered: [...notYet, ...done],
     };
   }, [byReason, rooms]);
+  /* L23: cùng thứ tự với thẻ hỏi và ghim số trên bản vẽ — dòng "3" là ghim "3". */
+  const queueNumbers = useMemo(
+    () => (byReason ? queueNumbersOf(byRoomReason(rooms).map((room) => ({ id: room.id, pending: room.status !== 'confirmed' }))) : null),
+    [byReason, rooms],
+  );
 
   /**
    * ↑/↓ đi giữa các hàng. Đọc thẳng các hàng đang có trong DOM của chính danh
@@ -261,6 +273,7 @@ export function RoomLabelList({
               onHover={onHover}
               onMoveFocus={moveFocus}
               onSelect={onSelect}
+              queueNumber={queueNumbers?.get(room.id)}
               room={room}
             />
           ))}

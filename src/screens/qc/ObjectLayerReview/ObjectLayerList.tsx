@@ -43,7 +43,9 @@ import { ObjectSubtypeIcon } from './objectLayerSubtypeIcons';
 import type { ObjectLayerListViewProps } from './objectLayerSymbols';
 import type { ObjectListRowViewModel } from './objectLayerTypes';
 import { OBJECT_REASON_TITLE, objectReasonOf, type ObjectReviewReason } from './objectReviewReasons';
+import { queueNumbersOf } from '../shared/qcAsk';
 import { isL23Layout } from '../shared/qcLayout';
+import { QcQueueNumber } from '../shared/QcQueueNumber';
 
 /* Chuỗi tiếng Việt tĩnh — chép từ `.orca-notes/S13-SPEC-GOC.md` phần IV (A6). */
 
@@ -87,6 +89,8 @@ const STATUS_LABEL = {
 interface ObjectLayerListRowProps {
   readonly row: ObjectListRowViewModel;
   readonly isSelected: boolean;
+  /** Số hàng đợi L23 — trùng ghim số trên bản vẽ; `undefined` = dòng đã duyệt hoặc bố cục cũ. */
+  readonly queueNumber?: number | undefined;
   readonly onSelect: (objectId: string | null) => void;
   readonly onHover: (objectId: string | null) => void;
   readonly onAttachToNearestWall: (objectId: string) => void;
@@ -95,6 +99,7 @@ interface ObjectLayerListRowProps {
 function ObjectLayerListRow({
   row,
   isSelected,
+  queueNumber,
   onSelect,
   onHover,
   onAttachToNearestWall,
@@ -134,7 +139,11 @@ function ObjectLayerListRow({
     >
       {/* Dòng một: biểu tượng + tên loại đồ ("Giường", "Cửa sổ") + mã — biết là gì mà không phải bấm (K07). */}
       <div className="flex items-center gap-2">
-        <ObjectSubtypeIcon className="h-4 w-4 shrink-0 text-text-secondary" subtype={row.subtype} />
+        {queueNumber === undefined ? (
+          <ObjectSubtypeIcon className="h-4 w-4 shrink-0 text-text-secondary" subtype={row.subtype} />
+        ) : (
+          <QcQueueNumber current={isSelected} n={queueNumber} />
+        )}
         <span className="min-w-0 flex-1 truncate text-text-primary" title={row.typeLabel}>
           {row.typeLabel}
         </span>
@@ -237,6 +246,7 @@ interface ObjectLayerListGroupProps {
   readonly rows: readonly ObjectListRowViewModel[];
   readonly isCollapsed: boolean;
   readonly selectedObjectId: string | null;
+  readonly queueNumbers: ReadonlyMap<string, number> | null;
   readonly onToggleCollapsed: (group: QueueGroupId) => void;
   readonly onSelect: (objectId: string | null) => void;
   readonly onHover: (objectId: string | null) => void;
@@ -251,6 +261,7 @@ function ObjectLayerListGroup({
   rows,
   isCollapsed,
   selectedObjectId,
+  queueNumbers,
   onToggleCollapsed,
   onSelect,
   onHover,
@@ -293,6 +304,7 @@ function ObjectLayerListGroup({
                 onAttachToNearestWall={onAttachToNearestWall}
                 onHover={onHover}
                 onSelect={onSelect}
+                queueNumber={queueNumbers?.get(row.id)}
                 row={row}
               />
             ))
@@ -316,6 +328,8 @@ export function ObjectLayerList({
   selectedObjectId,
 }: ObjectLayerListViewProps) {
   const byReason = isL23Layout();
+  /* Cùng `items` với thẻ hỏi và ghim số, đếm trên mọi dòng (không phải dòng sau ô tìm) để dòng "3" = ghim "3". */
+  const queueNumbers = byReason ? queueNumbersOf(rows.map((row) => ({ id: row.id, pending: !row.isReviewed }))) : null;
   /* Gấp nhóm là việc trình bày thuần của danh sách — state cục bộ, không lên hook. */
   const [collapsed, setCollapsed] = useState<ReadonlySet<QueueGroupId>>(new Set());
   const toggleCollapsed = (group: QueueGroupId) =>
@@ -387,6 +401,7 @@ export function ObjectLayerList({
           onHover={onHover}
           onSelect={onSelect}
           onToggleCollapsed={toggleCollapsed}
+          queueNumbers={queueNumbers}
           rows={rowsOfGroup(shownRows, id)}
           selectedObjectId={selectedObjectId}
         />

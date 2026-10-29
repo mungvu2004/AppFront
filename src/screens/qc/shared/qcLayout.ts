@@ -10,6 +10,11 @@ const L23 = 'l23';
 /** Nhóm lệnh của Duyệt tầng trong bảng lệnh Ctrl K (`useScreenCommands`). */
 export const QC_COMMAND_GROUP = 'Duyệt tầng';
 
+/** Dưới 1024 cột việc là ngăn kéo phủ từ trái mép khung làm việc (`QcColumnHandle` mở, `QcColumnScrim` đóng). */
+export const QC_COLUMN_ID = 'qc-step-column';
+export const QC_COLUMN_DRAWER_CLASS =
+  'max-lg:absolute max-lg:bottom-2 max-lg:left-2 max-lg:top-2 max-lg:z-40 max-lg:w-[min(360px,calc(100%-4rem))] max-lg:rounded-xl max-lg:shadow-overlay';
+
 export function isL23Layout(): boolean {
   if (import.meta.env.VITE_QC_LAYOUT === L23) return true;
   try {

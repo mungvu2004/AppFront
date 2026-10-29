@@ -30,6 +30,8 @@ export interface WallLayerListProps {
   readonly queue?: WallReviewQueue | undefined;
   /** Mở màn Độ dày tường; vắng = không có nút (người xem, hoặc không đoạn nào đổi được). */
   readonly onOpenBulk?: (() => void) | undefined;
+  /** L23: số hàng đợi của tường còn chờ (`queueNumbersOf`); vắng = bố cục cũ. */
+  readonly queueNumbers?: ReadonlyMap<WallRowViewModel['id'], number> | undefined;
 }
 
 type ListItem =
@@ -133,7 +135,7 @@ const keyOf = (item: ListItem | undefined): string =>
 const heightOf = (item: ListItem | undefined): number =>
   item?.kind === 'header' ? HEADER_HEIGHT_PX : item?.kind === 'bulk' ? BULK_HEIGHT_PX : LIST_ROW_HEIGHT_PX;
 
-export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, onOpenBulk }: WallLayerListProps) {
+export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, onOpenBulk, queueNumbers }: WallLayerListProps) {
   const { rows, selectedWallId, hoveredWallId, onSelect, onHover, onOpenRowMenu, state, emptyNotice } = panel;
   const selectedWallIds = panel.selectedWallIds ?? (selectedWallId === null ? [] : [selectedWallId]);
   const [reviewedOpen, setReviewedOpen] = useState(false);
@@ -295,6 +297,7 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
               onOpenMenu={onOpenRowMenu}
               onSelect={onSelect}
               onToggleSelect={onToggleSelect}
+              queueNumber={queueNumbers?.get(row.id)}
               onUnapprove={panel.isViewerRole || isScaleLocked ? undefined : panel.onUnapprove}
               row={row}
               showThickness={!isScaleLocked}

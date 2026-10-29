@@ -1,6 +1,9 @@
+import { PanelLeftOpen } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
+
+import { QC_COLUMN_DRAWER_CLASS, QC_COLUMN_ID } from './qcLayout';
 
 /**
  * Khung chung của các màn QC (BUG-413, AES-01/AES-04): một gốc lấp phần còn lại dưới header và
@@ -78,12 +81,18 @@ interface QcWorkspaceProps {
 
 const DRAWER_HIDE_LABEL = 'Ẩn chi tiết';
 const DRAWER_SHOW_LABEL = 'Hiện chi tiết';
+const COLUMN_OPEN_LABEL = 'Mở cột việc';
+const COLUMN_OPEN_TEXT = 'Việc';
+const COLUMN_CLOSE_LABEL = 'Đóng cột việc';
 
 /**
  * Hàng làm việc: rail | panel trái | bản vẽ | chi tiết.
  * - ≥1280: bốn cột, panel trái 240, chi tiết 240 (bản vẽ ≥ 60 % ở 1440).
  * - 1024-1279: chi tiết thành ngăn kéo phủ mép phải bản vẽ (ẩn/hiện được), panel trái giữ cột.
  * - <1024: rail + bản vẽ ở hàng đầu (bản vẽ trước danh sách), hai panel xuống dòng, cả vùng cuộn dọc.
+ *   Bố cục L23 (`column`) thì khác: bản vẽ chiếm hết, cột việc thành ngăn kéo phủ từ trái — mở khi
+ *   chưa chọn gì (việc nằm ở cột), tự đóng khi chọn một mục (thẻ hỏi trên bản vẽ cần chỗ), mở lại bằng
+ *   nút "Việc" ở mép trái bản vẽ.
  */
 export function QcWorkspace({
   rail,
@@ -102,21 +111,35 @@ export function QcWorkspace({
   const isDrawerOpen = manual?.key === selectionKey ? manual.open : selectionKey != null;
   const hasInspector = inspector != null && inspector !== false;
   const hasLeft = left != null && left !== false;
+  const [columnManual, setColumnManual] = useState<{ readonly key: string | null; readonly open: boolean } | null>(null);
+  const isColumnOpen = columnManual?.key === selectionKey ? columnManual.open : selectionKey == null;
+  const setColumnOpen = (open: boolean) => setColumnManual({ key: selectionKey, open });
+  const columnDrawer = column && hasLeft;
 
   return (
-    <div className="relative flex min-h-0 flex-1 gap-2 p-2 max-lg:flex-wrap max-lg:content-start max-lg:overflow-y-auto">
+    <div className={cn('relative flex min-h-0 flex-1 gap-2 p-2', !columnDrawer && 'max-lg:flex-wrap max-lg:content-start max-lg:overflow-y-auto')}>
       {rail}
       {hasLeft ? (
-        <div className={cn('flex min-h-0 shrink-0 flex-col gap-2 max-lg:order-1 max-lg:w-full lg:overflow-y-auto', column ? 'lg:w-[300px] xl:w-[360px]' : wideLeft ? 'lg:w-[320px]' : 'lg:w-[240px]')}>
+        <div
+          className={cn(
+            'flex min-h-0 shrink-0 flex-col gap-2 lg:overflow-y-auto',
+            columnDrawer ? QC_COLUMN_DRAWER_CLASS : 'max-lg:order-1 max-lg:w-full',
+            columnDrawer && !isColumnOpen && 'max-lg:hidden',
+            column ? 'lg:w-[300px] xl:w-[360px]' : wideLeft ? 'lg:w-[320px]' : 'lg:w-[240px]',
+          )}
+          id={columnDrawer ? QC_COLUMN_ID : undefined}
+        >
           {left}
         </div>
       ) : null}
+      {columnDrawer && isColumnOpen ? <QcColumnScrim onClose={() => setColumnOpen(false)} /> : null}
       <section
         aria-label={canvasLabel}
-        className="relative h-[60vh] min-h-80 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken lg:h-auto lg:min-h-0"
+        className={cn('relative min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken lg:h-auto lg:min-h-0', columnDrawer ? 'min-h-0' : 'h-[60vh] min-h-80')}
       >
         {canvas}
         {canvasOverlay}
+        {columnDrawer ? <QcColumnHandle open={isColumnOpen} onOpen={() => setColumnOpen(true)} /> : null}
         {chromeTopRight != null || hasInspector ? (
           <div className="absolute right-3 top-3 z-30 flex items-center gap-2">
             {chromeTopRight}
@@ -191,5 +214,31 @@ export function QcStatusBar({ onUndo, saveLabel, saveFailed = false, children }:
         {saveLabel ?? QC_NO_CHANGES_LABEL}
       </span>}
     </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Cột việc L23 dưới 1024: ngăn kéo phủ từ trái (QcWorkspace, màn Tỷ lệ).      */
+/* -------------------------------------------------------------------------- */
+
+/** Nền mờ sau ngăn kéo cột việc; bấm là đóng. Chỉ có dưới 1024. */
+export function QcColumnScrim({ onClose }: { readonly onClose: () => void }) {
+  return <button aria-label={COLUMN_CLOSE_LABEL} className="absolute inset-0 z-30 cursor-default bg-bg-overlay lg:hidden" onClick={onClose} type="button" />;
+}
+
+/** Nút "Việc" ở mép trái bản vẽ mở lại ngăn kéo cột việc. Chỉ có dưới 1024. */
+export function QcColumnHandle({ open, onOpen }: { readonly open: boolean; readonly onOpen: () => void }) {
+  return (
+    <button
+      aria-controls={QC_COLUMN_ID}
+      aria-expanded={open}
+      aria-label={COLUMN_OPEN_LABEL}
+      className="absolute left-0 top-1/2 z-30 flex -translate-y-1/2 items-center gap-1.5 rounded-r-lg bg-bg-surface py-2.5 pl-2 pr-3 text-body-sm font-medium text-text-primary shadow-float hover:bg-bg-hover focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent lg:hidden"
+      onClick={onOpen}
+      type="button"
+    >
+      <PanelLeftOpen aria-hidden="true" className="h-4 w-4" />
+      {COLUMN_OPEN_TEXT}
+    </button>
   );
 }

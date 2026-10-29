@@ -11,6 +11,8 @@ import type { CSSProperties } from 'react';
 
 import { cn } from '@/lib/utils';
 
+import { QcQueueNumber } from '../shared/QcQueueNumber';
+
 import type { WallRowViewModel } from './types';
 import { wallThicknessColorGroupOf } from './wallLayerHatch';
 import type { WallRowExtra } from './wallReviewQueue';
@@ -42,6 +44,8 @@ export interface WallLayerListRowProps {
   readonly showConfidence: boolean;
   /** Tầng thiếu tỷ lệ: độ dày đo ra vô nghĩa, không in cột Dày (UX-R2 K23). Mặc định có. */
   readonly showThickness?: boolean | undefined;
+  /** L23: số hàng đợi của tường còn chờ (cùng số với ghim trên bản vẽ); vắng = bố cục cũ. */
+  readonly queueNumber?: number | undefined;
   readonly onSelect: (wallId: WallId) => void;
   readonly onToggleSelect: (wallId: WallId) => void;
   readonly onHover: (wallId: WallId | null) => void;
@@ -64,6 +68,7 @@ export function WallLayerListRow({
   isFlashing,
   showConfidence,
   showThickness = true,
+  queueNumber,
   onSelect,
   onToggleSelect,
   onHover,
@@ -115,6 +120,8 @@ export function WallLayerListRow({
           <span className="relative flex w-5 shrink-0 items-center justify-center text-state-verified-text" title={REVIEWED_TITLE}>
             <Check aria-hidden="true" className="h-3.5 w-3.5" />
           </span>
+        ) : queueNumber !== undefined ? (
+          <QcQueueNumber current={isSelected} n={queueNumber} />
         ) : isUncertain ? (
           /* K15/K25: dấu "Máy chưa chắc" đứng ở ô hình đầu hàng (như dấu đã duyệt), không lấy chỗ cột dài. */
           <span className="relative flex w-5 shrink-0 items-center justify-center text-state-attention-text" title={UNCERTAIN_LABEL}>

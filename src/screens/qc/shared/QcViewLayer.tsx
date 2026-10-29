@@ -15,7 +15,7 @@ import { setQcViewMode, toggleQcViewMode, useQcViewMode, type QcPin, type QcView
 export interface QcViewLayerProps {
   /** Hộp của mục đang chọn, pixel khung — cùng hộp đưa cho `QcAskAnchor`. */
   readonly focus: QcAskRect | null;
-  /** Mục còn cần xem theo thứ tự hàng đợi; số trên ghim là thứ tự này. */
+  /** Mục còn cần xem; số trên ghim là `pin.n` (cùng số với dòng hàng đợi). */
   readonly pins: readonly QcPin[];
   readonly selectedId: string | null;
   readonly onPick: (id: string) => void;
@@ -58,9 +58,9 @@ export function QcViewLayer({ focus, pins, selectedId, onPick }: QcViewLayerProp
         </svg>
       ) : null}
       {mode === 'overview'
-        ? pins.map((pin, index) => (
+        ? pins.map((pin) => (
             <button
-              aria-label={`Mục cần xem số ${index + 1}`}
+              aria-label={`Mục cần xem số ${pin.n}`}
               aria-pressed={pin.id === selectedId}
               className={cn(
                 'absolute z-10 -ml-3 -mt-3 grid h-6 w-6 place-items-center rounded-full border-2 text-[12px] font-bold tabular-nums shadow-float',
@@ -76,7 +76,7 @@ export function QcViewLayer({ focus, pins, selectedId, onPick }: QcViewLayerProp
               style={{ left: pin.x, top: pin.y }}
               type="button"
             >
-              {index + 1}
+              {pin.n}
             </button>
           ))
         : null}

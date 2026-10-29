@@ -32,9 +32,10 @@ export function useQcViewMode(): QcViewMode {
   return useSyncExternalStore(subscribe, () => mode, () => mode);
 }
 
-/** Một ghim số: mục còn cần xem, tâm ở pixel khung bản vẽ. */
+/** Một ghim số: mục còn cần xem, tâm ở pixel khung bản vẽ; `n` = số trong hàng đợi (`queueNumbersOf`), không phải chỉ số mảng — mục không vẽ được vẫn giữ chỗ số. */
 export interface QcPin {
   readonly id: string;
+  readonly n: number;
   readonly x: number;
   readonly y: number;
 }

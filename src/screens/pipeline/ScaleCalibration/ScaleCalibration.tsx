@@ -52,7 +52,7 @@
  * "Áp cho mọi tầng" (F-04x-2): tỉ lệ thành "do bạn chọn" trên nhiều tầng một lượt.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { InlineAlert, type InlineAlertLevel } from '@/components/feedback/InlineAlert';
 import { Modal } from '@/components/overlay/Modal';
@@ -64,8 +64,8 @@ import { FloorLayerReadFailureScreen } from '../../qc/shared/FloorLayerReadFailu
 import { FloorReviewGate } from '../../qc/shared/FloorReviewGate.container';
 import { QcFloorNav } from '../../qc/shared/QcFloorNav';
 import { QcStepColumn } from '../../qc/shared/QcStepColumn';
-import { isL23Layout } from '../../qc/shared/qcLayout';
-import { QC_BODY_CLASS, QcScreenFrame } from '../../qc/shared/QcScreenFrame';
+import { isL23Layout, QC_COLUMN_DRAWER_CLASS, QC_COLUMN_ID } from '../../qc/shared/qcLayout';
+import { QC_BODY_CLASS, QcColumnHandle, QcColumnScrim, QcScreenFrame } from '../../qc/shared/QcScreenFrame';
 import { FloorLayerSaveBanner } from '../../qc/WallLayerReview/FloorLayerSaveBanner';
 
 import { ScaleCalibrationCanvas } from './ScaleCalibrationCanvas';
@@ -198,6 +198,9 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
   // Ảnh méo là nhánh `'error'` không có tiêu đề riêng (lỗi đọc luôn mang `errorTitle`, B-V5-04).
   const isWarped = isError && model.errorTitle === undefined;
 
+  /* L23 dưới 1024: cột việc là ngăn kéo, mở sẵn (việc của Tỷ lệ nằm ở cột). */
+  const [columnOpen, setColumnOpen] = useState(true);
+
   if (model.readFailure != null) {
     return (
       <QcScreenFrame label={SCREEN_ARIA_LABEL}>
@@ -270,8 +273,9 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
       {floorNav !== undefined && <QcFloorNav {...floorNav} layer="scale" minimal={l23} titled />}
       {floorNav !== undefined && !l23 && <FloorReviewGate floorId={floorNav.floorId} projectId={floorNav.projectId} />}
       {l23 && floorNav !== undefined ? (
-        <div className="flex min-h-0 flex-1 gap-2 p-2 max-lg:flex-col max-lg:overflow-y-auto">
-          <div className="flex min-h-0 shrink-0 lg:w-[300px] xl:w-[360px]">
+        <div className="relative flex min-h-0 flex-1 gap-2 p-2">
+          {/* Dưới 1024 cột việc là ngăn kéo (như QcWorkspace); Tỷ lệ không có mục chọn nên mở tới khi người dùng đóng. */}
+          <div className={cn('flex min-h-0 shrink-0 lg:w-[300px] xl:w-[360px]', QC_COLUMN_DRAWER_CLASS, !columnOpen && 'max-lg:hidden')} id={QC_COLUMN_ID}>
             <QcStepColumn
               activeStep="scale"
               floorId={floorNav.floorId}
@@ -293,9 +297,11 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
               </div>
             </QcStepColumn>
           </div>
-          <div className="flex min-h-[60vh] min-w-0 flex-1 flex-col gap-2 lg:min-h-0">
+          {columnOpen ? <QcColumnScrim onClose={() => setColumnOpen(false)} /> : null}
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2">
             {notices}
             {canvas}
+            <QcColumnHandle onOpen={() => setColumnOpen(true)} open={columnOpen} />
           </div>
         </div>
       ) : (
