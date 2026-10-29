@@ -145,7 +145,7 @@ describe('thứ tự dựng (build-order)', () => {
     const renderer = {
       _nodes: nodes,
       _objects: { get: (object: unknown, material: unknown) => (material ? { key: `shadow-${(object as { key: string }).key}` } : object) },
-      _renderObjectDirect: () => undefined,
+      _renderObjectDirect: vi.fn<(...args: unknown[]) => void>(),
       _currentRenderContext: null,
       contextNode: null,
       getRenderTarget: () => null,
