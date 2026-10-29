@@ -59,7 +59,7 @@ import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
 import { QcQueueAskCard } from '../shared/QcAskCard';
-import { QcAskSlot } from '../shared/qcAsk';
+import { QcAskSlot, queueNumbersOf } from '../shared/qcAsk';
 import { QcDisplayPopover } from '../shared/QcDisplayPopover';
 import { QcStepColumn } from '../shared/QcStepColumn';
 import { isL23Layout } from '../shared/qcLayout';
@@ -142,10 +142,12 @@ export function WallLayerReview({
   const isCollapsed = toolRail.isCollapsed;
   /* Bố cục L23 cần biết dự án và tầng (cây bước, cổng); story không có thanh tầng thì giữ bố cục cũ. */
   const l23 = isL23Layout() && floorNav != null;
+  /* Một bộ mục cho thẻ hỏi và số ở cột trái — dòng "3" là ghim "3" (ghim đi theo `rows` chưa duyệt). */
+  const queueItems = panel.rows.map((row) => ({ id: row.id, pending: !row.isReviewed }));
   const ask =
     l23 && !isCollapsed && panel.selectedWallId !== null ? (
       <QcQueueAskCard
-        items={panel.rows.map((row) => ({ id: row.id, pending: !row.isReviewed }))}
+        items={queueItems}
         onSelect={panel.onSelect}
         reason={reasonTitleOf(queue?.extras.get(panel.selectedWallId)?.reason)}
         selectedId={panel.selectedWallId}
@@ -160,6 +162,7 @@ export function WallLayerReview({
       extras={leftPanel}
       panel={panel}
       queue={queue}
+      queueNumbers={l23 ? queueNumbersOf(queueItems) : undefined}
       saveFailed={statusBar.saveFailed}
       saveLabel={statusBar.saveLabel}
     />

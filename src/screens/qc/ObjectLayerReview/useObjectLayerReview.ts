@@ -2158,10 +2158,11 @@ export function useObjectLayerReview(
       activePlacement === null
         ? null
         : toFrameRect(view, rotatedBounds(activePlacement.boundsPx, activePlacement.angleDeg)),
-    viewPins: rows.flatMap((row) => {
-      const placement = row.isReviewed ? undefined : placements.find((item) => item.id === row.id);
+    /* Số ghim = thứ tự trong hàng đợi (như dòng danh sách), kể cả khi một mục chưa có hình để vẽ ghim. */
+    viewPins: rows.filter((row) => !row.isReviewed).flatMap((row, index) => {
+      const placement = placements.find((item) => item.id === row.id);
 
-      return placement === undefined ? [] : [{ id: row.id, ...onFrame(placement.centrePx) }];
+      return placement === undefined ? [] : [{ id: row.id, n: index + 1, ...onFrame(placement.centrePx) }];
     }),
     onFrameResize,
     backgroundImageUrl: background?.imageUrl ?? null,

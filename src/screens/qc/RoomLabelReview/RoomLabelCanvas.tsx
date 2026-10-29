@@ -210,7 +210,7 @@ export function RoomLabelCanvas({
   const pins = l23
     ? byRoomReason(rooms)
         .filter((room) => room.status !== 'confirmed')
-        .map((room) => ({ id: room.id, ...centreOfBounds(toFrame(computeRoomBoundsPx(room, millimetresPerPixel))) }))
+        .map((room, index) => ({ id: room.id, n: index + 1, ...centreOfBounds(toFrame(computeRoomBoundsPx(room, millimetresPerPixel))) }))
     : [];
 
   const handleFrameMouseLeave = useCallback(() => onHover(null), [onHover]);

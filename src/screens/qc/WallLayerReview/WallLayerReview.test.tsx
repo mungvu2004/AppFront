@@ -1132,6 +1132,27 @@ describe('chế độ nhìn L23 (Từng việc / Tổng thể)', () => {
     expect(pins.map((pin) => pin.textContent)).toEqual(pins.map((_, index) => String(index + 1)));
   });
 
+  it('L23: dòng còn chờ mang số 1..N theo thứ tự cột, khớp số ghim; bố cục cũ không có số', async () => {
+    localStorage.setItem(QC_LAYOUT_STORAGE_KEY, 'l23');
+    setQcViewMode('overview');
+    /* jsdom đo khung 0 px nên danh sách ảo không dựng hàng; cho khung cuộn một chiều cao. */
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      { x: 0, y: 0, top: 0, left: 0, right: 280, bottom: 800, width: 280, height: 800, toJSON: () => ({}) } as DOMRect,
+    );
+    const { unmount } = renderScreen();
+    const pins = await screen.findAllByRole('button', { name: /^Mục cần xem số / });
+    const numbers = screen.getAllByLabelText(/^Số \d+ trong hàng đợi$/).map((node) => node.textContent);
+
+    /* Danh sách ảo chỉ dựng các dòng trong khung: số đi liền 1, 2, 3… như ghim, không vượt số ghim. */
+    expect(numbers.length).toBeGreaterThan(0);
+    expect(numbers).toEqual(pins.slice(0, numbers.length).map((_, index) => String(index + 1)));
+    unmount();
+    localStorage.removeItem(QC_LAYOUT_STORAGE_KEY);
+    renderScreen();
+    expect(await screen.findByRole('checkbox', { name: 'Hiện tim tường' })).toBeInTheDocument();
+    expect(screen.queryAllByLabelText(/^Số \d+ trong hàng đợi$/)).toHaveLength(0);
+  });
+
   it('bố cục cũ: không có nút đổi chế độ nhìn', async () => {
     renderScreen();
 

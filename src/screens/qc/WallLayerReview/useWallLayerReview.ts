@@ -2234,9 +2234,10 @@ export function useWallLayerReview(
   const viewLayer = isL23Layout()
     ? {
         focus: selectedWallId === null ? null : frameLayer.haloRectPx,
-        pins: rows.flatMap((row) => {
-          const shape = row.isReviewed ? undefined : shapes.find((item) => item.id === row.id);
-          return shape === undefined ? [] : [{ id: row.id, ...toFramePoint(viewport, centreOfBounds(shape.boundsPx)) }];
+        /* Số ghim = thứ tự trong hàng đợi (như dòng danh sách), kể cả khi đoạn bị lọc độ dày không vẽ ghim. */
+        pins: rows.filter((row) => !row.isReviewed).flatMap((row, index) => {
+          const shape = shapes.find((item) => item.id === row.id);
+          return shape === undefined ? [] : [{ id: row.id, n: index + 1, ...toFramePoint(viewport, centreOfBounds(shape.boundsPx)) }];
         }),
         selectedId: selectedWallId,
         onPick: (id: string) => onSelect(id as WallId),

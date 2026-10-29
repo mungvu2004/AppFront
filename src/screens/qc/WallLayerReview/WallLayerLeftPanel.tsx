@@ -62,6 +62,8 @@ export interface WallLayerLeftPanelProps {
    * thẻ, và hai ô "Hiện lớp tường" / "Hiện tim tường" chuyển vào popover Hiển thị.
    */
   readonly embedded?: boolean | undefined;
+  /** L23: số hàng đợi của tường còn chờ, cùng thứ tự với thẻ hỏi và ghim số. */
+  readonly queueNumbers?: ReadonlyMap<WallRowViewModel['id'], number> | undefined;
 }
 
 const TITLE = 'Duyệt tường';
@@ -113,7 +115,7 @@ function PanelStatus({ panel, queue, saveLabel, saveFailed }: Omit<WallLayerLeft
   );
 }
 
-export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed, embedded = false }: WallLayerLeftPanelProps) {
+export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed, embedded = false, queueNumbers }: WallLayerLeftPanelProps) {
   const { filters, onToggleFilter } = panel;
   /* Mọi đoạn cùng độ tin cậy thì lọc theo nó không giúp gì: ẩn (vẫn hiện khi đang bật để tắt được). */
   const filterKeys: readonly WallLayerFilterKey[] = [
@@ -206,6 +208,7 @@ export function WallLayerLeftPanel({ panel, extras, queue, saveLabel, saveFailed
           onToggleSelect={extras.onToggleSelect}
           panel={panel}
           queue={queue}
+          queueNumbers={queueNumbers}
         />
       </div>
     </div>

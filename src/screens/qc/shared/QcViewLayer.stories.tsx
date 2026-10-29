@@ -21,11 +21,11 @@ const meta: Meta<typeof QcViewLayer> = {
 export default meta;
 
 const PINS: readonly QcPin[] = [
-  { id: 'W-004', x: 180, y: 140 },
-  { id: 'W-007', x: 420, y: 120 },
-  { id: 'W-011', x: 700, y: 210 },
-  { id: 'W-015', x: 300, y: 420 },
-  { id: 'W-020', x: 620, y: 480 },
+  { id: 'W-004', n: 1, x: 180, y: 140 },
+  { id: 'W-007', n: 2, x: 420, y: 120 },
+  { id: 'W-011', n: 3, x: 700, y: 210 },
+  { id: 'W-015', n: 4, x: 300, y: 420 },
+  { id: 'W-020', n: 5, x: 620, y: 480 },
 ];
 
 function Picker({ focus }: { readonly focus: { x: number; y: number; width: number; height: number } | null }) {
