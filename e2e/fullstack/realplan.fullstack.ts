@@ -72,6 +72,13 @@ async function upload(page: Page, projectId: string, floor: { id: string; name: 
   await page.getByTestId('floor-upload-file-input').setInputFiles(file);
   await page.getByRole('combobox', { name: 'Gán cho tầng', exact: true }).click();
   await page.getByRole('option', { name: floor.name, exact: true }).click();
+  // PDF nhiều trang: màn đòi chọn trang trước khi tải. Bản vẽ thử để mặt bằng ở trang cuối (sau bìa).
+  const pagePicker = page.getByRole('combobox', { name: 'Chọn trang', exact: true });
+
+  if (await pagePicker.waitFor({ timeout: 3_000 }).then(() => true, () => false)) {
+    await pagePicker.click();
+    await page.getByRole('option').last().click();
+  }
   await complete;
 }
 
@@ -132,6 +139,10 @@ async function reviewOneWall(page: Page, projectId: string, floorId: string): Pr
   await expect(page.getByText(SCALE_MISSING, { exact: true })).toHaveCount(0);
   const list = page.getByRole('listbox', { name: 'Danh sách đoạn tường' });
 
+  // Mọi đoạn tường phải hiện trên bản vẽ: một đoạn hình học xấu từng làm mất hình cả tầng (ch-08).
+  await expect(page.locator('svg[data-canvas-bg] g[aria-label^="#W-"]'), 'số đoạn tường vẽ trên bản vẽ').toHaveCount(
+    walls.length,
+  );
   await list.getByRole('option').first().click();
   const saved = waitForApi(page, 'PUT', layer, [200]);
   const approve = page.getByRole('button', { name: 'Duyệt đoạn này' });

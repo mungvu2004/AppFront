@@ -49,6 +49,9 @@ import type { WallId } from '../spatial/types';
 import {
   assertUsableWall,
   endPoint,
+  isThicknessInRange,
+  MAX_WALL_THICKNESS_MM,
+  MIN_WALL_THICKNESS_MM,
   verticalRangesOverlap,
   WALL_ENDS,
   type Wall,
@@ -799,6 +802,36 @@ export function resolveWallShapes(
     joints: geometries.map((geometry) => geometry.joint).sort(compareJoints),
     unresolved,
   };
+}
+
+/**
+ * {@link resolveWallShapes} for drawing a floor straight from the data: one wall the geometry
+ * rejects must not blank every other wall. A thickness outside 60–600 mm is drawn at the nearest
+ * limit (the data keeps its value, so the reviewer sees the wall and can fix it); a wall that
+ * still fails — no length, top not above base — is left out.
+ *
+ * @throws Error when two walls share an id.
+ */
+export function resolveDrawableWallShapes(walls: readonly Wall[]): ResolveWallShapesResult {
+  const drawable = walls.flatMap((wall): Wall[] => {
+    const shown = isThicknessInRange(wall.thicknessMm)
+      ? wall
+      : {
+          ...wall,
+          thicknessMm: millimetres(
+            Math.min(Math.max(wall.thicknessMm, MIN_WALL_THICKNESS_MM), MAX_WALL_THICKNESS_MM),
+          ),
+        };
+
+    try {
+      assertUsableWall(shown);
+      return [shown];
+    } catch {
+      return [];
+    }
+  });
+
+  return resolveWallShapes(drawable);
 }
 
 /**

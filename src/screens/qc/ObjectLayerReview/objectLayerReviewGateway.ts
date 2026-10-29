@@ -100,7 +100,7 @@ import type {
   TracedOpening,
 } from '@/domain/openings/types';
 import { AT_WALL_END, AT_WALL_START, clampRelativePosition } from '@/domain/openings/types';
-import { resolveWallShapes } from '@/domain/walls/joints';
+import { resolveDrawableWallShapes } from '@/domain/walls/joints';
 import { centrelineLength, type Wall as SolidWall } from '@/domain/walls/types';
 import {
   createAddFurnitureCommand,
@@ -1830,7 +1830,7 @@ export function wallOutlinesOf(
   }
 
   try {
-    const resolved = resolveWallShapes(walls.map((wall) => solidWallOf(wall, level)));
+    const resolved = resolveDrawableWallShapes(walls.map((wall) => solidWallOf(wall, level)));
 
     return resolved.shapes.map((shape) => ({ id: shape.wallId, outline: shape.outline }));
   } catch {
