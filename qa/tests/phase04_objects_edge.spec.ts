@@ -82,6 +82,7 @@ import {
   pathOf,
   poolApi,
   poolUsers,
+  openDisplay,
   positionSlider,
   pressSpaceOn,
   putCount,
@@ -98,6 +99,7 @@ import {
   swingRadio,
   symbolOf,
   toastRegion,
+  toggleLayer,
   treeItem,
   typeBox,
   writeElsewhere,
@@ -180,7 +182,7 @@ test('SCR-17 · FL-17-01 open, select by list and canvas, hover halo, approve wi
       const mark = log.length;
       await openObjects(page, pid, fid);
       await expect(screen(page)).toBeVisible();
-      await expect(page.getByLabel('0/3 đối tượng đã duyệt', { exact: true })).toBeVisible();
+      await expect(statusBar(page)).toContainText('0/3 đối tượng đã duyệt');
       await expect(groupBox(page, QUEUE.pending)).toBeVisible(); // Z/S-16: hàng đợi "Cần duyệt" thay ba nhóm theo loại
       await expect.poll(() => getCount(log, mark, backgroundRe(pid, fid)), { message: 'GET …/spatial (background) answered' }).toBeGreaterThanOrEqual(1);
       expect(getCount(log, mark, layerRe(pid, fid)), 'GET …/spatial/layer (N16)').toBeGreaterThanOrEqual(1);
@@ -637,7 +639,7 @@ test('SCR-17 · FL-17-03 inspector by kind, position slider, host-wall jump, fur
 
     await test.step('[17-A-020] ⚑ After the host-wall jump the inspector KEEPS the selected object (BUG-591) and the jumped-to wall is highlighted / shown', async () => {
       // useObjectLayerReview.ts:1134-1141 onSelectHostWall keeps the selection and only sets flownWallId.
-      await expect.soft(inspector(page).getByText(OBJ.inspectorEmpty, { exact: true })).toHaveCount(0);
+      await expect.soft(inspector(page), 'L23: the ask card stays open').toBeVisible();
       await expect.soft(inspector(page).getByRole('button', { name: /^#W-\d+$/u })).toBeVisible();
       const fills = await canvasGroup(page).locator('svg polygon').evaluateAll((nodes) => nodes.map((node) => `${node.getAttribute('fill') ?? ''}|${getComputedStyle(node).opacity}|${getComputedStyle(node).stroke}`));
       expect.soft(new Set(fills).size, 'one wall polygon looks different from the rest (highlighted)').toBeGreaterThan(1);
@@ -684,10 +686,10 @@ test('SCR-17 · FL-17-03 inspector by kind, position slider, host-wall jump, fur
       await ev(page, '17-C-017', 'furniture_type_silent');
     });
 
-    await test.step('[17-A-034] Esc with an object selected → inspector prompt', async () => {
+    await test.step('[17-A-034] Esc with an object selected → ask card closes (L23: no empty inspector prompt)', async () => {
       await optionOf(page, '#D-001').click();
       await page.keyboard.press('Escape');
-      await expect.soft(inspector(page).getByText(OBJ.inspectorEmpty, { exact: true })).toBeVisible();
+      await expect.soft(inspector(page)).toHaveCount(0);
       await expect.soft(listGroup(page).locator('[aria-selected="true"]')).toHaveCount(0);
       await ev(page, '17-A-034', 'esc_clears');
     });
@@ -886,7 +888,7 @@ test('SCR-17 · FL-17-05 undo stack, toast ticket, autosave, reload, leave guard
       await quiet(page);
       expect.soft(putCount(log, mark), 'no PUT on an empty history').toBe(0);
       await expect.soft(toastRegion(page).getByRole('status')).toHaveCount(0);
-      await expect.soft(page.getByLabel('0/3 đối tượng đã duyệt', { exact: true })).toBeVisible();
+      await expect.soft(statusBar(page)).toContainText('0/3 đối tượng đã duyệt');
       await ev(page, '17-C-030', 'undo_empty');
     });
 
@@ -1068,40 +1070,42 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     const symbolCount = (): Promise<number> => page.locator('g[aria-label^="#"]').count();
     const groupHeader = (label: string): Locator => page.getByRole('button', { name: new RegExp(`^(Gấp|Mở) nhóm ${label}$`, 'u') });
 
-    await test.step('[17-A-036] Eye "Ẩn lớp cửa đi" → door rows and symbols hidden, legend drops "Cửa đi"; button becomes "Hiện lớp cửa đi" aria-pressed="false"', async () => {
+    // L23: nút mắt "Ẩn/Hiện lớp …" đã bỏ; công tắc lớp là checkbox "Cửa đi"/"Cửa sổ"/"Nội thất" trong popover "Hiển thị".
+    await test.step('[17-A-036] Checkbox "Cửa đi" (popover "Hiển thị") off → door rows and symbols hidden, legend drops "Cửa đi"', async () => {
       await openObjects(page, pid, fid);
-      await eyeButton(page, 'cửa đi').click();
+      await toggleLayer(page, 'cửa đi');
       await expect(optionOf(page, '#D-001')).toHaveCount(0);
       await expect.soft(symbolOf(page, '#D-001')).toHaveCount(0);
       await expect.soft(legend(page)).not.toContainText('Cửa đi');
       await expect.soft(legend(page)).toContainText('Cửa sổ');
-      const eye = page.getByRole('button', { name: 'Hiện lớp cửa đi', exact: true });
-      await expect.soft(eye).toHaveAttribute('aria-pressed', 'false');
+      await expect.soft(eyeButton(page, 'cửa đi')).not.toBeChecked();
       await ev(page, '17-A-036', 'door_layer_hidden');
     });
 
-    await test.step('[17-A-037] Clicking tree item "Cửa đi" toggles the layer exactly like the eye button', async () => {
+    await test.step('[17-A-037] Filter chip "Chỉ hiện cửa đi" does not turn a hidden layer back on (L23: chip = filter, not layer toggle)', async () => {
       await treeItem(page, OBJ.doors).click();
-      await expect.soft(optionOf(page, '#D-001')).toHaveCount(1);
-      await expect.soft(page.getByRole('button', { name: 'Ẩn lớp cửa đi', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect.soft(treeItem(page, OBJ.doors)).toHaveAttribute('aria-pressed', 'true');
+      await openDisplay(page);
+      await expect.soft(eyeButton(page, 'cửa đi')).not.toBeChecked();
       await ev(page, '17-A-037', 'tree_item_toggle');
       await treeItem(page, OBJ.doors).click();
       await expect.soft(optionOf(page, '#D-001')).toHaveCount(0);
     });
 
-    await test.step('[17-E-003] Eye buttons: aria-pressed + label swap "Ẩn lớp …"/"Hiện lớp …"', async () => {
-      await expect.soft(page.getByRole('button', { name: 'Hiện lớp cửa đi', exact: true })).toHaveAttribute('aria-pressed', 'false');
-      await expect.soft(page.getByRole('button', { name: 'Ẩn lớp cửa sổ', exact: true })).toHaveAttribute('aria-pressed', 'true');
-      await expect.soft(page.getByRole('button', { name: 'Ẩn lớp nội thất', exact: true })).toHaveAttribute('aria-pressed', 'true');
-      await page.getByRole('button', { name: 'Hiện lớp cửa đi', exact: true }).click();
-      await expect.soft(page.getByRole('button', { name: 'Ẩn lớp cửa đi', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await test.step('[17-E-003] Layer checkboxes: checked state follows the layer (thay aria-pressed + đổi nhãn "Ẩn lớp …"/"Hiện lớp …" cũ)', async () => {
+      await openDisplay(page);
+      await expect.soft(eyeButton(page, 'cửa đi')).not.toBeChecked();
+      await expect.soft(eyeButton(page, 'cửa sổ')).toBeChecked();
+      await expect.soft(eyeButton(page, 'nội thất')).toBeChecked();
+      await toggleLayer(page, 'cửa đi');
+      await expect.soft(eyeButton(page, 'cửa đi')).toBeChecked();
       await ev(page, '17-E-003', 'eye_label_swap');
-      await page.getByRole('button', { name: 'Ẩn lớp cửa đi', exact: true }).click();
-      await expect.soft(page.getByRole('button', { name: 'Hiện lớp cửa đi', exact: true })).toHaveAttribute('aria-pressed', 'false');
+      await toggleLayer(page, 'cửa đi');
+      await expect.soft(eyeButton(page, 'cửa đi')).not.toBeChecked();
     });
 
-    await test.step('[17-A-038] "Hiện lớp cửa đi" restores rows, symbols and legend', async () => {
-      await page.getByRole('button', { name: 'Hiện lớp cửa đi', exact: true }).click();
+    await test.step('[17-A-038] Checkbox "Cửa đi" on again restores rows, symbols and legend', async () => {
+      await toggleLayer(page, 'cửa đi');
       await expect.soft(optionOf(page, '#D-001')).toHaveCount(1);
       await expect.soft(symbolOf(page, '#D-001')).toHaveCount(1);
       await expect.soft(legend(page)).toContainText('Cửa đi');
@@ -1110,7 +1114,7 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
 
     await test.step('[17-C-012] Hidden layer also leaves the canvas and the legend; sr-only colour count = visible layers (3 → 2)', async () => {
       expect.soft(await colourCount(), 'colours with every layer on').toBe(3);
-      await eyeButton(page, 'cửa sổ').click();
+      await toggleLayer(page, 'cửa sổ');
       await expect.soft(legend(page)).not.toContainText('Cửa sổ');
       await expect.soft(symbolOf(page, '#S-001')).toHaveCount(0);
       expect.soft(await colourCount(), 'colours with one layer hidden').toBe(2);
@@ -1126,7 +1130,7 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     });
 
     await test.step('[17-A-039] "Lọc theo loại" chip → aria-pressed="true", list narrows', async () => {
-      await eyeButton(page, 'cửa sổ').click();
+      await toggleLayer(page, 'cửa sổ');
       await openSubtypeMenu(page);
       await chip(page, 'Cửa sổ').click();
       await expect.soft(chip(page, 'Cửa sổ')).toHaveAttribute('aria-pressed', 'true');
@@ -1164,7 +1168,7 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     await test.step('[17-C-001] ⚑ Counter and "Tổng N đối tượng" count every object (BUG-402): with a chip on, the screen says it is filtering', async () => {
       await openSubtypeMenu(page);
       await chip(page, 'Cửa đơn').click();
-      await expect.soft(page.getByLabel('0/3 đối tượng đã duyệt', { exact: true })).toBeVisible();
+      await expect.soft(statusBar(page)).toContainText('0/3 đối tượng đã duyệt');
       // Z/S-16: "Tổng N đối tượng" removed; the total lives in the status line "x/N đối tượng đã duyệt" above.
       await expect.soft(allOptions(page)).toHaveCount(1);
       // BUG-402 "Mong đợi": the screen tells a filter is on, e.g. "1 / 3 đối tượng" — nothing says so today.
@@ -1187,7 +1191,7 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     await test.step('[17-B-028] Filters hide every object → canvas "Chưa có đối tượng nào để vẽ trên mặt bằng.", every group "Chưa có đối tượng nào trong nhóm này"', async () => {
       // The seeded floor has no bed: chip "Giường" is disabled (ObjectLayerLeftPanel.tsx:245,259). Chip "Cửa đơn" is still on
       // (17-C-003), so hiding the door layer leaves the filter matching nothing.
-      await eyeButton(page, 'cửa đi').click();
+      await toggleLayer(page, 'cửa đi');
       await expect.soft(allOptions(page)).toHaveCount(0);
       await expect.soft(page.getByText(OBJ.nothingToDraw, { exact: true })).toBeVisible();
       await expect.soft(page.getByText(OBJ.emptyGroup, { exact: true })).toHaveCount(3);
@@ -1197,7 +1201,7 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     // QD-002 (F:/App/AppBack/docs/decisions.md:16-25, decision B): the gateway maps `table` -> "Nội thất khác" on purpose
     // (objectLayerGateway.ts:372-387); chip "Bàn ăn" is disabled when the floor has no dining table (ObjectLayerLeftPanel.tsx:244-259).
     await test.step('[17-C-022] Real furniture kinds map to "Nội thất khác" except bed; the seeded table matches chip "Nội thất khác", chip "Bàn ăn" is disabled (QD-002)', async () => {
-      await eyeButton(page, 'cửa đi').click();
+      await toggleLayer(page, 'cửa đi');
       await openSubtypeMenu(page);
       await chip(page, 'Cửa đơn').click();
       await expect.soft(chip(page, 'Bàn ăn'), 'no dining table on the floor: chip disabled').toBeDisabled();
@@ -1365,10 +1369,10 @@ test('SCR-17 · FL-17-07 rail keys, groups, listbox semantics, panel collapse', 
 
     await test.step('[17-E-002] "Lọc theo loại" (Z/S-16): three toggle buttons with aria-pressed, no arrow-key navigation', async () => {
       const items = page.getByRole('group', { name: OBJ.filters, exact: true }).getByRole('button');
-      expect.soft(await items.evaluateAll((nodes) => nodes.map((node) => [node.tagName, node.getAttribute('aria-pressed')])), 'filter toggles').toEqual([['BUTTON', 'true'], ['BUTTON', 'true'], ['BUTTON', 'true']]);
+      expect.soft(await items.evaluateAll((nodes) => nodes.map((node) => [node.tagName, node.getAttribute('aria-pressed')])), 'filter toggles').toEqual([['BUTTON', 'false'], ['BUTTON', 'false'], ['BUTTON', 'false']]);
       await items.first().focus();
       await page.keyboard.press('ArrowDown');
-      expect.soft(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'ArrowDown does not move between filter toggles').toBe('Ẩn lớp cửa đi');
+      expect.soft(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'ArrowDown does not move between filter toggles').toBe('Chỉ hiện cửa đi');
       await ev(page, '17-E-002', 'tree_semantics');
     });
 
@@ -1547,8 +1551,8 @@ test('SCR-17 · FL-17-08 codes, row text, status, fixed 0,75 cut, filter trap, s
         const mark = log.length;
         await optionOf(page, '#D-001').click();
         await optionOf(page, '#D-002').hover();
-        await eyeButton(page, 'cửa sổ').click();
-        await eyeButton(page, 'cửa sổ').click();
+        await toggleLayer(page, 'cửa sổ');
+        await toggleLayer(page, 'cửa sổ');
         await openSubtypeMenu(page);
         await chip(page, 'Cửa đơn').click();
         await openSubtypeMenu(page);
@@ -1592,11 +1596,9 @@ test('SCR-17 · FL-17-08 codes, row text, status, fixed 0,75 cut, filter trap, s
         const mark = s.puts.length;
         await approveButton(page).click();
         await nextPut(s, mark);
-        const panel = page.getByLabel('1/1 đối tượng đã duyệt', { exact: true });
-        await expect.soft(panel).toBeVisible();
-        await expect.soft(panel.locator('span.text-state-verified').first(), 'counter number turns the verified colour').toBeVisible();
-        await expect.soft(panel.locator('div.bg-state-verified'), 'progress bar turns verified').toHaveCount(1);
-        expect.soft(await panel.locator('div.bg-state-verified').evaluate((node) => (node as HTMLElement).style.width), 'bar full').toBe('100%');
+        // L23: bộ đếm + thanh tiến độ ở đầu panel đã bỏ; xong thì chip ở dòng bước "Cửa và nội thất" đổi "1 mục · đã duyệt".
+        await expect.soft(statusBar(page)).toContainText('1/1 đối tượng đã duyệt');
+        await expect.soft(page.getByRole('region', { name: 'Cửa và nội thất', exact: true }).getByText('1 mục · đã duyệt', { exact: true })).toBeVisible();
         await ev(page, '17-B-006', 'success_state');
       });
     },

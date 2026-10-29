@@ -326,9 +326,8 @@ const wallList = (): Locator => page.getByRole('listbox', { name: 'Danh sách đ
 const selectedWall = (): Locator => wallList().getByRole('option', { selected: true });
 const wallOption = (code: string): Locator =>
   wallList().getByRole('option', { name: new RegExp(`^${escapeRegExp(code)} — `, 'u') });
-/** `WallLayerInspector.tsx`: root > div.h-14 > h3 "Đoạn tường". */
-const wallInspector = (): Locator =>
-  page.getByRole('heading', { name: 'Đoạn tường', exact: true, level: 3 }).locator('xpath=../..');
+/** L23: the wall inspector lives in the ask card anchored on the canvas (QcAskCard). */
+const wallInspector = (): Locator => page.getByRole('region', { name: 'Thẻ hỏi của mục đang chọn', exact: true });
 const approveWallButton = (): Locator => page.getByRole('button', { name: 'Duyệt đoạn này', exact: true });
 const thicknessGroup = (): Locator => page.getByRole('radiogroup', { name: 'Độ dày tường', exact: true });
 const wallRail = (): Locator => page.getByRole('toolbar', { name: 'Công cụ lớp tường', exact: true });
@@ -633,7 +632,7 @@ test.describe('SCR-16 Wall Layer Review', () => {
 test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
   test.beforeEach(useSeededFloor);
 
-  test('SCR-16 view controls: filters, "Hiện tim tường", "Ẩn lớp tường", "Thu gọn hai panel", "Bỏ qua" (no PUT)', async () => {
+  test('SCR-16 view controls: filters, "Tim tường" / "Lớp tường" (popover "Hiển thị"), "Thu gọn hai panel", "Bỏ qua" (no PUT)', async () => {
     await openWalls();
     const toggle = async (name: string): Promise<void> => {
       const box = page.getByRole('checkbox', { name, exact: true });
@@ -653,16 +652,21 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
     await expect(wallList().or(page.getByText(WALL_NO_MATCH, { exact: true })).first()).toBeVisible();
     await toggle('Chỉ hiện độ tin cậy thấp');
 
-    await toggle('Hiện tim tường');
-    await toggle('Hiện tim tường');
+    // L23: "Hiện tim tường" / nút mắt "Ẩn lớp tường" đã bỏ; cả hai là checkbox trong popover "Hiển thị" ở góc trên phải bản vẽ.
+    const display = page.getByRole('button', { name: 'Hiển thị', exact: true });
+    if ((await display.getAttribute('aria-expanded')) !== 'true') await display.click();
+    await toggle('Tim tường');
+    await toggle('Tim tường');
 
-    await test.step('[16-A-064] eye button "Ẩn lớp tường" → "Hiện lớp tường" (aria-pressed false)', async () => {
-      await page.getByRole('button', { name: 'Ẩn lớp tường', exact: true }).click();
-      const showLayer = page.getByRole('button', { name: 'Hiện lớp tường', exact: true });
+    await test.step('[16-A-064] checkbox "Lớp tường" (popover "Hiển thị") off → on', async () => {
+      const layer = page.getByRole('checkbox', { name: 'Lớp tường', exact: true });
 
-      await expect(showLayer).toHaveAttribute('aria-pressed', 'false');
-      await showLayer.click();
-      await expect(page.getByRole('button', { name: 'Ẩn lớp tường', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect(layer).toBeChecked();
+      await toggle('Lớp tường');
+      await expect(layer).not.toBeChecked();
+      await toggle('Lớp tường');
+      await expect(layer).toBeChecked();
+      await page.keyboard.press('Escape'); // close the popover before the panel steps
     });
 
     await test.step('[16-A-065] "Thu gọn hai panel" hides both panels, "Mở lại hai panel" restores them', async () => {
@@ -733,15 +737,15 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
     // The selected row, not `.first()` again: the code is read from the row the click selected.
     const code = await codeOfOption(selectedWall());
     const id = wallIdOf(code);
-    // "N/M tường đã duyệt" is the counter's aria-label (WallLayerLeftPanel.tsx:276, wallLayerReviewGateway.ts:1145).
-    const progress = page.locator('[aria-label$=" tường đã duyệt"]').first();
-    const before = (await progress.getAttribute('aria-label')) ?? '';
+    // L23: the "N/M tường đã duyệt" counter is gone; progress is the chip of the step row "Tường" ("N cần xem").
+    const progress = page.getByRole('region', { name: 'Tường', exact: true }).getByText(/^(\d+ cần xem|\d+ đoạn · đã duyệt)$/u).first();
+    const before = (await progress.innerText()).trim();
     const toasts = page.getByRole('region', { name: 'Thông báo', exact: true });
 
     await test.step('[16-A-028] Backspace deletes the selected wall: toast with "Hoàn tác", the total drops, PUT without the wall', async () => {
       // BUG-423 (run-26): the delete DID happen (8 rows left after the merge's 9), but codes are rank-numbered over the seed
       // ids, so the next wall took over "#W-002" and `wallOption(code)` still matched. Removal is proven by the id instead: the
-      // delete's autosave PUT lacks it, and the "N/M tường đã duyệt" total drops by one.
+      // delete's autosave PUT lacks it, and the step chip of "Tường" changes.
       const removed = waitForLayerPut((body) => !wallsOf(body, '#35').some((wall) => wall.id === id));
 
       // A focused row is not text entry, so the canvas-scope key fires (shortcutRegistry.ts handleKeyDown).
@@ -749,7 +753,7 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
 
       await expect(toasts.getByText(`Đã xoá tường ${code}.`, { exact: true })).toBeVisible();
       expectLayerWrite(await removed);
-      await expect(progress).not.toHaveAttribute('aria-label', before);
+      await expect(progress).not.toHaveText(before);
     });
     await test.step('[16-A-029] the toast "Hoàn tác" restores the deleted wall: row back, PUT with the wall', async () => {
       // The restored layer reaches the server: Ctrl+S flushes it.
@@ -758,12 +762,12 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
       await toasts.getByRole('button', { name: 'Hoàn tác', exact: true }).last().click();
       await page.keyboard.press('Control+s');
       expectLayerWrite(await restored);
-      await expect(progress).toHaveAttribute('aria-label', before);
+      await expect(progress).toHaveText(before);
       await expect(wallOption(code)).toHaveCount(1);
     });
-    await test.step('[16-B-003] partial counter: aria-label "N/M tường đã duyệt" and the same text shown', async () => {
-      expect.soft(before).toMatch(/^\d+\/\d+ tường đã duyệt$/u);
-      await expect.soft(page.getByText(/^\d+\/\d+ tường đã duyệt$/u).first()).toBeVisible();
+    await test.step('[16-B-003] partial progress: the step row "Tường" shows "N cần xem" (L23 replaced the "N/M tường đã duyệt" counter)', async () => {
+      expect.soft(before).toMatch(/^\d+ cần xem$/u);
+      await expect.soft(progress).toBeVisible();
     });
     await captureEvidence(page, '16_walls_delete_undo.png');
   });
@@ -968,7 +972,8 @@ test.describe('SCR-20 Room Label Review', () => {
   test('SCR-20 edit: option in "Danh sách phòng"; "Tên phòng"; "Công năng"; "Duyệt phòng này" → PUT layer', async () => {
     await test.step('[20-A-001] deep link opens the screen: region "Duyệt phòng" and its heading', async () => {
       await openRooms();
-      await expect.soft(page.getByRole('heading', { name: 'Duyệt phòng', exact: true })).toBeVisible();
+      // L23: the only H1 is the task sentence of the step column (RoomLabelReview.tsx STEP_TASK).
+      await expect.soft(page.getByRole('heading', { name: 'Đặt tên cho từng phòng máy tìm thấy. Tên đúng thì giữ, sai thì sửa.', exact: true, level: 1 })).toBeVisible();
       if (roomCount === 0) {
         await expect(page.getByRole('heading', { name: 'Chưa dò ra phòng nào' })).toBeVisible();
         await captureEvidence(page, '20_rooms_edit.png');
@@ -984,7 +989,7 @@ test.describe('SCR-20 Room Label Review', () => {
 
       await row.click();
       await expect.soft(row).toHaveAttribute('aria-selected', 'true');
-      await expect.soft(page.getByRole('heading', { name: 'Phòng', exact: true, level: 3 })).toBeVisible();
+      await expect.soft(page.getByRole('region', { name: 'Thẻ hỏi của mục đang chọn', exact: true }).getByRole('heading', { name: 'Phòng', exact: true })).toBeVisible();
       await expect(name).toBeVisible();
     });
 

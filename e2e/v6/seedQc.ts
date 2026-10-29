@@ -17,6 +17,8 @@
  */
 import type { Page } from '@playwright/test';
 
+import { ROUTES } from '../fixtures/routes';
+
 export type QcScreen = 'walls' | 'objects' | 'dimensions' | 'grids';
 
 /**
@@ -77,4 +79,26 @@ export async function seedQc(page: Page, screen: QcScreen): Promise<void> {
     const floorRevisions = Object.fromEntries(levelIds.map((id) => [id, 0]));
     store.getState().setSpatial(graph, null, { floorRevisions, projectId });
   }, screen);
+}
+
+/**
+ * Mở màn tường của một tầng mẫu A14 khi tầng đã có tỷ lệ máy đo (tạm, `check`): tầng chưa có tỷ lệ
+ * thì màn khoá sửa (UX-R1 K12), nên ca xoá/duyệt trên đường nạp thật phải có tỷ lệ trước.
+ * Mock sống trong trang: mở một tầng khác trước, ghi tỷ lệ vào mock, rồi đổi URL ngay trong trang
+ * để lượt đọc N16 đầu tiên của tầng đích đã thấy tỷ lệ.
+ */
+export async function openWallsWithScale(page: Page, projectId: string, floorId: string, landingFloorId: string): Promise<void> {
+  await page.goto(ROUTES.project.walls(projectId, landingFloorId));
+  await page.getByRole('listbox', { name: 'Danh sách đoạn tường' }).getByRole('option').first().waitFor({ timeout: 15_000 });
+  await page.evaluate(
+    async ({ floor, url }) => {
+      const load = (path: string): Promise<Record<string, unknown>> =>
+        import(/* @vite-ignore */ path) as Promise<Record<string, unknown>>;
+      const mock = await load('/src/api/__mocks__/client.ts');
+      (mock.simulateProvisionalScale as (floorId: string, value: number) => void)(floor, 12);
+      history.pushState(null, '', url);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    },
+    { floor: floorId, url: ROUTES.project.walls(projectId, floorId) },
+  );
 }

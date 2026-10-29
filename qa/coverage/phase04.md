@@ -6,6 +6,8 @@ SCR-22 overlay. Source `F:/App/AppFront` @ 60778e96 (rows 1-172 inventoried @ 8f
 no phase-04 screen file, only the shared pieces listed under "Change impact" below). Backend rules (#35 write, W20 409, W4 ids, integrity, A5) live in
 `coverage/phase04-be.md` (API spec), not here.
 
+> **L23 (29/10, AppFront 183d5444):** Tỷ lệ/Tường/Cửa/Phòng dùng cột việc QcStepColumn (H1 = câu việc, tiến độ = chip "N cần xem" ở dòng bước, cổng ở đáy cột) + thẻ hỏi neo trên bản vẽ ("Thẻ hỏi của mục đang chọn"). Đã bỏ: đầu panel ("x/y … đã duyệt", huy hiệu), thanh tra cột phải và câu "Chọn một … để xem chi tiết" khi chưa chọn, "Thu gọn bảng"/"Bung bảng" (#155), "Hiện tim tường"/"Ẩn/Hiện lớp …" (#34, #55 → checkbox trong popover "Hiển thị"). Các dòng dưới nhắc UI này giữ nguyên số dòng; spec đã đổi sang tương đương L23 hoặc ghi skip.
+
 Test keys:
 - **M** `tests/phase04_pipeline.spec.ts` (serial only for the SCR-16 select → approve → thickness → undo chain, every other case loads its own screen; SCR-16/17/19/20/21 on its own API-seeded floor, `support/layerSeed.ts`; SCR-18/14/22 each on an own drawing project per describe whose env drawing ran the pipeline, `support/drawingSeed.ts` createPipelineDrawingProject — BUG-346; only CP-6 on the CP-5 work floor, skipped with an `Environment:` reason without it) — title quoted by its prefix.
 - **E** `tests/phase04_qc_layers_edge.spec.ts` (non-serial, own project per test) — `E04 · …` titles.

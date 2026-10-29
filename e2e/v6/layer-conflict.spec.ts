@@ -1,9 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ROUTES } from '../fixtures/routes';
 import { dismissTour } from '../fixtures/tour';
 
-import { QC_PROJECT } from './seedQc';
+import { openWallsWithScale, QC_PROJECT } from './seedQc';
 
 /**
  * F-04x-1 bước 9 — xung đột lưu lớp tầng trên màn tường, đường nạp thật (không bơm).
@@ -26,9 +25,21 @@ const WALLS_ON_FLOOR = 12;
 const RELOAD_MESSAGE = 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.';
 
 const list = (page: Page) => page.getByRole('listbox', { name: 'Danh sách đoạn tường' });
-/** Trạng thái lưu nằm ở đầu panel (QcPanelHead, S-15); thanh trạng thái chỉ nhắc khi lưu hỏng. */
-const statusBar = (page: Page) =>
-  page.locator('header').filter({ has: page.getByRole('heading', { name: 'Duyệt tường', level: 1 }) });
+/** Thanh trạng thái đáy màn: trạng thái tự lưu nằm ở đây từ bố cục L23. */
+/**
+ * Số tường còn trong hàng đợi = tổng số ở tiêu đề các nhóm lý do ("Đứng riêng, …: 12"), trừ nhóm "Đã duyệt".
+ * Tầng chưa có tỷ lệ nên dòng bước Tường nói "chờ tỷ lệ" chứ không nói "N cần xem".
+ */
+const queued = (page: Page) =>
+  page
+    .getByRole('region', { name: 'Tường', exact: true })
+    .innerText()
+    .then((text) =>
+      [...text.matchAll(/^(.+): (\d+)$/gmu)]
+        .filter((match) => !match[1]!.startsWith('Đã duyệt'))
+        .reduce((sum, match) => sum + Number(match[2]), 0),
+    );
+const statusBar = (page: Page) => page.getByRole('status', { name: 'Thanh trạng thái' });
 
 interface ServerLayer {
   readonly revision: number;
@@ -91,14 +102,15 @@ async function approveFirstWall(page: Page): Promise<void> {
 test('xung đột lưu lớp: 409 → dải "Tải lại" → A9 → tải bản mới, tường bị xoá ở nơi khác biến mất → lưu tiếp được (F-04x-1)', async ({
   page,
 }) => {
-  await page.goto(ROUTES.project.walls(QC_PROJECT, FLOOR));
-  await expect(list(page).getByRole('option')).toHaveCount(WALLS_ON_FLOOR, { timeout: FIRST_PAINT_TIMEOUT_MS });
+  await openWallsWithScale(page, QC_PROJECT, FLOOR, 'L-LEVEL000000');
+  await expect(list(page).getByRole('option').first()).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  await expect.poll(() => queued(page)).toBe(WALLS_ON_FLOOR);
   await dismissTour(page);
 
   /* 1. Sửa (xoá một tường) → tự lưu. */
   await list(page).getByRole('option').first().click();
   await page.keyboard.press('Backspace');
-  await expect(list(page).getByRole('option')).toHaveCount(WALLS_ON_FLOOR - 1);
+  await expect.poll(() => queued(page)).toBe(WALLS_ON_FLOOR - 1);
   await expect(statusBar(page)).toContainText(/Đã lưu lúc \d{2}:\d{2}/u);
   await expect.poll(async () => (await serverLayer(page)).revision).toBe(1);
 
@@ -114,7 +126,7 @@ test('xung đột lưu lớp: 409 → dải "Tải lại" → A9 → tải bản
 
   /* 3. Sửa tiếp → PUT base 1 → 409 → dải "Tải lại". */
   await approveFirstWall(page);
-  await expect(page.getByText(`1/${String(WALLS_ON_FLOOR - 1)} tường đã duyệt`)).toBeVisible();
+  await expect.poll(() => queued(page)).toBe(WALLS_ON_FLOOR - 2);
 
   const banner = page.getByRole('alert').filter({ hasText: RELOAD_MESSAGE });
   await expect(banner).toBeVisible();
@@ -126,8 +138,7 @@ test('xung đột lưu lớp: 409 → dải "Tải lại" → A9 → tải bản
   await dialog.getByRole('button', { name: 'Tải lại và bỏ thay đổi' }).click();
 
   await expect(banner).toHaveCount(0);
-  await expect(list(page).getByRole('option')).toHaveCount(remote.wallIds.length);
-  await expect(page.getByText(`0/${String(remote.wallIds.length)} tường đã duyệt`)).toBeVisible();
+  await expect.poll(() => queued(page)).toBe(remote.wallIds.length);
   expect(await wallInStore(page, removedRemotely ?? '')).toBe(false);
 
   /* 5. Sửa lại → lưu bằng revision mới, không 409. */

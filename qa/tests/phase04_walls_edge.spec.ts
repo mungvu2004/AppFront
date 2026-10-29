@@ -67,10 +67,12 @@ import {
   wallShape,
   canvasFrame,
   checkbox,
+  displayCheckbox,
   closeWallsRun,
   codeOfLabel,
   codesOf,
   counter,
+  counterText,
   ev,
   floorOf,
   freezeClock,
@@ -266,17 +268,13 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await wallOption(page, codes[1]!).focus();
         await page.keyboard.press('Escape');
         await expect.soft(selectedRows(page)).toHaveCount(0);
-        await expect.soft(page.getByText(WALL.inspectorEmpty, { exact: true })).toBeVisible();
+        await expect.soft(inspector(page), 'L23: no selection → no ask card (no empty inspector prompt)').toHaveCount(0);
         await ev(page, '16-A-038', 'esc-clears');
       });
 
-      await test.step('[16-E-003] ⚑ the counter has an announced name (a role that supports aria-label)', async () => {
-        const total = codes.length;
-        const bar = counter(page);
-        await expect.soft(bar).toHaveAttribute('aria-label', `0/${String(total)} tường đã duyệt`);
-        const role = await bar.getAttribute('role');
-        // WLP:262-270: aria-label sits on a plain <div>; a role-less div is ignored by most assistive technology.
-        expect.soft(role, 'the counter carries a role that exposes its aria-label').not.toBeNull();
+      await test.step('[16-E-003] the step progress is plain text in the step section "Tường" (L23)', async () => {
+        // L23 bỏ bộ đếm "a/b tường đã duyệt" mang aria-label; tiến độ là chữ thường trong <section aria-label="Tường">.
+        await expect.soft(counter(page)).toHaveText(counterText(codes.length, codes.length));
         await ev(page, '16-E-003', 'counter-name');
       });
     } finally {
@@ -304,13 +302,6 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       run = await openWallsRun(browser);
       const { page } = run;
       let continueBefore = -1;
-      // [16-C-016] is measured during the double click of [16-A-020] (the only 5 → 6 transition of the flow).
-      const countUp: { labelAtClick: string | null; digitAt100: string | null; digitAt300: string | null } = {
-        labelAtClick: null,
-        digitAt100: null,
-        digitAt300: null,
-      };
-      const reviewedDigits = (): Locator => counter(page).locator('span.font-mono.font-semibold');
 
       await test.step('[16-A-009] J / K walk the filtered rows only', async () => {
         await openWalls(page, seeded.project.projectId, floor.id);
@@ -360,17 +351,11 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await expect(wallRows(page)).toHaveCount(6);
         const mark = run!.puts.length;
         const put = waitForLayerPut(page, seeded.project.projectId, floor.id);
-        // Frozen clock: the 260 ms count-up (UW:1219-1220, WLP:264, rAF) only moves with runFor.
+        // Frozen clock: the 800 ms autosave debounce only moves with runFor.
         await freezeClock(page);
         await approveButton(page).dblclick(); // W1 is the last unreviewed wall: nothing to advance to
-        // The command applies async (UW:878 run().then): wait until W1 is reviewed (button disabled) before reading the label.
         await expect(approveButton(page)).toBeDisabled();
-        countUp.labelAtClick = await counter(page).getAttribute('aria-label');
-        await page.clock.runFor(100);
-        countUp.digitAt100 = await reviewedDigits().textContent();
-        await page.clock.runFor(200);
-        countUp.digitAt300 = await reviewedDigits().textContent();
-        await page.clock.runFor(700); // past the 800 ms autosave debounce
+        await page.clock.runFor(1_000); // past the 800 ms autosave debounce
         expect.soft((await put).response.status()).toBe(200);
         await page.clock.resume();
         await quiet(page);
@@ -387,34 +372,21 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       await test.step('[16-A-018] Approving the last unreviewed wall: selection stays, state becomes success', async () => {
         expect.soft(await selectedCode(page), 'selection stays on W1').toBe(code(1));
         await expect.soft(inspector(page).getByText(code(1), { exact: true })).toBeVisible();
-        await expect.soft(counter(page)).toHaveAttribute('aria-label', '6/6 tường đã duyệt');
+        await expect.soft(counter(page)).toHaveText(counterText(0, 6)); // L23: step chip "6 đoạn · đã duyệt"
         await expect.soft(approveButton(page)).toBeDisabled();
-        await expect.soft(reviewedDigits()).toHaveClass(/text-state-verified/u);
-        // WLP:294-300: the bar width is progressFraction * 100 %.
-        await expect.soft(counter(page).locator('div.bg-state-verified')).toHaveAttribute('style', /width: 100%/u);
         await expect.soft(page.getByRole('button', { name: WALL.continue, exact: true })).toBeVisible();
         await ev(page, '16-A-018', 'last-wall-success');
       });
 
-      await test.step('[16-B-004] Success: counter text-state-verified, bar bg-state-verified, button "Sang lớp cửa và nội thất"', async () => {
-        const panel = counter(page);
-        await expect.soft(panel.locator('span.font-mono.font-semibold')).toHaveClass(/text-state-verified/u);
-        await expect.soft(panel.locator('div.bg-state-verified')).toHaveCount(1);
-        await expect.soft(panel.locator('div.bg-state-verified')).toHaveAttribute('style', /width: 100%/u);
+      await test.step('[16-B-004] Success: step chip turns verified, button "Sang lớp cửa và nội thất"', async () => {
+        // L23: số đếm + thanh tiến độ ở đầu panel đã bỏ; chip của dòng bước đổi màu xanh khi xong.
+        await expect.soft(counter(page)).toHaveClass(/text-state-verified-text/u);
         await expect.soft(page.getByRole('button', { name: WALL.continue, exact: true })).toBeVisible();
         await ev(page, '16-B-004', 'success-state');
       });
 
-      await test.step('[16-C-016] Count-up of the reviewed counter (260 ms) ends on the exact value', async () => {
-        // Values captured at the [16-A-020] double click (clock frozen). Catalog: the aria-label is exact at once, only the
-        // digits run. ⚑ UW:1219-1220 builds the label from reviewedCount.text (the running count), so it may read 5/6.
-        await attachJson('E04_16-C-016_count-up.json', countUp);
-        expect.soft(countUp.labelAtClick, '⚑ aria-label exact right after the approve').toBe('6/6 tường đã duyệt');
-        expect.soft(countUp.digitAt100, 'mid-run digit is a whole number between 5 and 6').toMatch(/^[56]$/u);
-        expect.soft(countUp.digitAt300, 'digits settled after the 260 ms run').toBe('6');
-        await expect.soft(reviewedDigits()).toHaveText('6');
-        await ev(page, '16-C-016', 'counter-settled');
-      });
+      // [16-C-016] count-up của bộ đếm: bố cục L23 bỏ bộ đếm a/b ở đầu panel, không còn gì để đo.
+      test.info().annotations.push({ type: 'skip', description: '[16-C-016] L23 đã bỏ bộ đếm "a/b tường đã duyệt" (count-up) — không còn đối tượng' });
 
       await test.step('[16-A-022] "Bỏ qua" when no other unreviewed wall exists leaves the selection unchanged', async () => {
         const mark = run!.puts.length;
@@ -825,11 +797,11 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await openWalls(page, onFloor.projectId, onFloor.floorId); // a clean baseline: the server copy
         const rows = await wallRows(page).count();
         await selectRow(page, codeAt(5));
-        const before = { labels: await rowLabels(page), checked: await checkedThickness(page), counter: await counter(page).getAttribute('aria-label') };
+        const before = { labels: await rowLabels(page), checked: await checkedThickness(page), counter: await counter(page).innerText() };
         const mark = run!.puts.length;
         await page.keyboard.press('Control+Shift+z');
         await quiet(page);
-        const after = { labels: await rowLabels(page), checked: await checkedThickness(page), counter: await counter(page).getAttribute('aria-label') };
+        const after = { labels: await rowLabels(page), checked: await checkedThickness(page), counter: await counter(page).innerText() };
         await attachJson('E04_16-A-035_redo.json', { rows, before, after, puts: putsSince(run!, mark).length });
         // RT:223-225 / UW:1285: the screen has no redo binding; Ctrl+Shift+Z must not reach the global zundo redo.
         expect.soft(after, 'screen state after Ctrl+Shift+Z').toEqual(before);
@@ -947,14 +919,15 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await ev(page, '16-C-007', 'same-point-no-wall');
       });
 
-      await test.step('[16-A-063] "Hiện tim tường" draws centrelines; draw / split tools turn them on until the user overrides', async () => {
+      await test.step('[16-A-063] "Tim tường" (popover "Hiển thị") draws centrelines; draw / split tools turn them on until the user overrides', async () => {
         const lines = canvasSvg(page).locator('g[aria-label] > line');
-        await expect.soft(checkbox(page, WALL.centrelines)).toBeChecked(); // draw tool is active
+        await expect.soft(await displayCheckbox(page, WALL.centrelines)).toBeChecked(); // draw tool is active
         await expect.soft(lines).toHaveCount(4);
         await ev(page, '16-A-063', 'centrelines-on');
         await toggleCheckbox(page, WALL.centrelines);
         await expect.soft(lines).toHaveCount(0); // the user's override beats the tool default
         await toggleCheckbox(page, WALL.centrelines);
+        await page.keyboard.press('Escape'); // close the popover: a focused checkbox counts as a field for shortcuts
         await page.keyboard.press('v');
         await expect.soft(lines).toHaveCount(4); // still the override, with the select tool
       });
@@ -1837,7 +1810,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await expect(page.getByText(WALL.emptyTitle, { exact: true })).toBeVisible();
         await expect.soft(page.getByText(WALL.emptyNotice, { exact: true })).toBeVisible();
         await expect.soft(wallList(page)).toHaveCount(0);
-        await expect.soft(page.getByText(WALL.inspectorEmpty, { exact: true })).toBeVisible();
+        await expect.soft(inspector(page), 'L23: no ask card on an empty floor').toHaveCount(0);
         await quiet(page);
         expect.soft(writesSince(run!, mark), 'opening an empty floor writes nothing').toEqual([]);
         await ev(page, '16-B-002', 'empty-floor');

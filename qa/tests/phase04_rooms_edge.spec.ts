@@ -67,6 +67,7 @@ import {
   gapsUnclosed,
   halo,
   inspector,
+  inspectorTitle,
   layerPath,
   layerPutsSince,
   layerRe,
@@ -116,6 +117,9 @@ type Floor = { id: string; name: string };
 
 let admin: APIRequestContext;
 let layerApi: LayerApi;
+
+/** L23: the only H1 of SCR-20 is the task sentence of the step column (RoomLabelReview.tsx STEP_TASK). */
+const ROOM_TASK = 'Đặt tên cho từng phòng máy tìm thấy. Tên đúng thì giữ, sai thì sửa.';
 
 test.beforeAll(async () => {
   const { email, password } = readAdminCredentials();
@@ -247,7 +251,7 @@ test('SCR-20 · FL-20-01 · list and canvas selection, keyboard in the listbox, 
       await optionOf(page, codeAi).hover();
       await expect.soft(halo(page)).toHaveCount(1);
       await captureEvidence(page, 'E04_20-A-008_hover-halo.png');
-      await page.getByRole('heading', { name: ROOM.screen, exact: true, level: 2 }).hover();
+      await page.getByRole('heading', { name: ROOM_TASK, exact: true, level: 1 }).hover(); // L23: the task H1 replaced the h2 "Duyệt phòng"
       await expect.soft(halo(page)).toHaveCount(0);
     });
 
@@ -275,9 +279,9 @@ test('SCR-20 · FL-20-01 · list and canvas selection, keyboard in the listbox, 
       await captureEvidence(page, 'E04_20-E-006_canvas-focus.png');
     });
 
-    await test.step('[20-B-007] the inspector with nothing selected prompts to choose a room', async () => {
+    await test.step('[20-B-007] nothing selected → no ask card (L23 removed the empty inspector prompt)', async () => {
       await openRooms(page, projectId, first.id);
-      await expect.soft(page.getByText(ROOM.inspectorEmpty, { exact: true })).toBeVisible();
+      await expect.soft(inspector(page)).toHaveCount(0);
       await expect.soft(page.getByRole('button', { name: ROOM.approve, exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E04_20-B-007_inspector-empty.png');
     });
@@ -290,11 +294,11 @@ test('SCR-20 · FL-20-01 · list and canvas selection, keyboard in the listbox, 
       await captureEvidence(page, 'E04_20-C-015_codes-unique.png');
     });
 
-    await test.step('[20-E-001] landmark and headings: region, h2, h3 "Phòng", h3 "Vòng tường hở", h4 "Nhắc công năng"', async () => {
+    await test.step('[20-E-001] landmark and headings: region, task h1 (L23), "Phòng" in the ask card, h3 "Vòng tường hở", h4 "Nhắc công năng"', async () => {
       await selectRoom(page, codeAi);
       await expect.soft(page.getByRole('region', { name: ROOM.screen, exact: true })).toBeVisible();
-      await expect.soft(page.getByRole('heading', { name: ROOM.screen, exact: true, level: 2 })).toBeVisible();
-      await expect.soft(page.getByRole('heading', { name: ROOM.inspector, exact: true, level: 3 })).toBeVisible();
+      await expect.soft(page.getByRole('heading', { name: ROOM_TASK, exact: true, level: 1 })).toBeVisible();
+      await expect.soft(inspectorTitle(page)).toBeVisible();
       await expect.soft(page.getByRole('heading', { name: ROOM.gapsTitle, exact: true, level: 3 })).toBeVisible();
       await expect.soft(page.getByRole('heading', { name: ROOM.notices, exact: true, level: 4 })).toBeVisible();
       await captureEvidence(page, 'E04_20-E-001_landmarks.png');
@@ -354,7 +358,7 @@ test('SCR-20 · FL-20-02 · rename: blur, Enter, suggestions, undo toast, save, 
     await test.step('[20-A-011] blur commits the rename without Enter', async () => {
       const put = waitForLayerPut(page, projectId, first.id, renamedTo('qa tên blur'), [200]);
       await field.fill('qa tên blur');
-      await page.getByRole('heading', { name: ROOM.inspector, exact: true, level: 3 }).click(); // blur
+      await inspectorTitle(page).click(); // blur
       expect.soft((await put).response.status(), 'PUT #35 after blur').toBe(200);
       await expect.soft(toastOf(page, toastRename(NAMES.one, 'qa tên blur'))).toBeVisible();
       await captureEvidence(page, 'E04_20-A-011_blur-commit.png');
@@ -365,7 +369,7 @@ test('SCR-20 · FL-20-02 · rename: blur, Enter, suggestions, undo toast, save, 
       const put = waitForLayerPut(page, projectId, first.id, renamedTo('qa tên enter'), [200]);
       await field.fill('qa tên enter');
       await field.press('Enter');
-      await page.getByRole('heading', { name: ROOM.inspector, exact: true, level: 3 }).click(); // blur after Enter
+      await inspectorTitle(page).click(); // blur after Enter
       await put;
       await flush(page);
       expect.soft(putsOf(mark).filter((p) => p.rooms.some((r) => r.name === 'qa tên enter')), 'one PUT for Enter + blur').toHaveLength(1);
@@ -482,7 +486,7 @@ test('SCR-20 · FL-20-02 · rename: blur, Enter, suggestions, undo toast, save, 
         const put = waitForLayerPut(page, projectId, first.id, renamedTo('qa ctrl s'), [200]);
         await field.fill('qa ctrl s');
         await field.press('Enter');
-        await page.getByRole('heading', { name: ROOM.inspector, exact: true, level: 3 }).click(); // focus out of the field
+        await inspectorTitle(page).click(); // focus out of the field
         expect.soft(putsOf(mark).length, 'nothing is sent before Ctrl+S (debounce frozen)').toBe(0);
         await page.keyboard.press('Control+s');
         expect.soft((await put).response.status(), 'PUT #35 right after Ctrl+S, with no debounce tick').toBe(200);
@@ -649,7 +653,7 @@ test('SCR-20 · FL-20-03 · name rules, unnamed approve, same usage, Ctrl+Z, PUT
       await put;
       const toast = toastOf(page, /thành "qa đổi để hoàn tác"/u);
       await expect(toast).toBeVisible();
-      await page.getByRole('heading', { name: ROOM.inspector, exact: true, level: 3 }).click(); // focus out of the field
+      await inspectorTitle(page).click(); // focus out of the field
       const back = waitForLayerPut(page, projectId, first.id, (rooms) => rooms.some((r) => r.id === idA && r.name === 'A'), [200]);
       await page.keyboard.press('Control+z');
       await back.catch(() => undefined);
@@ -1089,7 +1093,7 @@ test('SCR-20 · FL-20-06 · "Chưa đặt tên" filter, open-loop gaps, rule not
       await field.press('Enter');
       await put;
       await expect.soft(roomOptions(page)).toHaveCount(0);
-      await expect.soft(page.getByText(ROOM.inspectorEmpty, { exact: true })).toBeVisible();
+      await expect.soft(inspector(page), 'L23: the ask card closes with the selection').toHaveCount(0);
       await captureEvidence(page, 'E04_20-A-041_named-drops.png');
     });
 
@@ -1212,8 +1216,8 @@ test('SCR-20 · FL-20-07 · measures, summary, confidence, OCR hint, many rooms,
       await captureEvidence(page, 'E04_20-B-008_measure-rows.png');
     });
 
-    await test.step('[20-B-010] status line (Z/S-20): "{x}/{n} phòng đã duyệt, sàn {area}"', async () => {
-      await expect.soft(page.getByText(/^\d+\/2 phòng đã duyệt, sàn /u)).toContainText(`sàn ${areaTextOf(rect(0, 0, 8000, 4000))}`);
+    await test.step('[20-B-010] column hint (L23): "{n} phòng · sàn {area}"', async () => {
+      await expect.soft(page.getByText(/^2 phòng · sàn /u)).toContainText(`sàn ${areaTextOf(rect(0, 0, 8000, 4000))}`);
       await captureEvidence(page, 'E04_20-B-010_summary.png');
     });
 
@@ -1353,7 +1357,7 @@ test('SCR-20 · FL-20-08 · drawing floor: background, crop, provisional measure
 
     await test.step('[20-B-009] provisional scale: the row area, the inspector area / perimeter and the total read "Chưa có — tỷ lệ tạm"', async () => {
       await expect.soft(optionOf(page, codeAi)).toHaveAccessibleName(new RegExp(` · ${ROOM.provisional} · `, 'u'));
-      await expect.soft(page.getByText(/^\d+\/2 phòng đã duyệt, sàn /u)).toContainText(`sàn ${ROOM.provisional}`);
+      await expect.soft(page.getByText(/^2 phòng · sàn /u)).toContainText(`sàn ${ROOM.provisional}`);
       await selectRoom(page, codeAi);
       await expect.soft(panel.getByText(ROOM.provisional, { exact: true })).toHaveCount(2); // area + perimeter
       await captureEvidence(page, 'E04_20-B-009_provisional-measures.png');

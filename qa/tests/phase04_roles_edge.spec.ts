@@ -117,7 +117,6 @@ const OBJ = {
   type: 'Loại đối tượng', // OI:TYPE_SELECT_LABEL
   swing: 'Hướng mở', // OI:SWING_LABEL
   position: 'Vị trí trên tường', // OI:POSITION_LABEL
-  inspectorEmpty: 'Chọn một đối tượng trên bản vẽ hoặc trong danh sách để xem chi tiết.', // OI:EMPTY_MESSAGE
   addManually: 'Thêm thủ công', // OV:EMPTY_ACTION
   copyWrong: 'Bạn không có quyền xem lớp đối tượng của dự án này', // UO/OG OBJECT_LAYER_TEXT.forbidden
   canvasNote:
@@ -203,8 +202,6 @@ const SCALE = {
   apply: 'Xác nhận tỷ lệ', // SCP:APPLY_PRIMARY
   scope: 'Phạm vi áp tỷ lệ', // SCP:SCOPE_ARIA_LABEL
   thisFloor: 'Tầng này', // USC scope option
-  collapse: 'Thu gọn bảng', // SCP:COLLAPSE_LABEL
-  expand: 'Bung bảng', // SCP:EXPAND_LABEL
   applyFailed:
     'Chưa lưu được tỷ lệ lên máy chủ, tầng giữ tỷ lệ cũ. Tài khoản của bạn chưa có quyền xem hoặc thay đổi nội dung này. Liên hệ quản trị dự án.', // USC applyFailed + errors.forbidden
   warpedTitle: 'Không tìm thấy khung bản vẽ, ảnh có thể chưa thẳng', // SC:ERROR_TITLE
@@ -274,9 +271,11 @@ const openOn = async (flow: Flow, url: string, projectId: string, floorId: strin
 };
 
 const wallOptions = (page: Page): Locator => page.getByRole('listbox', { name: WALL.list, exact: true }).getByRole('option');
-const wallInspector = (page: Page): Locator => page.getByRole('heading', { name: 'Đoạn tường', exact: true, level: 3 }).locator('xpath=../..');
-const objectInspector = (page: Page): Locator => page.getByRole('heading', { name: 'Đối tượng', exact: true, level: 3 }).locator('xpath=../..');
-const roomInspector = (page: Page): Locator => page.getByRole('heading', { name: 'Phòng', exact: true, level: 3 }).locator('xpath=../..');
+/** L23: every inspector lives in the ask card anchored on the canvas (QcAskCard); no card while nothing is selected. */
+const askCard = (page: Page): Locator => page.getByRole('region', { name: 'Thẻ hỏi của mục đang chọn', exact: true });
+const wallInspector = askCard;
+const objectInspector = askCard;
+const roomInspector = askCard;
 const doorOptions = (page: Page): Locator => page.getByRole('listbox', { name: OBJ.doors, exact: true }).getByRole('option');
 const roomOptions = (page: Page): Locator => page.getByRole('listbox', { name: ROOM.list, exact: true }).getByRole('option');
 const axisRows = (page: Page): Locator => page.getByRole('option', { name: AXIS.rowPattern });
@@ -440,7 +439,7 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         const toggle = rail.getByRole('button', { name: /^(Thu gọn|Mở lại) hai panel$/u });
         await toggle.click();
         await expect.soft(page.getByRole('listbox', { name: WALL.list, exact: true }), 'the left panel list is gone').toBeHidden();
-        await expect.soft(page.getByRole('heading', { name: 'Đoạn tường', exact: true, level: 3 }), 'the inspector is gone').toBeHidden();
+        await expect.soft(askCard(page), 'the ask card is gone').toBeHidden();
         await captureEvidence(page, ev('16-D-007', 'viewer_collapse'));
         await toggle.click(); // put the panels back whatever the label said
         await expect(rail.getByRole('button', { name: WALL.collapse, exact: true })).toBeVisible();
@@ -580,7 +579,7 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await quiet(page);
         expect.soft(writesSince(flow, mark), 'a viewer sends no write').toEqual([]);
         await page.keyboard.press('Escape');
-        await expect.soft(objectInspector(page).getByText(OBJ.inspectorEmpty, { exact: true })).toBeVisible();
+        await expect.soft(objectInspector(page), 'L23: Esc closes the ask card').toHaveCount(0);
         await captureEvidence(page, ev('17-D-009', 'viewer_object_keys'));
       });
 
@@ -955,16 +954,13 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await captureEvidence(page, ev('14-D-006', 'viewer_scale_footer_hidden'));
       });
 
-      await test.step('[14-D-007] viewer: "Thu gọn bảng", wheel zoom and middle pan still work', async () => {
+      // L23: "Thu gọn bảng"/"Bung bảng" đã bỏ (dưới 1024 cột việc là ngăn kéo) — bước này chỉ còn kiểm thu phóng + kéo.
+      await test.step('[14-D-007] viewer: wheel zoom and middle pan still work', async () => {
         const plane = scaleCanvas(page).locator('div.origin-top-left').first();
         const moved = await zoomAndPan(page, scaleCanvas(page), plane);
         expect.soft(moved.zoomed, 'wheel zoom moved the drawing').toBe(true);
         expect.soft(moved.panned, 'middle drag moved the drawing').toBe(true);
-        const collapse = page.getByRole('button', { name: SCALE.collapse, exact: true });
-        await collapse.click();
-        await expect.soft(page.getByRole('button', { name: SCALE.expand, exact: true })).toBeVisible();
         await captureEvidence(page, ev('14-D-007', 'viewer_scale_zoom_pan_collapse'));
-        await page.getByRole('button', { name: SCALE.expand, exact: true }).click();
       });
 
       await test.step('[X4-D-009] SCR-22 viewer (absent from the plan R-V rows) → 22-D-003 / 22-D-004', async () => {

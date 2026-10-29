@@ -102,10 +102,10 @@ export const WALL_LAYER_REVIEW_SCREEN_ID = 'wall-layer-review';
 const WALL_QUERY_KEY = 'wall';
 
 const MISSING_PARAMS_TITLE = 'Thiếu mã dự án hoặc mã tầng';
-/** Góc trên phải vùng làm việc (≥1280: đầu panel chi tiết; dưới đó: dưới nút "Hiện chi tiết"), không đè chú giải hay thu phóng. */
-const TOUR_CHIP_ANCHOR = 'right-6 top-[180px] xl:right-4 xl:top-[136px]';
+/** Góc trên phải vùng làm việc (≥1280: ngay dưới nút "Hiển thị" của bố cục L23 — đè lên nó thì nút không bấm được; dưới đó: dưới nút "Hiện chi tiết"), không đè chú giải hay thu phóng. */
+const TOUR_CHIP_ANCHOR = 'right-6 top-[180px] xl:right-4 xl:top-[188px]';
 /** Có dải lưu lớp (409 "Tải lại") thì chip lùi xuống dưới dải, không đè nút "Tải lại" ở mép phải. */
-const TOUR_CHIP_ANCHOR_BELOW_BANNER = 'right-6 top-[236px] xl:right-4 xl:top-[192px]';
+const TOUR_CHIP_ANCHOR_BELOW_BANNER = 'right-6 top-[236px] xl:right-4 xl:top-[244px]';
 const MISSING_PARAMS_MESSAGE =
   'Đường dẫn không mang đủ mã dự án và mã tầng, nên chưa mở được lớp tường. Quay lại danh sách tầng rồi chọn lại tầng cần duyệt.';
 

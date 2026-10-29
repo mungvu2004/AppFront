@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { ROUTES } from '../fixtures/routes';
 import { dismissTour } from '../fixtures/tour';
 
-import { QC_FLOOR, QC_PROJECT, seedQc } from './seedQc';
+import { openWallsWithScale, QC_FLOOR, QC_PROJECT, seedQc } from './seedQc';
 
 /**
  * `projectWalls` — Duyệt lớp tường (`plan.md` V6 mục 1).
@@ -36,8 +36,33 @@ const list = (page: Page) => page.getByRole('listbox', { name: 'Danh sách đo�
  */
 const progress = (page: Page, reviewed: number, total: number) =>
   page.getByRole('region', { name: 'Tường' }).getByText(`${String(total - reviewed)} cần xem`, { exact: true });
+/**
+ * Số tường còn trong hàng đợi = tổng số ở tiêu đề các nhóm lý do ("Đứng riêng, …: 12"), trừ nhóm "Đã duyệt".
+ * Tầng chưa có tỷ lệ nên dòng bước Tường nói "chờ tỷ lệ" chứ không nói "N cần xem".
+ */
+const queued = (page: Page) =>
+  page
+    .getByRole('region', { name: 'Tường', exact: true })
+    .innerText()
+    .then((text) =>
+      [...text.matchAll(/^(.+): (\d+)$/gmu)]
+        .filter((match) => !match[1]!.startsWith('Đã duyệt'))
+        .reduce((sum, match) => sum + Number(match[2]), 0),
+    );
+/** Ô chọn độ dày trong thẻ hỏi của tường đang chọn. */
+const thickness = (page: Page) => page.getByRole('combobox', { name: 'Độ dày tường' });
 /** Thanh trạng thái đáy màn: trạng thái tự lưu (A7) nằm ở đây từ bố cục L23. */
 const panelHead = (page: Page) => page.getByRole('status', { name: 'Thanh trạng thái' });
+
+/** Hai dòng đầu của hàng đợi, khoá theo mã đọc từ tên dòng (danh sách ảo hoá vẽ lại khi chọn). */
+async function firstTwoRows(page: Page) {
+  const codes = await list(page)
+    .getByRole('option')
+    .evaluateAll((rows) => rows.slice(0, 2).map((row) => /^#W-\d+/u.exec(row.getAttribute('aria-label') ?? '')?.[0] ?? ''));
+  expect(codes.length === 2 && codes.every((code) => code !== ''), JSON.stringify(codes)).toBe(true);
+  const row = (code: string | undefined) => list(page).getByRole('option', { name: new RegExp(`^${code ?? ''} `, 'u') });
+  return [row(codes[0]), row(codes[1])] as const;
+}
 
 async function openSeeded(page: Page): Promise<void> {
   await page.goto(ROUTES.project.walls(QC_PROJECT, QC_FLOOR.walls));
@@ -56,10 +81,10 @@ test.describe('đường nạp thật (không bơm)', () => {
   }) => {
     await page.goto(ROUTES.project.walls(QC_PROJECT, A14_FLOOR));
 
-    await expect(list(page).getByRole('option')).toHaveCount(A14_WALLS_ON_FLOOR, {
-      timeout: FIRST_PAINT_TIMEOUT_MS,
-    });
-    await expect(page.getByText(`0/${String(A14_WALLS_ON_FLOOR)} tường đã duyệt`)).toBeVisible();
+    /* Danh sách L23 ảo hoá trong cột việc (chỉ vẽ hàng trong tầm nhìn), nên số tường đọc ở dòng bước Tường. */
+    await expect(list(page).getByRole('option', { name: /^#W-001 / })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+    await expect.poll(() => queued(page)).toBe(A14_WALLS_ON_FLOOR);
+    await expect(page.getByRole('status', { name: 'Danh sách đoạn tường' })).toHaveCount(0);
   });
 
   /*
@@ -68,10 +93,9 @@ test.describe('đường nạp thật (không bơm)', () => {
    * tiến trình, nên điều quan sát được là chữ của thanh trạng thái, không phải lượt HTTP.
    */
   test('xoá một tường thì hệ thống tự lưu, thanh trạng thái nói câu "chờ" chung rồi "Đã lưu lúc …" (A7, B-V6-03, B-V1-47)', async ({ page }) => {
-    await page.goto(ROUTES.project.walls(QC_PROJECT, A14_FLOOR));
-    await expect(list(page).getByRole('option')).toHaveCount(A14_WALLS_ON_FLOOR, {
-      timeout: FIRST_PAINT_TIMEOUT_MS,
-    });
+    await openWallsWithScale(page, QC_PROJECT, A14_FLOOR, 'L-LEVEL000000');
+    await expect(list(page).getByRole('option').first()).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+    await expect.poll(() => queued(page)).toBe(A14_WALLS_ON_FLOOR);
     await dismissTour(page);
 
     const statusBar = panelHead(page);
@@ -88,7 +112,7 @@ test.describe('đường nạp thật (không bơm)', () => {
 
     await list(page).getByRole('option').first().click();
     await page.keyboard.press('Backspace');
-    await expect(list(page).getByRole('option')).toHaveCount(A14_WALLS_ON_FLOOR - 1);
+    await expect.poll(() => queued(page)).toBe(A14_WALLS_ON_FLOOR - 1);
 
     await expect(statusBar).toContainText(/Đã lưu lúc \d{2}:\d{2}/u);
     await expect(statusBar).not.toContainText('Có thay đổi chờ đồng bộ');
@@ -139,40 +163,40 @@ test.describe('[bơm] bộ mẫu riêng của màn tường', () => {
   test('[bơm] J/K đi giữa các hàng và phím 1 đổi độ dày của tường đang chọn', async ({ page }) => {
     await openSeeded(page);
 
-    /* Hàng đợi S-15: không chuẩn → đúng chuẩn → đã duyệt (W-002 thu gọn); bộ mẫu thang sáu bậc không còn đoạn không chuẩn, nên sau W-001 là W-003. */
-    await list(page).getByRole('option', { name: /^#W-001 / }).click();
+    /* Hàng đợi L23 xếp theo lý do máy nghi: J/K đi theo đúng thứ tự dòng của danh sách, không gõ cứng mã. */
+    const [first, second] = await firstTwoRows(page);
+    await first.click();
     await page.keyboard.press('j');
-    await expect(list(page).getByRole('option', { name: /^#W-003 / })).toHaveAttribute('aria-selected', 'true');
+    await expect(second).toHaveAttribute('aria-selected', 'true');
+    await expect(first).toHaveAttribute('aria-selected', 'false');
     await page.keyboard.press('k');
-    await expect(list(page).getByRole('option', { name: /^#W-001 / })).toHaveAttribute('aria-selected', 'true');
+    await expect(first).toHaveAttribute('aria-selected', 'true');
 
     /* Phím 1 = bậc nhỏ nhất của thang sáu bậc (100 mm). */
     await page.keyboard.press('1');
-    await expect(page.getByRole('radio', { name: '100 mm' })).toHaveAttribute('aria-checked', 'true');
+    await expect(thickness(page)).toHaveValue('100');
   });
 
   /*
-   * Trước B-V7-09 vé hoàn tác trả vùng chọn TRƯỚC lần chọn gần nhất (#W-001), không phải
-   * vùng chọn lúc lệnh chạy (#W-003 — hàng kế theo hàng đợi S-15) — hoàn tác nhảy vùng chọn về hàng cũ.
+   * Trước B-V7-09 vé hoàn tác trả vùng chọn TRƯỚC lần chọn gần nhất (dòng đầu), không phải
+   * vùng chọn lúc lệnh chạy (dòng kế theo hàng đợi) — hoàn tác nhảy vùng chọn về hàng cũ.
    */
   test('[bơm] Ctrl+Z trả độ dày và giữ tường đang chọn lúc đổi (B-V7-09, A8)', async ({ page }) => {
     await openSeeded(page);
 
-    await list(page).getByRole('option', { name: /^#W-001 / }).click();
+    const [first, second] = await firstTwoRows(page);
+    await first.click();
     await page.keyboard.press('j');
-    const second = list(page).getByRole('option', { name: /^#W-003 / });
     await expect(second).toHaveAttribute('aria-selected', 'true');
-    /* #W-003 của bộ mẫu là tường bao 330 mm (`wallLayerReviewFixture.ts`): trong dung sai của bậc 300 nhưng
-       không phải một bậc của thang sáu bậc, nên không ô nào sáng. */
-    await expect(page.getByRole('radio', { name: '100 mm' })).toHaveAttribute('aria-checked', 'false');
-    await expect(page.getByRole('radio', { name: '300 mm' })).toHaveAttribute('aria-checked', 'false');
+    /* Dòng kế của bộ mẫu chưa dày 100 mm (các hàng nghi đầu lệch bậc: 330, 235…), nên phím 1 là thay đổi thật. */
+    await expect(thickness(page)).not.toHaveValue('100');
 
     await page.keyboard.press('1');
-    await expect(page.getByRole('radio', { name: '100 mm' })).toHaveAttribute('aria-checked', 'true');
+    await expect(thickness(page)).toHaveValue('100');
 
     await page.keyboard.press('Control+z');
 
-    await expect(page.getByRole('radio', { name: '100 mm' })).toHaveAttribute('aria-checked', 'false');
+    await expect(thickness(page)).not.toHaveValue('100');
     await expect(second).toHaveAttribute('aria-selected', 'true');
     await expect(list(page).getByRole('option', { selected: true })).toHaveCount(1);
   });
@@ -204,8 +228,15 @@ test.describe('[bơm] bộ mẫu riêng của màn tường', () => {
     await expect(rail.getByRole('button', { pressed: true })).toHaveCount(1);
   });
 
-  test('[bơm] nút ẩn lớp viết hoa chữ đầu, tên lớp viết thường: "Ẩn lớp tường" (A6, B-V6-04)', async ({ page }) => {
+  /* L23: công tắc lớp nằm trong popover "Hiển thị" — ô "Lớp tường" thay cho nút "Ẩn lớp tường" cũ. */
+  test('[bơm] công tắc lớp viết hoa chữ đầu, tên lớp viết thường: "Lớp tường" trong "Hiển thị" (A6, B-V6-04)', async ({ page }) => {
     await openSeeded(page);
-    await expect(page.getByRole('button', { name: 'Ẩn lớp tường', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Hiển thị', exact: true }).click();
+    const popover = page.getByRole('dialog', { name: 'Hiển thị trên bản vẽ' });
+    const toggle = popover.getByRole('checkbox', { name: 'Lớp tường', exact: true });
+    await expect(toggle).toBeChecked();
+    /* Ô thật là input sr-only: bấm vào nhãn như người dùng. */
+    await popover.getByText('Lớp tường', { exact: true }).click();
+    await expect(toggle).not.toBeChecked();
   });
 });

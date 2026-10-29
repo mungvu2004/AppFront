@@ -134,7 +134,8 @@ export function QcStepColumn({ projectId, floorId, activeStep, task, hint, activ
         <h1 className="mt-1 text-[18px] font-medium leading-snug text-text-primary [text-wrap:balance]">{head.task}</h1>
         {head.hint === undefined ? null : <p className="mt-1.5 text-body-sm text-text-secondary [text-wrap:pretty]">{head.hint}</p>}
       </header>
-      <nav aria-label={STEPS_LABEL} className={cn('flex min-h-0 flex-col', !isDoneScreen && 'flex-1')}>
+      {/* Màn thấp (≤ 768 px cao): bước đang mở giữ chỗ tối thiểu cho hàng đợi, cả cây bước cuộn thay vì ép danh sách còn vài px. */}
+      <nav aria-label={STEPS_LABEL} className={cn('flex min-h-0 flex-col', !isDoneScreen && 'flex-1 overflow-y-auto')}>
         {STEP_KEYS.map((key) => {
           const isActive = key === activeStep && !isDoneScreen;
           const locked = key !== 'scale' && scale === 'missing';
@@ -161,7 +162,7 @@ export function QcStepColumn({ projectId, floorId, activeStep, task, hint, activ
           }
           if (isActive) {
             return (
-              <section key={key} aria-current="step" aria-label={stepTitle(key)} className="flex min-h-0 flex-1 flex-col border-b border-border-default">
+              <section key={key} aria-current="step" aria-label={stepTitle(key)} className="flex min-h-[360px] flex-1 flex-col border-b border-border-default">
                 <div className={rowClass}>{row}</div>
                 <div className="flex min-h-0 flex-1 flex-col">{children}</div>
               </section>

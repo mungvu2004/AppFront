@@ -153,6 +153,8 @@ Roles: **A** admin, **E** engineer, **V** viewer, **∅** anonymous. `{work}` / 
 
 ### Phase 4: QC layers (A, CP-5; call `dismissTour` first)
 
+> L23 (29/10): "Inspector …" below = thẻ hỏi neo trên bản vẽ (region "Thẻ hỏi của mục đang chọn", chỉ hiện khi đã chọn); "Hiện tim tường"/"Ẩn lớp tường" = checkbox "Tim tường"/"Lớp tường" trong popover "Hiển thị"; "Thu gọn bảng" của SCR-14 đã bỏ.
+
 | Screen ID | Screen Name & Route | Prerequisite / State | Interactive Target | Action Type | Expected UI Mutation | Evidence Name Pattern | Priority |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | SCR-16 | Wall Layer Review (`/…/{workId}/layers/walls`) | CP-5, tour dismissed | option in listbox "Danh sách đoạn tường"; then J / K with focus on the list | Click/Key | Inspector "Đoạn tường" follows | `16_walls_select.png` | P0 |
