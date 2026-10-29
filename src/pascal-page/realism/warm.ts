@@ -17,6 +17,13 @@
  *
  * Gắn từ vendor `post-processing.tsx` (luật `scripts/realism/w1-warm-pipelines.mjs`); `?disable=warm` tắt
  * để bộ đo so trước/sau.
+ *
+ * W2 (`installAsyncNodeBuilds`): phần JS dựng shader TSL (`NodeBuilder.build`, ~4,5 s trên luồng chính
+ * trang khi nạp F1) cũng bỏ khỏi khung sống. Vật của cảnh chính chưa có shader thì khung này bỏ qua nó và
+ * khởi động `getForRenderAsync` (three nhả luồng sau mỗi stage) — tối đa `BUILD_BUDGET_MS` mỗi khung cho
+ * đoạn đồng bộ đầu (`prebuild` + `setup` fragment), còn lại để khung sau. Bản dựng đọc trạng thái renderer
+ * (đích, MRT, `_currentRenderContext`, `contextNode`) rải sau các `await`, lúc khung đã xong → mỗi bản dựng
+ * nhận một renderer "proxy" chụp đúng trạng thái của khung sống lúc khởi động. `?disable=nodebuild` tắt riêng.
  */
 import { markDirty } from './idle';
 
@@ -30,16 +37,27 @@ interface PipelinesLike {
   __asyncW1?: true;
 }
 
-const URL_OFF =
-  typeof location !== 'undefined' && (new URLSearchParams(location.search).get('disable') ?? '').split(',').includes('warm');
+const DISABLED = typeof location !== 'undefined' ? (new URLSearchParams(location.search).get('disable') ?? '').split(',') : [];
+const URL_OFF = DISABLED.includes('warm');
+const NODE_BUILD_OFF = DISABLED.includes('nodebuild');
 
-const stats = { started: 0, done: 0, lastDoneAt: 0 };
+/** Ngân sách mỗi khung cho đoạn dựng đồng bộ đầu của các bản dựng mới (ms). */
+export const BUILD_BUDGET_MS = 8;
+
+const stats = { started: 0, done: 0, lastDoneAt: 0, builds: 0, buildsDone: 0, skipped: 0, lastBuildAt: 0 };
+/** Thời gian dựng node đã tiêu trong khung sống hiện tại. */
+let frameSpent = 0;
+/** Renderer proxy cho bản dựng đang khởi động (đọc trong `_createNodeBuilder`); ngoài lúc ấy là `null`. */
+let buildRenderer: unknown = null;
+/** Khoá shader đang dựng: nhiều render object (pass cảnh, bóng, lớp) cùng khoá chỉ dựng một lần, xong thì lấy từ cache. */
+const pendingKeys = new Set<string>();
 /** Cảnh chính đang được vẽ ở khung sống; `null` = ngoài khung sống → tạo pipeline đồng bộ như three gốc. */
 let liveScene: unknown = null;
 
 /** Bọc lệnh vẽ khung sống của viewport (vendor `post-processing.tsx`). */
 export function liveFrame(scene: unknown, draw: () => void): void {
   liveScene = scene;
+  frameSpent = 0;
   try {
     draw();
   } finally {
@@ -71,7 +89,100 @@ export function installAsyncPipelines(renderer: unknown, off = URL_OFF): void {
   };
 }
 
+interface NodeData {
+  nodeBuilderState?: unknown;
+}
+interface NodesLike {
+  get(renderObject: unknown): NodeData;
+  nodeBuilderCache: Map<string, unknown>;
+  getForRenderCacheKey(renderObject: unknown): string;
+  getForRenderAsync(renderObject: unknown): Promise<unknown>;
+  _createNodeBuilder(renderObject: unknown, material: unknown): { renderer: unknown };
+}
+interface RendererLike {
+  _nodes?: NodesLike;
+  _objects?: { get(...args: unknown[]): unknown };
+  _renderObjectDirect: (...args: unknown[]) => void;
+  _currentRenderContext: unknown;
+  contextNode: unknown;
+  getRenderTarget(): unknown;
+  getMRT(): unknown;
+  __asyncW2?: true;
+}
+
+/** Renderer giả mang trạng thái của khung sống lúc này; mọi thứ khác đọc xuyên qua renderer thật. */
+function snapshotRenderer(r: RendererLike): unknown {
+  const target = r.getRenderTarget();
+  const mrt = r.getMRT();
+  return Object.assign(Object.create(r) as object, {
+    getRenderTarget: () => target,
+    getMRT: () => mrt,
+    _currentRenderContext: r._currentRenderContext,
+    contextNode: r.contextNode,
+  });
+}
+
+/** Bọc `_renderObjectDirect` + `_nodes._createNodeBuilder` một lần (W2). */
+export function installAsyncNodeBuilds(renderer: unknown, off = URL_OFF || NODE_BUILD_OFF): void {
+  const r = renderer as RendererLike;
+  const nodes = r._nodes;
+  const objects = r._objects;
+  if (off || !nodes || !objects || r.__asyncW2) return;
+  r.__asyncW2 = true;
+  const create = nodes._createNodeBuilder.bind(nodes);
+  nodes._createNodeBuilder = (renderObject, material) => {
+    const builder = create(renderObject, material);
+    if (buildRenderer !== null) builder.renderer = buildRenderer;
+    return builder;
+  };
+  const direct = r._renderObjectDirect;
+  r._renderObjectDirect = function (this: RendererLike, ...args: unknown[]) {
+    const [object, material, scene, camera, lightsNode, , clippingContext, passId] = args;
+    if (liveScene !== null && scene === liveScene) {
+      const ro = objects.get(object, material, scene, camera, lightsNode, r._currentRenderContext, clippingContext, passId);
+      const key = nodes.getForRenderCacheKey(ro);
+      if (nodes.get(ro).nodeBuilderState === undefined && !nodes.nodeBuilderCache.has(key)) {
+        stats.skipped++;
+        if (pendingKeys.has(key)) return;
+        // Hết ngân sách khung này: khung sau khởi động tiếp (vòng vẽ theo nhu cầu phải còn chạy).
+        if (frameSpent >= BUILD_BUDGET_MS) return void markDirty('node-build');
+        startBuild(r, nodes, ro, key);
+        return;
+      }
+    }
+    direct.apply(this, args);
+  };
+}
+
+function startBuild(r: RendererLike, nodes: NodesLike, ro: unknown, key: string): void {
+  pendingKeys.add(key);
+  stats.builds++;
+  const t0 = performance.now();
+  buildRenderer = snapshotRenderer(r);
+  let job: Promise<unknown>;
+  try {
+    // Thân async chạy đồng bộ tới `await` đầu: `_createNodeBuilder` thấy `buildRenderer` ngay trong lời gọi này.
+    job = nodes.getForRenderAsync(ro);
+  } finally {
+    buildRenderer = null;
+    frameSpent += performance.now() - t0;
+  }
+  const done = () => {
+    pendingKeys.delete(key);
+    stats.buildsDone++;
+    stats.lastBuildAt = Math.round(performance.now());
+    markDirty('node-build');
+  };
+  job.then(done, done);
+}
+
 /** Cho bộ đo (`window.__pascalWarm`). */
-export const warmStats = () => ({ ...stats, pending: stats.started - stats.done, off: URL_OFF });
+export const warmStats = () => ({
+  ...stats,
+  pending: stats.started - stats.done,
+  buildsPending: stats.builds - stats.buildsDone,
+  off: URL_OFF,
+  nodeBuildOff: NODE_BUILD_OFF,
+});
 
 if (typeof window !== 'undefined') (window as unknown as { __pascalWarm?: typeof warmStats }).__pascalWarm = warmStats;
