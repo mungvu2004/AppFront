@@ -178,6 +178,41 @@ describe('thứ tự dựng (build-order)', () => {
     expect(order).toEqual(['room', 'small', 'shadow-lamp']); // hết hàng chờ chính → dựng bóng
   });
 
+  it('bản dựng nhanh thì một khung khởi động nhiều khoá (trong ngân sách)', () => {
+    const order: string[] = [];
+    const nodes = {
+      get: () => ({}),
+      nodeBuilderCache: new Map<string, unknown>(),
+      getForRenderCacheKey: (ro: unknown) => (ro as { key: string }).key,
+      _createNodeBuilder: () => ({ renderer: null }),
+      getForRenderAsync(ro: unknown) {
+        order.push((ro as { key: string }).key);
+        return new Promise<never>(() => undefined);
+      },
+    };
+    const renderer = {
+      _nodes: nodes,
+      _objects: { get: (object: unknown) => object },
+      _renderObjectDirect: vi.fn<(...args: unknown[]) => void>(),
+      _currentRenderContext: null,
+      contextNode: null,
+      getRenderTarget: () => null,
+      getMRT: () => null,
+    };
+    installAsyncNodeBuilds(renderer, false);
+    const scene = {};
+    const objs = Array.from({ length: 12 }, (_, i) => sized(`k${i}`, i + 1));
+    liveFrame(scene, () => undefined);
+    let most = 0;
+    for (let f = 0; f < 20 && order.length < objs.length; f++) {
+      const before = order.length;
+      liveFrame(scene, () => objs.forEach((o) => renderer._renderObjectDirect(o, null, scene, camera)));
+      most = Math.max(most, order.length - before);
+    }
+    expect(order).toHaveLength(objs.length);
+    expect(most).toBeGreaterThan(1); // thời gian dựng trung bình hạ → nhiều khoá mỗi khung
+  });
+
   it('screenSize: bán kính / khoảng cách, 0 khi thiếu dữ liệu', () => {
     expect(screenSize(sized('a', 1), camera)).toBeCloseTo(0.1);
     expect(screenSize({}, camera)).toBe(0);

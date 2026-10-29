@@ -45,8 +45,13 @@ const NODE_BUILD_OFF = DISABLED.includes('nodebuild');
 const LAZY_DISPOSE_OFF = DISABLED.includes('lazydispose');
 const ORDER_OFF = DISABLED.includes('buildorder');
 
-/** Ngân sách mỗi khung cho đoạn dựng đồng bộ đầu của các bản dựng mới (ms). */
-export const BUILD_BUDGET_MS = 8;
+/**
+ * Ngân sách mỗi khung cho đoạn dựng đồng bộ đầu của các bản dựng mới (ms); `?buildbudget=` để so.
+ * Một bản dựng ~36 ms, mà khung nào cũng vẽ lại cả cảnh (~25–30 ms): 8 ms = một bản mỗi khung, ~105 khung khi
+ * nạp F1. 150 ms dựng ~4 bản mỗi khung → ít khung hơn; A/B 10 lượt mỗi bên: pha dựng 6,2 → 5,1 s (trung vị),
+ * đổi lại khung lúc nạp dài hơn (`F:/App/qa-results/perf-load-editor3d/NGUYEN-NHAN.md`).
+ */
+export const BUILD_BUDGET_MS = Number(typeof location !== 'undefined' ? new URLSearchParams(location.search).get('buildbudget') : null) || 150;
 
 const stats = { started: 0, done: 0, lastDoneAt: 0, builds: 0, buildsDone: 0, skipped: 0, lastBuildAt: 0, lastActivityAt: -Infinity, lazyDisposed: 0 };
 
@@ -166,7 +171,7 @@ export function installAsyncNodeBuilds(renderer: unknown, off = URL_OFF || NODE_
         // trong suốt, ngữ cảnh pass), dựng lúc khác là sai shader (đã thử: F1 ra nền đen, tối cả cảnh).
         const cover = coversScreen(object);
         const opaqueMain = !ORDER_OFF && !cover && m.isShadowPassMaterial !== true && m.transparent !== true;
-        if (opaqueMain && (key !== chosen || frameSpent >= BUILD_BUDGET_MS)) {
+        if (opaqueMain && (!chosen.has(key) || frameSpent >= BUILD_BUDGET_MS)) {
           // Xếp hạng ở khung này, khởi động ở khung sau ngay tại chỗ vẽ (trạng thái renderer đúng lượt).
           const size = screenSize(object, camera);
           if ((ranked.get(key) ?? -1) < size) ranked.set(key, size);
@@ -185,17 +190,19 @@ export function installAsyncNodeBuilds(renderer: unknown, off = URL_OFF || NODE_
 
 /** Cỡ trên màn hình của vật đục lượt chính chưa có shader gặp trong khung này, theo khoá. */
 const ranked = new Map<string, number>();
-/** Khoá lớn nhất của khung trước — khung này khởi động nó ngay tại chỗ vẽ. Một khoá mỗi khung: đoạn dựng
- * đồng bộ đầu của một vật đục đã hết `BUILD_BUDGET_MS`. */
-let chosen: string | null = null;
+/** Các khoá lớn nhất của khung trước — khung này khởi động chúng ngay tại chỗ vẽ. Số khoá = ngân sách chia
+ * thời gian dựng trung bình (ít nhất 1), để vật lớn không bị vật nhỏ vẽ trước chiếm hết ngân sách. */
+const chosen = new Set<string>();
+/** Thời gian đoạn dựng đồng bộ trung bình (ms, trung bình trượt). */
+let avgBuildMs = BUILD_BUDGET_MS;
 /** Số vật đục lượt chính còn chờ ở khung trước — bóng đổ và vật trong suốt chưa dựng khi còn số này. */
 let mainBacklog = 0;
 
 function rankFrame(): void {
   mainBacklog = ranked.size;
-  chosen = null;
-  let best = -1;
-  for (const [key, size] of ranked) if (size > best) [chosen, best] = [key, size];
+  chosen.clear();
+  const take = Math.max(1, Math.floor(BUILD_BUDGET_MS / avgBuildMs));
+  for (const [key] of [...ranked].sort((a, b) => b[1] - a[1]).slice(0, take)) chosen.add(key);
   ranked.clear();
   if (mainBacklog > 0) markDirty('node-build');
 }
@@ -212,7 +219,9 @@ function startBuild(nodes: NodesLike, ro: unknown, key: string, snap: unknown): 
     job = nodes.getForRenderAsync(ro);
   } finally {
     buildRenderer = null;
-    frameSpent += performance.now() - t0;
+    const spent = performance.now() - t0;
+    frameSpent += spent;
+    avgBuildMs += (spent - avgBuildMs) * 0.2;
   }
   const done = () => {
     pendingKeys.delete(key);
