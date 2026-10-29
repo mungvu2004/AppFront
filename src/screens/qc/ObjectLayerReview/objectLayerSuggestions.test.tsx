@@ -347,6 +347,7 @@ function renderCanvas(onPlaceAt: (point: { x: number; y: number }, corner?: { x:
       surfaceRectPx={null}
       unitPx={1}
       viewBoxPx={VIEW_BOX}
+      viewPins={[]}
       wallOutlines={[]}
     />,
   );

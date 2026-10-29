@@ -29,7 +29,6 @@ import { cn } from '@/lib/utils';
 
 import type { RoomLabelListProps, RoomLabelStatus, RoomLabelViewModel } from './roomLabelTypes';
 import { queueNumbersOf } from '../shared/qcAsk';
-import { isL23Layout } from '../shared/qcLayout';
 import { QcQueueNumber } from '../shared/QcQueueNumber';
 import { ROOM_REASON_TITLE, byRoomReason } from './roomReviewReasons';
 
@@ -37,7 +36,6 @@ import { ROOM_REASON_TITLE, byRoomReason } from './roomReviewReasons';
 const ROW_HEIGHT_CLASS = 'min-h-10';
 
 const LIST_ARIA_LABEL = 'Danh sách phòng';
-const PENDING_GROUP_LABEL = 'Chưa duyệt';
 const CONFIRMED_GROUP_LABEL = 'Đã duyệt';
 const UNNAMED_PLACEHOLDER = 'Chưa đặt tên';
 const EMPTY_TITLE = 'Chưa có phòng nào';
@@ -150,37 +148,25 @@ export function RoomLabelList({
   oversizedRoom = null,
 }: RoomLabelListProps & { readonly oversizedRoom?: { readonly id: RoomLabelViewModel['id']; readonly text: string } | null }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  /* Z/S-20: hai nhóm "Chưa duyệt" rồi "Đã duyệt"; thứ tự DOM = thứ tự mảng này (mũi tên đọc theo nó). */
-  const byReason = isL23Layout();
+  /* Nhóm theo lý do rồi "Đã duyệt"; thứ tự DOM = thứ tự mảng này (mũi tên đọc theo nó). */
   const { groups, ordered } = useMemo(() => {
+    /* "Chưa duyệt" tách theo lý do — chưa có tên trước, tên máy đề xuất sau. */
+    const unnamed = rooms.filter((room) => room.status === 'unnamed');
+    const suggested = rooms.filter((room) => room.status === 'suggested');
     const done = rooms.filter((room) => room.status === 'confirmed');
-    if (byReason) {
-      /* Bố cục L23: "Chưa duyệt" tách theo lý do — chưa có tên trước, tên máy đề xuất sau. */
-      const unnamed = rooms.filter((room) => room.status === 'unnamed');
-      const suggested = rooms.filter((room) => room.status === 'suggested');
-      return {
-        groups: [
-          { label: ROOM_REASON_TITLE.unnamed, items: unnamed },
-          { label: ROOM_REASON_TITLE.suggested, items: suggested },
-          { label: CONFIRMED_GROUP_LABEL, items: done },
-        ].filter((group) => group.items.length > 0 || group.label === CONFIRMED_GROUP_LABEL),
-        ordered: [...unnamed, ...suggested, ...done],
-      };
-    }
-    const notYet = rooms.filter((room) => room.status !== 'confirmed');
-
     return {
       groups: [
-        { label: PENDING_GROUP_LABEL, items: notYet },
+        { label: ROOM_REASON_TITLE.unnamed, items: unnamed },
+        { label: ROOM_REASON_TITLE.suggested, items: suggested },
         { label: CONFIRMED_GROUP_LABEL, items: done },
-      ],
-      ordered: [...notYet, ...done],
+      ].filter((group) => group.items.length > 0 || group.label === CONFIRMED_GROUP_LABEL),
+      ordered: [...unnamed, ...suggested, ...done],
     };
-  }, [byReason, rooms]);
-  /* L23: cùng thứ tự với thẻ hỏi và ghim số trên bản vẽ — dòng "3" là ghim "3". */
+  }, [rooms]);
+  /* Cùng thứ tự với thẻ hỏi và ghim số trên bản vẽ — dòng "3" là ghim "3". */
   const queueNumbers = useMemo(
-    () => (byReason ? queueNumbersOf(byRoomReason(rooms).map((room) => ({ id: room.id, pending: room.status !== 'confirmed' }))) : null),
-    [byReason, rooms],
+    () => queueNumbersOf(byRoomReason(rooms).map((room) => ({ id: room.id, pending: room.status !== 'confirmed' }))),
+    [rooms],
   );
 
   /**
@@ -273,7 +259,7 @@ export function RoomLabelList({
               onHover={onHover}
               onMoveFocus={moveFocus}
               onSelect={onSelect}
-              queueNumber={queueNumbers?.get(room.id)}
+              queueNumber={queueNumbers.get(room.id)}
               room={room}
             />
           ))}

@@ -1,8 +1,8 @@
 /**
- * Màn S-17 "Duyệt tên phòng" (`RoomLabelReview`) — VIEW THUẦN, vỏ QC ba cột:
- * panel trái 280 (tóm tắt + vòng hở + danh sách phòng), canvas giữa, cột phải
- * 344 (thanh tra phòng đang chọn), cộng một đầu màn mang breadcrumb, tiêu đề
- * và mô tả, và hộp thoại xem trước "Chuẩn hoá tên" treo ở cuối cây.
+ * Màn S-17 "Duyệt tên phòng" (`RoomLabelReview`) — VIEW THUẦN, bố cục L23:
+ * cột việc `QcStepColumn` (cây bước, danh sách phòng, cổng ở đáy), bản vẽ chiếm
+ * phần còn lại với thẻ hỏi (thanh tra phòng đang chọn) neo cạnh phòng, cộng
+ * breadcrumb ở đầu màn và hộp thoại xem trước "Chuẩn hoá tên" treo ở cuối cây.
  *
  * Nhận HẾT qua props ({@link RoomLabelReviewProps} của `roomLabelTypes.ts`, đã
  * đóng băng) và chỉ dựng thẻ. Không `@/api`, không `@/store`, không `@/domain`,
@@ -29,7 +29,7 @@
  * Đọc lớp (N16) hỏng khi CHƯA có tài liệu → cả màn là `FloorLayerReadFailureScreen` (BUG-326).
  * | `success`   | mặc định, và mọi dòng danh sách mang chấm xanh "đã duyệt"             |
  * | `forbidden` | canvas chỉ xem (`isInteractive={false}`), cột trái thêm câu giải thích |
- * | `collapsed` | ẩn cột trái + thanh tra; canvas chiếm cả khung, còn nút bung lại      |
+ * | `collapsed` | ẩn cột việc + thẻ hỏi; canvas chiếm cả khung, còn nút bung lại        |
  *
  * Không nhánh nào trả `null` cho cả màn: canvas luôn được vẽ, nên màn trắng —
  * thất bại duy nhất A11 tồn tại để chặn — không có chỗ xảy ra.
@@ -69,10 +69,8 @@ import { QcScreenFrame, QcStatusBar, QcWorkspace } from '../shared/QcScreenFrame
 import { QcQueueAskCard } from '../shared/QcAskCard';
 import { QcAskSlot } from '../shared/qcAsk';
 import { QcStepColumn } from '../shared/QcStepColumn';
-import { isL23Layout } from '../shared/qcLayout';
 
 import { RoomLabelCanvas } from './RoomLabelCanvas';
-import { RoomLabelPanelHead } from './RoomLabelHead';
 import { RoomLabelInspector } from './RoomLabelInspector';
 import { RoomLabelGapsSection, RoomLabelLeftPanel } from './RoomLabelLeftPanel';
 import { RoomLabelNormalizePreview } from './RoomLabelNormalizePreview';
@@ -96,7 +94,7 @@ export type RoomLabelReviewViewProps = RoomLabelReviewProps & {
 /* -------------------------------------------------------------------------- */
 
 const SCREEN_TITLE = 'Duyệt phòng';
-const L23_TASK = 'Đặt tên cho từng phòng máy tìm thấy. Tên đúng thì giữ, sai thì sửa.';
+const STEP_TASK = 'Đặt tên cho từng phòng máy tìm thấy. Tên đúng thì giữ, sai thì sửa.';
 const CANVAS_SECTION_LABEL = 'Khung xem bản vẽ duyệt phòng';
 const EMPTY_TITLE = 'Chưa dò ra phòng nào';
 const EMPTY_ACTION_LABEL = 'Kiểm tra lại vòng hở';
@@ -115,15 +113,10 @@ const LINK_CLASS_NAME = cn(
   'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
 );
 
-/** Khung chung của cột trái, để bốn nhánh thay thế không mỗi chỗ một bề rộng. */
-const LEFT_COLUMN_CLASS_NAME =
-  'flex h-full w-full flex-col overflow-y-auto rounded-xl bg-bg-surface shadow-panel max-lg:h-auto max-lg:w-full';
-
-/** MỘT khung cho cột trái (NGUYEN-TAC-BO-CUC §2): đầu panel (3 câu) rồi nội dung của nhánh. */
-function LeftCard({ head, children, embedded = false }: { readonly head: ReactNode; readonly children: ReactNode; readonly embedded?: boolean }) {
+/** MỘT khung cho các nhánh thay thế của cột việc (NGUYEN-TAC-BO-CUC §2). */
+function LeftCard({ children }: { readonly children: ReactNode }) {
   return (
-    <div className={embedded ? 'flex min-h-0 flex-1 flex-col overflow-y-auto' : LEFT_COLUMN_CLASS_NAME}>
-      {head}
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="flex flex-col gap-3 p-4">{children}</div>
     </div>
   );
@@ -133,8 +126,8 @@ function LeftCard({ head, children, embedded = false }: { readonly head: ReactNo
 /* Cột trái — bốn nhánh loại trừ nhau, nhánh cuối là panel phòng thật.         */
 /* -------------------------------------------------------------------------- */
 
-/** `embedded`: bố cục L23, cột nằm trong `QcStepColumn` (H1 ở đầu cột, không khung thẻ riêng). */
-function RoomLabelLeftColumn({ embedded = false, ...props }: RoomLabelReviewViewProps & { readonly embedded?: boolean }) {
+/** Cột nằm trong `QcStepColumn` (H1 ở đầu cột, không khung thẻ riêng). */
+function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
   const {
     emptyNotice,
     errorMessage,
@@ -155,13 +148,10 @@ function RoomLabelLeftColumn({ embedded = false, ...props }: RoomLabelReviewView
   } = props;
   /* Tầng thiếu tỷ lệ: danh sách vẫn xem được, chỉ mất nút sửa — như vai người xem (UX-R1 r3). */
   const isViewerRole = props.isViewerRole || props.scaleLock != null;
-  const head = embedded ? null : (
-    <RoomLabelPanelHead roomProgress={props.roomProgress} saveStatus={props.saveStatus} state={state} summary={summary} />
-  );
 
   if (errorMessage !== null) {
     return (
-      <LeftCard embedded={embedded} head={head}>
+      <LeftCard>
         <InlineAlert
           action={{ label: ERROR_ACTION_LABEL, onClick: onCheckWallGaps }}
           level="violation"
@@ -178,7 +168,7 @@ function RoomLabelLeftColumn({ embedded = false, ...props }: RoomLabelReviewView
    */
   if (emptyNotice !== null && !showOnlyUnnamed) {
     return (
-      <LeftCard embedded={embedded} head={head}>
+      <LeftCard>
         {viewerRoleNotice === null ? null : (
           <InlineAlert level="attention" message={viewerRoleNotice} title={FORBIDDEN_TITLE} />
         )}
@@ -200,7 +190,7 @@ function RoomLabelLeftColumn({ embedded = false, ...props }: RoomLabelReviewView
 
   if (state === 'loading') {
     return (
-      <LeftCard embedded={embedded} head={head}>
+      <LeftCard>
         {SKELETON_ROWS.map((row) => (
           <Skeleton key={row} preset="table-row" />
         ))}
@@ -221,9 +211,7 @@ function RoomLabelLeftColumn({ embedded = false, ...props }: RoomLabelReviewView
 
       <div className="min-h-0 flex-1">
         <RoomLabelLeftPanel
-          embedded={embedded}
           emptyListNotice={emptyNotice}
-          head={head}
           oversizedRoom={props.oversizedRoom ?? null}
           list={{ rooms, selectedRoomId, onSelect, onHover, isViewerRole }}
           panel={{
@@ -298,7 +286,6 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
   }
 
   const nav = props.floorNav;
-  const l23 = isL23Layout() && nav != null;
   const selectedStatus = rooms.find((room) => room.id === selectedRoomId)?.status;
   const inspectorView = (
     <RoomLabelInspector
@@ -324,7 +311,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
     />
   );
   const ask =
-    l23 && !isCollapsed && selectedRoomId !== null ? (
+    !isCollapsed && selectedRoomId !== null ? (
       <QcQueueAskCard
         items={byRoomReason(rooms).map((room) => ({ id: room.id, pending: room.status !== 'confirmed' }))}
         onSelect={onSelect}
@@ -335,10 +322,10 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         {inspectorView}
       </QcQueueAskCard>
     ) : null;
-  const gate = (inline: boolean) =>
+  const gate =
     nav == null || props.state === 'loading' ? null : (
         <FloorReviewGate
-          inline={inline}
+          inline
           floorId={nav.floorId}
           nextLabel={props.nextPendingRoom == null ? undefined : `Duyệt tiếp ${props.nextPendingRoom.codeLabel}`}
           onNext={props.nextPendingRoom == null ? undefined : () => onSelect(props.nextPendingRoom!.id)}
@@ -348,8 +335,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
 
   return (
     <QcScreenFrame label={SCREEN_TITLE}>
-      {props.floorNav != null && <QcFloorNav {...props.floorNav} layer="rooms" minimal={l23} titled={l23 || !isCollapsed} />}
-      {l23 ? null : gate(false)}
+      {props.floorNav != null && <QcFloorNav {...props.floorNav} layer="rooms" minimal titled />}
 
       {props.saveBlock != null && (
         <div className="px-2 pt-2">
@@ -363,7 +349,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         </div>
       )}
 
-      {/* Khe chung (A3): panel trái | bản vẽ | chi tiết; 1024-1279 chi tiết phủ mép phải bản vẽ. */}
+      {/* Khe chung (A3): cột việc | bản vẽ; chi tiết là thẻ hỏi neo trên bản vẽ. */}
       <QcAskSlot value={ask}>
       <QcWorkspace
         canvas={
@@ -380,9 +366,8 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
             selectedRoomId={selectedRoomId}
           />
         }
-        wideLeft
         canvasLabel={CANVAS_SECTION_LABEL}
-        canvasOverlay={l23 ? <QcFloorDoneCard floorId={nav.floorId} projectId={nav.projectId} /> : null}
+        canvasOverlay={nav != null ? <QcFloorDoneCard floorId={nav.floorId} projectId={nav.projectId} /> : null}
         inspector={
           isCollapsed ? (
             <div className="flex shrink-0 items-start justify-end p-1">
@@ -390,15 +375,13 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
                 {EXPAND_PANEL_LABEL}
               </button>
             </div>
-          ) : (
-            l23 ? null : inspectorView
-          )
+          ) : null
         }
-        column={l23}
+        column
         left={
-          isCollapsed ? null : l23 && nav != null ? (
-            <QcStepColumn activeStep="rooms" floorId={nav.floorId} gate={gate(true)} projectId={nav.projectId} task={L23_TASK}>
-              <RoomLabelLeftColumn {...props} embedded />
+          isCollapsed ? null : nav != null ? (
+            <QcStepColumn activeStep="rooms" floorId={nav.floorId} gate={gate} hint={`${props.summary.roomCount} phòng · sàn ${props.summary.totalAreaText}`} projectId={nav.projectId} task={STEP_TASK}>
+              <RoomLabelLeftColumn {...props} />
             </QcStepColumn>
           ) : (
             <RoomLabelLeftColumn {...props} />
@@ -408,10 +391,10 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
       />
       </QcAskSlot>
 
-      <QcStatusBar onUndo={isViewerRole ? undefined : props.onUndo} saveLabel={false} />
+      <QcStatusBar onUndo={isViewerRole ? undefined : props.onUndo} saveLabel={props.saveStatus ?? null} />
 
       {/*
-       * Hộp thoại xem trước treo NGOÀI ba cột và luôn được gắn: nó tự đóng khi
+       * Hộp thoại xem trước treo NGOÀI khung làm việc và luôn được gắn: nó tự đóng khi
        * `preview === null` (`Modal.Root isOpen`), nên "thao tác hàng loạt luôn
        * xem trước trước khi áp" không phụ thuộc vào việc cột trái có đang hiện
        * hay không — kể cả ở trạng thái thu gọn.

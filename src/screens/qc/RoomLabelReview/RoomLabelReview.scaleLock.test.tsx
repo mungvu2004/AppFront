@@ -50,6 +50,9 @@ beforeEach(() => {
       }
     },
   });
+  /* Thẻ hỏi (chi tiết phòng) chỉ neo khi khung bản vẽ có khổ; jsdom báo 0. */
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1280);
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800);
 });
 
 afterEach(() => {

@@ -1,5 +1,5 @@
 /**
- * Câu 3 của màn (HOP-DONG-V6): cổng chung của tầng (`FloorReviewGate`) ở thanh bước.
+ * Câu 3 của màn (HOP-DONG-V6): cổng chung của tầng (`FloorReviewGate`) ở đáy cột việc.
  *
  * Màn này chỉ thêm việc của lớp đang đứng: còn tường chưa duyệt thì nút "Duyệt tiếp #W-xxx" mở
  * đoạn kế trong hàng đợi (cùng thứ tự danh sách và phím J — Tab không gán được: sổ phím chặn Tab,
@@ -18,11 +18,9 @@ export interface WallLayerGateProps {
   readonly panel: Pick<WallLayerViewProps, 'state' | 'onSelect'>;
   readonly queue?: WallReviewQueue | undefined;
   readonly floorNav?: Omit<QcFloorNavProps, 'layer'> | undefined;
-  /** Bố cục L23: nút đứng ở đáy cột việc. */
-  readonly inline?: boolean | undefined;
 }
 
-export function WallLayerGate({ panel, queue, floorNav, inline = false }: WallLayerGateProps) {
+export function WallLayerGate({ panel, queue, floorNav }: WallLayerGateProps) {
   if (floorNav == null || panel.state === 'error' || panel.state === 'loading') {
     return null;
   }
@@ -33,7 +31,7 @@ export function WallLayerGate({ panel, queue, floorNav, inline = false }: WallLa
   return (
     <FloorReviewGate
       floorId={floorNav.floorId}
-      inline={inline}
+      inline
       projectId={floorNav.projectId}
       {...(nextId === null || nextLabel === null
         ? {}

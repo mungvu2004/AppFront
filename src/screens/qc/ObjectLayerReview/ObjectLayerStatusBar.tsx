@@ -37,6 +37,7 @@ const COLLAPSE_LABEL = 'Thu gọn hai panel';
 const EXPAND_LABEL = 'Mở lại hai panel';
 
 export function ObjectLayerStatusBar({
+  saveLabel = null,
   reviewProgressLabel,
   errorMessage,
   viewerRoleNotice,
@@ -72,6 +73,11 @@ export function ObjectLayerStatusBar({
       )}
 
       <div className="flex shrink-0 items-center gap-2">
+        {saveLabel === null ? null : (
+          <span aria-live="polite" className="text-[12px] font-medium text-text-secondary">
+            {saveLabel}
+          </span>
+        )}
         {/* Người xem không hoàn tác được gì: không đưa nút chết (BUG-601). */}
         {isViewer ? null : (
         <button

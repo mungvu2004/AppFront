@@ -102,7 +102,10 @@ test('[bơm] duyệt một đối tượng thì hệ thống tự lưu và trìn
   await page.getByRole('button', { name: /^Duyệt #/u }).click();
   await expect(page.getByText('10/20 đối tượng đã duyệt').first()).toBeVisible();
 
-  await expect(page.getByRole('status').filter({ hasText: /^Đã lưu lúc \d{2}:\d{2}$/u })).toHaveCount(1);
+  /* Trạng thái tự lưu ở thanh trạng thái đáy màn, đọc qua aria-live (bố cục L23 không còn đầu panel). */
+  const saved = page.getByRole('status', { name: 'Thanh trạng thái' }).getByText(/^Đã lưu lúc \d{2}:\d{2}$/u);
+  await expect(saved).toBeVisible();
+  await expect(saved).toHaveAttribute('aria-live', 'polite');
 });
 
 /**
