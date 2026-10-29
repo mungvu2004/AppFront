@@ -9,9 +9,9 @@ export const RULES = {
     [
       "import { installIdleSources, markDirty, pollDirty, shouldDraw, storeDirty, THEME_HOLD_MS } from '@pascal-realism/idle'\n",
       "import { installIdleSources, markDirty, pollDirty, shouldDraw, storeDirty, THEME_HOLD_MS } from '@pascal-realism/idle'\n" +
-        "import { installAsyncPipelines, liveFrame } from '@pascal-realism/warm'\n",
+        "import { installAsyncNodeBuilds, installAsyncPipelines, liveFrame } from '@pascal-realism/warm'\n",
     ],
-    ['    if (!shouldDraw()) return\n', '    installAsyncPipelines(renderer)\n    if (!shouldDraw()) return\n'],
+    ['    if (!shouldDraw()) return\n', '    installAsyncPipelines(renderer)\n    installAsyncNodeBuilds(renderer)\n    if (!shouldDraw()) return\n'],
     // Chỉ hai lệnh vẽ khung sống đi đường bất đồng bộ (xem warm.ts — lượt chụp một lần phải đủ vật).
     [
       "      timeSpan('render-encode', () => {\n        pipeline.render()\n      })\n",
