@@ -24,7 +24,9 @@
  * đoạn đồng bộ đầu (`prebuild` + `setup` fragment), còn lại để khung sau. Bản dựng đọc trạng thái renderer
  * (đích, MRT, `_currentRenderContext`, `contextNode`) rải sau các `await`, lúc khung đã xong → mỗi bản dựng
  * nhận một renderer "proxy" chụp đúng trạng thái của khung sống lúc khởi động. `?disable=nodebuild` tắt riêng.
+ * Thứ tự dựng: vật lớn trên màn hình trước (`build-order.ts`, `?disable=buildorder` tắt).
  */
+import { coversScreen, screenSize } from './build-order';
 import { markDirty } from './idle';
 
 interface RenderObjectLike {
@@ -40,11 +42,13 @@ interface PipelinesLike {
 const DISABLED = typeof location !== 'undefined' ? (new URLSearchParams(location.search).get('disable') ?? '').split(',') : [];
 const URL_OFF = DISABLED.includes('warm');
 const NODE_BUILD_OFF = DISABLED.includes('nodebuild');
+const LAZY_DISPOSE_OFF = DISABLED.includes('lazydispose');
+const ORDER_OFF = DISABLED.includes('buildorder');
 
 /** Ngân sách mỗi khung cho đoạn dựng đồng bộ đầu của các bản dựng mới (ms). */
 export const BUILD_BUDGET_MS = 8;
 
-const stats = { started: 0, done: 0, lastDoneAt: 0, builds: 0, buildsDone: 0, skipped: 0, lastBuildAt: 0, lastActivityAt: -Infinity };
+const stats = { started: 0, done: 0, lastDoneAt: 0, builds: 0, buildsDone: 0, skipped: 0, lastBuildAt: 0, lastActivityAt: -Infinity, lazyDisposed: 0 };
 
 /** Mốc biên dịch gần nhất (pipeline/dựng shader bắt đầu, xong, hay còn chờ) — `tiers.ts` không tính giây ấy là chậm. */
 export function compileActiveSince(nowMs = performance.now()): number {
@@ -70,6 +74,7 @@ export function liveFrame(scene: unknown, draw: () => void): void {
     draw();
   } finally {
     liveScene = null;
+    rankFrame();
   }
 }
 
@@ -154,9 +159,23 @@ export function installAsyncNodeBuilds(renderer: unknown, off = URL_OFF || NODE_
       if (nodes.get(ro).nodeBuilderState === undefined && !nodes.nodeBuilderCache.has(key)) {
         stats.skipped++;
         if (pendingKeys.has(key)) return;
+        const m = (material ?? {}) as { isShadowPassMaterial?: boolean; transparent?: boolean };
+        // Thứ tự (`build-order.ts`): vật đục lượt chính lớn trên màn hình trước; bóng đổ và vật trong suốt
+        // chờ tới khi hàng ấy hết; vật phủ màn hình (nền) dựng ngay. Mọi bản dựng vẫn khởi động ngay tại
+        // chỗ vẽ của vật — three gán tạm thuộc tính vật liệu theo từng lượt (bóng, mặt sau/trước của vật
+        // trong suốt, ngữ cảnh pass), dựng lúc khác là sai shader (đã thử: F1 ra nền đen, tối cả cảnh).
+        const cover = coversScreen(object);
+        const opaqueMain = !ORDER_OFF && !cover && m.isShadowPassMaterial !== true && m.transparent !== true;
+        if (opaqueMain && (key !== chosen || frameSpent >= BUILD_BUDGET_MS)) {
+          // Xếp hạng ở khung này, khởi động ở khung sau ngay tại chỗ vẽ (trạng thái renderer đúng lượt).
+          const size = screenSize(object, camera);
+          if ((ranked.get(key) ?? -1) < size) ranked.set(key, size);
+          return;
+        }
+        if (!opaqueMain && !ORDER_OFF && !cover && mainBacklog > 0) return void markDirty('node-build');
         // Hết ngân sách khung này: khung sau khởi động tiếp (vòng vẽ theo nhu cầu phải còn chạy).
         if (frameSpent >= BUILD_BUDGET_MS) return void markDirty('node-build');
-        startBuild(r, nodes, ro, key);
+        startBuild(nodes, ro, key, snapshotRenderer(r));
         return;
       }
     }
@@ -164,12 +183,29 @@ export function installAsyncNodeBuilds(renderer: unknown, off = URL_OFF || NODE_
   };
 }
 
-function startBuild(r: RendererLike, nodes: NodesLike, ro: unknown, key: string): void {
+/** Cỡ trên màn hình của vật đục lượt chính chưa có shader gặp trong khung này, theo khoá. */
+const ranked = new Map<string, number>();
+/** Khoá lớn nhất của khung trước — khung này khởi động nó ngay tại chỗ vẽ. Một khoá mỗi khung: đoạn dựng
+ * đồng bộ đầu của một vật đục đã hết `BUILD_BUDGET_MS`. */
+let chosen: string | null = null;
+/** Số vật đục lượt chính còn chờ ở khung trước — bóng đổ và vật trong suốt chưa dựng khi còn số này. */
+let mainBacklog = 0;
+
+function rankFrame(): void {
+  mainBacklog = ranked.size;
+  chosen = null;
+  let best = -1;
+  for (const [key, size] of ranked) if (size > best) [chosen, best] = [key, size];
+  ranked.clear();
+  if (mainBacklog > 0) markDirty('node-build');
+}
+
+function startBuild(nodes: NodesLike, ro: unknown, key: string, snap: unknown): void {
   pendingKeys.add(key);
   stats.builds++;
   touch();
   const t0 = performance.now();
-  buildRenderer = snapshotRenderer(r);
+  buildRenderer = snap;
   let job: Promise<unknown>;
   try {
     // Thân async chạy đồng bộ tới `await` đầu: `_createNodeBuilder` thấy `buildRenderer` ngay trong lời gọi này.
@@ -186,6 +222,32 @@ function startBuild(r: RendererLike, nodes: NodesLike, ro: unknown, key: string)
     markDirty('node-build');
   };
   job.then(done, done);
+}
+
+interface BindingsLike {
+  deleteForRender(renderObject: { _bindings: unknown }): void;
+  delete(renderObject: unknown): void;
+  __lazyDispose?: true;
+}
+
+/**
+ * Huỷ render object chưa từng tạo bindings thì bỏ bước tạo. three (`Bindings.deleteForRender`) gọi
+ * `getBindings()` để xoá, mà lời gọi ấy dựng ĐỒNG BỘ cả shader TSL nếu chưa có — R3F gỡ vật liệu/hình
+ * khi đồ đạc nạp lại, W2 lại để nhiều vật chưa dựng, nên F1 mất ~1,3–1,7 s luồng chính chỉ để dựng rồi
+ * vứt. Bindings chỉ sinh qua `getBindings()` (gán `_bindings`), nên `_bindings === null` là không có gì
+ * để xoá. `?disable=lazydispose` tắt.
+ */
+export function installLazyDispose(renderer: unknown, off = LAZY_DISPOSE_OFF): void {
+  const b = (renderer as { _bindings?: BindingsLike })._bindings;
+  if (off || !b || b.__lazyDispose) return;
+  b.__lazyDispose = true;
+  const del = b.deleteForRender.bind(b);
+  b.deleteForRender = (ro) => {
+    if (ro._bindings === null) {
+      stats.lazyDisposed++;
+      b.delete(ro);
+    } else del(ro);
+  };
 }
 
 /** Cho bộ đo (`window.__pascalWarm`). */
