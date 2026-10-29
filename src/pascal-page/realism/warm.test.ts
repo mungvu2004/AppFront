@@ -1,7 +1,7 @@
 /** @vitest-environment node */
 import { describe, expect, it, vi } from 'vitest';
 
-import { BUILD_BUDGET_MS, installAsyncNodeBuilds, installAsyncPipelines, liveFrame, warmStats } from './warm';
+import { BUILD_BUDGET_MS, compileActiveSince, installAsyncNodeBuilds, installAsyncPipelines, liveFrame, warmStats } from './warm';
 
 describe('installAsyncPipelines', () => {
   it('chỉ vật của cảnh chính trong khung sống tạo pipeline bất đồng bộ, và đếm lúc xong', async () => {
@@ -23,9 +23,11 @@ describe('installAsyncPipelines', () => {
     liveFrame(scene, () => renderer._pipelines.updateForRender({ scene }));
     expect(getForRender).toHaveBeenLastCalledWith({ scene }, expect.any(Array));
     expect(warmStats().pending).toBe(1);
+    expect(compileActiveSince(123_456)).toBe(123_456); // còn pipeline chờ: đang biên dịch
     resolve();
     await Promise.resolve();
     expect(warmStats().pending).toBe(0);
+    expect(compileActiveSince(123_456)).toBeLessThan(123_456); // xong: mốc hoạt động cuối
   });
 
   it('?disable=warm thì không đụng renderer', () => {

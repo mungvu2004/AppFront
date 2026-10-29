@@ -12,6 +12,7 @@ import { create } from 'zustand';
 import { backendOf } from './backend';
 import { useRealism, type RealismTier } from './store';
 import { emitRealism } from './telemetry';
+import { compileActiveSince } from './warm';
 
 export interface TierConfig {
   /** false = không dựng chuỗi hậu kỳ (vẽ thẳng `renderer.render`, mất cả viền chọn). */
@@ -39,6 +40,15 @@ export const FRAME_BUDGET_MS = 33;
 export const SLOW_SECONDS = 5;
 /** Bỏ qua mẫu lúc đầu / sau khi đổi mức (biên dịch shader khựng tới ~3,6 s, R-R0). */
 export const WARMUP_MS = 8000;
+/**
+ * Giây có biên dịch shader/pipeline (W1/W2 `warm.ts`: chạy nền, kéo tới ~10-19 s khi nạp căn hộ có đồ) không
+ * nói gì về sức GPU: khung chậm vì biên dịch chứ không vì vẽ. Tính nó thì nạp xong là hạ `low` (mất SSGI) và
+ * biên dịch lại cả cảnh cho ngữ cảnh MSAA mới — đo 2026-10-29, F1 trên RTX 4050.
+ */
+export const COMPILE_QUIET_MS = 1000;
+/** `?disable=tierquiet`: tính cả giây đang biên dịch như trước (bộ đo so trước/sau). */
+const TIER_QUIET_OFF =
+  typeof location !== 'undefined' && (new URLSearchParams(location.search).get('disable') ?? '').split(',').includes('tierquiet');
 
 /** Đọc mức ngoài React (lúc dựng pipeline). */
 export const currentTier = (): RealismTier => useRealism.getState().tier;
@@ -163,7 +173,8 @@ function startLoop(): void {
     if (now - secondStart >= 1000) {
       secondStart = now;
       const { tier, tierMode } = useRealism.getState();
-      if (now - tierSince > WARMUP_MS && second.length > 0) p95s.push(percentile(second, 95));
+      if (!TIER_QUIET_OFF && now - compileActiveSince(now) < COMPILE_QUIET_MS) p95s.length = 0;
+      else if (now - tierSince > WARMUP_MS && second.length > 0) p95s.push(percentile(second, 95));
       if (p95s.length > SLOW_SECONDS) p95s.shift();
       second = [];
       if (tierMode === 'auto') {

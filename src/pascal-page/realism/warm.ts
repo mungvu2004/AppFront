@@ -44,7 +44,15 @@ const NODE_BUILD_OFF = DISABLED.includes('nodebuild');
 /** Ngân sách mỗi khung cho đoạn dựng đồng bộ đầu của các bản dựng mới (ms). */
 export const BUILD_BUDGET_MS = 8;
 
-const stats = { started: 0, done: 0, lastDoneAt: 0, builds: 0, buildsDone: 0, skipped: 0, lastBuildAt: 0 };
+const stats = { started: 0, done: 0, lastDoneAt: 0, builds: 0, buildsDone: 0, skipped: 0, lastBuildAt: 0, lastActivityAt: -Infinity };
+
+/** Mốc biên dịch gần nhất (pipeline/dựng shader bắt đầu, xong, hay còn chờ) — `tiers.ts` không tính giây ấy là chậm. */
+export function compileActiveSince(nowMs = performance.now()): number {
+  return stats.started > stats.done || stats.builds > stats.buildsDone ? nowMs : stats.lastActivityAt;
+}
+const touch = () => {
+  stats.lastActivityAt = performance.now();
+};
 /** Thời gian dựng node đã tiêu trong khung sống hiện tại. */
 let frameSpent = 0;
 /** Renderer proxy cho bản dựng đang khởi động (đọc trong `_createNodeBuilder`); ngoài lúc ấy là `null`. */
@@ -74,6 +82,7 @@ export function installAsyncPipelines(renderer: unknown, off = URL_OFF): void {
   const onDone = () => {
     stats.done++;
     stats.lastDoneAt = Math.round(performance.now());
+    touch();
     markDirty('pipeline');
   };
   pipelines.updateForRender = (renderObject) => {
@@ -84,6 +93,7 @@ export function installAsyncPipelines(renderer: unknown, off = URL_OFF): void {
     pipelines.getForRender(renderObject, sink);
     if (!sink.length) return;
     stats.started += sink.length;
+    touch();
     // three luôn resolve (kể cả khi lỗi — pipeline hỏng thì vật không vẽ, đã báo lỗi ra console).
     for (const p of sink.splice(0)) p.then(onDone);
   };
@@ -157,6 +167,7 @@ export function installAsyncNodeBuilds(renderer: unknown, off = URL_OFF || NODE_
 function startBuild(r: RendererLike, nodes: NodesLike, ro: unknown, key: string): void {
   pendingKeys.add(key);
   stats.builds++;
+  touch();
   const t0 = performance.now();
   buildRenderer = snapshotRenderer(r);
   let job: Promise<unknown>;
@@ -171,6 +182,7 @@ function startBuild(r: RendererLike, nodes: NodesLike, ro: unknown, key: string)
     pendingKeys.delete(key);
     stats.buildsDone++;
     stats.lastBuildAt = Math.round(performance.now());
+    touch();
     markDirty('node-build');
   };
   job.then(done, done);
