@@ -169,6 +169,7 @@ export function AppLayout() {
     // ponytail: tầng 0 m² (AI không dựng được phòng nào) vẫn coi là chưa xử lý; cần cờ "đã xử lý" từ BE nếu hay gặp.
     hasProcessedFloor: floors?.some((floor) => floor.drawings.length > 0 && (floor.areaM2 ?? 0) > 0),
     hasDrawings: floors?.some((floor) => floor.drawings.length > 0),
+    everyDrawnFloorProcessed: floors?.filter((floor) => floor.drawings.length > 0).every((floor) => (floor.areaM2 ?? 0) > 0),
   });
 
   // Tiêu đề tab tiếng Việt cho mọi màn sau đăng nhập: "<Màn> · <Dự án> · AppFront".

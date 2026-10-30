@@ -91,10 +91,23 @@ function cardOrigin(
           ? { left: rect.left - CARD_WIDTH - GAP, top: centreY }
           : { left: rect.left + rect.width + GAP, top: centreY };
 
-  return {
-    left: clamp(raw.left, MARGIN, Math.max(MARGIN, viewWidth - CARD_WIDTH - MARGIN)),
-    top: clamp(raw.top, MARGIN, Math.max(MARGIN, viewHeight - cardHeight - MARGIN)),
-  };
+  const fit = (point: { readonly left: number; readonly top: number }): { readonly left: number; readonly top: number } => ({
+    left: clamp(point.left, MARGIN, Math.max(MARGIN, viewWidth - CARD_WIDTH - MARGIN)),
+    top: clamp(point.top, MARGIN, Math.max(MARGIN, viewHeight - cardHeight - MARGIN)),
+  });
+  const covers = (box: { readonly left: number; readonly top: number }): boolean =>
+    box.left < rect.left + rect.width &&
+    box.left + CARD_WIDTH > rect.left &&
+    box.top < rect.top + rect.height &&
+    box.top + cardHeight > rect.top;
+
+  const placed = fit(raw);
+  // U44: kẹp vào khung nhìn có thể đẩy thẻ đè lên chính ô được dạy (nút Xuất sát mép trên/dưới): đứng bên cạnh ô.
+  if (placement === 'corner' || !covers(placed)) return placed;
+  const beside = fit({ left: rect.left - CARD_WIDTH - GAP, top: centreY });
+  if (!covers(beside)) return beside;
+  const besideRight = fit({ left: rect.left + rect.width + GAP, top: centreY });
+  return covers(besideRight) ? placed : besideRight;
 }
 
 /**

@@ -177,7 +177,7 @@ import {
   type CanvasFitSize,
   type CanvasFitView,
 } from '../shared/canvasFit';
-import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+import { SAVE_BLOCKED_LABEL, useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { SCALE_LOCK_REASON } from '../shared/floorReviewGateModel';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { useScaleLock } from '../shared/useScaleLock';
@@ -573,7 +573,13 @@ export function useObjectLayerReview(
   const saveIndicator = useSaveIndicator(autosave);
   /* Chưa lưu lượt nào thì không bịa "Đã lưu" (cùng luật màn Phòng). */
   const saveLabel =
-    !canEdit || (saveIndicator.state === 'saved' && autosave.getLastSavedAt() === undefined) ? null : saveIndicator.label;
+    !canEdit
+      ? null
+      : saveBlock !== null
+        ? SAVE_BLOCKED_LABEL
+        : saveIndicator.state === 'saved' && autosave.getLastSavedAt() === undefined
+          ? null
+          : saveIndicator.label;
 
   const dispatchBundle = useMemo<ObjectLayerDispatchDeps>(
     () =>
