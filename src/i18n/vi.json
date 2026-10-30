@@ -679,7 +679,7 @@
       "error": "Lỗi"
     },
     "cadPill": "Bản vẽ CAD · độ chính xác cao",
-    "autoMatch": "Ghép tự động từ tên tệp — kiểm tra lại",
+    "autoMatch": "Đã tự gán tệp vào tầng này — kiểm tra lại cho đúng tầng",
     "unassignedTray": "Tệp chưa gán tầng",
     "emptyState": "Chưa có tầng nào có bản vẽ.",
     "noFloors": {

@@ -220,6 +220,18 @@ function createHarness(
   };
 }
 
+/** Bộ mẫu bỏ hết bản vẽ máy chủ: chưa tầng nào có bản vẽ, nên tầng trống vẫn chặn (U03). */
+function withoutServerDrawings(): Partial<FloorUploadGateway> {
+  const real = createFloorUploadGateway(createMockApiClient());
+
+  return {
+    readFloors: async (input) => {
+      const read = await real.readFloors(input);
+      return read.ok ? { ok: true, data: read.data.map((floor) => ({ ...floor, drawings: [] })) } : read;
+    },
+  };
+}
+
 interface QueuedUpload {
   readonly kind?: string;
   readonly label?: string;
@@ -523,7 +535,7 @@ describe('useFloorUploadScreen — nhận tệp', () => {
     expect(result.current.tray.items).toHaveLength(0);
   });
 
-  it('tệp không đoán được tầng rơi vào khay chưa gán, không phải một lỗi', async () => {
+  it('nhiều tệp không đoán được tầng rơi vào khay chưa gán, không phải một lỗi', async () => {
     const harness = createHarness();
     const { result } = renderScreen(harness.options);
 
@@ -532,7 +544,7 @@ describe('useFloorUploadScreen — nhận tệp', () => {
     });
 
     act(() => {
-      result.current.onFilesDropped([makeFile('A-101-trang-3.png')]);
+      result.current.onFilesDropped([makeFile('A-101-trang-3.png'), makeFile('A-102.png')]);
     });
 
     // Ô gán tầng chỉ mở sau lượt kiểm tệp — tệp chưa kiểm (hay bị từ chối) không gán được (BUG-523).
@@ -540,7 +552,7 @@ describe('useFloorUploadScreen — nhận tệp', () => {
       expect(result.current.tray.items[0]?.assignOptions).toHaveLength(4);
     });
 
-    expect(result.current.tray.items).toHaveLength(1);
+    expect(result.current.tray.items).toHaveLength(2);
     expect(result.current.tray.items[0]?.error).toBeNull();
     expect(result.current.state).not.toBe('error');
   });
@@ -597,8 +609,10 @@ describe('useFloorUploadScreen — nhận tệp', () => {
       result.current.onDismissError(firstId);
     });
 
-    expect(result.current.tray.items[0]?.error).toBeNull();
-    expect(result.current.tray.items[1]?.error).not.toBeNull();
+    // Tệp bị từ chối lúc kiểm không bao giờ gán được: đóng lỗi là bỏ tệp khỏi khay (U55).
+    expect(result.current.tray.items).toHaveLength(1);
+    expect(result.current.tray.items[0]?.id).not.toBe(firstId);
+    expect(result.current.tray.items[0]?.error).not.toBeNull();
   });
 });
 
@@ -1540,7 +1554,7 @@ describe('useFloorUploadScreen — gán lại và xoá', () => {
 
 describe('useFloorUploadScreen — nút chính', () => {
   it('nút chặn nêu tên tầng thiếu và mang mã tầng để view cuộn tới', async () => {
-    const harness = createHarness();
+    const harness = createHarness(withoutServerDrawings());
     const { result } = renderScreen(harness.options);
 
     await waitFor(() => {
@@ -1567,7 +1581,7 @@ describe('useFloorUploadScreen — nút chính', () => {
   });
 
   it('mỗi lượt bấm bị chặn cho một requestId mới, nên view cuộn lại được', async () => {
-    const harness = createHarness();
+    const harness = createHarness(withoutServerDrawings());
     const { result } = renderScreen(harness.options);
 
     await waitFor(() => {
@@ -2445,5 +2459,195 @@ describe('floorUploadGateway — trần ba lượt tải song song (BUG-532)', (
     });
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(initUpload).toHaveBeenCalledTimes(3);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* UX41 — kịch bản người dùng 30/10 (U03, U28, U29, U30, U53, U55, P01).        */
+/* -------------------------------------------------------------------------- */
+
+describe('useFloorUploadScreen — UX41 tải bản vẽ', () => {
+  const ready = async (options: UseFloorUploadScreenOptions) => {
+    const view = renderScreen(options);
+
+    await waitFor(() => {
+      expect(view.result.current.floors.length).toBeGreaterThan(0);
+    });
+
+    return view;
+  };
+
+  const fileError = (code: string) => ({
+    kind: 'validation' as const,
+    code,
+    messageKey: 'errors.validation.description',
+    params: {},
+    requestId: 'r-422',
+    retryable: false,
+    severity: 'lỗi' as const,
+    recovery: 'không' as const,
+  });
+
+  it('U03: tầng trống không chặn khi tầng khác đã có bản vẽ; khung điều kiện nêu tên tầng bỏ qua', async () => {
+    // Bộ mẫu: chỉ `Tầng 1` có bản vẽ trên máy chủ.
+    const harness = createHarness();
+    const { result } = await ready(harness.options);
+
+    expect(result.current.footer.blockReasons.filter((reason) => reason.kind === 'missingFile')).toEqual([]);
+    expect(result.current.footer.skippedFloorNames).toEqual(['Tầng hầm', 'Tầng 2', 'Tầng 3']);
+    expect(result.current.footer.canSubmit).toBe(true);
+
+    act(() => {
+      result.current.onSubmit();
+    });
+
+    expect(harness.navigations).toHaveLength(1);
+  });
+
+  it('U28: chọn đúng một tệp không đoán được tầng thì tệp vào tầng trống đầu tiên, kèm lời nhắc', async () => {
+    const harness = createHarness();
+    const { result } = await ready(harness.options);
+
+    act(() => {
+      result.current.onFilesChosen([makeFile('ch-04.jpg', 16, 'image/jpeg')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[0]?.file?.name).toBe('ch-04.jpg');
+    });
+
+    expect(result.current.floors[0]?.isAutoMatched).toBe(true);
+    expect(result.current.tray.items).toHaveLength(0);
+  });
+
+  it('U53: dự án một tầng không bắt xác nhận ghép tầng', async () => {
+    const real = createFloorUploadGateway(createMockApiClient());
+    const harness = createHarness({
+      readFloors: async (input) => {
+        const read = await real.readFloors(input);
+        return read.ok
+          ? { ok: true, data: read.data.slice(0, 1).map((floor) => ({ ...floor, drawings: [] })) }
+          : read;
+      },
+    });
+    const { result } = await ready(harness.options);
+
+    act(() => {
+      result.current.onFilesChosen([makeFile('ch-05.jpg', 16, 'image/jpeg')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[0]?.file?.name).toBe('ch-05.jpg');
+    });
+
+    expect(result.current.floors[0]?.isAutoMatched).toBe(false);
+    expect(result.current.floors[0]?.autoMatchHint).toBeNull();
+  });
+
+  it('U29: mã lỗi tệp của máy chủ thành câu riêng, không phải câu chung "các trường được đánh dấu"', () => {
+    const gateway = createFloorUploadGateway(createMockApiClient());
+    const describe422 = (code: string) =>
+      gateway.describeUploadFailure({
+        stage: 'complete',
+        chunkIndex: null,
+        attempts: 1,
+        terminal: true,
+        error: fileError(code),
+      });
+
+    expect(describe422('PDF_ENCRYPTED').sentence).toContain('mật khẩu');
+    expect(describe422('FILE_TYPE_MISMATCH').sentence).toContain('không khớp đuôi tệp');
+    expect(describe422('PDF_ENCRYPTED').isRetryable).toBe(false);
+    expect(describe422('PDF_ENCRYPTED').sentence).not.toContain('trường được đánh dấu');
+  });
+
+  it('U30: tệp mới hỏng hẳn trên tầng đã có bản vẽ thì tầng giữ bản cũ, lỗi theo tệp về khay', async () => {
+    const harness = createHarness();
+    const { result } = await ready(harness.options);
+
+    act(() => {
+      result.current.onFilesForFloor?.('L1', [makeFile('bang-tinh-doi-duoi.png')]);
+    });
+
+    await waitFor(() => {
+      expect(harness.uploads.size).toBe(1);
+    });
+
+    act(() => {
+      [...harness.uploads.values()][0]?.finish({
+        percent: 0,
+        status: 'failed',
+        failure: { stage: 'complete', chunkIndex: null, attempts: 1, terminal: true, error: fileError('FILE_TYPE_MISMATCH') },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.tray.items).toHaveLength(1);
+    });
+
+    const ground = result.current.floors.find((row) => row.floorId === 'L1');
+
+    expect(ground?.status).toBe('attached');
+    expect(ground?.error).toBeNull();
+    expect(result.current.tray.items[0]?.name).toBe('bang-tinh-doi-duoi.png');
+    expect(result.current.tray.items[0]?.error?.sentence).toContain('không khớp đuôi tệp');
+  });
+
+  it('U55: tệp quá dung lượng nói cách làm nhỏ', async () => {
+    const harness = createHarness({
+      validateFile: async () => ({
+        ok: false,
+        reason: { kind: 'tooLarge', sizeBytes: 105 * 1024 * 1024, maxSizeBytes: MAX_UPLOAD_FILE_SIZE_BYTES },
+      }),
+    });
+    const { result } = await ready(harness.options);
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('qua-nang.png')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.tray.items[0]?.error?.sentence).toContain('giảm độ phân giải');
+    });
+  });
+
+  it('P01: thả lại đúng tệp đã có thì không thêm bản thứ hai và báo trùng', async () => {
+    const harness = createHarness();
+    const { result } = await ready(harness.options);
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('mat-bang-tang-2.png')]);
+    });
+    await waitFor(() => {
+      expect(result.current.floors[2]?.file?.name).toBe('mat-bang-tang-2.png');
+    });
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('mat-bang-tang-2.png')]);
+    });
+
+    expect(harness.toasts.map((toast) => toast.message)).toContain(
+      'mat-bang-tang-2.png đã có trong danh sách; bỏ qua bản trùng.',
+    );
+    expect(result.current.tray.items).toHaveLength(0);
+    expect(harness.uploads.size).toBe(1);
+  });
+
+  it('P01: chọn tầng trong khay báo trước tầng nào sẽ bị thay bản vẽ', async () => {
+    const harness = createHarness();
+    const { result } = await ready(harness.options);
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('A-101.png'), makeFile('A-102.png')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.tray.items[0]?.assignOptions).toHaveLength(4);
+    });
+
+    const labels = result.current.tray.items[0]?.assignOptions.map((option) => option.label);
+
+    expect(labels).toContain('Tầng 1 (thay bản vẽ đang có)');
+    expect(labels).toContain('Tầng 2');
   });
 });

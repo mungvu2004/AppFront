@@ -64,6 +64,9 @@ const BREADCRUMB_UPLOAD = 'Tải lên bản vẽ';
 const EYEBROW = 'Bước 1 · Tải bản vẽ';
 const PAGE_TITLE = 'Tải bản vẽ mặt bằng cho từng tầng';
 const SECTION_TITLE = 'Bản vẽ theo tầng';
+/** Khung điều kiện lúc chưa đọc xong danh sách tầng: chờ, không phán "chưa đạt" giả (U33). */
+const GATE_LOADING_TITLE = 'Điều kiện để xử lý';
+const GATE_LOADING_TEXT = 'Đang tải…';
 
 /** Chữ của dòng trạng thái. "Sẵn sàng xử lý" chỉ ở tiêu đề khung điều kiện, không lặp ở đây. */
 const STATUS_READY = 'Đủ điều kiện';
@@ -320,14 +323,22 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
 
             {/* Dưới 1024 một cột: khung điều kiện lên trước để câu 3 thấy được không cần cuộn. */}
             <div className="max-lg:order-first lg:sticky lg:top-6">
-              <FloorUploadGatePanel
-                blockNotice={blockNotice}
-                footer={footer}
-                gate={gate}
-                onOpenFloors={props.onAddFloors}
-                onShowFloor={showFloor}
-                onSubmit={props.onSubmit}
-              />
+              {state === 'loading' ? (
+                <Section title={GATE_LOADING_TITLE}>
+                  <p className="text-body-sm text-text-secondary" role="status">
+                    {GATE_LOADING_TEXT}
+                  </p>
+                </Section>
+              ) : (
+                <FloorUploadGatePanel
+                  blockNotice={blockNotice}
+                  footer={footer}
+                  gate={gate}
+                  onOpenFloors={props.onAddFloors}
+                  onShowFloor={showFloor}
+                  onSubmit={props.onSubmit}
+                />
+              )}
             </div>
           </div>
         )}

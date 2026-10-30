@@ -103,7 +103,7 @@ const COPY = Object.freeze({
   dropZoneTitleKey: 'floorUpload.dropZone.title',
   selectFile: 'Chọn tệp',
   formatsKey: 'floorUpload.dropZone.formats',
-  autoMatch: 'Ghép tự động từ tên tệp — kiểm tra lại',
+  autoMatch: 'Đã tự gán tệp vào tầng này — kiểm tra lại cho đúng tầng',
   trayTitle: 'Tệp chưa gán tầng',
   trayTitleKey: 'floorUpload.unassignedTray',
   empty: 'Chưa có tầng nào có bản vẽ.',
@@ -210,7 +210,8 @@ function rejectionSentence(reason: UploadRejection): string {
     case 'tooLarge':
       return (
         `Tệp nặng ${sizeOverCap(reason.sizeBytes, reason.maxSizeBytes)}, vượt trần ` +
-        `${formatFileSize(reason.maxSizeBytes)} của một tệp.`
+        `${formatFileSize(reason.maxSizeBytes)} của một tệp. Hãy giảm độ phân giải ảnh hoặc xuất lại ` +
+        `thành PDF rồi chọn lại.`
       );
     case 'unsupportedFormat':
       // `.dwg` bị từ chối ngay ở bước kiểm tệp (FIX-P0-13): cùng câu BE trả cho `CAD_NOT_SUPPORTED`.
@@ -455,6 +456,9 @@ export function useFloorUploadScreen(
     () => [...(floorsQuery.data ?? [])].sort((first, second) => first.order - second.order),
     [floorsQuery.data],
   );
+  // Danh sách tầng mới nhất cho lời gọi về muộn của một lượt tải (closure giữ bản cũ).
+  const floorsRef = useRef<readonly Floor[]>(floors);
+  floorsRef.current = floors;
 
   // Chưa có tầng thì không có chỗ gán tệp, và tệp chỉ sống trong màn — đi thêm tầng là mất nó:
   // vùng thả không mời thả, nút chính nói lý do, trạng thái rỗng dẫn tới Quản lý tầng (BUG-298).
@@ -626,21 +630,32 @@ export function useFloorUploadScreen(
     const status = statusOfTask(taskState);
     const failure = taskState.failure;
     const described = failure === null ? null : gateway.describeUploadFailure(failure);
+    const problem: FloorUploadInlineError | null =
+      described === null
+        ? null
+        : {
+            // Lỗi truyền tải là một loại riêng của màn; `described.kind` là
+            // loại của L-03 (`upload`, `network`…) và không phải cùng bảng.
+            kind: 'transfer',
+            sentence: described.sentence,
+            isRetryable: described.isRetryable,
+            titleKey: COPY.uploadErrorTitleKey,
+          };
+    const hasServerDrawing = (floorsRef.current.find((floor) => floor.id === floorId)?.drawings.length ?? 0) > 0;
+
+    // Tệp mới hỏng hẳn (422…) trên tầng đã có bản vẽ: máy chủ vẫn giữ bản cũ, nên thẻ tầng hiện
+    // lại bản cũ và lỗi đi theo tệp mới về khay (U30) — không để tệp hỏng che bản vẽ tốt.
+    if (taskState.status === 'failed' && problem !== null && !problem.isRetryable && hasServerDrawing) {
+      tasksRef.current.delete(id);
+      patchAttachment(id, { ...toTray(), status: 'error', problem });
+      getAppAnnouncer().announce(problem.sentence);
+      return;
+    }
 
     patchAttachment(id, {
       status,
       percent: taskState.percent,
-      problem:
-        described === null
-          ? null
-          : {
-              // Lỗi truyền tải là một loại riêng của màn; `described.kind` là
-              // loại của L-03 (`upload`, `network`…) và không phải cùng bảng.
-              kind: 'transfer',
-              sentence: described.sentence,
-              isRetryable: described.isRetryable,
-              titleKey: COPY.uploadErrorTitleKey,
-            },
+      problem,
     });
 
     // 404 giữa phiên: dự án (hay tầng) đã bị xoá ở nơi khác. Đọc lại dự án — nếu nó mất thì màn
@@ -766,7 +781,35 @@ export function useFloorUploadScreen(
     return taken;
   };
 
-  const acceptFile = (file: File, claimed: Set<string>, forcedFloorId: string | null = null): void => {
+  const acceptFile = (
+    file: File,
+    claimed: Set<string>,
+    forcedFloorId: string | null = null,
+    fallbackToFirstFree = false,
+  ): void => {
+    // Cùng tệp đưa vào lần nữa (cùng tên và dung lượng): không thêm bản thứ hai (P01).
+    const duplicate = attachmentsRef.current.find(
+      (other) => other.file.name === file.name && other.file.size === file.size && other.branch !== null,
+    );
+
+    if (duplicate !== undefined) {
+      const sentence = duplicateSentence(file.name);
+
+      getAppAnnouncer().announce(sentence);
+      options.onToast?.({ message: sentence });
+      return;
+    }
+
+    // Trùng tên với bản vẽ máy chủ đang giữ: vẫn nhận (có thể người dùng muốn thay), nhưng nói rõ.
+    const sameNameFloor = floors.find((floor) => floor.drawings.some((drawing) => drawing.name === file.name));
+
+    if (sameNameFloor !== undefined) {
+      const sentence = sameNameSentence(file.name, sameNameFloor.name);
+
+      getAppAnnouncer().announce(sentence);
+      options.onToast?.({ message: sentence });
+    }
+
     const id = gateway.createFileId();
 
     setAttachments((previous) => [
@@ -799,11 +842,13 @@ export function useFloorUploadScreen(
           ) ?? null)
         : null;
       // Từ thẻ tầng: gán thẳng. Chỉ còn đúng một tầng trống: tệp vào tầng đó, không rơi vào khay (N1-04).
+      // Chọn đúng MỘT tệp không đoán được tầng: vào tầng trống đầu tiên, kèm lời nhắc kiểm tra (U28) —
+      // nằm chờ trong khay thì bộ đếm vẫn "0 / 4" mà người dùng không biết vì sao.
       const free = floors.filter((floor) => !claimed.has(floor.id));
       const match =
         forcedFloorId !== null
           ? (floors.find((floor) => floor.id === forcedFloorId) ?? null)
-          : (guessed ?? (free.length === 1 ? (free[0] ?? null) : null));
+          : (guessed ?? (free.length === 1 || fallbackToFirstFree ? (free[0] ?? null) : null));
 
       if (match !== null) {
         claimed.add(match.id);
@@ -813,7 +858,8 @@ export function useFloorUploadScreen(
         branch: check.branch,
         pageCount: check.pageCount ?? null,
         floorId: match?.id ?? null,
-        isAutoMatched: match !== null && forcedFloorId === null,
+        // Dự án một tầng: không có tầng nào khác để nhầm, nên không bắt xác nhận (U53).
+        isAutoMatched: match !== null && forcedFloorId === null && floors.length > 1,
         status: 'waiting',
       };
 
@@ -843,7 +889,7 @@ export function useFloorUploadScreen(
     const claimed = new Set(takenFloorIds());
 
     for (const file of files) {
-      acceptFile(file, claimed);
+      acceptFile(file, claimed, null, files.length === 1);
     }
   };
 
@@ -1019,6 +1065,14 @@ export function useFloorUploadScreen(
   /* Lý do chặn và nút chính.                                                */
   /* ---------------------------------------------------------------------- */
 
+  // Đã có ít nhất một tầng có bản vẽ: tầng HOÀN TOÀN trống (không tệp nào) không chặn — bước Xử lý
+  // chỉ chạy tầng có bản vẽ (U03). Tệp đang chờ/hỏng của một tầng thì vẫn chặn như cũ.
+  const skippedFloors = useMemo<readonly Floor[]>(() => {
+    const empty = floors.filter((floor) => floor.drawings.length === 0 && !attachmentByFloor.has(floor.id));
+
+    return empty.length < floors.length ? empty : [];
+  }, [attachmentByFloor, floors]);
+
   const blockReasons = useMemo<readonly FloorUploadBlockReason[]>(() => {
     const reasons: FloorUploadBlockReason[] =
       hasNoFloors ? [{ floorId: '', floorName: '', kind: 'noFloors', sentence: COPY.noFloors }] : [];
@@ -1028,6 +1082,10 @@ export function useFloorUploadScreen(
     // với `{{floorName}}` là phần số, nên ghép thêm chữ `Tầng` vào đây là đọc
     // thành `Tầng Tầng 2 chưa có bản vẽ.`. Nhãn xuất hiện đúng một lần.
     for (const floor of floors) {
+      if (skippedFloors.includes(floor)) {
+        continue;
+      }
+
       const attachment = attachmentByFloor.get(floor.id) ?? null;
       // Cùng luật với bộ đếm "N / M tầng đã có bản vẽ": một tệp ĐANG CHỜ (PDF chưa
       // chọn trang, hàng đợi ngoại tuyến) hay ĐÃ HỎNG chưa phải bản vẽ của tầng.
@@ -1092,7 +1150,7 @@ export function useFloorUploadScreen(
     }
 
     return reasons;
-  }, [attachmentByFloor, floors, hasNoFloors, stack]);
+  }, [attachmentByFloor, floors, hasNoFloors, skippedFloors, stack]);
 
   const canSubmit = canEdit && floors.length > 0 && blockReasons.length === 0;
 
@@ -1139,6 +1197,18 @@ export function useFloorUploadScreen(
   const reassignOptions = useMemo<readonly SelectOption[]>(
     () => floors.map((floor) => ({ value: floor.id, label: floor.name })),
     [floors],
+  );
+  // Gán từ khay vào tầng đã có bản vẽ là THAY bản vẽ ấy: nói trước ngay trong lựa chọn (P01).
+  const trayAssignOptions = useMemo<readonly SelectOption[]>(
+    () =>
+      floors.map((floor) => ({
+        value: floor.id,
+        label:
+          floor.drawings.length > 0 || attachmentByFloor.has(floor.id)
+            ? `${floor.name} (thay bản vẽ đang có)`
+            : floor.name,
+      })),
+    [attachmentByFloor, floors],
   );
 
   // Ảnh xem trước: blob URL của tệp ảnh, giữ theo id tệp và thu hồi khi rời màn (G3-24).
@@ -1298,12 +1368,12 @@ export function useFloorUploadScreen(
             isCadBranch: model.isCadBranch,
             summaryLine: model.summaryLine,
             error: visibleProblem(attachment),
-            assignOptions: canEdit && attachment.branch !== null ? reassignOptions : [],
+            assignOptions: canEdit && attachment.branch !== null ? trayAssignOptions : [],
             canRemoveFile: canEdit,
             removeLabel: canEdit ? `Xoá bản vẽ ${attachment.file.name}` : null,
           };
         }),
-    [attachments, canEdit, fileModelFor, reassignOptions],
+    [attachments, canEdit, fileModelFor, trayAssignOptions],
   );
 
   const tray: FloorUploadTrayModel = {
@@ -1329,6 +1399,7 @@ export function useFloorUploadScreen(
     blockReasons,
     isSubmitting,
     isSubmitHidden: !canEdit,
+    skippedFloorNames: skippedFloors.map((floor) => floor.name),
   };
 
   /* ---------------------------------------------------------------------- */
@@ -1461,10 +1532,15 @@ export function useFloorUploadScreen(
     ...split.actions,
     onDismissError: (fileId) =>
       // Đọc lỗi ngay trong lượt cập nhật, không từ bản vẽ cũ của closure: lượt kiểm tệp có thể vừa
-      // đặt lỗi mà màn chưa vẽ lại.
+      // đặt lỗi mà màn chưa vẽ lại. Tệp bị từ chối ngay lúc kiểm (`branch === null`) không bao giờ
+      // gán được, nên đóng lỗi là bỏ luôn tệp khỏi khay — không bắt xoá tay lần nữa (U55).
       setAttachments((previous) =>
-        previous.map((attachment) =>
-          attachment.id === fileId ? { ...attachment, dismissedProblem: attachment.problem } : attachment,
+        previous.flatMap((attachment) =>
+          attachment.id !== fileId
+            ? [attachment]
+            : attachment.branch === null && attachment.problem !== null
+              ? []
+              : [{ ...attachment, dismissedProblem: attachment.problem }],
         ),
       ),
   };
@@ -1491,6 +1567,16 @@ const HASHED_FILE_NAME = /^[0-9a-f-]{16,}(\.[a-z0-9]+)?$/iu;
 
 function drawingDisplayName(fileName: string, floorName: string): string {
   return HASHED_FILE_NAME.test(fileName) ? `Bản vẽ ${floorName.toLocaleLowerCase('vi')}` : fileName;
+}
+
+/** Cùng tệp vừa được đưa vào lần nữa (P01). */
+function duplicateSentence(fileName: string): string {
+  return `${fileName} đã có trong danh sách; bỏ qua bản trùng.`;
+}
+
+/** Tệp mới trùng tên với bản vẽ máy chủ đang giữ của một tầng (P01). */
+function sameNameSentence(fileName: string, floorName: string): string {
+  return `${fileName} trùng tên với bản vẽ đang có của ${floorName}; gán vào tầng ấy sẽ thay bản cũ.`;
 }
 
 function displacedSentence(fileName: string): string {

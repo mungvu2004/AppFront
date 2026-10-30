@@ -53,7 +53,7 @@ test('ba tệp ghép đúng tầng theo tên, bộ đếm lên 4 / 4 và "Bắt 
   await attach(page, THREE_FLOORS);
 
   await expect(counter(page)).toHaveText(/4 \/ 4 tầng đã có bản vẽ/);
-  await expect(page.getByText('Ghép tự động từ tên tệp — kiểm tra lại')).toHaveCount(3);
+  await expect(page.getByText('Đã tự gán tệp vào tầng này — kiểm tra lại cho đúng tầng')).toHaveCount(3);
 
   await page.getByRole('button', { name: 'Bắt đầu xử lý' }).click();
 
@@ -61,18 +61,16 @@ test('ba tệp ghép đúng tầng theo tên, bộ đếm lên 4 / 4 và "Bắt 
   await expect(page.getByRole('navigation', { name: 'Xử lý' })).toBeVisible();
 });
 
-test('chưa đủ bản vẽ thì nút chính nêu đúng ba tầng thiếu và không rời màn', async ({ page }) => {
+test('U03: tầng trống không chặn khi đã có tầng có bản vẽ — nêu tầng bỏ qua rồi sang màn xử lý', async ({
+  page,
+}) => {
   await openUpload(page);
+
+  await expect(page.getByText('Bỏ qua tầng chưa có bản vẽ: Tầng hầm, Tầng 2, Tầng 3.')).toBeVisible();
 
   await page.getByRole('button', { name: 'Bắt đầu xử lý' }).click();
 
-  const alert = page.getByRole('alert').filter({ hasText: 'Không thể bắt đầu xử lý' });
-  await expect(alert).toBeVisible();
-  await expect(alert).toContainText('Tầng hầm chưa có bản vẽ.');
-  await expect(alert).toContainText('Tầng 2 chưa có bản vẽ.');
-  await expect(alert).toContainText('Tầng 3 chưa có bản vẽ.');
-  await expect(alert).not.toContainText('Tầng 1 chưa có bản vẽ.');
-  expect(pathOf(page.url())).toBe(UPLOAD);
+  await expect.poll(() => pathOf(page.url())).toBe(PIPELINE);
 });
 
 test('B-V4-04: PDF chưa chọn trang chưa phải bản vẽ — nút chính chặn, không sang màn xử lý', async ({
