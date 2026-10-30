@@ -33,6 +33,7 @@ import { getAppAnnouncer } from '@/lib/input/announcer';
 import { createTestQueryClient } from '@/lib/testing/render';
 import type { HttpError } from '@/lib/http';
 import {
+  hashBlobSha256Hex,
   MAX_UPLOAD_FILE_SIZE_BYTES,
   type UploadFailure,
   type UploadTask,
@@ -2649,5 +2650,37 @@ describe('useFloorUploadScreen — UX41 tải bản vẽ', () => {
 
     expect(labels).toContain('Tầng 1 (thay bản vẽ đang có)');
     expect(labels).toContain('Tầng 2');
+  });
+
+  it('P01: tệp giống hệt bản vẽ đang dùng (SHA-256) thì báo và không tự thay tầng đó', async () => {
+    const file = makeFile('mat-bang-tang-1.png');
+    const sha256 = await hashBlobSha256Hex(file);
+    const real = createFloorUploadGateway(createMockApiClient());
+    const harness = createHarness({
+      readFloors: async (input) => {
+        const read = await real.readFloors(input);
+        return read.ok
+          ? {
+              ok: true,
+              data: read.data.map((floor) => ({
+                ...floor,
+                drawings: floor.drawings.map((drawing) => ({ ...drawing, contentSha256: sha256 })),
+              })),
+            }
+          : read;
+      },
+    });
+    const { result } = await ready(harness.options);
+
+    act(() => {
+      result.current.onFilesDropped([file]);
+    });
+
+    await waitFor(() => {
+      expect(
+        harness.toasts.some((toast) => toast.message.startsWith('Tệp này giống hệt bản vẽ đang dùng của Tầng')),
+      ).toBe(true);
+    });
+    expect(harness.uploads.size).toBe(0);
   });
 });

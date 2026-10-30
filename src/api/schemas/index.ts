@@ -138,6 +138,8 @@ export type UserRole = User['role'];
 
 export const DrawingSchema = z
   .object({
+    /** SHA-256 hex của tệp gốc (UX41 P01); vắng với lượt tải cũ. */
+    contentSha256: z.string().regex(/^[0-9a-f]{64}$/u).optional(),
     heightMm: positiveMmIntegerSchema,
     id: idSchema,
     name: z.string().min(1),
@@ -149,6 +151,7 @@ export const DrawingSchema = z
   })
   .strict()
   .transform((wireDrawing) => ({
+    ...(wireDrawing.contentSha256 !== undefined ? { contentSha256: wireDrawing.contentSha256 } : {}),
     heightMm: wireDrawing.heightMm,
     id: wireDrawing.id,
     name: wireDrawing.name,

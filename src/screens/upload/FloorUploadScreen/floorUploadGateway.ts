@@ -158,6 +158,11 @@ export interface FloorUploadGateway {
   readonly validateFile: (file: UploadCandidate) => Promise<UploadValidation>;
   /** Đoán tầng từ một cái tên. Trượt là câu trả lời bình thường, không phải lỗi. */
   readonly guessFloor: (name: string) => FloorGuess;
+  /**
+   * Ảnh nhỏ từng trang của một PDF chưa tải lên (N41, UX41 U05): `data:` URL theo thứ tự
+   * trang. Lỗi hay không có ảnh → mảng rỗng, ô chọn trang lùi về danh sách chữ.
+   */
+  readonly readPageThumbnails?: (input: { readonly projectId: string; readonly file: Blob }) => Promise<readonly string[]>;
   /** Một lượt tải: `initUpload` → các khúc → `complete`, kèm huỷ và trạng thái. */
   readonly createUpload: (input: CreateFloorUploadInput) => UploadTask;
   /** Ghi ý định tải vào hàng đợi ngoại tuyến. Mã lệnh, hoặc `null` khi hàng đợi từ chối. */
@@ -268,6 +273,12 @@ export function createFloorUploadGateway(
     validateFile: (file) => validateUploadFile(file),
 
     guessFloor: (name) => guessFloorFromFileName(name),
+
+    readPageThumbnails: async ({ file, projectId }) => {
+      const result = await client.drawings.pageThumbnails({ file, projectId });
+
+      return result.ok ? result.data : [];
+    },
 
     createUpload: ({ file, floorId, id, onProgress, pageIndex, projectId }) => {
       const task = createUploadTask({

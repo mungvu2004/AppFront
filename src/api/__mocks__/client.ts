@@ -1649,6 +1649,8 @@ export const createMockApiClient = (): ApiClient => {
 
         return ok({ droppedCount: 0, items: page, ...(next !== undefined ? { nextCursor: next } : {}) });
       },
+      // Không dựng PDF trong mock: ô chọn trang lùi về danh sách chữ.
+      pageThumbnails: async () => ok([]),
       progress: async ({ projectId, uploadId }) =>
         ok(uploads.get(uploadKey(projectId, uploadId)) ?? makeProgress({ id: uploadId, progressPercent: 0 })),
       sendChunk: async ({ body, projectId, uploadId }) => {

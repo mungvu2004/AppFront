@@ -71,7 +71,7 @@ import {
 import { ProjectSummarySchema, type ProjectSummary } from './schemas/projectSummaries';
 import { ProjectRuleConfigSchema, type ProjectRuleConfig, type UpdateRuleConfig } from './schemas/ruleConfig';
 import { MeSchema, type ChangePassword, type Me, type UpdateMe, type UploadAvatar } from './schemas/me';
-import { LatestFloorUploadSchema, type LatestFloorUpload } from './schemas/uploads';
+import { LatestFloorUploadSchema, PageThumbnailsSchema, type LatestFloorUpload } from './schemas/uploads';
 import {
   type FloorVersionPageSchema,
   FloorVersionSnapshotSchema,
@@ -248,6 +248,12 @@ export interface CompleteDrawingUploadInput extends WriteRequestOptions {
 export interface ReadDrawingProgressInput extends RequestOptions {
   projectId: string;
   uploadId: string;
+}
+
+export interface ReadPageThumbnailsInput extends RequestOptions {
+  /** Byte PDF thô (≤ 8 MiB, trần thân của BE). */
+  file: Blob;
+  projectId: string;
 }
 
 export interface ListLatestUploadsInput extends RequestOptions {
@@ -558,6 +564,8 @@ export interface DrawingsApi {
   latestUploads(input: ListLatestUploadsInput): Promise<ApiResult<LatestFloorUpload[]>>;
   /** N7b — một trang nhật ký lượt xử lý, mới nhất trước. */
   listPipelineRuns(input: ListPipelineRunsInput): Promise<ApiResult<PipelineRunList>>;
+  /** N41 (UX41 U05) — ảnh nhỏ từng trang của một PDF chưa tải lên; `data:` URL theo thứ tự trang. */
+  pageThumbnails(input: ReadPageThumbnailsInput): Promise<ApiResult<string[]>>;
   progress(input: ReadDrawingProgressInput): Promise<ApiResult<Progress>>;
   sendChunk(input: SendDrawingChunkInput): Promise<ApiResult<Progress>>;
 }
@@ -1131,6 +1139,18 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
           ...(page.data.nextCursor !== undefined ? { nextCursor: page.data.nextCursor } : {}),
         },
       };
+    },
+    pageThumbnails: async ({ file, projectId, signal }) => {
+      const decoded = decodeSingle(
+        await callPost(http, ENDPOINTS.drawings.pageThumbnails(projectId), file, {
+          timeoutMode: 'file',
+          ...(signal !== undefined ? { signal } : {}),
+        }),
+        PageThumbnailsSchema,
+        'drawings.pageThumbnails',
+      );
+
+      return decoded.ok ? { ok: true, data: decoded.data.pages } : decoded;
     },
     progress: async ({ projectId, signal, uploadId }) =>
       decodeSingle(
