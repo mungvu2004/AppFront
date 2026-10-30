@@ -254,7 +254,7 @@ export const TOUR_STEPS: readonly TourStepDefinition[] = [
     anchorSelector: '[data-tour-anchor="exportResult"]',
     shortcutId: null,
     title: 'Lấy tệp mang đi',
-    body: 'Nút ở chân bảng chỉ sáng lên khi đã có thứ để lấy, và cũng chưa gắn phím nào.',
+    body: 'Bấm nút Xuất ở cuối trang để tải tệp về máy.',
     placement: 'top',
   },
 ];

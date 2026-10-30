@@ -300,11 +300,17 @@ const READINESS_REASON_SHORT: Readonly<Record<ReadinessReason, string>> = {
   fallbackTextModel: 'chữ đọc bằng mô hình dự phòng',
 };
 
-function reviewReasonsOf(meta: NonNullable<PreflightInput['floorMeta']>[string]): readonly ReadinessReason[] {
+function reviewReasonsOf(
+  meta: NonNullable<PreflightInput['floorMeta']>[string],
+  level: Level,
+  isEmpty: boolean,
+): readonly ReadinessReason[] {
   if (meta?.readiness !== undefined) {
     return meta.readiness.state === 'needsReview' ? meta.readiness.reasons : [];
   }
-  return meta?.scaleStatus === 'unresolved' ? ['scaleUnresolved'] : [];
+  // Tầng có bản vẽ mà chưa đặt tỷ lệ: kích thước xuất ra sai (U12). Đọc thẳng từ tầng, không cần N16.
+  const noScale = !isEmpty && level.scaleMillimetresPerPixel === undefined;
+  return meta?.scaleStatus === 'unresolved' || noScale ? ['scaleUnresolved'] : [];
 }
 
 /**
@@ -329,7 +335,10 @@ function reviewReasonsOf(meta: NonNullable<PreflightInput['floorMeta']>[string])
 export function buildPreflightRows(input: PreflightInput): readonly PreflightRow[] {
   const { projectId, graph, levels, violations, floorMeta } = input;
 
-  const unapprovedLevels = levels.filter((level) => !level.reviewed);
+  // Tầng chưa có bản vẽ (không đối tượng nào) không có gì để duyệt: nói riêng, không tính "chưa duyệt" (U11).
+  const isEmptyLevel = (level: Level): boolean => graph !== null && idsOnLevel(graph, level.id).length === 0;
+  const emptyLevels = levels.filter(isEmptyLevel);
+  const unapprovedLevels = levels.filter((level) => !level.reviewed && !isEmptyLevel(level));
   const unreviewed = collectUnreviewed(graph, levels);
   const violationCount = violations.length;
   const ruleCounts = ruleCountsBySeverity(violations);
@@ -346,11 +355,13 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
         levels.length === 0
           ? 'Chưa chọn tầng nào để xuất.'
           : unapprovedLevels.length === 0
-            ? `Cả ${formatNumber(levels.length)} tầng đã chọn đều đã duyệt.`
+            ? emptyLevels.length > 0
+              ? `Tầng chưa có bản vẽ: ${emptyLevels.map((level) => level.name).join(', ')}.`
+              : `Cả ${formatNumber(levels.length)} tầng đã chọn đều đã duyệt.`
             : `Còn ${formatNumber(unapprovedLevels.length)} tầng chưa duyệt: ${unapprovedLevels
                 .map((level) => level.name)
                 .join(', ')}.`,
-      tone: unapprovedLevels.length === 0 && levels.length > 0 ? 'ok' : 'attention',
+      tone: unapprovedLevels.length === 0 && emptyLevels.length === 0 && levels.length > 0 ? 'ok' : 'attention',
       fixHref: unapprovedLevels.length === 0 ? null : ROUTES.project.floors(projectId),
     },
     {
@@ -379,7 +390,7 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
 
   // Tầng cần xem lại (N16 `readiness`, FIX-P0-15): một dòng tông attention, KHÔNG chặn Xuất (30-C-023).
   const flagged = levels
-    .map((level) => ({ level, reasons: reviewReasonsOf(floorMeta?.[level.id]) }))
+    .map((level) => ({ level, reasons: reviewReasonsOf(floorMeta?.[level.id], level, isEmptyLevel(level)) }))
     .filter((entry) => entry.reasons.length > 0);
   const firstFlagged = flagged[0];
   if (firstFlagged !== undefined) {
@@ -802,6 +813,16 @@ export interface StartGlbExportInput {
   readonly options: ExportGlbOptions;
 }
 
+export interface StartPdfExportInput {
+  readonly projectId: string;
+  readonly projectName: string;
+  readonly graph: SpatialGraph;
+  readonly violations: readonly Violation[];
+  readonly dataVersion: string;
+  readonly preparerName: string;
+  readonly choice: PdfSectionChoice;
+}
+
 export interface StartSpatialJsonExportInput {
   readonly projectId: string;
   readonly projectName: string;
@@ -856,6 +877,8 @@ export interface ExportPanelGateway {
   readonly startSpatialJsonExport: (
     input: StartSpatialJsonExportInput,
   ) => Promise<ExportedFile>;
+  /** Hồ sơ PDF: dựng trang in rồi mở hộp thoại in ("Lưu thành PDF"); không thư viện PDF. */
+  readonly startPdfExport: (input: StartPdfExportInput) => Promise<ExportedFile>;
   /** Huỷ lượt đang chạy. Không có lượt nào thì không làm gì. */
   readonly cancel: (projectId: string) => void;
   readonly deliver: (file: ExportedFile) => void;
@@ -875,6 +898,23 @@ export interface ExportPanelGateway {
  * không thu hồi là một `Blob` không bao giờ được giải phóng.
  */
 function deliverViaAnchor(file: ExportedFile): void {
+  // PDF = trang in: nạp vào iframe ẩn rồi in, người dùng chọn "Lưu thành PDF" (tránh bị chặn cửa sổ bật lên).
+  if (file.formatId === 'pdf') {
+    void file.blob.text().then((html) => {
+      const frame = document.createElement('iframe');
+      frame.style.cssText = 'position:fixed;width:0;height:0;border:0';
+      frame.srcdoc = html;
+      frame.onload = () => {
+        frame.contentWindow?.print();
+        setTimeout(() => {
+          frame.remove();
+        }, 60_000);
+      };
+      document.body.append(frame);
+    });
+    return;
+  }
+
   const url = URL.createObjectURL(file.blob);
   const anchor = document.createElement('a');
 
@@ -1011,6 +1051,35 @@ export function createExportPanelGateway(seed: ExportPanelGatewaySeed = {}): Exp
         return Promise.resolve(
           finish(input.projectId, 'spatial-json', fileName, blob, blob.size),
         );
+      } catch (error) {
+        fail(input.projectId);
+
+        return Promise.reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    },
+
+    startPdfExport: (input) => {
+      const run = runOf(input.projectId);
+
+      run.task?.cancel();
+      publish(run, { ...run.snapshot, runningFormatId: 'pdf', progress: null });
+
+      try {
+        const exportedAt = new Date(now());
+        const html = pdfModule.renderPdfHtml(
+          pdfModule.buildPdfDocument({
+            graph: input.graph,
+            violations: input.violations,
+            dataVersion: input.dataVersion,
+            exportedAt,
+            preparer: { name: input.preparerName },
+            sections: toPdfSections(input.choice),
+          }),
+        );
+        const blob = new Blob([html], { type: 'text/html' });
+        const fileName = `${glbModule.toFileSlug(input.projectName)}_${glbModule.formatExportTimestamp(exportedAt)}.pdf`;
+
+        return Promise.resolve(finish(input.projectId, 'pdf', fileName, blob, blob.size));
       } catch (error) {
         fail(input.projectId);
 

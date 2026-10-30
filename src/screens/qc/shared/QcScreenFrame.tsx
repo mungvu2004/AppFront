@@ -112,7 +112,8 @@ export function QcWorkspace({
   const hasInspector = inspector != null && inspector !== false;
   const hasLeft = left != null && left !== false;
   const [columnManual, setColumnManual] = useState<{ readonly key: string | null; readonly open: boolean } | null>(null);
-  const isColumnOpen = columnManual?.key === selectionKey ? columnManual.open : selectionKey == null;
+  // U58: dưới 1024 cột việc là ngăn kéo, mặc định đóng để không che bản vẽ; từ 1024 nó luôn hiện (class chỉ áp max-lg).
+  const isColumnOpen = columnManual?.key === selectionKey ? columnManual.open : false;
   const setColumnOpen = (open: boolean) => setColumnManual({ key: selectionKey, open });
   const columnDrawer = column && hasLeft;
 

@@ -60,6 +60,7 @@ import {
   type PdfLabelledText,
   type PdfLevelSummaryPage,
   type PdfPage,
+  type PdfTableColumn,
   type PdfRoomAreasPage,
   type PdfSectionKind,
   type PdfTableRow,
@@ -480,4 +481,62 @@ export function buildPdfDocument(input: ExportPdfInput): PdfDocument {
   }
 
   return { font: PDF_FONT, pages };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Print-ready HTML — "PDF" without a PDF library.                             */
+/* -------------------------------------------------------------------------- */
+
+const escapeHtml = (text: string): string =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const PRINT_CSS =
+  'body{font-family:"Noto Sans","Be Vietnam Pro","DejaVu Sans",sans-serif;font-size:12px;color:#000;margin:0}' +
+  'section{page-break-after:always;padding:16px}section:last-child{page-break-after:auto}' +
+  'table{border-collapse:collapse;width:100%}th,td{border:1px solid #444;padding:3px 6px;vertical-align:top}' +
+  'th{background:#eee}.r{text-align:right}footer{margin-top:12px;font-size:10px;color:#444}img{max-width:100%}';
+
+function renderTable(columns: readonly PdfTableColumn[], rows: readonly PdfTableRow[]): string {
+  const align = (column: PdfTableColumn): string => (column.alignment === 'right' ? ' class="r"' : '');
+  const head = columns.map((column) => `<th${align(column)}>${escapeHtml(column.label)}</th>`).join('');
+  const body = rows
+    .map((row) => `<tr>${row.cells.map((cell, index) => `<td${columns[index] ? align(columns[index]) : ''}>${escapeHtml(cell)}</td>`).join('')}</tr>`)
+    .join('');
+  return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function renderPage(page: PdfPage): string {
+  const title = `<h1>${escapeHtml(page.title)}</h1>`;
+  let body = '';
+  if (page.kind === 'cover') {
+    body =
+      `<h2>${escapeHtml(page.projectNameText)}</h2>` +
+      page.fields.map((field) => `<p><b>${escapeHtml(field.label)}</b>: ${escapeHtml(field.text)}</p>`).join('') +
+      (page.preparerNoteText === undefined ? '' : `<p>${escapeHtml(page.preparerNoteText)}</p>`);
+  } else if (page.kind === 'attachments') {
+    body = page.images
+      .map((image) => `<figure><img src="${escapeHtml(image.pngDataUrl)}" alt="${escapeHtml(image.title)}"><figcaption>${escapeHtml(image.captionText)}</figcaption></figure>`)
+      .join('');
+  } else if (page.kind === 'violations' && page.rows.length === 0) {
+    body = `<p>${escapeHtml(page.emptyText ?? NO_VIOLATIONS_TEXT)}</p>`;
+  } else {
+    body = renderTable(page.columns, page.rows);
+    if (page.kind === 'roomAreas') {
+      body += `<p><b>${escapeHtml(page.totalArea.label)}</b>: ${escapeHtml(page.totalArea.text)}</p>`;
+    }
+  }
+  return `<section>${title}${body}<footer>${escapeHtml(page.footer.pageText)} · ${escapeHtml(page.footer.versionText)}</footer></section>`;
+}
+
+/**
+ * The dossier as one self-printing HTML document: the browser's "Lưu thành PDF" is the PDF
+ * writer, so no library is added. Fonts fall back by name; the print dialog embeds them.
+ */
+export function renderPdfHtml(document: PdfDocument): string {
+  return (
+    '<!doctype html><html lang="vi"><head><meta charset="utf-8">' +
+    `<title>${escapeHtml(PDF_COVER_TITLE)}</title><style>${PRINT_CSS}</style></head><body>` +
+    document.pages.map(renderPage).join('') +
+    '</body></html>'
+  );
 }
