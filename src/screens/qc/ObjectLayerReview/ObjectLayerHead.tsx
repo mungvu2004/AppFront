@@ -4,9 +4,9 @@ import type { ObjectLayerReviewViewProps } from './ObjectLayerReview';
 
 /* Cổng chung của tầng (`FloorReviewGate`) ở đáy cột việc nói bước tiếp (HOP-DONG-V6). */
 
-const NEXT_LABEL = 'Duyệt tiếp';
+const NEXT_LABEL = 'Xem tiếp';
 
-/** Cổng chung của tầng; nút "Duyệt tiếp" mở mục kế tiếp của lớp này. */
+/** Cổng chung của tầng; nút "Xem tiếp" mở mục kế tiếp của lớp này. */
 export function ObjectLayerGate({ model }: { readonly model: ObjectLayerReviewViewProps }) {
   const next = model.nextPending ?? null;
   const nav = model.floorNav;

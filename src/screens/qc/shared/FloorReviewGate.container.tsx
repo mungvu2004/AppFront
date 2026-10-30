@@ -45,7 +45,7 @@ const LAYER_ROUTES: Readonly<Record<RequiredLayerKey, (projectId: string, floorI
   rooms: ROUTES.project.rooms,
 };
 
-const DEFAULT_NEXT_LABEL = 'Duyệt mục kế tiếp';
+const DEFAULT_NEXT_LABEL = 'Xem mục kế tiếp';
 const VIEWER_LABEL = 'Sang Mô hình 3D';
 const SCALE_SET_ACTION = SCALE_STATE_VIEWS.missing.action;
 const nextStepLabel = (label: string): string => `Tiếp: ${label}`;

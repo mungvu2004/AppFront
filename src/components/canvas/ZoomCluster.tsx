@@ -18,6 +18,8 @@ interface ZoomClusterProps {
   onZoomOut?: () => void;
   onResetZoom?: () => void;
   onFitToScreen?: () => void;
+  /** Phím "Vừa khung" của màn, ghi trong tooltip. Bỏ trống khi màn không gán phím (U43: F ở màn QC là đổi chế độ nhìn). */
+  fitShortcut?: string;
 }
 
 /**
@@ -34,6 +36,7 @@ export function ZoomCluster({
   onZoomOut,
   onResetZoom,
   onFitToScreen,
+  fitShortcut,
 }: ZoomClusterProps) {
   // Hook vẫn chạy vô điều kiện (luật hook của React); props chỉ ĐÈ LÊN nó.
   const internal = useZoomCluster();
@@ -120,7 +123,7 @@ export function ZoomCluster({
           onClick={fitToScreen}
           className={btnBase}
           aria-label="Vừa khung nhìn"
-          title="Vừa khung (F)"
+          title={fitShortcut === undefined ? 'Vừa khung' : `Vừa khung (${fitShortcut})`}
         >
           <Maximize2 size={14} strokeWidth={2} />
         </button>

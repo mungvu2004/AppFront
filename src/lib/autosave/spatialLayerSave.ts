@@ -145,7 +145,8 @@ export interface LayerSaveBlock {
 export const LAYER_SAVE_MESSAGES = {
   forbidden: 'Bạn không còn quyền sửa tầng này.',
   integrity: (count: number): string => `Tầng này có ${count} chỗ hỏng liên kết hình học nên chưa lưu được.`,
-  reload: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.',
+  /* P02: nói rõ "Tải lại" bỏ thay đổi chưa lưu của tab này — không để người dùng mất sửa mà không biết. */
+  reload: 'Tầng này vừa được sửa ở nơi khác nên thay đổi của bạn ở đây chưa lưu được. Tải lại để xem bản mới nhất; thay đổi chưa lưu sẽ bị bỏ.',
   unnamedRoom: 'Có phòng chưa đặt tên nên chưa lưu được tầng này. Đặt tên cho phòng đó rồi lưu lại.',
   scaleRedirtied: 'Tỷ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới.',
   rejected: (field: string): string =>

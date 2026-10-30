@@ -106,7 +106,7 @@ import {
 import { formatLength, formatScaleDensity } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
 import { CONFIDENCE_SUGGESTED_THRESHOLD, confidenceLevel, type ConfidenceLevel } from '@/lib/format/semantic';
-import { createUndoTicket, UNDO_WINDOW_MS, type UndoTicket } from '@/lib/mutations/undoTicket';
+import { createUndoTicket, LONG_UNDO_WINDOW_MS, UNDO_WINDOW_MS, type UndoTicket } from '@/lib/mutations/undoTicket';
 import { toWallViewModel } from '@/lib/viewmodel/toViewModel';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import { applyRollbackPatches, commit } from '@/store/commit';
@@ -765,15 +765,31 @@ export const NO_WALL_SELECTION: SelectionSnapshot = NO_SELECTION;
  * Câu trên toast hoàn tác sau khi xoá — gọi tường bằng đúng nhãn danh sách gọi nó
  * (`#W-001`), không bằng mã máy `W-000001WALL` (B-V6-02).
  */
+export interface DeleteToastExtras {
+  /** U36: số cửa đi/cửa sổ gắn trên tường, bị xoá cùng lệnh. */
+  readonly openingCount?: number;
+  /** U57: số thứ tự trên hình và trong danh sách (`QcQueueNumber`), để toast gọi cùng tên với hình. */
+  readonly queueNumber?: number;
+}
+
 export const deleteToastDescription = (
   wallId: WallId,
   wallCodes?: ReadonlyMap<string, string>,
-): string => `Đã xoá tường ${wallLabelOf(wallId, wallCodes)}.`;
+  extras: DeleteToastExtras = {},
+): string => {
+  const { openingCount = 0, queueNumber } = extras;
+  const name = queueNumber === undefined ? wallLabelOf(wallId, wallCodes) : `số ${queueNumber} (${wallLabelOf(wallId, wallCodes)})`;
+  const openings = openingCount > 0 ? ` và ${openingCount} cửa gắn trên tường` : '';
+
+  return `Đã xoá tường ${name}${openings}.`;
+};
 
 export interface CreateWallUndoTicketOptions {
   readonly wallId: WallId;
   /** Bảng mã của tầng TRƯỚC khi xoá, để toast gọi tường đúng nhãn danh sách. */
   readonly wallCodes?: ReadonlyMap<string, string>;
+  /** Cửa gắn trên tường và số thứ tự trên hình — chữ của toast (U36, U57). */
+  readonly extras?: DeleteToastExtras;
   readonly undo: () => void;
   readonly now: () => number;
 }
@@ -781,20 +797,20 @@ export interface CreateWallUndoTicketOptions {
 /**
  * Vé hoàn tác của một lượt xoá.
  *
- * `UNDO_WINDOW_MS` (8000 ms, A8) tới từ `src/lib/mutations/undoTicket.ts` — con
- * số không được viết lại ở màn (R-71), và `createUndoTicket` dùng nó làm mặc
- * định nên ở đây thậm chí không có tham số nào mang nó.
+ * U35: xoá trên bản vẽ dùng cửa sổ dài `LONG_UNDO_WINDOW_MS` (15 s) của `undoTicket.ts` —
+ * phải nhìn lại hình mới biết xoá nhầm; toast đọc cửa sổ từ vé. Không viết số ở màn (R-71).
  */
 export function createWallUndoTicket(options: CreateWallUndoTicketOptions): UndoTicket {
   return createUndoTicket({
-    description: deleteToastDescription(options.wallId, options.wallCodes),
+    description: deleteToastDescription(options.wallId, options.wallCodes, options.extras),
     now: options.now,
+    ttlMs: LONG_UNDO_WINDOW_MS,
     undo: options.undo,
   });
 }
 
 /** Cửa sổ hoàn tác, xuất lại để hook và bài kiểm đọc đúng một nguồn. */
-export { UNDO_WINDOW_MS };
+export { LONG_UNDO_WINDOW_MS, UNDO_WINDOW_MS };
 
 /* -------------------------------------------------------------------------- */
 /* Hình học — GỌI LẠI, không tự tính.                                          */

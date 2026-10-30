@@ -113,6 +113,7 @@ import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { durationMs } from '@/lib/motion';
 import { shortcutForTool } from '@/lib/tools/shortcuts';
+import { openingsOfWall } from '@/lib/commands/business/shared';
 import { newestEntryId } from '@/lib/commands/history';
 import { createToolState, reduceTool, DEFAULT_TOOL_SETTINGS } from '@/lib/tools/toolMachine';
 import type {
@@ -258,7 +259,8 @@ export const WALL_LAYER_TEXT = {
    */
   shortcutDelete: 'Xoá đoạn tường đang chọn.',
   shortcutUndo: 'Hoàn tác thao tác gần nhất.',
-  shortcutThickness: 'Đặt độ dày cho đoạn tường đang chọn.',
+  /** U43: mỗi phím 1/2/3 ghi đúng số mm của nó, không ba dòng giống nhau. */
+  shortcutThickness: (mm: number): string => `Đặt độ dày ${mm} mm cho đoạn tường đang chọn.`,
   shortcutTool: 'Vẽ tường.',
   shortcutToolSelect: 'Công cụ chọn.',
   shortcutToolMeasure: 'Công cụ đo.',
@@ -361,6 +363,7 @@ export interface UseWallLayerReviewResult extends WallLayerReviewProps {
  * viết đúng một chỗ (R-71).
  */
 const WALL_DELETE_NOTIFICATION_TYPE = 'wallLayerReview.deleteWall';
+const SAVE_BLOCKED_LABEL = 'Chưa lưu. Xem dải báo phía trên.';
 /** Toast "Hoàn tác" bị từ chối: bước đã rời lịch sử, hoặc một bước mới hơn sửa cùng tường (BUG-579). */
 const WALL_UNDO_REFUSED_NOTIFICATION_TYPE = 'wallLayerReview.undoRefused';
 /** "Nối đoạn" không nối được — trước đây bấm xong không có phản hồi gì (G4a-12). */
@@ -1140,10 +1143,12 @@ export function useWallLayerReview(
   }, [applyUndo]);
 
   /* ---------------------------------------------------------------------- */
-  /* Xoá (D-05) — tức thì, không hộp thoại, kèm vé hoàn tác 8000 ms.          */
+  /* Xoá (D-05) — tức thì, không hộp thoại, kèm vé hoàn tác 15 s (U35).      */
   /* ---------------------------------------------------------------------- */
 
   const undoTicketRef = useRef<ReturnType<typeof createWallUndoTicket> | null>(null);
+  /* Hàng danh sách (gán ở dưới, sau khi `rows` dựng xong) — cho J/K và số thứ tự trong toast xoá. */
+  const rowsRef = useRef<readonly WallRowViewModel[]>([]);
 
   /*
    * Nháy nền một hàng — bật ở đây, và TỰ TẮT.
@@ -1166,6 +1171,12 @@ export function useWallLayerReview(
 
   const onDelete = useCallback(
     (wallId: WallId) => {
+      /* Đọc TRƯỚC khi xoá: cửa trên tường đi cùng lệnh (U36), số trên hình là số hàng đợi (U57). */
+      const before = useStore.getState().spatial;
+      const openingCount = before === null ? 0 : openingsOfWall(before, wallId).length;
+      const queueIndex = rowsRef.current.filter((row) => !row.isReviewed).findIndex((row) => row.id === wallId);
+      const extras = { openingCount, ...(queueIndex === -1 ? {} : { queueNumber: queueIndex + 1 }) };
+
       void run((context) => {
         const result = buildDeleteWallCommand({ wallId }, context);
 
@@ -1180,6 +1191,7 @@ export function useWallLayerReview(
         const ticket = createWallUndoTicket({
           wallId,
           wallCodes,
+          extras,
           now: gateway.now,
           undo: () => {
             /* Own-step undo: this ticket takes back ITS delete, wherever it sits on the stack. */
@@ -1211,8 +1223,8 @@ export function useWallLayerReview(
          * Vé đã dựng đúng từ đầu, chỉ thiếu chỗ hiện. `NotificationHost` của
          * `src/main.tsx` vẽ bus này bằng `Toast.Item`, và nút "Hoàn tác" của nó
          * gọi thẳng `undoTicket.undo()` — tức đúng vé ở trên, chạy trên ngăn xếp
-         * 100 bước của S-06. Cửa sổ tám giây do chính vé mang
-         * (`UNDO_WINDOW_MS`), nên không có thời lượng nào phải truyền (R-71).
+         * 100 bước của S-06. Cửa sổ (15 s, U35) do chính vé mang
+         * (`LONG_UNDO_WINDOW_MS`), nên không có thời lượng nào phải truyền (R-71).
          *
          * `description` để rỗng có chủ đích: `NotificationHost` ghép tiêu đề với
          * mô tả bằng " — " khi hai câu khác nhau, và ở đây chỉ có MỘT câu.
@@ -1430,7 +1442,6 @@ export function useWallLayerReview(
     [options.registry],
   );
 
-  const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const selectedRef = useRef(selectedWallId);
   selectedRef.current = selectedWallId;
@@ -1598,7 +1609,7 @@ export function useWallLayerReview(
       id: 'wallLayerReview.thickness.1',
       combo: '1',
       scope: 'canvas',
-      description: WALL_LAYER_TEXT.shortcutThickness,
+      description: WALL_LAYER_TEXT.shortcutThickness(WALL_LAYER_THICKNESS_CHOICES[0] as WallThicknessChoice),
       onTrigger: () => setThickness(WALL_LAYER_THICKNESS_CHOICES[0] as WallThicknessChoice),
     },
     { ...shortcutOptions, enabled: canEdit },
@@ -1608,7 +1619,7 @@ export function useWallLayerReview(
       id: 'wallLayerReview.thickness.2',
       combo: '2',
       scope: 'canvas',
-      description: WALL_LAYER_TEXT.shortcutThickness,
+      description: WALL_LAYER_TEXT.shortcutThickness(WALL_LAYER_THICKNESS_CHOICES[1] as WallThicknessChoice),
       onTrigger: () => setThickness(WALL_LAYER_THICKNESS_CHOICES[1] as WallThicknessChoice),
     },
     { ...shortcutOptions, enabled: canEdit },
@@ -1618,7 +1629,7 @@ export function useWallLayerReview(
       id: 'wallLayerReview.thickness.3',
       combo: '3',
       scope: 'canvas',
-      description: WALL_LAYER_TEXT.shortcutThickness,
+      description: WALL_LAYER_TEXT.shortcutThickness(WALL_LAYER_THICKNESS_CHOICES[2] as WallThicknessChoice),
       onTrigger: () => setThickness(WALL_LAYER_THICKNESS_CHOICES[2] as WallThicknessChoice),
     },
     { ...shortcutOptions, enabled: canEdit },
@@ -2124,10 +2135,11 @@ export function useWallLayerReview(
         .filter((part) => part !== '')
         .join(' · '),
       scaleLabel: formatScaleLabel(level),
-      saveLabel: saveIndicator.label,
-      saveFailed: saveIndicator.state === 'failed',
+      /* P02: tầng bị khoá lưu (xung đột/từ chối) thì "sẽ thử lưu lại" là sai — chỉ về dải báo phía trên. */
+      saveLabel: saveBlock === null ? saveIndicator.label : SAVE_BLOCKED_LABEL,
+      saveFailed: saveBlock !== null || saveIndicator.state === 'failed',
     }),
-    [level, pointerReading, saveIndicator.label, saveIndicator.state, toolState.tool, toolState.values.length],
+    [level, pointerReading, saveBlock, saveIndicator.label, saveIndicator.state, toolState.tool, toolState.values.length],
   );
 
   /** Menu chuột phải "Đổi độ dày": đưa tường vào thanh tra, và focus vào ba lựa chọn (BUG-604). */

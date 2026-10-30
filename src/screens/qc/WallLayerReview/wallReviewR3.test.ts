@@ -14,7 +14,7 @@ import {
   wallStatusCode,
   WALL_UNAPPROVE_COMMAND_TYPE,
 } from './wallLayerReviewGateway';
-import { sortByReviewQueue } from './wallReviewQueue';
+import { approveAllLabelOf, confidentWallsOf, sortByReviewQueue } from './wallReviewQueue';
 
 const first = (): Wall => {
   const wall = WALL_LAYER_FIXTURE_WALLS[0];
@@ -109,5 +109,26 @@ describe('UX-R2 K21/K26: "máy chưa chắc" theo hình', () => {
 
   it('không có đồ thị hay tầng thì không gắn cờ gì', () => {
     expect(geometrySuspectIdsOf(null, null).size).toBe(0);
+  });
+});
+
+describe('U17: duyệt hết đoạn máy chắc chắn', () => {
+  it('chỉ lấy đoạn chưa duyệt, đúng chuẩn, đủ tin cậy, không lý do nghi', () => {
+    const base = first();
+    const sure: Wall = { ...base, id: 'W-A' as Wall['id'], thicknessMm: 220, reviewed: false, confidence: 1 };
+    const done: Wall = { ...sure, id: 'W-B' as Wall['id'], reviewed: true };
+    const odd: Wall = { ...sure, id: 'W-C' as Wall['id'], thicknessMm: 260 };
+    const unsure: Wall = { ...sure, id: 'W-D' as Wall['id'], confidence: 0.1 };
+    const suspect: Wall = { ...sure, id: 'W-E' as Wall['id'] };
+    const short: Wall = { ...sure, id: 'W-F' as Wall['id'] };
+
+    const ids = confidentWallsOf(
+      [sure, done, odd, unsure, suspect, short],
+      new Set(['W-E']),
+      (wall) => (wall.id === 'W-F' ? 'short' : null),
+    ).map((wall) => wall.id);
+
+    expect(ids).toEqual(['W-A']);
+    expect(approveAllLabelOf(12)).toBe('Duyệt 12 đoạn máy chắc chắn');
   });
 });

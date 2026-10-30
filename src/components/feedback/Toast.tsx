@@ -19,6 +19,8 @@ export interface ToastMessage {
   message: string;
   onUndo?: () => void;
   state?: 'verified' | 'attention' | 'violation';
+  /** Cửa sổ hoàn tác của toast này (ms); vắng = `UNDO_WINDOW_MS`. Lấy từ `UndoTicket.ttlMs`. */
+  windowMs?: number;
 }
 
 interface ToastContextValue {
@@ -65,16 +67,18 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
     const [progress, setProgress] = useState(100);
     const rafRef = useRef<number | null>(null);
     const lastTimeRef = useRef<number | undefined>(undefined);
-    const timeLeftRef = useRef(UNDO_WINDOW_MS);
+    /* U35: vé có cửa sổ riêng (xoá tường 15 s) thì toast ở lại đúng chừng đó. */
+    const windowMs = toast.windowMs ?? UNDO_WINDOW_MS;
+    const timeLeftRef = useRef(windowMs);
 
     // Reset timer when resetKey changes (e.g. new item grouped or item popped): what is
     // left of the window of the change it now undoes.
     useEffect(() => {
-      const timeLeft = startedAt === undefined ? UNDO_WINDOW_MS : UNDO_WINDOW_MS - (Date.now() - startedAt);
+      const timeLeft = startedAt === undefined ? windowMs : windowMs - (Date.now() - startedAt);
       timeLeftRef.current = timeLeft;
-      setProgress(Math.max(0, (timeLeft / UNDO_WINDOW_MS) * 100));
+      setProgress(Math.max(0, (timeLeft / windowMs) * 100));
       lastTimeRef.current = undefined;
-    }, [resetKey, startedAt]);
+    }, [resetKey, startedAt, windowMs]);
 
     // Hover or focus holds the toast — a person is reading it or reaching for "Hoàn tác"
     // (WCAG 2.2.1, BUG-571). An undo toast holds its ticket's clock with it, so the button
@@ -108,14 +112,14 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
           setIsExiting(true);
           setTimeout(() => onRemove(toast.id), durationMs('fast'));
         } else {
-          setProgress((timeLeftRef.current / UNDO_WINDOW_MS) * 100);
+          setProgress((timeLeftRef.current / windowMs) * 100);
           rafRef.current = requestAnimationFrame(animate);
         }
       };
 
       rafRef.current = requestAnimationFrame(animate);
       return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
-    }, [isHeld, isExiting, onRemove, toast.id, resetKey]);
+    }, [isHeld, isExiting, onRemove, toast.id, resetKey, windowMs]);
 
     // Hoàn tác xong thì toast đã hết việc: rời đi ngay. Không thế thì nó treo tới
     // hết cửa sổ, che nút bên dưới, với một nút "Hoàn tác" không còn gì để làm (B-V4-11).

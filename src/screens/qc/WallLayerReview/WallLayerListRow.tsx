@@ -46,6 +46,8 @@ export interface WallLayerListRowProps {
   readonly showThickness?: boolean | undefined;
   /** L23: số hàng đợi của tường còn chờ (cùng số với ghim trên bản vẽ); vắng = bố cục cũ. */
   readonly queueNumber?: number | undefined;
+  /** U37: danh sách là MỘT điểm Tab (roving tabindex) — chỉ hàng này nhận Tab, ↑/↓ đi giữa các hàng. Vắng = mọi hàng nhận Tab như cũ. */
+  readonly isTabStop?: boolean | undefined;
   readonly onSelect: (wallId: WallId) => void;
   readonly onToggleSelect: (wallId: WallId) => void;
   readonly onHover: (wallId: WallId | null) => void;
@@ -69,6 +71,7 @@ export function WallLayerListRow({
   showConfidence,
   showThickness = true,
   queueNumber,
+  isTabStop = true,
   onSelect,
   onToggleSelect,
   onHover,
@@ -114,7 +117,7 @@ export function WallLayerListRow({
         onMouseEnter={() => onHover(row.id)}
         onMouseLeave={() => onHover(null)}
         role="option"
-        tabIndex={0}
+        tabIndex={isTabStop ? 0 : -1}
       >
         {row.isReviewed ? (
           <span className="relative flex w-5 shrink-0 items-center justify-center text-state-verified-text" title={REVIEWED_TITLE}>
@@ -148,6 +151,7 @@ export function WallLayerListRow({
         <button
           className="h-7 shrink-0 rounded-md px-1.5 text-caption text-text-secondary hover:bg-bg-hover hover:text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           onClick={() => onUnapprove?.(row.id)}
+          tabIndex={isTabStop ? 0 : -1}
           title={`${UNAPPROVE_LABEL} ${row.codeLabel}`}
           type="button"
         >

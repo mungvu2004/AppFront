@@ -66,6 +66,7 @@ function toToastMessage(notification: Notification): ToastMessage {
           onUndo: (): void => {
             ticket.undo();
           },
+          ...(ticket.ttlMs === undefined ? {} : { windowMs: ticket.ttlMs }),
         }
       : {}),
   };

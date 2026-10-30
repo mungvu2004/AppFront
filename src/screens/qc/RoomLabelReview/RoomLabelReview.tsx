@@ -327,7 +327,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         <FloorReviewGate
           inline
           floorId={nav.floorId}
-          nextLabel={props.nextPendingRoom == null ? undefined : `Duyệt tiếp ${props.nextPendingRoom.codeLabel}`}
+          nextLabel={props.nextPendingRoom == null ? undefined : `Xem tiếp ${props.nextPendingRoom.codeLabel}`}
           onNext={props.nextPendingRoom == null ? undefined : () => onSelect(props.nextPendingRoom!.id)}
           projectId={nav.projectId}
         />

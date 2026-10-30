@@ -25,7 +25,9 @@ import {
   type WallLayerReviewGateway,
 } from './wallLayerReviewGateway';
 import {
+  approveAllLabelOf,
   bulkLabelOf,
+  confidentWallsOf,
   bulkPlanOf,
   gateConditionsOf,
   hasConfidenceSpread,
@@ -172,6 +174,26 @@ export function useWallReviewQueue(input: UseWallReviewQueueInput): WallReviewQu
     });
   }, [bulk, canEdit, dispatchBundle, gateway, invalidate, lockText]);
 
+  /* U17: cả tầng (không theo bộ lọc), cùng quy tắc với nút đổi chuẩn hàng loạt. */
+  const confident = useMemo(() => confidentWallsOf(walls, input.suspectIds, reasonOf), [input.suspectIds, reasonOf, walls]);
+
+  const onApproveConfident = useCallback(() => {
+    if (!canEdit || confident.length === 0) {
+      return;
+    }
+
+    const commands = confident.map((wall) => buildApproveWallCommand(wall, gateway.actorId, wallCodes));
+    const label = approveAllLabelOf(commands.length);
+
+    dispatchBundle.setLabel(label);
+    /* MỘT bước hoàn tác: Ctrl+Z một lần trả cả lượt. */
+    void runTransaction(commands, dispatchBundle.deps, { label }).then((result) => {
+      if (result.ok) {
+        invalidate();
+      }
+    });
+  }, [canEdit, confident, dispatchBundle, gateway, invalidate, wallCodes]);
+
   const selectedRef = useRef(selectedWallId);
   selectedRef.current = selectedWallId;
   const shortcutOptions = input.registry === undefined ? {} : { registry: input.registry };
@@ -217,6 +239,8 @@ export function useWallReviewQueue(input: UseWallReviewQueueInput): WallReviewQu
     lockText,
     onStandardize,
     onBulkStandardize,
+    confidentCount: confident.length,
+    ...(canEdit ? { onApproveConfident } : {}),
     onOpenThickness: input.onOpenThickness,
   };
 }

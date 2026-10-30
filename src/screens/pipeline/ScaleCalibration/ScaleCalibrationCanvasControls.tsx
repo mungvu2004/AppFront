@@ -171,6 +171,7 @@ export function CanvasNavigation({
     <div className="contents" onPointerDown={stopAtOverlay} onPointerUp={stopAtOverlay}>
       {/* Ở màn này 100% CHÍNH LÀ vừa khung (ảnh vuông trong khung vuông), nên hai nút cùng một việc. */}
       <ZoomCluster
+        fitShortcut="F"
         onFitToScreen={onFitView}
         onResetZoom={onFitView}
         onZoomIn={onZoomIn}
