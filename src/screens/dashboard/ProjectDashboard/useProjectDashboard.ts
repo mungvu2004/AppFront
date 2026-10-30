@@ -225,7 +225,7 @@ function derivedStatusOf(project: DashboardProject): TelemetryPipelineStatus {
 /** Khoá lọc/đếm: dự án chưa có tường nào và chưa xong bước xử lý là "chưa có bản vẽ", không phải "đang xử lý". */
 function filterKeyOf(project: DashboardProject): ProjectStatusFilter {
   const status = derivedStatusOf(project);
-  return status === 'processing' && project.wallsTotalCount === 0 ? 'noplan' : status;
+  return status === 'processing' && project.wallsTotalCount === 0 && project.jobActive !== true ? 'noplan' : status;
 }
 
 const RENAME_RANGE_MESSAGE = `Tên dự án cần từ ${String(PROJECT_NAME_MIN_LENGTH)} đến ${String(PROJECT_NAME_MAX_LENGTH)} ký tự.`;
@@ -292,7 +292,7 @@ function routeForProject(project: DashboardProject, status: TelemetryPipelineSta
   switch (status) {
     case 'processing':
       // Chưa có bản vẽ thì việc cần làm là tải bản vẽ lên.
-      return project.wallsTotalCount > 0 ? ROUTES.project.pipeline(project.id) : ROUTES.project.upload(project.id);
+      return project.wallsTotalCount > 0 || project.jobActive === true ? ROUTES.project.pipeline(project.id) : ROUTES.project.upload(project.id);
     case 'qc':
       return project.defaultFloorId === undefined
         ? ROUTES.project.floors(project.id)
@@ -393,8 +393,9 @@ export function useProjectDashboard(
         const status = derivedStatusOf(project);
         const statusVariant = status === 'done' ? 'verified' : status === 'processing' ? 'neutral' : 'attention';
         const hasPlan = project.wallsTotalCount > 0;
+        const running = project.jobActive === true;
         // Chưa có bản vẽ nào thì chưa có gì để xử lý: không gắn "Đang xử lý" (G1-17, G3-02).
-        const statusLabel = !hasPlan && status === 'processing' ? 'Chưa có bản vẽ' : status === 'done' ? 'Hoàn thành' : status === 'processing' ? 'Đang xử lý' : 'Cần duyệt';
+        const statusLabel = !hasPlan && !running && status === 'processing' ? 'Chưa có bản vẽ' : status === 'done' ? 'Hoàn thành' : status === 'processing' ? 'Đang xử lý' : 'Cần duyệt';
         const reviewed = formatNumber(project.wallsReviewedCount, { grouping: false });
         const total = formatNumber(project.wallsTotalCount, { grouping: false });
         const progressRatio = project.wallsTotalCount > 0 ? project.wallsReviewedCount / project.wallsTotalCount : 0;
@@ -402,7 +403,7 @@ export function useProjectDashboard(
         return {
           id: project.id,
           name: project.name,
-          statsLabel: `${formatNumber(project.floorCount, { grouping: false })} tầng, ${formatArea(project.areaM2)}`,
+          statsLabel: `${formatNumber(project.floorCount, { grouping: false })} tầng, ${project.hasScale === false ? 'chưa có tỷ lệ' : formatArea(project.areaM2)}`,
           updatedLabel: formatTimestamp(project.updatedAtMs, now),
           statusVariant,
           statusLabel,
@@ -413,7 +414,7 @@ export function useProjectDashboard(
           planVariant: project.planVariant,
           planSketch: planSketchOf(project.id, project.wallsTotalCount, project.areaM2),
           hasPlan,
-          actionLabel: actionLabelOf(status, hasPlan),
+          actionLabel: actionLabelOf(status, hasPlan || running),
         };
       }),
     [sortedProjects, now],

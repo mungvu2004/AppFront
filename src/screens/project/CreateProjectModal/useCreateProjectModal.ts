@@ -79,7 +79,7 @@ const BUILDING_TYPE_OPTIONS: SelectOption[] = [
 
 const DEFAULT_BUILDING_TYPE = 'residential';
 
-/** How many floors the wizard starts with — a stack worth reviewing at a glance. */
+/** Số tầng khi dựng thẳng hook (test, story). Màn thật truyền `initialFloorCount: 1` (U40). */
 const DEFAULT_FLOOR_COUNT = 4;
 
 /* -------------------------------------------------------------------------- */
@@ -211,8 +211,8 @@ function nextFloorName(aboveCount: number): string {
 }
 
 /** The wizard's starting stack: {@link DEFAULT_FLOOR_COUNT} floors, no basement, no heights yet. */
-function createDefaultFloorRows(): DraftFloorRow[] {
-  return Array.from({ length: DEFAULT_FLOOR_COUNT }, (_unused, index) => ({
+function createDefaultFloorRows(count: number = DEFAULT_FLOOR_COUNT): DraftFloorRow[] {
+  return Array.from({ length: count }, (_unused, index) => ({
     id: createUuid(),
     name: nextFloorName(index),
     kind: 'floor' as const,
@@ -593,6 +593,8 @@ export interface UseCreateProjectModalOptions {
   readonly role?: ProjectRole;
   /** Overrides the viewport probe — for a story or a test that wants a fixed answer. */
   readonly forceCompact?: boolean;
+  /** Số tầng có sẵn lúc mở hộp; mặc định 4. */
+  readonly initialFloorCount?: number;
   readonly onCreated?: (projectId: string) => void;
   readonly onDismiss: () => void;
   /** Invariant A8's undoable toast. Injected — `Toast.Provider` is mounted by the caller. */
@@ -614,7 +616,7 @@ export function useCreateProjectModal(
   const [buildingType, setBuildingTypeState] = useState(DEFAULT_BUILDING_TYPE);
   const [notes, setNotesState] = useState('');
   const [isSelectOpen, setIsSelectOpen] = useState(false);
-  const [floorRows, setFloorRows] = useState<readonly DraftFloorRow[]>(createDefaultFloorRows);
+  const [floorRows, setFloorRows] = useState<readonly DraftFloorRow[]>(() => createDefaultFloorRows(options.initialFloorCount));
   const [floorsTouched, setFloorsTouched] = useState(false);
   const [applyHeightM, setApplyHeightMState] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

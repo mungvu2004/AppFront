@@ -161,6 +161,25 @@ describe('useProjectDashboard states', () => {
     expect(names()).toEqual([NAME_HQ]);
   });
 
+  it('writes "chưa có tỷ lệ" instead of an area when the floor has no scale (U07)', async () => {
+    mount({ gateway: fakeServer([project({ hasScale: false }), project({ id: 'prj-2', name: 'B' })]).gateway });
+
+    await waitFor(() => expect(names()).toHaveLength(2));
+    const labels = dash().model.rows.map((row) => row.statsLabel);
+    expect(labels).toContain('2 tầng, chưa có tỷ lệ');
+    expect(labels.some((label) => label.includes('m²'))).toBe(true);
+  });
+
+  it('calls a project with a running job "Đang xử lý" even before any wall exists (U10)', async () => {
+    mount({
+      gateway: fakeServer([project({ status: 'processing', wallsTotalCount: 0, wallsReviewedCount: 0, jobActive: true })]).gateway,
+    });
+
+    await waitFor(() => expect(names()).toHaveLength(1));
+    expect(dash().model.rows[0]?.statusLabel).toBe('Đang xử lý');
+    expect(dash().model.rows[0]?.actionLabel).toBe('Xem tiến độ');
+  });
+
   it('is empty only when nothing was read and nothing dropped', async () => {
     mount({ gateway: fakeServer([]).gateway });
 

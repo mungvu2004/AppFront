@@ -69,7 +69,7 @@ const SKELETON_CARD_COUNT = 6;
  * (A6). `SEVEN_STATE_LABELS` lives in test infrastructure that never ships.
  */
 const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
-  empty: 'rỗng',
+  empty: 'Chưa có dự án nào.',
   loading: 'đang tải',
   partial: 'một phần',
   error: 'lỗi',

@@ -113,9 +113,9 @@ export function ShareDialogEmbed({ embed, isCodeCopied, actions }: ShareDialogEm
       <h3 className="text-sm font-medium text-text-secondary">Nhúng vào trang khác</h3>
 
       <div className={cn('flex gap-4', embed.previewHidden ? 'flex-col' : 'flex-col md:flex-row')}>
-        <div className="flex flex-1 flex-col gap-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
           <div className="flex items-start gap-2">
-            <pre className="flex-1 overflow-x-auto rounded-lg bg-bg-sunken p-3 font-mono text-[13px] text-text-primary">
+            <pre className="min-w-0 flex-1 overflow-x-auto rounded-lg bg-bg-sunken p-3 font-mono text-[13px] text-text-primary">
               <code>{embed.code}</code>
             </pre>
             <IconButton

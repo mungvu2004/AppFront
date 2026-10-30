@@ -1434,7 +1434,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         `${countLabel(total.openingCount, UNIT.opening)}, ${countLabel(total.furnitureCount, UNIT.furniture)}`,
         countLabel(total.dimensionCount, UNIT.dimensionChain),
         countLabel(total.roomCount, UNIT.room),
-        formatArea(totalArea(total.roomOutlinesMm)),
+        parts.some((part) => part.hasScale === false) ? 'Chưa có tỷ lệ' : formatArea(totalArea(total.roomOutlinesMm)),
       ],
       ...(total.dimensionCount === 0 ? { noDimensionSentence: NO_DIMENSION_SENTENCE } : {}),
       ...(parts.every((part) => part.hasScale === true) ? { scaleKnown: true } : {}),
