@@ -105,3 +105,17 @@ describe('RoomLabelNameField', () => {
     expect(screen.queryByRole('button', { name: 'Phòng ngủ' })).toBeNull();
   });
 });
+
+describe('RoomLabelNameField chip', () => {
+  it('bấm gợi ý không đẩy tiêu điểm vào ô tên, để phím A không gõ vào tên (U15)', () => {
+    const onCommit = vi.fn();
+    render(<RoomLabelNameField isReadOnly={false} name="" onCommit={onCommit} suggestions={['Hành lang']} />);
+    const chip = screen.getByRole('button', { name: 'Hành lang' });
+
+    chip.focus();
+    fireEvent.click(chip);
+
+    expect(onCommit).toHaveBeenCalledWith('Hành lang');
+    expect(document.activeElement).not.toBe(screen.getByRole('textbox'));
+  });
+});

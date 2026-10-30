@@ -119,3 +119,24 @@ describe('panTo', () => {
     expect(result.current.offset).toEqual({ x: 0, y: 0 });
   });
 });
+
+describe('U14 — lăn chuột trên thẻ nổi', () => {
+  it('không phóng bản vẽ và không chặn cuộn khi lăn trong [data-wheel-scroll]', () => {
+    const onZoom = vi.fn();
+    const root = document.createElement('div');
+    const card = document.createElement('div');
+    card.setAttribute('data-wheel-scroll', '');
+    root.appendChild(card);
+    const { result } = renderHook(() => useCanvasPan(onZoom));
+    act(() => result.current.ref(root));
+
+    const onCard = new WheelEvent('wheel', { deltaY: -100, cancelable: true, bubbles: true });
+    card.dispatchEvent(onCard);
+    expect(onZoom).not.toHaveBeenCalled();
+    expect(onCard.defaultPrevented).toBe(false);
+
+    const onBg = new WheelEvent('wheel', { deltaY: -100, cancelable: true, bubbles: true });
+    root.dispatchEvent(onBg);
+    expect(onZoom).toHaveBeenCalledWith(1);
+  });
+});

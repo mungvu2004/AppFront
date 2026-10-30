@@ -694,7 +694,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
       // chỉ khi không biết loại/tầng mới về màn 3D như cũ.
       const row = [...groups.flatMap((group) => group.rows), ...resolvedRows].find((r) => r.key === rowKey);
       // RV5 #7: hàng không mang tầng thì không đoán tầng đầu (sai tầng ở dự án nhiều tầng).
-      const target = row === undefined ? null : fixTargetOf(projectId, row.levelId ?? null, row.entityId);
+      const target = row === undefined ? null : fixTargetOf(projectId, row.levelId ?? null, row.entityId, row.ruleCode);
       navigate(target?.path ?? ROUTES.project.viewer(projectId));
     },
     [groups, navigate, projectId, resolvedRows],

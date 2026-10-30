@@ -18,15 +18,15 @@
  * - Ngoại lệ duy nhất: tên rỗng/chỉ khoảng trắng bị chặn ở ô (báo lỗi, giữ tên cũ).
  * - Chữ gõ vào KHÔNG bị chặn, KHÔNG bị tự sửa, KHÔNG bị so với danh sách gợi
  *   ý; ô nhập không bao giờ nhận một `error` nào vì tên nằm ngoài vựng chuẩn.
- * - Bấm/chọn một gợi ý chỉ ĐIỀN vào ô rồi trả tiêu điểm về ô — người dùng sửa
- *   tiếp được ngay, và chỉ khi rời ô hoặc nhấn Enter thì tên mới được cam kết.
+ * - Bấm/chọn một gợi ý ĐIỀN vào ô và cam kết ngay; tiêu điểm ở lại nút gợi ý (không nhảy
+ *   vào ô) để phím A duyệt phòng thay vì gõ chữ "a" vào tên (U15). Muốn sửa tiếp thì bấm vào ô.
  * - Esc trả ô về đúng tên đang lưu, không cam kết gì.
  *
  * Danh sách gợi ý tới BẰNG PROPS (hook đọc `ROOM_USAGE_LABELS` của tầng
  * luật) — màn không định nghĩa lại một danh mục công năng nào.
  */
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
 import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
@@ -57,7 +57,6 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
      blur; Enter là yêu cầu tường minh nên luôn cam kết — lệnh bị từ chối (tên
      đang lưu không đổi) thì Enter lại vẫn tới `onCommit`, câu từ chối hiện lại (R2-5). */
   const [committed, setCommitted] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
 
   /* Tên đổi từ ngoài ô (hoàn tác giữ phòng đang chọn, B-V7-09) thì ô theo tên ấy —
      không giữ chữ cũ. Chỉnh state ngay lúc vẽ, không `useEffect`: tiêu điểm không mất. */
@@ -114,7 +113,6 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
           }
         }}
         placeholder={NAME_PLACEHOLDER}
-        ref={inputRef}
         value={draft}
       />
 
@@ -134,7 +132,6 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
              */
             onClick={() => {
               setDraft(suggestion);
-              inputRef.current?.focus();
               if (suggestion !== name) {
                 setCommitted(suggestion);
                 onCommit(suggestion);
