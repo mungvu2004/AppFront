@@ -90,8 +90,37 @@ export const getSessionState = (): SessionState => sessionState;
 
 export const getSessionSnapshot = (): SessionSnapshot => sessionSnapshot;
 
+/**
+ * U59: dấu "máy này từng có phiên" sống qua tải lại. Cookie làm mới hết hạn thì trình duyệt bỏ nó,
+ * máy chủ chỉ thấy một 401 trơn y như khách lạ; dấu này là cách duy nhất để /login nói "phiên đã
+ * kết thúc" thay vì "hãy đăng nhập". Chỉ đăng xuất chủ động mới xoá. Chặn lưu trữ thì coi như không có.
+ */
+const DEVICE_SESSION_KEY = 'appfront.hadSession';
+const writeDeviceSession = (value: boolean): void => {
+  try {
+    if (value) {
+      window.localStorage.setItem(DEVICE_SESSION_KEY, '1');
+    } else {
+      window.localStorage.removeItem(DEVICE_SESSION_KEY);
+    }
+  } catch {
+    /* localStorage bị chặn: bỏ qua. */
+  }
+};
+export const forgetDeviceSession = (): void => {
+  writeDeviceSession(false);
+};
+export const hadDeviceSession = (): boolean => {
+  try {
+    return window.localStorage.getItem(DEVICE_SESSION_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
 export const setAuthenticatedSession = (payload: RefreshSessionPayload): void => {
   sessionRevoked = false;
+  writeDeviceSession(true);
   updateSessionState({
     accessToken: payload.accessToken,
     expiresAt: payload.expiresAt,
@@ -158,6 +187,7 @@ export const cancelActiveRequests = (message: string): void => {
 export const resetAuthState = (): void => {
   authConfig = null;
   sessionRevoked = false;
+  writeDeviceSession(false);
   listeners.clear();
   sessionState = initialState();
   sessionSnapshot = {

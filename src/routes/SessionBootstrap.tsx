@@ -32,7 +32,13 @@ import { AlertCircle, Loader2, WifiOff } from 'lucide-react';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { ScreenMain } from '@/components/shell/ScreenMain';
-import { getOptionalAuthConfig, getSessionSnapshot, isSessionRevoked, subscribeSession } from '@/lib/auth/state';
+import {
+  getOptionalAuthConfig,
+  getSessionSnapshot,
+  hadDeviceSession,
+  isSessionRevoked,
+  subscribeSession,
+} from '@/lib/auth/state';
 import type { SessionStatus } from '@/lib/auth/types';
 import { cssDurationMs } from '@/lib/motion/tokens';
 
@@ -294,9 +300,10 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
    * `useRef` chứ không phải `useState` — không có lượt vẽ thừa nào.
    */
   // FL-11U-05: a boot refresh refused with SESSION_REVOKED also ended a session (never authenticated here).
+  // U59: cookie hết hạn/bị xoá chỉ cho 401 trơn; máy này từng có phiên thì vẫn là "phiên đã kết thúc".
   if (
     session.status === 'anonymous' &&
-    (previousStatus.current === 'authenticated' || isSessionRevoked())
+    (previousStatus.current === 'authenticated' || isSessionRevoked() || hadDeviceSession())
   ) {
     sessionEnded.current = true;
   } else if (session.status === 'authenticated') {
