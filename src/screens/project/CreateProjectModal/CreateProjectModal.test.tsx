@@ -926,3 +926,24 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('CreateProjectModal, giá trị gõ đầu tiên vào ô chiều cao tầng (U39)', () => {
+  it.each([{ added: false }, { added: true }])(
+    'gõ thật bằng bàn phím ngay khi bước mở (thêm tầng: $added): số đầu tiên được giữ, không bị trả về',
+    async ({ added }) => {
+      const { gateway } = buildGateway();
+      render(<CreateProjectModal isOpen gateway={gateway} initialFloorCount={1} forceCompact={false} onDismiss={noop} />);
+      const user = userEvent.setup({ delay: null });
+      goToStep2();
+      if (added) await user.click(screen.getByRole('button', { name: 'Thêm tầng' }));
+
+      const ground = screen.getByLabelText('Chiều cao tầng (sàn–sàn) Tầng trệt');
+      await user.click(ground);
+      await user.type(ground, '3,2');
+      expect(ground).toHaveValue('3,2');
+
+      await user.tab();
+      expect(screen.getByLabelText('Chiều cao tầng (sàn–sàn) Tầng trệt')).toHaveValue('3,2');
+    },
+  );
+});

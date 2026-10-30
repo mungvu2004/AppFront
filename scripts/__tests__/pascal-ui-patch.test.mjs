@@ -34,6 +34,14 @@ describe('pascal-ui-patch', () => {
     expect(out).toMatch(/\{notBuilt && <span data-level-not-built-tag="" [^>]*>Chưa dựng<\/span>\}/);
   });
 
+  it('UX41 U52: tầng chưa có bản vẽ hiện thành dòng tắt "Chưa có bản vẽ" cuối danh sách', () => {
+    const file = 'editor/src/components/ui/floating-level-selector.tsx';
+    const out = applyUiPatches(readFileSync(path.join(PACKAGES, file), 'utf8'), file, UI_PATCHES[file]);
+    expect(out).toContain('__appfrontUndrawnFloors');
+    expect(out).toContain('data-level-undrawn=""');
+    expect(out).toContain("Chưa có bản vẽ");
+  });
+
   it('UX41 U21: mặt bằng "Mặc định" luôn vẽ vạch đo trong trình sửa, không chỉ khi đang chọn', () => {
     const file = 'editor/src/lib/floorplan/floorplan-mode.ts';
     const out = applyUiPatches(readFileSync(path.join(PACKAGES, file), 'utf8'), file, UI_PATCHES[file]);

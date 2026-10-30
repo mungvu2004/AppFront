@@ -10,7 +10,8 @@ import { createMockApiClient, MOCK_SHARE_TOKEN } from '@/api/__mocks__/client';
 import { createExportPanelGateway, ExportAccessError } from '@/screens/export/ExportPanel/exportPanelGateway';
 import { createShareLink, revokeShareLink, type ShareLinkGateway } from '@/lib/export/shareLink';
 
-import { SHARE_LINK_GONE_MESSAGE, SharedModelPage, SharedModelView, shareGoneReason } from './SharedModelPage';
+import { SharedModelPage, SharedModelView } from './SharedModelPage';
+import { SHARE_LINK_GONE_MESSAGE, shareGoneReason } from './shareGone';
 
 function renderAt(token: string) {
   const client = createMockApiClient();

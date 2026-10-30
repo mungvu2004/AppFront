@@ -119,6 +119,20 @@ let projectSceneStyle: ProjectSceneStyle | null = null;
 /** Phong cách của dự án đang mở; `null` trước khi cầu nạp xong. */
 export const currentProjectSceneStyle = (): ProjectSceneStyle | null => projectSceneStyle;
 
+/** Khoá cửa sổ mà bản vá danh sách tầng của vendor đọc (chỉ hiển thị, không vào cảnh nên không vào đường lưu). */
+export const UNDRAWN_FLOORS_KEY = '__appfrontUndrawnFloors';
+
+/** Tên các tầng của dự án chưa có trong đồ thị không gian (chưa có bản vẽ), tầng cao ở trên như danh sách tầng. */
+export function undrawnFloorNames(
+  floors: readonly { readonly id: string; readonly name: string; readonly order: number }[],
+  drawnIds: ReadonlySet<string>,
+): string[] {
+  return floors
+    .filter((floor) => !drawnIds.has(floor.id))
+    .sort((a, b) => b.order - a.order)
+    .map((floor) => floor.name);
+}
+
 let separateUnits = false;
 
 /**
@@ -163,6 +177,10 @@ async function loadProject(projectId: string): Promise<{ readonly projectName: s
     const result = await client.projectSettings.read({ projectId });
     return result.ok ? result.data : null;
   })().catch(() => null);
+  const floorsRead = (async () => {
+    const result = await client.floors.list({ projectId });
+    return result.ok ? result.data : [];
+  })().catch(() => []);
   const project = await readProjectDetail(client.projects, { projectId });
   const document = await readProjectGraph(client.spatial, { projectId });
   /* Chưa có tầng nào thì không có chỗ để vẽ — báo trạng thái rỗng (C15). Có tầng mà chưa
@@ -171,6 +189,11 @@ async function loadProject(projectId: string): Promise<{ readonly projectName: s
     throw new BridgeLoadError(BRIDGE_EMPTY_ERROR);
   }
   const session = getSessionSnapshot();
+
+  /* U52: tầng chưa có bản vẽ không có trong N15 nên danh sách tầng chỉ thấy tầng đã vẽ. Ghi tên để
+     danh sách vẽ thêm dòng mờ "Chưa có bản vẽ" (chỉ hiển thị, không là node cảnh). */
+  const drawn = new Set(document.graph.levels.map((level) => level.id));
+  (window as unknown as Record<string, unknown>)[UNDRAWN_FLOORS_KEY] = undrawnFloorNames(await floorsRead, drawn);
 
   loadProjectGraph(toProjectSpatial(project, document, { roles: session.roles, userId: session.user?.id ?? null }));
   /* UX-R2 K39: bắt đầu xét tỷ lệ ngay khi kho có cảnh, song song với lượt tải gói editor — `onLoad`

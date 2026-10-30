@@ -102,6 +102,17 @@
 [data-level-not-built] {
   opacity: 0.6;
 }
+[data-level-undrawn] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 [data-level-not-built-tag] {
   margin-left: 6px;
   flex-shrink: 0;

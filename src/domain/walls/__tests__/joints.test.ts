@@ -741,6 +741,29 @@ describe('resolveWallShapes, a step between thicknesses just off the line', () =
     expect(Math.max(...spreads)).toBeLessThan(9000);
   });
 
+  it('keeps a 3° bend between 150 and 400 mm walls near the node instead of a 2,4 m needle', () => {
+    // Real walls from plan K-02: about 2,6° and 5,6° off vertical, meeting at (6728, 2931).
+    const node = point(6728, 2931);
+    const farEnds = [point(6635, 4998), point(6821, 1985)] as const;
+    const walls: readonly Wall[] = [
+      makeWall('W-7DJ7', farEnds[0], node, { thicknessMm: millimetres(150) }),
+      makeWall('W-K5NT', node, farEnds[1], { thicknessMm: millimetres(400) }),
+    ];
+
+    const limitMm = 2 * 400;
+    const { shapes } = resolveWallShapes(walls);
+    expect(resolveDrawableWallShapes(walls).shapes).toEqual(shapes);
+
+    for (const shape of shapes) {
+      for (const vertex of shape.outline) {
+        const nearest = Math.min(
+          ...[node, ...farEnds].map((end) => Math.hypot(vertex.x - end.x, vertex.y - end.y)),
+        );
+        expect(nearest).toBeLessThanOrEqual(limitMm);
+      }
+    }
+  });
+
   it('still solves a real corner well past the collinear tolerance', () => {
     const walls: readonly Wall[] = [
       makeWall('W-1', point(-8000, 0), point(0, 0), { thicknessMm: millimetres(100) }),

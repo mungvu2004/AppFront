@@ -1271,6 +1271,7 @@ export function useFloorUploadScreen(
         ? sizeOverCap(attachment.file.size, MAX_UPLOAD_FILE_SIZE_BYTES)
         : formatFileSize(attachment.file.size);
     // Một trang thì không có gì để chọn: không ô "Chọn trang", tệp tải ngay (BUG-530).
+    const thumbnails = pageThumbnails.get(attachment.id);
     const pageOptions =
       attachment.pageCount === null || attachment.pageCount <= 1
         ? []
@@ -1292,7 +1293,7 @@ export function useFloorUploadScreen(
         .join(' · '),
       pageOptions,
       selectedPage: attachment.selectedPage,
-      ...(pageThumbnails.has(attachment.id) ? { pageThumbnails: pageThumbnails.get(attachment.id) } : {}),
+      ...(thumbnails === undefined ? {} : { pageThumbnails: thumbnails }),
     };
   }, [pageThumbnails, previewUrlFor]);
 

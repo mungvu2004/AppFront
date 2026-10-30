@@ -200,6 +200,13 @@ const COLLINEAR_TOLERANCE_DEG: Degrees = degrees(1);
  */
 const COLLINEAR_TOLERANCE_SIN = Math.sin(degreesToRadians(COLLINEAR_TOLERANCE_DEG));
 
+/**
+ * How far a face corner may sit from its node, in half thicknesses of the
+ * thicker wall. 4 is SVG's default `stroke-miterlimit`: a square or 45° corner
+ * stays well inside it, two equal walls cut it only below ~29°.
+ */
+const MITER_LIMIT_RATIO = 4;
+
 /** Which wall keeps the middle of a node when several meet there. */
 const KIND_RANK: Readonly<Record<WallKind, number>> = {
   loadBearing: 0,
@@ -521,6 +528,15 @@ function faceCorner(position: PointMm, earlier: EndSample, later: EndSample): Fa
     ((onLater.x - onEarlier.x) * later.direction.y - (onLater.y - onEarlier.y) * later.direction.x) /
     cross;
   const meeting = offsetPoint(onEarlier, earlier.direction, along);
+
+  // Miter limit. Two walls a few degrees off one line with different thicknesses
+  // (150 and 400 mm, 3° apart on a real plan) have faces that only meet ~2,4 m
+  // along the wall, and the outline shot a needle through the outer wall. Past
+  // the limit the corner is not worth having: square ends, as for parallel faces.
+  const limitMm = MITER_LIMIT_RATIO * Math.max(earlier.halfThicknessMm, later.halfThicknessMm);
+  if (distanceBetween(position, meeting) > limitMm) {
+    return { left: onEarlier, right: onLater };
+  }
 
   return { left: meeting, right: meeting };
 }

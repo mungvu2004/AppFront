@@ -23,6 +23,7 @@ import {
   markNotBuilt,
   NOT_BUILT_KEY,
   savePascalNow,
+  undrawnFloorNames,
   unsavedNoticeOf,
   usePascalProjectBridge,
   withoutFloorContents,
@@ -553,5 +554,17 @@ describe('withoutFloorContents', () => {
     expect(graph.axes.some((item) => item.levelId === hidden)).toBe(false);
     expect(graph.notes.some((note) => hiddenWalls.has(note.entityId as never))).toBe(false);
     expect(withoutFloorContents(sample, new Set())).toBe(sample);
+  });
+});
+
+describe('undrawnFloorNames (U52)', () => {
+  it('chỉ lấy tầng chưa có trong đồ thị, tầng cao ở trên', () => {
+    const floors = [
+      { id: 'a', name: 'Tầng 1', order: 0 },
+      { id: 'b', name: 'Tầng 2', order: 1 },
+      { id: 'c', name: 'Tầng 3', order: 2 },
+    ];
+    expect(undrawnFloorNames(floors, new Set(['a']))).toEqual(['Tầng 3', 'Tầng 2']);
+    expect(undrawnFloorNames(floors, new Set(['a', 'b', 'c']))).toEqual([]);
   });
 });

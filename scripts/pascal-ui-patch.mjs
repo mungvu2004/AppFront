@@ -72,6 +72,13 @@ export const UI_PATCHES = {
       '<span className="truncate">{getLevelDisplayName(level)}</span>\n            {notBuilt && <span data-level-not-built-tag="" title="Tầng chưa có tỷ lệ nên chưa dựng trong 3D">Chưa dựng</span>}',
       1,
     ],
+    // UX41 U52: tầng của dự án chưa có bản vẽ không nằm trong cảnh; cầu ghi tên vào window.__appfrontUndrawnFloors
+    // (bridge UNDRAWN_FLOORS_KEY). Vẽ thêm dòng tắt, chỉ hiển thị: không là node nên không vào đường lưu.
+    [
+      '                })}\n              </div>\n            </SortableContext>',
+      '                })}\n                {((globalThis as Record<string, unknown>).__appfrontUndrawnFloors as string[] | undefined)?.map((name) => (\n                  <div aria-disabled="true" data-level-undrawn="" key={`undrawn-${name}`}>\n                    <span className="truncate">{name}</span>\n                    <span data-level-not-built-tag="">Chưa có bản vẽ</span>\n                  </div>\n                ))}\n              </div>\n            </SortableContext>',
+      1,
+    ],
   ],
   // UX41 U42: nút bảng phụ trên thanh trái (Công cụ, Thư viện, "+") chỉ có biểu tượng, cây truy cập đọc ra
   // `button ""`. Đặt tên = nhãn tooltip. Khu đất/Cài đặt đã có tên qua `alt` của ảnh.

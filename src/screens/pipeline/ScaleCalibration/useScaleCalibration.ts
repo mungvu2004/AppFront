@@ -124,7 +124,6 @@ import {
 import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number';
 import { formatCombo, keyCapLabels, parseCombo } from '@/lib/input/shortcutRegistry';
 import { MODIFIER_SHORTCUTS } from '@/lib/tools/shortcuts';
-import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { isScaleMissing, provisionalScaleNoticeOf, TINY_FOOTPRINT_MM } from '@/lib/viewmodel/provisionalScale';
 import { ROUTES } from '@/routes/paths';

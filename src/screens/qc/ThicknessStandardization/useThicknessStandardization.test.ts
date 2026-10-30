@@ -498,7 +498,8 @@ describe('áp chuẩn hoá', () => {
     expect(preview?.totalWalls).toBe(FIXTURE_SEGMENT_COUNT - 4);
     /* S-21: chỉ đoạn xem tay (500 mm, nhóm cột BTCT) đứng ngoài lượt áp; sáu đoạn lệch > 30 mm về 4 bậc. */
     expect(preview?.unchangedWalls).toHaveLength(1);
-    expect(preview?.sentence).toBe('44 tường → 4 nhóm chuẩn. 1 tường cần xem tay sẽ không đổi.');
+    /* U19: tường máy đo chọn bậc lớn nhất <= số đo + 15 mm (src/lib/geometry/standardize.ts), nên còn 3 nhóm chuẩn, không phải 4. */
+    expect(preview?.sentence).toBe('44 tường → 3 nhóm chuẩn. 1 tường cần xem tay sẽ không đổi.');
 
     /* Xem trước là XEM: ngăn xếp vẫn trống, kho chưa đổi một số nào. */
     expect(mounted.history.undoSteps()).toHaveLength(0);
