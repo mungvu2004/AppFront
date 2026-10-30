@@ -236,7 +236,7 @@ export function buildVersionRow(
 /** Chênh tối thiểu để coi là "cao hơn hẳn" — dưới mức này là nhiễu đánh giá. */
 const BETTER_MARGIN = 0.05;
 
-/** G2-20: bản đã đánh giá có điểm cao hơn hẳn bản đang dùng → một câu nhắc trên thẻ. */
+/** G2-20: bản đã đánh giá có điểm cao hơn hẳn bản đang dùng → một câu nhắc trên thẻ. Bản gốc bỏ qua: điểm của nó đo trên tập khác (U25). */
 export function betterVersionNote(
   activeVersion: ModelVersion | undefined,
   versions: readonly ModelVersion[],
@@ -251,7 +251,7 @@ export function betterVersionNote(
   let bestScore = sign * current + BETTER_MARGIN;
   for (const version of versions) {
     const value = version.metrics?.[metric.key];
-    if (version.id === activeVersion.id || version.evaluationStatus !== 'completed' || value === undefined) continue;
+    if (version.id === activeVersion.id || version.evaluationStatus !== 'completed' || value === undefined || isSeed(version)) continue;
     if (sign * value >= bestScore) {
       best = version;
       bestScore = sign * value;
@@ -259,7 +259,7 @@ export function betterVersionNote(
   }
   return best === undefined
     ? null
-    : `Bản ${best.label} có ${metricLabel(best)}, tốt hơn hẳn bản đang dùng; cân nhắc kích hoạt bản đó.`;
+    : `Bản ${best.label} có ${metricLabel(best)}, cao hơn bản đang dùng; kiểm tra kỹ trước khi kích hoạt.`;
 }
 
 export function buildActiveCard(

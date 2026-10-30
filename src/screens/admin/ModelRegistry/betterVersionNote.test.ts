@@ -27,4 +27,10 @@ describe('betterVersionNote (G2-20)', () => {
     const active = make('dang-dung', 0.6);
     expect(betterVersionNote(active, [active, make('nho', 0.62), make('cho', 0.99, 'pending')])).toBeNull();
   });
+
+  it('bản gốc (seed) có điểm cao vẫn không được gợi ý (U25)', () => {
+    const active = make('dang-dung', 0.252);
+    const seed = { ...make('goc', 0.995), label: 'Gốc', creatorId: 'system:pipeline' };
+    expect(betterVersionNote(active, [active, seed])).toBeNull();
+  });
 });
