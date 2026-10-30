@@ -82,6 +82,16 @@ export const UI_PATCHES = {
       1,
     ],
   ],
+  // UX41 U21: chế độ mặt bằng "Mặc định" chỉ vẽ vạch đo khi nó đang được chọn; vạch vừa đo xong không
+  // được chọn nên 2D không hiện số nào. Vạch đo do người dùng tự đặt → luôn hiện trong trình sửa (như 3D);
+  // bản xuất giữ nguyên.
+  'editor/src/lib/floorplan/floorplan-mode.ts': [['    measurements: selected,', '    measurements: interactive,', 1]],
+  // UX41 U21: nhãn số đo kiểu "outlined" là chữ trắng viền màu `measurementStroke`; bảng màu tối của
+  // mặt bằng đặt màu ấy là #e2e8f0 nên chữ trắng viền gần trắng, nhòe thành một vệt. Viền xám đậm cố định
+  // (#334155, như bảng màu sáng và floorplan-geometry-renderer) đọc được trên cả nền sáng lẫn tối.
+  'editor/src/components/editor-2d/renderers/floorplan-registry-layer.tsx': [
+    ['stroke={outlined ? palette.measurementStroke : undefined}', "stroke={outlined ? '#334155' : undefined}", 1],
+  ],
 };
 
 export function applyUiPatches(code, file, pairs) {

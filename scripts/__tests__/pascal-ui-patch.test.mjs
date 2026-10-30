@@ -34,6 +34,20 @@ describe('pascal-ui-patch', () => {
     expect(out).toMatch(/\{notBuilt && <span data-level-not-built-tag="" [^>]*>Chưa dựng<\/span>\}/);
   });
 
+  it('UX41 U21: mặt bằng "Mặc định" luôn vẽ vạch đo trong trình sửa, không chỉ khi đang chọn', () => {
+    const file = 'editor/src/lib/floorplan/floorplan-mode.ts';
+    const out = applyUiPatches(readFileSync(path.join(PACKAGES, file), 'utf8'), file, UI_PATCHES[file]);
+    expect(out).toContain('measurements: interactive,');
+    expect(out).toContain("const interactive = context.target === 'editor'");
+    // Kích thước tay/ngữ cảnh vẫn chỉ hiện khi chọn.
+    expect(out).toContain('manualDimensions: selected,');
+
+    const layer = 'editor/src/components/editor-2d/renderers/floorplan-registry-layer.tsx';
+    const label = applyUiPatches(readFileSync(path.join(PACKAGES, layer), 'utf8'), layer, UI_PATCHES[layer]);
+    // Chữ trắng viền xám đậm, không viền theo bảng màu (#e2e8f0 ở nền tối).
+    expect(label).toContain("stroke={outlined ? '#334155' : undefined}");
+  });
+
   it('ném lỗi khi thiếu neo hoặc sai số lần', () => {
     expect(() => applyUiPatches('<b/>', 'x.tsx', [['bg-neutral-100', 'bg-background', 1]])).toThrow(/0 lần/);
     expect(() => applyUiPatches('bg-neutral-100 bg-neutral-100', 'x.tsx', [['bg-neutral-100', 'bg-background', 1]])).toThrow(/2 lần/);
