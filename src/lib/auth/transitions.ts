@@ -1,5 +1,5 @@
 import { clearNavigationMemory } from './navigationMemory';
-import { setAnonymousSession } from './state';
+import { forgetDeviceSession, setAnonymousSession } from './state';
 import type { AuthEventDetail } from './types';
 
 export const endAnonymousSession = ({
@@ -17,6 +17,10 @@ export const endAnonymousSession = ({
 }): void => {
   clearTimer();
   clearNavigationMemory();
+  // Đăng xuất chủ động: lần mở sau là khách, không phải "phiên đã kết thúc" (U59).
+  if (reason === 'sign-out') {
+    forgetDeviceSession();
+  }
   setAnonymousSession({ refreshFailed });
   emitSignedOut(reason ? { reason, source } : { source });
 };

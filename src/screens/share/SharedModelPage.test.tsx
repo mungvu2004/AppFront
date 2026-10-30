@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
@@ -7,11 +7,11 @@ import { createMockApiClient, MOCK_SHARE_TOKEN } from '@/api/__mocks__/client';
 import { createExportPanelGateway, ExportAccessError } from '@/screens/export/ExportPanel/exportPanelGateway';
 import { createShareLink, revokeShareLink, type ShareLinkGateway } from '@/lib/export/shareLink';
 
-import { SHARE_LINK_GONE_MESSAGE, SharedModelPage } from './SharedModelPage';
+import { SHARE_LINK_GONE_MESSAGE, SharedModelPage, shareGoneReason } from './SharedModelPage';
 
 function renderAt(token: string) {
   const client = createMockApiClient();
-  render(
+  return render(
     <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter initialEntries={[`/share/${token}`]}>
         <Routes>
@@ -44,6 +44,29 @@ describe('trang chia sẻ công khai', () => {
   it('token hợp lệ hiện tên dự án và mặt bằng chỉ đọc', async () => {
     renderAt(MOCK_SHARE_TOKEN);
     expect(await screen.findByText('Bản xem chỉ đọc qua liên kết chia sẻ.')).toBeInTheDocument();
+  });
+
+  it('[U23] mặt bằng vẽ cả phòng có tên, có nút phóng/thu/vừa khung đổi được khung nhìn', async () => {
+    const { container } = renderAt(MOCK_SHARE_TOKEN);
+    const zoomIn = await screen.findByRole('button', { name: 'Phóng to' });
+    expect(screen.getByRole('button', { name: 'Thu nhỏ' })).toBeInTheDocument();
+    expect(container.querySelectorAll('svg[aria-label="Mặt bằng chỉ đọc"] polygon').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('svg[aria-label="Mặt bằng chỉ đọc"] text').length).toBeGreaterThan(0);
+
+    const plan = screen.getByRole('img', { name: 'Mặt bằng chỉ đọc' });
+    const before = plan.getAttribute('viewBox');
+    fireEvent.click(zoomIn);
+    expect(plan.getAttribute('viewBox')).not.toBe(before);
+    fireEvent.click(screen.getByRole('button', { name: 'Vừa khung' }));
+    expect(plan.getAttribute('viewBox')).toBe(before);
+  });
+
+  it('[U59] 404 kèm reason nói đúng lý do; vắng reason giữ câu gộp', () => {
+    expect(shareGoneReason({ status: 404, raw: { reason: 'revoked' } })).toContain('đã thu hồi');
+    expect(shareGoneReason({ status: 404, raw: { reason: 'expired' } })).toBe(
+      'Liên kết đã hết hạn. Hãy xin người chia sẻ một liên kết mới.',
+    );
+    expect(shareGoneReason({ status: 404, raw: { code: 'NOT_FOUND' } })).toContain('hoặc không đúng');
   });
 });
 

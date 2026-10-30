@@ -702,6 +702,17 @@ describe('SessionBootstrap', () => {
     });
   });
 
+  it('[U59] máy từng có phiên mà cookie hết hạn (401 trơn) thì /login nói phiên đã kết thúc', async () => {
+    window.localStorage.setItem('appfront.hadSession', '1');
+    await configureAppSession({ fetchImpl: async () => new Response(null, { status: 401 }) });
+
+    renderAt('/projects/p1/3d');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('man-dang-nhap')).toHaveAttribute('data-notice', 'sessionEnded');
+    });
+  });
+
   it('người khác đăng nhập vào thì màn con gắn lại, không mang dữ liệu người cũ sang', async () => {
     const server = createFakeServer('u1');
     await configureAppSession({ fetchImpl: server.fetchImpl });
