@@ -1,6 +1,6 @@
 import type { AnyNodeDefinition } from '@pascal-app/core'
 import { describe, expect, it } from 'vitest'
-import { translateDefinition, viHint } from './pascal-vi'
+import { kindNameVi, translateDefinition, viHint } from './pascal-vi'
 
 function wallLike() {
   return {
@@ -37,5 +37,13 @@ describe('pascal-vi (G5-03 registry)', () => {
 
   it('keeps labels Pascal matches on (Shift "Cycle snapping mode" is filtered by label)', () => {
     expect(viHint('Cycle snapping mode')).toBe('Cycle snapping mode')
+  })
+
+  it('UX41 U51: type id → Vietnamese kind for the multi-select summary', () => {
+    expect(kindNameVi('wall')).toBe('tường')
+    expect(kindNameVi('door')).toBe('cửa đi')
+    expect(kindNameVi('item')).toBe('đồ vật')
+    expect(kindNameVi('roof-segment')).toBe('mảng mái')
+    expect(kindNameVi('made-up-kind')).toBe('made up kind')
   })
 })

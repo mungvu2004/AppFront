@@ -17,7 +17,8 @@
  *      Esc, delete-mode banner, frame model on load) - listed in ./README.md.
  *   9. UI review fix R3d: registry strings in Vietnamese (G5-03, ./lib/pascal-vi.ts), saved
  *      preferences (BUG-648, ./lib/editor-preferences.ts), sidebar auto-collapses under 1100 px
- *      (G5-11), Preview header shows the project name (G5-15), one-time orbit hint (G5-08).
+ *      (G5-11), Preview header shows the project name (G5-15). The one-time orbit hint (G5-08) is gone:
+ *      left-drag orbits since UX41 U20 (scripts/realism/u20-left-orbit.mjs).
  *   10. FE3D WP8: ../scaleBanner.tsx (drawing-scale warning) heads the CanvasHelp column - see ./README.md.
  *   11. UX-R2: frame the viewed floor (./lib/view-frame.ts) on open and on every floor switch; the
  *       project setting "separate units" pins solo mode; the build panel opens collapsed (K35).
@@ -33,9 +34,9 @@ import {
   useViewer,
   ViewerSceneHeader,
 } from '@pascal-app/editor'
-import { Hammer, Layers, Package, Settings, X } from 'lucide-react'
+import { Hammer, Layers, Package, Settings } from 'lucide-react'
 import Image from 'next/image'
-import { type ComponentProps, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { type ComponentProps, type ReactNode, useCallback, useEffect, useRef } from 'react'
 import { isSeparateUnits } from '../bridge'
 import { downloadSnapshot } from '../realism/snapshot'
 import { ScaleBanner, ScaleEmptyNotice } from '../scaleBanner'
@@ -339,84 +340,6 @@ function PreviewHeader({ projectName }: { projectName?: string | undefined }) {
   )
 }
 
-const ORBIT_HINT_KEY = 'appfront.pascal.orbit-hint-seen'
-
-function orbitHintSeen(): boolean {
-  try {
-    return localStorage.getItem(ORBIT_HINT_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-/**
- * AppFront edit (R3d, G5-08): left-drag on empty canvas is Pascal's box select (kept on
- * purpose). The first time such a drag selects nothing, say how to orbit. Shown once per browser.
- */
-function OrbitHint() {
-  const [shown, setShown] = useState(false)
-  useEffect(() => {
-    if (orbitHintSeen()) return
-    let start: { x: number; y: number } | null = null
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const onDown = (event: PointerEvent) => {
-      start =
-        event.button === 0 && event.target instanceof HTMLCanvasElement
-          ? { x: event.clientX, y: event.clientY }
-          : null
-    }
-    const onUp = (event: PointerEvent) => {
-      if (!start) return
-      const dragged = Math.hypot(event.clientX - start.x, event.clientY - start.y) > 40
-      start = null
-      const ed = useEditor.getState()
-      if (!dragged || ed.mode !== 'select' || ed.isPreviewMode) return
-      // Let the box selection commit before reading it.
-      timer = setTimeout(() => {
-        if (useViewer.getState().selection.selectedIds.length > 0) return
-        try {
-          localStorage.setItem(ORBIT_HINT_KEY, '1')
-        } catch {
-          // Private mode: the hint may show again next visit.
-        }
-        setShown(true)
-      }, 100)
-    }
-    window.addEventListener('pointerdown', onDown, true)
-    window.addEventListener('pointerup', onUp, true)
-    return () => {
-      clearTimeout(timer)
-      window.removeEventListener('pointerdown', onDown, true)
-      window.removeEventListener('pointerup', onUp, true)
-    }
-  }, [])
-  useEffect(() => {
-    if (!shown) return
-    const timer = setTimeout(() => setShown(false), 10_000)
-    return () => clearTimeout(timer)
-  }, [shown])
-  if (!shown) return null
-  return (
-    <div
-      className="fixed bottom-28 left-1/2 z-50 flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-3 rounded-xl border border-border bg-background/95 py-2 pr-2 pl-4 text-foreground text-sm shadow-lg backdrop-blur-md"
-      role="status"
-    >
-      <span>
-        Kéo chuột trái trên vùng trống là chọn bằng khung. Muốn xoay mô hình: giữ chuột phải và
-        kéo.
-      </span>
-      <button
-        aria-label="Đóng gợi ý"
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md hover:bg-accent"
-        onClick={() => setShown(false)}
-        type="button"
-      >
-        <X className="h-4 w-4" />
-      </button>
-    </div>
-  )
-}
-
 /** V1 (viewer-measure): người xem không dựng/đặt đồ — bỏ tab Dựng + Đồ vật; đo nằm ở thanh hành động. */
 const READ_ONLY_SIDEBAR_TABS = SIDEBAR_TABS.filter((tab) => tab.id !== 'build' && tab.id !== 'items')
 
@@ -459,7 +382,6 @@ export default function Home({ projectId, onLoad, onSave, readOnly, backCard, pr
         viewerToolbarRight={<CommunityViewerToolbarRight vrButton={null} vrLabel="Enter VR" />}
       />
       <PreviewHeader projectName={projectName} />
-      <OrbitHint />
       <CanvasHelp banner={<ScaleBanner projectId={projectId} />} />
       {/* AppFront edit (Codex P1): every floor lacks a scale -> empty scene, say why mid-screen. */}
       <ScaleEmptyNotice projectId={projectId} />

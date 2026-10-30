@@ -15,7 +15,7 @@ export interface TourStep {
 export const TOUR_STEPS: readonly TourStep[] = [
   {
     title: 'Điều khiển góc nhìn bằng chuột',
-    body: 'Giữ chuột phải và kéo để xoay. Lăn chuột để phóng to hoặc thu nhỏ. Để kéo khung hình, giữ chuột giữa hoặc giữ phím Space cùng chuột trái.',
+    body: 'Kéo chuột trái (hoặc chuột phải) để xoay. Giữ Shift và kéo để chọn nhiều đối tượng bằng khung. Lăn chuột để phóng to hoặc thu nhỏ. Để kéo khung hình, giữ chuột giữa hoặc giữ phím Space cùng chuột trái.',
     keys: ['Space'],
     anchor: { selector: 'canvas' },
   },
@@ -90,7 +90,7 @@ export function isSceneReady(root: ParentNode = document): boolean {
   });
 }
 
-export const HINT_TEXT = 'Giữ chuột phải và kéo để xoay, lăn chuột để phóng to.';
+export const HINT_TEXT = 'Kéo chuột để xoay, lăn chuột để phóng to.';
 /**
  * UX-R2 K38: gợi ý lần đầu đứng giữa cạnh dưới, ngay trên thanh công cụ dưới (`fixed bottom-6`, cao
  * ~52px) — không còn dưới cụm trợ giúp đầu cảnh, nơi nó đè lên mô hình.

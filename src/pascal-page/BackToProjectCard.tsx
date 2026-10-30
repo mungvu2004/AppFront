@@ -39,10 +39,12 @@ export function EditModelButton({ collapsed, onOpen }: { readonly collapsed: boo
     <button
       className={`${CARD} ${FOCUS_OUT} inline-flex cursor-pointer gap-1.5 whitespace-nowrap px-2.5 font-medium transition-colors duration-120 hover:bg-[var(--pa-sunken)] motion-reduce:transition-none`}
       onClick={onOpen}
+      title="Sửa mô hình"
       type="button"
     >
       <PencilRuler aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
-      Sửa mô hình
+      {/* UX41 U58: < 800px chỉ còn biểu tượng; tên vẫn đọc được (sr-only) và hiện ở title. */}
+      <span className="@max-[800px]/appbar:sr-only">Sửa mô hình</span>
     </button>
   );
 }
@@ -181,8 +183,9 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
           title={`Bước ${VIEWER_STEP + 1}: ${current.label}`}
           className={`${CARD} flex cursor-pointer list-none gap-1.5 whitespace-nowrap px-2 font-medium transition-colors duration-120 hover:bg-[var(--pa-sunken)] motion-reduce:transition-none ${FOCUS_OUT} [&::-webkit-details-marker]:hidden`}
         >
+          {/* UX41 U58: < 800px (cửa sổ 768) chip chỉ còn số bước, tên ở aria-label/title; thanh trái hết đè thanh phải. */}
           <span>
-            Bước {VIEWER_STEP + 1} · {current.label}
+            Bước {VIEWER_STEP + 1}<span className="@max-[800px]/appbar:hidden"> · {current.label}</span>
           </span>
           <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[720px]/appbar:hidden" />
         </summary>

@@ -159,10 +159,12 @@ function renderKeys(text: string) {
 }
 
 const EDITOR_HINTS:Array<[string, string]> = [
-  ['Xoay', 'Giữ chuột phải và kéo'],
+  // UX41 U20: chuột trái cũng xoay (scripts/realism/u20-left-orbit.mjs); quét chọn cần Shift.
+  ['Xoay', 'Kéo chuột trái hoặc chuột phải'],
   ['Kéo khung', 'Space + chuột trái, hoặc chuột giữa'],
   ['Phóng to/thu nhỏ', 'Lăn chuột'],
   ['Chọn', 'Bấm chuột trái vào đối tượng'],
+  ['Chọn nhiều', 'Shift + kéo chuột trái'],
 ]
 const PREVIEW_HINTS: Array<[string, string]> = [
   ['Xoay', 'Giữ chuột phải và kéo'],
