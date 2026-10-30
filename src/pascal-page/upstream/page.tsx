@@ -460,9 +460,9 @@ export default function Home({ projectId, onLoad, onSave, readOnly, backCard, pr
       />
       <PreviewHeader projectName={projectName} />
       <OrbitHint />
-      <CanvasHelp banner={<ScaleBanner projectId={projectId} />} />
+      <CanvasHelp banner={<ScaleBanner projectId={projectId} readOnly={readOnly} />} />
       {/* AppFront edit (Codex P1): every floor lacks a scale -> empty scene, say why mid-screen. */}
-      <ScaleEmptyNotice projectId={projectId} />
+      <ScaleEmptyNotice projectId={projectId} readOnly={readOnly} />
       <MeasureClearButton />
     </div>
   )

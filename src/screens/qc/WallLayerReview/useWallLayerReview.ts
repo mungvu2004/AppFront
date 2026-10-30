@@ -366,6 +366,8 @@ const WALL_UNDO_REFUSED_NOTIFICATION_TYPE = 'wallLayerReview.undoRefused';
 /** "Nối đoạn" không nối được — trước đây bấm xong không có phản hồi gì (G4a-12). */
 const WALL_MERGE_REFUSED_NOTIFICATION_TYPE = 'wallLayerReview.mergeRefused';
 const WALL_MERGE_REFUSED_TEXT = 'Không nối được: hai đoạn phải thẳng hàng và chạm đầu nhau.';
+/* UX41 U09: phím A/Delete/đổi độ dày khi tầng chưa có tỷ lệ không được im lặng — nói lý do + lối ra. */
+const WALL_SCALE_LOCKED_NOTIFICATION_TYPE = 'wallLayerReview.scaleLocked';
 const WALL_UNDO_REFUSED_TEXT =
   'Chưa hoàn tác: một thay đổi sau đó đã sửa cùng tường. Dùng Ctrl+Z để hoàn tác lần lượt.';
 
@@ -942,11 +944,29 @@ export function useWallLayerReview(
     applyInvalidation(queryClient, 'editWall', { floorId, projectId });
   }, [floorId, projectId, queryClient]);
 
+  /** Thao tác sửa bị khoá vì thiếu tỷ lệ: báo một lần bằng câu khoá chung, kèm hướng sang bước Tỷ lệ. */
+  const notifyScaleLocked = useCallback(() => {
+    if (!canEdit || scaleLock.reason === null) {
+      return;
+    }
+
+    (options.notifications ?? appNotificationBus).publish({
+      type: WALL_SCALE_LOCKED_NOTIFICATION_TYPE,
+      title: scaleLock.reason,
+      description: 'Bấm "Đặt tỷ lệ" ở cột trái để sang bước Tỷ lệ.',
+    });
+  }, [canEdit, options.notifications, scaleLock.reason]);
+
   const run = useCallback(
     async (build: (context: ReturnType<typeof commandContextOf>) => ReturnType<typeof buildApproveWallCommand> | null) => {
       const current = useStore.getState().spatial;
 
-      if (!canEdit || isScaleLocked || current === null) {
+      if (isScaleLocked) {
+        notifyScaleLocked();
+        return false;
+      }
+
+      if (!canEdit || current === null) {
         return false;
       }
 
@@ -964,7 +984,7 @@ export function useWallLayerReview(
 
       return result.ok;
     },
-    [canEdit, dispatchBundle, gateway, invalidate, isScaleLocked],
+    [canEdit, dispatchBundle, gateway, invalidate, isScaleLocked, notifyScaleLocked],
   );
 
   const onApprove = useCallback(
@@ -972,7 +992,12 @@ export function useWallLayerReview(
       const wall = wallById(wallId);
 
       /* Khoá tỷ lệ: không duyệt, và cũng không tự nhảy sang tường kế như thể đã duyệt. */
-      if (wall === null || wall.reviewed || isScaleLocked) {
+      if (wall === null || wall.reviewed) {
+        return;
+      }
+
+      if (isScaleLocked) {
+        notifyScaleLocked();
         return;
       }
 
@@ -985,7 +1010,7 @@ export function useWallLayerReview(
         }
       });
     },
-    [gateway, isScaleLocked, onSelect, run, visibleWalls, wallById, wallCodes],
+    [gateway, isScaleLocked, notifyScaleLocked, onSelect, run, visibleWalls, wallById, wallCodes],
   );
 
   const onUnapprove = useCallback(
@@ -1034,7 +1059,12 @@ export function useWallLayerReview(
 
   const onChangeThickness = useCallback(
     (wallId: WallId, thicknessMm: WallThicknessChoice) => {
-      if (thicknessLockText !== null || isScaleLocked) {
+      if (isScaleLocked) {
+        notifyScaleLocked();
+        return;
+      }
+
+      if (thicknessLockText !== null) {
         return;
       }
 
@@ -1047,7 +1077,7 @@ export function useWallLayerReview(
         setFlashingWallId(wallId);
       });
     },
-    [isScaleLocked, run, thicknessLockText],
+    [isScaleLocked, notifyScaleLocked, run, thicknessLockText],
   );
 
   const onSplit = useCallback(

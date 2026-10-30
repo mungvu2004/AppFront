@@ -40,7 +40,8 @@ const ELEVATION_OFFSET_LABEL = 'Lệch Z';
 const START_POINT_LABEL = 'Toạ độ đầu';
 const END_POINT_LABEL = 'Toạ độ cuối';
 const THICKNESS_ARIA_LABEL = 'Độ dày tường';
-const MEASURED_LABEL = 'Độ dày đo được';
+// UX41 U48: số này có thể đã được người sửa — không gọi là "đo được". Số máy đo gốc chưa có trên wire.
+const MEASURED_LABEL = 'Độ dày hiện tại';
 const CHANGE_THICKNESS_LABEL = 'Đổi độ dày';
 const NON_STANDARD_LABEL = 'Không chuẩn';
 const REVIEWED_LABEL = 'Đã duyệt';

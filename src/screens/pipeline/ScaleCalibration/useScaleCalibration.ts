@@ -125,7 +125,7 @@ import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number'
 import { formatCombo, keyCapLabels, parseCombo } from '@/lib/input/shortcutRegistry';
 import { MODIFIER_SHORTCUTS } from '@/lib/tools/shortcuts';
 import { queryKeys } from '@/lib/query/queryKeys';
-import { isScaleMissing, provisionalScaleNoticeOf } from '@/lib/viewmodel/provisionalScale';
+import { isScaleMissing, provisionalScaleNoticeOf, TINY_FOOTPRINT_MM } from '@/lib/viewmodel/provisionalScale';
 import { ROUTES } from '@/routes/paths';
 import { commit } from '@/store/commit';
 import { useStore } from '@/store';
@@ -143,7 +143,7 @@ import {
   type ScaleRawSnapTarget,
   type ScaleRoomBoxPx,
 } from './scaleCalibrationGateway';
-import { buildScaleCheck, type PlanSizeMm } from './scaleCheck';
+import { buildScaleCheck, isPlanSizeImplausible, planSizeText, type PlanSizeMm } from './scaleCheck';
 import type {
   DimensionStringRow,
   ImageRatioPoint,
@@ -206,6 +206,8 @@ const COPY = {
   shortcutNudgeFine: 'Nhích đầu đoạn một pixel',
   shortcutNudgeCoarse: 'Nhích đầu đoạn mười pixel',
   shortcutAxisLock: 'Khoá đoạn theo trục',
+  // UX41 U04: đường bàn phím — đặt sẵn một đoạn giữa bản vẽ, rồi Tab tới hai đầu đoạn và nhích bằng mũi tên.
+  shortcutPlaceSegment: 'Đặt đoạn đo giữa bản vẽ',
   noDrawingTitle: 'Tầng này chưa có bản vẽ',
   noDrawingNotice:
     'Chưa có bản vẽ nào được tải lên cho tầng này. Tải bản vẽ lên và chờ bước tiền xử lý xong rồi mới hiệu chỉnh tỷ lệ.',
@@ -233,6 +235,8 @@ const COPY = {
   applyCommitLabel: 'Xác nhận tỷ lệ',
   applyNoSpatial: 'Chưa nạp dữ liệu không gian của tầng này, nên chưa áp được tỷ lệ.',
   applyFailed: 'Chưa lưu được tỷ lệ lên máy chủ, tầng giữ tỷ lệ cũ.',
+  // UX41 U56: mất mạng thì không bắt người dùng bấm lại — tự gửi khi có mạng.
+  applyOffline: 'Chưa lưu được tỷ lệ lên máy chủ vì mất mạng. Có mạng lại sẽ tự gửi, không cần bấm lại.',
   scaleConflict: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất rồi áp lại tỷ lệ.',
   allFloorsReadFailed: 'Không tải được danh sách tầng để áp tỷ lệ.',
   allFloorsMessage:
@@ -326,6 +330,17 @@ const expectedRangeFrom = (min: string): string => `khoảng hợp lý từ ${mi
 /** Ví dụ `"Giá trị này cho ra bức tường dày 3 m. Kiểm tra lại đơn vị hoặc chiều dài tham chiếu."`. */
 const implausibleMessage = (thickness: string): string =>
   `Giá trị này cho ra bức tường dày ${thickness}. Kiểm tra lại đơn vị hoặc chiều dài tham chiếu.`;
+
+/**
+ * UX41 U34: cạnh dài khối tường quá mức này thì gần như chắc nhập sai (thừa một số 0, sai đơn vị):
+ * căn hộ một tầng hiếm khi dài hơn 40 m. ponytail: ngưỡng cố định; nhà đất/nhiều căn thì nới.
+ */
+const HUGE_FOOTPRINT_MM = 40_000;
+
+const planSizeMessage = (size: string): string =>
+  `Tỷ lệ này cho căn ${size}, không giống một căn hộ. Kiểm lại số đã nhập (thừa hay thiếu số 0?) rồi mới xác nhận.`;
+
+const PLAN_SIZE_CONFIRM_AGAIN = 'Cỡ căn trông vô lý. Kiểm lại số; nếu chắc chắn đúng, bấm Xác nhận tỷ lệ lần nữa.';
 
 /** Ví dụ `"Tỷ lệ này lệch +25% so với ước tính 12 mm/px của AI. …"`. */
 const deviationMessage = (percent: string, estimated: string): string =>
@@ -837,6 +852,8 @@ export function useScaleCalibration(
   /** Kết quả lượt áp gần nhất: `success` chỉ khi MỌI `saveScale` của lượt ấy thành công (A5). */
   const [applyOutcome, setApplyOutcome] = useState<'success' | 'failed' | null>(null);
   const [isApplying, setApplying] = useState(false);
+  /** UX41 U56: lượt áp vừa hỏng vì mất mạng, chờ sự kiện `online` để tự gửi lại. */
+  const [isOfflinePending, setOfflinePending] = useState(false);
   /** Câu của lượt áp/hoàn tác gần nhất — `applyBlockedNotice` của panel. */
   const [applyNotice, setApplyNotice] = useState<string | null>(null);
   /** Hộp thoại A9 đang mở cho "áp mọi tầng": tỷ lệ và danh sách đích đã đọc. */
@@ -1332,6 +1349,33 @@ export function useScaleCalibration(
     setNudgeTarget('end');
   }, []);
 
+  /**
+   * UX41 U04: không có chuột vẫn đo được — đặt một đoạn ngang giữa ảnh (30 %..70 % bề ngang);
+   * người dùng Tab tới tay cầm hai đầu, nhích bằng mũi tên cho khớp một kích thước, rồi nhập số.
+   */
+  const onPlaceSegment = useCallback(() => {
+    const currentFrame = frameRef.current;
+
+    if (currentFrame === null) {
+      return;
+    }
+
+    setMethod('referenceLine');
+    setSuggestionFloorId(null);
+    setApplyOutcome(null);
+    setNudgeTarget('end');
+    setDrag({
+      start: toPixelPoint(currentFrame, { x: 0.3, y: 0.5 }),
+      end: toPixelPoint(currentFrame, { x: 0.7, y: 0.5 }),
+      isDragging: false,
+      isAxisLocked: false,
+      snappedKind: null,
+      snappedEndpoint: null,
+      movingEndpoint: 'end',
+      grabOffset: NO_GRAB_OFFSET,
+    });
+  }, []);
+
   const onPan = useCallback(
     (dx: number, dy: number) => {
       pan(dx, dy);
@@ -1445,6 +1489,10 @@ export function useScaleCalibration(
   const proposedRatioRef = useRef(proposedRatio);
   proposedRatioRef.current = proposedRatio;
 
+  /** UX41 U34: cỡ căn vô lý thì lần bấm đầu chỉ hỏi lại; bấm lần nữa với cùng tỷ lệ mới lưu. */
+  const hasPlanSizeWarningRef = useRef(false);
+  const planSizeAcknowledgedRef = useRef<number | null>(null);
+
   /** Ctrl+Z bấm khi lượt áp còn đang gửi (BUG-725) — `commitSaved` hoàn tác chính lượt ấy. */
   const undoWhileApplyingRef = useRef(false);
 
@@ -1517,6 +1565,12 @@ export function useScaleCalibration(
       return;
     }
 
+    if (hasPlanSizeWarningRef.current && planSizeAcknowledgedRef.current !== ratio) {
+      planSizeAcknowledgedRef.current = ratio;
+      setApplyNotice(PLAN_SIZE_CONFIRM_AGAIN);
+      return;
+    }
+
     // `levelId` là mã `Level` N16 trả cho mã tầng của route. Không có tầng đó trong
     // kho thì không có gì để vá — nói lý do tại chỗ thay vì im lặng (B-V5-01).
     if (levelIn(useStore.getState().spatial, levelId) === null) {
@@ -1546,18 +1600,40 @@ export function useScaleCalibration(
     void saveScale(levelId, ratio).then(
       () => {
         setScaleConflict(false);
+        setOfflinePending(false);
         commitSaved([levelId], ratio);
         setApplyOutcome('success');
         setApplying(false);
       },
       (error: unknown) => {
-        setScaleConflict(toAppError(error).kind === 'conflict');
+        const kind = toAppError(error).kind;
+        setScaleConflict(kind === 'conflict');
         setApplyOutcome('failed');
-        setApplyNotice(failureText(error));
+        setOfflinePending(kind === 'network');
+        setApplyNotice(kind === 'network' ? COPY.applyOffline : failureText(error));
         setApplying(false);
       },
     );
   }, [commitSaved, gateway, levelId, projectId, rememberProvisional, saveScale]);
+
+  /* UX41 U56: lượt áp hỏng vì mất mạng — có mạng lại thì gửi lại đúng lượt ấy, một lần. */
+  const onApplyRef = useRef(onApply);
+  onApplyRef.current = onApply;
+
+  useEffect(() => {
+    if (!isOfflinePending) {
+      return undefined;
+    }
+
+    const resend = (): void => {
+      setOfflinePending(false);
+      onApplyRef.current();
+    };
+
+    window.addEventListener('online', resend);
+
+    return () => window.removeEventListener('online', resend);
+  }, [isOfflinePending]);
 
   const onCancelAllFloors = useCallback(() => {
     setAllFloors(null);
@@ -1830,8 +1906,19 @@ export function useScaleCalibration(
       }
     }
 
+    const planSize = planSizeAt(layerDocument, proposedRatio);
+
+    if (planSize !== null && isPlanSizeImplausible(planSize, TINY_FOOTPRINT_MM, HUGE_FOOTPRINT_MM)) {
+      notices.push({
+        warning: { kind: 'implausiblePlanSize', proposed: proposedRatio, ...planSize },
+        message: planSizeMessage(planSizeText(planSize)),
+        statusCode: 'attention',
+      });
+    }
+
     return notices;
-  }, [aiSuggestion, proposedRatio, record?.referenceWallWidthPx]);
+  }, [aiSuggestion, layerDocument, proposedRatio, record?.referenceWallWidthPx]);
+  hasPlanSizeWarningRef.current = warnings.some((notice) => notice.warning.kind === 'implausiblePlanSize');
 
   /* ---------------------------------------------------------------------- */
   /* Ba dòng kiểm chứng — luôn đủ ba.                                        */
@@ -1902,6 +1989,16 @@ export function useScaleCalibration(
   /* ---------------------------------------------------------------------- */
 
   const canEdit = can('edit', 'layer', { roles });
+  useShortcut(
+    {
+      id: 'scaleCalibration.placeSegment',
+      combo: 'N',
+      scope: 'canvas',
+      description: COPY.shortcutPlaceSegment,
+      onTrigger: onPlaceSegment,
+    },
+    { enabled: canEdit && drag === null },
+  );
   const isCompact = detectedNarrow;
   const isPanelCollapsed = options.forceCollapsed ?? isCollapsedByUser;
   // Tỷ lệ ước từ độ dày tường không có phép chia nào để bày ra.
@@ -2068,6 +2165,7 @@ export function useScaleCalibration(
   const shortcutHints = useMemo<readonly ScaleShortcutHint[]>(() => {
     const pressed = (
       [
+        ['scaleCalibration.placeSegment', 'N', COPY.shortcutPlaceSegment],
         ['scaleCalibration.cancelDrag', 'Escape', COPY.shortcutCancelDrag],
         ['scaleCalibration.remeasure', 'R', COPY.shortcutRemeasure],
         ['scaleCalibration.confirm', 'Enter', COPY.shortcutConfirm],
@@ -2205,6 +2303,7 @@ export function useScaleCalibration(
           // GÕ vì `realLengthText` là thứ nuôi `proposedRatio`, không đợi rời ô.
           inlineWarning: warnings[0] ?? null,
           canRemeasure: draftForView !== null,
+          canPlaceSegment: draftForView === null && frame !== null,
           tooShortNotice:
             draftForView !== null && !draftForView.isDragging && draftForView.pixelLength <= 0
               ? COPY.referenceTooShort
@@ -2227,8 +2326,9 @@ export function useScaleCalibration(
         isCurrentScaleKnown: displayRatio !== null,
         scaleCheck: buildScaleCheck({
           mmPerPx: proposedRatio ?? storedRatio ?? provisionalRatio,
+          // UX41 U38: đề nghị vừa lưu xong chính là tỷ lệ của tầng — nói "Đã xác nhận", không "Chưa xác nhận".
           source:
-            proposedRatio !== null
+            proposedRatio !== null && !(applyOutcome === 'success' && proposedRatio === levelRatio)
               ? 'proposed'
               : storedRatio !== null
                 ? 'stored'
@@ -2327,6 +2427,8 @@ export function useScaleCalibration(
     drawing,
     effectiveMethod,
     errorCode,
+    frame,
+    levelRatio,
     errorDescription,
     highlightedRowId,
     isCompact,
@@ -2368,6 +2470,7 @@ export function useScaleCalibration(
       onChangeRealLength,
       onConfirmRealLength,
       onRemeasure,
+      onPlaceSegment,
       onPan,
       onZoom,
       onZoomIn,
@@ -2409,6 +2512,7 @@ export function useScaleCalibration(
       onNudgeEndpoint,
       onPan,
       onRemeasure,
+      onPlaceSegment,
       onRetry,
       onSelectDimensionRow,
       onStartDrag,

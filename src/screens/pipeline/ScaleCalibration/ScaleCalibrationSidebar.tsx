@@ -68,6 +68,8 @@ export function ScaleCalibrationSidebar({ actions, panel, state }: SidebarProps)
         </section>
       )}
 
+      {/* UX41 U46: người xem không sửa được — không bày ô nhập/nút đo mờ; dải trên bản vẽ đã nói nhờ ai. */}
+      {!isForbidden && (
       <div className="flex flex-col gap-3 px-4 py-4">
         <h3 className="text-[13px] font-medium text-text-secondary">{METHOD_TITLE}</h3>
         {!hasLockedMethod && (
@@ -100,6 +102,7 @@ export function ScaleCalibrationSidebar({ actions, panel, state }: SidebarProps)
                     onChangeRealLength: actions.onChangeRealLength,
                     onConfirmRealLength: actions.onConfirmRealLength,
                     onNudgeEndpoint: actions.onNudgeEndpoint,
+                    onPlaceSegment: actions.onPlaceSegment,
                     onRemeasure: actions.onRemeasure,
                   }}
                   reference={panel.reference}
@@ -126,6 +129,7 @@ export function ScaleCalibrationSidebar({ actions, panel, state }: SidebarProps)
           <p className="text-[13px] text-text-secondary">{panel.methodNotice}</p>
         )}
       </div>
+      )}
     </section>
   );
 }

@@ -1360,6 +1360,24 @@ describe('useScaleCalibration — bàn phím và phiên kéo', () => {
     expect(mounted.result.current.model.panel.reference.draft).toBeNull();
   });
 
+  it('UX41 U04: đặt đoạn đo bằng bàn phím, gõ chiều dài là có tỷ lệ đề nghị', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+
+    expect(mounted.result.current.model.panel.reference.canPlaceSegment).toBe(true);
+
+    await act(async () => {
+      mounted.result.current.actions.onPlaceSegment();
+      mounted.result.current.actions.onChangeRealLength('4800');
+    });
+
+    const reference = mounted.result.current.model.panel.reference;
+    expect(reference.draft?.pixelLength ?? 0).toBeGreaterThan(0);
+    expect(reference.canPlaceSegment).toBe(false);
+    expect(mounted.result.current.model.panel.canApply).toBe(true);
+  });
+
   it('nhích một đầu đoạn: mũi tên đi một pixel, Shift + mũi tên đi mười', async () => {
     const harness = await makeHarness();
     const mounted = mountHook(harness.gateway);

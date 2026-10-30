@@ -274,6 +274,8 @@ export interface ScaleReferenceMethodViewModel {
   readonly inlineWarning: ScaleWarningNotice | null;
   /** `false` khi chưa có đoạn nào để đo lại. Phím `R`. */
   readonly canRemeasure: boolean;
+  /** UX41 U04: chưa có đoạn và đã có ảnh — nút/phím `N` đặt sẵn một đoạn để chỉnh bằng bàn phím. */
+  readonly canPlaceSegment: boolean;
   /** Đoạn dài 0 px: vì sao "Áp dụng" tắt và làm gì tiếp (BUG-607). `null` khi đoạn đo được. */
   readonly tooShortNotice: string | null;
 }
@@ -283,7 +285,7 @@ export interface ScaleReferenceMethodViewModel {
 /* -------------------------------------------------------------------------- */
 
 /** Hai loại cảnh báo màn này biết dựng. */
-export type ScaleWarningKind = 'implausible' | 'deviatesFromEstimate';
+export type ScaleWarningKind = 'implausible' | 'deviatesFromEstimate' | 'implausiblePlanSize';
 
 /**
  * Cảnh báo dưới dạng DỮ LIỆU, không phải câu.
@@ -311,6 +313,13 @@ export type ScaleWarning =
       readonly estimated: MillimetresPerPixel;
       /** Chênh lệch tương đối so với ước tính, `0..1`. `0,15` là ngưỡng cảnh báo. */
       readonly relativeDifference: number;
+    }
+  | {
+      /** UX41 U34: cỡ căn theo tỷ lệ này vô lý cho một căn hộ (quá to hoặc quá nhỏ). */
+      readonly kind: 'implausiblePlanSize';
+      readonly proposed: MillimetresPerPixel;
+      readonly widthMm: number;
+      readonly heightMm: number;
     };
 
 /** Một cảnh báo đã có câu chữ và mức màu, sẵn sàng để vẽ. */
@@ -666,6 +675,8 @@ export interface ScaleCalibrationActions {
   readonly onConfirmRealLength: () => void;
   /** Phím `R` — xoá đoạn hiện tại và kéo lại từ đầu. */
   readonly onRemeasure: () => void;
+  /** Phím `N` / nút "Đặt đoạn đo giữa bản vẽ": đoạn ngang giữa ảnh để chỉnh bằng bàn phím (UX41 U04). */
+  readonly onPlaceSegment: () => void;
 
   /* -- Canvas -------------------------------------------------------------- */
   /**
@@ -777,6 +788,7 @@ export interface ScaleCalibrationPanelProps {
     | 'onGoToViewer3d'
     | 'onHoverDimensionRow'
     | 'onNudgeEndpoint'
+    | 'onPlaceSegment'
     | 'onRemeasure'
     | 'onSelectDimensionRow'
     | 'onToggleCollapsed'
@@ -795,7 +807,7 @@ export interface ScaleCalibrationMethodReferenceProps {
   readonly reference: ScaleReferenceMethodViewModel;
   readonly actions: Pick<
     ScaleCalibrationActions,
-    'onChangeRealLength' | 'onConfirmRealLength' | 'onNudgeEndpoint' | 'onRemeasure'
+    'onChangeRealLength' | 'onConfirmRealLength' | 'onNudgeEndpoint' | 'onPlaceSegment' | 'onRemeasure'
   >;
 }
 

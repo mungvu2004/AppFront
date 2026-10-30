@@ -140,6 +140,13 @@ describe('useProjectDashboard states', () => {
     expect(dash().model.canDelete).toBe(false);
   });
 
+  it('UX41 U46: a viewer is offered "Xem 3D" on a project awaiting review, never "Duyệt tường"', async () => {
+    mount({ role: 'viewer', gateway: fakeServer([project()]).gateway });
+
+    await waitFor(() => expect(names()).toEqual([NAME_HQ]));
+    expect(dash().model.rows[0]?.actionLabel).toBe('Xem 3D');
+  });
+
   // BUG-210: the query was only trimmed and lower-cased, so a pasted NFD "Đông Á" (letter + separate mark) matched nothing.
   it.each([
     ['NFD query, NFC name', 'Nhà Đông Á', 'mv3njh1u-Nhà Đông Á'.normalize('NFD')],

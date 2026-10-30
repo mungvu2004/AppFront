@@ -7,7 +7,7 @@ import type { Millimetres, SpatialGraph } from '@/domain/spatial/types';
 import { useStore } from '@/store';
 
 import {
-
+  SCALE_ALL_MISSING_BODY_READ_ONLY,
   SCALE_ALL_MISSING_TITLE,
   SCALE_HIDDEN_PREFIX,
   SCALE_PROVISIONAL_PREFIX,
@@ -45,13 +45,13 @@ interface ReadResult {
 /** N16 của tầng có tỷ lệ máy đo, chưa xác nhận (wire luôn kèm mm/px khi `unresolved`). */
 const MEASURED: ReadResult = { scaleStatus: 'unresolved', scaleSource: 'pipeline', level: { scaleMillimetresPerPixel: 10 } };
 
-const mount = (graph: SpatialGraph, readScale: (floorId: string) => Promise<ReadResult>) => {
+const mount = (graph: SpatialGraph, readScale: (floorId: string) => Promise<ReadResult>, readOnly = false) => {
   /* eslint-disable-next-line local/no-direct-set -- giả lập kho vừa nạp, như bridge.test.ts */
   useStore.setState({ spatial: normalizeSpatial(graph) });
   render(
     <>
-      <ScaleBanner projectId="p1" readScale={readScale} />
-      <ScaleEmptyNotice projectId="p1" readScale={readScale} />
+      <ScaleBanner projectId="p1" readOnly={readOnly} readScale={readScale} />
+      <ScaleEmptyNotice projectId="p1" readOnly={readOnly} readScale={readScale} />
     </>,
   );
 };
@@ -188,6 +188,13 @@ describe('ScaleBanner', () => {
     const links = screen.getAllByRole('link', { name: 'Đặt tỷ lệ' });
     expect(links).toHaveLength(2);
     expect(links.every((link) => link.getAttribute('href') === `/projects/p1/floors/${sampleLevelId(0)}/scale`)).toBe(true);
+  });
+
+  it('UX41 U22 — người xem: nói chủ dự án chưa đặt tỷ lệ, không có lối Đặt tỷ lệ', async () => {
+    mount(createSampleBuilding(), async () => ({ scaleStatus: 'unresolved', scaleSource: 'project_default' }), true);
+    expect(await screen.findByRole('heading', { name: SCALE_ALL_MISSING_TITLE })).toBeTruthy();
+    expect(screen.getByText(SCALE_ALL_MISSING_BODY_READ_ONLY)).toBeTruthy();
+    expect(screen.queryAllByRole('link', { name: 'Đặt tỷ lệ' })).toHaveLength(0);
   });
 });
 

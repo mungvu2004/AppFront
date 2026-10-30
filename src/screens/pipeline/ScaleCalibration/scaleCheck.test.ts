@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildScaleCheck, inferredDpi, mmPerPxAt } from './scaleCheck';
+import { buildScaleCheck, inferredDpi, isPlanSizeImplausible, mmPerPxAt } from './scaleCheck';
 
 describe('scaleCheck', () => {
   it('suy DPI từ cạnh ngắn ảnh trên khổ A3 và tính mm/px theo tỷ lệ in', () => {
@@ -91,5 +91,11 @@ describe('scaleCheck', () => {
     expect(check.dpiNote).toBeNull();
     expect(check.table).toBeNull();
     expect(check.status.sentence).toBe('Đang dùng tỷ lệ 12 mm/px.');
+  });
+
+  it('UX41 U34: căn 91 × 86 m hay 0,7 m là vô lý, căn 10 × 9 m thì không', () => {
+    expect(isPlanSizeImplausible({ widthMm: 91_000, heightMm: 85_900 }, 3000, 40_000)).toBe(true);
+    expect(isPlanSizeImplausible({ widthMm: 700, heightMm: 600 }, 3000, 40_000)).toBe(true);
+    expect(isPlanSizeImplausible({ widthMm: 10_100, heightMm: 9_400 }, 3000, 40_000)).toBe(false);
   });
 });
