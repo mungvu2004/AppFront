@@ -194,6 +194,8 @@ export const ProgressSchema = z
     error: z.string().optional(),
     id: idSchema,
     progressPercent: z.number().int().min(0).max(100),
+    // Số lượt xử lý đang chờ trước lượt này; BE cũ không gửi, `null` là chưa biết.
+    queueAhead: z.number().int().min(0).nullable().optional(),
     startedAt: isoDateTimeSchema.optional(),
     status: wireProgressStatusSchema,
     step: z.string().min(1),
@@ -204,6 +206,7 @@ export const ProgressSchema = z
     ...(wireProgress.error !== undefined && wireProgress.error !== '' ? { error: wireProgress.error } : {}),
     id: wireProgress.id,
     progressPercent: wireProgress.progressPercent,
+    ...(typeof wireProgress.queueAhead === 'number' ? { queueAhead: wireProgress.queueAhead } : {}),
     ...(wireProgress.startedAt !== undefined ? { startedAt: wireProgress.startedAt } : {}),
     status: progressStatusByWire[wireProgress.status],
     step: wireProgress.step,

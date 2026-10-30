@@ -241,7 +241,7 @@ export interface ProcessingScreenProps {
    * với `overallSummaryLine` nhưng NGOÀI vùng `role=status`: đổi theo giây, đọc lại liên tục (R1-03).
    */
   readonly remainingLine?: string;
-  /** Ví dụ `"Đang chờ hàng đợi — vị trí 2"`. `undefined` khi không xếp hàng. */
+  /** Ví dụ `"Đang xếp hàng: còn 2 lượt phía trước…"`. `undefined` khi không xếp hàng. */
   readonly queueLine?: string;
   /** Câu nói rõ xử lý VẪN TIẾP TỤC khi một tầng lỗi (mục [CẤM TUYỆT ĐỐI]). */
   readonly partialNoticeLine?: string;

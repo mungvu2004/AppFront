@@ -80,16 +80,18 @@ function PipelineFailureNextStepRow({
         </Button>
       ))}
 
-      <Button
-        aria-label={`${retryAction.label} — ${retryAction.stepName}`}
-        disabled={retryAction.isRunning}
-        loading={retryAction.isRunning}
-        onClick={retryAction.onRetry}
-        size="sm"
-        variant="ghost"
-      >
-        {retryAction.label}
-      </Button>
+      {retryAction.isUnsupported === true ? null : (
+        <Button
+          aria-label={`${retryAction.label} — ${retryAction.stepName}`}
+          disabled={retryAction.isRunning}
+          loading={retryAction.isRunning}
+          onClick={retryAction.onRetry}
+          size="sm"
+          variant="ghost"
+        >
+          {retryAction.label}
+        </Button>
+      )}
     </div>
   );
 }
@@ -109,7 +111,6 @@ function PipelineFailureRetryNoticeBlock({ notice }: { readonly notice: Pipeline
         <Button onClick={notice.supportLink.onOpen} size="sm" variant="ghost">
           {notice.supportLink.label}
         </Button>
-        <span className="font-mono text-[12px] text-text-muted">{notice.supportLink.prefilledSummary}</span>
       </div>
     </div>
   );

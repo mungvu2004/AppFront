@@ -56,7 +56,7 @@ export const PIPELINE_FAILURE_TEXT = {
 
   /* -- Ba hướng đi tiếp ---------------------------------------------------- */
   retryLowerThresholdLabel: 'Thử lại với ngưỡng thấp hơn',
-  uploadClearerLabel: 'Tải lên bản vẽ rõ hơn',
+  uploadClearerLabel: 'Chọn trang khác hoặc tải bản vẽ rõ hơn',
   skipFloorLabel: 'Bỏ qua tầng đó',
   backToProjectsLabel: 'Về danh sách dự án',
 

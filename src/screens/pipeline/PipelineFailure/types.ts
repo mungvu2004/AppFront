@@ -421,6 +421,8 @@ export interface PipelineFailureRetryAction {
   readonly stepName: string;
   /** `true` khi lượt thử lại đang chạy: nút khoá, band đã đổi sang stepper. */
   readonly isRunning: boolean;
+  /** `true` khi máy chủ chưa chạy lại được riêng một bước: view ẩn nút thay vì để nút nói ngược câu bên dưới. */
+  readonly isUnsupported?: boolean;
   readonly onRetry: () => void;
 }
 

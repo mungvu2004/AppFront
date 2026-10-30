@@ -990,6 +990,7 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
         stepId: failedStepId,
         stepName: retryStepAriaLabel(failedStepLabel),
         isRunning: isRetrying,
+        ...(isRetryStepSupported ? {} : { isUnsupported: true }),
         onRetry,
       },
       // `null` ĐÚNG ở `forbidden`: ba nút hành động biến mất hẳn, không khoá mờ.
@@ -1003,6 +1004,7 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
     failedStepLabel,
     floorLabel,
     isRetrying,
+    isRetryStepSupported,
     nextSteps,
     onContinue,
     onRetry,

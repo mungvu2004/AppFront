@@ -206,8 +206,9 @@ const NO_RUN_SENTENCE = 'Chưa có lượt xử lý nào đang chạy.';
 /** S2-7: lúc N7 còn đang tải thì chưa biết có lượt nào — không được nói "chưa có". */
 const LOADING_RUNS_SENTENCE = 'Đang tải các lượt xử lý…';
 
-/** Ví dụ `"Đang chờ hàng đợi — vị trí 2"`. */
-const queueSentence = (position: string): string => `Đang chờ hàng đợi — vị trí ${position}`;
+/** Ví dụ `"Đang xếp hàng: còn 2 lượt phía trước. Ảnh lớn có thể mất vài phút."`. */
+const queueSentence = (ahead: string): string =>
+  `Đang xếp hàng: còn ${ahead} lượt phía trước. Ảnh lớn có thể mất vài phút.`;
 
 /** Câu bắt buộc nói rõ xử lý VẪN TIẾP TỤC khi một tầng lỗi — chỉ khi còn tầng chưa cuối (BUG-553). */
 const partialSentence = (failedNames: string, othersRunning: boolean): string =>
@@ -1468,7 +1469,10 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     return duration === null ? undefined : overallRemainingSentence(duration);
   }, [records]);
 
-  const queuePosition = records.find((record) => record.queuePosition !== undefined)?.queuePosition;
+  // `queueAhead` (BE gửi trong tiến độ) là số lượt đứng trước; 0 hoặc vắng thì không xếp hàng.
+  const queuePosition =
+    records.find((record) => record.queuePosition !== undefined)?.queuePosition ??
+    records.map((record) => record.progress?.queueAhead).find((ahead): ahead is number => ahead !== undefined && ahead > 0);
 
   const partialNoticeLine =
     failedIndexes.length > 0 && failedIndexes.length < records.length

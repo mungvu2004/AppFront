@@ -86,6 +86,8 @@ export function AppLayout() {
             return readProjectDetail(createAppApiClient().projects, { projectId, signal });
           },
     staleTime: 60_000,
+    // Dải góc phải "Đang xử lý" phải tắt ngay khi AI xong/lỗi, không đợi hết bộ đệm 60 giây.
+    refetchInterval: (query) => (query.state.data?.status === 'processing' ? 5_000 : false),
   });
   const projectName =
     location === null ? null : (detail.data?.name?.trim() || null) ?? cachedProjectName(queryClient, projectId) ?? (detail.isError ? 'Dự án' : null);
@@ -130,8 +132,8 @@ export function AppLayout() {
   const blocker =
     detail.data?.status === 'error'
       ? ('pipeline-error' as const)
-      : detail.data?.status === 'processing'
-        ? ('processing' as const) // J-4: đang xử lý thì không mời tải bản vẽ lần nữa
+      : detail.data?.status === 'processing' && location?.stepIndex !== 0
+        ? ('processing' as const) // J-4; màn Tải bản vẽ có nút "Bắt đầu xử lý" riêng nên không hiện dải này: đang xử lý thì không mời tải bản vẽ lần nữa
         : floors !== undefined && !floors.some((floor) => floor.drawings.length > 0)
           ? ('no-drawings' as const)
           : undefined;

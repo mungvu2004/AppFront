@@ -300,7 +300,7 @@ export function scenarioFor(state: SevenState): ProcessingScreenProps {
         previewPanel: previewOf(null),
         logLines: [],
         overallSummaryLine: 'Đang đọc tiến độ xử lý…',
-        queueLine: 'Đang chờ hàng đợi — vị trí 2',
+        queueLine: 'Đang xếp hàng: còn 2 lượt phía trước. Ảnh lớn có thể mất vài phút.',
         canCancel: false,
       };
 

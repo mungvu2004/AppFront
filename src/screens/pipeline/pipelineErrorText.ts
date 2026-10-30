@@ -68,7 +68,7 @@ const TABLE = {
   CAD_NOT_SUPPORTED: ['reupload', 'Hệ thống chưa nhận tệp CAD ở bước này.'],
   PIPELINE_ARTIFACT_INVALID: ['reupload', 'Kết quả trung gian dựng từ bản vẽ không hợp lệ.'],
   PIPELINE_BUILD_INVALID: ['reupload', 'Mô hình dựng từ bản vẽ không hợp lệ.'],
-  NOT_A_FLOOR_PLAN: ['reupload', 'Ảnh tải lên không giống bản vẽ mặt bằng: hệ thống không nhận ra đủ tường.'],
+  NOT_A_FLOOR_PLAN: ['reupload', 'Ảnh tải lên không giống bản vẽ mặt bằng: hệ thống không nhận ra đủ tường. Nếu tệp PDF có nhiều trang, hãy chọn trang mặt bằng khác.'],
   // contactAdmin — cần sửa hệ thống.
   MODEL_PIN_MISMATCH: ['contactAdmin', 'Phiên bản mô hình đang chạy không khớp với phiên bản đã ghim.'],
   PIPELINE_RESULT_INVALID: ['contactAdmin', 'Kết quả xử lý không qua được bước kiểm tra của hệ thống.'],

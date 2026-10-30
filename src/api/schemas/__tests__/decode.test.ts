@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { DrawingSchema, FloorSchema } from '@/api/schemas';
+import { DrawingSchema, FloorSchema, ProgressSchema } from '@/api/schemas';
 import { decode, safeParseList } from '@/api/schemas/decode';
 
 const validDrawing = {
@@ -89,5 +89,15 @@ describe('safeParseList', () => {
     if (!result.ok) {
       expect(result.error.params.message).toContain("3/10 phần tử từ 'floors' hỏng");
     }
+  });
+});
+
+describe('ProgressSchema queueAhead', () => {
+  const wire = { id: 'p1', progressPercent: 5, status: 'running', step: 'wall' } as const;
+
+  it('giữ queueAhead là số, bỏ qua khi null hoặc vắng', () => {
+    expect(ProgressSchema.parse({ ...wire, queueAhead: 3 }).queueAhead).toBe(3);
+    expect('queueAhead' in ProgressSchema.parse({ ...wire, queueAhead: null })).toBe(false);
+    expect('queueAhead' in ProgressSchema.parse(wire)).toBe(false);
   });
 });
