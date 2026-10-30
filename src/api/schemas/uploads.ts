@@ -44,3 +44,16 @@ export type LatestFloorUpload = z.infer<typeof LatestFloorUploadSchema>;
 export const LatestFloorUploadPageSchema = CursorPageSchema(LatestFloorUploadSchema);
 
 export type LatestFloorUploadPage = z.infer<typeof LatestFloorUploadPageSchema>;
+
+/**
+ * N41 — `POST /api/projects/{project_id}/drawings/page-thumbnails` (UX41 U05):
+ * ảnh nhỏ từng trang của một PDF chưa tải lên, phần tử thứ i là trang i (đếm
+ * từ 0). Mỗi ảnh là `data:image/png;base64,…` — CSP `img-src` đã có `data:`.
+ */
+export const PageThumbnailsSchema = z
+  .object({
+    pages: z.array(z.string().startsWith('data:image/png;base64,')).max(20),
+  })
+  .strict();
+
+export type PageThumbnails = z.infer<typeof PageThumbnailsSchema>;

@@ -354,11 +354,27 @@ export function FloorUploadCard({
               <Select.Label className="sr-only">{LABEL_PAGE_PICKER}</Select.Label>
               <Select.Trigger options={[...file.pageOptions]} placeholder={LABEL_PAGE_PICKER} />
               <Select.Content>
-                {file.pageOptions.map((option, index) => (
-                  <Select.Item index={index} key={option.value} value={option.value}>
-                    {option.label}
-                  </Select.Item>
-                ))}
+                {file.pageOptions.map((option, index) => {
+                  const thumbnail = file.pageThumbnails?.[index];
+
+                  return thumbnail === undefined ? (
+                    <Select.Item index={index} key={option.value} value={option.value}>
+                      {option.label}
+                    </Select.Item>
+                  ) : (
+                    <Select.Item className="h-auto py-1.5" index={index} key={option.value} value={option.value}>
+                      <span className="flex items-center gap-3">
+                        <img
+                          alt={option.label}
+                          className="h-20 w-16 shrink-0 rounded border border-border-default bg-bg-surface object-contain"
+                          loading="lazy"
+                          src={thumbnail}
+                        />
+                        <span aria-hidden="true">{option.label}</span>
+                      </span>
+                    </Select.Item>
+                  );
+                })}
               </Select.Content>
             </Select.Root>
           )}

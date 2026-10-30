@@ -70,3 +70,31 @@ describe('drawings.latestUploads (N7)', () => {
     expect(LatestFloorUploadPageSchema.safeParse({ items: result.ok ? result.data : [] }).success).toBe(true);
   });
 });
+
+describe('drawings.pageThumbnails (N41)', () => {
+  it('posts the raw PDF to the N41 path and returns the data URLs in page order', async () => {
+    const pages = ['data:image/png;base64,AAAA', 'data:image/png;base64,BBBB'];
+    const post = vi.fn(() => ok({ pages }));
+    const http = { post } as unknown as HttpClient;
+    const file = new Blob(['%PDF-1.4'], { type: 'application/pdf' });
+
+    const result = await createApiClient(http).drawings.pageThumbnails({ file, projectId: 'project-1' });
+
+    expect(post).toHaveBeenCalledWith(
+      '/projects/project-1/drawings/page-thumbnails',
+      expect.objectContaining({ body: file, timeoutMode: 'file' }),
+    );
+    expect(result).toEqual({ ok: true, data: pages });
+  });
+
+  it('rejects a page that is not a PNG data URL', async () => {
+    const http = { post: vi.fn(() => ok({ pages: ['https://example.com/p1.png'] })) } as unknown as HttpClient;
+
+    const result = await createApiClient(http).drawings.pageThumbnails({
+      file: new Blob(['%PDF-1.4']),
+      projectId: 'project-1',
+    });
+
+    expect(result.ok).toBe(false);
+  });
+});

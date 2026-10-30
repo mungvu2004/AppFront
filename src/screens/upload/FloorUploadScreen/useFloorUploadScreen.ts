@@ -71,7 +71,7 @@ import { durationMs } from '@/lib/motion/tokens';
 import { cachedProjectName } from '@/lib/query/cachedProjectName';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
-import { MAX_PDF_PAGE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES } from '@/lib/upload';
+import { hashBlobSha256Hex, MAX_PDF_PAGE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES } from '@/lib/upload';
 import type { UploadBranch, UploadRejection, UploadTask, UploadTaskState } from '@/lib/upload';
 import { ROUTES } from '@/routes/paths';
 import { PICKER_UPLOAD_EXTENSIONS } from '@/lib/upload/validate';
@@ -79,6 +79,7 @@ import type { ProjectRole } from '@/types/project';
 
 import { CAD_NOT_SUPPORTED_SENTENCE, type FloorUploadGateway } from './floorUploadGateway';
 import { useApartmentSplit } from './useApartmentSplit';
+import { usePdfPageThumbnails } from './usePdfPageThumbnails';
 import type {
   FloorUploadActions,
   FloorUploadBlockNotice,
@@ -829,11 +830,21 @@ export function useFloorUploadScreen(
       },
     ]);
 
-    void gateway.validateFile(file).then((check) => {
+    void Promise.all([gateway.validateFile(file), sameContentFloor(file, floors)]).then(([check, twin]) => {
       if (!check.ok) {
         patchAttachment(id, { status: 'error', problem: rejectionError(check.reason) });
         return;
       }
+
+      // Giống hệt bản vẽ đang dùng của một tầng (P01): nói rõ, và không tự thay chính tầng đó.
+      if (twin !== null) {
+        const sentence = sameContentSentence(twin.name);
+
+        getAppAnnouncer().announce(sentence);
+        options.onToast?.({ message: sentence });
+      }
+
+      const keepsTwin = twin !== null && (forcedFloorId === null || forcedFloorId === twin.id);
 
       const guess = gateway.guessFloor(file.name);
       const guessed = guess.ok
@@ -845,8 +856,9 @@ export function useFloorUploadScreen(
       // Chọn đúng MỘT tệp không đoán được tầng: vào tầng trống đầu tiên, kèm lời nhắc kiểm tra (U28) —
       // nằm chờ trong khay thì bộ đếm vẫn "0 / 4" mà người dùng không biết vì sao.
       const free = floors.filter((floor) => !claimed.has(floor.id));
-      const match =
-        forcedFloorId !== null
+      const match = keepsTwin
+        ? null
+        : forcedFloorId !== null
           ? (floors.find((floor) => floor.id === forcedFloorId) ?? null)
           : (guessed ?? (free.length === 1 || fallbackToFirstFree ? (free[0] ?? null) : null));
 
@@ -1246,6 +1258,8 @@ export function useFloorUploadScreen(
     return cache.get(attachment.id) ?? null;
   }, []);
 
+  const pageThumbnails = usePdfPageThumbnails(gateway, projectId, attachments);
+
   const fileModelFor = useCallback((attachment: Attachment): FloorUploadFileModel => {
     const pageCountLabel =
       attachment.pageCount === null || attachment.pageCount <= 0
@@ -1278,8 +1292,9 @@ export function useFloorUploadScreen(
         .join(' · '),
       pageOptions,
       selectedPage: attachment.selectedPage,
+      ...(pageThumbnails.has(attachment.id) ? { pageThumbnails: pageThumbnails.get(attachment.id) } : {}),
     };
-  }, [previewUrlFor]);
+  }, [pageThumbnails, previewUrlFor]);
 
   const statusVariantFor = (attachment: Attachment | null, status: FloorUploadStatus) =>
     status === 'attached' && attachment !== null && attachment.isAutoMatched
@@ -1570,6 +1585,32 @@ function drawingDisplayName(fileName: string, floorName: string): string {
 }
 
 /** Cùng tệp vừa được đưa vào lần nữa (P01). */
+function sameContentSentence(floorName: string): string {
+  return `Tệp này giống hệt bản vẽ đang dùng của ${floorName}. Gán tầng nếu vẫn muốn tải lại.`;
+}
+
+/**
+ * Tầng có bản vẽ đang dùng giống hệt `file` theo SHA-256 (P01), hoặc `null`.
+ *
+ * Chỉ băm khi máy chủ có dấu băm để so (`contentSha256`, lượt tải cũ không có); lỗi đọc
+ * tệp thì coi như không trùng — báo trùng là gợi ý, không được chặn việc tải.
+ */
+async function sameContentFloor(file: File, floors: readonly Floor[]): Promise<Floor | null> {
+  const hashed = floors.filter((floor) => floor.drawings.some((drawing) => drawing.contentSha256 !== undefined));
+
+  if (hashed.length === 0) {
+    return null;
+  }
+
+  try {
+    const sha256 = await hashBlobSha256Hex(file);
+
+    return hashed.find((floor) => floor.drawings.some((drawing) => drawing.contentSha256 === sha256)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function duplicateSentence(fileName: string): string {
   return `${fileName} đã có trong danh sách; bỏ qua bản trùng.`;
 }

@@ -82,6 +82,8 @@ export interface FloorUploadFileModel {
   readonly pageOptions: readonly SelectOption[];
   /** Trang đang chọn, cùng tập giá trị với `pageOptions`. `null` khi không áp dụng. */
   readonly selectedPage: string | null;
+  /** Ảnh nhỏ (`data:` URL) cùng thứ tự `pageOptions`; vắng hay rỗng khi chưa có (U05). */
+  readonly pageThumbnails?: readonly string[];
 }
 
 /**

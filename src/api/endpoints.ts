@@ -104,6 +104,8 @@ export const ENDPOINTS = {
     latestUploads: (projectId: string, cursor?: string): string =>
       `${PROJECTS_ROOT}/${projectId}${DRAWINGS_ROOT}/uploads/latest` +
       (cursor === undefined ? '' : `?cursor=${encodeURIComponent(cursor)}`),
+    /** N41 (UX41 U05) — ảnh nhỏ từng trang của PDF; thân là byte PDF thô. */
+    pageThumbnails: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}${DRAWINGS_ROOT}/page-thumbnails`,
     /** N7b (UIFIX-B7) — nhật ký lượt xử lý; `limit`/`cursor` đi qua `query`. */
     pipelineRuns: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/pipeline-runs`,
     progress: (projectId: string, uploadId: string): string =>
