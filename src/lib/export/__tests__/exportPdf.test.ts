@@ -20,6 +20,7 @@ import {
   PDF_COVER_TITLE,
   type ExportPdfInput,
   type PdfAttachmentInput,
+  renderPdfHtml,
 } from '../exportPdf';
 import { PDF_FONT, PDF_SECTION_KINDS, type PdfDocument, type PdfPage } from '../pdfSchema';
 
@@ -385,5 +386,16 @@ describe('every string handed to the PDF', () => {
       expect(row.cells[3]).toMatch(/^\d{1,3}(\.\d{3})*,\d{2} m²$/u);
     }
     expect(rooms.totalArea.text).toMatch(/^\d{1,3}(\.\d{3})*,\d{2} m²$/u);
+  });
+});
+
+describe('renderPdfHtml', () => {
+  it('dựng một trang in có đủ trang của hồ sơ và thoát ký tự HTML', () => {
+    const document = buildPdfDocument(baseInput());
+    const html = renderPdfHtml(document);
+
+    expect(html.startsWith('<!doctype html>')).toBe(true);
+    expect(html.match(/<section>/g)).toHaveLength(document.pages.length);
+    expect(html).not.toContain('<script');
   });
 });

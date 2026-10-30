@@ -463,7 +463,7 @@ describe('exportGlb', () => {
     expect(result.blob.size).toBeGreaterThan(0);
     expect(result.blob.type).toBe(GLB_MIME_TYPE);
     expect(result.byteLength).toBe(result.blob.size);
-    expect(result.fileName).toBe('chung-cu-hoang-anh_T0-T3_2026-08-17_14-32-05.glb');
+    expect(result.fileName).toBe('chung-cu-hoang-anh_tang-tret-den-tang-3_2026-08-17_14-32-05.glb');
     expect(harness.terminated).toBe(true);
   });
 
@@ -515,13 +515,13 @@ describe('buildGlbFileName', () => {
 
   it('strips diacritics, slugs the name and spans the floor range', () => {
     expect(buildGlbFileName('Chung cư Hoàng Anh — Quận 1', [0, 3, 1, 2], exportMoment)).toBe(
-      'chung-cu-hoang-anh-quan-1_T0-T3_2026-08-17_14-32-05.glb',
+      'chung-cu-hoang-anh-quan-1_tang-tret-den-tang-3_2026-08-17_14-32-05.glb',
     );
   });
 
   it('names a single floor without a range', () => {
     expect(buildGlbFileName('Nhà mẫu', [2], exportMoment)).toBe(
-      'nha-mau_T2_2026-08-17_14-32-05.glb',
+      'nha-mau_tang-2_2026-08-17_14-32-05.glb',
     );
   });
 

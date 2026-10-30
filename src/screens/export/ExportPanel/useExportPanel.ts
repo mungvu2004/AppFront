@@ -51,6 +51,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { hasElements } from '@/domain/spatial/elementCount';
+import { idsOnLevel } from '@/domain/spatial/normalize';
+import type { LevelId } from '@/domain/spatial/types';
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level } from '@/domain/spatial/types';
 import { ENDPOINTS } from '@/api/endpoints';
@@ -179,7 +181,7 @@ const DESTINATION_CAPTION = 'Tệp tải về thư mục tải xuống của tr�
 
 /** Vì sao hồ sơ PDF mới đếm được trang mà chưa tải về được. */
 const PDF_NOTICE_CAPTION =
-  'Chưa xuất được PDF ở bản này, mới đếm được số trang. Hãy chọn mô hình 3D hoặc dữ liệu dự án.';
+  'Chưa xuất được PDF lúc này. Hãy chọn mô hình 3D hoặc dữ liệu dự án.';
 
 /** Vì sao chưa chụp được ảnh. */
 const IMAGE_NOTICE_CAPTION =
@@ -306,7 +308,8 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   /* ---------------------------------------------------------------------- */
 
   const [selectedFormatId, setSelectedFormatId] = useState<ExportFormatId>('glb');
-  const [deselectedFloorIds, setDeselectedFloorIds] = useState<readonly string[]>([]);
+  // Người dùng chỉ ghi đè khi bấm; mặc định tick tầng có bản vẽ, bỏ tick tầng trống (U11).
+  const [floorOverrides, setFloorOverrides] = useState<Readonly<Record<string, boolean>>>({});
   const [optionsView, setOptionsView] = useState<ExportOptionsView>(() =>
     // Không có khung nhìn thì nhãn "Góc nhìn hiện tại:" vẫn phải có giá trị (BUG-467).
     initialOptions(activeFloorId ?? MISSING_VALUE),
@@ -339,8 +342,8 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   // giữ danh sách tầng BỊ BỎ chọn thay vì danh sách được chọn khiến mặc định
   // đúng mà không cần một lượt đồng bộ nào theo `floors`.
   const isFloorSelected = useCallback(
-    (id: string): boolean => !deselectedFloorIds.includes(id),
-    [deselectedFloorIds],
+    (id: string): boolean => floorOverrides[id] ?? (graph === null || idsOnLevel(graph, id as LevelId).length > 0),
+    [floorOverrides, graph],
   );
 
   const selectedLevels = useMemo<readonly Level[]>(
@@ -459,9 +462,24 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
         });
       }
 
-      // Hai định dạng còn lại không sinh được bytes ở repo hôm nay
-      // (`canRenderPdfBytes`, `canCaptureImage`), nên view không dựng hành động
-      // xuất cho chúng và {@link onExport} chặn trước. Nhánh này chỉ tồn tại để
+      if (formatId === 'pdf') {
+        if (graph === null) {
+          throw new Error('Chưa có mô hình để xuất.');
+        }
+
+        return gateway.startPdfExport({
+          projectId,
+          projectName: project?.name ?? '',
+          graph: denormalizeSpatial(graph),
+          violations,
+          dataVersion: versionId ?? '',
+          preparerName,
+          choice: pdfChoice,
+        });
+      }
+
+      // Ảnh chưa sinh được bytes (`canCaptureImage`), nên view không dựng hành động
+      // xuất cho nó và {@link onExport} chặn trước. Nhánh này chỉ tồn tại để
       // một lời gọi lọt qua được không im lặng biến mất.
       return Promise.reject(new Error(`Không xuất được định dạng ${formatId}.`));
     },
@@ -705,10 +723,8 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   }, []);
 
   const onToggleFloor = useCallback((id: string): void => {
-    setDeselectedFloorIds((current) =>
-      current.includes(id) ? current.filter((other) => other !== id) : [...current, id],
-    );
-  }, []);
+    setFloorOverrides((current) => ({ ...current, [id]: !(current[id] ?? (graph === null || idsOnLevel(graph, id as LevelId).length > 0)) }));
+  }, [graph]);
 
   const onChangeOptions = useCallback((next: ExportOptionsView): void => {
     setOptionsView(next);

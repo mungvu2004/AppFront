@@ -68,6 +68,13 @@ const STEP_STATE_TEXT: Readonly<Record<ProjectStepState, string>> = {
   todo: 'chưa tới',
 };
 
+/** Bước đang đứng không bao giờ "chưa tới"; bước đã đi qua mà chưa có dữ liệu xác nhận thì "đã qua" (U41). */
+function stepStateText(state: ProjectStepState, index: number, currentIndex: number): string {
+  if (state !== 'todo') return STEP_STATE_TEXT[state];
+  if (index === currentIndex) return 'đang mở';
+  return index < currentIndex ? 'đã qua' : STEP_STATE_TEXT.todo;
+}
+
 function StepMarker({ index, isCurrent, state }: { readonly index: number; readonly isCurrent: boolean; readonly state: ProjectStepState }) {
   return (
     <span
@@ -119,7 +126,7 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
               <Link
                 to={stepPath(index)}
                 aria-current={isCurrent ? 'step' : undefined}
-                aria-label={`Bước ${index + 1}: ${step.label}, ${STEP_STATE_TEXT[state]}`}
+                aria-label={`Bước ${index + 1}: ${step.label}, ${stepStateText(state, index, project.stepIndex)}`}
                 title={step.label}
                 className={cn(
                   'flex h-7 items-center gap-2 rounded-md px-2 text-[13px] transition-colors duration-fast',

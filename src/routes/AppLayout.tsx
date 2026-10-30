@@ -8,7 +8,7 @@
  * này nằm trên đường tải đầu của mọi màn.
  */
 import { skipToken, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { AppHeader } from '@/components/shell/AppHeader';
@@ -61,6 +61,28 @@ export function AppLayout() {
   const queryClient = useQueryClient();
   const routerLocation = useLocation();
   const location = projectLocationOf(routerLocation.pathname);
+  // U60: sau khi đổi trang, focus về tiêu đề chính (hoặc vùng nội dung) thay vì rơi về BODY.
+  const firstPathRef = useRef(routerLocation.pathname);
+  useEffect(() => {
+    if (firstPathRef.current === routerLocation.pathname) return;
+    firstPathRef.current = routerLocation.pathname;
+    const focusMain = (): void => {
+      const active = document.activeElement;
+      if (active !== null && active !== document.body) return; // người dùng/màn đã đặt focus
+      const main = document.getElementById(MAIN_CONTENT_ID);
+      const heading = main?.querySelector<HTMLElement>('h1');
+      if (heading !== null && heading !== undefined) {
+        if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+        heading.focus({ preventScroll: true });
+      } else main?.focus({ preventScroll: true });
+    };
+    const timers = [window.setTimeout(focusMain, 50), window.setTimeout(focusMain, 600)]; // màn tải lười: thử lại khi h1 đã có
+    return () => {
+      timers.forEach((timer) => {
+        window.clearTimeout(timer);
+      });
+    };
+  }, [routerLocation.pathname]);
   // N1-01/N5-13/N3-09: trang 3D (tài liệu riêng) đọc đường này để "Về dự án" về đúng màn vừa rời.
   useEffect(() => {
     rememberAppPath(routerLocation.pathname + routerLocation.search);

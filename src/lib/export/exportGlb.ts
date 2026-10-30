@@ -137,11 +137,12 @@ export function formatExportTimestamp(date: Date): string {
   return `${datePart}_${timePart}`;
 }
 
-/** `T2` for one floor, `T0-T3` for a range, whatever order they arrived in. */
+/** `tang-2` for one floor (`tang-tret` for order 0), `tang-tret-den-tang-3` for a range, whatever order they arrived in. */
 function formatLevelRange(levelOrders: readonly number[]): string {
   const lowest = Math.min(...levelOrders);
   const highest = Math.max(...levelOrders);
-  return lowest === highest ? `T${String(lowest)}` : `T${String(lowest)}-T${String(highest)}`;
+  const label = (order: number): string => (order === 0 ? 'tang-tret' : `tang-${String(order)}`);
+  return lowest === highest ? label(lowest) : `${label(lowest)}-den-${label(highest)}`;
 }
 
 /**
