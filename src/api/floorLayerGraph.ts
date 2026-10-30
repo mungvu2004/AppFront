@@ -5,6 +5,7 @@ import type { ProjectRole, Project as StoreProject } from '@/types/project';
 import type { ApiClient, Project as ApiProject, SpatialApi } from './client';
 import type { SpatialGraphDocument } from './schemas/spatialGraph';
 import type { FloorLayerDocument } from './schemas/spatialLayer';
+import { effectiveProjectRole } from '@/lib/auth/permissions';
 import type { ScaleSource } from '@/lib/viewmodel/provisionalScale';
 
 /**
@@ -200,7 +201,7 @@ const toStoreProject = (project: ApiProject): StoreProject => ({
 export const rolesOf = (project: ApiProject, reader: SpatialReader): readonly ProjectRole[] => {
   const member = project.members.find((candidate) => candidate.id === reader.userId);
 
-  return member === undefined ? reader.roles : [member.role];
+  return member === undefined ? reader.roles : [effectiveProjectRole(member)];
 };
 
 /** #24 thô (cùng hình bộ đệm `queryKeys.project.detail` của `mobileViewerQueries.ts`); lỗi thì NÉM. */

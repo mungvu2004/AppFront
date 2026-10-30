@@ -7,12 +7,18 @@
 
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 
 import type { MembersTabProps } from './MembersTab';
+import { MEMBER_ACCESS_OPTIONS } from './useProjectMembers';
+
+const ACCESS_OPTIONS = MEMBER_ACCESS_OPTIONS.map((option) => ({ label: option.label, value: option.value as string }));
 
 export type AddMemberFormProps = Pick<
   MembersTabProps,
   | 'memberEmail'
+  | 'memberAccess'
+  | 'setMemberAccess'
   | 'memberError'
   | 'isAddingMember'
   | 'isAddMemberLocked'
@@ -43,6 +49,27 @@ export function AddMemberForm(props: AddMemberFormProps) {
         wrapperClassName="min-w-0 flex-1"
         disabled={props.isAddingMember}
       />
+      {/* U24: quyền của người này trong riêng dự án này. */}
+      <Select.Root
+        className="w-[170px]"
+        disabled={props.isAddingMember}
+        onChange={(value) => {
+          const picked = MEMBER_ACCESS_OPTIONS.find((option) => option.value === value);
+          if (picked !== undefined) props.setMemberAccess(picked.value);
+        }}
+        options={ACCESS_OPTIONS}
+        value={props.memberAccess}
+      >
+        <Select.Label>Quyền trong dự án</Select.Label>
+        <Select.Trigger options={ACCESS_OPTIONS} />
+        <Select.Content>
+          {ACCESS_OPTIONS.map((option) => (
+            <Select.Item key={option.value} value={option.value}>
+              {option.label}
+            </Select.Item>
+          ))}
+        </Select.Content>
+      </Select.Root>
       <Button
         type="submit"
         variant="secondary"

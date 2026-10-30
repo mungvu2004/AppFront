@@ -354,6 +354,42 @@ describe('Xoá hẳn (A9/Đ-8): nút xác nhận không bật khi email gõ chư
   });
 });
 
+describe('U50 — đổi vai trên dòng cần xác nhận', () => {
+  const target = requireRow(
+    USER_MANAGEMENT_SCENARIO_SUCCESS,
+    (row) => !row.isSelf && row.roleChangeBlockedReason === null && row.status !== 'disabled',
+    'một hàng đổi được vai',
+  );
+  const next = USER_MANAGEMENT_SCENARIO_SUCCESS.toolbar.roleOptions.find((option) => option.role !== target.role);
+
+  async function pickNextRole(onChangeRole: UserManagementActions['onChangeRole']): Promise<void> {
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(
+      <UserManagementView actions={buildActions({ onChangeRole })} model={USER_MANAGEMENT_SCENARIO_SUCCESS} />,
+    );
+    fireEvent.click(await screen.findByRole('combobox', { name: `Vai của ${target.name}` }));
+    fireEvent.click(screen.getByRole('option', { name: next?.label ?? '' }));
+  }
+
+  it('chọn vai chưa đổi ngay; bấm "Đổi vai" mới gọi onChangeRole', async () => {
+    const onChangeRole = vi.fn();
+    await pickNextRole(onChangeRole);
+
+    expect(onChangeRole).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: `Đổi vai của ${target.name} thành ${next?.label ?? ''}` }));
+    expect(onChangeRole).toHaveBeenCalledWith(target.id, next?.role);
+  });
+
+  it('"Huỷ" bỏ lựa chọn, không đổi vai', async () => {
+    const onChangeRole = vi.fn();
+    await pickNextRole(onChangeRole);
+
+    fireEvent.click(screen.getByRole('button', { name: `Huỷ đổi vai của ${target.name}` }));
+    expect(onChangeRole).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /^Đổi vai của/u })).toBeNull();
+  });
+});
+
 describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
   it('nút "xoá" trên hàng mở hộp hỏi trước cả khi chưa chọn ai (detail: null)', async () => {
     const target = requireRow(USER_MANAGEMENT_SCENARIO_SUCCESS, (row) => !row.isSelf, 'một hàng không phải chính mình');

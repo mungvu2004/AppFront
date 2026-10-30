@@ -52,6 +52,8 @@ export interface ProjectSettingsMember {
   readonly name: string;
   readonly email: string;
   readonly role: ProjectMemberRole;
+  /** U24: vai trong riêng dự án này; vắng = theo vai toàn hệ thống. */
+  readonly projectRole?: 'engineer' | 'viewer';
 }
 
 /** Các trường của N5/N6 (cộng `areaUnit` chỉ có ở FE), gom lại một chỗ. */
@@ -130,6 +132,8 @@ export interface ProjectSettingsUpdateResult {
 export interface AddProjectMemberInput {
   readonly projectId: string;
   readonly email: string;
+  /** U24: vai trong dự án; vắng = theo vai toàn hệ thống. */
+  readonly role?: 'engineer' | 'viewer';
 }
 
 export interface AddProjectMemberOutcome {
@@ -223,7 +227,13 @@ export const PROJECT_SETTINGS_LIMITS = Object.freeze({
 /* -------------------------------------------------------------------------- */
 
 function toMember(member: Project['members'][number]): ProjectSettingsMember {
-  return { id: member.id, name: member.name, email: member.email, role: member.role };
+  return {
+    id: member.id,
+    name: member.name,
+    email: member.email,
+    role: member.role,
+    ...(member.projectRole !== undefined ? { projectRole: member.projectRole } : {}),
+  };
 }
 
 function toSnapshot(project: Project, settings: ProjectSettings): ProjectSettingsSnapshot {
@@ -495,7 +505,7 @@ export function createProjectSettingsGateway(client: ApiClient): ProjectSettings
       return result.ok ? { ok: true, data: result.data.map((membership) => ({ id: membership.projectId, name: membership.projectName })) } : result;
     },
 
-    addMember: async ({ projectId, email }) => {
+    addMember: async ({ projectId, email, role }) => {
       const normalized = email.trim().toLowerCase();
       const current = await client.projects.read({ projectId });
 
@@ -524,6 +534,7 @@ export function createProjectSettingsGateway(client: ApiClient): ProjectSettings
       const result = await client.members.add({
         projectId,
         email: normalized,
+        ...(role !== undefined ? { role } : {}),
         idempotencyKey: key,
         failFastOnRateLimit: true,
       });

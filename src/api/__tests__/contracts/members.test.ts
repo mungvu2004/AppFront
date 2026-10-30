@@ -11,7 +11,7 @@ function issuePaths(schema: z.ZodTypeAny, input: unknown): (string | number)[][]
 }
 
 describe('AddProjectMemberSchema', () => {
-  // Không có trường tuỳ chọn nào, nên ca "null ở trường tuỳ chọn" không áp dụng.
+  // Trường tuỳ chọn duy nhất là `role` (U24).
   const body = { email: 'chi.tran@congty.vn' };
 
   it('nhận mẫu đầy đủ (cũng là tối thiểu: một trường bắt buộc)', () => {
@@ -22,8 +22,13 @@ describe('AddProjectMemberSchema', () => {
     expect(issuePaths(AddProjectMemberSchema, {})).toStrictEqual([['email']]);
   });
 
-  it('từ chối khoá lạ role', () => {
-    expect(issuePaths(AddProjectMemberSchema, { ...body, role: 'viewer' })).toStrictEqual([[]]);
+  it('U24: nhận vai dự án engineer/viewer, từ chối admin', () => {
+    expect(AddProjectMemberSchema.parse({ ...body, role: 'viewer' })).toStrictEqual({ ...body, role: 'viewer' });
+    expect(issuePaths(AddProjectMemberSchema, { ...body, role: 'admin' })).toStrictEqual([['role']]);
+  });
+
+  it('từ chối khoá lạ', () => {
+    expect(issuePaths(AddProjectMemberSchema, { ...body, isOwner: true })).toStrictEqual([[]]);
   });
 
   it('từ chối địa chỉ sai dạng', () => {

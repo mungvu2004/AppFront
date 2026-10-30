@@ -13,10 +13,16 @@ import { MAX_EMAIL_LENGTH } from './auth';
 /** `.min(1)` trước `.email()`: ô trống báo "chưa nhập" trước "sai dạng"; trần dài như `EmailSchema` (`./index.ts`). */
 const emailSchema = z.string().min(1).email().max(MAX_EMAIL_LENGTH);
 
+/** U24: vai trong một dự án — `engineer` sửa, `viewer` xem; vắng = theo vai toàn hệ thống. */
+export const MemberProjectRoleSchema = z.enum(['engineer', 'viewer']);
+
+export type MemberProjectRole = z.infer<typeof MemberProjectRoleSchema>;
+
 /** N3. Người `pending` vẫn thêm được; tài khoản không có hoặc bị vô hiệu → 422 `MEMBER_USER_UNAVAILABLE`. */
 export const AddProjectMemberSchema = z
   .object({
     email: emailSchema,
+    role: MemberProjectRoleSchema.optional(),
   })
   .strict();
 

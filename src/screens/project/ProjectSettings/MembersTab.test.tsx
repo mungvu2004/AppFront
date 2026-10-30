@@ -67,11 +67,13 @@ function tabProps(overrides: Partial<MembersTabProps> = {}): MembersTabProps {
     cancelRoleChange: noop,
     memberCountLabel: '2 thành viên',
     memberEmail: '',
+    memberAccess: 'system',
     memberError: null,
     isAddingMember: false,
     isAddMemberLocked: false,
     memberRemoveDialog: null,
     setMemberEmail: noop,
+    setMemberAccess: noop,
     addMember: noop,
     requestRemoveMember: noop,
     confirmRemoveMember: noop,
@@ -195,6 +197,27 @@ describe('MembersTab (view)', () => {
   });
 });
 
+describe('MembersTab · quyền riêng trong dự án (U24)', () => {
+  it('ô "Quyền trong dự án" đổi quyền của người sắp thêm', () => {
+    const setMemberAccess = vi.fn();
+    render(<MembersTab {...tabProps({ setMemberAccess })} />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Quyền trong dự án' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Chỉ xem' }));
+
+    expect(setMemberAccess).toHaveBeenCalledWith('viewer');
+  });
+
+  it('dòng có quyền riêng hiện nhãn quyền cạnh vai toàn hệ thống', () => {
+    const members = tabProps().members.map((member) =>
+      member.id === 'usr_eng' ? { ...member, projectAccessLabel: 'Chỉ xem' } : member,
+    );
+    render(<MembersTab {...tabProps({ members })} />);
+
+    expect(screen.getByText('Chỉ xem')).toHaveAttribute('title', 'Quyền trong riêng dự án này');
+  });
+});
+
 describe('MembersTab · vai toàn hệ thống (N4-03)', () => {
   it('quản trị viên thấy Select vai; người không có quyền đổi thấy Badge có lời chỉ đường', () => {
     render(<MembersTab {...tabProps()} />);
@@ -214,7 +237,7 @@ describe('MembersTab · vai toàn hệ thống (N4-03)', () => {
     render(<MembersTab {...tabProps()} />);
 
     expect(screen.queryByRole('combobox', { name: 'Vai toàn hệ thống của Phạm An' })).not.toBeInTheDocument();
-    expect(screen.getAllByRole('combobox')).toHaveLength(1);
+    expect(screen.getAllByRole('combobox', { name: /^Vai toàn hệ thống/u })).toHaveLength(1);
     expect(screen.getByText('Quản trị')).toHaveAttribute('title', 'Vai toàn hệ thống — nhờ quản trị viên đổi');
   });
 
@@ -357,6 +380,31 @@ describe('thành viên trong useProjectSettings', () => {
 
     expect(hook.result.current.members.map((member) => member.name)).toContain('Newcomer');
     expect(hook.result.current.memberCountLabel).toBe('3 thành viên');
+  });
+
+  it('U24: chọn "Chỉ xem" thì N3 gửi role viewer; mặc định không gửi role', async () => {
+    const server = await createFakeServer();
+    const hook = await mount(server);
+
+    await addEmail(hook, 'newcomer@example.com');
+    expect(server.membersAdd.mock.calls[0]?.[0]).not.toHaveProperty('role');
+
+    act(() => {
+      hook.result.current.setMemberAccess('viewer');
+    });
+    await addEmail(hook, 'other@example.com');
+
+    expect(server.membersAdd.mock.calls[1]?.[0]).toMatchObject({ email: 'other@example.com', role: 'viewer' });
+  });
+
+  it('U24: người đọc là người xem trong dự án này thì không sửa được, dù vai hệ thống là kỹ sư', async () => {
+    const server = await createFakeServer({ members: [ADMIN_USER, { ...ENGINEER_USER, projectRole: 'viewer' }] });
+    const hook = await mount(server, { roles: ['engineer'], currentUserId: ENGINEER_USER.id });
+
+    expect(hook.result.current.canEdit).toBe(false);
+    expect(hook.result.current.members.find((member) => member.id === ENGINEER_USER.id)?.projectAccessLabel).toBe(
+      'Chỉ xem',
+    );
   });
 
   it('thêm thật: toast nói rõ hậu quả, vô hiệu hoá chi tiết dự án, hoàn tác gọi N4', async () => {
