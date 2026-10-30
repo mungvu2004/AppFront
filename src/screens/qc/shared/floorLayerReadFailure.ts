@@ -95,3 +95,6 @@ export function useFloorLayerReadFailure(
     [data, error, onNavigate, projectId, refetch],
   );
 }
+
+/** P02: tầng đang bị khoá lưu (xung đột/từ chối) thì thanh trạng thái không hứa "sẽ thử lưu lại"; chỉ về dải báo phía trên. */
+export const SAVE_BLOCKED_LABEL = 'Chưa lưu. Xem dải báo phía trên.';

@@ -191,7 +191,7 @@ import {
   toFrameRect,
   visibleDrawingRect,
 } from '../shared/canvasFit';
-import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+import { SAVE_BLOCKED_LABEL, useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { focusBoundsOf, focusFrameOf, useQcViewMode } from '../shared/qcViewMode';
 import { useScaleLock } from '../shared/useScaleLock';
@@ -363,7 +363,6 @@ export interface UseWallLayerReviewResult extends WallLayerReviewProps {
  * viết đúng một chỗ (R-71).
  */
 const WALL_DELETE_NOTIFICATION_TYPE = 'wallLayerReview.deleteWall';
-const SAVE_BLOCKED_LABEL = 'Chưa lưu. Xem dải báo phía trên.';
 /** Toast "Hoàn tác" bị từ chối: bước đã rời lịch sử, hoặc một bước mới hơn sửa cùng tường (BUG-579). */
 const WALL_UNDO_REFUSED_NOTIFICATION_TYPE = 'wallLayerReview.undoRefused';
 /** "Nối đoạn" không nối được — trước đây bấm xong không có phản hồi gì (G4a-12). */

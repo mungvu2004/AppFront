@@ -24,6 +24,8 @@ export function projectMenuGroups(
           ? [{ id: 'duplicate', label: 'Nhân bản', action: () => actions.duplicateProject(project.id) }]
           : []),
         { id: 'export', label: 'Xuất', action: () => actions.openProjectPage(project.id, 'export') },
+        // Liên kết chia sẻ nằm ở màn Xuất (nút Chia sẻ).
+        { id: 'share', label: 'Chia sẻ', action: () => actions.openProjectPage(project.id, 'export') },
         { id: 'members', label: 'Thành viên', action: () => actions.openProjectPage(project.id, 'members') },
         { id: 'settings', label: 'Cài đặt', action: () => actions.openProjectPage(project.id, 'settings') },
         // Mục mờ nói rõ vì sao (G2-24).

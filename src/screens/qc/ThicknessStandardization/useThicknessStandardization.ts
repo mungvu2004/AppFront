@@ -121,7 +121,7 @@ import {
   type ThicknessStandardizationProps,
   type ThicknessThresholds,
 } from './thicknessTypes';
-import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+import { SAVE_BLOCKED_LABEL, useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useScaleLock } from '../shared/useScaleLock';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
@@ -1093,7 +1093,7 @@ export function useThicknessStandardization(
       }),
     statusSentence: statusSentenceOf(summary),
     batchStatus,
-    saveLabel: saveIndicator.label,
+    saveLabel: saveBlock !== null ? SAVE_BLOCKED_LABEL : saveIndicator.label,
     reviewedCount,
     onToggleGroupAccepted,
     onAcceptAllGroups,

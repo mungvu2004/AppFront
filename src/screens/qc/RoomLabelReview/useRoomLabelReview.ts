@@ -133,7 +133,7 @@ import {
   type RoomLabelMeasures,
   type RoomLabelReviewGateway,
 } from './roomLabelReviewGateway';
-import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+import { SAVE_BLOCKED_LABEL, useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { SCALE_LOCK_REASON } from '../shared/floorReviewGateModel';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { useScaleLock } from '../shared/useScaleLock';
@@ -660,7 +660,11 @@ export function useRoomLabelReview(
   const indicator = useSaveIndicator(autosave);
   // G46: chữ trạng thái lưu cho người nhìn thấy (trước đây chỉ có aria-live). Chưa lưu lần nào thì không có chữ.
   const saveStatus =
-    indicator.state === 'saved' && autosave.getLastSavedAt() === undefined ? null : indicator.label;
+    saveBlock !== null
+      ? SAVE_BLOCKED_LABEL
+      : indicator.state === 'saved' && autosave.getLastSavedAt() === undefined
+        ? null
+        : indicator.label;
 
   /* ---------------------------------------------------------------------- */
   /* Đường ghi — `dispatch` chạy qua `commit`, hoàn tác 100 bước của S-06.    */

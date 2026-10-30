@@ -87,6 +87,8 @@ export function projectStepStates(input: {
   readonly hasDrawings?: boolean | undefined;
   /** Có tầng đã ra kết quả xử lý (#24 không gửi `progress`; `areaM2` của tầng chỉ có sau khi AI dựng xong). */
   readonly hasProcessedFloor?: boolean | undefined;
+  /** Mọi tầng có bản vẽ đều đã ra kết quả (có diện tích). Tầng trống làm "Duyệt tầng" chưa xong dù dự án đã duyệt (U11). */
+  readonly everyDrawnFloorProcessed?: boolean | undefined;
 }): readonly ProjectStepState[] {
   const approved = input.status === 'approved';
   return PROJECT_STEPS.map((step): ProjectStepState => {
@@ -95,7 +97,10 @@ export function projectStepStates(input: {
       if (input.status === 'error' || input.status === 'processing') return 'attention';
       return approved || input.hasProcessedFloor === true ? 'done' : 'todo';
     }
-    if (step.id === 'floors' || step.id === 'viewer') return approved ? 'done' : 'todo';
+    if (step.id === 'floors' || step.id === 'viewer') {
+      if (!approved) return 'todo';
+      return input.everyDrawnFloorProcessed === false ? 'attention' : 'done';
+    }
     return 'todo';
   });
 }

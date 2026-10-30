@@ -47,6 +47,8 @@ describe('projectLocationOf', () => {
     expect(projectStepStates({})).toEqual(['todo', 'todo', 'todo', 'todo', 'todo', 'todo']);
     // Bước 2 xong khi lượt xử lý cuối đã xong, không đợi dự án duyệt.
     expect(projectStepStates({ hasDrawings: true, status: 'draft', hasProcessedFloor: true }).slice(0, 3)).toEqual(['done', 'done', 'todo']);
+    // U11: dự án đã duyệt mà còn tầng có bản vẽ nhưng trống thì bước duyệt chưa xong.
+    expect(projectStepStates({ hasDrawings: true, status: 'approved', everyDrawnFloorProcessed: false }).slice(2, 4)).toEqual(['attention', 'attention']);
   });
 
   it('tên màn cho tiêu đề tab', () => {
