@@ -124,6 +124,7 @@ import {
 import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number';
 import { formatCombo, keyCapLabels, parseCombo } from '@/lib/input/shortcutRegistry';
 import { MODIFIER_SHORTCUTS } from '@/lib/tools/shortcuts';
+import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { isScaleMissing, provisionalScaleNoticeOf, TINY_FOOTPRINT_MM } from '@/lib/viewmodel/provisionalScale';
 import { ROUTES } from '@/routes/paths';
@@ -143,7 +144,7 @@ import {
   type ScaleRawSnapTarget,
   type ScaleRoomBoxPx,
 } from './scaleCalibrationGateway';
-import { buildScaleCheck, isPlanSizeImplausible, planSizeText, type PlanSizeMm } from './scaleCheck';
+import { buildScaleCheck, isPlanSizeImplausible, mmPerPxAt, planSizeText, type PlanSizeMm } from './scaleCheck';
 import type {
   DimensionStringRow,
   ImageRatioPoint,
@@ -232,6 +233,16 @@ const COPY = {
   suggestionNotice: 'Đang dùng tỷ lệ máy ước lượng từ độ dày tường. Soi cỡ căn bên phải rồi bấm Xác nhận tỷ lệ.',
   suggestionOffer: (density: string): string => `Máy ước lượng từ độ dày tường: 1 px ≈ ${density} mm.`,
   suggestionUse: 'Dùng tỷ lệ này',
+  // UX41 U01: máy đã đặt tạm một tỷ lệ (độ dày tường hoặc ghi chú tỷ lệ) — chọn sẵn, một nút, nói thật là ước lượng.
+  autoSuggestionNotice: (density: string): string =>
+    `Máy ước lượng sẵn 1 px ≈ ${density} mm. Đây là ước lượng: kiểm lại bằng một số đo nếu cần, rồi bấm Xác nhận tỷ lệ.`,
+  // UX41 U01: nhập thẳng tỷ lệ ghi trên bản vẽ khi máy chủ biết DPI của ảnh.
+  ratioEntryLabel: 'Hoặc nhập tỷ lệ ghi trên bản vẽ',
+  ratioEntryPlaceholder: '1:100',
+  ratioEntryInvalid: 'Nhập dạng 1:100 hoặc 100.',
+  ratioEntryNotice: (ratio: string, density: string): string =>
+    `Tỷ lệ 1:${ratio} ứng với 1 px ≈ ${density} mm. Bấm Xác nhận tỷ lệ để lưu.`,
+  allFloorsOffline: 'Mất mạng nên một số tầng chưa lưu. Có mạng lại sẽ tự gửi, không cần bấm lại.',
   applyCommitLabel: 'Xác nhận tỷ lệ',
   applyNoSpatial: 'Chưa nạp dữ liệu không gian của tầng này, nên chưa áp được tỷ lệ.',
   applyFailed: 'Chưa lưu được tỷ lệ lên máy chủ, tầng giữ tỷ lệ cũ.',
@@ -279,6 +290,19 @@ function levelIn(spatial: NormalizedSpatial | null, levelId: string): Level | nu
   const entity = spatial?.byId[levelId];
 
   return entity !== undefined && isEntityOfKind('level', entity) ? entity : null;
+}
+
+/**
+ * UX41 U38: N16 trong cache sau khi máy chủ nhận tỷ lệ của một tầng ĐANG Ở KHO — bỏ hai khoá tạm,
+ * revision theo kho. `level`/`layer`/`dimensions` giữ nguyên: kho là nguồn hình của tầng ấy, còn
+ * `dimensions` của tài liệu đổi ra pixel theo tỷ lệ cũ của chính tài liệu. Lượt đọc lại sau thay hẳn.
+ */
+function confirmedLayerDocument(document: FloorLayerDocument, revision: number): FloorLayerDocument {
+  const confirmed = { ...document, revision: Math.max(document.revision, revision) };
+  delete confirmed.scaleStatus;
+  delete confirmed.scaleSource;
+
+  return confirmed;
 }
 
 /** Câu người đọc của một lượt PUT hỏng. */
@@ -842,6 +866,8 @@ export function useScaleCalibration(
   const [drag, setDrag] = useState<DragSession | null>(null);
   const [nudgeTarget, setNudgeTarget] = useState<NudgeTarget>('end');
   const [realLengthText, setRealLengthText] = useState('');
+  /** UX41 U01: chữ "1:100" người dùng gõ, gắn theo tầng để đổi tầng không mang sang. */
+  const [ratioEntry, setRatioEntry] = useState<{ readonly floorId: string; readonly text: string } | null>(null);
   const [applyScope, setApplyScope] = useState<ScaleApplyScope>('thisFloor');
   const [isCollapsedByUser, setIsCollapsedByUser] = useState(false);
   const [canvasSize, setCanvasSize] = useState<{ readonly width: number; readonly height: number }>({
@@ -854,6 +880,11 @@ export function useScaleCalibration(
   const [isApplying, setApplying] = useState(false);
   /** UX41 U56: lượt áp vừa hỏng vì mất mạng, chờ sự kiện `online` để tự gửi lại. */
   const [isOfflinePending, setOfflinePending] = useState(false);
+  /** UX41 U56: các tầng của lượt "áp mọi tầng" hỏng vì mất mạng, chờ `online` để gửi lại đúng tỷ lệ ấy. */
+  const [offlineFloors, setOfflineFloors] = useState<{
+    readonly ratio: MillimetresPerPixel;
+    readonly targets: readonly ScaleFloorTarget[];
+  } | null>(null);
   /** Câu của lượt áp/hoàn tác gần nhất — `applyBlockedNotice` của panel. */
   const [applyNotice, setApplyNotice] = useState<string | null>(null);
   /** Hộp thoại A9 đang mở cho "áp mọi tầng": tỷ lệ và danh sách đích đã đọc. */
@@ -979,8 +1010,40 @@ export function useScaleCalibration(
 
     return value === undefined || storedRatio !== null ? null : millimetresPerPixel(value);
   }, [floorLayer.data?.suggestedScaleMmPerPx, storedRatio]);
-  const isSuggestionActive = isSuggestionChosen && suggestedRatio !== null;
-  const proposedRatio = isSuggestionActive ? suggestedRatio : (proposedScale?.millimetresPerPixel ?? null);
+  /*
+   * UX41 U01: máy chủ đặt tạm tỷ lệ của pipeline (độ dày tường hoặc ghi chú tỷ lệ) vào `Level` dù
+   * không đọc được số kích thước nào. Không có mốc nào khác thì chọn sẵn tỷ lệ ấy: một nút Xác nhận.
+   * Tỷ lệ mặc định của dự án (`project_default`) là số sai, không chọn sẵn.
+   */
+  const pipelineRatio =
+    suggestedRatio ?? (provisionalRatio !== null && floorLayer.scaleSource === 'pipeline' ? provisionalRatio : null);
+  const sourceDpi = layerDocument?.sourceDpi ?? null;
+  const ratioText = ratioEntry?.floorId === floorId ? ratioEntry.text : '';
+  /** "1:100", "1/100" hoặc "100" → 100; chữ khác → `null`. */
+  const ratioDenominator = useMemo<number | null>(() => {
+    const match = /^\s*(?:1\s*[:/]\s*)?(\d+(?:[.,]\d+)?)\s*$/.exec(ratioText);
+    const value = match?.[1] === undefined ? Number.NaN : Number(match[1].replace(',', '.'));
+
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }, [ratioText]);
+  const ratioEntryRatio = useMemo<MillimetresPerPixel | null>(
+    () =>
+      sourceDpi === null || ratioDenominator === null
+        ? null
+        : millimetresPerPixel(mmPerPxAt(ratioDenominator, sourceDpi)),
+    [ratioDenominator, sourceDpi],
+  );
+  const isAutoSuggestion =
+    floorLayer.scaleSource === 'pipeline' &&
+    pipelineRatio !== null &&
+    !isSuggestionChosen &&
+    rawRows.length === 0 &&
+    drag === null &&
+    proposedScale === null &&
+    ratioEntryRatio === null;
+  const isSuggestionActive = pipelineRatio !== null && (isSuggestionChosen || isAutoSuggestion);
+  const proposedRatio =
+    ratioEntryRatio ?? (isSuggestionActive ? pipelineRatio : (proposedScale?.millimetresPerPixel ?? null));
 
   /** Tỷ lệ dùng để bắt điểm và để suy ra ba dòng kiểm chứng, theo thứ tự tin cậy. */
   const workingRatio: MillimetresPerPixel | null = proposedRatio ?? storedRatio ?? provisionalRatio ?? aiSuggestion;
@@ -1129,6 +1192,7 @@ export function useScaleCalibration(
     (rowId: string) => {
       setSelectedRowId(rowId);
       setSuggestionFloorId(null);
+      setRatioEntry(null);
       setMethod('dimensionString');
 
       const row = rowsRef.current.find((entry) => entry.id === rowId);
@@ -1160,6 +1224,7 @@ export function useScaleCalibration(
 
     setMethod('referenceLine');
     setSuggestionFloorId(null);
+    setRatioEntry(null);
 
     // Nhấn lên tay cầm: kéo đúng đầu đó, đầu kia đứng yên — không vẽ lại cả đoạn (BUG-587).
     if (endpoint !== undefined) {
@@ -1362,6 +1427,7 @@ export function useScaleCalibration(
 
     setMethod('referenceLine');
     setSuggestionFloorId(null);
+    setRatioEntry(null);
     setApplyOutcome(null);
     setNudgeTarget('end');
     setDrag({
@@ -1446,8 +1512,18 @@ export function useScaleCalibration(
   /** UX-R2: dùng tỷ lệ máy ước từ độ dày tường làm đề nghị; người dùng vẫn phải bấm Xác nhận tỷ lệ. */
   const onUseSuggestedScale = useCallback(() => {
     setSuggestionFloorId(floorId);
+    setRatioEntry(null);
     setDrag(null);
   }, [floorId]);
+
+  /** UX41 U01: gõ tỷ lệ ghi trên bản vẽ ("1:100"); chỉ có ô này khi N16 mang `sourceDpi`. */
+  const onChangeDrawingRatio = useCallback(
+    (text: string) => {
+      setRatioEntry({ floorId, text });
+      setApplyOutcome(null);
+    },
+    [floorId],
+  );
 
   const onChangeApplyScope = useCallback((scope: ScaleApplyScope) => {
     setApplyScope(scope);
@@ -1507,6 +1583,25 @@ export function useScaleCalibration(
     // banner and room areas update right after the save.
     // refetchType 'none': mark stale only, so this screen's own layer query does not refetch mid-undo.
     void queryClient.invalidateQueries({ queryKey: queryKeys.layer.byFloor.root(), refetchType: 'none' });
+    /*
+     * UX41 U38: 'none' để N16 trong cache vẫn nói `unresolved` với revision cũ, còn kho đã có revision mới
+     * không `scaleStatus` → `floorScaleKeysOf` trả "chưa đọc" và vòng Tỷ lệ của thanh bước rỗng tới lần
+     * đọc lại. Máy chủ đã nhận tỷ lệ: ghi thẳng điều đó vào cache. Chỉ tầng kho đang giữ — tầng khác
+     * chưa có hình trong kho, để lượt đọc lại (đã đánh dấu cũ ở trên) mang hình theo tỷ lệ mới.
+     */
+    const stored = useStore.getState();
+
+    for (const id of levelIds) {
+      const revision = stored.floorMeta[id]?.revision;
+
+      if (revision === undefined || stored.spatial?.byId[id] === undefined) {
+        continue;
+      }
+
+      queryClient.setQueryData<FloorLayerDocument>(queryKeys.layer.byFloor(projectIdRef.current, id), (document) =>
+        document === undefined ? document : confirmedLayerDocument(document, revision),
+      );
+    }
     const spatial = useStore.getState().spatial;
     const marks = ratioMarksFor(projectIdRef.current);
     const patches: SpatialPatch[] = [];
@@ -1639,7 +1734,62 @@ export function useScaleCalibration(
     setAllFloors(null);
   }, []);
 
-  /** Đồng ý A9: gửi NỐI TIẾP từng tầng có bản vẽ, `hint` = `revision` N15 của tầng. */
+  /**
+   * Gửi NỐI TIẾP một tỷ lệ cho các tầng (đã lọc có bản vẽ), `hint` = `revision` N15 của tầng. Tầng hỏng
+   * vì mất mạng được giữ lại để tự gửi lại khi có mạng (UX41 U56).
+   */
+  const sendAllFloors = useCallback(
+    (ratio: MillimetresPerPixel, targets: readonly ScaleFloorTarget[], skipped: readonly string[]) => {
+      undoWhileApplyingRef.current = false;
+      setApplying(true);
+
+      void (async () => {
+        const saved: ScaleFloorTarget[] = [];
+        const failed: string[] = [];
+        const blocked: string[] = [];
+        const offline: ScaleFloorTarget[] = [];
+
+        for (const target of targets) {
+          if (isFloorBlocked(target.floorId)) {
+            blocked.push(target.name);
+            continue;
+          }
+
+          rememberProvisional(target.floorId);
+
+          try {
+            await saveScale(target.floorId, ratio, target.revision);
+            saved.push(target);
+          } catch (error: unknown) {
+            failed.push(target.name);
+
+            if (toAppError(error).kind === 'network') {
+              offline.push(target);
+            }
+          }
+        }
+
+        commitSaved(
+          saved.map((target) => target.floorId),
+          ratio,
+        );
+        setOfflineFloors(offline.length > 0 ? { ratio, targets: offline } : null);
+        setApplyOutcome(saved.length > 0 && failed.length === 0 && blocked.length === 0 ? 'success' : 'failed');
+        setApplyNotice(
+          [
+            allFloorsReport({ saved: saved.map((target) => target.name), failed, blocked, skipped }),
+            offline.length > 0 ? COPY.allFloorsOffline : '',
+          ]
+            .filter((sentence) => sentence !== '')
+            .join(' ') || null,
+        );
+        setApplying(false);
+      })();
+    },
+    [commitSaved, isFloorBlocked, rememberProvisional, saveScale],
+  );
+
+  /** Đồng ý A9: gửi cho từng tầng có bản vẽ. */
   const onConfirmAllFloors = useCallback(() => {
     if (allFloors === null) {
       return;
@@ -1648,46 +1798,28 @@ export function useScaleCalibration(
     const { ratio, targets } = allFloors;
 
     setAllFloors(null);
-    undoWhileApplyingRef.current = false;
-    setApplying(true);
+    sendAllFloors(
+      ratio,
+      targets.filter((entry) => entry.hasDrawing),
+      targets.filter((entry) => !entry.hasDrawing).map((entry) => entry.name),
+    );
+  }, [allFloors, sendAllFloors]);
 
-    void (async () => {
-      const saved: ScaleFloorTarget[] = [];
-      const failed: string[] = [];
-      const blocked: string[] = [];
+  /* UX41 U56: "áp mọi tầng" hỏng vì mất mạng — có mạng lại thì gửi lại các tầng ấy, một lần. */
+  useEffect(() => {
+    if (offlineFloors === null) {
+      return undefined;
+    }
 
-      for (const target of targets.filter((entry) => entry.hasDrawing)) {
-        if (isFloorBlocked(target.floorId)) {
-          blocked.push(target.name);
-          continue;
-        }
+    const resend = (): void => {
+      setOfflineFloors(null);
+      sendAllFloors(offlineFloors.ratio, offlineFloors.targets, []);
+    };
 
-        rememberProvisional(target.floorId);
+    window.addEventListener('online', resend);
 
-        try {
-          await saveScale(target.floorId, ratio, target.revision);
-          saved.push(target);
-        } catch {
-          failed.push(target.name);
-        }
-      }
-
-      commitSaved(
-        saved.map((target) => target.floorId),
-        ratio,
-      );
-      setApplyOutcome(saved.length > 0 && failed.length === 0 && blocked.length === 0 ? 'success' : 'failed');
-      setApplyNotice(
-        allFloorsReport({
-          saved: saved.map((target) => target.name),
-          failed,
-          blocked,
-          skipped: targets.filter((entry) => !entry.hasDrawing).map((entry) => entry.name),
-        }) || null,
-      );
-      setApplying(false);
-    })();
-  }, [allFloors, commitSaved, isFloorBlocked, rememberProvisional, saveScale]);
+    return () => window.removeEventListener('online', resend);
+  }, [offlineFloors, sendAllFloors]);
 
   /* ---------------------------------------------------------------------- */
   /* Phím tắt (I-01) — không một `addEventListener` nào ở đây (R-72).        */
@@ -2004,7 +2136,7 @@ export function useScaleCalibration(
   // Tỷ lệ ước từ độ dày tường không có phép chia nào để bày ra.
   const isComputationComplete = numerator !== null && denominator !== null && !isSuggestionActive;
   // Mốc máy chọn sẵn chưa phải việc người dùng làm (UX-R2 K05).
-  const hasStartedWork = drag !== null || pickedRowId !== null || isSuggestionActive;
+  const hasStartedWork = drag !== null || pickedRowId !== null || isSuggestionActive || ratioEntryRatio !== null;
 
   const state = useMemo<ScaleCalibrationState>(() => {
     if (query.isPending) {
@@ -2343,6 +2475,16 @@ export function useScaleCalibration(
           planSizeMm: planSizeAt(layerDocument, proposedRatio ?? storedRatio ?? provisionalRatio),
         }),
         shortcutHints: isNoDrawing ? [] : shortcutHints,
+        ...(sourceDpi !== null && canEdit
+          ? {
+              ratioEntry: {
+                label: COPY.ratioEntryLabel,
+                text: ratioText,
+                placeholder: COPY.ratioEntryPlaceholder,
+                error: ratioText.trim() !== '' && ratioDenominator === null ? COPY.ratioEntryInvalid : null,
+              },
+            }
+          : {}),
         ...(suggestedRatio !== null && canEdit
           ? {
               suggestion: {
@@ -2374,6 +2516,10 @@ export function useScaleCalibration(
       partialNotice:
         state !== 'partial'
           ? null
+          : ratioEntryRatio !== null && ratioDenominator !== null
+            ? COPY.ratioEntryNotice(formatNumber(ratioDenominator), formatScaleDensity(ratioEntryRatio))
+          : isAutoSuggestion && pipelineRatio !== null
+            ? COPY.autoSuggestionNotice(formatNumber(pipelineRatio, { maxFractionDigits: 1 }))
           : isSuggestionActive
             ? COPY.suggestionNotice
             : !hasStartedWork && applyOutcome === null && selectedRow !== null
@@ -2413,6 +2559,12 @@ export function useScaleCalibration(
     provisionalRatio,
     floorLayer.scaleSource,
     isSuggestionActive,
+    isAutoSuggestion,
+    pipelineRatio,
+    ratioDenominator,
+    ratioEntryRatio,
+    ratioText,
+    sourceDpi,
     selectedRow,
     suggestedRatio,
     aiInference,
@@ -2481,6 +2633,7 @@ export function useScaleCalibration(
       onCanvasSizeChange,
       onApply,
       onUseSuggestedScale,
+      onChangeDrawingRatio,
       onChangeApplyScope,
       onConfirmAllFloors,
       onCancelAllFloors,
@@ -2493,6 +2646,7 @@ export function useScaleCalibration(
     [
       onApply,
       onCancelAllFloors,
+      onChangeDrawingRatio,
       onConfirmAllFloors,
       onCancelDrag,
       onCanvasSizeChange,

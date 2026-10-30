@@ -105,6 +105,8 @@ export const FloorLayerDocumentSchema = z
     scaleSource: z.enum(['pipeline', 'project_default']).optional(),
     /** Tỷ lệ máy ước từ độ dày tường (mm/px), để người dùng xác nhận khi chưa có tỷ lệ (UX-R2). */
     suggestedScaleMmPerPx: scaleMillimetresPerPixelSchema.optional(),
+    /** DPI của ảnh máy đã xử lý khi biết (PDF dựng ở DPI nào); `null`/vắng = không biết. Có thì nhập thẳng 1:N (U01). */
+    sourceDpi: z.number().positive().finite().nullish(),
   })
   .strict()
   .refine(
@@ -128,6 +130,7 @@ export const FloorLayerDocumentSchema = z
     ...(wireDocument.suggestedScaleMmPerPx !== undefined
       ? { suggestedScaleMmPerPx: wireDocument.suggestedScaleMmPerPx }
       : {}),
+    ...(wireDocument.sourceDpi != null ? { sourceDpi: wireDocument.sourceDpi } : {}),
   }));
 
 export type FloorLayerDocument = z.infer<typeof FloorLayerDocumentSchema>;

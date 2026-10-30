@@ -1440,6 +1440,17 @@ export function toWallRow(
   };
 }
 
+/** U48: "(đã sửa, máy đo 221)" khi người đã đổi độ dày khỏi số máy đo. */
+export function detectedNoteOf(wall: Wall): string | null {
+  const detected = wall.detectedThicknessMm;
+
+  if (detected === undefined || Math.round(detected) === Math.round(wall.thicknessMm)) {
+    return null;
+  }
+
+  return `(đã sửa, máy đo ${formatNumber(detected, { fractionDigits: 0 })})`;
+}
+
 /** Thanh tra tường đang chọn. Mọi con số đã thành chuỗi ở đây, không ở view (A15). */
 export function toWallInspector(
   wall: Wall,
@@ -1453,6 +1464,7 @@ export function toWallInspector(
     id: wall.id,
     codeLabel: wallLabelOf(wall.id, wallCodes),
     thicknessMm: wall.thicknessMm,
+    detectedNote: detectedNoteOf(wall),
     /* Cùng quy tắc với cột "Dài, mm" của danh sách: tỷ lệ tạm "≈… (tạm)", thiếu tỷ lệ thì nói rõ (K16). */
     lengthLabel: wallLengthLabelOf(wall, level, scaleStatus, scaleSource, unit),
     /*

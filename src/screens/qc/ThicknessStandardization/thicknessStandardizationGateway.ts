@@ -48,7 +48,7 @@ import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import { createAppApiClient } from '@/api/appClient';
 import { readFloorLayerRead, type FloorLayerGraphRead } from '@/api/floorLayerGraph';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
-import type { Level, LevelId, Point, Wall, WallId } from '@/domain/spatial/types';
+import type { DataSource, Level, LevelId, Point, Wall, WallId } from '@/domain/spatial/types';
 import { resolveDrawableWallShapes } from '@/domain/walls/joints';
 import { wallStrokeToken } from '@/components/canvas/materialMap';
 import {
@@ -419,9 +419,11 @@ export function withThresholdAt(
 export function groupOfMeasurement(
   measuredMm: number,
   thresholds: ThicknessThresholds,
+  source: DataSource = 'human',
 ): ThicknessGroup {
   if (isDefaultThresholds(thresholds)) {
-    return standardizeThickness(measuredMm).standardized;
+    /* Tường máy đo dư một nét vẽ: luật bù nét của M-05 (U19, 261 → 220 chứ không 300). */
+    return standardizeThickness(measuredMm, source).standardized;
   }
 
   let position = 0;
@@ -523,7 +525,7 @@ const lengthLabel = (valueMm: number): string =>
 
 /** Một đoạn tường thành một dòng bảng, không còn phép tính nào cho view. */
 export function toSegmentRow(wall: Wall, options: ToSegmentRowOptions): ThicknessSegmentRow {
-  const group = groupOfMeasurement(wall.thicknessMm, options.thresholds);
+  const group = groupOfMeasurement(wall.thicknessMm, options.thresholds, wall.source);
   const deviationMm = deviationOf(wall.thicknessMm, group);
   const standardMm = standardValueOf(group);
   const exceedsTolerance = deviationMm > options.toleranceMm;

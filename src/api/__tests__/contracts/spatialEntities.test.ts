@@ -519,6 +519,13 @@ describe('Trường J-v3 (floorMaterial, paint, model, slots)', () => {
     expect(WallSchema.safeParse({ ...wall, paint: { exterior: 'white' } }).success).toBe(false);
   });
 
+  it('detectedThicknessMm (U48): số dương giữ lại, null/vắng là vắng khoá', () => {
+    expect(WallSchema.parse({ ...wall, detectedThicknessMm: 221 })).toStrictEqual({ ...wall, detectedThicknessMm: 221 });
+    expect('detectedThicknessMm' in WallSchema.parse({ ...wall, detectedThicknessMm: null })).toBe(false);
+    expect('detectedThicknessMm' in WallSchema.parse(wall)).toBe(false);
+    expect(WallSchema.safeParse({ ...wall, detectedThicknessMm: 0 }).success).toBe(false);
+  });
+
   it('model: id ≤ 120, src đúng mẫu /items/<id>/model.glb', () => {
     expect(FurnitureSchema.parse({ ...furniture, model })).toStrictEqual({ ...furniture, model });
     expect(

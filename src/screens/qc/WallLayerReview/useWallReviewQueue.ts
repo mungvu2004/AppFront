@@ -102,7 +102,7 @@ export function useWallReviewQueue(input: UseWallReviewQueueInput): WallReviewQu
   const onStandardize = useCallback(
     (wallId: WallId) => {
       const wall = walls.find((candidate) => candidate.id === wallId);
-      const targetMm = wall === undefined ? null : thicknessTargetOf(wall.thicknessMm);
+      const targetMm = wall === undefined ? null : thicknessTargetOf(wall.thicknessMm, wall.source);
 
       if (wall === undefined || targetMm === null || !canEdit || lockText !== null) {
         return;

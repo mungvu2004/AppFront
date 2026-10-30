@@ -522,6 +522,17 @@ export interface ScalePanelViewModel {
   readonly scaleCheck?: ScaleCheckViewModel;
   /** UX-R2: tỷ lệ máy ước từ độ dày tường (N16 `suggestedScaleMmPerPx`). Vắng khi máy không ước hoặc tầng đã xác nhận. */
   readonly suggestion?: ScaleSuggestionViewModel;
+  /** UX41 U01: ô nhập thẳng tỷ lệ "1:100". Chỉ có khi N16 mang `sourceDpi` và người dùng sửa được. */
+  readonly ratioEntry?: ScaleRatioEntryViewModel;
+}
+
+/** Ô "Hoặc nhập tỷ lệ ghi trên bản vẽ: [1:100]". */
+export interface ScaleRatioEntryViewModel {
+  readonly label: string;
+  readonly text: string;
+  readonly placeholder: string;
+  /** Câu lỗi khi chữ gõ không đọc được thành 1:N; `null` khi đúng hoặc trống. */
+  readonly error: string | null;
 }
 
 /** Lời đề nghị "Máy ước lượng từ độ dày tường: 1 px ≈ X mm. [Dùng tỷ lệ này]". */
@@ -718,6 +729,8 @@ export interface ScaleCalibrationActions {
   readonly onChangeApplyScope: (scope: ScaleApplyScope) => void;
   /** UX-R2: lấy tỷ lệ máy ước từ độ dày tường làm đề nghị (chưa lưu, vẫn phải bấm Xác nhận tỷ lệ). */
   readonly onUseSuggestedScale: () => void;
+  /** UX41 U01: gõ tỷ lệ ghi trên bản vẽ ("1:100"); tuỳ chọn để các bộ mẫu cũ khỏi phải khai. */
+  readonly onChangeDrawingRatio?: (text: string) => void;
   /** Đồng ý ở hộp thoại A9: gửi tỷ lệ cho từng tầng có bản vẽ, nối tiếp. */
   readonly onConfirmAllFloors: () => void;
   /** Huỷ hộp thoại A9: không gửi gì, màn giữ trạng thái trước. */
@@ -793,6 +806,7 @@ export interface ScaleCalibrationPanelProps {
     | 'onSelectDimensionRow'
     | 'onToggleCollapsed'
     | 'onUseSuggestedScale'
+    | 'onChangeDrawingRatio'
   >;
 }
 

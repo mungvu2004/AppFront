@@ -1806,6 +1806,14 @@ describe('tỷ lệ tạm (F-04x-2)', () => {
     expect(inspector.lengthLabel).toBe('Chưa có — cần đặt tỷ lệ');
   });
 
+  it('U48: người đã sửa độ dày thì thanh tra giữ số máy đo', () => {
+    const edited = { ...wallAt(0), thicknessMm: 200, detectedThicknessMm: 221 } as Wall;
+
+    expect(toWallInspector(edited, FIXTURE_LEVEL).detectedNote).toBe('(đã sửa, máy đo 221)');
+    expect(toWallInspector({ ...edited, thicknessMm: 221 } as Wall, FIXTURE_LEVEL).detectedNote).toBeNull();
+    expect(toWallInspector(wallAt(0), FIXTURE_LEVEL).detectedNote).toBeNull();
+  });
+
   it('tầng có tỉ lệ thật: không dải, chiều dài là số đo', async () => {
     const mounted = await mountSettled();
 

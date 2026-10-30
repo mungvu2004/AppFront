@@ -13,6 +13,7 @@ import { clsx } from 'clsx';
 import { PageHead } from '@/components/shell/PageHead';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Kbd } from '@/components/ui/Kbd';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 
@@ -65,6 +66,22 @@ export function ScaleCalibrationSidebar({ actions, panel, state }: SidebarProps)
               {panel.suggestion.actionLabel}
             </Button>
           )}
+        </section>
+      )}
+
+      {/* UX41 U01: máy chủ biết DPI của ảnh — nhập thẳng tỷ lệ ghi trên bản vẽ, khỏi kéo đo. */}
+      {panel.ratioEntry !== undefined && !isLoading && !isForbidden && (
+        <section className="flex flex-col gap-2 border-b border-border-default px-4 py-3">
+          <Input
+            className="font-mono text-[13px] leading-5"
+            error={panel.ratioEntry.error ?? undefined}
+            label={panel.ratioEntry.label}
+            onChange={(event) => {
+              actions.onChangeDrawingRatio?.(event.target.value);
+            }}
+            placeholder={panel.ratioEntry.placeholder}
+            value={panel.ratioEntry.text}
+          />
         </section>
       )}
 

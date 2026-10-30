@@ -131,6 +131,8 @@ export interface Wall extends ReviewMetadata {
   /** Centreline, measured through the middle of the wall section. */
   centreline: Segment;
   thicknessMm: Millimetres;
+  /** Độ dày máy đo lúc dựng, người sửa không đổi được; vắng = máy chủ cũ hoặc tường người vẽ (U48). */
+  detectedThicknessMm?: Millimetres | undefined;
   heightMm: Millimetres;
   kind: WallKind;
   openingIds: readonly OpeningId[];

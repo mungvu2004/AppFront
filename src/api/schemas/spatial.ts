@@ -238,6 +238,8 @@ export const WallSchema: z.ZodType<Wall, z.ZodTypeDef, unknown> = z
   .object({
     ...reviewMetadataShape,
     centreline: segmentSchema,
+    /** Độ dày máy đo, không đổi theo sửa của người (U48); `null`/vắng = không có. */
+    detectedThicknessMm: positiveMillimetresSchema.nullish(),
     heightMm: positiveMillimetresSchema,
     id: wallIdSchema,
     kind: z.enum(['loadBearing', 'partition', 'envelope']),
@@ -249,8 +251,9 @@ export const WallSchema: z.ZodType<Wall, z.ZodTypeDef, unknown> = z
   .strict()
   .refine(humanOnlyReview)
   /* `paint` vắng là vắng khoá (xem chú thích của `FurnitureSchema` bên dưới). */
-  .transform(({ paint, ...wireWall }) => ({
+  .transform(({ paint, detectedThicknessMm, ...wireWall }) => ({
     ...wireWall,
+    ...(detectedThicknessMm != null ? { detectedThicknessMm } : {}),
     ...(paint !== undefined ? { paint } : {}),
   }));
 

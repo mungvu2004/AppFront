@@ -47,3 +47,28 @@ describe('standardTierRangeOf', () => {
     expect(standardTierRangeOf(400)).toEqual({ fromMm: 351, toMm: CONCRETE_COLUMN_THRESHOLD_MM });
   });
 });
+
+/* U19: tường máy đo dư một nét vẽ — lấy bậc lớn nhất không vượt số đo + 15 mm. */
+describe("standardizeThickness(source: 'ai')", () => {
+  it('261 → 220, 330 → 300, 240 → 220 (không còn 261 → 300)', () => {
+    expect(standardizeThickness(261, 'ai').standardized).toBe(220);
+    expect(standardizeThickness(330, 'ai').standardized).toBe(300);
+    expect(standardizeThickness(240, 'ai').standardized).toBe(220);
+    expect(standardizeThickness(285, 'ai').standardized).toBe(300);
+    expect(standardizeThickness(70, 'ai').standardized).toBe(100);
+    expect(standardizeThickness(CONCRETE_COLUMN_THRESHOLD_MM + 1, 'ai').standardized).toBe('CONCRETE_COLUMN');
+  });
+
+  it('khoảng của mỗi bậc khớp đúng luật máy đo ở hai biên', () => {
+    expect(standardTierRangeOf(220, 'ai')).toEqual({ fromMm: 205, toMm: 284 });
+    for (const tier of STANDARD_THICKNESSES_MM) {
+      const { fromMm, toMm } = standardTierRangeOf(tier, 'ai');
+      expect(standardizeThickness(toMm, 'ai').standardized).toBe(tier);
+      expect(standardizeThickness(toMm + 1, 'ai').standardized).not.toBe(tier);
+      if (fromMm !== null) {
+        expect(standardizeThickness(fromMm, 'ai').standardized).toBe(tier);
+        expect(standardizeThickness(fromMm - 1, 'ai').standardized).not.toBe(tier);
+      }
+    }
+  });
+});
