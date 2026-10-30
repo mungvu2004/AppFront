@@ -43,7 +43,7 @@ import type { SelectOption } from '@/components/ui/Select';
 import { millimetresPerPixel, pixels, scaleFromRatio } from '@/domain/units/scale';
 import type { AutosaveState } from '@/lib/autosave/createAutosave';
 import { createAutosave } from '@/lib/autosave/createAutosave';
-import { can } from '@/lib/auth/permissions';
+import { can, effectiveProjectRole } from '@/lib/auth/permissions';
 import { describeError, toAppError, type AppError } from '@/lib/errors';
 import { initialsOf } from '@/lib/format/initials';
 import { formatArea, formatLength } from '@/lib/format/measure';
@@ -78,6 +78,7 @@ import {
   type SettingsRejection,
 } from './settingsErrors';
 import {
+  MEMBER_ACCESS_LABELS,
   ROLE_LABELS,
   ROLE_OPTIONS,
   useProjectMembers,
@@ -133,6 +134,8 @@ export interface ProjectSettingsMemberRow {
   readonly removeLabel: string;
   /** N4-02: đã được mời nhưng chưa chấp nhận. */
   readonly isPending?: boolean;
+  /** U24: quyền riêng trong dự án này ("Chỉ xem", "Được sửa"); `null` = theo vai toàn hệ thống. */
+  readonly projectAccessLabel?: string | null;
 }
 
 export interface ProjectSettingsProblems {
@@ -722,7 +725,7 @@ async function sendFlush(
 
 export function useProjectSettings(options: UseProjectSettingsOptions): ProjectSettingsViewProps {
   const { gateway, projectId } = options;
-  const roles = options.roles ?? DEFAULT_ROLES;
+  const sessionRoles = options.roles ?? DEFAULT_ROLES;
   const queryClient = useQueryClient();
 
   const [chosenTab, setChosenTab] = useState<ProjectSettingsTabId>(options.initialTab ?? 'general');
@@ -762,9 +765,6 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
   const detectedNarrow = useNarrowViewport();
   const isCollapsed = options.forceCollapsed ?? detectedNarrow;
 
-  const canEdit = can('edit', 'project.settings', { roles });
-  const canDelete = canEdit && roles.includes('admin');
-
   const settingsQuery = useQuery({
     queryKey: projectSettingsQueryKey(projectId),
     queryFn: async (): Promise<ProjectSettingsSnapshot> => {
@@ -779,6 +779,12 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
   });
 
   const snapshot = settingsQuery.data ?? null;
+
+  // U24: trong dự án, người đọc hành động bằng vai hiệu lực của mình ở đây (vai dự án nếu có).
+  const self = snapshot?.members.find((member) => member.id === options.currentUserId);
+  const roles = self === undefined ? sessionRoles : [effectiveProjectRole(self)];
+  const canEdit = can('edit', 'project.settings', { roles });
+  const canDelete = canEdit && roles.includes('admin');
 
   // Nạp bản nháp từ ảnh chụp NGAY TRONG lúc render, không qua effect (R-27):
   // effect đẩy dữ liệu sang lượt render sau, tức có một khung hình biểu mẫu
@@ -1200,6 +1206,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
 
   const {
     setMemberEmail,
+    setMemberAccess,
     addMember,
     inviteMember,
     requestRemoveMember,
@@ -1417,6 +1424,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
         initials: initialsOf(member.name, member.email),
         removeLabel: `Gỡ ${member.name}`,
         isPending: pendingIds.has(member.id),
+        projectAccessLabel: member.projectRole === undefined ? null : MEMBER_ACCESS_LABELS[member.projectRole],
       })),
     [snapshot, canDelete, options.currentUserId, pendingIds],
   );
@@ -1528,6 +1536,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     confirmReload: () => void performReload(),
     cancelReload: () => setReloadDialogOpen(false),
     setMemberEmail,
+    setMemberAccess,
     addMember,
     inviteMember,
     requestRemoveMember,

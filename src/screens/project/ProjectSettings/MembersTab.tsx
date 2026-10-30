@@ -44,6 +44,8 @@ export type MembersTabProps = Pick<
   | 'state'
   | 'canEdit'
   | 'memberEmail'
+  | 'memberAccess'
+  | 'setMemberAccess'
   | 'memberError'
   | 'isAddingMember'
   | 'isAddMemberLocked'
@@ -120,7 +122,7 @@ export function MembersTab(props: MembersTabProps) {
         <div className="flex flex-col gap-3">
           <p className="text-[13px] text-text-secondary">
             <span>{props.memberCountLabel}</span>
-            <span> · Vai áp dụng cho mọi dự án của người đó.</span>
+            <span> · Vai áp dụng cho mọi dự án của người đó, trừ khi đặt quyền riêng cho dự án này.</span>
           </p>
           <div className="rounded-lg border border-border-default">
             <div className="flex items-center border-b border-border-default px-3 py-1.5 text-[12px] font-medium text-text-secondary">
@@ -139,6 +141,12 @@ export function MembersTab(props: MembersTabProps) {
                   </span>
                   <span className="ml-auto flex items-center gap-2">
                     {member.isPending === true && <Badge variant="neutral">Chờ chấp nhận</Badge>}
+                    {/* U24: quyền riêng trong dự án này, đứng trước vai toàn hệ thống. */}
+                    {typeof member.projectAccessLabel === 'string' && (
+                      <Badge variant="neutral" title="Quyền trong riêng dự án này">
+                        {member.projectAccessLabel}
+                      </Badge>
+                    )}
                     <RoleCell member={member} onChange={(role) => props.requestRoleChange(member.id, role)} />
                     {props.canEdit && (
                       <Button

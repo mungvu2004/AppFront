@@ -16,10 +16,12 @@
  * dùng `variant="neutral"` cho cả hai, chữ đọc được luôn đi kèm dấu chấm màu.
  */
 import { SearchX } from 'lucide-react';
+import { useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Table } from '@/components/ui/Table';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -47,6 +49,8 @@ const DISABLE_LABEL = 'Vô hiệu hoá';
 const ENABLE_LABEL = 'Bật lại';
 const REMOVE_LABEL = 'Xoá';
 const ROLE_DISABLED_REASON = 'Bật lại tài khoản để đổi vai';
+const CONFIRM_ROLE_LABEL = 'Đổi vai';
+const CANCEL_ROLE_LABEL = 'Huỷ';
 const REMOVE_CLASS = 'text-state-violation-text hover:text-state-violation-text';
 const ROW_HEIGHT = 'h-12';
 /**
@@ -76,7 +80,13 @@ interface RoleCellProps {
   readonly row: UserRowModel;
 }
 
+/**
+ * U50: chọn vai trong ô chưa đổi ngay — hiện "Đổi vai"/"Huỷ" để xác nhận, tránh lướt chuột đổi nhầm.
+ * Hook vẫn đổi lạc quan + toast hoàn tác sau khi xác nhận.
+ */
 function RoleCell({ actions, roleOptions, row }: RoleCellProps) {
+  const [pendingRole, setPendingRole] = useState<ProjectRole | null>(null);
+
   if (row.isSelf && row.roleChangeBlockedReason !== null) {
     const own = roleOptions.find((option) => option.role === row.role);
     return <span className="text-[13px] text-text-primary">{own?.label ?? row.role}</span>;
@@ -88,15 +98,16 @@ function RoleCell({ actions, roleOptions, row }: RoleCellProps) {
   const options = roleOptions.map((option) => ({ label: option.label, value: option.role as string }));
 
   const isDisabled = row.status === 'disabled';
+  const pendingLabel = roleOptions.find((option) => option.role === pendingRole)?.label ?? pendingRole;
 
   return (
     <div className="flex flex-col gap-1">
       <Select.Root
         className="w-[140px]"
         disabled={isDisabled}
-        onChange={(value) => actions.onChangeRole(row.id, value as ProjectRole)}
+        onChange={(value) => setPendingRole(value === row.role ? null : (value as ProjectRole))}
         options={options}
-        value={row.role}
+        value={pendingRole ?? row.role}
       >
         <Select.Label className="sr-only">{roleSelectLabel(row.name)}</Select.Label>
         <Select.Trigger options={options} />
@@ -109,6 +120,28 @@ function RoleCell({ actions, roleOptions, row }: RoleCellProps) {
         </Select.Content>
       </Select.Root>
       {isDisabled && <p className="text-[12px] text-text-secondary">{ROLE_DISABLED_REASON}</p>}
+      {pendingRole !== null && (
+        <div className="flex items-center gap-1">
+          <Button
+            aria-label={`${CONFIRM_ROLE_LABEL} của ${row.name} thành ${pendingLabel ?? ''}`}
+            onClick={() => {
+              setPendingRole(null);
+              actions.onChangeRole(row.id, pendingRole);
+            }}
+            size="sm"
+          >
+            {CONFIRM_ROLE_LABEL}
+          </Button>
+          <Button
+            aria-label={`${CANCEL_ROLE_LABEL} đổi vai của ${row.name}`}
+            onClick={() => setPendingRole(null)}
+            size="sm"
+            variant="ghost"
+          >
+            {CANCEL_ROLE_LABEL}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

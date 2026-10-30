@@ -774,6 +774,8 @@ export interface ProjectSummariesApi {
 export interface AddProjectMemberInput extends WriteRequestOptions {
   email: string;
   projectId: string;
+  /** U24: vai trong dự án; vắng = theo vai toàn hệ thống. */
+  role?: 'engineer' | 'viewer';
 }
 
 export interface RemoveProjectMemberInput extends WriteRequestOptions {
@@ -1210,10 +1212,10 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
   },
   members: {
     add: async (input) => {
-      const { email, projectId } = input;
+      const { email, projectId, role } = input;
 
       return decodeSingle(
-        await callPost(http, ENDPOINTS.members.add(projectId), { email }, input),
+        await callPost(http, ENDPOINTS.members.add(projectId), role === undefined ? { email } : { email, role }, input),
         UserSchema,
         'members.add',
       );

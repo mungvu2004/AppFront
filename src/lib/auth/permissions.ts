@@ -161,3 +161,9 @@ export const can = (
 
   return roles.some((role) => permissions[role] ?? false);
 };
+
+/** Vai hiệu lực trong một dự án (U24): quản trị luôn là quản trị; còn lại vai dự án nếu có — gương `project_role` của BE. */
+export const effectiveProjectRole = (member: {
+  readonly role: ProjectRole;
+  readonly projectRole?: 'engineer' | 'viewer';
+}): ProjectRole => (member.role === 'admin' || member.projectRole === undefined ? member.role : member.projectRole);

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SAMPLE_BUILDING, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { isIdOfKind } from '@/domain/spatial/ids';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { effectiveProjectRole } from '@/lib/auth/permissions';
 import { useStore } from '@/store';
 import { createAxisGridManagerGateway } from '@/screens/qc/AxisGridManager/axisGridManagerGateway';
 import {
@@ -370,6 +371,13 @@ describe('readProjectSpatial — #24 + N15 (F-04x-2)', () => {
     expect(rolesOf(projectResult.data, { roles: ['viewer'], userId: member.id })).toEqual([member.role]);
     expect(rolesOf(projectResult.data, { roles: ['viewer'], userId: 'người-lạ' })).toEqual(['viewer']);
     expect(rolesOf(projectResult.data, { roles: ['engineer'], userId: null })).toEqual(['engineer']);
+  });
+
+  it('U24: vai dự án thắng vai hệ thống, trừ quản trị', () => {
+    expect(effectiveProjectRole({ role: 'engineer', projectRole: 'viewer' })).toBe('viewer');
+    expect(effectiveProjectRole({ role: 'viewer', projectRole: 'engineer' })).toBe('engineer');
+    expect(effectiveProjectRole({ role: 'admin', projectRole: 'viewer' })).toBe('admin');
+    expect(effectiveProjectRole({ role: 'viewer' })).toBe('viewer');
   });
 });
 

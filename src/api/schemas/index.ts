@@ -118,6 +118,8 @@ export const UserSchema = z
     email: z.string().email(),
     id: idSchema,
     name: z.string().min(1),
+    /** U24: vai trong dự án (chỉ ở `Project.members`, khi đã đặt); vắng = theo vai toàn hệ thống. */
+    projectRole: z.enum(['engineer', 'viewer']).optional(),
     role: wireUserRoleSchema,
   })
   .strict()
@@ -126,6 +128,7 @@ export const UserSchema = z
     email: wireUser.email,
     id: wireUser.id,
     name: wireUser.name,
+    ...(wireUser.projectRole !== undefined ? { projectRole: wireUser.projectRole } : {}),
     role: userRoleByWire[wireUser.role],
   }));
 

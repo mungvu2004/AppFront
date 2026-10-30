@@ -92,8 +92,23 @@ export interface MemberRemoveDialogModel {
   readonly isBlocked: boolean;
 }
 
+/** U24: quyền của người sắp thêm trong riêng dự án này; `system` = theo vai toàn hệ thống. */
+export type MemberAccess = 'system' | 'engineer' | 'viewer';
+
+export const MEMBER_ACCESS_OPTIONS: readonly { readonly value: MemberAccess; readonly label: string }[] = [
+  { value: 'system', label: 'Theo vai hệ thống' },
+  { value: 'engineer', label: 'Được sửa' },
+  { value: 'viewer', label: 'Chỉ xem' },
+];
+
+export const MEMBER_ACCESS_LABELS: Readonly<Record<'engineer' | 'viewer', string>> = {
+  engineer: 'Được sửa',
+  viewer: 'Chỉ xem',
+};
+
 export interface ProjectMembersModel {
   readonly memberEmail: string;
+  readonly memberAccess: MemberAccess;
   readonly memberError: string | null;
   readonly isAddingMember: boolean;
   readonly isAddMemberLocked: boolean;
@@ -106,6 +121,7 @@ export interface ProjectMembersModel {
 
 export interface ProjectMembersActions {
   readonly setMemberEmail: (value: string) => void;
+  readonly setMemberAccess: (value: MemberAccess) => void;
   readonly addMember: () => void;
   readonly inviteMember: () => void;
   readonly requestRemoveMember: (userId: string) => void;
@@ -218,6 +234,7 @@ export function useProjectMembers(
   const { gateway, projectId, canEdit, queryClient } = options;
 
   const [memberEmail, setMemberEmailState] = useState('');
+  const [memberAccess, setMemberAccess] = useState<MemberAccess>('system');
   const [memberError, setMemberError] = useState<string | null>(null);
   const [isAddingMember, setAddingMember] = useState(false);
   const [isAddMemberLocked, setAddMemberLocked] = useState(false);
@@ -284,7 +301,9 @@ export function useProjectMembers(
     setMemberError(null);
     setInviteEmail(null);
 
-    void gateway.addMember({ projectId, email }).then((result) => {
+    const input = memberAccess === 'system' ? { projectId, email } : { projectId, email, role: memberAccess };
+
+    void gateway.addMember(input).then((result) => {
       setAddingMember(false);
 
       if (!result.ok) {
@@ -325,7 +344,9 @@ export function useProjectMembers(
       }
 
       // Người đã mời (chờ chấp nhận) thêm được vào dự án ngay; máy chủ không cho thì báo chờ.
-      const added = await gateway.addMember({ projectId, email });
+      const added = await gateway.addMember(
+        memberAccess === 'system' ? { projectId, email } : { projectId, email, role: memberAccess },
+      );
       setInvitingMember(false);
       setInviteEmail(null);
       setMemberError(null);
@@ -515,6 +536,7 @@ export function useProjectMembers(
 
   return {
     memberEmail,
+    memberAccess,
     memberError,
     isAddingMember,
     isAddMemberLocked,
@@ -527,6 +549,7 @@ export function useProjectMembers(
       setMemberError(null);
       setInviteEmail(null);
     },
+    setMemberAccess,
     addMember,
     inviteMember,
     requestRemoveMember,
