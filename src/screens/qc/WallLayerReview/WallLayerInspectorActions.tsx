@@ -4,6 +4,7 @@
  * - không chuẩn, dày/mỏng bất thường: "Giữ 509 mm" (chính, A) · "Để sau" (S);
  * - đúng chuẩn: "Duyệt đoạn này" (chính, A) · "Để sau" (S);
  * - đã duyệt: "Bỏ duyệt đoạn này"; vai người xem: một câu giải thích, không nút.
+ * - mọi đoạn (trừ vai người xem): "Xoá đoạn này" (Delete) — xoá tức thì, toast có Hoàn tác (U16).
  * Tên truy cập của nút là nhãn trơn (`aria-label`), phím nằm ở `aria-keyshortcuts` + ô phím.
  */
 
@@ -29,6 +30,7 @@ export interface WallLayerInspectorActionsProps {
 const APPROVE_LABEL = 'Duyệt đoạn này';
 const UNAPPROVE_LABEL = 'Bỏ duyệt đoạn này';
 const LATER_LABEL = 'Để sau';
+const DELETE_LABEL = 'Xoá đoạn này';
 
 export function WallLayerInspectorActions({
   panel,
@@ -40,17 +42,29 @@ export function WallLayerInspectorActions({
   onStandardize,
   lockText,
 }: WallLayerInspectorActionsProps) {
-  const { isViewerRole, viewerRoleNotice, onApprove, onUnapprove, onSkip } = panel;
+  const { isViewerRole, viewerRoleNotice, onApprove, onUnapprove, onSkip, onDelete } = panel;
 
   if (isViewerRole) {
     return <p className="text-[13px] text-text-secondary">{viewerRoleNotice}</p>;
   }
 
+  /* U16: nét thừa thì xoá — nút thấy được, không bắt đoán phím Delete. */
+  const deleteButton = (
+    <Button aria-keyshortcuts="Delete" aria-label={DELETE_LABEL} onClick={() => onDelete(wallId)} shortcut="Del" variant="ghost">
+      {DELETE_LABEL}
+    </Button>
+  );
+
   if (isReviewed) {
-    return onUnapprove === undefined ? null : (
-      <Button aria-label={UNAPPROVE_LABEL} fullWidth onClick={() => onUnapprove(wallId)} variant="secondary">
-        {UNAPPROVE_LABEL}
-      </Button>
+    return (
+      <>
+        {onUnapprove === undefined ? null : (
+          <Button aria-label={UNAPPROVE_LABEL} fullWidth onClick={() => onUnapprove(wallId)} variant="secondary">
+            {UNAPPROVE_LABEL}
+          </Button>
+        )}
+        {deleteButton}
+      </>
     );
   }
 
@@ -88,6 +102,7 @@ export function WallLayerInspectorActions({
       <Button aria-keyshortcuts="S" aria-label={LATER_LABEL} onClick={() => onSkip(wallId)} shortcut="S" variant="ghost">
         {LATER_LABEL}
       </Button>
+      {deleteButton}
     </>
   );
 }

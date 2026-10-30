@@ -81,3 +81,33 @@ describe('UX-R2: danh sách tường', () => {
     expect(screen.getByText('16')).toBeInTheDocument();
   });
 });
+
+describe('U17 + U37: duyệt hết, một điểm Tab', () => {
+  const sureRow = (id: string) =>
+    ({ ...row, id: id as WallId, codeLabel: `#${id}`, thicknessMm: 220, isLowConfidence: false, isNonStandardThickness: false, statusCode: 'suggested' }) as unknown as WallRowViewModel;
+  const rows = [sureRow('W-001'), sureRow('W-002'), sureRow('W-003')];
+  const panel = { ...panelOf(null), rows, selectedWallId: 'W-002' } as unknown as WallLayerViewProps;
+
+  it('nút "Duyệt N đoạn máy chắc chắn" gọi duyệt hàng loạt', async () => {
+    const onApproveConfident = vi.fn();
+
+    render(
+      <WallLayerList
+        flashingWallId={null}
+        onToggleSelect={vi.fn()}
+        panel={panel}
+        queue={{ ...queue, confidentCount: 3, onApproveConfident } as unknown as WallReviewQueue}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Duyệt 3 đoạn máy chắc chắn' }));
+    expect(onApproveConfident).toHaveBeenCalledTimes(1);
+  });
+
+  it('chỉ hàng đang chọn nhận Tab, các hàng khác tabIndex -1', async () => {
+    render(<WallLayerList flashingWallId={null} onToggleSelect={vi.fn()} panel={panel} queue={queue} />);
+
+    const options = await screen.findAllByRole('option');
+    expect(options.map((option) => option.getAttribute('tabindex'))).toEqual(['-1', '0', '-1']);
+  });
+});

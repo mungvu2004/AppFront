@@ -99,3 +99,38 @@ describe('khoá tỷ lệ (useScaleLock) ở thanh tra', () => {
     expect(onOpenScale).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('U16: nút "Xoá đoạn này" ở thanh tra', () => {
+  it('đoạn chưa duyệt có nút xoá, bấm thì gọi onDelete', () => {
+    const onDelete = vi.fn();
+
+    renderWithProviders(
+      <WallLayerInspectorActions
+        extra={undefined}
+        isNonStandard={false}
+        isReviewed={false}
+        panel={{ ...panel, onDelete } as unknown as WallLayerViewProps}
+        thicknessMm={220}
+        wallId={wallId}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá đoạn này' }));
+    expect(onDelete).toHaveBeenCalledWith(wallId);
+  });
+
+  it('vai người xem: không có nút xoá', () => {
+    renderWithProviders(
+      <WallLayerInspectorActions
+        extra={undefined}
+        isNonStandard={false}
+        isReviewed={false}
+        panel={{ ...panel, isViewerRole: true, onDelete: vi.fn() } as unknown as WallLayerViewProps}
+        thicknessMm={220}
+        wallId={wallId}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Xoá đoạn này' })).toBeNull();
+  });
+});

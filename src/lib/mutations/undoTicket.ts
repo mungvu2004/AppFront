@@ -17,6 +17,12 @@ import type { Result } from '@/lib/http/types';
  */
 export const UNDO_WINDOW_MS = 8000;
 
+/**
+ * Cửa sổ dài cho thao tác xoá trên bản vẽ (U35): người dùng còn phải nhìn lại hình mới biết
+ * xoá đúng hay nhầm; tám giây không đủ. Toast đọc cửa sổ từ vé (`UndoTicket.ttlMs`).
+ */
+export const LONG_UNDO_WINDOW_MS = 15000;
+
 export type UndoTicketStatus = 'active' | 'expired' | 'used';
 
 export type UndoTicketError = 'expired';
@@ -30,6 +36,8 @@ export interface CreateUndoTicketOptions {
 
 export interface UndoTicket {
   description: string;
+  /** How long this ticket lives (un-held time). Optional so hand-built test tickets still type-check. */
+  readonly ttlMs?: number;
   /** Moves later while a hold is on ({@link holdUndoWindows}); read it when you need it, do not keep it. */
   readonly expiresAt: number;
   getStatus: () => UndoTicketStatus;
@@ -115,6 +123,7 @@ export function createUndoTicket(options: CreateUndoTicketOptions): UndoTicket {
     },
     getStatus,
     id: createUuid(),
+    ttlMs,
     undo,
   };
 }
@@ -230,6 +239,8 @@ export function combineUndoTickets(
     },
     getStatus,
     id: createUuid(),
+    // Same window as the first child, whose end is the group's end.
+    ...(first.ttlMs === undefined ? {} : { ttlMs: first.ttlMs }),
     undo,
   };
 }

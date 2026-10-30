@@ -265,6 +265,7 @@ export function OverlayComparison({ actions, alignHref, model, nav, fixTargetOf,
 
           {/* Về được toàn cảnh mà không tải lại trang (BUG-599); 100% ở màn này chính là vừa khung. */}
           <ZoomCluster
+            fitShortcut="F"
             onFitToScreen={actions.fitView}
             onResetZoom={actions.fitView}
             onZoomIn={() => zoomAtCentre(ZOOM_BUTTON_STEP)}

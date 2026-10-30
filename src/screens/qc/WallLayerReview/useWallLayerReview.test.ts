@@ -70,6 +70,7 @@ import {
   toPixelPoint,
   toWallInspector,
   wallDisplayCode,
+  LONG_UNDO_WINDOW_MS,
   UNDO_WINDOW_MS,
   WALL_APPROVE_COMMAND_TYPE,
   WALL_LAYER_THICKNESS_CHOICES,
@@ -638,7 +639,7 @@ describe('xoá', () => {
     mounted.unmount();
   });
 
-  it('vé hoàn tác sống đúng cửa sổ 8000 ms của A8 và gọi lại lượt hoàn tác', () => {
+  it('vé hoàn tác xoá tường sống cửa sổ dài 15 s (U35) và gọi lại lượt hoàn tác', () => {
     let undone = 0;
     let clock = 0;
     const ticket = createWallUndoTicket({
@@ -649,7 +650,10 @@ describe('xoá', () => {
       },
     });
 
-    expect(ticket.expiresAt - 0).toBe(UNDO_WINDOW_MS);
+    expect(ticket.expiresAt - 0).toBe(LONG_UNDO_WINDOW_MS);
+    expect(ticket.ttlMs).toBe(LONG_UNDO_WINDOW_MS);
+    expect(LONG_UNDO_WINDOW_MS).toBeGreaterThan(UNDO_WINDOW_MS);
+    clock = UNDO_WINDOW_MS + 1;
     expect(ticket.getStatus()).toBe('active');
 
     const used = ticket.undo();
@@ -1536,9 +1540,10 @@ describe('toast hoàn tác sau khi xoá', () => {
     const notification = bus.list()[0];
 
     /* Câu trên toast là câu của chính vé, không phải một bản chép thứ hai. */
-    expect(notification?.title).toBe(deleteToastDescription(target.id));
+    expect(notification?.title).toBe(notification?.undoTicket?.description);
     /* B-V6-02: toast gọi tường bằng nhãn của danh sách, không lộ mã máy. */
-    expect(notification?.title).toBe(`Đã xoá tường #${wallDisplayCode(target.id)}.`);
+    expect(notification?.title).toMatch(/^Đã xoá tường /u);
+    expect(notification?.title).toContain(`#${wallDisplayCode(target.id)}`);
     expect(notification?.title).not.toContain(target.id);
     expect(notification?.undoTicket).toBeDefined();
 
@@ -1729,6 +1734,9 @@ describe('tự lưu — bộ lưu lớp chung (F-04x-1)', () => {
       expect(mounted.result.current.saveBlock?.kind).toBe('reload');
     });
     expect(writeLayer.mock.calls[1]?.[0]).toMatchObject({ baseVersion: 2 });
+    /* P02: dải nói rõ "Tải lại" bỏ sửa chưa lưu; chân màn không hứa "sẽ thử lưu lại". */
+    expect(mounted.result.current.saveBlock?.message).toContain('thay đổi chưa lưu sẽ bị bỏ');
+    expect(mounted.result.current.statusBar.saveLabel).toBe('Chưa lưu. Xem dải báo phía trên.');
 
     /* Tầng còn sửa chưa lưu → "Tải lại" mở hộp thoại A9 thay vì bỏ ngay. */
     act(() => {
@@ -1986,5 +1994,20 @@ describe('[16-D-008] vai Người xem trên tầng rỗng', () => {
     expect(mounted.result.current.panel.state).toBe('forbidden');
     expect(mounted.result.current.panel.rows).toHaveLength(0);
     mounted.unmount();
+  });
+});
+
+describe('deleteToastDescription (U36, U57)', () => {
+  const wallId = 'W-000021WALL' as WallId;
+  const codes = new Map([[wallId, 'W-021']]);
+
+  it('chỉ có tường: câu cũ', () => {
+    expect(deleteToastDescription(wallId, codes)).toBe('Đã xoá tường #W-021.');
+  });
+
+  it('báo số trên hình và cửa bị xoá kèm', () => {
+    expect(deleteToastDescription(wallId, codes, { openingCount: 1, queueNumber: 2 })).toBe(
+      'Đã xoá tường số 2 (#W-021) và 1 cửa gắn trên tường.',
+    );
   });
 });

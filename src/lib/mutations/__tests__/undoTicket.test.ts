@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createNotificationBus, type NotificationInput } from '../notificationBus';
 import {
+  LONG_UNDO_WINDOW_MS,
   UNDO_WINDOW_MS,
   afterUndoWindow,
   combineUndoTickets,
@@ -577,5 +578,21 @@ describe('afterUndoWindow', () => {
     release();
     vi.advanceTimersByTime(UNDO_WINDOW_MS - 1000);
     expect(bus.list()).toHaveLength(0);
+  });
+});
+
+describe('U35: per-ticket window', () => {
+  it('a ticket carries its ttl so the toast can stay that long; a group keeps its first child window', () => {
+    let clock = 0;
+    const now = (): number => clock;
+    const long = createUndoTicket({ description: 'a', now, ttlMs: LONG_UNDO_WINDOW_MS, undo: () => undefined });
+    const other = createUndoTicket({ description: 'b', now, ttlMs: LONG_UNDO_WINDOW_MS, undo: () => undefined });
+
+    expect(long.ttlMs).toBe(LONG_UNDO_WINDOW_MS);
+    expect(createUndoTicket({ description: 'c', now, undo: () => undefined }).ttlMs).toBe(UNDO_WINDOW_MS);
+    expect(combineUndoTickets([long, other], { description: 'ab', now })?.ttlMs).toBe(LONG_UNDO_WINDOW_MS);
+
+    clock = UNDO_WINDOW_MS + 1;
+    expect(long.getStatus()).toBe('active');
   });
 });

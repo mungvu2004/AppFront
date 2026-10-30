@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 
 import type { WallLayerViewProps, WallRowViewModel } from './types';
 import { LIST_ROW_HEIGHT_PX, WallLayerListRow } from './WallLayerListRow';
-import { WALL_REASON_ORDER, WALL_REASON_TITLE, type WallQueueGroup, type WallReviewQueue, type WallReviewReason } from './wallReviewQueue';
+import { approveAllLabelOf, WALL_REASON_ORDER, WALL_REASON_TITLE, type WallQueueGroup, type WallReviewQueue, type WallReviewReason } from './wallReviewQueue';
 
 export interface WallLayerListProps {
   readonly panel: WallLayerViewProps;
@@ -37,6 +37,7 @@ export interface WallLayerListProps {
 type ListItem =
   | { readonly kind: 'header'; readonly group: WallDisplayGroup; readonly count: number }
   | { readonly kind: 'bulk' }
+  | { readonly kind: 'approveAll' }
   | { readonly kind: 'row'; readonly row: WallRowViewModel };
 
 const HEADER_HEIGHT_PX = 36;
@@ -99,6 +100,7 @@ function buildItems(
   showReviewedRows: boolean,
   hasBulk: boolean,
   isScaleLocked: boolean,
+  hasApproveAll = false,
 ): readonly ListItem[] {
   const groups = new Map<WallDisplayGroup, WallRowViewModel[]>(DISPLAY_ORDER.map((group) => [group, []]));
 
@@ -121,6 +123,11 @@ function buildItems(
       items.push({ kind: 'bulk' });
     }
 
+    /* U17: nhóm đoạn máy không nghi — một nút duyệt hết, khỏi bấm từng đoạn. */
+    if (group === 'standard' && hasApproveAll) {
+      items.push({ kind: 'approveAll' });
+    }
+
     if (group !== 'reviewed' || showReviewedRows) {
       items.push(...members.map((row) => ({ kind: 'row' as const, row })));
     }
@@ -130,10 +137,10 @@ function buildItems(
 }
 
 const keyOf = (item: ListItem | undefined): string =>
-  item === undefined ? '' : item.kind === 'row' ? item.row.id : item.kind === 'header' ? `h-${item.group}` : 'bulk';
+  item === undefined ? '' : item.kind === 'row' ? item.row.id : item.kind === 'header' ? `h-${item.group}` : item.kind;
 
 const heightOf = (item: ListItem | undefined): number =>
-  item?.kind === 'header' ? HEADER_HEIGHT_PX : item?.kind === 'bulk' ? BULK_HEIGHT_PX : LIST_ROW_HEIGHT_PX;
+  item?.kind === 'header' ? HEADER_HEIGHT_PX : item?.kind === 'bulk' || item?.kind === 'approveAll' ? BULK_HEIGHT_PX : LIST_ROW_HEIGHT_PX;
 
 export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, onOpenBulk, queueNumbers }: WallLayerListProps) {
   const { rows, selectedWallId, hoveredWallId, onSelect, onHover, onOpenRowMenu, state, emptyNotice } = panel;
@@ -143,7 +150,16 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
   const hasOthers = rows.some((row) => groupOf(row, queue) !== 'reviewed');
   const showReviewedRows = reviewedOpen || selectedIsReviewed || !hasOthers;
   const isScaleLocked = panel.scaleLock != null;
-  const items = buildItems(rows, queue, showReviewedRows, onOpenBulk !== undefined && queue !== undefined, isScaleLocked);
+  const onApproveConfident = panel.isViewerRole || isScaleLocked ? undefined : queue?.onApproveConfident;
+  const confidentCount = queue?.confidentCount ?? 0;
+  const items = buildItems(
+    rows,
+    queue,
+    showReviewedRows,
+    onOpenBulk !== undefined && queue !== undefined,
+    isScaleLocked,
+    onApproveConfident !== undefined && confidentCount > 0,
+  );
   // Thiếu tỷ lệ (hoặc tường mỏng < 50 mm): ép về chuẩn chỉ che lỗi, nên thay nút bằng câu dẫn đi đặt tỷ lệ (K09).
   const bulkLockText = queue?.lockText ?? null;
   // Vai Người xem luôn ở `forbidden`; "đang tải" của họ đọc từ dữ liệu (bất biến 7), không từ vai (16-D-008).
@@ -234,6 +250,16 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
     return WALL_REASON_TITLE[group];
   };
 
+  /* U37: một điểm Tab cho cả danh sách — hàng đang chọn nếu đang vẽ, không thì hàng đầu đang vẽ (ảo hoá). */
+  const renderedRowIds = rowVirtualizer
+    .getVirtualItems()
+    .flatMap((virtualItem) => {
+      const item = items[virtualItem.index];
+      return item?.kind === 'row' ? [item.row.id] : [];
+    });
+  const tabStopId =
+    selectedWallId !== null && renderedRowIds.includes(selectedWallId) ? selectedWallId : (renderedRowIds[0] ?? null);
+
   return (
     <>
       <div aria-label={LIST_ARIA_LABEL} className="relative" ref={containerRef} role="listbox" style={{ height: rowVirtualizer.getTotalSize() }}>
@@ -284,6 +310,16 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
             );
           }
 
+          if (item.kind === 'approveAll') {
+            return (
+              <div className="absolute inset-x-0 top-0 flex h-11 items-center px-1" key="approveAll" role="presentation" style={style}>
+                <Button fullWidth onClick={onApproveConfident} size="sm" variant="secondary">
+                  {approveAllLabelOf(confidentCount)}
+                </Button>
+              </div>
+            );
+          }
+
           const { row } = item;
 
           return (
@@ -292,6 +328,7 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
               isFlashing={row.id === flashingWallId}
               isHovered={row.id === hoveredWallId}
               isSelected={selectedWallIds.includes(row.id)}
+              isTabStop={row.id === tabStopId}
               key={row.id}
               onHover={onHover}
               onOpenMenu={onOpenRowMenu}

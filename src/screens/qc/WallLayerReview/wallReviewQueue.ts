@@ -96,6 +96,10 @@ export interface WallReviewQueue {
   readonly lockText?: string | null | undefined;
   readonly onStandardize: (wallId: WallId) => void;
   readonly onBulkStandardize: () => void;
+  /** U17: số đoạn máy chắc chắn (đúng chuẩn, không lý do nghi) còn chờ duyệt — cả tầng. */
+  readonly confidentCount?: number | undefined;
+  /** U17: duyệt mọi đoạn máy chắc chắn trong MỘT bước hoàn tác; vắng = không có nút. */
+  readonly onApproveConfident?: (() => void) | undefined;
   /** Mở màn Độ dày tường của tầng (nút "Đưa N tường về chuẩn"); vắng = không có nút. */
   readonly onOpenThickness?: (() => void) | undefined;
 }
@@ -233,6 +237,26 @@ export function bulkPlanOf(walls: readonly Wall[]): WallBulkPlan {
     targets,
   };
 }
+
+/**
+ * U17: đoạn máy chắc chắn — chưa duyệt, độ dày đúng chuẩn, không lý do nghi theo hình, không dưới
+ * ngưỡng tin cậy. Đây là những đoạn người duyệt chỉ bấm "Duyệt" lần lượt; duyệt hết một lượt cho nhanh.
+ */
+export function confidentWallsOf(
+  walls: readonly Wall[],
+  suspectIds?: ReadonlySet<string>,
+  reasonOf?: (wall: Wall) => WallReviewReason | null,
+): readonly Wall[] {
+  return walls.filter(
+    (wall) =>
+      queueGroupOf(wall) === 'standard' &&
+      (reasonOf?.(wall) ?? null) === null &&
+      !isLowConfidence(wall, undefined, suspectIds),
+  );
+}
+
+/** Câu nhật ký hoàn tác (và nhãn nút) của lượt duyệt hàng loạt. */
+export const approveAllLabelOf = (count: number): string => `Duyệt ${mm(count)} đoạn máy chắc chắn`;
 
 /** Câu nhật ký hoàn tác của lượt đổi hàng loạt. */
 export const bulkLabelOf = (count: number): string => `Đổi ${mm(count)} tường về chuẩn`;
