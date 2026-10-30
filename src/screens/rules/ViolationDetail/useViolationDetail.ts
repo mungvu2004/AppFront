@@ -1346,7 +1346,7 @@ export function useViolationDetail(
 
     return causesOf(
       rule?.group ?? null,
-      readKindFromId(violation.entityId),
+      readKindFromId(violation.entityId, violation.ruleCode),
       confidenceOf(graph, violation.entityId),
     );
   }, [graph, rule, violation]);
@@ -1431,7 +1431,7 @@ export function useViolationDetail(
     onSelectObject,
     // N3-08: lối tới đúng lớp 2D sửa đối tượng lỗi, trên tầng của nó.
     fixTarget:
-      violation === null ? null : fixTargetOf(projectId, levelId ?? floorId, violation.entityId),
+      violation === null ? null : fixTargetOf(projectId, levelId ?? floorId, violation.entityId, violation.ruleCode),
 
     figureMode,
     onFigureModeChange,

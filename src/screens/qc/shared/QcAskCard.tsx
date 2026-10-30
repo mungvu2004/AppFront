@@ -39,6 +39,7 @@ export function QcAskAnchor({ rect, children }: { readonly rect: QcAskRect | nul
       {place === null ? null : (
         <div
           className="absolute z-20 flex"
+          data-wheel-scroll=""
           onClick={stop}
           onContextMenu={stop}
           onDoubleClick={stop}

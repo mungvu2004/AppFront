@@ -62,7 +62,7 @@ const STATUS_LABEL: Readonly<Record<RoomLabelStatus, string>> = {
 /** Chữ ngắn đi cạnh chấm màu trong dòng (K16) — câu đầy đủ ở `aria-label`. */
 const STATUS_SHORT_LABEL: Readonly<Record<RoomLabelStatus, string>> = {
   unnamed: 'Cần đặt tên',
-  suggested: 'Máy đề xuất',
+  suggested: 'Chờ duyệt',
   confirmed: 'Đã duyệt',
 };
 

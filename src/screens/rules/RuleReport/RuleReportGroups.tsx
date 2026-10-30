@@ -52,6 +52,7 @@ import { cssDurationMs } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 import { FOCUS_RING, GROUP_LABELS, SEVERITY_BADGE, SEVERITY_DOT, SEVERITY_LABELS } from './RuleReportLabels';
+import { fixActionLabelOf } from '../ViolationDetail/fixPath';
 import type { PassedRule, RuleReportGroup, RuleReportRow } from './types';
 
 /** How many times a freshly selected row rings before it holds still. */
@@ -146,7 +147,7 @@ function RowActions({ row, onViewRow }: RowActionsProps) {
         onViewRow(row.key);
       }}
     >
-      Sửa
+      {fixActionLabelOf(row.ruleCode)}
     </Button>
   );
 }

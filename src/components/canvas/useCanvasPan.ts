@@ -119,6 +119,8 @@ export function useCanvasPan(onWheelZoom?: (direction: 1 | -1) => void): CanvasP
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
       if (!wheelRef.current || e.deltaY === 0) return;
+      /* Thẻ nổi trên bản vẽ (data-wheel-scroll) tự cuộn nội dung của nó, không phóng bản vẽ (U14). */
+      if (e.target instanceof Element && e.target.closest('[data-wheel-scroll]') !== null) return;
       e.preventDefault();
       wheelRef.current(e.deltaY < 0 ? 1 : -1);
     };

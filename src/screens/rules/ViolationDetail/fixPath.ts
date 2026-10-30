@@ -21,6 +21,20 @@ const SELECT_PARAM_BY_LAYER: Partial<Record<FloorLayerKey, string>> = {
   rooms: 'select',
 };
 
+/**
+ * Luật mà việc cần làm là một thao tác cụ thể ở lớp khác lớp của đối tượng lỗi:
+ * phòng thiếu cửa đi thì cửa đi vẽ ở lớp Cửa và nội thất, không phải lớp Phòng (P03).
+ */
+const FIX_BY_RULE: Readonly<Record<string, { readonly layer: FloorLayerKey; readonly action: string }>> = {
+  'ROOM-NO-DOOR': { layer: 'objects', action: 'Thêm cửa đi' },
+  'ROOM-HAS-DOOR': { layer: 'objects', action: 'Thêm cửa đi' },
+};
+
+/** Chữ trên nút "Sửa" của một luật: nói việc cần làm khi biết, ngược lại "Sửa". */
+export function fixActionLabelOf(ruleCode: string): string {
+  return FIX_BY_RULE[ruleCode]?.action ?? 'Sửa';
+}
+
 export interface FixTarget {
   readonly path: string;
   /** Tên lớp, ví dụ "Phòng" — để nút ghi "Sửa ở lớp Phòng". */
@@ -32,12 +46,15 @@ export function fixTargetOf(
   projectId: string,
   floorId: string | null,
   entityId: string,
+  ruleCode?: string,
 ): FixTarget | null {
   const kind = readKindFromId(entityId);
-  const key = kind === null ? undefined : LAYER_KEY_BY_KIND[kind];
+  const override = ruleCode === undefined ? undefined : FIX_BY_RULE[ruleCode];
+  const key = override?.layer ?? (kind === null ? undefined : LAYER_KEY_BY_KIND[kind]);
   const layer = FLOOR_LAYERS.find((candidate) => candidate.key === key);
   if (layer === undefined || floorId === null) return null;
-  const param = SELECT_PARAM_BY_LAYER[layer.key];
+  /* Lớp khác lớp của đối tượng: id phòng không chọn được gì ở đó, chỉ mở lớp. */
+  const param = override === undefined ? SELECT_PARAM_BY_LAYER[layer.key] : undefined;
   const base = layer.path(projectId, floorId);
   return {
     path: param === undefined ? base : `${base}?${param}=${encodeURIComponent(entityId)}`,
