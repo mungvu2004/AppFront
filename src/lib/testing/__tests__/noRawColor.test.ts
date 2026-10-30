@@ -54,10 +54,16 @@ const SCENE_PALETTE_FILE = 'src/lib/pascal/scenePalette.ts';
  */
 const LANDING_SCENE_TREES = /src\/lib\/(landing|landing-lab)\//;
 
-/** {@link SOURCE_ONLY}, minus the scene palette and the landing scene trees. */
+/**
+ * The print-ready HTML of the PDF export: a standalone page that does not load
+ * `globals.css`, so its stylesheet spells black, grey and rule colours out.
+ */
+const PRINT_STYLES_FILE = 'src/lib/export/printStyles.ts';
+
+/** {@link SOURCE_ONLY}, minus the scene palette, the landing scene trees and the print stylesheet. */
 const SHIPPING = {
   ...SOURCE_ONLY,
-  skipFiles: [...(SOURCE_ONLY.skipFiles ?? []), /src\/lib\/pascal\/scenePalette\.ts$/, LANDING_SCENE_TREES],
+  skipFiles: [...(SOURCE_ONLY.skipFiles ?? []), /src\/lib\/pascal\/scenePalette\.ts$/, LANDING_SCENE_TREES, /src\/lib\/export\/printStyles\.ts$/],
 };
 
 /** Paths as the allowlist writes them, whatever the platform hands back. */
@@ -77,7 +83,7 @@ describe('no raw colour ships', () => {
         .filter((path) => !LANDING_SCENE_TREES.test(path)),
     );
 
-    expect([...offenders].sort()).toEqual([...COLOUR_FIXTURE_FILES, SCENE_PALETTE_FILE].sort());
+    expect([...offenders].sort()).toEqual([...COLOUR_FIXTURE_FILES, SCENE_PALETTE_FILE, PRINT_STYLES_FILE].sort());
   });
 
   it('is looking at real files rather than passing on an empty sweep', () => {

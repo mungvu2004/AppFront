@@ -66,6 +66,7 @@ import {
   type PdfTableRow,
   type PdfViolationsPage,
 } from './pdfSchema';
+import { PRINT_CSS } from './printStyles';
 
 /* -------------------------------------------------------------------------- */
 /* Input.                                                                      */
@@ -489,12 +490,6 @@ export function buildPdfDocument(input: ExportPdfInput): PdfDocument {
 
 const escapeHtml = (text: string): string =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-const PRINT_CSS =
-  'body{font-family:"Noto Sans","Be Vietnam Pro","DejaVu Sans",sans-serif;font-size:12px;color:#000;margin:0}' +
-  'section{page-break-after:always;padding:16px}section:last-child{page-break-after:auto}' +
-  'table{border-collapse:collapse;width:100%}th,td{border:1px solid #444;padding:3px 6px;vertical-align:top}' +
-  'th{background:#eee}.r{text-align:right}footer{margin-top:12px;font-size:10px;color:#444}img{max-width:100%}';
 
 function renderTable(columns: readonly PdfTableColumn[], rows: readonly PdfTableRow[]): string {
   const align = (column: PdfTableColumn): string => (column.alignment === 'right' ? ' class="r"' : '');
