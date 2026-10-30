@@ -140,22 +140,18 @@ export const SHARE_ROLE_LABELS: Readonly<Record<ProjectRole, string>> = Object.f
 /**
  * `User[]` của máy chủ → `MemberRowModel[]` của màn.
  *
- * **`isOwner` đọc từ vai, vì hồ sơ dự án không có trường chủ sở hữu.**
- * `ProjectSchema` (`src/api/schemas/index.ts:212-225`) có `members`, không có
- * `ownerId`; thứ gần sự thật nhất trong dữ liệu đang có là vai `admin` — vai
- * duy nhất mà ma trận quyền cho sửa cài đặt dự án. Hàng đó vì thế được đánh dấu
- * là không sửa được, và `roleLabel` vẫn nói đúng cái nó đọc được ("quản trị
- * viên"), không tự phong ai làm chủ sở hữu.
+ * `isOwner`: máy chủ gửi `ownerId` (người tạo dự án, UX41 U49) thì so đúng người đó và ghi
+ * "Chủ sở hữu"; dữ liệu cũ không có `ownerId` thì vẫn đoán theo vai `admin` như trước.
  */
-export function toMemberRows(users: readonly User[]): readonly MemberRowModel[] {
+export function toMemberRows(users: readonly User[], ownerId?: string): readonly MemberRowModel[] {
   return users.map((user) => ({
     id: user.id,
     name: user.name,
     email: user.email,
     initials: initialsOf(user.name, user.email),
     avatarUrl: user.avatarUrl ?? null,
-    roleLabel: SHARE_ROLE_LABELS[user.role],
-    isOwner: user.role === 'admin',
+    roleLabel: user.id === ownerId ? 'Chủ sở hữu' : SHARE_ROLE_LABELS[user.role],
+    isOwner: ownerId !== undefined ? user.id === ownerId : user.role === 'admin',
   }));
 }
 
@@ -170,13 +166,13 @@ export async function readProjectMembers(
   client: ApiClient,
   projectId: string,
   signal?: AbortSignal,
-): Promise<readonly User[]> {
+): Promise<readonly MemberRowModel[]> {
   const result = await client.projects.read({
     projectId,
     ...(signal !== undefined ? { signal } : {}),
   });
 
-  return result.ok ? result.data.members : [];
+  return result.ok ? toMemberRows(result.data.members, result.data.ownerId) : [];
 }
 
 /* -------------------------------------------------------------------------- */

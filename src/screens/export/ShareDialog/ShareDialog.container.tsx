@@ -44,7 +44,6 @@ import {
   createShareDialogGateway,
   readProjectMembers,
   shareMembersQueryKey,
-  toMemberRows,
 } from './shareDialogGateway';
 import type { MemberRowModel, ShareDialogContainerProps } from './types';
 import { useShareDialog } from './useShareDialog';
@@ -91,7 +90,7 @@ function WiredShareDialog(props: ShareDialogContainerProps) {
   const membersQuery = useQuery({
     queryKey: shareMembersQueryKey(props.projectId),
     queryFn: async ({ signal }): Promise<readonly MemberRowModel[]> =>
-      toMemberRows(await readProjectMembers(client, props.projectId, signal)),
+      await readProjectMembers(client, props.projectId, signal),
     enabled: props.isOpen,
   });
 
