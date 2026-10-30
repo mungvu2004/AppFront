@@ -175,7 +175,8 @@ const levelModeLabels: Record<string, string> = {
   manual: 'Tầng: chồng',
   stacked: 'Tầng: chồng',
   exploded: 'Tầng: tách',
-  solo: 'Tầng: một tầng',
+  // UX41 U52: "một tầng" bị đọc thành "dự án chỉ có một tầng"; đây là cách xem (từng tầng một).
+  solo: 'Tầng: từng tầng',
 }
 
 const wallModeOrder = ['cutaway', 'up', 'down', 'translucent'] as const
@@ -293,7 +294,7 @@ function LevelModeToggle() {
   const isDefault = levelMode === 'solo'
   const current = levelMode === 'manual' ? 'Tầng: tuỳ chỉnh' : (levelModeLabels[levelMode] ?? 'Tầng: chồng')
   const icon = levelMode === 'solo' || levelMode === 'exploded' ? LEVEL_MODE_ICONS[levelMode] : LEVEL_MODE_ICONS.stacked
-  const label = `Cách xếp tầng, đang chọn: ${current.replace('Tầng: ', '')} (cần từ 2 tầng)`
+  const label = `Cách xem tầng, đang chọn: ${current.replace('Tầng: ', '')}. Chồng hoặc tách cần từ 2 tầng đã dựng`
   // UX-R2: "Đây là các căn hộ riêng" — floors never stack (page.tsx pins solo), so no menu to offer.
   if (isSeparateUnits()) return null
 

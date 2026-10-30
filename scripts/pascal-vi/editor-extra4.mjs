@@ -15,6 +15,17 @@ export const EDITOR_EXTRA4_VI = {
     ['title="Group (Ctrl/Cmd+G)"', 'title="Nhóm (Ctrl/Cmd+G)"'],
     ['title="Ungroup (Ctrl/Cmd+Shift+G)"', 'title="Bỏ nhóm (Ctrl/Cmd+Shift+G)"'],
   ],
+  // UX41 U51: dong tom tat "6 walls · 4 doors" cua bang Da chon -> "6 tuong · 4 cua di" (tieng Viet khong co so nhieu).
+  [`${UI}panels/selection-breakdown.ts`]: [
+    [
+      'export function formatSelectionBreakdown(',
+      "import { kindNameVi } from '@/pascal-page/upstream/lib/pascal-vi'\n\nexport function formatSelectionBreakdown(",
+    ],
+    [
+      "    const label = type.replace(/-/g, ' ')\n    parts.push(`${count} ${count === 1 ? label : `${label}s`}`)",
+      '    parts.push(`${count} ${kindNameVi(type)}`)',
+    ],
+  ],
   [`${UI}controls/material-properties-editor.tsx`]: [
     L('Roughness', 'Độ nhám'),
     L('Metalness', 'Độ kim loại'),

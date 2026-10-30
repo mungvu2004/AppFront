@@ -73,6 +73,15 @@ export const UI_PATCHES = {
       1,
     ],
   ],
+  // UX41 U42: nút bảng phụ trên thanh trái (Công cụ, Thư viện, "+") chỉ có biểu tượng, cây truy cập đọc ra
+  // `button ""`. Đặt tên = nhãn tooltip. Khu đất/Cài đặt đã có tên qua `alt` của ảnh.
+  'editor/src/components/ui/sidebar/icon-rail.tsx': [
+    [
+      'onClick={() => onPanelChange(panel.id)}\n            type="button"\n          >\n            <span',
+      'aria-label={panel.label}\n            onClick={() => onPanelChange(panel.id)}\n            type="button"\n          >\n            <span',
+      1,
+    ],
+  ],
 };
 
 export function applyUiPatches(code, file, pairs) {

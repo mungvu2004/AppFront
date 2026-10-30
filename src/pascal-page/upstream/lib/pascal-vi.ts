@@ -194,6 +194,20 @@ const KEY_VI: Record<string, string> = {
   'Hover a pipe end': 'Rê lên đầu ống',
 }
 
+/**
+ * UX41 U51: node type id → kind name for running text ("6 tường · 4 cửa đi"), from the same KIND_VI.
+ * Used by the multi-select summary (`scripts/pascal-vi/editor-extra4.mjs` patches `selection-breakdown.ts`).
+ * Vietnamese has no plural; unknown ids keep upstream's "roof-segment" → "roof segment".
+ */
+export function kindNameVi(type: string): string {
+  const en = type
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+  const vi = KIND_VI[en]
+  return vi ? vi.toLocaleLowerCase('vi') : type.replace(/-/g, ' ')
+}
+
 /** Exact entry, else the wall split pattern "Cuts: 3, even", else unchanged. */
 export function viHint(text: string): string {
   const exact = HINT_VI[text]
