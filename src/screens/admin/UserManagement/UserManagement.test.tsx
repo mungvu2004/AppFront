@@ -435,7 +435,7 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
     const closed: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_SUCCESS, detail: null, isCollapsed: false, selectedUserId: null };
     renderWithProviders(<UserManagementView actions={buildActions()} model={closed} />);
 
-    const disable = (await screen.findAllByRole('button', { name: 'Vô hiệu hoá' }))[0];
+    const disable = (await screen.findAllByRole('button', { name: /^Vô hiệu hoá/ }))[0];
     // Hành động gom vào menu "⋯" (<details>) nên không còn tràn ngang.
     expect(disable?.closest('details')).not.toBeNull();
     expect(screen.getByText('Hành động', { selector: 'span' }).className).toContain('text-right');
@@ -445,7 +445,7 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
     const UserManagementView = await loadUserManagementView();
     renderWithProviders(<UserManagementView actions={buildActions()} model={USER_MANAGEMENT_SCENARIO_SUCCESS} />);
 
-    expect((await screen.findAllByRole('button', { name: 'Xoá' })).length).toBeGreaterThan(0);
+    expect((await screen.findAllByRole('button', { name: /^Xoá/ })).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: 'xoá' })).toBeNull();
   });
 

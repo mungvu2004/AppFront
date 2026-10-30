@@ -179,13 +179,23 @@ function RowActions({ actions, row }: RowActionsProps) {
             </button>
           )}
           {row.status === 'disabled' ? (
-            <button className={MENU_ITEM_CLASS} onClick={run(() => actions.onEnableUser(row.id))} type="button">
+            <button
+              aria-label={`${ENABLE_LABEL} ${row.name}`}
+              className={MENU_ITEM_CLASS}
+              onClick={run(() => actions.onEnableUser(row.id))}
+              type="button"
+            >
               {ENABLE_LABEL}
             </button>
           ) : row.disableBlockedReason !== null ? (
             <span className={cn(BLOCKED_REASON_CLASS, 'px-3 py-1.5')}>{row.disableBlockedReason}</span>
           ) : (
-            <button className={MENU_ITEM_CLASS} onClick={run(() => actions.onDisableUser(row.id))} type="button">
+            <button
+              aria-label={`${DISABLE_LABEL} ${row.name}`}
+              className={MENU_ITEM_CLASS}
+              onClick={run(() => actions.onDisableUser(row.id))}
+              type="button"
+            >
               {DISABLE_LABEL}
             </button>
           )}
@@ -193,6 +203,7 @@ function RowActions({ actions, row }: RowActionsProps) {
             <span className={cn(BLOCKED_REASON_CLASS, 'px-3 py-1.5')}>{row.removeBlockedReason}</span>
           ) : (
             <button
+              aria-label={`${REMOVE_LABEL} ${row.name}`}
               className={cn(MENU_ITEM_CLASS, REMOVE_CLASS)}
               onClick={run(() => actions.onOpenRemove(row.id))}
               type="button"
