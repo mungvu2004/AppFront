@@ -207,11 +207,27 @@ export { UNDO_WINDOW_MS };
 /* Chuyển đổi.                                                                 */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Câu riêng cho từng mã lỗi tệp của máy chủ (U29). Câu chung của 422 ("Kiểm tra lại các trường
+ * được đánh dấu") không đúng ở màn này: không có trường nào để đánh dấu, lỗi nằm ở chính tệp.
+ */
+export const FILE_ERROR_SENTENCES: ReadonlyMap<string, string> = new Map([
+  [CAD_NOT_SUPPORTED_CODE, CAD_NOT_SUPPORTED_SENTENCE],
+  ['PDF_ENCRYPTED', 'PDF này có mật khẩu nên không mở được. Hãy bỏ mật khẩu rồi tải lại, hoặc chọn tệp khác.'],
+  ['FILE_TYPE_MISMATCH', 'Nội dung tệp không khớp đuôi tệp: đây không phải ảnh hay PDF thật. Hãy chọn tệp khác.'],
+  ['PDF_UNREADABLE', 'Không đọc được tệp PDF này. Hãy xuất lại PDF hoặc chọn tệp khác.'],
+  ['FILE_CORRUPT', 'Tệp bị hỏng, không đọc được. Hãy chọn tệp khác.'],
+  ['IMAGE_TOO_LARGE', 'Ảnh quá lớn để xử lý. Hãy giảm độ phân giải ảnh rồi tải lại.'],
+  ['NOT_A_FLOOR_PLAN', 'Tệp này trông không giống bản vẽ mặt bằng. Hãy chọn đúng bản vẽ.'],
+]);
+
 function toFailure(error: AppError): FloorUploadFailure {
   // Lỗi của #5 đã bị `uploadTask` bọc thành `AppError`, nên `readWireError`
   // trả `null`; mã dây còn nguyên ở `error.code`.
-  if (error.code === CAD_NOT_SUPPORTED_CODE) {
-    return { sentence: CAD_NOT_SUPPORTED_SENTENCE, kind: error.kind, isRetryable: false };
+  const fileSentence = FILE_ERROR_SENTENCES.get(error.code);
+
+  if (fileSentence !== undefined) {
+    return { sentence: fileSentence, kind: error.kind, isRetryable: false };
   }
 
   return {

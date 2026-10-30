@@ -35,6 +35,8 @@ const LABEL_OVERLAP = 'Không trùng cao độ';
 const LABEL_SHOW_FLOOR = 'Tới';
 const LABEL_FIX_IN_FLOORS = 'Sửa ở Quản lý tầng';
 const WARNING_TITLE = 'Đúng tầng';
+const LABEL_REMOVE_EMPTY = 'Xoá tầng trống ở Quản lý tầng';
+const NOTE_SKIPPED = 'Bước Xử lý chỉ chạy các tầng đã có bản vẽ.';
 const WARNING_TAG = 'khuyến nghị';
 const AI_LINE = 'Ở bước Xử lý, AI tìm tường, cửa, phòng và kích thước. Tỷ lệ được kiểm ở bước đó.';
 
@@ -174,6 +176,27 @@ export function FloorUploadGatePanel({
           ))}
         </ul>
 
+        {/* Tầng trống không chặn khi tầng khác đã có bản vẽ: nói rõ bước Xử lý bỏ qua tầng nào (U03). */}
+        {(footer.skippedFloorNames?.length ?? 0) > 0 && (
+          <div className="flex gap-2 border-t border-border-default pt-3">
+            <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-state-attention-text" />
+            <p className="text-body-sm text-text-secondary">
+              {`Bỏ qua tầng chưa có bản vẽ: ${(footer.skippedFloorNames ?? []).join(', ')}. `}
+              {onOpenFloors === undefined ? (
+                NOTE_SKIPPED
+              ) : (
+                <button
+                  className="rounded-sm text-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                  onClick={onOpenFloors}
+                  type="button"
+                >
+                  {LABEL_REMOVE_EMPTY}
+                </button>
+              )}
+            </p>
+          </div>
+        )}
+
         {/* Cảnh báo không đếm vào n/3 và không chặn nút: icon tam giác + "khuyến nghị". */}
         {gate.unconfirmedCount > 0 && (
           <div className="flex gap-2 border-t border-border-default pt-3">
@@ -182,7 +205,7 @@ export function FloorUploadGatePanel({
               <span className="text-body text-text-primary">{WARNING_TITLE}</span>{' '}
               <span className="text-caption text-text-secondary">{WARNING_TAG}</span>
               <br />
-              {`${String(gate.unconfirmedCount)} tầng có tệp ghép theo tên tệp. Xem lại ảnh rồi đánh dấu đã xác nhận.`}
+              {`${String(gate.unconfirmedCount)} tầng được tự gán tệp. Xem lại ảnh rồi đánh dấu đã xác nhận.`}
             </p>
           </div>
         )}

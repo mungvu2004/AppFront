@@ -162,7 +162,7 @@ export function uploadingRow(index: number, percent = 45): FloorUploadRowModel {
     statusLabel: 'đang tải lên',
     statusLabelKey: 'floorUpload.status.uploading',
     isAutoMatched: true,
-    autoMatchHint: 'Ghép tự động từ tên tệp — kiểm tra lại',
+    autoMatchHint: 'Đã tự gán tệp vào tầng này — kiểm tra lại cho đúng tầng',
     percent,
     percentLabel: percentLabelOf(percent),
     progressAriaLabel: `Đã tải ${percentLabelOf(percent)} của ${file.name}`,

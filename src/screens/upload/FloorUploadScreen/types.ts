@@ -245,6 +245,11 @@ export interface FloorUploadFooterModel {
   readonly isSubmitting: boolean;
   /** Vai chỉ xem: không có nút chính — bấm mà không làm gì là lời hứa không giữ (BUG-536). */
   readonly isSubmitHidden: boolean;
+  /**
+   * Tầng chưa có bản vẽ nào trong khi tầng khác đã có: không chặn, bước Xử lý bỏ qua chúng (U03).
+   * Khung điều kiện nêu tên để người dùng biết. Vắng = rỗng.
+   */
+  readonly skippedFloorNames?: readonly string[];
 }
 
 /** Danh sách lý do sau một lượt bấm bị chặn. `null` cho tới lúc người dùng bấm. */
