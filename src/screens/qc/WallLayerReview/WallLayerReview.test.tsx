@@ -1015,7 +1015,7 @@ describe('đợt sửa P04 — SCR-16', () => {
       <WallLayerInspector panel={inspectorPanel({ inspector: wall } as Partial<WallLayerViewProps>)} />,
     );
 
-    expect(screen.getByText('Độ dày đo được')).toBeInTheDocument();
+    expect(screen.getByText('Độ dày hiện tại')).toBeInTheDocument();
     expect(screen.getByText('100')).toBeInTheDocument();
     expect(screen.getByText('Không chuẩn')).toBeInTheDocument();
 

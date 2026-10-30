@@ -38,6 +38,9 @@ const DRAW_HINT = 'Giữ Shift để khoá đoạn theo trục ngang hoặc dọ
 const REAL_LENGTH_LABEL = 'Chiều dài thật';
 const REAL_LENGTH_UNIT = 'mm';
 const REMEASURE_LABEL = 'Đo lại';
+/* UX41 U04: lối bàn phím — đặt sẵn đoạn, Tab tới hai đầu đoạn, nhích bằng mũi tên. */
+const PLACE_SEGMENT_LABEL = 'Đặt đoạn đo giữa bản vẽ';
+const PLACE_SEGMENT_HINT = 'Không dùng chuột: bấm nút này (phím N), Tab tới đầu đoạn rồi nhích bằng mũi tên.';
 const MISSING_VALUE = '—';
 
 /** Cùng bảng ánh xạ `ViewStatusCode` → mức `InlineAlert` mà panel dùng — cảnh báo ở đây luôn `'attention'`. */
@@ -86,14 +89,23 @@ export function ScaleCalibrationMethodReference({ actions, reference }: ScaleCal
         </p>
         {reference.tooShortNotice !== null && <InlineAlert level="attention" message={reference.tooShortNotice} />}
         {/* Hàng phím trần không lời đã bỏ: danh sách "Phím tắt" có mô tả ngay dưới phương pháp (BUG-632). */}
-        <Button
-          disabled={!reference.canRemeasure}
-          onClick={actions.onRemeasure}
-          size="sm"
-          variant="secondary"
-        >
-          {REMEASURE_LABEL}
-        </Button>
+        {reference.canPlaceSegment ? (
+          <>
+            <Button onClick={actions.onPlaceSegment} size="sm" variant="secondary">
+              {PLACE_SEGMENT_LABEL}
+            </Button>
+            <p className="text-[12px] text-text-muted">{PLACE_SEGMENT_HINT}</p>
+          </>
+        ) : (
+          <Button
+            disabled={!reference.canRemeasure}
+            onClick={actions.onRemeasure}
+            size="sm"
+            variant="secondary"
+          >
+            {REMEASURE_LABEL}
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">

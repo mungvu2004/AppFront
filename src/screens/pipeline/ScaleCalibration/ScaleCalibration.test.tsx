@@ -558,6 +558,31 @@ describe('ScaleCalibration — bảy trạng thái (A11, R-63)', () => {
     expect(screen.queryByRole('button', { name: APPLY_LABEL })).not.toBeInTheDocument();
   });
 
+  it('UX41 U46: người xem không thấy ô "Chiều dài thật" hay nút đo nào', () => {
+    const base = scenarioFor('forbidden');
+    renderWithProviders(
+      <ScaleCalibration {...base} model={{ ...base.model, panel: { ...base.model.panel, method: 'referenceLine' } }} />,
+    );
+
+    expect(screen.queryByLabelText(REAL_LENGTH_LABEL)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đặt đoạn đo giữa bản vẽ' })).toBeNull();
+  });
+
+  it('UX41 U04: chưa có đoạn thì có nút đặt đoạn đo bằng bàn phím', () => {
+    const base = scenarioFor('partial');
+    const onPlaceSegment = vi.fn();
+    renderWithProviders(
+      <ScaleCalibration
+        {...base}
+        actions={{ ...base.actions, onPlaceSegment }}
+        model={{ ...base.model, panel: { ...base.model.panel, method: 'referenceLine' } }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt đoạn đo giữa bản vẽ' }));
+    expect(onPlaceSegment).toHaveBeenCalledTimes(1);
+  });
+
   it('trạng thái lỗi nói câu hậu quả đúng MỘT lần, không "Mã lỗi" khi không có mã, và mở lối về tiền xử lý', () => {
     const scenario = scenarioFor('error');
 

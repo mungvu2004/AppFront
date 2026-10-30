@@ -21,6 +21,9 @@ export const SCALE_HIDDEN_PREFIX = 'Không dựng (chưa có tỷ lệ): ';
 export const SCALE_PROVISIONAL_PREFIX = 'Kích thước có thể lệch: ';
 export const SCALE_ALL_MISSING_TITLE = 'Chưa dựng được mô hình 3D';
 export const SCALE_ALL_MISSING_BODY = 'Máy không đo được tỷ lệ của bản vẽ. Đặt tỷ lệ để dựng mô hình.';
+/** UX41 U22: người xem không đặt được tỷ lệ — nói ai làm được, không bày nút. */
+export const SCALE_ALL_MISSING_BODY_READ_ONLY =
+  'Chủ dự án chưa đặt tỷ lệ cho bản vẽ nên chưa dựng được mô hình. Nhờ người có quyền sửa dự án đặt tỷ lệ.';
 
 const LINK_CLASS =
   'shrink-0 rounded font-medium text-[var(--pa-accent)] underline outline-none hover:text-[var(--pa-accent-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pa-accent)]';
@@ -46,7 +49,16 @@ function ScaleLine({ tone, text, href }: { readonly tone: 'danger' | 'warn'; rea
   );
 }
 
-export function ScaleBanner({ projectId, readScale }: { readonly projectId: string; readonly readScale?: ReadScale }) {
+export function ScaleBanner({
+  projectId,
+  readScale,
+  readOnly = false,
+}: {
+  readonly projectId: string;
+  readonly readScale?: ReadScale;
+  /** Người xem: không có lối "Đặt tỷ lệ" (UX41 U22). */
+  readonly readOnly?: boolean;
+}) {
   const scale = useScaleStatus(projectId, readScale);
   const floorId = scale.status === 'unresolved' ? scale.floorId : null;
   useEffect(() => {
@@ -56,16 +68,18 @@ export function ScaleBanner({ projectId, readScale }: { readonly projectId: stri
   if (scale.status !== 'unresolved') return null;
   const missing = scale.missing.length > 0;
   // `floorId` là tầng đỏ đầu tiên khi có, không thì tầng vàng đầu tiên: lối sửa nằm ở dòng của nó.
-  const href = ROUTES.project.scale(projectId, scale.floorId);
+  const href = readOnly ? undefined : ROUTES.project.scale(projectId, scale.floorId);
   return (
     <div
       className={`pointer-events-auto flex max-w-[calc(100vw-32px)] flex-col gap-0.5 rounded-xl border bg-[var(--pa-surface)] px-3 py-1.5 text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] ${missing ? 'border-[var(--pa-danger)]' : 'border-[var(--pa-warn)]'}`}
       role="status"
     >
-      {missing ? <ScaleLine href={href} text={`${SCALE_HIDDEN_PREFIX}${floorNamesOf(scale.missing)}`} tone="danger" /> : null}
+      {missing ? (
+        <ScaleLine {...(href === undefined ? {} : { href })} text={`${SCALE_HIDDEN_PREFIX}${floorNamesOf(scale.missing)}`} tone="danger" />
+      ) : null}
       {scale.provisional.length > 0 ? (
         <ScaleLine
-          {...(missing ? {} : { href })}
+          {...(missing || href === undefined ? {} : { href })}
           text={`${SCALE_PROVISIONAL_PREFIX}${floorNamesOf(scale.provisional)}`}
           tone="warn"
         />
@@ -79,7 +93,15 @@ export function ScaleBanner({ projectId, readScale }: { readonly projectId: stri
  * tới "Đặt tỷ lệ" thay vì để người dùng nhìn một khung trống. Đặt cạnh `CanvasHelp` trong khung
  * `relative` của trang; `useScaleStatus` dùng chung lượt đọc với dải cảnh báo.
  */
-export function ScaleEmptyNotice({ projectId, readScale }: { readonly projectId: string; readonly readScale?: ReadScale }) {
+export function ScaleEmptyNotice({
+  projectId,
+  readScale,
+  readOnly = false,
+}: {
+  readonly projectId: string;
+  readonly readScale?: ReadScale;
+  readonly readOnly?: boolean;
+}) {
   const scale = useScaleStatus(projectId, readScale);
   if (scale.status !== 'unresolved' || !scale.allMissing) return null;
   return (
@@ -92,10 +114,14 @@ export function ScaleEmptyNotice({ projectId, readScale }: { readonly projectId:
         <h2 className="font-semibold text-base" id="appfront-scale-empty-title">
           {SCALE_ALL_MISSING_TITLE}
         </h2>
-        <p className="text-[13px] text-[var(--pa-text-2)]">{SCALE_ALL_MISSING_BODY}</p>
-        <a className={`${LINK_CLASS} mt-1`} href={ROUTES.project.scale(projectId, scale.floorId)}>
-          Đặt tỷ lệ
-        </a>
+        <p className="text-[13px] text-[var(--pa-text-2)]">
+          {readOnly ? SCALE_ALL_MISSING_BODY_READ_ONLY : SCALE_ALL_MISSING_BODY}
+        </p>
+        {readOnly ? null : (
+          <a className={`${LINK_CLASS} mt-1`} href={ROUTES.project.scale(projectId, scale.floorId)}>
+            Đặt tỷ lệ
+          </a>
+        )}
       </section>
     </div>
   );

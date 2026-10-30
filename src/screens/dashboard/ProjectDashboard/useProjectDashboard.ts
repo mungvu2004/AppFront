@@ -275,8 +275,9 @@ function listErrorMessageOf(error: unknown): string {
 }
 
 /** Một động từ cho mỗi bước, khớp nơi `routeForProject` đưa tới (vòng 8: ba động từ cho cùng một bước). */
-function actionLabelOf(status: TelemetryPipelineStatus, hasPlan: boolean): string {
-  if (status === 'done') return 'Xem 3D';
+function actionLabelOf(status: TelemetryPipelineStatus, hasPlan: boolean, isViewer = false): string {
+  // UX41 U46: người xem không duyệt được — việc của họ ở bước duyệt là xem mô hình.
+  if (status === 'done' || (isViewer && status === 'qc')) return 'Xem 3D';
   if (status === 'qc') return 'Duyệt tường';
   // Chưa có bản vẽ vẫn tới màn tiến trình (`routeForProject`), nên chưa hứa "Tải bản vẽ".
   return hasPlan ? 'Xem tiến độ' : 'Tải bản vẽ';
@@ -288,7 +289,8 @@ function attentionRank(project: DashboardProject): number {
   return status === 'processing' && project.wallsTotalCount > 0 ? 1 : 2;
 }
 
-function routeForProject(project: DashboardProject, status: TelemetryPipelineStatus): string {
+function routeForProject(project: DashboardProject, status: TelemetryPipelineStatus, isViewer = false): string {
+  if (isViewer && status === 'qc') return ROUTES.project.viewer(project.id);
   switch (status) {
     case 'processing':
       // Chưa có bản vẽ thì việc cần làm là tải bản vẽ lên.
@@ -413,10 +415,10 @@ export function useProjectDashboard(
           planVariant: project.planVariant,
           planSketch: planSketchOf(project.id, project.wallsTotalCount, project.areaM2),
           hasPlan,
-          actionLabel: actionLabelOf(status, hasPlan),
+          actionLabel: actionLabelOf(status, hasPlan, role === 'viewer'),
         };
       }),
-    [sortedProjects, now],
+    [sortedProjects, now, role],
   );
 
   const statusCounts = useMemo<ProjectStatusCounts>(() => {
@@ -476,7 +478,7 @@ export function useProjectDashboard(
     if (project === undefined) return;
     const status = derivedStatusOf(project);
     telemetry.track({ name: 'project.open', source, status });
-    const path = routeForProject(project, status);
+    const path = routeForProject(project, status, role === 'viewer');
     if (options.onOpenProject) {
       options.onOpenProject(path);
     } else {

@@ -98,7 +98,16 @@ const { check: CHECK, missing: MISSING } = SCALE_STATE_VIEWS;
 const MISSING_KNOWN = 'Chưa có kích thước thứ hai để kiểm chéo tỷ lệ.';
 
 const metres = (valueMm: number): string => formatNumber(millimetresToMetres(millimetres(valueMm)), { fractionDigits: 1 });
-const planSizeText = (size: PlanSizeMm): string => `≈ ${metres(size.widthMm)} × ${metres(size.heightMm)} m`;
+export const planSizeText = (size: PlanSizeMm): string => `≈ ${metres(size.widthMm)} × ${metres(size.heightMm)} m`;
+
+/**
+ * UX41 U34: cỡ căn vô lý cho một căn hộ — cạnh dài hơn `maxMm` (thường do thừa một số 0) hoặc
+ * ngắn hơn `minMm`. Hai ngưỡng truyền vào để nơi gọi giữ một nguồn hằng số.
+ */
+export function isPlanSizeImplausible(size: PlanSizeMm, minMm: number, maxMm: number): boolean {
+  const longest = Math.max(size.widthMm, size.heightMm);
+  return longest > maxMm || longest < minMm;
+}
 
 function statusOf(
   input: ScaleCheckInput,
