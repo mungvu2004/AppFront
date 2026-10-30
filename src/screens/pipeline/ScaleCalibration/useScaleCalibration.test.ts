@@ -849,6 +849,35 @@ describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved
     expect(harness.writeLayer.mock.calls[0]?.[0].body.scaleMillimetresPerPixel).toBeCloseTo(13.9, 6);
   });
 
+  it('[UX41 U01] tỷ lệ tạm của pipeline, không số kích thước: chọn sẵn, một nút Xác nhận; có sourceDpi thì nhập thẳng 1:100', async () => {
+    useStore.getState().setSpatial(null, null);
+    simulateProvisionalScale(FLOOR_ID, PROVISIONAL_RATIO, 'pipeline');
+    const harness = await makeHarness();
+    const gateway = withScaleCapabilities(harness.gateway, {
+      readLayer: async (input) => ({ ...(await harness.gateway.readLayer(input)), dimensions: [], sourceDpi: 150 }),
+    });
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    expect(mounted.result.current.model.emptyNotice).toBeNull();
+    expect(mounted.result.current.model.panel.canApply).toBe(true);
+    expect(mounted.result.current.model.partialNotice).toMatch(/^Máy ước lượng sẵn 1 px ≈ .+ mm\. Đây là ước lượng/u);
+    expect(mounted.result.current.model.panel.ratioEntry?.placeholder).toBe('1:100');
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeDrawingRatio?.('1:100');
+    });
+
+    expect(mounted.result.current.model.partialNotice).toMatch(/^Tỷ lệ 1:100 ứng với 1 px ≈ /u);
+
+    await applyNow(mounted);
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+    /* 1:100 ở 150 DPI: 100 × 25,4 / 150 mm/px. */
+    expect(harness.writeLayer.mock.calls[0]?.[0].body.scaleMillimetresPerPixel).toBeCloseTo((100 * 25.4) / 150, 6);
+  });
+
   it('storedRatio null: nhãn "Chưa có", dải tỷ lệ tạm; áp đúng tỷ lệ tạm → một PUT, dải mất', async () => {
     const { harness, mounted } = await mountProvisional();
 

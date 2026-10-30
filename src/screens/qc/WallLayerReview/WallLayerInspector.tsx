@@ -136,6 +136,7 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
             <p className="tabular-nums text-text-primary">
               <span className="text-[32px] font-medium leading-10">{inspector.thicknessMm}</span>
               <span className="ml-1 text-body-sm text-text-secondary">mm</span>
+              {inspector.detectedNote ? <span className="ml-2 text-body-sm text-text-secondary">{inspector.detectedNote}</span> : null}
             </p>
             {extra === undefined ? null : <p className="mt-1 text-body-sm text-text-secondary">{extra.note}</p>}
           </div>

@@ -256,6 +256,8 @@ export interface WallInspectorViewModel {
   readonly codeLabel: string;
   /** Độ dày ĐANG CHỌN của điều khiển ba lựa chọn — có thể không chuẩn (xem {@link WallRowViewModel.thicknessMm}). */
   readonly thicknessMm: number;
+  /** U48: "(đã sửa, máy đo 221)" khi độ dày khác số máy đo; `null` = chưa sửa hoặc không có số máy đo. */
+  readonly detectedNote?: string | null;
   /** Chiều dài đã định dạng — ví dụ `"4.250,00 mm"` (`formatLength(..., { unit: 'mm', fractionDigits: 2 })`). */
   readonly lengthLabel: string;
   /** Chiều cao đã định dạng — ví dụ `"3,00 m"`. */

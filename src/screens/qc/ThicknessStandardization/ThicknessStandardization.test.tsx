@@ -139,14 +139,14 @@ const ALLOWED_WORDS: readonly string[] = ['dung', 'sai', 'xem', 'tay'];
 
 /** Sai lệch của một đoạn so với nhóm M-05 gán cho nó, đếm lại từ bộ mẫu. */
 function fixtureDeviationOf(wall: Wall): number | null {
-  const { standardized } = standardizeThickness(wall.thicknessMm);
+  const { standardized } = standardizeThickness(wall.thicknessMm, wall.source);
 
   return typeof standardized === 'number' ? deviationOf(wall.thicknessMm, standardized) : null;
 }
 
 /**
  * Lô của bản Z (S-21): đoạn KHÔNG chuẩn (lệch quá dung sai), không phải cột BTCT, chưa duyệt.
- * Đếm lại từ bộ mẫu thang sáu bậc: 65/60 → 100, 265/335 → 300, 365 → 400 (255 đã duyệt nên đứng
+ * Đếm lại từ bộ mẫu thang sáu bậc: 65/60 → 100, 265 → 220, 335/365 → 300 (tường máy đo, U19) (255 đã duyệt nên đứng
  * ngoài lô).
  */
 const BATCH_WALLS: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter((wall) => {
@@ -157,7 +157,7 @@ const BATCH_WALLS: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter((wall) => {
 
 /** Các bậc đích của lô, tăng dần — đọc từ bộ mẫu, không gõ tay. */
 const BATCH_GROUPS: readonly number[] = [
-  ...new Set(BATCH_WALLS.map((wall) => standardizeThickness(wall.thicknessMm).standardized as number)),
+  ...new Set(BATCH_WALLS.map((wall) => standardizeThickness(wall.thicknessMm, wall.source).standardized as number)),
 ].sort((first, second) => first - second);
 
 /** Đoạn xem tay: nhóm cột BTCT (trên ngưỡng 450 mm, không có giá trị chuẩn). */
@@ -418,7 +418,7 @@ describe('[NGHIEM-2] đổi ba nhóm là ĐÚNG MỘT bước hoàn tác', () =>
     expect(history.undoSteps()[0]?.commands).toHaveLength(targets.length);
 
     for (const wall of targets) {
-      expect(thicknessInStore(wall.id)).toBe(standardizeThickness(wall.thicknessMm).standardized);
+      expect(thicknessInStore(wall.id)).toBe(standardizeThickness(wall.thicknessMm, wall.source).standardized);
     }
 
     /* A8: một lượt áp = MỘT toast, MỘT vé tám giây. */

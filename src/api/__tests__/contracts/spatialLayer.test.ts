@@ -130,6 +130,15 @@ describe('FloorLayerDocumentSchema', () => {
     expect(FloorLayerDocumentSchema.safeParse({ ...minimalDocument, origin: { x: 1.5, y: 0 } }).success).toBe(false);
   });
 
+  it('sourceDpi (U01): số dương giữ lại, null hoặc vắng thì bỏ khoá; 0 bị từ chối', () => {
+    expect(FloorLayerDocumentSchema.parse({ ...minimalDocument, sourceDpi: 150 })).toStrictEqual({
+      ...minimalDocument,
+      sourceDpi: 150,
+    });
+    expect(FloorLayerDocumentSchema.parse({ ...minimalDocument, sourceDpi: null })).toStrictEqual({ ...minimalDocument });
+    expect(FloorLayerDocumentSchema.safeParse({ ...minimalDocument, sourceDpi: 0 }).success).toBe(false);
+  });
+
   it('nhận tài liệu tối thiểu và bỏ hẳn khoá scaleStatus', () => {
     expect(FloorLayerDocumentSchema.parse(minimalDocument)).toStrictEqual({ ...minimalDocument });
   });

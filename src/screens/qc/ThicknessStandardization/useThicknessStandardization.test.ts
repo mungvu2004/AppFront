@@ -100,7 +100,7 @@ const graphOfScenario = (
 
 /** Sai lệch của một đoạn so với nhóm M-05 gán cho nó, đếm lại từ bộ mẫu. */
 function fixtureDeviationOf(wall: Wall): number | null {
-  const { standardized } = standardizeThickness(wall.thicknessMm);
+  const { standardized } = standardizeThickness(wall.thicknessMm, wall.source);
 
   return typeof standardized === 'number'
     ? deviationOf(wall.thicknessMm, standardized)
@@ -116,7 +116,7 @@ const REVIEWED_AND_CHANGEABLE: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter(
 });
 
 /** Ba số đo dùng cho bài "áp ba nhóm" — mỗi số một nhóm chuẩn khác nhau. */
-/* S-21: ba số đo KHÔNG chuẩn (lệch > 30 mm), chưa duyệt, mỗi số một bậc (100 / 300 / 400). */
+/* S-21: ba số đo KHÔNG chuẩn (lệch > 30 mm), chưa duyệt, mỗi số một bậc (100 / 220 / 300, luật bù nét U19). */
 const THREE_MEASUREMENTS = [65, 265, 365] as const;
 
 const wallsOfMeasurement = (measuredMm: number): readonly Wall[] =>
@@ -556,7 +556,7 @@ describe('áp chuẩn hoá', () => {
     expect(mounted.history.undoSteps()[0]?.commands).toHaveLength(targets.length);
 
     for (const wall of targets) {
-      expect(thicknessInStore(wall.id)).toBe(standardizeThickness(wall.thicknessMm).standardized);
+      expect(thicknessInStore(wall.id)).toBe(standardizeThickness(wall.thicknessMm, wall.source).standardized);
     }
 
     /* A8: một lượt áp = MỘT toast, MỘT vé tám giây. */
@@ -644,7 +644,7 @@ describe('áp chuẩn hoá', () => {
 
   it('áp xong thì M-04 dựng lại hình tường của phần xem trước', async () => {
     const mounted = await mountSettled();
-    /* S-21: 265 mm lệch 35 mm (không chuẩn) → 300; 195 mm đã trong dung sai của 200 nên không đổi. */
+    /* S-21: 265 mm lệch 45 mm (không chuẩn) → 220 (tường máy đo, U19); 195 mm đã trong dung sai của 200 nên không đổi. */
     const target = wallsOfMeasurement(265)[0] as Wall;
 
     const shapesBefore = mounted.result.current.shapes;
@@ -659,7 +659,7 @@ describe('áp chuẩn hoá', () => {
     });
 
     await waitFor(() => {
-      expect(thicknessInStore(target.id)).toBe(300);
+      expect(thicknessInStore(target.id)).toBe(220);
     });
 
     const shapesAfter = mounted.result.current.shapes;
@@ -671,7 +671,7 @@ describe('áp chuẩn hoá', () => {
     /* Đa giác được dựng LẠI: cùng số hình, nhưng không phải cùng object cũ. */
     expect(shapesAfter).toHaveLength(shapesBefore.length);
     expect(shapesAfter).not.toBe(shapesBefore);
-    expect(shapesAfter.find((shape) => shape.wallId === target.id)?.group).toBe(300);
+    expect(shapesAfter.find((shape) => shape.wallId === target.id)?.group).toBe(220);
   });
 
   it('gán một nhóm cho các hàng đang chọn cũng chỉ một bước lịch sử', async () => {
@@ -917,7 +917,7 @@ describe('áp dụng lại bộ lọc', () => {
     expect(changed.length).toBeGreaterThan(0);
 
     for (const wall of changed) {
-      expect(thicknessInStore(wall.id)).toBe(standardizeThickness(wall.thicknessMm).standardized);
+      expect(thicknessInStore(wall.id)).toBe(standardizeThickness(wall.thicknessMm, wall.source).standardized);
     }
   });
 
@@ -949,7 +949,7 @@ describe('áp dụng lại bộ lọc', () => {
     });
 
     for (const wall of REVIEWED_AND_CHANGEABLE) {
-      expect(thicknessInStore(wall.id)).toBe(standardizeThickness(wall.thicknessMm).standardized);
+      expect(thicknessInStore(wall.id)).toBe(standardizeThickness(wall.thicknessMm, wall.source).standardized);
     }
   });
 
@@ -967,7 +967,7 @@ describe('áp dụng lại bộ lọc', () => {
     });
 
     for (const wall of REVIEWED_AND_CHANGEABLE) {
-      expect(thicknessInStore(wall.id)).toBe(standardizeThickness(wall.thicknessMm).standardized);
+      expect(thicknessInStore(wall.id)).toBe(standardizeThickness(wall.thicknessMm, wall.source).standardized);
     }
 
     act(() => {

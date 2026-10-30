@@ -11,7 +11,7 @@
 
 import type { FlowGateCondition } from '@/components/shell/FlowGate';
 import { isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
-import type { Level, LevelId, Wall, WallId } from '@/domain/spatial/types';
+import type { DataSource, Level, LevelId, Wall, WallId } from '@/domain/spatial/types';
 import { WALL_THICKNESS_TOLERANCE_MM } from '@/domain/walls/thicknessTolerance';
 import { centrelineLength } from '@/domain/walls/types';
 import { formatNumber } from '@/lib/format/number';
@@ -159,16 +159,16 @@ export const sortByReviewQueue = (
 const isChoice = (value: unknown): value is WallThicknessChoice =>
   typeof value === 'number' && (WALL_THICKNESS_CHOICES as readonly number[]).includes(value);
 
-/** Chuẩn đích theo `standardizeThickness`; cột BTCT (xem tay) → `null`. */
-export const thicknessTargetOf = (thicknessMm: number): WallThicknessChoice | null => {
-  const { standardized } = standardizeThickness(thicknessMm);
+/** Chuẩn đích theo `standardizeThickness` (tường máy đo: luật bù nét, U19); cột BTCT (xem tay) → `null`. */
+export const thicknessTargetOf = (thicknessMm: number, source: DataSource = 'human'): WallThicknessChoice | null => {
+  const { standardized } = standardizeThickness(thicknessMm, source);
 
   return isChoice(standardized) ? standardized : null;
 };
 
 /** Khoảng số đo về một chuẩn, sinh từ thang sáu bậc: 300 → "261–350", 100 → "≤125". */
-function roundingRangeOf(targetMm: WallThicknessChoice): string {
-  const { fromMm, toMm } = standardTierRangeOf(targetMm);
+function roundingRangeOf(targetMm: WallThicknessChoice, source: DataSource = 'human'): string {
+  const { fromMm, toMm } = standardTierRangeOf(targetMm, source);
 
   return fromMm === null ? `≤${mm(toMm)}` : `${mm(fromMm)}–${mm(toMm)}`;
 }
@@ -187,7 +187,7 @@ function noteOf(wall: Wall, targetMm: WallThicknessChoice | null): string {
   if (targetMm !== null) {
     const diff = targetMm - wall.thicknessMm;
 
-    return `Thuộc khoảng ${roundingRangeOf(targetMm)} mm nên về ${mm(targetMm)} mm, ${diff > 0 ? 'thiếu' : 'dư'} ${mm(Math.abs(diff))} mm.`;
+    return `Thuộc khoảng ${roundingRangeOf(targetMm, wall.source)} mm nên về ${mm(targetMm)} mm, ${diff > 0 ? 'thiếu' : 'dư'} ${mm(Math.abs(diff))} mm.`;
   }
 
   return `Dày trên ${mm(CONCRETE_COLUMN_THRESHOLD_MM)} mm: dày bất thường, có thể là cột BTCT. Cần xem tay.`;
@@ -202,7 +202,7 @@ export function rowExtraOf(
 ): WallRowExtra {
   const group = queueGroupOf(wall);
   const band = wallThicknessBandOf(wall.thicknessMm);
-  const targetMm = band === null ? thicknessTargetOf(wall.thicknessMm) : null;
+  const targetMm = band === null ? thicknessTargetOf(wall.thicknessMm, wall.source) : null;
 
   return {
     lengthText: level === null ? '–' : (wallLengthNumberOf(centrelineLength(toGeometryWall(wall, level)), scaleStatus, scaleSource) ?? '–'),
@@ -218,15 +218,17 @@ export function rowExtraOf(
 export function bulkPlanOf(walls: readonly Wall[]): WallBulkPlan {
   const pending = walls.filter((wall) => queueGroupOf(wall) === 'nonStandard');
   const targets = pending.flatMap((wall) => {
-    const targetMm = thicknessTargetOf(wall.thicknessMm);
+    const targetMm = thicknessTargetOf(wall.thicknessMm, wall.source);
 
-    return targetMm === null ? [] : [{ wallId: wall.id, targetMm }];
+    return targetMm === null ? [] : [{ wallId: wall.id, targetMm, source: wall.source }];
   });
-  const groups = WALL_THICKNESS_CHOICES.map((targetMm) => ({
-    targetMm,
-    count: targets.filter((target) => target.targetMm === targetMm).length,
-    rangeText: roundingRangeOf(targetMm),
-  })).filter((group) => group.count > 0);
+  const groups = WALL_THICKNESS_CHOICES.map((targetMm) => {
+    const inGroup = targets.filter((target) => target.targetMm === targetMm);
+    /* Nhóm toàn tường máy đo thì khoảng theo luật bù nét (U19); có tường người gõ thì luật gần nhất. */
+    const source: DataSource = inGroup.every((target) => target.source === 'ai') ? 'ai' : 'human';
+
+    return { targetMm, count: inGroup.length, rangeText: roundingRangeOf(targetMm, source) };
+  }).filter((group) => group.count > 0);
 
   return {
     groups,
@@ -234,7 +236,7 @@ export function bulkPlanOf(walls: readonly Wall[]): WallBulkPlan {
     totalCount: pending.length,
     manualCount: pending.length - targets.length,
     manualRangeText: `trên ${mm(CONCRETE_COLUMN_THRESHOLD_MM)} mm`,
-    targets,
+    targets: targets.map(({ wallId, targetMm }) => ({ wallId, targetMm })),
   };
 }
 
