@@ -24,6 +24,7 @@ import { ProgressSchema, type Progress } from '@/api/schemas';
 import { totalArea } from '@/domain/rooms/area';
 import { SAMPLE_BUILDING, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { toPointMm } from '@/lib/commands/business/shared';
+import { millimetresPerPixel } from '@/domain/units/scale';
 import { formatArea } from '@/lib/format/measure';
 import * as auth from '@/lib/auth';
 import type { HttpError } from '@/lib/http';
@@ -767,7 +768,13 @@ describe('useProcessingScreen', () => {
     const { dimensions, layer: sample } = SAMPLE_LAYER_DOCUMENT;
     vi.spyOn(harness.client.spatial, 'readLayer').mockResolvedValue({
       ok: true,
-      data: { ...layer.data, dimensions, layer: sample },
+      // UX-R2 K46: tầng có tỷ lệ chốt (level.scaleMillimetresPerPixel, không scaleStatus) mới ghi diện tích; thiếu thì "Chưa có tỷ lệ".
+      data: {
+        ...layer.data,
+        level: { ...layer.data.level, scaleMillimetresPerPixel: millimetresPerPixel(10) },
+        dimensions,
+        layer: sample,
+      },
     });
     const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
 

@@ -441,6 +441,15 @@ async function applyNow(mounted: Mounted): Promise<void> {
     mounted.result.current.actions.onApply();
   });
   await settleAsync();
+
+  // U22/U34: cỡ căn vô lý thì lần Xác nhận đầu chỉ cảnh báo, lần hai mới lưu. Tầng mẫu của bộ giả có tường
+  // tính bằng mm nên mọi tỷ lệ thử ở đây đều ra cỡ căn vô lý; test lưu cần xác nhận lần nữa.
+  if (mounted.result.current.model.panel.applyBlockedNotice?.startsWith('Cỡ căn trông vô lý') === true) {
+    await act(async () => {
+      mounted.result.current.actions.onApply();
+    });
+    await settleAsync();
+  }
 }
 
 /**
@@ -1420,14 +1429,15 @@ describe('useScaleCalibration — bàn phím và phiên kéo', () => {
     expect(draft?.end.y).toBeCloseTo(draft?.start.y ?? 0, 6);
   });
 
-  it('nêu đủ sáu dòng nhắc phím tắt, tổ hợp in bằng mặt phím (`keyCapLabels`)', async () => {
+  it('nêu đủ bảy dòng nhắc phím tắt, tổ hợp in bằng mặt phím (`keyCapLabels`)', async () => {
     const harness = await makeHarness();
     const mounted = mountHook(harness.gateway);
     await settle(mounted);
 
     const hints = mounted.result.current.model.panel.shortcutHints;
 
-    expect(hints).toHaveLength(6);
+    // U04/U09: thêm dòng nhắc đặt tỷ lệ bằng bàn phím (sáu dòng cũ + một).
+    expect(hints).toHaveLength(7);
     const labels = hints.map((hint) => hint.comboLabel);
 
     expect(labels).toContain('Shift + ←');

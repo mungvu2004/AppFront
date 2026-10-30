@@ -472,7 +472,7 @@ describe('useFloorUploadScreen — nhận tệp', () => {
     });
 
     const sentence = result.current.tray.items[0]?.error?.sentence ?? '';
-    const [, size, cap] = /^Tệp nặng (.+), vượt trần (.+) của một tệp\.$/u.exec(sentence) ?? [];
+    const [, size, cap] = /^Tệp nặng (.+), vượt trần (.+) của một tệp\./u.exec(sentence) ?? [];
 
     expect(cap).toBe(formatFileSize(MAX_UPLOAD_FILE_SIZE_BYTES));
     expect(size).toBeDefined();

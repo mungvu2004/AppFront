@@ -6,7 +6,11 @@
  * nên chỉ lần kéo mà tay cầm / kéo-dời vật KHÔNG giành mới thành xoay.
  */
 
-type Modifiers = { readonly shiftKey: boolean; readonly ctrlKey: boolean; readonly metaKey: boolean };
+interface Modifiers {
+  readonly shiftKey: boolean;
+  readonly ctrlKey: boolean;
+  readonly metaKey: boolean;
+}
 
 /** Kéo có phím phụ = quét chọn (Shift/Ctrl/Cmd cũng là "chọn thêm" của vendor). */
 export function wantsBoxSelect(event: Modifiers): boolean {
@@ -25,7 +29,9 @@ export function orbitAngles(dx: number, dy: number, height: number): [number, nu
   return [-dx * perPx, -dy * perPx];
 }
 
-type Rotatable = { rotate: (azimuth: number, polar: number, enableTransition?: boolean) => unknown };
+interface Rotatable {
+  rotate: (azimuth: number, polar: number, enableTransition?: boolean) => unknown;
+}
 
 /** Xoay `controls` mặc định của R3F (CameraControls `makeDefault`); thiếu thì bỏ qua. */
 export function orbitBy(controls: unknown, dx: number, dy: number, height: number): void {

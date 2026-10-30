@@ -1346,7 +1346,7 @@ export function useViolationDetail(
 
     return causesOf(
       rule?.group ?? null,
-      readKindFromId(violation.entityId, violation.ruleCode),
+      readKindFromId(violation.entityId),
       confidenceOf(graph, violation.entityId),
     );
   }, [graph, rule, violation]);

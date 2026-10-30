@@ -77,9 +77,10 @@ export function panCamera(camera: PlanCamera, dx: number, dy: number): PlanCamer
 
 /** Chỗ đặt tên phòng: tâm hộp rỗng lớn nhất trong phòng (phòng chữ L không đẩy tên ra ngoài). */
 export function roomLabelAnchor(room: Room): { x: number; y: number; width: number } {
-  const box = computeLargestInnerRectangle(room.outline);
+  const outline = room.outline.map((p) => ({ x: millimetres(p.x), y: millimetres(p.y) }));
+  const box = computeLargestInnerRectangle(outline);
   if (box === null) {
-    const centroid = computeCentroid(room.outline);
+    const centroid = computeCentroid(outline);
     return { x: centroid.x, y: centroid.y, width: 0 };
   }
 

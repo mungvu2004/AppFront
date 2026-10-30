@@ -51,10 +51,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { hasElements } from '@/domain/spatial/elementCount';
-import { idsOnLevel } from '@/domain/spatial/normalize';
-import type { LevelId } from '@/domain/spatial/types';
-import { denormalizeSpatial } from '@/domain/spatial/normalize';
-import type { Level } from '@/domain/spatial/types';
+import { denormalizeSpatial, idsOnLevel } from '@/domain/spatial/normalize';
+import type { Level, LevelId } from '@/domain/spatial/types';
 import { ENDPOINTS } from '@/api/endpoints';
 import { createAppApiClient } from '@/api/appClient';
 import { describeError, toAppError } from '@/lib/errors';

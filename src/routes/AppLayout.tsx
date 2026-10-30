@@ -76,7 +76,10 @@ export function AppLayout() {
         heading.focus({ preventScroll: true });
       } else main?.focus({ preventScroll: true });
     };
-    const timers = [window.setTimeout(focusMain, 50), window.setTimeout(focusMain, 600)]; // màn tải lười: thử lại khi h1 đã có
+    // màn tải lười: thử lại khi h1 đã có
+    /* eslint-disable local/no-raw-duration -- chờ màn tải, không phải chuyển động */
+    const timers = [window.setTimeout(focusMain, 50), window.setTimeout(focusMain, 600)];
+    /* eslint-enable local/no-raw-duration */
     return () => {
       timers.forEach((timer) => {
         window.clearTimeout(timer);

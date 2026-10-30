@@ -908,6 +908,7 @@ function deliverViaAnchor(file: ExportedFile): void {
         frame.contentWindow?.print();
         setTimeout(() => {
           frame.remove();
+          // eslint-disable-next-line local/no-raw-duration -- chờ hộp thoại in, không phải chuyển động
         }, 60_000);
       };
       document.body.append(frame);

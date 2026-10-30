@@ -12,7 +12,8 @@ import { buildPreflightRows } from './exportPanelGateway';
 afterEach(cleanup);
 
 const PROJECT_ID = 'P-1';
-const level = { id: 'L-1', name: 'Tầng 1', reviewed: true } as unknown as Level;
+const level = { id: 'L-1', name: 'Tầng 1', reviewed: true, scaleMillimetresPerPixel: 12 } as unknown as Level;
+const levelWithoutScale = { id: 'L-1', name: 'Tầng 1', reviewed: true } as unknown as Level;
 const rowsFor = (floorMeta?: Parameters<typeof buildPreflightRows>[0]['floorMeta']) =>
   buildPreflightRows({
     projectId: PROJECT_ID,
@@ -50,6 +51,18 @@ describe('buildPreflightRows — readiness (FIX-P0-15)', () => {
 
     expect(ready.some((entry) => entry.id === 'readiness')).toBe(false);
     expect(rowsFor().some((entry) => entry.id === 'readiness')).toBe(false);
+  });
+
+  it('tầng có bản vẽ mà chưa có tỷ lệ: dòng attention dẫn tới Đặt tỷ lệ (U12)', () => {
+    const row = buildPreflightRows({
+      projectId: PROJECT_ID,
+      graph: null,
+      levels: [levelWithoutScale],
+      violations: [],
+    }).find((entry) => entry.id === 'readiness');
+
+    expect(row?.label).toBe('Cần xem lại 1 tầng: Tầng 1 (tỷ lệ tạm).');
+    expect(row?.fixHref).toBe(ROUTES.project.scale(PROJECT_ID, 'L-1'));
   });
 
   it('dòng readiness không chặn nút Xuất', () => {

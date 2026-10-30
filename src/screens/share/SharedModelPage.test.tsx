@@ -3,11 +3,14 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
+import type { SharedModel } from '@/api/client';
+import { SAMPLE_BUILDING } from '@/domain/spatial/__fixtures__/sampleBuilding';
+
 import { createMockApiClient, MOCK_SHARE_TOKEN } from '@/api/__mocks__/client';
 import { createExportPanelGateway, ExportAccessError } from '@/screens/export/ExportPanel/exportPanelGateway';
 import { createShareLink, revokeShareLink, type ShareLinkGateway } from '@/lib/export/shareLink';
 
-import { SHARE_LINK_GONE_MESSAGE, SharedModelPage, shareGoneReason } from './SharedModelPage';
+import { SHARE_LINK_GONE_MESSAGE, SharedModelPage, SharedModelView, shareGoneReason } from './SharedModelPage';
 
 function renderAt(token: string) {
   const client = createMockApiClient();
@@ -47,7 +50,9 @@ describe('trang chia sẻ công khai', () => {
   });
 
   it('[U23] mặt bằng vẽ cả phòng có tên, có nút phóng/thu/vừa khung đổi được khung nhìn', async () => {
-    const { container } = renderAt(MOCK_SHARE_TOKEN);
+    // Đồ thị giả của máy chủ mock không có tường trên tầng nào; dùng bộ mẫu A14 để có phòng thật mà vẽ.
+    const model = { projectName: 'Mẫu', graph: { graph: SAMPLE_BUILDING, floorRevisions: [] } } as unknown as SharedModel;
+    const { container } = render(<SharedModelView model={model} />);
     const zoomIn = await screen.findByRole('button', { name: 'Phóng to' });
     expect(screen.getByRole('button', { name: 'Thu nhỏ' })).toBeInTheDocument();
     expect(container.querySelectorAll('svg[aria-label="Mặt bằng chỉ đọc"] polygon').length).toBeGreaterThan(0);
