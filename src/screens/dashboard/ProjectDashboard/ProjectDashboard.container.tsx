@@ -28,11 +28,13 @@
  */
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ScreenErrorBoundary, type ScreenErrorFallback } from '@/components/feedback/ScreenErrorBoundary';
 import { Toast, useToast } from '@/components/feedback/Toast';
 import { useSession } from '@/hooks/useSession';
+import { ROUTES } from '@/routes/paths';
 import { CreateProjectModalContainer } from '@/screens/project/CreateProjectModal';
 
 import { ProjectDashboardConnected } from './ProjectDashboard';
@@ -61,6 +63,7 @@ function DashboardWithCreateModal() {
   const role = session.roles[0];
   const { addToast } = useToast();
   const [isCreateOpen, setCreateOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <>
@@ -72,6 +75,8 @@ function DashboardWithCreateModal() {
         isOpen={isCreateOpen}
         onDismiss={() => setCreateOpen(false)}
         onToast={addToast}
+        // Tạo xong thì vào luôn bước Tải bản vẽ: thẻ mới chưa có tường nên nằm cuối danh sách.
+        onCreated={(projectId) => navigate(ROUTES.project.upload(projectId))}
         {...(role !== undefined ? { role } : {})}
       />
     </>

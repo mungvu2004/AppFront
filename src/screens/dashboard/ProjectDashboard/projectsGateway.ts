@@ -29,6 +29,10 @@ export interface DashboardProject {
   readonly name: string;
   readonly floorCount: number;
   readonly areaM2: number;
+  /** `false` = tầng chưa có tỷ lệ, diện tích không đáng tin. Vắng = chưa rõ. */
+  readonly hasScale?: boolean;
+  /** `true` = đang có lượt xử lý chạy. Vắng = chưa rõ. */
+  readonly jobActive?: boolean;
   readonly status: ProjectPipelineStatus;
   /** How many walls a person has reviewed, out of `wallsTotalCount`. */
   readonly wallsReviewedCount: number;
@@ -74,6 +78,8 @@ function toDashboardProject(summary: ProjectSummary): DashboardProject {
     name: summary.name,
     floorCount: summary.floorCount,
     areaM2: summary.areaM2,
+    ...(summary.hasScale !== undefined ? { hasScale: summary.hasScale } : {}),
+    ...(summary.jobActive !== undefined ? { jobActive: summary.jobActive } : {}),
     status: summary.status,
     wallsReviewedCount: summary.wallsReviewedCount,
     wallsTotalCount: summary.wallsTotalCount,

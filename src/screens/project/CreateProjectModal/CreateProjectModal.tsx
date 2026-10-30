@@ -282,6 +282,13 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: durationSeconds('fast') }}
+          // Enter trong ô nhập một dòng ở bước 1 thì đi tiếp, như bấm nút chân hộp.
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && step === 1 && event.target instanceof HTMLInputElement && gate.ready) {
+              event.preventDefault();
+              props.goNext();
+            }
+          }}
         >
           {step === 1 && <StepInfo {...props} isMoreOpen={isMoreOpen} toggleMore={() => setMoreOpen((open) => !open)} />}
           {step === 2 && <StepFloors {...props} rowRefs={rowRefs} />}

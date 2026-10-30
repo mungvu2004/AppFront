@@ -144,7 +144,13 @@ export function useNumericField({ value, onChange, min, max, unit, resetKey, fra
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Escape') {
+    if (e.key === 'Enter') {
+      // Enter chốt số ngay, không đợi rời ô hay hết 800 ms: nút ở chân hộp đổi theo luôn.
+      if (isTyping) {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        commit(localValue);
+      }
+    } else if (e.key === 'Escape') {
       if (timerRef.current) clearTimeout(timerRef.current);
       setIsTyping(false);
       setLocalValue(displayText(lastCommittedRef.current));

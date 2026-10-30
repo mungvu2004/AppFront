@@ -180,6 +180,8 @@ export function CreateProjectModalContainer(props: CreateProjectModalContainerPr
       <CreateProjectModal
         gateway={gateway}
         isOpen={props.isOpen}
+        // Căn hộ một tầng là phổ biến nhất: bắt đầu với một tầng, thêm bằng "Thêm tầng" (U40).
+        initialFloorCount={1}
         onDismiss={props.onDismiss}
         {...(props.onCreated !== undefined ? { onCreated: props.onCreated } : {})}
         {...(props.onToast !== undefined ? { onToast: props.onToast } : {})}

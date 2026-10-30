@@ -895,9 +895,9 @@ describe('describeShareLinkExpiry', () => {
     expect(describeShareLinkExpiry(link({ status: 'revoked' }), NOW).text).toBe('đã thu hồi');
   });
 
-  it('counts down in the largest unit that still says something', () => {
+  it('counts down in the largest unit that still says something (6 ngày 23 giờ làm tròn lên 7 ngày)', () => {
     expect(describeShareLinkExpiry(link({ expiresAt: '2026-08-24T08:00:00.000Z' }), NOW).text).toBe(
-      'còn 6 ngày',
+      'còn 7 ngày',
     );
     expect(describeShareLinkExpiry(link({ expiresAt: '2026-08-17T14:30:00.000Z' }), NOW).text).toBe(
       'còn 5 giờ',

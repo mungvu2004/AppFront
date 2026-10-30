@@ -801,7 +801,7 @@ export interface ShareLinkExpiryDisplay {
 
 function remainingText(remainingMs: number): string {
   if (remainingMs >= MS_PER_DAY) {
-    return `còn ${wholeNumber(Math.floor(remainingMs / MS_PER_DAY))} ngày`;
+    return `còn ${wholeNumber(Math.ceil(remainingMs / MS_PER_DAY))} ngày`;
   }
   if (remainingMs >= MS_PER_HOUR) {
     return `còn ${wholeNumber(Math.floor(remainingMs / MS_PER_HOUR))} giờ`;

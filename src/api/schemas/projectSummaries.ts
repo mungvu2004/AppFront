@@ -66,6 +66,10 @@ export const ProjectSummarySchema = z
     areaM2: z.number().nonnegative(),
     defaultFloorId: floorIdSchema.optional(),
     floorCount: countSchema,
+    // Vắng = máy chủ cũ chưa báo; chỉ `false` mới nghĩa là chưa có tỷ lệ (diện tích khi đó vô nghĩa).
+    hasScale: z.boolean().optional(),
+    // Vắng = máy chủ cũ chưa báo. `true` = đang có lượt xử lý chạy (dù chưa ra tường nào).
+    jobActive: z.boolean().optional(),
     id: projectIdSchema,
     members: z.array(ProjectSummaryMemberSchema),
     name: projectNameSchema,
@@ -101,6 +105,8 @@ export const ProjectSummarySchema = z
       ? { defaultFloorId: wireSummary.defaultFloorId }
       : {}),
     floorCount: wireSummary.floorCount,
+    ...(wireSummary.hasScale !== undefined ? { hasScale: wireSummary.hasScale } : {}),
+    ...(wireSummary.jobActive !== undefined ? { jobActive: wireSummary.jobActive } : {}),
     id: wireSummary.id,
     members: wireSummary.members,
     name: wireSummary.name,
