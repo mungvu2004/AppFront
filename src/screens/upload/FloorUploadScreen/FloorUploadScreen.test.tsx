@@ -166,6 +166,12 @@ describe('FloorUploadScreenView — bảy trạng thái (A11, R-63)', () => {
     expect(screen.getByRole('button', { name: /bắt đầu xử lý/iu })).toBeEnabled();
   });
 
+  it('thẻ có tệp hỏng mời "Chọn tệp khác" ngay tại tầng (U29)', () => {
+    renderWithProviders(<FloorUploadScreenView {...trayScenario()} onFilesForFloor={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'Chọn tệp khác' })).toBeInTheDocument();
+  });
+
   it('dự án chưa có tầng: trạng thái rỗng có chữ riêng, tiêu đề vùng thả chỉ hiện một lần (BUG-100)', () => {
     const props = scenarioFor('empty');
     renderWithProviders(<FloorUploadScreenView {...props} floors={[]} />);

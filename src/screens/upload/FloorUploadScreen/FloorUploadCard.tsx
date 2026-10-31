@@ -45,6 +45,7 @@ const LABEL_PAGE_PICKER = 'Chọn trang';
 const LABEL_CAD_PILL = 'Bản vẽ CAD · độ chính xác cao';
 const LABEL_MENU_PREFIX = 'Tuỳ chọn của tầng';
 const LABEL_UPLOAD_FOR_FLOOR = 'Tải bản vẽ cho tầng này';
+const LABEL_PICK_OTHER = 'Chọn tệp khác';
 const LABEL_CANCEL = 'Huỷ';
 const LABEL_RETRY = 'Thử lại';
 const LABEL_DISMISS = 'Đóng';
@@ -222,6 +223,9 @@ export function FloorUploadCard({
 
   const file = row.file;
   const canPickPage = file !== null && file.pageOptions.length > 0 && !isReadOnly;
+  // Tệp hỏng: thẻ mời chọn tệp khác ngay tại tầng, tệp mới thay tệp hỏng (U29).
+  const isFileBroken = file !== null && row.status === 'error';
+  const pickerLabel = isFileBroken ? LABEL_PICK_OTHER : LABEL_UPLOAD_FOR_FLOOR;
 
   return (
     <li
@@ -278,11 +282,11 @@ export function FloorUploadCard({
           {file !== null && (
             <p className="truncate text-body-sm text-text-secondary">{file.summaryLine}</p>
           )}
-          {file === null && !isReadOnly && actions.onFilesForFloor !== undefined && (
+          {(file === null || isFileBroken) && !isReadOnly && actions.onFilesForFloor !== undefined && (
             <div className="pt-1">
               <input
                 accept={acceptAttribute}
-                aria-label={`${LABEL_UPLOAD_FOR_FLOOR} ${row.name}`}
+                aria-label={`${pickerLabel} ${row.name}`}
                 className="sr-only"
                 onChange={(event) => {
                   const chosen = event.target.files;
@@ -298,7 +302,7 @@ export function FloorUploadCard({
                 type="file"
               />
               <Button onClick={() => pickerRef.current?.click()} size="sm" type="button" variant="secondary">
-                {LABEL_UPLOAD_FOR_FLOOR}
+                {pickerLabel}
               </Button>
             </div>
           )}
