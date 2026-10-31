@@ -484,23 +484,28 @@ function opensOnto(at: Point, room: Room, toleranceMm: number): boolean {
 /**
  * The openings of one kind cut into the stretch of wall that bounds a room.
  *
- * Resolving `room.wallIds` against `RuleContext` into plain arrays is this
- * function's only remaining job: the walk itself — and the "shared wall
- * counts for both rooms" behaviour that comes with it — lives in
- * `openingsOfRoom` of `src/domain/spatial/roomOpenings`, the one definition of
- * that behaviour. Do not re-implement the traversal here.
+ * Resolving the walls in scope — every one, not only `room.wallIds`, since the
+ * detector splits walls at doors and the door's piece is often unlisted — and
+ * their openings against `RuleContext` into plain arrays is this function's
+ * only remaining job: the walk itself — and the "shared wall counts for both
+ * rooms" behaviour that comes with it — lives in `openingsOfRoom` of
+ * `src/domain/spatial/roomOpenings`, the one definition of that behaviour. Do
+ * not re-implement the traversal here.
  */
 function openingsOfRoom(context: RuleContext, room: Room, kind: Opening['kind']): Opening[] {
   const walls: Wall[] = [];
   const openingIds = new Set<string>();
+  const inScope = new Map<string, Wall>(entitiesInScope(context, 'wall').map((wall) => [wall.id, wall]));
 
   for (const wallId of room.wallIds) {
     const wall = findEntity(context, 'wall', wallId);
 
-    if (wall === null) {
-      continue;
+    if (wall !== null) {
+      inScope.set(wall.id, wall);
     }
+  }
 
+  for (const wall of inScope.values()) {
     walls.push(wall);
 
     for (const openingId of wall.openingIds) {
