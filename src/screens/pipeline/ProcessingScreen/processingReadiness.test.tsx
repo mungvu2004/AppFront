@@ -61,10 +61,11 @@ describe('deriveProcessingGate — readiness', () => {
     expect(gate.action?.label).toBe(CALIBRATE_LABEL);
     gate.action?.onClick();
     expect(onCalibrateScale).toHaveBeenCalledOnce();
-    // Duyệt tầng vẫn là lối mềm, không chặn cứng.
+    // Duyệt tầng vẫn là lối mềm, nhưng mở ở bước Tỷ lệ chứ không nhảy thẳng sang Tường (U28).
     expect(gate.secondaryAction?.label).toBe(GO_REVIEW_LABEL);
     gate.secondaryAction?.onClick();
-    expect(onReviewWalls).toHaveBeenCalledOnce();
+    expect(onCalibrateScale).toHaveBeenCalledTimes(2);
+    expect(onReviewWalls).not.toHaveBeenCalled();
   });
 
   it('readiness ready (không còn lý do): ra "ready"', () => {

@@ -207,8 +207,9 @@ const NO_RUN_SENTENCE = 'Chưa có lượt xử lý nào đang chạy.';
 const LOADING_RUNS_SENTENCE = 'Đang tải các lượt xử lý…';
 
 /** Ví dụ `"Đang xếp hàng: còn 2 lượt phía trước. Ảnh lớn có thể mất vài phút."`. */
-const queueSentence = (ahead: string): string =>
-  `Đang xếp hàng: còn ${ahead} lượt phía trước. Ảnh lớn có thể mất vài phút.`;
+const queueSentence = (ahead: string, waited: string | null): string =>
+  `Đang xếp hàng: còn ${ahead} lượt phía trước. Ảnh lớn có thể mất vài phút.` +
+  (waited === null ? '' : ` Đã chờ ${waited}.`);
 
 /** Câu bắt buộc nói rõ xử lý VẪN TIẾP TỤC khi một tầng lỗi — chỉ khi còn tầng chưa cuối (BUG-553). */
 const partialSentence = (failedNames: string, othersRunning: boolean): string =>
@@ -846,6 +847,16 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     .filter((index) => index >= 0);
   const doneCount = floorStatuses.filter((status) => status === 'done').length;
 
+  // Nhật ký N7b và trạng thái dự án (#24, dải "Đang xử lý bản vẽ" ở thanh trên) chỉ đọc lại theo
+  // nhịp riêng: tầng vừa xong/lỗi thì đọc lại ngay, không còn "Đang chạy · 5%" khi đã xong (U27).
+  const settledCount = doneCount + failedIndexes.length;
+  const refetchRuns = runsQuery.refetch;
+  useEffect(() => {
+    if (settledCount === 0) return;
+    void refetchRuns();
+    void queryClient.invalidateQueries({ queryKey: queryKeys.project.detail(projectId) });
+  }, [projectId, queryClient, refetchRuns, settledCount]);
+
   // Tổng kết đọc SAU khi tầng xong (BUG-285): lớp AI chỉ được ghi vào tài liệu tầng ở bước
   // cuối, nên đọc lúc mồi sẽ đếm lớp cũ — và một lượt xong qua SSE không đọc mồi lại.
   const extractionQueries = useQueries({
@@ -1474,6 +1485,22 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     records.find((record) => record.queuePosition !== undefined)?.queuePosition ??
     records.map((record) => record.progress?.queueAhead).find((ahead): ahead is number => ahead !== undefined && ahead > 0);
 
+  // U09: lúc xếp hàng đếm thời gian đã chờ mỗi giây, để màn không đứng yên hàng phút như treo.
+  const isQueued = queuePosition !== undefined;
+  const [queueClock, setQueueClock] = useState<{ readonly since: number; readonly now: number } | null>(null);
+  useEffect(() => {
+    if (!isQueued) return undefined;
+    const since = Date.now();
+    const timer = window.setInterval(() => {
+      setQueueClock({ since, now: Date.now() });
+    }, MILLISECONDS_PER_SECOND);
+    return () => {
+      window.clearInterval(timer);
+      setQueueClock(null);
+    };
+  }, [isQueued]);
+  const queueWaited = queueClock === null ? null : formatDuration(queueClock.now - queueClock.since);
+
   const partialNoticeLine =
     failedIndexes.length > 0 && failedIndexes.length < records.length
       ? partialSentence(
@@ -1557,7 +1584,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     overallSummaryLine,
     ...(remainingLine !== undefined ? { remainingLine } : {}),
     ...(queuePosition !== undefined
-      ? { queueLine: queueSentence(formatNumber(queuePosition, { fractionDigits: 0 })) }
+      ? { queueLine: queueSentence(formatNumber(queuePosition, { fractionDigits: 0 }), queueWaited) }
       : {}),
     ...(partialNoticeLine !== undefined ? { partialNoticeLine } : {}),
     ...(errorAlert !== undefined ? { errorAlert } : {}),
