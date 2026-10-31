@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
-import { orbitFrame, zoomFrame } from './SharedModel3D';
+import { orbitFrame, zoomFrame } from './sharedModel3dFrame';
 
 const frame = { azimuthRad: 0, polarRad: 1, distanceM: 10 } as ViewerSceneFrame;
 
