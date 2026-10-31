@@ -198,6 +198,23 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ theo lần bấm Enter: sửa số sau đó không tự sang bước.
   }, [floorsEnterCount]);
 
+  // UX-20: Enter ở bước xem lại tạo dự án như bấm nút, kể cả khi tiêu điểm đã rơi khỏi hộp (nút bước 2 vừa đổi).
+  const { submit } = props;
+  const canSubmit = isOpen && step === 3 && gate.ready && !isSubmitting && !props.isConfirmingDiscard;
+  useEffect(() => {
+    if (!canSubmit) return undefined;
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Enter' || event.defaultPrevented || event.repeat) return;
+      const target = event.target;
+      // Nút, liên kết, ô nhiều dòng tự xử lý Enter của chúng.
+      if (target instanceof HTMLElement && target.closest('button, a, textarea, [role="button"]') !== null) return;
+      event.preventDefault();
+      submit();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [canSubmit, submit]);
+
   /** The not-ready button: focus the field or row that is missing, or open the step that holds it. */
   const leadToFix = (): void => {
     const focusField = (id: string): void => document.getElementById(id)?.focus();

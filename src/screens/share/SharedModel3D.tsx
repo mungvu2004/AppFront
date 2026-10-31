@@ -17,7 +17,7 @@ import { mountViewerScene } from '@/screens/viewer/Viewer3D/viewer3dScene';
 import type { ViewerSceneHandle } from '@/screens/viewer/Viewer3D/viewer3dTypes';
 import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
-import { buildInputs, homeFrame, orbitFrame, ZOOM_STEP, zoomFrame } from './sharedModel3dFrame';
+import { buildInputs, homeFrame, orbitFrame, tokenOfSharedPart, ZOOM_STEP, zoomFrame } from './sharedModel3dFrame';
 
 
 export function SharedModel3D({ graph, levelId }: { readonly graph: SpatialGraph; readonly levelId: string }) {
@@ -48,7 +48,7 @@ export function SharedModel3D({ graph, levelId }: { readonly graph: SpatialGraph
     const mount = mountViewerScene(canvas, {
       levels,
       frame: frame.current,
-      tokenOfPartKind: () => '--wall-idle',
+      tokenOfPartKind: tokenOfSharedPart,
       canSelect: false,
     });
     if (!mount.ok) {
