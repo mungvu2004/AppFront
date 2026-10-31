@@ -69,6 +69,7 @@ import { useStore } from '@/store';
 import { selectViolations } from '@/store/selectors';
 import type { ProjectRole } from '@/types/project';
 
+import { mergeExportHistory, readExportHistory, writeExportHistory } from './exportHistoryStorage';
 import {
   buildPreflightRows,
   countPdfPages,
@@ -207,6 +208,10 @@ const EMPTY_SNAPSHOT: ExportRunSnapshot = Object.freeze({
 
 /** Khoang chan nhap lai sau khi mot luot xuat ket thuc (ms). */
 const EXPORT_RELOCK_MS = 250;
+
+/** U36: câu hỏi lại khi có tầng chọn xuất mà chưa duyệt xong. */
+export const unreviewedConfirmMessage = (floorNames: readonly string[]): string =>
+  `${floorNames.join(', ')} chưa duyệt xong. Vẫn xuất?`;
 
 const EMPTY_FLOORS: readonly Level[] = Object.freeze([]);
 
@@ -619,20 +624,32 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     [projectId, graph, selectedLevels, violations, floorMeta],
   );
 
+  // U51: thông tin tệp đã xuất (không có nội dung) giữ qua lượt tải lại trang.
+  const storedHistory = useMemo(() => readExportHistory(projectId), [projectId]);
+  const history = useMemo(() => mergeExportHistory(snapshot.files, storedHistory), [snapshot.files, storedHistory]);
+  useEffect(() => {
+    if (snapshot.files.length > 0) {
+      writeExportHistory(projectId, history);
+    }
+  }, [history, projectId, snapshot.files.length]);
+
   const exportedFiles = useMemo<readonly ExportedFileRow[]>(() => {
     // Một mốc giờ cho cả danh sách, đọc đúng một lần: hai hàng cạnh nhau phải
     // được đo bằng cùng một chiếc đồng hồ.
     const nowMs = gateway.now();
+    const sessionIds = new Set(snapshot.files.map((file) => file.id));
 
-    return snapshot.files.map((file) => ({
+    return history.map((file) => ({
       id: file.id,
       fileName: file.fileName,
       // Hồ sơ PDF là trang in, chưa phải tệp PDF: số byte của trang in không phải dung lượng tệp người dùng lưu (U01).
       sizeLabel: file.formatId === 'pdf' ? MISSING_VALUE : formatFileSize(file.byteLength),
       momentLabel: formatTimestamp(file.exportedAtMs, nowMs),
       formatId: file.formatId,
+      // Nội dung tệp chỉ sống trong phiên đã xuất ra nó: hàng khôi phục không tải lại được.
+      isRestored: !sessionIds.has(file.id),
     }));
-  }, [gateway, snapshot.files]);
+  }, [gateway, history, snapshot.files]);
 
   const progress = useMemo<ExportProgressView | null>(() => {
     const running = snapshot.runningFormatId;
@@ -742,7 +759,10 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     setOptionsView((current) => ({ ...current, isExpanded: !current.isExpanded }));
   }, []);
 
-  const startExport = useCallback((): void => {
+  // U36: tầng chưa duyệt → hỏi lại một câu trước khi xuất, không xuất im lặng.
+  const [unreviewedConfirm, setUnreviewedConfirm] = useState<string | null>(null);
+
+  const runExport = useCallback((askUnreviewed: boolean): void => {
     // Ba cửa chặn, mỗi cửa một lý do thật. Cửa thứ ba chỉ áp cho `.glb`: bộ
     // xuất đó dựng hình theo TẦNG và ném `RangeError` khi không có tầng nào,
     // còn Spatial JSON lấy cả đồ thị nên nó không phụ thuộc lựa chọn tầng.
@@ -756,9 +776,24 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
       return;
     }
 
+    const unreviewed = selectedLevels.filter((level) => !level.reviewed);
+    if (askUnreviewed && unreviewed.length > 0) {
+      setUnreviewedConfirm(unreviewedConfirmMessage(unreviewed.map((level) => level.name)));
+      return;
+    }
+
+    setUnreviewedConfirm(null);
     exportLockRef.current = true;
     exportMutation.mutate(selectedFormatId);
-  }, [canExport, canExportSelected, exportMutation, graph, selectedFormatId, selectedLevels.length, spatialLoading]);
+  }, [canExport, canExportSelected, exportMutation, graph, selectedFormatId, selectedLevels, spatialLoading]);
+
+  const startExport = useCallback((): void => {
+    runExport(true);
+  }, [runExport]);
+
+  const onConfirmExport = useCallback((): void => {
+    runExport(false);
+  }, [runExport]);
 
   const onCancel = useCallback((): void => {
     gateway.cancel(projectId);
@@ -768,8 +803,8 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     // "Giữ nguyên mọi thiết lập": định dạng, tầng và tuỳ chọn nằm trong state
     // của hook và không bị chạm tới — lượt thử lại chỉ dọn lỗi cũ rồi chạy lại.
     exportMutation.reset();
-    startExport();
-  }, [exportMutation, startExport]);
+    runExport(false);
+  }, [exportMutation, runExport]);
 
   const onDownload = useCallback(
     (fileId: string): void => {
@@ -793,6 +828,14 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     },
     [onNavigate, preflight],
   );
+
+  const onReviewFirst = useCallback((): void => {
+    setUnreviewedConfirm(null);
+    const href = preflight.find((entry) => entry.id === 'approval')?.fixHref;
+    if (href != null) {
+      onNavigate?.(href);
+    }
+  }, [onNavigate, preflight]);
 
   const onShareOption = options.onShare;
   const onShare = useCallback((): void => {
@@ -821,6 +864,9 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     onChangeOptions,
     onToggleOptionsExpanded,
     onExport: startExport,
+    unreviewedConfirm,
+    onConfirmExport,
+    onReviewFirst,
     onCancel,
     onRetry,
     onDownload,

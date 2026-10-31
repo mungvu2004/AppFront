@@ -377,6 +377,10 @@ export function useProjectDashboard(
   const listQuery = useQuery({
     queryKey: queryKeys.project.summaries(),
     queryFn: options.fetchList ?? (({ signal }) => gateway.listSummaries(signal)),
+    // U53: a project shared with you while this tab is open shows up without a reload
+    // (refetchInterval pauses while the tab is hidden: refetchIntervalInBackground defaults to false).
+    refetchOnWindowFocus: 'always',
+    refetchInterval: 60_000,
   });
 
   const allProjects = useMemo(() => listQuery.data?.projects ?? EMPTY_PROJECTS, [listQuery.data]);

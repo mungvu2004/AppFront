@@ -230,6 +230,8 @@ export interface ExportedFileRow {
   readonly sizeLabel: string;
   readonly momentLabel: string;
   readonly formatId: ExportFormatId;
+  /** U51: hàng khôi phục từ lần mở trước — chỉ còn thông tin, không còn nội dung để tải lại. */
+  readonly isRestored?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -279,6 +281,12 @@ export interface ExportPanelProps {
   readonly onChangeOptions: (next: ExportOptionsView) => void;
   readonly onToggleOptionsExpanded: () => void;
   readonly onExport: () => void;
+  /** U36: khác `null` khi bấm Xuất mà có tầng chưa duyệt — câu hỏi lại "Vẫn xuất?". */
+  readonly unreviewedConfirm?: string | null;
+  /** "Xuất vẫn": xuất luôn dù tầng chưa duyệt. */
+  readonly onConfirmExport?: () => void;
+  /** "Duyệt trước": đóng câu hỏi, về màn duyệt. */
+  readonly onReviewFirst?: () => void;
   /** Huỷ giữa chừng, có hiệu lực ngay. */
   readonly onCancel: () => void;
   /** Thử lại **giữ nguyên mọi thiết lập**. */
