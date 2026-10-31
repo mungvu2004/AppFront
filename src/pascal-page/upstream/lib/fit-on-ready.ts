@@ -61,6 +61,31 @@ export function planBoundsXZ(nodes: Record<string, unknown> | unknown[], levelId
   return { center: [(minX + maxX) / 2, (minZ + maxZ) / 2], size: [maxX - minX, maxZ - minZ] }
 }
 
+export type RoomEntry = { id: string; name: string; areaM2: number }
+
+/**
+ * UX-R4 U40: rooms (zones) for the "Đi tới phòng" list — name + floor area (m², shoelace),
+ * sorted by name. With `levelId`: only that floor's zones. Unnamed zones read "Phòng".
+ */
+export function roomsOf(nodes: Record<string, unknown>, levelId?: string | null): RoomEntry[] {
+  const rooms: RoomEntry[] = []
+  for (const [id, node] of Object.entries(nodes) as [string, { type?: unknown; parentId?: unknown; name?: unknown; polygon?: unknown }][]) {
+    if (node?.type !== 'zone' || !Array.isArray(node.polygon)) continue
+    if (levelId && node.parentId !== levelId) continue
+    const pts = (node.polygon as unknown[]).filter(
+      (p): p is [number, number] => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]),
+    )
+    let twice = 0
+    pts.forEach(([x, z], i) => {
+      const [nx, nz] = pts[(i + 1) % pts.length]!
+      twice += x * nz - nx * z
+    })
+    const name = typeof node.name === 'string' && node.name.trim() !== '' ? node.name.trim() : 'Phòng'
+    rooms.push({ id, name, areaM2: Math.abs(twice) / 2 })
+  }
+  return rooms.sort((a, b) => a.name.localeCompare(b.name, 'vi'))
+}
+
 /** Largest canvas on the page (the 3D view; thumbnails/previews are smaller), else the window. */
 const viewportOf = (): Viewport => {
   if (typeof document === 'undefined') return { width: 1920, height: 1080 }

@@ -24,6 +24,17 @@ export function viewedFrame() {
   return { bounds: planBoundsXZ(nodes) ?? computeSceneBoundsXZ(nodes), baseY: 0 }
 }
 
+/** UX-R4 U40: fly the camera to one room (zone), at its own floor height. */
+export function fitRoom(zoneId: string) {
+  const { nodes } = useScene.getState()
+  const zone = (nodes as unknown as Record<string, { parentId?: unknown } | undefined>)[zoneId]
+  if (!zone) return
+  const { levelMode, cameraMode } = useViewer.getState()
+  const levelId = typeof zone.parentId === 'string' ? zone.parentId : null
+  const baseY = levelId ? getLevelPresentationY(levelId, nodes, levelMode) : 0
+  emitter.emit('camera-controls:apply-pose', fitPose(planBoundsXZ({ [zoneId]: zone }), cameraMode, undefined, baseY))
+}
+
 /** Frame the viewed floor (solo) or the whole model; `apply-pose`, because upstream's `fit-scene` is ignored in Preview. */
 export function fitModel() {
   const { bounds, baseY } = viewedFrame()
