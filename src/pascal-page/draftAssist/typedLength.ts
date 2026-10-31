@@ -62,9 +62,11 @@ const POLYGON_TOOLS = new Set(['slab', 'ceiling', 'zone']);
 /** Một dòng "bước tiếp theo" cho công cụ đang cầm. Không có gì đáng nói → `null` (không vẽ dòng). */
 export function toolHintOf({ mode, tool, wallDrafting }: ToolHintState): string | null {
   if (mode !== 'build' || !tool || tool === 'measurement') return null;
+  // Không dài hơn câu chưa vẽ: ở 1024 px cột CanvasHelp chỉ né được thẻ tầng khi dòng này ngắn
+  // (câu cũ 80 ký tự xuống hai dòng và đè thanh bên, đo 01/11).
   if (tool === 'wall') {
     return wallDrafting
-      ? 'Bấm điểm cuối, hoặc gõ chiều dài rồi Enter · Bấm đúp để kết thúc · Esc để huỷ'
+      ? 'Bấm điểm cuối, hoặc gõ chiều dài rồi Enter'
       : 'Bấm để đặt điểm đầu tường · Esc để thoát công cụ';
   }
   if (POLYGON_TOOLS.has(tool)) return 'Bấm lần lượt từng góc · Bấm lại góc đầu để khép vùng · Esc để huỷ';
