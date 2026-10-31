@@ -290,7 +290,7 @@ describe('toSpatialGraph — đường hỏng', () => {
     expect(skipped[0]?.kind).toBe('tầng');
   });
 
-  it('bỏ qua loại node AppFront không có, kèm tên loại trong lý do', () => {
+  it('bỏ qua loại node AppFront không có; lý do lời thường, không lộ tên loại tiếng Anh (A2-13)', () => {
     // Mái nay lưu được (`roofs.test.ts`); loại lạ dùng một node bịa.
     const odd = { object: 'node', id: 'widget_abc', type: 'widget', parentId: 'level_L-AAAA000001', children: [] };
     const { graph, skipped } = toSpatialGraph(
@@ -306,7 +306,8 @@ describe('toSpatialGraph — đường hỏng', () => {
     );
 
     expect(graph.walls).toEqual([]);
-    expect(skipped[0]?.reason).toContain('widget');
+    expect(skipped[0]?.reason).toBe('Đối tượng này chưa vẽ thêm được trong bản này nên không được lưu.');
+    expect(skipped[0]?.kind).toBe('đối tượng này');
   });
 
   it('G-9 — vạch đo của thước không vào đồ thị và không thành dòng bỏ qua', () => {
@@ -484,7 +485,7 @@ describe('N2 — node vừa đổi không được rơi im lặng', () => {
 
     expect(result.ok ? 'ok' : result.error).toMatchObject({
       code: 'PASCAL_UNKNOWN_NODE',
-      reasons: ['Tấm sàn vẽ trong Pascal chưa có đối tượng tương ứng trong bản vẽ.'],
+      reasons: ['Sàn chưa vẽ thêm được trong bản này. Sàn tự có theo từng phòng; muốn đổi sàn, chọn phòng rồi đổi vật liệu sàn.'],
     });
   });
 });

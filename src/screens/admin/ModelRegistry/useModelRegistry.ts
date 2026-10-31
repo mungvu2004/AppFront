@@ -133,9 +133,10 @@ export const MODEL_REGISTRY_TEXT = {
     'Số đo của các bản không chắc được chấm trên cùng một bộ dữ liệu, nên không so thẳng được: số cao hơn chưa chắc tốt hơn. Thử trên bản vẽ thật trước khi kích hoạt.',
   emptyBase: 'Họ này chưa có phiên bản nào. Tải trọng số bằng công cụ dòng lệnh, hoặc chờ một lượt huấn luyện xong.',
   emptyClassic: 'Đang dùng đường cổ điển.',
-  dialogBody: 'Lượt xử lý mới dùng bản này ngay; lượt đang chạy giữ model đã ghim.',
+  dialogBody:
+    'Lượt xử lý mới dùng bản này ngay; lượt đang chạy giữ model đã ghim. Thay đổi áp dụng cho mọi người dùng trong hệ thống.',
   revertBody:
-    'Chuỗi xử lý sẽ tách tường bằng thuật toán cổ điển, không dùng mô hình AI nào. Áp dụng cho mọi lượt xử lý mới; bật lại bằng Kích hoạt một phiên bản.',
+    'Chuỗi xử lý sẽ tách tường bằng thuật toán cổ điển, không dùng mô hình AI nào. Áp dụng cho mọi lượt xử lý mới của mọi người dùng trong hệ thống; bật lại bằng Kích hoạt một phiên bản.',
   dialogWarning: 'Bản đang dùng chưa đánh giá xong nên sau khi đổi sẽ chưa kích hoạt lại được.',
   confirmActivate: 'Kích hoạt',
   confirmRevert: 'Tắt AI, dùng thuật toán cũ',
@@ -386,7 +387,12 @@ export function buildDialog(input: {
       : input.hasActive && !input.isActiveLoading;
 
   return {
-    body: isRevert ? MODEL_REGISTRY_TEXT.revertBody : MODEL_REGISTRY_TEXT.dialogBody,
+    // UX-15: hộp tắt AI gọi đúng tên mô hình sẽ thôi chạy (tiêu đề đã nói họ).
+    body: isRevert
+      ? input.activeVersion === undefined
+        ? MODEL_REGISTRY_TEXT.revertBody
+        : `Mô hình ${inSentence(input.activeVersion.label)} sẽ thôi được dùng. ${MODEL_REGISTRY_TEXT.revertBody}`
+      : MODEL_REGISTRY_TEXT.dialogBody,
     confirmLabel: isRevert ? MODEL_REGISTRY_TEXT.confirmRevert : MODEL_REGISTRY_TEXT.confirmActivate,
     errorMessage: input.errorMessage,
     isDestructive: isRevert,

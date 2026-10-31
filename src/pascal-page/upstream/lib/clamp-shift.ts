@@ -47,3 +47,20 @@ export function unionBox(box: Box, extras: readonly Box[]): Box {
     { left: box.left, right: box.right, top: box.top, bottom: box.bottom },
   )
 }
+
+/**
+ * UX-R5 UX-01: how often the DOM overlays (action bars, help pill) are re-measured. Each pass reads
+ * `getBoundingClientRect`, which forces a layout while drei `<Html>` labels move every frame;
+ * doing it every frame made orbit/zoom stall on slow renderers. Five times a second is enough
+ * for a bar to catch up after the camera stops.
+ */
+export const LAYOUT_POLL_MS = 200
+
+/** Runs `fn` every `LAYOUT_POLL_MS` while the tab is visible; returns the stop function. */
+export function pollLayout(fn: () => void, every = LAYOUT_POLL_MS): () => void {
+  fn()
+  const id = setInterval(() => {
+    if (typeof document === 'undefined' || !document.hidden) fn()
+  }, every)
+  return () => clearInterval(id)
+}

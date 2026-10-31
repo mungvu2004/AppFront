@@ -83,6 +83,24 @@ export function mmPerPxAt(ratio: number, dpi: number): number {
   return (ratio * MM_PER_INCH) / dpi;
 }
 
+/** Tỷ lệ in thường gặp trên khung tên bản vẽ. */
+const NOTE_RATIOS = [10, 20, 25, 30, 40, 50, 60, 75, 100, 125, 150, 200, 250, 300, 500] as const;
+/** Sai lệch tương đối cho phép: máy chủ lưu `N / px_mỗi_mm_giấy` tới 6 chữ số lẻ. */
+const NOTE_TOLERANCE = 1e-4;
+
+/**
+ * UX-02: mẫu số N khi tỷ lệ máy đặt khớp đúng `1:N` ở DPI của PDF (ghi chú "TL 1:N", U01), hay `null`.
+ * ponytail: N16 không nói tỷ lệ máy đến từ ghi chú hay độ dày tường; khớp ±0,01 % một tỷ lệ in
+ * thường gặp thì coi là ghi chú. Thay bằng trường nguồn khi máy chủ gửi.
+ */
+export function noteRatioOf(mmPerPx: number | null | undefined, dpi: number | null | undefined): number | null {
+  if (mmPerPx == null || dpi == null || !(mmPerPx > 0) || !(dpi > 0)) {
+    return null;
+  }
+
+  return NOTE_RATIOS.find((ratio) => Math.abs(mmPerPxAt(ratio, dpi) / mmPerPx - 1) <= NOTE_TOLERANCE) ?? null;
+}
+
 const TITLES: Readonly<Record<ScaleSource, string>> = {
   proposed: 'Tỷ lệ vừa đo',
   stored: 'Tỷ lệ đã đặt',
@@ -133,6 +151,14 @@ export function mmPerPxFromFlatArea(targetM2: number, builtMmPerPx: number, buil
  * UX41 U34: cỡ căn vô lý cho một căn hộ — cạnh dài hơn `maxMm` (thường do thừa một số 0) hoặc
  * ngắn hơn `minMm`. Hai ngưỡng truyền vào để nơi gọi giữ một nguồn hằng số.
  */
+/** UX-09: căn hộ một tầng thật nằm trong 15..400 m²; ngoài khoảng này gần như chắc tỷ lệ sai. */
+const FLAT_AREA_MIN_M2 = 15;
+const FLAT_AREA_MAX_M2 = 400;
+
+export function isFlatAreaImplausible(areaM2: number | null): boolean {
+  return areaM2 !== null && (areaM2 < FLAT_AREA_MIN_M2 || areaM2 > FLAT_AREA_MAX_M2);
+}
+
 export function isPlanSizeImplausible(size: PlanSizeMm, minMm: number, maxMm: number): boolean {
   const longest = Math.max(size.widthMm, size.heightMm);
   return longest > maxMm || longest < minMm;

@@ -46,9 +46,11 @@ export interface RoomLabelNameFieldProps {
   readonly onCommit: (name: string) => void;
   /** Vai Người xem: hiện tên như chữ thường, không có ô nhập nào. */
   readonly isReadOnly: boolean;
+  /** UX-24: chữ đang gõ (chưa cam kết) — thanh tra mở nút duyệt ngay khi ô có tên. */
+  readonly onDraftChange?: ((draft: string) => void) | undefined;
 }
 
-export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: RoomLabelNameFieldProps) {
+export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly, onDraftChange }: RoomLabelNameFieldProps) {
   const [draft, setDraft] = useState(name);
   const [savedName, setSavedName] = useState(name);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +100,7 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
         onChange={(event) => {
           setError(null);
           setDraft(event.target.value);
+          onDraftChange?.(event.target.value);
         }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
@@ -110,6 +113,7 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
           if (event.key === 'Escape') {
             setError(null);
             setDraft(name);
+            onDraftChange?.(name);
           }
         }}
         placeholder={NAME_PLACEHOLDER}
@@ -132,6 +136,7 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
              */
             onClick={() => {
               setDraft(suggestion);
+              onDraftChange?.(suggestion);
               if (suggestion !== name) {
                 setCommitted(suggestion);
                 onCommit(suggestion);

@@ -66,7 +66,7 @@ const KIND_VI: Record<string, string> = {
   Unit: 'Căn hộ',
   Wall: 'Tường',
   Window: 'Cửa sổ',
-  Zone: 'Vùng',
+  Zone: 'Phòng',
 }
 
 /** Hint labels, chip labels and chip tooltips. */

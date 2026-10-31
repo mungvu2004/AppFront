@@ -56,7 +56,8 @@ export const PIPELINE_FAILURE_TEXT = {
 
   /* -- Ba hướng đi tiếp ---------------------------------------------------- */
   retryLowerThresholdLabel: 'Thử lại với ngưỡng thấp hơn',
-  uploadClearerLabel: 'Chọn trang khác hoặc tải bản vẽ rõ hơn',
+  // UX-39: tệp có thể là ảnh JPG/PNG (không có trang) — nói "tệp", không nói "trang".
+  uploadClearerLabel: 'Chọn tệp khác hoặc tải bản vẽ rõ hơn',
   skipFloorLabel: 'Bỏ qua tầng đó',
   backToProjectsLabel: 'Về danh sách dự án',
 

@@ -98,6 +98,7 @@ import type { ProgressStreamSource, ProgressStreamState } from '@/lib/realtime/p
 import { createBeaconTransport, createTelemetrySender } from '@/lib/telemetry/sender';
 import type { TelemetrySender } from '@/lib/telemetry/sender';
 import { isScaleMissing } from '@/lib/viewmodel/provisionalScale';
+import { noteRatioOf } from '@/screens/pipeline/ScaleCalibration/scaleCheck';
 
 /** Số lượt gần nhất tab "Nhật ký" liệt kê (N5-08). */
 const PIPELINE_RUNS_PAGE_SIZE = 20;
@@ -243,6 +244,13 @@ export interface ProcessingExtractionSummary {
   readonly hasScale?: boolean;
   /** Máy không đo được tỷ lệ (N16 `scaleSource: 'project_default'`, `isScaleMissing`) — chip đỏ "Chưa có tỷ lệ". */
   readonly scaleMissing?: boolean;
+  /**
+   * UX-02: máy đã đặt tỷ lệ tạm của chính nó (`scaleStatus: unresolved`, nguồn khác `project_default`) —
+   * có tỷ lệ đề xuất dù không đọc được số kích thước nào. Vắng khi không.
+   */
+  readonly scaleProposed?: true;
+  /** UX-02: tỷ lệ máy đặt khớp đúng ghi chú "TL 1:N" của PDF (`noteRatioOf`): mẫu số N. */
+  readonly scaleNoteRatio?: number;
   /**
    * Độ sẵn sàng của tầng (N16 `readiness`, FIX-P0-15). BE cũ chưa trả thì suy `scaleUnresolved` từ
    * `scaleStatus: unresolved` — có kích thước mà tỷ lệ tạm không được báo "Sẵn sàng".
@@ -832,6 +840,11 @@ export function toExtractionSummary(
   const readiness: FloorReadiness | undefined =
     document.readiness ??
     (document.scaleStatus === 'unresolved' ? { state: 'needsReview', reasons: ['scaleUnresolved'] } : undefined);
+  const isProposed =
+    document.scaleStatus === 'unresolved' &&
+    !isScaleMissing(document.scaleSource) &&
+    document.level.scaleMillimetresPerPixel !== undefined;
+  const noteRatio = isProposed ? noteRatioOf(document.level.scaleMillimetresPerPixel, document.sourceDpi) : null;
 
   return {
     wallCount: walls.length,
@@ -842,6 +855,8 @@ export function toExtractionSummary(
       document.level.scaleMillimetresPerPixel !== undefined && document.scaleStatus === undefined,
     ...(readiness !== undefined ? { readiness } : {}),
     ...(isScaleMissing(document.scaleSource) ? { scaleMissing: true } : {}),
+    ...(isProposed ? { scaleProposed: true } : {}),
+    ...(noteRatio !== null ? { scaleNoteRatio: noteRatio } : {}),
     roomCount: rooms.length,
     roomOutlinesMm: rooms.map((room) => room.outline.map(toPointMm)),
     confidenceThreshold,

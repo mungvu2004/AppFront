@@ -408,6 +408,16 @@ describe('AuthScreenView — wording and colour', () => {
     expect(screen.getByLabelText('Mật khẩu')).toBeInTheDocument();
   });
 
+  it('UX-34: ô email tự nhận tiêu điểm giữ vòng accent tới khi rời ô', () => {
+    renderScreen();
+
+    const email = screen.getByLabelText('Thư điện tử');
+    expect(document.activeElement).toBe(email);
+    expect(email).toHaveAttribute('data-auto-focus-ring', 'true');
+    fireEvent.blur(email);
+    expect(email).not.toHaveAttribute('data-auto-focus-ring');
+  });
+
   it('holds no raw colour in any of the three source files', () => {
     expect(() => {
       expectNoRawColor('src/screens/auth/AuthScreen/AuthScreen.tsx');

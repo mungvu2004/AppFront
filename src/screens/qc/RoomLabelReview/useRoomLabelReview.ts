@@ -94,6 +94,7 @@ import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { ROUTES } from '@/routes/paths';
+import { readSavedSegment } from '@/screens/pipeline/ScaleCalibration/useScaleCalibration';
 import { useStore } from '@/store';
 import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
@@ -126,6 +127,9 @@ import {
   scaleOfLevel,
   summaryOf,
   toRoomLabelRow,
+  approveConfidentRoomsLabelOf,
+  confidentRoomsOf,
+  runRoomTransaction,
   wallsOfLevel,
   ROOM_NAME_TARGETS,
   ROOM_USAGE_CHOICES,
@@ -133,6 +137,7 @@ import {
   type RoomLabelGraphPort,
   type RoomLabelMeasures,
   type RoomLabelReviewGateway,
+  scaleSegmentOf,
 } from './roomLabelReviewGateway';
 import { SAVE_BLOCKED_LABEL, useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { SCALE_LOCK_REASON } from '../shared/floorReviewGateModel';
@@ -574,7 +579,18 @@ export function useRoomLabelReview(
           outlineSpills: spillingRoomIds.has(room.id),
         }),
       ),
-    [backgroundImageUrl, measures, roomCodes, rooms, ruleRouteHref, scale, scaleSource, scaleStatus, spillingRoomIds, violations],
+    [
+      backgroundImageUrl,
+      measures,
+      roomCodes,
+      rooms,
+      ruleRouteHref,
+      scale,
+      scaleSource,
+      scaleStatus,
+      spillingRoomIds,
+      violations,
+    ],
   );
 
   const summary = useMemo<RoomLabelSummaryViewModel>(
@@ -883,6 +899,46 @@ export function useRoomLabelReview(
     [gateway, roomById, roomCodes, run, spillingRoomIds],
   );
 
+  /* UX-18: một nút duyệt mọi phòng máy chắc chắn — MỘT bước hoàn tác (Ctrl+Z hoặc nút trên toast). */
+  const confidentRooms = useMemo(
+    () => confidentRoomsOf(rooms, spillingRoomIds),
+    [rooms, spillingRoomIds],
+  );
+
+  const onApproveConfidentRooms = useCallback(() => {
+    if (!canEdit || confidentRooms.length === 0) {
+      return;
+    }
+
+    const label = approveConfidentRoomsLabelOf(confidentRooms.length);
+    const commands = confidentRooms.map((room) => buildApproveRoomCommand(room, gateway.actorId, roomCodes));
+
+    void runRoomTransaction(commands, dispatchBundle, label).then((result) => {
+      if (!result.ok) {
+        notifications.publish({ type: 'room.approveMany.refused', title: result.error.message, description: '' });
+
+        return;
+      }
+
+      invalidate();
+      const entryId = newestEntryId(dispatchBundle.history);
+      const ticket = createRoomLabelUndoTicket({
+        description: label,
+        now: gateway.now,
+        undo: () => {
+          const refused = undoIfNewest(dispatchBundle.history, entryId, applyUndo);
+
+          if (refused !== null) {
+            notifications.publish({ type: ROOM_UNDO_REFUSED_TYPE, title: refused, description: '' });
+          }
+        },
+      });
+
+      notifications.publish({ type: 'room.approveMany', title: label, description: '', undoTicket: ticket });
+    });
+  }, [applyUndo, canEdit, confidentRooms, dispatchBundle, gateway, invalidate, notifications, roomCodes]);
+  const canApproveConfidentRooms = canEdit && confidentRooms.length > 0;
+
   /* ---------------------------------------------------------------------- */
   /* Chuẩn hoá tên — XEM TRƯỚC rồi mới áp (CẤM TUYỆT ĐỐI).                    */
   /* ---------------------------------------------------------------------- */
@@ -1092,6 +1148,19 @@ export function useRoomLabelReview(
     [rooms, selectedRoom],
   );
 
+  const backgroundImageSizeMm = useMemo(
+    () =>
+      background?.widthMm != null && background.heightMm != null && background.widthMm > 0 && background.heightMm > 0
+        ? { widthMm: background.widthMm, heightMm: background.heightMm }
+        : null,
+    [background],
+  );
+  /* UX-08: đoạn đo của bước Tỷ lệ, vẽ lên bản vẽ để kỹ sư thấy số đã bám vào đâu. */
+  const scaleSegment = useMemo(
+    () => scaleSegmentOf(readSavedSegment(floorId), backgroundImageSizeMm),
+    [backgroundImageSizeMm, floorId],
+  );
+
   return {
     state,
     rooms: visibleRows,
@@ -1104,10 +1173,8 @@ export function useRoomLabelReview(
     hasNamesToNormalize,
     backgroundImageUrl,
     backgroundImageAlt: background?.imageAlt ?? '',
-    backgroundImageSizeMm:
-      background?.widthMm != null && background.heightMm != null && background.widthMm > 0 && background.heightMm > 0
-        ? { widthMm: background.widthMm, heightMm: background.heightMm }
-        : null,
+    backgroundImageSizeMm,
+    scaleSegment,
     millimetresPerPixel: level?.scaleMillimetresPerPixel ?? UNCALIBRATED_SCALE,
     isCompact,
     isCollapsed,
@@ -1128,6 +1195,8 @@ export function useRoomLabelReview(
     onMerge,
     onSplit,
     onApprove,
+    approveConfidentRoomsLabel: canApproveConfidentRooms ? approveConfidentRoomsLabelOf(confidentRooms.length) : null,
+    ...(canApproveConfidentRooms ? { onApproveConfidentRooms } : {}),
     onSelect,
     onHover,
     onOpenNormalizePreview,

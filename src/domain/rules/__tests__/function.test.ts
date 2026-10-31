@@ -535,6 +535,40 @@ describe('rooms nobody can walk into', () => {
     expect(found[0]?.message).toContain('Vệ sinh');
   });
 
+  // Trimmed from the real r4 H-01 graph (F:/runs/r5-rules/H-01.json): "phòng ngủ 01"
+  // has no door of its own, but its top edge runs 1 144 mm along a lobby with no
+  // wall, so it is entered through that gap.
+  function bedroomWithTopWall(topWallStartX: number): SpatialGraph {
+    const walls = [
+      wall('PW', { x: 7506, y: 5099 }, { x: 7506, y: 9271 }),
+      wall('PS', { x: 7506, y: 9271 }, { x: 11309, y: 9271 }),
+      wall('PE', { x: 11309, y: 5099 }, { x: 11309, y: 9271 }),
+      wall('PN', { x: topWallStartX, y: 6548 }, { x: 11309, y: 6548 }),
+      // The lobby's far side: the gap faces an enclosed hall, not the outdoors.
+      wall('LB', { x: 7506, y: 5099 }, { x: 11309, y: 5099 }),
+    ];
+    const outline = [
+      { x: 7506, y: 6548 },
+      { x: 7506, y: 9271 },
+      { x: 11309, y: 9271 },
+      { x: 11309, y: 6548 },
+      { x: 8650, y: 6548 },
+    ];
+
+    return planOf({
+      walls,
+      rooms: [room('P01', 'bedroom', outline, walls.map((item) => item.id), 10.36, 'phòng ngủ 01')],
+    });
+  }
+
+  it('[UX-03] does not report a room entered through a wall-less gap at least door-wide', () => {
+    expect(runCheck(checkRoomHasDoor, bedroomWithTopWall(8650))).toHaveLength(0);
+  });
+
+  it('[UX-03] still reports the room when the gap is narrower than a door', () => {
+    expect(runCheck(checkRoomHasDoor, bedroomWithTopWall(7900))).toHaveLength(1);
+  });
+
   it('[BUG-408] names the room once, capitalised, and drops "trên 0 tường bao" when no wall is attached', () => {
     const kitchen = room(
       'KI',

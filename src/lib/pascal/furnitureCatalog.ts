@@ -546,6 +546,10 @@ export const REALISM_MODEL_SWAP: Readonly<Record<string, string>> = {
   'kitchen-shelf': 'kitchen-shelf-gen',
   'tv-stand': 'tv-stand-gen',
 };
+/** Thư mục tên gọi của một thư mục tệp (ngược `REALISM_MODEL_SWAP`, `bed-sf` → `double-bed`); thư mục khác giữ nguyên. */
+const NAMED_FOLDER = new Map(Object.entries(REALISM_MODEL_SWAP).map(([folder, file]) => [file, folder]));
+export const namedFolderOf = (fileFolder: string): string => NAMED_FOLDER.get(fileFolder) ?? fileFolder;
+
 const realismModels = { on: false };
 export const setRealismModels = (on: boolean): void => {
   realismModels.on = on;

@@ -31,6 +31,13 @@ describe('AppHeader', () => {
     expectVietnamese(container, { allowWords: ['AppFront'] });
   });
 
+  it('[UX-19] dán thẳng /export: bước chưa làm hiện "chưa xong", không "đã qua"', () => {
+    renderHeader({ project: { id: 'p1', name: 'Nhà A', stepIndex: 5, stepStates: ['done', 'done', 'todo', 'todo', 'todo', 'todo'] } });
+    expect(screen.getByRole('link', { name: 'Bước 5: Quy chuẩn, chưa xong' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Bước 6: Xuất, đang mở' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /đã qua/ })).toBeNull();
+  });
+
   it('bước chưa xong: vẫn "Tiếp: …" kiểu phụ; bước cuối không có "Tiếp"', () => {
     const { unmount } = renderHeader({ project: { id: 'p1', name: null, stepIndex: 2, stepStates: ['done', 'done', 'todo', 'todo', 'todo', 'todo'] } });
     expect(screen.getByRole('link', { name: /Tiếp: Mô hình 3D/ }).className).not.toContain('bg-accent ');
@@ -54,6 +61,20 @@ describe('AppHeader', () => {
     expect(screen.getByRole('link', { name: 'Bước 1: Tải bản vẽ, đã xong' })).toHaveAttribute('aria-current', 'step');
     expect(screen.getByRole('link', { name: 'Bước 2: Xử lý, còn việc' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Tiếp: Xử lý/ }).className).not.toContain('bg-accent ');
+  });
+
+  it('[UX-07] Tải bản vẽ của dự án đã xử lý: nút đi tiếp là "Tiếp: Duyệt tầng", về tầng đang duyệt', () => {
+    renderHeader({ project: { id: 'p1', name: null, stepIndex: 0, lastFloorPath: ROUTES.project.walls('p1', 'f1'), stepStates: ['done', 'done', 'todo', 'todo', 'todo', 'todo'] } });
+    expect(screen.queryByRole('link', { name: /Tiếp: Xử lý/ })).toBeNull();
+    const next = screen.getByRole('link', { name: /Tiếp: Duyệt tầng/ });
+    expect(next).toHaveAttribute('href', ROUTES.project.walls('p1', 'f1'));
+    expect(next.className).toContain('bg-accent ');
+  });
+
+  it('[UX-44] có lối "Thành viên" thấy ngay cạnh tên dự án', () => {
+    renderHeader({ project: { id: 'p1', name: 'Nhà A', stepIndex: 2 } });
+    const hrefs = screen.getAllByRole('link', { name: 'Thành viên' }).map((link) => link.getAttribute('href'));
+    expect(hrefs).toContain(`${ROUTES.project.settings('p1')}?tab=members`);
   });
 
   it('trong tầng: ô bước 3 về lớp Tường; header không mời lớp kế hay "Về duyệt lớp" (cổng tầng lo)', () => {

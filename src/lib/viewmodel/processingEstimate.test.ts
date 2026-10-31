@@ -27,11 +27,12 @@ describe('processingEstimate (U09)', () => {
 
   it('chưa có lượt nào xong thì đoán theo cỡ ảnh, không biết cỡ thì null', () => {
     expect(minutesForMegapixels(1.9)).toBe(1);
-    expect(minutesForMegapixels(5)).toBe(2);
-    expect(minutesForMegapixels(12)).toBe(4);
-    expect(typicalRunMinutes([], 12)).toBe(4);
+    expect(minutesForMegapixels(49)).toBe(1);
+    expect(minutesForMegapixels(80)).toBe(3);
+    expect(minutesForMegapixels(120)).toBe(5);
+    expect(typicalRunMinutes([], 120)).toBe(5);
     expect(typicalRunMinutes([], null)).toBeNull();
-    expect(typicalRunMinutes([run('completed', 2)], 12)).toBe(2);
+    expect(typicalRunMinutes([run('completed', 2)], 120)).toBe(2);
   });
 
   it('quá ước lượng thì báo vẫn đang chạy, không đếm âm', () => {

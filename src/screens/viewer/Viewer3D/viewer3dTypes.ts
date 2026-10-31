@@ -266,6 +266,11 @@ export interface ViewerSceneMountOptions extends ViewerSceneInjections {
   readonly actions?: ViewerSceneActions | undefined;
   /** Token màu của từng loại bộ phận, hook lấy theo P-06 và cấp xuống. */
   readonly tokenOfPartKind: (kind: BuildPartKind) => ColorTokenName;
+  /**
+   * Token màu riêng của một vật (vd. sàn phòng theo công năng); `null` thì dùng màu theo loại.
+   * Vắng mặt thì mọi vật tô theo loại như trước.
+   */
+  readonly tokenOfEntity?: ((entityId: string, kind: BuildPartKind) => ColorTokenName | null) | undefined;
   /** Vai chỉ xem thì tắt bắn tia chọn — panel vẫn hiện, cảnh không chọn được. */
   readonly canSelect: boolean;
   /** Tiến độ và pha đổi. */
@@ -293,6 +298,12 @@ export interface ViewerSceneHandle {
    * yên còn hơn bay tới một hộp rỗng.
    */
   readonly frameEntities: (entityIds: readonly string[]) => boolean;
+
+  /**
+   * Chiếu một điểm cảnh (mét, Y hướng lên) ra toạ độ px trong canvas; `null` khi điểm sau camera.
+   * Trang chia sẻ dùng để đặt nhãn tên phòng (UX-11).
+   */
+  readonly projectToScreen?: ((xM: number, yM: number, zM: number) => { x: number; y: number } | null) | undefined;
 
   /**
    * Vẽ đè một bản xem trước lên mô hình, hoặc `null` để bỏ nó đi.

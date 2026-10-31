@@ -80,9 +80,12 @@ export function useFloorDone(projectId: string, floorId: string): { readonly don
 export const useFloorLabel = (projectId: string, floorId: string): string =>
   useProjectFloors(projectId).find((floor) => floor.id === floorId)?.label ?? '';
 
+/** "Tầng trệt" đã có chữ "Tầng" thì không thêm lần nữa. */
+export const floorTitle = (label: string): string => (/^tầng\b/i.test(label.trim()) ? label.trim() : `Tầng ${label}`);
+
 /** Đầu cột việc của màn Xong tầng. */
 export const floorDoneTexts = (label: string) => ({
-  eyebrow: `Tầng ${label} · Xong`,
-  task: `Tầng ${label} đã duyệt xong cả 4 bước.`,
+  eyebrow: `${floorTitle(label)} · Xong`,
+  task: `${floorTitle(label)} đã duyệt xong cả 4 bước.`,
   hint: 'Mở lại bước nào cũng được; sửa xong, mô hình 3D dựng lại theo bản mới.',
 });

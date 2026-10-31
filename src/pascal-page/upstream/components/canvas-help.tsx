@@ -23,9 +23,10 @@ import { type AnyNodeId, useScene } from '@pascal-app/core'
 import { useEditor } from '@pascal-app/editor'
 import { ChevronDown, ChevronUp, CircleHelp, Mouse } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { UNDRAWN_FLOORS_KEY } from '../../bridge'
 import { useScaleUnresolved } from '../../scaleUnresolved'
 import { requestTour } from '../../tour/tourLogic'
-import { clampShift, clearOfShift, unionBox } from '../lib/clamp-shift'
+import { clampShift, clearOfShift, pollLayout, unionBox } from '../lib/clamp-shift'
 import { ToolHint } from '../../draftAssist/DraftAssist'
 
 const OPEN_KEY = 'appfront-3d-help-open:v1'
@@ -40,6 +41,8 @@ const BOTTOM_BAR = 'div.fixed.bottom-6.rounded-2xl.backdrop-blur-md'
 const VENDOR_CAMERA_BUTTON = '> button img[src*="/topview."], > button img[src*="/rotate."]'
 // G5-44: the distance label of a measurement (`nodes/src/measurement/renderer.tsx`, drei <Html>).
 const MEASURE_LABEL = 'div.whitespace-nowrap.font-medium.text-base.text-white'
+// UX-31: the room label of a zone (`nodes/src/zone/renderer.tsx`, id `${zoneId}-label`; ids start `zone_`).
+const ROOM_LABEL = 'div[id^="zone_"][id$="-label"]'
 
 const SCOPED_CSS = `
 .appfront-help-btn {
@@ -93,6 +96,14 @@ ${MEASURE_LABEL} {
   border-radius: 6px; padding: 2px 8px; font-size: 14px !important; font-weight: 700 !important;
   text-shadow: none !important; box-shadow: 0 2px 8px color-mix(in oklab, var(--foreground) 35%, transparent);
 }
+/* UX-R5 UX-32: a floor with no drawing reads as such, not as a normal floor. */
+button[data-appfront-undrawn] { opacity: 0.6; font-style: italic; }
+button[data-appfront-undrawn]::after {
+  content: 'Chưa có bản vẽ'; margin-left: 6px; font-size: 11px; font-style: normal; white-space: nowrap; color: var(--pa-text-2);
+}
+/* UX-R5 UX-31: room labels (zone <Html>, vendor inline 10-14px) readable for older eyes. */
+${ROOM_LABEL} > :not(.label-pin), ${ROOM_LABEL} > :not(.label-pin) * { font-size: 15px !important; line-height: 1.3 !important; }
+${ROOM_LABEL} > div:not(.label-pin):not(:first-child) { font-size: 13px !important; }
 `
 
 // Action bars rendered by drei <Html> next to the selected object (node + quick-action menus).
@@ -103,7 +114,6 @@ const ACTION_BARS = [
 
 function useClampActionBars() {
   useEffect(() => {
-    let frame = 0
     const tick = () => {
       for (const el of document.querySelectorAll<HTMLElement>(ACTION_BARS)) {
         const prevX = Number(el.dataset.clampX ?? 0)
@@ -126,10 +136,8 @@ function useClampActionBars() {
           el.style.translate = x || y ? `${x}px ${y}px` : ''
         }
       }
-      frame = requestAnimationFrame(tick)
     }
-    frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
+    return pollLayout(tick)
   }, [])
 }
 
@@ -187,10 +195,9 @@ function floorCardBox() {
   return unionBox(card.getBoundingClientRect(), dots.filter((r) => r.width))
 }
 
-/** pascal-polish: nudge the pill right (or below) while it would overlap the floor card (same rAF pattern as above). */
+/** pascal-polish: nudge the pill right (or below) while it would overlap the floor card (same poll as above). */
 function useClearOfFloorCard(ref: { current: HTMLElement | null }) {
   useEffect(() => {
-    let frame = 0
     const tick = () => {
       const el = ref.current
       const card = floorCardBox()
@@ -207,11 +214,30 @@ function useClearOfFloorCard(ref: { current: HTMLElement | null }) {
           el.style.translate = x || y ? `${x}px ${y}px` : ''
         }
       }
-      frame = requestAnimationFrame(tick)
     }
-    frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
+    return pollLayout(tick)
   }, [ref])
+}
+
+/**
+ * UX-R5 UX-32: floors with no drawing (`UNDRAWN_FLOORS_KEY`, written by the bridge) get a dimmed
+ * "Chưa có bản vẽ" row in the vendor floor card, matched by the row button's `title` (floor name).
+ */
+function useMarkUndrawnFloors() {
+  useEffect(() => {
+    const tick = () => {
+      const names = (window as unknown as Record<string, unknown>)[UNDRAWN_FLOORS_KEY]
+      const undrawn = new Set(Array.isArray(names) ? names : [])
+      for (const el of document.querySelectorAll<HTMLElement>(`${FLOOR_CARD} button[title]`)) {
+        const mark = undrawn.has(el.title)
+        if (mark !== (el.dataset.appfrontUndrawn === '1')) {
+          if (mark) el.dataset.appfrontUndrawn = '1'
+          else delete el.dataset.appfrontUndrawn
+        }
+      }
+    }
+    return pollLayout(tick)
+  }, [])
 }
 
 /**
@@ -228,6 +254,7 @@ export function CanvasHelp({ banner }: { banner?: ReactNode }) {
   useClampActionBars()
   const pillRef = useRef<HTMLDivElement>(null)
   useClearOfFloorCard(pillRef)
+  useMarkUndrawnFloors()
 
   useEffect(() => setOpen(readOpen()), [])
   useEffect(() => {

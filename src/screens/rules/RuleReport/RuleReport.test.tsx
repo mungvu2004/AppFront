@@ -1268,6 +1268,8 @@ describe('UX-R1 K50/K51 — tỷ lệ tạm và "Sang Xuất" khi còn lỗi ngh
       expect(onConfirmResolved).not.toHaveBeenCalled();
       fireEvent.click(await screen.findByRole('button', { name: 'Vẫn sang Xuất' }));
       expect(onConfirmResolved).toHaveBeenCalledTimes(1);
+      // UX-25: đã đồng ý ở đây thì màn Xuất nhận cờ, không hỏi lại.
+      expect(onConfirmResolved).toHaveBeenCalledWith(true);
     } finally {
       cleanup();
       act(() => setFlowGateSlot(null));

@@ -102,7 +102,35 @@ export type PascalIdBook = Map<PascalNodeId, string>;
 
 /** Dòng bỏ qua cho đồ Pascal gắn dưới trần; `fromPascal` đọc `kind` này để từ chối lượt sửa. */
 export const CEILING_FIXTURE_KIND = 'đồ gắn trần';
-export const CEILING_FIXTURE_REASON = 'Đồ gắn trần chưa lưu được vào bản vẽ.';
+export const CEILING_FIXTURE_REASON = 'Đồ gắn trần chưa lưu được trong bản này. Hãy đặt đèn, quạt lên sàn hoặc tường.';
+
+/**
+ * A2-13/Y-16: câu từ chối người dùng đọc không còn "Pascal", "node" hay tên loại tiếng Anh —
+ * tên thường của loại đối tượng; loại lạ thì "Đối tượng này".
+ */
+const NODE_TYPE_LABELS: Readonly<Record<string, string>> = {
+  block: 'Khối',
+  cabinet: 'Tủ',
+  column: 'Cột',
+  'construction-dimension': 'Đường kích thước',
+  'curtain-wall': 'Vách kính',
+  door: 'Cửa đi',
+  elevator: 'Thang máy',
+  fence: 'Hàng rào',
+  guide: 'Ảnh tham chiếu',
+  'imported-mesh': 'Mô hình nhập',
+  item: 'Đồ vật',
+  measurement: 'Số đo',
+  scan: 'Bản quét',
+  shelf: 'Kệ',
+  skylight: 'Cửa sổ mái',
+  'solar-panel': 'Tấm pin mặt trời',
+  spawn: 'Điểm bắt đầu đi bộ',
+  unit: 'Căn hộ',
+  window: 'Cửa sổ',
+};
+const nodeTypeLabel = (type: string): string => NODE_TYPE_LABELS[type] ?? 'Đối tượng này';
+const lower = (label: string): string => label.charAt(0).toLowerCase() + label.slice(1);
 
 /** Số chữ số thập phân giữ lại của một góc, đủ để `độ → radian → độ` khép lại. */
 const ANGLE_PRECISION = 1e6;
@@ -535,7 +563,7 @@ export const adoptableRoomOf = (node: PascalNode | undefined): string | null => 
 /**
  * V4 — món bày biện sinh ra đã bị người dùng dời / kéo / xoay chưa, so với
  * chính siêu dữ liệu lượt đi: tâm khác tâm hộp bao quá 1 mm, tỉ lệ khác 1, hoặc
- * góc khác `fields.rotationDeg` (chỉ khi lượt đi có ghi trường này).
+ * góc khác `fields.rotationDeg` (chỉ khi lượt đi có ghi trường này), hoặc đã đổi mẫu.
  * Lượt nạp đầu khai mọi node là "đã đổi" nên không được nhận nuôi gì ở đó.
  */
 export const isEditedGenerated = (node: PascalNode | undefined): boolean => {
@@ -558,6 +586,8 @@ export const isEditedGenerated = (node: PascalNode | undefined): boolean => {
     Math.abs(node.scale[1] - 1) >= SCALE_EPSILON ||
     Math.abs(millimetresOf(node.position[1]) - (readNumber(fields, 'styleLiftMm') ?? 0)) > 1 ||
     itemSlotsFieldOf(node) !== null ||
+    // F-02: "Đổi mẫu" đặt `asset.id` sang id catalog (mẫu AppFront chọn luôn là `appfront-…`).
+    (!node.asset.id.startsWith('appfront-') && saveableModelSrc(node.asset.src)) ||
     (rotationDeg !== null && planDegreesOf(node.rotation[1]) !== normaliseDegrees(asDegrees(rotationDeg)))
   );
 };
@@ -573,8 +603,8 @@ const collectWallChildren = (
     if (child.type !== 'door' && child.type !== 'window') {
       collector.skip(
         child.id,
-        child.type,
-        `Loại node "${child.type}" gắn trên tường chưa có đối tượng tương ứng trong bản vẽ.`,
+        lower(nodeTypeLabel(child.type)),
+        `${nodeTypeLabel(child.type)} gắn trên tường chưa lưu được trong bản này. Trên tường chỉ lưu được cửa đi và cửa sổ.`,
       );
       continue;
     }
@@ -654,7 +684,11 @@ const collectItem = (scene: PascalScene, item: PascalItemNode, levelId: LevelId,
 
   for (const child of childrenOf(scene, item)) {
     if (child.type !== 'item') {
-      collector.skip(child.id, child.type, `Loại node "${child.type}" đặt trên đồ đạc chưa có đối tượng tương ứng trong bản vẽ.`);
+      collector.skip(
+        child.id,
+        lower(nodeTypeLabel(child.type)),
+        `${nodeTypeLabel(child.type)} đặt trên đồ đạc chưa lưu được trong bản này. Trên đồ đạc chỉ đặt được đồ vật khác.`,
+      );
       continue;
     }
 
@@ -872,7 +906,7 @@ const collectLevelChildren = (
           collector.skip(
             child.id,
             'sàn',
-            'Tấm sàn vẽ trong Pascal chưa có đối tượng tương ứng trong bản vẽ.',
+            'Sàn chưa vẽ thêm được trong bản này. Sàn tự có theo từng phòng; muốn đổi sàn, chọn phòng rồi đổi vật liệu sàn.',
           );
         }
         break;
@@ -886,7 +920,7 @@ const collectLevelChildren = (
        */
       case 'ceiling': {
         if (appFrontIdOf('room', child.id) === null) {
-          collector.skip(child.id, 'trần', 'Trần vẽ trong Pascal chưa có đối tượng tương ứng trong bản vẽ.');
+          collector.skip(child.id, 'trần', 'Trần chưa vẽ thêm được trong bản này. Trần tự có theo từng phòng.');
         }
 
         for (const fixture of childrenOf(scene, child)) {
@@ -900,8 +934,8 @@ const collectLevelChildren = (
       default:
         collector.skip(
           child.id,
-          child.type,
-          `Loại node "${child.type}" chưa có đối tượng tương ứng trong bản vẽ.`,
+          lower(nodeTypeLabel(child.type)),
+          `${nodeTypeLabel(child.type)} chưa vẽ thêm được trong bản này nên không được lưu.`,
         );
     }
   }

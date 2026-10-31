@@ -181,7 +181,10 @@ function noteOf(wall: Wall, targetMm: WallThicknessChoice | null): string {
   const band = wallThicknessBandOf(wall.thicknessMm);
 
   if (band !== null) {
-    return `Đúng chuẩn ${mm(band)} mm (${toleranceTextOf()}).`;
+    /* UX-10/16: số lệch chuẩn không bị gọi là "đúng chuẩn" — nói số thật, gần chuẩn nào, và không tự đổi. */
+    return band === wall.thicknessMm
+      ? `Đúng chuẩn ${mm(band)} mm.`
+      : `Hiện ${mm(wall.thicknessMm)} mm, gần chuẩn ${mm(band)} mm (${toleranceTextOf()}). Không tự đổi.`;
   }
 
   if (targetMm !== null) {

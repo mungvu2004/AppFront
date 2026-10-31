@@ -58,6 +58,9 @@ import { FloorUploadTray } from './FloorUploadTray';
 import { deriveUploadGate, type UploadGate } from './floorUploadGate';
 import type { FloorUploadActions, FloorUploadRowModel, FloorUploadScreenViewProps } from './types';
 
+const PROCESSED_TITLE = 'Bản vẽ đã xử lý';
+const OPEN_REVIEW_LABEL = 'Về Duyệt tầng';
+
 /** Mẩu vụn đường dẫn, đúng `floorUpload.breadcrumb.*` trong `vi.json`. */
 const BREADCRUMB_PROJECTS = 'Dự án';
 const BREADCRUMB_UPLOAD = 'Tải lên bản vẽ';
@@ -68,7 +71,7 @@ const SECTION_TITLE = 'Bản vẽ theo tầng';
 const GATE_LOADING_TITLE = 'Điều kiện để xử lý';
 const GATE_LOADING_TEXT = 'Đang tải…';
 
-/** Chữ của dòng trạng thái. "Sẵn sàng xử lý" chỉ ở tiêu đề khung điều kiện, không lặp ở đây. */
+/** Chữ của dòng trạng thái. "Sẽ kiểm bản vẽ khi xử lý" chỉ ở tiêu đề khung điều kiện, không lặp ở đây. */
 const STATUS_READY = 'Đủ điều kiện';
 const STATUS_PENDING = 'Chưa đủ điều kiện';
 const STATUS_NOT_STARTED = 'Chưa bắt đầu';
@@ -255,6 +258,16 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
 
         {props.offlineNotice !== null && (
           <InlineAlert level="attention" message={props.offlineNotice} />
+        )}
+
+        {props.processedNotice != null && state !== 'error' && (
+          // UX-07: bản vẽ đã xử lý → lối chính là Duyệt tầng; tải lại là lựa chọn phụ, có hỏi trước.
+          <InlineAlert
+            {...(props.onOpenReview ? { action: { label: OPEN_REVIEW_LABEL, onClick: props.onOpenReview } } : {})}
+            level="verified"
+            message={props.processedNotice}
+            title={PROCESSED_TITLE}
+          />
         )}
 
         {props.readOnlyNotice !== null && (

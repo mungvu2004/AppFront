@@ -4,6 +4,9 @@
  * Edits: import paths only (`@/components/*`, `@/lib/*` -> relative).
  * pascal-polish T3: className/presentation only (AppFront surface/selected/accent tokens, label collapse thresholds).
  * UX-R1: camera buttons always in the "Góc nhìn" menu; the level toggle is lit when not "một tầng".
+ * Editor3D G2 (01/11): labelled Hoàn tác / Làm lại (left group, `runUndo`/`runRedo`); "Phòng ▾", "Nhìn từ
+ * trên", "Đi bộ" and "Xem toàn bộ" are labelled buttons on the bar ("…" keeps the rotate pair); the level
+ * toggle hides when the project has one floor.
  */
 
 import { Icon as IconifyIcon } from '@iconify/react'
@@ -16,6 +19,10 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
+  getHistoryCommandState,
+  runRedo,
+  runUndo,
+  subscribeHistoryCommandState,
   useEditor,
   useFloorplanAnnotationVisibility,
   useFloorplanMode,
@@ -45,6 +52,9 @@ import {
   Layers3,
   Magnet,
   Maximize,
+  ChevronDown,
+  Redo2,
+  Undo2,
   PenLine,
   RotateCcw,
   RotateCw,
@@ -58,8 +68,8 @@ import {
 } from 'lucide-react'
 import { emitter, useScene } from '@pascal-app/core'
 import Image from 'next/image'
-import { type ReactNode, useCallback, useEffect, useRef } from 'react'
-import { flushSync } from 'react-dom'
+import { type ReactNode, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { createPortal, flushSync } from 'react-dom'
 import { isTopDown, topViewPose } from '../lib/top-view-pose'
 import { cn } from '../lib/utils'
 import { roomsOf } from '../lib/fit-on-ready'
@@ -89,6 +99,9 @@ const TOOLBAR_BTN = `flex w-8 items-center justify-center ${BTN_GHOST}`
 // Label wrappers: icon-only (sr-only text) below the given bar width.
 const LABEL_WIDE = 'sr-only @min-[1500px]/appbar:not-sr-only'
 const LABEL_MID = 'sr-only @min-[1200px]/appbar:not-sr-only'
+// Editor3D (01/11, K9): Hoàn tác/Làm lại and the camera group live in the bottom dock beside the tool bar
+// (the top bar overlapped at 1440). Camera labels show from 1280 px of window; below, icons + tooltips.
+const LABEL_CAMERA = 'sr-only xl:not-sr-only'
 
 // Menu Hiển thị: mọi mục bật/tắt cùng một kiểu chữ trạng thái (Impeccable A5).
 function OnOff({ on }: { on: boolean }) {
@@ -287,6 +300,13 @@ const LEVEL_MODE_ICONS: Record<(typeof levelModeOrder)[number], string> = {
   solo: 'lucide:diamond',
 }
 
+/** True once the scene has two level nodes (stops counting there). */
+function hasManyLevels(nodes: Record<string, unknown>): boolean {
+  let count = 0
+  for (const id in nodes) if ((nodes[id] as { type?: unknown } | undefined)?.type === 'level' && ++count > 1) return true
+  return false
+}
+
 /** impeccable D1: a menu (chồng / tách / một tầng) instead of a blind 3-way cycle; the button names the current state. */
 function LevelModeToggle() {
   const levelMode = useViewer((state) => state.levelMode)
@@ -296,8 +316,10 @@ function LevelModeToggle() {
   const current = levelMode === 'manual' ? 'Tầng: tuỳ chỉnh' : (levelModeLabels[levelMode] ?? 'Tầng: chồng')
   const icon = levelMode === 'solo' || levelMode === 'exploded' ? LEVEL_MODE_ICONS[levelMode] : LEVEL_MODE_ICONS.stacked
   const label = `Cách xem tầng, đang chọn: ${current.replace('Tầng: ', '')}. Chồng hoặc tách cần từ 2 tầng đã dựng`
+  // Editor3D G2 (A1-06): one floor -> nothing to stack or split, so no menu.
+  const manyLevels = useScene((state) => hasManyLevels(state.nodes))
   // UX-R2: "Đây là các căn hộ riêng" — floors never stack (page.tsx pins solo), so no menu to offer.
-  if (isSeparateUnits()) return null
+  if (isSeparateUnits() || !manyLevels) return null
 
   return (
     <DropdownMenu>
@@ -367,32 +389,54 @@ const EDGE_OPTIONS = [
 const SUBMENU_CONTENT_CLASS = 'min-w-56 rounded-xl border-[var(--pa-border)] bg-[var(--pa-surface)] shadow-[var(--pa-shadow-overlay)]'
 
 /**
- * AppFront edit (UX-R4 U40): the 3D view names no room, so "Đi tới phòng" lists the rooms of the
+ * AppFront edit (UX-R4 U40): the 3D view names no room, so "Phòng ▾" lists the rooms of the
  * viewed floor (solo) or every floor, with their area; picking one flies the camera there.
- * Reads the scene once per menu open (rendered only while the menu is open), no subscription.
+ * Editor3D G2 (K2/K3): a labelled button on the bar (was "Đi tới phòng" inside "Hiển thị").
+ * The list reads the scene once per menu open (content renders only while open), no subscription.
  */
-function RoomJumpMenu() {
+function RoomList() {
   const { levelMode, selection } = useViewer.getState()
   const rooms = roomsOf(useScene.getState().nodes, levelMode === 'solo' ? selection.levelId : null)
-  if (rooms.length === 0) return null
+  if (rooms.length === 0) {
+    return <DropdownMenuItem disabled>Chưa có phòng nào</DropdownMenuItem>
+  }
   return (
-    <DropdownMenuSub>
-      <DropdownMenuSubTrigger title="Chọn một phòng để xem gần">
-        <Tag className="h-4 w-4" />
-        <span>Đi tới phòng</span>
-        <span className="ml-auto text-muted-foreground text-xs">{rooms.length}</span>
-      </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent className={cn(SUBMENU_CONTENT_CLASS, 'max-h-80 overflow-y-auto')}>
-        {rooms.map((room) => (
-          <DropdownMenuItem key={room.id} onSelect={() => fitRoom(room.id)}>
-            <span className="truncate">{room.name}</span>
-            <span className="ml-auto shrink-0 text-muted-foreground text-xs">
-              {room.areaM2.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} m²
-            </span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuSubContent>
-    </DropdownMenuSub>
+    <>
+      {rooms.map((room) => (
+        <DropdownMenuItem key={room.id} onSelect={() => fitRoom(room.id)}>
+          <span className="truncate">{room.name}</span>
+          <span className="ml-auto shrink-0 text-muted-foreground text-xs">
+            {room.areaM2.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} m²
+          </span>
+        </DropdownMenuItem>
+      ))}
+    </>
+  )
+}
+
+function RoomJumpMenu() {
+  const is2dOnly = useEditor((state) => state.viewMode === '2d')
+  if (is2dOnly) return null
+  return (
+    <DropdownMenu>
+      <ToolbarTooltip label="Chọn một phòng để xem gần">
+        <DropdownMenuTrigger asChild>
+          <button aria-label="Phòng" className={cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1 px-2')} type="button">
+            <Tag className="h-3.5 w-3.5 shrink-0" />
+            <span className="font-medium text-[13px]">Phòng</span>
+            <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)]" />
+          </button>
+        </DropdownMenuTrigger>
+      </ToolbarTooltip>
+      <DropdownMenuContent
+        align="end"
+        className={cn(SUBMENU_CONTENT_CLASS, 'max-h-80 overflow-y-auto')}
+        side="top"
+        sideOffset={8}
+      >
+        <RoomList />
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -465,7 +509,6 @@ function DisplayMenu() {
           <span>Lưới</span>
           <OnOff on={showGrid} />
         </DropdownMenuItem>
-        {viewMode !== '2d' ? <RoomJumpMenu /> : null}
         {viewMode !== '2d' ? (
           <DropdownMenuItem
             onSelect={(e) => keepOpen(e, () => setShowMeasurements(!showMeasurements))}
@@ -726,8 +769,14 @@ export function fitWholeModel() {
 function FitViewButton() {
   return (
     <ToolbarTooltip label="Xem toàn bộ mô hình">
-      <button aria-label="Xem toàn bộ mô hình" className={TOOLBAR_BTN} onClick={fitWholeModel} type="button">
-        <Maximize className="h-4 w-4" />
+      <button
+        aria-label="Xem toàn bộ mô hình"
+        className={cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1.5 px-2')}
+        onClick={fitWholeModel}
+        type="button"
+      >
+        <Maximize className="h-3.5 w-3.5 shrink-0" />
+        <span className={`font-medium text-[13px] ${LABEL_CAMERA}`}>Xem toàn bộ</span>
       </button>
     </ToolbarTooltip>
   )
@@ -740,6 +789,8 @@ function FitViewButton() {
  * straight from above via `apply-pose`, and a second press
  * hands back to upstream `top-view`, which returns to 45° when already looking down.
  */
+const COVERED_PX = 160
+
 export function topViewToggle() {
   let pose = null as Parameters<typeof isTopDown>[0]
   subscribeCameraPose((current) => {
@@ -750,7 +801,12 @@ export function topViewToggle() {
     return
   }
   const { bounds, baseY } = viewedFrame()
-  const aspect = window.innerWidth / Math.max(1, window.innerHeight)
+  // Editor3D G2 (L1-09): the camera sizes the view by the canvas (narrower than the window while the
+  // panel is open), and the top bar + bottom tool bar cover ~160 px of it: fit the plan into what stays seen.
+  const rect = document.querySelector('[data-pascal-viewer-3d] canvas')?.getBoundingClientRect()
+  const width = rect?.width || window.innerWidth
+  const height = rect?.height || window.innerHeight
+  const aspect = width / Math.max(1, height - COVERED_PX)
   emitter.emit(
     'camera-controls:apply-pose',
     topViewPose(bounds, useViewer.getState().cameraMode, aspect, baseY),
@@ -762,50 +818,92 @@ const CAMERA_BUTTONS = [
   { label: 'Xoay phải 90°', icon: RotateCw, onClick: () => emitter.emit('camera-controls:orbit-cw') },
 ] as const
 
-/**
- * AppFront edit (UX-R1 K38/K49): the rotate / top-view / walk buttons always live in this "Góc nhìn"
- * menu (before: only below 1200px), so the bar fits 1920px with the scene cards and step strip.
- */
-function MoreCameraMenu() {
-  const is2dOnly = useEditor((state) => state.viewMode === '2d')
-  const walkthrough = () => {
-    const { isFirstPersonMode, setFirstPersonMode } = useEditor.getState()
-    if (isFirstPersonMode) {
-      setFirstPersonMode(false)
-      return
-    }
-    flushSync(() => setFirstPersonMode(true))
-    requestWalkthroughPointerLock()
+/** Enter or leave the walkthrough (first-person) mode. */
+function toggleWalkthrough() {
+  const { isFirstPersonMode, setFirstPersonMode } = useEditor.getState()
+  if (isFirstPersonMode) {
+    setFirstPersonMode(false)
+    return
   }
+  flushSync(() => setFirstPersonMode(true))
+  requestWalkthroughPointerLock()
+}
+
+/** Editor3D G2 (K2): "Nhìn từ trên" and "Đi bộ" are labelled buttons on the bar (were inside "…"). */
+function TopViewWalkButtons() {
+  const is2dOnly = useEditor((state) => state.viewMode === '2d')
+  const labelled = cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1.5 px-2')
+  return (
+    <>
+      {is2dOnly ? null : (
+        <ToolbarTooltip label="Nhìn từ trên xuống, bấm lần nữa để nhìn nghiêng">
+          <button aria-label="Nhìn từ trên" className={labelled} onClick={topViewToggle} type="button">
+            <ArrowDownToDot className="h-3.5 w-3.5 shrink-0" />
+            <span className={`font-medium text-[13px] ${LABEL_CAMERA}`}>Nhìn từ trên</span>
+          </button>
+        </ToolbarTooltip>
+      )}
+      <ToolbarTooltip label="Đi bộ trong nhà (Esc để thoát)">
+        <button aria-label="Đi bộ" className={labelled} onClick={toggleWalkthrough} type="button">
+          <Footprints className="h-3.5 w-3.5 shrink-0" />
+          <span className={`font-medium text-[13px] ${LABEL_CAMERA}`}>Đi bộ</span>
+        </button>
+      </ToolbarTooltip>
+    </>
+  )
+}
+
+/** AppFront edit (UX-R1 K38/K49): the rotate pair lives in this "Góc nhìn" menu. */
+function MoreCameraMenu() {
   return (
     <div className="contents">
       <DropdownMenu>
-        <ToolbarTooltip label="Góc nhìn: xoay, nhìn từ trên, đi bộ">
+        <ToolbarTooltip label="Góc nhìn: xoay trái, xoay phải">
           <DropdownMenuTrigger asChild>
             <button aria-label="Góc nhìn" className={TOOLBAR_BTN} type="button">
               <Ellipsis className="h-4 w-4" />
             </button>
           </DropdownMenuTrigger>
         </ToolbarTooltip>
-        <DropdownMenuContent align="end" className={SUBMENU_CONTENT_CLASS} side="bottom" sideOffset={8}>
+        <DropdownMenuContent align="end" className={SUBMENU_CONTENT_CLASS} side="top" sideOffset={8}>
           {CAMERA_BUTTONS.map(({ label, icon: ItemIcon, onClick }) => (
             <DropdownMenuItem key={label} onSelect={onClick}>
               <ItemIcon className="h-4 w-4" />
               <span>{label}</span>
             </DropdownMenuItem>
           ))}
-          {is2dOnly ? null : (
-            <DropdownMenuItem onSelect={topViewToggle}>
-              <ArrowDownToDot className="h-4 w-4" />
-              <span>Nhìn từ trên</span>
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onSelect={walkthrough}>
-            <Footprints className="h-4 w-4" />
-            <span>Đi bộ trong nhà</span>
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+    </div>
+  )
+}
+
+const canUndoNow = () => getHistoryCommandState().canUndo
+const canRedoNow = () => getHistoryCommandState().canRedo
+
+/**
+ * Editor3D G2 (T13, A2-03, F-08): labelled Hoàn tác / Làm lại, always on the bar, disabled when the
+ * history is empty. Same calls as Ctrl+Z / Ctrl+Shift+Z (`runUndo` / `runRedo`). "Hoàn tác" never collapses.
+ */
+function UndoRedoButtons() {
+  const canUndo = useSyncExternalStore(subscribeHistoryCommandState, canUndoNow)
+  const canRedo = useSyncExternalStore(subscribeHistoryCommandState, canRedoNow)
+  const btn = cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1.5 px-2 font-medium text-[13px] disabled:cursor-not-allowed')
+  return (
+    <div className={TOOLBAR_CONTAINER} data-appfront-undo="">
+      <ToolbarTooltip label={canUndo ? 'Hoàn tác (Ctrl+Z)' : 'Chưa có gì để hoàn tác'}>
+        <button aria-label="Hoàn tác" className={btn} disabled={!canUndo} onClick={() => runUndo()} type="button">
+          <Undo2 className="h-3.5 w-3.5 shrink-0" />
+          <span>Hoàn tác</span>
+        </button>
+      </ToolbarTooltip>
+      <div className="my-1.5 w-px bg-[var(--pa-border)]" />
+      <ToolbarTooltip label={canRedo ? 'Làm lại (Ctrl+Shift+Z)' : 'Chưa có gì để làm lại'}>
+        <button aria-label="Làm lại" className={btn} disabled={!canRedo} onClick={() => runRedo()} type="button">
+          <Redo2 className="h-3.5 w-3.5 shrink-0" />
+          <span>Làm lại</span>
+        </button>
+      </ToolbarTooltip>
     </div>
   )
 }
@@ -820,7 +918,7 @@ function PreviewButton() {
         type="button"
       >
         <Eye className="h-3.5 w-3.5 shrink-0" />
-        <span aria-hidden="true" className="hidden @min-[1200px]/appbar:inline">Xem trước</span>
+        <span aria-hidden="true" className="hidden @min-[1500px]/appbar:inline">Xem trước</span>
       </button>
     </ToolbarTooltip>
   )
@@ -865,6 +963,60 @@ export function CommunityViewerToolbarLeft() {
   )
 }
 
+// ponytail: the vendor action menu has no hook to add buttons, so the dock finds it by its classes and
+// polls its edges (it moves with the sidebar / measure menu); if the class changes the dock falls back to
+// fixed offsets around the centre.
+const ACTION_MENU = 'div.fixed.bottom-6.left-1\\/2'
+const DOCK_GAP = 8
+
+function useActionMenuEdges() {
+  const [edges, setEdges] = useState<{ left: number; right: number } | null>(null)
+  useEffect(() => {
+    const read = () => {
+      const rect = document.querySelector(ACTION_MENU)?.getBoundingClientRect()
+      setEdges((prev) =>
+        !rect ? null : prev && prev.left === rect.left && prev.right === rect.right ? prev : { left: rect.left, right: rect.right },
+      )
+    }
+    read()
+    const timer = window.setInterval(read, 500)
+    return () => window.clearInterval(timer)
+  }, [])
+  return edges
+}
+
+/**
+ * Editor3D (01/11, T13 + K2): bottom dock — Hoàn tác / Làm lại left of the tool bar, the "go around the
+ * home" group (Phòng ▾, Nhìn từ trên, Đi bộ, Xem toàn bộ, …) right of it. Hidden in Xem trước / Đi bộ.
+ */
+export function BottomDock({ readOnly = false }: { readOnly?: boolean }) {
+  const edges = useActionMenuEdges()
+  const hidden = useEditor((state) => state.isPreviewMode || state.isFirstPersonMode)
+  if (hidden) return null
+  const leftStyle = edges ? { right: window.innerWidth - edges.left + DOCK_GAP } : { right: 'calc(50% + 72px)' }
+  const rightStyle = edges ? { left: edges.right + DOCK_GAP } : { left: 'calc(50% + 72px)' }
+  // In <body> like the Radix menus: inside the page, a press would also reach the scene's pointer source
+  // and select the wall behind the dock.
+  return createPortal(
+    <>
+      {readOnly ? null : (
+        <div className="fixed bottom-7 z-50" style={leftStyle}>
+          <UndoRedoButtons />
+        </div>
+      )}
+      <div className="fixed bottom-7 z-50" style={rightStyle}>
+        <div className={TOOLBAR_CONTAINER} data-appfront-dock="">
+          <RoomJumpMenu />
+          <TopViewWalkButtons />
+          <FitViewButton />
+          <MoreCameraMenu />
+        </div>
+      </div>
+    </>,
+    document.body,
+  )
+}
+
 export function CommunityViewerToolbarRight({
   onVRToggle,
   vrButton,
@@ -884,9 +1036,6 @@ export function CommunityViewerToolbarRight({
       <WallModeToggle />
       <div className="my-1.5 w-px bg-[var(--pa-border)]" />
       <DisplayMenu />
-      <div className="my-1.5 w-px bg-[var(--pa-border)]" />
-      <FitViewButton />
-      <MoreCameraMenu />
       {onVRToggle || vrButton
         ? (vrButton ??
           (onVRToggle ? (

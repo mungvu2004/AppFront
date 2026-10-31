@@ -49,11 +49,15 @@
  * {@link PipelineFailureScreenContainerProps}.
  */
 
+import { QueryClientContext } from '@tanstack/react-query';
+import { useContext } from 'react';
+
 import { EmptyState } from '@/components/feedback/EmptyState';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import { cachedProjectName } from '@/lib/query/cachedProjectName';
 
 import { PipelineFailure } from './PipelineFailure';
 import {
@@ -127,7 +131,11 @@ function WiredPipelineFailure(props: PipelineFailureScreenContainerProps) {
     ...(props.failureFloors !== undefined ? { failureFloors: props.failureFloors } : {}),
   });
 
-  return <PipelineFailure {...screenProps} />;
+  // Tên dự án lấy từ bộ đệm (khung app đã đọc #24); không có bộ đệm thì đường dẫn bỏ cấp này.
+  const queryClient = useContext(QueryClientContext);
+  const projectName = queryClient === undefined ? null : cachedProjectName(queryClient, props.projectId);
+
+  return <PipelineFailure {...screenProps} projectName={projectName} />;
 }
 
 /** `<PipelineFailureContainer … />` — màn S-11 thật, đã nối, gắn được bằng một thẻ. */

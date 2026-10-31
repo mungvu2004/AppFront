@@ -85,12 +85,14 @@ export function useNumericField({ value, onChange, min, max, unit, resetKey, fra
     const err = validate(parsed, valStr);
     setError(err);
 
-    if (!err && parsed !== lastCommittedRef.current) {
-      lastCommittedRef.current = parsed;
-      setOwnCommit(parsed);
+    if (!err) {
       // Re-format the box after the commit (2777 -> 2.777), also while it keeps focus.
       setLocalValue(displayText(parsed));
-      onChange?.(parsed);
+      if (parsed !== lastCommittedRef.current) {
+        lastCommittedRef.current = parsed;
+        setOwnCommit(parsed);
+        onChange?.(parsed);
+      }
       setFlash(true);
       // The same off-ladder 400 ms `useListReview` carried, for the same kind
       // of commit flash. Both are now the ladder's slowest speed.
@@ -122,7 +124,14 @@ export function useNumericField({ value, onChange, min, max, unit, resetKey, fra
     
     // Immediate validation feedback without committing
     const parsed = parseNumber(e.target.value);
-    setError(validate(parsed, e.target.value));
+    const err = validate(parsed, e.target.value);
+    setError(err);
+    // UX-26: số hợp lệ báo ra ngay, nút ở chân hộp đổi theo; 800 ms chỉ còn để định dạng lại chữ trong ô.
+    if (!err && parsed !== lastCommittedRef.current) {
+      lastCommittedRef.current = parsed;
+      setOwnCommit(parsed);
+      onChange?.(parsed);
+    }
   };
 
   const handleFocus = () => {

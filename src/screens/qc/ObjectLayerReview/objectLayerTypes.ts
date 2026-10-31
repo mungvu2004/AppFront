@@ -354,6 +354,8 @@ export interface ObjectListRowViewModel {
   readonly codeLabel: string;
   /** Ví dụ `"900 × 2.200 mm"` (P-01). */
   readonly sizeLabel: string;
+  /** "Cửa hẹp bất thường (392 mm), kiểm lại" — chỉ ở cửa đi rộng dưới 600 mm (UX-48). */
+  readonly sizeWarning?: string | null;
   /** Ví dụ `"#W-014"`. `null` khi {@link isOrphanObject}. */
   readonly hostWallLabel: string | null;
   readonly confidence: Confidence;
@@ -445,6 +447,8 @@ export interface ObjectInspectorViewModel {
   readonly furnitureKind: FurnitureKind | null;
   /** "406 × 277 mm" — Rộng × Sâu của nội thất trên mặt bằng. */
   readonly sizeLabel: string;
+  /** "Cửa hẹp bất thường (392 mm), kiểm lại" — chỉ ở cửa đi rộng dưới 600 mm (UX-48). */
+  readonly sizeWarning?: string | null;
   /** "Máy chưa chắc" / "Máy khá chắc" — cùng luật ngưỡng với danh sách (K10). */
   readonly confidenceLabel: string;
   /** Ví dụ `"900 mm"`. */
@@ -708,8 +712,12 @@ export interface ObjectLayerReviewModel {
   /** U04: "Duyệt N mục máy chắc chắn" — vắng/`null` = không có nút (vai chỉ xem, hết món). */
   readonly approveConfidentLabel?: string | null | undefined;
   readonly onApproveConfident?: (() => void) | undefined;
-  /** U04: "Duyệt cả N mục còn lại" — chỉ có khi còn món máy chưa chắc ngoài nhóm trên. */
+  /** UX-06: "Duyệt N mục máy chưa chắc" — chỉ có khi còn món máy chưa chắc; bấm phải xác nhận. */
   readonly approveRemainingLabel?: string | null | undefined;
+  /** UX-06: câu hỏi lại trước khi duyệt món máy chưa chắc (nêu số mục). */
+  readonly approveRemainingConfirm?: string | null | undefined;
+  /** UX-06: "52 cần xem = 18 máy chắc chắn + 22 máy chưa chắc + 12 gợi ý" — các số cộng đúng. */
+  readonly reviewBreakdownLabel?: string | null | undefined;
   readonly onApproveRemaining?: (() => void) | undefined;
   /** Thêm/bớt một đối tượng khỏi vùng chọn (S-10). */
   readonly onToggleSelect: (objectId: string) => void;

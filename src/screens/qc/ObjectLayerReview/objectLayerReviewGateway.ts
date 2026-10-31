@@ -1270,8 +1270,48 @@ export const confidentObjectsOf = (
 /** Nhãn nút (và câu nhật ký hoàn tác) của lượt duyệt món máy chắc — như "Duyệt N đoạn máy chắc chắn". */
 export const approveConfidentLabelOf = (count: number): string => `Duyệt ${formatObjectCount(count)} mục máy chắc chắn`;
 
-/** Nhãn nút duyệt mọi món còn chờ, kể cả món máy chưa chắc loại. */
-export const approveRemainingLabelOf = (count: number): string => `Duyệt cả ${formatObjectCount(count)} mục còn lại`;
+/** UX-06: món duyệt thẳng được nhưng máy chưa chắc (dưới ngưỡng) — nút riêng, phải hỏi lại. */
+export const unsureObjectsOf = (
+  objects: readonly ReviewObject[],
+  threshold: number = OBJECT_LAYER_CONFIDENCE_THRESHOLD,
+): readonly ReviewObject[] =>
+  approvableObjectsOf(objects).filter((object) => isLowConfidenceObject(object.confidence, threshold));
+
+/** UX-06: nút duyệt món máy chưa chắc — chỉ đếm món chưa chắc, không gộp món chắc chắn. */
+export const approveUnsureLabelOf = (count: number): string => `Duyệt ${formatObjectCount(count)} mục máy chưa chắc`;
+
+/** UX-06: câu hỏi lại trước khi duyệt món máy chưa chắc. */
+export const confirmUnsureLabelOf = (count: number): string =>
+  `Duyệt luôn ${formatObjectCount(count)} mục máy chưa chắc? Máy có thể nhận sai loại hoặc chỗ đặt, nên xem từng mục thì tốt hơn.`;
+
+/**
+ * UX-06: tách số "cần xem" (mọi món chưa duyệt) thành các nhóm cộng lại đúng bằng nó:
+ * chắc chắn + chưa chắc + gợi ý (+ lỗ mở chưa gắn tường, phải gắn tay). `null` khi hết món cần xem.
+ */
+export const reviewBreakdownLabelOf = (
+  objects: readonly ReviewObject[],
+  threshold: number = OBJECT_LAYER_CONFIDENCE_THRESHOLD,
+): string | null => {
+  const pending = objects.filter((object) => !object.reviewed);
+  const suggested = pending.filter((object) => object.suggested === true).length;
+  const unattached = pending.filter((object) => object.suggested !== true && isUnattachedOpening(object)).length;
+  const approvable = approvableObjectsOf(objects);
+  const confident = approvable.filter((object) => !isLowConfidenceObject(object.confidence, threshold)).length;
+  const unsure = approvable.length - confident;
+
+  if (pending.length === 0) {
+    return null;
+  }
+
+  const parts = [
+    `${formatObjectCount(confident)} máy chắc chắn`,
+    `${formatObjectCount(unsure)} máy chưa chắc`,
+    `${formatObjectCount(suggested)} gợi ý`,
+    ...(unattached > 0 ? [`${formatObjectCount(unattached)} chưa gắn tường`] : []),
+  ];
+
+  return `${formatObjectCount(pending.length)} cần xem = ${parts.join(' + ')}`;
+};
 
 /** Một lần bấm "Xoay 90°" (B3). */
 export const QUARTER_TURN_DEG = 90;
@@ -1323,6 +1363,15 @@ export const formatObjectCount = (value: number): string =>
  * qua `formatLength`/`formatNumber` của `src/lib/format` nên dấu nghìn là dấu
  * chấm và dấu thập phân là dấu phẩy mà không màn nào phải tự nhớ.
  */
+/** Cửa đi hẹp hơn mức này thì gần như chắc là máy đọc sai bề rộng (UX-48). */
+export const NARROW_DOOR_MIN_WIDTH_MM = 600;
+
+/** Lời nhắc kiểm lại khi cửa đi hẹp bất thường; `null` ở cửa sổ, nội thất và cửa đủ rộng (UX-48). */
+export const doorSizeWarningOf = (object: { readonly layer: ReviewObject['layer']; readonly widthMm: number }): string | null =>
+  object.layer === 'door' && object.widthMm < NARROW_DOOR_MIN_WIDTH_MM
+    ? `Cửa hẹp bất thường (${formatObjectCount(object.widthMm)} mm), kiểm lại`
+    : null;
+
 export const formatObjectSize = (widthMm: number, heightMm: number): string =>
   `${formatObjectCount(widthMm)} × ${formatMillimetres(heightMm)}`;
 
@@ -1780,6 +1829,7 @@ export function toObjectRow(
     typeLabel: objectTypeLabelOf(object),
     codeLabel: `#${object.id}`,
     sizeLabel: formatObjectSize(object.widthMm, object.heightMm),
+    sizeWarning: doorSizeWarningOf(object),
     hostWallLabel: attached === null ? null : `#${wallCodes?.get(attached.hostWallId) ?? hostWallDisplayCode(attached.hostWallId)}`,
     confidence: object.confidence,
     statusCode: listStatusCodeOf(object, isOrphan, threshold),
@@ -1820,6 +1870,7 @@ export function toObjectInspector(
     typeLabel: objectTypeLabelOf(object),
     furnitureKind: (object as Partial<FreeFurnitureObject>).furnitureKind ?? null,
     sizeLabel: formatObjectSize(object.widthMm, object.heightMm),
+    sizeWarning: doorSizeWarningOf(object),
     confidenceLabel: isLowConfidenceObject(object.confidence, threshold) ? LOW_CONFIDENCE_LABEL : CONFIDENT_LABEL,
     widthLabel: formatMillimetres(object.widthMm),
     heightLabel: formatMillimetres(object.heightMm),

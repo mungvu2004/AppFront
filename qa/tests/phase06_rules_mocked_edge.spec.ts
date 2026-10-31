@@ -124,7 +124,7 @@ test('SCR-28 · FL-28-M1 · [mocked response] Rule config failure and recovery',
       await reread;
       await expect.soft(page.getByText(RR.errorTitle, { exact: true })).toHaveCount(0);
       await expect.soft(levelFilter(page)).toBeVisible();
-      expect.soft(await settledInt(summaryValue(page, 'Tổng số kiểm tra')), 'report figures').toBeGreaterThan(0);
+      expect.soft(await settledInt(summaryValue(page, 'Luật đã kiểm')), 'report figures').toBeGreaterThan(0);
       await captureEvidence(page, 'E06r_28-B-010_retry_recovers.png');
     });
 

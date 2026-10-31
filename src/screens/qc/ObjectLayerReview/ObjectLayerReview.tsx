@@ -191,9 +191,11 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
       ) : null}
 
       <ObjectLayerBulkApproveBar
+        breakdownLabel={model.reviewBreakdownLabel}
         confidentLabel={model.approveConfidentLabel}
         onApproveConfident={model.onApproveConfident}
         onApproveRemaining={model.onApproveRemaining}
+        remainingConfirm={model.approveRemainingConfirm}
         remainingLabel={model.approveRemainingLabel}
       />
 

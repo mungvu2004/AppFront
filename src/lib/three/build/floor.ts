@@ -38,7 +38,7 @@ import { signedAreaMm2 } from '@/domain/rooms/area';
 import { openingSpan } from '@/domain/openings/span';
 import { isAttached, type AttachedOpening, type Opening } from '@/domain/openings/types';
 import type { Wall } from '@/domain/walls/types';
-import type { LevelId, OpeningId, RoomId } from '@/domain/spatial/types';
+import type { FurnitureId, LevelId, OpeningId, RoomId } from '@/domain/spatial/types';
 
 import { OPENING_PANEL_THICKNESS_MM, SLAB_THICKNESS_MM } from './plan';
 import { sceneVector2, tagPart, toSceneLength, type PartUserData } from './scene';
@@ -82,6 +82,21 @@ export interface BuildableLevel {
   readonly heightMm: Millimetres;
 }
 
+/**
+ * A piece of furniture as a plain box (UX-11): its footprint on the plan and how
+ * high it stands. No model is loaded — a low box per piece is enough to read a
+ * room as furnished, and it costs what a slab costs.
+ */
+export interface BuildableFurniture {
+  readonly id: FurnitureId;
+  /** Closed footprint, already rotated, first vertex not repeated at the end. */
+  readonly outline: readonly PointMm[];
+  /** Height of the box's base above the finished floor. */
+  readonly baseMm: number;
+  /** Height of the box itself. */
+  readonly heightMm: number;
+}
+
 /** What a slab or a ceiling points back at. */
 export interface SlabPartData extends PartUserData {
   readonly kind: 'floorSlab' | 'ceiling';
@@ -107,6 +122,8 @@ export interface BuildFloorInput {
   readonly openings?: readonly Opening[];
   /** Slab thickness, floor and ceiling alike. */
   readonly slabThicknessMm?: Millimetres;
+  /** Furniture boxes on this storey; absent = none built. */
+  readonly furniture?: readonly BuildableFurniture[];
 }
 
 /* -------------------------------------------------------------------------- */

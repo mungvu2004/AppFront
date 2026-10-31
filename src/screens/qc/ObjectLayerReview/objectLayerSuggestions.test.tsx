@@ -274,7 +274,7 @@ describe('gợi ý của máy (B3)', () => {
     mounted.unmount();
   });
 
-  it('[U04] duyệt hàng loạt: mọi món còn chờ trong một bước hoàn tác, gợi ý không bị đụng', async () => {
+  it('[U04][UX-06] duyệt hàng loạt: chắc chắn rồi chưa chắc, mỗi nút một bước hoàn tác, gợi ý không bị đụng', async () => {
     const mounted = await mountSettled(graphWithSuggestions());
     const pendingIds = () =>
       mounted.result.current.objects
@@ -284,17 +284,29 @@ describe('gợi ý của máy (B3)', () => {
 
     expect(before.length).toBeGreaterThan(0);
 
-    const approve = mounted.result.current.onApproveRemaining ?? mounted.result.current.onApproveConfident;
+    /* UX-06: hai nút tách nhau — chắc chắn, rồi chưa chắc; mỗi nút một bước hoàn tác. */
+    let steps = 0;
 
-    expect(approve).toBeDefined();
-    await run(() => approve?.());
+    for (const pick of ['onApproveConfident', 'onApproveRemaining'] as const) {
+      const approve = mounted.result.current[pick];
+
+      if (approve !== undefined) {
+        steps += 1;
+        await run(() => approve());
+      }
+    }
+
+    expect(steps).toBeGreaterThan(0);
     await waitFor(() => {
       expect(pendingIds()).toEqual([]);
     });
     expect(mounted.result.current.suggestionCount).toBe(2);
     expect(mounted.result.current.onApproveConfident).toBeUndefined();
+    expect(mounted.result.current.onApproveRemaining).toBeUndefined();
 
-    await run(() => mounted.result.current.onUndo());
+    for (let step = 0; step < steps; step += 1) {
+      await run(() => mounted.result.current.onUndo());
+    }
     await waitFor(() => {
       expect(pendingIds()).toEqual(before);
     });

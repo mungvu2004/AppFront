@@ -275,3 +275,23 @@ canvas:focus-visible { outline: none; box-shadow: none; }
   border-start-end-radius: var(--pa-radius-lg);
   border-end-end-radius: var(--pa-radius-lg);
 }
+
+/* Editor3D G2 (K1/K10, A1-06, F-07, F-14): a one-floor apartment does not need these; hidden, code kept.
+ * Anchors are vendor icon files / lucide icon classes / attributes, which translation never touches;
+ * if Pascal renames them the rule just stops matching.
+ * - bottom bar: "Vùng (Z)" (zone icon), "Xoá (X)" mode (its red tint class), "Tham chiếu" group + its divider
+ *   (the X key and Delete-mode banner keep working);
+ * - icon rail: the "Tiện ích" (+) tab group;
+ * - Cài đặt: "Lưu / Nạp bản dựng" section (JSON file input), "Audio settings", danger zone "Xoá hết và làm lại". */
+.fixed.bottom-6.rounded-2xl button:has(img[src*="/zone."]),
+.fixed.bottom-6.rounded-2xl button.h-11.w-11[class*="red-500/20"],
+.fixed.bottom-6.rounded-2xl div.flex.items-center.gap-1:has(> div.flex.items-center > button img[src*="/floorplan."]),
+.fixed.bottom-6.rounded-2xl div.w-px:has(+ div.flex.items-center.gap-1 > div.flex.items-center > button img[src*="/floorplan."]),
+div.border-t:has(> button[aria-label="Tiện ích"]),
+div.border-t:has(> button[aria-label="Plugins"]),
+section[aria-labelledby]:has(input[type="file"][accept="application/json"]),
+section[aria-labelledby]:has(> div > button[data-slot="button"] > svg.lucide-trash-2),
+button[data-slot="button"]:has(> svg.lucide-volume-2),
+button[data-slot="button"]:has(> svg.lucide-volume-x) {
+  display: none !important;
+}

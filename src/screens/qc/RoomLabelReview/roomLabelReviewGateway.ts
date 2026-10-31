@@ -185,6 +185,7 @@ import {
   type HistoryStack,
   type SelectionSnapshot,
 } from '@/lib/commands/history';
+import { runTransaction } from '@/lib/commands/transaction';
 import type { Command } from '@/lib/commands/types';
 import { fitText } from '@/lib/export/fitText';
 import { formatArea, formatLength } from '@/lib/format/measure';
@@ -209,6 +210,7 @@ import {
   type RoomLabelNoticeViewModel,
   type RoomLabelNormalizePreview,
   type RoomLabelNormalizeRow,
+  type RoomLabelScaleSegment,
   type RoomLabelStatus,
   type RoomLabelSummaryViewModel,
   type RoomLabelViewModel,
@@ -1087,7 +1089,8 @@ export function toRoomLabelRow(room: Room, options: ToRoomLabelRowOptions): Room
     labelFits: labelFitsIn(options.measures.labelBoxPx, room.name, codeLabel),
     fillToken: fillTokenOf(room),
     confidence: room.confidence,
-    confidenceLabel: describeConfidence(room.confidence).label,
+    /* UX-24: tên người duyệt tự gõ (lệnh đổi tên đặt `source: 'human'`) không mang nhãn máy. */
+    confidenceLabel: room.source === 'human' && !room.reviewed ? TYPED_NAME_LABEL : describeConfidence(room.confidence).label,
     nameFromOcr,
     crop:
       nameFromOcr && hasName && options.backgroundImageUrl !== null
@@ -1098,6 +1101,35 @@ export function toRoomLabelRow(room: Room, options: ToRoomLabelRowOptions): Room
     outlineSpills: options.outlineSpills === true,
   };
 }
+
+/**
+ * UX-08: đoạn đo tỷ lệ đã lưu (tỷ lệ `0..1` của khung vuông chứa ảnh, cạnh khung = cạnh dài của ảnh,
+ * ảnh nằm giữa) → mm của bản vẽ. Ảnh giữ tỷ lệ hai trục nên đổi thẳng bằng cỡ mm, không cần pixel.
+ * Độ dài là độ dài theo tỷ lệ đang dùng — lệch số đã nhập là tỷ lệ đã đổi sau lần đo.
+ */
+export function scaleSegmentOf(
+  segment: { readonly start: { readonly x: number; readonly y: number }; readonly end: { readonly x: number; readonly y: number } } | null,
+  sizeMm: { readonly widthMm: number; readonly heightMm: number } | null,
+): RoomLabelScaleSegment | null {
+  if (segment === null || sizeMm === null) {
+    return null;
+  }
+
+  const edgeMm = Math.max(sizeMm.widthMm, sizeMm.heightMm);
+  const toMm = (point: { readonly x: number; readonly y: number }) => ({
+    x: point.x * edgeMm - (edgeMm - sizeMm.widthMm) / 2,
+    y: point.y * edgeMm - (edgeMm - sizeMm.heightMm) / 2,
+  });
+  const startMm = toMm(segment.start);
+  const endMm = toMm(segment.end);
+  const lengthMm = Math.round(Math.hypot(endMm.x - startMm.x, endMm.y - startMm.y));
+
+  return { startMm, endMm, caption: `Đoạn đo tỷ lệ: ${formatLength(lengthMm, { unit: 'mm' })}` };
+}
+
+/** UX-24: nhãn tin cậy của tên người duyệt tự gõ — không phải "AI đề xuất". */
+export const TYPED_NAME_LABEL = 'Tên do bạn đặt';
+
 
 /* -------------------------------------------------------------------------- */
 /* Chuẩn hoá tên — phép quy chiếu VĂN BẢN, xem khối chú thích đầu file.        */
@@ -1582,6 +1614,37 @@ export async function runRoomCommand(
 
   return dispatch(command, bundle.deps);
 }
+
+/** UX-18: nhiều lệnh duyệt phòng trong MỘT bước hoàn tác (như "Duyệt N mục máy chắc chắn" của bước Cửa). */
+export async function runRoomTransaction(
+  commands: readonly Command[],
+  bundle: RoomLabelDispatchDeps,
+  label: string,
+): Promise<DispatchResult> {
+  bundle.setLabel(label);
+
+  return runTransaction(commands, bundle.deps, { label });
+}
+
+/** UX-18: ngưỡng "máy chắc chắn" của tên phòng — như mặc định 0,75 của bước Cửa và nội thất. */
+export const ROOM_CONFIDENT_THRESHOLD = 0.75;
+
+/**
+ * UX-18: phòng duyệt hàng loạt được — chưa duyệt, có tên thật, máy chắc chắn, đường bao không tràn.
+ * Phòng người duyệt vừa tự gõ tên cũng không vào nhóm này (đã có nút duyệt riêng).
+ */
+export const confidentRoomsOf = (
+  rooms: readonly Room[],
+  excluded: ReadonlySet<RoomId>,
+  threshold: number = ROOM_CONFIDENT_THRESHOLD,
+): readonly Room[] =>
+  rooms.filter(
+    (room) =>
+      !room.reviewed && room.source === 'ai' && hasRoomName(room) && !excluded.has(room.id) && room.confidence >= threshold,
+  );
+
+/** UX-18: nhãn nút (và câu hoàn tác) — "Duyệt 5 phòng máy chắc chắn". */
+export const approveConfidentRoomsLabelOf = (count: number): string => `Duyệt ${count} phòng máy chắc chắn`;
 
 /** Vùng chọn rỗng, cho lượt ghi không có gì được chọn trước đó. */
 export const NO_ROOM_SELECTION: SelectionSnapshot = NO_SELECTION;
