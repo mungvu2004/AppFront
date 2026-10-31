@@ -423,7 +423,7 @@ function buildInvite(overrides: Partial<InviteFormModel> = {}): InviteFormModel 
     rawEmails: '',
     validEmails: [],
     invalidEmails: [],
-    role: 'viewer',
+    role: 'engineer',
     canSubmit: false,
     hintLabel: INVITE_HINT_LABEL,
     errorLabel: null,

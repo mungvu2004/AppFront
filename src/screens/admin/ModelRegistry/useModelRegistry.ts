@@ -129,6 +129,8 @@ export const MODEL_REGISTRY_TEXT = {
   failureNote:
     'Lượt đánh giá không thành công. Thử chạy lại lượt huấn luyện hoặc kiểm tra tệp trọng số; lý do chi tiết chỉ có trong nhật ký máy chủ.',
   seedNote: 'Số đo trên tập kiểm tổng hợp cố định, không so thẳng với bản huấn luyện.',
+  metricNotComparable:
+    'Số đo của các bản không chắc được chấm trên cùng một bộ dữ liệu, nên không so thẳng được: số cao hơn chưa chắc tốt hơn. Thử trên bản vẽ thật trước khi kích hoạt.',
   emptyBase: 'Họ này chưa có phiên bản nào. Tải trọng số bằng công cụ dòng lệnh, hoặc chờ một lượt huấn luyện xong.',
   emptyClassic: 'Đang dùng đường cổ điển.',
   dialogBody: 'Lượt xử lý mới dùng bản này ngay; lượt đang chạy giữ model đã ghim.',
@@ -262,6 +264,27 @@ export function betterVersionNote(
     : `Bản ${best.label} có ${metricLabel(best)}, cao hơn bản đang dùng; kiểm tra kỹ trước khi kích hoạt.`;
 }
 
+/**
+ * U55: hai bản chỉ so số đo được khi cùng chấm trên MỘT phiên bản bộ dữ liệu. Không biết bộ của bản nào
+ * (bản tải lên thường thiếu) cũng coi là khác — nói thẳng là không so được thay vì để người ta chọn số to.
+ */
+export function metricComparabilityNote(
+  activeVersion: ModelVersion | undefined,
+  versions: readonly ModelVersion[],
+): string | null {
+  if (activeVersion === undefined) return null;
+  const key = METRIC_BY_FAMILY[activeVersion.family].key;
+  if (activeVersion.metrics?.[key] === undefined) return null;
+  const others = versions.filter(
+    (version) =>
+      version.id !== activeVersion.id && version.evaluationStatus === 'completed' && version.metrics?.[key] !== undefined,
+  );
+  if (others.length === 0) return null;
+  const dataset = activeVersion.datasetVersionId;
+  const sameDataset = dataset !== undefined && others.every((version) => version.datasetVersionId === dataset);
+  return sameDataset ? null : MODEL_REGISTRY_TEXT.metricNotComparable;
+}
+
 export function buildActiveCard(
   family: ModelFamilyId,
   record: ModelFamily | undefined,
@@ -289,6 +312,7 @@ export function buildActiveCard(
     label: activeVersion?.label ?? MISSING_VALUE,
     metricLabel: activeVersion === undefined ? null : metricLabel(activeVersion),
     betterNote: betterVersionNote(activeVersion, versions),
+    metricNote: metricComparabilityNote(activeVersion, versions),
   };
 }
 

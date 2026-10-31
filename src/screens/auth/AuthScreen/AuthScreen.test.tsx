@@ -544,10 +544,12 @@ describe('AuthScreen — keyboard', () => {
     expect(stops[2]).toBe(
       screen.getByRole('button', { name: AUTH_MESSAGES.actions.showPassword }),
     );
-    // "Quên mật khẩu" đứng ngang nhãn ô mật khẩu (Z/S-01), nên tới ngay sau nút mắt.
-    expect(stops[3]).toBe(
-      screen.getByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword }),
-    );
+    // "Quên mật khẩu" nằm ngay dưới ô mật khẩu (U46), nên tới ngay sau nút mắt; không nổi lên trên ô
+    // bằng `absolute`, để chỗ nhìn thấy trùng thứ tự Tab.
+    const forgot = screen.getByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword });
+    expect(stops[3]).toBe(forgot);
+    expect(forgot).not.toHaveClass('absolute');
+    expect(forgot.parentElement).not.toHaveClass('absolute');
     expect(stops[4]).toBe(screen.getByLabelText(AUTH_MESSAGES.fields.rememberMe));
     expect(stops[5]).toBe(submitButton());
     expect(stops[6]).toBe(
