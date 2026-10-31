@@ -89,3 +89,16 @@ describe('QcScreenFrame (BUG-324, BUG-329, BUG-413)', () => {
     });
   });
 });
+
+describe('QcStatusBar (U49)', () => {
+  it('chữ thanh đáy 14 px: nút, trạng thái lưu và gợi ý cỡ caption của màn đều lên text-body', () => {
+    render(
+      <QcStatusBar saveLabel="Đã lưu">
+        <span className="truncate text-caption">Kéo nền hoặc giữ Space để di chuyển</span>
+      </QcStatusBar>,
+    );
+    expect(screen.getByRole('button', { name: QC_UNDO_LABEL })).toHaveClass('text-body');
+    expect(screen.getByText('Đã lưu')).toHaveClass('text-body');
+    expect(screen.getByText('Kéo nền hoặc giữ Space để di chuyển').parentElement).toHaveClass('[&_.text-caption]:text-body');
+  });
+});

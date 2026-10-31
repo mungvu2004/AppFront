@@ -44,7 +44,10 @@ export function QcAskAnchor({ rect, children }: { readonly rect: QcAskRect | nul
       <div ref={probeRef} aria-hidden="true" className="pointer-events-none absolute inset-0" />
       {place === null ? null : (
         <div
-          className="absolute z-20 flex"
+          /* U20: cửa sổ dưới 1024 px — thẻ thành tấm đáy (rộng hết khung, cao tối đa 45 %), phần trên bản vẽ để trống.
+             `!` thắng toạ độ nổi đặt bằng style; thân cuộn bên trong, hàng nút đáy vẫn thấy. */
+          className="absolute z-20 flex max-lg:inset-x-2! max-lg:top-auto! max-lg:bottom-2! max-lg:w-auto! max-lg:max-h-[45%]!"
+          data-testid="qc-ask-anchor"
           data-wheel-scroll=""
           onClick={stop}
           onContextMenu={stop}

@@ -198,7 +198,7 @@ export function QcStatusBar({ onUndo, saveLabel, saveFailed = false, children }:
       role="status"
     >
       <button
-        className="rounded-md px-2 py-0.5 text-body-sm font-medium text-text-secondary hover:bg-bg-hover hover:text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:text-text-muted disabled:hover:bg-transparent"
+        className="rounded-md px-2 py-0.5 text-body font-medium text-text-secondary hover:bg-bg-hover hover:text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:text-text-muted disabled:hover:bg-transparent"
         disabled={onUndo === undefined}
         onClick={onUndo}
         title={onUndo === undefined ? QC_UNDO_EMPTY_HINT : undefined}
@@ -206,11 +206,12 @@ export function QcStatusBar({ onUndo, saveLabel, saveFailed = false, children }:
       >
         {QC_UNDO_LABEL}
       </button>
-      <div className="flex min-w-0 flex-1 items-center gap-3">{children}</div>
+      {/* U49: chữ thanh đáy 14 px, kể cả dòng gợi ý và phím tắt của màn (vốn 12 px); một dòng, gợi ý cắt trước. */}
+      <div className="flex min-w-0 flex-1 items-center gap-3 [&_.text-caption]:text-body">{children}</div>
       {saveLabel === false ? null : <span
         aria-live="polite"
         className={cn(
-          'min-w-0 truncate text-body-sm font-medium',
+          'min-w-0 truncate text-body font-medium',
           saveFailed ? 'text-state-violation-text' : 'text-text-secondary',
         )}
       >
