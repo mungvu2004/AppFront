@@ -110,14 +110,14 @@ test('SCR-28 · FL-M-28-01 · Report and sheet on the pipeline project (read-onl
   });
 
   await test.step('[28-A-003] four figures settle', async () => {
-    for (const label of ['Tổng số kiểm tra', 'Đạt', 'Cảnh báo', 'Nghiêm trọng']) {
+    for (const label of ['Luật đã kiểm', 'Luật đạt', 'Luật cảnh báo', 'Luật nghiêm trọng']) {
       await expect.soft(page.locator('dl dt').filter({ hasText: new RegExp(`^${label}$`, 'u') })).toBeVisible();
     }
     const [total, passed, warnings, violations] = [
-      await settledInt(summaryValue(page, 'Tổng số kiểm tra')),
-      await settledInt(summaryValue(page, 'Đạt')),
-      await settledInt(summaryValue(page, 'Cảnh báo')),
-      await settledInt(summaryValue(page, 'Nghiêm trọng')),
+      await settledInt(summaryValue(page, 'Luật đã kiểm')),
+      await settledInt(summaryValue(page, 'Luật đạt')),
+      await settledInt(summaryValue(page, 'Luật cảnh báo')),
+      await settledInt(summaryValue(page, 'Luật nghiêm trọng')),
     ];
     // RuleReportSummary: all four count RULES, total = passed + warnings + violations (BUG-460).
     expect.soft(total, 'Tổng = Đạt + Cảnh báo + Nghiêm trọng').toBe(passed + warnings + violations);
