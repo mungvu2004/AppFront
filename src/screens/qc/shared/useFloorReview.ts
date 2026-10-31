@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient, type QueryFunction } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { floorLayerToGraph } from '@/api/floorLayerGraph';
 import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
@@ -55,6 +55,15 @@ export function useFloorReview(projectId: string, floorId: string): FloorReview 
   const storeMeta = useStore((state) => (state.spatialProjectId === projectId ? state.floorMeta[floorId] : undefined));
   const fromStore = storeSpatial !== null && storeSpatial.byId[floorId] !== undefined;
   const data = useFloorLayerDocument(projectId, floorId);
+  const queryClient = useQueryClient();
+  /*
+   * U28: lượt lưu đặt tỷ lệ chỉ ghi revision vào kho (không mang `scaleStatus`), nên N16 trong cache
+   * thành cũ hơn kho và tỷ lệ đọc ra `null` — bước Tỷ lệ mất dấu đã xong. Đọc lại N16 một lần.
+   */
+  const scaleStale = data !== undefined && storeMeta !== undefined && storeMeta.scaleStatus === undefined && data.revision < storeMeta.revision;
+  useEffect(() => {
+    if (scaleStale) void queryClient.invalidateQueries({ queryKey: floorLayerQuery(projectId, floorId).queryKey, exact: true });
+  }, [floorId, projectId, queryClient, scaleStale]);
   const graph = useMemo(() => (fromStore ? storeSpatial : graphOfDocument(data)), [data, fromStore, storeSpatial]);
   const keys = floorScaleKeysOf(data, storeMeta);
   const scale = useMemo(() => {

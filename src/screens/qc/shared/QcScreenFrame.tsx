@@ -92,7 +92,7 @@ const COLUMN_CLOSE_LABEL = 'Đóng cột việc';
  * - <1024: rail + bản vẽ ở hàng đầu (bản vẽ trước danh sách), hai panel xuống dòng, cả vùng cuộn dọc.
  *   Bố cục L23 (`column`) thì khác: bản vẽ chiếm hết, cột việc thành ngăn kéo phủ từ trái — mở khi
  *   chưa chọn gì (việc nằm ở cột), tự đóng khi chọn một mục (thẻ hỏi trên bản vẽ cần chỗ), mở lại bằng
- *   nút "Việc" ở mép trái bản vẽ.
+ *   nút "Việc" ở góc trên trái bản vẽ.
  */
 export function QcWorkspace({
   rail,
@@ -227,14 +227,17 @@ export function QcColumnScrim({ onClose }: { readonly onClose: () => void }) {
   return <button aria-label={COLUMN_CLOSE_LABEL} className="absolute inset-0 z-30 cursor-default bg-bg-overlay lg:hidden" onClick={onClose} type="button" />;
 }
 
-/** Nút "Việc" ở mép trái bản vẽ mở lại ngăn kéo cột việc. Chỉ có dưới 1024. */
+/**
+ * Nút "Việc" mở lại ngăn kéo cột việc. Chỉ có dưới 1024. Đứng ở góc trên trái, ngay dưới nút
+ * Từng việc/Tổng thể (cùng hàng công cụ nổi), không giữa mép trái — chỗ đó đè nét vẽ (U47).
+ */
 export function QcColumnHandle({ open, onOpen }: { readonly open: boolean; readonly onOpen: () => void }) {
   return (
     <button
       aria-controls={QC_COLUMN_ID}
       aria-expanded={open}
       aria-label={COLUMN_OPEN_LABEL}
-      className="absolute left-0 top-1/2 z-30 flex -translate-y-1/2 items-center gap-1.5 rounded-r-lg bg-bg-surface py-2.5 pl-2 pr-3 text-body-sm font-medium text-text-primary shadow-float hover:bg-bg-hover focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent lg:hidden"
+      className="absolute left-3 top-14 z-30 flex items-center gap-1.5 rounded-lg bg-bg-surface px-2.5 py-1.5 text-body-sm font-medium text-text-primary shadow-float hover:bg-bg-hover focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent lg:hidden"
       onClick={onOpen}
       type="button"
     >
