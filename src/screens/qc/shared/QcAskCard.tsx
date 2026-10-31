@@ -7,7 +7,7 @@ import { useScreenCommands } from '@/hooks/useScreenCommands';
 import { cn } from '@/lib/utils';
 
 import { QC_COMMAND_GROUP } from './qcLayout';
-import { ASK_CARD_WIDTH, askCardPlacement, askNavOf, type QcAskRect } from './qcAsk';
+import { askCardWidthFor, askNavOf, stableAskPlacement, type AskCardPlace, type QcAskRect } from './qcAsk';
 
 /**
  * Thẻ hỏi neo cạnh đối tượng (bố cục L23, đợt 2): thay panel chi tiết phải. Màn đặt nội dung thẻ
@@ -30,8 +30,14 @@ export function QcAskAnchor({ rect, children }: { readonly rect: QcAskRect | nul
     observer.observe(probe);
     return () => observer.disconnect();
   }, []);
+  /* U12: chỗ lần trước — thẻ đứng yên khi đi qua các mục, nút duyệt không đổi chỗ. */
+  const lastPlaceRef = useRef<AskCardPlace | null>(null);
+  const width = frame === null ? 0 : askCardWidthFor(frame.width);
   /* Khung đo luôn được vẽ (kể cả khi chưa có thẻ), để lần chọn đầu đã có khổ khung. */
-  const place = children != null && rect !== null && frame !== null && frame.width > 0 ? askCardPlacement(rect, frame) : null;
+  const place = children != null && rect !== null && frame !== null && frame.width > 0 ? stableAskPlacement(lastPlaceRef.current, rect, frame, width) : null;
+  useEffect(() => {
+    if (place !== null) lastPlaceRef.current = place;
+  });
 
   return (
     <>
@@ -45,7 +51,7 @@ export function QcAskAnchor({ rect, children }: { readonly rect: QcAskRect | nul
           onDoubleClick={stop}
           onPointerDown={stop}
           onWheel={stop}
-          style={{ left: place.left, top: place.top, width: ASK_CARD_WIDTH, maxHeight: place.maxHeight }}
+          style={{ left: place.left, top: place.top, width, maxHeight: place.maxHeight }}
         >
           {children}
         </div>
@@ -92,8 +98,9 @@ export function QcAskCard({ eyebrow, reason, code, onPrev, onNext, children }: Q
       aria-label={CARD_LABEL}
       className={cn(
         'flex min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border-default bg-bg-surface shadow-overlay',
-        /* Thanh tra vốn là một thẻ (bo, bóng, cao hết cột): trong thẻ hỏi nó chỉ là thân. */
-        '[&>div:last-child>div]:h-auto [&>div:last-child>div]:rounded-none [&>div:last-child>div]:shadow-none',
+        /* Thanh tra vốn là một thẻ (bo, bóng, cao hết cột): trong thẻ hỏi nó chỉ là thân.
+           U20: nó co theo thẻ (min-h-0 + shrink) để thân của nó tự cuộn, hàng nút đáy luôn thấy. */
+        '[&>div:last-child>div]:h-auto [&>div:last-child>div]:min-h-0 [&>div:last-child>div]:shrink [&>div:last-child>div]:rounded-none [&>div:last-child>div]:shadow-none',
       )}
     >
       <div className="flex shrink-0 items-center gap-2 border-b border-border-default px-4 py-2.5">
@@ -108,10 +115,14 @@ export function QcAskCard({ eyebrow, reason, code, onPrev, onNext, children }: Q
           <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
         </NavButton>
       </div>
-      {reason == null ? null : (
-        <p className="shrink-0 border-b border-border-default bg-state-attention-tint px-4 py-2 text-body-sm font-medium text-state-attention-text">{reason}</p>
+      {/* U12: dòng lý do luôn giữ một khe cao cố định (có hay không có lý do), nút duyệt không nhảy. */}
+      {reason == null ? (
+        <div aria-hidden="true" className="h-9 shrink-0 border-b border-border-default" data-testid="qc-ask-reason-slot" />
+      ) : (
+        <p className="h-9 shrink-0 truncate border-b border-border-default bg-state-attention-tint px-4 py-2 text-body-sm font-medium text-state-attention-text" title={reason}>{reason}</p>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      {/* U20: thân không tự cuộn — thanh tra bên trong cuộn phần giữa, giữ hàng nút đáy trong thẻ. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
     </section>
   );
 }
