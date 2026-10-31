@@ -66,7 +66,7 @@ export function ShareDialog(props: ShareDialogProps) {
   );
 }
 
-function ShareDialogMain({ isOpen, model, actions, titleId }: ShareDialogProps) {
+function ShareDialogMain({ isOpen, model, actions, titleId, scaleNotice }: ShareDialogProps) {
   const status = deriveShareStatus(model);
   return (
     <Modal.Root
@@ -101,6 +101,8 @@ function ShareDialogMain({ isOpen, model, actions, titleId }: ShareDialogProps) 
             </div>
             <p className="text-[14px] leading-5 text-text-secondary">{status.sentence}</p>
           </div>
+
+          {scaleNotice != null && <InlineAlert level="attention" message={scaleNotice} />}
 
           {model.state === 'error' && model.errorMessage !== null && (
             <InlineAlert level="violation" message={model.errorMessage} />

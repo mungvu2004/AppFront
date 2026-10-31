@@ -31,6 +31,7 @@
 
 import { createAppApiClient, createAppHttpClient } from '@/api/appClient';
 import type { ApiClient, User } from '@/api/client';
+import { idsOnLevel, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, LevelId } from '@/domain/spatial/types';
 import {
   SHARE_EXPIRY_CHOICES,
@@ -306,3 +307,18 @@ export const INITIAL_EMBED_PARAMS: EmbedParams = Object.freeze({
   toolbar: DEFAULT_TOOLBAR_VISIBLE,
   viewpointCode: null,
 });
+
+/** U03: câu nhắc khi có tầng có bản vẽ mà chưa xác nhận tỷ lệ — diện tích trên trang chia sẻ chưa đúng. */
+export const SHARE_SCALE_NOTICE = 'Chưa đặt tỷ lệ: diện tích trên trang chia sẻ là số tạm.';
+
+/** Có tầng nào có bản vẽ mà tỷ lệ còn là số đoán (N16) hoặc chưa đặt? Cùng luật với màn Xuất (`reviewReasonsOf`). */
+export function hasUnconfirmedScale(
+  levels: readonly Level[],
+  floorMeta: Readonly<Record<string, { readonly scaleStatus?: 'unresolved' }>>,
+  spatial: NormalizedSpatial | null,
+): boolean {
+  return levels.some((level) => {
+    const isEmpty = spatial !== null && idsOnLevel(spatial, level.id).length === 0;
+    return !isEmpty && (floorMeta[level.id]?.scaleStatus === 'unresolved' || level.scaleMillimetresPerPixel === undefined);
+  });
+}

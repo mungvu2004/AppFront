@@ -13,10 +13,11 @@
 
 import { useRef } from 'react';
 import { clsx } from 'clsx';
-import { Ruler } from 'lucide-react';
+import { Ruler, ZoomIn } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { Button } from '@/components/ui/Button';
 
 import type { ScaleCalibrationMethodDimensionProps, ScaleDimensionMethodViewModel } from './types';
 
@@ -26,6 +27,8 @@ const UNIT_MM = 'mm';
 /* UX-R2 K05/K28: độ tin cậy OCR nói bằng chữ, không bằng số 0,98 (số đó không phải độ khớp). */
 const READ_SURE = 'đọc chắc';
 const READ_UNSURE = 'đọc chưa chắc';
+/* UX-R4 U06: số trên bản vẽ chỉ cao vài pixel ở 100% — một nút phóng tới số đang chọn. */
+const ZOOM_TO_NUMBERS = 'Phóng to vùng có số';
 
 const EMPTY_TITLE = 'Máy chưa đọc được số kích thước';
 const EMPTY_DESCRIPTION_FALLBACK =
@@ -80,6 +83,17 @@ export function ScaleCalibrationMethodDimension({ actions, dimension }: ScaleCal
         <p className="text-[13px] text-text-secondary">
           {MANUAL_CALIBRATION_REASON_TEXT[dimension.manualCalibrationReason]}
         </p>
+      )}
+
+      {actions.onZoomToNumbers !== undefined && (
+        <Button
+          iconBefore={<ZoomIn aria-hidden="true" size={14} />}
+          onClick={actions.onZoomToNumbers}
+          size="sm"
+          variant="secondary"
+        >
+          {ZOOM_TO_NUMBERS}
+        </Button>
       )}
 
       <ul aria-label={LIST_ARIA_LABEL} className="flex flex-col gap-1.5" onKeyDown={handleKeyDown} ref={listRef}>

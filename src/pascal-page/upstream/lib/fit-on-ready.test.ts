@@ -1,5 +1,24 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fitAzimuth, fitPose, fitWhenControlsReady, planBoundsXZ, TOP_RESERVED_PX } from './fit-on-ready'
+import { fitAzimuth, fitPose, fitWhenControlsReady, planBoundsXZ, roomsOf, TOP_RESERVED_PX } from './fit-on-ready'
+
+describe('roomsOf (UX-R4 U40)', () => {
+  it('lists zones of one floor with name + area, sorted by name; unnamed zones read "Phòng"', () => {
+    const nodes = {
+      z1: { type: 'zone', parentId: 'level_1', name: 'Phòng ngủ', polygon: [[0, 0], [4, 0], [4, 3], [0, 3]] },
+      z2: { type: 'zone', parentId: 'level_1', name: 'Bếp', polygon: [[0, 0], [2, 0], [2, 2.5], [0, 2.5]] },
+      z3: { type: 'zone', parentId: 'level_1', name: '  ', polygon: [[0, 0], [1, 0], [1, 1]] },
+      z4: { type: 'zone', parentId: 'level_2', name: 'Sân thượng', polygon: [[0, 0], [5, 0], [5, 5], [0, 5]] },
+      w: { type: 'wall', parentId: 'level_1', start: [0, 0], end: [4, 0] },
+    }
+    expect(roomsOf(nodes, 'level_1')).toEqual([
+      { id: 'z2', name: 'Bếp', areaM2: 5 },
+      { id: 'z3', name: 'Phòng', areaM2: 0.5 },
+      { id: 'z1', name: 'Phòng ngủ', areaM2: 12 },
+    ])
+    expect(roomsOf(nodes).map((r) => r.id)).toContain('z4')
+    expect(roomsOf({})).toEqual([])
+  })
+})
 
 describe('fitPose (QA-2 L2, FE3D-FIX-002 V5 D13)', () => {
   const VIEW = { width: 1920, height: 1080 }

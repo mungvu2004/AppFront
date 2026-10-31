@@ -351,13 +351,13 @@ test.describe('bàn phím và định dạng', () => {
       page.getByRole('combobox'),
       page.getByRole('radio', { name: 'Lưới' }),
       page.getByRole('radio', { name: 'Tất cả' }),
-      // UX 26/10: dự án cần duyệt (HQ) xếp trước nên ba điểm dừng của nó đến trước Sunrise.
-      card(page, HQ),
-      page.getByRole('button', { name: `Tuỳ chọn cho ${HQ}`, exact: true }),
-      openButton(page, HQ),
+      // Danh sách xếp theo `updatedAt` mới nhất trước: Sunrise (2026-09-04) trước HQ (2026-09-03).
       card(page, SUNRISE),
       page.getByRole('button', { name: `Tuỳ chọn cho ${SUNRISE}`, exact: true }),
       openButton(page, SUNRISE),
+      card(page, HQ),
+      page.getByRole('button', { name: `Tuỳ chọn cho ${HQ}`, exact: true }),
+      openButton(page, HQ),
     ];
     for (const stop of stops) {
       await page.keyboard.press('Tab');

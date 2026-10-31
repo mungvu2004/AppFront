@@ -121,9 +121,11 @@ describe('the two built-ins the function group stands down', () => {
       (violation) => violation.ruleCode === 'ROOM-HAS-DOOR',
     );
 
-    // Five, not the thirteen `ROOM-NO-DOOR` finds: this rule trusts the room's
-    // own `wallIds`, where its replacement checks the door is on the outline.
-    expect(found).toHaveLength(5);
+    // Twelve: like `ROOM-NO-DOOR` (thirteen) it now asks whether a door sits on
+    // the room's outline, over every wall, not whether a listed wall has a door
+    // somewhere along it (U08). The thirteenth is a room only the function
+    // group's own reading flags.
+    expect(found).toHaveLength(12);
     expect(found[0]?.message).toContain('không có cửa đi nào');
     expect(found[0]?.suggestion).toContain('Thêm một cửa đi');
   });

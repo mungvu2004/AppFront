@@ -253,6 +253,8 @@ export interface ShareDialogProps {
   readonly model: ShareDialogModel;
   readonly actions: ShareDialogActions;
   readonly titleId?: string;
+  /** U03: khác `null` khi có tầng chưa xác nhận tỷ lệ — diện tích trên trang chia sẻ là số tạm. */
+  readonly scaleNotice?: string | null;
 }
 
 /** Hoàn tác đi qua đây (A8, D-05). Hành động không hoàn tác được thì phải hỏi trước (A9). */

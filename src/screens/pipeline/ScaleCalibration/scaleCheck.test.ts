@@ -1,8 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildScaleCheck, inferredDpi, isPlanSizeImplausible, mmPerPxAt } from './scaleCheck';
+import {
+  buildScaleCheck,
+  inferredDpi,
+  isPlanSizeImplausible,
+  mmPerPxAt,
+  mmPerPxFromFlatArea,
+  outlinesAreaM2,
+  parseFlatAreaM2,
+} from './scaleCheck';
 
 describe('scaleCheck', () => {
+  it('U11: suy mm/px từ diện tích căn — diện tích theo bình phương tỷ lệ', () => {
+    expect(parseFlatAreaM2('68,94')).toBe(68.94);
+    expect(parseFlatAreaM2('68.94 m²')).toBe(68.94);
+    expect(parseFlatAreaM2('abc')).toBeNull();
+    expect(parseFlatAreaM2('0')).toBeNull();
+    // Hình vuông 10 000 × 10 000 mm = 100 m² ở 10 mm/px; căn thật 25 m² → cạnh nửa → 5 mm/px.
+    const square = [{ x: 0, y: 0 }, { x: 10_000, y: 0 }, { x: 10_000, y: 10_000 }, { x: 0, y: 10_000 }];
+    expect(outlinesAreaM2([square])).toBeCloseTo(100, 6);
+    expect(mmPerPxFromFlatArea(25, 10, outlinesAreaM2([square]))).toBeCloseTo(5, 6);
+    expect(mmPerPxFromFlatArea(25, 10, 0)).toBeNull();
+  });
+
   it('suy DPI từ cạnh ngắn ảnh trên khổ A3 và tính mm/px theo tỷ lệ in', () => {
     expect(inferredDpi(837)).toBeCloseTo(71.58, 1);
     expect(mmPerPxAt(50, 300)).toBeCloseTo(4.233, 3);

@@ -524,6 +524,10 @@ export interface ScalePanelViewModel {
   readonly suggestion?: ScaleSuggestionViewModel;
   /** UX41 U01: ô nhập thẳng tỷ lệ "1:100". Chỉ có khi N16 mang `sourceDpi` và người dùng sửa được. */
   readonly ratioEntry?: ScaleRatioEntryViewModel;
+  /** UX-R4 U11: ô "Theo diện tích căn (m²)". Có khi tầng đã có phòng hoặc tường để đo diện tích. */
+  readonly areaEntry?: ScaleRatioEntryViewModel;
+  /** UX-R4 U06: ảnh chụp/JPG (không có DPI) — một câu nói vì sao ghi chú "TL 1/N" không dùng được. */
+  readonly ratioPhotoNotice?: string;
 }
 
 /** Ô "Hoặc nhập tỷ lệ ghi trên bản vẽ: [1:100]". */
@@ -533,6 +537,8 @@ export interface ScaleRatioEntryViewModel {
   readonly placeholder: string;
   /** Câu lỗi khi chữ gõ không đọc được thành 1:N; `null` khi đúng hoặc trống. */
   readonly error: string | null;
+  /** Dòng phụ dưới ô, ví dụ cỡ căn suy ra "Căn rộng ≈ 8,7 × 8,2 m, 1 px ≈ 12 mm." */
+  readonly hint?: string;
 }
 
 /** Lời đề nghị "Máy ước lượng từ độ dày tường: 1 px ≈ X mm. [Dùng tỷ lệ này]". */
@@ -731,6 +737,10 @@ export interface ScaleCalibrationActions {
   readonly onUseSuggestedScale: () => void;
   /** UX41 U01: gõ tỷ lệ ghi trên bản vẽ ("1:100"); tuỳ chọn để các bộ mẫu cũ khỏi phải khai. */
   readonly onChangeDrawingRatio?: (text: string) => void;
+  /** UX-R4 U11: gõ diện tích căn (m²) để suy tỷ lệ; tuỳ chọn như `onChangeDrawingRatio`. */
+  readonly onChangeFlatArea?: (text: string) => void;
+  /** UX-R4 U06: phóng khung nhìn tới số kích thước đang chọn (hoặc số đầu). */
+  readonly onZoomToNumbers?: () => void;
   /** Đồng ý ở hộp thoại A9: gửi tỷ lệ cho từng tầng có bản vẽ, nối tiếp. */
   readonly onConfirmAllFloors: () => void;
   /** Huỷ hộp thoại A9: không gửi gì, màn giữ trạng thái trước. */
@@ -807,13 +817,15 @@ export interface ScaleCalibrationPanelProps {
     | 'onToggleCollapsed'
     | 'onUseSuggestedScale'
     | 'onChangeDrawingRatio'
+    | 'onChangeFlatArea'
+    | 'onZoomToNumbers'
   >;
 }
 
 /** Props của `ScaleCalibrationMethodDimension` — khối "từ chuỗi kích thước". */
 export interface ScaleCalibrationMethodDimensionProps {
   readonly dimension: ScaleDimensionMethodViewModel;
-  readonly actions: Pick<ScaleCalibrationActions, 'onHoverDimensionRow' | 'onSelectDimensionRow'>;
+  readonly actions: Pick<ScaleCalibrationActions, 'onHoverDimensionRow' | 'onSelectDimensionRow' | 'onZoomToNumbers'>;
 }
 
 /** Props của `ScaleCalibrationMethodReference` — khối "vẽ đường tham chiếu", ba bước. */

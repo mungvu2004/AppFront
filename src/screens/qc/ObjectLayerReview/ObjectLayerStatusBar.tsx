@@ -69,19 +69,19 @@ export function ObjectLayerStatusBar({
       </span>
 
       {notice !== null && (
-        <span className={cn('hidden min-w-0 truncate px-2 text-[12px] sm:block', noticeTone)}>{notice}</span>
+        <span className={cn('hidden min-w-0 truncate px-2 text-body sm:block', noticeTone)}>{notice}</span>
       )}
 
       <div className="flex shrink-0 items-center gap-2">
         {saveLabel === null ? null : (
-          <span aria-live="polite" className="text-[12px] font-medium text-text-secondary">
+          <span aria-live="polite" className="text-body font-medium text-text-secondary">
             {saveLabel}
           </span>
         )}
         {/* Người xem không hoàn tác được gì: không đưa nút chết (BUG-601). */}
         {isViewer ? null : (
         <button
-          className="inline-flex h-6 items-center rounded-sm px-1.5 text-[12px] font-medium text-text-secondary outline-hidden hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          className="inline-flex h-6 items-center rounded-sm px-1.5 text-body font-medium text-text-secondary outline-hidden hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           onClick={onUndo}
           type="button"
         >

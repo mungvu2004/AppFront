@@ -66,3 +66,26 @@ describe('r9v-partition-skirt: vach giua hai phong bo phao ngoai, gop vao lo cap
     assert.equal((out.match(/updateNodes\(wallBatch\)/g) ?? []).length, 2);
   });
 });
+
+describe('u40/u42: nhan ten phong thuong truc, khoi cho tai noi that thap va co depthTest', () => {
+  const apply = (id) => {
+    const full = path.join(PACKAGES, id);
+    const raw = readFileSync(full, 'utf8');
+    return transformRealism(RENDER_RULES[id] ? transformRender(raw, full) : raw, full);
+  };
+
+  it('u42: khoi cho khong nhin xuyen tuong, khong soc chay, cao toi da 0.3 m', () => {
+    const out = apply('nodes/src/item/renderer.tsx');
+    assert.doesNotMatch(out, /material\.depthTest = false/);
+    assert.doesNotMatch(out, /material\.opacityNode = previewOpacity/);
+    assert.match(out, /<boxGeometry args=\{\[w, Math\.min\(h, 0\.3\), d\]\} \/>/);
+  });
+
+  it('u40: nhan theo co roomLabels, nam ngoai showZones, khong chan chuot', () => {
+    const out = apply('nodes/src/zone/renderer.tsx');
+    assert.match(out, /useFloorplanAnnotationVisibility\(\(s\) => s\.visibility\.roomLabels\)/);
+    const label = out.indexOf('{showRoomLabelsU40 && node.name && (');
+    assert.ok(label > 0 && label < out.indexOf('{showZones && ('));
+    assert.match(out.slice(label, out.indexOf('{showZones && (')), /pointerEvents: 'none'[\s\S]*opacity: 1/);
+  });
+});

@@ -42,7 +42,7 @@ interface SharedPlanProps {
 
 function RoomFigure({ room, fontSize, provisionalArea }: { room: Room; fontSize: number; provisionalArea: boolean }) {
   const anchor = roomLabelAnchor(room);
-  const name = roomDisplayName(room.name);
+  const name = roomDisplayName(room.name, room.usage);
   // Tên dài hơn hộp thì co chữ cho vừa (ước 0,6 em mỗi ký tự).
   const size = anchor.width > 0 ? Math.min(fontSize, anchor.width / (name.length * 0.6)) : fontSize;
 

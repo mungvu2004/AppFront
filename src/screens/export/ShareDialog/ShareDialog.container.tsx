@@ -36,13 +36,16 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
 import { ShareDialog } from './ShareDialog';
 import {
   createShareDialogApiClient,
   createShareDialogGateway,
+  hasUnconfirmedScale,
   readProjectMembers,
+  SHARE_SCALE_NOTICE,
   shareMembersQueryKey,
 } from './shareDialogGateway';
 import type { MemberRowModel, ShareDialogContainerProps } from './types';
@@ -105,7 +108,20 @@ function WiredShareDialog(props: ShareDialogContainerProps) {
     ...(props.onToast !== undefined ? { onToast: props.onToast } : {}),
   });
 
-  return <ShareDialog isOpen={props.isOpen} model={model} actions={actions} />;
+  // U03: chỉ biết tỷ lệ khi dự án này đang nạp trong store (mở từ màn Xuất/màn duyệt).
+  const scaleUnconfirmed = useStore(
+    (state) =>
+      state.project?.id === props.projectId && hasUnconfirmedScale(state.floors, state.floorMeta, state.spatial),
+  );
+
+  return (
+    <ShareDialog
+      isOpen={props.isOpen}
+      model={model}
+      actions={actions}
+      scaleNotice={scaleUnconfirmed ? SHARE_SCALE_NOTICE : null}
+    />
+  );
 }
 
 /** `<ShareDialogContainer>` — hộp thoại chia sẻ thật, đã nối. */

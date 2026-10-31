@@ -7,7 +7,8 @@
  * làm một bản vẽ 600 đơn vị co còn ~300 px giữa màn).
  */
 import { computeCentroid, computeLargestInnerRectangle } from '@/domain/rooms/area';
-import type { Opening, Point, Room, Wall } from '@/domain/spatial/types';
+import { ROOM_USAGE_LABELS } from '@/domain/rules/registry';
+import type { Opening, Point, Room, RoomUsage, Wall } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
 
 export interface ViewBox {
@@ -87,10 +88,18 @@ export function roomLabelAnchor(room: Room): { x: number; y: number; width: numb
   return { x: (box.min.x + box.max.x) / 2, y: (box.min.y + box.max.y) / 2, width: box.widthMm };
 }
 
-/** U43: tên phòng viết hoa chữ đầu ("phòng ngủ 01" → "Phòng ngủ 01") cho người xem ngoài. */
-export function roomDisplayName(name: string): string {
+/** Tên chung chung máy đặt ("phòng 5", "phòng", rỗng): không nói được phòng gì. */
+const GENERIC_ROOM_NAME = /^(phòng\s*\d*)?$/iu;
+
+/**
+ * U43: tên phòng cho người xem ngoài — viết hoa chữ đầu ("phòng ngủ 01" → "Phòng ngủ 01"); tên chung
+ * chung như "phòng 5" thì đọc theo công năng ("Phòng ngủ"), trừ khi công năng cũng không rõ.
+ */
+export function roomDisplayName(name: string, usage?: RoomUsage): string {
   const trimmed = name.trim();
-  return trimmed.charAt(0).toLocaleUpperCase('vi') + trimmed.slice(1);
+  const byUsage = usage === undefined || usage === 'other' ? null : ROOM_USAGE_LABELS[usage];
+  const text = GENERIC_ROOM_NAME.test(trimmed) && byUsage !== null ? byUsage : trimmed;
+  return text.charAt(0).toLocaleUpperCase('vi') + text.slice(1);
 }
 
 /** Đoạn của ô mở trên tim tường: từ `offsetMm` tới `offsetMm + widthMm` tính từ đầu tường. */

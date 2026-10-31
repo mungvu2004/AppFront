@@ -57,7 +57,7 @@ export const EP = {
   scope: 'Phạm vi', // EPO:69
   preflight: 'Kiểm tra trước khi xuất', // EPP:26
   history: 'Tệp đã xuất', // EPV:123
-  historyCaption: 'Chỉ trong phiên này, mất khi làm mới trang.', // ExportPanel.tsx (đầu khung Tệp đã xuất)
+  historyCaption: 'Lưu 20 tệp gần nhất trên trình duyệt này. Tệp từ lần mở trước cần xuất lại để tải về.', // ExportPanel.tsx (đầu khung Tệp đã xuất)
   historyHeads: ['Tệp', 'Thời điểm', 'Dung lượng'], // EPV:140-146
   redownload: 'Tải lại', // EPV:163
   exportButton: /^Xuất (\.glb|\.json|PDF|ảnh)$/u, // ExportPanelFooter: "Xuất <định dạng>"
