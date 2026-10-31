@@ -678,11 +678,15 @@ function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[
   const onOutlineToleranceMm =
     context.thresholds?.['escape.openingOnOutlineToleranceMm'] ?? OPENING_ON_OUTLINE_TOLERANCE_MM;
   const links: DoorLink[] = [];
-  // A door that opens onto exactly one room has nothing detected behind it:
-  // the outside, or a corridor the AI did not outline. Either way it is a way
-  // on, not a dead end — a bedroom with a door is not trapped (U08).
-  // ponytail: an undetected inner space reads as outdoors; tighten once the
-  // pipeline outlines every corridor.
+  // The AI pipeline marks every wall `partition`, so a plan without a single
+  // envelope wall says nothing about which side is outdoors. There, a door
+  // that opens onto exactly one room has nothing behind it but the outside.
+  // ponytail: an undetected inner space (a corridor the AI missed) also reads
+  // as outdoors; drop this once the pipeline marks envelope walls itself.
+  const plannedEnvelope = entitiesInScope(context, 'wall').some(
+    (item) => item.kind === 'envelope',
+  );
+
   for (const opening of entitiesInScope(context, 'opening')) {
     if (opening.kind !== 'door') {
       continue;
@@ -709,7 +713,7 @@ function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[
       openingId: opening.id,
       at,
       roomIds,
-      leadsOutside: wall.kind === 'envelope' || roomIds.length === 1,
+      leadsOutside: wall.kind === 'envelope' || (!plannedEnvelope && roomIds.length === 1),
     });
   }
 

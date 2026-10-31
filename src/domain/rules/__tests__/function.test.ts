@@ -871,27 +871,40 @@ describe('the way out', () => {
     expect(found[0]?.message).toContain('không có đường nào');
   });
 
-  it('treats a door onto nothing detected as a way on, even with an envelope (U08)', () => {
-    // The plan names its envelope; the bedroom door opens onto a corridor the
-    // AI did not outline. The bedroom has a way out.
+  it('joins a bedroom to the corridor beyond even when the corridor names another piece of wall (U08)', () => {
+    // The AI split the wall at the door: the corridor lists only its far wall,
+    // yet the bedroom door sits on its outline and leads into it.
     const plan = planOf({
       walls: [
-        wall('WINNER', { x: 0, y: 0 }, { x: 6000, y: 0 }),
-        envelope('WOUTER', { x: 0, y: 4000 }, { x: 6000, y: 4000 }),
+        wall('W1', { x: 0, y: 3000 }, { x: 4000, y: 3000 }),
+        wall('W2', { x: 0, y: 4500 }, { x: 4000, y: 4500 }),
+        envelope('EOUT', { x: 4000, y: 3000 }, { x: 4000, y: 4500 }),
       ],
-      openings: [opening('DINNER', wallId('WINNER'), 2650, 700)],
+      openings: [opening('DBR', wallId('W1'), 1650, 700), opening('DOUT', wallId('EOUT'), 400, 700)],
       rooms: [
         room(
-          'LV',
-          'livingRoom',
+          'BR',
+          'bedroom',
           [
             { x: 0, y: 0 },
-            { x: 6000, y: 0 },
-            { x: 6000, y: 4000 },
-            { x: 0, y: 4000 },
+            { x: 4000, y: 0 },
+            { x: 4000, y: 3000 },
+            { x: 0, y: 3000 },
           ],
-          [wallId('WINNER'), wallId('WOUTER')],
-          24,
+          [wallId('W1')],
+          12,
+        ),
+        room(
+          'HL',
+          'corridor',
+          [
+            { x: 0, y: 3000 },
+            { x: 4000, y: 3000 },
+            { x: 4000, y: 4500 },
+            { x: 0, y: 4500 },
+          ],
+          [wallId('W2'), wallId('EOUT')],
+          6,
         ),
       ],
     });
