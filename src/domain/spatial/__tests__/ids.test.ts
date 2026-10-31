@@ -250,6 +250,18 @@ describe('displayCodesOf', () => {
     expect(displayCodesOf([]).size).toBe(0);
   });
 
+  it('puts client-minted ids after BE ids, so a new wall never renumbers BE walls (U07)', () => {
+    const be = (n: number): string => `W-03H${String(n).padStart(22, '0')}`;
+    const before = displayCodesOf([be(1), be(2), be(3), be(4)]);
+    const after = displayCodesOf([be(1), be(2), be(3), be(4), 'W-000001ABCDEFGHIJ', 'W-000002ABCDEFGHIJ']);
+
+    for (const n of [1, 2, 3, 4]) {
+      expect(after.get(be(n))).toBe(before.get(be(n)));
+    }
+    expect(after.get('W-000001ABCDEFGHIJ')).toBe('W-005');
+    expect(after.get('W-000002ABCDEFGHIJ')).toBe('W-006');
+  });
+
   it('numbers a lone BE id or a lone A14 axis by ordinal, never by its first six chars (B-V7-42)', () => {
     expect(displayCodesOf([`W-03${'A'.repeat(23)}`]).get(`W-03${'A'.repeat(23)}`)).toBe('W-001');
     expect(displayCodesOf(['A-AXIS0000000']).get('A-AXIS0000000')).toBe('A-001');

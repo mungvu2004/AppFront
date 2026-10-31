@@ -450,7 +450,9 @@ const railToolOf = (tool: ToolId): WallLayerToolId =>
 /** Tường của một tầng, theo đúng thứ tự đồ thị giữ chúng. */
 /*
  * U07: nhãn `#W-xxx` đã hiện của một tầng, giữ qua lần tải lại (localStorage, theo dự án + tầng).
- * ponytail: chỉ trên trình duyệt này — máy khác vẫn đánh số lại. Đường nâng cấp: máy chủ cấp mã hiển thị.
+ * Nguồn chính là `displayCodesOf` đọc từ mã (giống nhau trên mọi máy, thêm tường không đánh lại
+ * số); bộ nhớ này chỉ đỡ trường hợp XOÁ tường, khi thứ tự làm các tường sau lùi một số.
+ * ponytail: chỉ trên trình duyệt này — máy khác vẫn lùi số sau khi xoá. Đường nâng cấp: máy chủ cấp mã hiển thị.
  */
 const wallCodeMemoryKey = (projectId: string, levelId: string): string => `wall-codes:${projectId}:${levelId}`;
 

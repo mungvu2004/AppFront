@@ -186,8 +186,12 @@ export const counterLabelOf = (id: string): string => (isCounterLed(id) ? counte
  *    Với cả ba dạng mã, thứ tự
  *    tăng dần chính là thứ tự tạo, nên thực thể mới nối đuôi mà không đánh lại số cũ.
  *
+ *    Mã máy khách (số đếm đứng đầu) xếp SAU mọi mã khác: chúng được tạo sau lượt nhận
+ *    diện của BE, nên thêm tường không đánh lại số tường BE (U07).
+ *
  * ponytail: ở nhánh thứ tự, xoá một thực thể làm nhãn các thực thể sau nó dịch đi
- * một. Đường nâng cấp: đánh số trên hợp của ảnh chụp máy chủ đã tải và các mã hiện có.
+ * một (màn tường đỡ bằng {@link keepDisplayCodes} + bộ nhớ trình duyệt). Đường nâng cấp:
+ * máy chủ cấp mã hiển thị.
  */
 export const displayCodesOf = (ids: readonly string[]): ReadonlyMap<string, string> => {
   const counterCodes = ids.map(counterCodeOf);
@@ -196,7 +200,15 @@ export const displayCodesOf = (ids: readonly string[]): ReadonlyMap<string, stri
     return new Map(ids.map((id, index) => [id, counterCodes[index] as string] as const));
   }
 
-  const sorted = [...new Set(ids)].sort();
+  /*
+   * U07: mã BE (ULID) trước, mã máy khách (`createId`, số đếm đứng đầu) sau. Xếp chuỗi thuần
+   * thì `W-000001…` đứng trước mọi `W-03H…`, nên tách hay vẽ một tường mới đẩy số của mọi
+   * tường BE lên (#W-004 thành #W-009). Tường máy khách luôn tạo sau lượt nhận diện, nên thứ
+   * tự này vẫn là thứ tự tạo, và giống nhau trên mọi máy vì chỉ đọc từ mã.
+   */
+  const sorted = [...new Set(ids)].sort(
+    (a, b) => Number(isCounterLed(a)) - Number(isCounterLed(b)) || (a < b ? -1 : a > b ? 1 : 0),
+  );
 
   return new Map(
     sorted.map(
