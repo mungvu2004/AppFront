@@ -120,7 +120,7 @@ import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
 import { describePipelineError } from '../pipelineErrorText';
-import { estimateSentence, typicalRunMinutes } from './processingEstimate';
+import { estimateSentence, typicalRunMinutes } from '@/lib/viewmodel/processingEstimate';
 import { createAppProcessingGateway, toStageBreakdown } from './processingGateway';
 import type {
   ProcessingExtractionSummary,
