@@ -31,6 +31,8 @@ export const SCENE_PALETTE = {
   oak: '#a77440',
   walnut: '#663020',
   bark: '#88654c',
+  // Sàn gỗ sáng như cảnh Blender (`F:/runs/login-tour/pbr.py` herring): `wood` cam quá khi phủ cả sàn.
+  floorOak: '#b3916f',
   // Màu đèn mặc định trong catalog Pascal (`catalog-items.tsx`), chép nguyên để đối chiếu.
   catalogLight: '#ffffff',
 } as const;
@@ -103,4 +105,19 @@ export const REALISM_PALETTE = {
   screen: '#0b0c0e',
   steel: '#cfd2d4',
   porcelain: '#f3f3f0',
+} as const;
+
+// Vải bọc đồ (sofa/ghế/giường) theo phong cách — `realism/upholstery.ts` nhuộm vật liệu vải lớn nhất
+// của mỗi món về màu này để cả phòng đọc thành một bộ (Blender `apt3.py` main_skin). `*Bedding`: chăn ga.
+export const UPHOLSTERY_PALETTE = {
+  amAp: '#c9bba6',
+  amApBedding: '#efeae2',
+  hienDai: '#b8bcbf',
+  hienDaiBedding: '#f2f3f3',
+  goAm: '#8a5a3c',
+  goAmBedding: '#e9dfd0',
+  toiGian: '#cfcac2',
+  toiGianBedding: '#ebe9e5',
+  sangTrong: '#2f2d2c',
+  sangTrongBedding: '#d8d3cc',
 } as const;

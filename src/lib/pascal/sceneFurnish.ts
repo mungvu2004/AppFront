@@ -68,11 +68,16 @@ const LIVING_DINING_MIN_M2 = 18;
 const BEDROOM_EXTRAS_MIN_M2 = 12;
 /** Phòng 'other' (trong nhà) từ mức này bày thành phòng đọc/ngồi. */
 const OTHER_MIN_M2 = 8;
-/** Mật độ: khoảng 1 món đứng trên sàn mỗi 4 m²; phòng có ít hơn coi là thưa. */
-const M2_PER_PIECE = 4;
+/** Mật độ: khoảng 1 món đứng trên sàn mỗi 2,5 m² (dày như bản render Blender); phòng có ít hơn coi là thưa. */
+const M2_PER_PIECE = 2.5;
 /** Đầu đoạn trống chừa thêm cho tường vuông góc dày (tường ngoài 300 mm). */
 const END_CLEAR_MM = 160;
-const MAX_FILL_PLANTS = 2;
+const MAX_FILL_PLANTS = 4;
+/** Ban công/lô-gia từ mức này có chậu cây dọc lan can; ghế nằm từ OTHER_MIN_M2. */
+const OUTDOOR_MIN_M2 = 2;
+/** Chậu dọc lan can: khe giữa hai chậu, tối đa số chậu mỗi phòng. */
+const PLANTER_SPACING_MM = 400;
+const MAX_PLANTERS = 6;
 /** Phòng ngoài trời: lát decking hoặc tên ban công/sân hiên (vi, en, fi). */
 const OUTDOOR_NAME = /ban công|sân thượng|hiên|terrace|balcon|patio|ulkotila|parveke|terassi/i;
 
@@ -109,7 +114,8 @@ const FLOOR_LAMP: Piece = { role: 'floorLamp', kind: 'other', variant: 'floorLam
 const SIDE_TABLE: Piece = { role: 'sideTable', kind: 'table', variant: 'sideTable', w: 450, d: 450 };
 const PLANT: Piece = { role: 'plant', kind: 'other', variant: 'plant', w: 600, d: 600 };
 const LOUNGER: Piece = { role: 'lounger', kind: 'chair', variant: 'lounger', w: 860, d: 1900 };
-const PLANTER: Piece = { role: 'planter', kind: 'other', variant: 'planter', w: 400, d: 400 };
+// Luống dài sát lan can (mẫu bush / planter-long, cùng tỉ lệ dài ≈ 3:1).
+const PLANTER: Piece = { role: 'planter', kind: 'other', variant: 'planter', w: 1200, d: 400 };
 
 interface Span {
   readonly from: number;
@@ -247,7 +253,7 @@ const allSpans = (edges: readonly RoomEdge[]): RankedEdge[] =>
  * Vị trí thử dọc đoạn trống: giữa đoạn, rồi sát hai đầu (nửa món + lùi đủ tường vuông góc).
  * Đồ thật như tủ áo hay chiếm giữa tường; trượt về một đầu thường còn chỗ (V5 D1).
  */
-const endsOf = (span: Span, half: number): number[] => {
+const endsOf = (span: Span, half: number): [number, number] => {
   const end = half + END_CLEAR_MM + SLACK_MM;
   return [span.from + end, span.to - end];
 };
@@ -492,14 +498,24 @@ const furnishStudy = (ctx: Ctx, edges: readonly RankedEdge[]): void => {
   }
 };
 
-/** Ngoài trời: ghế nằm + chậu cây sát góc, chỉ mô hình đã đăng ký (sunbed, small-indoor-plant). */
-const furnishOutdoor = (ctx: Ctx, edges: readonly RankedEdge[]): void => {
+/**
+ * Ngoài trời: ghế nằm (phòng đủ rộng) rồi hàng chậu cây dọc mọi đoạn tường/lan can trống, cách
+ * nhau PLANTER_SPACING_MM, tối đa MAX_PLANTERS — như bản render Blender. Chỉ mô hình đã đăng ký.
+ */
+const furnishOutdoor = (ctx: Ctx, edges: readonly RankedEdge[], areaM2: number): void => {
   const spans = allSpans(edges.map(({ edge }) => edge));
-  alongWall(ctx, spans, LOUNGER);
-  for (const n of [1, 2]) alongWall(ctx, spans, PLANTER, n, true);
+  if (areaM2 >= OTHER_MIN_M2) alongWall(ctx, spans, LOUNGER);
+  let n = 1;
+  for (const { edge, span } of spans) {
+    const [first, last] = endsOf(span, PLANTER.w / 2);
+    for (let t = first; t <= last && n <= MAX_PLANTERS; t += PLANTER.w + PLANTER_SPACING_MM) {
+      const spot = againstEdge(edge, t, PLANTER);
+      if (place(ctx, PLANTER, spot.at, spot.rotationDeg, n) !== null) n += 1;
+    }
+  }
 };
 
-/** Bù mật độ: cây ở góc trống tới khi đủ ~1 món đứng / 4 m² (tối đa MAX_FILL_PLANTS). */
+/** Bù mật độ: cây ở góc trống tới khi đủ ~1 món đứng / 2,5 m² (tối đa MAX_FILL_PLANTS). */
 const fillPlants = (ctx: Ctx, edges: readonly RankedEdge[], count: number, target: number): void => {
   const spans = allSpans(edges.map(({ edge }) => edge));
   for (let n = 1, have = count; have < target && n <= MAX_FILL_PLANTS; n += 1) {
@@ -571,9 +587,12 @@ export const furnishEmptyRooms = (graph: SpatialGraph, _style: SceneStyle): read
       !levelHasDining;
     const target = Math.floor(areaM2 / M2_PER_PIECE);
     const sparse = real.filter(standsOnFloor).length < target;
-    const needsOther = pass === 0 && room.usage === 'other' && areaM2 >= OTHER_MIN_M2 && sparse;
+    const needsOther = pass === 0 && room.usage === 'other' && !outdoor && areaM2 >= OTHER_MIN_M2 && sparse;
+    // Ban công/lô-gia: luôn có chậu dọc lan can (đồ thật như máy giặt vẫn được tránh).
+    const needsOutdoor =
+      pass === 0 && (room.usage === 'loggia' || (room.usage === 'other' && outdoor)) && areaM2 >= OUTDOOR_MIN_M2;
     const needsFill = pass === 1 && sparse && !outdoor && areaM2 >= (FILL_MIN_M2[room.usage] ?? Infinity);
-    if (!needsBed && !needsSofa && !needsTable && !needsOther && !needsFill) continue;
+    if (!needsBed && !needsSofa && !needsTable && !needsOther && !needsOutdoor && !needsFill) continue;
 
     const ctx: Ctx = {
       room,
@@ -592,7 +611,8 @@ export const furnishEmptyRooms = (graph: SpatialGraph, _style: SceneStyle): read
       // Bộ 4 ghế không vừa bếp thì thử bàn nhỏ 2 ghế.
       if (!furnishDining(ctx, edges, small) && room.usage === 'kitchen' && !small) furnishDining(ctx, edges, true);
     }
-    if (needsOther) (outdoor ? furnishOutdoor : furnishStudy)(ctx, edges);
+    if (needsOther) furnishStudy(ctx, edges);
+    if (needsOutdoor) furnishOutdoor(ctx, edges, areaM2);
     if (needsFill) {
       const mine = (): Furniture[] => [...real, ...out.filter((f) => f.roomId === room.id)];
       if (room.usage === 'bedroom' && areaM2 >= BEDROOM_EXTRAS_MIN_M2) {

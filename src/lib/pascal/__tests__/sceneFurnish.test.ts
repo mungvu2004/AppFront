@@ -432,6 +432,26 @@ describe('furnishEmptyRooms', () => {
     }
   });
 
+  it('S7: lô-gia hẹp 1,4 × 4 m → hàng luống cây dọc lan can (không ghế nằm), tối đa 6, tất định', () => {
+    const loggia = square('R-LG', 'loggia', 0, 1400, 4000);
+    const graph = graphOf([loggia]);
+    const items = furnishEmptyRooms(graph, style);
+    expect(items.every((f) => f.variant === 'planter')).toBe(true);
+    // Luống 1200 cách 400: 2 luống mỗi cạnh dài 4 m, cạnh ngắn không đủ chỗ.
+    expect(items.length).toBeGreaterThanOrEqual(3);
+    expect(items.length).toBeLessThanOrEqual(6);
+    expectValid(graph, items);
+    expect(furnishEmptyRooms(graphOf([square('R-LG', 'loggia', 0, 1400, 4000)]), style)).toEqual(items);
+  });
+
+  it('S7: phòng khách rộng 6 × 5 m → dày đồ (~1 món / 2,5 m²) nhưng tối đa 4 cây bù', () => {
+    const graph = graphOf([square('R-BIGLV', 'livingRoom', 0, 6000, 5000)]);
+    const items = furnishEmptyRooms(graph, style);
+    expect(items.filter((f) => f.variant === 'plant').length).toBeLessThanOrEqual(4);
+    expect(items.filter((f) => (f.liftMm ?? 0) === 0).length).toBeGreaterThanOrEqual(6);
+    expectValid(graph, items);
+  });
+
   it('tủ áo (món cao) không che cửa sổ', () => {
     const r = square('R-WW', 'bedroom', 0, 4000, 4000);
     const windows = [0, 1, 2, 3].map((i) => win(`O-${i}`, `W-R-WW-${i}`, 1400, 1200));
