@@ -12,7 +12,7 @@
  * says so in words on the same drawing paper — a grey box with a picture icon read as a broken image (vòng 7).
  */
 
-import { ChevronRight, MoreHorizontal, Upload } from 'lucide-react';
+import { ChevronRight, Loader2, MoreHorizontal, Upload } from 'lucide-react';
 
 import { CONTEXT_MENU_WIDTH } from '@/components/canvas/ContextMenu';
 import { motion } from '@/components/motion';
@@ -25,6 +25,8 @@ import { PLAN_OUTLINE_SEGMENTS } from './projectsGateway';
 import type { ProjectCardModel } from './useProjectDashboard';
 
 const NO_PLAN_LABEL = 'Chưa có bản vẽ';
+/** U39: đang chạy AI mà chưa ra tường — không gọi là "chưa có bản vẽ" khi nút là "Xem tiến độ". */
+const PROCESSING_LABEL = 'AI đang đọc bản vẽ';
 
 function PlanPreview({ variant, sketch }: { readonly variant: 0 | 1 | 2 | 3; readonly sketch?: ProjectCardModel['planSketch'] }) {
   const segments = sketch !== undefined && sketch.length > 0 ? sketch : PLAN_OUTLINE_SEGMENTS[variant];
@@ -136,8 +138,8 @@ export function ProjectCardTile({
           <PlanPreview variant={project.planVariant} sketch={project.planSketch} />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-body-sm text-text-secondary">
-            <Upload size={18} aria-hidden="true" />
-            {NO_PLAN_LABEL}
+            {project.isProcessing === true ? <Loader2 size={18} aria-hidden="true" /> : <Upload size={18} aria-hidden="true" />}
+            {project.isProcessing === true ? PROCESSING_LABEL : NO_PLAN_LABEL}
           </div>
         )}
       </div>
@@ -172,7 +174,7 @@ export function ProjectCardTile({
       </div>
 
       <div className="flex min-h-[22px] items-center gap-3">
-        {project.hasPlan && <Badge variant={project.statusVariant}>{project.statusLabel}</Badge>}
+        {(project.hasPlan || project.isProcessing === true) && <Badge variant={project.statusVariant}>{project.statusLabel}</Badge>}
         {project.hasPlan && (
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <div className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-bg-sunken">

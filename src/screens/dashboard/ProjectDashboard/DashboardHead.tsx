@@ -35,7 +35,9 @@ export interface DashboardHeadProps {
 }
 
 /** Một chip cho cả danh sách: việc cần người làm thắng, rồi tới việc đang chờ AI, rồi tới chỗ còn thiếu bản vẽ. */
-function StatusBadge({ counts, onShowQc }: { readonly counts: ProjectStatusCounts; readonly onShowQc: () => void }) {
+function StatusBadge({ counts, canReview, onShowQc }: { readonly counts: ProjectStatusCounts; readonly canReview: boolean; readonly onShowQc: () => void }) {
+  // U37: người xem không duyệt được — không nhắc họ việc duyệt, cũng không báo "đã duyệt xong" khi còn dự án chờ.
+  if (counts.qc > 0 && !canReview) return null;
   if (counts.qc > 0) {
     return (
       <button type="button" onClick={onShowQc} className="rounded-full outline-hidden focus-visible:ring-2 focus-visible:ring-accent">
@@ -62,7 +64,7 @@ function HeadStatus({ state, statusCounts, totalProjects, visibleCount, isFilter
     : `${String(totalProjects)} dự án`;
   return (
     <>
-      <StatusBadge counts={statusCounts} onShowQc={onShowQc} />
+      <StatusBadge counts={statusCounts} canReview={canCreate} onShowQc={onShowQc} />
       <span>{sentence}</span>
       {!canCreate && (
         <span className="flex items-center gap-2">

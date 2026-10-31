@@ -2,12 +2,19 @@ import { describe, expect, it } from 'vitest';
 
 import type { Opening, Room, Wall } from '@/domain/spatial/types';
 
-import { cameraViewBox, fitCamera, fitViewBox, MAX_ZOOM, openingSegment, panCamera, zoomCamera } from './sharedPlanGeometry';
+import { cameraViewBox, fitCamera, fitViewBox, MAX_ZOOM, openingSegment, panCamera, roomDisplayName, zoomCamera } from './sharedPlanGeometry';
 
 const wall = (x1: number, y1: number, x2: number, y2: number) =>
   ({ centreline: { start: { x: x1, y: y1 }, end: { x: x2, y: y2 } } }) as unknown as Wall;
 
 describe('mặt bằng trang chia sẻ', () => {
+  it('[U43] tên phòng viết hoa chữ đầu cho khách', () => {
+    expect(roomDisplayName('phòng ngủ 01')).toBe('Phòng ngủ 01');
+    expect(roomDisplayName(' lô gia')).toBe('Lô gia');
+    expect(roomDisplayName('đ')).toBe('Đ');
+    expect(roomDisplayName('')).toBe('');
+  });
+
   it('[U23] đệm tỉ lệ theo bản vẽ, không phải 500 đơn vị cố định', () => {
     const fit = fitViewBox([wall(0, 0, 600, 0), wall(600, 0, 600, 300)], []);
     expect(fit).not.toBeNull();

@@ -10,7 +10,7 @@ import { createMockApiClient, MOCK_SHARE_TOKEN } from '@/api/__mocks__/client';
 import { createExportPanelGateway, ExportAccessError } from '@/screens/export/ExportPanel/exportPanelGateway';
 import { createShareLink, revokeShareLink, type ShareLinkGateway } from '@/lib/export/shareLink';
 
-import { SharedModelPage, SharedModelView } from './SharedModelPage';
+import { PROVISIONAL_AREA_NOTE, SharedModelPage, SharedModelView } from './SharedModelPage';
 import { SHARE_LINK_GONE_MESSAGE, shareGoneReason } from './shareGone';
 
 function renderAt(token: string) {
@@ -65,6 +65,25 @@ describe('trang chia sẻ công khai', () => {
     expect(plan.getAttribute('viewBox')).not.toBe(before);
     fireEvent.click(screen.getByRole('button', { name: 'Vừa khung' }));
     expect(plan.getAttribute('viewBox')).toBe(before);
+  });
+
+  it('[U03] tầng chưa đặt tỷ lệ: nói rõ diện tích là số tạm tính; có tỷ lệ thì không', () => {
+    const withScale = (scale: number | undefined) =>
+      ({
+        projectName: 'Mẫu',
+        graph: {
+          graph: {
+            ...SAMPLE_BUILDING,
+            levels: SAMPLE_BUILDING.levels.map((level) => ({ ...level, scaleMillimetresPerPixel: scale })),
+          },
+          floorRevisions: [],
+        },
+      }) as unknown as SharedModel;
+    const { unmount } = render(<SharedModelView model={withScale(undefined)} />);
+    expect(screen.getByText(PROVISIONAL_AREA_NOTE)).toBeInTheDocument();
+    unmount();
+    render(<SharedModelView model={withScale(5)} />);
+    expect(screen.queryByText(PROVISIONAL_AREA_NOTE)).not.toBeInTheDocument();
   });
 
   it('[U59] 404 kèm reason nói đúng lý do; vắng reason giữ câu gộp', () => {

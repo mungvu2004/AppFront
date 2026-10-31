@@ -70,12 +70,13 @@ const SKELETON_CARD_COUNT = 6;
  */
 const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
   empty: 'Chưa có dự án nào.',
-  loading: 'đang tải',
-  partial: 'một phần',
-  error: 'lỗi',
-  success: 'thành công',
+  loading: 'Đang tải danh sách dự án.',
+  partial: 'Danh sách dự án chưa hiện đủ.',
+  error: 'Chưa tải được danh sách dự án.',
+  // U54: chữ "thành công" đứng riêng sau nút cuối, lạc ngữ cảnh khi đọc tuần tự.
+  success: 'Đã tải danh sách dự án.',
   forbidden: 'Danh sách dự án, chế độ chỉ xem.',
-  collapsed: 'thu gọn',
+  collapsed: 'Danh sách dự án đang thu gọn.',
 };
 
 /**
