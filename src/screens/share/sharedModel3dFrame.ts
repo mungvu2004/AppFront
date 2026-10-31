@@ -2,7 +2,7 @@
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import type { Furniture, FurnitureKind, RoomUsage, SpatialGraph } from '@/domain/spatial/types';
-import { millimetres } from '@/domain/units/types';
+import { millimetres, millimetresToMetres } from '@/domain/units/types';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 import { formatArea } from '@/lib/format/measure';
 import { prefersReducedMotion } from '@/lib/motion/reducedMotion';
@@ -73,7 +73,7 @@ export interface SharedRoomLabel {
 export function roomLabels(graph: SpatialGraph, levelId: string, provisionalArea: boolean): readonly SharedRoomLabel[] {
   const level = graph.levels.find((candidate) => candidate.id === levelId);
   if (level === undefined) return [];
-  const floorM = level.elevationMm / 1000 + LABEL_LIFT_M;
+  const floorM = millimetresToMetres(millimetres(level.elevationMm)) + LABEL_LIFT_M;
   return graph.rooms
     .filter((room) => room.levelId === levelId && room.outline.length >= 3)
     .map((room) => {

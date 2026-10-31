@@ -19,6 +19,7 @@ import { durationSeconds } from '@/lib/motion';
 import { WALL_KIND_LABELS } from '@/lib/commands/business/shared';
 import { cn } from '@/lib/utils';
 
+import { CUSTOM_MAX_MM, CUSTOM_MIN_MM, parseCustomThickness } from './customThickness';
 import type { WallLayerViewProps } from './types';
 import { WallLayerInspectorActions } from './WallLayerInspectorActions';
 import { WallScaleLockNotice } from './WallScaleLockNotice';
@@ -47,8 +48,6 @@ const CUSTOM_OPTION_VALUE = 'other';
 const CUSTOM_OPTION_LABEL = 'Khác…';
 const CUSTOM_INPUT_LABEL = 'Độ dày khác, mm';
 const CUSTOM_APPLY_LABEL = 'Áp dụng';
-const CUSTOM_MIN_MM = 60;
-const CUSTOM_MAX_MM = 600;
 const CUSTOM_RANGE_ERROR = `Nhập số từ ${CUSTOM_MIN_MM} đến ${CUSTOM_MAX_MM} mm.`;
 const NON_STANDARD_LABEL = 'Không chuẩn';
 const REVIEWED_LABEL = 'Đã duyệt';
@@ -62,13 +61,6 @@ function ValueRow({ label, value, isLast = false }: { readonly label: string; re
       <span className="flex h-9 items-center text-[14px] tabular-nums text-text-primary">{value}</span>
     </FieldRow>
   );
-}
-
-/** UX-10: số người gõ, hợp lệ khi là số nguyên trong 60–600 mm; còn lại `null`. */
-export function parseCustomThickness(text: string): number | null {
-  const value = Number(text.trim());
-
-  return Number.isInteger(value) && value >= CUSTOM_MIN_MM && value <= CUSTOM_MAX_MM ? value : null;
 }
 
 function CustomThicknessField({

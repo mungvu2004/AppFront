@@ -5,7 +5,8 @@ import type { WallId } from '@/domain/spatial/types';
 import { renderWithProviders } from '@/lib/testing/render';
 
 import type { WallLayerViewProps } from './types';
-import { parseCustomThickness, WallLayerInspector } from './WallLayerInspector';
+import { parseCustomThickness } from './customThickness';
+import { WallLayerInspector } from './WallLayerInspector';
 import { WallLayerInspectorActions } from './WallLayerInspectorActions';
 import type { WallRowExtra } from './wallReviewQueue';
 

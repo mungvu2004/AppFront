@@ -85,9 +85,8 @@ import type {
 } from '@/lib/export/exportGlb';
 import * as pdfModule from '@/lib/export/exportPdf';
 import { renderPdfBlob } from '@/lib/export/pdfRaster';
-import type { PdfDocument } from '@/lib/export/pdfSchema';
 import type { ExportPdfInput } from '@/lib/export/exportPdf';
-import { PDF_SECTION_KINDS, type PdfSectionKind } from '@/lib/export/pdfSchema';
+import { PDF_SECTION_KINDS, type PdfDocument, type PdfSectionKind } from '@/lib/export/pdfSchema';
 import { BYTES_PER_UNIT } from '@/lib/format/bytes';
 import { formatNumber } from '@/lib/format/number';
 import { queryKeys } from '@/lib/query/queryKeys';

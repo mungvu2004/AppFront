@@ -17,7 +17,7 @@ const subscribeOnline = (listener: () => void): (() => void) => {
 const isOffline = (): boolean => typeof navigator !== 'undefined' && navigator.onLine === false;
 
 /** Câu của dải: có số thao tác chờ thì nói số, không thì nói thay đổi sẽ tự lưu. */
-export function offlineBannerText(pending: number): string {
+function offlineBannerText(pending: number): string {
   return pending > 0 ? `Mất mạng · ${pending} thao tác đang chờ gửi` : 'Mất mạng · Thay đổi sẽ tự lưu khi có mạng lại';
 }
 
