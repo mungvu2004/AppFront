@@ -36,7 +36,15 @@
 import { computeCentroid, computeLargestInnerRectangle } from '../../rooms/area';
 import { openingsOfRoom as openingsOfRoomOfAnyKind } from '../../spatial/roomOpenings';
 import { displayCodeIn } from '../../spatial/normalize';
-import type { BoundingBox, Furniture, Opening, Point, Room, RoomUsage, Wall } from '../../spatial/types';
+import type {
+  BoundingBox,
+  Furniture,
+  Opening,
+  Point,
+  Room,
+  RoomUsage,
+  Wall,
+} from '../../spatial/types';
 import { compareNearly, isNearlyZero, type PointMm } from '../../units/compare';
 import { degrees, degreesToRadians, millimetres } from '../../units/types';
 import { formatLength } from '../../../lib/format/measure';
@@ -273,7 +281,10 @@ function distanceToLine(point: Point, line: Line): number {
   const raw = ((point.x - line.start.x) * runX + (point.y - line.start.y) * runY) / lengthSquared;
   const along = Math.min(1, Math.max(0, raw));
 
-  return Math.hypot(point.x - (line.start.x + along * runX), point.y - (line.start.y + along * runY));
+  return Math.hypot(
+    point.x - (line.start.x + along * runX),
+    point.y - (line.start.y + along * runY),
+  );
 }
 
 /**
@@ -339,7 +350,9 @@ function boxCorners(box: BoundingBox): Point[] {
  * `furnitureFootprint` in `src/lib/selection/marquee.ts`). A 2000 × 600 bench
  * at 90° covers 600 × 2000 on the plan, and that is what a rule must judge.
  */
-export function furnitureCorners(item: Pick<Furniture, 'centre' | 'boundingBox' | 'rotationDeg'>): Point[] {
+export function furnitureCorners(
+  item: Pick<Furniture, 'centre' | 'boundingBox' | 'rotationDeg'>,
+): Point[] {
   const corners = boxCorners(item.boundingBox);
   const angle = degreesToRadians(degrees(item.rotationDeg));
 
@@ -382,7 +395,10 @@ function distanceLineToBox(line: Line, box: BoundingBox): number {
   let smallest = Number.POSITIVE_INFINITY;
 
   for (let index = 0; index < corners.length; index += 1) {
-    const edge: Line = { start: itemAt(corners, index), end: itemAt(corners, (index + 1) % corners.length) };
+    const edge: Line = {
+      start: itemAt(corners, index),
+      end: itemAt(corners, (index + 1) % corners.length),
+    };
 
     smallest = Math.min(
       smallest,
@@ -495,7 +511,9 @@ function opensOnto(at: Point, room: Room, toleranceMm: number): boolean {
 function openingsOfRoom(context: RuleContext, room: Room, kind: Opening['kind']): Opening[] {
   const walls: Wall[] = [];
   const openingIds = new Set<string>();
-  const inScope = new Map<string, Wall>(entitiesInScope(context, 'wall').map((wall) => [wall.id, wall]));
+  const inScope = new Map<string, Wall>(
+    entitiesInScope(context, 'wall').map((wall) => [wall.id, wall]),
+  );
 
   for (const wallId of room.wallIds) {
     const wall = findEntity(context, 'wall', wallId);
@@ -688,9 +706,7 @@ function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[
   // that opens onto exactly one room has nothing behind it but the outside.
   // ponytail: an undetected inner space (a corridor the AI missed) also reads
   // as outdoors; drop this once the pipeline marks envelope walls itself.
-  const plannedEnvelope = entitiesInScope(context, 'wall').some(
-    (item) => item.kind === 'envelope',
-  );
+  const plannedEnvelope = entitiesInScope(context, 'wall').some((item) => item.kind === 'envelope');
 
   for (const opening of entitiesInScope(context, 'opening')) {
     if (opening.kind !== 'door') {
@@ -722,7 +738,87 @@ function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[
     });
   }
 
-  return links;
+  return [...links, ...openPassages(context, rooms, onOutlineToleranceMm)];
+}
+
+/** Sampling step along a room outline when looking for a stretch with no wall. */
+const PASSAGE_STEP_MM = 50;
+
+/** Shortest wall-less stretch two rooms must share to count as walked through. */
+export const MIN_OPEN_PASSAGE_MM = 600;
+
+/**
+ * Two rooms that share a stretch of outline with no wall on it are one open
+ * space — a hall open onto the living room, an archway — so a person walks
+ * through it as through a door (U08). Without this, every room behind such an
+ * opening was reported as having no way out at all.
+ *
+ * A point of the shared stretch counts as walled when it lies within half a
+ * wall's thickness (plus slack for an outline traced on the face) of that
+ * wall's centreline. The link's id is not an entity id; it is never an anchor,
+ * because a passage never leads outside.
+ *
+ * ponytail: samples every 50 mm, O(rooms² × perimeter × walls); fine for one
+ * apartment floor, switch to segment overlap if a floor gets hundreds of rooms.
+ */
+function openPassages(
+  context: RuleContext,
+  rooms: readonly Room[],
+  toleranceMm: number,
+): DoorLink[] {
+  const walls = entitiesInScope(context, 'wall');
+  const walled = (at: Point): boolean =>
+    walls.some(
+      (wall) =>
+        compareNearly(
+          distanceToLine(at, wall.centreline),
+          wall.thicknessMm / 2 + PASSAGE_STEP_MM,
+        ) <= 0,
+    );
+  const passages: DoorLink[] = [];
+
+  rooms.forEach((room, index) => {
+    for (const other of rooms.slice(index + 1)) {
+      const open: Point[] = [];
+
+      room.outline.forEach((start, corner) => {
+        const end = room.outline[(corner + 1) % room.outline.length];
+
+        if (end === undefined) {
+          return;
+        }
+
+        const edge = { start, end };
+
+        for (let along = PASSAGE_STEP_MM / 2; along < lengthOf(edge); along += PASSAGE_STEP_MM) {
+          const at = pointAlong(edge, along);
+
+          if (
+            compareNearly(distanceToOutline(at, other.outline), toleranceMm) <= 0 &&
+            !walled(at)
+          ) {
+            open.push(at);
+          }
+        }
+      });
+
+      if (open.length * PASSAGE_STEP_MM < MIN_OPEN_PASSAGE_MM) {
+        continue;
+      }
+
+      passages.push({
+        openingId: `${room.id}~${other.id}`,
+        at: {
+          x: open.reduce((sum, point) => sum + point.x, 0) / open.length,
+          y: open.reduce((sum, point) => sum + point.y, 0) / open.length,
+        },
+        roomIds: [room.id, other.id],
+        leadsOutside: false,
+      });
+    }
+  });
+
+  return passages;
 }
 
 /**
@@ -990,7 +1086,8 @@ export const checkRoomArea: FunctionCheck = (context) => {
 
   for (const room of entitiesInScope(context, 'room')) {
     const requiredM2 =
-      context.thresholds?.[`room.minArea.${room.usage}`] ?? USAGE_REQUIREMENTS[room.usage].minAreaM2;
+      context.thresholds?.[`room.minArea.${room.usage}`] ??
+      USAGE_REQUIREMENTS[room.usage].minAreaM2;
 
     if (requiredM2 <= 0 || compareNearly(room.areaM2, requiredM2) >= 0) {
       continue;

@@ -129,7 +129,14 @@ function box(code: string, min: Point, max: Point): Furniture {
 }
 
 const LEVELS: readonly Level[] = [
-  { ...REVIEWED, id: GROUND, name: 'Tầng trệt', order: 0, elevationMm: 0, heightMm: LEVEL_HEIGHT_MM },
+  {
+    ...REVIEWED,
+    id: GROUND,
+    name: 'Tầng trệt',
+    order: 0,
+    elevationMm: 0,
+    heightMm: LEVEL_HEIGHT_MM,
+  },
 ];
 
 interface PlanParts {
@@ -546,17 +553,23 @@ describe('rooms nobody can walk into', () => {
     const code = displayCodeIn(normalizeSpatial(graph), kitchen.id);
     const fromFunction = runCheck(checkRoomHasDoor, graph);
     const fromBuiltIn = runRules(normalizeSpatial(graph), {
-      registry: createRuleRegistry(BUILT_IN_RULES.filter(({ code: ruleCode }) => ruleCode === 'ROOM-HAS-DOOR')),
+      registry: createRuleRegistry(
+        BUILT_IN_RULES.filter(({ code: ruleCode }) => ruleCode === 'ROOM-HAS-DOOR'),
+      ),
     }).violations;
 
-    expect(fromFunction[0]?.message).toBe(`Phòng ${code} (Bếp) không có cửa đi nào, nên không vào được.`);
+    expect(fromFunction[0]?.message).toBe(
+      `Phòng ${code} (Bếp) không có cửa đi nào, nên không vào được.`,
+    );
     expect(fromBuiltIn[0]?.message).toBe(`Phòng ${code} không có cửa đi nào.`);
   });
 
   it('[BUG-408] keeps the wall count when the room has walls, with the room named once', () => {
     const found = runCheck(checkRoomHasDoor, createFaultyFlat());
 
-    expect(found[0]?.message).toMatch(/^Phòng \S+ \(Vệ sinh\) không có cửa đi nào trên \d+ tường bao của nó/);
+    expect(found[0]?.message).toMatch(
+      /^Phòng \S+ \(Vệ sinh\) không có cửa đi nào trên \d+ tường bao của nó/,
+    );
   });
 
   it('says nothing when every room the table asks has one', () => {
@@ -611,7 +624,10 @@ describe('rooms nobody can walk into', () => {
 
   it('[U08] counts a door on a wall piece the room does not list (AI splits walls at doors)', () => {
     const plan = planOf({
-      walls: [wall('WA', { x: 0, y: 0 }, { x: 1500, y: 0 }), wall('WB', { x: 1500, y: 0 }, { x: 4000, y: 0 })],
+      walls: [
+        wall('WA', { x: 0, y: 0 }, { x: 1500, y: 0 }),
+        wall('WB', { x: 1500, y: 0 }, { x: 4000, y: 0 }),
+      ],
       openings: [opening('DSPLIT', wallId('WB'), 200, 900)],
       rooms: [
         room(
@@ -888,7 +904,9 @@ describe('the way out', () => {
       ],
     });
 
-    const found = runCheck(checkEscapeDistance, plan).filter((item) => item.entityId === roomId('LV'));
+    const found = runCheck(checkEscapeDistance, plan).filter(
+      (item) => item.entityId === roomId('LV'),
+    );
 
     expect(found).toHaveLength(1);
     expect(found[0]?.message).toContain('không có đường nào');
@@ -903,7 +921,10 @@ describe('the way out', () => {
         wall('W2', { x: 0, y: 4500 }, { x: 4000, y: 4500 }),
         envelope('EOUT', { x: 4000, y: 3000 }, { x: 4000, y: 4500 }),
       ],
-      openings: [opening('DBR', wallId('W1'), 1650, 700), opening('DOUT', wallId('EOUT'), 400, 700)],
+      openings: [
+        opening('DBR', wallId('W1'), 1650, 700),
+        opening('DOUT', wallId('EOUT'), 400, 700),
+      ],
       rooms: [
         room(
           'BR',
@@ -933,6 +954,70 @@ describe('the way out', () => {
     });
 
     expect(runCheck(checkEscapeDistance, plan)).toEqual([]);
+  });
+
+  it('walks through a wall-less stretch shared by two rooms, as a hall open onto the living room (U08)', () => {
+    // ch-04: the hall behind the living room has no door to it, only an
+    // 1.1 m stretch of shared outline with no wall; every room off the hall
+    // was reported as having no way out.
+    const plan = (gapMm: number): SpatialGraph =>
+      planOf({
+        walls: [
+          envelope('EFRONT', { x: 0, y: 0 }, { x: 4000, y: 0 }),
+          wall('WA', { x: 4000, y: 0 }, { x: 4000, y: 1500 }),
+          wall('WB', { x: 4000, y: 1500 + gapMm }, { x: 4000, y: 4000 }),
+          wall('WBR', { x: 6000, y: 0 }, { x: 6000, y: 4000 }),
+        ],
+        openings: [
+          opening('DFRONT', wallId('EFRONT'), 1650, 900),
+          opening('DBR', wallId('WBR'), 1650, 800),
+        ],
+        rooms: [
+          room(
+            'LV',
+            'livingRoom',
+            [
+              { x: 0, y: 0 },
+              { x: 4000, y: 0 },
+              { x: 4000, y: 4000 },
+              { x: 0, y: 4000 },
+            ],
+            [wallId('EFRONT'), wallId('WA'), wallId('WB')],
+            16,
+          ),
+          room(
+            'HALL',
+            'other',
+            [
+              { x: 4000, y: 0 },
+              { x: 6000, y: 0 },
+              { x: 6000, y: 4000 },
+              { x: 4000, y: 4000 },
+            ],
+            [wallId('WBR')],
+            8,
+          ),
+          room(
+            'BR',
+            'bedroom',
+            [
+              { x: 6000, y: 0 },
+              { x: 9000, y: 0 },
+              { x: 9000, y: 4000 },
+              { x: 6000, y: 4000 },
+            ],
+            [wallId('WBR')],
+            12,
+          ),
+        ],
+      });
+
+    expect(runCheck(checkEscapeDistance, plan(1100))).toEqual([]);
+    // Walled shut (no gap): the bedroom and the hall really have no way out.
+    expect(runCheck(checkEscapeDistance, plan(0)).map((item) => item.entityId)).toEqual([
+      roomId('HALL'),
+      roomId('BR'),
+    ]);
   });
 
   it('counts a door on the outer edge as a way out when the AI marked no envelope (J-13)', () => {
@@ -1245,7 +1330,9 @@ describe('the seven staying out of each other’s way', () => {
 
   it('never names the same entity twice across two rules', () => {
     const flat = createFaultyFlat();
-    const subjects = CHECKS.flatMap(([, check]) => runCheck(check, flat).map((item) => item.entityId));
+    const subjects = CHECKS.flatMap(([, check]) =>
+      runCheck(check, flat).map((item) => item.entityId),
+    );
 
     expect(new Set(subjects).size).toBe(subjects.length);
   });
