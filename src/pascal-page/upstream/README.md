@@ -50,6 +50,13 @@ FE3D-FIX-002:
     lens (`fov` in the `apply-pose` pose) instead of upstream `handleFitScene`'s ≈30° / 50°, at the distance where
     every corner of the plan box (floor to 3 m) lands inside 80% of the viewport below the 70 px toolbar.
 
+SketchUp UX:
+
+12. `page.tsx` mounts `<DraftAssist />` (`../draftAssist/`): while a wall is being drafted, typing a length
+    (`3500`, `3,5`, `350cm`) and Enter commits the segment at that exact length along the cursor direction; a chip
+    beside the cursor names the snap (Đầu tường / Trung điểm / Giao điểm / Trên tường / Thẳng hàng).
+    `components/canvas-help.tsx` shows `ToolHint` (next step of the armed tool) where the Delete banner sits.
+
 `next/image` / `next/link` resolve to `vendor/pascal/shims/*` (aliases in `vite.pascal.config.ts`, paths in `tsconfig.json`).
 
 pascal-polish T3 (look only, no logic change): `components/viewer-toolbar.tsx` and `components/toolbar-tooltip.tsx` are

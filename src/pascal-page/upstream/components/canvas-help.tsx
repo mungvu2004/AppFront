@@ -13,6 +13,7 @@
  *   unlabelled camera group; measurement distance labels get a solid, readable chip.
  * - G5-14: while the Delete tool (X) is armed, a banner says so. It sits in the same column as
  *   the pill (above it), so the two never overlap (RV3 #9).
+ * - SketchUp UX: outside the Delete tool, `ToolHint` names the next step of the armed tool.
  * - N5-11: while measuring, a "Xoá vạch đo" button removes every measurement (Ctrl+Z undoes).
  * The selectors target upstream title/aria-label/class strings; if Pascal renames them the CSS
  * simply stops matching (no breakage).
@@ -25,6 +26,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useScaleUnresolved } from '../../scaleUnresolved'
 import { requestTour } from '../../tour/tourLogic'
 import { clampShift, clearOfShift, unionBox } from '../lib/clamp-shift'
+import { ToolHint } from '../../draftAssist/DraftAssist'
 
 const OPEN_KEY = 'appfront-3d-help-open:v1'
 
@@ -260,7 +262,9 @@ export function CanvasHelp({ banner }: { banner?: ReactNode }) {
             >
               Đang ở chế độ xoá: bấm vào đối tượng sẽ xoá nó · Esc để thoát
             </div>
-          ) : null}
+          ) : (
+            <ToolHint />
+          )}
           <div className="flex items-center gap-1.5">
             <button
               aria-expanded={open}
