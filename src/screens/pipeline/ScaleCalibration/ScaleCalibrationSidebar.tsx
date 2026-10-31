@@ -85,6 +85,31 @@ export function ScaleCalibrationSidebar({ actions, panel, state }: SidebarProps)
         </section>
       )}
 
+      {/* UX-R4 U11: brochure không ghi số kích thước nhưng in diện tích căn — gõ diện tích, máy suy tỷ lệ. */}
+      {panel.areaEntry !== undefined && !isLoading && !isForbidden && (
+        <section className="flex flex-col gap-2 border-b border-border-default px-4 py-3">
+          <Input
+            className="font-mono text-[13px] leading-5"
+            error={panel.areaEntry.error ?? undefined}
+            hint={panel.areaEntry.hint}
+            inputMode="decimal"
+            label={panel.areaEntry.label}
+            onChange={(event) => {
+              actions.onChangeFlatArea?.(event.target.value);
+            }}
+            placeholder={panel.areaEntry.placeholder}
+            value={panel.areaEntry.text}
+          />
+        </section>
+      )}
+
+      {/* UX-R4 U06: ảnh chụp/JPG — nói một câu vì sao ghi chú "TL 1/N" không dùng được. */}
+      {panel.ratioEntry === undefined && panel.ratioPhotoNotice !== undefined && !isLoading && !isForbidden && (
+        <p className="border-b border-border-default px-4 py-3 text-[13px] text-text-secondary">
+          {panel.ratioPhotoNotice}
+        </p>
+      )}
+
       {/* UX41 U46: người xem không sửa được — không bày ô nhập/nút đo mờ; dải trên bản vẽ đã nói nhờ ai. */}
       {!isForbidden && (
       <div className="flex flex-col gap-3 px-4 py-4">
@@ -109,6 +134,7 @@ export function ScaleCalibrationSidebar({ actions, panel, state }: SidebarProps)
                 actions={{
                   onHoverDimensionRow: actions.onHoverDimensionRow,
                   onSelectDimensionRow: actions.onSelectDimensionRow,
+                  ...(actions.onZoomToNumbers === undefined ? {} : { onZoomToNumbers: actions.onZoomToNumbers }),
                 }}
                 dimension={panel.dimension}
               />

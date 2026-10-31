@@ -143,7 +143,16 @@ import {
   type ScaleRawSnapTarget,
   type ScaleRoomBoxPx,
 } from './scaleCalibrationGateway';
-import { buildScaleCheck, isPlanSizeImplausible, mmPerPxAt, planSizeText, type PlanSizeMm } from './scaleCheck';
+import {
+  buildScaleCheck,
+  isPlanSizeImplausible,
+  mmPerPxAt,
+  mmPerPxFromFlatArea,
+  outlinesAreaM2,
+  parseFlatAreaM2,
+  planSizeText,
+  type PlanSizeMm,
+} from './scaleCheck';
 import type {
   DimensionStringRow,
   ImageRatioPoint,
@@ -242,6 +251,16 @@ const COPY = {
   ratioEntryInvalid: 'Nhập dạng 1:100 hoặc 100.',
   ratioEntryNotice: (ratio: string, density: string): string =>
     `Tỷ lệ 1:${ratio} ứng với 1 px ≈ ${density} mm. Bấm Xác nhận tỷ lệ để lưu.`,
+  // UX-R4 U11: brochure không ghi số kích thước nhưng in diện tích căn — suy tỷ lệ từ diện tích.
+  areaEntryLabel: 'Theo diện tích căn (m², số in trên brochure)',
+  areaEntryPlaceholder: '68,94',
+  areaEntryInvalid: 'Nhập diện tích bằng m², ví dụ 68,94.',
+  areaEntryHint: (size: string, density: string): string => `Căn rộng ${size}, 1 px ≈ ${density} mm.`,
+  areaEntryNotice: (area: string, size: string): string =>
+    `Căn ${area} m² thì rộng ${size}. Thấy đúng thì bấm Xác nhận tỷ lệ.`,
+  // UX-R4 U06: ảnh chụp/JPG không mang cỡ in, nên ghi chú "TL 1/100" trên khung tên không đổi ra mm/px được.
+  ratioPhotoNotice:
+    'Ghi chú "TL 1/100" trên khung tên chỉ dùng được cho PDF: ảnh chụp hoặc JPG không biết cỡ in thật, nên hãy đo theo một số kích thước.',
   allFloorsOffline: 'Mất mạng nên một số tầng chưa lưu. Có mạng lại sẽ tự gửi, không cần bấm lại.',
   applyCommitLabel: 'Xác nhận tỷ lệ',
   applyNoSpatial: 'Chưa nạp dữ liệu không gian của tầng này, nên chưa áp được tỷ lệ.',
@@ -868,6 +887,8 @@ export function useScaleCalibration(
   const [realLengthText, setRealLengthText] = useState('');
   /** UX41 U01: chữ "1:100" người dùng gõ, gắn theo tầng để đổi tầng không mang sang. */
   const [ratioEntry, setRatioEntry] = useState<{ readonly floorId: string; readonly text: string } | null>(null);
+  /** UX-R4 U11: diện tích căn (m²) người dùng gõ, gắn theo tầng như `ratioEntry`. */
+  const [areaEntry, setAreaEntry] = useState<{ readonly floorId: string; readonly text: string } | null>(null);
   const [applyScope, setApplyScope] = useState<ScaleApplyScope>('thisFloor');
   const [isCollapsedByUser, setIsCollapsedByUser] = useState(false);
   const [canvasSize, setCanvasSize] = useState<{ readonly width: number; readonly height: number }>({
@@ -1033,6 +1054,32 @@ export function useScaleCalibration(
         : millimetresPerPixel(mmPerPxAt(ratioDenominator, sourceDpi)),
     [ratioDenominator, sourceDpi],
   );
+  const areaText = areaEntry?.floorId === floorId ? areaEntry.text : '';
+  const areaM2 = useMemo(() => parseFlatAreaM2(areaText), [areaText]);
+  /** Diện tích căn ở tỷ lệ đã dựng: tổng các phòng; chưa có phòng thì hộp bao tường. */
+  const builtAreaM2 = useMemo<number | null>(() => {
+    if (layerDocument === undefined) {
+      return null;
+    }
+    const rooms = outlinesAreaM2(layerDocument.layer.rooms.map((room) => room.outline));
+    const box = planSizeAt(layerDocument, layerDocument.level.scaleMillimetresPerPixel ?? null);
+    const area = rooms > 0 ? rooms : box === null ? 0 : (box.widthMm * box.heightMm) / 1_000_000;
+
+    return area > 0 ? area : null;
+  }, [layerDocument]);
+  const areaEntryRatio = useMemo<MillimetresPerPixel | null>(() => {
+    const built = layerDocument?.level.scaleMillimetresPerPixel;
+    const value =
+      areaM2 === null || builtAreaM2 === null || built === undefined
+        ? null
+        : mmPerPxFromFlatArea(areaM2, built, builtAreaM2);
+
+    return value === null ? null : millimetresPerPixel(value);
+  }, [areaM2, builtAreaM2, layerDocument?.level.scaleMillimetresPerPixel]);
+  /** Cỡ căn ở tỷ lệ suy từ diện tích — để người dùng soi trước khi xác nhận (ví dụ ≈ 8,7 × 8,2 m). */
+  const areaPlanSize = useMemo(() => planSizeAt(layerDocument, areaEntryRatio), [areaEntryRatio, layerDocument]);
+  /** Tỷ lệ người dùng gõ thẳng (1:N hoặc diện tích căn); hai ô loại trừ nhau. */
+  const typedRatio = ratioEntryRatio ?? areaEntryRatio;
   const isAutoSuggestion =
     floorLayer.scaleSource === 'pipeline' &&
     pipelineRatio !== null &&
@@ -1040,10 +1087,10 @@ export function useScaleCalibration(
     rawRows.length === 0 &&
     drag === null &&
     proposedScale === null &&
-    ratioEntryRatio === null;
+    typedRatio === null;
   const isSuggestionActive = pipelineRatio !== null && (isSuggestionChosen || isAutoSuggestion);
   const proposedRatio =
-    ratioEntryRatio ?? (isSuggestionActive ? pipelineRatio : (proposedScale?.millimetresPerPixel ?? null));
+    typedRatio ?? (isSuggestionActive ? pipelineRatio : (proposedScale?.millimetresPerPixel ?? null));
 
   /** Tỷ lệ dùng để bắt điểm và để suy ra ba dòng kiểm chứng, theo thứ tự tin cậy. */
   const workingRatio: MillimetresPerPixel | null = proposedRatio ?? storedRatio ?? provisionalRatio ?? aiSuggestion;
@@ -1188,13 +1235,8 @@ export function useScaleCalibration(
    * trong 340 ms (R-07). `flyToBounds` tự đọc mức "giảm chuyển động" của hệ
    * điều hành, nên khung nhìn nhảy thẳng tới đích khi người dùng đã tắt hiệu ứng.
    */
-  const onSelectDimensionRow = useCallback(
+  const flyToRow = useCallback(
     (rowId: string) => {
-      setSelectedRowId(rowId);
-      setSuggestionFloorId(null);
-      setRatioEntry(null);
-      setMethod('dimensionString');
-
       const row = rowsRef.current.find((entry) => entry.id === rowId);
       const currentFrame = frameRef.current;
       const size = canvasSizeRef.current;
@@ -1215,6 +1257,29 @@ export function useScaleCalibration(
     [flyToBounds],
   );
 
+  const onSelectDimensionRow = useCallback(
+    (rowId: string) => {
+      setSelectedRowId(rowId);
+      setSuggestionFloorId(null);
+      setRatioEntry(null);
+      setAreaEntry(null);
+      setMethod('dimensionString');
+      flyToRow(rowId);
+    },
+    [flyToRow],
+  );
+
+  /** UX-R4 U06: số trên bản vẽ nhỏ — một cú bấm phóng tới số đang chọn (hoặc số đầu), không đổi lựa chọn. */
+  const selectedRowIdRef = useRef(selectedRowId);
+  selectedRowIdRef.current = selectedRowId;
+  const onZoomToNumbers = useCallback(() => {
+    const rowId = selectedRowIdRef.current ?? rowsRef.current[0]?.id;
+
+    if (rowId !== undefined) {
+      flyToRow(rowId);
+    }
+  }, [flyToRow]);
+
   const onStartDrag = useCallback((point: ImageRatioPoint, endpoint?: ReferenceLineEndpoint) => {
     const currentFrame = frameRef.current;
 
@@ -1225,6 +1290,7 @@ export function useScaleCalibration(
     setMethod('referenceLine');
     setSuggestionFloorId(null);
     setRatioEntry(null);
+    setAreaEntry(null);
 
     // Nhấn lên tay cầm: kéo đúng đầu đó, đầu kia đứng yên — không vẽ lại cả đoạn (BUG-587).
     if (endpoint !== undefined) {
@@ -1428,6 +1494,7 @@ export function useScaleCalibration(
     setMethod('referenceLine');
     setSuggestionFloorId(null);
     setRatioEntry(null);
+    setAreaEntry(null);
     setApplyOutcome(null);
     setNudgeTarget('end');
     setDrag({
@@ -1513,6 +1580,7 @@ export function useScaleCalibration(
   const onUseSuggestedScale = useCallback(() => {
     setSuggestionFloorId(floorId);
     setRatioEntry(null);
+    setAreaEntry(null);
     setDrag(null);
   }, [floorId]);
 
@@ -1520,6 +1588,18 @@ export function useScaleCalibration(
   const onChangeDrawingRatio = useCallback(
     (text: string) => {
       setRatioEntry({ floorId, text });
+      setAreaEntry(null);
+      setApplyOutcome(null);
+    },
+    [floorId],
+  );
+
+  /** UX-R4 U11: gõ diện tích căn (m²); ô 1:N bị xoá để chỉ một nguồn tỷ lệ. */
+  const onChangeFlatArea = useCallback(
+    (text: string) => {
+      setAreaEntry({ floorId, text });
+      setRatioEntry(null);
+      setSuggestionFloorId(null);
       setApplyOutcome(null);
     },
     [floorId],
@@ -2136,7 +2216,7 @@ export function useScaleCalibration(
   // Tỷ lệ ước từ độ dày tường không có phép chia nào để bày ra.
   const isComputationComplete = numerator !== null && denominator !== null && !isSuggestionActive;
   // Mốc máy chọn sẵn chưa phải việc người dùng làm (UX-R2 K05).
-  const hasStartedWork = drag !== null || pickedRowId !== null || isSuggestionActive || ratioEntryRatio !== null;
+  const hasStartedWork = drag !== null || pickedRowId !== null || isSuggestionActive || typedRatio !== null;
 
   const state = useMemo<ScaleCalibrationState>(() => {
     if (query.isPending) {
@@ -2485,6 +2565,20 @@ export function useScaleCalibration(
               },
             }
           : {}),
+        ...(builtAreaM2 !== null && canEdit
+          ? {
+              areaEntry: {
+                label: COPY.areaEntryLabel,
+                text: areaText,
+                placeholder: COPY.areaEntryPlaceholder,
+                error: areaText.trim() !== '' && areaEntryRatio === null ? COPY.areaEntryInvalid : null,
+                ...(areaPlanSize !== null && areaEntryRatio !== null
+                  ? { hint: COPY.areaEntryHint(planSizeText(areaPlanSize), formatScaleDensity(areaEntryRatio)) }
+                  : {}),
+              },
+            }
+          : {}),
+        ...(sourceDpi === null && canEdit && !isNoDrawing ? { ratioPhotoNotice: COPY.ratioPhotoNotice } : {}),
         ...(suggestedRatio !== null && canEdit
           ? {
               suggestion: {
@@ -2518,6 +2612,8 @@ export function useScaleCalibration(
           ? null
           : ratioEntryRatio !== null && ratioDenominator !== null
             ? COPY.ratioEntryNotice(formatNumber(ratioDenominator), formatScaleDensity(ratioEntryRatio))
+          : areaEntryRatio !== null && areaM2 !== null && areaPlanSize !== null
+            ? COPY.areaEntryNotice(formatNumber(areaM2), planSizeText(areaPlanSize))
           : isAutoSuggestion && pipelineRatio !== null
             ? COPY.autoSuggestionNotice(formatNumber(pipelineRatio, { maxFractionDigits: 1 }))
           : isSuggestionActive
@@ -2564,6 +2660,11 @@ export function useScaleCalibration(
     ratioDenominator,
     ratioEntryRatio,
     ratioText,
+    areaEntryRatio,
+    areaM2,
+    areaPlanSize,
+    areaText,
+    builtAreaM2,
     sourceDpi,
     selectedRow,
     suggestedRatio,
@@ -2634,6 +2735,8 @@ export function useScaleCalibration(
       onApply,
       onUseSuggestedScale,
       onChangeDrawingRatio,
+      onChangeFlatArea,
+      onZoomToNumbers,
       onChangeApplyScope,
       onConfirmAllFloors,
       onCancelAllFloors,
@@ -2647,6 +2750,8 @@ export function useScaleCalibration(
       onApply,
       onCancelAllFloors,
       onChangeDrawingRatio,
+      onChangeFlatArea,
+      onZoomToNumbers,
       onConfirmAllFloors,
       onCancelDrag,
       onCanvasSizeChange,

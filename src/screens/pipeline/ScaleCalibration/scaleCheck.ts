@@ -100,6 +100,35 @@ const MISSING_KNOWN = 'Chưa có kích thước thứ hai để kiểm chéo t�
 const metres = (valueMm: number): string => formatNumber(millimetresToMetres(millimetres(valueMm)), { fractionDigits: 1 });
 export const planSizeText = (size: PlanSizeMm): string => `≈ ${metres(size.widthMm)} × ${metres(size.heightMm)} m`;
 
+/** UX-R4 U11: "68,94", "68.94 m2", "68,94 m²" → 68.94; chữ khác hoặc ≤ 0 → `null`. */
+export function parseFlatAreaM2(text: string): number | null {
+  const match = /^\s*(\d+(?:[.,]\d+)?)\s*(?:m2|m²)?\s*$/i.exec(text);
+  const value = match?.[1] === undefined ? Number.NaN : Number(match[1].replace(',', '.'));
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/** Diện tích (m²) của các đường bao phòng tính bằng mm (công thức shoelace, cộng trị tuyệt đối từng phòng). */
+export function outlinesAreaM2(outlines: readonly (readonly { readonly x: number; readonly y: number }[])[]): number {
+  let total = 0;
+  for (const outline of outlines) {
+    let twice = 0;
+    outline.forEach((point, index) => {
+      const next = outline[(index + 1) % outline.length] ?? point;
+      twice += point.x * next.y - next.x * point.y;
+    });
+    total += Math.abs(twice) / 2;
+  }
+  return total / 1_000_000;
+}
+
+/**
+ * UX-R4 U11: tỷ lệ suy từ diện tích căn in trên brochure. Diện tích tỷ lệ với bình phương mm/px, nên
+ * `mm/px mới = mm/px đã dựng × √(diện tích nhập / diện tích đo ở tỷ lệ đã dựng)`. Thiếu số → `null`.
+ */
+export function mmPerPxFromFlatArea(targetM2: number, builtMmPerPx: number, builtAreaM2: number): number | null {
+  return targetM2 > 0 && builtMmPerPx > 0 && builtAreaM2 > 0 ? builtMmPerPx * Math.sqrt(targetM2 / builtAreaM2) : null;
+}
+
 /**
  * UX41 U34: cỡ căn vô lý cho một căn hộ — cạnh dài hơn `maxMm` (thường do thừa một số 0) hoặc
  * ngắn hơn `minMm`. Hai ngưỡng truyền vào để nơi gọi giữ một nguồn hằng số.

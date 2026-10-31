@@ -887,6 +887,44 @@ describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved
     expect(harness.writeLayer.mock.calls[0]?.[0].body.scaleMillimetresPerPixel).toBeCloseTo((100 * 25.4) / 150, 6);
   });
 
+  it('[UX-R4 U11] brochure không ghi số: gõ diện tích căn → tỷ lệ suy từ diện tích phòng, lưu qua cùng PUT', async () => {
+    useStore.getState().setSpatial(null, null);
+    simulateProvisionalScale(FLOOR_ID, PROVISIONAL_RATIO, 'pipeline');
+    const harness = await makeHarness();
+    /* Một phòng 10 × 10 m ở tỷ lệ đã dựng = 100 m²; căn thật 25 m² → mm/px còn một nửa. */
+    const square = [
+      { x: 0, y: 0 },
+      { x: 10_000, y: 0 },
+      { x: 10_000, y: 10_000 },
+      { x: 0, y: 10_000 },
+    ];
+    let built = 0;
+    const gateway = withScaleCapabilities(harness.gateway, {
+      readLayer: async (input) => {
+        const document = await harness.gateway.readLayer(input);
+        built = document.level.scaleMillimetresPerPixel ?? 0;
+        return { ...document, dimensions: [], layer: { ...document.layer, rooms: [{ outline: square }] as never } };
+      },
+    });
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    expect(mounted.result.current.model.panel.areaEntry?.placeholder).toBe('68,94');
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeFlatArea?.('25');
+    });
+
+    expect(mounted.result.current.model.panel.areaEntry?.error).toBeNull();
+    expect(built).toBeGreaterThan(0);
+
+    await applyNow(mounted);
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+    expect(harness.writeLayer.mock.calls[0]?.[0].body.scaleMillimetresPerPixel).toBeCloseTo(built / 2, 6);
+  });
+
   it('storedRatio null: nhãn "Chưa có", dải tỷ lệ tạm; áp đúng tỷ lệ tạm → một PUT, dải mất', async () => {
     const { harness, mounted } = await mountProvisional();
 
