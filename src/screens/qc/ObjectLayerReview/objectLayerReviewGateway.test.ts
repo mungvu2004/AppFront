@@ -10,6 +10,7 @@ import {
   buildChangeFurnitureKindCommand,
   confidentObjectsOf,
   confirmUnsureLabelOf,
+  doorSizeWarningOf,
   drawnFurnitureInputOf,
   levelOfGraph,
   objectPlacementsOf,
@@ -198,5 +199,15 @@ describe('objectLayerReviewGateway: duyệt hàng loạt (U04)', () => {
       '4 cần xem = 1 máy chắc chắn + 1 máy chưa chắc + 1 gợi ý + 1 chưa gắn tường',
     );
     expect(reviewBreakdownLabelOf([variant('done', { reviewed: true })], 0.75)).toBeNull();
+  });
+});
+
+describe('objectLayerReviewGateway: narrow door hint (UX-48)', () => {
+  it('warns only on doors narrower than 600 mm', () => {
+    expect(doorSizeWarningOf({ layer: 'door', widthMm: 392 })).toBe('Cửa hẹp bất thường (392 mm), kiểm lại');
+    expect(doorSizeWarningOf({ layer: 'door', widthMm: 600 })).toBeNull();
+    expect(doorSizeWarningOf({ layer: 'door', widthMm: 900 })).toBeNull();
+    expect(doorSizeWarningOf({ layer: 'window', widthMm: 392 })).toBeNull();
+    expect(doorSizeWarningOf({ layer: 'furniture', widthMm: 392 })).toBeNull();
   });
 });

@@ -314,6 +314,11 @@ function ObjectInspectorBody({
                 {inspector.widthLabel}
               </span>
             </FieldRow>
+            {inspector.sizeWarning == null ? null : (
+              <Badge className="mb-2 self-start" data-testid="object-size-warning" variant="attention">
+                {inspector.sizeWarning}
+              </Badge>
+            )}
             <FieldRow label={HEIGHT_LABEL}>
               <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">
                 {inspector.heightLabel}
