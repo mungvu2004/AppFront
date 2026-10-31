@@ -192,9 +192,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           onBlur={blur('email')}
         />
 
-        {/* "Quên mật khẩu" ngay dưới ô mật khẩu, căn phải: chỗ nhìn thấy trùng thứ tự Tab (Email → Mật khẩu →
-            Hiện mật khẩu → Quên mật khẩu → Ghi nhớ), không nổi phía trên ô nữa (U46). Ngoài `<label>`: tên
-            của ô vẫn đúng "Mật khẩu", nút không lọt vào tên ấy. */}
+        {/* "Quên mật khẩu" dưới ô, ngoài `<label>`: chỗ nhìn trùng thứ tự Tab (U46), tên ô vẫn là "Mật khẩu". */}
         <PasswordField
           label={AUTH_MESSAGES.fields.password}
           autoComplete="current-password"

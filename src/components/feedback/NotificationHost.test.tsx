@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createNotificationBus } from '@/lib/mutations/notificationBus';
 
-import { NotificationHost, OFFLINE_NOTICE } from './NotificationHost';
+import { NotificationHost } from './NotificationHost';
+import { OFFLINE_NOTICE } from './offlineNotice';
 
 describe('NotificationHost — lỗi mới gộp vào thông báo cùng loại đã tắt (FL-11F-03)', () => {
   beforeEach(() => {

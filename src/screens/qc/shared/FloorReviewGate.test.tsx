@@ -6,8 +6,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ROUTES } from '@/routes/paths';
 
-import { FloorReviewGate, stepAfter } from './FloorReviewGate.container';
+import { FloorReviewGate } from './FloorReviewGate.container';
 import { SCALE_LOCK_REASON, type FloorScaleState } from './floorReviewGateModel';
+import { stepAfter } from './stepAfter';
 
 const review = vi.hoisted(() => ({ scale: null as FloorScaleState | null }));
 vi.mock('./useFloorReview', () => ({

@@ -44,6 +44,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import type { Notification, NotificationBus } from '@/lib/mutations/notificationBus';
 
+import { OFFLINE_NOTICE } from './offlineNotice';
 import { Toast, type ToastMessage } from './Toast';
 
 /** Tiêu đề và câu mô tả ghép thành một dòng, vì `ToastMessage` chỉ có một ô chữ. */
@@ -72,11 +73,6 @@ function toToastMessage(notification: Notification): ToastMessage {
   };
 }
 
-/** U56: mất mạng phải thấy rõ, không chỉ là dòng chữ nhỏ ở thanh trạng thái. */
-export const OFFLINE_NOTICE = {
-  title: 'Mất kết nối mạng',
-  description: 'Thay đổi vẫn giữ trên máy này và sẽ tự lưu khi có mạng lại.',
-} as const;
 
 const keyOf = (item: Notification): string => `${item.id}\u0000${item.title}\u0000${item.description}`;
 
