@@ -57,6 +57,7 @@ import { ObjectLayerInspector } from './ObjectLayerInspector';
 import { ObjectLayerLeftPanel } from './ObjectLayerLeftPanel';
 import { ObjectLayerList } from './ObjectLayerList';
 import { ObjectLayerStatusBar } from './ObjectLayerStatusBar';
+import { ObjectLayerBulkApproveBar } from './ObjectLayerBulkApproveBar';
 import { ObjectLayerSuggestionBar } from './ObjectLayerSuggestionBar';
 import { ObjectLayerToolRail } from './ObjectLayerToolRail';
 import { OBJECT_LAYER_TEXT } from './objectLayerReviewGateway';
@@ -188,6 +189,13 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
           </button>
         </div>
       ) : null}
+
+      <ObjectLayerBulkApproveBar
+        confidentLabel={model.approveConfidentLabel}
+        onApproveConfident={model.onApproveConfident}
+        onApproveRemaining={model.onApproveRemaining}
+        remainingLabel={model.approveRemainingLabel}
+      />
 
       {(model.suggestionCount ?? 0) === 0 ||
       model.onAcceptAllSuggestions === undefined ||

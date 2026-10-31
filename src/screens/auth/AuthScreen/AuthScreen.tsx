@@ -192,9 +192,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           onBlur={blur('email')}
         />
 
-        {/* "Quên mật khẩu" ngang hàng nhãn ô mật khẩu, nơi người quên tìm tới (Z/S-01 #5). Đặt sau ô trong DOM
-            và ngoài `<label>`: tên của ô vẫn đúng "Mật khẩu", nút không lọt vào tên ấy. */}
-        <div className="relative">
+        {/* "Quên mật khẩu" dưới ô, ngoài `<label>`: chỗ nhìn trùng thứ tự Tab (U46), tên ô vẫn là "Mật khẩu". */}
         <PasswordField
           label={AUTH_MESSAGES.fields.password}
           autoComplete="current-password"
@@ -208,11 +206,12 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           }}
           onBlur={blur('password')}
         />
+        <div className="-mt-2 mb-3 flex justify-end">
           <button
             type="button"
             disabled={fieldsDisabled}
             onClick={actions.forgotPassword}
-            className="absolute -top-3 right-0 inline-flex min-h-11 items-center rounded-sm text-[13px] fine:-top-0.5 fine:min-h-6 font-medium leading-5 text-accent-hover transition-colors duration-120 hover:text-accent-active hover:underline underline-offset-2 outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-11 items-center rounded-sm text-[13px] fine:min-h-6 font-medium leading-5 text-accent-hover transition-colors duration-120 hover:text-accent-active hover:underline underline-offset-2 outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface disabled:cursor-not-allowed disabled:opacity-50"
           >
             {AUTH_MESSAGES.actions.forgotPassword}
           </button>

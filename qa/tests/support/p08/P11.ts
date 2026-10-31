@@ -78,6 +78,8 @@ export const T = {
   toAdmin: 'Quản trị — Vai mới giữ nguyên mọi việc họ đang làm được', // UUM:154,812
 } as const;
 export const ROLE = { admin: 'Quản trị', engineer: 'Kỹ sư', viewer: 'Người xem' } as const;
+/** Mục chọn của ô "Vai cho lời mời" ghi kèm quyền (U38). */
+export const INVITE_ROLE = { admin: 'Quản trị (quản lý cả hệ thống)', engineer: 'Kỹ sư (được sửa dự án)', viewer: 'Người xem (chỉ xem)' } as const;
 export const STATUS = { active: 'Đang hoạt động', pending: 'Chờ chấp nhận', disabled: 'Đã vô hiệu hoá' } as const;
 
 export { type Json };

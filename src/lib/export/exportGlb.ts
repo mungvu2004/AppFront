@@ -137,12 +137,26 @@ export function formatExportTimestamp(date: Date): string {
   return `${datePart}_${timePart}`;
 }
 
-/** `tang-2` for one floor (`tang-tret` for order 0), `tang-tret-den-tang-3` for a range, whatever order they arrived in. */
-function formatLevelRange(levelOrders: readonly number[]): string {
-  const lowest = Math.min(...levelOrders);
-  const highest = Math.max(...levelOrders);
-  const label = (order: number): string => (order === 0 ? 'tang-tret' : `tang-${String(order)}`);
-  return lowest === highest ? label(lowest) : `${label(lowest)}-den-${label(highest)}`;
+/** A floor as the file name sees it: its order picks the range ends, its name is what is written. */
+export interface FileNameLevel {
+  readonly order: number;
+  readonly name: string;
+}
+
+/**
+ * `tang-1` for one floor named "Tầng 1", `tang-tret-den-tang-3` for a range: the floors' own
+ * names, slugged (U35), lowest and highest by order, whatever order they arrived in.
+ */
+function formatLevelRange(levels: readonly FileNameLevel[]): string {
+  const byOrder = [...levels].sort((left, right) => left.order - right.order);
+  const lowest = byOrder[0];
+  const highest = byOrder[byOrder.length - 1];
+  if (lowest === undefined || highest === undefined) {
+    throw new RangeError('A file name needs at least one floor for its range.');
+  }
+  return lowest.order === highest.order
+    ? toFileSlug(lowest.name)
+    : `${toFileSlug(lowest.name)}-den-${toFileSlug(highest.name)}`;
 }
 
 /**
@@ -153,13 +167,10 @@ function formatLevelRange(levelOrders: readonly number[]): string {
  */
 export function buildGlbFileName(
   projectName: string,
-  levelOrders: readonly number[],
+  levels: readonly FileNameLevel[],
   exportedAt: Date,
 ): string {
-  if (levelOrders.length === 0) {
-    throw new RangeError('A file name needs at least one floor for its range.');
-  }
-  return `${toFileSlug(projectName)}_${formatLevelRange(levelOrders)}_${formatExportTimestamp(exportedAt)}.glb`;
+  return `${toFileSlug(projectName)}_${formatLevelRange(levels)}_${formatExportTimestamp(exportedAt)}.glb`;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -198,7 +209,7 @@ export function exportGlb(
     const exportedAt = now();
     const fileName = buildGlbFileName(
       input.projectName,
-      input.floors.map((floor) => floor.level.order),
+      input.floors.map((floor) => floor.level),
       exportedAt,
     );
 

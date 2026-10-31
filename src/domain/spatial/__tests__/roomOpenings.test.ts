@@ -173,6 +173,44 @@ describe('openingsOfRoom', () => {
     expect(openingsOfRoom(r2, [w1], [])).toEqual([]);
   });
 
+  it('counts a door on a wall piece the room does not list (walls split at doors)', () => {
+    // The room lists only the left piece; the door sits on the unlisted right piece.
+    const left = wall('L', { x: 0, y: 0 }, { x: 1500, y: 0 });
+    const right = wall('R', { x: 1500, y: 0 }, { x: 4000, y: 0 }, [openingId('SPLIT')]);
+    const door = opening('SPLIT', 'R', 200, 900);
+    const r1 = room(
+      '1',
+      [
+        { x: 0, y: 0 },
+        { x: 4000, y: 0 },
+        { x: 4000, y: 3000 },
+        { x: 0, y: 3000 },
+      ],
+      [wallId('L')],
+    );
+
+    expect(openingsOfRoom(r1, [left, right], [door])).toEqual([door]);
+  });
+
+  it('ignores an unlisted wall on another level, and never returns one opening twice', () => {
+    const own = wall('OWN', { x: 0, y: 0 }, { x: 4000, y: 0 }, [openingId('ONE')]);
+    const upstairs = { ...wall('UP', { x: 0, y: 0 }, { x: 4000, y: 0 }, [openingId('UP')]), levelId: 'L-2' } as Wall;
+    const door = opening('ONE', 'OWN', 1500, 900);
+    const doorUp = opening('UP', 'UP', 1500, 900);
+    const r1 = room(
+      '1',
+      [
+        { x: 0, y: 0 },
+        { x: 4000, y: 0 },
+        { x: 4000, y: 3000 },
+        { x: 0, y: 3000 },
+      ],
+      [wallId('OWN')],
+    );
+
+    expect(openingsOfRoom(r1, [own, own, upstairs], [door, doorUp])).toEqual([door]);
+  });
+
   it('writes to none of its arguments', () => {
     const w1 = wall('1', { x: 0, y: 0 }, { x: 4000, y: 0 }, [openingId('1')]);
     const d1 = opening('1', '1', 1500, 900);

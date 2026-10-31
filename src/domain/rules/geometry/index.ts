@@ -95,6 +95,15 @@ export const COVERAGE_LATERAL_TOLERANCE_MM = 50;
 /** Longest stretch of room outline that may go unwalled without complaint. */
 export const MAX_UNCOVERED_EDGE_MM = 50;
 
+/**
+ * Widest gap in the middle of a room side that reads as a doorway or an open
+ * passage rather than a missing wall (U08). The AI splits walls at door gaps,
+ * and a flat has open kitchen-to-living passages; both close the room for this
+ * rule. A gap that touches a corner is still reported, and a loose wall end
+ * beside a real hole is WALL-DANGLING-END's finding.
+ */
+export const DOORWAY_MAX_GAP_MM = 1200;
+
 /** Share of a load-bearing wall that has to have something under it. */
 export const MIN_SUPPORT_SHARE = 0.8;
 
@@ -580,7 +589,8 @@ export const checkRoomClosure: GeometryCheck = (context) => {
   const findings: GeometryFinding[] = [];
 
   for (const room of rooms) {
-    if (room.outline.length < 3) {
+    // A lô gia is open to the outside by design: its open side is a railing.
+    if (room.outline.length < 3 || room.usage === 'loggia') {
       continue;
     }
 
@@ -633,6 +643,12 @@ export const checkRoomClosure: GeometryCheck = (context) => {
         const gapMm = gap.high - gap.low;
 
         if (compareNearly(gapMm, maxUncoveredEdgeMm) <= 0) {
+          continue;
+        }
+
+        const inMiddle = compareNearly(gap.low, 0) > 0 && compareNearly(gap.high, edgeLengthMm) < 0;
+
+        if (inMiddle && compareNearly(gapMm, DOORWAY_MAX_GAP_MM) <= 0) {
           continue;
         }
 

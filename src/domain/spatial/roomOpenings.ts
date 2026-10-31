@@ -2,8 +2,9 @@
  * Which openings serve a room — a pure walk over ids already on the graph.
  *
  * `Room` carries `wallIds`, `Wall` carries `openingIds`, `Opening` carries a
- * `kind`; the count of doors and windows a room has is not a stored field, it
- * is this three-hop walk: `room.wallIds` → `wall.openingIds` → `opening.kind`.
+ * `kind`; the count of doors and windows a room has is not a stored field, it is
+ * a walk over the level's walls → `wall.openingIds` → `opening.kind`, kept
+ * where the opening sits on the room's outline (see `openingsOfRoom`).
  * Two call sites need exactly that walk — the function-rule group in
  * `src/domain/rules/function` (`ROOM-NO-DOOR`, `ROOM-NO-WINDOW`, …) and the
  * PropertyInspector screen, which shows a room's door/window counts on a panel
@@ -118,9 +119,17 @@ function openingCentre(wall: Wall, opening: Opening): Point {
   return pointAlong(wall.centreline, opening.offsetMm + opening.widthMm / 2);
 }
 
-/** Is this opening on the stretch of wall that bounds this room? */
-function opensOnto(at: Point, room: Room): boolean {
-  return compareNearly(distanceToOutline(at, room.outline), OPENING_ON_OUTLINE_TOLERANCE_MM) <= 0;
+/**
+ * Is this opening on the stretch of wall that bounds this room?
+ *
+ * The outline may be traced on either face of the wall or on its centreline,
+ * so half the host wall's thickness always counts, never less than the fixed
+ * tolerance above.
+ */
+function opensOnto(at: Point, room: Room, wall: Wall): boolean {
+  const toleranceMm = Math.max(OPENING_ON_OUTLINE_TOLERANCE_MM, wall.thicknessMm / 2);
+
+  return compareNearly(distanceToOutline(at, room.outline), toleranceMm) <= 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -131,8 +140,12 @@ function opensOnto(at: Point, room: Room): boolean {
  * The openings — doors and windows alike — cut into the walls that bound a
  * room.
  *
- * Takes the room's own `wallIds` and looks each one up in `walls`, then each
- * of that wall's `openingIds` up in `openings`; an id that resolves to nothing
+ * Walks every wall handed in on the room's level — not only the room's own
+ * `wallIds` — and keeps each opening whose centre sits on the room's outline.
+ * The detector splits walls at doors, so the piece that hosts a door is often
+ * missing from `wallIds`; trusting that list alone reported rooms with a real
+ * door as having none. Each of a wall's `openingIds` is looked up in
+ * `openings`; an id that resolves to nothing
  * in the arrays handed in is skipped rather than treated as an error, since a
  * caller may well be working from a graph slice. `walls`/`openings` need not
  * be the whole graph — passing just the entities a screen already has on hand
@@ -151,22 +164,22 @@ export function openingsOfRoom(
   const wallsById = new Map(walls.map((wall) => [wall.id, wall] as const));
   const openingsById = new Map(openings.map((opening) => [opening.id, opening] as const));
   const found: Opening[] = [];
+  const seen = new Set<string>();
+  // The room's own walls first so their openings keep coming back first.
+  const listed = room.wallIds.flatMap((wallId) => wallsById.get(wallId) ?? []);
+  const listedIds = new Set<string>(room.wallIds);
+  const others = walls.filter((wall) => !listedIds.has(wall.id) && wall.levelId === room.levelId);
 
-  for (const wallId of room.wallIds) {
-    const wall = wallsById.get(wallId);
-
-    if (wall === undefined) {
-      continue;
-    }
-
+  for (const wall of [...listed, ...others]) {
     for (const openingId of wall.openingIds) {
       const opening = openingsById.get(openingId);
 
-      if (opening === undefined) {
+      if (opening === undefined || seen.has(opening.id)) {
         continue;
       }
 
-      if (opensOnto(openingCentre(wall, opening), room)) {
+      if (opensOnto(openingCentre(wall, opening), room, wall)) {
+        seen.add(opening.id);
         found.push(opening);
       }
     }

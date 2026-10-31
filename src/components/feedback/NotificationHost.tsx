@@ -44,6 +44,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import type { Notification, NotificationBus } from '@/lib/mutations/notificationBus';
 
+import { OFFLINE_NOTICE } from './offlineNotice';
 import { Toast, type ToastMessage } from './Toast';
 
 /** Tiêu đề và câu mô tả ghép thành một dòng, vì `ToastMessage` chỉ có một ô chữ. */
@@ -72,6 +73,7 @@ function toToastMessage(notification: Notification): ToastMessage {
   };
 }
 
+
 const keyOf = (item: Notification): string => `${item.id}\u0000${item.title}\u0000${item.description}`;
 
 export interface NotificationHostProps {
@@ -81,7 +83,17 @@ export interface NotificationHostProps {
 
 /** `<NotificationHost />` — đặt một lần, cạnh `<RouterProvider>`. */
 export function NotificationHost({ bus }: NotificationHostProps) {
-  const { notifications } = useNotifications(bus);
+  const { notifications, publish } = useNotifications(bus);
+
+  useEffect(() => {
+    const onOffline = (): void => {
+      publish({ ...OFFLINE_NOTICE, type: 'network-offline' });
+    };
+
+    window.addEventListener('offline', onOffline);
+
+    return () => window.removeEventListener('offline', onOffline);
+  }, [publish]);
   // Khoá theo id + chữ: bus gộp lượt cùng loại vào thông báo cũ (cùng id, chữ mới).
   // Nếu chỉ nhớ id, một lỗi mới gộp vào thông báo ĐÃ tắt sẽ vô hình (FL-11F-03).
   const [dismissedKeys, setDismissedKeys] = useState<readonly string[]>([]);

@@ -87,6 +87,12 @@ export function roomLabelAnchor(room: Room): { x: number; y: number; width: numb
   return { x: (box.min.x + box.max.x) / 2, y: (box.min.y + box.max.y) / 2, width: box.widthMm };
 }
 
+/** U43: tên phòng viết hoa chữ đầu ("phòng ngủ 01" → "Phòng ngủ 01") cho người xem ngoài. */
+export function roomDisplayName(name: string): string {
+  const trimmed = name.trim();
+  return trimmed.charAt(0).toLocaleUpperCase('vi') + trimmed.slice(1);
+}
+
 /** Đoạn của ô mở trên tim tường: từ `offsetMm` tới `offsetMm + widthMm` tính từ đầu tường. */
 export function openingSegment(wall: Wall, opening: Opening): { start: Point; end: Point } | null {
   const { start, end } = wall.centreline;

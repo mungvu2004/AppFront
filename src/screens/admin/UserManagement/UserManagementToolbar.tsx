@@ -20,6 +20,7 @@ import type { ProjectRole } from '@/types/project';
 
 import { FILTER_ALL } from './types';
 import type { RoleFilter, StatusFilter, UserManagementToolbarProps } from './types';
+import { INVITE_ROLE_OPTION_LABELS } from './userManagementGateway';
 
 const SEARCH_LABEL = 'Tìm người dùng';
 const SEARCH_PLACEHOLDER = 'Tìm theo tên hoặc email…';
@@ -43,7 +44,10 @@ export function UserManagementToolbar({ actions, invite, searchRef, toolbar }: U
     { label: ALL_OPTION_LABEL, value: FILTER_ALL as string },
     ...toolbar.statusOptions.map((option) => ({ label: option.label, value: option.status as string })),
   ];
-  const inviteRoleOptions = toolbar.roleOptions.map((option) => ({ label: option.label, value: option.role as string }));
+  const inviteRoleOptions = toolbar.roleOptions.map((option) => ({
+    label: INVITE_ROLE_OPTION_LABELS[option.role],
+    value: option.role as string,
+  }));
 
   return (
     <div className="flex flex-col gap-4 border-b border-border-default px-5 py-4">
@@ -100,7 +104,7 @@ export function UserManagementToolbar({ actions, invite, searchRef, toolbar }: U
 
           <div className="flex flex-wrap items-end gap-4">
             <Select
-              className="w-[180px]"
+              className="w-[260px]"
               label={INVITE_ROLE_LABEL}
               onChange={(value) => actions.onInviteRoleChange(value as ProjectRole)}
               options={inviteRoleOptions}

@@ -30,6 +30,8 @@ import {
 
 /** Cell padding: tighter below `sm`, where the dialog is the viewport minus its gutter. */
 const CELL_PAD = 'px-1.5 sm:px-3';
+/** Chiều cao sàn–sàn thường gặp ở chung cư, chỉ để gợi ý — không điền sẵn. */
+export const HEIGHT_PLACEHOLDER = 'VD: 3,3';
 
 /**
  * Lines the controls of a row up on the top of their fields, not on the middle of a row
@@ -142,6 +144,8 @@ export function StepFloors(props: StepFloorsProps) {
                       value={row.clearHeightM ?? undefined}
                       onChange={(value) => props.setFloorHeight(row.id, value)}
                       unit="m"
+                      // U26: ô trống thì gợi ý số thường gặp ở chung cư.
+                      placeholder={HEIGHT_PLACEHOLDER}
                       disabled={isSubmitting}
                       aria-label={`Chiều cao tầng (sàn–sàn) ${row.name}`}
                       {...(row.problem !== null ? { error: row.problem } : {})}
@@ -199,6 +203,7 @@ export function StepFloors(props: StepFloorsProps) {
                 onChange={props.setApplyHeightM}
                 min={PROJECT_LIMITS.storeyHeightMinM}
                 max={PROJECT_LIMITS.storeyHeightMaxM}
+                placeholder={HEIGHT_PLACEHOLDER}
                 unit="m"
                 disabled={isSubmitting}
               />

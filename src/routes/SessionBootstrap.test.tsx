@@ -39,7 +39,13 @@ import { PasswordResetView, type PasswordResetViewProps } from '@/screens/auth/P
 import { Empty as ResetEmpty } from '@/screens/auth/PasswordReset/PasswordReset.stories';
 import { useStore } from '@/store';
 
-import { SessionBootstrap, SessionGate, type SessionGateProps } from './SessionBootstrap';
+import {
+  SESSION_SLOW_LABEL,
+  SESSION_SLOW_MS,
+  SessionBootstrap,
+  SessionGate,
+  type SessionGateProps,
+} from './SessionBootstrap';
 import {
   __resetAppSessionForTests,
   bootstrapAfterNewCookie,
@@ -309,6 +315,21 @@ describe('SessionGate — năm nhánh', () => {
     expect(screenMounts).toBe(0);
     expect(container.querySelectorAll('main')).toHaveLength(1);
     expectVietnamese(container);
+  });
+
+  it('U25: chờ phiên quá lâu thì câu chờ nói mạng đang chậm', () => {
+    vi.useFakeTimers();
+
+    try {
+      renderGate({ status: 'unknown' });
+      act(() => {
+        vi.advanceTimersByTime(SESSION_SLOW_MS);
+      });
+
+      expect(screen.getByRole('status', { name: SESSION_SLOW_LABEL })).toHaveAttribute('aria-busy', 'true');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('đẩy người ẩn danh về màn đăng nhập, mang theo chỗ họ định tới', () => {

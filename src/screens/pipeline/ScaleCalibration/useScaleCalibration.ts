@@ -183,9 +183,10 @@ const COPY = {
   derivedLineProvisional: (density: string): string => `đang dùng tạm ${density} do máy ước, chưa được duyệt`,
   methodDimensionString: 'Từ chuỗi kích thước',
   methodReferenceLine: 'Vẽ đường tham chiếu',
+  // UX-R3 U06/U11: số nhỏ thì phóng to; không có số thì đo cửa/giường cỡ chuẩn.
   // UX-R2 K27/K29: nói máy chưa đọc được, không nói bản vẽ thiếu số; chỉ cho người dùng làm gì.
   dimensionEmpty:
-    'Máy chưa đọc được số kích thước nào để làm mốc. Kéo dọc một đoạn có ghi số trên bản vẽ (ví dụ một số ở cạnh dưới) rồi nhập số đó.',
+    'Máy chưa đọc được số kích thước nào để làm mốc. Phóng to bản vẽ cho rõ số, kéo dọc một đoạn có ghi số (ví dụ một số ở cạnh dưới) rồi nhập số đó. Bản vẽ không ghi số? Kéo dọc bề rộng cửa đi chính rồi nhập 900, hoặc chiều dài giường đôi rồi nhập 2000.',
   tooFewSamples: 'Chưa đủ chuỗi kích thước để suy ra tỷ lệ, nên phải đặt bằng tay.',
   lowConfidenceInference: 'Độ tin cậy chung còn thấp, nên tỷ lệ phải được xác nhận bằng tay.',
   realLengthPlaceholder: 'Số ghi trên đoạn',
@@ -217,7 +218,7 @@ const COPY = {
   warpingNotice:
     'Bước tiền xử lý đã xong nhưng máy không tìm thấy khung bản vẽ, nên ảnh có thể chưa được nắn thẳng. Nếu thấy ảnh méo, quay lại bước tiền xử lý để nắn lại, vì tỷ lệ đo trên ảnh méo sẽ sai theo.',
   emptyNotice:
-    'Máy chưa đọc được số kích thước nào để làm mốc. Kéo dọc một đoạn có ghi số trên bản vẽ (ví dụ một số ở cạnh dưới) rồi nhập số đó.',
+    'Máy chưa đọc được số kích thước nào để làm mốc. Phóng to bản vẽ cho rõ số, kéo dọc một đoạn có ghi số (ví dụ một số ở cạnh dưới) rồi nhập số đó. Bản vẽ không ghi số? Kéo dọc bề rộng cửa đi chính rồi nhập 900, hoặc chiều dài giường đôi rồi nhập 2000.',
   partialNotice:
     'Đã có đoạn tham chiếu nhưng chưa có chiều dài thật, hoặc một số chuỗi kích thước đọc được với độ tin cậy thấp.',
   forbiddenNotice:

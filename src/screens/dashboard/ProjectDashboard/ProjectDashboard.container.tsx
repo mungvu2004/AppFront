@@ -34,7 +34,9 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { ScreenErrorBoundary, type ScreenErrorFallback } from '@/components/feedback/ScreenErrorBoundary';
 import { Toast, useToast } from '@/components/feedback/Toast';
 import { useSession } from '@/hooks/useSession';
+import { SHARE_LINKS_SUPPORTED } from '@/lib/export/shareLink';
 import { ROUTES } from '@/routes/paths';
+import { ShareDialogContainer } from '@/screens/export/ShareDialog';
 import { CreateProjectModalContainer } from '@/screens/project/CreateProjectModal';
 
 import { ProjectDashboardConnected } from './ProjectDashboard';
@@ -63,6 +65,8 @@ function DashboardWithCreateModal() {
   const role = session.roles[0];
   const { addToast } = useToast();
   const [isCreateOpen, setCreateOpen] = useState(false);
+  // U33: "Chia sẻ" trên thẻ mở hộp chia sẻ tại chỗ, không đưa sang màn Xuất.
+  const [shareProjectId, setShareProjectId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   return (
@@ -70,7 +74,17 @@ function DashboardWithCreateModal() {
       <ProjectDashboardConnected
         {...(role !== undefined ? { role } : {})}
         onCreateProject={() => setCreateOpen(true)}
+        {...(SHARE_LINKS_SUPPORTED ? { onShareProject: setShareProjectId } : {})}
       />
+      {SHARE_LINKS_SUPPORTED && shareProjectId !== null && (
+        <ShareDialogContainer
+          isOpen
+          onDismiss={() => setShareProjectId(null)}
+          projectId={shareProjectId}
+          roles={session.roles}
+          onToast={addToast}
+        />
+      )}
       <CreateProjectModalContainer
         isOpen={isCreateOpen}
         onDismiss={() => setCreateOpen(false)}

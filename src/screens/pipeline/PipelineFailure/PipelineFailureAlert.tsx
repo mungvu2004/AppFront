@@ -98,6 +98,10 @@ function PipelineFailureNextStepRow({
 
 /** Bộ đếm lần thử. Hook chọn chế độ; view chỉ đọc `kind`, không so số (R-71). */
 function PipelineFailureRetryNoticeBlock({ notice }: { readonly notice: PipelineFailureRetryNotice }) {
+  if (notice.kind === 'none') {
+    return null;
+  }
+
   if (notice.kind === 'attempt') {
     return <p className="text-[13px] text-text-secondary">{notice.attemptLabel}</p>;
   }
@@ -154,10 +158,13 @@ export function PipelineFailureAlert({ band }: PipelineFailureAlertProps) {
 
       <PipelineFailureRetryNoticeBlock notice={retryNotice} />
 
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <span className="font-mono text-[12px] font-medium text-text-muted">{reason.codeLabel}</span>
-        <PipelineFailureCopyButton action={reason.copyCode} />
-      </div>
+      {/* Lỗi của tệp (U48): mã kỹ thuật không giúp người chọn tệp khác. */}
+      {retryNotice.kind === 'none' ? null : (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <span className="font-mono text-[12px] font-medium text-text-muted">{reason.codeLabel}</span>
+          <PipelineFailureCopyButton action={reason.copyCode} />
+        </div>
+      )}
     </div>
   );
 }

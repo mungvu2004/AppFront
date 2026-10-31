@@ -19,6 +19,18 @@ describe('deriveProcessingGate — tỷ lệ', () => {
     expect(gate.chipVariant).toBe('violation');
   });
 
+  it('chưa có tỷ lệ: "Sang Duyệt tầng" mở bước Tỷ lệ, không nhảy sang Tường (U28)', () => {
+    let opened = '';
+    const summary = {
+      ...noDimension,
+      onCalibrateScale: () => { opened = 'scale'; },
+      onReviewWalls: () => { opened = 'walls'; },
+    };
+    const gate = deriveProcessingGate({ ...scenarioFor('success'), summary });
+    gate.secondaryAction?.onClick();
+    expect(opened).toBe('scale');
+  });
+
   it('không đọc được kích thước nhưng tầng đã có tỷ lệ đặt tay: sẵn sàng', () => {
     const gate = deriveProcessingGate({
       ...scenarioFor('success'),

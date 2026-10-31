@@ -864,6 +864,11 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
   const attemptCount = (detail?.attemptCount ?? 1) + sessionAttempts;
 
   const retryNotice = useMemo<PipelineFailureRetryNotice>(() => {
+    // Tệp không dùng được: việc duy nhất là chọn tệp khác (U48).
+    if (serverError?.action === 'reupload') {
+      return { kind: 'none' };
+    }
+
     const label = attemptLabel(attemptCount);
     const needsSupport = !isRetrySupported || attemptCount >= RETRY_ATTEMPTS_BEFORE_SUPPORT;
 
@@ -898,6 +903,7 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
     isRetrySupported,
     onCopyAllLogs,
     onOpenSupport,
+    serverError,
   ]);
 
   /* ---------------------------------------------------------------------- */

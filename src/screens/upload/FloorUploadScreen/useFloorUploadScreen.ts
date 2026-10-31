@@ -767,8 +767,9 @@ export function useFloorUploadScreen(
   const takenFloorIds = (): ReadonlySet<string> => {
     const taken = new Set<string>();
 
+    // Tệp hỏng không giữ chỗ: tệp chọn sau thay nó trên chính tầng đó (U21).
     for (const attachment of attachments) {
-      if (attachment.floorId !== null) {
+      if (attachment.floorId !== null && attachment.status !== 'error') {
         taken.add(attachment.floorId);
       }
     }
@@ -864,6 +865,10 @@ export function useFloorUploadScreen(
 
       if (match !== null) {
         claimed.add(match.id);
+        // Tệp hỏng cũ của tầng nhường chỗ cho tệp mới, không che nó trên thẻ (U21).
+        setAttachments((previous) =>
+          previous.filter((other) => other.id === id || other.floorId !== match.id || other.status !== 'error'),
+        );
       }
 
       const next: Partial<Attachment> = {
@@ -1115,9 +1120,11 @@ export function useFloorUploadScreen(
           sentence:
             attachment !== null && isAwaitingPage(attachment)
               ? `${floor.name} chưa chọn trang của bản vẽ.`
-              : isUnfinished
-                ? `${floor.name} chưa tải xong bản vẽ.`
-                : `${floor.name} chưa có bản vẽ.`,
+              : attachment?.status === 'error'
+                ? `Bản vẽ ${floor.name} bị lỗi. Hãy chọn tệp khác.`
+                : isUnfinished
+                  ? `${floor.name} chưa tải xong bản vẽ.`
+                  : `${floor.name} chưa có bản vẽ.`,
         });
       }
 

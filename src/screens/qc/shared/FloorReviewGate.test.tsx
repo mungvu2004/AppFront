@@ -8,6 +8,7 @@ import { ROUTES } from '@/routes/paths';
 
 import { FloorReviewGate } from './FloorReviewGate.container';
 import { SCALE_LOCK_REASON, type FloorScaleState } from './floorReviewGateModel';
+import { stepAfter } from './stepAfter';
 
 const review = vi.hoisted(() => ({ scale: null as FloorScaleState | null }));
 vi.mock('./useFloorReview', () => ({
@@ -97,5 +98,19 @@ describe('FloorReviewGate (UX-R2 K22): nút luôn đi tới, chỉ tầng chưa 
     const button = screen.getByRole('button', { name: /^Tiếp: Tường/u });
     expect(button).toHaveAttribute('aria-disabled', 'true');
     expect(button).toHaveAttribute('title', SCALE_LOCK_REASON);
+  });
+});
+
+describe('stepAfter (U28): gợi ý bước kế bỏ qua bước đã xong', () => {
+  it('ở Tỷ lệ, tường đã duyệt hết: bước kế là Cửa và nội thất', () => {
+    expect(stepAfter(ROUTES.project.scale('p1', 'f1'), 'p1', 'f1', (key) => key === 'walls')).toBe('objects');
+  });
+
+  it('mọi bước sau đều xong: không còn bước kế', () => {
+    expect(stepAfter(ROUTES.project.scale('p1', 'f1'), 'p1', 'f1', () => true)).toBeUndefined();
+  });
+
+  it('chưa biết bước nào xong: bước ngay sau màn đang mở', () => {
+    expect(stepAfter(ROUTES.project.walls('p1', 'f1'), 'p1', 'f1')).toBe('objects');
   });
 });

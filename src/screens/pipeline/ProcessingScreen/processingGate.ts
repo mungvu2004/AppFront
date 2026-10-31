@@ -56,7 +56,8 @@ export const WAITING_NOTE = 'Khi AI xong, nút sang Duyệt tầng hiện ở đ
 
 const NO_DIMENSION_NOTE = 'Không đọc được số kích thước nào';
 const NO_METRIC_NOTE = 'Chưa đọc được số liệu của lượt xử lý';
-const CALIBRATE_NOTE = 'Đo một đoạn đã biết chiều dài, khoảng 1 phút.';
+// U11: brochure không ghi số vẫn có cửa đi chính (~900 mm) để đo.
+const CALIBRATE_NOTE = 'Đo một đoạn đã biết chiều dài, như số ghi trên bản vẽ hoặc bề rộng cửa đi chính (900 mm). Khoảng 1 phút.';
 
 /** Câu cho từng lý do của N16 `readiness` (FIX-P0-15, thiết kế H5 §2.2). */
 export const REVIEW_REASON_SENTENCE: Readonly<Record<ProcessingReviewReason, string>> = {
@@ -87,7 +88,8 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
   const done = props.steps.filter((step) => step.status === 'done').length;
   const runningIndex = props.steps.findIndex((step) => step.status === 'running');
   const doneStepsLabel = `${String(done)}/${String(total)} bước`;
-  const isAiDone = props.state === 'success';
+  // Người xem (`forbidden`) không có trạng thái success riêng: đủ mọi bước xong là AI đã xong, đừng ghi "Đang chạy" mãi.
+  const isAiDone = props.state === 'success' || (props.state === 'forbidden' && total > 0 && done === total);
   const summary = props.summary;
   const noDimension = summary?.noDimensionSentence !== undefined;
   // Tầng đã có tỷ lệ đặt tay thì không thiếu, dù không đọc được chuỗi kích thước.
@@ -116,7 +118,8 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
     return {
       ...base,
       kind: 'running',
-      chipLabel: `Đang chạy ${doneStepsLabel} xong`,
+      // Chip chỉ nói "đang chạy"; số bước nằm ở tiêu đề, khỏi hai số "bước 5/6" và "4/6 bước" cạnh nhau (U27).
+      chipLabel: 'Đang chạy',
       chipVariant: 'neutral',
       title:
         runningIndex < 0
@@ -146,7 +149,8 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
               isForward: false,
               onClick: summary.onCalibrateScale,
             },
-            secondaryAction: { label: GO_REVIEW_LABEL, isForward: true, onClick: summary.onReviewWalls },
+            // Duyệt tầng mở ở bước Tỷ lệ khi tỷ lệ chưa có, không nhảy thẳng sang Tường với tỷ lệ tạm (U28).
+            secondaryAction: { label: GO_REVIEW_LABEL, isForward: true, onClick: summary.onCalibrateScale },
           }
         : {}),
     };
@@ -178,7 +182,8 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
       })),
       // Đặt tỷ lệ đi trước; Duyệt tầng vẫn mở (lối mềm như tỷ lệ chưa kiểm, không chặn cứng).
       action: isScaleUnresolved ? calibrate : review,
-      ...(isScaleUnresolved ? { secondaryAction: review } : {}),
+      // Tỷ lệ chưa kiểm: "Sang Duyệt tầng" mở ở bước Tỷ lệ (bước đầu của Duyệt tầng), không bỏ qua nó (U28).
+      ...(isScaleUnresolved ? { secondaryAction: { ...review, onClick: summary.onCalibrateScale } } : {}),
     };
   }
 

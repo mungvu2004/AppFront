@@ -19,6 +19,7 @@ import {
   fitViewBox,
   openingSegment,
   panCamera,
+  roomDisplayName,
   roomLabelAnchor,
   zoomCamera,
   type PlanCamera,
@@ -35,12 +36,15 @@ interface SharedPlanProps {
   readonly walls: readonly Wall[];
   readonly rooms: readonly Room[];
   readonly openings: readonly Opening[];
+  /** U03: tầng chưa đặt tỷ lệ — diện tích chỉ là số tạm tính. */
+  readonly provisionalArea?: boolean;
 }
 
-function RoomFigure({ room, fontSize }: { room: Room; fontSize: number }) {
+function RoomFigure({ room, fontSize, provisionalArea }: { room: Room; fontSize: number; provisionalArea: boolean }) {
   const anchor = roomLabelAnchor(room);
+  const name = roomDisplayName(room.name);
   // Tên dài hơn hộp thì co chữ cho vừa (ước 0,6 em mỗi ký tự).
-  const size = anchor.width > 0 ? Math.min(fontSize, anchor.width / (room.name.length * 0.6)) : fontSize;
+  const size = anchor.width > 0 ? Math.min(fontSize, anchor.width / (name.length * 0.6)) : fontSize;
 
   return (
     <g>
@@ -51,11 +55,11 @@ function RoomFigure({ room, fontSize }: { room: Room; fontSize: number }) {
         strokeWidth={fontSize / 10}
       />
       <text x={anchor.x} y={anchor.y} fontSize={size} textAnchor="middle" fill="var(--text-primary)">
-        {room.name}
+        {name}
       </text>
       {room.areaM2 >= MIN_SHOWN_AREA_M2 ? (
         <text x={anchor.x} y={anchor.y + size * 1.2} fontSize={size * 0.8} textAnchor="middle" fill="var(--text-secondary)">
-          {formatArea(room.areaM2)}
+          {provisionalArea ? `~${formatArea(room.areaM2)} (tạm)` : formatArea(room.areaM2)}
         </text>
       ) : null}
     </g>
@@ -90,7 +94,7 @@ function toPlanPoint(svg: SVGSVGElement, view: ViewBox, clientX: number, clientY
   return { x: view.x + (clientX - rect.left - offsetX) / scale, y: view.y + (clientY - rect.top - offsetY) / scale, scale };
 }
 
-export function SharedPlan({ walls, rooms, openings }: SharedPlanProps) {
+export function SharedPlan({ walls, rooms, openings, provisionalArea = false }: SharedPlanProps) {
   const fit = useMemo(() => fitViewBox(walls, rooms), [walls, rooms]);
   const [camera, setCamera] = useState<PlanCamera | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -154,7 +158,7 @@ export function SharedPlan({ walls, rooms, openings }: SharedPlanProps) {
         onPointerCancel={endDrag}
       >
         {rooms.map((room) => (
-          <RoomFigure key={room.id} room={room} fontSize={fontSize} />
+          <RoomFigure key={room.id} room={room} fontSize={fontSize} provisionalArea={provisionalArea} />
         ))}
         {walls.map((wall) => (
           <line

@@ -88,6 +88,8 @@ export function createAnnouncer(doc: Document = document): Announcer {
     }
 
     pumping = true;
+    // Tin mới hơn (ví dụ "Đã lưu") làm cảnh báo cũ hết đúng: đừng để vùng alert giữ nó mãi (U13).
+    assertiveRegion.textContent = '';
     write(politeRegion, next);
     timer = setTimeout(pump, ANNOUNCE_GAP_MS);
   };

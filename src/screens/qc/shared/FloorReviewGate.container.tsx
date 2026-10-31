@@ -14,7 +14,7 @@ import {
   SCALE_LOCK_REASON,
   type RequiredLayerKey,
 } from './floorReviewGateModel';
-import { QC_LAYERS, qcStepOf } from './qcLayers';
+import { stepAfter } from './stepAfter';
 import { useFloorReview, useNextFloor } from './useFloorReview';
 
 /**
@@ -26,7 +26,7 @@ import { useFloorReview, useNextFloor } from './useFloorReview';
  * "Đặt tỷ lệ", ở màn Tỷ lệ là "Tiếp: Tường" bị khoá kèm lý do. Tỷ lệ "cần kiểm" (vàng) không kéo
  * người dùng về màn Tỷ lệ — chấm vàng trên thanh bước đã nói việc đó. Đang ở lớp bắt buộc chưa
  * xong mà màn truyền `onNext` → nút mở mục kế tiếp của lớp này. Còn lại nút trỏ bước NGAY SAU
- * màn đang mở (Tỷ lệ → Tường → Cửa và nội thất → Phòng), không bao giờ lùi về lớp trước còn dở;
+ * màn đang mở còn việc (Tỷ lệ → Tường → Cửa và nội thất → Phòng; bước đã xong bị bỏ qua), không bao giờ lùi về lớp trước còn dở;
  * sau Phòng → "Sang <tầng kế>" nếu còn tầng chưa biết là xong, không thì "Sang Mô hình 3D".
  * Màn phụ đi theo bước cha (Kích thước → bước Tỷ lệ, Độ dày → bước Tường); Trục coi như trước Tường.
  */
@@ -49,15 +49,6 @@ const DEFAULT_NEXT_LABEL = 'Xem mục kế tiếp';
 const VIEWER_LABEL = 'Sang Mô hình 3D';
 const SCALE_SET_ACTION = SCALE_STATE_VIEWS.missing.action;
 const nextStepLabel = (label: string): string => `Tiếp: ${label}`;
-const STEP_KEYS = QC_LAYERS.filter((layer) => layer.group === 'step').map((layer) => layer.key);
-
-/** Bước bắt buộc ngay sau màn đang mở; `undefined` khi màn là Phòng (hết bước của tầng). */
-function stepAfter(pathname: string, projectId: string, floorId: string): RequiredLayerKey | undefined {
-  const here = QC_LAYERS.find((layer) => layer.route(projectId, floorId) === pathname);
-  const step = here === undefined ? null : qcStepOf(here.key);
-  return STEP_KEYS[(step === null ? 0 : STEP_KEYS.indexOf(step)) + 1] as RequiredLayerKey | undefined;
-}
-
 export function FloorReviewGate({ projectId, floorId, onNext, nextLabel, inline = false }: FloorReviewGateProps) {
   const { pathname } = useLocation();
   const { graph, scale } = useFloorReview(projectId, floorId);
@@ -78,7 +69,8 @@ export function FloorReviewGate({ projectId, floorId, onNext, nextLabel, inline 
 
   /* Đang đứng ở một lớp bắt buộc chưa xong: làm tiếp lớp này trước (khi màn có mục kế tiếp). */
   const hereUnfinished = gate.layers.some((layer) => !layer.done && LAYER_ROUTES[layer.key](projectId, floorId) === pathname);
-  const afterKey = stepAfter(pathname, projectId, floorId);
+  // Chưa có đồ thị thì mọi lớp đếm 0 mục, trông như "xong": chỉ bỏ qua bước đã xong khi dữ liệu đã về.
+  const afterKey = stepAfter(pathname, projectId, floorId, (key) => graph !== null && gate.layers.some((layer) => layer.key === key && layer.done));
   const after = afterKey === undefined ? null : (gate.layers.find((layer) => layer.key === afterKey) ?? null);
 
   let action: ReactNode;

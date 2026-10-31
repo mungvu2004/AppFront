@@ -94,7 +94,7 @@ import type { TelemetrySender } from '@/lib/telemetry/sender';
 import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
-import type { ExportCapabilities, ExportFormatId, PreflightRow } from './types';
+import type { ExportCapabilities, ExportFloorState, ExportFormatId, PreflightRow } from './types';
 
 /* -------------------------------------------------------------------------- */
 /* Bộ đo năng lực — mỗi cờ là một phép kiểm, không phải một lời khai.          */
@@ -314,6 +314,59 @@ function reviewReasonsOf(
 }
 
 /**
+ * Tầng đang ở đâu trên đường duyệt, để màn Xuất nói cùng một câu ở mọi chỗ (U05, U36):
+ * - `empty`: chưa có bản vẽ (không đối tượng nào), không có gì để duyệt hay xuất;
+ * - `scaleOnly`: mọi đối tượng đã duyệt, chỉ còn thiếu xác nhận tỷ lệ;
+ * - `stepOnly`: mọi đối tượng đã duyệt, tỷ lệ ổn, còn bước duyệt tầng;
+ * - `pending`: còn đối tượng chưa duyệt (hoặc chưa có đồ thị để biết).
+ */
+export function floorStateOf(
+  graph: NormalizedSpatial | null,
+  level: Level,
+  meta?: NonNullable<PreflightInput['floorMeta']>[string],
+): ExportFloorState {
+  const isEmpty = graph !== null && idsOnLevel(graph, level.id).length === 0;
+  if (isEmpty) {
+    return 'empty';
+  }
+  if (level.reviewed) {
+    return 'approved';
+  }
+  if (graph === null || collectUnreviewed(graph, [level]).count > 0) {
+    return 'pending';
+  }
+  return reviewReasonsOf(meta, level, false).includes('scaleUnresolved') ? 'scaleOnly' : 'stepOnly';
+}
+
+/** "Tầng trệt, Tầng 1" — tên tầng nối bằng dấu phẩy. */
+const levelNames = (levels: readonly Level[]): string => levels.map((level) => level.name).join(', ');
+
+/** Câu của dòng "duyệt": chia tầng chưa duyệt theo việc còn thiếu, không gộp chung một câu "chưa duyệt" (U05). */
+function approvalLabel(
+  levels: readonly Level[],
+  emptyLevels: readonly Level[],
+  byState: (state: ExportFloorState) => readonly Level[],
+): string {
+  if (levels.length === 0) {
+    return 'Chưa chọn tầng nào để xuất.';
+  }
+  const pending = byState('pending');
+  const scaleOnly = byState('scaleOnly');
+  const stepOnly = byState('stepOnly');
+  const sentences = [
+    pending.length > 0 ? `Còn ${formatNumber(pending.length)} tầng chưa duyệt: ${levelNames(pending)}.` : null,
+    scaleOnly.length > 0 ? `Đã duyệt hết đối tượng, chỉ còn thiếu xác nhận tỷ lệ: ${levelNames(scaleOnly)}.` : null,
+    stepOnly.length > 0 ? `Đã duyệt hết đối tượng, còn bước duyệt tầng: ${levelNames(stepOnly)}.` : null,
+  ].filter((sentence): sentence is string => sentence !== null);
+  if (sentences.length > 0) {
+    return sentences.join(' ');
+  }
+  return emptyLevels.length > 0
+    ? `Tầng chưa có bản vẽ: ${levelNames(emptyLevels)}.`
+    : `Cả ${formatNumber(levels.length)} tầng đã chọn đều đã duyệt.`;
+}
+
+/**
  * Ba dòng của khối kiểm tra, gom từ hai nguồn dữ liệu THẬT.
  *
  * Domain có nguyên liệu nhưng **không có hàm tổng hợp sẵn** cho cả ba dòng, và
@@ -348,21 +401,21 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
     ruleCounts.suggestion > 0 ? `${formatNumber(ruleCounts.suggestion)} gợi ý` : null,
   ].filter((part): part is string => part !== null);
 
+  const stateOf = (level: Level): ExportFloorState => floorStateOf(graph, level, floorMeta?.[level.id]);
+  const byState = (state: ExportFloorState): readonly Level[] => unapprovedLevels.filter((level) => stateOf(level) === state);
+  const firstScaleOnly = byState('scaleOnly')[0];
+
   const rows: PreflightRow[] = [
     {
       id: 'approval',
-      label:
-        levels.length === 0
-          ? 'Chưa chọn tầng nào để xuất.'
-          : unapprovedLevels.length === 0
-            ? emptyLevels.length > 0
-              ? `Tầng chưa có bản vẽ: ${emptyLevels.map((level) => level.name).join(', ')}.`
-              : `Cả ${formatNumber(levels.length)} tầng đã chọn đều đã duyệt.`
-            : `Còn ${formatNumber(unapprovedLevels.length)} tầng chưa duyệt: ${unapprovedLevels
-                .map((level) => level.name)
-                .join(', ')}.`,
+      label: approvalLabel(levels, emptyLevels, byState),
       tone: unapprovedLevels.length === 0 && emptyLevels.length === 0 && levels.length > 0 ? 'ok' : 'attention',
-      fixHref: unapprovedLevels.length === 0 ? null : ROUTES.project.floors(projectId),
+      fixHref:
+        unapprovedLevels.length === 0
+          ? null
+          : byState('pending').length === 0 && firstScaleOnly !== undefined
+            ? ROUTES.project.scale(projectId, firstScaleOnly.id)
+            : ROUTES.project.floors(projectId),
     },
     {
       id: 'violations',

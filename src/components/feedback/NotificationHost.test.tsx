@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNotificationBus } from '@/lib/mutations/notificationBus';
 
 import { NotificationHost } from './NotificationHost';
+import { OFFLINE_NOTICE } from './offlineNotice';
 
 describe('NotificationHost — lỗi mới gộp vào thông báo cùng loại đã tắt (FL-11F-03)', () => {
   beforeEach(() => {
@@ -36,5 +37,18 @@ describe('NotificationHost — lỗi mới gộp vào thông báo cùng loại �
       bus.publish({ type: 'floor-fail', title: 'Chưa lưu được', description: 'Lỗi thứ hai' });
     });
     expect(screen.getByText(/Lỗi thứ hai/u)).toBeTruthy();
+  });
+});
+
+describe('NotificationHost — mất mạng (U56)', () => {
+  it('trình duyệt báo offline thì hiện toast mất mạng', () => {
+    const bus = createNotificationBus();
+    render(<NotificationHost bus={bus} />);
+
+    act(() => {
+      window.dispatchEvent(new Event('offline'));
+    });
+
+    expect(screen.getByText(new RegExp(OFFLINE_NOTICE.title, 'u'))).toBeTruthy();
   });
 });

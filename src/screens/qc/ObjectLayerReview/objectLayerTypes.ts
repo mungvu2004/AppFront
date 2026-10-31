@@ -705,6 +705,12 @@ export interface ObjectLayerReviewModel {
   readonly suggestionLabel?: string | undefined;
   readonly onAcceptAllSuggestions?: (() => void) | undefined;
   readonly onRejectAllSuggestions?: (() => void) | undefined;
+  /** U04: "Duyệt N mục máy chắc chắn" — vắng/`null` = không có nút (vai chỉ xem, hết món). */
+  readonly approveConfidentLabel?: string | null | undefined;
+  readonly onApproveConfident?: (() => void) | undefined;
+  /** U04: "Duyệt cả N mục còn lại" — chỉ có khi còn món máy chưa chắc ngoài nhóm trên. */
+  readonly approveRemainingLabel?: string | null | undefined;
+  readonly onApproveRemaining?: (() => void) | undefined;
   /** Thêm/bớt một đối tượng khỏi vùng chọn (S-10). */
   readonly onToggleSelect: (objectId: string) => void;
   /** Chọn cả một lớp con (S-10). */

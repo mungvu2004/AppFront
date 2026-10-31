@@ -1468,7 +1468,7 @@ test.describe('E08 SCR-37 User Management', () => {
 
         await page.getByRole('button', { name: USR.invite, exact: true }).click();
         await page.getByLabel(USR.inviteEmails, { exact: true }).fill(email);
-        await expect(page.getByRole('combobox', { name: USR.inviteRole, exact: true })).toContainText(ROLE_LABEL.viewer); // UUM:485
+        await expect(page.getByRole('combobox', { name: USR.inviteRole, exact: true })).toContainText(ROLE_LABEL.engineer); // U38: lời mời mặc định Kỹ sư
         const post = waitForApi(page, 'POST', new RegExp(`^${escapeRegExp(INVITATIONS)}$`, 'u'), [201]);
         await page.getByRole('button', { name: USR.inviteSubmit, exact: true }).click();
         const sent = await post;

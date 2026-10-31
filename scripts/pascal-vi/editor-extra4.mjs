@@ -135,5 +135,24 @@ export const EDITOR_EXTRA4_VI = {
       'Layer thicknesses follow the 2021 IRC assembly data. Drafting aid, not engineering —\n            verify with the authority having jurisdiction.',
       'Độ dày các lớp theo số liệu cấu tạo IRC 2021. Chỉ để phác thảo, không thay thiết kế kỹ thuật —\n            cần kiểm lại với cơ quan có thẩm quyền.',
     ],
+    // UX-R3 U16: chữ tiếng Anh còn sót trong bảng Cấu tạo / nẹp của tường.
+    ["{assembly ? 'Custom' : 'None (single layer)'}", "{assembly ? 'Tuỳ chỉnh' : 'Không (một lớp)'}"],
+    [
+      'label={trimValue.enabled ? `Hide ${title.toLowerCase()}` : `Show ${title.toLowerCase()}`}',
+      'label={trimValue.enabled ? `Ẩn ${title.toLowerCase()}` : `Hiện ${title.toLowerCase()}`}',
+    ],
+    ['tracking-wider">\n          Top\n', 'tracking-wider">\n          Trên\n'],
+    ['tracking-wider">\n          Bottom\n', 'tracking-wider">\n          Dưới\n'],
   ],
+  // UX-R3 U16: tên mẫu cấu tạo tường hiện trong ô "Mẫu có sẵn".
+  'core/src/systems/wall/wall-assembly.ts': [
+    ['Exterior 2x4 — lap siding', 'Tường ngoài 2x4 — ốp ván chồng mí'],
+    ['Exterior 2x6 — lap siding', 'Tường ngoài 2x6 — ốp ván chồng mí'],
+    ['Exterior 2x6 — stucco', 'Tường ngoài 2x6 — vữa trát'],
+    ['Exterior 2x6 — brick veneer', 'Tường ngoài 2x6 — ốp gạch'],
+    ['Interior 2x4 — drywall both sides', 'Tường trong 2x4 — thạch cao hai mặt'],
+    ['Interior 2x6 — plumbing wall', 'Tường trong 2x6 — tường đi ống nước'],
+    ['Exterior CMU 8" — stucco', 'Tường ngoài gạch block 8" — vữa trát'],
+    ['CMU 8" — furring + drywall', 'Gạch block 8" — khung đệm + thạch cao'],
+  ].map(([en, vi]) => [`    label: '${en}',`, `    label: '${vi}',`]),
 };

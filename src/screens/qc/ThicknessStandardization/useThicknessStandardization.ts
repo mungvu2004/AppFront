@@ -621,7 +621,8 @@ export function useThicknessStandardization(
     ...(gateway.apiClient === undefined ? {} : { apiClient: gateway.apiClient }),
   });
 
-  const saveIndicator = useSaveIndicator(autosave);
+  // Khối lưu đang chặn thì lời đọc cho trình đọc màn hình cũng nói "Chưa lưu…", không hứa tự lưu lại (U14).
+  const saveIndicator = useSaveIndicator(autosave, { failedLabel: saveBlock !== null ? SAVE_BLOCKED_LABEL : null });
 
   /* ---------------------------------------------------------------------- */
   /* Đường ghi — MỘT transaction, MỘT bước hoàn tác 100 bước của S-06.        */

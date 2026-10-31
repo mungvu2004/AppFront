@@ -415,6 +415,15 @@ describe('Toast.Provider viewport', () => {
     );
   });
 
+  // U22: the floor-review status bar ("A duyệt · J kế tiếp · Đã lưu lúc…") sat under the undo toast.
+  it('stands above the floor-review status bar', () => {
+    render(<Toast.Provider><span /></Toast.Provider>);
+
+    expect(screen.getByRole('region', { name: 'Thông báo' })).toHaveClass(
+      "sm:[html:has([data-qc-status-bar]):not(:has([data-sticky-footer])):not([data-drawer=sheet])_&]:bottom-14",
+    );
+  });
+
   // BUG-512: at 375 px the bottom-right toast covered the "Ghi chú" field being typed in.
   it('moves to the top edge below 640 px', () => {
     render(<Toast.Provider><span /></Toast.Provider>);

@@ -191,6 +191,12 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const [isMoreOpen, setMoreOpen] = useState(false);
   const gate = deriveCreateProjectGate(props);
+  // U26: Enter ở bước Tầng chốt số trong ô rồi mới biết đã đủ chưa — đếm lần bấm, xét cổng ở lượt vẽ sau.
+  const [floorsEnterCount, setFloorsEnterCount] = useState(0);
+  useEffect(() => {
+    if (floorsEnterCount > 0 && step === 2 && gate.ready) props.goNext();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ theo lần bấm Enter: sửa số sau đó không tự sang bước.
+  }, [floorsEnterCount]);
 
   /** The not-ready button: focus the field or row that is missing, or open the step that holds it. */
   const leadToFix = (): void => {
@@ -282,11 +288,15 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: durationSeconds('fast') }}
-          // Enter trong ô nhập một dòng ở bước 1 thì đi tiếp, như bấm nút chân hộp.
+          // Enter trong ô nhập một dòng ở bước 1 và 2 thì đi tiếp, như bấm nút chân hộp.
           onKeyDown={(event) => {
-            if (event.key === 'Enter' && step === 1 && event.target instanceof HTMLInputElement && gate.ready) {
+            if (event.key !== 'Enter' || !(event.target instanceof HTMLInputElement)) return;
+            if (step === 1 && gate.ready) {
               event.preventDefault();
               props.goNext();
+            } else if (step === 2 && event.target.type !== 'checkbox' && event.target.type !== 'radio') {
+              event.preventDefault();
+              setFloorsEnterCount((count) => count + 1);
             }
           }}
         >

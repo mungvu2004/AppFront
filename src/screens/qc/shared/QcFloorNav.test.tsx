@@ -1,5 +1,5 @@
-import { render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ROUTES } from '@/routes/paths';
@@ -129,5 +129,58 @@ describe('QcFloorNav (UX-R1 K25, UX-R2 K04)', () => {
     const menu = screen.getByLabelText('Đổi tầng: đang ở Tầng 1').closest('details')!;
 
     expect(within(menu).getByRole('link', { name: 'Tầng 2' }).getAttribute('href')).toBe(ROUTES.project.grids('p1', 'f2'));
+  });
+});
+
+function Where() {
+  return <p data-testid="where">{useLocation().pathname}</p>;
+}
+
+describe('QcFloorNav: phím đổi bước và tầng trống', () => {
+  it('U19: phím ] sang bước sau, [ về bước trước', () => {
+    review.scale = 'confirmed';
+    render(
+      <MemoryRouter initialEntries={[ROUTES.project.walls('p1', 'f1')]}>
+        <QcFloorNav floorId="f1" layer="walls" projectId="p1" />
+        <Where />
+      </MemoryRouter>,
+    );
+
+    fireEvent.keyDown(window, { key: ']' });
+    expect(screen.getByTestId('where')).toHaveTextContent(ROUTES.project.objects('p1', 'f1'));
+  });
+
+  it('U19: thiếu tỷ lệ thì ] không mở bước bị khoá', () => {
+    review.scale = 'missing';
+    render(
+      <MemoryRouter initialEntries={[ROUTES.project.scale('p1', 'f1')]}>
+        <QcFloorNav floorId="f1" layer="scale" projectId="p1" />
+        <Where />
+      </MemoryRouter>,
+    );
+
+    fireEvent.keyDown(window, { key: ']' });
+    expect(screen.getByTestId('where')).toHaveTextContent(ROUTES.project.scale('p1', 'f1'));
+  });
+
+  it('U52: tầng chưa có bản vẽ có nhãn trong menu đổi tầng', () => {
+    review.scale = 'confirmed';
+    render(
+      <MemoryRouter>
+        <QcFloorNav
+          floorId="f1"
+          floors={[
+            { id: 'f1', label: 'Tầng trệt', hasDrawing: true },
+            { id: 'f2', label: 'Tầng 1', hasDrawing: false },
+          ]}
+          layer="walls"
+          projectId="p1"
+        />
+      </MemoryRouter>,
+    );
+    const menu = screen.getByLabelText('Đổi tầng: đang ở Tầng trệt').closest('details')!;
+
+    expect(within(menu).getByRole('link', { name: /^Tầng 1\s+chưa có bản vẽ$/u })).toBeInTheDocument();
+    expect(within(menu).getByRole('link', { name: 'Tầng trệt' })).toBeInTheDocument();
   });
 });

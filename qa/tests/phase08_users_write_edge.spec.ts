@@ -27,6 +27,7 @@ import { waitForMail } from './support/mailpit';
 import { addProjectMember, createProject, deleteSeededProject, poolUser, removeProjectMember, type PoolUser } from './support/p08/pool';
 import {
   INVITATIONS,
+  INVITE_ROLE,
   ROLE,
   STATUS,
   T,
@@ -103,7 +104,7 @@ test.describe('E08 SCR-37 users write (edge)', () => {
       await test.step('[37W-A-001] mở khối mời', async () => {
         await openInviteButton(page).click(); // UMT:83
         await expect(box).toBeVisible();
-        await expect(page.getByLabel(T.inviteRole)).toContainText(ROLE.viewer);
+        await expect(page.getByLabel(T.inviteRole)).toContainText(ROLE.engineer); // U38: lời mời mặc định Kỹ sư
         await expect(submit).toBeDisabled();
         await expect(page.getByRole('button', { name: T.inviteCancel, exact: true })).toBeVisible();
         await ev(page, '37W-A-001');
@@ -263,7 +264,7 @@ test.describe('E08 SCR-37 users write (edge)', () => {
         await expect(page.getByRole('status')).toHaveCount(0, { timeout: 20_000 }); // toasts gone: no group merge
         await openInviteButton(page).click();
         await box.fill(`${e2},\n${e3}`);
-        await pickOption(page, role, ROLE.engineer);
+        await pickOption(page, role, INVITE_ROLE.engineer);
         await expect.soft(page.getByText(T.validChip(2), { exact: true })).toBeVisible();
         const post = nextResponse(page, 'POST', re(INVITATIONS), [201]);
         const r0 = rec.listReads();
@@ -282,8 +283,8 @@ test.describe('E08 SCR-37 users write (edge)', () => {
       await test.step('[37W-A-004] doi vai khong xoa o email', async () => {
         await openInviteButton(page).click();
         await box.fill(`${e4}\n${upper}`);
-        await pickOption(page, role, ROLE.admin);
-        await pickOption(page, role, ROLE.viewer);
+        await pickOption(page, role, INVITE_ROLE.admin);
+        await pickOption(page, role, INVITE_ROLE.viewer);
         await expect.soft(box).toHaveValue(`${e4}\n${upper}`);
         await ev(page, '37W-A-004');
       });

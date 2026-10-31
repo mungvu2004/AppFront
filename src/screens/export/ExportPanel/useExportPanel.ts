@@ -72,6 +72,7 @@ import type { ProjectRole } from '@/types/project';
 import {
   buildPreflightRows,
   countPdfPages,
+  floorStateOf,
   ExportAccessError,
   createExportPanelGateway,
   EXPORT_FORBIDDEN_CAPTION,
@@ -176,6 +177,13 @@ const PHASE_COUNT_UNIT: Readonly<Record<'build' | 'encode', string>> = Object.fr
  * tiên chưa có danh sách nào (BUG-446); giới hạn phiên làm việc do chính khối "Tệp đã xuất" nói.
  */
 const DESTINATION_CAPTION = 'Tệp tải về thư mục tải xuống của trình duyệt.';
+
+/**
+ * Hồ sơ PDF không tải tệp về: màn mở hộp thoại in, người dùng tự chọn "Lưu thành PDF" (U01).
+ * Nói đúng việc ấy, không hứa một tệp .pdf nằm sẵn trong thư mục tải xuống.
+ */
+export const PDF_DESTINATION_CAPTION =
+  'Hồ sơ PDF mở hộp thoại in của trình duyệt. Chọn “Lưu thành PDF” để lưu tệp.';
 
 /** Vì sao hồ sơ PDF mới đếm được trang mà chưa tải về được. */
 const PDF_NOTICE_CAPTION =
@@ -601,8 +609,9 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
         order: level.order,
         isSelected: isFloorSelected(level.id),
         isApproved: level.reviewed,
+        state: floorStateOf(graph, level, floorMeta?.[level.id]),
       })),
-    [floors, isFloorSelected],
+    [floors, isFloorSelected, graph, floorMeta],
   );
 
   const preflight = useMemo<readonly PreflightRow[]>(
@@ -618,7 +627,8 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     return snapshot.files.map((file) => ({
       id: file.id,
       fileName: file.fileName,
-      sizeLabel: formatFileSize(file.byteLength),
+      // Hồ sơ PDF là trang in, chưa phải tệp PDF: số byte của trang in không phải dung lượng tệp người dùng lưu (U01).
+      sizeLabel: file.formatId === 'pdf' ? MISSING_VALUE : formatFileSize(file.byteLength),
       momentLabel: formatTimestamp(file.exportedAtMs, nowMs),
       formatId: file.formatId,
     }));
@@ -802,7 +812,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     exportedFiles,
     progress,
     error: errorView,
-    destinationCaption: DESTINATION_CAPTION,
+    destinationCaption: selectedFormatId === 'pdf' ? PDF_DESTINATION_CAPTION : DESTINATION_CAPTION,
     noticeCaption,
     permissionCaption: canExport ? null : EXPORT_FORBIDDEN_CAPTION,
     isCollapsed: isCompact,

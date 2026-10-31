@@ -63,4 +63,27 @@ describe('pascal-vi', () => {
     const calls = (s) => s.split('setIsCollapsed(true)').length - 1;
     expect(calls(out)).toBe(calls(src.replaceAll('\r\n', '\n')) - 1);
   });
+
+  it('U16: bảng Cấu tạo tường và tên mẫu cấu tạo không còn chữ Anh', () => {
+    const tr = (file) => applyTable(readFileSync(path.join(PACKAGES, file), 'utf8'), file, PASCAL_VI_TABLES[file]);
+    const panel = tr('nodes/src/wall/panel.tsx');
+    for (const en of ['None (single layer)', "'Custom'", '`Hide ', '`Show ']) expect(panel).not.toContain(en);
+    expect(panel).toContain('Không (một lớp)');
+    expect(panel).toMatch(/tracking-wider">\r?\n\s+Trên\r?\n/);
+    const presets = [...tr('core/src/systems/wall/wall-assembly.ts').matchAll(/^ {4}label: '([^']+)',/gm)].map((m) => m[1]);
+    expect(presets.length).toBeGreaterThan(0);
+    expect(presets.filter((l) => /Exterior|Interior|siding|drywall/.test(l))).toEqual([]);
+  });
+
+  it('U37: người chỉ xem không thấy nút thêm tầng và không kéo đổi thứ tự tầng', () => {
+    const file = 'editor/src/components/ui/floating-level-selector.tsx';
+    const out = applyTable(readFileSync(path.join(PACKAGES, file), 'utf8'), file, PASCAL_VI_TABLES[file]);
+    expect(out).toContain('useSortable({ id: level.id, disabled: readOnly })');
+    expect(out.split('!draggingLevelId && !readOnly && (').length - 1).toBe(3);
+    expect(out).toContain("readOnly && 'hidden'");
+    expect(out).toContain('if (!readOnly) setIsEditing(true)');
+    const settings = 'editor/src/components/ui/sidebar/panels/settings-panel/index.tsx';
+    const s = applyTable(readFileSync(path.join(PACKAGES, settings), 'utf8'), settings, PASCAL_VI_TABLES[settings]);
+    expect(s).toContain("className={readOnly ? 'hidden' : 'grid grid-cols-2 gap-2'}");
+  });
 });

@@ -61,6 +61,7 @@ import {
   ROOM_LABEL_TEXT,
   ROOM_NAME_TARGETS,
   ROOM_NORMALIZE_COMMAND_TYPE,
+  usageOfRoomName,
 } from './roomLabelReviewGateway';
 import {
   ROOM_LABEL_REVIEW_SCENARIOS,
@@ -335,6 +336,37 @@ describe('diện tích — M-07 tính, màn chỉ đọc', () => {
     /* ĐỒNG NHẤT THAM CHIẾU: chỉ đúng khi `measureRoom` không chạy lại. */
     expect(after.labelAnchorMm).toBe(anchorBefore);
     expect(after.areaText).toBe(areaBefore);
+  });
+});
+
+describe('đặt tên là nhãn công năng thì công năng đổi theo (U44)', () => {
+  it('đặt "Phòng tắm" → công năng "bathroom"; tên tự do không đổi công năng', async () => {
+    const mounted = await mountSettled();
+    const usageBefore = rowOf(mounted, ROOM_R005.id).usage;
+
+    await act(async () => {
+      mounted.result.current.onRename(ROOM_R005.id, 'tên tự do');
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(nameInStore(ROOM_R005.id)).toBe('tên tự do');
+    });
+    expect(rowOf(mounted, ROOM_R005.id).usage).toBe(usageBefore);
+
+    await act(async () => {
+      mounted.result.current.onRename(ROOM_R005.id, 'Phòng tắm');
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(rowOf(mounted, ROOM_R005.id).usage).toBe('bathroom');
+    });
+    expect(nameInStore(ROOM_R005.id)).toBe('Phòng tắm');
+  });
+
+  it('usageOfRoomName khớp nhãn không phân biệt hoa thường, tên tự do → null', () => {
+    expect(usageOfRoomName(' phòng tắm ')).toBe('bathroom');
+    expect(usageOfRoomName('Bếp')).toBe('kitchen');
+    expect(usageOfRoomName('Phòng ngủ chính')).toBeNull();
   });
 });
 

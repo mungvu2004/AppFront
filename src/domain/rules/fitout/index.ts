@@ -353,6 +353,13 @@ export const checkFixtureOffWall: FitoutCheck = (context) => {
  */
 export const checkWindowOnInnerWall: FitoutCheck = (context) => {
   const findings: FitoutFinding[] = [];
+  // A window onto a lô gia sits in an inner wall in every Vietnamese flat (U08):
+  // the lô gia is the outside for the room behind it.
+  const loggiaWallIds = new Set(
+    entitiesInScope(context, 'room')
+      .filter((item) => item.usage === 'loggia')
+      .flatMap((item) => item.wallIds),
+  );
 
   for (const opening of entitiesInScope(context, 'opening')) {
     if (opening.kind !== 'window') {
@@ -361,7 +368,7 @@ export const checkWindowOnInnerWall: FitoutCheck = (context) => {
 
     const wall = findEntity(context, 'wall', opening.wallId);
 
-    if (wall === null || wall.kind === 'envelope') {
+    if (wall === null || wall.kind === 'envelope' || loggiaWallIds.has(wall.id)) {
       continue;
     }
 
@@ -369,7 +376,8 @@ export const checkWindowOnInnerWall: FitoutCheck = (context) => {
       finding(
         opening.id,
         [opening.id, wall.id],
-        `Cửa sổ ${displayCodeIn(context.graph, opening.id)} nằm trên tường ${displayCodeIn(context.graph, wall.id)}, không phải tường bao ngoài.`,
+        `Cửa sổ ${displayCodeIn(context.graph, opening.id)} nằm trên tường ${displayCodeIn(context.graph, wall.id)}, ` +
+          'nhưng tường này đang ghi là tường trong nhà. Thường là AI phân loại nhầm tường, không phải lỗi của căn hộ.',
         `Đổi tường ${displayCodeIn(context.graph, wall.id)} thành tường bao ngoài nếu đã phân loại nhầm, ` +
           `hoặc đổi ${displayCodeIn(context.graph, opening.id)} thành cửa đi, hoặc xoá cửa sổ này.`,
       ),
@@ -386,10 +394,10 @@ export const checkWindowOnInnerWall: FitoutCheck = (context) => {
 /**
  * Severities, and why each one.
  *
- * A window on an inner wall is `critical`: it is a classification that is wrong
- * on its face and it poisons the daylight rules downstream. The other two are
- * `warning` — both describe a pair that cannot both be right, and a person may
- * look at the drawing and sign either off.
+ * All three are `warning`. A window on an inner wall used to be `critical`, but
+ * it is almost always a wall the AI classified wrong, not a fault in the flat,
+ * and a homeowner reading "nghiêm trọng" for it panicked (U08). The other two
+ * describe a pair that cannot both be right, and a person may sign either off.
  */
 export const roomFurnitureMismatchRule: Rule = {
   code: 'ROOM-FURNITURE-MISMATCH',
@@ -415,9 +423,9 @@ export const windowOnInnerWallRule: Rule = {
   code: 'WINDOW-ON-INNER-WALL',
   name: 'Cửa sổ nằm trên tường bao ngoài',
   group: 'geometry',
-  severity: 'critical',
+  severity: 'warning',
   scope: 'level',
-  dependsOn: ['opening', 'wall'],
+  dependsOn: ['opening', 'room', 'wall'],
   check: checkWindowOnInnerWall,
 };
 

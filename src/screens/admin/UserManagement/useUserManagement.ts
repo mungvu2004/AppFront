@@ -598,7 +598,8 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
   const [isPermissionReferenceOpen, setPermissionReferenceOpen] = useState(false);
   const [isInviteOpen, setInviteOpen] = useState(false);
   const [rawEmails, setRawEmails] = useState('');
-  const [inviteRole, setInviteRole] = useState<ProjectRole>('viewer');
+  // U38: mời người vào làm việc nên mặc định là vai được sửa (Kỹ sư); "Người xem" dễ quên đổi.
+  const [inviteRole, setInviteRole] = useState<ProjectRole>('engineer');
   /** BUG-P08-027: lỗi máy chủ gắn vào field `emails` — hiện ở chính ô nhập, tắt khi sửa chữ. */
   const [inviteServerError, setInviteServerError] = useState<string | null>(null);
   const inviteInFlightRef = useRef(false);
