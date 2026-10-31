@@ -81,3 +81,10 @@ UX-R1 (desktop 1920 review):
     - `build-tab.tsx` `openBuildTabWithoutArming()`: "Sửa mô hình" opens Dựng in Select (no wall tool armed).
     - `lib/apartment-tools.ts`: Sàn/Trần/Cột moved behind "Thêm"; `../pascal-chrome.css` hides Vùng (Z), Xoá (X),
       Tham chiếu, Tiện ích, Lưu/Nạp bản dựng, Audio and "Xoá hết và làm lại".
+
+SketchUp UX:
+
+16. `page.tsx` mounts `<DraftAssist />` (`../draftAssist/`): while a wall is being drafted, typing a length
+    (`3500`, `3,5`, `350cm`) and Enter commits the segment at that exact length along the cursor direction; a chip
+    beside the cursor names the snap (Đầu tường / Trung điểm / Giao điểm / Trên tường / Thẳng hàng).
+    `components/canvas-help.tsx` shows `ToolHint` (next step of the armed tool) where the Delete banner sits.

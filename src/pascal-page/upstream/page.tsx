@@ -54,6 +54,7 @@ import { translateDefinition } from './lib/pascal-vi'
 import { isMeasureActive } from './lib/select-exits-measure'
 import { useSelectExitsMeasure } from './lib/use-select-exits-measure'
 import { fitModel } from './lib/view-frame'
+import { DraftAssist } from '../draftAssist/DraftAssist'
 
 // The open-source editor only ships the built-in catalog (no uploaded items),
 // so the Library/Community/Mine source chips and tag filters add nothing —
@@ -418,6 +419,8 @@ export default function Home({ projectId, onLoad, onSave, readOnly, backCard, pr
       {/* AppFront edit (Codex P1): every floor lacks a scale -> empty scene, say why mid-screen. */}
       <ScaleEmptyNotice projectId={projectId} readOnly={readOnly} />
       <MeasureClearButton />
+      {/* AppFront edit (SketchUp UX): typed wall length + snap label beside the cursor. */}
+      <DraftAssist />
     </div>
   )
 }
