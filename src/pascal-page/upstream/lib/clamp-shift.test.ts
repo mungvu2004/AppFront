@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { clampShift, clearOfShift, unionBox } from './clamp-shift'
+import { describe, expect, it, vi } from 'vitest'
+import { clampShift, clearOfShift, pollLayout, unionBox } from './clamp-shift'
 
 describe('clampShift (G5-09)', () => {
   it('leaves a bar that fits alone', () => {
@@ -45,5 +45,20 @@ describe('unionBox (pascal-polish)', () => {
     // banner at 768 px (left 212, right 596): the card alone misses the "+", the grown box does not
     const banner = { left: 212, right: 596, top: 56, bottom: 88 }
     expect(clearOfShift(banner, grown, 768)).toEqual({ dx: 32, dy: 0 })
+  })
+})
+
+describe('pollLayout (UX-01)', () => {
+  it('runs at once, then on each tick, and stops when told', () => {
+    vi.useFakeTimers()
+    const fn = vi.fn()
+    const stop = pollLayout(fn, 100)
+    expect(fn).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(350)
+    expect(fn).toHaveBeenCalledTimes(4)
+    stop()
+    vi.advanceTimersByTime(500)
+    expect(fn).toHaveBeenCalledTimes(4)
+    vi.useRealTimers()
   })
 })
