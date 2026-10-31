@@ -531,25 +531,6 @@ function hasSwingingLeaf(opening: Opening): boolean {
   return opening.kind === 'door' && opening.swing !== 'sliding' && opening.swing !== 'fixed';
 }
 
-/** Which rooms name each wall as part of their boundary. */
-function roomsByWall(rooms: readonly Room[]): Map<string, Room[]> {
-  const index = new Map<string, Room[]>();
-
-  for (const room of rooms) {
-    for (const wallId of room.wallIds) {
-      const bucket = index.get(wallId);
-
-      if (bucket === undefined) {
-        index.set(wallId, [room]);
-      } else {
-        bucket.push(room);
-      }
-    }
-  }
-
-  return index;
-}
-
 /* -------------------------------------------------------------------------- */
 /* 1 — ROOM-NO-DOOR.                                                           */
 /* -------------------------------------------------------------------------- */
@@ -694,19 +675,14 @@ interface EscapeNode {
 }
 
 function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[] {
-  const byWall = roomsByWall(rooms);
   const onOutlineToleranceMm =
     context.thresholds?.['escape.openingOnOutlineToleranceMm'] ?? OPENING_ON_OUTLINE_TOLERANCE_MM;
   const links: DoorLink[] = [];
-  // The AI pipeline marks every wall `partition`, so a plan without a single
-  // envelope wall says nothing about which side is outdoors. There, a door
-  // that opens onto exactly one room has nothing behind it but the outside.
-  // ponytail: an undetected inner space (a corridor the AI missed) also reads
-  // as outdoors; drop this once the pipeline marks envelope walls itself.
-  const plannedEnvelope = entitiesInScope(context, 'wall').some(
-    (item) => item.kind === 'envelope',
-  );
-
+  // A door that opens onto exactly one room has nothing detected behind it:
+  // the outside, or a corridor the AI did not outline. Either way it is a way
+  // on, not a dead end — a bedroom with a door is not trapped (U08).
+  // ponytail: an undetected inner space reads as outdoors; tighten once the
+  // pipeline outlines every corridor.
   for (const opening of entitiesInScope(context, 'opening')) {
     if (opening.kind !== 'door') {
       continue;
@@ -721,8 +697,11 @@ function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[
     const at = openingCentre(wall, opening);
 
     // Only the rooms this door is actually cut into; naming the wall is not
-    // enough, or one long party wall would join every room along it.
-    const roomIds = (byWall.get(wall.id) ?? [])
+    // enough, or one long party wall would join every room along it. A room
+    // that does not list the host wall still counts when the door sits on its
+    // outline: the AI often splits a wall at the door, so the room beyond names
+    // a different piece (U08).
+    const roomIds = rooms
       .filter((room) => opensOnto(at, room, onOutlineToleranceMm))
       .map((room) => room.id);
 
@@ -730,7 +709,7 @@ function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[
       openingId: opening.id,
       at,
       roomIds,
-      leadsOutside: wall.kind === 'envelope' || (!plannedEnvelope && roomIds.length === 1),
+      leadsOutside: wall.kind === 'envelope' || roomIds.length === 1,
     });
   }
 

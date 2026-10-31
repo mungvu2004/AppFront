@@ -829,8 +829,51 @@ describe('the way out', () => {
     expect(runCheck(checkEscapeDistance, plan)).toEqual([]);
   });
 
-  it('reports a room whose doors lead nowhere out', () => {
-    // The plan names its envelope, and the door is not in it.
+  it('reports a room whose only door leads into a closed room', () => {
+    // The door joins the living room to a store room that has no other door.
+    const plan = planOf({
+      walls: [
+        wall('WINNER', { x: 0, y: 0 }, { x: 6000, y: 0 }),
+        envelope('WOUTER', { x: 0, y: 4000 }, { x: 6000, y: 4000 }),
+      ],
+      openings: [opening('DINNER', wallId('WINNER'), 2650, 700)],
+      rooms: [
+        room(
+          'LV',
+          'livingRoom',
+          [
+            { x: 0, y: 0 },
+            { x: 6000, y: 0 },
+            { x: 6000, y: 4000 },
+            { x: 0, y: 4000 },
+          ],
+          [wallId('WINNER'), wallId('WOUTER')],
+          24,
+        ),
+        room(
+          'ST',
+          'utility',
+          [
+            { x: 2000, y: -2000 },
+            { x: 4000, y: -2000 },
+            { x: 4000, y: 0 },
+            { x: 2000, y: 0 },
+          ],
+          [wallId('WINNER')],
+          4,
+        ),
+      ],
+    });
+
+    const found = runCheck(checkEscapeDistance, plan).filter((item) => item.entityId === roomId('LV'));
+
+    expect(found).toHaveLength(1);
+    expect(found[0]?.message).toContain('không có đường nào');
+  });
+
+  it('treats a door onto nothing detected as a way on, even with an envelope (U08)', () => {
+    // The plan names its envelope; the bedroom door opens onto a corridor the
+    // AI did not outline. The bedroom has a way out.
     const plan = planOf({
       walls: [
         wall('WINNER', { x: 0, y: 0 }, { x: 6000, y: 0 }),
@@ -853,10 +896,7 @@ describe('the way out', () => {
       ],
     });
 
-    const found = runCheck(checkEscapeDistance, plan);
-
-    expect(found).toHaveLength(1);
-    expect(found[0]?.message).toContain('không có đường nào');
+    expect(runCheck(checkEscapeDistance, plan)).toEqual([]);
   });
 
   it('counts a door on the outer edge as a way out when the AI marked no envelope (J-13)', () => {

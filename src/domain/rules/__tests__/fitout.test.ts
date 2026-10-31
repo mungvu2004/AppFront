@@ -503,6 +503,20 @@ describe('checkWindowOnInnerWall', () => {
     );
   });
 
+  it('accepts a window onto a lô gia, whose wall is an inner wall by nature (U08)', () => {
+    const loggia = {
+      ...rectangleRoom('LG', 'loggia', { x: 3000, y: 0 }, { x: 4500, y: 4000 }),
+      wallIds: [SPINE.id],
+    };
+
+    expect(
+      runCheck(
+        checkWindowOnInnerWall,
+        planOf({ walls: SHELL, openings: [window('W9', SPINE.id)], rooms: [loggia] }),
+      ),
+    ).toEqual([]);
+  });
+
   it('accepts a window in the envelope and ignores doors anywhere', () => {
     expect(
       runCheck(

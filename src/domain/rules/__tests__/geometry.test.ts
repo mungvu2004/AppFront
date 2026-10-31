@@ -615,8 +615,33 @@ describe('rooms that are not sealed', () => {
     expect(found[0]?.entityId).toBe(WEST_ROOM);
     expect(found[0]?.message).toContain(lengthText(5200));
     expect(found[0]?.message).toContain('3 chỗ hở');
-    expect(found[0]?.message).toContain('(-600; 2.000)');
-    expect(found[0]?.suggestion).toContain('(-600; 2.000)');
+    // U08: plain words, no raw plan coordinates.
+    expect(found[0]?.message).not.toContain('(-600; 2.000)');
+    expect(found[0]?.suggestion).toContain('Sửa');
+  });
+
+  it('reads a door-wide gap in the middle of a side as a doorway, not a hole (U08)', () => {
+    const plan = createCleanPlan();
+    // Cut a 900 mm doorway into the middle of the west wall.
+    const walls = plan.walls.flatMap((item) =>
+      item.id === GROUND_WEST
+        ? [
+            wall('GWEST', { x: 0, y: 4000 }, { x: 0, y: 2450 }),
+            wall('GWEST2', { x: 0, y: 1550 }, { x: 0, y: 0 }),
+          ]
+        : [item],
+    );
+
+    expect(runCheck(checkRoomClosure, { ...plan, walls }, GROUND)).toEqual([]);
+  });
+
+  it('leaves a lô gia, open to the outside by design, alone (U08)', () => {
+    const plan = createFaultyPlan();
+    const rooms = plan.rooms.map((item) =>
+      item.id === WEST_ROOM ? { ...item, usage: 'loggia' as const } : item,
+    );
+
+    expect(runCheck(checkRoomClosure, { ...plan, rooms }, GROUND)).toEqual([]);
   });
 
   it('says nothing about a room whose every side has a wall along it', () => {
