@@ -59,6 +59,9 @@ const STATUS_LABEL: Readonly<Record<RoomLabelStatus, string>> = {
   confirmed: 'Đã duyệt',
 };
 
+/** UX-24: tên người duyệt tự gõ, chưa duyệt — không gắn "AI đề xuất". */
+const TYPED_NAME_STATUS_LABEL = 'Tên do bạn đặt, chưa duyệt';
+
 /** Chữ ngắn đi cạnh chấm màu trong dòng (K16) — câu đầy đủ ở `aria-label`. */
 const STATUS_SHORT_LABEL: Readonly<Record<RoomLabelStatus, string>> = {
   unnamed: 'Cần đặt tên',
@@ -85,7 +88,7 @@ function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus, fl
 
   return (
     <div
-      aria-label={`${room.codeLabel} · ${nameText} · ${room.areaText} · ${STATUS_LABEL[room.status]}${flag === null ? '' : ` · ${flag}`}`}
+      aria-label={`${room.codeLabel} · ${nameText} · ${room.areaText} · ${room.status === 'suggested' && !room.nameFromOcr ? TYPED_NAME_STATUS_LABEL : STATUS_LABEL[room.status]}${flag === null ? '' : ` · ${flag}`}`}
       aria-selected={isSelected}
       className={cn(
         'flex cursor-pointer flex-col justify-center gap-0.5 rounded-lg px-2 py-1 text-[13px] outline-hidden',

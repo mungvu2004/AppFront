@@ -828,6 +828,25 @@ describe('P04 cụm C — thanh tra phòng chỉ mời việc làm được (SCR
     expect(approve).toHaveAccessibleDescription('Đặt tên phòng trước khi duyệt.');
   });
 
+  it('[UX-24] phòng chưa tên: ô tên trống; gõ tên là duyệt được ngay, không cần Enter', async () => {
+    await renderSettled('partial');
+
+    fireEvent.click(screen.getAllByRole('option', { name: /Cần chú ý$/u })[0] as HTMLElement);
+
+    const field = await screen.findByRole('textbox', { name: 'Tên phòng' });
+
+    expect(field).toHaveValue('');
+
+    fireEvent.change(field, { target: { value: 'Kho KS' } });
+
+    const approve = screen.getByRole('button', { name: /^Duyệt #R-/u });
+
+    expect(approve).toBeEnabled();
+    fireEvent.click(approve);
+
+    expect(await screen.findByRole('button', { name: 'Đã duyệt' })).toBeInTheDocument();
+  });
+
   it('[BUG-586/605] câu tách phòng chỉ đúng đường, và nút "Sang lớp tường" đi tới đó', async () => {
     const onNavigate = vi.fn();
     const rendered = renderWithProviders(
