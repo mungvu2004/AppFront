@@ -15,6 +15,7 @@
 import { ChevronDown, ChevronRight, Unlink } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { Button } from '@/components/ui/Button';
 import type { RoomId, WallId } from '@/domain/spatial/types';
 import type { CommandItem } from '@/hooks/useCommandPalette';
 import { useScreenCommands } from '@/hooks/useScreenCommands';
@@ -164,6 +165,14 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice, oversizedRoom
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2 pb-4 pt-2">
+        {/* UX-18: duyệt hàng loạt như bước Tường và Cửa — chỉ phòng máy chắc chắn, một bước hoàn tác. */}
+        {panel.approveConfidentRoomsLabel == null || panel.onApproveConfidentRooms === undefined ? null : (
+          <div className="px-1">
+            <Button fullWidth onClick={panel.onApproveConfidentRooms} size="sm" variant="primary">
+              {panel.approveConfidentRoomsLabel}
+            </Button>
+          </div>
+        )}
         {emptyListNotice !== null ? (
           <p className="px-3 py-4 text-[13px] text-text-secondary" role="status">
             {emptyListNotice}

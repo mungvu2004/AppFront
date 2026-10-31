@@ -201,7 +201,9 @@ export type FloorUploadBlockReasonKind =
   | 'missingElevation'
   | 'duplicateElevation'
   | 'uploading'
-  | 'noFloors';
+  | 'noFloors'
+  /** Không chặn: thay bản vẽ của tầng đã có kết quả, hỏi lại một lần trước khi xử lý (UX-51). */
+  | 'replacesDrawing';
 
 /**
  * Một lý do, đã nêu tên tầng và mang theo mã tầng.
@@ -235,6 +237,8 @@ export interface FloorUploadFooterModel {
   readonly counterLabelKey: string;
   readonly submitLabel: string;
   readonly submitLabelKey: string;
+  /** Dự án đã xử lý, chưa thả tệp mới (UX-07): nút là "Xử lý lại", kiểu phụ, hỏi trước khi chạy. */
+  readonly isReprocess?: boolean;
   /**
    * Bấm nút chính có bắt đầu xử lý được không.
    *
@@ -319,6 +323,8 @@ export interface FloorUploadModel {
   readonly tray: FloorUploadTrayModel;
   readonly footer: FloorUploadFooterModel;
   readonly blockNotice: FloorUploadBlockNotice | null;
+  /** Dự án đã có tầng xử lý xong (UX-07): câu nói rõ điều đó; `null` khi chưa xử lý hoặc đang tải tệp mới. */
+  readonly processedNotice?: string | null;
   /** Câu hỏi "tầng hay căn riêng" khi thả từ hai tệp trở lên (K19). Vắng/`null` khi không hỏi. */
   readonly splitPrompt?: FloorUploadSplitPromptModel | null;
   /** Các dự án vừa tạo, mỗi căn một dự án (K19). Vắng/`null` khi chưa tạo. */
@@ -389,6 +395,8 @@ export interface FloorUploadActions {
   readonly onRetryLoad: () => void;
   /** Dự án chưa có tầng: tới màn Quản lý tầng (BUG-298). Vắng khi không sửa được hoặc không có router. */
   readonly onAddFloors?: (() => void) | undefined;
+  /** Về Duyệt tầng khi bản vẽ đã xử lý (UX-07). Vắng khi không có router. */
+  readonly onOpenReview?: (() => void) | undefined;
   /** Cấp "Dự án" của breadcrumb: về danh sách dự án. Vắng thì cấp ấy là chữ trơn. */
   readonly onBackToProjects?: (() => void) | undefined;
   /** Đóng lỗi trong thẻ của một tệp. Không đụng tới tệp khác. */

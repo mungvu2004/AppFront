@@ -3,8 +3,8 @@
  * + một câu so với chuẩn) → đổi độ dày → thông số → nút theo loại đoạn.
  *
  * View THUẦN (R-60): mọi chuỗi số (`lengthLabel`, câu so chuẩn…) đã định dạng ở hook (A15).
- * Độ dày là ô chọn trong thang chuẩn — CẤM ô nhập số tự do; sáu chip không vừa panel và chồng
- * chữ (K16). Menu "Đổi độ dày" đưa focus vào ô chọn (BUG-604). "Độ tin cậy" nói bằng chữ, số ở
+ * Độ dày là ô chọn trong thang chuẩn, cộng "Khác…" mở ô nhập mm (60–600) để giữ đúng số bản vẽ
+ * (UX-10); sáu chip không vừa panel và chồng chữ (K16). Menu "Đổi độ dày" đưa focus vào ô chọn (BUG-604). "Độ tin cậy" nói bằng chữ, số ở
  * phần nâng cao; ẩn khi mọi đoạn cùng một giá trị (không giúp quyết định).
  */
 
@@ -13,12 +13,14 @@ import { useEffect, useId, useRef, useState } from 'react';
 
 import { AnimatePresence, motion } from '@/components/motion';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { FieldRow } from '@/components/ui/FieldRow';
 import { durationSeconds } from '@/lib/motion';
 import { WALL_KIND_LABELS } from '@/lib/commands/business/shared';
 import { cn } from '@/lib/utils';
 
-import type { WallLayerViewProps, WallThicknessChoice } from './types';
+import { CUSTOM_MAX_MM, CUSTOM_MIN_MM, parseCustomThickness } from './customThickness';
+import type { WallLayerViewProps } from './types';
 import { WallLayerInspectorActions } from './WallLayerInspectorActions';
 import { WallScaleLockNotice } from './WallScaleLockNotice';
 import type { WallReviewQueue } from './wallReviewQueue';
@@ -42,6 +44,11 @@ const THICKNESS_ARIA_LABEL = 'Độ dày tường';
 // UX41 U48: số này có thể đã được người sửa — không gọi là "đo được". Số máy đo gốc chưa có trên wire.
 const MEASURED_LABEL = 'Độ dày hiện tại';
 const CHANGE_THICKNESS_LABEL = 'Đổi độ dày';
+const CUSTOM_OPTION_VALUE = 'other';
+const CUSTOM_OPTION_LABEL = 'Khác…';
+const CUSTOM_INPUT_LABEL = 'Độ dày khác, mm';
+const CUSTOM_APPLY_LABEL = 'Áp dụng';
+const CUSTOM_RANGE_ERROR = `Nhập số từ ${CUSTOM_MIN_MM} đến ${CUSTOM_MAX_MM} mm.`;
 const NON_STANDARD_LABEL = 'Không chuẩn';
 const REVIEWED_LABEL = 'Đã duyệt';
 const UNREVIEWED_LABEL = 'Chưa duyệt';
@@ -56,8 +63,65 @@ function ValueRow({ label, value, isLast = false }: { readonly label: string; re
   );
 }
 
+function CustomThicknessField({
+  text,
+  errorId,
+  onTextChange,
+  onApply,
+}: {
+  readonly text: string;
+  readonly errorId: string;
+  readonly onTextChange: (text: string) => void;
+  readonly onApply: (value: number) => void;
+}) {
+  const value = parseCustomThickness(text);
+  const isInvalid = text.trim() !== '' && value === null;
+
+  return (
+    <form
+      className="mt-2 flex flex-col gap-1"
+      onSubmit={(event) => {
+        event.preventDefault();
+
+        if (value !== null) {
+          onApply(value);
+        }
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <input
+          aria-describedby={isInvalid ? errorId : undefined}
+          aria-invalid={isInvalid}
+          aria-label={CUSTOM_INPUT_LABEL}
+          className="h-9 min-w-0 flex-1 rounded-md border border-border-default bg-bg-surface px-2 text-[14px] tabular-nums text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          inputMode="numeric"
+          max={CUSTOM_MAX_MM}
+          min={CUSTOM_MIN_MM}
+          onChange={(event) => onTextChange(event.target.value)}
+          step={1}
+          type="number"
+          value={text}
+        />
+        <span className="text-body-sm text-text-secondary">mm</span>
+        <Button disabled={value === null} type="submit" variant="secondary">
+          {CUSTOM_APPLY_LABEL}
+        </Button>
+      </div>
+      {isInvalid ? (
+        <p className="text-caption text-state-violation" id={errorId}>
+          {CUSTOM_RANGE_ERROR}
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
 export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
   const [isAdvancedOpen, setAdvancedOpen] = useState(false);
+  /* UX-10: ô "Khác…" gắn với đúng đoạn đang mở — chọn đoạn khác thì tự đóng. */
+  const [customFor, setCustomFor] = useState<string | null>(null);
+  const [customText, setCustomText] = useState('');
+  const customId = useId();
   const advancedId = useId();
   const lockId = useId();
   const thicknessRef = useRef<HTMLSelectElement | null>(null);
@@ -137,9 +201,18 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
                   aria-label={THICKNESS_ARIA_LABEL}
                   className="h-9 min-w-0 flex-1 rounded-md border border-border-default bg-bg-surface px-2 text-[14px] tabular-nums text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={lockText !== null}
-                  onChange={(event) => onChangeThickness(inspector.id, Number(event.target.value) as WallThicknessChoice)}
+                  onChange={(event) => {
+                    if (event.target.value === CUSTOM_OPTION_VALUE) {
+                      setCustomFor(inspector.id);
+                      setCustomText(String(inspector.thicknessMm));
+                      return;
+                    }
+
+                    setCustomFor(null);
+                    onChangeThickness(inspector.id, Number(event.target.value));
+                  }}
                   ref={thicknessRef}
-                  value={String(inspector.thicknessMm)}
+                  value={customFor === inspector.id ? CUSTOM_OPTION_VALUE : String(inspector.thicknessMm)}
                 >
                   {/* Độ dày đo không nằm trong thang: hiện đúng số đó, không chọn lại được. */}
                   {isOffScale ? (
@@ -148,9 +221,21 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
                   {thicknessChoices.map((choice) => (
                     <option key={choice} value={String(choice)}>{`${choice} mm`}</option>
                   ))}
+                  <option value={CUSTOM_OPTION_VALUE}>{CUSTOM_OPTION_LABEL}</option>
                 </select>
               </label>
             )}
+            {!isViewerRole && lockText === null && customFor === inspector.id ? (
+              <CustomThicknessField
+                errorId={customId}
+                onApply={(value) => {
+                  setCustomFor(null);
+                  onChangeThickness(inspector.id, value);
+                }}
+                onTextChange={setCustomText}
+                text={customText}
+              />
+            ) : null}
             {showLockHere && !isViewerRole ? (
               <p className="mt-2 text-caption leading-snug text-state-violation" id={lockId}>
                 {lockText}
@@ -205,7 +290,7 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
             {/* Khoá tỷ lệ: thay mọi nút sửa/duyệt bằng lý do + lối sang bước Tỷ lệ. */}
             {scaleLock === null ? (
               <WallLayerInspectorActions
-                confirmDelete={inspector.kindLabel === WALL_KIND_LABELS.envelope}
+                confirmDelete={inspector.kindLabel === WALL_KIND_LABELS.envelope || inspector.isLongWall === true}
                 extra={extra}
                 isNonStandard={isNonStandard}
                 isReviewed={isReviewed}

@@ -54,6 +54,7 @@ import { PasswordField } from '../PasswordField';
 import { FIELD_ERROR_SLOT } from '../RecoveryShell';
 import { useReturnFocus } from '../useReturnFocus';
 import { ForgotPasswordPanel } from './ForgotPasswordPanel';
+import { useAutoFocusRing } from './useAutoFocusRing';
 
 /* Chữ của bản Z S-01 (ba câu của màn). Chờ chuyển vào `vi.json` khối `auth` — khối đó đọc lúc chạy
    và nằm ngoài thư mục màn, nên tạm là hằng ở đây. */
@@ -158,6 +159,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
     },
     [actions],
   );
+  const emailField = useAutoFocusRing(registerFirstField, blur('email'), FIELD_ERROR_SLOT); // UX-34
 
   /* A strip's way out goes under it, full width and the height of "Đăng nhập" (BUG-059), not into
      its `action` slot: beside the text it squeezes the sentence into a ~100 px column at 360 px (BUG-003).
@@ -177,11 +179,10 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           so a complaint appearing or going moves nothing under the cursor (BUG-008). */}
       <div className="flex flex-col">
         <Input
-          ref={registerFirstField}
+          {...emailField}
           type="email"
           label={AUTH_MESSAGES.fields.email}
           autoComplete="username"
-          wrapperClassName={FIELD_ERROR_SLOT}
           value={values.email}
           disabled={fieldsDisabled}
           {...(problems.email !== undefined ? { error: problems.email } : {})}
@@ -189,7 +190,6 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           onChange={(event) => {
             actions.setEmail(event.target.value);
           }}
-          onBlur={blur('email')}
         />
 
         {/* "Quên mật khẩu" dưới ô, ngoài `<label>`: chỗ nhìn trùng thứ tự Tab (U46), tên ô vẫn là "Mật khẩu". */}

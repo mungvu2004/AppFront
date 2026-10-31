@@ -52,7 +52,10 @@ import {
   ROOM_LABEL_FIXTURE_UNNAMED_COUNT,
 } from './roomLabelFixture';
 import {
+  approveConfidentRoomsLabelOf,
   canonicalRoomName,
+  confidentRoomsOf,
+  scaleSegmentOf,
   createMockRoomLabelReviewGateway,
   hasRoomName,
   provisionalMeasureText,
@@ -948,6 +951,23 @@ describe('[K10] tên giả của máy và đường bao tràn ra ngoài', () => 
     expect(hasRoomName({ name: '  ', source: 'human' })).toBe(false);
   });
 
+  it('[UX-18] phòng duyệt hàng loạt: chưa duyệt, có tên thật, máy chắc chắn, không bị loại', () => {
+    const room = (id: string, patch: Partial<Room>): Room =>
+      ({ id, name: 'Bếp', source: 'ai', reviewed: false, confidence: 0.9, ...patch }) as unknown as Room;
+    const rooms = [
+      room('sure', {}),
+      room('unsure', { confidence: 0.4 }),
+      room('done', { reviewed: true }),
+      room('fake', { name: 'phòng 5' }),
+      room('spill', {}),
+      /* UX-24: tên người gõ (lệnh đổi tên đặt `source: 'human'`) không còn là "máy chắc chắn". */
+      room('typed', { source: 'human' }),
+    ];
+
+    expect(confidentRoomsOf(rooms, new Set(['spill'] as unknown as RoomId[])).map((item) => item.id)).toEqual(['sure']);
+    expect(approveConfidentRoomsLabelOf(3)).toBe('Duyệt 3 phòng máy chắc chắn');
+  });
+
   it('phòng trong nhà có đỉnh vượt tường bao quá 150 mm thì bị gắn cờ; phòng nằm gọn hoặc nằm hẳn ngoài thì không', () => {
     const wall = (id: string, x1: number, y1: number, x2: number, y2: number) =>
       ({
@@ -1024,5 +1044,22 @@ describe('[K10] đường bao tràn ra ngoài: chặn duyệt ở hook', () => {
 
     expect(reviewedInStore()).toBe(false);
     expect(useStore.getState().selectedIds).toEqual([spillRoom.id]);
+  });
+});
+
+describe('[UX-08] đoạn đo tỷ lệ vẽ lên bản vẽ Phòng', () => {
+  it('đổi tỷ lệ khung vuông sang mm của ảnh nằm giữa, kèm số đo', () => {
+    /* Ảnh 20.000 × 10.000 mm: khung vuông cạnh 20.000, dải trống dọc 5.000 mỗi bên. */
+    const segment = scaleSegmentOf(
+      { start: { x: 0.1, y: 0.5 }, end: { x: 0.502, y: 0.5 } },
+      { widthMm: 20000, heightMm: 10000 },
+    );
+
+    expect(segment?.startMm.x).toBeCloseTo(2000);
+    expect(segment?.startMm.y).toBeCloseTo(5000);
+    expect(segment?.endMm.x).toBeCloseTo(10040);
+    expect(segment?.caption).toBe('Đoạn đo tỷ lệ: 8.040 mm');
+    expect(scaleSegmentOf(null, { widthMm: 1, heightMm: 1 })).toBeNull();
+    expect(scaleSegmentOf({ start: { x: 0, y: 0 }, end: { x: 1, y: 1 } }, null)).toBeNull();
   });
 });

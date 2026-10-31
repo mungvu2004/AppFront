@@ -67,6 +67,7 @@ export function createAnnouncer(doc: Document = document): Announcer {
 
   const queue: string[] = [];
   let pumping = false;
+  let queuedBeforeAlert = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
 
@@ -89,7 +90,12 @@ export function createAnnouncer(doc: Document = document): Announcer {
 
     pumping = true;
     // Tin mới hơn (ví dụ "Đã lưu") làm cảnh báo cũ hết đúng: đừng để vùng alert giữ nó mãi (U13).
-    assertiveRegion.textContent = '';
+    // Tin xếp hàng TRƯỚC cảnh báo thì không xoá nó, dù đến lượt đọc sau.
+    if (queuedBeforeAlert > 0) {
+      queuedBeforeAlert -= 1;
+    } else {
+      assertiveRegion.textContent = '';
+    }
     write(politeRegion, next);
     timer = setTimeout(pump, ANNOUNCE_GAP_MS);
   };
@@ -101,6 +107,7 @@ export function createAnnouncer(doc: Document = document): Announcer {
 
     if (urgency === 'assertive') {
       write(assertiveRegion, message);
+      queuedBeforeAlert = queue.length;
 
       return;
     }

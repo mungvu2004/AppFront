@@ -16,6 +16,7 @@
  * dùng `variant="neutral"` cho cả hai, chữ đọc được luôn đi kèm dấu chấm màu.
  */
 import { SearchX } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Avatar } from '@/components/ui/Avatar';
@@ -42,6 +43,9 @@ const NO_MATCH_DESCRIPTION = 'Không ai khớp với từ khoá hoặc bộ lọ
 const CLEAR_SEARCH_LABEL = 'Xoá tìm kiếm và bộ lọc';
 const INVITE_EXPIRED_LABEL = 'Lời mời đã hết hạn';
 const RESEND_INVITE_LABEL = 'Gửi lại';
+const NEW_INVITE_LABEL = 'Vừa mời';
+/** UX-47: hàng vừa mời giữ nền chọn (không chỉ nháy) để mắt tìm thấy sau khi bảng cuộn tới. */
+const NEW_INVITE_CLASS = 'bg-bg-selected';
 const DISABLE_LABEL = 'Vô hiệu hoá';
 const ENABLE_LABEL = 'Bật lại';
 const REMOVE_LABEL = 'Xoá';
@@ -72,11 +76,35 @@ interface StatusCellProps {
 
 function StatusCell({ row }: StatusCellProps) {
   // Một chip: lời mời hết hạn thay chữ trạng thái, không thêm dòng phụ.
-  return (
+  const status = (
     <Badge className="whitespace-nowrap" variant="neutral">
       {row.inviteExpired ? INVITE_EXPIRED_LABEL : row.statusLabel}
     </Badge>
   );
+  if (row.isNewInvite !== true) return status;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+      {status}
+      <Badge className="whitespace-nowrap" variant="attention">
+        {NEW_INVITE_LABEL}
+      </Badge>
+    </span>
+  );
+}
+
+/**
+ * UX-47: sau lượt mời, cuộn tới hàng mời đầu tiên — một lần mỗi lượt mời (khoá = danh sách id),
+ * không giật lại mỗi lần bảng vẽ lại.
+ */
+function useScrollToNewInvite<TElement extends HTMLElement>(rows: readonly UserRowModel[]) {
+  const targetRef = useRef<TElement>(null);
+  const newIds = rows.filter((row) => row.isNewInvite === true).map((row) => row.id);
+  const key = newIds.join(',');
+  useEffect(() => {
+    if (key === '') return;
+    targetRef.current?.scrollIntoView?.({ block: 'center' });
+  }, [key]);
+  return { firstNewId: newIds[0] ?? null, targetRef };
 }
 
 interface RowActionsProps {
@@ -190,15 +218,19 @@ interface UserListProps {
 
 /** Dưới 1024: bảng thành một cột thẻ xếp chồng. */
 function UserManagementCardList({ actions, roleOptions, rows }: UserListProps) {
+  const { firstNewId, targetRef } = useScrollToNewInvite<HTMLLIElement>(rows);
   return (
     <ul className="flex flex-col gap-2">
       {rows.map((row) => (
         <li
           className={cn(
             'flex flex-col gap-3 rounded-lg border border-border-default p-3',
+            row.isNewInvite === true && NEW_INVITE_CLASS,
             row.justChanged && 'bg-bg-flash duration-340',
           )}
+          data-new-invite={row.isNewInvite === true ? 'true' : undefined}
           key={row.id}
+          ref={row.id === firstNewId ? targetRef : undefined}
         >
           <div className="flex items-center gap-3">
             <Avatar alt={row.name} initials={initialsOf(row.name, row.email)} size="default" {...avatarSrcProp(row.avatarUrl)} />
@@ -273,6 +305,7 @@ export function UserManagementTable({
   state,
 }: UserManagementTableProps) {
   const withSecondary = selectedUserId === null;
+  const { firstNewId, targetRef } = useScrollToNewInvite<HTMLTableRowElement>(rows);
 
   if (state === 'loading') {
     return (
@@ -299,9 +332,11 @@ export function UserManagementTable({
       <Table.Body>
         {rows.map((row) => (
           <Table.Row
-            className={cn(ROW_HEIGHT, row.justChanged && 'duration-340')}
+            className={cn(ROW_HEIGHT, row.isNewInvite === true && NEW_INVITE_CLASS, row.justChanged && 'duration-340')}
+            data-new-invite={row.isNewInvite === true ? 'true' : undefined}
             isFlash={row.justChanged}
             key={row.id}
+            ref={row.id === firstNewId ? targetRef : undefined}
             selected={row.id === selectedUserId}
           >
             {/* Dưới 1280 bỏ ảnh đại diện (tên + email đủ nhận ra người) để cột "Hành động" không bị cắt ở 1024. */}

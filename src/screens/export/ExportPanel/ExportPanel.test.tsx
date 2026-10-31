@@ -369,7 +369,7 @@ describe('capabilities false → giao diện tương ứng rời khỏi DOM, kh�
     expect(screen.queryByText('.pdf')).toBeNull();
     expect(container.textContent).not.toContain(pdfCard.pageCountLabel);
 
-    // Nút Xuất vẫn có mặt nhưng mờ, kèm lý do ở chân trang.
+    // Nút Vẫn xuất có mặt nhưng mờ, kèm lý do ở chân trang.
     expect(screen.getByRole('button', { name: /^Xuất (\.glb|\.json|PDF|ảnh)$/u })).toHaveProperty('disabled', true);
   });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { countOpeningsByKind, openingsOfRoom } from '../roomOpenings';
+import { countOpeningsByKind, openGapsOfRoom, openingsOfRoom } from '../roomOpenings';
 import type { Opening, Point, Room, Wall } from '../types';
 
 /* -------------------------------------------------------------------------- */
@@ -249,5 +249,45 @@ describe('countOpeningsByKind', () => {
 
   it('is zero for an empty list', () => {
     expect(countOpeningsByKind([])).toEqual({ doorCount: 0, windowCount: 0 });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* openGapsOfRoom (UX-03, r4 H-01).                                            */
+/* -------------------------------------------------------------------------- */
+
+describe('openGapsOfRoom', () => {
+  // Trimmed from r4 H-01: bedroom x 7506-10000, y 6548-9000; its top edge has a
+  // wall only from x 8650, so 1144 mm open onto an undrawn lobby whose far side
+  // (y 3000) is walled. The bottom edge faces nothing: the outdoors.
+  const bedroom = room(
+    'BR01',
+    [
+      { x: 7506, y: 6548 },
+      { x: 10000, y: 6548 },
+      { x: 10000, y: 9000 },
+      { x: 7506, y: 9000 },
+    ],
+    ['TOP', 'RIGHT', 'LEFT'],
+  );
+  const walls = [
+    wall('TOP', { x: 8650, y: 6548 }, { x: 10000, y: 6548 }),
+    wall('RIGHT', { x: 10000, y: 6548 }, { x: 10000, y: 9000 }),
+    wall('LEFT', { x: 7506, y: 3000 }, { x: 7506, y: 9000 }),
+    wall('FAR', { x: 7000, y: 3000 }, { x: 11000, y: 3000 }),
+  ];
+
+  it('finds the wall-less gap onto the lobby and not the open side onto the outdoors', () => {
+    const gaps = openGapsOfRoom(bedroom, walls);
+
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]?.at.y).toBe(6548);
+    expect(gaps[0]?.lengthMm).toBeGreaterThanOrEqual(1100);
+  });
+
+  it('ignores a gap narrower than a person', () => {
+    const narrow = [wall('TOP', { x: 7900, y: 6548 }, { x: 10000, y: 6548 }), ...walls.slice(1)];
+
+    expect(openGapsOfRoom(bedroom, narrow)).toHaveLength(0);
   });
 });

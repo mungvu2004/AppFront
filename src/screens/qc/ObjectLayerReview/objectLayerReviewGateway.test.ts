@@ -6,17 +6,22 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import {
   approvableObjectsOf,
   approveConfidentLabelOf,
+  approveUnsureLabelOf,
   buildChangeFurnitureKindCommand,
   confidentObjectsOf,
+  confirmUnsureLabelOf,
+  doorSizeWarningOf,
   drawnFurnitureInputOf,
   levelOfGraph,
   objectPlacementsOf,
   objectsOf,
+  reviewBreakdownLabelOf,
   scaleOfLevel,
   solidWallsOf,
   toObjectInspector,
   toObjectRow,
   toPaintSubject,
+  unsureObjectsOf,
 } from './objectLayerReviewGateway';
 import { OBJECT_LAYER_FIXTURE_OBJECTS } from './objectLayerFixture';
 import { clientToViewBoxPoint } from './objectLayerSymbols';
@@ -184,5 +189,25 @@ describe('objectLayerReviewGateway: duyệt hàng loạt (U04)', () => {
   it('máy chắc = còn lại và không dưới ngưỡng', () => {
     expect(confidentObjectsOf(objects, 0.75).map((object) => object.id)).toEqual(['sure']);
     expect(approveConfidentLabelOf(1)).toBe('Duyệt 1 mục máy chắc chắn');
+  });
+
+  it('UX-06: chưa chắc = còn lại dưới ngưỡng; các nhóm cộng đúng bằng số cần xem', () => {
+    expect(unsureObjectsOf(objects, 0.75).map((object) => object.id)).toEqual(['unsure']);
+    expect(approveUnsureLabelOf(22)).toBe('Duyệt 22 mục máy chưa chắc');
+    expect(confirmUnsureLabelOf(22)).toContain('22 mục máy chưa chắc?');
+    expect(reviewBreakdownLabelOf(objects, 0.75)).toBe(
+      '4 cần xem = 1 máy chắc chắn + 1 máy chưa chắc + 1 gợi ý + 1 chưa gắn tường',
+    );
+    expect(reviewBreakdownLabelOf([variant('done', { reviewed: true })], 0.75)).toBeNull();
+  });
+});
+
+describe('objectLayerReviewGateway: narrow door hint (UX-48)', () => {
+  it('warns only on doors narrower than 600 mm', () => {
+    expect(doorSizeWarningOf({ layer: 'door', widthMm: 392 })).toBe('Cửa hẹp bất thường (392 mm), kiểm lại');
+    expect(doorSizeWarningOf({ layer: 'door', widthMm: 600 })).toBeNull();
+    expect(doorSizeWarningOf({ layer: 'door', widthMm: 900 })).toBeNull();
+    expect(doorSizeWarningOf({ layer: 'window', widthMm: 392 })).toBeNull();
+    expect(doorSizeWarningOf({ layer: 'furniture', widthMm: 392 })).toBeNull();
   });
 });

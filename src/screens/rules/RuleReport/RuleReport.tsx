@@ -277,7 +277,7 @@ export function RuleReport(props: RuleReportViewProps) {
         size="sm"
         variant={noCritical ? 'primary' : 'secondary'}
         iconAfter={<ArrowRight aria-hidden="true" size={16} />}
-        onClick={noCritical ? props.onConfirmResolved : () => setExportConfirmOpen(true)}
+        onClick={noCritical ? () => props.onConfirmResolved() : () => setExportConfirmOpen(true)}
       >
         Sang Xuất
       </Button>
@@ -410,7 +410,7 @@ export function RuleReport(props: RuleReportViewProps) {
         onCancel={() => setExportConfirmOpen(false)}
         onConfirm={() => {
           setExportConfirmOpen(false);
-          props.onConfirmResolved();
+          props.onConfirmResolved(true);
         }}
         violationsText={count(summary.violations)}
       />

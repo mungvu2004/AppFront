@@ -182,6 +182,8 @@ export function CreateProjectModalContainer(props: CreateProjectModalContainerPr
         isOpen={props.isOpen}
         // Căn hộ một tầng là phổ biến nhất: bắt đầu với một tầng, thêm bằng "Thêm tầng" (U40).
         initialFloorCount={1}
+        // Chung cư thường cao 3,0 m sàn–sàn: điền sẵn, vẫn sửa được (UX-20).
+        initialFloorHeightM={3}
         onDismiss={props.onDismiss}
         {...(props.onCreated !== undefined ? { onCreated: props.onCreated } : {})}
         {...(props.onToast !== undefined ? { onToast: props.onToast } : {})}

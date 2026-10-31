@@ -60,7 +60,7 @@
  */
 
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
@@ -148,7 +148,11 @@ function WiredExportPanel(props: WiredExportPanelProps) {
       void navigate(href);
     });
 
+  // UX-25: đã đồng ý "Vẫn sang Xuất" ở Quy chuẩn thì Xuất không hỏi lại.
+  const routeState = useLocation().state as { readonly exportConfirmed?: boolean } | null;
+
   const viewProps = useExportPanel({
+    exportAlreadyConfirmed: routeState?.exportConfirmed === true,
     onNavigate,
     onShare: () => setShareOpen(true),
     projectId: props.projectId,

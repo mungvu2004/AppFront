@@ -120,7 +120,7 @@ import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
 import { describePipelineError } from '../pipelineErrorText';
-import { estimateSentence, typicalRunMinutes } from '@/lib/viewmodel/processingEstimate';
+import { estimateSentence, medianRunMinutes, minutesForMegapixels } from '@/lib/viewmodel/processingEstimate';
 import { createAppProcessingGateway, toStageBreakdown } from './processingGateway';
 import type {
   ProcessingExtractionSummary,
@@ -223,6 +223,25 @@ const partialSentence = (failedNames: string, othersRunning: boolean): string =>
 const NO_DIMENSION_SENTENCE =
   'Không đọc được số kích thước nào, nên hệ thống chưa tự suy ra tỷ lệ: bạn cần đặt tỷ lệ.';
 
+/**
+ * UX-02: không đọc được số kích thước nhưng mọi tầng đã có tỷ lệ (đặt tay hoặc máy đề xuất, ít nhất một
+ * tầng máy đề xuất) — nói tỷ lệ đến từ đâu thay vì "không đọc được số". `null` khi còn tầng chưa có tỷ lệ.
+ */
+export function proposedScaleNoteOf(
+  parts: readonly Pick<ProcessingExtractionSummary, 'hasScale' | 'scaleProposed' | 'scaleNoteRatio'>[],
+): string | null {
+  const proposed = parts.filter((part) => part.scaleProposed === true);
+  if (proposed.length === 0 || !parts.every((part) => part.hasScale === true || part.scaleProposed === true)) {
+    return null;
+  }
+  const ratios = new Set(proposed.map((part) => part.scaleNoteRatio));
+  const [ratio] = ratios;
+
+  return ratios.size === 1 && ratio !== undefined
+    ? `Tỷ lệ lấy từ ghi chú TL 1:${formatNumber(ratio)} trên bản vẽ`
+    : 'Máy ước lượng tỷ lệ, cần kiểm ở bước Tỷ lệ';
+}
+
 const lowConfidenceSentence = (count: string): string =>
   `${count} chỗ máy chưa chắc, nên xem lại.`;
 
@@ -243,6 +262,10 @@ const DEFAULT_ROLES: readonly ProjectRole[] = ['engineer'];
 
 /** Nhịp cập nhật câu ước lượng U09: mốc tính bằng phút, không cần mỗi giây. */
 const ESTIMATE_TICK_MS = 10 * MILLISECONDS_PER_SECOND;
+const MILLISECONDS_PER_MINUTE = 60 * MILLISECONDS_PER_SECOND;
+/** UX-29: chưa có lượt nào xong thì chỉ nói mốc ngắn này, khi cỡ ảnh cũng đoán vậy. */
+const SHORT_GUESS_MINUTES = 2;
+const SHORT_GUESS_SENTENCE = 'Thường dưới 2 phút.';
 
 /** Danh tính một lượt trong sổ theo dõi nền — một dự án có thể có nhiều lượt. */
 const watchIdOf = (projectId: string, uploadId: string): string => `${projectId}:${uploadId}`;
@@ -1429,6 +1452,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     const actions = {
       onReviewWalls: goTo(ROUTES.project.walls, reviewIndex < 0 ? doneIndex : reviewIndex),
       onCalibrateScale: goTo(ROUTES.project.scale, noScaleIndex < 0 ? doneIndex : noScaleIndex),
+      onOpenViewer3d: () => navigate(ROUTES.project.viewer(projectId)),
       ...(reviewReasons.length > 0 ? { reviewReasons } : {}),
     };
 
@@ -1461,6 +1485,13 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       },
     );
 
+    // UX-28: số đếm theo tầng đang xem (tiêu đề ghi tên tầng); chưa có số của tầng đó thì tổng mọi tầng.
+    const focused = extractions[focusIndex];
+    const isFocusedOnly = parts.length > 1 && focused !== undefined;
+    const shown = isFocusedOnly ? focused : total;
+    const shownParts = isFocusedOnly ? [focused] : parts;
+    const proposedScaleNote = proposedScaleNoteOf(parts);
+
     const threshold =
       total.confidenceThreshold === null
         ? null
@@ -1468,14 +1499,20 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
 
     return {
       metricLabels: [
-        countLabel(total.wallCount, UNIT.wall),
+        countLabel(shown.wallCount, UNIT.wall),
         // K52: cửa và nội thất ghi riêng — tổng gộp đã có cả tường, phòng nên đọc như nhóm thứ ba là sai.
-        `${countLabel(total.openingCount, UNIT.opening)}, ${countLabel(total.furnitureCount, UNIT.furniture)}`,
-        countLabel(total.dimensionCount, UNIT.dimensionChain),
-        countLabel(total.roomCount, UNIT.room),
-        parts.some((part) => part.hasScale === false) ? 'Chưa có tỷ lệ' : formatArea(totalArea(total.roomOutlinesMm)),
+        `${countLabel(shown.openingCount, UNIT.opening)}, ${countLabel(shown.furnitureCount, UNIT.furniture)}`,
+        countLabel(shown.dimensionCount, UNIT.dimensionChain),
+        countLabel(shown.roomCount, UNIT.room),
+        shownParts.some((part) => part.hasScale === false)
+          ? 'Chưa có tỷ lệ'
+          : formatArea(totalArea(shown.roomOutlinesMm)),
       ],
-      ...(total.dimensionCount === 0 ? { noDimensionSentence: NO_DIMENSION_SENTENCE } : {}),
+      ...(total.dimensionCount !== 0
+        ? {}
+        : proposedScaleNote === null
+          ? { noDimensionSentence: NO_DIMENSION_SENTENCE }
+          : { scaleSourceNote: proposedScaleNote }),
       ...(parts.every((part) => part.hasScale === true) ? { scaleKnown: true } : {}),
       ...(threshold === null
         ? {}
@@ -1487,7 +1524,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
           }),
       ...actions,
     };
-  }, [extractions, floorStatuses, navigate, projectId]);
+  }, [extractions, floorStatuses, focusIndex, navigate, projectId]);
 
   const overallSummaryLine = useMemo(() => {
     if (records.length === 0) return uploadsPending ? LOADING_RUNS_SENTENCE : NO_RUN_SENTENCE;
@@ -1545,7 +1582,11 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   }, [canRunInBackground]);
   const estimateLine = useMemo(() => {
     if (waitClock === null) return undefined;
-    const minutes = typicalRunMinutes(runsQuery.data ?? [], sourceImageMegapixels);
+    // UX-29: chỉ lượt đã xong thật mới cho số phút. Chưa có lượt nào thì đoán cỡ ảnh chỉ được nói
+    // "dưới 2 phút"; đoán lâu hơn từng ghi "4 phút" cho lượt xong sau 55 giây — thà không nói.
+    const history = medianRunMinutes(runsQuery.data ?? []);
+    const guess = sourceImageMegapixels === null ? null : minutesForMegapixels(sourceImageMegapixels);
+    const minutes = history ?? (guess !== null && guess <= SHORT_GUESS_MINUTES ? SHORT_GUESS_MINUTES : null);
     if (minutes === null) return undefined;
     // Lượt đang chạy có trong N7b thì tính từ lúc nó được tạo; không thì từ lúc màn bắt đầu chờ.
     const uploadIds = new Set(floorUploads.map((upload) => upload.uploadId));
@@ -1557,7 +1598,10 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       .map((run) => Date.parse(run.createdAt))
       .filter(Number.isFinite);
     const since = startedAt.length === 0 ? waitClock.since : Math.min(...startedAt);
-    return estimateSentence(minutes, Math.max(0, waitClock.now - since));
+    const elapsedMs = Math.max(0, waitClock.now - since);
+    return history === null && elapsedMs <= minutes * MILLISECONDS_PER_MINUTE
+      ? SHORT_GUESS_SENTENCE
+      : estimateSentence(minutes, elapsedMs);
   }, [floorUploads, runsQuery.data, sourceImageMegapixels, waitClock]);
 
   const partialNoticeLine =

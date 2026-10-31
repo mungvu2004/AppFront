@@ -4,6 +4,7 @@ import type { ApiClient } from '@/api/client';
 import type { FloorLayerSaver } from '@/lib/autosave/spatialLayerSave';
 import { getSessionSnapshot } from '@/lib/auth/state';
 import { guardBeforeUnload } from '@/lib/autosave/beforeUnload';
+import { clearPendingEdits, notePendingEdit } from '@/lib/autosave/pendingEdits';
 import { queryClient } from '@/lib/query/queryClient';
 
 import { createAutosave, type Autosave, type AutosaveEngine } from '../lib/autosave/createAutosave';
@@ -282,6 +283,39 @@ export const FLOOR_LAYER_RELOAD_DISCARDED = 'Đã tải lại bản mới nhất
 /** Toast khi quay lại tab mà tầng đã được sửa ở nơi khác (U14): kho nạp bản mới, không đợi 409. */
 export const FLOOR_LAYER_UPDATED_ELSEWHERE = 'Tầng này vừa được sửa ở nơi khác. Đã cập nhật bản mới nhất.';
 
+/**
+ * UX-43: tab lưu xong một tầng thì báo các tab khác cùng trình duyệt — tab cũ đọc bản mới ngay,
+ * không đợi người dùng sửa rồi mới gặp 409 (focus/visibilitychange không phải lúc nào cũng có).
+ */
+export const FLOOR_LAYER_SAVED_CHANNEL = 'floor-layer-saved';
+
+interface PeerSaved {
+  floorId?: string;
+  projectId?: string;
+}
+
+/** Một kênh cho cả tab, gửi và nghe chung: kênh không tự nhận tin của chính nó, nên tab không tự đọc lại. */
+let peerChannel: BroadcastChannel | null | undefined;
+const peerListeners = new Set<(saved: PeerSaved) => void>();
+
+const peer = (): BroadcastChannel | null => {
+  if (peerChannel === undefined) {
+    peerChannel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(FLOOR_LAYER_SAVED_CHANNEL);
+
+    if (peerChannel) {
+      peerChannel.onmessage = (event: MessageEvent<PeerSaved | null>) => {
+        peerListeners.forEach((listener) => listener(event.data ?? {}));
+      };
+    }
+  }
+
+  return peerChannel;
+};
+
+const announceSaved = (projectId: string, floorId: string): void => {
+  peer()?.postMessage({ floorId, projectId });
+};
+
 const bump = (target: SaverBook): void => {
   target.version += 1;
   target.listeners.forEach((listener) => listener());
@@ -328,6 +362,7 @@ const attachSaver = (target: SaverBook, loaded: Pipes): void => {
       }
 
       loaded.applyInvalidation(queryClient, 'persistSpatialLayer', { floorId, projectId });
+      announceSaved(projectId, floorId);
 
       if (scaleSent) {
         loaded.applyInvalidation(queryClient, 'persistFloorScale', { floorId, projectId });
@@ -351,6 +386,10 @@ const attachSaver = (target: SaverBook, loaded: Pipes): void => {
   });
   target.saver.subscribe((unsavedFloorIds) => {
     useStore.getState().setUnsavedFloorIds(unsavedFloorIds);
+    // UX-40: đã gửi hết thì dải mất mạng không còn thao tác nào chờ.
+    if (unsavedFloorIds.length === 0) {
+      clearPendingEdits();
+    }
     bump(target);
   });
 
@@ -371,6 +410,7 @@ const closeBook = (target: SaverBook, flush: boolean): void => {
   target.stops.forEach((stop) => stop());
   mountedAutosaves.delete(target.engine);
   useStore.getState().setUnsavedFloorIds([]);
+  clearPendingEdits();
 };
 
 /** Saver của cặp `userId:projectId` hiện tại; đổi khoá thì đóng saver cũ (cùng người: xả trước). */
@@ -442,6 +482,8 @@ function openBook(projectId: string): SaverBook {
         return;
       }
 
+      notePendingEdit();
+
       if (created.saver && pipes) {
         markChanged(
           created,
@@ -478,6 +520,8 @@ function openBook(projectId: string): SaverBook {
 
 /** Đóng saver đang sống, không xả — chỉ cho `beforeEach` của test. */
 export function __resetFloorLayerSavers(): void {
+  peerChannel?.close();
+  peerChannel = undefined;
   if (book) {
     closeBook(book, false);
     book = null;
@@ -618,10 +662,11 @@ export function useFloorLayerAutosave({
       );
     };
 
-    const refresh = (): void => {
+    // `fromPeer`: tab khác vừa lưu tầng này — đọc cả khi tab đang ẩn, để lúc quay lại đã là bản mới.
+    const refresh = (fromPeer: boolean): void => {
       const local = useStore.getState().floorMeta[floorId]?.revision;
 
-      if (document.visibilityState === 'hidden' || local === undefined || isStale(local)) {
+      if ((!fromPeer && document.visibilityState === 'hidden') || local === undefined || isStale(local)) {
         return;
       }
 
@@ -634,17 +679,28 @@ export function useFloorLayerAutosave({
           }
 
           loaded.applyFloorLayerRead(floorId, read.data);
+          // Số đếm của màn (vd. "31 cần xem") đọc qua truy vấn cũng phải đọc lại, không chỉ kho (UX-43).
+          loaded.applyInvalidation(queryClient, 'persistSpatialLayer', { floorId, projectId: current.projectId });
           appNotificationBus.publish({ description: '', title: FLOOR_LAYER_UPDATED_ELSEWHERE, type: 'floor-layer-refresh' });
         })
         .catch(() => undefined);
     };
+    const onReturn = (): void => refresh(false);
+    const onPeerSaved = (saved: PeerSaved): void => {
+      if (saved.projectId === current.projectId && saved.floorId === floorId) {
+        refresh(true);
+      }
+    };
 
-    window.addEventListener('focus', refresh);
-    document.addEventListener('visibilitychange', refresh);
+    peer();
+    peerListeners.add(onPeerSaved);
+    window.addEventListener('focus', onReturn);
+    document.addEventListener('visibilitychange', onReturn);
 
     return () => {
-      window.removeEventListener('focus', refresh);
-      document.removeEventListener('visibilitychange', refresh);
+      peerListeners.delete(onPeerSaved);
+      window.removeEventListener('focus', onReturn);
+      document.removeEventListener('visibilitychange', onReturn);
     };
   }, [current, floorId]);
 

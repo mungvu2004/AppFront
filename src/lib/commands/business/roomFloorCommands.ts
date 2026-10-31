@@ -257,7 +257,8 @@ export function createRenameRoomCommand(
       ROOM_FLOOR_COMMAND_TYPES.renameRoom,
       `Đổi tên phòng ${displayCodeIn(context.graph, room.id)} từ "${room.name}" thành "${name}", diện tích ` +
         `${formatAreaM2(room.areaM2)}.`,
-      [changeForUpdate('room', room, { ...room, name })],
+      /* Tên người gõ là tên của người: `source: 'human'` để sau khi tải lại không còn nhãn AI (UX-24). */
+      [changeForUpdate('room', room, { ...room, name, source: 'human' })],
       context,
     ),
   );

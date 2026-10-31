@@ -40,6 +40,8 @@ import { Empty as ResetEmpty } from '@/screens/auth/PasswordReset/PasswordReset.
 import { useStore } from '@/store';
 
 import {
+  SESSION_RETRY_LABEL,
+  SESSION_RETRY_MS,
   SESSION_SLOW_LABEL,
   SESSION_SLOW_MS,
   SessionBootstrap,
@@ -327,6 +329,27 @@ describe('SessionGate — năm nhánh', () => {
       });
 
       expect(screen.getByRole('status', { name: SESSION_SLOW_LABEL })).toHaveAttribute('aria-busy', 'true');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('UX-42: chờ phiên quá 10 giây thì có nút Thử lại gọi lại phiên', () => {
+    vi.useFakeTimers();
+
+    try {
+      const onRetry = vi.fn();
+      renderGate({ onRetry, status: 'unknown' });
+
+      expect(screen.queryByRole('button', { name: SESSION_RETRY_LABEL })).not.toBeInTheDocument();
+      act(() => {
+        vi.advanceTimersByTime(SESSION_RETRY_MS);
+      });
+      act(() => {
+        screen.getByRole('button', { name: SESSION_RETRY_LABEL }).click();
+      });
+
+      expect(onRetry).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }

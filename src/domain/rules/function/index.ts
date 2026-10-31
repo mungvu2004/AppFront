@@ -34,7 +34,10 @@
  */
 
 import { computeCentroid, computeLargestInnerRectangle } from '../../rooms/area';
-import { openingsOfRoom as openingsOfRoomOfAnyKind } from '../../spatial/roomOpenings';
+import {
+  openGapsOfRoom,
+  openingsOfRoom as openingsOfRoomOfAnyKind,
+} from '../../spatial/roomOpenings';
 import { displayCodeIn } from '../../spatial/normalize';
 import type {
   BoundingBox,
@@ -559,6 +562,15 @@ function hasSwingingLeaf(opening: Opening): boolean {
 /* -------------------------------------------------------------------------- */
 
 /**
+ * A door-wide stretch of the room's outline with no wall on it, facing another
+ * room or an undrawn hall (shared helper `openGapsOfRoom`). Whether the gap
+ * should have been a wall is the closed-outline rule's finding, not this one.
+ */
+function hasOpenPassage(context: RuleContext, room: Room): boolean {
+  return openGapsOfRoom(room, entitiesInScope(context, 'wall')).length > 0;
+}
+
+/**
  * A room nobody can walk into.
  *
  * Which uses need a door of their own is the table's business, not this
@@ -576,7 +588,7 @@ export const checkRoomHasDoor: FunctionCheck = (context) => {
       continue;
     }
 
-    if (openingsOfRoom(context, room, 'door').length > 0) {
+    if (openingsOfRoom(context, room, 'door').length > 0 || hasOpenPassage(context, room)) {
       continue;
     }
 
@@ -736,6 +748,31 @@ function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[
       roomIds,
       leadsOutside: wall.kind === 'envelope' || (!plannedEnvelope && roomIds.length === 1),
     });
+  }
+
+  // A wall-less gap onto a hall nobody drew as a room is walked through like a
+  // door onto one room (r4 H-01 "phòng ngủ 01"); gaps between two drawn rooms
+  // are `openPassages`' job.
+  const walls = entitiesInScope(context, 'wall');
+
+  for (const room of rooms) {
+    for (const gap of openGapsOfRoom(room, walls)) {
+      const shared = rooms.some(
+        (other) =>
+          other !== room &&
+          compareNearly(distanceToOutline(gap.at, other.outline), onOutlineToleranceMm) <= 0,
+      );
+
+      if (!shared) {
+        links.push({
+          // The room itself: a gap is no entity a finding could point at.
+          openingId: room.id,
+          at: gap.at,
+          roomIds: [room.id],
+          leadsOutside: !plannedEnvelope,
+        });
+      }
+    }
   }
 
   return [...links, ...openPassages(context, rooms, onOutlineToleranceMm)];

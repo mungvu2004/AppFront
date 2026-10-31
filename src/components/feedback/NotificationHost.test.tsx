@@ -2,6 +2,7 @@ import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createNotificationBus } from '@/lib/mutations/notificationBus';
+import { createUndoTicket, LONG_UNDO_WINDOW_MS, UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
 
 import { NotificationHost } from './NotificationHost';
 import { OFFLINE_NOTICE } from './offlineNotice';
@@ -50,5 +51,46 @@ describe('NotificationHost — mất mạng (U56)', () => {
     });
 
     expect(screen.getByText(new RegExp(OFFLINE_NOTICE.title, 'u'))).toBeTruthy();
+  });
+});
+
+describe('NotificationHost — toast hoàn tác giữ đủ cửa sổ của vé (UX-35)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => setTimeout(() => { cb(Date.now()); }, 16));
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => { clearTimeout(id); });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('vé xoá tường 15 s: toast còn sau 8 s và 14 s, hết vé mới đi', async () => {
+    const bus = createNotificationBus();
+    render(<NotificationHost bus={bus} />);
+    const ticket = createUndoTicket({
+      description: 'Đã xoá tường số 4 (#W-007).',
+      ttlMs: LONG_UNDO_WINDOW_MS,
+      undo: () => undefined,
+    });
+
+    act(() => {
+      bus.publish({ type: 'wall-delete', title: ticket.description, description: '', undoTicket: ticket });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(UNDO_WINDOW_MS + 500);
+    });
+    expect(screen.getByText(/#W-007/u)).toBeTruthy();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(LONG_UNDO_WINDOW_MS - UNDO_WINDOW_MS - 1500);
+    });
+    expect(screen.getByText(/#W-007/u)).toBeTruthy();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    expect(screen.queryByText(/#W-007/u)).toBeNull();
   });
 });
