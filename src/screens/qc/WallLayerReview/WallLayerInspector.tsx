@@ -85,7 +85,7 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
   const showLockHere = scaleLock === null && lockText !== null && !(isNonStandard && extra !== undefined && extra.targetMm !== null);
 
   return (
-    <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-0 xl:h-full xl:w-full">
+    <div className="order-2 flex max-h-full min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-0 xl:h-full xl:w-full">
       <div className="flex h-11 shrink-0 items-end px-5">
         <h2 className="text-caption font-medium uppercase tracking-[0.06em] text-text-secondary">{PANEL_TITLE}</h2>
       </div>
@@ -96,7 +96,8 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
           <p className="px-5 pb-5 pt-2 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
         </div>
       ) : (
-        <div className="flex flex-1 flex-col overflow-y-auto pb-5">
+        <>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="flex items-center gap-2 px-5 pb-3 pt-1">
             {/* K16: mã không gãy giữa "#W-" và "001". */}
             <p className="shrink-0 whitespace-nowrap text-title tabular-nums text-text-primary">{inspector.codeLabel}</p>
@@ -197,7 +198,10 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
             </AnimatePresence>
           </div>
 
-          <div className="mt-auto flex flex-col items-stretch gap-2 px-5 pt-4">
+        </div>
+
+          {/* U20: nút duyệt nằm ngoài vùng cuộn, đứng đáy thẻ — ở 768 px vẫn thấy ngay, không phải cuộn. */}
+          <div className="flex shrink-0 flex-col items-stretch gap-2 border-t border-border-default px-5 pb-5 pt-3">
             {/* Khoá tỷ lệ: thay mọi nút sửa/duyệt bằng lý do + lối sang bước Tỷ lệ. */}
             {scaleLock === null ? (
               <WallLayerInspectorActions
@@ -215,7 +219,7 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
               <WallScaleLockNotice lock={scaleLock} />
             )}
           </div>
-        </div>
+        </>
       )}
     </div>
   );
